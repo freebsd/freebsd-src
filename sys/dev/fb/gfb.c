@@ -451,20 +451,14 @@ gfb_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
 }
 
 int
-gfb_mmap(video_adapter_t *adp, vm_offset_t offset, int prot)
+gfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_offset_t *paddr, int prot)
 {
-	int error;
 
+	/* XXX */
 	if(offset > adp->va_window_size - PAGE_SIZE)
-		error = ENXIO;
-#ifdef __i386__
-	error = i386_btop(adp->va_info.vi_window + offset);
-#elsif defined(__alpha__)
-	error = alpha_btop(adp->va_info.vi_window + offset);
-#else
-	error = ENXIO;
-#endif
-	return(error);
+		return(ENXIO);
+	*paddr = adp->va_info.vi_window + offset;
+	return(0);
 }
 
 int

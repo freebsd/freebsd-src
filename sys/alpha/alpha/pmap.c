@@ -2807,13 +2807,6 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 	}
 }
 
-vm_offset_t
-pmap_phys_address(ppn)
-	int ppn;
-{
-	return (alpha_ptob(ppn));
-}
-
 /*
  *	pmap_ts_referenced:
  *

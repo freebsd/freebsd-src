@@ -273,7 +273,7 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[unit];
 }
 
 static	int
-spigot_mmap(dev_t dev, vm_offset_t offset, int nprot)
+spigot_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 
@@ -285,5 +285,6 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 	if(nprot & PROT_EXEC)
 		return -1;
 
-	return i386_btop(ss->maddr);
+	*paddr = ss->maddr;
+	return 0;
 }

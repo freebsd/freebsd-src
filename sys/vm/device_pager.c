@@ -107,7 +107,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	d_mmap_t *mapfunc;
 	vm_object_t object;
 	unsigned int npages;
-	vm_offset_t off;
+	vm_offset_t off, paddr;
 
 	/*
 	 * Offset should be page aligned.
@@ -137,7 +137,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	 */
 	npages = OFF_TO_IDX(size);
 	for (off = foff; npages--; off += PAGE_SIZE)
-		if ((*mapfunc)(dev, off, (int) prot) == -1) {
+		if ((*mapfunc)(dev, off, &paddr, (int)prot) != 0) {
 			mtx_unlock(&Giant);
 			return (NULL);
 		}
@@ -205,7 +205,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	vm_offset_t paddr;
 	vm_page_t page;
 	dev_t dev;
-	int i;
+	int i, ret;
 	d_mmap_t *mapfunc;
 	int prot;
 
@@ -218,11 +218,11 @@ dev_pager_getpages(object, m, count, reqpage)
 	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop)
 		panic("dev_pager_getpage: no map function");
 
-	paddr = pmap_phys_address((*mapfunc) (dev, (vm_offset_t) offset << PAGE_SHIFT, prot));
-	KASSERT(paddr != -1,("dev_pager_getpage: map function returns error"));
+	ret = (*mapfunc)(dev, (vm_offset_t)offset << PAGE_SHIFT, &paddr, prot);
+	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
 	/*
-	 * Replace the passed in reqpage page with our own fake page and free up the
-	 * all of the original pages.
+	 * Replace the passed in reqpage page with our own fake page and
+	 * free up the all of the original pages.
 	 */
 	page = dev_pager_getfake(paddr);
 	TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);

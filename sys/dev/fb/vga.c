@@ -133,9 +133,10 @@ vga_ioctl(dev_t dev, vga_softc_t *sc, u_long cmd, caddr_t arg, int flag,
 }
 
 int
-vga_mmap(dev_t dev, vga_softc_t *sc, vm_offset_t offset, int prot)
+vga_mmap(dev_t dev, vga_softc_t *sc, vm_offset_t offset, vm_offset_t *paddr,
+	 int prot)
 {
-	return genfbmmap(&sc->gensc, sc->adp, offset, prot);
+	return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot);
 }
 
 #endif /* FB_INSTALL_CDEV */
@@ -2449,7 +2450,8 @@ vga_blank_display(video_adapter_t *adp, int mode)
  * all adapters
  */
 static int
-vga_mmap_buf(video_adapter_t *adp, vm_offset_t offset, int prot)
+vga_mmap_buf(video_adapter_t *adp, vm_offset_t offset, vm_offset_t *paddr,
+   	     int prot)
 {
     if (adp->va_info.vi_flags & V_INFO_LINEAR)
 	return -1;
@@ -2463,15 +2465,8 @@ vga_mmap_buf(video_adapter_t *adp, vm_offset_t offset, int prot)
     if (offset > adp->va_window_size - PAGE_SIZE)
 	return -1;
 
-#ifdef __i386__
-    return i386_btop(adp->va_info.vi_window + offset);
-#endif
-#ifdef __alpha__
-    return alpha_btop(adp->va_info.vi_window + offset);
-#endif
-#ifdef __ia64__
-    return ia64_btop(adp->va_info.vi_window + offset);
-#endif
+    *paddr = adp->va_info.vi_window + offset;
+    return 0;
 }
 
 #ifndef VGA_NO_MODE_CHANGE

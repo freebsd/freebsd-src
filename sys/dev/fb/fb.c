@@ -501,7 +501,7 @@ fbioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 static int
-fbmmap(dev_t dev, vm_offset_t offset, int nprot)
+fbmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 {
 	int unit;
 
@@ -509,7 +509,7 @@ fbmmap(dev_t dev, vm_offset_t offset, int nprot)
 	if (vidcdevsw[unit] == NULL)
 		return ENXIO;
 	return (*vidcdevsw[unit]->d_mmap)(makedev(0, adapter[unit]->va_minor),
-					  offset, nprot);
+					  offset, paddr, nprot);
 }
 
 #if experimental
@@ -591,9 +591,9 @@ int genfbioctl(genfb_softc_t *sc, video_adapter_t *adp, u_long cmd,
 }
 
 int genfbmmap(genfb_softc_t *sc, video_adapter_t *adp, vm_offset_t offset,
-	      int prot)
+	      vm_offset_t *paddr, int prot)
 {
-	return (*vidsw[adp->va_index]->mmap)(adp, offset, prot);
+	return (*vidsw[adp->va_index]->mmap)(adp, offset, paddr, prot);
 }
 
 #endif /* FB_INSTALL_CDEV */

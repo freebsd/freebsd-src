@@ -1278,7 +1278,8 @@ vesa_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-vesa_mmap(video_adapter_t *adp, vm_offset_t offset, int prot)
+vesa_mmap(video_adapter_t *adp, vm_offset_t offset, vm_offset_t *paddr,
+	  int prot)
 {
 #if VESA_DEBUG > 0
 	printf("vesa_mmap(): window:0x%x, buffer:0x%x, offset:0x%x\n", 
@@ -1290,14 +1291,10 @@ vesa_mmap(video_adapter_t *adp, vm_offset_t offset, int prot)
 		/* XXX: is this correct? */
 		if (offset > adp->va_window_size - PAGE_SIZE)
 			return -1;
-#ifdef __i386__
-		return i386_btop(adp->va_info.vi_buffer + offset);
-#endif
-#ifdef __alpha__ /* XXX */
-		return alpha_btop(adp->va_info.vi_buffer + offset);
-#endif
+		*paddr = adp->va_info.vi_buffer + offset;
+		return 0;
 	} else {
-		return (*prevvidsw->mmap)(adp, offset, prot);
+		return (*prevvidsw->mmap)(adp, offset, paddr, prot);
 	}
 }
 
