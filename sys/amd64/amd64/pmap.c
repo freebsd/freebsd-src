@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.216 1999/01/07 22:15:51 dt Exp $
+ *	$Id: pmap.c,v 1.217 1999/01/08 14:20:54 luoqi Exp $
  */
 
 /*
@@ -3227,8 +3227,10 @@ pmap_ts_referenced(vm_offset_t pa)
 	/*
 	 * Not found, check current mappings returning immediately if found.
 	 */
-	pvf = TAILQ_FIRST(&ppv->pv_list);
-	for (pv = pvf; pv && pv != pvf; pv = pvn) {
+	pvf = 0;
+	for (pv = TAILQ_FIRST(&ppv->pv_list); pv && pv != pvf; pv = pvn) {
+		if (!pvf)
+			pvf = pv;
 		pvn = TAILQ_NEXT(pv, pv_list);
 
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
