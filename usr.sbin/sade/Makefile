@@ -14,8 +14,8 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	ftp.c globals.c http.c index.c install.c installUpgrade.c keymap.c \
 	label.c lndir.c main.c makedevs.c media.c menus.c misc.c mouse.c \
 	msg.c network.c nfs.c options.c package.c pccard.c \
-	system.c tape.c tcpip.c termcap.c ufs.c user.c variable.c wizard.c \
-	keymap.h
+	system.c tape.c tcpip.c termcap.c ufs.c usb.c user.c variable.c \
+	wizard.c keymap.h
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
 .if ${MACHINE_ARCH} != "i386" || defined(X_AS_PKG)
