@@ -50,11 +50,12 @@ from "John Smith <jsm@bar.com>" in the simple, no-frills registration
 case.  If you do not have an email address, some sort of postal
 address will serve the same purpose.
 
-If you also wish to receive the upcoming FreeBSD Newsletter (soon to
-published and distributed free of charge by Walnut Creek CDROM) in
-printed form, then you must specify some sort of postal address.
-Likewise, if you elect to receive the email version then you should
-specify a valid Email address.
+If you also wish to receive the FreeBSD Newsletter, published and
+distributed free of charge by Walnut Creek CDROM in printed form,
+then you must specify some sort of postal address.  Likewise, if you
+elect to receive notification on the email version then you should
+specify a valid Email address.  Back-issues of the FreeBSD newsletter
+are available at http://ftp.freebsd.org/pub/FreeBSD/newsletter/
 
 Should you wish to unsubscribe to the FreeBSD Newsletter or otherwise
 de-register yourself at a later time, you can simply send mail to

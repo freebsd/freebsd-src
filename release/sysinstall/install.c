@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.59 1997/10/06 08:35:15 jkh Exp $
+ * $Id: install.c,v 1.134.2.60 1997/10/06 08:37:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -181,7 +181,7 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
 		   "cause you trouble if you're not exactly sure what you are doing!");
     }
-    if (!vardev && whinge) {
+    if (!vardev && whinge && variable_cmp(SYSTEM_STATE, "upgrade")) {
 	msgConfirm("WARNING:  No /var filesystem found.  This is not technically\n"
 		   "an error if your root filesystem is big enough (or you later\n"
 		   "intend to link /var to someplace else), but it may otherwise\n"
@@ -458,7 +458,8 @@ installExpress(dialogMenuItem *self)
 int
 installNovice(dialogMenuItem *self)
 {
-    int i;
+    int i, tries = 0;
+    Device **devs;
 
     variable_set2(SYSTEM_STATE, "novice");
     dialog_clear_norefresh();
@@ -469,9 +470,17 @@ installNovice(dialogMenuItem *self)
 	       "by a (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
 	       "partition marked \"unused\" and use the (C)reate command.");
 
+nodisks:
     if (DITEM_STATUS(diskPartitionEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
-    
+
+    if (diskGetSelectCount(&devs) <= 0 && tries < 3) {
+	msgConfirm("You need to select some disks to operate on!  Be sure to use SPACE\n"
+		   "instead of RETURN in the disk selection menu when selecting a disk.");
+	++tries;
+	goto nodisks;
+    }
+
     dialog_clear_norefresh();
     msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
@@ -731,7 +740,7 @@ installFixup(dialogMenuItem *self)
 	if (file_readable("/kernel.GENERIC")) {
 #ifdef SAVE_USERCONFIG
 	    /* Snapshot any boot -c changes back to the GENERIC kernel */
-	    if (!strcmp(variable_get(VAR_RELNAME), RELEASE_NAME))
+	    if (!variable_cmp(VAR_RELNAME, RELEASE_NAME))
 		save_userconfig_to_kernel("/kernel.GENERIC");
 #endif
 	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
@@ -824,16 +833,15 @@ installFilesystems(dialogMenuItem *self)
     Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev;
     Device **devs;
     PartInfo *root;
-    char dname[80], *str;
+    char dname[80];
     extern int MakeDevChunk(Chunk *c, char *n);
     Boolean upgrade = FALSE;
 
     /* If we've already done this, bail out */
-    if ((str = variable_get(DISK_LABELLED)) && !strcmp(str, "written"))
+    if (!variable_cmp(DISK_LABELLED, "written"))
 	return DITEM_SUCCESS;
 
-    str = variable_get(SYSTEM_STATE);
-
+    upgrade = !variable_cmp(SYSTEM_STATE, "upgrade");
     if (!checkLabels(TRUE, &rootdev, &swapdev, &usrdev, &vardev))
 	return DITEM_FAILURE;
 
@@ -843,8 +851,6 @@ installFilesystems(dialogMenuItem *self)
 	root = NULL;
 
     command_clear();
-    upgrade = str && !strcmp(str, "upgrade");
-
     if (swapdev && RunningAsInit) {
 	/* As the very first thing, try to get ourselves some swap space */
 	sprintf(dname, "/dev/%s", swapdev->name);

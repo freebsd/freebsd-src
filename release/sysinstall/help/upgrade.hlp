@@ -1,24 +1,24 @@
-Welcome to the 2.1.x (or 2.0.5) -> 2.2 upgrade procedure!
+Welcome to the 2.2.5 upgrade procedure!
 
 It must first be said that this upgrade DOES NOT take a particularly
 sophisticated approach to the upgrade problem, it being more a
 question of providing what seemed "good enough" at the time.  A truly
 polished upgrade that deals properly with the broad spectrum of
-installed 2.0.5 / 2.1.x systems would be nice to have, but until that
-gets written what you get is this - the brute-force approach!
+installed 2.x systems would be nice to have, but until that gets
+written what you get is this - the brute-force approach!
 
 What this upgrade will attempt to do is best summarized thusly:
 
   1.  fsck and mount all file systems chosen in the label editor.
-  2.  Ask for a location to preserve your /etc directory into and do so.
+  2.  Ask for a location to preserve your /etc directory into.
   3.  Extract all selected distributions on top of your existing system.
   4.  Copy certain obvious files back from the preserved /etc, leaving the
       rest of the /etc file merge up to the user.
   5.  Drop user in a shell so that they may perform that merge before
       rebooting into the new system.
 
-And that's it!  This "upgrade" is not going to hold your hand in all
-major respects, it's simply provided to make one PART of the upgrade
+And that's it!  This "upgrade" is not going to hold your hand to any
+major degree, it's simply provided to make one PART of the upgrade
 easier.
 
 IMPORTANT NOTE: What this upgrade procedure may also do, in fact, is

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33.2.14 1997/09/09 09:19:59 jkh Exp $
+ * $Id: installUpgrade.c,v 1.33.2.15 1997/10/01 01:30:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -152,7 +152,7 @@ traverseHitlist(HitList *h)
 int
 installUpgrade(dialogMenuItem *self)
 {
-    char *saved_etc;
+    char saved_etc[FILENAME_MAX];
     Boolean extractingBin = TRUE;
 
     if (variable_get(VAR_NONINTERACTIVE))
@@ -167,11 +167,8 @@ installUpgrade(dialogMenuItem *self)
 	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (!Dists) {
-	msgConfirm("You haven't specified any distributions yet.  The upgrade procedure will\n"
-		   "only upgrade those portions of the system for which a distribution has\n"
-		   "been selected.  In the next screen, we'll go to the Distributions menu\n"
-		   "to select those portions of the new system you wish to install on top of\n"
-		   "the old.");
+	msgConfirm("First, you must select some distribution components.  The upgrade procedure\n"
+		   "will only upgrade the distributions you select in the next set of menus.");
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) || !Dists)
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	dialog_clear_norefresh();
@@ -180,7 +177,7 @@ installUpgrade(dialogMenuItem *self)
 	if (msgYesNo("You didn't select the bin distribution as one of the distributons to load.\n"
 		     "This one is pretty vital to a successful upgrade.  Are you SURE you don't\n"
 		     "want to select the bin distribution?  Chose No to bring up the Distributions\n"
-		     "menu.") != 0) {
+		     "menu again.") != 0) {
 	    if (!dmenuOpenSimple(&MenuDistributions, FALSE))
 		return DITEM_FAILURE | DITEM_RESTORE;
 	    dialog_clear_norefresh();
@@ -252,20 +249,23 @@ installUpgrade(dialogMenuItem *self)
 	systemCreateHoloshell();
     }
 
-    saved_etc = NULL;
+    saved_etc[0] = '\0';
     if (extractingBin) {
-	while (!saved_etc) {
-	    saved_etc = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
-	    if (!saved_etc || !*saved_etc || Mkdir(saved_etc)) {
-		saved_etc = NULL;
+	while (!*saved_etc) {
+	    char *cp = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
+
+	    if (!cp || !*cp || Mkdir(cp)) {
 		if (msgYesNo("Directory was not specified, was invalid or user selected Cancel.\n\n"
 			     "Doing an upgrade without first backing up your /etc directory is a very\n"
 			     "bad idea!  Do you want to go back and specify the save directory again?") != 0)
 		    break;
 	    }
+	    else {
+		SAFE_STRCPY(saved_etc, cp);
+	    }
 	}
 
-	if (saved_etc) {
+	if (saved_etc[0]) {
 	    msgNotify("Preserving /etc directory..");
 	    if (vsystem("tar -cBpf - -C /etc . | tar --unlink -xBpf - -C %s", saved_etc))
 		if (msgYesNo("Unable to backup your /etc into %s.\n"
@@ -287,6 +287,7 @@ installUpgrade(dialogMenuItem *self)
     }
 
 media:
+    /* We do this very late, but we unfortunately need to back up /etc first */
     if (!mediaVerify())
 	return DITEM_FAILURE | DITEM_RESTORE;
 
