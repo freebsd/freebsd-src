@@ -38,7 +38,7 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amq.8,v 1.2 1998/09/05 06:38:19 obrien Exp $
+.\" $Id: amq.8,v 1.3 1998/09/12 04:04:57 obrien Exp $
 .\"
 .Dd March 16, 1991
 .Dt AMQ 8
@@ -92,7 +92,7 @@ For security reasons, this must be the same log file which
 .Nm amd
 used when started.  This option is therefore only useful to 
 refresh
-.Nm amd's
+.Nm amd Ns \'s
 open file handle on the log file, so that it can be rotated and compressed via
 daily cron jobs.
 .It Fl m
@@ -152,7 +152,7 @@ that had registered itself on a different RPC
 .Ar program_number 
 and apply all other operations to that instance of the automounter.  
 This is useful when running multiple copies of 
-.Nmamd , 
+.Nm amd , 
 and need to manage each one separately.  
 If not specified, 
 .Nm amq
@@ -193,7 +193,7 @@ be in the
 .Pa /etc/rpc
 database.
 .Sh SEE ALSO
-.Xr amd.conf 8 ,
+.Xr amd.conf 5 ,
 .Xr amd 8 ,
 .Xr ctl-amd 8 
 .Sh AUTHORS
