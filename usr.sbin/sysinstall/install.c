@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.196 1997/08/18 21:47:33 jkh Exp $
+ * $Id: install.c,v 1.197 1997/09/03 11:19:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1036,6 +1036,8 @@ copySelf(void)
 	msgConfirm("Copy returned error status of %d!", i);
 	return FALSE;
     }
+    if (file_readable("/stand/boot.help"))
+	vsystem("mv /stand/boot.help /");
 
     /* Copy the /etc files into their rightful place */
     if (vsystem("cd /mnt/stand; find etc | cpio %s -pdum /mnt", cpioVerbosity())) {
