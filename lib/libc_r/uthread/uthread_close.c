@@ -49,9 +49,11 @@ _close(int fd)
 	struct stat	sb;
 	struct fd_table_entry	*entry;
 
-	if ((fd == _thread_kern_pipe[0]) || (fd == _thread_kern_pipe[1])) {
+	if ((fd == _thread_kern_pipe[0]) || (fd == _thread_kern_pipe[1]) ||
+	    (_thread_fd_table[fd] == NULL)) {
 		/*
-		 * Don't allow silly programs to close the kernel pipe.
+		 * Don't allow silly programs to close the kernel pipe
+		 * and non-active descriptors.
 		 */
 		errno = EBADF;
 		ret = -1;
