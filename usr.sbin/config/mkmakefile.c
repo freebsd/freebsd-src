@@ -707,12 +707,20 @@ do_rules(FILE *f)
 					tail(np), np);
 				continue;
 			}
-			if (ftp->f_depends)
+			if (ftp->f_depends) {
+				fprintf(f, "%sln: $S/%s%c %s\n", tail(np),
+					np, och, ftp->f_depends);
+				fprintf(f, "\t${NORMAL_LINT}\n\n");
 				fprintf(f, "%so: $S/%s%c %s\n", tail(np),
 					np, och, ftp->f_depends);
-			else
+			}
+			else {
+				fprintf(f, "%sln: $S/%s%c\n", tail(np),
+					np, och);
+				fprintf(f, "\t${NORMAL_LINT}\n\n");
 				fprintf(f, "%so: $S/%s%c\n", tail(np),
 					np, och);
+			}
 		}
 		tp = tail(np);
 		compilewith = ftp->f_compilewith;
