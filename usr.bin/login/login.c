@@ -770,9 +770,8 @@ auth_pam()
 		    pam_strerror(pamh, e));
 		return -1;
 	}
-	if (hostname == NULL)
-		gethostname(full_hostname, sizeof full_hostname);
-	if ((e = pam_set_item(pamh, PAM_RHOST, full_hostname)) != PAM_SUCCESS) {
+	if (hostname != NULL &&
+	    (e = pam_set_item(pamh, PAM_RHOST, full_hostname)) != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_set_item(PAM_RHOST): %s",
 		    pam_strerror(pamh, e));
 		return -1;
