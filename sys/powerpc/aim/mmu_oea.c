@@ -2175,8 +2175,10 @@ pmap_query_bit(vm_page_t m, int ptebit)
 	struct	pvo_entry *pvo;
 	struct	pte *pt;
 
+#if 0
 	if (pmap_attr_fetch(m) & ptebit)
 		return (TRUE);
+#endif
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
