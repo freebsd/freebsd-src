@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.209 1996/03/19 03:26:33 jkh Exp $
+#	$Id: Makefile,v 1.210 1996/04/28 00:37:26 jkh Exp $
 #
 # How to roll a release:
 #
@@ -483,6 +483,7 @@ floppies:
 	cd ${.CURDIR} && ${MAKE} boot.flp
 	cd ${.CURDIR} && ${MAKE} root.flp
 	cd ${.CURDIR} && ${MAKE} fixit.flp
+	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 
 boot.flp:
 	rm -f release.4 release.8
