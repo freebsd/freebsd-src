@@ -37,7 +37,7 @@
 
 RCSID("$FreeBSD$")
 
-ENTRY(__ieee754_sqrt)
+ENTRY(sqrt)
 	fldl	4(%esp)
 	fsqrt
 	ret
