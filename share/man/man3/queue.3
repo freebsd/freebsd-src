@@ -48,6 +48,7 @@
 .Nm SLIST_NEXT ,
 .Nm SLIST_REMOVE_HEAD ,
 .Nm SLIST_REMOVE ,
+.Nm STAILQ_CONCAT ,
 .Nm STAILQ_EMPTY ,
 .Nm STAILQ_ENTRY ,
 .Nm STAILQ_FIRST ,
@@ -74,6 +75,7 @@
 .Nm LIST_INSERT_HEAD ,
 .Nm LIST_NEXT ,
 .Nm LIST_REMOVE ,
+.Nm TAILQ_CONCAT ,
 .Nm TAILQ_EMPTY ,
 .Nm TAILQ_ENTRY ,
 .Nm TAILQ_FIRST ,
@@ -108,6 +110,7 @@ lists and tail queues
 .Fn SLIST_REMOVE_HEAD "SLIST_HEAD *head" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE "SLIST_HEAD *head" "TYPE *elm" "TYPE" "SLIST_ENTRY NAME"
 .\"
+.Fn STAILQ_CONCAT "STAILQ_HEAD *head1" "STAILQ_HEAD *head2"
 .Fn STAILQ_EMPTY "STAILQ_HEAD *head"
 .Fn STAILQ_ENTRY "TYPE"
 .Fn STAILQ_FIRST "STAILQ_HEAD *head"
@@ -136,6 +139,7 @@ lists and tail queues
 .Fn LIST_NEXT "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
 .\"
+.Fn TAILQ_CONCAT "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TAILQ_ENTRY NAME"
 .Fn TAILQ_EMPTY "TAILQ_HEAD *head"
 .Fn TAILQ_ENTRY "TYPE"
 .Fn TAILQ_FIRST "TAILQ_HEAD *head"
@@ -180,6 +184,8 @@ Singly-linked tail queues add the following functionality:
 .Bl -enum -compact -offset indent
 .It
 Entries can be added at the end of a list.
+.It
+They may be concatenated.
 .El
 However:
 .Bl -enum -compact -offset indent
@@ -222,6 +228,8 @@ Tail queues add the following functionality:
 Entries can be added at the end of a list.
 .It
 They may be traversed backwards, from tail to head.
+.It
+They may be concatenated.
 .El
 However:
 .Bl -enum -compact -offset indent
@@ -427,6 +435,14 @@ The macro
 .Nm STAILQ_HEAD_INITIALIZER
 evaluates to an initializer for the tail queue
 .Fa head .
+.Pp
+The macro
+.Nm STAILQ_CONCAT
+concatenates the tail queue headed by
+.Fa head2
+onto the end of the one headed by
+.Fa head1
+removing all entries from the former.
 .Pp
 The macro
 .Nm STAILQ_EMPTY
@@ -717,6 +733,14 @@ The macro
 .Nm TAILQ_HEAD_INITIALIZER
 evaluates to an initializer for the tail queue
 .Fa head .
+.Pp
+The macro
+.Nm TAILQ_CONCAT
+concatenates the tail queue headed by
+.Fa head2
+onto the end of the one headed by
+.Fa head1
+removing all entries from the former.
 .Pp
 The macro
 .Nm TAILQ_EMPTY
