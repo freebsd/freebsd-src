@@ -702,7 +702,8 @@
       <para>TCP's default buffer sizes, controlled by the
       <varname>net.inet.tcp.sendspace</varname> and 
       <varname>net.inet.tcp.recvspace</varname> sysctl variables, have
-      been increased to 32K and 64K respectively.</para>
+      been increased to 32K and 64K respectively.  Previously, the
+      default for both buffer sizes was 16K. &merged;</para>
 
       <para>TCP now supports RFC 1948 (Defending Against Sequence
       Number Attacks).  This functionality is controlled by the 
@@ -1964,6 +1965,10 @@
 
     <para>&man.sed.1; now takes a <option>-E</option> option for
     extended regular expression support. &merged;</para>
+
+    <para>&man.send-pr.1; now takes a <option>-a</option> option to
+    include a file into the <literal>Fix:</literal> section of a
+    problem report. &merged;</para>
 
     <para>The &man.setfacl.1; and &man.getfacl.1; commands have been
     added to manage file system Access Control Lists.</para>
