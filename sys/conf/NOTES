@@ -644,8 +644,7 @@ options 	NFS_ROOT		#NFS usable as root device
 options 	DEVFS			#devices filesystem
 
 # Soft updates is technique for improving file system speed and
-# making abrupt shutdown less risky.  It is not enabled by default due
-# to copyright restraints on the code that implement it.
+# making abrupt shutdown less risky.
 #
 options 	SOFTUPDATES
 
@@ -908,11 +907,9 @@ options 	MSGBUF_SIZE=40960
 
 
 #####################################################################
-# HARDWARE DEVICE CONFIGURATION
+# HARDWARE BUS CONFIGURATION
 
-# ISA and EISA devices:
-# EISA support is available for some device, so they can be auto-probed.
-# MicroChannel (MCA) support is available for some devices.
+# ISA, EISA, MCA and PCI bus:
 
 #
 # Mandatory ISA devices: isa, npx
@@ -966,6 +963,59 @@ options 	PPS_SYNC
 # A better strategy may be to sysctl -w kern.timecounter.method=1
 
 options 	NTIMECOUNTER=20
+
+# 
+# EISA bus
+#
+# The EISA bus device is `eisa'.  It provides auto-detection and
+# configuration support for all devices on the EISA bus.
+
+device		eisa
+
+# By default, only 10 EISA slots are probed, since the slot numbers
+# above clash with the configuration address space of the PCI subsystem,
+# and the EISA probe is not very smart about this.  This is sufficient
+# for most machines, but in particular the HP NetServer LC series comes
+# with an onboard AIC7770 dual-channel SCSI controller on EISA slot #11,
+# thus you need to bump this figure to 12 for them.
+options 	EISA_SLOTS=12
+
+#
+# MCA bus:
+#
+# The MCA bus device is `mca'.  It provides auto-detection and
+# configuration support for all devices on the MCA bus.
+# No hints are required for MCA.
+
+device		mca
+
+#
+# PCI bus & PCI options:
+#
+# The main PCI bus device is `pci'.  It provides auto-detection and
+# configuration support for all devices on the PCI bus, using either
+# configuration mode defined in the PCI specification.
+
+device		pci
+
+# PCI options
+#
+#options 	PCI_QUIET	#quiets PCI code on chipset settings
+options 	COMPAT_OLDPCI	#Use PCI shims and glue for old drivers
+
+
+#####################################################################
+# HARDWARE DEVICE CONFIGURATION
+
+# EISA support is available for some device, so they can be auto-probed.
+# MicroChannel (MCA) support is available for some devices.
+# For ISA the required hints are listed.
+# EISA, MCA, PCI and pccard are self identifying buses, so no hints
+# are needed.
+
+#
+# Mandatory devices:
+#
 
 # The keyboard controller; it controls the keyboard and the PS/2 mouse.
 device		atkbdc	1
@@ -1111,23 +1161,32 @@ hint.npx.0.irq="13"
 #
 
 #
-# Optional ISA and EISA devices:
+# Optional devices:
 #
 
 #
-# SCSI host adapters: `aha', `aic', `bt'
+# SCSI host adapters:
 #
 # adv: All Narrow SCSI bus AdvanSys controllers.
 # adw: Second Generation AdvanSys controllers including the ADV940UW.
-# aha: Adaptec 154x
-# ahc: Adaptec 274x/284x/294x
-# aic: Adaptec 152x
-# bt: Most Buslogic controllers
+# aha: Adaptec 154x/1535/1640
+# ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
+#      19160x/29160x, aic7770/aic78xx
+# aic: Adaptec 6260/6360
+# amd: Support for the AMD 53C974 SCSI host adapter chip as found on devices
+#      such as the Tekram DC-390(T).
+# bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
+#      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
+# isp: Qlogic ISP 1020, 1040 and 1040B PCI SCSI host adapters,
+#      ISP 1240 Dual Ultra SCSI, ISP 1080 and 1280 (Dual) Ultra2,
+#      ISP 12160 Ultra3 SCSI,
+#      Qlogic ISP 2100 and ISP 2200 Fibre Channel host adapters.
+# ncr: NCR 53C810, 53C825 self-contained SCSI host adapters.
+
 #
-# Note that the order is important in order for Buslogic cards to be
+# Note that the order is important in order for Buslogic ISA/EISA cards to be
 # probed correctly.
 #
-
 device		bt
 hint.bt.0.at="isa"
 hint.bt.0.port="0x330"
@@ -1138,6 +1197,41 @@ device		aha	1
 hint.aha.0.at="isa"
 device		aic
 hint.aic.0.at="isa"
+device		ahc
+device		amd
+device		isp
+device		ispfw
+device		ncr
+device		sym
+
+# The aic7xxx driver will attempt to use memory mapped I/O for all PCI
+# controllers that have it configured only if this option is set. Unfortunately,
+# this doesn't work on some motherboards, which prevents it from being the
+# default.
+options 	AHC_ALLOW_MEMIO
+
+# The adw driver will attempt to use memory mapped I/O for all PCI
+# controllers that have it configured only if this option is set.
+options 	ADW_ALLOW_MEMIO
+
+# Options used in dev/isp/ (Qlogic SCSI/FC driver).
+#
+#	ISP_TARGET_MODE		-	enable target mode operation
+#
+#options 	ISP_TARGET_MODE=1
+
+# Options used in dev/sym/ (Symbios SCSI driver).
+#options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)
+					# Allows the ncr to take precedence
+					# 1 (1<<0) -> 810a, 860
+					# 2 (1<<1) -> 825a, 875, 885, 895
+					# 4 (1<<2) -> 895a, 896, 1510d 
+#options 	SYM_SETUP_SCSI_DIFF	#-HVD support for 825a, 875, 885
+					# disabled:0 (default), enabled:1
+#options 	SYM_SETUP_PCI_PARITY	#-PCI parity checking
+					# disabled:0, enabled:1 (default)
+#options 	SYM_SETUP_MAX_LUN	#-Number of LUNs supported
+					# default:8, range:[1..64]
 
 #
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
@@ -1159,7 +1253,7 @@ device		atapifd		# ATAPI floppy drives
 device		atapist		# ATAPI tape drives
 
 #
-#The following options are valid on the ATA driver:
+# The following options are valid on the ATA driver:
 #
 # ATA_STATIC_ID:	controller numbering is static ie depends on location
 #			else the device numbers are dynamically allocated.
@@ -1180,7 +1274,7 @@ hint.ata.1.port="0x170"
 hint.ata.1.irq="15"
 
 #
-# Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
+# Standard floppy disk controllers and floppy tapes:
 #
 device		fdc
 hint.fdc.0.at="isa"
@@ -1209,7 +1303,7 @@ device		fla
 hint.fla.0.at="isa"
 
 #
-# Other standard PC hardware: `mse', `sio', etc.
+# Other standard PC hardware:
 #
 # mse: Logitech and ATI InPort bus mouse ports
 # sio: serial ports (see sio(4))
@@ -1264,32 +1358,111 @@ options 	COM_MULTIPORT		#code for some cards with shared IRQs
 #		ST16650A-compatible UARTs.
 
 #
-# Network interfaces: `cx', `ed', `el', `ep', `ie', `is', `le', `lnc'
+# Network interfaces:
 #
-# ar: Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver (requires sppp)
-# cs: IBM Etherjet and other Crystal Semi CS89x0-based adapters
-# cx: Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
-# ed: Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
-# el: 3Com 3C501 (slow!)
-# ep: 3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589
-# ex: Intel EtherExpress Pro/10 and other i82595-based adapters
-# fe: Fujitsu MB86960A/MB86965A Ethernet
-# ie: AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210; Intel EtherExpress
-# le: Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
-#     DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
-# lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 & Am79C960)
-# rdp: RealTek RTL 8002-based pocket ethernet adapters
-# sr: RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
-# wl: Lucent Wavelan (ISA card only).
-# wi: Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
-#     the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
-#     bridge with a PCMCIA adapter plugged into it.
-# an: Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
-#     PCI and ISA varieties.
-# xe: Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller.
+# MII bus support is required for some PCI 10/100 ethernet NICs,
+# namely those which use MII-compliant transceivers or implement
+# tranceiver control interfaces that operate like an MII. Adding
+# "device miibus0" to the kernel config pulls in support for
+# the generic miibus API and all of the PHY drivers, including a
+# generic one for PHYs that aren't specifically handled by an
+# individual driver.
+device		miibus
+
+# an:   Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
+#       PCI and ISA varieties.
+# ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
+#       (requires sppp)
+# cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters
+# cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
+# dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
+#       and various workalikes including:
+#       the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
+#       AX88140A and AX88141, the Davicom DM9100 and DM9102, the Lite-On
+#       82c168 and 82c169 PNIC, the Lite-On/Macronix LC82C115 PNIC II
+#       and the Macronix 98713/98713A/98715/98715A/98725 PMAC. This driver
+#       replaces the old al, ax, dm, pn and mx drivers.  List of brands:
+#       Digital DE500-BA, Kingston KNE100TX, D-Link DFE-570TX, SOHOware SFA110, 
+#       SVEC PN102-TX, CNet Pro110B, 120A, and 120B, Compex RL100-TX, 
+#       LinkSys LNE100TX, LNE100TX V2.0, Jaton XpressNet, Alfa Inc GFC2204,
+#       KNE110TX.
+# de:   Digital Equipment DC21040
+# ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
+# el:   3Com 3C501 (slow!)
+# ep:   3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589
+# ex:   Intel EtherExpress Pro/10 and other i82595-based adapters
+# fe:   Fujitsu MB86960A/MB86965A Ethernet
+# fea:  DEC DEFEA EISA FDDI adapter
+# fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
+# fxp:  Intel EtherExpress Pro/100B
+# ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
+#       Intel EtherExpress
+# le:   Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
+#       DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
+# lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
+#       Am79C960)
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133
-#       (no options needed)
-#
+#       (no hints needed).
+#       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
+#       OC-3141, OC-3540, OC-3250
+# rdp:  RealTek RTL 8002-based pocket ethernet adapters
+# rl:   Support for PCI fast ethernet adapters based on the RealTek 8129/8139
+#       chipset.  Note that the RealTek driver defaults to using programmed
+#       I/O to do register accesses because memory mapped mode seems to cause
+#       severe lockups on SMP hardware.  This driver also supports the
+#       Accton EN1207D `Cheetah' adapter, which uses a chip called
+#       the MPX 5030/5038, which is either a RealTek in disguise or a
+#       RealTek workalike.  Note that the D-Link DFE-530TX+ uses the RealTek
+#       chipset and is supported by this driver, not the 'vr' driver.
+# sf:   Support for Adaptec Duralink PCI fast ethernet adapters based on the
+#       Adaptec AIC-6915 "starfire" controller.
+#       This includes dual and quad port cards, as well as one 100baseFX card.
+#       Most of these are 64-bit PCI devices, except for one single port
+#       card which is 32-bit.
+# sis:  Support for NICs based on the Silicon Integrated Systems SiS 900 and
+#       SiS 7016 PCI fast ethernet controller chips.
+# sk:   Support for the SysKonnect SK-984x series PCI gigabit ethernet NICs.
+#       This includes the SK-9841 and SK-9842 single port cards (single mode
+#       and multimode fiber) and the SK-9843 and SK-9844 dual port cards
+#       (also single mode and multimode).
+#       The driver will autodetect the number of ports on the card and
+#       attach each one as a separate network interface.
+# sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
+# ste:  Sundance Technologies ST201 PCI fast ethernet controller, includes
+#       the D-Link DFE-550TX.
+# ti:   Support for PCI gigabit ethernet NICs based on the Alteon Networks
+#       Tigon 1 and Tigon 2 chipsets.  This includes the Alteon AceNIC, the
+#       3Com 3c985, the Netgear GA620 and various others.  Note that you will
+#       probably want to bump up NMBCLUSTERS a lot to use this driver.
+# tl:   Support for the Texas Instruments TNETE100 series 'ThunderLAN'
+#       cards and integrated ethernet controllers.  This includes several
+#       Compaq Netelligent 10/100 cards and the built-in ethernet controllers
+#       in several Compaq Prosignia, Proliant and Deskpro systems.  It also
+#       supports several Olicom 10Mbps and 10/100 boards.
+# tx:   SMC 9432TX cards.
+# vr:   Support for various fast ethernet adapters based on the VIA
+#       Technologies VT3043 `Rhine I' and VT86C100A `Rhine II' chips,
+#       including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking 
+#       Technologies PN102TX, and the AOpen/Acer ALN-320.
+# vx:   3Com 3C590 and 3C595
+# wb:   Support for fast ethernet adapters based on the Winbond W89C840F chip.
+#       Note: this is not the same as the Winbond W89C940F, which is a
+#       NE2000 clone.
+# wl:   Lucent Wavelan (ISA card only).
+# wi:   Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
+#       the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
+#       bridge with a PCMCIA adapter plugged into it.
+# wx:   Intel Gigabit Ethernet PCI card (`Wiseman')
+# xe:   Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller.
+# xl:   Support for the 3Com 3c900, 3c905, 3c905B and 3c905C (Fast)
+#       Etherlink XL cards and integrated controllers.  This includes the
+#       integrated 3c905B-TX chips in certain Dell Optiplex and Dell
+#       Precision desktop machines and the integrated 3c905-TX chips
+#       in Dell Latitude laptop docking stations.
+#       Also supported: 3Com 3c980(C)-TX, 3Com 3cSOHO100-TX, 3Com 3c450-TX
+
+# Order for ISA/EISA devices is important here
+
 device		ar	1
 hint.ar.0.at="isa"
 hint.ar.0.port="0x300"
@@ -1317,6 +1490,7 @@ device		ex
 device		fe	1
 hint.fe.0.at="isa"
 hint.fe.0.port="0x300"
+device		fea
 device		ie	2
 hint.ie.0.at="isa"
 hint.ie.0.port="0x300"
@@ -1365,6 +1539,29 @@ options 	OLTR_NO_BULLSEYE_MAC
 options 	OLTR_NO_HAWKEYE_MAC
 options 	OLTR_NO_TMS_MAC
 hint.oltr.0.at="isa"
+
+# PCI Ethernet NICs that use the common MII bus controller code.
+device		dc		# DEC/Intel 21143 and various workalikes
+device		rl		# RealTek 8129/8139
+device		sf		# Adaptec AIC-6915 (``Starfire'')
+device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		tl		# Texas Instruments ThunderLAN
+device		vr		# VIA Rhine, Rhine II
+device		wb		# Winbond W89C840F
+device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+
+# PCI Ethernet NICs.
+device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		tx		# SMC 9432TX (83c170 ``EPIC'')
+device		vx	1	# 3Com 3c590, 3c595 (``Vortex'')
+
+# PCI Gigabit & FDDI NICs.
+device		sk
+device		ti
+device		wx
+device		fpa	1
 
 #
 # ATM related options
@@ -1652,172 +1849,6 @@ hint.loran.0.irq="5"
 device		xrpu
 
 #
-# MCA devices:
-#
-# The MCA bus device is `mca'.  It provides auto-detection and
-# configuration support for all devices on the MCA bus.
-#
-# The 'aha' device provides support for the Adaptec 1640
-#
-# The 'bt' device provides support for various Buslogic/Bustek
-# and Storage Dimensions SCSI adapters.
-#
-# The 'ep' device provides support for the 3Com 3C529 ethernet card.
-#
-device		mca
-
-#
-# EISA devices:
-#
-# The EISA bus device is `eisa'.  It provides auto-detection and
-# configuration support for all devices on the EISA bus.
-#
-# The `ahb' device provides support for the Adaptec 174X adapter.
-#
-# The `ahc' device provides support for the Adaptec 274X and 284X
-# adapters.  The 284X, although a VLB card, responds to EISA probes.
-#
-# fea: DEC DEFEA EISA FDDI adapter
-#
-device		eisa
-device		ahb
-device		ahc
-device		fea
-
-# The aic7xxx driver will attempt to use memory mapped I/O for all PCI
-# controllers that have it configured only if this option is set. Unfortunately,
-# this doesn't work on some motherboards, which prevents it from being the
-# default.
-options 	AHC_ALLOW_MEMIO
-
-# The adw driver will attempt to use memory mapped I/O for all PCI
-# controllers that have it configured only if this option is set.
-options 	ADW_ALLOW_MEMIO
-
-# By default, only 10 EISA slots are probed, since the slot numbers
-# above clash with the configuration address space of the PCI subsystem,
-# and the EISA probe is not very smart about this.  This is sufficient
-# for most machines, but in particular the HP NetServer LC series comes
-# with an onboard AIC7770 dual-channel SCSI controller on EISA slot #11,
-# thus you need to bump this figure to 12 for them.
-options 	EISA_SLOTS=12
-
-#
-# PCI devices & PCI options:
-#
-# The main PCI bus device is `pci'.  It provides auto-detection and
-# configuration support for all devices on the PCI bus, using either
-# configuration mode defined in the PCI specification.
-
-device		pci
-
-# PCI options
-#
-#options 	PCI_QUIET	#quiets PCI code on chipset settings
-options 	COMPAT_OLDPCI	#Use PCI shims and glue for old drivers
-
-
-# The `ahc' device provides support for the Adaptec 29/3940(U)(W)
-# and motherboard based AIC7870/AIC7880 adapters.
-#
-# The `amd' device provides support for the AMD 53C974 SCSI host
-# adapter chip as found on devices such as the Tekram DC-390(T).
-#
-# The `ncr' device provides support for the NCR 53C810 and 53C825
-# self-contained SCSI host adapters.
-#
-# The `isp' device provides support for the Qlogic ISP 1020, 1040
-# nd 1040B PCI SCSI host adapters, ISP 1240 Dual Ultra SCSI,
-# ISP 1080 and 1280 (Dual) Ultra2, ISP 12160 Ultra3 SCSI, as well as
-# the Qlogic ISP 2100 and ISP 2200 Fibre Channel Host Adapters.
-#
-# The `dc' device provides support for PCI fast ethernet adapters
-# based on the DEC/Intel 21143 and various workalikes including:
-# the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
-# AX88140A and AX88141, the Davicom DM9100 and DM9102, the Lite-On
-# 82c168 and 82c169 PNIC, the Lite-On/Macronix LC82C115 PNIC II
-# and the Macronix 98713/98713A/98715/98715A/98725 PMAC. This driver
-# replaces the old al, ax, dm, pn and mx drivers.  List of brands:
-# Digital DE500-BA, Kingston KNE100TX, D-Link DFE-570TX, SOHOware SFA110, 
-# SVEC PN102-TX, CNet Pro110B, 120A, and 120B, Compex RL100-TX, 
-# LinkSys LNE100TX, LNE100TX V2.0, Jaton XpressNet, Alfa Inc GFC2204,
-# KNE110TX.
-#
-# The `de' device provides support for the Digital Equipment DC21040
-# self-contained Ethernet adapter.
-#
-# The `fxp' device provides support for the Intel EtherExpress Pro/100B
-# PCI Fast Ethernet adapters.
-#
-# The 'rl' device provides support for PCI fast ethernet adapters based
-# on the RealTek 8129/8139 chipset. Note that the RealTek driver defaults
-# to using programmed I/O to do register accesses because memory mapped
-# mode seems to cause severe lockups on SMP hardware. This driver also
-# supports the Accton EN1207D `Cheetah' adapter, which uses a chip called
-# the MPX 5030/5038, which is either a RealTek in disguise or a RealTek
-# workalike.  Note that the D-Link DFE-530TX+ uses the RealTek chipset
-# and is supported by this driver, not the 'vr' driver.
-#
-# The 'sf' device provides support for Adaptec Duralink PCI fast
-# ethernet adapters based on the Adaptec AIC-6915 "starfire" controller.
-# This includes dual and quad port cards, as well as one 100baseFX card.
-# Most of these are 64-bit PCI devices, except for one single port
-# card which is 32-bit.
-#
-# The 'ste' device provides support for adapters based on the Sundance
-# Technologies ST201 PCI fast ethernet controller. This includes the
-# D-Link DFE-550TX.
-#
-# The 'sis' device provides support for adapters based on the Silicon
-# Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet controller
-# chips.
-#
-# The 'sk' device provides support for the SysKonnect SK-984x series
-# PCI gigabit ethernet NICs. This includes the SK-9841 and SK-9842
-# single port cards (single mode and multimode fiber) and the
-# SK-9843 and SK-9844 dual port cards (also single mode and multimode).
-# The driver will autodetect the number of ports on the card and
-# attach each one as a separate network interface.
-#
-# The 'ti' device provides support for PCI gigabit ethernet NICs based
-# on the Alteon Networks Tigon 1 and Tigon 2 chipsets. This includes the
-# Alteon AceNIC, the 3Com 3c985, the Netgear GA620 and various others.
-# Note that you will probably want to bump up NMBCLUSTERS a lot to use
-# this driver.
-#
-# The 'tl' device provides support for the Texas Instruments TNETE100
-# series 'ThunderLAN' cards and integrated ethernet controllers. This
-# includes several Compaq Netelligent 10/100 cards and the built-in
-# ethernet controllers in several Compaq Prosignia, Proliant and
-# Deskpro systems. It also supports several Olicom 10Mbps and 10/100
-# boards.
-#
-# The `tx' device provides support for the SMC 9432TX cards.
-#
-# The `vr' device provides support for various fast ethernet adapters
-# based on the VIA Technologies VT3043 `Rhine I' and VT86C100A `Rhine II'
-# chips, including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking 
-# Technologies PN102TX, and the AOpen/Acer ALN-320.
-#
-# The `vx' device provides support for the 3Com 3C590 and 3C595
-# early support
-#
-# The `wb' device provides support for various fast ethernet adapters
-# based on the Winbond W89C840F chip. Note: this is not the same as
-# the Winbond W89C940F, which is an NE2000 clone.
-#
-# The `wx' device provides support for the Intel Gigabit Ethernet
-# PCI card (`Wiseman').
-#
-# The `xl' device provides support for the 3Com 3c900, 3c905 and
-# 3c905B (Fast) Etherlink XL cards and integrated controllers. This
-# includes the integrated 3c905B-TX chips in certain Dell Optiplex and
-# Dell Precision desktop machines and the integrated 3c905-TX chips
-# in Dell Latitude laptop docking stations.
-#
-# The `fpa' device provides support for the Digital DEFPA PCI FDDI
-# adapter. device fddi is also needed.
-#
 # The `meteor' device is a PCI video capture board. It can also have the
 # following options:
 #   options METEOR_ALLOC_PAGES=xxx	preallocate kernel pages for data entry
@@ -1869,70 +1900,8 @@ options 	COMPAT_OLDPCI	#Use PCI shims and glue for old drivers
 # motherboards and motherboards with bad or incomplete PCI 2.1 support.
 # As a rough guess, old = before 1998
 #
-#
-# The oltr driver supports the following Olicom PCI token-ring adapters
-# OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
-#
-device		ahc		# AHA2940 and onboard AIC7xxx devices
-device		amd		# AMD 53C974 (Teckram DC-390(T))
-device		isp		# Qlogic family
-device		ispfw		# Firmware Module for Qlogic family
-device		ncr		# NCR/Symbios Logic
-device		sym		# NCR/Symbios Logic (newer chipsets)
-# Options used in dev/isp/ (Qlogic SCSI/FC driver).
-#
-#	ISP_TARGET_MODE		-	enable target mode operation
-#
-#options 	ISP_TARGET_MODE=1
 
-# Options used in dev/sym/ (Symbios SCSI driver).
-#options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)
-					# Allows the ncr to take precedence
-					# 1 (1<<0) -> 810a, 860
-					# 2 (1<<1) -> 825a, 875, 885, 895
-					# 4 (1<<2) -> 895a, 896, 1510d 
-#options 	SYM_SETUP_SCSI_DIFF	#-HVD support for 825a, 875, 885
-					# disabled:0 (default), enabled:1
-#options 	SYM_SETUP_PCI_PARITY	#-PCI parity checking
-					# disabled:0, enabled:1 (default)
-#options 	SYM_SETUP_MAX_LUN	#-Number of LUNs supported
-					# default:8, range:[1..64]
-
-
-# MII bus support is required for some PCI 10/100 ethernet NICs,
-# namely those which use MII-compliant transceivers or implement
-# tranceiver control interfaces that operate like an MII. Adding
-# "device miibus0" to the kernel config pulls in support for
-# the generic miibus API and all of the PHY drivers, including a
-# generic one for PHYs that aren't specifically handled by an
-# individual driver.
-device		miibus
-
-# PCI Ethernet NICs that use the common MII bus controller code.
-device		dc		# DEC/Intel 21143 and various workalikes
-device		rl		# RealTek 8129/8139
-device		sf		# Adaptec AIC-6915 (``Starfire'')
-device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
-device		ste		# Sundance ST201 (D-Link DFE-550TX)
-device		tl		# Texas Instruments ThunderLAN
-device		vr		# VIA Rhine, Rhine II
-device		wb		# Winbond W89C840F
-device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
-
-# PCI Ethernet NICs.
-device		de		# DEC/Intel DC21x4x (``Tulip'')
-device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		tx		# SMC 9432TX (83c170 ``EPIC'')
-device		vx	1	# 3Com 3c590, 3c595 (``Vortex'')
-
-device		sk
-device		ti
-device		wx
-device		fpa	1
 device		meteor	1
-#The oltr driver in the ISA section will also find PCI cards.
-device		oltr
-
 
 # Brooktree driver has been ported to the new I2C framework. Thus,
 # you'll need to have the following 3 lines in the kernel config.
