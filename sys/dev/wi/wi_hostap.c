@@ -345,7 +345,7 @@ wihap_sta_timeout(void *v)
 	struct wihap_info	*whi = &sc->wi_hostap_info;
 	int	s;
 
-	s = splnet();
+	s = splimp();
 	if (sta->flags & WI_SIFLAGS_ASSOC) {
 		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
 			device_printf(sc->dev, "inactivity disassoc: %6D\n",
