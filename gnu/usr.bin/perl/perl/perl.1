@@ -1,7 +1,10 @@
 .rn '' }`
-''' $RCSfile: perl.1,v $$Revision: 1.2 $$Date: 1994/10/27 23:16:52 $
+''' $RCSfile: perl.1,v $$Revision: 1.3 $$Date: 1996/10/05 22:26:23 $
 ''' 
 ''' $Log: perl.1,v $
+''' Revision 1.3  1996/10/05 22:26:23  wosch
+''' delete doubled words, e.g.: "the the" -> "the"
+'''
 ''' Revision 1.2  1994/10/27 23:16:52  wollman
 ''' Convince Perl to that is is part of the system, as /usr/bin/perl (binary)
 ''' and /usr/share/perl (library).  The latter was chosen as analogous to other
@@ -4596,7 +4599,7 @@ You may have as many parentheses as you wish.  If you have more than 9
 substrings, the variables $10, $11, ... refer to the corresponding
 substring.  Within the pattern, \e10, \e11,
 etc. refer back to substrings if there have been at least that many left parens
-before the backreference.  Otherwise (for backward compatibilty) \e10
+before the backreference.  Otherwise (for backward compatibility) \e10
 is the same as \e010, a backspace,
 and \e11 the same as \e011, a tab.
 And so on.
