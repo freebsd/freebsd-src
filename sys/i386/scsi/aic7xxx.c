@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.66 1996/05/10 16:21:02 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.67 1996/05/21 18:37:25 gibbs Exp $
  */
 /*
  * TODO:
@@ -2378,7 +2378,7 @@ ahc_poll(ahc, wait)
 		if (inb(stport) & INT_PEND)
 			break;
 	} if (wait == 0) {
-		printf("ahc%d: board not responding\n", ahc->unit);
+		printf("ahc%d: board is not responding\n", ahc->unit);
 		return (EIO);
 	}
 	ahc_intr((void *)ahc);
