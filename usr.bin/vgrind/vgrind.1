@@ -44,8 +44,9 @@
 .Op Fl d Ar file
 .Op Fl f
 .Op Fl h Ar header
-.Op Fl l Ar language
+.Op Fl l Ns Ar language
 .Op Fl n
+.Op Fl p Ar postproc
 .Op Fl sn
 .Op Fl t
 .Op Fl x
@@ -87,9 +88,10 @@ or
 .Pp
 In regular mode 
 .Nm vgrind
-accepts input files, processes them, and passes them to 
-.Xr troff 1
-for output.  
+accepts input files, processes them, and passes them to the postprocessor
+for output,
+.Xr psroff 1
+by default.  
 .Pp
 In both modes 
 .Nm vgrind
@@ -122,6 +124,8 @@ specifies the language to use.  Currently known are
 C
 .Pf ( Fl l Ns Ar c
 or the default),
+.Tn C++
+.Pq Fl l Ns Ar c++ ,
 .Tn CSH
 .Pq Fl l Ns Ar csh ,
 .Tn SHELL
@@ -141,6 +145,12 @@ and
 .Pq Fl l Ns Ar perl .
 .It Fl n
 forces no keyword bolding
+.It Fl p Ar postproc
+use
+.Ar postproc
+to post-process the output,
+.Xr psroff 1
+by default.
 .It Fl s
 specifies a point size to use on output (exactly the same as the argument
 of a .ps)
