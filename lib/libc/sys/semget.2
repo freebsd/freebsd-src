@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: semget.2,v 1.1 1995/10/03 19:17:18 joerg Exp $
 .\"
 .Dd September 12, 1995
 .Dt SEMGET 2
@@ -80,16 +80,16 @@ parameter:
 .Bl -tag -width XSEM_WXX6XXX
 .It Dv SEM_R
 Read access for user.
-.It Dv SEM_W
-Write access for user.
+.It Dv SEM_A
+Alter access for user.
 .It Dv (SEM_R>>3)
 Read access for group.
-.It Dv (SEM_W>>3)
-Write access for group.
+.It Dv (SEM_A>>3)
+Alter access for group.
 .It Dv (SEM_R>>6)
 Read access for other.
-.It Dv (SEM_W>>6)
-Write access for other.
+.It Dv (SEM_A>>6)
+Alter access for other.
 .El
 .Pp
 If a new set of semaphores is being created,
