@@ -416,6 +416,13 @@ out:
 int
 rtioctl(u_long req, caddr_t data)
 {
+
+	/*
+	 * If more ioctl commands are added here, make sure the proper
+	 * super-user checks are being performed because it is possible for
+	 * prison-root to make it this far if raw sockets have been enabled
+	 * in jails.
+	 */
 #ifdef INET
 	/* Multicast goop, grrr... */
 	return mrt_ioctl ? mrt_ioctl(req, data) : EOPNOTSUPP;
