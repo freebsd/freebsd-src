@@ -530,96 +530,11 @@ fd*)
 	case $unit in
 	0|1|2|3)
 		mknod ${name}${unit}   c $chr $(($unit * 64)) root:operator
-		ln -f ${name}${unit} r${name}${unit}
 		# Fake BSD partitions
 		for i in a b c d e f g h
 		do
 			ln -f ${name}${unit} ${name}${unit}$i
-			ln -f r${name}${unit} r${name}${unit}$i
 		done
-		# User-readable and programmer-readable name sets
-
-		mknod ${name}${unit}.1720  c $chr $(($unit * 64 + 1)) \
-		    root:operator
-		ln -f ${name}${unit}.1720 r${name}${unit}.1720
-		# ln -f ${name}${unit}.1720 ${name}${unit}135hs21
-		# ln -f r${name}${unit}.1720 r${name}${unit}135hs21
-
-		mknod ${name}${unit}.1480  c $chr $(($unit * 64 + 2)) \
-		    root:operator
-		ln -f ${name}${unit}.1480 r${name}${unit}.1480
-		# ln -f ${name}${unit}.1480 ${name}${unit}135hs18
-		# ln -f r${name}${unit}.1480 r${name}${unit}135hs18
-		# ln -f ${name}${unit}.1480 ${name}${unit}96hs18
-		# ln -f r${name}${unit}.1480 r${name}${unit}96hs18
-
-		mknod ${name}${unit}.1440  c $chr $(($unit * 64 + 3)) \
-		    root:operator
-		ln -f ${name}${unit}.1440 r${name}${unit}.1440
-		# ln -f ${name}${unit}.1440 ${name}${unit}135
-		# ln -f r${name}${unit}.1440 r${name}${unit}135
-		# ln -f ${name}${unit}.1440 ${name}${unit}135ds18
-		# ln -f r${name}${unit}.1440 r${name}${unit}135ds18
-		# ln -f ${name}${unit}.1440 ${name}${unit}96ds18
-		# ln -f r${name}${unit}.1440 r${name}${unit}96ds18
-
-		mknod ${name}${unit}.1200  c $chr $(($unit * 64 + 4)) \
-		    root:operator
-		ln -f ${name}${unit}.1200 r${name}${unit}.1200
-		# ln -f ${name}${unit}.1200 ${name}${unit}96
-		# ln -f r${name}${unit}.1200 r${name}${unit}96
-		# ln -f ${name}${unit}.1200 ${name}${unit}96ds15
-		# ln -f r${name}${unit}.1200 r${name}${unit}96ds15
-		# ln -f ${name}${unit}.1200 ${name}${unit}135ds15
-		# ln -f r${name}${unit}.1200 r${name}${unit}135ds15
-
-		mknod ${name}${unit}.820  c $chr $(($unit * 64 + 5)) \
-		    root:operator
-		ln -f ${name}${unit}.820 r${name}${unit}.820
-		# ln -f ${name}${unit}.820 ${name}${unit}96hs10
-		# ln -f r${name}${unit}.820 r${name}${unit}96hs10
-		# ln -f ${name}${unit}.820 ${name}${unit}135hs10
-		# ln -f r${name}${unit}.820 r${name}${unit}135hs10
-
-		mknod ${name}${unit}.800  c $chr $(($unit * 64 + 6)) \
-		    root:operator
-		ln -f ${name}${unit}.800 r${name}${unit}.800
-		# ln -f ${name}${unit}.800 ${name}${unit}96ds10
-		# ln -f r${name}${unit}.800 r${name}${unit}96ds10
-		# ln -f ${name}${unit}.800 ${name}${unit}135ds10
-		# ln -f r${name}${unit}.800 r${name}${unit}135ds10
-
-		mknod ${name}${unit}.720  c $chr $(($unit * 64 + 7)) \
-		    root:operator
-		ln -f ${name}${unit}.720 r${name}${unit}.720
-		# ln -f ${name}${unit}.720 ${name}${unit}96ds9
-		# ln -f r${name}${unit}.720 r${name}${unit}96ds9
-		# ln -f ${name}${unit}.720 ${name}${unit}135ds9
-		# ln -f r${name}${unit}.720 r${name}${unit}135ds9
-
-		mknod ${name}${unit}.360  c $chr $(($unit * 64 + 8)) \
-		    root:operator
-		ln -f ${name}${unit}.360 r${name}${unit}.360
-		# ln -f ${name}${unit}.360 ${name}${unit}48
-		# ln -f r${name}${unit}.360 r${name}${unit}48
-		# ln -f ${name}${unit}.360 ${name}${unit}48ds9
-		# ln -f r${name}${unit}.360 r${name}${unit}48ds9
-
-		mknod ${name}${unit}.640  c $chr $(($unit * 64 + 9)) \
-		    root:operator
-		ln -f ${name}${unit}.640 r${name}${unit}.640
-		# ln -f ${name}${unit}.640 ${name}${unit}96ds8
-		# ln -f r${name}${unit}.640 r${name}${unit}96ds8
-		# ln -f ${name}${unit}.640 ${name}${unit}135ds8
-		# ln -f r${name}${unit}.640 r${name}${unit}135ds8
-
-		mknod ${name}${unit}.1232  c $chr $(($unit * 64 + 10)) \
-		    root:operator
-		ln -f ${name}${unit}.1232 r${name}${unit}.1232
-		# ln -f ${name}${unit}.1232 ${name}${unit}96ds8
-		# ln -f r${name}${unit}.1232 r${name}${unit}96ds8
-		# ln -f ${name}${unit}.1232 ${name}${unit}135ds8
-		# ln -f r${name}${unit}.1232 r${name}${unit}135ds8
 		;;
 	*)
 		echo bad unit for disk in: $i
