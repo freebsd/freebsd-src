@@ -829,7 +829,8 @@ inithosts(void)
 				lhrp->next = hrp;
 				lhrp = hrp;
 			}
-			freehostent(hp);
+			if (hp)
+				freehostent(hp);
 		      }
 nextline:
 			if (mp)
