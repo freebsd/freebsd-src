@@ -37,20 +37,19 @@
 .\"	from: sio.4,v 1.16 1995/06/26 06:05:30 bde Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 14, 1999
+.Dd May 24, 2004
 .Dt CY 4 i386
 .Os
 .Sh NAME
 .Nm cy
 .Nd Cyclades Cyclom-Y serial driver
 .Sh SYNOPSIS
-.Cd "options CY_PCI_FASTINTR"
 .Pp
-For one (PCI or ISA) card:
+For one ISA card:
 .Bd -ragged -offset indent -compact
-.Cd "device cy 1"
+.Cd "device cy"
 .Pp
-For one ISA card, in
+In
 .Pa /boot/device.hints :
 .Cd hint.cy.0.at="isa"
 .Cd hint.cy.0.irq="10"
@@ -58,11 +57,11 @@ For one ISA card, in
 .Cd hint.cy.0.msize="0x2000"
 .Ed
 .Pp
-For two (PCI and/or ISA) cards:
+For two ISA cards:
 .Bd -ragged -offset indent -compact
-.Cd "device cy 2"
+.Cd "device cy"
 .Pp
-For two ISA cards, in
+In
 .Pa /boot/device.hints :
 .Cd hint.cy.0.at="isa"
 .Cd hint.cy.0.irq="10"
@@ -72,6 +71,16 @@ For two ISA cards, in
 .Cd hint.cy.1.irq="11"
 .Cd hint.cy.1.maddr="0xd6000"
 .Cd hint.cy.1.msize="0x2000"
+.Ed
+.Pp
+For PCI cards:
+.Bd -ragged -offset indent -compact
+.Cd "device sio"
+.Cd "options CY_PCI_FASTINTR"
+.Pp
+No lines are required in
+.Pa /boot/device.hints
+for PCI cards.
 .Ed
 .Pp
 Minor numbering:
