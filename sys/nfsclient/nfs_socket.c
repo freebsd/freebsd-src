@@ -161,6 +161,8 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	struct sockaddr *saddr;
 	struct thread *td = &thread0; /* only used for socreate and sobind */
 
+	GIANT_REQUIRED;		/* XXX until socket locking done */
+
 	nmp->nm_so = NULL;
 	saddr = nmp->nm_nam;
 	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype,
@@ -377,6 +379,8 @@ nfs_disconnect(struct nfsmount *nmp)
 {
 	struct socket *so;
 
+	GIANT_REQUIRED;		/* XXX until socket locking done */
+
 	if (nmp->nm_so) {
 		so = nmp->nm_so;
 		nmp->nm_so = NULL;
@@ -410,6 +414,8 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 {
 	struct sockaddr *sendnam;
 	int error, soflags, flags;
+
+	GIANT_REQUIRED;		/* XXX until socket locking done */
 
 	KASSERT(rep, ("nfs_send: called with rep == NULL"));
 
@@ -483,6 +489,8 @@ nfs_receive(struct nfsreq *rep, struct sockaddr **aname, struct mbuf **mp)
 	struct sockaddr **getnam;
 	int error, sotype, rcvflg;
 	struct thread *td = curthread;	/* XXX */
+
+	GIANT_REQUIRED;		/* XXX until socket locking done */
 
 	/*
 	 * Set up arguments for soreceive()
