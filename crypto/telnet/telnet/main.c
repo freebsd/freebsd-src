@@ -78,6 +78,8 @@ char *ipsec_policy_in = NULL;
 char *ipsec_policy_out = NULL;
 #endif
 
+char *line; /* the telnetd side of libtelnet needs this */
+
 int family = AF_UNSPEC;
 
 /*
