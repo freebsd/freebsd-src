@@ -331,6 +331,7 @@ struct thread {
 #define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
 #define	TDF_INMSLEEP	0x000400 /* Don't recurse in msleep(). */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
+#define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
 #define	TDI_SUSPENDED	0x01	/* On suspension queue. */
