@@ -56,6 +56,20 @@ fi
 [ "X${sshd_enable}" = "XYES" ] && [ -f /stand/sshd ] && \
 	sshd -f /etc/sshd_config
 
+if [ "X${syslogd_enable}" = X"YES" ]; then
+	echo -n ' syslogd';             syslogd ${syslogd_flags}
+fi
+
+if [ "X$pccard_enable" = X"YES" ] ; then
+        if [ "x$pccard_mem" != "xDEFAULT" ] ; then
+                pccardc pccardmem $pccard_mem
+        else
+                pccardc pccardmem 0xd0000
+        fi
+        echo -n "Enable PC-card."
+        pccardd $pccardd_flags 2>&1 > /var/log/pccardd.debug
+fi
+
 dev_mkdb
 
 echo ''
