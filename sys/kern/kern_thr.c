@@ -209,8 +209,6 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 	 * This unlocks proc and doesn't return unless this is the last
 	 * thread.
 	 */
-	while (mtx_owned(&Giant))
-		mtx_unlock(&Giant);
 	thr_exit1();
 	mtx_unlock_spin(&sched_lock);
 
