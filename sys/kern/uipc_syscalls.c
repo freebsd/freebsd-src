@@ -1532,10 +1532,11 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 	struct vm_page *pg;
 	struct writev_args nuap;
 	struct sf_hdtr hdtr;
-	off_t off, xfsize, sbytes = 0;
+	off_t off, xfsize, hdtr_size, sbytes = 0;
 	int error = 0, s;
 
 	vp = NULL;
+	hdtr_size = 0;
 	/*
 	 * Do argument checking. Must be a regular file in, stream
 	 * type and connected socket out, positive offset.
@@ -1591,7 +1592,7 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 			error = writev(p, &nuap);
 			if (error)
 				goto done;
-			sbytes += p->p_retval[0];
+			hdtr_size += p->p_retval[0];
 		}
 	}
 
@@ -1831,11 +1832,12 @@ retry_space:
 			error = writev(p, &nuap);
 			if (error)
 				goto done;
-			sbytes += p->p_retval[0];
+			hdtr_size += p->p_retval[0];
 	}
 
 done:
 	if (uap->sbytes != NULL) {
+		sbytes += hdtr_size;
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 	}
 	if (vp)
