@@ -1418,6 +1418,10 @@ struct uuconf_cmdtab
 /* If set, a backslash at the end of a line may be used to include the
    next physical line in the logical line.  */
 #define UUCONF_CMDTABFLAG_BACKSLASH (0x2)
+
+/* If set, the comment character (#) is treated as a normal character,
+   rather than as starting a comment.  */
+#define UUCONF_CMDTABFLAG_NOCOMMENTS (0x4)
 
 #if UUCONF_ANSI_C
 
