@@ -453,7 +453,7 @@ options 	LIBMCHAIN
 # also have the ALTQ_NOPCC option.
 options 	ALTQ
 options 	ALTQ_CBQ	# Class Bases Queueing
-options 	ALTQ_RED	# Random Early Drop
+options 	ALTQ_RED	# Random Early Detection
 options 	ALTQ_RIO	# RED In/Out
 options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
 options 	ALTQ_CDNR	# Traffic conditioner
