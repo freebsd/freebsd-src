@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)gethostname.3	8.1 (Berkeley) 6/4/93
+.\"	$Id: getdomainname.3,v 1.8 1997/02/22 14:58:06 peter Exp $
 .\"
 .Dd May 6, 1994
 .Dt GETDOMAINNAME 3
@@ -83,8 +84,8 @@ The caller tried to set the hostname and was not the super-user.
 .El
 .Sh SEE ALSO
 .Xr gethostid 3 ,
-.Xr sysctl 3 ,
-.Xr gethostname 3
+.Xr gethostname 3 ,
+.Xr sysctl 3
 .Sh BUGS
 Domain names are limited to
 .Dv MAXHOSTNAMELEN

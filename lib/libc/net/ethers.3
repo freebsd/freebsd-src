@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: ethers.3,v 1.2 1996/02/11 22:33:53 mpp Exp $
+.\"     $Id: ethers.3,v 1.7 1997/02/22 15:00:05 peter Exp $
 .\"
 .Dd April 12, 1995
 .Dt ETHERS 3
@@ -44,9 +44,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
-.Fd #include <net/if.h>
-.Fd #include <netinet/in.h>
-.Fd #include <netinet/if_ether.h>
+.Fd #include <net/ethernet.h>
 .Ft int
 .Fn ether_line "char *l" "struct ether_addr *e" "char *hostname"
 .Ft struct ether_addr *
@@ -64,10 +62,15 @@ structure, which is defined in the header file
 .Aq Pa netinet/if_ether.h :
 .Bd -literal -offset indent
 /*
+ * The number of bytes in an ethernet (MAC) address.
+ */
+#define ETHER_ADDR_LEN		6
+
+/*
  * Structure of a 48-bit Ethernet address.
  */
 struct  ether_addr {
-        u_char octet[6];
+        u_char octet[ETHER_ADDR_LEN];
 };
 .Ed
 .Pp
@@ -132,11 +135,15 @@ returns a pointer to a string containing an
 representation of an ethernet address. If it is unable to convert
 the supplied
 .Ar ether_addr
-structure, it returns a NULL pointer. Likewise,
+structure, it returns a
+.Dv NULL
+pointer. Likewise,
 .Fn ether_aton
 returns a pointer to an
 .Ar ether_addr
-structure on success and a NULL pointer on failure.
+structure on success and a
+.Dv NULL
+pointer on failure.
 .Pp
 The
 .Fn ether_ntohost

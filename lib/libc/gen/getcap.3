@@ -445,7 +445,7 @@ String capability values may contain any character.  Non-printable
 codes, new lines, and colons may be conveniently represented by the use
 of escape sequences:
 .Bl -column "\e\|X,X\e\|X" "(ASCII octal nnn)"
-^X	('\fIX\fP' & 037)	control-\fIX\fP
+^X	('X' & 037)	control-X
 \e\|b, \e\|B	(ASCII 010)	backspace
 \e\|t, \e\|T	(ASCII 011)	tab
 \e\|n, \e\|N	(ASCII 012)	line feed (newline)
@@ -455,7 +455,7 @@ of escape sequences:
 \e\|c, \e\|C	(:)	colon
 \e\|\e	(\e\|)	back slash
 \e\|^	(^)	caret
-\e\|\fInnn\fP	(ASCII octal \fInnn\fP)
+\e\|nnn	(ASCII octal nnn)
 .El
 .Pp
 A `\|\e' may be followed by up to three octal digits directly specifies

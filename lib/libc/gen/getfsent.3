@@ -68,11 +68,11 @@ description file,
 struct fstab {
 	char	*fs_spec;	/* block special device name */
 	char	*fs_file;	/* file system path prefix */
-	char	*fs_vfstype;	/* type of file system */
-	char	*fs_mntops;	/* comma separated mount options */
-	char	*fs_type;	/* rw, ro, sw, or xx */
+	char	*fs_vfstype;	/* File system type, ufs, nfs */
+	char	*fs_mntops;	/* Mount options ala -o */
+	char	*fs_type;	/* FSTAB_* from fs_mntops */
 	int	fs_freq;	/* dump frequency, in days */
-	int	fs_passno;	/* pass number on parallel dump */
+	int	fs_passno;	/* pass number on parallel fsck */
 };
 .Ed
 .Pp
@@ -112,7 +112,9 @@ The
 and
 .Fn getfsfile
 functions
-return a null pointer (0) on
+return a
+.Dv NULL
+pointer on
 .Dv EOF
 or error.
 The
