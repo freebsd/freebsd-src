@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#include <sys/signalvar.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
