@@ -134,6 +134,6 @@ dupit:
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: nohup [--] command [arguments]\n");
+	(void)fprintf(stderr, "usage: nohup [--] utility [arguments]\n");
 	exit(EXIT_MISC);
 }
