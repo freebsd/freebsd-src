@@ -97,15 +97,29 @@ The directory entry format is defined in the file
 struct dirent {
 	u_long	d_fileno;	/* file number of entry */
 	u_short	d_reclen;	/* length of this record */
-	u_short	d_namlen;	/* length of string in d_name */
+	u_char  d_type;		/* file type, see below */
+	u_char	d_namlen;	/* length of string in d_name */
 #ifdef _POSIX_SOURCE
-	char	d_name[MAXNAMLEN + 1];	/* maximum name length */
+	char	d_name[255 + 1];	/* maximum name length */
 #else
 #define MAXNAMLEN       255
 	char    d_name[MAXNAMLEN + 1];  /* maximum name length */
 #endif
 
 };
+
+/*
+ * File types
+ */
+#define DT_UNKNOWN	0
+#define DT_FIFO		1
+#define DT_CHR		2
+#define DT_DIR		4
+#define DT_BLK		6
+#define DT_REG		8
+#define DT_LKN		10
+#define DT_SOCK		12
+#define DT_WHT		14
 
 #ifdef _POSIX_SOURCE
 typedef void *	DIR;
@@ -124,6 +138,7 @@ typedef struct _dirdesc {
 	char	*dd_buf;  /* data buffer */
 	int	dd_len;   /* size of data buffer */
 	long	dd_seek;  /* magic cookie returned by getdirentries */
+	long	dd_rewind;/* magic cookie for rewinding */
 } DIR;
 
 #define	dirfd(dirp)	((dirp)->dd_fd)
