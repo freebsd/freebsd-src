@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.11 1997/07/13 00:47:54 smp Exp smp $
+ *	$Id: smptests.h,v 1.12 1997/07/15 00:09:00 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -36,8 +36,8 @@
 /*
  * address of POST hardware port
  *
-#define POST_ADDR		0x80
  */
+#define POST_ADDR		0x80
 #ifdef POST_ADDR
 #define ASMPOSTCODE_INC				\
 	pushl	%eax ;				\
@@ -108,10 +108,18 @@
 /*
  * IPI for stop/restart of other CPUs
  *
-#define TEST_CPUSTOP
-#define DEBUG_CPUSTOP
 #define COUNT_CSHITS
  */
+#define TEST_CPUSTOP
+#define DEBUG_CPUSTOP
+
+
+/*
+ * Bracket code/comments relevant to the current 'giant lock' model.
+ * Everything is now the 'giant lock' model, but we will use this as
+ * we start to "push down" the lock.
+ */
+#define GIANT_LOCK
 
 
 /*
