@@ -34,22 +34,18 @@
 .Nm alias ,
 .Nm alloc ,
 .Nm bg ,
-.Nm bindkey ,
 .Nm break ,
 .Nm breaksw ,
-.Nm builtins ,
 .Nm case ,
 .Nm cd ,
 .Nm chdir ,
 .Nm command ,
-.Nm complete ,
 .Nm continue ,
 .Nm default ,
 .Nm dirs ,
 .Nm do ,
 .Nm done ,
 .Nm echo ,
-.Nm echotc ,
 .Nm elif ,
 .Nm else ,
 .Nm end ,
@@ -62,7 +58,6 @@
 .Nm export ,
 .Nm fc ,
 .Nm fg ,
-.Nm filetest ,
 .Nm fi ,
 .Nm for ,
 .Nm foreach ,
@@ -72,41 +67,33 @@
 .Nm hash ,
 .Nm hashstat ,
 .Nm history ,
-.Nm hup ,
 .Nm if ,
 .Nm jobid ,
 .Nm jobs ,
 .Nm kill ,
 .Nm limit ,
-.Nm log ,
 .Nm login ,
 .Nm logout ,
-.Nm ls-F ,
 .Nm nice ,
 .Nm nohup ,
 .Nm notify ,
 .Nm onintr ,
 .Nm popd ,
 .Nm printf ,
-.Nm printenv ,
 .Nm pushd ,
 .Nm pwd ,
 .Nm read ,
 .Nm readonly ,
 .Nm rehash ,
 .Nm repeat ,
-.Nm sched ,
 .Nm set ,
 .Nm setenv ,
-.Nm settc ,
-.Nm setty ,
 .Nm setvar ,
 .Nm shift ,
 .Nm source ,
 .Nm stop ,
 .Nm suspend ,
 .Nm switch ,
-.Nm telltc ,
 .Nm then ,
 .Nm time ,
 .Nm trap ,
@@ -114,14 +101,12 @@
 .Nm ulimit ,
 .Nm umask ,
 .Nm unalias ,
-.Nm uncomplete ,
 .Nm unhash ,
 .Nm unlimit ,
 .Nm unset ,
 .Nm unsetenv ,
 .Nm until ,
 .Nm wait ,
-.Nm where ,
 .Nm which ,
 .Nm while
 .Nd shell builtin commands
@@ -172,22 +157,18 @@ with the other shells.
 .It Ic alias Ta \&No Ta Yes Ta Yes
 .It Ic alloc Ta \&No Ta Yes Ta \&No
 .It Ic bg Ta \&No Ta Yes Ta Yes
-.It Ic bindkey Ta \&No Ta Yes Ta \&No
 .It Ic break Ta \&No Ta Yes Ta \&No
 .It Ic breaksw Ta \&No Ta Yes Ta \&No
-.It Ic builtins Ta \&No Ta Yes Ta \&No
 .It Ic case Ta \&No Ta Yes Ta Yes
 .It Ic cd Ta \&No Ta Yes Ta Yes
 .It Ic chdir Ta \&No Ta Yes Ta \&No
 .It Ic command Ta \&No Ta \&No Ta Yes
-.It Ic complete Ta \&No Ta Yes Ta \&No
 .It Ic continue Ta \&No Ta Yes Ta \&No
 .It Ic default Ta \&No Ta Yes Ta \&No
 .It Ic dirs Ta \&No Ta Yes Ta \&No
 .It Ic do Ta \&No Ta \&No Ta Yes
 .It Ic done Ta \&No Ta \&No Ta Yes
 .It Ic echo Ta Yes Ta Yes Ta Yes
-.It Ic echotc Ta \&No Ta Yes Ta \&No
 .It Ic elif Ta \&No Ta \&No Ta Yes
 .It Ic else Ta \&No Ta Yes Ta \&No
 .It Ic end Ta \&No Ta Yes Ta \&No
@@ -200,7 +181,6 @@ with the other shells.
 .It Ic export Ta \&No Ta \&No Ta Yes
 .It Ic fc Ta \&No Ta \&No Ta Yes
 .It Ic fg Ta \&No Ta Yes Ta Yes
-.It Ic filetest Ta \&No Ta Yes Ta \&No
 .It Ic fi Ta \&No Ta \&No Ta Yes
 .It Ic for Ta \&No Ta \&No Ta Yes
 .It Ic foreach Ta \&No Ta Yes Ta \&No
@@ -210,41 +190,33 @@ with the other shells.
 .It Ic hash Ta \&No Ta \&No Ta Yes
 .It Ic hashstat Ta \&No Ta Yes Ta \&No
 .It Ic history Ta \&No Ta Yes Ta \&No
-.It Ic hup Ta \&No Ta Yes Ta \&No
 .It Ic if Ta \&No Ta Yes Ta \&No
 .It Ic jobid Ta \&No Ta \&No Ta Yes
 .It Ic jobs Ta \&No Ta Yes Ta Yes
 .It Ic kill Ta Yes Ta Yes Ta \&No
 .It Ic limit Ta \&No Ta Yes Ta \&No
-.It Ic log Ta \&No Ta Yes Ta \&No
 .It Ic login Ta Yes Ta Yes Ta \&No
 .It Ic logout Ta \&No Ta Yes Ta \&No
-.It Ic ls-F Ta \&No Ta Yes Ta \&No
 .It Ic nice Ta Yes Ta Yes Ta \&No
 .It Ic nohup Ta Yes Ta Yes Ta \&No
 .It Ic notify Ta \&No Ta Yes Ta \&No
 .It Ic onintr Ta \&No Ta Yes Ta \&No
 .It Ic popd Ta \&No Ta Yes Ta \&No
-.It Ic printenv Ta Yes Ta Yes Ta \&No
-.It Ic printf Ta Yes Ta \&No Ta Yes
+.It Ic printf Ta Yes Ta Yes Ta Yes
 .It Ic pushd Ta \&No Ta Yes Ta \&No
 .It Ic pwd Ta Yes Ta \&No Ta Yes
 .It Ic read Ta \&No Ta \&No Ta Yes
 .It Ic readonly Ta \&No Ta \&No Ta Yes
 .It Ic rehash Ta \&No Ta Yes Ta \&No
 .It Ic repeat Ta \&No Ta Yes Ta \&No
-.It Ic sched Ta \&No Ta Yes Ta \&No
 .It Ic set Ta \&No Ta Yes Ta \&Yes
 .It Ic setenv Ta \&No Ta Yes Ta \&No
-.It Ic settc Ta \&No Ta Yes Ta \&No
-.It Ic setty Ta \&No Ta Yes Ta \&No
 .It Ic setvar Ta \&No Ta \&No Ta Yes
 .It Ic shift Ta \&No Ta Yes Ta Yes
 .It Ic source Ta \&No Ta Yes Ta \&No
 .It Ic stop Ta \&No Ta Yes Ta \&No
 .It Ic suspend Ta \&No Ta Yes Ta \&No
 .It Ic switch Ta \&No Ta Yes Ta \&No
-.It Ic telltc Ta \&No Ta Yes Ta \&No
 .It Ic then Ta \&No Ta \&No Ta Yes
 .It Ic time Ta Yes Ta Yes Ta \&No
 .It Ic trap Ta \&No Ta \&No Ta Yes
@@ -252,14 +224,12 @@ with the other shells.
 .It Ic ulimit Ta \&No Ta \&No Ta Yes
 .It Ic umask Ta \&No Ta Yes Ta Yes
 .It Ic unalias Ta \&No Ta Yes Ta Yes
-.It Ic uncomplete Ta \&No Ta Yes Ta \&No
 .It Ic unhash Ta \&No Ta Yes Ta \&No
 .It Ic unlimit Ta \&No Ta Yes Ta \&No
 .It Ic unset Ta \&No Ta Yes Ta Yes
 .It Ic unsetenv Ta \&No Ta Yes Ta \&No
 .It Ic until Ta \&No Ta \&No Ta Yes
 .It Ic wait Ta \&No Ta Yes Ta Yes
-.It Ic where Ta \&No Ta Yes Ta \&No
 .It Ic which Ta Yes Ta Yes Ta \&No
 .It Ic while Ta \&No Ta Yes Ta \&No
 .El
@@ -270,7 +240,6 @@ with the other shells.
 .Xr login 1 ,
 .Xr nice 1 ,
 .Xr nohup 1 ,
-.Xr printenv 1 ,
 .Xr printf 1 ,
 .Xr pwd 1 ,
 .Xr sh 1 ,
