@@ -8,12 +8,12 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: setup.sh,v 1.4 1995/02/02 20:46:40 jkh Exp $
+# $Id: setup.sh,v 1.5 1995/02/03 00:42:27 jkh Exp $
 
 # Grab the miscellaneous functions.
 . /stand/scripts/miscfuncs.sh
 
-setup()
+final_configuration()
 {
 	DONE="no"
 	while [ "${DONE}" = "no" ]; do
