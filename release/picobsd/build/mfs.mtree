@@ -33,7 +33,7 @@
     ..
     tftpboot       
     ..
-    tmp            
+    tmp            mode=01777
     ..
     usr            
         local
