@@ -5,7 +5,6 @@ SUBDIR= cat \
 	chio \
 	chmod \
 	cp \
-	csh \
 	date \
 	dd \
 	df \
@@ -30,6 +29,10 @@ SUBDIR= cat \
 	stty \
 	sync \
 	test
+
+.if !defined(NO_TCSH)
+SUBDIR+=csh
+.endif
 
 .if !defined(NO_SENDMAIL)
 SUBDIR+=rmail
