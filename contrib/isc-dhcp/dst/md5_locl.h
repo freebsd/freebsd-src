@@ -168,23 +168,22 @@
 #define ROTATE(a,n)     (((a)<<(n))|(((a)&0xffffffff)>>(32-(n))))
 #endif
 
-
-#define R0(a,b,c,d,k,s,t) { \
+#define LOCL_R0(a,b,c,d,k,s,t) { \
 	a+=((k)+(t)+F((b),(c),(d))); \
 	a=ROTATE(a,s); \
 	a+=b; };\
 
-#define R1(a,b,c,d,k,s,t) { \
+#define LOCL_R1(a,b,c,d,k,s,t) { \
 	a+=((k)+(t)+G((b),(c),(d))); \
 	a=ROTATE(a,s); \
 	a+=b; };
 
-#define R2(a,b,c,d,k,s,t) { \
+#define LOCL_R2(a,b,c,d,k,s,t) { \
 	a+=((k)+(t)+H((b),(c),(d))); \
 	a=ROTATE(a,s); \
 	a+=b; };
 
-#define R3(a,b,c,d,k,s,t) { \
+#define LOCL_R3(a,b,c,d,k,s,t) { \
 	a+=((k)+(t)+I((b),(c),(d))); \
 	a=ROTATE(a,s); \
 	a+=b; };
