@@ -78,7 +78,7 @@
         should not exist on any branched version of this file.)</para>
   </abstract>
 
-  <sect1>
+  <sect1 id="intro">
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
@@ -107,12 +107,12 @@
 
   </sect1>
 
-  <sect1>
+  <sect1 id="security">
     <title>Security Advisories</title>
     <para></para>
   </sect1>
 
-  <sect1>
+  <sect1 id="update">
     <title>System Update Information</title>
     <para></para>
   </sect1>
