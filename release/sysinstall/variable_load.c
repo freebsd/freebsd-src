@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: variable_load.c,v 1.1.2.6 1997/06/13 07:11:22 jkh Exp $
+ * $Id: variable_load.c,v 1.1.2.7 1997/06/13 09:37:05 jkh Exp $
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.
@@ -122,9 +122,13 @@ variableLoad(dialogMenuItem *self)
 
 	for (i = 0; i < curr; i++) {
 	    if (DITEM_STATUS(dispatchCommand(list[i])) != DITEM_SUCCESS) {
-		msgConfirm("Command `%s' failed - rest of script aborted.\n", buf);
-		what |= DITEM_FAILURE;
-		break;
+		if (variable_get(VAR_NO_ERROR))
+		    variable_unset(VAR_NO_ERROR);
+		else {
+		    msgConfirm("Command `%s' failed - rest of script aborted.\n", buf);
+		    what |= DITEM_FAILURE;
+		    break;
+		}
 	    }
 	}
 	strings_free(list, &curr, &max);
