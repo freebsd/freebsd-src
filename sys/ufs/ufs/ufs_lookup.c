@@ -242,7 +242,8 @@ searchloop:
 		 * "dirchk" to be true.
 		 */
 		ep = (struct direct *)((char *)bp->b_data + entryoffsetinblock);
-		if (ep->d_reclen == 0 ||
+		if (ep->d_reclen == 0 || ep->d_reclen >
+		    DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1)) ||
 		    (dirchk && ufs_dirbadentry(vdp, ep, entryoffsetinblock))) {
 			int i;
 
