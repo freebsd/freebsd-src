@@ -56,6 +56,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/systm.h>
+#include <sys/param.h>
 #  define HAVE_MEMCPY
 
 #else

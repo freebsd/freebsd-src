@@ -41,6 +41,9 @@
 #include <dev/syscons/syscons.h>
 
 #define SAVER_NAME	 "rain_saver"
+#ifdef MAX
+#undef MAX
+#endif
 #define MAX		 63	/* number of colors (in addition to black) */
 #define INCREMENT	 4	/* increment between colors */
 
