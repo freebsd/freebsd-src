@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: elf_common.h,v 1.1 1998/08/16 03:03:38 jdp Exp $
  */
 
 #ifndef _SYS_ELF_COMMON_H_
@@ -122,6 +122,12 @@
 #define SHT_HIPROC	0x7fffffff	/* specific section header types */
 #define SHT_LOUSER	0x80000000	/* reserved range for application */
 #define SHT_HIUSER	0xffffffff	/* specific indexes */
+
+/* Flags for sh_flags. */
+#define SHF_WRITE	0x1		/* Section contains writable data. */
+#define SHF_ALLOC	0x2		/* Section occupies memory. */
+#define SHF_EXECINSTR	0x4		/* Section contains instructions. */
+#define SHF_MASKPROC	0xf0000000	/* Reserved for processor-specific. */
 
 /* Values for p_type. */
 #define PT_NULL		0	/* Unused entry. */
