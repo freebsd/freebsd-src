@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.81 1995/10/28 15:39:01 phk Exp $
+ * $Id: if_ed.c,v 1.82 1995/10/28 22:46:26 pst Exp $
  */
 
 #include "ed.h"
@@ -107,21 +107,21 @@ struct ed_softc {
 	struct	kern_devconf kdc; /* kernel configuration database info */
 }       ed_softc[NED];
 
-int     ed_attach(struct isa_device *);
-void    ed_init(int);
+static int     ed_attach(struct isa_device *);
+static void    ed_init(int);
 void    edintr(int);
-int     ed_ioctl(struct ifnet *, int, caddr_t);
-int     ed_probe(struct isa_device *);
-void    ed_start(struct ifnet *);
-void    ed_reset(int);
-void    ed_watchdog(int);
-int	ed_probe_generic8390(struct ed_softc *);
-int	ed_probe_WD80x3(struct isa_device *);
-int	ed_probe_3Com(struct isa_device *);
-int	ed_probe_Novell(struct isa_device *);
-int	ed_probe_pccard(struct isa_device *, u_char *);
+static int     ed_ioctl(struct ifnet *, int, caddr_t);
+static int     ed_probe(struct isa_device *);
+static void    ed_start(struct ifnet *);
+static void    ed_reset(int);
+static void    ed_watchdog(int);
+static int	ed_probe_generic8390(struct ed_softc *);
+static int	ed_probe_WD80x3(struct isa_device *);
+static int	ed_probe_3Com(struct isa_device *);
+static int	ed_probe_Novell(struct isa_device *);
+static int	ed_probe_pccard(struct isa_device *, u_char *);
 
-void    ds_getmcaf();
+static void    ds_getmcaf();
 
 static void ed_get_packet(struct ed_softc *, char *, int /* u_short */ , int);
 static void ed_stop(int);
@@ -130,10 +130,11 @@ static inline void ed_rint();
 static inline void ed_xmit();
 static inline char *ed_ring_copy();
 
-void    ed_pio_readmem(), ed_pio_writemem();
-u_short ed_pio_write_mbufs();
+static void    ed_pio_readmem(), ed_pio_writemem();
+static u_short ed_pio_write_mbufs();
 
-void    ed_setrcr(struct ifnet *, struct ed_softc *);
+static void    ed_setrcr(struct ifnet *, struct ed_softc *);
+static u_long ds_crc(u_char *ep);
 
 #include "crd.h"
 #if NCRD > 0
@@ -144,8 +145,8 @@ void    ed_setrcr(struct ifnet *, struct ed_softc *);
  *	PC-Card (PCMCIA) specific code.
  */
 static int card_intr(struct pccard_dev *);	/* Interrupt handler */
-void edunload(struct pccard_dev *);	/* Disable driver */
-void edsuspend(struct pccard_dev *);	/* Suspend driver */
+static void edunload(struct pccard_dev *);	/* Disable driver */
+static void edsuspend(struct pccard_dev *);	/* Suspend driver */
 static int edinit(struct pccard_dev *, int);	/* init device */
 
 static struct pccard_drv ed_info =
@@ -166,7 +167,7 @@ static struct pccard_drv ed_info =
  * edinit with first=0. This is called when the user suspends
  * the system, or the APM code suspends the system.
  */
-void
+static void
 edsuspend(struct pccard_dev *dp)
 {
 	printf("ed%d: suspending\n", dp->isahd.id_unit);
@@ -177,10 +178,9 @@ edsuspend(struct pccard_dev *dp)
  *	the device's existence before initialising it.
  *	Once initialised, the device table may be set up.
  */
-int
+static int
 edinit(struct pccard_dev *dp, int first)
 {
-	int s;
 	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
 /*
  *	validate unit number.
@@ -219,7 +219,7 @@ edinit(struct pccard_dev *dp, int first)
  *	and ensure that any driver entry points such as
  *	read and write do not hang.
  */
-void
+static void
 edunload(struct pccard_dev *dp)
 {
 	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
@@ -2788,7 +2788,7 @@ ed_setrcr(ifp, sc)
 /*
  * Compute crc for ethernet address
  */
-u_long
+static u_long
 ds_crc(ep)
 	u_char *ep;
 {

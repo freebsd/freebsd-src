@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: i82586.h,v 1.1 1993/10/12 06:53:10 rgrimes Exp $
  */
 
 /*
@@ -309,14 +309,14 @@ ie_setup_config(volatile struct ie_config_cmd *cmd,
 	cmd->ie_junk = 0xff;
 }
 
-inline caddr_t
+static inline caddr_t
 Align(caddr_t ptr) {
 	unsigned long l = (unsigned long)ptr;
 	l = (l + 3) & ~3L;
 	return (caddr_t)l;
 }
 
-inline void
+static inline void
 ie_ack(volatile struct ie_sys_ctl_block *scb,
 				  u_int mask, int unit,
 				  void (*ca)(int)) {
