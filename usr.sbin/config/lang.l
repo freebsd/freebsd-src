@@ -57,17 +57,20 @@ struct kt {
 	{ "bio",	BIO },
 	{ "bus",	BUS },
 	{ "conflicts",	CONFLICTS },
-#endif MACHINE_I386
+#endif
 	{ "config",	CONFIG },
 	{ "controller",	CONTROLLER },
 	{ "cpu",	CPU },
 	{ "csr",	CSR },
 	{ "device",	DEVICE },
+#if MACHINE_I386
+	{ "disable",	DISABLE },
+#endif
 	{ "disk",	DISK },
 	{ "drive",	DRIVE },
-#if	MACHINE_I386
+#if MACHINE_I386
 	{ "drq",	DRQ },
-#endif MACHINE_I386
+#endif
 	{ "dumps",	DUMPS },
 	{ "flags",	FLAGS },
 	{ "ident",	IDENT },
@@ -76,7 +79,7 @@ struct kt {
 	{ "iomem",	IOMEM },
 	{ "iosiz",	IOSIZ },
 	{ "irq",	IRQ },
-#endif MACHINE_I386
+#endif
 	{ "machine",	MACHINE },
 	{ "major",	MAJOR },
 	{ "makeoptions", MAKEOPTIONS },
@@ -85,14 +88,14 @@ struct kt {
 	{ "minor",	MINOR },
 #if MACHINE_I386
 	{ "net",	NET },
-#endif MACHINE_I386
+#endif
 	{ "nexus",	NEXUS },
 	{ "none",	NONE },
 	{ "on",		ON },
 	{ "options",	OPTIONS },
 #if MACHINE_I386
 	{ "port",	PORT },
-#endif MACHINE_I386
+#endif
 	{ "priority",	PRIORITY },
 	{ "pseudo-device",PSEUDO_DEVICE },
 	{ "root",	ROOT },
@@ -107,7 +110,7 @@ struct kt {
 	{ "target",	TARGET },
 #if MACHINE_I386
 	{ "tty",	TTY },
-#endif MACHINE_I386
+#endif
 	{ "trace",	TRACE },
 	{ "unit",	UNIT },
 	{ "vector",	VECTOR },
