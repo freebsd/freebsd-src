@@ -30,6 +30,16 @@
 # If filename is missing, the default is
 # opt_<name-of-option-in-lower-case>.h
 
+# Adaptec Array Controller driver options
+AAC_COMPAT_LINUX	opt_acc.h	# Enable the linux ioctl interface
+ 
+AAC_DEBUG		opt_aac.h	# Debugging levels:
+					# 0 - quiet, only emit warnings
+					# 1 - noisy, emit major function
+					#     points and things done
+					# 2 - extremely noisy, emit trace
+					#     items in loops, etc.
+
 # Adaptec aic7xxx SCSI controller options
 AHC_ALLOW_MEMIO		opt_aic7xxx.h	# Allow PCI devices to use memory
 					# mapped I/O
