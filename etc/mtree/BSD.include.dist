@@ -95,6 +95,8 @@
     ..
     netinet6
     ..
+    netipsec
+    ..
     netipx
     ..
     netkey
