@@ -1,25 +1,31 @@
-#
 # $FreeBSD$
-#
 
 PROG=	miniperl
 NOMAN=	true
-CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
-SRCS=	miniperlmain.c opmini.c config.h
+SRCS=	miniperlmain.c
+SRCS+=	perl.c gv.c toke.c perly.c op.c regcomp.c dump.c util.c mg.c \
+	hv.c av.c run.c pp_hot.c sv.c pp.c scope.c pp_ctl.c pp_sys.c \
+	doop.c doio.c regexec.c taint.c universal.c \
+	globals.c perlio.c config.h
+CFLAGS+=-I${.OBJDIR} -I${PERL5SRC}
+DPADD=	${LIBM} ${LIBCRYPT}
+LDADD=	-lm -lcrypt
+
+# In FreeBSD 4.0, setproctitle(3) is in -lutil.
+.if defined(BOOTSTRAPPING)
+DPADD+=	${LIBUTIL}
+LDADD+=	-lutil
+.endif
+
 # Miniperl _must_ be static!!
 NOSHARED= yes
-.if exists(${.OBJDIR}/../libperl/)
-MYLIBPERL= ${.OBJDIR}/../libperl/libperl.a
-.else
-MYLIBPERL= ${.CURDIR}/../libperl/libperl.a
-.endif
-DPADD=	${MYLIBPERL} ${LIBM} ${LIBCRYPT} ${LIBUTIL}
-LDADD=	${MYLIBPERL} -lm -lcrypt -lutil
 
-build-tools:	cleandepend
-	cd ${.CURDIR} && ${MAKE} ${PROG}
+# We need miniperl early in `depend'.
+afterdepend: all
 
-install distribute:
+build-tools: depend all
+
+install:
 
 NO_PERL_SCRIPT_MAKE=	true
 
@@ -27,10 +33,9 @@ NO_PERL_SCRIPT_MAKE=	true
 
 .PATH:	${PERL5SRC}
 
-opmini.c:	op.c
-	ln -sf ${.OODATE} ${.TARGET}
-
-config.h:	links
+config.h: links
 	@sh config_h.sh
 
-CLEANFILES+=	opmini.c config.h
+.SUFFIXES:
+
+.SUFFIXES: .o .po .So .s .S .c
