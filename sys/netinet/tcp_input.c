@@ -153,14 +153,16 @@ do { \
 
 /*
  * Indicate whether this ack should be delayed.  We can delay the ack if
- *	- delayed acks are enabled and
  *	- there is no delayed ack timer in progress and
  *	- our last ack wasn't a 0-sized window.  We never want to delay
- *	  the ack that opens up a 0-sized window.
+ *	  the ack that opens up a 0-sized window and
+ *		- delayed acks are enabled or
+ *		- this is a half-synchronized T/TCP connection.
  */
-#define DELAY_ACK(tp) \
-	(tcp_delack_enabled && !callout_pending(tp->tt_delack) && \
-	(tp->t_flags & TF_RXWIN0SENT) == 0)
+#define DELAY_ACK(tp)							\
+	(((!callout_active(tp->tt_delack) &&				\
+	    (tp->t_flags & TF_RXWIN0SENT) == 0)) &&			\
+	    (tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
 static int
 tcp_reass(tp, th, tlenp, m)
@@ -505,7 +507,7 @@ tcp_input(m, off0)
 	th->th_urp = ntohs(th->th_urp);
 
 	/*
-	 * Delay droping TCP, IP headers, IPv6 ext headers, and TCP options,
+	 * Delay dropping TCP, IP headers, IPv6 ext headers, and TCP options,
 	 * until after ip6_savecontrol() is called and before other functions
 	 * which don't want those proto headers.
 	 * Because ip6_savecontrol() is going to parse the mbuf to
@@ -862,23 +864,16 @@ findpcb:
 			tp->t_state = TCPS_ESTABLISHED;
 
 			/*
-			 * If there is a FIN, or if there is data and the
-			 * connection is local, then delay SYN,ACK(SYN) in
-			 * the hope of piggy-backing it on a response
-			 * segment.  Otherwise must send ACK now in case
-			 * the other side is slow starting.
+			 * T/TCP logic:
+			 * If there is a FIN or if there is data, then
+			 * delay SYN,ACK(SYN) in the hope of piggy-backing
+			 * it on a response segment.  Otherwise must send
+			 * ACK now in case the other side is slow starting.
 			 */
-			if (DELAY_ACK(tp) &&
-			    ((thflags & TH_FIN) ||
-			     (tlen != 0 &&
-			      ((isipv6 && in6_localaddr(&inp->in6p_faddr)) ||
-			       (!isipv6 && in_localaddr(inp->inp_faddr)))))) {
-				callout_reset(tp->tt_delack, tcp_delacktime,  
-						tcp_timer_delack, tp);  
-				tp->t_flags |= TF_NEEDSYN;
-			} else 
+			if (thflags & TH_FIN || tlen != 0)
+				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
+			else 
 				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
-
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 			goto trimthenstep6;
@@ -1089,8 +1084,7 @@ after_listen:
 			}
 			sorwakeup(so);
 			if (DELAY_ACK(tp)) {
-	                        callout_reset(tp->tt_delack, tcp_delacktime,
-	                            tcp_timer_delack, tp);
+				tp->t_flags |= TF_DELACK;
 			} else {
 				tp->t_flags |= TF_ACKNOW;
 				tcp_output(tp);
@@ -2099,8 +2093,7 @@ dodata:							/* XXX */
 		    LIST_EMPTY(&tp->t_segq) &&
 		    TCPS_HAVEESTABLISHED(tp->t_state)) {
 			if (DELAY_ACK(tp))
-				callout_reset(tp->tt_delack, tcp_delacktime,
-					      tcp_timer_delack, tp);
+				tp->t_flags |= TF_DELACK;
 			else
 				tp->t_flags |= TF_ACKNOW;
 			tp->rcv_nxt += tlen;
@@ -2143,9 +2136,8 @@ dodata:							/* XXX */
 			 * Otherwise, since we received a FIN then no
 			 * more input can be expected, send ACK now.
 			 */
-			if (DELAY_ACK(tp) && (tp->t_flags & TF_NEEDSYN))
-                                callout_reset(tp->tt_delack, tcp_delacktime,  
-                                    tcp_timer_delack, tp);  
+			if (tp->t_flags & TF_NEEDSYN)
+				tp->t_flags |= TF_DELACK;
 			else
 				tp->t_flags |= TF_ACKNOW;
 			tp->rcv_nxt++;
@@ -2214,6 +2206,13 @@ dodata:							/* XXX */
 	 */
 	if (needoutput || (tp->t_flags & TF_ACKNOW))
 		(void) tcp_output(tp);
+	else if (tp->t_flags & TF_DELACK) {
+		tp->t_flags &= ~TF_DELACK;
+		KASSERT(!callout_active(tp->tt_delack),
+		    ("delayed ack already active"));
+		callout_reset(tp->tt_delack, tcp_delacktime,  
+		    tcp_timer_delack, tp);  
+	}
 	INP_UNLOCK(inp);
 	return;
 
