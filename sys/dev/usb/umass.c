@@ -690,6 +690,10 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	     UGETW(dd->idProduct) == USB_PRODUCT_GENESYS_GL641USB)) {
 		sc->quirks |= FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE;
 	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_IODATA &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_IODATA_IU_CD2) {
+		sc->proto =  UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
+	}
 	if (UGETW(dd->idVendor) == USB_VENDOR_MELCO &&
 	    UGETW(dd->idProduct) == USB_PRODUCT_MELCO_DUBPXXG) {
 		sc->quirks |= FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE;
