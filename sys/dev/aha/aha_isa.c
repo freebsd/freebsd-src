@@ -115,6 +115,7 @@ aha_isa_probe(device_t dev)
 	int	irq;
 	config_data_t config_data;
 
+	aha->dev = dev;
 	/* Check isapnp ids */
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, aha_ids) == ENXIO)
 		return (ENXIO);
@@ -193,6 +194,7 @@ aha_isa_attach(device_t dev)
 	void		 *ih;
 	int		 error;
 
+	aha->dev = dev;
 	aha->portrid = 0;
 	aha->port = bus_alloc_resource(dev, SYS_RES_IOPORT, &aha->portrid,
 	    0, ~0, AHA_NREGS, RF_ACTIVE);

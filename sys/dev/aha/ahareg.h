@@ -396,6 +396,7 @@ struct aha_softc {
 	struct resource		*drq;
 	int			 drqrid;
 	void			**ih;
+	device_t		 dev;
 };
 
 void aha_alloc(struct aha_softc *, int, bus_space_tag_t, bus_space_handle_t);
@@ -409,7 +410,6 @@ void aha_free(struct aha_softc *);
 int aha_init(struct aha_softc *); 
 void aha_intr(void *);
 int aha_iop_from_bio(isa_compat_io_t);
-char *aha_name(struct aha_softc *);
 int aha_probe(struct aha_softc *);
 
 #define DEFAULT_CMD_TIMEOUT 10000	/* 1 sec */
