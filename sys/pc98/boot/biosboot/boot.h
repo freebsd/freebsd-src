@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.8 1997/02/22 09:43:06 peter Exp $
+ *	$Id: boot.h,v 1.9 1997/05/28 09:22:59 kato Exp $
  */
 
 #include <sys/param.h>
@@ -34,6 +34,9 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+
+#define	RB_DUAL		0x40000		/* XXX */
+#define	RB_PROBEKBD	0x80000		/* XXX */
 
 extern char *devs[];
 extern char *name;
