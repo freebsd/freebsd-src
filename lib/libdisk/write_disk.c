@@ -137,7 +137,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	for (lp = (u_long *)buf, i = 0, sum = 0; i < 63; i++)
 	    sum += lp[i];
 	lp[63] = sum;
-#endif
+#endif /*__alpha__*/
 
 	for(i=0;i<BBSIZE/512;i++) {
 		write_block(fd,WHERE(i + c1->offset,new),buf+512*i);
@@ -152,7 +152,7 @@ Write_Extended(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	return 0;
 }
 
-#ifndef PC98
+#if defined(__i386__) && !defined(PC98)
 static void
 Write_Int32(u_int32_t *p, u_int32_t v)
 {
@@ -162,8 +162,9 @@ Write_Int32(u_int32_t *p, u_int32_t v)
     bp[2] = (v >> 16) & 0xff;
     bp[3] = (v >> 24) & 0xff;
 }
+#endif
 
-#ifndef __alpha__
+#if defined(__i386__) && !defined(PC98)
 /*
  * Special install-time configuration for the i386 boot0 boot manager.
  */
@@ -177,7 +178,6 @@ Cfg_Boot_Mgr(u_char *mbr, int edd)
 	    mbr[0x1bb] &= 0x7f;	/* Packet mode off */
     }
 }
-#endif
 #endif
 
 int
@@ -198,7 +198,7 @@ Write_Disk(struct disk *d1)
 	int PC98_EntireDisk = 0;
 #else
 	int s[4];
-#ifndef __alpha__
+#ifdef __i386__
 	int need_edd = 0;	/* Need EDD (packet interface) */
 #endif
 #endif
@@ -238,7 +238,7 @@ Write_Disk(struct disk *d1)
 	for (c1=d1->chunks->part; c1 ; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		if (!strcmp(c1->name,"X")) continue;
-#ifndef __alpha__
+#ifdef __i386__
 		j = c1->name[4] - '1';
 		j = c1->name[strlen(d1->name) + 1] - '1';
 #ifdef PC98
@@ -256,7 +256,7 @@ Write_Disk(struct disk *d1)
 		if (c1->type == freebsd)
 			ret += Write_FreeBSD(fd, d1,old,c1);
 
-#ifndef __alpha__
+#ifdef __i386__
 #ifndef PC98
 		Write_Int32(&dp[j].dp_start, c1->offset);
 		Write_Int32(&dp[j].dp_size, c1->size);
@@ -288,7 +288,7 @@ Write_Disk(struct disk *d1)
 			i -= dp[j].dp_scyl;
 			dp[j].dp_ssect |= i >> 2;
 		}
-#endif
+#endif /* PC98 */
 
 #ifdef DEBUG
 		printf("S:%lu = (%x/%x/%x)",
@@ -343,7 +343,7 @@ Write_Disk(struct disk *d1)
 #endif
 #endif
 	}
-#ifndef __alpha__
+#ifdef __i386__
 	j = 0;
 	for(i=0;i<NDOSPART;i++) {
 		if (!s[i])

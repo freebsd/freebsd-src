@@ -157,7 +157,7 @@ Fixup_Names(struct disk *d)
 	    continue;
 	if (strcmp(c2->name,"X"))
 	    continue;
-#ifndef __alpha__
+#ifdef __i386__
 	c2->oname = malloc(12);
 	if(!c2->oname) barfout(1,"malloc failed");
 	for(j=1;j<=NDOSPART;j++) {
@@ -177,7 +177,7 @@ Fixup_Names(struct disk *d)
 #else
 	free(c2->name);
 	c2->name = strdup(c1->name);
-#endif
+#endif /*__i386__*/
     }
     for(c2 = c1->part; c2 ; c2 = c2->next) {
 	if (c2->type == freebsd) {
@@ -219,7 +219,7 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subty
 	    offset += d->bios_sect;
 	    size -= d->bios_sect;
 	}
-#endif
+#endif /* PC98 */
 	
 	/* Always end on cylinder boundary */
 	l = (offset+size) % (d->bios_sect * d->bios_hd);
