@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 #
 # Copyright (c) 1992, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -31,191 +31,364 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	From @(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-#	From Id: makedevops.sh,v 1.1 1998/06/14 13:53:12 dfr Exp
-#	$Id$
+# From @(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
+# From @(#)makedevops.sh 1.1 1998/06/14 13:53:12 dfr Exp $
+# From @(#)makedevops.sh ?.? 1998/10/05
+
+#
+# Script to produce device front-end sugar.
 #
 
-use strict;
-use IO::Handle;
-use IO::File;
-use Getopt::Std;
+$debug = 0;
+$cfile = 0;          # by default do not produce any file type
+$hfile = 0;
 
-sub main {
-    my (%opts) = ('c' => 0, 'h' => 0);
-    my ($src, $cname, $hname, $tmp, $intname);
+$keepcurrentdir = 1;
 
-    getopts('ch', \%opts);
-    if (!($opts{'c'} or $opts{'h'}) or $#ARGV != 0) {
-	&usage();
-    }
+$line_width = 80;
 
-    $cname = $ARGV[0];
-    $cname =~ s,^.*/([^/]+)$,$1,;
-    $hname = $cname;
-    $cname =~ s/\.m$/.c/;
-    $hname =~ s/\.m$/.h/;
+use File::Basename;
 
-    $src = new IO::File "<$ARGV[0]";
-    defined($src)
-	or die "$0: $ARGV[0]: $!\n";
-
-    $tmp = IO::File->new_tmpfile();
-    defined($tmp)
-	or die "$0: creating temporary file: $!\n";
-
-    write_header($tmp, $ARGV[0]);
-    if ($opts{'c'}) {
-	print $tmp ("#include <sys/param.h>\n",
-		    "#include <sys/queue.h>\n",
-		    "#include <sys/bus_private.h>\n");
-    }
-
-line:
-    while (<$src>) {
-	chomp;
-
-	if (/^\#\s*(if)|(else)|(elif)|(endif)|(include)/) {
-	    if ($opts{'c'}) {
-		print $tmp ($_, "\n");
-	    }
-	    next line;
-	}
-
-	s/\#.*$//;		# strip comments
-	next line if (/^\s*$/);
-
-	if (/^\s*INTERFACE\s+(\w+)\s*$/) {
-	    $intname = $1;
-	    if ($opts{'c'}) {
-		print $tmp "#include \"$hname\"\n\n";
-	    } else {
-		print $tmp ("#ifndef _", $intname, "_if_h_\n",
-			    "#define _", $intname, "_if_h_\n\n");
-	    }
-	    next line;
-	}
-	if (/^\s*METHOD\s+([a-zA-Z_0-9 	*]+)\s+(\w+)\s*\{/) {
-	    my ($ret, $name) = ($1, $2);
-	    my (@args, $mname, $umname);
-
-	    # Get the function arguments.
-	    @args = ();
-arg:
-	    while (<$src>) {
-		chomp;
-		s/\#.*$//;	# delete comments
-		last arg if (/^\s*\}\s*;/);
-		s/^\s+//;	# strip leading whitespace
-		s/\s+$//;	# strip trailing whitespace
-		s/;$//;		# strip trailing semicolon
-		s/\s+/ /g;	# squish internal whitespace to a single space
-		push(@args, $_);
-	    }
-
-	    $mname = $intname . '_' . $name;
-	    $umname = uc $mname;
-
-	    # Print out the method declaration
-	    if ($opts{'h'}) {
-		print $tmp ("extern struct device_op_desc ", $mname,
-			    "_desc;\n",
-			    $ret, ' ', $umname, "(",
-			    join(", ", @args),
-			    ");\n");
-	    }
-
-	    if ($opts{'c'}) {
-		# Print the method desc
-		print $tmp ("struct device_op_desc ", $mname, "_desc = {\n",
-			    "\t0,\n",
-			    "\t\"$mname\"\n",
-			    "};\n\n");
-
-		# Print out the method typedef
-		print $tmp ("typedef ", $ret, ' ', $mname, "_t (",
-			    join(", ", @args), ");\n");
-
-		# Print out the method itself
-		print $tmp ($ret, ' ', $umname, " (",
-			    join(", ", @args), ")\n",
-			    "{\n",
-			    "\t", $mname, "_t *m = (", $mname, "_t *)",
-			    "DEVOPMETH(dev, ", $mname, ");\n");
-		if ($ret eq 'void') {
-		    print $tmp "\tm(";
-		} else {
-		    print $tmp "\treturn m(";
-		}
-		print $tmp join(", ", map {&argname($_)} @args);
-		print $tmp ");\n}\n\n";
-	    }
-	    next line;
-	}
-	# should diagnose unrecognized input here
-    }
-
-    if ($opts{'h'}) {
-	print $tmp ("\n#endif /* _", $intname, "_if_h_ */\n");
-    }
-
-    compare_and_update($tmp, $opts{'c'} ? $cname : $hname);
-    exit 0;
+# Process the command line
+#
+while ( $arg = shift @ARGV ) {
+   if ( $arg eq '-c' ) {
+      warn "Producing .c output files"
+         if $debug;
+      $cfile = 1;
+   } elsif ( $arg eq '-h' ) {
+      warn "Producing .h output files"
+         if $debug;
+      $hfile = 1;
+   } elsif ( $arg eq '-ch' || $arg eq '-hc' ) {
+      warn "Producing .c and .h output files"
+         if $debug;
+      $cfile = 1;
+      $hfile = 1;
+   } elsif ( $arg eq '-d' ) {
+      $debug = 1;
+   } elsif ( $arg eq '-p' ) {
+      warn "Will produce files in original not in current directory"
+         if $debug;
+      $keepcurrentdir = 0;
+   } elsif ( $arg eq '-l' ) {
+      if ( $line_width = shift @ARGV and $line_width > 0 ) {
+         warn "Line width set to $line_width"
+            if $debug;
+      } else {
+         die "Please specify a valid line width after -l";
+      }
+   } elsif ( $arg =~ m/\.m$/ ) {
+      warn "Filename: $arg"
+         if $debug;
+      push @filenames, $arg;
+   } else {
+      warn "$arg ignored"
+         if $debug;
+   }
 }
 
-&main;
 
-sub argname {
-    my ($arg) = @_;
-    my (@words) = split(/\s+/, $arg);
-    my ($name) = pop @words;
-    
-    $name =~ s/^\*+//;
-    return $name;
+# Validate the command line parameters
+#
+die "usage: $0 [-d] [-p] [-c|-h] srcfile
+where -c   produce only .c files
+      -h   produce only .h files
+      -p   use the path component in the source file for destination dir
+      -l   set line width for output files [80]
+      -d   switch on debugging
+"
+	unless ($cfile or $hfile)
+	   and $#filenames != -1;
+
+# FIXME should be able to do this more easily
+#
+$tmpdir = $ENV{'TMPDIR'};           # environment variables
+$tmpdir = $ENV{'TMP'}
+   if !$tmpdir;
+$tmpdir = $ENV{'TEMP'}
+   if !$tmpdir;
+$tmpdir = '/tmp'                    # look for a physical directory
+   if !$tmpdir and -d '/tmp';
+$tmpdir = '/usr/tmp'
+   if !$tmpdir and -d '/usr/tmp';
+$tmpdir = '/var/tmp'
+   if !$tmpdir and -d '/var/tmp';
+$tmpdir = '.'                       # give up and use current dir
+   if !$tmpdir;
+
+foreach $src ( @filenames ) {
+   # Names of the created files
+   $ctmpname = "$tmpdir/ctmp.$$";
+   $htmpname = "$tmpdir/htmp.$$";
+
+   ($name, $path, $suffix) = &fileparse($src, '.m');
+   $path = '.'
+      if $keepcurrentdir;
+   $cfilename="$path/$name.c";
+   $hfilename="$path/$name.h";
+
+   warn "Processing from $src to $cfile / $hfile via $ctmp / $htmp"
+      if $debug;
+
+   die "Could not open $src, $!"
+      if !open SRC, "$src";
+   die "Could not open $ctmpname, $!"
+      if $cfile and !open CFILE, ">$ctmpname";
+   die "Could not open $htmpname, $!"
+      if $hfile and !open HFILE, ">$htmpname";
+
+   if ( $cfile ) {
+      # Produce the header of the C file
+      #
+      print CFILE "/*\n";
+      print CFILE " * This file is produced automatically.\n";
+      print CFILE " * Do not modify anything in here by hand.\n";
+      print CFILE " *\n";
+      print CFILE " * Created from\n";
+      print CFILE " *   $src\n";
+      print CFILE " * with\n";
+      print CFILE " *   $0\n";
+      print CFILE " */\n";
+      print CFILE "\n";
+      print CFILE "#include <sys/param.h>\n";
+      print CFILE "#include <sys/queue.h>\n";
+      print CFILE "#include <sys/bus_private.h>\n";
+   }
+
+   if ( $hfile ) {
+      # Produce the header of the H file
+      #
+      print HFILE "/*\n";
+      print HFILE " * This file is produced automatically.\n";
+      print HFILE " * Do not modify anything in here by hand.\n";
+      print HFILE " *\n";
+      print HFILE " * Created from\n";
+      print HFILE " *   $src\n";
+      print HFILE " * with\n";
+      print HFILE " *   $0\n";
+      print HFILE " */\n";
+      print HFILE "\n";
+   }
+
+   %methods = ();    # clear list of methods
+   $lineno = 0;
+   $error = 0;       # to signal clean up and gerror setting
+
+   LINE: while ( $line = <SRC> ) {
+      $lineno++;
+
+      # take special notice of include directives.
+      #
+      if ( $line =~ m/^#\s*include\s+(["<])([^">]+)([">]).*/i ) {
+         warn "Included file: $1$2" . ($1 eq '<'? '>':'"')
+            if $debug;
+         print CFILE "#include $1$2" . ($1 eq '<'? '>':'"') . "\n"
+            if $cfile;
+      }
+
+      $line =~ s/#.*//;                # remove comments
+      $line =~ s/^\s+//;               # remove leading ...
+      $line =~ s/\s+$//;               # remove trailing whitespace
+
+      if ( $line =~ m/^$/ ) {          # skip empty lines
+         # nop
+
+      } elsif ( $line =~ m/^INTERFACE\s*([^\s;]*)(\s*;?)/i ) {
+         $intname = $1;
+         $semicolon = $2;
+         unless ( $intname =~ m/^[a-z_][a-z0-9_]*$/ ) {
+            warn $line
+               if $debug;
+            warn "$src:$lineno: Invalid interface name '$intname', use [a-z_][a-z0-9_]*";
+            $error = 1;
+            last LINE;
+         }
+
+         warn "$src:$lineno: semicolon missing at end of line, no problem"
+            if $semicolon !~ s/;$//;
+
+         warn "Interface $intname"
+            if $debug;
+
+         print HFILE '#ifndef _'.$intname."_if_h_\n"
+            if $hfile;
+         print HFILE '#define _'.$intname."_if_h_\n\n"
+            if $hfile;
+         print CFILE '#include "'.$intname.'_if.h"'."\n\n"
+            if $cfile;
+
+      } elsif ( $line =~ m/^METHOD/i ) {
+         # Get the return type function name and delete that from
+         # the line. What is left is the possibly first function argument
+         # if it is on the same line.
+         #
+         # FIXME For compatibilities sake METHOD and METHODE is accepted.
+         #
+         if ( !$intname ) {
+            warn "$src:$lineno: No interface name defined";
+            $error = 1;
+            last LINE;
+         }
+         $line =~ s/^METHODE?\s+([^{]+?)\s*{\s*//i;
+         @ret = split m/\s+/, $1;
+         $name = pop @ret;          # last element is name of method
+         $ret = join(" ", @ret);    # return type
+
+         warn "Method: name=$name return type=$ret"
+            if $debug;
+         
+         if ( !$name or !$ret ) {
+            warn $line
+               if $debug;
+            warn "$src:$lineno: Invalid method specification";
+            $error = 1;
+            last LINE;
+         }
+
+         unless ( $name =~ m/^[a-z_][a-z_0-9]*$/ ) {
+            warn $line
+               if $debug;
+            warn "$src:$lineno: Invalid method name '$name', use [a-z_][a-z0-9_]*";
+            $error = 1;
+            last LINE;
+         }
+
+         if ( defined($methods{$name}) ) {
+            warn "$src:$lineno: Duplicate method name";
+            $error = 1;
+            last LINE;
+         }
+
+         $methods{$name} = 'VIS';
+
+         while ( $line !~ m/}/ and $line .= <SRC> ) { }
+
+         if ( $line !~ s/};?(.*)// ) { # remove first '}' and trailing garbage
+            # The '}' was not there (the rest is optional), so complain
+            warn "$src:$lineno: Premature end of file";
+            $error = 1;
+            last LINE;
+         }
+         warn "$src:$lineno: Ignored '$1'"  # warn about garbage at end of line
+            if $debug and $1;
+
+         # Create a list of variables without the types prepended
+         #
+         $line =~ s/^\s+//;            # remove leading ...
+         $line =~ s/\s+$//;            # ... and trailing whitespace
+         $line =~ s/\s+/ /;            # remove double spaces
+
+         @arguments = split m/\s*;\s*/, $line;
+         @varnames = ();               # list of varnames
+         foreach $argument (@arguments) {
+            next                       # skip argument if argument is empty
+               if !$argument;
+
+            @ar = split m/[*\s]+/, $argument;
+            if ( $#ar == 0 ) {         # only 1 word in argument?
+               warn "$src:$lineno: no type for '$argument'";
+               $error = 1;
+               last LINE;
+            }
+
+            push @varnames, $ar[-1];   # last element is name of variable
+         };
+
+         warn 'Arguments: ' . join(', ', @arguments) . "\n"
+            . 'Varnames: ' . join(', ', @varnames)
+            if $debug;
+
+         $mname = $intname.'_'.$name;  # method name
+         $umname = uc($mname);         # uppercase method name
+
+         $arguments = join(", ", @arguments);
+         $varnames = join(", ", @varnames);
+
+         if ( $hfile ) {
+            # the method description 
+            print HFILE "extern struct device_op_desc $mname\_desc;\n";
+            # the method typedef
+            print HFILE &format_line("typedef $ret $mname\_t($arguments);",
+                              $line_width, ', ',
+                              ',',' ' x length("typedef $ret $mname\_t("))
+                      . "\n";
+            # the method declaration
+            print HFILE "$mname\_t $umname;\n\n";
+         }
+
+         if ( $cfile ) {
+            # Print out the method desc
+            print CFILE "struct device_op_desc $mname\_desc = {\n";
+            print CFILE "\t0, \"$mname\"\n";
+            print CFILE "};\n\n";
+
+            # Print out the method itself
+            if ( 0 ) {                 # haven't chosen the format yet
+               print CFILE "$ret $umname($varnames)\n";
+               print CFILE "\t".join(";\n\t", @arguments).";\n";
+            } else {
+               print CFILE &format_line("$ret $umname($arguments)",
+                              $line_width, ', ',
+                              ',', ' ' x length("$ret $umname(")) . "\n";
+            }
+            print CFILE "{\n";
+            print CFILE &format_line("\t$mname\_t *m = ($mname\_t *) DEVOPMETH(dev, $mname);",
+                              $line_width-8, ' = ', ' =', "\t\t")
+                      . "\n";
+            print CFILE "\t".($ret eq 'void'? '':'return ') . "m($varnames);\n";
+            print CFILE "}\n\n";
+         }
+      } else {
+         warn $line
+            if $debug;
+         warn "$src:$lineno: Invalid line encountered";
+         $error = 1;
+         last LINE;
+      }
+   } # end LINE
+
+   # print the final '#endif' in the header file
+   #
+   print HFILE "#endif /* _".$intname."_if_h_ */\n"
+      if $hfile;
+
+   close SRC;
+   close CFILE
+      if $cfile;
+   close HFILE
+      if $hfile;
+
+   if ( !$error ) {
+      if ( $cfile ) {
+         ($rc = system("mv $ctmpname $cfilename"))
+            and warn "mv $ctmpname $cfilename failed, $rc";
+      }
+
+      if ( $hfile ) {
+         ($rc = system("mv $htmpname $hfilename"))
+            and warn "mv $htmpname $hfilename failed, $rc";
+      }
+   } else {
+      warn 'File' . ($hfile and $cfile? 's':'') . ' skipped';
+      ($rc = system("rm -f $htmpname $ctmpname"))
+         and warn "rm -f $htmpname $ctmpname failed, $rc";
+      $gerror = 1;
+   }
 }
 
-sub compare_and_update {
-    my ($oldfh, $newname) = @_;
-    my ($data1, $data2, $newfh);
+exit $gerror;
 
-    defined($oldfh->seek(0, 0))
-	or die "$0: seek: $!\n";
-    $oldfh->input_record_separator(undef);
-    $data1 = <$oldfh>;
 
-    $newfh = new IO::File "<$newname";
-    if (defined($newfh)) {
-	$newfh->input_record_separator(undef);
-	$data2 = <$newfh>;
-	undef $newfh;
-    }
-    if (defined($data2) && $data1 eq $data2) {
-	printf STDERR "$0: $newname: unchanged\n";
-	return 0;
-    }
+sub format_line {
+   my ($line, $maxlength, $break, $new_end, $new_start) = @_;
+   my $rline = "";
 
-    $newfh = new IO::File ">$newname";
-    die "$0: $newname: $!\n"
-	unless(defined $newfh);
-    print $newfh $data1;
-    return 0;
-}
+   while ( length($line) > $maxlength
+           and ($i = rindex $line, $break, $maxlength-length($new_end)) != -1 ) {
+      $rline .= substr($line, 0, $i) . $new_end . "\n";
+      $line = $new_start . substr($line, $i+length($break));
+   }
 
-sub write_header {
-    my ($out, $in) = @_;
-
-    print $out <<EOH;
-/*
- * This file is produced automatically.
- * Do not modify anything in here by hand.
- *
- * Created from $in with makedevops.pl
- */
-
-EOH
-}
-
-sub usage {
-    print STDERR "$0: usage:\n\t$0 -c infile\n\t$0 -h infile\n";
-    exit 1;
+   return $rline . $line;
 }
