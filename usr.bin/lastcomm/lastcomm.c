@@ -135,8 +135,9 @@ main(argc, argv)
 			continue;
 
 		t = expand(ab.ac_utime) + expand(ab.ac_stime);
-		(void)printf("%-*s %-7s %-*s %-*s %6.2f secs %.16s\n",
-			fldsiz(acct, ac_comm), ab.ac_comm, flagbits(ab.ac_flag),
+		(void)printf("%-*.*s %-7s %-*s %-*s %6.2f secs %.16s\n",
+			fldsiz(acct, ac_comm), fldsiz(acct, ac_comm),
+			ab.ac_comm, flagbits(ab.ac_flag),
 			UT_NAMESIZE, user_from_uid(ab.ac_uid, 0),
 			UT_LINESIZE, getdev(ab.ac_tty),
 			t / (double)AHZ, ctime(&ab.ac_btime));
