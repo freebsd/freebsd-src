@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1997/11/10 21:22:17 wpaul Exp $
+# $Id: Makefile,v 1.12 1997/11/10 22:17:09 wpaul Exp $
 
 PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
@@ -33,7 +33,7 @@ afterinstall:
 		${.CURDIR}/Makefile.yp \
 		${DESTDIR}/var/yp/Makefile.dist
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-		${.CURDIR}/ypinit.sh ${BINDIR}/ypinit
+		${.CURDIR}/ypinit.sh ${DESTDIR}/${BINDIR}/ypinit
 	@if [ ! -f ${DESTDIR}/var/yp/Makefile.dist ]; then \
 		ln -s	${DESTDIR}/var/yp/Makefile.dist \
 			${DESTDIR}/var/yp/Makefile; fi
