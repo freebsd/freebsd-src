@@ -177,7 +177,7 @@ rerelease release:
 		cvs -R -d ${CVSROOT} co -P -r ${RELEASETAG} ${RELEASESRCMODULE}
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
-	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
+	cd ${CHROOTDIR}/usr/src && patch ${PATCH_FLAGS} < ${LOCAL_PATCHES}
 .endif
 .if defined(LOCAL_SCRIPT) && exists(${LOCAL_SCRIPT})
 	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
