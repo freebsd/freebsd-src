@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.24 1997/04/13 16:58:08 bde Exp $
+ *	$Id: exception.s,v 1.25 1997/04/26 11:45:05 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -278,6 +278,11 @@ ENTRY(fork_trampoline)
 	call	_microtime
 	popl	%eax
 
+	/*
+	 * cpu_set_fork_handler intercepts this function call to
+	 * have this call a non-return function to stay in kernel mode.
+	 * initproc has it's own fork handler, but it does return.
+	 */
 	pushl	%ebx				/* arg1 */
 	call	%esi				/* function */
 	addl	$4,%esp
