@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$FreeBSD$
+#	$Id$
 
 PROG=	lfs_cleanerd
 CFLAGS+=-I/sys/ufs/lfs -I${.CURDIR} ${DEBUG}

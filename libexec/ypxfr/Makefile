@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=	ypxfr
 SRCS=	ypxfr_clnt.c yp_clnt.c ypxfr_getmap.c yp_dblookup.c \

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$FreeBSD$
+#	$Id$
 
 PROG=	rlogind
 SRCS=	rlogind.c

@@ -1,7 +1,7 @@
 /*
  * lookup.c - Lookup IP address, HW address, netmask
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/types.h>

@@ -1,6 +1,6 @@
 /* Author: Wietse Venema, Eindhoven University of Technology. 
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <stdio.h>
