@@ -114,6 +114,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 extern	int	ip_optcopy __P((struct ip *, struct ip *));
 #endif
 
+#include <machine/in_cksum.h>
 
 extern	struct	protosw	inetsw[];
 
