@@ -372,7 +372,7 @@ pcic_attach_socket(device_t dev, struct pcic_handle *h)
 	 * XXX Notice we don't use h AT ALL.  This should be considered to
 	 * XXX be BAD.
 	 */
-	device_add_child(dev, NULL, -1, NULL);
+	device_add_child(dev, NULL, -1);
 
 	/* if there's actually a pccard device attached, initialize the slot */
 	/* XXX WE SHOULD MOVE THIS TO CHILD ATTACHED */
