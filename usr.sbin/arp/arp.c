@@ -471,11 +471,12 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 {
 	int mib[6];
 	size_t needed;
-	char *lim, *buf, *next;
+	char *lim, *buf, *newbuf, *next;
 	struct rt_msghdr *rtm;
 	struct sockaddr_inarp *sin2;
 	struct sockaddr_dl *sdl;
 	char ifname[IF_NAMESIZE];
+	int st;
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -485,10 +486,24 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	mib[5] = RTF_LLINFO;
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		errx(1, "route-sysctl-estimate");
-	if ((buf = malloc(needed)) == NULL)
-		errx(1, "malloc");
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
-		errx(1, "actual retrieval of routing table");
+	if (needed == 0)	/* empty table */
+		return;
+	buf = NULL;
+	for (;;) {
+		newbuf = realloc(buf, needed);
+		if (newbuf == NULL) {
+			if (buf != NULL)
+				free(buf);
+			errx(1, "could not reallocate memory");
+		}
+		buf = newbuf;
+		st = sysctl(mib, 6, buf, &needed, NULL, 0);
+		if (st == 0 || errno != ENOMEM)
+			break;
+		needed += needed / 8;
+	}
+	if (st == -1)
+		err(1, "actual retrieval of routing table");
 	lim = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
