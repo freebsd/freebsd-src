@@ -546,7 +546,7 @@
 378	NOPROTO	BSD	{ int nmount(struct iovec *iovp, unsigned int iovcnt, \
 			    int flags); }
 379	NOPROTO	BSD	{ int kse_exit(void); }
-380	NOPROTO	BSD	{ int kse_wakeup(void); }
+380	NOPROTO	BSD	{ int kse_wakeup(struct kse_mailbox *mbx); }
 381	NOPROTO	BSD	{ int kse_create(struct kse_mailbox *mbx, \
 			    int newgroup); }
 382	NOPROTO	BSD	{ int kse_thr_interrupt(struct kse_thr_mailbox *tmbx); }
