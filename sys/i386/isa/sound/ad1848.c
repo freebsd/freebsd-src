@@ -168,7 +168,7 @@ wait_for_calibration (ad1848_info * devc)
   if (!(ad_read (devc, 11) & 0x20))
     return;
 
-  timeout = 10000;
+  timeout = 20000;
   while (timeout > 0 && ad_read (devc, 11) & 0x20)
     timeout--;
   if (ad_read (devc, 11) & 0x20)
@@ -1192,7 +1192,7 @@ ad1848_init (char *name, int io_base, int irq, int dma_playback, int dma_capture
 	     "Generic audio codec (%s)", devc->chip_name);
 
 #if defined(__FreeBSD__)
-  printk ("\ngus0: <%s>", ad1848_pcm_operations[nr_ad1848_devs].name);
+  printk ("gus0: <%s>", ad1848_pcm_operations[nr_ad1848_devs].name);
 #else
   printk (" <%s>", ad1848_pcm_operations[nr_ad1848_devs].name);
 #endif
