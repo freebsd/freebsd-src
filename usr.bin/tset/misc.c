@@ -61,11 +61,11 @@ cat(file)
 	(void)close(fd);
 }
 
-void
+int
 outc(c)
 	int c;
 {
-	(void)putc(c, stderr);
+	return putc(c, stderr);
 }
 
 #if __STDC__
