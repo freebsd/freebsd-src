@@ -150,6 +150,7 @@ struct if_data {
 #define	IFF_POLLING	0x10000		/* Interface is in polling mode. */
 #define	IFF_PPROMISC	0x20000		/* user-requested promisc mode */
 #define	IFF_MONITOR	0x40000		/* user-requested monitor mode */
+#define	IFF_STATICARP	0x80000		/* static ARP */
 
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
