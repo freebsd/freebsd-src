@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.38 1994/12/01 20:11:52 jkh Exp $
+# $Id: instdist.sh,v 1.39 1994/12/02 15:36:45 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -95,6 +95,7 @@ binary set are only guaranteed to be available from the Primary site." \
    "U.S-3" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
    "U.S-4" "ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" \
    "Holland" "ftp://ftp.nl.net:/pub/os/FreeBSD/${DISTNAME}" \
+   "Israel" "ftp://orgchem.weizmann.ac.il/pub/FreeBSD-${DISTNAME}" \
    "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
    "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
    "France" "ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" \
@@ -117,6 +118,7 @@ binary set are only guaranteed to be available from the Primary site." \
    U.S-3) FTP_PATH="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" ;;
    U.S-4) FTP_PATH="ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" ;;
    Holland) FTP_PATH="ftp://ftp.nl.net:/pub/os/FreeBSD/${DISTNAME}" ;;
+   Israel) FTP_PATH="ftp://orgchem.weizmann.ac.il/pub/FreeBSD-${DISTNAME}" ;;
    Taiwan) FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" ;;
    Australia) FTP_PATH="ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" ;;
    France) FTP_PATH="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" ;;
