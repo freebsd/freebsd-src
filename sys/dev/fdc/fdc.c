@@ -1323,11 +1323,6 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 
 	if (ar == 0 && aw == 0 && ae == 0) {
 		device_unbusy(fd->dev);
-		if (!(fdc->flags & FDC_NODMA) && --fdc->dmacnt == 0) {
-			mtx_lock(&Giant);
-			isa_dma_release(fdc->dmachan);
-			mtx_unlock(&Giant);
-		}
 		return (0);
 	}
 
@@ -1341,12 +1336,6 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 			fd->flags &= ~FD_NEWDISK;
 		}
 		device_busy(fd->dev);
-		if (!(fdc->flags & FDC_NODMA) && fdc->dmacnt++ == 0) {
-			mtx_lock(&Giant);
-			isa_dma_acquire(fdc->dmachan);
-			isa_dmainit(fdc->dmachan, MAX_BYTES_PER_CYL);
-			mtx_unlock(&Giant);
-		}
 	}
 
 #ifdef notyet
@@ -1495,8 +1484,7 @@ fdc_release_resources(struct fdc_data *fdc)
 
 	dev = fdc->fdc_dev;
 	if (fdc->fdc_intr)
-		BUS_TEARDOWN_INTR(device_get_parent(dev), dev, fdc->res_irq,
-		    fdc->fdc_intr);
+		bus_teardown_intr(dev, fdc->res_irq, fdc->fdc_intr);
 	fdc->fdc_intr = NULL;
 	if (fdc->res_irq != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
@@ -1640,6 +1628,8 @@ fdc_detach(device_t dev)
 	/* reset controller, turn motor off */
 	fdout_wr(fdc, 0);
 
+	if (!(fdc->flags & FDC_NODMA))
+		isa_dma_release(fdc->dmachan);
 	fdc_release_resources(fdc);
 	mtx_destroy(&fdc->fdc_mtx);
 	return (0);
@@ -1687,11 +1677,18 @@ fdc_attach(device_t dev)
 		return (error);
 	}
 	error = bus_setup_intr(dev, fdc->res_irq,
-           INTR_TYPE_BIO | INTR_ENTROPY | INTR_FAST | INTR_MPSAFE,
-	   fdc_intr, fdc, &fdc->fdc_intr);
+	    INTR_TYPE_BIO | INTR_ENTROPY | INTR_FAST | INTR_MPSAFE,
+	    fdc_intr, fdc, &fdc->fdc_intr);
 	if (error) {
 		device_printf(dev, "cannot setup interrupt\n");
 		return (error);
+	}
+	if (!(fdc->flags & FDC_NODMA)) {
+		error = isa_dma_acquire(fdc->dmachan);
+		if (error)
+			return (error);
+		/* XXX no error return */
+		isa_dmainit(fdc->dmachan, MAX_BYTES_PER_CYL);
 	}
 	fdc->fdcu = device_get_unit(dev);
 	fdc->flags |= FDC_NEEDS_RESET;
