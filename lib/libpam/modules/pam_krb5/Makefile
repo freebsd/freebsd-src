@@ -34,7 +34,7 @@ CFLAGS+=	-I${.CURDIR}/../../libpam
 DPADD=		${LIBKRB5} ${LIBGSSAPI} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
 		${LIBCOM_ERR} ${LIBROKEN}
 LDADD=		-lkrb5 -lgssapi -lasn1 -lcrypto -lcrypt -lcom_err \
-		-L${.OBJDIR}/../../../../kerberos5/lib/libroken -lroken 
+		-lroken 
 MAN=		pam_krb5.8
 
 .include <bsd.lib.mk>
