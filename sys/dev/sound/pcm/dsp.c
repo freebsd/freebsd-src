@@ -587,12 +587,13 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	case SNDCTL_DSP_GETODELAY:
 		if (wrch) {
 			snd_dbuf *b = &wrch->buffer;
+	        	snd_dbuf *bs = &wrch->buffer2nd;
 			if (b->dl) {
 				chn_checkunderflow(wrch);
 				if (!(wrch->flags & CHN_F_MAPPED))
 					while (chn_wrfeed(wrch) > 0);
 			}
-			*arg = b->total;
+			*arg_i = b->rl + bs->rl;
 		} else
 			ret = EINVAL;
 		break;
