@@ -45,7 +45,7 @@
 .Nm
 gets summary and detailed SCSI Environmental Services (or SAF-TE) device
 enclosure status. The overall status is printed out. If the overall status
-is considered okay, nothing else is printed out (unless the the
+is considered okay, nothing else is printed out (unless the
 .Fl v
 option is used).
 .Pp
