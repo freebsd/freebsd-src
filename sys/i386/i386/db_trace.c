@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.28 1998/06/07 17:09:59 dfr Exp $
+ *	$Id: db_trace.c,v 1.29 1998/07/08 09:11:43 bde Exp $
  */
 
 #include <sys/param.h>
@@ -128,7 +128,7 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 	while (narg) {
 		if (argnp)
 			db_printf("%s=", *argnp++);
-		db_printf("%n", db_get_value((int)argp, 4, FALSE));
+		db_printf("%r", db_get_value((int)argp, 4, FALSE));
 		argp++;
 		if (--narg != 0)
 			db_printf(",");
@@ -197,7 +197,7 @@ db_nextframe(fp, ip)
 			eip = tf->tf_eip;
 			ebp = tf->tf_ebp;
 			db_printf(
-		    "--- trap %#n, eip = %#n, esp = %#n, ebp = %#n ---\n",
+		    "--- trap %#r, eip = %#r, esp = %#r, ebp = %#r ---\n",
 			    tf->tf_trapno, eip, esp, ebp);
 		}
 		break;
@@ -206,7 +206,7 @@ db_nextframe(fp, ip)
 			eip = tf->tf_eip;
 			ebp = tf->tf_ebp;
 			db_printf(
-		    "--- syscall %#n, eip = %#n, esp = %#n, ebp = %#n ---\n",
+		    "--- syscall %#r, eip = %#r, esp = %#r, ebp = %#r ---\n",
 			    tf->tf_eax, eip, esp, ebp);
 		}
 		break;
@@ -216,7 +216,7 @@ db_nextframe(fp, ip)
 			eip = tf->tf_eip;
 			ebp = tf->tf_ebp;
 			db_printf(
-		    "--- interrupt, eip = %#n, esp = %#n, ebp = %#n ---\n",
+		    "--- interrupt, eip = %#r, esp = %#r, ebp = %#r ---\n",
 			    eip, esp, ebp);
 		}
 		break;
