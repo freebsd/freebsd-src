@@ -23,28 +23,14 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- *	$Id: db_machdep.h,v 1.7 1995/01/14 10:34:52 bde Exp $
+ *	$Id: db_machdep.h,v 1.8 1995/05/30 08:00:34 rgrimes Exp $
  */
 
 #ifndef _MACHINE_DB_MACHDEP_H_
 #define	_MACHINE_DB_MACHDEP_H_
 
-/*
- * Machine-dependent defines for new kernel debugger.
- */
-
-/* #include <mach/i386/vm_types.h> */
-/* #include <mach/i386/vm_param.h> */
-#include <vm/vm_prot.h>
-#include <vm/vm_param.h>
-#include <vm/vm_inherit.h>
-#include <vm/lock.h>
-/* #include <i386/thread.h> */		/* for thread_status */
-#include <machine/frame.h>		/* for struct trapframe */
-/* #include <i386/eflags.h> */
+#include <machine/frame.h>
 #include <machine/psl.h>
-/* #include <i386/trap.h> */
-#include <machine/trap.h>
 
 #define i386_saved_state trapframe
 
@@ -86,35 +72,5 @@ extern db_regs_t	ddb_regs;	/* register state */
 				  ((ins)&0x3800) == 0x1000))
 #define inst_load(ins)		0
 #define inst_store(ins)		0
-
-/* access capability and access macros */
-
-#define DB_ACCESS_LEVEL		2	/* access any space */
-#define DB_CHECK_ACCESS(addr,size,task)				\
-	db_check_access(addr,size,task)
-#define DB_PHYS_EQ(task1,addr1,task2,addr2)			\
-	db_phys_eq(task1,addr1,task2,addr2)
-#define DB_VALID_KERN_ADDR(addr)				\
-	((addr) >= VM_MIN_KERNEL_ADDRESS && 			\
-	 (addr) < VM_MAX_KERNEL_ADDRESS)
-#define DB_VALID_ADDRESS(addr,user)				\
-	((!(user) && DB_VALID_KERN_ADDR(addr)) ||		\
-	 ((user) && (addr) < VM_MIN_KERNEL_ADDRESS))
-
-boolean_t 	db_check_access(/* vm_offset_t, int, task_t */);
-boolean_t	db_phys_eq(/* task_t, vm_offset_t, task_t, vm_offset_t */);
-
-/* macros for printing OS server dependent task name */
-
-#define DB_TASK_NAME(task)	db_task_name(task)
-#define DB_TASK_NAME_TITLE	"COMMAND                "
-#define DB_TASK_NAME_LEN	23
-#define DB_NULL_TASK_NAME	"?                      "
-
-void		db_task_name(/* task_t */);
-
-/* macro for checking if a thread has used floating-point */
-
-#define db_thread_fp_used(thread)	((thread)->pcb->ims.ifps != 0)
 
 #endif /* !_MACHINE_DB_MACHDEP_H_ */
