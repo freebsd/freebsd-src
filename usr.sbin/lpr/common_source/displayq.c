@@ -337,8 +337,7 @@ inform(const struct printer *pp, char *cf)
 			if (line[0] < 'a' || line[0] > 'z')
 				break;
 			if (copycnt == 0 || strcmp(file, line+1) != 0) {
-				strncpy(file, line + 1, sizeof(file) - 1);
-				file[sizeof(file) - 1] = '\0';
+				strlcpy(file, line + 1, sizeof(file));
 			}
 			copycnt++;
 			/*
@@ -348,8 +347,7 @@ inform(const struct printer *pp, char *cf)
 			 */
 			continue;
 		case 'N':
-			strncpy(savedname, line + 1, sizeof(savedname) - 1);
-			savedname[sizeof(savedname) - 1] = '\0';
+			strlcpy(savedname, line + 1, sizeof(savedname));
 			break;
 		}
 		if ((file[0] != '\0') && (savedname[0] != '\0')) {
@@ -364,8 +362,7 @@ inform(const struct printer *pp, char *cf)
 	if (file[0] != '\0') {
 		if (savedname[0] == '\0') {
 			/* a safeguard in case the N-ame line is missing */
-			strncpy(savedname, file, sizeof(savedname) - 1);
-			savedname[sizeof(savedname) - 1] = '\0';
+			strlcpy(savedname, file, sizeof(savedname));
 		}
 		show(savedname, file, copycnt);
 	}
