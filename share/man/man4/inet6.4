@@ -395,7 +395,7 @@ Boolean: enable/disable the prohibited use of
 mapped address on
 .Dv AF_INET6
 sockets.
-Defaults to off.
+Defaults to on.
 .It Dv IPV6CTL_RTEXPIRE
 .Pq ip6.rtexpire
 Integer: lifetime in seconds of protocol-cloned
@@ -414,7 +414,7 @@ which initiates dynamic adaptation (default 128).
 .El
 .Ss Interaction between IPv4/v6 sockets
 By default,
-.Nx
+.Fx
 does not route IPv4 traffic to
 .Dv AF_INET6
 sockets.
