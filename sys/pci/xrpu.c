@@ -22,6 +22,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/timetc.h>
 #include <sys/timepps.h>
 #include <sys/xrpuio.h>
