@@ -23,7 +23,7 @@ TCL_CC='cc'
 TCL_DEFS=' -DHAVE_UNISTD_H=1 -DHAVE_SYS_TIME_H=1 -DTIME_WITH_SYS_TIME=1 -DHAVE_TM_ZONE=1 -DHAVE_TM_GMTOFF=1 -DSTDC_HEADERS=1 -DNEED_MATHERR=1 '
 
 # The name of the Tcl library (may be either a .a file or a shared library):
-TCL_LIB_FILE=libtcl75.so.1.0
+TCL_LIB_FILE=libtcl75.so.1.1
 
 # Additional libraries to use when linking Tcl.
 TCL_LIBS='  -lm'
@@ -90,7 +90,7 @@ TCL_LIB_VERSIONS_OK='nodots'
 # extension, and anything else needed).  May depend on the variables
 # VERSION and SHLIB_SUFFIX.  On most UNIX systems this is
 # ${VERSION}${SHLIB_SUFFIX}.
-TCL_SHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.so.1.0'
+TCL_SHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.so.1.1'
 
 # String that can be evaluated to generate the part of an unshared library
 # name that comes after the "libxxx" (includes version number, if any,
