@@ -71,7 +71,7 @@ static u_long nfsrvhash;
 #define	FALSE	0
 
 #define	NETFAMILY(rp) \
-		(((rp)->rc_flag & RC_INETADDR) ? AF_INET : AF_ISO)
+		(((rp)->rc_flag & RC_NAM) ? (rp)->rc_nam->sa_family : AF_INET)
 
 /*
  * Static array that defines which nfs rpc's are nonidempotent
@@ -240,7 +240,8 @@ loop:
 		rp->rc_flag |= RC_INETADDR;
 		rp->rc_inetaddr = saddr->sin_addr.s_addr;
 		break;
-	case AF_ISO:
+/*	case AF_INET6:	*/
+/*	case AF_ISO:	*/
 	default:
 		rp->rc_flag |= RC_NAM;
 		rp->rc_nam = dup_sockaddr(nd->nd_nam, 1);

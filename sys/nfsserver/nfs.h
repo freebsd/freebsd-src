@@ -195,13 +195,6 @@ union nethostaddr {
 	struct sockaddr *had_nam;
 };
 
-#define	nu_inetaddr	nu_haddr.had_inetaddr
-#define	nu_nam		nu_haddr.had_nam
-/* Bits for nu_flag */
-#define	NU_INETADDR	0x1
-#define NU_NAM		0x2
-#define NU_NETFAM(u)	(((u)->nu_flag & NU_INETADDR) ? AF_INET : AF_ISO)
-
 struct nfsrv_rec {
 	STAILQ_ENTRY(nfsrv_rec) nr_link;
 	struct sockaddr	*nr_address;
