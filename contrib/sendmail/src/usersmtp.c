@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -15,9 +15,9 @@
 
 #ifndef lint
 # if SMTP
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.18 2000/12/20 16:36:11 ca Exp $ (with SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.24 2001/02/21 00:59:09 gshapiro Exp $ (with SMTP)";
 # else /* SMTP */
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.18 2000/12/20 16:36:11 ca Exp $ (without SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.24 2001/02/21 00:59:09 gshapiro Exp $ (without SMTP)";
 # endif /* SMTP */
 #endif /* ! lint */
 
@@ -844,6 +844,7 @@ safesaslfile(context, file)
 
 	if (file == NULL || *file == '\0')
 		return SASL_OK;
+
 	sff = SFF_SAFEDIRPATH|SFF_NOWLINK|SFF_NOGWFILES|SFF_NOWWFILES|SFF_ROOTOK;
 	if ((p = strrchr(file, '/')) == NULL)
 		p = file;
@@ -873,12 +874,13 @@ safesaslfile(context, file)
 	}
 # endif /* SASL <= 10515 */
 
-	if ((r = safefile(file, RunAsUid, RunAsGid, RunAsUserName, sff,
+	p = file;
+	if ((r = safefile(p, RunAsUid, RunAsGid, RunAsUserName, sff,
 			  S_IRUSR, NULL)) == 0)
 		return SASL_OK;
 	if (LogLevel >= 11 || (r != ENOENT && LogLevel >= 9))
 		sm_syslog(LOG_WARNING, NOQID, "error: safesasl(%s) failed: %s",
-			  file, errstring(r));
+			  p, errstring(r));
 	return SASL_CONTINUE;
 }
 
@@ -1528,7 +1530,7 @@ smtpmailfrom(m, mci, e)
 	else
 	{
 		smtpmessage("MAIL From:<@%s%c%s>%s", m, mci, MyHostName,
-			*bufp == '@' ? ',' : ':', bufp, optbuf);
+			    *bufp == '@' ? ',' : ':', bufp, optbuf);
 	}
 	SmtpPhase = mci->mci_phase = "client MAIL";
 	sm_setproctitle(TRUE, e, "%s %s: %s", qid_printname(e),
@@ -1943,6 +1945,8 @@ smtpdata(m, mci, e)
 	else
 		r = 4;
 	e->e_statmsg = newstr(&SmtpReplyBuffer[r]);
+	SmtpPhase = mci->mci_phase = "idle";
+	sm_setproctitle(TRUE, e, "%s: %s", CurHostName, mci->mci_phase);
 	if (rstat != EX_PROTOCOL)
 		return rstat;
 	if (LogLevel > 1)
@@ -2116,6 +2120,17 @@ smtpquit(m, mci, e)
 }
 /*
 **  SMTPRSET -- send a RSET (reset) command
+**
+**	Parameters:
+**		m -- a pointer to the mailer.
+**		mci -- the mailer connection information.
+**		e -- the current envelope.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		closes the connection if there is no reply to RSET.
 */
 
 void
@@ -2154,6 +2169,15 @@ smtprset(m, mci, e)
 }
 /*
 **  SMTPPROBE -- check the connection state
+**
+**	Parameters:
+**		mci -- the mailer connection information.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		closes the connection if there is no reply to RSET.
 */
 
 int
