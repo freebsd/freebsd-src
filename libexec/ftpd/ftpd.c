@@ -796,7 +796,7 @@ inithosts()
 				hrp->hostname = NULL;
 				insert = 1;
 			} else {
-				if (hrp->hostinfo)
+				if (hrp->hostinfo && hrp->hostinfo != res)
 					freeaddrinfo(hrp->hostinfo);
 				insert = 0; /* host already in the chain */
 			}
