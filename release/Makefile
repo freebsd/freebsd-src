@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.24 1997/03/02 12:03:22 joerg Exp $
+#	$Id: Makefile,v 1.246.2.25 1997/03/02 15:28:58 jkh Exp $
 #
 # How to roll a release:
 #
@@ -557,7 +557,6 @@ installCRUNCH:
 # may want to reuse it (release.8 presently)
 #
 doKERNEL:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -f ${RD}/kernels/${KERNEL}
 	cd ${.CURDIR}/../sys/i386/conf && config -n ${KERNEL}
 	cd ${.CURDIR}/../sys/compile/${KERNEL} && \
@@ -569,7 +568,6 @@ doKERNEL:
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
 #
 doMFSKERN:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
 	@cd ${.CURDIR}/../sys/i386/conf && \
