@@ -72,7 +72,7 @@ falls back to slower speeds when it does not.
 Except for the Lucent WaveLAN Bronze cards, all cards supported by the
 .Nm
 driver support WEP for encryption.
-To enable encryption, use the
+To enable encryption, use
 .Xr ifconfig 8
 as shown below.
 .Pp
@@ -94,7 +94,7 @@ or
 .Dq "legacy Lucent ad-hoc mode" ,
 predates the IEEE 802.11 specification and so may not interoperate
 with cards from different vendors.
-The standardized point-to-point mode, is called IBSS (or confusingly
+The standardized point-to-point mode is called IBSS (or confusingly
 just ad-hoc mode), but is not supported by cards with very old
 firmware revisions.
 If your cards supports IBSS mode, it is recommended that you use it in
@@ -247,9 +247,10 @@ US Robotics 2415 (rebadged WL11000P)
 Wisecom Wireless LAN PCI Adapter
 .El
 .Pp
-The following addapters have the same model numbers as those listed
+The following adapters have the same model numbers as those listed
 above, but might not work if the actual card is after the change away
-from the Prism family.
+from the Prism family:
+.Pp
 .Bl -item -compact
 .It
 DLink DWL520
@@ -293,7 +294,8 @@ ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
 Create a host-based access point with WEP enabled (Prism only):
 .Bd -literal -offset indent
 ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
-	wepmode on wepkey 0x1234567890 media DS/11Mbps mediaopt hostap
+	wepmode on wepkey 0x1234567890 media DS/11Mbps \e
+	mediaopt hostap
 .Ed
 .Pp
 Create a host-based wireless bridge to fxp0 (Prism only):
@@ -309,14 +311,14 @@ This will give you the same functionality as an access point.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "wi%d: init failed"
-The WaveLAN card failed to come ready after an initialization command
+The WaveLAN card failed to become ready after an initialization command
 was issued.
 .It "wi%d: failed to allocate %d bytes on NIC"
 The driver was unable to allocate memory for transmit frames in the
 NIC's on-board RAM.
 This can also be an indication of an incorrectly configured interrupt.
 .It "wi%d: device timeout"
-The WaveLAN failed to generate an interrupt to acknowledge a transmit
+The WaveLAN card failed to generate an interrupt to acknowledge a transmit
 command.
 .El
 .Sh SEE ALSO
@@ -374,7 +376,7 @@ older versions of station firmware.
 .Pp
 Lucent cards prior to firmware version 6.0.6 do not support IBSS
 mode.
-These cards support only the pre 802.11 mode known as
+These cards support only the pre-802.11 mode known as
 .Dq "demo ad-hoc mode"
 which does not interoperate with stations in IBSS mode.
 .Pp
