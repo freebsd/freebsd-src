@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.46 1999/04/19 14:14:14 peter Exp $
+ *  $Id: linux_sysvec.c,v 1.47 1999/04/28 01:04:20 luoqi Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -36,9 +36,9 @@
 #endif
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
