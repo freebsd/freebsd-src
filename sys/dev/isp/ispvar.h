@@ -153,9 +153,11 @@ struct ispmdvec {
 #define	ISP_QUEUE_ENTRY(q, idx)		((q) + ((idx) * QENTRY_LEN))
 #define	ISP_QUEUE_SIZE(n)		((n) * QENTRY_LEN)
 #define	ISP_NXT_QENTRY(idx, qlen)	(((idx) + 1) & ((qlen)-1))
-#define	ISP_QAVAIL(in, out, qlen)	\
+#define	ISP_QFREE(in, out, qlen)	\
 	((in == out)? (qlen - 1) : ((in > out)? \
 	((qlen - 1) - (in - out)) : (out - in - 1)))
+#define	ISP_QAVAIL(isp)	\
+	ISP_QFREE(isp->isp_reqidx, isp->isp_reqodx, RQUEST_QUEUE_LEN(isp))
 
 #define	ISP_ADD_REQUEST(isp, iptr)	\
 	MEMORYBARRIER(isp, SYNC_REQUEST, iptr, QENTRY_LEN); \
@@ -176,7 +178,7 @@ typedef struct {
 			isp_ultramode		: 1,
 			isp_diffmode		: 1,
 			isp_lvdmode		: 1,
-						: 1,
+			isp_fast_mttr		: 1,	/* fast sram */
 			isp_initiator_id	: 4,
 			isp_async_data_setup	: 4;
 	u_int16_t	isp_selection_timeout;
@@ -211,15 +213,18 @@ typedef struct {
 #define	DPARM_ARQ	0x0400
 #define	DPARM_QFRZ	0x0200
 #define	DPARM_RENEG	0x0100
-#define	DPARM_NARROW	0x0080	/* Possibly only available with >= 7.55 fw */
-#define	DPARM_ASYNC	0x0040	/* Possibly only available with >= 7.55 fw */
+#define	DPARM_NARROW	0x0080
+#define	DPARM_ASYNC	0x0040
+#define	DPARM_PPR	0x0020
 #define	DPARM_DEFAULT	(0xFF00 & ~DPARM_QFRZ)
 #define	DPARM_SAFE_DFLT	(DPARM_DEFAULT & ~(DPARM_WIDE|DPARM_SYNC|DPARM_TQING))
 
 
 /* technically, not really correct, as they need to be rated based upon clock */
-#define	ISP_40M_SYNCPARMS	0x080a
-#define	ISP_20M_SYNCPARMS	0x080c
+#define	ISP_80M_SYNCPARMS	0x0c09
+#define	ISP_40M_SYNCPARMS	0x0c0a
+#define	ISP_20M_SYNCPARMS	0x0c0c
+#define	ISP_20M_SYNCPARMS_1040	0x080c
 #define	ISP_10M_SYNCPARMS	0x0c19
 #define	ISP_08M_SYNCPARMS	0x0c25
 #define	ISP_05M_SYNCPARMS	0x0c32
@@ -304,7 +309,7 @@ typedef struct {
 /*
  * Soft Structure per host adapter
  */
-struct ispsoftc {
+typedef struct ispsoftc {
 	/*
 	 * Platform (OS) specific data
 	 */
@@ -330,9 +335,9 @@ struct ispsoftc {
 
 	u_int32_t
 				isp_touched	: 1,	/* board ever seen? */
-				isp_fast_mttr	: 1,	/* fast sram */
-				isp_bustype	: 1,	/* SBus or PCI */
 						: 1,
+				isp_bustype	: 1,	/* SBus or PCI */
+				isp_loaded_fw	: 1,	/* loaded firmware */
 				isp_dblev	: 12,	/* debug log mask */
 				isp_clock	: 8,	/* input clock */
 				isp_confopts	: 8;	/* config options */
@@ -366,7 +371,7 @@ struct ispsoftc {
 	caddr_t			isp_result;
 	u_int32_t		isp_rquest_dma;
 	u_int32_t		isp_result_dma;
-};
+} ispsoftc_t;
 
 #define	SDPARAM(isp)	((sdparam *) (isp)->isp_param)
 #define	FCPARAM(isp)	((fcparam *) (isp)->isp_param)

@@ -1,11 +1,7 @@
 /* $FreeBSD$ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
- *---------------------------------------
- * Copyright (c) 1997, 1998, 1999 by Matthew Jacob
- * NASA/Ames Research Center
- * All rights reserved.
- *---------------------------------------
+ * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -16,8 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -99,11 +93,15 @@ struct isposinfo {
 	struct cam_sim		*sim2;
 	struct cam_path		*path2;
 	struct intr_config_hook	ehook;
-	volatile u_int16_t	:	14,
-		islocked	:	1,
-		intsok		:	1;
 	u_int8_t		mboxwaiting;
 	u_int8_t		simqfrozen;
+	u_int8_t		drain;
+#ifdef	SERVICING_INTERRUPT
+	u_int8_t		intsok;
+#else
+	u_int8_t		padding;
+#endif
+	volatile u_int32_t	islocked;
 	int			splsaved;
 #ifdef	ISP_TARGET_MODE
 #define	TM_WANTED		0x01
@@ -314,8 +312,7 @@ static INLINE void
 isp_lock(struct ispsoftc *isp)
 {
 	int s = splcam();
-	if (isp->isp_osinfo.islocked == 0) {
-		isp->isp_osinfo.islocked = 1;
+	if (isp->isp_osinfo.islocked++ == 0) {
 		isp->isp_osinfo.splsaved = s;
 	} else {
 		splx(s);
@@ -326,8 +323,7 @@ static INLINE void isp_unlock(struct ispsoftc *);
 static INLINE void
 isp_unlock(struct ispsoftc *isp)
 {
-	if (isp->isp_osinfo.islocked) {
-		isp->isp_osinfo.islocked = 0;
+	if (--isp->isp_osinfo.islocked == 0) {
 		splx(isp->isp_osinfo.splsaved);
 	}
 }

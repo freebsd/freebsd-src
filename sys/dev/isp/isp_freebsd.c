@@ -2,11 +2,7 @@
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
- *---------------------------------------
- * Copyright (c) 1997, 1998, 1999 by Matthew Jacob
- * NASA/Ames Research Center
- * All rights reserved.
- *---------------------------------------
+ * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -17,8 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -164,7 +158,9 @@ isp_intr_enable(void *arg)
 {
 	struct ispsoftc *isp = arg;
 	ENABLE_INTS(isp);
+#ifdef	SERVICING_INTERRUPT
 	isp->isp_osinfo.intsok = 1;
+#endif
 	/* Release our hook so that the boot can continue. */
 	config_intrhook_disestablish(&isp->isp_osinfo.ehook);
 }
@@ -399,7 +395,7 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	struct ccb_en_lun *cel = &ccb->cel;
 	tstate_t *tptr;
 	u_int16_t rstat;
-	int bus;
+	int bus, frozen = 0;
 	lun_id_t lun;
 	target_id_t tgt;
 
@@ -407,97 +403,6 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	bus = XS_CHANNEL(ccb);
 	tgt = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
-
-	/*
-	 * First, check to see if we're enabling on fibre channel
-	 * and don't yet have a notion of who the heck we are (no
-	 * loop yet).
-	 */
-	if (IS_FC(isp) && cel->enable &&
-	    (isp->isp_osinfo.tmflags & TM_TMODE_ENABLED) == 0) {
-		int rv= 2 * 1000000;
-		fcparam *fcp = isp->isp_param;
-
-		ISP_LOCK(isp);
-		rv = isp_control(isp, ISPCTL_FCLINK_TEST, &rv);
-		ISP_UNLOCK(isp);
-		if (rv || fcp->isp_fwstate != FW_READY) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("link status not good yet\n");
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			return;
-		}
-		ISP_LOCK(isp);
-		rv = isp_control(isp, ISPCTL_PDB_SYNC, NULL);
-		ISP_UNLOCK(isp);
-		if (rv || fcp->isp_fwstate != FW_READY) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("could not get a good port database read\n");
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			return;
-		}
-	}
-
-
-	/*
-	 * Next check to see whether this is a target/lun wildcard action.
-	 *
-	 * If so, we enable/disable target mode but don't do any lun enabling.
-	 */
-	if (lun == CAM_LUN_WILDCARD && tgt == CAM_TARGET_WILDCARD) {
-		int av;
-		tptr = &isp->isp_osinfo.tsdflt;
-		if (cel->enable) {
-			if (isp->isp_osinfo.tmflags & TM_TMODE_ENABLED) {
-				ccb->ccb_h.status = CAM_LUN_ALRDY_ENA;
-				return;
-			}
-			ccb->ccb_h.status =
-			    xpt_create_path(&tptr->owner, NULL,
-			    xpt_path_path_id(ccb->ccb_h.path),
-			    xpt_path_target_id(ccb->ccb_h.path),
-			    xpt_path_lun_id(ccb->ccb_h.path));
-			if (ccb->ccb_h.status != CAM_REQ_CMP) {
-				return;
-			}
-			SLIST_INIT(&tptr->atios);
-			SLIST_INIT(&tptr->inots);
-			av = 1;
-			ISP_LOCK(isp);
-			av = isp_control(isp, ISPCTL_TOGGLE_TMODE, &av);
-			if (av) {
-				ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-				xpt_free_path(tptr->owner);
-				ISP_UNLOCK(isp);
-				return;
-			}
-			isp->isp_osinfo.tmflags |= TM_TMODE_ENABLED;
-			ISP_UNLOCK(isp);
-		} else {
-			if ((isp->isp_osinfo.tmflags & TM_TMODE_ENABLED) == 0) {
-				ccb->ccb_h.status = CAM_LUN_INVALID;
-				return;
-			}
-			if (are_any_luns_enabled(isp)) {
-				ccb->ccb_h.status = CAM_SCSI_BUSY;
-				return;
-			}
-			av = 0;
-			ISP_LOCK(isp);
-			av = isp_control(isp, ISPCTL_TOGGLE_TMODE, &av);
-			if (av) {
-				ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-				ISP_UNLOCK(isp);
-				return;
-			}
-			isp->isp_osinfo.tmflags &= ~TM_TMODE_ENABLED;
-			ISP_UNLOCK(isp);
-			ccb->ccb_h.status = CAM_REQ_CMP;
-		}
-		xpt_print_path(ccb->ccb_h.path);
-		printf(lfmt, (cel->enable) ? "en" : "dis");
-		return;
-	}
 
 	/*
 	 * Do some sanity checking first.
@@ -520,6 +425,137 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 			return;
 		}
 	}
+
+	/*
+	 * If Fibre Channel, stop and drain all activity to this bus.
+	 */
+	if (IS_FC(isp)) {
+		ISP_LOCK(isp);
+		frozen = 1;
+		xpt_freeze_simq(isp->isp_sim, 1);
+		isp->isp_osinfo.drain = 1;
+		/* ISP_UNLOCK(isp);  XXX NEED CV_WAIT HERE XXX */
+		while (isp->isp_osinfo.drain) {
+			tsleep(&isp->isp_osinfo.drain, PRIBIO, "ispdrain", 0);
+		}
+		ISP_UNLOCK(isp);
+	}
+
+	/*
+	 * Check to see if we're enabling on fibre channel and
+	 * don't yet have a notion of who the heck we are (no
+	 * loop yet).
+	 */
+	if (IS_FC(isp) && cel->enable &&
+	    (isp->isp_osinfo.tmflags & TM_TMODE_ENABLED) == 0) {
+		int rv= 2 * 1000000;
+		fcparam *fcp = isp->isp_param;
+
+		ISP_LOCK(isp);
+		rv = isp_control(isp, ISPCTL_FCLINK_TEST, &rv);
+		ISP_UNLOCK(isp);
+		if (rv || fcp->isp_fwstate != FW_READY) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("link status not good yet\n");
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			if (frozen)
+				xpt_release_simq(isp->isp_sim, 1);
+			return;
+		}
+		ISP_LOCK(isp);
+		rv = isp_control(isp, ISPCTL_PDB_SYNC, NULL);
+		ISP_UNLOCK(isp);
+		if (rv || fcp->isp_fwstate != FW_READY) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("could not get a good port database read\n");
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			if (frozen)
+				xpt_release_simq(isp->isp_sim, 1);
+			return;
+		}
+	}
+
+
+	/*
+	 * Next check to see whether this is a target/lun wildcard action.
+	 *
+	 * If so, we enable/disable target mode but don't do any lun enabling.
+	 */
+	if (lun == CAM_LUN_WILDCARD && tgt == CAM_TARGET_WILDCARD) {
+		int av;
+		tptr = &isp->isp_osinfo.tsdflt;
+		if (cel->enable) {
+			if (isp->isp_osinfo.tmflags & TM_TMODE_ENABLED) {
+				ccb->ccb_h.status = CAM_LUN_ALRDY_ENA;
+				if (frozen)
+					xpt_release_simq(isp->isp_sim, 1);
+				return;
+			}
+			ccb->ccb_h.status =
+			    xpt_create_path(&tptr->owner, NULL,
+			    xpt_path_path_id(ccb->ccb_h.path),
+			    xpt_path_target_id(ccb->ccb_h.path),
+			    xpt_path_lun_id(ccb->ccb_h.path));
+			if (ccb->ccb_h.status != CAM_REQ_CMP) {
+				if (frozen)
+					xpt_release_simq(isp->isp_sim, 1);
+				return;
+			}
+			SLIST_INIT(&tptr->atios);
+			SLIST_INIT(&tptr->inots);
+			av = 1;
+			ISP_LOCK(isp);
+			av = isp_control(isp, ISPCTL_TOGGLE_TMODE, &av);
+			if (av) {
+				ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
+				xpt_free_path(tptr->owner);
+				ISP_UNLOCK(isp);
+				if (frozen)
+					xpt_release_simq(isp->isp_sim, 1);
+				return;
+			}
+			isp->isp_osinfo.tmflags |= TM_TMODE_ENABLED;
+			ISP_UNLOCK(isp);
+		} else {
+			if ((isp->isp_osinfo.tmflags & TM_TMODE_ENABLED) == 0) {
+				ccb->ccb_h.status = CAM_LUN_INVALID;
+				if (frozen)
+					xpt_release_simq(isp->isp_sim, 1);
+				return;
+			}
+			if (are_any_luns_enabled(isp)) {
+				ccb->ccb_h.status = CAM_SCSI_BUSY;
+				if (frozen)
+					xpt_release_simq(isp->isp_sim, 1);
+				return;
+			}
+			av = 0;
+			ISP_LOCK(isp);
+			av = isp_control(isp, ISPCTL_TOGGLE_TMODE, &av);
+			if (av) {
+				ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
+				ISP_UNLOCK(isp);
+				if (frozen)
+					xpt_release_simq(isp->isp_sim, 1);
+				return;
+			}
+			isp->isp_osinfo.tmflags &= ~TM_TMODE_ENABLED;
+			ISP_UNLOCK(isp);
+			ccb->ccb_h.status = CAM_REQ_CMP;
+		}
+		xpt_print_path(ccb->ccb_h.path);
+		printf(lfmt, (cel->enable) ? "en" : "dis");
+		if (frozen)
+			xpt_release_simq(isp->isp_sim, 1);
+		return;
+	}
+
+	/*
+	 * We can move along now...
+	 */
+
+	if (frozen)
+		xpt_release_simq(isp->isp_sim, 1);
 
 
 	if (cel->enable) {
@@ -1417,7 +1453,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 	if (isp->isp_state != ISP_RUNSTATE &&
 	    ccb->ccb_h.func_code == XPT_SCSI_IO) {
 		ISP_LOCK(isp);
-		DISABLE_INTS(isp);
 		isp_init(isp);
 		if (isp->isp_state != ISP_INITSTATE) {
 			ISP_UNLOCK(isp);
@@ -1430,7 +1465,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 		isp->isp_state = ISP_RUNSTATE;
-		ENABLE_INTS(isp);
 		ISP_UNLOCK(isp);
 	}
 	isp_prt(isp, ISP_LOGDEBUG2, "isp_action code %x", ccb->ccb_h.func_code);
