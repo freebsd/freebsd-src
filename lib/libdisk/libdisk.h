@@ -89,9 +89,9 @@ struct chunk {
 	struct chunk	*next;
 	struct chunk	*part;
 	struct disk	*disk;
-	long		offset;
-	u_long		size;
-	u_long		end;
+	daddr_t		offset;
+	daddr_t		size;
+	daddr_t		end;
 	char		*sname;		/* PC98 field */
 	char		*name;
 	char		*oname;
@@ -165,7 +165,7 @@ Sanitize_Bios_Geom(struct disk *);
 /* Set the bios geometry to something sane */
 
 int
-Insert_Chunk(struct chunk *, u_long, u_long, const char *, chunk_e, int,
+Insert_Chunk(struct chunk *, daddr_t, daddr_t, const char *, chunk_e, int,
 	u_long, const char *);
 
 int
@@ -185,7 +185,7 @@ Collapse_Chunk(struct disk *, struct chunk *);
 /* Experimental, do not use. */
 
 int
-Create_Chunk(struct disk *, u_long, u_long, chunk_e, int, u_long, const char *);
+Create_Chunk(struct disk *, daddr_t, daddr_t, chunk_e, int, u_long, const char *);
 /* Create a chunk with the specified paramters */
 
 void
@@ -231,28 +231,28 @@ int
 Write_Disk(const struct disk *);
 /* Write all the MBRs, disklabels, bootblocks and boot managers */
 
-u_long
-Next_Cyl_Aligned(const struct disk *, u_long);
+daddr_t
+Next_Cyl_Aligned(const struct disk *, daddr_t);
 /* Round offset up to next cylinder according to the bios-geometry */
 
-u_long
-Prev_Cyl_Aligned(const struct disk *, u_long);
+daddr_t
+Prev_Cyl_Aligned(const struct disk *, daddr_t);
 /* Round offset down to previous cylinder according to the bios-geometry */
 
 int
-Track_Aligned(const struct disk *, u_long);
+Track_Aligned(const struct disk *, daddr_t);
 /* Check if offset is aligned on a track according to the bios geometry */
 
-u_long
-Next_Track_Aligned(const struct disk *, u_long);
+daddr_t
+Next_Track_Aligned(const struct disk *, daddr_t);
 /* Round offset up to next track according to the bios-geometry */
 
-u_long
-Prev_Track_Aligned(const struct disk *, u_long);
+daddr_t
+Prev_Track_Aligned(const struct disk *, daddr_t);
 /* Check if offset is aligned on a track according to the bios geometry */
 
 struct chunk *
-Create_Chunk_DWIM(struct disk *, struct chunk *, u_long, chunk_e, int,
+Create_Chunk_DWIM(struct disk *, struct chunk *, daddr_t, chunk_e, int,
 	u_long);
 /*
  * This one creates a partition inside the given parent of the given
@@ -275,8 +275,8 @@ void Fill_Disklabel(struct disklabel *, const struct disk *,
 void Debug_Chunk(struct chunk *);
 void Free_Chunk(struct chunk *);
 struct chunk *Clone_Chunk(const struct chunk *);
-int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long,
-	const char *);
+int Add_Chunk(struct disk *, daddr_t, daddr_t, const char *, chunk_e, int,
+	u_long, const char *);
 void *read_block(int, daddr_t, u_long);
 int write_block(int, daddr_t, const void *, u_long);
 struct disklabel *read_disklabel(int, daddr_t, u_long);
