@@ -2572,7 +2572,7 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 
 	/* We will change them to point here */
 	snext = exfer->sqtdend->nextqtd;
-	next = snext ? snext->physaddr : htole32(EHCI_NULL);
+	next = snext ? htole32(snext->physaddr) : EHCI_NULL;
 
 	/*
 	 * Now loop through any qTDs before us and keep track of the pointer
@@ -2627,7 +2627,7 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 				sqh->qh.qh_qtd.qtd_status = 0;
 				sqh->qh.qh_qtd.qtd_next =
 				    sqh->qh.qh_qtd.qtd_altnext
-				        = htole32(EHCI_NULL);
+				        = EHCI_NULL;
 				DPRINTFN(1,("ehci_abort_xfer: no hit\n"));
 			}
 		}
