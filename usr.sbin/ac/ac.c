@@ -509,8 +509,8 @@ ac(fp)
 			 * a login session if the ut_host field is non-empty
 			 */
 			if (*usr.ut_name) {
-				if (strncmp(usr.ut_line, "tty", 3) != 0 ||
-				    strchr("pqrsPQRS", usr.ut_line[3]) == 0 ||
+				if (strncmp(usr.ut_line, "tty", 3) == 0 ||
+				    strchr("pqrsPQRS", usr.ut_line[3]) != 0 ||
 				    *usr.ut_host != '\0')
 					head = log_in(head, &usr);
 			} else
