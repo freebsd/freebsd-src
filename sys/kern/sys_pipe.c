@@ -330,7 +330,7 @@ pipespace(cpipe, size)
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error != KERN_SUCCESS) {
 		if (ppsratecheck(&lastfail, &curfail, 1))
-			printf("kern.maxpipekva exceeded, please see tuning(7).\n");
+			printf("kern.ipc.maxpipekva exceeded; see tuning(7)\n");
 		return (ENOMEM);
 	}
 
