@@ -589,6 +589,17 @@ mac_create_ipq(struct mbuf *fragment, struct ipq *ipq)
 }
 
 void
+mac_create_mbuf_from_inpcb(struct inpcb *inp, struct mbuf *m)
+{
+	struct label *mlabel;
+
+	INP_LOCK_ASSERT(inp);
+	mlabel = mbuf_to_label(m);
+
+	MAC_PERFORM(create_mbuf_from_inpcb, inp, inp->inp_label, m, mlabel);
+}
+
+void
 mac_create_mbuf_from_mbuf(struct mbuf *oldmbuf, struct mbuf *newmbuf)
 {
 	struct label *oldmbuflabel, *newmbuflabel;
