@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.43 1997/09/14 16:51:14 phk Exp $
+	$Id: syscalls.master,v 1.44 1997/10/26 20:27:51 phk Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -118,18 +118,18 @@
 			    int arg); } getkerninfo getkerninfo_args int
 64	COMPAT	BSD	{ int getpagesize(void); } \
 			    getpagesize getpagesize_args int
-65	STD	BSD	{ int msync(caddr_t addr, size_t len, int flags); }
+65	STD	BSD	{ int msync(void *addr, size_t len, int flags); }
 66	STD	BSD	{ int vfork(void); }
 67	OBSOL	NOHIDE	vread
 68	OBSOL	NOHIDE	vwrite
 69	STD	BSD	{ int sbrk(int incr); }
 70	STD	BSD	{ int sstk(int incr); }
-71	COMPAT	BSD	{ int mmap(caddr_t addr, int len, int prot, \
+71	COMPAT	BSD	{ int mmap(void *addr, int len, int prot, \
 			    int flags, int fd, long pos); }
 72	STD	BSD	{ int ovadvise(int anom); } vadvise ovadvise_args int
-73	STD	BSD	{ int munmap(caddr_t addr, size_t len); }
-74	STD	BSD	{ int mprotect(caddr_t addr, size_t len, int prot); }
-75	STD	BSD	{ int madvise(caddr_t addr, size_t len, int behav); }
+73	STD	BSD	{ int munmap(void *addr, size_t len); }
+74	STD	BSD	{ int mprotect(const void *addr, size_t len, int prot); }
+75	STD	BSD	{ int madvise(void *addr, size_t len, int behav); }
 76	OBSOL	NOHIDE	vhangup
 77	OBSOL	NOHIDE	vlimit
 78	STD	BSD	{ int mincore(caddr_t addr, size_t len, char *vec); }
@@ -319,8 +319,8 @@
 			    __sysctl sysctl_args int
 ; properly, __sysctl should be a NOHIDE, but making an exception
 ; here allows to avoid one in libc/sys/Makefile.inc.
-203	STD	BSD	{ int mlock(caddr_t addr, size_t len); }
-204	STD	BSD	{ int munlock(caddr_t addr, size_t len); }
+203	STD	BSD	{ int mlock(const void *addr, size_t len); }
+204	STD	BSD	{ int munlock(const void *addr, size_t len); }
 ; big problem here. Lite2, NetBSD and OpenBSD have syscall 205 as undelete()
 ; we should move utrace before it's too late.
 205	STD	BSD	{ int utrace(caddr_t addr, size_t len); }
@@ -391,7 +391,7 @@
 248	UNIMPL	NOHIDE	nosys
 249	UNIMPL	NOHIDE	nosys
 ; syscall numbers initially used in OpenBSD
-250	STD	BSD	{ int minherit(caddr_t addr, size_t len, int inherit); }
+250	STD	BSD	{ int minherit(void *addr, size_t len, int inherit); }
 251	STD	BSD	{ int rfork(int flags); }
 252	STD	BSD	{ int openbsd_poll(struct pollfd *fds, u_int nfds, \
 			    int timeout); }
