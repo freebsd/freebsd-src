@@ -782,9 +782,9 @@ ndis_return(arg)
 		return;
 
 	returnfunc = sc->ndis_chars.nmc_return_packet_func;
-	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
 	returnfunc(adapter, p);
-	FASTCALL1(hal_lower_irql, irql);
+	ntoskrnl_lower_irql(irql);
 
 	return;
 }
@@ -1132,10 +1132,10 @@ ndis_set_info(arg, oid, buf, buflen)
 	if (adapter == NULL || setfunc == NULL)
 		return(ENXIO);
 
-	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
 	rval = setfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
-	FASTCALL1(hal_lower_irql, irql);
+	ntoskrnl_lower_irql(irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
 		PROC_LOCK(curthread->td_proc);
@@ -1189,9 +1189,9 @@ ndis_send_packets(arg, packets, cnt)
 		return(ENXIO);
 	sendfunc = sc->ndis_chars.nmc_sendmulti_func;
 	senddonefunc = sc->ndis_block.nmb_senddone_func;
-	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
 	sendfunc(adapter, packets, cnt);
-	FASTCALL1(hal_lower_irql, irql);
+	ntoskrnl_lower_irql(irql);
 
 	for (i = 0; i < cnt; i++) {
 		p = packets[i];
@@ -1228,9 +1228,9 @@ ndis_send_packet(arg, packet)
 	sendfunc = sc->ndis_chars.nmc_sendsingle_func;
 	senddonefunc = sc->ndis_block.nmb_senddone_func;
 
-	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
 	status = sendfunc(adapter, packet, packet->np_private.npp_flags);
-	FASTCALL1(hal_lower_irql, irql);
+	ntoskrnl_lower_irql(irql);
 
 	if (status == NDIS_STATUS_PENDING)
 		return(0);
@@ -1317,9 +1317,9 @@ ndis_reset_nic(arg)
 	if (adapter == NULL || resetfunc == NULL)
 		return(EIO);
 
-	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
 	rval = resetfunc(&addressing_reset, adapter);
-	FASTCALL1(hal_lower_irql, irql);
+	ntoskrnl_lower_irql(irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
 		PROC_LOCK(curthread->td_proc);
@@ -1550,10 +1550,10 @@ ndis_get_info(arg, oid, buf, buflen)
 	if (adapter == NULL || queryfunc == NULL)
 		return(ENXIO);
 
-	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
 	rval = queryfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
-	FASTCALL1(hal_lower_irql, irql);
+	ntoskrnl_lower_irql(irql);
 
 	/* Wait for requests that block. */
 

@@ -809,8 +809,7 @@ __stdcall static void
 ndis_lock(lock)
 	ndis_spin_lock		*lock;
 {
-	lock->nsl_kirql = FASTCALL2(hal_lock,
-	    &lock->nsl_spinlock, DISPATCH_LEVEL);
+	ntoskrnl_acquire_spinlock(&lock->nsl_spinlock, &lock->nsl_kirql);
 	return;
 }
 
@@ -822,7 +821,7 @@ __stdcall static void
 ndis_unlock(lock)
 	ndis_spin_lock		*lock;
 {
-	FASTCALL2(hal_unlock, &lock->nsl_spinlock, lock->nsl_kirql);
+	ntoskrnl_release_spinlock(&lock->nsl_spinlock, lock->nsl_kirql);
 	return;
 }
 
@@ -2317,14 +2316,13 @@ ndis_insert_head(head, entry, lock)
 {
 	list_entry		*flink;
 
-	lock->nsl_kirql = FASTCALL2(hal_lock,
-	    &lock->nsl_spinlock, DISPATCH_LEVEL);
+	ntoskrnl_acquire_spinlock(&lock->nsl_spinlock, &lock->nsl_kirql);
 	flink = head->nle_flink;
 	entry->nle_flink = flink;
 	entry->nle_blink = head;
 	flink->nle_blink = entry;
 	head->nle_flink = entry;
-	FASTCALL2(hal_unlock, &lock->nsl_spinlock, lock->nsl_kirql);
+	ntoskrnl_release_spinlock(&lock->nsl_spinlock, lock->nsl_kirql);
 
 	return(flink);
 }
@@ -2337,13 +2335,12 @@ ndis_remove_head(head, lock)
 	list_entry		*flink;
 	list_entry		*entry;
 
-	lock->nsl_kirql = FASTCALL2(hal_lock,
-	    &lock->nsl_spinlock, DISPATCH_LEVEL);
+	ntoskrnl_acquire_spinlock(&lock->nsl_spinlock, &lock->nsl_kirql);
 	entry = head->nle_flink;
 	flink = entry->nle_flink;
 	head->nle_flink = flink;
 	flink->nle_blink = head;
-	FASTCALL2(hal_unlock, &lock->nsl_spinlock, lock->nsl_kirql);
+	ntoskrnl_release_spinlock(&lock->nsl_spinlock, lock->nsl_kirql);
 
 	return(entry);
 }
@@ -2356,14 +2353,13 @@ ndis_insert_tail(head, entry, lock)
 {
 	list_entry		*blink;
 
-	lock->nsl_kirql = FASTCALL2(hal_lock,
-	    &lock->nsl_spinlock, DISPATCH_LEVEL);
+	ntoskrnl_acquire_spinlock(&lock->nsl_spinlock, &lock->nsl_kirql);
 	blink = head->nle_blink;
 	entry->nle_flink = head;
 	entry->nle_blink = blink;
 	blink->nle_flink = entry;
 	head->nle_blink = entry;
-	FASTCALL2(hal_unlock, &lock->nsl_spinlock, lock->nsl_kirql);
+	ntoskrnl_release_spinlock(&lock->nsl_spinlock, lock->nsl_kirql);
 
 	return(blink);
 }
