@@ -109,7 +109,7 @@ static const char sc4[] = "NVRAM";
 /*
  * Local function prototypes.
  */
-static int isp_parse_async(struct ispsoftc *, int);
+static int isp_parse_async(struct ispsoftc *, u_int16_t);
 static int isp_handle_other_response(struct ispsoftc *, int, isphdr_t *,
     u_int16_t *);
 static void
@@ -213,7 +213,7 @@ isp_reset(struct ispsoftc *isp)
 	 * Set up default request/response queue in-pointer/out-pointer
 	 * register indices.
 	 */
-	if (IS_2300(isp)) {
+	if (IS_23XX(isp)) {
 		isp->isp_rqstinrp = BIU_REQINP;
 		isp->isp_rqstoutrp = BIU_REQOUTP;
 		isp->isp_respinrp = BIU_RSPINP;
@@ -240,6 +240,7 @@ isp_reset(struct ispsoftc *isp)
 			btype = "2200";
 			break;
 		case ISP_HA_FC_2300:
+		case ISP_HA_FC_2312:
 			btype = "2300";
 			break;
 		default:
@@ -535,7 +536,7 @@ again:
 #endif
 	} else {
 		ISP_WRITE(isp, RISC_MTR2100, 0x1212);
-		if (IS_2200(isp) || IS_2300(isp)) {
+		if (IS_2200(isp) || IS_23XX(isp)) {
 			ISP_WRITE(isp, HCCR, HCCR_2X00_DISABLE_PARITY_PAUSE);
 		}
 	}
@@ -553,7 +554,7 @@ again:
 	 * Avoid doing this on the 2312 because you can generate a PCI
 	 * parity error (chip breakage).
 	 */
-	if (IS_2300(isp)) {
+	if (IS_23XX(isp)) {
 		USEC_DELAY(5);
 	} else {
 		loops = MBOX_DELAY_COUNT;
@@ -619,7 +620,7 @@ again:
 		dodnld = 0;
 	}
 
-	if (IS_2300(isp))
+	if (IS_23XX(isp))
 		code_org = ISP_CODE_ORG_2300;
 	else
 		code_org = ISP_CODE_ORG;
@@ -1204,7 +1205,7 @@ isp_fibre_init(struct ispsoftc *isp)
 	 * 
 	 * NB: for the 2300, ICBOPT_EXTENDED is required.
 	 */
-	if (IS_2200(isp) || IS_2300(isp)) {
+	if (IS_2200(isp) || IS_23XX(isp)) {
 		icbp->icb_fwoptions |= ICBOPT_EXTENDED;
 		/*
 		 * Prefer or force Point-To-Point instead Loop?
@@ -1223,8 +1224,8 @@ isp_fibre_init(struct ispsoftc *isp)
 			icbp->icb_xfwoptions |= ICBXOPT_LOOP_2_PTP;
 			break;
 		}
-		if (IS_2300(isp)) {
-			if (isp->isp_revision < 2) {
+		if (IS_23XX(isp)) {
+			if (!IS_2312(isp) && isp->isp_revision < 2) {
 				icbp->icb_fwoptions &= ~ICBOPT_FAST_POST;
 			}
 			if (isp->isp_confopts & ISP_CFG_ONEGB) {
@@ -1235,10 +1236,13 @@ isp_fibre_init(struct ispsoftc *isp)
 				icbp->icb_zfwoptions |= ICBZOPT_RATE_AUTO;
 			}
 		}
+		icbp->icb_xfwoptions |= ICBXOPT_RIO_16BIT;
+		icbp->icb_racctimer = 4;
+		icbp->icb_idelaytimer = 8;
 	}
 
 	if ((IS_2200(isp) && ISP_FW_REVX(isp->isp_fwrev) >=
-	    ISP_FW_REV(2, 1, 26)) || IS_2300(isp)) {
+	    ISP_FW_REV(2, 1, 26)) || IS_23XX(isp)) {
 		/*
 		 * Turn on LIP F8 async event (1)
 		 * Turn on generate AE 8013 on all LIP Resets (2)
@@ -1252,7 +1256,7 @@ isp_fibre_init(struct ispsoftc *isp)
 	}
 	icbp->icb_logintime = 30;	/* 30 second login timeout */
 
-	if (IS_2300(isp)) {
+	if (IS_23XX(isp)) {
 		ISP_WRITE(isp, isp->isp_rqstinrp, 0);
         	ISP_WRITE(isp, isp->isp_rqstoutrp, 0);
         	ISP_WRITE(isp, isp->isp_respinrp, 0);
@@ -1517,7 +1521,7 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 		return (-1);
 	}
 	fcp->isp_loopid = mbs.param[1];
-	if (IS_2200(isp) || IS_2300(isp)) {
+	if (IS_2200(isp) || IS_23XX(isp)) {
 		int topo = (int) mbs.param[6];
 		if (topo < TOPO_NL_PORT || topo > TOPO_PTP_STUB)
 			topo = TOPO_PTP_STUB;
@@ -1594,7 +1598,7 @@ not_on_fabric:
 	}
 
 	fcp->isp_gbspeed = 1;
-	if (IS_2300(isp)) {
+	if (IS_23XX(isp)) {
 		mbs.param[0] = MBOX_GET_SET_DATA_RATE;
 		mbs.param[1] = MBGSD_GET_RATE;
 		/* mbs.param[2] undefined if we're just getting rate */
@@ -1849,7 +1853,7 @@ isp_pdb_sync(struct ispsoftc *isp)
 			mbs.param[1] = loopid << 8;
 			mbs.param[2] = portid >> 16;
 			mbs.param[3] = portid & 0xffff;
-			if (IS_2200(isp) || IS_2300(isp)) {
+			if (IS_2200(isp) || IS_23XX(isp)) {
 				/* only issue a PLOGI if not logged in */
 				mbs.param[1] |= 0x1;
 			}
@@ -2979,7 +2983,7 @@ isp_control(struct ispsoftc *isp, ispctl_t ctl, void *arg)
  * Limit our stack depth by sticking with the max likely number
  * of completions on a request queue at any one time.
  */
-#define	MAX_REQUESTQ_COMPLETIONS	32
+#define	MAX_REQUESTQ_COMPLETIONS	64
 
 void
 isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
@@ -3010,12 +3014,9 @@ isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
 				    "Mbox Command Async (0x%x) with no waiters",
 				    mbox);
 			}
-		} else {
-			int fhandle = isp_parse_async(isp, (int) mbox);
-			isp_prt(isp, ISP_LOGDEBUG2, "Async Mbox 0x%x", mbox);
-			if (fhandle > 0) {
-				isp_fastpost_complete(isp, (u_int16_t) fhandle);
-			}
+			isp->isp_intmboxc++;
+		} else if (isp_parse_async(isp, mbox) < 0) {
+			return;
 		}
 		if (IS_FC(isp) || isp->isp_state != ISP_RUNSTATE) {
 			ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
@@ -3046,7 +3047,7 @@ isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
 	 *
 	 * If we're a 2300, we can ask what hardware what it thinks.
 	 */
-	if (IS_2300(isp)) {
+	if (IS_23XX(isp)) {
 		optr = ISP_READ(isp, isp->isp_respoutrp);
 		if (isp->isp_residx != optr) {
 			isp_prt(isp, ISP_LOGWARN, "optr %x soft optr %x",
@@ -3059,8 +3060,10 @@ isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
 	/*
 	 * You *must* read the Response Queue In Pointer
 	 * prior to clearing the RISC interrupt.
+	 *
+	 * Debounce the 2300 if revision less than 2.
 	 */
-	if (IS_2100(isp) || IS_2300(isp)) {
+	if (IS_2100(isp) || (IS_2300(isp) && isp->isp_revision < 2)) {
 		i = 0;
 		do {
 			iptr = READ_RESPONSE_QUEUE_IN_POINTER(isp);
@@ -3088,7 +3091,7 @@ isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
 		 * make sure the old interrupt went away (to avoid 'ringing'
 		 * effects), but that didn't stop this from occurring.
 		 */
-		if (IS_2300(isp)) {
+		if (IS_23XX(isp)) {
 			USEC_DELAY(100);
 			iptr = READ_RESPONSE_QUEUE_IN_POINTER(isp);
 			junk = ISP_READ(isp, BIU_R2HSTSLO);
@@ -3125,6 +3128,15 @@ isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
 
 		if (type == RQSTYPE_RESPONSE) {
 			isp_get_response(isp, (ispstatusreq_t *) hp, sp);
+		} else if (type == RQSTYPE_RIO2) {
+			isp_rio2_t rio;
+			isp_get_rio2(isp, (isp_rio2_t *) hp, &rio);
+			for (i = 0; i < rio.req_header.rqs_seqno; i++) {
+				isp_fastpost_complete(isp, rio.req_handles[i]);
+			}
+			if (isp->isp_fpcchiwater < rio.req_header.rqs_seqno)
+				isp->isp_fpcchiwater = rio.req_header.rqs_seqno;
+			continue;
 		} else {
 			if (!isp_handle_other_response(isp, type, hp, &optr)) {
 				MEMZERO(hp, QENTRY_LEN);	/* PERF */
@@ -3350,12 +3362,15 @@ isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
 		 * While we're at it, reqad the requst queue out pointer.
 		 */
 		isp->isp_reqodx = READ_REQUEST_QUEUE_OUT_POINTER(isp);
+		if (isp->isp_rscchiwater < ndone)
+			isp->isp_rscchiwater = ndone;
 	}
 
 	isp->isp_residx = optr;
 	for (i = 0; i < ndone; i++) {
 		xs = complist[i];
 		if (xs) {
+			isp->isp_rsltccmplt++;
 			isp_done(xs);
 		}
 	}
@@ -3366,16 +3381,16 @@ isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
  */
 
 static int
-isp_parse_async(struct ispsoftc *isp, int mbox)
+isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
 {
 	int bus;
-	u_int16_t fast_post_handle = 0;
 
 	if (IS_DUALBUS(isp)) {
 		bus = ISP_READ(isp, OUTMAILBOX6);
 	} else {
 		bus = 0;
 	}
+	isp_prt(isp, ISP_LOGDEBUG2, "Async Mbox 0x%x", mbox);
 
 	switch (mbox) {
 	case ASYNC_BUS_RESET:
@@ -3477,10 +3492,32 @@ isp_parse_async(struct ispsoftc *isp, int mbox)
 		isp->isp_sendmarker |= (1 << bus);
 		break;
 
+	/*
+	 * We can use bus, which will always be zero for FC cards,
+	 * as a mailbox pattern accumulator to be checked below.
+	 */
+	case ASYNC_RIO5:
+		bus = 0x1ce;	/* outgoing mailbox regs 1-3, 6-7 */
+		break;
+
+	case ASYNC_RIO4:
+		bus = 0x14e;	/* outgoing mailbox regs 1-3, 6 */
+		break;
+
+	case ASYNC_RIO3:
+		bus = 0x10e;	/* outgoing mailbox regs 1-3 */
+		break;
+
+	case ASYNC_RIO2:
+		bus = 0x106;	/* outgoing mailbox regs 1-2 */
+		break;
+
+	case ASYNC_RIO1:
 	case ASYNC_CMD_CMPLT:
-		fast_post_handle = ISP_READ(isp, OUTMAILBOX1);
-		isp_prt(isp, ISP_LOGDEBUG3, "fast post completion of %u",
-		    fast_post_handle);
+		bus = 0x102;	/* outgoing mailbox regs 1 */
+		break;
+
+	case ASYNC_RIO_RESP:
 		break;
 
 	case ASYNC_CTIO_DONE:
@@ -3642,7 +3679,28 @@ isp_parse_async(struct ispsoftc *isp, int mbox)
 		isp_prt(isp, ISP_LOGWARN, "Unknown Async Code 0x%x", mbox);
 		break;
 	}
-	return (fast_post_handle);
+
+	if (bus & 0x100) {
+		int i, nh;
+		u_int16_t handles[5];
+
+		for (nh = 0, i = 1; i < MAX_MAILBOX; i++) {
+			if ((bus & (1 << i)) == 0) {
+				continue;
+			}
+			handles[nh++] = ISP_READ(isp, MBOX_OFF(i));
+		}
+		for (i = 0; i < nh; i++) {
+			isp_fastpost_complete(isp, handles[i]);
+			isp_prt(isp,  ISP_LOGDEBUG3,
+			    "fast post completion of %u", handles[i]);
+		}
+		if (isp->isp_fpcchiwater < nh)
+			isp->isp_fpcchiwater = nh;
+	} else {
+		isp->isp_intoasync++;
+	}
+	return (0);
 }
 
 /*
@@ -4058,6 +4116,7 @@ isp_fastpost_complete(struct ispsoftc *isp, u_int16_t fph)
 	}
 	if (isp->isp_nactive)
 		isp->isp_nactive--;
+	isp->isp_fphccmplt++;
 	isp_done(xs);
 }
 
