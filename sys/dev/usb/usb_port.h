@@ -111,6 +111,7 @@ __CONCAT(dname,_attach)(parent, self, aux) \
 #define USB_DO_ATTACH(dev, bdev, parent, args, print, sub) \
 	((dev)->softc = config_found_sm(parent, args, print, sub))
 
+#define logprintf	printf
 
 
 
@@ -209,6 +210,9 @@ __CONCAT(dname,_attach)(device_t self)
 #define SIMPLEQ_HEAD		STAILQ_HEAD
 #define SIMPLEQ_INIT		STAILQ_INIT
 #define SIMPLEQ_ENTRY		STAILQ_ENTRY
+
+#include <sys/syslog.h>
+#define logprintf(args...)	log(LOG_DEBUG, args);
 
 #endif /* __FreeBSD__ */
 
