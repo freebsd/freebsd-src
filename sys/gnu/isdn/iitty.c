@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.11 1995/07/31 21:28:42 bde Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.12 1995/11/16 10:35:29 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.12 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,15 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.11 1995/07/31 21:28:42 bde Exp
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.12  1995/11/16  10:35:29  bde
+ * Fixed the type of ity_input().  A trailing arg was missing.
+ *
+ * Completed function declarations.
+ *
+ * Added prototypes.
+ *
+ * Removed some useless includes.
+ *
  * Revision 1.11  1995/07/31  21:28:42  bde
  * Use tsleep() instead of ttysleep() to wait for carrier since a generation
  * change isn't an error.
@@ -141,20 +150,27 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.11 1995/07/31 21:28:42 bde Exp
 #include "ity.h"
 #if NITY > 0
 
-#include "param.h"
-#include "systm.h"
-#include "conf.h"
-#include "ioctl.h"
-#include "select.h"
-#include "tty.h"
-#include "proc.h"
-#include "file.h"
-#include "uio.h"
-#include "kernel.h"
-#include "syslog.h"
-#include "types.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
+#include <sys/ioctl.h>
+#include <sys/select.h>
+#include <sys/tty.h>
+#include <sys/proc.h>
+#include <sys/file.h>
+#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/syslog.h>
+#include <sys/types.h>
 
 #include "gnu/isdn/isdn_ioctl.h"
+
+#ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 56
+#endif /*JREMOD*/
 
 extern int	ityparam __P((struct tty *tp, struct termios *t));
 extern void	itystart __P((struct tty *tp));
@@ -441,5 +457,37 @@ itydevtotty(dev_t dev)
 
 	return (&ity_tty[unit]);
 }
+
+#ifdef JREMOD
+struct cdevsw ity_cdevsw = 
+	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
+	  ityioctl,	nostop,		nxreset,	itydevtotty,/* ity */
+	  ttselect,	nommap,		NULL };
+
+static ity_devsw_installed = 0;
+
+static void 	ity_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! ity_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&ity_cdevsw,NULL);
+		ity_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"ity",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(itydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ity_drvinit,NULL)
+
+#endif /* JREMOD */
 
 #endif

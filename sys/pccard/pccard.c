@@ -50,6 +50,14 @@
 #include <pccard/card.h>
 #include <pccard/slot.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 50
+#endif /*JREMOD*/
+
 
 extern struct kern_devconf kdc_cpu0;
 
@@ -896,3 +904,36 @@ find_driver(char *name)
 			return(dp);
 	return(0);
 }
+
+#ifdef JREMOD
+struct cdevsw crd_cdevsw = 
+	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
+	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
+	  crdselect,	nommap,		NULL };
+
+static crd_devsw_installed = 0;
+
+static void 	crd_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! crd_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&crd_cdevsw,NULL);
+		crd_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"crd",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(crddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,crd_drvinit,NULL)
+
+#endif /* JREMOD */
+

@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.2 1995/11/19 22:22:21 dyson Exp $
+ *	$Id: od.c,v 1.3 1995/11/20 12:42:28 phk Exp $
  */
 
 /*
@@ -61,6 +61,14 @@
 #include <sys/dkstat.h>
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX */
+
+#ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 70
+#define BDEV_MAJOR 20
+#endif /*JREMOD */
 
 u_int32 odstrats, odqueues;
 
@@ -797,3 +805,46 @@ od_sense_handler(struct scsi_xfer *xs)
 
 	return SCSIRET_DO_RETRY;
 }
+
+#ifdef JREMOD
+struct bdevsw od_bdevsw = 
+	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
+	  nxdump,	odsize,		0 };
+
+struct cdevsw od_cdevsw = 
+	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
+	  odioctl,	nostop,		nullreset,	nodevtotty,/* od */
+	  seltrue,	nommap,		odstrategy };
+
+static od_devsw_installed = 0;
+
+static void 	od_drvinit(void *unused)
+{
+	dev_t dev;
+	dev_t dev_chr;
+
+	if( ! od_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&od_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&od_bdevsw,NULL);
+		od_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rod",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+			x=devfs_add_devsw(
+	"/",	"od",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(oddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,od_drvinit,NULL)
+
+#endif /* JREMOD */
+

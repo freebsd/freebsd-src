@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.4 1994/12/04 01:46:13 ache Exp $
+ * $Id: tty_tty.c,v 1.5 1995/05/30 08:06:19 rgrimes Exp $
  */
 
 /*
@@ -45,6 +45,14 @@
 #include <sys/tty.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
+
+#ifdef JREMOD
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 1
+#endif /*JREMOD*/
 
 #define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)
 
@@ -153,3 +161,36 @@ cttyselect(dev, flag, p)
 		return (1);	/* try operation to get EOF/failure */
 	return (VOP_SELECT(ttyvp, flag, FREAD|FWRITE, NOCRED, p));
 }
+
+#ifdef JREMOD
+struct cdevsw ctty_cdevsw = 
+	{ cttyopen,	nullclose,	cttyread,	cttywrite,	/*1*/
+	  cttyioctl,	nullstop,	nullreset,	nodevtotty,/* tty */
+	  cttyselect,	nommap,		NULL };
+
+static ctty_devsw_installed = 0;
+
+static void 	ctty_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! ctty_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&ctty_cdevsw,NULL);
+		ctty_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"tty",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(cttydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ctty_drvinit,NULL)
+
+#endif /* JREMOD */
+

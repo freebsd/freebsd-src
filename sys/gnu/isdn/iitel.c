@@ -1,6 +1,6 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.5 1995/09/08 11:06:57 bde Exp $";
+static char     _itelid[] = "@(#)$Id: iitel.c,v 1.6 1995/11/16 10:22:29 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,13 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.5 1995/09/08 11:06:57 bde Exp 
  *
  *******************************************************************************
  * $Log: iitel.c,v $
+ * Revision 1.6  1995/11/16  10:22:29  bde
+ * Fixed the type of itel_input().  A trailing arg was missing.
+ *
+ * Included "conf.h" to get some prototypes.
+ *
+ * Removed some useless includes.
+ *
  * Revision 1.5  1995/09/08  11:06:57  bde
  * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
  * functions were wrong.
@@ -41,17 +48,24 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.5 1995/09/08 11:06:57 bde Exp 
 #include "itel.h"
 #if NITEL > 0
 
-#include "param.h"
-#include "buf.h"
-#include "systm.h"
-#include "conf.h"
-#include "ioctl.h"
-#include "proc.h"
-#include "uio.h"
-#include "kernel.h"
-#include "malloc.h"
+#include <sys/param.h>
+#include <sys/buf.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
+#include <sys/ioctl.h>
+#include <sys/proc.h>
+#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include "gnu/isdn/isdn_ioctl.h"
+
+#ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 57
+#endif /*JREMOD*/
 
 int             nitel = NITEL;
 static int	applnr[NITEL];
@@ -249,5 +263,43 @@ itelwrite(dev_t dev, struct uio * uio, int ioflag)
 	splx(x);
 	return error;
 }
+
+#ifdef JREMOD
+struct cdevsw itel_cdevsw = 
+	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
+	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
+	  seltrue,	nommap,		NULL };
+
+static itel_devsw_installed = 0;
+
+static void 	itel_drvinit(void *unused)
+{
+	dev_t dev;
+	dev_t dev_chr;
+
+	if( ! itel_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&itel_cdevsw,NULL);
+		dev_chr = dev;
+#if defined(BDEV_MAJOR)
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&itel_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		itel_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"itel",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(iteldev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,itel_drvinit,NULL)
+
+#endif /* JREMOD */
 
 #endif

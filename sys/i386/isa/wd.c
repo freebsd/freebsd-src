@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.92 1995/11/23 07:24:41 dyson Exp $
+ *	$Id: wd.c,v 1.93 1995/11/28 09:42:03 julian Exp $
  */
 
 /* TODO:
@@ -106,9 +106,11 @@ extern void wdstart(int ctrlr);
 #define WDOPT_MULTIMASK	0x00ff
 
 #ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 3
 #define BDEV_MAJOR 0
-static void 	wd_devsw_install();
 #endif /*JREMOD */
 
 static int wd_goaway(struct kern_devconf *, int);
@@ -320,10 +322,6 @@ wdprobe(struct isa_device *dvp)
 	du->dk_port = dvp->id_iobase;
 
 	wdc_registerdev(dvp);
-#ifdef JREMOD
-	wd_devsw_install();
-#endif /*JREMOD*/
-
 
 	/* check if we have registers that work */
 	outb(du->dk_port + wd_sdh, WDSD_IBM);   /* set unit 0 */
@@ -2138,18 +2136,34 @@ struct cdevsw wd_cdevsw =
 
 static wd_devsw_installed = 0;
 
-static void 	wd_devsw_install()
+static void 	wd_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+	dev_t dev_chr;
+
 	if( ! wd_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&wd_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&wd_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&wd_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&wd_bdevsw,NULL);
 		wd_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rwd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+			x=devfs_add_devsw(
+	"/",	"wd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(wddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wd_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NWDC > 0 */

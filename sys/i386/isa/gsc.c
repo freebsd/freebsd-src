@@ -59,9 +59,12 @@
  ***********************************************************************/
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 47
-static void 	gsc_devsw_install();
-#endif /*JREMOD*/ /* clean up later */
+#endif /*JREMOD*/
 
 #define PROBE_FAIL    0
 #define PROBE_SUCCESS 1
@@ -504,9 +507,6 @@ gscattach(struct isa_device *isdp)
   scu->flags |= ATTACHED;
   lprintf("gsc%d.attach: ok\n", unit);
   scu->flags &= ~DEBUG;
-#ifdef JREMOD
-  gsc_devsw_install();
-#endif /*JREMOD*/
 
   return SUCCESS; /* attach must not fail */
 }
@@ -790,18 +790,28 @@ struct cdevsw gsc_cdevsw =
 
 static gsc_devsw_installed = 0;
 
-static void 	gsc_devsw_install()
+static void 	gsc_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! gsc_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&gsc_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&gsc_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&gsc_cdevsw,NULL);
 		gsc_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"gsc",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(gscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,gsc_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NGSC > 0 */

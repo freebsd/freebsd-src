@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.9 1995/10/21 23:13:11 phk Exp $
+ *      $Id: worm.c,v 1.10 1995/11/19 22:22:35 dyson Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -58,6 +58,16 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_disk.h>
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 62
+#endif /*JREMOD*/
+
 
 struct scsi_data {
 	struct buf_queue_head buf_queue;
@@ -359,3 +369,36 @@ worm_close(dev_t dev, int flag, int fmt, struct proc *p,
 
 	return 0;
 }
+
+#ifdef JREMOD
+struct cdevsw worm_cdevsw = 
+	{ wormopen,	wormclose,	rawread,	rawwrite,	/*62*/
+	  wormioctl,	nostop,		nullreset,	nodevtotty,/* worm */
+	  seltrue,	nommap,		wormstrategy };
+
+static worm_devsw_installed = 0;
+
+static void 	worm_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! worm_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&worm_cdevsw,NULL);
+		worm_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rworm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(wormdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,worm_drvinit,NULL)
+
+#endif /* JREMOD */
+

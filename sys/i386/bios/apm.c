@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.15 1995/11/18 04:37:23 bde Exp $
+ *	$Id: apm.c,v 1.16 1995/11/28 09:44:42 julian Exp $
  */
 
 #include "apm.h"
@@ -25,6 +25,10 @@
 #include "conf.h"
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #endif /*JREMOD*/
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -104,7 +108,6 @@ extern void fix_desc(struct fake_descriptor *, int);
 static timeout_t apm_timeout;
 #ifdef JREMOD
 #define CDEV_MAJOR 39
-static void 	apm_devsw_install();
 #endif /* JREMOD */
 #endif /* __FreeBSD__ */
 #ifdef MACH_KERNEL
@@ -690,11 +693,6 @@ int
 		printf("apm%d: 32-bit connection error.\n", unit);
 		return 0;
 	}
-#ifdef __FreeBSD__
-#ifdef JREMOD
-	apm_devsw_install();
-#endif /*JREMOD*/
-#endif /* __FreeBSD__ */
 
 	return -1;
 }
@@ -981,6 +979,8 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	}
 	return error;
 }
+
+
 #ifdef JREMOD
 struct cdevsw apm_cdevsw = 
 	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
@@ -989,20 +989,31 @@ struct cdevsw apm_cdevsw =
 
 static apm_devsw_installed = 0;
 
-static void 	apm_devsw_install()
+static void 	apm_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! apm_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0)
-		cdevsw_add(&descript,&apm_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0)
-		bdevsw_add(&descript,&apm_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&apm_cdevsw,NULL);
 		apm_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"apm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(apmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,apm_drvinit,NULL)
+
 #endif /* JREMOD */
+
+
 #endif /* __FreeBSD__ */
 
 #ifdef MACH_KERNEL

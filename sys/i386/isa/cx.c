@@ -41,7 +41,9 @@
 #   else /* BSD 4.4 Lite */
 #	ifdef JREMOD
 #	 define CDEV_MAJOR 42
-	 void 	cx_devsw_install(); /* can't be static, needed in if_cx.c */
+#        if defined(DEVFS)
+#          include <sys/devfsext.h>
+#        endif /*DEVFS*/
 #	endif /*JREMOD*/
 #      include <sys/devconf.h>
 #   endif
@@ -974,18 +976,28 @@ struct cdevsw cx_cdevsw =
 
 static cx_devsw_installed = 0;
 
-void 	cx_devsw_install()
+static void 	cx_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! cx_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&cx_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&cx_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&cx_cdevsw,NULL);
 		cx_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"cx",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(cxdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cx_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NCX */

@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.48 1995/11/04 13:23:35 bde Exp $
+ *	$Id: mcd.c,v 1.49 1995/11/28 09:41:22 julian Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -71,9 +71,13 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <i386/isa/mcdreg.h>
 
 #ifdef JREMOD
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 29
 #define BDEV_MAJOR 7
-static void 	mcd_devsw_install();
 #endif /*JREMOD */
 
 #define	MCD_TRACE(format, args...)						\
@@ -262,10 +266,6 @@ int mcd_attach(struct isa_device *dev)
 	kdc_mcd[dev->id_unit].kdc_state = DC_IDLE;
 	/* name filled in probe */
 	kdc_mcd[dev->id_unit].kdc_description = mcd_data[dev->id_unit].name;
-#ifdef JREMOD
-	mcd_devsw_install();
-#endif /*JREMOD*/
-
 
 	return 1;
 }
@@ -1682,18 +1682,33 @@ struct cdevsw mcd_cdevsw =
 
 static mcd_devsw_installed = 0;
 
-static void 	mcd_devsw_install()
+static void 	mcd_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+	dev_t dev_chr;
+
 	if( ! mcd_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&mcd_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&mcd_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&mcd_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&mcd_bdevsw,NULL);
 		mcd_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rmcd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+			x=devfs_add_devsw(
+	"/",	"mcd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(mcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mcd_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NMCD > 0 */

@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.3 1995/05/03 18:09:18 dufault Exp $
+ * $Id: ssc.c,v 1.4 1995/11/04 11:12:41 bde Exp $
  */
 
 #include <sys/types.h>
@@ -62,6 +62,14 @@
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/systm.h>
+
+#ifdef JREMOD
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 49
+#endif /*JREMOD*/
 
 static dev_t sscdev = NODEV;
 
@@ -116,3 +124,43 @@ void sscstrategy(struct buf *bp) { }
 int sscread(dev_t dev, struct uio *uio, int ioflag) { return ENXIO; }
 int sscwrite(dev_t dev, struct uio *uio, int ioflag) { return ENXIO; }
 int sscselect(dev_t dev, int which, struct proc *p) { return ENXIO; }
+
+
+#ifdef JREMOD
+struct cdevsw ssc_cdevsw = 
+	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
+	  sscioctl,	nostop,		nullreset,	nodevtotty,/* scsi super */
+	  sscselect,	nxmmap,		sscstrategy };
+
+static ssc_devsw_installed = 0;
+
+static void 	ssc_drvinit(void *unused)
+{
+	dev_t dev;
+	dev_t dev_chr;
+
+	if( ! ssc_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&ssc_cdevsw,NULL);
+		dev_chr = dev;
+#if defined(BDEV_MAJOR)
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&ssc_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		ssc_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"ssc",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(sscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ssc_drvinit,NULL)
+
+#endif /* JREMOD */
+
