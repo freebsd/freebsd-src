@@ -233,7 +233,7 @@ show_size(const char *title, Package *plist)
     char tmp[FILENAME_MAX];
     unsigned long size = 0;
     long blksize;
-    size_t headerlen;
+    int headerlen;
     char *descr;
 
     descr = getbsize(&headerlen, &blksize);
