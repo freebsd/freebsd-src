@@ -1066,7 +1066,7 @@ make_cat_file (path, man_file, cat_file)
       if (status <= 0) {
 	fprintf(stderr, "Failed.\n");
 	unlink(temp);
-	exit(1);
+	return(0);
       }
       else {
         if (rename(temp, cat_file) == -1) {
