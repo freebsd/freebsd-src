@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: exec.c,v 1.10 1998/10/15 17:14:15 des Exp $";
+	"$Id: exec.c,v 1.11 1999/03/23 16:40:34 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -268,7 +268,7 @@ retry:		(void)execve(bp, argv, environ);
 		case ENOEXEC:
 			for (cnt = 0; argv[cnt]; ++cnt)
 				;
-			memp = alloca((cnt + 3) * sizeof(char *));
+			memp = alloca((cnt + 2) * sizeof(char *));
 			if (memp == NULL) {
 				/* errno = ENOMEM; XXX override ENOEXEC? */
 				goto done;
@@ -276,7 +276,6 @@ retry:		(void)execve(bp, argv, environ);
 			memp[0] = "sh";
 			memp[1] = bp;
 			bcopy(argv + 1, memp + 2, cnt * sizeof(char *));
-			memp[cnt + 2] = NULL;
 			(void)execve(_PATH_BSHELL, memp, environ);
 			goto done;
 		case ENOMEM:
