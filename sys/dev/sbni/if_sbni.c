@@ -116,7 +116,7 @@ static __inline void	sbni_outsb(struct sbni_softc *, u_char *, u_int);
 static u_int32_t crc32tab[];
 
 #ifdef SBNI_DUAL_COMPOUND
-struct sbni_softc *headlist;
+struct sbni_softc *sbni_headlist;
 #endif
 
 u_int32_t next_sbni_unit;
@@ -972,7 +972,7 @@ connect_to_master(struct sbni_softc *sc)
 {
 	struct sbni_softc *p;
 
-	p = (struct sbni_softc *)(((char *)&headlist)
+	p = (struct sbni_softc *)(((char *)&sbni_headlist)
 	    - offsetof(struct sbni_softc, link));
 
 	for (; p->link; p = p->link) {
