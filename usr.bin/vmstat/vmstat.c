@@ -114,24 +114,25 @@ static struct nlist namelist[] = {
 	{ "" },
 };
 
-struct statinfo cur, last;
-int num_devices, maxshowdevs;
-long generation;
-struct device_selection *dev_select;
-int num_selected;
-struct devstat_match *matches;
-int num_matches = 0;
-int num_devices_specified, num_selections;
-long select_generation;
-char **specified_devices;
-devstat_select_mode select_mode;
+static struct statinfo cur, last;
+static int num_devices, maxshowdevs;
+static long generation;
+static struct device_selection *dev_select;
+static int num_selected;
+static struct devstat_match *matches;
+static int num_matches = 0;
+static int num_devices_specified, num_selections;
+static long select_generation;
+static char **specified_devices;
+static devstat_select_mode select_mode;
 
-struct	vmmeter sum, osum;
+static struct	vmmeter sum, osum;
 
-int	winlines = 20;
-int	nflag = 0;
+static int	winlines = 20;
+static int	aflag;
+static int	nflag;
 
-kvm_t *kd;
+static kvm_t   *kd;
 
 #define	FORKSTAT	0x01
 #define	INTRSTAT	0x02
@@ -158,12 +159,10 @@ static void	usage(void);
 static long	pct(long, long);
 static long	getuptime(void);
 
-char **getdrivedata(char **);
+static char   **getdrivedata(char **);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	int c, todo;
 	u_int interval;
@@ -174,8 +173,11 @@ main(argc, argv)
 	memf = nlistf = NULL;
 	interval = reps = todo = 0;
 	maxshowdevs = 2;
-	while ((c = getopt(argc, argv, "c:fiM:mN:n:p:stw:z")) != -1) {
+	while ((c = getopt(argc, argv, "ac:fiM:mN:n:p:stw:z")) != -1) {
 		switch (c) {
+		case 'a':
+			aflag++;
+			break;
 		case 'c':
 			reps = atoi(optarg);
 			break;
@@ -232,24 +234,18 @@ main(argc, argv)
 	if (todo == 0)
 		todo = VMSTAT;
 
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (nlistf != NULL || memf != NULL)
-		setgid(getgid());
+	if (memf != NULL) {
+		kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
+		if (kd == NULL)
+			errx(1, "kvm_openfiles: %s", errbuf);
+	}
 
-	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-	if (kd == 0) 
-		errx(1, "kvm_openfiles: %s", errbuf);
-	setgid(getgid());
-
-	if ((c = kvm_nlist(kd, namelist)) != 0) {
+	if (kd != NULL && (c = kvm_nlist(kd, namelist)) != 0) {
 		if (c > 0) {
 			warnx("undefined symbols:");
 			for (c = 0;
-			    c < (int)(sizeof(namelist)/sizeof(namelist[0]));
-			    c++)
+			     c < (int)(sizeof(namelist)/sizeof(namelist[0]));
+			     c++)
 				if (namelist[c].n_type == 0)
 					(void)fprintf(stderr, " %s",
 					    namelist[c].n_name);
@@ -313,9 +309,20 @@ main(argc, argv)
 	exit(0);
 }
 
-char **
-getdrivedata(argv)
-	char **argv;
+static int
+mysysctl(const char *name, void *oldp, size_t *oldlenp,
+    void *newp, size_t newlen)
+{
+	int error;
+
+	error = sysctlbyname(name, oldp, oldlenp, newp, newlen);
+	if (error != 0 && errno != ENOMEM)
+		err(1, "sysctl(%s)", name);
+	return (error);
+}
+
+static char **
+getdrivedata(char **argv)
 {
 	if ((num_devices = devstat_getnumdevs(NULL)) < 0)
 		errx(1, "%s", devstat_errbuf);
@@ -379,15 +386,25 @@ getdrivedata(argv)
 	return(argv);
 }
 
-long
-getuptime()
+static long
+getuptime(void)
 {
 	static struct timeval boottime;
 	static time_t now;
 	time_t uptime;
 
-	if (boottime.tv_sec == 0)
-		kread(X_BOOTTIME, &boottime, sizeof(boottime));
+	if (boottime.tv_sec == 0) {
+		if (kd != NULL) {
+			kread(X_BOOTTIME, &boottime, sizeof(boottime));
+		} else {
+			size_t size;
+
+			size = sizeof(boottime);
+			mysysctl("kern.boottime", &boottime, &size, NULL, 0);
+			if (size != sizeof(boottime))
+				errx(1, "kern.boottime size mismatch");
+		}
+	}
 	(void)time(&now);
 	uptime = now - boottime.tv_sec;
 	if (uptime <= 0 || uptime > 60*60*24*365*10)
@@ -395,32 +412,126 @@ getuptime()
 	return(uptime);
 }
 
-int	hz, hdrcnt;
+static void
+fill_vmmeter(struct vmmeter *vmmp)
+{
+	if (kd != NULL) {
+		kread(X_SUM, vmmp, sizeof(*vmmp));
+	} else {
+		size_t size = sizeof(unsigned int);
+#define GET_VM_STATS(cat, name) \
+	mysysctl("vm.stats." #cat "." #name, &vmmp->name, &size, NULL, 0)
+		/* sys */
+		GET_VM_STATS(sys, v_swtch);
+		GET_VM_STATS(sys, v_trap);
+		GET_VM_STATS(sys, v_syscall);
+		GET_VM_STATS(sys, v_intr);
+		GET_VM_STATS(sys, v_soft);
 
-void
-dovmstat(interval, reps)
-	u_int interval;
-	int reps;
+		/* vm */
+                GET_VM_STATS(vm, v_vm_faults);
+                GET_VM_STATS(vm, v_cow_faults);
+                GET_VM_STATS(vm, v_cow_optim);
+                GET_VM_STATS(vm, v_zfod);
+                GET_VM_STATS(vm, v_ozfod);
+                GET_VM_STATS(vm, v_swapin);
+                GET_VM_STATS(vm, v_swapout);
+                GET_VM_STATS(vm, v_swappgsin);
+                GET_VM_STATS(vm, v_swappgsout);
+                GET_VM_STATS(vm, v_vnodein);
+                GET_VM_STATS(vm, v_vnodeout);
+                GET_VM_STATS(vm, v_vnodepgsin);
+                GET_VM_STATS(vm, v_vnodepgsout);
+                GET_VM_STATS(vm, v_intrans);
+                GET_VM_STATS(vm, v_reactivated);
+                GET_VM_STATS(vm, v_pdwakeups);
+                GET_VM_STATS(vm, v_pdpages);
+                GET_VM_STATS(vm, v_dfree);
+                GET_VM_STATS(vm, v_pfree);
+                GET_VM_STATS(vm, v_tfree);
+                GET_VM_STATS(vm, v_page_size);
+                GET_VM_STATS(vm, v_page_count);
+                GET_VM_STATS(vm, v_free_reserved);
+                GET_VM_STATS(vm, v_free_target);
+                GET_VM_STATS(vm, v_free_min);
+                GET_VM_STATS(vm, v_free_count);
+                GET_VM_STATS(vm, v_wire_count);
+                GET_VM_STATS(vm, v_active_count);
+                GET_VM_STATS(vm, v_inactive_target);
+                GET_VM_STATS(vm, v_inactive_count);
+                GET_VM_STATS(vm, v_cache_count);
+                GET_VM_STATS(vm, v_cache_min);
+                GET_VM_STATS(vm, v_cache_max);
+                GET_VM_STATS(vm, v_pageout_free_min);
+                GET_VM_STATS(vm, v_interrupt_free_min);
+                /*GET_VM_STATS(vm, v_free_severe);*/
+		GET_VM_STATS(vm, v_forks);
+		GET_VM_STATS(vm, v_vforks);
+		GET_VM_STATS(vm, v_rforks);
+		GET_VM_STATS(vm, v_kthreads);
+		GET_VM_STATS(vm, v_forkpages);
+		GET_VM_STATS(vm, v_vforkpages);
+		GET_VM_STATS(vm, v_rforkpages);
+		GET_VM_STATS(vm, v_kthreadpages);
+#undef GET_VM_STATS
+	}
+}
+
+static void
+fill_vmtotal(struct vmtotal *vmtp)
+{
+	if (kd != NULL) {
+		/* XXX fill vmtp */
+		errx(1, "not implemented");
+	} else {
+		size_t size = sizeof(*vmtp);
+		mysysctl("vm.vmtotal", vmtp, &size, NULL, 0);
+		if (size != sizeof(*vmtp))
+			errx(1, "vm.total size mismatch");
+	}
+}
+
+static int hz, hdrcnt;
+
+static void
+dovmstat(u_int interval, int reps)
 {
 	struct vmtotal total;
 	time_t uptime, halfuptime;
 	struct devinfo *tmp_dinfo;
-	int mib[2];
 	size_t size;
 
 	uptime = getuptime();
 	halfuptime = uptime / 2;
 	(void)signal(SIGCONT, needhdr);
 
-	if (namelist[X_STATHZ].n_type != 0 && namelist[X_STATHZ].n_value != 0)
-		kread(X_STATHZ, &hz, sizeof(hz));
-	if (!hz)
-		kread(X_HZ, &hz, sizeof(hz));
+	if (kd != NULL) {
+		if (namelist[X_STATHZ].n_type != 0 &&
+		    namelist[X_STATHZ].n_value != 0)
+			kread(X_STATHZ, &hz, sizeof(hz));
+		if (!hz)
+			kread(X_HZ, &hz, sizeof(hz));
+	} else {
+		struct clockinfo clockrate;
+
+		size = sizeof(clockrate);
+		mysysctl("kern.clockrate", &clockrate, &size, NULL, 0);
+		if (size != sizeof(clockrate))
+			errx(1, "clockrate size mismatch");
+		hz = clockrate.hz;
+	}
 
 	for (hdrcnt = 1;;) {
 		if (!--hdrcnt)
 			printhdr();
-		kread(X_CPTIME, cur.cp_time, sizeof(cur.cp_time));
+		if (kd != NULL) {
+			kread(X_CPTIME, cur.cp_time, sizeof(cur.cp_time));
+		} else {
+			size = sizeof(cur.cp_time);
+			mysysctl("kern.cp_time", &cur.cp_time, &size, NULL, 0);
+			if (size != sizeof(cur.cp_time))
+				errx(1, "cp_time size mismatch");
+		}
 
 		tmp_dinfo = last.dinfo;
 		last.dinfo = cur.dinfo;
@@ -466,15 +577,8 @@ dovmstat(interval, reps)
 			break;
 		}
 
-		kread(X_SUM, &sum, sizeof(sum));
-		size = sizeof(total);
-		mib[0] = CTL_VM;
-		mib[1] = VM_TOTAL;
-		if (sysctl(mib, 2, &total, &size, NULL, 0) < 0) {
-			(void)printf("Can't get kerninfo: %s\n",
-				     strerror(errno));
-			bzero(&total, sizeof(total));
-		}
+		fill_vmmeter(&sum);
+		fill_vmtotal(&total);
 		(void)printf("%2d %1d %1d",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define vmstat_pgtok(a) ((a) * sum.v_page_size >> 10)
@@ -519,8 +623,8 @@ dovmstat(interval, reps)
 	}
 }
 
-void
-printhdr()
+static void
+printhdr(void)
 {
 	int i, num_shown;
 
@@ -545,17 +649,16 @@ printhdr()
 /*
  * Force a header to be prepended to the next output.
  */
-void
-needhdr(dummy)
-	int dummy __unused;
+static void
+needhdr(int dummy __unused)
 {
 
 	hdrcnt = 1;
 }
 
 #ifdef notyet
-void
-dotimes()
+static void
+dotimes(void)
 {
 	u_int pgintime, rectime;
 
@@ -573,9 +676,8 @@ dotimes()
 }
 #endif
 
-long
-pct(top, bot)
-	long top, bot;
+static long
+pct(long top, long bot)
 {
 	long ans;
 
@@ -587,13 +689,13 @@ pct(top, bot)
 
 #define	PCT(top, bot) pct((long)(top), (long)(bot))
 
-void
-dosum()
+static void
+dosum(void)
 {
 	struct nchstats lnchstats;
 	long nchtotal;
 
-	kread(X_SUM, &sum, sizeof(sum));
+	fill_vmmeter(&sum);
 	(void)printf("%9u cpu context switches\n", sum.v_swtch);
 	(void)printf("%9u device interrupts\n", sum.v_intr);
 	(void)printf("%9u software interrupts\n", sum.v_soft);
@@ -633,7 +735,14 @@ dosum()
 	(void)printf("%9u pages wired down\n", sum.v_wire_count);
 	(void)printf("%9u pages free\n", sum.v_free_count);
 	(void)printf("%9u bytes per page\n", sum.v_page_size);
-	kread(X_NCHSTATS, &lnchstats, sizeof(lnchstats));
+	if (kd != NULL) {
+		kread(X_NCHSTATS, &lnchstats, sizeof(lnchstats));
+	} else {
+		size_t size = sizeof(lnchstats);
+		mysysctl("vfs.cache.nchstats", &lnchstats, &size, NULL, 0);
+		if (size != sizeof(lnchstats))
+			errx(1, "vfs.cache.nchstats size mismatch");
+	}
 	nchtotal = lnchstats.ncs_goodhits + lnchstats.ncs_neghits +
 	    lnchstats.ncs_badhits + lnchstats.ncs_falsehits +
 	    lnchstats.ncs_miss + lnchstats.ncs_long;
@@ -649,11 +758,10 @@ dosum()
 	    PCT(lnchstats.ncs_long, nchtotal));
 }
 
-void
-doforkst()
+static void
+doforkst(void)
 {
-
-	kread(X_SUM, &sum, sizeof(sum));
+	fill_vmmeter(&sum);
 	(void)printf("%d forks, %d pages, average %.2f\n",
 	    sum.v_forks, sum.v_forkpages,
 	    sum.v_forks == 0 ? 0.0 :
@@ -669,13 +777,13 @@ doforkst()
 }
 
 static void
-devstats()
+devstats(void)
 {
 	int dn, state;
 	long double transfers_per_second;
 	long double busy_seconds;
 	long tmp;
-	
+
 	for (state = 0; state < CPUSTATES; ++state) {
 		tmp = cur.cp_time[state];
 		cur.cp_time[state] -= last.cp_time[state];
@@ -703,8 +811,8 @@ devstats()
 	}
 }
 
-void
-cpustats()
+static void
+cpustats(void)
 {
 	int state;
 	double lpct, total;
@@ -723,8 +831,8 @@ cpustats()
 	(void)printf("%2.0f", cur.cp_time[CP_IDLE] * lpct);
 }
 
-void
-dointr()
+static void
+dointr(void)
 {
 	u_long *intrcnt, uptime;
 	u_int64_t inttotal;
@@ -734,15 +842,32 @@ dointr()
 	char *intrname, *tintrname;
 
 	uptime = getuptime();
-	nintr = namelist[X_EINTRCNT].n_value - namelist[X_INTRCNT].n_value;
-	inamlen =
-	    namelist[X_EINTRNAMES].n_value - namelist[X_INTRNAMES].n_value;
-	intrcnt = malloc((size_t)nintr);
-	intrname = malloc((size_t)inamlen);
-	if (intrcnt == NULL || intrname == NULL)
-		errx(1, "malloc");
-	kread(X_INTRCNT, intrcnt, (size_t)nintr);
-	kread(X_INTRNAMES, intrname, (size_t)inamlen);
+	if (kd != NULL) {
+		nintr = namelist[X_EINTRCNT].n_value -
+		    namelist[X_INTRCNT].n_value;
+		inamlen = namelist[X_EINTRNAMES].n_value -
+		    namelist[X_INTRNAMES].n_value;
+		if ((intrcnt = malloc((size_t)nintr)) == NULL ||
+		    (intrname = malloc((size_t)inamlen)) == NULL)
+			err(1, "malloc()");
+		kread(X_INTRCNT, intrcnt, (size_t)nintr);
+		kread(X_INTRNAMES, intrname, (size_t)inamlen);
+	} else {
+		for (intrcnt = NULL, nintr = 1024; ; nintr *= 2) {
+			if ((intrcnt = reallocf(intrcnt, nintr)) == NULL)
+				err(1, "reallocf()");
+			if (mysysctl("hw.intrcnt",
+			    intrcnt, &nintr, NULL, 0) == 0)
+				break;
+		}
+		for (intrname = NULL, inamlen = 1024; ; inamlen *= 2) {
+			if ((intrname = reallocf(intrname, inamlen)) == NULL)
+				err(1, "reallocf()");
+			if (mysysctl("hw.intrnames",
+			    intrname, &inamlen, NULL, 0) == 0)
+				break;
+		}
+	}
 	nintr /= sizeof(u_long);
 	tintrname = intrname;
 	istrnamlen = strlen("interrupt");
@@ -756,7 +881,11 @@ dointr()
 	    "rate");
 	inttotal = 0;
 	while (--nintr >= 0) {
-		if (*intrcnt)
+		const char *p;
+		if (intrname[0] != '\0' &&
+		    (aflag > 0 || *intrcnt != 0) &&
+		    (aflag > 1 || ((p = strchr(intrname, ' ')) && p[1] != ' ')) &&
+		    (aflag > 2 || strncmp(intrname, "stray ", 6) != 0))
 			(void)printf("%-*s %20lu %10lu\n", istrnamlen, intrname,
 			    *intrcnt, *intrcnt / uptime);
 		intrname += strlen(intrname) + 1;
@@ -766,33 +895,33 @@ dointr()
 			inttotal / (u_int64_t) uptime);
 }
 
-void
+static void
 domem(void)
 {
+	if (kd != NULL)
+		errx(1, "not implemented");
 	dosysctl("kern.malloc");
 }
 
-void
+static void
 dozmem(void)
 {
+	if (kd != NULL)
+		errx(1, "not implemented");
 	dosysctl("vm.zone");
 }
 
-void
+static void
 dosysctl(char *name)
 {
 	char *buf;
 	size_t bufsize;
 
-	buf = NULL;
-	bufsize = 1024;
-	for (;;) {
+	for (buf = NULL, bufsize = 1024; ; bufsize *= 2) {
 		if ((buf = realloc(buf, bufsize)) == NULL)
 			err(1, "realloc()");
-		if (sysctlbyname(name, buf, &bufsize, 0, NULL) == 0)
+		if (mysysctl(name, buf, &bufsize, 0, NULL) == 0)
 			break;
-		if (errno != ENOMEM)
-			err(1, "sysctlbyname()");
 		bufsize *= 2;
 	}
 	buf[bufsize] = '\0'; /* play it safe */
@@ -803,11 +932,8 @@ dosysctl(char *name)
 /*
  * kread reads something from the kernel, given its nlist index.
  */
-void
-kread(nlx, addr, size)
-	int nlx;
-	void *addr;
-	size_t size;
+static void
+kread(int nlx, void *addr, size_t size)
 {
 	char *sym;
 
@@ -825,11 +951,11 @@ kread(nlx, addr, size)
 	}
 }
 
-void
-usage()
+static void
+usage(void)
 {
 	(void)fprintf(stderr, "%s%s",
-		"usage: vmstat [-imsz] [-c count] [-M core] [-N system] [-w wait]\n",
+		"usage: vmstat [-aimsz] [-c count] [-M core] [-N system] [-w wait]\n",
 		"              [-n devs] [disks]\n");
 	exit(1);
 }

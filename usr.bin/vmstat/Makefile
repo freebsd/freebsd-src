@@ -3,8 +3,6 @@
 
 PROG=	vmstat
 MAN=	vmstat.8
-BINGRP=	kmem
-BINMODE=2555
 DPADD=	${LIBKVM} ${LIBDEVSTAT}
 LDADD=	-lkvm -ldevstat
 
