@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/12/16 17:43:23 bde Exp $
+#	$Id: Makefile,v 1.3 1998/05/09 13:32:37 bde Exp $
 
 PROG=	keyserv
 SRCS=	keyserv.c setkey.c keyserv_uid.c crypt_svc.c crypt_server.c crypt.h
@@ -6,6 +6,9 @@ SRCS=	keyserv.c setkey.c keyserv_uid.c crypt_svc.c crypt_server.c crypt.h
 MAN8=	keyserv.8
 
 CFLAGS+= -DKEYSERV_RANDOM -DBROKEN_DES -I.
+.if $(OBJFORMAT) == elf
+CFLAGS+= -DOBJFORMAT_ELF
+.endif
 
 DPADD=	${LIBMP} ${LIBRPCSVC}
 LDADD=	-lmp -lrpcsvc
