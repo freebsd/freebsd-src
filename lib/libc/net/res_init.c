@@ -524,6 +524,26 @@ res_setoptions(options, source)
 			if (_res.options & RES_DEBUG)
 				printf(";;\tndots=%d\n", _res.ndots);
 #endif
+		} else if (!strncmp(cp, "timeout:", sizeof("timeout:") - 1)) {
+			i = atoi(cp + sizeof("timeout:") - 1);
+			if (i <= RES_MAXRETRANS)
+				_res.retrans = i;
+			else
+				_res.retrans = RES_MAXRETRANS;
+#ifdef DEBUG
+			if (_res.options & RES_DEBUG)
+				printf(";;\ttimeout=%d\n", _res.retrans);
+#endif
+		} else if (!strncmp(cp, "attempts:", sizeof("attempts:") - 1)){
+			i = atoi(cp + sizeof("attempts:") - 1);
+			if (i <= RES_MAXRETRY)
+				_res.retry = i;
+			else
+				_res.retry = RES_MAXRETRY;
+#ifdef DEBUG
+			if (_res.options & RES_DEBUG)
+				printf(";;\tretry=%d\n", _res.retry);
+#endif
 		} else if (!strncmp(cp, "debug", sizeof("debug") - 1)) {
 #ifdef DEBUG
 			if (!(_res.options & RES_DEBUG)) {
