@@ -1,4 +1,5 @@
 # ex:ts=8
+$FreeBSD$
 
 GNU Bison 1.28
 
@@ -27,7 +28,7 @@ import:
 
 Imported by:
 
-	cvs import -ko -m 'Virgin import of GNU Bison 1.28' \
+	cvs import -m 'Virgin import of GNU Bison 1.28' \
 		src/contrib/bison FSF v1_28
 
 
