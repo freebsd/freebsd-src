@@ -48,6 +48,10 @@ chroot_autoupdate()
 		else
 			ln -s ${named_chrootdir}/etc/namedb /etc/namedb
 		fi
+	else
+		# Make sure it points to the right place.
+		ln -sf ${named_chrootdir}/etc/namedb /etc/namedb
+
 	fi
 
 	# Mount a devfs in the chroot directory if needed
