@@ -56,8 +56,6 @@
 
 /* Define this if you want code that allows readline to be used in an
    X `callback' style. */
-#if !defined (SHELL)
-#  define READLINE_CALLBACKS
-#endif
+#define READLINE_CALLBACKS
 
 #endif /* _RLCONF_H_ */

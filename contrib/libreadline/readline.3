@@ -6,9 +6,9 @@
 .\"	Case Western Reserve University
 .\"	chet@ins.CWRU.Edu
 .\"
-.\"	Last Change: Thu Feb 19 10:26:47 EST 1998
+.\"	Last Change: Thu Dec 31 10:16:30 EST 1998
 .\"
-.TH READLINE 3 "1998 Feb 19" GNU
+.TH READLINE 3 "1998 Dec 31" GNU
 .\"
 .\" File Name macro.  This used to be `.PN', for Path Name,
 .\" but Sun doesn't seem to like that very much.
@@ -22,6 +22,7 @@ readline \- get a line from a user with editing
 .LP
 .nf
 .ft B
+#include <stdio.h>
 #include <readline.h>
 #include <history.h>
 .ft
@@ -380,6 +381,19 @@ When set to \fBOn\fP, makes readline use a single line for display,
 scrolling the input horizontally on a single screen line when it
 becomes longer than the screen width rather than wrapping to a new line.
 .TP
+.B input\-meta (Off)
+If set to \fBOn\fP, readline will enable eight-bit input (that is,
+it will not strip the high bit from the characters it reads),
+regardless of what the terminal claims it can support.  The name
+.B meta\-flag
+is a synonym for this variable.
+.TP
+.B isearch\-terminators (``C\-[C\-J'')
+The string of characters that should terminate an incremental
+search without subsequently executing the character as a command.
+If this variable has not been given a value, the characters
+\fIESC\fP and \fIC\-J\fP will terminate an incremental search.
+.TP
 .B keymap (emacs)
 Set the current readline keymap.  The set of legal keymap names is
 \fIemacs, emacs-standard, emacs-meta, emacs-ctlx, vi, vi-move,
@@ -399,11 +413,6 @@ appended.
 .B mark\-modified\-lines (Off)
 If set to \fBOn\fP, history lines that have been modified are displayed
 with a preceding asterisk (\fB*\fP).
-.TP
-.B meta\-flag (Off)
-If set to \fBOn\fP, readline will enable eight-bit input (that is,
-it will not strip the high bit from the characters it reads),
-regardless of what the terminal claims it can support.
 .TP
 .B output\-meta (Off)
 If set to \fBOn\fP, readline will display characters with the
@@ -509,8 +518,10 @@ As each character of the search string is typed, readline displays
 the next entry from the history matching the string typed so far.
 An incremental search requires only as many characters as needed to
 find the desired history entry.
-The Escape character is used to terminate an incremental search.
-Control-J will also terminate the search.
+The characters present in the value of the \fIisearch-terminators\fP
+variable are used to terminate an incremental search.
+If that variable has not been assigned a value the Escape and
+Control-J characters will terminate an incremental search.
 Control-G will abort an incremental search and restore the original
 line.
 When the search is terminated, the history entry containing the
@@ -646,6 +657,11 @@ the last character typed was not bound to \fBBdelete\-char\fP, then return
 .B backward\-delete\-char (Rubout)
 Delete the character behind the cursor.  When given a numeric argument,
 save the deleted text on the kill ring.
+.TP
+.B forward\-backward\-delete\-char   
+Delete the character under the cursor, unless the cursor is at the
+end of the line, in which case the character behind the cursor is
+deleted.  By default, this is not bound to a key.
 .TP
 .B quoted\-insert (C\-q, C\-v)
 Add the next character that you type to the line verbatim.  This is
@@ -798,6 +814,13 @@ of matches; a negative argument may be used to move backward
 through the list.
 This command is intended to be bound to \fBTAB\fP, but is unbound
 by default.
+.TP
+.B delete\-char\-or\-list
+Deletes the character under the cursor if not at the beginning or
+end of the line (like \fBdelete-char\fP).
+If at the end of the line, behaves identically to
+\fBpossible-completions\fP.
+This command is unbound by default.
 .PD
 .SS Keyboard Macros
 .PP
@@ -847,7 +870,7 @@ Undo all changes made to this line.  This is like executing the
 .B undo
 command enough times to return the line to its initial state.
 .TP
-.B tilde\-expand (M\-~)
+.B tilde\-expand (M\-&)
 Perform tilde expansion on the current word.
 .TP
 .B set\-mark (C\-@, M-<space>)
