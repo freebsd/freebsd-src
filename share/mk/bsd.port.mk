@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.256 1997/04/21 00:24:51 asami Exp $
+#	$Id: bsd.port.mk,v 1.257 1997/04/30 03:12:05 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -100,8 +100,10 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # FORCE_PKG_REGISTER - If set, it will overwrite any existing package
 #				  registration information in ${PKG_DBDIR}/${PKGNAME}.
 # NO_MTREE		- If set, will not invoke mtree from bsd.port.mk from
-#				  the "install" target.  This is the default if
-#				  USE_IMAKE or USE_X11 is set.
+#				  the "install" target.
+# MTREE_FILE	- The name of the mtree file (default: /etc/mtree/BSD.x11.dist
+#				  if USE_IMAKE or USE_X11 is set, /etc/mtree/BSD.local.dist
+#				  otherwise.)
 #
 # NO_BUILD		- Use a dummy (do-nothing) build target.
 # NO_CONFIGURE	- Use a dummy (do-nothing) configure target.
@@ -384,14 +386,15 @@ EXTRACT_BEFORE_ARGS?=   -xzf
 .endif
 
 # Figure out where the local mtree file is
-.if !defined(MTREE_LOCAL) && exists(/etc/mtree/BSD.local.dist)
-MTREE_LOCAL=	/etc/mtree/BSD.local.dist
+.if !defined(MTREE_FILE)
+.if defined(USE_IMAKE) || defined(USE_X11)
+MTREE_FILE=	/etc/mtree/BSD.x11.dist
+.else
+MTREE_FILE=	/etc/mtree/BSD.local.dist
+.endif
 .endif
 MTREE_CMD?=	/usr/sbin/mtree
-MTREE_ARGS?=	-U -f ${MTREE_LOCAL} -d -e -p
-.if defined(USE_X11) || defined(USE_IMAKE) || !defined(MTREE_LOCAL)
-NO_MTREE=	yes
-.endif
+MTREE_ARGS?=	-U -f ${MTREE_FILE} -d -e -p
 
 # A few aliases for *-install targets
 INSTALL_PROGRAM= \
@@ -435,8 +438,8 @@ PKG_ARGS+=		-r ${PKGDIR}/REQ
 .if exists(${PKGDIR}/MESSAGE)
 PKG_ARGS+=		-D ${PKGDIR}/MESSAGE
 .endif
-.if !defined(NO_MTREE) && defined(MTREE_LOCAL)
-PKG_ARGS+=		-m ${MTREE_LOCAL}
+.if !defined(NO_MTREE)
+PKG_ARGS+=		-m ${MTREE_FILE}
 .endif
 .endif
 PKG_SUFX?=		.tgz
@@ -1193,11 +1196,9 @@ checkpatch:
 # Special target to re-run install
 
 .if !target(reinstall)
-reinstall: pre-reinstall install
-
-pre-reinstall:
-	@${RM} -f ${INSTALL_COOKIE}
-	@${RM} -f ${PACKAGE_COOKIE}
+reinstall:
+	@${RM} -f ${INSTALL_COOKIE} ${PACKAGE_COOKIE}
+	@${MAKE} install
 .endif
 
 ################################################################
@@ -1350,8 +1351,7 @@ package-name:
 
 .if !target(package-depends)
 package-depends:
-	@for i in ${RUN_DEPENDS} ${LIB_DEPENDS} ${DEPENDS}; do \
-		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
+	@for dir in `${ECHO} ${LIB_DEPENDS} ${RUN_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
 		if [ -d $$dir ]; then \
 			(cd $$dir ; ${MAKE} package-name package-depends); \
 		else \
@@ -1401,21 +1401,16 @@ DEPENDS_TMP+=	${RUN_DEPENDS}
 
 _DEPENDS_USE:	.USE
 .if defined(DEPENDS_TMP)
-.if defined(NO_DEPENDS)
-# Just print out messages
+.if !defined(NO_DEPENDS)
 	@for i in ${DEPENDS_TMP}; do \
 		prog=`${ECHO} $$i | ${SED} -e 's/:.*//'`; \
-		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
-		if expr "$$prog" : \\/ >/dev/null; then \
-			${ECHO_MSG} "===>  ${PKGNAME} depends on file:  $$prog ($$dir)"; \
+		dir=`${ECHO} $$i | ${SED} -e 's/[^:]*://'`; \
+		if expr "$$dir" : '.*:' > /dev/null; then \
+			target=`${ECHO} $$dir | ${SED} -e 's/.*://'`; \
+			dir=`${ECHO} $$dir | ${SED} -e 's/:.*//'`; \
 		else \
-			${ECHO_MSG} "===>  ${PKGNAME} depends on executable:  $$prog ($$dir)"; \
+			target=${DEPENDS_TARGET}; \
 		fi; \
-	done
-.else
-	@for i in ${DEPENDS_TMP}; do \
-		prog=`${ECHO} $$i | ${SED} -e 's/:.*//'`; \
-		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
 		if expr "$$prog" : \\/ >/dev/null; then \
 			if [ -e "$$prog" ]; then \
 				${ECHO_MSG} "===>  ${PKGNAME} depends on file: $$prog - found"; \
@@ -1434,11 +1429,11 @@ _DEPENDS_USE:	.USE
 			fi; \
 		fi; \
 		if [ $$notfound != 0 ]; then \
-			${ECHO_MSG} "===>  Verifying ${DEPENDS_TARGET} for $$prog in $$dir"; \
+			${ECHO_MSG} "===>  Verifying $$target for $$prog in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
 				${ECHO_MSG} ">> No directory for $$prog.  Skipping.."; \
 			else \
-				(cd $$dir; ${MAKE} ${.MAKEFLAGS} ${DEPENDS_TARGET}) ; \
+				(cd $$dir; ${MAKE} ${.MAKEFLAGS} $$target) ; \
 				${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"; \
 			fi; \
 		fi; \
@@ -1454,26 +1449,25 @@ run-depends:	_DEPENDS_USE
 
 lib-depends:
 .if defined(LIB_DEPENDS)
-.if defined(NO_DEPENDS)
-# Just print out messages
+.if !defined(NO_DEPENDS)
 	@for i in ${LIB_DEPENDS}; do \
 		lib=`${ECHO} $$i | ${SED} -e 's/:.*//'`; \
-		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
-		${ECHO_MSG} "===>  ${PKGNAME} depends on shared library:  $$lib ($$dir)"; \
-	done
-.else
-	@for i in ${LIB_DEPENDS}; do \
-		lib=`${ECHO} $$i | ${SED} -e 's/:.*//'`; \
-		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
+		dir=`${ECHO} $$i | ${SED} -e 's/[^:]*://'`; \
+		if expr "$$dir" : '.*:' > /dev/null; then \
+			target=`${ECHO} $$dir | ${SED} -e 's/.*://'`; \
+			dir=`${ECHO} $$dir | ${SED} -e 's/:.*//'`; \
+		else \
+			target=${DEPENDS_TARGET}; \
+		fi; \
 		if /sbin/ldconfig -r | ${GREP} -q -e "-l$$lib"; then \
 			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - found"; \
 		else \
 			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - not found"; \
-			${ECHO_MSG} "===>  Verifying ${DEPENDS_TARGET} for $$lib in $$dir"; \
+			${ECHO_MSG} "===>  Verifying $$target for $$lib in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
 				${ECHO_MSG} ">> No directory for $$lib.  Skipping.."; \
 			else \
-				(cd $$dir; ${MAKE} ${.MAKEFLAGS} ${DEPENDS_TARGET}) ; \
+				(cd $$dir; ${MAKE} ${.MAKEFLAGS} $$target) ; \
 				${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"; \
 			fi; \
 		fi; \
@@ -1485,14 +1479,20 @@ lib-depends:
 
 misc-depends:
 .if defined(DEPENDS)
-	@${ECHO_MSG} "===>  ${PKGNAME} depends on:  ${DEPENDS}"
 .if !defined(NO_DEPENDS)
-	@for i in ${DEPENDS}; do \
-		${ECHO_MSG} "===>  Verifying ${DEPENDS_TARGET} for $$i"; \
-		if [ ! -d $$i ]; then \
-			${ECHO_MSG} ">> No directory for $$i.  Skipping.."; \
+	@for dir in ${DEPENDS}; do \
+		if expr "$$dir" : '.*:' > /dev/null; then \
+			target=`${ECHO} $$dir | ${SED} -e 's/.*://'`; \
+			dir=`${ECHO} $$dir | ${SED} -e 's/:.*//'`; \
 		else \
-			(cd $$i; ${MAKE} ${.MAKEFLAGS} ${DEPENDS_TARGET}) ; \
+			target=${DEPENDS_TARGET}; \
+		fi; \
+		${ECHO_MSG} "===>  ${PKGNAME} depends on: $$dir"; \
+		${ECHO_MSG} "===>  Verifying $$target for $$dir"; \
+		if [ ! -d $$dir ]; then \
+			${ECHO_MSG} ">> No directory for $$dir.  Skipping.."; \
+		else \
+			(cd $$dir; ${MAKE} ${.MAKEFLAGS} $$target) ; \
 		fi \
 	done
 	@${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"
@@ -1507,14 +1507,14 @@ misc-depends:
 clean-depends:
 .if defined(FETCH_DEPENDS) || defined(BUILD_DEPENDS) || defined(LIB_DEPENDS) \
 	|| defined(RUN_DEPENDS)
-	@for dir in `${ECHO} ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/.*://' | sort -u`; do \
+	@for dir in `${ECHO} ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u`; do \
 		if [ -d $$dir ] ; then \
 			(cd $$dir; ${MAKE} NOCLEANDEPENDS=yes clean clean-depends); \
 		fi \
 	done
 .endif
 .if defined(DEPENDS)
-	@for dir in ${DEPENDS}; do \
+	@for dir in `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
 		if [ -d $$dir ] ; then \
 			(cd $$dir; ${MAKE} NOCLEANDEPENDS=yes clean clean-depends); \
 		fi \
@@ -1524,11 +1524,7 @@ clean-depends:
 
 .if !target(depends-list)
 depends-list:
-	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS}; do \
-		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
-		(cd $$dir; ${MAKE} package-name depends-list); \
-	done
-	@for dir in ${DEPENDS}; do \
+	@for dir in `${ECHO} ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
 		(cd $$dir; ${MAKE} package-name depends-list); \
 	done
 .endif
