@@ -205,26 +205,26 @@ struct atapi_params {
 
 /* ATAPI request sense structure */   
 struct atapi_reqsense {
-    u_int8_t	error_code	:7;	/* current or deferred errors */
-    u_int8_t	valid		:1;	/* follows ATAPI spec */
-    u_int8_t	segment;		/* Segment number */
-    u_int8_t	sense_key	:4;	/* sense key */
-    u_int8_t	reserved2_4	:1;	/* reserved */
-    u_int8_t	ili		:1;	/* incorrect length indicator */
-    u_int8_t	eom		:1;	/* end of medium */
-    u_int8_t	filemark	:1;	/* filemark */
-					/* cmd information */
+    u_int8_t	error_code	:7;		/* current or deferred errors */
+    u_int8_t	valid		:1;		/* follows ATAPI spec */
+    u_int8_t	segment;			/* Segment number */
+    u_int8_t	sense_key	:4;		/* sense key */
+    u_int8_t	reserved2_4	:1;		/* reserved */
+    u_int8_t	ili		:1;		/* incorrect length indicator */
+    u_int8_t	eom		:1;		/* end of medium */
+    u_int8_t	filemark	:1;		/* filemark */
+						/* cmd information */
     u_int32_t	cmd_info __attribute__((packed));
-    u_int8_t	sense_length;		/* additional sense length (n-7) */
-					/* additional cmd specific info */
+    u_int8_t	sense_length;			/* additional sense len (n-7) */
+						/* additional cmd spec info */
     u_int32_t	cmd_specific_info __attribute__((packed));
-    u_int8_t	asc;			/* additional sense code */
-    u_int8_t	ascq;			/* additional sense code qualifier */
-    u_int8_t	replaceable_unit_code;	/* field replaceable unit code */
-    u_int8_t	sk_specific1	:7;	/* sense key specific */
-    u_int8_t	sksv		:1;	/* sense key specific info valid */
-    u_int8_t	sk_specific2;		/* sense key specific */
-    u_int8_t	sk_specific3;		/* sense key specific */
+    u_int8_t	asc;				/* additional sense code */
+    u_int8_t	ascq;				/* additional sense code qual */
+    u_int8_t	replaceable_unit_code;		/* replaceable unit code */
+    u_int8_t	sk_specific1	:7;		/* sense key specific */
+    u_int8_t	sksv		:1;		/* sense key specific info OK */
+    u_int8_t	sk_specific2;			/* sense key specific */
+    u_int8_t	sk_specific3;			/* sense key specific */
 };  
 
 struct atapi_softc {
@@ -233,14 +233,14 @@ struct atapi_softc {
     int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
     int8_t			cmd;		/* last cmd executed */
     u_int32_t			flags;		/* drive flags */
-#define		ATAPI_F_MEDIA_CHANGED	0x0001
-#define		ATAPI_F_DMA_ENABLED	0x0002
-#define		ATAPI_F_DMA_USED	0x0004
-#define		ATAPI_F_DRQT_CMD	0x0008
+#define		ATAPI_F_DMA_ENABLED	0x0001
+#define		ATAPI_F_DMA_USED	0x0002
+#define		ATAPI_F_DSC_USED	0x0004
+#define		ATAPI_F_MEDIA_CHANGED	0x0008
 
 };
 
-typedef void atapi_callback_t(struct atapi_request *);
+typedef int32_t atapi_callback_t(struct atapi_request *);
 
 struct atapi_request {
     struct atapi_softc		*device;	/* ptr to parent device */
@@ -248,11 +248,11 @@ struct atapi_request {
     u_int8_t			ccb[16];	/* command control block */
     int32_t			ccbsize;	/* size of ccb (12 | 16) */
     u_int32_t			bytecount;	/* bytes to transfer */
-    u_int32_t			donecount;	/* bytes transferred */
     int32_t			timeout;	/* timeout for this cmd */
     struct callout_handle	timeout_handle; /* handle for untimeout */
     int32_t			retries;	/* retry count */
     int32_t			result;		/* result of this cmd */
+    struct atapi_reqsense	sense;		/* sense data if error */
     int32_t			flags;		
 #define		A_READ			0x0001
 
@@ -264,10 +264,8 @@ struct atapi_request {
 
 void atapi_transfer(struct atapi_request *);
 int32_t atapi_interrupt(struct atapi_request *);
-int32_t atapi_immed_cmd(struct atapi_softc *, int8_t *, void *, int32_t, int32_t, int32_t);
 int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, int32_t,  atapi_callback_t, void *, struct buf *);
 void atapi_reinit(struct atapi_softc *);
-int32_t atapi_error(struct atapi_softc *, int32_t);
 int32_t atapi_test_ready(struct atapi_softc *);
 int32_t atapi_wait_ready(struct atapi_softc *, int32_t);
 void atapi_request_sense(struct atapi_softc *, struct atapi_reqsense *);
