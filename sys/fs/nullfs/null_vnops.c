@@ -739,26 +739,19 @@ null_reclaim(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct thread *td = ap->a_td;
 	struct vnode *vp = ap->a_vp;
 	struct null_node *xp = VTONULL(vp);
 	struct vnode *lowervp = xp->null_lowervp;
-	void *vdata;
 
-	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
-	LIST_REMOVE(xp, null_hash);
-	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
+	if (lowervp) {
+		null_hashrem(xp);
 
-	/*
-	 * Now it is safe to drop references to the lower vnode.
-	 * VOP_INACTIVE() will be called by vrele() if necessary.
-	 */
-	vrele(lowervp);
-	vrele(lowervp);
+		vrele(lowervp);
+		vrele(lowervp);
+	}
 
-	vdata = vp->v_data;
 	vp->v_data = NULL;
-	FREE(vdata, M_NULLFSNODE);
+	FREE(xp, M_NULLFSNODE);
 
 	return (0);
 }
