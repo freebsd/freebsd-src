@@ -70,6 +70,7 @@ struct vx_softc {
 #define         F_WAIT_TRAIL 0x2
 #define         F_RX_TRAILER 0x4
 #define		F_PROMISC    0x8
+#define		F_ALLMULTI   0x10
 
 #define         F_ACCESS_32_BITS 0x100
 

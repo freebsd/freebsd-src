@@ -52,6 +52,15 @@
  *          babkin@hq.icb.chel.su
  */
 
+/*
+ * Sep 29, 1996
+ * Multicast support and bpf bug fixes.
+ *
+ * Steven McCanne
+ * http://www.cs.berkeley.edu/~mccanne/
+ * mccanne@cs.berkeley.edu
+ */
+
 #include "vx.h"
 #if NVX > 0
 
@@ -254,7 +263,7 @@ vx_pci_attach(
     ifp->if_unit = unit;
     ifp->if_name = "vx";
     ifp->if_mtu = ETHERMTU;
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX /*| IFF_NOTRAILERS*/;
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
     ifp->if_output = ether_output;
     ifp->if_start = vxstart;
     ifp->if_ioctl = vxioctl;
@@ -356,9 +365,13 @@ vxinit(unit)
 	if(ifp->if_flags & IFF_PROMISC)
 		outw(BASE + VX_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
 		 FIL_GROUP | FIL_BRDCST | FIL_ALL);
+	else if((ifp->if_flags & IFF_ALLMULTI) != 0 ||
+		sc->arpcom.ac_multiaddrs != 0)
+    		outw(BASE + VX_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+		 FIL_GROUP | FIL_BRDCST | FIL_ALL);
 	else
 		outw(BASE + VX_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-		 FIL_GROUP | FIL_BRDCST);
+		 FIL_BRDCST);
 
 	 /*
 	  * S.B.
@@ -552,7 +565,7 @@ startagain:
 	outb(BASE + VX_W1_TX_PIO_WR_1, 0);	/* Padding */
 
 #if NBPFILTER > 0
-    if (sc->arpcom.ac_if.if_bpf) {
+    if (sc->bpf) {
 	bpf_mtap(sc->bpf, top);
     }
 #endif
@@ -870,7 +883,7 @@ all_pkt:
     top->m_pkthdr.len = sc->cur_len;
 
 #if NBPFILTER > 0
-    if (sc->arpcom.ac_if.if_bpf) {
+    if (sc->bpf) {
 	bpf_mtap(sc->bpf, top);
 
 	/*
@@ -880,10 +893,9 @@ all_pkt:
 	 */
 	eh = mtod(top, struct ether_header *);
 	if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
+	    /* non-multicast (also non-broadcast) */
 	    (eh->ether_dhost[0] & 1) == 0 &&
 	    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		 sizeof(eh->ether_dhost)) != 0 &&
-	    bcmp(eh->ether_dhost, etherbroadcastaddr,
 		 sizeof(eh->ether_dhost)) != 0) {
 	    if (sc->top) {
 		m_freem(sc->top);
@@ -1014,7 +1026,33 @@ vxioctl(ifp, cmd, data)
 	    vxinit(ifp->if_unit);
 	    }
 
+	if ( (ifp->if_flags & IFF_ALLMULTI) &&  !vx_ftst(F_ALLMULTI) ) {
+	    vx_fset(F_ALLMULTI);
+	    vxinit(ifp->if_unit);
+	    }
+	else if( !(ifp->if_flags & IFF_ALLMULTI) && vx_ftst(F_ALLMULTI) ) {
+	    vx_frst(F_ALLMULTI);
+	    vxinit(ifp->if_unit);
+	    }
+
 	break;
+
+      case SIOCADDMULTI:
+      case SIOCDELMULTI:
+	/*
+	 * Update multicast listeners
+	 */
+	error = (cmd == SIOCADDMULTI ?
+		 ether_addmulti(ifr, &sc->arpcom) :
+		 ether_delmulti(ifr, &sc->arpcom));
+
+	if(error == ENETRESET) {
+	    /* reset multicast filtering */
+	    vxinit(ifp->if_unit);
+	    error = 0;
+	}
+	break;
+
 #ifdef notdef
       case SIOCGHWADDR:
 	bcopy((caddr_t) sc->sc_addr, (caddr_t) & ifr->ifr_data,
