@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.153 1995/03/12 12:18:43 bde Exp $
+#	$Id: LINT,v 1.154 1995/03/12 23:43:14 swallace Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -547,12 +547,6 @@ pseudo-device   ispy    1
 # Controls all sound devices
 controller	snd0
 
-# Yamaha OPL-3 FM - for SB, SB Pro, SB16, PAS
-device opl0     at isa? port 0x388
-
-# Yamaha OPL-3 FM - for PAS
-#device opl0     at isa? port 0x38a
-
 # SoundBlaster DSP driver - for SB, SB Pro, SB16, PAS(emulating SB)
 device sb0      at isa? port 0x220 irq 7 drq 1 vector sbintr
 
@@ -565,9 +559,6 @@ device sbmidi0  at isa? port 0x300
 # ProAudioSpectrum PCM and Midi - for PAS
 device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
 
-# MPU-401 - for MPU-401 standalone card
-device mpu0     at isa? port 0x330 irq 6 drq 0
-
 # Gravis UltraSound - for GUS, GUS16, GUSMAX
 device gus0 at isa? port 0x220 irq 11 drq 1 vector gusintr
 
@@ -579,6 +570,12 @@ device gusmax0 at isa? port 0x32c
 
 # MS Sound System
 device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
+
+# Yamaha OPL-2/OPL-3 FM - for SB, SB Pro, SB16, PAS
+device opl0     at isa? port 0x388
+
+# MPU-401 - for MPU-401 standalone card
+device mpu0     at isa? port 0x330 irq 6 drq 0
 
 # 6850 UART Midi
 device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
