@@ -397,6 +397,8 @@ dev/random/hash.c	optional random
 crypto/blowfish/bf_cbc.c	optional random
 crypto/blowfish/bf_enc.c	optional random
 crypto/blowfish/bf_skey.c	optional random
+dev/ray/if_ray.c	optional ray card
+dev/ray/if_ray.c	optional ray pccard
 dev/rp/rp.c		optional rp
 dev/rp/rp_isa.c		optional rp isa
 dev/rp/rp_pci.c		optional rp pci
@@ -413,6 +415,7 @@ dev/smbus/smbus.c	count smbus
 dev/sn/if_sn.c		optional sn
 dev/sn/if_sn_isa.c	optional sn isa
 dev/sn/if_sn_pccard.c	optional sn card
+dev/sn/if_sn_pccard.c	optional sn pccard
 dev/sound/isa/ad1816.c	optional pcm isa
 dev/sound/isa/emu8000.c	optional midi isa
 dev/sound/isa/es1888.c	optional pcm isa
