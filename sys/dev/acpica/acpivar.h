@@ -225,10 +225,10 @@ extern ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 #define ACPI_RESOURCE_NEXT(Res) (ACPI_RESOURCE *)((UINT8 *)Res + Res->Length)
 
 /* ACPI event handling */
-extern UINT32	acpi_eventhandler_power_button_for_sleep(void *context);
-extern UINT32	acpi_eventhandler_power_button_for_wakeup(void *context);
-extern UINT32	acpi_eventhandler_sleep_button_for_sleep(void *context);
-extern UINT32	acpi_eventhandler_sleep_button_for_wakeup(void *context);
+extern UINT32	acpi_event_power_button_sleep(void *context);
+extern UINT32	acpi_event_power_button_wake(void *context);
+extern UINT32	acpi_event_sleep_button_sleep(void *context);
+extern UINT32	acpi_event_sleep_button_wake(void *context);
 
 #define ACPI_EVENT_PRI_FIRST      0
 #define ACPI_EVENT_PRI_DEFAULT    10000
