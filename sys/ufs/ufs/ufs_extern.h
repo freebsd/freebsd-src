@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ufs_extern.h,v 1.6 1994/11/14 13:50:15 bde Exp $
+ * $Id: ufs_extern.h,v 1.7 1995/03/28 07:58:17 bde Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
@@ -58,7 +58,7 @@ int	 ufs_access __P((struct vop_access_args *));
 int	 ufs_advlock __P((struct vop_advlock_args *));
 int	 ufs_bmap __P((struct vop_bmap_args *));
 int	 ufs_bmaparray __P((struct vnode *, daddr_t, daddr_t *, struct indir *,
-		int *, int *));
+		int *, int *, int *));
 
 int	 ufs_check_export __P((struct mount *, struct ufid *, struct mbuf *,
 		struct vnode **, int *exflagsp, struct ucred **));
