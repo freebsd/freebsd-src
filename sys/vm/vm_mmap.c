@@ -46,6 +46,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -60,6 +61,7 @@
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/mac.h>
 #include <sys/mman.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
@@ -426,8 +428,16 @@ mmap(td, uap)
 	}
 
 	mtx_unlock(&Giant);
-	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
-	    flags, handle, pos);
+	error = 0;
+#ifdef MAC
+	if (handle != NULL && (flags & MAP_SHARED) != 0) {
+		error = mac_check_vnode_mmap(td->td_ucred,
+		    (struct vnode *)handle, prot);
+	}
+#endif
+	if (error == 0)
+		error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
+		    flags, handle, pos);
 	mtx_lock(&Giant);
 	if (error == 0)
 		td->td_retval[0] = (register_t) (addr + pageoff);
