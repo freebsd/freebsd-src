@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.60 1997/09/14 03:00:44 peter Exp $
+ * $Id: nfs_vnops.c,v 1.61 1997/09/21 04:23:53 dyson Exp $
  */
 
 
@@ -102,7 +102,7 @@ static int	nfs_ioctl __P((struct vop_ioctl_args *));
 #define nfs_poll vop_nopoll
 static int	nfs_flush __P((struct vnode *,struct ucred *,int,struct proc *,int));
 static int	nfs_setattrrpc __P((struct vnode *,struct vattr *,struct ucred *,struct proc *));
-static	int	nfs_lookup __P((struct vop_cachedlookup_args *));
+static	int	nfs_lookup __P((struct vop_lookup_args *));
 static	int	nfs_create __P((struct vop_create_args *));
 static	int	nfs_mknod __P((struct vop_mknod_args *));
 static	int	nfs_open __P((struct vop_open_args *));
@@ -141,8 +141,7 @@ static int	nfs_update __P((struct vop_update_args *));
 vop_t **nfsv2_vnodeop_p;
 static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
-	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },	/* lookup */
-	{ &vop_cachedlookup_desc, (vop_t *)nfs_lookup },	/* lookup */
+	{ &vop_lookup_desc, (vop_t *)nfs_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)nfs_create },	/* create */
 /* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)nfs_mknod },	/* mknod */
@@ -837,12 +836,12 @@ nfs_setattrrpc(vp, vap, cred, procp)
 
 /*
  * nfs lookup call, one step at a time...
- * Generic stuff already done by vfs_cache_lookup()
- * Unlock the directory nfsnode and do the rpc
+ * First look in cache
+ * If not found, unlock the directory nfsnode and do the rpc
  */
 static int
 nfs_lookup(ap)
-	struct vop_cachedlookup_args /* {
+	struct vop_lookup_args /* {
 		struct vnodeop_desc *a_desc;
 		struct vnode *a_dvp;
 		struct vnode **a_vpp;
@@ -867,11 +866,65 @@ nfs_lookup(ap)
 	int v3 = NFS_ISV3(dvp);
 	struct proc *p = cnp->cn_proc;
 
+	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
+		return (EROFS);
 	*vpp = NULLVP;
+	if (dvp->v_type != VDIR)
+		return (ENOTDIR);
 	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	nmp = VFSTONFS(dvp->v_mount);
 	np = VTONFS(dvp);
+	if ((error = cache_lookup(dvp, vpp, cnp)) && error != ENOENT) {
+		struct vattr vattr;
+		int vpid;
+
+		if (error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, p)) {
+			*vpp = NULLVP;
+			return (error);
+		}
+
+		newvp = *vpp;
+		vpid = newvp->v_id;
+		/*
+		 * See the comment starting `Step through' in ufs/ufs_lookup.c
+		 * for an explanation of the locking protocol
+		 */
+		if (dvp == newvp) {
+			VREF(newvp);
+			error = 0;
+		} else if (flags & ISDOTDOT) {
+			VOP_UNLOCK(dvp, 0, p);
+			error = vget(newvp, LK_EXCLUSIVE, p);
+			if (!error && lockparent && (flags & ISLASTCN))
+				error = vn_lock(dvp, LK_EXCLUSIVE, p);
+		} else {
+			error = vget(newvp, LK_EXCLUSIVE, p);
+			if (!lockparent || error || !(flags & ISLASTCN))
+				VOP_UNLOCK(dvp, 0, p);
+		}
+		if (!error) {
+			if (vpid == newvp->v_id) {
+			   if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, p)
+			    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+				nfsstats.lookupcache_hits++;
+				if (cnp->cn_nameiop != LOOKUP &&
+				    (flags & ISLASTCN))
+					cnp->cn_flags |= SAVENAME;
+				return (0);
+			   }
+			   cache_purge(newvp);
+			}
+			vput(newvp);
+			if (lockparent && dvp != newvp && (flags & ISLASTCN))
+				VOP_UNLOCK(dvp, 0, p);
+		}
+		error = vn_lock(dvp, LK_EXCLUSIVE, p);
+		*vpp = NULLVP;
+		if (error)
+			return (error);
+	}
 	error = 0;
 	newvp = NULLVP;
 	nfsstats.lookupcache_misses++;
