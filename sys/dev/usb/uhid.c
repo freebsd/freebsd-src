@@ -2,6 +2,8 @@
 
 /* Also already merged from NetBSD:
  *	$NetBSD: uhid.c,v 1.54 2002/09/23 05:51:21 simonb Exp $
+ *	$NetBSD: uhid.c,v 1.61 2004/05/08 11:41:19 jdolecek Exp $
+ *	$NetBSD: uhid.c,v 1.62 2004/06/23 02:30:52 mycroft Exp $
  */
 
 #include <sys/cdefs.h>
@@ -702,6 +704,22 @@ uhid_do_ioctl(struct uhid_softc *sc, u_long cmd, caddr_t addr, int flag,
 	case USB_GET_REPORT_ID:
 		*(int *)addr = 0;	/* XXX: we only support reportid 0? */
 		break;
+
+	case USB_GET_DEVICEINFO:
+		usbd_fill_deviceinfo(sc->sc_hdev.sc_parent->sc_udev,
+				     (struct usb_device_info *)addr, 1);
+		break;
+
+	case USB_GET_STRING_DESC:
+	    {
+                struct usb_string_desc *si = (struct usb_string_desc *)addr;
+                err = usbd_get_string_desc(sc->sc_hdev.sc_parent->sc_udev,
+			si->usd_string_index,
+			si->usd_language_id, &si->usd_desc, &size);
+                if (err)
+                        return (EINVAL);
+                break;
+	    }
 
 	default:
 		return (EINVAL);
