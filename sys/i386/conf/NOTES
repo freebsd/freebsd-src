@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.607 1999/06/19 20:20:52 rnordier Exp $
+#	$Id: LINT,v 1.608 1999/06/22 14:13:35 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1013,6 +1013,15 @@ controller	bt0	at isa? port IO_BT0 irq ?
 controller	adv0	at isa? port ? irq ?
 controller	adw0
 controller      aha0    at isa? port ? irq ?
+
+#
+# Compaq Smart RAID controller.  This driver also uses the major number
+# of wd, in order to be able to boot a pure RAID system.
+# Only one line of each is needed, the code finds all available controllers
+# and devices.
+#
+controller	ida0
+device		id0
 
 #
 # ATA and ATAPI devices
