@@ -57,6 +57,18 @@ interface is necessary for site border router
 .Dq 6to4 router
 in the specification).
 .Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Pp
 Due to the way 6to4 protocol is specified,
 .Nm
 interface requires certain configuration to work properly.
@@ -122,7 +134,7 @@ interface filters out the following packets.
 Note that the checks are no way complete:
 .Bl -bullet
 .It
-Packets with IPv4 unspecified addrss as outer IPv4 source/destination
+Packets with IPv4 unspecified address as outer IPv4 source/destination
 .Pq Li 0.0.0.0/8
 .It
 Packets with loopback address as outer IPv4 source/destination
@@ -144,7 +156,7 @@ Ingress filter can be turned off by
 .Dv IFF_LINK2
 bit.
 .It
-The same set of rules are appplied against the IPv4 address embedded into
+The same set of rules are applied against the IPv4 address embedded into
 inner IPv6 address, if the IPv6 address matches 6to4 prefix.
 .El
 .Pp
