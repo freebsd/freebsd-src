@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.9 1998/12/22 11:51:25 abial Exp $
+ *	$Id: vidconsole.c,v 1.10 1998/12/31 13:44:04 abial Exp $
  */
 
 #include <stand.h>
@@ -124,7 +124,7 @@ vidc_biosputchar(int c)
 {
     v86.ctl = 0;
     v86.addr = 0x10;
-    v86.eax = 0xe00 | c;
+    v86.eax = 0xe00 | (c & 0xff);
     v86.ebx = 0x7;
     v86int();
 }
@@ -164,7 +164,7 @@ vidc_rawputchar(int c)
 		if(curx>0) {
 			curx--;
 			curs_move(curx,cury);
-			write_char(' ',fg_c,bg_c);
+			/* write_char(' ',fg_c,bg_c); XXX destructive(!) */
 			return;
 		}
 		return;
