@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.37 1998/03/28 10:33:08 bde Exp $
+ * $Id: uipc_syscalls.c,v 1.38 1998/04/11 20:31:46 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -993,8 +993,10 @@ setsockopt(p, uap)
 			return (ENOBUFS);
 		if (uap->valsize > MLEN) {
 			MCLGET(m, M_WAIT);
-			if(!(m->m_flags & M_EXT))
+			if(!(m->m_flags & M_EXT)) {
+				m_free(m);
 				return (ENOBUFS);
+			}
 		}
 		error = copyin(uap->val, mtod(m, caddr_t), (u_int)uap->valsize);
 		if (error) {
