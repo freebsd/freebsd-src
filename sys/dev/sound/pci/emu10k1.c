@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004 David O'Brien <obrien@FreeBSD.org>
  * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * All rights reserved.
  *
@@ -36,10 +37,16 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* -------------------------------------------------------------------- */
 
+#define	NUM_G		64	/* use all channels */
+#define	WAVEOUT_MAXBUFSIZE 32768
+#define	EMUPAGESIZE	4096	/* don't change */
+#define	MAXPAGES	(WAVEOUT_MAXBUFSIZE * NUM_G / EMUPAGESIZE)
 #define	EMU10K1_PCI_ID	0x00021102
 #define	EMU10K2_PCI_ID	0x00041102
 #define	EMU_DEFAULT_BUFSZ	4096
 #define	EMU_CHANS	4
+#define	ENV_ON		DCYSUSV_CHANNELENABLE_MASK
+#define	ENV_OFF		0x00	/* XXX: should this be 1? */
 #undef EMUDEBUG
 
 struct emu_memblk {
