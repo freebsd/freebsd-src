@@ -48,6 +48,7 @@
 #include <btxv86.h>
 #include "libi386.h"
 
+#define BIOS_NUMDRIVES		0x475
 #define BIOSDISK_SECSIZE	512
 #define BUFSIZE			(1 * BIOSDISK_SECSIZE)
 #define	MAXBDDEV		MAXDEV
@@ -75,7 +76,7 @@ struct open_disk {
 #define BD_MODEINT13		0x0000
 #define BD_MODEEDD1		0x0001
 #define BD_MODEEDD3		0x0002
-#define		BD_MODEMASK		0x0003
+#define BD_MODEMASK		0x0003
 #define BD_FLOPPY		0x0004
 #define BD_LABELOK		0x0008
 #define BD_PARTTABOK		0x0010
@@ -158,22 +159,23 @@ bd_unit2bios(int unit)
 
 /*    
  * Quiz the BIOS for disk devices, save a little info about them.
- *
- * XXX should we be consulting the BIOS equipment list, specifically
- *     the value at 0x475?
  */
 static int
 bd_init(void) 
 {
-    int		base, unit;
+    int		base, unit, nfd = 0;
 
     /* sequence 0, 0x80 */
     for (base = 0; base <= 0x80; base += 0x80) {
 	for (unit = base; (nbdinfo < MAXBDDEV); unit++) {
+	    /* check the BIOS equipment list for number of fixed disks */
+	    if((base == 0x80) &&
+	       (nfd >= *(unsigned short *)PTOV(BIOS_NUMDRIVES)))
+	        break;
+
 	    bdinfo[nbdinfo].bd_unit = unit;
 	    bdinfo[nbdinfo].bd_flags = (unit < 0x80) ? BD_FLOPPY : 0;
 
-	    /* XXX add EDD probes */
 	    if (!bd_int13probe(&bdinfo[nbdinfo]))
 		break;
 
@@ -181,6 +183,8 @@ bd_init(void)
 	    printf("BIOS drive %c: is disk%d\n", 
 		   (unit < 0x80) ? ('A' + unit) : ('C' + unit - 0x80), nbdinfo);
 	    nbdinfo++;
+	    if (base == 0x80)
+	        nfd++;
 	}
     }
     return(0);
@@ -189,11 +193,9 @@ bd_init(void)
 /*
  * Try to detect a device supported by the legacy int13 BIOS
  */
-
 static int
 bd_int13probe(struct bdinfo *bd)
 {
-
     v86.ctl = V86_FLAGS;
     v86.addr = 0x13;
     v86.eax = 0x800;
@@ -204,6 +206,19 @@ bd_int13probe(struct bdinfo *bd)
 	((v86.edx & 0xff) > (bd->bd_unit & 0x7f))) {	/* unit # OK */
 	bd->bd_flags |= BD_MODEINT13;
 	bd->bd_type = v86.ebx & 0xff;
+
+	/* Determine if we can use EDD with this device. */
+	v86.eax = 0x4100;
+	v86.edx = bd->bd_unit;
+	v86.ebx = 0x55aa;
+	v86int();
+	if (!(v86.efl & 0x1) &&				/* carry clear */
+	    ((v86.ebx & 0xffff) == 0xaa55) &&		/* signature */
+	    (v86.ecx & 0x1)) {				/* packets mode ok */
+	    bd->bd_flags |= BD_MODEEDD1;
+	    if(v86.eax & 0xff00 > 0x300)
+	        bd->bd_flags |= BD_MODEEDD3;
+	}
 	return(1);
     }
     return(0);
@@ -285,19 +300,28 @@ bd_printslice(struct open_disk *od, struct dos_partition *dp, char *prefix)
 	case DOSPTYP_EXT:
 		return;
 	case 0x01:
-		sprintf(line, "%s: FAT-12\n", prefix);
+		sprintf(line, "%s: FAT-12  %.6dMB (%d - %d)\n", prefix,
+		    dp->dp_size / 2048,  /* 512-byte sector assumption */
+		    dp->dp_start, dp->dp_start + dp->dp_size);
 		break;
 	case 0x04:
 	case 0x06:
 	case 0x0e:
-		sprintf(line, "%s: FAT-16\n", prefix);
+		sprintf(line, "%s: FAT-16  %.6dMB (%d - %d)\n", prefix,
+		    dp->dp_size / 2048,  /* 512-byte sector assumption */
+		    dp->dp_start, dp->dp_start + dp->dp_size);
 		break;
 	case 0x0b:
 	case 0x0c:
-		sprintf(line, "%s: FAT-32\n", prefix);
+		sprintf(line, "%s: FAT-32  %.6dMB (%d - %d)\n", prefix,
+		    dp->dp_size / 2048,  /* 512-byte sector assumption */
+		    dp->dp_start, dp->dp_start + dp->dp_size);
 		break;
 	default:
-		sprintf(line, "%s: Unknown fs: 0x%x\n", prefix, dp->dp_typ);
+		sprintf(line, "%s: Unknown fs: 0x%x  %.6dMB (%d - %d)\n",
+		    prefix, dp->dp_typ,
+		    dp->dp_size / 2048,  /* 512-byte sector assumption */
+		    dp->dp_start, dp->dp_start + dp->dp_size);
 	}
 	pager_output(line);
 }
@@ -315,18 +339,21 @@ bd_printbsdslice(struct open_disk *od, int offset, char *prefix)
 	return;
     lp =(struct disklabel *)(&buf[0]);
     if (lp->d_magic != DISKMAGIC) {
-	sprintf(line, "bad disklabel\n");
+	sprintf(line, "%s: FFS  bad disklabel\n", prefix);
 	pager_output(line);
 	return;
     }
     
     /* Print partitions */
     for (i = 0; i < lp->d_npartitions; i++) {
-	if ((lp->d_partitions[i].p_fstype == FS_BSDFFS) || (lp->d_partitions[i].p_fstype == FS_SWAP) ||
+	if ((lp->d_partitions[i].p_fstype == FS_BSDFFS) ||
+            (lp->d_partitions[i].p_fstype == FS_SWAP) ||
+            (lp->d_partitions[i].p_fstype == FS_VINUM) ||
 	    ((lp->d_partitions[i].p_fstype == FS_UNUSED) && 
 	     (od->od_flags & BD_FLOPPY) && (i == 0))) {	/* Floppies often have bogus fstype, print 'a' */
 	    sprintf(line, "  %s%c: %s  %.6dMB (%d - %d)\n", prefix, 'a' + i,
-		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap" : "FFS",
+		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap" : 
+		    (lp->d_partitions[i].p_fstype == FS_VINUM) ? "vinum" : "FFS",
 		    lp->d_partitions[i].p_size / 2048,	/* 512-byte sector assumption */
 		    lp->d_partitions[i].p_offset, lp->d_partitions[i].p_offset + lp->d_partitions[i].p_size);
 	    pager_output(line);
@@ -799,18 +826,47 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 		v86int();
 	    }
 	    
-	    /* build request  XXX support EDD requests too */
-	    v86.ctl = V86_FLAGS;
-	    v86.addr = 0x13;
-	    v86.eax = 0x200 | x;
-	    v86.ecx = ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec;
-	    v86.edx = (hd << 8) | od->od_unit;
-	    v86.es = VTOPSEG(xp);
-	    v86.ebx = VTOPOFF(xp);
-	    v86int();
-	    result = (v86.efl & 0x1);
-	    if (result == 0)
-		break;
+	    if(cyl > 1023) {
+	        /* use EDD if the disk supports it, otherwise, return error */
+	        if(od->od_flags & BD_MODEEDD1) {
+		    static unsigned short packet[8];
+
+		    packet[0] = 0x10;
+		    packet[1] = x;
+		    packet[2] = VTOPOFF(xp);
+		    packet[3] = VTOPSEG(xp);
+		    packet[4] = dblk & 0xffff;
+		    packet[5] = dblk >> 16;
+		    packet[6] = 0;
+		    packet[7] = 0;
+		    v86.ctl = V86_FLAGS;
+		    v86.addr = 0x13;
+		    v86.eax = 0x4200;
+		    v86.edx = od->od_unit;
+		    v86.ds = VTOPSEG(packet);
+		    v86.esi = VTOPOFF(packet);
+		    v86int();
+		    result = (v86.efl & 0x1);
+		    if(result == 0)
+		      break;
+		} else {
+		    result = 1;
+		    break;
+		}
+	    } else {
+	        /* Use normal CHS addressing */
+	        v86.ctl = V86_FLAGS;
+		v86.addr = 0x13;
+		v86.eax = 0x200 | x;
+		v86.ecx = ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec;
+		v86.edx = (hd << 8) | od->od_unit;
+		v86.es = VTOPSEG(xp);
+		v86.ebx = VTOPOFF(xp);
+		v86int();
+		result = (v86.efl & 0x1);
+		if (result == 0)
+		  break;
+	    }
 	}
 	
  	DEBUG("%d sectors from %d/%d/%d to %p (0x%x) %s", x, cyl, hd, sec - 1, p, VTOP(p), result ? "failed" : "ok");
