@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.15 1995/05/09 16:30:45 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.16.2.3 1995/06/02 11:03:15 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -946,8 +946,6 @@ msdosfs_link(ap)
  *		be sure dest is not a child of src directory
  *		write entry in dest directory
  *		update "." and ".." in moved directory
- *		update offset and dirclust in denode
- *		move denode to new hash chain
  *		clear old directory entry for moved directory
  *	}
  * }
@@ -981,8 +979,6 @@ msdosfs_rename(ap)
 	int error;
 	int newparent = 0;
 	int sourceisadirectory = 0;
-	u_long to_dirclust;
-	u_long to_diroffset;
 	u_long cn;
 	daddr_t bn;
 	struct vnode *tvp = ap->a_tvp;
@@ -1091,25 +1087,18 @@ msdosfs_rename(ap)
 				error = ENOTEMPTY;
 				goto bad;
 			}
+			cache_purge(DETOV(tddep));
 		} else {		/* destination is file */
 			if (sourceisadirectory) {
 				error = EISDIR;
 				goto bad;
 			}
 		}
-		to_dirclust = tdep->de_dirclust;
-		to_diroffset = tdep->de_diroffset;
 		error = removede(tddep,tdep);
 		if (error)
 			goto bad;
 		vput(ap->a_tvp);
 		tdep = NULL;
-
-		/*
-		 * Remember where the slot was for createde().
-		 */
-		tddep->de_fndclust = to_dirclust;
-		tddep->de_fndoffset = to_diroffset;
 	}
 
 	/*
@@ -1181,9 +1170,11 @@ msdosfs_rename(ap)
 			VOP_UNLOCK(ap->a_fdvp);
 			goto bad;
 		}
-		fdep->de_dirclust = tddep->de_fndclust;
-		fdep->de_diroffset = tddep->de_fndoffset;
-		reinsert(fdep);
+		if (!sourceisadirectory) {
+			fdep->de_dirclust = tddep->de_fndclust;
+			fdep->de_diroffset = tddep->de_fndoffset;
+			reinsert(fdep);
+		}
 		VOP_UNLOCK(ap->a_fdvp);
 	}
 	/* fdep is still locked here */

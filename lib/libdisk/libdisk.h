@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.17 1995/05/25 06:14:49 phk Exp $
+ * $Id: libdisk.h,v 1.18.2.2 1995/06/05 02:24:32 jkh Exp $
  *
  */
 
@@ -29,9 +29,11 @@ struct disk {
 	char		*name;
 	u_long		flags;
 #		define DISK_ON_TRACK	1
+#if 0
 	u_long		real_cyl;
 	u_long		real_hd;
 	u_long		real_sect;
+#endif
 	u_long		bios_cyl;
 	u_long		bios_hd;
 	u_long		bios_sect;
@@ -103,11 +105,13 @@ Debug_Disk(struct disk *disk);
 	/* Print the content of the tree to stdout
 	 */
 
+#if 0
 struct disk *
 Set_Phys_Geom(struct disk *disk, u_long cyl, u_long heads, u_long sects);
 	/* Use a different physical geometry.  Makes sense for ST506 disks only.
 	 * The tree returned is read from the disk, using this geometry.
 	 */
+#endif
 
 void
 Set_Bios_Geom(struct disk *disk, u_long cyl, u_long heads, u_long sects);
@@ -210,6 +214,14 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 void
 MakeDevDisk(struct disk *d,char *path);
 	/* Make device nodes for all chunks on this disk */
+
+char *
+ShowChunkFlags(struct chunk *c);
+	/* Return string to show flags. */
+
+char *
+ChunkCanBeRoot(struct chunk *c);
+	/* Return NULL if chunk can be /, explanation otherwise */
 
 /*
  * Implementation details  >>> DO NOT USE <<<

@@ -496,6 +496,15 @@ static void
 _pw_breakout_yp(struct passwd *pw, char *result, int master)
 {
 	char *s;
+	static char name[UT_NAMESIZE+2], passwd[_PASSWORD_LEN], class[1024];
+	static char gecos[1024], dir[MAXPATHLEN], shell[MAXPATHLEN];
+
+	strcpy(name, pw->pw_name); pw->pw_name = (char *)&name;
+	strcpy(passwd, pw->pw_passwd); pw->pw_passwd = (char *)&passwd;
+	strcpy(class, pw->pw_class); pw->pw_class = (char *)&class;
+	strcpy(gecos, pw->pw_gecos); pw->pw_gecos = (char *)&gecos;
+	strcpy(dir, pw->pw_dir); pw->pw_dir = (char *)&dir;
+	strcpy(shell, pw->pw_shell); pw->pw_shell = (char *)&shell;
 
 	s = strsep(&result, ":"); /* name */
 	if(!(pw->pw_fields & _PWF_NAME) || (pw->pw_name[0] == '+')) {

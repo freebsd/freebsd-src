@@ -27,7 +27,7 @@
 #include "ui_objects.h"
 
 extern PKG_info p_inf;
-extern char *StartDir;
+
 
 /*
  * Local prototypes
@@ -171,7 +171,7 @@ preview_pkg(void)
 
     use_helpfile(PREVIEW_FS_HLP);
     use_helpline("Select package to preview");
-    fname = dialog_fselect(StartDir ? StartDir : ".", "*.tgz");
+    fname = dialog_fselect(".", "*.tgz");
     while (fname) {
         use_helpfile(PREVIEW_HLP);
         use_helpline("use PgUp and PgDn and arrow-keys to move through the text");
@@ -191,7 +191,7 @@ preview_pkg(void)
         free(tmp_file);
 	use_helpfile(PREVIEW_FS_HLP);
 	use_helpline("Select package to preview");
-        fname = dialog_fselect(StartDir ? StartDir : ".", "*.tgz");
+        fname = dialog_fselect(".", "*.tgz");
     }
     if (fname) free(fname);
     use_helpfile(NULL);
@@ -211,16 +211,14 @@ install_batch(void)
     use_helpfile(DS_INSTALL_HLP);
     quit = FALSE;
     while (!quit) {
-	if (StartDir)
+	use_helpline("Select directory where the pkg's reside");
+	if (dialog_dselect(".", "*.tgz")) {
+	    quit = TRUE;
+	} else {
 	    install_pkgs_indir();
-	else {
-	    use_helpline("Select directory where the pkg's reside");
-	    if (dialog_dselect(".", "*.tgz"))
-		quit = TRUE;
-	    else
-		install_pkgs_indir();
-    	}
+	}
     }
+
     return;
 } /* install_batch() */
 
@@ -274,7 +272,7 @@ install_pkgs_indir(void)
     /* now build a list of the packages in the chosen directory */
     /* and display them in a list */
 
-    get_dir(StartDir ? StartDir : ".", "*.tgz", &d, &n);
+    get_dir(".", "*.tgz", &d, &n);
     get_filenames(d, n, &fnames, &nf);
     FreeDir(d, n); 	/* free the space allocated to d */
 
@@ -325,11 +323,12 @@ install_pkgs_indir(void)
     if (getenv("TMPDIR")) {
 	sprintf(tmp_dir, "%s/%s", getenv("TMP_DIR"), tmp_file);
     } else {
-	sprintf(tmp_dir, "/tmp/%s", tmp_file);
+	sprintf(tmp_dir, "/usr/tmp/%s", tmp_file);
+	mkdir("/usr/tmp", S_IRWXU);
     }
     free(tmp_file);
     if (mkdir(tmp_dir, S_IRWXU)) {
-	dialog_notify("Could not create temporary directory in /tmp, exiting");
+	dialog_notify("Could not create temporary directory in /usr/tmp, exiting");
 	free(names);
 	free(comment);
 	free(desc);
@@ -505,6 +504,8 @@ install_pkgs_indir(void)
     }
 
     if (install) {
+	int ninstalled = 0;
+
 	/* check if any of the packages marked for installation are */
 	/* already installed */
 	i=0;
@@ -527,7 +528,7 @@ install_pkgs_indir(void)
 	for (i=0; i<nf; i++) {
 	    if (pkg_obj->seld[i]) {
 		dialog_gauge("Installing packages:", names[i], LINES/2-3,
-			     COLS/2-30, 7, 60, (int) ((float) (i+1)/n*100));
+			     COLS/2-30, 7, 60, (int) ((float) ++ninstalled/n*100));
 		install_package(fnames[i]);
 	    }
 	}

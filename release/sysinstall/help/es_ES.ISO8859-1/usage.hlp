@@ -10,7 +10,6 @@ FLECHA DERECHA Ir al siguiente elemento o grupo (Ide'ntico a TAB).
 MAYUSCULAS-TAB Ir al elemento anterior o grupo.
 FLECHA IZQ.    Ir al elemento anterior o grupo (Ide'ntico a MAYUSCULAS-TAB).
 RETORNO        Seleccionar el elemento.
-ESC            Ejecuta un inte'rprete (shell) para diagno'stico. Exit regresa.
 PAGINA ARRIBA  Regresa una pa'gina, en a'reas de texto.
 PAGINA ABAJO   Presenta la siguiente pa'gina, en areas de texto.
 ESPACIO        En menus de opcio'n mu'ltiple (radio), cambia el elemento actual

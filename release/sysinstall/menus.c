@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.40 1995/05/30 05:13:23 jkh Exp $
+ * $Id: menus.c,v 1.41.2.39 1995/06/10 19:38:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,7 +57,7 @@ DMenu MenuInitial = {
     "This is the main menu of the FreeBSD installation system.  Please\n\
 select one of the options below by using the arrow keys or typing the\n\
 first character of the option name you're interested in.  Invoke an\n\
-option by pressing enter.  If you'd like a shell, press ESC",	/* prompt */
+option by pressing [ENTER].",		/* prompt */
     "Press F1 for usage instructions",				/* help line */
     "usage.hlp",						/* help file */
     { { "Usage", "Quick start - How to use this menu system.",	/* U */
@@ -70,7 +70,7 @@ option by pressing enter.  If you'd like a shell, press ESC",	/* prompt */
 	DMENU_SUBMENU,	&MenuOptions, 0, 0		},
       { "Proceed", "Go to the installation menu",		/* P */
 	DMENU_SUBMENU,	&MenuInstall, 0, 0		},
-      { "Quit", "Exit this installation utility",		/* Q */
+      { "Quit", "Exit this menu (and the installation)",	/* Q */
 	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
@@ -83,8 +83,7 @@ DMenu MenuDocumentation = {
 or are looking to build a system specifically for FreeBSD, read the\n\
 Hardware guide!  New users should also read the Install document for\n\
 a step-by-step tutorial on installing FreeBSD.  For general information,\n\
-consult the README file.  If you're having other problems, you may find\n\
-answers in the FAQ.",
+consult the README file.",
     "Confused?  Press F1 for help.",
     "usage.hlp",			/* help file */
     { { "README", "Read this for a general description of FreeBSD",	/* R */
@@ -97,22 +96,18 @@ answers in the FAQ.",
 	DMENU_DISPLAY_FILE,	"COPYRIGHT", 0, 0	},
       { "Release", "The release notes for this version of FreeBSD.",	/* R */
 	DMENU_DISPLAY_FILE,	"RELNOTES", 0, 0	},
-      { "FAQ", "Frequently Asked Questions about FreeBSD.",		/* F */
-	DMENU_DISPLAY_FILE,	"faq.hlp", 0, 0		},
+      { "Exit", "Exit this menu (returning to previous)",		/* E */
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
 /*
  * The language selection menu.
- *
- * Note:  The RADIO menus use a slightly different syntax.  If an item
- * name starts with `*', it's considered to be "ON" by default,
- * otherwise off.
  */
 DMenu MenuOptionsLanguage = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Natural language selection",	/* title */
-    "Please specify the language you'd like to use by default.\n\n\
+    "Please specify the language you would like to use by default.\n\n\
 While almost all of the system's documentation is still written\n\
 in english (and may never be translated), there are a few guides\n\
 and types of system documentation that may be written in your\n\
@@ -150,8 +145,8 @@ DMenu MenuMediaCDROM = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a CDROM type",
     "FreeBSD can be installed directly from a CDROM containing a valid\n\
-FreeBSD 2.0.5 distribution.  If you are seeing this menu it's because\n\
-more than one CDROM drive on your system was found.  Please select one\n\
+FreeBSD 2.0.5 distribution.  If you are seeing this menu it is because\n\
+more than one CDROM drive was found on your system.  Please select one\n\
 of the following CDROM drives as your installation drive.",
     "Press F1 to read the installation guide",
     "install.hlp",
@@ -161,8 +156,8 @@ of the following CDROM drives as your installation drive.",
 DMenu MenuMediaFloppy = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a Floppy drive",
-"You have more than one floppy drive.  Please chose the floppy\n\
-drive you'd like to use for this operation",
+"You have more than one floppy drive.  Please chose the drive\n\
+you would like to use for this operation",
     NULL,
     NULL,
     { { NULL } },
@@ -171,13 +166,14 @@ drive you'd like to use for this operation",
 DMenu MenuMediaDOS = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a DOS partition",
-"FreeBSD can be installed directly from a DOS partition,\n\
-assuming of course that you've copied the relevant distributions\n\
-into your DOS partition before starting this installation.  If\n\
-such is not the case, then you should reboot DOS at this time\n\
-and copy the distributions you want to install into a subdirectory\n\
-on one of your DOS partitions.  Otherwise, please select the\n\
-DOS partition containing the FreeBSD distribution files.",
+"FreeBSD can be installed directly from a DOS partition\n\
+assuming, of course, that you have copied the relevant\n\
+distributions into your DOS partition before starting this\n\
+installation.  If this is not the case then you should reboot\n\
+DOS at this time and copy the distributions you wish to install\n\
+into a \"FREEBSD\" subdirectory on one of your DOS partitions.\n\
+Otherwise, please select the DOS partition containing the FreeBSD\n\
+distribution files.",
     "Press F1 to read the installation guide",
     "install.hlp",
     { { NULL } },
@@ -192,66 +188,74 @@ choice.  Also note that not all sites carry every possible distribution!\n\
 Distributions other than the basic user set are only guaranteed to be\n\
 available from the Primary site.\n\n\
 If the first site selected doesn't respond, try one of the alternates.\n\
-You may also wish to investigate the Ftp options menu in case of trouble.\n\
+You may also wish to investigate the options menu in case of trouble.\n\
 To specify a URL not in this list, chose \"other\".",
     "Select a site that's close!",
     "install.hlp",
     { { "Primary Site",  "ftp.freebsd.org",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "Secondary Site", "freefall.cdrom.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "Other", "Specify some other ftp site by URL",
 	DMENU_SET_VARIABLE,	"ftp=other", 0, 0								},
       { "Australia", "ftp.physics.usyd.edu.au",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "Finland", "nic.funet.fi",
-	DMENU_SET_VARIABLE,	"ftp=ftp://nic.funet.fi/pub/unix/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://nic.funet.fi/pub/unix/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "France", "ftp.ibp.fr",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ibp.fr/pub/FreeBSD/2.0.5-ALPHA", 0, 0				},
-      { "Germany", "ftp.uni-duisburg.de",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.uni-duisburg.de/pub/unix/FreeBSD/2.0.5-ALPHA", 0,		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ibp.fr/pub/FreeBSD/2.0.5-RELEASE", 0, 0				},
+      { "Germany", "ftp.fb9dv.uni-duisburg.de",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.fb9dv.uni-duisburg.de/pub/unix/FreeBSD/2.0.5-RELEASE", 0, 0	},
+      { "Germany #2", "gil.physik.rwth-aachen.de",
+	DMENU_SET_VARIABLE,	"ftp=ftp://gil.physik.rwth-aachen.de/pub/FreeBSD/2.0.5-RELEASE", 0, 0		},
+      { "Germany #3", "ftp.uni-paderborn.de",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.uni-paderborn.de/freebsd/2.0.5-RELEASE", 0, 0			},
+      { "Hong Kong", "ftp.hk.super.net",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.hk.super.net/pub/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "Israel", "orgchem.weizmann.ac.il",
-	DMENU_SET_VARIABLE,	"ftp=ftp://orgchem.weizmann.ac.il/pub/FreeBSD-2.0.5-ALPHA", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://orgchem.weizmann.ac.il/pub/FreeBSD-2.0.5-RELEASE", 0, 0		},
       { "Japan", "ftp.sra.co.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/2.0.5-ALPHA", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.sra.co.jp/pub/os/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "Japan #2", "ftp.mei.co.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/2.0.5-ALPHA", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/2.0.5-RELEASE", 0, 0		},
       { "Japan #3", "ftp.waseda.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.waseda.ac.jp/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.waseda.ac.jp/pub/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "Japan #4", "ftp.pu-toyama.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "Japan #5", "ftpsv1.u-aizu.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/2.0.5-ALPHA", 0, 0		},
-      { "Japan #6", "tutserver.tutcc.tut.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-2.0.5-ALPHA", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/2.0.5-RELEASE", 0, 0		},
+      { "Japan #6", "ftp.tut.ac.jp",
+	DMENU_SET_VARIABLE,	"ftp://ftp.tut.ac.jp/FreeBSD/2.0.5-RELEASE", 0, 0					},
       { "Japan #7", "ftp.ee.uec.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other/FreeBSD-2.0.5-ALPHA", 0, 0	},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org/2.0.5-RELEASE", 0, 0	},
+      { "Japan #8", "ftp.tokyonet.ad.jp",
+	DMENU_SET_VARIABLE,	"ftp://ftp.tokyonet.ad.jp/pub/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "Korea", "ftp.cau.ac.kr",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.cau.ac.kr/pub/FreeBSD/2.0.5-ALPHA", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.cau.ac.kr/pub/FreeBSD/2.0.5-RELEASE", 0, 0				},
       { "Netherlands", "ftp.nl.net",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nl.net/pub/os/FreeBSD/2.0.5-ALPHA", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nl.net/pub/os/FreeBSD/2.0.5-RELEASE", 0, 0				},
       { "Russia", "ftp.kiae.su",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.kiae.su/FreeBSD/2.0.5-ALPHA", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.kiae.su/FreeBSD/2.0.5-RELEASE", 0, 0				},
       { "Sweden", "ftp.luth.se",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.luth.se/pub/FreeBSD/2.0.5-ALPHA", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.luth.se/pub/FreeBSD/2.0.5-RELEASE", 0, 0				},
       { "Taiwan", "netbsd.csie.nctu.edu.tw",
-	DMENU_SET_VARIABLE,	"ftp=ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/2.0.5-ALPHA", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/2.0.5-RELEASE", 0, 0		},
       { "Thailand", "ftp.nectec.or.th",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nectec.or.th/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nectec.or.th/pub/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "UK", "ftp.demon.co.uk",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "UK #2", "src.doc.ic.ac.uk",
-	DMENU_SET_VARIABLE,	"ftp=ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/2.0.5-ALPHA", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/2.0.5-RELEASE", 0, 0		},
       { "UK #3", "unix.hensa.ac.uk",
-	DMENU_SET_VARIABLE,	"ftp=ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD/2.0.5-ALPHA", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://unix.hensa.ac.uk/mirrors/walnut.creek/FreeBSD/2.0.5-RELEASE", 0, 0		},
       { "USA", "ref.tfs.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ref.tfs.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ref.tfs.com/pub/FreeBSD/2.0.5-RELEASE", 0, 0				},
       { "USA #2", "ftp.dataplex.net",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.dataplex.net/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.dataplex.net/pub/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "USA #3", "kryten.atinc.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://kryten.atinc.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://kryten.atinc.com/pub/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { "USA #4", "ftp.neosoft.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.neosoft.com/systems/FreeBSD/2.0.5-ALPHA", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.neosoft.com/systems/FreeBSD/2.0.5-RELEASE", 0, 0			},
       { NULL } }
 };
 
@@ -274,8 +278,8 @@ DMenu MenuNetworkDevice = {
     "Choose a network interface type",
 "FreeBSD can be installed directly over a network, using NFS or FTP.\n
 If you are using PPP over a serial device (cuaa0 or cuaa1) as opposed\n\
-to a direct ethernet connection, then you may need to first dial your\n\
-service provider using a special utility we provide for that purpose.\n\
+to a direct ethernet connection, then you may first need to dial your\n\
+service provider using the ppp utility we provide for that purpose.\n\
 You can also install over a parallel port using a special \"laplink\"\n\
 cable, though this only works if you have another FreeBSD machine running\n\
 a fairly recent (2.0R or later) release to talk to.\n\n\
@@ -323,12 +327,14 @@ DMenu MenuInstallType = {
 These select what we consider to be the most reasonable defaults for the\n\
 type of system in question.  If you would prefer to pick and choose\n\
 the list of distributions yourself, simply select \"custom\".",
-    NULL,
-    NULL,
+    "Press F1 for more information on these options.",
+    "distributions.hlp",
     { { "Developer",	"Full sources, binaries and doc but no games [171MB]",
 	DMENU_CALL,	distSetDeveloper, 0, 0		},
       { "X-Developer",	"Same as above, but includes XFree86 [196MB]",
 	DMENU_CALL,	distSetXDeveloper, 0, 0		},
+      { "Kern-Developer", "Full binaries and doc, kernel sources only [35MB]",
+	DMENU_CALL,	distSetKernDeveloper, 0, 0	},
       { "User",		"Average user - binaries and doc but no sources [19MB]",
 	DMENU_CALL,	distSetUser, 0, 0		},
       { "X-User",	"Same as above, but includes XFree86 [45MB]",
@@ -339,46 +345,93 @@ the list of distributions yourself, simply select \"custom\".",
 	DMENU_CALL,	distSetEverything, 0, 0		},
       { "Custom",	"Specify your own distribution set [?]",
 	DMENU_SUBMENU,	&MenuDistributions, 0, 0	},
-      { "Reset",	"Reset selected distribution list to None",
+      { "Clear",	"Reset selected distribution list to None",
 	DMENU_CALL,	distReset, 0, 0			},
       { NULL } },
 };
 
+static char *
+DESFlagCheck(DMenuItem *item)
+{
+    if (isDebug())
+	msgDebug("Dists & DIST_DES = %d\n", Dists & DIST_DES);
+    return (Dists & DIST_DES) ? "ON" : "OFF";
+}
+
+static char *
+srcFlagCheck(DMenuItem *item)
+{
+    if (isDebug())
+	msgDebug("Dists & DIST_SRC = %d\n", Dists & DIST_SRC);
+    return (Dists & DIST_SRC) ? "ON" : "OFF";
+}
+
+static char *
+x11FlagCheck(DMenuItem *item)
+{
+    if (isDebug())
+	msgDebug("Dists & DIST_XF86 = %d\n", Dists & DIST_XF86);
+    return (Dists & DIST_XF86) ? "ON" : "OFF";
+}
+
 DMenu MenuDistributions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
-    "Please check off the distributions you wish to install.  Some\n
-of the most generally useful distributions are already checked, and\n\
-selecting OK at this stage will chose them as defaults.",
+    "Please check off the distributions you wish to install.  At the\n\
+very minimum, this should be \"bin\".  WARNING:  Do not export the\n\
+DES distribution out of the U.S.!  It is for U.S. customers only.",
     NULL,
     NULL,
-    { { "*bin", "Binary base distribution (required) [36MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_BIN, 0		},
+    { { "bin", "Binary base distribution (required) [36MB]",
+	DMENU_SET_FLAG,	&Dists, DIST_BIN, 0, dmenuFlagCheck	},
       { "commercial", "Commercial demos and shareware [10MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_COMMERCIAL, 0	},
-      { "compat1x", "FreeBSD 1.x binary compatability package [2MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_COMPAT1X, 0	},
-      { "compat20", "FreeBSD 2.0 binary compatability package [2MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_COMPAT20, 0	},
-      { "DES", "DES encryption code and sources [.3MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_DES, 0		},
-      { "dict", "Spelling checker disctionary files [4.2MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_DICT, 0		},
+	DMENU_SET_FLAG,	&Dists, DIST_COMMERCIAL, 0, dmenuFlagCheck	},
+      { "compat1x", "FreeBSD 1.x binary compatibility package [2MB]",
+	DMENU_SET_FLAG,	&Dists, DIST_COMPAT1X, 0, dmenuFlagCheck	},
+      { "compat20", "FreeBSD 2.0 binary compatibility package [2MB]",
+	DMENU_SET_FLAG,	&Dists, DIST_COMPAT20, 0, dmenuFlagCheck	},
+      { "DES", "NOT FOR EXPORT! DES encryption code [.3MB]",
+	DMENU_CALL,	distSetDES, 0, 0, DESFlagCheck			},
+      { "dict", "Spelling checker dictionary files [4.2MB]",
+	DMENU_SET_FLAG,	&Dists, DIST_DICT, 0, dmenuFlagCheck		},
       { "games", "Games and other amusements (non-commercial) [6.4MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_GAMES, 0		},
+	DMENU_SET_FLAG,	&Dists, DIST_GAMES, 0, dmenuFlagCheck		},
       { "info", "GNU info files [4.1MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_INFO, 0		},
-      { "*man", "System manual pages - strongly recommended [3.3MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_MANPAGES, 0	},
+	DMENU_SET_FLAG,	&Dists, DIST_INFO, 0, dmenuFlagCheck		},
+      { "man", "System manual pages - strongly recommended [3.3MB]",
+	DMENU_SET_FLAG,	&Dists, DIST_MANPAGES, 0, dmenuFlagCheck	},
       { "proflibs", "Profiled versions of the libraries [3.3MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_PROFLIBS, 0	},
+	DMENU_SET_FLAG,	&Dists, DIST_PROFLIBS, 0, dmenuFlagCheck	},
       { "src", "Sources for everything but DES [120MB]",
-	DMENU_CALL,	distSetSrc, 0			},
-      { "XFree86", "The XFree86 3.1.1L distribution [?]",
-	DMENU_SUBMENU,	&MenuXF86Select, 0		},
+	DMENU_CALL,	distSetSrc, 0, 0, srcFlagCheck			},
+      { "XFree86", "The XFree86 3.1.1u1 distribution [?]",
+	DMENU_CALL,	distSetXF86, 0, 0, x11FlagCheck			},
+      { "Experimental", "Work in progress!",
+	DMENU_SET_FLAG,	&Dists, DIST_EXPERIMENTAL, 0, dmenuFlagCheck	},
       { NULL } },
 };
 
+DMenu MenuDESDistributions = {
+    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
+    "Select the encryption facilities you wish to install.",
+    "Please check off any special DES-based encryption distributions\n\
+you would like to install.  Please note that these services are NOT FOR\n\
+EXPORT from the United States, nor are they available on CDROM (for the\n\
+same reason).  For information on non-U.S. FTP distributions of this\n\
+software, please consult the release notes.",
+    NULL,
+    NULL,
+    { { "des", "Basic DES services (rlogin, init, etc) [1MB]",
+	DMENU_SET_FLAG, &DESDists, DIST_DES_DES, 0, dmenuFlagCheck	},
+      { "krb", "Kerberos encryption services [2MB]",
+	DMENU_SET_FLAG, &DESDists, DIST_DES_KERBEROS, 0, dmenuFlagCheck	},
+      { "sebones", "Sources for eBones (Kerberos) [1MB]",
+	DMENU_SET_FLAG, &DESDists, DIST_DES_SEBONES, 0, dmenuFlagCheck	},
+      { "ssecure", "Sources for DES libs and utilities [1MB]",
+	DMENU_SET_FLAG, &DESDists, DIST_DES_SSECURE, 0, dmenuFlagCheck	},
+      { NULL } },
+};
+	
 DMenu MenuSrcDistributions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select the sub-components of src you wish to install.",
@@ -387,81 +440,93 @@ you wish to install.",
     NULL,
     NULL,
     { { "base", "top-level files in /usr/src [300K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_BASE, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_BASE, 0, dmenuFlagCheck	},
       { "gnu", "/usr/src/gnu (software from the GNU Project) [42MB]]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_GNU, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_GNU, 0, dmenuFlagCheck	},
       { "etc", "/usr/src/etc (miscellaneous system files) [460K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_ETC, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_ETC, 0, dmenuFlagCheck	},
       { "games", "/usr/src/games (diversions) [7.8MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_GAMES, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_GAMES, 0, dmenuFlagCheck	},
       { "include", "/usr/src/include (header files) [467K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_INCLUDE, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_INCLUDE, 0, dmenuFlagCheck	},
       { "lib", "/usr/src/lib (system libraries) [9.2MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LIB, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LIB, 0, dmenuFlagCheck	},
       { "libexec", "/usr/src/libexec (system programs) [1.2MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LIBEXEC, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LIBEXEC, 0, dmenuFlagCheck	},
       { "lkm", "/usr/src/lkm (Loadable Kernel Modules) [193K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LKM, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LKM, 0, dmenuFlagCheck	},
       { "release", "/usr/src/release (release-generation tools) [533K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_RELEASE, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_RELEASE, 0, dmenuFlagCheck	},
       { "sbin", "/usr/src/sbin (system binaries) [1.3MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SBIN, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SBIN, 0, dmenuFlagCheck	},
       { "share", "/usr/src/share (documents and shared files) [10MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SHARE, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SHARE, 0, dmenuFlagCheck	},
       { "sys", "/usr/src/sys (FreeBSD kernel) [13MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SYS, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SYS, 0, dmenuFlagCheck	},
       { "ubin", "/usr/src/usr.bin (user binaries) [13MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_UBIN, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_UBIN, 0, dmenuFlagCheck	},
       { "usbin", "/usr/src/usr.sbin (aux system binaries) [14MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_USBIN, 0	},
-      { "XFree86", "XFree86 3.1.1L source + contrib distribution [200MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_XF86, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_USBIN, 0, dmenuFlagCheck	},
       { NULL } },
 };
+
+static int
+clearx11(char *str)
+{
+    XF86Dists = 0;
+    XF86ServerDists = 0;
+    XF86FontDists = 0;
+    Dists &= ~DIST_XF86;
+    return 0;
+}
 
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
     "XFree86 3.1.1u1 Distribution",
     "Please select the components you need from the XFree86 3.1.1u1\n\
 distribution.  We recommend that you select what you need from the basic\n\
-components set and at least one entry from the Server and Font set menus.\n\n\
-When you're finished, select Cancel.",
+components set and at least one entry from the Server and Font set menus.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86.hlp",
-    { { "Basic", "Basic component menu (required)",
+    { { "Basic", "Basic component menu (required)",			/* B */
 	DMENU_SUBMENU, &MenuXF86SelectCore, 0, 0	},
-      { "Server", "X server menu",
+      { "Server", "X server menu",					/* S */
 	DMENU_SUBMENU, &MenuXF86SelectServer, 0, 0	},
-      { "Fonts", "Font set menu",
+      { "Fonts", "Font set menu",					/* F */
 	DMENU_SUBMENU, &MenuXF86SelectFonts, 0, 0	},
+      { "Clear", "Reset XFree86 distribution list",
+	DMENU_CALL, clearx11, 0, 0, 0			},
+      { "Exit", "Exit this menu (returning to previous)",		/* E */
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
 DMenu MenuXF86SelectCore = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "XFree86 3.1.1 base distribution types",
-    "Please check off the basic XFree86 components you wish to install.\n\
-Those deemed most generally useful are already checked off for you.",
+    "Please check off the basic XFree86 components you wish to install.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86.hlp",
-    { { "*bin", "X client applications and shared libs [4MB].",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_BIN, 0	},
-      { "*lib", "Data files needed at runtime [600K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LIB, 0	},
+    { { "bin", "X client applications and shared libs [4MB].",
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_BIN, 0, dmenuFlagCheck	},
+      { "lib", "Data files needed at runtime [600K]",
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LIB, 0, dmenuFlagCheck	},
       { "xicf", "Customizable xinit runtime configuration file [100K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_XINIT, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_XINIT, 0, dmenuFlagCheck	},
       { "xdcf", "Customizable xdm runtime configuration file [100K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_XDMCF, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_XDMCF, 0, dmenuFlagCheck	},
       { "doc", "READMEs and XFree86 specific man pages [500K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_DOC, 0	},
-      { "*man", "Man pages (except XFree86 specific ones) [1.2MB]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_MAN, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_DOC, 0, dmenuFlagCheck	},
+      { "man", "Man pages (except XFree86 specific ones) [1.2MB]",
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_MAN, 0, dmenuFlagCheck	},
       { "prog", "Programmer's header and library files [4MB]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PROG, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PROG, 0, dmenuFlagCheck	},
       { "link", "X Server reconfiguration kit [7.8MB]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LINK, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LINK, 0, dmenuFlagCheck	},
       { "pex", "PEX fonts and libs needed by PEX apps [500K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PEX, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PEX, 0, dmenuFlagCheck	},
+      { "sources", "XFree86 3.1.1u1 source + contrib distribution [200MB]",
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_SRC, 0, dmenuFlagCheck	},
       { NULL } },
 };
 
@@ -474,16 +539,16 @@ install.  At the minimum, you should install the standard\n\
 (these are selected by default).",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86.hlp",
-    { { "*fnts", "Standard 75 DPI and miscellaneous fonts [3.6MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_MISC, 0		},
+    { { "fnts", "Standard 75 DPI and miscellaneous fonts [3.6MB]",
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_MISC, 0, dmenuFlagCheck		},
       { "f100", "100 DPI fonts [1.8MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_100, 0		},
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_100, 0, dmenuFlagCheck		},
       { "fscl", "Speedo and Type scalable fonts [1.6MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_SCALE, 0	},
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_SCALE, 0, dmenuFlagCheck	},
       { "non", "Japanese, Chinese and other non-english fonts [3.3MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_NON, 0		},
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_NON, 0, dmenuFlagCheck		},
       { "server", "Font server [0.3MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_SERVER, 0	},
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_SERVER, 0, dmenuFlagCheck	},
       { NULL } },
 };
 
@@ -496,28 +561,30 @@ it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
 Mono servers are particularly well-suited to most LCD displays).",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86.hlp",
-    { { "*SVGA", "Standard VGA or Super VGA display [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_SVGA, 0	},
+    { { "SVGA", "Standard VGA or Super VGA display [1MB]",
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_SVGA, 0, dmenuFlagCheck	},
       { "VGA16", "Standard 16 color VGA display [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_VGA16, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_VGA16, 0, dmenuFlagCheck	},
       { "Mono", "Standard Monochrome display [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MONO, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MONO, 0, dmenuFlagCheck	},
       { "8514", "8-bit (256 color) IBM 8514 or compatible card [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_8514, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_8514, 0, dmenuFlagCheck	},
       { "AGX", "8-bit AGX card [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_AGX, 0	},
-      { "Mch3", "8 and 16-bit (65K color) for ATI Mach32 card [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH32, 0	},
-      { "Mch8", "8-bit ATI Mach8 card [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH8, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_AGX, 0, dmenuFlagCheck	},
+      { "Ma8", "8-bit ATI Mach8 card [1MB]",
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH8, 0, dmenuFlagCheck	},
+      { "Ma32", "8 and 16-bit (65K color) for ATI Mach32 card [1MB]",
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH32, 0, dmenuFlagCheck	},
+      { "Ma64", "8 and 16-bit (65K color) for ATI Mach64 card [1MB]",
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH64, 0, dmenuFlagCheck	},
       { "P9K", "8, 16, and 24-bit color for Weitek P9000 based boards [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_P9000, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_P9000, 0, dmenuFlagCheck	},
       { "S3", "8, 16 and 24-bit color for S3 based boards [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_S3, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_S3, 0, dmenuFlagCheck	},
       { "W32", "8-bit Color for ET4000/W32, /W32i and /W32p cards [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_W32, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_W32, 0, dmenuFlagCheck	},
       { "nest", "A nested server for testing purposes [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_NEST, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_NEST, 0, dmenuFlagCheck	},
       { NULL } },
 };
 
@@ -530,55 +597,77 @@ space, though FreeBSD can be installed across several drives if you do\n\
 not have the required space on a single drive.  If you wish to boot\n\
 off a drive that's not a `zero drive', or have multiple operating\n\
 systems on your machine, you will have the option to install a boot\n\
-manager later.",
+manager later.  To select a drive, use the arrow keys to move to it\n\
+and press [SPACE].",
     "Press F1 for important information regarding geometry!",
     "drives.hlp",
     { { NULL } },
 };
 
+/* Local work func for MenuOptions */
+static int
+clearFlags(char *str)
+{
+    OptFlags = 0;
+    return 1;  /* Gross, but forces menu rebuild */
+}
+
+static char *
+userPassCheck(DMenuItem *item)
+{
+    char *cp = getenv(FTP_USER);
+
+    return (cp && *cp) ? "ON" : "OFF";
+}
+
+static char *
+ftpFlagCheck(DMenuItem *item)
+{
+    /* Verify that everything's sane */
+    if ((OptFlags & (OPT_FTP_ABORT + OPT_FTP_RESELECT)) == (OPT_FTP_ABORT + OPT_FTP_RESELECT))
+	OptFlags &= ~OPT_FTP_RESELECT;
+    if (!(OptFlags & (OPT_FTP_ABORT + OPT_FTP_RESELECT)))
+	OptFlags |= OPT_FTP_ABORT;
+    if ((OptFlags & (OPT_FTP_ACTIVE + OPT_FTP_PASSIVE)) == (OPT_FTP_ACTIVE + OPT_FTP_PASSIVE))
+	OptFlags &= ~OPT_FTP_ACTIVE;
+    if (!(OptFlags & (OPT_FTP_ACTIVE + OPT_FTP_PASSIVE)))
+	OptFlags |= OPT_FTP_PASSIVE;
+    if (*((unsigned int *)item->ptr) & item->parm)
+        return "ON";
+    return "OFF";
+}
+
 /* The installation options menu */
 DMenu MenuOptions = {
-    DMENU_NORMAL_TYPE,
+    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Choose Installation Options",
     "The following options control how this utility will deal\n\
 with various possible error conditions and how verbose it will\n\
-be at various stages.\n\n\
-When you're done setting options, select Cancel",
-    NULL,
-    NULL,
-    { { "Ftp Options", "Ftp options menu",
-	DMENU_SUBMENU,		&MenuOptionsFTP, 0, 0		},
-      { "NFS Secure", "NFS server talks only on a secure port",
-	DMENU_SET_VARIABLE,	"nfsServerSecure=yes", 0, 0	},
+be at various stages.",
+    "Press F1 for more help on these options",
+    "options.hlp",
+    { { "NFS Secure", "NFS server talks only on a secure port",
+	DMENU_SET_FLAG,		&OptFlags, OPT_NFS_SECURE, 0, dmenuFlagCheck	},
       { "NFS Slow", "User is using a slow PC or ethernet card",
-	DMENU_SET_VARIABLE,	"nfsSlowPC=yes", 0, 0		},
-      { "Extra Debugging", "Toggle the extra debugging flag",
-	DMENU_SET_VARIABLE,	"debug=yes", 0, 0		},
-      { "No Debugging", "Turn the extra debugging flag off",
-	DMENU_SET_VARIABLE,	"debug=no", 0, 0		},
-      { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
-	DMENU_SET_VARIABLE,	"noConfirmation=Yes", 0, 0	},
-      { NULL } },
-};
-
-DMenu MenuOptionsFTP = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Choose FTP Options",
-    "Please indicate how you would like FTP to deal with potential error\n\
-conditions, the default behavior being to Abort on transfer errors.  If you\n\
-are behind an IP firewall, you will also probably wish to select passive\n\
-mode transfers (it's generally OK to set this in any case as almost all\n\
-servers support it, firewall or no).",
-    NULL,
-    NULL,
-    { { "FTP Retry", "On transfer failure, retry same host",
-	DMENU_SET_VARIABLE,	"ftpRetryType=loop", 0, 0	},
+	DMENU_SET_FLAG,		&OptFlags, OPT_SLOW_ETHER, 0, dmenuFlagCheck		},
+      { "FTP Abort", "On transfer failure, abort",
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_ABORT, 0, ftpFlagCheck	},
       { "FTP Reselect", "On transfer failure, ask for another host",
-	DMENU_SET_VARIABLE,	"ftpRetryType=reselect", 0, 0	},
-      { "FTP Abort", "On transfer failure, abort installation",
-	DMENU_SET_VARIABLE,	"ftpRetryType=abort", 0, 0	},
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_RESELECT, 0, ftpFlagCheck	},
+      { "FTP active", "Use \"active mode\" for standard FTP",
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_ACTIVE, 0, ftpFlagCheck	},
       { "FTP passive", "Use \"passive mode\" for firewalled FTP",
-	DMENU_SET_VARIABLE,	"ftpPassive=yes", 0, 0		},
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_PASSIVE, 0, ftpFlagCheck	},
+      { "Debugging", "Turn on the extra debugging flag",
+	DMENU_SET_FLAG,		&OptFlags, OPT_DEBUG, 0, dmenuFlagCheck	},
+      { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
+	DMENU_SET_FLAG,	&OptFlags, OPT_NO_CONFIRM, 0, dmenuFlagCheck	},
+      { "FTP userpass", "Specify username and password instead of anonymous",
+	DMENU_CALL, mediaSetFtpUserPass, 0, 0, userPassCheck		},
+      { "Clear", "Clear All Option Flags",
+	DMENU_CALL,		clearFlags, 0, 0 },
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -591,7 +680,7 @@ details on the type of distribution you wish to have, where you wish\n\
 to install it from and how you wish to allocate disk storage to FreeBSD.\n\n\
 None of the items in this menu will actually modify the contents of\n\
 your disk until you select the \"Install\" menu item (and even then, only\n\
-after a final confirmation).  Select Cancel to leave this menu.",
+after a final confirmation).",
     "Press F1 to read the installation guide",
     "install.hlp",
     { { "Partition", "Allocate disk space for FreeBSD",		/* P */
@@ -602,10 +691,14 @@ after a final confirmation).  Select Cancel to leave this menu.",
 	DMENU_SUBMENU,	&MenuInstallType, 0, 0		},
       { "Media", "Choose the installation media type",		/* M */
 	DMENU_SUBMENU,	&MenuMedia, 0, 0		},
-      { "Install", "Install FreeBSD onto your hard disk(s)",	/* I */
+      { "Options", "Go to Options submenu",                        /* O */
+	DMENU_SUBMENU, &MenuOptions, 0, 0		},
+      { "Commit", "Install FreeBSD onto your hard disk(s)",	/* C */
 	DMENU_CALL,	installCommit, 0, 0		},
       { "Configure", "Do post-install configuration of FreeBSD", /* C */
 	DMENU_SUBMENU,	&MenuConfigure, 0, 0		},
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -623,12 +716,12 @@ one, select \"standard\".  If you would prefer your Master Boot\n\
 Record to remain untouched, then select \"none\".",
     "Press F1 to read the installation guide",
     "install.hlp",
-    { { "*BootMgr", "Install the FreeBSD Boot Manager (\"Booteasy\")", /* B */
-	DMENU_SET_VARIABLE,	"bootManager=bteasy", 0, 0	},
+    { { "BootMgr", "Install the FreeBSD Boot Manager (\"Booteasy\")", /* B */
+	DMENU_SET_VALUE,	&BootMgr, 0, 0, dmenuRadioCheck	},
       { "Standard", "Use a standard MBR (no boot manager)",	/* S */
-	DMENU_SET_VARIABLE,	"bootManager=mbr", 0, 0		},
+	DMENU_SET_VALUE,	&BootMgr, 1, 0, dmenuRadioCheck		},
       { "None", "Leave the Master Boot Record untouched",	/* N */
-	DMENU_SET_VARIABLE,	"bootManager=none", 0, 0	},
+	DMENU_SET_VALUE,	&BootMgr, 2, 0, dmenuRadioCheck	},
       { NULL } },
 };
 
@@ -639,8 +732,7 @@ DMenu MenuConfigure = {
     "If you've already installed FreeBSD, you may use this menu to\n\
 customize it somewhat to suit your particular configuration.  Most\n\
 importantly, you can use the Packages utility to load extra \"3rd party\"\n\
-software not provided in the base distributions.\n\n\
-When you're done, select Cancel",
+software not provided in the base distributions.",
     "Press F1 for more information on these options",
     "configure.hlp",
     { { "Add User",	"Add users to the system",
@@ -650,7 +742,7 @@ When you're done, select Cancel",
       { "Networking",	"Configure additional network services",
 	DMENU_SUBMENU, 	&MenuNetworking, 0, 0			},
       { "Time Zone",	"Set which time zone you're in",
-	DMENU_SYSTEM_COMMAND, "tzsetup", 0, 0			},
+	DMENU_SYSTEM_COMMAND, "rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup", 0, 0			},
       { "Packages",	"Install extra FreeBSD packaged software",
 	DMENU_CALL,	configPackages, 0, 0			},
       { "Ports",	"Enable the FreeBSD Ports Collection from CD",
@@ -658,32 +750,47 @@ When you're done, select Cancel",
       { "Root Password", "Set the system manager's password",
 	DMENU_SYSTEM_COMMAND, "passwd root", 0, 0		},
       { "XFree86",	"Configure XFree86 (if installed)",
-	DMENU_SYSTEM_COMMAND, "PATH=/usr/bin:/bin:/usr/X11R6/bin xf86config", 0, 0 },
+	DMENU_SYSTEM_COMMAND, "/usr/X11R6/bin/xf86config", 0, 0 },
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
+static char *
+menuCheckNTP(DMenuItem *item)
+{
+    return getenv("ntpdate") ? "ON" : "OFF";
+}
+
+static char *
+menuCheckRouted(DMenuItem *item)
+{
+    return getenv("routedflags") ? "ON" : "OFF";
+}
+
 DMenu MenuNetworking = {
-    DMENU_NORMAL_TYPE,
+    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Network Services Menu",
     "You may have already configured one network device (and the\n\
 other various hostname/gateway/name server parameters) in the process\n\
 of installing FreeBSD.  This menu allows you to configure other\n\
-aspects of your system's network configuration.\n\n\
-When you are done, select Cancel.",
+aspects of your system's network configuration.",
     NULL,
     NULL,
     { { "NFS client",	"This machine will be an NFS client",
-	DMENU_SET_VARIABLE, "nfs_client=YES", 0, 0		},
+	DMENU_SET_VARIABLE, "nfs_client=YES", 0, 0, dmenuVarCheck	},
       { "NFS server",	"This machine will be an NFS server",
-	DMENU_SET_VARIABLE, "nfs_server=YES", 0, 0		},
-      { "interfaces",	"Configure additional interfaces",
-	DMENU_CALL,	tcpDeviceSelect, 0, 0			},
+	DMENU_SET_VARIABLE, "nfs_server=YES", 0, 0, dmenuVarCheck	},
+      { "Interfaces",	"Configure network interfaces",
+	DMENU_CALL,	tcpMenuSelect, 0, 0				},
       { "ntpdate",	"Select a clock-syncronization server",
-	DMENU_SUBMENU,	&MenuNTP, 0, 0				},
+	DMENU_SUBMENU,	&MenuNTP, 0, 0, menuCheckNTP		},
       { "routed",	"Set flags for routed (default: -q)",
-	DMENU_CALL,	configRoutedFlags, 0, 0			},
+	DMENU_CALL,	configRoutedFlags, 0, 0, menuCheckRouted	},
       { "rwhod",	"This machine wants to run the rwho daemon",
-	DMENU_SET_VARIABLE, "rwhod=YES", 0, 0			},
+	DMENU_SET_VARIABLE, "rwhod=YES", 0, 0, dmenuVarCheck		},
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -695,7 +802,9 @@ for public use around the Internet.  Please select one reasonably\n\
 close to you to have your system time syncronized accordingly.",
     "These are the primary open-access NTP servers",
     NULL,
-    { { "Australia",		"ntp.syd.dms.csiro.au (HP 5061 Cesium Beam)",
+    { { "Other",		"Select a site not on this list",
+	DMENU_CALL,		configNTP, 0, 0				},
+      { "Australia",		"ntp.syd.dms.csiro.au (HP 5061 Cesium Beam)",
 	DMENU_SET_VARIABLE,	"ntpdate=ntp.syd.dms.csiro.au", 0, 0	},
       { "Canada",		"tick.usask.ca (GOES clock)",
 	DMENU_SET_VARIABLE,	"ntpdate=tick.usask.ca", 0, 0		},
@@ -751,11 +860,13 @@ When you are done setting configuration options, select Cancel.",
 	DMENU_SUBMENU, &MenuSysconsKeyrate, 0, 0	},
       { "Saver", "Configure the screen saver",
 	DMENU_SUBMENU, &MenuSysconsSaver, 0, 0		},
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
 DMenu MenuSysconsKeymap = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
     "The default system console driver for FreeBSD (syscons) defaults\n\
 to a standard \"American\" keyboard map.  Users in other countries\n\
@@ -764,54 +875,60 @@ the other keymaps below.",
     "Choose a keyboard map",
     NULL,
     { { "Danish CP865", "Danish Code Page 865 keymap",
-	DMENU_SET_VARIABLE, "keymap=danish.cp865", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=danish.cp865", 0, 0, dmenuVarCheck	},
       { "Danish ISO", "Danish ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=danish.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=danish.iso", 0, 0, dmenuVarCheck	},
       { "French ISO", "French ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=fr.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=fr.iso", 0, 0, dmenuVarCheck	},
       { "German CP850", "German Code Page 850 keymap",
-	DMENU_SET_VARIABLE, "keymap=german.cp850", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=german.cp850", 0, 0, dmenuVarCheck	},
       { "German ISO", "German ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=german.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=german.iso", 0, 0, dmenuVarCheck	},
       { "Russian CP866", "Russian Code Page 866 keymap",
-	DMENU_SET_VARIABLE, "keymap=ru.cp866", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=ru.cp866", 0, 0, dmenuVarCheck	},
       { "Russian KOI8", "Russian koi8 keymap",
-	DMENU_SET_VARIABLE, "keymap=ru.koi8-r", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=ru.koi8-r", 0, 0, dmenuVarCheck	},
       { "Russian s-KOI8", "Russian shifted koi8 keymap",
-	DMENU_SET_VARIABLE, "keymap=ru.koi8-r.shift", 0, 0	},
+	DMENU_SET_VARIABLE, "keymap=ru.koi8-r.shift", 0, 0, dmenuVarCheck},
       { "Swedish CP850", "Swedish Code Page 850 keymap",
-	DMENU_SET_VARIABLE, "keymap=swedish.cp850", 0, 0	},
+	DMENU_SET_VARIABLE, "keymap=swedish.cp850", 0, 0, dmenuVarCheck	},
       { "Swedish ISO", "Swedish ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=swedish.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=swedish.iso", 0, 0, dmenuVarCheck	},
       { "U.K. CP850", "United Kingdom Code Page 850 keymap",
-	DMENU_SET_VARIABLE, "keymap=uk.cp850.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=uk.cp850", 0, 0, dmenuVarCheck	},
       { "U.K. ISO", "United Kingdom ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=uk.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=uk.iso", 0, 0, dmenuVarCheck	},
       { "U.S. ISO", "United States ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=us.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=us.iso", 0, 0, dmenuVarCheck	},
       { NULL } },
 };
 
 DMenu MenuSysconsKeyrate = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keyboard Repeat Rate",
     "This menu allows you to set the speed at which keys repeat\n\
 when held down.",
     "Choose a keyboard repeat rate",
     NULL,
     { { "Slow", "Slow keyboard repeat rate",
-	DMENU_SET_VARIABLE, "keyrate=slow", 0, 0		},
+	DMENU_SET_VARIABLE, "keyrate=slow", 0, 0, dmenuVarCheck		},
       { "Normal", "\"Normal\" keyboard repeat rate",
-	DMENU_SET_VARIABLE, "keyrate=normal", 0, 0		},
+	DMENU_SET_VARIABLE, "keyrate=normal", 0, 0, dmenuVarCheck	},
       { "Fast", "Fast keyboard repeat rate",
-	DMENU_SET_VARIABLE, "keyrate=fast", 0, 0		},
+	DMENU_SET_VARIABLE, "keyrate=fast", 0, 0, dmenuVarCheck		},
       { "Default", "Use default keyboard repeat rate",
-	DMENU_SET_VARIABLE, "keyrate=NO", 0, 0			},
+	DMENU_SET_VARIABLE, "keyrate=NO", 0, 0, dmenuVarCheck		},
       { NULL } },
 };
 
+static char *
+menuSaverTimeoutCheck(DMenuItem *item)
+{
+    return getenv("blanktime") ? "ON" : "OFF";
+}
+
 DMenu MenuSysconsSaver = {
-    DMENU_NORMAL_TYPE,
+    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Screen Saver",
     "By default, the console driver will not attempt to do anything\n\
 special with your screen when it's idle.  If you expect to leave your\n\
@@ -820,14 +937,16 @@ probably enable one of these screen savers to prevent phosphor burn-in.",
     "Choose a nifty-looking screen saver",
     NULL,
     { { "blank", "Simply blank the screen",
-	DMENU_SET_VARIABLE, "saver=star", 0, 0		},
+	DMENU_SET_VARIABLE, "saver=blank", 0, 0, dmenuVarCheck		},
       { "Green", "\"Green\" power saving mode (if supported by monitor)",
-	DMENU_SET_VARIABLE, "saver=snake", 0, 0		},
+	DMENU_SET_VARIABLE, "saver=green", 0, 0, dmenuVarCheck		},
       { "Snake", "Draw a FreeBSD \"snake\" on your screen",
-	DMENU_SET_VARIABLE, "saver=snake", 0, 0		},
+	DMENU_SET_VARIABLE, "saver=snake", 0, 0, dmenuVarCheck		},
       { "Star",	"A \"twinkling stars\" effect",
-	DMENU_SET_VARIABLE, "saver=star", 0, 0		},
+	DMENU_SET_VARIABLE, "saver=star", 0, 0, dmenuVarCheck		},
       { "Timeout", "Set the screen saver timeout interval",
-	DMENU_CALL, configSaverTimeout, 0, 0		},
+	DMENU_CALL, configSaverTimeout, 0, 0, menuSaverTimeoutCheck	},
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };

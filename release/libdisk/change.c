@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: change.c,v 1.7 1995/05/25 06:14:45 phk Exp $
+ * $Id: change.c,v 1.8.2.1 1995/06/05 02:24:20 jkh Exp $
  *
  */
 
@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include "libdisk.h"
 
+#if 0
 struct disk *
 Set_Phys_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 {
@@ -33,6 +34,7 @@ Set_Phys_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 	Free_Disk(disk);
 	return d;
 }
+#endif
 
 void
 Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.69 1995/05/30 05:50:53 jkh Exp $
+ * $Id: install.c,v 1.70.2.41 1995/06/10 07:58:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,11 +49,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-Boolean SystemWasInstalled;
+Boolean SystemWasInstalled = FALSE;
 
-static void	make_filesystems(void);
-static void	copy_self(void);
-static void	root_extract(void);
+static Boolean	make_filesystems(void);
+static Boolean	copy_self(void);
+static Boolean	root_extract(void);
 
 static Chunk *rootdev;
 
@@ -62,9 +62,10 @@ checkLabels(void)
 {
     Device **devs;
     Disk *disk;
-    Chunk *c1, *c2, *swapdev = NULL;
+    Chunk *c1, *c2, *swapdev, *usrdev;
     int i;
 
+    rootdev = swapdev = usrdev = NULL;
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     /* First verify that we have a root device */
     for (i = 0; devs[i]; i++) {
@@ -77,9 +78,21 @@ checkLabels(void)
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private && c2->flags & CHUNK_IS_ROOT) {
-			rootdev = c2;
-			break;
+		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private) {
+			if (c2->flags & CHUNK_IS_ROOT) {
+			    if (rootdev) {
+				msgConfirm("WARNING:  You have more than one root device set?!\nUsing the first one found.");
+				continue;
+			    }
+			    rootdev = c2;
+			}
+			else if (!strcmp(((PartInfo *)c2->private)->mountpoint, "/usr")) {
+			    if (usrdev) {
+				msgConfirm("WARNING:  You have more than one /usr filesystem.\nUsing the first one found.");
+				continue;
+			    }
+			    usrdev = c2;
+			}
 		    }
 		}
 	    }
@@ -116,6 +129,8 @@ checkLabels(void)
 	msgConfirm("No swap devices found - you must create at least one\nswap partition.");
 	return FALSE;
     }
+    if (!usrdev)
+	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\nan error if your root filesystem is big enough (or you later\nintend to get your /usr filesystem over NFS), but it may otherwise\ncause you trouble and is not recommended procedure!");
     return TRUE;
 }
 
@@ -128,7 +143,6 @@ installInitial(void)
     Device **devs;
     int i;
     static Boolean alreadyDone = FALSE;
-    char *cp;
 
     if (alreadyDone)
 	return TRUE;
@@ -145,14 +159,21 @@ installInitial(void)
 	return FALSE;
 
     /* Figure out what kind of MBR the user wants */
-    dmenuOpenSimple(&MenuMBRType);
-    mbrContents = NULL;
-    cp = getenv("bootManager");
-    if (cp) {
-	if (!strcmp(cp, "bteasy"))
-	    mbrContents = bteasy17;
-	else if (!strcmp(cp, "mbr"))
-	    mbrContents = mbr;
+    if (!dmenuOpenSimple(&MenuMBRType))
+	return FALSE;
+
+    switch (BootMgr) {
+    case 0:
+	mbrContents = bteasy17;
+	break;
+
+    case 1:
+	mbrContents = mbr;
+	break;
+
+    case 2:
+    default:
+	mbrContents = NULL;
     }
 
     /* If we refuse to proceed, bail. */
@@ -190,32 +211,38 @@ installInitial(void)
 	    }
 	}
     }
-    make_filesystems();
-    copy_self();
+    if (!make_filesystems()) {
+	msgConfirm("Couldn't make filesystems properly.  Aborting.");
+	return 0;
+    }
+    if (!copy_self()) {
+	msgConfirm("Couldn't clone the boot floppy onto the root file system.\nAborting.");
+	return 0;
+    }
     dialog_clear();
     chroot("/mnt");
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
     /* stick a helpful shell over on the 4th VTY */
-    msgDebug("Sticking a potentially helpful shell over on the 4th screen\n");
-    if (!fork()) {
+    if (OnVTY && !fork()) {
 	int i, fd;
 	extern int login_tty(int);
 
+	msgDebug("Starting an emergency holographic shell over on the 4th screen\n");
 	for (i = 0; i < 64; i++)
 	    close(i);
 	fd = open("/dev/ttyv3", O_RDWR);
 	ioctl(0, TIOCSCTTY, &fd);
 	dup2(0, 1);
 	dup2(0, 2);
-	if (login_tty(fd)==-1) {
-	    msgConfirm("Can't set controlling terminal");
+	if (login_tty(fd) == -1) {
+	    msgNotify("Can't set controlling terminal");
 	    exit(1);
 	}
+	printf("Warning: This shell is chroot()'d to /mnt\n");
 	execlp("sh", "-sh", 0);
 	exit(1);
     }
-    root_extract();
     alreadyDone = TRUE;
     return TRUE;
 }
@@ -229,8 +256,8 @@ installInitial(void)
 int
 installCommit(char *str)
 {
-    FILE *fp;
-    static Boolean hostsModified = FALSE;
+    Device **devs;
+    int i;
 
     if (!Dists) {
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
@@ -239,32 +266,75 @@ installCommit(char *str)
     if (!mediaVerify())
 	return 0;
 
-    if (RunningAsInit) {
+    if (RunningAsInit && !SystemWasInstalled) {
 	if (!installInitial())
 	    return 0;
 	configFstab();
-	configResolv();
     }
+    if (!SystemWasInstalled && !root_extract()) {
+	msgConfirm("Failed to load the ROOT distribution.  Please correct\nthis problem and try again.");
+	return 0;
+    }
+
+    /* If we're about to extract the bin dist again, reset the installed state */
+    if (Dists & DIST_BIN)
+	SystemWasInstalled = FALSE;
+
     distExtractAll();
 
-    /* Tack ourselves at the end of /etc/hosts */
-    if (RunningAsInit && getenv(VAR_IPADDR) && !hostsModified) {
-	fp = fopen("/etc/hosts", "a");
-	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
-	fclose(fp);
-	hostsModified = TRUE;
+    if (!SystemWasInstalled && access("/kernel", R_OK)) {
+	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
+	    msgConfirm("Unable to link /kernel into place!");
+	    return 0;
+	}
     }
-    /* If there's no kernel but there is a kernel.GENERIC, link it over */
-    if (access("/kernel", R_OK))
-	vsystem("ln -f /kernel.GENERIC /kernel");
 
-    msgConfirm("Installation completed successfully.\nHit return now to go back to the main menu.");
+    /* Resurrect /dev after bin distribution screws it up */
+    if (!SystemWasInstalled) {
+	msgNotify("Remaking all devices.. Please wait!");
+	if (vsystem("cd /dev; sh MAKEDEV all"))
+	    msgConfirm("MAKEDEV returned non-zero status");
+	
+	msgNotify("Resurrecting /dev entries for slices..");
+	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+	if (!devs)
+	    msgFatal("Couldn't get a disk device list!");
+	/* Resurrect the slices that the former clobbered */
+	for (i = 0; devs[i]; i++) {
+	    Disk *disk = (Disk *)devs[i]->private;
+	    Chunk *c1;
+
+	    if (!disk->chunks)
+		msgFatal("No chunk list found for %s!", disk->name);
+	    for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+		if (c1->type == freebsd) {
+		    msgNotify("Making slice entries for %s", c1->name);
+		    if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name))
+			msgConfirm("Unable to make slice entries for %s!", c1->name);
+		}
+	    }
+	}
+    }
+
+    /* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
+    /* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
+    if (file_readable("/usr/X11R6"))
+	(void)system("chmod 755 /usr/X11R6");
+
+    /* BOGON #2: We leave /etc in a bad state */
+    (void)system("chmod 755 /etc");
+
+    dialog_clear();
+    if (Dists)
+	msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
+    else
+	msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
     SystemWasInstalled = TRUE;
     return 0;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
-static void
+static Boolean
 make_filesystems(void)
 {
     int i;
@@ -273,6 +343,7 @@ make_filesystems(void)
     Device **devs;
     char dname[40];
     PartInfo *p = (PartInfo *)rootdev->private;
+    Boolean RootReadOnly;
 
     command_clear();
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
@@ -289,10 +360,12 @@ make_filesystems(void)
 	i = vsystem("%s %s", p->newfs_cmd, dname);
 	if (i) {
 	    msgConfirm("Unable to make new root filesystem!  Command returned status %d", i);
-	    return;
+	    return FALSE;
 	}
+	RootReadOnly = FALSE;
     }
     else {
+	RootReadOnly = TRUE;
 	msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
 	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
 	msgNotify("Checking integrity of existing %s filesystem", dname);
@@ -303,19 +376,7 @@ make_filesystems(void)
     sprintf(dname, "/dev/%sa", rootdev->disk->name);
     if (Mount("/mnt", dname)) {
 	msgConfirm("Unable to mount the root file system!  Giving up.");
-	return;
-    }
-    else {
-	extern int makedevs(void);
-
-	msgNotify("Making device files");
-	if (Mkdir("/mnt/dev", NULL) || chdir("/mnt/dev") || makedevs())
-	    msgConfirm("Failed to make some of the devices in /mnt!");
-	if (Mkdir("/mnt/stand", NULL)) {
-	    msgConfirm("Unable to make /mnt/stand directory!");
-	    return;
-	}
-	chdir("/");
+	return FALSE;
     }
 
     /* Now buzz through the rest of the partitions and mount them too */
@@ -324,12 +385,16 @@ make_filesystems(void)
 	    continue;
 
 	disk = (Disk *)devs[i]->private;
-	if (!disk->chunks)
-	    msgFatal("No chunk list found for %s!", disk->name);
+	if (!disk->chunks) {
+	    msgConfirm("No chunk list found for %s!", disk->name);
+	    return FALSE;
+	}
 
 	/* Make the proper device mount points in /mnt/dev */
-	MakeDevDisk(disk, "/mnt/dev");
-
+	if (!(RootReadOnly && disk == rootdev->disk)) {
+	    Mkdir("/mnt/dev", NULL);
+	    MakeDevDisk(disk, "/mnt/dev");
+	}
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
@@ -358,90 +423,103 @@ make_filesystems(void)
 		    }
 		}
 	    }
-	    else if (c1->type == fat) {
-		PartInfo *tmp = (PartInfo *)c1->private;
+	    else if (c1->type == fat && c1->private && !RootReadOnly) {
+		char name[FILENAME_MAX];
 
-		if (!tmp)
-		    continue;
-		command_func_add(tmp->mountpoint, Mount_DOS, c1->name);
+		sprintf(name, "/mnt%s", ((PartInfo *)c1->private)->mountpoint);
+		Mkdir(name, NULL);
 	    }
 	}
     }
+
+    /* Copy the boot floppy's dev files */
+    if (vsystem("find -x /dev | cpio -pdmV /mnt")) {
+	msgConfirm("Couldn't clone the /dev files!");
+	return FALSE;
+    }
+    
     command_sort();
     command_execute();
+    return TRUE;
 }
 
 /* Copy the boot floppy contents into /stand */
-static void
+static Boolean
 copy_self(void)
 {
     int i;
 
     msgWeHaveOutput("Copying the boot floppy to /stand on root filesystem");
     i = vsystem("find -x /stand | cpio -pdmV /mnt");
-    if (i)
+    if (i) {
 	msgConfirm("Copy returned error status of %d!", i);
+	return FALSE;
+    }
 
     /* Copy the /etc files into their rightful place */
-    (void)vsystem("cd /mnt/stand; find etc | cpio -pdmv /mnt");
+    if (vsystem("cd /mnt/stand; find etc | cpio -pdmV /mnt")) {
+	msgConfirm("Couldn't copy up the /etc files!");
+	return TRUE;
+    }
+    return TRUE;
 }
 
-static void loop_on_root_floppy();
+static Boolean loop_on_root_floppy(void);
 
-static void
+static Boolean
 root_extract(void)
 {
     int fd;
+    static Boolean alreadyExtracted = FALSE;
 
-    if (OnCDROM) {
-	fd = open("/floppies/root.flp", O_RDONLY);
-	(void)mediaExtractDist("/", fd);
-	return;
-    }
+    if (alreadyExtracted)
+	return TRUE;
+
     if (mediaDevice) {
+	if (isDebug())
+	    msgDebug("Attempting to extract root image from %s device\n", mediaDevice->description);
 	switch(mediaDevice->type) {
 
-	case DEVICE_TYPE_TAPE:
 	case DEVICE_TYPE_FLOPPY:
-	    loop_on_root_floppy();
+	    alreadyExtracted = loop_on_root_floppy();
 	    break;
 
 	default:
-	    if (mediaDevice->init)
-		if (!(*mediaDevice->init)(mediaDevice))
-		    break;
-	    fd = (*mediaDevice->get)("floppies/root.flp");
-	    if (fd != -1) {
-		msgNotify("Loading root floppy from %s", mediaDevice->name);
-		(void)mediaExtractDist("/", fd);
-		if (mediaDevice->close)
-		    (*mediaDevice->close)(mediaDevice, fd);
-		else
-		    close(fd);
+	    if (!(*mediaDevice->init)(mediaDevice))
+		break;
+	    fd = (*mediaDevice->get)(mediaDevice, "floppies/root.flp", NULL);
+	    if (fd < 0) {
+		msgConfirm("Couldn't get root image from %s!\nWill try to get it from floppy.", mediaDevice->name);
+		(*mediaDevice->shutdown)(mediaDevice);
+	        alreadyExtracted = loop_on_root_floppy();
 	    }
 	    else {
-		msgConfirm("Couldn't get root floppy image from %s\n, falling back to floppy.", mediaDevice->name);
-		if (mediaDevice->shutdown)
-		    (*mediaDevice->shutdown)(mediaDevice);
-	        loop_on_root_floppy();
+		msgNotify("Loading root image from %s", mediaDevice->name);
+		alreadyExtracted = mediaExtractDist("/", fd);
+		(*mediaDevice->close)(mediaDevice, fd);
 	    }
 	    break;
 	}
     }
     else
-	loop_on_root_floppy();
+	alreadyExtracted = loop_on_root_floppy();
+    return alreadyExtracted;
 }
 
-static void
+static Boolean
 loop_on_root_floppy(void)
 {
     int fd;
+    int status = FALSE;
 
     while (1) {
 	fd = getRootFloppy();
 	if (fd != -1) {
-	    mediaExtractDist("/", fd);
+	    msgNotify("Extracting root floppy..");
+	    status = mediaExtractDist("/", fd);
+	    close(fd);
 	    break;
 	}
     }
+    return status;
 }

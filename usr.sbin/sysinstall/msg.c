@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.27 1995/05/29 11:01:32 jkh Exp $
+ * $Id: msg.c,v 1.28.2.2 1995/06/02 15:31:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,10 +52,7 @@
 Boolean
 isDebug(void)
 {
-    char *cp;
-
-    cp = getenv("debug");
-    if (cp && !strcmp(cp, "yes"))
+    if (OptFlags & OPT_DEBUG)
 	return TRUE;
     return FALSE;
 }
@@ -220,7 +217,7 @@ msgConfirm(char *fmt, ...)
     w = dupwin(newscr);
     if (OnVTY) {
 	msgDebug("Switching back to VTY 0\n");
-	ioctl(0, VT_RELDISP, 1);
+	ioctl(0, VT_ACTIVATE, 1);
 	msgInfo(NULL);
     }
     dialog_notify(errstr);
@@ -268,7 +265,7 @@ msgYesNo(char *fmt, ...)
     w = dupwin(newscr);
     if (OnVTY) {
 	msgDebug("Switching back to VTY 0\n");
-	ioctl(0, VT_RELDISP, 1);	/* Switch back */
+	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
@@ -302,7 +299,7 @@ msgGetInput(char *buf, char *fmt, ...)
     w = dupwin(newscr);
     if (OnVTY) {
 	msgDebug("Switching back to VTY 0\n");
-	ioctl(0, VT_RELDISP, 1);	/* Switch back */
+	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);

@@ -26,29 +26,30 @@ int skeylookup __P((struct skey *mp,char *name));
 
 #define setpriority(x,y,z)	/* nothing */
 
-/* Issue a skey challenge for user 'name'. If successful,
- * fill in the caller's skey structure and return 0. If unsuccessful
- * (e.g., if name is unknown) return -1.
+/* Look up skey info for user 'name'. If successful, fill in the caller's
+ * skey structure and return 0. If unsuccessful (e.g., if name is unknown)
+ * return -1. If an optional challenge string buffer is given, update it.
  *
  * The file read/write pointer is left at the start of the
  * record.
  */
 int
-getskeyprompt(mp,name,prompt)
+skeyinfo(mp,name,ss)
 struct skey *mp;
 char *name;
-char *prompt;
+char *ss;
 {
 	int rval;
 
-	sevenbit(name);
 	rval = skeylookup(mp,name);
-	strcpy(prompt,"s/key 55 latour1\n");
 	switch(rval){
 	case -1:	/* File error */
 		return -1;
-	case 0:		/* Lookup succeeded, return challenge */
-		sprintf(prompt,"s/key %d %s\n",mp->n - 1,mp->seed);
+	case 0:		/* Lookup succeeded */
+		if (ss != 0) {
+			sprintf(ss, "s/key %d %s",mp->n - 1,mp->seed);
+			fclose(mp->keyfile);
+		}
 		return 0;
 	case 1:		/* User not found */
 		fclose(mp->keyfile);
@@ -173,7 +174,6 @@ char *response;
 {
  struct timeval startval;
  struct timeval endval;
-long microsec;
 	char key[8];
 	char fkey[8];
 	char filekey[8];
@@ -211,9 +211,6 @@ long microsec;
 	*/
 
 	setpriority(PRIO_PROCESS, 0, -4);
-/*
-  gettimeofday(&startval, (char *)0 );
-*/
 
 	/* reread the file record NOW*/
 
@@ -256,12 +253,6 @@ long microsec;
 	fseek(mp->keyfile,mp->recstart,0);
 	fprintf(mp->keyfile,"%s %04d %-16s %s %-21s\n",mp->logname,mp->n,mp->seed,
 	 mp->val, tbuf);
-/*
-gettimeofday(&endval, (char *)0 );
- microsec = (endval.tv_sec - startval.tv_sec) * 1000000 + (endval.tv_usec - startval.tv_usec);
-fprintf(stderr, "window= %d micro seconds \n"  , microsec);
-*/
-
 
 	fclose(mp->keyfile);
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.13 1995/05/29 04:01:08 davidg Exp $
+ * $Id: nfs_serv.c,v 1.14.2.1 1995/06/07 07:25:09 davidg Exp $
  */
 
 /*
@@ -1124,14 +1124,9 @@ nfsrv_link(nfsd, mrep, md, dpos, cred, nam, mrq)
 		error = EXDEV;
 out:
 	if (!error) {
-		int deallocobj = 0;
 		nqsrv_getl(vp, NQL_WRITE);
 		nqsrv_getl(xp, NQL_WRITE);
-		if ((vp->v_flag & VVMIO) && vp->v_vmdata)
-			deallocobj = 1;
 		error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
-		if (error == 0 && deallocobj)
-			vm_object_deallocate((vm_object_t) vp->v_vmdata);
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 		if (nd.ni_dvp == nd.ni_vp)

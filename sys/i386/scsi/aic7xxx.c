@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.27 1995/05/17 07:06:00 davidg Exp $
+ *      $Id: aic7xxx.c,v 1.28.2.3 1995/06/09 18:06:45 davidg Exp $
  */
 /*
  * TODO:
@@ -193,8 +193,17 @@ struct scsi_device ahc_dev =
 #define		REQO		0x02
 #define		ACKO		0x01
 
-/* XXX document this thing */
+/* 
+ * SCSI Rate Control (p. 3-17).
+ * Contents of this register determine the Synchronous SCSI data transfer
+ * rate and the maximum synchronous Req/Ack offset.  An offset of 0 in the
+ * SOFS (3:0) bits disables synchronous data transfers.  Any offset value
+ * greater than 0 enables synchronous transfers.
+ */
 #define SCSIRATE		0xc04ul
+#define WIDEXFER		0x80		/* Wide transfer control */
+#define SXFR			0x70		/* Sync transfer rate */
+#define SOFS			0x0f		/* Sync offset */
 
 /*
  * SCSI ID (p. 3-18).
@@ -785,42 +794,49 @@ ahcintr(unit)
 		      (inb(SEQADDR1 + iobase) << 8) |
 		      inb(SEQADDR0 + iobase));
         }
-        if (intstat & SEQINT) {
-                unsigned char transfer;
+        if (intstat & SEQINT) { 
+		u_short targ_mask;
+		u_char target = (inb(SCSIID + iobase) >> 4) & 0x0f;
+		u_char scratch_offset = target;
+		char channel = 
+			inb(SBLKCTL + iobase) & SELBUSB ? 'B': 'A';
 
+		if (channel == 'B')
+			scratch_offset += 8;
+		targ_mask = (0x01 << scratch_offset); 
+		
                 switch (intstat & SEQINT_MASK) {
                     case BAD_PHASE:
-                        panic("ahc%d: unknown scsi bus phase.  "
-			      "Attempting to continue\n", unit);
-                        break;
-                    case SEND_REJECT:
-                        printf("ahc%d: Warning - "
-                              "message reject, message type: 0x%x\n", unit,
+                        panic("ahc%d:%c:%d: unknown scsi bus phase.  "
+			      "Attempting to continue\n",
+			      unit, channel, target);  
+                        break; 
+                    case SEND_REJECT: 
+                        printf("ahc%d:%c:%d: Warning - " 
+                              "message reject, message type: 0x%x\n", 
+			      unit, channel, target,
                               inb(HA_REJBYTE + iobase));
-                        break;
-                    case NO_IDENT:
-                        panic("ahc%d: No IDENTIFY message from reconnecting "
-			      "target %d at seqaddr = 0x%lx "
-			      "SAVED_TCL == 0x%x\n",
-                              unit, (inb(SELID + iobase) >> 4) & 0xf,
-			      (inb(SEQADDR1 + iobase) << 8) |
-			      inb(SEQADDR0 + iobase),
+                        break; 
+                    case NO_IDENT: 
+                        panic("ahc%d:%c:%d: Target did not send an IDENTIFY "
+			      "message. SAVED_TCL == 0x%x\n",
+                              unit, channel, target,
 			      inb(SAVED_TCL + iobase));
 			break;
                     case NO_MATCH:
 			{
 				u_char active;
 				int active_port = HA_ACTIVE0 + iobase;
-				int tcl = inb(SCBARRAY+1 + iobase);
-				int target = (tcl >> 4) & 0x0f;
-				printf("ahc%d: no active SCB for reconnecting "
-				    "target %d, channel %c - issuing ABORT\n",
-				    unit, target, tcl & 0x08 ? 'B' : 'A');
+				printf("ahc%d:%c:%d: no active SCB - "
+				       "issuing ABORT\n", unit, channel, 
+				       target);
 				printf("SAVED_TCL == 0x%x\n",
 					inb(SAVED_TCL + iobase));
-				if( tcl & 0x88 ) {
-					/* Second channel stores its info
-					 * in byte two of HA_ACTIVE
+				if(targ_mask & 0xff00) {
+					/* 
+					 * targets on the Second channel or
+					 * above id 7 store info in byte two 
+					 * of HA_ACTIVE
 					 */
 					active_port++;
 				}
@@ -834,36 +850,32 @@ ahcintr(unit)
 			}
                     case MSG_SDTR:
 			{
-				u_char scsi_id, offset, rate, targ_scratch;
-				u_char maxoffset, mask;
-	                        /*
-				 * Help the sequencer to translate the
-				 * negotiated transfer rate.  Transfer is
-				 * 1/4 the period in ns as is returned by
-				 * the sync negotiation message.  So, we must
+				u_char period, offset, rate;
+				u_char targ_scratch;
+				u_char maxoffset;
+	                        /* 
+				 * Help the sequencer to translate the 
+				 * negotiated transfer rate.  Transfer is 
+				 * 1/4 the period in ns as is returned by 
+				 * the sync negotiation message.  So, we must 
 				 * multiply by four
 				 */
-	                        transfer = inb(HA_ARG_1 + iobase) << 2;
-				/* The bottom half of SCSIXFER */
+	                        period = inb(HA_ARG_1 + iobase) << 2;
 				offset = inb(ACCUM + iobase);
-				scsi_id = inb(SCSIID + iobase) >> 0x4;
-				if(inb(SBLKCTL + iobase) & 0x08)
-					/* B channel */
-					scsi_id += 8;
-				mask = (0x01 << scsi_id);
-				targ_scratch = inb(HA_TARG_SCRATCH + iobase
-						   + scsi_id);
-				if(targ_scratch & 0x80)
+				targ_scratch = inb(HA_TARG_SCRATCH + iobase 
+						   + scratch_offset);
+				if(targ_scratch & WIDEXFER)
 					maxoffset = 0x08;
 				else
 					maxoffset = 0x0f;
-				ahc_scsirate(&rate, transfer,
-					MIN(offset,maxoffset), unit, scsi_id);
+				ahc_scsirate(&rate, period, 
+					MIN(offset,maxoffset), unit, target);
 				/* Preserve the WideXfer flag */
-				rate |= targ_scratch & 0x80;
-				outb(HA_TARG_SCRATCH + iobase + scsi_id, rate);
-				outb(SCSIRATE + iobase, rate);
-				if( (rate & 0x0f) == 0 )
+				targ_scratch = rate | (targ_scratch & WIDEXFER);
+				outb(HA_TARG_SCRATCH + iobase + scratch_offset,
+				     targ_scratch);
+				outb(SCSIRATE + iobase, targ_scratch); 
+				if( (targ_scratch & 0x0f) == 0 ) 
 				{
 					/*
 					 * The requested rate was so low
@@ -877,7 +889,7 @@ ahcintr(unit)
 					outb(HA_RETURN_1 + iobase, SEND_REJ);
 				}
 				/* See if we initiated Sync Negotiation */
-				else if(ahc->sdtrpending & mask)
+				else if(ahc->sdtrpending & targ_mask)
 				{
 					/*
 					 * Don't send an SDTR back to
@@ -898,25 +910,20 @@ ahcintr(unit)
 				/*
 				 * Negate the flags
 				 */
-				ahc->needsdtr &= ~mask;
-				ahc->sdtrpending &= ~mask;
+				ahc->needsdtr &= ~targ_mask;
+				ahc->sdtrpending &= ~targ_mask;
 	                        break;
 			}
                     case MSG_WDTR:
 			{
-				u_char scsi_id, scratch, bus_width;
+				u_char scratch, bus_width;
 
 				bus_width = inb(ACCUM + iobase);
-				scsi_id = inb(SCSIID + iobase) >> 0x4;
 
-				if(inb(SBLKCTL + iobase) & 0x08)
-					/* B channel */
-					scsi_id += 8;
+				scratch = inb(HA_TARG_SCRATCH + iobase 
+					      + scratch_offset);
 
-				scratch = inb(HA_TARG_SCRATCH + iobase
-					      + scsi_id);
-
-				if(ahc->wdtrpending & (0x01 << scsi_id))
+				if(ahc->wdtrpending & targ_mask)
 				{
 					/*
 					 * Don't send a WDTR back to the
@@ -932,8 +939,8 @@ ahcintr(unit)
 		        				printf("ahc%d: target "
 							       "%d using 16Bit "
 							       "transfers\n",
-								unit, scsi_id);
-							scratch |= 0x80;
+								unit, target);
+							scratch |= 0x80;	
 							break;
 					}
 				}
@@ -954,17 +961,18 @@ ahcintr(unit)
 		        				printf("ahc%d: target "
 							       "%d using 16Bit "
 							       "transfers\n",
-								unit, scsi_id);
-							scratch |= 0x80;
+								unit, target);
+							scratch |= 0x80;	
 							break;
 					}
 					outb(HA_RETURN_1 + iobase,
 						bus_width | SEND_WDTR);
 				}
-				ahc->needwdtr &= ~(0x01 << scsi_id);
-				ahc->wdtrpending &= ~(0x01 << scsi_id);
-				outb(HA_TARG_SCRATCH + iobase + scsi_id, scratch);
-				outb(SCSIRATE + iobase, scratch);
+				ahc->needwdtr &= ~targ_mask;
+				ahc->wdtrpending &= ~targ_mask;
+				outb(HA_TARG_SCRATCH + iobase + scratch_offset, 
+				     scratch);
+				outb(SCSIRATE + iobase, scratch); 
 	                        break;
 			}
 		    case MSG_REJECT:
@@ -977,36 +985,29 @@ ahcintr(unit)
 				 */
 
 				u_char targ_scratch;
-				u_char scsi_id = inb(SCSIID + iobase) >> 0x4;
-				u_short mask;
-
-				if(inb(SBLKCTL + iobase) & 0x08)
-					/* B channel */
-					scsi_id += 8;
 
 				targ_scratch = inb(HA_TARG_SCRATCH + iobase
-						   + scsi_id);
+						   + scratch_offset);
 
-				mask = (0x01 << scsi_id);
-				if(ahc->wdtrpending & mask){
+				if(ahc->wdtrpending & targ_mask){
 					/* note 8bit xfers and clear flag */
 					targ_scratch &= 0x7f;
-					ahc->needwdtr &= ~mask;
-					ahc->wdtrpending &= ~mask;
-        				printf("ahc%d: target %d refusing "
+					ahc->needwdtr &= ~targ_mask;
+					ahc->wdtrpending &= ~targ_mask;
+        				printf("ahc%d:%c:%d: refusing "
 					       "WIDE negotiation.  Using "
 					       "8bit transfers\n",
-						unit, scsi_id);
+						unit, channel, target);
 				}
-				else if(ahc->sdtrpending & mask){
+				else if(ahc->sdtrpending & targ_mask){
 					/* note asynch xfers and clear flag */
 					targ_scratch &= 0xf0;
-					ahc->needsdtr &= ~mask;
-					ahc->sdtrpending &= ~mask;
-        				printf("ahc%d: target %d refusing "
+					ahc->needsdtr &= ~targ_mask;
+					ahc->sdtrpending &= ~targ_mask;
+        				printf("ahc%d:%c:%d: refusing "
 					       "syncronous negotiation.  Using "
 					       "asyncronous transfers\n",
-						unit, scsi_id);
+						unit, channel, target);
 				}
 				else {
 					/*
@@ -1014,12 +1015,13 @@ ahcintr(unit)
 					 */
 #ifdef AHC_DEBUG
 					if(ahc_debug & AHC_SHOWMISC)
-						printf("Message reject -- "
-						       "ignored\n");
+						printf("ahc%d:%c:%d: Message 
+							reject -- ignored\n",
+							unit, channel, target);
 #endif
 					break;
 				}
-				outb(HA_TARG_SCRATCH + iobase + scsi_id,
+				outb(HA_TARG_SCRATCH + iobase + scratch_offset,
 				     targ_scratch);
 				outb(SCSIRATE + iobase, targ_scratch);
 				break;
@@ -1046,9 +1048,9 @@ ahcintr(unit)
 			   */
 			  outb(HA_RETURN_1 + iobase, 0);
 		 	  if (!scb || !(scb->flags & SCB_ACTIVE)) {
-                              printf("ahc%d: ahcintr - referenced scb not "
-				     "valid during seqint 0x%x scb(%d)\n",
-				     unit, intstat, scb_index);
+                              printf("ahc%d:%c:%d: ahcintr - referenced scb "
+				     "not valid during seqint 0x%x scb(%d)\n", 
+				     unit, channel, target, intstat, scb_index);
 			      goto clear;
 			  }
 
@@ -1068,12 +1070,8 @@ ahcintr(unit)
 				break;
 			    case SCSI_CHECK:
 #ifdef AHC_DEBUG
-				printf("ahc%d: target %d, lun %d (%s%d) "
-					"requests Check Status\n", unit
-					,xs->sc_link->target
-					,xs->sc_link->lun
-					,xs->sc_link->device->name
-					,xs->sc_link->dev_unit);
+				sc_print_addr(xs->sc_link);
+				printf("requests Check Status\n");
 #endif
 
 				if((xs->error == XS_NOERROR) &&
@@ -1083,19 +1081,13 @@ ahcintr(unit)
 					u_char tail;
 					struct ahc_dma_seg *sg = scb->ahc_dma;
 					struct scsi_sense *sc = &(scb->sense_cmd);
-					u_char control = scb->control;
 					u_char tcl = scb->target_channel_lun;
 #ifdef AHC_DEBUG
-					printf("ahc%d: target %d, lun %d "
-						"(%s%d) Sending Sense\n", unit
-						,xs->sc_link->target
-						,xs->sc_link->lun
-						,xs->sc_link->device->name
-						,xs->sc_link->dev_unit);
+					sc_print_addr(xs->sc_link);
+					printf("Sending Sense\n");
 #endif
 					bzero(scb, SCB_DOWN_SIZE);
 					scb->flags |= SCB_SENSE;
-					scb->control = (control & SCB_TE);
 					sc->op_code = REQUEST_SENSE;
 					sc->byte2 =  xs->sc_link->lun << 5;
 					sc->length = sizeof(struct scsi_sense_data);
@@ -1157,17 +1149,20 @@ ahcintr(unit)
 				break;
 			    case SCSI_BUSY:
 				xs->error = XS_BUSY;
-				printf("ahc%d: Target Busy\n", unit);
+				sc_print_addr(xs->sc_link);
+				printf("Target Busy\n");
 				break;
 			    case SCSI_QUEUE_FULL:
 				/*
 				 * The upper level SCSI code will eventually
 				 * handle this properly.
 				 */
-				printf("ahc%d: Queue Full\n", unit);
+				sc_print_addr(xs->sc_link);
+				printf("Queue Full\n");
 				xs->error = XS_BUSY;
 				break;
 			    default:
+				sc_print_addr(xs->sc_link);
 				printf("unexpected targ_status: %x\n",
 					scb->target_status);
 				xs->error = XS_DRIVER_STUFFUP;
@@ -1180,18 +1175,23 @@ ahcintr(unit)
 			int   scb_index;
 			scb_index = inb(SCBPTR + iobase);
 			scb = ahc->scbarray[scb_index];
+			xs = scb->xs;
 			/*
 			 * Don't clobber valid resid info with
 			 * a resid coming from a check sense
 			 * operation.
 			 */
-			if(!(scb->flags & SCB_SENSE))
+			if(!(scb->flags & SCB_SENSE)) {
 			    scb->xs->resid = (inb(iobase+SCBARRAY+17) << 16) |
 					     (inb(iobase+SCBARRAY+16) << 8) |
 					      inb(iobase+SCBARRAY+15);
+				xs->flags |= SCSI_RESID_VALID;
 #ifdef AHC_DEBUG
-			printf("ahc: Handled Residual\n");
+				sc_print_addr(xs->sc_link);
+				printf("Handled Residual of %d bytes\n",
+					scb->xs->resid);
 #endif
+			}
 			break;
 		  }
 		  case ABORT_TAG:
@@ -1199,16 +1199,13 @@ ahcintr(unit)
                         int   scb_index;
 			scb_index = inb(SCBPTR + iobase);
 			scb = ahc->scbarray[scb_index];
+			xs = scb->xs;
 			/*
 			 * We didn't recieve a valid tag back from
 			 * the target on a reconnect.
 			 */
-			printf("ahc%d: invalid tag recieved on channel %c "
-			       "target %d, lun %d -- sending ABORT_TAG\n",
-			       unit,
-			       ((u_long)xs->sc_link->fordriver & 0x08)? 'B':'A',
-			       xs->sc_link->target,
-			       xs->sc_link->lun);
+			sc_print_addr(xs->sc_link);
+			printf("invalid tag recieved -- sending ABORT_TAG\n");
 			scb->xs->error = XS_DRIVER_STUFFUP;
 			untimeout(ahc_timeout, (caddr_t)scb);
 			ahc_done(unit, scb);
@@ -1311,15 +1308,11 @@ clear:
 			outb(WAITING_SCBH + iobase, waiting);
 
                         RESTART_SEQUENCER(ahc);
-                }
-
-                else if (status & SCSIPERR) {
-                        printf("ahc%d: parity error on channel %c "
-			       "target %d, lun %d\n",
-			       unit,
-			       ((u_long)xs->sc_link->fordriver & 0x08)? 'B':'A',
-                               xs->sc_link->target,
-                               xs->sc_link->lun);
+                }       
+                        
+                else if (status & SCSIPERR) { 
+			sc_print_addr(xs->sc_link);
+                        printf("parity error\n");
                         xs->error = XS_DRIVER_STUFFUP;
 
                         outb(CLRSINT1 + iobase, CLRSCSIPERR);
@@ -1329,8 +1322,8 @@ clear:
 			scb = NULL;
                 }
                 else if (!(status & BUSFREE)) {
-                      printf("ahc%d: Unknown SCSIINT. Status = 0x%x\n",
-			     unit, status);
+		      sc_print_addr(xs->sc_link);
+                      printf("Unknown SCSIINT. Status = 0x%x\n", status);
                       outb(CLRSINT1 + iobase, status);
                       UNPAUSE_SEQUENCER(ahc);
                       outb(CLRINT + iobase, CLRSCSIINT);
@@ -1477,13 +1470,18 @@ ahc_init(unit)
 		printf("ahc%d: 284x ", unit);
 		ahc->maxscbs = 0x4;
 		break;
+	   case AHC_AIC7850:
 	   case AHC_AIC7870:
 	   case AHC_294:
-		if( ahc->type == AHC_AIC7870)
+		ahc->maxscbs = 0x10;
+		if(ahc->type == AHC_AIC7850){
+			printf("ahc%d: aic7850 ", unit);
+			ahc->maxscbs = 0x03;
+		}
+		else if(ahc->type == AHC_AIC7870)
 			printf("ahc%d: aic7870 ", unit);
 		else
 			printf("ahc%d: 294x ", unit);
-		ahc->maxscbs = 0x10;
 		#define DFTHRESH        3
 		outb(DSPCISTATUS + iobase, DFTHRESH << 6);
 		/*
@@ -1530,7 +1528,7 @@ ahc_init(unit)
 	 * Number of SCBs that will be used. Rev E aic7770s and
 	 * aic7870s have 16.  The rest have 4.
 	 */
-	if(!(ahc->type & AHC_AIC7870))
+	if(!(ahc->type & AHC_AIC78X0))
 	{
 		/*
 		 * See if we have a Rev E or higher
@@ -1559,7 +1557,7 @@ ahc_init(unit)
 		printf("aic7870, ");
 	printf("%d SCBs\n", ahc->maxscbs);
 
-	if(!(ahc->type & AHC_AIC7870)) {
+	if(!(ahc->type & AHC_AIC78X0)) {
 		if(ahc->pause & IRQMS)
 			printf("ahc%d: Using Level Sensitive Interrupts\n",
 				unit);
@@ -1567,7 +1565,7 @@ ahc_init(unit)
 			printf("ahc%d: Using Edge Triggered Interrupts\n",
 				unit);
 	}
-	if(!(ahc->type & AHC_AIC7870)){
+	if(!(ahc->type & AHC_AIC78X0)){
 	/*
 	 * The 294x cards are PCI, so we get their interrupt from the PCI
 	 * BIOS.
@@ -1701,7 +1699,7 @@ ahc_init(unit)
 	printf("Done\n");
 
         outb(SEQCTL + iobase, FASTMODE);
-	if (!(ahc->type & AHC_AIC7870))
+	if (!(ahc->type & AHC_AIC78X0))
 		outb(BCTL + iobase, ENABLE);
 
 	/* Reset the bus */
@@ -1800,6 +1798,7 @@ ahc_scsi_cmd(xs)
         scb->cmdlen = xs->cmdlen;
 	scb->cmdpointer = KVTOPHYS(xs->cmd);
 	xs->resid = 0;
+	xs->status = 0;
         if (xs->datalen) {      /* should use S/G only if not zero length */
                 scb->SG_list_pointer = KVTOPHYS(scb->ahc_dma);
                 sg = scb->ahc_dma;

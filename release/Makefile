@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.191 1995/05/29 10:56:33 jkh Exp $
+#	$Id: Makefile,v 1.192.2.16 1995/06/10 14:19:56 jkh Exp $
 #
 # How to roll a release:
 #
@@ -19,12 +19,12 @@
 # Things which without too much trouble can be considered variables
 
 EXPORT_DISTS=	games manpages proflibs dict info
-EXTRA_DISTS=	des ${EXPORT_DISTS}
+EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 
-BOOT1=	etc/services etc/protocols etc/sysconfig
+BOOT1=	etc/protocols etc/sysconfig
 
-FAQS=	README MIRROR.SITES
+FAQS=	MIRROR.SITES
 
 # define this to use a vn device instead of the floppy drive
 VNDEVICE=		vn0
@@ -45,7 +45,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Size of the mfs to put in the kernel we boot.
 # You want to keep this as small as possible, it costs dearly in RAM.
 BOOTMFSSIZE=		1075
-MFSINODE=		70000
+MFSINODE=		80000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
@@ -73,26 +73,23 @@ release:
 	cd ${.CURDIR}/.. ; ${MAKE} install DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
+	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
+	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
+	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/mk
+	echo "export RELEASEDIR"		>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
-	echo "cd /usr/src/release/libdisk"	>> ${CHROOTDIR}/mk
-	echo "make obj depend"			>> ${CHROOTDIR}/mk
-	echo "make all"				>> ${CHROOTDIR}/mk
-	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
-	echo "make obj depend"			>> ${CHROOTDIR}/mk
-	echo "make all"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
-	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/etc/make.conf
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs co -P src
 .else
-	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
+	cd ${CHROOTDIR}/usr ; cvs co -P -r ${RELEASETAG} src
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	mv newvers.sh foo && \
-	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh )
+	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
 	# To be used in development...
 	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
 	chmod 755 ${CHROOTDIR}/mk
@@ -110,6 +107,10 @@ rerelease:
 	cd ${.CURDIR}/.. ; ${MAKE} -k install DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
+	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
+	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
+	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/mk
+	echo "export RELEASEDIR"		>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make all install"			>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release/libdisk"	>> ${CHROOTDIR}/mk
@@ -121,17 +122,16 @@ rerelease:
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
-	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/etc/make.conf
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs update -P -d -q src
 .else
-	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} -P -d -q src
+	cd ${CHROOTDIR}/usr ; cvs update -P -d -q -r ${RELEASETAG} src
 .endif
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	mv newvers.sh foo && \
-	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh )
+	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
 	# To be used in development...
 	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
 	chmod 755 ${CHROOTDIR}/mk
@@ -169,6 +169,10 @@ release.2:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. ; make distribute DISTDIR=${RD}/trees
+	cd ${.CURDIR}/../eBones && ( \
+		make obj all help-distribute DISTDIR=${RD}/trees ;\
+		make bootstrap \
+	)
 	chflags -R noschg ${RD}/trees
 	uudecode ${.CURDIR}/compat20/libgcc.so.261.0.uu
 	install -m 444 -o bin -g bin libgcc.so.261.0 ${RD}/trees/bin/usr/lib
@@ -199,6 +203,8 @@ release.3:
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
 release.4:
+	cd ${.CURDIR}/libdisk && make obj && make depend && make all
+	cd ${.CURDIR}/sysinstall && make obj && make depend && make all
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
@@ -280,7 +286,7 @@ release.6:
 	touch release.6
 
 
-# Make source dists, and finish of DES too
+# Make source dists, and finish off DES too
 release.7:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	@cd ${.CURDIR} ; $(MAKE) doTARBALL SD=/usr/src \
@@ -294,9 +300,11 @@ release.7:
 		fi ; \
 	done
 	( cd ${RD}/dists/src && \
-	if [ -f sdes.aa ] ; then mv sdes.* ../des ; fi && \
+	if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
 	@echo "src distribution is finished."
+	mv ${RD}/dists/krb/* ${RD}/dists/des
+	rmdir ${RD}/dists/krb
 	touch release.7
 
 # Complete the bootfd
@@ -329,12 +337,14 @@ release.8: write_mfs_in_kernel
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[sw]d*[bdefgh] )
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
+	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
+	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
+	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
+	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
+	rm -rf ${.CURDIR}/sysinstall/help/ja_JP.JIS
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/en_US.ISO8859-1/COPYRIGHT
-	cd ${RD}/trees/bin/usr/share/FAQ/Text && \
-		install -c RELNOTES.FreeBSD ${RD}/mfsfd/stand/help/en_US.ISO8859-1/RELNOTES && \
-		install -c README ${RD}/mfsfd/stand/help/en_US.ISO8859-1/README
 	(cd ${RD}/mfsfd/stand/help && tar cf - * | gzip -9 > ../help.tgz)
 	(cd ${RD}/mfsfd/stand && rm -rf help)
 	( 								\
@@ -354,6 +364,7 @@ release.8: write_mfs_in_kernel
 	cp ${RD}/kernels/BOOTMFS ${RD}/bootfd/kernel
 	./write_mfs_in_kernel ${RD}/bootfd/kernel fs-image
 	kzip ${RD}/bootfd/kernel
+	mv ${RD}/bootfd/kernel ${RD}/kernels/MFSKERNEL
 	mv ${RD}/bootfd/kernel.kz ${RD}/bootfd/kernel
 	ls -l ${RD}/bootfd/kernel
 	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=boot
@@ -369,6 +380,11 @@ release.9:
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=root \
 		DIR=${RD}/rootfd/stand ZIP=false
 	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/rootfd/stand
+	mv ${RD}/rootfd/stand/info/krb/* ${RD}/rootfd/stand/info/des
+	rmdir ${RD}/rootfd/stand/info/krb
+	mv ${RD}/rootfd/stand/info/src/ssecure.inf ${RD}/rootfd/stand/info/des
+	mv ${RD}/rootfd/stand/info/src/sebones.inf ${RD}/rootfd/stand/info/des
+	tar -cf - -C ${RD}/trees/bin/dev MAKEDEV | tar xvf - -C ${RD}/rootfd/stand
 	cd ${RD}/rootfd && ( rm -f OK && find . -print && touch OK && echo OK ) | cpio -H tar -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
 	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
 	touch release.9
@@ -416,7 +432,7 @@ cdrom.1:
 	mkdir ${CD}
 	mkdir ${CD}/filesys
 	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
-	ln -f ${RD}/bootfd/kernel ${CD}
+	ln -f ${RD}/kernels/MFSKERNEL ${CD}/kernel
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
 	for i in ${DISTRIBUTIONS} ; \
 	do \

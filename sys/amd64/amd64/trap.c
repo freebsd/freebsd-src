@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.51 1995/03/21 07:16:12 davidg Exp $
+ *	$Id: trap.c,v 1.52.2.1 1995/06/05 00:22:04 davidg Exp $
  */
 
 /*
@@ -885,22 +885,18 @@ linux_syscall(frame)
 	int rval[2];
 	int code;
 	struct linux_syscall_args {
-		int ebx;
-		int ecx;
-		int edx;
-		int esi;
-		int edi;
-		int ebp;
-		int eax;
+		int arg1;
+		int arg2;
+		int arg3;
+		int arg4;
+		int arg5;
 	} args;
 
-	args.ebx = frame.tf_ebx;
-	args.ecx = frame.tf_ecx;
-	args.edx = frame.tf_edx;
-	args.esi = frame.tf_esi;
-	args.edi = frame.tf_edi;
-	args.ebp = frame.tf_ebp;
-	args.eax = frame.tf_eax;
+	args.arg1 = frame.tf_ebx;
+	args.arg2 = frame.tf_ecx;
+	args.arg3 = frame.tf_edx;
+	args.arg4 = frame.tf_esi;
+	args.arg5 = frame.tf_edi;
 
 	sticks = p->p_sticks;
 	if (ISPL(frame.tf_cs) != SEL_UPL)
@@ -910,12 +906,8 @@ linux_syscall(frame)
 	p->p_md.md_regs = (int *)&frame;
 	params = (caddr_t)frame.tf_esp + sizeof (int) ;
 
-	/*
-	 * Reconstruct pc, assuming lcall $X,y is 7 bytes, as it is always.
-	 * THIS IS WRONG FOR LINUX  XXX SOS
-	 * SIZE OF INT 0x80 (2??) NEEDED HERE !!!
-	 */
-	opc = frame.tf_eip - 2; /* was 7 */
+	/* Reconstruct pc, subtract size of int 0x80 */
+	opc = frame.tf_eip - 2;
 	if (code == 0) {
 		code = fuword(params);
 		params += sizeof (int);

@@ -4,12 +4,10 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.4 1995/05/29 11:01:40 jkh Exp $
+ * $Id: tape.c,v 1.5.2.6 1995/06/05 15:33:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
- * Copyright (c) 1995
- * 	Gary J Palmer. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -59,17 +57,15 @@ mediaInitTape(Device *dev)
     if (tapeInitted)
 	return TRUE;
 
-    Mkdir("/usr/tmp/tape", NULL);
-    if (chdir("/usr/tmp/tape")) {
-	Mkdir("/var/tmp/tape", NULL);
-	if (chdir("/var/tmp/tape"))
+    Mkdir(dev->private, NULL);
+    if (chdir(dev->private))
 	    return FALSE;
-    }
     msgConfirm("Insert tape into %s and press return", dev->description);
+    msgNotify("Attempting to extract from %s...", dev->description);
     if (!strcmp(dev->name, "ft0"))
-	i = vsystem("ft | tar xvf -");
+	i = vsystem("ft | cpio -iduVm -H tar");
     else
-	i = vsystem("tar xvf %s", dev->devname);
+	i = vsystem("cpio -iBduVm -H tar -I %s", dev->devname);
     if (!i) {
 	tapeInitted = TRUE;
 	return TRUE;
@@ -80,14 +76,14 @@ mediaInitTape(Device *dev)
 }
 
 int
-mediaGetTape(char *file)
+mediaGetTape(Device *dev, char *file, Attribs *dist_attrs)
 {
     char buf[PATH_MAX];
 
-    sprintf(buf, "/usr/tmp/tape/%s", file);
-    if (!access(buf, R_OK))
-	return open(buf, O_RDONLY);
-    sprintf(buf, "/var/tmp/tape/%s", file);
+    sprintf(buf, "%s/%s", (char *)dev->private, file);
+    if (file_readable(buf))
+    	return open(buf, O_RDONLY);
+    sprintf(buf, "%s/dists/%s", (char *)dev->private, file);
     return open(buf, O_RDONLY);
 }
 
@@ -96,9 +92,9 @@ mediaShutdownTape(Device *dev)
 {
     if (!tapeInitted)
 	return;
-    if (!access("/usr/tmp/tape", X_OK))
-	(void)vsystem("rm -rf /usr/tmp/tape");
-    else if (!access("/var/tmp/tape", X_OK))
-	(void)vsystem("rm -rf /var/tmp/tape");
+    if (!access(dev->private, X_OK)) {
+	msgNotify("Cleaning up results of tape extract..");
+	(void)vsystem("rm -rf %s", (char *)dev->private);
+    }
     tapeInitted = FALSE;
 }

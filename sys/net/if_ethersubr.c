@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.7 1995/05/09 13:35:39 davidg Exp $
+ * $Id: if_ethersubr.c,v 1.8.2.1 1995/06/03 04:46:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -523,6 +523,7 @@ ether_addmulti(ifr, ac)
 	struct sockaddr_in *sin;
 	u_char addrlo[6];
 	u_char addrhi[6];
+      int set_allmulti = 0;
 	int s = splimp();
 
 	switch (ifr->ifr_addr.sa_family) {
@@ -543,6 +544,7 @@ ether_addmulti(ifr, ac)
 			 */
 			bcopy(ether_ipmulticast_min, addrlo, 6);
 			bcopy(ether_ipmulticast_max, addrhi, 6);
+                      set_allmulti = 1;
 		}
 		else {
 			ETHER_MAP_IP_MULTICAST(&sin->sin_addr, addrlo);
@@ -592,6 +594,9 @@ ether_addmulti(ifr, ac)
 	ac->ac_multiaddrs = enm;
 	ac->ac_multicnt++;
 	splx(s);
+      if (set_allmulti)
+              ac->ac_if.if_flags |= IFF_ALLMULTI;
+
 	/*
 	 * Return ENETRESET to inform the driver that the list has changed
 	 * and its reception filter should be adjusted accordingly.
@@ -612,6 +617,7 @@ ether_delmulti(ifr, ac)
 	struct sockaddr_in *sin;
 	u_char addrlo[6];
 	u_char addrhi[6];
+      int unset_allmulti = 0;
 	int s = splimp();
 
 	switch (ifr->ifr_addr.sa_family) {
@@ -632,6 +638,7 @@ ether_delmulti(ifr, ac)
 			 */
 			bcopy(ether_ipmulticast_min, addrlo, 6);
 			bcopy(ether_ipmulticast_max, addrhi, 6);
+                      unset_allmulti = 1;
 		}
 		else {
 			ETHER_MAP_IP_MULTICAST(&sin->sin_addr, addrlo);
@@ -671,6 +678,9 @@ ether_delmulti(ifr, ac)
 	free(enm, M_IFMADDR);
 	ac->ac_multicnt--;
 	splx(s);
+      if (unset_allmulti)
+              ac->ac_if.if_flags &= ~IFF_ALLMULTI;
+
 	/*
 	 * Return ENETRESET to inform the driver that the list has changed
 	 * and its reception filter should be adjusted accordingly.

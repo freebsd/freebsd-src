@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.18 1995/05/08 02:08:28 phk Exp $
+ * $Id: disk.c,v 1.19.2.2 1995/06/05 02:24:27 jkh Exp $
  *
  */
 
@@ -199,6 +199,7 @@ Int_Open_Disk(char *name, u_long size)
 	}
 	close(fd);
 	Fixup_Names(d);
+	Bios_Limit_Chunk(d->chunks,1024*d->bios_hd*d->bios_sect);
 	return d;
 }
 
@@ -207,7 +208,9 @@ Debug_Disk(struct disk *d)
 {
 	printf("Debug_Disk(%s)",d->name);
 	printf("  flags=%lx",d->flags);
+#if 0
 	printf("  real_geom=%lu/%lu/%lu",d->real_cyl,d->real_hd,d->real_sect);
+#endif
 	printf("  bios_geom=%lu/%lu/%lu\n",d->bios_cyl,d->bios_hd,d->bios_sect);
 	printf("  boot1=%p, boot2=%p, bootmgr=%p\n",
 		d->boot1,d->boot2,d->bootmgr);
@@ -250,6 +253,7 @@ Clone_Disk(struct disk *d)
 	return d2;
 }
 
+#if 0
 void
 Collapse_Disk(struct disk *d)
 {
@@ -257,6 +261,7 @@ Collapse_Disk(struct disk *d)
 	while(Collapse_Chunk(d,d->chunks))
 		;
 }
+#endif
 
 static char * device_list[] = {"wd","sd",0};
 
