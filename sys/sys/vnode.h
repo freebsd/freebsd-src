@@ -501,9 +501,13 @@ do {									\
 	struct vnode *_vp = (vp);					\
 									\
 	if (_vp && !IGNORE_LOCK(_vp) &&					\
-	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLUSIVE)		\
-		panic("%s: %p is not exclusive locked but should be",	\
-		    str, _vp);						\
+	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLUSIVE) {		\
+		if (vfs_badlock_print)					\
+			printf("%s: %p is not exclusive locked but should be\n",\
+			    str, _vp);					\
+		if (vfs_badlock_panic)					\
+			Debugger("Lock violation.\n");			\
+	}								\
 } while (0)
 
 #define ASSERT_VOP_ELOCKED_OTHER(vp, str)				\
@@ -511,9 +515,13 @@ do {									\
 	struct vnode *_vp = (vp);					\
 									\
 	if (_vp && !IGNORE_LOCK(_vp) &&					\
-	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLOTHER)		\
-		panic("%s: %p is not exclusive locked by another thread",	\
-		    str, _vp);						\
+	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLOTHER) {		\
+		if (vfs_badlock_print)					\
+			printf("%s: %p is not exclusive locked by another thread\n",\
+			    str, _vp);					\
+		if (vfs_badlock_panic)					\
+			Debugger("Lock violation.\n");			\
+	}								\
 } while (0)
 
 #define ASSERT_VOP_SLOCKED(vp, str)					\
@@ -521,9 +529,13 @@ do {									\
 	struct vnode *_vp = (vp);					\
 									\
 	if (_vp && !IGNORE_LOCK(_vp) &&					\
-	    VOP_ISLOCKED(_vp, NULL) != LK_SHARED)			\
-		panic("%s: %p is not locked shared but should be",	\
+	    VOP_ISLOCKED(_vp, NULL) != LK_SHARED) {			\
+		if (vfs_badlock_print)					\
+			printf("%s: %p is not locked shared but should be",\
 		    str, _vp);						\
+		if (vfs_badlock_panic)					\
+			Debugger("Lock violation.\n");			\
+	}								\
 } while (0)
 
 void vop_rename_pre(void *a);
