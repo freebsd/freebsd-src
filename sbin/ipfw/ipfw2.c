@@ -2935,7 +2935,7 @@ read_options:
 			pwd = (*end == '\0') ? getpwuid(uid) : getpwnam(*av);
 			if (pwd == NULL)
 				errx(EX_DATAERR, "uid \"%s\" nonexistent", *av);
-			cmd32->d[0] = uid;
+			cmd32->d[0] = pwd->pw_uid;
 			cmd->len = F_INSN_SIZE(ipfw_insn_u32);
 			ac--; av++;
 		    }
@@ -2954,7 +2954,7 @@ read_options:
 			if (grp == NULL)
 				errx(EX_DATAERR, "gid \"%s\" nonexistent", *av);
 			
-			cmd32->d[0] = gid;
+			cmd32->d[0] = grp->gr_gid;
 			cmd->len = F_INSN_SIZE(ipfw_insn_u32);
 			ac--; av++;
 		    }
