@@ -1219,7 +1219,7 @@ hammer_time(void)
 	setidt(11, &IDTVEC(missing),  SDT_SYSTGT, SEL_KPL, 0);
 	setidt(12, &IDTVEC(stk),  SDT_SYSTGT, SEL_KPL, 0);
 	setidt(13, &IDTVEC(prot),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(14, &IDTVEC(page),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(14, &IDTVEC(page),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(15, &IDTVEC(rsvd),  SDT_SYSTGT, SEL_KPL, 0);
 	setidt(16, &IDTVEC(fpu),  SDT_SYSTGT, SEL_KPL, 0);
 	setidt(17, &IDTVEC(align), SDT_SYSTGT, SEL_KPL, 0);
