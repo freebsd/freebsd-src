@@ -519,8 +519,8 @@ interpret:
 		(*p->p_sysent->sv_setregs)(td, imgp->entry_addr,
 		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
 	else
-		setregs(td, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
-		    imgp->ps_strings);
+		exec_setregs(td, imgp->entry_addr,
+		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
 
 	/* Cache arguments if they fit inside our allowance */
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {

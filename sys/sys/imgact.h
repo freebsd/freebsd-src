@@ -38,6 +38,7 @@
 
 #define MAXSHELLCMDLEN	128
 
+struct thread;
 struct vm_object;
 
 struct image_params {
@@ -69,6 +70,7 @@ int	exec_check_permissions(struct image_params *);
 int	exec_extract_strings(struct image_params *);
 int	exec_new_vmspace(struct image_params *, vm_offset_t, vm_offset_t,
     vm_offset_t);
+void	exec_setregs(struct thread *, u_long, u_long, u_long);
 int	exec_shell_imgact(struct image_params *);
 #endif
 
