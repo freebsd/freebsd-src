@@ -61,6 +61,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -105,7 +106,8 @@ static	int vlan_config(struct ifvlan *ifv, struct ifnet *p);
  * later by the upper protocol layers. Unfortunately, there's no way
  * to avoid this: there really is only one physical interface.
  */
-static int vlan_setmulti(struct ifnet *ifp)
+static int
+vlan_setmulti(struct ifnet *ifp)
 {
 	struct ifnet		*ifp_p;
 	struct ifmultiaddr	*ifma, *rifma = NULL;
@@ -122,8 +124,8 @@ static int vlan_setmulti(struct ifnet *ifp)
 	sdl.sdl_family = AF_LINK;
 
 	/* First, remove any existing filter entries. */
-	while(sc->vlan_mc_listhead.slh_first != NULL) {
-		mc = sc->vlan_mc_listhead.slh_first;
+	while(SLIST_FIRST(&sc->vlan_mc_listhead) != NULL) {
+		mc = SLIST_FIRST(&sc->vlan_mc_listhead);
 		bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
 		error = if_delmulti(ifp_p, (struct sockaddr *)&sdl);
 		if (error)
@@ -133,8 +135,7 @@ static int vlan_setmulti(struct ifnet *ifp)
 	}
 
 	/* Now program new ones. */
-	for (ifma = ifp->if_multiaddrs.lh_first;
-	    ifma != NULL;ifma = ifma->ifma_link.le_next) {
+	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		mc = malloc(sizeof(struct vlan_mc_entry), M_DEVBUF, M_NOWAIT);
@@ -150,7 +151,7 @@ static int vlan_setmulti(struct ifnet *ifp)
 }
 
 static void
-vlaninit(void *dummy)
+vlaninit(void)
 {
 	int i;
 
@@ -177,7 +178,28 @@ vlaninit(void *dummy)
 		ifp->if_resolvemulti = 0;
 	}
 }
-PSEUDO_SET(vlaninit, if_vlan);
+
+static int
+vlan_modevent(module_t mod, int type, void *data) 
+{ 
+	switch (type) { 
+	case MOD_LOAD: 
+		vlaninit();
+		break; 
+	case MOD_UNLOAD: 
+		printf("if_vlan module unload - not possible for this module type\n"); 
+		return EINVAL; 
+	} 
+	return 0; 
+} 
+
+static moduledata_t vlan_mod = { 
+	"if_vlan", 
+	vlan_modevent, 
+	0
+}; 
+
+DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static void
 vlan_ifinit(void *foo)
@@ -400,12 +422,12 @@ vlan_unconfig(struct ifnet *ifp)
 	 * while we were alive and remove them from the parent's list
 	 * as well.
 	 */
-	while(ifv->vlan_mc_listhead.slh_first != NULL) {
+	while(SLIST_FIRST(&ifv->vlan_mc_listhead) != NULL) {
 		struct sockaddr_dl	sdl;
 
 		sdl.sdl_len = ETHER_ADDR_LEN;
 		sdl.sdl_family = AF_LINK;
-		mc = ifv->vlan_mc_listhead.slh_first;
+		mc = SLIST_FIRST(&ifv->vlan_mc_listhead);
 		bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
 		error = if_delmulti(p, (struct sockaddr *)&sdl);
 		error = if_delmulti(ifp, (struct sockaddr *)&sdl);
