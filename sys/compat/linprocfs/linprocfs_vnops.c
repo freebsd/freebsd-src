@@ -129,7 +129,7 @@ linprocfs_open(ap)
 	p2 = PFIND(pfs->pfs_pid);
 	if (p2 == NULL)
 		return (ENOENT);
-	if (pfs->pfs_pid && !PRISON_CHECK(ap->a_p, p2))
+	if (pfs->pfs_pid && p_can(ap->a_p, p2, P_CAN_SEE, NULL))
 		return (ENOENT);
 
 	switch (pfs->pfs_type) {
@@ -139,7 +139,7 @@ linprocfs_open(ap)
 			return (EBUSY);
 
 		p1 = ap->a_p;
-		if (p_trespass(p1, p2) &&
+		if (p_can(p1, p2, P_CAN_DEBUG, NULL) &&
 		    !procfs_kmemaccess(p1))
 			return (EPERM);
 
@@ -231,7 +231,7 @@ linprocfs_ioctl(ap)
 		return ENOTTY;
 	}
 
-	if (p_trespass(p, procp))
+	if (p_can(p, procp, P_CAN_DEBUG, NULL))
 		return EPERM;
 
 	switch (ap->a_command) {
@@ -669,7 +669,8 @@ linprocfs_lookup(ap)
 
 	*vpp = NULL;
 
-	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
+	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME ||
+	    cnp->cn_nameiop == CREATE)
 		return (EROFS);
 
 	if (cnp->cn_namelen == 1 && *pname == '.') {
@@ -794,7 +795,7 @@ linprocfs_readdir(ap)
 		p = PFIND(pfs->pfs_pid);
 		if (p == NULL)
 			break;
-		if (!PRISON_CHECK(curproc, p))
+		if (p_can(curproc, p, P_CAN_SEE, NULL))
 			break;
 
 		for (pt = &proc_targets[i];
@@ -829,7 +830,7 @@ linprocfs_readdir(ap)
 		int doingzomb = 0;
 #endif
 		int pcnt = 0;
-		volatile struct proc *p = allproc.lh_first;
+		struct proc *p = allproc.lh_first;
 
 		for (; p && uio->uio_resid >= delen; i++, pcnt++) {
 			bzero((char *) dp, delen);
@@ -871,11 +872,11 @@ linprocfs_readdir(ap)
 					p = p->p_list.le_next;
 					if (!p)
 						goto done;
-					if (!PRISON_CHECK(curproc, p))
+					if (p_can(curproc, p, P_CAN_SEE, NULL))
 						continue;
 					pcnt++;
 				}
-				while (!PRISON_CHECK(curproc, p)) {
+				while (p_can(curproc, p, P_CAN_SEE, NULL)) {
 					p = p->p_list.le_next;
 					if (!p)
 						goto done;
