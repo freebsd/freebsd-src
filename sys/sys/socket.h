@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.2 1994/08/02 07:53:35 davidg Exp $
+ * $Id: socket.h,v 1.3 1994/10/02 17:24:56 phk Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -337,5 +337,7 @@ int	socket __P((int, int, int));
 int	socketpair __P((int, int, int, int *));
 __END_DECLS
 
+#else /* KERNEL */
+void	pfctlinput __P((int, struct sockaddr *));
 #endif /* !KERNEL */
 #endif /* !_SYS_SOCKET_H_ */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.3 (Berkeley) 2/22/94
- * $Id: resourcevar.h,v 1.2 1994/08/02 07:53:29 davidg Exp $
+ * $Id: resourcevar.h,v 1.3 1994/10/02 17:24:53 phk Exp $
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_
@@ -85,6 +85,7 @@ struct plimit {
 #ifdef KERNEL
 void	 addupc_intr __P((struct proc *p, u_long pc, u_int ticks));
 void	 addupc_task __P((struct proc *p, u_long pc, u_int ticks));
+int	 addupc __P((int, struct uprof *, int));
 struct plimit
 	*limcopy __P((struct plimit *lim));
 void	calcru __P((struct proc *p,struct timeval *up,struct timeval *sp,struct timeval *ip));
