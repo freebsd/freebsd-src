@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: wrreg.c,v 1.4 1996/04/18 04:24:58 nate Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,7 +48,7 @@ wrreg_main(argc, argv)
 		fprintf(stderr, "usage: wrreg slot reg value\n");
 		exit(1);
 	}
-	sprintf(name, "/dev/card%d", atoi(argv[1]));
+	sprintf(name, CARD_DEVICE, atoi(argv[1]));
 	fd = open(name, 2);
 	if (fd < 0) {
 		perror(name);

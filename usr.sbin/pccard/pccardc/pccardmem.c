@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: pccardmem.c,v 1.4 1996/04/18 04:24:54 nate Exp $
  */
 #include <stdio.h>
 #include <fcntl.h>
@@ -37,6 +37,7 @@ pccardmem_main(argc, argv)
 	int     argc;
 	char   *argv[];
 {
+	char    name[64];
 	int     addr = 0;
 	int     fd;
 
@@ -44,9 +45,10 @@ pccardmem_main(argc, argv)
 		fprintf(stderr, "usage: %s [ memory-address ]\n", argv[0]);
 		exit(1);
 	}
-	fd = open("/dev/card0", 0);
+	sprintf(name, CARD_DEVICE, 0);
+	fd = open(name, 0);
 	if (fd < 0) {
-		perror("/dev/card0");
+		perror(name);
 		exit(1);
 	}
 	if (argc == 2) {
