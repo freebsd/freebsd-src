@@ -5,6 +5,12 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000308:
+	The binary interface of perl to its modules changed.  You
+	will need to recompile any perl moudles after an
+	installworld.  This includes all ports matching the pattern 
+	/usr/ports/*/p5-*.
+
 20000303:
 	CMSG_XXX macros offset in <sys/socket.h> has changed to
 	conform RFC-2292.  All affected applications have been
