@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)spec.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: spec.c,v 1.7 1997/10/01 06:30:02 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -212,6 +212,7 @@ set(t, ip)
 				errx(1, "line %d: invalid file mode %s",
 				lineno, val);
 			ip->st_mode = getmode(m, 0);
+			free(m);
 			break;
 		case F_NLINK:
 			ip->st_nlink = strtoul(val, &ep, 10);
