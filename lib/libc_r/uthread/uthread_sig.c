@@ -212,6 +212,31 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 				sigdelset(&pthread->sigpend,SIGCONT);
 		}
 
+		/*
+		 * Enter a loop to process each thread in the linked
+		 * list that is sigwait-ing on a signal.  Since POSIX
+		 * doesn't specify which thread will get the signal
+		 * if there are multiple waiters, we'll give it to the
+		 * first one we find.
+		 */
+		for (pthread = _thread_link_list; pthread != NULL;
+		    pthread = pthread->nxt) {
+			if ((pthread->state == PS_SIGWAIT) &&
+			    sigismember(&pthread->sigmask, sig)) {
+				/* Change the state of the thread to run: */
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+				/* Return the signal number: */
+				pthread->signo = sig;
+
+				/*
+				 * Do not attempt to deliver this signal
+				 * to other threads.
+				 */
+				return;
+			}
+		}
+
 		/* Check if the signal is not being ignored: */
 		if (_thread_sigact[sig - 1].sa_handler != SIG_IGN)
 			/*
@@ -259,6 +284,7 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_RUNNING:
 	case PS_STATE_MAX:
 	case PS_SIGTHREAD:
+	case PS_SIGWAIT:
 	case PS_SUSPENDED:
 		/* Nothing to do here. */
 		break;
@@ -290,7 +316,6 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_FDR_WAIT:
 	case PS_FDW_WAIT:
 	case PS_SLEEP_WAIT:
-	case PS_SIGWAIT:
 	case PS_SELECT_WAIT:
 		if (sig != SIGCHLD ||
 		    _thread_sigact[sig - 1].sa_handler != SIG_DFL) {
