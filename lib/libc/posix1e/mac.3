@@ -1,4 +1,4 @@
-.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" Copyright (c) 2001, 2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris
@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm mac
-.Nd introduction to the POSIX.1e MAC security API
+.Nd Introduction to the MAC security API
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -133,6 +133,7 @@ is
 .Xr mac 4 ,
 .Xr mac 9
 .Sh STANDARDS
+These APIs are loosely based on the APIs described in POSIX.1e.
 POSIX.1e is described in IEEE POSIX.1e draft 17.
 Discussion of the draft
 continues on the cross-platform POSIX.1e implementation mailing list.
@@ -140,6 +141,9 @@ To join this list, see the
 .Fx
 POSIX.1e implementation page
 for more information.
+However, the resemblence of these APIs to the POSIX APIs is only loose,
+as the POSIX APIs were unable to express many notions required for
+flexible and extensible access control.
 .Sh HISTORY
 Support for Mandatory Access Control was introduced in
 .Fx 5.0
