@@ -524,7 +524,11 @@ prmount(sfp)
 			(void)printf(", %s", o->o_name);
 			flags &= ~o->o_opt;
 		}
-	if (sfp->f_owner) {
+	/*
+	 * Inform when file system is mounted by an unprivileged user
+	 * or privileged non-root user.
+	 */
+	if ((flags & MNT_USER) != 0 || sfp->owner != 0) {
 		(void)printf(", mounted by ");
 		if ((pw = getpwuid(sfp->f_owner)) != NULL)
 			(void)printf("%s", pw->pw_name);
