@@ -787,10 +787,14 @@ main(int argc, char **argv)
     if (alloc_memory() == -1)
 	fatal("Couldn't allocate memory\n");
     
+#if 0	/* Later.  Our kernels don't say the right thing at present anyway */
     if (uname(&utsname) == -1) {
 	/* Fake uname entry */
 	bcopy("FreeBSD", utsname.sysname, strlen("FreeBSD"));
     }
+#else
+    bcopy("FreeBSD-2.0.ALPHA", utsname.sysname, strlen("FreeBSD-2.0.ALPHA"));
+#endif
     
     /* XXX - libdialog has particularly bad return value checking */
     init_dialog();
