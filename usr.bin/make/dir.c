@@ -1073,7 +1073,7 @@ Dir_AddDir (path, name)
 		 * specifically instead of assuming readdir() reuturns them in
 		 * that order when first going through a directory.  This is
 		 * needed for XFS over NFS filesystems since SGI does not
-		 * guarantee that these are * the first two entries returned
+		 * guarantee that these are the first two entries returned
 		 * from readdir().
 		 */
 		if (ISDOT(dp->d_name) || ISDOTDOT(dp->d_name))
