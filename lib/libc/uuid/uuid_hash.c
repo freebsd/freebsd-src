@@ -33,7 +33,6 @@
  * uuid_hash() - generate a hash value.
  * See also:
  *	http://www.opengroup.org/onlinepubs/009629399/uuid_hash.htm
- *	http://www.transarc.ibm.com/Library/documentation/dce/1.1/uuid_hash.html
  */
 uint16_t
 uuid_hash(uuid_t *u, uint32_t *status)

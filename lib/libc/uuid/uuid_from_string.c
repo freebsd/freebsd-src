@@ -36,7 +36,6 @@
  *			a binary representation.
  * See also:
  *	http://www.opengroup.org/onlinepubs/009629399/uuid_from_string.htm
- *	http://www.transarc.ibm.com/Library/documentation/dce/1.1/uuid_from_string.html
  *
  * NOTE: The sequence field is in big-endian, while the time fields are in
  *	 native byte order.
