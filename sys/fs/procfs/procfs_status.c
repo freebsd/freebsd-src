@@ -43,10 +43,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
-#include <sys/jail.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/jail.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/tty.h>
@@ -178,11 +178,14 @@ procfs_dostatus(curp, p, pfs, uio)
 		DOCHECK();
 	}
 
-	if (jailed(p->p_ucred))
+	if (jailed(p->p_ucred)) {
+		mtx_lock(&p->p_ucred->cr_prison->pr_mtx);
 		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
 		    " %s", p->p_ucred->cr_prison->pr_host);
-	else
+		mtx_unlock(&p->p_ucred->cr_prison->pr_mtx);
+	} else {
 		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " -");
+	}
 	DOCHECK();
 	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "\n");
 	DOCHECK();

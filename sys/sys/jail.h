@@ -26,6 +26,9 @@ int jail __P((struct jail *));
 
 #else /* _KERNEL */
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PRISON);
 #endif
@@ -35,20 +38,25 @@ MALLOC_DECLARE(M_PRISON);
  * ucreds's of the inmates.  pr_ref keeps track of them and is used to
  * delete the struture when the last inmate is dead.
  *
- * XXX: Note: this structure needs a mutex to protect the reference count
- * and other mutable fields (pr_host, pr_linux).
+ * Lock key:
+ *   (p) locked by pr_mutex
+ *   (c) set only during creation before the structure is shared, no mutex
+ *       required to read
  */
-
+struct mtx;
 struct prison {
-	int		pr_ref;
-	char 		pr_host[MAXHOSTNAMELEN];
-	u_int32_t	pr_ip;
-	void		*pr_linux;
-	int		pr_securelevel;
+	int		 pr_ref;			/* (p) refcount */
+	char 		 pr_host[MAXHOSTNAMELEN];	/* (p) jail hostname */
+	u_int32_t	 pr_ip;				/* (c) ip addr host */
+	void		*pr_linux;			/* (p) linux abi */
+	int		 pr_securelevel;		/* (p) securelevel */
+	struct mtx	 pr_mtx;
 };
 
 /*
  * Sysctl-set variables that determine global jail policy
+ *
+ * XXX MIB entries will need to be protected by a mutex.
  */
 extern int	jail_set_hostname_allowed;
 extern int	jail_socket_unixiproute_only;
@@ -62,6 +70,7 @@ struct sockaddr;
 int jailed __P((struct ucred *cred));
 int prison_check __P((struct ucred *cred1, struct ucred *cred2));
 void prison_free __P((struct prison *pr));
+u_int32_t prison_getip __P((struct ucred *cred));
 void prison_hold __P((struct prison *pr));
 int prison_if __P((struct ucred *cred, struct sockaddr *sa));
 int prison_ip __P((struct ucred *cred, int flag, u_int32_t *ip));

@@ -688,15 +688,16 @@ int
 linux_newuname(struct thread *td, struct linux_newuname_args *args)
 {
 	struct l_new_utsname utsname;
-	char *osrelease, *osname;
+	char osname[LINUX_MAX_UTSNAME];
+	char osrelease[LINUX_MAX_UTSNAME];
 
 #ifdef DEBUG
 	if (ldebug(newuname))
 		printf(ARGS(newuname, "*"));
 #endif
 
-	osname = linux_get_osname(td->td_proc);
-	osrelease = linux_get_osrelease(td->td_proc);
+	linux_get_osname(td->td_proc, osname);
+	linux_get_osrelease(td->td_proc, osrelease);
 
 	bzero(&utsname, sizeof(utsname));
 	strncpy(utsname.sysname, osname, LINUX_MAX_UTSNAME-1);

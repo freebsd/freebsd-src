@@ -31,10 +31,10 @@
 #ifndef _LINUX_MIB_H_
 #define _LINUX_MIB_H_
 
-char*	linux_get_osname	__P((struct proc *p));
+void	linux_get_osname	__P((struct proc *p, char *dst));
 int	linux_set_osname	__P((struct proc *p, char *osname));
 
-char*	linux_get_osrelease	__P((struct proc *p));
+void	linux_get_osrelease	__P((struct proc *p, char *dst));
 int	linux_set_osrelease	__P((struct proc *p, char *osrelease));
 
 int	linux_get_oss_version	__P((struct proc *p));
