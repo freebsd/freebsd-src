@@ -1,4 +1,4 @@
-/* $Id: SYS.h,v 1.1.1.1 1998/03/09 06:34:40 jb Exp $ */
+/* $Id: SYS.h,v 1.2 1998/06/09 22:43:34 jb Exp $ */
 /*	From: NetBSD: SYS.h,v 1.5 1997/05/02 18:15:15 kleink Exp */
 
 /*
@@ -29,8 +29,11 @@
  */
 
 #include <machine/asm.h>
+#ifdef __NETBSD_SYSCALLS
 #include <sys/netbsd_syscall.h>
-
+#else
+#include <sys/syscall.h>
+#endif
 
 #define	CALLSYS_ERROR(name)					\
 	CALLSYS_NOERROR(name);					\
