@@ -223,10 +223,10 @@ sonewconn(head, connstatus)
 	over = (head->so_qlen > 3 * head->so_qlimit / 2);
 	ACCEPT_UNLOCK();
 	if (over)
-		return ((struct socket *)0);
+		return (NULL);
 	so = soalloc(M_NOWAIT);
 	if (so == NULL)
-		return ((struct socket *)0);
+		return (NULL);
 	if ((head->so_options & SO_ACCEPTFILTER) != 0)
 		connstatus = 0;
 	so->so_head = head;
@@ -247,7 +247,7 @@ sonewconn(head, connstatus)
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
 		sodealloc(so);
-		return ((struct socket *)0);
+		return (NULL);
 	}
 	so->so_state |= connstatus;
 	ACCEPT_LOCK();
