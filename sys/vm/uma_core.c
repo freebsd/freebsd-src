@@ -170,9 +170,9 @@ static void zone_small_init(uma_zone_t zone);
 static void zone_large_init(uma_zone_t zone);
 static void zone_foreach(void (*zfunc)(uma_zone_t));
 static void zone_timeout(uma_zone_t zone);
-static struct slabhead *hash_alloc(int *);
-static void hash_expand(struct uma_hash *, struct slabhead *, int);
-static void hash_free(struct slabhead *hash, int hashsize);
+static int hash_alloc(struct uma_hash *);
+static int hash_expand(struct uma_hash *, struct uma_hash *);
+static void hash_free(struct uma_hash *hash);
 static void uma_timeout(void *);
 static void uma_startup3(void);
 static void *uma_zalloc_internal(uma_zone_t, void *, int, uma_bucket_t);
@@ -288,14 +288,31 @@ zone_timeout(uma_zone_t zone)
 	    !(zone->uz_flags & UMA_ZFLAG_MALLOC)) {
 		if (zone->uz_pages / zone->uz_ppera
 		    >= zone->uz_hash.uh_hashsize) {
-			struct slabhead *newhash;
-			int newsize;
+			struct uma_hash newhash;
+			struct uma_hash oldhash;
+			int ret;
 
-			newsize = zone->uz_hash.uh_hashsize;
+			/*
+			 * This is so involved because allocating and freeing 
+			 * while the zone lock is held will lead to deadlock.
+			 * I have to do everything in stages and check for
+			 * races.
+			 */
+			newhash = zone->uz_hash;
 			ZONE_UNLOCK(zone);
-			newhash = hash_alloc(&newsize);
+			ret = hash_alloc(&newhash);
 			ZONE_LOCK(zone);
-			hash_expand(&zone->uz_hash, newhash, newsize);
+			if (ret) {
+				if (hash_expand(&zone->uz_hash, &newhash)) {
+					oldhash = zone->uz_hash;
+					zone->uz_hash = newhash;
+				} else
+					oldhash = newhash;
+
+				ZONE_UNLOCK(zone);
+				hash_free(&oldhash);
+				ZONE_LOCK(zone);
+			}
 		}
 	}
 
@@ -320,36 +337,39 @@ zone_timeout(uma_zone_t zone)
  * backing store.
  *
  * Arguments:
- *	oldsize  On input it's the size we're currently at and on output
- *		 it is the expanded size.
+ *	hash  A new hash structure with the old hash size in uh_hashsize
  *
  * Returns:
- *	slabhead The new hash bucket or NULL if the allocation failed.
+ *	1 on sucess and 0 on failure.
  */
-struct slabhead *
-hash_alloc(int *oldsize)
+int
+hash_alloc(struct uma_hash *hash)
 {
-	struct slabhead *newhash;
-	int newsize;
+	int oldsize;
 	int alloc;
 
+	oldsize = hash->uh_hashsize;
+
 	/* We're just going to go to a power of two greater */
-	if (*oldsize)  {
-		newsize = (*oldsize) * 2;
-		alloc = sizeof(newhash[0]) * newsize;
+	if (oldsize)  {
+		hash->uh_hashsize = oldsize * 2;
+		alloc = sizeof(hash->uh_slab_hash[0]) * hash->uh_hashsize;
 		/* XXX Shouldn't be abusing DEVBUF here */
-		newhash = (struct slabhead *)malloc(alloc, M_DEVBUF, M_NOWAIT);
+		hash->uh_slab_hash = (struct slabhead *)malloc(alloc,
+		    M_DEVBUF, M_NOWAIT);
 	} else {
-		alloc = sizeof(newhash[0]) * UMA_HASH_SIZE_INIT;
-		newhash = uma_zalloc_internal(hashzone, NULL, M_WAITOK, NULL);
-		newsize = UMA_HASH_SIZE_INIT;
+		alloc = sizeof(hash->uh_slab_hash[0]) * UMA_HASH_SIZE_INIT;
+		hash->uh_slab_hash = uma_zalloc_internal(hashzone, NULL,
+		    M_WAITOK, NULL);
+		hash->uh_hashsize = UMA_HASH_SIZE_INIT;
 	}
-	if (newhash)
-		bzero(newhash, alloc);
+	if (hash->uh_slab_hash) {
+		bzero(hash->uh_slab_hash, alloc);
+		hash->uh_hashmask = hash->uh_hashsize - 1;
+		return (1);
+	}
 
-	*oldsize = newsize;
-
-	return (newhash);
+	return (0);
 }
 
 /*
@@ -358,55 +378,42 @@ hash_alloc(int *oldsize)
  * otherwise, we can recurse on the vm while allocating pages.
  *
  * Arguments:
- *	hash  The hash you want to expand by a factor of two.
+ *	oldhash  The hash you want to expand 
+ *	newhash  The hash structure for the new table
  *
  * Returns:
  * 	Nothing
  *
  * Discussion:
  */
-static void
-hash_expand(struct uma_hash *hash, struct slabhead *newhash, int newsize)
+static int
+hash_expand(struct uma_hash *oldhash, struct uma_hash *newhash)
 {
-	struct slabhead *oldhash;
 	uma_slab_t slab;
-	int oldsize;
 	int hval;
 	int i;
 
-	if (!newhash)
-		return;
+	if (!newhash->uh_slab_hash)
+		return (0);
 
-	oldsize = hash->uh_hashsize;
-	oldhash = hash->uh_slab_hash;
-
-	if (oldsize >= newsize) {
-		hash_free(newhash, newsize);
-		return;
-	}
-
-	hash->uh_hashmask = newsize - 1;
+	if (oldhash->uh_hashsize >= newhash->uh_hashsize)
+		return (0);
 
 	/*
 	 * I need to investigate hash algorithms for resizing without a
 	 * full rehash.
 	 */
 
-	for (i = 0; i < oldsize; i++)
-		while (!SLIST_EMPTY(&hash->uh_slab_hash[i])) {
-			slab = SLIST_FIRST(&hash->uh_slab_hash[i]);
-			SLIST_REMOVE_HEAD(&hash->uh_slab_hash[i], us_hlink);
-			hval = UMA_HASH(hash, slab->us_data);
-			SLIST_INSERT_HEAD(&newhash[hval], slab, us_hlink);
+	for (i = 0; i < oldhash->uh_hashsize; i++)
+		while (!SLIST_EMPTY(&oldhash->uh_slab_hash[i])) {
+			slab = SLIST_FIRST(&oldhash->uh_slab_hash[i]);
+			SLIST_REMOVE_HEAD(&oldhash->uh_slab_hash[i], us_hlink);
+			hval = UMA_HASH(newhash, slab->us_data);
+			SLIST_INSERT_HEAD(&newhash->uh_slab_hash[hval],
+			    slab, us_hlink);
 		}
 
-	if (oldhash) 
-		hash_free(oldhash, oldsize);
-
-	hash->uh_slab_hash = newhash;
-	hash->uh_hashsize = newsize;
-
-	return;
+	return (1);
 }
 
 /*
@@ -420,13 +427,15 @@ hash_expand(struct uma_hash *hash, struct slabhead *newhash, int newsize)
  *	Nothing
  */
 static void
-hash_free(struct slabhead *slab_hash, int hashsize)
+hash_free(struct uma_hash *hash)
 {
-	if (hashsize == UMA_HASH_SIZE_INIT)
+	if (hash->uh_slab_hash == NULL)
+		return;
+	if (hash->uh_hashsize == UMA_HASH_SIZE_INIT)
 		uma_zfree_internal(hashzone,
-		    slab_hash, NULL, 0);
+		    hash->uh_slab_hash, NULL, 0);
 	else
-		free(slab_hash, M_DEVBUF);
+		free(hash->uh_slab_hash, M_DEVBUF);
 }
 
 /*
@@ -1049,12 +1058,7 @@ zone_ctor(void *mem, int size, void *udata)
 			panic("UMA slab won't fit.\n");
 		}
 	} else {
-		struct slabhead *newhash;
-		int hashsize;
-
-		hashsize = 0;
-		newhash = hash_alloc(&hashsize);
-		hash_expand(&zone->uz_hash, newhash, hashsize);	
+		hash_alloc(&zone->uz_hash);
 		zone->uz_pgoff = 0;
 	}
 
@@ -1121,11 +1125,10 @@ zone_dtor(void *arg, int size, void *udata)
 		for (cpu = 0; cpu < maxcpu; cpu++)
 			CPU_LOCK_FINI(zone, cpu);
 
-	if ((zone->uz_flags & UMA_ZFLAG_OFFPAGE) != 0)
-		hash_free(zone->uz_hash.uh_slab_hash,
-		    zone->uz_hash.uh_hashsize);
-
 	ZONE_UNLOCK(zone);
+	if ((zone->uz_flags & UMA_ZFLAG_OFFPAGE) != 0)
+		hash_free(&zone->uz_hash);
+
 	ZONE_LOCK_FINI(zone);
 }
 /*
