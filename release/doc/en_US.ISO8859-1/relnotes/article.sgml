@@ -1882,7 +1882,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       by a malicious domain name server or an attacker forging DNS
       messages, has been fixed.  See security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
-      for more details.</para>
+      for more details. &merged;</para>
   </sect2>
 
   <sect2 id="userland">
