@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.4 1995/03/29 18:48:06 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.5 1995/05/30 08:07:36 rgrimes Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*
@@ -141,8 +141,8 @@ dos2unixtime(dd, dt, tsp)
 	struct timespec *tsp;
 {
 	u_long seconds;
-	u_long m, month;
-	u_long y, year;
+	u_long month;
+	u_long year;
 	u_long days;
 	u_short *months;
 

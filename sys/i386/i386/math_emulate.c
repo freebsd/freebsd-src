@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.12 1995/05/30 07:59:35 rgrimes Exp $
+ *	$Id: math_emulate.c,v 1.13 1995/06/14 05:06:51 bde Exp $
  */
 
 /*
@@ -64,12 +64,29 @@ static void fpush(void);
 static void fxchg(temp_real_unaligned * a, temp_real_unaligned * b);
 static temp_real_unaligned * __st(int i);
 
-unsigned char get_fs_byte(char *adr) { return(fubyte(adr)); }
-unsigned short get_fs_word(unsigned short *adr) { return(fuword(adr)); }
-unsigned long get_fs_long(unsigned long *adr) { return(fuword(adr)); }
-void put_fs_byte(unsigned char val, char *adr) { (void)subyte(adr,val); }
-void put_fs_word(unsigned short val, short *adr) { (void)susword(adr,val); }
-void put_fs_long(u_long val, unsigned long *adr) { (void)suword(adr,val); }
+static unsigned char
+get_fs_byte(char *adr) 
+	{ return(fubyte(adr)); }
+
+static unsigned short
+get_fs_word(unsigned short *adr)
+	{ return(fuword(adr)); }
+
+static unsigned long 
+get_fs_long(unsigned long *adr)
+	{ return(fuword(adr)); }
+
+static void 
+put_fs_byte(unsigned char val, char *adr)
+	{ (void)subyte(adr,val); }
+
+static void 
+put_fs_word(unsigned short val, short *adr)
+	{ (void)susword(adr,val); }
+
+static void 
+put_fs_long(u_long val, unsigned long *adr)
+	{ (void)suword(adr,val); }
 
 int
 math_emulate(struct trapframe * info)
@@ -528,7 +545,8 @@ for fcom , ??? ATS */
 	math_abort(info,SIGFPE);
 }
 
-static void fpop(void)
+static void
+fpop(void)
 {
 	unsigned long tmp;
 
@@ -538,7 +556,8 @@ static void fpop(void)
 	I387.swd |= tmp;
 }
 
-static void fpush(void)
+static void
+fpush(void)
 {
 	unsigned long tmp;
 
@@ -548,7 +567,8 @@ static void fpush(void)
 	I387.swd |= tmp;
 }
 
-static void fxchg(temp_real_unaligned * a, temp_real_unaligned * b)
+static void 
+fxchg(temp_real_unaligned * a, temp_real_unaligned * b)
 {
 	temp_real_unaligned c;
 
@@ -557,7 +577,8 @@ static void fxchg(temp_real_unaligned * a, temp_real_unaligned * b)
 	*b = c;
 }
 
-static temp_real_unaligned * __st(int i)
+static temp_real_unaligned *
+__st(int i)
 {
 	i += I387.swd >> 11;
 	i &= 7;
@@ -581,7 +602,8 @@ static int __regoffset[] = {
 
 #define REG(x) (curproc->p_md.md_regs[__regoffset[(x)]])
 
-static char * sib(struct trapframe * info, int mod)
+static char *
+sib(struct trapframe * info, int mod)
 {
 	unsigned char ss,index,base;
 	long offset = 0;
@@ -610,7 +632,8 @@ static char * sib(struct trapframe * info, int mod)
 	return (char *) offset;
 }
 
-char * ea(struct trapframe * info, unsigned short code)
+static char *
+ea(struct trapframe * info, unsigned short code)
 {
 	unsigned char mod,rm;
 	long * tmp;
@@ -659,8 +682,8 @@ char * ea(struct trapframe * info, unsigned short code)
  * other than temporary real format. All other cals are strictly temp_real.
  */
 
-void get_short_real(temp_real * tmp,
-	struct trapframe * info, unsigned short code)
+static void 
+get_short_real(temp_real * tmp, struct trapframe * info, unsigned short code)
 {
 	char * addr;
 	short_real sr;
@@ -670,8 +693,8 @@ void get_short_real(temp_real * tmp,
 	short_to_temp(&sr,tmp);
 }
 
-void get_long_real(temp_real * tmp,
-	struct trapframe * info, unsigned short code)
+static void
+get_long_real(temp_real * tmp, struct trapframe * info, unsigned short code)
 {
 	char * addr;
 	long_real lr;
@@ -682,8 +705,8 @@ void get_long_real(temp_real * tmp,
 	long_to_temp(&lr,tmp);
 }
 
-void get_temp_real(temp_real * tmp,
-	struct trapframe * info, unsigned short code)
+static void
+get_temp_real(temp_real * tmp, struct trapframe * info, unsigned short code)
 {
 	char * addr;
 
@@ -693,8 +716,8 @@ void get_temp_real(temp_real * tmp,
 	tmp->exponent = get_fs_word(4 + (unsigned short *) addr);
 }
 
-void get_short_int(temp_real * tmp,
-	struct trapframe * info, unsigned short code)
+static void
+get_short_int(temp_real * tmp, struct trapframe * info, unsigned short code)
 {
 	char * addr;
 	temp_int ti;
@@ -707,8 +730,8 @@ void get_short_int(temp_real * tmp,
 	int_to_real(&ti,tmp);
 }
 
-void get_long_int(temp_real * tmp,
-	struct trapframe * info, unsigned short code)
+static void
+get_long_int(temp_real * tmp, struct trapframe * info, unsigned short code)
 {
 	char * addr;
 	temp_int ti;
@@ -721,8 +744,8 @@ void get_long_int(temp_real * tmp,
 	int_to_real(&ti,tmp);
 }
 
-void get_longlong_int(temp_real * tmp,
-	struct trapframe * info, unsigned short code)
+static void 
+get_longlong_int(temp_real * tmp, struct trapframe * info, unsigned short code)
 {
 	char * addr;
 	temp_int ti;
@@ -751,7 +774,8 @@ __asm__("addl %0,%0 ; adcl %1,%1\n\t" \
 __asm__("addl %4,%0 ; adcl $0,%1":"=r" (low),"=r" (high) \
 :"0" (low),"1" (high),"r" ((unsigned long) (val)))
 
-void get_BCD(temp_real * tmp, struct trapframe * info, unsigned short code)
+static void
+get_BCD(temp_real * tmp, struct trapframe * info, unsigned short code)
 {
 	int k;
 	char * addr;
@@ -772,7 +796,8 @@ void get_BCD(temp_real * tmp, struct trapframe * info, unsigned short code)
 	int_to_real(&i,tmp);
 }
 
-void put_short_real(const temp_real * tmp,
+static void 
+put_short_real(const temp_real * tmp,
 	struct trapframe * info, unsigned short code)
 {
 	char * addr;
@@ -784,7 +809,8 @@ void put_short_real(const temp_real * tmp,
 	put_fs_long(sr,(unsigned long *) addr);
 }
 
-void put_long_real(const temp_real * tmp,
+static void
+put_long_real(const temp_real * tmp,
 	struct trapframe * info, unsigned short code)
 {
 	char * addr;
@@ -797,7 +823,8 @@ void put_long_real(const temp_real * tmp,
 	put_fs_long(lr.b, 1 + (unsigned long *) addr);
 }
 
-void put_temp_real(const temp_real * tmp,
+static void
+put_temp_real(const temp_real * tmp,
 	struct trapframe * info, unsigned short code)
 {
 	char * addr;
@@ -809,7 +836,8 @@ void put_temp_real(const temp_real * tmp,
 	put_fs_word(tmp->exponent, 4 + (short *) addr);
 }
 
-void put_short_int(const temp_real * tmp,
+static void
+put_short_int(const temp_real * tmp,
 	struct trapframe * info, unsigned short code)
 {
 	char * addr;
@@ -823,7 +851,8 @@ void put_short_int(const temp_real * tmp,
 	put_fs_word(ti.a,(short *) addr);
 }
 
-void put_long_int(const temp_real * tmp,
+static void
+put_long_int(const temp_real * tmp,
 	struct trapframe * info, unsigned short code)
 {
 	char * addr;
@@ -837,7 +866,8 @@ void put_long_int(const temp_real * tmp,
 	put_fs_long(ti.a,(unsigned long *) addr);
 }
 
-void put_longlong_int(const temp_real * tmp,
+static void
+put_longlong_int(const temp_real * tmp,
 	struct trapframe * info, unsigned short code)
 {
 	char * addr;
@@ -860,7 +890,8 @@ __asm__("divl %6 ; xchgl %1,%2 ; divl %6" \
 	:"=d" (rem),"=a" (low),"=r" (high) \
 	:"0" (0),"1" (high),"2" (low),"c" (10))
 
-void put_BCD(const temp_real * tmp,struct trapframe * info, unsigned short code)
+static void
+put_BCD(const temp_real * tmp,struct trapframe * info, unsigned short code)
 {
 	int k,rem;
 	char * addr;
@@ -894,7 +925,8 @@ void put_BCD(const temp_real * tmp,struct trapframe * info, unsigned short code)
  */
 
 
-static void shift(int * c)
+static void
+shift(int * c)
 {
 	__asm__("movl (%0),%%eax ; addl %%eax,(%0)\n\t"
 		"movl 4(%0),%%eax ; adcl %%eax,4(%0)\n\t"
@@ -903,7 +935,8 @@ static void shift(int * c)
 		::"r" ((long) c):"ax");
 }
 
-static void mul64(const temp_real * a, const temp_real * b, int * c)
+static void
+mul64(const temp_real * a, const temp_real * b, int * c)
 {
 	__asm__("movl (%0),%%eax\n\t"
 		"mull (%1)\n\t"
@@ -927,7 +960,8 @@ static void mul64(const temp_real * a, const temp_real * b, int * c)
 		:"ax","dx");
 }
 
-void fmul(const temp_real * src1, const temp_real * src2, temp_real * result)
+static void
+fmul(const temp_real * src1, const temp_real * src2, temp_real * result)
 {
 	int i,sign;
 	int tmp[4] = {0,0,0,0};
@@ -966,7 +1000,8 @@ void fmul(const temp_real * src1, const temp_real * src2, temp_real * result)
  * temporary real division routine.
  */
 
-static void shift_left(int * c)
+static void 
+shift_left(int * c)
 {
 	__asm__ __volatile__("movl (%0),%%eax ; addl %%eax,(%0)\n\t"
 		"movl 4(%0),%%eax ; adcl %%eax,4(%0)\n\t"
@@ -975,13 +1010,15 @@ static void shift_left(int * c)
 		::"r" ((long) c):"ax");
 }
 
-static void shift_right(int * c)
+static void
+shift_right(int * c)
 {
 	__asm__("shrl $1,12(%0) ; rcrl $1,8(%0) ; rcrl $1,4(%0) ; rcrl $1,(%0)"
 		::"r" ((long) c));
 }
 
-static int try_sub(int * a, int * b)
+static int
+try_sub(int * a, int * b)
 {
 	char ok;
 
@@ -993,7 +1030,8 @@ static int try_sub(int * a, int * b)
 	return ok;
 }
 
-static void div64(int * a, int * b, int * c)
+static void
+div64(int * a, int * b, int * c)
 {
 	int tmp[4];
 	int i;
@@ -1016,7 +1054,8 @@ static void div64(int * a, int * b, int * c)
 	}
 }
 
-void fdiv(const temp_real * src1, const temp_real * src2, temp_real * result)
+static void
+fdiv(const temp_real * src1, const temp_real * src2, temp_real * result)
 {
 	int i,sign;
 	int a[4],b[4],tmp[4] = {0,0,0,0};
@@ -1118,7 +1157,8 @@ static void unsignify(temp_real * a)
 	}
 }
 
-void fadd(const temp_real * src1, const temp_real * src2, temp_real * result)
+static void
+fadd(const temp_real * src1, const temp_real * src2, temp_real * result)
 {
 	temp_real a,b;
 	int x1,x2,shift;
@@ -1168,7 +1208,8 @@ void fadd(const temp_real * src1, const temp_real * src2, temp_real * result)
 
 #define clear_Cx() (I387.swd &= ~0x4500)
 
-static void normalize(temp_real * a)
+static void 
+normalize(temp_real * a)
 {
 	int i = a->exponent & 0x7fff;
 	int sign = a->exponent & 0x8000;
@@ -1186,7 +1227,8 @@ static void normalize(temp_real * a)
 	a->exponent = i | sign;
 }
 
-void ftst(const temp_real * a)
+static void
+ftst(const temp_real * a)
 {
 	temp_real b;
 
@@ -1200,7 +1242,8 @@ void ftst(const temp_real * a)
 		set_C3();
 }
 
-void fcom(const temp_real * src1, const temp_real * src2)
+static void
+fcom(const temp_real * src1, const temp_real * src2)
 {
 	temp_real a;
 
@@ -1210,7 +1253,8 @@ void fcom(const temp_real * src1, const temp_real * src2)
 	ftst(&a);
 }
 
-void fucom(const temp_real * src1, const temp_real * src2)
+static void
+fucom(const temp_real * src1, const temp_real * src2)
 {
 	fcom(src1,src2);
 }
@@ -1234,7 +1278,8 @@ void fucom(const temp_real * src1, const temp_real * src2)
  * if the temp-real number simply won't fit in a short- or long-real.)
  */
 
-void short_to_temp(const short_real * a, temp_real * b)
+static void
+short_to_temp(const short_real * a, temp_real * b)
 {
 	if (!(*a & 0x7fffffff)) {
 		b->a = b->b = 0;
@@ -1251,7 +1296,8 @@ void short_to_temp(const short_real * a, temp_real * b)
 	b->a = 0;
 }
 
-void long_to_temp(const long_real * a, temp_real * b)
+static void
+long_to_temp(const long_real * a, temp_real * b)
 {
 	if (!a->a && !(a->b & 0x7fffffff)) {
 		b->a = b->b = 0;
@@ -1268,7 +1314,8 @@ void long_to_temp(const long_real * a, temp_real * b)
 	b->a = a->a<<11;
 }
 
-void temp_to_short(const temp_real * a, short_real * b)
+static void 
+temp_to_short(const temp_real * a, short_real * b)
 {
 	if (!(a->exponent & 0x7fff)) {
 		*b = (a->exponent)?0x80000000UL:0;
@@ -1294,7 +1341,8 @@ void temp_to_short(const temp_real * a, short_real * b)
 	}
 }
 
-void temp_to_long(const temp_real * a, long_real * b)
+static void
+temp_to_long(const temp_real * a, long_real * b)
 {
 	if (!(a->exponent & 0x7fff)) {
 		b->a = 0;
@@ -1329,7 +1377,8 @@ void temp_to_long(const temp_real * a, long_real * b)
 	}
 }
 
-void frndint(const temp_real * a, temp_real * b)
+static void 
+frndint(const temp_real * a, temp_real * b)
 {
 	int shift =  16383 + 63 - (a->exponent & 0x7fff);
 	unsigned long underflow;
@@ -1396,7 +1445,8 @@ void frndint(const temp_real * a, temp_real * b)
 		b->exponent = 0;
 }
 
-void Fscale(const temp_real *a, const temp_real *b, temp_real *c)
+static void
+Fscale(const temp_real *a, const temp_real *b, temp_real *c)
 {
 	temp_int ti;
 
@@ -1412,7 +1462,8 @@ void Fscale(const temp_real *a, const temp_real *b, temp_real *c)
 		c->exponent += ti.a;
 }
 
-void real_to_int(const temp_real * a, temp_int * b)
+static void
+real_to_int(const temp_real * a, temp_int * b)
 {
 	int shift =  16383 + 63 - (a->exponent & 0x7fff);
 	unsigned long underflow;
@@ -1467,7 +1518,8 @@ void real_to_int(const temp_real * a, temp_int * b)
 	}
 }
 
-void int_to_real(const temp_int * a, temp_real * b)
+static void
+int_to_real(const temp_int * a, temp_real * b)
 {
 	b->a = a->a;
 	b->b = a->b;

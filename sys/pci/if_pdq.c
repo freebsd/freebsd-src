@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.6 1995/05/30 08:13:04 rgrimes Exp $
+ * $Id: if_pdq.c,v 1.7 1995/10/13 19:48:06 wollman Exp $
  *
  */
 
@@ -436,7 +436,7 @@ static char *pdq_pci_probe (pcici_t config_id, pcidi_t device_id);
 static void pdq_pci_attach(pcici_t config_id, int unit);
 static u_long pdq_pci_count;
 
-struct pci_device fpadevice = {
+static struct pci_device fpadevice = {
     "fpa",
     pdq_pci_probe,
     pdq_pci_attach,
@@ -576,7 +576,7 @@ feaintr(
     return unit;
 }
 
-void
+static void
 pdq_eisa_subprobe(
     pdq_uint32_t iobase,
     pdq_uint32_t *maddr,
@@ -590,7 +590,7 @@ pdq_eisa_subprobe(
     *msize = (PDQ_OS_IORD_8(iobase + PDQ_EISA_MEM_ADD_MASK_0) + 4) << 8;
 }
 
-void
+static void
 pdq_eisa_devinit(
     pdq_softc_t *sc)
 {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.23 1995/08/24 10:45:15 dfr Exp $
+ * $Id: nfs_serv.c,v 1.24 1995/08/24 11:39:31 davidg Exp $
  */
 
 /*
@@ -709,7 +709,7 @@ nfsrv_write(nfsd, slp, procp, mrq)
 	register u_long *tl;
 	register long t1;
 	caddr_t bpos;
-	int error = 0, rdonly, cache, siz, len, xfer, forat_ret = 1;
+	int error = 0, rdonly, cache, len, forat_ret = 1;
 	int ioflags, aftat_ret = 1, retlen, zeroing, adjust;
 	int stable = NFSV3WRITE_FILESYNC;
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
@@ -903,7 +903,6 @@ nfsrv_writegather(ndp, slp, procp, mrq)
 	struct mbuf *mb, *mb2, *mreq, *mrep, *md;
 	struct vnode *vp;
 	struct uio io, *uiop = &io;
-	off_t off;
 	u_quad_t frev, cur_usec;
 
 #ifndef nolint
@@ -1521,15 +1520,13 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 	struct mbuf *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
-	register struct nfs_fattr *fp;
 	struct vattr va, dirfor, diraft;
 	register struct vattr *vap = &va;
 	register u_long *tl;
 	struct nameidata nd;
-	register caddr_t cp;
 	register long t1;
 	caddr_t bpos;
-	int error = 0, cache, len, tsize, dirfor_ret = 1, diraft_ret = 1;
+	int error = 0, cache, len, dirfor_ret = 1, diraft_ret = 1;
 	u_long major, minor;
 	enum vtype vtyp;
 	char *cp2;
@@ -1679,7 +1676,7 @@ nfsrv_remove(nfsd, slp, procp, mrq)
 	int error = 0, cache, len, dirfor_ret = 1, diraft_ret = 1;
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	char *cp2;
-	struct mbuf *mb, *mreq, *mb2;
+	struct mbuf *mb, *mreq;
 	struct vnode *vp, *dirp;
 	struct vattr dirfor, diraft;
 	nfsfh_t nfh;
@@ -1770,7 +1767,7 @@ nfsrv_rename(nfsd, slp, procp, mrq)
 	int tdirfor_ret = 1, tdiraft_ret = 1;
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	char *cp2;
-	struct mbuf *mb, *mreq, *mb2;
+	struct mbuf *mb, *mreq;
 	struct nameidata fromnd, tond;
 	struct vnode *fvp, *tvp, *tdvp, *fdirp = (struct vnode *)0;
 	struct vnode *tdirp = (struct vnode *)0;
@@ -1986,7 +1983,7 @@ nfsrv_link(nfsd, slp, procp, mrq)
 	int error = 0, rdonly, cache, len, dirfor_ret = 1, diraft_ret = 1;
 	int getret = 1, v3 = (nfsd->nd_flag & ND_NFSV3);
 	char *cp2;
-	struct mbuf *mb, *mreq, *mb2;
+	struct mbuf *mb, *mreq;
 	struct vnode *vp, *xp, *dirp = (struct vnode *)0;
 	struct vattr dirfor, diraft, at;
 	nfsfh_t nfh, dnfh;
@@ -2087,7 +2084,7 @@ nfsrv_symlink(nfsd, slp, procp, mrq)
 	register u_long *tl;
 	register long t1;
 	struct nfsv2_sattr *sp;
-	char *bpos, *cp, *pathcp = (char *)0, *cp2;
+	char *bpos, *pathcp = (char *)0, *cp2;
 	struct uio io;
 	struct iovec iv;
 	int error = 0, cache, len, len2, dirfor_ret = 1, diraft_ret = 1;
@@ -2351,7 +2348,7 @@ nfsrv_rmdir(nfsd, slp, procp, mrq)
 	int error = 0, cache, len, dirfor_ret = 1, diraft_ret = 1;
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	char *cp2;
-	struct mbuf *mb, *mreq, *mb2;
+	struct mbuf *mb, *mreq;
 	struct vnode *vp, *dirp = (struct vnode *)0;
 	struct vattr dirfor, diraft;
 	nfsfh_t nfh;
@@ -3339,10 +3336,7 @@ nfsrv_null(nfsd, slp, procp, mrq)
 	struct proc *procp;
 	struct mbuf **mrq;
 {
-	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
-	caddr_t dpos = nfsd->nd_dpos;
-	struct ucred *cred = &nfsd->nd_cr;
+	struct mbuf *mrep = nfsd->nd_mrep;
 	caddr_t bpos;
 	int error = NFSERR_RETVOID, cache;
 	struct mbuf *mb, *mreq;
@@ -3366,10 +3360,7 @@ nfsrv_noop(nfsd, slp, procp, mrq)
 	struct proc *procp;
 	struct mbuf **mrq;
 {
-	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
-	caddr_t dpos = nfsd->nd_dpos;
-	struct ucred *cred = &nfsd->nd_cr;
+	struct mbuf *mrep = nfsd->nd_mrep;
 	caddr_t bpos;
 	int error, cache;
 	struct mbuf *mb, *mreq;

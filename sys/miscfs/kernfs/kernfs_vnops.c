@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.9 1995/07/31 08:52:02 mpp Exp $
+ * $Id: kernfs_vnops.c,v 1.10 1995/07/31 09:52:21 mpp Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 #define	WRITE_MODE	(S_IWUSR|S_IRUSR|S_IRGRP|S_IROTH)
 #define DIR_MODE	(S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
 
-struct kern_target {
+static struct kern_target {
 	char *kt_name;
 	void *kt_data;
 #define	KTT_NULL 1
@@ -203,7 +203,7 @@ kernfs_xwrite(kt, buf, len)
  * vp is the current namei directory
  * ndp is the name to locate in that directory...
  */
-int
+static int
 kernfs_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode * a_dvp;
@@ -325,7 +325,7 @@ bad:;
 	return (error);
 }
 
-int
+static int
 kernfs_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -389,7 +389,7 @@ kernfs_access(ap)
 }
 
 
-int
+static int
 kernfs_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -453,7 +453,7 @@ kernfs_getattr(ap)
 	return (error);
 }
 
-int
+static int
 kernfs_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnode *a_vp;
@@ -544,7 +544,7 @@ kernfs_write(ap)
 }
 
 
-int
+static int
 kernfs_readdir(ap)
 	struct vop_readdir_args /* {
 		struct vnode *a_vp;
@@ -595,7 +595,7 @@ kernfs_readdir(ap)
 	return (error);
 }
 
-int
+static int
 kernfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -614,7 +614,7 @@ kernfs_inactive(ap)
 	return (0);
 }
 
-int
+static int
 kernfs_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -634,7 +634,7 @@ kernfs_reclaim(ap)
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
-int
+static int
 kernfs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -672,7 +672,7 @@ kernfs_pathconf(ap)
  * Print out the contents of a kernfs vnode.
  */
 /* ARGSUSED */
-int
+static int
 kernfs_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -684,7 +684,7 @@ kernfs_print(ap)
 }
 
 /*void*/
-int
+static int
 kernfs_vfree(ap)
 	struct vop_vfree_args /* {
 		struct vnode *a_pvp;
@@ -699,7 +699,7 @@ kernfs_vfree(ap)
 /*
  * Kernfs vnode unsupported operation
  */
-int
+static int
 kernfs_enotsupp()
 {
 
@@ -709,20 +709,10 @@ kernfs_enotsupp()
 /*
  * Kernfs "should never get here" operation
  */
-int
+static int
 kernfs_badop()
 {
 	return (EIO);
-}
-
-/*
- * kernfs vnode null operation
- */
-int
-kernfs_nullop()
-{
-
-	return (0);
 }
 
 #define kernfs_create ((int (*) __P((struct  vop_create_args *)))kernfs_enotsupp)
@@ -761,7 +751,7 @@ kernfs_nullop()
 #define kernfs_bwrite ((int (*) __P((struct  vop_bwrite_args *)))kernfs_enotsupp)
 
 int (**kernfs_vnodeop_p)();
-struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, kernfs_lookup },	/* lookup */
 	{ &vop_create_desc, kernfs_create },	/* create */
@@ -805,7 +795,7 @@ struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, kernfs_bwrite },	/* bwrite */
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
-struct vnodeopv_desc kernfs_vnodeop_opv_desc =
+static struct vnodeopv_desc kernfs_vnodeop_opv_desc =
 	{ &kernfs_vnodeop_p, kernfs_vnodeop_entries };
 
 VNODEOP_SET(kernfs_vnodeop_opv_desc);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.25 1995/07/29 11:41:02 bde Exp $
+ *	$Id: route.c,v 1.26 1995/10/16 19:09:40 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -373,7 +373,6 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 	register struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	struct sockaddr *ndst;
-	u_long prflags = 0UL;
 #define senderr(x) { error = x ; goto bad; }
 
 	if ((rnh = rt_tables[dst->sa_family]) == 0)

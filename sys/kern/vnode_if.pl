@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.5 1995/09/04 00:20:18 dyson Exp $
+# $Id: vnode_if.sh,v 1.6 1995/09/11 16:05:16 bde Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -275,7 +275,7 @@ $AWK 'function kill_surrounding_ws (s) {
 	}
 
 	function generate_operation_vp_offsets() {
-		printf ("int %s_vp_offsets[] = {\n", name);
+		printf ("static int %s_vp_offsets[] = {\n", name);
 		# as a side effect, figure out the releflags
 		releflags = "";
 		vpnum = 0;

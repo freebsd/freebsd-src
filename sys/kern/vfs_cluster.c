@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.21 1995/09/23 21:12:45 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.22 1995/10/09 03:19:49 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -122,7 +122,6 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 {
 	struct buf *bp, *rbp;
 	daddr_t blkno, rablkno, origlblkno;
-	long flags;
 	int error, num_ra, alreadyincore;
 	int i;
 	int seq;
@@ -192,7 +191,6 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 			alreadyincore = (int) incore(vp, rablkno);
 			if (!alreadyincore) {
 				if (inmem(vp, rablkno)) {
-					struct buf *bpt;
 					if (vp->v_maxra < rablkno)
 						vp->v_maxra = rablkno + 1;
 					continue;
@@ -402,7 +400,6 @@ cluster_callback(bp)
 {
 	struct cluster_save *b_save;
 	struct buf **bpp, *tbp;
-	caddr_t cp;
 	int error = 0;
 
 	/*
@@ -566,7 +563,6 @@ cluster_wbuild(vp, last_bp, size, start_lbn, len, lbn)
 {
 	struct cluster_save *b_save;
 	struct buf *bp, *tbp, *pb;
-	caddr_t cp;
 	int i, j, s;
 
 #ifdef DIAGNOSTIC

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.8 1995/06/27 11:06:39 dfr Exp $
+ * $Id: nfs_socket.c,v 1.9 1995/08/24 11:04:04 davidg Exp $
  */
 
 /*
@@ -1180,7 +1180,6 @@ nfs_rephead(siz, nd, slp, err, cache, frev, mrq, mbp, bposp)
 		if (nd->nd_flag & ND_KERBFULL) {
 		    register struct nfsuid *nuidp;
 		    struct timeval ktvin, ktvout;
-		    NFSKERBKEYSCHED_T keys;	/* stores key schedule */
 
 		    for (nuidp = NUIDHASH(slp, nd->nd_cr.cr_uid)->lh_first;
 			nuidp != 0; nuidp = nuidp->nu_hash.le_next) {
@@ -1915,7 +1914,6 @@ nfs_getreq(nd, nfsd, has_header)
 	struct mbuf *mrep, *md;
 	register struct nfsuid *nuidp;
 	struct timeval tvin, tvout;
-	NFSKERBKEYSCHED_T keys;	/* stores key schedule */
 
 	mrep = nd->nd_mrep;
 	md = nd->nd_md;

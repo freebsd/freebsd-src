@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.12 1995/05/30 08:09:28 rgrimes Exp $
+ *	$Id: in_pcb.c,v 1.13 1995/09/21 17:55:49 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -178,7 +178,6 @@ in_pcbladdr(inp, nam, plocal_sin)
 	struct sockaddr_in **plocal_sin;
 {
 	struct in_ifaddr *ia;
-	struct sockaddr_in *ifaddr = 0;
 	register struct sockaddr_in *sin = mtod(nam, struct sockaddr_in *);
 
 	if (nam->m_len != sizeof (*sin))
