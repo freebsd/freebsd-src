@@ -5,6 +5,30 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000303:
+	CMSG_XXX macros offset in <sys/socket.h> has changed to
+	conform RFC-2292.  All affected applications have been
+	corrected.  The i386 platform's offsets haven't changed, but
+	the alpha's did.  When you build and install new kernel on
+	FreeBSD/alpha, you must also do a make world.
+
+20000225:
+	OpenSSH has been added to FreeBSD.  This may conflict with the
+	ports/security/ssh port since it installs binaries into
+	/usr/bin and the port goes into /usr/local/bin.  Most paths
+	have /usr/bin in the path before /usr/local/bin, so problems
+	may arise.  If you don't want OpenSSH, add NO_OPENSSH=yes to
+	your make.conf.
+
+	You will also need to enable OpenSSH in /etc/rc.conf if you
+	want to run the new servers.  You may need to move your host
+	key and other config files from /usr/local/etc to /etc/ssh.
+
+	OpenSSH's command line parsing, available options and default
+	settings aren't the same as ssh, so some care needs to be
+	taken in its operation.  One should do a full audit of all
+	configuration settings.
+
 20000205:
 	The xinstall problem has kinda sorta been corrected.  The 
 	following is known to work by the author of UPDATING.  It
