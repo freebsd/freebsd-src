@@ -1730,7 +1730,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				if (desc->bp != NULL)
 					TAILQ_INSERT_HEAD(
 						&softc->snd_bio_queue.queue,
-						bp, b_act);
+						bp, bio_queue);
 				TAILQ_INSERT_HEAD(&softc->snd_ccb_queue,
 						  &atio->ccb_h,
 						  periph_links.tqe);
@@ -1738,7 +1738,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				if (desc->bp != NULL)
 					TAILQ_INSERT_HEAD(
 						&softc->rcv_bio_queue.queue,
-						bp, b_act);
+						bp, bio_queue);
 				TAILQ_INSERT_HEAD(&softc->rcv_ccb_queue,
 						  &atio->ccb_h,
 						  periph_links.tqe);
