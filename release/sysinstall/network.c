@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.2 1995/06/03 04:22:33 jkh Exp $
+ * $Id: network.c,v 1.6.2.3 1995/06/03 23:23:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -80,7 +80,9 @@ mediaInitNetwork(Device *dev)
 	    val = msgGetInput(attach, "Warning:  SLIP is rather poorly supported in this revision\nof the installation due to the lack of a dialing utility.\nIf you can use PPP for this instead then you're much better\noff doing so, otherwise SLIP works fairly well for *hardwired*\nlinks.  Please edit the following slattach command for\ncorrectness (default here is VJ compression, Hardware flow-control,\nignore carrier and 9600 baud data rate) and hit return to execute it.");
 	    if (!val)
 		return FALSE;
-	    else if (!vsystem(attach))
+	    else
+		strcpy(attach, val);
+	    if (!vsystem(attach))
 		return TRUE;
 	    else {
 		msgConfirm("slattach returned a bad status!  Please verify that\nthe command is correct and try again.");
