@@ -368,6 +368,8 @@ madt_setup_io(void)
 	}
 		    
 	/* First, we run through adding I/O APIC's. */
+	if (madt->PCATCompat)
+		ioapic_enable_mixed_mode();
 	madt_walk_table(madt_parse_apics, NULL);
 
 	/* Second, we run through the table tweaking interrupt sources. */
