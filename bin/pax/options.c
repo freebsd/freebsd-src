@@ -103,31 +103,31 @@ FSUB fsub[] = {
 /* 0: OLD BINARY CPIO */
 	{"bcpio", 5120, sizeof(HD_BCPIO), 1, 0, 0, 1, bcpio_id, cpio_strd,
 	bcpio_rd, bcpio_endrd, cpio_stwr, bcpio_wr, cpio_endwr, cpio_trail,
-	rd_wrfile, wr_rdfile, bad_opt},
+	NULL, rd_wrfile, wr_rdfile, bad_opt},
 
 /* 1: OLD OCTAL CHARACTER CPIO */
 	{"cpio", 5120, sizeof(HD_CPIO), 1, 0, 0, 1, cpio_id, cpio_strd,
 	cpio_rd, cpio_endrd, cpio_stwr, cpio_wr, cpio_endwr, cpio_trail,
-	rd_wrfile, wr_rdfile, bad_opt},
+	NULL, rd_wrfile, wr_rdfile, bad_opt},
 
 /* 2: SVR4 HEX CPIO */
 	{"sv4cpio", 5120, sizeof(HD_VCPIO), 1, 0, 0, 1, vcpio_id, cpio_strd,
 	vcpio_rd, vcpio_endrd, cpio_stwr, vcpio_wr, cpio_endwr, cpio_trail,
-	rd_wrfile, wr_rdfile, bad_opt},
+	NULL, rd_wrfile, wr_rdfile, bad_opt},
 
 /* 3: SVR4 HEX CPIO WITH CRC */
 	{"sv4crc", 5120, sizeof(HD_VCPIO), 1, 0, 0, 1, crc_id, crc_strd,
 	vcpio_rd, vcpio_endrd, crc_stwr, vcpio_wr, cpio_endwr, cpio_trail,
-	rd_wrfile, wr_rdfile, bad_opt},
+	NULL, rd_wrfile, wr_rdfile, bad_opt},
 
 /* 4: OLD TAR */
 	{"tar", 10240, BLKMULT, 0, 1, BLKMULT, 0, tar_id, no_op,
-	tar_rd, tar_endrd, no_op, tar_wr, tar_endwr, tar_trail,
+	tar_rd, tar_endrd, no_op, tar_wr, tar_endwr, NULL, tar_trail,
 	rd_wrfile, wr_rdfile, tar_opt},
 
 /* 5: POSIX USTAR */
 	{"ustar", 10240, BLKMULT, 0, 1, BLKMULT, 0, ustar_id, ustar_strd,
-	ustar_rd, tar_endrd, ustar_stwr, ustar_wr, tar_endwr, tar_trail,
+	ustar_rd, tar_endrd, ustar_stwr, ustar_wr, tar_endwr, NULL, tar_trail,
 	rd_wrfile, wr_rdfile, bad_opt},
 };
 #define F_OCPIO	0	/* format when called as cpio -6 */
@@ -975,9 +975,8 @@ tar_options(int argc, char **argv)
 	}
 }
 
-int
-mkpath(path)
-	char *path;
+static int
+mkpath(char *path)
 {
 	struct stat sb;
 	char *slash;
@@ -1299,7 +1298,7 @@ printflg(unsigned int flg)
 static int
 c_frmt(const void *a, const void *b)
 {
-	return(strcmp(((FSUB *)a)->name, ((FSUB *)b)->name));
+	return(strcmp(((const FSUB *)a)->name, ((const FSUB *)b)->name));
 }
 
 /*
@@ -1353,22 +1352,23 @@ bad_opt(void)
  */
 
 int
-opt_add(char *str)
+opt_add(const char *str)
 {
 	OPLIST *opt;
 	char *frpt;
 	char *pt;
 	char *endpt;
+	char *lstr;
 
 	if ((str == NULL) || (*str == '\0')) {
 		paxwarn(0, "Invalid option name");
 		return(-1);
 	}
-	if ((str = strdup(str)) == NULL) {
+	if ((lstr = strdup(str)) == NULL) {
 		paxwarn(0, "Unable to allocate space for option list");
 		return(-1);
 	}
-	frpt = endpt = str;
+	frpt = endpt = lstr;
 
 	/*
 	 * break into name and values pieces and stuff each one into a
@@ -1380,12 +1380,12 @@ opt_add(char *str)
 			*endpt = '\0';
 		if ((pt = strchr(frpt, '=')) == NULL) {
 			paxwarn(0, "Invalid options format");
-			free(str);
+			free(lstr);
 			return(-1);
 		}
 		if ((opt = (OPLIST *)malloc(sizeof(OPLIST))) == NULL) {
 			paxwarn(0, "Unable to allocate space for option list");
-			free(str);
+			free(lstr);
 			return(-1);
 		}
 		*pt++ = '\0';

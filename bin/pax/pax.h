@@ -72,6 +72,11 @@
 #define ISTAPE		3	/* tape drive */
 #define ISPIPE		4	/* pipe/socket */
 
+typedef struct archd ARCHD;
+typedef struct fsub FSUB;
+typedef struct oplist OPLIST;
+typedef struct pattern PATTERN;
+
 /*
  * Format Specific Routine Table
  *
@@ -82,8 +87,8 @@
  * independent of the archive format. Data flow in and out of the format
  * dependent routines pass pointers to ARCHD structure (described below).
  */
-typedef struct {
-	char *name;		/* name of format, this is the name the user */
+struct fsub {
+	const char *name;	/* name of format, this is the name the user */
 				/* gives to -x option to select it. */
 	int bsz;		/* default block size. used when the user */
 				/* does not specify a blocksize for writing */
@@ -108,12 +113,13 @@ typedef struct {
 	int inhead;		/* is the trailer encoded in a valid header? */
 				/* if not, trailers are assumed to be found */
 				/* in invalid headers (i.e like tar) */
-	int (*id)();		/* checks if a buffer is a valid header */
+	int (*id)(char *, int);	/* checks if a buffer is a valid header */
 				/* returns 1 if it is, o.w. returns a 0 */
-	int (*st_rd)();		/* initialize routine for read. so format */
+	int (*st_rd)(void);	/* initialize routine for read. so format */
 				/* can set up tables etc before it starts */
 				/* reading an archive */
-	int (*rd)();		/* read header routine. passed a pointer to */
+	int (*rd)(ARCHD *, char *);
+				/* read header routine. passed a pointer to */
 				/* ARCHD. It must extract the info from the */
 				/* format and store it in the ARCHD struct. */
 				/* This routine is expected to fill all the */
@@ -125,12 +131,12 @@ typedef struct {
 				/* padding and the number of bytes of data */
 				/* which follow the header. This info is */
 				/* used skip to the next file header */
-	off_t (*end_rd)();	/* read cleanup. Allows format to clean up */
+	off_t (*end_rd)(void);	/* read cleanup. Allows format to clean up */
 				/* and MUST RETURN THE LENGTH OF THE TRAILER */
 				/* RECORD (so append knows how many bytes */
 				/* to move back to rewrite the trailer) */
-	int (*st_wr)();		/* initialize routine for write operations */
-	int (*wr)();		/* write archive header. Passed an ARCHD */
+	int (*st_wr)(void);	/* initialize routine for write operations */
+	int (*wr)(ARCHD *);	/* write archive header. Passed an ARCHD */
 				/* filled with the specs on the next file to */
 				/* archived. Returns a 1 if no file data is */
 				/* is to be stored; 0 if file data is to be */
@@ -140,29 +146,30 @@ typedef struct {
 				/* the proper padding can be added after */
 				/* file data. This routine must NEVER write */
 				/* a flawed archive header. */
-	int (*end_wr)();	/* end write. write the trailer and do any */
+	int (*end_wr)(void);	/* end write. write the trailer and do any */
 				/* other format specific functions needed */
 				/* at the end of an archive write */
-	int (*trail)();		/* returns 0 if a valid trailer, -1 if not */
+	int (*trail_cpio)(ARCHD *);
+	int (*trail_tar)(char *, int, int *);
+				/* returns 0 if a valid trailer, -1 if not */
 				/* For formats which encode the trailer */
 				/* outside of a valid header, a return value */
 				/* of 1 indicates that the block passed to */
 				/* it can never contain a valid header (skip */
 				/* this block, no point in looking at it)  */
-				/* CAUTION: parameters to this function are */
-				/* different for trailers inside or outside */
-				/* of headers. See get_head() for details */
-	int (*rd_data)();	/* read/process file data from the archive */
-	int (*wr_data)();	/* write/process file data to the archive */
-	int (*options)();	/* process format specific options (-o) */
-} FSUB;
+	int (*rd_data)(ARCHD *, int, off_t *);
+				/* read/process file data from the archive */
+	int (*wr_data)(ARCHD *, int, off_t *);
+				/* write/process file data to the archive */
+	int (*options)(void);	/* process format specific options (-o) */
+};
 
 /*
  * Pattern matching structure
  *
  * Used to store command line patterns
  */
-typedef struct pattern {
+struct pattern {
 	char		*pstr;		/* pattern to match, user supplied */
 	char		*pend;		/* end of a prefix match */
 	char		*chdname;	/* the dir to change to if not NULL.  */
@@ -171,7 +178,7 @@ typedef struct pattern {
 #define MTCH		0x1		/* pattern has been matched */
 #define DIR_MTCH	0x2		/* pattern matched a directory */
 	struct pattern	*fow;		/* next pattern */
-} PATTERN;
+};
 
 /*
  * General Archive Structure (used internal to pax)
@@ -185,7 +192,7 @@ typedef struct pattern {
  * may be required if and when the supporting operating system removes all
  * restrictions on the length of pathnames it will resolve.
  */
-typedef struct {
+struct archd {
 	int nlen;			/* file name length */
 	char name[PAXPATHLEN+1];	/* file name */
 	int ln_nlen;			/* link name length */
@@ -210,18 +217,18 @@ typedef struct {
 #define PAX_HLK		8		/* hard link */
 #define PAX_HRG		9		/* hard link to a regular file */
 #define PAX_CTG		10		/* high performance file */
-} ARCHD;
+};
 
 /*
  * Format Specific Options List
  *
  * Used to pass format options to the format options handler
  */
-typedef struct oplist {
+struct oplist {
 	char		*name;		/* option variable name e.g. name= */
 	char		*value;		/* value for option variable */
 	struct oplist	*fow;		/* next option */
-} OPLIST;
+};
 
 /*
  * General Macros

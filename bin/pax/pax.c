@@ -102,7 +102,7 @@ int	rmleadslash = 0;	/* remove leading '/' from pathnames */
 int	exit_val;		/* exit value */
 int	docrc;			/* check/create file crc */
 char	*dirptr;		/* destination dir in a copy */
-char	*argv0;			/* root of argv[0] */
+const	char *argv0;		/* root of argv[0] */
 sigset_t s_mask;		/* signal mask for cleanup critical sect */
 FILE	*listf;			/* file pointer to print file list to */
 char	*tempfile;		/* tempfile to use for mkstemp(3) */
@@ -231,7 +231,7 @@ char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
 int
 main(int argc, char *argv[])
 {
-	char *tmpdir;
+	const char *tmpdir;
 	size_t tdlen;
 
 	(void) setlocale(LC_ALL, "");

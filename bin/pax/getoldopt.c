@@ -13,12 +13,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "pax.h"
+#include "extern.h"
+
 int
-getoldopt(int argc, char **argv, char *optstring)
+getoldopt(int argc, char **argv, const char *optstring)
 {
 	static char	*key;		/* Points to next keyletter */
 	static char	use_getopt;	/* !=0 if argv[1][0] was '-' */

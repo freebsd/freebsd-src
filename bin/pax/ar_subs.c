@@ -365,7 +365,7 @@ wr_archive(ARCHD *arcn, int is_app)
 	int hlk;
 	int wr_one;
 	off_t cnt;
-	int (*wrf)();
+	int (*wrf)(ARCHD *);
 	int fd = -1;
 	time_t now;
 
@@ -1053,7 +1053,7 @@ next_head(ARCHD *arcn)
 			/*
 			 * this format has trailers outside of valid headers
 			 */
-			if ((ret = (*frmt->trail)(hdbuf,in_resync,&cnt)) == 0){
+			if ((ret = (*frmt->trail_tar)(hdbuf,in_resync,&cnt)) == 0){
 				/*
 				 * valid trailer found, drain input as required
 				 */
@@ -1097,10 +1097,9 @@ next_head(ARCHD *arcn)
 
 	/*
 	 * ok got a valid header, check for trailer if format encodes it in the
-	 * the header. NOTE: the parameters are different than trailer routines
-	 * which encode trailers outside of the header!
+	 * the header.
 	 */
-	if (frmt->inhead && ((*frmt->trail)(arcn) == 0)) {
+	if (frmt->inhead && ((*frmt->trail_cpio)(arcn) == 0)) {
 		/*
 		 * valid trailer found, drain input as required
 		 */

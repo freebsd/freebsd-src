@@ -43,11 +43,11 @@ int	 revnamecmp(const FTSENT *, const FTSENT *);
 int	 statcmp(const FTSENT *, const FTSENT *);
 int	 revstatcmp(const FTSENT *, const FTSENT *);
 
-void	 printcol(DISPLAY *);
-void	 printlong(DISPLAY *);
+void	 printcol(const DISPLAY *);
+void	 printlong(const DISPLAY *);
 int	 printname(const char *);
-void	 printscol(DISPLAY *);
-void	 printstream(DISPLAY *);
+void	 printscol(const DISPLAY *);
+void	 printstream(const DISPLAY *);
 void	 usage(void);
 size_t	 len_octal(const char *, int);
 int	 prn_octal(const char *);
@@ -62,3 +62,4 @@ extern  char    *ansi_coloff;
 extern  char    *attrs_off;
 extern  char    *enter_bold;
 #endif
+extern int	termwidth;

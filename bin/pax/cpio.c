@@ -219,7 +219,7 @@ rd_ln_nm(ARCHD *arcn)
 	 * check the length specified for bogus values
 	 */
 	if ((arcn->sb.st_size == 0) ||
-	    (arcn->sb.st_size >= sizeof(arcn->ln_name))) {
+	    ((size_t)arcn->sb.st_size >= sizeof(arcn->ln_name))) {
 #		ifdef NET2_STAT
 		paxwarn(1, "Cpio link name length is invalid: %lu",
 		    arcn->sb.st_size);
