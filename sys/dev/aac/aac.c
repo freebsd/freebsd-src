@@ -2636,7 +2636,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 					TAILQ_REMOVE(&sc->aac_container_tqh, co,
 						     co_link);
 					mtx_unlock(&sc->aac_container_lock);
-					FREE(co, M_AACBUF);
+					free(co, M_AACBUF);
 					co = co_next;
 				} else {
 					co->co_found = 0;
