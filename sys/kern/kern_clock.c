@@ -458,7 +458,6 @@ profclock(frame)
 		 * if there is no related user location yet, don't
 		 * bother trying to count it.
 		 */
-		td = curthread;
 		if (td->td_proc->p_flag & P_PROFIL)
 			addupc_intr(td, CLKF_PC(frame), 1);
 	}
