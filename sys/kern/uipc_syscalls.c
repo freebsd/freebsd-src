@@ -132,7 +132,8 @@ socket(td, uap)
 	if (error)
 		goto done2;
 	fhold(fp);
-	error = socreate(uap->domain, &so, uap->type, uap->protocol, td);
+	error = socreate(uap->domain, &so, uap->type, uap->protocol,
+	    td->td_proc->p_ucred, td);
 	if (error) {
 		if (fdp->fd_ofiles[fd] == fp) {
 			fdp->fd_ofiles[fd] = NULL;
@@ -478,10 +479,12 @@ socketpair(td, uap)
 	int fd, error, sv[2];
 
 	mtx_lock(&Giant);
-	error = socreate(uap->domain, &so1, uap->type, uap->protocol, td);
+	error = socreate(uap->domain, &so1, uap->type, uap->protocol,
+	    td->td_proc->p_ucred, td);
 	if (error)
 		goto done2;
-	error = socreate(uap->domain, &so2, uap->type, uap->protocol, td);
+	error = socreate(uap->domain, &so2, uap->type, uap->protocol,
+	    td->td_proc->p_ucred, td);
 	if (error)
 		goto free1;
 	error = falloc(td, &fp1, &fd);

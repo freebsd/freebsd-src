@@ -53,6 +53,7 @@ struct	nfsmount {
 	u_char	nm_fh[NFSX_V3FHMAX];	/* File handle of root dir */
 	int	nm_fhsize;		/* Size of root file handle */
 	struct	socket *nm_so;		/* Rpc socket */
+	struct	ucred *nm_cred;		/* Cached mount-time credential */
 	int	nm_sotype;		/* Type of socket */
 	int	nm_soproto;		/* and protocol */
 	int	nm_soflags;		/* pr_flags for socket protocol */
