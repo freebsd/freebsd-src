@@ -120,7 +120,8 @@ static void
 test_send_wantsignal(const char *testname, int sock1, int sock2)
 {
 
-	shutdown(sock2, SHUT_WR);
+	if (shutdown(sock2, SHUT_WR) < 0)
+		err(-1, "%s: shutdown", testname);
 	signal_setup(testname);
 	test_send(testname, sock2);
 	if (!got_signal())
@@ -138,7 +139,8 @@ test_send_dontsignal(const char *testname, int sock1, int sock2)
 	i = 1;
 	if (setsockopt(sock2, SOL_SOCKET, SO_NOSIGPIPE, &i, sizeof(i)) < 0)
 		err(-1, "%s: setsockopt(SOL_SOCKET, SO_NOSIGPIPE)", testname);
-	shutdown(sock2, SHUT_WR);
+	if (shutdown(sock2, SHUT_WR) < 0)
+		err(-1, "%s: shutdown", testname);
 	signal_setup(testname);
 	test_send(testname, sock2);
 	if (got_signal())
@@ -152,7 +154,8 @@ static void
 test_write_wantsignal(const char *testname, int sock1, int sock2)
 {
 
-	shutdown(sock2, SHUT_WR);
+	if (shutdown(sock2, SHUT_WR) < 0)
+		err(-1, "%s: shutdown", testname);
 	signal_setup(testname);
 	test_write(testname, sock2);
 	if (!got_signal())
@@ -170,7 +173,8 @@ test_write_dontsignal(const char *testname, int sock1, int sock2)
 	i = 1;
 	if (setsockopt(sock2, SOL_SOCKET, SO_NOSIGPIPE, &i, sizeof(i)) < 0)
 		err(-1, "%s: setsockopt(SOL_SOCKET, SO_NOSIGPIPE)", testname);
-	shutdown(sock2, SHUT_WR);
+	if (shutdown(sock2, SHUT_WR) < 0)
+		err(-1, "%s: shutdown", testname);
 	signal_setup(testname);
 	test_write(testname, sock2);
 	if (got_signal())
