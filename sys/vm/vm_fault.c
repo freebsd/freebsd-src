@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.82 1998/03/07 20:45:47 dyson Exp $
+ * $Id: vm_fault.c,v 1.83 1998/05/04 03:01:43 dyson Exp $
  */
 
 /*
@@ -231,7 +231,7 @@ RetryFault:;
 
 	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
 		panic("vm_fault: fault on nofault entry, addr: %lx",
-			vaddr);
+		    (u_long)vaddr);
 	}
 
 	/*
