@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.57 2001/11/20 16:08:37 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.59 2002/09/23 05:51:20 simonb Exp $	*/
 /*	$FreeBSD$	*/
 
 /* Also already merged from netbsd:
@@ -521,7 +521,6 @@ uhub_activate(device_ptr_t self, enum devact act)
 	switch (act) {
 	case DVACT_ACTIVATE:
 		return (EOPNOTSUPP);
-		break;
 
 	case DVACT_DEACTIVATE:
 		if (hub == NULL) /* malfunctioning hub */
