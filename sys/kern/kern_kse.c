@@ -1297,7 +1297,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 			 * when thread limit reached, act like that the thread
 			 * has already done an upcall.
 			 */
-		    	if (p->p_numthreads > max_threads_per_proc) {
+			if (p->p_numthreads > max_threads_per_proc) {
 				if (td->td_standin != NULL) {
 					thread_stash(td->td_standin);
 					td->td_standin = NULL;
@@ -1352,10 +1352,10 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	unbound = TD_IS_UNBOUND(td);
 
 	mtx_lock_spin(&sched_lock);
-       	if ((worktodo = kg->kg_last_assigned))
-       		worktodo = TAILQ_NEXT(worktodo, td_runq);
-       	else
-       		worktodo = TAILQ_FIRST(&kg->kg_runq);
+	if ((worktodo = kg->kg_last_assigned))
+		worktodo = TAILQ_NEXT(worktodo, td_runq);
+	else
+		worktodo = TAILQ_FIRST(&kg->kg_runq);
 
 	/*
 	 * Permanently bound threads never upcall but they may 
@@ -1402,10 +1402,10 @@ justreturn:
 		td->td_flags |= TDF_UPCALLING;
 
 		/* there may be more work since we re-locked schedlock */
-       		if ((worktodo = kg->kg_last_assigned))
-       			worktodo = TAILQ_NEXT(worktodo, td_runq);
-       		else
-       			worktodo = TAILQ_FIRST(&kg->kg_runq);
+		if ((worktodo = kg->kg_last_assigned))
+			worktodo = TAILQ_NEXT(worktodo, td_runq);
+		else
+			worktodo = TAILQ_FIRST(&kg->kg_runq);
 	} else if (unbound) {
 		/*
 		 * We are an unbound thread, looking to
@@ -1553,7 +1553,7 @@ justreturn:
 bad:
 	/*
 	 * Things are going to be so screwed we should just kill the process.
- 	 * how do we do that?
+	 * how do we do that?
 	 */
 	PROC_LOCK(td->td_proc);
 	psignal(td->td_proc, SIGSEGV);
