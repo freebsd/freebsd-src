@@ -226,6 +226,9 @@ afterinstall:
 	@cd  ${DESTDIR}${LIBDIR}; \
 	rm -f libdes.a; \
 	ln -sf lib${LIB}.a libdes.a
+	@cd  ${DESTDIR}${INCDIR}; \
+	rm -f des.h; \
+	ln -sf openssh/des.h
 .if !defined(NOPROFILE)
 	@cd  ${DESTDIR}${LIBDIR}; \
 	rm -f libdes_p.a; \
