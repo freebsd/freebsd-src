@@ -1,4 +1,6 @@
 /*
+ * $FreeBSD$
+ *
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
  * media and as a part of the software program in whole or part.  Users
@@ -635,7 +637,7 @@ printif(proc, transp, prefix, arg)
 	char *prefix;
 	char *arg;
 {
-	f_print(fout, "\tif (!svc_%s(%s, xdr_%s, %s%s)) {\n",
+	f_print(fout, "\tif (!svc_%s(%s, xdr_%s, (char *)%s%s)) {\n",
 		proc, transp, arg, prefix, arg);
 }
 

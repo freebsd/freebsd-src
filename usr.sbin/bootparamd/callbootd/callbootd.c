@@ -118,8 +118,9 @@ char **argv;
      } else {
        clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_WHOAMI,
-			       xdr_bp_whoami_arg, &whoami_arg,
-			       xdr_bp_whoami_res, &stat_whoami_res, eachres_whoami);
+			       (xdrproc_t)xdr_bp_whoami_arg, (char *)&whoami_arg,
+			       xdr_bp_whoami_res, (char *)&stat_whoami_res,
+			       (resultproc_t)eachres_whoami);
        exit(0);
      }
 
@@ -138,8 +139,9 @@ char **argv;
     } else {
       clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_GETFILE,
-			       xdr_bp_getfile_arg, &getfile_arg,
-			       xdr_bp_getfile_res, &stat_getfile_res,eachres_getfile);
+			       xdr_bp_getfile_arg, (char *)&getfile_arg,
+			       xdr_bp_getfile_res, (char *)&stat_getfile_res,
+			       (resultproc_t)eachres_getfile);
       exit(0);
     }
 

@@ -90,7 +90,7 @@ remember_host(struct in_addr addr)
 }
 
 int
-rusers_reply(char *replyp, struct sockaddr_in *raddrp)
+rusers_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 {
         int x, idle;
         char date[32], idle_time[64], remote[64];
@@ -192,7 +192,7 @@ onehost(char *host)
 	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, xdr_void, NULL, xdr_utmpidlearr, &up, tv) != RPC_SUCCESS)
                 errx(1, "%s", clnt_sperror(rusers_clnt, ""));
         addr.sin_addr.s_addr = *(int *)hp->h_addr;
-        rusers_reply((char *)&up, &addr);
+        rusers_reply((caddr_t)&up, &addr);
 }
 
 void

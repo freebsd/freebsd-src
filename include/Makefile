@@ -7,13 +7,13 @@
 # links.
 
 CLEANFILES= osreldate.h version vers.c
-SUBDIR= rpcsvc
+SUBDIR= rpcsvc rpc
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	dlfcn.h elf.h err.h fnmatch.h fstab.h \
 	fts.h glob.h grp.h strhash.h \
 	hesiod.h histedit.h ieeefp.h ifaddrs.h iso646.h langinfo.h \
 	libgen.h limits.h link.h locale.h malloc.h memory.h mpool.h \
-	ndbm.h netdb.h nl_types.h nlist.h nsswitch.h objformat.h \
+	netconfig.h ndbm.h netdb.h nl_types.h nlist.h nsswitch.h objformat.h \
 	paths.h pthread.h pthread_np.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h \
 	search.h setjmp.h sgtty.h \
@@ -27,10 +27,6 @@ FILES+=	math.h
 ARPAFILES=	ftp.h inet.h nameser.h nameser_compat.h telnet.h tftp.h
 
 PROTOFILES=	dumprestore.h routed.h rwhod.h talkd.h timed.h
-
-RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
-		rpc.h rpc_com.h rpc_msg.h svc.h svc_auth.h types.h xdr.h \
-		auth_des.h des.h des_crypt.h
 
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 
@@ -86,9 +82,6 @@ beforeinstall: ${SHARED}
 	cd ${.CURDIR}/protocols; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${PROTOFILES} ${DESTDIR}/usr/include/protocols
-	cd ${.CURDIR}/rpc; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${RPCFILES} ${DESTDIR}/usr/include/rpc
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.OBJDIR}/osreldate.h \
 		${DESTDIR}/usr/include

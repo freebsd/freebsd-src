@@ -1,3 +1,5 @@
+/*	$NetBSD: rpc_msg.h,v 1.11 2000/06/02 22:57:56 fvdl Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -38,10 +40,10 @@
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
-#ifndef _RPC_RPCMSG_H
-#define _RPC_RPCMSG_H
+#ifndef _RPC_RPC_MSG_H
+#define _RPC_RPC_MSG_H
 
-#define RPC_MSG_VERSION		((u_long) 2)
+#define RPC_MSG_VERSION		((u_int32_t) 2)
 #define RPC_SERVICE_PORT	((u_short) 2048)
 
 /*
@@ -88,8 +90,8 @@ struct accepted_reply {
 	enum accept_stat	ar_stat;
 	union {
 		struct {
-			u_int32_t	low;
-			u_int32_t	high;
+			rpcvers_t low;
+			rpcvers_t high;
 		} AR_versions;
 		struct {
 			caddr_t	where;
@@ -108,8 +110,8 @@ struct rejected_reply {
 	enum reject_stat rj_stat;
 	union {
 		struct {
-			u_int32_t low;
-			u_int32_t high;
+			rpcvers_t low;
+			rpcvers_t high;
 		} RJ_versions;
 		enum auth_stat RJ_why;  /* why authentication did not work */
 	} ru;
@@ -134,10 +136,10 @@ struct reply_body {
  * Body of an rpc request call.
  */
 struct call_body {
-	u_int32_t cb_rpcvers;	/* must be equal to two */
-	u_int32_t cb_prog;
-	u_int32_t cb_vers;
-	u_int32_t cb_proc;
+	rpcvers_t cb_rpcvers;	/* must be equal to two */
+	rpcprog_t cb_prog;
+	rpcvers_t cb_vers;
+	rpcproc_t cb_proc;
 	struct opaque_auth cb_cred;
 	struct opaque_auth cb_verf; /* protocol specific - provided by client */
 };
@@ -183,14 +185,30 @@ extern bool_t	xdr_callhdr	__P((XDR *, struct rpc_msg *));
  */
 extern bool_t	xdr_replymsg	__P((XDR *, struct rpc_msg *));
 
+
+/*
+ * XDR routine to handle a accepted rpc reply.
+ * xdr_accepted_reply(xdrs, rej)
+ * 	XDR *xdrs;
+ * 	struct accepted_reply *rej;
+ */
+extern bool_t	xdr_accepted_reply	__P((XDR *, struct accepted_reply *));
+
+/*
+ * XDR routine to handle a rejected rpc reply.
+ * xdr_rejected_reply(xdrs, rej)
+ * 	XDR *xdrs;
+ * 	struct rejected_reply *rej;
+ */
+extern bool_t	xdr_rejected_reply	__P((XDR *, struct rejected_reply *));
+
 /*
  * Fills in the error part of a reply message.
  * _seterr_reply(msg, error)
  * 	struct rpc_msg *msg;
  * 	struct rpc_err *error;
  */
-struct rpc_err;
 extern void	_seterr_reply	__P((struct rpc_msg *, struct rpc_err *));
 __END_DECLS
 
-#endif /* !_RPC_RPCMSG_H */
+#endif /* !_RPC_RPC_MSG_H */

@@ -26,7 +26,9 @@
  * $FreeBSD$
  */
 
+#include <signal.h>
 #include <pthread.h>
+#include <pthread_np.h>
 
 /*
  * Weak symbols: All libc internal usage of these functions should
@@ -37,9 +39,13 @@
  * between application locks and libc locks (threads holding the
  * latter can't be allowed to exit/terminate).
  */
+#pragma weak	_pthread_cond_init=_pthread_cond_init_stub
+#pragma weak	_pthread_cond_signal=_pthread_cond_signal_stub
+#pragma weak	_pthread_cond_wait=_pthread_cond_wait_stub
 #pragma weak	_pthread_getspecific=_pthread_getspecific_stub
 #pragma weak	_pthread_key_create=_pthread_key_create_stub
 #pragma weak	_pthread_key_delete=_pthread_key_delete_stub
+#pragma weak	_pthread_main_np=_pthread_main_np_stub
 #pragma weak	_pthread_mutex_destroy=_pthread_mutex_destroy_stub
 #pragma weak	_pthread_mutex_init=_pthread_mutex_init_stub
 #pragma weak	_pthread_mutex_lock=_pthread_mutex_lock_stub
@@ -50,13 +56,40 @@
 #pragma weak	_pthread_mutexattr_settype=_pthread_mutexattr_settype_stub
 #pragma weak	_pthread_once=_pthread_once_stub
 #pragma weak	_pthread_self=_pthread_self_stub
+#pragma weak	_pthread_rwlock_init=_pthread_rwlock_init_stub
+#pragma weak	_pthread_rwlock_rdlock=_pthread_rwlock_rdlock_stub
+#pragma weak	_pthread_rwlock_tryrdlock=_pthread_rwlock_tryrdlock_stub
+#pragma weak	_pthread_rwlock_trywrloc=_pthread_rwlock_trywrlock_stub
+#pragma weak	_pthread_rwlock_unlock=_pthread_rwlock_unlock_stub
+#pragma weak	_pthread_rwlock_wrlock=_pthread_rwlock_wrlock_stub 
 #pragma weak	_pthread_setspecific=_pthread_setspecific_stub
+#pragma weak	_pthread_sigmask=_pthread_sigmask_stub
 
+/* Define a null pthread structure just to satisfy _pthread_self. */
 struct pthread {
 };
 
 static struct pthread	main_thread;
 
+int
+_pthread_cond_init_stub(pthread_cond_t *cond,
+    const pthread_condattr_t *cond_attr)
+{
+	return (0);
+}
+
+int
+_pthread_cond_signal_stub(pthread_cond_t *cond)
+{
+	return (0);
+}
+
+int
+_pthread_cond_wait_stub(pthread_cond_t *cond,
+    pthread_mutex_t *mutex)
+{
+	return (0);
+}
 
 void *
 _pthread_getspecific_stub(pthread_key_t key)
@@ -74,6 +107,12 @@ int
 _pthread_key_delete_stub(pthread_key_t key)
 {
 	return (0);
+}
+
+int
+_pthread_main_np_stub()
+{
+	return (-1);
 }
 
 int
@@ -130,6 +169,49 @@ _pthread_once_stub(pthread_once_t *once_control, void (*init_routine) (void))
 	return (0);
 }
 
+int
+_pthread_rwlock_init_stub(pthread_rwlock_t *rwlock,
+    const pthread_rwlockattr_t *attr)
+{
+	return (0); 
+}
+
+int
+_pthread_rwlock_destroy_stub(pthread_rwlock_t *rwlock)
+{
+	return (0);
+}
+
+int
+_pthread_rwlock_rdlock_stub(pthread_rwlock_t *rwlock)
+{
+	return (0);
+}
+
+int
+_pthread_rwlock_tryrdlock_stub(pthread_rwlock_t *rwlock)
+{
+	return (0);
+}
+
+int
+_pthread_rwlock_trywrlock_stub(pthread_rwlock_t *rwlock)
+{
+	return (0);
+}
+
+int
+_pthread_rwlock_unlock_stub(pthread_rwlock_t *rwlock)
+{
+	return (0);
+}
+
+int
+_pthread_rwlock_wrlock_stub(pthread_rwlock_t *rwlock)
+{
+	return (0);
+}
+
 pthread_t
 _pthread_self_stub(void)
 {
@@ -140,4 +222,15 @@ int
 _pthread_setspecific_stub(pthread_key_t key, const void *value)
 {
 	return (0);
+}
+
+int
+_pthread_sigmask_stub(int how, const sigset_t *set, sigset_t *oset)
+{
+	/*
+	* No need to use _sigprocmask, since we know that the threads
+	* library is not linked in.
+	*
+	*/
+	return (sigprocmask(how, set, oset));
 }

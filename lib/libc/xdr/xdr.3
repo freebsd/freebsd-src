@@ -5,7 +5,44 @@
 .Dt XDR 3
 .Os
 .Sh NAME
-.Nm xdr
+.Nm xdr ,
+.Nm xdr_array ,
+.Nm xdr_bool ,
+.Nm xdr_bytes ,
+.Nm xdr_char ,
+.Nm xdr_destroy ,
+.Nm xdr_double ,
+.Nm xdr_enum ,
+.Nm xdr_float ,
+.Nm xdr_free ,
+.Nm xdr_getpos ,
+.Nm xdr_hyper ,
+.Nm xdr_inline ,
+.Nm xdr_int ,
+.Nm xdr_long ,
+.Nm xdr_longlong_t ,
+.Nm xdrmem_create ,
+.Nm xdr_opaque ,
+.Nm xdr_pointer ,
+.Nm xdrrec_create ,
+.Nm xdrrec_endofrecord ,
+.Nm xdrrec_eof ,
+.Nm xdrrec_skiprecord ,
+.Nm xdr_reference ,
+.Nm xdr_setpos ,
+.Nm xdr_short ,
+.Nm xdrstdio_create ,
+.Nm xdr_string ,
+.Nm xdr_u_char ,
+.Nm xdr_u_hyper ,
+.Nm xdr_u_int ,
+.Nm xdr_u_long ,
+.Nm xdr_u_longlong_t ,
+.Nm xdr_u_short ,
+.Nm xdr_union ,
+.Nm xdr_vector ,
+.Nm xdr_void ,
+.Nm xdr_wrapstring
 .Nd "library routines for external data representation"
 .Sh LIBRARY
 .Lb libc
@@ -212,6 +249,17 @@ although the
 stream instances need not guarantee this.
 .Pp
 .It Xo
+.Ft int
+.Xc
+.It Xo
+.Fn xdr_hyper "XDR *xdrs" "longlong_t *llp"
+.Xc
+A filter primitive that translates between ANSI C
+.Vt "long long"
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.It Xo
 .Ft "long *"
 .Xc
 .It Xo
@@ -258,6 +306,17 @@ This routine returns one if it succeeds, zero otherwise.
 .Pp
 A filter primitive that translates between C
 .Vt long
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.It Xo
+.Ft int
+.Xc
+.It Xo
+.Fn xdr_longlong_t "XDR *xdrs" "longlong_t *llp"
+.Xc
+A filter primitive that translates between ANSI C
+.Vt "long long"
 integers and their external representations.
 This routine returns one if it succeeds, zero otherwise.
 .Pp
@@ -568,6 +627,19 @@ This routine returns one if it succeeds, zero otherwise.
 .Ft int
 .Xc
 .It Xo
+.Fn xdr_u_hyper "XDR *xdrs" "u_longlong_t *ullp"
+.Xc
+A filter primitive that translates between
+.Vt unsigned
+ANSI C
+.Vt long long
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.It Xo
+.Ft int
+.Xc
+.It Xo
 .Fn xdr_u_int "XDR *xdrs" "unsigned *up"
 .Xc
 .Pp
@@ -585,6 +657,19 @@ This routine returns one if it succeeds, zero otherwise.
 .Pp
 A filter primitive that translates between C
 .Vt "unsigned long"
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.It Xo
+.Ft int
+.Xc
+.It Xo
+.Fn xdr_u_longlong_t "XDR *xdrs" "u_longlong_t *ullp"
+.Xc
+A filter primitive that translates between
+.Vt unsigned
+ANSI C
+.Vt "long long"
 integers and their external representations.
 This routine returns one if it succeeds, zero otherwise.
 .Pp

@@ -44,7 +44,7 @@
  */
 
 %/* From: #pragma ident	"@(#)key_prot.x	1.7	94/04/29 SMI" */
-%
+%/* $FreeBSD$ */
 %/* Copyright (c)  1990, 1991 Sun Microsystems, Inc. */
 %
 %/* 

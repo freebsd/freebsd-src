@@ -58,9 +58,6 @@ static const char rcsid[] =
 
 #include <netdb.h>
 #include <arpa/inet.h>
-#ifdef ISO
-#include <netiso/iso.h>
-#endif
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
@@ -76,6 +73,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
+#include <netdb.h>
 
 /* Global defs */
 #ifdef DEBUG
@@ -103,15 +101,23 @@ struct timeval	ktv;
 NFSKERBKEYSCHED_T kerb_keysched;
 #endif
 
-void	nonfs __P((int));
-void	reapchild __P((int));
-void	setbindhost __P((struct sockaddr_in *ia, const char *bindhost));
+#define	MAXNFSDCNT	20
+#define	DEFNFSDCNT	 4
+pid_t	children[MAXNFSDCNT];	/* PIDs of children */
+int	nfsdcnt;		/* number of children */
+
+void	cleanup(int);
+void	killchildren(void);
+void	nonfs (int);
+void	reapchild (int);
+int	setbindhost (struct addrinfo **ia, const char *bindhost, struct addrinfo hints);
 #ifdef OLD_SETPROCTITLE
 #ifdef __FreeBSD__
-void	setproctitle __P((char *));
+void	setproctitle (char *);
 #endif
 #endif
-void	usage __P((void));
+void	unregistration (void);
+void	usage (void);
 
 /*
  * Nfs server daemon mostly just a user context for nfssvc()
@@ -119,7 +125,7 @@ void	usage __P((void));
  * 1 - do file descriptor and signal cleanup
  * 2 - fork the nfsd(s)
  * 3 - create server socket(s)
- * 4 - register socket with portmap
+ * 4 - register socket with rpcbind
  *
  * For connectionless protocols, just pass the socket into the kernel via.
  * nfssvc().
@@ -127,7 +133,8 @@ void	usage __P((void));
  * socket from accept, pass the msgsock into the kernel via. nfssvc().
  * The arguments are:
  *	-c - support iso cltp clients
- *	-r - reregister with portmapper
+ *	-r - reregister with rpcbind
+ *	-d - unregister with rpcbind
  *	-t - support tcp nfs clients
  *	-u - support udp nfs clients
  * followed by "n" which is the number of nfsds' to fork off
@@ -138,20 +145,20 @@ main(argc, argv, envp)
 	char *argv[], *envp[];
 {
 	struct nfsd_args nfsdargs;
-	struct sockaddr_in inetaddr, inetpeer;
-#ifdef ISO
-	struct sockaddr_iso isoaddr, isopeer;
-	char *cp;
-#endif
+	struct addrinfo *ai_udp, *ai_tcp, *ai_udp6, *ai_tcp6, hints;
+	struct netconfig *nconf_udp, *nconf_tcp, *nconf_udp6, *nconf_tcp6;
+	struct netbuf nb_udp, nb_tcp, nb_udp6, nb_tcp6;
+	struct sockaddr_in inetpeer;
+	struct sockaddr_in6 inet6peer;
 	fd_set ready, sockbits;
+	fd_set v4bits, v6bits;
 	int ch, cltpflag, connect_type_cnt, i, len, maxsock, msgsock;
-	int nfsdcnt, nfssvc_flag, on, reregister, sock, tcpflag, tcpsock;
-	int tp4cnt, tp4flag, tpipcnt, tpipflag, udpflag;
-	int bindhostc = 0, bindanyflag;
+	int nfssvc_flag, on = 1, unregister, reregister, sock;
+	int tcp6sock, ip6flag, tcpflag, tcpsock;
+	int udpflag, ecode, s;
+	int bindhostc = 0, bindanyflag, rpcbreg, rpcbregcnt;
 	char **bindhost = NULL;
-#ifdef notyet
-	int tp4sock, tpipsock;
-#endif
+	pid_t pid;
 #ifdef NFSKERB
 	struct group *grp;
 	struct passwd *pwd;
@@ -184,18 +191,11 @@ main(argc, argv, envp)
 	LastArg = envp[-1] + strlen(envp[-1]);
 #endif
 
-#define	MAXNFSDCNT	20
-#define	DEFNFSDCNT	 4
 	nfsdcnt = DEFNFSDCNT;
-	cltpflag = reregister = tcpflag = tp4cnt = tp4flag = tpipcnt = 0;
-	bindanyflag = tpipflag = udpflag = 0;
-#ifdef ISO
-#define	GETOPT	"ach:n:rtu"
-#define	USAGE	"[-acrtu] [-n num_servers] [-h bindip]"
-#else
-#define	GETOPT	"ah:n:rtu"
-#define	USAGE	"[-artu] [-n num_servers] [-h bindip]"
-#endif
+	cltpflag = unregister = reregister = tcpflag = 0;
+	bindanyflag = udpflag = ip6flag = 0;
+#define	GETOPT	"ah:n:rdtu"
+#define	USAGE	"[-ardtu] [-n num_servers] [-h bindip]"
 	while ((ch = getopt(argc, argv, GETOPT)) != -1)
 		switch (ch) {
 		case 'a':
@@ -221,25 +221,15 @@ main(argc, argv, envp)
 		case 'r':
 			reregister = 1;
 			break;
+		case 'd':
+			unregister = 1;
+			break;
 		case 't':
 			tcpflag = 1;
 			break;
 		case 'u':
 			udpflag = 1;
 			break;
-#ifdef ISO
-		case 'c':
-			cltpflag = 1;
-			break;
-#ifdef notyet
-		case 'i':
-			tp4cnt = 1;
-			break;
-		case 'p':
-			tpipcnt = 1;
-			break;
-#endif /* notyet */
-#endif /* ISO */
 		default:
 		case '?':
 			usage();
@@ -263,6 +253,13 @@ main(argc, argv, envp)
 			nfsdcnt = DEFNFSDCNT;
 		}
 	}
+	ip6flag = 1;
+	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	if (s < 0 && (errno == EPROTONOSUPPORT ||
+	   errno == EPFNOSUPPORT || errno == EAFNOSUPPORT))
+		ip6flag = 0;
+	else
+		close(s);
 
 	if (bindhostc == 0 || bindanyflag) {
 		bindhostc++;
@@ -278,33 +275,126 @@ main(argc, argv, envp)
 		daemon(0, 0);
 		(void)signal(SIGHUP, SIG_IGN);
 		(void)signal(SIGINT, SIG_IGN);
-		(void)signal(SIGQUIT, SIG_IGN);
 		(void)signal(SIGSYS, nonfs);
+		(void)signal(SIGUSR1, cleanup);
+		/*
+		 * nfsd sits in the kernel most of the time.  It needs
+		 * to ignore SIGTERM/SIGQUIT in order to stay alive as long
+		 * as possible during a shutdown, otherwise loopback
+		 * mounts will not be able to unmount. 
+		 */
 		(void)signal(SIGTERM, SIG_IGN);
+		(void)signal(SIGQUIT, SIG_IGN);
 	}
 	(void)signal(SIGCHLD, reapchild);
-
-	if (reregister) {
-		if (udpflag &&
-		    (!pmap_set(RPCPROG_NFS, 2, IPPROTO_UDP, NFS_PORT) ||
-		     !pmap_set(RPCPROG_NFS, 3, IPPROTO_UDP, NFS_PORT)))
-			err(1, "can't register with portmap for UDP");
-		if (tcpflag &&
-		    (!pmap_set(RPCPROG_NFS, 2, IPPROTO_TCP, NFS_PORT) ||
-		     !pmap_set(RPCPROG_NFS, 3, IPPROTO_TCP, NFS_PORT)))
-			err(1, "can't register with portmap for TCP");
-		exit(0);
+	if (unregister) {
+		unregistration();
+		exit (0);
 	}
+	if (reregister) {
+		if (udpflag) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_DGRAM;
+			hints.ai_protocol = IPPROTO_UDP;
+			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_udp);
+			if (ecode != 0) {
+				syslog(LOG_ERR, "getaddrinfo udp: %s",
+				    gai_strerror(ecode));
+				exit(1);
+			}
+			nconf_udp = getnetconfigent("udp");
+			if (nconf_udp == NULL)
+				err(1, "getnetconfigent udp failed");
+			nb_udp.buf = ai_udp->ai_addr;
+			nb_udp.len = nb_udp.maxlen = ai_udp->ai_addrlen;
+			if ((!rpcb_set(RPCPROG_NFS, 2, nconf_udp, &nb_udp)) ||
+			    (!rpcb_set(RPCPROG_NFS, 3, nconf_udp, &nb_udp)))
+				err(1, "rpcb_set udp failed");
+			freeaddrinfo(ai_udp);
+		}
+		if (udpflag && ip6flag) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET6;
+			hints.ai_socktype = SOCK_DGRAM;
+			hints.ai_protocol = IPPROTO_UDP;
+			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_udp6);
+			if (ecode != 0) {
+				syslog(LOG_ERR, "getaddrinfo udp6: %s",
+				   gai_strerror(ecode));
+				exit(1);
+			}
+			nconf_udp6 = getnetconfigent("udp6");
+			if (nconf_udp6 == NULL)
+				err(1, "getnetconfigent udp6 failed");
+			nb_udp6.buf = ai_udp6->ai_addr;
+			nb_udp6.len = nb_udp6.maxlen = ai_udp6->ai_addrlen;
+			if ((!rpcb_set(RPCPROG_NFS, 2, nconf_udp6, &nb_udp6)) ||
+			    (!rpcb_set(RPCPROG_NFS, 3, nconf_udp6, &nb_udp6)))
+				err(1, "rpcb_set udp6 failed");
+			freeaddrinfo(ai_udp6);
+		}
+		if (tcpflag) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			hints.ai_protocol = IPPROTO_TCP;
+			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_tcp);
+			if (ecode != 0) {
+				syslog(LOG_ERR, "getaddrinfo tcp: %s",
+				   gai_strerror(ecode));
+				exit(1);
+			}
+			nconf_tcp = getnetconfigent("tcp");
+			if (nconf_tcp == NULL)
+				err(1, "getnetconfigent tcp failed");
+			nb_tcp.buf = ai_tcp->ai_addr;
+			nb_tcp.len = nb_tcp.maxlen = ai_tcp->ai_addrlen;
+			if ((!rpcb_set(RPCPROG_NFS, 2, nconf_tcp, &nb_tcp)) ||
+			    (!rpcb_set(RPCPROG_NFS, 3, nconf_tcp, &nb_tcp)))
+				err(1, "rpcb_set tcp failed");
+			freeaddrinfo(ai_tcp);
+		}
+		if (tcpflag && ip6flag) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET6;
+			hints.ai_socktype = SOCK_STREAM;
+			hints.ai_protocol = IPPROTO_TCP;
+			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_tcp6);
+			if (ecode != 0) {
+				syslog(LOG_ERR, "getaddrinfo tcp6: %s",
+				   gai_strerror(ecode));
+				exit(1);
+			}
+			nconf_tcp6 = getnetconfigent("tcp6");
+			if (nconf_tcp6 == NULL)
+				err(1, "getnetconfigent tcp6 failed");
+			nb_tcp6.buf = ai_tcp6->ai_addr;
+			nb_tcp6.len = nb_tcp6.maxlen = ai_tcp6->ai_addrlen;
+			if ((!rpcb_set(RPCPROG_NFS, 2, nconf_tcp6, &nb_tcp6)) ||
+			    (!rpcb_set(RPCPROG_NFS, 3, nconf_tcp6, &nb_tcp6)))
+				err(1, "rpcb_set tcp6 failed");
+			freeaddrinfo(ai_tcp6);
+		}
+		exit (0);
+	}
+
 	openlog("nfsd:", LOG_PID, LOG_DAEMON);
 
 	for (i = 0; i < nfsdcnt; i++) {
-		switch (fork()) {
+		switch ((pid = fork())) {
 		case -1:
 			syslog(LOG_ERR, "fork: %m");
+			killchildren();
 			exit (1);
 		case 0:
 			break;
 		default:
+			children[i] = pid;
 			continue;
 		}
 
@@ -399,182 +489,295 @@ main(argc, argv, envp)
 		exit(0);
 	}
 
-	/* If we are serving udp, set up the socket. */
-	for (i = 0; udpflag && i < bindhostc; i++) {
-		if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-			syslog(LOG_ERR, "can't create udp socket");
-			exit(1);
+	if (atexit(killchildren) == -1) {
+ 		syslog(LOG_ERR, "atexit: %s", strerror(errno));
+ 		exit(1);
+ 	}
+	FD_ZERO(&v4bits);
+	FD_ZERO(&v6bits);
+ 
+	rpcbregcnt = 0;
+	/* Set up the socket for udp and rpcb register it. */
+	if (udpflag) {
+		rpcbreg = 0;
+		for (i = 0; i < bindhostc; i++) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_DGRAM;
+			hints.ai_protocol = IPPROTO_UDP;
+			if (setbindhost(&ai_udp, bindhost[i], hints) == 0) {
+				rpcbreg = 1;
+				rpcbregcnt++;
+				if ((sock = socket(ai_udp->ai_family,
+				    ai_udp->ai_socktype,
+				    ai_udp->ai_protocol)) < 0) {
+					syslog(LOG_ERR,
+					    "can't create udp socket");
+					exit(1);
+				}
+				if (bind(sock, ai_udp->ai_addr,
+				    ai_udp->ai_addrlen) < 0) {
+					syslog(LOG_ERR,
+					    "can't bind udp addr %s: %m",
+					    bindhost[i]);
+					exit(1);
+				}
+				freeaddrinfo(ai_udp);
+				nfsdargs.sock = sock;
+				nfsdargs.name = NULL;
+				nfsdargs.namelen = 0;
+				if (nfssvc(NFSSVC_ADDSOCK, &nfsdargs) < 0) {
+					syslog(LOG_ERR, "can't Add UDP socket");
+					exit(1);
+				}
+				(void)close(sock);
+			}
 		}
-		setbindhost(&inetaddr, bindhost[i]);
-		if (bind(sock,
-		    (struct sockaddr *)&inetaddr, sizeof(inetaddr)) < 0) {
-			syslog(LOG_ERR, "can't bind udp addr %s: %m", bindhost[i]);
-			exit(1);
+		if (rpcbreg == 1) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_DGRAM;
+			hints.ai_protocol = IPPROTO_UDP;
+			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_udp);
+			if (ecode != 0) {
+				syslog(LOG_ERR, "getaddrinfo udp: %s",
+				   gai_strerror(ecode));
+				exit(1);
+			}
+			nconf_udp = getnetconfigent("udp");
+			if (nconf_udp == NULL)
+				err(1, "getnetconfigent udp failed");
+			nb_udp.buf = ai_udp->ai_addr;
+			nb_udp.len = nb_udp.maxlen = ai_udp->ai_addrlen;
+			if ((!rpcb_set(RPCPROG_NFS, 2, nconf_udp, &nb_udp)) ||
+			    (!rpcb_set(RPCPROG_NFS, 3, nconf_udp, &nb_udp)))
+				err(1, "rpcb_set udp failed");
+			freeaddrinfo(ai_udp);
 		}
-		if (!pmap_set(RPCPROG_NFS, 2, IPPROTO_UDP, NFS_PORT) ||
-		    !pmap_set(RPCPROG_NFS, 3, IPPROTO_UDP, NFS_PORT)) {
-			syslog(LOG_ERR, "can't register with udp portmap");
-			exit(1);
-		}
-		nfsdargs.sock = sock;
-		nfsdargs.name = NULL;
-		nfsdargs.namelen = 0;
-		if (nfssvc(NFSSVC_ADDSOCK, &nfsdargs) < 0) {
-			syslog(LOG_ERR, "can't Add UDP socket");
-			exit(1);
-		}
-		(void)close(sock);
 	}
 
-#ifdef ISO
-	/* If we are serving cltp, set up the socket. */
-	if (cltpflag) {
-		if ((sock = socket(AF_ISO, SOCK_DGRAM, 0)) < 0) {
-			syslog(LOG_ERR, "can't create cltp socket");
-			exit(1);
+	/* Set up the socket for udp6 and rpcb register it. */
+	if (udpflag && ip6flag) {
+		rpcbreg = 0;
+		for (i = 0; i < bindhostc; i++) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET6;
+			hints.ai_socktype = SOCK_DGRAM;
+			hints.ai_protocol = IPPROTO_UDP;
+			if (setbindhost(&ai_udp6, bindhost[i], hints) == 0) {
+				rpcbreg = 1;
+				rpcbregcnt++;
+				if ((sock = socket(ai_udp6->ai_family,
+				    ai_udp6->ai_socktype,
+				    ai_udp6->ai_protocol)) < 0) {
+					syslog(LOG_ERR,
+						"can't create udp6 socket");
+					exit(1);
+				}
+				if (setsockopt(sock, IPPROTO_IPV6,
+				    IPV6_BINDV6ONLY,
+				    &on, sizeof on) < 0) {
+					syslog(LOG_ERR,
+					    "can't set v6-only binding for "
+					    "udp6 socket: %m");
+					exit(1);
+				}
+				if (bind(sock, ai_udp6->ai_addr,
+				    ai_udp6->ai_addrlen) < 0) {
+					syslog(LOG_ERR,
+					    "can't bind udp6 addr %s: %m",
+					    bindhost[i]);
+					exit(1);
+				}
+				freeaddrinfo(ai_udp6);
+				nfsdargs.sock = sock;
+				nfsdargs.name = NULL;
+				nfsdargs.namelen = 0;
+				if (nfssvc(NFSSVC_ADDSOCK, &nfsdargs) < 0) {
+					syslog(LOG_ERR,
+					    "can't add UDP6 socket");
+					exit(1);
+				}
+				(void)close(sock);    
+			}
 		}
-		memset(&isoaddr, 0, sizeof(isoaddr));
-		isoaddr.siso_family = AF_ISO;
-		isoaddr.siso_tlen = 2;
-		cp = TSEL(&isoaddr);
-		*cp++ = (NFS_PORT >> 8);
-		*cp = (NFS_PORT & 0xff);
-		isoaddr.siso_len = sizeof(isoaddr);
-		if (bind(sock,
-		    (struct sockaddr *)&isoaddr, sizeof(isoaddr)) < 0) {
-			syslog(LOG_ERR, "can't bind cltp addr");
-			exit(1);
+		if (rpcbreg == 1) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET6;
+			hints.ai_socktype = SOCK_DGRAM;
+			hints.ai_protocol = IPPROTO_UDP;
+			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_udp6);
+			if (ecode != 0) {
+				syslog(LOG_ERR, "getaddrinfo udp6: %s",
+				   gai_strerror(ecode));
+				exit(1);
+			}
+			nconf_udp6 = getnetconfigent("udp6");
+			if (nconf_udp6 == NULL)
+				err(1, "getnetconfigent udp6 failed");
+			nb_udp6.buf = ai_udp6->ai_addr;
+			nb_udp6.len = nb_udp6.maxlen = ai_udp6->ai_addrlen;
+			if ((!rpcb_set(RPCPROG_NFS, 2, nconf_udp6, &nb_udp6)) ||
+			    (!rpcb_set(RPCPROG_NFS, 3, nconf_udp6, &nb_udp6)))
+				err(1, "rpcb_set udp6 failed");
+			freeaddrinfo(ai_udp6);
 		}
-#ifdef notyet
-		/*
-		 * XXX
-		 * Someday this should probably use "rpcbind", the son of
-		 * portmap.
-		 */
-		if (!pmap_set(RPCPROG_NFS, NFS_VER2, IPPROTO_UDP, NFS_PORT)) {
-			syslog(LOG_ERR, "can't register with udp portmap");
-			exit(1);
-		}
-#endif /* notyet */
-		nfsdargs.sock = sock;
-		nfsdargs.name = NULL;
-		nfsdargs.namelen = 0;
-		if (nfssvc(NFSSVC_ADDSOCK, &nfsdargs) < 0) {
-			syslog(LOG_ERR, "can't add UDP socket");
-			exit(1);
-		}
-		close(sock);
-	}
-#endif /* ISO */
-
-	/* Now set up the master server socket waiting for tcp connections. */
-	on = 1;
-	FD_ZERO(&sockbits);
-	connect_type_cnt = 0;
-	for (i = 0; tcpflag && i < bindhostc; i++) {
-		if ((tcpsock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-			syslog(LOG_ERR, "can't create tcp socket");
-			exit(1);
-		}
-		if (setsockopt(tcpsock,
-		    SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on)) < 0)
-			syslog(LOG_ERR, "setsockopt SO_REUSEADDR: %m");
-		setbindhost(&inetaddr, bindhost[i]);
-		if (bind(tcpsock,
-		    (struct sockaddr *)&inetaddr, sizeof (inetaddr)) < 0) {
-			syslog(LOG_ERR, "can't bind tcp addr %s: %m", bindhost[i]);
-			exit(1);
-		}
-		if (listen(tcpsock, 5) < 0) {
-			syslog(LOG_ERR, "listen failed");
-			exit(1);
-		}
-		if (!pmap_set(RPCPROG_NFS, 2, IPPROTO_TCP, NFS_PORT) ||
-		    !pmap_set(RPCPROG_NFS, 3, IPPROTO_TCP, NFS_PORT)) {
-			syslog(LOG_ERR, "can't register tcp with portmap");
-			exit(1);
-		}
-		FD_SET(tcpsock, &sockbits);
-		maxsock = tcpsock;
-		connect_type_cnt++;
 	}
 
-#ifdef notyet
-	/* Now set up the master server socket waiting for tp4 connections. */
-	if (tp4flag) {
-		if ((tp4sock = socket(AF_ISO, SOCK_SEQPACKET, 0)) < 0) {
-			syslog(LOG_ERR, "can't create tp4 socket");
-			exit(1);
+	/* Set up the socket for tcp and rpcb register it. */
+	if (tcpflag) {
+		rpcbreg = 0;
+		for (i = 0; i < bindhostc; i++) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			hints.ai_protocol = IPPROTO_TCP;
+			if (setbindhost(&ai_tcp, bindhost[i], hints) == 0) {
+				rpcbreg = 1;
+				rpcbregcnt++;
+				if ((tcpsock = socket(AF_INET, SOCK_STREAM,
+				    0)) < 0) {
+					syslog(LOG_ERR,
+					    "can't create tpc socket");
+					exit(1);
+				}
+				if (setsockopt(tcpsock, SOL_SOCKET,
+				    SO_REUSEADDR,
+				    (char *)&on, sizeof(on)) < 0)
+					syslog(LOG_ERR,
+					     "setsockopt SO_REUSEADDR: %m");
+				if (bind(tcpsock, ai_tcp->ai_addr,
+				    ai_tcp->ai_addrlen) < 0) {
+					syslog(LOG_ERR,
+					    "can't bind tcp addr %s: %m",
+					    bindhost[i]);
+					exit(1);
+				}
+				if (listen(tcpsock, 5) < 0) {
+					syslog(LOG_ERR, "listen failed");
+					exit(1);
+				}
+				freeaddrinfo(ai_tcp);
+				FD_SET(tcpsock, &sockbits);
+				FD_SET(tcpsock, &v4bits); 
+				maxsock = tcpsock;
+				connect_type_cnt++;
+			}
 		}
-		if (setsockopt(tp4sock,
-		    SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on)) < 0)
-			syslog(LOG_ERR, "setsockopt SO_REUSEADDR: %m");
-		memset(&isoaddr, 0, sizeof(isoaddr));
-		isoaddr.siso_family = AF_ISO;
-		isoaddr.siso_tlen = 2;
-		cp = TSEL(&isoaddr);
-		*cp++ = (NFS_PORT >> 8);
-		*cp = (NFS_PORT & 0xff);
-		isoaddr.siso_len = sizeof(isoaddr);
-		if (bind(tp4sock,
-		    (struct sockaddr *)&isoaddr, sizeof (isoaddr)) < 0) {
-			syslog(LOG_ERR, "can't bind tp4 addr");
-			exit(1);
+		if (rpcbreg == 1) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			hints.ai_protocol = IPPROTO_TCP;
+			ecode = getaddrinfo(NULL, "nfs", &hints,
+			     &ai_tcp);
+			if (ecode != 0) {
+				syslog(LOG_ERR, "getaddrinfo tcp: %s",
+				   gai_strerror(ecode));
+				exit(1);
+			}
+			nconf_tcp = getnetconfigent("tcp");
+			if (nconf_tcp == NULL)
+				err(1, "getnetconfigent tcp failed");
+			nb_tcp.buf = ai_tcp->ai_addr;
+			nb_tcp.len = nb_tcp.maxlen = ai_tcp->ai_addrlen;
+			if ((!rpcb_set(RPCPROG_NFS, 2, nconf_tcp,
+			    &nb_tcp)) || (!rpcb_set(RPCPROG_NFS, 3,
+			    nconf_tcp, &nb_tcp)))
+				err(1, "rpcb_set tcp failed");
+			freeaddrinfo(ai_tcp);
 		}
-		if (listen(tp4sock, 5) < 0) {
-			syslog(LOG_ERR, "listen failed");
-			exit(1);
-		}
-		/*
-		 * XXX
-		 * Someday this should probably use "rpcbind", the son of
-		 * portmap.
-		 */
-		if (!pmap_set(RPCPROG_NFS, NFS_VER2, IPPROTO_TCP, NFS_PORT)) {
-			syslog(LOG_ERR, "can't register tcp with portmap");
-			exit(1);
-		}
-		FD_SET(tp4sock, &sockbits);
-		maxsock = tp4sock;
-		connect_type_cnt++;
 	}
 
-	/* Now set up the master server socket waiting for tpip connections. */
-	for (i = 0; tpipflag && i < bindhostc; i++) {
-		if ((tpipsock = socket(AF_INET, SOCK_SEQPACKET, 0)) < 0) {
-			syslog(LOG_ERR, "can't create tpip socket");
-			exit(1);
+	/* Set up the socket for tcp6 and rpcb register it. */
+	if (tcpflag && ip6flag) {
+		rpcbreg = 0;
+		for (i = 0; i < bindhostc; i++) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET6;
+			hints.ai_socktype = SOCK_STREAM;
+			hints.ai_protocol = IPPROTO_TCP;
+			if (setbindhost(&ai_tcp6, bindhost[i], hints) == 0) {
+				rpcbreg = 1;
+				rpcbregcnt++;
+				if ((tcp6sock = socket(ai_tcp6->ai_family,
+				    ai_tcp6->ai_socktype,
+				    ai_tcp6->ai_protocol)) < 0) {
+					syslog(LOG_ERR,
+					    "can't create tcp6 socket");
+					exit(1);
+				}
+				if (setsockopt(tcp6sock, SOL_SOCKET,
+				    SO_REUSEADDR,
+				    (char *)&on, sizeof(on)) < 0)
+					syslog(LOG_ERR,
+					    "setsockopt SO_REUSEADDR: %m");
+				if (setsockopt(tcp6sock, IPPROTO_IPV6,
+				    IPV6_BINDV6ONLY, &on, sizeof on) < 0) {
+					syslog(LOG_ERR,
+					"can't set v6-only binding for tcp6 "
+					    "socket: %m");
+					exit(1);
+				}
+				if (bind(tcp6sock, ai_tcp6->ai_addr,
+				    ai_tcp6->ai_addrlen) < 0) {
+					syslog(LOG_ERR,
+					    "can't bind tcp6 addr %s: %m",
+					    bindhost[i]);
+					exit(1);
+				}
+				if (listen(tcp6sock, 5) < 0) {
+					syslog(LOG_ERR, "listen failed");
+					exit(1);
+				}
+				freeaddrinfo(ai_tcp6);
+				FD_SET(tcp6sock, &sockbits);
+				FD_SET(tcp6sock, &v6bits);
+				if (maxsock < tcp6sock)
+					maxsock = tcp6sock;
+				connect_type_cnt++;
+			}
 		}
-		if (setsockopt(tpipsock,
-		    SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on)) < 0)
-			syslog(LOG_ERR, "setsockopt SO_REUSEADDR: %m");
-		setbindhost(&inetaddr, bindhost[i]);
-		if (bind(tpipsock,
-		    (struct sockaddr *)&inetaddr, sizeof (inetaddr)) < 0) {
-			syslog(LOG_ERR, "can't bind tcp addr %s: %m", bindhost[i]);
-			exit(1);
+		if (rpcbreg == 1) {
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_INET6;
+			hints.ai_socktype = SOCK_STREAM;
+			hints.ai_protocol = IPPROTO_TCP;
+			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_tcp6);
+			if (ecode != 0) {
+				syslog(LOG_ERR, "getaddrinfo tcp6: %s",
+				   gai_strerror(ecode));
+				exit(1);
+			}
+			nconf_tcp6 = getnetconfigent("tcp6");
+			if (nconf_tcp6 == NULL)
+				err(1, "getnetconfigent tcp6 failed");
+			nb_tcp6.buf = ai_tcp6->ai_addr;
+			nb_tcp6.len = nb_tcp6.maxlen = ai_tcp6->ai_addrlen;
+			if ((!rpcb_set(RPCPROG_NFS, 2, nconf_tcp6, &nb_tcp6)) ||
+			    (!rpcb_set(RPCPROG_NFS, 3, nconf_tcp6, &nb_tcp6)))
+				err(1, "rpcb_set tcp6 failed");
+			freeaddrinfo(ai_tcp6);
 		}
-		if (listen(tpipsock, 5) < 0) {
-			syslog(LOG_ERR, "listen failed");
-			exit(1);
-		}
-		/*
-		 * XXX
-		 * Someday this should probably use "rpcbind", the son of
-		 * portmap.
-		 */
-		if (!pmap_set(RPCPROG_NFS, NFS_VER2, IPPROTO_TCP, NFS_PORT)) {
-			syslog(LOG_ERR, "can't register tcp with portmap");
-			exit(1);
-		}
-		FD_SET(tpipsock, &sockbits);
-		maxsock = tpipsock;
-		connect_type_cnt++;
 	}
-#endif /* notyet */
 
-	if (connect_type_cnt == 0)
-		exit(0);
+	if (rpcbregcnt == 0) {
+		syslog(LOG_ERR, "rpcb_set() failed, nothing to do: %m");
+		exit(1);
+	}
+
+	if ((tcpflag) && (connect_type_cnt == 0)) {
+		syslog(LOG_ERR, "tcp connects == 0, nothing to do: %m");
+		exit(1);
+	}
 
 	setproctitle("master");
 
@@ -591,82 +794,94 @@ main(argc, argv, envp)
 				exit(1);
 			}
 		}
-		if (tcpflag && FD_ISSET(tcpsock, &ready)) {
-			len = sizeof(inetpeer);
-			if ((msgsock = accept(tcpsock,
-			    (struct sockaddr *)&inetpeer, &len)) < 0) {
-				syslog(LOG_ERR, "accept failed: %m");
-				exit(1);
+		for (tcpsock = 0; tcpsock <= maxsock; tcpsock++) {
+			if (FD_ISSET(tcpsock, &ready)) {
+				if (FD_ISSET(tcpsock, &v4bits)) {
+					len = sizeof(inetpeer);
+					if ((msgsock = accept(tcpsock,
+					    (struct sockaddr *)&inetpeer, &len)) < 0) {
+						syslog(LOG_ERR, "accept failed: %m");
+						exit(1);
+					}
+					memset(inetpeer.sin_zero, 0,
+						sizeof(inetpeer.sin_zero));
+					if (setsockopt(msgsock, SOL_SOCKET,
+					    SO_KEEPALIVE, (char *)&on, sizeof(on)) < 0)
+						syslog(LOG_ERR,
+						    "setsockopt SO_KEEPALIVE: %m");
+					nfsdargs.sock = msgsock;
+					nfsdargs.name = (caddr_t)&inetpeer;
+					nfsdargs.namelen = sizeof(inetpeer);
+					nfssvc(NFSSVC_ADDSOCK, &nfsdargs);
+					(void)close(msgsock);
+				} else if (FD_ISSET(tcpsock, &v6bits)) {
+					len = sizeof(inet6peer);
+					if ((msgsock = accept(tcpsock,
+					    (struct sockaddr *)&inet6peer,
+					    &len)) < 0) {
+						syslog(LOG_ERR,
+						     "accept failed: %m");
+						exit(1);
+					}
+					if (setsockopt(msgsock, SOL_SOCKET,
+					    SO_KEEPALIVE, (char *)&on,
+					    sizeof(on)) < 0)
+						syslog(LOG_ERR, "setsockopt "
+						    "SO_KEEPALIVE: %m");
+					nfsdargs.sock = msgsock;
+					nfsdargs.name = (caddr_t)&inet6peer;
+					nfsdargs.namelen = sizeof(inet6peer);
+					nfssvc(NFSSVC_ADDSOCK, &nfsdargs);
+					(void)close(msgsock);
+				}
 			}
-			memset(inetpeer.sin_zero, 0, sizeof(inetpeer.sin_zero));
-			if (setsockopt(msgsock, SOL_SOCKET,
-			    SO_KEEPALIVE, (char *)&on, sizeof(on)) < 0)
-				syslog(LOG_ERR,
-				    "setsockopt SO_KEEPALIVE: %m");
-			nfsdargs.sock = msgsock;
-			nfsdargs.name = (caddr_t)&inetpeer;
-			nfsdargs.namelen = sizeof(inetpeer);
-			nfssvc(NFSSVC_ADDSOCK, &nfsdargs);
-			(void)close(msgsock);
 		}
-#ifdef notyet
-		if (tp4flag && FD_ISSET(tp4sock, &ready)) {
-			len = sizeof(isopeer);
-			if ((msgsock = accept(tp4sock,
-			    (struct sockaddr *)&isopeer, &len)) < 0) {
-				syslog(LOG_ERR, "accept failed: %m");
-				exit(1);
-			}
-			if (setsockopt(msgsock, SOL_SOCKET,
-			    SO_KEEPALIVE, (char *)&on, sizeof(on)) < 0)
-				syslog(LOG_ERR,
-				    "setsockopt SO_KEEPALIVE: %m");
-			nfsdargs.sock = msgsock;
-			nfsdargs.name = (caddr_t)&isopeer;
-			nfsdargs.namelen = len;
-			nfssvc(NFSSVC_ADDSOCK, &nfsdargs);
-			(void)close(msgsock);
-		}
-		if (tpipflag && FD_ISSET(tpipsock, &ready)) {
-			len = sizeof(inetpeer);
-			if ((msgsock = accept(tpipsock,
-			    (struct sockaddr *)&inetpeer, &len)) < 0) {
-				syslog(LOG_ERR, "accept failed: %m");
-				exit(1);
-			}
-			if (setsockopt(msgsock, SOL_SOCKET,
-			    SO_KEEPALIVE, (char *)&on, sizeof(on)) < 0)
-				syslog(LOG_ERR, "setsockopt SO_KEEPALIVE: %m");
-			nfsdargs.sock = msgsock;
-			nfsdargs.name = (caddr_t)&inetpeer;
-			nfsdargs.namelen = len;
-			nfssvc(NFSSVC_ADDSOCK, &nfsdargs);
-			(void)close(msgsock);
-		}
-#endif /* notyet */
 	}
 }
 
-void
-setbindhost(struct sockaddr_in *ia, const char *bindhost)
+int
+setbindhost(struct addrinfo **ai, const char *bindhost, struct addrinfo hints)
 {
-	ia->sin_family = AF_INET;
-	ia->sin_port = htons(NFS_PORT);
-	ia->sin_len = sizeof(*ia);
-	if (bindhost == NULL || strcmp(bindhost,"*") == 0) {
-		ia->sin_addr.s_addr = INADDR_ANY;
-	} else {
-		if (inet_aton(bindhost, &ia->sin_addr) == 0) {
-			struct hostent *he;
+	int ecode;
+	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
+	const char *hostptr;
 
-			he = gethostbyname2(bindhost, ia->sin_family);
-			if (he == NULL) {
-				syslog(LOG_ERR, "gethostbyname of %s failed", bindhost);
-				exit(1);
+	if (bindhost == NULL || strcmp("*", bindhost) == 0)
+		hostptr = NULL;
+	else
+		hostptr = bindhost;
+
+	if (hostptr != NULL) {
+		switch (hints.ai_family) {
+		case AF_INET:
+			if (inet_pton(AF_INET, hostptr, host_addr) == 1) {
+				hints.ai_flags = AI_NUMERICHOST;
+			} else {
+				if (inet_pton(AF_INET6, hostptr,
+				    host_addr) == 1)
+					return (1);
 			}
-			bcopy(he->h_addr, &ia->sin_addr, he->h_length);
+			break;
+		case AF_INET6:
+			if (inet_pton(AF_INET6, hostptr, host_addr) == 1) {
+				hints.ai_flags = AI_NUMERICHOST;
+			} else {
+				if (inet_pton(AF_INET, hostptr,
+				    host_addr) == 1)
+					return (1);
+			}
+			break;
+		default:
 		}
 	}
+	
+	ecode = getaddrinfo(hostptr, "nfs", &hints, ai);
+	if (ecode != 0) {
+		syslog(LOG_ERR, "getaddrinfo %s: %s", bindhost,
+		    gai_strerror(ecode));
+		return (1);
+	}
+	return (0);
 }
 
 void
@@ -689,6 +904,48 @@ reapchild(signo)
 {
 
 	while (wait3(NULL, WNOHANG, NULL) > 0);
+}
+
+void
+unregistration()
+{
+	if ((!rpcb_unset(RPCPROG_NFS, 2, NULL)) ||
+	    (!rpcb_unset(RPCPROG_NFS, 3, NULL)))
+		syslog(LOG_ERR, "rpcb_unset failed");
+}
+
+void
+killchildren()
+{
+	int i;
+	sigset_t sigs;
+
+	sigemptyset(&sigs);
+	/*
+	* Block SIGCHLD to avoid killing a reaped process (although it is
+	* unlikely, the pid might have been reused).
+	*/
+	sigaddset(&sigs, SIGCHLD);
+	if (sigprocmask(SIG_BLOCK, &sigs, NULL) == -1) {
+		syslog(LOG_ERR, "sigprocmask: %s",
+		   strerror(errno));
+		return;
+	}
+	for (i = 0; i < nfsdcnt; i++) {
+		if (children[i] > 0)
+			kill(children[i], SIGKILL);
+	}
+	if (sigprocmask(SIG_UNBLOCK, &sigs, NULL) == -1) {
+		syslog(LOG_ERR, "sigprocmask: %s", strerror(errno));
+	}
+	unregistration();
+}
+
+void
+cleanup(signo)
+{
+	killchildren();
+	exit (0);
 }
 
 #ifdef OLD_SETPROCTITLE

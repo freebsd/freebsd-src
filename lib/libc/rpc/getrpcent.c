@@ -1,3 +1,5 @@
+/*	$NetBSD: getrpcent.c,v 1.17 2000/01/22 22:19:17 mycroft Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -28,8 +30,9 @@
  * Mountain View, California  94043
  */
 
+#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-/*static char *sccsid = "from: @(#)getrpcent.c 1.14 91/03/11 Copyr 1984 Sun Micro";*/
+static char *sccsid = "@(#)getrpcent.c 1.14 91/03/11 Copyr 1984 Sun Micro";
 static char *rcsid = "$FreeBSD$";
 #endif
 
@@ -37,20 +40,29 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (c) 1984 by Sun Microsystems, Inc.
  */
 
+#include "namespace.h"
+#include <sys/types.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <assert.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <string.h>
+
 #include <rpc/rpc.h>
 #ifdef YP
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif
+#include "un-namespace.h"
 
 /*
  * Internet version.
  */
-struct rpcdata {
+static struct rpcdata {
 	FILE	*rpcf;
 	int	stayopen;
 #define	MAXALIASES	35
@@ -64,21 +76,21 @@ struct rpcdata {
 #endif
 } *rpcdata;
 
+static	struct rpcent *interpret __P((char *val, size_t len));
+
 #ifdef	YP
 static int	__yp_nomap = 0;
 extern int _yp_check(char **);
 #endif	/* YP */
 
-static	struct rpcent *interpret();
-struct	hostent *gethostent();
-char	*inet_ntoa();
+#define	RPCDB	"/etc/rpc"
 
-static char RPCDB[] = "/etc/rpc";
+static struct rpcdata *_rpcdata __P((void));
 
 static struct rpcdata *
 _rpcdata()
 {
-	register struct rpcdata *d = rpcdata;
+	struct rpcdata *d = rpcdata;
 
 	if (d == 0) {
 		d = (struct rpcdata *)calloc(1, sizeof (struct rpcdata));
@@ -89,14 +101,14 @@ _rpcdata()
 
 struct rpcent *
 getrpcbynumber(number)
-	register int number;
+	int number;
 {
-	register struct rpcdata *d = _rpcdata();
-	register struct rpcent *p;
 #ifdef	YP
 	int reason;
 	char adrstr[16];
 #endif
+	struct rpcent *p;
+	struct rpcdata *d = _rpcdata();
 
 	if (d == 0)
 		return (0);
@@ -123,8 +135,9 @@ getrpcbynumber(number)
         }
 no_yp:
 #endif	/* YP */
+
 	setrpcent(0);
-	while ((p = getrpcent())) {
+	while ((p = getrpcent()) != NULL) {
 		if (p->r_number == number)
 			break;
 	}
@@ -139,8 +152,10 @@ getrpcbyname(name)
 	struct rpcent *rpc = NULL;
 	char **rp;
 
+	assert(name != NULL);
+
 	setrpcent(0);
-	while ((rpc = getrpcent())) {
+	while ((rpc = getrpcent()) != NULL) {
 		if (strcmp(rpc->r_name, name) == 0)
 			goto done;
 		for (rp = rpc->r_aliases; *rp != NULL; rp++) {
@@ -157,7 +172,7 @@ void
 setrpcent(f)
 	int f;
 {
-	register struct rpcdata *d = _rpcdata();
+	struct rpcdata *d = _rpcdata();
 
 	if (d == 0)
 		return;
@@ -181,7 +196,7 @@ setrpcent(f)
 void
 endrpcent()
 {
-	register struct rpcdata *d = _rpcdata();
+	struct rpcdata *d = _rpcdata();
 
 	if (d == 0)
 		return;
@@ -204,7 +219,7 @@ endrpcent()
 struct rpcent *
 getrpcent()
 {
-	register struct rpcdata *d = _rpcdata();
+	struct rpcdata *d = _rpcdata();
 #ifdef	YP
 	struct rpcent *hp;
 	int reason;
@@ -255,11 +270,13 @@ no_yp:
 static struct rpcent *
 interpret(val, len)
 	char *val;
-	int len;
+	size_t len;
 {
-	register struct rpcdata *d = _rpcdata();
+	struct rpcdata *d = _rpcdata();
 	char *p;
-	register char *cp, **q;
+	char *cp, **q;
+
+	assert(val != NULL);
 
 	if (d == 0)
 		return (0);

@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)netname.c 1.8 91/03/11 Copyr 1986 Sun Micro";
  * the sun NIS domain architecture.
  */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
@@ -54,6 +55,7 @@ static char sccsid[] = "@(#)netname.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 256
@@ -101,8 +103,8 @@ getnetname(name)
 int
 user2netname(netname, uid, domain)
 	char netname[MAXNETNAMELEN + 1];
-	uid_t uid;
-	char *domain;
+	const uid_t uid;
+	const char *domain;
 {
 	char *dfltdom;
 
@@ -126,8 +128,8 @@ user2netname(netname, uid, domain)
 int
 host2netname(netname, host, domain)
 	char netname[MAXNETNAMELEN + 1];
-	char *host;
-	char *domain;
+	const char *host;
+	const char *domain;
 {
 	char *dfltdom;
 	char hostname[MAXHOSTNAMELEN+1];

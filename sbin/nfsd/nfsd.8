@@ -42,7 +42,7 @@
 server
 .Sh SYNOPSIS
 .Nm
-.Op Fl arut
+.Op Fl ardut
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
 .Sh DESCRIPTION
@@ -64,13 +64,19 @@ The following options are available:
 Register the
 .Tn NFS
 service with
-.Xr portmap 8
+.Xr rpcbind 8
 without creating any servers.
 This option can be used along with the
 .Fl u
 or
 .Fl t
-options to re-register NFS if the portmap server is restarted.
+options to re-register NFS if the rpcbind server is restarted.
+.It Fl d
+Unregister the
+.Tn NFS
+service with
+.Xr rpcbind 8
+without creating any servers.
 .It Fl n
 Specifies how many servers to create.
 .It Fl h Ar bindip
@@ -147,6 +153,16 @@ that the NFS sockets can only be accessed by the inside interface.
 would then be used to block nfs-related packets that come in on the outside
 interface.
 .Pp
+.Nm
+has to be terminated with SIGUSR1 and cannot be killed with SIGTERM oder SIGQUIT.
+.Nm
+needs to ignore these signals in order to stay alive as long
+as possible during a shutdown, otherwise loopback mounts will
+not be able to unmount. If you have to kill
+.Nm
+just do a
+.Dq Li "kill -USR1 <PID of master nfsd>"
+.Pp
 The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
@@ -156,7 +172,7 @@ utility exits 0 on success, and >0 if an error occurs.
 .Xr kldload 8 ,
 .Xr mountd 8 ,
 .Xr nfsiod 8 ,
-.Xr portmap 8 ,
+.Xr rpcbind 8 ,
 .Xr ipfw 8
 .Sh HISTORY
 The

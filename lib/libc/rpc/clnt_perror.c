@@ -1,3 +1,6 @@
+/*	$NetBSD: clnt_perror.c,v 1.24 2000/06/02 23:11:07 fvdl Exp $	*/
+
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -27,9 +30,10 @@
  * Mountain View, California  94043
  */
 
+#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-/*static char *sccsid = "from: @(#)clnt_perror.c 1.15 87/10/07 Copyr 1984 Sun Micro";*/
-/*static char *sccsid = "from: @(#)clnt_perror.c	2.1 88/07/29 4.0 RPCSRC";*/
+static char *sccsid = "@(#)clnt_perror.c 1.15 87/10/07 Copyr 1984 Sun Micro";
+static char *sccsid = "@(#)clnt_perror.c	2.1 88/07/29 4.0 RPCSRC";
 static char *rcsid = "$FreeBSD$";
 #endif
 
@@ -39,18 +43,23 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  *
  */
+#include "namespace.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <rpc/rpc.h>
 #include <rpc/types.h>
 #include <rpc/auth.h>
 #include <rpc/clnt.h>
-
-static char *auth_errmsg();
-#define CLNT_PERROR_BUFLEN 256
+#include "un-namespace.h"
 
 static char *buf;
+
+static char *_buf __P((void));
+static char *auth_errmsg __P((enum auth_stat));
+#define CLNT_PERROR_BUFLEN 256
 
 static char *
 _buf()
@@ -67,19 +76,32 @@ _buf()
 char *
 clnt_sperror(rpch, s)
 	CLIENT *rpch;
-	char *s;
+	const char *s;
 {
 	struct rpc_err e;
 	char *err;
-	char *str = _buf();
-	char *strstart = str;
+	char *str;
+	char *strstart;
+	size_t len, i;
 
+	assert(rpch != NULL);
+	assert(s != NULL);
+
+	str = _buf(); /* side effect: sets CLNT_PERROR_BUFLEN */
 	if (str == 0)
 		return (0);
+	len = CLNT_PERROR_BUFLEN;
+	strstart = str;
 	CLNT_GETERR(rpch, &e);
 
-	(void) snprintf(str, CLNT_PERROR_BUFLEN, "%s: %s", s, clnt_sperrno(e.re_status));
-	str += strlen(str);
+	i = snprintf(str, len, "%s: ", s);  
+	str += i;
+	len -= i;
+
+	(void)strncpy(str, clnt_sperrno(e.re_status), len - 1);
+	i = strlen(str);
+	str += i;
+	len -= i;
 
 	switch (e.re_status) {
 	case RPC_SUCCESS:
@@ -99,42 +121,48 @@ clnt_sperror(rpch, s)
 
 	case RPC_CANTSEND:
 	case RPC_CANTRECV:
-		(void) snprintf(str, CLNT_PERROR_BUFLEN - (str - strstart),
-			"; errno = %s\n", strerror(e.re_errno));
+		i = snprintf(str, len, "; errno = %s", strerror(e.re_errno)); 
+		str += i;
+		len -= i;
 		break;
 
 	case RPC_VERSMISMATCH:
-		(void) sprintf(str,
-			"; low version = %lu, high version = %lu\n",
-			(u_long)e.re_vers.low, (u_long)e.re_vers.high);
+		i = snprintf(str, len, "; low version = %u, high version = %u", 
+			e.re_vers.low, e.re_vers.high);
+		str += i;
+		len -= i;
 		break;
 
 	case RPC_AUTHERROR:
 		err = auth_errmsg(e.re_why);
-		(void) sprintf(str,"; why = ");
-		str += strlen(str);
+		i = snprintf(str, len, "; why = ");
+		str += i;
+		len -= i;
 		if (err != NULL) {
-			(void) sprintf(str, "%s\n",err);
+			i = snprintf(str, len, "%s",err);
 		} else {
-			(void) sprintf(str,
-				"(unknown authentication error - %d)\n",
+			i = snprintf(str, len,
+				"(unknown authentication error - %d)",
 				(int) e.re_why);
 		}
+		str += i;
+		len -= i;
 		break;
 
 	case RPC_PROGVERSMISMATCH:
-		(void) sprintf(str,
-			"; low version = %lu, high version = %lu\n",
-			(u_long)e.re_vers.low, (u_long)e.re_vers.high);
+		i = snprintf(str, len, "; low version = %u, high version = %u", 
+			e.re_vers.low, e.re_vers.high);
+		str += i;
+		len -= i;
 		break;
 
 	default:	/* unknown */
-		(void) sprintf(str,
-			"; s1 = %lu, s2 = %lu\n",
-			(long)e.re_lb.s1, (long)e.re_lb.s2);
+		i = snprintf(str, len, "; s1 = %u, s2 = %u", 
+			e.re_lb.s1, e.re_lb.s2);
+		str += i;
+		len -= i;
 		break;
 	}
-	strstart[CLNT_PERROR_BUFLEN-2] = '\n';
 	strstart[CLNT_PERROR_BUFLEN-1] = '\0';
 	return(strstart) ;
 }
@@ -142,11 +170,14 @@ clnt_sperror(rpch, s)
 void
 clnt_perror(rpch, s)
 	CLIENT *rpch;
-	char *s;
+	const char *s;
 {
-	(void) fprintf(stderr,"%s\n",clnt_sperror(rpch,s));
-}
 
+	assert(rpch != NULL);
+	assert(s != NULL);
+
+	(void) fprintf(stderr, "%s\n", clnt_sperror(rpch,s));
+}
 
 static const char *const rpc_errlist[] = {
 	"RPC: Success",				/*  0 - RPC_SUCCESS */
@@ -180,6 +211,7 @@ clnt_sperrno(stat)
 	unsigned int errnum = stat;
 
 	if (errnum < (sizeof(rpc_errlist)/sizeof(rpc_errlist[0])))
+		/* LINTED interface problem */
 		return (char *)rpc_errlist[errnum];
 
 	return ("RPC: (unknown error code)");
@@ -189,53 +221,78 @@ void
 clnt_perrno(num)
 	enum clnt_stat num;
 {
-	(void) fprintf(stderr,"%s\n",clnt_sperrno(num));
+	(void) fprintf(stderr, "%s\n", clnt_sperrno(num));
 }
 
 
 char *
 clnt_spcreateerror(s)
-	char *s;
+	const char *s;
 {
-	char *str = _buf();
+	char *str;
+	size_t len, i;
 
+	assert(s != NULL);
+
+	str = _buf(); /* side effect: sets CLNT_PERROR_BUFLEN */
 	if (str == 0)
 		return(0);
+	len = CLNT_PERROR_BUFLEN;
+	i = snprintf(str, len, "%s: ", s);
+	len -= i;
+	(void)strncat(str, clnt_sperrno(rpc_createerr.cf_stat), len - 1);
 	switch (rpc_createerr.cf_stat) {
 	case RPC_PMAPFAILURE:
-		(void) snprintf(str, CLNT_PERROR_BUFLEN, "%s: %s - %s\n", s,
-		    clnt_sperrno(rpc_createerr.cf_stat),
-		    clnt_sperrno(rpc_createerr.cf_error.re_status));
+		(void) strncat(str, " - ", len - 1);
+		(void) strncat(str,
+		    clnt_sperrno(rpc_createerr.cf_error.re_status), len - 4);
 		break;
 
 	case RPC_SYSTEMERROR:
-		(void) snprintf(str, CLNT_PERROR_BUFLEN, "%s: %s - %s\n", s,
-		    clnt_sperrno(rpc_createerr.cf_stat),
-		    strerror(rpc_createerr.cf_error.re_errno));
+		(void)strncat(str, " - ", len - 1);
+		(void)strncat(str, strerror(rpc_createerr.cf_error.re_errno),
+		    len - 4);
 		break;
+
+	case RPC_CANTSEND:
+	case RPC_CANTDECODERES:
+	case RPC_CANTENCODEARGS:
+	case RPC_SUCCESS:
+	case RPC_UNKNOWNPROTO:
+	case RPC_PROGNOTREGISTERED:
+	case RPC_FAILED:
+	case RPC_UNKNOWNHOST:
+	case RPC_CANTDECODEARGS:
+	case RPC_PROCUNAVAIL:
+	case RPC_PROGVERSMISMATCH:
+	case RPC_PROGUNAVAIL:
+	case RPC_AUTHERROR:
+	case RPC_VERSMISMATCH:
+	case RPC_TIMEDOUT:
+	case RPC_CANTRECV:
 	default:
-		(void) snprintf(str, CLNT_PERROR_BUFLEN, "%s: %s\n", s,
-		clnt_sperrno(rpc_createerr.cf_stat));
 		break;
 	}
-	str[CLNT_PERROR_BUFLEN-2] = '\n';
 	str[CLNT_PERROR_BUFLEN-1] = '\0';
 	return (str);
 }
 
 void
 clnt_pcreateerror(s)
-	char *s;
+	const char *s;
 {
-	(void) fprintf(stderr,"%s\n",clnt_spcreateerror(s));
+
+	assert(s != NULL);
+
+	(void) fprintf(stderr, "%s\n", clnt_spcreateerror(s));
 }
 
 static const char *const auth_errlist[] = {
 	"Authentication OK",			/* 0 - AUTH_OK */
 	"Invalid client credential",		/* 1 - AUTH_BADCRED */
 	"Server rejected credential",		/* 2 - AUTH_REJECTEDCRED */
-	"Invalid client verifier",		/* 3 - AUTH_BADVERF */
-	"Server rejected verifier",		/* 4 - AUTH_REJECTEDVERF */
+	"Invalid client verifier", 		/* 3 - AUTH_BADVERF */
+	"Server rejected verifier", 		/* 4 - AUTH_REJECTEDVERF */
 	"Client credential too weak",		/* 5 - AUTH_TOOWEAK */
 	"Invalid server verifier",		/* 6 - AUTH_INVALIDRESP */
 	"Failed (unspecified error)"		/* 7 - AUTH_FAILED */
@@ -248,6 +305,7 @@ auth_errmsg(stat)
 	unsigned int errnum = stat;
 
 	if (errnum < (sizeof(auth_errlist)/sizeof(auth_errlist[0])))
+		/* LINTED interface problem */
 		return (char *)auth_errlist[errnum];
 
 	return(NULL);

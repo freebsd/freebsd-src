@@ -62,6 +62,7 @@ program SM_PROG {
 		struct sm_stat				 SM_UNMON_ALL(struct my_id) = 4;
 
 		void					 SM_SIMU_CRASH(void) = 5;
+		void					 SM_NOTIFY(struct stat_chge) = 6;
 
 	} = 1;
 } = 100024;
@@ -90,6 +91,10 @@ struct mon{
 	opaque priv[16]; 		/* private information to store at monitor for requesting process */
 };
 
+struct stat_chge {
+	string  mon_name<SM_MAXSTRLEN>;         /* name of the site that had the state change */
+	int state;
+};
 
 /*
  * state # of status monitor monitonically increases each time

@@ -1,6 +1,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = 	"@(#)authdes_prot.c	2.1 88/07/29 4.0 RPCSRC; from 1.6 88/02/08 SMI";
 #endif
+/*	$FreeBSD$ */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -30,17 +31,19 @@ static char sccsid[] = 	"@(#)authdes_prot.c	2.1 88/07/29 4.0 RPCSRC; from 1.6 88
  * Mountain View, California  94043
  */
 /*
- * Copyright (c) 1988 by Sun Microsystems, Inc.
+ * Copyright (c) 1986-1991 by Sun Microsystems Inc.
  */
 
 /*
  * authdes_prot.c, XDR routines for DES authentication
  */
 
+#include "namespace.h"
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <rpc/auth.h>
 #include <rpc/auth_des.h>
+#include "un-namespace.h"
 
 #define ATTEMPT(xdr_op) if (!(xdr_op)) return (FALSE)
 
@@ -55,12 +58,16 @@ xdr_authdes_cred(xdrs, cred)
 	ATTEMPT(xdr_enum(xdrs, (enum_t *)&cred->adc_namekind));
 	switch (cred->adc_namekind) {
 	case ADN_FULLNAME:
-		ATTEMPT(xdr_string(xdrs, &cred->adc_fullname.name, MAXNETNAMELEN));
-		ATTEMPT(xdr_opaque(xdrs, (caddr_t)&cred->adc_fullname.key, sizeof(des_block)));
-		ATTEMPT(xdr_opaque(xdrs, (caddr_t)&cred->adc_fullname.window, sizeof(cred->adc_fullname.window)));
+		ATTEMPT(xdr_string(xdrs, &cred->adc_fullname.name,
+		    MAXNETNAMELEN));
+		ATTEMPT(xdr_opaque(xdrs, (caddr_t)&cred->adc_fullname.key,
+		    sizeof(des_block)));
+		ATTEMPT(xdr_opaque(xdrs, (caddr_t)&cred->adc_fullname.window,
+		    sizeof(cred->adc_fullname.window)));
 		return (TRUE);
 	case ADN_NICKNAME:
-		ATTEMPT(xdr_opaque(xdrs, (caddr_t)&cred->adc_nickname, sizeof(cred->adc_nickname)));
+		ATTEMPT(xdr_opaque(xdrs, (caddr_t)&cred->adc_nickname,
+		    sizeof(cred->adc_nickname)));
 		return (TRUE);
 	default:
 		return (FALSE);
@@ -76,7 +83,9 @@ xdr_authdes_verf(xdrs, verf)
 	/*
  	 * Unrolled xdr
  	 */
-	ATTEMPT(xdr_opaque(xdrs, (caddr_t)&verf->adv_xtimestamp, sizeof(des_block)));
-	ATTEMPT(xdr_opaque(xdrs, (caddr_t)&verf->adv_int_u, sizeof(verf->adv_int_u)));
+	ATTEMPT(xdr_opaque(xdrs, (caddr_t)&verf->adv_xtimestamp,
+	    sizeof(des_block)));
+	ATTEMPT(xdr_opaque(xdrs, (caddr_t)&verf->adv_int_u,
+	    sizeof(verf->adv_int_u)));
 	return (TRUE);
 }

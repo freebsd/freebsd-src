@@ -1,3 +1,6 @@
+/*	$NetBSD: lockd.h,v 1.2 2000/06/07 14:34:40 bouyer Exp $	*/
+/*	$FreeBSD$ */
+
 /*
  * Copyright (c) 1995
  *	A.R. Gordon (andrew.gordon@net-tel.co.uk).  All rights reserved.
@@ -31,14 +34,6 @@
  *
  */
 
-
-
-#include <stdio.h>
-#include <rpc/rpc.h>
-#include <syslog.h>
-#include <rpcsvc/sm_inter.h>	/* protocol to talk to rpc.statd	*/
-#include "nlm_prot.h"		/* The protocol we are implementing	*/
-
-
-/* global variables ------------------------------------------------------- */
-extern int debug_level;
+extern int	debug_level;
+extern int	grace_expired;
+void sigchild_handler __P((int));
