@@ -40,8 +40,8 @@
 .Nd display kernel trace data
 .Sh SYNOPSIS
 .Nm
-.Op Fl dnlERT
-.Op Fl f Ar file
+.Op Fl dEnlRT
+.Op Fl f Ar trfile
 .Op Fl m Ar maxdata
 .Op Fl p Ar pid
 .Op Fl t Op cnisuw
@@ -59,7 +59,9 @@ The options are as follows:
 .Bl -tag -width Fl
 .It Fl d
 Display all numbers in decimal.
-.It Fl f Ar file
+.It Fl E
+Display elapsed timestamps (time since beginning of trace).
+.It Fl f Ar trfile
 Display the specified file instead of
 .Pa ktrace.out .
 .It Fl l
@@ -89,8 +91,6 @@ Display only trace events that correspond to the process
 .Ar pid .
 This may be useful when there are multiple processes recorded in the
 same trace file.
-.It Fl E
-Display elapsed timestamps (time since beginning of trace).
 .It Fl R
 Display relative timestamps (time since previous entry).
 .It Fl T
