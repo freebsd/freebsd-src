@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.32 2001/05/23 23:03:45 grog Exp grog $
+ * $Id: vinumio.c,v 1.36 2003/04/28 02:54:07 grog Exp $
  * $FreeBSD$
  */
 
@@ -44,8 +44,8 @@ static char *sappend(char *txt, char *s);
 static int drivecmp(const void *va, const void *vb);
 
 /*
- * Open the device associated with the drive, and set drive's vp.
- * Return an error number
+ * Open the device associated with the drive, and
+ * set drive's vp.  Return an error number.
  */
 int
 open_drive(struct drive *drive, struct thread *td, int verbose)
@@ -81,8 +81,8 @@ open_drive(struct drive *drive, struct thread *td, int verbose)
 }
 
 /*
- * Set some variables in the drive struct
- * in more convenient form.  Return error indication
+ * Set some variables in the drive struct in more
+ * convenient form.  Return error indication.
  */
 int
 set_drive_parms(struct drive *drive)
@@ -93,8 +93,8 @@ set_drive_parms(struct drive *drive)
 
     /* Now update the label part */
     bcopy(hostname, drive->label.sysname, VINUMHOSTNAMELEN); /* put in host name */
-    getmicrotime(&drive->label.date_of_birth);		    /* and current time */
-    drive->label.drive_size = drive->mediasize;
+    microtime(&drive->label.date_of_birth);		    /* and current time */
+    drive->label.drive_size = drive->mediasize;		    /* size of the drive in bytes */
 #ifdef VINUMDEBUG
     if (debug & DEBUG_BIGDRIVE)				    /* pretend we're 100 times as big */
 	drive->label.drive_size *= 100;
@@ -128,8 +128,8 @@ set_drive_parms(struct drive *drive)
 }
 
 /*
- * Initialize a drive: open the device and add device
- * information
+ * Initialize a drive: open the device and add
+ * device information.
  */
 int
 init_drive(struct drive *drive, int verbose)
@@ -145,35 +145,20 @@ init_drive(struct drive *drive, int verbose)
 	FREAD,
 	curthread);
     if (drive->lasterror == 0)
-	    drive->lasterror = (*devsw(drive->dev)->d_ioctl) (drive->dev,
-		DIOCGMEDIASIZE,
-		(caddr_t) & drive->mediasize,
-		FREAD,
-		curthread);
+	drive->lasterror = (*devsw(drive->dev)->d_ioctl) (drive->dev,
+	    DIOCGMEDIASIZE,
+	    (caddr_t) & drive->mediasize,
+	    FREAD,
+	    curthread);
     if (drive->lasterror) {
 	if (verbose)
-	    log(LOG_WARNING,
-		"vinum open_drive %s: Can't get partition information, drive->lasterror %d\n",
+	    log(LOG_ERR,
+		"vinum: Can't get partition information for %s: error %d\n",
 		drive->devicename,
 		drive->lasterror);
 	close_drive(drive);
 	return drive->lasterror;
     }
-#if 0
-    /*
-     * XXX: this check is bogus and needs to be rewitten, we cannot guarantee
-     * XXX: that there will be a label with a typefield on all platforms.
-     */
-    if (drive->partinfo.part->p_fstype != FS_VINUM) {	    /* not Vinum */
-	drive->lasterror = EFTYPE;
-	if (verbose)
-	    log(LOG_WARNING,
-		"vinum open_drive %s: Wrong partition type for vinum\n",
-		drive->devicename);
-	close_drive(drive);
-	return EFTYPE;
-    }
-#endif
     return set_drive_parms(drive);			    /* set various odds and ends */
 }
 
@@ -246,7 +231,7 @@ remove_drive(int driveno)
  * length and offset are in bytes, but must be multiples of sector
  * size.  The function *does not check* for this condition, and
  * truncates ruthlessly.
- * Return error number
+ * Return error number.
  */
 int
 driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
@@ -262,7 +247,7 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	bp->b_flags = 0;
 	bp->b_iocmd = flag;
 	bp->b_dev = drive->dev;				    /* device */
-	bp->b_blkno = offset / drive->sectorsize;           /* block number */
+	bp->b_blkno = offset / drive->sectorsize;	    /* block number */
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = buf;
 	bp->b_bcount = len;
@@ -348,7 +333,7 @@ check_drive(char *devicename)
     int i;
     struct drive *drive;
 
-    driveno = find_drive_by_dev(devicename, 1);		    /* if entry doesn't exist, create it */
+    driveno = find_drive_by_name(devicename, 1);	    /* if entry doesn't exist, create it */
     drive = &vinum_conf.drive[driveno];			    /* and get a pointer */
 
     if (read_drive_label(drive, 0) == DL_OURS) {	    /* one of ours */
@@ -528,7 +513,7 @@ format_config(char *config, int len)
 
 /*
  * issue a save config request to the dæmon.  The actual work
- * is done in process context by daemon_save_config
+ * is done in process context by daemon_save_config.
  */
 void
 save_config(void)
@@ -538,7 +523,7 @@ save_config(void)
 
 /*
  * Write the configuration to all vinum slices.  This
- * is performed by the dæmon only
+ * is performed by the daemon only.
  */
 void
 daemon_save_config(void)
@@ -573,7 +558,7 @@ daemon_save_config(void)
 	    /*
 	     * First, do some drive consistency checks.  Some
 	     * of these are kludges, others require a process
-	     * context and couldn't be done before
+	     * context and couldn't be done before.
 	     */
 	    if ((drive->devicename[0] == '\0')
 		|| (drive->label.name[0] == '\0')) {
@@ -592,17 +577,26 @@ daemon_save_config(void)
 		unlockdrive(drive);
 		close_drive(drive);			    /* close it */
 	    } else if (drive->state > drive_down) {
-		getmicrotime(&drive->label.last_update);    /* time of last update is now */
+		microtime(&drive->label.last_update);	    /* time of last update is now */
 		bcopy((char *) &drive->label,		    /* and the label info from the drive structure */
 		    (char *) &vhdr->label,
 		    sizeof(vhdr->label));
 		if ((drive->state != drive_unallocated)
 		    && (drive->state != drive_referenced)) { /* and it's a real drive */
-		    error = write_drive(drive, (char *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
+		    error = write_drive(drive,
+			(char *) vhdr,
+			VINUMHEADERLEN,
+			VINUM_LABEL_OFFSET);
+		    if (error == 0)			    /* first config copy */
+			error = write_drive(drive,
+			    config,
+			    MAXCONFIG,
+			    VINUM_CONFIG_OFFSET);
 		    if (error == 0)
-			error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET); /* first config copy */
-		    if (error == 0)
-			error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET + MAXCONFIG);	/* second copy */
+			error = write_drive(drive,	    /* second copy */
+			    config,
+			    MAXCONFIG,
+			    VINUM_CONFIG_OFFSET + MAXCONFIG);
 		    unlockdrive(drive);
 		    if (error) {
 			log(LOG_ERR,
@@ -632,8 +626,8 @@ daemon_save_config(void)
  */
 
 /*
- * get_volume_label returns a label structure to lp, which
- * is allocated by the caller
+ * get_volume_label returns a label structure to
+ * lp, which is allocated by the caller.
  */
 void
 get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
@@ -659,8 +653,7 @@ get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
     lp->d_secperunit = size;				    /* data sectors per unit */
 
     lp->d_bbsize = BBSIZE;
-    lp->d_sbsize = 0;
-
+    lp->d_sbsize = 0;					    /* no longer used?  */
     lp->d_magic = DISKMAGIC;
     lp->d_magic2 = DISKMAGIC;
 
@@ -722,14 +715,6 @@ write_volume_label(int volno)
     *dlp = *lp;
     bp->b_flags &= ~B_INVAL;
     bp->b_iocmd = BIO_WRITE;
-
-    /*
-     * This should read:
-     *
-     *       vinumstrategy (bp);
-     *
-     * Negotiate with phk to get it fixed.
-     */
     DEV_STRATEGY(bp);
     error = bufwait(bp);
     bp->b_flags |= B_INVAL | B_AGE;
@@ -739,7 +724,7 @@ write_volume_label(int volno)
     return error;
 }
 
-/* Look at all disks on the system for vinum slices */
+/* Look at all disks on the system for vinum slices. */
 int
 vinum_scandisk(char *devicename[], int drives)
 {
@@ -836,10 +821,9 @@ vinum_scandisk(char *devicename[], int drives)
 	return ENOENT;
     }
     /*
-     * We now have at least one drive
-     * open.  Sort them in order of config time
-     * and merge the config info with what we
-     * have already.
+     * We now have at least one drive open.  Sort
+     * them in order of config time and merge the
+     * config info with what we have already.
      */
     qsort(drivelist, gooddrives, sizeof(int), drivecmp);
     config_text = (char *) Malloc(MAXCONFIG * 2);	    /* allocate buffers */
@@ -887,10 +871,12 @@ vinum_scandisk(char *devicename[], int drives)
 		    parse_status = parse_config(config_line, &keyword_set, 1); /* parse the config line */
 		    if (parse_status < 0) {		    /* error in config */
 			/*
-			   * This config should have been parsed in user
-			   * space.  If we run into problems here, something
-			   * serious is afoot.  Complain and let the user
-			   * snarf the config to see what's wrong.
+			   * This config should have been parsed
+			   * in user space.  If we run into
+			   * problems here, something serious is
+			   * afoot.  Complain and let the user
+			   * snarf the config to see what's
+			   * wrong.
 			 */
 			log(LOG_ERR,
 			    "vinum: Config error on %s, aborting integration\n",
