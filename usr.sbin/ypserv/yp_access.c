@@ -117,7 +117,7 @@ int yp_access(map, rqstp)
 
 	if (!status && rqhost->sin_addr.s_addr != oldaddr) {
 		yp_error("connect from %s:%d refused",
-			  inet_ntoa(rqhost->sin_addr, ntohs(rqhost->sin_port));
+			  inet_ntoa(rqhost->sin_addr), ntohs(rqhost->sin_port));
 		oldaddr = rqhost->sin_addr.s_addr;
 		return(1);
 	}
