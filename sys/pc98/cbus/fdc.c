@@ -2548,14 +2548,8 @@ retrier(struct fdc_data *fdc)
 		bp->b_error = EIO;
 		bp->b_resid += bp->b_bcount - fdc->fd->skip;
 		fdc->bp = NULL;
-	
-		/* Tell devstat we have finished with the transaction */
-		devstat_end_transaction(&fdc->fd->device_stats,
-					bp->b_bcount - bp->b_resid,
-					DEVSTAT_TAG_NONE,
-					(bp->b_flags & B_READ) ? DEVSTAT_READ :
-								 DEVSTAT_WRITE);
 		fdc->fd->skip = 0;
+		devstat_end_transaction_buf(&fdc->fd->device_stats, bp);
 		biodone(bp);
 		fdc->state = FINDWORK;
 		fdc->flags |= FDC_NEEDS_RESET;
