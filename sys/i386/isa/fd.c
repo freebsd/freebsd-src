@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.117 1998/07/13 08:22:59 julian Exp $
+ *	$Id: fd.c,v 1.118 1998/07/15 09:59:30 bde Exp $
  *
  */
 
@@ -1648,6 +1648,8 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 				printf(
 		"fd%d: Seek to cyl %d failed; am at cyl %d (ST0 = 0x%x)\n",
 				       fdu, descyl, cyl, st0);
+				if (fdc->retry < 3)
+					fdc->retry = 3;
 				return(retrier(fdcu));
 			}
 		}
