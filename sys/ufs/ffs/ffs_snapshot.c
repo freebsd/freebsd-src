@@ -971,6 +971,7 @@ ffs_snapblkfree(freeip, bno, size)
 			VOP_UNLOCK(vp, 0, p);
 			break;
 		}
+		VOP_UNLOCK(vp, 0, p);
 		savedcbp = cbp;
 	}
 	/*
@@ -981,9 +982,11 @@ ffs_snapblkfree(freeip, bno, size)
 	if (savedcbp) {
 		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
-		if (VTOI(vp)->i_effnlink > 0)
+		if (VTOI(vp)->i_effnlink > 0) {
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
-		VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, p);
+		}
 	}
 	/*
 	 * If we have been unable to allocate a block in which to do
@@ -1104,7 +1107,7 @@ ffs_copyonwrite(devvp, bp)
 		 * sleep briefly, and try again.
 		 */
 retry:
-		vn_lock(vp, LK_SHARED | LK_RETRY, p);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		if (lbn < NDADDR) {
 			blkno = ip->i_db[lbn];
 		} else {
