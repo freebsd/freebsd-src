@@ -147,6 +147,9 @@ size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 int	wcswidth(const wchar_t *, size_t);
 int	wcwidth(wchar_t);
 #endif
+
+int	wctob(wint_t);
+wint_t	btowc(int);
 __END_DECLS
 
 #endif /* !_WCHAR_H_ */
