@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: init.8,v 1.9 1997/04/01 20:41:04 mpp Exp $
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
@@ -96,7 +96,8 @@ Permanently insecure mode \- always run the system in level 0 mode.
 Insecure mode \- immutable and append-only flags may be turned off.
 All devices may be read or written subject to their permissions.
 .It Ic 1
-Secure mode \- immutable and append-only flags may not be changed;
+Secure mode \- the system immutable and system append-only flags may not 
+be turned off;
 disks for mounted filesystems,
 .Pa /dev/mem ,
 and
