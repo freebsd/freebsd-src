@@ -428,6 +428,7 @@ ndis_attach(dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ndis_softc	*sc;
 	driver_object		*drv;
+	driver_object		*pdrv;
 	device_object		*pdo;
 	struct ifnet		*ifp = NULL;
 	void			*img;
@@ -439,17 +440,22 @@ ndis_attach(dev)
 	mtx_init(&sc->ndis_mtx, "ndis softc lock",
 	    MTX_NETWORK_LOCK, MTX_DEF);
 
-        /*
+	/*
 	 * Hook interrupt early, since calling the driver's
-	 * init routine may trigger an interrupt.
+	 * init routine may trigger an interrupt. Note that
+	 * we don't need to do any explicit interrupt setup
+	 * for USB.
 	 */
 
-	error = bus_setup_intr(dev, sc->ndis_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    ndis_intr, sc, &sc->ndis_intrhand);
+	if (sc->ndis_iftype == PCMCIABus || sc->ndis_iftype == PCIBus) {
+		error = bus_setup_intr(dev, sc->ndis_irq,
+		    INTR_TYPE_NET | INTR_MPSAFE,
+		    ndis_intr, sc, &sc->ndis_intrhand);
 
-	if (error) {
-		device_printf(dev, "couldn't set up irq\n");
-		goto fail;
+		if (error) {
+			device_printf(dev, "couldn't set up irq\n");
+			goto fail;
+		}
 	}
 
 	if (sc->ndis_iftype == PCMCIABus) {
@@ -470,6 +476,16 @@ ndis_attach(dev)
 	/* Create sysctl registry nodes */
 	ndis_create_sysctls(sc);
 
+	/* Find the PDO for this device instance. */
+
+	if (sc->ndis_iftype == PCIBus)
+		pdrv = windrv_lookup(NULL, "PCI Bus");
+	else if (sc->ndis_iftype == PCMCIABus)
+		pdrv = windrv_lookup(NULL, "PCCARD Bus");
+	else
+		pdrv = windrv_lookup(NULL, "USB Bus");
+	pdo = windrv_find_pdo(pdrv, dev);
+
 	/*
 	 * Create a new functional device object for this
 	 * device. This is what creates the miniport block
@@ -477,8 +493,7 @@ ndis_attach(dev)
 	 */
 
 	img = drv_data;
-	drv = windrv_lookup((vm_offset_t)img);
-	pdo = windrv_find_pdo(drv, dev);
+	drv = windrv_lookup((vm_offset_t)img, NULL);
 	if (NdisAddDevice(drv, pdo) != STATUS_SUCCESS) {
 		device_printf(dev, "failed to create FDO!\n");
 		error = ENXIO;
@@ -491,7 +506,8 @@ ndis_attach(dev)
 	    sc->ndis_chars->nmc_version_minor);
 
 	/* Do resource conversion. */
-	ndis_convert_res(sc);
+	if (sc->ndis_iftype == PCMCIABus || sc->ndis_iftype == PCIBus)
+		ndis_convert_res(sc);
 
 	/* Install our RX and TX interrupt handlers. */
 	sc->ndis_block->nmb_senddone_func = ndis_txeof_wrap;
@@ -857,7 +873,12 @@ ndis_detach(dev)
 
 	/* Destroy the PDO for this device. */
 	
-	drv = windrv_lookup((vm_offset_t)drv_data);
+	if (sc->ndis_iftype == PCIBus)
+		drv = windrv_lookup(NULL, "PCI Bus");
+	else if (sc->ndis_iftype == PCMCIABus)
+		drv = windrv_lookup(NULL, "PCCARD Bus");
+	else
+		drv = windrv_lookup(NULL, "USB Bus");
 	if (drv == NULL)
 		panic("couldn't find driver object");
 	windrv_destroy_pdo(drv, dev);
