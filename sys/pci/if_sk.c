@@ -505,7 +505,7 @@ sk_vpd_read(sc)
 
 	pos += sizeof(res);
 	sc->sk_vpd_readonly = malloc(res.vr_len, M_DEVBUF, M_NOWAIT);
-	for (i = 0; i < res.vr_len + 1; i++)
+	for (i = 0; i < res.vr_len; i++)
 		sc->sk_vpd_readonly[i] = sk_vpd_readbyte(sc, i + pos);
 
 	return;
@@ -1073,9 +1073,11 @@ sk_jalloc(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_jpool_entry   *entry;
-	
+
+	SK_IF_LOCK_ASSERT(sc_if);
+
 	entry = SLIST_FIRST(&sc_if->sk_jfree_listhead);
-	
+
 	if (entry == NULL) {
 #ifdef SK_VERBOSE
 		printf("sk%d: no free jumbo buffers\n", sc_if->sk_unit);
@@ -1102,9 +1104,10 @@ sk_jfree(buf, args)
 
 	/* Extract the softc struct pointer. */
 	sc_if = (struct sk_if_softc *)args;
-
 	if (sc_if == NULL)
 		panic("sk_jfree: didn't get softc pointer!");
+
+	SK_IF_LOCK(sc_if);
 
 	/* calculate the slot this buffer belongs to */
 	i = ((vm_offset_t)buf
@@ -1120,6 +1123,7 @@ sk_jfree(buf, args)
 	SLIST_REMOVE_HEAD(&sc_if->sk_jinuse_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc_if->sk_jfree_listhead, entry, jpool_entries);
 
+	SK_IF_UNLOCK(sc_if);
 	return;
 }
 
@@ -1741,6 +1745,8 @@ sk_encap(sc_if, m_head, txidx)
 	struct mbuf		*m;
 	u_int32_t		frag, cur, cnt = 0;
 
+	SK_IF_LOCK_ASSERT(sc_if);
+
 	m = m_head;
 	cur = frag = *txidx;
 
@@ -1821,11 +1827,13 @@ sk_start(ifp)
 	}
 
 	/* Transmit */
-	sc_if->sk_cdata.sk_tx_prod = idx;
-	CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
+	if (idx != sc_if->sk_cdata.sk_tx_prod) {
+		sc_if->sk_cdata.sk_tx_prod = idx;
+		CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
 
-	/* Set a timeout in case the chip goes out to lunch. */
-	ifp->if_timer = 5;
+		/* Set a timeout in case the chip goes out to lunch. */
+		ifp->if_timer = 5;
+	}
 	SK_IF_UNLOCK(sc_if);
 
 	return;
@@ -1942,10 +1950,12 @@ static void
 sk_txeof(sc_if)
 	struct sk_if_softc	*sc_if;
 {
-	struct sk_tx_desc	*cur_tx = NULL;
+	struct sk_softc		*sc;
+	struct sk_tx_desc	*cur_tx;
 	struct ifnet		*ifp;
 	u_int32_t		idx;
 
+	sc = sc_if->sk_softc;
 	ifp = &sc_if->arpcom.ac_if;
 
 	/*
@@ -1965,15 +1975,17 @@ sk_txeof(sc_if)
 		}
 		sc_if->sk_cdata.sk_tx_cnt--;
 		SK_INC(idx, SK_TX_RING_CNT);
-		ifp->if_timer = 0;
 	}
 
-	sc_if->sk_cdata.sk_tx_cons = idx;
+	if (sc_if->sk_cdata.sk_tx_cnt == 0) {
+		ifp->if_timer = 0;
+	} else /* nudge chip to keep tx ring moving */
+		CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
 
-	if (cur_tx != NULL)
+	if (sc_if->sk_cdata.sk_tx_cnt < SK_TX_RING_CNT - 2)
 		ifp->if_flags &= ~IFF_OACTIVE;
 
-	return;
+	sc_if->sk_cdata.sk_tx_cons = idx;
 }
 
 static void
