@@ -111,15 +111,17 @@ field to 0, or by using the address contained in the variable
 .Dv in6addr_any .
 .Pp
 IPv6 defines scoped addresses such as link-local or site-local addresses.
-A scoped address is ambiguous to the kernel, 
-if it is specified without scope identifier.
+A scoped address is ambiguous to the kernel,
+if it is specified without a scope identifier.
 To manipulate scoped addresses properly from the userland,
 programs must use the advanced API defined in RFC2292.
-Compact description on the advanced API is available in
+A compact description on the advanced API is available in
 .Xr ip6 4 .
 If scoped addresses are specified without explicit scope,
-the kernel may raise error.
-Note that scoped addresses are not for daily use at this moment,
+an error,
+.Er EHOSTUNREACH ,
+might be returned from the kernel.
+Note that scoped addresses are not for common use at this moment,
 both from specification and implementation point of view.
 .Pp
 FreeBSD's IPv6 implementation supports extended numeric IPv6 address 
@@ -278,12 +280,13 @@ message protocol is accessible from a raw socket.
 .\" will trigger the mechanism; whereas raw
 .\" .Tn IP
 .\" packets, whether locally-generated or forwarded, will not.
-.Sh MIB VARIABLES
+.Ss MIB Variables
 A number of variables are implemented in the net.inet6 branch of the
 .Xr sysctl 3
-MIB.  In addition to the variables supported by the transport
-protocols (for which see the respective manual pages), the following
-general variables are defined:
+MIB.
+In addition to the variables supported by the transport protocols
+(for which the respective manual pages may be consulted),
+the following general variables are defined:
 .Bl -tag -width IPV6CTL_MAXFRAGPACKETS
 .It Dv IPV6CTL_FORWARDING
 .Pq ip6.forwarding
