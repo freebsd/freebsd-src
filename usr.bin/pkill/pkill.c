@@ -69,6 +69,9 @@ __FBSDID("$FreeBSD$");
 #define	STATUS_BADUSAGE	2
 #define	STATUS_ERROR	3
 
+#define	MIN_PID	5
+#define	MAX_PID	99999
+
 /* Check for system-processes which should always be ignored. */
 #define	IS_KERNPROC(kp)	((kp)->ki_flag & P_KTHREAD)
 
@@ -116,6 +119,7 @@ void	usage(void);
 void	killact(struct kinfo_proc *);
 void	grepact(struct kinfo_proc *);
 void	makelist(struct listhead *, enum listtype, char *);
+int	takepid(const char *);
 
 int
 main(int argc, char **argv)
@@ -125,7 +129,7 @@ main(int argc, char **argv)
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q;
 	const char *execf, *coref;
 	int debug_opt;
-	int i, ch, bestidx, rv, criteria;
+	int i, ch, bestidx, rv, criteria, pidfromfile;
 	size_t jsz;
 	void (*action)(struct kinfo_proc *);
 	struct kinfo_proc *kp;
@@ -167,12 +171,17 @@ main(int argc, char **argv)
 
 	criteria = 0;
 	debug_opt = 0;
+	pidfromfile = -1;
 	execf = coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DG:M:N:P:U:d:fg:j:lns:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:M:N:P:U:d:fg:j:lns:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
+			break;
+		case 'F':
+			pidfromfile = takepid(optarg);
+			criteria = 1;
 			break;
 		case 'G':
 			makelist(&rgidlist, LT_GROUP, optarg);
@@ -335,6 +344,11 @@ main(int argc, char **argv)
 		if (IS_KERNPROC(kp) != 0)
 			continue;
 
+		if (pidfromfile >= 0 && kp->ki_pid != pidfromfile) {
+			selected[i] = 0;
+			continue;
+		}
+
 		SLIST_FOREACH(li, &ruidlist, li_chain)
 			if (kp->ki_ruid == (uid_t)li->li_number)
 				break;
@@ -468,7 +482,7 @@ usage(void)
 		ustr = "[-signal] [-fnvx]";
 
 	fprintf(stderr,
-		"usage: %s %s [-G gid] [-M core] [-N system]\n"
+		"usage: %s %s [-F pidfile] [-G gid] [-M core] [-N system]\n"
 		"             [-P ppid] [-U uid] [-g pgrp] [-j jid] [-s sid]\n"
 		"             [-t tty] [-u euid] pattern ...\n", getprogname(),
 		ustr);
@@ -596,4 +610,33 @@ makelist(struct listhead *head, enum listtype type, char *src)
 
 	if (empty)
 		usage();
+}
+
+int
+takepid(const char *pidfile)
+{
+	char *endp, line[BUFSIZ];
+	FILE *fh;
+	long rval;
+ 
+	fh = fopen(pidfile, "r");
+	if (fh == NULL)
+		err(STATUS_ERROR, "can't open pid file `%s'", pidfile);
+ 
+	if (fgets(line, sizeof(line), fh) == NULL) {
+		if (feof(fh)) {
+			(void)fclose(fh);
+			errx(STATUS_ERROR, "pid file `%s' is empty", pidfile);
+		}
+		(void)fclose(fh);
+		err(STATUS_ERROR, "can't read from pid file `%s'", pidfile);
+	}
+	(void)fclose(fh);
+ 
+	rval = strtol(line, &endp, 10);
+	if (*endp != '\0' && !isspace((unsigned char)*endp))
+		errx(STATUS_ERROR, "invalid pid in file `%s'", pidfile);
+	else if (rval < MIN_PID || rval > MAX_PID)
+		errx(STATUS_ERROR, "invalid pid in file `%s'", pidfile);
+	return (rval);
 }
