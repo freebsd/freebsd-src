@@ -736,12 +736,16 @@ MacAlly mouse (3 buttons).
 MacAlly self powered hub (4 ports).
 MacAlly iKey keyboard.
 
+Matshita CF-VFDU03 floppy drive.
+
 Microsoft IntelliMouse (3 buttons).
 Microsoft keyboard.
 
 Microtech USB-SCSI-HD 50 USB to SCSI cable.
 
 NEC hub.
+
+Panasonic floppy drive.
 
 Trust Ami Mouse (3 buttons).
 
