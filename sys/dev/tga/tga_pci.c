@@ -27,9 +27,6 @@
  * Copyright (c) 2000 Andrew Miklic, Andrew Gallatin, and Thomas V. Crimi
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_fb.h"
 
 #include <sys/cdefs.h>
@@ -93,8 +90,6 @@ DRIVER_MODULE(tga, pci, tga_driver, tga_devclass, 0, 0);
 static struct gfb_type tga_devs[] = {
 	{ DEC_VENDORID, DEC_DEVICEID_TGA,
 	"DEC TGA (21030) 2D Graphics Accelerator" },
-	{ DEC_VENDORID, DEC_DEVICEID_TGA2,
-	"DEC TGA2 (21130) 3D Graphics Accelerator" },
 	{ 0, 0, NULL }
 };
 
