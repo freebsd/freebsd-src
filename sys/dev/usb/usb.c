@@ -4,6 +4,7 @@
  *	$NetBSD: usb.c,v 1.70 2002/05/09 21:54:32 augustss Exp $
  *	$NetBSD: usb.c,v 1.71 2002/06/01 23:51:04 lukem Exp $
  *	$NetBSD: usb.c,v 1.73 2002/09/23 05:51:19 simonb Exp $
+ *	$NetBSD: usb.c,v 1.80 2003/11/07 17:03:25 wiz Exp $
  */
 
 #include <sys/cdefs.h>
@@ -48,8 +49,8 @@ __FBSDID("$FreeBSD$");
 
 /*
  * USB specifications and other documentation can be found at
- * http://www.usb.org/developers/data/ and
- * http://www.usb.org/developers/index.html .
+ * http://www.usb.org/developers/docs/ and
+ * http://www.usb.org/developers/devclass_docs/
  */
 
 #include <sys/param.h>
