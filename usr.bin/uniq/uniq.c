@@ -122,22 +122,15 @@ main (argc, argv)
 	} else if (!dflag && !uflag)
 		dflag = uflag = 1;
 
-	switch(argc) {
-	case 0:
-		ifp = stdin;
-		ofp = stdout;
-		break;
-	case 1:
-		ifp = file(argv[0], "r");
-		ofp = stdout;
-		break;
-	case 2:
-		ifp = file(argv[0], "r");
-		ofp = file(argv[1], "w");
-		break;
-	default:
+	if (argc > 2)
 		usage();
-	}
+
+	ifp = stdin;
+	ofp = stdout;
+	if (argc > 0 && strcmp(argv[0], "-") != 0)
+		ifp = file(argv[0], "r");
+	if (argc > 1)
+		ofp = file(argv[1], "w");
 
 	prevline = malloc(MAXLINELEN);
 	thisline = malloc(MAXLINELEN);
