@@ -411,7 +411,7 @@ ufs_setattr(ap)
 		if (cred->cr_uid != ip->i_uid &&
 		    (error = suser_xxx(cred, p, PRISON_ROOT)))
 			return (error);
-		if ((cred->cr_uid == 0) && (p->p_prison == NULL)) {
+		if (!suser_xxx(cred, NULL, 0)) {
 			if ((ip->i_flags
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) &&
 			    securelevel > 0)
@@ -527,7 +527,7 @@ ufs_chmod(vp, mode, cred, p)
 	    if (error)
 		return (error);
 	}
-	if (cred->cr_uid) {
+	if (suser_xxx(cred, NULL, PRISON_ROOT)) {
 		if (vp->v_type != VDIR && (mode & S_ISTXT))
 			return (EFTYPE);
 		if (!groupmember(ip->i_gid, cred) && (mode & ISGID))
@@ -638,7 +638,7 @@ good:
 		panic("ufs_chown: lost quota");
 #endif /* QUOTA */
 	ip->i_flag |= IN_CHANGE;
-	if (cred->cr_uid != 0 && (ouid != uid || ogid != gid))
+	if (suser_xxx(cred, NULL, 0) && (ouid != uid || ogid != gid))
 		ip->i_mode &= ~(ISUID | ISGID);
 	return (0);
 }
@@ -1093,7 +1093,8 @@ abortit:
 		 * otherwise the destination may not be changed (except by
 		 * root). This implements append-only directories.
 		 */
-		if ((dp->i_mode & S_ISTXT) && tcnp->cn_cred->cr_uid != 0 &&
+		if ((dp->i_mode & S_ISTXT) &&
+		    suser_xxx(tcnp->cn_cred, NULL, 0) &&
 		    tcnp->cn_cred->cr_uid != dp->i_uid &&
 		    xp->i_uid != tcnp->cn_cred->cr_uid) {
 			error = EPERM;
