@@ -237,7 +237,9 @@ static void cx_error (cx_chan_t *c, int data);
 static void cx_modem (cx_chan_t *c);
 static void cx_up (drv_t *d);
 static void cx_start (drv_t *d);
-static void disc_optim(struct tty *tp, struct termios *t);
+#if __FreeBSD_version < 502113
+static void ttyldoptim(struct tty *tp);
+#endif
 #if __FreeBSD_version < 500000
 static swihand_t cx_softintr;
 #else
@@ -1660,7 +1662,7 @@ again:
 	}
 
 	error = ttyld_open (&d->tty, dev);
-	disc_optim (&d->tty, &d->tty.t_termios);
+	ttyldoptim (&d->tty);
 	spl0 ();
 	if (error) {
 failed:         if (! (d->tty.t_state & TS_ISOPEN)) {
@@ -1701,7 +1703,7 @@ static int cx_close (dev_t dev, int flag, int mode, struct thread *td)
 	}
 	s = splhigh ();
 	ttyld_close(&d->tty, flag);
-	disc_optim (&d->tty, &d->tty.t_termios);
+	ttyldoptim (&d->tty);
 
 	/* Disable receiver.
 	 * Transmitter continues sending the queued data. */
@@ -2129,7 +2131,7 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 	if (c->mode == M_ASYNC) {
 #if __FreeBSD_version >= 502113
 		error = ttyioctl (dev, cmd, data, flag, td);
-		disc_optim (&d->tty, &d->tty.t_termios);
+		ttyldoptim (&d->tty);
 		if (error != ENOTTY) {
 			if (error)
 			CX_DEBUG2 (d, ("ttioctl: 0x%lx, error %d\n", cmd, error));
@@ -2141,14 +2143,14 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 #else
 		error = (*linesw[d->tty.t_line].l_ioctl) (&d->tty, cmd, data, flag, p);
 #endif
-		disc_optim (&d->tty, &d->tty.t_termios);
+		ttyldoptim (&d->tty);
 		if (error != ENOIOCTL) {
 			if (error)
 			CX_DEBUG2 (d, ("l_ioctl: 0x%lx, error %d\n", cmd, error));
 			return error;
 		}
 		error = ttioctl (&d->tty, cmd, data, flag);
-		disc_optim (&d->tty, &d->tty.t_termios);
+		ttyldoptim (&d->tty);
 		if (error != ENOIOCTL) {
 			if (error)
 			CX_DEBUG2 (d, ("ttioctl: 0x%lx, error %d\n", cmd, error));
@@ -2256,16 +2258,20 @@ static void cx_dtrwakeup (void *arg)
 }
 
 
+#if __FreeBSD_version < 502113
 static void
-disc_optim(tp, t)
+ttyldoptim(tp)
 	struct tty	*tp;
-	struct termios	*t;
 {
+	struct termios	*t;
+	
+	t = &tp->t_termios;
 	if (CONDITION(t,tp))
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
+#endif
 
 #if __FreeBSD_version >= 500000
 void cx_softintr (void *unused)
@@ -2452,7 +2458,7 @@ static int cx_param (struct tty *tp, struct termios *t)
 	if (! d->chan->dtr)
 		cx_set_dtr (d->chan, 1);
 
-	disc_optim (&d->tty, &d->tty.t_termios);
+	ttyldoptim (&d->tty);
 	cx_set_async_param (d->chan, t->c_ospeed, bits, parity, (t->c_cflag & CSTOPB),
 		!(t->c_cflag & PARENB), (t->c_cflag & CRTSCTS),
 		(t->c_iflag & IXON), (t->c_iflag & IXANY),

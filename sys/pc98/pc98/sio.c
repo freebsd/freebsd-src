@@ -386,8 +386,6 @@ static	int	siosetwater(struct com_s *com, speed_t speed);
 static	void	comstart(struct tty *tp);
 static	void	comstop(struct tty *tp, int rw);
 static	timeout_t comwakeup;
-static	void	disc_optim(struct tty *tp, struct termios *t,
-		    struct com_s *com);
 
 char		sio_driver_name[] = "sio";
 static struct	mtx sio_lock;
@@ -2069,7 +2067,7 @@ open_top:
 		goto open_top;
 	}
 	error =	ttyld_open(tp, dev);
-	disc_optim(tp, &tp->t_termios, com);
+	com->hotchar = ttyldoptim(tp);
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
 	siosettimeout();
@@ -2104,7 +2102,7 @@ sioclose(dev, flag, mode, td)
 #ifdef PC98
 	com->modem_checking = 0;
 #endif
-	disc_optim(tp, &tp->t_termios, com);
+	com->hotchar = ttyldoptim(tp);
 	comhardclose(com);
 	ttyclose(tp);
 	siosettimeout();
@@ -3022,7 +3020,7 @@ sioioctl(dev, cmd, data, flag, td)
 			dt->c_ospeed = tp->t_ospeed;
 	}
 	error = ttyioctl(dev, cmd, data, flag, td);
-	disc_optim(tp, &tp->t_termios, com);
+	com->hotchar = ttyldoptim(tp);
 	if (error != ENOTTY)
 		return (error);
 	s = spltty();
@@ -3438,7 +3436,7 @@ comparam(tp, t)
 #endif
 
 	/* XXX shouldn't call functions while intrs are disabled. */
-	disc_optim(tp, t, com);
+	com->hotchar = ttyldoptim(tp);
 
 	mtx_unlock_spin(&sio_lock);
 	splx(s);
@@ -3897,24 +3895,6 @@ commint(dev_t dev)
 	}
 }
 #endif
-
-static void
-disc_optim(tp, t, com)
-	struct tty	*tp;
-	struct termios	*t;
-	struct com_s	*com;
-{
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
-	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
-	    && (!(t->c_iflag & PARMRK)
-		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
-	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
-	    && linesw[tp->t_line].l_rint == ttyinput)
-		tp->t_state |= TS_CAN_BYPASS_L_RINT;
-	else
-		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	com->hotchar = linesw[tp->t_line].l_hotchar;
-}
 
 /*
  * Following are all routines needed for SIO to act as console

@@ -140,7 +140,6 @@ static void rc_reinit(struct rc_softc *);
 static void printrcflags();
 #endif
 static void rc_dtrwakeup(void *);
-static void disc_optim(struct tty *tp, struct termios *t, struct rc_chans *);
 static void rc_wait0(struct rc_softc *sc, int chan, int line);
 
 static	d_open_t	rcopen;
@@ -932,7 +931,7 @@ again:
 		goto again;
 	}
 	error = ttyld_open(tp, dev);
-	disc_optim(tp, &tp->t_termios, rc);
+	rc->rc_hotchar = ttyldoptim(tp);
 	if ((tp->t_state & TS_ISOPEN) && CALLOUT(dev))
 		rc->rc_flags |= RC_ACTOUT;
 out:
@@ -961,7 +960,7 @@ rcclose(dev_t dev, int flag, int mode, d_thread_t *td)
 #endif
 	s = spltty();
 	ttyld_close(tp, flag);
-	disc_optim(tp, &tp->t_termios, rc);
+	rc->rc_hotchar = ttyldoptim(tp);
 	rc_hardclose(rc);
 	ttyclose(tp);
 	splx(s);
@@ -1151,7 +1150,7 @@ rc_param(struct tty *tp, struct termios *ts)
 
 	CCRCMD(sc, rc->rc_chan, CCR_CORCHG1 | CCR_CORCHG2 | CCR_CORCHG3);
 
-	disc_optim(tp, ts, rc);
+	rc->rc_hotchar = ttyldoptim(tp);
 
 	/* modem ctl */
 	val = cflag & CLOCAL ? 0 : MCOR1_CDzd;
@@ -1208,7 +1207,7 @@ rcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, d_thread_t *td)
 	rc = DEV_TO_RC(dev);
 	tp = &rc->rc_tp;
 	error = ttyioctl(dev, cmd, data, flag, td);
-	disc_optim(tp, &tp->t_termios, rc);
+	rc->rc_hotchar = ttyldoptim(tp);
 	if (error != ENOTTY)
 		return (error);
 	s = spltty();
@@ -1541,22 +1540,6 @@ rc_discard_output(struct rc_chans *rc)
 	rc->rc_tp.t_state &= ~TS_BUSY;
 	critical_exit();
 	ttwwakeup(&rc->rc_tp);
-}
-
-static void
-disc_optim(struct tty *tp, struct termios *t, struct rc_chans *rc)
-{
-
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
-	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
-	    && (!(t->c_iflag & PARMRK)
-		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
-	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
-	    && linesw[tp->t_line].l_rint == ttyinput)
-		tp->t_state |= TS_CAN_BYPASS_L_RINT;
-	else
-		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	rc->rc_hotchar = linesw[tp->t_line].l_hotchar;
 }
 
 static void

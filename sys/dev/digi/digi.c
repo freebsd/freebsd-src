@@ -693,20 +693,6 @@ digimctl(struct digi_p *port, int bits, int how)
 	return (0);
 }
 
-static void
-digi_disc_optim(struct tty *tp, struct termios *t, struct digi_p *port)
-{
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP)) &&
-	    (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK)) &&
-	    (!(t->c_iflag & PARMRK) ||
-	    (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK)) &&
-	    !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN)) &&
-	    linesw[tp->t_line].l_rint == ttyinput)
-		tp->t_state |= TS_CAN_BYPASS_L_RINT;
-	else
-		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-}
-
 static int
 digiopen(dev_t dev, int flag, int mode, struct thread *td)
 {
@@ -853,7 +839,7 @@ open_top:
 	DLOG(DIGIDB_OPEN, (sc->dev, "port %d: l_open error = %d\n",
 	    pnum, error));
 
-	digi_disc_optim(tp, &tp->t_termios, port);
+	ttyldoptim(tp);
 
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		port->active_out = TRUE;
@@ -901,7 +887,7 @@ digiclose(dev_t dev, int flag, int mode, struct thread *td)
 
 	s = spltty();
 	ttyld_close(tp, flag);
-	digi_disc_optim(tp, &tp->t_termios, port);
+	ttyldoptim(tp);
 	digihardclose(port);
 	ttyclose(tp);
 	if (--sc->opencnt == 0)
@@ -1278,7 +1264,7 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	error = ttyioctl(dev, cmd, data, flag, td);
 	if (error == 0 && cmd == TIOCGETA)
 		((struct termios *)data)->c_iflag |= port->c_iflag;
-	digi_disc_optim(tp, &tp->t_termios, port);
+	ttyldoptim(tp);
 	if (error >= 0 && error != ENOTTY)
 		return (error);
 	s = spltty();
