@@ -52,6 +52,10 @@
 #include <machine/cpu.h>
 #endif
 
+#ifndef NMBCLUSTERS
+#define NMBCLUSTERS	(512 + MAXUSERS * 16)
+#endif
+
 static void mbinit __P((void *));
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
 
@@ -65,8 +69,8 @@ int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
-int	nmbclusters;
-int	nmbufs;
+int	nmbclusters = NMBCLUSTERS;
+int	nmbufs = NMBCLUSTERS * 4;
 u_int	m_mballoc_wid = 0;
 u_int	m_clalloc_wid = 0;
 
@@ -87,11 +91,8 @@ SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD,
 	   &nmbclusters, 0, "Maximum number of mbuf clusters available");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
 	   "Maximum number of mbufs available"); 
-#ifndef NMBCLUSTERS
-#define NMBCLUSTERS	(512 + MAXUSERS * 16)
-#endif
-TUNABLE_INT_DECL("kern.ipc.nmbclusters", NMBCLUSTERS, nmbclusters);
-TUNABLE_INT_DECL("kern.ipc.nmbufs", NMBCLUSTERS * 4, nmbufs);
+TUNABLE_INT("kern.ipc.nmbclusters", &nmbclusters);
+TUNABLE_INT("kern.ipc.nmbufs", &nmbufs);
 
 static void	m_reclaim __P((void));
 

@@ -250,19 +250,67 @@ void	sysinit_add __P((struct sysinit **set));
  * in a SYSINIT function at SI_SUB_TUNABLES with SI_ORDER_LAST.
  */
 
+extern void tunable_int_init(void *);
+struct tunable_int {
+	const char *path;
+	int *var;
+};
+#define	TUNABLE_INT(path, var)					\
+	_TUNABLE_INT((path), (var), __LINE__)
+#define _TUNABLE_INT(path, var, line)				\
+	__TUNABLE_INT((path), (var), line)
+
+#define	__TUNABLE_INT(path, var, line)				\
+	static struct tunable_int __tunable_int_ ## line = {	\
+		path,						\
+		var,						\
+	};							\
+	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
+	     tunable_int_init, &__tunable_int_ ## line)
+
+#define	TUNABLE_INT_FETCH(path, var)			\
+do {							\
+	getenv_int((path), (var));			\
+} while (0)
+
+/* Backwards compatability with the old deprecated TUNABLE_INT_DECL API */
 #define TUNABLE_INT_DECL(path, defval, var)	\
 static void __Tunable_ ## var (void *ignored)	\
 {						\
-    if (!getenv_int((path), &(var)))		\
-       (var) = (defval);			\
+	(var) = (defval);			\
+	TUNABLE_INT_FETCH((path), (var));	\
 }						\
 SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL);
 
-#define TUNABLE_INT_FETCH(path, defval, var)	\
-    if (!getenv_int((path), &(var)))		\
-       (var) = (defval);
+extern void tunable_str_init(void *);
+struct tunable_str {
+	const char *path;
+	char *var;
+	int size;
+};
+#define	TUNABLE_STR(path, var, size)				\
+	_TUNABLE_STR((path), (var), (size), __LINE__)
+#define	_TUNABLE_STR(path, var, size, line)			\
+	__TUNABLE_STR((path), (var), (size), line)
 
+#define	__TUNABLE_STR(path, var, size, line)			\
+	static struct tunable_str __tunable_str_ ## line = {	\
+		path,						\
+		var,						\
+		size,						\
+	};							\
+	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
+	     tunable_str_init, &__tunable_str_ ## line)
 
+#define	TUNABLE_STR_FETCH(path, var, size)		\
+do {							\
+	char *tmp;					\
+	tmp = getenv((path));				\
+	if (tmp != NULL) {				\
+		strncpy((var), tmp, (size));		\
+		(var)[(size) - 1] = 0;			\
+	}						\
+} while (0)
 /*
  * Compatibility.  To be deprecated after LKM is removed.
  */

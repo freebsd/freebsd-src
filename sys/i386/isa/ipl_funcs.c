@@ -83,13 +83,7 @@ softclockpending(void)
 static int splassertmode = SPLASSERT_LOG;
 SYSCTL_INT(_kern, OID_AUTO, splassertmode, CTLFLAG_RW,
 	&splassertmode, 0, "Set the mode of SPLASSERT");
-
-static void
-init_splassertmode(void *ignored)
-{
-	TUNABLE_INT_FETCH("kern.splassertmode", 0, splassertmode);
-}
-SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_splassertmode, NULL);
+TUNABLE_INT("kern.splassertmode", &splassertmode);
 
 static void
 splassertfail(char *str, const char *msg, char *name, int level)
