@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.47 1998/04/13 08:35:37 kato Exp $
+ *	$Id: wd.c,v 1.48 1998/04/20 13:51:34 kato Exp $
  */
 
 /* TODO:
@@ -82,6 +82,7 @@
 #ifdef DEVFS
 #ifdef SLICE
 #include <sys/device.h>
+#include <sys/fcntl.h>
 #include <dev/slice/slice.h>
 #else
 #include <sys/devfsext.h>
@@ -286,7 +287,7 @@ struct isa_driver wdcdriver = {
 static sl_h_IO_req_t	wdsIOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t	wdsioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t	wdsopen;	/* downwards travelling open */
-static sl_h_close_t	wdsclose;	/* downwards travelling close */
+/*static sl_h_close_t	wdsclose; */	/* downwards travelling close */
 static void	wds_init(void*);
 
 static struct slice_handler slicetype = {
@@ -298,7 +299,7 @@ static struct slice_handler slicetype = {
 	&wdsIOreq,
 	&wdsioctl,
 	&wdsopen,
-	&wdsclose,
+	/*&wdsclose*/NULL,
 	NULL,	/* revoke */
 	NULL,	/* claim */
 	NULL,	/* verify */
@@ -779,7 +780,11 @@ wds_init(void *arg)
 		(*tp->constructor)(du->slice);
 	}
 	config_intrhook_disestablish(&du->ich);
+#if 0
 	wdsclose(du, 0, 0, curproc);
+#else
+	wdsopen(du, 0, 0, curproc); /* open to 0 flags == close */
+#endif
 }
 #endif
 
@@ -2955,21 +2960,25 @@ wdsopen(void *private, int flags, int mode, struct proc *p)
 
 	du = private;
 
-	/* Finish flushing IRQs left over from wdattach(). */
+	if ((flags & (FREAD|FWRITE)) != 0) {
+		/* Finish flushing IRQs left over from wdattach(). */
 #ifdef CMD640
-	if (wdtab[du->dk_ctrlr_cmd640].b_active == 2)
-		wdtab[du->dk_ctrlr_cmd640].b_active = 0;
+		if (wdtab[du->dk_ctrlr_cmd640].b_active == 2)
+			wdtab[du->dk_ctrlr_cmd640].b_active = 0;
 #else
-	if (wdtab[du->dk_ctrlr].b_active == 2)
-		wdtab[du->dk_ctrlr].b_active = 0;
+		if (wdtab[du->dk_ctrlr].b_active == 2)
+			wdtab[du->dk_ctrlr].b_active = 0;
 #endif
 
-	du->dk_state = OPEN;
-	du->dk_flags &= ~DKFL_BADSCAN;
-
+		du->dk_state = OPEN;
+		du->dk_flags &= ~DKFL_BADSCAN;
+	} else {
+		du->dk_state = CLOSED;
+	}
 	return (error);
 }
 
+#if 0
 static void
 wdsclose(void *private, int flags, int mode, struct proc *p)
 {
@@ -2979,6 +2988,7 @@ wdsclose(void *private, int flags, int mode, struct proc *p)
 	du->dk_state = CLOSED;
 	return;
 }
+#endif /* 0 */
 
 static int
 wdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.108 1998/04/17 22:36:31 des Exp $
+ *	$Id: fd.c,v 1.109 1998/04/19 23:31:41 julian Exp $
  *
  */
 
@@ -318,7 +318,7 @@ static struct isa_device *fdcdevs[NFDC];
 static sl_h_IO_req_t	fdsIOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t	fdsioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t	fdsopen;	/* downwards travelling open */
-static sl_h_close_t	fdsclose;	/* downwards travelling close */
+/*static sl_h_close_t	fdsclose; */	/* downwards travelling close */
 static void	fdsinit(void *);
 
 static struct slice_handler slicetype = {
@@ -330,7 +330,7 @@ static struct slice_handler slicetype = {
 	&fdsIOreq,
 	&fdsioctl,
 	&fdsopen,
-	&fdsclose,
+	/*&fdsclose*/NULL,
 	NULL,	/* revoke */
 	NULL,	/* claim */
 	NULL,	/* verify */
@@ -2195,9 +2195,14 @@ fdsopen(void *private, int flags, int mode, struct proc *p)
 
 	sd = private;
 
-	return(Fdopen(makedev(0,sd->minor), 0 , 0, p));
+	if((flags & (FREAD|FWRITE)) != 0) {
+		return(Fdopen(makedev(0,sd->minor), 0 , 0, p));
+	} else {
+		return(fdclose(makedev(0,sd->minor), 0 , 0, p));
+	}
 }
 
+#if 0
 static void
 fdsclose(void *private, int flags, int mode, struct proc *p)
 {
@@ -2208,6 +2213,7 @@ fdsclose(void *private, int flags, int mode, struct proc *p)
 	fdclose(makedev(0,sd->minor), 0 , 0, p);
 	return ;
 }
+#endif	/* 0 */
 
 #endif	/* SLICE */
 #endif
