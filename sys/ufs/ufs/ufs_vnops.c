@@ -85,7 +85,6 @@ static int ufs_makeinode __P((int mode, struct vnode *, struct vnode **, struct 
 static int ufs_missingop __P((struct vop_generic_args *ap));
 static int ufs_mkdir __P((struct vop_mkdir_args *));
 static int ufs_mknod __P((struct vop_mknod_args *));
-static int ufs_mmap __P((struct vop_mmap_args *));
 static int ufs_open __P((struct vop_open_args *));
 static int ufs_pathconf __P((struct vop_pathconf_args *));
 static int ufs_print __P((struct vop_print_args *));
@@ -671,25 +670,6 @@ good:
 	if (suser_xxx(cred, NULL, PRISON_ROOT) && (ouid != uid || ogid != gid))
 		ip->i_mode &= ~(ISUID | ISGID);
 	return (0);
-}
-
-/*
- * Mmap a file
- *
- * NB Currently unsupported.
- */
-/* ARGSUSED */
-int
-ufs_mmap(ap)
-	struct vop_mmap_args /* {
-		struct vnode *a_vp;
-		int  a_fflags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	return (EINVAL);
 }
 
 int
@@ -2216,7 +2196,6 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) ufs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) ufs_mknod },
-	{ &vop_mmap_desc,		(vop_t *) ufs_mmap },
 	{ &vop_open_desc,		(vop_t *) ufs_open },
 	{ &vop_pathconf_desc,		(vop_t *) ufs_pathconf },
 	{ &vop_poll_desc,		(vop_t *) vop_stdpoll },
