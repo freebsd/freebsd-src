@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmclib - Local implementation of C library functions
- * $Revision: 46 $
+ * $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -144,7 +144,7 @@
  ******************************************************************************/
 
 
-UINT32
+ACPI_SIZE
 AcpiUtStrlen (
     const NATIVE_CHAR       *String)
 {
@@ -219,7 +219,7 @@ NATIVE_CHAR *
 AcpiUtStrncpy (
     NATIVE_CHAR             *DstString,
     const NATIVE_CHAR       *SrcString,
-    NATIVE_UINT             Count)
+    ACPI_SIZE               Count)
 {
     NATIVE_CHAR             *String = DstString;
 
@@ -257,7 +257,7 @@ AcpiUtStrncpy (
  *
  ******************************************************************************/
 
-UINT32
+int
 AcpiUtStrcmp (
     const NATIVE_CHAR       *String1,
     const NATIVE_CHAR       *String2)
@@ -294,7 +294,7 @@ int
 AcpiUtStrncmp (
     const NATIVE_CHAR       *String1,
     const NATIVE_CHAR       *String2,
-    NATIVE_UINT             Count)
+    ACPI_SIZE               Count)
 {
 
 
@@ -306,7 +306,7 @@ AcpiUtStrncmp (
         }
     }
 
-    return ((Count == ACPI_INTEGER_MAX) ? 0 : ((unsigned char) *String1 -
+    return ((Count == ACPI_SIZE_MAX) ? 0 : ((unsigned char) *String1 -
         (unsigned char) *String2));
 }
 
@@ -365,7 +365,7 @@ NATIVE_CHAR *
 AcpiUtStrncat (
     NATIVE_CHAR             *DstString,
     const NATIVE_CHAR       *SrcString,
-    NATIVE_UINT             Count)
+    ACPI_SIZE               Count)
 {
     NATIVE_CHAR             *String;
 
@@ -412,7 +412,7 @@ void *
 AcpiUtMemcpy (
     void                    *Dest,
     const void              *Src,
-    NATIVE_UINT             Count)
+    ACPI_SIZE               Count)
 {
     NATIVE_CHAR             *New = (NATIVE_CHAR *) Dest;
     NATIVE_CHAR             *Old = (NATIVE_CHAR *) Src;
@@ -448,7 +448,7 @@ void *
 AcpiUtMemset (
     void                    *Dest,
     NATIVE_UINT             Value,
-    NATIVE_UINT             Count)
+    ACPI_SIZE               Count)
 {
     NATIVE_CHAR             *New = (NATIVE_CHAR *) Dest;
 

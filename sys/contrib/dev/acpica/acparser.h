@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
- *       $Revision: 61 $
+ *       $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -135,6 +135,7 @@
 #define ACPI_PARSE_EXECUTE              0x0030
 #define ACPI_PARSE_MODE_MASK            0x0030
 
+#define ACPI_PARSE_DEFERRED_OP          0x0100
 
 /* Parser external interfaces */
 

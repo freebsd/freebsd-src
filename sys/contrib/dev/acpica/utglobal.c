@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 168 $
+ *              $Revision: 171 $
  *
  *****************************************************************************/
 
@@ -119,7 +119,6 @@
 
 #include "acpi.h"
 #include "acnamesp.h"
-#include "amlcode.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utglobal")
@@ -264,10 +263,10 @@ const NATIVE_CHAR           *AcpiGbl_DbSleepStates[ACPI_NUM_SLEEP_STATES] = {
 
 
 /*
- * Names built-in to the interpreter
+ * Predefined ACPI Names (Built-in to the Interpreter)
  *
  * Initial values are currently supported only for types String and Number.
- * To avoid type punning, both are specified as strings in this table.
+ * Both are specified as strings in this table.
  *
  * NOTES:
  * 1) _SB_ is defined to be a device to allow _SB_/_INI to be run
@@ -276,11 +275,11 @@ const NATIVE_CHAR           *AcpiGbl_DbSleepStates[ACPI_NUM_SLEEP_STATES] = {
 
 const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
 {
-    {"_GPE",    INTERNAL_TYPE_DEF_ANY,      NULL},
-    {"_PR_",    INTERNAL_TYPE_DEF_ANY,      NULL},
+    {"_GPE",    INTERNAL_TYPE_SCOPE,        NULL},
+    {"_PR_",    INTERNAL_TYPE_SCOPE,        NULL},
     {"_SB_",    ACPI_TYPE_DEVICE,           NULL},
-    {"_SI_",    INTERNAL_TYPE_DEF_ANY,      NULL},
-    {"_TZ_",    INTERNAL_TYPE_DEF_ANY,      NULL},
+    {"_SI_",    INTERNAL_TYPE_SCOPE,        NULL},
+    {"_TZ_",    INTERNAL_TYPE_SCOPE,        NULL},
     {"_REV",    ACPI_TYPE_INTEGER,          "2"},
     {"_OS_",    ACPI_TYPE_STRING,           ACPI_OS_NAME},
     {"_GL_",    ACPI_TYPE_MUTEX,            "0"},
@@ -294,9 +293,7 @@ const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
 
 /*
  * Properties of the ACPI Object Types, both internal and external.
- *
- * Elements of AcpiNsProperties are bit significant
- * and the table is indexed by values of ACPI_OBJECT_TYPE
+ * The table is indexed by values of ACPI_OBJECT_TYPE
  */
 
 const UINT8                     AcpiGbl_NsProperties[] =
@@ -629,7 +626,6 @@ AcpiUtGetObjectTypeName (
 
 /*
  * Strings and procedures used for debug only
- *
  */
 
 
@@ -862,6 +858,7 @@ AcpiUtInitGlobals (
 
     AcpiGbl_GpeRegisterInfo             = NULL;
     AcpiGbl_GpeNumberInfo               = NULL;
+    AcpiGbl_EventsInitialized           = FALSE;
 
     /* Namespace */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 139 $
+ *              $Revision: 141 $
  *
  *****************************************************************************/
 
@@ -214,7 +214,7 @@ AcpiNsDumpPathname (
     Status = AcpiNsHandleToPathname (Handle, &Buffer);
     if (ACPI_SUCCESS (Status))
     {
-        AcpiOsPrintf ("%s %s (Node %p)\n", Msg, Buffer.Pointer, Handle);
+        AcpiOsPrintf ("%s %s (Node %p)\n", Msg, (char *) Buffer.Pointer, Handle);
         ACPI_MEM_FREE (Buffer.Pointer);
     }
 
@@ -370,10 +370,10 @@ AcpiNsDumpOneObject (
         {
         case ACPI_TYPE_PROCESSOR:
 
-            AcpiOsPrintf (" ID %hd Addr %.4X Len %.4X\n",
+            AcpiOsPrintf (" ID %X Len %.4X Addr %p\n",
                         ObjDesc->Processor.ProcId,
-                        ObjDesc->Processor.Address,
-                        ObjDesc->Processor.Length);
+                        ObjDesc->Processor.Length,
+                        (char *) ObjDesc->Processor.Address);
             break;
 
 
@@ -385,8 +385,8 @@ AcpiNsDumpOneObject (
 
         case ACPI_TYPE_METHOD:
 
-            AcpiOsPrintf (" Args %hd Len %.4X Aml %p \n",
-                        ObjDesc->Method.ParamCount,
+            AcpiOsPrintf (" Args %X Len %.4X Aml %p\n",
+                        (UINT32) ObjDesc->Method.ParamCount,
                         ObjDesc->Method.AmlLength,
                         ObjDesc->Method.AmlStart);
             break;
@@ -514,6 +514,11 @@ AcpiNsDumpOneObject (
             break;
 
 
+        case INTERNAL_TYPE_ALIAS:
+
+            AcpiOsPrintf (" Target %4.4s (%p)\n", ((ACPI_NAMESPACE_NODE *) ObjDesc)->Name.Ascii, ObjDesc);
+            break;
+
         default:
 
             AcpiOsPrintf (" Object %p\n", ObjDesc);
@@ -608,9 +613,9 @@ AcpiNsDumpOneObject (
 
     /* If there is an attached object, display it */
 
-    DbgLevel = AcpiDbgLevel;
+    DbgLevel     = AcpiDbgLevel;
     AcpiDbgLevel = 0;
-    ObjDesc = AcpiNsGetAttachedObject (ThisNode);
+    ObjDesc      = AcpiNsGetAttachedObject (ThisNode);
     AcpiDbgLevel = DbgLevel;
 
     /* Dump attached objects */
@@ -786,7 +791,7 @@ AcpiNsDumpTables (
          * If the name space has not been initialized,
          * there is nothing to dump.
          */
-        ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "name space not initialized!\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "namespace not initialized!\n"));
         return_VOID;
     }
 

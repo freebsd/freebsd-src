@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evevent - Fixed and General Purpose Even handling and dispatch
- *              $Revision: 90 $
+ *              $Revision: 92 $
  *
  *****************************************************************************/
 
@@ -234,6 +234,7 @@ AcpiEvHandlerInitialize (
         return_ACPI_STATUS (Status);
     }
 
+    AcpiGbl_EventsInitialized = TRUE;
     return_ACPI_STATUS (Status);
 }
 
@@ -301,8 +302,8 @@ AcpiEvFixedEventDetect (
     void)
 {
     UINT32                  IntStatus = ACPI_INTERRUPT_NOT_HANDLED;
-    UINT32                  GpeStatus;
-    UINT32                  GpeEnable;
+    UINT32                  FixedStatus;
+    UINT32                  FixedEnable;
     NATIVE_UINT_MAX32       i;
 
 
@@ -313,12 +314,12 @@ AcpiEvFixedEventDetect (
      * Read the fixed feature status and enable registers, as all the cases
      * depend on their values.  Ignore errors here.
      */
-    (void) AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS, &GpeStatus);
-    (void) AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_ENABLE, &GpeEnable);
+    (void) AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS, &FixedStatus);
+    (void) AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_ENABLE, &FixedEnable);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
         "Fixed AcpiEvent Block: Enable %08X Status %08X\n",
-        GpeEnable, GpeStatus));
+        FixedEnable, FixedStatus));
 
     /*
      * Check for all possible Fixed Events and dispatch those that are active
@@ -327,8 +328,8 @@ AcpiEvFixedEventDetect (
     {
         /* Both the status and enable bits must be on for this event */
 
-        if ((GpeStatus & AcpiGbl_FixedEventInfo[i].StatusBitMask) &&
-            (GpeEnable & AcpiGbl_FixedEventInfo[i].EnableBitMask))
+        if ((FixedStatus & AcpiGbl_FixedEventInfo[i].StatusBitMask) &&
+            (FixedEnable & AcpiGbl_FixedEventInfo[i].EnableBitMask))
         {
             /* Found an active (signalled) event */
 

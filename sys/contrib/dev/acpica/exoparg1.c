@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
- *              $Revision: 142 $
+ *              $Revision: 143 $
  *
  *****************************************************************************/
 
@@ -150,7 +150,6 @@
  * The AcpiExOpcode* functions are called via the Dispatcher component with
  * fully resolved operands.
 !*/
-
 
 /*******************************************************************************
  *
@@ -678,78 +677,12 @@ AcpiExOpcode_1A_0T_1R (
 
     case AML_TYPE_OP:               /* ObjectType (SourceObject) */
 
-        if (ACPI_GET_OBJECT_TYPE (Operand[0]) == INTERNAL_TYPE_REFERENCE)
+        /* Get the type of the base object */
+
+        Status = AcpiExResolveMultiple (WalkState, Operand[0], &Type, NULL);
+        if (ACPI_FAILURE (Status))
         {
-            /*
-             * Not a Name -- an indirect name pointer would have
-             * been converted to a direct name pointer in ResolveOperands
-             */
-            switch (Operand[0]->Reference.Opcode)
-            {
-            case AML_DEBUG_OP:
-
-                /* The Debug Object is of type "DebugObject" */
-
-                Type = ACPI_TYPE_DEBUG_OBJECT;
-                break;
-
-
-            case AML_INDEX_OP:
-
-                /* Get the type of this reference (index into another object) */
-
-                Type = Operand[0]->Reference.TargetType;
-                if (Type == ACPI_TYPE_PACKAGE)
-                {
-                    /*
-                     * The main object is a package, we want to get the type
-                     * of the individual package element that is referenced by
-                     * the index.
-                     */
-                    Type = ACPI_GET_OBJECT_TYPE (*(Operand[0]->Reference.Where));
-                }
-                break;
-
-
-            case AML_LOCAL_OP:
-            case AML_ARG_OP:
-
-                Type = AcpiDsMethodDataGetType (Operand[0]->Reference.Opcode,
-                                Operand[0]->Reference.Offset, WalkState);
-                break;
-
-
-            default:
-
-                ACPI_REPORT_ERROR (("AcpiExOpcode_1A_0T_1R/TypeOp: Unknown Reference subtype %X\n",
-                    Operand[0]->Reference.Opcode));
-                Status = AE_AML_INTERNAL;
-                goto Cleanup;
-            }
-        }
-        else
-        {
-            /*
-             * It's not a Reference, so it must be a direct name pointer.
-             */
-            Type = AcpiNsGetType ((ACPI_NAMESPACE_NODE *) Operand[0]);
-
-            /* Convert internal types to external types */
-
-            switch (Type)
-            {
-            case INTERNAL_TYPE_REGION_FIELD:
-            case INTERNAL_TYPE_BANK_FIELD:
-            case INTERNAL_TYPE_INDEX_FIELD:
-
-                Type = ACPI_TYPE_FIELD_UNIT;
-                break;
-
-            default:
-                /* No change to Type required */
-                break;
-            }
-
+            goto Cleanup;
         }
 
         /* Allocate a descriptor to hold the type. */
@@ -767,43 +700,38 @@ AcpiExOpcode_1A_0T_1R (
 
     case AML_SIZE_OF_OP:            /* SizeOf (SourceObject)  */
 
-        TempDesc = Operand[0];
-        if (ACPI_GET_DESCRIPTOR_TYPE (Operand[0]) == ACPI_DESC_TYPE_NAMED)
+        /* Get the base object */
+
+        Status = AcpiExResolveMultiple (WalkState, Operand[0], &Type, &TempDesc);
+        if (ACPI_FAILURE (Status))
         {
-            TempDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) Operand[0]);
+            goto Cleanup;
         }
 
-        if (!TempDesc)
+        /*
+         * Type is guaranteed to be a buffer, string, or package at this
+         * point (even if the original operand was an object reference, it
+         * will be resolved and typechecked during operand resolution.)
+         */
+        switch (Type)
         {
-            Value = 0;
-        }
-        else
-        {
-            /*
-             * Type is guaranteed to be a buffer, string, or package at this
-             * point (even if the original operand was an object reference, it
-             * will be resolved and typechecked during operand resolution.)
-             */
-            switch (ACPI_GET_OBJECT_TYPE (TempDesc))
-            {
-            case ACPI_TYPE_BUFFER:
-                Value = TempDesc->Buffer.Length;
-                break;
+        case ACPI_TYPE_BUFFER:
+            Value = TempDesc->Buffer.Length;
+            break;
 
-            case ACPI_TYPE_STRING:
-                Value = TempDesc->String.Length;
-                break;
+        case ACPI_TYPE_STRING:
+            Value = TempDesc->String.Length;
+            break;
 
-            case ACPI_TYPE_PACKAGE:
-                Value = TempDesc->Package.Count;
-                break;
+        case ACPI_TYPE_PACKAGE:
+            Value = TempDesc->Package.Count;
+            break;
 
-            default:
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "SizeOf, Not Buf/Str/Pkg - found type %s\n",
-                    AcpiUtGetObjectTypeName (TempDesc)));
-                Status = AE_AML_OPERAND_TYPE;
-                goto Cleanup;
-            }
+        default:
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "SizeOf, Not Buf/Str/Pkg - found type %s\n",
+                AcpiUtGetTypeName (Type)));
+            Status = AE_AML_OPERAND_TYPE;
+            goto Cleanup;
         }
 
         /*
