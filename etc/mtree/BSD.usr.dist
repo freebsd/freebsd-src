@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.158 1999/06/08 02:24:30 foxfair Exp $
+#	$Id: BSD.usr.dist,v 1.159 1999/06/24 09:45:22 sheldonh Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -664,8 +664,6 @@
             fonts
             ..
             pcvtfonts
-            ..
-            pkg_manage
             ..
         ..
         mk
