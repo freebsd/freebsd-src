@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.13 1996/04/29 21:02:32 phk Exp $
+ * $Id: ctm_pass3.c,v 1.14 1996/08/30 10:20:58 phk Exp $
  *
  */
 
@@ -227,12 +227,13 @@ Pass3(FILE *fd)
 		    sp->Key,name,i);
 	        WRONG
 	    }
-	    rename(buf,name);
-	    if(strcmp(md5,MD5File(name,md5_1))) {
+	    if(strcmp(md5,MD5File(buf,md5_1))) {
 		fprintf(stderr," %s %s Edit failed MD5 check.\n",
 		    sp->Key,name);
 	        WRONG
 	    }
+	    if (rename(buf,name) == -1)
+		WRONG
 	    if (settime(name,times)) WRONG
 	    continue;
 	}
