@@ -189,91 +189,6 @@ struct scsi_low_funcs stgfuncs = {
 };
 
 /****************************************************
- * hwfuncs
- ****************************************************/
-static int
-stghw_check(sc)
-	struct stg_softc *sc;
-{
-	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
-	u_int16_t lsb, msb;
-
-	sc->sc_chip = TMCCHIP_UNK;
-	sc->sc_fsz = TMC18C50_FIFOSZ;
-	sc->sc_fcb = TMC18C50_FCB;
-	sc->sc_fcsp = 0;
-
-	sc->sc_fcRinit = FCTL_INTEN;
-	sc->sc_fcWinit = FCTL_PARENB | FCTL_INTEN;
-
-	if (slp->sl_cfgflags & CFG_NOATTEN)
-		sc->sc_imsg = 0;
-	else
-		sc->sc_imsg = BCTL_ATN;
-	sc->sc_busc = BCTL_BUSEN;
-
-	lsb = bus_space_read_1(iot, ioh, tmc_idlsb);
-	msb = bus_space_read_1(iot, ioh, tmc_idmsb);
-	switch (msb << 8 | lsb)
-	{
-		case 0x6127:
-			/* TMCCHIP_1800 not supported. (it's my policy) */
-			sc->sc_chip = TMCCHIP_1800;
-			return EINVAL;
-
-		case 0x60e9:
-			sc->sc_chip = TMCCHIP_18C50;
-			sc->sc_fcsp |= FCTL_CLRINT;
-			if (bus_space_read_1(iot, ioh, tmc_cfg2) & 0x02)
-			{
-				sc->sc_chip = TMCCHIP_18C30;
-				sc->sc_fsz = TMC18C30_FIFOSZ;
-				sc->sc_fcb = TMC18C30_FCB;
-			}
-			break;
-
-		default:
-			return ENODEV;
-	}
-
-	sc->sc_icinit = ICTL_ALLINT | sc->sc_fcb;
-	return 0;
-}
-
-static void
-stghw_init(sc)
-	struct stg_softc *sc;
-{
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
-
-	bus_space_write_1(iot, ioh, tmc_ictl, 0);
-	stghw_bcr_write_1(sc, BCTL_BUSFREE);
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcsp | sc->sc_fcRinit |
-					  FCTL_CLRFIFO);
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
-	bus_space_write_1(iot, ioh, tmc_ictl, sc->sc_icinit);
-
-	bus_space_write_1(iot, ioh, tmc_ssctl, 0);
-}
-
-static int
-stg_lun_init(sc, ti, li)
-	struct stg_softc *sc;
-	struct targ_info *ti;
-	struct lun_info *li;
-{
-	struct stg_lun_info *sli = (void *) li;
-
-	li->li_maxsynch.period = 0;
-	li->li_maxsynch.offset = 8;
-	sli->sli_reg_synch = 0;
-	return 0;
-}	
-
-/****************************************************
  * scsi low interface
  ****************************************************/
 static __inline void 
@@ -403,6 +318,91 @@ stg_msg(sc, ti, msg)
 	}
 	return 0;
 }
+
+/****************************************************
+ * hwfuncs
+ ****************************************************/
+static int
+stghw_check(sc)
+	struct stg_softc *sc;
+{
+	struct scsi_low_softc *slp = &sc->sc_sclow;
+	bus_space_tag_t iot = sc->sc_iot;
+	bus_space_handle_t ioh = sc->sc_ioh;
+	u_int16_t lsb, msb;
+
+	sc->sc_chip = TMCCHIP_UNK;
+	sc->sc_fsz = TMC18C50_FIFOSZ;
+	sc->sc_fcb = TMC18C50_FCB;
+	sc->sc_fcsp = 0;
+
+	sc->sc_fcRinit = FCTL_INTEN;
+	sc->sc_fcWinit = FCTL_PARENB | FCTL_INTEN;
+
+	if (slp->sl_cfgflags & CFG_NOATTEN)
+		sc->sc_imsg = 0;
+	else
+		sc->sc_imsg = BCTL_ATN;
+	sc->sc_busc = BCTL_BUSEN;
+
+	lsb = bus_space_read_1(iot, ioh, tmc_idlsb);
+	msb = bus_space_read_1(iot, ioh, tmc_idmsb);
+	switch (msb << 8 | lsb)
+	{
+		case 0x6127:
+			/* TMCCHIP_1800 not supported. (it's my policy) */
+			sc->sc_chip = TMCCHIP_1800;
+			return EINVAL;
+
+		case 0x60e9:
+			sc->sc_chip = TMCCHIP_18C50;
+			sc->sc_fcsp |= FCTL_CLRINT;
+			if (bus_space_read_1(iot, ioh, tmc_cfg2) & 0x02)
+			{
+				sc->sc_chip = TMCCHIP_18C30;
+				sc->sc_fsz = TMC18C30_FIFOSZ;
+				sc->sc_fcb = TMC18C30_FCB;
+			}
+			break;
+
+		default:
+			return ENODEV;
+	}
+
+	sc->sc_icinit = ICTL_ALLINT | sc->sc_fcb;
+	return 0;
+}
+
+static void
+stghw_init(sc)
+	struct stg_softc *sc;
+{
+	bus_space_tag_t iot = sc->sc_iot;
+	bus_space_handle_t ioh = sc->sc_ioh;
+
+	bus_space_write_1(iot, ioh, tmc_ictl, 0);
+	stghw_bcr_write_1(sc, BCTL_BUSFREE);
+	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcsp | sc->sc_fcRinit |
+					  FCTL_CLRFIFO);
+	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+	bus_space_write_1(iot, ioh, tmc_ictl, sc->sc_icinit);
+
+	bus_space_write_1(iot, ioh, tmc_ssctl, 0);
+}
+
+static int
+stg_lun_init(sc, ti, li)
+	struct stg_softc *sc;
+	struct targ_info *ti;
+	struct lun_info *li;
+{
+	struct stg_lun_info *sli = (void *) li;
+
+	li->li_maxsynch.period = 0;
+	li->li_maxsynch.offset = 8;
+	sli->sli_reg_synch = 0;
+	return 0;
+}	
 
 /**************************************************************
  * General probe attach
