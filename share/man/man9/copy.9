@@ -93,7 +93,11 @@ to kernel-space address
 .Pa kdaddr .
 The number of bytes actually copied, including the terminating
 NUL, is returned in
-.Pa *done .
+.Pa *done
+(if
+.Pa done
+is
+.No non- Ns Dv NULL Ns ).
 .It Fn copyinstr
 Copies a NUL-terminated string, at most
 .Pa len
@@ -103,7 +107,11 @@ to kernel-space address
 .Pa kaddr .
 The number of bytes actually copied, including the terminating
 NUL, is returned in
-.Pa *done .
+.Pa *done
+(if
+.Pa done
+is
+.No non- Ns Dv NULL Ns ).
 .\" .It Fn copyoutstr
 .\" Copies a NUL-terminated string, at most
 .\" bytes long, from kernel-space address
