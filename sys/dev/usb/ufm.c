@@ -72,7 +72,7 @@ int	ufmdebug = 100;
 #define DPRINTFN(n,x)
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD_version__ >= 500023
+#if defined(__FreeBSD__) && __FreeBSD_version >= 500023
 typedef struct thread usb_proc_t;
 #else
 typedef struct proc usb_proc_t;
@@ -97,7 +97,7 @@ Static struct cdevsw ufm_cdevsw = {
  	ufmioctl,	nopoll,		nommap,		nostrategy,
  	"ufm",		UFM_CDEV_MAJOR,	nodump,		nopsize,
  	0,
-#if (__FreeBSD__ < 5)
+#if (__FreeBSD_version < 500000)
  	-1
 #endif
 };
