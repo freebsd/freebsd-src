@@ -24,6 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
+BINDIR=	/usr/local/bin
 
 ALL=	athstats 80211stats
 
@@ -33,5 +34,9 @@ athstats: athstats.c
 	${CC} -o athstats athstats.c -lkvm
 80211stats: 80211stats.c
 	${CC} -o 80211stats 80211stats.c
+install: ${ALL}
+	install -g kmem -m 2755 athstats ${DESTDIR}${BINDIR}
+	install 80211stats ${DESTDIR}${BINDIR}
+
 clean:
 	rm -f ${ALL} core a.out
