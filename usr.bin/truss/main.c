@@ -40,6 +40,11 @@ static const char rcsid[] =
  * do a lot of the work :).
  */
 
+#include <sys/param.h>
+#include <sys/ioctl.h>
+#include <sys/pioctl.h>
+#include <sys/proc.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -48,8 +53,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/pioctl.h>
 
 extern int setup_and_wait(char **);
 extern int start_tracing(int, int);
