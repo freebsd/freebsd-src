@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.182 1997/12/12 14:08:45 peter Exp $
+#	$Id: files.i386,v 1.183 1998/01/06 05:13:50 dyson Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -226,7 +226,6 @@ i386/isa/sound/sound_timer.c	optional	sscape	device-driver
 i386/isa/sound/mpu401.c		optional	sscape	device-driver
 i386/isa/sound/midi_synth.c	optional	sscape	device-driver
 i386/isa/sound/midibuf.c	optional	sscape	device-driver
-i386/isa/sound/awe_wave.c	optional	awe	device-driver
 i386/isa/sound/cs4232.c		optional	css	device-driver
 i386/isa/spigot.c		optional	spigot	device-driver
 i386/isa/spkr.c			optional	speaker	device-driver
@@ -310,4 +309,5 @@ gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 gnu/i386/isa/dgb.c		optional	dgb	device-driver
+gnu/i386/isa/sound/awe_wave.c	optional	awe	device-driver
 pci/ide_pci.c			optional	wd	device-driver
