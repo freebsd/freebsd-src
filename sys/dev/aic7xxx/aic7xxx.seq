@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.42.2.2 1996/10/06 01:24:09 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.44 1996/10/25 06:34:56 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -153,7 +153,7 @@ dma_queued_scb:
 test_busy:
 	test	SCB_CONTROL, TAG_ENB	jnz start_scb
 	mov	SAVED_SCBPTR, SCBPTR
-	call	index_untagged_scb
+	mov	SCB_TCL		call	index_untagged_scb
 	mov	ARG_1, SINDIR			/*
 						 * ARG_1 should
 						 * now have the SCB ID of
@@ -167,9 +167,18 @@ test_busy:
 	 * may be necessary to satisfy the search for
 	 * the active SCB.
 	 */
+	mov	SCBPTR, SAVED_SCBPTR
 	call	add_scb_to_free_list
 	/* Find the active SCB */
 	mov	ALLZEROS	call findSCB
+	/*
+	 * If we couldn't find it, tell the kernel.  This should
+	 * only happen if the parent SCB was aborted and this
+	 * one was already here at the time of the abort.
+	 */
+	cmp	SINDEX, SCB_LIST_NULL	jne paged_busy_link
+	mvi	INTSTAT, NO_MATCH_BUSY
+paged_busy_link:
 	/* Link us in */
 	mov	SCB_LINKED_NEXT, CUR_SCBID 
 	/* Put it back on the disconnected list */
@@ -345,9 +354,8 @@ p_dataout:
  * STCNT may have been cleared, so restore it from the residual field.
  */
 data_phase_reinit:
-	mov	STCNT0,SCB_RESID_DCNT0
-	mov	STCNT1,SCB_RESID_DCNT1
-	mov	STCNT2,SCB_RESID_DCNT2
+	mov	DINDEX, STCNT0
+	mov	SCB_RESID_DCNT0	call bcopy_3
 	jmp	data_phase_loop
 
 p_datain:
@@ -634,7 +642,7 @@ status_ok:
 							 */
 	mov	SAVED_SCBPTR, SCBPTR
 	mov	SAVED_LINKPTR, SCB_LINKED_NEXT
-	call	index_untagged_scb
+	mov	SCB_TCL		call	index_untagged_scb
 	mov	DINDIR, SAVED_LINKPTR
 	mov	SCBPTR, SAVED_SCBPTR
 
@@ -648,11 +656,6 @@ test_immediate:
 	mvi	INTSTAT,IMMEDDONE
 	jmp	dma_next_scb
 complete:
-	test	FLAGS, PAGESCBS jz complete_post
-	/* Wait for a free slot - we may need to wait only in the paging case */
-	mov	A, QOUTCNT
-	cmp	QFULLCNT, A	je complete
-complete_post:
 	/* Post the SCB and issue an interrupt */
 	mov	QOUTFIFO,SCB_TAG
 	mvi	INTSTAT,CMDCMPLT
@@ -667,7 +670,7 @@ dma_next_scb:
 	jmp	add_to_waiting_list
 dma_next_scb2:
 	mvi	DMAPARAMS, 0xd	/* HDMAEN|DIRECTION|FIFORESET */
-	mov	SCB_TAG		call dma_scb
+	mov	SCB_LINKED_NEXT		call dma_scb
 add_to_waiting_list:
 	mov	SCB_NEXT,WAITING_SCBH
 	mov	WAITING_SCBH, SCBPTR
@@ -775,6 +778,7 @@ snoop_tag_loop:
 	mvi	A			call inb_first
 	cmp	A,MSG_SIMPLE_Q_TAG	jne use_findSCB
 get_tag:
+	or	FLAGS, TAGGED_SCB
 	mvi	ARG_1	call inb_next	/* tag value */
 /*
  * See if the tag is in range.  The tag is < SCBCOUNT if we add
@@ -783,7 +787,7 @@ get_tag:
  */
 	mov	A,COMP_SCBCOUNT	
 	add	SINDEX,A,ARG_1
-	jc	abort_tag
+	jc	send_abort_msg
 
 /*
  * Ensure that the SCB the tag points to is for an SCB transaction
@@ -792,6 +796,7 @@ get_tag:
 	test	FLAGS, PAGESCBS	jz index_by_tag
 use_findSCB:
 	mov	ALLZEROS	call findSCB	  /* Have to search */
+	cmp	SINDEX, SCB_LIST_NULL, je not_found
 setup_SCB:
 	and	SCB_CONTROL,0xfb	  /* clear disconnect bit in SCB */
 	or	FLAGS,IDENTIFY_SEEN	  /* make note of IDENTIFY */
@@ -799,13 +804,18 @@ setup_SCB:
 	jmp	ITloop
 index_by_tag:
 	mov	SCBPTR,ARG_1
-	mov	A,SAVED_TCL
-	cmp	SCB_TCL,A		jne abort_tag
-	test	SCB_CONTROL,TAG_ENB	jz  abort_tag
+	mov	A, SAVED_TCL
+	cmp	SCB_TCL,A		jne send_abort_msg
+	test	SCB_CONTROL,TAG_ENB	jz  send_abort_msg
 	jmp	setup_SCB
 
-abort_tag:
+not_found:
+	mvi	INTSTAT, NO_MATCH
+send_abort_msg:
 	or	SCSISIGO,ATNO			/* turn on ATNO */
+	test	FLAGS, TAGGED_SCB jnz abort_tag_msg
+	mvi	MSG_ABORT	call mk_mesg
+	jmp	mesgin_done
 abort_tag_msg:
 	mvi	MSG_ABORT_TAG	call mk_mesg	/* ABORT TAG message */
 	jmp	mesgin_done
@@ -966,19 +976,17 @@ assert:
 	mvi	INTSTAT,NO_IDENT 	ret	/* no - tell the kernel */
 
 /*
- * Locate the SCB matching the target ID/channel/lun in SAVED_TCL, and the tag
- * value in ARG_1.  If ARG_1 == SCB_LIST_NULL, we're looking for a non-tagged
- * SCB.  Have the kernel print a warning message if it can't be found, and
- * generate an ABORT/ABORT_TAG message to the target.  SINDEX should be
- * cleared on call.
+ * Locate a disconnected SCB either by SAVED_TCL (ARG_1 is SCB_LIST_NULL)
+ * or by the SCBIDn ARG_1.  The search begins at the SCB index passed in
+ * via SINDEX.  If the SCB cannot be found, SINDEX will be SCB_LIST_NULL,
+ * otherwise, SCBPTR is set to the proper SCB.
  */
 findSCB:
-	mov	A,SAVED_TCL
 	mov	SCBPTR,SINDEX			/* switch to next SCB */
-	cmp	SCB_TCL,A	jne findSCB1 /* target ID/channel/lun match? */
 	test	SCB_CONTROL,DISCONNECTED jz findSCB1 /*should be disconnected*/
-	test	SCB_CONTROL,TAG_ENB jnz findTaggedSCB
-	cmp	ARG_1,SCB_LIST_NULL je foundSCB
+	cmp	ARG_1, SCB_LIST_NULL	jne findBySCBID
+	mov	A, SAVED_TCL
+	cmp	SCB_TCL,A	je foundSCB /* target ID/channel/lun match? */
 findSCB1:
 	inc	SINDEX
 	mov	A,SCBCOUNT
@@ -986,29 +994,24 @@ findSCB1:
 /*
  * We didn't find it.  If we're paging, pull an SCB and DMA down the
  * one we want.  If we aren't paging or the SCB we dma down has the
- * abort flag set, alert the kernel and send an abort message.
+ * abort flag set, return not found.
  */
-	test	FLAGS, PAGESCBS	jz find_abort
+	test	FLAGS, PAGESCBS	jz find_error
 	call	get_free_or_disc_scb
-	mov	CUR_SCBID, ARG_1
-	cmp	CUR_SCBID, SCB_LIST_NULL jne find_dma_scb
-	call	index_untagged_scb
-	mov	CUR_SCBID, SINDIR
+	cmp	ARG_1, SCB_LIST_NULL jne find_dma_scb
+	mov	SAVED_TCL	call	index_untagged_scb
+	mov	ARG_1, SINDIR	/* SCBID of SCB to fetch */
 find_dma_scb:
 	mvi	DMAPARAMS, 0xd	/* HDMAEN|DIRECTION|FIFORESET */
-	mov	CUR_SCBID	call dma_scb
+	mov	ARG_1	call dma_scb
 	test	SCB_CONTROL, ABORT_SCB jz return
-find_abort:
-	mvi	INTSTAT,NO_MATCH		/* not found - signal kernel */
-	or	SCSISIGO,ATNO			/* assert ATNO */
-	cmp	ARG_1,SCB_LIST_NULL jne abort_tag_msg
-	mvi	MSG_ABORT	call mk_mesg
-	jmp	ITloop
-findTaggedSCB:
+find_error:
+	mvi	SINDEX, SCB_LIST_NULL ret
+findBySCBID:
 	mov	A, ARG_1			/* Tag passed in ARG_1 */
 	cmp	SCB_TAG,A	jne findSCB1	/* Found it? */
 foundSCB:
-	test	SCB_CONTROL, ABORT_SCB jnz find_abort
+	test	SCB_CONTROL, ABORT_SCB jnz find_error
 	test	FLAGS,PAGESCBS	jz return
 rem_scb_from_disc_list:
 /* Remove this SCB from the disconnection list */
@@ -1110,10 +1113,11 @@ dma_finish2:
 	ret
 
 index_untagged_scb:
-	shr	SINDEX, SCB_TCL, 4
-	and	SINDEX, 0x03			/* Bottom two bits of tid */
-	add	SINDEX, SCB_ACTIVE0
-	shr	A, SCB_TCL, 6			/* Target ID divided by 4 */
+	mov	DINDEX, SINDEX
+	shr	DINDEX, 4
+	and	DINDEX, 0x03			/* Bottom two bits of tid */
+	add	DINDEX, SCB_ACTIVE0
+	shr	A, SINDEX, 6			/* Target ID divided by 4 */
 	test	SCB_TCL, SELBUSB jz index_untagged_scb2
 	or	A, 2				/* Add 2 positions */
 index_untagged_scb2:
@@ -1121,7 +1125,7 @@ index_untagged_scb2:
 						 * Select the SCB with this 
 						 * target's information.
 						 */
-	mov	DINDEX, SINDEX	ret
+	mov	SINDEX, DINDEX	ret
 
 
 get_free_or_disc_scb:
