@@ -33,10 +33,6 @@
  * $FreeBSD$
  */
 
-char copyright[] =
-"@(#) Copyright (c) 1982, 1986, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/protosw.h>
@@ -57,17 +53,32 @@ char copyright[] =
 #include <bstring.h>
 #endif
 
-#if !defined(sgi) && !defined(__NetBSD__)
-static char sccsid[] __attribute__((unused))= "@(#)query.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
-__RCSID("$NetBSD: rtquery.c,v 1.10 1999/02/23 10:47:41 christos Exp $");
+#define UNUSED __attribute__((unused))
+#ifndef __RCSID
+#define __RCSID(_s) static const char rcsid[] UNUSED = _s
 #endif
-#ident "$Revision: 1.12 $"
+#ifndef __COPYRIGHT
+#define __COPYRIGHT(_s) static const char copyright[] UNUSED = _s
+#endif
+__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n"
+	    "The Regents of the University of California."
+	    "  All rights reserved.\n");
+#ifdef __NetBSD__
+__RCSID("$NetBSD$");
+#elif defined(__FreeBSD__)
+__RCSID("$FreeBSD$");
+#else
+__RCSID("$Revision: 2.26 $");
+#ident "$Revision: 2.26 $"
+#endif
 
 #ifndef sgi
 #define _HAVE_SIN_LEN
 #endif
 
+#ifdef __NetBSD__
+#include <md5.h>
+#else
 #define MD5_DIGEST_LEN 16
 typedef struct {
 	u_int32_t state[4];		/* state (ABCD) */
@@ -77,6 +88,7 @@ typedef struct {
 extern void MD5Init(MD5_CTX*);
 extern void MD5Update(MD5_CTX*, u_char*, u_int);
 extern void MD5Final(u_char[MD5_DIGEST_LEN], MD5_CTX*);
+#endif
 
 
 #define	WTIME	15		/* Time to wait for all responses */
@@ -388,7 +400,7 @@ query_loop(char *argv[], int argc)
 			NA0.a_family = RIP_AF_AUTH;
 			NA0.a_type = RIP_AUTH_MD5;
 			NA0.au.a_md5.md5_keyid = (int8_t)keyid;
-			NA0.au.a_md5.md5_auth_len = RIP_AUTH_MD5_LEN;
+			NA0.au.a_md5.md5_auth_len = RIP_AUTH_MD5_KEY_LEN;
 			NA0.au.a_md5.md5_seqno = 0;
 			cc = (char *)&NA2-(char *)&OMSG;
 			NA0.au.a_md5.md5_pkt_len = htons(cc);
@@ -398,7 +410,7 @@ query_loop(char *argv[], int argc)
 			MD5Update(&md5_ctx,
 				  (u_char *)&OMSG, cc);
 			MD5Update(&md5_ctx,
-				  (u_char *)passwd, RIP_AUTH_MD5_LEN);
+				  (u_char *)passwd, RIP_AUTH_MD5_HASH_LEN);
 			MD5Final(NA2.au.au_pw, &md5_ctx);
 			omsg_len += 2*sizeof(OMSG.rip_nets[0]);
 		}
@@ -412,7 +424,7 @@ query_loop(char *argv[], int argc)
 	seen = 0;
 	while (0 > out(*argv++)) {
 		if (*argv == 0)
-			exit(-1);
+			exit(1);
 		answered++;
 	}
 
@@ -595,7 +607,7 @@ rip_input(struct sockaddr_in *from,
 	struct in_addr in;
 	const char *name;
 	char net_buf[80];
-	u_char hash[RIP_AUTH_MD5_LEN];
+	u_char hash[RIP_AUTH_MD5_KEY_LEN];
 	MD5_CTX md5_ctx;
 	u_char md5_authed = 0;
 	u_int mask, dmask;
@@ -735,9 +747,10 @@ rip_input(struct sockaddr_in *from,
 			    && na->a_type == ntohs(1)) {
 				MD5Init(&md5_ctx);
 				MD5Update(&md5_ctx, (u_char *)&IMSG,
-					  (char *)na-(char *)&IMSG);
+					  (char *)na-(char *)&IMSG
+					  +RIP_AUTH_MD5_HASH_XTRA);
 				MD5Update(&md5_ctx, (u_char *)passwd,
-					  RIP_AUTH_MD5_LEN);
+					  RIP_AUTH_MD5_KEY_LEN);
 				MD5Final(hash, &md5_ctx);
 				(void)printf("    %s hash\n",
 					     memcmp(hash, na->au.au_pw,
@@ -749,10 +762,10 @@ rip_input(struct sockaddr_in *from,
 		} else {
 			(void)sprintf(net_buf, "(af %#x) %d.%d.%d.%d",
 				      ntohs(n->n_family),
-				      (char)(n->n_dst >> 24),
-				      (char)(n->n_dst >> 16),
-				      (char)(n->n_dst >> 8),
-				      (char)n->n_dst);
+				      (u_char)(n->n_dst >> 24),
+				      (u_char)(n->n_dst >> 16),
+				      (u_char)(n->n_dst >> 8),
+				      (u_char)n->n_dst);
 		}
 
 		(void)printf("  %-18s metric %2d %-10s",

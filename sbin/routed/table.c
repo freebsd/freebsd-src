@@ -35,10 +35,13 @@
 
 #include "defs.h"
 
-#if !defined(sgi) && !defined(__NetBSD__)
-static char sccsid[] __attribute__((unused)) = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
+#ifdef __NetBSD__
 __RCSID("$NetBSD$");
+#elif defined(__FreeBSD__)
+__RCSID("$FreeBSD$");
+#else
+__RCSID("$Revision: 2.27 $");
+#ident "$Revision: 2.27 $"
 #endif
 #ident "$FreeBSD$"
 
@@ -253,8 +256,6 @@ ag_flush(naddr lim_dst_h,		/* flush routes to here */
 				 * then mark the suppressor redundant.
 				 */
 				if (ag_cors->ag_pref <= ag->ag_pref) {
-				    if (ag_cors->ag_seqno > ag->ag_seqno)
-					ag_cors->ag_seqno = ag->ag_seqno;
 				    if (AG_IS_REDUN(ag->ag_state)
 					&& ag_cors->ag_mask==ag->ag_mask<<1) {
 					if (ag_cors->ag_dst_h == dst_h)
@@ -289,7 +290,7 @@ ag_check(naddr	dst,
 	 naddr	nhop,
 	 char	metric,
 	 char	pref,
-	 u_int	seqno,
+	 u_int	new_seqno,
 	 u_short tag,
 	 u_short state,
 	 void (*out)(struct ag_info *))	/* output using this */
@@ -316,7 +317,7 @@ ag_check(naddr	dst,
 		nc_ag.ag_pref = pref;
 		nc_ag.ag_tag = tag;
 		nc_ag.ag_state = state;
-		nc_ag.ag_seqno = seqno;
+		nc_ag.ag_seqno = new_seqno;
 		out(&nc_ag);
 		return;
 	}
@@ -346,8 +347,6 @@ ag_check(naddr	dst,
 		    && (ag_cors->ag_gate == ag->ag_gate
 			|| (ag->ag_state & AGS_FINE_GATE)
 			|| (ag_cors->ag_state & AGS_CORS_GATE))) {
-			if (ag_cors->ag_seqno > ag->ag_seqno)
-				ag_cors->ag_seqno = ag->ag_seqno;
 			/*  If the suppressed target was redundant,
 			 * then mark the suppressor redundant.
 			 */
@@ -406,16 +405,12 @@ ag_check(naddr	dst,
 				ag->ag_tag = tag;
 				ag->ag_metric = metric;
 				ag->ag_pref = pref;
+				if (ag->ag_seqno < new_seqno)
+					ag->ag_seqno = new_seqno;
 				x = ag->ag_state;
 				ag->ag_state = state;
 				state = x;
 			}
-
-			/* The sequence number controls flash updating,
-			 * and should be the smaller of the two.
-			 */
-			if (ag->ag_seqno > seqno)
-				ag->ag_seqno = seqno;
 
 			/* Some bits are set if they are set on either route,
 			 * except when the route is for an interface.
@@ -456,8 +451,8 @@ ag_check(naddr	dst,
 			 *
 			 * Combine and promote (aggregate) the pair of routes.
 			 */
-			if (seqno > ag->ag_seqno)
-				seqno = ag->ag_seqno;
+			if (new_seqno < ag->ag_seqno)
+				new_seqno = ag->ag_seqno;
 			if (!AG_IS_REDUN(state))
 				state &= ~AGS_REDUN1;
 			if (AG_IS_REDUN(ag->ag_state))
@@ -518,10 +513,10 @@ ag_check(naddr	dst,
 			pref = x;
 
 			/* take the newest sequence number */
-			if (seqno >= ag->ag_seqno)
-				seqno = ag->ag_seqno;
+			if (new_seqno <= ag->ag_seqno)
+				new_seqno = ag->ag_seqno;
 			else
-				ag->ag_seqno = seqno;
+				ag->ag_seqno = new_seqno;
 
 		} else {
 			if (!(state & AGS_AGGREGATE))
@@ -537,10 +532,10 @@ ag_check(naddr	dst,
 			if (!AG_IS_REDUN(state))
 				state &= ~AGS_REDUN1;
 			state &= ~AGS_REDUN0;
-			if (seqno > ag->ag_seqno)
-				seqno = ag->ag_seqno;
+			if (new_seqno < ag->ag_seqno)
+				new_seqno = ag->ag_seqno;
 			else
-				ag->ag_seqno = seqno;
+				ag->ag_seqno = new_seqno;
 		}
 
 		mask <<= 1;
@@ -601,7 +596,7 @@ ag_check(naddr	dst,
 	nag->ag_pref = pref;
 	nag->ag_tag = tag;
 	nag->ag_state = state;
-	nag->ag_seqno = seqno;
+	nag->ag_seqno = new_seqno;
 
 	nag->ag_fine = ag;
 	if (ag != 0)
@@ -635,6 +630,9 @@ rtm_type_name(u_char type)
 		"RTM_RESOLVE",
 		"RTM_NEWADDR",
 		"RTM_DELADDR",
+#ifdef RTM_OIFINFO
+		"RTM_OIFINFO",
+#endif
 		"RTM_IFINFO",
 		"RTM_NEWMADDR",
 		"RTM_DELMADDR"
@@ -1014,7 +1012,7 @@ rtm_lose(struct rt_msghdr *rtm,
  */
 static int
 get_info_gate(struct sockaddr **sap,
-	      struct sockaddr_in *sin)
+	      struct sockaddr_in *rsin)
 {
 	struct sockaddr_dl *sdl = (struct sockaddr_dl *)*sap;
 	struct interface *ifp;
@@ -1030,12 +1028,12 @@ get_info_gate(struct sockaddr **sap,
 	if (ifp == 0)
 		return 0;
 
-	sin->sin_addr.s_addr = ifp->int_addr;
+	rsin->sin_addr.s_addr = ifp->int_addr;
 #ifdef _HAVE_SA_LEN
-	sin->sin_len = sizeof(*sin);
+	rsin->sin_len = sizeof(*rsin);
 #endif
-	sin->sin_family = AF_INET;
-	*sap = (struct sockaddr*)sin;
+	rsin->sin_family = AF_INET;
+	*sap = (struct sockaddr*)rsin;
 
 	return 1;
 }
@@ -1115,6 +1113,13 @@ flush_kern(void)
 		 */
 		if (rtm->rtm_flags & RTF_LLINFO)
 			continue;
+
+#if defined(RTF_CLONED) && defined(__bsdi__)
+		/* ignore cloned routes
+		 */
+		if (rtm->rtm_flags & RTF_CLONED)
+			continue;
+#endif
 
 		/* ignore multicast addresses
 		 */
@@ -1223,6 +1228,10 @@ read_rt(void)
 				ifinit_timer.tv_sec = now.tv_sec;
 			continue;
 		}
+#ifdef RTM_OIFINFO
+		if (m.r.rtm.rtm_type == RTM_OIFINFO)
+			continue;	/* ignore compat message */
+#endif
 
 		strcpy(str, rtm_type_name(m.r.rtm.rtm_type));
 		strp = &str[strlen(str)];
@@ -1261,6 +1270,13 @@ read_rt(void)
 			trace_act("ignore ARP %s", str);
 			continue;
 		}
+
+#if defined(RTF_CLONED) && defined(__bsdi__)
+		if (m.r.rtm.rtm_flags & RTF_CLONED) {
+			trace_act("ignore cloned %s", str);
+			continue;
+		}
+#endif
 
 		if (get_info_gate(&INFO_GATE(&info), &gate_sin)) {
 			gate = S_ADDR(INFO_GATE(&info));

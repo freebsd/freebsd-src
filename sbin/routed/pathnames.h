@@ -42,7 +42,9 @@
 /* All remotely requested trace files must either start with this prefix
  * or be the same as the tracefile specified when the daemon was started.
  * If this is a directory, routed will create log files in it.  That
- * might be a security problem.
+ * might be a security problem.  However, if bad guys can write in the
+ * default value, /etc, you have far worse security problems than anything
+ * this might do.  In other words, it makes no sense to turn this off.
  *
  * Leave this undefined, and only the trace file originally specified
  * when routed was started, if any, will be appended to.

@@ -36,14 +36,15 @@
 #include "defs.h"
 #include "pathnames.h"
 
-#if !defined(sgi) && !defined(__NetBSD__)
-static char sccsid[] __attribute__((unused)) = "@(#)if.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
-#include <sys/cdefs.h>
+#ifdef __NetBSD__
 __RCSID("$NetBSD$");
+#elif defined(__FreeBSD__)
+__RCSID("$FreeBSD$");
+#else
+__RCSID("$Revision: 2.27 $");
+#ident "$Revision: 2.27 $"
 #endif
 #ident "$FreeBSD$"
-
 struct interface *ifnet;		/* all interfaces */
 
 /* hash table for all interfaces, big enough to tolerate ridiculous
@@ -214,14 +215,14 @@ ifwithname(char *name,			/* "ec0" or whatever */
 
 
 struct interface *
-ifwithindex(u_short index,
+ifwithindex(u_short ifindex,
 	    int rescan_ok)
 {
 	struct interface *ifp;
 
 	for (;;) {
 		for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
-			if (ifp->int_index == index)
+			if (ifp->int_index == ifindex)
 				return ifp;
 		}
 
@@ -244,6 +245,7 @@ struct interface *
 iflookup(naddr addr)
 {
 	struct interface *ifp, *maybe;
+	int once = 0;
 
 	maybe = 0;
 	for (;;) {
@@ -267,9 +269,9 @@ iflookup(naddr addr)
 			}
 		}
 
-		if (maybe != 0
-		    || IF_RESCAN_DELAY())
+		if (maybe != 0 || once || IF_RESCAN_DELAY())
 			return maybe;
+		once = 1;
 
 		/* If there is no known interface, maybe there is a
 		 * new interface.  So just once look for new interfaces.
@@ -406,7 +408,8 @@ check_dup(naddr addr,			/* IP address, so network byte order */
 		/* The local address can only be shared with a point-to-point
 		 * link.
 		 */
-		if (ifp->int_addr == addr
+		if ((!(ifp->int_state & IS_REMOTE) || !(if_flags & IS_REMOTE))
+		    && ifp->int_addr == addr
 		    && (((if_flags|ifp->int_if_flags) & IFF_POINTOPOINT) == 0))
 			return ifp;
 
@@ -498,10 +501,14 @@ ifdel(struct interface *ifp)
 #endif
 		    && rip_sock >= 0) {
 			m.imr_multiaddr.s_addr = htonl(INADDR_RIP_GROUP);
+#ifdef MCAST_IFINDEX
+			m.imr_interface.s_addr = htonl(ifp->int_index);
+#else
 			m.imr_interface.s_addr = ((ifp->int_if_flags
 						   & IFF_POINTOPOINT)
 						  ? ifp->int_dstaddr
 						  : ifp->int_addr);
+#endif
 			if (setsockopt(rip_sock,IPPROTO_IP,IP_DROP_MEMBERSHIP,
 				       &m, sizeof(m)) < 0
 			    && errno != EADDRNOTAVAIL
@@ -737,6 +744,10 @@ ifinit(void)
 
 		ifam2 = (struct ifa_msghdr*)((char*)ifam + ifam->ifam_msglen);
 
+#ifdef RTM_OIFINFO
+		if (ifam->ifam_type == RTM_OIFINFO)
+			continue;	/* just ignore compat message */
+#endif
 		if (ifam->ifam_type == RTM_IFINFO) {
 			struct sockaddr_dl *sdl;
 
