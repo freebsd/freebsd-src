@@ -559,8 +559,8 @@ into buffer
 .Em addr .
 Returns the actual number of bytes read, or -1 in case of error or end of
 file.
-.It Ic heap? Pq -- Ar bytes
-Return the space remaining in the dictionary heap, in bytes.
+.It Ic heap? Pq -- Ar cells
+Return the space remaining in the dictionary heap, in cells.
 This is not related to the heap used by dynamic memory allocation words.
 .It Ic inb Pq Ar port -- char
 Reads a byte from a port.
