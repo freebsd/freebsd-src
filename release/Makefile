@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.70 1997/02/19 17:22:19 jkh Exp $
+#	$Id: Makefile,v 1.282 1997/03/11 20:03:42 joerg Exp $
 #
 # How to roll a release:
 #
@@ -136,8 +136,17 @@ rerelease release:
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
+	# This eases bootstrapping from a more recent hosting environment:
+	echo "mkdir -p /usr/lib/compat"		>> ${CHROOTDIR}/mk
+	echo "chflags noschg /usr/lib/lib*.so.*" >> ${CHROOTDIR}/mk
+	echo "mv /usr/lib/lib*.so.* /usr/lib/compat" >> ${CHROOTDIR}/mk
+	echo "ldconfig /usr/lib /usr/lib/compat" >> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
 	echo "(cd etc; make distribution)"	>> ${CHROOTDIR}/mk
+	# Now we've got our own shared libs, remove the bootstrapping
+	# libs again.
+	echo "rm -f /usr/lib/compat/*"		>> ${CHROOTDIR}/mk
+	echo "ldconfig /usr/lib"		>> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
 	echo "make all install"			>> ${CHROOTDIR}/mk
@@ -453,6 +462,7 @@ ftp.1:
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
+	echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 
 #
 # --==## Setup a suitable cdrom-area ##==--
