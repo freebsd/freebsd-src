@@ -815,8 +815,16 @@ ufsdirhash_checkblock(struct inode *ip, char *buf, doff_t offset)
 			panic("ufsdirhash_checkblock: bad dir");
 
 		if (dp->d_ino == 0) {
+#if 0
+			/*
+			 * XXX entries with d_ino == 0 should only occur
+			 * at the start of a DIRBLKSIZ block. However the
+			 * ufs code is tolerant of such entries at other
+			 * offsets, and fsck does not fix them.
+			 */
 			if (i != 0)
 				panic("ufsdirhash_checkblock: bad dir inode");
+#endif
 			nfree += dp->d_reclen;
 			continue;
 		}
