@@ -23,15 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.6 1998/06/21 14:45:00 bde Exp $
+ * $Id: globals.s,v 1.7 1998/08/18 07:46:58 msmith Exp $
  */
 
 #include "opt_vm86.h"
 #include "opt_user_ldt.h"
 
-#ifndef SMP
 #include <machine/asmacros.h>
-#endif
 #include <machine/pmap.h>
 
 #include "assym.s"
