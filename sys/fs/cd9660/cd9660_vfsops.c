@@ -108,27 +108,34 @@ iso_get_ssector(dev, td)
 {
 	struct ioc_toc_header h;
 	struct ioc_read_toc_single_entry t;
-	int i;
+	int i, error;
 	struct cdevsw *bd;
 	d_ioctl_t *ioctlp;
 
-	bd = devsw(dev);
+	bd = dev_refthread(dev);
+	if (bd == NULL)
+		return 0;
 	ioctlp = bd->d_ioctl;
-	if (ioctlp == NULL)
-		return 0;
 
-	if (ioctlp(dev, CDIOREADTOCHEADER, (caddr_t)&h, FREAD, td) != 0)
+	error = ioctlp(dev, CDIOREADTOCHEADER, (caddr_t)&h, FREAD, td);
+	if (error) {
+		dev_relthread(dev);
 		return 0;
+	}
 
 	for (i = h.ending_track; i >= 0; i--) {
 		t.address_format = CD_LBA_FORMAT;
 		t.track = i;
-		if (ioctlp(dev, CDIOREADTOCENTRY, (caddr_t)&t, FREAD, td) != 0)
+		error = ioctlp(dev, CDIOREADTOCENTRY, (caddr_t)&t, FREAD, td);
+		if (error) {
+			dev_relthread(dev);
 			return 0;
+		}
 		if ((t.entry.control & 4) != 0)
 			/* found a data track */
 			break;
 	}
+	dev_relthread(dev);
 
 	if (i < 0)
 		return 0;
