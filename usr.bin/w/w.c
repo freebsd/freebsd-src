@@ -235,7 +235,7 @@ main(argc, argv)
 		if (wcmd == 0)
 			exit (0);
 
-#define HEADER	"USER     TTY FROM              LOGIN@  IDLE WHAT\n"
+#define HEADER	"USER             TTY FROM              LOGIN@  IDLE WHAT\n"
 #define WUSED	(sizeof (HEADER) - sizeof ("WHAT\n"))
 		(void)printf(HEADER);
 	}
