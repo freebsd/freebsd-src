@@ -248,21 +248,25 @@ define defproc
               set $pptr = $proc
            end
 	   set $myvectorproc = $proc
-           if ($proc.p_stat)
-               printf "%5d %08x %08x %4d %5d %5d  %06x %d  %-10s   ", \
-                      $proc.p_pid, $aproc, \
-                      $proc.p_uarea, $proc.p_cred->p_ruid, $pptr->p_pid, \
-                     $proc.p_pgrp->pg_id, $proc.p_flag, $proc.p_stat, \
-                     &$proc.p_comm[0]
-               if ($proc.p_wchan)
-                   if ($proc.p_wmesg)
-                       printf "%s ", $proc.p_wmesg
-                  end
-                  printf "%x", $proc.p_wchan
+           if ($proc.p_state)
+               set $thread = $proc->p_threads.tqh_first
+               while ($thread)
+                   printf "%5d %08x %08x %4d %5d %5d  %06x  %d  %-10s   ", \
+                          $proc.p_pid, $aproc, \
+                          $proc.p_uarea, $proc.p_ucred->cr_ruid, $pptr->p_pid, \
+                          $proc.p_pgrp->pg_id, $proc.p_flag, $proc.p_state, \
+                          &$proc.p_comm[0]
+                   if ($thread.td_wchan)
+                       if ($thread.td_wmesg)
+                           printf "%s ", $thread.td_wmesg
+                       end
+                       printf "%x", $thread.td_wchan
+                   end
+                   printf "\n"     
+                   set $thread = $thread->td_plist.tqe_next
                end
-               printf "\n"
-	      end
-	   btpp
+           end
+           btpp
 	   set $nproc = 0
 	else
            set $proc = $proc.p_list.le_next
