@@ -189,7 +189,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	AcpiSetFirmwareWakingVector(sc->acpi_wakephys);
 
 	ef = read_eflags();
-	ACPI_DISABLE_IRQS();
 
 	/* Create Identity Mapping */
 	if ((p = curproc) == NULL)
@@ -207,6 +206,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		   VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE, 1);
 
 	ret_addr = 0;
+	ACPI_DISABLE_IRQS();
 	if (acpi_savecpu()) {
 		/* Execute Sleep */
 		intr_suspend();
