@@ -801,9 +801,10 @@ register INTSTAT {
 						 * beyond the bounds of its
 						 * command.
 						 */
-	mask	BOGUS_TAG	0xa0|SEQINT	/*
-						 * Sequencer given an SCB with
-						 * a Tag value of 0xFF.
+	mask	MKMSG_FAILED	0xa0|SEQINT	/*
+						 * Target completed command
+						 * without honoring our ATN
+						 * request to issue a message. 
 						 */
 	mask	SCBPTR_MISMATCH	0xb0|SEQINT	/*
 						 * In the SCB paging case, our

@@ -199,6 +199,8 @@ static __inline struct ahc_initiator_tinfo *
 static __inline struct scb*
 			ahc_get_scb(struct ahc_softc *ahc);
 static __inline void	ahc_free_scb(struct ahc_softc *ahc, struct scb *scb);
+static __inline void	ahc_swap_with_next_hscb(struct ahc_softc *ahc,
+						struct scb *scb);
 static __inline void	ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb);
 
 /*
@@ -281,11 +283,8 @@ ahc_lookup_scb(struct ahc_softc *ahc, u_int tag)
 
 }
 
-/*
- * Tell the sequencer about a new transaction to execute.
- */
 static __inline void
-ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
+ahc_swap_with_next_hscb(struct ahc_softc *ahc, struct scb *scb)
 {
 	struct hardware_scb *q_hscb;
 	u_int  saved_tag;
@@ -298,13 +297,9 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 	 * When we are called to queue "an arbitrary scb",
 	 * we copy the contents of the incoming HSCB to the one
 	 * the sequencer knows about, swap HSCB pointers and
-	 * finally assigne the SCB to the tag indexed location
+	 * finally assign the SCB to the tag indexed location
 	 * in the scb_array.  This makes sure that we can still
 	 * locate the correct SCB by SCB_TAG.
-	 *
-	 * Start by copying the payload without perterbing
-	 * the tag number.  Also set the hscb id for the next
-	 * SCB to download.
 	 */
 	q_hscb = ahc->next_queued_scb->hscb;
 	saved_tag = q_hscb->tag;
@@ -323,6 +318,15 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 
 	/* Now define the mapping from tag to SCB in the scbindex */
 	ahc->scb_data->scbindex[scb->hscb->tag] = scb;
+}
+
+/*
+ * Tell the sequencer about a new transaction to execute.
+ */
+static __inline void
+ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
+{
+	ahc_swap_with_next_hscb(ahc, scb);
 
 	if (scb->hscb->tag == SCB_LIST_NULL
 	 || scb->hscb->next == SCB_LIST_NULL)

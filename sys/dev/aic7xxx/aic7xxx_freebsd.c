@@ -316,15 +316,6 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 				    (ccb->ccb_h.timeout * hz)/1000);
 		}
 
-		/*
-		 * Ensure that we didn't put a second instance of this
-		 * SCB into the QINFIFO.
-		 */
-		ahc_search_qinfifo(ahc, SCB_GET_TARGET(ahc, scb),
-				   SCB_GET_CHANNEL(ahc, scb),
-				   SCB_GET_LUN(scb), scb->hscb->tag,
-				   ROLE_INITIATOR, /*status*/0,
-				   SEARCH_REMOVE);
 		if (ahc_get_transaction_status(scb) == CAM_BDR_SENT
 		 || ahc_get_transaction_status(scb) == CAM_REQ_ABORTED)
 			ahc_set_transaction_status(scb, CAM_CMD_TIMEOUT);
@@ -1798,6 +1789,7 @@ ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
 		panic("ahc_send_async: Unexpected async event");
 	}
 	xpt_async(code, path, arg);
+	xpt_free_path(path);
 }
 
 void
