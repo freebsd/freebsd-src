@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.11 1997/02/22 09:46:08 peter Exp $
+ * $Id: time.h,v 1.12 1997/03/22 06:53:24 bde Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -128,6 +128,13 @@ struct clockinfo {
 	int	stathz;		/* statistics clock frequency */
 	int	profhz;		/* profiling clock frequency */
 };
+
+#define CLOCK_REALTIME	0
+#define CLOCK_VIRTUAL	1
+#define CLOCK_PROF	2
+
+#define TIMER_RELTIME	0x0	/* relative timer */
+#define TIMER_ABSTIME	0x1	/* absolute timer */
 
 #ifdef KERNEL
 void	gettime __P((struct timeval *tv));
