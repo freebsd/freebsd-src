@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.210 1999/07/17 19:38:00 phk Exp $
+ * $Id: vfs_subr.c,v 1.211 1999/07/18 14:30:37 phk Exp $
  */
 
 /*
@@ -1244,11 +1244,13 @@ bdevvp(dev, vpp)
 		return (error);
 	}
 	vp = nvp;
-	vp->v_type = VBLK;
+	/* dev2udev() results in a CDEV, so we need to cheat here. */
+	vp->v_type = VCHR;
 	if ((nvp = checkalias(vp, dev2udev(dev), (struct mount *)0)) != NULL) {
 		vput(vp);
 		vp = nvp;
 	}
+	vp->v_type = VBLK;
 	*vpp = vp;
 	return (0);
 }
