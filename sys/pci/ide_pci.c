@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.9 1998/02/06 12:14:06 eivind Exp $
+ *	$Id: ide_pci.c,v 1.10 1998/04/15 17:47:00 bde Exp $
  */
 
 #include "pci.h"
@@ -168,7 +168,7 @@ static struct ide_pci_softc softc;
 
 static int ide_pci_softc_cookies_initted = 0;
 
-extern void wdintr(void *);
+inthand2_t wdintr;
 extern struct isa_driver wdcdriver;
 
 /*
