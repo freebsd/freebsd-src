@@ -255,10 +255,12 @@ zf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
     while (zf->zf_zstream.avail_out) {
 	if ((zf->zf_zstream.avail_in == 0) && (zf_fill(zf) == -1)) {
 	    printf("zf_read: fill error\n");
-	    return(-1);
+	    return(EIO);
 	}
 	if (zf->zf_zstream.avail_in == 0) {		/* oops, unexpected EOF */
 	    printf("zf_read: unexpected EOF\n");
+	    if (zf->zf_zstream.avail_out == size)
+		return (EIO);
 	    break;
 	}
 
@@ -268,8 +270,7 @@ zf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	}
 	if (error != Z_OK) {				/* argh, decompression error */
 	    printf("inflate: %s\n", zf->zf_zstream.msg);
-	    errno = EIO;
-	    return(-1);
+	    return(EIO);
 	}
     }
     if (resid != NULL)
@@ -305,8 +306,11 @@ zf_seek(struct open_file *f, off_t offset, int where)
     case SEEK_CUR:
 	target = offset + zf->zf_zstream.total_out;
 	break;
-    default:
+    case SEEK_END:
 	target = -1;
+    default:
+	errno = EINVAL;
+	return (-1);
     }
 
     /* rewind if required */
@@ -315,7 +319,9 @@ zf_seek(struct open_file *f, off_t offset, int where)
 
     /* skip forwards if required */
     while (target > zf->zf_zstream.total_out) {
-	if (zf_read(f, discard, min(sizeof(discard), target - zf->zf_zstream.total_out), NULL) == -1)
+	errno = zf_read(f, discard, min(sizeof(discard),
+	    target - zf->zf_zstream.total_out), NULL);
+	if (errno)
 	    return(-1);
     }
     /* This is where we are (be honest if we overshot) */

@@ -308,11 +308,14 @@ dos_seek(struct open_file *fd, off_t offset, int whence)
         off = size;
         break;
     default:
+	errno = EINVAL;
 	return(-1);
     }
     off += offset;
-    if (off < 0 || off > size)
+    if (off < 0 || off > size) {
+	errno = EINVAL;
         return(-1);
+    }
     f->offset = (u_int)off;
     f->c = 0;
     return(off);

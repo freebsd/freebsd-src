@@ -115,13 +115,13 @@ read(int fd, void *dest, size_t bcount)
 	if (resid >= SOPEN_RASIZE) {
 	    /* bypass the rest of the request and leave the buffer empty */
 	    if ((errno = (f->f_ops->fo_read)(f, dest, resid, &cresid)))
-		return(bcount - resid);
+		    return (-1);
 	    return(bcount - cresid);
 	}
 
 	/* fetch more data */
 	if ((errno = (f->f_ops->fo_read)(f, f->f_rabuf, SOPEN_RASIZE, &cresid)))
-	    return(bcount - resid);	/* behave like fread() */
+	    return (-1);
 	f->f_raoffset = 0;
 	f->f_ralen = SOPEN_RASIZE - cresid;
 	/* no more data, return what we had */
