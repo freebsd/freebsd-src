@@ -147,7 +147,7 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
 {
     struct natmpcb *npcb;
     struct sockaddr_natm *snatm;
-    struct atm_pseudoioctl api;
+    struct atmio_openvcc op;
     struct ifnet *ifp;
     int error = 0;
     int s2, s = SPLSOFTNET();
@@ -198,15 +198,20 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
     }
 
     /*
-     * enable rx
+     * open the channel
      */
-    ATM_PH_FLAGS(&api.aph) = (proto == PROTO_NATMAAL5) ? ATM_PH_AAL5 : 0;
-    ATM_PH_VPI(&api.aph) = npcb->npcb_vpi;
-    ATM_PH_SETVCI(&api.aph, npcb->npcb_vci);
-    api.rxhand = npcb;
+    bzero(&op, sizeof(op));
+    op.rxhand = npcb;
+    op.param.flags = ATMIO_FLAG_PVC;
+    op.param.vpi = npcb->npcb_vpi;
+    op.param.vci = npcb->npcb_vci;
+    op.param.rmtu = op.param.tmtu = ifp->if_mtu;
+    op.param.aal = (proto == PROTO_NATMAAL5) ? ATMIO_AAL_5 : ATMIO_AAL_0;
+    op.param.traffic = ATMIO_TRAFFIC_UBR;
+
     s2 = splimp();
     if (ifp->if_ioctl == NULL || 
-	ifp->if_ioctl(ifp, SIOCATMENA, (caddr_t) &api) != 0) {
+	ifp->if_ioctl(ifp, SIOCATMOPENVCC, (caddr_t)&op) != 0) {
 	splx(s2);
 	npcb_free(npcb, NPCB_REMOVE);
         error = EIO;
@@ -225,7 +230,7 @@ static int
 natm_usr_disconnect(struct socket *so)
 {
     struct natmpcb *npcb;
-    struct atm_pseudoioctl api;
+    struct atmio_closevcc cl;
     struct ifnet *ifp;
     int error = 0;
     int s2, s = SPLSOFTNET();
@@ -246,13 +251,11 @@ natm_usr_disconnect(struct socket *so)
     /*
      * disable rx
      */
-    ATM_PH_FLAGS(&api.aph) = ATM_PH_AAL5;
-    ATM_PH_VPI(&api.aph) = npcb->npcb_vpi;
-    ATM_PH_SETVCI(&api.aph, npcb->npcb_vci);
-    api.rxhand = npcb;
+    cl.vpi = npcb->npcb_vpi;
+    cl.vci = npcb->npcb_vci;
     s2 = splimp();
     if (ifp->if_ioctl != NULL)
-	ifp->if_ioctl(ifp, SIOCATMDIS, (caddr_t) &api);
+	ifp->if_ioctl(ifp, SIOCATMCLOSEVCC, (caddr_t)&cl);
     splx(s2);
 
     npcb_free(npcb, NPCB_REMOVE);
