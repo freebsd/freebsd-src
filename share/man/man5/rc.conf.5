@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.22 1998/07/08 23:31:28 nectar Exp $
+.\"     $Id: rc.conf.5,v 1.23 1998/10/06 19:24:26 phk Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -407,20 +407,6 @@ is set to
 these are the flags to pass to the
 .Xr xntpd 8
 daemon.
-.It Ar tickadj_enable
-(bool) If set to
-.Ar YES
-then run the
-.Xr tickadj 8
-command at system boot time.
-.It Ar tickadj_flags
-(str) If
-.Ar tickadj_enable
-is set to
-.Ar YES ,
-these are the flags to pass to the
-.Xr tickadj 8
-command.
 .It Ar nis_client_enable
 (bool) If set to
 .Ar YES
