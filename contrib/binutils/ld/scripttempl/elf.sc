@@ -234,7 +234,7 @@ SECTIONS
     ${CONSTRUCTING+SORT(CONSTRUCTORS)}
   }
   .data1 ${RELOCATING-0} : { *(.data1) }
-  .eh_frame : { *(.eh_frame) }
+  .eh_frame : { KEEP (*(.eh_frame)) }
   .gcc_except_table : { *(.gcc_except_table) }
   ${WRITABLE_RODATA+${RODATA}}
   ${RELOCATING+${OTHER_READWRITE_SECTIONS}}
@@ -242,7 +242,7 @@ SECTIONS
   ${RELOCATING+${DTOR}}
   ${DATA_PLT+${PLT}}
   ${RELOCATING+${OTHER_GOT_SYMBOLS}}
-  .got         ${RELOCATING-0} : { *(.got.plt) *(.got) }
+  .got		${RELOCATING-0} : { *(.got.plt) *(.got) }
   ${TEXT_DYNAMIC-${DYNAMIC}}
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so

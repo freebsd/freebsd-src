@@ -226,20 +226,13 @@ _bfd_elf_link_record_dynamic_symbol (info, h)
 	{
 	case STV_INTERNAL:
 	case STV_HIDDEN:
-	  /* This symbol must be defined in the shared object or
-	     executable.  */
-	  if (h->root.type == bfd_link_hash_undefined)
+	  if (h->root.type != bfd_link_hash_undefined
+	      && h->root.type != bfd_link_hash_undefweak)
 	    {
-	      bfd * abfd = h->root.u.undef.abfd;
-	      const char * name = h->root.root.string;
-	      
-	      (*info->callbacks->undefined_symbol)
-		(info, name, abfd, bfd_und_section_ptr, 0, true);
+	      h->elf_link_hash_flags |= ELF_LINK_FORCED_LOCAL;
+	      return true;
 	    }
-	  
-	  h->elf_link_hash_flags |= ELF_LINK_FORCED_LOCAL;
-	  break;
-	  
+
 	default:
 	  break;
 	}

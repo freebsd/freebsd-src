@@ -1063,15 +1063,21 @@ get_dynamic_type (type)
     case DT_PREINIT_ARRAY: return "PREINIT_ARRAY";
     case DT_PREINIT_ARRAYSZ: return "PREINIT_ARRAYSZ";
 
+    case DT_CHECKSUM:	return "CHECKSUM";
     case DT_PLTPADSZ:	return "PLTPADSZ";
     case DT_MOVEENT:	return "MOVEENT";
     case DT_MOVESZ:	return "MOVESZ";
-    case DT_FEATURE_1:	return "FEATURE_1";
+    case DT_FEATURE:	return "FEATURE";
     case DT_POSFLAG_1:	return "POSFLAG_1";
     case DT_SYMINSZ:	return "SYMINSZ";
     case DT_SYMINENT:	return "SYMINENT"; /* aka VALRNGHI */
 
     case DT_ADDRRNGLO:  return "ADDRRNGLO";
+    case DT_CONFIG:	return "CONFIG";
+    case DT_DEPAUDIT:	return "DEPAUDIT";
+    case DT_AUDIT:	return "AUDIT";
+    case DT_PLTPAD:	return "PLTPAD";
+    case DT_MOVETAB:	return "MOVETAB";
     case DT_SYMINFO:	return "SYMINFO"; /* aka ADDRRNGHI */
 
     case DT_VERSYM:	return "VERSYM";
@@ -1084,7 +1090,7 @@ get_dynamic_type (type)
     case DT_VERNEED:	return "VERNEED";
     case DT_VERNEEDNUM:	return "VERNEEDNUM";
 
-    case DT_AUXILIARY:	return "AUXILARY";
+    case DT_AUXILIARY:	return "AUXILIARY";
     case DT_USED:	return "USED";
     case DT_FILTER:	return "FILTER";
 
@@ -3202,12 +3208,33 @@ process_dynamic_segment (file)
 	  
 	case DT_AUXILIARY:
 	case DT_FILTER:
+	case DT_CONFIG:
+	case DT_DEPAUDIT:
+	case DT_AUDIT:
 	  if (do_dynamic)
 	    {
-	      if (entry->d_tag == DT_AUXILIARY)
-		printf (_("Auxiliary library"));
-	      else
-		printf (_("Filter library"));
+	      switch (entry->d_tag)
+	        {
+		case DT_AUXILIARY:
+		  printf (_("Auxiliary library"));
+		  break;
+
+		case DT_FILTER:
+		  printf (_("Filter library"));
+		  break;
+
+	        case DT_CONFIG:
+		  printf (_("Configuration file"));
+		  break;
+
+		case DT_DEPAUDIT:
+		  printf (_("Dependency audit library"));
+		  break;
+
+		case DT_AUDIT:
+		  printf (_("Audit library"));
+		  break;
+		}
 
 	      if (dynamic_strings)
 		printf (": [%s]\n", dynamic_strings + entry->d_un.d_val);
@@ -3220,7 +3247,7 @@ process_dynamic_segment (file)
 	    }
 	  break;
 
-	case DT_FEATURE_1:
+	case DT_FEATURE:
 	  if (do_dynamic)
 	    {
 	      printf (_("Flags:"));
@@ -3233,6 +3260,11 @@ process_dynamic_segment (file)
 		    {
 		      printf (" PARINIT");
 		      val ^= DTF_1_PARINIT;
+		    }
+		  if (val & DTF_1_CONFEXP)
+		    {
+		      printf (" CONFEXP");
+		      val ^= DTF_1_CONFEXP;
 		    }
 		  if (val != 0)
 		    printf (" %lx", val);
@@ -3331,6 +3363,21 @@ process_dynamic_segment (file)
 		      printf (" INTERPOSE");
 		      val ^= DF_1_INTERPOSE;
 		    }
+		  if (val & DF_1_NODEFLIB)
+		    {
+		      printf (" NODEFLIB");
+		      val ^= DF_1_NODEFLIB;
+		    }
+		  if (val & DF_1_NODUMP)
+		    {
+		      printf (" NODUMP");
+		      val ^= DF_1_NODUMP;
+		    }
+		  if (val & DF_1_CONLFAT)
+		    {
+		      printf (" CONLFAT");
+		      val ^= DF_1_CONLFAT;
+		    }
 		  if (val != 0)
 		    printf (" %lx", val);
 		  puts ("");
@@ -3359,6 +3406,7 @@ process_dynamic_segment (file)
 	case DT_DEBUG	:
 	case DT_TEXTREL	:
 	case DT_JMPREL	:
+	case DT_RUNPATH	:
 	  dynamic_info[entry->d_tag] = entry->d_un.d_val;
 
 	  if (do_dynamic)
@@ -3387,6 +3435,10 @@ process_dynamic_segment (file)
 
 		    case DT_RPATH:
 		      printf (_("Library rpath: [%s]"), name);
+		      break;
+
+		    case DT_RUNPATH:
+		      printf (_("Library runpath: [%s]"), name);
 		      break;
 
 		    default:
@@ -5039,7 +5091,14 @@ display_debug_pubnames (section, start, file)
 
       if (pubnames.pn_version != 2)
 	{
-	  warn (_("Only DWARF 2 pubnames are currently supported"));
+	  static int warned = 0;
+
+	  if (! warned)
+	    {
+	      warn (_("Only DWARF 2 pubnames are currently supported\n"));
+	      warned = 1;
+	    }
+	  
 	  continue;
 	}
 
@@ -6356,6 +6415,12 @@ display_debug_aranges (section, start, file)
       arange.ar_info_offset  = BYTE_GET (external->ar_info_offset);
       arange.ar_pointer_size = BYTE_GET (external->ar_pointer_size);
       arange.ar_segment_size = BYTE_GET (external->ar_segment_size);
+
+      if (arange.ar_version != 2)
+	{
+	  warn (_("Only DWARF 2 aranges are currently supported.\n"));
+	  break;
+	}
 
       printf (_("  Length:                   %ld\n"), arange.ar_length);
       printf (_("  Version:                  %d\n"), arange.ar_version);

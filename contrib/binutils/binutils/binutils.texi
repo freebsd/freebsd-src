@@ -2530,7 +2530,7 @@ exist.
 @item -D
 @itemx --use-dynamic
 When displaying symbols, this option makes @code{readelf} use the
-symblol table in the file's dynamic section, rather than the one in the
+symbol table in the file's dynamic section, rather than the one in the
 symbols section.
 
 @item -x <number>

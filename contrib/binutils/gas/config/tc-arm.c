@@ -1943,7 +1943,7 @@ do_mrs (str, flags)
   /* This is for backwards compatability with older toolchains.  */
   else if (strcmp (str, "cpsr_all") == 0
 	   || strcmp (str, "spsr_all") == 0)
-    skip = 7;
+    skip = 8;
   else
     {
       inst.error = _("{C|S}PSR expected");
@@ -2004,7 +2004,7 @@ do_msr (str, flags)
   
   if (inst.instruction & ((PSR_c | PSR_x | PSR_s) << PSR_SHIFT))
     {
-      inst.error = _("can only set flag field with immediate value");
+      inst.error = _("only flag field of psr can be set with immediate value");
       return;
     }
   
@@ -5450,7 +5450,7 @@ md_apply_fix3 (fixP, val, seg)
 	    if (newimm != (unsigned int) FAIL)
 	      newinsn = temp;
 	    /* Still No ?  Try using a negated value.  */
-	    else if (validate_immediate_twopart (- value, & highpart) != (unsigned int) FAIL)
+	    else if ((newimm = validate_immediate_twopart (- value, & highpart)) != (unsigned int) FAIL)
 		temp = newinsn = (temp & OPCODE_MASK) | OPCODE_SUB << DATA_OP_SHIFT;
 	    /* Otherwise - give up.  */
 	    else
