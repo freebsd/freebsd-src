@@ -412,10 +412,12 @@ static int compute_sb_data(devvp, es, fs)
 	    printf("EXT2-fs: unable to read group descriptors (%d)\n", error);
 	    return EIO;
 	}
+	/* Set the B_LOCKED flag on the buffer, then brelse() it */
+	LCK_BUF(fs->s_group_desc[i])
     }
     if(!ext2_check_descriptors(fs)) {
 	    for (j = 0; j < db_count; j++)
-		brelse(fs->s_group_desc[j]);
+		    ULCK_BUF(fs->s_group_desc[j])
 	    bsd_free(fs->s_group_desc, M_UFSMNT);
 	    printf("EXT2-fs: (ext2_check_descriptors failure) "
 		   "unable to read group descriptors\n");
@@ -691,16 +693,19 @@ ext2_unmount(mp, mntflags, p)
 		fs->s_es->s_state |= EXT2_VALID_FS;	/* was fs_clean = 1 */
 		ext2_sbupdate(ump, MNT_WAIT);
 	}
+
 	/* release buffers containing group descriptors */
 	for(i = 0; i < fs->s_db_per_group; i++) 
-		brelse(fs->s_group_desc[i]);
+		ULCK_BUF(fs->s_group_desc[i])
+
 	/* release cached inode/block bitmaps */
         for (i = 0; i < EXT2_MAX_GROUP_LOADED; i++)
                 if (fs->s_inode_bitmap[i])
-                        brelse (fs->s_inode_bitmap[i]);
+			ULCK_BUF(fs->s_inode_bitmap[i])
+
         for (i = 0; i < EXT2_MAX_GROUP_LOADED; i++)
                 if (fs->s_block_bitmap[i])
-                        brelse (fs->s_block_bitmap[i]);
+			ULCK_BUF(fs->s_block_bitmap[i])
 
 	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
 	error = VOP_CLOSE(ump->um_devvp, ronly ? FREAD : FREAD|FWRITE,
@@ -1106,20 +1111,11 @@ printf("\nupdating superblock, waitfor=%s\n", waitfor == MNT_WAIT ? "yes":"no");
 	else
 		bawrite(bp);
 
-	/* write group descriptors back on disk */
-	for(i = 0; i < fs->s_db_per_group; i++) 
-		/* Godmar thinks: we must avoid using any of the b*write
-		 * functions here: we want to keep the buffer locked
-		 * so we use my 'housemade' write routine:
+	/*
+	 * The buffers for group descriptors, inode bitmaps and block bitmaps
+	 * are not busy at this point and are (hopefully) written by the
+	 * usual sync mechanism. No need to write them here
 		 */
-		error |= ll_w_block(fs->s_group_desc[i], waitfor == MNT_WAIT);
-
-        for (i = 0; i < EXT2_MAX_GROUP_LOADED; i++)
-                if (fs->s_inode_bitmap[i])
-                        ll_w_block (fs->s_inode_bitmap[i], 1);
-        for (i = 0; i < EXT2_MAX_GROUP_LOADED; i++)
-                if (fs->s_block_bitmap[i])
-                        ll_w_block (fs->s_block_bitmap[i], 1);
 
 	return (error);
 }

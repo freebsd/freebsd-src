@@ -155,3 +155,23 @@ extern u_char *fragtbl[];
 #define  lock_super(devvp)   	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, curproc)
 #define  unlock_super(devvp) 	VOP_UNLOCK(devvp, 0, curproc)
 
+/*
+ * To lock a buffer, set the B_LOCKED flag and then brelse() it. To unlock,
+ * reset the B_LOCKED flag and brelse() the buffer back on the LRU list
+ */
+#define LCK_BUF(bp) { \
+	int s; \
+	s = splbio(); \
+	(bp)->b_flags |= B_LOCKED; \
+	splx(s); \
+	brelse(bp); \
+}
+
+#define ULCK_BUF(bp) { \
+	int s; \
+	s = splbio(); \
+	(bp)->b_flags &= ~B_LOCKED; \
+	splx(s); \
+	bremfree(bp); \
+	brelse(bp); \
+}
