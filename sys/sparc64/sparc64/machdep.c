@@ -670,6 +670,12 @@ sparc64_shutdown_final(void *dummy, int howto)
 		cpu_halt();
 }
 
+void
+cpu_idle(void)
+{
+	/* Insert code to halt (until next interrupt) for the idle loop */
+}
+
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
