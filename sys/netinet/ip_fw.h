@@ -69,10 +69,8 @@ struct ip_fw {
  */     
 #define IP_FW_BASE_CTL	53
 
-#define IP_FW_ADD_BLK (IP_FW_BASE_CTL)
-#define IP_FW_ADD_FWD (IP_FW_BASE_CTL+1)   
-#define IP_FW_DEL_BLK (IP_FW_BASE_CTL+4)
-#define IP_FW_DEL_FWD (IP_FW_BASE_CTL+5)
+#define IP_FW_ADD     (IP_FW_BASE_CTL)
+#define IP_FW_DEL     (IP_FW_BASE_CTL+4)
 #define IP_FW_FLUSH   (IP_FW_BASE_CTL+6)
 #define IP_FW_POLICY  (IP_FW_BASE_CTL+7) 
 
@@ -94,14 +92,33 @@ struct ip_fw {
  * Main firewall chains definitions and global var's definitions.
  */
 #ifdef KERNEL
-#ifdef IPFIREWALL
-extern struct ip_fw *ip_fw_blk_chain;
-extern struct ip_fw *ip_fw_fwd_chain;
+
+/*
+ * Variables/chain.
+ */
+extern struct  ip_fw *ip_fw_chain;
 extern u_short ip_fw_policy;
-#endif
-#ifdef IPACCT
-extern struct ip_fw *ip_acct_chain;
-#endif
+
+extern struct  ip_fw *ip_acct_chain;
+
+/*
+ * Function pointers.
+ */
+extern int (*ip_fw_chk_ptr)(struct ip *,struct ifnet *,struct ip_fw *);
+extern int (*ip_fw_ctl_ptr)(int,struct mbuf *);
+
+extern void (*ip_acct_cnt_ptr)(struct ip *,struct ifnet *,struct ip_fw *,int);
+extern int  (*ip_acct_ctl_ptr)(int,struct mbuf *);
+
+/*
+ * Function definitions.
+ */
+int ip_fw_chk(struct ip *,struct ifnet *,struct ip_fw *);
+int ip_fw_ctl(int,struct mbuf *);
+
+void ip_acct_cnt(struct ip *,struct ifnet *,struct ip_fw *,int);
+int  ip_acct_ctl(int,struct mbuf *);
+
 #endif /* KERNEL */
 
 #endif /* _IP_FW_H */
