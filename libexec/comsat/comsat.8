@@ -74,6 +74,13 @@ or
 .Dq Subject
 lines are not included in the displayed message.
 .Pp
+If the
+.Em user
+specified is logged in to the system and the associated terminal has
+the group execute bit turned on (by a
+.Dq Li biff b ) ,
+two bell characters (ASCII \\007) are printed on the user's terminal.
+.Pp
 If mailbox-name omitted, standard mailbox assumed.
 .Sh FILES
 .Bl -tag -width /var/mail/user -compact
