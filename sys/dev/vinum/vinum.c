@@ -181,16 +181,17 @@ void
 free_vinum(int cleardrive)
 {
     int i;
+    int drives_used = vinum_conf.drives_used;
 
-    if (cleardrive) {
-	for (i = 0; i < vinum_conf.drives_used; i++)
-	    remove_drive(i);				    /* remove the drive */
-    } else {						    /* keep the config */
-	if (DRIVE != NULL) {
-	    for (i = 0; i < vinum_conf.drives_used; i++)
+    if (DRIVE != NULL) {
+	if (cleardrive) {				    /* remove the vinum config */
+	    for (i = 0; i < drives_used; i++)
+		remove_drive(i);			    /* remove the drive */
+	} else {					    /* keep the config */
+	    for (i = 0; i < drives_used; i++)
 		free_drive(&DRIVE[i]);			    /* close files and things */
-	    Free(DRIVE);
 	}
+	Free(DRIVE);
     }
     while ((vinum_conf.flags & (VF_STOPPING | VF_DAEMONOPEN))
 	== (VF_STOPPING | VF_DAEMONOPEN)) {		    /* at least one daemon open, we're stopping */
@@ -339,10 +340,12 @@ vinumopen(dev_t dev,
     case VINUM_SUPERDEV_TYPE:
 	error = suser(p->p_ucred, &p->p_acflag);	    /* are we root? */
 	if (error == 0) {				    /* yes, can do */
-	    if (Volno(dev) == 1)			    /* daemon device */
+	    if (dev == VINUM_DAEMON_DEV)		    /* daemon device */
 		vinum_conf.flags |= VF_DAEMONOPEN;	    /* we're open */
-	    else
+	    else if (dev == VINUM_SUPERDEV)
 		vinum_conf.flags |= VF_OPEN;		    /* we're open */
+	    else
+		error = ENODEV;				    /* nothing, maybe a debug mismatch */
 	}
 	return error;
 
@@ -408,9 +411,9 @@ vinumclose(dev_t dev,
 	 * don't worry about whether we're root:
 	 * nobody else would get this far.
 	 */
-	if (Volno(dev) == 0)				    /* normal superdev */
+	if (dev == VINUM_SUPERDEV)			    /* normal superdev */
 	    vinum_conf.flags &= ~VF_OPEN;		    /* no longer open */
-	else {
+	else if (dev == VINUM_DAEMON_DEV) {		    /* the daemon device */
 	    vinum_conf.flags &= ~VF_DAEMONOPEN;		    /* no longer open */
 	    if (vinum_conf.flags & VF_STOPPING)		    /* we're stopping, */
 		wakeup(&vinumclose);			    /* we can continue stopping now */
