@@ -3997,6 +3997,7 @@ nfsrv_noop(nfsd, slp, procp, mrq)
 	else
 		error = EPROCUNAVAIL;
 	nfsm_reply(0);
+	error = 0;
 	nfsm_srvdone;
 }
 
