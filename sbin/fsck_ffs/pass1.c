@@ -276,7 +276,7 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 			}
 		}
 	}
-	for (j = ndb; j < NDADDR; j++)
+	for (j = ndb; ndb < NDADDR && j < NDADDR; j++)
 		if (DIP(dp, di_db[j]) != 0) {
 			if (debug)
 				printf("bad direct addr[%d]: %qu\n", j,
