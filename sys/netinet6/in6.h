@@ -593,6 +593,8 @@ struct ip6_mtuinfo {
 #define IPV6CTL_AUTO_LINKLOCAL	35	/* automatic link-local addr assign */
 #define IPV6CTL_RIP6STATS	36	/* raw_ip6 stats */
 
+#define IPV6CTL_ADDRCTLPOLICY	38	/* get/set address selection policy */
+
 #define IPV6CTL_MAXFRAGS	41	/* max fragments */
 
 /* New entries should be added here from current IPV6CTL_MAXID value. */
@@ -626,6 +628,7 @@ void	in6_sin_2_v4mapsin6 __P((struct sockaddr_in *sin,
 				 struct sockaddr_in6 *sin6));
 void	in6_sin6_2_sin_in_sock __P((struct sockaddr *nam));
 void	in6_sin_2_v4mapsin6_in_sock __P((struct sockaddr **nam));
+extern void addrsel_policy_init __P((void));
 
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
