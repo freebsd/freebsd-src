@@ -48,7 +48,7 @@ do {									\
 	     dev->lock.pid != DRM_OS_CURRENTPID ) {				\
 		DRM_ERROR( "%s called without lock held\n",		\
 			   __FUNCTION__ );				\
-		DRM_OS_RETURN( EINVAL );						\
+		return DRM_OS_ERR(EINVAL);						\
 	}								\
 } while (0)
 

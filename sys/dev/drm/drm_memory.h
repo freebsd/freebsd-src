@@ -489,7 +489,7 @@ int DRM(free_agp)(agp_memory *handle, int pages)
 	if (!handle) {
 		DRM_MEM_ERROR(DRM_MEM_TOTALAGP,
 			      "Attempt to free NULL AGP handle\n");
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	if (DRM(agp_free_memory)(handle)) {
@@ -506,7 +506,7 @@ int DRM(free_agp)(agp_memory *handle, int pages)
 		}
 		return 0;
 	}
-	DRM_OS_RETURN(EINVAL);
+	return DRM_OS_ERR(EINVAL);
 }
 
 int DRM(bind_agp)(agp_memory *handle, unsigned int start)
@@ -517,13 +517,13 @@ int DRM(bind_agp)(agp_memory *handle, unsigned int start)
 	struct agp_memory_info info;
 
 	if (!dev)
-		return EINVAL;
+		return DRM_OS_ERR(EINVAL);
 #endif /* __FreeBSD__ */
 
 	if (!handle) {
 		DRM_MEM_ERROR(DRM_MEM_BOUNDAGP,
 			      "Attempt to bind NULL AGP handle\n");
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	if (!(retcode = DRM(agp_bind_memory)(handle, start))) {
@@ -539,31 +539,31 @@ int DRM(bind_agp)(agp_memory *handle, unsigned int start)
 			+= info.ami_size;
 #endif /* __FreeBSD__ */
 		DRM_OS_SPINUNLOCK(&DRM(mem_lock));
-		DRM_OS_RETURN(0);
+		return 0;
 	}
 	DRM_OS_SPINLOCK(&DRM(mem_lock));
 	++DRM(mem_stats)[DRM_MEM_BOUNDAGP].fail_count;
 	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
-	DRM_OS_RETURN(retcode);
+	return retcode;
 }
 
 int DRM(unbind_agp)(agp_memory *handle)
 {
 	int alloc_count;
 	int free_count;
-	int retcode = EINVAL;
+	int retcode = DRM_OS_ERR(EINVAL);
 #ifdef __FreeBSD__
 	device_t dev = agp_find_device();
 	struct agp_memory_info info;
 
 	if (!dev)
-		return EINVAL;
+		return DRM_OS_ERR(EINVAL);
 #endif /* __FreeBSD__ */
 
 	if (!handle) {
 		DRM_MEM_ERROR(DRM_MEM_BOUNDAGP,
 			      "Attempt to unbind NULL AGP handle\n");
-		DRM_OS_RETURN(retcode);
+		return retcode;
 	}
 
 #ifdef __FreeBSD__
@@ -571,7 +571,7 @@ int DRM(unbind_agp)(agp_memory *handle)
 #endif /* __FreeBSD__ */
 
 	if ((retcode = DRM(agp_unbind_memory)(handle))) 
-		DRM_OS_RETURN(retcode);
+		return retcode;
 
 	DRM_OS_SPINLOCK(&DRM(mem_lock));
 	free_count  = ++DRM(mem_stats)[DRM_MEM_BOUNDAGP].free_count;
@@ -590,6 +590,6 @@ int DRM(unbind_agp)(agp_memory *handle)
 			      "Excess frees: %d frees, %d allocs\n",
 			      free_count, alloc_count);
 	}
-	DRM_OS_RETURN(retcode);
+	return retcode;
 }
 #endif

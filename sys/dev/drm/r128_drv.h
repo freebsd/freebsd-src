@@ -451,7 +451,7 @@ do {									\
 	     dev->lock.pid != DRM_OS_CURRENTPID ) {				\
 		DRM_ERROR( "%s called without lock held\n",		\
 			   __FUNCTION__ );				\
-		DRM_OS_RETURN( EINVAL );						\
+		return DRM_OS_ERR(EINVAL);						\
 	}								\
 } while (0)
 
@@ -466,7 +466,7 @@ do {									\
 			DRM_OS_DELAY( 1 );					\
 		}							\
 		DRM_ERROR( "ring space check failed!\n" );		\
-		DRM_OS_RETURN( EBUSY );				\
+		return DRM_OS_ERR(EBUSY);				\
 	}								\
  __ring_space_done:							\
 } while (0)

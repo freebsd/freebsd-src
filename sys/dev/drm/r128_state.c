@@ -817,7 +817,7 @@ static int r128_cce_dispatch_blit( drm_device_t *dev,
 		break;
 	default:
 		DRM_ERROR( "invalid blit format %d\n", blit->format );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	/* Flush the pixel cache, and mark the contents as Read Invalid.
@@ -840,11 +840,11 @@ static int r128_cce_dispatch_blit( drm_device_t *dev,
 	if ( buf->pid != pid ) {
 		DRM_ERROR( "process %d using buffer owned by %d\n",
 			   pid, buf->pid );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
 		DRM_ERROR( "sending pending buffer %d\n", blit->idx );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	buf_priv->discard = 1;
@@ -910,32 +910,32 @@ static int r128_cce_dispatch_write_span( drm_device_t *dev,
 
 	count = depth->n;
 	if ( DRM_OS_COPYFROMUSR( &x, depth->x, sizeof(x) ) ) {
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 	if ( DRM_OS_COPYFROMUSR( &y, depth->y, sizeof(y) ) ) {
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 
 	buffer = DRM_OS_MALLOC( depth->n * sizeof(u32) );
 	if ( buffer == NULL )
-		DRM_OS_RETURN( ENOMEM );
+		return DRM_OS_ERR(ENOMEM);
 	if ( DRM_OS_COPYFROMUSR( buffer, depth->buffer,
 			     depth->n * sizeof(u32) ) ) {
 		DRM_OS_FREE( buffer );
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 
 	if ( depth->mask ) {
 		mask = DRM_OS_MALLOC( depth->n * sizeof(u8) );
 		if ( mask == NULL ) {
 			DRM_OS_FREE( buffer );
-			DRM_OS_RETURN( ENOMEM );
+			return DRM_OS_ERR(ENOMEM);
 		}
 		if ( DRM_OS_COPYFROMUSR( mask, depth->mask,
 				     depth->n * sizeof(u8) ) ) {
 			DRM_OS_FREE( buffer );
 			DRM_OS_FREE( mask );
-			DRM_OS_RETURN( EFAULT );
+			return DRM_OS_ERR(EFAULT);
 		}
 
 		for ( i = 0 ; i < count ; i++, x++ ) {
@@ -1005,36 +1005,36 @@ static int r128_cce_dispatch_write_pixels( drm_device_t *dev,
 
 	x = DRM_OS_MALLOC( count * sizeof(*x) );
 	if ( x == NULL ) {
-		DRM_OS_RETURN( ENOMEM );
+		return DRM_OS_ERR(ENOMEM);
 	}
 	y = DRM_OS_MALLOC( count * sizeof(*y) );
 	if ( y == NULL ) {
 		DRM_OS_FREE( x );
-		DRM_OS_RETURN( ENOMEM );
+		return DRM_OS_ERR(ENOMEM);
 	}
 	if ( DRM_OS_COPYFROMUSR( x, depth->x, count * sizeof(int) ) ) {
 		DRM_OS_FREE( x );
 		DRM_OS_FREE( y );
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 	if ( DRM_OS_COPYFROMUSR( y, depth->y, count * sizeof(int) ) ) {
 		DRM_OS_FREE( x );
 		DRM_OS_FREE( y );
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 
 	buffer = DRM_OS_MALLOC( depth->n * sizeof(u32) );
 	if ( buffer == NULL ) {
 		DRM_OS_FREE( x );
 		DRM_OS_FREE( y );
-		DRM_OS_RETURN( ENOMEM );
+		return DRM_OS_ERR(ENOMEM);
 	}
 	if ( DRM_OS_COPYFROMUSR( buffer, depth->buffer,
 			     depth->n * sizeof(u32) ) ) {
 		DRM_OS_FREE( x );
 		DRM_OS_FREE( y );
 		DRM_OS_FREE( buffer );
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 
 	if ( depth->mask ) {
@@ -1043,7 +1043,7 @@ static int r128_cce_dispatch_write_pixels( drm_device_t *dev,
 			DRM_OS_FREE( x );
 			DRM_OS_FREE( y );
 			DRM_OS_FREE( buffer );
-			DRM_OS_RETURN( ENOMEM );
+			return DRM_OS_ERR(ENOMEM);
 		}
 		if ( DRM_OS_COPYFROMUSR( mask, depth->mask,
 				     depth->n * sizeof(u8) ) ) {
@@ -1051,7 +1051,7 @@ static int r128_cce_dispatch_write_pixels( drm_device_t *dev,
 			DRM_OS_FREE( y );
 			DRM_OS_FREE( buffer );
 			DRM_OS_FREE( mask );
-			DRM_OS_RETURN( EFAULT );
+			return DRM_OS_ERR(EFAULT);
 		}
 
 		for ( i = 0 ; i < count ; i++ ) {
@@ -1118,10 +1118,10 @@ static int r128_cce_dispatch_read_span( drm_device_t *dev,
 
 	count = depth->n;
 	if ( DRM_OS_COPYFROMUSR( &x, depth->x, sizeof(x) ) ) {
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 	if ( DRM_OS_COPYFROMUSR( &y, depth->y, sizeof(y) ) ) {
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 
 	BEGIN_RING( 7 );
@@ -1165,22 +1165,22 @@ static int r128_cce_dispatch_read_pixels( drm_device_t *dev,
 
 	x = DRM_OS_MALLOC( count * sizeof(*x) );
 	if ( x == NULL ) {
-		DRM_OS_RETURN( ENOMEM );
+		return DRM_OS_ERR(ENOMEM);
 	}
 	y = DRM_OS_MALLOC( count * sizeof(*y) );
 	if ( y == NULL ) {
 		DRM_OS_FREE( x );
-		DRM_OS_RETURN( ENOMEM );
+		return DRM_OS_ERR(ENOMEM);
 	}
 	if ( DRM_OS_COPYFROMUSR( x, depth->x, count * sizeof(int) ) ) {
 		DRM_OS_FREE( x );
 		DRM_OS_FREE( y );
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 	if ( DRM_OS_COPYFROMUSR( y, depth->y, count * sizeof(int) ) ) {
 		DRM_OS_FREE( x );
 		DRM_OS_FREE( y );
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 	}
 
 	for ( i = 0 ; i < count ; i++ ) {
@@ -1305,7 +1305,7 @@ int r128_cce_vertex( DRM_OS_IOCTL )
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	DRM_OS_KRNFROMUSR( vertex, (drm_r128_vertex_t *) data,
@@ -1318,12 +1318,12 @@ int r128_cce_vertex( DRM_OS_IOCTL )
 	if ( vertex.idx < 0 || vertex.idx >= dma->buf_count ) {
 		DRM_ERROR( "buffer index %d (of %d max)\n",
 			   vertex.idx, dma->buf_count - 1 );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 	if ( vertex.prim < 0 ||
 	     vertex.prim > R128_CCE_VC_CNTL_PRIM_TYPE_TRI_TYPE2 ) {
 		DRM_ERROR( "buffer prim %d\n", vertex.prim );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
@@ -1335,11 +1335,11 @@ int r128_cce_vertex( DRM_OS_IOCTL )
 	if ( buf->pid != DRM_OS_CURRENTPID ) {
 		DRM_ERROR( "process %d using buffer owned by %d\n",
 			   DRM_OS_CURRENTPID, buf->pid );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
 		DRM_ERROR( "sending pending buffer %d\n", vertex.idx );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	buf->used = vertex.count;
@@ -1365,7 +1365,7 @@ int r128_cce_indices( DRM_OS_IOCTL )
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	DRM_OS_KRNFROMUSR( elts, (drm_r128_indices_t *) data,
@@ -1378,12 +1378,12 @@ int r128_cce_indices( DRM_OS_IOCTL )
 	if ( elts.idx < 0 || elts.idx >= dma->buf_count ) {
 		DRM_ERROR( "buffer index %d (of %d max)\n",
 			   elts.idx, dma->buf_count - 1 );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 	if ( elts.prim < 0 ||
 	     elts.prim > R128_CCE_VC_CNTL_PRIM_TYPE_TRI_TYPE2 ) {
 		DRM_ERROR( "buffer prim %d\n", elts.prim );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
@@ -1395,11 +1395,11 @@ int r128_cce_indices( DRM_OS_IOCTL )
 	if ( buf->pid != DRM_OS_CURRENTPID ) {
 		DRM_ERROR( "process %d using buffer owned by %d\n",
 			   DRM_OS_CURRENTPID, buf->pid );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
 		DRM_ERROR( "sending pending buffer %d\n", elts.idx );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	count = (elts.end - elts.start) / sizeof(u16);
@@ -1407,11 +1407,11 @@ int r128_cce_indices( DRM_OS_IOCTL )
 
 	if ( elts.start & 0x7 ) {
 		DRM_ERROR( "misaligned buffer 0x%x\n", elts.start );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 	if ( elts.start < buf->used ) {
 		DRM_ERROR( "no header 0x%x - 0x%x\n", elts.start, buf->used );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	buf->used = elts.end;
@@ -1441,7 +1441,7 @@ int r128_cce_blit( DRM_OS_IOCTL )
 	if ( blit.idx < 0 || blit.idx >= dma->buf_count ) {
 		DRM_ERROR( "buffer index %d (of %d max)\n",
 			   blit.idx, dma->buf_count - 1 );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
@@ -1474,7 +1474,7 @@ int r128_cce_depth( DRM_OS_IOCTL )
 		return r128_cce_dispatch_read_pixels( dev, &depth );
 	}
 
-	DRM_OS_RETURN( EINVAL );
+	return DRM_OS_ERR(EINVAL);
 }
 
 int r128_cce_stipple( DRM_OS_IOCTL )
@@ -1491,7 +1491,7 @@ int r128_cce_stipple( DRM_OS_IOCTL )
 
 	if ( DRM_OS_COPYFROMUSR( &mask, stipple.mask,
 			     32 * sizeof(u32) ) )
-		DRM_OS_RETURN( EFAULT );
+		return DRM_OS_ERR(EFAULT);
 
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
 
@@ -1516,7 +1516,7 @@ int r128_cce_indirect( DRM_OS_IOCTL )
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	DRM_OS_KRNFROMUSR( indirect, (drm_r128_indirect_t *) data,
@@ -1529,7 +1529,7 @@ int r128_cce_indirect( DRM_OS_IOCTL )
 	if ( indirect.idx < 0 || indirect.idx >= dma->buf_count ) {
 		DRM_ERROR( "buffer index %d (of %d max)\n",
 			   indirect.idx, dma->buf_count - 1 );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	buf = dma->buflist[indirect.idx];
@@ -1538,17 +1538,17 @@ int r128_cce_indirect( DRM_OS_IOCTL )
 	if ( buf->pid != DRM_OS_CURRENTPID ) {
 		DRM_ERROR( "process %d using buffer owned by %d\n",
 			   DRM_OS_CURRENTPID, buf->pid );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
 		DRM_ERROR( "sending pending buffer %d\n", indirect.idx );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	if ( indirect.start < buf->used ) {
 		DRM_ERROR( "reusing indirect: start=0x%x actual=0x%x\n",
 			   indirect.start, buf->used );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
