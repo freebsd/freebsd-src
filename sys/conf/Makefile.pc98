@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.21 1997/10/12 12:00:23 kato Exp $
+#	$Id: Makefile.pc98,v 1.22 1997/10/23 09:20:16 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -207,7 +207,9 @@ install:
 	mv /kernel /kernel.old
 	if [ `/usr/sbin/sysctl -n kern.bootfile` = /kernel ] ; then \
 		/usr/sbin/sysctl -w kern.bootfile=/kernel.old ; \
-		mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
+		if [ -f /var/db/kvm_kernel.db ] ; then \
+			mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
+		fi \
 	fi
 	install -c -m 555 -o root -g wheel -fschg kernel /
 
