@@ -46,7 +46,6 @@ static int	chkvnlock(struct vnode *);
 /*
  * Prototypes for dead operations on vnodes.
  */
-static int	dead_badop(void);
 static int	dead_bmap(struct vop_bmap_args *);
 static int	dead_ioctl(struct vop_ioctl_args *);
 static int	dead_lock(struct vop_lock_args *);
@@ -63,15 +62,15 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) vop_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) vop_ebadf },
 	{ &vop_bmap_desc,		(vop_t *) dead_bmap },
-	{ &vop_create_desc,		(vop_t *) dead_badop },
+	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_inactive_desc,		(vop_t *) vop_null },
 	{ &vop_ioctl_desc,		(vop_t *) dead_ioctl },
-	{ &vop_link_desc,		(vop_t *) dead_badop },
+	{ &vop_link_desc,		(vop_t *) vop_panic },
 	{ &vop_lock_desc,		(vop_t *) dead_lock },
 	{ &vop_lookup_desc,		(vop_t *) dead_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) dead_badop },
-	{ &vop_mknod_desc,		(vop_t *) dead_badop },
+	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
+	{ &vop_mknod_desc,		(vop_t *) vop_panic },
 	{ &vop_open_desc,		(vop_t *) dead_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_ebadf },	/* per pathconf(2) */
 	{ &vop_poll_desc,		(vop_t *) dead_poll },
@@ -80,11 +79,11 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *) vop_ebadf },
 	{ &vop_readlink_desc,		(vop_t *) vop_ebadf },
 	{ &vop_reclaim_desc,		(vop_t *) vop_null },
-	{ &vop_remove_desc,		(vop_t *) dead_badop },
-	{ &vop_rename_desc,		(vop_t *) dead_badop },
-	{ &vop_rmdir_desc,		(vop_t *) dead_badop },
+	{ &vop_remove_desc,		(vop_t *) vop_panic },
+	{ &vop_rename_desc,		(vop_t *) vop_panic },
+	{ &vop_rmdir_desc,		(vop_t *) vop_panic },
 	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
-	{ &vop_symlink_desc,		(vop_t *) dead_badop },
+	{ &vop_symlink_desc,		(vop_t *) vop_panic },
 	{ &vop_write_desc,		(vop_t *) dead_write },
 	{ NULL, NULL }
 };
@@ -251,17 +250,6 @@ dead_print(ap)
 
 	printf("tag VT_NON, dead vnode\n");
 	return (0);
-}
-
-/*
- * Empty vnode bad operation
- */
-static int
-dead_badop()
-{
-
-	panic("dead_badop called");
-	/* NOTREACHED */
 }
 
 /*
