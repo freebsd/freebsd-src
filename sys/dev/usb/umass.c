@@ -759,6 +759,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 0;	/* no LUN's */
 		cpi->initiator_id = UMASS_SCSIID_HOST;
 		cpi->bus_id = cam_sim_bus(sim);
+		cpi->base_transfer_speed = 700;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Iomega", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
