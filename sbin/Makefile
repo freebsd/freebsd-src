@@ -9,7 +9,7 @@ SUBDIR= adjkerntz badsect ccdconfig clri \
 	mount_fdesc mount_kernfs mount_lfs mount_nfs mount_null mount_portal \
 	mount_procfs mount_umap mount_union mountd newfs newlfs nfsd nfsiod \
 	nologin ping quotacheck rdisc reboot restore route savecore scsi \
-	shutdown slattach startslip swapon tunefs umount
+	scsiformat shutdown slattach startslip swapon tunefs umount
 
 .if exists(${.CURDIR}/${MACHINE})
 SUBDIR+= ${MACHINE}
