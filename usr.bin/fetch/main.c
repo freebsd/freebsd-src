@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.24 1996/10/06 00:44:24 jmz Exp $ */
+/* $Id: main.c,v 1.25 1996/10/24 00:15:44 adam Exp $ */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -443,7 +443,9 @@ display (int size, int n)
 	return;
     t0 = t;
     pr++;
-    if (size > 0) 
+    if (size > 1000000) 
+	printf ("\r%s: %2d%%", s, bytes/(size/100));
+    else if (size > 0) 
 	printf ("\r%s: %2d%%", s, 100*bytes/size);
     else
 	printf ("\r%s: %d Kbytes", s, bytes/1024);
