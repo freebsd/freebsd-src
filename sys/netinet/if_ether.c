@@ -162,6 +162,8 @@ arp_rtrequest(req, rt, info)
 	struct sockaddr *gate;
 	struct llinfo_arp *la;
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+	struct in_ifaddr *ia;
+	struct ifaddr *ifa;
 
 	RT_LOCK_ASSERT(rt);
 
@@ -250,8 +252,13 @@ arp_rtrequest(req, rt, info)
 		}
 #endif
 
-		if (SIN(rt_key(rt))->sin_addr.s_addr ==
-		    (IA_SIN(rt->rt_ifa))->sin_addr.s_addr) {
+		TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+			if (ia->ia_ifp == rt->rt_ifp &&
+			    SIN(rt_key(rt))->sin_addr.s_addr ==
+			    (IA_SIN(ia))->sin_addr.s_addr)
+				break;
+		}
+		if (ia) {
 		    /*
 		     * This test used to be
 		     *	if (loif.if_flags & IFF_UP)
@@ -268,6 +275,17 @@ arp_rtrequest(req, rt, info)
 			if (useloopback)
 				rt->rt_ifp = loif;
 
+		    /*
+		     * make sure to set rt->rt_ifa to the interface
+		     * address we are using, otherwise we will have trouble
+		     * with source address selection.
+		     */
+			ifa = &ia->ia_ifa;
+			if (ifa != rt->rt_ifa) {
+				IFAFREE(rt->rt_ifa);
+				IFAREF(ifa);
+				rt->rt_ifa = ifa;
+			}
 		}
 		break;
 
