@@ -5,22 +5,26 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
-	$Id$
-
 */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #include "bootparam_prot.h"
+#include <ctype.h>
+#include <err.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>
-#include <ctype.h>
-#include <syslog.h>
 extern int debug, dolog;
 extern unsigned long route_addr;
 extern char *bootpfile;
@@ -34,6 +38,8 @@ static char askname[MAX_MACHINE_NAME];
 static char path[MAX_PATH_LEN];
 static char domain_name[MAX_MACHINE_NAME];
 
+int getthefile __P((char *, char *, char *));
+int checkhost __P((char *, char *));
 
 bp_whoami_res *
 bootparamproc_whoami_1(whoami)
@@ -59,7 +65,7 @@ bp_whoami_arg *whoami;
   he = gethostbyaddr((char *)&haddr,sizeof(haddr),AF_INET);
   if ( ! he ) goto failed;
 
-  if (debug) fprintf(stderr,"This is host %s\n", he->h_name);
+  if (debug) warnx("this is host %s", he->h_name);
   if (dolog) syslog(LOG_NOTICE,"This is host %s\n", he->h_name);
 
   strcpy(askname, he->h_name);
@@ -92,7 +98,7 @@ bp_whoami_arg *whoami;
     return(&res);
   }
  failed:
-  if (debug) fprintf(stderr,"whoami failed\n");
+  if (debug) warnx("whoami failed");
   if (dolog) syslog(LOG_NOTICE,"whoami failed\n");
   return(NULL);
 }
@@ -106,7 +112,7 @@ bp_getfile_arg *getfile;
   static bp_getfile_res res;
 
   if (debug)
-    fprintf(stderr,"getfile got question for \"%s\" and file \"%s\"\n",
+    warnx("getfile got question for \"%s\" and file \"%s\"",
 	    getfile->client_name, getfile->file_id);
 
   if (dolog)
@@ -119,7 +125,7 @@ bp_getfile_arg *getfile;
 
   strcpy(askname,he->h_name);
   if (getthefile(askname, getfile->file_id,buffer)) {
-    if ( where = index(buffer,':')) {
+    if ( (where = index(buffer,':')) ) {
       /* buffer is re-written to contain the name of the info of file */
       strncpy(hostname, buffer, where - buffer);
       hostname[where - buffer] = '\0';
@@ -157,7 +163,7 @@ bp_getfile_arg *getfile;
     return(&res);
   }
   failed:
-  if (debug) fprintf(stderr, "getfile failed for %s\n", getfile->client_name);
+  if (debug) warnx("getfile failed for %s", getfile->client_name);
   if (dolog) syslog(LOG_NOTICE,
 		    "getfile failed for %s\n", getfile->client_name);
   return(NULL);
@@ -169,6 +175,7 @@ bp_getfile_arg *getfile;
       will be empty. (This makes it possible to give the special
       empty answer for the file "dump")   */
 
+int
 getthefile(askname,fileid,buffer)
 char *askname;
 char *fileid, *buffer;
@@ -184,10 +191,8 @@ char *fileid, *buffer;
   char info[MAX_FILEID + MAX_PATH_LEN+MAX_MACHINE_NAME + 3];
 
   bpf = fopen(bootpfile, "r");
-  if ( ! bpf ) {
-    fprintf(stderr, "No %s\n", bootpfile);
-    exit(1);
-  }
+  if ( ! bpf )
+    errx(1, "no %s", bootpfile);
 
   while ( fscanf(bpf, "%s", hostname) > 0  && !match ) {
     if ( *hostname != '#' ) { /* comment */
@@ -200,7 +205,7 @@ char *fileid, *buffer;
     }
     if (*hostname == '+' ) { /* NIS */
       if (yp_get_default_domain(&yp_domain)) {
-	 if (debug) perror("NIS");
+	 if (debug) warn("NIS");
 	 return(0);
       }
       if (yp_match(yp_domain, "bootparams", askname, strlen(askname),
@@ -214,7 +219,7 @@ char *fileid, *buffer;
 	  *(char *)(strchr(buffer, ' ')) = '\0';
       }
       if (fclose(bpf))
-        fprintf(stderr,"Could not close %s\n", bootpfile);
+        warnx("could not close %s", bootpfile);
       return(1);
     }
     /* skip to next entry */
@@ -254,7 +259,7 @@ char *fileid, *buffer;
       } else break;                            /* a commented rest-of-line */
     }
   }
-  if (fclose(bpf)) { fprintf(stderr,"Could not close %s\n", bootpfile); }
+  if (fclose(bpf)) { warnx("could not close %s", bootpfile); }
   if ( res == -1) buffer[0] = '\0';            /* host found, file not */
   return(match);
 }
@@ -263,6 +268,7 @@ char *fileid, *buffer;
    the hostname-variable and returns 1, if askname is a valid
    name for a host in the database */
 
+int
 checkhost(askname, hostname)
 char *askname;
 char *hostname;
@@ -277,10 +283,8 @@ char *hostname;
 /*  struct hostent *cmp_he;*/
 
   bpf = fopen(bootpfile, "r");
-  if ( ! bpf ) {
-    fprintf(stderr, "No %s\n", bootpfile);
-    exit(1);
-  }
+  if ( ! bpf )
+    errx(1, "no %s", bootpfile);
 
   while ( fscanf(bpf, "%s", hostname) > 0 ) {
     if ( *hostname != '#' ) { /* comment */
@@ -300,7 +304,7 @@ char *hostname;
     }
     if (*hostname == '+' ) { /* NIS */
       if (yp_get_default_domain(&yp_domain)) {
-	 if (debug) perror("NIS");
+	 if (debug) warn("NIS");
 	 return(0);
       }
       if (!yp_match(yp_domain, "bootparams", askname, strlen(askname),
@@ -314,7 +318,7 @@ char *hostname;
 	}
       }
       if (fclose(bpf))
-        fprintf(stderr,"Could not close %s\n", bootpfile);
+        warnx("could not close %s", bootpfile);
       return(res);
     }
     /* skip to next entry */
@@ -323,6 +327,6 @@ char *hostname;
       pch = ch; ch = getc(bpf);
     }
   }
-  if (fclose(bpf)) { fprintf(stderr,"Could not close %s\n", bootpfile); }
+  if (fclose(bpf)) { warnx("could not close %s", bootpfile); }
   return(res);
 }

@@ -5,35 +5,39 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
-
-	$Id: main.c,v 1.5 1997/02/22 16:04:24 peter Exp $
-
 */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <ctype.h>
+#include <err.h>
+#include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
-#include <sys/ioctl.h>
+#include <unistd.h>
 #include <rpc/rpc.h>
-#include "bootparam_prot.h"
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <rpc/pmap_clnt.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <netdb.h>
-#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include "bootparam_prot.h"
 
 int debug = 0;
 int dolog = 0;
 unsigned long route_addr = -1, inet_addr();
 struct sockaddr_in my_addr;
-char *progname;
 char *bootpfile = "/etc/bootparams";
 
 extern  void bootparamprog_1();
+static void usage __P((void));
 
-extern char *optarg;
-extern int optind;
-
+int
 main(argc, argv)
 int argc;
 char **argv;
@@ -42,12 +46,7 @@ char **argv;
 	int i;
 	struct hostent *he;
 	struct stat buf;
-	char *optstring;
 	char c;
-
-	progname = rindex(argv[0],'/');
-	if ( progname ) progname++;
-	else progname = argv[0];
 
 	while ((c = getopt(argc, argv,"dsr:f:")) != -1)
 	  switch (c) {
@@ -63,10 +62,9 @@ char **argv;
 		if (he) {
 		   bcopy(he->h_addr, (char *)&route_addr, sizeof(route_addr));
 		   break;
-		 } else {
-		   fprintf(stderr,"%s: No such host %s\n", progname, argv[i]);
-		   exit(1);
-		 }
+		} else {
+		   errx(1, "no such host %s", argv[i]);
+		}
 	      }
 	  case 'f':
 	    bootpfile = optarg;
@@ -74,24 +72,18 @@ char **argv;
 	  case 's':
 	    dolog = 1;
 #ifndef LOG_DAEMON
-	    openlog(progname, 0 , 0);
+	    openlog("bootparamd", 0 , 0);
 #else
-	    openlog(progname, 0 , LOG_DAEMON);
+	    openlog("bootparamd", 0 , LOG_DAEMON);
 	    setlogmask(LOG_UPTO(LOG_NOTICE));
 #endif
 	    break;
 	  default:
-	    fprintf(stderr,
-		    "Usage: %s [-d ] [ -s ] [ -r router ] [ -f bootparmsfile ]\n", progname);
-	    exit(1);
+	    usage();
 	  }
 
-	if ( stat(bootpfile, &buf ) ) {
-	  fprintf(stderr,"%s: ", progname);
-	  perror(bootpfile);
-	  exit(1);
-	}
-
+	if ( stat(bootpfile, &buf ) )
+	  err(1, "%s", bootpfile);
 
 	if (route_addr == -1) {
 	  get_myaddress(&my_addr);
@@ -99,28 +91,27 @@ char **argv;
 	}
 
 	if (!debug) {
-	  if (daemon(0,0)) {
-	    perror("bootparamd: fork");
-	    exit(1);
-	  }
+	  if (daemon(0,0))
+	    err(1, "fork");
 	}
 
 
 	(void)pmap_unset(BOOTPARAMPROG, BOOTPARAMVERS);
 
 	transp = svcudp_create(RPC_ANYSOCK);
-	if (transp == NULL) {
-		(void)fprintf(stderr, "cannot create udp service.\n");
-		exit(1);
-	}
-	if (!svc_register(transp, BOOTPARAMPROG, BOOTPARAMVERS, bootparamprog_1, IPPROTO_UDP)) {
-		(void)fprintf(stderr, "unable to register (BOOTPARAMPROG, BOOTPARAMVERS, udp).\n");
-		exit(1);
-	}
+	if (transp == NULL)
+		errx(1, "cannot create udp service");
+	if (!svc_register(transp, BOOTPARAMPROG, BOOTPARAMVERS, bootparamprog_1, IPPROTO_UDP))
+		errx(1, "unable to register (BOOTPARAMPROG, BOOTPARAMVERS, udp)");
 
 	svc_run();
-	(void)fprintf(stderr, "svc_run returned\n");
-	exit(1);
+	errx(1, "svc_run returned");
 }
 
-
+static void
+usage()
+{
+	fprintf(stderr,
+		"usage: bootparamd [-d] [-s] [-r router] [-f bootparmsfile]\n");
+	exit(1);
+}
