@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus_private.h,v 1.3 1998/07/22 08:35:50 dfr Exp $
+ *	$Id: bus_private.h,v 1.4 1998/11/14 21:58:41 wollman Exp $
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_
@@ -32,10 +32,19 @@
 #include <sys/bus.h>
 
 /*
+ * Used to attach drivers to devclasses.
+ */
+typedef struct driverlink *driverlink_t;
+struct driverlink {
+    driver_t		*driver;
+    TAILQ_ENTRY(driverlink) link; /* list of drivers in devclass */
+};
+
+/*
  * Forward declarations
  */
 typedef TAILQ_HEAD(devclass_list, devclass) devclass_list_t;
-typedef TAILQ_HEAD(driver_list, driver) driver_list_t;
+typedef TAILQ_HEAD(driver_list, driverlink) driver_list_t;
 typedef TAILQ_HEAD(device_list, device) device_list_t;
 
 struct devclass {
@@ -109,13 +118,20 @@ struct device {
     driver_t		*driver;
     devclass_t		devclass; /* device class which we are in */
     int			unit;
-    const char*		desc;	/* driver specific description */
+    char*		nameunit; /* name+unit e.g. foodev0 */
+    char*		desc;	/* driver specific description */
     int			busy;	/* count of calls to device_busy() */
     device_state_t	state;
     int			flags;
+#ifdef DEVICE_SYSCTLS
+    struct sysctl_oid	oid[4];
+    struct sysctl_oid_list oidlist[1];
+#endif
 #define DF_ENABLED	1	/* device should be probed/attached */
 #define DF_FIXEDCLASS	2	/* devclass specified at create time */
 #define DF_WILDCARD	4	/* unit was originally wildcard */
+#define DF_DESCMALLOCED	8	/* description was malloced */
+#define DF_QUIET	16	/* don't print verbose attach message */
     void		*ivars;
     void		*softc;
 };
