@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.58 1996/04/07 17:32:42 bde Exp $
+ *      $Id: scsiconf.c,v 1.59 1996/06/03 14:25:11 jfieber Exp $
  */
 
 #include "opt_scsi.h"
@@ -29,6 +29,9 @@
 #include <sys/sysctl.h>
 #include <sys/devconf.h>
 #include <sys/conf.h>
+#ifdef PC98
+#include <sys/device.h>
+#endif
 
 #include <machine/clock.h>
 
@@ -619,6 +622,11 @@ scsi_assign_unit(struct scsi_link *sc_link)
 {
 	int i;
 	int found;
+#ifdef PC98
+	struct cfdata cf;
+	cf.cf_flags = 0;
+#endif
+
 	found = 0;
  	for (i = 0; scsi_dinit[i].name; i++) {
 		if ((strcmp(sc_link->device->name, scsi_dinit[i].name) == 0) &&
@@ -630,6 +638,9 @@ scsi_assign_unit(struct scsi_link *sc_link)
 		sc_link->scsibus == scsi_dinit[i].cunit) {
 			sc_link->dev_unit = scsi_dinit[i].unit;
 			found = 1;
+#ifdef PC98
+			cf.cf_flags = scsi_dinit[i].flags;
+#endif
 			if (bootverbose)
 				printf("%s is configured at %d\n",
 				sc_link->device->name, sc_link->dev_unit);
@@ -639,6 +650,18 @@ scsi_assign_unit(struct scsi_link *sc_link)
 
 	if (!found)
 		sc_link->dev_unit = sc_link->device->free_unit++;
+
+#ifdef PC98
+	if (!found) {
+		for (i = 0; scsi_dinit[i].name; i++) {
+			if ((strcmp(sc_link->device->name, scsi_dinit[i].name) == 0) &&
+				(scsi_dinit[i].target == SCCONF_UNSPEC))
+				cf.cf_flags = scsi_dinit[i].flags;
+		}
+	}
+	if (sc_link->adapter->open_target_lu)
+		(*(sc_link->adapter->open_target_lu))(sc_link, &cf);
+#endif
 
 	return sc_link->dev_unit;
 }

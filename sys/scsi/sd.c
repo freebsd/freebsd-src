@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.88 1996/05/02 14:20:54 phk Exp $
+ *      $Id: sd.c,v 1.89 1996/05/02 22:20:52 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -52,7 +52,11 @@
 static u_int32_t sdstrats, sdqueues;
 
 #define SECSIZE 512
+#ifdef PC98
+#define	SDOUTSTANDING	2
+#else
 #define	SDOUTSTANDING	4
+#endif
 #define	SD_RETRIES	4
 #define	MAXTRANSFER	8		/* 1 page at a time */
 
@@ -738,7 +742,9 @@ sd_get_parms(unit, flags)
 		union disk_pages pages;
 	} scsi_sense;
 	u_int32_t sectors;
-
+#ifdef PC98
+	unsigned char *tmp;
+#endif
 	/*
 	 * First check if we have it all loaded
 	 */
@@ -752,6 +758,39 @@ sd_get_parms(unit, flags)
 	scsi_cmd.op_code = MODE_SENSE;
 	scsi_cmd.page = 4;
 	scsi_cmd.length = 0x20;
+#ifdef PC98
+#define PC98_SYSTEM_PARAMETER(x)        pc98_system_parameter[(x)-0x400]
+	tmp = (unsigned char *)&PC98_SYSTEM_PARAMETER(0x460 + sc_link->target*4);
+	if ((PC98_SYSTEM_PARAMETER(0x482) &
+		((1 << sc_link->target)&0xff)) != 0) {
+		disk_parms->sectors = *tmp;
+		disk_parms->cyls = ((*(tmp+3)<<8)|*(tmp+2))&0xfff;
+		switch (*(tmp + 3) & 0x30) {
+		case 0x00:
+			disk_parms->secsiz = 256;
+			printf("Warning!: not supported.\n");
+			break;
+		case 0x10:
+			disk_parms->secsiz = 512;
+			break;
+		case 0x20:
+			disk_parms->secsiz = 1024;
+			printf("Warning!: not supported.\n");
+			break;
+		default:
+			disk_parms->secsiz = 512;
+			printf("Warning!: not supported. But force to 512\n");
+		}
+		if (*(tmp+3) & 0x40) {
+			disk_parms->cyls += (*(tmp+1)&0xf0)<<8;
+			disk_parms->heads = *(tmp+1)&0x0f;
+		} else {
+			disk_parms->heads = *(tmp+1);
+		}
+		disk_parms->disksize = disk_parms->sectors * disk_parms->heads *
+									disk_parms->cyls;
+	} else
+#endif
 	/*
 	 * If the command worked, use the results to fill out
 	 * the parameter structure

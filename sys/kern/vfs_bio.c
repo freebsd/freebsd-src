@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.91 1996/05/24 05:21:58 dyson Exp $
+ * $Id: vfs_bio.c,v 1.92 1996/05/31 00:41:37 dyson Exp $
  */
 
 /*
@@ -1062,6 +1062,13 @@ loop:
 		splx(s);
 
 		allocbuf(bp, size);
+#ifdef	PC98
+		/*
+		 * 1024byte/sector support
+		 */
+#define B_XXX2 0x8000000
+		if (vp->v_flag & 0x10000) bp->b_flags |= B_XXX2;
+#endif
 		return (bp);
 	}
 }
