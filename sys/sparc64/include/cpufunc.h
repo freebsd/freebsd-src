@@ -136,6 +136,15 @@ STNC_GEN(u_long, stxa);
 #define	stwa(va, asi, val)	ST_GENERIC(va, asi, val, stwa)
 #define	stxa(va, asi, val)	ST_GENERIC(va, asi, val, stxa)
 
+/*
+ * Attempt to read from addr, val.  If a Data Access Error trap happens,
+ * they return -1 and the contents of val is undefined.  A return of 0
+ * means no trap happened, and the contents of val is valid.
+ */
+int fasword8(u_long asi, void *addr, uint8_t *val);
+int fasword16(u_long asi, void *addr, uint16_t *val);
+int fasword32(u_long asi, void *addr, uint32_t *val);
+
 #define	membar(mask) do {						\
 	__asm __volatile("membar %0" : : "n" (mask) : "memory");	\
 } while (0)

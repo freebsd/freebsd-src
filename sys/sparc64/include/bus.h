@@ -811,6 +811,33 @@ bus_space_copy_region_stream_8(bus_space_tag_t t, bus_space_handle_t h1,
 	    bus_space_write_stream_8(t, h1, o1, bus_space_read_8(t, h2, o2));
 }
 
+static __inline int
+bus_space_peek_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+	u_int8_t *a)
+{
+
+	__BUS_DEBUG_ACCESS(h, o, "peek", 1);
+	return (fasword8(bus_type_asi[t->bst_type], (caddr_t)(h + o), a));
+}
+
+static __inline int
+bus_space_peek_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+	u_int16_t *a)
+{
+
+	__BUS_DEBUG_ACCESS(h, o, "peek", 2);
+	return (fasword16(bus_type_asi[t->bst_type], (caddr_t)(h + o), a));
+}
+
+static __inline int
+bus_space_peek_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+	u_int32_t *a)
+{
+
+	__BUS_DEBUG_ACCESS(h, o, "peek", 4);
+	return (fasword32(bus_type_asi[t->bst_type], (caddr_t)(h + o), a));
+}
+
 /* Back-compat functions for old ISA drivers */
 extern bus_space_tag_t isa_io_bt;
 extern bus_space_handle_t isa_io_hdl;
