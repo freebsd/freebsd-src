@@ -1,0 +1,175 @@
+.\" Copyright (c) 1996 by Internet Software Consortium
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\" ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\" CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\"
+.\" $Id: dnskeygen.1,v 8.2 1997/03/14 02:29:41 vixie Exp $
+.\"
+.Dd October 25, 1996
+.Dt DNSKEYGEN @CMD_EXT_U@
+.Os BSD 4
+.Sh NAME
+.Nm dnskeygen 
+.Nd generate and display public and private RSA keys for DNS
+.Sh SYNOPSIS
+.Nm dnskeygen
+.Bo Fl g Ns Op Ar size 
+.Op Fl f
+.Bc
+.Bo Fl z 
+| 
+.Fl e 
+| 
+.Fl u 
+.Bc
+.Op Fl i
+.Op Fl m 
+.Op Fl p Ns Ar # 
+.Op Fl s Ns Ar # 
+.Op Fl x 
+.Ar name
+.Sh DESCRIPTION
+.Ic Dnskeygen
+(DNS Key Generator) is a tool to generate and maintain RSA keys
+for DNS (Domain Name System). 
+.Bl -tag -width Fl
+.It Fl g Ns Op Ar size 
+.Ic Dnskeygen 
+will generate a new key when
+the 
+.Dq Fl g 
+flag is specified.  If the 
+.Dq Fl g 
+flag is not specified, then it
+will attempt to display an existing key that is stored in the current
+directory.  If no 
+.Ar size 
+is specified after the 
+.Dq Fl g 
+flag, a key of 512 bits
+will be generated; otherwise, 
+.Ar size
+is the size of the modulus in the newly-generated key.
+.It Fl f
+flag can only be specified with the 
+.Dq Fl g
+flag; this changes the
+exponent used on the key.  If 
+.Dq Fl f
+is specified, the exponent is 65537,
+which is suitable for encryption keys.  If 
+.Dq Fl f
+is not specified,
+the exponent is 3, which is suitable for signatures and
+verification of public data such as DNS records.  Signing and
+verifying with exponent of 65537 takes significantly more CPU time than
+with exponent of 3.
+.It Fl z Fl e Fl u
+These flags define the type of key being generated: Zone (DNS
+validation) key, End Entity (host or service) key or User (e.g. email) key,
+respectively.
+Each key is only allowed to be one of these.  When
+keys are displayed, the type of key can be changed.
+.It Fl i 
+Indicates that the key can be used for IPSEC (Internet Protocol Security 
+services).
+.It Fl m 
+Indicates that the key can be used for secure email.
+.It Fl p Ns Ar # 
+Indicates that the key can be used for protocol number 
+.Ar # . 
+A value of 
+.Ar 0 
+denies the use of the key for 
+.Em any 
+protocol (other than those specified by other option flags like 
+.Fl m ) .
+A value of 
+.Ar 255 
+allows it to be used with 
+.Em all 
+protocols.
+These protocol numbers will be assigned in the latest Assigned Numbers
+RFC from the Internet Assigned Numbers Authority (IANA).
+.It Fl s Ns Ar # 
+Strength value; this value is only used when key is signing.
+Interpretation of this field is to be specified later. Default value is 7.
+.It Fl x 
+Experimental key.  This indicates that software should not assume
+that it should use secure protocols when talking to this zone, host, or user.
+Instead, the key is being published experimentally, to debug the software
+to be used to run the secure protocols, for example.
+Data signed by Experimental keys will not be treated as trusted by DNS servers.
+.It Ar name
+The DNS name the key is for.  This can be any valid DNS name.
+.El
+.Ss DETAILS
+.Ic Dnskeygen
+uses two files for each key:  
+.Pa <name>.priv
+and 
+.Pa <name>.public .
+File 
+.Pa <name>.public 
+contains the public key in the pubkey format:
+.Pp
+.D1 Ar <flags> <algorithm> <protocol> <exponent|modulus>
+.Pp
+.Ic Dnskeygen
+.Ar name 
+displays the public key in both DNS RR format and pubkey format.  
+.Ic Dnskeygen
+can display the key with different flags on subsequent runs.
+The contents of the public key file will not be changed.
+.Pa <name>.priv 
+stores the private key, in either a password-protected 
+format file or in a open file. The advantage of
+a password-protected file is that it is harder to use the key if the file is
+stolen. The disadvantage is that the password has to be given each time
+the key is read. If the key is to be stored in a safe off-line place,
+and only used for signing zones, then local policy may allow storing the
+key in an unencrypted format.
+.Sh ENVIRONMENT
+No environmental variables are used.
+.Sh SEE ALSO
+RSAREF documentation,
+.Em RFC 2065
+on secure DNS.
+.Sh AUTHOR
+Olafur Gudmundsson (ogud@tis.com).
+.Sh ACKNOWLEDGMENTS
+The underlying cryptographic math is done by the RSAREF or BSAFE libraries.
+.Sh BUGS
+.Ic Dnskeygen 
+renames old keys in such a way that only one 
+.Dq previous
+key for a given name is kept; older keys are overwritten.  (For example,
+the third time a key is generated for a given name, the second key is kept
+as the
+.Dq previous
+key, while the first key is lost.  If a key is generated 
+.Em again
+for this name--i.e., if the fourth key is generated--then the third key
+will become the
+.Dq previous
+key and the second key will be lost.)
+.Ic Dnskeygen
+will not overwrite existing keys.
+Only one key for each name can be stored in the current directory.  If you 
+want to keep your old keys, rename the files before running 
+.Ic dnskeygen . 
+Otherwise you must delete them before running 
+.Ic dnskeygen . 
+.Pp
+Portability of Private key file must be better tested between
+different implementations of RSA. 

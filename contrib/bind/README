@@ -1,279 +1,145 @@
-Internet Software Consortium
-BIND Release 4.9.7 README
-$Date: 1998/04/07 04:24:01 $
+This is the source portion of BIND version 8.1.2-T3B.  Its companions are
+"doc" and "contrib" so you are probably not missing anything.
 
-The official version of ISC BIND is now 8.1.1.  This is ISC BIND 4.9.7,
-hoped to be the last of 4.*, which we are releasing since it has an important
-security bug (plus some memory leaks) fixed.
+See the CHANGES file for a detailed listing of all changes.  See the INSTALL
+file for information on building and installing BIND 8.1.2.
 
-The official place to get BIND is <URL:ftp://ftp.isc.org/isc/bind/src>.
 
-The official mailing lists are:		<bind-users@vix.com>	- users/admins
-  (use *-request@* for admin mail)	<bind-workers@vix.com>	- developers
+BIND 8.1.2 Highlights
 
-The official Usenet newsgroups are:	<URL:news:comp.protocols.dns.bind>
-					<URL:news:comp.protocols.dns.ops>
-					<URL:news:comp.protocols.dns.std>
-					
-BIND is maintained by:			The Internet Software Consortium
-					(see <URL:http://www.isc.org/>)
+	Security fixes for a number of problems including:
 
-Bug reports should be sent to:		<bind-bugs@vix.com>
+		An attacker could overwrite the stack if inverse query support
+		was enabled.
 
-Read the top of CHANGES for interesting stuff.
+		A number of denial of service attacks where malformed packets
+		could cause the server to crash.
 
-To build this:								QUICK
+		The server was willing to answer queries on its forwarding
+		sockets.
 
-	(on SUNOS, use the BSD build environment or you will
-	get the wrong definition for O_NDELAY)
+	Several memory leaks have been plugged.
 
-	look at conf/options.h and edit to your tastes.
-	The OPTIONS file here in this directory will help you
-	figure out what to do.
+	The server no longer panics if a periodic interface scan fails due
+	to no file descriptors being available.
 
-	You should also look at the Makefile to select the proper set
-	of definitions depending on whether you are using Ultrix,
-	SunOS, and other 4.[23] BSD-alikes or using BSD 4.4, BSD/386,
-	and other net2-alikes.
+	Updates to a number of ports.  New ports for QNX, LynxOS, HP-UX 9.x,
+	and HP MPE.
 
-	"make links" will build a shadow source tree full
-	of symbolic links.  the default name of this tree
-	is "./native.b", but you can override it by setting
-	the DST variable on the "make" command line, as in:
-		make DST=vax.b SRC=..
-	if your DST is not a subdir of "here", you will need to
-	override the SRC variable's default (which is ".."),
-	as in:
-		make DST=/tmp/vax.b SRC=`pwd` 
-	note that the DST directory must be nonexistent at
-	the time that you run "make links".
+	"limit files unlimited" now works as expected on systems where setting
+	an infinite rlim_max for RLIMIT_NOFILE works.
 
-	after "make links", you can cd to the new build
-	directory, check the settings in the Makefile, and
-	run "make depend".  if you aren't using "make links"
-	(shame on you), just use "make depend" from "here".
-	"make depend" may fail on your system; if so, look in
-	the bin/ directory and find a mkdep that does in fact
-	work for you.
+	Adding and deleting the same record in the same dynamic update no
+	longer crashes the server.
 
-	if you skip the "make depend" phase, or after you run it,
-	you can do "make all" (from the build directory if you
-	used "make links" or from "here" if you're just hacking
-	around).  you will get the following new things out of it:
-		res/libresolv.a
-		compat/lib/lib44bsd.a (optional)
-		include/{netdb,resolv}.h
-		include/arpa/{inet,nameser}.h
-		compat/include/sys/{cdefs,bitypes}.h
-		tools/{nstest,nsquery,dig,host}
-		tools/nslookup/nslookup
-		named/named
-		named/named-xfer
-	if you have trouble with "make all", check conf/portability.h
-	for things that your system needs, or doesn't need, or whatever.
-	it is preferable to add #ifdef's to conf/portability.h than to
-	add them anywhere else.
+	If a dynamic update fails, rollback is now done in LIFO order instead
+	of FIFO order.
+
+	Better behavior when priming of the root servers fails.
+
+	purge_zone() didn't work correctly for the root zone, allowing
+	old data to persist after loading the zone.
+
+	Improved handling of oversized UDP packets.
+
+	All hosts on the also-notify list are now notified.
+
+	The meaning of the count returned by select() varies somewhat by
+	operating system, and this could cause previous releases of the
+	server to spin.
+
+	Per-host statistics may be disabled by specifying 'host-statistics no'
+	in named.conf.
+
+	The maximum number of zones has been increased from 32768 to 65536.
+
+	query-source may specify an address and port that the server is
+	already listening on.  BIND 8.1.1 required that either the address
+	or port be wild.  E.g., you can now say:
+
+		listen-on port 53 { 10.0.0.1; };
+		query-source address 10.0.0.1 port 53;
+
+	The value of FD_SETSIZE to use may be specified.
+
+	Experimental -u (set user id), -g (set group id), and -t (chroot)
+	command line options.  See the INSTALL file for details.
+
+
+BIND 8 Features
+
+	-> DNS Dynamic Updates (RFC 2136)
+
+	-> DNS Change Notification (RFC 1996)
+
+	-> Completely new configuration syntax
+
+	-> Flexible, categorized logging system
+
+	-> IP-address-based access control for queries, zone transfers, and
+	   updates that may be specified on a zone-by-zone basis
+
+	-> More efficient zone transfers
+
+	-> Improved performance for servers with thousands of zones
+
+	-> The server no longer forks for outbound zone transfers
+
+	-> Many bug fixes
+
+
+File and Directory Overview
+
+	CHANGES				history of added features and
+					fixed bugs
+
+	INSTALL				how to build and install
+
+	README				this file
+						
+	TODO				features planned but not yet written
+
+	Version				the version number of this release
+
+	bin/*				source for executables, including
+					the nameserver
+
+	include/*			public .h files
+
+	lib/*				the resolver and various BIND
+					support libraries
+
+	port/*				ports to various operating systems
 	
-	from the build directory (or "here" if you didn't
-	use "make links"), you can try "make -n install"
-	which will tell you what will be installed.  it might
-	actually be right; however, what you will probably have to
-	do is copy the above files into the places you want
-	run them from.  the other files you will need are:
-		tools/nslookup/nslookup.help
-		named/named.restart
-		named/named.reload
 
-	resolver library notes: to install it, either put the .a
-	file into /usr/local/lib or /usr/lib (if you use -lresolv
-	on all the links of your networking software), or use "ar"
-	to put all res/*.o directly into your /lib/libc.a file.
-	either way you will want to copy the include files
-	(including those from compat/include/sys) over to
-	/usr/include (or /usr/local/include if you're willing to
-	use -I/usr/local/include on all your network-software
-	compiles).  something like this:
-	    cp res/libresolv.a /usr/lib; ranlib /usr/lib/libresolv.a
-	    tar chf - include | (cd /usr/include; tar xvpf -)
-	    cp compat/include/sys/*.h /usr/include/sys
+Kits, Questions, Comments, and Bug Reports
 
-	installing the man pages is left as an exercise for the
-	reader.  there are just too many different versions of
-	"man" floating around for me to be able to help you figure
-	out what to do for the one you happen to be using.
+    <URL:ftp://ftp.isc.org/isc/bind/src/cur>        current non-test release
+    <URL:ftp://ftp.isc.org/isc/bind/src/testing>    latest public test kit
 
-	WARNING: If you were running a BIND 4.8.3 or earlier based
-	named you should remove all cache files prior to starting
-	named. It would generally be a good idea to remove all cache
-	files regardless when installing a new version. The creadability
-	code depends upon the cache files having been made with the
-	latest named-xfer for correct operation.
+    <URL:usenet:comp.protocols.dns.bind>            using BIND
+    <URL:usenet:comp.protocols.dns.ops>             DNS operations in general
+    <URL:usenet:comp.protocols.dns.std>             DNS standards in general
 
-(special compilation-related warning about SunOS systems:)
+    <URL:mailto:bind-users-request@vix.com>         gw'd to u:c.p.d.bind
+    <URL:mailto:namedroppers-request@internic.net>  gw'd to u:c.p.d.std
+    <URL:mailto:bind-workers-request@vix.com>       code warriors only please
 
-	From: Tom Limoncelli
-	To: vixie (Paul A Vixie)
-	Date: Mon, 11 Jan 93 11:30:39 EST
-
-	Sun compiler v2.0.1 hates bind4.9 code.
-
-	Sun has 3 compilers:
-
-	/usr/ucb/cc  -- the default for SunOS 4.1.[123],
-			dropped in Solaris 2.0.
-	/usr/lang/cc  -- the "unbundled" cc v1.0
-			(pretty good, but expensive), only
-	                 generates code for SunOS 4.1.x.
-	/usr/lang/cc.2.0.1 -- the latest "unbundled" cc,
-			for when they stop shipping the
-			bundled version altogether.  This
-			generates code for SunOS 4.1.x and Solaris 2.x.
-
-	Sun's 2.0.1 C compiler (the one with the floating licenses) for SunOS
-	4.1.x outputs a HUGE number of warnings.  They can be ignored.
-
---------------------- (4.8.3 README -- mostly obsolete now)
-
-This directory contains all the info and sources
-for the Berkeley Internet Name Domain server.
-You should read and understand these directions before starting
-to install the libraries and nameserver.  Some of these steps
-replace existing source and binary files; you should make backups
-of all existing files before you begin this installation.
-Two installation procedures are described.  The first is for 4.3BSD
-and other similar systems that are already configured to use earlier
-versions of the nameserver, and which have the new version of <netdb.h>
-(containing a h_addr_list field in the hostent structure).  The second
-procedure is for 4.2BSD and derived systems.  This procedure requires
-more decisions to be made, and may have to be varied due to system
-or operation constraints.
-
-The subdirectories and their contents are:
-
-bin       - shell scripts used by current Berkeley makefiles
-man       - manual pages & documentation
-doc       - copy of Bind Operations Guide, and other documents 
-include   - include files to go in /usr/include
-named     - name server sources
-res       - source for C library resolver routines (and other libc additions)
-	    (may be used as separate library, resolv.a)
-conf/master - Sample data files
-tools     - some test programs
+    <URL:http://www.isc.org/bind.html>		    the BIND home page
+    <URL:mailto:bind-bugs@isc.org>		    bug reports
 
 
-Here is how to install the name server on 4.3BSD:
+To Support the Effort
 
-0) cp bin/mkdep.append /usr/ucb/mkdep
-   cp bin/manroff /usr/man/manroff
-1) cp include/arpa/nameser.h /usr/include/arpa  
-2) cp include/*.h /usr/include 
-3) cp man/*.1 /usr/man/manl
-   cp man/*.3 /usr/man/man3
-   cp man/*.5 /usr/man/man5
-   cp man/*.7 /usr/man/man7
-   cp man/*.8 /usr/man/man8
-4) NOTE: Don't install the Makefiles on 4.3 Tahoe Release
-   cp res/{res*.c,herror.c} /usr/src/lib/libc/net
-   cp res/Makefile.libc.net /usr/src/lib/libc/net/Makefile
-   cp res/strcasecmp.c /usr/src/lib/libc/gen
-   cp res/strpbrk.c /usr/src/lib/libc/compat-sys5
-   cp res/named/{*.c,Makefile} /usr/src/lib/libc/net/named
-5) add strcasecmp.[co] to the Makefile in /usr/src/lib/libc/gen
-6) add strpbrk.[co] to the Makefile in /usr/src/lib/libc/compat-sys5
-7) rebuild and install /lib/libc.a.
-8) edit named/pathnames.h to correpond with your system's configuration
-9) cd named; make depend; make all; make install
-10) cd tools/nslookup; make nslookup; make install
-11) create the master files (samples in conf/master/*)
-12) edit /etc/rc.local to include:
+	Note that BIND is supported by the Internet Software Consortium, and
+	although it is free for use and redistribution and incorporation into
+	vendor products and export and anything else you can think of, it
+	costs money to produce.  That money comes from ISPs, hardware and
+	software vendors, companies who make extensive use of the software,
+	and generally kind hearted folk such as yourself.
 
-if [ -f /etc/named ]; then
-        /etc/named; echo -n ' named' >/dev/console
-fi
-
-13) recompile network client and server programs that use gethostbyname, etc.
-
-
-Here is how to install the name server on 4.2BSD or similar systems.
-First, a few notes on the choices that must be made.
-
-Rather than building libresolv.a, you may wish to integrate the resolver
-routines into /lib/libc.a.  This is recommended to make it easy to recompile
-network programs once named is running.  This procedure may require hand-
-tayloring on some systems.
-
-You will have to choose a version of mkdep from the bin directory
-that will work on your system:
-If you've modified make(1) to use .depend files as described
-in the current sendmail distribution, use mkdep; otherwise,
-if you have the 4.3BSD cc -M option, use mkdep.append; on ultrix,
-use mkdep.ultrix (uses cc -Em); otherwise, use mkdep.old.compiler.
-The mkdep script is used by "make depend" to regenerate Makefile dependency
-lists.
-
-You will need to chose a version of netdb.h.  First, check /usr/include/netdb.h
-on your system.  If the hostent structure has a h_addr_list entry, you can
-probably use your existing netdb.h or the one in include/netdb.h.
-If the existing netdb.h in /usr/include does not have a h_addr_list field,
-you will have to decide whether to update to the 4.3BSD format of the hostent
-structure.  This is the best approach, but cannot be used unless you plan
-to upgrade entirely: if you use the new structure in /usr/include/resolv.h,
-you must recompile everything that uses the hostent structure, including
-the rest of the C library and all networking programs, without using
-any pre-existing object files.  If this isn't possible or desirable,
-and /usr/include/netdb.h doesn't have an h_addr_list line, use
-include/netdb.h.4.2 instead of netdb.h.  The other version of netdb.h
-(include/netdb.h.4.2.compat) may be used instead of include/netdb.h.4.2.
-This version along with a change in res/named/gethostnamadr.c.compat
-provide for using the new format of the hostent structure while having
-binary compatibility with existing libraries.
-
-On systems with Sun RPC, you will have to merge include/netdb.h or
-include/netdb.h.4.2 with /usr/include/netdb.h; copy the rpc-related lines
-into the appropriate copy of netdb.h.  Alternatively, use an alternate
-include path when compiling the resolver library and programs that use it.
-
-0) cp bin/{whatever} /usr/ucb/mkdep		(see above)
-   cp bin/manroff /usr/man/manroff
-1) cp include/arpa/nameser.h /usr/include/arpa  
-   Also, on ultrix 2.x, if you haven't fixed
-   the inet_addr definition in inet.h, do
-   cp include/arpa/inet.h /usr/include/arpa
-2) cp include/resolv.h /usr/include
-3) cp include/netdb.h /usr/include/netdb.h
-OR
-   cp include/netdb.h.4.2 /usr/include/netdb.h
-OR
-   edit /usr/include/netdb.h
-4) cp man/*.1 /usr/man/manl
-   cp man/*.3 /usr/man/man3
-   cp man/*.5 /usr/man/man5
-   cp man/*.7 /usr/man/man7
-   cp man/*.8 /usr/man/man8
-5) cd res; make depend;
-   make libresolv.a;
-   make install
-OR
-   update the libc sources as in the 4.3BSD instructions above
-   and use res/Makefile as a guide for integration
-   and omit the RES=-lresolv in the next two steps
-OR
-   compile the .o files in res according to Makefile,
-   then use place those object files in /lib/libc.a (keeping a backup!)
-   and omit the RES=-lresolv in the next two steps
-6) edit named/pathnames.h to correpond with your system's configuration
-7) cd named; make depend; make RES=-lresolv all; make install
-   (if your system defines signal-catching routines to return int
-   instead of void, use "make DEFINES=-DSIG_FN=int RES=-lresolv all")
-8) edit tools/nslookup/pathnames.h to correpond with your system's
-     configuration
-9) cd tools/nslookup; make RES=-lresolv nslookup install
-10) create the master files (samples in conf/master/*)
-11) edit /etc/rc.local to include:
-
-if [ -f /etc/named ]; then
-        /etc/named; echo -n ' named' >/dev/console
-fi
-
-12) eventually, recompile network client and server programs that use
-gethostbyname, etc.
+	The Internet Software Consortium has also commissioned a DHCP server
+	implementation, has taken over official support/release of the INN
+	system, and supports the Kerberos Version 5 effort at MIT.  You can
+	learn more about the ISC's goals and accomplishments from the web page
+	at <URL:http://www.isc.org/>.
