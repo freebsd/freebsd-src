@@ -324,19 +324,17 @@ int	resource_int_value(const char *name, int unit, const char *resname,
 int	resource_long_value(const char *name, int unit, const char *resname,
 			    long *result);
 int	resource_string_value(const char *name, int unit, const char *resname,
-			      char **result);
-int	resource_query_string(int i, const char *resname, const char *value);
-char	*resource_query_name(int i);
-int	resource_query_unit(int i);
-int	resource_locate(int i, const char *resname);
+			      const char **result);
+int	resource_find_match(int *anchor, const char **name, int *unit,
+			    const char *resname, const char *value);
+int	resource_find_dev(int *anchor, const char *name, int *unit,
+			  const char *resname, const char *value);
 int	resource_set_int(const char *name, int unit, const char *resname,
 			 int value);
 int	resource_set_long(const char *name, int unit, const char *resname,
 			  long value);
 int	resource_set_string(const char *name, int unit, const char *resname,
 			    const char *value);
-int	resource_count(void);
-
 /*
  * Functions for maintaining and checking consistency of
  * bus information exported to userspace.

@@ -56,30 +56,6 @@ struct devclass {
 };
 
 /*
- * Resources from config(8).
- */
-typedef enum {
-    RES_INT, RES_STRING, RES_LONG
-} resource_type;
-
-struct config_resource {
-    char		*name;
-    resource_type	type;
-    union {
-	long		longval;
-	int		intval;
-	char*		stringval;
-    } u;
-};
-
-struct config_device {
-    char		*name;	/* e.g. "lpt", "wdc" etc */
-    int			unit;
-    int			resource_count;
-    struct config_resource	*resources;
-};
-
-/*
  * Implementation of device.
  */
 struct device {

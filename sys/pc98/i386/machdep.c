@@ -49,7 +49,7 @@
 #include "opt_msgbuf.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
-#include "opt_userconfig.h"
+/* #include "opt_userconfig.h" */
 
 #include <sys/param.h>
 #include <sys/systm.h>

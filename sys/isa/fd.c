@@ -817,8 +817,8 @@ static int
 fdc_attach(device_t dev)
 {
 	struct	fdc_data *fdc;
-	int	i, error;
-	const char *name;
+	int	i, error, dunit;
+	const char *name, *dname;
 
 	fdc = device_get_softc(dev);
 	error = fdc_alloc_resources(fdc);
@@ -856,10 +856,9 @@ fdc_attach(device_t dev)
 	 * devices from the BIOS unless overridden.
 	 */
 	name = device_get_nameunit(dev);
-	i = -1;
-	while ((i = resource_query_string(i, "at", name)) != -1)
-		fdc_add_child(dev, resource_query_name(i),
-			       resource_query_unit(i));
+	i = 0;
+	while ((resource_find_match(&i, &dname, &dunit, "at", name)) == 0)
+		fdc_add_child(dev, dname, dunit);
 
 	return (bus_generic_attach(dev));
 }

@@ -82,7 +82,7 @@ alpha/alpha/support.s		standard
 alpha/alpha/swtch.s		standard
 alpha/alpha/sys_machdep.c	standard
 alpha/alpha/trap.c		standard
-alpha/alpha/userconfig.c	optional	userconfig
+#alpha/alpha/userconfig.c	optional	userconfig
 alpha/alpha/vm_machdep.c	standard
 alpha/isa/isa.c			optional	isa
 alpha/isa/isa_dma.c		optional	isa

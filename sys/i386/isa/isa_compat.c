@@ -276,8 +276,14 @@ compat_isa_handler(module_t mod, int type, void *data)
 		driver->methods = isa_compat_methods;
 		driver->size = sizeof(struct isa_device);
 		driver->priv = id;
-		if (id->sensitive_hw)
+		if (id->sensitive_hw) {
+#if 0
 			resource_set_int(id->name, -1, "sensitive", 1);
+#else
+			printf("WARNING: isa driver %s is sensitive, but cannot set it!\n",
+			    driver->name);
+#endif
+		}
 		devclass_add_driver(isa_devclass, driver);
 		break;
 	case MOD_UNLOAD:

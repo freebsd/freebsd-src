@@ -471,6 +471,7 @@ wdattach(struct isa_device *dvp)
 	struct softc *du;
 	struct wdparams *wp;
 	static char buf[] = "wdcXXX";
+	const char *dname;
 
 	dvp->id_intr = wdintr;
 
@@ -486,13 +487,12 @@ wdattach(struct isa_device *dvp)
 		bioq_init(&wdtab[dvp->id_unit].controller_queue);
 
 	sprintf(buf, "wdc%d", dvp->id_unit);
-	i = -1;
-	while ((i = resource_query_string(i, "at", buf)) != -1) {
-		if (strcmp(resource_query_name(i), "wd"))
+	i = 0;
+	while ((resource_find_match(&i, &dname, &lunit, "at", buf)) == 0) {
+		if (strcmp(dname, "wd"))
 			/* Avoid a bit of foot shooting. */
 			continue;
 
-		lunit = resource_query_unit(i);
 		if (lunit >= NWD)
 			continue;
 #ifdef PC98
