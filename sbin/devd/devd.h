@@ -40,6 +40,7 @@ void add_attach(int, struct event_proc *);
 void add_detach(int, struct event_proc *);
 void add_directory(const char *);
 void add_nomatch(int, struct event_proc *);
+void add_notify(int, struct event_proc *);
 struct event_proc *add_to_event_proc(struct event_proc *, struct eps *);
 struct eps *new_match(const char *, const char *);
 struct eps *new_action(const char *);

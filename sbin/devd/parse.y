@@ -47,7 +47,7 @@
 %token <str> STRING
 %token <str> ID
 %token OPTIONS SET DIRECTORY PID_FILE DEVICE_NAME ACTION MATCH
-%token ATTACH DETACH NOMATCH
+%token ATTACH DETACH NOMATCH NOTIFY
 
 %type <eventproc> match_or_action_list
 %type <eps> match_or_action match action
@@ -69,6 +69,7 @@ config
 	| attach_block
 	| detach_block
 	| nomatch_block
+	| notify_block
 	;
 
 option_block
@@ -113,6 +114,12 @@ nomatch_block
 	: NOMATCH NUMBER BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
 		{ add_nomatch($2, $4); }
 	| NOMATCH NUMBER BEGINBLOCK ENDBLOCK SEMICOLON
+	;
+
+notify_block
+	: NOTIFY NUMBER BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
+		{ add_notify($2, $4); }
+	| NOTIFY NUMBER BEGINBLOCK ENDBLOCK SEMICOLON
 	;
 
 match_or_action_list
