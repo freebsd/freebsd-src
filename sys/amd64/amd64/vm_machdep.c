@@ -514,7 +514,7 @@ cpu_reset_real()
 #endif
 #endif /* PC98 */
 	/* force a shutdown by unmapping entire address space ! */
-	bzero((caddr_t) PTD, PAGE_SIZE);
+	bzero((caddr_t)PTD, NBPTD);
 
 	/* "good night, sweet prince .... <THUNK!>" */
 	invltlb();
