@@ -74,6 +74,7 @@ hid_clear_local(hid_item_t *c)
 	c->string_minimum = 0;
 	c->string_maximum = 0;
 	c->set_delimiter = 0;
+	c->report_size = 0;
 }
 
 hid_data_t

@@ -36,7 +36,11 @@ typedef struct report_desc *report_desc_t;
 typedef struct hid_data *hid_data_t;
 
 typedef enum hid_kind {
-	hid_input, hid_output, hid_feature, hid_collection, hid_endcollection
+	hid_input = 0,
+	hid_output = 1,
+	hid_feature = 2,
+	hid_collection,
+	hid_endcollection
 } hid_kind_t;
 
 typedef struct hid_item {
@@ -90,11 +94,11 @@ int hid_report_size(report_desc_t d, unsigned int id, enum hid_kind k);
 int hid_locate(report_desc_t d, unsigned int usage, enum hid_kind k, hid_item_t *h);
 
 /* Conversion to/from usage names, usage.c: */
-int hid_parse_usage_page(const char *name);
-int hid_parse_usage_in_page(const char *name);
 const char *hid_usage_page(int i);
 const char *hid_usage_in_page(unsigned int u);
 void hid_init(const char *file);
+int hid_parse_usage_in_page(const char *name);
+int hid_parse_usage_page(const char *name);
 
 /* Extracting/insertion of data, data.c: */
 int hid_get_data(const void *p, const hid_item_t *h);

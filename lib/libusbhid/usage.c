@@ -96,7 +96,7 @@ hid_init(const char *hidname)
 			no = -1;
 		else if (sscanf(line, " 0x%x %[^\n]", &no, name) != 2 &&
 			 sscanf(line, " %d %[^\n]", &no, name) != 2)
-			errx(1, "file %s, line %d, syntax error\n",
+			errx(1, "file %s, line %d, syntax error",
 			     hidname, lineno);
 		for (p = name; *p; p++)
 			if (isspace(*p) || *p == '.')
@@ -106,7 +106,7 @@ hid_init(const char *hidname)
 			err(1, "strdup");
 		if (isspace(line[0])) {
 			if (!curpage)
-				errx(1, "file %s, line %d, syntax error\n",
+				errx(1, "file %s, line %d, syntax error",
 				     hidname, lineno);
 			if (curpage->pagesize >= curpage->pagesizemax) {
 				curpage->pagesizemax += 10;
@@ -160,7 +160,7 @@ hid_usage_page(int i)
 	int k;
 
 	if (!pages)
-		errx(1, "no hid table\n");
+		errx(1, "no hid table");
 
 	for (k = 0; k < npages; k++)
 		if (pages[k].usage == i)
@@ -185,8 +185,9 @@ hid_usage_in_page(unsigned int u)
 	for (j = 0; j < pages[k].pagesize; j++) {
 		us = pages[k].page_contents[j].usage;
 		if (us == -1) {
-			sprintf(b, "%s %d",
-			    pages[k].page_contents[j].name, i);
+			sprintf(b,
+			    fmtcheck(pages[k].page_contents[j].name, "%d"),
+			    i);
 			return b;
 		}
 		if (us == i)
@@ -203,7 +204,7 @@ hid_parse_usage_page(const char *name)
 	int k;
 
 	if (!pages)
-		errx(1, "no hid table\n");
+		errx(1, "no hid table");
 
 	for (k = 0; k < npages; k++)
 		if (strcmp(pages[k].name, name) == 0)
@@ -215,10 +216,11 @@ hid_parse_usage_page(const char *name)
 int
 hid_parse_usage_in_page(const char *name)
 {
-	const char *sep = strchr(name, ':');
+	const char *sep;
 	int k, j;
 	unsigned int l;
 
+	sep = strchr(name, ':');
 	if (sep == NULL)
 		return -1;
 	l = sep - name;
