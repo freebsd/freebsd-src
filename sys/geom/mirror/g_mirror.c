@@ -2430,7 +2430,8 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 		ace--;
 
 	sc = pp->geom->softc;
-	if (sc == NULL || LIST_EMPTY(&sc->sc_disks)) {
+	if (sc == NULL || LIST_EMPTY(&sc->sc_disks) ||
+	    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
 		if (acr <= 0 && acw <= 0 && ace <= 0)
 			return (0);
 		else
