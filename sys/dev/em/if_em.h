@@ -46,6 +46,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
