@@ -147,7 +147,7 @@ char **argv;
 		switch(c) {
 		case 'x':
 			for(i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
-				printf("Use \"%s\" for \"%s\"\n",
+				printf("\"%s\" is an alias for \"%s\"\n",
 					ypaliases[i].alias,
 					ypaliases[i].name);
 			exit(0);
