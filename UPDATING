@@ -1530,16 +1530,16 @@ COMMON ITEMS:
 	<maybe fix /etc/fstab>				[7]
 	make buildworld					[9]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
-	cp src/sys/${MACHINE}/conf/GENERIC.hints /boot/device.hints [2]
+	cp sys/${MACHINE}/conf/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
-	cd src/sys/boot ; make install			[6]
+	cd sys/boot ; make STRIP="" install			[6]
 							[1]
 	<reboot in single user>				[3]
-	/etc/rc.d/preseedrandom				[10]
+	/usr/src/etc/rc.d/preseedrandom				[10]
 	mergemaster -p					[5]
 	rm -rf /usr/include/g++
 	make installworld
-	mergemaster					[4]
+	mergemaster -i					[4]
 	<reboot>
 
 	Make sure that you've read the UPDATING file to understand the
@@ -1609,7 +1609,13 @@ COMMON ITEMS:
 	that is hard to boot to recover.
 
 	[9] When checking out sources, you must include the -P flag to have
-	cvs prune empty directories.
+	cvs prune empty directories. Also, if CPUTYPE is defined in your
+	/etc/make.conf, make sure to use the "?=" instead of the "=" assignment
+	operator, so that buildworld can override the CPUTYPE if it needs to.
+	In case you would like to avoid installing new packages of everything,
+	you might want to uncomment the "COMPAT4X=	YES" entry, so that 4.x
+	compatibility libraries are build which should allow you to continue
+	using your existing software for a while.
 
 	[10] In order to create temporary files, /dev/random must be
 	initialized by feeding data into it.  /etc/rc.d/preseedrandom
