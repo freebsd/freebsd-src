@@ -513,7 +513,7 @@ Var_Append(char *name, const char *val, GNode *ctxt)
 Boolean
 Var_Exists(char *name, GNode *ctxt)
 {
-    Var	    	  *v;
+    Var		*v;
 
     VarPossiblyExpand(&name, ctxt);
     v = VarFind(name, ctxt, FIND_CMD|FIND_GLOBAL|FIND_ENV);
@@ -544,7 +544,7 @@ Var_Exists(char *name, GNode *ctxt)
 char *
 Var_Value(char *name, GNode *ctxt, char **frp)
 {
-    Var            *v;
+    Var		*v;
 
     VarPossiblyExpand(&name, ctxt);
     v = VarFind(name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
@@ -1726,6 +1726,7 @@ Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
     char    	  *val;		    /* Value to substitute for a variable */
     size_t	  length;   	    /* Length of the variable invocation */
     Boolean 	  doFree;   	    /* Set true if val should be freed */
+    char	*result;
     static Boolean errorReported;   /* Set true if an error has already
 				     * been reported to prevent a plethora
 				     * of messages when recursing */
@@ -1748,7 +1749,7 @@ Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
 	     * Skip as many characters as possible -- either to the end of
 	     * the string or to the next dollar sign (variable invocation).
 	     */
-	    char *cp;
+	    const char *cp;
 
 	    for (cp = str++; *str != '$' && *str != '\0'; str++)
 		continue;
@@ -1765,8 +1766,7 @@ Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
 			} else
 			    expand = TRUE;
 			break;
-		    }
-		    else {
+		    } else {
 			char *p;
 
 			/*
@@ -1861,9 +1861,9 @@ Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
     }
 
     Buf_AddByte(buf, '\0');
-    str = (char *)Buf_GetAll(buf, (size_t *)NULL);
+    result = (char *)Buf_GetAll(buf, (size_t *)NULL);
     Buf_Destroy(buf, FALSE);
-    return (str);
+    return (result);
 }
 
 /*-
