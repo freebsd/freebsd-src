@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.30 1998/02/19 02:11:03 brian Exp $
+ * $Id: modem.c,v 1.24.2.31 1998/03/06 00:36:08 brian Exp $
  *
  *  TODO:
  */
@@ -512,21 +512,18 @@ OpenModem()
 	  if (*host && *port) {
 	    modem = OpenConnection(host, port);
 	    *cp = ':';		/* Don't destroy VarDevice */
-	    if (modem < 0)
-	      return (-1);
-	    HaveModem();
-	    LogPrintf(LogDEBUG, "OpenModem: Modem is socket %s\n", VarDevice);
+	    if (modem >= 0) {
+	      HaveModem();
+	      LogPrintf(LogDEBUG, "OpenModem: Modem is socket %s\n", VarDevice);
+            }
 	  } else {
 	    *cp = ':';		/* Don't destroy VarDevice */
 	    LogPrintf(LogERROR, "Invalid host:port: \"%s\"\n", VarDevice);
-	    return (-1);
 	  }
-	} else {
+	} else
 	  LogPrintf(LogERROR,
 		    "Device (%s) must be in /dev or be a host:port pair\n",
 		    VarDevice);
-	  return (-1);
-	}
       }
     }
 
