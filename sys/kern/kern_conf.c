@@ -259,12 +259,12 @@ dev2unit(struct cdev *x)
 	return (minor2unit(minor(x)));
 }
 
-int
-minor2unit(int _minor)
+u_int
+minor2unit(u_int _minor)
 {
 
 	KASSERT((_minor & ~MAXMINOR) == 0, ("Illegal minor %x", _minor));
-	return ((_minor & 0xff) | (_minor >> 8));
+	return ((_minor & 0xff) | ((_minor >> 8) & 0xffff00));
 }
 
 int
@@ -463,7 +463,7 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 		return (dev);
 	}
 	KASSERT(!(dev->si_flags & SI_NAMED),
-	    ("make_dev() by driver %s on pre-existing device (maj=%d, min=%d, name=%s)",
+	    ("make_dev() by driver %s on pre-existing device (maj=%d, min=%x, name=%s)",
 	    devsw->d_name, major(dev), minor(dev), devtoname(dev)));
 
 	va_start(ap, fmt);
