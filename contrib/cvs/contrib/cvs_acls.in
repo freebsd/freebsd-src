@@ -2,6 +2,7 @@
 # -*-Perl-*-
 #
 # Access control lists for CVS.  dgg@ksr.com (David G. Grubbs)
+# Branch specific controls added by voisine@bytemobile.com (Aaron Voisine)
 #
 # CVS "commitinfo" for matching repository names, running the program it finds
 # on the same line.  More information is available in the CVS man pages.
@@ -32,7 +33,7 @@
 # Lines beginning with "avail" or "unavail" are assumed to be '|'-separated
 # triples: (All spaces and tabs are ignored in a line.)
 #
-#   {avail.*,unavail.*} [| user,user,... [| repos,repos,...]]
+# {avail.*,unavail.*} [|user,user,... [|repos,repos,... [|branch,branch,...]]]
 #
 #    1. String starting with "avail" or "unavail".
 #    2. Optional, comma-separated list of usernames.
@@ -40,6 +41,9 @@
 #	These are pathnames relative to $CVSROOT.  They can be directories or
 #	filenames.  A directory name allows access to all files and
 #	directories below it.
+#    4. Optional, comma-separated list of branch tags.
+#	If not specified, all branches are assumed. Use HEAD to reference the
+#	main branch.
 #
 # Example:  (Text from the ';;' rightward may not appear in the file.)
 #
@@ -47,6 +51,8 @@
 #	avail|dgg		;; Except for user "dgg".
 #	avail|fred, john|bin/ls	;; Except when "fred" or "john" commit to
 #				;; the module whose repository is "bin/ls"
+#	avail|ed|/bin/ls|stable ;; Except when "ed" commits to the "stable"
+#				;; branch of the "bin/ls" repository 
 #
 # PROGRAM LOGIC:
 #
@@ -54,8 +60,8 @@
 #	appended to your $CVSROOT variable), followed by a list of filenames
 #	within that directory.
 #
-#	We walk through the avail file looking for a line that matches both
-#	the username and repository.
+#	We walk through the avail file looking for a line that matches the
+#	username, repository and branch.
 #
 #	A username match is simply the user's name appearing in the second
 #	column of the avail line in a space-or-comma separate list.
@@ -73,10 +79,18 @@
 #	      all files specified in a single commit must all appear in
 #	      third column of a single avail line.
 #
+#	A branch match is either:
+#		- When no branches are listed in the fourth column.
+#		- One element from the fourth column matches each of the tag
+#		  names for $ARGV[1..$#ARGV] found in the CVS/Entries file.
+#		- HEAD specified in the fourth column will match if there
+#		  is no tag listed in the CVS/Entries file.
+#
 
 $debug = 0;
 $cvsroot = $ENV{'CVSROOT'};
 $availfile = $cvsroot . "/CVSROOT/avail";
+$entries = "CVS/Entries";
 $myname = $ENV{"USER"} if !($myname = $ENV{"LOGNAME"});
 
 eval "print STDERR \$die='Unknown parameter $1\n' if !defined \$$1; \$$1=\$';"
@@ -92,12 +106,27 @@ print "$$ Repos: $repos\n","$$ ==== ",join("\n$$ ==== ",@ARGV),"\n" if $debug;
 $exit_val = 0;				# Good Exit value
 
 $universal_off = 0;
+
+my %branch;
+my $f;
+
+open(ENTRIES, $entries) || die("Cannot open $entries.\n");
+while(<ENTRIES>) {
+    chop;
+    next if /^\s*$/;
+    if(m|^[^/]*/([^/]*)/(?:[^/]*/)*[^/]?([^/]*)$|) {
+	$branch{$repos . '/' . $1} = ($2) ? $2 : "HEAD"; 
+	print "$$ $1/$2\n" if $debug;
+    }
+}
+close(ENTRIES);
+
 open (AVAIL, $availfile) || exit(0);	# It is ok for avail file not to exist
 while (<AVAIL>) {
     chop;
     next if /^\s*\#/;
     next if /^\s*$/;
-    ($flagstr, $u, $m) = split(/[\s,]*\|[\s,]*/, $_);
+    ($flagstr, $u, $m, $b) = split(/[\s,]*\|[\s,]*/, $_);
 
     # Skip anything not starting with "avail" or "unavail" and complain.
     (print "Bad avail line: $_\n"), next
@@ -107,7 +136,7 @@ while (<AVAIL>) {
     $flag = (($& eq "avail") ? 0 : 1);
 
     # If we find a "universal off" flag (i.e. a simple "unavail") remember it
-    $universal_off = 1 if ($flag && !$u && !$m);
+    $universal_off = 1 if ($flag && !$u && !$m && !$b);
 
     # $myname considered "in user list" if actually in list or is NULL
     $in_user = (!$u || grep ($_ eq $myname, split(/[\s,]+/,$u)));
@@ -130,12 +159,26 @@ while (<AVAIL>) {
     }
     print "$$ \$repos($repos) in repository list: $_\n" if $debug && $in_repo;
 
-    $exit_val = $flag if ($in_user && $in_repo);
+    # Branch matches if it is in the branch list in the avail line, the branch
+    # list is NULL, or there is no branch and HEAD is in the branch list.
+    if(!($in_branch = !$b)) {
+	@bls = split (/[\s,]+/,$b);
+
+	for $j (@ARGV) {
+	   $f = $j;
+	   last if !($in_branch = grep($_ eq $branch{$j}, @bls)); 
+	}
+    }
+    print "$$ \$branch($branch{$f}) in branch list: $_\n"
+	if $debug && $in_branch;
+
+    $exit_val = $flag if ($in_user && $in_repo && $in_branch);
     print "$$ ==== \$exit_val = $exit_val\n$$ ==== \$flag = $flag\n" if $debug;
 }
 close(AVAIL);
 print "$$ ==== \$exit_val = $exit_val\n" if $debug;
-print "**** Access denied: Insufficient Karma ($myname|$repos)\n" if $exit_val;
+print "**** Access denied: Insufficient Karma ($myname|$repos|$branch{$f})\n"
+	if $exit_val;
 print "**** Access allowed: Personal Karma exceeds Environmental Karma.\n"
 	if $universal_off && !$exit_val;
 exit($exit_val);

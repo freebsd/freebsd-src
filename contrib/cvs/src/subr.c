@@ -123,7 +123,7 @@ expand_string (strptr, n, newsize)
 /* *STR is a pointer to a malloc'd string.  *LENP is its allocated
    length.  Add SRC to the end of it, reallocating if necessary.  */
 void
-allocate_and_strcat (str, lenp, src)
+xrealloc_and_strcat (str, lenp, src)
     char **str;
     size_t *lenp;
     const char *src;
@@ -742,9 +742,6 @@ resolve_symlink (filename)
 	   But that would require editing each filesubr.c and so the
 	   expedient hack seems to be looking at HAVE_READLINK.  */
 	newname = xreadlink (*filename);
-#else
-	error (1, 0, "internal error: islink doesn't like readlink");
-#endif
 	
 	if (isabsolute (newname))
 	{
@@ -762,6 +759,9 @@ resolve_symlink (filename)
 	    free (*filename);
 	    *filename = fullnewname;
 	}
+#else
+	error (1, 0, "internal error: islink doesn't like readlink");
+#endif
     }
 }
 

@@ -15,7 +15,7 @@ Library General Public License for more details.  */
    Jim Blandy <jimb@cyclic.com> for CVS use */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "system.h"
@@ -24,7 +24,7 @@ Library General Public License for more details.  */
 /* #include <ansidecl.h> */
 /* @) */
 #include <errno.h>
-#include <fnmatch.h>
+#include "fnmatch.h"
 
 #if !defined(__GNU_LIBRARY__) && !defined(STDC_HEADERS)
 extern int errno;

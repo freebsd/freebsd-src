@@ -1,7 +1,7 @@
 \input texinfo @c -*- texinfo -*-
 
 @setfilename cvsclient.info
-@include CVSvn.texi
+@include version-client.texi
 
 @dircategory Programming
 @direntry
@@ -13,7 +13,7 @@
 
 This document describes the client/server protocol used by CVS.  It does
 not describe how to use or administer client/server CVS; see the regular
-CVS manual for that.  This is version @value{CVSVN} of the protocol
+CVS manual for that.  This is version @value{VERSION} of the protocol
 specification---@xref{Introduction}, for more on what this version number
 means.
 
@@ -59,7 +59,7 @@ to date than what you are reading now) of this document,
 @file{cvsclient.texi}, can be found at the usual GNU FTP sites, with a
 filename such as @file{cvs-@var{version}.tar.gz}.
 
-This is version @value{CVSVN} of the protocol specification.  This
+This is version @value{VERSION} of the protocol specification.  This
 version number is intended only to aid in distinguishing different
 versions of this specification.  Although the specification is currently
 maintained in conjunction with the CVS implementation, and carries the

@@ -69,6 +69,16 @@ GNU General Public License for more details.
 #include <unistd.h>
 #endif
 
+#ifdef HAVE_IO_H
+# include <io.h>
+#endif
+
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#else
+# include <sys/file.h>
+#endif
+
 #ifndef SEEK_SET
 #define SEEK_SET 0
 #endif
