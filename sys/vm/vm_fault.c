@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.101 1999/02/25 06:00:52 alc Exp $
+ * $Id: vm_fault.c,v 1.102 1999/05/02 23:57:11 alc Exp $
  */
 
 /*
@@ -790,12 +790,8 @@ readrest:
 	 * Page had better still be busy
 	 */
 
-#ifdef  INVARIANTS
-	if ((fs.m->flags & PG_BUSY) == 0) {
-		printf("WARNING!  PAGE %p NOT BUSY!!!\n", fs.m);
-		vm_page_busy(fs.m);
-	}
-#endif
+	KASSERT(fs.m->flags & PG_BUSY,
+		("vm_fault: page %p not busy!", fs.m));
 
 	unlock_things(&fs);
 
