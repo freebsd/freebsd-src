@@ -26,10 +26,7 @@
  * $FreeBSD$
  */
 
-#include "opt_bootp.h"
 #include "opt_isa.h"
-#include "opt_nfs.h"
-#include "opt_nfsroot.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
