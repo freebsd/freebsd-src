@@ -27,12 +27,8 @@
  */
 
 #ifndef lint
-#if 0
-static char * const rcsid = "@(#)glob.c,v 1.1 1994/02/01 00:34:40 alm Exp";
-#else
-static char * const rcsid =
+static const char rcsid[] =
   "$FreeBSD$";
-#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -55,7 +51,7 @@ build_active_list(isgcmd)
 	char delimiter;
 
 	if ((delimiter = *ibufp) == ' ' || delimiter == '\n') {
-		sprintf(errmsg, "invalid pattern delimiter");
+		errmsg = "invalid pattern delimiter";
 		return ERR;
 	} else if ((pat = get_compiled_pattern()) == NULL)
 		return ERR;
@@ -115,13 +111,13 @@ exec_global(interact, gflag)
 			if (n < 0)
 				return ERR;
 			else if (n == 0) {
-				sprintf(errmsg, "unexpected end-of-file");
+				errmsg = "unexpected end-of-file";
 				return ERR;
 			} else if (n == 1 && !strcmp(ibuf, "\n"))
 				continue;
 			else if (n == 2 && !strcmp(ibuf, "&\n")) {
 				if (cmd == NULL) {
-					sprintf(errmsg, "no previous command");
+					errmsg = "no previous command";
 					return ERR;
 				} else cmd = ocmd;
 			} else if ((cmd = get_extended_line(&n, 0)) == NULL)
@@ -166,7 +162,7 @@ set_active_node(lp)
 			if ((ts = (line_t **) realloc(active_list,
 			    (ti += MINBUFSZ) * sizeof(line_t **))) == NULL) {
 				fprintf(stderr, "%s\n", strerror(errno));
-				sprintf(errmsg, "out of memory");
+				errmsg = "out of memory";
 				SPL0();
 				return ERR;
 			}
@@ -175,7 +171,7 @@ set_active_node(lp)
 			if ((ts = (line_t **) malloc((ti += MINBUFSZ) *
 			    sizeof(line_t **))) == NULL) {
 				fprintf(stderr, "%s\n", strerror(errno));
-				sprintf(errmsg, "out of memory");
+				errmsg = "out of memory";
 				SPL0();
 				return ERR;
 			}
