@@ -31,17 +31,29 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.4 1994/09/15 16:27:14 paul Exp $
+ * $Id: profile.h,v 1.5 1995/12/29 15:28:54 bde Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
 #define	_MACHINE_PROFILE_H_
 
-#if 0
-#define	_MCOUNT_DECL static inline void _mcount
+#ifdef KERNEL
+/*
+ * The kernel uses assembler stubs instead of unportable inlines.
+ * This is mainly to save a little time when profiling is not enabled,
+ * which is the usual case for the kernel.
+ */
+#define	_MCOUNT_DECL void mcount
+#define	MCOUNT
+
+#else /* !KERNEL */
+
+#define	_MCOUNT_DECL static __inline void _mcount
 
 #define	MCOUNT \
-extern void mcount() asm("mcount"); void mcount() { \
+void \
+mcount() \
+{ \
 	fptrint_t selfpc, frompc; \
 	/* \
 	 * Find the return address for mcount, \
@@ -60,18 +72,16 @@ extern void mcount() asm("mcount"); void mcount() { \
 	frompc = ((fptrint_t *)frompc)[1]; \
 	_mcount(frompc, selfpc); \
 }
-#else
-#define	_MCOUNT_DECL void mcount
-#define	MCOUNT
-#endif
+#endif /* KERNEL */
 
-#define	MCOUNT_ENTER	{ save_eflags = read_eflags(); disable_intr(); }
-#define	MCOUNT_EXIT	(write_eflags(save_eflags))
-
+#ifdef KERNEL
 #define	CALIB_SCALE	1000
 #define	KCOUNT(p,index)	((p)->kcount[(index) \
 			 / (HISTFRACTION * sizeof(*(p)->kcount))])
+#define	MCOUNT_ENTER	{ save_eflags = read_eflags(); disable_intr(); }
+#define	MCOUNT_EXIT	(write_eflags(save_eflags))
 #define	PC_TO_I(p, pc)	((fptrint_t)(pc) - (fptrint_t)(p)->lowpc)
+#endif
 
 /* An unsigned integral type that can hold function pointers. */
 typedef	u_int	fptrint_t;
@@ -82,8 +92,18 @@ typedef	u_int	fptrint_t;
  */
 typedef	int	fptrdiff_t;
 
-u_int	cputime __P((void));
+__BEGIN_DECLS
+#ifdef KERNEL
 void	mcount __P((fptrint_t frompc, fptrint_t selfpc));
-void	mexitcount __P((fptrint_t selfpc));
+#else
+void	mcount __P((void)) __asm("mcount");
+static void	_mcount __P((fptrint_t frompc, fptrint_t selfpc));
+#endif
 
-#endif /* !MACHINE_PROFILE_H */
+#ifdef GUPROF
+u_int	cputime __P((void));
+void	mexitcount __P((fptrint_t selfpc));
+#endif
+__END_DECLS
+
+#endif /* !_MACHINE_PROFILE_H_ */
