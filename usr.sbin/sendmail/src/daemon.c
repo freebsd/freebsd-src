@@ -37,9 +37,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.145 (Berkeley) 10/12/96 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.148 (Berkeley) 11/8/96 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.145 (Berkeley) 10/12/96 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.148 (Berkeley) 11/8/96 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -193,7 +193,7 @@ getrequests(e)
 
 	for (;;)
 	{
-		register int pid;
+		register pid_t pid;
 		auto int lotherend;
 		extern bool refuseconnections();
 		extern int getla();
@@ -244,6 +244,16 @@ getrequests(e)
 		/* wait for a connection */
 		setproctitle("accepting connections on port %d",
 			     ntohs(DaemonAddr.sin.sin_port));
+#if 0
+		/*
+		**  Andrew Sun <asun@ieps-sun.ml.com> claims that this will
+		**  fix the SVr4 problem.  But it seems to have gone away,
+		**  so is it worth doing this?
+		*/
+
+		if (SetNonBlocking(DaemonSocket, FALSE) < 0)
+			log an error here;
+#endif
 		do
 		{
 			errno = 0;
@@ -734,9 +744,8 @@ makeconnection(host, port, mci, e)
 			extern char MsgBuf[];
 
 			usrerr("553 Invalid numeric domain spec \"%s\"", host);
-			mci->mci_status = "5.1.2";
-			mci->mci_rstatus = newstr(MsgBuf);
-			return (EX_NOHOST);
+			mci_setstat(mci, EX_NOHOST, "5.1.2", MsgBuf);
+			return EX_NOHOST;
 		}
 #if NETINET
 		addr.sin.sin_family = AF_INET;		/*XXX*/
@@ -773,11 +782,11 @@ gothostent:
 			if (errno == ETIMEDOUT || h_errno == TRY_AGAIN ||
 			    (errno == ECONNREFUSED && UseNameServer))
 			{
-				mci->mci_status = "4.4.3";
-				mci->mci_rstatus = NULL;
-				return (EX_TEMPFAIL);
+				mci_setstat(mci, EX_TEMPFAIL, "4.4.3", NULL);
+				return EX_TEMPFAIL;
 			}
 #endif
+			mci_setstat(mci, EX_NOHOST, "5.1.2", NULL);
 			return (EX_NOHOST);
 		}
 		addr.sa.sa_family = hp->h_addrtype;
@@ -839,6 +848,7 @@ gothostent:
 
 	  default:
 		syserr("Can't connect to address family %d", addr.sa.sa_family);
+		mci_setstat(mci, EX_NOHOST, "5.1.2", NULL);
 		return (EX_NOHOST);
 	}
 
@@ -876,7 +886,11 @@ gothostent:
 		{
 			sav_errno = errno;
 			syserr("makeconnection: cannot create socket");
-			goto failure;
+#ifdef XLA
+			xla_host_end(host);
+#endif
+			mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
+			return EX_TEMPFAIL;
 		}
 
 #ifdef SO_SNDBUF
@@ -964,18 +978,12 @@ gothostent:
 			continue;
 		}
 
-		/* failure, decide if temporary or not */
-	failure:
+		/* couldn't open connection */
 #ifdef XLA
 		xla_host_end(host);
 #endif
-		if (transienterror(sav_errno))
-			return EX_TEMPFAIL;
-		else
-		{
-			message("%s", errstring(sav_errno));
-			return (EX_UNAVAILABLE);
-		}
+		mci_setstat(mci, EX_TEMPFAIL, "4.4.1", NULL);
+		return EX_TEMPFAIL;
 	}
 
 	/* connection ok, put it into canonical form */
@@ -984,9 +992,11 @@ gothostent:
 	    (mci->mci_in = fdopen(s, "r")) == NULL)
 	{
 		syserr("cannot open SMTP client channel, fd=%d", s);
+		mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
 		return EX_TEMPFAIL;
 	}
 
+	mci_setstat(mci, EX_OK, NULL, NULL);
 	return (EX_OK);
 }
 /*
