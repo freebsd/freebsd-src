@@ -27,7 +27,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/lock.h>
 #include <sys/procfs.h>
 #include <machine/elf.h>
 #include <vm/vm_param.h>
