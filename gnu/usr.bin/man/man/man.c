@@ -1135,10 +1135,12 @@ make_cat_file (path, man_file, cat_file, manid)
 	}
 #endif
 
-	while ((s = getc(pp)) != EOF)
-	  putc(s, fp);
+	f = 0;
+	while ((s = getc(pp)) != EOF) {
+	  putc(s, fp); f++;
+	}
 
-	if ((s = pclose(pp)) == -1) {
+	if (!f || ((s = pclose(pp)) == -1)) {
 	  s = errno;
 	  fprintf(stderr, "Failed.\n");
 	  errno = s;
