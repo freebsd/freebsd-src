@@ -47,101 +47,106 @@ static const char rcsid[] =
 void
 enable_fpu(struct thread *td)
 {
-	int	msr, scratch;
+	int	msr;
 	struct	pcb *pcb;
 	struct	trapframe *tf;
 
 	pcb = td->td_pcb;
 	tf = trapframe(td);
-	
+
+	/*
+	 * Save the thread's FPU CPU number, and set the CPU's current 
+	 * FPU thread
+	 */
+	td->td_pcb->pcb_fpcpu = PCPU_GET(cpuid);
+	PCPU_SET(fputhread, td);	
+
+	/*
+	 * Enable the FPU for when the thread returns from the exception.
+	 * If this is the first time the FPU has been used by the thread,
+	 * initialise the FPU registers and FPSCR to 0, and set the flag
+	 * to indicate that the FPU is in use.
+	 */
 	tf->srr1 |= PSL_FP;
 	if (!(pcb->pcb_flags & PCB_FPU)) {
 		memset(&pcb->pcb_fpu, 0, sizeof pcb->pcb_fpu);
 		pcb->pcb_flags |= PCB_FPU;
 	}
-	__asm __volatile ("mfmsr %0; ori %1,%0,%2; mtmsr %1; isync"
-			  : "=r"(msr), "=r"(scratch) : "K"(PSL_FP));
+
+	/*
+	 * Temporarily enable floating-point so the registers
+	 * can be restored.
+	 */
+	msr = mfmsr();
+	mtmsr(msr | PSL_FP);
+	isync();
+
+	/*
+	 * Load the floating point registers and FPSCR from the PCB.
+	 * (A value of 0xff for mtfsf specifies that all 8 4-bit fields
+	 * of the saved FPSCR are to be loaded from the FPU reg).
+	 */
 	__asm __volatile ("lfd 0,0(%0); mtfsf 0xff,0"
 			  :: "b"(&pcb->pcb_fpu.fpscr));
-	__asm ("lfd 0,0(%0);"
-	       "lfd 1,8(%0);"
-	       "lfd 2,16(%0);"
-	       "lfd 3,24(%0);"
-	       "lfd 4,32(%0);"
-	       "lfd 5,40(%0);"
-	       "lfd 6,48(%0);"
-	       "lfd 7,56(%0);"
-	       "lfd 8,64(%0);"
-	       "lfd 9,72(%0);"
-	       "lfd 10,80(%0);"
-	       "lfd 11,88(%0);"
-	       "lfd 12,96(%0);"
-	       "lfd 13,104(%0);"
-	       "lfd 14,112(%0);"
-	       "lfd 15,120(%0);"
-	       "lfd 16,128(%0);"
-	       "lfd 17,136(%0);"
-	       "lfd 18,144(%0);"
-	       "lfd 19,152(%0);"
-	       "lfd 20,160(%0);"
-	       "lfd 21,168(%0);"
-	       "lfd 22,176(%0);"
-	       "lfd 23,184(%0);"
-	       "lfd 24,192(%0);"
-	       "lfd 25,200(%0);"
-	       "lfd 26,208(%0);"
-	       "lfd 27,216(%0);"
-	       "lfd 28,224(%0);"
-	       "lfd 29,232(%0);"
-	       "lfd 30,240(%0);"
-	       "lfd 31,248(%0)" :: "b"(&pcb->pcb_fpu.fpr[0]));
-	__asm __volatile ("mtmsr %0; isync" :: "r"(msr));
+
+#define LFP(n)   __asm ("lfd " #n ", 0(%0)" \
+		:: "b"(&pcb->pcb_fpu.fpr[n]));
+	LFP(0);		LFP(1);		LFP(2);		LFP(3);
+	LFP(4);		LFP(5);		LFP(6);		LFP(7);
+	LFP(8);		LFP(9);		LFP(10);	LFP(11);
+	LFP(12);	LFP(13);	LFP(14);	LFP(15);
+	LFP(16);	LFP(17);	LFP(18);	LFP(19);
+	LFP(20);	LFP(21);	LFP(22);	LFP(23);
+	LFP(24);	LFP(25);	LFP(26);	LFP(27);
+	LFP(28);	LFP(29);	LFP(30);	LFP(31);
+#undef LFP
+
+	isync();
+	mtmsr(msr);
 }
 
 void
 save_fpu(struct thread *td)
 {
-	int	msr, scratch;
+	int	msr;
 	struct	pcb *pcb;
 
 	pcb = td->td_pcb;
 	
-	__asm __volatile ("mfmsr %0; ori %1,%0,%2; mtmsr %1; isync"
-			  : "=r"(msr), "=r"(scratch) : "K"(PSL_FP));
-	__asm ("stfd 0,0(%0);"
-	       "stfd 1,8(%0);"
-	       "stfd 2,16(%0);"
-	       "stfd 3,24(%0);"
-	       "stfd 4,32(%0);"
-	       "stfd 5,40(%0);"
-	       "stfd 6,48(%0);"
-	       "stfd 7,56(%0);"
-	       "stfd 8,64(%0);"
-	       "stfd 9,72(%0);"
-	       "stfd 10,80(%0);"
-	       "stfd 11,88(%0);"
-	       "stfd 12,96(%0);"
-	       "stfd 13,104(%0);"
-	       "stfd 14,112(%0);"
-	       "stfd 15,120(%0);"
-	       "stfd 16,128(%0);"
-	       "stfd 17,136(%0);"
-	       "stfd 18,144(%0);"
-	       "stfd 19,152(%0);"
-	       "stfd 20,160(%0);"
-	       "stfd 21,168(%0);"
-	       "stfd 22,176(%0);"
-	       "stfd 23,184(%0);"
-	       "stfd 24,192(%0);"
-	       "stfd 25,200(%0);"
-	       "stfd 26,208(%0);"
-	       "stfd 27,216(%0);"
-	       "stfd 28,224(%0);"
-	       "stfd 29,232(%0);"
-	       "stfd 30,240(%0);"
-	       "stfd 31,248(%0)" :: "b"(&pcb->pcb_fpu.fpr[0]));
+	/*
+	 * Temporarily re-enable floating-point during the save
+	 */
+	msr = mfmsr();
+	mtmsr(msr | PSL_FP);
+	isync();
+
+	/*
+	 * Save the floating-point registers and FPSCR to the PCB
+	 */
+#define SFP(n)   __asm ("stfd " #n ", 0(%0)" \
+		:: "b"(&pcb->pcb_fpu.fpr[n]));
+	SFP(0);		SFP(1);		SFP(2);		SFP(3);
+	SFP(4);		SFP(5);		SFP(6);		SFP(7);
+	SFP(8);		SFP(9);		SFP(10);	SFP(11);
+	SFP(12);	SFP(13);	SFP(14);	SFP(15);
+	SFP(16);	SFP(17);	SFP(18);	SFP(19);
+	SFP(20);	SFP(21);	SFP(22);	SFP(23);
+	SFP(24);	SFP(25);	SFP(26);	SFP(27);
+	SFP(28);	SFP(29);	SFP(30);	SFP(31);
+#undef SFP
 	__asm __volatile ("mffs 0; stfd 0,0(%0)" :: "b"(&pcb->pcb_fpu.fpscr));
-	__asm __volatile ("mtmsr %0; isync" :: "r"(msr));
+
+	/*
+	 * Disable floating-point again
+	 */
+	isync();
+	mtmsr(msr);
+
+	/*
+	 * Clear the current fp thread and pcb's CPU id
+	 * XXX should this be left clear to allow lazy save/restore ?
+	 */
 	pcb->pcb_fpcpu = NULL;
 	PCPU_SET(fputhread, NULL);
 }
+

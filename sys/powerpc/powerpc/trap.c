@@ -150,7 +150,7 @@ trapname(u_int vector)
 void
 trap(struct trapframe *frame)
 {
-	struct thread	*td, *fputhread;
+	struct thread	*td;
 	struct proc	*p;
 	int		sig, type, user;
 	u_int		sticks, ucode;
@@ -192,13 +192,9 @@ trap(struct trapframe *frame)
 			break;
 
 		case EXC_FPU:
-			if ((fputhread = PCPU_GET(fputhread)) != NULL) {
-				save_fpu(fputhread);
-			}
-			PCPU_SET(fputhread, td);
-			td->td_pcb->pcb_fpcpu = PCPU_GET(cpuid);
+			KASSERT((td->td_pcb->pcb_flags & PCB_FPU) != PCB_FPU,
+			    ("FPU already enabled for thread"));
 			enable_fpu(td);
-			frame->srr1 |= PSL_FP;
 			break;
 
 #ifdef	ALTIVEC
@@ -252,10 +248,6 @@ trap(struct trapframe *frame)
 			trap_fatal(frame);
 		}
 	}
-
-	if (td != PCPU_GET(fputhread) ||
-	    td->td_pcb->pcb_fpcpu != PCPU_GET(cpuid))
-		frame->srr1 &= ~PSL_FP;
 
 #ifdef	ALTIVEC
 	if (td != PCPU_GET(vecthread) ||
