@@ -646,9 +646,16 @@ ffs_getpages(ap)
 	reqlblkno = foff / bsize;
 	poff = (foff % bsize) / PAGE_SIZE;
 
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
+
 	dp = VTOI(vp)->i_devvp;
 	if (ufs_bmaparray(vp, reqlblkno, &reqblkno, &bforwards, &bbackwards)
 	    || (reqblkno == -1)) {
+
+		mtx_unlock(&Giant);
+		mtx_lock(&vm_mtx);
+
 		for(i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage)
 				vm_page_free(ap->a_m[i]);
@@ -663,6 +670,9 @@ ffs_getpages(ap)
 			return VM_PAGER_ERROR;
 		}
 	}
+
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 
 	physoffset = (off_t)reqblkno * DEV_BSIZE + poff * PAGE_SIZE;
 	pagesperblock = bsize / PAGE_SIZE;
