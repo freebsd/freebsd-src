@@ -560,6 +560,12 @@ load_dr7(u_int sel)
 	__asm __volatile("movl %0,%%dr7" : : "r" (sel));
 }
 
+static __inline void
+cpu_pause(void)
+{
+	__asm __volatile("pause");
+}
+
 static __inline register_t
 intr_disable(void)
 {
