@@ -232,7 +232,7 @@ fe_simple_probe (struct fe_softc const * sc,
    address.  "Vendor" is an expected vendor code (first three bytes,)
    or a zero when nothing expected.  */
 int
-valid_Ether_p (u_char const * addr, unsigned vendor)
+fe_valid_Ether_p (u_char const * addr, unsigned vendor)
 {
 #ifdef FE_DEBUG
 	printf("fe?: validating %6D against %06x\n", addr, ":", vendor);

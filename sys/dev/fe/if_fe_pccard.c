@@ -243,7 +243,7 @@ fe_probe_mbh(device_t dev)
 	fe_inblk(sc, FE_MBH10, sc->sc_enaddr, ETHER_ADDR_LEN);
 
 	/* Make sure we got a valid station address.  */
-	if (!valid_Ether_p(sc->sc_enaddr, 0))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0))
 		return ENXIO;
 
 	/* Determine the card type.  */
@@ -299,7 +299,7 @@ fe_probe_tdk (device_t dev)
         sc->typestr = "Generic MB8696x/78Q837x Ethernet (PCMCIA)";
 
         /* Make sure we got a valid station address.  */
-        if (!valid_Ether_p(sc->sc_enaddr, 0))
+        if (!fe_valid_Ether_p(sc->sc_enaddr, 0))
 		return ENXIO;
 
         return 0;
