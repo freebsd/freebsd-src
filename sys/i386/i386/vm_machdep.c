@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.63 1996/05/18 03:36:22 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.64 1996/06/19 03:39:24 dyson Exp $
  */
 
 #include "npx.h"
@@ -692,13 +692,12 @@ vmapbuf(bp)
 		panic("vmapbuf");
 
 	for (v = bp->b_saveaddr, addr = bp->b_data;
-		addr < bp->b_data + bp->b_bufsize;
-		addr += PAGE_SIZE, v += PAGE_SIZE) {
-
-/*
- * do the vm_fault if needed, do the copy-on-write thing when
- * reading stuff off device into memory.
- */
+	    addr < bp->b_data + bp->b_bufsize;
+	    addr += PAGE_SIZE, v += PAGE_SIZE) {
+		/*
+		 * Do the vm_fault if needed; do the copy-on-write thing
+		 * when reading stuff off device into memory.
+		 */
 		vm_fault_quick(addr,
 			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
 		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
@@ -727,14 +726,11 @@ vunmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
 
-	for (addr = bp->b_data;
-		addr < bp->b_data + bp->b_bufsize;
-		addr += PAGE_SIZE) {
-
+	for (addr = bp->b_data; addr < bp->b_data + bp->b_bufsize;
+	    addr += PAGE_SIZE) {
 		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
 		pmap_kremove((vm_offset_t) addr);
 		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
-
 	}
 
 	bp->b_data = bp->b_saveaddr;
