@@ -114,7 +114,12 @@ SendPapCode(struct authinfo *authp, int code, const char *message)
   bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_PAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
-  *cp++ = mlen;
+  /*
+   * If our message is longer than 255 bytes, truncate the length to
+   * 255 and send the entire message anyway.  Maybe the other end will
+   * display it... (see pap_Input() !)
+   */
+  *cp++ = mlen > 255 ? 255 : mlen;
   memcpy(cp, message, mlen);
   log_Printf(LogPHASE, "Pap Output: %s\n", papcodes[code]);
 
@@ -158,6 +163,8 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   struct physical *p = link2physical(l);
   struct authinfo *authp = &p->dl->pap;
   u_char nlen, klen, *key;
+  const char *txt;
+  int txtlen;
 
   if (p == NULL) {
     log_Printf(LogERROR, "pap_Input: Not a physical link - dropped\n");
@@ -197,11 +204,27 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
   if (bp) {
     bp = mbuf_Read(bp, &nlen, 1);
-    bp = auth_ReadName(authp, bp, nlen);
+    if (authp->in.hdr.code == PAP_ACK) {
+      /*
+       * Don't restrict the length of our acknowledgement freetext to
+       * nlen (a one-byte length).  Show the rest of the ack packet
+       * instead.  This isn't really part of the protocol.....
+       */
+      bp = mbuf_Contiguous(bp);
+      txt = MBUF_CTOP(bp);
+      txtlen = mbuf_Length(bp);
+    } else {
+      bp = auth_ReadName(authp, bp, nlen);
+      txt = authp->in.name;
+      txtlen = strlen(authp->in.name);
+    }
+  } else {
+    txt = "";
+    txtlen = 0;
   }
 
-  log_Printf(LogPHASE, "Pap Input: %s (%s)\n",
-             papcodes[authp->in.hdr.code], authp->in.name);
+  log_Printf(LogPHASE, "Pap Input: %s (%.*s)\n",
+             papcodes[authp->in.hdr.code], txtlen, txt);
 
   switch (authp->in.hdr.code) {
     case PAP_REQUEST:
