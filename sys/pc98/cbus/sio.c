@@ -140,6 +140,7 @@
 #endif /* PC98 */
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/malloc.h>
