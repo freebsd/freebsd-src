@@ -28,13 +28,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/linker_set.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
-#include <sys/user.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/reg.h>
 
 #include <vm/vm.h>
