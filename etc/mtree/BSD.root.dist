@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.35 1998/12/16 05:45:58 peter Exp $
+#	$Id: BSD.root.dist,v 1.36 1999/01/10 14:30:53 hm Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -24,6 +24,8 @@
 	..
         gnats
         ..
+        isdn		mode=0700
+        ..
         kerberosIV
         ..
 	mail
@@ -41,8 +43,6 @@
 	skel
 	..
         uucp            uname=uucp gname=uucp mode=0770
-        ..
-        isdn            uname=root gname=wheel mode=0770
         ..
     ..
     lkm
