@@ -373,18 +373,6 @@ vm_page_unhold(vm_page_t mem)
 }
 
 /*
- *	vm_page_copy:
- *
- *	Copy one page to another
- */
-void
-vm_page_copy(vm_page_t src_m, vm_page_t dest_m)
-{
-	pmap_copy_page(src_m, dest_m);
-	dest_m->valid = VM_PAGE_BITS_ALL;
-}
-
-/*
  *	vm_page_free:
  *
  *	Free a page
@@ -1742,11 +1730,9 @@ vm_page_cowfault(vm_page_t m)
 		vm_page_free(mnew);
 		vm_page_insert(m, object, pindex);
 	} else { /* clear COW & copy page */
-		if (so_zerocp_fullpage) {
-			mnew->valid = VM_PAGE_BITS_ALL;
-		} else {
-			vm_page_copy(m, mnew);
-		}
+		if (!so_zerocp_fullpage)
+			pmap_copy_page(m, mnew);
+		mnew->valid = VM_PAGE_BITS_ALL;
 		vm_page_dirty(mnew);
 		vm_page_flag_clear(mnew, PG_BUSY);
 	}
