@@ -13,5 +13,5 @@ nodevice	cbb		# cardbus (yenta) bridge
 #nodevice	pcic		# ExCA ISA and PCI bridges
 nodevice	pccard		# PC Card (16-bit) bus
 nodevice	cardbus		# CardBus (32-bit) bus
-device		card	1	# pccard bus
+device		card		# pccard bus
 device		pcic		# PCMCIA bridge
