@@ -230,6 +230,7 @@ ufs_getacl(ap)
 	 * Attempt to retrieve the ACL based on the ACL type.
 	 */
 	bzero(ap->a_aclp, sizeof(*ap->a_aclp));
+	len = sizeof(*ap->a_aclp);
 	switch(ap->a_type) {
 	case ACL_TYPE_ACCESS:
 		/*
@@ -239,7 +240,6 @@ ufs_getacl(ap)
 		 * EA is present, merge the two in a temporary ACL
 		 * storage, otherwise just return the inode contents.
 		 */
-		len = sizeof(*ap->a_aclp);
 		error = vn_extattr_get(ap->a_vp, IO_NODELOCKED,
 		    POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE,
 		    POSIX1E_ACL_ACCESS_EXTATTR_NAME, &len, (char *) ap->a_aclp,
@@ -293,7 +293,6 @@ ufs_getacl(ap)
 			error = EINVAL;
 			break;
 		}
-		bzero(ap->a_aclp, sizeof(*ap->a_aclp));
 		error = vn_extattr_get(ap->a_vp, IO_NODELOCKED,
 		    POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE,
 		    POSIX1E_ACL_DEFAULT_EXTATTR_NAME, &len,
@@ -316,6 +315,17 @@ ufs_getacl(ap)
 			break;
 
 		case 0:
+			if (len != sizeof(*ap->a_aclp)) {
+				/*
+				 * A short (or long) read, meaning that for
+				 * some reason the ACL is corrupted.  Return
+				 * EPERM since the object default DAC
+				 * protections are unsafe.
+				 */
+				printf("ufs_getacl(): Loaded invalid ACL ("
+				    "%d bytes)\n", len);
+				return (EPERM);
+			}
 			break;
 
 		default:
