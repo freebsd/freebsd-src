@@ -669,7 +669,7 @@ configXDesktop(dialogMenuItem *self)
     else if (!strcmp(desk, "afterstep")) {
 	ret = package_add("afterstep");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("afterstep"))
-	    write_root_xprofile("xterm &\nexec afterstep\n");
+	    write_root_xprofile("exec afterstep\n");
     }
     else if (!strcmp(desk, "windowmaker")) {
 	ret = package_add("windowmaker");
