@@ -258,3 +258,25 @@ METHOD int child_present {
 	device_t	_dev;
 	device_t	_child;
 } DEFAULT bus_generic_child_present;
+
+#
+# Returns the pnp info for this device.  Return it as a string.  If the
+# string is insufficient for the storage, then return EOVERFLOW.
+#
+METHOD int child_pnpinfo_str {
+	device_t	_dev;
+	device_t	_child;
+	char		*_buf;
+	size_t		_buflen;
+};
+
+#
+# Returns the location for this device.  Return it as a string.  If the
+# string is insufficient for the storage, then return EOVERFLOW.
+#
+METHOD int child_location_str {
+	device_t	_dev;
+	device_t	_child;
+	char		*_buf;
+	size_t		_buflen;
+};
