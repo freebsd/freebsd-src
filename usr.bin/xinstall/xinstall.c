@@ -46,10 +46,10 @@ static const char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 
 #include <sys/param.h>
-#include <sys/wait.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -83,17 +83,16 @@ gid_t gid;
 uid_t uid;
 int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
 mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-char backup_suffix[] = BACKUP_SUFFIX;
-char *suffix = backup_suffix;
+const char *suffix = BACKUP_SUFFIX;
 
-void	copy __P((int, char *, int, char *, off_t));
+void	copy __P((int, const char *, int, const char *, off_t));
 int	compare __P((int, const char *, size_t, int, const char *, size_t));
-int	create_newfile __P((char *, int, struct stat *));
-int	create_tempfile __P((char *, char *, size_t));
-void	install __P((char *, char *, u_long, u_int));
+int	create_newfile __P((const char *, int, struct stat *));
+int	create_tempfile __P((const char *, char *, size_t));
+void	install __P((const char *, const char *, u_long, u_int));
 void	install_dir __P((char *));
-u_long	numeric_id __P((char *, const char *));
-void	strip __P((char *));
+u_long	numeric_id __P((const char *, const char *));
+void	strip __P((const char *));
 int	trymmap __P((int));
 void	usage __P((void));
 
@@ -107,7 +106,8 @@ main(argc, argv)
 	u_long fset;
 	int ch, no_target;
 	u_int iflags;
-	char *flags, *group, *owner, *to_name;
+	char *flags;
+	const char *group, *owner, *to_name;
 
 	iflags = 0;
 	group = owner = NULL;
@@ -243,8 +243,7 @@ main(argc, argv)
 
 u_long
 numeric_id(name, type)
-	char *name;
-	const char *type;
+	const char *name, *type;
 {
 	u_long val;
 	char *ep;
@@ -268,7 +267,7 @@ numeric_id(name, type)
  */
 void
 install(from_name, to_name, fset, flags)
-	char *from_name, *to_name;
+	const char *from_name, *to_name;
 	u_long fset;
 	u_int flags;
 {
@@ -408,8 +407,8 @@ install(from_name, to_name, fset, flags)
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
 		if (dobackup) {
-			if (snprintf(backup, MAXPATHLEN, "%s%s", to_name,
-			    suffix) != (int)(strlen(to_name) + strlen(suffix))) {
+			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s", to_name,
+			    suffix) != strlen(to_name) + strlen(suffix)) {
 				unlink(tempfile);
 				errx(EX_OSERR, "%s: backup filename too long",
 				    to_name);
@@ -581,7 +580,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
  */
 int
 create_tempfile(path, temp, tsize)
-	char *path;
+	const char *path;
 	char *temp;
 	size_t tsize;
 {
@@ -604,7 +603,7 @@ create_tempfile(path, temp, tsize)
  */
 int
 create_newfile(path, target, sbp)
-	char *path;
+	const char *path;
 	int target;
 	struct stat *sbp;
 {
@@ -620,8 +619,8 @@ create_newfile(path, target, sbp)
 			(void)chflags(path, sbp->st_flags & ~NOCHANGEBITS);
 
 		if (dobackup) {
-			if (snprintf(backup, MAXPATHLEN, "%s%s", path, suffix)
-			    != (int)(strlen(path) + strlen(suffix)))
+			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s",
+			    path, suffix) != strlen(path) + strlen(suffix))
 				errx(EX_OSERR, "%s: backup filename too long",
 				    path);
 			(void)snprintf(backup, MAXPATHLEN, "%s%s",
@@ -645,7 +644,7 @@ create_newfile(path, target, sbp)
 void
 copy(from_fd, from_name, to_fd, to_name, size)
 	register int from_fd, to_fd;
-	char *from_name, *to_name;
+	const char *from_name, *to_name;
 	off_t size;
 {
 	register int nr, nw;
@@ -699,7 +698,7 @@ copy(from_fd, from_name, to_fd, to_name, size)
  */
 void
 strip(to_name)
-	char *to_name;
+	const char *to_name;
 {
 	int serrno, status;
 
