@@ -66,8 +66,7 @@ MALLOC_DECLARE(M_USBHC);
 
 /* these three defines are used by usbd to autoload the usb kld */
 #define USB_KLD		"usb"
-#define USB_OHCI	"ohci/usb"
-#define USB_UHCI	"uhci/usb"
+#define USB_UHUB	"usb/uhub"	/* root hub */
 
 #define USB_MAX_DEVICES 128
 #define USB_START_ADDR 0
@@ -598,13 +597,14 @@ struct usb_ctl_report_desc {
 	u_char	ucrd_data[1024];	/* filled data size will vary */
 };
 
-#define MAXDEVNAMES 4
-#define MAXDEVNAMELEN 10
+typedef struct { u_int32_t cookie; } usb_event_cookie_t;
+
+#define USB_MAX_DEVNAMES 4
+#define USB_MAX_DEVNAMELEN 16
 struct usb_device_info {
 	u_int8_t	udi_bus;
 	u_int8_t	udi_addr;	/* device address */
-	char		udi_devnames[MAXDEVNAMES][MAXDEVNAMELEN];
-							/* device names */
+	usb_event_cookie_t udi_cookie;
 	char		udi_product[USB_MAX_STRING_LEN];
 	char		udi_vendor[USB_MAX_STRING_LEN];
 	char		udi_release[8];
@@ -618,6 +618,7 @@ struct usb_device_info {
 	u_int8_t	udi_lowspeed;
 	int		udi_power;	/* power consumption in mA, 0 if selfpowered */
 	int		udi_nports;
+	char		udi_devnames[USB_MAX_DEVNAMES][USB_MAX_DEVNAMELEN];
 	u_int8_t	udi_ports[16];/* hub only: addresses of devices on ports */
 #define USB_PORT_ENABLED 0xff
 #define USB_PORT_SUSPENDED 0xfe
@@ -634,15 +635,28 @@ struct usb_device_stats {
 	u_long	uds_requests[4];	/* indexed by transfer type UE_* */
 };
 
-typedef struct { u_int32_t cookie; } usb_event_cookie_t;
 /* Events that can be read from /dev/usb */
 struct usb_event {
 	int			ue_type;
-#define USB_EVENT_ATTACH 1
-#define USB_EVENT_DETACH 2
-	struct usb_device_info	ue_device;
+#define USB_EVENT_CTRLR_ATTACH 1
+#define USB_EVENT_CTRLR_DETACH 2
+#define USB_EVENT_DEVICE_ATTACH 3
+#define USB_EVENT_DEVICE_DETACH 4
+#define USB_EVENT_DRIVER_ATTACH 5
+#define USB_EVENT_DRIVER_DETACH 6
+#define USB_EVENT_IS_ATTACH(n) ((n) == USB_EVENT_CTRLR_ATTACH || (n) == USB_EVENT_DEVICE_ATTACH || (n) == USB_EVENT_DRIVER_ATTACH)
+#define USB_EVENT_IS_DETACH(n) ((n) == USB_EVENT_CTRLR_DETACH || (n) == USB_EVENT_DEVICE_DETACH || (n) == USB_EVENT_DRIVER_DETACH)
 	struct timespec		ue_time;
-	usb_event_cookie_t	ue_cookie;
+	union {
+		struct {
+			int			ue_bus;
+		} ue_ctrlr;
+		struct usb_device_info		ue_device;
+		struct {
+			usb_event_cookie_t	ue_cookie;
+			char			ue_devname[16];
+		} ue_driver;
+	} u;
 };
 
 /* USB controller */

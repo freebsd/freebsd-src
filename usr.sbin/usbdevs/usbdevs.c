@@ -107,7 +107,7 @@ usbdev(int f, int a, int rec)
 		printf("%s, %s", di.udi_product, di.udi_vendor);
 	printf("\n");
 	if (showdevs) {
-		for (i = 0; i < MAXDEVNAMES; i++)
+		for (i = 0; i < USB_MAX_DEVNAMES; i++)
 			if (di.udi_devnames[i][0])
 				printf("%*s  %s\n", indent, "",
 				       di.udi_devnames[i]);
