@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcivar.h,v 1.20 2000/02/22 11:30:55 augustss Exp $	*/
+/*	$NetBSD: ohcivar.h,v 1.21 2000/03/29 01:46:27 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -65,7 +65,14 @@ typedef struct ohci_soft_td {
 typedef struct ohci_soft_itd {
 	ohci_itd_t itd;
 	struct ohci_soft_itd *nextitd; /* mirrors nexttd in ITD */
+	struct ohci_soft_itd *dnext; /* next in done list */
 	ohci_physaddr_t physaddr;
+	LIST_ENTRY(ohci_soft_itd) hnext;
+	usbd_xfer_handle xfer;
+	u_int16_t flags;
+#ifdef DIAGNOSTIC
+	char isdone;
+#endif
 } ohci_soft_itd_t;
 #define OHCI_SITD_SIZE ((sizeof (struct ohci_soft_itd) + OHCI_ITD_ALIGN - 1) / OHCI_ITD_ALIGN * OHCI_ITD_ALIGN)
 #define OHCI_SITD_CHUNK 64
@@ -98,7 +105,8 @@ typedef struct ohci_softc {
 	ohci_soft_ed_t *sc_ctrl_head;
 	ohci_soft_ed_t *sc_bulk_head;
 
-	LIST_HEAD(, ohci_soft_td) sc_hash_tds[OHCI_HASH_SIZE];
+	LIST_HEAD(, ohci_soft_td)  sc_hash_tds[OHCI_HASH_SIZE];
+	LIST_HEAD(, ohci_soft_itd) sc_hash_itds[OHCI_HASH_SIZE];
 
 	int sc_noport;
 	u_int8_t sc_addr;		/* device address */
@@ -112,7 +120,8 @@ typedef struct ohci_softc {
 
 	usbd_xfer_handle sc_intrxfer;
 
-	ohci_physaddr_t sc_done;
+	ohci_soft_itd_t *sc_sidone;
+	ohci_soft_td_t  *sc_sdone;
 
 	char sc_vendor[16];
 	int sc_id_vendor;
@@ -123,6 +132,7 @@ typedef struct ohci_softc {
 #endif
 
 	device_ptr_t sc_child;
+	char sc_dying;
 } ohci_softc_t;
 
 usbd_status	ohci_init(ohci_softc_t *);

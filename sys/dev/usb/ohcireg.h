@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcireg.h,v 1.14 2000/01/31 22:35:14 augustss Exp $	*/
+/*	$NetBSD: ohcireg.h,v 1.16 2000/03/29 01:46:27 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 
@@ -146,6 +146,7 @@ struct ohci_hcca {
 
 #define OHCI_PAGE_SIZE 0x1000
 #define OHCI_PAGE(x) ((x) &~ 0xfff)
+#define OHCI_PAGE_OFFSET(x) ((x) & 0xfff)
 #define OHCI_PAGE_MASK(x) ((x) & 0xfff)
 
 typedef struct {
@@ -212,13 +213,12 @@ typedef struct {
 #define OHCI_ITD_GET_CC(x)	((x) >> 28)		/* Condition Code */
 #define  OHCI_ITD_NOCC		0xf0000000
 	ohci_physaddr_t	itd_bp0;			/* Buffer Page 0 */
-#define OHCI_ITD_OFFSET_MASK	0x00000fff
-#define OHCI_ITD_PAGE_MASK	(~OHCI_ITD_OFFSET_MASK)
 	ohci_physaddr_t	itd_nextitd;			/* Next ITD */
 	ohci_physaddr_t	itd_be;				/* Buffer End */
 	u_int16_t	itd_offset[OHCI_ITD_NOFFSET];	/* Buffer offsets */
 #define itd_pswn itd_offset				/* Packet Status Word*/
 #define OHCI_ITD_PAGE_SELECT	0x00001000
+#define OHCI_ITD_MK_OFFS(len)	(0xe000 | ((len) & 0x1fff))
 #define OHCI_ITD_PSW_LENGTH(x)	((x) & 0xfff)		/* Transfer length */
 #define OHCI_ITD_PSW_GET_CC(x)	((x) >> 12)		/* Condition Code */
 } ohci_itd_t;
