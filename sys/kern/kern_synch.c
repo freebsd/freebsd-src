@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.20 1996/04/07 13:35:58 bde Exp $
+ * $Id: kern_synch.c,v 1.21 1996/07/31 09:26:37 davidg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -472,7 +472,9 @@ restart:
 }
 
 /*
- * Make one process sleeping on the specified identifier runnable.
+ * Make a process sleeping on the specified identifier runnable.
+ * May wake more than one process if a target prcoess is currently
+ * swapped out.
  */
 void
 wakeup_one(ident)
@@ -499,19 +501,14 @@ wakeup_one(ident)
 					updatepri(p);
 				p->p_slptime = 0;
 				p->p_stat = SRUN;
-				/*
-				 * XXX Perhaps we should only terminate the
-				 * loop if the process being awoken is memory
-				 * resident (i.e. actually runnable)?
-				 */
 				if (p->p_flag & P_INMEM) {
 					setrunqueue(p);
 					need_resched();
+					break;
 				} else {
 					wakeup((caddr_t)&proc0);
 				}
 				/* END INLINE EXPANSION */
-				break;
 			}
 		}
 	}
