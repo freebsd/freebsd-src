@@ -25,25 +25,54 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: file.c,v 1.1.1.1 1998/07/09 16:52:41 des Exp $
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "fetch.h"
+#include "common.h"
 
 FILE *
-fetchGetFile(url_t *u, char *flags)
+fetchGetFile(struct url *u, char *flags)
 {
-    flags = flags; /* unused */
-    return fopen(u->doc, "r");
+    FILE *f;
+    
+    f = fopen(u->doc, "r");
+    
+    if (f == NULL)
+	_fetch_syserr();
+    return f;
 }
 
 FILE *
-fetchPutFile(url_t *u, char *flags)
+fetchPutFile(struct url *u, char *flags)
 {
+    FILE *f;
+    
     if (strchr(flags, 'a'))
-	return fopen(u->doc, "a");
-    else return fopen(u->doc, "w");
+	f = fopen(u->doc, "a");
+    else
+	f = fopen(u->doc, "w");
+    
+    if (f == NULL)
+	_fetch_syserr();
+    return f;
+}
+
+int
+fetchStatFile(struct url *u, struct url_stat *us, char *flags)
+{
+    struct stat sb;
+
+    if (stat(u->doc, &sb) == -1) {
+	_fetch_syserr();
+	return -1;
+    }
+    us->size = sb.st_size;
+    us->time = sb.st_mtime;
+    return 0;
 }

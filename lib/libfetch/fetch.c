@@ -25,10 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.c,v 1.4 1998/08/17 09:30:19 des Exp $
+ *	$Id: fetch.c,v 1.5 1998/11/05 19:48:17 des Exp $
  */
 
 #include <sys/param.h>
+#include <sys/errno.h>
 
 #include <ctype.h>
 #include <stdio.h>
@@ -36,22 +37,33 @@
 #include <string.h>
 
 #include "fetch.h"
+#include "common.h"
 
-#ifndef NDEBUG
-#define DEBUG(x) do x; while (0)
-#else
-#define DEBUG(x) do { } while (0)
-#endif
 
-int fetchLastErrCode;
-const char *fetchLastErrText;
+/*** Local data **************************************************************/
+
+/*
+ * Error messages for parser errors
+ */
+#define URL_MALFORMED		1
+#define URL_BAD_SCHEME		2
+#define URL_BAD_PORT		3
+static struct fetcherr _url_errlist[] = {
+    { URL_MALFORMED,	FETCH_URL,	"Malformed URL" },
+    { URL_BAD_SCHEME,	FETCH_URL,	"Invalid URL scheme" },
+    { URL_BAD_PORT,	FETCH_URL,	"Invalid server port" },
+    { -1,		FETCH_UNKNOWN,	"Unknown parser error" }
+};
+
+
+/*** Public API **************************************************************/
 
 /*
  * Select the appropriate protocol for the URL scheme, and return a
  * read-only stream connected to the document referenced by the URL.
  */
 FILE *
-fetchGet(url_t *URL, char *flags)
+fetchGet(struct url *URL, char *flags)
 {
     if (strcasecmp(URL->scheme, "file") == 0)
 	return fetchGetFile(URL, flags);
@@ -59,8 +71,10 @@ fetchGet(url_t *URL, char *flags)
 	return fetchGetHTTP(URL, flags);
     else if (strcasecmp(URL->scheme, "ftp") == 0)
 	return fetchGetFTP(URL, flags);
-    else return NULL;
-
+    else {
+	_url_seterr(URL_BAD_SCHEME);
+	return NULL;
+    }
 }
 
 /*
@@ -68,7 +82,7 @@ fetchGet(url_t *URL, char *flags)
  * write-only stream connected to the document referenced by the URL.
  */
 FILE *
-fetchPut(url_t *URL, char *flags)
+fetchPut(struct url *URL, char *flags)
 {
     if (strcasecmp(URL->scheme, "file") == 0)
 	return fetchPutFile(URL, flags);
@@ -76,7 +90,29 @@ fetchPut(url_t *URL, char *flags)
 	return fetchPutHTTP(URL, flags);
     else if (strcasecmp(URL->scheme, "ftp") == 0)
 	return fetchPutFTP(URL, flags);
-    else return NULL;
+    else {
+	_url_seterr(URL_BAD_SCHEME);
+	return NULL;
+    }
+}
+
+/*
+ * Select the appropriate protocol for the URL scheme, and return the
+ * size of the document referenced by the URL if it exists.
+ */
+int
+fetchStat(struct url *URL, struct url_stat *us, char *flags)
+{
+    if (strcasecmp(URL->scheme, "file") == 0)
+	return fetchStatFile(URL, us, flags);
+    else if (strcasecmp(URL->scheme, "http") == 0)
+	return fetchStatHTTP(URL, us, flags);
+    else if (strcasecmp(URL->scheme, "ftp") == 0)
+	return fetchStatFTP(URL, us, flags);
+    else {
+	_url_seterr(URL_BAD_SCHEME);
+	return -1;
+    }
 }
 
 /*
@@ -85,7 +121,7 @@ fetchPut(url_t *URL, char *flags)
 FILE *
 fetchGetURL(char *URL, char *flags)
 {
-    url_t *u;
+    struct url *u;
     FILE *f;
 
     if ((u = fetchParseURL(URL)) == NULL)
@@ -104,7 +140,7 @@ fetchGetURL(char *URL, char *flags)
 FILE *
 fetchPutURL(char *URL, char *flags)
 {
-    url_t *u;
+    struct url *u;
     FILE *f;
     
     if ((u = fetchParseURL(URL)) == NULL)
@@ -117,27 +153,50 @@ fetchPutURL(char *URL, char *flags)
 }
 
 /*
+ * Attempt to parse the given URL; if successful, call fetchStat().
+ */
+int
+fetchStatURL(char *URL, struct url_stat *us, char *flags)
+{
+    struct url *u;
+    int s;
+
+    if ((u = fetchParseURL(URL)) == NULL)
+	return -1;
+
+    s = fetchStat(u, us, flags);
+
+    free(u);
+    return s;
+}
+
+/*
  * Split an URL into components. URL syntax is:
  * method:[//[user[:pwd]@]host[:port]]/[document]
  * This almost, but not quite, RFC1738 URL syntax.
  */
-url_t *
+struct url *
 fetchParseURL(char *URL)
 {
     char *p, *q;
-    url_t *u;
+    struct url *u;
     int i;
 
-    /* allocate url_t */
-    if ((u = calloc(1, sizeof(url_t))) == NULL)
+    /* allocate struct url */
+    if ((u = calloc(1, sizeof(struct url))) == NULL) {
+	errno = ENOMEM;
+	_fetch_syserr();
 	return NULL;
+    }
 
     /* scheme name */
     for (i = 0; *URL && (*URL != ':'); URL++)
 	if (i < URL_SCHEMELEN)
 	    u->scheme[i++] = *URL;
-    if (!URL[0] || (URL[1] != '/'))
+    if (!URL[0] || (URL[1] != '/')) {
+	_url_seterr(URL_BAD_SCHEME);
 	goto ouch;
+    }
     else URL++;
     if (URL[1] != '/') {
 	p = URL;
@@ -171,7 +230,11 @@ fetchParseURL(char *URL)
 	for (q = ++p; *q && (*q != '/'); q++)
 	    if (isdigit(*q))
 		u->port = u->port * 10 + (*q - '0');
-	    else return 0; /* invalid port */
+	    else {
+		/* invalid port */
+		_url_seterr(URL_BAD_PORT);
+		goto ouch;
+	    }
 	while (*p && (*p != '/'))
 	    p++;
     }
@@ -179,10 +242,13 @@ fetchParseURL(char *URL)
 nohost:
     /* document */
     if (*p) {
-	url_t *t;
+	struct url *t;
 	t = realloc(u, sizeof(*u)+strlen(p)-1);
-	if (t == NULL)
+	if (t == NULL) {
+	    errno = ENOMEM;
+	    _fetch_syserr();
 	    goto ouch;
+	}
 	u = t;
 	strcpy(u->doc, p);
     } else {
