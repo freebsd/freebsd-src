@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.44 1994/11/29 15:46:20 jkh Exp $
+ *	$Id: fd.c,v 1.45 1994/11/30 12:04:28 jkh Exp $
  *
  */
 
@@ -496,6 +496,10 @@ fdattach(dev)
 			break;
 		case RTCFDT_144M:
 			printf("1.44MB 3.5in]");
+			fd->type = FD_1440;
+			break;
+		case RTCFDT_288M:
+			printf("2.88MB 3.5in - 1.44MB mode]");
 			fd->type = FD_1440;
 			break;
 		case RTCFDT_360K:
