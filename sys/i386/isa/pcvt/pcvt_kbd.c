@@ -71,6 +71,8 @@
 
 #include "pcvt_hdr.h"		/* global include */
 
+extern int kbd_response __P((void));
+
 static void fkey1(void), fkey2(void),  fkey3(void),  fkey4(void);
 static void fkey5(void), fkey6(void),  fkey7(void),  fkey8(void);
 static void fkey9(void), fkey10(void), fkey11(void), fkey12(void);
@@ -658,7 +660,7 @@ xlatkey2ascii(U_short key)
 #endif
 	static Ovl_tbl	thisdef;
 	int		n;
-	void		(*fnc)();
+	void		(*fnc)(void);
 
 	if(key==0)			/* ignore the NON-KEY */
 		return 0;
