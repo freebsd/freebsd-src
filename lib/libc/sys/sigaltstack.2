@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)sigaltstack.2	8.1 (Berkeley) 6/4/93
+.\"     @(#)sigaltstack.2	8.2 (Berkeley) 5/1/95
+.\"	$Id$
 .\"
-.Dd June 4, 1993
+.Dd May 1, 1995
 .Dt SIGALTSTACK 2
 .Os BSD 4.2
 .Sh NAME
@@ -42,7 +43,7 @@
 .Fd #include <signal.h>
 .Bd -literal
 struct sigaltstack {
-	caddr_t ss_sp;
+	char	*ss_sp;
 	long	ss_size;
 	int     ss_flags;
 };
