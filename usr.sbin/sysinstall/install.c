@@ -755,14 +755,6 @@ installFixupBin(dialogMenuItem *self)
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
 #ifdef __i386__
-        /* Snapshot any boot -c changes back to the new kernel */
-	cp = variable_get(VAR_KGET);
-	if (cp && (*cp == 'Y' || *cp == 'y')) {
-	    if ((kstat = kget("/boot/kernel.conf")) != NULL) {
-		msgConfirm("Unable to save boot -c changes to new kernel,\n"
-			   "please see the debug screen (ALT-F2) for details.");
-	    }
-	}
 	if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
 	    if (!kstat || !OnVTY)
 		fprintf(fp, "# -- sysinstall generated deltas -- #\n");
@@ -1054,7 +1046,6 @@ installVarDefaults(dialogMenuItem *self)
     /* Set default startup options */
     variable_set2(VAR_RELNAME,			getRelname(), 0);
     variable_set2(VAR_CPIO_VERBOSITY,		"high", 0);
-    variable_set2(VAR_KGET,			"YES", 0);
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE, 0);
     variable_set2(VAR_INSTALL_ROOT,		"/", 0);
     variable_set2(VAR_INSTALL_CFG,		"install.cfg", 0);
