@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.7 1995/08/16 16:13:21 bde Exp $
+ * $Id: uipc_domain.c,v 1.8 1995/08/28 09:18:51 julian Exp $
  */
 
 #include <sys/param.h>
@@ -54,19 +54,19 @@
  * want to call a registration function rather than being handled here
  * in domaininit().  Probably this will look like:
  *
- * SYSINIT(unique, SI_SUB_PROTO_DOMAI, SI_ORDER_ANY, domain_add, (caddr_t)xxx)
+ * SYSINIT(unique, SI_SUB_PROTO_DOMAI, SI_ORDER_ANY, domain_add, xxx)
  *
  * Where 'xxx' is replaced by the address of a parameter struct to be
  * passed to the doamin_add() function.
  */
 
 static int	x_save_spl;			/* used by kludge*/
-static void kludge_splimp __P((caddr_t));
-static void kludge_splx __P((caddr_t));
-static void domaininit __P((caddr_t));
-SYSINIT(splimp, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, kludge_splimp, (caddr_t)&x_save_spl)
+static void kludge_splimp __P((void *));
+static void kludge_splx __P((void *));
+static void domaininit __P((void *));
+SYSINIT(splimp, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, kludge_splimp, &x_save_spl)
 SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL)
-SYSINIT(splx, SI_SUB_PROTO_END, SI_ORDER_FIRST, kludge_splx,  (caddr_t)&x_save_spl)
+SYSINIT(splx, SI_SUB_PROTO_END, SI_ORDER_FIRST, kludge_splx, &x_save_spl)
 
 
 void	pffasttimo __P((void *));
@@ -83,8 +83,8 @@ extern struct linker_set domain_set;
 
 /* ARGSUSED*/
 static void
-domaininit( udata)
-caddr_t		udata;		/* not used*/
+domaininit(udata)
+	void *udata;		/* not used*/
 {
 	register struct domain *dp, **dpp;
 	register struct protosw *pr;
@@ -131,8 +131,8 @@ caddr_t		udata;		/* not used*/
  * to this does not also take place at splimp by default.
  */
 static void
-kludge_splimp( udata)
-caddr_t		udata;
+kludge_splimp(udata)
+	void *udata;
 {
 	int	*savesplp = (int *)udata;
 
@@ -140,8 +140,8 @@ caddr_t		udata;
 }
 
 static void
-kludge_splx( udata)
-caddr_t		udata;
+kludge_splx(udata)
+	void *udata;
 {
 	int	*savesplp = (int *)udata;
 

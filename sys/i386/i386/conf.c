@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.95 1995/09/03 23:55:53 jkh Exp $
+ *	$Id: conf.c,v 1.96 1995/09/08 03:37:51 julian Exp $
  */
 
 #include <sys/param.h>
@@ -55,7 +55,6 @@
 #include <sys/conf.h>
 
 d_rdwr_t rawread, rawwrite;
-d_strategy_t swstrategy;
 
 /* Lots of bogus defines for shorthand purposes */
 #define noopen		(d_open_t *)enodev
