@@ -122,7 +122,6 @@ struct pccard_function {
 	STAILQ_ENTRY(pccard_function) pf_list;
 	/* run-time state */
 	struct pccard_softc *sc;
-	struct device *child;
 	struct pccard_config_entry *cfe;
 	struct pccard_mem_handle pf_pcmh;
 #define	pf_ccrt		pf_pcmh.memt
@@ -202,8 +201,8 @@ struct pccard_tuple {
 void	pccard_read_cis(struct pccard_softc *);
 void	pccard_check_cis_quirks(device_t);
 void	pccard_print_cis(device_t);
-int	pccard_scan_cis(struct device * dev,
-	    int (*) (struct pccard_tuple *, void *), void *);
+int	pccard_scan_cis(device_t, 
+		int (*) (struct pccard_tuple *, void *), void *);
 
 #define	pccard_cis_read_1(tuple, idx0)					\
 	(bus_space_read_1((tuple)->memt, (tuple)->memh, (tuple)->mult*(idx0)))
@@ -284,12 +283,6 @@ pccard_get_ether(device_t dev, u_char *enaddr)
 }
 
 enum {
-	PCCARD_A_MEM_ATTR
+	PCCARD_A_MEM_ATTR = 0x1
 };
 
-/* Set the */
-
-static __inline__ void
-pccard_set_attribute(device_t dev, struct resource *r, int rid, int flags)
-{
-}

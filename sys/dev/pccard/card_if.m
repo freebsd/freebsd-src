@@ -37,16 +37,41 @@ INTERFACE card;
 # the driver activating the resources doesn't necessarily know or need to know
 # these attributes.
 #
-METHOD int set_resource_attribute {
+METHOD int set_res_flags {
 	device_t dev;
 	device_t child;
+	int	 restype;
 	int	 rid;
-	u_int	 flags;
+	u_long	 value;
 };
 
-METHOD int get_resource_attribute {
+METHOD int get_res_flags {
 	device_t dev;
 	device_t child;
+	int	 restype;
 	int	 rid;
-	u_int	 *flags;
+	u_long	 *value;
 };
+
+METHOD int set_memory_offset {
+	device_t  dev;
+	device_t  child;
+        int	  rid;
+        u_int32_t offset;
+}
+
+# These might be better static
+
+METHOD int attach_card {
+	device_t  dev;
+}
+
+METHOD int detach_card {
+	device_t  dev;
+	int	  flags;
+}
+
+METHOD int get_type {
+	device_t  dev;
+	int	  *type;
+}

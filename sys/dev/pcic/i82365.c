@@ -58,6 +58,8 @@
 #include <dev/pcic/i82365reg.h>
 #include <dev/pcic/i82365var.h>
 
+#include "card_if.h"
+
 #define PCICDEBUG
 
 #ifdef PCICDEBUG
@@ -92,9 +94,11 @@ static void	pcic_deactivate(device_t dev);
 static int	pcic_activate(device_t dev);
 static void	pcic_intr(void *arg);
 
-void		pcic_attach_card(struct pcic_handle *);
-void		pcic_detach_card(struct pcic_handle *, int);
+static void	pcic_attach_card(struct pcic_handle *);
+static void	pcic_detach_card(struct pcic_handle *, int);
+#if 0
 void		pcic_deactivate_card(struct pcic_handle *);
+#endif
 
 static void	pcic_chip_do_mem_map(struct pcic_handle *, int);
 static void	pcic_chip_do_io_map(struct pcic_handle *, int);
@@ -613,10 +617,11 @@ pcic_init_socket(struct pcic_handle *h)
 			pcic_write(h, PCIC_CIRRUS_MISC_CTL_2, reg);
 		}
 	}
-	/* if there's a card there, then attach it. */
+	h->laststate = PCIC_LASTSTATE_EMPTY;
 
-	reg = pcic_read(h, PCIC_IF_STATUS);
-
+#if 0
+/* XXX */
+/*	SHould do this later */
 	if ((reg & PCIC_IF_STATUS_CARDDETECT_MASK) ==
 	    PCIC_IF_STATUS_CARDDETECT_PRESENT) {
 		pcic_attach_card(h);
@@ -624,6 +629,7 @@ pcic_init_socket(struct pcic_handle *h)
 	} else {
 		h->laststate = PCIC_LASTSTATE_EMPTY;
 	}
+#endif
 }
 
 static void
@@ -670,8 +676,8 @@ pcic_intr_socket(struct pcic_handle *h)
 		} else {
 			if (h->laststate == PCIC_LASTSTATE_PRESENT) {
 				/* Deactivate the card now. */
-				DEVPRINTF((h->dev, "deactivating card\n"));
-				pcic_deactivate_card(h);
+				DEVPRINTF((h->dev, "detaching card\n"));
+				pcic_detach_card(h, DETACH_FORCE);
 
 				DEVPRINTF((h->dev, 
 				    "enqueing REMOVAL event\n"));
@@ -710,13 +716,14 @@ pcic_queue_event(struct pcic_handle *h, int event)
 	wakeup(&h->events);
 }
 
-void
+static void
 pcic_attach_card(struct pcic_handle *h)
 {
-	DPRINTF(("pcic_attach_card h %p h->dev %p\n", h, h->dev));
+	DPRINTF(("pcic_attach_card h %p h->dev %p %s %s\n", h, h->dev,
+	    device_get_name(h->dev), device_get_name(device_get_parent(h->dev))));
 	if (!(h->flags & PCIC_FLAG_CARDP)) {
 		/* call the MI attach function */
-		pccard_card_attach(h->dev);
+		CARD_ATTACH_CARD(h->dev);
 
 		h->flags |= PCIC_FLAG_CARDP;
 	} else {
@@ -724,7 +731,7 @@ pcic_attach_card(struct pcic_handle *h)
 	}
 }
 
-void
+static void
 pcic_detach_card(struct pcic_handle *h, int flags)
 {
 
@@ -732,12 +739,13 @@ pcic_detach_card(struct pcic_handle *h, int flags)
 		h->flags &= ~PCIC_FLAG_CARDP;
 
 		/* call the MI detach function */
-		pccard_card_detach(h->dev, flags);
+		CARD_DETACH_CARD(h->dev, flags);
 	} else {
 		DPRINTF(("pcic_detach_card: already detached"));
 	}
 }
 
+#if 0
 void
 pcic_deactivate_card(struct pcic_handle *h)
 {
@@ -751,6 +759,7 @@ pcic_deactivate_card(struct pcic_handle *h)
 	/* reset the socket */
 	pcic_write(h, PCIC_INTR, 0);
 }
+#endif
 
 static int 
 pcic_chip_mem_alloc(struct pcic_handle *h, bus_size_t size,
@@ -937,12 +946,11 @@ pcic_chip_mem_map(struct pcic_handle *h, int kind, bus_addr_t card_addr,
 		return (1);
 
 	*windowp = win;
-
+#if 0
 	/* XXX this is pretty gross */
-
 	if (sc->memt != pcmhp->memt)
 		panic("pcic_chip_mem_map memt is bogus");
-
+#endif
 	busaddr = pcmhp->addr;
 
 	/*
@@ -1133,10 +1141,11 @@ pcic_chip_io_map(struct pcic_handle *h, int width, bus_addr_t offset,
 
 	*windowp = win;
 
+#if 0
 	/* XXX this is pretty gross */
-
 	if (sc->iot != pcihp->iot)
 		panic("pcic_chip_io_map iot is bogus");
+#endif
 
 	DPRINTF(("pcic_chip_io_map window %d %s port %lx+%lx\n",
 		 win, width_names[width], (u_long) ioaddr, (u_long) size));
@@ -1265,12 +1274,10 @@ pcic_enable_socket(device_t dev, device_t child)
 	pcic_wait_ready(h);
 
 	/* zero out the address windows */
-
 	pcic_write(h, PCIC_ADDRWIN_ENABLE, 0);
 
 	/* set the card type */
-
-	cardtype = pccard_card_gettype(h->dev);
+	CARD_GET_TYPE(h->dev, &cardtype);
 
 	reg = pcic_read(h, PCIC_INTR);
 	reg &= ~(PCIC_INTR_CARDTYPE_MASK | PCIC_INTR_IRQ_MASK | PCIC_INTR_ENABLE);
@@ -1509,6 +1516,27 @@ pcic_resume(device_t dev)
 {
 	/* Need to port pcic_power from newer netbsd versions of this file */
 
+	return 0;
+}
+
+int
+pcic_set_res_flags(device_t dev, device_t child, int type, int rid, 
+    u_int32_t flags)
+{
+	struct pcic_handle *h = pcic_get_handle(dev, child);
+printf("%p %p %d %d %#x\n", dev, child, type, rid, flags);
+
+	if (type != SYS_RES_MEMORY)
+		return (EINVAL);
+	h->mem[rid].kind = PCCARD_MEM_ATTR;
+	pcic_chip_do_mem_map(h, rid);
+
+	return 0;
+}
+
+int
+pcic_set_memory_offset(device_t dev, device_t child, int rid, u_int32_t offset)
+{
 	return 0;
 }
 
