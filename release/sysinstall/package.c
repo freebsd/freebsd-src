@@ -125,7 +125,6 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    dup2(DebugFD, 1);
 	    close(2);
 	    close(pfd[1]);
-	    chroot(variable_get(VAR_INSTALL_ROOT));
 	    i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-", 0);
 	    if (isDebug())
 		msgDebug("pkg_add returns %d status\n", i);

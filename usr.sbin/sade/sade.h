@@ -313,7 +313,6 @@ extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
 extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
-extern Boolean		Chrooted;		/* Are we chroot()ed?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
 extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
 extern Boolean		OnVTY;			/* On a syscons VTY?				*/
@@ -637,8 +636,6 @@ extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_exists(char *name);
 
 /* system.c */
-extern int	alarm_clear(void);
-extern void	alarm_set(int delay, void (*handler)(int sig));
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(int status);
 extern int	execExecute(char *cmd, char *name);
