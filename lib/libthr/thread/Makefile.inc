@@ -46,6 +46,7 @@ SRCS+= \
 	thr_spec.c \
 	thr_spinlock.c \
 	thr_stack.c \
+	thr_subr.c \
 	thr_suspend_np.c \
 	thr_syscalls.c \
 	thr_yield.c
