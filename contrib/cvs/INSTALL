@@ -191,6 +191,7 @@ SPARC:
 	Sun UltraSPARC running Solaris 2.6 using gcc 2.8.1 (1.10)
 	NextSTEP 3.3 (1.7)
 	Sun SPARC running Linux 2.0.17, gcc 2.7.2 (1.8.87)
+	Sun UltraSPARC running Solaris 2.8 using gcc 2.95.3
 VAX:
 	VAX running VMS 6.2 (1.9+patches, client-only)
 	  (see README.VMS for information on necessary hacks).
@@ -337,9 +338,9 @@ Building from source code under Unix:
 	By default, CVS uses some built-in ndbm emulation code to allow
 	CVS to work in a heterogeneous environment.  However, if you have
 	a very large modules database, this may not work well.  You will
-	need to edit src/options.h to turn off the MY_NDBM #define and
-	re-run configure.  If you do this, the following comments apply.
-	If not, you may safely skip these comments.
+	need to supply the --disable-cvs-ndbm option to configure to
+	accomplish this.  If you do this, the following comments apply.  If
+	not, you may safely skip these comments.
 
 	If you configure CVS to use the real ndbm(3) libraries and
 	you do not have them installed in a "normal" place, you will
