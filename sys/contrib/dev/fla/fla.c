@@ -28,7 +28,6 @@
 #include <vm/vm_param.h>
 
 #include <sys/bus.h>
-#include <isa/isavar.h>
 
 #define LEAVE()
 #define ENTER()
