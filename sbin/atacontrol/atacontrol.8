@@ -47,7 +47,7 @@
 .Ar channel
 .Nm
 .Ic create
-.Ar type [interleave] disk0 ... diskN
+.Ar type Oo Ar interleave Oc Ar disk0 ... diskN
 .Nm
 .Ic delete
 .Ar raid
@@ -110,32 +110,55 @@ Likewise are devices that show up during a reset, probed and attached.
 .It Ic create
 Create a
 .Ar type
-ATA RAID. The Type can be RAID0 (stripe), RAID1 (mirror), RAID0+1 or
-SPAN (JBOD). In case the RAID has a RAID0 component the 
+ATA RAID.
+The type can be
+.Cm RAID0
+(stripe),
+.Cm RAID1
+(mirror),
+.Cm RAID0+1
+or
+.Cm SPAN
+(JBOD).
+In case the RAID has a
+.Cm RAID0
+component,
+the
 .Ar interleave
-must be specified in number of sectors. The RAID will be created
+must be specified in number of sectors.
+The RAID will be created
 of the individual disks named
-.Ar disk0 ... diskN.    
+.Bk -words
+.Ar disk0 ... diskN .
+.Ek
 .Pp
-Allthough the ATA driver allows for creating an ATA RAID on disks on any
-controller, there are restrictions. It is only possible to boot on
-an array if its either located on a "real" ATA RAID controller like
+Although the ATA driver allows for creating an ATA RAID on disks on any
+controller, there are restrictions.
+It is only possible to boot on
+an array if it is either located on a
+.Dq real
+ATA RAID controller like
 the Promise or Highpoint controllers, or if the RAID declared is of
-RAID1 or SPAN type, in case of a SPAN the partition to boot must 
+.Cm RAID1
+or
+.Cm SPAN
+type; in case of a
+.Cm SPAN ,
+the partition to boot must
 reside on the first disk in the SPAN.
 .It Ic delete
-Deletes a RAID array on a RAID capable ATA controller.
+Delete a RAID array on a RAID capable ATA controller.
 .It Ic rebuild
 Rebuild a RAID1 array on a RAID capable ATA controller.
 .It Ic status
 Get the status of an ATA RAID.
 .It Ic mode
-Without the two mode arguments the current transfer modes of both
+Without the two mode arguments, the current transfer modes of both
 devices are printed.
 If the mode arguments are given, the ATA driver
 is asked to change the transfer modes to those given.
 The ATA driver
-will reject modes that is not supported by the hardware.
+will reject modes that are not supported by the hardware.
 Modes are given like
 .Dq Li PIO3 ,
 .Dq Li udma2 ,
