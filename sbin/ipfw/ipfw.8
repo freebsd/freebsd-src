@@ -51,10 +51,9 @@
 .Op Fl q
 .Oo
 .Fl p Ar preproc
-.Oo Fl D
-.Ar macro Ns Op = Ns Ar value
+.Oo
+.Ar preproc-flags
 .Oc
-.Op Fl U Ar macro
 .Oc
 .Ar pathname
 .Sh DESCRIPTION
@@ -289,11 +288,8 @@ file systems are mounted (yet) by the time
 is being run (e.g. when they are mounted over NFS).
 Once
 .Fl p
-has been specified, optional
-.Fl D
-and
-.Fl U
-specifications can follow and will be passed on to the preprocessor.
+has been specified, any additional arguments as passed on to the preprocessor
+for interpretation.
 This allows for flexible configuration files (like conditionalizing
 them on the local hostname) and the use of macros to centralize
 frequently required arguments like IP addresses.
