@@ -6,5 +6,5 @@ all:
 clean:
 	rm LINT
 
-LINT: ../../conf/NOTES NOTES makeLINT.pl
-	cat ../../conf/NOTES NOTES | perl5 makeLINT.pl > LINT
+LINT: ../../conf/NOTES NOTES makeLINT.sh
+	cat ../../conf/NOTES NOTES | sh makeLINT.sh > LINT
