@@ -64,9 +64,7 @@ STATIC struct cdevsw vinum_cdevsw =
 /* Called by main() during pseudo-device attachment. */
 STATIC void vinumattach(void *);
 
-#ifndef ACTUALLY_LKM_NOT_KERNEL
 STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
-#endif
 
 struct _vinum_conf vinum_conf;				    /* configuration information */
 
