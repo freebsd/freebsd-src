@@ -47,6 +47,7 @@
 #include <dev/aac/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 
+#ifdef AAC_DEBUG
 void		aac_printstate0(void);
 void		aac_intr0(void);
 
@@ -434,3 +435,4 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 	break;
     }
 }
+#endif
