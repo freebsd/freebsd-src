@@ -198,6 +198,14 @@
       is unaffected, for example).
       More information can be found in security advisory 
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>.</para>
+
+    <para><application>BIND</application> contains the potential for a
+      denial-of-service attack.  This vulnerability has been addressed
+      by a vendor patch on the &release.prev; security fix branch and
+      by the import of a new version to the &release.branch;
+      development branch.  For more information, see 
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>.</para>
+
 ]]>
 
   </sect1>
