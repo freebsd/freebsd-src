@@ -430,13 +430,13 @@ aio_free_entry(struct aiocblist *aiocbe)
 	}
 
 	/* aiocbe is going away, we need to destroy any knotes */
-	knote_remove(&p->p_thread, &aiocbe->klist); /* XXXKSE */
 	/* XXXKSE Note the thread here is used to eventually find the 
 	 * owning process again, but it is also used to do a fo_close
 	 * and that requires the thread. (but does it require the
-	 * OWNING thread? (or maby the running thread?)
+	 * OWNING thread? (or maybe the running thread?)
 	 * There is a semantic problem here... 
 	 */
+	knote_remove(FIRST_THREAD_IN_PROC(p), &aiocbe->klist); /* XXXKSE */
 
 	if ((ki->kaio_flags & KAIO_WAKEUP) || ((ki->kaio_flags & KAIO_RUNDOWN)
 	    && ((ki->kaio_buffer_count == 0) && (ki->kaio_queue_count == 0)))) {
@@ -838,7 +838,7 @@ aio_daemon(void *uproc)
 				mycp->p_vmspace->vm_refcnt++;
 				
 				/* Activate the new mapping. */
-				pmap_activate(&mycp->p_thread);
+				pmap_activate(FIRST_THREAD_IN_PROC(mycp));
 				
 				/*
 				 * If the old address space wasn't the daemons
@@ -949,7 +949,7 @@ aio_daemon(void *uproc)
 			mycp->p_vmspace = myvm;
 			
 			/* Activate the daemon's address space. */
-			pmap_activate(&mycp->p_thread);
+			pmap_activate(FIRST_THREAD_IN_PROC(mycp));
 #ifdef DIAGNOSTIC
 			if (tmpvm == myvm) {
 				printf("AIOD: vmspace problem -- %d\n",

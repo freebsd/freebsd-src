@@ -41,6 +41,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysproto.h>
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/tty.h>
@@ -111,69 +112,86 @@ procinit()
 }
 
 /*
- * link up a process structure and it's inbuilt threads etc.
+ * Note that we do not link to the proc's ucred here
+ * The thread is linked as if running but no KSE assigned
+ */
+static  void
+thread_link(struct thread *td, struct ksegrp *kg)
+{
+	struct proc *p = kg->kg_proc;
+
+	td->td_proc     = p;
+	td->td_ksegrp   = kg;
+	td->td_last_kse = NULL;
+
+	TAILQ_INSERT_HEAD(&p->p_threads, td, td_plist);
+	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
+	td->td_critnest = 0;
+	td->td_savecrit = 0;
+	td->td_kse      = NULL;
+}
+
+/* 
+ * KSE is linked onto the idle queue.
+ */
+static void
+kse_link(struct kse *ke, struct ksegrp *kg)
+{
+	struct proc *p = kg->kg_proc;
+
+	TAILQ_INSERT_HEAD(&kg->kg_kseq, ke, ke_kglist);
+	kg->kg_kses++;
+	TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
+	ke->ke_proc	= p;
+	ke->ke_ksegrp	= kg;
+	ke->ke_thread	= NULL;
+	ke->ke_oncpu = NOCPU;
+}
+
+static void
+ksegrp_link(struct ksegrp *kg, struct proc *p)
+{
+	TAILQ_INIT(&kg->kg_threads);
+	TAILQ_INIT(&kg->kg_runq);	/* links with td_runq */
+	TAILQ_INIT(&kg->kg_slpq);	/* links with td_runq */
+	TAILQ_INIT(&kg->kg_kseq);	/* all kses in ksegrp */
+	TAILQ_INIT(&kg->kg_iq);		/* all kses in ksegrp */
+	kg->kg_proc	= p;
+/* the following counters are in the -zero- section and may not need clearing */
+	kg->kg_runnable = 0;
+	kg->kg_kses = 0;
+	kg->kg_runq_kses = 0; /* XXXKSE change name */
+/* link it in now that it's consitant */
+	TAILQ_INSERT_HEAD(&p->p_ksegrps, kg, kg_ksegrp);
+}
+
+/*
+ * for a newly created process,
+ * link up a the structure and its initial threads etc.
  */
 void
-proc_linkup(struct proc *p)
+proc_linkup(struct proc *p, struct ksegrp *kg,
+			struct kse *ke, struct thread *td)
 {
-	struct thread *td;
+	TAILQ_INIT(&p->p_ksegrps);	     /* all ksegrps in proc */
+	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 
-	td = &p->p_thread;
+	ksegrp_link(kg, p);
+	kse_link(ke, kg);
+	thread_link(td, kg);
+	/* link them together for 1:1 */
+	td->td_kse = ke;
+	ke->ke_thread = td;
 
-	/**** lists headed in the proc structure ****/
-	/* ALL KSEGRPs in this process */
-	TAILQ_INIT(       &p->p_ksegrps);	     /* all ksegrps in proc */
-	TAILQ_INSERT_HEAD(&p->p_ksegrps, &p->p_ksegrp, kg_ksegrp);
+}
 
-	/* All threads in this process (an optimisation) */
-	TAILQ_INIT(       &p->p_threads);	     /* all threads in proc */
-	TAILQ_INSERT_HEAD(&p->p_threads, &p->p_thread, td_plist);
+/* temporary version is ultra simple while we are in 1:1 mode */
+struct thread *
+thread_get(struct proc *p)
+{
+	struct thread *td = &p->p_xxthread;
 
-	/**** Lists headed in the KSEGROUP structure ****/
-	/* all thread in this ksegroup */
-	TAILQ_INIT(       &p->p_ksegrp.kg_threads);
-	TAILQ_INSERT_HEAD(&p->p_ksegrp.kg_threads, &p->p_thread, td_kglist);
-
-	/* All runnable threads not assigned to a particular KSE */
-	/* XXXKSE THIS MAY GO AWAY.. KSEs are never unassigned */
-	TAILQ_INIT(       &p->p_ksegrp.kg_runq); /* links with td_runq */
-
-	/* All threads presently not runnable (Thread starts this way) */
-	TAILQ_INIT(       &p->p_ksegrp.kg_slpq); /* links with td_runq */
-	TAILQ_INSERT_HEAD(&p->p_ksegrp.kg_slpq, &p->p_thread, td_runq);
-	/*p->p_thread.td_flags &= ~TDF_ONRUNQ;*/
-
-	/* all KSEs in this ksegroup */
-	TAILQ_INIT(       &p->p_ksegrp.kg_kseq);     /* all kses in ksegrp */
-	TAILQ_INSERT_HEAD(&p->p_ksegrp.kg_kseq, &p->p_kse, ke_kglist);
-
-	/* KSE starts out idle *//* XXXKSE */
-	TAILQ_INIT(       &p->p_ksegrp.kg_rq);     /* all kses in ksegrp */
-	TAILQ_INIT(       &p->p_ksegrp.kg_iq);     /* all kses in ksegrp */
-#if 0
-	TAILQ_INSERT_HEAD(&p->p_ksegrp.kg_iq, &p->p_kse, ke_kgrlist);
-#endif  /* is running, not idle */
-	/*p->p_kse.ke_flags &= &KEF_ONRUNQ;*/
-
-	/**** Lists headed in the KSE structure ****/
-	/* runnable threads assigned to this kse */
-	TAILQ_INIT(       &p->p_kse.ke_runq);	    /* links with td_runq */
-
-	p->p_thread.td_proc	= p;
-	p->p_kse.ke_proc	= p;
-	p->p_ksegrp.kg_proc	= p;
-
-	p->p_thread.td_ksegrp	= &p->p_ksegrp;
-	p->p_kse.ke_ksegrp	= &p->p_ksegrp;
-
-	p->p_thread.td_last_kse	= &p->p_kse;
-	p->p_thread.td_kse	= &p->p_kse;
-
-	p->p_kse.ke_thread	= &p->p_thread;
-
-	p->p_ksegrp.kg_runnable = 1;
-	p->p_ksegrp.kg_kses = 1;
-	p->p_ksegrp.kg_runq_kses = 1; /* XXXKSE change name */
+	return (td);
 }
 
 /*
@@ -473,6 +491,7 @@ fill_kinfo_proc(p, kp)
 
 	bzero(kp, sizeof(*kp));
 
+	td = FIRST_THREAD_IN_PROC(p);
 	kp->ki_structsize = sizeof(*kp);
 	kp->ki_paddr = p;
 	PROC_LOCK(p);
@@ -512,6 +531,7 @@ fill_kinfo_proc(p, kp)
 		kp->ki_dsize = vm->vm_dsize;
 		kp->ki_ssize = vm->vm_ssize;
 	}
+	td = FIRST_THREAD_IN_PROC(p);
 	if ((p->p_sflag & PS_INMEM) && p->p_stats) {
 		kp->ki_start = p->p_stats->p_start;
 		kp->ki_rusage = p->p_stats->p_ru;
@@ -520,11 +540,11 @@ fill_kinfo_proc(p, kp)
 		kp->ki_childtime.tv_usec = p->p_stats->p_cru.ru_utime.tv_usec +
 		    p->p_stats->p_cru.ru_stime.tv_usec;
 	}
-	if (p->p_thread.td_wmesg != NULL)
-		strncpy(kp->ki_wmesg, p->p_thread.td_wmesg, sizeof(kp->ki_wmesg) - 1);
+	if (td->td_wmesg != NULL)
+		strncpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg) - 1);
 	if (p->p_stat == SMTX) {
 		kp->ki_kiflag |= KI_MTXBLOCK;
-		strncpy(kp->ki_mtxname, p->p_thread.td_mtxname,
+		strncpy(kp->ki_mtxname, td->td_mtxname,
 		    sizeof(kp->ki_mtxname) - 1);
 	}
 	kp->ki_stat = p->p_stat;
@@ -537,15 +557,15 @@ fill_kinfo_proc(p, kp)
 	kp->ki_pctcpu = p->p_kse.ke_pctcpu;
 	kp->ki_estcpu = p->p_ksegrp.kg_estcpu;
 	kp->ki_slptime = p->p_ksegrp.kg_slptime;
-	kp->ki_wchan = p->p_thread.td_wchan;
+	kp->ki_wchan = td->td_wchan;
 	kp->ki_pri = p->p_ksegrp.kg_pri;
 	kp->ki_nice = p->p_ksegrp.kg_nice;
 	kp->ki_rqindex = p->p_kse.ke_rqindex;
 	kp->ki_oncpu = p->p_kse.ke_oncpu;
-	kp->ki_lastcpu = p->p_thread.td_lastcpu;
-	kp->ki_tdflags = p->p_thread.td_flags;
-	kp->ki_pcb = p->p_thread.td_pcb;
-	kp->ki_kstack = (void *)p->p_thread.td_kstack;
+	kp->ki_lastcpu = td->td_lastcpu;
+	kp->ki_tdflags = td->td_flags;
+	kp->ki_pcb = td->td_pcb;
+	kp->ki_kstack = (void *)td->td_kstack;
 	/* ^^^ XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 	sp = NULL;

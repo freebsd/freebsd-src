@@ -368,7 +368,7 @@ struct proc {
  
 	struct ksegrp	p_ksegrp;
 	struct kse	p_kse;
-	struct thread	p_thread;
+	struct thread	p_xxthread;
 
 	/*
 	 * The following don't make too much sense..
@@ -523,6 +523,12 @@ MALLOC_DECLARE(M_ZOMBIE);
 #define	FOREACH_THREAD_IN_PROC(p, td)					\
 	TAILQ_FOREACH((td), &(p)->p_threads, td_plist)
 
+/* XXXKSE the lines below should probably only be used in 1:1 code */
+#define FIRST_THREAD_IN_PROC(p) TAILQ_FIRST(&p->p_threads)
+#define FIRST_KSEGRP_IN_PROC(p) TAILQ_FIRST(&p->p_ksegrps)
+#define FIRST_KSE_IN_KSEGRP(kg) TAILQ_FIRST(&kg->kg_kseq)
+#define FIRST_KSE_IN_PROC(p) FIRST_KSE_IN_KSEGRP(FIRST_KSEGRP_IN_PROC(p))
+
 static __inline int
 sigonstack(size_t sp)
 {
@@ -618,7 +624,7 @@ extern u_long pgrphash;
 extern struct sx allproc_lock;
 extern struct sx proctree_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
-extern struct thread *thread0;		/* Primary thread in proc0 */
+extern struct thread thread0;		/* Primary thread in proc0 */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
@@ -673,7 +679,8 @@ int	p_cansee __P((struct proc *p1, struct proc *p2));
 int	p_cansched __P((struct proc *p1, struct proc *p2));
 int	p_cansignal __P((struct proc *p1, struct proc *p2, int signum));
 void	procinit __P((void));
-void	proc_linkup __P((struct proc *p));
+void	proc_linkup __P((struct proc *p, struct ksegrp *kg,
+	    struct kse *ke, struct thread *td));
 void	proc_reparent __P((struct proc *child, struct proc *newparent));
 int	procrunnable __P((void));
 void	remrunqueue __P((struct thread *));
@@ -697,11 +704,12 @@ void	maybe_resched __P((struct ksegrp *));
 
 void	cpu_exit __P((struct thread *));
 void	exit1 __P((struct thread *, int)) __dead2;
-void	cpu_fork __P((struct thread *, struct proc *, int));
+void	cpu_fork __P((struct thread *, struct proc *, struct thread *, int));
 void	cpu_set_fork_handler __P((struct thread *, void (*)(void *), void *));
 int	trace_req __P((struct proc *));
 void	cpu_wait __P((struct proc *));
 int	cpu_coredump __P((struct thread *, struct vnode *, struct ucred *));
+struct thread *thread_get(struct proc *);
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */

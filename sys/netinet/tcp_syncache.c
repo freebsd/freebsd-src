@@ -615,7 +615,7 @@ syncache_socket(sc, lso)
 		laddr6 = inp->in6p_laddr;
 		if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 			inp->in6p_laddr = sc->sc_inc.inc6_laddr;
-		if (in6_pcbconnect(inp, (struct sockaddr *)sin6, thread0)) {
+		if (in6_pcbconnect(inp, (struct sockaddr *)sin6, &thread0)) {
 			inp->in6p_laddr = laddr6;
 			FREE(sin6, M_SONAME);
 			goto abort;
@@ -647,7 +647,7 @@ syncache_socket(sc, lso)
 		laddr = inp->inp_laddr;
 		if (inp->inp_laddr.s_addr == INADDR_ANY)
 			inp->inp_laddr = sc->sc_inc.inc_laddr;
-		if (in_pcbconnect(inp, (struct sockaddr *)sin, thread0)) {
+		if (in_pcbconnect(inp, (struct sockaddr *)sin, &thread0)) {
 			inp->inp_laddr = laddr;
 			FREE(sin, M_SONAME);
 			goto abort;

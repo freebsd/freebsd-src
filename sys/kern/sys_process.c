@@ -383,7 +383,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	/*
 	 * Single step fixup ala procfs
 	 */
-	FIX_SSTEP(&p->p_thread);	/* XXXKSE */
+	FIX_SSTEP(FIRST_THREAD_IN_PROC(p));	/* XXXKSE */
 #endif
 
 	/*
@@ -425,7 +425,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		PHOLD(p);
 
 		if (uap->req == PT_STEP) {
-			if ((error = ptrace_single_step(&p->p_thread))) {
+			if ((error = ptrace_single_step(FIRST_THREAD_IN_PROC(p)))) {
 				PRELE(p);
 				return (error);
 			}
@@ -433,7 +433,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 
 		if (uap->addr != (caddr_t)1) {
 			fill_kinfo_proc(p, &p->p_uarea->u_kproc);
-			if ((error = ptrace_set_pc(&p->p_thread,
+			if ((error = ptrace_set_pc(FIRST_THREAD_IN_PROC(p),
 			    (u_long)(uintfptr_t)uap->addr))) {
 				PRELE(p);
 				return (error);
@@ -472,7 +472,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SSTOP) {
 			p->p_xstat = uap->data;
-			setrunnable(&p->p_thread); /* XXXKSE */
+			setrunnable(FIRST_THREAD_IN_PROC(p)); /* XXXKSE */
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			mtx_unlock_spin(&sched_lock);
@@ -525,7 +525,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		error = copyin(uap->addr, &r.reg, sizeof r.reg);
 		if (error == 0) {
 			PHOLD(p);
-			error = proc_write_regs(&p->p_thread, &r.reg);
+			error = proc_write_regs(FIRST_THREAD_IN_PROC(p), &r.reg);
 			PRELE(p);
 		}
 		return (error);
@@ -534,7 +534,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 #ifdef PT_GETREGS
 	case PT_GETREGS:
 		PHOLD(p);
-		error = proc_read_regs(&p->p_thread, &r.reg);
+		error = proc_read_regs(FIRST_THREAD_IN_PROC(p), &r.reg);
 		PRELE(p);
 		if (error == 0)
 			error = copyout(&r.reg, uap->addr, sizeof r.reg);
@@ -546,7 +546,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		error = copyin(uap->addr, &r.fpreg, sizeof r.fpreg);
 		if (error == 0) {
 			PHOLD(p);
-			error = proc_write_fpregs(&p->p_thread, &r.fpreg);
+			error = proc_write_fpregs(FIRST_THREAD_IN_PROC(p), &r.fpreg);
 			PRELE(p);
 		}
 		return (error);
@@ -555,7 +555,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 #ifdef PT_GETFPREGS
 	case PT_GETFPREGS:
 		PHOLD(p);
-		error = proc_read_fpregs(&p->p_thread, &r.fpreg);
+		error = proc_read_fpregs(FIRST_THREAD_IN_PROC(p), &r.fpreg);
 		PRELE(p);
 		if (error == 0)
 			error = copyout(&r.fpreg, uap->addr, sizeof r.fpreg);
@@ -567,7 +567,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		error = copyin(uap->addr, &r.dbreg, sizeof r.dbreg);
 		if (error == 0) {
 			PHOLD(p);
-			error = proc_write_dbregs(&p->p_thread, &r.dbreg);
+			error = proc_write_dbregs(FIRST_THREAD_IN_PROC(p), &r.dbreg);
 			PRELE(p);
 		}
 		return (error);
@@ -576,7 +576,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 #ifdef PT_GETDBREGS
 	case PT_GETDBREGS:
 		PHOLD(p);
-		error = proc_read_dbregs(&p->p_thread, &r.dbreg);
+		error = proc_read_dbregs(FIRST_THREAD_IN_PROC(p), &r.dbreg);
 		PRELE(p);
 		if (error == 0)
 			error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);

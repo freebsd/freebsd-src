@@ -127,9 +127,11 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	if (p->p_flag & P_KSES) {
 		sbuf_printf(sb, " %s", "-kse- ");
 	} else {
+		struct thread *td;
+		td = FIRST_THREAD_IN_PROC(p);
 		sbuf_printf(sb, " %s",
-			(p->p_thread.td_wchan && p->p_thread.td_wmesg) ?
-			    p->p_thread.td_wmesg : "nochan");
+			(td->td_wchan && td->td_wmesg) ?
+			    td->td_wmesg : "nochan");
 	}
 
 	cr = p->p_ucred;

@@ -894,17 +894,16 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 	}
 
-	proc_linkup(&proc0);
+	proc_linkup(&proc0,&proc0.p_ksegrp,&proc0.p_kse,&thread0);
 	/*
 	 * Init mapping for u page(s) for proc 0
 	 */
 	proc0uarea = (struct user *)pmap_steal_memory(UAREA_PAGES * PAGE_SIZE);
 	proc0kstack = pmap_steal_memory(KSTACK_PAGES * PAGE_SIZE);
 	proc0.p_uarea = proc0uarea;
-	thread0 = &proc0.p_thread;
-	thread0->td_kstack = proc0kstack;
-	thread0->td_pcb = (struct pcb *)
-	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack = proc0kstack;
+	thread0.td_pcb = (struct pcb *)
+	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 
 	/*
 	 * Setup the per-CPU data for the bootstrap cpu.
@@ -917,7 +916,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		alpha_pal_wrval((u_int64_t) pcpup);
 		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
 #ifdef SMP
-		thread0->td_md.md_kernnest = 1;
+		thread0.td_md.md_kernnest = 1;
 #endif
 	}
 
@@ -935,20 +934,20 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * Initialize the rest of proc 0's PCB, and cache its physical
 	 * address.
 	 */
-	thread0->td_md.md_pcbpaddr =
-	    (struct pcb *)ALPHA_K0SEG_TO_PHYS((vm_offset_t)thread0->td_pcb);
+	thread0.td_md.md_pcbpaddr =
+	    (struct pcb *)ALPHA_K0SEG_TO_PHYS((vm_offset_t)thread0.td_pcb);
 
 	/*
 	 * Set the kernel sp, reserving space for an (empty) trapframe,
 	 * and make proc0's trapframe pointer point to it for sanity.
 	 */
-	thread0->td_frame = (struct trapframe *)thread0->td_pcb - 1;
-	thread0->td_pcb->pcb_hw.apcb_ksp = (u_int64_t)thread0->td_frame;
+	thread0.td_frame = (struct trapframe *)thread0.td_pcb - 1;
+	thread0.td_pcb->pcb_hw.apcb_ksp = (u_int64_t)thread0.td_frame;
 
 	/* Setup curthread so that mutexes work */
-	PCPU_SET(curthread, thread0);
+	PCPU_SET(curthread, &thread0);
 
-	LIST_INIT(&thread0->td_contested);
+	LIST_INIT(&thread0.td_contested);
 
 	/*
 	 * Initialise mutexes.
@@ -2166,6 +2165,6 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 	pcpu->pc_idlepcbphys = vtophys((vm_offset_t) &pcpu->pc_idlepcb);
 	pcpu->pc_idlepcb.apcb_ksp = (u_int64_t)
 		((caddr_t) pcpu + sz - sizeof(struct trapframe));
-	pcpu->pc_idlepcb.apcb_ptbr = thread0->td_pcb->pcb_hw.apcb_ptbr;
+	pcpu->pc_idlepcb.apcb_ptbr = thread0.td_pcb->pcb_hw.apcb_ptbr;
 	pcpu->pc_current_asngen = 1;
 }

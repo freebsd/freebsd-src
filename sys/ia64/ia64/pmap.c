@@ -462,7 +462,7 @@ pmap_bootstrap()
 	 * Set up proc0's PCB.
 	 */
 #if 0
-	thread0->td_pcb->pcb_hw.apcb_asn = 0;
+	thread0.td_pcb->pcb_hw.apcb_asn = 0;
 #endif
 
 	/*

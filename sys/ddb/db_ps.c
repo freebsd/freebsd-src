@@ -114,7 +114,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 				}
 			}
 		} else {
-			td = &p->p_thread;
+			td = FIRST_THREAD_IN_PROC(p);
 			if (td->td_wchan) {
 				db_printf("  %6s %8p", td->td_wmesg,
 				    (void *)td->td_wchan);

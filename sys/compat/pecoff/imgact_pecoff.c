@@ -459,7 +459,8 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	sh = malloc(scnsiz, M_TEMP, M_WAITOK);
 
 	wp = (void *) ((char *) ap + sizeof(struct coff_aouthdr));
-	error = pecoff_read_from(&imgp->proc->p_thread, imgp->vp, peofs + PECOFF_HDR_SIZE,
+	error = pecoff_read_from(FIRST_THREAD_IN_PROC(imgp->proc),
+				imgp->vp, peofs + PECOFF_HDR_SIZE,
 				 (caddr_t) sh, scnsiz);
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
@@ -475,8 +476,9 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 			continue;
 		if ((sh[i].s_flags & COFF_STYP_TEXT) != 0) {
 
-			error = pecoff_load_section(&imgp->proc->p_thread, vmspace,
-						    imgp->vp, sh[i].s_scnptr
+			error = pecoff_load_section(
+			    FIRST_THREAD_IN_PROC(imgp->proc),
+					 vmspace, imgp->vp, sh[i].s_scnptr
 			,(caddr_t) sh[i].s_vaddr, sh[i].s_paddr, sh[i].s_size
 						    ,prot);
 			DPRINTF(("ERROR%d\n", error));
@@ -487,10 +489,12 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 
 		}
 		if ((sh[i].s_flags & (COFF_STYP_DATA|COFF_STYP_BSS)) != 0) {
-			if (pecoff_load_section(&imgp->proc->p_thread,
-					   vmspace, imgp->vp, sh[i].s_scnptr
-						,(caddr_t) sh[i].s_vaddr, sh[i].s_paddr, sh[i].s_size,
-						prot) != 0)
+			if (pecoff_load_section(
+					    FIRST_THREAD_IN_PROC(imgp->proc),
+					    vmspace, imgp->vp, sh[i].s_scnptr,
+					    (caddr_t) sh[i].s_vaddr,
+					    sh[i].s_paddr, sh[i].s_size,
+					    prot) != 0)
 				goto fail;
 			data_addr = min(trunc_page(sh[i].s_vaddr), data_addr);
 			dsize = round_page(sh[i].s_vaddr + sh[i].s_paddr)
@@ -512,7 +516,8 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	argp->a_entry = wp->w_base + ap->a_entry;
 	argp->a_end = data_addr + data_size;
 	argp->a_subsystem = wp->w_subvers;
-	error = pecoff_load_file(&imgp->proc->p_thread, "/usr/libexec/ld.so.dll", &ldbase, &imgp->entry_addr, &ldexport);
+	error = pecoff_load_file(FIRST_THREAD_IN_PROC(imgp->proc),
+	    "/usr/libexec/ld.so.dll", &ldbase, &imgp->entry_addr, &ldexport);
 	if (error)
 		goto fail;
 
@@ -623,14 +628,15 @@ imgact_pecoff(struct image_params * imgp)
 	imgp->image_header;
 	struct coff_filehdr *fp;
 	int             error, peofs;
-	error = pecoff_signature(&imgp->proc->p_thread, imgp->vp, dp);
+	error = pecoff_signature(FIRST_THREAD_IN_PROC(imgp->proc),
+	    imgp->vp, dp);
 	if (error) {
 		return -1;
 	}
 	peofs = dp->d_peofs + sizeof(signature) - 1;
 	fp = malloc(PECOFF_HDR_SIZE, M_TEMP, M_WAITOK);
-	error = pecoff_read_from(&imgp->proc->p_thread, imgp->vp, peofs, (caddr_t) fp,
-				 PECOFF_HDR_SIZE);
+	error = pecoff_read_from(FIRST_THREAD_IN_PROC(imgp->proc),
+	     imgp->vp, peofs, (caddr_t) fp, PECOFF_HDR_SIZE);
 	if (error) {
 		free(fp, M_TEMP);
 		return error;

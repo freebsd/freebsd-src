@@ -209,9 +209,10 @@ vsunlock(addr, len)
  * to user mode to avoid stack copying and relocation problems.
  */
 void
-vm_forkproc(td, p2, flags)
+vm_forkproc(td, p2, td2, flags)
 	struct thread *td;
 	struct proc *p2;
+	struct thread *td2;
 	int flags;
 {
 	struct proc *p1 = td->td_proc;
@@ -230,7 +231,7 @@ vm_forkproc(td, p2, flags)
 				vmspace_unshare(p1);
 			}
 		}
-		cpu_fork(td, p2, flags);
+		cpu_fork(td, p2, td2, flags);
 		return;
 	}
 
@@ -253,7 +254,7 @@ vm_forkproc(td, p2, flags)
 	}
 
 	pmap_new_proc(p2);
-	pmap_new_thread(&p2->p_thread);		/* Initial thread */
+	pmap_new_thread(td2);		/* Initial thread */
 
 	/* XXXKSE this is unsatisfactory but should be adequate */
 	up = p2->p_uarea;
@@ -286,7 +287,7 @@ vm_forkproc(td, p2, flags)
 	 * cpu_fork will copy and update the pcb, set up the kernel stack,
 	 * and make the child ready to run.
 	 */
-	cpu_fork(td, p2, flags);
+	cpu_fork(td, p2, td2, flags);
 }
 
 /*

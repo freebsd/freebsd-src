@@ -991,8 +991,6 @@ chroot_refuse_vdir_fds(fdp)
 {
 	struct vnode *vp;
 	struct file *fp;
-	struct thread *td = curthread;
-	int error;
 	int fd;
 
 	FILEDESC_LOCK(fdp);

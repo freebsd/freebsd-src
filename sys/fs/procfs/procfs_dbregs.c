@@ -77,14 +77,14 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 	if (kl < 0)
 		error = EINVAL;
 	else
-		error = proc_read_dbregs(&p->p_thread, &r); /* XXXKSE */
+		error = proc_read_dbregs(FIRST_THREAD_IN_PROC(p), &r); /* XXXKSE */
 	if (error == 0)
 		error = uiomove(kv, kl, uio);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
 		if (p->p_stat != SSTOP)
 			error = EBUSY;
 		else
-			error = proc_write_dbregs(&p->p_thread, &r); /* XXXKSE */
+			error = proc_write_dbregs(FIRST_THREAD_IN_PROC(p), &r); /* XXXKSE */
 	}
 
 	uio->uio_offset = 0;

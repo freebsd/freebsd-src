@@ -96,7 +96,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		p->p_step = 0;
 		if (p->p_stat == SSTOP) {
 			p->p_xstat = sig;
-			setrunnable(&p->p_thread);
+			setrunnable(FIRST_THREAD_IN_PROC(p));
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			mtx_unlock_spin(&sched_lock);

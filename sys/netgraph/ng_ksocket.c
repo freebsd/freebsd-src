@@ -549,7 +549,7 @@ ng_ksocket_constructor(node_p node)
 static int
 ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 {
-	struct thread *td = curthread ? curthread : thread0;	/* XXX broken */
+	struct thread *td = curthread ? curthread : &thread0;	/* XXX broken */
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	char *s1, *s2, name[NG_HOOKLEN+1];
 	int family, type, protocol, error;
@@ -658,7 +658,7 @@ ng_ksocket_connect(hook_p hook)
 static int
 ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	struct thread *td = curthread ? curthread : thread0;	/* XXX broken */
+	struct thread *td = curthread ? curthread : &thread0;	/* XXX broken */
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct socket *const so = priv->so;
 	struct ng_mesg *resp = NULL;
@@ -883,7 +883,7 @@ done:
 static int
 ng_ksocket_rcvdata(hook_p hook, item_p item)
 {
-	struct thread *td = curthread ? curthread : thread0;	/* XXX broken */
+	struct thread *td = curthread ? curthread : &thread0;	/* XXX broken */
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct socket *const so = priv->so;

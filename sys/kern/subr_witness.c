@@ -1463,11 +1463,13 @@ DB_SHOW_COMMAND(locks, db_witness_list)
 			db_printf("pid %d not found\n", pid);
 			return;
 		}
-		td = &p->p_thread; /* XXXKSE */
+		FOREACH_THREAD_IN_PROC(p, td) {
+			witness_list(td);
+		}
 	} else {
 		td = curthread;
+		witness_list(td);
 	}
-	witness_list(td);
 }
 
 DB_SHOW_COMMAND(witness, db_witness_display)

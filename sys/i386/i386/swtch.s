@@ -176,31 +176,34 @@ sw1b:
 #endif
 
 	/* switch address space */
-	movl	%cr3,%ebx
+	movl	%cr3,%ebx			/* The same address space? */
 	cmpl	PCB_CR3(%edx),%ebx
-	je	4f
+	je	4f				/* Yes, skip all that cruft */
 #if defined(SWTCH_OPTIM_STATS)
 	decl	swtch_optim_stats
 	incl	tlb_flush_count
 #endif
-	movl	PCB_CR3(%edx),%ebx
-	movl	%ebx,%cr3
+	movl	PCB_CR3(%edx),%ebx		/* Tell the CPU about the */
+	movl	%ebx,%cr3			/* new address space */
 4:
 
 	movl	PCPU(CPUID), %esi
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
-	je	1f
+	je	1f				/* If not, use the default */
 	btsl	%esi, private_tss		/* mark use of private tss */
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
-	jmp	2f
-1:
+	jmp	2f				/* Load it up */
 
-	/* Update common_tss.tss_esp0 pointer. */
+1:		/* Use the common default TSS instead of our own */
+		/* Set our stack pointer into the TSS, it's set to just */
+		/* below the PCB. In C,  common_tss.tss_esp0 = &pcb - 16; */
 	leal	-16(%edx), %ebx			/* leave space for vm86 */
-	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0 /* stack is below pcb */
+	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0
 
-	btrl	%esi, private_tss
-	jae	3f
+		/* Test this CPU's  bit in the bitmap to see if this */
+		/* CPU was using a private TSS. */
+	btrl	%esi, private_tss		/* Already using the common? */
+	jae	3f				/* if so, skip reloading */
 	PCPU_ADDR(COMMON_TSSD, %edi)
 2:
 	/* Move correct tss descriptor into GDT slot, then reload tr. */
@@ -213,7 +216,7 @@ sw1b:
 	ltr	%si
 3:
 	/* Note in vmspace that this cpu is using it. */
-	movl	TD_PROC(%ecx),%eax		/* XXXKSE proc from thread */
+	movl	TD_PROC(%ecx),%eax
 	movl	P_VMSPACE(%eax), %ebx
 	movl	PCPU(CPUID), %eax
 	btsl	%eax, VM_PMAP+PM_ACTIVE(%ebx)
@@ -302,7 +305,7 @@ badsw2:
 	pushl	$sw0_2
 	call	panic
 
-sw0_2:	.asciz	"cpu_switch: not SRUN"
+sw0_2:	.asciz	"cpu_switch: not TDS_RUNQ"
 
 badsw3:
 	pushl	$sw0_3
