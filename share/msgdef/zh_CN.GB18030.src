@@ -3,10 +3,12 @@
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
-# decimal_point
-.
-# thousands_sep
-,
-# grouping, separated by ;
-3;3
+# yesexpr
+^[yY£ù£ÙÊÇ].*
+# noexpr
+^[nN£î£Î²»·ñ].*
+# yesstr
+ÊÇ
+# nostr
+·ñ
 # EOF

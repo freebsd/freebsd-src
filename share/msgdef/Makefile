@@ -45,8 +45,9 @@ LOCALES=	af_ZA.ISO8859-1 \
 		ko_KR.eucKR \
 		ja_JP.eucJP \
 		ja_JP.SJIS \
-		zh_TW.Big5 \
-		zh_CN.eucCN
+		zh_CN.eucCN \
+		zh_CN.GB18030 \
+		zh_TW.Big5
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
