@@ -9,9 +9,12 @@
  *	C848 666B 6435 0A93
  *	>
  */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef	__MSDOS__
 #include <dos.h>
@@ -21,11 +24,7 @@
 
 #include <skey.h>
 
-char *readpass();
-void usage();
-int getopt();
-extern int optind;
-extern char *optarg;
+static void usage __P((void));
 
 int
 main(argc,argv)
@@ -33,7 +32,7 @@ int argc;
 char *argv[];
 {
 	int n,cnt,i;
-	char passwd[256],passwd2[256];
+	char passwd[256] /* ,passwd2[256] */;
 	char key[8];
 	char *seed;
 	char buf[33];
@@ -50,31 +49,25 @@ char *argv[];
 	/* could be in the form <number>/<seed> */
 	if(argc <= optind + 1){
 		/*look for / in it */
-		if(argc <= optind){
-			usage(argv[0]);
-			return 1;
-		}
+		if(argc <= optind)
+			usage();
 
 		slash = strchr(argv[optind], '/');
-		if(slash == NULL){
-			usage(argv[0]);
-			return 1;
-		}
+		if(slash == NULL)
+			usage();
 		*slash++ = '\0';
 		seed = slash;
 
 		if((n = atoi(argv[optind])) < 0){
 			fprintf(stderr,"%s not positive\n",argv[optind]);
-			usage(argv[0]);
-			return 1;
+			usage();
 		}
 	}
 	else {
 
 		if((n = atoi(argv[optind])) < 0){
 			fprintf(stderr,"%s not positive\n",argv[optind]);
-			usage(argv[0]);
-			return 1;
+			usage();
 		}
 		seed = argv[++optind];
 	}
@@ -95,10 +88,8 @@ char *argv[];
 	}
 
 	/* Crunch seed and password into starting key */
-	if(keycrunch(key,seed,passwd) != 0){
-		fprintf(stderr,"%s: key crunch failed\n",argv[0]);
-		return 1;
-	}
+	if(keycrunch(key,seed,passwd) != 0)
+		errx(1, "key crunch failed");
 	if(cnt == 1){
 		while(n-- != 0)
 			f(key);
@@ -121,9 +112,9 @@ char *argv[];
 	return 0;
 }
 
-void
-usage(s)
-char *s;
+static void
+usage()
 {
-	fprintf(stderr,"Usage: %s [-n count] <sequence #>[/] <key> \n",s);
+	fprintf(stderr,"usage: key [-n count] <sequence #>[/] <key>\n");
+	exit(1);
 }
