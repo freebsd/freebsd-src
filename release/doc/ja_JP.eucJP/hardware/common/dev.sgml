@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.159
+        Original revision: 1.162
 -->
 
 <sect1 id="support">
@@ -941,9 +941,16 @@
           <para>SCSI インタフェース (これには ProAudio Spectrum,
             SoundBlaster SCSI が含まれます) (&man.cd.4;)</para>
 	</listitem>
+
+	<listitem arch="i386">
+	  <para>松下 CR-562、CR-563、およびその互換品
+	    (&man.matcd.4; ドライバ)</para>
+	</listitem>
+
 	<listitem arch="i386">
 	  <para>Sony 専用インタフェース (すべてのモデル) (&man.scd.4;)</para>
 	</listitem>
+
 	<listitem>
 	  <para>ATAPI IDE インタフェース (&man.acd.4;)</para>
 	</listitem>
@@ -3218,13 +3225,22 @@
     <para arch="i386,pc98">その他
       <itemizedlist>
         <listitem>
+	  <para>Assist Computer Systems PC Camera C-M1</para>
+	</listitem>
+        <listitem>
 	  <para>ActiveWire I/O Board</para>
+	</listitem>
+        <listitem>
+	  <para>Creative Technology Video Blaster WebCam Plus</para>
 	</listitem>
         <listitem>
 	  <para>Diamond Rio 500, 600, 800 MP3 プレーヤ (&man.urio.4; ドライバ)</para>
 	</listitem>
 	<listitem>
 	  <para>D-Link DSB-R100 USB Radio (ufm ドライバ)</para>
+	</listitem>
+        <listitem>
+	  <para>Mirunet AlphaCam Plus</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -3292,8 +3308,23 @@
         <listitem>
 	  <para>Belkin F5U002 パラレルプリンタアダプタ</para>
 	</listitem>
+	<listitem>
+	  <para>Canon BJ F850, S600</para>
+	</listitem>
+        <listitem>
+	  <para>Canon LBP-1310, 350</para>
+	</listitem>
         <listitem>
 	  <para>Entrega USB-パラレルプリンタアダプタ</para>
+	</listitem>
+        <listitem>
+	  <para>Hewlett-Packard HP Deskjet 3420 (P/N: C8947A #ABJ)</para>
+	</listitem>
+        <listitem>
+	  <para>Oki Data MICROLINE ML660PS</para>
+	</listitem>
+        <listitem>
+	  <para>Seiko Epson PM-900C, 880C, 820C, 730C</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -3332,6 +3363,9 @@
       <itemizedlist>
         <listitem>
 	  <para>Perfection 636U</para>
+	</listitem>
+        <listitem>
+	  <para>Seiko Epson GT-7700U, 7600U</para>
 	</listitem>
         <listitem>
 	  <para>HP ScanJet 4100C, 5200C, 6300C</para>
