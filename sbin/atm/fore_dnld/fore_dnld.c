@@ -148,15 +148,11 @@ char *msg;
 /*
  * Get a byte for the uart and if printing, display it.
  *
- * Arguments:
- *	prn				Are we displaying characters
- *
  * Returns:
  *	c				Character from uart
  */
 char
-getbyte ( prn )
-int prn;
+getbyte(void)
 {
 	int	c;
 
@@ -205,7 +201,7 @@ int prn;
 
 	while ( c != '>' && c != '\n' && c != '\r' )
 	{
-		c = getbyte(0);
+		c = getbyte();
 		if ( ++i >= sizeof(line) )
 		{
 			if ( prn )
@@ -241,14 +237,14 @@ int dn;
 	while ( CP_READ(Uart->mon_xmitmon) != UART_READY )
 	{
 		if ( CP_READ(Uart->mon_xmithost) & UART_VALID )
-			getbyte ( 0 );
+			getbyte();
 		if ( !dn ) delay ( 10000 );
 	}
 	val = ( c | UART_VALID );
 	Uart->mon_xmitmon = CP_WRITE( val );
 	if ( !dn ) delay ( 10000 );
 	if ( CP_READ(Uart->mon_xmithost) & UART_VALID )
-		getbyte ( 0 );
+		getbyte();
 
 }
 
@@ -469,7 +465,7 @@ char *filename;
 	 * Get startup character from i960
 	 */
 	do {
-		while ( ( c = getbyte(0) ) != NAK && c != CRCCHR )
+		while ( ( c = getbyte() ) != NAK && c != CRCCHR )
 			if ( ++attempts > NAKMAX )
 				error ( "Remote system not responding" );
 
@@ -576,7 +572,7 @@ char *filename;
 			/*
 			 * Get response from i960
 			 */
-			sendresp = getbyte(0);
+			sendresp = getbyte();
 
 			/*
 			 * If i960 didn't like the sector
@@ -589,7 +585,7 @@ char *filename;
 				 * Are we supposed to cancel the transfer?
 				 */
 				if ( ( sendresp & 0x7f ) == CAN )
-					if ( getbyte(0) == CAN )
+					if ( getbyte() == CAN )
 						error ( "Send canceled at user's request" );
 			}
 
@@ -630,7 +626,7 @@ char *filename;
 	/*
 	 * Wait until i960 acknowledges us
 	 */
-	while ( ( c = getbyte(0) ) != ACK && ( ++attempts < RETRYMAX ) )
+	while ( ( c = getbyte() ) != ACK && ( ++attempts < RETRYMAX ) )
 		xmit_byte ( EOT, 1 );
 
 	if ( attempts >= RETRYMAX )
@@ -684,9 +680,8 @@ u_char *ram;
 		u_long	w;
 		char	c[4];
 	} w1, w2;
-#endif
 	int	n;
-	int	cnt = 0;
+#endif
 	u_char	*bufp;
 	u_long	*lp;
 
@@ -1189,7 +1184,7 @@ char *argv[];
 				 * Check for data from the i960
 				 */
 				if ( CP_READ(Uart->mon_xmithost) & UART_VALID ) {
-					c = getbyte(0);
+					c = getbyte();
 					putchar ( c );
 				}
 				if ( strcmp ( line, "Mon960" )  == 0 )
@@ -1338,7 +1333,7 @@ char *argv[];
 				hb3 = CP_READ(Mon->mon_bstat);
 				if (hb3 != BOOT_RUNNING) {
 					if (verbose)
-						printf("bstat %x\n", hb3);
+						printf("bstat %lx\n", hb3);
 					continue;
 				}
 
@@ -1346,7 +1341,7 @@ char *argv[];
 				delay(1);
 				hb2 = CP_READ(aap->aali_heartbeat);
 				if (verbose)
-					printf("hb %x %x\n", hb1, hb2);
+					printf("hb %lx %lx\n", hb1, hb2);
 				if (hb1 < hb2)
 					break;
 			     }
