@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.54 1997/08/09 00:04:06 dyson Exp $
+ * $Id: systm.h,v 1.1 1997/08/19 20:10:18 smp Exp smp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -181,6 +181,9 @@ intrmask_t	splclock(void);
 intrmask_t	splhigh(void);
 intrmask_t	splimp(void);
 intrmask_t	splnet(void);
+#ifdef SMP
+intrmask_t	splq(intrmask_t mask);
+#endif
 intrmask_t	splsoftclock(void);
 intrmask_t	splsofttty(void);
 intrmask_t	splstatclock(void);
