@@ -4,7 +4,7 @@ static const char rcsid[] =
 #endif
 
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@ static const char rcsid[] =
  * Following is the PLIST_FMT_VER history:
  * 1.0 - Initial revision;
  * 1.1 - When recording/checking checksum of symlink use hash of readlink()
- *	 value insted of the hash of an object this links points to.
+ *	 value instead of the hash of an object this links points to.
  *
  */
 

@@ -15,7 +15,7 @@ description {Snoofle roob wronkle bnar}
 # List of files to install for the driver.
 # The filei386 directive causes the *.c files to be added to i386/conf/file.i386
 # The fileconf directive causes the *.c files to be added to conf/file
-# Paths listed seperatley
+# Paths listed separatley
 #
 filei386 i386/isa/ mdsio.c
 filei386 i386/include mdsio.h
