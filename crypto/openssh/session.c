@@ -149,7 +149,7 @@ do_authenticated(Authctxt *authctxt)
 		startup_pipe = -1;
 	}
 #ifdef HAVE_LOGIN_CAP
-	if ((lc = login_getclass(authctxt->pw->pw_class)) == NULL) {
+	if ((lc = login_getpwclass(authctxt->pw)) == NULL) {
 		error("unable to get login class");
 		return;
 	}
