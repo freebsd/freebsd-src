@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd April 12, 1995
+.Dd January 13, 2002
 .Dt "AT" 1
 .Os
 .Sh NAME
@@ -17,7 +17,16 @@
 .Ar time
 .Nm at
 .Op Fl V
+.Op Fl q Ar queue
+.Op Fl f Ar file
+.Op Fl mldbv
+.Fl t Ar [[CC]YY]MMDDhhmm[.SS]
+.Nm at
+.Op Fl V
 .Fl c Ar job Op Ar job ...
+.Nm at
+.Op Fl V
+.Fl r Ar job Op Ar job ...
 .Pp
 .Nm atq
 .Op Fl V
@@ -115,6 +124,12 @@ to run a job at 10:00am on July 31, you would do
 .Nm at Ar 10am Jul 31
 and to run a job at 1am tomorrow, you would do
 .Nm at Ar 1am tomorrow .
+.Pp
+The
+.Nm at
+utility also supports the POSIX time format (see 
+.Fl t
+option).
 .Pp
 For both
 .Nm
@@ -215,7 +230,10 @@ Is an alias for
 .Nm atq .
 .It Fl d
 Is an alias for
-.Nm atrm .
+.Nm atrm 
+(this option is deprecated; use 
+.Fl r
+instead).
 .It Fl b
 Is an alias for
 .Nm batch .
@@ -226,6 +244,40 @@ shows completed but not yet deleted jobs in the queue; otherwise
 shows the time the job will be executed.
 .It Fl c
 Cat the jobs listed on the command line to standard output.
+.It Fl r
+Remove specified job(s). 
+.It Fl t
+Specify the job time using the POSIX time format.
+The argument should be in the form
+.Dq [[CC]YY]MMDDhhmm[.SS]
+where each pair of letters represents the following:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar CC
+The first two digits of the year (the century).
+.It Ar YY
+The second two digits of the year.
+.It Ar MM
+The month of the year, from 1 to 12.
+.It Ar DD
+the day of the month, from 1 to 31.
+.It Ar hh
+The hour of the day, from 0 to 23.
+.It Ar mm
+The minute of the hour, from 0 to 59.
+.It Ar SS
+The second of the minute, from 0 to 61.
+.El
+.Pp
+If the
+.Dq CC
+and
+.Dq YY
+letter pairs are not specified, the values default to the current
+year.
+If the
+.Dq SS
+letter pair is not specified, the value defaults to 0.
 .El
 .Sh FILES
 .Bl -tag -width _ATJOB_DIR/_LOCKFILE -compact
@@ -268,8 +320,12 @@ resources.
 If this is the case for your site, you might want to consider another
 batch system, such as
 .Em nqs .
+.Pp
+Specificing a date past 2038 may not work on some systems.
 .Sh AUTHORS
 At was mostly written by
 .An Thomas Koenig Aq ig25@rz.uni-karlsruhe.de .
 The time parsing routines are by
-.An David Parsons Aq orc@pell.chi.il.us .
+.An David Parsons Aq orc@pell.chi.il.us ,
+with minor enhancements by 
+.An Joe Halpin Aq joe.halpin@attbi.com .

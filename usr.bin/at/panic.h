@@ -25,22 +25,8 @@
  * $FreeBSD$
  */
 
-#ifdef __FreeBSD__
-#define __NORETURN
-#endif
+#include <sys/cdefs.h>
 
-void
-#ifdef __GNUC__
-__NORETURN
-#endif
-panic(const char *a);
-void
-#ifdef __GNUC__
-__NORETURN
-#endif
-perr(const char *a);
-void
-#ifdef __GNUC__
-__NORETURN
-#endif
-usage(void);
+void	panic(const char *a) __dead2;
+void	perr(const char *a) __dead2;
+void	usage(void) __dead2;
