@@ -38,6 +38,9 @@
 #include <err.h>
 #include <errno.h>
 #include <histedit.h>
+#ifdef __FreeBSD__
+#include <libutil.h>
+#endif
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -199,13 +202,14 @@ main(int argc, char **argv)
     struct sockaddr *sock;
     struct sockaddr_in ifsin;
     struct sockaddr_un ifsun;
-    int socksz, arg, fd, len, verbose, save_errno;
+    int socksz, arg, fd, len, verbose, save_errno, hide1, hide1off, hide2;
     unsigned TimeoutVal;
     char *DoneWord = "x", *next, *start;
     struct sigaction act, oact;
 
     verbose = 0;
     TimeoutVal = 2;
+    hide1 = hide1off = hide2 = 0;
 
     for (arg = 1; arg < argc; arg++)
         if (*argv[arg] == '-') {
@@ -222,7 +226,16 @@ main(int argc, char **argv)
                         break;
 
                     case 'p':
-                        passwd = (start[1] ? start + 1 : argv[++arg]);
+                        if (start[1]) {
+                          hide1 = arg;
+                          hide1off = start - argv[arg];
+                          passwd = start + 1;
+                        } else {
+                          hide1 = arg;
+                          hide1off = start - argv[arg];
+                          passwd = argv[++arg];
+                          hide2 = arg;
+                        }
                         start = DoneWord;
                         break;
     
@@ -236,6 +249,26 @@ main(int argc, char **argv)
 
     if (argc < arg + 1)
         usage();
+
+    if (hide1) {
+      char title[1024];
+      int pos, harg;
+
+      for (harg = pos = 0; harg < argc; harg++)
+        if (harg == 0 || harg != hide2) {
+          if (harg == 0 || harg != hide1)
+            pos += snprintf(title + pos, sizeof title - pos, "%s%s",
+                            harg ? " " : "", argv[harg]);
+          else if (hide1off > 1)
+            pos += snprintf(title + pos, sizeof title - pos, " %.*s",
+                            hide1off, argv[harg]);
+        }
+#ifdef __FreeBSD__
+      setproctitle("-%s", title);
+#else
+      setproctitle("%s", title);
+#endif
+    }
 
     if (*argv[arg] == '/') {
         sock = (struct sockaddr *)&ifsun;
