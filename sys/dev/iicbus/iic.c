@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.c,v 1.5 1998/12/07 21:58:16 archie Exp $
+ *	$Id: iic.c,v 1.6 1999/01/09 18:08:24 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -35,6 +35,7 @@
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
+#include <sys/fcntl.h>
 
 #include <machine/clock.h>
 
@@ -169,11 +170,16 @@ iicwrite(dev_t dev, struct uio * uio, int ioflag)
 	if (sc->sc_count == 0)
 		return (EINVAL);
 
+	if ((error = iicbus_request_bus(device_get_parent(iicdev), iicdev, IIC_DONTWAIT)))
+		return (error);
+
 	count = min(uio->uio_resid, BUFSIZE);
 	uiomove(sc->sc_buffer, count, uio);
 
 	error = iicbus_block_write(device_get_parent(iicdev), sc->sc_addr,
 					sc->sc_buffer, count, &sent);
+
+	iicbus_release_bus(device_get_parent(iicdev), iicdev);
 
 	return(error);
 }
@@ -192,6 +198,9 @@ iicread(dev_t dev, struct uio * uio, int ioflag)
 	if (sc->sc_count == 0)
 		return (EINVAL);
 
+	if ((error = iicbus_request_bus(device_get_parent(iicdev), iicdev, IIC_DONTWAIT)))
+		return (error);
+
 	/* max amount of data to read */
 	len = min(uio->uio_resid, BUFSIZE);
 
@@ -201,6 +210,8 @@ iicread(dev_t dev, struct uio * uio, int ioflag)
 
 	if (bufsize > uio->uio_resid)
 		panic("%s: too much data read!", __FUNCTION__);
+
+	iicbus_release_bus(device_get_parent(iicdev), iicdev);
 
 	return (uiomove(sc->sc_inbuf, bufsize, uio));
 }
@@ -216,6 +227,11 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 
 	if (!sc)
 		return (EINVAL);
+
+	if ((error = iicbus_request_bus(device_get_parent(iicdev), iicdev,
+			(flags & O_NONBLOCK) ? IIC_DONTWAIT :
+						(IIC_WAIT | IIC_INTR))))
+		return (error);
 
 	switch (cmd) {
 	case I2CSTART:
@@ -241,6 +257,8 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	default:
 		error = ENODEV;
 	}
+
+	iicbus_release_bus(device_get_parent(iicdev), iicdev);
 
 	return (error);
 }
