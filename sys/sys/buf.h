@@ -254,7 +254,7 @@ struct buf {
  * Buffer locking
  */
 extern struct mtx buftimelock;		/* Interlock on setting prio and timo */
-extern char *buf_wmesg;			/* Default buffer lock message */
+extern const char *buf_wmesg;		/* Default buffer lock message */
 #define BUF_WMESG "bufwait"
 #include <sys/proc.h>			/* XXX for curthread */
 #include <sys/mutex.h>
@@ -432,18 +432,6 @@ buf_countdeps(struct buf *bp, int i)
 #endif /* _KERNEL */
 
 /*
- * Definitions for the buffer free lists.
- */
-#define BUFFER_QUEUES	6	/* number of free buffer queues */
-
-#define QUEUE_NONE	0	/* on no queue */
-#define QUEUE_LOCKED	1	/* locked buffers */
-#define QUEUE_CLEAN	2	/* non-B_DELWRI buffers */
-#define QUEUE_DIRTY	3	/* B_DELWRI buffers */
-#define QUEUE_EMPTYKVA	4	/* empty buffer headers w/KVA assignment */
-#define QUEUE_EMPTY	5	/* empty buffer headers */
-
-/*
  * Zero out the buffer's data area.
  */
 #define	clrbuf(bp) {							\
@@ -468,8 +456,6 @@ extern char	*buffers;		/* The buffer contents. */
 extern int	bufpages;		/* Number of memory pages in the buffer pool. */
 extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
-extern TAILQ_HEAD(swqueue, buf) bswlist;
-extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 
 struct uio;
 
