@@ -110,7 +110,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
 	    ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags \
-	    vers.c vnode_if.c vnode_if.h majors.c \
+	    vers.c vnode_if.c vnode_if.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	    ${CLEAN}
 
@@ -227,14 +227,11 @@ kernel-reinstall:
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .endif
 
-config.o env.o hints.o majors.o vers.o vnode_if.o:
+config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_C}
 
-config.ln env.ln hints.ln majors.ln vers.ln vnode_if.ln:
+config.ln env.ln hints.ln vers.ln vnode_if.ln:
 	${NORMAL_LINT}
-
-majors.c: $S/conf/majors $S/conf/majors.awk
-	${AWK} -f $S/conf/majors.awk $S/conf/majors > ${.TARGET}
 
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
 	MAKE=${MAKE} sh $S/conf/newvers.sh ${KERN_IDENT}
