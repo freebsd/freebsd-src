@@ -55,7 +55,7 @@ A pointer to the vnode whose buffers will be invalidated.
 .It Fa flags
 The only supported flag is
 .Dv V_SAVE
-and it indicates that dirty buffers should by synced.
+and it indicates that dirty buffers should be synced with the disk.
 .It Fa cred
 The user credentials that are used to
 .Xr VOP_FSYNC 9
@@ -72,7 +72,8 @@ The timeout for any sleeps in the function.
 .Sh LOCKS
 The vnode is assumed to be locked prior to the call and remains locked upon return.
 .Pp
-Giant must be held by prior to the call and remains locked upon return.
+.Va Giant
+must be held by prior to the call and remains locked upon return.
 .Sh RETURN VALUES
 A 0 value is returned on success.
 .Sh PSEUDOCODE
@@ -117,4 +118,4 @@ set in
 .Xr VOP_FSYNC 9
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .

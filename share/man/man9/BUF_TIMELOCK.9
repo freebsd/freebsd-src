@@ -45,7 +45,7 @@ will sleep to
 .Fa timo
 and OR's
 .Fa catch
-into the sleep priority.
+into the sleep's priority.
 .Fa wmesg
 is the wmesg used in the sleep.
 .Pp
@@ -61,7 +61,7 @@ for details.
 .It Fa wmesg
 The wmesg used in any sleeps while aquiring the lock.
 .It Fa catch
-Priority OR'd into the sleep priority.
+Priority OR'd into the sleep's priority.
 .It Fa timo
 The timeout for any sleeps encountered during the lock.
 .El
@@ -77,4 +77,4 @@ for details on non-zero return values.
 .Xr lockmgr 9
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .
