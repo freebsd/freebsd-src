@@ -97,6 +97,7 @@ struct file_list {
 #define	CONFIGDEP	1
 #define NO_IMPLCT_RULE	2
 #define NO_OBJ		4
+#define BEFORE_DEPEND	8
 
 struct	idlst {
 	char	*id;
