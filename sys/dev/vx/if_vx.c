@@ -295,7 +295,7 @@ vxsetlink(struct vx_softc *sc)
 	int i, j, k;
 	char *reason, *warning;
 	static int prev_flags;
-	static char prev_conn = -1;
+	static signed char prev_conn = -1;
 
 	if (prev_conn == -1)
 		prev_conn = sc->vx_connector;
