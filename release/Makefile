@@ -10,7 +10,7 @@
 # the release (default is HEAD).
 #
 # Please note: the md(4) driver must be present in the kernel
-# (either by being compiled in or loaded as a kld(4) module),
+# (either by being compiled in or available as a kld(4) module),
 # otherwise the target 'release.9' and possibly others will fail.
 #
 # Note:  "/some/dir" cannot reside on a filesystem mounted with
