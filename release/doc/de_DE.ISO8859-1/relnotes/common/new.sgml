@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.147 2002/11/03 12:09:03 ue Exp $
-  basiert auf: 1.448
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.148 2002/11/09 21:04:47 ue Exp $
+  basiert auf: 1.449
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -203,7 +203,7 @@
 
     <para arch="i386,pc98,powerpc">Es gibt jetzt minimale
       Unterst&uuml;tzung f&uuml;r Ger&auml;te mit
-      Firewire-Schnittstellen (siehe &man.firewire.4;).</para>
+      Firewire-Schnittstellen (siehe &man.firewire.4;).  &merged;</para>
 
     <para arch="i386" role="historic">Der Treiber &man.ichsmb.4; f&uuml;r den Intel
       82801AA (ICH) SMBus Controller und baugleiche Ger&auml;te wurde
@@ -1455,7 +1455,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         nutzen zu k&ouml;nnen, mu&szlig; in der Konfigurationsdatei
         f&uuml;r den Kernel die Anweisung <literal>device
         atapicam</literal> stehen.  Weitergehende Informationen finden
-	Sie in &man.atapicam.4;.</para>
+	Sie in &man.atapicam.4;.  &merged;</para>
 
       <para>Der Treiber &man.ata.4; unterst&uuml;tzt jetzt die Sil
         0680 und VIA 8233/8235 Controller.  &merged;</para>
@@ -2930,6 +2930,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Watchpoints, dazu werd das Debug-Register des Kernel und schon
       in &os; 4.0 eingef&uuml;hrte Routinen benutzt.  &merged;</para>
 
+    <para>Mit dem neuen Hilfsprogramm &man.getconf.1; k&ouml;nnen die
+      Werte der in POSIX und X/Open angegebenen Variablen f&uuml;r die
+      Pfad- und Systemkonfiguration ausgegeben werden.
+      &merged;</para>
+
     <para role="historic">Mit den Bibliotheksfunktionen &man.getprogname.3; und
       &man.setprogname.3; kann ein laufendes Programm jetzt seinen
       Namen &auml;ndern.  Die Funktionen werden bei der Ausgabe von
@@ -3454,6 +3459,12 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       alte Verhalten (die Komprimierung mit &man.gzip.1;) in der Datei
       <filename>/etc/newsyslog.conf</filename> konfiguriert
       werden.</para>
+
+    <para>Mit den neuen Programm &man.nextboot.8; k&ouml;nnen ein
+      alternativer Kernel und/oder andere Einstellung f&uuml;r den
+      Systemstart definiert werden, die beim n&auml;chsten Start des
+      Systems genutzt werden sollen.  Ein &auml;hnliches Programm gab
+      es bereits einmal in &os; 2.2.</para>
 
     <para><application>NFS</application> funktioniert jetzt auch mit
       IPv6.</para>
@@ -4089,7 +4100,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>Die Base64-Unterst&uuml;tzung von &man.uuencode.1; und
       &man.uudecode.1; wird jetzt automatisch aktiviert, wenn die
       Programme als &man.b64encode.1; bzw. &man.b64decode.1;
-      aufgerufen werden.</para>
+      aufgerufen werden.  &merged;</para>
 
     <para>Die Standard-Bibliothek <filename>libc</filename> wurde um
       Funktionen zur Erzeugung und Manipulation von OSF/DCE
@@ -4411,7 +4422,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         5.2-20020615 aktualisiert.</para>
 
       <para>Die diversen <application>NTP</application> Programme
-      wurden auf Version 4.1.1a aktualisiert.</para>
+      wurden auf Version 4.1.1b aktualisiert.</para>
 
       <para><application>OpenPAM</application>
         (<quote>Citronella</quote> Release) wird jetzt statt

@@ -22,14 +22,14 @@
 
 	We give manpage references using the &man entities where
 	possible.  If a driver has no manpage (and consequently no
-	&man entity, we simply give the name of the driver).  
+	&man entity, we simply give the name of the driver).
 	Please avoid doing &man entity conversions unless you
 	know for sure that an entity and manpage exist; sweeps through
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.41 2002/10/31 21:33:20 ue Exp $
-	basiert auf: 1.112
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.43 2002/11/09 18:06:11 ue Exp $
+	basiert auf: 1.114
 -->
 
 <sect1>
@@ -55,7 +55,7 @@
     <title>Festplatten-Controller</title>
 
     <para arch="i386,alpha,sparc64,ia64">IDE/ATA Controller
-      (&man.ata.4; Treiber) 
+      (&man.ata.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Acerlabs Aladdin</para>
@@ -146,7 +146,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="pc98">IDE/ATA controllers (wdc Treiber) 
+    <para arch="pc98">IDE/ATA controllers (wdc Treiber)
       <itemizedlist>
 	<listitem>
 	  <para>on-board IDE Controller</para>
@@ -154,7 +154,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Adaptec SCSI Controller 
+    <para arch="i386,pc98,alpha">Adaptec SCSI Controller
       <itemizedlist>
         <listitem arch="i386">
           <para>Adaptec 1535 ISA SCSI Controller</para>
@@ -252,7 +252,7 @@
       (&man.asr.4; Treiber)</para>
 
     <para arch="i386">Adaptec FSA RAID Controller (&man.aac.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
         <listitem>
           <para>Adaptec AAC-2622</para>
@@ -293,7 +293,7 @@
     </para>
 
     <para arch="pc98">NEC PC-9801-55, 92 und dazu kompatible C-Bus
-      SCSI Controller (bs Treiber) 
+      SCSI Controller (bs Treiber)
       <itemizedlist>
 	<listitem>
 	  <para>NEC PC-9801-55, 92 und kompatible</para>
@@ -368,7 +368,7 @@
     </para>
 
     <para arch="i386,pc98">AdvanSys SCSI Controllers (alle Modelle.
-      &man.adv.4; und &man.adw.4; Treiber) 
+      &man.adv.4; und &man.adw.4; Treiber)
       <itemizedlist>
 	<listitem arch="pc98">
 	  <para>MELCO IFC-USP, RATOC REX-PCI30 und @Nifty FNECHARD
@@ -378,7 +378,7 @@
     </para>
 
     <para arch="i386">BusLogic MultiMaster Hostadapter,
-      <quote>W</quote>-Modelle (&man.bt.4; Treiber):  
+      <quote>W</quote>-Modelle (&man.bt.4; Treiber):
       <itemizedlist>
         <listitem>
           <para>BT-948</para>
@@ -395,7 +395,7 @@
     </para>
 
     <para arch="i386">BusLogic MultiMaster Hostdapter,
-      <quote>C</quote>-Modelle (&man.bt.4; Treiber):  
+      <quote>C</quote>-Modelle (&man.bt.4; Treiber):
       <itemizedlist>
         <listitem>
           <para>BT-946C</para>
@@ -436,7 +436,7 @@
     </para>
 
     <para arch="i386">BusLogic MultiMaster Hostadapter,
-      <quote>S</quote>-Typen (&man.bt.4; Treiber):  
+      <quote>S</quote>-Typen (&man.bt.4; Treiber):
       <itemizedlist>
         <listitem>
           <para>BT-445S</para>
@@ -477,7 +477,7 @@
     </para>
 
     <para arch="i386">BusLogic MultiMaster Hostadapter,
-      <quote>A</quote>-Typen (&man.bt.4; Treiber):  
+      <quote>A</quote>-Typen (&man.bt.4; Treiber):
       <itemizedlist>
         <listitem>
           <para>BT-742A</para>
@@ -511,7 +511,7 @@
       (&man.dpt.4; Treiber)</para>
 
     <para arch="i386">DPT SmartRAID V und VI SCSI RAID Controller
-      (&man.asr.4; Treiber) 
+      (&man.asr.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>PM1554</para>
@@ -544,7 +544,7 @@
     </para>
 
     <para arch="i386,alpha">AMI MegaRAID RAID Controller, Modellreihen
-      Express und Enterprise (&man.amr.4; Treiber) 
+      Express und Enterprise (&man.amr.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>MegaRAID Series 418</para>
@@ -679,7 +679,7 @@
     </para>
 
     <para arch="i386">Mylex PCI to SCSI RAID Controllers,
-      Firmware-Version 6.x (&man.mly.4; Treiber) 
+      Firmware-Version 6.x (&man.mly.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>AcceleRAID 160</para>
@@ -710,7 +710,7 @@
     </para>
 
     <para arch="i386">3ware Escalade ATA RAID Controller (&man.twe.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
         <listitem arch="i386">
           <para>5000 series</para>
@@ -730,7 +730,7 @@
       53C810a, 53C815, 53C825, 53C825a, 53C860, 53C875, 53C875a,
       53C876, 53C885, 53C895, 53C895a, 53C896, 53C1010-33, 53C1010-66,
       53C1000, 53C1000R PCI SCSI Controller, sowohl auf Hostadaptern
-      als auch on-board (&man.ncr.4; und &man.sym.4; Treiber) 
+      als auch on-board (&man.ncr.4; und &man.sym.4; Treiber)
       <itemizedlist>
         <listitem arch="i386,alpha,sparc64">
           <para>ASUS SC-200, SC-896</para>
@@ -778,7 +778,7 @@
     </para>
 
     <para arch="i386,pc98">PC-Card SCSI Hostadapter auf Basis des NCR
-      53C500 (ncv Treiber) 
+      53C500 (ncv Treiber)
       <itemizedlist>
         <listitem>
           <para>IO DATA PCSC-DV</para>
@@ -815,7 +815,7 @@
     </para>
 
     <para arch="i386">ISA/PC-Card SCSI Hostadapter auf Basis der TMC
-      18C30, 18C50 (stg Treiber) 
+      18C30, 18C50 (stg Treiber)
       <itemizedlist>
         <listitem>
           <para>Future Domain SCSI2GO</para>
@@ -841,7 +841,7 @@
     </para>
 
     <para arch="i386,pc98,alpha,ia64">Qlogic(-&auml;hnlich) Controller
-      (&man.isp.4; Treiber) 
+      (&man.isp.4; Treiber)
       <itemizedlist>
         <listitem arch="i386,alpha,ia64">
           <para>Qlogic 1020, 1040 SCSI und Ultra SCSI
@@ -898,7 +898,7 @@
 
     <para arch="i386,pc98">Tekram DC390 und DC390T Controller,
       eventuell auch andere auf dem AMD 53c974 basierende Karte
-      (&man.amd.4;  Treiber) 
+      (&man.amd.4;  Treiber)
       <itemizedlist arch="pc98">
 	<listitem arch="pc98">
 	  <para>MELCO IFC-DP</para>
@@ -907,7 +907,7 @@
     </para>
 
     <para arch="i386,pc98">PC-Card SCSI Hostadapter auf Basis des Workbit
-      Ninja SCSI-3 (nsp Treiber) 
+      Ninja SCSI-3 (nsp Treiber)
       <itemizedlist>
         <listitem>
           <para>Alpha-Data AD-PCS201</para>
@@ -920,7 +920,7 @@
     </para>
 
     <para arch="i386">SCSI-Controller f&uuml;r den Druckerport
-      (&man.vpo.4; Treiber) 
+      (&man.vpo.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>AIC 7110 SCSI Controller (ist im Iomega ZIP
@@ -939,7 +939,7 @@
     </para>
 
     <para arch="i386">SCSI Hostadapter, die das <quote>Command
-      Interface for SCSI-3 Support</quote> nutzen (ciss Treiber) 
+      Interface for SCSI-3 Support</quote> nutzen (ciss Treiber)
       <itemizedlist>
         <listitem>
           <para>Compaq Smart Array 5* series (5300, 5i, 532)</para>
@@ -948,7 +948,7 @@
     </para>
 
     <para arch="i386">Intel Integrated RAID Controller (iir Treiber)
-      
+
       <itemizedlist>
         <listitem>
           <para>Intel RAID Controller SRCMR</para>
@@ -1007,7 +1007,7 @@
       schreibenden Zugriff steht das Programm &man.cdrecord.1;  aus
       der Ports Collection zur Verf&uuml;gung.</para>
 
-    <para>Zur Zeit unterst&uuml;tzte CDROM-Arten:  
+    <para>Zur Zeit unterst&uuml;tzte CDROM-Arten:
       <itemizedlist>
         <listitem>
           <para>SCSI Ger&auml;te (dazu geh&ouml;ren auch ProAudio
@@ -1027,7 +1027,7 @@
 
     <para arch="i386">Die folgenden Treiber wurden zwar vom alten
       SCSI-Treibermodell unterst&uuml;tzt, wurden aber noch nicht
-      f&uuml;r das neue CAM-System umgeschrieben:  
+      f&uuml;r das neue CAM-System umgeschrieben:
       <itemizedlist>
         <listitem arch="i386">
           <para>NCR5380/NCR53400 (<quote>ProAudio Spectrum</quote>)
@@ -1035,7 +1035,7 @@
         </listitem>
 
         <listitem arch="i386">
-          <para>UltraStor 14F, 24F und 34F SCSI Controller.  
+          <para>UltraStor 14F, 24F und 34F SCSI Controller.
             <note>
               <para>Dieser Treiber ist in Arbeit, allerdings gibt es
                 noch keine verl&auml;&szlig;lichen Informationen, ob
@@ -1058,7 +1058,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Dieser Treiber wird nicht mehr gepflegt:  
+    <para arch="i386">Dieser Treiber wird nicht mehr gepflegt:
       <itemizedlist>
         <listitem>
           <para>Mitsumi-eigener CDROM-Anschlu&szlig; (alle Varianten)
@@ -1073,7 +1073,7 @@
 
     <para arch="i386,pc98,alpha">Adaptec Duralink PCI Fast Ethernet
       Netzwerkkarten, die auf dem Adaptec AIC-6915 Fast Ethernet
-      Controller basieren (&man.sf.4; Treiber) 
+      Controller basieren (&man.sf.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>ANA-62011 64-bit single port 10/100baseTX</para>
@@ -1098,7 +1098,7 @@
     </para>
 
     <para arch="i386,pc98">Allied-Telesis AT1700 und RE2000 Karten
-      (&man.fe.4; Treiber) 
+      (&man.fe.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>CONTEC C-NET(PC)C PCMCIA Ethernet</para>
@@ -1141,7 +1141,7 @@
 
     <para arch="i386,pc98">Alteon Networks PCI Gigabit Ethernet
       Netzwerkkarten mit Tigon 1 und Tigon 2 Chipsatz (&man.ti.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
         <listitem>
           <para>3Com 3c985-SX (Tigon 1 und 2)</para>
@@ -1190,7 +1190,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">AMD PCnet Netzwerkkarten (&man.lnc.4; und
-      &man.pcn.4; Treiber) 
+      &man.pcn.4; Treiber)
       <itemizedlist>
         <listitem arch="i386,alpha">
           <para>AMD PCnet/PCI (79c970 & 53c974 oder 79c974)</para>
@@ -1247,7 +1247,7 @@
     </para>
 
     <para arch="i386,pc98">Netzwerkkarten mit SMC 83c17x (EPIC) (&man.tx.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
         <listitem>
           <para>SMC EtherPower II 9432 Familie</para>
@@ -1255,9 +1255,9 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Netzwerkkarten mit National Semiconductor DS8390,
+    <para arch="i386,pc98">Netzwerkkarten mit National Semiconductor DS8390,
       dazu geh&ouml;ren auch die NE2000 und alle Nachbauten der NE2000
-      (&man.ed.4; Treiber) 
+      (&man.ed.4; Treiber)
       <note arch="pc98">
 	<para>In der Konfigurationsdatei f&uuml;r den Kernel
 	  m&uuml;ssen Sie die Einstellungen f&uuml;r das Nicht-PCI
@@ -1441,7 +1441,7 @@
     </para>
 
     <para arch="i386,pc98">NE2000-kompatible PC-Card (PCMCIA) Ethernet und
-      FastEthernet Karten (&man.ed.4; Treiber) 
+      FastEthernet Karten (&man.ed.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>AR-P500 Ethernet</para>
@@ -1562,7 +1562,7 @@
       Treiber)</para>
 
     <para arch="i386,pc98,alpha">RealTek 8129/8139 Fast Ethernet
-      Netzwerkkarten (&man.rl.4; Treiber) 
+      Netzwerkkarten (&man.rl.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Accton <quote>Cheetah</quote> EN1207D (MPX 5030/5038;
@@ -1620,7 +1620,7 @@
     </para>
 
     <para arch="i386,alpha">Lite-On 82c168/82c169 PNIC Fast Ethernet
-      Netzwerkkarten (&man.dc.4; Treiber) 
+      Netzwerkkarten (&man.dc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Kingston KNE110TX</para>
@@ -1641,7 +1641,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Macronix 98713, 98713A, 98715, 98715A und
-      98725 Fast Ethernet Karten (&man.dc.4; Treiber) 
+      98725 Fast Ethernet Karten (&man.dc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Accton EN1217 (98715A)</para>
@@ -1674,7 +1674,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Macronix/Lite-On PNIC II LC82C115 Fast
-      Ethernet Karten (&man.dc.4; Treiber) 
+      Ethernet Karten (&man.dc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>LinkSys EtherFast LNE100TX Version 2</para>
@@ -1683,7 +1683,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Winbond W89C840F Fast Ethernet Karten
-      (&man.wb.4; Treiber) 
+      (&man.wb.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Trendware TE100-PCIE</para>
@@ -1693,7 +1693,7 @@
 
     <para arch="i386,pc98,alpha">VIA Technologies VT3043 <quote>Rhine
       I</quote> und VT86C100A <quote>Rhine II</quote> Fast Ethernet
-      Karten (&man.vr.4; Treiber) 
+      Karten (&man.vr.4; Treiber)
       <itemizedlist>
         <listitem arch="i386,alpha">
           <para>AOpen/Acer ALN-320</para>
@@ -1722,7 +1722,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Silicon Integrated Systems SiS 900 und SiS
-      7016 PCI Fast Ethernet Karten (&man.sis.4; Treiber) 
+      7016 PCI Fast Ethernet Karten (&man.sis.4; Treiber)
       <itemizedlist>
         <listitem arch="i386,alpha">
           <para>SiS 630, 635 und 735 Mainboard Chips&auml;tze</para>
@@ -1739,7 +1739,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">National Semiconductor DP83815 Fast
-      Ethernet Karten (&man.sis.4; Treiber) 
+      Ethernet Karten (&man.sis.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>NetGear FA311-TX</para>
@@ -1752,7 +1752,7 @@
     </para>
 
     <para arch="i386,pc98">National Semiconductor DP83820 und DP83821
-      Gigabit Ethernet Karten (&man.nge.4; Treiber) 
+      Gigabit Ethernet Karten (&man.nge.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Addtron AEG320T</para>
@@ -1796,7 +1796,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Sundance Technologies ST201 PCI Fast
-      Ethernet Karten (&man.ste.4; Treiber) 
+      Ethernet Karten (&man.ste.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>D-Link DFE-550TX</para>
@@ -1805,7 +1805,7 @@
     </para>
 
     <para arch="i386,alpha">SysKonnect SK-984x PCI Gigabit Ethernet
-      Karten (&man.sk.4; Treiber) 
+      Karten (&man.sk.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>SK-9821 1000baseT copper, single port</para>
@@ -1837,7 +1837,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Texas Instruments ThunderLAN PCI
-      Netzwerkkarten (&man.tl.4; Treiber) 
+      Netzwerkkarten (&man.tl.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Compaq Netelligent 10, 10/100, 10/100
@@ -1877,7 +1877,7 @@
       AL981 (&man.dc.4; Treiber)</para>
 
     <para arch="i386,pc98,alpha">PCI Fast Ethernet Karten mit ADMtek Inc.
-      AN985 (&man.dc.4; Treiber) 
+      AN985 (&man.dc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>LinkSys EtherFast LNE100TX v4.0/4.1</para>
@@ -1886,7 +1886,7 @@
     </para>
 
     <para arch="i386,pc98">USB Ethernet Karten mit ADMtek Inc. AN986
-      (&man.aue.4; Treiber) 
+      (&man.aue.4; Treiber)
       <itemizedlist>
 	<listitem>
 	  <para>Abocom UFE1000, DSB650TX_NA</para>
@@ -1952,7 +1952,7 @@
     </para>
 
     <para arch="i386,pc98">USB Netzwerkkarten mit CATC USB-EL1210A
-      (&man.cue.4; Treiber) 
+      (&man.cue.4; Treiber)
       <itemizedlist>
 	<listitem>
 	  <para>Belkin F5U011, F5U111</para>
@@ -1969,7 +1969,7 @@
     </para>
 
     <para arch="i386,pc98">USB Netzwerkkarten mit Kawasaki LSI KU5KUSB101B
-      (&man.kue.4; Treiber) 
+      (&man.kue.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>3Com 3c19250</para>
@@ -2030,7 +2030,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">ASIX Electronics AX88140A PCI
-      Netzwerkkarten (&man.dc.4; Treiber) 
+      Netzwerkkarten (&man.dc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Alfa Inc. GFC2204</para>
@@ -2043,7 +2043,7 @@
     </para>
 
     <para arch="i386">DEC EtherWORKS II und III Netzwerkkarten
-      (&man.le.4; Treiber) 
+      (&man.le.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>DE200, DE201, DE202, DE422</para>
@@ -2056,7 +2056,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Netzwerkkarten mit DEC DC21040, DC21041,
-      DC21140, DC21141, DC21142 oder DC21143 (&man.de.4; Treiber) 
+      DC21140, DC21141, DC21142 oder DC21143 (&man.de.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Asante</para>
@@ -2093,7 +2093,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Fast Ethernet Karten mit DEC/Intel 21143
-      (&man.dc.4; Treiber) 
+      (&man.dc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>DEC DE500</para>
@@ -2120,7 +2120,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Davicom DM9100 und DM9102 PCI Fast
-      Ethernet Karten (&man.dc.4; Treiber) 
+      Ethernet Karten (&man.dc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Jaton Corporation XpressNet</para>
@@ -2139,7 +2139,7 @@
     <para arch="pc98">MELCO LGY-PCI-TXL (PCI) (&man.dc.4; Treiber)</para>
 
     <para arch="i386,pc98">Fast Ethernet Karten mit Fujitsu
-      MB86960A/MB86965A (&man.fe.4; Treiber) 
+      MB86960A/MB86965A (&man.fe.4; Treiber)
       <itemizedlist>
         <listitem arch="i386">
           <para>CONTEC C-NET(PC)C Ethernet</para>
@@ -2202,7 +2202,7 @@
     </para>
 
     <para arch="i386,pc98,alpha,ia64">Fast Ethernet Karten mit Intel 82557,
-      82558, 82559, 82550 und 82562 (&man.fxp.4; Treiber) 
+      82558, 82559, 82550 und 82562 (&man.fxp.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Intel EtherExpress Pro/100B PCI Fast Ethernet</para>
@@ -2250,7 +2250,7 @@
     </para>
 
     <para arch="i386">Netzwerkkarten mit Intel 82595 (&man.ex.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
         <listitem>
           <para>Intel EtherExpress Pro/10 und Pro/10+</para>
@@ -2263,7 +2263,7 @@
     </para>
 
     <para arch="i386">Netzwerkkarten mit Intel 82586 (&man.ie.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
         <listitem>
           <para>3Com 3C507 Etherlink 16/TP</para>
@@ -2288,7 +2288,7 @@
     </para>
 
     <para arch="i386,pc98">3Com 3C5x9 Etherlink III Netzwerkkarten
-      (&man.ep.4; Treiber) 
+      (&man.ep.4; Treiber)
       <itemizedlist>
         <listitem arch="i386">
           <para>3C509</para>
@@ -2333,7 +2333,7 @@
       Treiber)</para>
 
     <para arch="i386,pc98,alpha">Netzwerkkarten mit 3Com Etherlink XL
-      (&man.xl.4; Treiber) 
+      (&man.xl.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>3C900/905/905B/905C PCI</para>
@@ -2379,7 +2379,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">3Com 3C59X Familie (&man.vx.4; Treiber) 
+    <para arch="i386,pc98">3Com 3C59X Familie (&man.vx.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>3C590 Etherlink III (PCI)</para>
@@ -2396,7 +2396,7 @@
     </para>
 
     <para arch="i386">Netzwerkkarten mit Crystal Semiconductor CS89x0
-      (&man.cs.4; Treiber) 
+      (&man.cs.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>IBM Etherjet ISA</para>
@@ -2408,7 +2408,7 @@
       Treiber)</para>
 
     <para arch="i386">Netzwerkkarten mit Xircom X3201 (Cardbus), dazu
-      geh&ouml;ren auch:  
+      geh&ouml;ren auch:
       <itemizedlist>
         <listitem>
           <para>IBM EtherJet Cardbus Adapter</para>
@@ -2434,7 +2434,7 @@
     </para>
 
     <para arch="i386">Xircom CreditCard (16 bit) und baugleiche Karten
-      (xe Treiber) 
+      (xe Treiber)
       <itemizedlist>
         <listitem>
           <para>Accton EN2226/Fast EtherCard (16-Bit Version)</para>
@@ -2475,7 +2475,7 @@
     </para>
 
     <para arch="pc98">National Semiconductor DP8393X (SONIC) Ethernet
-      Karten (snc Treiber) 
+      Karten (snc Treiber)
       <itemizedlist>
         <listitem>
           <para>NEC PC-9801-83, -84, -103, und -104</para>
@@ -2488,7 +2488,7 @@
     </para>
 
     <para arch="i386,pc98">Gigabit Ethernet Karten mit Level 1 LXT1001
-      NetCellerator Controller (&man.lge.4; Treiber) 
+      NetCellerator Controller (&man.lge.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>D-Link DGE-500SX</para>
@@ -2501,7 +2501,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Ethernet und Fast Ethernet Karten mit 3Com
-      3XP Typhoon/Sidewinder (3CR990) Chipsatz (&man.txp.4; Treiber) 
+      3XP Typhoon/Sidewinder (3CR990) Chipsatz (&man.txp.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>3Com 3CR990-TX-95</para>
@@ -2530,7 +2530,7 @@
     </para>
 
     <para arch="i386,pc98">Gigabit Ethernet Karten mit Broadcom BCM570x
-      (&man.bge.4; Treiber) 
+      (&man.bge.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>3Com 3c996-SX, 3c996-T</para>
@@ -2609,7 +2609,7 @@
       Treiber)</para>
 
     <para arch="i386,pc98">Die ATM-Unterst&uuml;tzung von &os; umfa&szlig;t
-      die folgenden <quote>signaling protocols</quote>:  
+      die folgenden <quote>signaling protocols</quote>:
       <itemizedlist>
         <listitem>
           <para>The ATM Forum UNI 3.1 signaling protocol</para>
@@ -2636,7 +2636,7 @@
 
     <para arch="i386,pc98">Das System <quote>Classical IP and ARP over
       ATM</quote> der IETF wird unterst&uuml;tzt und entspricht den
-      folgenden RFCs bzw. Internet Drafts:  
+      folgenden RFCs bzw. Internet Drafts:
       <itemizedlist>
         <listitem>
           <para>RFC 1483, <quote>Multiprotocol Encapsulation over ATM
@@ -2690,7 +2690,7 @@
     <para arch="i386,pc98">Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA
       und ISA Karten, sowohl bei normaler (2 Mbps) als auch hoher (6
       Mbps) Geschwindigkeit; auch baugleiche Ger&auml;te (&man.wi.4;
-      Treiber) 
+      Treiber)
       <note>
         <para>Die ISA Variante dieser Karten ist in Wirklichkeit eine
           PCMCIA-Karte, die auf einem ISA-PCMCIA-Adapter steckt, daher
@@ -2852,7 +2852,7 @@
     </para>
 
     <para arch="i386,pc98">Aironet 802.11 wireless Karten (&man.an.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
         <listitem>
           <para>Aironet 4500/4800 Familien (PCMCIA, PCI, und ISA
@@ -2872,7 +2872,7 @@
     </para>
 
     <para arch="i386,pc98">Raytheon Raylink 2.4GHz wireless Karten
-      (&man.ray.4; Treiber) 
+      (&man.ray.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Webgear Aviator</para>
@@ -2889,7 +2889,7 @@
     </para>
 
     <para arch="i386,pc98">802.11 Karten mit AMD Am79C930 und Harris
-      (Intersil) (awi Treiber) 
+      (Intersil) (awi Treiber)
       <itemizedlist>
         <listitem>
           <para>BayStack 650 und 660</para>
@@ -2926,7 +2926,7 @@
     <title>Diverse Netzwerkkarten</title>
 
     <para arch="i386">Granch SBNI12 Punkt-zu-Punkt
-      Kommunikationssystem (sbni Treiber) 
+      Kommunikationssystem (sbni Treiber)
       <itemizedlist>
         <listitem>
           <para>SBNI12-XX und SBNI12D-XX, ISA und PCI</para>
@@ -2935,7 +2935,7 @@
     </para>
 
     <para arch="i386">SMC COM90cx6 ARCNET Netzwerkkarten (cm Treiber)
-      
+
       <itemizedlist>
         <listitem>
           <para>SMC 90c26, 90c56, und 90c66 (im 90c56-kompatiblen
@@ -2955,7 +2955,7 @@
     <para arch="i386">ASUSCOM P-IN100-ST-D (und andere Karten mit
       Winbond W6692)</para>
 
-    <para arch="i386">AVM 
+    <para arch="i386">AVM
       <itemizedlist>
         <listitem>
           <para>A1</para>
@@ -2991,7 +2991,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Creatix 
+    <para arch="i386">Creatix
       <itemizedlist>
         <listitem>
           <para>ISDN-S0</para>
@@ -3012,7 +3012,7 @@
 
     <para arch="i386">Eicon Diehl DIVA 2.0 und 2.02</para>
 
-    <para arch="i386">ELSA 
+    <para arch="i386">ELSA
       <itemizedlist>
         <listitem>
           <para>ELSA PCC-16</para>
@@ -3041,7 +3041,7 @@
 
     <para arch="i386">TELEINT ISDN SPEED No.1 (experimental)</para>
 
-    <para arch="i386">Teles 
+    <para arch="i386">Teles
       <itemizedlist>
         <listitem>
           <para>S0/8</para>
@@ -3089,7 +3089,7 @@
     <para arch="i386,alpha">AST 4 Port Karte (bei Benutzung eines
       gemeinsamen IRQs)</para>
 
-    <para arch="i386">ARNET Karten (&man.ar.4; Treiber) 
+    <para arch="i386">ARNET Karten (&man.ar.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>ARNET 8 Port Karten (bei Benutzung eines gemeinsamen
@@ -3103,7 +3103,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Serielle Multi-Port Karten von Boca 
+    <para arch="i386">Serielle Multi-Port Karten von Boca
       <itemizedlist>
         <listitem>
           <para>Boca BB1004 4-Port serial card (die Modems werden
@@ -3137,7 +3137,7 @@
       gemeinsamen IRQs)</para>
 
     <para arch="i386">Intelligente serielle Karten von DigiBoard
-      (&man.dgb.4; Treiber) 
+      (&man.dgb.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>DigiBoard PC/Xe series</para>
@@ -3150,7 +3150,7 @@
     </para>
 
     <para arch="i386">Serielle Multi-Port PCI-Karten (&man.puc.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
          <listitem>
           <para>Avlab Technology, PCI IO 2S</para>
@@ -3178,7 +3178,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Serielle Karte von SDL Communication 
+    <para arch="i386">Serielle Karte von SDL Communication
       <itemizedlist>
         <listitem>
           <para>SDL Communications Riscom/8 Serial Board (rc
@@ -3193,7 +3193,7 @@
     </para>
 
     <para arch="i386">Serielle Multi-Port Karten von Stallion
-      Technologies 
+      Technologies
       <itemizedlist>
         <listitem>
           <para>EasyIO (&man.stl.4; Treiber)</para>
@@ -3224,7 +3224,7 @@
       Treiber)</para>
 
     <para arch="pc98">Eingebaute Serielle Schnittstellen (&man.sio.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
 	<listitem>
 	  <para>PC-9801 on-board</para>
@@ -3237,7 +3237,7 @@
     </para>
 
     <para arch="pc98">NEC PC-9861K, PC-9801-101 und Midori-Denshi
-      MDC-926Rs (&man.sio.4; Treiber) 
+      MDC-926Rs (&man.sio.4; Treiber)
       <itemizedlist>
 	<listitem>
 	  <para>COM2 (Flags 0x01000000)</para>
@@ -3298,7 +3298,7 @@
   <sect2>
     <title>Audio Hardware</title>
 
-    <para arch="i386">Advance (&man.sbc.4; Treiber) 
+    <para arch="i386">Advance (&man.sbc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Asound 100 und 110</para>
@@ -3310,7 +3310,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">CMedia Audio Bausteine 
+    <para arch="i386">CMedia Audio Bausteine
       <itemizedlist>
         <listitem>
           <para>CMI8338/CMI8738</para>
@@ -3318,7 +3318,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Crystal Semiconductor (&man.csa.4; Treiber) 
+    <para arch="i386">Crystal Semiconductor (&man.csa.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>CS461x/462x Audio Accelerator</para>
@@ -3330,7 +3330,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">ENSONIQ (&man.pcm.4; Treiber) 
+    <para arch="i386">ENSONIQ (&man.pcm.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>AudioPCI ES1370/1371</para>
@@ -3338,7 +3338,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">ESS 
+    <para arch="i386,alpha">ESS
       <itemizedlist>
         <listitem>
           <para>ES1868, ES1869, ES1879 und ES1888 (&man.sbc.4;
@@ -3368,7 +3368,7 @@
 
     <para arch="i386">ForteMedia fm801</para>
 
-    <para arch="i386">Gravis (&man.gusc.4; Treiber) 
+    <para arch="i386">Gravis (&man.gusc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>UltraSound MAX</para>
@@ -3393,7 +3393,7 @@
     <para arch="i386">S3 Sonicvibes</para>
 
     <para arch="i386,alpha">Creative Technologies SoundBlaster Familie
-      (&man.sbc.4; Treiber) 
+      (&man.sbc.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>SoundBlaster</para>
@@ -3426,7 +3426,7 @@
 
     <para arch="i386">VIA Technologies VT82C686A</para>
 
-    <para arch="i386">Yamaha 
+    <para arch="i386">Yamaha
       <itemizedlist>
         <listitem>
           <para>DS1</para>
@@ -3460,7 +3460,7 @@
 
     <para arch="pc98">Software PCM (pca Treiber)</para>
 
-    <para arch="pc98">MPU-401 und kompatible (mpu Treiber) 
+    <para arch="pc98">MPU-401 und kompatible (mpu Treiber)
       <itemizedlist>
 	<listitem>
 	  <para>Q-Vision WaveStar</para>
@@ -3476,7 +3476,7 @@
     <title>Kameras, TV-Karten, etc</title>
 
     <para arch="i386,pc98">Karten mit Brooktree Bt848/849/878/879
-      (&man.bktr.4; Treiber) 
+      (&man.bktr.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>AverMedia Karten</para>
@@ -3538,7 +3538,7 @@
     </note>
 
     <para arch="i386,pc98,alpha">Host Controllers (&man.ohci.4; und
-      &man.uhci.4; Treiber) 
+      &man.uhci.4; Treiber)
       <itemizedlist>
         <listitem arch="i386,alpha">
           <para>ALi Aladdin-V</para>
@@ -3604,7 +3604,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">USB Host Controller (PCI) 
+    <para arch="i386,pc98">USB Host Controller (PCI)
       <itemizedlist>
         <listitem arch="i386">
           <para>ADS Electronics PCI plug-in Karte (2
@@ -3621,7 +3621,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Hubs 
+    <para arch="i386,pc98,alpha">Hubs
       <itemizedlist>
         <listitem>
           <para>Andromeda hub</para>
@@ -3637,7 +3637,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Tastaturen (&man.ukbd.4; Treiber) 
+    <para arch="i386,pc98,alpha">Tastaturen (&man.ukbd.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Apple iMac Tastatur</para>
@@ -3670,7 +3670,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">Diverses 
+    <para arch="i386,pc98">Diverses
       <itemizedlist>
         <listitem>
           <para>ActiveWire I/O Board</para>
@@ -3687,7 +3687,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">Modems (&man.umodem.4; Treiber) 
+    <para arch="i386,pc98">Modems (&man.umodem.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>3Com 5605</para>
@@ -3699,7 +3699,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">M&auml;use (&man.ums.4; Treiber) 
+    <para arch="i386,pc98,alpha">M&auml;use (&man.ums.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Agiler Maus 29UO</para>
@@ -3756,7 +3756,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">Drucker und Adapterkabel f&uuml;r
-      konventionelle Drucker (&man.ulpt.4; Treiber) 
+      konventionelle Drucker (&man.ulpt.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>ATen parallel printer Adapter</para>
@@ -3803,7 +3803,7 @@
     </para>
 
     <para arch="i386,pc98">Scanner (zusammen mit <application>SANE</application>) (&man.uscanner.4;
-      Treiber) 
+      Treiber)
       <itemizedlist>
         <listitem>
           <para>Perfection 636U</para>
@@ -3815,7 +3815,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Massenspeicher (&man.umass.4; Treiber) 
+    <para arch="i386,pc98,alpha">Massenspeicher (&man.umass.4; Treiber)
       <itemizedlist>
         <listitem arch="i386">
           <para>Iomega USB Zip 100Mb (nur sehr
@@ -3841,7 +3841,7 @@
     </para>
 
     <para arch="i386,pc98">Handspring Visor und andere PDAs mit PalmOS
-      (&man.uvisor.4; Treiber) 
+      (&man.uvisor.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Handspring Visor</para>
@@ -3854,6 +3854,48 @@
         <listitem>
           <para>Sony Clie 4.0 und 4.1</para>
         </listitem>
+      </itemizedlist>
+    </para>
+  </sect2>
+
+  <sect2 id="firewire">
+    <title>IEEE 1394 (Firewire) Ger&auml;te</title>
+
+    <para arch="i386,pc98,powerpc">Host Controller (&man.fwohci.4;
+      Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>Ricoh R5C552 Chipsatz</para>
+	</listitem>
+
+	<listitem>
+	  <para>Sony CX3022 Chipsatz</para>
+	</listitem>
+
+	<listitem>
+	  <para>TI TSB12LV22, LV23, 26 und TSB43AA22 Chipsätze</para>
+	</listitem>
+
+	<listitem>
+	  <para>uPD72861 Chipsatz</para>
+	</listitem>
+
+	<listitem>
+	  <para>VIA VT6306 Chipsatz</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98,powerpc">Massenspeicher (&man.sbp.4;
+      Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>Apple iPod</para>
+	</listitem>
+
+	<listitem>
+	  <para>Apple Macintosh G4 (Target Modus)</para>
+	</listitem>
       </itemizedlist>
     </para>
   </sect2>
@@ -3898,7 +3940,7 @@
   <sect2>
     <title>Diverses</title>
 
-    <para arch="i386,pc98">FAX-Modem/PCCARD 
+    <para arch="i386,pc98">FAX-Modem/PCCARD
       <itemizedlist>
         <listitem>
           <para>Melco IGM-PCM56K/IGM-PCM56KH</para>
@@ -3918,7 +3960,7 @@
 
     <para arch="i386">GPB und Transputer Treiber</para>
 
-    <para arch="i386,pc98,alpha,ia64">Tastaturen:  
+    <para arch="i386,pc98,alpha,ia64">Tastaturen:
       <itemizedlist>
         <listitem arch="i386,alpha">
           <para>AT-Tastaturen</para>
@@ -3943,7 +3985,7 @@
     <para arch="i386">Loran-C Empf&auml;nger (Dave Mills experimental
       hardware, loran Treiber).</para>
 
-    <para arch="i386,pc98,alpha,ia64">M&auml;use:  
+    <para arch="i386,pc98,alpha,ia64">M&auml;use:
       <itemizedlist>
         <listitem arch="i386,pc98">
           <para>Bus M&auml;use (&man.mse.4; Treiber)</para>
@@ -3974,7 +4016,7 @@
     <para arch="i386">PC-kompatible Joysticks (&man.joy.4;
       Treiber)</para>
 
-    <para arch="i386,pc98">PHS Data Communication Card/PCCARD 
+    <para arch="i386,pc98">PHS Data Communication Card/PCCARD
       <itemizedlist>
         <listitem>
           <para>NTT DoCoMo P-in Comp@ct</para>
