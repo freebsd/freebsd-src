@@ -40,9 +40,9 @@
 .Sh SYNOPSIS
 .In sys/statvfs.h
 .Ft int
-.Fn statvfs "const char *restrict path" "struct vfsconf *restrict buf"
+.Fn statvfs "const char *restrict path" "struct statvfs *restrict buf"
 .Ft int
-.Fn fstatvfs "int fd" "struct vfsconf *buf"
+.Fn fstatvfs "int fd" "struct statvfs *buf"
 .Sh DESCRIPTION
 The
 .Fn statvfs
@@ -57,7 +57,7 @@ Applications must pass a pathname or file descriptor which refers to a
 file on the filesystem in which they are interested.
 .Pp
 The
-.Vt vfsconf
+.Vt statvfs
 structure contains the following members:
 .Bl -tag -offset indent -width "f_namemax"
 .It Va f_namemax
