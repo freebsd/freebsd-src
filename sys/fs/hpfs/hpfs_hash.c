@@ -65,8 +65,7 @@ hpfs_hphashinit()
 {
 
 	lockinit (&hpfs_hphash_lock, PINOD, "hpfs_hphashlock", 0, 0);
-	hpfs_hphashtbl = HASHINIT(desiredvnodes, M_HPFSHASH, M_WAITOK,
-	    &hpfs_hphash);
+	hpfs_hphashtbl = hashinit(desiredvnodes, M_HPFSHASH, &hpfs_hphash);
 	mtx_init(&hpfs_hphash_mtx, "hpfs hphash", MTX_DEF);
 }
 

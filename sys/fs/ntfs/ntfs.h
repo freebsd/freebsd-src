@@ -289,11 +289,6 @@ MALLOC_DECLARE(M_NTFSDIR);
 MALLOC_DECLARE(M_NTFSNTHASH);
 #endif
 
-#define HASHINIT(a, b, c, d)	hashinit((a), (b), (d))
-#define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b), (c))
-#define VGET(a, b, c)		vget((a), (b), (c))
-#define VN_LOCK(a, b, c)	vn_lock((a), (b), (c))
-
 #if defined(NTFS_DEBUG)
 #define dprintf(a) printf a
 #if NTFS_DEBUG > 1

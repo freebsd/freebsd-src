@@ -238,16 +238,16 @@ hpfs_mountfs(devvp, mp, argsp, p)
 	if (ncount > 1 && devvp != rootvp)
 		return (EBUSY);
 
-	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = vinvalbuf(devvp, V_SAVE, p->td_proc->p_ucred, p, 0, 0);
-	VOP__UNLOCK(devvp, 0, p);
+	VOP_UNLOCK(devvp, 0, p);
 	if (error)
 		return (error);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
-	VOP__UNLOCK(devvp, 0, p);
+	VOP_UNLOCK(devvp, 0, p);
 	if (error)
 		return (error);
 
@@ -524,7 +524,7 @@ hpfs_vget(
 	hp->h_devvp = hpmp->hpm_devvp;
 	VREF(hp->h_devvp);
 
-	error = VN_LOCK(vp, LK_EXCLUSIVE, p);
+	error = vn_lock(vp, LK_EXCLUSIVE, p);
 	if (error) {
 		vput(vp);
 		return (error);

@@ -293,16 +293,16 @@ ntfs_mountfs(devvp, mp, argsp, td)
 		ncount -= 1;
 	if (ncount > 1 && devvp != rootvp)
 		return (EBUSY);
-	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0);
-	VOP__UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
-	VOP__UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
 
@@ -727,7 +727,7 @@ ntfs_vgetex(
 	}
 
 	if (FTOV(fp)) {
-		VGET(FTOV(fp), lkflags, td);
+		vget(FTOV(fp), lkflags, td);
 		*vpp = FTOV(fp);
 		ntfs_ntput(ip);
 		return (0);
@@ -752,7 +752,7 @@ ntfs_vgetex(
 	ntfs_ntput(ip);
 
 	if (lkflags & LK_TYPE_MASK) {
-		error = VN_LOCK(vp, lkflags, td);
+		error = vn_lock(vp, lkflags, td);
 		if (error) {
 			vput(vp);
 			return (error);
