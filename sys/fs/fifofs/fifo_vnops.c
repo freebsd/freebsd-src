@@ -312,7 +312,7 @@ fifo_read(ap)
 	struct uio *uio = ap->a_uio;
 	struct socket *rso = ap->a_vp->v_fifoinfo->fi_readsock;
 	struct thread *td = uio->uio_td;
-	int error;
+	int error, flags;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ)
@@ -320,14 +320,11 @@ fifo_read(ap)
 #endif
 	if (uio->uio_resid == 0)
 		return (0);
-	if (ap->a_ioflag & IO_NDELAY)
-		rso->so_state |= SS_NBIO;
 	VOP_UNLOCK(ap->a_vp, 0, td);
+	flags = (ap->a_ioflag & IO_NDELAY) ? MSG_NBIO : 0;
 	error = soreceive(rso, (struct sockaddr **)0, uio, (struct mbuf **)0,
-	    (struct mbuf **)0, (int *)0);
+	    (struct mbuf **)0, &flags);
 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (ap->a_ioflag & IO_NDELAY)
-		rso->so_state &= ~SS_NBIO;
 	return (error);
 }
 
@@ -346,20 +343,17 @@ fifo_write(ap)
 {
 	struct socket *wso = ap->a_vp->v_fifoinfo->fi_writesock;
 	struct thread *td = ap->a_uio->uio_td;
-	int error;
+	int error, flags;
 
 #ifdef DIAGNOSTIC
 	if (ap->a_uio->uio_rw != UIO_WRITE)
 		panic("fifo_write mode");
 #endif
-	if (ap->a_ioflag & IO_NDELAY)
-		wso->so_state |= SS_NBIO;
 	VOP_UNLOCK(ap->a_vp, 0, td);
+	flags = (ap->a_ioflag & IO_NDELAY) ? MSG_NBIO : 0;
 	error = sosend(wso, (struct sockaddr *)0, ap->a_uio, 0,
-		       (struct mbuf *)0, 0, td);
+	    (struct mbuf *)0, flags, td);
 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (ap->a_ioflag & IO_NDELAY)
-		wso->so_state &= ~SS_NBIO;
 	return (error);
 }
 
