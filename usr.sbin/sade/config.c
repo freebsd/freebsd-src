@@ -510,6 +510,7 @@ configResolv(void)
     cp = variable_get(VAR_NAMESERVER);
     if (!cp || !*cp)
 	goto skip;
+    Mkdir("/etc");
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp)
 	return;
