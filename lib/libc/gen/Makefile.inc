@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.20 1996/02/12 07:03:21 mpp Exp $
+#	$Id: Makefile.inc,v 1.21 1996/02/18 01:56:51 wosch Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
@@ -59,14 +59,16 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
 
 MLINKS+=config_open.3 config_next.3 config_open.3 config_close.3 \
 	config_open.3 config_skip.3
-MLINKS+=crypt.3 encrypt.3 crypt.3 setkey.3
+MLINKS+=crypt.3 encrypt.3 crypt.3 setkey.3 crypt.3  des_setkey.3 \
+	crypt.3 des_cipher.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
 	directory.3 readdir.3 directory.3 rewinddir.3 directory.3 seekdir.3 \
 	directory.3 telldir.3
 MLINKS+=exec.3 execl.3 exec.3 execle.3 exec.3 execlp.3 exec.3 execv.3 \
 	exec.3 execvp.3 exec.3 exect.3
 MLINKS+=err.3 verr.3 err.3 errx.3 err.3 verrx.3 err.3 warn.3 err.3 vwarn.3 \
-	err.3 warnx.3 err.3 vwarnx.3
+	err.3 warnx.3 err.3 vwarnx.3 err.3 err_set_file.3 \
+	err.3 err_set_exit.3
 MLINKS+=isinf.3 isnan.3
 MLINKS+=getcap.3 cgetcap.3 getcap.3 cgetclose.3 getcap.3 cgetent.3 \
 	getcap.3 cgetfirst.3 getcap.3 cgetmatch.3 getcap.3 cgetnext.3 \
@@ -114,5 +116,6 @@ MLINKS+=tcsetattr.3 tcgetattr.3 tcsetattr.3 cfsetospeed.3 \
 MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyslot.3
 MLINKS+=tzset.3 tzsetwall.3
 MLINKS+=vis.3 strvis.3 vis.3 strvisx.3
+MLINKS+=unvis.3 strunvis.3 
 MLINKS+=fts.3 fts_open.3 fts.3 fts_read.3 fts.3 fts_children.3 \
 	fts.3 fts_close.3
