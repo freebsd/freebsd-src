@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.1 $"
+#ident "$Revision: 1.2 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -215,8 +215,8 @@ main(int argc,
 	}
 	if (argc != 0) {
 usage:
-		logbad(0, "usage: routed [-sqdghmpAt] [-T /tracefile]"
-		       " [-F net[,metric]] [-P parms]");
+		logbad(0, "usage: routed [-sqdghmAt] [-T /tracefile]"
+		       " [-F net[/mask[,metric]]] [-P parms]");
 	}
 	if (geteuid() != 0)
 		logbad(0, "requires UID 0");
