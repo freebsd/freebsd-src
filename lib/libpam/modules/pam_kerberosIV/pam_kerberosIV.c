@@ -59,26 +59,37 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	struct passwd *pwd;
 
 	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
-		return retval;
+		PAM_RETURN(retval);
+
+	PAM_LOG("Got user: %s", user);
 
 	retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT, &options);
 	if (retval != PAM_SUCCESS)
-		return retval;
+		PAM_RETURN(retval);
+
+	PAM_LOG("Got password");
 
 	if (gethostname(localhost, sizeof localhost - 1) == -1)
-		return PAM_SYSTEM_ERR;
+		PAM_RETURN(PAM_SYSTEM_ERR);
+
+	PAM_LOG("Got localhost: %s", localhost);
 
 	principal = strdup(user);
 	if (principal == NULL)
-		return PAM_BUF_ERR;
+		PAM_RETURN(PAM_BUF_ERR);
 
 	instance = strchr(principal, '.');
 	if (instance != NULL)
 		*instance++ = '\0';
 	else
 		instance = "";
+
+	PAM_LOG("Got principal.instance: %s.%s", principal, instance);
 
 	retval = PAM_AUTH_ERR;
 	pwd = getpwnam(user);
@@ -96,19 +107,28 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 				setenv("KRBTKFILE", krbtkfile_env, 1);
 			retval = PAM_SUCCESS;
 		}
+
+		PAM_LOG("Done klogin()");
+
 	}
 	/*
 	 * The PAM infrastructure will obliterate the cleartext
 	 * password before returning to the application.
 	 */
 	free(principal);
-	return retval;
+	PAM_RETURN(retval);
 }
 
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	return PAM_SUCCESS;
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_kerberosIV");
