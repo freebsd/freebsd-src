@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.290
+     Original revision: 1.22.2.291
 -->
 
 <articleinfo>
@@ -572,7 +572,7 @@
 
       <para>Les <application>Binutils</application> ont &eacute;t&eacute; mis 
       &agrave; jour en version 2.12.1 (plus pr&eacute;cis&eacute;ment, en 
-      version du 22 Juin 2002).</para>
+      version du 20 Juin 2002).</para>
 
       <para><application>gcc</application> a &eacute;t&eacute; mis &agrave; 
       jour en version 2.95.4.</para>
@@ -684,6 +684,17 @@
     <sect3>
       <title>Collection des Ports/Packages</title>
 
+      <para>Les librairies install&eacute;es par le port <filename
+	role="package">emulators/linux_base</filename>  (n&eacute;cessaire 
+	pour l'&eacute;mulation Linux) ont &eacute;t&eacute; mises &agrave; 
+	jour; elles correspondent &agrave; celles incluent dans	
+	<application>Red Hat Linux</application> 7.1.</para>
+
+      <para><application>XFree86</application> a &eacute;t&eacute; mis 
+      &agrave; jour en version 4.2.1. Cette version fournit quelques 
+      corrections de bogues et de s&eacute;curit&eacute; par rapport 
+      &agrave; la version 4.2.0..</para>
+ 
       <para>Par d&eacute;faut, les pacquetages g&eacute;n&eacute;r&eacute;s 
       de la collection des Ports (tout comme les pacquetages distribu&eacute;s
        sur les sites FTP), sont maintenant compress&eacute;s en utilisant 
