@@ -54,8 +54,8 @@
 #include <i386/isa/rcreg.h>
 
 /* Prototypes */
-static int     rcprobe         __P((struct isa_device *));
-static int     rcattach        __P((struct isa_device *));
+static int     rcprobe(struct isa_device *);
+static int     rcattach(struct isa_device *);
 
 #define rcin(port)      RC_IN  (nec, port)
 #define rcout(port,v)   RC_OUT (nec, port, v)
@@ -174,23 +174,23 @@ static void	*rc_ih;
 
 /* Static prototypes */
 static ointhand2_t rcintr;
-static void rc_hwreset          __P((int, int, unsigned int));
-static int  rc_test             __P((int, int));
-static void rc_discard_output   __P((struct rc_chans *));
-static void rc_hardclose        __P((struct rc_chans *));
-static int  rc_modctl           __P((struct rc_chans *, int, int));
-static void rc_start            __P((struct tty *));
-static void rc_stop              __P((struct tty *, int rw));
-static int  rc_param            __P((struct tty *, struct termios *));
-static void rcpoll		__P((void *));
-static void rc_reinit           __P((struct rc_softc *));
+static void rc_hwreset(int, int, unsigned int);
+static int  rc_test(int, int);
+static void rc_discard_output(struct rc_chans *);
+static void rc_hardclose(struct rc_chans *);
+static int  rc_modctl(struct rc_chans *, int, int);
+static void rc_start(struct tty *);
+static void rc_stop(struct tty *, int rw);
+static int  rc_param(struct tty *, struct termios *);
+static void rcpoll		(void *);
+static void rc_reinit(struct rc_softc *);
 #ifdef RCDEBUG
 static void printrcflags();
 #endif
 static timeout_t rc_dtrwakeup;
 static timeout_t rc_wakeup;
-static void disc_optim		__P((struct tty	*tp, struct termios *t,	struct rc_chans	*));
-static void rc_wait0            __P((int nec, int unit, int chan, int line));
+static void disc_optim		(struct tty	*tp, struct termios *t,	struct rc_chans	*);
+static void rc_wait0(int nec, int unit, int chan, int line);
 
 /**********************************************/
 

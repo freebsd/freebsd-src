@@ -62,20 +62,19 @@
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/iso_rrip.h>
 
-static int cd9660_setattr __P((struct vop_setattr_args *));
-static int cd9660_access __P((struct vop_access_args *));
-static int cd9660_getattr __P((struct vop_getattr_args *));
-static int cd9660_ioctl __P((struct vop_ioctl_args *));
-static int cd9660_pathconf __P((struct vop_pathconf_args *));
-static int cd9660_read __P((struct vop_read_args *));
+static int cd9660_setattr(struct vop_setattr_args *);
+static int cd9660_access(struct vop_access_args *);
+static int cd9660_getattr(struct vop_getattr_args *);
+static int cd9660_ioctl(struct vop_ioctl_args *);
+static int cd9660_pathconf(struct vop_pathconf_args *);
+static int cd9660_read(struct vop_read_args *);
 struct isoreaddir;
-static int iso_uiodir __P((struct isoreaddir *idp, struct dirent *dp,
-			   off_t off));
-static int iso_shipdir __P((struct isoreaddir *idp));
-static int cd9660_readdir __P((struct vop_readdir_args *));
-static int cd9660_readlink __P((struct vop_readlink_args *ap));
-static int cd9660_strategy __P((struct vop_strategy_args *));
-static int cd9660_print __P((struct vop_print_args *));
+static int iso_uiodir(struct isoreaddir *idp, struct dirent *dp, off_t off);
+static int iso_shipdir(struct isoreaddir *idp);
+static int cd9660_readdir(struct vop_readdir_args *);
+static int cd9660_readlink(struct vop_readlink_args *ap);
+static int cd9660_strategy(struct vop_strategy_args *);
+static int cd9660_print(struct vop_print_args *);
 
 /*
  * Setattr call. Only allowed for block and character special devices.
