@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static const char sccsid[] = "@(#)dir.c	8.8 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -211,9 +211,10 @@ dpok:
 static int
 dircheck(struct inodesc *idesc, struct direct *dp)
 {
-	int size;
+	size_t size;
 	char *cp;
-	u_char namlen, type;
+	u_char type;
+	u_int namlen;
 	int spaceleft;
 
 	spaceleft = DIRBLKSIZ - (idesc->id_loc % DIRBLKSIZ);
