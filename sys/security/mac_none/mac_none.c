@@ -153,6 +153,13 @@ mac_none_create_devfs_device(dev_t dev, struct devfs_dirent *devfs_dirent,
 }
 
 static void
+mac_none_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
+    struct label *ddlabel, struct devfs_dirent *de, struct label *delabel)
+{
+
+}
+
+static void
 mac_none_create_devfs_directory(char *dirname, int dirnamelen,
     struct devfs_dirent *devfs_dirent, struct label *label)
 {
@@ -892,6 +899,8 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_create_devfs_device },
 	{ MAC_CREATE_DEVFS_DIRECTORY,
 	    (macop_t)mac_none_create_devfs_directory },
+	{ MAC_CREATE_DEVFS_SYMLINK,
+	    (macop_t)mac_none_create_devfs_symlink },
 	{ MAC_CREATE_DEVFS_VNODE,
 	    (macop_t)mac_none_create_devfs_vnode },
 	{ MAC_CREATE_VNODE,
