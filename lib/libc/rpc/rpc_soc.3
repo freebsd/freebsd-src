@@ -785,7 +785,7 @@ program
 version
 .Fa versnum ;
 the client uses
-.Tn UNIX Ns -domain
+.Ux Ns -domain
 sockets as a transport.
 The local program is located at the
 .Fa *raddr .
@@ -796,7 +796,7 @@ is a socket; if it is
 then this routine opens a new one and sets
 .Fa sockp .
 Since
-.Tn UNIX Ns \-based
+.Ux Ns -based
 .Tn RPC
 uses buffered
 .Tn I/O ,
@@ -1417,7 +1417,7 @@ choose suitable defaults.
 .Xc
 .Pp
 This routine creates a
-.Tn UNIX Ns \-based
+.Ux Ns -based
 .Tn RPC
 service transport, to which it returns a pointer.
 The transport is associated with the socket
@@ -1440,7 +1440,7 @@ This routine returns
 .Dv NULL
 if it fails.
 Since
-.Tn UNIX Ns \-based
+.Ux Ns -based
 .Tn RPC
 uses buffered
 .Tn I/O ,
