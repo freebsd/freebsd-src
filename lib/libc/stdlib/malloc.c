@@ -18,9 +18,7 @@ __FBSDID("$FreeBSD$");
  * any good unless you fiddle with the internals of malloc or want
  * to catch random pointer corruption as early as possible.
  */
-#ifndef MALLOC_EXTRA_SANITY
 #undef MALLOC_EXTRA_SANITY
-#endif
 
 /*
  * What to use for Junk.  This is the byte value we use to fill with
