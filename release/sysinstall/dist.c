@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.18 1995/06/04 11:30:08 jkh Exp $
+ * $Id: dist.c,v 1.35.2.19 1995/06/04 11:32:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -280,10 +280,7 @@ distExtract(char *parent, Distribution *me)
 	if (fd >= 0) {
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
 	    status = mediaExtractDist(me[i].my_dir, fd);
-	    if (mediaDevice->close)
-		(*mediaDevice->close)(mediaDevice, fd);
-	    else
-		close(fd);
+	    (*mediaDevice->close)(mediaDevice, fd);
 	    goto done;
 	}
 	else if (fd == -2)	/* Hard error, can't continue */
@@ -329,10 +326,7 @@ distExtract(char *parent, Distribution *me)
 		return FALSE;
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
 	    status = mediaExtractDist(me[i].my_dir, fd);
-	    if (mediaDevice->close)
-		(*mediaDevice->close)(mediaDevice, fd);
-	    else
-		close(fd);
+	    (*mediaDevice->close)(mediaDevice, fd);
 	    goto done;
 	}
 
@@ -365,10 +359,7 @@ distExtract(char *parent, Distribution *me)
 		    goto punt;
 		}
 	    }
-	    if (mediaDevice->close)
-		(*mediaDevice->close)(mediaDevice, fd);
-	    else
-		close(fd);
+	    (*mediaDevice->close)(mediaDevice, fd);
 	}
 	close(fd2);
 	status = mediaExtractDistEnd(zpid, cpid);
@@ -402,9 +393,8 @@ distExtractAll(void)
     int retries = 0;
 
     /* First try to initialize the state of things */
-    if (mediaDevice->init)
-	if (!(*mediaDevice->init)(mediaDevice))
-	    return;
+    if (!(*mediaDevice->init)(mediaDevice))
+	return;
 
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
@@ -415,6 +405,5 @@ distExtractAll(void)
 	msgConfirm("Couldn't extract all of the dists.  Residue: %0x", Dists);
 
     /* Close up shop and go home */
-    if (mediaDevice->shutdown)
-	(*mediaDevice->shutdown)(mediaDevice);
+    (*mediaDevice->shutdown)(mediaDevice);
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.21 1995/06/04 08:50:13 jkh Exp $
+ * $Id: install.c,v 1.70.2.22 1995/06/04 11:48:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -442,23 +442,18 @@ root_extract(void)
 	    break;
 
 	default:
-	    if (mediaDevice->init)
-		if (!(*mediaDevice->init)(mediaDevice))
-		    break;
+	    if (!(*mediaDevice->init)(mediaDevice))
+		break;
 	    fd = (*mediaDevice->get)(mediaDevice, "floppies/root.flp");
 	    if (fd < 0) {
 		msgConfirm("Couldn't get root image from %s!\nWill try to get it from floppy.", mediaDevice->name);
-		if (mediaDevice->shutdown)
-		    (*mediaDevice->shutdown)(mediaDevice);
+		(*mediaDevice->shutdown)(mediaDevice);
 	        alreadyExtracted = loop_on_root_floppy();
 	    }
 	    else {
 		msgNotify("Loading root image from %s", mediaDevice->name);
 		alreadyExtracted = mediaExtractDist("/", fd);
-		if (mediaDevice->close)
-		    (*mediaDevice->close)(mediaDevice, fd);
-		else
-		    close(fd);
+		(*mediaDevice->close)(mediaDevice, fd);
 	    }
 	    break;
 	}
