@@ -2,22 +2,20 @@ $FreeBSD$
 
 The release notes and other documentation files formerly in this
 directory are now rendered from SGML as part of the release build.
+
+If you are a committer wishing to update the release documentation,
+please edit the SGML files under src/release/doc/en_US.ISO8859-1/ or
+send a message to freebsd-doc@FreeBSD.org with a plain-text
+submission.
+
 ASCII text versions appear on the floppy images (as before), while
 both ASCII and HTML versions are included in the CDROM and FTP
 directory trees.
 
-Snapshots of the release documentation files for both FreeBSD -CURRENT
-and 4-STABLE are (for now) available at:
+Renditions of the release documentation files for FreeBSD -CURRENT,
+FreeBSD 4-STABLE, and selected releases are available at:
 
-http://people.freebsd.org/~bmah/relnotes/
+http://people.FreeBSD.org/~bmah/relnotes/
 
-Eventually, these files will be integrated into the main FreeBSD Web
-site as a part of the Web site build.
-
-For more information, please see ../doc/README.
-
-If you are a committer wishing to add a release note entry or
-otherwise wishing to update the release documentation, please edit the
-SGML files under ../doc/ or send a message to freebsd-doc@freebsd.org
-with a plain-text submission.
+For more information, please see src/release/doc/README.
 
