@@ -292,22 +292,12 @@ arprequest(ac, sip, tip, enaddr)
 		return;
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 	switch (ac->ac_if.if_type) {
-	case IFT_ETHER:
-	m->m_len = sizeof(*ea);
-	m->m_pkthdr.len = sizeof(*ea);
-	MH_ALIGN(m, sizeof(*ea));
-	ea = mtod(m, struct ether_arp *);
-	eh = (struct ether_header *)sa.sa_data;
-	bzero((caddr_t)ea, sizeof (*ea));
-	eh->ether_type = htons(ETHERTYPE_ARP);	/* if_output will not swap */
-		(void)memcpy(eh->ether_dhost, etherbroadcastaddr, sizeof(eh->ether_dhost));
-	ea->arp_hrd = htons(ARPHRD_ETHER);
-		break;
 	case IFT_ISO88025:
 		m->m_len = sizeof(*ea) + 10;
 		m->m_pkthdr.len = sizeof(*ea) + 10;
 		MH_ALIGN(m, sizeof(*ea) + 10);
-		(void)memcpy(mtod(m, caddr_t), "\x82\x40\xaa\xaa\x03\x00\x00\x00\x08\x06", 10);
+		(void)memcpy(mtod(m, caddr_t),
+		    "\x82\x40\xaa\xaa\x03\x00\x00\x00\x08\x06", 10);
 		(void)memcpy(sa.sa_data, etherbroadcastaddr, 6);
 		(void)memcpy(sa.sa_data + 6, enaddr, 6);
 		sa.sa_data[6] |= 0x80;
@@ -317,9 +307,25 @@ arprequest(ac, sip, tip, enaddr)
 		bzero((caddr_t)ea, sizeof (*ea));
 		ea->arp_hrd = htons(ARPHRD_IEEE802);
 		break;
+	case IFT_ETHER:
+	case IFT_FDDI:
+		/*
+		 * This may not be correct for types not explicitly
+		 * listed, but this is our best guess
+		 */
 	default:
-		m_freem(m);
-		return;
+		m->m_len = sizeof(*ea);
+		m->m_pkthdr.len = sizeof(*ea);
+		MH_ALIGN(m, sizeof(*ea));
+		ea = mtod(m, struct ether_arp *);
+		eh = (struct ether_header *)sa.sa_data;
+		bzero((caddr_t)ea, sizeof (*ea));
+		/* if_output will not swap */
+		eh->ether_type = htons(ETHERTYPE_ARP);	
+		(void)memcpy(eh->ether_dhost, etherbroadcastaddr,
+		    sizeof(eh->ether_dhost));
+		ea->arp_hrd = htons(ARPHRD_ETHER);
+		break;
 	}
 	ea->arp_pro = htons(ETHERTYPE_IP);
 	ea->arp_hln = sizeof(ea->arp_sha);	/* hardware address length */
@@ -433,7 +439,7 @@ arpintr()
 			panic("arpintr");
 		if (m->m_len >= sizeof(struct arphdr) &&
 		    (ar = mtod(m, struct arphdr *)) &&
-		    (ntohs(ar->ar_hrd) == ARPHRD_ETHER || 
+		    (ntohs(ar->ar_hrd) == ARPHRD_ETHER ||
                      ntohs(ar->ar_hrd) == ARPHRD_IEEE802) &&
 		    m->m_len >=
 		      sizeof(struct arphdr) + 2 * ar->ar_hln + 2 * ar->ar_pln)
@@ -558,26 +564,33 @@ in_arpinput(m)
 		(void)memcpy(LLADDR(sdl), ea->arp_sha, sizeof(ea->arp_sha));
 		sdl->sdl_alen = sizeof(ea->arp_sha);
                 sdl->sdl_rcf = NULL;
-		/* If we receive an arp from a token-ring station over a token-ring nic
-		 * then try to save the source routing info.
+		/*
+		 * If we receive an arp from a token-ring station over
+		 * a token-ring nic then try to save the source routing info.
 		 */
 		if (ac->ac_if.if_type == IFT_ISO88025) {
 			th = (struct iso88025_header *)m->m_pkthdr.header;
-                	if ((th->iso88025_shost[0] & 0x80) && (((ntohs(th->rcf) & 0x1f00) >> 8) > 2)) {
-				sdl->sdl_rcf = ntohs(th->rcf) & 0x0080 ? 
-				htons(ntohs(th->rcf) & 0xff7f) : htons(ntohs(th->rcf) | 0x0080);
-				memcpy(sdl->sdl_route, th->rseg, ((ntohs(th->rcf) & 0x1f00) >> 8)  - 2);
-				sdl->sdl_rcf = htons(ntohs(sdl->sdl_rcf) & 0x1fff);
-				/* Set up source routing information for reply packet (XXX)*/
-				m->m_data -= (((ntohs(th->rcf) & 0x1f00) >> 8) + 8); 
-				m->m_len  += (((ntohs(th->rcf) & 0x1f00) >> 8) + 8); 
+			if ((th->iso88025_shost[0] & 0x80) &&
+			    (((ntohs(th->rcf) & 0x1f00) >> 8) > 2)) {
+				sdl->sdl_rcf = ntohs(th->rcf) & 0x0080 ?
+				    htons(ntohs(th->rcf) & 0xff7f) :
+				    htons(ntohs(th->rcf) | 0x0080);
+				memcpy(sdl->sdl_route, th->rseg,
+				    ((ntohs(th->rcf) & 0x1f00) >> 8)  - 2);
+				sdl->sdl_rcf = htons(ntohs(sdl->sdl_rcf) &
+				    0x1fff);
+				/*
+				 * Set up source routing information for
+				 * reply packet (XXX)
+				 */
+				m->m_data -= (((ntohs(th->rcf) & 0x1f00) >> 8) + 8);
+				m->m_len  += (((ntohs(th->rcf) & 0x1f00) >> 8) + 8);
 			} else {
 				th->iso88025_shost[0] &= 0x7f;
 				m->m_data -= 8;
 				m->m_len  += 8;
 			}
 			th->rcf = sdl->sdl_rcf;
-			
 		} else {
 			sdl->sdl_rcf = NULL;
 		}
@@ -652,27 +665,34 @@ reply:
 	switch (ac->ac_if.if_type) {
 	case IFT_ISO88025:
 		/* Re-arrange the source/dest address */
-		memcpy(th->iso88025_dhost, th->iso88025_shost, sizeof(th->iso88025_dhost));
-		memcpy(th->iso88025_shost, ac->ac_enaddr, sizeof(th->iso88025_shost));
+		memcpy(th->iso88025_dhost, th->iso88025_shost,
+		    sizeof(th->iso88025_dhost));
+		memcpy(th->iso88025_shost, ac->ac_enaddr,
+		    sizeof(th->iso88025_shost));
 		/* Set the source routing bit if neccesary */
 		if (th->iso88025_dhost[0] & 0x80) {
 			th->iso88025_dhost[0] &= 0x7f;
 			if (((ntohs(th->rcf) & 0x1f00) >> 8) - 2)
-				th->iso88025_shost[0] |= 0x80;
+			    th->iso88025_shost[0] |= 0x80;
 		}
 		/* Copy the addresses, ac and fc into sa_data */
-		memcpy(sa.sa_data, th->iso88025_dhost, sizeof(th->iso88025_dhost) * 2);
+		memcpy(sa.sa_data, th->iso88025_dhost,
+		    sizeof(th->iso88025_dhost) * 2);
 		sa.sa_data[(sizeof(th->iso88025_dhost) * 2)] = 0x10;
 		sa.sa_data[(sizeof(th->iso88025_dhost) * 2) + 1] = 0x40;
 		break;
 	case IFT_ETHER:
-	eh = (struct ether_header *)sa.sa_data;
-	(void)memcpy(eh->ether_dhost, ea->arp_tha, sizeof(eh->ether_dhost));
-	eh->ether_type = htons(ETHERTYPE_ARP);
-		break;
+	case IFT_FDDI:
+		/*
+		 * May not be correct for types not explictly
+		 * listed, but it is our best guess.
+		 */
 	default:
-		m_free(m);
-		return;
+		eh = (struct ether_header *)sa.sa_data;
+		(void)memcpy(eh->ether_dhost, ea->arp_tha,
+		    sizeof(eh->ether_dhost));
+		eh->ether_type = htons(ETHERTYPE_ARP);
+		break;
 	}
 	sa.sa_family = AF_UNSPEC;
 	sa.sa_len = sizeof(sa);
