@@ -35,7 +35,7 @@
 .\"	@(#)mklocale.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2002
+.Dd August 10, 2003
 .Dt MKLOCALE 1
 .Os
 .Sh NAME
@@ -147,6 +147,11 @@ encoding as used by several
 vendors of
 .Ux
 systems.
+.It Dv GB18030
+PRC national standard for encoding of Chinese text.
+.It Dv GBK
+A widely used encoding method for Chinese text,
+backwards compatible with GB\ 2312-1980.
 .It Dv MSKanji
 The method of encoding Japanese used by Microsoft,
 loosely based on JIS.
@@ -287,6 +292,10 @@ for printable runes by default.
 .Xr wcwidth 3 ,
 .Xr euc 4 ,
 .Xr utf2 4 ,
+.Xr big5 5 ,
+.Xr gb18030 5 ,
+.Xr gbk 5 ,
+.Xr mskanji 5 ,
 .Xr utf8 5
 .Sh BUGS
 The
