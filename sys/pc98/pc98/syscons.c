@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.48 1997/07/16 13:55:58 kato Exp $
+ *  $Id: syscons.c,v 1.49 1997/07/21 13:11:14 kato Exp $
  */
 
 #include "sc.h"
@@ -147,10 +147,15 @@ static  long       	scrn_time_stamp;
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
 	char        	*video_mode_ptr = NULL;
-	int     	fonts_loaded = 0;
+	int     	fonts_loaded = 0
+#ifdef STD8X16FONT
+	| FONT_16
+#endif
+	;
+
 	char        	font_8[256*8];
 	char		font_14[256*14];
-	char		font_16[256*16];
+extern	unsigned char	font_16[256*16];
 	char        	palette[256*3];
 static  char		vgaregs[64];
 static	char 		*cut_buffer;
@@ -1722,6 +1727,15 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	bcopy(data, &key_map, sizeof(key_map));
 	return 0;
 
+#ifdef PC98
+    case PIO_FONT8x8:   	/* set 8x8 dot font */
+    case GIO_FONT8x8:   	/* get 8x8 dot font */
+    case PIO_FONT8x14:  	/* set 8x14 dot font */
+    case GIO_FONT8x14:  	/* get 8x14 dot font */
+    case PIO_FONT8x16:  	/* set 8x16 dot font */
+    case GIO_FONT8x16:  	/* get 8x16 dot font */
+		return ENXIO;
+#else
     case PIO_FONT8x8:   	/* set 8x8 dot font */
 	if (!crtc_vga)
 	    return ENXIO;
@@ -1787,6 +1801,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	}
 	else
 	    return ENXIO;
+#endif /* PC98 */
+
 #ifdef PC98
     case ADJUST_CLOCK:	/* /dev/rtc for 98note resume */
 	inittodr(0);
@@ -4367,7 +4383,7 @@ set_mode(scr_stat *scp)
 	    outb(0x62, 0xd);	/* text on */
 	    outb(0xA2, 0xc);	/* graphics off */
 	}
-#else
+#else /* IBM-PC */
     switch (scp->mode) {
     case M_VGA_M80x60:
 	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
@@ -4466,7 +4482,7 @@ setup_mode:
 	/* call user defined function XXX */
 	break;
     }
-#endif
+#endif /* PC98 */
 
     /* set border color for this (virtual) console */
     set_border(scp->border);
@@ -5118,10 +5134,15 @@ do_bell(scr_stat *scp, int pitch, int duration)
 	sysbeep(pitch, duration);
     }
 
+#ifndef PC98
     /* Save font and palette if VGA */
     if (crtc_vga) {
-	copy_font(SAVE, FONT_16, font_16);
-	fonts_loaded = FONT_16;
+	if (fonts_loaded & FONT_16) {
+		copy_font(LOAD, FONT_16, font_16);
+	} else {
+		copy_font(SAVE, FONT_16, font_16);
+		fonts_loaded = FONT_16;
+	}
 	save_palette();
 	set_destructive_cursor(console[0]);
     }
@@ -5132,6 +5153,7 @@ do_bell(scr_stat *scp, int pitch, int duration)
      * couble of palette entries for simple animation.
      */
     toggle_splash_screen(cur_console);
+#endif
 #endif
 }
 
