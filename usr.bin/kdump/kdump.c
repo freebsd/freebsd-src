@@ -171,7 +171,7 @@ main(argc, argv)
 			ktrcsw((struct ktr_csw *)m);
 			break;
 		case KTR_USER:
-			ktruser((struct ktr_user *)m);
+			ktruser(ktrlen, m);
 			break;
 		}
 		if (tail)
@@ -439,12 +439,12 @@ ktrcsw(cs)
 		cs->user ? "user" : "kernel");
 }
 
-ktruser(cs)
-	struct ktr_user *cs;
+ktruser(len, p)
+	int len;
+	unsigned char *p;
 {
-	unsigned char *p = (unsigned char *)(cs + 1);
-	(void)printf("%d ", cs->len);
-	while (cs->len--)
+	(void)printf("%d ", len);
+	while (len--)
 		(void)printf(" %02x", *p++);
 	(void)printf("\n");
 		
