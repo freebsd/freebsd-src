@@ -43,14 +43,16 @@
 Act as a registration agent for a Kerberos domain.
 .Sh FILES
 .Bl -tag -width /etc/kerberosIV/register_keys -compact
-.It Pa /.update.keyxx.xx.xx.xx
+.It Pa /etc/kerberosIV/principal*
+Kerberos database
+.It Pa /etc/kerberosIV/register_keys/
+directory containing
+.Tn DES
+keys for trusted hosts
+.It Pa .update.keyxx.xx.xx.xx
 shared
 .Tn DES
 key with server
-.It Pa /etc/kerberosIV/principal*
-Kerberos database
-.It Pa /etc/kerberosIV/register_keys
-directory containing keys for trusted hosts
 .El
 .Sh SEE ALSO
 .Xr registerd 8 ,
