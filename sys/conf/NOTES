@@ -420,7 +420,7 @@ options 	NETGRAPH_TTY
 options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
 
-device		mn0	# Munich32x/Falc54 Nx64kbit/sec cards.
+device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 
 #
 # Network interfaces:
@@ -585,8 +585,8 @@ options 	ATM_IP			#IP over ATM support
 options 	ATM_SIGPVC		#SIGPVC signalling manager
 options 	ATM_SPANS		#SPANS signalling manager
 options 	ATM_UNI			#UNI signalling manager
-device		hea0			#Efficient ENI-155p ATM PCI
-device		hfa0			#FORE PCA-200E ATM PCI
+device		hea			#Efficient ENI-155p ATM PCI
+device		hfa			#FORE PCA-200E ATM PCI
 
 
 #####################################################################
@@ -742,7 +742,7 @@ options 	_KPOSIX_VERSION=199309L
 # device	da1 at scbus3 target 1
 # device	da2 at scbus2 target 3
 # device	sa1 at scbus1 target 6
-# device	cd0 at scbus?
+# device	cd
 
 # "units" (SCSI logical unit number) that are not specified are
 # treated as if specified as LUN 0.
@@ -752,14 +752,14 @@ options 	_KPOSIX_VERSION=199309L
 # The "unknown" device (uk? in pre-2.0.5) is now part of the base SCSI
 # configuration and doesn't have to be explicitly configured.
 
-device		scbus0			#base SCSI code
-device		ch0			#SCSI media changers
-device		da0			#SCSI direct access devices (aka disks)
-device		sa0			#SCSI tapes
-device		cd0			#SCSI CD-ROMs
-device		pass0			#CAM passthrough driver
-device		pt0			#SCSI processor type
-device		ses0			#SCSI SES/SAF-TE driver
+device		scbus			#base SCSI code
+device		ch			#SCSI media changers
+device		da			#SCSI direct access devices (aka disks)
+device		sa			#SCSI tapes
+device		cd			#SCSI CD-ROMs
+device		pass			#CAM passthrough driver
+device		pt			#SCSI processor type
+device		ses			#SCSI SES/SAF-TE driver
 
 # CAM OPTIONS:
 # debugging options:
@@ -872,7 +872,7 @@ options 	MSGBUF_SIZE=40960
 #
 # Mandatory ISA devices: isa, npx
 #
-device		isa0
+device		isa
 
 #
 # Options for `isa':
@@ -1070,7 +1070,7 @@ device		npx0	at nexus? port IO_NPX flags 0x0 irq 13
 
 device		bt0	at isa? port IO_BT0 irq ?
 device		adv0	at isa? port ? irq ?
-device		adw0
+device		adw
 device		aha0	at isa? port ? irq ?
 device		aic0	at isa? port ? irq ?
 
@@ -1080,26 +1080,26 @@ device		aic0	at isa? port ? irq ?
 # Only one line of each is needed, the code finds all available controllers
 # and devices.
 #
-device		ida0
-device		id0
+device		ida
+device		id
 
 #
 # Mylex DAC960, AMI MegaRAID controllers.  Only one entry is needed; the code
 # will find and configure all supported controllers.
 #
-device		mlx0		# Mylex DAC960
-device		amr0		# AMI MegaRAID
+device		mlx		# Mylex DAC960
+device		amr		# AMI MegaRAID
 
 #
 # The 'ATA' driver supports all ATA and ATAPI devices.
 # It can reuse the majors of wd.c for booting purposes.
 # You only need one "device ata0" for it to find all
 # PCI ATA/ATAPI devices on modern machines.
-device		ata0
-device		atadisk0	# ATA disk drives
-device		atapicd0	# ATAPI CDROM drives
-device		atapifd0	# ATAPI floppy drives
-device		atapist0	# ATAPI tape drives
+device		ata
+device		atadisk		# ATA disk drives
+device		atapicd		# ATAPI CDROM drives
+device		atapifd		# ATAPI floppy drives
+device		atapist		# ATAPI tape drives
 
 #The folliwing options are valid on the ATA driver:
 #
@@ -1116,7 +1116,7 @@ options 	ATA_ENABLE_ATAPI_DMA
 #options 	ATA_16BIT_ONLY
 
 #
-# For older non-PCI systems, this is the lines to use:
+# For older non-PCI systems, these are the lines to use:
 #device		ata0	at isa? port IO_WD1 irq 14
 #device		ata1	at isa? port IO_WD2 irq 15
 
@@ -1184,13 +1184,13 @@ options 	ATA_ENABLE_ATAPI_DMA
 #options 	IDE_DELAY=8000	# Be optimistic about Joe IDE device
 
 # IDE CD-ROM & CD-R/RW  driver - requires wdc controller
-#device		wcd0
+#device		wcd
 
 # IDE floppy driver - requires wdc controller
-#device		wfd0
+#device		wfd
 
 # IDE tape driver - requires wdc controller
-#device		wst0
+#device		wst
 
 
 #
@@ -1289,8 +1289,8 @@ device cs0 at isa? port 0x300 irq ?
 device cx0 at isa? port 0x240 irq 15 drq 7
 device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
 device el0 at isa? port 0x300 irq 9
-device ep0
-device ex0
+device ep
+device ex
 device fe0 at isa? port 0x300 irq ?
 device ie0 at isa? port 0x300 irq 5 iomem 0xd0000
 device ie1 at isa? port 0x360 irq 7 iomem 0xd0000
@@ -1299,8 +1299,8 @@ device lnc0 at isa? port 0x280 irq 10 drq 0
 device rdp0 at isa? port 0x378 irq 7 flags 2
 device sr0 at isa? port 0x300 irq 5 iomem 0xd0000
 device sn0 at isa? port 0x300 irq 10
-device wi0
-device an0
+device wi
+device an
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
 device wl0 at isa? port 0x300 irq ?
@@ -1324,8 +1324,7 @@ device oltr0 at isa?
 # http://www.ccrc.wustl.edu/pub/chuck/tech/bsdatm/bsdatm.html
 #
 pseudo-device	atm
-device en0
-device en1
+device		en
 options 	NATM			#native ATM
 
 #
@@ -1397,7 +1396,7 @@ options 	NATM			#native ATM
 # Controls all "VOXWARE" driver sound devices.  See Luigi's driver
 # below for an alternate which may work better for some cards.
 #
-device		snd0
+device		snd
 device pas0	at isa? port 0x388 irq 10 drq 6
 device sb0	at isa? port 0x220 irq 5 drq 1
 device sbxvi0	at isa? drq 5
@@ -1421,7 +1420,7 @@ device uart0	at isa? port 0x330 irq 5
 #device		pcm0 at isa? port ? irq 10 drq 1 flags 0x0
 #
 # For pnp sound cards:
-#device		pcm0
+#device		pcm
 
 # The bridge drivers for sound cards. Do not forget pcm as well.
 #
@@ -1430,10 +1429,10 @@ device uart0	at isa? port 0x330 irq 5
 # gusc: Gravis UltraSound ISA PnP/non-PnP
 # csa:  Crystal Semiconductor CS461x/428x PCI
 
-# For PnP cards:
-#device		sbc0
-#device		gusc0
-#device		csa0
+# For PnP or PCI cards:
+#device		sbc
+#device		gusc
+#device		csa
 
 # For non-PnP cards:
 #device		sbc0	at isa? port 0x220 irq 5 drq 1 flags 0x15
@@ -1510,11 +1509,7 @@ device		pca0 at isa? port IO_TIMER1
 #
 #   And for PCI cards, you only need say:
 #
-#               device rp0
-#               device rp1
-#               ...
-#   Note: Make sure that any Rocketport PCI devices are specified BEFORE the
-#   ISA Rocketport devices.
+#               device rp
 
 # Notes on the Digiboard driver:
 #
@@ -1573,7 +1568,7 @@ device		stli0	at isa? port 0x2a0 iomem 0xcc000 flags 23 iosiz 0x1000
 # You are unlikely to have the hardware for loran0 <phk@FreeBSD.org>
 device		loran0	at isa? port ? irq 5
 # HOT1 Xilinx 6200 card (http://www.vcc.com/)
-device		xrpu0
+device		xrpu
 
 #
 # MCA devices:
@@ -1588,7 +1583,7 @@ device		xrpu0
 #
 # The 'ep' device provides support for the 3Com 3C529 ethernet card.
 #
-device		mca0
+device		mca
 
 #
 # EISA devices:
@@ -1603,10 +1598,10 @@ device		mca0
 #
 # fea: DEC DEFEA EISA FDDI adapter
 #
-device		eisa0
-device		ahb0
-device		ahc0
-device		fea0
+device		eisa
+device		ahb
+device		ahc
+device		fea
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set. Unfortunately,
@@ -1633,7 +1628,7 @@ options 	EISA_SLOTS=12
 # configuration support for all devices on the PCI bus, using either
 # configuration mode defined in the PCI specification.
 
-device		pci0
+device		pci
 
 # PCI options
 #
@@ -1795,11 +1790,11 @@ device		pci0
 # The oltr driver supports the following Olicom PCI token-ring adapters
 # OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
 #
-device		ahc1		# AHA2940 and onboard AIC7xxx devices
-device		amd0		# AMD 53C974 (Teckram DC-390(T))
-device		isp0		# Qlogic family
-device		ncr0		# NCR/Symbios Logic
-device		sym0		# NCR/Symbios Logic (newer chipsets)
+device		ahc		# AHA2940 and onboard AIC7xxx devices
+device		amd		# AMD 53C974 (Teckram DC-390(T))
+device		isp		# Qlogic family
+device		ncr		# NCR/Symbios Logic
+device		sym		# NCR/Symbios Logic (newer chipsets)
 #
 # Options for ISP
 #
@@ -1879,30 +1874,30 @@ options 	SCSI_ISP_WWN="0x5000000099990000"
 # the generic miibus API and all of the PHY drivers, including a
 # generic one for PHYs that aren't specifically handled by an
 # individual driver.
-device		miibus0
+device		miibus
 
 # PCI Ethernet NICs that use the common MII bus controller code.
-device		dc0		# DEC/Intel 21143 and various workalikes
-device		rl0		# RealTek 8129/8139
-device		sf0		# Adaptec AIC-6915 (``Starfire'')
-device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
-device		ste0		# Sundance ST201 (D-Link DFE-550TX)
-device		tl0		# Texas Instruments ThunderLAN
-device		vr0		# VIA Rhine, Rhine II
-device		wb0		# Winbond W89C840F
-device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+device		dc		# DEC/Intel 21143 and various workalikes
+device		rl		# RealTek 8129/8139
+device		sf		# Adaptec AIC-6915 (``Starfire'')
+device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		tl		# Texas Instruments ThunderLAN
+device		vr		# VIA Rhine, Rhine II
+device		wb		# Winbond W89C840F
+device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
-device		de0		# DEC/Intel DC21x4x (``Tulip'')
-device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
-device		tx0		# SMC 9432TX (83c170 ``EPIC'')
-device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
+device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		tx		# SMC 9432TX (83c170 ``EPIC'')
+device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
-device		sk0
-device		ti0
-device		wx0
-device		fpa0
-device		meteor0
+device		sk
+device		ti
+device		wx
+device		fpa
+device		meteor
 #The oltr driver in the ISA section will also find PCI cards.
 #device		oltr0
 
@@ -1915,7 +1910,7 @@ device		meteor0
 # The iic and smb devices are only needed if you want to control other
 # I2C slaves connected to the external connector of some cards.
 #
-device		bktr0
+device		bktr
 
 #
 # PCCARD/PCMCIA
@@ -1924,7 +1919,7 @@ device		bktr0
 # pcic: isa/pccard bridge
 device		pcic0 at isa?
 device		pcic1 at isa?
-device		card0
+device		card
 
 # You may need to reset all pccards after resuming
 options 	PCIC_RESUME_RESET	# reset after resume
@@ -1955,11 +1950,11 @@ options 	POWERFAIL_NMI	# make it beep instead of panicing
 # intpm	Intel PIIX4 Power Management Unit
 # alpm	Acer Aladdin-IV/V/Pro2 Power Management Unit
 #
-device		smbus0		# Bus support, required for smb below.
-device		intpm0
-device		alpm0
+device		smbus		# Bus support, required for smb below.
+device		intpm
+device		alpm
 
-device		smb0
+device		smb
 
 #
 # I2C Bus
@@ -1978,12 +1973,12 @@ device		smb0
 # Other:
 # iicbb	generic I2C bit-banging code (needed by lpbb, bktr)
 #
-device		iicbus0		# Bus support, required for ic/iic/iicsmb below.
-device		iicbb0
+device		iicbus		# Bus support, required for ic/iic/iicsmb below.
+device		iicbb
 
-device		ic0
-device		iic0
-device		iicsmb0		# smb over i2c bridge
+device		ic
+device		iic
+device		iicsmb		# smb over i2c bridge
 
 device		pcf0	at isa? port 0x320 irq 5
 
@@ -2034,50 +2029,50 @@ options 	"ELSA_PCC16"
 #
 # Teles S0/16.3 PnP
 options 	TEL_S0_16_3_P
-#device		isic0
+#device		isic
 #
 # Creatix ISDN-S0 P&P
 options 	CRTX_S0_P
-#device		isic0
+#device		isic
 #
 # Dr. Neuhaus Niccy Go@
 options 	DRN_NGO
-#device		isic0
+#device		isic
 #
 # Sedlbauer Win Speed
 options 	SEDLBAUER
-#device		isic0
+#device		isic
 #
 # Dynalink IS64PH (not supported yet!)
 #options 	DYNALINK 
-#device		isic0
+#device		isic
 #
 # ELSA QuickStep 1000pro ISA
 options 	ELSA_QS1ISA
-#device		isic0
+#device		isic
 #
 # ITK ix1 Micro ( V.3, PnP version ) (not supported yet!)
 #options 	"ITKIX1"
-#device		isic0
+#device		isic
 #
 # AVM Fritz!Card PnP (not supported yet!)
 #options 	"AVM_PNP"
-#device 	isic0
+#device 	isic
 #
 # Siemens I-Surf 2.0
 options 	"SIEMENS_ISURF2"
-#device		isic0
+#device		isic
 #
 # PCI bus Cards:
 # --------------
 #
 # ELSA MicroLink ISDN/PCI (same as ELSA QuickStep 1000pro PCI)
 options 	ELSA_QS1PCI
-#device		isic0
+#device		isic
 #
 # AVM Fritz!Card PCI
 options 	"AVM_A1_PCI"
-#device		isic0
+#device		isic
 #
 # PCMCIA Cards:
 # -------------
@@ -2164,7 +2159,7 @@ options 	PLIP_DEBUG	# Parallel network IP interface debug
 options		PCFCLOCK_VERBOSE         # Verbose pcfclock driver
 options		PCFCLOCK_MAX_RETRIES=5   # Maximum read tries (default 10)
 
-device		ppbus0
+device		ppbus
 device		vpo0	at ppbus?
 device		lpt0	at ppbus?
 device		plip0	at ppbus?
@@ -2356,7 +2351,7 @@ options 	VM_KMEM_SIZE_SCALE
 #                           instead of fudging it.  Only enable this if you
 #			    are 100% certain you need it.
 
-device		dpt0
+device		dpt
 
 # DPT options
 #!CAM# options 	DPT_MEASURE_PERFORMANCE
@@ -2368,41 +2363,41 @@ options 	DPT_ALLOW_MEMIO
 
 # USB support
 # UHCI controller
-device		uhci0
+device		uhci
 # OHCI controller
-device		ohci0
+device		ohci
 # General USB code (mandatory for USB)
-device		usb0
+device		usb
 #
 # Generic USB device driver
-device		ugen0
+device		ugen
 # Human Interface Device (anything with buttons and dials)
-device		uhid0
+device		uhid
 # USB keyboard
-device		ukbd0
+device		ukbd
 # USB printer
-device		ulpt0
+device		ulpt
 # USB Iomega Zip 100 Drive
-device		umass0
+device		umass
 # USB mouse
-device		ums0
+device		ums
 #
 # ADMtek USB ethernet. Supports the LinkSys USB100TX,
 # the Billionton USB100, the Melco LU-ATX, the D-Link DSB-650TX
 # and the SMC 2202USB. Also works with the ADMtek AN986 Pegasus
 # eval board.
-device		aue0
+device		aue
 #
 # CATC USB-EL1201A USB ethernet. Supports the CATC Netmate
 # and Netmate II, and the Belkin F5U111.
-device		cue0
+device		cue
 #
 # Kawasaki LSI ethernet. Supports the LinkSys USB10T,
 # Entrega USB-NET-E45, Peracom Ethernet Adapter, the
 # 3Com 3c19250, the ADS Technologies USB-10BT, the ATen UC10T,
 # the Netgear EA101, the D-Link DSB-650, the SMC 2102USB
 # and 2104USB, and the Corega USB-T.
-device		kue0
+device		kue
 
 # debugging options for the USB subsystem
 #
