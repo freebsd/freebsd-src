@@ -272,9 +272,6 @@ static struct witness_order_list_entry order_lists[] = {
 	 */
 #ifdef SMP
 	{ "ap boot", &lock_class_mtx_spin },
-#ifdef __i386__
-	{ "com", &lock_class_mtx_spin },
-#endif
 #endif
 	{ "sio", &lock_class_mtx_spin },
 #ifdef __i386__
