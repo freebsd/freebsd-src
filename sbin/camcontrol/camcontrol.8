@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: camcontrol.8,v 1.11 1999/05/06 20:15:37 ken Exp $
+.\"	$Id: camcontrol.8,v 1.12 1999/05/10 23:30:00 ken Exp $
 .\"
 .Dd September 14, 1998
 .Dt CAMCONTROL 8
@@ -510,7 +510,7 @@ device until a command has been sent to the device.  The
 switch above will automatically send a Test Unit Ready to the device so
 negotiation parameters will take effect.
 .It help
-Print out a verbose usage information.
+Print out verbose usage information.
 .El
 .Sh ENVIRONMENT
 The
@@ -689,6 +689,3 @@ interface.  The best way to circumvent this problem is to always make sure
 to specify generic
 .Nm camcontrol
 arguments before any command-specific arguments.
-.Pp
-It might be nice to add a way to allow users to specify devices by
-bus/target/lun or by device string (e.g. "da1").
