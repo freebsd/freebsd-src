@@ -29,7 +29,6 @@
 
 static const char rcsid[] =
   "$FreeBSD$";
-  "$FreeBSD$";
 
 #include <sys/types.h>
 #include <sys/time.h>		/* XXX for mtree.h */
