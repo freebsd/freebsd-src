@@ -67,23 +67,21 @@ void
 write_dospart(int fd, struct dos_partition *dp)
 {
     u_char buf[512];
-    int flag;
+
     if (lseek(fd, 0, SEEK_SET) == -1) 
 	AskAbort("Couldn't seek for master boot record read\n");
     if (read(fd, buf, 512) != 512) {
 	AskAbort("Failed to read master boot record\n");
     }
     memcpy(buf+DOSPARTOFF, dp, sizeof(*dp)*NDOSPART);
+    buf[510] = 0x55;
+    buf[511] = 0xaa;
     if (lseek(fd, 0, SEEK_SET) == -1) 
-	AskAbort("Couldn't seek for master boot record read\n");
-    flag=1;
-    if (ioctl(fd, DIOCWLABEL, &flag) < 0)
-	AskAbort("Couldn't enable writing of labels");
+	AskAbort("Couldn't seek for master boot record write\n");
+    enable_label(fd);
     if (write(fd, buf, 512) != 512) 
 	AskAbort("Failed to write master boot record\n");
-    flag=0;
-    if (ioctl(fd, DIOCWLABEL, &flag) < 0)
-	AskAbort("Couldn't disable writing of labels");
+    disable_label(fd);
 }
 
 int
