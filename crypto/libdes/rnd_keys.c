@@ -82,6 +82,13 @@ RCSID("$Id$");
 #include <winsock.h>
 #endif
 
+#ifndef RETSIGTYPE
+#define RETSIGTYPE void
+#define SIGRETURN(x) return
+#else
+#define SIGRETURN(x) return (RETSIGTYPE)(x)
+#endif
+
 /*
  * Generate "random" data by checksumming a file.
  *
