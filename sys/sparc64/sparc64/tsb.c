@@ -149,11 +149,6 @@ tsb_stte_lookup(pmap_t pm, vm_offset_t va)
 	u_int level;
 	u_int i;
 
-	CTR5(KTR_CT1,
-	    "tsb_stte_lookup: ws=%#lx ow=%#lx cr=%#lx cs=%#lx cwp=%#lx",
-	    rdpr(wstate), rdpr(otherwin), rdpr(canrestore), rdpr(cansave),
-	    rdpr(cwp));
-
 	if (pm == kernel_pmap) {
 		stp = tsb_kvtostte(va);
 		CTR3(KTR_CT1,
@@ -199,6 +194,8 @@ tsb_stte_promote(pmap_t pm, vm_offset_t va, struct stte *stp)
 	int b0;
 	int i;
 
+	CTR3(KTR_CT1, "tsb_stte_promote: ctx=%#x va=%#lx stp=%p",
+	    pm->pm_context, va, stp);
 	bmask = tsb_bucket_mask(0);
 	bucket = tsb_vtobucket(va, 0);
 	b0 = rd(tick) & bmask;
@@ -207,12 +204,17 @@ tsb_stte_promote(pmap_t pm, vm_offset_t va, struct stte *stp)
 		if ((bucket[i].st_tte.tte_data & TD_V) == 0 ||
 		    (bucket[i].st_tte.tte_data & (TD_L | TD_REF)) == 0) {
 			tte = stp->st_tte;
+			CTR3(KTR_CT1,
+			    "tsb_stte_promote: replace stp=%p va=%#lx pa=%#lx",
+			    stp, tte_get_va(tte), TD_PA(tte.tte_data));
 			if (tte.tte_data & TD_MNG)
 				pv_remove_virt(stp);
 			stp->st_tte.tte_data = 0;
-			return (tsb_tte_enter(pm, va, tte));
+			stp = tsb_tte_enter(pm, va, tte);
+			break;
 		}
 	} while ((i = (i + 1) & bmask) != b0);
+	CTR1(KTR_CT1, "tsb_stte_promote: return stp=%p", stp);
 	return (stp);
 }
 
@@ -231,12 +233,8 @@ tsb_stte_remove(struct stte *stp)
 void
 tsb_tte_local_remove(struct tte *tp)
 {
-	vm_offset_t va;
-	u_int ctx;
-
-	va = tte_get_va(*tp);
-	ctx = tte_get_ctx(*tp);
-	tlb_page_demap(TLB_DTLB | TLB_ITLB, ctx, va);
+	tlb_page_demap(TLB_DTLB | TLB_ITLB, TT_GET_CTX(tp->tte_tag),
+	    tte_get_va(*tp));
 }
 
 struct stte *
