@@ -2,11 +2,26 @@
 #
 # $FreeBSD$
 #
-# remove system	messages older than 21 days
+# Remove system	messages
 #
-if [ -d /var/msgs ] ; then
-    echo ""
-    echo "Cleaning out old system announcements:"
 
-    msgs -c
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_clean_preserve_enable" in
+    [Yy][Ee][Ss])
+	if [ -d /var/msgs ]
+	then
+	    echo ""
+	    echo "Cleaning out old system announcements:"
+
+	    [ -n "$daily_clean_msg_days" ] &&
+		arg=-${daily_clean_msg_days#-} || arg=
+	    msgs -c $arg
+	fi;;
+esac
