@@ -68,8 +68,16 @@ SYSCTL_STRUCT(_net_inet_ip, OID_AUTO, mrtstat, CTLFLAG_RW,
     "Multicast Routing Statistics (struct mrtstat, netinet/ip_mroute.h)");
 
 static struct mfc	*mfctable[MFCTBLSIZ];
-static u_char		nexpire[MFCTBLSIZ];
+SYSCTL_OPAQUE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD,
+    &mfctable, sizeof(mfctable), "S,*mfc[MFCTBLSIZ]",
+    "Multicast Forwarding Table (struct *mfc[MFCTBLSIZ], netinet/ip_mroute.h)");
+
 static struct vif	viftable[MAXVIFS];
+SYSCTL_OPAQUE(_net_inet_ip, OID_AUTO, viftable, CTLFLAG_RD,
+    &viftable, sizeof(viftable), "S,vif[MAXVIFS]",
+    "Multicast Virtual Interfaces (struct vif[MAXVIFS], netinet/ip_mroute.h)");
+
+static u_char		nexpire[MFCTBLSIZ];
 
 static struct callout_handle expire_upcalls_ch;
 
@@ -1084,9 +1092,9 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp,
 	     * Locate the vifi for the incoming interface for this packet.
 	     * If none found, drop packet.
 	     */
-	    for (vifi=0; vifi<numvifs && viftable[vifi].v_ifp != ifp; vifi++)
+	    for (vifi=0; vifi < numvifs && viftable[vifi].v_ifp != ifp; vifi++)
 		;
-            if (vifi >= numvifs)	/* vif not found, drop packet */
+	    if (vifi >= numvifs)	/* vif not found, drop packet */
 		goto non_fatal;
 
 	    /* no upcall, so make a new entry */
@@ -1241,11 +1249,11 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
  * input, they shouldn't get counted on output, so statistics keeping is
  * separate.
  */
-#define MC_SEND(ip,vifp,m) {                             \
-                if ((vifp)->v_flags & VIFF_TUNNEL)  	 \
-                    encap_send((ip), (vifp), (m));       \
-                else                                     \
-                    phyint_send((ip), (vifp), (m));      \
+#define MC_SEND(ip,vifp,m) {				\
+		if ((vifp)->v_flags & VIFF_TUNNEL)	\
+		    encap_send((ip), (vifp), (m));	\
+		else					\
+		    phyint_send((ip), (vifp), (m));	\
 }
 
     /*
@@ -1280,6 +1288,12 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	    struct timeval now;
 	    u_long delta;
 
+	    /* Get vifi for the incoming packet */
+	    for (vifi=0; vifi < numvifs && viftable[vifi].v_ifp != ifp; vifi++)
+		;
+	    if (vifi >= numvifs)
+		return 0;	/* if not found: ignore the packet */
+
 	    GET_TIME(now);
 
 	    TV_DELTA(rt->mfc_last_assert, now, delta);
@@ -1302,8 +1316,9 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		im->im_mbz		= 0;
 		im->im_vif		= vifi;
 
-		k_igmpsrc.sin_addr = im->im_src;
+		mrtstat.mrts_upcalls++;
 
+		k_igmpsrc.sin_addr = im->im_src;
 		if (socket_send(ip_mrouter, mm, &k_igmpsrc) < 0) {
 		    log(LOG_WARNING,
 			"ip_mforward: ip_mrouter socket queue full\n");
