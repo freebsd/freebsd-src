@@ -231,6 +231,8 @@ yankstr(char **cpp)
 	static char tmp[] = "b\bt\tr\rn\nf\f\\\\\"\"";
 
 	while ((c = *cp++)) {
+		if (dp == dbuf + sizeof(dbuf) - 3)
+			errx(1, "message too long");
 		switch (c) {
 
 		case '"':
