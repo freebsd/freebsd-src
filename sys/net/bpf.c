@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id$
+ * $Id: bpf.c,v 1.2 1994/08/02 07:45:51 davidg Exp $
  */
 
 #include "bpfilter.h"
@@ -122,15 +122,11 @@ bpfilterattach(n)
 #endif
 
 static int	bpf_allocbufs __P((struct bpf_d *));
-static int	bpf_allocbufs __P((struct bpf_d *));
 static void	bpf_freed __P((struct bpf_d *));
-static void	bpf_freed __P((struct bpf_d *));
-static void	bpf_ifname __P((struct ifnet *, struct ifreq *));
 static void	bpf_ifname __P((struct ifnet *, struct ifreq *));
 static void	bpf_mcopy __P((const void *, void *, u_int));
 static int	bpf_movein __P((struct uio *, int,
 		    struct mbuf **, struct sockaddr *, int *));
-static int	bpf_setif __P((struct bpf_d *, struct ifreq *));
 static int	bpf_setif __P((struct bpf_d *, struct ifreq *));
 static inline void
 		bpf_wakeup __P((struct bpf_d *));

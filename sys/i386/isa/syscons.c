@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.50 1994/08/17 08:51:59 sos Exp $
+ *	$Id: syscons.c,v 1.51 1994/08/17 19:32:23 sos Exp $
  */
 
 #include "sc.h"
@@ -197,9 +197,6 @@ static	int		scrn_blanked = 0;	/* screen saver active flag */
 static	int		scrn_saver = 0;		/* screen saver routine */
 static	long 		scrn_time_stamp;
 static  u_char		scr_map[256];
-
-extern	int hz;
-extern	struct timeval time;
 
 /* function prototypes */
 int pcprobe(struct isa_device *dev);

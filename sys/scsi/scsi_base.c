@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.8 1994/05/19 22:21:05 jkh Exp $
+ *      $Id: scsi_base.c,v 1.9 1994/05/25 09:13:20 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -41,8 +41,6 @@ int     Debugger();
 #define Debugger()
 #endif	/* NDDB > 0 */
 #endif
-
-void	sc_print_addr __P((struct scsi_link *sc_link));
 
 struct scsi_xfer *next_free_xs;
 

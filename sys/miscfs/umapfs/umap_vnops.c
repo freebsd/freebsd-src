@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.3 (Berkeley) 1/5/94
- * $Id$
+ * $Id: umap_vnops.c,v 1.3 1994/08/02 07:45:37 davidg Exp $
  */
 
 /*
@@ -66,7 +66,6 @@ umap_bypass(ap)
 		<other random data follows, presumably>
 	} */ *ap;
 {
-	extern int (**umap_vnodeop_p)();  /* not extern, really "forward" */
 	struct ucred **credpp = 0, *credp = 0;
 	struct ucred *savecredp = 0, *savecompcredp = 0;
 	struct ucred *compcredp = 0;

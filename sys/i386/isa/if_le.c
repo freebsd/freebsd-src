@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.1 1994/08/12 06:51:10 davidg Exp $
+ * $Id: if_le.c,v 1.2 1994/08/12 11:42:37 davidg Exp $
  *
  * $Log: if_le.c,v $
+ * Revision 1.2  1994/08/12  11:42:37  davidg
+ * Added conditionals to make this compile cleanly in FreeBSD 2.0.
+ *
  * Revision 1.1  1994/08/12  06:51:10  davidg
  * New ethernet device driver from Matt Thomas:
  *
@@ -783,7 +786,6 @@ le_multi_op(
 #define LEMAC_32K_MODE(mbase)	(((mbase) >= 0x14) && ((mbase) <= 0x1F))
 #define LEMAC_2K_MODE(mbase)	( (mbase) >= 0x40)
 
-static int  lemac_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 static void lemac_init(int unit);
 static void lemac_start(struct ifnet *ifp);
 #if __FreeBSD__ > 1
@@ -800,10 +802,10 @@ static int  lemac_read_eeprom(le_softc_t *sc);
 static void lemac_init_adapmem(le_softc_t *sc);
 
 static const le_mcbits_t lemac_allmulti_mctbl[16] =  {
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
+    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
+    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
+    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
+    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
 };
 /*
  * An IRQ mapping table.  Less space than switch statement.
@@ -1318,7 +1320,6 @@ lemac_init_adapmem(
  * Start of DEPCA (DE200/DE201/DE202/DE422 etal) support.
  *
  */
-static int  depca_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 static void depca_intr(le_softc_t *sc);
 static int  lance_init_adapmem(le_softc_t *sc);
 static int  lance_init_ring(le_softc_t *sc, ln_ring_t *rp, lance_ring_t *ri,

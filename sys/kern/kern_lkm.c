@@ -630,7 +630,6 @@ _lkm_dev(lkmtp, cmd)
 	struct lkm_dev *args = lkmtp->private.lkm_dev;
 	int i;
 	int err = 0;
-	extern int nblkdev, nchrdev;	/* from conf.c */
 
 	switch(cmd) {
 	case LKM_E_LOAD:
