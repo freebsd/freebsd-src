@@ -727,6 +727,9 @@ m_length(struct mbuf *m0, struct mbuf **last)
 	struct mbuf *m;
 	u_int len;
 
+	if ((m0->m_flags & M_PKTHDR) != 0)
+		return m->m_pkthdr.len;
+
 	len = 0;
 	for (m = m0; m != NULL; m = m->m_next) {
 		len += m->m_len;
