@@ -1,11 +1,22 @@
 /*
- * $Id: defs.c,v 1.1 1997/10/26 01:02:30 brian Exp $
+ * $Id: defs.c,v 1.2 1997/11/11 22:58:10 brian Exp $
  */
 
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "defs.h"
+#include "mbuf.h"
+#include "log.h"
+#include "loadalias.h"
+#include "command.h"
+#include "vars.h"
 
 int mode = MODE_INTER;
 int BGFiledes[2] = { -1, -1 };
@@ -40,4 +51,21 @@ randinit()
     initdone = 1;
     srandomdev();
   }
+}
+
+
+int
+GetShortHost()
+{
+  char *p;
+
+  if (gethostname(VarShortHost, sizeof(VarShortHost))) {
+    LogPrintf(LogERROR, "GetShortHost: gethostbyname: %s\n", strerror(errno));
+    return 0;
+  }
+
+  if ((p = strchr(VarShortHost, '.')))
+    *p = '\0';
+
+  return 1;
 }
