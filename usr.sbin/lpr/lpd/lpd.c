@@ -140,7 +140,7 @@ main(int argc, char **argv)
 	socket_debug = 0;
 	gethostname(host, sizeof(host));
 
-	name = "lpd";
+	progname = "lpd";
 
 	if (euid != 0)
 		errx(EX_NOPERM,"must run as root");

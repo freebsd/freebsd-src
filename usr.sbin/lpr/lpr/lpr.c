@@ -151,7 +151,7 @@ main(int argc, char *argv[])
 	if (signal(SIGTERM, SIG_IGN) != SIG_IGN)
 		signal(SIGTERM, cleanup);
 
-	name = argv[0];
+	progname = argv[0];
 	gethostname(host, sizeof(host));
 	openlog("lpd", 0, LOG_LPR);
 
@@ -399,7 +399,8 @@ main(int argc, char *argv[])
 			continue;
 		}
 		if (sflag)
-			printf("%s: %s: not linked, copying instead\n", name, arg);
+			printf("%s: %s: not linked, copying instead\n",
+			    progname, arg);
 
 		if (f) {
 			/*
@@ -478,12 +479,12 @@ main(int argc, char *argv[])
 		} /* end: if (f) */
 
 		if ((i = open(arg, O_RDONLY)) < 0) {
-			printf("%s: cannot open %s\n", name, arg);
+			printf("%s: cannot open %s\n", progname, arg);
 		} else {
 			copy(pp, i, arg);
 			(void) close(i);
 			if (f && unlink(arg) < 0)
-				printf("%s: %s: not removed\n", name, arg);
+				printf("%s: %s: not removed\n", progname, arg);
 		}
 	}
 
@@ -500,14 +501,15 @@ main(int argc, char *argv[])
 			if (read(tfd, &c, 1) == 1 &&
 			    lseek(tfd, (off_t)0, 0) == 0 &&
 			    write(tfd, &c, 1) != 1) {
-				printf("%s: cannot touch %s\n", name, tfname);
+				printf("%s: cannot touch %s\n", progname,
+				    tfname);
 				tfname[inchar]++;
 				cleanup(0);
 			}
 			(void) close(tfd);
 		}
 		if (link(tfname, cfname) < 0) {
-			printf("%s: cannot rename %s\n", name, cfname);
+			printf("%s: cannot rename %s\n", progname, cfname);
 			tfname[inchar]++;
 			cleanup(0);
 		}
@@ -543,7 +545,7 @@ copy(const struct printer *pp, int f, const char n[])
 	nr = nc = 0;
 	while ((i = read(f, buf, BUFSIZ)) > 0) {
 		if (write(fd, buf, i) != i) {
-			printf("%s: %s: temp file write error\n", name, n);
+			printf("%s: %s: temp file write error\n", progname, n);
 			break;
 		}
 		nc += i;
@@ -552,14 +554,15 @@ copy(const struct printer *pp, int f, const char n[])
 			nr++;
 			if (pp->max_blocks > 0 && nr > pp->max_blocks) {
 				printf("%s: %s: copy file is too large\n",
-				       name, n);
+				    progname, n);
 				break;
 			}
 		}
 	}
 	(void) close(fd);
 	if (nc==0 && nr==0)
-		printf("%s: %s: empty input file\n", name, f ? n : "stdin");
+		printf("%s: %s: empty input file\n", progname,
+		    f ? n : "stdin");
 	else
 		nact++;
 }
@@ -635,11 +638,11 @@ nfile(char *n)
 	f = open(n, O_WRONLY | O_EXCL | O_CREAT, FILMOD);
 	(void) umask(oldumask);
 	if (f < 0) {
-		printf("%s: cannot create %s\n", name, n);
+		printf("%s: cannot create %s\n", progname, n);
 		cleanup(0);
 	}
 	if (fchown(f, userid, -1) < 0) {
-		printf("%s: cannot chown %s\n", name, n);
+		printf("%s: cannot chown %s\n", progname, n);
 		cleanup(0);	/* cleanup does exit */
 	}
 	seteuid(uid);
@@ -700,23 +703,23 @@ test(const char *file)
 	register char *cp;
 
 	if (access(file, 4) < 0) {
-		printf("%s: cannot access %s\n", name, file);
+		printf("%s: cannot access %s\n", progname, file);
 		return(-1);
 	}
 	if (stat(file, &statb) < 0) {
-		printf("%s: cannot stat %s\n", name, file);
+		printf("%s: cannot stat %s\n", progname, file);
 		return(-1);
 	}
 	if ((statb.st_mode & S_IFMT) == S_IFDIR) {
-		printf("%s: %s is a directory\n", name, file);
+		printf("%s: %s is a directory\n", progname, file);
 		return(-1);
 	}
 	if (statb.st_size == 0) {
-		printf("%s: %s is an empty file\n", name, file);
+		printf("%s: %s is an empty file\n", progname, file);
 		return(-1);
  	}
 	if ((fd = open(file, O_RDONLY)) < 0) {
-		printf("%s: cannot open %s\n", name, file);
+		printf("%s: cannot open %s\n", progname, file);
 		return(-1);
 	}
 	/*
@@ -724,7 +727,7 @@ test(const char *file)
 	 */
 	if (read(fd, &execb, sizeof(execb)) == sizeof(execb) &&
 	    !N_BADMAG(execb)) {
-		printf("%s: %s is an executable program", name, file);
+		printf("%s: %s is an executable program", progname, file);
 		goto error1;
 	}
 	(void) close(fd);
@@ -745,7 +748,7 @@ test(const char *file)
 			if (fd == 0)
 				return(1);
 		}
-		printf("%s: %s: is not removable by you\n", name, file);
+		printf("%s: %s: is not removable by you\n", progname, file);
 	}
 	return(0);
 
@@ -835,11 +838,11 @@ mktemps(const struct printer *pp)
 	(void) snprintf(buf, sizeof(buf), "%s/.seq", pp->spool_dir);
 	seteuid(euid);
 	if ((fd = open(buf, O_RDWR|O_CREAT, 0661)) < 0) {
-		printf("%s: cannot create %s\n", name, buf);
+		printf("%s: cannot create %s\n", progname, buf);
 		exit(1);
 	}
 	if (flock(fd, LOCK_EX)) {
-		printf("%s: cannot lock %s\n", name, buf);
+		printf("%s: cannot lock %s\n", progname, buf);
 		exit(1);
 	}
 	seteuid(uid);
