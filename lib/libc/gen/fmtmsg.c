@@ -72,8 +72,10 @@ def:
 		}
 		output = printfmt(msgverb, class, label, sev, text, action,
 		    tag);
-		if (output == NULL)
+		if (output == NULL) {
+			free(msgverb);
 			return (MM_NOTOK);
+		}
 		if (*output != '\0')
 			fprintf(stderr, "%s", output);
 		free(msgverb);
