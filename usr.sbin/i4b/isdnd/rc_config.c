@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jan 10 14:46:58 2001]
+ *      last edit-date: [Fri Jul 20 19:16:27 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -788,6 +788,11 @@ cfg_setval(int keyword)
 		case MAILTO:
 			strcpy(mailto, yylval.str);
 			DBGL(DL_RCCF, (log(LL_DBG, "system: mailto = %s", yylval.str)));
+			break;
+
+		case MAXCONNECTTIME:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: maxconnecttime = %d", entrycount, yylval.num)));
+			cfg_entry_tab[entrycount].maxconnecttime = yylval.num;
 			break;
 
 		case MONITORPORT:

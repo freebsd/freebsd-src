@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed May  2 09:34:44 2001]
+ *      last edit-date: [Fri Jul 20 19:17:29 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -380,6 +380,8 @@ typedef struct cfg_entry {
         int	frommin;
         int	tohr;
         int	tomin;
+
+	time_t	maxconnecttime;			/* maximum connection time */
 	
 /*===========================================================================*/	
 /*============ filled in after start, then dynamic ==========================*/

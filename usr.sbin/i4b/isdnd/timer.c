@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b daemon - timer/timing support routines
  *	------------------------------------------
  *
- *	$Id: timer.c,v 1.21 2000/05/03 09:32:38 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Tue May  2 15:58:31 2000]
+ *      last edit-date: [Fri Jul 20 20:29:28 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -225,6 +223,20 @@ handle_active(cfg_entry_t *cep, time_t now)
 				DBGL(DL_RCVRY, (log(LL_DBG, "handle_active: entry %s, hangup request!", cep->name)));
 				cep->hangup = 0;
 				next_state(cep, EV_DRQ);
+			}
+
+			/* check maximum connect time reached */
+
+			if(cep->maxconnecttime > 0 && cep->connect_time > 0)
+			{
+				int connecttime = (int)difftime(now, cep->connect_time);
+				if(connecttime > cep->maxconnecttime)
+				{
+					DBGL(DL_RCVRY, (log(LL_DBG, 
+						"handle_active: entry %s, maxconnecttime %d reached!",
+						cep->name, cep->maxconnecttime)));
+					next_state(cep, EV_DRQ);
+				}
 			}
 
 			/*
