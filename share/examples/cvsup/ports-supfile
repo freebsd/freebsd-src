@@ -1,12 +1,14 @@
-# $Id: ports-supfile,v 1.5 1996/11/10 21:51:25 jdp Exp $
+# $Id$
 #
-# This file contains all of the "CVSup collections" that comprise the FreeBSD
-# ports collection tree.  CVSup (CVS Update Protocol) allows you to download
-# the latest cvs tree (or any branch of development therefrom) to your
-# system easily and efficiently (far more so than with sup, which CVSup
-# is aimed at replacing).  If you're running CVSup interactively, and are
-# currently using an X display server, you should run CVSup as follows to
-# keep your ports tree up-to-date:
+# This file contains all of the "CVSup collections" that make up the
+# FreeBSD-current ports collection.
+#
+# CVSup (CVS Update Protocol) allows you to download the latest CVS
+# tree (or any branch of development therefrom) to your system easily
+# and efficiently (far more so than with sup, which CVSup is aimed
+# at replacing).  If you're running CVSup interactively, and are
+# currently using an X display server, you should run CVSup as follows
+# to keep your CVS tree up-to-date:
 #
 #	cvsup ports-supfile
 #
@@ -15,66 +17,79 @@
 #
 #	cvsup -g -L 2 ports-supfile
 #
-# If your network link is ISDN or slower, you'll save time by using
-# compression.  Either add the "-z" option to the cvsup command line,
-# or add the "compress" keyword to each collection in this supfile.
-#
-# You may want to change some of the settings in this file to better
+# You may wish to change some of the settings in this file to better
 # suit your system:
 #
-# base=/usr	
-#		base specifies the root where CVSup will store information
+# host=cvsup.FreeBSD.org
+#		This specifies the server host which will supply the
+#		file updates.  Please change this to one of the mirror
+#		sites if possible.  (See the "README" file.)  You can
+#		override this setting on the command line with cvsup's
+#		"-h host" option.
+#
+# base=/usr
+#		This specifies the root where CVSup will store information
 #		about the collections you have transferred to your system.
 #		A setting of "/usr" will generate this information in
 #		/usr/sup.  Even if you are CVSupping a large number of
 #		collections, you will be hard pressed to generate more than
-#		~1MB of data in this directory.
+#		~1MB of data in this directory.  You can override the
+#		"base" setting on the command line with cvsup's "-b base"
+#		option.  This directory must exist in order to run CVSup.
 #
 # prefix=/usr
-#		prefix specifies where to place the requested files.  A
-#		setting of "/usr" will place the all of the files
-#		requested in /usr/ports (e.g., /usr/ports/devel, /usr/ports/cad).
-#		The directory that is the prefix must exist in order for
-#		CVSup to transfer files successfully.
+#		This specifies where to place the requested files.  A
+#		setting of "/usr" will place all of the files requested
+#		in "/usr/ports" (e.g., "/usr/ports/devel", "/usr/ports/lang").
+#		The prefix directory must exist in order to run CVSup.
 
-# There are two ways to CVSup the latest ports.  One is to use the individual
-# collections, and the other is to use the "ports-all" mega-collection,
-# which includes everything except ports-distfiles.
+# Defaults that apply to all the collections
+*default host=cvsup.FreeBSD.org
+*default base=/usr
+*default prefix=/usr
+*default release=cvs tag=.
+*default delete use-rel-suffix
 
-# ports-all.  Includes everything below.
+# If your network link is a T1 or faster, comment out the following line.
+*default compress
 
-ports-all release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
+## Ports Collection.
+#
+# The easiest way to get the ports tree is to use the "ports-all"
+# mega-collection.  It includes all of the individual "ports-*"
+# collections,
+ports-all
 
-# Individual collections.
-
-#ports-base       release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-archivers  release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-astro      release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-benchmarks release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-audio      release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-cad        release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-chinese    release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-comms      release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-databases  release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-devel      release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-editors    release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-emulators  release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-games      release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-graphics   release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-japanese   release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-lang       release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-mail       release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-math       release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-mbone      release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-misc       release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-net        release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-news       release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-plan9      release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-print      release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-russian    release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-security   release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-shells     release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-sysutils   release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-vietnamese   release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-www        release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-#ports-x11        release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
+# These are the individual collections that make up "ports-all".  If you
+# use these, be sure to comment out "ports-all" above.
+#ports-archivers
+#ports-astro
+#ports-audio
+#ports-base
+#ports-benchmarks
+#ports-cad
+#ports-chinese
+#ports-comms
+#ports-databases
+#ports-devel
+#ports-editors
+#ports-emulators
+#ports-games
+#ports-graphics
+#ports-japanese
+#ports-lang
+#ports-mail
+#ports-math
+#ports-mbone
+#ports-misc
+#ports-net
+#ports-news
+#ports-plan9
+#ports-print
+#ports-russian
+#ports-security
+#ports-shells
+#ports-sysutils
+#ports-vietnamese
+#ports-www
+#ports-x11
