@@ -145,7 +145,18 @@ load_env(envstr, f)
 	long	filepos;
 	int	fileline;
 	char	name[MAX_ENVSTR], val[MAX_ENVSTR];
-	int	fields;
+	char	quotechar, *c, *str;
+	int	state;
+
+	/* The following states are traversed in order: */
+#define NAMEI	0	/* First char of NAME, may be quote */
+#define NAME	1	/* Subsequent chars of NAME */
+#define EQ1	2	/* After end of name, looking for '=' sign */
+#define EQ2	3	/* After '=', skipping whitespace */
+#define VALUEI	4	/* First char of VALUE, may be quote */
+#define VALUE	5	/* Subsequent chars of VALUE */
+#define FINI	6	/* All done, skipping trailing whitespace */
+#define ERROR	7	/* Error */
 
 	filepos = ftell(f);
 	fileline = LineNumber;
@@ -153,35 +164,77 @@ load_env(envstr, f)
 	if (EOF == get_string(envstr, MAX_ENVSTR, f, "\n"))
 		return (ERR);
 
-	Debug(DPARS, ("load_env, read <%s>\n", envstr))
+	Debug(DPARS, ("load_env, read <%s>\n", envstr));
 
-	name[0] = val[0] = '\0';
-	fields = sscanf(envstr, "%[^ =] = %[^\n#]", name, val);
-	if (fields != 2) {
-		Debug(DPARS, ("load_env, not 2 fields (%d)\n", fields))
+	bzero (name, sizeof name);
+	bzero (val, sizeof val);
+	str = name;
+	state = NAMEI;
+	quotechar = '\0';
+	c = envstr;
+	while (state != ERROR && *c) {
+		switch (state) {
+		case NAMEI:
+		case VALUEI:
+			if (*c == '\'' || *c == '"')
+				quotechar = *c++;
+			++state;
+			/* FALLTHROUGH */
+		case NAME:
+		case VALUE:
+			if (quotechar) {
+				if (*c == quotechar) {
+					state++;
+					c++;
+					break;
+				}
+				if (state == NAME && *c == '=') {
+					state = ERROR;
+					break;
+				}
+			} else {
+				if (isspace (*c)) {
+					state++;
+					c++;
+					break;
+				}
+				if (state == NAME && *c == '=') {
+					state++;
+					break;
+				}
+			}
+			*str++ = *c++;
+			break;
+
+		case EQ1:
+			if (*c == '=') {
+				state++;
+				str = val;
+				quotechar = '\0';
+			} else {
+				if (!isspace (*c))
+					state = ERROR;
+			}
+			c++;
+			break;
+		case EQ2:
+		case FINI:
+			if (isspace (*c))
+				c++;
+			else
+				state++;
+			break;
+		}
+	}
+	if (state != FINI && !(state == VALUE && !quotechar)) {
+		Debug(DPARS, ("load_env, parse error, state = %d\n", state))
 		fseek(f, filepos, 0);
 		Set_LineNum(fileline);
 		return (FALSE);
 	}
 
-	/* 2 fields from scanf; looks like an env setting
+	/* 2 fields from parser; looks like an env setting
 	 */
-
-	/*
-	 * process value string
-	 */
-	/*local*/{
-		int	len = strdtb(val);
-
-		if (len >= 2) {
-			if (val[0] == '\'' || val[0] == '"') {
-				if (val[len-1] == val[0]) {
-					val[len-1] = '\0';
-					(void) strcpy(val, val+1);
-				}
-			}
-		}
-	}
 
 	if (strlen(name) + 1 + strlen(val) >= MAX_ENVSTR-1)
 		return (FALSE);
