@@ -217,7 +217,6 @@ int
 ukbd_detach(device_t self)
 {
 	struct ukbd_softc *sc = device_get_softc(self);
-	const char *devinfo = device_get_desc(self);
 	int error;
 
 	error = ukbd_remove_kbd(sc);
@@ -228,10 +227,7 @@ ukbd_detach(device_t self)
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 
-	if (devinfo) {
-		device_set_desc(self, NULL);
-		free((void *)devinfo, M_USB);
-	}
+	device_set_desc(self, NULL);
 
 	return (0);
 }
@@ -865,7 +861,7 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 	if (state->ks_inputs <= 0)
 		return 0;
 
-#if UKBD_DEBUG
+#ifdef UKBD_DEBUG
 	for (i = state->ks_inputhead, j = 0; j < state->ks_inputs; ++j,
 		i = (i + 1)%INPUTBUFSIZE) {
 		c = state->ks_input[i];
@@ -1425,7 +1421,7 @@ probe_keyboard(struct usb_attach_arg *uaa, int flags)
 {
 	usb_interface_descriptor_t *id;
 	
-	if (!uaa->iface)
+	if (!uaa->iface)	/* we attach to ifaces only */
 		return EINVAL;
 
 	/* Check that this is a keyboard that speaks the boot protocol. */
@@ -1434,7 +1430,8 @@ probe_keyboard(struct usb_attach_arg *uaa, int flags)
 	    && id->bInterfaceClass == UCLASS_HID
 	    && id->bInterfaceSubClass == USUBCLASS_BOOT
 	    && id->bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)
-		return 0;
+		return 0;	/* found it */
+
 	return EINVAL;
 }
 
