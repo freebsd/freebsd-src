@@ -2,6 +2,6 @@
 # $FreeBSD$
 #
 
-PROG=	pl2pm
+SCRIPTS=pl2pm
 
 .include <bsd.prog.mk>

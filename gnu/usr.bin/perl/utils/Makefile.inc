@@ -9,16 +9,20 @@ PERL5LIBSRC=	${.CURDIR}/../../libperl
 
 MINIPERLOPT?=	-I${.OBJDIR}/../../perl/lib -I${.OBJDIR}/../../perl -I${PERL5SRC}
 
-${PROG}: ${PROG}.PL
-	${MINIPERL} ${MINIPERLOPT} ${.OODATE}
+.if defined(SCRIPTS)
+.if !defined(NOMAN)
+MAN=	${SCRIPTS}.1
+.endif
 
-${PROG}.1: ${PROG}.PL
+${SCRIPTS}: ${SCRIPTS}.PL
+	${MINIPERL} ${MINIPERLOPT} ${.ALLSRC}
+
+${SCRIPTS}.1: ${SCRIPTS}.PL
 	${MINIPERL} ${MINIPERLOPT} \
-		${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
+		${.OBJDIR}/../../pod/pod2man/pod2man ${.ALLSRC} > ${.TARGET}
 
-${PROG}.PL: ${PERL5SRC}/utils/${PROG}.PL
-	ln -sf ${.OODATE} ${.TARGET}
+${SCRIPTS}.PL: ${PERL5SRC}/utils/${SCRIPTS}.PL
+	ln -sf ${.ALLSRC} ${.TARGET}
 
-CLEANFILES+=	${PROG}.1 ${PROG}.PL pstruct
-
-STRIP=
+CLEANFILES+=	${SCRIPTS} ${SCRIPTS}.1 ${SCRIPTS}.PL pstruct
+.endif

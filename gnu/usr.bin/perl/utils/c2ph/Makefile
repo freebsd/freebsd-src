@@ -2,6 +2,6 @@
 # $FreeBSD$
 #
 
-PROG=	c2ph
+SCRIPTS=c2ph
 
 .include <bsd.prog.mk>
