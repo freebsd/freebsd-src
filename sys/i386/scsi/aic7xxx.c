@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.28 1995/05/30 08:04:52 rgrimes Exp $
+ *      $Id: aic7xxx.c,v 1.28.2.1 1995/06/04 09:15:22 davidg Exp $
  */
 /*
  * TODO:
@@ -1475,7 +1475,7 @@ ahc_init(unit)
 			printf("ahc%d: aic7850 ", unit);
 			ahc->maxscbs = 0x03;
 		}
-		else if(ahc->type == AHC_AIC7850)
+		else if(ahc->type == AHC_AIC7870)
 			printf("ahc%d: aic7870 ", unit);
 		else
 			printf("ahc%d: 294x ", unit);
