@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.168 1999/05/12 09:48:59 brian Exp $
+.\" $Id: ppp.8,v 1.169 1999/05/16 13:39:03 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -1429,6 +1429,22 @@ are the source and destination IP number specifications.  If
 .Op / Ns Ar width
 is specified, it gives the number of relevant netmask bits,
 allowing the specification of an address range.
+.Pp
+Either
+.Ar src_addr
+or
+.Ar dst_addr
+may be given the values
+.Dv MYADDR
+or
+.Dv HISADDR
+(refer to the description of the
+.Dq bg
+command for a description of these values).  When these values are used,
+the filters will be updated any time the values change.  This is similar
+to the behaviour of the
+.Dq add
+command below.
 .It
 .Ar Proto
 must be one of
