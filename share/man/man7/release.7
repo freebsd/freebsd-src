@@ -203,7 +203,7 @@ directory tree.
 .El
 .Pp
 Optional variables:
-.Bl -tag -width ".Va RELEASEDISTFILES"
+.Bl -tag -width ".Va PREFETCHDISTFILES"
 .It Va CVSCMDARGS
 Additional arguments for
 .Xr cvs 1
@@ -273,6 +273,14 @@ to run
 from
 .Pa ${CHROOTDIR}/usr/ports ,
 which can be a very time consuming operation.
+.It Va PREFETCHDISTFILES
+If this variable is defined,
+then distfiles needed during the release build will be downloaded prior to
+entering the
+.Xr chroot 8
+environment.
+Note that this is done after any distfiles are obtained via
+.Va RELEASEDISTFILES .
 .It Va RELEASEDISTFILES
 The directory where the distribution files for ports required by the
 release build can be found.
