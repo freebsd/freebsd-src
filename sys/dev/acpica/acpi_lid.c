@@ -122,12 +122,14 @@ acpi_lid_notify_status_changed(void *arg)
      */
     if (acpi_EvaluateInteger(sc->lid_handle, "_LID", &sc->lid_status) != AE_OK)
 	return_VOID;
-    device_printf(sc->lid_dev, "Lid %s\n", sc->lid_status ? "opened" : "closed");
 
     acpi_sc = acpi_device_get_parent_softc(sc->lid_dev);
     if (acpi_sc == NULL) {
         return_VOID;
     }
+
+    ACPI_VPRINT(sc->lid_dev, acpi_sc,
+	"Lid %s\n", sc->lid_status ? "opened" : "closed");
 
     if (sc->lid_status == 0) {
 	EVENTHANDLER_INVOKE(acpi_sleep_event, acpi_sc->acpi_lid_switch_sx);

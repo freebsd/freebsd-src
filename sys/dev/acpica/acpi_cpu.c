@@ -333,7 +333,8 @@ acpi_cpu_set_speed(u_int32_t speed)
 	    p_cnt |= CPU_P_CNT_THT_EN;
 	    CPU_SET_P_CNT(sc, p_cnt);
 	}
-	device_printf(sc->cpu_dev, "set speed to %d.%d%%\n", CPU_SPEED_PRINTABLE(speed));
+	ACPI_VPRINT(sc->cpu_dev, acpi_device_get_parent_softc(sc->cpu_dev),
+	    "set speed to %d.%d%%\n", CPU_SPEED_PRINTABLE(speed));
     }
     cpu_current_state = speed;
 }

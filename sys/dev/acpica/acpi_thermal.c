@@ -47,11 +47,6 @@ MODULE_NAME("THERMAL")
 #define TZ_ZEROC	2732
 #define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), (((x) - TZ_ZEROC) % 10)
 
-#define TZ_DPRINT(dev, x...) do {					\
-	if (acpi_get_verbose(acpi_device_get_parent_softc(dev)))	\
-		device_printf(dev, x);					\
-} while (0)
-
 #define TZ_NOTIFY_TEMPERATURE	0x80
 #define TZ_NOTIFY_DEVICES	0x81
 #define TZ_NOTIFY_LEVELS	0x82
@@ -367,8 +362,9 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
      * Get the current temperature.
      */
     if ((status = acpi_EvaluateInteger(sc->tz_handle, "_TMP", &temp)) != AE_OK) {
-	device_printf(sc->tz_dev, "error fetching current temperature -- %s\n",
-		      AcpiFormatException(status));
+	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+	    "error fetching current temperature -- %s\n",
+	     AcpiFormatException(status));
 	/* XXX disable zone? go to max cooling? */
 	return_VOID;
     }
@@ -385,9 +381,9 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
 	if ((sc->tz_zone.ac[i] != -1) && (temp >= sc->tz_zone.ac[i])) {
 	    newactive = i;
 	    if (sc->tz_active != newactive) {
-		TZ_DPRINT(sc->tz_dev, 
-			  "_AC%d: temperature %d.%d >= setpoint %d.%d\n", i,
-			  TZ_KELVTOC(temp), TZ_KELVTOC(sc->tz_zone.ac[i]));
+		ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+		    "_AC%d: temperature %d.%d >= setpoint %d.%d\n", i,
+		    TZ_KELVTOC(temp), TZ_KELVTOC(sc->tz_zone.ac[i]));
 		getnanotime(&sc->tz_cooling_started);
 	    }
 	}
@@ -433,9 +429,10 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
 	if (newactive != TZ_ACTIVE_NONE)
 	    acpi_ForeachPackageObject((ACPI_OBJECT *)sc->tz_zone.al[newactive].Pointer,
 				      acpi_tz_switch_cooler_on, sc);
-	TZ_DPRINT(sc->tz_dev, "switched from %s to %s: %d.%dC\n",
-		  acpi_tz_aclevel_string(sc->tz_active),
-		  acpi_tz_aclevel_string(newactive), TZ_KELVTOC(temp));
+	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+	    "switched from %s to %s: %d.%dC\n",
+	    acpi_tz_aclevel_string(sc->tz_active),
+	    acpi_tz_aclevel_string(newactive), TZ_KELVTOC(temp));
 	sc->tz_active = newactive;
     }
 
@@ -557,11 +554,13 @@ acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
 	 */
 	if (AcpiGetHandle(NULL, obj->String.Pointer, &cooler) == AE_OK) {
 	    if (ACPI_FAILURE(status = acpi_pwr_switch_consumer(cooler, ACPI_STATE_D0))) {
-		device_printf(sc->tz_dev, "failed to activate %s - %s\n",
-			      obj->String.Pointer, AcpiFormatException(status));
+		ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+		    "failed to activate %s - %s\n",
+		    obj->String.Pointer, AcpiFormatException(status));
 	    }
 	} else {
-	    device_printf(sc->tz_dev, "couldn't find %s\n", obj->String.Pointer);
+	    ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+		"couldn't find %s\n", obj->String.Pointer);
 	}
 	break;
 	
@@ -665,7 +664,8 @@ acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	AcpiOsQueueForExecution(OSD_PRIORITY_HIGH, (OSD_EXECUTION_CALLBACK)acpi_tz_establish, sc);
 	break;
     default:
-	device_printf(sc->tz_dev, "unknown Notify event 0x%x\n", notify);
+	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+	    "unknown Notify event 0x%x\n", notify);
 	break;
     }
     return_VOID;
@@ -725,8 +725,9 @@ acpi_tz_powerprofile(void *arg)
 	args.Pointer = &obj;
 	if (ACPI_FAILURE(status = AcpiEvaluateObject(sc->tz_handle, "_SCP", &args, NULL))) {
 	    if (status != AE_NOT_FOUND)
-		device_printf(sc->tz_dev, "can't evaluate %s._SCP - %s\n", acpi_name(sc->tz_handle),
-			      AcpiFormatException(status));
+		ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+		    "can't evaluate %s._SCP - %s\n", acpi_name(sc->tz_handle),
+		    AcpiFormatException(status));
 	    sc->tz_flags |= TZ_FLAG_NO_SCP;
 	} else {
 	    /* we have to re-evaluate the entire zone now */

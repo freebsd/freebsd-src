@@ -80,10 +80,8 @@ acpi_acad_get_status(void *context)
 		sc->status = newstatus;
 		/* set system power profile based on AC adapter status */
 		powerprofile_set_state(sc->status ? POWERPROFILE_PERFORMANCE : POWERPROFILE_ECONOMY);
-	}
-
-	if (bootverbose) {
-		device_printf(dev,"%s\n",(sc->status) ? "On Line" : "Off Line");
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "%s Line\n",(sc->status) ? "On" : "Off");
 	}
 }
 
@@ -92,9 +90,8 @@ acpi_acad_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
 	device_t dev = context;
 
-	if (bootverbose) {
-		device_printf(dev, "Notify %d\n", notify);
-	}
+	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+	    "Notify %d\n", notify);
 
 	switch (notify) {
 	case ACPI_DEVICE_CHECK_PNP:
