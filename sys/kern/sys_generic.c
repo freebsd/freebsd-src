@@ -109,6 +109,9 @@ struct read_args {
 	size_t	nbyte;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 read(p, uap)
 	struct proc *p;
@@ -117,10 +120,15 @@ read(p, uap)
 	register struct file *fp;
 	int error;
 
-	if ((fp = holdfp(p->p_fd, uap->fd, FREAD)) == NULL)
-		return (EBADF);
-	error = dofileread(p, fp, uap->fd, uap->buf, uap->nbyte, (off_t)-1, 0);
-	fdrop(fp, p);
+	mtx_lock(&Giant);
+	if ((fp = holdfp(p->p_fd, uap->fd, FREAD)) != NULL) {
+		error = dofileread(p, fp, uap->fd, uap->buf,
+			    uap->nbyte, (off_t)-1, 0);
+		fdrop(fp, p);
+	} else {
+		error = EBADF;
+	}
+	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -136,6 +144,9 @@ struct pread_args {
 	off_t	offset;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 pread(p, uap)
 	struct proc *p;
@@ -144,15 +155,18 @@ pread(p, uap)
 	register struct file *fp;
 	int error;
 
-	if ((fp = holdfp(p->p_fd, uap->fd, FREAD)) == NULL)
-		return (EBADF);
-	if (fp->f_type != DTYPE_VNODE) {
+	mtx_lock(&Giant);
+	if ((fp = holdfp(p->p_fd, uap->fd, FREAD)) == NULL) {
+		error = EBADF;
+	} else if (fp->f_type != DTYPE_VNODE) {
 		error = ESPIPE;
+		fdrop(fp, p);
 	} else {
-	    error = dofileread(p, fp, uap->fd, uap->buf, uap->nbyte, 
-		uap->offset, FOF_OFFSET);
+		error = dofileread(p, fp, uap->fd, uap->buf, uap->nbyte, 
+			    uap->offset, FOF_OFFSET);
+		fdrop(fp, p);
 	}
-	fdrop(fp, p);
+	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -227,13 +241,16 @@ struct readv_args {
 	u_int	iovcnt;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 readv(p, uap)
 	struct proc *p;
 	register struct readv_args *uap;
 {
 	register struct file *fp;
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp;
 	struct uio auio;
 	register struct iovec *iov;
 	struct iovec *needfree;
@@ -244,14 +261,20 @@ readv(p, uap)
 	struct iovec *ktriov = NULL;
 	struct uio ktruio;
 #endif
+	mtx_lock(&Giant);
+	fdp = p->p_fd;
 
-	if ((fp = holdfp(fdp, uap->fd, FREAD)) == NULL)
-		return (EBADF);
+	if ((fp = holdfp(fdp, uap->fd, FREAD)) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 	/* note: can't use iovlen until iovcnt is validated */
 	iovlen = uap->iovcnt * sizeof (struct iovec);
 	if (uap->iovcnt > UIO_SMALLIOV) {
-		if (uap->iovcnt > UIO_MAXIOV)
-			return (EINVAL);
+		if (uap->iovcnt > UIO_MAXIOV) {
+			error = EINVAL;
+			goto done2;
+		}
 		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
 		needfree = iov;
 	} else {
@@ -308,6 +331,8 @@ done:
 	fdrop(fp, p);
 	if (needfree)
 		FREE(needfree, M_IOV);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -321,6 +346,9 @@ struct write_args {
 	size_t	nbyte;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 write(p, uap)
 	struct proc *p;
@@ -329,10 +357,15 @@ write(p, uap)
 	register struct file *fp;
 	int error;
 
-	if ((fp = holdfp(p->p_fd, uap->fd, FWRITE)) == NULL)
-		return (EBADF);
-	error = dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte, (off_t)-1, 0);
-	fdrop(fp, p);
+	mtx_lock(&Giant);
+	if ((fp = holdfp(p->p_fd, uap->fd, FWRITE)) != NULL) {
+		error = dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte,
+			    (off_t)-1, 0);
+		fdrop(fp, p);
+	} else {
+		error = EBADF;
+	}
+	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -348,6 +381,9 @@ struct pwrite_args {
 	off_t	offset;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 pwrite(p, uap)
 	struct proc *p;
@@ -356,15 +392,18 @@ pwrite(p, uap)
 	register struct file *fp;
 	int error;
 
-	if ((fp = holdfp(p->p_fd, uap->fd, FWRITE)) == NULL)
-		return (EBADF);
-	if (fp->f_type != DTYPE_VNODE) {
+	mtx_lock(&Giant);
+	if ((fp = holdfp(p->p_fd, uap->fd, FWRITE)) == NULL) {
+		error = EBADF;
+	} else if (fp->f_type != DTYPE_VNODE) {
 		error = ESPIPE;
+		fdrop(fp, p);
 	} else {
-	    error = dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte,
-		uap->offset, FOF_OFFSET);
+		error = dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte,
+			    uap->offset, FOF_OFFSET);
+		fdrop(fp, p);
 	}
-	fdrop(fp, p);
+	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -442,13 +481,16 @@ struct writev_args {
 	u_int	iovcnt;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 writev(p, uap)
 	struct proc *p;
 	register struct writev_args *uap;
 {
 	register struct file *fp;
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp;
 	struct uio auio;
 	register struct iovec *iov;
 	struct iovec *needfree;
@@ -460,8 +502,12 @@ writev(p, uap)
 	struct uio ktruio;
 #endif
 
-	if ((fp = holdfp(fdp, uap->fd, FWRITE)) == NULL)
-		return (EBADF);
+	mtx_lock(&Giant);
+	fdp = p->p_fd;
+	if ((fp = holdfp(fdp, uap->fd, FWRITE)) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 	/* note: can't use iovlen until iovcnt is validated */
 	iovlen = uap->iovcnt * sizeof (struct iovec);
 	if (uap->iovcnt > UIO_SMALLIOV) {
@@ -533,6 +579,8 @@ done:
 	fdrop(fp, p);
 	if (needfree)
 		FREE(needfree, M_IOV);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -546,6 +594,9 @@ struct ioctl_args {
 	caddr_t	data;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 ioctl(p, uap)
@@ -555,7 +606,7 @@ ioctl(p, uap)
 	register struct file *fp;
 	register struct filedesc *fdp;
 	register u_long com;
-	int error;
+	int error = 0;
 	register u_int size;
 	caddr_t data, memp;
 	int tmp;
@@ -565,21 +616,26 @@ ioctl(p, uap)
 	    long align;
 	} ubuf;
 
+	mtx_lock(&Giant);
 	fdp = p->p_fd;
 	if ((u_int)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
-		return (EBADF);
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 
-	if ((fp->f_flag & (FREAD | FWRITE)) == 0)
-		return (EBADF);
+	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
+		error = EBADF;
+		goto done2;
+	}
 
 	switch (com = uap->com) {
 	case FIONCLEX:
 		fdp->fd_ofileflags[uap->fd] &= ~UF_EXCLOSE;
-		return (0);
+		goto done2;
 	case FIOCLEX:
 		fdp->fd_ofileflags[uap->fd] |= UF_EXCLOSE;
-		return (0);
+		goto done2;
 	}
 
 	/*
@@ -587,8 +643,10 @@ ioctl(p, uap)
 	 * copied to/from the user's address space.
 	 */
 	size = IOCPARM_LEN(com);
-	if (size > IOCPARM_MAX)
-		return (ENOTTY);
+	if (size > IOCPARM_MAX) {
+		error = ENOTTY;
+		goto done2;
+	}
 
 	fhold(fp);
 
@@ -606,7 +664,7 @@ ioctl(p, uap)
 				if (memp)
 					free(memp, M_IOCTLOPS);
 				fdrop(fp, p);
-				return (error);
+				goto done2;
 			}
 		} else {
 			*(caddr_t *)data = uap->data;
@@ -652,6 +710,8 @@ ioctl(p, uap)
 	if (memp)
 		free(memp, M_IOCTLOPS);
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -669,6 +729,9 @@ struct select_args {
 	struct	timeval *tv;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 select(p, uap)
 	register struct proc *p;
@@ -689,6 +752,9 @@ select(p, uap)
 
 	if (uap->nd < 0)
 		return (EINVAL);
+
+	mtx_lock(&Giant);
+
 	if (uap->nd > p->p_fd->fd_nfiles)
 		uap->nd = p->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
 
@@ -831,6 +897,8 @@ done_noproclock:
 		free(selbits, M_SELECT);
 	if (heldbits != &s_heldbits[0])
 		free(heldbits, M_SELECT);
+
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -916,6 +984,9 @@ struct poll_args {
 	int	timeout;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 poll(p, uap)
 	struct proc *p;
@@ -931,6 +1002,8 @@ poll(p, uap)
 	struct pollfd *heldbits;
 
 	nfds = SCARG(uap, nfds);
+
+	mtx_lock(&Giant);
 	/*
 	 * This is kinda bogus.  We have fd limits, but that is not
 	 * really related to the size of the pollfd array.  Make sure
@@ -938,8 +1011,10 @@ poll(p, uap)
 	 * least enough for the current limits.  We want to be reasonably
 	 * safe, but not overly restrictive.
 	 */
-	if (nfds > p->p_rlimit[RLIMIT_NOFILE].rlim_cur && nfds > FD_SETSIZE)
-		return (EINVAL);
+	if (nfds > p->p_rlimit[RLIMIT_NOFILE].rlim_cur && nfds > FD_SETSIZE) {
+		error = EINVAL;
+		goto done2;
+	}
 	ni = nfds * sizeof(struct pollfd);
 	if (ni > sizeof(smallbits))
 		bits = malloc(ni, M_TEMP, M_WAITOK);
@@ -1030,6 +1105,8 @@ out:
 		free(bits, M_TEMP);
 	if (ni > sizeof(p_heldbits))
 		free(heldbits, M_TEMP);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -1109,6 +1186,9 @@ struct openbsd_poll_args {
 	int	timeout;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 openbsd_poll(p, uap)
 	register struct proc *p;
