@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.75 1998/11/28 13:18:16 bde Exp $
+ *	$Id: cy.c,v 1.76 1998/11/28 15:48:09 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -37,7 +37,6 @@
 
 /*
  * TODO:
- * Implement BREAK.
  * Fix overflows when closing line.
  * Atomic COR change.
  * Consoles.
@@ -152,6 +151,16 @@
 #define	CD1400_xIVR_CHAN_SHIFT	3
 #define	CD1400_xIVR_CHAN	0x1F
 
+/*
+ * ETC states.  com->etc may also contain a hardware ETC command value,
+ * meaning that execution of that command is pending.
+ */
+#define	ETC_NONE		0	/* we depend on bzero() setting this */
+#define	ETC_BREAK_STARTING	1
+#define	ETC_BREAK_STARTED	2
+#define	ETC_BREAK_ENDING	3
+#define	ETC_BREAK_ENDED		4
+
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RS_IBUFSIZE	256
 
@@ -233,6 +242,7 @@ struct com_s {
 #if 0
 	u_char	cfcr_image;	/* copy of value written to CFCR */
 #endif
+	u_char	etc;		/* pending Embedded Transmit Command */
 	u_char	extra_state;	/* more flag bits, separate for order trick */
 #if 0
 	u_char	fifo_image;	/* copy of value written to FIFO */
@@ -345,6 +355,7 @@ ointhand2_t	siointr;
 static	int	cy_units	__P((cy_addr cy_iobase, int cy_align));
 static	int	sioattach	__P((struct isa_device *dev));
 static	void	cd1400_channel_cmd __P((struct com_s *com, int cmd));
+static	void	cd_etc		__P((struct com_s *com, int etc));
 static	int	cd_getreg	__P((struct com_s *com, int reg));
 static	void	cd_setreg	__P((struct com_s *com, int reg, int val));
 static	timeout_t siodtrwakeup;
@@ -871,6 +882,7 @@ sioclose(dev, flag, mode, p)
 	com = com_addr(MINOR_TO_UNIT(mynor));
 	tp = com->tp;
 	s = spltty();
+	cd_etc(com, CD1400_ETC_STOPBREAK);
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	disc_optim(tp, &tp->t_termios, com);
 	siostop(tp, FREAD | FWRITE);
@@ -904,6 +916,13 @@ comhardclose(com)
 	com->do_timestamp = 0;
 #if 0
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+#else
+	/* XXX */
+	disable_intr();
+	com->etc = ETC_NONE;
+	cd_setreg(com, CD1400_COR2, com->cor[1] &= ~CD1400_COR2_ETC);
+	enable_intr();
+	cd1400_channel_cmd(com, CD1400_CCR_CMDRESET | CD1400_CCR_FTF);
 #endif
 
 	{
@@ -1339,6 +1358,77 @@ cont:
 					  & CD1400_xIVR_CHAN));
 #endif
 
+			if (com->etc != ETC_NONE) {
+				if (com->intr_enable & CD1400_SRER_TXRDY) {
+					/*
+					 * Here due to sloppy SRER_TXRDY
+					 * enabling.  Ignore.  Come back when
+					 * tx is empty.
+					 */
+					cd_outb(iobase, CD1400_SRER, cy_align,
+						com->intr_enable
+						= com->intr_enable
+						  & ~CD1400_SRER_TXRDY
+						  | CD1400_SRER_TXMPTY);
+					goto terminate_tx_service;
+				}
+				switch (com->etc) {
+				case CD1400_ETC_SENDBREAK:
+				case CD1400_ETC_STOPBREAK:
+					/*
+					 * Start the command.  Come back on
+					 * next tx empty interrupt, hopefully
+					 * after command has been executed.
+					 */
+					cd_outb(iobase, CD1400_COR2, cy_align,
+						com->cor[1] |= CD1400_COR2_ETC);
+					cd_outb(iobase, CD1400_TDR, cy_align,
+						CD1400_ETC_CMD);
+					cd_outb(iobase, CD1400_TDR, cy_align,
+						com->etc);
+					if (com->etc == CD1400_ETC_SENDBREAK)
+						com->etc = ETC_BREAK_STARTING;
+					else
+						com->etc = ETC_BREAK_ENDING;
+					goto terminate_tx_service;
+				case ETC_BREAK_STARTING:
+					/*
+					 * BREAK is now on.  Continue with
+					 * SRER_TXMPTY processing, hopefully
+					 * don't come back.
+					 */
+					com->etc = ETC_BREAK_STARTED;
+					break;
+				case ETC_BREAK_STARTED:
+					/*
+					 * Came back due to sloppy SRER_TXMPTY
+					 * enabling.  Hope again.
+					 */
+					break;
+				case ETC_BREAK_ENDING:
+					/*
+					 * BREAK is now off.  Continue with
+					 * SRER_TXMPTY processing and don't
+					 * come back.  The SWI handler will
+					 * restart tx interrupts if necessary.
+					 */
+					cd_outb(iobase, CD1400_COR2, cy_align,
+						com->cor[1]
+						&= ~CD1400_COR2_ETC);
+					com->etc = ETC_BREAK_ENDED;
+					if (!(com->state & CS_ODONE)) {
+						com_events += LOTS_OF_EVENTS;
+						com->state |= CS_ODONE;
+						setsofttty();
+					}
+					break;
+				case ETC_BREAK_ENDED:
+					/*
+					 * Shouldn't get here.  Hope again.
+					 */
+					break;
+				}
+			}
 			if (com->intr_enable & CD1400_SRER_TXMPTY) {
 				if (!(com->extra_state & CSE_ODONE)) {
 					com_events += LOTS_OF_EVENTS;
@@ -1530,14 +1620,20 @@ sioioctl(dev, cmd, data, flag, p)
 		return (error);
 	}
 	switch (cmd) {
-#if 0
 	case TIOCSBRK:
+#if 0
 		outb(iobase + com_cfcr, com->cfcr_image |= CFCR_SBREAK);
+#else
+		cd_etc(com, CD1400_ETC_SENDBREAK);
+#endif
 		break;
 	case TIOCCBRK:
+#if 0
 		outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+#else
+		cd_etc(com, CD1400_ETC_STOPBREAK);
+#endif
 		break;
-#endif /* 0 */
 	case TIOCSDTR:
 		(void)commctl(com, TIOCM_DTR, DMBIS);
 		break;
@@ -1682,13 +1778,6 @@ repeat:
 				(*linesw[tp->t_line].l_modem)
 					(tp, com->prev_modem_status & MSR_DCD);
 		}
-		if (com->state & CS_ODONE) {
-			disable_intr();
-			com_events -= LOTS_OF_EVENTS;
-			com->state &= ~CS_ODONE;
-			enable_intr();
-			(*linesw[tp->t_line].l_start)(tp);
-		}
 		if (com->extra_state & CSE_ODONE) {
 			disable_intr();
 			com_events -= LOTS_OF_EVENTS;
@@ -1698,6 +1787,18 @@ repeat:
 				tp->t_state &= ~TS_BUSY;
 				ttwwakeup(com->tp);
 			}
+			if (com->etc != ETC_NONE) {
+				if (com->etc == ETC_BREAK_ENDED)
+					com->etc = ETC_NONE;
+				wakeup(&com->etc);
+			}
+		}
+		if (com->state & CS_ODONE) {
+			disable_intr();
+			com_events -= LOTS_OF_EVENTS;
+			com->state &= ~CS_ODONE;
+			enable_intr();
+			(*linesw[tp->t_line].l_start)(tp);
 		}
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
 			continue;
@@ -2257,26 +2358,35 @@ siostop(tp, rw)
 	int		rw;
 {
 	struct com_s	*com;
+	bool_t		wakeup_etc;
 
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
+	wakeup_etc = FALSE;
 	disable_intr();
 	if (rw & FWRITE) {
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
-		if (com->state & CS_ODONE)
-			com_events -= LOTS_OF_EVENTS;
-		com->state &= ~(CS_ODONE | CS_BUSY);
 		if (com->extra_state & CSE_ODONE) {
 			com_events -= LOTS_OF_EVENTS;
 			com->extra_state &= ~CSE_ODONE;
+			if (com->etc != ETC_NONE) {
+				if (com->etc == ETC_BREAK_ENDED)
+					com->etc = ETC_NONE;
+				wakeup_etc = TRUE;
+			}
 		}
 		com->tp->t_state &= ~TS_BUSY;
+		if (com->state & CS_ODONE)
+			com_events -= LOTS_OF_EVENTS;
+		com->state &= ~(CS_ODONE | CS_BUSY);
 	}
 	if (rw & FREAD) {
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
 	enable_intr();
+	if (wakeup_etc)
+		wakeup(&com->etc);
 	comstart(tp);
 
 	/* XXX should clear h/w fifos too. */
@@ -2581,6 +2691,47 @@ cd1400_channel_cmd(com, cmd)
 		    5 * 8 * 1024);
 
 	cd_setreg(com, CD1400_CCR, cmd);
+}
+
+static void
+cd_etc(com, etc)
+	struct com_s	*com;
+	int		etc;
+{
+	/*
+	 * We can't change the hardware's ETC state while there are any
+	 * characters in the tx fifo, since those characters would be
+	 * interpreted as commands!  Unputting characters from the fifo
+	 * is difficult, so we wait up to 12 character times for the fifo
+	 * to drain.  The command will be delayed for up to 2 character
+	 * times for the tx to become empty.  Unputting characters from
+	 * the tx holding and shift registers is impossible, so we wait
+	 * for the tx to become empty so that the command is sure to be
+	 * executed soon after we issue it.
+	 */
+	disable_intr();
+	if (com->etc == etc) {
+		enable_intr();
+		goto wait;
+	}
+	if (etc == CD1400_ETC_SENDBREAK
+	    && (com->etc == ETC_BREAK_STARTING
+		|| com->etc == ETC_BREAK_STARTED)
+	    || etc == CD1400_ETC_STOPBREAK
+	       && (com->etc == ETC_BREAK_ENDING || com->etc == ETC_BREAK_ENDED
+		   || com->etc == ETC_NONE)) {
+		enable_intr();
+		return;
+	}
+	com->etc = etc;
+	cd_setreg(com, CD1400_SRER,
+		  com->intr_enable
+		  = com->intr_enable & ~CD1400_SRER_TXRDY | CD1400_SRER_TXMPTY);
+	enable_intr();
+wait:
+	while (com->etc == etc
+	       && tsleep(&com->etc, TTIPRI | PCATCH, "cyetc", 0) == 0)
+		continue;
 }
 
 static int
