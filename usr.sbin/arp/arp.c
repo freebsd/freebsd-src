@@ -115,9 +115,7 @@ static int s = -1;
 #define SETFUNC(f)	{ if (func) usage(); func = (f); }
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	int ch, func = 0;
 	int rtn = 0;
@@ -166,7 +164,7 @@ main(argc, argv)
 		break;
 	case F_SET:
 	case F_REPLACE:
-		if (argc < 2 || argc > 5)
+		if (argc < 2 || argc > 6)
 			usage();
 		if (func == F_REPLACE)
 			(void) delete(argv[0], NULL);
@@ -239,7 +237,7 @@ getsocket(void)
 struct	sockaddr_in so_mask = {8, 0, 0, { 0xffffffff}};
 struct	sockaddr_inarp blank_sin = {sizeof(blank_sin), AF_INET }, sin_m;
 struct	sockaddr_dl blank_sdl = {sizeof(blank_sdl), AF_LINK }, sdl_m;
-int	expire_time, flags, export_only, doing_proxy, found_entry;
+int	expire_time, flags, doing_proxy, proxy_only, found_entry;
 struct	{
 	struct	rt_msghdr m_rtm;
 	char	m_space[512];
@@ -264,7 +262,7 @@ set(int argc, char **argv)
 	sdl_m = blank_sdl;
 	sin_m = blank_sin;
 	sin->sin_addr.s_addr = inet_addr(host);
-	if (sin->sin_addr.s_addr == -1) {
+	if (sin->sin_addr.s_addr == INADDR_NONE) {
 		if (!(hp = gethostbyname(host))) {
 			warnx("%s: %s", host, hstrerror(h_errno));
 			return (1);
@@ -272,16 +270,21 @@ set(int argc, char **argv)
 		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
 		    sizeof sin->sin_addr);
 	}
-	doing_proxy = flags = export_only = expire_time = 0;
+	doing_proxy = flags = proxy_only = expire_time = 0;
 	while (argc-- > 0) {
 		if (strncmp(argv[0], "temp", 4) == 0) {
-			struct timeval time;
-			gettimeofday(&time, 0);
-			expire_time = time.tv_sec + 20 * 60;
+			struct timeval tv;
+			gettimeofday(&tv, 0);
+			expire_time = tv.tv_sec + 20 * 60;
 		}
 		else if (strncmp(argv[0], "pub", 3) == 0) {
 			flags |= RTF_ANNOUNCE;
-			doing_proxy = SIN_PROXY;
+			doing_proxy = 1;
+			if (argc && strncmp(argv[1], "only", 3) == 0) {
+				proxy_only = 1;
+				sin_m.sin_other = SIN_PROXY;
+				argc--; argv++;
+			}
 		} else if (strncmp(argv[0], "trail", 5) == 0) {
 			printf("%s: Sending trailers is no longer supported\n",
 				host);
@@ -324,7 +327,7 @@ tryagain:
 			return(1);
 		}
 		sin_m.sin_other = SIN_PROXY;
-		export_only = 1;
+		proxy_only = 1;
 		goto tryagain;
 	}
 overwrite:
@@ -348,7 +351,7 @@ get(char *host)
 
 	sin_m = blank_sin;
 	sin->sin_addr.s_addr = inet_addr(host);
-	if (sin->sin_addr.s_addr == -1) {
+	if (sin->sin_addr.s_addr == INADDR_NONE) {
 		if (!(hp = gethostbyname(host)))
 			errx(1, "%s: %s", host, hstrerror(h_errno));
 		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
@@ -376,10 +379,14 @@ delete(char *host, char *info)
 
 	getsocket();
 	sin_m = blank_sin;
-	if (info && strncmp(info, "pro", 3) == 0)
-		sin_m.sin_other = SIN_PROXY;
+	if (info) {
+		if (strncmp(info, "pub", 3) == 0)
+			sin_m.sin_other = SIN_PROXY;
+		else
+			usage();
+	}
 	sin->sin_addr.s_addr = inet_addr(host);
-	if (sin->sin_addr.s_addr == -1) {
+	if (sin->sin_addr.s_addr == INADDR_NONE) {
 		if (!(hp = gethostbyname(host))) {
 			warnx("%s: %s", host, hstrerror(h_errno));
 			return (1);
@@ -470,7 +477,7 @@ void
 print_entry(struct sockaddr_dl *sdl,
 	struct sockaddr_inarp *sin, struct rt_msghdr *rtm)
 {
-	char *host;
+	const char *host;
 	struct hostent *hp;
 	int seg;
 
@@ -566,7 +573,7 @@ usage(void)
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: arp [-n] hostname",
 		"       arp [-n] -a",
-		"       arp -d hostname [proxy]",
+		"       arp -d hostname [pub]",
 		"       arp -d -a",
 		"       arp -s hostname ether_addr [temp] [pub]",
 		"       arp -S hostname ether_addr [temp] [pub]",
@@ -600,7 +607,7 @@ rtmsg(int cmd)
 		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC);
 		sin_m.sin_other = 0;
 		if (doing_proxy) {
-			if (export_only)
+			if (proxy_only)
 				sin_m.sin_other = SIN_PROXY;
 			else {
 				rtm->rtm_addrs |= RTA_NETMASK;
