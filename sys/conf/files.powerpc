@@ -60,6 +60,9 @@ libkern/ashrdi3.c		standard
 libkern/bcmp.c			standard
 libkern/divdi3.c		standard
 libkern/ffs.c			standard
+libkern/ffsl.c			standard
+libkern/fls.c			standard
+libkern/flsl.c			standard
 libkern/lshrdi3.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
