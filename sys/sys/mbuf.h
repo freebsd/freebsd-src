@@ -344,6 +344,9 @@ struct mbstat {
 /*
  * Compute the amount of space available
  * before the current start of data in an mbuf.
+ *
+ * The M_WRITABLE() is a temporary, conservative safety measure: the burden
+ * of checking writability of the mbuf data area rests solely with the caller.
  */
 #define	M_LEADINGSPACE(m)						\
 	((m)->m_flags & M_EXT ?						\
@@ -354,10 +357,14 @@ struct mbstat {
 /*
  * Compute the amount of space available
  * after the end of data in an mbuf.
+ *
+ * The M_WRITABLE() is a temporary, conservative safety measure: the burden
+ * of checking writability of the mbuf data area rests solely with the caller.
  */
 #define	M_TRAILINGSPACE(m)						\
-	((m)->m_flags & M_EXT ? (m)->m_ext.ext_buf +			\
-	    (m)->m_ext.ext_size - ((m)->m_data + (m)->m_len) :		\
+	((m)->m_flags & M_EXT ?						\
+	    (M_WRITABLE(m) ? (m)->m_ext.ext_buf + (m)->m_ext.ext_size	\
+		- ((m)->m_data + (m)->m_len) : 0) :			\
 	    &(m)->m_dat[MLEN] - ((m)->m_data + (m)->m_len))
 
 /*
