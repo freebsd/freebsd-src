@@ -17,6 +17,8 @@ COPTS	+=	-DUSE_RTPRIO
 
 MAN	 =	isdnd.rc.5 isdnd.rates.5 isdnd.acct.5 isdnd.8
 
+.include "${.CURDIR}/../Makefile.inc"
+
 .if !defined(I4B_WITHOUT_CURSES)
 COPTS	+=	-DUSE_CURSES
 DPADD	 =	${LIBCURSES}
