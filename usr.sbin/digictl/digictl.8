@@ -10,7 +10,7 @@ devices
 .Sh SYNOPSIS
 .Nm
 .Fl a
-disable|enable|query
+.Cm disable | enable | query
 .Ar device ...
 .Nm
 .Op Fl d Ar debug
@@ -24,31 +24,37 @@ program provides control of the
 installed with the given
 .Ar ctrl-device
 name and provides control of individual digiboard
-.Ar device Ns No s.
+.Ar devices .
 A digiboard
 .Ar ctrl-device
 is usually of the form
-.Pa /dev/digi Ns Sy N Ns Pa .ctl
+.Sm off
+.Pa /dev/digi Ar N Pa .ctl
+.Sm on
 where
-.Sy N
+.Ar N
 is the card number and starts at
 .Dq 0
 for the first attached card.
 A digiboard
 .Ar device
 is usually of the form
-.Pa /dev/cua Ns Oo Pa \&il Oc Ns Pa D Ns Sy N Ns . Ns Sy D
+.Sm off
+.Pa /dev/cua Oo Pa il Oc Pa D Ar N Pa \&. Ar P
+.Sm on
 or
-.Pa /dev/tty Ns Oo Pa \&il Oc Ns Pa D Ns Sy N Ns . Ns Sy D
+.Sm off
+.Pa /dev/tty Oo Pa il Oc Pa D Ar N Pa \&. Ar P
+.Sm on
 where
-.Sy N
+.Ar N
 is the card number and
-.Sy D
+.Ar P
 is the port number.
 .Pp
 The following flags are recognized:
 .Bl -tag
-.It Fl a No disable|enable|query
+.It Fl a Cm disable | enable | query
 Disable, enable or query the
 .Em ALTPIN
 settings for the given port(s).
