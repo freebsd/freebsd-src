@@ -87,14 +87,15 @@ typedef enum {
 	CAM_DIS_AUTODISC	= 0x02000000,/* Disable auto disconnect	      */
 	CAM_TGT_CCB_AVAIL	= 0x04000000,/* Target CCB available	      */
 	CAM_TGT_PHASE_MODE	= 0x08000000,/* The SIM runs in phase mode    */
-	CAM_MSGB_VALID		= 0x20000000,/* Message buffer valid	      */
-	CAM_STATUS_VALID	= 0x40000000,/* Status buffer valid	      */
-	CAM_DATAB_VALID		= 0x80000000,/* Data buffer valid	      */
+	CAM_MSGB_VALID		= 0x10000000,/* Message buffer valid	      */
+	CAM_STATUS_VALID	= 0x20000000,/* Status buffer valid	      */
+	CAM_DATAB_VALID		= 0x40000000,/* Data buffer valid	      */
 	
 /* Host target Mode flags */
-	CAM_TERM_IO		= 0x20000000,/* Terminate I/O Message sup.    */
-	CAM_DISCONNECT		= 0x40000000,/* Disconnects are mandatory     */
-	CAM_SEND_STATUS		= 0x80000000 /* Send status after data phase  */
+	CAM_SEND_SENSE		= 0x08000000,/* Send sense data with status   */
+	CAM_TERM_IO		= 0x10000000,/* Terminate I/O Message sup.    */
+	CAM_DISCONNECT		= 0x20000000,/* Disconnects are mandatory     */
+	CAM_SEND_STATUS		= 0x40000000 /* Send status after data phase  */
 } ccb_flags;
 
 /* XPT Opcodes for xpt_action */
@@ -250,28 +251,10 @@ struct ccb_hdr {
 /* Get Device Information CCB */
 struct ccb_getdev {
 	struct	  ccb_hdr ccb_h;
-	struct	  scsi_inquiry_data inq_data;
+	struct scsi_inquiry_data inq_data;
 	u_int8_t  serial_num[252];
+	u_int8_t  inq_len;
 	u_int8_t  serial_num_len;
-	u_int8_t  pd_type;	/* returned peripheral device type */
-/*
- * GARBAGE COLLECT
- * Moved to ccb_getdevstats but left here for binary compatibility.
- * Remove during next bump in CAM major version.
- */
-	int	  dev_openings;	/* Space left for more work on device*/	
-	int	  dev_active;	/* Transactions running on the device */
-	int	  devq_openings;/* Space left for more queued work */
-	int	  devq_queued;	/* Transactions queued to be sent */
-	int	  held;		/*
-				 * CCBs held by peripheral drivers
-				 * for this device
-				 */
-	int	  maxtags;	/*
-				 * Boundary conditions for number of
-				 * tagged operations
-				 */
-	int	  mintags;
 };
 
 /* Device Statistics CCB */
@@ -471,7 +454,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x12	/* Hex value for current version */
+#define CAM_VERSION	0x13	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */
@@ -580,8 +563,10 @@ struct ccb_accept_tio {
 	cdb_t	   cdb_io;		/* Union for CDB bytes/pointer */
 	u_int8_t   cdb_len;		/* Number of bytes for the CDB */
 	u_int8_t   tag_action;		/* What to do for tag queueing */
+	u_int8_t   sense_len;		/* Number of bytes of Sense Data */
 	u_int      tag_id;		/* tag id from initator (target mode) */
 	u_int      init_id;		/* initiator id of who selected */
+	struct     scsi_sense_data sense_data;
 };
 
 /* Release SIM Queue */
@@ -715,7 +700,7 @@ struct ccb_en_lun {
 struct ccb_immed_notify {
 	struct	  ccb_hdr ccb_h;
 	struct    scsi_sense_data sense_data;
-	u_int8_t  sense_len;		/* Number of bytes in sese buffer */
+	u_int8_t  sense_len;		/* Number of bytes in sense buffer */
 	u_int8_t  initiator_id;		/* Id of initiator that selected */
 	u_int8_t  message_args[7];	/* Message Arguments */
 };
