@@ -31,10 +31,12 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <i386/isa/pcibus.h>
+#include <isa/isavar.h>
 
 #include <machine/segments.h>
 #include <machine/pc/bios.h>
@@ -655,3 +657,55 @@ static driver_t nexus_pcib_driver = {
 };
 
 DRIVER_MODULE(pcib, nexus, nexus_pcib_driver, pcib_devclass, 0, 0);
+
+/*
+ * Install placeholder to claim the resources owned by the
+ * PCI bus interface.  This could be used to extract the 
+ * config space registers in the extreme case where the PnP
+ * ID is available and the PCI BIOS isn't, but for now we just
+ * eat the PnP ID and do nothing else.
+ *
+ * XXX we should silence this probe, as it will generally confuse 
+ * people.
+ */
+static struct isa_pnp_id pcibus_pnp_ids[] = {
+	{ 0x030ad041 /* PNP030A */, "PCI Bus" },
+	{ 0 }
+};
+
+static int
+pcibus_pnp_probe(device_t dev)
+{
+	int result;
+	
+	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, pcibus_pnp_ids)) <= 0)
+		device_quiet(dev);
+	return(result);
+}
+
+static int
+pcibus_pnp_attach(device_t dev)
+{
+	return(0);
+}
+
+static device_method_t pcibus_pnp_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pcibus_pnp_probe),
+	DEVMETHOD(device_attach,	pcibus_pnp_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	{ 0, 0 }
+};
+
+static driver_t pcibus_pnp_driver = {
+	"pcibus_pnp",
+	pcibus_pnp_methods,
+	1,		/* no softc */
+};
+
+static devclass_t pcibus_pnp_devclass;
+
+DRIVER_MODULE(pcibus_pnp, isa, pcibus_pnp_driver, pcibus_pnp_devclass, 0, 0);

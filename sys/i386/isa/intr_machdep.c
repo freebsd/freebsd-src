@@ -53,7 +53,9 @@
 #endif
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <machine/ipl.h>
@@ -153,6 +155,70 @@ static inthand2_t isa_strayintr;
 #define ENMI_BUSTIMER (1 << 6)
 #define ENMI_IOSTATUS (1 << 5)
 #endif
+
+/*
+ * Bus attachment for the ISA PIC.
+ */
+static struct isa_pnp_id atpic_ids[] = {
+	{ 0x0000d041 /* PNP0000 */, "AT interrupt controller" },
+	{ 0 }
+};
+
+static int
+atpic_probe(device_t dev)
+{
+	int result;
+	
+	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, atpic_ids)) <= 0)
+		device_quiet(dev);
+	return(result);
+}
+
+/*
+ * In the APIC_IO case we might be granted IRQ 2, as this is typically
+ * consumed by chaining between the two PIC components.  If we're using
+ * the APIC, however, this may not be the case, and as such we should
+ * free the resource.  (XXX untested)
+ *
+ * The generic ISA attachment code will handle allocating any other resources
+ * that we don't explicitly claim here.
+ */
+static int
+atpic_attach(device_t dev)
+{
+#ifdef APIC_IO
+	int		rid;
+	bus_resource_t	res;
+
+	/* try to allocate our IRQ and then free it */
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, 0);
+	if (res != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, rid, res);
+#endif
+	return(0);
+}
+
+static device_method_t atpic_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		atpic_probe),
+	DEVMETHOD(device_attach,	atpic_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	{ 0, 0 }
+};
+
+static driver_t atpic_driver = {
+	"atpic",
+	atpic_methods,
+	1,		/* no softc */
+};
+
+static devclass_t atpic_devclass;
+
+DRIVER_MODULE(atpic, isa, atpic_driver, atpic_devclass, 0, 0);
 
 /*
  * Handle a NMI, possibly a machine check.
