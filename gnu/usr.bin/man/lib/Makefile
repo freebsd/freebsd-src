@@ -6,7 +6,7 @@ CFLAGS+= -DSTDC_HEADERS
 CLEANFILES+= config.h
 SRCS=	gripes.c util.c
 
-all: config.h
+all depend: config.h
 
 config.h: ${.CURDIR}/config.h_dist ${.CURDIR}/../Makefile.inc
 	sed -e 's,%apropos%,${apropos},' -e 's,%whatis%,${whatis},' \
