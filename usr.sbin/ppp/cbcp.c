@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.c,v 1.4 1998/10/17 12:28:09 brian Exp $
+ *	$Id: cbcp.c,v 1.5 1998/10/17 12:28:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -293,7 +293,7 @@ cbcp_SendReq(struct cbcp *cbcp)
       break;
 
     default:
-      data.length = 2;
+      data.length = (char *)&data.delay - (char *)&data;
       break;
   }
 
@@ -471,7 +471,9 @@ cbcp_SendResponse(struct cbcp *cbcp)
   data.type = cbcp->fsm.type;
   data.delay = cbcp->fsm.delay;
   addr = (struct cbcp_addr *)data.addr_start;
-  if (*cbcp->fsm.phone) {
+  if (data.type == CBCP_NONUM)
+    data.length = (char *)&data.delay - (char *)&data;
+  else if (*cbcp->fsm.phone) {
     addr->type = CBCP_ADDR_PSTN;
     strcpy(addr->addr, cbcp->fsm.phone);
     data.length = (addr->addr + strlen(addr->addr) + 1) - (char *)&data;
@@ -564,6 +566,7 @@ static void
 cbcp_SendAck(struct cbcp *cbcp)
 {
   struct cbcp_data data;
+  char *end;
 
   /* Only callees send ACKs */
 
@@ -572,7 +575,8 @@ cbcp_SendAck(struct cbcp *cbcp)
 
   data.type = cbcp->fsm.type;
   data.delay = cbcp->fsm.delay;
-  data.length = data.addr_start - (char *)&data;
+  end = data.type == CBCP_NONUM ? (char *)&data.delay : data.addr_start;
+  data.length = end - (char *)&data;
 
   cbcp_data_Show(&data);
   cbcp_Output(cbcp, CBCP_ACK, &data);
