@@ -42,13 +42,13 @@ RAID controllers.
 These controllers support RAID 0, 1, 5, 10, and volume sets.
 They have four channels in the add-in version
 or 1-2 channels in the motherboard integrated version,
-and are most often found relabelled by Dell or Hewlett-Packard.
+and are most often found relabeled by Dell or Hewlett-Packard.
 Supported controllers include:
 .Bl -bullet
 .It
 AAC-364
 .It
-AAC-3642
+Adaptec SCSI RAID 5400S
 .It
 HP NetRAID 4M
 .It
@@ -86,12 +86,24 @@ Compiling the driver with the
 option enables the Linux-compatible
 .Xr ioctl 2
 interface for the management device.
-The
-.Xr ioctl 2
-command set is heavily tailored to existing linux applications.
-Native
-.Xr ioctl 2
-support is not present at this time.
+.Ss Tuning
+The read-only sysctl
+.Va hw.aac.iosize_max
+defaults to 65536 and may be set at boot time to another value via
+.Xr loader 8 .
+This value determines the maximum data transfer size allowed
+to/from an array.
+Setting it higher will result in better performance,
+especially for large sequential access patterns.
+.Em Beware :
+internal limitations
+of the card limit this value to 64K for arrays with many members.
+While it may be safe to raise this value, this is done
+.Em at the operator's own risk .
+Note also that
+performance peaks at a value of 96K,
+and drops off dramatically at 128K,
+due to other limitations of the card.
 .Sh FILES
 .Bl -tag -width /boot/kernel/aac.ko -compact
 .It Pa /dev/aac?
@@ -130,19 +142,9 @@ and is
 .An Scott Long
 .Aq scottl@FreeBSD.org
 .Sh BUGS
-This driver has not been tested on Alpha, though it should work.
+This driver will not work on systems with more than 4GB of memory.
 .Pp
 The controller is not actually paused on suspend/resume.
 .Pp
-Adapter-initiated messages are not returned back to the controller,
-possibly causing a resource leak on the controller.
+Unloading driver is not supported at this time.
 .Pp
-Unloading and reloading the driver as a kernel loadable module
-without rebooting the system is strongly discouraged.
-.Pp
-Only a subset of the Linux-compatible
-.Xr ioctl 2
-interface is implemented at this time.
-This is not a bug, but native
-.Xr ioctl 2
-support is desirable.
