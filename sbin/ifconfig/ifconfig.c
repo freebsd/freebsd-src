@@ -1292,6 +1292,26 @@ in_getaddr(s, which)
 	if (which != MASK)
 		sin->sin_family = AF_INET;
 
+	if (which == ADDR) {
+		char *p = NULL;
+
+		if((p = strrchr(s, '/')) != NULL) {
+			/* address is `name/masklen' */
+			int masklen;
+			int ret;
+			struct sockaddr_in *min = sintab[MASK];
+			*p = '\0';
+			ret = sscanf(p+1, "%u", &masklen);
+			if(ret != 1 || (masklen < 0 || masklen > 32)) {
+				*p = '/';
+				errx(1, "%s: bad value", s);
+			}
+			min->sin_len = sizeof(*min);
+			min->sin_addr.s_addr = htonl(~((1LL << (32 - masklen)) - 1) & 
+				              0xffffffff);
+		}
+	}
+
 	if (inet_aton(s, &sin->sin_addr))
 		return;
 	if ((hp = gethostbyname(s)) != 0)
@@ -1323,6 +1343,15 @@ in6_getaddr(s, which)
 	sin->sin6_len = sizeof(*sin);
 	if (which != MASK)
 		sin->sin6_family = AF_INET6;
+
+	if (which == ADDR) {
+		char *p = NULL;
+		if((p = strrchr(s, '/')) != NULL) {
+			*p = '\0';
+			in6_getprefix(p + 1, MASK);
+			explicit_prefix = 1;
+		}
+	}
 
 	if (sin->sin6_family == AF_INET6) {
 		bzero(&hints, sizeof(struct addrinfo));
