@@ -105,7 +105,6 @@ int (*pmath_emulate) __P((struct trapframe *));
 extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
 extern void syscall __P((struct trapframe frame));
-extern void ast __P((struct trapframe *framep));
 
 static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
 static void trap_fatal __P((struct trapframe *, vm_offset_t));
