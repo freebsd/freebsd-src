@@ -8,13 +8,13 @@
 
   <para>A typical &os; distribution directory looks something like this:</para>
 
-<screen>
-ABOUT.TXT       bin             compat3x        games           proflibs
-HARDWARE.TXT    compat1x        info            src             tools
-INSTALL.TXT     compat20        dict            manpages        packages
-README.TXT      compat21        crypto          doc
-RELNOTES.TXT    compat22        floppies        ports
-XF86336</screen>
+<screen>ERRATA.HTM      README.TXT      compat1x        dict            manpages
+ERRATA.TXT      RELNOTES.HTM    compat20        doc             packages
+HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     ports
+HARDWARE.TXT    XF86336         compat22        floppies        proflibs
+INSTALL.HTM     bin             compat3x        games           src
+INSTALL.TXT     catpages        compat4x        info            tools
+README.HTM      cdrom.inf       crypto          kernel</screen>
 
   <para>If you want to do a CDROM, FTP or NFS installation from this
   distribution directory, all you need to do is make the 1.44MB boot
@@ -31,9 +31,22 @@ XF86336</screen>
   is a more thorough description of each item in more detail:
     <orderedlist>
       <listitem>
-	<para>The <filename>*.TXT</filename> files obviously contain
-	documentation (this file is <filename>INSTALL.TXT</filename>) and should be read
-	before starting an installation.</para>
+	<para>The <filename>*.TXT</filename> and
+	<filename>*.HTM</filename> files contain
+	documentation (for example, this document is contained in both
+	<filename>INSTALL.TXT</filename> and
+	<filename>INSTALL.HTM</filename>) and should be read
+	before starting an installation.  The
+	<filename>*.TXT</filename> files are plain text, while the
+	<filename>*.HTM</filename> files are HTML files that can be
+	read by almost any Web browser.  Some distributions may
+	contain documentation in other formats as well, such as PDF or
+	PostScript.</para>
+      </listitem>
+      <listitem>
+        <para><filename>docbook.css</filename> is a Cascading Style
+        Sheet (CSS) file used by some Web browsers for formatting the
+        HTML documentation.
       </listitem>
       <listitem>
 	<para>The <filename>XF86336</filename> directory contains the
@@ -42,14 +55,27 @@ XF86336</screen>
 	distribution.</para>
       </listitem>
       <listitem>
-	<para>The <filename>bin</filename>, <filename>dict</filename>, <filename>crypto</filename>, <filename>doc</filename>, <filename>games</filename>, <filename>info</filename>, <filename>manpages</filename>,
-	<filename>proflibs</filename>, and <filename>src</filename> directories contain the primary distribution
+	<para>The <filename>bin</filename>,
+	<filename>catpages</filename>,
+	<filename>crypto</filename>, 
+	<filename>dict</filename>,
+	<filename>doc</filename>,
+	<filename>games</filename>,
+	<filename>info</filename>, 
+	<filename>manpages</filename>,
+	<filename>proflibs</filename>, and 
+	<filename>src</filename> directories contain the primary distribution
 	components of &os; itself and are split into smaller files
 	for easy packing onto floppies (should that be
 	necessary).</para>
       </listitem>
       <listitem>
-	<para>The <filename>compat1x</filename>, <filename>compat20</filename>, <filename>compat21</filename>, <filename>compat22</filename>, and <filename>compat3x</filename>
+	<para>The <filename>compat1x</filename>,
+	<filename>compat20</filename>,
+	<filename>compat21</filename>,
+	<filename>compat22</filename>,
+	<filename>compat3x</filename>, and
+	<filename>compat4x</filename>
 	directories contain distributions for compatibility with older
 	releases and are distributed as single gzip'd tar files - they
 	can be installed during release time or later by running their
@@ -62,7 +88,7 @@ XF86336</screen>
       </listitem>
       <listitem>
 	<para>The <filename>packages</filename> and <filename>ports</filename> directories contain the &os;
-	packages and ports collections.  Packages may be installed from
+	Packages and Ports Collections.  Packages may be installed from
 	the packages directory by running the command:</para>
 
 	<screen>&prompt.root;<userinput>/stand/sysinstall configPackages</userinput></screen>
@@ -70,7 +96,7 @@ XF86336</screen>
 	<para>Packages can also be installed by feeding individual
 	filenames in <filename>packages</filename>/ to the &man.pkg.add.1; command.</para>
 
-	<para>The ports collection may be installed like any other
+	<para>The Ports Collection may be installed like any other
 	distribution and requires about 100MB unpacked.  More
 	information on the ports collection may be obtained from
 	<ulink url="http://www.FreeBSD.org/ports/">http://www.FreeBSD.org/ports/</ulink> or locally from
@@ -86,8 +112,7 @@ XF86336</screen>
     </orderedlist>
   </para>
 
-  <para>A typical distribution (we'll use the <filename>info</filename> distribution as an
-  example) looks like this internally:</para>
+  <para>A typical distribution directory (for example, the <filename>info</filename> distribution) looks like this internally:</para>
 
 <screen>CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
 info.aa         info.ac         info.ae         info.mtree</screen>
@@ -126,8 +151,4 @@ info.aa         info.ac         info.ae         info.mtree</screen>
 
   <screen>&prompt.root; <userinput>cd /cdrom/info</userinput>
 &prompt.root; <userinput>sh install.sh</userinput></screen>
-
-  <para>And that's all there is to it!  Each distribution contains its
-  own <filename>install.sh</filename> file for this.</para>
-
 </sect1>
