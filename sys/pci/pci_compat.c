@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.18 1999/01/13 04:59:19 bde Exp $
+ * $Id: pci_compat.c,v 1.19 1999/01/14 06:22:10 jdp Exp $
  *
  */
 
@@ -59,13 +59,16 @@
 static int
 pci_mapno(pcicfgregs *cfg, int reg)
 {
-	int map = -1;
-	if ((reg & 0x03) == 0) {
-		map = (reg -0x10) / 4;
-		if (map < 0 || map >= cfg->nummaps)
-			map = -1;
-	}
-	return (map);
+	int i, nummaps;
+	pcimap *map;
+
+	nummaps = cfg->nummaps;
+	map = cfg->map;
+
+	for (i = 0; i < nummaps; i++)
+		if (map[i].reg == reg)
+			return (i);
+	return (-1);
 }
 
 static int

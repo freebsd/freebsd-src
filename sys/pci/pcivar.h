@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.23 1998/12/14 05:47:29 dillon Exp $
+ * $Id: pcivar.h,v 1.24 1999/01/13 04:59:19 bde Exp $
  *
  */
 
@@ -66,7 +66,7 @@ typedef struct {
 #define PCI_MAPPORT	0x04	/* port map */
     u_int8_t	ln2size;
     u_int8_t	ln2range;
-/*    u_int8_t	dummy;*/
+    u_int8_t	reg;		/* offset of map register in config space */
 } pcimap;
 
 /* config header information common to all header types */
