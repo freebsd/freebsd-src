@@ -91,12 +91,12 @@ main:		testb $0x20,_FLAGS(%bp)		# Set number drive?
 		jnz main.1			# Yes
 		testb %dl,%dl			# Drive number valid?
 		js main.2			# Possibly (0x80 set)
-main.1: 	movb _SETDRV(%bp),%dl		# Drive number to use
+main.1:		movb _SETDRV(%bp),%dl		# Drive number to use
 #
 # Whatever we decided to use, now store it into the fake
 # partition entry that lives in the data space above us.
 #
-main.2: 	movb %dl,_FAKE(%bp)		# Save drive number
+main.2:		movb %dl,_FAKE(%bp)		# Save drive number
 		callw putn			# To new line
 		pushw %dx			# Save drive number
 #
@@ -112,7 +112,7 @@ main.2: 	movb %dl,_FAKE(%bp)		# Save drive number
 # Loop around on the partition table, printing values until we
 # pass a 256 byte boundary. The end of loop test is at main.5.
 #
-main.3: 	movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
+main.3:		movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 		btw %dx,_FLAGS(%bp)		# Entry enabled?
 		jnc main.5			# No
 #
@@ -139,10 +139,10 @@ main.3: 	movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 # pointing at its first element which points to a "?".
 #
 		addw $TBL1SZ,%di		# Adjust
-main.4: 	movb (%di),%cl			# Partition
+main.4:		movb (%di),%cl			# Partition
 		addw %cx,%di			#  description
 		callw putx			# Display it
-main.5: 	incw %dx			# Next item
+main.5:		incw %dx			# Next item
 		addb $0x10,%bl			# Next entry
 		jnc main.3			# Till done
 #
@@ -170,7 +170,7 @@ main.5: 	incw %dx			# Next item
 # This also is part of the printed drive string so add 0x80 to indicate
 # end of string.
 #
-main.6: 	addb $'0'|0x80,%al		# Save next
+main.6:		addb $'0'|0x80,%al		# Save next
 		movb %al,_NXTDRV(%bp)		#  drive number
 		movw $drive,%di			# Display
 		callw putx			#  item
@@ -178,7 +178,7 @@ main.6: 	addb $'0'|0x80,%al		# Save next
 # Now that we've printed the drive (if we needed to), display a prompt.
 # Get ready for the input by noting the time.
 #
-main.7: 	movw $prompt,%si		# Display
+main.7:		movw $prompt,%si		# Display
 		callw putstr			#  prompt
 		movb _OPT(%bp),%dl		# Display
 		decw %si			#  default
@@ -191,7 +191,7 @@ main.7: 	movw $prompt,%si		# Display
 # Busy loop, looking for keystrokes but
 # keeping one eye on the time.
 #
-main.8: 	movb $0x1,%ah			# BIOS: Check
+main.8:		movb $0x1,%ah			# BIOS: Check
 		int $0x16			#  for keypress
 		jnz main.11			# Have one
 		xorb %ah,%ah			# BIOS: Get
@@ -201,7 +201,7 @@ main.8: 	movb $0x1,%ah			# BIOS: Check
 #
 # If timed out or defaulting, come here.
 #
-main.9: 	movb _OPT(%bp),%al		# Load default
+main.9:		movb _OPT(%bp),%al		# Load default
 		jmp main.12			# Join common code
 #
 # User's last try was bad, beep in displeasure.
@@ -296,7 +296,7 @@ main.15:	movw $LOAD,%bx			# Address for read
 # Display routines
 #
 
-putkey: 	movb $'F',%al			# Display
+putkey:		movb $'F',%al			# Display
 		callw putchr			#  'F'
 		movb $'1',%al			# Prepare
 		addb %dl,%al			#  digit
@@ -315,14 +315,14 @@ puts:		callw putstr			# Display string
 
 putn:		movw $crlf,%si			# To next line
 
-putstr: 	lodsb				# Get byte
+putstr:		lodsb				# Get byte
 		testb $0x80,%al 		# End of string?
 		jnz putstr.2			# Yes
 putstr.1:	callw putchr			# Display char
 		jmp putstr			# Continue
 putstr.2:	andb $~0x80,%al 		# Clear MSB
 
-putchr: 	pushw %bx			# Save
+putchr:		pushw %bx			# Save
 		movw $0x7,%bx	 		# Page:attribute
 		movb $0xe,%ah			# BIOS: Display
 		int $0x10			#  character
@@ -331,7 +331,7 @@ putchr: 	pushw %bx			# Save
 
 # One-sector disk I/O routine
 
-intx13: 	movb 0x1(%si),%dh		# Load head
+intx13:		movb 0x1(%si),%dh		# Load head
 		movw 0x2(%si),%cx		# Load cylinder:sector
 		movb $0x1,%al			# Sector count
 		pushw %si			# Save
@@ -355,7 +355,7 @@ intx13.1:	int $0x13			# BIOS: Disk I/O
 # Menu strings
 
 item:		.ascii "  ";	     .byte ' '|0x80
-prompt: 	.ascii "\nDefault:"; .byte ' '|0x80
+prompt:		.ascii "\nDefault:"; .byte ' '|0x80
 crlf:		.ascii "\r";	     .byte '\n'|0x80
 
 # Partition type tables
@@ -391,10 +391,10 @@ tables:
 # the end of the string. (not so great for Russians but...)
 #
 os_misc:	.ascii "?";    .byte '?'|0x80
-os_dos: 	.ascii "DO";   .byte 'S'|0x80
+os_dos:		.ascii "DO";   .byte 'S'|0x80
 os_linux:	.ascii "Linu"; .byte 'x'|0x80
 os_freebsd:	.ascii "Free"
-os_bsd: 	.ascii "BS";   .byte 'D'|0x80
+os_bsd:		.ascii "BS";   .byte 'D'|0x80
 
 		.org PRT_OFF-0xe,0x90
 
@@ -406,14 +406,14 @@ os_bsd: 	.ascii "BS";   .byte 'D'|0x80
 # is part of the same string.
 #
 drive:		.ascii "Drive "
-nxtdrv: 	.byte 0x0			# Next drive number
+nxtdrv:		.byte 0x0			# Next drive number
 opt:		.byte 0x0			# Option
-setdrv: 	.byte 0x80			# Drive to force
+setdrv:		.byte 0x80			# Drive to force
 flags:		.byte FLAGS			# Flags
 ticks:		.word TICKS			# Delay
 
 #
 # here is the 64 byte partition table that fdisk would fiddle with.
 #
-partbl: 	.fill 0x40,0x1,0x0		# Partition table
+partbl:		.fill 0x40,0x1,0x0		# Partition table
 		.word MAGIC			# Magic number
