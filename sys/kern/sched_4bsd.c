@@ -119,6 +119,28 @@ struct kg_sched {
 #define kg_concurrency		kg_sched->skg_concurrency
 #define kg_runq_kses		kg_sched->skg_runq_kses
 
+#define SLOT_RELEASE(kg)						\
+do {									\
+	kg->kg_avail_opennings++; 					\
+	CTR3(KTR_RUNQ, "kg %p(%d) Slot released (->%d)",		\
+	kg,								\
+	kg->kg_concurrency,						\
+	 kg->kg_avail_opennings);					\
+/*	KASSERT((kg->kg_avail_opennings <= kg->kg_concurrency),		\
+	    ("slots out of whack"));*/					\
+} while (0)
+
+#define SLOT_USE(kg)							\
+do {									\
+	kg->kg_avail_opennings--; 					\
+	CTR3(KTR_RUNQ, "kg %p(%d) Slot used (->%d)",			\
+	kg,								\
+	kg->kg_concurrency,						\
+	 kg->kg_avail_opennings);					\
+/*	KASSERT((kg->kg_avail_opennings >= 0),				\
+	    ("slots out of whack"));*/					\
+} while (0)
+
 /*
  * KSE_CAN_MIGRATE macro returns true if the kse can migrate between
  * cpus.
@@ -802,7 +824,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if (newtd) {
 		KASSERT((newtd->td_inhibitors == 0),
 			("trying to run inhibitted thread"));
-		newtd->td_ksegrp->kg_avail_opennings--;
+ 		SLOT_USE(newtd->td_ksegrp);
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
         	TD_SET_RUNNING(newtd);
 		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
@@ -822,7 +844,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if (td == PCPU_GET(idlethread))
 		TD_SET_CAN_RUN(td);
 	else {
-		td->td_ksegrp->kg_avail_opennings++;
+ 		SLOT_RELEASE(td->td_ksegrp);
 		if (TD_IS_RUNNING(td)) {
 			/* Put us back on the run queue (kse and all). */
 			setrunqueue(td, SRQ_OURSELF|SRQ_YIELDING);
@@ -1030,7 +1052,7 @@ sched_add(struct thread *td, int flags)
 	}
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt++;
-	td->td_ksegrp->kg_avail_opennings--;
+ 	SLOT_USE(td->td_ksegrp);
 	runq_add(ke->ke_runq, ke);
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
@@ -1051,7 +1073,7 @@ sched_rem(struct thread *td)
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
-	td->td_ksegrp->kg_avail_opennings++;
+	SLOT_RELEASE(td->td_ksegrp);
 	runq_remove(ke->ke_runq, ke);
 
 	ke->ke_state = KES_THREAD;
