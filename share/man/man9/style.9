@@ -186,7 +186,7 @@ macros rather than rolling your own lists, whenever possible.  Thus,
 the previous example would be better written:
 .Bd -literal
 #include <sys/queue.h>
-struct	foo {
+struct foo {
 	LIST_ENTRY(foo)	link;	/* Queue macro glue for foo lists */
 	struct	mumble amumble;	/* Comment for mumble */
 	int	bar;
