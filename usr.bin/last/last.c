@@ -83,11 +83,13 @@ struct ttytab {
 	LIST_ENTRY(ttytab) list;
 };
 
+static const	char *crmsg;			/* cause of last reboot */
 static long	currentout,			/* current logout value */
 		maxrec;				/* records to display */
 static const	char *file = _PATH_WTMP;		/* wtmp file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
+static int	snapfound = 0;			/* found snapshot entry? */
 static time_t	snaptime;			/* if != 0, we will only
 						 * report users logged in
 						 * at this snapshot time
@@ -96,8 +98,10 @@ static time_t	snaptime;			/* if != 0, we will only
 int	 main __P((int, char *[]));
 void	 addarg __P((int, char *));
 time_t	 dateconv __P((char *));
+void	 doentry __P((struct utmp *));
 void	 hostconv __P((char *));
 void	 onintr __P((int));
+void	 printentry __P((struct utmp *, struct ttytab *));
 char	*ttyconv __P((char *));
 char	*ttyconv __P((char *));
 int	 want __P((struct utmp *));
@@ -192,15 +196,11 @@ void
 wtmp()
 {
 	struct utmp	*bp;			/* current structure */
-	struct ttytab	*tt, *ttx;		/* ttylist entry */
 	struct stat	stb;			/* stat of file for size */
 	long	bl;
-	time_t	delta;				/* time difference */
 	int	bytes, wfd;
-	const	char *crmsg;
 	char ct[80];
 	struct tm *tm;
-	int	 snapfound = 0;			/* found snapshot entry? */
 
 	LIST_INIT(&ttylist);
 
@@ -216,146 +216,149 @@ wtmp()
 		if (lseek(wfd, (off_t)(bl * sizeof(buf)), L_SET) == -1 ||
 		    (bytes = read(wfd, buf, sizeof(buf))) == -1)
 			err(1, "%s", file);
-		for (bp = &buf[bytes / sizeof(buf[0]) - 1]; bp >= buf; --bp) {
-			/*
-			 * if the terminal line is '~', the machine stopped.
-			 * see utmp(5) for more info.
-			 */
-			if (bp->ut_line[0] == '~' && !bp->ut_line[1]) {
-				/* everybody just logged out */
-				for (tt = LIST_FIRST(&ttylist); tt;) {
-					LIST_REMOVE(tt, list);
-					ttx = tt;
-					tt = LIST_NEXT(tt, list);
-					free(ttx);
-				}
-				currentout = -bp->ut_time;
-				crmsg = strncmp(bp->ut_name, "shutdown",
-				    UT_NAMESIZE) ? "crash" : "shutdown";
-				/*
-				 * if we're in snapshot mode, we want to
-				 * exit if this shutdown/reboot appears
-				 * while we we are tracking the active
-				 * range
-				 */
-				if (snaptime && snapfound)
-					return;
-				/*
-				 * don't print shutdown/reboot entries
-				 * unless flagged for 
-				 */ 
-				if (!snaptime && want(bp)) {
-					tm = localtime(&bp->ut_time);
-					(void) strftime(ct, sizeof(ct), "%c", tm);
-					printf("%-*.*s %-*.*s %-*.*s %10.10s %5.5s \n",
-					    UT_NAMESIZE, UT_NAMESIZE,
-					    bp->ut_name, UT_LINESIZE,
-					    UT_LINESIZE, bp->ut_line,
-					    UT_HOSTSIZE, UT_HOSTSIZE,
-					    bp->ut_host, ct, ct + 11);
-					if (maxrec != -1 && !--maxrec)
-						return;
-				}
-				continue;
-			}
-			/*
-			 * if the line is '{' or '|', date got set; see
-			 * utmp(5) for more info.
-			 */
-			if ((bp->ut_line[0] == '{' || bp->ut_line[0] == '|')
-			    && !bp->ut_line[1]) {
-				if (want(bp) && !snaptime) {
-					tm = localtime(&bp->ut_time);
-					(void) strftime(ct, sizeof(ct), "%c", tm);
-					printf("%-*.*s %-*.*s %-*.*s %10.10s %5.5s \n",
-					    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
-					    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
-					    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
-					    ct, ct + 11);
-					if (maxrec && !--maxrec)
-						return;
-				}
-				continue;
-			}
-			/* find associated tty */
-			LIST_FOREACH(tt, &ttylist, list)
-			    if (!strncmp(tt->tty, bp->ut_line, UT_LINESIZE))
-				    break;
-			
-			if (tt == NULL) {
-				/* add new one */
-				tt = malloc(sizeof(struct ttytab));
-				if (tt == NULL)
-					err(1, "malloc failure");
-				tt->logout = currentout;
-				strncpy(tt->tty, bp->ut_line, UT_LINESIZE);
-				LIST_INSERT_HEAD(&ttylist, tt, list);
-			}
-			
-			/*
-			 * print record if not in snapshot mode and wanted
-			 * or in snapshot mode and in snapshot range
-			 */
-			if (bp->ut_name[0] && (want(bp) ||
-			    (bp->ut_time < snaptime &&
-				(tt->logout > snaptime || tt->logout < 1)))) {
-				snapfound = 1;
-				/*
-				 * when uucp and ftp log in over a network, the entry in
-				 * the utmp file is the name plus their process id.  See
-				 * etc/ftpd.c and usr.bin/uucp/uucpd.c for more information.
-				 */
-				if (!strncmp(bp->ut_line, "ftp", sizeof("ftp") - 1))
-					bp->ut_line[3] = '\0';
-				else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
-					bp->ut_line[4] = '\0';
-				tm = localtime(&bp->ut_time);
-				(void) strftime(ct, sizeof(ct),
-				    "%a %Ef %R",
-				    tm);
-				printf("%-*.*s %-*.*s %-*.*s %s ",
-				    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
-				    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
-				    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
-				    ct);
-				if (!tt->logout)
-					puts("  still logged in");
-				else {
-					if (tt->logout < 0) {
-						tt->logout = -tt->logout;
-						printf("- %s", crmsg);
-					}
-					else {
-						tm = localtime(&tt->logout);
-						(void) strftime(ct, sizeof(ct), "%R", tm);
-						printf("- %s", ct);
-					}
-					delta = tt->logout - bp->ut_time;
-					if ( sflag ) {
-						printf("  (%8ld)\n", 
-						    (long)delta);
-					} else {
-						tm = gmtime(&delta);
-						(void) strftime(ct, sizeof(ct),
-						    width >= 8 ? "%T" : "%R",
-						    tm);
-						if (delta < 86400)
-							printf("  (%s)\n", ct);
-						else
-							printf(" (%ld+%s)\n",
-							    (long)delta /
-							    86400, ct);
-					}
-				}
-				if (maxrec != -1 && !--maxrec)
-					return;
-			}
-			tt->logout = bp->ut_time;
-		}
+		for (bp = &buf[bytes / sizeof(buf[0]) - 1]; bp >= buf; --bp)
+			doentry(bp);
 	}
 	tm = localtime(&buf[0].ut_time);
 	(void) strftime(ct, sizeof(ct), "\nwtmp begins %+\n", tm);
 	printf("%s", ct);
+}
+
+/*
+ * doentry --
+ *	process a single wtmp entry
+ */
+void
+doentry(bp)
+	struct utmp *bp;
+{
+	struct ttytab	*tt, *ttx;		/* ttylist entry */
+
+	/*
+	 * if the terminal line is '~', the machine stopped.
+	 * see utmp(5) for more info.
+	 */
+	if (bp->ut_line[0] == '~' && !bp->ut_line[1]) {
+		/* everybody just logged out */
+		for (tt = LIST_FIRST(&ttylist); tt;) {
+			LIST_REMOVE(tt, list);
+			ttx = tt;
+			tt = LIST_NEXT(tt, list);
+			free(ttx);
+		}
+		currentout = -bp->ut_time;
+		crmsg = strncmp(bp->ut_name, "shutdown", UT_NAMESIZE) ?
+		    "crash" : "shutdown";
+		/*
+		 * if we're in snapshot mode, we want to exit if this
+		 * shutdown/reboot appears while we we are tracking the
+		 * active range
+		 */
+		if (snaptime && snapfound)
+			exit(0);
+		/*
+		 * don't print shutdown/reboot entries unless flagged for
+		 */
+		if (!snaptime && want(bp))
+			printentry(bp, NULL);
+		return;
+	}
+	/*
+	 * if the line is '{' or '|', date got set; see
+	 * utmp(5) for more info.
+	 */
+	if ((bp->ut_line[0] == '{' || bp->ut_line[0] == '|') &&
+	    !bp->ut_line[1]) {
+		if (want(bp) && !snaptime)
+			printentry(bp, NULL);
+		return;
+	}
+	/* find associated tty */
+	LIST_FOREACH(tt, &ttylist, list)
+	    if (!strncmp(tt->tty, bp->ut_line, UT_LINESIZE))
+		    break;
+
+	if (tt == NULL) {
+		/* add new one */
+		tt = malloc(sizeof(struct ttytab));
+		if (tt == NULL)
+			err(1, "malloc failure");
+		tt->logout = currentout;
+		strncpy(tt->tty, bp->ut_line, UT_LINESIZE);
+		LIST_INSERT_HEAD(&ttylist, tt, list);
+	}
+
+	/*
+	 * print record if not in snapshot mode and wanted
+	 * or in snapshot mode and in snapshot range
+	 */
+	if (bp->ut_name[0] && (want(bp) || (bp->ut_time < snaptime &&
+	    (tt->logout > snaptime || tt->logout < 1)))) {
+		snapfound = 1;
+		/*
+		 * when uucp and ftp log in over a network, the entry in
+		 * the utmp file is the name plus their process id.  See
+		 * etc/ftpd.c and usr.bin/uucp/uucpd.c for more information.
+		 */
+		if (!strncmp(bp->ut_line, "ftp", sizeof("ftp") - 1))
+			bp->ut_line[3] = '\0';
+		else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
+			bp->ut_line[4] = '\0';
+		printentry(bp, tt);
+	}
+	tt->logout = bp->ut_time;
+}
+
+/*
+ * printentry --
+ *	output an entry
+ *
+ * If `tt' is non-NULL, use it and `crmsg' to print the logout time or
+ * logout type (crash/shutdown) as appropriate.
+ */
+void
+printentry(bp, tt)
+	struct utmp *bp;
+	struct ttytab *tt;
+{
+	char ct[80];
+	struct tm *tm;
+	time_t	delta;				/* time difference */
+
+	if (maxrec != -1 && !maxrec--)
+		exit(0);
+	tm = localtime(&bp->ut_time);
+	(void) strftime(ct, sizeof(ct), "%a %Ef %R", tm);
+	printf("%-*.*s %-*.*s %-*.*s %s%c",
+	    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
+	    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
+	    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
+	    ct, tt == NULL ? '\n' : ' ');
+	if (tt == NULL)
+		return;
+	if (!tt->logout) {
+		puts("  still logged in");
+		return;
+	}
+	if (tt->logout < 0) {
+		tt->logout = -tt->logout;
+		printf("- %s", crmsg);
+	} else {
+		tm = localtime(&tt->logout);
+		(void) strftime(ct, sizeof(ct), "%R", tm);
+		printf("- %s", ct);
+	}
+	delta = tt->logout - bp->ut_time;
+	if (sflag) {
+		printf("  (%8ld)\n", (long)delta);
+	} else {
+		tm = gmtime(&delta);
+		(void) strftime(ct, sizeof(ct), width >= 8 ? "%T" : "%R", tm);
+		if (delta < 86400)
+			printf("  (%s)\n", ct);
+		else
+			printf(" (%ld+%s)\n", (long)delta / 86400, ct);
+	}
 }
 
 /*
@@ -388,7 +391,7 @@ want(bp)
 			if (!strncmp(step->name, bp->ut_name, UT_NAMESIZE))
 				return (YES);
 			break;
-	}
+		}
 	return (NO);
 }
 
