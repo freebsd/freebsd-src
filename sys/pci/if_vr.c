@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vr.c,v 1.3 1998/12/07 21:58:47 archie Exp $
+ *	$Id: if_vr.c,v 1.4 1998/12/14 06:32:56 dillon Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_vr.c,v 1.3 1998/12/07 21:58:47 archie Exp $";
+	"$Id: if_vr.c,v 1.4 1998/12/14 06:32:56 dillon Exp $";
 #endif
 
 /*
@@ -1284,6 +1284,15 @@ static void vr_rxeof(sc)
 		/* No errors; receive the packet. */	
 		m = cur_rx->vr_mbuf;
 		total_len = VR_RXBYTES(cur_rx->vr_ptr->vr_status);
+
+		/*
+		 * XXX The VIA Rhine chip includes the CRC with every
+		 * received frame, and there's no way to turn this
+		 * behavior off (at least, I can't find anything in
+	 	 * the manual that explains how to do it) so we have
+		 * to trim off the CRC manually.
+		 */
+		total_len -= ETHER_CRC_LEN;
 
 		/*
 		 * Try to conjure up a new mbuf cluster. If that
