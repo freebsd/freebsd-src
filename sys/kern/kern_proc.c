@@ -346,7 +346,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 			FOREACH_KSE_IN_GROUP(kg, ke2) {
 				if (ke2->ke_mailbox != uap->mbx) 
 					continue;
-				if (ke2->ke_flags & KEF_IDLEKSE) {
+				if (ke2->ke_state == KES_IDLE) {
 					ke = ke2;
 					goto found;
 				} else {
