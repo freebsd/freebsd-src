@@ -10,40 +10,91 @@
  * 
  */
 
+#include <sys/param.h>
+#include <sys/jail.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <err.h>
+#include <grp.h>
+#include <login_cap.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
-#include <sys/types.h>
-#include <sys/jail.h>
-#include <netinet/in.h>
+#include <unistd.h>
+
+static void	usage(void);
 
 int
 main(int argc, char **argv)
 {
+	login_cap_t *lcap;
 	struct jail j;
-	int i;
+	struct passwd *pwd;
 	struct in_addr in;
+	int ch, groups[NGROUPS], ngroups;
+	char *username;
 
-	if (argc < 5) 
-		errx(1, "Usage: %s path hostname ip-number command ...\n",
-		    argv[0]);
-	i = chdir(argv[1]);
-	if (i)
-		err(1, "chdir %s", argv[1]);
+	username = NULL;
+
+	while ((ch = getopt(argc, argv, "u:")) != -1)
+		switch (ch) {
+		case 'u':
+			username = optarg;
+			break;
+		default:
+			usage();
+			break;
+		}
+	argc -= optind;
+	argv += optind;
+	if (argc < 4)
+		usage();
+
+	if (username != NULL) {
+		pwd = getpwnam(username);
+		if (pwd == NULL)
+			err(1, "getpwnam: %s", username);
+		lcap = login_getpwclass(pwd);
+		if (lcap == NULL)
+			err(1, "getpwclass: %s", username);
+		ngroups = NGROUPS;
+		if (getgrouplist(username, pwd->pw_gid, groups, &ngroups) != 0)
+			err(1, "getgrouplist: %s", username);
+	}
+	if (chdir(argv[0]) != 0)
+		err(1, "chdir: %s", argv[0]);
 	memset(&j, 0, sizeof(j));
 	j.version = 0;
-	j.path = argv[1];
-	j.hostname = argv[2];
-	i = inet_aton(argv[3], &in);
-	if (!i)
-		errx(1, "Couldn't make sense of ip-number\n");
+	j.path = argv[0];
+	j.hostname = argv[1];
+	if (inet_aton(argv[2], &in) == 0)
+		errx(1, "Could not make sense of ip-number: %s", argv[2]);
 	j.ip_number = ntohl(in.s_addr);
-	i = jail(&j);
-	if (i)
-		err(1, "Imprisonment failed");
-	i = execv(argv[4], argv + 4);
-	if (i)
-		err(1, "execv(%s)", argv[4]);
+	if (jail(&j) != 0)
+		err(1, "jail");
+	if (username != NULL) {
+		if (setgroups(ngroups, groups) != 0)
+			err(1, "setgroups");
+		if (setgid(pwd->pw_gid) != 0)
+			err(1, "setgid");
+		if (setusercontext(lcap, pwd, pwd->pw_uid,
+		    LOGIN_SETALL & ~LOGIN_SETGROUP) != 0)
+			err(1, "setusercontext");
+		login_close(lcap);
+	}
+	if (execv(argv[3], argv + 3) != 0)
+		err(1, "execv: %s", argv[3]);
 	exit (0);
+}
+
+static void
+usage(void)
+{
+
+	(void)fprintf(stderr, "%s\n",
+	    "Usage: jail [-u username] path hostname ip-number command ...");
+	exit(1);
 }

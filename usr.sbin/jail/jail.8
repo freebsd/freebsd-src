@@ -41,11 +41,28 @@
 .Nd "imprison process and its descendants"
 .Sh SYNOPSIS
 .Nm
+.Op Fl u Ar username
 .Ar path hostname ip-number command ...
 .Sh DESCRIPTION
 The
 .Nm
 command imprisons a process and all future descendants.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl u Ar username"
+.It Fl u Ar username
+The user name as whom the
+.Ar command
+should run.
+.It Ar path
+Directory which is to be the root of the prison.
+.It Ar hostname
+Hostname of the prison.
+.It Ar ip-number
+IP number assigned to the prison.
+.It Ar command
+Pathname of the program which is to be executed.
+.El
 .Pp
 Please see the
 .Xr jail 2
