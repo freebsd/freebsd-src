@@ -1786,8 +1786,8 @@ dataconn(char *name, off_t size, char *mode)
 		(void) close(pdata);
 		pdata = s;
 		/*
-		 * Unset the blocking I/O flag on the child socket
-		 * again so stdio can work on it.
+		 * Unset the inherited non-blocking I/O flag
+		 * on the child socket so stdio can work on it.
 		 */
 		if ((flags = fcntl(pdata, F_GETFL, 0)) == -1 ||
 		    fcntl(pdata, F_SETFL, flags & ~O_NONBLOCK) == -1)
