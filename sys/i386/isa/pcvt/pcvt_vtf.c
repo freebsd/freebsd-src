@@ -2078,8 +2078,7 @@ respond(struct video_state *svsp)
 
         while (*svsp->report_chars && svsp->report_count > 0)
         {
-		(*linesw[svsp->vs_tty->t_line].l_rint)
-			(*svsp->report_chars++ & 0xff, svsp->vs_tty);
+		ttyld_rint(svsp->vs_tty, *svsp->report_chars++ & 0xff);
 		svsp->report_count--;
         }
 }

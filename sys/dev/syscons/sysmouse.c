@@ -315,8 +315,7 @@ sysmouse_event(mouse_info_t *info)
         	/* buttons 4-10 */
         	buf[7] = (~mouse_status.button >> 3) & 0x7f;
         	for (i = MOUSE_MSC_PACKETSIZE; i < MOUSE_SYS_PACKETSIZE; ++i)
-			(*linesw[sysmouse_tty->t_line].l_rint)(buf[i],
-							       sysmouse_tty);
+			ttyld_rint(sysmouse_tty, buf[i]);
 	}
 
 	return mouse_status.flags;

@@ -2753,7 +2753,7 @@ ttyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	int	error;
 
 	tp = dev->si_tty;
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
+	error = ttyld_ioctl(tp, cmd, data, flag, td);
 	if (error == ENOIOCTL)
 		error = ttioctl(tp, cmd, data, flag);
 	if (error != ENOIOCTL)

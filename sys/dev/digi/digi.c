@@ -1601,8 +1601,7 @@ digi_intr(void *vp)
 					tail = top - size;
 					ttwakeup(tp);
 				} else for (; tail < top;) {
-					linesw[tp->t_line].
-					    l_rint(port->rxbuf[tail], tp);
+					ttyld_rint(tp, port->rxbuf[tail]);
 					sc->towin(sc, port->rxwin);
 					size--;
 					tail++;
@@ -1641,8 +1640,7 @@ end_of_data:
 
 			if ((event.mstat ^ event.lstat) & port->cd) {
 				sc->hidewin(sc);
-				linesw[tp->t_line].l_modem
-				    (tp, event.mstat & port->cd);
+				ttyld_modem(tp, event.mstat & port->cd);
 				sc->setwin(sc, 0);
 				wakeup(TSA_CARR_ON(tp));
 			}

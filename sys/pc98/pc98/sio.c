@@ -3202,8 +3202,8 @@ repeat:
 			com->state &= ~CS_CHECKMSR;
 			mtx_unlock_spin(&sio_lock);
 			if (delta_modem_status & MSR_DCD)
-				(*linesw[tp->t_line].l_modem)
-					(tp, com->prev_modem_status & MSR_DCD);
+				ttyld_modem(tp,
+				    com->prev_modem_status & MSR_DCD);
 #ifdef PC98
 			}
 #endif

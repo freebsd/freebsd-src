@@ -111,6 +111,16 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
+#if __FreeBSD_version < 502113
+#define ttyld_modem(foo, bar) ((*linesw[(foo)->t_line].l_modem)((foo), (bar)))
+#define ttyld_rint(foo, bar) ((*linesw[(foo)->t_line].l_rint)((bar), (foo)))
+#define ttyld_start(foo) ((*linesw[(foo)->t_line].l_start)((foo)))
+#define ttyld_open(foo, bar) ((*linesw[(foo)->t_line].l_open) ((bar), (foo)))
+#define ttyld_close(foo, bar) ((*linesw[(foo)->t_line].l_close) ((foo), (bar)))
+#define ttyld_read(foo, bar, barf) ((*linesw[(foo)->t_line].l_read) ((foo), (bar), (barf)))
+#define ttyld_write(foo, bar, barf) ((*linesw[(foo)->t_line].l_write) ((foo), (bar), (barf)))
+#endif
+
 /* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
 #ifndef PP_FR
 #define PP_FR 0
@@ -1632,7 +1642,7 @@ again:
 		cx_set_rts (d->chan, 1);
 		d->cd = cx_get_cd (d->chan);
 		if (CALLOUT (dev) || cx_get_cd (d->chan))
-			(*linesw[d->tty.t_line].l_modem) (&d->tty, 1);
+			ttyld_modem(&d->tty, 1);
 	}
 
 	if (! (flag & O_NONBLOCK) && ! (d->tty.t_cflag & CLOCAL) &&
@@ -1649,7 +1659,7 @@ again:
 		goto again;
 	}
 
-	error = (*linesw[d->tty.t_line].l_open) (dev, &d->tty);
+	error = ttyld_open (&d->tty, dev);
 	disc_optim (&d->tty, &d->tty.t_termios);
 	spl0 ();
 	if (error) {
@@ -1690,7 +1700,7 @@ static int cx_close (dev_t dev, int flag, int mode, struct thread *td)
 		return 0;
 	}
 	s = splhigh ();
-	(*linesw[d->tty.t_line].l_close) (&d->tty, flag);
+	ttyld_close(&d->tty, flag);
 	disc_optim (&d->tty, &d->tty.t_termios);
 
 	/* Disable receiver.
@@ -1726,7 +1736,7 @@ static int cx_read (dev_t dev, struct uio *uio, int flag)
 	if (!d || d->chan->mode != M_ASYNC || IF_CUNIT(dev))
 		return EBADF;
 
-	return (*linesw[d->tty.t_line].l_read) (&d->tty, uio, flag);
+	return ttyld_read (&d->tty, uio, flag);
 }
 
 static int cx_write (dev_t dev, struct uio *uio, int flag)
@@ -1737,7 +1747,7 @@ static int cx_write (dev_t dev, struct uio *uio, int flag)
 	if (!d || d->chan->mode != M_ASYNC || IF_CUNIT(dev))
 		return EBADF;
 
-	return (*linesw[d->tty.t_line].l_write) (&d->tty, uio, flag);
+	return ttyld_write (&d->tty, uio, flag);
 }
 
 static int cx_modem_status (drv_t *d)
@@ -2305,8 +2315,7 @@ void cx_softintr ()
 					while (q->end != q->beg) {
 						AQ_POP (q, ic);
 						splx (s);
-						(*linesw[d->tty.t_line].l_rint)
-							(ic, &d->tty);
+						ttyld_rint (&d->tty, ic);
 						s = splhigh ();
 					}
 				}
@@ -2317,7 +2326,7 @@ void cx_softintr ()
 			s = splhigh ();
 			if (d->intr_action & CX_WRITE) {
 				if (d->tty.t_line)
-					(*linesw[d->tty.t_line].l_start) (&d->tty);
+					ttyld_start (&d->tty);
 				else
 					cx_oproc (&d->tty);
 				d->intr_action &= ~CX_WRITE;
@@ -2500,12 +2509,12 @@ static void cx_carrier (void *arg)
 			CX_DEBUG (d, ("carrier on\n"));
 			d->cd = 1;
 			splx (s);
-			(*linesw[d->tty.t_line].l_modem) (&d->tty, 1);
+			ttyld_modem(&d->tty, 1);
 		} else {
 			CX_DEBUG (d, ("carrier loss\n"));
 			d->cd = 0;
 			splx (s);
-			(*linesw[d->tty.t_line].l_modem) (&d->tty, 0);
+			ttyld_modem(&d->tty, 0);
 		}
 	}
 }
