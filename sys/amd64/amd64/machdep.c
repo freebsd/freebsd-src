@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.120 1995/04/17 16:49:50 phk Exp $
+ *	$Id: machdep.c,v 1.121 1995/04/18 23:55:26 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -537,7 +537,9 @@ identifycpu()
 			printf("\n  Features=0x%b", cpu_feature, FEATUREFMT);
 		}
 	}
-	printf("\n");
+	/* Avoid ugly blank lines: only print newline when we have to. */
+	if (*cpu_vendor || cpu_id)
+		printf("\n");
 #endif
 	/*
 	 * Now that we have told the user what they have,
