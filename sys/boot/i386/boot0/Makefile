@@ -31,6 +31,14 @@ boot0.o: boot0.s
 	${AS} ${AFLAGS} --defsym FLAGS=${BOOT_BOOT0_FLAGS} \
 		--defsym TICKS=${BOOT_BOOT0_TICKS} ${.IMPSRC} -o ${.TARGET}
 
-CLEANFILES+= boot0.out boot0.o
+boot0sio: boot0sio.o
+	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o boot0sio.out boot0sio.o
+	objcopy -S -O binary boot0sio.out ${.TARGET}
+
+boot0sio.o: boot0sio.s
+	${AS} ${AFLAGS} --defsym FLAGS=${BOOT_BOOT0_FLAGS} \
+		--defsym TICKS=${BOOT_BOOT0_TICKS} ${.IMPSRC} -o ${.TARGET}
+
+CLEANFILES+= boot0.out boot0.o boot0sio.out boot0sio.o
 
 .include <bsd.prog.mk>
