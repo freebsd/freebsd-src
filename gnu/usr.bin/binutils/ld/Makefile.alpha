@@ -6,6 +6,9 @@
 HOST=		alpha-unknown-freebsdelf
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf64alpha\"
 CFLAGS+=	-DTARGET=\"alpha-unknown-freebsdelf\"
+_alpha_path=	\"/usr/lib\"
+.else
+_alpha_path=	\"/usr/cross/alpha-freebsdelf/usr/lib\"
 .endif
 EMS+=		ld_elf64alpha_emulation
 LDSCRIPTS+=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \
@@ -16,12 +19,12 @@ CLEANFILES+=	eelf64alpha.c ealpha.c
 
 eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
-	sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_alpha_path} \
 	    ${HOST} alpha-unknown-freebsdelf alpha-unknown-freebsdelf \
 	    elf64alpha ""  elf64alpha alpha-unknown-freebsdelf
 
 ealpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
-	sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_alpha_path} \
 	    ${HOST} alpha-unknown-freebsdelf alpha-unknown-freebsdelf \
 	    elf64alpha ""  alpha alpha-unknown-freebsd
