@@ -578,8 +578,9 @@ ipatm_createsvc(ifp, daf, dst, sivp)
 
 	/*
 	 * Allocate IP VCC
+	 * May be called from timeout - don't wait.
 	 */
-	ivp = uma_zalloc(ipatm_vc_zone, M_WAITOK);
+	ivp = uma_zalloc(ipatm_vc_zone, M_NOWAIT);
 	if (ivp == NULL) {
 		err = ENOMEM;
 		goto done;
@@ -930,8 +931,9 @@ ipatm_incoming(tok, cop, ap, tokp)
 
 	/*
 	 * Allocate IP VCC
+	 * May be called from timeout - don't wait.
 	 */
-	ivp = uma_zalloc(ipatm_vc_zone, M_WAITOK);
+	ivp = uma_zalloc(ipatm_vc_zone, M_NOWAIT);
 	if (ivp == NULL) {
 		err = ENOMEM;
 		cause = T_ATM_CAUSE_UNSPECIFIED_RESOURCE_UNAVAILABLE;
