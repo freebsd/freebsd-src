@@ -30,8 +30,6 @@
 
 /* SI2_Z280.C Version, Bootstrap and Download Code Arrays... */
 
-static char *si2_z280_ident = "%W%";
-
 /* SI2_Z280 embedded version... 
 
 	Copyright (c) Specialix Research Ltd 1988-1998
