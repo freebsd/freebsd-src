@@ -138,6 +138,8 @@ svr4_sys_getrlimit(p, uap)
 	if (rl == -1)
 		return EINVAL;
 
+	/* For p_rlimit. */
+	mtx_assert(&Giant, MA_OWNED);
 	blim = p->p_rlimit[rl];
 
 	/*
@@ -184,6 +186,8 @@ svr4_sys_setrlimit(p, uap)
 	if (rl == -1)
 		return EINVAL;
 
+	/* For p_rlimit. */
+	mtx_assert(&Giant, MA_OWNED);
 	limp = &p->p_rlimit[rl];
 
 	if ((error = copyin(SCARG(uap, rlp), &slim, sizeof(slim))) != 0)
@@ -232,6 +236,8 @@ svr4_sys_getrlimit64(p, uap)
 	if (rl == -1)
 		return EINVAL;
 
+	/* For p_rlimit. */
+	mtx_assert(&Giant, MA_OWNED);
 	blim = p->p_rlimit[rl];
 
 	/*
@@ -278,6 +284,8 @@ svr4_sys_setrlimit64(p, uap)
 	if (rl == -1)
 		return EINVAL;
 
+	/* For p_rlimit. */
+	mtx_assert(&Giant, MA_OWNED);
 	limp = &p->p_rlimit[rl];
 
 	if ((error = copyin(SCARG(uap, rlp), &slim, sizeof(slim))) != 0)
