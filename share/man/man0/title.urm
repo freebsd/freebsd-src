@@ -43,7 +43,7 @@
 .LP
 .ft B
 .ce 2
-UNIX User's Reference Manual
+FreeBSD User's Reference Manual
 (URM)
 .nr LL 5.5i
 .nr PO 1.5i
@@ -53,6 +53,7 @@ UNIX User's Reference Manual
 .nr PS 11
 .nr VS 13
 .LP
+This stiff doesn't really belong here...
 The USENIX Association,
 the UNIX and Advanced Computing Systems professional and technical organization,
 is a not-for-profit membership association of individuals and
@@ -80,34 +81,31 @@ Conference and Workshop Proceedings, and a Book Series.
 .LP
 .ft B
 .ce 2
-UNIX User's Reference Manual
+FreeBSD User's Reference Manual
 (URM)
 .sp |4i
 .ce 2
-4.4 Berkeley Software Distribution
-(June, 1993)
+For FreeBSD version 2.1
+(March, 1995)
 .sp 3
 .nr PS 15
 .nr VS 18
 .LP
 .ce 2
-Computer Systems Research Group
-University of California, Berkeley
+The FreeBSD Project
+<hackers@FreeBSD.ORG>
 .sp |8.2i
 .nr PS 12
 .nr VS 15
 .LP
 .ce 4
-A USENIX Association Book
-The MIT Press
-Cambridge, Massachusetts
-London, England
+foo - publisher?
 .bp
 .hy 0
 .nr PS 9
 .nr VS 11
 .LP
-First Printing, 1993
+First Printing, 1995
 .sp 1
 .LP
 Copyright 1979, 1980, 1983, 1986, 1993
@@ -177,27 +175,12 @@ Suite 500, Washington, DC 20001-2178.  The developmental work of
 Programming Language C was completed by the X3J11 Technical Committee.''
 .sp 1
 .LP
-Manual pages adb.1, bc.1, compact.1, crypt.1, dc.1, deroff.1, ed.1,
-expr.1, graph.1, ld.1, learn.1, m4.1, plot.1, ptx.1, spell.1,
-spline.1, struct.1, tar.1, units.1, uucp.1, uux.1, ching.6, eqnchar.7,
-man.7, ms.7, and term.7
-are copyright 1979, AT&T Bell Laboratories, Incorporated.
-Holders of \x'-1p'UNIX\v'-4p'\s-3TM\s0\v'4p'/32V,
-System III, or System V software licenses are
-permitted to copy these documents, or any portion of them,
-as necessary for licensed use of the software,
-provided this copyright notice and statement of permission
-are included.
-.sp 1
-.LP
 The views and conclusions contained in this manual are those of the
 authors and should not be interpreted as representing official policies,
 either expressed or implied, of the Regents of the University of California.
 .sp 1
 .LP
 This book was printed and bound in the United States of America.
-.br
-Distributed by The MIT Press.
 .bp
 \&
 .sp |1.5i
