@@ -859,6 +859,37 @@ inet_makenetandmask(net, sin, bits)
 	sin->sin_len = 1 + cp - (char *)sin;
 }
 
+#ifdef INET6
+/*
+ * XXX the function may need more improvement...
+ */
+static void
+inet6_makenetandmask(sin6)
+	struct sockaddr_in6 *sin6;
+{
+	char *plen;
+	struct in6_addr in6;
+
+	plen = NULL;
+	if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
+	    sin6->sin6_scope_id == 0) {
+		plen = "0";
+	} else if ((sin6->sin6_addr.s6_addr[0] & 0xe0) == 0x20) {
+		/* aggregatable global unicast - RFC2374 */
+		memset(&in6, 0, sizeof(in6));
+		if (!memcmp(&sin6->sin6_addr.s6_addr[8], &in6.s6_addr[8], 8))
+			plen = "64";
+		else
+			plen = "128";
+	}
+
+	if (plen) {
+		rtm_addrs |= RTA_NETMASK;
+		prefixlen(plen);
+	}
+}
+#endif
+
 /*
  * Interpret an argument as a network address of some kind,
  * returning 1 if a host address, 0 if a network address.
@@ -980,6 +1011,8 @@ getaddr(which, s, hpp)
 			su->sin6.sin6_scope_id = 0;
 		}
 #endif
+		if (which == RTA_DST)
+			inet6_makenetandmask(&su->sin6);
 		freeaddrinfo(res);
 		return (0);
 	}
