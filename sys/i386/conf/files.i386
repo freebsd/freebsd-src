@@ -1,11 +1,11 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.144 1996/11/14 22:18:47 sos Exp $
+#	$Id: files.i386,v 1.145 1996/11/15 18:36:25 jkh Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
-	compile-with	"${CC} -Wall -o $@ $>"				   \
+	compile-with	"${CC} -I- -I. -I$S -Wall -o $@ $>"		   \
 	no-obj no-implicit-rule						   \
 	clean		"aic7xxx_asm"
 #
