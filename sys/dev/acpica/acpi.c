@@ -1305,6 +1305,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     FUNCTION_TRACE_U32(__func__, state);
     ACPI_ASSERTLOCK;
 
+    if (sc->acpi_sstate != ACPI_STATE_S0)
+	return_ACPI_STATUS(AE_BAD_PARAMETER);	/* avoid reentry */
+
     switch (state) {
     case ACPI_STATE_S0:	/* XXX only for testing */
 	status = AcpiEnterSleepState((UINT8)state);
