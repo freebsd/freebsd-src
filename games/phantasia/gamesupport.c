@@ -2,6 +2,7 @@
  * gamesupport.c - auxiliary routines for support of Phantasia
  */
 
+#include <string.h>
 #include "include.h"
 
 /************************************************************************
@@ -61,7 +62,7 @@ int	c;			/* input */
 int	today;			/* day of year of today */
 int	temp;			/* temporary variable */
 long	loc;			/* location in player file */
-long	now;			/* time now */
+time_t	now;			/* time now */
 double	dtemp;			/* temporary variable */
 bool	*bptr;			/* pointer to bool item to change */
 double	*dptr;			/* pointer to double item to change */
@@ -624,7 +625,7 @@ purgeoldplayers()
 {
 int	today;		/* day of year for today */
 int	daysold;	/* how many days since the character has been used */
-long	ltime;		/* time in seconds */
+time_t	ltime;		/* time in seconds */
 long	loc = 0L;	/* location in file */
 
     time(&ltime);
