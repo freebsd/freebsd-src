@@ -973,7 +973,7 @@ ciss_init_logical(struct ciss_softc *sc)
 
     /* sanity-check reply */
     ndrives = (ntohl(cll->list_size) / sizeof(union ciss_device_address));
-    if ((ndrives < 0) || (ndrives > CISS_MAX_LOGICAL)) {
+    if ((ndrives < 0) || (ndrives >= CISS_MAX_LOGICAL)) {
 	ciss_printf(sc, "adapter claims to report absurd number of logical drives (%d > %d)\n",
 		    ndrives, CISS_MAX_LOGICAL);
 	return(ENXIO);
@@ -2139,7 +2139,7 @@ ciss_cam_rescan_target(struct ciss_softc *sc, int target)
 static void
 ciss_cam_rescan_all(struct ciss_softc *sc)
 {
-    return(ciss_cam_rescan_target(sc, 0));
+    ciss_cam_rescan_target(sc, 0);
 }
 
 static void
@@ -2271,7 +2271,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
 
     /* check for I/O attempt to nonexistent device */
     if ((bus != 0) ||
-	(target > CISS_MAX_LOGICAL) ||
+	(target >= CISS_MAX_LOGICAL) ||
 	(sc->ciss_logical[target].cl_status == CISS_LD_NONEXISTENT)) {
 	debug(3, "  device does not exist");
 	csio->ccb_h.status = CAM_REQ_CMP_ERR;
