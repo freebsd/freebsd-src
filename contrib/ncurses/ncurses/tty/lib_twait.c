@@ -59,33 +59,34 @@
 # endif
 #endif
 
-MODULE_ID("$Id: lib_twait.c,v 1.37 2000/06/29 23:03:09 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.39 2000/08/26 19:34:15 tom Exp $")
 
-static long _nc_gettime(bool first)
+static long
+_nc_gettime(bool first)
 {
-	long res;
+    long res;
 
 #if HAVE_GETTIMEOFDAY
 # define PRECISE_GETTIME 1
-	static struct timeval t0;
-	struct timeval t1;
-	gettimeofday(&t1, (struct timezone *)0);
-	if (first) {
-		t0 = t1;
-	}
-	res = (t1.tv_sec  - t0.tv_sec)  * 1000
-	    + (t1.tv_usec - t0.tv_usec) / 1000;
+    static struct timeval t0;
+    struct timeval t1;
+    gettimeofday(&t1, (struct timezone *) 0);
+    if (first) {
+	t0 = t1;
+    }
+    res = (t1.tv_sec - t0.tv_sec) * 1000
+	+ (t1.tv_usec - t0.tv_usec) / 1000;
 #else
 # define PRECISE_GETTIME 0
-	static time_t t0;
-	time_t t1 = time((time_t*)0);
-	if (first) {
-		t0 = t1;
-	}
-	res = (t1 - t0) * 1000;
+    static time_t t0;
+    time_t t1 = time((time_t *) 0);
+    if (first) {
+	t0 = t1;
+    }
+    res = (t1 - t0) * 1000;
 #endif
-	T(("%s time: %ld msec", first ? "get" : "elapsed", res));
-	return res;
+    T(("%s time: %ld msec", first ? "get" : "elapsed", res));
+    return res;
 }
 
 /*
@@ -101,163 +102,164 @@ static long _nc_gettime(bool first)
  * If the milliseconds given are -1, the wait blocks until activity on the
  * descriptors.
  */
-int _nc_timed_wait(int mode, int milliseconds, int *timeleft)
+int
+_nc_timed_wait(int mode, int milliseconds, int *timeleft)
 {
-int	fd;
-int	count;
+    int fd;
+    int count;
 
-int result;
+    int result;
 
 #if USE_FUNC_POLL
-struct pollfd fds[2];
+    struct pollfd fds[2];
 #elif defined(__BEOS__)
 #elif HAVE_SELECT
-static fd_set set;
+    static fd_set set;
 #endif
 
-long starttime, returntime;
+    long starttime, returntime;
 
-	T(("start twait: %d milliseconds, mode: %d", milliseconds, mode));
+    T(("start twait: %d milliseconds, mode: %d", milliseconds, mode));
 
 #if PRECISE_GETTIME
-retry:
+  retry:
 #endif
-	starttime = _nc_gettime(TRUE);
+    starttime = _nc_gettime(TRUE);
 
-	count = 0;
+    count = 0;
 
 #if USE_FUNC_POLL
-	if (mode & 1) {
-		fds[count].fd     = SP->_ifd;
-		fds[count].events = POLLIN;
-		count++;
-	}
-	if ((mode & 2)
-	 && (fd = SP->_mouse_fd) >= 0) {
-		fds[count].fd     = fd;
-		fds[count].events = POLLIN;
-		count++;
-	}
-	result = poll(fds, count, milliseconds);
+    memset(fds, 0, sizeof(fds));
+    if (mode & 1) {
+	fds[count].fd = SP->_ifd;
+	fds[count].events = POLLIN;
+	count++;
+    }
+    if ((mode & 2)
+	&& (fd = SP->_mouse_fd) >= 0) {
+	fds[count].fd = fd;
+	fds[count].events = POLLIN;
+	count++;
+    }
+    result = poll(fds, count, milliseconds);
 
 #elif defined(__BEOS__)
-	/*
-	 * BeOS's select() is declared in socket.h, so the configure script does
-	 * not see it.  That's just as well, since that function works only for
-	 * sockets.  This (using snooze and ioctl) was distilled from Be's patch
-	 * for ncurses which uses a separate thread to simulate select().
-	 *
-	 * FIXME: the return values from the ioctl aren't very clear if we get
-	 * interrupted.
-	 */
-	result = 0;
-	if (mode & 1) {
-		bigtime_t d;
-		bigtime_t useconds = milliseconds * 1000;
-		int n, howmany;
+    /*
+     * BeOS's select() is declared in socket.h, so the configure script does
+     * not see it.  That's just as well, since that function works only for
+     * sockets.  This (using snooze and ioctl) was distilled from Be's patch
+     * for ncurses which uses a separate thread to simulate select().
+     *
+     * FIXME: the return values from the ioctl aren't very clear if we get
+     * interrupted.
+     */
+    result = 0;
+    if (mode & 1) {
+	bigtime_t d;
+	bigtime_t useconds = milliseconds * 1000;
+	int n, howmany;
 
-		if (useconds == 0) /* we're here to go _through_ the loop */
-			useconds = 1;
+	if (useconds == 0)	/* we're here to go _through_ the loop */
+	    useconds = 1;
 
-		for (d = 0; d < useconds; d += 5000) {
-			n = 0;
-			howmany = ioctl(0, 'ichr', &n);
-			if (howmany >= 0 && n > 0) {
-				result = 1;
-				break;
-			}
-			if (useconds > 1)
-				snooze(5000);
-			milliseconds -= 5;
-		}
-	} else if (milliseconds > 0) {
-		snooze(milliseconds * 1000);
-		milliseconds = 0;
+	for (d = 0; d < useconds; d += 5000) {
+	    n = 0;
+	    howmany = ioctl(0, 'ichr', &n);
+	    if (howmany >= 0 && n > 0) {
+		result = 1;
+		break;
+	    }
+	    if (useconds > 1)
+		snooze(5000);
+	    milliseconds -= 5;
 	}
+    } else if (milliseconds > 0) {
+	snooze(milliseconds * 1000);
+	milliseconds = 0;
+    }
 #elif HAVE_SELECT
-	/*
-	 * select() modifies the fd_set arguments; do this in the
-	 * loop.
-	 */
-	FD_ZERO(&set);
+    /*
+     * select() modifies the fd_set arguments; do this in the
+     * loop.
+     */
+    FD_ZERO(&set);
 
-	if (mode & 1) {
-		FD_SET(SP->_ifd, &set);
-		count = SP->_ifd + 1;
-	}
-	if ((mode & 2)
-	 && (fd = SP->_mouse_fd) >= 0) {
-		FD_SET(fd, &set);
-		count = max(fd, count) + 1;
-	}
+    if (mode & 1) {
+	FD_SET(SP->_ifd, &set);
+	count = SP->_ifd + 1;
+    }
+    if ((mode & 2)
+	&& (fd = SP->_mouse_fd) >= 0) {
+	FD_SET(fd, &set);
+	count = max(fd, count) + 1;
+    }
 
-	if (milliseconds >= 0) {
-		struct timeval ntimeout;
-		ntimeout.tv_sec  = milliseconds / 1000;
-		ntimeout.tv_usec = (milliseconds % 1000) * 1000;
-		result = select(count, &set, NULL, NULL, &ntimeout);
-	} else {
-		result = select(count, &set, NULL, NULL, NULL);
-	}
+    if (milliseconds >= 0) {
+	struct timeval ntimeout;
+	ntimeout.tv_sec = milliseconds / 1000;
+	ntimeout.tv_usec = (milliseconds % 1000) * 1000;
+	result = select(count, &set, NULL, NULL, &ntimeout);
+    } else {
+	result = select(count, &set, NULL, NULL, NULL);
+    }
 #endif
 
-	returntime = _nc_gettime(FALSE);
+    returntime = _nc_gettime(FALSE);
 
-	if (milliseconds >= 0)
-		milliseconds -= (returntime - starttime);
+    if (milliseconds >= 0)
+	milliseconds -= (returntime - starttime);
 
 #if PRECISE_GETTIME
-	/*
-	 * If the timeout hasn't expired, and we've gotten no data,
-	 * this is probably a system where 'select()' needs to be left
-	 * alone so that it can complete.  Make this process sleep,
-	 * then come back for more.
-	 */
-	if (result == 0 && milliseconds > 100) {
-		napms(100);
-		milliseconds -= 100;
-		goto retry;
-	}
+    /*
+     * If the timeout hasn't expired, and we've gotten no data,
+     * this is probably a system where 'select()' needs to be left
+     * alone so that it can complete.  Make this process sleep,
+     * then come back for more.
+     */
+    if (result == 0 && milliseconds > 100) {
+	napms(100);
+	milliseconds -= 100;
+	goto retry;
+    }
 #endif
 
-	/* return approximate time left in milliseconds */
-	if (timeleft)
-		*timeleft = milliseconds;
+    /* return approximate time left in milliseconds */
+    if (timeleft)
+	*timeleft = milliseconds;
 
-	T(("end twait: returned %d (%d), remaining time %d msec",
-		result, errno, milliseconds));
+    T(("end twait: returned %d (%d), remaining time %d msec",
+       result, errno, milliseconds));
 
-	/*
-	 * Both 'poll()' and 'select()' return the number of file descriptors
-	 * that are active.  Translate this back to the mask that denotes which
-	 * file-descriptors, so that we don't need all of this system-specific
-	 * code everywhere.
-	 */
-	if (result != 0) {
-		if (result > 0) {
-			result = 0;
+    /*
+     * Both 'poll()' and 'select()' return the number of file descriptors
+     * that are active.  Translate this back to the mask that denotes which
+     * file-descriptors, so that we don't need all of this system-specific
+     * code everywhere.
+     */
+    if (result != 0) {
+	if (result > 0) {
+	    result = 0;
 #if USE_FUNC_POLL
-			for (count = 0; count < 2; count++) {
-				if ((mode & (1 << count))
-				 && (fds[count].revents & POLLIN)) {
-					result |= (1 << count);
-				}
-			}
-#elif defined(__BEOS__)
-			result = 1;	/* redundant, but simple */
-#elif HAVE_SELECT
-			if ((mode & 2)
-			 && (fd = SP->_mouse_fd) >= 0
-			 && FD_ISSET(fd, &set))
-				result |= 2;
-			if ((mode & 1)
-			 && FD_ISSET(SP->_ifd, &set))
-				result |= 1;
-#endif
+	    for (count = 0; count < 2; count++) {
+		if ((mode & (1 << count))
+		    && (fds[count].revents & POLLIN)) {
+		    result |= (1 << count);
 		}
-		else
-			result = 0;
-	}
+	    }
+#elif defined(__BEOS__)
+	    result = 1;		/* redundant, but simple */
+#elif HAVE_SELECT
+	    if ((mode & 2)
+		&& (fd = SP->_mouse_fd) >= 0
+		&& FD_ISSET(fd, &set))
+		result |= 2;
+	    if ((mode & 1)
+		&& FD_ISSET(SP->_ifd, &set))
+		result |= 1;
+#endif
+	} else
+	    result = 0;
+    }
 
-	return (result);
+    return (result);
 }

@@ -31,7 +31,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.92 2000/04/29 18:52:53 tom Exp $ */
+/* $Id: curses.h.in,v 1.96 2000/09/16 16:11:01 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
@@ -357,13 +357,13 @@ extern int wresize (WINDOW *, int, int);
  * We cannot define these in ncurses_cfg.h, since they require parameters to be
  * passed (that's non-portable).
  */
-#if	GCC_PRINTF
+#ifdef GCC_PRINTF
 #define GCC_PRINTFLIKE(fmt,var) __attribute__((format(printf,fmt,var)))
 #else
 #define GCC_PRINTFLIKE(fmt,var) /*nothing*/
 #endif
 
-#if	GCC_SCANF
+#ifdef GCC_SCANF
 #define GCC_SCANFLIKE(fmt,var)  __attribute__((format(scanf,fmt,var)))
 #else
 #define GCC_SCANFLIKE(fmt,var)  /*nothing*/
@@ -726,6 +726,8 @@ extern int tigetflag(NCURSES_CONST char *);		/* implemented */
 extern int tigetnum(NCURSES_CONST char *);		/* implemented */
 extern char *tigetstr(NCURSES_CONST char *);		/* implemented */
 extern void timeout(int);				/* generated */
+extern int touchline(WINDOW *, int, int);		/* generated */
+extern int touchwin(WINDOW *);				/* generated */
 extern char *tparm(NCURSES_CONST char *, ...);		/* implemented */
 extern int typeahead(int);				/* implemented */
 extern int ungetch(int);				/* implemented */
@@ -1341,6 +1343,7 @@ extern void trace(const unsigned int);
 #define TRACE_ICALLS	0x0200	/* trace internal/nested calls */
 #define TRACE_CCALLS	0x0400	/* trace per-character calls */
 #define TRACE_DATABASE	0x0800	/* trace read/write of terminfo/termcap data */
+#define TRACE_ATTRS	0x1000	/* trace attribute updates */
 #define TRACE_MAXIMUM	0xffff	/* maximum trace level */
 
 #if defined(TRACE) || defined(NCURSES_TEST)

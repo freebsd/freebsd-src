@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.66 2000/05/28 01:39:56 tom Exp $
+# $Id: Makefile.in,v 1.69 2000/08/26 21:51:30 tom Exp $
 ##############################################################################
 # Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.                #
 #                                                                            #
@@ -54,15 +54,13 @@ CF_MFLAGS 	= @cf_cv_makeflags@
 @SET_MAKE@
 
 MODEL		= @DFT_LWR_MODEL@
-INSTALL_PREFIX	= @INSTALL_PREFIX@
+DESTDIR		= @DESTDIR@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 libdir		= @libdir@
 includedir	= @includedir@
 datadir		= @datadir@
-
-ticdir		= $(datadir)/terminfo
 
 INSTALL		= @INSTALL@
 INSTALL_LIB	= @INSTALL@ @INSTALL_LIB@
@@ -80,7 +78,7 @@ CFLAGS		= @CFLAGS@
 
 INCDIR		= $(srcdir)/../include
 CPPFLAGS	= -I../ncurses -I$(srcdir) @CPPFLAGS@ \
-		  -DHAVE_CONFIG_H -DTERMINFO=\"$(ticdir)\"
+		  -DHAVE_CONFIG_H
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
@@ -150,7 +148,7 @@ libs ::		$(AUTO_SRC) ../lib $(LIBRARIES)
 
 sources:	$(AUTO_SRC)
 
-$(INSTALL_PREFIX)$(libdir) :
+$(DESTDIR)$(libdir) :
 	$(srcdir)/../mkinstalldirs $@
 
 ../lib : ; mkdir $@
@@ -202,8 +200,8 @@ make_hash$x : \
 tags:
 	ctags *.[ch]
 
-TAGS:
-	etags *.[ch]
+@MAKE_UPPER_TAGS@TAGS:
+@MAKE_UPPER_TAGS@	etags *.[ch]
 
 mostlyclean ::
 	-rm -f core tags TAGS *~ *.ln *.atac trace

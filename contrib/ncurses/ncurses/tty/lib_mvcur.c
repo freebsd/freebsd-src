@@ -152,9 +152,7 @@
 #include <term.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_mvcur.c,v 1.67 2000/06/24 21:13:51 tom Exp $")
-
-#define STRLEN(s)       (s != 0) ? strlen(s) : 0
+MODULE_ID("$Id: lib_mvcur.c,v 1.72 2000/10/08 00:58:25 tom Exp $")
 
 #define CURRENT_ROW	SP->_cursrow	/* phys cursor row */
 #define CURRENT_COLUMN	SP->_curscol	/* phys cursor column */
@@ -174,25 +172,6 @@ static float diff;
 
 static int normalized_cost(const char *const cap, int affcnt);
 
-#if !HAVE_STRSTR
-char *
-_nc_strstr(const char *haystack, const char *needle)
-{
-    size_t len1 = strlen(haystack);
-    size_t len2 = strlen(needle);
-    char *result = 0;
-
-    while ((len1 != 0) && (len1-- >= len2)) {
-	if (!strncmp(haystack, needle, len2)) {
-	    result = haystack;
-	    break;
-	}
-	haystack++;
-    }
-    return result;
-}
-#endif
-
 /****************************************************************************
  *
  * Initialization/wrapup (including cost pre-computation)
@@ -205,7 +184,7 @@ trace_cost_of(const char *capname, const char *cap, int affcnt)
 {
     int result = _nc_msec_cost(cap, affcnt);
     TR(TRACE_CHARPUT | TRACE_MOVE,
-	("CostOf %s %d %s", capname, result, _nc_visbuf(cap)));
+       ("CostOf %s %d %s", capname, result, _nc_visbuf(cap)));
     return result;
 }
 #define CostOf(cap,affcnt) trace_cost_of(#cap,cap,affcnt);
@@ -215,7 +194,7 @@ trace_normalized_cost(const char *capname, const char *cap, int affcnt)
 {
     int result = normalized_cost(cap, affcnt);
     TR(TRACE_CHARPUT | TRACE_MOVE,
-	("NormalizedCost %s %d %s", capname, result, _nc_visbuf(cap)));
+       ("NormalizedCost %s %d %s", capname, result, _nc_visbuf(cap)));
     return result;
 }
 #define NormalizedCost(cap,affcnt) trace_normalized_cost(#cap,cap,affcnt);
@@ -235,12 +214,12 @@ _nc_msec_cost(const char *const cap, int affcnt)
 	return (INFINITY);
     else {
 	const char *cp;
-	float cum_cost = 0;
+	float cum_cost = 0.0;
 
 	for (cp = cap; *cp; cp++) {
 	    /* extract padding, either mandatory or required */
 	    if (cp[0] == '$' && cp[1] == '<' && strchr(cp, '>')) {
-		float number = 0;
+		float number = 0.0;
 
 		for (cp += 2; *cp != '>'; cp++) {
 		    if (isdigit(*cp))
@@ -251,7 +230,7 @@ _nc_msec_cost(const char *const cap, int affcnt)
 			number += (*cp - '0') / 10.0;
 		}
 
-#ifdef NCURSES_NO_PADDING
+#if NCURSES_NO_PADDING
 		if (!(SP->_no_padding))
 #endif
 		    cum_cost += number * 10;
@@ -402,13 +381,8 @@ _nc_mvcur_init(void)
     SP->_hpa_ch_cost = NormalizedCost(tparm(column_address, 23), 1);
     SP->_cuf_ch_cost = NormalizedCost(tparm(parm_right_cursor, 23), 1);
     SP->_inline_cost = min(SP->_cup_ch_cost,
-	min(SP->_hpa_ch_cost,
-	    SP->_cuf_ch_cost));
-
-    /* pre-compute some capability lengths */
-    SP->_carriage_return_length = STRLEN(carriage_return);
-    SP->_cursor_home_length = STRLEN(cursor_home);
-    SP->_cursor_to_ll_length = STRLEN(cursor_to_ll);
+			   min(SP->_hpa_ch_cost,
+			       SP->_cuf_ch_cost));
 
     /*
      * If save_cursor is used within enter_ca_mode, we should not use it for
@@ -468,18 +442,17 @@ _nc_mvcur_wrap(void)
  * Perform repeated-append, returning cost
  */
 static inline int
-repeated_append(int total, int num, int repeat, char *dst, const char *src)
+repeated_append(string_desc * target, int total, int num, int repeat, const char *src)
 {
-    register size_t src_len = strlen(src);
-    register size_t dst_len = STRLEN(dst);
+    size_t need = repeat * strlen(src);
 
-    if ((dst_len + repeat * src_len) < OPT_SIZE - 1) {
-	total += (num * repeat);
-	if (dst) {
-	    dst += dst_len;
-	    while (repeat-- > 0) {
-		(void) strcpy(dst, src);
-		dst += src_len;
+    if (need < target->s_size) {
+	while (repeat-- > 0) {
+	    if (_nc_safe_strcat(target, src)) {
+		total += num;
+	    } else {
+		total = INFINITY;
+		break;
 	    }
 	}
     } else {
@@ -497,53 +470,51 @@ repeated_append(int total, int num, int repeat, char *dst, const char *src)
  */
 #define LASTTAB(fr)	((fr > 0) ? ((fr - 1) / init_tabs) * init_tabs : -1)
 
-/* Note: we'd like to inline this for speed, but GNU C barfs on the attempt. */
-
 static int
-relative_move(char *result, int from_y, int from_x, int to_y, int to_x, bool ovw)
+relative_move(string_desc * target, int from_y, int from_x, int to_y, int
+	      to_x, bool ovw)
 /* move via local motions (cuu/cuu1/cud/cud1/cub1/cub/cuf1/cuf/vpa/hpa) */
 {
+    string_desc save;
     int n, vcost = 0, hcost = 0;
 
-    if (result)
-	result[0] = '\0';
+    (void) _nc_str_copy(&save, target);
 
     if (to_y != from_y) {
 	vcost = INFINITY;
 
-	if (row_address) {
-	    if (result)
-		(void) strcpy(result, tparm(row_address, to_y));
+	if (row_address != 0
+	    && _nc_safe_strcat(target, tparm(row_address, to_y))) {
 	    vcost = SP->_vpa_cost;
 	}
 
 	if (to_y > from_y) {
 	    n = (to_y - from_y);
 
-	    if (parm_down_cursor && SP->_cud_cost < vcost) {
-		if (result)
-		    (void) strcpy(result, tparm(parm_down_cursor, n));
+	    if (parm_down_cursor
+		&& SP->_cud_cost < vcost
+		&& _nc_safe_strcat(_nc_str_copy(target, &save),
+				   tparm(parm_down_cursor, n))) {
 		vcost = SP->_cud_cost;
 	    }
 
 	    if (cursor_down && (n * SP->_cud1_cost < vcost)) {
-		if (result)
-		    result[0] = '\0';
-		vcost = repeated_append(0, SP->_cud1_cost, n, result, cursor_down);
+		vcost = repeated_append(_nc_str_copy(target, &save), 0,
+					SP->_cud1_cost, n, cursor_down);
 	    }
 	} else {		/* (to_y < from_y) */
 	    n = (from_y - to_y);
 
-	    if (parm_up_cursor && SP->_cup_cost < vcost) {
-		if (result)
-		    (void) strcpy(result, tparm(parm_up_cursor, n));
+	    if (parm_up_cursor
+		&& SP->_cup_cost < vcost
+		&& _nc_safe_strcat(_nc_str_copy(target, &save),
+				   tparm(parm_up_cursor, n))) {
 		vcost = SP->_cup_cost;
 	    }
 
 	    if (cursor_up && (n * SP->_cuu1_cost < vcost)) {
-		if (result)
-		    result[0] = '\0';
-		vcost = repeated_append(0, SP->_cuu1_cost, n, result, cursor_up);
+		vcost = repeated_append(_nc_str_copy(target, &save), 0,
+					SP->_cuu1_cost, n, cursor_up);
 	    }
 	}
 
@@ -551,33 +522,34 @@ relative_move(char *result, int from_y, int from_x, int to_y, int to_x, bool ovw
 	    return (INFINITY);
     }
 
-    if (result)
-	result += strlen(result);
+    save = *target;
 
     if (to_x != from_x) {
 	char str[OPT_SIZE];
+	string_desc check;
 
 	hcost = INFINITY;
 
-	if (column_address) {
-	    if (result)
-		(void) strcpy(result, tparm(column_address, to_x));
+	if (column_address
+	    && _nc_safe_strcat(_nc_str_copy(target, &save),
+			       tparm(column_address, to_x))) {
 	    hcost = SP->_hpa_cost;
 	}
 
 	if (to_x > from_x) {
 	    n = to_x - from_x;
 
-	    if (parm_right_cursor && SP->_cuf_cost < hcost) {
-		if (result)
-		    (void) strcpy(result, tparm(parm_right_cursor, n));
+	    if (parm_right_cursor
+		&& SP->_cuf_cost < hcost
+		&& _nc_safe_strcat(_nc_str_copy(target, &save),
+				   tparm(parm_right_cursor, n))) {
 		hcost = SP->_cuf_cost;
 	    }
 
 	    if (cursor_right) {
 		int lhcost = 0;
 
-		str[0] = '\0';
+		(void) _nc_str_init(&check, str, sizeof(str));
 
 #if USE_HARD_TABS
 		/* use hard tabs, if we have them, to do as much as possible */
@@ -585,8 +557,8 @@ relative_move(char *result, int from_y, int from_x, int to_y, int to_x, bool ovw
 		    int nxt, fr;
 
 		    for (fr = from_x; (nxt = NEXTTAB(fr)) <= to_x; fr = nxt) {
-			lhcost = repeated_append(lhcost, SP->_ht_cost, 1,
-			    str, tab);
+			lhcost = repeated_append(&check, lhcost,
+						 SP->_ht_cost, 1, tab);
 			if (lhcost == INFINITY)
 			    break;
 		    }
@@ -597,7 +569,7 @@ relative_move(char *result, int from_y, int from_x, int to_y, int to_x, bool ovw
 #endif /* USE_HARD_TABS */
 
 #if defined(REAL_ATTR) && defined(WANT_CHAR)
-#ifdef BSD_TPUTS
+#if BSD_TPUTS
 		/*
 		 * If we're allowing BSD-style padding in tputs, don't generate
 		 * a string with a leading digit.  Otherwise, that will be
@@ -606,6 +578,7 @@ relative_move(char *result, int from_y, int from_x, int to_y, int to_x, bool ovw
 		 */
 		if (ovw
 		    && n > 0
+		    && n < (int) check.s_size
 		    && vcost == 0
 		    && str[0] == '\0'
 		    && isdigit(TextOf(WANT_CHAR(to_y, from_x))))
@@ -629,48 +602,47 @@ relative_move(char *result, int from_y, int from_x, int to_y, int to_x, bool ovw
 			}
 		}
 		if (ovw) {
-		    char *sp;
 		    int i;
 
-		    sp = str + strlen(str);
-
 		    for (i = 0; i < n; i++)
-			*sp++ = WANT_CHAR(to_y, from_x + i);
-		    *sp = '\0';
+			*check.s_tail++ = WANT_CHAR(to_y, from_x + i);
+		    *check.s_tail = '\0';
+		    check.s_size -= n;
 		    lhcost += n * SP->_char_padding;
 		} else
 #endif /* defined(REAL_ATTR) && defined(WANT_CHAR) */
 		{
-		    lhcost = repeated_append(lhcost, SP->_cuf1_cost, n, str, cursor_right);
+		    lhcost = repeated_append(&check, lhcost, SP->_cuf1_cost,
+					     n, cursor_right);
 		}
 
-		if (lhcost < hcost) {
-		    if (result)
-			(void) strcpy(result, str);
+		if (lhcost < hcost
+		    && _nc_safe_strcat(_nc_str_copy(target, &save), str)) {
 		    hcost = lhcost;
 		}
 	    }
 	} else {		/* (to_x < from_x) */
 	    n = from_x - to_x;
 
-	    if (parm_left_cursor && SP->_cub_cost < hcost) {
-		if (result)
-		    (void) strcpy(result, tparm(parm_left_cursor, n));
+	    if (parm_left_cursor
+		&& SP->_cub_cost < hcost
+		&& _nc_safe_strcat(_nc_str_copy(target, &save),
+				   tparm(parm_left_cursor, n))) {
 		hcost = SP->_cub_cost;
 	    }
 
 	    if (cursor_left) {
 		int lhcost = 0;
 
-		str[0] = '\0';
+		(void) _nc_str_init(&check, str, sizeof(str));
 
 #if USE_HARD_TABS
 		if (init_tabs > 0 && back_tab) {
 		    int nxt, fr;
 
 		    for (fr = from_x; (nxt = LASTTAB(fr)) >= to_x; fr = nxt) {
-			lhcost = repeated_append(lhcost, SP->_cbt_cost, 1,
-			    str, back_tab);
+			lhcost = repeated_append(&check, lhcost,
+						 SP->_cbt_cost, 1, back_tab);
 			if (lhcost == INFINITY)
 			    break;
 		    }
@@ -679,11 +651,10 @@ relative_move(char *result, int from_y, int from_x, int to_y, int to_x, bool ovw
 		}
 #endif /* USE_HARD_TABS */
 
-		lhcost = repeated_append(lhcost, SP->_cub1_cost, n, str, cursor_left);
+		lhcost = repeated_append(&check, lhcost, SP->_cub1_cost, n, cursor_left);
 
-		if (lhcost < hcost) {
-		    if (result)
-			(void) strcpy(result, str);
+		if (lhcost < hcost
+		    && _nc_safe_strcat(_nc_str_copy(target, &save), str)) {
 		    hcost = lhcost;
 		}
 	    }
@@ -712,7 +683,8 @@ static inline int
 onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
 /* onscreen move from (yold, xold) to (ynew, xnew) */
 {
-    char use[OPT_SIZE], *sp;
+    string_desc result;
+    char buffer[OPT_SIZE];
     int tactic = 0, newcost, usecost = INFINITY;
     int t5_cr_cost;
 
@@ -722,11 +694,12 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
     gettimeofday(&before, NULL);
 #endif /* MAIN */
 
+#define NullResult _nc_str_null(&result, sizeof(buffer))
+#define InitResult _nc_str_init(&result, buffer, sizeof(buffer))
+
     /* tactic #0: use direct cursor addressing */
-    sp = tparm(SP->_address_cursor, ynew, xnew);
-    if (sp) {
+    if (_nc_safe_strcpy(InitResult, tparm(SP->_address_cursor, ynew, xnew))) {
 	tactic = 0;
-	(void) strcpy(use, sp);
 	usecost = SP->_cup_cost;
 
 #if defined(TRACE) || defined(NCURSES_TEST)
@@ -756,7 +729,8 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
 #ifndef NO_OPTIMIZE
     /* tactic #1: use local movement */
     if (yold != -1 && xold != -1
-	&& ((newcost = relative_move(NULL, yold, xold, ynew, xnew, ovw)) != INFINITY)
+	&& ((newcost = relative_move(NullResult, yold, xold, ynew, xnew,
+				     ovw)) != INFINITY)
 	&& newcost < usecost) {
 	tactic = 1;
 	usecost = newcost;
@@ -764,7 +738,8 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
 
     /* tactic #2: use carriage-return + local movement */
     if (yold != -1 && carriage_return
-	&& ((newcost = relative_move(NULL, yold, 0, ynew, xnew, ovw)) != INFINITY)
+	&& ((newcost = relative_move(NullResult, yold, 0, ynew, xnew, ovw))
+	    != INFINITY)
 	&& SP->_cr_cost + newcost < usecost) {
 	tactic = 2;
 	usecost = SP->_cr_cost + newcost;
@@ -772,7 +747,7 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
 
     /* tactic #3: use home-cursor + local movement */
     if (cursor_home
-	&& ((newcost = relative_move(NULL, 0, 0, ynew, xnew, ovw)) != INFINITY)
+	&& ((newcost = relative_move(NullResult, 0, 0, ynew, xnew, ovw)) != INFINITY)
 	&& SP->_home_cost + newcost < usecost) {
 	tactic = 3;
 	usecost = SP->_home_cost + newcost;
@@ -780,8 +755,8 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
 
     /* tactic #4: use home-down + local movement */
     if (cursor_to_ll
-	&& ((newcost = relative_move(NULL, screen_lines - 1, 0, ynew, xnew,
-		    ovw)) != INFINITY)
+	&& ((newcost = relative_move(NullResult, screen_lines - 1, 0, ynew,
+				     xnew, ovw)) != INFINITY)
 	&& SP->_ll_cost + newcost < usecost) {
 	tactic = 4;
 	usecost = SP->_ll_cost + newcost;
@@ -794,8 +769,8 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
     t5_cr_cost = (xold > 0 ? SP->_cr_cost : 0);
     if (auto_left_margin && !eat_newline_glitch
 	&& yold > 0 && cursor_left
-	&& ((newcost = relative_move(NULL, yold - 1, screen_columns - 1,
-		    ynew, xnew, ovw)) != INFINITY)
+	&& ((newcost = relative_move(NullResult, yold - 1, screen_columns -
+				     1, ynew, xnew, ovw)) != INFINITY)
 	&& t5_cr_cost + SP->_cub1_cost + newcost < usecost) {
 	tactic = 5;
 	usecost = t5_cr_cost + SP->_cub1_cost + newcost;
@@ -804,32 +779,30 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
     /*
      * These cases are ordered by estimated relative frequency.
      */
+    if (tactic)
+	InitResult;
     switch (tactic) {
     case 1:
-	(void) relative_move(use, yold, xold, ynew, xnew, ovw);
+	(void) relative_move(&result, yold, xold, ynew, xnew, ovw);
 	break;
     case 2:
-	(void) strcpy(use, carriage_return);
-	(void) relative_move(use + SP->_carriage_return_length,
-	    yold, 0, ynew, xnew, ovw);
+	(void) _nc_safe_strcpy(&result, carriage_return);
+	(void) relative_move(&result, yold, 0, ynew, xnew, ovw);
 	break;
     case 3:
-	(void) strcpy(use, cursor_home);
-	(void) relative_move(use + SP->_cursor_home_length,
-	    0, 0, ynew, xnew, ovw);
+	(void) _nc_safe_strcpy(&result, cursor_home);
+	(void) relative_move(&result, 0, 0, ynew, xnew, ovw);
 	break;
     case 4:
-	(void) strcpy(use, cursor_to_ll);
-	(void) relative_move(use + SP->_cursor_to_ll_length,
-	    screen_lines - 1, 0, ynew, xnew, ovw);
+	(void) _nc_safe_strcpy(&result, cursor_to_ll);
+	(void) relative_move(&result, screen_lines - 1, 0, ynew, xnew, ovw);
 	break;
     case 5:
-	use[0] = '\0';
 	if (xold > 0)
-	    (void) strcat(use, carriage_return);
-	(void) strcat(use, cursor_left);
-	(void) relative_move(use + strlen(use),
-	    yold - 1, screen_columns - 1, ynew, xnew, ovw);
+	    (void) _nc_safe_strcat(&result, carriage_return);
+	(void) _nc_safe_strcat(&result, cursor_left);
+	(void) relative_move(&result, yold - 1, screen_columns - 1, ynew,
+			     xnew, ovw);
 	break;
     }
 #endif /* !NO_OPTIMIZE */
@@ -840,14 +813,14 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
 	+ (after.tv_sec - before.tv_sec) * 1000000;
     if (!profiling)
 	(void) fprintf(stderr,
-	    "onscreen: %d msec, %f 28.8Kbps char-equivalents\n",
-	    (int) diff, diff / 288);
+		       "onscreen: %d msec, %f 28.8Kbps char-equivalents\n",
+		       (int) diff, diff / 288);
 #endif /* MAIN */
 
   nonlocal:
     if (usecost != INFINITY) {
 	TPUTS_TRACE("mvcur");
-	tputs(use, 1, _nc_outch);
+	tputs(buffer, 1, _nc_outch);
 	return (OK);
     } else
 	return (ERR);
@@ -951,7 +924,7 @@ _nc_outch(int ch)
 }
 
 char PC = 0;			/* used by termcap library */
-speed_t ospeed = 0;		/* used by termcap library */
+short ospeed = 0;		/* used by termcap library */
 int _nc_nulls_sent = 0;		/* used by 'tack' program */
 
 int
@@ -1009,7 +982,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    (void) puts("s[croll] n t b m -- display scrolling sequence");
 	    (void)
 		printf("r[eload]         -- reload terminal info for %s\n",
-		termname());
+		       termname());
 	    (void)
 		puts("l[oad] <term>    -- load terminal info for type <term>");
 	    (void) puts("d[elete] <cap>   -- delete named capability");
@@ -1030,8 +1003,9 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    gettimeofday(&after, NULL);
 
 	    printf("\" (%ld msec)\n",
-		(long) (after.tv_usec - before.tv_usec + (after.tv_sec -
-			before.tv_sec) * 1000000));
+		   (long) (after.tv_usec - before.tv_usec
+			   + (after.tv_sec - before.tv_sec)
+			   * 1000000));
 	} else if (sscanf(buf, "s %d %d %d %d", &fy, &fx, &ty, &tx) == 4) {
 	    struct timeval before, after;
 
@@ -1042,8 +1016,9 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    gettimeofday(&after, NULL);
 
 	    printf("\" (%ld msec)\n",
-		(long) (after.tv_usec - before.tv_usec + (after.tv_sec -
-			before.tv_sec) * 1000000));
+		   (long) (after.tv_usec - before.tv_usec + (after.tv_sec -
+							     before.tv_sec)
+			   * 1000000));
 	} else if (buf[0] == 'r') {
 	    (void) strcpy(tname, termname());
 	    load_term();
@@ -1051,7 +1026,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    load_term();
 	} else if (sscanf(buf, "d %s", capname) == 1) {
 	    struct name_table_entry const *np = _nc_find_entry(capname,
-		_nc_info_hash_table);
+							       _nc_info_hash_table);
 
 	    if (np == NULL)
 		(void) printf("No such capability as \"%s\"\n", capname);
@@ -1061,19 +1036,19 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 		    cur_term->type.Booleans[np->nte_index] = FALSE;
 		    (void)
 			printf("Boolean capability `%s' (%d) turned off.\n",
-			np->nte_name, np->nte_index);
+			       np->nte_name, np->nte_index);
 		    break;
 
 		case NUMBER:
 		    cur_term->type.Numbers[np->nte_index] = ABSENT_NUMERIC;
 		    (void) printf("Number capability `%s' (%d) set to -1.\n",
-			np->nte_name, np->nte_index);
+				  np->nte_name, np->nte_index);
 		    break;
 
 		case STRING:
 		    cur_term->type.Strings[np->nte_index] = ABSENT_STRING;
 		    (void) printf("String capability `%s' (%d) deleted.\n",
-			np->nte_name, np->nte_index);
+				  np->nte_name, np->nte_index);
 		    break;
 		}
 	    }
@@ -1110,7 +1085,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	 * is winning.
 	 */
 	else if (sscanf(buf, "t %d", &n) == 1) {
-	    float cumtime = 0, perchar;
+	    float cumtime = 0.0, perchar;
 	    int speeds[] =
 	    {2400, 9600, 14400, 19200, 28800, 38400, 0};
 
@@ -1148,7 +1123,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    perchar = cumtime / n;
 
 	    (void) printf("%d moves (%ld chars) in %d msec, %f msec each:\n",
-		n, xmits, (int) cumtime, perchar);
+			  n, xmits, (int) cumtime, perchar);
 
 	    for (i = 0; speeds[i]; i++) {
 		/*
@@ -1167,7 +1142,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 
 		(void)
 		    printf("%6d bps: %3.2f char-xmits overhead; total estimated time %15.2f\n",
-		    speeds[i], overhead, totalest);
+			   speeds[i], overhead, totalest);
 	    }
 	} else if (buf[0] == 'c') {
 	    (void) printf("char padding: %d\n", SP->_char_padding);

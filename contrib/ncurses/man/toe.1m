@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: toe.1m,v 1.7 1998/03/11 21:12:53 juergen Exp $
+.\" $Id: toe.1m,v 1.10 2000/08/19 18:51:05 tom Exp $
 .TH toe 1M ""
 .ds n 5
-.ds d @DATADIR@/terminfo
+.ds d @TERMINFO@
 .SH NAME
 \fBtoe\fR - table of (terminfo) entries
 .SH SYNOPSIS
@@ -65,14 +65,14 @@ information showing \fBtoe\fR's progress.  The optional integer
 \fIn\fR is a number from 1 to 10, interpreted as for \fBtic\fR(1).
 .TP 5
 \fB-V\fR
-prints out the version of the program in use on standard error and exits.
+reports the version of ncurses which was used in this program, and exits.
 .SH FILES
 .TP 5
 \fB\*d/?/*\fR
 Compiled terminal description database.
 .SH SEE ALSO
-\fBtic\fR(1M), \fBinfocmp\fR(1M), \fBcaptoinfo\fR(1M), \fBinfotocap\fR(1M),
-\fBcurses\fR(3X), \fBterminfo\fR(\*n).
+\fB@TIC@\fR(1M), \fB@INFOCMP@\fR(1M), \fB@CAPTOINFO@\fR(1M),
+\fB@INFOTOCAP@\fR(1M), \fBcurses\fR(3X), \fBterminfo\fR(\*n).
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

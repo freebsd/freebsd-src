@@ -109,6 +109,9 @@ trap 'rm -f $dummy.c $dummy.o $dummy; exit 1' 1 2 15
 # Note: order is significant - the case branches are not exclusive.
 
 case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
+    i?86:OS/2:*:*)
+        echo "i386-unknown-os2"
+	exit 0;;
     *:NetBSD:*:*)
 	# Netbsd (nbsd) targets should (where applicable) match one or
 	# more of the tupples: *-*-netbsdelf*, *-*-netbsdaout*,
@@ -431,7 +434,7 @@ EOF
     *:IRIX*:*:*)
 	echo mips-sgi-irix`echo ${UNAME_RELEASE}|sed -e 's/-/_/g'`
 	exit 0 ;;
-    ????????:AIX?:[12].1:2)   # AIX 2.2.1 or AIX 2.1.1 is RT/PC AIX.
+    ????????:AIX?:[12].1:2)    # AIX 2.2.1 or AIX 2.1.1 is RT/PC AIX.
 	echo romp-ibm-aix      # uname -m gives an 8 hex-code CPU id
 	exit 0 ;;              # Note that: echo "'`uname -s`'" gives 'AIX '
     i?86:AIX:*:*)

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 3.0//EN">
 <!--
-  $Id: announce.html.in,v 1.37 2000/07/02 01:48:54 tom Exp $
+  $Id: announce.html.in,v 1.39 2000/07/04 21:59:36 tom Exp $
 -->
 <HTML>
 <HEAD>
@@ -33,7 +33,7 @@ the library and tools.<P>
 The ncurses distribution is available via anonymous FTP at
 the GNU distribution site
 <A HREF="ftp://ftp.gnu.org/pub/gnu/ncurses">ftp://ftp.gnu.org/pub/gnu/ncurses</A>.
-It is also available at
+<br>It is also available at
 <A HREF="ftp://dickey.his.com/ncurses">ftp://dickey.his.com/ncurses</A>.
 
 <H1>Release Notes</H1>
@@ -68,8 +68,14 @@ New features:
 	  provide better control over the use of default colors.  This is
 	  the principal visible difference between ncurses 5.1 and preceding
 	  versions.  The new extension allows an application to specify what
-	  colors pair 0 uses.  It defaults to white on black, unless you
-	  have invoked <code>use_default_colors()</code>.
+	  colors pair 0 uses.
+	 <p> 
+	  <em>NOTE</em>:  Pair 0 defaults to white on black unless
+	  you have invoked <code>use_default_colors()</code> or set it via
+	  <code>assume_default_colors()</code>.  An application that calls
+	  <code>start_colors()</code> without setting the background color
+	  will consistently have a black background no matter what color your
+	  terminal's background actually is.
 
 	<li>made several fixes to the terminfo-to-termcap conversion, and
 	  have been using the generated termcaps without further hand-tuning. 
@@ -103,11 +109,13 @@ New features:
 	</ul>
 
 	<li>modify <code>raw()</code> and <code>noraw()</code> to clear/restore
-	  IEXTEN flag which affects stty lnext on systems such as FreeBSD
+	  IEXTEN flag which affects <code>stty lnext</code> on systems such as FreeBSD
 
-	<li>reordered tests during mouse initialization to allow for gpm to run in
-	  xterm, or for xterm to be used under OS/2 EMX.  Also dropped test for
-	  $DISPLAY in favor of kmous=\E[M or $TERM containing "xterm".
+	<li>reordered tests during mouse initialization to allow for gpm to run
+	  in xterm, or for xterm to be used under OS/2 EMX.  Also dropped test
+	  for <code>$DISPLAY</code> in favor of the terminfo capability
+	  <code>kmous=\E[M</code> or
+	  if <code>$TERM</code> environment variable contains "xterm".
 
 	<li>added configure option <code>--with-manpage-symlinks</code>, which
 	  provides for fully indexing manpage entries by making symbolic links
@@ -275,7 +283,8 @@ including (versions starting with those noted):
 <DT> cdk
 <DD> Curses Development Kit
 <br>
-<A HREF="http://www.vexus.ca/CDK.html">Curses Development Kit</a>
+<A HREF="http://www.vexus.ca/CDK.html">http://www.vexus.ca/CDK.html</a>
+<br>
 <A HREF="http://dickey.his.com/cdk/cdk.html">http://dickey.his.com/cdk</A>.
 <DT> ded
 <DD> directory-editor
@@ -292,27 +301,39 @@ for similar applications on GNU/Linux.
 <A HREF="http://lynx.isc.org/release/">http://lynx.isc.org/release</A>.
 <DT> Midnight Commander 4.1
 <DD> file manager
+<br>
+<A HREF="www.gnome.org/mc/">www.gnome.org/mc/</A>.
 <DT> mutt
 <DD> mail utility
 <br>
 <A HREF="http://www.mutt.org">http://www.mutt.org</A>.
 <DT> ncftp
 <DD> file-transfer utility
+<br>
+<A HREF="http://www.ncftp.com">http://www.ncftp.com</A>.
 <DT> nvi
 <DD> New vi versions 1.50 are able to use ncurses versions 1.9.7 and later.
+<br>
+<A HREF="http://www.bostic.com/vi/">http://www.bostic.com/vi/</A>.
 <DT> tin
 <DD> newsreader, supporting color, MIME
 <br>
 <A HREF="http://www.tin.org">http://www.tin.org</A>.
 <DT> taper
 <DD> tape archive utility
+<br>
+<A HREF="http://members.iinet.net.au/~yusuf/taper/">http://members.iinet.net.au/~yusuf/taper/</A>.
 <DT> vh-1.6
 <DD> Volks-Hypertext browser for the Jargon File
+<br>
+<A HREF="http://www.bg.debian.org/Packages/unstable/text/vh.html">http://www.bg.debian.org/Packages/unstable/text/vh.html</A>.
 </DL>
 as well as some that use ncurses for the terminfo support alone:
 <DL>
 <DT> minicom
 <DD> terminal emulator
+<br>
+<A HREF="http://www.pp.clinet.fi/~walker/minicom.html">http://www.pp.clinet.fi/~walker/minicom.html</A>.
 <DT> vile
 <DD> vi-like-emacs
 <br>

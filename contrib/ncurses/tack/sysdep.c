@@ -43,10 +43,16 @@
 #endif
 #endif
 
-MODULE_ID("$Id: sysdep.c,v 1.7 2000/03/04 21:02:11 tom Exp $")
+MODULE_ID("$Id: sysdep.c,v 1.9 2000/09/02 19:17:39 tom Exp $")
 
 #if DECL_ERRNO
 extern int errno;
+#endif
+
+#ifdef TERMIOS
+#define PUT_TTY(fd, buf) tcsetattr(fd, TCSAFLUSH, buf)
+#else
+#define PUT_TTY(fd, buf) stty(fd, buf)
 #endif
 
 /* globals */
@@ -55,11 +61,19 @@ unsigned long tty_baud_rate;	/* baud rate - bits per second */
 int not_a_tty;			/* TRUE if output is not a tty (i.e. pipe) */
 int nodelay_read;		/* TRUE if NDELAY is set */
 
+#ifdef TERMIOS
 #define TTY_IS_NOECHO	!(new_modes.c_lflag & ECHO)
 #define TTY_IS_OUT_TRANS (new_modes.c_oflag & OPOST)
 #define TTY_IS_CHAR_MODE !(new_modes.c_lflag & ICANON)
 #define TTY_WAS_CS8 ((old_modes.c_cflag & CSIZE) == CS8)
 #define TTY_WAS_XON_XOFF (old_modes.c_iflag & (IXON|IXOFF))
+#else
+#define TTY_IS_NOECHO	!(new_modes.sg_flags & (ECHO))
+#define TTY_IS_OUT_TRANS (new_modes.sg_flags & (CRMOD))
+#define TTY_IS_CHAR_MODE (new_modes.sg_flags & (RAW|CBREAK))
+#define TTY_WAS_CS8	 (old_modes.sg_flags & (PASS8))
+#define TTY_WAS_XON_XOFF (old_modes.sg_flags & (TANDEM|MDMBUF|DECCTQ))
+#endif
 
 static TTY old_modes, new_modes;
 
@@ -89,6 +103,7 @@ void
 tty_raw(int minch GCC_UNUSED, int mask)
 {				/* set tty to raw noecho */
 	new_modes = old_modes;
+#ifdef TERMIOS
 #if HAVE_SELECT
 	new_modes.c_cc[VMIN] = 1;
 #else
@@ -108,15 +123,19 @@ tty_raw(int minch GCC_UNUSED, int mask)
 	new_modes.c_iflag &=
 		~(IGNBRK | BRKINT | IGNPAR | PARMRK | INPCK | ISTRIP | INLCR | IGNCR | ICRNL |
 		IUCLC | IXON | IXANY | IXOFF);
+#else
+	new_modes.sg_flags |= RAW;
+#endif
 	if (not_a_tty)
 		return;
-	tcsetattr(fileno(stdin), TCSAFLUSH, &new_modes);
+	PUT_TTY(fileno(stdin), &new_modes);
 }
 
 void 
 tty_set(void)
 {				/* set tty to special modes */
 	new_modes = old_modes;
+#ifdef TERMIOS
 	new_modes.c_cc[VMIN] = 1;
 	new_modes.c_cc[VTIME] = 1;
 	new_modes.c_lflag &= ~(ISIG | ICANON | ECHO | ECHOE | ECHOK | ECHONL);
@@ -132,7 +151,7 @@ tty_set(void)
 		new_modes.c_iflag &= ~(IXON | IXOFF);
 		break;
 	case 1:
-#if sequent
+#if defined(sequent) && sequent
 		/* the sequent System V emulation is broken */
 		new_modes = old_modes;
 		new_modes.c_cc[VEOL] = 6;	/* control F  (ACK) */
@@ -159,9 +178,12 @@ tty_set(void)
 	}
 	if (!(new_modes.c_oflag & ~OPOST))
 		new_modes.c_oflag &= ~OPOST;
+#else
+	new_modes.sg_flags |= RAW;
 	if (not_a_tty)
 		return;
-	tcsetattr(fileno(stdin), TCSAFLUSH, &new_modes);
+#endif
+	PUT_TTY(fileno(stdin), &new_modes);
 }
 
 
@@ -171,7 +193,7 @@ tty_reset(void)
 	fflush(stdout);
 	if (not_a_tty)
 		return;
-	tcsetattr(fileno(stdin), TCSAFLUSH, &old_modes);
+	PUT_TTY(fileno(stdin), &old_modes);
 }
 
 
@@ -187,7 +209,7 @@ tty_init(void)
 	nodelay_read = FALSE;
 #endif
 	not_a_tty = FALSE;
-	if (tcgetattr(fileno(stdin), &old_modes) == -1) {
+	if (GET_TTY(fileno(stdin), &old_modes) == -1) {
 		if (errno == ENOTTY) {
 			tty_frame_size = 20;
 			not_a_tty = TRUE;
@@ -198,10 +220,12 @@ tty_init(void)
 	}
 	/* if TAB3 is set then setterm() wipes out tabs (ht) */
 	new_modes = old_modes;
+#ifdef TERMIOS
 #ifdef TABDLY
 	new_modes.c_oflag &= ~TABDLY;
 #endif	/* TABDLY */
-	if (tcsetattr(fileno(stdin), TCSAFLUSH, &new_modes) == -1) {
+#endif
+	if (PUT_TTY(fileno(stdin), &new_modes) == -1) {
 		printf("tcsetattr error: %d\n", errno);
 		exit(1);
 	}
@@ -211,6 +235,7 @@ tty_init(void)
 	old_modes.c_cflag |= CS7 | PARENB;
 #endif
 	catchsig();
+#ifdef TERMIOS
 	switch (old_modes.c_cflag & CSIZE) {
 #if defined(CS5) && (CS5 != 0)
 	case CS5:
@@ -236,6 +261,10 @@ tty_init(void)
 	tty_frame_size += 2 +
 		((old_modes.c_cflag & PARENB) ? 2 : 0) +
 		((old_modes.c_cflag & CSTOPB) ? 4 : 2);
+#else
+	tty_frame_size = 6 +
+		(old_modes.sg_flags & PASS8) ? 16 : 14;
+#endif
 }
 
 /*

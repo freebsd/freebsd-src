@@ -2,7 +2,7 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.11 1998/01/17 14:16:52 Juan.Jose.Garcia.Ripoll Exp $)
+# ($Id: MKlib_gen.sh,v 1.12 2000/07/29 16:30:11 tom Exp $)
 #
 # The XSI Curses standard requires all curses entry points to exist as
 # functions, even though many definitions would normally be shadowed
@@ -113,6 +113,11 @@ BEGIN	{
 		print "\n"
 	skip=1;
 
+	if ( $1 == "chtype" ) {
+		returnType = "Char";
+	} else {
+		returnType = "Code";
+	}
 	print "M_" $2
 	print $0;
 	print "{";
@@ -200,7 +205,7 @@ BEGIN	{
 	if (match($0, "^void"))
 		call = ""
 	else if (dotrace)
-		call = "returnCode( ";
+		call = sprintf("return%s( ", returnType);
 	else
 		call = "%%return ";
 

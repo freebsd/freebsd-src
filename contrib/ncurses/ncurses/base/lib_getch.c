@@ -40,56 +40,17 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.47 2000/05/28 01:12:51 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.50 2000/10/09 23:53:57 Ilya.Zakharevich Exp $")
 
 #include <fifo_defs.h>
 
 int ESCDELAY = 1000;		/* max interval betw. chars in funkeys, in millisecs */
 
-#ifdef USE_EMX_MOUSE
-#  include <sys/select.h>
-static int
-kbd_mouse_read(unsigned char *p)
-{
-    fd_set fdset;
-    int nums = SP->_ifd + 1;
-
-    for (;;) {
-	FD_ZERO(&fdset);
-	FD_SET(SP->_ifd, &fdset);
-	if (SP->_checkfd >= 0) {
-	    FD_SET(SP->_checkfd, &fdset);
-	    if (SP->_checkfd >= nums)
-		nums = SP->_checkfd + 1;
-	}
-	if (SP->_mouse_fd >= 0) {
-	    FD_SET(SP->_mouse_fd, &fdset);
-	    if (SP->_mouse_fd >= nums)
-		nums = SP->_mouse_fd + 1;
-	}
-	if (select(nums, &fdset, NULL, NULL, NULL) >= 0) {
-	    int n;
-
-	    if (SP->_mouse_fd >= 0
-		&& FD_ISSET(SP->_mouse_fd, &fdset)) {	/* Prefer mouse */
-		n = read(SP->_mouse_fd, p, 1);
-	    } else {
-		n = read(SP->_ifd, p, 1);
-	    }
-	    return n;
-	}
-	if (errno != EINTR) {
-	    return -1;
-	}
-    }
-}
-#endif /* USE_EMX_MOUSE */
-
 static inline int
 fifo_peek(void)
 {
     int ch = SP->_fifo[peek];
-    T(("peeking at %d", peek));
+    TR(TRACE_IEVENT, ("peeking at %d", peek));
 
     p_inc();
     return ch;
@@ -100,7 +61,7 @@ fifo_pull(void)
 {
     int ch;
     ch = SP->_fifo[head];
-    T(("pulling %d from %d", ch, head));
+    TR(TRACE_IEVENT, ("pulling %d from %d", ch, head));
 
     if (peek == head) {
 	h_inc();
@@ -129,7 +90,7 @@ fifo_push(void)
     errno = 0;
 #endif
 
-#if USE_GPM_SUPPORT
+#if USE_GPM_SUPPORT || defined(USE_EMX_MOUSE)
     if ((SP->_mouse_fd >= 0)
 	&& (_nc_timed_wait(3, -1, (int *) 0) & 2)) {
 	SP->_mouse_event(SP);
@@ -139,11 +100,7 @@ fifo_push(void)
 #endif
     {
 	unsigned char c2 = 0;
-#ifdef USE_EMX_MOUSE
-	n = kbd_mouse_read(&c2);
-#else
 	n = read(SP->_ifd, &c2, 1);
-#endif
 	ch = c2 & 0xff;
     }
 
@@ -162,17 +119,17 @@ fifo_push(void)
 #endif
 
     if ((n == -1) || (n == 0)) {
-	T(("read(%d,&ch,1)=%d, errno=%d", SP->_ifd, n, errno));
-	return ERR;
+	TR(TRACE_IEVENT, ("read(%d,&ch,1)=%d, errno=%d", SP->_ifd, n, errno));
+	ch = ERR;
     }
-    T(("read %d characters", n));
+    TR(TRACE_IEVENT, ("read %d characters", n));
 
     SP->_fifo[tail] = ch;
     SP->_fifohold = 0;
     if (head == -1)
 	head = peek = tail;
     t_inc();
-    T(("pushed %#x at %d", ch, tail));
+    TR(TRACE_IEVENT, ("pushed %#x at %d", ch, tail));
 #ifdef TRACE
     if (_nc_tracing & TRACE_IEVENT)
 	_nc_fifo_dump();
@@ -223,7 +180,7 @@ wgetch(WINDOW *win)
     if (head == -1 && !SP->_raw && !SP->_cbreak) {
 	char buf[MAXCOLUMNS], *sp;
 
-	T(("filling queue in cooked mode"));
+	TR(TRACE_IEVENT, ("filling queue in cooked mode"));
 
 	wgetnstr(win, buf, MAXCOLUMNS);
 
@@ -241,13 +198,13 @@ wgetch(WINDOW *win)
     if (!win->_notimeout && (win->_delay >= 0 || SP->_cbreak > 1)) {
 	int delay;
 
-	T(("timed delay in wgetch()"));
+	TR(TRACE_IEVENT, ("timed delay in wgetch()"));
 	if (SP->_cbreak > 1)
 	    delay = (SP->_cbreak - 1) * 100;
 	else
 	    delay = win->_delay;
 
-	T(("delay is %d milliseconds", delay));
+	TR(TRACE_IEVENT, ("delay is %d milliseconds", delay));
 
 	if (head == -1)		/* fifo is empty */
 	    if (!_nc_timed_wait(3, delay, (int *) 0))

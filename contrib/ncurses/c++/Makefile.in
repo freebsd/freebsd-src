@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.52 2000/05/28 01:44:34 tom Exp $
+# $Id: Makefile.in,v 1.53 2000/08/19 19:12:32 tom Exp $
 ##############################################################################
 # Copyright (c) 1998,1999 Free Software Foundation, Inc.                     #
 #                                                                            #
@@ -41,7 +41,7 @@ CF_MFLAGS 	= @cf_cv_makeflags@
 x		= @PROG_EXT@
 
 MODEL		= ../@DFT_OBJ_SUBDIR@
-INSTALL_PREFIX	= @INSTALL_PREFIX@
+DESTDIR		= @DESTDIR@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
@@ -132,16 +132,16 @@ etip.h:	$(srcdir)/etip.h.in $(srcdir)/edit_cfg.sh
 	cp $(srcdir)/etip.h.in $@
 	sh $(srcdir)/edit_cfg.sh ../include/ncurses_cfg.h $@
 
-$(INSTALL_PREFIX)$(libdir) :
+$(DESTDIR)$(libdir) :
 	$(srcdir)/../mkinstalldirs $@
 
 install \
-install.libs:: ../lib/$(LIBNAME) $(INSTALL_PREFIX)$(libdir)
-	$(INSTALL) ../lib/$(LIBNAME) $(INSTALL_PREFIX)$(libdir)/$(LIBNAME)
+install.libs:: ../lib/$(LIBNAME) $(DESTDIR)$(libdir)
+	$(INSTALL) ../lib/$(LIBNAME) $(DESTDIR)$(libdir)/$(LIBNAME)
 
 uninstall \
 uninstall.libs::
-	-rm -f $(INSTALL_PREFIX)$(libdir)/$(LIBNAME)
+	-rm -f $(DESTDIR)$(libdir)/$(LIBNAME)
 
 mostlyclean ::
 	-rm -f core tags TAGS *~ *.ln *.atac trace

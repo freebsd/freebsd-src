@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.28 2000/05/28 01:40:18 tom Exp $
+# $Id: Makefile.in,v 1.30 2000/08/26 21:51:44 tom Exp $
 ##############################################################################
 # Copyright (c) 1998-2000 Free Software Foundation, Inc.                     #
 #                                                                            #
@@ -46,7 +46,7 @@ SHELL		= /bin/sh
 THIS		= Makefile
 
 MODEL		= @DFT_LWR_MODEL@
-INSTALL_PREFIX	= @INSTALL_PREFIX@
+DESTDIR		= @DESTDIR@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
@@ -108,7 +108,7 @@ install ::	$(AUTO_SRC) $(LIBRARIES)
 
 sources :	$(AUTO_SRC)
 
-$(INSTALL_PREFIX)$(libdir) :
+$(DESTDIR)$(libdir) :
 	$(srcdir)/../mkinstalldirs $@
 
 # make copies to simplify include-paths while still keeping form's include
@@ -127,8 +127,8 @@ FORM_PRIV_H = \
 tags:
 	ctags *.[ch]
 
-TAGS:
-	etags *.[ch]
+@MAKE_UPPER_TAGS@TAGS:
+@MAKE_UPPER_TAGS@	etags *.[ch]
 
 mostlyclean ::
 	-rm -f core tags TAGS *~ *.ln *.atac trace

@@ -47,7 +47,7 @@
 #define __INTERNAL_CAPS_VISIBLE
 #include <term_entry.h>
 
-MODULE_ID("$Id: parse_entry.c,v 1.44 2000/04/30 00:17:42 tom Exp $")
+MODULE_ID("$Id: parse_entry.c,v 1.48 2000/10/03 09:38:48 tom Exp $")
 
 #ifdef LINT
 static short const parametrized[] =
@@ -200,7 +200,7 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 {
     int token_type;
     struct name_table_entry const *entry_ptr;
-    char *ptr, namecpy[MAX_NAME_SIZE + 1];
+    char *ptr, *base;
 
     token_type = _nc_get_token();
 
@@ -235,22 +235,22 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
     _nc_set_type(_nc_first_name(entryp->tterm.term_names));
 
     /* check for overly-long names and aliases */
-    (void) strncpy(namecpy, entryp->tterm.term_names, MAX_NAME_SIZE);
-    namecpy[MAX_NAME_SIZE] = '\0';
-    if ((ptr = strrchr(namecpy, '|')) != (char *) 0)
-	*ptr = '\0';
-    ptr = strtok(namecpy, "|");
-    if (strlen(ptr) > MAX_ALIAS)
-	_nc_warning("primary name may be too long");
-    while ((ptr = strtok((char *) 0, "|")) != (char *) 0)
-	if (strlen(ptr) > MAX_ALIAS)
-	    _nc_warning("alias `%s' may be too long", ptr);
+    for (base = entryp->tterm.term_names; (ptr = strchr(base, '|')) != 0;
+	 base = ptr + 1) {
+	if (ptr - base > MAX_ALIAS) {
+	    _nc_warning("%s `%.*s' may be too long",
+			(base == entryp->tterm.term_names)
+			? "primary name"
+			: "alias",
+			ptr - base, base);
+	}
+    }
 
     entryp->nuses = 0;
 
     for (token_type = _nc_get_token();
-	token_type != EOF && token_type != NAMES;
-	token_type = _nc_get_token()) {
+	 token_type != EOF && token_type != NAMES;
+	 token_type = _nc_get_token()) {
 	if (strcmp(_nc_curr_token.tk_name, "use") == 0
 	    || strcmp(_nc_curr_token.tk_name, "tc") == 0) {
 	    entryp->uses[entryp->nuses].name = _nc_save_str(_nc_curr_token.tk_valstring);
@@ -259,7 +259,7 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 	} else {
 	    /* normal token lookup */
 	    entry_ptr = _nc_find_entry(_nc_curr_token.tk_name,
-		_nc_syntax ? _nc_cap_hash_table : _nc_info_hash_table);
+				       _nc_syntax ? _nc_cap_hash_table : _nc_info_hash_table);
 
 	    /*
 	     * Our kluge to handle aliasing.  The reason it's done
@@ -277,14 +277,14 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 			if (strcmp(ap->from, _nc_curr_token.tk_name) == 0) {
 			    if (ap->to == (char *) 0) {
 				_nc_warning("%s (%s termcap extension) ignored",
-				    ap->from, ap->source);
+					    ap->from, ap->source);
 				goto nexttok;
 			    }
 
 			    entry_ptr = _nc_find_entry(ap->to, _nc_cap_hash_table);
 			    if (entry_ptr && !silent)
 				_nc_warning("%s (%s termcap extension) aliased to %s",
-				    ap->from, ap->source, ap->to);
+					    ap->from, ap->source, ap->to);
 			    break;
 			}
 		} else {	/* if (_nc_syntax == SYN_TERMINFO) */
@@ -292,14 +292,14 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 			if (strcmp(ap->from, _nc_curr_token.tk_name) == 0) {
 			    if (ap->to == (char *) 0) {
 				_nc_warning("%s (%s terminfo extension) ignored",
-				    ap->from, ap->source);
+					    ap->from, ap->source);
 				goto nexttok;
 			    }
 
 			    entry_ptr = _nc_find_entry(ap->to, _nc_info_hash_table);
 			    if (entry_ptr && !silent)
 				_nc_warning("%s (%s terminfo extension) aliased to %s",
-				    ap->from, ap->source, ap->to);
+					    ap->from, ap->source, ap->to);
 			    break;
 			}
 
@@ -316,7 +316,8 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 	    if (entry_ptr == NOTFOUND
 		&& _nc_user_definable
 		&& (entry_ptr = _nc_extend_names(entryp,
-			_nc_curr_token.tk_name, token_type)) != 0) {
+						 _nc_curr_token.tk_name,
+						 token_type)) != 0) {
 		if (_nc_tracing >= DEBUG_LEVEL(1))
 		    _nc_warning("extended capability '%s'", _nc_curr_token.tk_name);
 	    }
@@ -326,7 +327,7 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 	    if (entry_ptr == NOTFOUND) {
 		if (!silent)
 		    _nc_warning("unknown capability '%s'",
-			_nc_curr_token.tk_name);
+				_nc_curr_token.tk_name);
 		continue;
 	    }
 
@@ -345,12 +346,14 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 		/* tell max_attributes from arrow_key_map */
 		if (token_type == NUMBER && !strcmp("ma", _nc_curr_token.tk_name))
 		    entry_ptr = _nc_find_type_entry("ma", NUMBER,
-			_nc_get_table(_nc_syntax != 0));
+						    _nc_get_table(_nc_syntax
+								  != 0));
 
 		/* map terminfo's string MT to MT */
 		else if (token_type == STRING && !strcmp("MT", _nc_curr_token.tk_name))
 		    entry_ptr = _nc_find_type_entry("MT", STRING,
-			_nc_get_table(_nc_syntax != 0));
+						    _nc_get_table(_nc_syntax
+								  != 0));
 
 		/* treat strings without following "=" as empty strings */
 		else if (token_type == BOOLEAN && entry_ptr->nte_type == STRING)
@@ -374,7 +377,7 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 			    break;
 			}
 			_nc_warning("wrong type used for %s capability '%s'",
-			    type_name, _nc_curr_token.tk_name);
+				    type_name, _nc_curr_token.tk_name);
 		    }
 		    continue;
 		}
@@ -411,8 +414,8 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 		ptr = _nc_curr_token.tk_valstring;
 		if (_nc_syntax == SYN_TERMCAP)
 		    ptr = _nc_captoinfo(_nc_curr_token.tk_name,
-			ptr,
-			parametrized[entry_ptr->nte_index]);
+					ptr,
+					parametrized[entry_ptr->nte_index]);
 		entryp->tterm.Strings[entry_ptr->nte_index] = _nc_save_str(ptr);
 		break;
 
@@ -479,14 +482,14 @@ _nc_capcmp(const char *s, const char *t)
 	if (s[0] == '$' && s[1] == '<') {
 	    for (s += 2;; s++)
 		if (!(isdigit(*s) || *s == '.' || *s == '*' || *s == '/' ||
-			*s == '>'))
+		      *s == '>'))
 		    break;
 	}
 
 	if (t[0] == '$' && t[1] == '<') {
 	    for (t += 2;; t++)
 		if (!(isdigit(*t) || *t == '.' || *t == '*' || *t == '/' ||
-			*t == '>'))
+		      *t == '>'))
 		    break;
 	}
 
@@ -500,6 +503,26 @@ _nc_capcmp(const char *s, const char *t)
 
 	/* else *s == *t but one is not NUL, so continue */
 	s++, t++;
+    }
+}
+
+static void
+append_acs0(string_desc *dst, int code, int src)
+{
+    if (src != 0) {
+	char temp[3];
+	temp[0] = code;
+	temp[1] = src;
+	temp[2] = 0;
+	_nc_safe_strcat(dst, temp);
+    }
+}
+
+static void
+append_acs(string_desc *dst, int code, char *src)
+{
+    if (src != 0 && strlen(src) == 1) {
+	append_acs0(dst, code, *src);
     }
 }
 
@@ -563,11 +586,11 @@ static const char C_HT[] = "\t";
 #undef CUR
 #define CUR tp->
 
-static
-void
+static void
 postprocess_termcap(TERMTYPE * tp, bool has_base)
 {
     char buf[MAX_LINE * 2 + 2];
+    string_desc result;
 
     /*
      * TERMCAP DEFAULTS AND OBSOLETE-CAPABILITY TRANSLATIONS
@@ -632,17 +655,15 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
 		} else
 		    newline = _nc_save_str(C_LF);
 	    } else if (PRESENT(carriage_return) && PRESENT(scroll_forward)) {
-		strncpy(buf, carriage_return, MAX_LINE - 2);
-		buf[MAX_LINE - 1] = '\0';
-		strncat(buf, scroll_forward, MAX_LINE - strlen(buf) - 1);
-		buf[MAX_LINE] = '\0';
-		newline = _nc_save_str(buf);
+		_nc_str_init(&result, buf, sizeof(buf));
+		if (_nc_safe_strcat(&result, carriage_return)
+		 && _nc_safe_strcat(&result, scroll_forward))
+		    newline = _nc_save_str(buf);
 	    } else if (PRESENT(carriage_return) && PRESENT(cursor_down)) {
-		strncpy(buf, carriage_return, MAX_LINE - 2);
-		buf[MAX_LINE - 1] = '\0';
-		strncat(buf, cursor_down, MAX_LINE - strlen(buf) - 1);
-		buf[MAX_LINE] = '\0';
-		newline = _nc_save_str(buf);
+		_nc_str_init(&result, buf, sizeof(buf));
+		if (_nc_safe_strcat(&result, carriage_return)
+		 && _nc_safe_strcat(&result, cursor_down))
+		    newline = _nc_save_str(buf);
 	    }
 	}
     }
@@ -695,7 +716,7 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
 	else {
 	    if (tab && _nc_capcmp(tab, C_HT))
 		_nc_warning("hardware tabs with a non-^I tab string %s",
-		    _nc_visbuf(tab));
+			    _nc_visbuf(tab));
 	    else {
 		if (WANTED(tab))
 		    tab = _nc_save_str(C_HT);
@@ -708,7 +729,8 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
      * isn't from mytinfo...
      */
     if (PRESENT(other_non_function_keys)) {
-	char *dp, *cp = strtok(other_non_function_keys, ",");
+	char *base = other_non_function_keys;
+	char *bp, *cp, *dp;
 	struct name_table_entry const *from_ptr;
 	struct name_table_entry const *to_ptr;
 	assoc const *ap;
@@ -717,15 +739,21 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
 
 	/* we're going to use this for a special case later */
 	dp = strchr(other_non_function_keys, 'i');
-	foundim = dp && dp[1] == 'm';
+	foundim = (dp != 0) && (dp[1] == 'm');
 
 	/* look at each comma-separated capability in the ko string... */
-	do {
+	for (base = other_non_function_keys;
+	     (cp = strchr(base, ',')) != 0;
+	     base = cp + 1) {
+	    size_t len = cp - base;
+
 	    for (ap = ko_xlate; ap->from; ap++)
-		if (strcmp(ap->from, cp) == 0)
+		if (len == strlen(ap->from)
+		    && strncmp(ap->from, base, len) == 0)
 		    break;
 	    if (!ap->to) {
-		_nc_warning("unknown capability `%s' in ko string", cp);
+		_nc_warning("unknown capability `%.*s' in ko string",
+			    (int) len, base);
 		continue;
 	    } else if (ap->to == CANCELLED_STRING)	/* ignore it */
 		continue;
@@ -748,11 +776,11 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
 		 * string; that's just an inefficiency.
 		 */
 		if (strcmp(
-			tp->Strings[from_ptr->nte_index],
-			tp->Strings[to_ptr->nte_index]) != 0)
+			      tp->Strings[from_ptr->nte_index],
+			      tp->Strings[to_ptr->nte_index]) != 0)
 		    _nc_warning("%s (%s) already has an explicit value %s, ignoring ko",
-			ap->to, ap->from,
-			_nc_visbuf(tp->Strings[to_ptr->nte_index]));
+				ap->to, ap->from,
+				_nc_visbuf(tp->Strings[to_ptr->nte_index]));
 		continue;
 	    }
 
@@ -760,22 +788,18 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
 	     * The magic moment -- copy the mapped key string over,
 	     * stripping out padding.
 	     */
-	    dp = buf2;
-	    for (cp = tp->Strings[from_ptr->nte_index]; *cp; cp++) {
-		if (cp[0] == '$' && cp[1] == '<') {
-		    while (*cp && *cp != '>')
-			if (!*cp)
-			    break;
-			else
-			    ++cp;
+	    for (dp = buf2, bp = tp->Strings[from_ptr->nte_index]; *bp; bp++) {
+		if (bp[0] == '$' && bp[1] == '<') {
+		    while (*bp && *bp != '>') {
+			++bp;
+		    }
 		} else
-		    *dp++ = *cp;
+		    *dp++ = *bp;
 	    }
 	    *dp++ = '\0';
 
 	    tp->Strings[to_ptr->nte_index] = _nc_save_str(buf2);
-	} while
-	    ((cp = strtok((char *) 0, ",")) != 0);
+	}
 
 	/*
 	 * Note: ko=im and ko=ic both want to grab the `Insert'
@@ -812,74 +836,36 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
 	PRESENT(acs_hline) ||
 	PRESENT(acs_vline) ||
 	PRESENT(acs_plus)) {
-	char buf2[MAX_TERMCAP_LENGTH], *bp = buf2;
+	char buf2[MAX_TERMCAP_LENGTH];
 
-	if (acs_chars) {
-	    (void) strcpy(bp, acs_chars);
-	    bp += strlen(bp);
-	}
+	_nc_str_init(&result, buf2, sizeof(buf2));
+	_nc_safe_strcat(&result, acs_chars);
 
-	if (acs_ulcorner && acs_ulcorner[1] == '\0') {
-	    *bp++ = 'l';
-	    *bp++ = *acs_ulcorner;
-	}
-	if (acs_llcorner && acs_llcorner[1] == '\0') {
-	    *bp++ = 'm';
-	    *bp++ = *acs_llcorner;
-	}
-	if (acs_urcorner && acs_urcorner[1] == '\0') {
-	    *bp++ = 'k';
-	    *bp++ = *acs_urcorner;
-	}
-	if (acs_lrcorner && acs_lrcorner[1] == '\0') {
-	    *bp++ = 'j';
-	    *bp++ = *acs_lrcorner;
-	}
-	if (acs_ltee && acs_ltee[1] == '\0') {
-	    *bp++ = 't';
-	    *bp++ = *acs_ltee;
-	}
-	if (acs_rtee && acs_rtee[1] == '\0') {
-	    *bp++ = 'u';
-	    *bp++ = *acs_rtee;
-	}
-	if (acs_btee && acs_btee[1] == '\0') {
-	    *bp++ = 'v';
-	    *bp++ = *acs_btee;
-	}
-	if (acs_ttee && acs_ttee[1] == '\0') {
-	    *bp++ = 'w';
-	    *bp++ = *acs_ttee;
-	}
-	if (acs_hline && acs_hline[1] == '\0') {
-	    *bp++ = 'q';
-	    *bp++ = *acs_hline;
-	}
-	if (acs_vline && acs_vline[1] == '\0') {
-	    *bp++ = 'x';
-	    *bp++ = *acs_vline;
-	}
-	if (acs_plus) {
-	    *bp++ = 'n';
-	    strcpy(bp, acs_plus);
-	    bp = buf2 + strlen(buf2);
-	}
+	append_acs (&result, 'j', acs_lrcorner);
+	append_acs (&result, 'k', acs_urcorner);
+	append_acs (&result, 'l', acs_ulcorner);
+	append_acs (&result, 'm', acs_llcorner);
+	append_acs (&result, 'n', acs_plus);
+	append_acs (&result, 'q', acs_hline);
+	append_acs (&result, 't', acs_ltee);
+	append_acs (&result, 'u', acs_rtee);
+	append_acs (&result, 'v', acs_btee);
+	append_acs (&result, 'w', acs_ttee);
+	append_acs (&result, 'x', acs_vline);
 
-	if (bp != buf2) {
-	    *bp++ = '\0';
+	if (buf2[0]) {
 	    acs_chars = _nc_save_str(buf2);
 	    _nc_warning("acsc string synthesized from XENIX capabilities");
 	}
     } else if (acs_chars == 0
-	    && enter_alt_charset_mode != 0
-	&& exit_alt_charset_mode != 0) {
+	       && enter_alt_charset_mode != 0
+	       && exit_alt_charset_mode != 0) {
 	acs_chars =
 	    _nc_save_str("``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~");
     }
 }
 
-static
-void
+static void
 postprocess_terminfo(TERMTYPE * tp)
 {
     /*
@@ -891,60 +877,25 @@ postprocess_terminfo(TERMTYPE * tp)
      * Translate AIX forms characters.
      */
     if (PRESENT(box_chars_1)) {
-	char buf2[MAX_TERMCAP_LENGTH], *bp = buf2;
+	char buf2[MAX_TERMCAP_LENGTH];
+	string_desc result;
 
-	if (acs_chars) {
-	    (void) strcpy(bp, acs_chars);
-	    bp += strlen(bp);
-	}
+	_nc_str_init(&result, buf2, sizeof(buf2));
+	_nc_safe_strcat(&result, acs_chars);
 
-	if (box_chars_1[0]) {	/* ACS_ULCORNER */
-	    *bp++ = 'l';
-	    *bp++ = box_chars_1[0];
-	}
-	if (box_chars_1[1]) {	/* ACS_HLINE */
-	    *bp++ = 'q';
-	    *bp++ = box_chars_1[1];
-	}
-	if (box_chars_1[2]) {	/* ACS_URCORNER */
-	    *bp++ = 'k';
-	    *bp++ = box_chars_1[2];
-	}
-	if (box_chars_1[3]) {	/* ACS_VLINE */
-	    *bp++ = 'x';
-	    *bp++ = box_chars_1[3];
-	}
-	if (box_chars_1[4]) {	/* ACS_LRCORNER */
-	    *bp++ = 'j';
-	    *bp++ = box_chars_1[4];
-	}
-	if (box_chars_1[5]) {	/* ACS_LLCORNER */
-	    *bp++ = 'm';
-	    *bp++ = box_chars_1[5];
-	}
-	if (box_chars_1[6]) {	/* ACS_TTEE */
-	    *bp++ = 'w';
-	    *bp++ = box_chars_1[6];
-	}
-	if (box_chars_1[7]) {	/* ACS_RTEE */
-	    *bp++ = 'u';
-	    *bp++ = box_chars_1[7];
-	}
-	if (box_chars_1[8]) {	/* ACS_BTEE */
-	    *bp++ = 'v';
-	    *bp++ = box_chars_1[8];
-	}
-	if (box_chars_1[9]) {	/* ACS_LTEE */
-	    *bp++ = 't';
-	    *bp++ = box_chars_1[9];
-	}
-	if (box_chars_1[10]) {	/* ACS_PLUS */
-	    *bp++ = 'n';
-	    *bp++ = box_chars_1[10];
-	}
+	append_acs0 (&result, 'l', box_chars_1[0]);	/* ACS_ULCORNER */
+	append_acs0 (&result, 'q', box_chars_1[1]);	/* ACS_HLINE */
+	append_acs0 (&result, 'k', box_chars_1[2]);	/* ACS_URCORNER */
+	append_acs0 (&result, 'x', box_chars_1[3]);	/* ACS_VLINE */
+	append_acs0 (&result, 'j', box_chars_1[4]);	/* ACS_LRCORNER */
+	append_acs0 (&result, 'm', box_chars_1[5]);	/* ACS_LLCORNER */
+	append_acs0 (&result, 'w', box_chars_1[6]);	/* ACS_TTEE */
+	append_acs0 (&result, 'u', box_chars_1[7]);	/* ACS_RTEE */
+	append_acs0 (&result, 'v', box_chars_1[8]);	/* ACS_BTEE */
+	append_acs0 (&result, 't', box_chars_1[9]);	/* ACS_LTEE */
+	append_acs0 (&result, 'n', box_chars_1[10]);	/* ACS_PLUS */
 
-	if (bp != buf2) {
-	    *bp++ = '\0';
+	if (buf2[0]) {
 	    acs_chars = _nc_save_str(buf2);
 	    _nc_warning("acsc string synthesized from AIX capabilities");
 	    box_chars_1 = ABSENT_STRING;
@@ -963,8 +914,7 @@ postprocess_terminfo(TERMTYPE * tp)
  * up in _nc_info_table, which is organized so that the nte_index fields are
  * sorted, but the nte_type fields are not necessarily grouped together.
  */
-static
-struct name_table_entry const *
+static struct name_table_entry const *
 lookup_fullname(const char *find)
 {
     int state = -1;
@@ -991,7 +941,7 @@ lookup_fullname(const char *find)
 	    if (!strcmp(names[count], find)) {
 		struct name_table_entry const *entry_ptr = _nc_get_table(FALSE);
 		while (entry_ptr->nte_type != state
-		    || entry_ptr->nte_index != count)
+		       || entry_ptr->nte_index != count)
 		    entry_ptr++;
 		return entry_ptr;
 	    }

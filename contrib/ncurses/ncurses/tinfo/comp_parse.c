@@ -52,7 +52,7 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: comp_parse.c,v 1.40 2000/04/15 16:57:08 tom Exp $")
+MODULE_ID("$Id: comp_parse.c,v 1.41 2000/10/03 09:53:49 tom Exp $")
 
 static void sanity_check(TERMTYPE *);
 void (*_nc_check_termtype) (TERMTYPE *) = sanity_check;
@@ -122,26 +122,29 @@ _nc_free_entries(ENTRY * headp)
     }
 }
 
+static char *
+force_bar(char *dst, char *src)
+{
+    if (strchr(src, '|') == 0) {
+	size_t len = strlen(src);
+	if (len >= MAX_NAME_SIZE)
+	    len = MAX_NAME_SIZE;
+	(void) strncpy(dst, src, len);
+	(void) strcpy(dst + len, "|");
+	src = dst;
+    }
+    return src;
+}
+
 bool
 _nc_entry_match(char *n1, char *n2)
 /* do any of the aliases in a pair of terminal names match? */
 {
     char *pstart, *qstart, *pend, *qend;
-    char nc1[MAX_NAME_SIZE + 1], nc2[MAX_NAME_SIZE + 1];
+    char nc1[MAX_NAME_SIZE + 2], nc2[MAX_NAME_SIZE + 2];
 
-    if (strchr(n1, '|') == 0) {
-	(void) strncpy(nc1, n1, sizeof(nc1) - 2);
-	nc1[sizeof(nc1) - 2] = '\0';
-	(void) strcat(nc1, "|");
-	n1 = nc1;
-    }
-
-    if (strchr(n2, '|') == 0) {
-	(void) strncpy(nc2, n2, sizeof(nc2) - 2);
-	nc2[sizeof(nc2) - 2] = '\0';
-	(void) strcat(nc2, "|");
-	n2 = nc2;
-    }
+    n1 = force_bar(nc1, n1);
+    n2 = force_bar(nc2, n2);
 
     for (pstart = n1; (pend = strchr(pstart, '|')); pstart = pend + 1)
 	for (qstart = n2; (qend = strchr(qstart, '|')); qstart = qend + 1)

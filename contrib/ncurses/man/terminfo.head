@@ -26,10 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: terminfo.head,v 1.8 1998/03/11 21:12:53 juergen Exp $
+.\" $Id: terminfo.head,v 1.9 2000/08/13 01:56:40 tom Exp $
 .TH TERMINFO 5 "" "" "File Formats"
 .ds n 5
-.ds d @DATADIR@/terminfo
+.ds d @TERMINFO@
 .SH NAME
 terminfo \- terminal capability data base
 .SH SYNOPSIS
