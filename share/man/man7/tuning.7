@@ -53,10 +53,10 @@ internal data structures scale to 4 times the largest swap partition.
 Keeping
 the swap partitions near the same size will allow the kernel to optimally
 stripe swap space across the N disks.
-Don't worry about overdoing it a
+Do not worry about overdoing it a
 little, swap space is the saving grace of
 .Ux
-and even if you don't normally use much swap, it can give you more time to
+and even if you do not normally use much swap, it can give you more time to
 recover from a runaway program before being forced to reboot.
 .Pp
 How you size your
@@ -67,7 +67,7 @@ partition is primarily used to hold mailboxes, the print spool, and log
 files.
 Some people even make
 .Pa /var/log
-its own partition (but except for extreme cases it isn't worth the waste
+its own partition (but except for extreme cases it is not worth the waste
 of a partition ID).
 If your machine is intended to act as a mail
 or print server,
@@ -152,8 +152,8 @@ Why partition at all?
 Why not create one big
 .Pa /
 partition and be done with it?
-Then I don't have to worry about undersizing things!
-Well, there are several reasons this isn't a good idea.
+Then I do not have to worry about undersizing things!
+Well, there are several reasons this is not a good idea.
 First,
 each partition has different operational characteristics and separating them
 allows the filesystem to tune itself to those characteristics.
@@ -294,7 +294,7 @@ For this reason, softupdates will not be enabled on the root file system
 during a typical install.
 The most obvious and most dangerous one is
 .Cm async .
-Don't ever use it, it is far too dangerous.
+Do not ever use it, it is far too dangerous.
 A less dangerous and more
 useful
 .Xr mount 8
@@ -376,7 +376,7 @@ some may be set at boot time using
 but most will be set via
 .Xr sysctl.conf 5 .
 There are several hundred sysctls in the system, including many that appear
-to be candidates for tuning but actually aren't.
+to be candidates for tuning but actually are not.
 In this document we will only cover the ones that have the greatest effect
 on the system.
 .Pp
@@ -568,7 +568,8 @@ sysctl.
 Some sites will require larger or smaller values of
 .Va kern.maxusers
 and may set it as a loader tunable; values of 64, 128, and 256 are not
-uncommon.  We do not recommend going above 256 unless you need a huge number
+uncommon.
+We do not recommend going above 256 unless you need a huge number
 of file descriptors; many of the tunable values set to their defaults by
 .Va kern.maxusers
 may be individually overridden at boot-time or run-time as described
@@ -578,7 +579,7 @@ Systems older than
 must set this value via the kernel
 .Xr config 8
 option
-.Va maxusers
+.Cd maxusers
 instead.
 .Pp
 .Va kern.ipc.nmbclusters
@@ -640,10 +641,10 @@ The
 manual page and the handbook are good starting points for learning how to
 do this.
 Generally the first thing you do when creating your own custom
-kernel is to strip out all the drivers and services you don't use.
+kernel is to strip out all the drivers and services you do not use.
 Removing things like
 .Dv INET6
-and drivers you don't have will reduce the size of your kernel, sometimes
+and drivers you do not have will reduce the size of your kernel, sometimes
 by a megabyte or more, leaving more memory available for applications.
 .Pp
 .Dv SCSI_DELAY
@@ -706,7 +707,7 @@ on by setting the
 .Va hw.ata.wc
 loader tunable to 1.
 More information on tuning the ATA driver system may be found in
-.Xr ata 4.
+.Xr ata 4 .
 .Pp
 There is a new experimental feature for IDE hard drives called
 .Va hw.ata.tags
