@@ -1,11 +1,11 @@
 GLOBAL history
 --------------
 
-version 1.0	initial version [21-Apr-96]
+version 1.0	Initial version [21-Apr-96]
 
 	global, gtags, btreeop, extended ctags.
 
-version 1.1	only bugfix [2-May-96]
+version 1.1	Only bugfix [2-May-96]
 
 	[fixed bug]
 	global	- makes corrupted path name by conversion error.
@@ -16,7 +16,7 @@ version 1.1	only bugfix [2-May-96]
 		to be a function name. With the result that GRTAGS becomes
 		too large.
 
-version 1.2	support of 1.34 nvi [7-Jun-96]
+version 1.2	Support of 1.34 nvi [7-Jun-96]
 
 	[changed]
 	extended ctags
@@ -28,7 +28,7 @@ version 1.2	support of 1.34 nvi [7-Jun-96]
 	extended vi
 		- VI tag support.
 
-version 1.3	support of GTAGSLIBPATH [28-Jul-96]
+version 1.3	Support of GTAGSLIBPATH [28-Jul-96]
 
 	[changed]
 	global  - search not only in a source tree but also in library paths
@@ -36,7 +36,7 @@ version 1.3	support of GTAGSLIBPATH [28-Jul-96]
 	extended ctags
 		- change print format a little when -x option
 
-version 1.4	support of yacc source file [26-Oct-96]
+version 1.4	Support of yacc source file [26-Oct-96]
 
 	[changed]
 	extended ctags
@@ -46,7 +46,7 @@ version 1.4	support of yacc source file [26-Oct-96]
 		    (original only 3rd part)
 		  * no longer considers a yacc rule to be an object.
 
-version 1.5	hypertext generator [12-Dec-96]
+version 1.5	Hypertext generator [12-Dec-96]
 
 	[fixed bug]
 	gtags	- treat 'y.tab.c' as a C source.(we should treat only *.y)
@@ -58,7 +58,7 @@ version 1.5	hypertext generator [12-Dec-96]
 	htags	- new command (hypertext generator of C source file)
 	gtags	- error check code added.
 
-version 1.6	support of 1.76 nvi and reconstruction for other OS [21-Jan-97]
+version 1.6	Support of 1.76 nvi and reconstruction for other OS [21-Jan-97]
 
 	[changed]
 	htags	- cease using <BLOCKQUOTE> because lynx doesn't understand it.
@@ -82,7 +82,7 @@ version 1.6	support of 1.76 nvi and reconstruction for other OS [21-Jan-97]
 
 	global	- -a option added.
 
-version 1.7	make suitable for large project (mainly FreeBSD kernel) [17-Feb-97]
+version 1.7	Make suitable for large project (mainly FreeBSD kernel) [17-Feb-97]
 
 	[changed]
 	htags	- htags no longer makes frame.html. Index.html offers frame
@@ -103,7 +103,7 @@ version 1.7	make suitable for large project (mainly FreeBSD kernel) [17-Feb-97]
 		- script to make all tags (GTAGS,GRTAGS,HTML) for kernel source.
 		  (it is only for FreeBSD and Linux)
 
-version 1.8	fix some bugs, add options and make more portable [5-Apr-97]
+version 1.8	Fix some bugs, add options and make more portable [5-Apr-97]
 
 	[changed]
 	gctags, btreeop, Makefile
@@ -135,7 +135,7 @@ version 1.8	fix some bugs, add options and make more portable [5-Apr-97]
 	htags	- -d tagdir option added.
 		- -w option added.
 
-version 1.81	make global to understand 'obj' directory [14-Apr-97]
+version 1.81	Make global to understand 'obj' directory [14-Apr-97]
 
 	[fixed bug]
 	extended vi
@@ -144,7 +144,7 @@ version 1.81	make global to understand 'obj' directory [14-Apr-97]
 	global
 		- can find tag file in obj directory.
 
-version 1.9	support of 1.79 nvi and some additional options [21-Apr-97]
+version 1.9	Support of 1.79 nvi and some additional options [21-Apr-97]
 
 	[fixed bug]
 	htags   - doesn't keep the code formatted correctly.
@@ -268,7 +268,7 @@ version 2.1	Symbol search, incremental update and gozilla [20-Sep-97]
 		- gtags-find-pattern command (ESC-g) added.
 		  It is equal to global's -g option.
 
-version 2.11	only bugfix [7-Nov-97]
+version 2.11	Only bugfix [7-Nov-97]
 
 	[fixed bug]
 	htags, gtags
@@ -291,7 +291,7 @@ version 2.2	Rewritten with C for performance [7-Dec-97]
 	htags	- shape up anchor database.
 	btreeop	- some options (-b, -c, -l, -p) were deleted.
 
-version 2.21	bugfix and slightly modified [11-Dec-97]
+version 2.21	Bugfix and slightly modified [11-Dec-97]
 
 	[fixed bug]
 	gtags, global
@@ -313,3 +313,45 @@ version 2.21	bugfix and slightly modified [11-Dec-97]
 
 	htags/Makefile, systags/Makefile
 		- ${DESTDIR}/usr/bin  -> ${DESTDIR}${BINDIR}
+
+version 2.22	GRTAGS support for assembler source [26-Dec-97]
+
+	[changed]
+	gtags, gctags, htags
+		- recognize following patterns as a function reference
+		  to C function xxx().
+			call EXT(xxx)
+			call _xxx
+
+		Thanks to Yamashita TAKAO for his idea.
+
+version 2.23	Bugfix and slightly modified [13-Jan-98]
+
+	[fixed bug]
+	gctags	- GRTAGS support in version 2.22 doesn't work.
+
+		Thanks to Yamashita TAKAO for his bug report.
+
+	[changed]
+	gctags/Makefile, gctags/Makefile.generic
+		- -DGLOBAL -DYACC was removed.
+	gctags/ctags.h
+		- #define GLOBAL 1 and #define YACC 1 were added.
+
+	[added]
+	COPYING	- Copyright notice was added.
+
+version 2.24	Only bugfix [20-Jan-98]
+
+	[fixed bug]
+	global	- generates wrong path name when GTAGSROOT includes symbolic
+		  links.
+
+		Thanks to Wolfgang Helbig for his bug report.
+
+	htags	- cannot treat path name which includes digit as the second
+		  character like 'i386'. (In fact it was expand(1)'s bug.)
+
+		Thanks to Andrew Gallatin for his bug report.
+
+	global	- doesn't search 'obj' directory correctly.

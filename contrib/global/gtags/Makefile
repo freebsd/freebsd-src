@@ -1,5 +1,5 @@
 PROG=	gtags
-CFLAGS+=-I${.CURDIR}/../lib -DGLOBAL -DYACC
+CFLAGS+=-I${.CURDIR}/../lib
 LDADD=  $(LIBUTIL)
 DPADD=	$(LIBUTIL)
 
