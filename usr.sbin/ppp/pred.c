@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id: pred.c,v 1.7.2.1 1997/05/10 01:24:41 brian Exp $
+ * $Id: pred.c,v 1.13 1997/06/09 23:38:37 brian Exp $
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm
@@ -114,7 +114,7 @@ Pred1Output(int pri, u_short proto, struct mbuf *bp)
   struct mbuf *mwp;
   u_char *cp, *wp, *hp;
   int orglen, len;
-  u_char bufp[MAX_MTU];
+  u_char bufp[MAX_MTU+2];
   u_short fcs;
 
   orglen = plength(bp) + 2;	/* add count of proto */
@@ -130,9 +130,7 @@ Pred1Output(int pri, u_short proto, struct mbuf *bp)
   fcs = ~fcs;
 
   len = compress(bufp + 2, wp, orglen);
-#ifdef DEBUG
-  logprintf("orglen (%d) --> len (%d)\n", orglen, len);
-#endif
+  LogPrintf(LogDEBUG, "Pred1Output: orglen (%d) --> len (%d)\n", orglen, len);
   CcpInfo.orgout += orglen;
   if (len < orglen) {
     *hp |= 0x80;
@@ -160,7 +158,7 @@ struct mbuf *bp;
   u_char *bufp;
   u_short fcs, proto;
 
-  wp = mballoc(MAX_MTU, MB_IPIN);
+  wp = mballoc(MAX_MTU+2, MB_IPIN);
   cp = MBUF_CTOP(bp);
   olen = plength(bp);
   pp = bufp = MBUF_CTOP(wp);
@@ -174,7 +172,7 @@ struct mbuf *bp;
     CcpInfo.compin += olen;
     len &= 0x7fff;
     if (len != len1) {	/* Error is detected. Send reset request */
-      LogPrintf(LOG_LCP_BIT, "%s: Length Error\n", CcpFsm.name);
+      LogPrintf(LogLCP, "%s: Length Error\n", CcpFsm.name);
       CcpSendResetReq(&CcpFsm);
       pfree(bp);
       pfree(wp);
@@ -191,11 +189,10 @@ struct mbuf *bp;
   *pp++ = *cp++;	/* CRC */
   *pp++ = *cp++;
   fcs = HdlcFcs(INITFCS, bufp, wp->cnt = pp - bufp);
-#ifdef DEBUG
   if (fcs != GOODFCS)
-  logprintf("fcs = 0x%04x (%s), len = 0x%x, olen = 0x%x\n",
-       fcs, (fcs == GOODFCS)? "good" : "bad", len, olen);
-#endif
+    LogPrintf(LogDEBUG, "Pred1Input: fcs = 0x%04x (%s), len = 0x%x,"
+	      " olen = 0x%x\n", fcs, (fcs == GOODFCS)? "good" : "bad",
+	      len, olen);
   if (fcs == GOODFCS) {
     wp->offset += 2;		/* skip length */
     wp->cnt -= 4;		/* skip length & CRC */
@@ -213,7 +210,7 @@ struct mbuf *bp;
   }
   else
   {
-      LogDumpBp(LOG_HDLC, "Bad FCS", wp);
+      LogDumpBp(LogHDLC, "Bad FCS", wp);
       CcpSendResetReq(&CcpFsm);
       pfree(wp);
   }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.9.2.2 1996/12/23 18:13:46 jkh Exp $
+ * $Id: route.c,v 1.14 1997/06/09 03:27:36 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -25,11 +25,7 @@
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#if (BSD >= 199306)
 #include <sys/sysctl.h>
-#else
-#include <sys/kinfo.h>
-#endif
 #include <sys/time.h>
 
 #include <errno.h>
@@ -45,6 +41,8 @@
 #include <arpa/inet.h>
 
 #include "log.h"
+#include "loadalias.h"
+#include "vars.h"
 
 static int IfIndex;
 
@@ -70,7 +68,7 @@ struct in_addr mask;
 
   s = socket(PF_ROUTE, SOCK_RAW, 0);
   if (s < 0)
-    logprintf("socket\n");
+    LogPrintf(LogERROR, "socket: %s", strerror(errno));
 
   bzero(&rtmes, sizeof(rtmes));
   rtmes.m_rtm.rtm_version = RTM_VERSION;
@@ -113,12 +111,11 @@ struct in_addr mask;
   rtmes.m_rtm.rtm_msglen = nb;
   wb = write(s, &rtmes, nb);
   if (wb < 0) {
-     LogPrintf(LOG_TCPIP_BIT, "Already set route addr dst=%x, gateway=%x\n"
+     LogPrintf(LogTCPIP, "Already set route addr dst=%x, gateway=%x\n"
          ,dst.s_addr, gateway.s_addr);
   }
-#ifdef DEBUG
-  logprintf("wrote %d: dst = %x, gateway = %x\n", nb, dst.s_addr, gateway.s_addr);
-#endif
+  LogPrintf(LogDEBUG, "wrote %d: dst = %x, gateway = %x\n", nb,
+            dst.s_addr, gateway.s_addr);
   close(s);
 }
 
@@ -127,12 +124,14 @@ p_sockaddr(sa, width)
 struct sockaddr *sa;
 int width;
 {
-  register char *cp;
-  register struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+  if (VarTerm) {
+    register char *cp;
+    register struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 
-  cp = (sin->sin_addr.s_addr == 0) ? "default" :
+    cp = (sin->sin_addr.s_addr == 0) ? "default" :
 	   inet_ntoa(sin->sin_addr);
-  printf("%-*.*s ", width, width, cp);
+    fprintf(VarTerm, "%-*.*s ", width, width, cp);
+  }
 }
 
 struct bits {
@@ -156,14 +155,16 @@ p_flags(f, format)
 register int f;
 char *format;
 {
-  char name[33], *flags;
-  register struct bits *p = bits;
+  if (VarTerm) {
+    char name[33], *flags;
+    register struct bits *p = bits;
 
-  for (flags = name; p->b_mask; p++)
-    if (p->b_mask & f)
-      *flags++ = p->b_val;
-  *flags = '\0';
-  printf(format, name);
+    for (flags = name; p->b_mask; p++)
+      if (p->b_mask & f)
+        *flags++ = p->b_val;
+    *flags = '\0';
+    fprintf(VarTerm, format, name);
+  }
 }
 
 int
@@ -176,11 +177,11 @@ ShowRoute()
   int *lp;
   int needed, nb;
   u_long mask;
-#if (BSD >= 199306)
   int mib[6];
-#endif
 
-#if (BSD >= 199306)
+  if (!VarTerm)
+    return 1;
+
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
   mib[2] = 0;
@@ -188,28 +189,21 @@ ShowRoute()
   mib[4] = NET_RT_DUMP;
   mib[5] = 0;
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    perror("sysctl-estimate");
+    LogPrintf(LogERROR, "sysctl: estimate: %s", strerror(errno));
     return(1);
   }
-#else
-  needed = getkerninfo(KINFO_RT_DUMP, 0, 0, 0);
-#endif
+
   if (needed < 0)
     return(1);
   sp = malloc(needed);
   if (sp == NULL)
     return(1);
-#if (BSD >= 199306)
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
-    perror("sysctl-getroute");
+    LogPrintf(LogERROR, "sysctl: getroute: %s", strerror(errno));
     free(sp);
     return(1);
   }
-#else
-  if (getkerninfo(KINFO_RT_DUMP, sp, &needed, 0) < 0)
-    free(sp);
-    return(1);
-#endif
+
   ep = sp + needed;
 
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
@@ -227,9 +221,7 @@ ShowRoute()
       p_sockaddr(sa, 18);
       lp = (int *)(sa->sa_len + (char *)sa);
       if ((char *)lp < (char *)wp && *lp) {
-#ifdef DEBUG
-	logprintf(" flag = %x, rest = %d", rtm->rtm_flags, *lp);
-#endif
+	LogPrintf(LogDEBUG, " flag = %x, rest = %d", rtm->rtm_flags, *lp);
 	wp = (u_char *)(lp + 1);
 	mask = 0;
 	for (nb = *(char *)lp; nb > 4; nb--) {
@@ -240,12 +232,12 @@ ShowRoute()
 	  mask <<= 8;
       }
     }
-    printf("%08lx  ", mask);
+    fprintf(VarTerm, "%08lx  ", mask);
     p_flags(rtm->rtm_flags & (RTF_UP|RTF_GATEWAY|RTF_HOST), "%-6.6s ");
-    printf("(%d)\n", rtm->rtm_index);
+    fprintf(VarTerm, "(%d)\n", rtm->rtm_index);
   }
   free(sp);
-  return(1);
+  return 0;
 }
 
 /*
@@ -263,14 +255,10 @@ int all;
   u_long mask;
   int *lp, nb;
   u_char *wp;
-#if (BSD >= 199306)
   int mib[6];
-#endif
 
-#ifdef DEBUG
-  logprintf("DeleteIfRoutes (%d)\n", IfIndex);
-#endif
-#if (BSD >= 199306)
+  LogPrintf(LogDEBUG, "DeleteIfRoutes (%d)\n", IfIndex);
+
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
   mib[2] = 0;
@@ -278,12 +266,9 @@ int all;
   mib[4] = NET_RT_DUMP;
   mib[5] = 0;
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    perror("sysctl-estimate");
+    LogPrintf(LogERROR, "sysctl: estimate: %s", strerror(errno));
     return;
   }
-#else
-  needed = getkerninfo(KINFO_RT_DUMP, 0, 0, 0);
-#endif
 
   if (needed < 0)
     return;
@@ -292,28 +277,20 @@ int all;
   if (sp == NULL)
     return;
 
-#if (BSD >= 199306)
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
-    free(sp);
-    perror("sysctl-getroute");
-    return;
-  }
-#else
-  if (getkerninfo(KINFO_RT_DUMP, sp, &needed, 0) < 0) {
+    LogPrintf(LogERROR, "sysctl: getroute: %s", strerror(errno));
     free(sp);
     return;
   }
-#endif
   ep = sp + needed;
 
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
     rtm = (struct rt_msghdr *)cp;
     sa = (struct sockaddr *)(rtm + 1);
-#ifdef DEBUG
-    logprintf("addrs: %x, index: %d, flags: %x, dstnet: %x\n",
-	rtm->rtm_addrs, rtm->rtm_index, rtm->rtm_flags,
-	((struct sockaddr_in *)sa)->sin_addr);
-#endif
+    LogPrintf(LogDEBUG, "DeleteIfRoutes: addrs: %x, index: %d, flags: %x,"
+			" dstnet: %x\n",
+			rtm->rtm_addrs, rtm->rtm_index, rtm->rtm_flags,
+			((struct sockaddr_in *)sa)->sin_addr);
     if (rtm->rtm_addrs != RTA_DST &&
        (rtm->rtm_index == IfIndex) &&
        (all || (rtm->rtm_flags & RTF_GATEWAY))) {
@@ -326,9 +303,8 @@ int all;
       lp = (int *)(sa->sa_len + (char *)sa);
       mask = 0;
       if ((char *)lp < (char *)wp && *lp) {
-#ifdef DEBUG
-	printf(" flag = %x, rest = %d", rtm->rtm_flags, *lp);
-#endif
+	LogPrintf(LogDEBUG, "DeleteIfRoutes: flag = %x, rest = %d",
+		  rtm->rtm_flags, *lp);
 	wp = (u_char *)(lp + 1);
 	for (nb = *lp; nb > 4; nb--) {
 	  mask <<= 8;
@@ -337,10 +313,9 @@ int all;
 	for (nb = 8 - *lp; nb > 0; nb--)
 	  mask <<= 8;
       }
-#ifdef DEBUG
-      logprintf("## %s ", inet_ntoa(dstnet));
-      logprintf(" %s  %d\n", inet_ntoa(gateway), rtm->rtm_index);
-#endif
+      LogPrintf(LogDEBUG, "DeleteIfRoutes: Dest: %s\n", inet_ntoa(dstnet));
+      LogPrintf(LogDEBUG, "DeleteIfRoutes: Gw: %s\n", inet_ntoa(gateway));
+      LogPrintf(LogDEBUG, "DeleteIfRoutes: Index: %d\n", rtm->rtm_index);
       if (dstnet.s_addr == INADDR_ANY) {
         gateway.s_addr = INADDR_ANY;
         mask = INADDR_ANY;
@@ -348,11 +323,9 @@ int all;
       maddr.s_addr = htonl(mask);
       OsSetRoute(RTM_DELETE, dstnet, gateway, maddr);
     }
-#ifdef DEBUG
-    else if (rtm->rtm_index == IfIndex) {
-      logprintf("??? addrs: %x, flags = %x\n", rtm->rtm_addrs, rtm->rtm_flags);
-    }
-#endif
+    else if(rtm->rtm_index == IfIndex)
+      LogPrintf(LogDEBUG, "DeleteIfRoutes: Ignoring (looking for index %d)\n",
+		IfIndex);
   }
   free(sp);
 }
@@ -374,7 +347,7 @@ char *name;
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    perror("socket");
+    LogPrintf(LogERROR, "socket: %s", strerror(errno));
     return(-1);
   }
 
@@ -388,13 +361,11 @@ char *name;
       oldbufsize = ifconfs.ifc_len;
       bufsize += 1+sizeof(struct ifreq);
       buffer = realloc((void *)buffer, bufsize);      /* Make it bigger */
-#ifdef DEBUG
-      logprintf ("Growing buffer to %d\n", bufsize);
-#endif
+      LogPrintf(LogDEBUG, "GetIfIndex: Growing buffer to %d\n", bufsize);
       ifconfs.ifc_len = bufsize;
       ifconfs.ifc_buf = buffer;
       if (ioctl(s, SIOCGIFCONF, &ifconfs) < 0) {
-          perror("IFCONF");
+          LogPrintf(LogERROR, "ioctl(SIOCGIFCONF): %s", strerror(errno));
           free(buffer);
           return(-1);
       }
@@ -406,10 +377,9 @@ char *name;
   for (len = ifconfs.ifc_len; len > 0; len -= sizeof(struct ifreq)) {
     elen = ifrp->ifr_addr.sa_len - sizeof(struct sockaddr);
     if (ifrp->ifr_addr.sa_family == AF_LINK) {
-#ifdef DEBUG
-      logprintf("%d: %-*.*s, %d, %d\n", index, IFNAMSIZ, IFNAMSIZ, ifrp->ifr_name,
-	   ifrp->ifr_addr.sa_family, elen);
-#endif
+      LogPrintf(LogDEBUG, "GetIfIndex: %d: %-*.*s, %d, %d\n",
+		index, IFNAMSIZ, IFNAMSIZ, ifrp->ifr_name,
+		ifrp->ifr_addr.sa_family, elen);
       if (strcmp(ifrp->ifr_name, name) == 0) {
         IfIndex = index;
 	free(buffer);

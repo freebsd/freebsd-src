@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.9.2.8 1997/05/24 17:34:49 brian Exp $
+ * $Id: ip.c,v 1.21 1997/06/09 03:27:23 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -36,6 +36,8 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "filter.h"
+#include "mbuf.h"
+#include "log.h"
 
 extern void SendPppFrame();
 extern void LcpClose();
@@ -44,7 +46,7 @@ static struct pppTimer IdleTimer;
 
 static void IdleTimeout()
 {
-  LogPrintf(LOG_PHASE_BIT, "Idle timer expired.\n");
+  LogPrintf(LogPHASE, "Idle timer expired.\n");
   reconnect(RECON_FALSE);
   LcpClose();
 }
@@ -63,6 +65,13 @@ StartIdleTimer()
     IdleTimer.state = TIMER_STOPPED;
     StartTimer(&IdleTimer);
   }
+}
+
+void
+UpdateIdleTimer()
+{
+  if (IdleTimer.state == TIMER_RUNNING)
+    StartIdleTimer();
 }
 
 void
@@ -140,9 +149,7 @@ int direction;
              (ntohs(pip->ip_off) & IP_OFFMASK) != 0) {
               return(A_PERMIT);
          }
-#ifdef DEBUG
-logprintf("rule = %d\n", n);
-#endif
+        LogPrintf(LogDEBUG, "rule = %d\n", n);
 	if ((pip->ip_src.s_addr & fp->smask.s_addr) == fp->saddr.s_addr
 	    && (pip->ip_dst.s_addr & fp->dmask.s_addr) == fp->daddr.s_addr) {
 	  if (fp->proto) {
@@ -163,25 +170,23 @@ logprintf("rule = %d\n", n);
 		cproto = P_TCP; th = (struct tcphdr *)ptop;
 		sport = ntohs(th->th_sport); dport = ntohs(th->th_dport);
 		estab = (th->th_flags & TH_ACK);
-#ifdef DEBUG
-if (estab == 0)
-logprintf("flag = %02x, sport = %d, dport = %d\n", th->th_flags, sport, dport);
-#endif
+                if (estab == 0)
+                  LogPrintf(LogDEBUG, "flag = %02x, sport = %d, dport = %d\n",
+                            th->th_flags, sport, dport);
 		break;
 	      default:
 		return(A_DENY);	/* We'll block unknown type of packet */
 	      }
 	      gotinfo = 1;
-#ifdef DEBUG
-logprintf("dir = %d, proto = %d, srcop = %d, dstop = %d, estab = %d\n",
-direction, cproto, fp->opt.srcop, fp->opt.dstop, estab);
-#endif
+              LogPrintf(LogDEBUG, "dir = %d, proto = %d, srcop = %d,"
+                       " dstop = %d, estab = %d\n", direction, cproto,
+                       fp->opt.srcop, fp->opt.dstop, estab);
 	    }
-#ifdef DEBUG
-	    logprintf("check0: rule = %d, proto = %d, sport = %d, dport = %d\n",
-		      n, cproto, sport, dport);
-	    logprintf("check0: action = %d\n", fp->action);
-#endif
+
+	    LogPrintf(LogDEBUG, "check0: rule = %d, proto = %d, sport = %d,"
+                      " dport = %d\n", n, cproto, sport, dport);
+	    LogPrintf(LogDEBUG, "check0: action = %d\n", fp->action);
+
 	    if (cproto == fp->proto) {
 	      if ((fp->opt.srcop == OP_NONE ||
 		  PortMatch(fp->opt.srcop, sport, fp->opt.srcport))
@@ -195,9 +200,7 @@ direction, cproto, fp->opt.srcop, fp->opt.dstop, estab);
 	    }
 	  } else {
 	    /* Address is mached. Make a decision. */
-#ifdef DEBUG
-	    logprintf("check1: action = %d\n", fp->action);
-#endif
+	    LogPrintf(LogDEBUG, "check1: action = %d\n", fp->action);
 	    return(fp->action);
 	  }
 	}
@@ -245,11 +248,11 @@ int direction;
   int logit;
   int pri = PRI_NORMAL;
 
-  logit = (loglevel & (1 << LOG_TCPIP));
+  logit = LogIsKept(LogTCPIP);
 
   pip = (struct ip *)cp;
 
-  if (logit) logprintf("%s  ", Direction[direction]);
+  if (logit) LogPrintf(LogTCPIP, "%s  ", Direction[direction]);
 
   ptop = (cp + (pip->ip_hl << 2));
 
@@ -257,15 +260,15 @@ int direction;
   case IPPROTO_ICMP:
     if (logit) {
       icmph = (struct icmp *)ptop;
-      logprintf("ICMP: %s:%d ---> ", inet_ntoa(pip->ip_src), icmph->icmp_type);
-      logprintf("%s:%d\n", inet_ntoa(pip->ip_dst), icmph->icmp_type);
+      LogPrintf(LogTCPIP, "ICMP: %s:%d ---> ", inet_ntoa(pip->ip_src), icmph->icmp_type);
+      LogPrintf(LogTCPIP, "%s:%d\n", inet_ntoa(pip->ip_dst), icmph->icmp_type);
     }
     break;
   case IPPROTO_UDP:
     if (logit) {
       uh = (struct udphdr *)ptop;
-      logprintf("UDP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
-      logprintf("%s:%d\n", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+      LogPrintf(LogTCPIP, "UDP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
+      LogPrintf(LogTCPIP, "%s:%d\n", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
     }
     break;
   case IPPROTO_TCP:
@@ -279,15 +282,15 @@ int direction;
 
     if (logit) {
       len = ntohs(pip->ip_len) - (pip->ip_hl << 2) - (th->th_off << 2);
-      logprintf("TCP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(th->th_sport));
-      logprintf("%s:%d", inet_ntoa(pip->ip_dst), ntohs(th->th_dport));
+      LogPrintf(LogTCPIP, "TCP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(th->th_sport));
+      LogPrintf(LogTCPIP, "%s:%d", inet_ntoa(pip->ip_dst), ntohs(th->th_dport));
       n = 0;
       for (mask = TH_FIN; mask != 0x40; mask <<= 1) {
 	if (th->th_flags & mask)
-	  logprintf(" %s", TcpFlags[n]);
+	  LogPrintf(LogTCPIP, " %s", TcpFlags[n]);
 	n++;
       }
-      logprintf("  seq:%x  ack:%x (%d/%d)\n",
+      LogPrintf(LogTCPIP, "  seq:%x  ack:%x (%d/%d)\n",
 	ntohl(th->th_seq), ntohl(th->th_ack), len, nb);
       if ((th->th_flags & TH_SYN) && nb > 40) {
         u_short *sp;
@@ -295,16 +298,14 @@ int direction;
 	ptop += 20;
 	sp = (u_short *)ptop;
 	if (ntohs(sp[0]) == 0x0204)
-	  logprintf(" MSS = %d\n", ntohs(sp[1]));
+	  LogPrintf(LogTCPIP, " MSS = %d\n", ntohs(sp[1]));
       }
     }
     break;
   }
   
   if ((FilterCheck(pip, direction) & A_DENY)) {
-#ifdef DEBUG
-    logprintf("blocked.\n");
-#endif
+    LogPrintf(LogDEBUG, "blocked.\n");
     if (direction == 0) IcmpError(pip, pri);
     return(-1);
   } else {
@@ -328,7 +329,7 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
 
   cp = tunbuff;
   nb = 0;
-  for (wp = bp; wp; wp = wp->next) {		/* Copy to continuois region */
+  for (wp = bp; wp; wp = wp->next) {		/* Copy to contiguous region */
     bcopy(MBUF_CTOP(wp), cp, wp->cnt);
     cp += wp->cnt;
     nb += wp->cnt;
@@ -342,7 +343,7 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
     nb = ntohs(((struct ip *) tunbuff)->ip_len);
 
     if (nb > MAX_MRU) {
-      fprintf(stderr, "Problem with IP header length\n");
+      LogPrintf(LogERROR, "IpInput: Problem with IP header length\n");
       pfree(bp);
       return;
     }
@@ -359,7 +360,7 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
       nb = ntohs(((struct ip *) tunbuff)->ip_len);
       nw = write(tun_out, tunbuff, nb);
       if (nw != nb)
-        fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
+        LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
 
       if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
         while ((fptr = VarGetNextFragmentPtr(tunbuff)) != NULL) {
@@ -367,7 +368,7 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
           nb = ntohs(((struct ip *) fptr)->ip_len);
           nw = write(tun_out, fptr, nb);
           if (nw != nb)
-            fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
+            LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
           free(fptr);
         }
       }
@@ -375,9 +376,8 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
     else if (iresult == PKT_ALIAS_UNRESOLVED_FRAGMENT) {
       nb = ntohs(((struct ip *) tunbuff)->ip_len);
       fptr = malloc(nb);
-      if (fptr == NULL) {
-        fprintf(stderr, "Cannot allocate memory for fragment\n");
-      }
+      if (fptr == NULL)
+        LogPrintf(LogALERT, "IpInput: Cannot allocate memory for fragment\n");
       else {
         memcpy(fptr, tunbuff, nb);
         VarSaveFragmentPtr(fptr);
@@ -395,7 +395,7 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
     ipInOctets += nb;
     nw = write(tun_out, tunbuff, nb);
     if (nw != nb)
-      fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
+      LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
   }
   pfree(bp);
 

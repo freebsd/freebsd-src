@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.16 1997/05/31 16:38:27 brian Exp $
+ * $Id: command.c,v 1.54 1997/06/09 03:27:16 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -32,6 +32,8 @@
 #include <net/route.h>
 #include <paths.h>
 #include <alias.h>
+#include <fcntl.h>
+#include <errno.h>
 #include "fsm.h"
 #include "phase.h"
 #include "lcp.h"
@@ -46,6 +48,7 @@
 #include "systems.h"
 #include "chat.h"
 #include "os.h"
+#include "timeout.h"
 
 extern void Cleanup(), TtyTermMode(), PacketMode();
 extern int  EnableCommand(), DisableCommand(), DisplayCommand();
@@ -80,27 +83,32 @@ struct cmdtab *plist;
   struct cmdtab *cmd;
   int n;
 
+  if (!VarTerm)
+    return 0;
+
   if (argc > 0) {
-    for (cmd = plist; cmd->name; cmd++) {
+    for (cmd = plist; cmd->name; cmd++)
       if (strcasecmp(cmd->name, *argv) == 0 && (cmd->lauth & VarLocalAuth)) {
 	if (plist == SetCommands)
-		printf("set ");
-        printf("%s %s\n", cmd->name, cmd->syntax);
-        return(1);
+	  fprintf(VarTerm, "set ");
+        fprintf(VarTerm, "%s\n", cmd->syntax);
+        return 0;
       }
-    }
-    return(1);
+
+    return -1;
   }
+
   n = 0;
-  for (cmd = plist; cmd->func; cmd++) {
+  for (cmd = plist; cmd->func; cmd++)
     if (cmd->name && (cmd->lauth & VarLocalAuth)) {
-      printf("  %-8s: %-20s\n", cmd->name, cmd->helpmes);
+      fprintf(VarTerm, "  %-8s: %-20s\n", cmd->name, cmd->helpmes);
       n++;
     }
-  }
+
   if (n & 1)
-    printf("\n");
-  return(1);
+    fprintf(VarTerm, "\n");
+
+  return 0;
 }
 
 int
@@ -119,10 +127,11 @@ IsInteractive()
   else if (mode & MODE_DEDICATED)
     mes = "Working in dedicated mode.";
   if (mes) {
-    printf("%s\n", mes);
-    return(0);
+    if (VarTerm)
+      fprintf(VarTerm, "%s\n", mes);
+    return 0;
   }
-  return(1);
+  return 1;
 }
 
 static int
@@ -134,23 +143,30 @@ char **argv;
   int tries;
 
   if (LcpFsm.state > ST_CLOSED) {
-    printf("LCP state is [%s]\n", StateNames[LcpFsm.state]);
-    return(1);
+    if (VarTerm)
+      fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpFsm.state]);
+    return 0;
   }
+
   if (!IsInteractive())
     return(1);
+
   if (argc > 0) {
     if (SelectSystem(*argv, CONFFILE) < 0) {
-      printf("%s: not found.\n", *argv);
-      return(1);
+      if (VarTerm)
+        fprintf(VarTerm, "%s: not found.\n", *argv);
+      return -1;
     }
   }
+
   tries = 0;
   do {
-    printf("Dial attempt %u of %d\n", ++tries, VarDialTries);
+    if (VarTerm)
+      fprintf(VarTerm, "Dial attempt %u of %d\n", ++tries, VarDialTries);
     modem = OpenModem(mode);
     if (modem < 0) {
-      printf("failed to open modem.\n");
+      if (VarTerm)
+        fprintf(VarTerm, "Failed to open modem.\n");
       break;
     }
     if (DialModem() == EX_DONE) {
@@ -160,7 +176,8 @@ char **argv;
       break;
     }
   } while (VarDialTries == 0 || tries < VarDialTries);
-  return(1);
+
+  return 0;
 }
 
 static int
@@ -171,33 +188,50 @@ char **argv;
 {
   const char *shell;
   pid_t shpid;
+  FILE *oVarTerm;
 
-  if((shell = getenv("SHELL")) == 0) {
-    shell = _PATH_BSHELL;
-  }
 #ifdef SHELL_ONLY_INTERACTIVELY
-#ifndef HAVE_SHELL_CMD_WITH_ANY_MODE
-  if( mode != MODE_INTER) {
-     fprintf(stdout,
-             "Can only start a shell in interactive mode\n");
-     return(1);
+  if (mode != MODE_INTER) {
+    LogPrintf(LogWARN, "Can only start a shell in interactive mode\n");
+    return 1;
   }
-#else
-  if(argc == 0 && !(mode & MODE_INTER)) {
-      fprintf(stderr,
-             "Can only start an interactive shell in interactive mode\n");
-      return(1);
-  }
-#endif /* HAVE_SHELL_CMD_WITH_ANY_MODE */
 #else
   if ((mode & (MODE_AUTO|MODE_INTER)) == (MODE_AUTO|MODE_INTER)) {
-     fprintf(stdout,
-             "Shell is not allowed interactively in auto mode\n");
-     return(1);
+    LogPrintf(LogWARN,  "Shell is not allowed interactively in auto mode\n");
+    return 1;
   }
-#endif /* SHELL_ONLY_INTERACTIVELY */
+#endif
+
+  if(argc == 0 && !(mode & MODE_INTER)) {
+    LogPrintf(LogWARN, "Can only start an interactive shell in"
+	      " interactive mode\n");
+    return 1;
+  }
+
+  if((shell = getenv("SHELL")) == 0)
+    shell = _PATH_BSHELL;
+
   if((shpid = fork()) == 0) {
-     int dtablesize, i ;
+     int dtablesize, i, fd;
+
+     if (VarTerm)
+       fd = fileno(VarTerm);
+     else if ((fd = open("/dev/null", O_RDWR)) == -1) {
+       LogPrintf(LogALERT, "Failed to open /dev/null: %s\n", strerror(errno));
+       exit(1);
+     }
+
+     for (i = 0; i < 3; i++)
+       dup2(fd, i);
+
+     if (fd > 2)
+       if (VarTerm) {
+	 oVarTerm = VarTerm;
+	 VarTerm = 0;
+         if (oVarTerm && oVarTerm != stdout)
+           fclose(oVarTerm);
+       } else
+         close(fd);
 
      for (dtablesize = getdtablesize(), i = 3; i < dtablesize; i++)
 	(void)close(i);
@@ -207,11 +241,11 @@ char **argv;
       * real user for avoiding security problems.
       */
      if (setgid(getgid()) < 0) {
-	perror("setgid");
+        LogPrintf(LogERROR, "setgid: %s\n", strerror(errno));
 	exit(1);
      }
      if (setuid(getuid()) < 0) {
-	perror("setuid");
+        LogPrintf(LogERROR, "setuid: %s\n", strerror(errno));
 	exit(1);
      }
      TtyOldMode();
@@ -233,11 +267,12 @@ char **argv;
      else
        (void)execl(shell, shell, NULL);
 
-     fprintf(stdout, "exec() of %s failed\n", argc > 0? argv[0]: shell);
+     LogPrintf(LogWARN, "exec() of %s failed\n", argc > 0 ? argv[0] : shell);
      exit(255);
   }
+
   if( shpid == (pid_t)-1 ) {
-    fprintf(stdout, "Fork failed\n");
+    LogPrintf(LogERROR, "Fork failed: %s\n", strerror(errno));
   } else {
     int status;
     (void)waitpid(shpid, &status, 0);
@@ -248,51 +283,47 @@ char **argv;
   return(0);
 }
 
-static char StrOption[] = "option ..";
-static char StrRemote[] = "[remote]";
-char StrNull[] = "";
-
 struct cmdtab const Commands[] = {
   { "accept",  NULL,    AcceptCommand,	LOCAL_AUTH,
-  	"accept option request",	StrOption},
+  	"accept option request",	"accept option .."},
   { "add",     NULL,	AddCommand,	LOCAL_AUTH,
-	"add route",			"dest mask gateway"},
+	"add route",			"add dest mask gateway"},
   { "close",   NULL,    CloseCommand,	LOCAL_AUTH,
-	"Close connection",		StrNull},
+	"Close connection",		"close"},
   { "delete",  NULL,    DeleteCommand,	LOCAL_AUTH,
-	"delete route",                 "ALL | dest gateway [mask]"},
+	"delete route",                 "delete ALL | dest gateway [mask]"},
   { "deny",    NULL,    DenyCommand,	LOCAL_AUTH,
-  	"Deny option request",		StrOption},
+  	"Deny option request",		"deny option .."},
   { "dial",    "call",  DialCommand,	LOCAL_AUTH,
-  	"Dial and login",		StrRemote},
+  	"Dial and login",		"dial|call [remote]"},
   { "disable", NULL,    DisableCommand,	LOCAL_AUTH,
-  	"Disable option",		StrOption},
+  	"Disable option",		"disable option .."},
   { "display", NULL,    DisplayCommand,	LOCAL_AUTH,
-  	"Display option configs",	StrNull},
+  	"Display option configs",	"display"},
   { "enable",  NULL,    EnableCommand,	LOCAL_AUTH,
-  	"Enable option",		StrOption},
+  	"Enable option",		"enable option .."},
   { "passwd",  NULL,	LocalAuthCommand,LOCAL_NO_AUTH,
-  	"Password for manipulation", StrOption},
+  	"Password for manipulation", "passwd option .."},
   { "load",    NULL,    LoadCommand,	LOCAL_AUTH,
-  	"Load settings",		StrRemote},
+  	"Load settings",		"load [remote]"},
   { "save",    NULL,    SaveCommand,	LOCAL_AUTH,
-  	"Save settings", StrNull},
+  	"Save settings", "save"},
   { "set",     "setup", SetCommand,	LOCAL_AUTH,
-  	"Set parameters",  "var value"},
+  	"Set parameters",  "set[up] var value"},
   { "shell",   "!",     ShellCommand,   LOCAL_AUTH,
-	"Run a subshell",  "[sh command]"},
+	"Run a subshell",  "shell|! [sh command]"},
   { "show",    NULL,    ShowCommand,	LOCAL_AUTH,
-  	"Show status and statictics", "var"},
+  	"Show status and statictics", "show var"},
   { "term",    NULL,    TerminalCommand,LOCAL_AUTH,
-  	"Enter to terminal mode", StrNull},
+  	"Enter to terminal mode", "term"},
   { "alias",   NULL,    AliasCommand,   LOCAL_AUTH,
-        "alias control",        "option [yes|no]"},
+        "alias control",        "alias option [yes|no]"},
   { "quit",    "bye",   QuitCommand,	LOCAL_AUTH | LOCAL_NO_AUTH,
-	"Quit PPP program", "[all]"},
+	"Quit PPP program", "quit|bye [all]"},
   { "help",    "?",     HelpCommand,	LOCAL_AUTH | LOCAL_NO_AUTH,
-	"Display this message", "[command]", (void *)Commands },
+	"Display this message", "help|? [command]", (void *)Commands },
   { NULL,      "down",  DownCommand,	LOCAL_AUTH,
-  	"Generate down event",		StrNull},
+  	"Generate down event",		"down"},
   { NULL,      NULL,    NULL },
 };
 
@@ -305,56 +336,56 @@ extern int ShowModemStatus();
 extern int ReportHdlcStatus();
 extern int ShowMemMap();
 
-static char *LogLevelName[] = {
-  LM_PHASE,   LM_CHAT,    LM_LQM,   LM_LCP,
-  LM_TCPIP,   LM_HDLC,    LM_ASYNC, LM_LINK, 
-  LM_CONNECT, LM_CARRIER,
-};
-
-static int ShowDebugLevel()
+static int ShowLogLevel()
 {
   int i;
 
-  printf("%02x: ", loglevel);
-  for (i = LOG_PHASE; i < MAXLOGLEVEL; i++) {
-    if (loglevel & (1 << i))
-      printf("%s ", LogLevelName[i]);
+  if (!VarTerm)
+    return 0;
+  fprintf(VarTerm, "Log:");
+  for (i = LogMIN; i < LogMAXCONF; i++) {
+    if (LogIsKept(i))
+      fprintf(VarTerm, " %s", LogName(i));
   }
-  printf("\n");
-  return(1);
+  fprintf(VarTerm, "\n");
+
+  return 0;
 }
 
 static int ShowEscape()
 {
   int code, bit;
 
+  if (!VarTerm)
+    return 0;
   if (EscMap[32]) {
-    for (code = 0; code < 32; code++) {
-      if (EscMap[code]) {
-        for (bit = 0; bit < 8; bit++) {
-          if (EscMap[code] & (1<<bit)) {
-            printf(" 0x%02x", (code << 3) + bit);
-          }
-        }
-      }
-    }
-    printf("\n");
+    for (code = 0; code < 32; code++)
+      if (EscMap[code])
+        for (bit = 0; bit < 8; bit++)
+          if (EscMap[code] & (1<<bit))
+            fprintf(VarTerm, " 0x%02x", (code << 3) + bit);
+    fprintf(VarTerm, "\n");
   }
-  return(1);
+  return 1;
 }
 
 static int ShowTimeout()
 {
-  printf(" Idle Timer: %d secs   LQR Timer: %d secs   Retry Timer: %d secs\n",
-    VarIdleTimeout, VarLqrTimeout, VarRetryTimeout);
-  return(1);
+  if (!VarTerm)
+    return 0;
+  fprintf(VarTerm, " Idle Timer: %d secs   LQR Timer: %d secs"
+          "   Retry Timer: %d secs\n", VarIdleTimeout, VarLqrTimeout,
+          VarRetryTimeout);
+  return 1;
 }
 
 static int ShowAuthKey()
 {
-  printf("AuthName = %s\n", VarAuthName);
-  printf("AuthKey  = %s\n", VarAuthKey);
-  return(1);
+  if (!VarTerm)
+    return 0;
+  fprintf(VarTerm, "AuthName = %s\n", VarAuthName);
+  fprintf(VarTerm, "AuthKey  = %s\n", VarAuthKey);
+  return 1;
 }
 
 static int ShowVersion()
@@ -362,134 +393,137 @@ static int ShowVersion()
   extern char VarVersion[];
   extern char VarLocalVersion[];
 
-  printf("%s - %s \n", VarVersion, VarLocalVersion);
-  return(1);
-}
-
-static int ShowLogList()
-{
-  ListLog();
-  return(1);
+  if (!VarTerm)
+    return 0;
+  fprintf(VarTerm, "%s - %s \n", VarVersion, VarLocalVersion);
+  return 1;
 }
 
 static int ShowInitialMRU()
 {
-  printf(" Initial MRU: %ld\n", VarMRU);
-  return(1);
+  if (!VarTerm)
+    return 0;
+  fprintf(VarTerm, " Initial MRU: %ld\n", VarMRU);
+  return 1;
 }
 
 static int ShowPreferredMTU()
 {
+  if (!VarTerm)
+    return 0;
   if (VarPrefMTU)
-    printf(" Preferred MTU: %ld\n", VarPrefMTU);
+    fprintf(VarTerm, " Preferred MTU: %ld\n", VarPrefMTU);
   else
-    printf(" Preferred MTU: unspecified\n");
-  return(1);
+    fprintf(VarTerm, " Preferred MTU: unspecified\n");
+  return 1;
 }
 
 static int ShowReconnect()
 {
-  printf(" Reconnect Timer:  %d,  %d tries\n",
+  if (!VarTerm)
+    return 0;
+  fprintf(VarTerm, " Reconnect Timer:  %d,  %d tries\n",
          VarReconnectTimer, VarReconnectTries);
-  return(1);
+  return 1;
 }
 
 static int ShowRedial()
 {
-  printf(" Redial Timer: ");
+  if (!VarTerm)
+    return 0;
+  fprintf(VarTerm, " Redial Timer: ");
 
   if (VarRedialTimeout >= 0) {
-    printf(" %d seconds, ", VarRedialTimeout);
+    fprintf(VarTerm, " %d seconds, ", VarRedialTimeout);
   }
   else {
-    printf(" Random 0 - %d seconds, ", REDIAL_PERIOD);
+    fprintf(VarTerm, " Random 0 - %d seconds, ", REDIAL_PERIOD);
   }
 
-  printf(" Redial Next Timer: ");
+  fprintf(VarTerm, " Redial Next Timer: ");
 
   if (VarRedialNextTimeout >= 0) {
-    printf(" %d seconds, ", VarRedialNextTimeout);
+    fprintf(VarTerm, " %d seconds, ", VarRedialNextTimeout);
   }
   else {
-    printf(" Random 0 - %d seconds, ", REDIAL_PERIOD);
+    fprintf(VarTerm, " Random 0 - %d seconds, ", REDIAL_PERIOD);
   }
 
   if (VarDialTries)
-      printf("%d dial tries", VarDialTries);
+      fprintf(VarTerm, "%d dial tries", VarDialTries);
 
-  printf("\n");
+  fprintf(VarTerm, "\n");
 
-  return(1);
+  return 1;
 }
 
-#ifdef MSEXT
+#ifndef NOMSEXT
 static int ShowMSExt()
 {
-  printf(" MS PPP extention values \n" );
-  printf("   Primary NS     : %s\n", inet_ntoa( ns_entries[0] ));
-  printf("   Secondary NS   : %s\n", inet_ntoa( ns_entries[1] ));
-  printf("   Primary NBNS   : %s\n", inet_ntoa( nbns_entries[0] ));
-  printf("   Secondary NBNS : %s\n", inet_ntoa( nbns_entries[1] ));
-
-  return(1);
+  if (!VarTerm)
+    return 0;
+  fprintf(VarTerm, " MS PPP extention values \n" );
+  fprintf(VarTerm, "   Primary NS     : %s\n", inet_ntoa( ns_entries[0] ));
+  fprintf(VarTerm, "   Secondary NS   : %s\n", inet_ntoa( ns_entries[1] ));
+  fprintf(VarTerm, "   Primary NBNS   : %s\n", inet_ntoa( nbns_entries[0] ));
+  fprintf(VarTerm, "   Secondary NBNS : %s\n", inet_ntoa( nbns_entries[1] ));
+  return 1;
 }
-#endif /* MSEXT */
+#endif
 
 extern int ShowIfilter(), ShowOfilter(), ShowDfilter(), ShowAfilter();
 
 struct cmdtab const ShowCommands[] = {
   { "afilter",  NULL,     ShowAfilter,		LOCAL_AUTH,
-	"Show keep Alive filters", StrOption},
+	"Show keep Alive filters", "show afilter option .."},
   { "auth",     NULL,     ShowAuthKey,		LOCAL_AUTH,
-	"Show auth name/key", StrNull},
+	"Show auth name/key", "show auth"},
   { "ccp",      NULL,     ReportCcpStatus,	LOCAL_AUTH,
-	"Show CCP status", StrNull},
+	"Show CCP status", "show cpp"},
   { "compress", NULL,     ReportCompress,	LOCAL_AUTH,
-	"Show compression statictics", StrNull},
-  { "debug",	NULL,	  ShowDebugLevel,	LOCAL_AUTH,
-	"Show current debug level", StrNull},
+	"Show compression statictics", "show compress"},
   { "dfilter",  NULL,     ShowDfilter,		LOCAL_AUTH,
-	"Show Demand filters", StrOption},
+	"Show Demand filters", "show dfilteroption .."},
   { "escape",   NULL,     ShowEscape,		LOCAL_AUTH,
-	"Show escape characters", StrNull},
+	"Show escape characters", "show escape"},
   { "hdlc",	NULL,	  ReportHdlcStatus,	LOCAL_AUTH,
-	"Show HDLC error summary", StrNull},
+	"Show HDLC error summary", "show hdlc"},
   { "ifilter",  NULL,     ShowIfilter,		LOCAL_AUTH,
-	"Show Input filters", StrOption},
+	"Show Input filters", "show ifilter option .."},
   { "ipcp",     NULL,     ReportIpcpStatus,	LOCAL_AUTH,
-	"Show IPCP status", StrNull},
+	"Show IPCP status", "show ipcp"},
   { "lcp",      NULL,     ReportLcpStatus,	LOCAL_AUTH,
-	"Show LCP status", StrNull},
-  { "log",      NULL,     ShowLogList,		LOCAL_AUTH,
-	"Show log records", StrNull},
+	"Show LCP status", "show lcp"},
+  { "log",	NULL,	  ShowLogLevel,	LOCAL_AUTH,
+	"Show current log level", "show log"},
   { "mem",      NULL,     ShowMemMap,		LOCAL_AUTH,
-	"Show memory map", StrNull},
+	"Show memory map", "show mem"},
   { "modem",    NULL,     ShowModemStatus,	LOCAL_AUTH,
-	"Show modem setups", StrNull},
+	"Show modem setups", "show modem"},
   { "mru",      NULL,     ShowInitialMRU,	LOCAL_AUTH,
-	"Show Initial MRU", StrNull},
+	"Show Initial MRU", "show mru"},
   { "mtu",      NULL,     ShowPreferredMTU,	LOCAL_AUTH,
-	"Show Preferred MTU", StrNull},
+	"Show Preferred MTU", "show mtu"},
   { "ofilter",  NULL,     ShowOfilter,		LOCAL_AUTH,
-	"Show Output filters", StrOption},
+	"Show Output filters", "show ofilter option .."},
   { "proto",    NULL,     ReportProtStatus,	LOCAL_AUTH,
-	"Show protocol summary", StrNull},
+	"Show protocol summary", "show proto"},
   { "reconnect",NULL,	  ShowReconnect,	LOCAL_AUTH,
-	"Show Reconnect timer,tries", StrNull},
+	"Show Reconnect timer,tries", "show reconnect"},
   { "redial",   NULL,	  ShowRedial,		LOCAL_AUTH,
-	"Show Redial timeout value", StrNull},
+	"Show Redial timeout value", "show redial"},
   { "route",    NULL,     ShowRoute,		LOCAL_AUTH,
-	"Show routing table", StrNull},
+	"Show routing table", "show route"},
   { "timeout",  NULL,	  ShowTimeout,		LOCAL_AUTH,
-	"Show Idle timeout value", StrNull},
-#ifdef MSEXT
+	"Show Idle timeout value", "show timeout"},
+#ifndef NOMSEXT
   { "msext", 	NULL,	  ShowMSExt,		LOCAL_AUTH,
-	"Show MS PPP extentions", StrNull},
-#endif /* MSEXT */
+	"Show MS PPP extentions", "show msext"},
+#endif
   { "version",  NULL,	  ShowVersion,		LOCAL_NO_AUTH | LOCAL_AUTH,
-	"Show version string", StrNull},
+	"Show version string", "show version"},
   { "help",     "?",      HelpCommand,		LOCAL_NO_AUTH | LOCAL_AUTH,
-	"Display this message", StrNull, (void *)ShowCommands},
+	"Display this message", "show help|?", (void *)ShowCommands},
   { NULL,       NULL,     NULL },
 };
 
@@ -499,22 +533,33 @@ struct cmdtab *cmds;
 char *str;
 int *pmatch;
 {
-  int nmatch = 0;
-  int len = strlen(str);
-  struct cmdtab *found = NULL;
+  int nmatch;
+  int len;
+  struct cmdtab *found;
 
+  found = NULL;
+  len = strlen(str);
+  nmatch = 0;
   while (cmds->func) {
     if (cmds->name && strncasecmp(str, cmds->name, len) == 0) {
+      if (cmds->name[len] == '\0') {
+        *pmatch = 1;
+        return cmds;
+      }
       nmatch++;
       found = cmds;
-    } else if (cmds->alias && strncasecmp(str, cmds->alias, len) == 0) {
+    } else if(cmds->alias && strncasecmp(str, cmds->alias, len) == 0) {
+      if (cmds->alias[len] == '\0') {
+        *pmatch = 1;
+        return cmds;
+      }
       nmatch++;
       found = cmds;
     }
     cmds++;
   }
   *pmatch = nmatch;
-  return(found);
+  return found;
 }
 
 int
@@ -529,26 +574,33 @@ char **argv;
 
   cmd = FindCommand(cmdlist, *argv, &nmatch);
   if (nmatch > 1)
-    printf("Ambiguous.\n");
+    LogPrintf(LogWARN, "%s: Ambiguous command\n", *argv);
   else if (cmd && ( cmd->lauth & VarLocalAuth ) )
     val = (cmd->func)(cmd, --argc, ++argv, cmd->args);
   else
-    printf("what?\n");
-  return(val);
+    LogPrintf(LogWARN, "%s: Invalid command\n", *argv);
+
+  if (val == -1)
+    LogPrintf(LogWARN, "Usage: %s\n", cmd->syntax);
+  else if(val)
+    LogPrintf(LogCOMMAND, "%s: Failed %d\n", *argv, val);
+
+  return val;
 }
 
 int aft_cmd = 1;
+extern int TermMode;
 
 void
 Prompt()
 {
   char *pconnect, *pauth;
 
-  if (!(mode & MODE_INTER))
+  if (!(mode & MODE_INTER) || !VarTerm || TermMode)
     return;
 
   if (!aft_cmd)
-    printf("\n");
+    fprintf(VarTerm, "\n");
   else
     aft_cmd = 0;
 
@@ -560,8 +612,8 @@ Prompt()
     pconnect = "PPP";
   else
     pconnect = "ppp";
-  printf("%s%s%s> ", pconnect, pauth, VarShortHost);
-  fflush(stdout);
+  fprintf(VarTerm, "%s%s%s> ", pconnect, pauth, VarShortHost);
+  fflush(VarTerm);
 }
 
 void
@@ -572,23 +624,20 @@ int prompt;
 {
   char *vector[20];
   char **argv;
-  int argc, val;
+  int argc;
   char *cp;
 
-  val = 1;
   if (nb > 0) {
     cp = buff + strcspn(buff, "\r\n");
     if (cp)
       *cp = '\0';
-    {
-      argc = MakeArgs(buff, vector, VECSIZE(vector));
-      argv = vector;
+    argc = MakeArgs(buff, vector, VECSIZE(vector));
+    argv = vector;
 
-      if (argc > 0)
-        val = FindExec(Commands, argc, argv);
-    }
+    if (argc > 0)
+      FindExec(Commands, argc, argv);
   }
-  if (val && prompt)
+  if (prompt)
     Prompt();
 }
 
@@ -598,31 +647,36 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  int val = 1;
-
   if (argc > 0)
-    val = FindExec(ShowCommands, argc, argv);
+    FindExec(ShowCommands, argc, argv);
+  else if (VarTerm)
+    fprintf(VarTerm, "Use ``show ?'' to get a list.\n");
   else
-    printf("Use ``show ?'' to get a list.\n");
-  return(val);
+    LogPrintf(LogWARN, "show command must have arguments\n");
+
+  return 0;
 }
 
 static int
 TerminalCommand()
 {
   if (LcpFsm.state > ST_CLOSED) {
-    printf("LCP state is [%s]\n", StateNames[LcpFsm.state]);
-    return(1);
+    if (VarTerm)
+      fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpFsm.state]);
+    return 1;
   }
   if (!IsInteractive())
     return(1);
   modem = OpenModem(mode);
   if (modem < 0) {
-    printf("failed to open modem.\n");
+    if (VarTerm)
+      fprintf(VarTerm, "Failed to open modem.\n");
     return(1);
   }
-  printf("Enter to terminal mode.\n");
-  printf("Type `~?' for help.\n");
+  if (VarTerm) {
+    fprintf(VarTerm, "Enter to terminal mode.\n");
+    fprintf(VarTerm, "Type `~?' for help.\n");
+  }
   TtyTermMode();
   return(0);
 }
@@ -633,22 +687,31 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
+  FILE *oVarTerm;
+
   if (mode & (MODE_DIRECT|MODE_DEDICATED|MODE_AUTO)) {
     if (argc > 0 && (VarLocalAuth & LOCAL_AUTH)) {
       Cleanup(EX_NORMAL);
       mode &= ~MODE_INTER;
+      oVarTerm = VarTerm;
+      VarTerm = 0;
+      if (oVarTerm && oVarTerm != stdout)
+        fclose(oVarTerm);
     } else {
-      LogPrintf(LOG_PHASE_BIT, "client connection closed.\n");
+      LogPrintf(LogPHASE, "Client connection closed.\n");
       VarLocalAuth = LOCAL_NO_AUTH;
-      close(netfd);
-      close(1);
-      dup2(2, 1);     /* Have to have something here or the modem will be 1 */
-      netfd = -1;
       mode &= ~MODE_INTER;
+      oVarTerm = VarTerm;
+      VarTerm = 0;
+      if (oVarTerm && oVarTerm != stdout)
+        fclose(oVarTerm);
+      close(netfd);
+      netfd = -1;
     }
   } else
     Cleanup(EX_NORMAL);
-  return(1);
+
+  return 0;
 }
 
 static int
@@ -658,14 +721,14 @@ CloseCommand()
   LcpClose();
   if (mode & MODE_BACKGROUND)
       Cleanup(EX_NORMAL);
-  return(1);
+  return 0;
 }
 
 static int
 DownCommand()
 {
   LcpDown();
-  return(1);
+  return 0;
 }
 
 static int
@@ -679,16 +742,16 @@ char **argv;
   if (argc > 0) {
     if (strcmp(*argv, "sync") == 0) {
       VarSpeed = 0;
-      return(1);
+      return 0;
     }
     speed = atoi(*argv);
     if (IntToSpeed(speed) != B0) {
       VarSpeed = speed;
-      return(1);
+      return 0;
     }
-    printf("invalid speed.\n");
+    LogPrintf(LogWARN, "%s: Invalid speed\n", *argv);
   }
-  return(1);
+  return -1;
 }
 
 static int
@@ -700,9 +763,10 @@ char **argv;
   if (argc == 2) {
     VarReconnectTimer = atoi(argv[0]);
     VarReconnectTries = atoi(argv[1]);
-  } else
-    printf("Usage: %s %s\n", list->name, list->syntax);
-  return(1);
+    return 0;
+  }
+
+  return -1;
 }
 
 static int
@@ -719,18 +783,15 @@ char **argv;
     if (strncasecmp(argv[0], "random", 6) == 0 &&
 	(argv[0][6] == '\0' || argv[0][6] == '.')) {
       VarRedialTimeout = -1;
-      printf("Using random redial timeout.\n");
       srandom(time(0));
-    }
-    else {
+    } else {
       timeout = atoi(argv[0]);
 
-      if (timeout >= 0) {
+      if (timeout >= 0)
 	VarRedialTimeout = timeout;
-      }
       else {
-	printf("invalid redial timeout\n");
-	printf("Usage: %s %s\n", list->name, list->syntax);
+	LogPrintf(LogWARN, "Invalid redial timeout\n");
+        return -1;
       }
     }
 
@@ -738,17 +799,15 @@ char **argv;
     if (dot) {
       if (strcasecmp(++dot, "random") == 0) {
         VarRedialNextTimeout = -1;
-        printf("Using random next redial timeout.\n");
         srandom(time(0));
       }
       else {
         timeout = atoi(dot);
-        if (timeout >= 0) {
+        if (timeout >= 0)
           VarRedialNextTimeout = timeout;
-        }
         else {
-          printf("invalid next redial timeout\n");
-          printf("Usage: %s %s\n", list->name, list->syntax);
+          LogPrintf(LogWARN, "Invalid next redial timeout\n");
+	  return -1;
         }
       }
     }
@@ -759,18 +818,16 @@ char **argv;
       tries = atoi(argv[1]);
 
       if (tries >= 0) {
-	  VarDialTries = tries;
-      }
-      else {
-	printf("invalid retry value\n");
-	printf("Usage: %s %s\n", list->name, list->syntax);
+	VarDialTries = tries;
+      } else {
+	LogPrintf(LogWARN, "Invalid retry value\n");
+	return 1;
       }
     }
+    return 0;
   }
-  else {
-    printf("Usage: %s %s\n", list->name, list->syntax);
-  }
-  return(1);
+
+  return -1;
 }
 
 static int
@@ -784,40 +841,46 @@ char **argv;
   if (argc > 0) {
     parity = ChangeParity(*argv);
     if (parity < 0)
-      printf("Invalid parity.\n");
-    else
+      LogPrintf(LogWARN, "Invalid parity.\n");
+    else {
       VarParity = parity;
+      return 0;
+    }
   }
-  return(1);
+
+  return -1;
 }
 
 static int
-SetDebugLevel(list, argc, argv)
+SetLogLevel(list, argc, argv)
 struct cmdtab *list;
 int argc;
 char **argv;
 {
-  int level, w;
+  int i;
+  int res;
+  char *arg;
 
-  for (level = 0; argc-- > 0; argv++) {
-    if (isdigit(**argv)) {
-      w = atoi(*argv);
-      if (w < 0 || w >= MAXLOGLEVEL) {
-	printf("invalid log level.\n");
+  res = 0;
+  if (argc == 0 || (argv[0][0] != '+' && argv[0][0] != '-'))
+    LogDiscardAll();
+  while (argc--) {
+    arg = **argv == '+' || **argv == '-' ? *argv + 1 : *argv;
+    for (i = LogMIN; i <= LogMAX; i++)
+      if (strcasecmp(arg, LogName(i)) == 0) {
+        if (**argv == '-')
+          LogDiscard(i);
+        else
+	  LogKeep(i);
 	break;
-      } else
-	level |= (1 << w);
-    } else {
-      for (w = 0; w < MAXLOGLEVEL; w++) {
-	if (strcasecmp(*argv, LogLevelName[w]) == 0) {
-	  level |= (1 << w);
-	  continue;
-	}
       }
+    if (i > LogMAX) {
+      LogPrintf(LogWARN, "%s: Invalid log value\n", arg);
+      res = -1;
     }
+    argv++;
   }
-  loglevel = level;
-  return(1);
+  return res;
 }
 
 static int
@@ -836,7 +899,7 @@ char **argv;
     EscMap[code >> 3] |= (1 << (code&7));
     EscMap[32] = 1;
   }
-  return(1);
+  return 0;
 }
 
 static int
@@ -846,19 +909,22 @@ int argc;
 char **argv;
 {
   long mru;
+  char *err;
 
   if (argc > 0) {
     mru = atol(*argv);
     if (mru < MIN_MRU)
-      printf("Given MRU value (%ld) is too small.\n", mru);
+      err = "Given MRU value (%ld) is too small.\n";
     else if (mru > MAX_MRU)
-      printf("Given MRU value (%ld) is too big.\n", mru);
-    else
+      err = "Given MRU value (%ld) is too big.\n";
+    else {
       VarMRU = mru;
-  } else
-    printf("Usage: %s %s\n", list->name, list->syntax);
+      return 0;
+    }
+    LogPrintf(LogWARN, err, mru);
+  }
 
-  return(1);
+  return -1;
 }
 
 static int
@@ -868,21 +934,25 @@ int argc;
 char **argv;
 {
   long mtu;
+  char *err;
 
   if (argc > 0) {
     mtu = atol(*argv);
-    if (mtu == 0)
+    if (mtu == 0) {
       VarPrefMTU = 0;
-    else if (mtu < MIN_MTU)
-      printf("Given MTU value (%ld) is too small.\n", mtu);
+      return 0;
+    } else if (mtu < MIN_MTU)
+      err = "Given MTU value (%ld) is too small.\n";
     else if (mtu > MAX_MTU)
-      printf("Given MTU value (%ld) is too big.\n", mtu);
-    else
+      err = "Given MTU value (%ld) is too big.\n";
+    else {
       VarPrefMTU = mtu;
-  } else
-    printf("Usage: %s %s\n", list->name, list->syntax);
+      return 0;
+    }
+    LogPrintf(LogWARN, err, mtu);
+  }
 
-  return(1);
+  return -1;
 }
 
 static int
@@ -893,6 +963,7 @@ char **argv;
 {
   if (argc-- > 0) {
     VarIdleTimeout = atoi(*argv++);
+    UpdateIdleTimer();  /* If we're connected, restart the idle timer */
     if (argc-- > 0) {
       VarLqrTimeout = atoi(*argv++);
       if (VarLqrTimeout < 1)
@@ -903,8 +974,10 @@ char **argv;
 	  VarRetryTimeout = 3;
       }
     }
+    return 0;
   }
-  return(1);
+ 
+  return -1;
 }
 
 struct in_addr
@@ -930,22 +1003,21 @@ char **argv;
 {
 
   DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
-  if (argc > 4) {
-     printf("set ifaddr: too many arguments (%d > 4)\n", argc);
-     return(0);
-  }
+  if (argc > 4)
+     return -1;
+
   if (argc > 0) {
     if (ParseAddr(argc, argv++,
             &DefMyAddress.ipaddr,
 	    &DefMyAddress.mask,
 	    &DefMyAddress.width) == 0)
-       return(0);
+       return 1;
     if (--argc > 0) {
       if (ParseAddr(argc, argv++,
 		    &DefHisAddress.ipaddr,
 		    &DefHisAddress.mask,
 		    &DefHisAddress.width) == 0)
-	 return(0);
+	 return 2;
       if (--argc > 0) {
         ifnetmask = GetIpAddr(*argv);
     	if (--argc > 0) {
@@ -953,7 +1025,7 @@ char **argv;
 			 &DefTriggerAddress.ipaddr,
 			 &DefTriggerAddress.mask,
 			 &DefTriggerAddress.width) == 0)
-	      return(0);
+	      return 3;
 	}
       }
     }
@@ -973,12 +1045,12 @@ char **argv;
   if ((mode & MODE_AUTO) ||
 	((mode & MODE_DEDICATED) && dstsystem)) {
     if (OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr, ifnetmask) < 0)
-       return(0);
+       return 4;
   }
-  return(1);
+  return 0;
 }
 
-#ifdef MSEXT
+#ifndef NOMSEXT
 
 void
 SetMSEXT(pri_addr, sec_addr, argc, argv)
@@ -1017,7 +1089,7 @@ int argc;
 char **argv;
 {
   SetMSEXT(&ns_entries[0], &ns_entries[1], argc, argv);
-  return(1);
+  return 0;
 }
 
 static int
@@ -1027,7 +1099,7 @@ int argc;
 char **argv;
 {
   SetMSEXT(&nbns_entries[0], &nbns_entries[1], argc, argv);
-  return(1);
+  return 0;
 }
 
 #endif /* MS_EXT */
@@ -1068,6 +1140,7 @@ int param;
       VarLoginScript[sizeof(VarLoginScript)-1] = '\0';
       break;
     case VAR_DEVICE:
+      CloseModem();
       strncpy(VarDevice, *argv, sizeof(VarDevice)-1);
       VarDevice[sizeof(VarDevice)-1] = '\0';
       VarBaseDevice = rindex(VarDevice, '/');
@@ -1085,7 +1158,7 @@ int param;
       break;
     }
   }
-  return(1);
+  return 0;
 }
 
 static int SetCtsRts(list, argc, argv)
@@ -1099,9 +1172,10 @@ char **argv;
     else if (strcmp(*argv, "off") == 0)
       VarCtsRts = FALSE;
     else
-      printf("usage: set ctsrts [on|off].\n");
+      return -1;
+    return 0;
   }
-  return(1);
+  return -1;
 }
 
 
@@ -1116,70 +1190,69 @@ char **argv;
     else if (strcmp(*argv, "passive") == 0)
       VarOpenMode = OPEN_PASSIVE;
     else
-      printf("Invalid mode.\n");
+      return -1;
+    return 0;
   }
-  return(1);
+  return -1;
 }
-static char StrChatStr[] = "chat-script";
-static char StrValue[] = "value";
 
 extern int SetIfilter(), SetOfilter(), SetDfilter(), SetAfilter();
 
 struct cmdtab const SetCommands[] = {
   { "accmap",   NULL,	  SetVariable,		LOCAL_AUTH,
-	"Set accmap value", "hex-value", (void *)VAR_ACCMAP},
+	"Set accmap value", "set accmap hex-value", (void *)VAR_ACCMAP},
   { "afilter",  NULL,     SetAfilter, 		LOCAL_AUTH,
-	"Set keep Alive filter", "..."},
+	"Set keep Alive filter", "set afilter ..."},
   { "authkey",  "key",     SetVariable,		LOCAL_AUTH,
-	"Set authentication key", "key", (void *)VAR_AUTHKEY},
+	"Set authentication key", "set authkey|key key", (void *)VAR_AUTHKEY},
   { "authname", NULL,     SetVariable,		LOCAL_AUTH,
-	"Set authentication name", "name", (void *)VAR_AUTHNAME},
+	"Set authentication name", "set authname name", (void *)VAR_AUTHNAME},
   { "ctsrts", NULL,	  SetCtsRts,		LOCAL_AUTH,
-	"Use CTS/RTS modem signalling", "[on|off]"},
-  { "debug",    NULL,	  SetDebugLevel,	LOCAL_AUTH,
-	"Set debug level", StrValue},
+	"Use CTS/RTS modem signalling", "set ctsrts [on|off]"},
   { "device",     "line", SetVariable, 		LOCAL_AUTH,
-	"Set modem device name", "device-name",	(void *)VAR_DEVICE},
+	"Set modem device name", "set device|line device-name", (void *)VAR_DEVICE},
   { "dfilter",  NULL,     SetDfilter,		 LOCAL_AUTH,
-	"Set demand filter", "..."},
+	"Set demand filter", "set dfilter ..."},
   { "dial",     NULL,     SetVariable, 		LOCAL_AUTH,
-	"Set dialing script", StrChatStr, (void *)VAR_DIAL},
+	"Set dialing script", "set dial chat-script", (void *)VAR_DIAL},
   { "escape",   NULL,	  SetEscape, 		LOCAL_AUTH,
-	"Set escape characters", "hex-digit ..."},
+	"Set escape characters", "set escape hex-digit ..."},
   { "ifaddr",   NULL,   SetInterfaceAddr,	LOCAL_AUTH,
-	"Set destination address", "[src-addr [dst-addr [netmask [trg-addr]]]]"},
+	"Set destination address", "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
   { "ifilter",  NULL,     SetIfilter, 		LOCAL_AUTH,
-	"Set input filter", "..."},
+	"Set input filter", "set ifilter ..."},
+  { "log",    NULL,	  SetLogLevel,	LOCAL_AUTH,
+	"Set log level", "set log [+|-]value..."},
   { "login",    NULL,     SetVariable,		LOCAL_AUTH,
-	"Set login script", StrChatStr,	(void *)VAR_LOGIN },
+	"Set login script", "set login chat-script",	(void *)VAR_LOGIN },
   { "mru",      NULL,     SetInitialMRU,	LOCAL_AUTH,
-	"Set Initial MRU value", StrValue },
+	"Set Initial MRU value", "set mru value" },
   { "mtu",      NULL,     SetPreferredMTU,	LOCAL_AUTH,
-	"Set Preferred MTU value", StrValue },
+	"Set Preferred MTU value", "set mtu value" },
   { "ofilter",  NULL,	  SetOfilter,		LOCAL_AUTH,
-	"Set output filter", "..." },
+	"Set output filter", "set ofilter ..." },
   { "openmode", NULL,	  SetOpenMode,		LOCAL_AUTH,
-	"Set open mode", "[active|passive]"},
+	"Set open mode", "set openmode [active|passive]"},
   { "parity",   NULL,     SetModemParity,	LOCAL_AUTH,
-	"Set modem parity", "[odd|even|none]"},
+	"Set modem parity", "set parity [odd|even|none]"},
   { "phone",    NULL,     SetVariable,		LOCAL_AUTH,
-	"Set telephone number(s)", "phone1[:phone2[...]]", (void *)VAR_PHONE },
+	"Set telephone number(s)", "set phone phone1[:phone2[...]]", (void *)VAR_PHONE },
   { "reconnect",NULL,     SetReconnect,		LOCAL_AUTH,
-	"Set Reconnect timeout", "value ntries"},
+	"Set Reconnect timeout", "set reconnect value ntries"},
   { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
-	"Set Redial timeout", "value|random[.value|random] [dial_attempts]"},
+	"Set Redial timeout", "set redial value|random[.value|random] [dial_attempts]"},
   { "speed",    NULL,     SetModemSpeed,	LOCAL_AUTH,
-	"Set modem speed", "speed"},
+	"Set modem speed", "set speed value"},
   { "timeout",  NULL,     SetIdleTimeout,	LOCAL_AUTH,
-	"Set Idle timeout", StrValue},
-#ifdef MSEXT
+	"Set Idle timeout", "set timeout value"},
+#ifndef NOMSEXT
   { "ns",	NULL,	  SetNS,		LOCAL_AUTH,
-	"Set NameServer", "pri-addr [sec-addr]"},
+	"Set NameServer", "set ns pri-addr [sec-addr]"},
   { "nbns",	NULL,	  SetNBNS,		LOCAL_AUTH,
-	"Set NetBIOS NameServer", "pri-addr [sec-addr]"},
-#endif /* MSEXT */
+	"Set NetBIOS NameServer", "set nbns pri-addr [sec-addr]"},
+#endif
   { "help",     "?",      HelpCommand,		LOCAL_AUTH | LOCAL_NO_AUTH,
-	"Display this message", StrNull, (void *)SetCommands},
+	"Display this message", "set help|?", (void *)SetCommands},
   { NULL,       NULL,     NULL },
 };
 
@@ -1189,13 +1262,15 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  int val = 1;
-
   if (argc > 0)
-    val = FindExec(SetCommands, argc, argv);
+    FindExec(SetCommands, argc, argv);
+  else if (VarTerm)
+    fprintf(VarTerm, "Use `set ?' to get a list or `set ? <var>' for"
+	    " syntax help.\n");
   else
-    printf("Use `set ?' to get a list or `set ? <var>' for syntax help.\n");
-  return(val);
+    LogPrintf(LogWARN, "set command must have arguments\n");
+
+  return 0;
 }
 
 
@@ -1215,10 +1290,10 @@ char **argv;
     else
       gateway = GetIpAddr(argv[2]);
     OsSetRoute(RTM_ADD, dest, gateway, netmask);
-  } else {
-    printf("Usage: %s %s\n", list->name, list->syntax);
+    return 0;
   }
-  return(1);
+
+  return -1;
 }
 
 static int
@@ -1237,50 +1312,49 @@ char **argv;
       gateway = GetIpAddr(argv[1]);
     netmask.s_addr = 0;
     if (argc == 3) {
-      if (inet_aton(argv[1], &netmask) == 0) {
-	printf("bad netmask value.\n");
-	return(1);
+      if (inet_aton(argv[2], &netmask) == 0) {
+	LogPrintf(LogWARN, "Bad netmask value.\n");
+	return -1;
       }
     }
     OsSetRoute(RTM_DELETE, dest, gateway, netmask);
-  } else if (argc == 1 && strcasecmp(argv[0], "ALL") == 0) {
+  } else if (argc == 1 && strcasecmp(argv[0], "all") == 0) {
     DeleteIfRoutes(0);
-  } else {
-    printf("Usage: %s %s\n", list->name, list->syntax);
-  }
-  return(1);
-}
+  } else
+    return -1;
 
+  return 0;
+}
 
 static int AliasEnable();
 static int AliasOption();
 
-
 static struct cmdtab const AliasCommands[] =
 {
   { "enable",   NULL,     AliasEnable,          LOCAL_AUTH,
-        "enable IP aliasing", "[yes|no]"},
+        "enable IP aliasing", "alias enable [yes|no]"},
   { "port",   NULL,     AliasRedirectPort,          LOCAL_AUTH,
-        "port redirection", "[proto  addr_local:port_local  port_alias]"},
+        "port redirection", "alias port [proto addr_local:port_local  port_alias]"},
   { "addr",   NULL,     AliasRedirectAddr,          LOCAL_AUTH,
-        "static address translation", "[addr_local  addr_alias]"},
+        "static address translation", "alias addr [addr_local addr_alias]"},
   { "deny_incoming",  NULL,    AliasOption,     LOCAL_AUTH,
-        "stop incoming connections",   "[yes|no]",
+        "stop incoming connections",   "alias deny_incoming [yes|no]",
         (void*)PKT_ALIAS_DENY_INCOMING},
   { "log",  NULL,     AliasOption,              LOCAL_AUTH,
-        "log aliasing link creation",           "[yes|no]",
+        "log aliasing link creation",           "alias log [yes|no]",
         (void*)PKT_ALIAS_LOG},
   { "same_ports", NULL,     AliasOption,        LOCAL_AUTH,
-        "try to leave port numbers unchanged", "[yes|no]",
+        "try to leave port numbers unchanged", "alias same_ports [yes|no]",
         (void*)PKT_ALIAS_SAME_PORTS},
   { "use_sockets", NULL,     AliasOption,       LOCAL_AUTH,
-        "allocate host sockets", "[yes|no]",
+        "allocate host sockets", "alias use_sockets [yes|no]",
         (void*)PKT_ALIAS_USE_SOCKETS },
   { "unregistered_only", NULL,     AliasOption, LOCAL_AUTH,
-        "alias unregistered (private) IP address space only", "[yes|no]",
+        "alias unregistered (private) IP address space only",
+        "alias unregistered_only [yes|no]",
         (void*)PKT_ALIAS_UNREGISTERED_ONLY},
   { "help",     "?",      HelpCommand,          LOCAL_AUTH | LOCAL_NO_AUTH,
-        "Display this message", StrNull,
+        "Display this message", "alias help|?",
         (void *)AliasCommands},
   { NULL,       NULL,     NULL },
 };
@@ -1292,16 +1366,16 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  int val = 1;
-
   if (argc > 0)
-    val = FindExec(AliasCommands, argc, argv);
+    FindExec(AliasCommands, argc, argv);
+  else if (VarTerm)
+    fprintf(VarTerm, "Use `alias help' to get a list or `alias help <option>'"
+	    " for syntax help.\n");
   else
-    printf("Use `alias help' to get a list or `alias help <option>' for syntax h
-elp.\n");
-  return(val);
-}
+    LogPrintf(LogWARN, "alias command must have arguments\n");
 
+  return 0;
+}
 
 static int
 AliasEnable(list, argc, argv)
@@ -1309,21 +1383,26 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-    if (argc == 1 && strcmp(argv[0], "yes") == 0) {
-        if (!(mode & MODE_ALIAS))
-            if (loadAliasHandlers(&VarAliasHandlers) == 0)
-                mode |= MODE_ALIAS;
-            else
-                printf("Cannot load alias library\n");
-    } else if (argc == 1 && strcmp(argv[0], "no") == 0) {
-        if (mode & MODE_ALIAS) {
-            unloadAliasHandlers();
-            mode &= ~MODE_ALIAS;
+  if (argc == 1)
+    if (strcasecmp(argv[0], "yes") == 0) {
+      if (!(mode & MODE_ALIAS)) {
+        if (loadAliasHandlers(&VarAliasHandlers) == 0) {
+          mode |= MODE_ALIAS;
+          return 0;
         }
-    } else {
-        printf("Usage: alias %s %s\n", list->name, list->syntax);
+        LogPrintf(LogWARN, "Cannot load alias library\n");
+        return 1;
+      }
+      return 0;
+    } else if (strcasecmp(argv[0], "no") == 0) {
+      if (mode & MODE_ALIAS) {
+        unloadAliasHandlers();
+        mode &= ~MODE_ALIAS;
+      }
+      return 0;
     }
-    return(1);
+
+  return -1;
 }
 
 
@@ -1334,18 +1413,20 @@ int argc;
 char **argv;
 void* param;
 {
-   if (argc == 1 && strcmp(argv[0], "yes") == 0) {
-      if (mode & MODE_ALIAS)
+   if (argc == 1)
+     if (strcasecmp(argv[0], "yes") == 0) {
+       if (mode & MODE_ALIAS) {
          VarSetPacketAliasMode((unsigned)param, (unsigned)param);
-      else
-         printf("alias not enabled\n");
-   } else if (argc == 1 && strcmp(argv[0], "no") == 0) {
-      if (mode & MODE_ALIAS)
+         return 0;
+       }
+       LogPrintf(LogWARN, "alias not enabled\n");
+     } else if (strcmp(argv[0], "no") == 0) {
+       if (mode & MODE_ALIAS) {
          VarSetPacketAliasMode(0, (unsigned)param);
-      else
-         printf("alias not enabled\n");
-   } else {
-      printf("Usage: alias %s %s\n", list->name, list->syntax);
-   }
-   return(1);
+         return 0;
+       }
+       LogPrintf(LogWARN, "alias not enabled\n");
+     }
+
+   return -1;
 }

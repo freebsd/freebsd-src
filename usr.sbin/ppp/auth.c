@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.7.2.3 1997/05/10 01:24:30 brian Exp $
+ * $Id: auth.c,v 1.14 1997/06/09 03:27:13 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -158,9 +158,7 @@ int len, setaddr;
       }
       n -= 2;
       if (n > 0 && setaddr) {
-#ifdef DEBUG
-	LogPrintf(LOG_LCP_BIT, "*** n = %d, %s\n", n, vector[2]);
-#endif
+	LogPrintf(LogDEBUG, "AuthGetSecret: n = %d, %s\n", n, vector[2]);
 	if (ParseAddr(n--, &vector[2],
 		      &DefHisAddress.ipaddr,
 		      &DefHisAddress.mask,

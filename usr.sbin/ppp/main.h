@@ -17,11 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.12 1996/01/10 21:27:53 phk Exp $
+ * $Id: main.h,v 1.4 1997/06/09 03:27:28 brian Exp $
  *
  */
 
 #ifndef _MAIN_H_
 #define	_MAIN_H_
-void Cleanup __P((int));
+void Cleanup(int);
 #endif

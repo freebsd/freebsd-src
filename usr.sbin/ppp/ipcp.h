@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.3 1995/07/08 08:28:10 amurai Exp $
+ * $Id: ipcp.h,v 1.7 1997/06/09 03:27:24 brian Exp $
  *
  *	TODO:
  */
@@ -31,14 +31,12 @@
 
 /* MS PPP NameServer and NetBIOS NameServer stuff */
 
-#ifdef MSEXT
-
+#ifndef NOMSEXT
 #define TY_PRIMARY_DNS		129
 #define TY_PRIMARY_NBNS		130
 #define TY_SECONDARY_DNS	131
 #define TY_SECONDARY_NBNS	132
-
-#endif /* MSEXT */
+#endif
 
 struct ipcpstate {
   struct  in_addr his_ipaddr;	/* IP address he is willing to use */
@@ -69,11 +67,11 @@ extern struct in_range DefMyAddress;
 extern struct in_range DefHisAddress;
 extern struct in_range DefTriggerAddress;
 
-#ifdef MSEXT
+#ifndef NOMSEXT
 extern struct in_addr ns_entries[2];
 extern struct in_addr nbns_entries[2];
-#endif /* MSEXT */
+#endif
 
-extern void IpcpInit __P((void));
-extern void IpcpDefAddress __P((void));
+extern void IpcpInit(void);
+extern void IpcpDefAddress(void);
 #endif

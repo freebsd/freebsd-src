@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.9.2.5 1997/05/26 00:52:27 brian Exp $
+ * $Id: vars.c,v 1.20 1997/06/09 23:38:38 brian Exp $
  *
  */
 #include "fsm.h"
@@ -29,8 +29,8 @@
 #include "auth.h"
 #include "defs.h"
 
-char VarVersion[] = "Version 0.94";
-char VarLocalVersion[] = "$Date: 1997/05/26 00:52:27 $";
+char VarVersion[] = "PPP Version 1.00";
+char VarLocalVersion[] = "$Date: 1997/06/09 23:38:38 $";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -53,7 +53,7 @@ struct pppvars pppVars = {
   DEF_MRU, DEF_MTU, 0, MODEM_SPEED, CS8, MODEM_CTSRTS, 180, 30, 3,
   RECONNECT_TIMER, RECONNECT_TRIES, REDIAL_PERIOD,
   NEXT_REDIAL_PERIOD, 1, MODEM_DEV, BASE_MODEM_DEV,
-  OPEN_ACTIVE, LOCAL_NO_AUTH,
+  OPEN_ACTIVE, LOCAL_NO_AUTH,0
 };
 
 int
@@ -61,122 +61,73 @@ DisplayCommand()
 {
   struct confdesc *vp;
 
-  printf("Current configuration option settings..\n\n");
-  printf("Name\t\tMy Side\t\tHis Side\n");
-  printf("----------------------------------------\n");
+  if (!VarTerm)
+    return 1;
+
+  fprintf(VarTerm, "Current configuration option settings..\n\n");
+  fprintf(VarTerm, "Name\t\tMy Side\t\tHis Side\n");
+  fprintf(VarTerm, "----------------------------------------\n");
   for (vp = pppConfs; vp->name; vp++)
-    printf("%-10s\t%s\t\t%s\n", vp->name,
+    fprintf(VarTerm, "%-10s\t%s\t\t%s\n", vp->name,
 	(vp->myside == CONF_ENABLE)? "enable" : "disable",
 	(vp->hisside == CONF_ACCEPT)? "accept" : "deny");
-  return(1);
+
+  return 0;
+}
+
+static int
+ConfigCommand(struct cmdtab *list, int argc, char **argv, int mine, int val)
+{
+  struct confdesc *vp;
+  int err;
+
+  if (argc < 1)
+    return -1;
+
+  err = 0;
+  do {
+    for (vp = pppConfs; vp->name; vp++)
+      if (strcasecmp(vp->name, *argv) == 0) {
+        if (mine)
+	  vp->myside = val;
+        else
+	  vp->hisside = val;
+        break;
+      }
+
+    if (!vp->name) {
+      LogPrintf(LogWARN, "Config: %s: No such key word\n", *argv );
+      err++;
+    }
+    argc--;
+    argv++;
+  } while (argc > 0);
+
+  return err;
 }
 
 int
-DisableCommand(list, argc, argv)
-struct cmdtab *list;
-int argc;
-char **argv;
+EnableCommand(struct cmdtab *list, int argc, char **argv)
 {
-  struct confdesc *vp;
-  int    found  = FALSE;
-
-  if (argc < 1) {
-    printf("disable what?\n");
-    return(1);
-  }
-  do {
-    for (vp = pppConfs; vp->name; vp++) {
-      if (strcasecmp(vp->name, *argv) == 0) {
-	vp->myside = CONF_DISABLE;
-        found  = TRUE;
-      }
-    }
-    if ( found == FALSE )
-       printf("%s - No such key word\n", *argv );
-    argc--; argv++;
-  } while (argc > 0);
-  return(1);
+  return ConfigCommand(list, argc, argv, 1, CONF_ENABLE);
 }
 
 int
-EnableCommand(list, argc, argv)
-struct cmdtab *list;
-int argc;
-char **argv;
+DisableCommand(struct cmdtab *list, int argc, char **argv)
 {
-  struct confdesc *vp;
-  int    found  = FALSE;
-
-  if (argc < 1) {
-    printf("enable what?\n");
-    return(1);
-  }
-  do {
-    for (vp = pppConfs; vp->name; vp++) {
-      if (strcasecmp(vp->name, *argv) == 0) {
-	vp->myside = CONF_ENABLE;
-        found  = TRUE;
-      }
-    }
-    if ( found == FALSE )
-       printf("%s - No such key word\n", *argv );
-    argc--; argv++;
-  } while (argc > 0);
-  return(1);
+  return ConfigCommand(list, argc, argv, 1, CONF_DISABLE);
 }
 
 int
-AcceptCommand(list, argc, argv)
-struct cmdtab *list;
-int argc;
-char **argv;
+AcceptCommand(struct cmdtab *list, int argc, char **argv)
 {
-  struct confdesc *vp;
-  int    found  = FALSE;
-
-  if (argc < 1) {
-    printf("accept what?\n");
-    return(1);
-  }
-  do {
-    for (vp = pppConfs; vp->name; vp++) {
-      if (strcasecmp(vp->name, *argv) == 0) {
-	vp->hisside = CONF_ACCEPT;
-        found  = TRUE;
-      }
-    }
-    if ( found == FALSE )
-       printf("%s - No such key word\n", *argv );
-    argc--; argv++;
-  } while (argc > 0);
-  return(1);
+  return ConfigCommand(list, argc, argv, 0, CONF_ACCEPT);
 }
 
 int
-DenyCommand(list, argc, argv)
-struct cmdtab *list;
-int argc;
-char **argv;
+DenyCommand(struct cmdtab *list, int argc, char **argv)
 {
-  struct confdesc *vp;
-  int    found  = FALSE;
-
-  if (argc < 1) {
-    printf("enable what?\n");
-    return(1);
-  }
-  do {
-    for (vp = pppConfs; vp->name; vp++) {
-      if (strcasecmp(vp->name, *argv) == 0) {
-	vp->hisside = CONF_DENY;
-        found  = TRUE;
-      }
-    }
-    if ( found == FALSE )
-       printf("%s - No such key word\n", *argv );
-    argc--; argv++;
-  } while (argc > 0);
-  return(1);
+  return ConfigCommand(list, argc, argv, 0, CONF_DENY);
 }
 
 int
@@ -185,10 +136,8 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  if (argc < 1) {
-    printf("Please Enter passwd for manipulating.\n");
-    return(1);
-  }
+  if (argc != 1)
+    return -1;
 
   switch ( LocalAuthValidate( SECRETFILE, VarShortHost, *argv ) ) {
 	case INVALID:
@@ -199,12 +148,12 @@ char **argv;
 		break;
 	case NOT_FOUND:
 		pppVars.lauth = LOCAL_AUTH;
-		printf("WARING: No Entry for this system\n");
+		LogPrintf(LogWARN, "WARING: No Entry for this system\n");
 		break;
 	default:
 		pppVars.lauth = LOCAL_NO_AUTH;
-		printf("Ooops?\n");
-		break;
+		LogPrintf(LogERROR, "LocalAuthCommand: Ooops?\n");
+		return 1;
   }
-  return(1);
+  return 0;
 }

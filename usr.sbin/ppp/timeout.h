@@ -15,14 +15,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timeout.h,v 1.5.6.1 1997/02/02 19:06:20 joerg Exp $
+ * $Id: timeout.h,v 1.10 1997/06/09 03:27:39 brian Exp $
  *
  *	TODO:
  */
 
 #ifndef _TIMEOUT_H_
 #define	_TIMEOUT_H_
-#include "cdefs.h"
 
 #define	TICKUNIT	100000			/* Unit in usec */
 #define	SECTICKS	(1000000/TICKUNIT)
@@ -43,10 +42,12 @@ struct pppTimer {
 
 struct pppTimer *TimerList;
 
-extern void StartTimer __P((struct pppTimer *));
-extern void StopTimer __P((struct pppTimer *));
-extern void TimerService __P((void));
-extern void InitTimerService __P((void));
-extern void TermTimerService __P((void));
-extern void StartIdleTimer __P((void));
+extern void StartTimer(struct pppTimer *);
+extern void StopTimer(struct pppTimer *);
+extern void TimerService(void);
+extern void InitTimerService(void);
+extern void TermTimerService(void);
+extern void StartIdleTimer(void);
+extern void UpdateIdleTimer(void);
+extern void ShowTimers();
 #endif	/* _TIMEOUT_H_ */

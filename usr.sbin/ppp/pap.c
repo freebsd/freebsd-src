@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.7.2.2 1997/05/24 17:34:56 brian Exp $
+ * $Id: pap.c,v 1.13 1997/06/09 03:27:32 brian Exp $
  *
  *	TODO:
  */
@@ -32,7 +32,7 @@
 #include "phase.h"
 #include "auth.h"
 
-#ifdef PASSWDAUTH
+#ifndef NOPASSWDAUTH
 # include "passwdauth.h"
 #endif
 
@@ -56,10 +56,9 @@ int papid;
   namelen = strlen(VarAuthName);
   keylen = strlen(VarAuthKey);
   plen = namelen + keylen + 2;
-#ifdef DEBUG
-  logprintf("namelen = %d, keylen = %d\n", namelen, keylen);
-#endif
-  LogPrintf(LOG_PHASE_BIT, "PAP: %s (%s)\n", VarAuthName, VarAuthKey);
+  LogPrintf(LogDEBUG, "SendPapChallenge: namelen = %d, keylen = %d\n",
+	    namelen, keylen);
+  LogPrintf(LogPHASE, "PAP: %s (%s)\n", VarAuthName, VarAuthKey);
   lh.code = PAP_REQUEST;
   lh.id = papid;
   lh.length = htons(plen + sizeof(struct fsmheader));
@@ -96,7 +95,7 @@ int code;
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = mlen;
   bcopy(message, cp, mlen);
-  LogPrintf(LOG_PHASE_BIT, "PapOutput: %s\n", papcodes[code]);
+  LogPrintf(LogPHASE, "PapOutput: %s\n", papcodes[code]);
   HdlcOutput(PRI_LINK, PROTO_PAP, bp);
 }
 
@@ -113,17 +112,16 @@ u_char *name, *key;
   klen = *key;
   *key++ = 0;
   key[klen] = 0;
-#ifdef DEBUG
-  logprintf("name: %s (%d), key: %s (%d)\n", name, nlen, key, klen);
-#endif
+  LogPrintf(LogDEBUG, "PapValidate: name %s (%d), key %s (%d)\n",
+	    name, nlen, key, klen);
 
-#ifdef PASSWDAUTH
+#ifndef NOPASSWDAUTH
   if( Enabled( ConfPasswdAuth ) )
   {
-    LogPrintf( LOG_LCP, "PasswdAuth enabled - calling\n" );
+    LogPrintf( LogLCP, "PasswdAuth enabled - calling\n" );
     return PasswdAuth( name, key );
   }
-#endif /* PASSWDAUTH */
+#endif
 
   return(AuthValidate(SECRETFILE, name, key));
 }
@@ -142,7 +140,7 @@ struct mbuf *bp;
     if (len >= ntohs(php->length)) {
       if (php->code < PAP_REQUEST || php->code > PAP_NAK)
 	php->code = 0;
-      LogPrintf(LOG_PHASE_BIT, "PapInput: %s\n", papcodes[php->code]);
+      LogPrintf(LogPHASE, "PapInput: %s\n", papcodes[php->code]);
 
       switch (php->code) {
       case PAP_REQUEST:
@@ -163,7 +161,7 @@ struct mbuf *bp;
 	cp = (u_char *)(php + 1);
 	len = *cp++;
 	cp[len] = 0;
-	LogPrintf(LOG_PHASE_BIT, "Received PAP_ACK (%s)\n", cp);
+	LogPrintf(LogPHASE, "Received PAP_ACK (%s)\n", cp);
 	if (lcp->auth_iwait == PROTO_PAP) {
 	  lcp->auth_iwait = 0;
 	  if (lcp->auth_ineed == 0)
@@ -175,7 +173,7 @@ struct mbuf *bp;
 	cp = (u_char *)(php + 1);
 	len = *cp++;
 	cp[len] = 0;
-	LogPrintf(LOG_PHASE_BIT, "Received PAP_NAK (%s)\n", cp);
+	LogPrintf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
         reconnect(RECON_FALSE);
 	LcpClose();
 	break;
