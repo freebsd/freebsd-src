@@ -167,14 +167,14 @@ getstr(void)
     for (;;) {
 	switch (c = xgetc(0)) {
 	case 0:
-	    continue;
+	    break;
 	case '\177':
 	case '\b':
 	    if (s > cmd) {
 		s--;
 		printf("\b \b");
 	    }
-	    continue;
+	    break;
 	case '\n':
 	case '\r':
 	    *s = 0;
@@ -182,8 +182,8 @@ getstr(void)
 	default:
 	    if (s - cmd < sizeof(cmd) - 1)
 		*s++ = c;
+	    putchar(c);
 	}
-	putchar(c);
     }
 }
 
@@ -388,7 +388,7 @@ parse()
 	    }
 	    if (opts & 1 << RBX_PROBEKBD) {
 		i = *(uint8_t *)PTOV(0x496) & 0x10;
-		/* printf("Keyboard: %s\n", i ? "yes" : "no"); */
+		printf("Keyboard: %s\n", i ? "yes" : "no");
 		if (!i)
 		    opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
 		opts &= ~(1 << RBX_PROBEKBD);
