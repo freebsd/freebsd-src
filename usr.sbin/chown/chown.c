@@ -85,7 +85,7 @@ main(argc, argv)
 	myname = (cp = rindex(*argv, '/')) ? cp + 1 : *argv;
 	ischown = myname[2] == 'o';
 
-	Hflag = Lflag = Pflag = hflag = 0;
+	Hflag = Lflag = Pflag = hflag = vflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRfhv")) != -1)
 		switch (ch) {
 		case 'H':
@@ -182,6 +182,9 @@ main(argc, argv)
 		default:
 			break;
 		}
+		if ((uid == -1 || uid == p->fts_statp->st_uid) &&
+		    (gid == -1 || gid == p->fts_statp->st_gid))
+			continue;
 		if (hflag) {
 			if (lchown(p->fts_accpath, uid, gid) && !fflag) {
 				chownerr(p->fts_path);
