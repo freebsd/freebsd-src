@@ -51,8 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/awi/awivar.h>
 
 #include <dev/pccard/pccardvar.h>
-#include "pccarddevs.h"
+
 #include "card_if.h"
+#include "pccarddevs.h"
 
 struct awi_pccard_softc {
 	struct awi_softc	sc_awi;

@@ -44,11 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_media.h> 
 
-
 #include <dev/ex/if_exreg.h>
 #include <dev/ex/if_exvar.h>
 
 #include <dev/pccard/pccardvar.h>
+
 #include "pccarddevs.h"
 
 static const struct pccard_product ex_pccard_products[] = {

@@ -56,9 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/ep/if_epvar.h>
 
 #include <dev/pccard/pccardvar.h>
-#include "pccarddevs.h"
 
 #include "card_if.h"
+#include "pccarddevs.h"
 
 static const char *ep_pccard_identify(u_short id);
 

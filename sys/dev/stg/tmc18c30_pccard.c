@@ -42,9 +42,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/systm.h>
 
 #include <machine/bus.h>
 #include <machine/bus_pio.h>
@@ -52,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/device_port.h>
 
-#include "pccarddevs.h"
 #include <dev/pccard/pccardvar.h>
 
 #include <cam/scsi/scsi_low.h>
@@ -62,13 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/stg/tmc18c30var.h>
 #include <dev/stg/tmc18c30.h>
 
-#include	<sys/kernel.h>
-#include	<sys/module.h>
-#if !defined(__FreeBSD__) || __FreeBSD_version < 500014
-#include	<sys/select.h>
-#endif
-#include	<pccard/cardinfo.h>
-#include	<pccard/slot.h>
+#include "pccarddevs.h"
 
 static const struct pccard_product stg_products[] = {
 	PCMCIA_CARD(FUTUREDOMAIN, SCSI2GO, 0),

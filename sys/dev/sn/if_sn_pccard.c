@@ -33,25 +33,20 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/systm.h>
 
-#include <sys/module.h>
-#include <sys/bus.h>
-
-#include <machine/bus.h>
-#include <machine/resource.h>
- 
 #include <net/ethernet.h> 
 #include <net/if.h> 
 #include <net/if_arp.h>
 
-#include <dev/sn/if_snvar.h>
 #include <dev/pccard/pccardvar.h>
-#include "pccarddevs.h"
+#include <dev/sn/if_snvar.h>
 
 #include "card_if.h"
+#include "pccarddevs.h"
 
 static const struct pccard_product sn_pccard_products[] = {
 	PCMCIA_CARD(DSPSI, XJACK, 0),
