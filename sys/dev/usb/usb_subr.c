@@ -302,7 +302,7 @@ usb_delay_ms(bus, ms)
 	u_int ms;
 {
 	/* Wait at least two clock ticks so we know the time has passed. */
-	if (bus->use_polling)
+	if (bus->use_polling || cold)
 		delay((ms+1) * 1000);
 	else
 		tsleep(&ms, PRIBIO, "usbdly", (ms*hz+999)/1000 + 1);
