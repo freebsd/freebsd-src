@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.6 1994/10/06 21:06:36 davidg Exp $
+ * $Id: vfs_lookup.c,v 1.7 1995/05/30 08:06:33 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -257,6 +257,7 @@ lookup(ndp)
 	int docache;			/* == 0 do not cache last component */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
+	int trailing_slash;
 	int error = 0;
 	struct componentname *cnp = &ndp->ni_cnd;
 
@@ -302,6 +303,25 @@ dirloop:
 #endif
 	ndp->ni_pathlen -= cnp->cn_namelen;
 	ndp->ni_next = cp;
+
+	/*
+	 * Replace multiple slashes by a single slash and trailing slashes
+	 * by a null.  This must be done before VOP_LOOKUP() because some
+	 * fs's don't know about trailing slashes.  Remember if there were
+	 * trailing slashes to handle symlinks, existing non-directories
+	 * and non-existing files that won't be directories specially later.
+	 */
+	trailing_slash = 0;
+	while (*cp == '/' && (cp[1] == '/' || cp[1] == '\0')) {
+		cp++;
+		ndp->ni_pathlen--;
+		if (*cp == '\0') {
+			trailing_slash = 1;
+			*ndp->ni_next = '\0';	/* XXX for direnter() ... */
+		}
+	}
+	ndp->ni_next = cp;
+
 	cnp->cn_flags |= MAKEENTRY;
 	if (*cp == '\0' && docache == 0)
 		cnp->cn_flags &= ~MAKEENTRY;
@@ -406,6 +426,11 @@ unionlookup:
 			error = EROFS;
 			goto bad;
 		}
+		if (*cp == '\0' && trailing_slash &&
+		     !(cnp->cn_flags & WILLBEDIR)) {
+			error = ENOENT;
+			goto bad;
+		}
 		/*
 		 * We return with ni_vp NULL to indicate that the entry
 		 * doesn't currently exist, leaving a pointer to the
@@ -437,9 +462,18 @@ unionlookup:
 	 * Check for symbolic link
 	 */
 	if ((dp->v_type == VLNK) &&
-	    ((cnp->cn_flags & FOLLOW) || *ndp->ni_next == '/')) {
+	    ((cnp->cn_flags & FOLLOW) || trailing_slash ||
+	     *ndp->ni_next == '/')) {
 		cnp->cn_flags |= ISSYMLINK;
 		return (0);
+	}
+
+	/*
+	 * Check for bogus trailing slashes.
+	 */
+	if (trailing_slash && dp->v_type != VDIR) {
+		error = ENOTDIR;
+		goto bad2;
 	}
 
 	/*
