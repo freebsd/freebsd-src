@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.41 1996/04/23 01:29:14 jkh Exp $
+ * $Id: disks.c,v 1.42 1996/04/25 17:31:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -400,7 +400,7 @@ diskPartition(Device *dev, Disk *d)
     p = CheckRules(d);
     if (p) {
 	dialog_clear();
-	msgConfirm(p);
+	dialog_mesgbox("Disk partitioning warning:", p, -1, -1);
 	free(p);
     }
     restorescr(w);

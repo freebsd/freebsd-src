@@ -17,7 +17,7 @@
 #define DIST_COMMERCIAL		0x1000
 #define DIST_DES		0x2000
 #define DIST_EXPERIMENTAL	0x4000
-#define DIST_ALL		0x0FFF	/* Don't include commerce, DES or experimental in "all" */
+#define DIST_ALL		0xFFFF
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \
@@ -25,6 +25,9 @@
 
 #define _DIST_USER \
 	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_COMPAT1X | DIST_COMPAT20)
+
+#define _DIST_XDEV \
+	(DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS)
 
 /* Subtypes for DES distribution */
 #define DIST_DES_DES		0x0001

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.17 1996/04/23 01:29:18 jkh Exp $
+ * $Id: dmenu.c,v 1.18 1996/04/25 17:31:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -39,7 +39,7 @@
 
 #define MAX_MENU		15
 
-static Boolean cancelled;
+static Boolean exited;
 
 int
 dmenuDisplayFile(dialogMenuItem *tmp)
@@ -79,9 +79,9 @@ dmenuSystemCommandBox(dialogMenuItem *tmp)
 }
 
 int
-dmenuCancel(dialogMenuItem *tmp)
+dmenuExit(dialogMenuItem *tmp)
 {
-    cancelled = TRUE;
+    exited = TRUE;
     return DITEM_LEAVE_MENU;
 }
 
@@ -200,11 +200,13 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	else
 	    msgFatal("Menu: `%s' is of an unknown type\n", menu->title);
 	clearok(stdscr, TRUE);
-	if (rval)
-	    return FALSE;
-	else if (cancelled || menu->type & DMENU_SELECTION_RETURNS) {
-	    cancelled = FALSE;
+	if (exited) {
+	    exited = FALSE;
 	    return TRUE;
 	}
+	else if (rval)
+	    return FALSE;
+	else if (menu->type & DMENU_SELECTION_RETURNS)
+	    return TRUE;
     }
 }
