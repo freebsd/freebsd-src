@@ -99,8 +99,8 @@ keymap.h:
 	mv keymap.tmp keymap.h
 
 beforeinstall:
-	@if [ ! -d ${BINDIR}/ ]; then \
-		mkdir -p ${BINDIR}; \
+	@if [ ! -d ${DESTDIR}${BINDIR}/ ]; then \
+		mkdir -p ${DESTDIR}${BINDIR}; \
 	fi
 
 .include <bsd.prog.mk>
