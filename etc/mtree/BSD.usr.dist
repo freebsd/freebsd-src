@@ -323,6 +323,8 @@
             ..
             more
 	    ..
+	    netgraph
+	    ..
 	    nwclient
             ..
             perfmon
