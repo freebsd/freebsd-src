@@ -523,7 +523,8 @@ print_entry(struct sockaddr_dl *sdl,
 	}
 	printf("%s (%s) at ", host, inet_ntoa(addr->sin_addr));
 	if (sdl->sdl_alen) {
-		if (sdl->sdl_type == IFT_ETHER &&
+		if ((sdl->sdl_type == IFT_ETHER ||
+		    sdl->sdl_type == IFT_L2VLAN) &&
 		    sdl->sdl_alen == ETHER_ADDR_LEN)
 			printf("%s", ether_ntoa((struct ether_addr *)LLADDR(sdl)));
 		else {
