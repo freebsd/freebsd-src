@@ -121,8 +121,10 @@ ucycom	i386,pc98,amd64
 udav	i386,pc98,amd64
 uftdi	i386,pc98,amd64
 uhci	i386,pc98,alpha,ia64,amd64
+ulpt	i386,pc98,alpha,amd64
 umodem	i386,pc98,amd64
 uplcom	i386,pc98,amd64
+urio	i386,pc98,amd64
 uscanner	i386,pc98,amd64
 uvisor	i386,pc98,amd64
 uvscom	i386,pc98,amd64
