@@ -154,44 +154,57 @@
 .	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa
 .\}
 ..
-.\" Ns Fx macro - FreeBSD
+.\" NS Fx macro - FreeBSD
+.\" NS b0 string local temporary
 .de Fx
 .nr cF \\n(.f
 .nr cZ \\n(.s
 .ds aa \&\f\\n(cF\s\\n(cZ
-.ds ab \& \&
-.    ie \\n(.$==0       .rm ab
-.el .ie "\\$1"1.0"      \c
-.el .ie "\\$1"1.1"      \c
-.el .ie "\\$1"1.1.5"    \c
-.el .ie "\\$1"1.1.5.1"  \c
-.el .ie "\\$1"2.0"      \c
-.el .ie "\\$1"2.0.5"    \c
-.el .ie "\\$1"2.1"      \c
-.el .ie "\\$1"2.1.5"    \c
-.el .ie "\\$1"2.1.6"    \c
-.el .ie "\\$1"2.1.7"    \c
-.el .ie "\\$1"2.2"      \c
-.el .ie "\\$1"2.2.1"    \c
-.el .ie "\\$1"2.2.2"    \c
-.el .ie "\\$1"2.2.5"    \c
-.el .ie "\\$1"2.2.6"    \c
-.el .ie "\\$1"2.2.7"    \c
-.el .ie "\\$1"2.2.8"    \c
-.el .ie "\\$1"3.0"      \c
-.el .ie "\\$1"3.1"      \c
-.el .ie "\\$1"3.2"      \c
-.el .ie "\\$1"3.3"      \c
-.el .ie "\\$1"3.4"      \c
-.el .ie "\\$1"3.5"      \c
-.el .ie "\\$1"4.0"      \c
-.el .ie "\\$1"4.1"      \c
-.el .ie "\\$1"4.2"      \c
-.el .ie "\\$1"5.0"      \c
-.el .ie "\\$1","        .rm ab \" Allow ".Fx ,"
-.el .ie "\\$1"."        .rm ab \" Allow ".Fx ."
-.el .tm Unknown FreeBSD version ``\\$1'' at line \\n(c.
-\&\\*(tNFreeBSD\\*(aa\\*(ab\\$1\\$2
+.as b1 \&\\*(tNFreeBSD\\*(aa
+.if \\n(aC==0 \{\
+.	ie \\n(.$==0 .pB
+.	el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.\}
+.if \\n(aC>0 \{\
+.	ie \\n(aC==\\n(aP .aZ
+.	el \{\
+.		nr aP \\n(aP+1
+.		ie \\n(C\\n(aP==2 \{\
+.			ds b0 \\*(A\\n(aP
+.			ie     "\\*(b0"1.0"       %comment%
+.			el .ie "\\*(b0"1.1"       %comment%
+.			el .ie "\\*(b0"1.1.5"     %comment%
+.			el .ie "\\*(b0"1.1.5.1"   %comment%
+.			el .ie "\\*(b0"2.0"       %comment%
+.			el .ie "\\*(b0"2.0.5"     %comment%
+.			el .ie "\\*(b0"2.1"       %comment%
+.			el .ie "\\*(b0"2.1.5"     %comment%
+.			el .ie "\\*(b0"2.1.6"     %comment%
+.			el .ie "\\*(b0"2.1.7"     %comment%
+.			el .ie "\\*(b0"2.2"       %comment%
+.			el .ie "\\*(b0"2.2.1"     %comment%
+.			el .ie "\\*(b0"2.2.2"     %comment%
+.			el .ie "\\*(b0"2.2.5"     %comment%
+.			el .ie "\\*(b0"2.2.6"     %comment%
+.			el .ie "\\*(b0"2.2.7"     %comment%
+.			el .ie "\\*(b0"2.2.8"     %comment%
+.			el .ie "\\*(b0"3.0"       %comment%
+.			el .ie "\\*(b0"3.1"       %comment%
+.			el .ie "\\*(b0"3.2"       %comment%
+.			el .ie "\\*(b0"3.3"       %comment%
+.			el .ie "\\*(b0"3.4"       %comment%
+.			el .ie "\\*(b0"3.5"       %comment%
+.			el .ie "\\*(b0"4.0"       %comment%
+.			el .ie "\\*(b0"4.1"       %comment%
+.			el .ie "\\*(b0"4.2"       %comment%
+.			el .ie "\\*(b0"5.0"       %comment%
+.			el .tm Unknown FreeBSD version ``\\*(b0'' at line \\n(c.
+.			rm b0
+.			as b1 \ 
+.		\}
+.		nR
+.	\}
+.\}
 ..
 .\" Ns Nx macro - NetBSD
 .\"
