@@ -448,7 +448,8 @@ uio_yield(void)
 }
 
 int
-copyinfrom(const void *src, void *dst, size_t len, int seg)
+copyinfrom(const void * __restrict src, void * __restrict dst, size_t len,
+    int seg)
 {
 	int error = 0;
 
@@ -466,7 +467,8 @@ copyinfrom(const void *src, void *dst, size_t len, int seg)
 }
 
 int
-copyinstrfrom(const void *src, void *dst, size_t len, size_t *copied, int seg)
+copyinstrfrom(const void * __restrict src, void * __restrict dst, size_t len,
+    size_t * __restrict copied, int seg)
 {
 	int error = 0;
 
