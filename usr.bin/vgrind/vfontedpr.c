@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vfontedpr.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vfontedpr.c,v 1.6.2.2 1997/08/26 06:28:51 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -248,7 +248,7 @@ main(argc, argv)
 	    cpp = l_keywds;
 	    while (*cp) {
 		while (*cp == ' ' || *cp =='\t')
-		    *cp++ = NULL;
+		    *cp++ = '\0';
 		if (*cp)
 		    *cpp++ = cp;
 		while (*cp != ' ' && *cp  != '\t' && *cp)
@@ -292,7 +292,7 @@ main(argc, argv)
 	_escaped = FALSE;
 	blklevel = 0;
 	for (psptr=0; psptr<PSMAX; psptr++) {
-	    pstack[psptr][0] = NULL;
+	    pstack[psptr][0] = '\0';
 	    plstack[psptr] = 0;
 	}
 	psptr = -1;
@@ -697,7 +697,7 @@ static boolean
 isproc(s)
     char *s;
 {
-    pname[0] = NULL;
+    pname[0] = '\0';
     if (!l_toplex || blklevel == 0)
 	if (expmatch (s, l_prcbeg, pname) != NIL) {
 	    return (TRUE);
