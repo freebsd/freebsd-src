@@ -204,6 +204,13 @@ You will also probably need to set
 .Va local_startup Ns = Ns Qq
 so that the server's
 local startup files will not be used.
+.Pp
+While an md-backed file system is mounted on /var by the startup scripts,
+some sites may want to disable the saving of entropy by setting
+.Va entropy_dir Ns = Ns Qq NO
+in
+.Pa /etc/defaults/rc.conf .
+.Pp
 Finally, it might be convenient to use a
 .Ic case
 statement using
