@@ -256,7 +256,7 @@ cpu_fork(p1, p2, flags)
 		 * child process doesn't stay in the kernel for long!
 		 *
 		 * We should really deal with the function descriptor
-		 * for fork_return() in switch_trampoline() so that a
+		 * for fork_return() in fork_trampoline() so that a
 		 * kthread started from a loaded module can have the
 		 * right value for gp.
 		 */
@@ -264,7 +264,7 @@ cpu_fork(p1, p2, flags)
 		up->u_pcb.pcb_r4 = FDESC_FUNC(fork_return);
 		up->u_pcb.pcb_r5 = FDESC_FUNC(exception_restore);
 		up->u_pcb.pcb_r6 = (u_int64_t)p2;
-		up->u_pcb.pcb_b0 = FDESC_FUNC(switch_trampoline);
+		up->u_pcb.pcb_b0 = FDESC_FUNC(fork_trampoline);
 	}
 }
 
