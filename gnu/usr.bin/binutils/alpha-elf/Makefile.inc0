@@ -1,0 +1,7 @@
+#
+# $Id: Makefile.inc0,v 1.1.1.1 1998/03/01 23:40:58 jdp Exp $
+#
+
+.include "../Makefile.inc0"
+
+RELTOP:=	../${RELTOP}
