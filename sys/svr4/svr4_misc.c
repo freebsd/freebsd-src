@@ -59,7 +59,6 @@
 #include <sys/sem.h>
 #include <sys/msg.h>
 #include <sys/ptrace.h>
-#include <vm/vm_zone.h>
 
 #include <sys/sysproto.h>
 

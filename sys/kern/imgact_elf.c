@@ -60,7 +60,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 #include <machine/elf.h>
 #include <machine/md_var.h>

@@ -57,7 +57,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
-#include <vm/vm_zone.h>
 #include <vm/vm_pager.h>
 
 #include <machine/reg.h>

@@ -46,7 +46,6 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <vm/vm_zone.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>

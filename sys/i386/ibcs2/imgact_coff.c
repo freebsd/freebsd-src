@@ -45,7 +45,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 #include <i386/ibcs2/coff.h>
 #include <i386/ibcs2/ibcs2_util.h>

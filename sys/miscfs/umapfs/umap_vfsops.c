@@ -52,7 +52,6 @@
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/umapfs/umap.h>
-#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
 

@@ -89,7 +89,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 #include <vm/vm_object.h>
 
 #include <nfs/nfsproto.h>

@@ -54,7 +54,6 @@
 #include <sys/stat.h>
 #include <sys/syslog.h>
 
-#include <vm/vm_zone.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/iso_rrip.h>

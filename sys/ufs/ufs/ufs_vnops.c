@@ -59,7 +59,6 @@
 #include <sys/event.h>
 #include <sys/conf.h>
 
-#include <vm/vm_zone.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 

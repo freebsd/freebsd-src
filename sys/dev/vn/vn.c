@@ -85,7 +85,6 @@
 #include <vm/vm_pageout.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 static	d_ioctl_t	vnioctl;
 static	d_open_t	vnopen;

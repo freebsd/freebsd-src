@@ -56,7 +56,6 @@
 #include <sys/mount.h>
 #include <sys/select.h>
 
-#include <vm/vm_zone.h>
 
 #include <coda/coda.h>
 #include <coda/cnode.h>
