@@ -42,10 +42,6 @@
 #include <dev/ata/ata-all.h>
 
 /* local vars */
-static bus_addr_t ata_pc98_ports[] = {
-    0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe
-};
-
 struct ata_cbus_controller {
     struct resource *io;
     struct resource *altio;
@@ -56,8 +52,8 @@ struct ata_cbus_controller {
     void (*locking)(struct ata_channel *, int);
     int current_bank;
     struct {
-    void (*function)(void *);
-    void *argument;
+	void (*function)(void *);
+	void *argument;
     } interrupt[2];
 };
 
@@ -79,11 +75,10 @@ ata_cbus_probe(device_t dev)
 
     /* allocate the ioport range */
     rid = ATA_IOADDR_RID;
-    io = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, ata_pc98_ports,
-			     ATA_IOSIZE, RF_ACTIVE);
+    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+			    ATA_PC98_IOSIZE, RF_ACTIVE);
     if (!io)
-	return ENOMEM;
-    isa_load_resourcev(io, ata_pc98_ports, ATA_IOSIZE);
+       return ENOMEM;
 
     /* calculate & set the altport range */
     rid = ATA_PC98_ALTADDR_RID;
@@ -111,37 +106,50 @@ ata_cbus_attach(device_t dev)
 
     /* allocate resources */
     rid = ATA_IOADDR_RID;
-    ctlr->io = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, ata_pc98_ports,
-				  ATA_IOSIZE, RF_ACTIVE);
+    ctlr->io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+				  ATA_PC98_IOSIZE, RF_ACTIVE);
     if (!ctlr->io)
        return ENOMEM;
 
-    isa_load_resourcev(ctlr->io, ata_pc98_ports, ATA_IOSIZE);
-
     rid = ATA_PC98_ALTADDR_RID;
-    ctlr->altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				    rman_get_start(ctlr->io)+ATA_PC98_ALTOFFSET,
-				    ~0, ATA_ALTIOSIZE, RF_ACTIVE);
-    if (!ctlr->altio)
+    ctlr->altio = 
+	bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+			   rman_get_start(ctlr->io) + ATA_PC98_ALTOFFSET, ~0,
+			   ATA_ALTIOSIZE, RF_ACTIVE);
+    if (!ctlr->altio) {
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
 	return ENOMEM;
+    }
 
     rid = ATA_PC98_BANKADDR_RID;
     ctlr->bankio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				     ATA_PC98_BANK, ~0,
 				     ATA_PC98_BANKIOSIZE, RF_ACTIVE);
-    if (!ctlr->bankio)
+    if (!ctlr->bankio) {
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ctlr->altio);
 	return ENOMEM;
+    }
 
-    rid = 0;
+    rid = ATA_IRQ_RID;
     if (!(ctlr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-					0, ~0, 1, RF_ACTIVE | RF_SHAREABLE))) {
+					 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE))) {
 	device_printf(dev, "unable to alloc interrupt\n");
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ctlr->altio);
+	bus_release_resource(dev, SYS_RES_IOPORT, 
+			     ATA_PC98_BANKADDR_RID, ctlr->bankio);
 	return ENXIO;
     }
 
     if ((bus_setup_intr(dev, ctlr->irq, INTR_TYPE_BIO | INTR_ENTROPY,
 			ata_cbus_intr, ctlr, &ctlr->ih))) {
 	device_printf(dev, "unable to setup interrupt\n");
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ctlr->altio);
+	bus_release_resource(dev, SYS_RES_IOPORT, 
+			     ATA_PC98_BANKADDR_RID, ctlr->bankio);
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IRQ_RID, ctlr->irq);
 	return ENXIO;
     }
 
@@ -226,9 +234,8 @@ ata_cbus_banking(struct ata_channel *ch, int flags)
 	if (ctlr->current_bank == ch->unit)
 	    break;
 	while (!atomic_cmpset_acq_int(&ctlr->current_bank, -1, ch->unit))
-	    tsleep((caddr_t)ch->locking, PRIBIO, "atalck", 1);
-	bus_space_write_1(rman_get_bustag(ctlr->bankio),
-			  rman_get_bushandle(ctlr->bankio), 0, ch->unit);
+	    tsleep((caddr_t)ch->locking, PRIBIO, "atabnk", 1);
+	ATA_OUTB(ctlr->bankio, 0, ch->unit);
 	break;
 
     case ATA_LF_UNLOCK:
@@ -283,10 +290,20 @@ ata_cbussub_probe(device_t dev)
 	    ch->unit = i;
     }
     free(children, M_TEMP);
+
+    /* setup the resource vectors */
+    for (i = ATA_DATA; i <= ATA_STATUS; i ++) {
+	ch->r_io[i].res = ctlr->io;
+	ch->r_io[i].offset = i << 1;
+    }
+    ch->r_io[ATA_ALTSTAT].res = ctlr->altio;
+    ch->r_io[ATA_ALTSTAT].offset = 0;
+
+    /* initialize softc for this channel */
     ch->flags |= ATA_USE_16BIT | ATA_USE_PC98GEOM;
+    ch->locking = ctlr->locking;
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
-    ch->locking = ctlr->locking;
     return ata_probe(dev);
 }
 

@@ -229,19 +229,19 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
 	biofinish(request->bp, NULL, ENXIO);
 	ad_free(request);
     }
-    if (atadev->channel->dma)
-	atadev->channel->dma->free(atadev);
     while ((bp = bioq_first(&adp->queue))) {
 	bioq_remove(&adp->queue, bp); 
 	biofinish(bp, NULL, ENXIO);
     }
     disk_destroy(&adp->disk);
+
+    if (adp->flags & AD_F_RAID_SUBDISK)
+	ata_raiddisk_detach(adp);
+
     if (flush) {
 	if (ata_command(atadev, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
 	    ata_prtdev(atadev, "flushing cache on detach failed\n");
     }
-    if (adp->flags & AD_F_RAID_SUBDISK)
-	ata_raiddisk_detach(adp);
     ata_free_name(atadev);
     ata_free_lun(&adp_lun_map, adp->lun);
     atadev->driver = NULL;
@@ -375,7 +375,7 @@ ad_start(struct ata_device *atadev)
     if (bp->bio_cmd == BIO_READ) 
 	request->flags |= ADR_F_READ;
 
-    if (adp->device->mode >= ATA_DMA && atadev->channel->dma->alloc(atadev))
+    if (adp->device->mode >= ATA_DMA && !atadev->channel->dma)
 	adp->device->mode = ATA_PIO;
 
     /* insert in tag array */
@@ -456,8 +456,7 @@ ad_transfer(struct ad_request *request)
 
 		/* if ATA bus RELEASE check for SERVICE */
 		if (adp->flags & AD_F_TAG_ENABLED &&
-		    ATA_INB(adp->device->channel->r_io, ATA_IREASON) &
-		    ATA_I_RELEASE)
+		    ATA_IDX_INB(adp->device->channel, ATA_IREASON) & ATA_I_RELEASE)
 		    return ad_service(adp, 1);
 	    }
 	    else {
@@ -483,7 +482,7 @@ ad_transfer(struct ad_request *request)
 	    }
 
 	    /* start transfer, return and wait for interrupt */
-	    adp->device->channel->dma->start(adp->device, request->data, request->bytecount,
+	    adp->device->channel->dma->start(adp->device->channel, request->data, request->bytecount,
 			 request->flags & ADR_F_READ);
 	    return ATA_OP_CONTINUES;
 	}
@@ -517,11 +516,11 @@ ad_transfer(struct ad_request *request)
 
     /* output the data */
     if (adp->device->channel->flags & ATA_USE_16BIT)
-	ATA_OUTSW_STRM(adp->device->channel->r_io, ATA_DATA,
+	ATA_IDX_OUTSW_STRM(adp->device->channel, ATA_DATA,
 		       (void *)((uintptr_t)request->data + request->donecount),
 		       request->currentsize / sizeof(int16_t));
     else
-	ATA_OUTSL_STRM(adp->device->channel->r_io, ATA_DATA,
+	ATA_IDX_OUTSL_STRM(adp->device->channel, ATA_DATA,
 		       (void *)((uintptr_t)request->data + request->donecount),
 		       request->currentsize / sizeof(int32_t));
     return ATA_OP_CONTINUES;
@@ -553,7 +552,7 @@ ad_interrupt(struct ad_request *request)
 
     /* finish DMA transfer */
     if (request->flags & ADR_F_DMA_USED)
-	dma_stat = adp->device->channel->dma->stop(adp->device);
+	dma_stat = adp->device->channel->dma->stop(adp->device->channel);
 
     /* do we have a corrected soft error ? */
     if (adp->device->channel->status & ATA_S_CORR)
@@ -564,7 +563,7 @@ ad_interrupt(struct ad_request *request)
     if ((adp->device->channel->status & ATA_S_ERROR) ||
 	(request->flags & ADR_F_DMA_USED && dma_stat & ATA_BMSTAT_ERROR)) {
 	adp->device->channel->error =
-	    ATA_INB(adp->device->channel->r_io, ATA_ERROR);
+	    ATA_IDX_INB(adp->device->channel, ATA_ERROR);
 	disk_err(request->bp, (adp->device->channel->error & ATA_E_ICRC) ?
 		"UDMA ICRC error" : "hard error",
 		request->blockaddr + (request->donecount / DEV_BSIZE), 1);
@@ -621,12 +620,12 @@ ad_interrupt(struct ad_request *request)
 	else {
 	    /* data ready, read in */
 	    if (adp->device->channel->flags & ATA_USE_16BIT)
-		ATA_INSW_STRM(adp->device->channel->r_io, ATA_DATA,
+		ATA_IDX_INSW_STRM(adp->device->channel, ATA_DATA,
 			      (void*)((uintptr_t)request->data +
 			      request->donecount), request->currentsize /
 			      sizeof(int16_t));
 	    else
-		ATA_INSL_STRM(adp->device->channel->r_io, ATA_DATA,
+		ATA_IDX_INSL_STRM(adp->device->channel, ATA_DATA,
 			      (void*)((uintptr_t)request->data +
 			      request->donecount), request->currentsize /
 			      sizeof(int32_t));
@@ -685,13 +684,13 @@ ad_service(struct ad_softc *adp, int change)
 	    ((struct ad_softc *)
 	     (adp->device->channel->
 	      device[ATA_DEV(device)].driver))->outstanding > 0) {
-	    ATA_OUTB(adp->device->channel->r_io, ATA_DRIVE, ATA_D_IBM | device);
+	    ATA_IDX_OUTB(adp->device->channel, ATA_DRIVE, ATA_D_IBM | device);
 	    adp = adp->device->channel->device[ATA_DEV(device)].driver;
 	    DELAY(1);
 	}
     }
     adp->device->channel->status =
-	ATA_INB(adp->device->channel->r_altio, ATA_ALTSTAT);
+	ATA_IDX_INB(adp->device->channel, ATA_ALTSTAT);
  
     /* do we have a SERVICE request from the drive ? */
     if (adp->flags & AD_F_TAG_ENABLED &&
@@ -719,13 +718,13 @@ ad_service(struct ad_softc *adp, int change)
 	/* setup the transfer environment when ready */
 	if (ata_wait(adp->device, ATA_S_READY)) {
 	    ata_prtdev(adp->device, "SERVICE timeout tag=%d s=%02x e=%02x\n",
-		       ATA_INB(adp->device->channel->r_io, ATA_COUNT) >> 3,
+		       ATA_IDX_INB(adp->device->channel, ATA_COUNT) >> 3,
 		       adp->device->channel->status,
 		       adp->device->channel->error);
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
-	tag = ATA_INB(adp->device->channel->r_io, ATA_COUNT) >> 3;
+	tag = ATA_IDX_INB(adp->device->channel, ATA_COUNT) >> 3;
 	if (!(request = adp->tags[tag])) {
 	    ata_prtdev(adp->device, "no request for tag=%d\n", tag);	
 	    ad_invalidatequeue(adp, NULL);
@@ -743,7 +742,7 @@ ad_service(struct ad_softc *adp, int change)
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
-	adp->device->channel->dma->start(adp->device, request->data, request->bytecount,
+	adp->device->channel->dma->start(adp->device->channel, request->data, request->bytecount,
 		     request->flags & ADR_F_READ);
 	return ATA_OP_CONTINUES;
     }
@@ -831,7 +830,7 @@ ad_timeout(struct ad_request *request)
 	       request->tag, request->serv);
 
     if (request->flags & ADR_F_DMA_USED) {
-	adp->device->channel->dma->stop(adp->device);
+	adp->device->channel->dma->stop(adp->device->channel);
 	ad_invalidatequeue(adp, request);
 	if (request->retries == AD_MAX_RETRIES) {
 	    adp->device->setmode(adp->device, ATA_PIO_MAX);

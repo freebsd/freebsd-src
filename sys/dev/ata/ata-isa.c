@@ -70,9 +70,9 @@ static int
 ata_isa_probe(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
-    struct resource *io;
+    struct resource *io = NULL, *altio = NULL;
     u_long tmp;
-    int rid;
+    int i, rid;
 
     /* check isapnp ids */
     if (ISA_PNP_PROBE(device_get_parent(dev), dev, ata_ids) == ENXIO)
@@ -83,7 +83,7 @@ ata_isa_probe(device_t dev)
     io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 			    ATA_IOSIZE, RF_ACTIVE);
     if (!io)
-	return ENOMEM;
+	return ENXIO;
 
     /* set the altport range */
     if (bus_get_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, &tmp, &tmp)) {
@@ -91,7 +91,24 @@ ata_isa_probe(device_t dev)
 			 rman_get_start(io) + ATA_ALTOFFSET, ATA_ALTIOSIZE);
     }
 
-    bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
+    /* allocate the altport range */
+    rid = ATA_ALTADDR_RID; 
+    altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+                               ATA_ALTIOSIZE, RF_ACTIVE);
+    if (!altio) {
+        bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
+        return ENXIO;
+    }
+
+    /* setup the resource vectors */
+    for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+	ch->r_io[i].res = io;
+	ch->r_io[i].offset = i;
+    }
+    ch->r_io[ATA_ALTSTAT].res = altio;
+    ch->r_io[ATA_ALTSTAT].offset = 0;
+    
+    /* initialize softc for this channel */
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
     ch->locking = ata_isa_lock;
