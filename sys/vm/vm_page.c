@@ -759,6 +759,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	if ((req & VM_ALLOC_NOOBJ) == 0) {
 		KASSERT(object != NULL,
 		    ("vm_page_alloc: NULL object."));
+		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 		KASSERT(!vm_page_lookup(object, pindex),
 		    ("vm_page_alloc: page already allocated"));
 		color = (pindex + object->pg_color) & PQ_L2_MASK;
