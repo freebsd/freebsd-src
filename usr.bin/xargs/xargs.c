@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #ifndef BOOTSTRAPPING
 #include <langinfo.h>
 #endif
@@ -80,7 +81,7 @@ static char echo[] = _PATH_ECHO;
 static char **av, **bxp, **ep, **exp, **xp;
 static char *argp, *bbp, *ebp, *inpline, *p, *replstr;
 static const char *eofstr;
-static int count, insingle, indouble, pflag, tflag, Rflag, rval, zflag;
+static int count, insingle, indouble, oflag, pflag, tflag, Rflag, rval, zflag;
 static int cnt, Iflag, jfound, Lflag, wasquoted, xflag;
 
 extern char **environ;
@@ -120,7 +121,7 @@ main(int argc, char *argv[])
 		/* 1 byte for each '\0' */
 		nline -= strlen(*ep++) + 1 + sizeof(*ep);
 	}
-	while ((ch = getopt(argc, argv, "0E:I:J:L:n:pR:s:tx")) != -1)
+	while ((ch = getopt(argc, argv, "0E:I:J:L:n:opR:s:tx")) != -1)
 		switch(ch) {
 		case 'E':
 			eofstr = optarg;
@@ -143,6 +144,9 @@ main(int argc, char *argv[])
 			nflag = 1;
 			if ((nargs = atoi(optarg)) <= 0)
 				errx(1, "illegal argument count");
+			break;
+		case 'o':
+			oflag = 1;
 			break;
 		case 'p':
 			pflag = 1;
@@ -507,6 +511,14 @@ exec:
 	case -1:
 		err(1, "vfork");
 	case 0:
+		close(0);
+		if (oflag) {
+			if (open("/dev/tty", O_RDONLY) == -1)
+				err(1, "open /dev/tty");
+		} else {
+			if (open("/dev/null", O_RDONLY) == -1)
+				err(1, "open /dev/null");
+		}
 		execvp(argv[0], argv);
 		childerr = errno;
 		_exit(1);
@@ -561,7 +573,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: xargs [-0pt] [-E eofstr] [-I replstr [-R replacements]] [-J replstr]\n"
+"usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements]] [-J replstr]\n"
 "             [-L number] [-n number [-x] [-s size] [utility [argument ...]]\n");
 	exit(1);
 }

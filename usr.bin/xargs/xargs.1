@@ -45,7 +45,7 @@
 .Nd "construct argument list(s) and execute utility"
 .Sh SYNOPSIS
 .Nm
-.Op Fl 0pt
+.Op Fl 0opt
 .Op Fl E Ar eofstr
 .Oo
 .Fl I Ar replstr
@@ -191,6 +191,13 @@ arguments remaining for the last invocation of
 The current default value for
 .Ar number
 is 5000.
+.It Fl o
+Reopen stdin as
+.Dq /dev/tty
+in the child process before executing the command.
+This is useful if you want
+.Nm
+to run an interactive application.
 .It Fl p
 Echo each command to be executed and ask the user whether it should be
 executed.
@@ -277,7 +284,7 @@ utility is expected to be
 .St -p1003.2
 compliant.
 The
-.Fl J
+.Fl J , o
 and
 .Fl R
 options are non-standard
