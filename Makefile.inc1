@@ -601,10 +601,6 @@ bootstrap-tools:
 #
 # build-tools: Build special purpose build tools
 #
-.if exists(${.CURDIR}/games) && !defined(NOGAMES)
-_games=	games/adventure games/hack games/phantasia
-.endif
-
 .if exists(${.CURDIR}/share) && !defined(NOSHARE)
 _share=	share/syscons/scrnmaps
 .endif
