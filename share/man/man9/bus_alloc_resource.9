@@ -45,7 +45,7 @@
 .Fn bus_alloc_resource "device_t dev" "int type" "int *rid" "u_long start" "u_long end" "u_long count" "u_int flags"
 .Sh DESCRIPTION
 This is an easy interface to the resource-management functions.
-It hides the indirection through the parent's method table. 
+It hides the indirection through the parent's method table.
 This function generally should be called in attach, but (except in some
 race cases) never earlier.
 .Pp
@@ -99,7 +99,7 @@ If you specified the default values for
 .Fa start
 and
 .Fa end ,
-then the default value of the bus is used if 
+then the default value of the bus is used if
 .Fa count
 is smaller than the default value and
 .Fa count
@@ -142,9 +142,9 @@ should be saved in the softc of the device after these calls.
 
 	portid = 0;
 	irqid = 0;
-	portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &portid, 
+	portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &portid,
 			0ul, ~0ul, 32, RF_ACTIVE);
-	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid, 
+	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
 			0ul, ~0ul, 1, RF_ACTIVE | RF_SHAREABLE);
 .Ed
 .Sh SEE ALSO

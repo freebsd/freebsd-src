@@ -42,15 +42,15 @@
 The
 .Nm
 driver provides support for the PS/2 mouse style pointing device.
-Currently there can be only one 
+Currently there can be only one
 .Nm
 device node in the system.
 As the PS/2 mouse port is located
 at the auxiliary port of the keyboard controller,
-the keyboard controller driver, 
+the keyboard controller driver,
 .Nm atkbdc ,
 must also be configured in the kernel.
-Note that there is currently no provision of changing the 
+Note that there is currently no provision of changing the
 .Em irq
 number.
 .Pp
@@ -61,12 +61,12 @@ The PS/2 style pointing device usually has several grades of resolution,
 that is, sensitivity of movement.
 They are typically 25, 50, 100 and 200
 pulse per inch.
-Some devices may have finer resolution. 
+Some devices may have finer resolution.
 The current resolution can be changed at runtime.
 The
 .Nm
 driver allows the user to initially set the resolution
-via the driver flag 
+via the driver flag
 .Pq see Sx DRIVER CONFIGURATION
 or change it later via the
 .Xr ioctl 2
@@ -85,24 +85,24 @@ The report rate can be changed via an ioctl call.
 .Ss Operation Levels
 The
 .Nm
-driver has three levels of operation. 
+driver has three levels of operation.
 The current operation level can be set via an ioctl call.
 .Pp
 At the level zero the basic support is provided; the device driver will report
-horizontal and vertical movement of the attached device 
+horizontal and vertical movement of the attached device
 and state of up to three buttons.
 The movement and status are encoded in a series of fixed-length data packets
 .Pq see Sx Data Packet Format .
-This is the default level of operation and the driver is initially 
+This is the default level of operation and the driver is initially
 at this level when opened by the user program.
 .Pp
-The operation level one, the `extended' level, supports a roller (or wheel), 
+The operation level one, the `extended' level, supports a roller (or wheel),
 if any, and up to 11 buttons.
 The movement of the roller is reported as movement along the Z axis.
 8 byte data packets are sent to the user program at this level.
 .Pp
 At the operation level two, data from the pointing device is passed to the
-user program as is. 
+user program as is.
 Modern PS/2 type pointing devices often use proprietary data format.
 Therefore, the user program is expected to have
 intimate knowledge about the format from a particular device when operating
@@ -117,7 +117,7 @@ A data packet from the PS/2 mouse style pointing device
 is three bytes long at the operation level zero:
 .Pp
 .Bl -tag -width Byte_1 -compact
-.It Byte 1 
+.It Byte 1
 .Bl -tag -width bit_7 -compact
 .It bit 7
 One indicates overflow in the vertical movement count.
@@ -129,7 +129,7 @@ Set if the vertical movement count is negative.
 Set if the horizontal movement count is negative.
 .It bit 3
 Always one.
-.\" The ALPS GlidePoint clears this bit when the user `taps' the surface of 
+.\" The ALPS GlidePoint clears this bit when the user `taps' the surface of
 .\" the pad, otherwise the bit is set.
 .\" Most, if not all, other devices always set this bit.
 .It bit 2
@@ -142,32 +142,32 @@ Right button status; set if pressed.
 Left button status; set if pressed.
 .El
 .It Byte 2
-Horizontal movement count in two's complement; 
+Horizontal movement count in two's complement;
 -256 through 255.
 Note that the sign bit is in the first byte.
 .It Byte 3
-Vertical movement count in two's complement; 
+Vertical movement count in two's complement;
 -256 through 255.
 Note that the sign bit is in the first byte.
 .El
 .Pp
 At the level one, a data packet is encoded
 in the standard format
-.Dv MOUSE_PROTO_SYSMOUSE 
+.Dv MOUSE_PROTO_SYSMOUSE
 as defined in
 .Xr mouse 4 .
 .Pp
-At the level two, native level, there is no standard on the size and format 
+At the level two, native level, there is no standard on the size and format
 of the data packet.
 .Ss Acceleration
 The
 .Nm
 driver can somewhat `accelerate' the movement of the pointing device.
-The faster you move the device, the further the pointer 
-travels on the screen. 
-The driver has an internal variable which governs the effect of 
+The faster you move the device, the further the pointer
+travels on the screen.
+The driver has an internal variable which governs the effect of
 the acceleration.
-Its value can be modified via the driver flag 
+Its value can be modified via the driver flag
 or via an ioctl call.
 .Ss Device Number
 The minor device number of the
@@ -178,9 +178,9 @@ minor = (`unit' << 1) | `non-blocking'
 .Ed
 .Pp
 where `unit' is the device number (usually 0) and the `non-blocking' bit
-is set to indicate ``don't block waiting for mouse input, 
+is set to indicate ``don't block waiting for mouse input,
 return immediately''.
-The `non-blocking' bit should be set for \fIXFree86\fP, 
+The `non-blocking' bit should be set for \fIXFree86\fP,
 therefore the minor device number usually used for \fIXFree86\fP is 1.
 See
 .Sx FILES
@@ -190,7 +190,7 @@ for device node names.
 There are following kernel configuration options to control the
 .Nm
 driver.
-They may be set in the kernel configuration file 
+They may be set in the kernel configuration file
 .Pq see Xr config 8 .
 .Bl -tag -width MOUSE
 .It Em KBD_RESETDELAY=X , KBD_MAXWAIT=Y
@@ -209,13 +209,13 @@ msecs at most.
 If the driver seems unable to detect your pointing
 device, you may want to increase these values.
 The default values are
-200 msec for 
+200 msec for
 .Fa X
 and 5
 for
 .Fa Y .
 .It Em PSM_DEBUG=N , KBDIO_DEBUG=N
-Sets the debug level to 
+Sets the debug level to
 .Fa N .
 The default debug level is zero.
 See
@@ -226,18 +226,18 @@ for debug logging.
 The
 .Nm
 driver accepts the following driver flags.
-Set them in the 
+Set them in the
 kernel configuration file or in the User Configuration Menu at
-the boot time 
+the boot time
 .Pq see Xr boot 8 .
 .Pp
 .Bl -tag -width MOUSE
 .It bit 0..3 RESOLUTION
-This flag specifies the resolution of the pointing device. 
+This flag specifies the resolution of the pointing device.
 It must be zero through four.
 The greater the value
-is, the finer resolution the device will select. 
-Actual resolution selected by this field varies according to the model 
+is, the finer resolution the device will select.
+Actual resolution selected by this field varies according to the model
 of the device.
 Typical resolutions are:
 .Pp
@@ -253,14 +253,14 @@ Typical resolutions are:
 .El
 .Pp
 Leaving this flag zero will selects the default resolution for the
-device (whatever it is). 
+device (whatever it is).
 .It bit 4..7 ACCELERATION
 This flag controls the amount of acceleration effect.
-The smaller the value of this flag is, more sensitive the movement becomes. 
-The minimum value allowed, thus the value for the most sensitive setting, 
+The smaller the value of this flag is, more sensitive the movement becomes.
+The minimum value allowed, thus the value for the most sensitive setting,
 is one.
 Setting this flag to zero will completely disables the
-acceleration effect. 
+acceleration effect.
 .It bit 8 NOCHECKSYNC
 The
 .Nm
@@ -269,7 +269,7 @@ the bit pattern of that byte.
 Although this method should work with most
 PS/2 pointing devices, it may interfere with some devices which are not
 so compatible with known devices.
-If you think your pointing device is not functioning as expected, 
+If you think your pointing device is not functioning as expected,
 and the kernel frequently prints the following message to the console,
 .Bd -literal -offset indent
 psmintr: out of sync (xxxx != yyyy).
@@ -283,7 +283,7 @@ driver will not try to identify the model of the pointing device and
 will not carry out model-specific initialization.
 The device should always act like a standard PS/2 mouse without such
 initialization.
-Extra features, such as wheels and additional buttons, won't be 
+Extra features, such as wheels and additional buttons, won't be
 recognized by the
 .Nm
 driver.
@@ -317,13 +317,13 @@ driver ignore certain error conditions when probing the PS/2 mouse port.
 It should never be necessary under normal circumstances.
 .It bit 13 HOOKRESUME
 The built-in PS/2 pointing device of some laptop computers is somehow
-not operable immediately after the system `resumes' from 
+not operable immediately after the system `resumes' from
 the power saving mode,
-though it will eventually become available. 
+though it will eventually become available.
 There are reports that
 stimulating the device by performing I/O will help
 waking up the device quickly.
-This flag will enable a piece of code in the 
+This flag will enable a piece of code in the
 .Nm
 driver to hook
 the `resume' event and exercise some harmless I/O operations on the
@@ -339,7 +339,7 @@ It has no effect unless the
 flag is set as well.
 .El
 .Sh IOCTLS
-There are a few 
+There are a few
 .Xr ioctl 2
 commands for mouse drivers.
 These commands and related structures and constants are defined in
@@ -358,7 +358,7 @@ These commands manipulate the operation level of the
 driver.
 .Pp
 .It Dv MOUSE_GETHWINFO Ar mousehw_t *hw
-Returns the hardware information of the attached device in the following 
+Returns the hardware information of the attached device in the following
 structure.
 .Bd -literal
 typedef struct mousehw {
@@ -377,7 +377,7 @@ The
 .Nm
 driver currently can detect the 3 button mouse from Logitech and report
 accordingly.
-The 3 button mouse from the other manufacturer may or may not be 
+The 3 button mouse from the other manufacturer may or may not be
 reported correctly.
 However, it will not affect the operation of
 the driver.
@@ -405,9 +405,9 @@ The
 is always
 .Dv MOUSE_MODEL_GENERIC
 at the operation level 0.
-It may be 
+It may be
 .Dv MOUSE_MODEL_GENERIC
-or one of 
+or one of
 .Dv MOUSE_MODEL_XXX
 constants at higher operation levels.
 Again the
@@ -445,7 +445,7 @@ typedef struct mousemode {
 .Pp
 The
 .Dv protocol
-is 
+is
 .Dv MOUSE_PROTO_PS2
 at the operation level zero and two.
 .Dv MOUSE_PROTO_SYSMOUSE
@@ -453,20 +453,20 @@ at the operation level one.
 .Pp
 The
 .Dv rate
-is the status report rate (reports/sec) at which the device will send 
+is the status report rate (reports/sec) at which the device will send
 movement report to the host computer.
-Typical supported values are 10, 20, 40, 60, 80, 100 and 200. 
+Typical supported values are 10, 20, 40, 60, 80, 100 and 200.
 Some mice may accept other arbitrary values too.
 .Pp
 The
 .Dv resolution
-of the pointing device must be one of 
-.Dv MOUSE_RES_XXX 
+of the pointing device must be one of
+.Dv MOUSE_RES_XXX
 constants or a positive value.
 The greater the value
-is, the finer resolution the mouse will select. 
-Actual resolution selected by the 
-.Dv MOUSE_RES_XXX 
+is, the finer resolution the mouse will select.
+Actual resolution selected by the
+.Dv MOUSE_RES_XXX
 constant varies according to the model of mouse.
 Typical resolutions are:
 .Pp
@@ -483,7 +483,7 @@ Typical resolutions are:
 .Pp
 The
 .Dv accelfactor
-field holds a value to control acceleration feature 
+field holds a value to control acceleration feature
 .Pq see Sx Acceleration .
 It must be zero or greater.  If it is zero, acceleration is disabled.
 .Pp
@@ -521,8 +521,8 @@ as specified in
 Only
 .Dv rate ,
 .Dv resolution ,
-.Dv level 
-and 
+.Dv level
+and
 .Dv accelfactor
 may be modifiable.
 Setting values in the other field does not generate
@@ -530,7 +530,7 @@ error and has no effect.
 .Pp
 If you do not want to change the current setting of a field, put -1
 there.
-You may also put zero in 
+You may also put zero in
 .Dv resolution
 and
 .Dv rate ,
@@ -553,14 +553,14 @@ and the default value for the fields will be selected.
 .\" .Pp
 .\" Upon returning to the user program, the driver will place the number
 .\" of valid data bytes in the buffer in the
-.\" .Dv len 
+.\" .Dv len
 .\" field.
 .\" .Pp
 .It Dv MOUSE_READSTATE Ar mousedata_t *state
 .\" The command reads the hardware settings from the device.
 .\" Upon returning to the user program, the driver will place the number
 .\" of valid data bytes in the buffer in the
-.\" .Dv len 
+.\" .Dv len
 .\" field. It is usually 3 bytes.
 .\" The buffer is formatted as follows:
 .\" .Pp
@@ -570,11 +570,11 @@ and the default value for the fields will be selected.
 .\" .It bit 7
 .\" Reserved.
 .\" .It bit 6
-.\" 0 - stream mode, 1 - remote mode. 
+.\" 0 - stream mode, 1 - remote mode.
 .\" In the stream mode, the pointing device sends the device status
 .\" whenever its state changes. In the remote mode, the host computer
 .\" must request the status to be sent.
-.\" The 
+.\" The
 .\" .Nm
 .\" driver puts the device in the stream mode.
 .\" .It bit 5
@@ -600,7 +600,7 @@ and the default value for the fields will be selected.
 .\" the resolution code varies from one device to another.
 .\" .El
 .\" .It Byte 3
-.\" The status report rate (reports/sec) at which the device will send 
+.\" The status report rate (reports/sec) at which the device will send
 .\" movement report to the host computer.
 .\" .El
 These commands are not currently supported by the
@@ -608,7 +608,7 @@ These commands are not currently supported by the
 driver.
 .Pp
 .It Dv MOUSE_GETSTATUS Ar mousestatus_t *status
-The command returns the current state of buttons and 
+The command returns the current state of buttons and
 movement counts as described in
 .Xr mouse 4 .
 .El
@@ -679,7 +679,7 @@ The ID code is described above.
 .Pp
 The seventh line shows the current hardware settings.
 .\" See
-.\" .Dv MOUSE_READSTATE 
+.\" .Dv MOUSE_READSTATE
 .\" for definitions.
 These bytes are formatted as follows:
 .Pp
@@ -689,12 +689,12 @@ These bytes are formatted as follows:
 .It bit 7
 Reserved.
 .It bit 6
-0 - stream mode, 1 - remote mode. 
+0 - stream mode, 1 - remote mode.
 In the stream mode, the pointing device sends the device status
 whenever its state changes.
 In the remote mode, the host computer
 must request the status to be sent.
-The 
+The
 .Nm
 driver puts the device in the stream mode.
 .It bit 5
@@ -722,23 +722,23 @@ Actual resolution for
 the resolution code varies from one device to another.
 .El
 .It Byte 3
-The status report rate (reports/sec) at which the device will send 
+The status report rate (reports/sec) at which the device will send
 movement report to the host computer.
 .El
 .Pp
-Note that the pointing device will not be enabled until the 
+Note that the pointing device will not be enabled until the
 .Nm
 driver is opened by the user program.
 .Pp
 The rest of the lines show the device ID code, the number of detected
-buttons and internal variables. 
+buttons and internal variables.
 .Pp
 At debug level 2, much more detailed information is logged.
 .Sh CAVEATS
 Many pad devices behave as if the first (left) button were pressed if
 the user `taps' the surface of the pad.
-In contrast, some pad products, e.g. some verions of ALPS GlidePoint 
-and Interlink VersaPad, treat the tapping action 
+In contrast, some pad products, e.g. some verions of ALPS GlidePoint
+and Interlink VersaPad, treat the tapping action
 as fourth button events.
 .Pp
 It is reported that Interlink VersaPad rquires both
@@ -759,7 +759,7 @@ There is not a guaranteed way to re-synchronize with the first byte
 of the packet once we are out of synchronization with the data
 stream.
 However, if you are using the \fIXFree86\fP server and experiencing
-the problem, you may be able to make the X server synchronize with the mouse 
+the problem, you may be able to make the X server synchronize with the mouse
 by switching away to a virtual terminal and getting back to the X server,
 unless the X server is accessing the mouse via
 .Xr moused 8 .
@@ -790,7 +790,7 @@ driver is based on the work done by quite a number of people, including
 .An Andrew Herbert ,
 .An Charles Hannum ,
 .An Shoji Yuen
-and 
+and
 .An Kazutaka Yokota
 to name the few.
 .Pp

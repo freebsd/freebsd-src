@@ -38,7 +38,7 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
 .Ft int
-.Fn VOP_RENAME "struct vnode *fdvp" "struct vnode *fvp" "struct componentname *fcnp" "struct vnode *tdvp" "struct vnode *tvp" "struct componentname *tcnp" 
+.Fn VOP_RENAME "struct vnode *fdvp" "struct vnode *fvp" "struct componentname *fcnp" "struct vnode *tdvp" "struct vnode *tvp" "struct componentname *tcnp"
 .Sh DESCRIPTION
 This renames a file and possibly changes its parent directory.
 If the destination object exists, it will be removed first.
@@ -60,15 +60,15 @@ pathname information about the file's new name
 .El
 .Sh LOCKS
 The source directory and file are unlocked but are expected to have their
-ref count bumped on entry.  The VOP routine is expected to 
+ref count bumped on entry.  The VOP routine is expected to
 .Fn vrele
 both prior
 to returning.
 .Pp
 The destination directory and file are locked as well as having their ref
-count bumped.  The VOP routine is expected to 
+count bumped.  The VOP routine is expected to
 .Fn vput
-both prior to 
+both prior to
 returning.
 .Sh PSEUDOCODE
 .Bd -literal
@@ -197,7 +197,7 @@ vop_rename(struct vnode *fdvp, struct vnode *fvp, struct componentname *fcnp,
 	     */
 	    ...;
 	}
-	
+
 	/*
 	 * Add name in new directory.
 	 */
@@ -272,7 +272,7 @@ vop_rename(struct vnode *fdvp, struct vnode *fvp, struct componentname *fcnp,
 
     /*
      * Unlink the source.  If a directory was moved to a new parent,
-     * update its ".." entry.  Gobs of ugly UFS code omitted here. 
+     * update its ".." entry.  Gobs of ugly UFS code omitted here.
      */
     ...;
 

@@ -122,21 +122,21 @@ Most modern motherboards perform the initialization correctly and work fine
 with this option enabled.
 .Pp
 Individual controllers may be configured to operate in the target role
-through the 
+through the
 .Dq Dv AHC_TMODE_ENABLE
 configuration option.  The value assigned to this option should be a bitmap
 of all units where target mode is desired.
-For example, a value of 0x25, would enable target mode on units 0, 2, and 5. 
+For example, a value of 0x25, would enable target mode on units 0, 2, and 5.
 .Pp
-Per target configuration performed in the 
+Per target configuration performed in the
 .Tn SCSI-Select
 menu, accessible at boot
-in 
+in
 .No non- Ns Tn EISA
 models,
-or through an 
+or through an
 .Tn EISA
-configuration utility for 
+configuration utility for
 .Tn EISA
 models,
 is honored by this driver.
@@ -152,7 +152,7 @@ Twin Channel controllers,
 the primary channel selection.
 For systems that store non-volatile settings in a system specific manner
 rather than a serial eeprom directly connected to the aic7xxx controller,
-the 
+the
 .Tn BIOS
 must be enabled for the driver to access this information.
 This restriction applies to all
@@ -163,8 +163,8 @@ Note that I/O addresses are determined automatically by the probe routines,
 but care should be taken when using a 284x
 .Pq Tn VESA No local bus controller
 in an
-.Tn EISA 
-system.  The jumpers setting the I/O area for the 284x should match the 
+.Tn EISA
+system.  The jumpers setting the I/O area for the 284x should match the
 .Tn EISA
 slot into which the card is inserted to prevent conflicts with other
 .Tn EISA
@@ -185,7 +185,7 @@ aic7770     10    EISA/VL    10MHz     16Bit     4    1
 aic7850     10    PCI/32     10MHz      8Bit     3
 aic7860     10    PCI/32     20MHz      8Bit     3
 aic7870     10    PCI/32     10MHz     16Bit    16
-aic7880     10    PCI/32     20MHz     16Bit    16 
+aic7880     10    PCI/32     20MHz     16Bit    16
 aic7890     20    PCI/32     40MHz     16Bit    16        3 4 5 6 7 8
 aic7891     20    PCI/64     40MHz     16Bit    16        3 4 5 6 7 8
 aic7892     20    PCI/64     80MHz     16Bit    16        3 4 5 6 7 8
@@ -194,7 +194,7 @@ aic7895C    15    PCI/32     20MHz     16Bit    16      2 3 4 5     8
 aic7896     20    PCI/32     40MHz     16Bit    16      2 3 4 5 6 7 8
 aic7897     20    PCI/64     40MHz     16Bit    16      2 3 4 5 6 7 8
 aic7899     20    PCI/64     80MHz     16Bit    16      2 3 4 5 6 7 8
-.El 
+.El
 .Pp
 .Bl -enum -compact
 .It
@@ -257,7 +257,7 @@ Some Quantum drives (at least the Empire 2100 and 1080s) will not run on an
 Rev B in synchronous mode at 10MHz.  Controllers with this problem have a
 42 MHz clock crystal on them and run slightly above 10MHz.  This confuses
 the drive and hangs the bus.  Setting a maximum synchronous negotiation rate
-of 8MHz in the 
+of 8MHz in the
 .Tn SCSI-Select
 utility will allow normal operation.
 .Pp

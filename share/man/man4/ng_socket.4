@@ -1,6 +1,6 @@
 .\" Copyright (c) 1996-1999 Whistle Communications, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Subject to the following obligations and disclaimer of warranty, use and
 .\" redistribution of this software, in source or object code forms, with or
 .\" without modifications are expressly permitted by Whistle Communications;
@@ -11,7 +11,7 @@
 .\"    Communications, Inc. trademarks, including the mark "WHISTLE
 .\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
 .\"    such appears in the above copyright notice or in the software.
-.\" 
+.\"
 .\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
 .\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
 .\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -29,7 +29,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
 .\" OF SUCH DAMAGE.
-.\" 
+.\"
 .\" Author: Archie Cobbs <archie@FreeBSD.org>
 .\"
 .\" $FreeBSD$
@@ -64,8 +64,8 @@ in the protocol family
 using the
 .Xr socket 2
 system call.
-Any control messages received by the node 
-and not having a cookie value of 
+Any control messages received by the node
+and not having a cookie value of
 .Dv NGM_SOCKET_COOKIE
 are received  by the process, using
 .Xr recvfrom 2 ;
@@ -106,9 +106,9 @@ on which the data was received or should be sent.
 As a special case, to allow netgraph data sockets to be used as stdin or stdout
 on naive programs, a
 .Xr sendto  2
-with a NULL sockaddr pointer, a 
+with a NULL sockaddr pointer, a
 .Xr send 2
-or a 
+or a
 .Xr write 2
 will succeed in the case where there is exactly ONE hook  attached to
 the socket node, (and thus the path is unambiguous).
@@ -123,7 +123,7 @@ This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
 .It Dv NGM_SOCK_CMD_NOLINGER
 When the last hook is removed from this node, it will shut down as
-if it had received a 
+if it had received a
 .Dv NGM_SHUTDOWN
 message. Attempts to access the sockets associated will return
 .Er ENOTCONN .
@@ -138,8 +138,8 @@ with neither the
 .Dv NGM_SOCKET_COOKIE
 or
 .Dv NGM_GENERIC_COOKIE
-will be passed unaltered up the 
-.Dv NG_CONTROL 
+will be passed unaltered up the
+.Dv NG_CONTROL
 socket.
 .Sh SHUTDOWN
 This node type shuts down and disappears when both the associated
@@ -151,7 +151,7 @@ sockets have been closed, or a
 control message is received. In the latter case, attempts to write
 to the still-open sockets will return
 .Er ENOTCONN .
-If the 
+If the
 .Dv NGM_SOCK_CMD_NOLINGER
 message has been received, closure of the last hook will also initiate
 a shutdown of the node.

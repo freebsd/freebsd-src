@@ -55,7 +55,7 @@ as used in
 .Xr rfork 2
 to indicate the type of fork.
 .Pp
-If the requirement for notification is removed, then the function 
+If the requirement for notification is removed, then the function
 .Fn rm_at_fork
 must be called with the exact
 .Fa func
@@ -63,7 +63,7 @@ argument as the corresponding call to
 .Fn at_fork .
 .Sh RETURN VALUES
 .Fn at_fork
-returns an errno, 0 meaning success. 
+returns an errno, 0 meaning success.
 .Fn rm_at_fork
 returns the number of items removed (should be 0 or 1).
 .Sh SEE ALSO

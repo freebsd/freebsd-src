@@ -52,13 +52,13 @@ and
 arguments specify the name and unit number of the device.
 If the name is unknown then the caller should pass
 .Dv NULL .
-If the unit is unknown then the caller should pass 
+If the unit is unknown then the caller should pass
 .Dv -1
 and the system will choose the next available unit number.
 .Pp
 The name of the device is used to determine which drivers might be
 appropriate for the device.  If a name is specified then only drivers
-of that name are probed.  If no name is given then all drivers for the 
+of that name are probed.  If no name is given then all drivers for the
 owning bus are probed.
 .Pp
 This allows busses which can uniquely identify device instances (such
@@ -67,7 +67,7 @@ match.  For busses which rely on supplied probe hints where only one
 driver can have a change of probing the device, the driver name should
 specified as the device name.
 .Pp
-Normally unit numbers will be chosen automatically by the system and a 
+Normally unit numbers will be chosen automatically by the system and a
 unit number of
 .Dv -1
 should be given.
@@ -77,16 +77,16 @@ be passed.  If the specified unit number is already allocated, a new
 unit will be allocated and a diagnostic message printed.
 .Pp
 If the devices attached to a bus must be probed in a specific order
-(e.g. for the ISA bus some devices are sensitive to failed probe attempts 
+(e.g. for the ISA bus some devices are sensitive to failed probe attempts
 of unrelated drivers and therefore must be probed first),
 the
 .Fa order
 argument of
 .Xr device_add_child_ordered 9
 should be used to specify a partial ordering.
-The new device will be added before any existing device with a greater 
+The new device will be added before any existing device with a greater
 order.
-If 
+If
 .Xr device_add_child 9
 is used, then the new child will be added as if its order was zero.
 .Sh RETURN VALUES

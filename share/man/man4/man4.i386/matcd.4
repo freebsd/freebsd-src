@@ -2,7 +2,7 @@
 .\"Authored by Frank Durda IV
 .\"
 .\"Program and Documentation are Copyright 1994, 1995  Frank Durda IV.
-.\"All rights reserved.  
+.\"All rights reserved.
 .\" "FDIV" is a trademark of Frank Durda IV.
 .\"
 .\"
@@ -40,18 +40,18 @@
 .\"    conditions even if it is unsupported, not a complete system
 .\"    and/or does not contain compiled code.
 .\"8.  These conditions will be in force for the full life of the
-.\"    copyright.  
+.\"    copyright.
 .\"9.  If all the above conditions are met, modifications to other
 .\"    parts of this file may be freely made, although any person
 .\"    or persons making changes do not receive the right to add their
 .\"    name or names to the copyright strings and notices in this
 .\"    software.  Persons making changes are encouraged to insert edit
 .\"    history in matcd.c and to put your name and details of the
-.\"    change there.  
+.\"    change there.
 .\"10. You must have prior written permission from the author to
 .\"    deviate from these terms.
 .\"
-.\"Vendors who produce product(s) containing this code are encouraged 
+.\"Vendors who produce product(s) containing this code are encouraged
 .\"(but not required) to provide copies of the finished product(s) to
 .\"the author and to correspond with the author about development
 .\"activity relating to this code.   Donations of development hardware
@@ -105,7 +105,7 @@ been included in computers made by Tandy, AST, Packard Bell and many others.
 .Pp
 These drives connect to the PC ISA bus through a proprietary host interface.
 This interface can exist as a stand-alone ISA card, or can be included on
-a sound card.  
+a sound card.
 .Sh DRIVER CONFIGURATION
 The
 .Nm
@@ -116,7 +116,7 @@ read operations are limited to one drive per host interface at any instant.
 To support multiple host interfaces, it is necessary to modify the
 entries in the kernel configuration file.  Normally your system comes
 with the file \fI/usr/src/sys/i386/conf/GENERIC\fR.  You should make
-a copy of this file and give it the name of your system. 
+a copy of this file and give it the name of your system.
 You can then edit the new file to include devices you want the system
 to support and delete the device entries that you don't want.
 .Pp
@@ -135,7 +135,7 @@ device  matcd1  at  isa?  port  ?
 additional entries).
 .Pp
 Note that the kernel configuration does not need to be modified to support
-up to four drives on a single host interface.  It is also not necessary to 
+up to four drives on a single host interface.  It is also not necessary to
 have four drives on a single interface before adding a second interface.
 .Pp
 By default,
@@ -143,7 +143,7 @@ By default,
 searches for the CD-ROM host interface adapters by using a table of known I/O
 ports on Creative host adapters (see \fIoptions.h\fR).  Although this
 is very flexible, it can cause problems when your system has other devices
-that are located at the I/O ports that 
+that are located at the I/O ports that
 .Nm
 is checking for CD-ROM host interfaces.  In addition, checking multiple
 locations can cause the boot process to take longer than it could.
@@ -187,14 +187,14 @@ Matsushita CR-562-x
 Matsushita CR-563-x
 .El
 Most resellers leave these original markings on the drives since the label
-also has the FCC, VDE, CSA and RU certification marks.  
+also has the FCC, VDE, CSA and RU certification marks.
 .Pp
 Both of these drive models have motorized trays.  There is also a custom
 version of these drives that does not have the volume control or headphone
 jack (seen on some Tandy computers), but this drive also works with
 .Nm .
 .Pp
-The Matsushita CR-522-x and CR-523-x CD-ROM drive is not usable with 
+The Matsushita CR-522-x and CR-523-x CD-ROM drive is not usable with
 .Nm .
 The CR-522 and CR-523 can also be identified from the front as it
 requires a CD-caddy.
@@ -202,8 +202,8 @@ requires a CD-caddy.
 Drives with IDE interfaces must use an IDE driver.
 .Pp
 The TEAC CD-55 4X CD-ROM drive also uses the Creative/Panasonic interface
-but the TEAC drive is \fInot\fR compatible with the Matsushita CR-56x drives.  
-The TEAC drive cannot be used with 
+but the TEAC drive is \fInot\fR compatible with the Matsushita CR-56x drives.
+The TEAC drive cannot be used with
 .Nm .
 .Pp
 The most common source of host interface adapters for the Panasonic drives
@@ -218,7 +218,7 @@ driver:
 .Bl -tag -width LONGNAME -compact -offset indent
 .It Creative
 Sound Blaster Pro (SBPRO) (CT1330A)
-.It Creative 
+.It Creative
 Sound Blaster 16 (CT1730)
 .It Creative
 Sound Blaster 16 - cost-reduced (CT1740)
@@ -247,7 +247,7 @@ interface release new versions of their adapters all the time.
 In addition to Creative Labs adapters, adapters that are compatible with
 Media Vision, IBM and Lasermate adapters are also supported.   However,
 these adapters use a wide range of I/O port addresses, so the driver
-must be reconfigured to locate these adapters.   
+must be reconfigured to locate these adapters.
 .Pp
 It is important to understand that some manufacturers have a different
 host interface implementation.  If you have a board that won't communicate
@@ -263,15 +263,15 @@ driver supports block and character access.  Partition "a" returns
 "c" cannot be "mounted" with cd9660 or other filesystem emulators.)
 No other partitions are supported.
 .Pp
-The 
+The
 .Nm matcdl
 devices work the same as the normal
 .Nm
 devices except that the drive trays are locked and
 remain locked until all of the devs on that drive are closed.
 .Pp
-.Nm Matcd 
-accepts numerous 
+.Nm Matcd
+accepts numerous
 .Fn ioctl
 commands, including disk and functions related to CD-ROM audio and tray
 control features.  The commands are:
@@ -342,17 +342,17 @@ The
 .Fn ioctl
 commands defined above are the only ones that the
 .Nm
-driver supports. 
+driver supports.
 .Sh FILES
 .Bl -tag -width /dev/(r)matcd0a_/dev/(r)matcdl0a -compact
 .It Pa /dev/[r]matcd0a /dev/[r]matcdl0a
 is used to access 2048-byte blocks of data on a CD-ROM disc
-that is recorded in the Mode 1 Form 1 format.  
+that is recorded in the Mode 1 Form 1 format.
 .It Pa /dev/[r]matcd0c /dev/[r]matcdl0c
 is used to access 2352-byte frames on a CD-ROM disc
 recorded in any format.
 .It Pa /usr/src/sys/i386/isa/matcd/*
-Source code and compilation options for 
+Source code and compilation options for
 .Nm .
 .El
 .Pp
@@ -387,8 +387,8 @@ numbers are always contiguous.
 The driver and documentation was written by
 .An Frank Durda IV .
 .Pp
-Program and Documentation are Copyright 1994, 1995, 
-All rights reserved.  
+Program and Documentation are Copyright 1994, 1995,
+All rights reserved.
 .Sh HISTORY
 The
 .Nm

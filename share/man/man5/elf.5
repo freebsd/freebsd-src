@@ -706,7 +706,7 @@ The section holds information defined by the program, whose
 format and meaning are determined solely by the program.
 .It Dv SHT_SYMTAB
 This section holds a symbol table.
-Typically, 
+Typically,
 .Sy SHT_SYMTAB
 provides symbols for link editing, though it may also be used
 for dynamic linking.
@@ -998,7 +998,7 @@ will include the
 .Sy SHF_ALLOC
 bit.
 Otherwise the bit will be off.
-By convention, 
+By convention,
 .Dq NAME
 is supplied by the section to which the relocations apply.
 Thus a relocation
@@ -1020,7 +1020,7 @@ By convention,
 .Dq NAME
 is supplied by the section to which the relocations apply.
 Thus a relocation
-section for 
+section for
 .Sy .text
 normally would have the name
 .Sy .rela.text .
@@ -1034,7 +1034,7 @@ This section is of type
 The attribute used is
 .Sy SHF_ALLOC .
 .It .rodata1
-This section hold read-only data that typically contributes to a 
+This section hold read-only data that typically contributes to a
 non-writable segment in the process image.
 This section is of type
 .Sy SHT_PROGBITS .
@@ -1225,7 +1225,7 @@ header table index.
 .Pp
 Relocation is the process of connecting symbolic references with
 symbolic definitions.
-Relocatable files must have information that 
+Relocatable files must have information that
 describes how to modify their section contents, thus allowing executable
 and shared object files to hold the right information for a process'
 program image.
@@ -1310,13 +1310,13 @@ stored into the relocatable field.
 .%B "Executable and Linking Format (ELF)"
 .Re
 .Sh HISTORY
-The ELF header files made their appearance in 
+The ELF header files made their appearance in
 .Fx 2.2.6 .
 ELF in itself first appeared in
 .At V .
 The ELF format is an adopted standard.
 .Sh AUTHORS
-This manual page was written by 
+This manual page was written by
 .An Jeroen Ruigrok van der Werven
 .Aq asmodai@FreeBSD.org
 with inspiration from BSDi's BSD/OS

@@ -68,12 +68,12 @@ powers should be extended to imprisoned roots.
 By default a process does not command superuser powers if it has
 been imprisoned by the
 .Xr jail 2
-system call.  
+system call.
 There are cases however where this is appropriate, and this can
 be done by setting the
 .Dv PRISON_ROOT
 bit in the flags argument to the
-.Nm suser_xxx 
+.Nm suser_xxx
 function.  It is important to review carefully in each case that
 this does not weaken the prison.  Generally only where the action
 is protected by the
@@ -87,10 +87,10 @@ The
 and
 .Nm suser_xxx
 functions note the fact that superuser powers have been used in the
-process structure of the process specified. 
+process structure of the process specified.
 Because part of their function is to notice
-whether superuser powers have been used, 
-the functions should only be called after other permission 
+whether superuser powers have been used,
+the functions should only be called after other permission
 possibilities have been exhausted.
 .Sh RETURN VALUES
 The

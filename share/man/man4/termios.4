@@ -407,7 +407,7 @@ and
 .Dv TIME
 mechanisms are
 activated by the receipt of the first byte, or a signal is received.  If
-data is in the buffer at the time of the 
+data is in the buffer at the time of the
 .Fn read ,
 the result is as
 if data had been received immediately after the
@@ -541,7 +541,7 @@ is discarded.  Thus, if there are no bytes waiting (that
 is, the
 .Dv EOF
 occurred at the beginning of a line), a byte
-count of zero is returned from the 
+count of zero is returned from the
 .Fn read ,
 representing an end-of-file indication.  If
 .Dv ICANON
@@ -977,7 +977,7 @@ is set and the input queue is full, subsequent input shall cause an
 character to be transmitted to
 the output queue.
 .Pp
-The initial input control value after 
+The initial input control value after
 .Fn open
 is implementation defined.
 .Ss Output Modes
@@ -1109,7 +1109,7 @@ is set, two stop bits are used, otherwise one stop bit.  For example, at
 If
 .Dv CREAD
 is set, the receiver is enabled.  Otherwise, no character is
-received. 
+received.
 Not all hardware supports this bit.  In fact, this flag
 is pretty silly and if it were not part of the
 .Nm
@@ -1138,7 +1138,7 @@ status lines.  If
 is clear, the modem status lines are
 monitored.
 .Pp
-Under normal circumstances, a call to the 
+Under normal circumstances, a call to the
 .Fn open
 function waits for
 the modem connection to complete.  However, if the
@@ -1146,7 +1146,7 @@ the modem connection to complete.  However, if the
 flag is set
 or if
 .Dv CLOCAL
-has been set, the 
+has been set, the
 .Fn open
 function returns
 immediately without waiting for the connection.
@@ -1450,7 +1450,7 @@ entries of the
 array.
 .Pp
 The initial values of the flags and control characters
-after 
+after
 .Fn open
 is set according to
 the values in the header

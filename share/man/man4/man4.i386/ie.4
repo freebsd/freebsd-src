@@ -17,8 +17,8 @@ The
 .Nm
 driver provides support for 8 and 16bit ISA ethernet cards that are based on
 the Intel i82586 chip.
-It supports the AT&T Starlan 10 and Starlan Fiber, 
-the EN100, the Intel EtherExpress 16, the 3COM 3C507 and the RACAL Interlan 
+It supports the AT&T Starlan 10 and Starlan Fiber,
+the EN100, the Intel EtherExpress 16, the 3COM 3C507 and the RACAL Interlan
 NI5210.
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -34,7 +34,7 @@ The device probe could not access the shared memory to determine its size.
 The device probe found a different size for the shared memory than the one
 specified in the kernel configuration file.
 .It "ie%d: kernel configured irq %d doesn't match board configured irq %d"
-The device probe detected that the board is configured for a different 
+The device probe detected that the board is configured for a different
 interrupt than the one specified in the kernel configuration file.
 .It "ie%d: reset"
 The Intel i82586 had to be reset by the driver.
@@ -52,11 +52,11 @@ Check your
 coax cable and terminator resistors.
 .It "ie%d: TDR detected a short %d clocks away"
 The driver detected a short circuit in the ethernet cable.
-Check your 
+Check your
 coax cable and terminator resistors.
 .It "ie%d: TDR returned unknown status %x"
 The driver got an unknown status from the card during the ethernet cable
-test. 
+test.
 .It "ie%d: multicast address setup command failed"
 The card could not be put into multicast mode.
 .It "ie%d: configure command failed"
@@ -65,11 +65,11 @@ The card refused to respond correctly during configuration.
 The programming of the Ethernet (MAC) address failed.
 .El
 .Sh CAVEATS
-The Racal Interlan NI5210 comes in variants with 8 and 16 kbytes of 
+The Racal Interlan NI5210 comes in variants with 8 and 16 kbytes of
 shared memory.
-It is strongly advisable to use the 16 kbyte variant. 
+It is strongly advisable to use the 16 kbyte variant.
 You can upgrade your 8 kbyte card to 16 kbyte by adding an additional
-RAM chip. 
+RAM chip.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
@@ -83,8 +83,8 @@ device driver was written by
 .An Garrett A. Wollman ,
 based on code by
 .An William F. Jolitz
-and Lawrence Berkeley Laboratories. 
-.Tn 3C507 
+and Lawrence Berkeley Laboratories.
+.Tn 3C507
 support was written by
 .An Charles M. Hannum .
 This manual page was written by

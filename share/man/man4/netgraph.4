@@ -1,6 +1,6 @@
 .\" Copyright (c) 1996-1999 Whistle Communications, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Subject to the following obligations and disclaimer of warranty, use and
 .\" redistribution of this software, in source or object code forms, with or
 .\" without modifications are expressly permitted by Whistle Communications;
@@ -11,7 +11,7 @@
 .\"    Communications, Inc. trademarks, including the mark "WHISTLE
 .\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
 .\"    such appears in the above copyright notice or in the software.
-.\" 
+.\"
 .\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
 .\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
 .\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -29,7 +29,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
 .\" OF SUCH DAMAGE.
-.\" 
+.\"
 .\" Authors: Julian Elischer <julian@FreeBSD.org>
 .\"          Archie Cobbs <archie@FreeBSD.org>
 .\"
@@ -44,10 +44,10 @@
 .Nd graph based kernel networking subsystem
 .Sh DESCRIPTION
 The
-.Nm 
+.Nm
 system provides a uniform and modular system for the implementation
 of kernel objects which perform various networking functions. The objects,
-known as 
+known as
 .Em nodes ,
 can be arranged into arbitrarily complicated graphs. Nodes have
 .Em hooks
@@ -55,7 +55,7 @@ which are used to connect two nodes together, forming the edges in the graph.
 Nodes communicate along the edges to process data, implement protocols, etc.
 .Pp
 The aim of
-.Nm 
+.Nm
 is to supplement rather than replace the existing kernel networking
 infrastructure.  It provides:
 .Pp
@@ -149,7 +149,7 @@ which should be used for data and messages received through that hook
 in preference to the general node-wide methods.
 .El
 .Pp
-A node may decide to assign special meaning to some hooks. 
+A node may decide to assign special meaning to some hooks.
 For example, connecting to the hook named
 .Dq debug
 might trigger
@@ -179,7 +179,7 @@ there is a sequence of edges connecting the two nodes, the message
 may be
 .Dq source routed
 by specifying the corresponding sequence
-of 
+of
 .Tn ASCII
 hook names as the destination address for the message (relative
 addressing). If the destination is adjacent to the source, then the source
@@ -192,8 +192,8 @@ for the message (absolute addressing).  The two types of
 .Tn ASCII
 addressing
 may be combined, by specifying an absolute start node and a sequence
-of hooks. Only the 
-.Tn ASCII 
+of hooks. Only the
+.Tn ASCII
 addressing modes are available to control programs outside the kernel,
 as use of direct pointers is limited of course to kernel modules.
 .Pp
@@ -201,7 +201,7 @@ Messages often represent commands that are followed by a reply message
 in the reverse direction. To facilitate this, the recipient of a
 control message is supplied with a
 .Dq return address
-that is suitable for addressing a reply. 
+that is suitable for addressing a reply.
 .Pp
 Each control message contains a 32 bit value called a
 .Em typecookie
@@ -215,7 +215,7 @@ at that node through a particular hook, (as opposed to having been directly
 addressed using its ID or global name), then that hook is identified to the
 receiving node. This allows a message to be rerouted or passed on, should
 a node decide that this is required, in much the same way that data packets
-are passed around between nodes. A set of standard 
+are passed around between nodes. A set of standard
 messages for flow control and link management purposes are
 defined by the base system that are usually
 passed around in this manner. Flow control message would usually travel
@@ -238,7 +238,7 @@ Each node has an input queue, and some operations can be considered to
 be 'writers' in that they alter the state of the node. Obviously in an SMP
 world it would be bad if the state of a node were changed while another
 data packet were transiting the node. For this purpose, the input queue
-implements a 
+implements a
 .Em reader/writer
 semantic so that when there is a writer in the node, all other requests
 are queued, and while there are readers, a writer, and any following
@@ -246,7 +246,7 @@ packets are queued. In the case where there is no reason to queue the
 data, the input method is called directly, as mentionned above.
 .Pp
 A node may declare that all requests should be considered as writers,
-or that requests coming in over a particular hook should be considered to 
+or that requests coming in over a particular hook should be considered to
 be a writer, or even that packets leaving or entering across a particular
 hook should always be queued, rather than delivered directly (often useful
 for interrupt routines who want to get back to the hardware quickly).
@@ -268,13 +268,13 @@ Netgraph nodes and support routines generally run at
 .Fn splnet .
 However, some nodes may want to send data and control messages
 from a different priority level. Netgraph supplies a mechanism which
-utilizes the NETISR system to move message and data delivery to 
+utilizes the NETISR system to move message and data delivery to
 .Fn splnet .
 Nodes that run at other priorities (e.g. interfaces) can be directly
 linked to other nodes so that the combination runs at the other priority,
-however any interaction with nodes running at splnet MUST be achieved via the 
+however any interaction with nodes running at splnet MUST be achieved via the
 queueing functions, (which use the
-.Fn netisr 
+.Fn netisr
 feature of the kernel).
 Note that messages are always received at
 .Fn splnet .
@@ -294,7 +294,7 @@ is the ability to join disparate kernel networking entities together in a
 consistent communication framework.
 .Pp
 An example is the node type
-.Em socket 
+.Em socket
 which is both a netgraph node and a
 .Xr socket 2
 BSD socket in the protocol family
@@ -315,7 +315,7 @@ and may accept or reject that action (by returning the appropriate
 error code):
 .Bl -tag -width xxx
 .It Creation of a new node
-The constructor for the type is called. If creation of a new node is 
+The constructor for the type is called. If creation of a new node is
 allowed, the constructor must call the generic node creation
 function (in object-oriented terms, the superclass constructor)
 and then allocate any special resources it needs. For nodes that
@@ -326,7 +326,7 @@ name corresponding to the
 device name is assigned here as well.
 .It Creation of a new hook
 The hook is created and tentatively
-linked to the node, and the node is told about the name that will be 
+linked to the node, and the node is told about the name that will be
 used to describe this hook. The node sets up any special data structures
 it needs, or may reject the connection, based on the name of the hook.
 .It Successful connection of two hooks
@@ -334,7 +334,7 @@ After both ends have accepted their
 hooks, and the links have been made, the nodes get a chance to
 find out who their peer is across the link and can then decide to reject
 the connection. Tear-down is automatic. This is also the time at which
-a node may decide whether to set a particular hook (or its peer) into 
+a node may decide whether to set a particular hook (or its peer) into
 .Em queuing
 mode.
 .It Destruction of a hook
@@ -372,11 +372,11 @@ The item contains a pointer to an mbuf and metadata about the packet.
 .Pp
 The node is notified on which hook the item arrived,
 and can use this information in its processing decision.
-The receiving node must always 
+The receiving node must always
 .Fn NG_FREE_M
 the mbuf chain on completion or error, or pass it on to another node
 (or kernel module) which will then be responsible for freeing it.
-Similarly the 
+Similarly the
 .Em item
 must be freed if it is not to be passed on to another node, by using the
 .Fn NG_FREE_ITEM
@@ -384,26 +384,26 @@ macro. If the item still holds references to mbufs or metadata at the time of
 freeing then they will also be appropriatly freed.
 Therefore, if there is any chance that the mbuf or metadata will be
 changed or freed separatly from the item, it is very important
-that these fields be retrieved using the 
+that these fields be retrieved using the
 .Fn NGI_GET_M
 and
 .Fn NGI_GET_META
 macros that also remove the reference within the item. (or multiple frees
 of the same object will occur).
 .Pp
-If it is only required to examine the contents of the mbufs or the 
+If it is only required to examine the contents of the mbufs or the
 metadata, then it is possible to use the
 .Fn NGI_M
 and
 .Fn NGI_META
 macros to both read and rewrite these fields.
 .Pp
-In addition to the mbuf chain itself there may also be a pointer to a 
+In addition to the mbuf chain itself there may also be a pointer to a
 structure describing meta-data about the message
 (e.g. priority information). This pointer may be
 .Dv NULL
 if there is no additional information. The format for this information is
-described in 
+described in
 .Pa sys/netgraph/netgraph.h .
 The memory for meta-data must allocated via
 .Fn malloc
@@ -420,10 +420,10 @@ the request item itself, or to use it to pass the message on further.
 .Pp
 The receiving node may decide to defer the data by queueing it in the
 .Nm
-NETISR system (see below). It achieves this by setting the 
+NETISR system (see below). It achieves this by setting the
 .Dv HK_QUEUE
 flag in the flags word of the hook on which that data will arrive.
-The infrastructure will respect that bit and queue the data for delivery at 
+The infrastructure will respect that bit and queue the data for delivery at
 a later time, rather than deliver it directly. A node may decide to set
 the bit on the
 .Em peer
@@ -441,7 +441,7 @@ conformance with Frame Relay standards.
 .Pp
 The node may elect to nominate a different receive data function
 for data received on a particular hook, to simplify coding. It uses
-the 
+the
 .Fn NG_HOOK_SET_RCVDATA hook fn
 macro to do this. The function receives the same arguments in every way
 other than it will receive all (and only) packets from that hook.
@@ -450,15 +450,15 @@ This method is called when a control message is addressed to the node.
 As with the received data, an
 .Em item
 is reveived, with a pointer to the control message.
-The message can be examined using the 
+The message can be examined using the
 .Fn NGI_MSG
 macro, or completely extracted from the item using the
 .Fn NGI_GET_MSG
 which also removes the reference within the item.
 If the Item still holds a reference to the message when it is freed
-(using the 
+(using the
 .Fn NG_FREE_ITEM
-macro), then the message will also be freed appropriatly. If the 
+macro), then the message will also be freed appropriatly. If the
 reference has been removed the node must free the message itself using the
 .Fn NG_FREE_MSG
 macro.
@@ -468,7 +468,7 @@ The return address is retrieved from the
 .Em item
 using the
 .Fn NGI_RETADDR
-macro and is of type 
+macro and is of type
 .Em ng_ID_t .
 All control messages and replies are
 allocated with
@@ -480,7 +480,7 @@ however it is more usual to use the
 and
 .Fn NG_MKRESPONSE
 macros to allocate and fill out a message.
-Messages must be freed using the 
+Messages must be freed using the
 .Fn NG_FREE_MSG
 macro.
 .Pp
@@ -491,7 +491,7 @@ the message out another hook to that on which it arrived.
 .Pp
 The node may elect to nominate a different receive message function
 for messages received on a particular hook, to simplify coding. It uses
-the 
+the
 .Fn NG_HOOK_SET_RCVMSG hook fn
 macro to do this. The function receives the same arguments in every way
 other than it will receive all (and only) messages from that hook.
@@ -504,12 +504,12 @@ framework for the
 .Dq type module
 writer to use.
 .Sh Addressing
-The 
+The
 .Nm
 framework provides an unambiguous and simple to use method of specifically
-addressing any single node in the graph. The naming of a node is 
+addressing any single node in the graph. The naming of a node is
 independent of its type, in that another node, or external component
-need not know anything about the node's type in order to address it so as 
+need not know anything about the node's type in order to address it so as
 to send it a generic message type. Node and hook names should be
 chosen so as to make addresses meaningful.
 .Pp
@@ -557,9 +557,9 @@ One could always send a control message to node C from anywhere
 by using the name
 .Em "Frame1:uplink.dlci16" .
 In this case, node C would also be notified that the message
-reached it via its hook 
+reached it via its hook
 .Dq mux .
-Similarly, 
+Similarly,
 .Em "Frame1:uplink.dlci20"
 could reliably be used to reach node D, and node A could refer
 to node B as
@@ -576,11 +576,11 @@ Note that this is only for
 .Em control messages .
 In each of these cases, where a relative addressing mode is
 used, the recipient is notified of the hook on which the
-message arrived, as well as 
+message arrived, as well as
 the originating node.
 This allows the option of hop-by-hop distibution of messages and
 state information.
-Data messages are 
+Data messages are
 .Em only
 routed one hop at a time, by specifying the departing
 hook, with each node making
@@ -590,15 +590,15 @@ it decodes the frame relay header to determine the DLCI,
 and then forwards the unwrapped frame to either C or D.
 .Pp
 In a similar way, flow control messages may be routed in the reverse
-direction to outgoing data. For example a "buffer nearly full" message from 
+direction to outgoing data. For example a "buffer nearly full" message from
 .Em "Frame1:
-would be passed to node 
+would be passed to node
 .Em B
 which might decide to send similar messages to both nodes
 .Em C
-and 
+and
 .Em D .
-The nodes would use 
+The nodes would use
 .Em "Direct hook pointer"
 addressing to route the messages. The message may have travelled from
 .Em "Frame1:
@@ -620,14 +620,14 @@ over an ISDN line:
             [ (no name)  ]                       [ (no name)  ]
 .Ed
 .Sh Netgraph Structures
-Structures are defined in 
-.Pa sys/netgraph/netgraph.h 
+Structures are defined in
+.Pa sys/netgraph/netgraph.h
 (for kernel sructures only of interest to nodes)
 and
-.Pa sys/netgraph/ng_message.h 
+.Pa sys/netgraph/ng_message.h
 (for message definitions also of interest to user programs).
 .Pp
-The two basic object types that are of interest to node authors are 
+The two basic object types that are of interest to node authors are
 .Em nodes
 and
 .Em hooks .
@@ -659,9 +659,9 @@ completed.
 .It
 node ID
 .Pp
-Of type 
+Of type
 .Em ng_ID_t ,
-This property can be retrieved using the macro 
+This property can be retrieved using the macro
 .Fn NG_NODE_ID "node" .
 .Pp
 .It
@@ -681,7 +681,7 @@ if (strncmp(
 .It
 A node dependent opaque cookie
 .Pp
-You may place anything of type 
+You may place anything of type
 .Em pointer
 here.
 Use the macros
@@ -694,7 +694,7 @@ to set and retrieve this property.
 number of hooks
 .Pp
 Use
-.Fn NG_NODE_NUMHOOKS "node" 
+.Fn NG_NODE_NUMHOOKS "node"
 to retrieve this value.
 .Pp
 .It
@@ -707,11 +707,11 @@ tested for some condition.
 where fn is a function that will be called for each hook
 with the form
 .Fn fn hook arg
-and returning 0 to terminate the search. If the search is terminated, then 
+and returning 0 to terminate the search. If the search is terminated, then
 .Em rethook
 will be set to the hook at which the search was terminated.
 .El
-.It struct  ng_hook 
+.It struct  ng_hook
 Node authors should always use the following typedef to declare
 their hook pointers.
 .Pp
@@ -724,7 +724,7 @@ accessed in the following manner:
 .It
 A node dependent opaque cookie.
 .Pp
-You may place anything of type 
+You may place anything of type
 .Em pointer
 here.
 Use the macros
@@ -736,7 +736,7 @@ to set and retrieve this property.
 .It
 An associate node.
 .Pp
-You may use the macro 
+You may use the macro
 .Fn NG_HOOK_NODE "hook"
 to find the associated node.
 .Pp
@@ -786,7 +786,7 @@ on the node.
 From a hook you can obtain the corresponding node, and from
 a node, it is possible to traverse all the active hooks.
 .Pp
-A current example of how to define a node can always be seen in 
+A current example of how to define a node can always be seen in
 .Em sys/netgraph/ng_sample.c
 and should be used as a starting point for new node writers.
 .El
@@ -815,7 +815,7 @@ struct ng_mesg {
 #define NGF_RESP        0x0001          /* Response */
 .Ed
 .Pp
-Control messages have the fixed header shown above, followed by a 
+Control messages have the fixed header shown above, followed by a
 variable length data section which depends on the type cookie
 and the command. Each field is explained below:
 .Bl -tag -width xxx
@@ -868,8 +868,8 @@ Room for a short human readable version of
 (for debugging purposes only).
 .El
 .Pp
-Some modules may choose to implement messages from more than one 
-of the header files and thus recognize more than one type cookie. 
+Some modules may choose to implement messages from more than one
+of the header files and thus recognize more than one type cookie.
 .Sh Control Message ASCII Form
 Control messages are in binary format for efficiency.  However, for
 debugging and human interface purposes, and if the node type supports
@@ -918,7 +918,7 @@ does not have an explicit index, the index is implicitly the previous
 element's index plus one.
 .It o
 Structures are enclosed in curly braces, and each field is specified
-in the form 
+in the form
 .Dq fieldname=value .
 .It o
 Any array element or structure field whose value is equal to its
@@ -972,7 +972,7 @@ number of hooks attached. The ID is an internal number unique to that node.
 .It Dv NGM_LISTHOOKS
 This returns the information given by
 .Dv NGM_NODEINFO ,
-but in addition 
+but in addition
 includes an array of fields describing each link, and the description for
 the node at the far end of that link.
 .It Dv NGM_LISTNAMES
@@ -1029,7 +1029,7 @@ contains the binary version of the control message.
 .El
 .Sh Flow Control Messages
 In addition to the control messages that affect nodes with respect to the
-graph, there are also a number of 
+graph, there are also a number of
 .Em Flow-control
 messages defined. At present these are
 .Em NOT
@@ -1037,7 +1037,7 @@ handled automatically by the system, so
 nodes need to handle them if they are going to be used in a graph utilising
 flow control, and will be in the likely path of these messages. The
 default action of a node that doesn't understand these messages should
-be to pass them onto the next node. Hopefully some helper functions 
+be to pass them onto the next node. Hopefully some helper functions
 will assist in this eventually. These messages are also defined in
 .Pa sys/netgraph/ng_message.h
 and have a separate cookie
@@ -1048,10 +1048,10 @@ Data moving through the
 .Nm
 system can be accompanied by meta-data that describes some
 aspect of that data. The form of the meta-data is a fixed header,
-which contains enough information for most uses, and can optionally 
+which contains enough information for most uses, and can optionally
 be supplemented by trailing
 .Em option
-structures, which contain a 
+structures, which contain a
 .Em cookie
 (see the section on control messages), an identifier, a length and optional
 data. If a node does not recognize the cookie associated with an option,
@@ -1161,7 +1161,7 @@ Data entering from
 .Dv left2right
 is sent to the right and data from
 .Dv right2left
-to left. 
+to left.
 .Pp
 .It RFC1490 MUX
 Encapsulates/de-encapsulates frames encoded according to RFC 1490.
@@ -1210,19 +1210,19 @@ for example to make several LAN ports act together to get a higher speed
 link between two machines.
 .It Various PPP related nodes.
 There is a full multilink PPP implementation that runs in Netgraph.
-The 
+The
 .Em Mpd
-port can use these modules to make a very low latency high 
-capacity ppp system. It also supports 
+port can use these modules to make a very low latency high
+capacity ppp system. It also supports
 .Em PPTP
 vpns using the
 .Em PPTP
 node.
 .It PPPOE
 A server and client side implememtation of PPPoE. Used in conjunction with
-either 
+either
 .Xr ppp 8
-or the 
+or the
 .Em mpd port .
 .It BRIDGE
 This node, togther with the ethernet nodes allows a very flexible
@@ -1230,7 +1230,7 @@ bridging system to be implemented.
 .It KSOCKET
 This intriguing node looks like a socket to the system but diverts
 all data to and from the netgraph system for further processing. This allows
-such things as UDP tunnels to be almost trivially implemented from the 
+such things as UDP tunnels to be almost trivially implemented from the
 command line.
 .El
 .Pp
@@ -1267,13 +1267,13 @@ should be used if possible to free data and meta data (see
 Messages sent using
 .Fn ng_send_message
 are freed by the recipient. As in the case above, the addresses
-associated with the message are freed by whatever allocated them so the 
+associated with the message are freed by whatever allocated them so the
 recipient should copy them if it wants to keep that information.
 .It 4
 Both control mesages and data are delivered and queued with
-a netgraph 
+a netgraph
 .Em item .
-The item must be freed using 
+The item must be freed using
 .Fn NG_FREE_ITEM "item"
 or passed on to another node.
 .El
@@ -1284,15 +1284,15 @@ Definitions for use solely within the kernel by
 .Nm
 nodes.
 .It Pa /sys/netgraph/ng_message.h
-Definitions needed by any file that needs to deal with 
-.Nm 
+Definitions needed by any file that needs to deal with
+.Nm
 messages.
 .It Pa /sys/netgraph/ng_socket.h
-Definitions needed to use 
+Definitions needed to use
 .Nm
 socket type nodes.
 .It Pa /sys/netgraph/ng_{type}.h
-Definitions needed to use 
+Definitions needed to use
 .Nm
 {type}
 nodes, including the type cookie definition.
@@ -1327,7 +1327,7 @@ and
 .Xr nghook 8 .
 .Pp
 Also look in /usr/share/examples/netgraph for solutions to several
-common networking problems, solved using 
+common networking problems, solved using
 .Nm .
 .Sh SEE ALSO
 .Xr socket 2 ,

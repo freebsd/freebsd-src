@@ -37,13 +37,13 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for ISA ethernet adapters based on the 
+driver provides support for ISA ethernet adapters based on the
 .Tn Crystal Semiconductor CS8900
 and
 .Tn CS8920
-NICs.  These devices are used on the 
-.Tn IBM EtherJet ISA 
-adapters and in many embedded applications where the high integration, small 
+NICs.  These devices are used on the
+.Tn IBM EtherJet ISA
+adapters and in many embedded applications where the high integration, small
 size and low cost of the CS89x0 family compensate for their drawbacks.
 .Pp
 The
@@ -52,10 +52,10 @@ driver will obtain configuration parameters either from the configuration entry
 or from the card.  Parameters specified in the configuration entry will be
 used if present; the card may be soft-configured so these may be any valid
 value.  Adapters based on the CS8920 normally offer PnP configuration and the driver
-will detect the 
-.Tn IBM EtherJet 
-and the 
-.Tn CSC6040 
+will detect the
+.Tn IBM EtherJet
+and the
+.Tn CSC6040
 adapters automatically.
 .Pp
 Note that the CS8900 is limited to 4 IRQ values; these are normally implemented
@@ -97,16 +97,16 @@ In particular, NFS operations should be limited to 1k read/write transactions
 in order to avoid overruns.
 .Sh SEE ALSO
 .Xr arp 4 ,
-.Xr netintro 4 , 
+.Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr ifconfig 8
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
-device driver was written by 
-.An Maxim Bolotin 
-and 
+device driver was written by
+.An Maxim Bolotin
+and
 .An Oleg Sharoiko .
 This manpage was written by
 .An Michael Smith .

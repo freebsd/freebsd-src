@@ -40,10 +40,10 @@
 This driver provides access to disks connected to controllers that emulate
 the Western Digital WD100x series.
 This range of controllers includes WD1003
-type ST412 controllers, WD1007 ESDI controllers and also the generic IDE 
+type ST412 controllers, WD1007 ESDI controllers and also the generic IDE
 controllers found on most motherboards.
 .Pp
-Your controller documentation is usually quick to point out any WD100x 
+Your controller documentation is usually quick to point out any WD100x
 compatibility.
 .Pp
 You can convey a number of hints and instructions to the driver using
@@ -56,7 +56,7 @@ For each drive there are six bit-fields encoded in a 16 bit integer:
 .It 0x8000
 Test and use the 32bit transfer capability of the drive.
 .It 0x4000
-If drive looks like it's coming out of sleep mode, assume it's 
+If drive looks like it's coming out of sleep mode, assume it's
 confused and reinitialize it.
 .It 0x2000
 Probe for and use the bus-mastering DMA capabilities of modern

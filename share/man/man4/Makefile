@@ -182,7 +182,7 @@ MAN=	aac.4 \
 	xl.4 \
 	xpt.4 \
 	yp.4 \
-	zero.4 
+	zero.4
 
 MLINKS=	ata.4 acd.4 ata.4 ad.4 ata.4 afd.4 ata.4 ast.4
 MLINKS+=bktr.4 brooktree.4

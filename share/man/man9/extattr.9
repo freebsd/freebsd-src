@@ -29,7 +29,7 @@
 .Os
 .Dt EXTATTR 9
 .Sh NAME
-.Nm extattr 
+.Nm extattr
 .Nd virtual file system named extended attributes
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
@@ -73,7 +73,7 @@ specific new attributes may be defined.
 Extended attributes are named using a null-terminated character string.
 Depending on underlying file system semantics, this name may or may not be
 case-sensitive.  Appropriate vnode extended attribute calls are:
-.Xr VOP_GETEXTATTR 9 
+.Xr VOP_GETEXTATTR 9
 and
 .Xr VOP_SETEXTATTR 9 .
 .Sh SEE ALSO

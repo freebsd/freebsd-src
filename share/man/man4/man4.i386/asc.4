@@ -44,7 +44,7 @@ The
 character device driver currently handles the
 .Tn GI1904 Ns -based
 hand scanner (e.g. Trust Amiscan Grey).
-It uses DMA and interrupts. 
+It uses DMA and interrupts.
 Up to 50 lines of scanned input data are buffered in the driver.
 .Pp
 The device can operate at four different resolutions: 100, 200, 300
@@ -89,7 +89,7 @@ Get current resolution in dots per inch (dpi).
 Get current width of the bitmap in pixels.
 .It Dv ASC_SHEIGHT
 .Pq Li int
-Set the height of the bitmap in 
+Set the height of the bitmap in
 .Xr pbm 5
 mode.  This is actually
 a limit on the amount of lines scannable after the first read
@@ -116,10 +116,10 @@ Set the timeout for the completion of reading one buffer.
 Since a
 handy scanner is a human/computer interface timeout values are usually
 higher than those of a flat scanner; the default is 15 seconds.  After
-timeout is reached the read operation will fail with 
+timeout is reached the read operation will fail with
 .Er EBUSY .
 Note that
-the timeout timer starts anew for each buffer to be read and thus 
+the timeout timer starts anew for each buffer to be read and thus
 reducing it does not result in faster scans for longer images.
 .It Dv ASC_GBTIME
 .Pq Li int
@@ -132,13 +132,13 @@ requests that modify a parameter except
 .Dv ASC_SBTIME
 do not have an effect on an ongoing scan process.  The user must close
 the device and open it again for the new selections to take effect.
-Consequently, the selections are 
+Consequently, the selections are
 .Em not
 reset when the device is opened or closed.
 .Pp
 Similarly, requests that read a value do not report the value that is
 used for the ongoing scan process.  The values needed during the scan
-process are saved when it starts and thus are not accessed by 
+process are saved when it starts and thus are not accessed by
 .Fn ioctl
 requests.
 .Pp
