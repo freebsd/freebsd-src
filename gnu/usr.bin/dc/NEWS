@@ -1,7 +1,0 @@
-Changes between version 0.2 and 0.1:
-
-* You can now have nested square bracket pairs within a string.
-
-* The letters A-F can now be part of a number when the input radix is
-large enough to make them meaningful.
-

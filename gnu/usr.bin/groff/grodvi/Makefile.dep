@@ -1,2 +1,0 @@
-dvi.o : dvi.cc ../include/driver.h ../include/errarg.h ../include/error.h \
-  ../include/font.h ../include/printer.h ../include/lib.h
