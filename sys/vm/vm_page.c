@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.122 1999/01/24 07:06:52 dillon Exp $
+ *	$Id: vm_page.c,v 1.123 1999/01/28 00:57:57 dillon Exp $
  */
 
 /*
@@ -87,7 +87,7 @@
 #include <vm/vm_extern.h>
 
 static void	vm_page_queue_init __P((void));
-static vm_page_t vm_page_select_free __P((vm_object_t object,
+static vm_page_t _vm_page_select_free __P((vm_object_t object,
 			vm_pindex_t pindex, int prefqueue));
 static vm_page_t vm_page_select_cache __P((vm_object_t, vm_pindex_t));
 
@@ -419,9 +419,6 @@ vm_page_insert(m, object, pindex)
 	 */
 
 	TAILQ_INSERT_TAIL(&object->memq, m, listq);
-#if 0
-	m->object->page_hint = m;
-#endif
 	m->object->generation++;
 
 	if (m->wire_count)
@@ -547,12 +544,6 @@ vm_page_lookup(object, pindex)
 	 * Search the hash table for this object/offset pair
 	 */
 
-#if 0
-	if (object->page_hint && (object->page_hint->pindex == pindex) &&
-		(object->page_hint->object == object))
-		return object->page_hint;
-#endif
-
 retry:
 	generation = vm_page_bucket_generation;
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
@@ -560,9 +551,6 @@ retry:
 		if ((m->object == object) && (m->pindex == pindex)) {
 			if (vm_page_bucket_generation != generation)
 				goto retry;
-#if 0
-			m->object->page_hint = m;
-#endif
 			return (m);
 		}
 	}
@@ -671,6 +659,8 @@ vm_page_unqueue(m)
 	}
 }
 
+#if PQ_L2_SIZE > 1
+
 /*
  *	vm_page_list_find:
  *
@@ -684,83 +674,37 @@ vm_page_unqueue(m)
  *
  *	This routine must be called at splvm().
  *	This routine may not block.
+ *
+ *	This routine may only be called from the vm_page_list_find() macro
+ *	in vm_page.h
  */
 vm_page_t
-vm_page_list_find(basequeue, index)
+_vm_page_list_find(basequeue, index)
 	int basequeue, index;
 {
-#if PQ_L2_SIZE > 1
-
-	int i,j;
-	vm_page_t m;
-	int hindex;
+	int i;
+	vm_page_t m = NULL;
 	struct vpgqueues *pq;
 
 	pq = &vm_page_queues[basequeue];
 
-	m = TAILQ_FIRST(pq[index].pl);
-	if (m)
-		return m;
+	/*
+	 * Note that for the first loop, index+i and index-i wind up at the
+	 * same place.  Even though this is not totally optimal, we've already
+	 * blown it by missing the cache case so we do not care.
+	 */
 
-	for(j = 0; j < PQ_L1_SIZE; j++) {
-		int ij;
-		for(i = (PQ_L2_SIZE / 2) - PQ_L1_SIZE;
-			(ij = i + j) > 0;
-			i -= PQ_L1_SIZE) {
+	for(i = PQ_L2_SIZE / 2; i > 0; --i) {
+		if ((m = TAILQ_FIRST(pq[(index + i) & PQ_L2_MASK].pl)) != NULL)
+			break;
 
-			hindex = index + ij;
-			if (hindex >= PQ_L2_SIZE)
-				hindex -= PQ_L2_SIZE;
-			if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
-				return m;
-
-			hindex = index - ij;
-			if (hindex < 0)
-				hindex += PQ_L2_SIZE;
-			if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
-				return m;
-		}
+		if ((m = TAILQ_FIRST(pq[(index - i) & PQ_L2_MASK].pl)) != NULL)
+			break;
 	}
-
-	hindex = index + PQ_L2_SIZE / 2;
-	if (hindex >= PQ_L2_SIZE)
-		hindex -= PQ_L2_SIZE;
-	m = TAILQ_FIRST(pq[hindex].pl);
-	if (m)
-		return m;
-
-	return NULL;
-#else
-	return TAILQ_FIRST(vm_page_queues[basequeue].pl);
-#endif
-
+	return(m);
 }
 
-/*
- *	vm_page_select:
- *
- *	Find a page on the specified queue with color optimization.
- *
- *	This routine must be called at splvm().
- *	This routine may not block.
- */
-vm_page_t
-vm_page_select(object, pindex, basequeue)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int basequeue;
-{
-
-#if PQ_L2_SIZE > 1
-	int index;
-	index = (pindex + object->pg_color) & PQ_L2_MASK;
-	return vm_page_list_find(basequeue, index);
-
-#else
-	return TAILQ_FIRST(vm_page_queues[basequeue].pl);
 #endif
-
-}
 
 /*
  *	vm_page_select_cache:
@@ -780,14 +724,10 @@ vm_page_select_cache(object, pindex)
 	vm_page_t m;
 
 	while (TRUE) {
-#if PQ_L2_SIZE > 1
-		int index;
-		index = (pindex + object->pg_color) & PQ_L2_MASK;
-		m = vm_page_list_find(PQ_CACHE, index);
-
-#else
-		m = TAILQ_FIRST(vm_page_queues[PQ_CACHE].pl);
-#endif
+		m = vm_page_list_find(
+		    PQ_CACHE,
+		    (pindex + object->pg_color) & PQ_L2_MASK
+		);
 		if (m && ((m->flags & PG_BUSY) || m->busy ||
 			       m->hold_count || m->wire_count)) {
 			vm_page_deactivate(m);
@@ -800,106 +740,73 @@ vm_page_select_cache(object, pindex)
 /*
  *	vm_page_select_free:
  *
- *	Find a free or zero page, with specified preference.
+ *	Find a free or zero page, with specified preference.  We attempt to
+ *	inline the nominal case and fall back to _vm_page_select_free() 
+ *	otherwise.
  *
  *	This routine must be called at splvm().
  *	This routine may not block.
  */
 
+static __inline vm_page_t
+vm_page_select_free(vm_object_t object, vm_pindex_t pindex, int prefqueue)
+{
+        vm_page_t m;
+        int otherq = (prefqueue == PQ_ZERO) ? PQ_FREE : PQ_ZERO;
+
+#if PQ_L2_SIZE > 1
+        int i = (pindex + object->pg_color) & PQ_L2_MASK;
+
+        if ((m = TAILQ_FIRST(vm_page_queues[prefqueue+i].pl)) == NULL &&
+            (m = TAILQ_FIRST(vm_page_queues[otherq+i].pl)) == NULL
+        ) {
+                m = _vm_page_select_free(object, pindex, prefqueue);
+        }
+#else
+        if ((m = TAILQ_FIRST(vm_page_queues[prefqueue].pl)) == NULL)
+                m = TAILQ_FIRST(vm_page_queues[otherq].pl);
+#endif
+        return(m);
+}
+
+#if PQ_L2_SIZE > 1
+
 static vm_page_t
-vm_page_select_free(object, pindex, prefqueue)
+_vm_page_select_free(object, pindex, prefqueue)
 	vm_object_t object;
 	vm_pindex_t pindex;
 	int prefqueue;
 {
-#if PQ_L2_SIZE > 1
-	int i,j;
-	int index, hindex;
-#endif
-	vm_page_t m;
-#if 0
-	vm_page_t mh;
-#endif
-	int oqueuediff;
+	int i;
+	int index;
+	vm_page_t m = NULL;
 	struct vpgqueues *pq;
+	struct vpgqueues *po;
 
-	if (prefqueue == PQ_ZERO)
-		oqueuediff = PQ_FREE - PQ_ZERO;
-	else
-		oqueuediff = PQ_ZERO - PQ_FREE;
-
-#if 0
-	if (mh = object->page_hint) {
-		 if (mh->pindex == (pindex - 1)) {
-			if ((mh->flags & PG_FICTITIOUS) == 0) {
-				if ((mh < &vm_page_array[cnt.v_page_count-1]) &&
-					(mh >= &vm_page_array[0])) {
-					int queue;
-					m = mh + 1;
-					if (VM_PAGE_TO_PHYS(m) == (VM_PAGE_TO_PHYS(mh) + PAGE_SIZE)) {
-						queue = m->queue - m->pc;
-						if (queue == PQ_FREE || queue == PQ_ZERO) {
-							return m;
-						}
-					}
-				}
-			}
-		}
-	}
-#endif
-
-	pq = &vm_page_queues[prefqueue];
-
-#if PQ_L2_SIZE > 1
-
-	index = (pindex + object->pg_color) & PQ_L2_MASK;
-
-	if ((m = TAILQ_FIRST(pq[index].pl)) != NULL)
-		return m;
-	if ((m = TAILQ_FIRST(pq[index + oqueuediff].pl)) != NULL)
-		return m;
-
-	for(j = 0; j < PQ_L1_SIZE; j++) {
-		int ij;
-		for(i = (PQ_L2_SIZE / 2) - PQ_L1_SIZE;
-			(ij = i + j) >= 0;
-			i -= PQ_L1_SIZE) {
-
-			hindex = index + ij;
-			if (hindex >= PQ_L2_SIZE)
-				hindex -= PQ_L2_SIZE;
-			if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
-				return m;
-			if ((m = TAILQ_FIRST(pq[hindex + oqueuediff].pl)) != NULL)
-				return m;
-
-			hindex = index - ij;
-			if (hindex < 0)
-				hindex += PQ_L2_SIZE;
-			if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
-				return m;
-			if ((m = TAILQ_FIRST(pq[hindex + oqueuediff].pl)) != NULL)
-				return m;
-		}
+	if (prefqueue == PQ_ZERO) {
+		pq = &vm_page_queues[PQ_ZERO];
+		po = &vm_page_queues[PQ_FREE];
+	} else {
+		pq = &vm_page_queues[PQ_FREE];
+		po = &vm_page_queues[PQ_ZERO];
 	}
 
-	hindex = index + PQ_L2_SIZE / 2;
-	if (hindex >= PQ_L2_SIZE)
-		hindex -= PQ_L2_SIZE;
-	if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
-		return m;
-	if ((m = TAILQ_FIRST(pq[hindex+oqueuediff].pl)) != NULL)
-		return m;
+	index = pindex + object->pg_color;
 
-#else
-	if ((m = TAILQ_FIRST(pq[0].pl)) != NULL)
-		return m;
-	else
-		return TAILQ_FIRST(pq[oqueuediff].pl);
-#endif
-
-	return NULL;
+	for(i = PQ_L2_SIZE / 2; i > 0; --i) {
+		if ((m = TAILQ_FIRST(pq[(index+i) & PQ_L2_MASK].pl)) != NULL)
+			break;
+		if ((m = TAILQ_FIRST(po[(index+i) & PQ_L2_MASK].pl)) != NULL)
+			break;
+		if ((m = TAILQ_FIRST(pq[(index-i) & PQ_L2_MASK].pl)) != NULL)
+			break;
+		if ((m = TAILQ_FIRST(po[(index-i) & PQ_L2_MASK].pl)) != NULL)
+			break;
+	}
+	return(m);
 }
+
+#endif
 
 /*
  *	vm_page_alloc:
@@ -1088,26 +995,6 @@ loop:
 			(cnt.v_free_count < cnt.v_pageout_free_min))
 		pagedaemon_wakeup();
 
-#if 0
-	/*
-	 * (code removed - was previously a manual breakout of the act of
-	 * freeing a page from cache.  We now just call vm_page_free() on
-	 * a cache page an loop so this code no longer needs to be here)
-	 */
-	if ((qtype == PQ_CACHE) &&
-		((page_req == VM_ALLOC_NORMAL) || (page_req == VM_ALLOC_ZERO)) &&
-		oldobject && (oldobject->type == OBJT_VNODE) &&
-		((oldobject->flags & OBJ_DEAD) == 0)) {
-		struct vnode *vp;
-		vp = (struct vnode *) oldobject->handle;
-		if (vp && VSHOULDFREE(vp)) {
-			if ((vp->v_flag & (VFREE|VTBFREE|VDOOMED)) == 0) {
-				TAILQ_INSERT_TAIL(&vnode_tobefree_list, vp, v_freelist);
-				vp->v_flag |= VTBFREE;
-			}
-		}
-	}
-#endif
 	splx(s);
 
 	return (m);
