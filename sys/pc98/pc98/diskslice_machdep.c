@@ -82,6 +82,9 @@ static void mbr_extended __P((dev_t dev, struct disklabel *lp,
 			      int nsectors, int ntracks, u_long mbr_offset,
 			      int level));
 #endif
+static int mbr_setslice __P((char *sname, struct disklabel *lp,
+			     struct diskslice *sp, struct dos_partition *dp,
+			     u_long br_offset));
 
 #ifdef PC98
 #define DPBLKNO(cyl,hd,sect) ((cyl)*(lp->d_secpercyl))
@@ -224,10 +227,6 @@ dsinit(dev, lp, sspp)
 	char	*sname;
 	struct diskslice *sp;
 	struct diskslices *ssp;
-#ifdef PC98
-	u_long	pc98_start;
-	u_long	pc98_size;
-#endif
 
 	mbr_offset = DOSBBSECTOR;
 #ifdef PC98
@@ -458,23 +457,9 @@ reread_mbr:
 	/* Initialize normal slices. */
 	sp = &ssp->dss_slices[BASE_SLICE];
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++, sp++) {
-#ifdef PC98
-		pc98_start = DPBLKNO(dp->dp_scyl,dp->dp_shd,dp->dp_ssect);
-		pc98_size = dp->dp_ecyl ? DPBLKNO(dp->dp_ecyl+1,dp->dp_ehd,dp->dp_esect) - pc98_start : 0;
-		sp->ds_offset = pc98_start;
-		sp->ds_size = pc98_size;
-		sp->ds_type = dp->dp_mid;
-		sp->ds_subtype = dp->dp_sid;
-		strncpy(sp->ds_name, dp->dp_name, sizeof(sp->ds_name));
-#else
-		sp->ds_offset = mbr_offset + dp->dp_start;
-		sp->ds_size = dp->dp_size;
-		sp->ds_type = dp->dp_typ;
-#endif
-#if 0
-		lp->d_subtype |= (lp->d_subtype & 3) | dospart
-				 | DSTYPE_INDOSPART;
-#endif
+		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
+			       RAW_PART, partname);
+		(void)mbr_setslice(sname, lp, sp, dp, mbr_offset);
 	}
 	ssp->dss_nslices = BASE_SLICE + NDOSPART;
 
@@ -484,8 +469,8 @@ reread_mbr:
 	for (dospart = 0; dospart < NDOSPART; dospart++, sp++)
 		if (sp->ds_type == DOSPTYP_EXTENDED ||
 		    sp->ds_type == DOSPTYP_EXTENDEDX)
-  			mbr_extended(bp->b_dev, lp, ssp,
-  				     sp->ds_offset, sp->ds_size, sp->ds_offset,
+			mbr_extended(bp->b_dev, lp, ssp,
+				     sp->ds_offset, sp->ds_size, sp->ds_offset,
 				     max_nsectors, max_ntracks, mbr_offset, 1);
 
 	/*
@@ -545,9 +530,9 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 	bp->b_blkno = ext_offset;
 	bp->b_bcount = lp->d_secsize;
 	bp->b_iocmd = BIO_READ;
-	BUF_STRATEGY(bp, 1);
+	DEV_STRATEGY(bp, 1);
 	if (bufwait(bp) != 0) {
-		diskerr(bp, "reading extended partition table: error",
+		diskerr(&bp->b_io, "reading extended partition table: error",
 		    0, (struct disklabel *)NULL);
 		printf("\n");
 		goto done;
@@ -598,14 +583,8 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 				continue;
 			}
 			sp = &ssp->dss_slices[slice];
-			sp->ds_offset = ext_offset + dp->dp_start;
-			sp->ds_size = dp->dp_size;
-			sp->ds_type = dp->dp_typ;
-#ifdef PC98_ATCOMPAT
-			/* Fake FreeBSD(98). */
-			if (sp->ds_type == DOSPTYP_386BSD)
-				sp->ds_type = 0x94;
-#endif
+			if (mbr_setslice(sname, lp, sp, dp, ext_offset) != 0)
+				continue;
 			slice++;
 		}
 	}
@@ -623,6 +602,57 @@ done:
 	brelse(bp);
 }
 #endif
+
+static int
+mbr_setslice(sname, lp, sp, dp, br_offset)
+	char	*sname;
+	struct disklabel *lp;
+	struct diskslice *sp;
+	struct dos_partition *dp;
+	u_long	br_offset;
+{
+	u_long	offset;
+	u_long	size;
+
+#ifdef PC98
+	offset = DPBLKNO(dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
+	size = dp->dp_ecyl ?
+	    DPBLKNO(dp->dp_ecyl + 1, dp->dp_ehd, dp->dp_esect) - offset : 0;
+#else
+	offset = br_offset + dp->dp_start;
+	if (offset > lp->d_secperunit || offset < br_offset) {
+		printf(
+		"%s: slice starts beyond end of the disk: rejecting it\n",
+		       sname);
+		return (1);
+	}
+	size = lp->d_secperunit - offset;
+	if (size >= dp->dp_size)
+		size = dp->dp_size;
+	else
+		printf(
+"%s: slice extends beyond end of disk: truncating from %lu to %lu sectors\n",
+		       sname, (u_long)dp->dp_size, size);
+#endif
+	sp->ds_offset = offset;
+	sp->ds_size = size;
+#ifdef PC98
+	sp->ds_type = dp->dp_mid;
+	sp->ds_subtype = dp->dp_sid;
+	strncpy(sp->ds_name, dp->dp_name, sizeof(sp->ds_name));
+#else
+	sp->ds_type = dp->dp_typ;
+#ifdef PC98_ATCOMPAT
+	/* Fake FreeBSD(98). */
+	if (sp->ds_type == DOSPTYP_386BSD)
+		sp->ds_type = 0x94;
+#endif
+#endif /* PC98 */
+#if 0
+	lp->d_subtype |= (lp->d_subtype & 3) | dospart | DSTYPE_INDOSPART;
+#endif
+	return (0);
+}
 
 #ifdef __alpha__
 void
