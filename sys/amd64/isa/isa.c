@@ -61,6 +61,9 @@
 #include <sys/malloc.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#ifdef PC98
+#include <sys/systm.h>
+#endif
 
 #include <machine/resource.h>
 
