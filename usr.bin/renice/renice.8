@@ -63,7 +63,7 @@ scheduling priority of one or more running processes.
 The following
 .Ar who
 parameters are interpreted as process ID's, process group
-ID's, or user names.
+ID's, user ID's or user names.
 .Nm Renice Ns 'ing
 a process group causes all processes in the process group
 to have their scheduling priority altered.
@@ -87,7 +87,7 @@ the current priority of each process.
 .It Fl u
 Force the
 .Ar who
-parameters to be interpreted as user names.
+parameters to be interpreted as user names or user ID's.
 .It Fl p
 Resets the
 .Ar who
