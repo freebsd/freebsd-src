@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnpinfo.c,v 1.2 1997/11/12 08:48:13 jmg Exp $
+ *      $Id: pnpinfo.c,v 1.3 1998/09/13 22:15:44 eivind Exp $
  */
 
 #include <sys/time.h>
@@ -501,9 +501,10 @@ dump_resdata(u_char *data, int csn)
 	    free(resinfo);
 	} else {
 	    /* Handle large resouce data types */
-
-	    if (!get_resource_info((char *) &large_len, 2))
+	    u_char buf[2];
+	    if (!get_resource_info((char *)buf, 2))
 		break;
+	    large_len = (buf[1] << 8) + buf[0];
 
 	    resinfo = malloc(large_len);
 	    if (!get_resource_info(resinfo, large_len))
