@@ -262,7 +262,7 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
-	p2->p_md.md_regs->tf_esp = (unsigned int)args->stack;
+	p2->p_frame->tf_esp = (unsigned int)args->stack;
 
 #ifdef DEBUG
 	if (ldebug(clone))
@@ -474,7 +474,7 @@ linux_iopl(struct proc *p, struct linux_iopl_args *args)
 		return (error);
 	if (securelevel > 0)
 		return (EPERM);
-	p->p_md.md_regs->tf_eflags = (p->p_md.md_regs->tf_eflags & ~PSL_IOPL) |
+	p->p_frame->tf_eflags = (p->p_frame->tf_eflags & ~PSL_IOPL) |
 	    (args->level * (PSL_IOPL / 3));
 	return (0);
 }

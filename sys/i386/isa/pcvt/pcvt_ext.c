@@ -2613,7 +2613,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		/* grant the process IO access; only allowed if euid == 0 */
 		/* and insecure */
 	{
-		struct trapframe *fp = p->p_md.md_regs;
+		struct trapframe *fp = p->p_frame;
 
 		error = suser(p);
 		if (error != 0)
@@ -2629,7 +2629,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case KDDISABIO:
 		/* abandon IO access permission */
 	{
-		struct trapframe *fp = p->p_md.md_regs;
+		struct trapframe *fp = p->p_frame;
 		fp->tf_eflags &= ~PSL_IOPL;
 		return 0;
 	}

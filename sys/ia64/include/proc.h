@@ -39,7 +39,6 @@ struct mdproc {
 	u_long		md_flags;
 	struct user	*md_uservirt;	/* virtual address of p_addr */
 	vm_offset_t	md_bspstore;	/* initial ar.bspstore */
-	struct	trapframe *md_tf;	/* trap/syscall registers */
 };
 
 #define	MDP_FPUSED	0x0001		/* Process used the FPU */

@@ -55,7 +55,7 @@ extern struct sysent xenix_sysent[];
 int
 ibcs2_xenix(struct proc *p, struct ibcs2_xenix_args *uap)
 {
-	struct trapframe *tf = p->p_md.md_regs;
+	struct trapframe *tf = p->p_frame;
         struct sysent *callp;
         u_int code;             
 

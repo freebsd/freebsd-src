@@ -161,13 +161,13 @@ cpu_fork(p1, p2, flags)
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
-	p2->p_md.md_regs = (struct trapframe *)
+	p2->p_frame = (struct trapframe *)
 			   ((int)p2->p_addr + UPAGES * PAGE_SIZE - 16) - 1;
-	bcopy(p1->p_md.md_regs, p2->p_md.md_regs, sizeof(*p2->p_md.md_regs));
+	bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
 
-	p2->p_md.md_regs->tf_eax = 0;		/* Child returns zero */
-	p2->p_md.md_regs->tf_eflags &= ~PSL_C;	/* success */
-	p2->p_md.md_regs->tf_edx = 1;
+	p2->p_frame->tf_eax = 0;		/* Child returns zero */
+	p2->p_frame->tf_eflags &= ~PSL_C;	/* success */
+	p2->p_frame->tf_edx = 1;
 
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
@@ -177,7 +177,7 @@ cpu_fork(p1, p2, flags)
 	pcb2->pcb_edi = 0;
 	pcb2->pcb_esi = (int)fork_return;	/* fork_trampoline argument */
 	pcb2->pcb_ebp = 0;
-	pcb2->pcb_esp = (int)p2->p_md.md_regs - sizeof(void *);
+	pcb2->pcb_esp = (int)p2->p_frame - sizeof(void *);
 	pcb2->pcb_ebx = (int)p2;		/* fork_trampoline argument */
 	pcb2->pcb_eip = (int)fork_trampoline;
 	/*-
@@ -319,8 +319,8 @@ cpu_coredump(p, vp, cred)
 		return EINVAL;
 	
 	bcopy(p->p_addr, tempuser, sizeof(struct user));
-	bcopy(p->p_md.md_regs,
-	      tempuser + ((caddr_t) p->p_md.md_regs - (caddr_t) p->p_addr),
+	bcopy(p->p_frame,
+	      tempuser + ((caddr_t) p->p_frame - (caddr_t) p->p_addr),
 	      sizeof(struct trapframe));
 
 	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser, 

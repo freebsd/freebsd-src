@@ -241,10 +241,10 @@ struct	spigot_info	*info;
 		if (securelevel > 0)
 			return EPERM;
 #endif
-		p->p_md.md_regs->tf_eflags |= PSL_IOPL;
+		p->p_frame->tf_eflags |= PSL_IOPL;
 		break;
 	case	SPIGOT_IOPL_OFF: /* deny access to the IO PAGE */
-		p->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
+		p->p_frame->tf_eflags &= ~PSL_IOPL;
 		break;
 	case	SPIGOT_GET_INFO:
 		info = (struct spigot_info *)data;
