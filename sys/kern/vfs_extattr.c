@@ -733,7 +733,12 @@ open(td, uap)
 		VATTR_NULL(&vat);
 		vat.va_size = 0;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = VOP_SETATTR(vp, &vat, td->td_ucred, td);
+#ifdef MAC
+		error = mac_check_vnode_op(td->td_ucred, vp,
+		    MAC_OP_VNODE_WRITE);
+		if (error == 0)
+#endif
+			error = VOP_SETATTR(vp, &vat, td->td_ucred, td);
 		VOP_UNLOCK(vp, 0, td);
 		vn_finished_write(mp);
 		if (error)
@@ -1305,6 +1310,11 @@ vn_access(vp, user_flags, cred, td)
 			flags |= VWRITE;
 		if (user_flags & X_OK)
 			flags |= VEXEC;
+#ifdef MAC
+		error = mac_check_vnode_access(cred, vp, flags);
+		if (error)
+			return (error);
+#endif
 		if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
 			error = VOP_ACCESS(vp, flags, cred, td);
 	}
@@ -1746,6 +1756,13 @@ readlink(td, uap)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
+#ifdef MAC
+	error = mac_check_vnode_readlink(td->td_ucred, vp);
+	if (error) {
+		vput(vp);
+		return (error);
+	}
+#endif
 	if (vp->v_type != VLNK)
 		error = EINVAL;
 	else {
@@ -1794,9 +1811,16 @@ setfflags(td, vp, flags)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	VATTR_NULL(&vattr);
-	vattr.va_flags = flags;
-	error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+#ifdef MAC
+	error = mac_check_vnode_setflags(td->td_ucred, vp, vattr.va_flags);
+	if (error == 0) {
+#endif
+		VATTR_NULL(&vattr);
+		vattr.va_flags = flags;
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+#ifdef MAC
+	}
+#endif
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return (error);
@@ -1902,7 +1926,11 @@ setfmode(td, vp, mode)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	VATTR_NULL(&vattr);
 	vattr.va_mode = mode & ALLPERMS;
-	error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+#ifdef MAC
+	error = mac_check_vnode_setmode(td->td_ucred, vp, vattr.va_mode);
+	if (error == 0)
+#endif
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return error;
@@ -2019,7 +2047,12 @@ setfown(td, vp, uid, gid)
 	VATTR_NULL(&vattr);
 	vattr.va_uid = uid;
 	vattr.va_gid = gid;
-	error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+#ifdef MAC
+	error = mac_check_vnode_setowner(td->td_ucred, vp, vattr.va_uid,
+	    vattr.va_gid);
+	if (error == 0)
+#endif
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return error;
@@ -2178,7 +2211,12 @@ setutimes(td, vp, ts, numtimes, nullflag)
 		vattr.va_birthtime = ts[2];
 	if (nullflag)
 		vattr.va_vaflags |= VA_UTIMES_NULL;
-	error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+#ifdef MAC
+	error = mac_check_vnode_setutimes(td->td_ucred, vp, vattr.va_atime,
+	    vattr.va_mtime);
+	if (error == 0)
+#endif
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return error;
@@ -2328,6 +2366,10 @@ truncate(td, uap)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type == VDIR)
 		error = EISDIR;
+#ifdef MAC
+	else if ((error = mac_check_vnode_op(td->td_ucred, vp,
+	    MAC_OP_VNODE_WRITE))) {}
+#endif
 	else if ((error = vn_writechk(vp)) == 0 &&
 	    (error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td)) == 0) {
 		VATTR_NULL(&vattr);
@@ -2382,6 +2424,10 @@ ftruncate(td, uap)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type == VDIR)
 		error = EISDIR;
+#ifdef MAC
+	else if ((error = mac_check_vnode_op(td->td_ucred, vp,
+	    MAC_OP_VNODE_WRITE))) {}
+#endif
 	else if ((error = vn_writechk(vp)) == 0) {
 		VATTR_NULL(&vattr);
 		vattr.va_size = SCARG(uap, length);
@@ -3073,6 +3119,13 @@ revoke(td, uap)
 		vput(vp);
 		return (EINVAL);
 	}
+#ifdef MAC
+	error = mac_check_vnode_revoke(td->td_ucred, vp);
+	if (error) {
+		vput(vp);
+		return (error);
+	}
+#endif
 	error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
 	if (error) {
 		vput(vp);
@@ -3257,6 +3310,11 @@ fhopen(td, uap)
 		mode |= VREAD;
 	if (fmode & O_APPEND)
 		mode |= VAPPEND;
+#ifdef MAC
+	error = mac_check_vnode_open(td->td_ucred, vp, mode);
+	if (error)
+		goto bad;
+#endif
 	if (mode) {
 		error = VOP_ACCESS(vp, mode, td->td_ucred, td);
 		if (error)
@@ -3270,9 +3328,17 @@ fhopen(td, uap)
 		}
 		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);	/* XXX */
-		VATTR_NULL(vap);
-		vap->va_size = 0;
-		error = VOP_SETATTR(vp, vap, td->td_ucred, td);
+#ifdef MAC
+		error = mac_check_vnode_op(td->td_ucred, vp,
+		    MAC_OP_VNODE_WRITE);
+		if (error == 0) {
+#endif
+			VATTR_NULL(vap);
+			vap->va_size = 0;
+			error = VOP_SETATTR(vp, vap, td->td_ucred, td);
+#ifdef MAC
+		}
+#endif
 		vn_finished_write(mp);
 		if (error)
 			goto bad;
@@ -3584,6 +3650,13 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	auio.uio_td = td;
 	cnt = nbytes;
 
+#ifdef MAC
+	error = mac_check_vnode_setextattr(td->td_ucred, vp, attrnamespace,
+	    attrname, &auio);
+	if (error)
+		goto done;
+#endif
+
 	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, &auio,
 	    td->td_ucred, td);
 	cnt -= auio.uio_resid;
@@ -3704,6 +3777,13 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	} else
 		sizep = &size;
 
+#ifdef MAC
+	error = mac_check_vnode_getextattr(td->td_ucred, vp, attrnamespace,
+	    attrname, &auio);
+	if (error)
+		goto done;
+#endif
+
 	error = VOP_GETEXTATTR(vp, attrnamespace, attrname, auiop, sizep,
 	    td->td_ucred, td);
 
@@ -3799,6 +3879,11 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+
+#ifdef MAC
+	error = mac_check_vnode_setextattr(td->td_ucred, vp, attrnamespace,
+	    attrname, NULL);
+#endif
 
 	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, NULL, td->td_ucred,
 	    td);
