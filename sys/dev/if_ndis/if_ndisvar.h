@@ -47,6 +47,7 @@ struct ndis_chain {
 struct ndis_type {
 	uint16_t		ndis_vid;
 	uint16_t		ndis_did;
+	uint32_t		ndis_subsys;
 	char			*ndis_name;
 };
 
@@ -103,6 +104,7 @@ struct ndis_softc {
 
 	struct sysctl_ctx_list	ndis_ctx;
 	struct sysctl_oid	*ndis_tree;
+	int			ndis_devidx;
 	interface_type		ndis_iftype;
 
 	bus_dma_tag_t		ndis_parent_tag;
@@ -112,7 +114,6 @@ struct ndis_softc {
 	bus_dmamap_t		*ndis_mmaps;
 	bus_dmamap_t		*ndis_tmaps;
 	int			ndis_mmapcnt;
-
 };
 
 #define NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
