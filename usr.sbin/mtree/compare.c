@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#include <md5.h>
 #include "mtree.h"
 #include "extern.h"
 
@@ -200,6 +201,26 @@ typeerr:		LABEL;
 			}
 			tab = "\t";
 		}
+	if (s->flags & F_MD5) {
+		char *new_digest;
+		
+		new_digest = MD5File(p->fts_accpath);
+		if (!new_digest) {
+			LABEL;
+			printf("%sMD5File: %s: %s\n", tab, p->fts_accpath,
+			       strerror(errno));
+			tab = "\t";
+		} else if (strcmp(new_digest, s->md5digest)) {
+			LABEL;
+			printf("%sMD5 (%s, %s)\n", tab, s->md5digest, 
+			       new_digest);
+			tab = "\t";
+			free(new_digest);
+		} else {
+			free(new_digest);
+		}
+	}
+
 	if (s->flags & F_SLINK && strcmp(cp = rlink(name), s->slink)) {
 		LABEL;
 		(void)printf("%slink ref (%s, %s)\n", tab, cp, s->slink);
