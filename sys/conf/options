@@ -1,4 +1,4 @@
-#	$Id: options,v 1.121.2.5 1999/05/11 05:35:28 mjacob Exp $
+#	$Id: options,v 1.121.2.6 1999/05/25 13:24:24 des Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -36,6 +36,9 @@ AHC_ALLOW_MEMIO		opt_aic7xxx.h	# Allow PCI devices to use memory
 
 AHC_TMODE_ENABLE	opt_aic7xxx.h	# Bitmap of units to enable
 					# targetmode operations.
+
+AHC_DUMP_EEPROM		opt_aic7xxx.h	# Dump the contents of our
+					# configuration prom.
 
 ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
