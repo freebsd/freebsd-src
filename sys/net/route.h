@@ -105,8 +105,8 @@ struct rtentry {
 	 * because the code does some casts of a 'struct radix_node *'
 	 * to a 'struct rtentry *'
 	 */
-#define	rt_key(r)	((struct sockaddr *)((r)->rt_nodes->rn_key))
-#define	rt_mask(r)	((struct sockaddr *)((r)->rt_nodes->rn_mask))
+#define	rt_key(r)	(*((struct sockaddr **)(&(r)->rt_nodes->rn_key)))
+#define	rt_mask(r)	(*((struct sockaddr **)(&(r)->rt_nodes->rn_mask)))
 	struct	sockaddr *rt_gateway;	/* value */
 	u_long	rt_flags;		/* up/down?, host/net */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
