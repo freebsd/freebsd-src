@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)utility.c	8.4 (Berkeley) 5/30/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #ifdef __FreeBSD__
@@ -73,10 +77,10 @@ ttloop()
     }
     ncc = read(net, netibuf, sizeof netibuf);
     if (ncc < 0) {
-	syslog(LOG_INFO, "ttloop:  read: %m\n");
+	syslog(LOG_INFO, "ttloop:  read: %m");
 	exit(1);
     } else if (ncc == 0) {
-	syslog(LOG_INFO, "ttloop:  peer died: %m\n");
+	syslog(LOG_INFO, "ttloop:  peer died: %m");
 	exit(1);
     }
     DIAG(TD_REPORT, {sprintf(nfrontp, "td: ttloop read %d chars\r\n", ncc);
@@ -391,7 +395,6 @@ edithost(pat, host)
 	register char *host;
 {
 	register char *res = editedhost;
-	char *strncpy();
 
 	if (!pat)
 		pat = "";
@@ -537,8 +540,7 @@ printsub(direction, pointer, length)
     unsigned char	*pointer;	/* where suboption data sits */
     int			length;		/* length of suboption data */
 {
-    register int i;
-    char buf[512];
+    register int i = 0;
 
 	if (!(diagnostic & TD_OPTIONS))
 		return;
@@ -1012,8 +1014,11 @@ printsub(direction, pointer, length)
 			"MUTUAL" : "ONE-WAY");
 		nfrontp += strlen(nfrontp);
 
-		auth_printsub(&pointer[1], length - 1, buf, sizeof(buf));
-		sprintf(nfrontp, "%s", buf);
+    		{
+		    char buf[512];
+		    auth_printsub(&pointer[1], length - 1, buf, sizeof(buf));
+		    sprintf(nfrontp, "%s", buf);
+		}
 		nfrontp += strlen(nfrontp);
 		break;
 
@@ -1107,8 +1112,11 @@ printsub(direction, pointer, length)
 		    sprintf(nfrontp, " %d (unknown)", pointer[2]);
 		nfrontp += strlen(nfrontp);
 
-		encrypt_printsub(&pointer[1], length - 1, buf, sizeof(buf));
-		sprintf(nfrontp, "%s", buf);
+		{
+		    char buf[512];
+		    encrypt_printsub(&pointer[1], length - 1, buf, sizeof(buf));
+		    sprintf(nfrontp, "%s", buf);
+		}
 		nfrontp += strlen(nfrontp);
 		break;
 
