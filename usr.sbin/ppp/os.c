@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.24 1997/08/25 00:29:23 brian Exp $
+ * $Id: os.c,v 1.25 1997/08/31 22:59:44 brian Exp $
  *
  */
 #include "fsm.h"
@@ -222,6 +222,12 @@ OsLinkup()
     }
     linkup = 1;
   }
+}
+
+int
+OsLinkIsUp()
+{
+  return linkup;
 }
 
 void
