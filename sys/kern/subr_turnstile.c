@@ -911,7 +911,7 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 	struct lock_object *lock;
 
 	MPASS((opts & ~(MTX_SPIN | MTX_QUIET | MTX_RECURSE |
-	    MTX_SLEEPABLE | MTX_NOWITNESS | MTX_DUPOK)) == 0);
+	    MTX_NOWITNESS | MTX_DUPOK)) == 0);
 
 #ifdef MUTEX_DEBUG
 	/* Diagnostic and error correction */
@@ -932,8 +932,6 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 		lock->lo_flags = LO_QUIET;
 	if (opts & MTX_RECURSE)
 		lock->lo_flags |= LO_RECURSABLE;
-	if (opts & MTX_SLEEPABLE)
-		lock->lo_flags |= LO_SLEEPABLE;
 	if ((opts & MTX_NOWITNESS) == 0)
 		lock->lo_flags |= LO_WITNESS;
 	if (opts & MTX_DUPOK)
