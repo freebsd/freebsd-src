@@ -131,13 +131,6 @@ void
 tcp_slowtimo()
 {
 
-	/*
-	 * XXXRW: Note that there is a minor race issue associated with rapid
-	 * modification of the two components of tcp_maxidle.  This could be
-	 * corrected by introducing sysctl handlers for those two fields,
-	 * sliding this update of tcp_maxidle under the tcbinfo lock, and
-	 * acquiring that lock in the handlers.
-	 */
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
 	INP_INFO_WLOCK(&tcbinfo);
 	(void) tcp_timer_2msl_tw(0);
