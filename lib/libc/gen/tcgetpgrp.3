@@ -44,15 +44,15 @@
 .Fn tcgetpgrp "int fd"
 .Sh DESCRIPTION
 The
-.Nm tcgetpgrp
+.Fn tcgetpgrp
 function returns the value of the process group ID of the foreground
 process group associated with the terminal device.
 If there is no foreground process group,
-.Nm tcgetpgrp
+.Fn tcgetpgrp
 returns an invalid process ID.
 .Sh ERRORS
 If an error occurs,
-.Nm tcgetpgrp
+.Fn tcgetpgrp
 returns -1 and the global variable
 .Va errno
 is set to indicate the error, as follows:
@@ -73,7 +73,7 @@ is not the controlling terminal.
 .Xr tcsetpgrp 3
 .Sh STANDARDS
 The
-.Nm tcgetpgrp
+.Fn tcgetpgrp
 function is expected to be compliant with the
 .St -p1003.1-88
 specification.

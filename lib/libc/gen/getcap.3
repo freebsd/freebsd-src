@@ -83,8 +83,9 @@ and returns a pointer to a
 .Xr malloc Ns \&'d
 copy of it in
 .Fa buf .  
-.Nm Cgetent
-will first look for files ending in 
+The
+.Fn cgetent
+function will first look for files ending in 
 .Nm .db 
 (see
 .Xr cap_mkdb 1) 
@@ -111,13 +112,14 @@ and \-3 if a potential reference loop is detected (see
 .Ic tc=
 comments below).
 .Pp
-.Nm Cgetset 
-enables the addition of a character buffer containing a single capability
+The
+.Fn cgetset 
+function enables the addition of a character buffer containing a single capability
 record entry
 to the capability database.  
 Conceptually, the entry is added as the first ``file'' in the database, and
 is therefore searched first on the call to 
-.Nm cgetent .
+.Fn cgetent .
 The entry is passed in 
 .Fa ent .
 If 
@@ -125,29 +127,32 @@ If
 is
 .Dv NULL ,
 the current entry is removed from the database.  
-.Nm Cgetset 
+A call to
+.Fn cgetset 
 must precede the database traversal.  It must be called before the 
-.Nm cgetent 
+.Fn cgetent 
 call. If a sequential access is being performed (see below), it must be called
 before the first sequential access call (
-.Nm cgetfirst
+.Fn cgetfirst
 or
-.Nm cgetnext
+.Fn cgetnext
 ), or be directly preceded by a 
-.Nm cgetclose
+.Fn cgetclose
 call.
 On success 0 is returned and \-1 on failure.
 .Pp
-.Nm Cgetmatch
-will return 0 if
+The
+.Fn cgetmatch
+function will return 0 if
 .Fa name
 is one of the names of the capability record
 .Fa buf ,
 \-1 if
 not.
 .Pp
-.Nm Cgetcap
-searches the capability record
+The
+.Fn cgetcap
+function searches the capability record
 .Fa buf
 for the capability
 .Fa cap
@@ -169,8 +174,9 @@ found.  The end of the capability value is signaled by a `:' or
 .Dv NUL
 (see below for capability database syntax).
 .Pp
-.Nm Cgetnum
-retrieves the value of the numeric capability
+The
+.Fn cgetnum
+function retrieves the value of the numeric capability
 .Fa cap
 from the capability record pointed to by
 .Fa buf .
@@ -181,8 +187,9 @@ pointed to by
 0 is returned on success, \-1 if the requested numeric capability couldn't
 be found.
 .Pp
-.Nm Cgetstr
-retrieves the value of the string capability
+The
+.Fn cgetstr
+function retrieves the value of the string capability
 .Fa cap
 from the capability record pointed to by
 .Fa buf .
@@ -200,28 +207,33 @@ is returned on success, \-1 if the requested string capability couldn't
 be found, \-2 if a system error was encountered (storage allocation
 failure).
 .Pp
-.Nm Cgetustr
-is identical to 
-.Nm cgetstr 
+The
+.Fn cgetustr
+function is identical to 
+.Fn cgetstr 
 except that it does not expand special characters, but rather returns each
 character of the capability string literally.
 .Pp
-.Nm Cgetfirst ,
-.Nm cgetnext , 
-comprise a function group that provides for sequential
+The
+.Fn cgetfirst
+and
+.Fn cgetnext 
+functions comprise a function group that provides for sequential
 access of the
 .Dv NULL
 pointer terminated array of file names,
 .Fa db_array .
-.Nm Cgetfirst 
-returns the first record in the database and resets the access
+The
+.Fn cgetfirst 
+function returns the first record in the database and resets the access
 to the first record.
-.Nm Cgetnext 
-returns the next record in the database with respect to the
+The
+.Fn cgetnext 
+function returns the next record in the database with respect to the
 record returned by the previous
-.Nm cgetfirst
+.Fn cgetfirst
 or
-.Nm cgetnext 
+.Fn cgetnext 
 call.  If there is no such previous call, the first record in the database is
 returned.
 Each record is returned in a
@@ -242,10 +254,11 @@ is returned if a potential reference loop is detected (see
 comments below).
 Upon completion of database (0 return) the database is closed.
 .Pp
-.Nm Cgetclose 
-closes the sequential access and frees any memory and file descriptors 
+The
+.Fn cgetclose 
+function closes the sequential access and frees any memory and file descriptors 
 being used.  Note that it does not erase the buffer pushed by a call to 
-.Nm cgetset .
+.Fn cgetset .
 .Sh CAPABILITY DATABASE SYNTAX
 Capability databases are normally
 .Tn ASCII
@@ -301,16 +314,17 @@ Capability records describe a set of (name, value) bindings.  Names may
 have multiple values bound to them.  Different values for a name are
 distinguished by their
 .Fa types .
-.Nm Cgetcap
-will return a pointer to a value of a name given the capability name and
-the type of the value.
+The
+.Fn cgetcap
+function will return a pointer to a value of a name given the capability 
+name and the type of the value.
 .Pp
 The types `#' and `=' are conventionally used to denote numeric and
 string typed values, but no restriction on those types is enforced.  The
 functions
-.Nm cgetnum
+.Fn cgetnum
 and
-.Nm cgetstr
+.Fn cgetstr
 can be used to implement the traditional syntax and semantics of `#'
 and `='.
 Typeless capabilities are typically used to denote boolean objects with
@@ -380,7 +394,7 @@ file2:
 .Ed
 .Pp
 The records are extracted by calling
-.Nm cgetent
+.Fn cgetent
 with file1 preceding file2.
 In the capability record new in file1, fript=bar overrides the definition
 of fript=foo interpolated from the capability record old in file2,
@@ -392,9 +406,9 @@ tc=old is important here.  If they were after, the definitions in old
 would take precedence.
 .Sh CGETNUM AND CGETSTR SYNTAX AND SEMANTICS
 Two types are predefined by
-.Nm cgetnum
+.Fn cgetnum
 and
-.Nm cgetstr :
+.Fn cgetstr :
 .Bl -column "nameXnumber"
 .Sm off
 .It Em name No \&# Em number Ta numeric
@@ -455,26 +469,28 @@ are typically used to denote the end of strings; many applications
 use `\e\|200' to represent a
 .Dv NUL .
 .Sh DIAGNOSTICS
-.Nm Cgetent ,
-.Nm cgetset ,
-.Nm cgetmatch ,
-.Nm cgetnum ,
-.Nm cgetstr ,
-.Nm cgetustr ,
-.Nm cgetfirst ,
+.Fn Cgetent ,
+.Fn cgetset ,
+.Fn cgetmatch ,
+.Fn cgetnum ,
+.Fn cgetstr ,
+.Fn cgetustr ,
+.Fn cgetfirst ,
 and
-.Nm cgetnext
+.Fn cgetnext
 return a value greater than or equal to 0 on success and a value less
 than 0 on failure.
-.Nm Cgetcap
-returns a character pointer on success and a
+The
+.Fn cgetcap
+function returns a character pointer on success and a
 .Dv NULL
 on failure.
 .Pp
-.Nm Cgetent ,
+The
+.Fn cgetent ,
 and 
-.Nm cgetseq
-may fail and set 
+.Fn cgetseq
+functions may fail and set 
 .Va errno
 for any of the errors specified for the library functions:
 .Xr fopen 2 , 
@@ -483,11 +499,12 @@ for any of the errors specified for the library functions:
 and 
 .Xr close 2 .
 .Pp
-.Nm Cgetent ,
-.Nm cgetset ,
-.Nm cgetstr ,
+The
+.Fn cgetent ,
+.Fn cgetset ,
+.Fn cgetstr ,
 and
-.Nm cgetustr 
+.Fn cgetustr 
 may fail and set 
 .Va errno 
 as follows:
@@ -504,8 +521,8 @@ Colons (`:') can't be used in names, types, or values.
 There are no checks for
 .Ic tc= name
 loops in
-.Nm cgetent .
+.Fn cgetent .
 .Pp
 The buffer added to the database by a call to 
-.Nm cgetset 
+.Fn cgetset 
 is not unique to the database but is rather prepended to any database used.

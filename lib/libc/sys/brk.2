@@ -102,13 +102,13 @@ e.g.
 for the definition of
 .Em etext ) .
 .Sh RETURN VALUES
-.Nm Brk
+.Fn Brk
 returns 0 if successful;
 otherwise -1 with
 .Va errno
 set to indicate why the allocation failed.
 The
-.Nm sbrk
+.Fn sbrk
 function returns a pointer to the base of the new storage if successful;
 otherwise -1 with
 .Va errno
@@ -142,5 +142,5 @@ the data segment without consulting
 .Xr getrlimit 2 .
 .Sh HISTORY
 A
-.Nm
+.Fn brk
 function call appeared in Version 7 AT&T UNIX.
