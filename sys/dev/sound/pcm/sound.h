@@ -191,6 +191,7 @@ int fkchan_kill(struct pcm_channel *c);
 #define SND_DEV_SNDPROC 9	/* /dev/sndproc for programmable devices */
 #define SND_DEV_PSS	SND_DEV_SNDPROC /* ? */
 #define SND_DEV_NORESET	10
+#define	SND_DEV_DSPREC	11	/* recording channels */
 
 #define DSP_DEFAULT_SPEED	8000
 
@@ -220,7 +221,7 @@ struct sysctl_oid *snd_sysctl_tree_top(device_t dev);
 void pcm_lock(struct snddev_info *d);
 void pcm_unlock(struct snddev_info *d);
 struct pcm_channel *pcm_getfakechan(struct snddev_info *d);
-struct pcm_channel *pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid);
+struct pcm_channel *pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid, int chnum);
 int pcm_chnrelease(struct pcm_channel *c);
 int pcm_chnref(struct pcm_channel *c, int ref);
 int pcm_inprog(struct snddev_info *d, int delta);
