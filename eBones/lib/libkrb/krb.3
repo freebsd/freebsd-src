@@ -1,6 +1,6 @@
-.\" $Source: /usr/src/kerberosIV/man/RCS/krb.3,v $
-.\" $Author: bostic $
-.\" $Header: /usr/src/kerberosIV/man/RCS/krb.3,v 4.11 1994/04/19 14:16:56 bostic Exp $
+.\" $Source: /home/ncvs/src/eBones/man/krb.3,v $
+.\" $Author: rgrimes $
+.\" $Header: /home/ncvs/src/eBones/man/krb.3,v 1.1.1.1 1994/05/27 05:12:09 rgrimes Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -133,7 +133,7 @@ to the calling procedure.
 It is up to the application to get the authenticator to the service
 where it will be read by
 .I krb_rd_req.
-Unless an attacker possesses the session key contained in the ticket, it
+Unless an attacker posesses the session key contained in the ticket, it
 will be unable to modify the authenticator.  Thus, the checksum can be
 used to verify the authenticity of the other data that will pass through
 a connection.
@@ -171,15 +171,15 @@ particular problem encountered.  See
 for the list of error codes.
 .PP
 If the last argument is the null string (""), krb_rd_req will use the
-file /etc/srvtab to find its keys.  If the last argument is NULL, it
-will assume that the key has been set by
+file /etc/kerberosIV/srvtab to find its keys.  If the last argument is
+NULL, it will assume that the key has been set by
 .I krb_set_key
 and will not bother looking further.
 .PP
 .I krb_kntoln
 converts a Kerberos name to a local name.  It takes a structure
 of type AUTH_DAT and uses the name and instance to look in the database
-/etc/aname to find the corresponding local name.  The local name is
+/etc/kerberosIV/aname to find the corresponding local name.  The local name is
 returned and can be used by an application to change uids, directories,
 or other parameters.  It is not an integral part of Kerberos, but is
 instead provided to support the use of Kerberos in existing utilities.

@@ -1,5 +1,5 @@
 .\" from: acl_check.3,v 4.1 89/01/23 11:06:54 jtkohl Exp $
-.\" $Id: acl_check.3,v 1.2 1994/07/19 19:27:17 g89r4222 Exp $
+.\" $Id: acl_check.3,v 1.1.1.1 1994/09/30 14:50:05 csgr Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -16,7 +16,7 @@ acl_delete, acl_initialize \- Access control list routines
 cc <files> \-lacl \-lkrb
 .PP
 .ft B
-#include <krb.h>
+#include <kerberosIV/krb.h>
 .PP
 .ft B
 acl_canonicalize_principal(principal, buf)
@@ -98,7 +98,7 @@ must contain enough
 space to store a principal, given the limits on the sizes of name,
 instance, and realm specified as ANAME_SZ, INST_SZ, and REALM_SZ,
 respectively, in
-.IR /usr/include/krb.h .
+.IR /usr/include/kerberosIV/krb.h .
 .PP
 .I acl_check
 returns nonzero if

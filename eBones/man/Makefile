@@ -1,10 +1,9 @@
 #	from: @(#)Makefile	5.4 (Berkeley) 7/25/90
-#	$Id: Makefile,v 1.2 1994/11/20 23:41:23 wollman Exp $
+#	$Id: Makefile,v 1.3 1995/01/20 01:26:53 wollman Exp $
 
-MAN1=	kdestroy.1 kerberos.1 kinit.1 klist.1 ksrvtgt.1 \
-	kpasswd.1 
+MAN1=	kdestroy.1 kerberos.1 kinit.1 klist.1 ksrvtgt.1
 MAN3=	acl_check.3 des_crypt.3 krb.3 krb_realmofhost.3 krb_sendauth.3 \
-	krb_set_tkt_string.3 kuserok.3 tf_util.3 kerberos.3
+	krb_set_tkt_string.3 kuserok.3 tf_util.3
 MAN5=	krb.conf.5 krb.realms.5
 MAN8=	ext_srvtab.8 kdb_destroy.8 kdb_edit.8 kdb_init.8 kdb_util.8 kstash.8 \
 	kadmin.8 kadmind.8

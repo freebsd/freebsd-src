@@ -1,5 +1,5 @@
 .\" from: ext_srvtab.8,v 4.2 89/07/18 16:53:18 jtkohl Exp $
-.\" $Id: ext_srvtab.8,v 1.2 1994/07/19 19:27:20 g89r4222 Exp $
+.\" $Id: ext_srvtab.8,v 1.1.1.1 1994/09/30 14:50:05 csgr Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -50,14 +50,13 @@ match the given realm rather than the local realm.
 The master key string entered was incorrect.
 .SH FILES
 .TP 20n
-.IR hostname -new-srvtab
-Service key file generated for
-.I hostname
+/etc/kerberosIV/principal.db
+DBM file containing database
 .TP
-/kerberos/principal.pag, /kerberos/principal.dir
-DBM files containing database
+/etc/kerberosIV/principal.ok
+Semaphore indicating that the DBM database is not being modified.
 .TP
-/.k
+/etc/kerberosIV/master_key
 Master key cache file.
 .SH SEE ALSO
 read_service_key(3), krb_get_phost(3)
