@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id: kernfs_vfsops.c,v 1.21 1998/03/01 22:46:12 msmith Exp $
+ * $Id: kernfs_vfsops.c,v 1.22 1998/05/06 05:29:33 msmith Exp $
  */
 
 /*
@@ -283,4 +283,4 @@ static struct vfsops kernfs_vfsops = {
 	kernfs_init,
 };
 
-VFS_SET(kernfs_vfsops, kernfs, MOUNT_KERNFS, VFCF_SYNTHETIC);
+VFS_SET(kernfs_vfsops, kernfs, VFCF_SYNTHETIC);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.30 1998/05/06 05:29:32 msmith Exp $
+ *	$Id: devfs_vfsops.c,v 1.31 1998/08/16 01:21:51 bde Exp $
  *
  */
 
@@ -122,9 +122,9 @@ DBPRINT(("mount "));
 	 *  Fill out some fields
 	 */
 	mp->mnt_data = (qaddr_t)devfs_mp_p;
-	mp->mnt_stat.f_type = MOUNT_DEVFS;
+	mp->mnt_stat.f_type = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_stat.f_fsid.val[0] = (intptr_t)(void *)devfs_mp_p;
-	mp->mnt_stat.f_fsid.val[1] = MOUNT_DEVFS;
+	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_flag |= MNT_LOCAL;
 
 	if(error = dev_dup_plane(devfs_mp_p))
@@ -219,7 +219,7 @@ devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p)
  *  Fill in the stat block.
  */
 DBPRINT(("statfs "));
-	sbp->f_type   = MOUNT_DEVFS;
+	sbp->f_type   = mp->mnt_stat.f_type;
 	sbp->f_flags  = 0;		/* XXX */
 	sbp->f_bsize  = 128;
 	sbp->f_iosize = 1024;	/* XXX*/
@@ -229,7 +229,7 @@ DBPRINT(("statfs "));
 	sbp->f_files  = 128;
 	sbp->f_ffree  = 0;		/* what to put in here? */
 	sbp->f_fsid.val[0] = (intptr_t)(void *)devfs_mp_p;
-	sbp->f_fsid.val[1] = MOUNT_DEVFS;
+	sbp->f_fsid.val[1] = mp->mnt_stat.f_type;
 
 /*-
  *  Copy the mounted on and mounted from names into
@@ -347,4 +347,4 @@ static struct vfsops devfs_vfsops = {
 	devfs_init
 };
 
-VFS_SET(devfs_vfsops, devfs, MOUNT_DEVFS, 0);
+VFS_SET(devfs_vfsops, devfs, 0);

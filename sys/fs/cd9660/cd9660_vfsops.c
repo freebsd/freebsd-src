@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.41 1998/07/04 22:30:21 julian Exp $
+ * $Id: cd9660_vfsops.c,v 1.42 1998/09/07 07:20:30 guido Exp $
  */
 
 #include <sys/param.h>
@@ -90,7 +90,7 @@ static struct vfsops cd9660_vfsops = {
 	cd9660_vptofh,
 	cd9660_init
 };
-VFS_SET(cd9660_vfsops, cd9660, MOUNT_CD9660, VFCF_READONLY);
+VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 
 
 /*
@@ -582,7 +582,6 @@ cd9660_statfs(mp, sbp, p)
 
 	isomp = VFSTOISOFS(mp);
 
-	sbp->f_type = MOUNT_CD9660;
 	sbp->f_bsize = isomp->logical_block_size;
 	sbp->f_iosize = sbp->f_bsize;	/* XXX */
 	sbp->f_blocks = isomp->volume_space_size;
@@ -591,6 +590,7 @@ cd9660_statfs(mp, sbp, p)
 	sbp->f_files =	0; /* total files */
 	sbp->f_ffree = 0; /* free file nodes */
 	if (sbp != &mp->mnt_stat) {
+		sbp->f_type = mp->mnt_vfc->vfc_typenum;
 		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
 		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
 	}

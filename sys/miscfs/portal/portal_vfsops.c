@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
- * $Id: portal_vfsops.c,v 1.20 1998/03/01 22:46:20 msmith Exp $
+ * $Id: portal_vfsops.c,v 1.21 1998/05/06 05:29:35 msmith Exp $
  */
 
 /*
@@ -289,4 +289,4 @@ static struct vfsops portal_vfsops = {
 	portal_init,
 };
 
-VFS_SET(portal_vfsops, portal, MOUNT_PORTAL, VFCF_SYNTHETIC);
+VFS_SET(portal_vfsops, portal, VFCF_SYNTHETIC);

@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.26 1998/05/06 05:29:34 msmith Exp $
+ * $Id: null_vfsops.c,v 1.27 1998/07/30 17:40:45 bde Exp $
  */
 
 /*
@@ -422,4 +422,4 @@ static struct vfsops null_vfsops = {
 	nullfs_init,
 };
 
-VFS_SET(null_vfsops, null, MOUNT_NULL, VFCF_LOOPBACK);
+VFS_SET(null_vfsops, null, VFCF_LOOPBACK);
