@@ -22,3 +22,7 @@
 
 # TNEF files...
 0	lelong		0x223E9F78	Transport Neutral Encapsulation Format
+
+# From: Kevin Sullivan <ksulliva@psc.edu>
+0	string		*mbx*		MBX mail folder
+

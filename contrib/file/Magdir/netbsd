@@ -197,7 +197,7 @@
 >10	leshort		0x0000			stripped
 0	belong&0377777777	043200507	NetBSD/alpha core
 >12	string			>\0		from '%s'
->32	belong			!0		(signal %d)
+>32	lelong			!0		(signal %d)
 
 0	belong&0377777777	043400413	NetBSD/mips demand paged
 >0	byte			&0x80		

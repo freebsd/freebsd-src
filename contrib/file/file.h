@@ -1,6 +1,6 @@
 /*
  * file.h - definitions for file(1) program
- * @(#)$Id: file.h,v 1.35 2001/03/11 20:29:16 christos Exp $
+ * @(#)$Id: file.h,v 1.37 2001/07/22 21:04:15 christos Exp $
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.
@@ -59,7 +59,7 @@ struct magic {
 	uint8 flag;
 #define INDIR	1		/* if '>(...)' appears,  */
 #define	UNSIGNED 2		/* comparison is unsigned */
-#define ADD	4		/* if '>&' appears,  */
+#define OFFADD	4		/* if '>&' appears,  */
 	uint8 reln;		/* relation (0=eq, '>'=gt, etc) */
 	uint8 vallen;		/* length of string value, if any */
 	uint8 type;		/* int, short, long or string. */
@@ -75,6 +75,21 @@ struct magic {
 #define				LESHORT	10
 #define				LELONG	11
 #define				LEDATE	12
+#define				PSTRING	13
+#define				LDATE	14
+#define				BELDATE	15
+#define				LELDATE	16
+	uint8 in_op;		/* operator for indirection */
+	uint8 mask_op;		/* operator for mask */
+#define				OPAND	1
+#define				OPOR	2
+#define				OPXOR	3
+#define				OPADD	4
+#define				OPMINUS	5
+#define				OPMULTIPLY	6
+#define				OPDIVIDE	7
+#define				OPMODULO	8
+#define				OPINVERSE	0x80
 	int32 offset;		/* offset to magic number */
 	int32 in_offset;	/* offset from indirection */
 	union VALUETYPE {
@@ -123,6 +138,7 @@ extern void  error		__P((const char *, ...));
 extern void  ckfputs		__P((const char *, FILE *));
 struct stat;
 extern int   fsmagic		__P((const char *, struct stat *));
+extern char *fmttime		__P((long, int));
 extern int   is_compress	__P((const unsigned char *, int *));
 extern int   is_tar		__P((unsigned char *, int));
 extern void  magwarn		__P((const char *, ...));
@@ -160,6 +176,10 @@ extern char *sys_errlist[];
 
 #ifndef HAVE_STRTOUL
 #define strtoul(a, b, c)	strtol(a, b, c)
+#endif
+
+#if defined(HAVE_MMAP) && defined(HAVE_SYS_MMAN_H) && !defined(QUICK)
+#define QUICK
 #endif
 
 #ifdef __STDC__
