@@ -75,6 +75,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/cpufunc.h>
 
+CTASSERT(sizeof(struct ia32_mcontext) == 640);
+CTASSERT(sizeof(struct ia32_ucontext) == 704);
+CTASSERT(sizeof(struct ia32_sigframe) == 800);
+CTASSERT(sizeof(struct ia32_siginfo) == 64);
+#ifdef COMPAT_FREEBSD4
+CTASSERT(sizeof(struct ia32_mcontext4) == 260);
+CTASSERT(sizeof(struct ia32_ucontext4) == 324);
+CTASSERT(sizeof(struct ia32_sigframe4) == 408);
+#endif
+
 static register_t *ia32_copyout_strings(struct image_params *imgp);
 static void ia32_setregs(struct thread *td, u_long entry, u_long stack,
     u_long ps_strings);
