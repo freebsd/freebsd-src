@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.14 1995/09/19 13:50:26 bde Exp $
+# $Id: makesyscalls.sh,v 1.15 1995/10/07 06:24:07 swallace Exp $
 
 set -e
 
@@ -108,7 +108,6 @@ s/\$//g
 		printf "#include <sys/types.h>\n", $0 > sysarg
 		printf "#include <sys/param.h>\n", $0 > sysarg
 		printf "#include <sys/mount.h>\n\n", $0 > sysarg
-		printf "struct args { int dummy; };\n\n", $0 > sysarg
 
 		printf " * created from%s\n */\n\n", $0 > sysnames
 		printf "char *%s[] = {\n", namesname > sysnames
@@ -205,10 +204,10 @@ s/\$//g
 			funcalias = funcname
 		if (argalias == "") {
 			argalias = funcname "_args"
+			if ($2 == "COMPAT")
+				argalias = "o" argalias
 		}
 		f++
-		if ($2 == "COMPAT")
-			argalias = "o" argalias
 
 		if ($f != "(")
 			parserr($f, ")")
@@ -246,8 +245,8 @@ s/\$//g
 	}
 	$2 == "STD" || $2 == "NODEF" || $2 == "NOARGS"  || $2 == "NOPROTO" {
 		parseline()
-		if (( !nosys || funcname != "nosys" ) && ( !lkmnosys ||
-			funcname != "lkmnosys")) {
+		if ((!nosys || funcname != "nosys") && \
+		    (funcname != "lkmnosys")) {
 			if (argc != 0 && $2 != "NOARGS" && $2 != "NOPROTO") {
 				printf("struct\t%s {\n", argalias) > sysarg
 				for (i = 1; i <= argc; i++)
@@ -255,14 +254,16 @@ s/\$//g
 					    argname[i]) > sysarg
 				printf("};\n") > sysarg
 			}
-			else
-				argalias = "args"
-			if ($2 != "NOPROTO") {
-				if (funcname == "exit")
-					printf("__dead ") > sysdcl
-				printf("%s\t%s __P((struct proc *, struct %s *, int []));\n", \
-				    rettype, funcname, argalias) > sysdcl
-			}
+			else if($2 != "NOARGS" && $2 != "NOPROTO")
+				printf("struct\t%s {\n\tint dummy;\n};\n", \
+					argalias) > sysarg
+		}
+		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
+		    (!lkmnosys || funcname != "lkmnosys")) {
+			if (funcname == "exit")
+				printf("__dead ") > sysdcl
+			printf("%s\t%s __P((struct proc *, struct %s *, int []));\n", \
+			    rettype, funcname, argalias) > sysdcl
 		}
 		if (funcname == "nosys")
 			nosys = 1
@@ -283,17 +284,18 @@ s/\$//g
 		syscall++
 		next
 	}
-	$2 == "COMPAT" {
+	$2 == "COMPAT" || $2 == "CPT_NOA" {
 		parseline()
-		if (argc != 0) {
+		if (argc != 0 && $2 != "CPT_NOA") {
 			printf("struct\t%s {\n", argalias) > syscompat
 			for (i = 1; i <= argc; i++)
 				printf("\t%s %s;\n", argtype[i],
 				    argname[i]) > syscompat
 			printf("};\n") > syscompat
 		}
-		else
-			argalias = "args"
+		else if($2 != "CPT_NOA")
+			printf("struct\t%s {\n\tint dummy;\n};\n", \
+				argalias) > sysarg
 		printf("%s\to%s __P((struct proc *, struct %s *, int []));\n", \
 		    rettype, funcname, argalias) > syscompatdcl
 		printf("\t{ compat(%d,%s) },\t\t/* %d = old %s */\n", \
