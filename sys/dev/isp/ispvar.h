@@ -487,8 +487,8 @@ typedef struct ispsoftc {
  *
  */
 #define	ISP_ROLE_NONE		0x0
-#define	ISP_ROLE_INITIATOR	0x1
-#define	ISP_ROLE_TARGET		0x2
+#define	ISP_ROLE_TARGET		0x1
+#define	ISP_ROLE_INITIATOR	0x2
 #define	ISP_ROLE_BOTH		(ISP_ROLE_TARGET|ISP_ROLE_INITIATOR)
 #define	ISP_ROLE_EITHER		ISP_ROLE_BOTH
 #ifndef	ISP_DEFAULT_ROLES
@@ -679,7 +679,8 @@ typedef enum {
 	ISPCTL_SEND_LIP,		/* Send a LIP */
 	ISPCTL_GET_POSMAP,		/* Get FC-AL position map */
 	ISPCTL_RUN_MBOXCMD,		/* run a mailbox command */
-	ISPCTL_TOGGLE_TMODE		/* toggle target mode */
+	ISPCTL_TOGGLE_TMODE,		/* toggle target mode */
+	ISPCTL_GET_PDB			/* get a single port database entry */
 } ispctl_t;
 int isp_control(struct ispsoftc *, ispctl_t, void *);
 
