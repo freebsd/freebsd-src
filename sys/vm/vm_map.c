@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.82 1997/08/05 22:07:27 dyson Exp $
+ * $Id: vm_map.c,v 1.83 1997/08/05 22:24:28 dyson Exp $
  */
 
 /*
@@ -213,6 +213,7 @@ vm_init2(void) {
 		NULL, 0, 0, 0, 4);
 	zinitna(mapzone, &mapobj,
 		NULL, 0, 0, 0, 4);
+	pmap_init2();
 }
 
 void
