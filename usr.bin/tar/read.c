@@ -84,7 +84,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
 	if (archive_read_open_file(a, bsdtar->filename, bsdtar->bytes_per_block))
-		bsdtar_errc(1, 0, "Error opening archive: %s",
+		bsdtar_errc(bsdtar, 1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
 
 	if (bsdtar->verbose > 2)
@@ -92,7 +92,8 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		    archive_compression_name(a));
 
 	if (bsdtar->start_dir != NULL && chdir(bsdtar->start_dir))
-		bsdtar_errc(1, errno, "chdir(%s) failed", bsdtar->start_dir);
+		bsdtar_errc(bsdtar, 1, errno,
+		    "chdir(%s) failed", bsdtar->start_dir);
 
 	for (;;) {
 		/* Support --fast-read option */
@@ -104,15 +105,15 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		if (r == ARCHIVE_EOF)
 			break;
 		if (r == ARCHIVE_WARN)
-			bsdtar_warnc(0, "%s", archive_error_string(a));
+			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 		if (r == ARCHIVE_FATAL) {
-			bsdtar_warnc(0, "%s", archive_error_string(a));
+			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 			break;
 		}
 		if (r == ARCHIVE_RETRY) {
 			/* Retryable error: try again */
-			bsdtar_warnc(0, "%s", archive_error_string(a));
-			bsdtar_warnc(0, "Retrying...");
+			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+			bsdtar_warnc(bsdtar, 0, "Retrying...");
 			continue;
 		}
 
@@ -138,11 +139,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			case ARCHIVE_WARN:
 			case ARCHIVE_RETRY:
 				fprintf(stdout, "\n");
-				bsdtar_warnc(0, "%s", archive_error_string(a));
+				bsdtar_warnc(bsdtar, 0, "%s",
+				    archive_error_string(a));
 				break;
 			case ARCHIVE_FATAL:
 				fprintf(stdout, "\n");
-				bsdtar_errc(1, 0, "%s",
+				bsdtar_errc(bsdtar, 1, 0, "%s",
 				    archive_error_string(a));
 				break;
 			}
@@ -323,7 +325,8 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 	while (pn != NULL && pn[0] != '\0') {
 		if (pn[0] == '.' && pn[1] == '.' &&
 		    (pn[2] == '\0' || pn[2] == '/')) {
-			bsdtar_warnc(0,"Skipping pathname containing ..");
+			bsdtar_warnc(bsdtar, 0,
+			    "Skipping pathname containing ..");
 			return (1);
 		}
 		pn = strchr(pn, '/');
@@ -368,7 +371,7 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 				/* User asked us to remove problems. */
 				unlink(bsdtar->security->path);
 			} else {
-				bsdtar_warnc(0,
+				bsdtar_warnc(bsdtar, 0,
 				    "Cannot extract %s through symlink %s",
 				    name, bsdtar->security->path);
 				return (1);

@@ -38,7 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 
-static void	bsdtar_vwarnc(int code, const char *fmt, va_list ap);
+static void	bsdtar_vwarnc(struct bsdtar *, int code,
+		    const char *fmt, va_list ap);
 
 /*
  * Print a string, taking care with any non-printable characters.
@@ -103,41 +104,32 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 }
 
 static void
-bsdtar_vwarnc(int code, const char *fmt, va_list ap)
+bsdtar_vwarnc(struct bsdtar *bsdtar, int code, const char *fmt, va_list ap)
 {
-	const char	*p;
-
-	p = strrchr(bsdtar_progname(), '/');
-	if (p != NULL)
-	    p++;
-	else
-	    p = bsdtar_progname();
-	fprintf(stderr, "%s: ", p);
-
+	fprintf(stderr, "%s: ", bsdtar->progname);
 	vfprintf(stderr, fmt, ap);
 	if (code != 0)
 		fprintf(stderr, ": %s", strerror(code));
-
 	fprintf(stderr, "\n");
 }
 
 void
-bsdtar_warnc(int code, const char *fmt, ...)
+bsdtar_warnc(struct bsdtar *bsdtar, int code, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	bsdtar_vwarnc(code, fmt, ap);
+	bsdtar_vwarnc(bsdtar, code, fmt, ap);
 	va_end(ap);
 }
 
 void
-bsdtar_errc(int eval, int code, const char *fmt, ...)
+bsdtar_errc(struct bsdtar *bsdtar, int eval, int code, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	bsdtar_vwarnc(code, fmt, ap);
+	bsdtar_vwarnc(bsdtar, code, fmt, ap);
 	va_end(ap);
 	exit(eval);
 }

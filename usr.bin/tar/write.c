@@ -134,7 +134,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 	int r;
 
 	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
-		bsdtar_errc(1, 0, "no files or directories specified");
+		bsdtar_errc(bsdtar, 1, 0, "no files or directories specified");
 
 	a = archive_write_new();
 
@@ -147,7 +147,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 			fprintf(stderr, "Can't use format %s: %s\n",
 			    bsdtar->create_format,
 			    archive_error_string(a));
-			usage();
+			usage(bsdtar);
 		}
 	}
 
@@ -164,8 +164,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 
 	r = archive_write_open_file(a, bsdtar->filename);
 	if (r != ARCHIVE_OK)
-		bsdtar_errc(1, archive_errno(a),
-		    archive_error_string(a));
+		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
 
 	write_archive(a, bsdtar);
 
@@ -191,7 +190,8 @@ tar_mode_r(struct bsdtar *bsdtar)
 
 	bsdtar->fd = open(bsdtar->filename, O_RDWR);
 	if (bsdtar->fd < 0)
-		bsdtar_errc(1, errno, "Cannot open %s", bsdtar->filename);
+		bsdtar_errc(bsdtar, 1, errno,
+		    "Cannot open %s", bsdtar->filename);
 
 	a = archive_read_new();
 	archive_read_support_compression_all(a);
@@ -202,7 +202,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
 			archive_read_finish(a);
 			close(bsdtar->fd);
-			bsdtar_errc(1, 0,
+			bsdtar_errc(bsdtar, 1, 0,
 			    "Cannot append to compressed archive.");
 		}
 		/* Keep going until we hit end-of-archive */
@@ -255,7 +255,8 @@ tar_mode_u(struct bsdtar *bsdtar)
 
 	bsdtar->fd = open(bsdtar->filename, O_RDWR);
 	if (bsdtar->fd < 0)
-		bsdtar_errc(1, errno, "Cannot open %s", bsdtar->filename);
+		bsdtar_errc(bsdtar, 1, errno,
+		    "Cannot open %s", bsdtar->filename);
 
 	a = archive_read_new();
 	archive_read_support_compression_all(a);
@@ -268,7 +269,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
 			archive_read_finish(a);
 			close(bsdtar->fd);
-			bsdtar_errc(1, 0,
+			bsdtar_errc(bsdtar, 1, 0,
 			    "Cannot append to compressed archive.");
 		}
 		add_dir_list(bsdtar, archive_entry_pathname(entry),
@@ -325,7 +326,8 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	pending_dir = NULL;
 
 	if (bsdtar->start_dir != NULL && chdir(bsdtar->start_dir))
-		bsdtar_errc(1, errno, "chdir(%s) failed", bsdtar->start_dir);
+		bsdtar_errc(bsdtar, 1, errno,
+		    "chdir(%s) failed", bsdtar->start_dir);
 
 	if (bsdtar->names_from_file != NULL)
 		archive_names_from_file(bsdtar, a);
@@ -386,7 +388,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 				/* Handle a deferred -C request, see
 				 * comments above. */
 				if (chdir(pending_dir))
-					bsdtar_errc(1, 0,
+					bsdtar_errc(bsdtar, 1, 0,
 					    "could not chdir to '%s'\n",
 					    pending_dir);
 				free(pending_dir);
@@ -432,14 +434,15 @@ archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 		 */
 		if (strcmp(buff, "-C") == 0) {
 			if (fgets(buff, sizeof(buff), f) == NULL)
-				bsdtar_errc(1, errno,
+				bsdtar_errc(bsdtar, 1, errno,
 				    "Unexpected end of filename list; "
 				    "directory expected after -C");
 			l = strlen(buff);
 			if (buff[l-1] == '\n')
 				buff[l-1] = '\0';
 			if (chdir(buff))
-				bsdtar_errc(1, errno, "chdir(%s) failed", buff);
+				bsdtar_errc(bsdtar, 1, errno,
+				    "chdir(%s) failed", buff);
 		} else {
 			write_heirarchy(bsdtar, a, buff);
 		}
@@ -482,7 +485,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
 			bytes_written =
 			    archive_write_data(a, buff, bytes_read);
 			if (bytes_written < bytes_read) {
-				bsdtar_warnc( archive_errno(a), "%s",
+				bsdtar_warnc(bsdtar, archive_errno(a), "%s",
 				    archive_error_string(a));
 				exit(1);
 			}
@@ -494,8 +497,8 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
 
 	}
 	if (archive_errno(ina))
-		bsdtar_warnc(0, "Error reading archive %s: %s", filename,
-		    archive_error_string(ina));
+		bsdtar_warnc(bsdtar, 0, "Error reading archive %s: %s",
+		    filename, archive_error_string(ina));
 
 	return (0); /* TODO: Return non-zero on error */
 }
@@ -537,21 +540,22 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 
 
 	if (!fts) {
-		bsdtar_warnc(errno, "%s: Cannot open", path);
+		bsdtar_warnc(bsdtar, errno, "%s: Cannot open", path);
 		return;
 	}
 
 	while ((ftsent = fts_read(fts))) {
 		switch (ftsent->fts_info) {
 		case FTS_NS:
-			bsdtar_warnc(ftsent->fts_errno, "%s: Could not stat",
-			    ftsent->fts_path);
+			bsdtar_warnc(bsdtar, ftsent->fts_errno,
+			    "%s: Could not stat", ftsent->fts_path);
 			break;
 		case FTS_ERR:
-			bsdtar_warnc(ftsent->fts_errno, "%s", ftsent->fts_path);
+			bsdtar_warnc(bsdtar, ftsent->fts_errno, "%s",
+			    ftsent->fts_path);
 			break;
 		case FTS_DNR:
-			bsdtar_warnc(ftsent->fts_errno,
+			bsdtar_warnc(bsdtar, ftsent->fts_errno,
 			    "%s: Cannot read directory contents",
 			    ftsent->fts_path);
 			break;
@@ -686,7 +690,8 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		case FTS_DP:
 			break;
 		default:
-			bsdtar_warnc(0, "%s: Heirarchy traversal error %d\n",
+			bsdtar_warnc(bsdtar, 0,
+			    "%s: Heirarchy traversal error %d\n",
 			    ftsent->fts_path,
 			    ftsent->fts_info);
 			break;
@@ -694,9 +699,9 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 
 	}
 	if (errno)
-		bsdtar_warnc(errno, "%s", path);
+		bsdtar_warnc(bsdtar, errno, "%s", path);
 	if (fts_close(fts))
-		bsdtar_warnc(errno, "fts_close failed");
+		bsdtar_warnc(bsdtar, errno, "fts_close failed");
 	free(fts_argv[0]);
 }
 
@@ -752,7 +757,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 		lnklen = readlink(accpath, linkbuffer, PATH_MAX);
 		if (lnklen < 0) {
 			if (!bsdtar->verbose)
-				bsdtar_warnc(errno,
+				bsdtar_warnc(bsdtar, errno,
 				    "%s: Couldn't read symbolic link",
 				    pathname);
 			else
@@ -796,7 +801,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 		fd = open(accpath, O_RDONLY);
 		if (fd < 0) {
 			if (!bsdtar->verbose)
-				bsdtar_warnc(errno, "%s", pathname);
+				bsdtar_warnc(bsdtar, errno, "%s", pathname);
 			else
 				fprintf(stderr, ": %s", strerror(errno));
 			goto cleanup;
@@ -806,7 +811,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 	e = archive_write_header(a, entry);
 	if (e != ARCHIVE_OK) {
 		if (!bsdtar->verbose)
-			bsdtar_warnc(0, "%s: %s", pathname,
+			bsdtar_warnc(bsdtar, 0, "%s: %s", pathname,
 			    archive_error_string(a));
 		else
 			fprintf(stderr, ": %s", archive_error_string(a));
@@ -877,7 +882,7 @@ create_cleanup(struct bsdtar * bsdtar)
 					struct links_entry *lp =
 					    links_cache->buckets[i]->next;
 					if (bsdtar->option_warn_links)
-						bsdtar_warnc(0,
+						bsdtar_warnc(bsdtar, 0,
 						    "Missing links to %s",
 						    links_cache->buckets[i]->name);
 					if (links_cache->buckets[i]->name != NULL)
@@ -891,7 +896,6 @@ create_cleanup(struct bsdtar * bsdtar)
 		free(bsdtar->links_cache);
 		bsdtar->links_cache = NULL;
 	}
-
 
 	free_cache(bsdtar->uname_cache);
 	bsdtar->uname_cache = NULL;
@@ -914,7 +918,7 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 	if (links_cache == NULL) {
 		bsdtar->links_cache = malloc(sizeof(struct links_cache));
 		if (bsdtar->links_cache == NULL)
-			bsdtar_errc(1, ENOMEM,
+			bsdtar_errc(bsdtar, 1, ENOMEM,
 			    "No memory for hardlink detection.");
 		links_cache = bsdtar->links_cache;
 		memset(links_cache, 0, sizeof(struct links_cache));
@@ -922,7 +926,7 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 		links_cache->buckets = malloc(links_cache->number_buckets *
 		    sizeof(links_cache->buckets[0]));
 		if (links_cache->buckets == NULL) {
-			bsdtar_errc(1, ENOMEM,
+			bsdtar_errc(bsdtar, 1, ENOMEM,
 			    "No memory for hardlink detection.");
 		}
 		for (i = 0; i < links_cache->number_buckets; i++)
@@ -965,9 +969,10 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 			links_cache->number_buckets = new_size;
 		} else {
 			links_cache->stop_allocating = 1;
-			bsdtar_warnc(ENOMEM, "No more memory for recording "
-			    "hard links; Remaining hard links will be "
-			    "dumped as full files.");
+			bsdtar_warnc(bsdtar, ENOMEM,
+			    "No more memory for recording hard links");
+			bsdtar_warnc(bsdtar, 0, 
+			    "Remaining links will be dumped as full files");
 		}
 	}
 
@@ -1007,9 +1012,10 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 	le = malloc(sizeof(struct links_entry));
 	if (le == NULL) {
 		links_cache->stop_allocating = 1;
-		bsdtar_warnc(ENOMEM, "No more memory for recording "
-		    "hard links; Remaining hard links will be dumped "
-		    "as full files.");
+		bsdtar_warnc(bsdtar, ENOMEM,
+		    "No more memory for recording hard links");
+		bsdtar_warnc(bsdtar, 0,
+		    "Remaining hard links will be dumped as full files");
 		return;
 	}
 	if (links_cache->buckets[hash] != NULL)
@@ -1194,7 +1200,7 @@ lookup_uname_helper(struct bsdtar *bsdtar, const char **name, id_t id)
 	if (pwent == NULL) {
 		*name = NULL;
 		if (errno != 0)
-			bsdtar_warnc(errno, "getpwuid(%d) failed", id);
+			bsdtar_warnc(bsdtar, errno, "getpwuid(%d) failed", id);
 		return (errno);
 	}
 
@@ -1220,7 +1226,7 @@ lookup_gname_helper(struct bsdtar *bsdtar, const char **name, id_t id)
 	if (grent == NULL  && errno != 0) {
 		*name = NULL;
 		if (errno != 0)
-			bsdtar_warnc(errno, "getgrgid(%d) failed", id);
+			bsdtar_warnc(bsdtar, errno, "getgrgid(%d) failed", id);
 		return (errno);
 	}
 
@@ -1301,18 +1307,20 @@ test_for_append(struct bsdtar *bsdtar)
 	struct stat s;
 
 	if (*bsdtar->argv == NULL)
-		bsdtar_errc(1, 0, "no files or directories specified");
+		bsdtar_errc(bsdtar, 1, 0, "no files or directories specified");
 	if (bsdtar->filename == NULL)
-		bsdtar_errc(1, 0, "Cannot append to stdout.");
+		bsdtar_errc(bsdtar, 1, 0, "Cannot append to stdout.");
 
 	if (bsdtar->create_compression != 0)
-		bsdtar_errc(1, 0, "Cannot append to %s with compression",
-		    bsdtar->filename);
+		bsdtar_errc(bsdtar, 1, 0,
+		    "Cannot append to %s with compression", bsdtar->filename);
 
 	if (stat(bsdtar->filename, &s) != 0)
-		bsdtar_errc(1, errno, "Cannot stat %s", bsdtar->filename);
+		bsdtar_errc(bsdtar, 1, errno,
+		    "Cannot stat %s", bsdtar->filename);
 
 	if (!S_ISREG(s.st_mode))
-		bsdtar_errc(1, 0, "Cannot append to %s: not a regular file.",
+		bsdtar_errc(bsdtar, 1, 0,
+		    "Cannot append to %s: not a regular file.",
 		    bsdtar->filename);
 }
