@@ -678,11 +678,10 @@ putint(n, l, lc, w)
 		return;
 	}
 	snprintf(b, sizeof(b), "%*d", w, n);
-	if ((int)strlen(b) > w) {
-		while (w-- > 0)
-			addch('*');
-		return;
-	}
+	if ((int)strlen(b) > w)
+		snprintf(b, sizeof(b), "%*dK", w - 1, n / 1000);
+	if ((int)strlen(b) > w)
+		snprintf(b, sizeof(b), "%*dM", w - 1, n / 1000000);
 	addstr(b);
 }
 
