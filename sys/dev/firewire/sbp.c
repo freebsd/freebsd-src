@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2003 Hidetosh Shimokawa
- * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetosh Shimokawa
+ * Copyright (c) 2003 Hidetoshi Shimokawa
+ * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
