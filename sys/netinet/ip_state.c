@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-/*static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.3.2.9 1999/10/21 14:31:09 darrenr Exp $";*/
+/*static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.3.2.16 1999/12/28 05:24:58 darrenr Exp $";*/
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
@@ -29,7 +29,8 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #  include <linux/module.h>
 # endif
 #endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
+#if ((defined(KERNEL) && (__FreeBSD_version >= 220000)) || \
+     (defined(_KERNEL) && (__FreeBSD_version >= 400013)))
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 # if (__FreeBSD_version >= 300000) && !defined(IPFILTER_LKM)
@@ -44,7 +45,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <sys/protosw.h>
 #endif
 #include <sys/socket.h>
-#if (defined(_KERNEL) || defined(KERNEL)) && !defined(linux)
+#if defined(_KERNEL) && !defined(linux)
 # include <sys/systm.h>
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)
@@ -97,9 +98,9 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 
 #define	TCP_CLOSE	(TH_FIN|TH_RST)
 
-static ipstate_t **ips_table = NULL;
-static int	ips_num = 0;
-static ips_stat_t ips_stats;
+ipstate_t **ips_table = NULL;
+int	ips_num = 0;
+ips_stat_t ips_stats;
 #if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
 extern	KRWLOCK_T	ipf_state, ipf_mutex;
 extern	kmutex_t	ipf_rw;
@@ -201,10 +202,6 @@ int which;
 			} else
 				isp = &is->is_next;
 		}
-	if (fr_state_doflush) {
-		(void) fr_state_flush(1);
-		fr_state_doflush = 0;
-	}
 	RWLOCK_EXIT(&ipf_state);
 	SPL_X(s);
 	return removed;
@@ -232,6 +229,14 @@ int mode;
 		} else
 			error = EINVAL;
 		break;
+#ifdef	IPFILTER_LOG
+	case SIOCIPFFB :
+		if (!(mode & FWRITE))
+			error = EPERM;
+		else
+			*(int *)data = ipflog_clear(IPL_LOGSTATE);
+		break;
+#endif
 	case SIOCGIPST :
 		IWCOPY((caddr_t)fr_statetstats(), data, sizeof(ips_stat_t));
 		break;
@@ -347,9 +352,11 @@ u_int flags;
 	    {
 		register tcphdr_t *tcp = (tcphdr_t *)fin->fin_dp;
 
+		is->is_dport = tcp->th_dport;
+		is->is_sport = tcp->th_sport;
 		if ((flags & (FI_W_DPORT|FI_W_SPORT)) == 0) {
-			hv += (is->is_dport = tcp->th_dport);
-			hv += (is->is_sport = tcp->th_sport);
+			hv += tcp->th_dport;
+			hv += tcp->th_sport;
 		}
 		ATOMIC_INC(ips_stats.iss_udp);
 		is->is_age = fr_udptimeout;
@@ -657,12 +664,14 @@ fr_info_t *fin;
 	register u_short sport, dport;
 	register u_char	pr;
 	struct icmp *ic;
+	u_short savelen;
 	fr_info_t ofin;
-	u_int hv, dest;
 	tcphdr_t *tcp;
+	icmphdr_t *icmp;
 	frentry_t *fr;
 	ip_t *oip;
 	int type;
+	u_int hv;
 
 	/* 
 	 * Does it at least have the return (basic) IP header ? 
@@ -684,6 +693,70 @@ fr_info_t *fin;
 	oip = (ip_t *)((char *)fin->fin_dp + ICMPERR_ICMPHLEN);
 	if (ip->ip_len < ICMPERR_MAXPKTLEN + ((oip->ip_hl - 5) << 2))
 		return NULL;
+
+	if (oip->ip_p == IPPROTO_ICMP) {
+
+		icmp = (icmphdr_t *)((char *)oip + (oip->ip_hl << 2));
+
+		/*
+		 * a ICMP error can only be generated as a result of an
+		 * ICMP query, not as the response on an ICMP error
+		 *
+		 * XXX theoretically ICMP_ECHOREP and the other reply's are
+		 * ICMP query's as well, but adding them here seems strange XXX
+		 */
+		 if ((icmp->icmp_type != ICMP_ECHO) &&
+		     (icmp->icmp_type != ICMP_TSTAMP) &&
+		     (icmp->icmp_type != ICMP_IREQ) &&
+		     (icmp->icmp_type != ICMP_MASKREQ))  
+		    	return NULL;
+
+		/* 
+		 * perform a lookup of the ICMP packet in the state table
+		 */
+
+		hv = (pr = oip->ip_p);
+		hv += (src.s_addr = oip->ip_src.s_addr);
+		hv += (dst.s_addr = oip->ip_dst.s_addr);
+		if (icmp->icmp_type == ICMP_ECHO) {
+			hv += icmp->icmp_id;
+			hv += icmp->icmp_seq;
+		}
+		hv %= fr_statesize;
+
+		oip->ip_len = ntohs(oip->ip_len);
+		fr_makefrip(oip->ip_hl << 2, oip, &ofin);
+		oip->ip_len = htons(oip->ip_len);
+		ofin.fin_ifp = fin->fin_ifp;
+		ofin.fin_out = !fin->fin_out;
+		ofin.fin_mp = NULL; /* if dereferenced, panic XXX */
+
+		READ_ENTER(&ipf_state);
+		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_next)
+			if ((is->is_p == pr) &&
+			    fr_matchsrcdst(is, src, dst, &ofin, NULL)) {
+			    	/* 
+			    	 * in the state table ICMP query's are stored
+			    	 * with the type of the corresponding ICMP 
+			    	 * response. Correct here
+			    	 */
+				if (((is->is_type == ICMP_ECHOREPLY) &&
+				     (icmp->icmp_id == is->is_icmp.ics_id) &&
+				     (icmp->icmp_seq == is->is_icmp.ics_seq) &&
+				     (icmp->icmp_type == ICMP_ECHO)) ||
+				    (is->is_type - 1 == ic->icmp_type)) {
+				    	ips_stats.iss_hits++;
+    		                        is->is_pkts++;
+                	                is->is_bytes += ip->ip_len;     
+					fr = is->is_rule;
+					RWLOCK_EXIT(&ipf_state);
+					return fr;
+				}
+			}
+		RWLOCK_EXIT(&ipf_state);
+		return NULL;
+	};
+
 	if ((oip->ip_p != IPPROTO_TCP) && (oip->ip_p != IPPROTO_UDP))
 		return NULL;
 
@@ -707,9 +780,10 @@ fr_info_t *fin;
 	 * watch out here, as ip is in host order and oip in network
 	 * order. Any change we make must be undone afterwards.
 	 */
-	oip->ip_len = ntohs(oip->ip_len);
+	savelen = oip->ip_len;
+	oip->ip_len = ip->ip_len - (ip->ip_hl << 2) - ICMPERR_ICMPHLEN;
 	fr_makefrip(oip->ip_hl << 2, oip, &ofin);
-	oip->ip_len = htons(oip->ip_len);
+	oip->ip_len = savelen;
 	ofin.fin_ifp = fin->fin_ifp;
 	ofin.fin_out = !fin->fin_out;
 	ofin.fin_mp = NULL; /* if dereferenced, panic XXX */
@@ -730,7 +804,6 @@ fr_info_t *fin;
 			 * we must swap src and dst here because the icmp
 			 * comes the other way around
 			 */
-			dest = (is->is_dst.s_addr != src.s_addr);
 			is->is_pkts++;
 			is->is_bytes += ip->ip_len;     
 			/*
@@ -778,17 +851,20 @@ fr_info_t *fin;
 	switch (ip->ip_p)
 	{
 	case IPPROTO_ICMP :
-		hv += ic->icmp_id;
-		hv += ic->icmp_seq;
+		if ((ic->icmp_type == ICMP_ECHO) ||
+		    (ic->icmp_type == ICMP_ECHOREPLY)) {
+			hv += ic->icmp_id;
+			hv += ic->icmp_seq;
+		}
 		hv %= fr_statesize;
 		READ_ENTER(&ipf_state);
 		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_next)
 			if ((is->is_p == pr) &&
-			    (ic->icmp_id == is->is_icmp.ics_id) &&
-			    (ic->icmp_seq == is->is_icmp.ics_seq) &&
 			    fr_matchsrcdst(is, src, dst, fin, NULL)) {
 				if ((is->is_type == ICMP_ECHOREPLY) &&
-				    (ic->icmp_type == ICMP_ECHO))
+				    (ic->icmp_type == ICMP_ECHO) &&
+				    (ic->icmp_id == is->is_icmp.ics_id) &&
+				    (ic->icmp_seq == is->is_icmp.ics_seq))
 					;
 				else if (is->is_type != ic->icmp_type)
 					continue;
@@ -819,7 +895,6 @@ retry_tcp:
 			if ((is->is_p == pr) &&
 			    fr_matchsrcdst(is, src, dst, fin, tcp)) {
 				if (fr_tcpstate(is, fin, ip, tcp)) {
-					break;
 #ifndef	_KERNEL
 					if (tcp->th_flags & TCP_CLOSE) {
 						*isp = is->is_next;
@@ -965,6 +1040,10 @@ void fr_timeoutstate()
 				ips_num--;
 			} else
 				isp = &is->is_next;
+	if (fr_state_doflush) {
+		(void) fr_state_flush(1);
+		fr_state_doflush = 0;
+	}
 	RWLOCK_EXIT(&ipf_state);
 	SPL_X(s);
 }

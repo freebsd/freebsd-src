@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
-/*static const char rcsid[] = "@(#)$Id: fil.c,v 2.3.2.7 1999/10/21 14:21:40 darrenr Exp $";*/
+/*static const char rcsid[] = "@(#)$Id: fil.c,v 2.3.2.14 1999/12/07 12:53:40 darrenr Exp $";*/
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
@@ -20,8 +20,10 @@ static const char rcsid[] = "@(#)$FreeBSD$";
     defined(_KERNEL)
 # include "opt_ipfilter_log.h"
 #endif
-#if defined(_KERNEL) && defined(__FreeBSD_version) && \
-    (__FreeBSD_version >= 220000)
+#if ((defined(KERNEL) && defined(__FreeBSD_version) && \
+      (__FreeBSD_version >= 220000)) || \
+     (defined(_KERNEL) && defined(__FreeBSD_version) && \
+      (__FreeBSD_version >= 40013)))
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -147,6 +149,9 @@ fr_info_t	frcache[2];
 
 static	int	fr_tcpudpchk __P((frentry_t *, fr_info_t *));
 static	int	frflushlist __P((int, minor_t, int *, frentry_t **));
+#ifdef	_KERNEL
+static	void	frsynclist __P((frentry_t *));
+#endif
 
 
 /*
@@ -671,6 +676,13 @@ int out;
 	fin->fin_qif = qif;
 # endif
 #endif /* _KERNEL */
+
+	/*
+	 * Be careful here: ip_id is in network byte order when called
+	 * from ip_output()
+	 */
+	if (out)
+		ip->ip_id = ntohs(ip->ip_id);
 	fr_makefrip(hlen, ip, fin);
 	fin->fin_ifp = ifp;
 	fin->fin_out = out;
@@ -824,6 +836,10 @@ logit:
 		}
 	}
 #endif /* IPFILTER_LOG */
+
+	if (out)
+		ip->ip_id = htons(ip->ip_id);
+
 #ifdef	_KERNEL
 	/*
 	 * Only allow FR_DUP to work if a rule matched - it makes no sense to
@@ -1165,7 +1181,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.3.2.7 1999/10/21 14:21:40 darrenr Exp $
+ * $Id: fil.c,v 2.3.2.14 1999/12/07 12:53:40 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1358,14 +1374,16 @@ frentry_t **listp;
 		}
 
 		ATOMIC_DEC(fp->fr_ref);
+		if (fp->fr_grhead) {
+			fr_delgroup((u_int)fp->fr_grhead, fp->fr_flags, 
+				    unit, set);
+			fp->fr_grhead = NULL;
+		}
 		if (fp->fr_ref == 0) {
-			if (fp->fr_grhead)
-				fr_delgroup((u_int)fp->fr_grhead, fp->fr_flags, 
-					    unit, set);
 			KFREE(fp);
+			freed++;
 		} else
 			fp->fr_next = NULL;
-		freed++;
 	}
 	*nfreedp += freed;
 	return freed;
@@ -1529,10 +1547,52 @@ struct in_addr *inp;
 	in = sin->sin_addr;
 #  endif /* linux */
 # endif /* SOLARIS */
-	in.s_addr = ntohl(in.s_addr);
 	*inp = in;
 	return 0;
 }
+
+
+static void frsynclist(fr)
+register frentry_t *fr;
+{
+	for (; fr; fr = fr->fr_next) {
+		if (fr->fr_ifa != NULL) {
+			fr->fr_ifa = GETUNIT(fr->fr_ifname);
+			if (fr->fr_ifa == NULL)
+				fr->fr_ifa = (void *)-1;
+		}
+		if (fr->fr_grp)
+			frsynclist(fr->fr_grp);
+	}
+}
+
+
+void frsync()
+{
+	register struct ifnet *ifp;
+
+# if !SOLARIS
+#  if defined(__OpenBSD__) || ((NetBSD >= 199511) && (NetBSD < 1991011)) || \
+     (defined(__FreeBSD_version) && (__FreeBSD_version >= 300000))
+#   if (NetBSD >= 199905) || defined(__OpenBSD__)
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
+#   else
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
+#   endif
+#  else
+	for (ifp = ifnet; ifp; ifp = ifp->if_next)
+#  endif
+		ip_natsync(ifp);
+# endif
+
+	WRITE_ENTER(&ipf_mutex);
+	frsynclist(ipacct[0][fr_active]);
+	frsynclist(ipacct[1][fr_active]);
+	frsynclist(ipfilter[0][fr_active]);
+	frsynclist(ipfilter[1][fr_active]);
+	RWLOCK_EXIT(&ipf_mutex);
+}
+
 #else
 
 

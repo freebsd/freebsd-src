@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.3.2.4 1999/10/15 13:42:37 darrenr Exp $
+ * $Id: ip_fil.h,v 2.3.2.6 1999/12/17 12:58:16 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -107,6 +107,7 @@ typedef	struct	fr_ip	{
  */
 #define	FI_W_SPORT	0x00000100
 #define	FI_W_DPORT	0x00000200
+#define	FI_WILD		(FI_W_SPORT|FI_W_DPORT)
 
 typedef	struct	fr_info	{
 	void	*fin_ifp;		/* interface packet is `on' */
@@ -307,11 +308,15 @@ typedef	struct	friostat	{
 	struct	frentry		*f_auth;
 	struct	frgroup		*f_groups[3][2];
 	u_long	f_froute[2];
-	int	f_active;	/* 1 or 0 - active rule set */
 	int	f_defpass;	/* default pass - from fr_pass */
-	int	f_running;	/* 1 if running, else 0 */
-	int	f_logging;	/* 1 if enabled, else 0 */
+	char	f_active;	/* 1 or 0 - active rule set */
+	char	f_running;	/* 1 if running, else 0 */
+	char	f_logging;	/* 1 if enabled, else 0 */
+#if !SOLARIS && defined(sun)
+	char	f_version[25];	/* version string */
+#else
 	char	f_version[32];	/* version string */
+#endif
 } friostat_t;
 
 typedef struct	optlist {

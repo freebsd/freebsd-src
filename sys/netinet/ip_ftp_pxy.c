@@ -1,8 +1,6 @@
 /*
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
- *
- * $Id$
  * $FreeBSD$
  */
 #if SOLARIS && defined(_KERNEL)
@@ -166,7 +164,7 @@ nat_t *nat;
 	a4 = a1 & 0xff;
 	a1 >>= 24;
 	olen = s - portbuf;
-	(void) snprintf(newbuf, sizeof(newbuf), "%s %u,%u,%u,%u,%u,%u\r\n",
+	(void) sprintf(newbuf, "%s %u,%u,%u,%u,%u,%u\r\n",
 		       "PORT", a1, a2, a3, a4, a5, a6);
 
 	nlen = strlen(newbuf);
@@ -215,7 +213,7 @@ nat_t *nat;
 		sum2 -= sum1;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
-		fix_outcksum(&ip->ip_sum, sum2);
+		fix_outcksum(&ip->ip_sum, sum2, 0);
 #endif
 		ip->ip_len += inc;
 	}
@@ -410,7 +408,7 @@ nat_t *nat;
 		sum2 -= sum1;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
-		fix_outcksum(&ip->ip_sum, sum2);
+		fix_outcksum(&ip->ip_sum, sum2, 0);
 #endif
 		ip->ip_len += inc;
 	}

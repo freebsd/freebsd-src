@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-1995 Darren Reed";
-/*static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.4.2.3 1999/09/18 15:03:54 darrenr Exp $";*/
+/*static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.4.2.4 1999/11/28 04:52:10 darrenr Exp $";*/
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
@@ -25,7 +25,8 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <string.h>
 # include <stdlib.h>
 #endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
+#if ((defined(KERNEL) && (__FreeBSD_version >= 220000)) || \
+     (defined(_KERNEL) && (__FreeBSD_version >= 40013)))
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -88,13 +89,11 @@ extern struct callout_handle ipfr_slowtimer_ch;
 #endif
 
 
-static ipfr_t	*ipfr_heads[IPFT_SIZE];
-static ipfr_t	*ipfr_nattab[IPFT_SIZE];
-static ipfrstat_t ipfr_stats;
-static int	ipfr_inuse = 0;
-
-int		fr_ipfrttl = 120;	/* 60 seconds */
-
+ipfr_t	*ipfr_heads[IPFT_SIZE];
+ipfr_t	*ipfr_nattab[IPFT_SIZE];
+ipfrstat_t ipfr_stats;
+int	ipfr_inuse = 0,
+	fr_ipfrttl = 120;	/* 60 seconds */
 #ifdef _KERNEL
 # if SOLARIS2 >= 7
 extern	timeout_id_t	ipfr_timer_id;
@@ -282,14 +281,14 @@ ipfr_t *table[];
 				f->ipfr_prev = NULL;
 				table[idx] = f;
 			}
-			off = ip->ip_off;
+			off = ip->ip_off & IP_OFFMASK;
 			atoff = off + (fin->fin_dlen >> 3);
 			/*
 			 * If we've follwed the fragments, and this is the
 			 * last (in order), shrink expiration time.
 			 */
-			if ((off & IP_OFFMASK) == f->ipfr_off) {
-				if (!(off & IP_MF))
+			if (off == f->ipfr_off) {
+				if (!(ip->ip_off & IP_MF))
 					f->ipfr_ttl = 1;
 				else
 					f->ipfr_off = atoff;
