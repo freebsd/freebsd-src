@@ -91,7 +91,6 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_simos.h"
-#include "opt_sysvipc.h"
 #include "opt_msgbuf.h"
 
 #include <sys/param.h>
@@ -140,14 +139,6 @@
 #include <sys/vnode.h>
 #include <miscfs/procfs/procfs.h>
 #include <machine/sigframe.h>
-
-#ifdef SYSVMSG
-#include <sys/msg.h>
-#endif
-
-#ifdef SYSVSEM
-#include <sys/sem.h>
-#endif
 
 struct proc* curproc;
 struct proc* fpcurproc;
@@ -328,18 +319,6 @@ again:
 
 	valloc(callout, struct callout, ncallout);
 	valloc(callwheel, struct callout_tailq, callwheelsize);
-#ifdef SYSVSEM
-	valloc(sema, struct semid_ds, seminfo.semmni);
-	valloc(sem, struct sem, seminfo.semmns);
-	/* This is pretty disgusting! */
-	valloc(semu, int, (seminfo.semmnu * seminfo.semusz) / sizeof(int));
-#endif
-#ifdef SYSVMSG
-	valloc(msgpool, char, msginfo.msgmax);
-	valloc(msgmaps, struct msgmap, msginfo.msgseg);
-	valloc(msghdrs, struct msg, msginfo.msgtql);
-	valloc(msqids, struct msqid_ds, msginfo.msgmni);
-#endif
 
 	/*
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.

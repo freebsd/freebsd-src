@@ -158,12 +158,12 @@ alpha_XXX_dmamap(vm_offset_t va)
  * Pmap stuff
  */
 struct	pv_entry;
-typedef struct {
+
+struct md_page {
 	int pv_list_count;
-	struct vm_page		*pv_vm_page;
 	int			pv_flags;
 	TAILQ_HEAD(,pv_entry)	pv_list;
-} pv_table_t;
+};
 
 #define PV_TABLE_MOD		0x01 /* modified */
 #define PV_TABLE_REF		0x02 /* referenced */
