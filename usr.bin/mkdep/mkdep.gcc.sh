@@ -32,11 +32,10 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-#	$Id: mkdep.gcc.sh,v 1.15 1998/08/29 07:55:55 obrien Exp $
+#	$Id: mkdep.gcc.sh,v 1.14 1998/08/24 10:16:39 cracauer Exp $
 
 D=.depend			# default dependency file is .depend
 append=0
-nosyshdrs=0
 pflag=
 
 while :
@@ -50,11 +49,6 @@ while :
 		-f)
 			D=$2
 			shift; shift ;;
-
-		# -n does not make dependencies on system headers
-		-n)
-			nosyshdrs=1
-			shift ;;
 
 		# the -p flag produces "program: program.c" style dependencies
 		# so .o's don't get produced
@@ -78,16 +72,13 @@ trap 'rm -f $TMP' 0
 # For C sources, mkdep must use exactly the same cpp and predefined flags
 # as the compiler would.  This is easily arranged by letting the compiler
 # pick the cpp.  mkdep must be told the cpp to use for exceptional cases.
-MKDEP_CPP=${MKDEP_CPP-"cc -E"}
-
-case $nosyshdrs in 
-	0) CC_MKDEP_OPT="-M";;
-	*) CC_MKDEP_OPT="-MM -w";;
-esac
+CC=${CC-"cc"}
+MKDEP_CPP=${MKDEP_CPP-"${CC} -E"}
+MKDEP_CPP_OPTS=${MKDEP_CPP_OPTS-"-M"};
 
 echo "# $@" > $TMP	# store arguments for debugging
 
-if $MKDEP_CPP $CC_MKDEP_OPT "$@" >> $TMP; then :
+if $MKDEP_CPP $MKDEP_CPP_OPTS "$@" >> $TMP; then :
 else
 	echo 'mkdep: compile failed' >&2
 	exit 1
