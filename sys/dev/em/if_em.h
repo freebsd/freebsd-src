@@ -282,7 +282,7 @@ struct em_q {
  * em_dma_malloc and em_dma_free.
  */
 struct em_dma_alloc {
-        u_int32_t               dma_paddr;
+        bus_addr_t              dma_paddr;
         caddr_t                 dma_vaddr;
         bus_dma_tag_t           dma_tag;
         bus_dmamap_t            dma_map;
