@@ -363,7 +363,7 @@ struct mount *
 vfs_getvfs(fsid)
 	fsid_t *fsid;
 {
-	register struct mount *mp;
+	struct mount *mp;
 
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
@@ -476,7 +476,7 @@ vfs_timestamp(tsp)
  */
 void
 vattr_null(vap)
-	register struct vattr *vap;
+	struct vattr *vap;
 {
 
 	vap->va_type = VNON;
@@ -1771,7 +1771,7 @@ v_incr_usecount(struct vnode *vp, int delta)
  */
 int
 vget(vp, flags, td)
-	register struct vnode *vp;
+	struct vnode *vp;
 	int flags;
 	struct thread *td;
 {
@@ -2007,7 +2007,7 @@ vdrop(struct vnode *vp)
 
 void
 vdropl(vp)
-	register struct vnode *vp;
+	struct vnode *vp;
 {
 
 	if (vp->v_holdcnt <= 0)
@@ -2350,7 +2350,7 @@ vrecycle(vp, inter_lkp, td)
  */
 void
 vgone(vp)
-	register struct vnode *vp;
+	struct vnode *vp;
 {
 	struct thread *td = curthread;	/* XXX */
 
