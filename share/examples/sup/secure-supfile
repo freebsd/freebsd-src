@@ -1,0 +1,2 @@
+eBones release=current host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr/src delete old compress
+secure release=current host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr/src delete old compress
