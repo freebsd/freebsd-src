@@ -45,7 +45,7 @@
  * userland utilities to determine whether or not they are in sync with the
  * kernel.
  */
-#define DEVSTAT_VERSION	   3
+#define DEVSTAT_VERSION	   4
 
 /*
  * These flags specify which statistics features are supported or not
