@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.1 1997/08/13 23:36:11 smp Exp smp $";
+	"$Id: main.c,v 1.20 1997/08/14 19:24:11 fsmp Exp $";
 #endif /* not lint */
 
 /*-
@@ -190,6 +190,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			break;
 		case 'B':
 			compatMake = TRUE;
+			Var_Append(MAKEFLAGS, "-B", VAR_GLOBAL);
 			break;
 #ifdef REMOTE
 		case 'L':
