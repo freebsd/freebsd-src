@@ -184,7 +184,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	va_end(ap);
 
 	error = kthread_create(ithread_loop, ithd, &p, RFSTOPPED | RFHIGHPID,
-	    ithd->it_name);
+	    "%s", ithd->it_name);
 	if (error) {
 		free(ithd, M_ITHREAD);
 		return (error);
