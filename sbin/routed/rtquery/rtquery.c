@@ -31,30 +31,34 @@
  * SUCH DAMAGE.
  */
 
-char copyright[] =
+#ifndef lint
+static const char copyright[] =
 "@(#) Copyright (c) 1982, 1986, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
+#endif /* not lint */
 
-#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
+#ifndef lint
+#if 0
 static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
-static char rcsid[] = "$NetBSD$";
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <netinet/in.h>
 #define RIPVERSION RIPv2
 #include <protocols/routed.h>
 #include <arpa/inet.h>
-#include <netdb.h>
+#include <err.h>
 #include <errno.h>
-#include <unistd.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #ifdef sgi
 #include <strings.h>
 #include <bstring.h>
@@ -245,10 +249,8 @@ usage:		fprintf(stderr, "%s\n%s\n",
 	}
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s < 0) {
-		perror("socket");
-		exit(2);
-	}
+	if (s < 0)
+		err(2, "socket");
 
 	/* be prepared to receive a lot of routes */
 	for (bsize = 127*1024; ; bsize -= 1024) {
@@ -256,7 +258,7 @@ usage:		fprintf(stderr, "%s\n%s\n",
 			       &bsize, sizeof(bsize)) == 0)
 			break;
 		if (bsize <= 4*1024) {
-			perror("setsockopt SO_RCVBUF");
+			warn("setsockopt SO_RCVBUF");
 			break;
 		}
 	}
@@ -277,10 +279,8 @@ trace_loop(char *argv[])
 	struct sockaddr_in myaddr;
 	int res;
 
-	if (geteuid() != 0) {
-		(void)fprintf(stderr, "-t requires UID 0\n");
-		exit(1);
-	}
+	if (geteuid() != 0)
+		errx(1, "-t requires UID 0");
 
 	if (ripv2) {
 		OMSG.rip_vers = RIPv2;
@@ -295,11 +295,8 @@ trace_loop(char *argv[])
 #endif
 	myaddr.sin_port = htons(IPPORT_RESERVED-1);
 	while (bind(s, (struct sockaddr *)&myaddr, sizeof(myaddr)) < 0) {
-		if (errno != EADDRINUSE
-		    || myaddr.sin_port == 0) {
-			perror("bind");
-			exit(2);
-		}
+		if (errno != EADDRINUSE || myaddr.sin_port == 0)
+			err(2, "bind");
 		myaddr.sin_port = htons(ntohs(myaddr.sin_port)-1);
 	}
 
@@ -370,7 +367,7 @@ query_loop(char *argv[], int argc)
 	seen = 0;
 	while (0 > out(*argv++)) {
 		if (*argv == 0)
-			exit(-1);
+			exit(1);
 		answered++;
 	}
 
@@ -385,10 +382,8 @@ query_loop(char *argv[], int argc)
 			cc = recvfrom(s, imsg_buf.packet,
 				      sizeof(imsg_buf.packet), 0,
 				      (struct sockaddr *)&from, &fromlen);
-			if (cc < 0) {
-				perror("recvfrom");
-				exit(1);
-			}
+			if (cc < 0)
+				err(1, "recvfrom");
 			/* count the distinct responding hosts.
 			 * You cannot match responding hosts with
 			 * addresses to which queries were transmitted,
@@ -412,10 +407,9 @@ query_loop(char *argv[], int argc)
 		}
 
 		if (cc < 0) {
-			if ( errno == EINTR)
+			if (errno == EINTR)
 				continue;
-			perror("select");
-			exit(1);
+			err(1, "select");
 		}
 
 		/* After a pause in responses, probe another host.
@@ -432,10 +426,8 @@ query_loop(char *argv[], int argc)
 
 		/* or until we have waited a long time
 		 */
-		if (gettimeofday(&now, 0) < 0) {
-			perror("gettimeofday(now)");
-			exit(1);
-		}
+		if (gettimeofday(&now, 0) < 0)
+			err(1, "gettimeofday(now)");
 		if (sent.tv_sec + wtime <= now.tv_sec)
 			break;
 	}
@@ -454,7 +446,7 @@ out(char *host)
 	struct hostent *hp;
 
 	if (gettimeofday(&sent, 0) < 0) {
-		perror("gettimeofday(sent)");
+		warn("gettimeofday(sent)");
 		return -1;
 	}
 
@@ -475,7 +467,7 @@ out(char *host)
 
 	if (sendto(s, &omsg_buf, omsg_len, 0,
 		   (struct sockaddr *)&router, sizeof(router)) < 0) {
-		perror(host);
+		warn("%s", host);
 		return -1;
 	}
 
