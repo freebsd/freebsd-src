@@ -116,7 +116,6 @@ static struct _s_x f_ipopts[] = {
 	{ NULL,	0 }
 };
 
-#if 0	/* XXX not used yet */
 static struct _s_x f_iptos[] = {
 	{ "lowdelay",	IPTOS_LOWDELAY},
 	{ "throughput",	IPTOS_THROUGHPUT},
@@ -127,7 +126,6 @@ static struct _s_x f_iptos[] = {
 	{ "ip tos option", 0},
 	{ NULL,	0 }
 };
-#endif
 
 static struct _s_x limit_masks[] = {
 	{"all",		DYN_SRC_ADDR|DYN_SRC_PORT|DYN_DST_ADDR|DYN_DST_PORT},
@@ -254,6 +252,7 @@ struct _s_x dummynet_params[] = {
 	{ "bw",			TOK_BW },
 	{ "bandwidth",		TOK_BW },
 	{ "delay",		TOK_DELAY },
+	{ "pipe",		TOK_PIPE },
 	{ "queue",		TOK_QUEUE },
 	{ "dummynet-params",	TOK_NULL },
 	{ NULL, 0 }
@@ -276,6 +275,7 @@ struct _s_x rule_actions[] = {
 	{ "drop",		TOK_DENY },
 	{ "reject",		TOK_REJECT },
 	{ "reset",		TOK_RESET },
+	{ "unreach",		TOK_UNREACH },
 	{ "check-state",	TOK_CHECKSTATE },
 	{ NULL,			TOK_NULL },
 	{ NULL, 0 }
@@ -496,7 +496,6 @@ fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
 	return i;
 }
 
-#if 0 /* XXX not used yet */
 static struct _s_x icmpcodes[] = {
       { "net",			ICMP_UNREACH_NET },
       { "host",			ICMP_UNREACH_HOST },
@@ -533,16 +532,15 @@ fill_reject_code(u_short *codep, char *str)
 }
 
 static void
-print_reject_code(u_int32_t code)
+print_reject_code(u_int16_t code)
 {
 	char *s = match_value(icmpcodes, code);
 
 	if (s != NULL)
-		printf("%s", s);
+		printf("unreach %s", s);
 	else
-		printf("%u", code);
+		printf("unreach %u", code);
 }
-#endif /* XXX not used yet */
 
 /*
  * Returns the number of bits set (from left) in a contiguous bitmask,
@@ -678,6 +676,44 @@ print_mac(u_char *addr, u_char *mask)
 	}
 }
 
+static void
+fill_icmptypes(ipfw_insn_u32 *cmd, char *av)
+{
+	u_int8_t type;
+
+	cmd->d[0] = 0;
+	while (*av) {
+		if (*av == ',')
+			av++;
+
+		type = strtoul(av, &av, 0);
+
+		if (*av != ',' && *av != '\0')
+			errx(EX_DATAERR, "invalid ICMP type");
+
+		if (type > 31)
+			errx(EX_DATAERR, "ICMP type out of range");
+
+		cmd->d[0] |= 1 << type;
+	}
+	cmd->o.opcode = O_ICMPTYPE;
+	cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
+}
+
+static void
+print_icmptypes(ipfw_insn_u32 *cmd)
+{
+	int i;
+	char sep= ' ';
+
+	printf(" icmptypes");
+	for (i = 0; i < 32; i++) {
+		if ( (cmd->d[0] & (1 << (i))) == 0)
+			continue;
+		printf("%c%d", sep, i);
+		sep = ',';
+	}
+}
 
 /*
  * show_ipfw() prints the body of an ipfw rule.
@@ -763,6 +799,15 @@ show_ipfw(struct ip_fw *rule)
 			printf("deny");
 			break;
 
+		case O_REJECT:
+			if (cmd->arg1 == ICMP_REJECT_RST)
+				printf("reset");
+			else if (cmd->arg1 == ICMP_UNREACH_HOST)
+				printf("reject");
+			else
+				print_reject_code(cmd->arg1);
+			break;
+
 		case O_SKIPTO:
 			printf("skipto %u", cmd->arg1);
 			break;
@@ -813,7 +858,8 @@ show_ipfw(struct ip_fw *rule)
 	 */
         for (l = rule->act_ofs, cmd = rule->cmd ;
 			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
-		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;	/* useful alias */
+		/* useful alias */
+		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;
 
 		switch(cmd->opcode) {
 		case O_PROBE_STATE:
@@ -918,11 +964,13 @@ show_ipfw(struct ip_fw *rule)
 				else if (cmd->opcode == O_VIA)
 					s = "via";
 				if (cmdif->name[0] == '\0')
-					printf(" %s %s", s, inet_ntoa(cmdif->p.ip));
+					printf(" %s %s", s,
+					    inet_ntoa(cmdif->p.ip));
 				else if (cmdif->p.unit == -1)
 					printf(" %s %s*", s, cmdif->name);
 				else
-					printf(" %s %s%d", s, cmdif->name, cmdif->p.unit);
+					printf(" %s %s%d", s, cmdif->name,
+					    cmdif->p.unit);
 				}
 				break;
 
@@ -938,12 +986,24 @@ show_ipfw(struct ip_fw *rule)
 				printf(" ipver %u", cmd->arg1 );
 				break;
 
+			case O_IPPRECEDENCE:
+				printf(" ipprecedence %u", (cmd->arg1) >> 5 );
+				break;
+
 			case O_IPLEN:
 				printf(" iplen %u", cmd->arg1 );
 				break;
 
 			case O_IPOPTS:
 				print_flags("ipoptions", cmd, f_ipopts);
+				break;
+
+			case O_IPTOS:
+				print_flags("iptos", cmd, f_iptos);
+				break;
+
+			case O_ICMPTYPE:
+				print_icmptypes((ipfw_insn_u32 *)cmd);
 				break;
 
 			case O_ESTAB:
@@ -1029,45 +1089,6 @@ show_ipfw(struct ip_fw *rule)
 	}
 	show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP|HAVE_DSTIP);
 
-#if 0	/* old stuff */
-	switch (chain->fw_flg & IP_FW_F_COMMAND) {
-	case IP_FW_F_REJECT:
-		if (chain->fw_reject_code == IP_FW_REJECT_RST)
-			printf("reset");
-		else {
-			printf("unreach ");
-			print_reject_code(chain->fw_reject_code);
-		}
-		break;
-	}
-
-do_options:
-	if (chain->fw_ipflg & IP_FW_IF_IPOPT)
-		print_flags("ipopt", chain->fw_ipopt, chain->fw_ipnopt,
-			f_ipopts);
-
-	if (chain->fw_ipflg & IP_FW_IF_IPPRE)
-		printf(" ipprecedence %u", (chain->fw_iptos & 0xe0) >> 5);
-
-	if (chain->fw_ipflg & IP_FW_IF_IPTOS)
-		print_flags("iptos", chain->fw_iptos, chain->fw_ipntos,
-			f_iptos);
-
-	if (chain->fw_flg & IP_FW_F_ICMPBIT) {
-		int i, first = 1;
-		unsigned j;
-
-		printf(" icmptype");
-
-		for (i = 0; i < IP_FW_ICMPTYPES_DIM; ++i)
-			for (j = 0; j < sizeof(unsigned) * 8; ++j)
-				if (chain->fw_uar.fw_icmptypes[i] & (1 << j)) {
-					printf("%c%d", first ? ' ' : ',',
-					    i * sizeof(unsigned) * 8 + j);
-					first = 0;
-				}
-	}
-#endif /* XXX old stuff */
 	printf("\n");
 }
 
@@ -1620,31 +1641,6 @@ fill_flags(ipfw_insn *cmd, enum ipfw_opcodes opcode,
         cmd->arg1 = (set & 0xff) | ( (clear & 0xff) << 8);
 }
 
-#if 0 /* XXX todo */
-static void
-fill_icmptypes(unsigned *types, char **vp, u_int *fw_flg)
-{
-	unsigned long icmptype;
-	char *c = *vp;
-
-	while (*c) {
-		if (*c == ',')
-			++c;
-
-		icmptype = strtoul(c, &c, 0);
-
-		if (*c != ',' && *c != '\0')
-			errx(EX_DATAERR, "invalid ICMP type");
-
-		if (icmptype >= IP_FW_ICMPTYPES_DIM * sizeof(unsigned) * 8)
-			errx(EX_DATAERR, "ICMP type out of range");
-
-		types[icmptype / (sizeof(unsigned) * 8)] |=
-			1 << (icmptype % (sizeof(unsigned) * 8));
-		*fw_flg |= IP_FW_F_ICMPBIT;
-	}
-}
-#endif /* XXX todo */
 
 static void
 delete(int ac, char *av[])
@@ -1745,7 +1741,7 @@ config_pipe(int ac, char **av)
 		else
 			pipe.fs.fs_nr = i;
 	}
-	while (ac > 1) {
+	while (ac > 0) {
 		double d;
 		int tok = match_token(dummynet_params, *av);
 		ac--; av++;
@@ -2231,6 +2227,24 @@ add(int ac, char *av[])
 
 	case TOK_DENY:
 		action->opcode = O_DENY;
+		action->arg1 = 0;
+		break;
+
+	case TOK_REJECT:
+		action->opcode = O_REJECT;
+		action->arg1 = ICMP_UNREACH_HOST;
+		break;
+
+	case TOK_RESET:
+		action->opcode = O_REJECT;
+		action->arg1 = ICMP_REJECT_RST;
+		break;
+
+	case TOK_UNREACH:
+		action->opcode = O_REJECT;
+		NEED1("missing reject code");
+		fill_reject_code(&action->arg1, *av);
+		ac--; av++;
 		break;
 
 	case TOK_COUNT:
@@ -2304,19 +2318,6 @@ add(int ac, char *av[])
 		errx(EX_DATAERR, "invalid action %s\n", *av);
 	}
 	action = next_cmd(action);
-
-#if 0
-	} else if (!strncmp(*av, "reject", strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_REJECT; av++; ac--;
-		rule.fw_reject_code = ICMP_UNREACH_HOST;
-	} else if (!strncmp(*av, "reset", strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_REJECT; av++; ac--;
-		rule.fw_reject_code = ICMP_REJECT_RST;	/* check TCP later */
-	} else if (!strncmp(*av, "unreach", strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_REJECT; av++; ac--;
-		fill_reject_code(&rule.fw_reject_code, *av); av++; ac--;
-	}
-#endif /* XXX other actions */
 
 	/*
 	 * [log [logamount N]]	-- log, optional
@@ -2568,6 +2569,12 @@ read_options:
 				cmd->opcode = O_VIA;
 			break;
 
+		case TOK_ICMPTYPES:
+			NEED1("icmptypes requires list of types");
+			fill_icmptypes((ipfw_insn_u32 *)cmd, *av);
+			av++; ac--;
+			break;
+
 		case TOK_IPTTL:
 			NEED1("ipttl requires TTL");
 			fill_cmd(cmd, O_IPTTL, 0, strtoul(*av, NULL, 0));
@@ -2592,9 +2599,22 @@ read_options:
 			ac--; av++;
 			break;
 
+		case TOK_IPPRECEDENCE:
+			NEED1("ipprecedence requires value");
+			fill_cmd(cmd, O_IPPRECEDENCE, 0,
+			    (strtoul(*av, NULL, 0) & 7) << 5);
+			ac--; av++;
+			break;
+
 		case TOK_IPOPTS:
 			NEED1("missing argument for ipoptions");
 			fill_flags(cmd, O_IPOPTS, f_ipopts, *av);
+			ac--; av++;
+			break;
+
+		case TOK_IPTOS:
+			NEED1("missing argument for iptos");
+			fill_flags(cmd, O_IPOPTS, f_iptos, *av);
 			ac--; av++;
 			break;
 
@@ -2714,43 +2734,7 @@ read_options:
 			cmd = next_cmd(cmd);
 		}
 	}
-#if 0 /* XXX todo */
-do_options:
-	while (ac) {
-		} else if (!strncmp(*av, "ipprecedence", strlen(*av))) {
-			u_long ippre;
-			char *c;
 
-			av++; ac--;
-			NEED1("missing argument for ``ipprecedence''");
-			ippre = strtoul(*av, &c, 0);
-			if (*c != '\0')
-				errx(EX_DATAERR, "argument to ipprecedence"
-					" must be numeric");
-			if (ippre > 7)
-				errx(EX_DATAERR, "argument to ipprecedence"
-					" out of range");
-			rule.fw_ipflg |= IP_FW_IF_IPPRE;
-			rule.fw_iptos |= (u_short)(ippre << 5);
-			av++; ac--;
-		} else if (!strncmp(*av, "iptos", strlen(*av))) {
-			av++; ac--;
-			NEED1("missing argument for ``iptos''");
-			rule.fw_ipflg |= IP_FW_IF_IPTOS;
-			fill_flags(&rule.fw_iptos, &rule.fw_ipntos,
-			    f_iptos, av);
-			av++; ac--;
-		} else if (rule.fw_prot == IPPROTO_ICMP) {
-			if (!strncmp(*av, "icmptypes", strlen(*av))) {
-				av++; ac--;
-				NEED1("missing argument for ``icmptypes''");
-				fill_icmptypes(rule.fw_uar.fw_icmptypes,
-				    av, &rule.fw_flg);
-				av++; ac--;
-			}
-		}
-	}
-#endif /* XXX todo */
 done:
 	/*
 	 * Now copy stuff into the rule.
