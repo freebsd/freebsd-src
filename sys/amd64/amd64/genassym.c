@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.13 1994/10/02 04:45:33 davidg Exp $
+ *	$Id: genassym.c,v 1.14 1994/10/02 07:19:43 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@
 #include <machine/trap.h>
 #include <machine/psl.h>
 #include <machine/reg.h>
+#include <machine/bootinfo.h>
 #include <sys/syscall.h>
 #include <vm/vm.h>
 #include <sys/user.h>
@@ -76,6 +77,7 @@ main()
 	struct pcb *pcb = (struct pcb *)0;
 	struct trapframe *tf = (struct trapframe *)0;
 	struct sigframe *sigf = (struct sigframe *)0;
+	struct bootinfo_t *bootinfo = (struct bootinfo_t *)0;
 	register unsigned i;
 
 	printf("#define\tUDOT_SZ %d\n", sizeof(struct user));
@@ -199,6 +201,10 @@ main()
 	printf("#define\tENOENT %d\n", ENOENT);
 	printf("#define\tEFAULT %d\n", EFAULT);
 	printf("#define\tENAMETOOLONG %d\n", ENAMETOOLONG);
+	printf("#define\tMAXPATHLEN %d\n", MAXPATHLEN);
+	printf("#define\tBOOTINFO_VERSION %d\n", &bootinfo->version);
+	printf("#define\tBOOTINFO_KERNELNAME %d\n", &bootinfo->kernelname);
+	printf("#define\tBOOTINFO_NFS_DISKLESS %d\n", &bootinfo->nfs_diskless);
 	printf("#define\tNFSDISKLESS_SIZE %d\n", sizeof(struct nfs_diskless));
 	exit(0);
 }
