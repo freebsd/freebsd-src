@@ -563,7 +563,7 @@ get_process_info(si, sel, compare)
 	    process_states[(unsigned char) pp->ki_stat]++;
 	    if ((pp->ki_stat != SZOMB) &&
 		(displaymode == DISP_CPU &&
-		 (show_idle || (pp->ki_pctcpu != 0) || pp->ki_stat == SRUN)) ||
+		 (show_idle || (pp->ki_pctcpu != 0) || pp->ki_stat == SRUN)) &&
 		(show_idle || (displaymode == DISP_IO && p_io != 0)) &&
 		(!show_uid || pp->ki_ruid == (uid_t)sel->uid))
 	    {
