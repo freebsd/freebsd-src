@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.30 1995/12/16 14:03:02 peter Exp $
+ *	$Id: si.c,v 1.31 1996/01/02 09:18:07 peter Exp $
  */
 
 #ifndef lint
@@ -699,7 +699,7 @@ mem_fail:
 
 #ifdef DEVFS
 /*	path	name	devsw		minor	type   uid gid perm*/
-	for ( x = 0; x <= nport; x++ ) {
+	for ( x = 0; x < nport; x++ ) {
 		y = x + 1;	/* For sync with the manuals that start at 1 */
 		sprintf(name,"ttyA%c%c", chardev[y / 10], chardev[y % 10]);
 		sc->devfs_token[x].ttyd = devfs_add_devsw(
