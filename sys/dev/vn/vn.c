@@ -403,8 +403,9 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	IFOPT(vn,VN_LABELS) {
 		if (vn->sc_slices != NULL) {
-			error = dsioctl(dev, cmd, data, flag, vn->sc_slices,
-					vnstrategy, (ds_setgeom_t *)NULL);
+			error = dsioctl("vn", dev, cmd, data, flag,
+					&vn->sc_slices, vnstrategy,
+					(ds_setgeom_t *)NULL);
 			if (error != -1)
 				return (error);
 		}
