@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.2 (Berkeley) 1/4/94
- * $Id: namei.h,v 1.2 1994/08/02 07:53:18 davidg Exp $
+ * $Id: namei.h,v 1.3 1994/09/27 20:33:41 phk Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
 #define	_SYS_NAMEI_H_
+
+#include <sys/queue.h>
 
 /*
  * Encapsulation of namei parameters.
@@ -155,10 +157,8 @@ struct nameidata {
 #define	NCHNAMLEN	31	/* maximum name segment length we bother with */
 
 struct	namecache {
-	struct	namecache *nc_forw;	/* hash chain */
-	struct	namecache **nc_back;	/* hash chain */
-	struct	namecache *nc_nxt;	/* LRU chain */
-	struct	namecache **nc_prev;	/* LRU chain */
+	LIST_ENTRY(namecache) nc_hash;  /* hash chain */
+	TAILQ_ENTRY(namecache) nc_lru;  /* LRU chain */
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	u_long	nc_dvpid;		/* capability number of nc_dvp */
 	struct	vnode *nc_vp;		/* vnode the name refers to */
