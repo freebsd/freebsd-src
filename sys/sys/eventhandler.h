@@ -30,28 +30,65 @@
 #define SYS_EVENTHANDLER_H
 
 #include <sys/lock.h>
-#include <sys/sx.h>
+#include <sys/ktr.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 
 struct eventhandler_entry {
 	TAILQ_ENTRY(eventhandler_entry)	ee_link;
 	int				ee_priority;
+#define	EHE_DEAD_PRIORITY	(-1)
 	void				*ee_arg;
 };
 
 struct eventhandler_list {
 	char				*el_name;
 	int				el_flags;
-#define EHE_INITTED	(1<<0)
-	struct sx			el_lock;
+#define EHL_INITTED	(1<<0)
+	u_int				el_runcount;
+	struct mtx			el_lock;
 	TAILQ_ENTRY(eventhandler_list)	el_link;
 	TAILQ_HEAD(,eventhandler_entry)	el_entries;
 };
 
 typedef struct eventhandler_entry	*eventhandler_tag;
 
-#define	EHE_LOCK(p)	sx_xlock(&(p)->el_lock)
-#define	EHE_UNLOCK(p)	sx_xunlock(&(p)->el_lock)
+#define	EHL_LOCK(p)		mtx_lock(&(p)->el_lock)
+#define	EHL_UNLOCK(p)		mtx_unlock(&(p)->el_lock)
+#define	EHL_LOCK_ASSERT(p, x)	mtx_assert(&(p)->el_lock, x)
+
+/*
+ * Macro to invoke the handlers for a given event.
+ */
+#define _EVENTHANDLER_INVOKE(name, list, ...) do {			\
+	struct eventhandler_entry *_ep;					\
+	struct eventhandler_entry_ ## name *_t;				\
+									\
+	KASSERT((list)->el_flags & EHL_INITTED,				\
+ 	   ("eventhandler_invoke: running non-inited list"));		\
+	EHL_LOCK_ASSERT((list), MA_OWNED);				\
+	(list)->el_runcount++;						\
+	KASSERT((list)->el_runcount > 0,				\
+	    ("eventhandler_invoke: runcount overflow"));		\
+	CTR0(KTR_EVH, "eventhandler_invoke(\"" __STRING(name) "\")");	\
+	TAILQ_FOREACH(_ep, &((list)->el_entries), ee_link) {		\
+		if (_ep->ee_priority != EHE_DEAD_PRIORITY) {		\
+			EHL_UNLOCK((list));				\
+			_t = (struct eventhandler_entry_ ## name *)_ep;	\
+			CTR1(KTR_EVH, "eventhandler_invoke: executing %p", \
+ 			    (void *)_t->eh_func);			\
+			_t->eh_func(_ep->ee_arg , ## __VA_ARGS__);	\
+			EHL_LOCK((list));				\
+		}							\
+	}								\
+	KASSERT((list)->el_runcount > 0,				\
+	    ("eventhandler_invoke: runcount underflow"));		\
+	(list)->el_runcount--;						\
+	if ((list)->el_runcount == 0)					\
+		eventhandler_prune_list(list);				\
+	EHL_UNLOCK((list));						\
+} while (0)
+
 
 /* 
  * Fast handler lists require the eventhandler list be present
@@ -75,22 +112,12 @@ struct __hack
 struct eventhandler_list Xeventhandler_list_ ## name = { #name };	\
 struct __hack
 
-#define EVENTHANDLER_FAST_INVOKE(name, ...)				\
-do {									\
+#define EVENTHANDLER_FAST_INVOKE(name, ...) do {			\
 	struct eventhandler_list *_el = &Xeventhandler_list_ ## name ;	\
-	struct eventhandler_entry *_ep, *_en;				\
-	struct eventhandler_entry_ ## name *_t;				\
 									\
-	if (_el->el_flags & EHE_INITTED) {				\
-		EHE_LOCK(_el);						\
-		_ep = TAILQ_FIRST(&(_el->el_entries));			\
-		while (_ep != NULL) {					\
-			_en = TAILQ_NEXT(_ep, ee_link);			\
-			_t = (struct eventhandler_entry_ ## name *)_ep; \
-			_t->eh_func(_ep->ee_arg , __VA_ARGS__);		\
-			_ep = _en;					\
-		}							\
-		EHE_UNLOCK(_el);					\
+	if (_el->el_flags & EHL_INITTED) {				\
+		EHL_LOCK(_el);						\
+		_EVENTHANDLER_INVOKE(name, _el , ## __VA_ARGS__);	\
 	}								\
 } while (0)
 
@@ -98,8 +125,14 @@ do {									\
 	eventhandler_register(&Xeventhandler_list_ ## name,		\
 	#name, func, arg, priority)
 
-#define EVENTHANDLER_FAST_DEREGISTER(name, tag)				\
-	eventhandler_deregister(&Xeventhandler_list_ ## name, tag)
+#define EVENTHANDLER_FAST_DEREGISTER(name, tag)	do {			\
+	struct eventhandler_list *_el = &Xeventhandler_list_ ## name ;	\
+									\
+	KASSERT(_el->el_flags & EHL_INITTED,				\
+	    ("eventhandler_fast_deregister on un-inited list %s", ## name)); \
+	EHL_LOCK(_el);							\
+	eventhandler_deregister(_el, tag);				\
+} while (0)
 
 /*
  * Slow handlers are entirely dynamic; lists are created
@@ -119,21 +152,9 @@ struct __hack
 #define EVENTHANDLER_INVOKE(name, ...)					\
 do {									\
 	struct eventhandler_list *_el;					\
-	struct eventhandler_entry *_ep, *_en;				\
-	struct eventhandler_entry_ ## name *_t;				\
 									\
-	if (((_el = eventhandler_find_list(#name)) != NULL) && 		\
-		(_el->el_flags & EHE_INITTED)) {			\
-		EHE_LOCK(_el);						\
-		_ep = TAILQ_FIRST(&(_el->el_entries));			\
-		while (_ep != NULL) {					\
-			_en = TAILQ_NEXT(_ep, ee_link);			\
-			_t = (struct eventhandler_entry_ ## name *)_ep;	\
-			_t->eh_func(_ep->ee_arg , __VA_ARGS__);		\
-			_ep = _en;					\
-		}							\
-		EHE_UNLOCK(_el);					\
-	}								\
+	if ((_el = eventhandler_find_list(#name)) != NULL) 		\
+		_EVENTHANDLER_INVOKE(name, _el , ## __VA_ARGS__);	\
 } while (0)
 
 #define EVENTHANDLER_REGISTER(name, func, arg, priority)		\
@@ -148,14 +169,12 @@ do {									\
 } while(0)
 	
 
-extern eventhandler_tag	eventhandler_register(struct eventhandler_list *list, 
-					      char *name,
-					      void *func, 
-					      void *arg, 
-					      int priority);
-extern void		eventhandler_deregister(struct eventhandler_list *list,
-						eventhandler_tag tag);
-extern struct eventhandler_list	*eventhandler_find_list(char *name);
+eventhandler_tag eventhandler_register(struct eventhandler_list *list, 
+	    char *name, void *func, void *arg, int priority);
+void	eventhandler_deregister(struct eventhandler_list *list,
+	    eventhandler_tag tag);
+struct eventhandler_list *eventhandler_find_list(char *name);
+void	eventhandler_prune_list(struct eventhandler_list *list);
 
 /*
  * Standard system event queues.
