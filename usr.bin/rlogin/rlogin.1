@@ -41,6 +41,7 @@
 .Ar rlogin
 .Op Fl 8DEKLdx
 .Op Fl e Ar char
+.Op Fl i Ar localname
 .Op Fl k Ar realm
 .Op Fl l Ar username
 .Ar host
@@ -98,6 +99,11 @@ option allows user specification of the escape character, which is
 ``~'' by default.
 This specification may be as a literal character, or as an octal
 value in the form \ennn.
+.It Fl i
+The
+.Fl i
+option allows the caller to specify a different local name to be used
+for authentication.  This option is restricted to processes with uid 0.
 .It Fl k
 The
 .Fl k

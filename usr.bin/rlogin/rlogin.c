@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-	"$Id: rlogin.c,v 1.17 1998/03/26 18:03:41 markm Exp $";
+	"$Id: rlogin.c,v 1.18 1998/10/09 06:45:28 markm Exp $";
 #endif /* not lint */
 
 /*
@@ -154,6 +154,7 @@ main(argc, argv)
 #ifdef KERBEROS
 	char *k;
 #endif
+	char *localname = NULL;
 
 	argoff = dflag = Dflag = 0;
 	one = 1;
@@ -174,9 +175,9 @@ main(argc, argv)
 	}
 
 #ifdef KERBEROS
-#define	OPTIONS	"8DEKLde:k:l:x"
+#define	OPTIONS	"8DEKLde:i:k:l:x"
 #else
-#define	OPTIONS	"8DEKLde:l:"
+#define	OPTIONS	"8DEKLde:i:l:"
 #endif
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
@@ -203,6 +204,13 @@ main(argc, argv)
 		case 'e':
 			noescape = 0;
 			escapechar = getescape(optarg);
+			break;
+		case 'i':
+			if (getuid() != 0) {
+				fprintf(stderr, "rlogin: -i user: permission denied\n");
+				exit(1);
+			}
+			localname = optarg;
 			break;
 #ifdef KERBEROS
 		case 'k':
@@ -237,6 +245,8 @@ main(argc, argv)
 		errx(1, "unknown user id");
 	if (!user)
 		user = pw->pw_name;
+	if (!localname)
+		localname = pw->pw_name;
 
 	sp = NULL;
 #ifdef KERBEROS
@@ -324,10 +334,10 @@ main(argc, argv)
 		if (doencrypt)
 			errx(1, "the -x flag requires Kerberos authentication");
 #endif /* CRYPT */
-		rem = rcmd(&host, sp->s_port, pw->pw_name, user, term, 0);
+		rem = rcmd(&host, sp->s_port, localname, user, term, 0);
 	}
 #else
-	rem = rcmd(&host, sp->s_port, pw->pw_name, user, term, 0);
+	rem = rcmd(&host, sp->s_port, localname, user, term, 0);
 #endif /* KERBEROS */
 
 	if (rem < 0)
