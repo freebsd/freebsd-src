@@ -130,6 +130,8 @@ static void	 alarmhandler(int _signo);
 static void	 banner(struct printer *_pp, char *_name1, char *_name2);
 static int	 dofork(const struct printer *_pp, int _action);
 static int	 dropit(int _c);
+static int	 execfilter(struct printer *_pp, char *_f_cmd, char **_f_av,
+		    int _infd, int _outfd);
 static void	 init(struct printer *_pp);
 static void	 openpr(const struct printer *_pp);
 static void	 opennet(const struct printer *_pp);
@@ -971,9 +973,9 @@ sendfile(struct printer *pp, int type, char *file, char format)
 {
 	register int f, i, amt;
 	struct stat stb;
-	FILE *fp;
-	char buf[BUFSIZ];
-	int closedpr, resp, sizerr, statrc;
+	char *av[15], *filtcmd;
+	char buf[BUFSIZ], opt_c[4], opt_h[4], opt_n[4];
+	int filtstat, narg, resp, sizerr, statrc;
 
 	statrc = lstat(file, &stb);
 	if (statrc < 0) {
@@ -996,145 +998,103 @@ sendfile(struct printer *pp, int type, char *file, char format)
 	    (stb.st_dev != fdev || stb.st_ino != fino))
 		return(ACCESS);
 
-	job_dfcnt++;		/* increment datafile counter for this job */
-
-	/* everything seems OK, start it up */
+	/* Everything seems OK for reading the file, now to send it */
+	filtcmd = NULL;
 	sizerr = 0;
-	closedpr = 0;
+	tfd = -1;
 	if (type == '\3') {
-		if (pp->filters[LPF_INPUT]) {
-			/*
-			 * We're sending something with an ifilter.  We have to
-			 * run the ifilter and store the output as a temporary
-			 * spool file (tfile...), because the protocol requires
-			 * us to send the file size before we start sending any
-			 * of the data.
-			 */
-			char *av[15];
-			int n;
-			int ifilter;
-			union wait status; /* XXX */
+		/*
+		 * Type == 3 means this is a datafile, not a control file.
+		 * Increment the counter of data-files in this job, and
+		 * then check for input or output filters (which are only
+		 * applied to datafiles, not control files).
+		 */
+		job_dfcnt++;
 
-			strcpy(tfile,TFILENAME);
-			if ((tfd = mkstemp(tfile)) == -1) {
-				syslog(LOG_ERR, "mkstemp: %m");
-				return(ERROR);
-			}
-			if ((av[0] = strrchr(pp->filters[LPF_INPUT], '/')) == NULL)
-				av[0] = pp->filters[LPF_INPUT];
-			else
-				av[0]++;
+		/*
+		 * Note that here we are filtering datafiles, one at a time,
+		 * as they are sent to the remote machine.  Here, the *only*
+		 * difference between an input filter (`if=') and an output
+		 * filter (`of=') is the argument list that the filter is
+		 * started up with.  Here, the output filter is executed
+		 * for each individual file as it is sent.  This is not the
+		 * same as local print queues, where the output filter is
+		 * started up once, and then all jobs are passed thru that
+		 * single invocation of the output filter.
+		 *
+		 * Also note that a queue for a remote-machine can have an
+		 * input filter or an output filter, but not both.
+		 */
+		if (pp->filters[LPF_INPUT]) {
+			filtcmd = pp->filters[LPF_INPUT];
+			av[0] = filtcmd;
+			narg = 0;
+			strcpy(opt_c, "-c");
+			strcpy(opt_h, "-h");
+			strcpy(opt_n, "-n");
 			if (format == 'l')
-				av[n=1] = "-c";
-			else
-				n = 0;
-			av[++n] = width;
-			av[++n] = length;
-			av[++n] = indent;
-			av[++n] = "-n";
-			av[++n] = logname;
-			av[++n] = "-h";
-			av[++n] = origin_host;
-			av[++n] = pp->acct_file;
-			av[++n] = 0;
-			if ((ifilter = dofork(pp, DORETURN)) == 0) { /* child */
-				dup2(f, 0);
-				dup2(tfd, 1);
-				/* setup stderr for the filter (child process)
-				 * so it goes to our temporary errors file */
-				n = open(tempstderr, O_WRONLY|O_TRUNC, 0664);
-				if (n >= 0)
-					dup2(n, 2);
-				closelog();
-				closeallfds(3);
-				execv(pp->filters[LPF_INPUT], av);
-				syslog(LOG_ERR, "cannot execv %s", 
-				       pp->filters[LPF_INPUT]);
-				exit(2);
-			}
-			(void) close(f);
-			if (ifilter < 0)
-				status.w_retcode = 100;
-			else {
-				while ((pid = wait((int *)&status)) > 0 &&
-					pid != ifilter)
-					;
-				if (pid < 0) {
-					status.w_retcode = 100;
-					syslog(LOG_WARNING, "%s: after execv(%s), wait() returned: %m",
-					    pp->printer, pp->filters[LPF_INPUT]);
-				}
-			}
-			/* Copy the filter's output to "lf" logfile */
-			if ((fp = fopen(tempstderr, "r"))) {
-				while (fgets(buf, sizeof(buf), fp))
-					fputs(buf, stderr);
-				fclose(fp);
-			}
-			/* process the return-code from the filter */
-			switch (status.w_retcode) {
-			case 0:
-				break;
-			case 1:
-				unlink(tfile);
-				return(REPRINT);
-			case 2:
-				unlink(tfile);
-				return(ERROR);
-			default:
-				syslog(LOG_WARNING, "%s: filter '%c' exited"
-					" (retcode=%d)",
-					pp->printer, format, status.w_retcode);
-				unlink(tfile);
-				return(FILTERERR);
-			}
-			statrc = fstat(tfd, &stb);   /* to find size of tfile */
-			if (statrc < 0)	{
-				syslog(LOG_ERR, "%s: error processing 'if', fstat(%s): %m",
-				    pp->printer, tfile);
-				return(ERROR);
-			}
-			f = tfd;
-			lseek(f,0,SEEK_SET);
-		} else if (ofilter) {
-			/*
-			 * We're sending something with an ofilter, we have to
-			 * store the output as a temporary file (tfile)... the
-			 * protocol requires us to send the file size
-			 */
-			int i;
-			for (i = 0; i < stb.st_size; i += BUFSIZ) {
-				amt = BUFSIZ;
-				if (i + amt > stb.st_size)
-					amt = stb.st_size - i;
-				if (sizerr == 0 && read(f, buf, amt) != amt) {
-					sizerr = 1;
-					break;
-				}
-				if (write(ofd, buf, amt) != amt) {
-					(void) close(f);
-					return(REPRINT);
-				}
-			}
-			close(ofd);
-			close(f);
-			while ((i = wait(NULL)) > 0 && i != ofilter)
-				;
-			if (i < 0)
-				syslog(LOG_WARNING, "%s: after closing 'of', wait() returned: %m",
-				    pp->printer);
-			ofilter = 0;
-			statrc = fstat(tfd, &stb);   /* to find size of tfile */
-			if (statrc < 0)	{
-				syslog(LOG_ERR, "%s: error processing 'of', fstat(%s): %m",
-				    pp->printer, tfile);
-				openpr(pp);
-				return(ERROR);
-			}
-			f = tfd;
-			lseek(f,0,SEEK_SET);
-			closedpr = 1;
+				av[++narg] = opt_c;
+			av[++narg] = width;
+			av[++narg] = length;
+			av[++narg] = indent;
+			av[++narg] = opt_n;
+			av[++narg] = logname;
+			av[++narg] = opt_h;
+			av[++narg] = origin_host;
+			av[++narg] = pp->acct_file;
+			av[++narg] = NULL;
+		} else if (pp->filters[LPF_OUTPUT]) {
+			filtcmd = pp->filters[LPF_OUTPUT];
+			av[0] = filtcmd;
+			narg = 0;
+			av[++narg] = width;
+			av[++narg] = length;
+			av[++narg] = NULL;
 		}
+	}
+	if (filtcmd) {
+		/*
+		 * If there is an input or output filter, we have to run
+		 * the datafile thru that filter and store the result as
+		 * a temporary spool file, because the protocol requires
+		 * that we send the remote host the file-size before we
+		 * start to send any of the data.
+		 */
+		strcpy(tfile, TFILENAME);
+		tfd = mkstemp(tfile);
+		if (tfd == -1) {
+			syslog(LOG_ERR, "%s: mkstemp(%s): %m", pp->printer,
+			    TFILENAME);
+			return (ERROR);
+		}
+		filtstat = execfilter(pp, filtcmd, av, f, tfd);
+
+		/* process the return-code from the filter */
+		switch (filtstat) {
+		case 0:
+			break;
+		case 1:
+			unlink(tfile);
+			return (REPRINT);
+		case 2:
+			unlink(tfile);
+			return (ERROR);
+		default:
+			syslog(LOG_WARNING,
+			    "%s: filter '%c' exited (retcode=%d)",
+			    pp->printer, format, filtstat);
+			unlink(tfile);
+			return (FILTERERR);
+		}
+		statrc = fstat(tfd, &stb);   /* to find size of tfile */
+		if (statrc < 0)	{
+			syslog(LOG_ERR,
+			    "%s: error processing 'if', fstat(%s): %m",
+			    pp->printer, tfile);
+			return (ERROR);
+		}
+		f = tfd;
+		lseek(f,0,SEEK_SET);
 	}
 
 	(void) sprintf(buf, "%c%qd %s\n", type, stb.st_size, file);
@@ -1146,8 +1106,6 @@ sendfile(struct printer *pp, int type, char *file, char format)
 			if (tfd != -1 && type == '\3') {
 				tfd = -1;
 				unlink(tfile);
-				if (closedpr)
-					openpr(pp);
 			}
 			return(REPRINT);
 		} else if (resp == '\0')
@@ -1175,8 +1133,6 @@ sendfile(struct printer *pp, int type, char *file, char format)
 			if (tfd != -1 && type == '\3') {
 				tfd = -1;
 				unlink(tfile);
-				if (closedpr)
-					openpr(pp);
 			}
 			return(REPRINT);
 		}
@@ -1191,21 +1147,98 @@ sendfile(struct printer *pp, int type, char *file, char format)
 		syslog(LOG_INFO, "%s: %s: changed size", pp->printer, file);
 		/* tell recvjob to ignore this file */
 		(void) write(pfd, "\1", 1);
-		if (closedpr)
-			openpr(pp);
 		return(ERROR);
 	}
 	if (write(pfd, "", 1) != 1 || response(pp)) {
-		if (closedpr)
-			openpr(pp);
 		return(REPRINT);
 	}
-	if (closedpr)
-		openpr(pp);
 	if (type == '\3')
 		trstat_write(pp, TR_SENDING, stb.st_size, logname,
 				 pp->remote_host, origin_host);
 	return(OK);
+}
+
+/*
+ *  This routine is called to execute one of the filters as was
+ *  specified in a printcap entry.
+ */
+static int
+execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
+{
+	int errfd, fpid, wpid;
+	FILE *errfp;
+	union wait status; /* XXX */
+	char buf[BUFSIZ], *slash;
+
+	fpid = dofork(pp, DORETURN);
+	if (fpid != 0) {
+		/*
+		 * This is the parent process, which just waits for the child
+		 * to complete and then returns the result.  Note that it is
+		 * the child process which reads the input stream.
+		 */
+		(void) close(infd);
+		if (fpid < 0)
+			status.w_retcode = 100;
+		else {
+			while ((wpid = wait((int *)&status)) > 0 &&
+			    wpid != fpid)
+				;
+			if (wpid < 0) {
+				status.w_retcode = 100;
+				syslog(LOG_WARNING,
+				    "%s: after execv(%s), wait() returned: %m",
+				    pp->printer, f_cmd);
+			}
+		}
+
+		/*
+		 * Copy everything the filter wrote to stderr from our
+		 * temporary errors file to the "lf=" logfile.
+		 */
+		errfp = fopen(tempstderr, "r");
+		if (errfp) {
+			while (fgets(buf, sizeof(buf), errfp))
+				fputs(buf, stderr);
+			fclose(errfp);
+		}
+
+		return (status.w_retcode);
+	}
+
+	/*
+	 * This is the child process, which is the one that executes the
+	 * given filter.
+	 */
+	/*
+	 * If the first parameter has any slashes in it, then change it
+	 * to point to the first character after the last slash.
+	 */
+	slash = strrchr(f_av[0], '/');
+	if (slash != NULL)
+		f_av[0] = slash + 1;
+	/*
+	 * XXX - in the future, this should setup an explicit list of
+	 *       environment variables and use execve()!
+	 */
+
+	/*
+	 * Setup stdin, stdout, and stderr as we want them when the filter
+	 * is running.  Stderr is setup so it points to a temporary errors
+	 * file, and the parent process will copy that temporary file to
+	 * the real logfile after the filter completes.
+	 */
+	dup2(infd, 0);
+	dup2(outfd, 1);
+	errfd = open(tempstderr, O_WRONLY|O_TRUNC, 0664);
+	if (errfd >= 0)
+		dup2(errfd, 2);
+	closelog();
+	closeallfds(3);
+	execv(f_cmd, f_av);
+	syslog(LOG_ERR, "%s: cannot execv %s", pp->printer, f_cmd);
+	exit(2);
+	/* NOTREACHED */
 }
 
 /*
@@ -1559,6 +1592,17 @@ openpr(const struct printer *pp)
 
 	if (pp->remote) {
 		openrem(pp);
+		/*
+		 * Lpd does support the setting of 'of=' filters for
+		 * jobs going to remote machines, but that does not
+		 * have the same meaning as 'of=' does when handling
+		 * local print queues.  For remote machines, all 'of='
+		 * filter processing is handled in sendfile(), and that
+		 * does not use these global "output filter" variables.
+		 */ 
+		ofd = -1;
+		ofilter = 0;
+		return;
 	} else if (*pp->lp) {
 		if ((cp = strchr(pp->lp, '@')) != NULL)
 			opennet(pp);
