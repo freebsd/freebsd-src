@@ -53,7 +53,7 @@ extern const char * gas_cgen_parse_operand
 /* Call this from md_assemble to initialize the assembler callback.  */
 extern void gas_cgen_init_parse PARAMS ((void));
 
-/* Routines and macros for saving fixup chains. */
+/* Routines and macros for saving fixup chains.  */
 extern void gas_cgen_save_fixups PARAMS ((int));
 extern void gas_cgen_restore_fixups PARAMS ((int));
 extern void gas_cgen_swap_fixups PARAMS ((int));

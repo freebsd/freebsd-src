@@ -57,7 +57,7 @@ static void setst PARAMS ((unsigned long, char *));
    9	'x' if any user may execute, 't' if the file is "sticky"
 	(will be retained in swap space after execution), '-'
 	otherwise.
-	'T' if the file is sticky but not executable. */
+	'T' if the file is sticky but not executable.  */
 
 #if 0
 
@@ -115,7 +115,7 @@ filemodestring (statp, str)
 #endif
 
 /* Like filemodestring, but only the relevant part of the `struct stat'
-   is given as an argument. */
+   is given as an argument.  */
 
 void
 mode_string (mode, str)
@@ -144,7 +144,7 @@ mode_string (mode, str)
    'l' for symbolic links
    's' for sockets
    'p' for fifos
-   '-' for any other file type. */
+   '-' for any other file type.  */
 
 #ifndef S_ISDIR
 #ifdef S_IFDIR
@@ -227,7 +227,7 @@ ftypelet (bits)
 }
 
 /* Set the 's' and 't' flags in file attributes string CHARS,
-   according to the file mode BITS. */
+   according to the file mode BITS.  */
 
 static void
 setst (bits, chars)
@@ -238,7 +238,7 @@ setst (bits, chars)
   if (bits & S_ISUID)
     {
       if (chars[3] != 'x')
-	/* Set-uid, but not executable by owner. */
+	/* Set-uid, but not executable by owner.  */
 	chars[3] = 'S';
       else
 	chars[3] = 's';
@@ -248,7 +248,7 @@ setst (bits, chars)
   if (bits & S_ISGID)
     {
       if (chars[6] != 'x')
-	/* Set-gid, but not executable by group. */
+	/* Set-gid, but not executable by group.  */
 	chars[6] = 'S';
       else
 	chars[6] = 's';
@@ -258,7 +258,7 @@ setst (bits, chars)
   if (bits & S_ISVTX)
     {
       if (chars[9] != 'x')
-	/* Sticky, but not executable by others. */
+	/* Sticky, but not executable by others.  */
 	chars[9] = 'T';
       else
 	chars[9] = 't';

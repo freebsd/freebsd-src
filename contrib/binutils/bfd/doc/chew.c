@@ -82,7 +82,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
    Foo.  */
 
-#include <ansidecl.h>
+#include "ansidecl.h"
 #include "sysdep.h"
 #include <assert.h>
 #include <stdio.h>
@@ -485,7 +485,7 @@ print_stack_level ()
  */
 
 static void
-paramstuff (void)
+paramstuff ()
 {
   unsigned int openp;
   unsigned int fname;
@@ -626,7 +626,7 @@ manglecomments ()
 
 /* Mod tos so that only lines with leading dots remain */
 static void
-outputdots (void)
+outputdots ()
 {
   unsigned int idx = 0;
   string_type out;
@@ -1261,7 +1261,7 @@ lookup_word (word)
 }
 
 static void
-perform (void)
+perform ()
 {
   tos = stack;
 
@@ -1412,7 +1412,7 @@ compile (string)
 }
 
 static void
-bang (void)
+bang ()
 {
   *(long *) ((isp[0])) = isp[-1];
   isp -= 2;
@@ -1487,7 +1487,7 @@ read_in (str, file)
 }
 
 static void
-usage (void)
+usage ()
 {
   fprintf (stderr, "usage: -[d|i|g] <file >file\n");
   exit (33);

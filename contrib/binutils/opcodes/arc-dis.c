@@ -1,5 +1,5 @@
 /* Instruction printing code for the ARC.
-   Copyright 1994, 1995, 1997, 1998, 2000, 2001
+   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
@@ -17,8 +17,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#include <ansidecl.h>
-#include <libiberty.h>
+#include "ansidecl.h"
+#include "libiberty.h"
 #include "dis-asm.h"
 #include "opcode/arc.h"
 #include "elf-bfd.h"

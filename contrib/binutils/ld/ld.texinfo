@@ -859,6 +859,7 @@ of this object will ignore any default library search paths.
 @code{now} marks the object with the non-lazy runtime binding.
 @code{origin} marks the object may contain $ORIGIN.
 @code{defs} disallows undefined symbols.
+@code{muldefs} allows multiple definitions.
 @code{combreloc} combines multiple reloc sections and sorts them
 to make dynamic symbol lookup caching possible.
 @code{nocombreloc} disables multiple reloc sections combining.
@@ -1080,6 +1081,14 @@ Normally when creating a non-symbolic shared library, undefined symbols
 are allowed and left to be resolved by the runtime loader.  These options
 disallows such undefined symbols.
 
+@kindex --allow-multiple-definition
+@kindex -z muldefs
+@item --allow-multiple-definition
+@itemx -z muldefs
+Normally when a symbol is defined multiple times, the linker will
+report a fatal error. These options allow multiple definitions and the
+first definition will be used.
+
 @kindex --allow-shlib-undefined
 @item --allow-shlib-undefined
 Allow undefined symbols in shared objects even  when --no-undefined is
@@ -1092,6 +1101,12 @@ shared libraries is normal since the kernel patches them at load time to
 select which function is most appropriate for the current architecture.
 I.E. dynamically select an appropriate memset function.  Apparently it
 is also normal for HPPA shared libraries to have undefined symbols.
+
+@kindex --no-undefined-version
+@item --no-undefined-version
+Normally when a symbol has an undefined version, the linker will ignore
+it. This option disallows symbols with undefined version and a fatal error
+will be issued instead.
 
 @kindex --no-warn-mismatch
 @item --no-warn-mismatch
@@ -1655,6 +1670,14 @@ These cygwin-excludes are: @code{_cygwin_dll_entry@@12},
 @item --exclude-symbols @var{symbol},@var{symbol},...
 Specifies a list of symbols which should not be automatically
 exported.  The symbol names may be delimited by commas or colons.
+
+@kindex --exclude-libs
+@item --exclude-libs @var{lib},@var{lib},...
+Specifies a list of archive libraries from which symbols should not be automatically
+exported. The library names may be delimited by commas or colons.  Specifying
+@code{--exclude-libs ALL} excludes symbols in all archive libraries from
+automatic export. Symbols explicitly listed in a .def file are still exported,
+regardless of this option. 
 
 @kindex --file-alignment
 @item --file-alignment
@@ -2930,7 +2953,7 @@ You may use the @code{FILL} command to set the fill pattern for the
 current section.  It is followed by an expression in parentheses.  Any
 otherwise unspecified regions of memory within the section (for example,
 gaps left due to the required alignment of input sections) are filled
-with the four least significant bytes of the expression, repeated as
+with the value of the expression, repeated as
 necessary.  A @code{FILL} statement covers memory locations after the
 point at which it occurs in the section definition; by including more
 than one @code{FILL} statement, you can have different fill patterns in
@@ -2943,10 +2966,11 @@ FILL(0x90909090)
 @end smallexample
 
 The @code{FILL} command is similar to the @samp{=@var{fillexp}} output
-section attribute (@pxref{Output Section Fill}), but it only affects the
+section attribute, but it only affects the
 part of the section following the @code{FILL} command, rather than the
 entire section.  If both are used, the @code{FILL} command takes
-precedence.
+precedence.  @xref{Output Section Fill}, for details on the fill
+expression.
 
 @node Output Section Keywords
 @subsection Output section keywords
@@ -3225,11 +3249,17 @@ You can set the fill pattern for an entire section by using
 @samp{=@var{fillexp}}.  @var{fillexp} is an expression
 (@pxref{Expressions}).  Any otherwise unspecified regions of memory
 within the output section (for example, gaps left due to the required
-alignment of input sections) will be filled with the four least
-significant bytes of the value, repeated as necessary.
+alignment of input sections) will be filled with the value, repeated as
+necessary.  If the fill expression is a simple hex number, ie. a string
+of hex digit starting with @samp{0x} and without a trailing @samp{k} or @samp{M}, then
+an arbitrarily long sequence of hex digits can be used to specify the
+fill pattern;  Leading zeros become part of the pattern too.  For all
+other cases, including extra parentheses or a unary @code{+}, the fill
+pattern is the four least significant bytes of the value of the
+expression.  In all cases, the number is big-endian.
 
 You can also change the fill value with a @code{FILL} command in the
-output section commands; see @ref{Output Section Data}.
+output section commands; (@pxref{Output Section Data}).
 
 Here is a simple example:
 @smallexample
@@ -3738,7 +3768,8 @@ __asm__(".symver original_foo,foo@@VERS_1.1");
 in the C source file.  This renames the function @samp{original_foo} to
 be an alias for @samp{foo} bound to the version node @samp{VERS_1.1}.
 The @samp{local:} directive can be used to prevent the symbol
-@samp{original_foo} from being exported.
+@samp{original_foo} from being exported. A @samp{.symver} directive
+takes precedence over a version script.
 
 The second GNU extension is to allow multiple versions of the same
 function to appear in a given shared library.  In this way you can make
@@ -4127,12 +4158,7 @@ SECTIONS @{ @dots{}
 @cindex round up location counter
 @cindex align location counter
 Return the location counter (@code{.}) aligned to the next @var{exp}
-boundary.  @var{exp} must be an expression whose value is a power of
-two.  This is equivalent to
-@smallexample
-(. + @var{exp} - 1) & ~(@var{exp} - 1)
-@end smallexample
-
+boundary.
 @code{ALIGN} doesn't change the value of the location counter---it just
 does arithmetic on it.  Here is an example which aligns the output
 @code{.data} section to the next @code{0x2000} byte boundary after the
@@ -4161,6 +4187,45 @@ The builtin function @code{NEXT} is closely related to @code{ALIGN}.
 This is a synonym for @code{ALIGN}, for compatibility with older linker
 scripts.  It is most often seen when setting the address of an output
 section.
+
+@item DATA_SEGMENT_ALIGN(@var{maxpagesize}, @var{commonpagesize})
+@kindex DATA_SEGMENT_ALIGN(@var{maxpagesize}, @var{commonpagesize})
+This is equivalent to either
+@smallexample
+(ALIGN(@var{maxpagesize}) + (. & (@var{maxpagesize} - 1)))
+@end smallexample
+or
+@smallexample
+(ALIGN(@var{maxpagesize}) + (. & (@var{maxpagesize} - @var{commonpagesize})))
+@end smallexample
+@noindent
+depending on whether the latter uses fewer @var{commonpagesize} sized pages
+for the data segment (area between the result of this expression and
+@code{DATA_SEGMENT_END}) than the former or not.
+If the latter form is used, it means @var{commonpagesize} bytes of runtime
+memory will be saved at the expense of up to @var{commonpagesize} wasted
+bytes in the on-disk file.
+
+This expression can only be used directly in @code{SECTIONS} commands, not in
+any output section descriptions and only once in the linker script.
+@var{commonpagesize} should be less or equal to @var{maxpagesize} and should
+be the system page size the object wants to be optimized for (while still
+working on system page sizes up to @var{maxpagesize}).
+
+@noindent
+Example:
+@smallexample
+  . = DATA_SEGMENT_ALIGN(0x10000, 0x2000);
+@end smallexample
+
+@item DATA_SEGMENT_END(@var{exp})
+@kindex DATA_SEGMENT_END(@var{exp})
+This defines the end of data segment for @code{DATA_SEGMENT_ALIGN}
+evaluation purposes.
+
+@smallexample
+  . = DATA_SEGMENT_END(.);
+@end smallexample
 
 @item DEFINED(@var{symbol})
 @kindex DEFINED(@var{symbol})
@@ -4619,17 +4684,18 @@ fact or leave it out, state it!
 
 Often people omit facts because they think they know what causes the
 problem and assume that some details do not matter.  Thus, you might
-assume that the name of a symbol you use in an example does not matter.
-Well, probably it does not, but one cannot be sure.  Perhaps the bug is
-a stray memory reference which happens to fetch from the location where
-that name is stored in memory; perhaps, if the name were different, the
-contents of that location would fool the linker into doing the right
-thing despite the bug.  Play it safe and give a specific, complete
-example.  That is the easiest thing for you to do, and the most helpful.
+assume that the name of a symbol you use in an example does not
+matter.  Well, probably it does not, but one cannot be sure.  Perhaps
+the bug is a stray memory reference which happens to fetch from the
+location where that name is stored in memory; perhaps, if the name
+were different, the contents of that location would fool the linker
+into doing the right thing despite the bug.  Play it safe and give a
+specific, complete example.  That is the easiest thing for you to do,
+and the most helpful. 
 
-Keep in mind that the purpose of a bug report is to enable us to fix the bug if
-it is new to us.  Therefore, always write your bug reports on the assumption
-that the bug has not been reported previously.
+Keep in mind that the purpose of a bug report is to enable us to fix
+the bug if it is new to us.  Therefore, always write your bug reports
+on the assumption that the bug has not been reported previously.
 
 Sometimes people give a few sketchy facts and ask, ``Does this ring a
 bell?''  Those bug reports are useless, and we urge everyone to
@@ -4669,10 +4735,13 @@ and then we might not encounter the bug.
 
 @item
 A complete input file, or set of input files, that will reproduce the
-bug.  It is generally most helpful to send the actual object files,
-uuencoded if necessary to get them through the mail system.  Making them
-available for anonymous FTP is not as good, but may be the only
-reasonable choice for large object files.
+bug.  It is generally most helpful to send the actual object files
+provided that they are reasonably small.  Say no more than 10K.  For
+bigger files you can either make them available by FTP or HTTP or else
+state that you are willing to send the object file(s) to whomever
+requests them.  (Note - your email will be going to a mailing list, so
+we do not want to clog it up with large attachments).  But small
+attachments are best.
 
 If the source files were assembled using @code{gas} or compiled using
 @code{gcc}, then it may be OK to send the source files rather than the

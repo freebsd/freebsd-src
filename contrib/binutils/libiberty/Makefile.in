@@ -1,6 +1,6 @@
 #
 # Makefile
-#   Copyright (C) 1990, 91-99, 2000, 2001
+#   Copyright (C) 1990, 91-99, 2000, 2001, 2002
 #   Free Software Foundation
 #
 # This file is part of the libiberty library.
@@ -34,6 +34,8 @@ prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
 libdir = @libdir@
+includedir = @includedir@
+target_header_dir = @target_header_dir@
 
 SHELL = @SHELL@
 
@@ -48,6 +50,10 @@ MULTICLEAN = true
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
+mkinstalldirs = $(SHELL) $(srcdir)/../mkinstalldirs
+
+# Some compilers can't handle cc -c blah.c -o foo/blah.o.
+OUTPUT_OPTION = @OUTPUT_OPTION@
 
 AR = @AR@
 AR_FLAGS = rc
@@ -114,7 +120,7 @@ COMPILE.c = $(CC) -c @DEFS@ $(LIBCFLAGS) -I. -I$(INCDIR) $(HDEFINES) @ac_libiber
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $< -o pic/$@; \
 	else true; fi
-	$(COMPILE.c) $<
+	$(COMPILE.c) $< $(OUTPUT_OPTION)
 
 # NOTE: If you add new files to the library, add them to this list
 # (alphabetical), and add them to REQUIRED_OFILES, or
@@ -181,6 +187,22 @@ CONFIGURED_OFILES = asprintf.o atexit.o					\
 	vasprintf.o vfork.o vfprintf.o vprintf.o vsprintf.o		\
 	waitpid.o
 
+# These files are installed if the library has been configured to do so.
+INSTALLED_HEADERS =                                                     \
+	$(INCDIR)/ansidecl.h                                            \
+	$(INCDIR)/demangle.h                                            \
+	$(INCDIR)/dyn-string.h                                          \
+	$(INCDIR)/fibheap.h                                             \
+	$(INCDIR)/floatformat.h                                         \
+	$(INCDIR)/hashtab.h                                             \
+	$(INCDIR)/libiberty.h                                           \
+	$(INCDIR)/objalloc.h                                            \
+	$(INCDIR)/partition.h                                           \
+	$(INCDIR)/safe-ctype.h                                          \
+	$(INCDIR)/sort.h                                                \
+	$(INCDIR)/splay-tree.h                                          \
+	$(INCDIR)/ternary.h
+
 $(TARGETLIB): $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS)
 	-rm -f $(TARGETLIB) pic/$(TARGETLIB)
 	$(AR) $(AR_FLAGS) $(TARGETLIB) \
@@ -237,15 +259,25 @@ INSTALL_DEST = @INSTALL_DEST@
 install: install_to_$(INSTALL_DEST) install-subdir
 
 install_to_libdir: all
-	$(INSTALL_DATA) $(TARGETLIB) $(libdir)$(MULTISUBDIR)/$(TARGETLIB)n
-	( cd $(libdir)$(MULTISUBDIR) ; $(RANLIB) $(TARGETLIB)n )
-	mv -f $(libdir)$(MULTISUBDIR)/$(TARGETLIB)n $(libdir)$(MULTISUBDIR)/$(TARGETLIB)
+	$(INSTALL_DATA) $(TARGETLIB) $(DESTDIR)$(libdir)$(MULTISUBDIR)/$(TARGETLIB)n
+	( cd $(DESTDIR)$(libdir)$(MULTISUBDIR) ; $(RANLIB) $(TARGETLIB)n )
+	mv -f $(DESTDIR)$(libdir)$(MULTISUBDIR)/$(TARGETLIB)n $(DESTDIR)$(libdir)$(MULTISUBDIR)/$(TARGETLIB)
+	if test -n "${target_header_dir}"; then \
+	  case "${target_header_dir}" in \
+	    /*)    thd=${target_header_dir};; \
+	    *)     thd=${includedir}${MULTISUBDIR}/${target_header_dir};; \
+	  esac; \
+	  ${mkinstalldirs} $(DESTDIR)$${thd}; \
+	  for h in ${INSTALLED_HEADERS}; do \
+	    ${INSTALL_DATA} $$h $(DESTDIR)$${thd}; \
+	  done; \
+	fi
 	@$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO=install
 
 install_to_tooldir: all
-	$(INSTALL_DATA) $(TARGETLIB) $(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB)n
-	( cd $(tooldir)/lib$(MULTISUBDIR) ; $(RANLIB) $(TARGETLIB)n )
-	mv -f $(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB)n $(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB)
+	$(INSTALL_DATA) $(TARGETLIB) $(DESTDIR)$(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB)n
+	( cd $(DESTDIR)$(tooldir)/lib$(MULTISUBDIR) ; $(RANLIB) $(TARGETLIB)n )
+	mv -f $(DESTDIR)$(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB)n $(DESTDIR)$(tooldir)/lib$(MULTISUBDIR)/$(TARGETLIB)
 	@$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO=install
 
 # needed-list is used by libstdc++.  NEEDED is the list of functions

@@ -1,6 +1,6 @@
 /* write.c - emit .o file
    Copyright 1986, 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001
+   1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -61,8 +61,8 @@
 #endif
 
 #ifndef WORKING_DOT_WORD
-extern CONST int md_short_jump_size;
-extern CONST int md_long_jump_size;
+extern const int md_short_jump_size;
+extern const int md_long_jump_size;
 #endif
 
 /* Used to control final evaluation of expressions.  */
@@ -141,9 +141,6 @@ static void merge_data_into_text PARAMS ((void));
 static void cvt_frag_to_fill PARAMS ((object_headers *, segT, fragS *));
 static void remove_subsegs PARAMS ((frchainS *, int, fragS **, fragS **));
 static void relax_and_size_all_segments PARAMS ((void));
-#endif
-#if defined (BFD_ASSEMBLER) && defined (OBJ_COFF) && defined (TE_GO32)
-static void set_segment_vma PARAMS ((bfd *, asection *, PTR));
 #endif
 
 /* Create a fixS in obstack 'notes'.  */
@@ -527,6 +524,7 @@ cvt_frag_to_fill (headersP, sec, fragP)
 	  as_bad_where (fragP->fr_file, fragP->fr_line,
 			_("attempt to .org/.space backwards? (%ld)"),
 			(long) fragP->fr_offset);
+	  fragP->fr_offset = 0;
 	}
       fragP->fr_type = rs_fill;
       break;
@@ -677,7 +675,14 @@ size_seg (abfd, sec, xxx)
       while (fragp->fr_next != last)
 	fragp = fragp->fr_next;
       last->fr_address = size;
-      fragp->fr_offset += newsize - size;
+      if ((newsize - size) % fragp->fr_var == 0)
+	fragp->fr_offset += (newsize - size) / fragp->fr_var;
+      else
+	/* If we hit this abort, it's likely due to subsegs_finish not
+	   providing sufficient alignment on the last frag, and the
+	   machine dependent code using alignment frags with fr_var
+	   greater than 1.  */
+	abort ();
     }
 
 #ifdef tc_frob_section
@@ -877,6 +882,13 @@ adjust_reloc_syms (abfd, sec, xxx)
 	/* Never adjust a reloc against local symbol in a merge section
 	   with non-zero addend.  */
 	if ((symsec->flags & SEC_MERGE) && fixp->fx_offset)
+	  {
+	    symbol_mark_used_in_reloc (fixp->fx_addsy);
+	    goto done;
+	  }
+
+	/* Never adjust a reloc against TLS local symbol.  */
+	if (symsec->flags & SEC_THREAD_LOCAL)
 	  {
 	    symbol_mark_used_in_reloc (fixp->fx_addsy);
 	    goto done;
@@ -1396,20 +1408,6 @@ set_symtab ()
 }
 #endif
 
-#if defined (BFD_ASSEMBLER) && defined (OBJ_COFF) && defined (TE_GO32)
-static void
-set_segment_vma (abfd, sec, xxx)
-     bfd *abfd;
-     asection *sec;
-     PTR xxx ATTRIBUTE_UNUSED;
-{
-  static bfd_vma addr = 0;
-
-  bfd_set_section_vma (abfd, sec, addr);
-  addr += bfd_section_size (abfd, sec);
-}
-#endif /* BFD_ASSEMBLER && OBJ_COFF && !TE_PE  */
-
 /* Finish the subsegments.  After every sub-segment, we fake an
    ".align ...".  This conforms to BSD4.2 brane-damage.  We then fake
    ".fill 0" because that is the kind of frag that requires least
@@ -1417,10 +1415,19 @@ set_segment_vma (abfd, sec, xxx)
    makes calculating their intended length trivial.  */
 
 #ifndef SUB_SEGMENT_ALIGN
-#ifdef BFD_ASSEMBLER
-#define SUB_SEGMENT_ALIGN(SEG) (0)
+#ifdef HANDLE_ALIGN
+/* The last subsegment gets an aligment corresponding to the alignment
+   of the section.  This allows proper nop-filling at the end of
+   code-bearing sections.  */
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)					\
+  (!(FRCHAIN)->frch_next || (FRCHAIN)->frch_next->frch_seg != (SEG)	\
+   ? get_recorded_alignment (SEG) : 0)
 #else
-#define SUB_SEGMENT_ALIGN(SEG) (2)
+#ifdef BFD_ASSEMBLER
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
+#else
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 2
+#endif
 #endif
 #endif
 
@@ -1431,20 +1438,15 @@ subsegs_finish ()
 
   for (frchainP = frchain_root; frchainP; frchainP = frchainP->frch_next)
     {
-      int alignment;
+      int alignment = 0;
 
       subseg_set (frchainP->frch_seg, frchainP->frch_subseg);
 
       /* This now gets called even if we had errors.  In that case,
          any alignment is meaningless, and, moreover, will look weird
          if we are generating a listing.  */
-      alignment = had_errors () ? 0 : SUB_SEGMENT_ALIGN (now_seg);
-
-      /* The last subsegment gets an aligment corresponding to the
-	 alignment of the section.  This allows proper nop-filling
-	 at the end of code-bearing sections.  */
-      if (!frchainP->frch_next || frchainP->frch_next->frch_seg != now_seg)
-	alignment = get_recorded_alignment (now_seg);
+      if (!had_errors ())
+	alignment = SUB_SEGMENT_ALIGN (now_seg, frchainP);
 
       if (subseg_text_p (now_seg))
 	frag_align_code (alignment, 0);
@@ -1589,14 +1591,6 @@ write_object_file ()
 
   /* Relaxation has completed.  Freeze all syms.  */
   finalize_syms = 1;
-
-#if defined (BFD_ASSEMBLER) && defined (OBJ_COFF) && defined (TE_GO32)
-  /* Now that the segments have their final sizes, run through the
-     sections and set their vma and lma. !BFD gas sets them, and BFD gas
-     should too. Currently, only DJGPP uses this code, but other
-     COFF targets may need to execute this too.  */
-  bfd_map_over_sections (stdoutput, set_segment_vma, (char *) 0);
-#endif
 
 #ifndef BFD_ASSEMBLER
   /* Crawl the symbol chain.

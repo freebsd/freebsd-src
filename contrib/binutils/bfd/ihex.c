@@ -3,21 +3,21 @@
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor of Cygnus Support <ian@cygnus.com>.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* This is what Intel Hex files look like:
 
@@ -147,12 +147,12 @@ static int ihex_sizeof_headers PARAMS ((bfd *, boolean));
 
 #define CHUNK 16
 
-/* Macros for converting between hex and binary. */
+/* Macros for converting between hex and binary.  */
 
-#define NIBBLE(x) (hex_value (x))
+#define NIBBLE(x)    (hex_value (x))
 #define HEX2(buffer) ((NIBBLE ((buffer)[0]) << 4) + NIBBLE ((buffer)[1]))
 #define HEX4(buffer) ((HEX2 (buffer) << 8) + HEX2 ((buffer) + 2))
-#define ISHEX(x) (hex_p (x))
+#define ISHEX(x)     (hex_p (x))
 
 /* When we write out an ihex value, the values can not be output as
    they are seen.  Instead, we hold them in memory in this structure.  */
@@ -193,19 +193,16 @@ static boolean
 ihex_mkobject (abfd)
      bfd *abfd;
 {
-  if (abfd->tdata.ihex_data == NULL)
-    {
-      struct ihex_data_struct *tdata;
-      bfd_size_type amt = sizeof (struct ihex_data_struct);
+  struct ihex_data_struct *tdata;
+  bfd_size_type amt = sizeof (struct ihex_data_struct);
 
-      tdata = (struct ihex_data_struct *) bfd_alloc (abfd, amt);
-      if (tdata == NULL)
-	return false;
-      abfd->tdata.ihex_data = tdata;
-      tdata->head = NULL;
-      tdata->tail = NULL;
-    }
+  tdata = (struct ihex_data_struct *) bfd_alloc (abfd, amt);
+  if (tdata == NULL)
+    return false;
 
+  abfd->tdata.ihex_data = tdata;
+  tdata->head = NULL;
+  tdata->tail = NULL;
   return true;
 }
 
@@ -288,6 +285,7 @@ ihex_scan (abfd)
   lineno = 1;
   error = false;
   bufsize = 0;
+
   while ((c = ihex_get_byte (abfd, &error)) != EOF)
     {
       if (c == '\r')
@@ -314,11 +312,9 @@ ihex_scan (abfd)
 	  unsigned int chksum;
 
 	  /* This is a data record.  */
-
 	  pos = bfd_tell (abfd) - 1;
 
 	  /* Read the header bytes.  */
-
 	  if (bfd_bread (hdr, (bfd_size_type) 8, abfd) != 8)
 	    goto error_return;
 
@@ -336,7 +332,6 @@ ihex_scan (abfd)
 	  type = HEX2 (hdr + 6);
 
 	  /* Read the data bytes.  */
-
 	  chars = len * 2 + 2;
 	  if (chars >= bufsize)
 	    {
@@ -515,6 +510,7 @@ static const bfd_target *
 ihex_object_p (abfd)
      bfd *abfd;
 {
+  PTR tdata_save;
   bfd_byte b[9];
   unsigned int i;
   unsigned int type;
@@ -553,10 +549,14 @@ ihex_object_p (abfd)
     }
 
   /* OK, it looks like it really is an Intel Hex file.  */
-
-  if (! ihex_mkobject (abfd)
-      || ! ihex_scan (abfd))
-    return NULL;
+  tdata_save = abfd->tdata.any;
+  if (! ihex_mkobject (abfd) || ! ihex_scan (abfd))
+    {
+      if (abfd->tdata.any != tdata_save && abfd->tdata.any != NULL)
+	bfd_release (abfd, abfd->tdata.any);
+      abfd->tdata.any = tdata_save;
+      return NULL;
+    }
 
   return abfd->xvec;
 }
@@ -980,8 +980,11 @@ ihex_sizeof_headers (abfd, exec)
 #define ihex_bfd_relax_section bfd_generic_relax_section
 #define ihex_bfd_gc_sections bfd_generic_gc_sections
 #define ihex_bfd_merge_sections bfd_generic_merge_sections
+#define ihex_bfd_discard_group bfd_generic_discard_group
 #define ihex_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
+#define ihex_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 #define ihex_bfd_link_add_symbols _bfd_generic_link_add_symbols
+#define ihex_bfd_link_just_syms _bfd_generic_link_just_syms
 #define ihex_bfd_final_link _bfd_generic_final_link
 #define ihex_bfd_link_split_section _bfd_generic_link_split_section
 

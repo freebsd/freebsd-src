@@ -1,5 +1,6 @@
 /* coffgrok.c
-   Copyright 1994, 1995, 1997, 1998, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002
+   Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -25,8 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 */
 
-#include <bfd.h>
-#include <libiberty.h>
+#include "bfd.h"
+#include "libiberty.h"
 #include "bucomm.h"
 
 #include "coff/internal.h"
@@ -145,7 +146,7 @@ do_sections_p1 (head)
       if (relsize < 0)
 	bfd_fatal (bfd_get_filename (abfd));
       if (relsize == 0)
-        continue;
+	continue;
       relpp = (arelent **) xmalloc (relsize);
       relcount = bfd_canonicalize_reloc (abfd, section, relpp, syms);
       if (relcount < 0)
@@ -277,7 +278,7 @@ do_lines (i, name)
 		  /* These lines are for this function - so count them and stick them on */
 		  int c = 0;
 		  /* Find the linenumber of the top of the function, since coff linenumbers
-		     are relative to the start of the function. */
+		     are relative to the start of the function.  */
 		  int start_line = rawsyms[i + 3].u.auxent.x_sym.x_misc.x_lnsz.x_lnno;
 
 		  l++;
@@ -605,7 +606,7 @@ doit ()
   int i;
   int infile = 0;
   struct coff_ofile *head =
-  (struct coff_ofile *) xmalloc (sizeof (struct coff_ofile));
+    (struct coff_ofile *) xmalloc (sizeof (struct coff_ofile));
   ofile = head;
   head->source_head = 0;
   head->source_tail = 0;

@@ -1,5 +1,5 @@
 /* ELF object file format.
-   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -48,11 +48,8 @@ extern int alpha_flag_mdebug;
 
 /* For now, always set ECOFF_DEBUGGING for a MIPS target.  */
 #ifdef TC_MIPS
-#ifdef MIPS_STABS_ELF
-#define ECOFF_DEBUGGING 0
-#else
-#define ECOFF_DEBUGGING 1
-#endif /* MIPS_STABS_ELF */
+#define ECOFF_DEBUGGING mips_flag_mdebug
+extern int mips_flag_mdebug;
 #endif /* TC_MIPS */
 
 #ifdef OBJ_MAYBE_ECOFF
@@ -89,7 +86,9 @@ struct elf_obj_sy
 #define ELF_TARGET_SYMBOL_FIELDS int local:1;
 
 /* Don't change this; change ELF_TARGET_SYMBOL_FIELDS instead.  */
+#ifndef TARGET_SYMBOL_FIELDS
 #define TARGET_SYMBOL_FIELDS ELF_TARGET_SYMBOL_FIELDS
+#endif
 
 /* #include "targ-cpu.h" */
 

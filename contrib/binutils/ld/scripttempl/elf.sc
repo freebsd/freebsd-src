@@ -60,6 +60,8 @@
 #  .sdata2	.gnu.linkonce.s2.foo
 #  .sbss2	.gnu.linkonce.sb2.foo
 #  .debug_info	.gnu.linkonce.wi.foo
+#  .tdata	.gnu.linkonce.td.foo
+#  .tbss	.gnu.linkonce.tb.foo
 #
 #  Each of these can also have corresponding .rel.* and .rela.* sections.
 
@@ -70,6 +72,14 @@ if [ -z "$MACHINE" ]; then OUTPUT_ARCH=${ARCH}; else OUTPUT_ARCH=${ARCH}:${MACHI
 test -z "${ELFSIZE}" && ELFSIZE=32
 test -z "${ALIGNMENT}" && ALIGNMENT="${ELFSIZE} / 8"
 test "$LD_FLAG" = "N" && DATA_ADDR=.
+test -n "$CREATE_SHLIB" && test -n "$SHLIB_DATA_ADDR" && COMMONPAGESIZE=""
+test -z "$CREATE_SHLIB" && test -n "$DATA_ADDR" && COMMONPAGESIZE=""
+DATA_SEGMENT_ALIGN="ALIGN(${MAXPAGESIZE}) + (. & (${MAXPAGESIZE} - 1))"
+DATA_SEGMENT_END=""
+if test -n "${COMMONPAGESIZE}"; then
+  DATA_SEGMENT_ALIGN="DATA_SEGMENT_ALIGN(${MAXPAGESIZE}, ${COMMONPAGESIZE})"
+  DATA_SEGMENT_END=". = DATA_SEGMENT_END (.);"
+fi
 INTERP=".interp       ${RELOCATING-0} : { *(.interp) }"
 PLT=".plt          ${RELOCATING-0} : { *(.plt) }"
 DYNAMIC=".dynamic      ${RELOCATING-0} : { *(.dynamic) }"
@@ -200,6 +210,10 @@ eval $COMBRELOCCAT <<EOF
   ${OTHER_READONLY_RELOC_SECTIONS}
   .rel.data     ${RELOCATING-0} : { *(.rel.data${RELOCATING+ .rel.data.* .rel.gnu.linkonce.d.*}) }
   .rela.data    ${RELOCATING-0} : { *(.rela.data${RELOCATING+ .rela.data.* .rela.gnu.linkonce.d.*}) }
+  .rel.tdata	${RELOCATING-0} : { *(.rel.tdata${RELOCATING+ .rel.tdata.* .rel.gnu.linkonce.td.*}) }
+  .rela.tdata	${RELOCATING-0} : { *(.rela.tdata${RELOCATING+ .rela.tdata.* .rela.gnu.linkonce.td.*}) }
+  .rel.tbss	${RELOCATING-0} : { *(.rel.tbss${RELOCATING+ .rel.tbss.* .rel.gnu.linkonce.tb.*}) }
+  .rela.tbss	${RELOCATING-0} : { *(.rela.tbss${RELOCATING+ .rela.tbss.* .rela.gnu.linkonce.tb.*}) }
   .rel.ctors    ${RELOCATING-0} : { *(.rel.ctors) }
   .rela.ctors   ${RELOCATING-0} : { *(.rela.ctors) }
   .rel.dtors    ${RELOCATING-0} : { *(.rel.dtors) }
@@ -269,8 +283,8 @@ cat <<EOF
 
   /* Adjust the address for the data segment.  We want to adjust up to
      the same address within the page on the next page up.  */
-  ${CREATE_SHLIB-${RELOCATING+. = ${DATA_ADDR-ALIGN(${MAXPAGESIZE}) + (. & (${MAXPAGESIZE} - 1))};}}
-  ${CREATE_SHLIB+${RELOCATING+. = ${SHLIB_DATA_ADDR-ALIGN(${MAXPAGESIZE}) + (. & (${MAXPAGESIZE} - 1))};}}
+  ${CREATE_SHLIB-${RELOCATING+. = ${DATA_ADDR-${DATA_SEGMENT_ALIGN}};}}
+  ${CREATE_SHLIB+${RELOCATING+. = ${SHLIB_DATA_ADDR-${DATA_SEGMENT_ALIGN}};}}
 
   /* Ensure the __preinit_array_start label is properly aligned.  We
      could instead move the label definition inside the section, but
@@ -296,6 +310,8 @@ cat <<EOF
     ${CONSTRUCTING+SORT(CONSTRUCTORS)}
   }
   .data1        ${RELOCATING-0} : { *(.data1) }
+  .tdata	${RELOCATING-0} : { *(.tdata${RELOCATING+ .tdata.* .gnu.linkonce.td.*}) }
+  .tbss		${RELOCATING-0} : { *(.tbss${RELOCATING+ .tbss.* .gnu.linkonce.tb.*})${RELOCATING+ *(.tcommon)} }
   .eh_frame     ${RELOCATING-0} : { KEEP (*(.eh_frame)) }
   .gcc_except_table ${RELOCATING-0} : { *(.gcc_except_table) }
   ${WRITABLE_RODATA+${RODATA}}
@@ -333,6 +349,7 @@ cat <<EOF
   ${RELOCATING+_end = .;}
   ${RELOCATING+${OTHER_BSS_END_SYMBOLS}}
   ${RELOCATING+PROVIDE (end = .);}
+  ${RELOCATING+${DATA_SEGMENT_END}}
 
   /* Stabs debugging sections.  */
   .stab          0 : { *(.stab) }

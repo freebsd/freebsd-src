@@ -1,6 +1,6 @@
 /* symbols.c -symbol table-
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001
+   1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -439,9 +439,9 @@ colon (sym_name)		/* Just seen "x:" - rattle symbols & frags.  */
 #ifdef BFD_ASSEMBLER
 		  if (OUTPUT_FLAVOR == bfd_target_aout_flavour)
 #endif
-		    sprintf(od_buf, "%d.%d.",
-			    S_GET_OTHER (symbolP),
-			    S_GET_DESC (symbolP));
+		    sprintf (od_buf, "%d.%d.",
+			     S_GET_OTHER (symbolP),
+			     S_GET_DESC (symbolP));
 #endif
 		  as_bad (_("symbol `%s' is already defined as \"%s\"/%s%ld"),
 			    sym_name,
@@ -569,7 +569,7 @@ symbol_find_or_make (name)
 
 symbolS *
 symbol_make (name)
-     CONST char *name;
+     const char *name;
 {
   symbolS *symbolP;
 
@@ -589,7 +589,7 @@ symbol_make (name)
 
 symbolS *
 symbol_find (name)
-     CONST char *name;
+     const char *name;
 {
 #ifdef STRIP_UNDERSCORE
   return (symbol_find_base (name, 1));
@@ -599,8 +599,25 @@ symbol_find (name)
 }
 
 symbolS *
+symbol_find_exact (name)
+     const char *name;
+{
+#ifdef BFD_ASSEMBLER
+  {
+    struct local_symbol *locsym;
+
+    locsym = (struct local_symbol *) hash_find (local_hash, name);
+    if (locsym != NULL)
+      return (symbolS *) locsym;
+  }
+#endif
+
+  return ((symbolS *) hash_find (sy_hash, name));
+}
+
+symbolS *
 symbol_find_base (name, strip_underscore)
-     CONST char *name;
+     const char *name;
      int strip_underscore;
 {
   if (strip_underscore && *name == '_')
@@ -633,17 +650,7 @@ symbol_find_base (name, strip_underscore)
       *copy = '\0';
     }
 
-#ifdef BFD_ASSEMBLER
-  {
-    struct local_symbol *locsym;
-
-    locsym = (struct local_symbol *) hash_find (local_hash, name);
-    if (locsym != NULL)
-      return (symbolS *) locsym;
-  }
-#endif
-
-  return ((symbolS *) hash_find (sy_hash, name));
+  return symbol_find_exact (name);
 }
 
 /* Once upon a time, symbols were kept in a singly linked list.  At
@@ -832,7 +839,7 @@ resolve_symbol_value (symp)
      symbolS *symp;
 {
   int resolved;
-  valueT final_val;
+  valueT final_val = 0;
   segT final_seg;
 
 #ifdef BFD_ASSEMBLER
@@ -1816,7 +1823,7 @@ S_IS_STABD (s)
   return S_GET_NAME (s) == 0;
 }
 
-CONST char *
+const char *
 S_GET_NAME (s)
      symbolS *s;
 {
@@ -1878,7 +1885,7 @@ S_SET_EXTERNAL (s)
     {
       char * file;
       unsigned int line;
-      
+
       /* Do not reassign section symbols.  */
       as_where (& file, & line);
       as_warn_where (file, line,
@@ -2398,7 +2405,7 @@ print_symbol_value_1 (file, sym)
       segT s = S_GET_SEGMENT (sym);
 
       if (s != undefined_section
-          && s != expr_section)
+	  && s != expr_section)
 	fprintf (file, " %lx", (long) S_GET_VALUE (sym));
     }
   else if (indent_level < max_indent_level

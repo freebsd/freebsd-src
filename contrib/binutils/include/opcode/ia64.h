@@ -1,5 +1,5 @@
 /* ia64.h -- Header file for ia64 opcode table
-   Copyright (C) 1998, 1999 David Mosberger-Tang <davidm@hpl.hp.com>
+   Copyright (C) 1998, 1999, 2002 David Mosberger-Tang <davidm@hpl.hp.com>
 
    See the file HP-COPYRIGHT for additional information.  */
 
@@ -8,7 +8,7 @@
 
 #include <sys/types.h>
 
-#include <bfd.h>
+#include "bfd.h"
 
 
 typedef BFD_HOST_U_64_BIT ia64_insn;

@@ -244,13 +244,7 @@ coff_swap_reloc_in (abfd, src, dst)
 
   reloc_dst->r_vaddr = GET_RELOC_VADDR (abfd, reloc_src->r_vaddr);
   reloc_dst->r_symndx = H_GET_S32 (abfd, reloc_src->r_symndx);
-
-#ifdef RS6000COFF_C
-  reloc_dst->r_type = H_GET_8 (abfd, reloc_src->r_type);
-  reloc_dst->r_size = H_GET_8 (abfd, reloc_src->r_size);
-#else
   reloc_dst->r_type = H_GET_16 (abfd, reloc_src->r_type);
-#endif
 
 #ifdef SWAP_IN_RELOC_OFFSET
   reloc_dst->r_offset = SWAP_IN_RELOC_OFFSET (abfd, reloc_src->r_offset);
@@ -267,13 +261,7 @@ coff_swap_reloc_out (abfd, src, dst)
   struct external_reloc *reloc_dst = (struct external_reloc *) dst;
   PUT_RELOC_VADDR (abfd, reloc_src->r_vaddr, reloc_dst->r_vaddr);
   H_PUT_32 (abfd, reloc_src->r_symndx, reloc_dst->r_symndx);
-
-#ifdef RS6000COFF_C
-  H_PUT_8 (abfd, reloc_src->r_type, reloc_dst->r_type);
-  H_PUT_8 (abfd, reloc_src->r_size, reloc_dst->r_size);
-#else
   H_PUT_16 (abfd, reloc_src->r_type, reloc_dst->r_type);
-#endif
 
 #ifdef SWAP_OUT_RELOC_OFFSET
   SWAP_OUT_RELOC_OFFSET (abfd, reloc_src->r_offset, reloc_dst->r_offset);

@@ -1,6 +1,6 @@
 /* objdump.c -- dump information about an object file.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -22,6 +22,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bfd.h"
 #include "progress.h"
 #include "bucomm.h"
+#include "budemang.h"
 #include "getopt.h"
 #include "safe-ctype.h"
 #include "dis-asm.h"
@@ -299,9 +300,6 @@ dump_section_header (abfd, section, ignored)
   PF (SEC_HAS_CONTENTS, "CONTENTS");
   PF (SEC_ALLOC, "ALLOC");
   PF (SEC_CONSTRUCTOR, "CONSTRUCTOR");
-  PF (SEC_CONSTRUCTOR_TEXT, "CONSTRUCTOR TEXT");
-  PF (SEC_CONSTRUCTOR_DATA, "CONSTRUCTOR DATA");
-  PF (SEC_CONSTRUCTOR_BSS, "CONSTRUCTOR BSS");
   PF (SEC_LOAD, "LOAD");
   PF (SEC_RELOC, "RELOC");
   PF (SEC_READONLY, "READONLY");
@@ -317,6 +315,7 @@ dump_section_header (abfd, section, ignored)
   PF (SEC_SMALL_DATA, "SMALL_DATA");
   PF (SEC_SHARED, "SHARED");
   PF (SEC_ARCH_BIT_0, "ARCH_BIT_0");
+  PF (SEC_THREAD_LOCAL, "THREAD_LOCAL");
 
   if ((section->flags & SEC_LINK_ONCE) != 0)
     {
@@ -361,7 +360,11 @@ dump_headers (abfd)
 #ifndef BFD64
   printf (_("Idx Name          Size      VMA       LMA       File off  Algn"));
 #else
-  printf (_("Idx Name          Size      VMA               LMA               File off  Algn"));
+  /* With BFD64, non-ELF returns -1 and wants always 64 bit addresses.  */
+  if (bfd_get_arch_size (abfd) == 32)
+    printf (_("Idx Name          Size      VMA       LMA       File off  Algn"));
+  else
+    printf (_("Idx Name          Size      VMA               LMA               File off  Algn"));
 #endif
 
   if (wide_output)
@@ -388,11 +391,9 @@ slurp_symtab (abfd)
   storage = bfd_get_symtab_upper_bound (abfd);
   if (storage < 0)
     bfd_fatal (bfd_get_filename (abfd));
-
   if (storage)
-    {
-      sy = (asymbol **) xmalloc (storage);
-    }
+    sy = (asymbol **) xmalloc (storage);
+
   symcount = bfd_canonicalize_symtab (abfd, sy);
   if (symcount < 0)
     bfd_fatal (bfd_get_filename (abfd));
@@ -422,11 +423,9 @@ slurp_dynamic_symtab (abfd)
 
       bfd_fatal (bfd_get_filename (abfd));
     }
-
   if (storage)
-    {
-      sy = (asymbol **) xmalloc (storage);
-    }
+    sy = (asymbol **) xmalloc (storage);
+
   dynsymcount = bfd_canonicalize_dynamic_symtab (abfd, sy);
   if (dynsymcount < 0)
     bfd_fatal (bfd_get_filename (abfd));
@@ -437,7 +436,7 @@ slurp_dynamic_symtab (abfd)
 
 /* Filter out (in place) symbols that are useless for disassembly.
    COUNT is the number of elements in SYMBOLS.
-   Return the number of useful symbols. */
+   Return the number of useful symbols.  */
 
 static long
 remove_useless_symbols (symbols, count)
@@ -465,7 +464,7 @@ remove_useless_symbols (symbols, count)
 
 /* Sort symbols into value order.  */
 
-static int 
+static int
 compare_symbols (ap, bp)
      const PTR ap;
      const PTR bp;
@@ -632,29 +631,20 @@ objdump_print_symname (abfd, info, sym)
 {
   char *alloc;
   const char *name;
-  const char *print;
 
   alloc = NULL;
   name = bfd_asymbol_name (sym);
-  if (! do_demangle || name[0] == '\0')
-    print = name;
-  else
+  if (do_demangle && name[0] != '\0')
     {
       /* Demangle the name.  */
-      if (bfd_get_symbol_leading_char (abfd) == name[0])
-	++name;
-
-      alloc = cplus_demangle (name, DMGL_ANSI | DMGL_PARAMS);
-      if (alloc == NULL)
-	print = name;
-      else
-	print = alloc;
+      alloc = demangle (abfd, name);
+      name = alloc;
     }
 
   if (info != NULL)
-    (*info->fprintf_func) (info->stream, "%s", print);
+    (*info->fprintf_func) (info->stream, "%s", name);
   else
-    printf ("%s", print);
+    printf ("%s", name);
 
   if (alloc != NULL)
     free (alloc);
@@ -682,7 +672,7 @@ find_symbol_for_address (abfd, sec, vma, require_sec, place)
   long min = 0;
   long max = sorted_symcount;
   long thisplace;
-  unsigned int opb = bfd_octets_per_byte (abfd); 
+  unsigned int opb = bfd_octets_per_byte (abfd);
 
   if (sorted_symcount < 1)
     return NULL;
@@ -719,7 +709,7 @@ find_symbol_for_address (abfd, sec, vma, require_sec, place)
   /* If the file is relocateable, and the symbol could be from this
      section, prefer a symbol from this section over symbols from
      others, even if the other symbol's value might be closer.
-       
+
      Note that this may be wrong for some symbol references if the
      sections have overlapping memory ranges, but in that case there's
      no way to tell what's desired without looking at the relocation
@@ -948,7 +938,7 @@ skip_to_line (p, line, show)
       if (strchr (buf, '\n') != NULL)
 	++p->line;
     }
-}  
+}
 
 /* Show the line number, or the source line, in a dissassembly
    listing.  */
@@ -959,8 +949,8 @@ show_line (abfd, section, addr_offset)
      asection *section;
      bfd_vma addr_offset;
 {
-  CONST char *filename;
-  CONST char *functionname;
+  const char *filename;
+  const char *functionname;
   unsigned int line;
 
   if (! with_line_numbers && ! with_source_code)
@@ -1069,10 +1059,10 @@ show_line (abfd, section, addr_offset)
 	      p->next = print_files;
 	      print_files = p;
 
-              if (file_start_context)
-                l = 0;
-              else
-                l = line - SHOW_PRECEDING_CONTEXT_LINES;
+	      if (file_start_context)
+		l = 0;
+	      else
+		l = line - SHOW_PRECEDING_CONTEXT_LINES;
 	      if (l < 0)
 		l = 0;
 	      skip_to_line (p, l, false);
@@ -1167,8 +1157,8 @@ objdump_sprintf VPARAMS ((SFILE *f, const char *format, ...))
 /* Disassemble some data in memory between given values.  */
 
 static void
-disassemble_bytes (info, disassemble_fn, insns, data, 
-                   start_offset, stop_offset, relppp,
+disassemble_bytes (info, disassemble_fn, insns, data,
+		   start_offset, stop_offset, relppp,
 		   relppend)
      struct disassemble_info *info;
      disassembler_ftype disassemble_fn;
@@ -1237,8 +1227,8 @@ disassemble_bytes (info, disassemble_fn, insns, data,
 	  && (info->insn_info_valid == 0
 	      || info->branch_delay_insns == 0)
 	  && (z - addr_offset * opb >= SKIP_ZEROES
-	      || (z == stop_offset * opb && 
-                  z - addr_offset * opb < SKIP_ZEROES_AT_END)))
+	      || (z == stop_offset * opb &&
+		  z - addr_offset * opb < SKIP_ZEROES_AT_END)))
 	{
 	  printf ("\t...\n");
 
@@ -1444,8 +1434,8 @@ disassemble_bytes (info, disassemble_fn, insns, data,
 	}
 
       if ((section->flags & SEC_RELOC) != 0
-#ifndef DISASSEMBLER_NEEDS_RELOCS	  
-  	  && dump_reloc_info
+#ifndef DISASSEMBLER_NEEDS_RELOCS
+	  && dump_reloc_info
 #endif
 	  )
 	{
@@ -1581,7 +1571,7 @@ disassemble_data (abfd)
   disasm_info.mach = bfd_get_mach (abfd);
   disasm_info.disassembler_options = disassembler_options;
   disasm_info.octets_per_byte = opb;
-  
+
   if (bfd_big_endian (abfd))
     disasm_info.display_endian = disasm_info.endian = BFD_ENDIAN_BIG;
   else if (bfd_little_endian (abfd))
@@ -1613,10 +1603,10 @@ disassemble_data (abfd)
 	continue;
 
       if ((section->flags & SEC_RELOC) != 0
-#ifndef DISASSEMBLER_NEEDS_RELOCS	  
+#ifndef DISASSEMBLER_NEEDS_RELOCS
 	  && dump_reloc_info
 #endif
-	  ) 
+	  )
 	{
 	  long relsize;
 
@@ -1690,7 +1680,7 @@ disassemble_data (abfd)
 	  asymbol *nextsym;
 	  unsigned long nextstop_offset;
 	  boolean insns;
-	  
+
 	  if (sym != NULL && bfd_asymbol_value (sym) <= section->vma + addr_offset)
 	    {
 	      int x;
@@ -1715,7 +1705,7 @@ disassemble_data (abfd)
 					   false);
 	      printf (":\n");
 	    }
-	  
+
 	  if (sym != NULL && bfd_asymbol_value (sym) > section->vma + addr_offset)
 	    nextsym = sym;
 	  else if (sym == NULL)
@@ -1736,7 +1726,7 @@ disassemble_data (abfd)
 	      else
 		nextsym = sorted_syms[place];
 	    }
-	  
+
 	  if (sym != NULL && bfd_asymbol_value (sym) > section->vma + addr_offset)
 	    {
 	      nextstop_offset = bfd_asymbol_value (sym) - section->vma;
@@ -1751,7 +1741,7 @@ disassemble_data (abfd)
 	      if (nextstop_offset > stop_offset)
 		nextstop_offset = stop_offset;
 	    }
-	  
+
 	  /* If a symbol is explicitly marked as being an object
 	     rather than a function, just dump the bytes without
 	     disassembling them.  */
@@ -1767,14 +1757,14 @@ disassemble_data (abfd)
 	    insns = true;
 	  else
 	    insns = false;
-	  
-	  disassemble_bytes (&disasm_info, disassemble_fn, insns, data, 
-                             addr_offset, nextstop_offset, &relpp, relppend);
-	  
+
+	  disassemble_bytes (&disasm_info, disassemble_fn, insns, data,
+			     addr_offset, nextstop_offset, &relpp, relppend);
+
 	  addr_offset = nextstop_offset;
 	  sym = nextsym;
 	}
-      
+
       free (data);
       if (relbuf != NULL)
 	free (relbuf);
@@ -1837,13 +1827,13 @@ read_section_stabs (abfd, stabsect_name, strsect_name)
       exit_status = 1;
       return false;
     }
- 
+
   stab_size    = bfd_section_size (abfd, stabsect);
   stabstr_size = bfd_section_size (abfd, stabstrsect);
 
   stabs  = (bfd_byte *) xmalloc (stab_size);
   strtab = (char *) xmalloc (stabstr_size);
-  
+
   if (! bfd_get_section_contents (abfd, stabsect, (PTR) stabs, 0, stab_size))
     {
       non_fatal (_("Reading %s section of %s failed: %s"),
@@ -1925,7 +1915,7 @@ print_section_stabs (abfd, stabsect_name, strsect_name)
 
       printf ("\n%-6d ", i);
       /* Either print the stab name, or, if unnamed, print its number
-	 again (makes consistent formatting for tools like awk). */
+	 again (makes consistent formatting for tools like awk).  */
       name = bfd_get_stab_name (type);
       if (name != NULL)
 	printf ("%-6s", name);
@@ -2246,15 +2236,15 @@ dump_data (abfd)
 		  if (stop_offset > bfd_section_size (abfd, section) / opb)
 		    stop_offset = bfd_section_size (abfd, section) / opb;
 		}
-	      for (addr_offset = start_offset; 
-                   addr_offset < stop_offset; addr_offset += onaline)
+	      for (addr_offset = start_offset;
+		   addr_offset < stop_offset; addr_offset += onaline)
 		{
 		  bfd_size_type j;
 
-		  printf (" %04lx ", (unsigned long int) 
-                          (addr_offset + section->vma));
-		  for (j = addr_offset * opb; 
-                       j < addr_offset * opb + onaline; j++)
+		  printf (" %04lx ", (unsigned long int)
+			  (addr_offset + section->vma));
+		  for (j = addr_offset * opb;
+		       j < addr_offset * opb + onaline; j++)
 		    {
 		      if (j < stop_offset * opb)
 			printf ("%02x", (unsigned) (data[j]));
@@ -2318,24 +2308,16 @@ dump_symbols (abfd, dynamic)
 	      const char *name;
 	      char *alloc;
 
-	      name = bfd_asymbol_name (*current);
+	      name = (*current)->name;
 	      alloc = NULL;
 	      if (do_demangle && name != NULL && *name != '\0')
 		{
-		  const char *n;
-
 		  /* If we want to demangle the name, we demangle it
                      here, and temporarily clobber it while calling
                      bfd_print_symbol.  FIXME: This is a gross hack.  */
 
-		  n = name;
-		  if (bfd_get_symbol_leading_char (cur_bfd) == *n)
-		    ++n;
-		  alloc = cplus_demangle (n, DMGL_ANSI | DMGL_PARAMS);
-		  if (alloc != NULL)
-		    (*current)->name = alloc;
-		  else
-		    (*current)->name = n;
+		  alloc = demangle (cur_bfd, name);
+		  (*current)->name = alloc;
 		}
 
 	      bfd_print_symbol (cur_bfd, stdout, *current,
@@ -2545,7 +2527,7 @@ dump_reloc_set (abfd, sec, relpp, relcount)
 	}
       else
 	{
-	  if (section_name == (CONST char *) NULL)
+	  if (section_name == (const char *) NULL)
 	    section_name = "*unknown*";
 	  bfd_printf_vma (abfd, q->address);
 	  printf (" %-16s  [%s]",
@@ -2796,12 +2778,12 @@ main (argc, argv)
 	      enum demangling_styles style;
 
 	      style = cplus_demangle_name_to_style (optarg);
-	      if (style == unknown_demangling) 
+	      if (style == unknown_demangling)
 		fatal (_("unknown demangling style `%s'"),
 		       optarg);
 
 	      cplus_demangle_set_style (style);
-           }
+	    }
 	  break;
 	case 'w':
 	  wide_output = true;
@@ -2920,7 +2902,7 @@ main (argc, argv)
 	  show_version = true;
 	  seenflag = true;
 	  break;
-	  
+
 	default:
 	  usage (stderr, 1);
 	}

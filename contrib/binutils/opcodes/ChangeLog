@@ -1,30 +1,279 @@
+2002-09-04  Nick Clifton  <nickc@redhat.com>
+	    Daniel Jacobowitz  <drow@mvista.com>
+
+	* disassemble.c (disassembler_usage): Add invocation of
+	print_ppc_disassembler_options.
+	* ppc-dis.c (print_ppc_disassembler_options): New function.
+
+2002-09-23  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-09-11  Nick Clifton  <nickc@redhat.com>
+	* po/da.po: Updated Danish translation file.
+
+	2002-09-04  Nick Clifton  <nickc@redhat.com>
+	* ppc-opc.c: The BookE implementations of the TLBWE and TLBRE
+	instructions do not take any arguments.
+
+	2002-09-04  Nick Clifton  <nickc@redhat.com>
+	* ppc-opc.c (extsw, extsw.): Do not allow for the BookE32.
+
+	2002-08-09  Nick Clifton  <nickc@redhat.com>
+	* po/sv.po: Updated Swedish translation.
+
+2002-08-20  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+
+	* mips-opc.c (mips_builtin_opcodes): Remove "dla" and "la" as
+	aliases to "daddiu" and "addiu".
+
+2002-07-30  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-07-30  Nick Clifton  <nickc@redhat.com>
+	* po/sv.po: Updated Swedish translation.
+
+2002-07-25  Nick Clifton  <nickc@redhat.com>
+
+	* po/sv.po: Updated Swedish translation.
+	* po/es.po: Updated Spanish translation.
+	* po/pr_BR.po: Updated Brazilian Portuguese translation.
+	* po/tr.po: Updated Turkish translation.
+	* po/fr.po: Updated French translation.
+
+2002-07-24  Nick Clifton  <nickc@redhat.com>
+
+	* po/sv.po: Updated Swedish translation.
+	* po/es.po: Updated Spanish translation.
+	* po/pr_BR.po: Updated Brazilian Portuguese translation.
+
+2002-07-23  Daniel Jacobowitz  <drow@mvista.com>
+
+	* po/opcodes.pot: Regenerated.
+
+2002-07-23  Nick Clifton  <nickc@redhat.com>
+
+	* po/fr.po: Updated French translation.
+	* po/pr_BR.po: New Brazilian Portuguese translation.
+	* po/id.po: Updated Indonesian translation.
+	* configure.in (LINGUAS): Add pr_BR.
+	* configure: Regenerate.
+
+2002-07-17  David Mosberger  <davidm@hpl.hp.com>
+
+	* ia64-opc-b.c (bWhc): New macro.
+	(mWhc): Ditto.
+	(OpPaWhcD): Ditto.
+	(ia64_opcodes_b): Correct patterns for indirect call
+	instructions to use 3-bit "wh" field.
+	* ia64-asmtab.c: Regnerate.
+
+2002-07-09  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* mips-dis.c (mips_isa_type): Add MIPS16 insn handling.
+	* mips-opc.c (I16): New define.
+	(mips_builtin_opcodes): Make jalx an I16 insn.
+
+2002-06-18  Dave Brolley  <brolley@redhat.com>
+
+	* po/POTFILES.in: Add frv-*.[ch].
+	* disassemble.c (ARCH_frv): New macro.
+	(disassembler): Handle bfd_arch_frv.
+	* configure.in: Support frv_bfd_arch.
+	* Makefile.am (HFILES): Add frv-*.h.
+	(CFILES): Add frv-*.c
+	(ALL_MACHINES): Add frv-*.lo.
+	(CLEANFILES): Add stamp-frv.
+	(FRV_DEPS): New variable.
+	(stamp-frv): New target.
+	(frv-asm.lo): New target.
+	(frv-desc.lo): New target.
+	(frv-dis.lo): New target.
+	(frv-ibld.lo): New target.
+	(frv-opc.lo): New target.
+	(frv-*.[ch]): New files.
+
+2002-06-18  Ben Elliston  <bje@redhat.com>
+
+	* Makefile.am (CGENDEPS): Remove unnecessary stamp-cgen.
+	* Makefile.in: Regenerate.
+
+2002-06-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* a29k-dis.c: Replace CONST with const.
+	* h8300-dis.c: Likewise.
+	* m68k-dis.c: Likewise.
+	* or32-dis.c: Likewise.
+	* sparc-dis.c: Likewise.
+
+2002-06-04  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* configure.in: Add "sh5*-*" to list of targets which include
+	sh64 support.
+	* configure: Regenerate.
+
+2002-05-31  Chris G. Demetriou  <cgd@broadcom.com>
+
+	* mips-opc.c: Clean up a few whitespace issues, and sort a
+	few entries understanding that 'x' follows 'w' in the alphabet.
+	
+2002-05-31  Chris G. Demetriou  <cgd@broadcom.com>
+            Ed Satterthwaite  <ehs@broadcom.com>
+
+	* mips-opc.c: Add support for SB-1 MDMX subset and extensions.
+
+2002-05-31  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* po/POTFILES.in: Regenerate.
+
+2002-05-30  Chris G. Demetriou  <cgd@broadcom.com>
+            Ed Satterthwaite  <ehs@broadcom.com>
+
+	* mips-dis.c (print_insn_arg): Add support for 'O', 'Q', 'X', 'Y',
+	and 'Z' formats, for MDMX.
+        (mips_isa_type): Add MDMX instructions to the ISA
+	bit mask for bfd_mach_mipsisa64.
+	* mips-opc.c: Add support for MDMX instructions.
+	(MX): New definition.
+
+	* mips-dis.c: Update copyright years to include 2002.
+
+2002-05-30  Diego Novillo  <dnovillo@redhat.com>
+
+	* d10v-opc.c (d10v_opcodes): `btsti' does not modify its
+        arguments.
+
+2002-05-28  Kuang Hwa Lin <kuang@sbcglobal.net>
+
+	* configure.in: Add DLX configuraton support.
+	* configure: Regenerate.
+	* Makefile.am: Add DLX configuraton support.
+	* Makefile.in: Regenerate.
+	* disassemble.c: Add DLX support.
+	* dlx-dis.c: New file.
+
+2002-05-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (sh-dis.lo): Don't put make commands in deps.
+	* Makefile.in: Regenerate.
+	* arc-dis.c: Use #include "" instead of <> for local header files.
+	* m68k-dis.c: Likewise.
+
+Wed May 22 20:11:51 2002  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* Makefile.am (sh-dis.lo): Compile with @archdefs@.
+	* Makefile.in: regenerate.
+
+	* sh-dis.c (print_insn_sh): If coff and bfd_mach_sh, use arch_sh4
+	for disassembly.
+
+2002-05-22  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* mips-opc.c (mips_builtin_opcodes): Add drol, dror macros.
+
+Fri May 17 14:26:44 2002  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* disassemble.c (disassembler): Just use print_insn_sh for bfd_arch_sh.
+	* sh-dis.c (LITTLE_BIT): Delete.
+	(print_insn_sh, print_insn_shl): Deleted.
+	(print_insn_shx): Renamed to
+	(print_insn_sh).  No longer static.  Handle SHmedia instructions.
+	Use info->endian to determine endianness.
+	* sh64-dis.c (print_insn_sh64, print_insn_sh64l): Delete.
+	(print_insn_sh64x): No longer static.  Renamed to
+	(print_insn_sh64).  Removed pfun_compact and endian arguments.
+	If we got an uneven address to indicate SHmedia, adjust it.
+	Return -2 for SHcompact instructions.
+
+2002-05-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* acinclude.m4 (AM_INSTALL_LIBBFD): Fake to fool autotools.
+	* configure.in: Invoke AM_INSTALL_LIBBFD.
+	* Makefile.am (install-data-local): Move to..
+	(install_libopcodes): .. New target.
+	(uninstall_libopcodes): Likewise.
+	(install-bfdlibLTLIBRARIES): Likewise.
+	(uninstall-bfdlibLTLIBRARIES): Likewise.
+	(bfdlibdir): New.
+	(bfdincludedir): New.
+	(lib_LTLIBRARIES): Rename to bfdlib_LTLIBRARIES.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* Makefile.in: Regenerate.
+
+2002-05-15  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* fr30-asm.c: Regenerate.
+	* fr30-desc.c: Regenerate.
+	* fr30-dis.c: Regenerate.
+	* m32r-asm.c: Regenerate.
+	* m32r-desc.c: Regenerate.
+	* m32r-dis.c: Regenerate.
+	* openrisc-asm.c: Regenerate.
+	* openrisc-desc.c: Regenerate.
+	* openrisc-dis.c: Regenerate.
+	* xstormy16-asm.c: Regenerate.
+	* xstormy16-desc.c: Regenerate.
+	* xstormy16-dis.c: Regenerate.
+
+2002-05-15  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* mips-dis.c (is_newabi): EABI is not a NewABI.
+
+2002-05-13  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* configure.in (shle-*-*elf*): Include sh64 support.
+	* configure: Regenerate.
+
+2002-04-28  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* vax-dis.c (print_insn_arg): Pass the insn info to print_insn_mode.
+	(print_insn_mode): Print some basic info about floating point values.
+
 2002-05-09  Anton Blanchard  <anton@samba.org>
 
 	* ppc-opc.c: Add "tlbiel" for POWER4.
 
-2002-05-09  Alan Modra  <amodra@bigpond.net.au>
+2002-05-07  Graydon Hoare  <graydon@redhat.com>
 
-	Merge from mainline.
-	2002-05-01  Alan Modra  <amodra@bigpond.net.au>
+	* cgen-dis.in: (print_insn_@arch@): Cache list of opened CPUs rather 
+	than just most-recently-opened.
+
+2002-05-01  Alan Modra  <amodra@bigpond.net.au>
+
 	* ppc-opc.c: Add "tlbsx." and "tlbsxe." for booke.
 
-	2002-04-17  matthew green  <mrg@redhat.com>
+2002-04-24  Christian Groessler <chris@groessler.org>
+
+	* z8k-dis.c (print_insn_z8k): Set disassemble_info to 2
+	bytes_per_chunk, 6 bytes_per_line for nicer display of the hex
+	codes.
+	(z8k_lookup_instr): CLASS_IGNORE case added.
+	(output_instr): Don't print hex codes, they are already
+	printed.
+	(unpack_instr): ARG_NIM4 case added.  ARG_NIM8 case
+	fixed. Support CLASS_BIT_1OR2 and CLASS_IGNORE cases.
+	(unparse_instr): Fix base and indexed addressing disassembly:
+	The index is inside the brackets.
+	* z8kgen.c (gas): Add ARG_NIM4 and CLASS_IGNORE defines.
+	(opt): Fix shift left/right arithmetic/logical byte defines:
+	The high byte of the immediate word is ignored by the
+	processor.
+	Fix n parameter of ldm opcodes: The opcode contains (n-1).
+	(args): Fix "n" entry.
+	(toks): Add "nim4" and "iiii" entries.
+	* z8k-opc.h: Regenerated with new z8kgen.c.
+
+2002-04-24  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/id.po: New Indonesian translation.
+	* configure.in (ALL_LIGUAS): Add id.po
+	* configure: Regenerate.
+
+2002-04-17  matthew green  <mrg@redhat.com>
+
 	* ppc-opc.c (powerpc_opcode): Fix dssall operand list.
-
-2002-04-29  Chris Demetriou  <cgd@broadcom.com>
-
-	Merge from mainline:
-	2002-03-06  Chris Demetriou  <cgd@broadcom.com>
-	* mips-opc.c (mips_builtin_opcodes): Mark "pref" as being
-	present on I4.
-
-	Merge from mainline:
-	2002-03-06  Chris Demetriou  <cgd@broadcom.com>
-	* mips-opc.c (mips_builtin_opcodes): Add "movn.ps" and "movz.ps".
-
-	Merge from mainline:
-	2002-03-15  Chris Demetriou  <cgd@broadcom.com>
-	* mips-dis.c (is_newabi): Fix ABI decoding.
 
 2002-04-04  Alan Modra  <amodra@bigpond.net.au>
 
@@ -32,41 +281,24 @@
 	* Makefile.am (dep.sed): Subst TOPDIR.
 	Run "make dep-am".
 	* Makefile.in: Regenerate.
+	* ppc-opc.c: Whitespace.
+	* s390-dis.c: Fix copyright date.
 
-	Merge from mainline
-	2002-02-19  Martin Schwidefsky  <schwidefsky@de.ibm.com>
-	* s390-dis.c (init_disasm): Use renamed architecture defines.
+2002-03-23  matthew green  <mrg@redhat.com>
 
-2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+	* ppc-opc.c (vmaddfp): Fix operand order.
 
-	* aclocal.m4: Regenerate.
-	* config.in: Regenerate.
-	* configure: Regenerate.
+2002-03-21  Alan Modra  <amodra@bigpond.net.au>
+
 	* Makefile.am: Run "make dep-am".
 	* Makefile.in: Regenerate.
 
-	Merge from mainline.
-	2002-03-23  matthew green  <mrg@redhat.com>
-	* ppc-opc.c (vmaddfp): Fix operand order.
+2002-03-21  Anton Blanchard  <anton@samba.org>
 
-	2002-03-21  Anton Blanchard  <anton@samba.org>
 	* ppc-opc.c: Add optional field to mtmsrd.
 	(MTMSRD_L, XRLARB_MASK): Define.
 
-	2002-03-13  Alan Modra  <amodra@bigpond.net.au>
-	* ppc-opc.c: Add optional `L' field to tlbie.
-	(XRTLRA_MASK): Define.
-
-	2002-02-20  Tom Rix  <trix@redhat.com>
-	* ppc-opc.c (powerpc_operands): Add WS feild.  Use for tlbre, tlbwe.
-
-2002-02-26  Nick Clifton  <nickc@cambridge.redhat.com>
-
-	* configure.in (LINGUAS): Add de.po.
-	* configure: Regenerate.
-	* po/de.po: New file.
-
-Mon Feb 25 18:40:33 CET 2002  Jan Hubicka  <jh@suse.cz>
+Mon Mar 18 21:10:43 CET 2002  Jan Hubicka  <jh@suse.cz>
 
 	* i386-dis.c (prefix_name): Fix handling of 32bit address prefix
 	in 64bit mode.
@@ -74,6 +306,91 @@ Mon Feb 25 18:40:33 CET 2002  Jan Hubicka  <jh@suse.cz>
 	(putop): Fix handling of 'E'
 	(OP_E, OP_OFF): handle 32bit addressing mode in 64bit.
 	(ptr_reg): Likewise.
+
+2002-03-18  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/fr.po: Updated version.
+
+2002-03-16  Chris Demetriou  <cgd@broadcom.com>
+
+	* mips-opc.c (M3D): Tweak comment.
+	(mips_builtin_op): Add comment indicating that opcodes of the
+	same name must be placed together in the table, and sort
+	the "recip.fmt", "recip1.fmt", "recip2.fmt", "rsqrt.fmt",
+	"rsqrt1.fmt", and "rsqrt2.fmt" opcodes by name.
+
+2002-03-16  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* Makefile.am: Tidy up sh64 rules.
+        * Makefile.in: Regenerate.
+
+2002-03-15  Chris G. Demetriou  <cgd@broadcom.com>
+
+	* mips-dis.c: Update copyright years.
+
+2002-03-15  Chris G. Demetriou  <cgd@broadcom.com>
+
+	* mips-dis.c (mips_isa_type): Add MIPS3D instructions to the ISA
+	bit masks for bfd_mach_mips_sb1 and bfd_mach_mipsisa64.  Add
+	comments for bfd_mach_mipsisa32 and bfd_mach_mipsisa64 that
+	indicate that they should dissassemble all applicable
+	MIPS-specified ASEs.
+	* mips-opc.c: Add support for MIPS-3D instructions.
+	(M3D): New definition.
+
+	* mips-opc.c: Update copyright years.
+
+2002-03-15  Chris G. Demetriou  <cgd@broadcom.com>
+
+	* mips-opc.c (mips_builtin_opcodes): Sort bc<N> opcodes by name.
+
+2002-03-15  Chris Demetriou  <cgd@broadcom.com>
+
+	* mips-dis.c (is_newabi): Fix ABI decoding.
+
+2002-03-14  Chris G. Demetriou  <cgd@broadcom.com>
+
+	* mips-dis.c (mips_isa_type): Fix formatting of bfd_mach_mipsisa32
+	and bfd_mach_mipsisa64 cases to match the rest.
+
+2002-03-13  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/fr.po: Updated version.
+
+2002-03-13  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc-opc.c: Add optional `L' field to tlbie.
+	(XRTLRA_MASK): Define.
+
+2002-03-06  Chris Demetriou  <cgd@broadcom.com>
+
+	* mips-opc.c (mips_builtin_opcodes): Mark "pref" as being
+	present on I4.
+
+	* mips-opc.c (mips_builtin_opcodes): Add "movn.ps" and "movz.ps".
+
+2002-03-05  Paul Koning  <pkoning@equallogic.com>
+
+	* pdp11-opc.c: Fix "mark" operand type.  Fix operand types
+	for float opcodes that take float operands.  Add alternate
+	names (xxxD vs. xxxF) for float opcodes.
+	* pdp11-dis.c (print_operand): Clean up formatting for mode 67.
+	(print_foperand): New function to handle float opcode operands.
+	(print_insn_pdp11): Use print_foperand to disassemble float ops.
+
+2002-02-27  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/de.po: Updated.
+
+2002-02-26  Brian Gaeke  <brg@dgate.org>
+
+	* Makefile.am (install-data-local): Install dis-asm.h.
+
+2002-02-26  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* configure.in (LINGUAS): Add de.po.
+	* configure: Regenerate.
+	* po/de.po: New file.
 
 2002-02-25  Alan Modra  <amodra@bigpond.net.au>
 
@@ -89,9 +406,22 @@ Mon Feb 25 18:40:33 CET 2002  Jan Hubicka  <jh@suse.cz>
 	and PPCCOM4 with POWER4 so that "at" style branch hint opcodes
 	are enabled for power4 rather than ppc64.
 
-	Merge from mainline 2002-02-19  matthew green  <mrg@redhat.com>
+2002-02-20  Tom Rix  <trix@redhat.com>
+
+	* ppc-opc.c (powerpc_operands): Add WS field.  Use for tlbre, tlbwe.
+
+2002-02-19  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* s390-dis.c (init_disasm): Use renamed architecture defines.
+
+2002-02-19  matthew green  <mrg@redhat.com>
+
 	* ppc-opc.c (powerpc_dialect): Fix comment; BookE is not Motorola
 	specific.
+
+2002-02-18  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/tr.po: Updated translation.
 
 2002-02-15  Richard Henderson  <rth@redhat.com>
 
@@ -103,17 +433,35 @@ Mon Feb 25 18:40:33 CET 2002  Jan Hubicka  <jh@suse.cz>
 	* alpha-opc.c (alpha_opcodes): Add simple pseudos for
 	lda, ldah, jmp, ret.
 
-2002-02-13  Hans-Peter Nilsson  <hp@bitrange.com>
+2002-02-14  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/da.po: Updated translation.
+
+2002-02-12  Graydon Hoare  <graydon@redhat.com>
+
+	* cgen-asm.in (parse_insn_normal): Change call from
+	@arch@_cgen_parse_operand to cd->parse_operand, to 
+	facilitate CGEN_ASM_INIT_HOOK doing useful work.
+	
+2002-02-11  Alexandre Oliva  <aoliva@redhat.com>
+
+	* sparc-dis.c (print_insn_sparc): Make sure 0xFFFFFFFF is not
+	sign-extended.
+
+2002-02-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: "make dep-am".
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+
+2002-02-10  Hans-Peter Nilsson  <hp@bitrange.com>
 
 	* configure.in <bfd_sh_arc>: For sh-* and shl-*, enable sh64
 	support only for sh-*-*elf*, shl-*-*elf*, sh-*-linux* and
 	shl-*-linux*.
 	* configure: Regenerate.
-
-2002-02-11  Alexandre Oliva  <aoliva@redhat.com>
-
-	* sparc-dis.c (print_insn_sparc): Make sure 0xFFFFFFFF is not
-	sign-extended.
 
 2002-02-10  Daniel Jacobowitz  <drow@mvista.com>
 
@@ -818,7 +1166,7 @@ Mon Feb 25 18:40:33 CET 2002  Jan Hubicka  <jh@suse.cz>
 	* arc-opc.c: Include "sysdep.h" to get stdio.h as include file.
 	* arc-ext.c: Likewise.
 
-2001-08-28  matthew gren  <mrg@redhat.com>
+2001-08-28  matthew green  <mrg@redhat.com>
 
 	* ppc-opc.c (icbt): Order correctly.
 

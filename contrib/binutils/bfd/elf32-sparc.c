@@ -1,5 +1,5 @@
 /* SPARC-specific support for 32-bit ELF
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -55,7 +55,7 @@ static void elf32_sparc_final_write_processing
 static enum elf_reloc_type_class elf32_sparc_reloc_type_class
   PARAMS ((const Elf_Internal_Rela *));
 static asection * elf32_sparc_gc_mark_hook
-  PARAMS ((bfd *, struct bfd_link_info *, Elf_Internal_Rela *,
+  PARAMS ((asection *, struct bfd_link_info *, Elf_Internal_Rela *,
 	   struct elf_link_hash_entry *, Elf_Internal_Sym *));
 static boolean elf32_sparc_gc_sweep_hook
   PARAMS ((bfd *, struct bfd_link_info *, asection *,
@@ -637,14 +637,13 @@ elf32_sparc_check_relocs (abfd, info, sec, relocs)
 }
 
 static asection *
-elf32_sparc_gc_mark_hook (abfd, info, rel, h, sym)
-       bfd *abfd;
+elf32_sparc_gc_mark_hook (sec, info, rel, h, sym)
+       asection *sec;
        struct bfd_link_info *info ATTRIBUTE_UNUSED;
        Elf_Internal_Rela *rel;
        struct elf_link_hash_entry *h;
        Elf_Internal_Sym *sym;
 {
-
   if (h != NULL)
     {
       switch (ELF32_R_TYPE (rel->r_info))
@@ -669,9 +668,7 @@ elf32_sparc_gc_mark_hook (abfd, info, rel, h, sym)
        }
      }
    else
-     {
-       return bfd_section_from_elf_index (abfd, sym->st_shndx);
-     }
+     return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
 
   return NULL;
 }
@@ -1564,10 +1561,11 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 	  break;
 	}
 
-      /* ??? Copied from elf32-i386.c, debugging section check and all.  */
+      /* Dynamic relocs are not propagated for SEC_DEBUGGING sections
+	 because such sections are not SEC_ALLOC and thus ld.so will
+	 not process them.  */
       if (unresolved_reloc
-	  && !(info->shared
-	       && (input_section->flags & SEC_DEBUGGING) != 0
+	  && !((input_section->flags & SEC_DEBUGGING) != 0
 	       && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_DYNAMIC) != 0))
 	(*_bfd_error_handler)
 	  (_("%s(%s+0x%lx): unresolvable relocation against symbol `%s'"),

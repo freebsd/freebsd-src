@@ -1,5 +1,5 @@
 /* An abstract string datatype.
-   Copyright (C) 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
    Contributed by Mark Mitchell (mark@markmitchell.com).
 
 This file is part of GNU CC.
@@ -8,6 +8,15 @@ GNU CC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
+
+In addition to the permissions in the GNU General Public License, the
+Free Software Foundation gives you unlimited permission to link the
+compiled version of this file into combinations with other programs,
+and to distribute those combinations without any restriction coming
+from the use of this file.  (The General Public License restrictions
+do apply in other respects; for example, they cover modification of
+the file, and distribution when not linked into a combined
+executable.)
 
 GNU CC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -41,7 +50,7 @@ Boston, MA 02111-1307, USA.  */
    abort if an allocation fails.  Instead, percolate an error code up
    through the call chain.  */
 
-#ifdef IN_LIBGCC2
+#if defined(IN_LIBGCC2) || defined(IN_GLIBCPP_V3)
 #define RETURN_ON_ALLOCATION_FAILURE
 #endif
 

@@ -105,8 +105,8 @@ queue_fixup (opindex, opinfo, expP)
    to keep track of how many fixup chains have been stored and which
    elements of the array they are in.
 
-   The algorithms used are the same as in the old scheme.  Other than the 
-   "array-ness" of the whole thing, the functionality is identical to the 
+   The algorithms used are the same as in the old scheme.  Other than the
+   "array-ness" of the whole thing, the functionality is identical to the
    old scheme.
 
    gas_cgen_initialize_saved_fixups_array():
@@ -173,7 +173,7 @@ gas_cgen_restore_fixups (i)
     }
 
   num_fixups = stored_fixups[i].num_fixups_in_chain;
-  memcpy (fixups,stored_fixups[i].fixup_chain,
+  memcpy (fixups, stored_fixups[i].fixup_chain,
 	  (sizeof (stored_fixups[i].fixup_chain[0])) * num_fixups);
   stored_fixups[i].num_fixups_in_chain = 0;
 }

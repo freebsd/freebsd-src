@@ -42,6 +42,7 @@
 @set I80386
 @set I860
 @set I960
+@set IA-64
 @set M32R
 @set M68HC11
 @set M680X0
@@ -333,11 +334,19 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
     @b{-AKC}|@b{-AMC}]
    [@b{-b}] [@b{-no-relax}]
 @end ifset
+@ifset IA64
+
+@emph{Target IA-64 options:}
+   [@b{-mconstant-gp}|@b{-mauto-pic}]
+   [@b{-milp32}|@b{-milp64}|@b{-mlp64}|@b{-mp64}]
+   [@b{-mle}|@b{mbe}]
+   [@b{-x}|@b{-xexplicit}] [@b{-xauto}] [@b{-xdebug}]
+@end ifset
 @ifset M32R
 
 @emph{Target M32R options:}
    [@b{--m32rx}|@b{--[no-]warn-explicit-parallel-conflicts}|
-    @b{--W[n]p}]
+   @b{--W[n]p}]
 @end ifset
 @ifset M680X0
 
@@ -361,12 +370,19 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @ifset MIPS
 
 @emph{Target MIPS options:}
-   [@b{-nocpp}] [@b{-EL}] [@b{-EB}] [@b{-G} @var{num}] [@b{-mcpu}=@var{CPU} ]
-   [@b{-mips1}] [@b{-mips2}] [@b{-mips3}] [@b{-mips4}] [@b{-mips5}]
-   [@b{-mips32}] [@b{-mips64}]
-   [@b{-m4650}] [@b{-no-m4650}]
-   [@b{--trap}] [@b{--break}] [@b{-n}]
-   [@b{--emulation}=@var{name} ]
+   [@b{-nocpp}] [@b{-EL}] [@b{-EB}] [@b{-n}] [@b{-O}[@var{optimization level}]]
+   [@b{-g}[@var{debug level}]] [@b{-G} @var{num}] [@b{-KPIC}] [@b{-call_shared}]
+   [@b{-non_shared}] [@b{-xgot}] [@b{--membedded-pic}]
+   [@b{-mabi}=@var{ABI}] [@b{-32}] [@b{-n32}] [@b{-64}] [@b{-mfp32}] [@b{-mgp32}]
+   [@b{-march}=@var{CPU}] [@b{-mtune}=@var{CPU}] [@b{-mips1}] [@b{-mips2}]
+   [@b{-mips3}] [@b{-mips4}] [@b{-mips5}] [@b{-mips32}] [@b{-mips64}]
+   [@b{-construct-floats}] [@b{-no-construct-floats}]
+   [@b{-trap}] [@b{-no-break}] [@b{-break}] [@b{-no-trap}]
+   [@b{-mfix7000}] [@b{-mno-fix7000}]
+   [@b{-mips16}] [@b{-no-mips16}]
+   [@b{-mips3d}] [@b{-no-mips3d}]
+   [@b{-mdmx}] [@b{-no-mdmx}]
+   [@b{-mdebug}] [@b{-no-mdebug}]
 @end ifset
 @ifset MMIX
 
@@ -832,7 +848,7 @@ behaviour in the shell.
 
 @ifset MIPS
 The following options are available when @value{AS} is configured for
-a MIPS processor.
+a @sc{mips} processor.
 
 @table @gcctabopt
 @item -G @var{num}
@@ -855,27 +871,65 @@ Generate ``little endian'' format output.
 @itemx -mips2
 @itemx -mips3
 @itemx -mips4
+@itemx -mips5
 @itemx -mips32
 @itemx -mips64
-Generate code for a particular MIPS Instruction Set Architecture level.
-@samp{-mips1} corresponds to the @sc{r2000} and @sc{r3000} processors,
-@samp{-mips2} to the @sc{r6000} processor, and @samp{-mips3} to the @sc{r4000}
-processor.
-@samp{-mips5}, @samp{-mips32}, and @samp{-mips64} correspond
-to generic @sc{MIPS V}, @sc{MIPS32}, and @sc{MIPS64} ISA
-processors, respectively.
+Generate code for a particular @sc{mips} Instruction Set Architecture level.
+@samp{-mips1} is an alias for @samp{-march=r3000}, @samp{-mips2} is an
+alias for @samp{-march=r6000}, @samp{-mips3} is an alias for
+@samp{-march=r4000} and @samp{-mips4} is an alias for @samp{-march=r8000}.
+@samp{-mips5}, @samp{-mips32}, and @samp{-mips64} correspond to generic
+@samp{MIPS V}, @samp{MIPS32}, and @samp{MIPS64} ISA processors,
+respectively.
 
-@item -m4650
-@itemx -no-m4650
-Generate code for the MIPS @sc{r4650} chip.  This tells the assembler to accept
-the @samp{mad} and @samp{madu} instruction, and to not schedule @samp{nop}
-instructions around accesses to the @samp{HI} and @samp{LO} registers.
-@samp{-no-m4650} turns off this option.
+@item -march=@var{CPU}
+Generate code for a particular @sc{mips} cpu.
 
-@item -mcpu=@var{CPU}
-Generate code for a particular MIPS cpu.  It is exactly equivalent to
-@samp{-m@var{cpu}}, except that there are more value of @var{cpu}
-understood.
+@item -mtune=@var{cpu}
+Schedule and tune for a particular @sc{mips} cpu.
+
+@item -mfix7000
+@itemx -mno-fix7000
+Cause nops to be inserted if the read of the destination register
+of an mfhi or mflo instruction occurs in the following two instructions.
+
+@item -mdebug
+@itemx -no-mdebug
+Cause stabs-style debugging output to go into an ECOFF-style .mdebug
+section instead of the standard ELF .stabs sections.
+
+@item -mgp32
+@itemx -mfp32
+The register sizes are normally inferred from the ISA and ABI, but these
+flags force a certain group of registers to be treated as 32 bits wide at
+all times.  @samp{-mgp32} controls the size of general-purpose registers
+and @samp{-mfp32} controls the size of floating-point registers.
+
+@item -mips16
+@itemx -no-mips16
+Generate code for the MIPS 16 processor.  This is equivalent to putting
+@code{.set mips16} at the start of the assembly file.  @samp{-no-mips16}
+turns off this option.
+
+@item -mips3d
+@itemx -no-mips3d
+Generate code for the MIPS-3D Application Specific Extension.
+This tells the assembler to accept MIPS-3D instructions.
+@samp{-no-mips3d} turns off this option.
+
+@item -mdmx
+@itemx -no-mdmx
+Generate code for the MDMX Application Specific Extension.
+This tells the assembler to accept MDMX instructions.
+@samp{-no-mdmx} turns off this option.
+
+@item --construct-floats
+@itemx --no-construct-floats
+The @samp{--no-construct-floats} option disables the construction of
+double width floating point constants by loading the two halves of the
+value into the two single width floating point registers that make up
+the double width register.  By default @samp{--construct-floats} is
+selected, allowing construction of these floating point constants.
 
 @cindex emulation
 @item --emulation=@var{name}
@@ -892,7 +946,7 @@ in the name.  Using @samp{-EB} or @samp{-EL} will override the endianness
 selection in any case.
 
 This option is currently supported only when the primary target
-@command{@value{AS}} is configured for is a MIPS ELF or ECOFF target.
+@command{@value{AS}} is configured for is a @sc{mips} ELF or ECOFF target.
 Furthermore, the primary target or others specified with
 @samp{--enable-targets=@dots{}} at configuration time must include support for
 the other format, if both are to be available.  For example, the Irix 5
@@ -906,7 +960,6 @@ more processors.
 @command{@value{AS}} ignores this option.  It is accepted for compatibility with
 the native tools.
 
-@need 900
 @item --trap
 @itemx --no-trap
 @itemx --break
@@ -4962,6 +5015,8 @@ read-only section
 executable section
 @item s
 shared section (meaningful for PE targets)
+@item a
+ignored.  (For compatibility with the ELF version)
 @end table
 
 If no flags are specified, the default flags depend upon the section name.  If
@@ -5767,6 +5822,10 @@ family.
 
 @ifset I960
 @include c-i960.texi
+@end ifset
+
+@ifset IA64
+@include c-ia64.texi
 @end ifset
 
 @ifset M32R

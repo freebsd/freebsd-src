@@ -1,6 +1,14 @@
 -*- text -*-
+Changes in 2.13:
 
-Changes in 2.12:
+* Support for the Fujitsu FRV architecture added by Red Hat. Models for FR400
+  and FR500 included.
+
+Changes in version 2.13:
+
+* DEC VAX ELF support, by Matt Thomas.
+
+Changes in version 2.12:
 
 * Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
 
@@ -16,7 +24,7 @@ Changes in 2.12:
 
 * Support for ELF SHF_MERGE section merging, by Jakub Jelinek.
 
-Changes in 2.11:
+Changes in version 2.11:
 
 * Support for AMD x86-64 architecture, by Jan Hubicka, SuSE Labs.
 

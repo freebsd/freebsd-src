@@ -1,31 +1,29 @@
 /* arsup.c - Archive support for MRI compatibility
-   Copyright 1992, 1994, 1995, 1996, 1997, 2000
+   Copyright 1992, 1994, 1995, 1996, 1997, 2000, 2002
    Free Software Foundation, Inc.
 
-This file is part of GNU Binutils.
+   This file is part of GNU Binutils.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 
 /* Contributed by Steve Chamberlain
-   		  sac@cygnus.com
+   sac@cygnus.com
 
-This file looks after requests from arparse.y, to provide the MRI
-style librarian command syntax + 1 word LIST
-
-*/
+   This file looks after requests from arparse.y, to provide the MRI
+   style librarian command syntax + 1 word LIST.  */
 
 #include "bfd.h"
 #include "arsup.h"
@@ -74,7 +72,7 @@ map_over_list (arch, function, list)
 	  boolean found = false;
 	  bfd *prev = arch;
 
-	  for (head = arch->next; head; head = head->next) 
+	  for (head = arch->next; head; head = head->next)
 	    {
 	      if (head->filename != NULL
 		  && FILENAME_CMP (ptr->name, head->filename) == 0)
@@ -93,13 +91,12 @@ map_over_list (arch, function, list)
 
 FILE *outfile;
 
-/*ARGSUSED*/
 static void
 ar_directory_doer (abfd, ignore)
      bfd *abfd;
      bfd *ignore ATTRIBUTE_UNUSED;
 {
-    print_arelt_descr(outfile, abfd, verbose);
+  print_arelt_descr(outfile, abfd, verbose);
 }
 
 void
@@ -121,7 +118,7 @@ ar_directory (ar_name, list, output)
 	  output = 0;
 	}
     }
-  else 
+  else
     outfile = stdout;
 
   map_over_list (arch, ar_directory_doer, list);
@@ -136,86 +133,100 @@ void
 DEFUN_VOID(prompt)
 {
   extern int interactive;
-  if (interactive) 
-  {
-    printf("AR >");
-    fflush(stdout); 
-  }
+
+  if (interactive)
+    {
+      printf ("AR >");
+      fflush (stdout);
+    }
 }
 
 void
 maybequit ()
 {
-  if (! interactive) 
+  if (! interactive)
     xexit (9);
 }
 
 
 bfd *obfd;
-char *real_name ; 
-void
-DEFUN(ar_open,(name, t),
-      char *name AND
-      int t)
+char *real_name;
 
+void
+ar_open (name, t)
+  char *name;
+  int t;
 {
   char *tname = (char *) xmalloc (strlen (name) + 10);
   const char *bname = lbasename (name);
   real_name = name;
+
   /* Prepend tmp- to the beginning, to avoid file-name clashes after
      truncation on filesystems with limited namespaces (DOS).  */
-  sprintf(tname, "%.*stmp-%s", (int) (bname - name), name, bname);
-  obfd = bfd_openw(tname, NULL);
+  sprintf (tname, "%.*stmp-%s", (int) (bname - name), name, bname);
+  obfd = bfd_openw (tname, NULL);
 
-  if (!obfd) {
-    fprintf(stderr,_("%s: Can't open output archive %s\n"), program_name,
-	    tname);
+  if (!obfd)
+    {
+      fprintf (stderr,
+	       _("%s: Can't open output archive %s\n"),
+	       program_name,  tname);
 
-    maybequit();
-  }
-  else {
-    if (!t) {
-      bfd **ptr;
-      bfd *element;
-      bfd *ibfd;
-      ibfd = bfd_openr(name, NULL);
-      if (!ibfd) {
-	fprintf(stderr,_("%s: Can't open input archive %s\n"),
-		program_name, name);
-	maybequit();
-	return;
-      }
-      if (bfd_check_format(ibfd, bfd_archive) != true) {
-	fprintf(stderr,_("%s: file %s is not an archive\n"), program_name,
-		name);
-	maybequit();
-	return;
-      }
-      ptr = &(obfd->archive_head);
-      element = bfd_openr_next_archived_file(ibfd, NULL);
-
-      while (element) {
-	*ptr = element;
-	ptr = &element->next;
-	element = bfd_openr_next_archived_file(ibfd, element);
-      }
+      maybequit ();
     }
+  else
+    {
+      if (!t)
+	{
+	  bfd **ptr;
+	  bfd *element;
+	  bfd *ibfd;
 
-    bfd_set_format(obfd, bfd_archive);
+	  ibfd = bfd_openr (name, NULL);
 
-    obfd->has_armap = 1;
-  }
+	  if (!ibfd)
+	    {
+	      fprintf (stderr,_("%s: Can't open input archive %s\n"),
+		       program_name, name);
+	      maybequit ();
+	      return;
+	    }
+
+	  if (bfd_check_format(ibfd, bfd_archive) != true)
+	    {
+	      fprintf (stderr,
+		       _("%s: file %s is not an archive\n"),
+		       program_name, name);
+	      maybequit ();
+	      return;
+	    }
+
+	  ptr = &(obfd->archive_head);
+	  element = bfd_openr_next_archived_file (ibfd, NULL);
+
+	  while (element)
+	    {
+	      *ptr = element;
+	      ptr = &element->next;
+	      element = bfd_openr_next_archived_file (ibfd, element);
+	    }
+	}
+
+      bfd_set_format (obfd, bfd_archive);
+
+      obfd->has_armap = 1;
+    }
 }
-
 
 static void
 ar_addlib_doer (abfd, prev)
      bfd *abfd;
      bfd *prev;
 {
-  /* Add this module to the output bfd */
+  /* Add this module to the output bfd.  */
   if (prev != NULL)
     prev->next = abfd->next;
+
   abfd->next = obfd->archive_head;
   obfd->archive_head = abfd;
 }
@@ -238,224 +249,248 @@ ar_addlib (name, list)
       if (arch != NULL)
 	map_over_list (arch, ar_addlib_doer, list);
 
-      /* Don't close the bfd, since it will make the elements disasppear */
+      /* Don't close the bfd, since it will make the elements disasppear.  */
     }
 }
 
 void
-DEFUN(ar_addmod, (list),
-      struct list *list)
+ar_addmod (list)
+     struct list *list;
 {
-  if (!obfd) {
-    fprintf(stderr, _("%s: no open output archive\n"), program_name);
-    maybequit();
-  }
-  else 
-  {
-    while (list) {
-      bfd *abfd = bfd_openr(list->name, NULL);
-      if (!abfd)  {
-	fprintf(stderr,_("%s: can't open file %s\n"), program_name,
-		list->name);
-	maybequit();
-      }
-      else {
-	abfd->next = obfd->archive_head;
-	obfd->archive_head = abfd;
-      }
-      list = list->next;
-    }
-  }
-}
-
-
-
-void
-DEFUN_VOID(ar_clear)
-{
-if (obfd) 
- obfd->archive_head = 0;
-}
-
-void
-DEFUN(ar_delete, (list),
-      struct list *list)
-{
-  if (!obfd) {
-    fprintf(stderr, _("%s: no open output archive\n"), program_name);
-    maybequit();
-  }
-  else 
-  {
-    while (list) {
-      /* Find this name in the archive */
-      bfd *member = obfd->archive_head;
-      bfd **prev = &(obfd->archive_head);
-      int found = 0;
-      while (member) {
-	if (FILENAME_CMP(member->filename, list->name) == 0) {
-	  *prev = member->next;
-	  found = 1;
-	}
-	else {
-	  prev = &(member->next);
-	}
-	  member = member->next;
-      }
-      if (!found)  {
-	fprintf(stderr,_("%s: can't find module file %s\n"), program_name,
-		list->name);
-	maybequit();
-      }
-      list = list->next;
-    }
-  }
-}
-
-
-void
-DEFUN_VOID(ar_save)
-{
-
-  if (!obfd) {
-    fprintf(stderr, _("%s: no open output archive\n"), program_name);
-    maybequit();
-  }
-  else {
-    char *ofilename = xstrdup (bfd_get_filename (obfd));
-    bfd_close(obfd);
-    
-    rename (ofilename, real_name);
-    obfd = 0;
-    free(ofilename);
-  }
-}
-
-
-
-void
-DEFUN(ar_replace, (list),
-      struct list *list)
-{
-  if (!obfd) {
-    fprintf(stderr, _("%s: no open output archive\n"), program_name);
-    maybequit();
-  }
-  else 
-  {
-    while (list) {
-      /* Find this name in the archive */
-      bfd *member = obfd->archive_head;
-      bfd **prev = &(obfd->archive_head);
-      int found = 0;
-      while (member) 
-      {
-	if (FILENAME_CMP(member->filename, list->name) == 0) 
-	{
-	  /* Found the one to replace */
-	  bfd *abfd = bfd_openr(list->name, 0);
-	  if (!abfd) 
-	  {
-	    fprintf(stderr, _("%s: can't open file %s\n"), program_name, list->name);
-	    maybequit();
-	  }
-	  else {
-	    *prev = abfd;
-	    abfd->next = member->next;
-	    found = 1;
-	  }
-	}
-	else {
-	  prev = &(member->next);
-	}
-	member = member->next;
-      }
-      if (!found)  {
-	bfd *abfd = bfd_openr(list->name, 0);
-	fprintf(stderr,_("%s: can't find module file %s\n"), program_name,
-		list->name);
-	if (!abfd) 
-	{
-	  fprintf(stderr, _("%s: can't open file %s\n"), program_name, list->name);
-	  maybequit();
-	}
-	else 
-	{
-	  *prev = abfd;
-	}
-      }
-
-    list = list->next;
-    }
-  }
-}
-
-/* And I added this one */
-void
-DEFUN_VOID(ar_list)
-{
-  if (!obfd) 
-  {
-    fprintf(stderr, _("%s: no open output archive\n"), program_name);
-    maybequit();
-  }
-  else {
-    bfd *abfd;
-    outfile = stdout;
-    verbose =1 ;
-    printf(_("Current open archive is %s\n"), bfd_get_filename (obfd));
-    for (abfd = obfd->archive_head;
-	 abfd != (bfd *)NULL;
-	 abfd = abfd->next) 
+  if (!obfd)
     {
-      ar_directory_doer (abfd, (bfd *) NULL);
+      fprintf (stderr, _("%s: no open output archive\n"), program_name);
+      maybequit ();
     }
-  }
+  else
+    {
+      while (list)
+	{
+	  bfd *abfd = bfd_openr (list->name, NULL);
+
+	  if (!abfd)
+	    {
+	      fprintf (stderr, _("%s: can't open file %s\n"),
+		       program_name, list->name);
+	      maybequit ();
+	    }
+	  else
+	    {
+	      abfd->next = obfd->archive_head;
+	      obfd->archive_head = abfd;
+	    }
+	  list = list->next;
+	}
+    }
 }
 
 
-void 
-DEFUN_VOID(ar_end)
+void
+ar_clear ()
 {
   if (obfd)
-  {
-    fclose((FILE *)(obfd->iostream));
-    unlink(bfd_get_filename (obfd));
-  }
+    obfd->archive_head = 0;
 }
+
 void
-DEFUN(ar_extract,(list),
-      struct list *list)
+ar_delete (list)
+     struct list *list;
 {
-  if (!obfd) 
-  {
-
-    fprintf(stderr, _("%s: no open  archive\n"), program_name);
-    maybequit();
-  }
-  else 
-  {
-    while (list) {
-      /* Find this name in the archive */
-      bfd *member = obfd->archive_head;
-      int found = 0;
-      while (member && !found) 
-      {
-	if (FILENAME_CMP(member->filename, list->name) == 0) 
-	{
-	  extract_file(member);
-	  found = 1;
-	  }
-
-	member = member->next;
-      }
-      if (!found)  {
-	bfd_openr(list->name, 0);
-	fprintf(stderr,_("%s: can't find module file %s\n"), program_name,
-		list->name);
-
-      }
-      list = list->next;
+  if (!obfd)
+    {
+      fprintf (stderr, _("%s: no open output archive\n"), program_name);
+      maybequit ();
     }
-  }
+  else
+    {
+      while (list)
+	{
+	  /* Find this name in the archive.  */
+	  bfd *member = obfd->archive_head;
+	  bfd **prev = &(obfd->archive_head);
+	  int found = 0;
+
+	  while (member)
+	    {
+	      if (FILENAME_CMP(member->filename, list->name) == 0)
+		{
+		  *prev = member->next;
+		  found = 1;
+		}
+	      else
+		prev = &(member->next);
+
+	      member = member->next;
+	    }
+
+	  if (!found)
+	    {
+	      fprintf (stderr, _("%s: can't find module file %s\n"),
+		       program_name, list->name);
+	      maybequit ();
+	    }
+
+	  list = list->next;
+	}
+    }
+}
+
+void
+ar_save ()
+{
+  if (!obfd)
+    {
+      fprintf (stderr, _("%s: no open output archive\n"), program_name);
+      maybequit ();
+    }
+  else
+    {
+      char *ofilename = xstrdup (bfd_get_filename (obfd));
+
+      bfd_close (obfd);
+
+      rename (ofilename, real_name);
+      obfd = 0;
+      free (ofilename);
+    }
+}
+
+void
+ar_replace (list)
+     struct list *list;
+{
+  if (!obfd)
+    {
+      fprintf (stderr, _("%s: no open output archive\n"), program_name);
+      maybequit ();
+    }
+  else
+    {
+      while (list)
+	{
+	  /* Find this name in the archive.  */
+	  bfd *member = obfd->archive_head;
+	  bfd **prev = &(obfd->archive_head);
+	  int found = 0;
+
+	  while (member)
+	    {
+	      if (FILENAME_CMP (member->filename, list->name) == 0)
+		{
+		  /* Found the one to replace.  */
+		  bfd *abfd = bfd_openr (list->name, 0);
+
+		  if (!abfd)
+		    {
+		      fprintf (stderr, _("%s: can't open file %s\n"),
+			       program_name, list->name);
+		      maybequit ();
+		    }
+		  else
+		    {
+		      *prev = abfd;
+		      abfd->next = member->next;
+		      found = 1;
+		    }
+		}
+	      else
+		{
+		  prev = &(member->next);
+		}
+	      member = member->next;
+	    }
+
+	  if (!found)
+	    {
+	      bfd *abfd = bfd_openr (list->name, 0);
+
+	      fprintf (stderr,_("%s: can't find module file %s\n"),
+		       program_name, list->name);
+	      if (!abfd)
+		{
+		  fprintf (stderr, _("%s: can't open file %s\n"),
+			   program_name, list->name);
+		  maybequit ();
+		}
+	      else
+		*prev = abfd;
+	    }
+
+	  list = list->next;
+	}
+    }
+}
+
+/* And I added this one.  */
+void
+ar_list ()
+{
+  if (!obfd)
+    {
+      fprintf (stderr, _("%s: no open output archive\n"), program_name);
+      maybequit ();
+    }
+  else
+    {
+      bfd *abfd;
+
+      outfile = stdout;
+      verbose =1 ;
+      printf (_("Current open archive is %s\n"), bfd_get_filename (obfd));
+
+      for (abfd = obfd->archive_head;
+	   abfd != (bfd *)NULL;
+	   abfd = abfd->next)
+	ar_directory_doer (abfd, (bfd *) NULL);
+    }
+}
+
+void
+ar_end ()
+{
+  if (obfd)
+    {
+      fclose ((FILE *)(obfd->iostream));
+      unlink (bfd_get_filename (obfd));
+    }
+}
+
+void
+ar_extract (list)
+     struct list *list;
+{
+  if (!obfd)
+    {
+      fprintf (stderr, _("%s: no open archive\n"), program_name);
+      maybequit ();
+    }
+  else
+    {
+      while (list)
+	{
+	  /* Find this name in the archive.  */
+	  bfd *member = obfd->archive_head;
+	  int found = 0;
+
+	  while (member && !found)
+	    {
+	      if (FILENAME_CMP (member->filename, list->name) == 0)
+		{
+		  extract_file (member);
+		  found = 1;
+		}
+
+	      member = member->next;
+	    }
+
+	  if (!found)
+	    {
+	      bfd_openr (list->name, 0);
+	      fprintf (stderr, _("%s: can't find module file %s\n"),
+		       program_name, list->name);
+	    }
+
+	  list = list->next;
+	}
+    }
 }

@@ -1,5 +1,5 @@
 /* IBM RS/6000 "XCOFF64" file definitions for BFD.
-   Copyright (C) 2000 Free Software Foundation, Inc.  
+   Copyright (C) 2000, 2002 Free Software Foundation, Inc.  
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,40 +13,39 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
-*/
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /********************** FILE HEADER **********************/
 
-struct external_filehdr {
-	char f_magic[2];	/* magic number			*/
-	char f_nscns[2];	/* number of sections		*/
-	char f_timdat[4];	/* time & date stamp		*/
-	char f_symptr[8];/* file pointer to symtab 	*/
-	char f_opthdr[2];	/* sizeof(optional hdr)		*/
-	char f_flags[2];	/* flags			*/
-	char f_nsyms[4];	/* number of symtab entries	*/
+struct external_filehdr
+{
+  char f_magic[2];	/* magic number			*/
+  char f_nscns[2];	/* number of sections		*/
+  char f_timdat[4];	/* time & date stamp		*/
+  char f_symptr[8];	/* file pointer to symtab 	*/
+  char f_opthdr[2];	/* sizeof(optional hdr)		*/
+  char f_flags[2];	/* flags			*/
+  char f_nsyms[4];	/* number of symtab entries	*/
 };
 
-        /* IBM RS/6000 */
-#define U803XTOCMAGIC 0757	/* readonly text segments and TOC, XCOFF64 */
-
-#define BADMAG(x) ((x).f_magic != U803XTOCMAGIC)
+/* IBM RS/6000.  */
+#define U803XTOCMAGIC 0757	/* Aix 4.3 64-bit XCOFF */
+#define	U64_TOCMAGIC  0767	/* AIX 5+ 64-bit XCOFF */
+#define BADMAG(x) ((x).f_magic != U803XTOCMAGIC && (x).f_magic != U64_TOCMAGIC)
 
 #define	FILHDR	struct external_filehdr
 #define	FILHSZ	24
 
 /********************** AOUT "OPTIONAL HEADER" **********************/
 
-
 typedef struct 
 {
   unsigned char	magic[2];		/* type of file			*/
   unsigned char	vstamp[2];		/* version stamp		*/
   unsigned char	o_debugger[4];		/* reserved 			*/
-  unsigned char	text_start[8];	/* base of text used for this file */
-  unsigned char	data_start[8];	/* base of data used for this file */
-  unsigned char	o_toc[8];	/* address of TOC */
+  unsigned char	text_start[8];		/* base of text used for this file */
+  unsigned char	data_start[8];		/* base of data used for this file */
+  unsigned char	o_toc[8];		/* address of TOC */
   unsigned char	o_snentry[2];		/* section number of entry point */
   unsigned char	o_sntext[2];		/* section number of .text section */
   unsigned char	o_sndata[2];		/* section number of .data section */
@@ -62,8 +61,8 @@ typedef struct
   unsigned char	dsize[8];		/* initialized data "  "	*/
   unsigned char	bsize[8];		/* uninitialized data "   "	*/
   unsigned char	entry[8];		/* entry pt.			*/
-  unsigned char	o_maxstack[8];	/* max stack size (??) 		*/
-  unsigned char o_maxdata[8];	/* max data size (??) 		*/
+  unsigned char	o_maxstack[8];		/* max stack size (??) 		*/
+  unsigned char o_maxdata[8];		/* max data size (??) 		*/
   unsigned char	o_resv3[16];		/* reserved 			*/
 }
 AOUTHDR;
@@ -74,21 +73,20 @@ AOUTHDR;
 
 /********************** SECTION HEADER **********************/
 
-
-struct external_scnhdr {
-	char	s_name[8];		/* section name			*/
-	char	s_paddr[8];	/* physical address, aliased s_nlib */
-	char	s_vaddr[8];	/* virtual address		*/
-	char	s_size[8];	/* section size			*/
-	char	s_scnptr[8];	/* file ptr to raw data for section */
-	char	s_relptr[8];	/* file ptr to relocation	*/
-	char	s_lnnoptr[8];	/* file ptr to line numbers	*/
-	char	s_nreloc[4];	/* number of relocation entries	*/
-	char	s_nlnno[4];	/* number of line number entries*/
-	char	s_flags[4];		/* flags			*/
-	char    s_pad[4];		/* padding */  
+struct external_scnhdr
+{
+  char	s_name[8];	/* section name			*/
+  char	s_paddr[8];	/* physical address, aliased s_nlib */
+  char	s_vaddr[8];	/* virtual address		*/
+  char	s_size[8];	/* section size			*/
+  char	s_scnptr[8];	/* file ptr to raw data for section */
+  char	s_relptr[8];	/* file ptr to relocation	*/
+  char	s_lnnoptr[8];	/* file ptr to line numbers	*/
+  char	s_nreloc[4];	/* number of relocation entries	*/
+  char	s_nlnno[4];	/* number of line number entries*/
+  char	s_flags[4];	/* flags			*/
+  char  s_pad[4];	/* padding */  
 };
-
 
 #define	SCNHDR	struct external_scnhdr
 
@@ -97,23 +95,24 @@ struct external_scnhdr {
 /********************** LINE NUMBERS **********************/
 
 /* 1 line number entry for every "breakpointable" source line in a section.
- * Line numbers are grouped on a per function basis; first entry in a function
- * grouping will have l_lnno = 0 and in place of physical address will be the
- * symbol table index of the function name.
- */
-struct external_lineno {
-	union {
-		char l_symndx[4];/* function name symbol index, iff l_lnno == 0*/
-		char l_paddr[8];	/* (physical) address of line number	*/
-	} l_addr;
-	char l_lnno[4];		/* line number		*/
-};
+   Line numbers are grouped on a per function basis; first entry in a function
+   grouping will have l_lnno = 0 and in place of physical address will be the
+   symbol table index of the function name.  */
 
+struct external_lineno
+{
+  union
+  {
+    char l_symndx[4];	/* function name symbol index, iff l_lnno == 0*/
+    char l_paddr[8];	/* (physical) address of line number	*/
+  } l_addr;
+
+  char l_lnno[4];	/* line number		*/
+};
 
 #define	LINENO	struct external_lineno
 
 #define	LINESZ	12
-
 
 /********************** SYMBOLS **********************/
 
@@ -131,16 +130,13 @@ struct external_syment
   char e_numaux[1];
 };
 
-
-
 #define N_BTMASK	(017)
 #define N_TMASK		(060)
 #define N_BTSHFT	(4)
 #define N_TSHIFT	(2)
-  
 
-union external_auxent {
-
+union external_auxent
+{
     struct {
     	union {
 	    struct {
@@ -196,25 +192,22 @@ union external_auxent {
 #define DBXMASK 0x80		/* for dbx storage mask */
 #define SYMNAME_IN_DEBUG(symptr) ((symptr)->n_sclass & DBXMASK)
 
-/* Values for auxtype field in XCOFF64, taken from AIX 4.3 sym.h */
+/* Values for auxtype field in XCOFF64, taken from AIX 4.3 sym.h.  */
 #define _AUX_EXCEPT     255
 #define _AUX_FCN        254
 #define _AUX_SYM        253
 #define _AUX_FILE       252
 #define _AUX_CSECT      251
 
-
-
 /********************** RELOCATION DIRECTIVES **********************/
 
-
-struct external_reloc {
+struct external_reloc
+{
   char r_vaddr[8];
   char r_symndx[4];
   char r_size[1];
   char r_type[1];
 };
-
 
 #define RELOC struct external_reloc
 #define RELSZ 14

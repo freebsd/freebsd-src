@@ -40,13 +40,13 @@
    flag_m68k_mri, because the two flags will be affected by the .mri
    pseudo-op at different times.  */
 static int scrub_m68k_mri;
-#else
-#define scrub_m68k_mri 0
-#endif
 
 /* The pseudo-op which switches in and out of MRI mode.  See the
    comment in do_scrub_chars.  */
 static const char mri_pseudo[] = ".mri 0";
+#else
+#define scrub_m68k_mri 0
+#endif
 
 #if defined TC_ARM && defined OBJ_ELF
 /* The pseudo-op for which we need to special-case `@' characters.
@@ -424,13 +424,13 @@ do_scrub_chars (get, tostart, tolen)
      I don't want to make such a significant change to the assembler's
      memory usage.  */
 
-#define PUT(pch)			\
-  do					\
-    {					\
-      *to++ = (pch);			\
-      if (to >= toend)			\
-        goto tofull;			\
-    }					\
+#define PUT(pch)				\
+  do						\
+    {						\
+      *to++ = (pch);				\
+      if (to >= toend)				\
+	goto tofull;				\
+    }						\
   while (0)
 
   if (saved_input != NULL)
