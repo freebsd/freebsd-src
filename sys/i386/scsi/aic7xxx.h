@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.27 1996/05/10 16:21:05 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.28 1996/05/30 07:19:59 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -90,14 +90,14 @@
 				 */
 
 
-typedef unsigned long int physaddr;
+typedef u_int32_t physaddr;
 #if defined(__FreeBSD__)
 extern u_long ahc_unit;
 #endif
 
 struct ahc_dma_seg {
-        physaddr addr;
-            long len;
+	physaddr	addr;
+	u_int32_t	len;
 };
 
 typedef enum {
@@ -113,6 +113,7 @@ typedef enum {
 	AHC_AIC78X0	= 0x060,	/* PCI Based Controller */
 	AHC_274		= 0x110,	/* EISA Based Controller */
 	AHC_284		= 0x210,	/* VL/ISA Based Controller */
+	AHC_294AU	= 0x421,	/* aic7860 based '2940' */
 	AHC_294		= 0x440,	/* PCI Based Controller */
 	AHC_294U	= 0x441,	/* ULTRA PCI Based Controller */
 	AHC_394		= 0x840,	/* Twin Channel PCI Controller */
@@ -143,18 +144,20 @@ typedef enum {
 }ahc_flag;
 
 typedef enum {
-	SCB_FREE		= 0x000,
-	SCB_ACTIVE		= 0x001,
-	SCB_ABORTED		= 0x002,
-	SCB_DEVICE_RESET	= 0x004,
-	SCB_IMMED		= 0x008,
-	SCB_SENSE		= 0x010,
-	SCB_TIMEDOUT		= 0x020,
-	SCB_QUEUED_FOR_DONE	= 0x040,
-	SCB_PAGED_OUT		= 0x080,
-	SCB_WAITINGQ		= 0x100,
-	SCB_ASSIGNEDQ		= 0x200,
-	SCB_SENTORDEREDTAG	= 0x400
+	SCB_FREE		= 0x0000,
+	SCB_ACTIVE		= 0x0001,
+	SCB_ABORTED		= 0x0002,
+	SCB_DEVICE_RESET	= 0x0004,
+	SCB_IMMED		= 0x0008,
+	SCB_SENSE		= 0x0010,
+	SCB_TIMEDOUT		= 0x0020,
+	SCB_QUEUED_FOR_DONE	= 0x0040,
+	SCB_PAGED_OUT		= 0x0080,
+	SCB_WAITINGQ		= 0x0100,
+	SCB_ASSIGNEDQ		= 0x0200,
+	SCB_SENTORDEREDTAG	= 0x0400,
+	SCB_MSGOUT_SDTR		= 0x0800,
+	SCB_MSGOUT_WDTR		= 0x1000
 }scb_flag;
 
 /*
@@ -173,7 +176,7 @@ struct scb {
 /*8*/	u_char residual_SG_segment_count;
 /*9*/	u_char residual_data_count[3];
 /*12*/	physaddr data;
-/*16*/  u_long datalen;			/* Really only three bits, but its
+/*16*/  u_int32_t datalen;		/* Really only three bits, but its
 					 * faster to treat it as a long on
 					 * a quad boundary.
 					 */
