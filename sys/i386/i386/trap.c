@@ -645,7 +645,7 @@ trap(frame)
 	if (*p->p_sysent->sv_transtrap)
 		i = (*p->p_sysent->sv_transtrap)(i, type);
 
-	trapsignal(p, i, ucode);
+	trapsignal(td, i, ucode);
 
 #ifdef DEBUG
 	if (type <= MAX_TRAP_MSG) {
@@ -1071,7 +1071,7 @@ syscall(frame)
 	 */
 	if ((orig_tf_eflags & PSL_T) && !(orig_tf_eflags & PSL_VM)) {
 		frame.tf_eflags &= ~PSL_T;
-		trapsignal(p, SIGTRAP, 0);
+		trapsignal(td, SIGTRAP, 0);
 	}
 
 	/*
