@@ -1,11 +1,18 @@
-For a normal CDROM or network installation, all you need to copy onto an
-actual floppy from this directory is the boot.flp image (for 1.44MB floppies).
+For a normal CDROM or network installation, all you need to copy onto
+an actual floppy from this directory is the boot.flp image (for 1.44MB
+floppies).
 
-NOTE: These images are NOT DOS files!  You cannot simply copy them to
-a DOS floppy as regular files, you need to *image* copy them to the
-floppy with fdimage.exe under DOS or `dd' under UNIX.
+IMPORTANT NOTE: These images are NOT DOS files!  You cannot simply
+copy them to a DOS floppy as regular files, you need to *image* copy
+them to the floppy with fdimage.exe under DOS or `dd' under UNIX.  You
+also must be sure to transfer them in BINARY mode when using FTP since
+ASCII mode will destroy the contents, as will certain web browsers.
+If the length of the floppy image is not exactly 1474560 bytes in your
+copy then it has been corrupted in transit and must be re-fetched.
 
-For example:
+
+CREATING A FLOPPY FROM AN IMAGE FILE:
+-------------------------------------
 
 To create the boot floppy image from DOS, you'd do something like
 this:

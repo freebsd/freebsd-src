@@ -1,4 +1,5 @@
-o About FreeBSD:
+About FreeBSD:
+--------------
 
 What is FreeBSD?  FreeBSD is an operating system based on 4.4 BSD Lite
 for Intel, AMD, Cyrix or NexGen "x86" based PC hardware.  It works
@@ -35,7 +36,6 @@ documentation sets for FreeBSD.  You can also use the browser to visit
 other WEB sites on the net (such as http://www.freebsd.org) if you
 have an Internet connection.
 
-
 DISCLAIMER: While FreeBSD does its best to safeguard against
 accidental loss of data, it's still more than possible to WIPE OUT
 YOUR ENTIRE DISK with this installation!  Please do not proceed to the
@@ -43,7 +43,8 @@ final FreeBSD installation menu unless you've adequately backed up any
 important data first!  We really mean it!
 
 
-o E-mail addresses and tech support info:
+E-mail addresses and tech support info:
+---------------------------------------
 
 For general questions, please send email to :
 
@@ -75,76 +76,88 @@ these two methods, you may also send mail to:
 PLEASE ALSO BE SURE TO INDICATE WHICH VERSION OF FREEBSD YOU'RE
 RUNNING IN ANY BUG REPORTS OR QUESTIONS!
 
-Sorry for the caps, but you'd be amazed at how many times people
-forget this and there are many different release versions of FreeBSD
-out there now.  It's imperative that we know what you're running so
-that we tell if you're suffering from a bug which has already been
-fixed.
+Sorry for the use of caps, but you'd be amazed at how many times
+people forget this and there are many different release versions of
+FreeBSD out there now.  It's imperative that we know what you're
+running so that we tell if you're suffering from a bug which has
+already been fixed.
 
 
-o WWW Resources:
+WWW Resources:
+--------------
 
 Our WEB site, http://www.freebsd.org, is also a very good source for
 updated information and provides a number of advanced documentation
 searching facilities.  If you wish to use Netscape as your browser,
-you may install the BSDI version from ftp://ftp.mcom.com or simply
-type:
-
-        # cd /usr/ports/www/netscape3
-        # make all install
-
-If you have the Ports collection installed on your machine.
-
+simply select it from the packages menu during installation or run
+"/stand/sysinstall configPackages" after the system is up.
 
 Several other non-commercial browsers are also available in
-/usr/ports/net and may be compiled and installed in the same fashion.
-Many are also available as pre-compiled packages - see the Packages
-entry in the Configuration menu for more details.
+the ports & package collection under the www category.
 
 The Handbook and FAQ are also available as on-line documents in
 /usr/share/doc and can be read using the ``file:/usr/share/doc''
-syntax in any HTML capable browser.
+syntax with any HTML capable browser.
 
 
-o Distributions:
+Distribution format:
+--------------------
 
-A typical FreeBSD distribution directory looks like this:
+A typical FreeBSD distribution directory looks something like this:
 
 ABOUT.TXT       bin             dict            manpages        tools
 HARDWARE.TXT    compat1x        des		doc             packages
 INSTALL.TXT     compat20        floppies        ports
 README.TXT      compat21        games           proflibs
 RELNOTES.TXT    info            src
-XF86331
+XF86332
 
 If you want to do a CDROM, FTP or NFS installation from this
 distribution directory, all you need to do is make a 1.44Mb floppy
 from the floppies/boot.flp image file (see floppies/README.TXT for
 instructions on how to do this), boot it and follow the instructions.
 
-If you're trying to do some other type of installation, or are just
-curious about how the distribution is organized in general, what
-follows is a more thorough description of each item in more detail:
+If you're trying to do some other type of installation or are merely
+curious about how a distribution is organized, what follows is a more
+thorough description of each item in more detail:
 
-The *.TXT files obviously contain documentation (ABOUT.TXT being what
-you're reading now).
+1. The *.TXT files obviously contain documentation (ABOUT.TXT being what
+   you're reading now) and should be read before doing an installation.
 
-The XF86331 directory contains the XFree86 project's 3.3.1 release and
-consists of a series of gzip'd tar files which contain each component
-of the XFree86 distribution.
+2. The XF86332 directory contains the XFree86 project's 3.3.2 release and
+   consists of a series of gzip'd tar files which contain each component
+   of the XFree86 distribution.
 
-The bin, dict, des, doc, games, info, manpages, proflibs, and src
-directories contain the primary distribution components of FreeBSD
-itself and are split into smaller files for easy packing onto floppies
-(should that be necessary).
+3. The bin, dict, des, doc, games, info, manpages, proflibs, and src
+   directories contain the primary distribution components of FreeBSD
+   itself and are split into smaller files for easy packing onto floppies
+   (should that be necessary).
 
-The compat1x, compat20 and compat21 directories contain distributions
-for compatibility with older releases and are distributed as single
-gzip'd tar files - they can be installed during release time or later
-by running their `install.sh' scripts.
+4. The compat1x, compat20 and compat21 directories contain distributions
+   for compatibility with older releases and are distributed as single
+   gzip'd tar files - they can be installed during release time or later
+   by running their `install.sh' scripts.
+
+5. The floppies subdirectory also contains the floppy installation images
+   and the floppies/README.TXT file should be read for further
+   information on using them.
+
+6. The packages and ports directories contain the FreeBSD packages and
+   ports collections.  Packages may be installed from the packages
+   directory by running the command: ``/stand/sysinstall configPackages''
+   or by feeding individual filenames in packages/ to the pkg_add(1) command.
+
+   The ports collection may be installed like any other distribution
+   and requires about 15MB unpacked.  More information on the ports collection
+   may be obtained from http://www.freebsd.org/ports or locally from
+   file:/usr/share/doc/handbook if you've installed the doc distribution.
+
+7. Last of all, the tools directory contains various DOS tools for
+   discovering disk geometries, installing boot managers and the like.
+   It is purely optional and provided only for user convenience.
 
 A typical distribution (we'll use the info distribution as an example)
-looks like this:
+looks like this internally:
 
 CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
 info.aa         info.ac         info.ae         info.mtree
@@ -183,20 +196,3 @@ And that's all there is to it!  Each distribution contains its own
 install.sh file for this.
 
 
-The floppies subdirectory contains the floppy installation images and
-the floppies/README.TXT file should be read for further information
-on them.
-
-The packages and ports directories contain the FreeBSD packages and
-ports collections.   Packages may be installed from the packages directory
-by running the /stand/sysinstall utility with the argument ``configPackages''
-or by feeding the individual filenames to the pkg_add(1) command.
-
-The ports collection may be installed like any other distribution
-and requires about 15MB unpacked.  More information on the ports collection
-may be obtained from http://www.freebsd.org/ports or locally from
-file:/usr/share/doc/handbook if you've installed the doc distribution.
-
-Last of all, the tools directory contains various DOS tools for
-discovering disk geometries, installing boot managers and the like.
-It is purely optional and provided only for user convenience.
