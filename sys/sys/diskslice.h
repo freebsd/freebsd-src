@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: diskslice.h,v 1.20 1997/02/22 09:45:06 peter Exp $
  */
 
 #ifndef	_SYS_DISKSLICE_H_
@@ -72,9 +72,9 @@ struct	diskslice {
 
 #else
 /* switch table for slice handlers (sample only) */
-struct	slice_switch (
+struct	slice_switch {
 	int	(*slice_load)();
-	int	(*slice_check();
+	int	(*slice_check)();
 	int	(*slice_gone)();
 	/*
 	 * etc.
