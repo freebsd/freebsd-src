@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.92 1998/03/07 21:36:54 dyson Exp $
+ * $Id: swap_pager.c,v 1.93 1998/04/15 17:47:35 bde Exp $
  */
 
 /*
@@ -631,12 +631,13 @@ rfinished:
  */
 
 void
-swap_pager_copy(srcobject, srcoffset, dstobject, dstoffset, offset)
+swap_pager_copy(srcobject, srcoffset, dstobject, dstoffset, offset, destroysource)
 	vm_object_t srcobject;
 	vm_pindex_t srcoffset;
 	vm_object_t dstobject;
 	vm_pindex_t dstoffset;
 	vm_pindex_t offset;
+	int destroysource;
 {
 	vm_pindex_t i;
 	int origsize;
@@ -722,16 +723,17 @@ swap_pager_copy(srcobject, srcoffset, dstobject, dstoffset, offset)
 	/*
 	 * Free left over swap blocks
 	 */
-	swap_pager_free_swap(srcobject);
+	if (destroysource) {
+		swap_pager_free_swap(srcobject);
 
-	if (srcobject->un_pager.swp.swp_allocsize) {
-		printf("swap_pager_copy: *warning* pager with %d blocks (orig: %d)\n",
-		    srcobject->un_pager.swp.swp_allocsize, origsize);
+		if (srcobject->un_pager.swp.swp_allocsize) {
+			printf("swap_pager_copy: *warning* pager with %d blocks (orig: %d)\n",
+			    srcobject->un_pager.swp.swp_allocsize, origsize);
+		}
+
+		free(srcobject->un_pager.swp.swp_blocks, M_VMPGDATA);
+		srcobject->un_pager.swp.swp_blocks = NULL;
 	}
-
-	free(srcobject->un_pager.swp.swp_blocks, M_VMPGDATA);
-	srcobject->un_pager.swp.swp_blocks = NULL;
-
 	return;
 }
 
