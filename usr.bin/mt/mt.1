@@ -64,6 +64,10 @@ need be specified.
 Write
 .Ar count
 end-of-file marks at the current position on the tape.
+.It Cm smk
+Write
+.Ar count
+setmarks at the current position on the tape.
 .It Cm fsf
 Forward space
 .Ar count
@@ -72,14 +76,35 @@ files.
 Forward space
 .Ar count
 records.
+.It Cm fss
+Forward space
+.Ar count
+setmarks.
 .It Cm bsf
-Back space
+Backward space
 .Ar count
 files.
 .It Cm bsr
-Back space
+Backward space
 .Ar count
 records.
+.It Cm bss
+Backward space
+.Ar count
+setmarks.
+.It Cm rdhpos
+Read Hardware block position. Some drives do not support this. The block
+number reported is specific for that hardware only. The count argument is
+ignored
+.It Cm rdspos
+Read SCSI logical block position. Some drives do not support this. The
+count argument is ignored.
+.It Cm sethpos
+Set Hardware block position. Some drives do not support this. The count
+argument is interpreted as a hardware block to position to.
+.It Cm setspos
+Set SCSI logical block position. Some drives do not support this. The count
+argument is interpreted as a hardware block to position to.
 .It Cm rewind
 Rewind the tape
 (Count is ignored).
@@ -93,7 +118,20 @@ A count of 0 disables long erase, which is on by default.
 Re-tension the tape
 (one full wind forth and back, Count is ignored).
 .It Cm status
-Print status information about the tape unit.
+Print status information about the tape unit. For SCSI magnetic tape devices,
+the current operating modes of density, blocksize, and whether compression
+is enabled is reported. The current state of the driver (what it thinks that
+it is doing with the device) is reported. If the driver knows the relative
+position from BOT (in terms of filemarks and records), it prints that. Note
+that this information is not definitive (only BOT, End of Recorded Media, and
+hardware or SCSI logical block position (if the drive supports such) are
+considered definitive tape positions.
+.It Cm errstat
+Print (and clear) error status information about this device. For every normal
+operation (e.g., a read or a write) and every control operation (e.g,, a
+rewind), the driver stores up the last command executed and it's associated
+status and any residual counts (if any). This command retrieves and prints this
+information. If possible, this also clears any latched error information.
 .It Cm blocksize
 Set the block size for the tape unit.  Zero means variable-length
 blocks.
@@ -254,7 +292,7 @@ SCSI magnetic tape interface
 .Xr dd 1 ,
 .Xr ioctl 2 ,
 .Xr mtio 4 ,
-.Xr st 4 ,
+.Xr sa 4 ,
 .Xr wt 4 ,
 .Xr environ 7
 .Sh HISTORY
