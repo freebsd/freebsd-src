@@ -6056,6 +6056,25 @@ President:	"Hah!! The computer is wrong. My father died over twenty
 Computer:	Your mother's husband died 22 years ago. Your father just
 		landed a twelve pound bass.
 %
+A computer science student and a practical hacker are discussing problems
+the computer science student has run in to.
+
+CS Student:	I have this singularly linked tail-queued list and I'm trying
+		to make it O(1) to go backwards an item, instead of O(n)...
+		What's the best way to go about that?  Should I just use a
+		cached hash of each item and put it into a sorted lookup
+		table, and cache the hash of the last item in the current
+		queue entry and then go to its place in the hash table and
+		get the pointer value from there?
+Hacker:		No, you should add an item to the structure named 'prev' and
+		make it point to the previous item.
+CS Student:	But we already have a structure element with that identifier
+		and structure elements must have unique names within that
+		scope!
+Hacker:		So call it 'previous'.
+
+And then the CS Student was enlightened. 
+%
 A computer scientist is someone who fixes things that aren't broken.
 %
 A computer without COBOL and Fortran is like a piece of chocolate
