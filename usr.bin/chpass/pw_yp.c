@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.c,v 1.2 1995/09/02 03:56:19 wpaul Exp $
+ *	$Id: pw_yp.c,v 1.1.2.1 1995/10/06 00:58:50 davidg Exp $
  */
 
 #ifdef YP
@@ -85,10 +85,12 @@ char *p;
 int x, m;
 {
 	register char *t, *s = p;
+	static char *buf;
 
 	yp_password.pw_fields = 0;
 
-	t = (char *)malloc(m + 10);
+	buf = (char *)realloc(buf, m + 10);
+	bzero(buf, m + 10);
 
 	/* Turn all colons into NULLs */
 	while (strchr(s, ':')) {
@@ -96,6 +98,7 @@ int x, m;
 		*(s - 1)= '\0';
 	}
 
+	t = buf;
 #define EXPAND(e)       e = t; while (*t++ = *p++);
         EXPAND(yp_password.pw_name);
 	yp_password.pw_fields |= _PWF_NAME;
@@ -115,7 +118,7 @@ int x, m;
 		yp_password.pw_fields |= _PWF_CHANGE;
 		yp_password.pw_expire = atol(p);
 		p += (strlen(p) + 1);
-		yp_password.pw_expire |= _PWF_EXPIRE;
+		yp_password.pw_fields |= _PWF_EXPIRE;
 	}
         EXPAND(yp_password.pw_gecos);
 	yp_password.pw_fields |= _PWF_GECOS;
@@ -132,9 +135,12 @@ char *p;
 int m;
 {
 	register char *t;
+	static char *buf;
 
-	t = (char *)malloc(m + 10);
+	buf = (char *)realloc(buf, m + 10);
+	bzero(buf, m + 10);
 
+	t = buf;
         EXPAND(local_password.pw_name);
         EXPAND(local_password.pw_passwd);
         bcopy(p, (char *)&local_password.pw_uid, sizeof(int));
@@ -308,23 +314,26 @@ struct passwd *pw;
 	yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
 	yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
 	yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
+	yppasswd.oldpass = "";
 
 	/* Get NIS master server name */
 
 	master = get_yp_master();
 
+	if (pw->pw_passwd[0]) {
 	/* Get the user's password for authentication purposes. */
 
-	printf ("Changing NIS information for %s on %s\n",
+		printf ("Changing NIS information for %s on %s\n",
 					yppasswd.newpw.pw_name, master);
-	encpass = (getpwnam(yppasswd.newpw.pw_name))->pw_passwd;
-	password = getpass("Please enter password: ");
-	if (strncmp(crypt(password, encpass), encpass, strlen(encpass))) {
-		warnx("Password incorrect.");
-		pw_error(NULL, 0, 1);
-	}
+		encpass = pw->pw_passwd;
+		password = getpass("Please enter password: ");
+		if (strncmp(crypt(password, encpass), encpass, strlen(encpass))) {
+			warnx("Password incorrect.");
+			pw_error(NULL, 0, 1);
+		}
 
-	yppasswd.oldpass = password;	/* XXX */
+		yppasswd.oldpass = password;	/* XXX */
+	}
 
 	/* Create a handle to yppasswdd. */
 
@@ -349,7 +358,8 @@ struct passwd *pw;
 
 	auth_destroy(clnt->cl_auth);
 	clnt_destroy(clnt);
-	warnx("NIS information changed on host %s", master);
+	warnx("NIS information %schanged on host %s", status ? "not " : "",
+									master);
 
 	return;
 }

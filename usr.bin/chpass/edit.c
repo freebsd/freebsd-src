@@ -118,11 +118,19 @@ display(fd, pw)
 		    *pw->pw_shell ? pw->pw_shell : _PATH_BSHELL);
 	}
 	/* Only admin can change "restricted" shells. */
+#ifdef 0
 	else if (ok_shell(pw->pw_shell))
 		/*
 		 * Make shell a restricted field.  Ugly with a
 		 * necklace, but there's not much else to do.
 		 */
+#else
+	else if ((!list[E_SHELL].restricted && ok_shell(pw->pw_shell)) || !uid)
+		/*
+		 * If change not restrict (table.c) and standard shell
+		 *      OR if root, then allow editing of shell.
+		 */
+#endif
 		(void)fprintf(fp, "Shell: %s\n",
 		    *pw->pw_shell ? pw->pw_shell : _PATH_BSHELL);
 	else
