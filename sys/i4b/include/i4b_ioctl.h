@@ -97,9 +97,10 @@
 #define L1DRVR_IFPNP    4		/* ifpnp - driver	*/
 #define L1DRVR_ICCHP	5		/* icchp - driver	*/
 #define L1DRVR_ITJC     6		/* itjc - driver	*/
+#define L1DRVR_IFPI2    7		/* ifpi2 - driver	*/
 
 /* MAXL1DRVR MUST be updated when more passive drivers are added !!! */
-#define MAXL1DRVR       (L1DRVR_ITJC + 1)
+#define MAXL1DRVR       (L1DRVR_IFPI2 + 1)
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_PASSIVE 
@@ -137,6 +138,7 @@
 #define	CARD_TYPEP_NETJET_S	29	/* Traverse NetJet-S (Tiger300) */
 #define	CARD_TYPEP_DIVA_ISA	30	/* Eicon DIVA ISA PnP 2.0 or 2.02 */
 #define CARD_TYPEP_COMPAQ_M610	31	/* Compaq Microcom 610 		*/
+#define CARD_TYPEP_AVMA1PCI_V2	32	/* AVM FRITZ!CARD PCI Ver. 2	*/
 /*
  * in case you add support for more cards, please update:
  *
@@ -145,7 +147,7 @@
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		31	/* max type */
+#define CARD_TYPEP_MAX		32	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
