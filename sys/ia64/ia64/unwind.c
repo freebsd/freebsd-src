@@ -61,7 +61,7 @@ static void *
 unw_alloc(size_t sz)
 {
 
-	return (malloc(sz, M_UNWIND, M_WAITOK));
+	return (malloc(sz, M_UNWIND, M_NOWAIT));
 }
 
 static void
