@@ -27,8 +27,6 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id$
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -140,6 +138,7 @@ typedef struct bktr_softc {
     u_long	odd_fields_captured; /* number of odd fields captured */
     u_long	range_enable;	/* enable range checking ?? */
     u_short     capcontrol;     /* reg 0xdc capture control */
+    u_short     bktr_cap_ctl;
     unsigned	flags;
 #define	METEOR_INITALIZED	0x00000001
 #define	METEOR_OPEN		0x00000002 
