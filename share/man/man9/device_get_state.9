@@ -35,7 +35,8 @@
 .Nm device_get_state ,
 .Nm device_busy ,
 .Nm device_unbusy ,
-.Nm device_is_alive
+.Nm device_is_alive ,
+.Nm device_is_attached
 .Nd manipulate device state
 .Sh SYNOPSIS
 .In sys/param.h
@@ -48,6 +49,8 @@
 .Fn device_unbusy "device_t dev"
 .Ft int
 .Fn device_is_alive "device_t dev"
+.Ft int
+.Fn device_is_attached "device_t dev"
 .Sh DESCRIPTION
 The current state of a device is accessed by calling
 .Fn device_get_state
@@ -63,6 +66,10 @@ To test see if a device was successfully probed, call
 .Fn device_is_alive
 which simply returns if the state is greater or equal to
 .Dv DS_ALIVE .
+To test see if a device was successfully attached, call
+.Fn device_is_attached
+which simply returns if the state is greater or equal to
+.Dv DS_ATTACHED .
 .Pp
 Each device has a busy count which is incremented when
 .Fn device_busy
