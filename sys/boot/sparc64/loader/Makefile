@@ -58,7 +58,7 @@ CLEANFILES+=	vers.c loader.help
 
 LDFLAGS=	-static
 
-# Openfirmware standalone support library
+# Open Firmware standalone support library
 LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
 CFLAGS+=	-I${.CURDIR}/../../ofw/libofw/
 

@@ -42,8 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openpromio.h>
 
 /*
- * This provides a solaris compatible character device interface to
- * openfirmware.  It exists entirely for compatibility with software
+ * This provides a Solaris compatible character device interface to
+ * Open Firmware.  It exists entirely for compatibility with software
  * like X11, and only the features that are actually needed for that
  * are implemented.  The interface sucks too much to actually use,
  * new code should use the /dev/openfirm device.

@@ -26,7 +26,7 @@
  */
 
 /*
- * Some OpenFirmware helper functions that are likely machine dependent.
+ * Some Open Firmware helper functions that are likely machine dependent.
  */
 
 #include <sys/param.h>

@@ -432,7 +432,7 @@ static int
 dskread(void *buf, u_int64_t lba, int nblk)
 {
 	/*
-	 * The OpenFirmware should open the correct partition for us.
+	 * The Open Firmware should open the correct partition for us.
 	 * That means, if we read from offset zero on an open instance handle,
 	 * we should read from offset zero of that partition.
 	 */

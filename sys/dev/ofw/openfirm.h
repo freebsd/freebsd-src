@@ -61,7 +61,7 @@
 #define _OPENFIRM_H_
 
 /*
- * Prototypes for Openfirmware Interface Routines
+ * Prototypes for Open Firmware Interface Routines
  */
 
 typedef unsigned long cell_t;
@@ -77,13 +77,13 @@ typedef unsigned int	phandle_t;
 MALLOC_DECLARE(M_OFWPROP);
 
 /*
- * Stuff that is used by the OpenFirmware code.
+ * Stuff that is used by the Open Firmware code.
  */
 void	set_openfirm_callback(int (*)(void *));
 int	openfirmware(void *);
 
 /*
- * This isn't actually an OpenFirmware function, but it seemed like the right
+ * This isn't actually an Open Firmware function, but it seemed like the right
  * place for it to go.
  */
 void		OF_init(int (*openfirm)(void *));

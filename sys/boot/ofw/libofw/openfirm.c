@@ -862,7 +862,7 @@ OF_boot(char *bootspec)
 	for (;;);			/* just in case */
 }
 
-/* Suspend and drop back to the OpenFirmware interface. */
+/* Suspend and drop back to the Open Firmware interface. */
 void
 OF_enter()
 {
@@ -879,7 +879,7 @@ OF_enter()
 	openfirmware(&args);
 }
 
-/* Shut down and drop back to the OpenFirmware interface. */
+/* Shut down and drop back to the Open Firmware interface. */
 void
 OF_exit()
 {

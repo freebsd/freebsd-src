@@ -38,7 +38,7 @@
  */
 
 /*
- * Magic note section used by OpenFirmware.
+ * Magic note section used by Open Firmware.
  */
 
 	.section ".note"

@@ -243,7 +243,7 @@ macio_probe(device_t dev)
 }
 
 /*
- * PCI attach: scan OpenFirmware child nodes, and attach these as children
+ * PCI attach: scan Open Firmware child nodes, and attach these as children
  * of the macio bus
  */
 static int 

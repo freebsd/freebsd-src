@@ -32,7 +32,7 @@
  * This was superseded by an OpenPIC in the Keylargo and beyond 
  * MacIO versions.
  *
- *  The device is initially located in the OpenFirmware device tree
+ *  The device is initially located in the Open Firmware device tree
  * in the earliest stage of the nexus probe. However, no device registers
  * are touched until the actual h/w is probed later on during the
  * MacIO probe. At that point, any interrupt sources that were allocated 

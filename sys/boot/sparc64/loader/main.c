@@ -369,7 +369,7 @@ main(int (*openfirm)(void *))
 	phandle_t chosenh;
 
 	/*
-	 * Tell the OpenFirmware functions where they find the ofw gate.
+	 * Tell the Open Firmware functions where they find the ofw gate.
 	 */
 	OF_init(openfirm);
 

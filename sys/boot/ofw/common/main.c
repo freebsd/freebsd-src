@@ -102,7 +102,7 @@ main(int (*openfirm)(void *))
 	char		**bargv;
 
 	/*
-	 * Initalise the OpenFirmware routines by giving them the entry point.
+	 * Initalise the Open Firmware routines by giving them the entry point.
 	 */
 	OF_init(openfirm);
 
