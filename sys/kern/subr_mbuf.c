@@ -566,13 +566,12 @@ mb_pop_cont(struct mb_lstmngr *mb_list, int how, struct mb_pcpu_list *cnt_lst)
 		return (NULL);
 
 	bucket = malloc(sizeof(struct mb_bucket) +
-	    mb_list->ml_objbucks * sizeof(void *), M_MBUF,
-	    how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
+	    mb_list->ml_objbucks * sizeof(void *), M_MBUF, MBTOM(how));
 	if (bucket == NULL)
 		return (NULL);
 
 	p = (caddr_t)kmem_malloc(mb_list->ml_map, mb_list->ml_objsize * 
-	    mb_list->ml_objbucks, how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
+	    mb_list->ml_objbucks, MBTOM(how));
 	if (p == NULL) {
 		free(bucket, M_MBUF);
 		if (how == M_TRYWAIT)
