@@ -188,7 +188,7 @@ init_timer()
 	/*
 	 * Set up signal handler
 	 */
-	if ((int)signal(SIGALRM, timer_tick) == -1) {
+	if (signal(SIGALRM, timer_tick) == SIG_ERR) {
 		return(errno);
 	}
 
