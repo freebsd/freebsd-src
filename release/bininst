@@ -38,7 +38,9 @@ set_defaults() {
 	ifconfig_flags="" ;
 	remote_hostip="" ;
 	tmp_dir="/usr/tmp" ;
-	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist"
+	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist" ;
+	nfs_path="" ;
+	cdrom_path="" ;
 	installing=1 ;
 	mkdir -p ${TMP}
 	cp /stand/etc/* /etc
@@ -63,6 +65,11 @@ handle_rval() {
 # A simple user-confirmation dialog.
 confirm() {
 	dialog --title "Please Confirm" --msgbox "$*" 6 72
+}
+
+# A simple message box dialog.
+message() {
+	dialog --title "Progress" --infobox "$*" 5 72
 }
 
 # A simple error dialog.
@@ -103,8 +110,9 @@ choose_media() {
 --menu "Before we begin the installation, we need to chose and possibly \n\
 configure your method of installation.  Please pick from one of \n\
 the following options.  If your option isn't listed here, your \n\
-best bet may be to simply hit ESC twice to get a subshell and proceed \n\
-manually on your own.  If you are finished installing, select cancel.\n\n\
+best bet may be to simply hit ESC twice to get a subshell and \n\
+proceed manually on your own.  If you are finished installing, \n\
+select cancel.\n\n\
 	Please choose one of the following:" 20 72 5 \
 	"Tape" "Load installation from SCSI or QIC tape" \
 	"CDROM" "Load installation from SCSI or Mitsumi CDROM" \
@@ -182,8 +190,21 @@ and \"mget\" the files yourself.\n\n" \
 		rm -f ${TMP}/inputbox.tmp.$$
 	;;
 	NFS)
-		setup_network
-		not_supported
+		if ! setup_network; then continue; fi
+		dialog --title "NFS Installation Information" --clear \
+--inputbox "Please specify the machine and directory location of the
+distribution you wish to load.  This should be in machine:dir
+syntax (e.g. zooey:/a/FreeBSD/bindist).  The remote directory
+should also, of course, be exported!\n\n" \
+16 72 "$nfs_path" 2> ${TMP}/inputbox.tmp.$$
+		if ! handle_rval $?; then continue; fi
+		media_type=nfs
+		nfs_path=`cat ${TMP}/inputbox.tmp.$$`
+		if ! mount $nfs_path /mnt > /dev/ttyv1 2>&1; then
+			error "Unable to mount $nfs_path"
+		else
+			media_device=$nfs_path
+		fi
 	;;
 	esac
 	done
@@ -273,21 +294,21 @@ setup_network()
 {
 	done=0
 	while [ "$interface" = "" ]; do
-	dialog --clear --title "Set up network interface" \
-	--menu "Please select the type of network connection you have:\n\n" \
-	20 72 4 \
-	"ether" "A supported ethernet card" \
-	"SLIP" "A point-to-point SLIP (Serial Line IP) connection" \
-        "PPP" "A point-to-point protocol link" \
-        "PLIP" "A Parallel-Line IP setup (sort of like lap-link)" \
-        2> ${TMP}/menu.tmp.$$
+		dialog --clear --title "Set up network interface" \
+		--menu "Please select the type of network connection you have:\n\n" \
+		20 72 4 \
+		"ether" "A supported ethernet card" \
+		"SLIP" "A point-to-point SLIP (Serial Line IP) connection" \
+		"PPP" "A point-to-point protocol link" \
+		"PLIP" "A Parallel-Line IP setup (sort of like lap-link)" \
+		2> ${TMP}/menu.tmp.$$
 
-	retval=$?
-	choice=`cat ${TMP}/menu.tmp.$$`
-	rm -f ${TMP}/menu.tmp.$$
-	if ! handle_rval $retval; then return 1; fi
-	case $choice in
-	ether)
+		retval=$?
+		choice=`cat ${TMP}/menu.tmp.$$`
+		rm -f ${TMP}/menu.tmp.$$
+		if ! handle_rval $retval; then return 1; fi
+		case $choice in
+		ether)
 		if ! setup_network_ether; then continue; fi
 	;;
 
@@ -335,7 +356,7 @@ setup_network()
 		ifconfig_flags=$answer
 	fi
 	echo "Progress <$IFCONFIG $interface $ipaddr $remote_hostip netmask $netmask $ifconfig_flags>" >/dev/ttyv1
-	if ! $IFCONFIG $interface $ipaddr $remote_hostip netmask $netmask $ifconfig_flags 2>&1 > /dev/ttyv1 ; then
+	if ! $IFCONFIG $interface $ipaddr $remote_hostip netmask $netmask $ifconfig_flags > /dev/ttyv1 2>&1 ; then
 		error "Unable to configure interface $interface"
 		ipaddr=""; interface=""
 		continue
@@ -346,8 +367,8 @@ setup_network()
 	if network_dialog "If you have a default gateway, enter its IP address (otherwise cancel)"; then
 		if [ "$answer" != "" ]; then
 			gateway=$answer
-			echo "Progress <$ROUTE $ROUTE_FLAGS $gateway>" > /dev/ttyv1
-			$ROUTE $ROUTE_FLAGS $gateway 2>&1 > /dev/ttyv1
+			echo "Progress <$ROUTE $ROUTE_FLAGS $gateway>" > /dev/ttyv1 2>&1
+			$ROUTE $ROUTE_FLAGS $gateway > /dev/ttyv1 2>&1
 		fi
 	fi
 
@@ -361,6 +382,16 @@ setup_network()
 	done
 }
 
+extract_dist()
+{
+	if [ -f extract.sh ]; then
+		message "Extracting distribution"
+		sh ./extract.sh > /dev/ttyv1 2>&1
+	else    
+		error "Improper distribution.  No installation script found."  
+	fi
+}
+
 install_set()
 {
 	case $media_type in
@@ -370,16 +401,23 @@ install_set()
 		confirm "Please mount tape for ${media_device}."
 		dialog --title "Results of tape extract" --clear \
 			--prgbox "$TAR $TAR_FLAGS $media_device" 10 72
-		if [ -f extract.sh ]; then
-			sh ./extract.sh
-		else
-			error "This isn't a proper distribution.  No installation script found."
-		fi
+		extract_dist
 		rm_tmpdir
 	;;
 
 	cdrom)
-		not_supported
+		if ! mount $media_device /mnt > /dev/ttyv1 2>&1; then
+			error "Unable to mount $media_device on /mnt"
+		else
+			dialog --title "CDROM Information" --clear \
+			--inputbox "Directory on CD containing distribution" \
+			10 60 "$cdrom_path" 2> ${TMP}/inputbox.tmp.$$
+			if ! handle_rval $?; then return; fi
+			cdrom_path=`cat ${TMP}/inputbox.tmp.$$`
+			rm -f ${TMP}/inputbox.tmp.$$
+			cd /mnt/$cdrom_path
+			extract_dist
+		fi
 		return
 	;;
 
@@ -393,29 +431,27 @@ install_set()
 		if ! set_tmpdir; then return; fi
 		if ! cd_tmpdir; then return; fi
 		if ! echo $media_device | grep -v 'ftp://'; then
-			if ! ncftp $media_device/* 2>&1 > /dev/ttyv1; then
+			message "Fetching distribution using ncftp.  Use ALT-F2 to see output."
+			if ! ncftp $media_device/* > /dev/ttyv1 2>&1; then
 				error "Couldn't fetch distribution from ${media_device}!"
 			else
-				if [ -f extract.sh ]; then
-					sh ./extract.sh
-				else
-					error "This isn't a proper distribution.  No installation script found."
-				fi
+				extract_dist
 			fi
 		else
+			dialog --clear
 			ftp $media_device
-			if [ -f extract.sh ]; then
-				sh ./extract.sh
-			else
-				error "No installation script found.  Please grab the right bits."
-			fi
+			dialog --clear
+			extract_dist
 		fi
 		rm_tmpdir
 		return
 	;;
 
 	nfs)
-		not_supported
+		cd /mnt
+		extract_dist
+		cd /
+		umount /mnt > /dev/tty1 2>&1
 		return
 	;;
 	esac

@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.26 1994/11/08 11:29:35 jkh Exp $
+#	$Id: Makefile,v 1.27 1994/11/08 13:54:21 jkh Exp $
 #
 
-FDLABEL=	fd1440
+FDLABEL=	fd1200
 DDCOUNT=	80
 
 FLOPPY=		fd0
-DDBS=		18k
+DDBS=		15k
 MNT=		/mnt
 
 CPIO1= cat chmod cp date dd df echo ed expr hostname kill ln ls mkdir
