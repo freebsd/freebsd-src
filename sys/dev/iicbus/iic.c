@@ -106,7 +106,7 @@ static struct cdevsw iic_cdevsw = {
 static void
 iic_identify(driver_t *driver, device_t parent)
 {
-	BUS_ADD_CHILD(parent, 0, "iic", 0);
+	BUS_ADD_CHILD(parent, 0, "iic", -1);
 }
 
 static int
