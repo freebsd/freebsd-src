@@ -21,18 +21,21 @@ cgen/; cgen parts of opcodes/, sim/ & include/
 	May need separate opcodes/ or sim/ approval for
 		commits of regenerated files there.
 
-config.guess; config.sub
-	config: http://gnu.org
+config.guess; config.sub; dejagnu/config.guess;
+readline/support/config.sub; readline/support/config.guess
+	config: http://savannah.gnu.org/projects/config
 	Patches to config-patches@gnu.org.
 	Changes need to be done in tandem with the official CONFIG
 	sources or submitted to the master file maintainer and brought
 	in via a merge.
+	Please notify the following of any committed patches:
+		binutils@sources.redhat.com
+		gdb-patches@sources.redhat.com
 
 dejagnu/
 	Notify http://dejagnu.sourceforge.net/ of generic changes.
-	Generic patches to gdb-patches@sources.redhat.com &
-	sid@sources.redhat.com.
-	See also SID & GDB.
+	Generic patches to gdb-patches@sources.redhat.com;
+	Other dependents of dejagnu include sid@, binutils@, gcc@, etc.
 
 gdb/; mmalloc/; readline/; sim/; GDB's part of include/ & dejagnu/
 	gdb: http://sources.redhat.com/gdb/
@@ -46,7 +49,11 @@ libiberty/; libiberty's part of include/
 	gcc: http://gcc.gnu.org
 	Changes need to be done in tandem with the official GCC
 	sources or submitted to the master file maintainer and brought
-	in via a merge.
+	in via a merge.  Note: approved patches in gcc's libiberty
+	are automatically approved in this libiberty also; feel free
+	to merge them yourself if needed sooner than the next merge.
+	Otherwise, changes are automatically merged, usually within
+	a day.
 
 ltconfig; ltmain.sh
 	libtool: http://gnu.org
@@ -54,12 +61,16 @@ ltconfig; ltmain.sh
 	sources or submitted to the master file maintainer and brought
 	in via a merge.
 
-mkinstalldirs; move-if-change; symlink-tree
+mkinstalldirs; move-if-change
 	autoconf: http://gnu.org
 	Patches to autoconf-patches@gnu.org.
 	Changes need to be done in tandem with the official AUTOCONF
 	sources or submitted to the master file maintainer and brought
 	in via a merge.
+
+symlink-tree
+	gcc: http://gcc.gnu.org
+	See libiberty.
 
 newlib/; libgloss/
 	http://sources.redhat.com/newlib/
@@ -89,7 +100,7 @@ expect/; config-ml.in; mpw-README; mpw-build.in; mpw-config.in;
 mpw-configure; mpw-install; setup.com; missing; makefile.vms; utils/;
 config/; config.if; makefile.vms; missing; ylwrap; mkdep; etc/;
 install-sh; intl/
-	Ask.
+	Ask DJ Delorie <dj@redhat.com> after reading the libiberty entry.
 
 modules file
 	Obviously changes to this file should not go through

@@ -26,6 +26,57 @@ else
 fi
 AC_CONFIG_AUX_DIR($libiberty_topdir)
 
+dnl Very limited version of automake's enable-maintainer-mode
+
+AC_MSG_CHECKING([whether to enable maintainer-specific portions of Makefiles])
+  dnl maintainer-mode is disabled by default
+  AC_ARG_ENABLE(maintainer-mode,
+[  --enable-maintainer-mode
+                          enable make rules and dependencies not useful
+                          (and sometimes confusing) to the casual installer],
+      maintainer_mode=$enableval,
+      maintainer_mode=no)
+
+AC_MSG_RESULT($maintainer_mode)
+
+if test "$maintainer_mode" = "yes"; then
+  MAINT=''
+  NOTMAINT='#'
+else
+  MAINT='#'
+  NOTMAINT=''
+fi
+AC_SUBST(MAINT)dnl
+AC_SUBST(NOTMAINT)dnl
+
+# Do we have a single-tree copy of texinfo?  Even if we do, we can't
+# rely on it - libiberty is built before texinfo.
+AC_CHECK_PROG(MAKEINFO, makeinfo, makeinfo, )
+if test "x$MAKEINFO" = "x"; then
+    MAKEINFO="@echo makeinfo missing; true"
+    BUILD_INFO=
+else
+    BUILD_INFO=info
+    case x"`$MAKEINFO --version | grep 'GNU texinfo'`" in
+      x*\ [[1-3]].* )
+	MAKEINFO="@echo $MAKEINFO is too old, 4.0 or newer required; true"
+	BUILD_INFO=
+	AC_MSG_WARN([
+*** Makeinfo is too old. Info documentation will not be built.])
+	;;
+    esac
+fi
+AC_SUBST(MAKEINFO)
+AC_SUBST(BUILD_INFO)
+
+AC_CHECK_PROG(PERL, perl, perl, )
+if test x"$PERL" = x""; then
+  HAVE_PERL='#'
+else
+  HAVE_PERL=''
+fi
+AC_SUBST(HAVE_PERL)
+
 AC_CANONICAL_HOST
 
 dnl When we start using automake:
@@ -69,11 +120,18 @@ AC_SUBST_FILE(host_makefile_frag)
 # It's OK to check for header files.  Although the compiler may not be
 # able to link anything, it had better be able to at least compile
 # something.
-AC_CHECK_HEADERS(sys/file.h sys/param.h limits.h stdlib.h string.h unistd.h strings.h sys/time.h time.h sys/resource.h sys/stat.h sys/mman.h fcntl.h)
+AC_CHECK_HEADERS(sys/file.h sys/param.h limits.h stdlib.h string.h unistd.h strings.h sys/time.h time.h sys/resource.h sys/stat.h sys/mman.h fcntl.h alloca.h)
 AC_HEADER_SYS_WAIT
 AC_HEADER_TIME
 
 libiberty_AC_DECLARE_ERRNO
+
+AC_CHECK_TYPE(uintptr_t, unsigned long)
+
+if test $ac_cv_type_uintptr_t = yes
+then
+  AC_DEFINE(HAVE_UINTPTR_T, 1, [Define if you have the \`uintptr_t' type.])
+fi
 
 # This is the list of functions which libiberty will provide if they
 # are not available on the host.
@@ -87,6 +145,7 @@ funcs="$funcs bsearch"
 funcs="$funcs bzero"
 funcs="$funcs calloc"
 funcs="$funcs clock"
+funcs="$funcs ffs"
 funcs="$funcs getcwd"
 funcs="$funcs getpagesize"
 funcs="$funcs index"
@@ -134,7 +193,7 @@ if test "x" = "y"; then
   AC_CHECK_FUNCS(strcasecmp setenv strchr strdup strncasecmp strrchr strstr)
   AC_CHECK_FUNCS(strtod strtol strtoul tmpnam vasprintf vfprintf vprintf)
   AC_CHECK_FUNCS(vsprintf waitpid getrusage on_exit psignal strerror strsignal)
-  AC_CHECK_FUNCS(sysconf times sbrk gettimeofday)
+  AC_CHECK_FUNCS(sysconf times sbrk gettimeofday ffs)
   AC_DEFINE(HAVE_SYS_ERRLIST, 1, [Define if you have the sys_errlist variable.])
   AC_DEFINE(HAVE_SYS_NERR,    1, [Define if you have the sys_nerr variable.])
   AC_DEFINE(HAVE_SYS_SIGLIST, 1, [Define if you have the sys_siglist variable.])
@@ -142,8 +201,7 @@ fi
 
 # For each of these functions, if the host does not provide the
 # function we want to put FN.o in LIBOBJS, and if the host does
-# provide the function, we want to define HAVE_FN in config.h.  Also,
-# if the host does not provide alloca, we set ALLOCA to alloca.o
+# provide the function, we want to define HAVE_FN in config.h.
 
 setobjs=
 CHECK=
@@ -158,7 +216,6 @@ if test -n "${with_target_subdir}"; then
   # newlib provide and which ones we will be expected to provide.
 
   if test "x${with_newlib}" = "xyes"; then
-    ALLOCA="alloca.o"
     LIBOBJS="asprintf.o basename.o insque.o random.o strdup.o vasprintf.o"
 
     for f in $funcs; do
@@ -190,6 +247,13 @@ else
 fi
 
 AC_SUBST(CHECK)
+
+case "${host}" in
+  *-*-cygwin* | *-*-mingw*)
+    AC_DEFINE_NOAUTOHEADER(HAVE_SYS_ERRLIST)
+    AC_DEFINE_NOAUTOHEADER(HAVE_SYS_NERR)
+    ;;
+esac
 
 if test -z "${setobjs}"; then
   case "${host}" in
@@ -271,42 +335,37 @@ if test -z "${setobjs}"; then
     libiberty_cv_var_sys_errlist=yes
     ;;
 
+  *-*-*vms*)
+    # Under VMS, vfork works very different than on Unix. The standard test 
+    # won't work, and it isn't easily adaptable. It makes more sense to
+    # just force it.
+    ac_cv_func_vfork_works=yes
+    ;;
+
   esac
 
   # We haven't set the list of objects yet.  Use the standard autoconf
   # tests.  This will only work if the compiler works.
   AC_PROG_CC_WORKS
   AC_REPLACE_FUNCS($funcs)
-
-  case "${host}" in
-  *-*-interix)
-    # On Interix, it wrongly concludes that the MSVC compiler supports alloca.
-    # (MSVC does on Win32, not on Interix.)
-    # This should be temporary.
-
-    ac_cv_header_alloca_h=no
-    ac_cv_func_alloca_works=no
-    ALLOCA=alloca.o
-    cat >> confdefs.h <<\EOF
-#define C_ALLOCA 1
-EOF
-    cat >> confdefs.h <<EOF
-#define STACK_DIRECTION -1
-EOF
-    ;;
-  *)
-    AC_FUNC_ALLOCA
-    ;;
-  esac
-
+  libiberty_AC_FUNC_C_ALLOCA
   AC_FUNC_VFORK
   if test $ac_cv_func_vfork_works = no; then
     LIBOBJS="$LIBOBJS vfork.o"
   fi
+  # We only need _doprnt if we might use it to implement v*printf.
+  if test $ac_cv_func_vprintf != yes \
+     || test $ac_cv_func_vfprintf != yes \
+     || test $ac_cv_func_vsprintf != yes; then
+    AC_REPLACE_FUNCS(_doprnt)
+  else
+    AC_CHECK_FUNCS(_doprnt)
+  fi
+
   for v in $vars; do
     AC_MSG_CHECKING([for $v])
     AC_CACHE_VAL(libiberty_cv_var_$v,
-      [AC_TRY_LINK([int *p;], [extern int $v; p = &$v;],
+      [AC_TRY_LINK([int *p;], [extern int $v []; p = &$v;],
 		   [eval "libiberty_cv_var_$v=yes"],
 		   [eval "libiberty_cv_var_$v=no"])])
     if eval "test \"`echo '$libiberty_cv_var_'$v`\" = yes"; then

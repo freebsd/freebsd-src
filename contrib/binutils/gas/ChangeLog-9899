@@ -1,3 +1,9 @@
+1999-12-27  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (MATCH): Relax JumpAbsolute check.  Emit a
+	warning for absolute jump/call without `*' in non-intel mode.  No
+	need to set i.types[0] JumpAbsolute in intel mode.
+
 1999-12-22  Philip Blundell  <pb@futuretv.com>
 
 	* config/tc-arm.c (arm_s_text): If OBJ_ELF, call the appropriate
@@ -174,8 +180,8 @@ Wed Oct 27 16:50:44 1999  Don Lindsay  <dlindsay@cygnus.com>
 
 Mon Oct 18 18:11:10 MDT 1999	Diego Novillo <dnovillo@cygnus.com>
 
-	* tc_d10v.c (find_opcode): Allow ATSIGN to match expressions of the
-	form @abs16, @(abs16) and @(abs16 + imm).
+	* config/tc-d10v.c (find_opcode): Allow ATSIGN to match
+	expressions of the form @abs16, @(abs16) and @(abs16 + imm).
 
 1999-10-21  Gavin Romig-Koch  <gavin@cygnus.com>
 
@@ -379,7 +385,7 @@ Wed Sep 15 05:14:32 1999  Jeffrey A Law  (law@cygnus.com)
 	(md_assemble): Call dwarf2_where for OBJ_ELF.
 	(pa_ip): Call dwarf2_gen_line_info for OBJ_ELF.
 	(pa_end_of_source): New function.
-	* tc-hppa.h (md_end): Define for OBJ_ELF.
+	* config/tc-hppa.h (md_end): Define for OBJ_ELF.
 
 1999-09-14  Michael Meissner  <meissner@cygnus.com>
 
@@ -1074,10 +1080,10 @@ Thu Jul  1 15:33:10 1999  Jeffrey A Law  (law@cygnus.com)
 
 Mon Jun 21 16:45:19 1999  Jeffrey A Law  (law@cygnus.com)
 
-	* tc-hppa.c (elf_hppa_reloc_type): Renamed from elf32_hppa_reloc_type.
+	* config/tc-hppa.c (elf_hppa_reloc_type): Renamed from elf32_hppa_reloc_type.
 	(hppa_gen_reloc_type): Conditionalize on BFD64.
 	(tc_gen_reloc): Re-enable ELF relocations.
-	* tc-hppa.h (TARGET_FORMAT): Handle elf64-hppa format.
+	* config/tc-hppa.h (TARGET_FORMAT): Handle elf64-hppa format.
 
 1999-06-21  Ian Lance Taylor  <ian@zembu.com>
 
@@ -1099,7 +1105,7 @@ Mon Jun 21 16:45:19 1999  Jeffrey A Law  (law@cygnus.com)
 
 Fri Jun 18 14:34:18 1999  Jeffrey A Law  (law@cygnus.com)
 
-	* tc-hppa.c: General cleanups of ELF support.  No more spaces
+	* config/tc-hppa.c: General cleanups of ELF support.  No more spaces
 	and subspaces for ELF.
 	(GDB_DEBUG_SPACE_NAME): Delete definition for ELF.
 	(GDB_STRINGS_SUBSPACE_NAME): Likewise.
@@ -1670,9 +1676,9 @@ Thu May  6 19:50:14 1999  Richard Henderson  <rth@cygnus.com>
 
 1999-05-05  Catherine Moore  <clm@cygnus.com>
 
-	* tc-m68k.c: Include elf/m68k.h.
+	* config/tc-m68k.c: Include elf/m68k.h.
 	(m68k_elf_final_processing): New routine.
-	* tc-m68k.h (elf_tc_final_processing m68k_elf_final_processing):
+	* config/tc-m68k.h (elf_tc_final_processing m68k_elf_final_processing):
 	Define.
 
 Mon May  3 10:26:03 1999  Jeffrey A Law  (law@cygnus.com)
@@ -1772,7 +1778,7 @@ Fri Apr 16 12:26:39 1999  Bob Manson  <manson@charmed.cygnus.com>
 
 Thu Apr 15 16:52:09 1999  Jeffrey A Law  (law@cygnus.com)
 
-	* tc-hppa.c (pa_get_absolute_exression): Try to handle "5 %r3"
+	* config/tc-hppa.c (pa_get_absolute_exression): Try to handle "5 %r3"
 	expressions correctly.
 
 
@@ -1782,7 +1788,7 @@ Thu Apr 15 16:52:09 1999  Jeffrey A Law  (law@cygnus.com)
 
 Mon Apr 12 23:45:07 1999  Jeffrey A Law  (law@cygnus.com)
 
-	* tc-hppa.c (pa_ip, case '3'): New case for PA2.0 fmpyfadd
+	* config/tc-hppa.c (pa_ip, case '3'): New case for PA2.0 fmpyfadd
 	and fmpynfadd instructions.
 
 1999-04-11  Richard Henderson  <rth@cygnus.com>
@@ -1805,7 +1811,7 @@ Mon Apr 12 23:45:07 1999  Jeffrey A Law  (law@cygnus.com)
 
 Sat Apr 10 20:10:02 1999  Richard Henderson  <rth@cygnus.com>
 
-	* tc-alpha.c (load_expression): Call as_bad instead of abort.
+	* config/tc-alpha.c (load_expression): Call as_bad instead of abort.
 
 1999-04-08  Nick Clifton  <nickc@cygnus.com>
 
@@ -1869,18 +1875,18 @@ Sat Apr 10 20:10:02 1999  Richard Henderson  <rth@cygnus.com>
 
 Mon Mar 29 10:15:40 CST 1999  Catherine Moore  <clm@cygnus.com>
 
-	* tc-mips.c (md_apply_fix):  Adjust value for linkonce sections.
+	* config/tc-mips.c (md_apply_fix):  Adjust value for linkonce sections.
 
 Wed Mar 24 14:11:10 1999  Jeffrey A Law  (law@cygnus.com)
 
-	* tc-hppa.c (pa_parse_nonneg_cmpsub_cmpltr): Clean up code to
+	* config/tc-hppa.c (pa_parse_nonneg_cmpsub_cmpltr): Clean up code to
 	detect ",n" without a condition.
 	(pa_parse_neg_cmpsub_cmpltr): Likewise.
 
 
 Tue Mar 23 11:28:23 1999  Jeffrey A Law  (law@cygnus.com)
 
-	* tc-hppa.c (pa_ip, case '~'): The condition for a branch on bit
+	* config/tc-hppa.c (pa_ip, case '~'): The condition for a branch on bit
 	instruction is encoded with one bit.
 
 
@@ -1897,16 +1903,16 @@ Tue Mar 23 11:28:23 1999  Jeffrey A Law  (law@cygnus.com)
 
 Sun Mar 21 18:08:18 1999  Richard Henderson  <rth@cygnus.com>
 
-	* tc-alpha.c (md_assemble): Allow '6' in an opcode.
+	* config/tc-alpha.c (md_assemble): Allow '6' in an opcode.
 
 Thu Mar 18 10:55:30 1999  Jeffrey A Law  (law@cygnus.com)
 
-	* tc-hppa.c (pa_ip, case 'a'): Do not call pa_parse_..._cmpsub_cmpltr.
+	* config/tc-hppa.c (pa_ip, case 'a'): Do not call pa_parse_..._cmpsub_cmpltr.
 
 
 Thu Mar 18 02:30:07 1999  Jeffrey A Law  (law@cygnus.com)
 
-	* tc-hppa.c (pa_ip, case 'd'): Do not allow ",n".
+	* config/tc-hppa.c (pa_ip, case 'd'): Do not allow ",n".
 
 1999-03-15  Martin Hunt  <hunt@cygnus.com>
 
@@ -2602,9 +2608,9 @@ Wed Oct  7 14:09:14 1998  Nick Clifton  <nickc@cygnus.com>
 
 Tue Oct  6 09:31:15 1998  Catherine Moore  <clm@cygnus.com>
 
-	* tc-sparc.h (TC_FORCE_RELOCATION):  Define.
+	* config/tc-sparc.h (TC_FORCE_RELOCATION):  Define.
 	(elf32_sparc_force_relocation):  Declare.
-	* tc-sparc.c (md_apply_fix3):  Handle vtable relocs.
+	* config/tc-sparc.c (md_apply_fix3):  Handle vtable relocs.
 	(tc_gen_reloc):  Handle vtable relocs.
 	(elf32_sparc_force_relocation):  New.
 
@@ -2622,7 +2628,7 @@ Mon Oct  5 09:25:32 1998  Catherine Moore  <clm@cygnsu.com>
 
 Mon Oct  5 00:48:52 1998  Jeffrey A Law  (law@cygnus.com)
 
-	* tc-hppa.c (fp_operand_format): Add some additional formats.
+	* config/tc-hppa.c (fp_operand_format): Add some additional formats.
 	(pa_ip): Do not automatically promote into pa2.0 mode.
 	(pa_level): Handle ".level 2.0".
 
@@ -2843,8 +2849,8 @@ Wed Aug 19 09:30:16 1998  Nick Clifton  <nickc@cygnus.com>
 
 Tue Aug 18 11:59:43 1998  Catherine Moore  <clm@cygnus.com>
 
-	* tc-arm.h: Define obj_fix_adjustable for OBJ_ELF.
-	* tc-arm.c (arm_fix_adjustable): New routine.
+	* config/tc-arm.h: Define obj_fix_adjustable for OBJ_ELF.
+	* config/tc-arm.c (arm_fix_adjustable): New routine.
 
 1998-08-13  Vladimir N. Makarov  <vmakarov@cygnus.com>
 
@@ -3194,7 +3200,7 @@ Thu Jul  2 16:24:58 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 Thu Jul  2 14:06:22 1998  Klaus Kaempf  <kkaempf@rmi.de>
 
-	* obj-vms.c: Add C++ support with ctors/dtors sections.  Add weak
+	* config/obj-vms.c: Add C++ support with ctors/dtors sections.  Add weak
 	symbol definitions.
 	(Ctors_Symbols, Dtors_Symbols): New symbol chains.
 	(ps_CTORS, ps_DTORS): New section types.
@@ -3207,7 +3213,7 @@ Thu Jul  2 14:06:22 1998  Klaus Kaempf  <kkaempf@rmi.de>
 	(vms_write_object_file): Write Ctors_Symbols/Dtors_Symbols to
 	appropriate section.
 
-	* tc-alpha.h (TARGET_FORMAT): Rename "evax-alpha" to "vms-alpha".
+	* config/tc-alpha.h (TARGET_FORMAT): Rename "evax-alpha" to "vms-alpha".
 	* makefile.vms: Merge vax/vms support.
 
 Wed Jul  1 20:06:20 1998  Richard Henderson  <rth@cygnus.com>
@@ -3232,7 +3238,7 @@ Wed Jul  1 16:35:32 1998  Doug Evans  <devans@seba.cygnus.com>
 
 Wed Jul  1 21:38:56 1998  J"orn Rennecke  <amylaar@cygnus.co.uk>
 
-	* config/tc-sh (COND_JUMP_DELAY, COND12_DELAY_LENGTH): Define.
+	* config/tc-sh.c (COND_JUMP_DELAY, COND12_DELAY_LENGTH): Define.
 	Changed all users of COND12_DELAY.
 
 Fri Jun 26 11:21:11 1998  Jeffrey A Law  (law@cygnus.com)
@@ -4414,7 +4420,7 @@ Fri Feb 20 15:03:13 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 Thu Feb 19 22:25:42 1998  Richard Henderson  <rth@cygnus.com>
 
-	* tc-ppc.c (ppc_biei): Cache the last symbol we inserted
+	* config/tc-ppc.c (ppc_biei): Cache the last symbol we inserted
 	so we don't have to scan the entire list.
 
 Tue Feb 17 17:02:15 1998  Fred Fish  <fnf@cygnus.com>
@@ -4487,7 +4493,7 @@ Wed Feb 11 23:26:28 1998  Jeffrey A Law  (law@cygnus.com)
 Thu Feb 12 03:41:00 1998  J"orn Rennecke  <amylaar@cygnus.co.uk>
 
 	Fix rac to accept only a0:
-	* tc-d10v.c (parallel_ok, find_opcode):
+	* config/tc-d10v.c (parallel_ok, find_opcode):
 	Split OPERAND_ACC into OPERAND_ACC0 and OPERAND_ACC1.
 	Introduce OPERAND_GPR.
 
@@ -4685,9 +4691,9 @@ Thu Jan 29 18:48:19 1998  Bill Moyer  <billm@cygnus.com>
 Wed Jan 28 14:35:00 1998  Bill Moyer <billm@cygnus.com>
 
 	* as.h (flag_warn_suppress_instructionswap): added new flag.
-	* tc-d10v.c (md_parse_option,md_longopts): added "--nowarnswap"
+	* config/tc-d10v.c (md_parse_option,md_longopts): added "--nowarnswap"
 	command line argument.
-	* tc-d10v.c (write_2_short): emit "Swapping instructions"
+	* config/tc-d10v.c (write_2_short): emit "Swapping instructions"
 	warning only if flag_warn_suppress_instructionswap is false.
 
 Wed Jan 28 16:41:19 1998  J.J. van der Heijden  <J.J.vanderHeijden@student.utwente.nl>
@@ -4797,20 +4803,20 @@ Fri Jan 16 14:51:48 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 Fri Jan 16 11:30:37 1998  Richard Henderson  <rth@cygnus.com>
 
-	* tc-m68k.c (m68k_ip): Remove absl->reglst MRI hack.
+	* config/tc-m68k.c (m68k_ip): Remove absl->reglst MRI hack.
 	(crack_operand): Add reg->reglst MRI hack.
 	(r_seg): Put reglst symbols in reg_section.
 	(m68k_frob_symbol): Frob reglst symbols into absolute_section.
 
 Thu Jan 15 14:19:01 1998  Richard Henderson  <rth@cygnus.com>
 
-	* tc-sh.c (get_specific): Handle SGR & DBR.
+	* config/tc-sh.c (get_specific): Handle SGR & DBR.
 
 Thu Jan 15 13:46:48 1998  Richard Henderson  <rth@cygnus.com>
 
-	* tc-h8300.c (parse_reg): Take the length of the symbol into
+	* config/tc-h8300.c (parse_reg): Take the length of the symbol into
 	account when attempting to match a register name.
-	* tc-h8500.c (parse_reg): Likewise.
+	* config/tc-h8500.c (parse_reg): Likewise.
 
 Wed Jan 14 17:52:33 1998  Nick Clifton  <nickc@cygnus.com>
 
@@ -4838,7 +4844,7 @@ Mon Jan 12 13:04:57 1998  Doug Evans  <devans@seba.cygnus.com>
 	(expr_jmp_buf): New static local.
 	(cgen_parse_operand): Allow use of longjmp in parsing to handle errors.
 	(cgen_md_operand): New function.
-	* tc-m32r.c: Clean up pass over `struct foo' usage.
+	* config/tc-m32r.c: Clean up pass over `struct foo' usage.
 	(md_estimate_size_before_relax): Use CGEN_INSN_MNEMONIC.
 
 Tue Jan  6 15:36:02 1998  Richard Henderson  <rth@cygnus.com>

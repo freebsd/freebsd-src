@@ -49,9 +49,8 @@ static enum section_type sectype;
 
 lang_memory_region_type *region;
 
-struct wildcard_spec current_file;
 boolean ldgram_want_filename = true;
-boolean had_script = false;
+FILE *  saved_script_handle = NULL;
 boolean force_make_executable = false;
 
 boolean ldgram_in_script = false;
@@ -70,6 +69,7 @@ static int error_index;
   char *name;
   const char *cname;
   struct wildcard_spec wildcard;
+  struct wildcard_list *wildcard_list;
   struct name_list *name_list;
   int token;
   union etree_union *etree;
@@ -91,6 +91,7 @@ static int error_index;
 %type <etree> opt_exp_without_type
 %type <integer> fill_opt
 %type <name_list> exclude_name_list
+%type <wildcard_list> file_NAME_list
 %type <name> memspec_opt casesymlist
 %type <name> memspec_at_opt
 %type <cname> wildcard_name
@@ -124,6 +125,7 @@ static int error_index;
 %token SECTIONS PHDRS SORT
 %token '{' '}'
 %token SIZEOF_HEADERS OUTPUT_FORMAT FORCE_COMMON_ALLOCATION OUTPUT_ARCH
+%token INHIBIT_COMMON_ALLOCATION
 %token SIZEOF_HEADERS
 %token INCLUDE
 %token MEMORY DEFSYMEND
@@ -236,7 +238,9 @@ mri_script_command:
 	|	CASE casesymlist
 	|	EXTERN extern_name_list
 	|	INCLUDE filename
-		{ ldfile_open_command_file ($2); } mri_script_lines END
+		{ ldlex_script (); ldfile_open_command_file($2); }
+		mri_script_lines END
+		{ ldlex_popstate (); }
 	|	START NAME
 		{ lang_add_entry ($2, false); }
         |
@@ -320,6 +324,8 @@ ifile_p1:
 		  { ldfile_set_output_arch($3); }
 	|	FORCE_COMMON_ALLOCATION
 		{ command_line.force_common_definition = true ; }
+	|	INHIBIT_COMMON_ALLOCATION
+		{ command_line.inhibit_common_definition = true ; }
 	|	INPUT '(' input_list ')'
 	|	GROUP
 		  { lang_enter_group (); }
@@ -328,7 +334,9 @@ ifile_p1:
      	|	MAP '(' filename ')'
 		{ lang_add_map($3); }
 	|	INCLUDE filename 
-		{ ldfile_open_command_file($2); } ifile_list END
+		{ ldlex_script (); ldfile_open_command_file($2); }
+		ifile_list END
+		{ ldlex_popstate (); }
 	|	NOCROSSREFS '(' nocrossref_list ')'
 		{
 		  lang_add_nocrossref ($3);
@@ -417,8 +425,6 @@ wildcard_spec:
 			}
 	;
 
-
-
 exclude_name_list:
 		exclude_name_list wildcard_name
 			{
@@ -440,42 +446,42 @@ exclude_name_list:
 	;
 
 file_NAME_list:
+		file_NAME_list opt_comma wildcard_spec
+			{
+			  struct wildcard_list *tmp;
+			  tmp = (struct wildcard_list *) xmalloc (sizeof *tmp);
+			  tmp->next = $1;
+			  tmp->spec = $3;
+			  $$ = tmp;
+			}
+	|
 		wildcard_spec
 			{
-			  lang_add_wild ($1.name, $1.sorted,
-					 current_file.name,
-					 current_file.sorted,
-					 ldgram_had_keep, $1.exclude_name_list);
-			}
-	|	file_NAME_list opt_comma wildcard_spec
-			{
-			  lang_add_wild ($3.name, $3.sorted,
-					 current_file.name,
-					 current_file.sorted,
-					 ldgram_had_keep, $3.exclude_name_list);
+			  struct wildcard_list *tmp;
+			  tmp = (struct wildcard_list *) xmalloc (sizeof *tmp);
+			  tmp->next = NULL;
+			  tmp->spec = $1;
+			  $$ = tmp;
 			}
 	;
 
 input_section_spec_no_keep:
 		NAME
 			{
-			  lang_add_wild (NULL, false, $1, false,
-					 ldgram_had_keep, NULL);
+			  struct wildcard_spec tmp;
+			  tmp.name = $1;
+			  tmp.exclude_name_list = NULL;
+			  tmp.sorted = false;
+			  lang_add_wild (&tmp, NULL, ldgram_had_keep);
 			}
-        |	'['
+        |	'[' file_NAME_list ']'
 			{
-			  current_file.name = NULL;
-			  current_file.sorted = false;
+			  lang_add_wild (NULL, $2, ldgram_had_keep);
 			}
-		file_NAME_list ']'
-	|	wildcard_spec
+	|	wildcard_spec '(' file_NAME_list ')'
 			{
-			  current_file = $1;
-			  /* '*' matches any file name.  */
-			  if (strcmp (current_file.name, "*") == 0)
-			    current_file.name = NULL;
+			  lang_add_wild (&$1, $3, ldgram_had_keep);
 			}
-		'(' file_NAME_list ')'
 	;
 
 input_section_spec:
@@ -1055,7 +1061,11 @@ vers_nodes:
 	;
 
 vers_node:
-		VERS_TAG '{' vers_tag '}' ';'
+		'{' vers_tag '}' ';'
+		{
+		  lang_register_vers_node (NULL, $2, NULL);
+		}
+	|	VERS_TAG '{' vers_tag '}' ';'
 		{
 		  lang_register_vers_node ($1, $3, NULL);
 		}
@@ -1102,11 +1112,11 @@ vers_tag:
 vers_defns:
 		VERS_IDENTIFIER
 		{
-		  $$ = lang_new_vers_regex (NULL, $1, ldgram_vers_current_lang);
+		  $$ = lang_new_vers_pattern (NULL, $1, ldgram_vers_current_lang);
 		}
 	|	vers_defns ';' VERS_IDENTIFIER
 		{
-		  $$ = lang_new_vers_regex ($1, $3, ldgram_vers_current_lang);
+		  $$ = lang_new_vers_pattern ($1, $3, ldgram_vers_current_lang);
 		}
 	|	EXTERN NAME '{'
 			{

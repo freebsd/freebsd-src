@@ -97,12 +97,15 @@ arm_elf_before_allocation ()
 }
 
 
-static void gld${EMULATION_NAME}_finish PARAMS ((void));
+static void arm_elf_finish PARAMS ((void));
 
 static void
-gld${EMULATION_NAME}_finish PARAMS((void))
+arm_elf_finish ()
 {
   struct bfd_link_hash_entry * h;
+
+  /* Call the elf32.em routine.  */
+  gld${EMULATION_NAME}_finish ();
 
   if (thumb_entry_symbol == NULL)
     return;
@@ -153,7 +156,12 @@ PARSE_AND_LIST_PROLOGUE='
 #define OPTION_THUMB_ENTRY		301
 '
 
-PARSE_AND_LIST_SHORTOPTS=p
+# Note we add 'n' to the short option list in order to prevent
+# getopt_long_only from thinking that -n is a unique abbreviation
+# for --no-pipeline-knowledge.  There is no case to handle 'n' here
+# however, so instead it will be passed back to parse_args() in
+# lexsup.c where it will be handled.
+PARSE_AND_LIST_SHORTOPTS=pn
 
 PARSE_AND_LIST_LONGOPTS='
   { "no-pipeline-knowledge", no_argument, NULL, '\'p\''},
@@ -184,4 +192,4 @@ LDEMUL_BEFORE_ALLOCATION=arm_elf_before_allocation
 LDEMUL_BEFORE_PARSE=gld"${EMULATION_NAME}"_before_parse
 
 # Call the extra arm-elf function
-LDEMUL_FINISH=gld${EMULATION_NAME}_finish
+LDEMUL_FINISH=arm_elf_finish

@@ -374,7 +374,7 @@ subseg_new (segname, subseg)
     return new_seg;
   }
 #else
-  as_bad (_("Attempt to switch to nonexistent segment \"%s\""), segname);
+  as_bad (_("attempt to switch to nonexistent segment \"%s\""), segname);
   return now_seg;
 #endif
 }
@@ -587,7 +587,7 @@ subseg_text_p (sec)
 #else /* ! BFD_ASSEMBLER */
   const char * const *p;
 
-  if (sec == data_section || sec == bss_section)
+  if (sec == data_section || sec == bss_section || sec == absolute_section)
     return 0;
 
   for (p = nontext_section_names; *p != NULL; ++p)

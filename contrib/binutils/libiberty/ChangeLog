@@ -1,6 +1,604 @@
-2001-07-19  David O'Brien  <obrien@FreeBSD.org>
+2002-02-05  Jason Merrill  <jason@redhat.com>
 
-	* lbasename.c: New file.
+	* cplus-dem.c (flags): Add DMGL_VERBOSE
+	(cplus_demangle_v3_p): Remove.
+	(demangle_it): Add DMGL_TYPES to passed flags.
+	* cp-demangle.c (cplus_demangle_v3_all): Remove.
+	(cplus_demangle_v3_type): Remove.
+	(cplus_demangle_v3): Add options parm.
+
+2002-02-02  H.J. Lu  (hjl@gnu.org)
+
+	* cp-demangle.c (cp_demangle_type): Do not protect with
+	IN_LIBGCC2.
+	(cplus_demangle_v3_all): New.
+	(cplus_demangle_v3): Call cplus_demangle_v3_all.
+	(cplus_demangle_v3_type): Call cplus_demangle_v3_all.
+
+	* cplus-dem.c (cplus_demangle_v3_p): New function pointer.
+	Initialized to cplus_demangle_v3.
+	(cplus_demangle_with_style): Call cplus_demangle_v3_p instead
+	of cplus_demangle_v3.
+	(main): Set cplus_demangle_v3_p to cplus_demangle_v3_type for
+	command line symbol.
+
+	* testsuite/regress-demangle: Pass the mangled name at the
+	command line.
+
+2002-02-01  H.J. Lu  <hjl@gnu.org>
+
+	* cp-demangle.c (cp_demangle_type): Call demangling_new with
+	DMGL_GNU_V3.
+
+2002-01-31  Phil Edwards  <pme@gcc.gnu.org>
+
+	* cp-demangle.c:  Revert yesterday's change.
+
+2002-01-31  Adam Megacz  <adam@xwt.org>
+
+	* gcc/libiberty/configure.in: Treat mingw the same as cywin
+	wrt HAVE_SYS_ERRLIST.
+
+2002-01-30  Phil Edwards  <pme@gcc.gnu.org>
+
+	* cp-demangle.c (cp_demangle_type):  Do not protect with IN_LIBGCC2.
+	(cplus_demangle_v3):  Mimic __cxa_demangle and fall back on
+	cp_demangle_type.
+	* testsuite/demangle-expected:  New gnu-v3 test.
+
+2002-01-22  Momchil Velikov  <velco@fadata.bg>
+
+	* configure.in (variable detection): Use arrays of unspecified
+	size instead of plain integers.
+
+2002-01-18  DJ Delorie  <dj@redhat.com>
+
+	* Makefile.in (TESTLIB): New.  This library is for future
+	testsuites.
+	(CFILES, REQUIRED_OFILES, CONFIGURED_OFILES): Re-alphabetize,
+	break down by letter.
+	(REQUIRED_OFILES): List long-to-compile files first.
+	(maint-deps): New, target for updating dependencies.
+	(dependencies): Update.
+	* maint-tool: Add dependency-generating option.
+	* configure.in: Check for _doprnt even if we're not providing it.
+	* configure: Regenerate.
+
+	* _doprnt.c: Modifications to allow compiling on any platform.
+	* copysign.c: Likewise.
+	* putenv.c: Likewise.
+	* setenv.c: Likewise.
+	* vsprintf.c: Likewise.
+
+2002-01-15  Douglas B Rupp  <rupp@gnat.com>
+
+	* mkstemps.c (mkstemps): On VMS, open temp file with option
+	that causes it to be deleted when closed.
+
+2002-01-02  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* cp-demangle.c (long_options): Const-ify.
+	* cplus-dem.c (long_options): Likewise.
+
+	* cplus-dem.c (mystrstr): Delete.  All callers changed to use
+	strstr instead.
+
+2001-12-31  Ira Ruben	<ira@apple.com>
+
+	* aclocal.m4 (libiberty_AC_FUNC_STRNCMP): Use anon mmap as 2nd try.
+	* configure: Regenerated.
+
+2001-12-24  Douglas B. Rupp  <rupp@gnat.com>
+
+	* configure.in (uintptr_t): Use AC_CHECK_TYPE.
+	* configure: Regenerated.
+
+2001-12-12  Craig Rodrigues  <rodrigc@gcc.gnu.org>
+
+	PR other/2719
+	* cplus-dem.c (consume_count): Treat negative count as an error.
+	* testsuite/demangle-expected: Added testcase.
+
+Tue Dec 11 07:08:57 2001  Douglas B. Rupp  <rupp@gnat.com>
+
+	* configure.in: Hardcode that vfork works on VMS host.
+	* configure: Regenerated.
+
+2001-12-06  Richard Henderson  <rth@redhat.com>
+
+	* cplus-dem.c (libiberty_demanglers): Add no_demangling case.
+	(cplus_demangle): Support no_demangling.
+
+2001-11-27  Zack Weinberg  <zack@codesourcery.com>
+
+	* _doprnt.c: Moved here from gcc/doprint.c.  Adjust to build
+	in libiberty context.  Fix typo in leading comment.
+	* configure.in: Fix various AC_DEFINEs so autoheader works.
+	If any of vprintf, vsprintf, vfprintf is missing from libc,
+	then AC_REPLACE_FUNCS(_doprnt).
+
+2001-11-26  DJ Delorie  <dj@redhat.com>
+	    Daniel Jacobowitz  <drow@mvista.com>
+
+	* Makefile.in (stamp-h): Depend on Makefile for proper
+	serialization.
+	(*-subdir): Depend on config.h for proper serialization.
+
+2001-11-26  DJ Delorie  <dj@redhat.com>
+
+	* configure.in: Check for alloca.h (for regex.c and putenv.c).
+	* configure: Regenerate.
+	* config.h: Add HAVE_ALLOCA_H.
+
+2001-11-16  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* regex.c: Check defined(__STDC__) || defined(ALMOST_STDC) ||
+	defined(HAVE_STRINGIZE) to determine whether ISO CPP token pasting
+	is available.
+
+Thu Nov 15 11:06:25 2001  Jeffrey A Law  (law@cygnus.com)
+
+	* config.in (HAVE_UINTPTR_T): Provide autoconf stub.
+	* configure.in (HAVE_UINTPTR_T): Test for system defining
+	uintptr_t and define HAVE_UINTPTR_T appropriately.
+	* regex.c (uintptr_t): Do not provide a definition if the
+	system provided one.
+
+	* regex.c (PREFIX): Provide an alternate definition for
+	non-ANSI/ISO compilers.
+	(ARG_PREFIX): Likewise.
+
+2001-11-12  Jim Meyering  <meyering@lucent.com>
+
+	* obstack.c (_): Honor the setting of ENABLE_NLS.  Otherwise,
+	this code would end up calling gettext even in packages built
+	with --disable-nls.
+	* getopt.c (_): Likewise.
+	* regex.c (_): Likewise.
+
+2001-11-03  Alan Modra  <amodra@bigpond.net.au>
+
+	* configure.in: Cope with missing makeinfo.
+	* configure: Regenerate.
+
+2001-10-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* hex.c (hex_init): Provide empty stub.
+
+	* hex.c (hex_init): Delete.
+	(_hex_value): Const-ify and initialize at compile-time.
+
+2001-10-19  H.J. Lu <hjl@gnu.org>
+
+	* Makefile.in ($(TARGETLIB)): Also generate pic/$(TARGETLIB) if
+	necessary.
+
+2001-10-17  DJ Delorie  <dj@redhat.com>
+
+	* argv.c, asprintf.c, choose-temp.c, concat.c, cplus-dem.c,
+	ffs.c, fnmatch.txh, getruntime.c, make-temp-file.c,
+	mkstemps.c, pexecute.c, random.c, strsignal.c, vasprintf.c:
+	Improve manual formatting.
+	* functions.texi: Regenerate.
+
+2001-10-15  DJ Delorie  <dj@redhat.com>
+
+	* Makefile.in (TEXIFILES): Add fnmatch.txh.
+	(maint-undoc): New.
+	maint-tool: Add "undoc" tool.
+	* alloca.c, argv.c, asprintf.c, choose-temp.c, concat.c,
+	fdmatch.c, ffs.c, getruntime.c, insque.c, lbasename.c,
+	make-temp-file.c, mkstemps.c, pexecute.c, random.c, spaces.c,
+	strerror.s, strsignal.c, strtol.c, vasprintf.c: Add or update
+	documentation.
+	* fnmatch.txh: New.
+	* functions.texi: Regenerate.
+
+2001-10-10  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* bcmp.c, setenv.c: Use "nonzero" instead of "non-zero".
+	* strtod.c: Use "ISO C" instead of "ANSI C".
+	* functions.texi: Regenerate.
+
+2001-10-07  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* alloca.c, clock.c, getcwd.c, getpagesize.c, getpwd.c, index.c,
+	libiberty.texi, memchr.c, putenv.c, rindex.c, strchr.c, strdup.c,
+	strerror.c, strrchr.c, strstr.c, strtod.c, tmpnam.c, vfork.c,
+	xatexit.c, xmalloc.c, xstrerror.c: Improve manual formatting.  Fix
+	spelling.  Give names to function arguments in documentation.  Use
+	(void) prototypes in documentation.
+	* functions.texi: Regenerate.
+
+2001-10-07  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* argv.c (buildargv, tests, main): Const-ify.
+	* cp-demangle.c (operator_code): Likewise.
+	* cplus-dem.c (optable, libiberty_demanglers,
+	cplus_demangle_set_style, cplus_demangle_name_to_style,
+	print_demangler_list): Likewise.
+	* hashtab.c (higher_prime_number): Likewise.
+	* strcasecmp.c (charmap): Likewise.
+	* strerror.c (error_info, strerror, main): Likewise.
+	* strncasecmp.c (charmap): Likewise.
+	* strsignal.c (signal_info): Likewise.
+
+2001-09-29  DJ Delorie  <dj@redhat.com>
+
+	* configure: Regenerate.
+
+2001-09-28  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* concat.c: Include stdlib.h.
+
+2001-09-27  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* libiberty.texi: (Top level): Add syncodeindex pg.  Add
+	@dircategory and @direntry directives.  Add @finalout.
+	(many nodes): Lose the next,prev,up pointers on the @nide line.
+	(Using, Supplemental Functions, Replacement Functions): Fix
+	markup.
+	(Functions): Move around, to allow makeinfo to build the manual
+	without next,prev,up pointers in thye node lines.
+	(Licenses): Fix typos.
+
+	* index.c, rindex.c, strchr.c, strerror.c, strrchr.c, strstr.c,
+	strtol.c, xatexit.c, xexit.c, xmalloc.c: Fix spelling and markup.
+	* functions.texi: Regenerate.
+
+	* copying-lib.texi: Lose the next,prev,up pointers on the @node
+	line.
+
+2001-09-27  DJ Delorie  <dj@redhat.com>
+
+	* configure.in: Don't use in-tree texinfo, because libiberty must
+	be built before it.  Check for makeinfo version 4 or higher.
+	* functions.texi: Regenerate.
+
+2001-09-20  DJ Delorie  <dj@redhat.com>
+	    Phil Edwards  <pedwards@disaster.jaj.com>
+
+	* configure.in (MAKEINFO, PERL): Detect these.
+	(--enable-maintainer-mode): Add.
+	* configure: Regenerate.
+	* Makefile.in (MAKEINFO, PERL): Define.
+	(libiberty.info, libiberty.dvi, libiberty.html): New.
+	(CFILES): Add bsearch.c.
+	(CONFIGURED_OFILES): New, list of objects configure might add.
+	(maint-missing, maint-buildall): New, for maintainers only.
+	(clean, mostlyclean): Add info/dvi/html files.
+	* libiberty.texi, copying-lib.texi, obstacks.texi, functions.texi: New.
+	* gather-docs: New, for maintainers.
+	* maint-tool: New, for maintainers.
+	* alloca.c, atexit.c, basename.c, bcmp.c, bcopy.c, bsearch.c,
+	bzero.c, calloc.c, clock.c, configure.in, configure, getcwd.c,
+	getpagesize.c, getpwd.c, index.c, memchr.c, memcmp.c, memcpy.c,
+	memmove.c, memset.c, putenv.c, rename.c, rindex.c, setenv.c,
+	sigsetmask.c, strcasecmp.c, strchr.c, strdup.c, strerror.c,
+	strncasecmp.c, strncmp.c, strrchr.c, strstr.c, strtod.c, strtol.c,
+	tmpnam.c, vfork.c, vprintf.c, waitpid.c, xatexit.c, xexit.c,
+	xmalloc.c, xmemdup.c, xstrdup.c, xstrerror.c: Add or update
+	documentation.
+
+2001-09-25  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* concat.c (reconcat): Fix for traditional C.
+
+2001-09-24  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* concat.c (reconcat): New function.
+
+2001-09-17  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* concat.c (vconcat_length, vconcat_copy, concat_length,
+	concat_copy, concat_copy2): New functions.
+	(concat): Use vconcat_length/vconcat_copy.
+
+	* alloca.c (libiberty_optr, libiberty_nptr, libiberty_len):
+	Define.
+
+2001-09-04  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* asprintf.c: Don't define USE_STDARG.  Use VPARAMS, VA_OPEN,
+	VA_FIXEDARG & VA_CLOSE.
+
+	* vasprintf.c: Check HAVE_STRING_H when including string.h.
+	(checkit): Delete redundant prototype.  Add ATTRIBUTE_PRINTF_1.
+	Use VA_OPEN, VA_FIXEDARG & VA_CLOSE.  Free allocated string.
+
+2001-08-27  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* concat.c (concat): Use VPARAMS, VA_OPEN, VA_FIXEDARG & VA_CLOSE.
+
+2001-08-23  Ulrich Drepper  <drepper@redhat.com>
+
+	* regex.c (truncate_wchar): Use wcrtomb not wctomb.
+
+2001-08-23  Ulrich Drepper  <drepper@redhat.com>
+
+	* posix/regex.c [_LIBC] (convert_mbs_to_wcs): Use __mbrtowc
+	instead of mbrtowc.
+	[_LIBC]: Use __iswctype instead of iswctype, __wcslen instead of
+	wcslen, and __wcscoll instead of wcscoll.
+
+2001-08-22  Matt Kraai  <kraai@alumni.carnegiemellon.edu>
+
+ 	* fibheap.c (fibheap_init, fibnode_init): Remove.
+ 	(fibheap_new, fibnode_new): Use xcalloc to allocate and
+ 	initialize memory.
+ 	(fibheap_insert): Remove check for node allocation failure.
+
+2001-08-21  Richard Henderson  <rth@redhat.com>
+
+	* Makefile.in (fibheap.o): Depend on config.h.
+	* fibheap.c: Tidy formatting.  Use config.h.` Rearrange some
+	functions for inlining.
+
+Tue Aug 21 12:35:04 2001  Christopher Faylor <cgf@cygnus.com>
+
+	* configure.in: Need to set HAVE_SYS_ERRLIST and HAVE_SYS_NERR whenever
+	hosting on cygwin.
+	* configure: Regenerate.
+
+2001-08-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* floatformat.c (floatformat_m88110_ext): Remove #ifdef
+	HARRIS_FLOAT_FORMAT.
+	(floatformat_ia64_spill_little, floatformat_ia64_quad_little)
+	(floatformat_ia64_spill_big, floatformat_ia64_quad_big)
+	(floatformat_arm_ext_big, floatformat_arm_ext_littlebyte_bigword)
+	(floatformat_m88110_harris_ext): New float formats.
+
+2001-08-20  Daniel Berlin  <dan@cgsoftware.com>
+
+	* fibheap.c: New file. Fibonacci heap.
+
+	* Makefile.in (CFILES): Add fibheap.c.
+	(REQUIRED_OFILES): Add fibheap.o.
+	(fibheap.o): Add dependencies for fibheap.o.
+
+2001-08-17  Christopher Faylor <cgf@cygnus.com>
+
+	* configure.in: Always set HAVE_SYS_ERRLIST when targetting cygwin.
+	* configure: Regenerate.
+
+2001-08-16  Richard Henderson  <rth@redhat.com>
+
+	* hashtab.c (htab_hash_string): New.
+
+2001-08-13  Andrew Cagney  <ac131313@redhat.com>
+
+	* floatformat.c (floatformat_ieee_double_littlebyte_bigword): Fix
+	name.
+
+2001-08-12  Isamu Hasegawa  <isamu@yamato.ibm.com>
+
+	* regex.c (wcs_regex_compile): Use appropriate string
+	to compare with collating element.
+	Fix the padding for the alignment.
+
+2001-08-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* lbasename.c (lbasename): Change function definition to return a
+	const char pointer.
+
+2001-08-07  Jason Merrill  <jason_merrill@redhat.com>
+
+	* cp-demangle.c (demangle_special_name): "GR" -> "reference temporary
+	for".
+
+2001-08-03  Richard Henderson  <rth@redhat.com>
+
+	* Makefile.in (concat.o): Depend on config.h.
+
+2001-07-30  Andreas Jaeger  <aj@suse.de>
+
+	* concat.c: Include "config.h".
+
+2001-07-30  Andreas Jaeger  <aj@suse.de>
+
+	* regex.c: Declare wcs functions only if compiling with
+	MBS_SUPPORT.
+	Don't use #elif for traditional C.
+
+2001-07-23  Ulrich Drepper  <drepper@redhat.com>
+
+	* regex.c: Revamp memory allocation for WCHAR functions to
+	not use too much stack.
+
+2001-07-30  Andreas Jaeger  <aj@suse.de>
+
+	* regex.c: Declare wcs functions only if compiling with
+	MBS_SUPPORT.
+	Don't use #elif for traditional C.
+
+2001-07-25  Daniel Jacobowitz  <drow@mvista.com>
+
+	* Makefile.in (regex.o): Add dependency on config.h.
+
+2001-07-18  Andreas Schwab  <schwab@suse.de>
+
+	* regex.c (WORDCHAR_P) [WCHAR]: Also return true for the
+	underscore character.
+
+2001-07-18  Ulrich Drepper  <drepper@redhat.com>
+
+	* regex.c: Limit string length printed in debug messages to 100
+	chars.
+
+2001-07-18  Andreas Jaeger  <aj@suse.de>
+
+	* regex.c: Place under LGPL version 2.1.
+
+2001-07-10  Jeff Johnston  <jjohnstn@redhat.com>
+
+	* Makefile.in: Add support for regex code.
+	* regex.c: New file.
+
+2001-07-05  Mark Klein  <mklein@dis.com>
+
+	* Makefile.in: Add ffs.c dependency.
+	* configure.in: Add ffs.c.
+	* ffs.c: New file.
+
+2001-06-18  Richard Henderson  <rth@redhat.com>
+
+	* concat.c: Include <sys/types.h>.
+
+2001-06-11  Loren J. Rittle  <ljrittle@acm.org>
+
+	bootstrap/3106
+	* strerror.c (sys_nerr): Hide the OS header version.
+	* strsignal.c (sys_nsig): Likewise.
+
+2001-06-10  Richard Henderson  <rth@redhat.com>
+
+	* concat.c: Include string.h.  Fix int vs size_t usage.
+	Simplify the iteration loops.  Use memcpy.
+
+2001-05-16  Matt Kraai  <kraai@alumni.carnegiemellon.edu>
+
+	* partition.c: Fix misspelling of `implementation'.
+
+2001-05-09  Thiemo Seufer  <seufer@csv.ica.uni-stuttgart.de>
+
+	* md5.c (md5_init_ctx): Declare constants as unsigned.
+	(md5_process_block): Likewise.
+
+2001-05-07  Zack Weinberg  <zackw@stanford.edu>
+
+	* cp-demangle.c (demangle_v3_with_details,
+	is_gnu_v3_mangled_ctor, is_gnu_v3_mangled_dtor): Use K+R style
+	function definition.
+	* ternary.c: Use K+R style function definitions.  Use PTR, not
+	void *.  Make arguments constant where possible.
+
+2001-05-07  Mark Mitchell  <mark@codesourcery.com>
+
+	* splay-tree.h (splay_tree_max): New function.
+	(splay_tree_min): Likewise.
+
+2001-04-15  Daniel Berlin  <dan@cgsoftware.com>
+
+	* ternary.c: New file - Ternary search tree implementation.
+
+	* Makefile.in: Add ternary.o, and ternary.c dependencies.
+
+2001-04-03  Zack Weinberg  <zackw@stanford.edu>
+
+	* make-temp-file.c (try): Inline.
+
+2001-02-28  Richard Henderson  <rth@redhat.com>
+
+	* Makefile.in (make-temp-file.o): Depend on config.h.
+
+2001-03-27  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* memchr.c (memchr): Adjust condition to avoid infinite loop.
+
+2001-03-23  Jakub Jelinek  <jakub@redhat.com>
+
+	* cp-demangle.c (demangle_discriminator): `_0' is discriminator #1,
+	`_' not followed by a digit is invalid.
+
+2001-03-22  Jim Blandy  <jimb@redhat.com>
+
+	* cp-demangle.c (string_list_delete): Use dyn_string_delete
+	instead of free, to free the contents as well as the string
+	structure.
+
+2001-03-21  Zack Weinberg  <zackw@stanford.edu>
+
+	* make-temp-file.c: Always default DIR_SEPARATOR to '/'.
+	Don't default P_tmpdir to anything.  Try /var/tmp before
+	/usr/tmp.
+
+2001-03-20  Zack Weinberg  <zackw@stanford.edu>
+
+	* choose-temp.c: Split off make_temp_file, and the code
+	duplicated between it and choose_temp_base, into...
+	* make-temp-file.c: ... here; new file.
+
+	* Makefile.in (CFILES): Add make-temp-file.c.
+	(REQUIRED_OFILES): Add make-temp-file.o.
+
+2001-03-20  Jim Blandy  <jimb@redhat.com>
+
+	* cp-demangle.c (struct demangling_def): New fields:
+	is_constructor and is_destructor.
+	(demangling_new): Initialize them.
+	(demangle_ctor_dtor_name): Set them, if we detect a constructor
+	or destructor.
+	(demangle_v3_with_details, is_gnu_v3_mangled_ctor,
+	is_gnu_v3_mangled_dtor): New functions.
+
+2001-03-20  Jason Merrill  <jason@redhat.com>
+
+	* cplus-dem.c (main): Skip initial $.
+
+2001-03-15  Michael Meissner  <meissner@redhat.com>
+
+	* hashtab.c (higher_prime_number): Silence warning that 4294967291
+	might be a signed integer under pre-ISO C systems.
+
+2001-03-10  Neil Booth  <neil@daikokuya.demon.co.uk>
+	    John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* libiberty/lbasename.c: New file.
+	* libiberty/Makefile.in: Update for lbasename.
+
+2001-03-06  Zack Weinberg  <zackw@stanford.edu>
+
+	* aclocal.m4 (libiberty_AC_FUNC_C_ALLOCA): New.
+	* configure.in: Replace all alloca logic with a simple use of
+	the above new macro.
+	* config.table: Kill *-*-beos* entry.
+	* config/mh-beos: Delete.
+	* configure, config.in: Regenerate.
+
+	* Makefile.in (ALLOCA, HFILES): Kill.
+	(REQUIRED_OFILES): Add alloca.o.
+	(alloca.o): Depend on libiberty.h.
+	(argv.o): Don't depend on alloca-conf.h.
+	* alloca-conf.h: Delete.
+	* alloca.c: Include libiberty.h.  Kill all #ifdef emacs
+	blocks.  Provide the C alloca unconditionally.  Use PTR where
+	appropriate.  Make i00afunc static.
+	* argv.c: Don't include alloca-conf.h.
+
+2001-03-04  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* cplus-dem.c (main): Cast enum style to int.
+
+2001-02-16  Loren J. Rittle  <ljrittle@acm.org>
+
+	* cplus-dem.c (main): Initialize style.
+
+2001-02-02  Phil Edwards  <pme@sources.redhat.com>
+
+	* COPYING.LIB:  Update to LGPL 2.1 from the FSF.
+
+2001-01-31  Bryce McKinlay  <bryce@albatross.co.nz>
+
+	Add support for Java demangling under the v3 ABI:
+	* cp-demangle.c (NAMESPACE_SEPARATOR): New define.
+	(struct demangling_def): Add `style' field.
+	(demangling_new): New parameter `style'. Set it in demangling_t.
+	(demangle_prefix): Use NAMESPACE_SEPARATOR.
+	(demangle_type_ptr): Don't emit pointer symbol if doing Java output.
+	(cp_demangle): New parameter `style'. Pass it to demangling_new().
+	(main): Call cp_demangle with extra parameter.
+	(java_demangle_v3): New function.
+	(java_builtin_type_names): New. Table of primitive type names used
+	for Java demangling.
+	(demangle_builtin_type): Look up in java_builtin_type_names if doing
+	Java output.
+	* cplus-dem.c (cplus_demangle): Use java_demangle_v3 to do Java
+	demangling.
+	(long_options): Remove obsolete `java' option.
+	(main): Remove explicit handling of `java' option. Instead, pass style
+	parameter in cplus_demangle flags as gdb does.
+	* testsuite/demangle.expected: Add some Java test cases.
 
 2000-12-29  DJ Delorie  <dj@redhat.com>
 
@@ -10,7 +608,7 @@
 	* getopt1.c: Ditto.
 	* md5.c: Ditto.
 	* obstack.c: Ditto.
-	
+
 2000-12-26  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
 
 	* bsearch.c: New file.
@@ -115,12 +713,12 @@
 2000-11-04  Hans-Peter Nilsson  <hp@bitrange.com>
 
 	* hashtab.c (htab_expand): Change to return int.  Use calloc or
- 	xcalloc depending on htab->return_allocation_failure.  Return zero
- 	if calloc fails.
+	xcalloc depending on htab->return_allocation_failure.  Return zero
+	if calloc fails.
 	(htab_create): Update comment to cover memory allocation.
 	(htab_try_create): New.
 	(htab_find_slot_with_hash): Return NULL if htab_expand fails.
-  	Update comment to cover this.
+	Update comment to cover this.
 
 2000-11-03  Hans-Peter Nilsson  <hp@bitrange.com>
 
@@ -623,7 +1221,7 @@ Tue May 30 15:07:52 2000  Jeffrey A Law  (law@cygnus.com)
 2000-05-23  Mike Stump  <mrs@wrs.com>
 
 	* Makefile.in (xmalloc.o): Add dependency for config.h, fixes make
- 	-j3.
+	-j3.
 
 2000-05-18  J. David Anglin  <dave@hiauly1.hia.nrc.ca>
 
@@ -1256,9 +1854,9 @@ Tue Dec 22 09:43:35 1998  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 	* choose-temp.c: Include stdlib.h.
 
 	* cplus-dem.c (demangle_arm_pt): Remove unused prototype.
-  	(snarf_numeric_literal): Constify first parameter.
-  	(code_for_qualifier): Avoid a gcc extension, make the parameter an
- 	int, not a char.
+	(snarf_numeric_literal): Constify first parameter.
+	(code_for_qualifier): Avoid a gcc extension, make the parameter an
+	int, not a char.
 	(demangle_qualifier): Likewise.
 	(demangle_signature): Cast the argument of a ctype function to
 	unsigned char.
@@ -1271,11 +1869,11 @@ Tue Dec 22 09:43:35 1998  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 	Cast the argument of a ctype function to unsigned char.
 
 	* floatformat.c (floatformat_to_double): Add explicit braces to
- 	avoid ambiguous `else'.
+	avoid ambiguous `else'.
 
 	* fnmatch.c (fnmatch): Change type of variables `c', `c1',
- 	`cstart' and `cend' to unsigned char.  Cast the argument of macro
- 	`FOLD', which uses ctype functions, to unsigned char.
+	`cstart' and `cend' to unsigned char.  Cast the argument of macro
+	`FOLD', which uses ctype functions, to unsigned char.
 
 	* objalloc.c (free): Add prototype.
 
@@ -1286,7 +1884,7 @@ Sun Dec 20 16:03:46 1998  Hans-Peter Nilsson  <hp@axis.se>
 Fri Dec 18 17:50:18 1998  David Taylor  <taylor@texas.cygnus.com>
 
 	* cplus-dem.c (demangle_arm_pt): remove declaration -- function
- 	doesn't exist.
+	doesn't exist.
 	(do_hpacc_template_literal): remove unused variable `i'.
 
 Fri Dec 18 16:11:43 EST 1998  Andrew MacLeod  <amacleod@cygnus.com>
@@ -1330,48 +1928,48 @@ Fri Dec  4 13:51:04 1998  David Taylor   <taylor@texas.cygnus.com>
 	* HP aCC demangling support.
 	* cplus-dem.c
 	(main): Remove default to HP style demangling, set to EDG
- 	demangling correctly when -edg specified; set the demangling style
- 	when user specifies 'edg'. Set strip_underscore to
- 	prepends_underscore, if not HPUXHPPA.  Set
- 	current_demangling_style to hp_demangling if HPUXHPPA.  Set
- 	current demangling style correctly if the switch is hp.  Read
- 	label correctly also in the HP style case.
+	demangling correctly when -edg specified; set the demangling style
+	when user specifies 'edg'. Set strip_underscore to
+	prepends_underscore, if not HPUXHPPA.  Set
+	current_demangling_style to hp_demangling if HPUXHPPA.  Set
+	current demangling style correctly if the switch is hp.  Read
+	label correctly also in the HP style case.
 	(work_stuff): add temp_start field; add field for volatile member
- 	function.
+	function.
 	(arm_pt): handle ARM_DEMANGLING and EDG_DEMANGLING styles; HP
- 	style for this case is the same as ARM.
+	style for this case is the same as ARM.
 	(demangle_args): handle EDG_DEMANGLING style; support HP style.
 	(demangle_arm_hp_template): new function. (It was
- 	demangle_arm_pt.); check and set value of temp_start field in
- 	multiple places. Also, when ceching for end of template args,
- 	check to see if at end of static member of template class.
+	demangle_arm_pt.); check and set value of temp_start field in
+	multiple places. Also, when ceching for end of template args,
+	check to see if at end of static member of template class.
 	(demangle_class): new local variable : save_class_name_end Don't
- 	include template args in string defining class.
+	include template args in string defining class.
 	(demangle_class_name): use demangel_arm_hp_template.
 	(demangle_function_name): handle case where demangling style is
- 	HP_DEMANGLING and currently point at an 'X' in the mangled name.
-  	Handle EDG_DEMANGLING style.  Handle constructor and destructor
- 	ops for HP style.
+	HP_DEMANGLING and currently point at an 'X' in the mangled name.
+	Handle EDG_DEMANGLING style.  Handle constructor and destructor
+	ops for HP style.
 	(demangle_prefix): handle EDG_DEMANGLING and ARM_DEMANGLING
- 	styles.  global destructor and constructor for HP style are same
- 	as for ARM style. Same for local variables.
+	styles.  global destructor and constructor for HP style are same
+	as for ARM style. Same for local variables.
 	(demangle_qualified): handle EDG_DEMANGLING style.
 	(demangle_signature): add case for volatile member function.  For
- 	cases '1' - '9' : initialize the temp_start field to -1 and handle
- 	the EDG_DEMANGLING style.  for case 'F' : handle EDG_DEMANGLING
- 	and AUTO_DEMANGLING styles.  If expecting a function and managed
- 	to demangle the funct args, then handle the LUCID_DEMANGLING,
- 	ARM_DEMANGLING, and EDG_DEMANGLING styles.  Add case for local
- 	class name after "Lnnn_ in HP style case. HP style too needs to
- 	forget types.  _nnn is OK for HP style, so don't report failure.
+	cases '1' - '9' : initialize the temp_start field to -1 and handle
+	the EDG_DEMANGLING style.  for case 'F' : handle EDG_DEMANGLING
+	and AUTO_DEMANGLING styles.  If expecting a function and managed
+	to demangle the funct args, then handle the LUCID_DEMANGLING,
+	ARM_DEMANGLING, and EDG_DEMANGLING styles.  Add case for local
+	class name after "Lnnn_ in HP style case. HP style too needs to
+	forget types.  _nnn is OK for HP style, so don't report failure.
 	(do_hpacc_template_const_value): new function. Handle template's
- 	value param for HP/aCC.
+	value param for HP/aCC.
 	(do_hpacc_template_literal): new function.  Handle a template's
- 	literal parameter for HP aCC.
+	literal parameter for HP aCC.
 	(recursively_demangle): new function
 	(snarf_numeric_literal): new function.
 	(usage): add 'edg' to the list of demangling styles; add hp switch
- 	to message.
+	to message.
 
 Sat Nov 28 17:25:22 1998  Christopher Faylor <cgf@cygnus.com>
 
@@ -1453,13 +2051,13 @@ Mon Nov  2 15:05:33 1998  Geoffrey Noer  <noer@cygnus.com>
 Mon Nov  2 10:22:01 1998  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
 	* pexecute.c: Check HAVE_CONFIG_H, not IN_GCC, when determining
- 	whether to include config.h.  Possibly include unistd.h in the
- 	!IN_GCC case.  Define VFORK_STRING as a printable function call
- 	for error messages (either "vfork" or "fork".)  If HAVE_VFORK_H is
- 	defined, include vfork.h.  If VMS is defined, define vfork()
- 	appropriately.  Remove vfork check on USG, we're using autoconf.
-  	(pexecute): Set `errmsg_fmt' to VFORK_STRING instead of checking
- 	locally what string to use.
+	whether to include config.h.  Possibly include unistd.h in the
+	!IN_GCC case.  Define VFORK_STRING as a printable function call
+	for error messages (either "vfork" or "fork".)  If HAVE_VFORK_H is
+	defined, include vfork.h.  If VMS is defined, define vfork()
+	appropriately.  Remove vfork check on USG, we're using autoconf.
+	(pexecute): Set `errmsg_fmt' to VFORK_STRING instead of checking
+	locally what string to use.
 
 1998-10-26  Mark Mitchell  <mark@markmitchell.com>
 
@@ -1565,8 +2163,8 @@ Thu Oct  8 23:42:08 1998  Jeffrey A Law  (law@cygnus.com)
 Mon Sep  7 23:29:01 1998  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
 	* mkstemp.c: Include config.h even when not IN_GCC.  Wrap header
- 	inclusions inside HAVE_*_H macros.  Include ansidecl.h when not
- 	IN_GCC.
+	inclusions inside HAVE_*_H macros.  Include ansidecl.h when not
+	IN_GCC.
 
 	* vasprintf.c: Include stdarg.h/varargs.h first.
 
@@ -1880,7 +2478,7 @@ Mon May  4 13:00:28 1998  Ian Lance Taylor  <ian@cygnus.com>
 	* config/mh-sysv4 (RANLIB, INSTALL): Don't define.
 	* config.table: Change config_shell to CONFIG_SHELL, and use
 	libiberty_topdir to find move-if-change.
- 	(m68k-apollo-bsd*, m68k-apollo-sysv*): Remove.
+	(m68k-apollo-bsd*, m68k-apollo-sysv*): Remove.
 	(i[3456]86-ncr-sysv4*, *-*-dgux*, hppa*-hp-bsd*): Remove.
 	(*-*-irix*, *-*-m88kbcs*, *-*-sysv*): Remove.
 	* Makefile.in (srcdir): Set to @srcdir@.
@@ -2097,7 +2695,7 @@ Wed Sep 24 00:31:59 1997  Felix Lee  <flee@yin.cygnus.com>
 
 	* asprintf.c: stdarg.h when ALMOST_STDC
 	* config/mh-windows (EXTRA_OFILES): add asprintf.o and
- 	strncasecmp.o.
+	strncasecmp.o.
 
 Thu Aug 28 14:27:15 1997  Andrew Cagney  <cagney@b1.cygnus.com>
 
@@ -4139,7 +4737,7 @@ Thu Jan 30 22:48:41 1992  Stu Grossman  (grossman at cygnus.com)
 
 Mon Jan 20 18:53:23 1992  Stu Grossman  (grossman at cygnus.com)
 
- 	* getopt.c, getopt1.c, ../include/getopt.h:  Get latest versions.
+	* getopt.c, getopt1.c, ../include/getopt.h:  Get latest versions.
 
 Sat Jan 18 16:53:01 1992  Fred Fish  (fnf at cygnus.com)
 

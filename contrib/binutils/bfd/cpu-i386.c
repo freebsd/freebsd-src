@@ -1,5 +1,5 @@
 /* BFD support for the Intel 386 architecture.
-   Copyright 1992, 1994, 1995, 1996, 1998, 2000, 2001
+   Copyright 1992, 1994, 1995, 1996, 1998, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -44,8 +44,8 @@ const bfd_arch_info_type bfd_x86_64_arch_intel_syntax =
   8,  /* 8 bits in a byte */
   bfd_arch_i386,
   bfd_mach_x86_64_intel_syntax,
-  "x86_64:intel",
-  "x86_64:intel",
+  "i386:intel",
+  "i386:x86-64:intel",
   3,
   true,
   bfd_default_compatible,
@@ -75,8 +75,8 @@ const bfd_arch_info_type bfd_x86_64_arch =
   8,  /* 8 bits in a byte */
   bfd_arch_i386,
   bfd_mach_x86_64,
-  "x86_64",
-  "x86_64",
+  "i386",
+  "i386:x86-64",
   3,
   true,
   bfd_default_compatible,

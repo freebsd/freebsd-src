@@ -13,9 +13,11 @@ ARCH=alpha
 MACHINE=
 GENERATE_SHLIB_SCRIPT=yes
 DATA_PLT=
-NOP=0x47ff041f
+# Note that the string of digits is little-endian.
+NOP=0x0000fe2f		# unop
 
-OTHER_READONLY_SECTIONS='.reginfo : { *(.reginfo) }'
+OTHER_READONLY_SECTIONS="
+  .reginfo      ${RELOCATING-0} : { *(.reginfo) }"
 
 # This code gets inserted into the generic elf32.sc linker script
 # and allows us to define our own command line switches.
@@ -27,7 +29,7 @@ PARSE_AND_LIST_PROLOGUE='
 static int elf64alpha_32bit = 0;
 
 struct ld_emulation_xfer_struct ld_elf64alpha_emulation;
-static void gld_elf64alpha_finish ();
+static void gld_elf64alpha_finish PARAMS ((void));
 '
 
 PARSE_AND_LIST_LONGOPTS='

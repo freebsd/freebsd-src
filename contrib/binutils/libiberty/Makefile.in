@@ -1,6 +1,6 @@
 #
 # Makefile
-#   Copyright (C) 1990, 91-99, 2000
+#   Copyright (C) 1990, 91-99, 2000, 2001
 #   Free Software Foundation
 #
 # This file is part of the libiberty library.
@@ -56,15 +56,17 @@ CC = @CC@
 CFLAGS = @CFLAGS@
 LIBCFLAGS = $(CFLAGS)
 RANLIB = @RANLIB@
+MAKEINFO = @MAKEINFO@
+PERL = @PERL@
 
 PICFLAG =
 
 MAKEOVERRIDES =
 
 TARGETLIB = libiberty.a
+TESTLIB = testlib.a
 
 LIBOBJS = @LIBOBJS@
-ALLOCA = @ALLOCA@
 
 # A configuration can specify extra .o files that should be included,
 # even if they are in libc. (Perhaps the libc version is buggy.)
@@ -95,6 +97,7 @@ FLAGS_TO_PASS = \
 # Subdirectories to recurse into. We need to override this during cleaning
 SUBDIRS = testsuite
 
+# FIXME: add @BUILD_INFO@ once we're sure it works for everyone.
 all: stamp-picdir $(TARGETLIB) needed-list required-list all-subdir
 	@$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO=all
 
@@ -113,45 +116,122 @@ COMPILE.c = $(CC) -c @DEFS@ $(LIBCFLAGS) -I. -I$(INCDIR) $(HDEFINES) @ac_libiber
 	else true; fi
 	$(COMPILE.c) $<
 
-info: info-subdir
+# NOTE: If you add new files to the library, add them to this list
+# (alphabetical), and add them to REQUIRED_OFILES, or
+# CONFIGURED_OFILES and funcs in configure.in.
+CFILES = alloca.c argv.c asprintf.c atexit.c				\
+	basename.c bcmp.c bcopy.c bsearch.c bzero.c			\
+	calloc.c choose-temp.c clock.c concat.c cp-demangle.c		\
+	 cplus-dem.c							\
+	dyn-string.c							\
+	fdmatch.c ffs.c fibheap.c floatformat.c fnmatch.c		\
+	getcwd.c getopt.c getopt1.c getpagesize.c getpwd.c getruntime.c	\
+	hashtab.c hex.c							\
+	index.c insque.c						\
+	lbasename.c							\
+	make-temp-file.c md5.c memchr.c memcmp.c memcpy.c memmove.c	\
+	 memset.c mkstemps.c						\
+	objalloc.c obstack.c						\
+	partition.c pexecute.c putenv.c					\
+	random.c regex.c rename.c rindex.c				\
+	safe-ctype.c setenv.c sigsetmask.c sort.c spaces.c		\
+	 splay-tree.c strcasecmp.c strchr.c strdup.c strerror.c		\
+	 strncasecmp.c strncmp.c strrchr.c strsignal.c strstr.c		\
+	 strtod.c strtol.c strtoul.c					\
+	ternary.c tmpnam.c						\
+	vasprintf.c vfork.c vfprintf.c vprintf.c vsprintf.c		\
+	waitpid.c							\
+	xatexit.c xexit.c xmalloc.c xmemdup.c xstrdup.c xstrerror.c
+
+# These are always included in the library.  The first four are listed
+# first and by compile time to optimize parallel builds.
+REQUIRED_OFILES = regex.o cplus-dem.o cp-demangle.o md5.o		\
+	alloca.o argv.o							\
+	choose-temp.o concat.o						\
+	dyn-string.o							\
+	fdmatch.o fibheap.o floatformat.o fnmatch.o			\
+	getopt.o getopt1.o getpwd.o getruntime.o			\
+	hashtab.o hex.o							\
+	lbasename.o							\
+	make-temp-file.o						\
+	objalloc.o obstack.o						\
+	partition.o pexecute.o						\
+	safe-ctype.o sort.o spaces.o splay-tree.o strerror.o		\
+	 strsignal.o							\
+	ternary.o							\
+	xatexit.o xexit.o xmalloc.o xmemdup.o xstrdup.o xstrerror.o
+
+# These are all the objects that configure may add to the library via
+# $funcs or EXTRA_OFILES.  This list exists here only for "make
+# maint-missing" and "make check".
+CONFIGURED_OFILES = asprintf.o atexit.o					\
+	basename.o bcmp.o bcopy.o bsearch.o bzero.o			\
+	calloc.o clock.o copysign.o					\
+	_doprnt.o							\
+	ffs.o								\
+	getcwd.o getpagesize.o						\
+	index.o insque.o						\
+	memchr.o memcmp.o memcpy.o memmove.o memset.o mkstemps.o	\
+	putenv.o							\
+	random.o rename.o rindex.o					\
+	setenv.o sigsetmask.o strcasecmp.o strchr.o strdup.o		\
+	 strncasecmp.o strncmp.o strrchr.o strstr.o strtod.o strtol.o	\
+	 strtoul.o							\
+	tmpnam.o							\
+	vasprintf.o vfork.o vfprintf.o vprintf.o vsprintf.o		\
+	waitpid.o
+
+$(TARGETLIB): $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS)
+	-rm -f $(TARGETLIB) pic/$(TARGETLIB)
+	$(AR) $(AR_FLAGS) $(TARGETLIB) \
+	  $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS)
+	$(RANLIB) $(TARGETLIB)
+	if [ x"$(PICFLAG)" != x ]; then \
+	  cd pic; \
+	  $(AR) $(AR_FLAGS) $(TARGETLIB) \
+	    $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS); \
+	  $(RANLIB) $(TARGETLIB); \
+	  cd ..; \
+	else true; fi
+
+$(TESTLIB): $(REQUIRED_OFILES) $(CONFIGURED_OFILES)
+	-rm -f $(TESTLIB)
+	$(AR) $(AR_FLAGS) $(TESTLIB) \
+	  $(REQUIRED_OFILES) $(CONFIGURED_OFILES)
+	$(RANLIB) $(TESTLIB)
+
+info: libiberty.info info-subdir
 install-info: install-info-subdir
 clean-info: clean-info-subdir
-dvi: dvi-subdir
+dvi: libiberty.dvi dvi-subdir
+html: libiberty.html
 
-# Include files that are in this directory.
-HFILES = alloca-conf.h
+TEXISRC = \
+	$(srcdir)/libiberty.texi \
+	$(srcdir)/copying-lib.texi \
+	$(srcdir)/obstacks.texi \
+	$(srcdir)/functions.texi
 
-# NOTE: If you add new files to the library, add them to this list
-# (alphabetical), and add them to REQUIRED_OFILES or funcs in
-# configure.in.
-CFILES = asprintf.c alloca.c argv.c atexit.c basename.c bcmp.c bcopy.c	      \
-	bzero.c calloc.c choose-temp.c clock.c concat.c cplus-dem.c	      \
-        cp-demangle.c dyn-string.c fdmatch.c fnmatch.c getcwd.c		      \
-	getpwd.c getopt.c getopt1.c getpagesize.c getruntime.c		      \
-	floatformat.c hashtab.c hex.c index.c insque.c lbasename.c	      \
-	md5.c memchr.c							      \
-	memcmp.c memcpy.c memmove.c memset.c mkstemps.c objalloc.c obstack.c  \
-	partition.c pexecute.c putenv.c random.c rename.c rindex.c setenv.c   \
-	sigsetmask.c safe-ctype.c sort.c spaces.c splay-tree.c strcasecmp.c   \
-	strncasecmp.c strchr.c strdup.c strerror.c strncmp.c strrchr.c        \
-	strsignal.c strstr.c strtod.c strtol.c strtoul.c tmpnam.c vasprintf.c \
-	vfork.c vfprintf.c vprintf.c vsprintf.c waitpid.c xatexit.c xexit.c   \
-	xmalloc.c xmemdup.c xstrdup.c xstrerror.c
+# Additional files that have texi snippets that need to be collected
+# and sorted.  Some are here because the sources are imported from
+# elsewhere.  Others represent headers in ../include.
+TEXIFILES = fnmatch.txh
 
-# These are always included in the library.
-REQUIRED_OFILES = argv.o choose-temp.o concat.o cplus-dem.o cp-demangle.o     \
-	dyn-string.o fdmatch.o fnmatch.o getopt.o getopt1.o getpwd.o          \
-	getruntime.o hashtab.o hex.o floatformat.o lbasename.o md5.o	      \
-	objalloc.o obstack.o						      \
-	partition.o pexecute.o safe-ctype.o sort.o spaces.o splay-tree.o      \
-	strerror.o strsignal.o xatexit.o xexit.o xmalloc.o xmemdup.o          \
-	xstrdup.o xstrerror.o
+libiberty.info : $(srcdir)/libiberty.texi $(TEXISRC)
+	$(MAKEINFO) -I$(srcdir) $(srcdir)/libiberty.texi
 
-$(TARGETLIB): $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS) $(ALLOCA)
-	-rm -f $(TARGETLIB)
-	$(AR) $(AR_FLAGS) $(TARGETLIB) \
-	  $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS) $(ALLOCA)
-	$(RANLIB) $(TARGETLIB)
+libiberty.dvi : $(srcdir)/libiberty.texi $(TEXISRC)
+	texi2dvi $(srcdir)/libiberty.texi
+
+libiberty.html : $(srcdir)/libiberty.texi $(TEXISRC)
+	$(MAKEINFO) --html -I$(srcdir) $(srcdir)/libiberty.texi
+
+@MAINT@$(srcdir)/functions.texi : stamp-functions
+@MAINT@	@true
+
+@MAINT@stamp-functions : $(CFILES) $(TEXIFILES) $(srcdir)/gather-docs Makefile
+@MAINT@@HAVE_PERL@	$(PERL) $(srcdir)/gather-docs $(srcdir) $(srcdir)/functions.texi $(CFILES) $(TEXIFILES)
+@MAINT@	echo stamp > stamp-functions
 
 INSTALL_DEST = @INSTALL_DEST@
 install: install_to_$(INSTALL_DEST) install-subdir
@@ -199,8 +279,8 @@ stamp-picdir:
 
 etags tags: TAGS etags-subdir
 
-TAGS: $(CFILES) $(HFILES)
-	etags `for i in $(HFILES) $(CFILES); do echo $(srcdir)/$$i ; done`
+TAGS: $(CFILES)
+	etags `for i in $(CFILES); do echo $(srcdir)/$$i ; done`
 
 # The standalone demangler (c++filt) has been moved to binutils.
 demangle:
@@ -209,7 +289,21 @@ demangle:
 	@false
 
 ls:
-	@echo Makefile $(HFILES) $(CFILES)
+	@echo Makefile $(CFILES)
+
+# Various targets for maintainers.
+
+maint-missing :
+	@$(PERL) $(srcdir)/maint-tool -s $(srcdir) missing $(CFILES) $(REQUIRED_OFILES) $(CONFIGURED_OFILES)
+
+maint-buildall : $(REQUIRED_OFILES) $(CONFIGURED_OFILES)
+	@true
+
+maint-undoc : $(srcdir)/functions.texi
+	@$(PERL) $(srcdir)/maint-tool -s $(srcdir) undoc
+
+maint-deps :
+	@$(PERL) $(srcdir)/maint-tool -s $(srcdir) deps $(INCDIR)
 
 # Need to deal with profiled libraries, too.
 
@@ -219,10 +313,15 @@ mostlyclean: mostlyclean-subdir
 	-rm -rf *.o pic core errs \#* *.E a.out
 	-rm -f needed.awk needed2.awk errors dummy needed-list config.h stamp-*
 	-rm -f $(CONFIG_H) $(NEEDED_LIST) stamp-picdir
+	-rm -f libiberty.aux libiberty.cp libiberty.cps libiberty.fn libiberty.ky
+	-rm -f libiberty.log libiberty.tmp libiberty.tps libiberty.pg
+	-rm -f libiberty.pgs libiberty.toc libiberty.tp libiberty.tpl libiberty.vr
+	-rm -f libtexi.stamp
 	@$(MULTICLEAN) multi-clean DO=mostlyclean
 clean: clean-subdir
 	$(MAKE) SUBDIRS="" mostlyclean
 	-rm -f *.a required-list tmpmulti.out
+	-rm -f libiberty.dvi libiberty.info* libiberty.html
 	@$(MULTICLEAN) multi-clean DO=clean
 distclean: distclean-subdir
 	$(MAKE) SUBDIRS="" clean
@@ -238,68 +337,115 @@ force:
 Makefile: $(srcdir)/Makefile.in config.status
 	CONFIG_FILES=Makefile CONFIG_HEADERS= $(SHELL) ./config.status
 
+# Depending on Makefile makes sure that config.status has been re-run
+# if needed.  This prevents problems with parallel builds.
 config.h: stamp-h ; @true
-stamp-h: config.in config.status
+stamp-h: config.in config.status Makefile
 	CONFIG_FILES= CONFIG_HEADERS=config.h:config.in $(SHELL) ./config.status
 
 config.status: $(srcdir)/configure $(srcdir)/config.table
 	$(SHELL) ./config.status --recheck
 
-
+# Depending on config.h makes sure that config.status has been re-run
+# if needed.  This prevents problems with parallel builds, in case
+# subdirectories need to run config.status also.
 all-subdir check-subdir installcheck-subdir info-subdir	\
 install-info-subdir clean-info-subdir dvi-subdir install-subdir	\
 etags-subdir mostlyclean-subdir clean-subdir distclean-subdir \
-maintainer-clean-subdir:
+maintainer-clean-subdir: config.h
 	@subdirs='$(SUBDIRS)'; \
 	target=`echo $@ | sed -e 's/-subdir//'`; \
 	for dir in $$subdirs ; do \
 	  cd $$dir && $(MAKE) $$target; \
 	done
 
-$(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS) $(ALLOCA): stamp-picdir
+$(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS): stamp-picdir
+$(CONFIGURED_OFILES): stamp-picdir
 
-alloca.o: config.h
+# The dependencies in the remainder of this file are automatically
+# generated by "make maint-deps".  Manual edits will be lost.
+
+_doprnt.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/safe-ctype.h
+alloca.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+argv.o: $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+asprintf.o: $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
 atexit.o: config.h
-argv.o: config.h alloca-conf.h $(INCDIR)/libiberty.h
-basename.o: $(INCDIR)/libiberty.h
-choose-temp.o: config.h
+basename.o: $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/safe-ctype.h
+bsearch.o: config.h $(INCDIR)/ansidecl.h
+calloc.o: $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+choose-temp.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
 clock.o: config.h
-concat.o: $(INCDIR)/libiberty.h
-cplus-dem.o: config.h $(INCDIR)/demangle.h
-cp-demangle.o: config.h $(INCDIR)/dyn-string.h $(INCDIR)/demangle.h
-dyn-string.o: config.h $(INCDIR)/dyn-string.h
-fdmatch.o: $(INCDIR)/libiberty.h
-fnmatch.o: config.h $(INCDIR)/fnmatch.h
+concat.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+copysign.o: $(INCDIR)/ansidecl.h
+cp-demangle.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/demangle.h \
+	$(INCDIR)/dyn-string.h $(INCDIR)/getopt.h $(INCDIR)/libiberty.h
+cplus-dem.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/demangle.h \
+	$(INCDIR)/getopt.h $(INCDIR)/libiberty.h $(INCDIR)/safe-ctype.h
+dyn-string.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/dyn-string.h \
+	$(INCDIR)/libiberty.h
+fdmatch.o: $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+fibheap.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/fibheap.h \
+	$(INCDIR)/libiberty.h
+floatformat.o: $(INCDIR)/ansidecl.h $(INCDIR)/floatformat.h
+fnmatch.o: config.h $(INCDIR)/fnmatch.h $(INCDIR)/safe-ctype.h
 getcwd.o: config.h
 getopt.o: config.h $(INCDIR)/getopt.h
 getopt1.o: config.h $(INCDIR)/getopt.h
 getpagesize.o: config.h
-getpwd.o: config.h $(INCDIR)/libiberty.h
-getruntime.o: config.h $(INCDIR)/libiberty.h
-hex.o: $(INCDIR)/libiberty.h
-floatformat.o: $(INCDIR)/floatformat.h
-lbasename.o: $(INCDIR)/libiberty.h
-mkstemps.o: config.h
-md5.o: config.h
-objalloc.o: config.h $(INCDIR)/objalloc.h
+getpwd.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+getruntime.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+hashtab.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/hashtab.h \
+	$(INCDIR)/libiberty.h
+hex.o: $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+lbasename.o: $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/safe-ctype.h
+make-temp-file.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+md5.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/md5.h
+memchr.o: $(INCDIR)/ansidecl.h
+memcmp.o: $(INCDIR)/ansidecl.h
+memcpy.o: $(INCDIR)/ansidecl.h
+memmove.o: $(INCDIR)/ansidecl.h
+memset.o: $(INCDIR)/ansidecl.h
+mkstemps.o: config.h $(INCDIR)/ansidecl.h
+objalloc.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/objalloc.h
 obstack.o: config.h $(INCDIR)/obstack.h
-partition.o: config.h $(INCDIR)/partition.h
-pexecute.o: config.h $(INCDIR)/libiberty.h
+partition.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/partition.h
+pexecute.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/safe-ctype.h
+putenv.o: config.h $(INCDIR)/ansidecl.h
+random.o: $(INCDIR)/ansidecl.h
+regex.o: config.h $(INCDIR)/xregex.h $(INCDIR)/xregex2.h
 rename.o: config.h
-setenv.o: config.h
-sort.o: config.h $(INCDIR)/sort.h $(INCDIR)/ansidecl.h
-spaces.o: $(INCDIR)/libiberty.h
-splay-tree.o: config.h $(INCDIR)/libiberty.h $(INCDIR)/splay-tree.h $(INCDIR)/ansidecl.h
-strerror.o: config.h $(INCDIR)/libiberty.h
-strsignal.o: config.h $(INCDIR)/libiberty.h
-strtol.o: config.h
-strtoul.o: config.h
-vasprintf.o: config.h
-xatexit.o: $(INCDIR)/libiberty.h
-xexit.o: config.h $(INCDIR)/libiberty.h
-xmalloc.o: config.h $(INCDIR)/libiberty.h
-xmemdup.o: config.h $(INCDIR)/libiberty.h
-xstrdup.o: config.h $(INCDIR)/libiberty.h
-xstrerror.o: config.h $(INCDIR)/libiberty.h
+safe-ctype.o: $(INCDIR)/ansidecl.h $(INCDIR)/safe-ctype.h
+setenv.o: config.h $(INCDIR)/ansidecl.h
+sigsetmask.o: $(INCDIR)/ansidecl.h
+sort.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/sort.h
+spaces.o: $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+splay-tree.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/splay-tree.h
+strcasecmp.o: $(INCDIR)/ansidecl.h
+strchr.o: $(INCDIR)/ansidecl.h
+strerror.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+strncasecmp.o: $(INCDIR)/ansidecl.h
+strncmp.o: $(INCDIR)/ansidecl.h
+strrchr.o: $(INCDIR)/ansidecl.h
+strsignal.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+strtod.o: $(INCDIR)/ansidecl.h $(INCDIR)/safe-ctype.h
+strtol.o: config.h $(INCDIR)/safe-ctype.h
+strtoul.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/safe-ctype.h
+ternary.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/ternary.h
+vasprintf.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+vfork.o: $(INCDIR)/ansidecl.h
+vprintf.o: $(INCDIR)/ansidecl.h
+vsprintf.o: $(INCDIR)/ansidecl.h
 waitpid.o: config.h
-hashtab.o: config.h $(INCDIR)/libiberty.h $(INCDIR)/hashtab.h $(INCDIR)/ansidecl.h
+xatexit.o: $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+xexit.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+xmalloc.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+xmemdup.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+xstrdup.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+xstrerror.o: config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h

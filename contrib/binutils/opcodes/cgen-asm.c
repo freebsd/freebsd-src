@@ -1,6 +1,6 @@
 /* CGEN generic assembler support code.
 
-   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils and GDB, the GNU debugger.
 
@@ -20,13 +20,17 @@
 
 #include "sysdep.h"
 #include <stdio.h>
-#include <ctype.h>
 #include "ansidecl.h"
 #include "libiberty.h"
+#include "safe-ctype.h"
 #include "bfd.h"
 #include "symcat.h"
 #include "opcode/cgen.h"
 #include "opintl.h"
+
+static CGEN_INSN_LIST *  hash_insn_array      PARAMS ((CGEN_CPU_DESC, const CGEN_INSN *, int, int, CGEN_INSN_LIST **, CGEN_INSN_LIST *));
+static CGEN_INSN_LIST *  hash_insn_list       PARAMS ((CGEN_CPU_DESC, const CGEN_INSN_LIST *, CGEN_INSN_LIST **, CGEN_INSN_LIST *));
+static void              build_asm_hash_table PARAMS ((CGEN_CPU_DESC));
 
 /* Set the cgen_parse_operand_fn callback.  */
 
@@ -66,7 +70,7 @@ hash_insn_array (cd, insns, count, entsize, htable, hentbuf)
      CGEN_CPU_DESC cd;
      const CGEN_INSN *insns;
      int count;
-     int entsize;
+     int entsize ATTRIBUTE_UNUSED;
      CGEN_INSN_LIST **htable;
      CGEN_INSN_LIST *hentbuf;
 {
@@ -198,7 +202,7 @@ cgen_asm_lookup_insn (cd, insn)
 
 const char *
 cgen_parse_keyword (cd, strp, keyword_table, valuep)
-     CGEN_CPU_DESC cd;
+     CGEN_CPU_DESC cd ATTRIBUTE_UNUSED;
      const char **strp;
      CGEN_KEYWORD *keyword_table;
      long *valuep;
@@ -207,24 +211,34 @@ cgen_parse_keyword (cd, strp, keyword_table, valuep)
   char buf[256];
   const char *p,*start;
 
+  if (keyword_table->name_hash_table == NULL)
+    (void) cgen_keyword_search_init (keyword_table, NULL);
+
   p = start = *strp;
 
-  /* Allow any first character.
-     Note that this allows recognizing ",a" for the annul flag in sparc
-     even though "," is subsequently not a valid keyword char.  */
+  /* Allow any first character.  This is to make life easier for
+     the fairly common case of suffixes, eg. 'ld.b.w', where the first
+     character of the suffix ('.') is special.  */
   if (*p)
     ++p;
-
-  /* Now allow letters, digits, and _.  */
+  
+  /* Allow letters, digits, and any special characters.  */
   while (((p - start) < (int) sizeof (buf))
-	 && (isalnum ((unsigned char) *p) || *p == '_'))
+	 && *p
+	 && (ISALNUM (*p) || strchr (keyword_table->nonalpha_chars, *p)))
     ++p;
 
   if (p - start >= (int) sizeof (buf))
-    return _("unrecognized keyword/register name");
-
-  memcpy (buf, start, p - start);
-  buf[p - start] = 0;
+    {
+      /* All non-empty CGEN keywords can fit into BUF.  The only thing
+	 we can match here is the empty keyword.  */
+      buf[0] = 0;
+    }
+  else
+    {
+      memcpy (buf, start, p - start);
+      buf[p - start] = 0;
+    }
 
   ke = cgen_keyword_lookup_name (keyword_table, buf);
 

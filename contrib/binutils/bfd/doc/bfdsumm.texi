@@ -4,7 +4,7 @@ the format of the input object file.  They then build a descriptor in
 memory with pointers to routines that will be used to access elements of
 the object file's data structures.
 
-As different information from the the object files is required,
+As different information from the object files is required,
 BFD reads from different sections of the file and processes them.
 For example, a very common operation for the linker is processing symbol
 tables.  Each BFD back end provides a routine for converting

@@ -1,16 +1,281 @@
-2001-07-19  David O'Brien  <obrien@FreeBSD.org>
+2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
+
+	Contribute sh64-elf.
+	2000-11-25  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* dis-asm.h (print_insn_sh64): New prototype.
+	(print_insn_sh64l): New prototype.
+	(print_insn_sh64x_media): New prototype.
+
+2002-02-05  Frank Ch. Eigler  <fche@redhat.com>
+
+	* dis-asm.h (disassemble_info): New field `insn_sets'.
+	(INIT_DISASSEMBLE_INFO): Clear it.
+
+2002-02-05  Jason Merrill  <jason@redhat.com>
+
+	* demangle.h (cplus_demangle_v3): Add "options" parm.
+	(cplus_demangle_v3_type): Remove prototype.
+	(DMGL_VERBOSE): New macro.
+	(DMGL_TYPES): New macro.
+
+2002-02-02  H.J. Lu  (hjl@gnu.org)
+
+	* demangle.h (cplus_demangle_v3_type): New prototype.
+
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* dis-asm.h : Add support for or32 targets
+
+2002-01-28  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (C_alloca): Add ATTRIBUTE_MALLOC.
+
+2002-01-27  David O'Brien  <obrien@FreeBSD.org>
+
+	* cgen.h (BFD_VERSION): Use BFD_VERSION_DATE instead.
+
+2001-12-14  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* dis-asm.h (INIT_DISASSEMBLE_INFO_NO_ARCH): Initialise the
+	disassembler_options field (to NULL).
+
+2001-12-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* bfdlink.h (struct bfd_link_info): Add eh_frame_hdr field.
+
+2001-12-07  Geoffrey Keating  <geoffk@redhat.com>
+
+	* dis-asm.h (print_insn_xstormy16): Declare.
+
+2001-12-06  Richard Henderson  <rth@redhat.com>
+
+	* demangle.h (no_demangling): New.
+	(NO_DEMANGLING_STYLE_STRING): New.
+
+2001-11-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* dis-asm.h (print_insn_i386): Declare.
+
+2001-11-11  Timothy Wall  <twall@alum.mit.edu>
+
+	* dis-asm.h: Fix comment to refer to octets rather than bytes.
+
+2001-10-30  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* dis-asm.h (print_insn_mmix): Add prototype.
+
+2001-10-24  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* safe-ctype.h (_sch_isbasic, IS_ISOBASIC): New.
+
+2001-10-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (hex_init): Revert delete.
+
+	* libiberty.h (_hex_value): Const-ify.
+	(hex_init): Delete.
+
+2001-10-16  Christopher Faylor  <cgf@redhat.com>
+
+	* filenames.h: Add cygwin to the list of dosish style path systems.
+
+2001-10-07  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* demangle.h (demangler_engine): Const-ify.
+	* libiberty.h (buildargv): Likewise.
+
+2001-10-03  Vassili Karpov  <malc@pulsesoft.com>
+
+	* bfdlink.h (struct bfd_link_info): Add nocopyreloc field.
+
+2001-09-24  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (reconcat): New function.
+
+2001-09-18  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (concat, concat_length, concat_copy, concat_copy2,
+	ACONCAT): Improve comments.
+
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* objalloc.h (OBJALLOC_ALIGN): Define using offsetof.
+
+2001-09-17  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (concat_length, concat_copy, concat_copy2,
+	libiberty_concat_ptr, ACONCAT): New.
+
+	* libiberty.h (ASTRDUP): New macro.
+	libiberty_optr, libiberty_nptr, libiberty_len): Declare.
+
+2001-08-29  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* ansidecl.h: Update comments reflecting previous change.
+
+2001-08-27  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* ansidecl.h (VA_OPEN, VA_CLOSE): Allow multiple uses.
+
+2001-08-25  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* bfdlink.h (struct bfd_link_info): Change 'spare_dynamic_tags' to
+	unsigned to remove a compile time warning message.
+
+2001-08-24  H.J. Lu  <hjl@gnu.org>
+
+	* bfdlink.h (bfd_link_hash_table_type): New. The linker hash
+	table type, bfd_link_generic_hash_table and
+	bfd_link_elf_hash_table.
+	(bfd_link_hash_table): Add a new field, type, for the linker
+	hash table type.
+
+2001-08-23  Jakub Jelinek  <jakub@redhat.com>
+
+	* bfdlink.h (struct bfd_link_info): Add combreloc and
+	spare_dynamic_tags fields.
+
+2001-08-23  Lars Brinkhoff  <lars@nocrew.org>
+
+	* dyn-string.h, fibheap.h, partition.h, sort.h, splay-tree.h:
+	replace "GNU CC" with "GCC".
+
+2001-08-21  Richard Henderson  <rth@redhat.com>
+
+	* fibheap.h: Tidy formatting.
+	(fibnode_t): Limit degree to 31 bits to avoid warning.
+
+2001-08-20  Daniel Berlin  <dan@cgsoftware.com>
+
+	* fibheap.h: New file. Fibonacci heap.
+
+2001-08-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* floatformat.h (floatformat_arm_ext): Document as deprecated.
+	(floatformat_arm_ext_big, floatformat_arm_ext_littlebyte_bigword)
+	(floatformat_ia64_spill_little, floatformat_ia64_quad_little)
+	(floatformat_ia64_spill_big, floatformat_ia64_quad_big)
+	(floatformat_m88110_harris_ext): Declare.
+
+2001-08-18  Zack Weinberg  <zackw@panix.com>
+
+	* ansidecl.h: Reorganize for readability, remove documentation
+	of obsolete macros, document PARAMS and VPARAMS.  Add new
+	macros VA_OPEN, VA_CLOSE, and VA_FIXEDARG for nicer variadic
+	function implementation.
+
+2001-08-16  Richard Henderson  <rth@redhat.com>
+
+	* hashtab.h (htab_hash_string): Declare.
+
+2001-08-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* libiberty.h (lbasename): Change function declaration to return a
+	const char pointer.
+
+2001-08-02  Mark Kettenis  <kettenis@gnu.org>
+
+	* xregex.h (_REGEX_RE_COMP): Define.
+	(re_comp): Define to xre_comp.
+	(re_exec): Define to xre_exec.
+
+2001-08-02  Charles Wilson  <cwilson@ece.gatech.edu>
+
+        * bfdlink.h (struct bfd_link_info): add new boolean
+        field pei386_auto_import.
+
+2001-07-18  Andreas Jaeger  <aj@suse.de>
+
+	* xregex2.h: Place under LGPL version 2.1.
+
+2001-07-10  Jeff Johnston  <jjohnstn@redhat.com>
+
+	* xregex.h: New file to support libiberty regex.
+	* xregex2.h: Ditto.
+
+2001-06-15  Hans-Peter Nilsson  <hp@axis.com>
+
+	* bfdlink.h (struct bfd_link_info): New member export_dynamic.
+
+2001-05-16  Matt Kraai  <kraai@alumni.carnegiemellon.edu>
+
+	* partition.h: Fix misspelling of `implementation'.
+
+2001-05-10  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* ansidecl.h (NULL_PTR): Delete.
+
+2001-05-07  Zack Weinberg  <zackw@stanford.edu>
+
+	* demangle.h: Use PARAMS for all prototypes.
+	* ternary.h: Use PARAMS for all prototypes.  Use PTR, not void *.
+	Make arguments constant where possible.
+
+2001-05-07  Mark Mitchell  <mark@codesourcery.com>
+
+	* splay-tree.h (splay_tree_max): New function.
+	(splay_tree_min): Likewise.
+
+2001-04-27  Johan Rydberg  <jrydberg@opencores.org>
+
+        * dis-asm.h (print_insn_openrisc): Add prototype.
+
+2001-04-15  Daniel Berlin  <dan@cgsoftware.com>
+
+	* ternary.h: New file - Ternary search tree header.
+
+2001-04-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* bfdlink.h (bfd_link_discard): Add discard_sec_merge.
+
+2001-04-03  Zack Weinberg  <zackw@stanford.edu>
+
+	* ansidecl.h: All logic from gcc/gansidecl.h moved here.
+
+2001-03-31  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (alloca): Handle setting C_ALLOCA.
+
+2001-03-20  Jim Blandy  <jimb@redhat.com>
+
+	* demangle.h (enum gnu_v3_constructor_kinds,
+	is_gnu_v3_mangled_ctor, enum gnu_v3_destructor_kinds,
+	is_gnu_v3_mangled_dtor): New declarations.
+
+2001-03-14  Nick Clifton  <nickc@redhat.com>
+
+	* ansidecl.h: Fix copyright dates.
+	* demangle.h: Fix copyright dates.
+	* floatformat.h: Fix copyright dates.
+	* fnmatch.h: Fix copyright dates.
+	* getopt.h: Fix copyright dates.
+	* libiberty.h: Add FSF copyright notice.
+	* md5.h: Fix copyright dates.
+	* obstack.h: Fix copyright dates.
+	* splay-tree.h: Fix copyright dates.
+
+2001-03-10  Neil Booth  <neil@daikokuya.demon.co.uk>
+	    John David Anglin  <dave@hiauly1.hia.nrc.ca>
 
 	* libiberty.h: Add lbasename.
 
-2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+2001-03-06  Zack Weinberg  <zackw@stanford.edu>
 
-	* Many files: Update copyright notices.
+	* libiberty.h: Prototype C_alloca; define alloca to either
+	__builtin_alloca or C_alloca as appropriate.
 
-2001-05-28  Philip Blundell  <philb@gnu.org>
+2001-03-01  John David Anglin  <dave@hiauly1.hia.nrc.ca>
 
-	From 2001-05-11  Jakub Jelinek  <jakub@redhat.com>
-	* elf/ia64.h (ELF_STRING_ia64_unwind_once): Define.
-	(ELF_STRING_ia64_unwind_info_once): Define.
+	* safe-ctype.h (_sch_test): Cast enum bit to unsigned short int for pcc
+	compatibility.
+
+2001-02-18  lars brinkhoff  <lars@nocrew.org>
+
+	* dis-asm.h: Add PDP-11 target.
+
+2001-02-09  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* dis-asm.h: Add linux target for S/390.
 
 2001-01-11  Peter Targett  <peter.targett@arccores.com>
 
@@ -52,11 +317,11 @@
 
 	* getopt.h obstack.h: Standarize copyright statement.
 
-2000-12-05  Richard Henderson  <rth@redhat.com>
+2000-12-04  Richard Henderson  <rth@redhat.com>
 
 	* demangle.h: Change "new_abi" to "v3" everywhere.
 
-2000-11-29  Zack Weinberg  <zack@wolery.stanford.edu>
+2000-11-22  Zack Weinberg  <zack@wolery.stanford.edu>
 
 	* libiberty.h: Move #includes to top.  Prototype xmalloc_failed.
 
@@ -1806,7 +2071,7 @@ Fri Oct 25 03:18:20 1991  John Gilmore  (gnu at cygnus.com)
 
 Thu Oct 24 22:11:11 1991  John Gilmore  (gnu at cygnus.com)
 
-	RS/6000 support, by Metin G. Ozisik, Mimi Ph˚Ùng-ThÂo Vı, and
+	RS/6000 support, by Metin G. Ozisik, Mimi PhÅ˚ÅÙng-ThÅÂo VÅı, and
 	John Gilmore.
 
 	* a.out.gnu.h:  Update slightly.

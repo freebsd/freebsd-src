@@ -1,45 +1,1148 @@
+2002-05-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* configure.in: Replace `*pe' with `pe' throughout.
+	* configure: Regenerate.
+
+	Merge from mainline
+	2002-05-06  Alan Modra  <amodra@bigpond.net.au>
+	* dlltool.c (process_def_file): Add missing prototype.
+	(new_directive, assemble_file, main): Likewise.
+	(process_def_file, new_directive): Make static.
+	(inform): Rewrite using VA_FIXEDARG.
+	* dllwrap.c (mybasename): Add missing prototype.
+	(strhash, main): Likewise.
+	(inform): Rewrite using VA_FIXEDARG.
+	(warn): Likewise.
+	(cleanup_and_exit): Use old style function definition.
+	(strhash): Likewise.
+	* windres.c (define_resource): Use one memset to clear all of
+	struct res_resource.
+	* rcparse.y: Remove newcmd rule.  Move rcparse_discard_strings
+	call to rules that need no lookahead.  Check for no lookahead.
+
+	2002-05-06  Borut Razem  <borut.razem@siol.net>
+	* rclex.l (get_string): Correct "strings" list handling.
+	* resrc.c (read_rc_file): Discard strings.
+
+	2002-05-04  Bob Byrnes  <byrnes@curl.com>
+	* size.c (display_archive): Add last_arfile and code to close archives.
+
+	2002-05-01  Alan Modra  <amodra@bigpond.net.au>
+	* nm.c (print_symbol): Check returned filename from
+	bfd_find_nearest_line is non-NULL.
+
+	2002-04-17  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* arparse.y: Fix syntax warning.
+
+	2002-04-16  Nick Clifton  <nickc@cambridge.redhat.com>
+	* rcparse.y: Set MEMFLAG_DISCARDABLE by default.
+
+	2002-04-15  Nick Clifton  <nickc@cambridge.redhat.com>
+	* resrc.c (write_rc_dialog): If charset is non-default value
+	display all of the DIALOGEX parameters.
+
+	2002-04-15  Eric Kohl <ekohl@rz-online.de>
+	* rcparse.y: Allow two to five parameter in FONT statement of 
+	DIALOGEX resources.
+	* resbin.c (bin_to_res_dialog): Fixed read/write code for dialogex
+	resource data.
+        (res_to_bin_dialog): Likewise.
+	* windres.h: Added misssing charset variable to dialog_ex
+	structure.
+
+	2002-04-10  Nick Clifton  <nickc@cambridge.redhat.com>
+	* rcparse.y: Set MEMFLAG_PURE by default.
+
+	2002-04-09  Bernd Herd <info@herdsoft.com>
+	* rcparse.y: CLASS definitions in DIALOG resources 
+	are quoted.
+	Fix typo in BEDIT warning.
+	Don't add default dialog style when explicit style specified.
+	Add WS_CAPTION dialog style if CAPTION is specified.
+	* rclex.l (handle_quotes): "\xhex" encoding in strings corrected.
+	(handle_quotes) "\a" escape (used for right justified key
+	definitions in menus) is encodes as binary 8.
+	* resrc.c (write_rc_dialog): Print style even if it is 0.
+	(write_rc_directory): Fix overlooked sublang shift bug.
+	(bin_to_res_dialog): Don't print empty dialog caption.
+	* resbin.c (bin_to_res_dialog): Use signature to identify
+	DIALOGEX.
+	* windres.c (main): Set default LANGUAGE to english/us.
+
+	2002-04-09  Gunnar Degnbol <degnbol@danbbs.dk>
+	* resrc.c: print CLASS names in quotes
+
+2002-04-27  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline
+	2002-04-25  Elena Zannoni <ezannoni@redhat.com>
+        * readelf.c (get_AT_name): Handle DW_AT_GNU_vector.
+
+	2002-04-16  Nick Clifton  <nickc@cambridge.redhat.com>
+	* readelf.c (fetch_location_list): Remove unused function.
+	* readelf.c (process_corefile_note_segment): Catch corrupt notes
+	and display a warning message, then exit the loop.
+
+	2002-04-24  Christian Groessler <chris@groessler.org>
+	* MAINTAINERS: Changed my email address.
+
+	2002-04-09  J"orn Rennecke <joern.rennecke@superh.com>
+	* MAINTAINERS: Update my email address.
+
+	2002-03-27  Peter Targett  <peter.targett@arc.com>
+	* MAINTAINERS: Update my email address.
+
+	2002-03-20  Daniel Berlin  <dan@dberlin.org>
+	* readelf.c: Add support for displaying dwarf2 location lists.
+	(do_debug_loc, debug_loc_section, debug_loc_size): New.
+	(parse_args): Use 'O' as shorthand for displaying location list
+	section.
+	(process_section_headers): Handle debug_loc as well.
+	(load_debug_loc): New.
+	(free_debug_loc): New.
+	(fetch_location_list): New.
+	(display_debug_loc): New.
+	(display_debug_info): Call load_debug_loc and free_debug_loc.
+	(debug_displays): We can display .debug_loc now, too.
+	(usage): Update usage string.
+	(read_and_display_attr_value): Note location lists, but don't
+	display them inline.
+
+	2002-03-01  Dmitry Timoshkov <dmitry@baikal.ru>
+	* dlltool.c (gen_exp_file): Take into account --kill-at (-k) while
+	generating .exp file.
+
+	2002-02-21  Nick Clifton  <nickc@cambridge.redhat.com>
+	* readelf.c (dump_relocations): Fix typo.
+
+	2002-02-18  Timothy Daly  <remote_bob@yahoo.com>
+	* readelf.c (dump_relocations): Display 2nd and 3rd reloc 
+	types for 64-bit MIPS.  Narrow some fields for 80-char 
+	output.
+	(dump_relocations): Change spelling from 'unrecognised' 
+	to 'unrecognized'.
+	(decode_ARM_machine_flags): Likewise.
+	(parse_args): Likewise.
+	(read_and_display_attr_value): Likewise.
+	(display_debug_section): Likewise.
+
+2002-04-04  Alan Modra  <amodra@bigpond.net.au>
+
+	* dep-in.sed: Cope with absolute paths.
+	* Makefile.am (dep.sed): Subst TOPDIR.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* README: Update some version numbers.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* doc/binutils.texi (Target Selection): Fix LD crossreferences.
+	(Architecture Selection): Likewise.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* NEWS: Mark version 2.12.
+
+2002-02-15  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* NEWS: Mention support for MMIX.
+
+2002-02-13  Matt Fredette  <fredette@netbsd.org>
+
+	* readelf.c (get_machine_flags): Recognize EF_M68000.
+
+2002-02-12  Alexandre Oliva  <aoliva@redhat.com>
+
+	* MAINTAINERS: Added self as MN10300 co-maintainer.
+
+2002-02-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (get_ppc64_dynamic_type): Handle DT_PPC64_OPD and
+	DT_PPC64_OPDSZ.
+
+2002-02-11  Daniel Jacobowitz  <drow@mvista.com>
+
+	* MAINTAINERS: List myself as branch maintainer.
+
+2002-02-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* objcopy.c (MKDIR): Define.
+	(copy_archive): Make name_list.name const.  Use MKDIR.
+	Handle duplicate files in archives by making more temp dirs.
+
+2002-02-10  Daniel Jacobowitz  <drow@mvista.com>
+
+	* nlmconv.c: Back out localtime PARAMS change.
+
+2002-02-10  Daniel Jacobowitz  <drow@mvista.com>
+
+	* coffdump.c: Include "getopt.h" after "bucomm.h"
+	so that macros are defined correctly.
+	* nlmconv.c: Add PARAMS ((const time_t *)) to localtime
+	prototype.  Prototype main.
+	* nlmheader.y: Add PARAMS ((int)) to strerror prototype.
+
+2002-02-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	* MAINTAINERS: Added self as SH co-maintainer.
+
+2002-02-05  Nick Clifton <nickc@redhat.com>
+
+	* po/tr.po: Updated translation.
+
+2002-02-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am"
+	* Makefile.in: Regenerate.
+
+2002-01-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	* nm.c (print_value): Mark abfd unused.
+
+2002-01-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	* unwind-ia64.c (unw_decoder): Change second argument
+	to unsigned int, to match function prototypes.
+
+2002-01-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	* objdump.c: Include "getopt.h" after "bucomm.h" so that
+	__GNU_LIBRARY__ will be defined.
+	* size.c: Likewise.
+
+2002-01-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure: Regenerated.
+
+2002-01-26  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* doc/Makefile.am (install): Depend on install-info.
+	* doc/Makefile.in: Regenerate.
+
+2002-01-25  Jason R. Thorpe <thorpej@wasabisystems.com>
+
+	* objcopy.c (strip_usage): Document -d as an alias
+	--strip-debug.
+
+	* size.c (usage): Document [-t | --totals] options.
+	(long_options): Add --totals option.
+	(main): If the [-t | --totals] option is specified and
+	the output format is Berkeley-style, print the total
+	text, data, and bss sizes of all objects listed.
+	(print_berkeley_format): If the [-t | --totals] option
+	is specified, track the total text, data, and bss
+	sizes.
+	* doc/binutils.texi (size): Document [-t | --totals] options.
+	(strip): Document -d as an alias for --strip-debug.
+	* NEWS: Mention new feature of size.
+
+2002-01-25  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/fr.po: Updated version.
+	* po/es.po: Updated version.
+
+2002-01-23  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* addr2line.c (usage): Update text to provide verbose
+	description of the command line options.
+	* ar.c (usage): Update text to provide verbose
+	description of the command line options.
+	(main): Accept -h and -H when running as ranlib.
+	* coffdump.c (show_usage): Update text to provide verbose
+	description of the command line options.
+	* dlltool.c (main): Accept -H as an alias for --help.
+	* nlmconv.c (show_usage): Update text to provide verbose
+	description of the command line options.
+	* nm.c (usage): Replace OPTIONS with option(s).
+	(main): Accept -H as an alias for --help.
+	* objcopy.c (strip_main): Accept -H as an alias for --help.
+	* objdump.c (main): Accept -v as an alias for --verbose.
+        * readelf.c (usage): Adjust format to match style used in
+	other binutils.
+	* size.c (usage): Update text to provide verbose description
+	of the command line options.
+	(main): Accept -v, -h and -H as command line options.
+	* srconv.c (show_usage): Update text to provide verbose
+	description of the command line options.
+	* strings.c (main): Accept -H and -v as command line options.
+	(usage): Update text to provide verbose description of the
+	command line options.
+	* sysdump.c (show_usage): Update text to provide verbose
+	description of the command line options.
+	* windres.c (usage): Adjust format to match style used in
+	other binutils.
+
+	* coffdump.c: Fix formatting.
+	* nlmconv.c: Fix formatting.
+	* srconv.c: Fix formatting.
+	* sysdump.c: Fix formatting.
+
+2002-01-22  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2002-01-18  Andreas Jaeger  <aj@suse.de>
+
+	* version.c (print_version): Update year.
+
+2002-01-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (get_machine_name): Handle EM_PPC64.
+	(guess_is_rela): Here too.
+
+2002-01-17  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/binutils.pot: Regenerate.
+	* po/fr.po: Regenerate.
+	* po/tr.po: Regenerate.
+
+2002-01-16  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/tr.po: Import new version.
+
+2002-01-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (get_ppc64_dynamic_type): New.
+	(get_dynamic_type): Call it.
+
+2002-01-15  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* objcopy.c (copy_usage): Use "options" instead of "switches".
+        (strip_usage): Use "options" instead of "switches".
+	* doc/binutils.texi (dlltool):  Refer to "options" instead of
+        "switches".
+
+2002-01-14  Richard Earnshaw  <rearnsha@arm.com>
+
+	* MAINTAINERS: Add self as co-maintainer for the ARM code.
+
+2001-12-18  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/es.po: Import from translation project.
+	* configure.in (ALL_LINGUAS): Add es.
+	* configure: Regenerate.
+
+2002-01-09  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* readelf.c (get_netbsd_elfcore_note_type): Use
+	NT_NETBSDCORE_PROCINFO and NT_NETBSDCORE_FIRSTMACH.
+
+2002-01-09  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* readelf.c: Update copyright years.
+	(get_note_type): Return a const char *.
+	(get_netbsd_elfcore_note_type): New function.
+	(process_note): Use get_netbsd_elfcore_note_type to get
+	the note type string for NetBSD ELF core files.
+
+2002-01-06  Steve Ellcey  <sje@cup.hp.com>
+
+	* readelf.c (get_ia64_segment_type): Add support for macros.
+	(get_segment_type): Add support for IA64 specific macros.
+
+2001-12-20  Julian v. Bock  <julian@wongr.net>
+
+	* readelf.c (print_symbol): New function: Print a formatted symbol
+	name.  If --wide is specified do not truncate it.
+	(dump_relocations): Use print_symbol() to print symbol names.
+	(process_symbol_table): Likewise.
+	(process_syminfo): Likewise.
+	(process_mips_specific): Likewise.
+	(usage): Document new feature of --wide switch.
+	* doc/binutils.texi (objdump): Document additional behaviour of
+	--wide.
+
+2001-12-18  Michael Snyder  <msnyder@redhat.com>
+
+	* objcopy.c (copy_file): Accept corefiles (format bfd_core).
+	(copy_object): Don't set the start address or flags of a core file.
+	(copy_section): Don't relocate a core file.  Don't copy contents
+	if the input section has the contents flag set, but the output
+	section does not (which happens with the fake 'note' pseudo-
+	sections that BFD creates for corefiles).
+
+2001-12-18  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* readelf.c (get_machine_flags): Recognize header flags for ABI and
+	ASE extensions. More robust code for ISA checking. Ignore empty fields
+	in header flags for GNU extensions.
+
+2001-12-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* objcopy.c (copy_archive): Set output bfd format outside the loop.
+
+2001-12-18  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/ja.po: Import from translation project.
+	* configure.in (ALL_LINGUAS): Add ja.
+	* configure: Regenerate.
+
+2001-12-18  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* addr2line.c (main): Protoype.
+	* ar.c (main): Protoype.
+	* nm.c (main): Protoype.
+	* objcopy.c (main): Protoype.
+	* objdump.c (main): Protoype.
+	* size.c (main): Protoype.
+	* strings.c (main): Protoype.
+
+2001-12-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (symtab_shndx_hdr): New global.
+	(SECTION_HEADER_INDEX): Define.
+	(SECTION_HEADER_NUM): Define.
+	(SECTION_HEADER): Define.
+	(GET_ELF_SYMBOLS): Pass two params rather than three.
+	(get_32bit_elf_symbols): Take file and section args.  Read and
+	use SHT_SYMTAB_SHNDX.
+	(get_64bit_elf_symbols): Likewise.
+	(dump_relocations): Use SECTION_HEADER to index "section_headers".
+	(process_section_headers): Likewise.  Use SECTION_HEADER_NUM too.
+	Remember symtab_shdx_hdr.
+	(process_program_headers): Scan from index 1 for segment map.
+	(slurp_ia64_unwind_table): Use SECTION_HEADER to index
+	"section_headers".
+	(process_relocs): Likewise.  Also adjust call to GET_ELF_SYMBOLS.
+	(process_unwind): Likewise.
+	(process_version_sections): Likewise.
+	(process_symbol_table): Likewise.
+	(display_debug_info): Likewise.
+	(process_dynamic_segment): Fake up a symtab section for changed
+	GET_ELF_SYMBOLS.
+	(get_symbol_index_type): Check SHN_LOOS before SHN_LORESERVE.
+	(process_program_headers): Kill signed/unsigned warning.
+	(load_debug_str): Likewise.
+	(display_debug_info): Likewise.
+
+2001-12-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* readelf.c (get_segment_type): Support PT_GNU_EH_FRAME.
+
+2001-12-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (process_file_header): Print extended e_shnum and
+	e_shdtrndx values.  Set elf_header values for same.
+	(get_32bit_section_headers): Add "num" arg to read "num" headers.
+	(get_64bit_section_headers): Likewise.
+	(process_section_headers): Update calls.
+	(get_file_header): Call get_32bit_section_headers or 64bit variant.
+
+2001-12-10  Jakub Jelinek  <jakub@redhat.com>
+
+	* objcopy.c (setup_section): Copy entsize.
+
+2001-12-07  Geoffrey Keating  <geoffk@redhat.com>
+
+	* readelf.c (guess_is_rela): Add support for stormy16.
+	(dump_relocations): Likewise.
+	(get_machine_name): Likewise.
+
+2001-12-05  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* dllwrap.c (main) Replace multiple strings describing a
+	single error with a single, newline escaped sentence to permit
+	better translation into foreign languages.
+
+	* readelf.c (get_elf_class): Remove internalionalisation of ELF
+	class names.
+
+2001-12-04  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* strings.c (get_char): Initialize value.
+
+2001-12-04  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* arlex.l: Silence compile warnings.
+	* arsup.h: Likewise. Fix formatting.
+
+2001-12-04  Jakub Jelinek  <jakub@redhat.com>
+
+	* strings.c: Include config.h before bfd.h.
+	(file_off): New type.
+	(file_open): Define.
+	(print_strings): Use file_off instead of file_ptr.  Print addresses
+	which don't fit into long correctly.
+	(get_char): Use file_off instead of file_ptr.  Use getc_unlocked if
+	available.
+	(strings_file): Use file_off instead of file_ptr.  Use file_open.
+	* configure.in: Check for getc_unlocked.
+	Check for fopen64 and whether _LARGEFILE64_SOURCE needs to
+	be defined for it.
+	* configure: Rebuilt.
+	* config.h.in: Rebuilt.
+
+2001-11-29  H.J. Lu <hjl@gnu.org>
+
+	* bucomm.c (make_tempname): Revert the changes made on
+	2001-11-14 and 2001-11-12. They won't work with directories.
+
+2001-11-23  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* binutils/Makefile.am (check-DEJAGNU): Pass CC_FOR_TARGET and
+	CFLAGS_FOR_TARGET to runtest in environment.
+	* Makefile.in: Rebuild.
+	* doc/Makefile.in: Rebuild.
+
+2001-11-28  Mike Stump  <mrs@wrs.com>
+
+	* objcopy.c (setup_section): Preserve SEC_RELOC when
+	--set-section-flags is used.
+
+2001-11-19  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* readelf.c (do_debug_str): New variable.
+	(display_debug_str): New function: Display the contents of a
+	.debug_str section.
+	(load_debug_str): New function: Load in the contents of a
+	.debug_str section.
+	(free_debug_str): New function: Free the memory used by
+	load_debug_str().
+	(fetch_indirect_string): Retrieve a string from the .debug_str
+	section.
+	(usage): Add -ws.
+	(parse_args): Accept -ws.
+	(process_section_headers): Allow the display of the .debug_str
+	section.
+	(read_and_display_attr_value): Use fetch_indirect_string.  Show
+	offset into .debug_str section.
+	(display_debug_info): Use load_debug_str and free_debug_str.
+	(debug_displays): Add .debug_str.
+	* doc/binutils.texi: Document -ws.
+
+2001-11-19  Andreas Jaeger  <aj@suse.de>
+
+	* testsuite/binutils-all/objdump.exp: Add x86-64.
+
+2001-11-15  Andreas Schwab  <schwab@suse.de>
+
+	* readelf.c: Fix warnings without terminating newline.
+
+2001-11-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* doc/binutils.texi (objdump): Document ppc -M options.
+
+2001-11-14  Andreas Jaeger  <aj@suse.de>
+
+	* doc/binutils.texi (objdump): Fix description to use x86-64.
+
+2001-11-14  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* bucomm.c (make_tempname): Use mkstemps instead of mkstemp, since
+	not all systems provide mkstemp.
+
+2001-11-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* doc/binutils.texi (objdump): Document x86 -M options.
+
+2001-11-13  Keith Walker <keith.walker@arm.com>
+
+	* readelf.c (read_and_display_attr_value): New function to
+	handle DW_FORM_indirect.
+	(read_and_display_attr): Use it.
+
+2001-11-13  Geoffrey Keating  <geoffk@redhat.com>
+
+	* readelf.c (display_debug_lines): Deal with unknown standard
+	opcodes.  Handle DW_LNS_set_prologue_end, DW_LNS_set_epilogue_begin,
+	DW_LNS_set_isa.
+
+2001-11-13  Timothy Wall  <twall@alum.mit.edu>
+
+	* MAINTAINERS: Add self as tic54x maintainer.  This target
+	includes the IBM C54XDSP clone.
+
+2001-11-12  * Steven J. Hill <sjhill@realitydiluted.com>
+
+	* bucomm.c (make_tempname): Use mkstemp in place of mktemp.
+
+2001-11-09  Jeffrey A Law  (law@cygnus.com)
+
+	* unwind-ia64.c (unw_print_brmask): Fix ISO C portability glitch.
+	(unw_print_grmask, unw_print_frmask, unw_print_abreg): Likewise.
+	(unw_print_xyreg, unw_decode_x1, unw_decode_x2): Likewise.
+	(unw_decode_x3, unw_decode_r1, unw_decode_r2): Likewise.
+	(unw_decode_r3, unw_decode_p1, unw_decode_p2_p5): Likewise.
+	(unw_decode_p6, unw_decode_p7_p10, unw_decode_b1): Likewise.
+	(unw_decode_b2, unw_decode_b3_b4): Likewise.
+
+	* readelf.c (get_elf_class): Fix ISO portability glitch.
+	(get_data_encoding, get_osabi_name, request_dump): Likewise.
+
+2001-11-07  Jakub Jelinek  <jakub@redhat.com>
+
+	* readelf.c (debug_str, debug_str_size): New.
+	(display_debug_abbrev): If no abbrevs were read, skip the CU.
+	Call free_abbrevs.
+	(read_and_display_addr): Handle DW_FORM_strp.
+	(display_debug_info): Read .debug_str section if present,
+	so that DW_FORM_strp can be handled.
+	Fix test for non-existant .debug_abbrev section.
+
+2001-11-05  Jakub Jelinek  <jakub@redhat.com>
+
+	* arlex.l: Accept `\' in filenames.  Patch by <earl_chew@agilent.com>.
+
+	* arsup.c (ar_open): Prepend tmp- to basename, not whole path.
+
+2001-11-05  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* MAINTAINERS: Add self as s390/s390x maintainer.
+
+2001-11-02  Tom Rix  <trix@bluey.cygnus.com>
+
+	* MAINTAINERS: Add self as PPC XCOFF maintainer.
+
+2001-11-02  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* configure.in (ALL_LINGUAS): Add "fr" and "tr".
+	* configure: Regernate.
+	* po/fr.po: New file.
+	* po/tr.po: New file.
+
+2001-10-30  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* MAINTAINERS: Add self as MMIX port maintainer.
+	* readelf.c: Include elf/mmix.h.
+	(guess_is_rela): MMIX is RELA.
+	(dump_relocations): Handle MMIX relocations.
+	* Makefile.am: Regenerate dependencies.
+	* Makefile.in: Regenerate.
+
+2001-10-13  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* readelf.c (parse_args): Handle multiple options to the -w
+	switch.
+
+2001-10-12  Jakub Jelinek  <jakub@redhat.com>
+
+	* readelf.c (get_section_type_name): Don't print SHT_ prefix for
+	LOPROC, LOOS and LOUSER.
+
+2001-10-11  J"orn Rennecke <amylaar@onetel.net.uk>
+
+	* MAINTAINERS: Update my email address.
+
+2001-10-03  Alan Modra  <amodra@bigpond.net.au>
+
+	* doc/Makefile.in: Regenerate.
+	* configure: Regenerate.
+
+2001-10-02  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* readelf.c (display_debug_line, display_debug_pubnames,
+	display_debug_info, display_debug_frames): Detect and warn
+	about 64-bit format entries.
+	(display_debug_aranges): Reword 64-bit warning.
+	(debug_displays): Add .debug_pubtypes as a known, but not yet
+	supported, debug section.
+
+2001-10-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* coffdump.c (PROGRAM_VERSION): Delete.
+	(main <'V'>): Call print_version.
+	* srconv.c: Likewise.
+	* sysdump.c: Likewise.
+	* version.c (program_version): Remove.
+	(print_version): Use BFD_VERSION_STRING.  Just print the current
+	year in copyright message.
+	* addr2line.c (program_version): Remove unused declaration.
+	* objdump.c (display_target_tables): Use BFD_VERSION_STRING in
+	place of BFD_VERSION.
+	* Makefile.am (Makefile): Depend on bfd/configure.in.
+	(cplus-dem.o): Depend on Makefile.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2001-10-01  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* readelf.c (display_debug_aranges): Detect and warn about DWARF64
+	format .debug_arange sections.
+	(main): Add missing prototype.
+
+2001-09-30  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* Makefile.am: Update dependencies with "make dep-am".
+	* Makefile.in: Regenerate.
+
+2001-09-28  Richard Henderson  <rth@redhat.com>
+
+	* objdump.c (dump_section_header): Dump SEC_ARCH_BIT_0.
+
+2001-09-26  Alan Modra  <amodra@bigpond.net.au>
+
+	* bucomm.c (fatal): Define using VPARAMS, VA_OPEN, VA_FIXEDARG,
+	VA_CLOSE.
+	(non_fatal): Likewise.
+	* objdump.c (objdump_sprintf): Likewise.
+	* readelf.c (error): Likewise.
+	(warn): Likewise.
+
+2001-09-25  Jakub Jelinek  <jakub@redhat.com>
+
+	* readelf.c (do_wide): New.
+	(options): Add --wide.
+	(usage, parse_args): Likewise.
+	(process_program_headers): Put each segment on a single line if
+	--wide is given.
+	(process_section_headers): Put each section on a single line if
+	--wide is given.
+	* doc/binutils.texi: Document it.
+	* NEWS: Likewise.
+
+2001-09-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (print_vma): Print 8 digits of low hex value.
+
+2001-09-24  Andreas Jaeger  <aj@suse.de>
+
+	* nlmconv.c: Fix warnings about unused attributes and function
+	prototypes.
+
+	* strings.c: Add prototype for get_char.
+
+2000-09-19  H.J. Lu  <hjl@gnu.org>
+
+	* doc/Makefile.am ($(DEMANGLER_NAME).1): Try cxxfilt.man and
+	$(srcdir)/cxxfilt.man.
+	* doc/Makefile.in: Rebuild.
+
+2001-09-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* objcopy.c (copy_main): Correct rename-section string parsing.
+	Consolidate new_name parsing, and error messages.
+
+2001-09-18  Bruno Haible  <haible@clisp.cons.org>
+
+	* addr2line.c: Don't include <ctype.h>.
+	(main): For gettext, also set the LC_CTYPE locate facet.
+	* ar.c (main): Likewise.
+	* coffdump.c (main): Likewise.
+	* dlltool.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(main): For gettext, also set the LC_CTYPE locate facet.
+	Use ISALNUM instead of isalpha/isdigit.
+	* dllwrap.c: Don't include <ctype.h>.
+	(main): For gettext, also set the LC_CTYPE locate facet.
+	* nlmconv.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(main): For gettext, also set the LC_CTYPE locate facet.
+	Use TOUPPER instead of islower/toupper.
+	* nlmheader.y: Include "safe-ctype.h" instead of <ctype.h>.
+	(yylex): Use ISSPACE/ISALNUM instead of isspace/isalnum.
+	Use TOUPPER instead of islower/toupper.
+	* nm.c (main): For gettext, also set the LC_CTYPE locate facet.
+	* objcopy.c (main): Likewise.
+	* objdump.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(disassemble_bytes): Use ISPRINT instead of isprint.
+	(dump_section_stabs): Use ISDIGIT instead of isdigit.
+	(dump_data): Use ISPRINT instead of isprint.
+	(main): For gettext, also set the LC_CTYPE locate facet.
+	* rclex.l: Include "safe-ctype.h" instead of <ctype.h>.
+	(cpp_line, handle_quotes): Use ISSPACE instead of isspace.
+	* rcparse.y: Include "safe-ctype.h" instead of <ctype.h>.
+	Use TOUPPER instead of islower/toupper.
+	* readelf.c (main): For gettext, also set the LC_CTYPE locate facet.
+	* resrc.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(write_rc_accelerators): Use ISPRINT instead of isprint.
+	(write_rc_rcdata): Likewise.
+	* size.c (main): For gettext, also set the LC_CTYPE locate facet.
+	* srconv.c (main): Likewise.
+	* stabs.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(parse_number): Use ISDIGIT/ISUPPER/ISLOWER instead of
+	isdigit/isupper/islower.
+	(parse_stab_string, parse_stab_type, parse_stab_argtypes,
+	parse_stab_array_type, stab_demangle_count, stab_demangle_get_count,
+	stab_demangle_prefix, stab_demangle_qualified,
+	stab_demangle_template, stab_demangle_type,
+	stab_demangle_fund_type): Use ISDIGIT instead of isdigit.
+	* strings.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(isgraphic): Use ISPRINT instead of isascii/isprint.
+	(main): Remove HAVE_LC_MESSAGES dependency.
+	* sysdump.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(pbarray): Use ISPRINT instead of isprint.
+	(main): For gettext, also set the LC_CTYPE locate facet.
+	* windres.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(format_from_filename): Use ISPRINT instead of isprint.
+	(main): For gettext, also set the LC_CTYPE locate facet.
+	* winduni.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(unicode_print): Use ISPRINT instead of isprint.
+	* wrstabs.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(stab_variable): Use ISDIGIT instead of isdigit.
+
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ar.c (print_contents): Cast args of bfd_seek to the right types.
+	Replace bfd_read call with call to bfd_bread.
+	(extract_file): Likewise.
+
+	* objdump.c (dump_section_header): Cast section->filepos to
+	unsigned long to suit printf format string.
+	* readelf.c (process_section_headers): Similarly for sh_offset.
+	(process_unwind): Likewise.
+
+2001-09-14  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* strings.c (encoding, encoding_bytes): New variables.
+	(long_options): Add --encoding.
+	(main): Accept -e and --encoding.
+	(get_char): New function.  Read a, possibly wide, character from
+	the input stream.
+	(print_strings): Use get_char().
+	(usage): Document new command line option.
+	* doc/binutils.texi: Document new command line option.
+	* NEWS: Announce new command line option.
+
+2001-09-12  Alexandre Oliva  <aoliva@redhat.com>
+
+	* readelf.c (guess_is_rela, dump_relocations, get_machine_name,
+	get_machine_flags): Added EM_M32R, EM_D10V, EM_V850, EM_D30V,
+	EM_MN10200, EM_MN10300, EM_FR30, EM_AVR_OLD and EM_PJ_OLD.
+	Removed EM_CYGNUS_ARC.
+
+2001-09-04  Jeffrey A Law  (law@cygnus.com)
+
+	* readelf.c: Include elf/h8 for H8 series definitions.
+	(guess_is_rela): H8 series if RELA.
+	(dump_relocations): Handle H8 series relocations.
+
+2001-08-31  Eric Christopher  <echristo@redhat.com>
+
+	* readelf.c (get_machine_flags): Remove E_MIPS_MACH_MIPS32_4K.
+
+2001-08-29  Peter Targett  <peter.targett@arccores.com>
+
+	* MAINTAINERS: Include ARC Maintainer.
+
+2001-08-29  Ben Elliston  <bje@redhat.com>
+
+	* stabs.c (stab_demangle_template): Initialise s4.
+
+2001-08-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (dump_relocations): Recognise EM_PPC64.
+
+2001-08-26  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* readelf.c (get_machine_flags): Add detection of EF_MIPS_32BITMODE.
+
+2001-08-25  H.J. Lu  <hjl@gnu.org>
+
+	* nm.c (print_width): New.
+	(display_rel_file): Set `print_width' according to
+	bfd_sprintf_vma.
+	(print_symbol_info_bsd): Check `print_width' instead of BFD64.
+
+2001-08-24  Alexandre Oliva  <aoliva@redhat.com>
+
+	* objcopy.c (use_alt_mach_code): New variable.
+	(OPTION_ALT_MACH_CODE): Define.
+	(copy_options): Added --alt-machine-code.
+	(copy_main): Handle it.
+	(copy_object): Switch to alternate machine code if requested.
+	* doc/binutils.texi: Document new option.
+	* NEWS: Likewise.
+
+2001-08-22  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* readelf.c (get_machine_flags): Add detection of EF_MIPS_UCODE.
+
+2001-08-21  H.J. Lu  <hjl@gnu.org>
+
+	* readelf.c (dump_relocations): Support ELF64 on 32bit hosts.
+	(display_debug_info): Cast for 64bit hosts.
+	(display_debug_frames): Likewise.
+	(process_mips_specific): Likewise.
+
+2001-08-21  Andreas Jaeger  <aj@suse.de>
+
+	* coffgrok.h: Add missing parameter for prototype of coff_grok.
+
+	* sysdump.c: Add missing prototypes.
+	* srconv.c: Likewise.
+	* unwind-ia64.c: Likewise.
+	* coffdump.c: Likewise.
+
+	* sysinfo.y: Print prototypes, include <ansidecl.h>.
+
+	* coffgrok.c: Add missing prototypes, include libiberty.h instead
+	of declaring xcalloc.
+
+2001-08-10  H.J. Lu  <hjl@gnu.org>
+
+	* nm.c (print_value): Add one arg, bfd *.
+	(print_value): Replace fprintf_vma with bfd_fprintf_vma.
+	(print_symbol_info_bsd): Also pass `abfd' to print_value ().
+	(print_symbol_info_sysv): Likewise.
+	(print_symbol_info_posix): Likewise.
+
+	* objdump.c (dump_section_header): Replace printf_vma with
+	bfd_printf_vma.
+	(print_section_stabs): Likewise.
+	(dump_bfd_header): Likewise.
+	(objdump_print_value): Replace sprintf_vma with
+	bfd_sprintf_vma.
+	(disassemble_bytes): Likewise.
+	(dump_reloc_set): Likewise.
+
+2001-08-10  Andreas Jaeger  <aj@suse.de>
+
+	* configure.in: Add -Wstrict-prototypes and -Wmissing-prototypes
+	to build warnings.
+	* configure: Regenerate.
+
+2001-08-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c: Add missing prototypes.
+	* objdump.c: Likewise.  Format existing prototypes.
+
+2001-08-08  Alexandre Oliva  <aoliva@redhat.com>
+
+	* readelf.c (display_debug_info): Add to abbrev_offset the addend
+	of any RELA relocation for the abbrev_offset memory location that
+	refers to the .debug_abbrev section symbol.
+
+2001-08-07  H.J. Lu  <hjl@gnu.org>
+
+	* readelf.c (process_file): Return 0 if OK, otherwise return 1.
+	(main): Return process_file ().
+
+2001-08-05  Philip Blundell  <philb@gnu.org>
+
+	* doc/binutils.texi: Use "Thumb" not "THUMB".
+
+2001-08-03  John Healy  <jhealy@redhat.com>
+
+        Patch suggested by Frank Eigler <fche@redhat.com>.
+        * objdump.c (disassemble_data): Fill in section member of the
+        disasm_info structure.
+
+2001-08-03  Tom Walsh  <tom@cyberiansoftware.com>
+
+	* configure.in: Added --with-windres option.
+	* configure: Regenerated.
+
+2001-07-11  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* doc/binutils.texi: Use @command{name} for commands;
+	use @option{-opt} for options; use @table @env for list of options;
+	remove spaces arround [ | ] in synopsis.
+
+	* doc/Makefile.am (POD2MAN): Use 'GNU Development Tools' for the
+	center title.
+
+2001-07-31  Nick Clifton  <nickc@cambridge.redhat.com>
+
+        * objcopy.c: Fix formatting.
+        (section_rename): New structure.
+        (OPTION_RENAME_SECTION): New switch.
+        (copy_usage): Document new switch.
+        (add_section_rename): New function: Add a node to the section
+        rename list.
+        (find_section_rename): New function: Find the new name and
+        flags for a section.
+        (setup_section): Call find_section_name to determine the name
+        of the output section.
+        (copy_main): Handle OPTION_RENAME_SECTION.
+        * binutils.texi: Document new switch.
+	* NEWS: Mention new switch.
+
+2001-07-30  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* README: Rename bug-gnu-utils@gcc.org to bug-binutils@gcc.org.
+	* MAINTAINERS: Rename bug-gnu-utils@gcc.org to
+	bug-binutils@gcc.org.
+
+2001-07-28  Matthias Kramm  <kramm@quiss.org>
+
+	* bucomm.c (list_supported_architectures): New function.
+	* bucomm.h (list_supported_architectures): Declare.
+	* objdump.c (usage): Call the above.
+
+2001-07-25  Dave Brolley  <brolley@redhat.com>
+
+	* objdump.c (SKIP_ZEROES): Only define it if it is not already defined.
+	(SKIP_ZEROES_AT_END): Only define it if it is not already defined.
+
+2001-07-19  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* README: Update for 2.11.  Change bug reporting email address.
+	* MAINTAINERS: Tidy up.  Change bug reporting email address.
+
+2001-07-16  DJ Delorie  <dj@redhat.com>
+
+	* resres.c (write_res_header): Align header size.
+	(res_align_file): Calculate alignment correctly.
+
+	* rcparse.y (styles): use SUBLANG_SHIFT instead of 8 (or the more
+	correct 10).
+	* resrc.c (write_rc_resource): Likewise.
+	* windres.h (SUBLANG_SHIFT): Define - as 10.
+
+2001-07-15  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* MAINTAINERS: Add Christian Groessler as maintainer for z8k port.
+
+2001-07-11  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* MAINTAINERS: Add notes about branch checkins.
+
+2001-07-05  Daniel Berlin  <dan@cgsoftware.com>
+
+	* readelf.c (display_debug_macinfo): New function, display
+	.debug_macinfo section.
+	(do_debug_macinfo): New variable.
+	(parse_args): Handle "-w[mM]" to mean display macro info.
+	(process_section_headers): Handle debug_macinfo.
+	(debug_displays): Replace unsupported function with macinfo
+	function for .debug_macinfo display.
+	* doc/binutils.texi: Document new command line switch.
+	* NEWS: Document new feature of readelf.
+
+2001-07-05  H.J. Lu  <hjl@gnu.org>
+
+	* objcopy.c (filter_symbols): Don't turn undefined symbols
+	into local.
+
+2001-07-03  H.J. Lu <hjl@gnu.org>
+
+	* doc/Makefile.am (addr2line.1): Use addr2line.pod instead of
+	$@.pod.
+	(ar.1): Likewise.
+	(dlltool.1): Likewise.
+	(nlmconv.1): Likewise.
+	(nm.1): Likewise.
+	(objcopy.1): Likewise.
+	(objdump.1): Likewise.
+	(ranlib.1): Likewise.
+	(readelf.1): Likewise.
+	(size.1): Likewise.
+	(strings.1): Likewise.
+	(strip.1): Likewise.
+	(windres.1): Likewise.
+	(cxxfilt.man): Use $(DEMANGLER_NAME).pod instead of $@.pod.
+	($(DEMANGLER_NAME).1): Also substitute cxxfilt with
+	$(DEMANGLER_NAME).
+	(as.1): Removed.
+	* doc/Makefile.in: Regenerated.
+
+2001-07-03  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* MAINTAINERS: Change MIPS maintainer to Eric Christopher.
+
+2001-07-01  Daniel Berlin  <dan@cgsoftware.com>
+
+	* readelf.c: Support DWARF 2.1 tags, encodings, languages.
+
 2001-06-29  James Cownie <jcownie@etnus.com>
 
 	* readelf.c: Support DWARF 2.1 attributes.
 
-2001-06-27  Nick Clifton  <nickc@cambridge.redhat.com>
+2001-06-28  Alan Modra  <amodra@bigpond.net.au>
 
-	* objcopy.c (strip_main): Accept -o command line switch.
+	* readelf.c (GET_DATA_ALLOC): Remove.
+	(GET_DATA): Remove.
+	(get_data): New function combining above macros, with an extra
+	test for zero size.
+	(slurp_rela_relocs): Use get_data, and catch error return.
+	(slurp_rel_relocs): Likewise.
+	(get_32bit_program_headers): Likewise.
+	(get_64bit_program_headers): Likewise.
+	(get_32bit_section_headers): Likewise.
+	(get_64bit_section_headers): Likewise.
+	(get_32bit_elf_symbols): Likewise.
+	(get_64bit_elf_symbols): Likewise.
+	(process_section_headers): Likewise.
+	(process_relocs): Likewise.
+	(slurp_ia64_unwind_table): Likewise.
+	(process_unwind): Likewise.
+	(get_32bit_dynamic_segment): Likewise.
+	(get_64bit_dynamic_segment): Likewise.
+	(process_dynamic_segment): Likewise.
+	(process_version_sections): Likewise.
+	(process_symbol_table): Likewise.
+	(dump_section): Likewise.
+	(display_debug_info): Likewise.
+	(display_debug_section): Likewise.
+	(process_section_contents): Likewise.
+	(process_corefile_note_segment): Likewise.
+	(process_mips_specific): Likewise.  Also free econf32, econf64.
 
-2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+2001-06-25  Alan Modra  <amodra@bigpond.net.au>
 
-	Merge from mainline.
-	2001-02-27  Alan Modra  <alan@linuxcare.com.au>
-	* configure.in (BFD_VERSION): New.
-	(AM_INIT_AUTOMAKE): Use $BFD_VERSION.
-	* configure: Regenerate.
+	* readelf.c (dump_relocations): Print "bad symbol index" if
+	symtab == NULL with non-zero symtab_index.
+	(process_relocs): Don't bomb if reloc section has no symsec.
 
-	2001-04-27  Michal Svec <rebel@atrey.karlin.mff.cuni.cz>
-	* strings.c (isgraphic): Do not use isascii() unless it is needed
-	for isprint() to work.
-	(main): Set the locale domain to LC_ALL not just LC_MESSAGES.
+2001-06-24  H.J. Lu  <hjl@gnu.org>
 
-	2001-04-10  Alan Modra  <amodra@one.net.au>
-	* nm.c (print_symbol_info_bsd): Use a simple printf string.
+	* objcopy.c (strip_main): Revert the change made on 2001-05-30
+	by accident.
+	(copy_main): Apply the the change made to strip_main on
+	2001-05-30 by accident.
 
-	2001-02-07  Todd Vierling  <tv@wasabisystems.com>
-	* bucomm.c (bfd_target_vector): Change extern array to pointer.
-	* objdump.c (bfd_target_vector): Likewise.
+2001-06-23  Andreas Jaeger  <aj@suse.de>
 
-2001-06-10  Philip Blundell  <philb@gnu.org>
+	* unwind-ia64.c (unw_decode_x1): Add unused attribute for
+	parameter 'code'.
+	(unw_decode_x2): Likewise.
+	(unw_decode_x3): Likewise.
+	(unw_decode_x4): Likewise.
 
-	* configure.in: Set version to 2.11.1.
-	* configure: Regenerate.
+2001-06-23  Ben Elliston  <bje@redhat.com>
+
+	* MAINTAINERS: Add myself as M88k maintainer.
+
+2001-06-22  Jocelyn Mayer  <jocelyn.mayer@netgem.com>
+
+	* objcopy.c (strip_main): Support -o or --output-file command lien
+	switch.
+
+2001-06-19  H.J. Lu <hjl@gnu.org>
+
+	* doc/Makefile.in: Regenerated.
+
+2001-06-19  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* readelf.c: Restore formatting.
+
+2001-06-18  H.J. Lu <hjl@gnu.org> & Nick Clifton <nickc@redhat.com>
+
+        * Makefile.am: Move documentation into doc subdirectory.
+        * Makefile.in: Regenerated.
+	* binutils.texi: Move into doc subdirectory.
+        * addr2line.1: Removed.
+        * ar.1: Likewise.
+        * dlltool.1: Likewise.
+        * nlmconv.1: Likewise.
+        * nm.1: Likewise.
+        * objcopy.1: Likewise.
+        * objdump.1: Likewise.
+        * ranlib.1: Likewise.
+        * readelf.1: Likewise.
+        * size.1: Likewise.
+        * strings.1: Likewise.
+        * strip.1: Likewise.
+        * windres.1: Likewise.
+        * cxxfilt.man: Likewise.
+	* doc: New Directory.
+	* doc/Makefile.am: New file.
+	* doc/Makefile.in: Generate.
 
 2001-06-09  Alan Modra  <amodra@bigpond.net.au>
 
-	* NEWS: Mention hppa64-elf.  Add binutils-2.11 marker.
+	* NEWS: Fix a typo.  Mention hppa64-elf.  Add binutils-2.11 marker.
 
-	* MAINTAINERS: Replace with mainline version.
+2001-06-01  Alan Modra  <amodra@bigpond.net.au>
 
-2001-06-07  Alan Modra  <amodra@bigpond.net.au>
-
-	* Most files: Update copyright notices.
+	* MAINTAINERS: Update my email address.
 
 2001-05-30  Honda Hiroki  <hhonda@kobe-catv.ne.jp>
 
@@ -50,13 +1153,18 @@
 	* objcopy.1: Regenerate.
 	* NEWS: Announce new feature.
 
-2001-05-28  Philip Blundell  <philb@gnu.org>
+2001-05-28  Andreas Jaeger  <aj@suse.de>
 
-	From 2001-05-28  Andreas Jaeger  <aj@suse.de>
 	* readelf.c (display_debug_frames): Fix warnings: Remove unused
 	variables, fix format strings.
 
-	From 2001-05-16  Richard Henderson  <rth@redhat.com>
+2001-05-28  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* objdump.c (disassemble_bytes): Remove section VMA adjustment
+	when computing the address of the line to show.
+
+2001-05-16  Richard Henderson  <rth@redhat.com>
+
 	* readelf.c (do_debug_frames_interp): New.
 	(byte_get_little_endian): If BFD64, always read entire 8-byte fields.
 	(byte_get_big_endian): Likewise.
@@ -68,42 +1176,169 @@
 	unless do_debug_frames_interp.
 	(debug_displays): Remove duplicate .debug_frame.
 
-	From 2001-05-15  Ralf Baechle  <ralf@gnu.org>
+2001-05-15  Ralf Baechle  <ralf@gnu.org>
+
 	* readelf.c: Replace uses of EM_MIPS_RS4_BE with EM_MIPS_RS3_LE.
 	The former constant was never in active use and is used otherwise
 	by the ABI.
 
-	From 2001-05-11  Jakub Jelinek  <jakub@redhat.com>
+2001-05-11  Jakub Jelinek  <jakub@redhat.com>
+
 	* readelf.c (process_unwind): Print all unwind sections, not just
 	one.
 
-	From 2001-05-07  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+2001-05-07  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
 	* readelf.c (process_unwind): Remove const specifier.
 
-	From 2001-03-30  H.J. Lu  <hjl@gnu.org>
+2001-04-27  Michal Svec <rebel@atrey.karlin.mff.cuni.cz>
+
+	* strings.c (isgraphic): Do not use isascii() unless it is needed
+	for isprint() to work.
+	(main): Set the locale domain to LC_ALL not just LC_MESSAGES.
+
+2001-04-27  Johan Rydberg  <jrydberg@opencores.org>
+
+        * NEWS: Announce support for OpenRISC.
+
+2001-04-17  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* dlltool.c (do_default_excludes): Initialise to true.
+
+2001-04-10  Alan Modra  <amodra@one.net.au>
+
+	* MAINTAINERS: Update my email address
+	* nm.c (print_symbol_info_bsd): Use a simple printf string.
+
+2001-04-05  Hans-Peter Nilsson  <hp@axis.com>
+
+	* readelf.c (display_debug_lines): Fix typo for "Prologue".
+
+2001-03-30  H.J. Lu  <hjl@gnu.org>
+
 	* readelf.c (process_unwind): Just return if do_unwind is 0.
 
-	From 2001-03-29  H.J. Lu  <hjl@gnu.org>
+2001-03-28  Roger Sayle  <roger@metaphorics.com>
+
+	* dlltool.c (make_one_lib_file): Fix section flags for
+	.text, .data and .bss in stub ds*.o files to match those
+	generated by gas.
+
+2001-03-29  H.J. Lu  <hjl@gnu.org>
+
 	* readelf.c (process_unwind): Only do unwind sections for
 	IA64.
 
-	From 2001-02-28  Nick Clifton  <nickc@redhat.com>
+2001-03-28  H.J. Lu  <hjl@gnu.org>
+
+	* Makefile.am ($(srcdir)/dlltool.1): Remove the extra target.
+	* Makefile.in: Regenerate.
+
+2001-03-26  Andreas Jaeger  <aj@suse.de>
+
+	* binutils.texi (nm): Fix texi syntax.
+
+2001-03-25  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* binutils.texi: Put @c man begin and @c man end indications
+	to generate man pages using texi2pod and pod2man. Put @c man title
+	to identify each man. Add SEEALSO entries.
+	* Makefile.am (MANCONF, TEXI2POD, POD2MAN): New variable.
+	(man_MANS): Add dlltool.1, nlmconv.1, readelf.1, windres.1,
+	sort the list.
+	(*.1): Build the man pages from binutils.texi.
+	* Makefile.in: Regenerate.
+
+2001-03-13  Eric Kohl  <ekohl@rz-online.de>
+
+	* defparse.y (opt_equal_name): allow "." in name.
+	* dlltool.c (def_exports): Added ability to generate forwarded exports.
+	(gen_exp_file): Likewise.
+
+2001-03-12  Stefan Geuken <mail@stefan-geuken.de>
+
+	* NEWS: Document addition of -B switch to objcopy.
+	* binutils.texi:  Document addition of -B switch to objcopy.
+	* objcopy.c: (copy_options): Add --binary-architecture.
+	(copy_usage): Document -B/--binary-architecture.
+	(copy_main): Support -B/--binary-architecture.  Set
+	bfd_external_binary_architecture.
+
+2001-03-11  Andreas Jaeger  <aj@suse.de>
+
+	* readelf.c (guess_is_rela): Handle EM_S390_OLD.
+	(dump_relocations): Likewise.
+	(get_machine_name): Likewise.
+
+2001-02-28  Nick Clifton  <nickc@redhat.com>
+
 	* readelf.c: (struct unw_aux_info): Remove const modifier for
 	'strtab' field.
 	(process_unwind): Remove non-K&R compliant LHS type cast in call
 	to GET_DATA_ALLOC macro.
 
-	From 2001-02-11  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+2001-02-28  Philip Blundell  <pb@futuretv.com>
+
+	* readelf.c (decode_ARM_machine_flags): Explicitly mention which
+	ABI is in use; remove ambiguity between the "unknown" EABI and
+	unrecognised ABIs.  Handle version 2 ARM EABI.  Update uses of
+	renamed EF_xx constants.
+
+2001-02-27  Alan Modra  <alan@linuxcare.com.au>
+
+	* configure.in (BFD_VERSION): New.
+	(AM_INIT_AUTOMAKE): Use $BFD_VERSION.
+	* configure: Regenerate.
+	* Makefile.am: Run "make dep-am"
+	* Makefile.in: Regenerate.
+
+2001-02-14  Nick Clifton  <nickc@redhat.com>
+
+	* MAINTAINERS: Add "Obvious Fix" rule.
+
+2001-02-11  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* unwind-ia64.c: Don't use ANSI C preprocessor stringisation and string
+	literal concatenation.
+
+2001-02-11  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
 	* readelf.c (struct unw_aux_info): Remove const from the info member.
 	(process_unwind): Don't type-cast the third argument to the
 	GET_DATA_ALLOC macro.
 
-	From 2001-02-11  Nick Clifton  <nickc@redhat.com>
+2001-02-11  Nick Clifton  <nickc@redhat.com>
+
 	* readelf.c (dump_relocations): Free corrected allocated
 	array.
 	(process_unwind): Fix compile time warning.
 
-	From 2001-02-07  David Mosberger  <davidm@hpl.hp.com>
+2001-02-10  Nick Clifton  <nickc@redhat.com>
+
+	* binutils.texi: Document new --unwind option to readelf.
+
+2001-02-09  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* readelf.c: Add linux target for S/390.
+
+2001-02-10  Alan Modra  <alan@linuxcare.com.au>
+
+	* nm.c (print_symbol_info_bsd): Don't #ifdef inside printf in case
+	printf is a macro.
+
+2001-02-08  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* acinclude.m4 (AM_PROG_LEX): Override installed definition.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2001-02-07  Todd Vierling  <tv@wasabisystems.com>
+
+	* bucomm.c (bfd_target_vector): Change extern array to pointer.
+	* objdump.c (bfd_target_vector): Likewise.
+
+2001-02-07  David Mosberger  <davidm@hpl.hp.com>
+
 	* readelf.c (process_unwind): New function.
 	(slurp_ia64_unwind_table): Ditto.
 	(dump_ia64_unwind): Ditto.
@@ -111,34 +1346,12 @@
 	(slurp_rela_relocs): New function (split off from dump_relocations()).
 	(slurp_rel_relocs): Ditto.
 	(parse_args): Handle '-u' option.
+
 	* unwind-ia64.c: New file.
 	* unwind-ia64.h: New file.
 	* Makefile.am: Include unwind-ia64.c in readelf build.
 	* Makefile.in: Regenerate.
 	* po/binutils.pot: Regenerate.
-
-2001-04-06  Hans-Peter Nilsson  <hp@axis.com>
-
-	* readelf.c (display_debug_lines): Fix typo for "Prologue".
-
-2001-03-16  Philip Blundell  <philb@gnu.org>
-
-	* configure: Regenerate.
-
-2001-03-11  Philip Blundell  <philb@gnu.org>
-
-	* configure.in: Set version to 2.11.
-
-2001-02-13  Hans-Peter Nilsson  <hp@bitrange.com>
-
-	* acinclude.m4 (AM_PROG_LEX): Override installed definition.
-	* aclocal.m4: Regenerate.
-	* configure: Regenerate.
-
-2001-02-10  Alan Modra  <alan@linuxcare.com.au>
-
-	* nm.c (print_symbol_info_bsd): Don't #ifdef inside printf in case
-	printf is a macro.
 
 2001-02-04  Philip Blundell  <philb@gnu.org>
 
@@ -236,7 +1449,7 @@
 
 	* readelf.c: Fix formatting.
 
-Mon Dec 11 14:30:21 MET 2000  Jan Hubicka  <jh@suse.cz>
+2000-12-11  Jan Hubicka  <jh@suse.cz>
 
 	* MAINTAINERS: Add myself and Andreas Jaeger as x86_64 maintainer.
 
@@ -273,7 +1486,7 @@ Mon Dec 11 14:30:21 MET 2000  Jan Hubicka  <jh@suse.cz>
 
 2000-11-28  Hans-Peter Nilsson  <hp@bitrange.com>
 
-	* MAINTAINERS: Add Jˆrn Rennecke and self as SH maintainers.
+	* MAINTAINERS: Add JÅˆrn Rennecke and self as SH maintainers.
 	Change sourceware.cygnus.com to sources.redhat.com.
 	Fix typo for "amongst".
 
@@ -769,13 +1982,13 @@ Mon Dec 11 14:30:21 MET 2000  Jan Hubicka  <jh@suse.cz>
 	* srconv.c: Likewise.
 	* sysdump.c: Likewise.
 
-Sun Apr 23 14:23:26 2000  Denis Chertykov  <denisc@overta.ru>
+2000-04-23  Denis Chertykov  <denisc@overta.ru>
 
 	* readelf.c (guess_is_rela): AVR uses RELA relocations.
 	(get_machine_name): machine name for EM_AVR added.
 
-Fri Apr 21 13:20:53 2000  Richard Henderson  <rth@cygnus.com>
-			  David Mosberger  <davidm@hpl.hp.com>
+2000-04-21  Richard Henderson  <rth@cygnus.com>
+	    David Mosberger  <davidm@hpl.hp.com>
 
 	* Makefile.am (readelf.o): Add elf/ia64.h.
 	* Makefile.in: Rebuild.
@@ -800,7 +2013,7 @@ Fri Apr 21 13:20:53 2000  Richard Henderson  <rth@cygnus.com>
 	`strftime' since strftime is not available on all systems.
 	(process_mips_specific): Ditto.
 
-Fri Apr  7 15:56:57 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+2000-04-07  Andrew Cagney  <cagney@b1.cygnus.com>
 
 	* configure.in (WARN_CFLAGS): Set to -W -Wall by default.  Add
 	--enable-build-warnings option.

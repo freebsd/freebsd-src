@@ -1,13 +1,14 @@
+/* DO NOT EDIT!  -*- buffer-read-only: t -*-  This file is automatically 
+   generated from "libbfd-in.h", "init.c", "libbfd.c", "cache.c", 
+   "reloc.c", "archures.c" and "elf.c".
+   Run "make headers" in your build bfd/ to regenerate.  */
+
 /* libbfd.h -- Declarations used by bfd library *implementation*.
    (This include file is not for users of the library.)
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
    2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
-
-** NOTE: libbfd.h is a GENERATED file.  Don't change it; instead,
-** change libbfd-in.h or the other BFD source files processed to
-** generate this file.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -29,9 +30,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    E.g. align to an 8-byte boundary with argument of 8.  Take care never
    to wrap around if the address is within boundary-1 of the end of the
    address space.  */
-#define BFD_ALIGN(this, boundary)					\
-  ((((bfd_vma) (this) + (boundary) - 1) >= (bfd_vma) (this))		\
-   ? (((bfd_vma) (this) + ((boundary) - 1)) & (~((boundary)-1)))	\
+#define BFD_ALIGN(this, boundary)					  \
+  ((((bfd_vma) (this) + (boundary) - 1) >= (bfd_vma) (this))		  \
+   ? (((bfd_vma) (this) + ((boundary) - 1)) & ~ (bfd_vma) ((boundary)-1)) \
    : ~ (bfd_vma) 0)
 
 /* If you want to read and write large blocks, you might want to do it
@@ -87,20 +88,20 @@ struct areltdata {
 
 #define arelt_size(bfd) (((struct areltdata *)((bfd)->arelt_data))->parsed_size)
 
-extern PTR bfd_malloc PARAMS ((size_t));
-extern PTR bfd_realloc PARAMS ((PTR, size_t));
-extern PTR bfd_zmalloc PARAMS ((size_t));
+extern PTR bfd_malloc PARAMS ((bfd_size_type));
+extern PTR bfd_realloc PARAMS ((PTR, bfd_size_type));
+extern PTR bfd_zmalloc PARAMS ((bfd_size_type));
 
 extern bfd_error_handler_type _bfd_error_handler;
 
 /* These routines allocate and free things on the BFD's objalloc.  */
 
-extern PTR bfd_alloc PARAMS ((bfd *, size_t));
-extern PTR bfd_zalloc PARAMS ((bfd *, size_t));
+extern PTR bfd_alloc PARAMS ((bfd *, bfd_size_type));
+extern PTR bfd_zalloc PARAMS ((bfd *, bfd_size_type));
 extern void bfd_release PARAMS ((bfd *, PTR));
 
 bfd *	_bfd_create_empty_archive_element_shell PARAMS ((bfd *obfd));
-bfd *	_bfd_look_for_bfd_in_cache PARAMS ((bfd *arch_bfd, file_ptr index));
+bfd *	_bfd_look_for_bfd_in_cache PARAMS ((bfd *, file_ptr));
 boolean _bfd_add_bfd_to_archive_cache PARAMS ((bfd *, file_ptr, bfd *));
 boolean	_bfd_generic_mkarchive PARAMS ((bfd *abfd));
 const bfd_target *bfd_generic_archive_p PARAMS ((bfd *abfd));
@@ -116,6 +117,7 @@ boolean _bfd_compute_and_write_armap PARAMS ((bfd *, unsigned int elength));
 bfd *_bfd_get_elt_at_filepos PARAMS ((bfd *archive, file_ptr filepos));
 extern bfd *_bfd_generic_get_elt_at_index PARAMS ((bfd *, symindex));
 bfd * _bfd_new_bfd PARAMS ((void));
+void _bfd_delete_bfd PARAMS ((bfd *));
 
 boolean	bfd_false PARAMS ((bfd *ignore));
 boolean	bfd_true PARAMS ((bfd *ignore));
@@ -162,8 +164,7 @@ int	bfd_generic_stat_arch_elt PARAMS ((bfd *, struct stat *));
 #define _bfd_generic_new_section_hook \
   ((boolean (*) PARAMS ((bfd *, asection *))) bfd_true)
 extern boolean _bfd_generic_get_section_contents
-  PARAMS ((bfd *, asection *, PTR location, file_ptr offset,
-	   bfd_size_type count));
+  PARAMS ((bfd *, asection *, PTR, file_ptr, bfd_size_type));
 extern boolean _bfd_generic_get_section_contents_in_window
   PARAMS ((bfd *, asection *, bfd_window *, file_ptr, bfd_size_type));
 
@@ -255,8 +256,7 @@ extern boolean _bfd_archive_coff_construct_extended_name_table
 #define _bfd_nosymbols_get_symtab_upper_bound _bfd_n1
 #define _bfd_nosymbols_get_symtab \
   ((long (*) PARAMS ((bfd *, asymbol **))) _bfd_n1)
-#define _bfd_nosymbols_make_empty_symbol \
-  ((asymbol *(*) PARAMS ((bfd *))) bfd_nullvoidptr)
+#define _bfd_nosymbols_make_empty_symbol _bfd_generic_make_empty_symbol
 #define _bfd_nosymbols_print_symbol \
   ((void (*) PARAMS ((bfd *, PTR, asymbol *, bfd_print_symbol_type))) bfd_void)
 #define _bfd_nosymbols_get_symbol_info \
@@ -323,6 +323,10 @@ extern boolean _bfd_generic_set_section_contents
   ((boolean (*) \
     PARAMS ((bfd *, struct bfd_link_info *))) \
    bfd_false)
+#define _bfd_nolink_bfd_merge_sections \
+  ((boolean (*) \
+    PARAMS ((bfd *, struct bfd_link_info *))) \
+   bfd_false)
 #define _bfd_nolink_bfd_link_hash_table_create \
   ((struct bfd_link_hash_table *(*) PARAMS ((bfd *))) bfd_nullvoidptr)
 #define _bfd_nolink_bfd_link_add_symbols \
@@ -368,6 +372,10 @@ extern boolean _bfd_dwarf2_find_nearest_line
   PARAMS ((bfd *, asection *, asymbol **, bfd_vma, const char **,
 	   const char **, unsigned int *, unsigned int,
 	   PTR *));
+
+/* Create a new section entry.  */
+extern struct bfd_hash_entry *bfd_section_hash_newfunc
+  PARAMS ((struct bfd_hash_entry *, struct bfd_hash_table *, const char *));
 
 /* A routine to create entries for a bfd_link_hash_table.  */
 extern struct bfd_hash_entry *_bfd_link_hash_newfunc
@@ -436,7 +444,7 @@ extern unsigned int _bfd_count_link_order_relocs
 /* Final link relocation routine.  */
 extern bfd_reloc_status_type _bfd_final_link_relocate
   PARAMS ((reloc_howto_type *, bfd *, asection *, bfd_byte *,
-	   bfd_vma address, bfd_vma value, bfd_vma addend));
+	   bfd_vma, bfd_vma, bfd_vma));
 
 /* Relocate a particular location by a howto and a value.  */
 extern bfd_reloc_status_type _bfd_relocate_contents
@@ -446,6 +454,11 @@ extern bfd_reloc_status_type _bfd_relocate_contents
 
 extern boolean _bfd_link_section_stabs
   PARAMS ((bfd *, PTR *, asection *, asection *, PTR *));
+
+/* Eliminate stabs for discarded functions and symbols.  */
+extern boolean _bfd_discard_section_stabs
+  PARAMS ((bfd *, asection *, PTR,
+	   boolean (*) (bfd_vma, PTR), PTR));
 
 /* Write out the .stab section when linking stabs in sections.  */
 
@@ -461,6 +474,26 @@ extern boolean _bfd_write_stab_strings PARAMS ((bfd *, PTR *));
 
 extern bfd_vma _bfd_stab_section_offset
   PARAMS ((bfd *, PTR *, asection *, PTR *, bfd_vma));
+
+/* Attempt to merge a SEC_MERGE section.  */
+
+extern boolean _bfd_merge_section
+  PARAMS ((bfd *, PTR *, asection *, PTR *));
+
+/* Attempt to merge SEC_MERGE sections.  */
+
+extern boolean _bfd_merge_sections
+  PARAMS ((bfd *, PTR, void (*)(bfd *, asection *)));
+
+/* Write out a merged section.  */
+
+extern boolean _bfd_write_merged_section
+  PARAMS ((bfd *, asection *, PTR));
+
+/* Find an offset within a modified SEC_MERGE section.  */
+
+extern bfd_vma _bfd_merged_section_offset
+  PARAMS ((bfd *, asection **, PTR, bfd_vma, bfd_vma));
 
 /* Create a string table.  */
 extern struct bfd_strtab_hash *_bfd_stringtab_init PARAMS ((void));
@@ -553,8 +586,8 @@ extern boolean _bfd_sh_align_load_span
 
 /* And more follows */
 
-void
-bfd_write_bigendian_4byte_int PARAMS ((bfd *abfd,  int i));
+boolean
+bfd_write_bigendian_4byte_int PARAMS ((bfd *, unsigned int));
 
 unsigned int
 bfd_log2 PARAMS ((bfd_vma x));
@@ -604,10 +637,12 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_HI16_GOTOFF",
   "BFD_RELOC_HI16_S_GOTOFF",
   "BFD_RELOC_8_GOTOFF",
+  "BFD_RELOC_64_PLT_PCREL",
   "BFD_RELOC_32_PLT_PCREL",
   "BFD_RELOC_24_PLT_PCREL",
   "BFD_RELOC_16_PLT_PCREL",
   "BFD_RELOC_8_PLT_PCREL",
+  "BFD_RELOC_64_PLTOFF",
   "BFD_RELOC_32_PLTOFF",
   "BFD_RELOC_16_PLTOFF",
   "BFD_RELOC_LO16_PLTOFF",
@@ -666,6 +701,7 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_SPARC_7",
   "BFD_RELOC_SPARC_6",
   "BFD_RELOC_SPARC_5",
+  "BFD_RELOC_SPARC_PLT32",
   "BFD_RELOC_SPARC_PLT64",
   "BFD_RELOC_SPARC_HIX22",
   "BFD_RELOC_SPARC_LOX10",
@@ -680,16 +716,12 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_ALPHA_LITERAL",
   "BFD_RELOC_ALPHA_ELF_LITERAL",
   "BFD_RELOC_ALPHA_LITUSE",
-  "BFD_RELOC_ALPHA_USER_LITERAL",
-  "BFD_RELOC_ALPHA_USER_LITUSE_BASE",
-  "BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF",
-  "BFD_RELOC_ALPHA_USER_LITUSE_JSR",
-  "BFD_RELOC_ALPHA_USER_GPDISP",
-  "BFD_RELOC_ALPHA_USER_GPRELHIGH",
-  "BFD_RELOC_ALPHA_USER_GPRELLOW",
   "BFD_RELOC_ALPHA_HINT",
   "BFD_RELOC_ALPHA_LINKAGE",
   "BFD_RELOC_ALPHA_CODEADDR",
+  "BFD_RELOC_ALPHA_GPREL_HI16",
+  "BFD_RELOC_ALPHA_GPREL_LO16",
+  "BFD_RELOC_ALPHA_BRSGP",
   "BFD_RELOC_MIPS_JMP",
   "BFD_RELOC_MIPS16_JMP",
   "BFD_RELOC_MIPS16_GPREL",
@@ -749,6 +781,8 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_NS32K_DISP_8_PCREL",
   "BFD_RELOC_NS32K_DISP_16_PCREL",
   "BFD_RELOC_NS32K_DISP_32_PCREL",
+  "BFD_RELOC_PDP11_DISP_8_PCREL",
+  "BFD_RELOC_PDP11_DISP_6_PCREL",
   "BFD_RELOC_PJ_CODE_HI16",
   "BFD_RELOC_PJ_CODE_LO16",
   "BFD_RELOC_PJ_CODE_DIR16",
@@ -785,6 +819,29 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_PPC_EMB_RELST_HA",
   "BFD_RELOC_PPC_EMB_BIT_FLD",
   "BFD_RELOC_PPC_EMB_RELSDA",
+  "BFD_RELOC_PPC64_HIGHER",
+  "BFD_RELOC_PPC64_HIGHER_S",
+  "BFD_RELOC_PPC64_HIGHEST",
+  "BFD_RELOC_PPC64_HIGHEST_S",
+  "BFD_RELOC_PPC64_TOC16_LO",
+  "BFD_RELOC_PPC64_TOC16_HI",
+  "BFD_RELOC_PPC64_TOC16_HA",
+  "BFD_RELOC_PPC64_TOC",
+  "BFD_RELOC_PPC64_PLTGOT16",
+  "BFD_RELOC_PPC64_PLTGOT16_LO",
+  "BFD_RELOC_PPC64_PLTGOT16_HI",
+  "BFD_RELOC_PPC64_PLTGOT16_HA",
+  "BFD_RELOC_PPC64_ADDR16_DS",
+  "BFD_RELOC_PPC64_ADDR16_LO_DS",
+  "BFD_RELOC_PPC64_GOT16_DS",
+  "BFD_RELOC_PPC64_GOT16_LO_DS",
+  "BFD_RELOC_PPC64_PLT16_LO_DS",
+  "BFD_RELOC_PPC64_SECTOFF_DS",
+  "BFD_RELOC_PPC64_SECTOFF_LO_DS",
+  "BFD_RELOC_PPC64_TOC16_DS",
+  "BFD_RELOC_PPC64_TOC16_LO_DS",
+  "BFD_RELOC_PPC64_PLTGOT16_DS",
+  "BFD_RELOC_PPC64_PLTGOT16_LO_DS",
   "BFD_RELOC_I370_D12",
   "BFD_RELOC_CTOR",
   "BFD_RELOC_ARM_PCREL_BRANCH",
@@ -841,6 +898,55 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_SH_JMP_SLOT",
   "BFD_RELOC_SH_RELATIVE",
   "BFD_RELOC_SH_GOTPC",
+  "BFD_RELOC_SH_GOT_LOW16",
+  "BFD_RELOC_SH_GOT_MEDLOW16",
+  "BFD_RELOC_SH_GOT_MEDHI16",
+  "BFD_RELOC_SH_GOT_HI16",
+  "BFD_RELOC_SH_GOTPLT_LOW16",
+  "BFD_RELOC_SH_GOTPLT_MEDLOW16",
+  "BFD_RELOC_SH_GOTPLT_MEDHI16",
+  "BFD_RELOC_SH_GOTPLT_HI16",
+  "BFD_RELOC_SH_PLT_LOW16",
+  "BFD_RELOC_SH_PLT_MEDLOW16",
+  "BFD_RELOC_SH_PLT_MEDHI16",
+  "BFD_RELOC_SH_PLT_HI16",
+  "BFD_RELOC_SH_GOTOFF_LOW16",
+  "BFD_RELOC_SH_GOTOFF_MEDLOW16",
+  "BFD_RELOC_SH_GOTOFF_MEDHI16",
+  "BFD_RELOC_SH_GOTOFF_HI16",
+  "BFD_RELOC_SH_GOTPC_LOW16",
+  "BFD_RELOC_SH_GOTPC_MEDLOW16",
+  "BFD_RELOC_SH_GOTPC_MEDHI16",
+  "BFD_RELOC_SH_GOTPC_HI16",
+  "BFD_RELOC_SH_COPY64",
+  "BFD_RELOC_SH_GLOB_DAT64",
+  "BFD_RELOC_SH_JMP_SLOT64",
+  "BFD_RELOC_SH_RELATIVE64",
+  "BFD_RELOC_SH_GOT10BY4",
+  "BFD_RELOC_SH_GOT10BY8",
+  "BFD_RELOC_SH_GOTPLT10BY4",
+  "BFD_RELOC_SH_GOTPLT10BY8",
+  "BFD_RELOC_SH_GOTPLT32",
+  "BFD_RELOC_SH_SHMEDIA_CODE",
+  "BFD_RELOC_SH_IMMU5",
+  "BFD_RELOC_SH_IMMS6",
+  "BFD_RELOC_SH_IMMS6BY32",
+  "BFD_RELOC_SH_IMMU6",
+  "BFD_RELOC_SH_IMMS10",
+  "BFD_RELOC_SH_IMMS10BY2",
+  "BFD_RELOC_SH_IMMS10BY4",
+  "BFD_RELOC_SH_IMMS10BY8",
+  "BFD_RELOC_SH_IMMS16",
+  "BFD_RELOC_SH_IMMU16",
+  "BFD_RELOC_SH_IMM_LOW16",
+  "BFD_RELOC_SH_IMM_LOW16_PCREL",
+  "BFD_RELOC_SH_IMM_MEDLOW16",
+  "BFD_RELOC_SH_IMM_MEDLOW16_PCREL",
+  "BFD_RELOC_SH_IMM_MEDHI16",
+  "BFD_RELOC_SH_IMM_MEDHI16_PCREL",
+  "BFD_RELOC_SH_IMM_HI16",
+  "BFD_RELOC_SH_IMM_HI16_PCREL",
+  "BFD_RELOC_SH_PT_16",
   "BFD_RELOC_THUMB_PCREL_BRANCH9",
   "BFD_RELOC_THUMB_PCREL_BRANCH12",
   "BFD_RELOC_THUMB_PCREL_BRANCH23",
@@ -908,6 +1014,29 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_MCORE_PCREL_32",
   "BFD_RELOC_MCORE_PCREL_JSR_IMM11BY2",
   "BFD_RELOC_MCORE_RVA",
+  "BFD_RELOC_MMIX_GETA",
+  "BFD_RELOC_MMIX_GETA_1",
+  "BFD_RELOC_MMIX_GETA_2",
+  "BFD_RELOC_MMIX_GETA_3",
+  "BFD_RELOC_MMIX_CBRANCH",
+  "BFD_RELOC_MMIX_CBRANCH_J",
+  "BFD_RELOC_MMIX_CBRANCH_1",
+  "BFD_RELOC_MMIX_CBRANCH_2",
+  "BFD_RELOC_MMIX_CBRANCH_3",
+  "BFD_RELOC_MMIX_PUSHJ",
+  "BFD_RELOC_MMIX_PUSHJ_1",
+  "BFD_RELOC_MMIX_PUSHJ_2",
+  "BFD_RELOC_MMIX_PUSHJ_3",
+  "BFD_RELOC_MMIX_JMP",
+  "BFD_RELOC_MMIX_JMP_1",
+  "BFD_RELOC_MMIX_JMP_2",
+  "BFD_RELOC_MMIX_JMP_3",
+  "BFD_RELOC_MMIX_ADDR19",
+  "BFD_RELOC_MMIX_ADDR27",
+  "BFD_RELOC_MMIX_REG_OR_BYTE",
+  "BFD_RELOC_MMIX_REG",
+  "BFD_RELOC_MMIX_BASE_PLUS_OFFSET",
+  "BFD_RELOC_MMIX_LOCAL",
   "BFD_RELOC_AVR_7_PCREL",
   "BFD_RELOC_AVR_13_PCREL",
   "BFD_RELOC_AVR_16_PM",
@@ -924,6 +1053,23 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_AVR_HI8_LDI_PM_NEG",
   "BFD_RELOC_AVR_HH8_LDI_PM_NEG",
   "BFD_RELOC_AVR_CALL",
+  "BFD_RELOC_390_12",
+  "BFD_RELOC_390_GOT12",
+  "BFD_RELOC_390_PLT32",
+  "BFD_RELOC_390_COPY",
+  "BFD_RELOC_390_GLOB_DAT",
+  "BFD_RELOC_390_JMP_SLOT",
+  "BFD_RELOC_390_RELATIVE",
+  "BFD_RELOC_390_GOTPC",
+  "BFD_RELOC_390_GOT16",
+  "BFD_RELOC_390_PC16DBL",
+  "BFD_RELOC_390_PLT16DBL",
+  "BFD_RELOC_390_PC32DBL",
+  "BFD_RELOC_390_PLT32DBL",
+  "BFD_RELOC_390_GOTPCDBL",
+  "BFD_RELOC_390_GOT64",
+  "BFD_RELOC_390_PLT64",
+  "BFD_RELOC_390_GOTENT",
   "BFD_RELOC_VTABLE_INHERIT",
   "BFD_RELOC_VTABLE_ENTRY",
   "BFD_RELOC_IA64_IMM14",
@@ -963,6 +1109,8 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_IA64_PCREL64LSB",
   "BFD_RELOC_IA64_LTOFF_FPTR22",
   "BFD_RELOC_IA64_LTOFF_FPTR64I",
+  "BFD_RELOC_IA64_LTOFF_FPTR32MSB",
+  "BFD_RELOC_IA64_LTOFF_FPTR32LSB",
   "BFD_RELOC_IA64_LTOFF_FPTR64MSB",
   "BFD_RELOC_IA64_LTOFF_FPTR64LSB",
   "BFD_RELOC_IA64_SEGREL32MSB",
@@ -998,6 +1146,17 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_CRIS_SIGNED_6",
   "BFD_RELOC_CRIS_UNSIGNED_6",
   "BFD_RELOC_CRIS_UNSIGNED_4",
+  "BFD_RELOC_CRIS_COPY",
+  "BFD_RELOC_CRIS_GLOB_DAT",
+  "BFD_RELOC_CRIS_JUMP_SLOT",
+  "BFD_RELOC_CRIS_RELATIVE",
+  "BFD_RELOC_CRIS_32_GOT",
+  "BFD_RELOC_CRIS_16_GOT",
+  "BFD_RELOC_CRIS_32_GOTPLT",
+  "BFD_RELOC_CRIS_16_GOTPLT",
+  "BFD_RELOC_CRIS_32_GOTREL",
+  "BFD_RELOC_CRIS_32_PLT_GOTREL",
+  "BFD_RELOC_CRIS_32_PLT_PCREL",
   "BFD_RELOC_860_COPY",
   "BFD_RELOC_860_GLOB_DAT",
   "BFD_RELOC_860_JUMP_SLOT",
@@ -1030,6 +1189,16 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_860_HIGH",
   "BFD_RELOC_860_HIGOT",
   "BFD_RELOC_860_HIGOTOFF",
+  "BFD_RELOC_OPENRISC_ABS_26",
+  "BFD_RELOC_OPENRISC_REL_26",
+  "BFD_RELOC_H8_DIR16A8",
+  "BFD_RELOC_H8_DIR16R8",
+  "BFD_RELOC_H8_DIR24A8",
+  "BFD_RELOC_H8_DIR24R8",
+  "BFD_RELOC_H8_DIR32A16",
+  "BFD_RELOC_XSTORMY16_REL_12",
+  "BFD_RELOC_XSTORMY16_24",
+  "BFD_RELOC_XSTORMY16_FPTR16",
  "@@overflow: BFD_RELOC_UNUSED@@",
 };
 #endif
@@ -1045,6 +1214,9 @@ bfd_generic_relax_section PARAMS ((bfd *abfd,
 
 boolean
 bfd_generic_gc_sections PARAMS ((bfd *, struct bfd_link_info *));
+
+boolean
+bfd_generic_merge_sections PARAMS ((bfd *, struct bfd_link_info *));
 
 bfd_byte *
 bfd_generic_get_relocated_section_contents PARAMS ((bfd *abfd,

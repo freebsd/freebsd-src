@@ -1,8 +1,37 @@
 -*- text -*-
 
+Changes in binutils 2.12:
+
+* Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
+
+* size: Add --totals to display summary of sizes (Berkeley format only).
+
+* readelf: Add --wide option to not break section header or segment listing
+  lines to fit into 80 columns.
+
+* strings: Add --encoding to display wide character strings.  By Markus Kuhn.
+
+* objcopy: Add --rename-section to change section names.
+
+* readelf: Support added for DWARF 2.1 extensions.  Support added for
+  displaying the contents of .debug.macinfo sections.
+
 * New command line switches added to objcopy to allow symbols to be kept as
   global symbols, and also to specify files containing lists of such symbols.
   by Honda Hiroki.
+
+* Support for OpenRISC by Johan Rydberg.
+
+* New command line switch to objcopy --alt-machine-code which creates a binary
+  with an alternate machine code if one is defined in the architecture
+  description.  Only supported for ELF targets.  By Alexandre Oliva.
+
+* New command line switch to objcopy -B (or --binary-architecture) which sets
+  the architecture of the output file to the given argument.  This option only
+  makes sense, if the input target is binary.  Otherwise it is ignored.
+  By Stefan Geuken.
+
+* Support for PDP-11 by Lars Brinkhoff.
 
 Changes in binutils 2.11:
 

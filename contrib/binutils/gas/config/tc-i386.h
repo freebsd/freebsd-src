@@ -115,6 +115,11 @@ extern const char *i386_target_format PARAMS ((void));
 #endif
 #endif
 
+#if (defined (OBJ_MAYBE_ELF) || defined (OBJ_ELF))
+#define md_end i386_elf_emit_arch_note
+extern void i386_elf_emit_arch_note PARAMS ((void));
+#endif
+
 #else /* ! BFD_ASSEMBLER */
 
 /* COFF STUFF */
@@ -125,7 +130,7 @@ extern const char *i386_target_format PARAMS ((void));
 #define TC_COUNT_RELOC(x) ((x)->fx_addsy || (x)->fx_r_type==7)
 #define TC_COFF_FIX2RTYPE(fixP) tc_coff_fix2rtype(fixP)
 extern short tc_coff_fix2rtype PARAMS ((struct fix *));
-#define TC_COFF_SIZEMACHDEP(frag) tc_coff_sizemachdep(frag)
+#define TC_COFF_SIZEMACHDEP(frag) tc_coff_sizemachdep (frag)
 extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
 
 #ifdef TE_GO32
@@ -297,7 +302,6 @@ typedef struct
 #define CpuSSE	       0x1000	/* Streaming SIMD extensions required */
 #define CpuSSE2	       0x2000	/* Streaming SIMD extensions 2 required */
 #define Cpu3dnow       0x4000	/* 3dnow! support required */
-#define CpuUnknown     0x8000	/* The CPU is unknown,  be on the safe side.  */
 
   /* These flags are set by gas depending on the flag_code.  */
 #define Cpu64	     0x4000000   /* 64bit support required  */
@@ -467,15 +471,17 @@ typedef struct
 modrm_byte;
 
 /* x86-64 extension prefix.  */
-typedef struct
-  {
-    unsigned int mode64;
-    unsigned int extX;		/* Used to extend modrm reg field.  */
-    unsigned int extY;		/* Used to extend SIB index field.  */
-    unsigned int extZ;		/* Used to extend modrm reg/mem, SIB base, modrm base fields.  */
-    unsigned int empty;		/* Used to old-style byte registers to new style.  */
-  }
-rex_byte;
+typedef int rex_byte;
+#define REX_OPCODE	0x40
+
+/* Indicates 64 bit operand size.  */
+#define REX_MODE64	8
+/* High extension to reg field of modrm byte.  */
+#define REX_EXTX	4
+/* High extension to SIB index field.  */
+#define REX_EXTY	2
+/* High extension to base field of modrm or SIB, or reg field of opcode.  */
+#define REX_EXTZ	1
 
 /* 386 opcode byte to code indirect addressing.  */
 typedef struct
@@ -530,9 +536,6 @@ if (fragP->fr_type == rs_align_code) 					\
   i386_align_code (fragP, (fragP->fr_next->fr_address			\
 			   - fragP->fr_address				\
 			   - fragP->fr_fix));
-
-/* call md_apply_fix3 with segment instead of md_apply_fix */
-#define MD_APPLY_FIX3
 
 void i386_print_statistics PARAMS ((FILE *));
 #define tc_print_statistics i386_print_statistics

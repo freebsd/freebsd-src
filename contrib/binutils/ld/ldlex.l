@@ -1,7 +1,7 @@
 %{
 
-/* Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
-   Free Software Foundation, Inc.
+/* Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001, 2002  Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -28,7 +28,6 @@ This was written by steve chamberlain
 
 #include <ansidecl.h>
 #include <stdio.h>
-#include <ctype.h>
 
 #ifdef MPW
 /* Prevent enum redefinition problems. */
@@ -37,6 +36,7 @@ This was written by steve chamberlain
 
 #include "bfd.h"
 #include "sysdep.h"
+#include "safe-ctype.h"
 #include "ld.h"
 #include "ldgram.h"
 #include "ldmisc.h"
@@ -116,7 +116,7 @@ WHITE		[ \t\n\r]+
 NOCFILENAMECHAR	[_a-zA-Z0-9\/\.\-\_\+\$\:\[\]\\\~]
 
 V_TAG [.$_a-zA-Z][._a-zA-Z0-9]*
-V_IDENTIFIER [*?.$_a-zA-Z]([*?.$_a-zA-Z0-9]|::)*
+V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 
 %s SCRIPT
 %s EXPRESSION
@@ -260,6 +260,7 @@ V_IDENTIFIER [*?.$_a-zA-Z]([*?.$_a-zA-Z0-9]|::)*
 <BOTH,SCRIPT>"CREATE_OBJECT_SYMBOLS"	{ RTOKEN(CREATE_OBJECT_SYMBOLS);}
 <BOTH,SCRIPT>"CONSTRUCTORS"		{ RTOKEN( CONSTRUCTORS);}
 <BOTH,SCRIPT>"FORCE_COMMON_ALLOCATION" { RTOKEN(FORCE_COMMON_ALLOCATION);}
+<BOTH,SCRIPT>"INHIBIT_COMMON_ALLOCATION" { RTOKEN(INHIBIT_COMMON_ALLOCATION);}
 <BOTH,SCRIPT>"SECTIONS"		{ RTOKEN(SECTIONS);}
 <BOTH,SCRIPT>"FILL"			{ RTOKEN(FILL);}
 <BOTH,SCRIPT>"STARTUP"		{ RTOKEN(STARTUP);}
@@ -417,11 +418,10 @@ V_IDENTIFIER [*?.$_a-zA-Z]([*?.$_a-zA-Z0-9]|::)*
   else 
   {
     yy_switch_to_buffer(include_stack[include_stack_ptr]);
-
   }
-  BEGIN(SCRIPT);
+
   ldfile_input_filename = file_name_stack[include_stack_ptr - 1];
-  lineno = lineno_stack[include_stack_ptr - 1];
+  lineno = lineno_stack[include_stack_ptr];
 
   return END;
 }
@@ -445,13 +445,13 @@ lex_push_file (file, name)
       einfo("%F:includes nested too deeply\n");
     }
   file_name_stack[include_stack_ptr] = name;
-  lineno_stack[include_stack_ptr] = 1;
+  lineno_stack[include_stack_ptr] = lineno;
   include_stack[include_stack_ptr] = YY_CURRENT_BUFFER;
 
   include_stack_ptr++;
+  lineno = 1;
   yyin = file;
   yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
-  BEGIN (SCRIPT);
 }
 
 /* Return a newly created flex input buffer containing STRING,
@@ -511,12 +511,12 @@ lex_redirect (string)
       einfo("%F: macros nested too deeply\n");
     }
   file_name_stack[include_stack_ptr] = "redirect";
-  lineno_stack[include_stack_ptr] = 0;
+  lineno_stack[include_stack_ptr] = lineno;
   include_stack[include_stack_ptr] = YY_CURRENT_BUFFER;
   include_stack_ptr++;
+  lineno = 1;
   tmp = yy_create_string_buffer (string, strlen (string));
   yy_switch_to_buffer (tmp);
-  BEGIN (SCRIPT);
 }
 
 /* Functions to switch to a different flex start condition,
@@ -595,8 +595,8 @@ yy_input (buf, result, max_size)
     {
       if (yyin)
 	{
-	  *result = read (fileno (yyin), (char *) buf, max_size);
-	  if (*result < 0) 
+	  *result = fread ((char *) buf, 1, max_size, yyin);
+	  if (*result < max_size && ferror (yyin)) 
 	    einfo ("%F%P: read in flex scanner failed\n");
 	}
     }
@@ -658,7 +658,7 @@ lex_warn_invalid (where, what)
       einfo ("%F%s: file not recognized: %E\n", ldfile_input_filename);
     }
 
-  if (! isprint ((unsigned char) *what))
+  if (! ISPRINT (*what))
     {
       sprintf (buf, "\\%03o", (unsigned int) *what);
       what = buf;

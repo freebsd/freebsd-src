@@ -202,9 +202,9 @@ ppc_coff_link_hash_table_create (abfd)
      bfd *abfd;
 {
   struct ppc_coff_link_hash_table *ret;
+  bfd_size_type amt = sizeof (struct ppc_coff_link_hash_table);
 
-  ret = ((struct ppc_coff_link_hash_table *)
-	 bfd_alloc (abfd, sizeof (struct ppc_coff_link_hash_table)));
+  ret = (struct ppc_coff_link_hash_table *) bfd_alloc (abfd, amt);
   if (ret == NULL)
     return NULL;
   if (! ppc_coff_link_hash_table_init (ret, abfd,
@@ -833,7 +833,7 @@ enum ref_category
 {
   priv,
   pub,
-  data
+  tocdata
 };
 
 struct list_ele
@@ -849,18 +849,19 @@ extern struct list_ele *head;
 extern struct list_ele *tail;
 
 static void record_toc
-  PARAMS ((asection *, int, enum ref_category, const char *));
+  PARAMS ((asection *, bfd_signed_vma, enum ref_category, const char *));
 
 static void
 record_toc (toc_section, our_toc_offset, cat, name)
      asection *toc_section;
-     int our_toc_offset;
+     bfd_signed_vma our_toc_offset;
      enum ref_category cat;
      const char *name;
 {
   /* add this entry to our toc addr-offset-name list */
-  struct list_ele *t;
-  t = (struct list_ele *) bfd_malloc (sizeof (struct list_ele));
+  bfd_size_type amt = sizeof (struct list_ele);
+  struct list_ele *t = (struct list_ele *) bfd_malloc (amt);
+
   if (t == NULL)
     abort ();
   t->next = 0;
@@ -916,16 +917,16 @@ ppc_record_toc_entry(abfd, info, sec, sym, toc_kind)
       if (local_syms == 0)
 	{
 	  unsigned int i;
+	  bfd_size_type amt;
 	  /* allocate a table */
-	  local_syms =
-	    (int *) bfd_zalloc (abfd,
-				obj_raw_syment_count(abfd) * sizeof (int));
+	  amt = (bfd_size_type) obj_raw_syment_count (abfd) * sizeof (int);
+	  local_syms = (int *) bfd_zalloc (abfd, amt);
 	  if (local_syms == 0)
 	    return false;
-	  obj_coff_local_toc_table(abfd) = local_syms;
-	  for (i = 0; i < obj_raw_syment_count(abfd); ++i)
+	  obj_coff_local_toc_table (abfd) = local_syms;
+	  for (i = 0; i < obj_raw_syment_count (abfd); ++i)
 	    {
-	      SET_UNALLOCATED(local_syms[i]);
+	      SET_UNALLOCATED (local_syms[i]);
 	    }
 	}
 
@@ -1194,12 +1195,12 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 	default:
 	  (*_bfd_error_handler)
 	    (_("%s: unsupported relocation type 0x%02x"),
-	     bfd_get_filename (input_bfd), r_type);
+	     bfd_archive_filename (input_bfd), r_type);
 	  bfd_set_error (bfd_error_bad_value);
 	  return false;
 	case IMAGE_REL_PPC_TOCREL16:
 	  {
-	    bfd_vma our_toc_offset;
+	    bfd_signed_vma our_toc_offset;
 	    int fixit;
 
 	    DUMP_RELOC2(howto->name, rel);
@@ -1246,13 +1247,10 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 		else
 		  {
 		    /* write out the toc entry */
-		    record_toc(toc_section,
-			       our_toc_offset,
-			       priv,
-			       strdup(name));
+		    record_toc (toc_section, our_toc_offset, priv,
+				strdup (name));
 
-		    bfd_put_32 (output_bfd,
-			       val,
+		    bfd_put_32 (output_bfd, val,
 			       toc_section->contents + our_toc_offset);
 
 		    MARK_AS_WRITTEN(local_toc_table[symndx]);
@@ -1282,21 +1280,22 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 		       the IAT to be part of the toc, thus saving a load.
 		    */
 
-		    our_toc_offset = val -
-		      (toc_section->output_section->vma +
-		       toc_section->output_offset);
+		    our_toc_offset = val - (toc_section->output_section->vma
+					    + toc_section->output_offset);
 
 		    /* The size must still fit in a 16bit displacment */
-		    if (our_toc_offset >= 65535)
+		    if ((bfd_vma) our_toc_offset >= 65535)
 		      {
 			(*_bfd_error_handler)
-			  (_("%s: Relocation for %s of %x exceeds Toc size limit"),
-			   bfd_get_filename (input_bfd), name, our_toc_offset);
+			  (_("%s: Relocation for %s of %lx exceeds Toc size limit"),
+			   bfd_archive_filename (input_bfd), name,
+			   (unsigned long) our_toc_offset);
 			bfd_set_error (bfd_error_bad_value);
 			return false;
 		      }
 
-		    record_toc(toc_section, our_toc_offset, pub, strdup(name));
+		    record_toc (toc_section, our_toc_offset, pub,
+				strdup (name));
 		  }
 		else if (IS_WRITTEN(our_toc_offset))
 		  {
@@ -1308,11 +1307,11 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 		  }
 		else
 		  {
-		    record_toc(toc_section, our_toc_offset, pub, strdup(name));
+		    record_toc(toc_section, our_toc_offset, pub,
+			       strdup (name));
 
 		    /* write out the toc entry */
-		    bfd_put_32 (output_bfd,
-			       val,
+		    bfd_put_32 (output_bfd, val,
 			       toc_section->contents + our_toc_offset);
 
 		    MARK_AS_WRITTEN(h->toc_offset);
@@ -1331,8 +1330,8 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 		   isn't absolute - we output the address here
 		   to a file */
 
-		bfd_vma addr =  toc_section->output_section->vma
-		  + toc_section->output_offset + our_toc_offset;
+		bfd_vma addr = (toc_section->output_section->vma
+				+ toc_section->output_offset + our_toc_offset);
 
 		if (coff_data(output_bfd)->pe)
 		  addr -= pe_data(output_bfd)->pe_opthdr.ImageBase;
@@ -1341,23 +1340,20 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 	      }
 
 	    /* FIXME: this test is conservative */
-	    if ( (r_flags & IMAGE_REL_PPC_TOCDEFN) != IMAGE_REL_PPC_TOCDEFN &&
-		our_toc_offset > toc_section->_raw_size)
+	    if ((r_flags & IMAGE_REL_PPC_TOCDEFN) != IMAGE_REL_PPC_TOCDEFN
+		&& (bfd_vma) our_toc_offset > toc_section->_raw_size)
 	      {
 		(*_bfd_error_handler)
-		  (_("%s: Relocation exceeds allocated TOC (%x)"),
-		   bfd_get_filename (input_bfd),
-		   toc_section->_raw_size);
+		  (_("%s: Relocation exceeds allocated TOC (%lx)"),
+		   bfd_archive_filename (input_bfd),
+		   (unsigned long) toc_section->_raw_size);
 		bfd_set_error (bfd_error_bad_value);
 		return false;
 	      }
 
 	    /* Now we know the relocation for this toc reference */
 	    relocation =  our_toc_offset + TOC_LOAD_ADJUSTMENT;
-	    rstat = _bfd_relocate_contents (howto,
-					    input_bfd,
-					    relocation,
-					    loc);
+	    rstat = _bfd_relocate_contents (howto, input_bfd, relocation, loc);
 	  }
 	  break;
 	case IMAGE_REL_PPC_IFGLUE:
@@ -1377,7 +1373,7 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 		if (h->symbol_is_glue == 1)
 		  {
 		    x = bfd_get_32 (input_bfd, loc);
-		    bfd_put_32 (input_bfd, h->glue_insn, loc);
+		    bfd_put_32 (input_bfd, (bfd_vma) h->glue_insn, loc);
 		  }
 	      }
 	  }
@@ -1406,7 +1402,7 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 	    fprintf (stderr,
 		    _("Warning: unsupported reloc %s <file %s, section %s>\n"),
 		    howto->name,
-		    bfd_get_filename(input_bfd),
+		    bfd_archive_filename(input_bfd),
 		    input_section->name);
 
 	    fprintf (stderr,"sym %ld (%s), r_vaddr %ld (%lx)\n",
@@ -1425,14 +1421,13 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 
 	    (*_bfd_error_handler)
 	      (_("%s: Out of order IMGLUE reloc for %s"),
-	       bfd_get_filename (input_bfd), my_name);
+	       bfd_archive_filename (input_bfd), my_name);
 	    bfd_set_error (bfd_error_bad_value);
 	    return false;
 	  }
 
 	case IMAGE_REL_PPC_ADDR32NB:
 	  {
-	    struct coff_link_hash_entry *myh = 0;
 	    const char *name = 0;
 	    DUMP_RELOC2(howto->name, rel);
 
@@ -1440,7 +1435,7 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 	      {
 		/* set magic values */
 		int idata5offset;
-		struct coff_link_hash_entry *myh = 0;
+		struct coff_link_hash_entry *myh;
 		myh = coff_link_hash_lookup (coff_hash_table (info),
 					     "__idata5_magic__",
 					     false, false, true);
@@ -1480,7 +1475,7 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 
 		if (target != 0)
 		  {
-		    myh = 0;
+		    struct coff_link_hash_entry *myh;
 
 		    myh = coff_link_hash_lookup (coff_hash_table (info),
 						 target,
@@ -1654,7 +1649,7 @@ dump_toc (vfile)
 	cat = _("private       ");
       else if (t->cat == pub)
 	cat = _("public        ");
-      else if (t->cat == data)
+      else if (t->cat == tocdata)
 	cat = _("data-in-toc   ");
 
       if (t->offset > global_toc_size)
@@ -1665,7 +1660,8 @@ dump_toc (vfile)
 	    {
 	      fprintf (file,
 		      _("**** global_toc_size %ld(%lx), thunk_size %ld(%lx)\n"),
-		      global_toc_size, global_toc_size, thunk_size, thunk_size);
+		       global_toc_size, global_toc_size,
+		       thunk_size, thunk_size);
 	      cat = _("Out of bounds!");
 	    }
 	}
@@ -1687,6 +1683,7 @@ ppc_allocate_toc_section (info)
 {
   asection *s;
   bfd_byte *foo;
+  bfd_size_type amt;
   static char test_char = '1';
 
   if ( global_toc_size == 0 ) /* FIXME: does this get me in trouble? */
@@ -1705,8 +1702,9 @@ ppc_allocate_toc_section (info)
       abort ();
     }
 
-  foo = (bfd_byte *) bfd_alloc(bfd_of_toc_owner, global_toc_size);
-  memset(foo, test_char, global_toc_size);
+  amt = global_toc_size;
+  foo = (bfd_byte *) bfd_alloc (bfd_of_toc_owner, amt);
+  memset(foo, test_char, (size_t) global_toc_size);
 
   s->_raw_size = s->_cooked_size = global_toc_size;
   s->contents = foo;
@@ -2178,10 +2176,6 @@ ppc_coff_reloc_type_lookup (abfd, code)
 
 #define RTYPE2HOWTO(cache_ptr, dst)  ppc_coff_rtype2howto (cache_ptr, dst)
 
-#ifndef COFF_IMAGE_WITH_PE
-static void ppc_coff_swap_sym_in_hook PARAMS ((bfd *, PTR, PTR));
-#endif
-
 /* We use the special COFF backend linker, with our own special touch.  */
 
 #define coff_bfd_reloc_type_lookup   ppc_coff_reloc_type_lookup
@@ -2191,7 +2185,9 @@ static void ppc_coff_swap_sym_in_hook PARAMS ((bfd *, PTR, PTR));
 
 #ifndef COFF_IMAGE_WITH_PE
 /* FIXME: This no longer works.  */
+#if 0
 #define coff_swap_sym_in_hook        ppc_coff_swap_sym_in_hook
+#endif
 #endif
 
 #define SELECT_RELOC(internal, howto) {internal.r_type=howto->type;}
@@ -2220,6 +2216,8 @@ static void ppc_coff_swap_sym_in_hook PARAMS ((bfd *, PTR, PTR));
 #include "coffcode.h"
 
 #ifndef COFF_IMAGE_WITH_PE
+/* FIXME: This no longer works.  */
+#if 0
 /* FIXME:
    What we're trying to do here is allocate a toc section (early), and attach
    it to the last bfd to be processed. This avoids the problem of having a toc
@@ -2233,6 +2231,7 @@ static void ppc_coff_swap_sym_in_hook PARAMS ((bfd *, PTR, PTR));
    3. Doing it on a "swap in" hook depends on when the "swap in" is called,
       and how often, etc. It's not clear to me that there isn't a hole here.
 */
+static void ppc_coff_swap_sym_in_hook PARAMS ((bfd *, PTR, PTR));
 
 static void
 ppc_coff_swap_sym_in_hook (abfd, ext1, in1)
@@ -2274,6 +2273,7 @@ ppc_coff_swap_sym_in_hook (abfd, ext1, in1)
 
   return;
 }
+#endif
 #endif
 
 #ifndef COFF_IMAGE_WITH_PE
@@ -2321,11 +2321,11 @@ ppc_bfd_coff_final_link (abfd, info)
   boolean debug_merge_allocated;
   asection *o;
   struct bfd_link_order *p;
-  size_t max_sym_count;
-  size_t max_lineno_count;
-  size_t max_reloc_count;
-  size_t max_output_reloc_count;
-  size_t max_contents_size;
+  bfd_size_type max_sym_count;
+  bfd_size_type max_lineno_count;
+  bfd_size_type max_reloc_count;
+  bfd_size_type max_output_reloc_count;
+  bfd_size_type max_contents_size;
   file_ptr rel_filepos;
   unsigned int relsz;
   file_ptr line_filepos;
@@ -2333,6 +2333,7 @@ ppc_bfd_coff_final_link (abfd, info)
   bfd *sub;
   bfd_byte *external_relocs = NULL;
   char strbuf[STRING_SIZE_SIZE];
+  bfd_size_type amt;
 
   symesz = bfd_coff_symesz (abfd);
 
@@ -2433,10 +2434,9 @@ ppc_bfd_coff_final_link (abfd, info)
 
       /* We use section_count + 1, rather than section_count, because
          the target_index fields are 1 based.  */
-      finfo.section_info =
-	((struct coff_link_section_info *)
-	 bfd_malloc ((abfd->section_count + 1)
-		     * sizeof (struct coff_link_section_info)));
+      amt = abfd->section_count + 1;
+      amt *= sizeof (struct coff_link_section_info);
+      finfo.section_info = (struct coff_link_section_info *) bfd_malloc (amt);
       if (finfo.section_info == NULL)
 	goto error_return;
       for (i = 0; i <= abfd->section_count; i++)
@@ -2477,13 +2477,14 @@ ppc_bfd_coff_final_link (abfd, info)
 	     but only when doing a relocateable link, which is not the
 	     common case.  */
 	  BFD_ASSERT (info->relocateable);
+	  amt = o->reloc_count;
+	  amt *= sizeof (struct internal_reloc);
 	  finfo.section_info[o->target_index].relocs =
-	    ((struct internal_reloc *)
-	     bfd_malloc (o->reloc_count * sizeof (struct internal_reloc)));
+	    (struct internal_reloc *) bfd_malloc (amt);
+	  amt = o->reloc_count;
+	  amt *= sizeof (struct coff_link_hash_entry *);
 	  finfo.section_info[o->target_index].rel_hashes =
-	    ((struct coff_link_hash_entry **)
-	     bfd_malloc (o->reloc_count
-		     * sizeof (struct coff_link_hash_entry *)));
+	    (struct coff_link_hash_entry **) bfd_malloc (amt);
 	  if (finfo.section_info[o->target_index].relocs == NULL
 	      || finfo.section_info[o->target_index].rel_hashes == NULL)
 	    goto error_return;
@@ -2506,7 +2507,7 @@ ppc_bfd_coff_final_link (abfd, info)
   max_sym_count = 0;
   for (sub = info->input_bfds; sub != NULL; sub = sub->link_next)
     {
-      size_t sz;
+      bfd_size_type sz;
 
       sub->output_has_begun = false;
       sz = obj_raw_syment_count (sub);
@@ -2515,22 +2516,23 @@ ppc_bfd_coff_final_link (abfd, info)
     }
 
   /* Allocate some buffers used while linking.  */
-  finfo.internal_syms = ((struct internal_syment *)
-			 bfd_malloc (max_sym_count
-				     * sizeof (struct internal_syment)));
-  finfo.sec_ptrs = (asection **) bfd_malloc (max_sym_count
-					     * sizeof (asection *));
-  finfo.sym_indices = (long *) bfd_malloc (max_sym_count * sizeof (long));
-  finfo.outsyms = ((bfd_byte *)
-		   bfd_malloc ((size_t) ((max_sym_count + 1) * symesz)));
-  finfo.linenos = (bfd_byte *) bfd_malloc (max_lineno_count
-				       * bfd_coff_linesz (abfd));
+  amt = max_sym_count * sizeof (struct internal_syment);
+  finfo.internal_syms = (struct internal_syment *) bfd_malloc (amt);
+  amt = max_sym_count * sizeof (asection *);
+  finfo.sec_ptrs = (asection **) bfd_malloc (amt);
+  amt = max_sym_count * sizeof (long);
+  finfo.sym_indices = (long *) bfd_malloc (amt);
+  amt = (max_sym_count + 1) * symesz;
+  finfo.outsyms = (bfd_byte *) bfd_malloc (amt);
+  amt = max_lineno_count * bfd_coff_linesz (abfd);
+  finfo.linenos = (bfd_byte *) bfd_malloc (amt);
   finfo.contents = (bfd_byte *) bfd_malloc (max_contents_size);
   finfo.external_relocs = (bfd_byte *) bfd_malloc (max_reloc_count * relsz);
   if (! info->relocateable)
-    finfo.internal_relocs = ((struct internal_reloc *)
-			     bfd_malloc (max_reloc_count
-					 * sizeof (struct internal_reloc)));
+    {
+      amt = max_reloc_count * sizeof (struct internal_reloc);
+      finfo.internal_relocs = (struct internal_reloc *) bfd_malloc (amt);
+    }
   if ((finfo.internal_syms == NULL && max_sym_count > 0)
       || (finfo.sec_ptrs == NULL && max_sym_count > 0)
       || (finfo.sym_indices == NULL && max_sym_count > 0)
@@ -2649,14 +2651,14 @@ ppc_bfd_coff_final_link (abfd, info)
   if (finfo.last_file_index != -1
       && (unsigned int) finfo.last_file.n_value != obj_raw_syment_count (abfd))
     {
+      file_ptr pos;
+
       finfo.last_file.n_value = obj_raw_syment_count (abfd);
       bfd_coff_swap_sym_out (abfd, (PTR) &finfo.last_file,
 			     (PTR) finfo.outsyms);
-      if (bfd_seek (abfd,
-		    (obj_sym_filepos (abfd)
-		     + finfo.last_file_index * symesz),
-		    SEEK_SET) != 0
-	  || bfd_write (finfo.outsyms, symesz, 1, abfd) != symesz)
+      pos = obj_sym_filepos (abfd) + finfo.last_file_index * symesz;
+      if (bfd_seek (abfd, pos, SEEK_SET) != 0
+	  || bfd_bwrite (finfo.outsyms, symesz, abfd) != symesz)
 	return false;
     }
 
@@ -2679,8 +2681,8 @@ ppc_bfd_coff_final_link (abfd, info)
       /* Now that we have written out all the global symbols, we know
 	 the symbol indices to use for relocs against them, and we can
 	 finally write out the relocs.  */
-      external_relocs = ((bfd_byte *)
-			 bfd_malloc (max_output_reloc_count * relsz));
+      amt = max_output_reloc_count * relsz;
+      external_relocs = (bfd_byte *) bfd_malloc (amt);
       if (external_relocs == NULL)
 	goto error_return;
 
@@ -2708,9 +2710,9 @@ ppc_bfd_coff_final_link (abfd, info)
 	      bfd_coff_swap_reloc_out (abfd, (PTR) irel, (PTR) erel);
 	    }
 
+	  amt = relsz * o->reloc_count;
 	  if (bfd_seek (abfd, o->rel_filepos, SEEK_SET) != 0
-	      || bfd_write ((PTR) external_relocs, relsz, o->reloc_count,
-			    abfd) != relsz * o->reloc_count)
+	      || bfd_bwrite ((PTR) external_relocs, amt, abfd) != amt)
 	    goto error_return;
 	}
 
@@ -2744,21 +2746,22 @@ ppc_bfd_coff_final_link (abfd, info)
   /* Write out the string table.  */
   if (obj_raw_syment_count (abfd) != 0)
     {
-      if (bfd_seek (abfd,
-		    (obj_sym_filepos (abfd)
-		     + obj_raw_syment_count (abfd) * symesz),
-		    SEEK_SET) != 0)
+      file_ptr pos;
+
+      pos = obj_sym_filepos (abfd) + obj_raw_syment_count (abfd) * symesz;
+      if (bfd_seek (abfd, pos, SEEK_SET) != 0)
 	return false;
 
 #if STRING_SIZE_SIZE == 4
-      bfd_h_put_32 (abfd,
-		    _bfd_stringtab_size (finfo.strtab) + STRING_SIZE_SIZE,
-		    (bfd_byte *) strbuf);
+      H_PUT_32 (abfd,
+		_bfd_stringtab_size (finfo.strtab) + STRING_SIZE_SIZE,
+		strbuf);
 #else
- #error Change bfd_h_put_32
+ #error Change H_PUT_32 above
 #endif
 
-      if (bfd_write (strbuf, 1, STRING_SIZE_SIZE, abfd) != STRING_SIZE_SIZE)
+      if (bfd_bwrite (strbuf, (bfd_size_type) STRING_SIZE_SIZE, abfd)
+	  != STRING_SIZE_SIZE)
 	return false;
 
       if (! _bfd_stringtab_emit (abfd, finfo.strtab))

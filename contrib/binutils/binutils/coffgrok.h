@@ -222,4 +222,4 @@ struct coff_sfile
      struct coff_sfile *sfile;
   };
 
-struct coff_ofile *coff_grok();
+struct coff_ofile *coff_grok PARAMS ((bfd *));

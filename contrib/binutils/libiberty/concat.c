@@ -1,5 +1,5 @@
 /* Concatenate variable number of strings.
-   Copyright (C) 1991, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1994, 2001 Free Software Foundation, Inc.
    Written by Fred Fish @ Cygnus Support
 
 This file is part of the libiberty library.
@@ -21,24 +21,14 @@ Boston, MA 02111-1307, USA.  */
 
 /*
 
-NAME
+@deftypefn Extension char* concat (const char *@var{s1}, const char *@var{s2}, @dots{}, @code{NULL})
 
-	concat -- concatenate a variable number of strings
+Concatenate zero or more of strings and return the result in freshly
+@code{xmalloc}ed memory.  Returns @code{NULL} if insufficient memory is
+available.  The argument list is terminated by the first @code{NULL}
+pointer encountered.  Pointers to empty strings are ignored.
 
-SYNOPSIS
-
-	#include <varargs.h>
-
-	char *concat (s1, s2, s3, ..., NULL)
-
-DESCRIPTION
-
-	Concatenate a variable number of strings and return the result
-	in freshly malloc'd memory.
-
-	Returns NULL if insufficient memory is available.  The argument
-	list is terminated by the first NULL pointer encountered.  Pointers
-	to empty strings are ignored.
+@end deftypefn
 
 NOTES
 
@@ -50,11 +40,16 @@ NOTES
 	deal with low memory situations itself, it should supply an xmalloc
 	that just directly invokes malloc and blindly returns whatever
 	malloc returns.
+
 */
 
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "ansidecl.h"
 #include "libiberty.h"
+#include <sys/types.h>		/* size_t */
 
 #ifdef ANSI_PROTOTYPES
 #include <stdarg.h>
@@ -62,90 +57,164 @@ NOTES
 #include <varargs.h>
 #endif
 
-#ifdef __STDC__
-#include <stddef.h>
-extern size_t strlen (const char *s);
-#else
-extern int strlen ();
+# if HAVE_STRING_H
+#  include <string.h>
+# else
+#  if HAVE_STRINGS_H
+#   include <strings.h>
+#  endif
+# endif
+
+#if HAVE_STDLIB_H
+#include <stdlib.h>
 #endif
 
-#define NULLP (char *)0
-
-/* VARARGS */
-#ifdef ANSI_PROTOTYPES
-char *
-concat (const char *first, ...)
-#else
-char *
-concat (va_alist)
-     va_dcl
-#endif
+static inline unsigned long vconcat_length PARAMS ((const char *, va_list));
+static inline unsigned long
+vconcat_length (first, args)
+     const char *first;
+     va_list args;
 {
-  register int length;
-  register char *newstr;
-  register char *end;
-  register const char *arg;
-  va_list args;
-#ifndef ANSI_PROTOTYPES
-  const char *first;
-#endif
+  unsigned long length = 0;
+  const char *arg;
 
-  /* First compute the size of the result and get sufficient memory. */
+  for (arg = first; arg ; arg = va_arg (args, const char *))
+    length += strlen (arg);
 
-#ifdef ANSI_PROTOTYPES
-  va_start (args, first);
-#else
-  va_start (args);
-  first = va_arg (args, const char *);
-#endif
+  return length;
+}
 
-  if (first == NULLP)
-    length = 0;
-  else
+static inline char *vconcat_copy PARAMS ((char *, const char *, va_list));
+static inline char *
+vconcat_copy (dst, first, args)
+     char *dst;
+     const char *first;
+     va_list args;
+{
+  char *end = dst;
+  const char *arg;
+
+  for (arg = first; arg ; arg = va_arg (args, const char *))
     {
-      length = strlen (first);
-      while ((arg = va_arg (args, const char *)) != NULLP)
-	{
-	  length += strlen (arg);
-	}
+      unsigned long length = strlen (arg);
+      memcpy (end, arg, length);
+      end += length;
     }
-  newstr = (char *) xmalloc (length + 1);
-  va_end (args);
+  *end = '\000';
+
+  return dst;
+}
+
+/* @undocumented concat_length */
+
+unsigned long
+concat_length VPARAMS ((const char *first, ...))
+{
+  unsigned long length;
+
+  VA_OPEN (args, first);
+  VA_FIXEDARG (args, const char *, first);
+  length = vconcat_length (first, args);
+  VA_CLOSE (args);
+
+  return length;
+}
+
+/* @undocumented concat_copy */
+
+char *
+concat_copy VPARAMS ((char *dst, const char *first, ...))
+{
+  char *save_dst;
+
+  VA_OPEN (args, first);
+  VA_FIXEDARG (args, char *, dst);
+  VA_FIXEDARG (args, const char *, first);
+  vconcat_copy (dst, first, args);
+  save_dst = dst; /* With K&R C, dst goes out of scope here.  */
+  VA_CLOSE (args);
+
+  return save_dst;
+}
+
+char *libiberty_concat_ptr;
+
+/* @undocumented concat_copy2 */
+
+char *
+concat_copy2 VPARAMS ((const char *first, ...))
+{
+  VA_OPEN (args, first);
+  VA_FIXEDARG (args, const char *, first);
+  vconcat_copy (libiberty_concat_ptr, first, args);
+  VA_CLOSE (args);
+
+  return libiberty_concat_ptr;
+}
+
+char *
+concat VPARAMS ((const char *first, ...))
+{
+  char *newstr;
+
+  /* First compute the size of the result and get sufficient memory.  */
+  VA_OPEN (args, first);
+  VA_FIXEDARG (args, const char *, first);
+  newstr = (char *) xmalloc (vconcat_length (first, args) + 1);
+  VA_CLOSE (args);
 
   /* Now copy the individual pieces to the result string. */
+  VA_OPEN (args, first);
+  VA_FIXEDARG (args, const char *, first);
+  vconcat_copy (newstr, first, args);
+  VA_CLOSE (args);
 
-  if (newstr != NULLP)
-    {
-#ifdef ANSI_PROTOTYPES
-      va_start (args, first);
-#else
-      va_start (args);
-      first = va_arg (args, const char *);
-#endif
-      end = newstr;
-      if (first != NULLP)
-	{
-	  arg = first;
-	  while (*arg)
-	    {
-	      *end++ = *arg++;
-	    }
-	  while ((arg = va_arg (args, const char *)) != NULLP)
-	    {
-	      while (*arg)
-		{
-		  *end++ = *arg++;
-		}
-	    }
-	}
-      *end = '\000';
-      va_end (args);
-    }
+  return newstr;
+}
 
-  return (newstr);
+/*
+
+@deftypefn Extension char* reconcat (char *@var{optr}, const char *@var{s1}, @dots{}, @code{NULL})
+
+Same as @code{concat}, except that if @var{optr} is not @code{NULL} it
+is freed after the string is created.  This is intended to be useful
+when you're extending an existing string or building up a string in a
+loop:
+
+@example
+  str = reconcat (str, "pre-", str, NULL);
+@end example
+
+@end deftypefn
+
+*/
+
+char *
+reconcat VPARAMS ((char *optr, const char *first, ...))
+{
+  char *newstr;
+
+  /* First compute the size of the result and get sufficient memory.  */
+  VA_OPEN (args, first);
+  VA_FIXEDARG (args, char *, optr);
+  VA_FIXEDARG (args, const char *, first);
+  newstr = (char *) xmalloc (vconcat_length (first, args) + 1);
+  VA_CLOSE (args);
+
+  /* Now copy the individual pieces to the result string. */
+  VA_OPEN (args, first);
+  VA_FIXEDARG (args, char *, optr);
+  VA_FIXEDARG (args, const char *, first);
+  vconcat_copy (newstr, first, args);
+  if (optr) /* Done before VA_CLOSE so optr stays in scope for K&R C.  */
+    free (optr);
+  VA_CLOSE (args);
+
+  return newstr;
 }
 
 #ifdef MAIN
+#define NULLP (char *)0
 
 /* Simple little test driver. */
 

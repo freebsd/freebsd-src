@@ -106,7 +106,7 @@ ecoff_frob_file ()
   const struct ecoff_debug_swap * const debug_swap
     = &ecoff_backend (stdoutput)->debug_swap;
   bfd_vma addr;
-  asection *sec;
+  asection **sec;
   HDRR *hdr;
   char *buf;
   char *set;
@@ -143,53 +143,39 @@ ecoff_frob_file ()
   };
 #define n_names ((int) (sizeof (names) / sizeof (names[0])))
 
+  /* Sections that match names, order to be straightened out later.  */
+  asection *secs[n_names];
+  int i;
+
   addr = 0;
-  {
-    /* Sections that match names, order to be straightened out later.  */
-    asection *secs[n_names];
-    /* Linked list of sections with non-matching names.  Random ordering.  */
-    asection *other_sections = 0;
-    /* Pointer to next section, since we're destroying the original
-       ordering.  */
-    asection *next;
+  for (i = 0; i < n_names; i++)
+    secs[i] = 0;
 
-    int i;
-
-    for (i = 0; i < n_names; i++)
-      secs[i] = 0;
-    for (sec = stdoutput->sections; sec != (asection *) NULL; sec = next)
-      {
-	next = sec->next;
-	for (i = 0; i < n_names; i++)
-	  if (!strcmp (sec->name, names[i]))
-	    {
-	      secs[i] = sec;
-	      break;
-	    }
-	if (i == n_names)
+  for (sec = &stdoutput->sections; *sec != (asection *) NULL; )
+    {
+      for (i = 0; i < n_names; i++)
+	if (!strcmp ((*sec)->name, names[i]))
 	  {
-	    bfd_set_section_vma (stdoutput, sec, addr);
-	    addr += bfd_section_size (stdoutput, sec);
-	    sec->next = other_sections;
-	    other_sections = sec;
+	    secs[i] = *sec;
+	    bfd_section_list_remove (stdoutput, sec);
+	    break;
 	  }
+      if (i == n_names)
+	{
+	  bfd_set_section_vma (stdoutput, *sec, addr);
+	  addr += bfd_section_size (stdoutput, *sec);
+	  sec = &(*sec)->next;
+	}
+    }
+  for (i = 0; i < n_names; i++)
+    if (secs[i])
+      {
+	bfd_set_section_vma (stdoutput, secs[i], addr);
+	addr += bfd_section_size (stdoutput, secs[i]);
       }
-    for (i = 0; i < n_names; i++)
-      if (secs[i])
-	{
-	  sec = secs[i];
-	  bfd_set_section_vma (stdoutput, sec, addr);
-	  addr += bfd_section_size (stdoutput, sec);
-	}
-    for (i = n_names - 1; i >= 0; i--)
-      if (secs[i])
-	{
-	  sec = secs[i];
-	  sec->next = other_sections;
-	  other_sections = sec;
-	}
-    stdoutput->sections = other_sections;
-  }
+  for (i = n_names - 1; i >= 0; i--)
+    if (secs[i])
+      bfd_section_list_insert (stdoutput, &stdoutput->sections, secs[i]);
 
   /* Build the ECOFF debugging information.  */
   assert (ecoff_data (stdoutput) != 0);

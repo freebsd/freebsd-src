@@ -82,8 +82,8 @@ EOF
 	exit 1
       fi
     else
-      # Cross compiling. Assume glibc 2.1.
-      libc_interface=-libc6.1-
+      # Cross compiling. Assume glibc 2.2.
+      libc_interface=-libc6.2-
     fi
     ;;
   *)

@@ -1,5 +1,5 @@
 /* tc-v850.c -- Assembler code for the NEC V850
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -20,15 +20,11 @@
    Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
-#include <ctype.h>
 #include "as.h"
+#include "safe-ctype.h"
 #include "subsegs.h"
 #include "opcode/v850.h"
 #include "dwarf2dbg.h"
-
-#define AREA_ZDA 0
-#define AREA_SDA 1
-#define AREA_TDA 2
 
 /* Sign-extend a 16-bit number.  */
 #define SEXT16(x)	((((x) & 0xffff) ^ (~0x7fff)) + 0x8000)
@@ -82,20 +78,6 @@ const relax_typeS md_relax_table[] = {
   {0x1fffff, -0x200000, 4, 0},
 };
 
-static segT sdata_section = NULL;
-static segT tdata_section = NULL;
-static segT zdata_section = NULL;
-static segT sbss_section = NULL;
-static segT tbss_section = NULL;
-static segT zbss_section = NULL;
-static segT rosdata_section = NULL;
-static segT rozdata_section = NULL;
-static segT scommon_section = NULL;
-static segT tcommon_section = NULL;
-static segT zcommon_section = NULL;
-static segT call_table_data_section = NULL;
-static segT call_table_text_section = NULL;
-
 /* Fixups.  */
 #define MAX_INSN_FIXUPS (5)
 struct v850_fixup {
@@ -106,121 +88,108 @@ struct v850_fixup {
 
 struct v850_fixup fixups[MAX_INSN_FIXUPS];
 static int fc;
-
-void
-v850_sdata (int ignore ATTRIBUTE_UNUSED)
+
+struct v850_seg_entry
 {
+  segT s;
+  const char *name;
+  flagword flags;
+};
+
+struct v850_seg_entry v850_seg_table[] =
+{
+  { NULL, ".sdata",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA | SEC_HAS_CONTENTS
+    | SEC_SMALL_DATA },
+  { NULL, ".tdata",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA | SEC_HAS_CONTENTS },
+  { NULL, ".zdata",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA | SEC_HAS_CONTENTS },
+  { NULL, ".sbss",
+    SEC_ALLOC | SEC_SMALL_DATA },
+  { NULL, ".tbss",
+    SEC_ALLOC },
+  { NULL, ".zbss",
+    SEC_ALLOC},
+  { NULL, ".rosdata",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_READONLY | SEC_DATA
+    | SEC_HAS_CONTENTS | SEC_SMALL_DATA },
+  { NULL, ".rozdata",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_READONLY | SEC_DATA
+    | SEC_HAS_CONTENTS },
+  { NULL, ".scommon",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA | SEC_HAS_CONTENTS
+    | SEC_SMALL_DATA | SEC_IS_COMMON },
+  { NULL, ".tcommon",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA | SEC_HAS_CONTENTS
+    | SEC_IS_COMMON },
+  { NULL, ".zcommon",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA | SEC_HAS_CONTENTS
+    | SEC_IS_COMMON },
+  { NULL, ".call_table_data",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA | SEC_HAS_CONTENTS },
+  { NULL, ".call_table_text",
+    SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_READONLY | SEC_CODE
+    | SEC_HAS_CONTENTS},
+  { NULL, ".bss",
+    SEC_ALLOC }
+};
+
+#define SDATA_SECTION		0
+#define TDATA_SECTION		1
+#define ZDATA_SECTION		2
+#define SBSS_SECTION		3
+#define TBSS_SECTION		4
+#define ZBSS_SECTION		5
+#define ROSDATA_SECTION		6
+#define ROZDATA_SECTION		7
+#define SCOMMON_SECTION		8
+#define TCOMMON_SECTION		9
+#define ZCOMMON_SECTION		10
+#define CALL_TABLE_DATA_SECTION	11
+#define CALL_TABLE_TEXT_SECTION	12
+#define BSS_SECTION		13
+
+static void do_v850_seg PARAMS ((int, subsegT));
+
+static void
+do_v850_seg (i, sub)
+     int i;
+     subsegT sub;
+{
+  struct v850_seg_entry *seg = v850_seg_table + i;
+
   obj_elf_section_change_hook ();
+  if (seg->s != NULL)
+    {
+      subseg_set (seg->s, sub);
+    }
+  else
+    {
+      seg->s = subseg_new (seg->name, sub);
+      bfd_set_section_flags (stdoutput, seg->s, seg->flags);
+      if ((seg->flags & SEC_LOAD) == 0)
+	seg_info (seg->s)->bss = 1;
+    }
+}
 
-  subseg_set (sdata_section, (subsegT) get_absolute_expression ());
+static void v850_seg PARAMS ((int i));
 
+static void
+v850_seg (i)
+     int i;
+{
+  subsegT sub = get_absolute_expression ();
+
+  do_v850_seg (i, sub);
   demand_empty_rest_of_line ();
 }
 
-void
-v850_tdata (int ignore ATTRIBUTE_UNUSED)
-{
-  obj_elf_section_change_hook ();
+static void v850_offset PARAMS ((int));
 
-  subseg_set (tdata_section, (subsegT) get_absolute_expression ());
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_zdata (int ignore ATTRIBUTE_UNUSED)
-{
-  obj_elf_section_change_hook ();
-
-  subseg_set (zdata_section, (subsegT) get_absolute_expression ());
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_sbss (int ignore ATTRIBUTE_UNUSED)
-{
-  obj_elf_section_change_hook ();
-
-  subseg_set (sbss_section, (subsegT) get_absolute_expression ());
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_tbss (int ignore ATTRIBUTE_UNUSED)
-{
-  obj_elf_section_change_hook ();
-
-  subseg_set (tbss_section, (subsegT) get_absolute_expression ());
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_zbss (int ignore ATTRIBUTE_UNUSED)
-{
-  obj_elf_section_change_hook ();
-
-  subseg_set (zbss_section, (subsegT) get_absolute_expression ());
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_rosdata (int ignore ATTRIBUTE_UNUSED)
-{
-  obj_elf_section_change_hook ();
-
-  subseg_set (rosdata_section, (subsegT) get_absolute_expression ());
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_rozdata (int ignore ATTRIBUTE_UNUSED)
-{
-  obj_elf_section_change_hook ();
-
-  subseg_set (rozdata_section, (subsegT) get_absolute_expression ());
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_call_table_data (int ignore ATTRIBUTE_UNUSED)
-{
-  obj_elf_section_change_hook ();
-
-  subseg_set (call_table_data_section, (subsegT) get_absolute_expression ());
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_call_table_text (int ignore ATTRIBUTE_UNUSED)
-{
-  obj_elf_section_change_hook ();
-
-  subseg_set (call_table_text_section, (subsegT) get_absolute_expression ());
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_bss (int ignore ATTRIBUTE_UNUSED)
-{
-  register int temp = get_absolute_expression ();
-
-  obj_elf_section_change_hook ();
-
-  subseg_set (bss_section, (subsegT) temp);
-
-  demand_empty_rest_of_line ();
-}
-
-void
-v850_offset (int ignore ATTRIBUTE_UNUSED)
+static void
+v850_offset (ignore)
+     int ignore ATTRIBUTE_UNUSED;
 {
   int temp = get_absolute_expression ();
 
@@ -233,6 +202,8 @@ v850_offset (int ignore ATTRIBUTE_UNUSED)
 }
 
 /* Copied from obj_elf_common() in gas/config/obj-elf.c.  */
+
+static void v850_comm PARAMS ((int));
 
 static void
 v850_comm (area)
@@ -338,37 +309,16 @@ v850_comm (area)
 
 	  switch (area)
 	    {
-	    case AREA_SDA:
-	      if (sbss_section == NULL)
-		{
-		  sbss_section = subseg_new (".sbss", 0);
-
-		  bfd_set_section_flags (stdoutput, sbss_section, applicable);
-
-		  seg_info (sbss_section)->bss = 1;
-		}
+	    case SCOMMON_SECTION:
+	      do_v850_seg (SBSS_SECTION, 0);
 	      break;
 
-	    case AREA_ZDA:
-	      if (zbss_section == NULL)
-		{
-		  zbss_section = subseg_new (".zbss", 0);
-
-		  bfd_set_section_flags (stdoutput, sbss_section, applicable);
-
-		  seg_info (zbss_section)->bss = 1;
-		}
+	    case ZCOMMON_SECTION:
+	      do_v850_seg (ZBSS_SECTION, 0);
 	      break;
 
-	    case AREA_TDA:
-	      if (tbss_section == NULL)
-		{
-		  tbss_section = subseg_new (".tbss", 0);
-
-		  bfd_set_section_flags (stdoutput, tbss_section, applicable);
-
-		  seg_info (tbss_section)->bss = 1;
-		}
+	    case TCOMMON_SECTION:
+	      do_v850_seg (TBSS_SECTION, 0);
 	      break;
 	    }
 
@@ -388,47 +338,25 @@ v850_comm (area)
 	  else
 	    align = 0;
 
-	  switch (area)
-	    {
-	    case AREA_SDA:
-	      record_alignment (sbss_section, align);
-	      obj_elf_section_change_hook ();
-	      subseg_set (sbss_section, 0);
-	      break;
-
-	    case AREA_ZDA:
-	      record_alignment (zbss_section, align);
-	      obj_elf_section_change_hook ();
-	      subseg_set (zbss_section, 0);
-	      break;
-
-	    case AREA_TDA:
-	      record_alignment (tbss_section, align);
-	      obj_elf_section_change_hook ();
-	      subseg_set (tbss_section, 0);
-	      break;
-
-	    default:
-	      abort ();
-	    }
+	  record_alignment (now_seg, align);
 
 	  if (align)
 	    frag_align (align, 0, 0);
 
 	  switch (area)
 	    {
-	    case AREA_SDA:
-	      if (S_GET_SEGMENT (symbolP) == sbss_section)
+	    case SCOMMON_SECTION:
+	      if (S_GET_SEGMENT (symbolP) == v850_seg_table[SBSS_SECTION].s)
 		symbol_get_frag (symbolP)->fr_symbol = 0;
 	      break;
 
-	    case AREA_ZDA:
-	      if (S_GET_SEGMENT (symbolP) == zbss_section)
+	    case ZCOMMON_SECTION:
+	      if (S_GET_SEGMENT (symbolP) == v850_seg_table[ZBSS_SECTION].s)
 		symbol_get_frag (symbolP)->fr_symbol = 0;
 	      break;
 
-	    case AREA_TDA:
-	      if (S_GET_SEGMENT (symbolP) == tbss_section)
+	    case TCOMMON_SECTION:
+	      if (S_GET_SEGMENT (symbolP) == v850_seg_table[TBSS_SECTION].s)
 		symbol_get_frag (symbolP)->fr_symbol = 0;
 	      break;
 
@@ -444,16 +372,16 @@ v850_comm (area)
 
 	  switch (area)
 	    {
-	    case AREA_SDA:
-	      S_SET_SEGMENT (symbolP, sbss_section);
+	    case SCOMMON_SECTION:
+	      S_SET_SEGMENT (symbolP, v850_seg_table[SBSS_SECTION].s);
 	      break;
 
-	    case AREA_ZDA:
-	      S_SET_SEGMENT (symbolP, zbss_section);
+	    case ZCOMMON_SECTION:
+	      S_SET_SEGMENT (symbolP, v850_seg_table[ZBSS_SECTION].s);
 	      break;
 
-	    case AREA_TDA:
-	      S_SET_SEGMENT (symbolP, tbss_section);
+	    case TCOMMON_SECTION:
+	      S_SET_SEGMENT (symbolP, v850_seg_table[TBSS_SECTION].s);
 	      break;
 
 	    default:
@@ -473,54 +401,11 @@ v850_comm (area)
 
 	  switch (area)
 	    {
-	    case AREA_SDA:
-	      if (scommon_section == NULL)
-		{
-		  flagword applicable =
-		    bfd_applicable_section_flags (stdoutput);
-
-		  scommon_section = subseg_new (".scommon", 0);
-
-		  bfd_set_section_flags (stdoutput, scommon_section,
-					 (applicable
-		     & (SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA
-			| SEC_HAS_CONTENTS)) | SEC_IS_COMMON);
-		}
-	      S_SET_SEGMENT (symbolP, scommon_section);
-	      break;
-
-	    case AREA_ZDA:
-	      if (zcommon_section == NULL)
-		{
-		  flagword applicable =
-		    bfd_applicable_section_flags (stdoutput);
-
-		  zcommon_section = subseg_new (".zcommon", 0);
-
-		  bfd_set_section_flags (stdoutput, zcommon_section,
-					 (applicable
-		     & (SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA
-			| SEC_HAS_CONTENTS)) | SEC_IS_COMMON);
-		}
-	      S_SET_SEGMENT (symbolP, zcommon_section);
-	      break;
-
-	    case AREA_TDA:
-	      if (tcommon_section == NULL)
-		{
-		  flagword applicable =
-		    bfd_applicable_section_flags (stdoutput);
-
-		  tcommon_section = subseg_new (".tcommon", 0);
-
-		  bfd_set_section_flags (stdoutput, tcommon_section,
-					 ((applicable
-					   & (SEC_ALLOC | SEC_LOAD
-					      | SEC_RELOC | SEC_DATA
-					      | SEC_HAS_CONTENTS))
-					  | SEC_IS_COMMON));
-		}
-	      S_SET_SEGMENT (symbolP, tcommon_section);
+	    case SCOMMON_SECTION:
+	    case ZCOMMON_SECTION:
+	    case TCOMMON_SECTION:
+	      do_v850_seg (area, 0);
+	      S_SET_SEGMENT (symbolP, v850_seg_table[area].s);
 	      break;
 
 	    default:
@@ -570,8 +455,11 @@ v850_comm (area)
   }
 }
 
-void
-set_machine (int number)
+static void set_machine PARAMS ((int));
+
+static void
+set_machine (number)
+     int number;
 {
   machine = number;
   bfd_set_arch_mach (stdoutput, TARGET_ARCH, machine);
@@ -586,28 +474,28 @@ set_machine (int number)
 
 /* The target specific pseudo-ops which we support.  */
 const pseudo_typeS md_pseudo_table[] = {
-  {"sdata",   v850_sdata,   0},
-  {"tdata",   v850_tdata,   0},
-  {"zdata",   v850_zdata,   0},
-  {"sbss",    v850_sbss,    0},
-  {"tbss",    v850_tbss,    0},
-  {"zbss",    v850_zbss,    0},
-  {"rosdata", v850_rosdata, 0},
-  {"rozdata", v850_rozdata, 0},
-  {"bss",     v850_bss,     0},
-  {"offset",  v850_offset,  0},
-  {"word",    cons,         4},
-  {"zcomm",   v850_comm,    AREA_ZDA},
-  {"scomm",   v850_comm,    AREA_SDA},
-  {"tcomm",   v850_comm,    AREA_TDA},
-  {"v850",    set_machine,  0},
-  {"call_table_data", v850_call_table_data, 0},
-  {"call_table_text", v850_call_table_text, 0},
-  {"v850e",           set_machine,          bfd_mach_v850e},
-  {"v850ea",          set_machine,          bfd_mach_v850ea},
-  {"file",    dwarf2_directive_file, 0},
-  {"loc",     dwarf2_directive_loc, 0},
-  { NULL,     NULL,         0}
+  { "sdata",		v850_seg,		SDATA_SECTION		},
+  { "tdata",		v850_seg,		TDATA_SECTION		},
+  { "zdata",		v850_seg,		ZDATA_SECTION		},
+  { "sbss",		v850_seg,		SBSS_SECTION		},
+  { "tbss",		v850_seg,		TBSS_SECTION		},
+  { "zbss",		v850_seg,		ZBSS_SECTION		},
+  { "rosdata",		v850_seg,		ROSDATA_SECTION 	},
+  { "rozdata",		v850_seg,		ROZDATA_SECTION 	},
+  { "bss",		v850_seg,		BSS_SECTION		},
+  { "offset",		v850_offset,		0			},
+  { "word",		cons,			4			},
+  { "zcomm",		v850_comm,		ZCOMMON_SECTION 	},
+  { "scomm",		v850_comm,		SCOMMON_SECTION 	},
+  { "tcomm",		v850_comm,		TCOMMON_SECTION 	},
+  { "v850",		set_machine,		0			},
+  { "call_table_data",	v850_seg,		CALL_TABLE_DATA_SECTION	},
+  { "call_table_text",	v850_seg,		CALL_TABLE_TEXT_SECTION	},
+  { "v850e",		set_machine,		bfd_mach_v850e		},
+  { "v850ea",		set_machine,		bfd_mach_v850ea 	},
+  { "file",		dwarf2_directive_file,	0			},
+  { "loc",		dwarf2_directive_loc,	0			},
+  { NULL,		NULL,			0			}
 };
 
 /* Opcode hash table.  */
@@ -716,6 +604,9 @@ static const struct reg_name cc_names[] = {
    valid regiter name.  Return the register number from the array on
    success, or -1 on failure.  */
 
+static int reg_name_search
+  PARAMS ((const struct reg_name *, int, const char *, boolean));
+
 static int
 reg_name_search (regs, regcount, name, accept_numbers)
      const struct reg_name *regs;
@@ -770,11 +661,13 @@ reg_name_search (regs, regcount, name, accept_numbers)
  *
  * in: Input_line_pointer points to 1st char of operand.
  *
- * out: A expressionS.
+ * out: An expressionS.
  *	The operand may have been a register: in this case, X_op == O_register,
  *	X_add_number is set to the register number, and truth is returned.
  *	Input_line_pointer->(next non-blank) char after operand, or is in
  *	its original state.  */
+
+static boolean register_name PARAMS ((expressionS *));
 
 static boolean
 register_name (expressionP)
@@ -825,11 +718,13 @@ register_name (expressionP)
  *      ACCEPT_LIST_NAMES is true iff the special names PS and SR may be
  *      accepted.
  *
- * out: A expressionS structure in expressionP.
+ * out: An expressionS structure in expressionP.
  *	The operand may have been a register: in this case, X_op == O_register,
  *	X_add_number is set to the register number, and truth is returned.
  *	Input_line_pointer->(next non-blank) char after operand, or is in
  *	its original state.  */
+
+static boolean system_register_name PARAMS ((expressionS *, boolean, boolean));
 
 static boolean
 system_register_name (expressionP, accept_numbers, accept_list_names)
@@ -858,7 +753,7 @@ system_register_name (expressionP, accept_numbers, accept_list_names)
       /* Reset input_line pointer.  */
       input_line_pointer = start;
 
-      if (isdigit (*input_line_pointer))
+      if (ISDIGIT (*input_line_pointer))
 	{
 	  reg_number = strtol (input_line_pointer, &input_line_pointer, 10);
 
@@ -906,11 +801,13 @@ system_register_name (expressionP, accept_numbers, accept_list_names)
  *
  * in: INPUT_LINE_POINTER points to 1st char of operand.
  *
- * out: A expressionS.
+ * out: An expressionS.
  *	The operand may have been a register: in this case, X_op == O_register,
  *	X_add_number is set to the register number, and truth is returned.
  *	Input_line_pointer->(next non-blank) char after operand, or is in
  *	its original state.  */
+
+static boolean cc_name PARAMS ((expressionS *));
 
 static boolean
 cc_name (expressionP)
@@ -951,8 +848,10 @@ cc_name (expressionP)
     }
 }
 
+static void skip_white_space PARAMS ((void));
+
 static void
-skip_white_space (void)
+skip_white_space ()
 {
   while (*input_line_pointer == ' '
 	 || *input_line_pointer == '\t')
@@ -983,6 +882,9 @@ skip_white_space (void)
  * the lowest numbered permissable register in the register list,
  * and so on upwards.  System registers are considered to be very
  * high numbers.  */
+
+static char *parse_register_list
+  PARAMS ((unsigned long *, const struct v850_operand *));
 
 static char *
 parse_register_list (insn, operand)
@@ -1374,7 +1276,6 @@ md_begin ()
 {
   char *prev_name = "";
   register const struct v850_opcode *op;
-  flagword applicable;
 
   if (strncmp (TARGET_CPU, "v850ea", 6) == 0)
     {
@@ -1423,26 +1324,16 @@ md_begin ()
       op++;
     }
 
+  v850_seg_table[BSS_SECTION].s = bss_section;
   bfd_set_arch_mach (stdoutput, TARGET_ARCH, machine);
-
-  applicable = bfd_applicable_section_flags (stdoutput);
-
-  call_table_data_section = subseg_new (".call_table_data", 0);
-  bfd_set_section_flags (stdoutput, call_table_data_section,
-			 applicable & (SEC_ALLOC | SEC_LOAD | SEC_RELOC
-				       | SEC_DATA | SEC_HAS_CONTENTS));
-
-  call_table_text_section = subseg_new (".call_table_text", 0);
-  bfd_set_section_flags (stdoutput, call_table_text_section,
-			 applicable & (SEC_ALLOC | SEC_LOAD | SEC_READONLY
-				       | SEC_CODE));
-
-  /* Restore text section as the current default.  */
-  subseg_set (text_section, 0);
 }
 
+static bfd_reloc_code_real_type handle_ctoff
+  PARAMS ((const struct v850_operand *));
+
 static bfd_reloc_code_real_type
-handle_ctoff (const struct v850_operand *operand)
+handle_ctoff (operand)
+     const struct v850_operand *operand;
 {
   if (operand == NULL)
     return BFD_RELOC_V850_CALLT_16_16_OFFSET;
@@ -1457,8 +1348,12 @@ handle_ctoff (const struct v850_operand *operand)
   return BFD_RELOC_V850_CALLT_6_7_OFFSET;
 }
 
+static bfd_reloc_code_real_type handle_sdaoff
+  PARAMS ((const struct v850_operand *));
+
 static bfd_reloc_code_real_type
-handle_sdaoff (const struct v850_operand *operand)
+handle_sdaoff (operand)
+     const struct v850_operand *operand;
 {
   if (operand == NULL)
     return BFD_RELOC_V850_SDA_16_16_OFFSET;
@@ -1479,8 +1374,12 @@ handle_sdaoff (const struct v850_operand *operand)
   return BFD_RELOC_V850_SDA_16_16_OFFSET;
 }
 
+static bfd_reloc_code_real_type handle_zdaoff
+  PARAMS ((const struct v850_operand *));
+
 static bfd_reloc_code_real_type
-handle_zdaoff (const struct v850_operand *operand)
+handle_zdaoff (operand)
+     const struct v850_operand *operand;
 {
   if (operand == NULL)
     return BFD_RELOC_V850_ZDA_16_16_OFFSET;
@@ -1502,8 +1401,12 @@ handle_zdaoff (const struct v850_operand *operand)
   return BFD_RELOC_V850_ZDA_16_16_OFFSET;
 }
 
+static bfd_reloc_code_real_type handle_tdaoff
+  PARAMS ((const struct v850_operand *));
+
 static bfd_reloc_code_real_type
-handle_tdaoff (const struct v850_operand *operand)
+handle_tdaoff (operand)
+     const struct v850_operand *operand;
 {
   if (operand == NULL)
     /* Data item, not an instruction.  */
@@ -1541,8 +1444,12 @@ handle_tdaoff (const struct v850_operand *operand)
    in the v850_operands[] array (defined in opcodes/v850-opc.c)
    matching the hard coded values contained herein.  */
 
+static bfd_reloc_code_real_type v850_reloc_prefix
+  PARAMS ((const struct v850_operand *));
+
 static bfd_reloc_code_real_type
-v850_reloc_prefix (const struct v850_operand *operand)
+v850_reloc_prefix (operand)
+     const struct v850_operand *operand;
 {
   boolean paren_skipped = false;
 
@@ -1577,6 +1484,10 @@ v850_reloc_prefix (const struct v850_operand *operand)
 }
 
 /* Insert an operand value into an instruction.  */
+
+static unsigned long v850_insert_operand
+  PARAMS ((unsigned long, const struct v850_operand *, offsetT, char *,
+	   unsigned int, char *));
 
 static unsigned long
 v850_insert_operand (insn, operand, val, file, line, str)
@@ -1711,7 +1622,7 @@ md_assemble (str)
   strncpy (copy_of_instruction, str, sizeof (copy_of_instruction) - 1);
 
   /* Get the opcode.  */
-  for (s = str; *s != '\0' && ! isspace (*s); s++)
+  for (s = str; *s != '\0' && ! ISSPACE (*s); s++)
     continue;
 
   if (*s != '\0')
@@ -1728,7 +1639,7 @@ md_assemble (str)
     }
 
   str = s;
-  while (isspace (*str))
+  while (ISSPACE (*str))
     ++str;
 
   start_of_operands = str;
@@ -2141,7 +2052,7 @@ md_assemble (str)
       break;
     }
 
-  while (isspace (*str))
+  while (ISSPACE (*str))
     ++str;
 
   if (*str != '\0')
@@ -2210,7 +2121,7 @@ md_assemble (str)
      BFD_RELOC_UNUSED plus the operand index.  This lets us easily
      handle fixups for any operand type, although that is admittedly
      not a very exciting feature.  We pick a BFD reloc type in
-     md_apply_fix.  */
+     md_apply_fix3.  */
   for (i = 0; i < fc; i++)
     {
       const struct v850_operand *operand;
@@ -2340,52 +2251,51 @@ v850_pcrel_from_section (fixp, section)
   return fixp->fx_frag->fr_address + fixp->fx_where;
 }
 
-int
-md_apply_fix3 (fixp, valuep, seg)
-     fixS *fixp;
-     valueT *valuep;
+void
+md_apply_fix3 (fixP, valueP, seg)
+     fixS *fixP;
+     valueT *valueP;
      segT seg ATTRIBUTE_UNUSED;
 {
-  valueT value;
+  valueT value = * valueP;
   char *where;
 
-  if (fixp->fx_r_type == BFD_RELOC_VTABLE_INHERIT
-      || fixp->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
+  if (fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
+      || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
     {
-      fixp->fx_done = 0;
-      return 1;
+      fixP->fx_done = 0;
+      return;
     }
 
-  if (fixp->fx_addsy == (symbolS *) NULL)
-    {
-      value = *valuep;
-      fixp->fx_done = 1;
-    }
-  else if (fixp->fx_pcrel)
-    value = *valuep;
+  if (fixP->fx_addsy == (symbolS *) NULL)
+    fixP->fx_done = 1;
+
+  else if (fixP->fx_pcrel)
+    ;
+
   else
     {
-      value = fixp->fx_offset;
-      if (fixp->fx_subsy != (symbolS *) NULL)
+      value = fixP->fx_offset;
+      if (fixP->fx_subsy != (symbolS *) NULL)
 	{
-	  if (S_GET_SEGMENT (fixp->fx_subsy) == absolute_section)
-	    value -= S_GET_VALUE (fixp->fx_subsy);
+	  if (S_GET_SEGMENT (fixP->fx_subsy) == absolute_section)
+	    value -= S_GET_VALUE (fixP->fx_subsy);
 	  else
 	    {
 	      /* We don't actually support subtracting a symbol.  */
-	      as_bad_where (fixp->fx_file, fixp->fx_line,
+	      as_bad_where (fixP->fx_file, fixP->fx_line,
 			    _("expression too complex"));
 	    }
 	}
     }
 
-  if ((int) fixp->fx_r_type >= (int) BFD_RELOC_UNUSED)
+  if ((int) fixP->fx_r_type >= (int) BFD_RELOC_UNUSED)
     {
       int opindex;
       const struct v850_operand *operand;
       unsigned long insn;
 
-      opindex = (int) fixp->fx_r_type - (int) BFD_RELOC_UNUSED;
+      opindex = (int) fixP->fx_r_type - (int) BFD_RELOC_UNUSED;
       operand = &v850_operands[opindex];
 
       /* Fetch the instruction, insert the fully resolved operand
@@ -2393,53 +2303,50 @@ md_apply_fix3 (fixp, valuep, seg)
 
 	 Note the instruction has been stored in little endian
 	 format!  */
-      where = fixp->fx_frag->fr_literal + fixp->fx_where;
+      where = fixP->fx_frag->fr_literal + fixP->fx_where;
 
       insn = bfd_getl32 ((unsigned char *) where);
       insn = v850_insert_operand (insn, operand, (offsetT) value,
-				  fixp->fx_file, fixp->fx_line, NULL);
+				  fixP->fx_file, fixP->fx_line, NULL);
       bfd_putl32 ((bfd_vma) insn, (unsigned char *) where);
 
-      if (fixp->fx_done)
-	{
-	  /* Nothing else to do here.  */
-	  return 1;
-	}
+      if (fixP->fx_done)
+	/* Nothing else to do here.  */
+	return;
 
       /* Determine a BFD reloc value based on the operand information.
 	 We are only prepared to turn a few of the operands into relocs.  */
 
       if (operand->bits == 22)
-	fixp->fx_r_type = BFD_RELOC_V850_22_PCREL;
+	fixP->fx_r_type = BFD_RELOC_V850_22_PCREL;
       else if (operand->bits == 9)
-	fixp->fx_r_type = BFD_RELOC_V850_9_PCREL;
+	fixP->fx_r_type = BFD_RELOC_V850_9_PCREL;
       else
 	{
 #if 0
 	  fprintf (stderr, "bits: %d, insn: %x\n", operand->bits, insn);
 #endif
 
-	  as_bad_where (fixp->fx_file, fixp->fx_line,
+	  as_bad_where (fixP->fx_file, fixP->fx_line,
 			_("unresolved expression that must be resolved"));
-	  fixp->fx_done = 1;
-	  return 1;
+	  fixP->fx_done = 1;
+	  return;
 	}
     }
-  else if (fixp->fx_done)
+  else if (fixP->fx_done)
     {
       /* We still have to insert the value into memory!  */
-      where = fixp->fx_frag->fr_literal + fixp->fx_where;
+      where = fixP->fx_frag->fr_literal + fixP->fx_where;
 
-      if (fixp->fx_size == 1)
+      if (fixP->fx_size == 1)
 	*where = value & 0xff;
-      else if (fixp->fx_size == 2)
+      else if (fixP->fx_size == 2)
 	bfd_putl16 (value & 0xffff, (unsigned char *) where);
-      else if (fixp->fx_size == 4)
+      else if (fixP->fx_size == 4)
 	bfd_putl32 (value, (unsigned char *) where);
     }
 
-  fixp->fx_addnumber = value;
-  return 1;
+  fixP->fx_addnumber = value;
 }
 
 /* Parse a cons expression.  We have to handle hi(), lo(), etc

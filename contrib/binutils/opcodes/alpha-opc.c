@@ -30,10 +30,10 @@
    almost all of the extended instruction mnemonics.  This permits the
    disassembler to use them, and simplifies the assembler logic, at the
    cost of increasing the table size.  The table is strictly constant
-   data, so the compiler should be able to put it in the .text section.
+   data, so the compiler should be able to put it in the text segment.
 
    This file also holds the operand table.  All knowledge about inserting
-   operands into instructions and vice-versa is kept in this file.
+   and extracting operands from instructions is kept in this file.
 
    The information for the base instruction set was compiled from the
    _Alpha Architecture Handbook_, Digital Order Number EC-QD2KB-TE,
@@ -539,10 +539,13 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "call_pal",		PCD(0x00), BASE, ARG_PCD },
   { "pal",		PCD(0x00), BASE, ARG_PCD },		/* alias */
 
+  { "lda",		MEM(0x08), BASE, { RA, MDISP, ZB } },	/* pseudo */
   { "lda",		MEM(0x08), BASE, ARG_MEM },
+  { "ldah",		MEM(0x09), BASE, { RA, MDISP, ZB } },	/* pseudo */
   { "ldah",		MEM(0x09), BASE, ARG_MEM },
   { "ldbu",		MEM(0x0A), BWX, ARG_MEM },
-  { "unop",		MEM(0x0B), BASE, { ZA } },		/* pseudo */
+  { "unop",		MEM_(0x0B) | (30 << 16),
+			MEM_MASK, BASE, { ZA } },		/* pseudo */
   { "ldq_u",		MEM(0x0B), BASE, ARG_MEM },
   { "ldwu",		MEM(0x0C), BWX, ARG_MEM },
   { "stw",		MEM(0x0D), BWX, ARG_MEM },
@@ -1103,6 +1106,7 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "ecb",		MFC(0x18,0xE800), BASE, { ZA, PRB } },	/* ev56 una */
   { "rs",		MFC(0x18,0xF000), BASE, { RA } },
   { "wh64",		MFC(0x18,0xF800), BASE, { ZA, PRB } },	/* ev56 una */
+  { "wh64en",		MFC(0x18,0xFC00), BASE, { ZA, PRB } },	/* ev7 una */
 
   { "hw_mfpr",		OPR(0x19,0x00), EV4, { RA, RBA, EV4EXTHWINDEX } },
   { "hw_mfpr",		OP(0x19), OP_MASK, EV5, { RA, RBA, EV5HWINDEX } },
@@ -1116,8 +1120,12 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_mfpr/pai",	OPR(0x19,0x07), EV4, ARG_EV4HWMPR },
   { "pal19",		PCD(0x19), BASE, ARG_PCD },
 
+  { "jmp",		MBR_(0x1A,0), MBR_MASK | 0x3FFF,	/* pseudo */
+			BASE, { ZA, CPRB } },
   { "jmp",		MBR(0x1A,0), BASE, { RA, CPRB, JMPHINT } },
   { "jsr",		MBR(0x1A,1), BASE, { RA, CPRB, JMPHINT } },
+  { "ret",		MBR_(0x1A,2) | (31 << 21) | (26 << 16) | 1,/* pseudo */
+			0xFFFFFFFF, BASE, { 0 } },
   { "ret",		MBR(0x1A,2), BASE, { RA, CPRB, RETHINT } },
   { "jcr",		MBR(0x1A,3), BASE, { RA, CPRB, RETHINT } }, /* alias */
   { "jsr_coroutine",	MBR(0x1A,3), BASE, { RA, CPRB, RETHINT } },

@@ -1,5 +1,5 @@
 /* resrc.c -- read and write Windows rc files.
-   Copyright 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -25,10 +25,10 @@
 #include "bfd.h"
 #include "bucomm.h"
 #include "libiberty.h"
+#include "safe-ctype.h"
 #include "windres.h"
 
 #include <assert.h>
-#include <ctype.h>
 #include <errno.h>
 #include <sys/stat.h>
 #ifdef HAVE_UNISTD_H
@@ -131,7 +131,7 @@ static FILE *cpp_pipe;
 
 static char *cpp_temp_file;
 
-/* Input stream is either a file or a pipe. */
+/* Input stream is either a file or a pipe.  */
 
 static enum {ISTREAM_PIPE, ISTREAM_FILE} istream_type;
 
@@ -173,7 +173,7 @@ static void get_data
   PARAMS ((FILE *, unsigned char *, unsigned long, const char *));
 static void define_fontdirs PARAMS ((void));
 
-/* Run `cmd' and redirect the output to `redir'. */
+/* Run `cmd' and redirect the output to `redir'.  */
 
 static int
 run_cmd (cmd, redir)
@@ -481,6 +481,7 @@ read_rc_file (filename, preprocessor, preprocargs, language, use_temp_file)
     rcparse_set_language (language);
   yyin = cpp_pipe;
   yyparse ();
+  rcparse_discard_strings ();
 
   close_input_stream ();
   
@@ -518,7 +519,7 @@ close_input_stream ()
 	pclose (cpp_pipe);
     }
 
-  /* Since this is also run via xatexit, safeguard. */
+  /* Since this is also run via xatexit, safeguard.  */
   cpp_pipe = NULL;
   cpp_temp_file = NULL;
 }
@@ -1580,7 +1581,7 @@ write_rc_directory (e, rd, type, name, language, level)
 
 	case 2:
 	  /* If we're at level 2, the key of this resource is the name
-	     we are going to use in the rc printout. */
+	     we are going to use in the rc printout.  */
 	  name = &re->id;
 	  break;
 
@@ -1592,7 +1593,8 @@ write_rc_directory (e, rd, type, name, language, level)
 	      && (re->id.u.id & 0xffff) == re->id.u.id)
 	    {
 	      fprintf (e, "LANGUAGE %lu, %lu\n",
-		       re->id.u.id & 0xff, (re->id.u.id >> 8) & 0xff);
+		       re->id.u.id & ((1 << SUBLANG_SHIFT) - 1), 
+		       (re->id.u.id >> SUBLANG_SHIFT) & 0xff);
 	      *language = re->id.u.id;
 	    }
 	  break;
@@ -1889,8 +1891,8 @@ write_rc_resource (e, type, name, res, language)
       if (res->res_info.language != 0 && res->res_info.language != *language)
 	fprintf (e, "%sLANGUAGE %d, %d\n",
 		 modifiers ? "// " : "",
-		 res->res_info.language & 0xff,
-		 (res->res_info.language >> 8) & 0xff);
+		 res->res_info.language & ((1<<SUBLANG_SHIFT)-1),
+		 (res->res_info.language >> SUBLANG_SHIFT) & 0xff);
       if (res->res_info.characteristics != 0)
 	fprintf (e, "%sCHARACTERISTICS %lu\n",
 		 modifiers ? "// " : "",
@@ -1976,7 +1978,7 @@ write_rc_accelerators (e, accelerators)
       fprintf (e, "  ");
 
       if ((acc->key & 0x7f) == acc->key
-	  && isprint ((unsigned char) acc->key)
+	  && ISPRINT (acc->key)
 	  && (acc->flags & ACC_VIRTKEY) == 0)
 	{
 	  fprintf (e, "\"%c\"", acc->key);
@@ -2052,23 +2054,26 @@ write_rc_dialog (e, dialog)
 {
   const struct dialog_control *control;
 
-  if (dialog->style != 0)
-    fprintf (e, "STYLE 0x%lx\n", dialog->style);
+  fprintf (e, "STYLE 0x%lx\n", dialog->style);
+
   if (dialog->exstyle != 0)
     fprintf (e, "EXSTYLE 0x%lx\n", dialog->exstyle);
+
   if ((dialog->class.named && dialog->class.u.n.length > 0)
       || dialog->class.u.id != 0)
     {
       fprintf (e, "CLASS ");
-      res_id_print (e, dialog->class, 0);
+      res_id_print (e, dialog->class, 1);
       fprintf (e, "\n");
     }
+
   if (dialog->caption != NULL)
     {
       fprintf (e, "CAPTION \"");
       unicode_print (e, dialog->caption, -1);
       fprintf (e, "\"\n");
     }
+
   if ((dialog->menu.named && dialog->menu.u.n.length > 0)
       || dialog->menu.u.id != 0)
     {
@@ -2076,14 +2081,18 @@ write_rc_dialog (e, dialog)
       res_id_print (e, dialog->menu, 0);
       fprintf (e, "\n");
     }
+
   if (dialog->font != NULL)
     {
       fprintf (e, "FONT %d, \"", dialog->pointsize);
       unicode_print (e, dialog->font, -1);
       fprintf (e, "\"");
       if (dialog->ex != NULL
-	  && (dialog->ex->weight != 0 || dialog->ex->italic != 0))
-	fprintf (e, ", %d, %d", dialog->ex->weight, dialog->ex->italic);
+	  && (dialog->ex->weight != 0
+	      || dialog->ex->italic != 0
+	      || dialog->ex->charset != 1))
+	fprintf (e, ", %d, %d, %d",
+		 dialog->ex->weight, dialog->ex->italic, dialog->ex->charset);
       fprintf (e, "\n");
     }
 
@@ -2383,7 +2392,7 @@ write_rc_rcdata (e, rcdata, ind)
 	    s = ri->u.string.s;
 	    for (i = 0; i < ri->u.string.length; i++)
 	      {
-		if (isprint ((unsigned char) *s))
+		if (ISPRINT (*s))
 		  putc (*s, e);
 		else
 		  fprintf (e, "\\%03o", *s);
@@ -2421,7 +2430,7 @@ write_rc_rcdata (e, rcdata, ind)
 		if (i + 4 < ri->u.buffer.length || ri->next != NULL)
 		  fprintf (e, ",");
 		for (j = 0; j < 4; ++j)
-		  if (! isprint (ri->u.buffer.data[i + j])
+		  if (! ISPRINT (ri->u.buffer.data[i + j])
 		      && ri->u.buffer.data[i + j] != 0)
 		    break;
 		if (j >= 4)
@@ -2429,7 +2438,7 @@ write_rc_rcdata (e, rcdata, ind)
 		    fprintf (e, "\t// ");
 		    for (j = 0; j < 4; ++j)
 		      {
-			if (! isprint (ri->u.buffer.data[i + j]))
+			if (! ISPRINT (ri->u.buffer.data[i + j]))
 			  fprintf (e, "\\%03o", ri->u.buffer.data[i + j]);
 			else
 			  {
@@ -2455,7 +2464,7 @@ write_rc_rcdata (e, rcdata, ind)
 		if (i + 2 < ri->u.buffer.length || ri->next != NULL)
 		  fprintf (e, ",");
 		for (j = 0; j < 2; ++j)
-		  if (! isprint (ri->u.buffer.data[i + j])
+		  if (! ISPRINT (ri->u.buffer.data[i + j])
 		      && ri->u.buffer.data[i + j] != 0)
 		    break;
 		if (j >= 2)
@@ -2463,7 +2472,7 @@ write_rc_rcdata (e, rcdata, ind)
 		    fprintf (e, "\t// ");
 		    for (j = 0; j < 2; ++j)
 		      {
-			if (! isprint (ri->u.buffer.data[i + j]))
+			if (! ISPRINT (ri->u.buffer.data[i + j]))
 			  fprintf (e, "\\%03o", ri->u.buffer.data[i + j]);
 			else
 			  {
@@ -2483,7 +2492,7 @@ write_rc_rcdata (e, rcdata, ind)
 		if (! first)
 		  indent (e, ind + 2);
 		if ((ri->u.buffer.data[i] & 0x7f) == ri->u.buffer.data[i]
-		    && isprint (ri->u.buffer.data[i]))
+		    && ISPRINT (ri->u.buffer.data[i]))
 		  fprintf (e, "\"%c\"", ri->u.buffer.data[i]);
 		else
 		  fprintf (e, "\"\\%03o\"", ri->u.buffer.data[i]);

@@ -1,5 +1,5 @@
 /* dlltool.c -- tool to generate stuff for PE style DLLs
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -48,9 +48,13 @@
    LIBRARY <name> [ , <base> ]
    The result is going to be <name>.DLL
 
-   EXPORTS  ( <name1> [ = <name2> ] [ @ <integer> ] [ NONAME ] [CONSTANT] [DATA] ) *
+   EXPORTS  ( (  ( <name1> [ = <name2> ] )
+               | ( <name1> = <module-name> . <external-name>))
+            [ @ <integer> ] [ NONAME ] [CONSTANT] [DATA] ) *
    Declares name1 as an exported symbol from the
-   DLL, with optional ordinal number <integer>
+   DLL, with optional ordinal number <integer>.
+   Or declares name1 as an alias (forward) of the function <external-name>
+   in the DLL <module-name>.
 
    IMPORTS  (  (   <internal-name> =   <module-name> . <integer> )
              | ( [ <internal-name> = ] <module-name> . <external-name> )) *
@@ -249,8 +253,8 @@
 #include "demangle.h"
 #include "dyn-string.h"
 #include "dlltool.h"
+#include "safe-ctype.h"
 
-#include <ctype.h>
 #include <time.h>
 #include <sys/stat.h>
 
@@ -363,7 +367,7 @@ static boolean export_all_symbols;
 
 /* True if we should exclude the symbols in DEFAULT_EXCLUDES when
    exporting all symbols.  */
-static boolean do_default_excludes;
+static boolean do_default_excludes=true;
 
 /* Default symbols to exclude when exporting all the symbols.  */
 static const char *default_excludes = "DllMain@12,DllEntryPoint@0,impure_ptr";
@@ -636,6 +640,7 @@ typedef struct export
     int noname;
     int data;
     int hint;
+    int forward;	/* number of forward label, 0 means no forward */
     struct export *next;
   }
 export_type;
@@ -653,6 +658,8 @@ static struct string_list *excludes;
 static const char *rvaafter PARAMS ((int));
 static const char *rvabefore PARAMS ((int));
 static const char *asm_prefix PARAMS ((int));
+static void process_def_file PARAMS ((const char *));
+static void new_directive PARAMS ((char *));
 static void append_import PARAMS ((const char *, const char *, int));
 static void run PARAMS ((const char *, char *));
 static void scan_drectve_symbols PARAMS ((bfd *));
@@ -669,6 +676,7 @@ static int sfunc PARAMS ((const void *, const void *));
 static void flush_page PARAMS ((FILE *, long *, int, int));
 static void gen_def_file PARAMS ((void));
 static void generate_idata_ofile PARAMS ((FILE *));
+static void assemble_file PARAMS ((const char *, const char *));
 static void gen_exp_file PARAMS ((void));
 static const char *xlate PARAMS ((const char *));
 #if 0
@@ -692,28 +700,17 @@ static void inform PARAMS ((const char *, ...));
 
 
 static void
-#ifdef __STDC__
-inform (const char * message, ...)
-#else
-inform (message, va_alist)
-     const char * message;
-     va_dcl
-#endif
+inform VPARAMS ((const char *message, ...))
 {
-  va_list args;
-  
+  VA_OPEN (args, message);
+  VA_FIXEDARG (args, const char *, message);
+
   if (!verbose)
     return;
 
-#ifdef __STDC__
-  va_start (args, message);
-#else
-  va_start (args);
-#endif
-
   report (message, args);
-  
-  va_end (args);
+
+  VA_CLOSE (args);
 }
 
 static const char *
@@ -815,7 +812,7 @@ asm_prefix (machine)
 
 static char **oav;
 
-void
+static void
 process_def_file (name)
      const char *name;
 {
@@ -848,6 +845,7 @@ static export_type *d_exports;	/*list of exported functions */
 static export_type **d_exports_lexically;	/* vector of exported functions in alpha order */
 static dlist_type *d_list;	/* Descriptions */
 static dlist_type *a_list;	/* Stuff to go in directives */
+static int d_nforwards = 0;	/* Number of forwarded exports */
 
 static int d_is_dll;
 static int d_is_exe;
@@ -882,6 +880,12 @@ def_exports (name, internal_name, ordinal, noname, constant, data)
   p->next = d_exports;
   d_exports = p;
   d_nfuncs++;
+  
+  if ((internal_name != NULL) 
+      && (strchr (internal_name, '.') != NULL))
+    p->forward = ++d_nforwards;
+  else
+    p->forward = 0; /* no forward */
 }
 
 void
@@ -931,7 +935,7 @@ def_description (desc)
   d_list = d;
 }
 
-void
+static void
 new_directive (dir)
      char *dir;
 {
@@ -1819,9 +1823,14 @@ gen_exp_file ()
 		  i++;
 		}
 	    }
-	  fprintf (f, "\t%s%s%s%s\t%s %d\n", ASM_RVA_BEFORE,
-                   ASM_PREFIX,
-                   exp->internal_name, ASM_RVA_AFTER, ASM_C, exp->ordinal);
+
+	  if (exp->forward == 0)
+	    fprintf (f, "\t%s%s%s%s\t%s %d\n", ASM_RVA_BEFORE,
+		     ASM_PREFIX,
+		     exp->internal_name, ASM_RVA_AFTER, ASM_C, exp->ordinal);
+	  else
+	    fprintf (f, "\t%sf%d%s\t%s %d\n", ASM_RVA_BEFORE,
+		     exp->forward, ASM_RVA_AFTER, ASM_C, exp->ordinal);
 	  i++;
 	}
 
@@ -1846,8 +1855,13 @@ gen_exp_file ()
       fprintf(f,"%s Export Name Table\n", ASM_C);
       for (i = 0; (exp = d_exports_lexically[i]); i++)
 	if (!exp->noname || show_allnames)
-	  fprintf (f, "n%d:	%s	\"%s\"\n",
-		   exp->ordinal, ASM_TEXT, exp->name);
+	  {
+	    fprintf (f, "n%d:	%s	\"%s\"\n",
+		     exp->ordinal, ASM_TEXT, xlate (exp->name));
+	    if (exp->forward != 0)
+	      fprintf (f, "f%d:	%s	\"%s\"\n",
+		       exp->forward, ASM_TEXT, exp->internal_name);
+	  }
 
       if (a_list)
 	{
@@ -2054,16 +2068,22 @@ typedef struct
 
 #define NSECS 7
 
-#define INIT_SEC_DATA(id, name, flags, align) { id, name, flags, align, NULL, NULL, NULL, 0, NULL }
+#define TEXT_SEC_FLAGS   \
+        (SEC_ALLOC | SEC_LOAD | SEC_CODE | SEC_READONLY | SEC_HAS_CONTENTS)
+#define DATA_SEC_FLAGS   (SEC_ALLOC | SEC_LOAD | SEC_DATA)
+#define BSS_SEC_FLAGS     SEC_ALLOC
+
+#define INIT_SEC_DATA(id, name, flags, align) \
+        { id, name, flags, align, NULL, NULL, NULL, 0, NULL }
 static sinfo secdata[NSECS] =
 {
-  INIT_SEC_DATA (TEXT,   ".text",    SEC_CODE | SEC_HAS_CONTENTS, 2),
-  INIT_SEC_DATA (DATA,   ".data",    SEC_DATA,                    2),
-  INIT_SEC_DATA (BSS,    ".bss",     0,                           2),
-  INIT_SEC_DATA (IDATA7, ".idata$7", SEC_HAS_CONTENTS,            2),
-  INIT_SEC_DATA (IDATA5, ".idata$5", SEC_HAS_CONTENTS,            2),
-  INIT_SEC_DATA (IDATA4, ".idata$4", SEC_HAS_CONTENTS,            2),
-  INIT_SEC_DATA (IDATA6, ".idata$6", SEC_HAS_CONTENTS,            1)
+  INIT_SEC_DATA (TEXT,   ".text",    TEXT_SEC_FLAGS,   2),
+  INIT_SEC_DATA (DATA,   ".data",    DATA_SEC_FLAGS,   2),
+  INIT_SEC_DATA (BSS,    ".bss",     BSS_SEC_FLAGS,    2),
+  INIT_SEC_DATA (IDATA7, ".idata$7", SEC_HAS_CONTENTS, 2),
+  INIT_SEC_DATA (IDATA5, ".idata$5", SEC_HAS_CONTENTS, 2),
+  INIT_SEC_DATA (IDATA4, ".idata$4", SEC_HAS_CONTENTS, 2),
+  INIT_SEC_DATA (IDATA6, ".idata$6", SEC_HAS_CONTENTS, 1)
 };
 
 #else
@@ -2209,7 +2229,7 @@ make_one_lib_file (exp, i)
     {
       bfd *      abfd;
       asymbol *  exp_label;
-      asymbol *  iname;
+      asymbol *  iname = 0;
       asymbol *  iname2;
       asymbol *  iname_lab;
       asymbol ** iname_lab_pp;
@@ -2223,6 +2243,7 @@ make_one_lib_file (exp, i)
 #define EXTRA    0
 #endif
       asymbol *  ptrs[NSECS + 4 + EXTRA + 1];
+      flagword   applicable;
 
       char *     outname = xmalloc (10);
       int        oidx = 0;
@@ -2247,6 +2268,8 @@ make_one_lib_file (exp, i)
 	bfd_set_private_flags (abfd, F_INTERWORK);
 #endif
       
+      applicable = bfd_applicable_section_flags (abfd);
+ 
       /* First make symbols for the sections */
       for (i = 0; i < NSECS; i++)
 	{
@@ -2256,7 +2279,7 @@ make_one_lib_file (exp, i)
 	  si->sec = bfd_make_section_old_way (abfd, si->name);
 	  bfd_set_section_flags (abfd,
 				 si->sec,
-				 si->flags);
+				 si->flags & applicable);
 
 	  bfd_set_section_alignment(abfd, si->sec, si->align);
 	  si->sec->output_section = si->sec;
@@ -3104,7 +3127,7 @@ usage (file, status)
      int status;
 {
   /* xgetext:c-format */
-  fprintf (file, _("Usage %s <options> <object-files>\n"), program_name);
+  fprintf (file, _("Usage %s <option(s)> <object-file(s)>\n"), program_name);
   /* xgetext:c-format */
   fprintf (file, _("   -m --machine <machine>    Create as DLL for <machine>.  [default: %s]\n"), mname);
   fprintf (file, _("        possible <machine>: arm[_interwork], i386, mcore[-elf]{-le|-be}, ppc, thumb\n"));
@@ -3175,6 +3198,8 @@ static const struct option long_options[] =
   {NULL,0,NULL,0}
 };
 
+int main PARAMS ((int, char **));
+
 int
 main (ac, av)
      int ac;
@@ -3189,14 +3214,17 @@ main (ac, av)
 #if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
   setlocale (LC_MESSAGES, "");
 #endif
+#if defined (HAVE_SETLOCALE)
+  setlocale (LC_CTYPE, "");
+#endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
 
   while ((c = getopt_long (ac, av,
 #ifdef DLLTOOL_MCORE_ELF			   
-			   "m:e:l:aD:d:z:b:xcCuUkAS:f:nvVhM:L:F:",
+			   "m:e:l:aD:d:z:b:xcCuUkAS:f:nvVHhM:L:F:",
 #else
-			   "m:e:l:aD:d:z:b:xcCuUkAS:f:nvVh",
+			   "m:e:l:aD:d:z:b:xcCuUkAS:f:nvVHh",
 #endif
 			   long_options, 0))
 	 != EOF)
@@ -3246,6 +3274,7 @@ main (ac, av)
 	case 'e':
 	  exp_name = optarg;
 	  break;
+	case 'H':
 	case 'h':
 	  usage (stdout, 0);
 	  break;
@@ -3355,7 +3384,7 @@ main (ac, av)
       imp_name_lab = xstrdup (imp_name);
       for (p = imp_name_lab; *p; p++)
 	{
-	  if (!isalpha ((unsigned char) *p) && !isdigit ((unsigned char) *p))
+	  if (!ISALNUM (*p))
 	    *p = '_';
 	}
       head_label = make_label("_head_", imp_name_lab);

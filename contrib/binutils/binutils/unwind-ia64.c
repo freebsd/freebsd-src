@@ -33,10 +33,16 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 static bfd_vma unw_rlen = 0;
 
+static void unw_print_brmask PARAMS ((char *, unsigned int));
+static void unw_print_grmask PARAMS ((char *, unsigned int));
+static void unw_print_frmask PARAMS ((char *, unsigned int));
+static void unw_print_abreg PARAMS ((char *, unsigned int));
+static void unw_print_xyreg PARAMS ((char *, unsigned int, unsigned int));
+
 static void
 unw_print_brmask (cp, mask)
      char * cp;
-     unsigned char mask;
+     unsigned int mask;
 {
   char *sep = "";
   int i;
@@ -56,7 +62,7 @@ unw_print_brmask (cp, mask)
 static void
 unw_print_grmask (cp, mask)
      char * cp;
-     unsigned char mask;
+     unsigned int mask;
 {
   char *sep = "";
   int i;
@@ -76,7 +82,7 @@ unw_print_grmask (cp, mask)
 static void
 unw_print_frmask (cp, mask)
      char * cp;
-     unsigned long mask;
+     unsigned int mask;
 {
   char *sep = "";
   int i;
@@ -96,7 +102,7 @@ unw_print_frmask (cp, mask)
 static void
 unw_print_abreg (cp, abreg)
      char * cp;
-     unsigned char abreg;
+     unsigned int abreg;
 {
   static const char *special_reg[16] =
   {
@@ -128,8 +134,8 @@ unw_print_abreg (cp, abreg)
 static void
 unw_print_xyreg (cp, x, ytreg)
      char *        cp;
-     unsigned char x;
-     unsigned char ytreg;
+     unsigned int x;
+     unsigned int ytreg;
 {
   switch ((x << 1) | ((ytreg >> 7) & 1))
     {
@@ -522,33 +528,33 @@ typedef bfd_vma unw_word;
 
 static unw_word unw_decode_uleb128 PARAMS ((const unsigned char **));
 static const unsigned char *unw_decode_x1 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_x2 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_x3 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_x4 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_r1 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_r2 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_r3 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_p1 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_p2_p5 PARAMS ((const unsigned char *,
-						      unsigned char, void *));
+						      unsigned int, void *));
 static const unsigned char *unw_decode_p6 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_p7_p10 PARAMS ((const unsigned char *,
-						       unsigned char, void *));
+						       unsigned int, void *));
 static const unsigned char *unw_decode_b1 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_b2 PARAMS ((const unsigned char *,
-						   unsigned char, void *));
+						   unsigned int, void *));
 static const unsigned char *unw_decode_b3_x4 PARAMS ((const unsigned char *,
-						      unsigned char, void *));
+						      unsigned int, void *));
 
 static unw_word
 unw_decode_uleb128 (dpp)
@@ -577,7 +583,7 @@ unw_decode_uleb128 (dpp)
 static const unsigned char *
 unw_decode_x1 (dp, code, arg)
      const unsigned char * dp;
-     unsigned char         code;
+     unsigned int         code ATTRIBUTE_UNUSED;
      void *                arg ATTRIBUTE_UNUSED;
 {
   unsigned char byte1, abreg;
@@ -597,7 +603,7 @@ unw_decode_x1 (dp, code, arg)
 static const unsigned char *
 unw_decode_x2 (dp, code, arg)
      const unsigned char * dp;
-     unsigned char         code;
+     unsigned int         code ATTRIBUTE_UNUSED;
      void *                arg ATTRIBUTE_UNUSED;
 {
   unsigned char byte1, byte2, abreg, x, ytreg;
@@ -619,7 +625,7 @@ unw_decode_x2 (dp, code, arg)
 static const unsigned char *
 unw_decode_x3 (dp, code, arg)
      const unsigned char * dp;
-     unsigned char         code;
+     unsigned int         code ATTRIBUTE_UNUSED;
      void *                arg ATTRIBUTE_UNUSED;
 {
   unsigned char byte1, byte2, abreg, qp;
@@ -643,7 +649,7 @@ unw_decode_x3 (dp, code, arg)
 static const unsigned char *
 unw_decode_x4 (dp, code, arg)
      const unsigned char * dp;
-     unsigned char         code;
+     unsigned int         code ATTRIBUTE_UNUSED;
      void *                arg ATTRIBUTE_UNUSED;
 {
   unsigned char byte1, byte2, byte3, qp, abreg, x, ytreg;
@@ -669,7 +675,7 @@ unw_decode_x4 (dp, code, arg)
 static const unsigned char *
 unw_decode_r1 (dp, code, arg)
      const unsigned char *dp;
-     unsigned char code;
+     unsigned int code;
      void *arg;
 {
   int body = (code & 0x20) != 0;
@@ -683,7 +689,7 @@ unw_decode_r1 (dp, code, arg)
 static const unsigned char *
 unw_decode_r2 (dp, code, arg)
      const unsigned char *dp;
-     unsigned char code;
+     unsigned int code;
      void *arg;
 {
   unsigned char byte1, mask, grsave;
@@ -701,7 +707,7 @@ unw_decode_r2 (dp, code, arg)
 static const unsigned char *
 unw_decode_r3 (dp, code, arg)
      const unsigned char *dp;
-     unsigned char code;
+     unsigned int code;
      void *arg;
 {
   unw_word rlen;
@@ -714,7 +720,7 @@ unw_decode_r3 (dp, code, arg)
 static const unsigned char *
 unw_decode_p1 (dp, code, arg)
      const unsigned char * dp;
-     unsigned char         code;
+     unsigned int         code;
      void *                arg ATTRIBUTE_UNUSED;
 {
   unsigned char brmask = (code & 0x1f);
@@ -726,7 +732,7 @@ unw_decode_p1 (dp, code, arg)
 static const unsigned char *
 unw_decode_p2_p5 (dp, code, arg)
      const unsigned char * dp;
-     unsigned char         code;
+     unsigned int         code;
      void *                arg ATTRIBUTE_UNUSED;
 {
   if ((code & 0x10) == 0)
@@ -807,7 +813,7 @@ unw_decode_p2_p5 (dp, code, arg)
 static const unsigned char *
 unw_decode_p6 (dp, code, arg)
      const unsigned char * dp;
-     unsigned char         code;
+     unsigned int         code;
      void *                arg ATTRIBUTE_UNUSED;
 {
   int gregs = (code & 0x10) != 0;
@@ -823,7 +829,7 @@ unw_decode_p6 (dp, code, arg)
 static const unsigned char *
 unw_decode_p7_p10 (dp, code, arg)
      const unsigned char *dp;
-     unsigned char code;
+     unsigned int code;
      void *arg;
 {
   unsigned char r, byte1, byte2;
@@ -999,7 +1005,7 @@ unw_decode_p7_p10 (dp, code, arg)
 static const unsigned char *
 unw_decode_b1 (dp, code, arg)
      const unsigned char * dp;
-     unsigned char         code;
+     unsigned int         code;
      void *                arg ATTRIBUTE_UNUSED;
 {
   unw_word label = (code & 0x1f);
@@ -1014,7 +1020,7 @@ unw_decode_b1 (dp, code, arg)
 static const unsigned char *
 unw_decode_b2 (dp, code, arg)
      const unsigned char * dp;
-     unsigned char         code;
+     unsigned int         code;
      void *                arg ATTRIBUTE_UNUSED;
 {
   unw_word t;
@@ -1027,7 +1033,7 @@ unw_decode_b2 (dp, code, arg)
 static const unsigned char *
 unw_decode_b3_x4 (dp, code, arg)
      const unsigned char *dp;
-     unsigned char code;
+     unsigned int code;
      void *arg;
 {
   unw_word t, ecount, label;
@@ -1065,7 +1071,7 @@ unw_decode_b3_x4 (dp, code, arg)
 }
 
 typedef const unsigned char *(*unw_decoder)
-     PARAMS ((const unsigned char *, unsigned char, void *));
+     PARAMS ((const unsigned char *, unsigned int, void *));
 
 static unw_decoder unw_decode_table[2][8] =
   {

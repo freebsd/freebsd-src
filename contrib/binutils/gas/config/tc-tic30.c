@@ -1,5 +1,5 @@
 /* tc-c30.c -- Assembly code for the Texas Instruments TMS320C30
-   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of GAS, the GNU Assembler.
@@ -25,6 +25,7 @@
    Please help us make it better.  */
 
 #include "as.h"
+#include "safe-ctype.h"
 #include "opcode/tic30.h"
 
 /* Put here all non-digit non-letter charcters that may occur in an
@@ -188,25 +189,25 @@ md_begin ()
 
     for (c = 0; c < 256; c++)
       {
-	if (islower (c) || isdigit (c))
+	if (ISLOWER (c) || ISDIGIT (c))
 	  {
 	    opcode_chars[c] = c;
 	    register_chars[c] = c;
 	  }
-	else if (isupper (c))
+	else if (ISUPPER (c))
 	  {
-	    opcode_chars[c] = tolower (c);
+	    opcode_chars[c] = TOLOWER (c);
 	    register_chars[c] = opcode_chars[c];
 	  }
 	else if (c == ')' || c == '(')
 	  {
 	    register_chars[c] = c;
 	  }
-	if (isupper (c) || islower (c) || isdigit (c))
+	if (ISUPPER (c) || ISLOWER (c) || ISDIGIT (c))
 	  operand_chars[c] = c;
-	if (isdigit (c) || c == '-')
+	if (ISDIGIT (c) || c == '-')
 	  digit_chars[c] = c;
-	if (isalpha (c) || c == '_' || c == '.' || isdigit (c))
+	if (ISALPHA (c) || c == '_' || c == '.' || ISDIGIT (c))
 	  identifier_chars[c] = c;
 	if (c == ' ' || c == '\t')
 	  space_chars[c] = c;
@@ -1267,7 +1268,7 @@ tic30_operand (token)
       ind_buffer[0] = *token;
       for (count = 1; count < strlen (token); count++)
 	{			/* Strip operand */
-	  ind_buffer[buffer_posn] = tolower (*(token + count));
+	  ind_buffer[buffer_posn] = TOLOWER (*(token + count));
 	  if ((*(token + count - 1) == 'a' || *(token + count - 1) == 'A') &&
 	      (*(token + count) == 'r' || *(token + count) == 'R'))
 	    {
@@ -1486,12 +1487,12 @@ tic30_find_parallel_insn (current_line, next_line)
 	    {
 	      if (is_opcode_char (c) && search_status == NONE)
 		{
-		  opcode[char_ptr++] = tolower (c);
+		  opcode[char_ptr++] = TOLOWER (c);
 		  search_status = START_OPCODE;
 		}
 	      else if (is_opcode_char (c) && search_status == START_OPCODE)
 		{
-		  opcode[char_ptr++] = tolower (c);
+		  opcode[char_ptr++] = TOLOWER (c);
 		}
 	      else if (!is_opcode_char (c) && search_status == START_OPCODE)
 		{
@@ -1558,10 +1559,11 @@ md_convert_frag (abfd, sec, fragP)
   debug ("In md_convert_frag()\n");
 }
 
-int
-md_apply_fix (fixP, valP)
+void
+md_apply_fix3 (fixP, valP, seg)
      fixS *fixP;
      valueT *valP;
+     segT seg ATTRIBUTE_UNUSED;
 {
   valueT value = *valP;
 
@@ -1573,15 +1575,18 @@ md_apply_fix (fixP, valP)
   debug ("fx_offset = %d\n", (int) fixP->fx_offset);
   {
     char *buf = fixP->fx_frag->fr_literal + fixP->fx_where;
+
     value /= INSN_SIZE;
     if (fixP->fx_size == 1)
-      {				/* Special fix for LDP instruction.  */
-	value = (value & 0x00FF0000) >> 16;
-      }
+      /* Special fix for LDP instruction.  */
+      value = (value & 0x00FF0000) >> 16;
+
     debug ("new value = %ld\n", (long) value);
     md_number_to_chars (buf, value, fixP->fx_size);
   }
-  return 1;
+
+  if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
+    fixP->fx_done = 1;
 }
 
 int
@@ -1868,7 +1873,7 @@ char *
 output_invalid (c)
      char c;
 {
-  if (isprint (c))
+  if (ISPRINT (c))
     sprintf (output_invalid_buf, "'%c'", c);
   else
     sprintf (output_invalid_buf, "(0x%x)", (unsigned) c);

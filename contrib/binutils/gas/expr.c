@@ -25,11 +25,11 @@
    (It also gives smaller files to re-compile.)
    Here, "operand"s are of expressions, not instructions.  */
 
-#include <ctype.h>
 #include <string.h>
 #define min(a, b)       ((a) < (b) ? (a) : (b))
 
 #include "as.h"
+#include "safe-ctype.h"
 #include "obstack.h"
 
 static void floating_constant PARAMS ((expressionS * expressionP));
@@ -81,9 +81,9 @@ make_expr_symbol (expressionP)
          generic_floating_point_number or generic_bignum, and we are
          going to lose it if we haven't already.  */
       if (expressionP->X_add_number > 0)
-	as_bad (_("bignum invalid; zero assumed"));
+	as_bad (_("bignum invalid"));
       else
-	as_bad (_("floating point number invalid; zero assumed"));
+	as_bad (_("floating point number invalid"));
       zero.X_op = O_constant;
       zero.X_add_number = 0;
       zero.X_unsigned = 0;
@@ -105,7 +105,7 @@ make_expr_symbol (expressionP)
   symbol_set_value_expression (symbolP, expressionP);
 
   if (expressionP->X_op == O_constant)
-    resolve_symbol_value (symbolP, 1);
+    resolve_symbol_value (symbolP);
 
   n = (struct expr_symbol_line *) xmalloc (sizeof *n);
   n->sym = symbolP;
@@ -243,11 +243,12 @@ floating_constant (expressionP)
     {
       if (error_code == ERROR_EXPONENT_OVERFLOW)
 	{
-	  as_bad (_("bad floating-point constant: exponent overflow, probably assembling junk"));
+	  as_bad (_("bad floating-point constant: exponent overflow"));
 	}
       else
 	{
-	  as_bad (_("bad floating-point constant: unknown error code=%d."), error_code);
+	  as_bad (_("bad floating-point constant: unknown error code=%d"),
+		  error_code);
 	}
     }
   expressionP->X_op = O_big;
@@ -330,9 +331,7 @@ integer_constant (radix, expressionP)
       /* In MRI mode, the number may have a suffix indicating the
          radix.  For that matter, it might actually be a floating
          point constant.  */
-      for (suffix = input_line_pointer;
-	   isalnum ((unsigned char) *suffix);
-	   suffix++)
+      for (suffix = input_line_pointer; ISALNUM (*suffix); suffix++)
 	{
 	  if (*suffix == 'e' || *suffix == 'E')
 	    flt = 1;
@@ -346,8 +345,7 @@ integer_constant (radix, expressionP)
       else
 	{
 	  c = *--suffix;
-	  if (islower ((unsigned char) c))
-	    c = toupper (c);
+	  c = TOUPPER (c);
 	  if (c == 'B')
 	    radix = 2;
 	  else if (c == 'D')
@@ -427,7 +425,7 @@ integer_constant (radix, expressionP)
 
 	  /* Check for 8 digit per word max.  */
 	  if (ndigit > 8)
-	    as_bad (_("A bignum with underscores may not have more than 8 hex digits in any word."));
+	    as_bad (_("a bignum with underscores may not have more than 8 hex digits in any word"));
 
 	  /* Add this chunk to the bignum.
 	     Shift things down 2 little digits.  */
@@ -450,7 +448,7 @@ integer_constant (radix, expressionP)
       assert (num_little_digits >= 4);
 
       if (num_little_digits != 8)
-	as_bad (_("A bignum with underscores must have exactly 4 words."));
+	as_bad (_("a bignum with underscores must have exactly 4 words"));
 
       /* We might have some leading zeros.  These can be trimmed to give
 	 us a change to fit this constant into a small number.  */
@@ -573,7 +571,7 @@ integer_constant (radix, expressionP)
 	      /* Either not seen or not defined.  */
 	      /* @@ Should print out the original string instead of
 		 the parsed number.  */
-	      as_bad (_("backw. ref to unknown label \"%d:\", 0 assumed."),
+	      as_bad (_("backward ref to unknown label \"%d:\""),
 		      (int) number);
 	      expressionP->X_op = O_constant;
 	    }
@@ -696,7 +694,7 @@ mri_char_constant (expressionP)
 
   if (i < 0)
     {
-      as_bad (_("Character constant too large"));
+      as_bad (_("character constant too large"));
       i = 0;
     }
 
@@ -761,7 +759,7 @@ current_location (expressionp)
 /* In:	Input_line_pointer points to 1st char of operand, which may
 	be a space.
 
-   Out:	A expressionS.
+   Out:	An expressionS.
 	The operand may have been empty: in this case X_op == O_absent.
 	Input_line_pointer->(next non-blank) char after operand.  */
 
@@ -810,6 +808,9 @@ operand (expressionP)
 
 #ifdef LITERAL_PREFIXDOLLAR_HEX
     case '$':
+      /* $L is the start of a local label, not a hex constant.  */
+      if (* input_line_pointer == 'L')
+      goto isname;
       integer_constant (16, expressionP);
       break;
 #endif
@@ -858,8 +859,7 @@ operand (expressionP)
 	    {
 	      input_line_pointer++;
 	      floating_constant (expressionP);
-	      expressionP->X_add_number =
-		- (isupper ((unsigned char) c) ? tolower (c) : c);
+	      expressionP->X_add_number = - TOLOWER (c);
 	    }
 	  else
 	    {
@@ -981,8 +981,7 @@ operand (expressionP)
 	case 'G':
 	  input_line_pointer++;
 	  floating_constant (expressionP);
-	  expressionP->X_add_number =
-	    - (isupper ((unsigned char) c) ? tolower (c) : c);
+	  expressionP->X_add_number = - TOLOWER (c);
 	  break;
 
 	case '$':
@@ -1010,7 +1009,7 @@ operand (expressionP)
 #ifdef RELAX_PAREN_GROUPING
 	  if (c != '(')
 #endif
-	    as_bad (_("Missing '%c' assumed"), c == '(' ? ')' : ']');
+	    as_bad (_("missing '%c'"), c == '(' ? ')' : ']');
 	}
       else
 	input_line_pointer++;
@@ -1231,7 +1230,7 @@ operand (expressionP)
              specially in certain contexts.  If a name always has a
              specific value, it can often be handled by simply
              entering it in the symbol table.  */
-	  if (md_parse_name (name, expressionP))
+	  if (md_parse_name (name, expressionP, &c))
 	    {
 	      *input_line_pointer = c;
 	      break;
@@ -1312,7 +1311,7 @@ operand (expressionP)
 	  if (expressionP->X_op == O_absent)
 	    {
 	      ++input_line_pointer;
-	      as_bad (_("Bad expression"));
+	      as_bad (_("bad expression"));
 	      expressionP->X_op = O_constant;
 	      expressionP->X_add_number = 0;
 	    }
@@ -1343,7 +1342,7 @@ operand (expressionP)
 
 /* Internal.  Simplify a struct expression for use by expr ().  */
 
-/* In:	address of a expressionS.
+/* In:	address of an expressionS.
 	The X_op field of the expressionS may only take certain values.
 	Elsewise we waste time special-case testing. Sigh. Ditto SEG_ABSENT.
 
@@ -1400,7 +1399,7 @@ clean_up_expression (expressionP)
    Unary operators and parenthetical expressions are treated as operands.
    As usual, Q==quantity==operand, O==operator, X==expression mnemonics.
 
-   We used to do a aho/ullman shift-reduce parser, but the logic got so
+   We used to do an aho/ullman shift-reduce parser, but the logic got so
    warped that I flushed it and wrote a recursive-descent parser instead.
    Now things are stable, would anybody like to write a fast parser?
    Most expressions are either register (which does not even reach here)
@@ -1456,7 +1455,7 @@ static const operatorT op_encoding[256] = {
    0	operand, (expression)
    1	||
    2	&&
-   3	= <> < <= >= >
+   3	== <> < <= >= >
    4	+ -
    5	used for * / % in MRI mode
    6	& ^ ! |
@@ -1695,21 +1694,6 @@ expr (rankarg, resultP)
 	    }
 	}
 
-      if (retval == undefined_section)
-	{
-	  if (SEG_NORMAL (rightseg))
-	    retval = rightseg;
-	}
-      else if (! SEG_NORMAL (retval))
-	retval = rightseg;
-      else if (SEG_NORMAL (rightseg)
-	       && retval != rightseg
-#ifdef DIFF_EXPR_OK
-	       && op_left != O_subtract
-#endif
-	       )
-	as_bad (_("operation combines symbols in different segments"));
-
       op_right = operator (&op_chars);
 
       know (op_right == O_illegal
@@ -1765,8 +1749,7 @@ expr (rankarg, resultP)
 	       && resultP->X_op == O_symbol
 	       && (symbol_get_frag (right.X_add_symbol)
 		   == symbol_get_frag (resultP->X_add_symbol))
-	       && SEG_NORMAL (S_GET_SEGMENT (right.X_add_symbol)))
-
+	       && SEG_NORMAL (rightseg))
 	{
 	  resultP->X_add_number -= right.X_add_number;
 	  resultP->X_add_number += (S_GET_VALUE (resultP->X_add_symbol)
@@ -1861,7 +1844,14 @@ expr (rankarg, resultP)
 	  if (op_left == O_add)
 	    resultP->X_add_number += right.X_add_number;
 	  else if (op_left == O_subtract)
-	    resultP->X_add_number -= right.X_add_number;
+	    {
+	      resultP->X_add_number -= right.X_add_number;
+	      if (retval == rightseg && SEG_NORMAL (retval))
+		{
+		  retval = absolute_section;
+		  rightseg = absolute_section;
+		}
+	    }
 	}
       else
 	{
@@ -1871,6 +1861,21 @@ expr (rankarg, resultP)
 	  resultP->X_op = op_left;
 	  resultP->X_add_number = 0;
 	  resultP->X_unsigned = 1;
+	}
+
+      if (retval != rightseg)
+	{
+	  if (! SEG_NORMAL (retval))
+	    {
+	      if (retval != undefined_section || SEG_NORMAL (rightseg))
+		retval = rightseg;
+	    }
+	  else if (SEG_NORMAL (rightseg)
+#ifdef DIFF_EXPR_OK
+		   && op_left != O_subtract
+#endif
+		   )
+	    as_bad (_("operation combines symbols in different segments"));
 	}
 
       op_left = op_right;

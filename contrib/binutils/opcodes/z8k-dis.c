@@ -1,5 +1,5 @@
 /* Disassemble z8000 code.
-   Copyright 1992, 1993, 1998, 2000
+   Copyright 1992, 1993, 1998, 2000, 2001
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -26,8 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <setjmp.h>
 
-typedef struct
-{
+typedef struct {
   /* These are all indexed by nibble number (i.e only every other entry
      of bytes is used, and every 4th entry of words).  */
   unsigned char nibbles[24];
@@ -49,14 +48,16 @@ typedef struct
   unsigned long ctrl_code;
   unsigned long flags;
   unsigned long interrupts;
-}
-instr_data_s;
+} instr_data_s;
+
+static int fetch_data PARAMS ((struct disassemble_info *, int));
+
 
 /* Make sure that bytes from INFO->PRIVATE_DATA->BUFFER (inclusive)
    to ADDR (exclusive) are valid.  Returns 1 for success, longjmps
    on error.  */
 #define FETCH_DATA(info, nibble) \
-  ((nibble) < ((instr_data_s *)(info->private_data))->max_fetched \
+  ((nibble) < ((instr_data_s *) (info->private_data))->max_fetched \
    ? 1 : fetch_data ((info), (nibble)))
 
 static int
@@ -105,8 +106,7 @@ fetch_data (info, nibble)
   return 1;
 }
 
-static char *codes[16] =
-{
+static char *codes[16] = {
   "f",
   "lt",
   "le",
@@ -125,11 +125,24 @@ static char *codes[16] =
   "nc/uge"
 };
 
+static char *ctrl_names[8] = {
+  "<invld>",
+  "flags",
+  "fcw",
+  "refresh",
+  "psapseg",
+  "psapoff",
+  "nspseg",
+  "nspoff"
+};
+
+static int seg_length;
+static int print_insn_z8k PARAMS ((bfd_vma, disassemble_info *, int));
 int z8k_lookup_instr PARAMS ((unsigned char *, disassemble_info *));
 static void output_instr
   PARAMS ((instr_data_s *, unsigned long, disassemble_info *));
 static void unpack_instr PARAMS ((instr_data_s *, int, disassemble_info *));
-static void unparse_instr PARAMS ((instr_data_s *));
+static void unparse_instr PARAMS ((instr_data_s *, int));
 
 static int
 print_insn_z8k (addr, info, is_segmented)
@@ -150,9 +163,9 @@ print_insn_z8k (addr, info, is_segmented)
   if (instr_data.tabl_index > 0)
     {
       unpack_instr (&instr_data, is_segmented, info);
-      unparse_instr (&instr_data);
+      unparse_instr (&instr_data, is_segmented);
       output_instr (&instr_data, addr, info);
-      return z8k_table[instr_data.tabl_index].length;
+      return z8k_table[instr_data.tabl_index].length + seg_length;
     }
   else
     {
@@ -260,13 +273,12 @@ z8k_lookup_instr (nibbles, info)
       tabl_index++;
     }
   return -1;
-
 }
 
 static void
 output_instr (instr_data, addr, info)
      instr_data_s *instr_data;
-     unsigned long addr;
+     unsigned long addr ATTRIBUTE_UNUSED;
      disassemble_info *info;
 {
   int loop, loop_limit;
@@ -275,7 +287,7 @@ output_instr (instr_data, addr, info)
 
   strcpy (out_str, "\t");
 
-  loop_limit = z8k_table[instr_data->tabl_index].length * 2;
+  loop_limit = (z8k_table[instr_data->tabl_index].length + seg_length) * 2;
   FETCH_DATA (info, loop_limit);
   for (loop = 0; loop < loop_limit; loop++)
     {
@@ -302,16 +314,18 @@ unpack_instr (instr_data, is_segmented, info)
   int nibl_count, loop;
   unsigned short instr_nibl, instr_byte, instr_word;
   long instr_long;
-  unsigned short tabl_datum, datum_class, datum_value;
+  unsigned int tabl_datum, datum_class;
+  unsigned short datum_value;
 
   nibl_count = 0;
   loop = 0;
+  seg_length = 0;
   while (z8k_table[instr_data->tabl_index].byte_info[loop] != 0)
     {
       FETCH_DATA (info, nibl_count + 4 - (nibl_count % 4));
       instr_nibl = instr_data->nibbles[nibl_count];
-      instr_byte = instr_data->bytes[nibl_count];
-      instr_word = instr_data->words[nibl_count];
+      instr_byte = instr_data->bytes[nibl_count & ~1];
+      instr_word = instr_data->words[nibl_count & ~3];
 
       tabl_datum = z8k_table[instr_data->tabl_index].byte_info[loop];
       datum_class = tabl_datum & CLASS_MASK;
@@ -319,24 +333,26 @@ unpack_instr (instr_data, is_segmented, info)
 
       switch (datum_class)
 	{
-	case CLASS_X:
-	  instr_data->address = instr_nibl;
-	  break;
-	case CLASS_BA:
-	  instr_data->displacement = instr_nibl;
-	  break;
-	case CLASS_BX:
-	  instr_data->arg_reg[datum_value] = instr_nibl;
-	  break;
 	case CLASS_DISP:
 	  switch (datum_value)
 	    {
 	    case ARG_DISP16:
-	      instr_data->displacement = instr_word;
+	      instr_data->displacement = instr_data->insn_start + 4
+		+ (signed short) (instr_word & 0xffff);
 	      nibl_count += 3;
 	      break;
 	    case ARG_DISP12:
-	      instr_data->displacement = instr_word & 0x0fff;
+	      if (instr_word & 0x800)
+		{
+		  /* neg. 12 bit displacement */
+		  instr_data->displacement = instr_data->insn_start + 2
+		    - (signed short) ((instr_word & 0xfff) | 0xf000) * 2;
+		}
+	      else
+		{
+		  instr_data->displacement = instr_data->insn_start + 2
+		    - (instr_word & 0x0fff) * 2;
+		}
 	      nibl_count += 2;
 	      break;
 	    default:
@@ -390,10 +406,6 @@ unpack_instr (instr_data, is_segmented, info)
 	case CLASS_CC:
 	  instr_data->cond_code = instr_nibl;
 	  break;
-	case CLASS_CTRL:
-	  instr_data->ctrl_code = instr_nibl;
-	  break;
-	case CLASS_DA:
 	case CLASS_ADDRESS:
 	  if (is_segmented)
 	    {
@@ -402,14 +414,15 @@ unpack_instr (instr_data, is_segmented, info)
 		  FETCH_DATA (info, nibl_count + 8);
 		  instr_long = (instr_data->words[nibl_count] << 16)
 		    | (instr_data->words[nibl_count + 4]);
-		  instr_data->address = ((instr_word & 0x7f00) << 8) +
-		    (instr_long & 0xffff);
+		  instr_data->address = ((instr_word & 0x7f00) << 8)
+		    + (instr_long & 0xffff);
 		  nibl_count += 7;
+		  seg_length = 2;
 		}
 	      else
 		{
-		  instr_data->address = ((instr_word & 0x7f00) << 8) +
-		    (instr_word & 0x00ff);
+		  instr_data->address = ((instr_word & 0x7f00) << 8)
+		    + (instr_word & 0x00ff);
 		  nibl_count += 3;
 		}
 	    }
@@ -420,17 +433,17 @@ unpack_instr (instr_data, is_segmented, info)
 	    }
 	  break;
 	case CLASS_0CCC:
-	  instr_data->cond_code = instr_nibl & 0x7;
-	  break;
 	case CLASS_1CCC:
-	  instr_data->cond_code = instr_nibl & 0x7;
+	  instr_data->ctrl_code = instr_nibl & 0x7;
 	  break;
 	case CLASS_0DISP7:
-	  instr_data->displacement = instr_byte & 0x7f;
+	  instr_data->displacement =
+	    instr_data->insn_start + 2 - (instr_byte & 0x7f) * 2;
 	  nibl_count += 1;
 	  break;
 	case CLASS_1DISP7:
-	  instr_data->displacement = instr_byte & 0x7f;
+	  instr_data->displacement =
+	    instr_data->insn_start + 2 - (instr_byte & 0x7f) * 2;
 	  nibl_count += 1;
 	  break;
 	case CLASS_01II:
@@ -440,10 +453,7 @@ unpack_instr (instr_data, is_segmented, info)
 	  instr_data->interrupts = instr_nibl & 0x3;
 	  break;
 	case CLASS_BIT:
-	  /* Do nothing.  */
-	  break;
-	case CLASS_IR:
-	  instr_data->arg_reg[datum_value] = instr_nibl;
+	  instr_data->ctrl_code = instr_nibl & 0x7;
 	  break;
 	case CLASS_FLAGS:
 	  instr_data->flags = instr_nibl;
@@ -451,22 +461,16 @@ unpack_instr (instr_data, is_segmented, info)
 	case CLASS_REG:
 	  instr_data->arg_reg[datum_value] = instr_nibl;
 	  break;
-	case CLASS_REG_BYTE:
-	  instr_data->arg_reg[datum_value] = instr_nibl;
-	  break;
-	case CLASS_REG_WORD:
-	  instr_data->arg_reg[datum_value] = instr_nibl;
-	  break;
-	case CLASS_REG_QUAD:
-	  instr_data->arg_reg[datum_value] = instr_nibl;
-	  break;
-	case CLASS_REG_LONG:
-	  instr_data->arg_reg[datum_value] = instr_nibl;
-	  break;
 	case CLASS_REGN0:
 	  instr_data->arg_reg[datum_value] = instr_nibl;
 	  break;
+	case CLASS_DISP8:
+	  instr_data->displacement =
+	    instr_data->insn_start + 2 + (signed char) instr_byte * 2;
+	  nibl_count += 1;
+	  break;
 	default:
+	  abort ();
 	  break;
 	}
 
@@ -476,10 +480,12 @@ unpack_instr (instr_data, is_segmented, info)
 }
 
 static void
-unparse_instr (instr_data)
+unparse_instr (instr_data, is_segmented)
      instr_data_s *instr_data;
+     int is_segmented;
 {
-  unsigned short tabl_datum, datum_class, datum_value;
+  unsigned short datum_value;
+  unsigned int tabl_datum, datum_class;
   int loop, loop_limit;
   char out_str[80], tmp_str[25];
 
@@ -513,7 +519,7 @@ unparse_instr (instr_data)
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_DISP:
-	  sprintf (tmp_str, "#0x%0lx", instr_data->displacement);
+	  sprintf (tmp_str, "0x%0lx", instr_data->displacement);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_IMM:
@@ -525,16 +531,19 @@ unparse_instr (instr_data)
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_CTRL:
-	  sprintf (tmp_str, "0x%0lx", instr_data->ctrl_code);
+	  sprintf (tmp_str, "%s", ctrl_names[instr_data->ctrl_code]);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_DA:
 	case CLASS_ADDRESS:
-	  sprintf (tmp_str, "#0x%0lx", instr_data->address);
+	  sprintf (tmp_str, "0x%0lx", instr_data->address);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_IR:
-	  sprintf (tmp_str, "@R%ld", instr_data->arg_reg[datum_value]);
+	  if (is_segmented)
+	    sprintf (tmp_str, "@rr%ld", instr_data->arg_reg[datum_value]);
+	  else
+	    sprintf (tmp_str, "@r%ld", instr_data->arg_reg[datum_value]);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_FLAGS:
@@ -543,14 +552,10 @@ unparse_instr (instr_data)
 	  break;
 	case CLASS_REG_BYTE:
 	  if (instr_data->arg_reg[datum_value] >= 0x8)
-	    {
-	      sprintf (tmp_str, "rl%ld",
-		       instr_data->arg_reg[datum_value] - 0x8);
-	    }
+	    sprintf (tmp_str, "rl%ld",
+		     instr_data->arg_reg[datum_value] - 0x8);
 	  else
-	    {
-	      sprintf (tmp_str, "rh%ld", instr_data->arg_reg[datum_value]);
-	    }
+	    sprintf (tmp_str, "rh%ld", instr_data->arg_reg[datum_value]);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_REG_WORD:
@@ -565,7 +570,15 @@ unparse_instr (instr_data)
 	  sprintf (tmp_str, "rr%ld", instr_data->arg_reg[datum_value]);
 	  strcat (out_str, tmp_str);
 	  break;
+	case CLASS_PR:
+	  if (is_segmented)
+	    sprintf (tmp_str, "rr%ld", instr_data->arg_reg[datum_value]);
+	  else
+	    sprintf (tmp_str, "r%ld", instr_data->arg_reg[datum_value]);
+	  strcat (out_str, tmp_str);
+	  break;
 	default:
+	  abort ();
 	  break;
 	}
     }

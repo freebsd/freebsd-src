@@ -1,6 +1,6 @@
 \input texinfo @c                               -*-Texinfo-*-
 @c  Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-@c  2001
+@c  2001, 2002
 @c  Free Software Foundation, Inc.
 @c UPDATE!!  On future updates--
 @c   (1)   check for new machine-dep cmdline options in
@@ -13,12 +13,52 @@
 @c %**start of header
 @setfilename as.info
 @c ---config---
+@macro gcctabopt{body}
+@code{\body\}
+@end macro
 @c defaults, config file may override:
 @set have-stabs
 @c ---
 @include asconfig.texi
 @include gasver.texi
 @c ---
+@c man begin NAME
+@ifset man
+@c Configure for the generation of man pages
+@set AS as
+@set TARGET TARGET
+@set GENERIC
+@set A29K
+@set ALPHA
+@set ARC
+@set ARM
+@set CRIS
+@set D10V
+@set D30V
+@set H8/300
+@set H8/500
+@set HPPA
+@set I370
+@set I80386
+@set I860
+@set I960
+@set M32R
+@set M68HC11
+@set M680X0
+@set M880X0
+@set MCORE
+@set MIPS
+@set MMIX
+@set PDP11
+@set PJ
+@set PPC
+@set SH
+@set SPARC
+@set C54X
+@set V850
+@set VAX
+@end ifset
+@c man end
 @c common OR combinations of conditions
 @ifset AOUT
 @set aout-bout
@@ -78,6 +118,7 @@
 @format
 START-INFO-DIR-ENTRY
 * As: (as).                     The GNU assembler.
+* Gas: (as).                    The GNU assembler.
 END-INFO-DIR-ENTRY
 @end format
 @end ifinfo
@@ -88,14 +129,17 @@ END-INFO-DIR-ENTRY
 @ifinfo
 This file documents the GNU Assembler "@value{AS}".
 
-Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001 Free Software Foundation, Inc.
+@c man begin COPYRIGHT
+Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001, 2002 Free Software Foundation, Inc.
 
-      Permission is granted to copy, distribute and/or modify this document
-      under the terms of the GNU Free Documentation License, Version 1.1
-      or any later version published by the Free Software Foundation;
-      with no Invariant Sections, with no Front-Cover Texts, and with no
-      Back-Cover Texts.  A copy of the license is included in the
-      section entitled "GNU Free Documentation License".
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1
+or any later version published by the Free Software Foundation;
+with no Invariant Sections, with no Front-Cover Texts, and with no
+Back-Cover Texts.  A copy of the license is included in the
+section entitled "GNU Free Documentation License".
+
+@c man end
 
 @ignore
 Permission is granted to process this file through Tex and print the
@@ -118,7 +162,7 @@ notice identical to this one except for the removal of this paragraph
 @sp 13
 The Free Software Foundation Inc.  thanks The Nice Computer
 Company of Australia for loaning Dean Elsner to write the
-first (Vax) version of @code{as} for Project @sc{gnu}.
+first (Vax) version of @command{as} for Project @sc{gnu}.
 The proprietors, management and staff of TNCCA thank FSF for
 distracting the boss while they got some work
 done.
@@ -139,7 +183,7 @@ done.
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001, 2002 Free Software Foundation, Inc.
 
       Permission is granted to copy, distribute and/or modify this document
       under the terms of the GNU Free Documentation License, Version 1.1
@@ -150,14 +194,14 @@ Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001 Free Sof
 
 @end titlepage
 
-@ifinfo
+@ifnottex
 @node Top
 @top Using @value{AS}
 
-This file is a user guide to the @sc{gnu} assembler @code{@value{AS}} version
+This file is a user guide to the @sc{gnu} assembler @command{@value{AS}} version
 @value{VERSION}.
 @ifclear GENERIC
-This version of the file describes @code{@value{AS}} configured to generate
+This version of the file describes @command{@value{AS}} configured to generate
 code for @value{TARGET} architectures.
 @end ifclear
 
@@ -179,14 +223,14 @@ section entitled "GNU Free Documentation License".
 * GNU Free Documentation License::  GNU Free Documentation License
 * Index::                       Index
 @end menu
-@end ifinfo
+@end ifnottex
 
 @node Overview
 @chapter Overview
 @iftex
-This manual is a user guide to the @sc{gnu} assembler @code{@value{AS}}.
+This manual is a user guide to the @sc{gnu} assembler @command{@value{AS}}.
 @ifclear GENERIC
-This version of the manual describes @code{@value{AS}} configured to generate
+This version of the manual describes @command{@value{AS}} configured to generate
 code for @value{TARGET} architectures.
 @end ifclear
 @end iftex
@@ -194,45 +238,81 @@ code for @value{TARGET} architectures.
 @cindex invocation summary
 @cindex option summary
 @cindex summary of options
-Here is a brief summary of how to invoke @code{@value{AS}}.  For details,
+Here is a brief summary of how to invoke @command{@value{AS}}.  For details,
 @pxref{Invoking,,Comand-Line Options}.
+
+@c man title AS the portable GNU assembler.
+
+@ignore
+@c man begin SEEALSO
+gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
+@c man end
+@end ignore
 
 @c We don't use deffn and friends for the following because they seem
 @c to be limited to one line for the header.
 @smallexample
-@value{AS} [ -a[cdhlns][=file] ] [ -D ]  [ --defsym @var{sym}=@var{val} ]
- [ -f ] [ --gstabs ] [ --gdwarf2 ] [ --help ] [ -I @var{dir} ] [ -J ] [ -K ] [ -L ]
- [ --keep-locals ] [ -o @var{objfile} ] [ -R ] [ --statistics ] [ -v ]
- [ -version ] [ --version ] [ -W ] [ --warn ] [ --fatal-warnings ] 
- [ -w ] [ -x ] [ -Z ] [ --target-help ]
+@c man begin SYNOPSIS
+@value{AS} [@b{-a}[@b{cdhlns}][=@var{file}]] [@b{-D}] [@b{--defsym} @var{sym}=@var{val}]
+ [@b{-f}] [@b{--gstabs}] [@b{--gdwarf2}] [@b{--help}] [@b{-I} @var{dir}] 
+ [@b{-J}] [@b{-K}] [@b{-L}]
+ [@b{--listing-lhs-width}=@var{NUM}] [@b{--listing-lhs-width2}=@var{NUM}]
+ [@b{--listing-rhs-width}=@var{NUM}] [@b{--listing-cont-lines}=@var{NUM}]
+ [@b{--keep-locals}] [@b{-o} @var{objfile}] [@b{-R}] [@b{--statistics}] [@b{-v}]
+ [@b{-version}] [@b{--version}] [@b{-W}] [@b{--warn}] [@b{--fatal-warnings}] 
+ [@b{-w}] [@b{-x}] [@b{-Z}] [@b{--target-help}] [@var{target-options}] 
+ [@b{--}|@var{files} @dots{}]
+@c
+@c Target dependent options are listed below.  Keep the list sorted.
+@c Add an empty line for separation. 
 @ifset A29K
 @c am29k has no machine-dependent assembler options
 @end ifset
+@ifset ALPHA
+
+@emph{Target Alpha options:}
+   [@b{-m@var{cpu}}]
+   [@b{-mdebug} | @b{-no-mdebug}]
+   [@b{-relax}] [@b{-g}] [@b{-G@var{size}}]
+   [@b{-F}] [@b{-32addr}]
+@end ifset
 @ifset ARC
- [ -marc[5|6|7|8] ]
- [ -EB | -EL ]
+
+@emph{Target ARC options:}
+   [@b{-marc[5|6|7|8]}]
+   [@b{-EB}|@b{-EL}]
 @end ifset
 @ifset ARM
- [ -m[arm]1 | -m[arm]2 | -m[arm]250 | -m[arm]3 | -m[arm]6 | -m[arm]60 |
-   -m[arm]600 | -m[arm]610 | -m[arm]620 | -m[arm]7[t][[d]m[i]][fe] | -m[arm]70 |
-   -m[arm]700 | -m[arm]710[c] | -m[arm]7100 | -m[arm]7500 | -m[arm]8 |
-   -m[arm]810 | -m[arm]9 | -m[arm]920 | -m[arm]920t | -m[arm]9tdmi |
-   -mstrongarm | -mstrongarm110 | -mstrongarm1100 ]
- [ -m[arm]v2 | -m[arm]v2a | -m[arm]v3 | -m[arm]v3m | -m[arm]v4 | -m[arm]v4t |
-   -m[arm]v5 | -[arm]v5t | -[arm]v5te ]
- [ -mthumb | -mall ]
- [ -mfpa10 | -mfpa11 | -mfpe-old | -mno-fpu ]
- [ -EB | -EL ]
- [ -mapcs-32 | -mapcs-26 | -mapcs-float | -mapcs-reentrant ]
- [ -mthumb-interwork ]
- [ -moabi ]
- [ -k ]
+
+@emph{Target ARM options:}
+@c Don't document the deprecated options
+   [@b{-mcpu}=@var{processor}[+@var{extension}@dots{}]]
+   [@b{-march}=@var{architecture}[+@var{extension}@dots{}]]
+   [@b{-mfpu}=@var{floating-point-fromat}]
+   [@b{-mthumb}]
+   [@b{-EB}|@b{-EL}]
+   [@b{-mapcs-32}|@b{-mapcs-26}|@b{-mapcs-float}|
+    @b{-mapcs-reentrant}]
+   [@b{-mthumb-interwork}] [@b{-moabi}] [@b{-k}]
+@end ifset
+@ifset CRIS
+
+@emph{Target CRIS options:}
+   [@b{--underscore} | @b{--no-underscore}]
+   [@b{--pic}] [@b{-N}]
+   [@b{--emulation=criself} | @b{--emulation=crisaout}]
+@c Deprecated -- deliberately not documented.
+@c [@b{-h}] [@b{-H}]
 @end ifset
 @ifset D10V
- [ -O ]
+
+@emph{Target D10V options:}
+   [@b{-O}]
 @end ifset
 @ifset D30V
- [ -O | -n | -N ]
+
+@emph{Target D30V options:}
+   [@b{-O}|@b{-n}|@b{-N}]
 @end ifset
 @ifset H8
 @c Hitachi family chips have no machine-dependent assembler options
@@ -240,58 +320,114 @@ Here is a brief summary of how to invoke @code{@value{AS}}.  For details,
 @ifset HPPA
 @c HPPA has no machine-dependent assembler options (yet).
 @end ifset
+@ifset I80386
+
+@emph{Target i386 options:}
+   [@b{--32}|@b{--64}]
+@end ifset
+@ifset I960
+
+@emph{Target i960 options:}
+@c see md_parse_option in tc-i960.c
+   [@b{-ACA}|@b{-ACA_A}|@b{-ACB}|@b{-ACC}|@b{-AKA}|@b{-AKB}|
+    @b{-AKC}|@b{-AMC}]
+   [@b{-b}] [@b{-no-relax}]
+@end ifset
+@ifset M32R
+
+@emph{Target M32R options:}
+   [@b{--m32rx}|@b{--[no-]warn-explicit-parallel-conflicts}|
+    @b{--W[n]p}]
+@end ifset
+@ifset M680X0
+
+@emph{Target M680X0 options:}
+   [@b{-l}] [@b{-m68000}|@b{-m68010}|@b{-m68020}|@dots{}]
+@end ifset
+@ifset M68HC11
+
+@emph{Target M68HC11 options:}
+   [@b{-m68hc11}|@b{-m68hc12}]
+   [@b{--force-long-branchs}] [@b{--short-branchs}]
+   [@b{--strict-direct-mode}] [@b{--print-insn-syntax}]
+   [@b{--print-opcodes}] [@b{--generate-example}]
+@end ifset
+@ifset MCORE
+
+@emph{Target MCORE options:}
+   [@b{-jsri2bsr}] [@b{-sifilter}] [@b{-relax}]
+   [@b{-mcpu=[210|340]}]
+@end ifset
+@ifset MIPS
+
+@emph{Target MIPS options:}
+   [@b{-nocpp}] [@b{-EL}] [@b{-EB}] [@b{-G} @var{num}] [@b{-mcpu}=@var{CPU} ]
+   [@b{-mips1}] [@b{-mips2}] [@b{-mips3}] [@b{-mips4}] [@b{-mips5}]
+   [@b{-mips32}] [@b{-mips64}]
+   [@b{-m4650}] [@b{-no-m4650}]
+   [@b{--trap}] [@b{--break}] [@b{-n}]
+   [@b{--emulation}=@var{name} ]
+@end ifset
+@ifset MMIX
+
+@emph{Target MMIX options:}
+   [@b{--fixed-special-register-names}] [@b{--globalize-symbols}]
+   [@b{--gnu-syntax}] [@b{--relax}] [@b{--no-predefined-symbols}]
+   [@b{--no-expand}] [@b{--no-merge-gregs}] [@b{-x}]
+   [@b{--linker-allocated-gregs}]
+@end ifset
+@ifset PDP11
+
+@emph{Target PDP11 options:}
+   [@b{-mpic}|@b{-mno-pic}] [@b{-mall}] [@b{-mno-extensions}]
+   [@b{-m}@var{extension}|@b{-mno-}@var{extension}]
+   [@b{-m}@var{cpu}] [@b{-m}@var{machine}]  
+@end ifset
 @ifset PJ
- [ -mb | -me ]
+
+@emph{Target picoJava options:}
+   [@b{-mb}|@b{-me}]
+@end ifset
+@ifset PPC
+
+@emph{Target PowerPC options:}
+   [@b{-mpwrx}|@b{-mpwr2}|@b{-mpwr}|@b{-m601}|@b{-mppc}|@b{-mppc32}|@b{-m603}|@b{-m604}|
+    @b{-m403}|@b{-m405}|@b{-mppc64}|@b{-m620}|@b{-mppc64bridge}|@b{-mbooke}|
+    @b{-mbooke32}|@b{-mbooke64}]
+   [@b{-mcom}|@b{-many}|@b{-maltivec}] [@b{-memb}]
+   [@b{-mregnames}|@b{-mno-regnames}]
+   [@b{-mrelocatable}|@b{-mrelocatable-lib}]
+   [@b{-mlittle}|@b{-mlittle-endian}|@b{-mbig}|@b{-mbig-endian}]
+   [@b{-msolaris}|@b{-mno-solaris}]
 @end ifset
 @ifset SPARC
+
+@emph{Target SPARC options:}
 @c The order here is important.  See c-sparc.texi.
- [ -Av6 | -Av7 | -Av8 | -Asparclet | -Asparclite
-   -Av8plus | -Av8plusa | -Av9 | -Av9a ]
- [ -xarch=v8plus | -xarch=v8plusa ] [ -bump ] [ -32 | -64 ]
+   [@b{-Av6}|@b{-Av7}|@b{-Av8}|@b{-Asparclet}|@b{-Asparclite}
+    @b{-Av8plus}|@b{-Av8plusa}|@b{-Av9}|@b{-Av9a}]
+   [@b{-xarch=v8plus}|@b{-xarch=v8plusa}] [@b{-bump}]
+   [@b{-32}|@b{-64}]
 @end ifset
 @ifset TIC54X
- [ -mcpu=54[123589] | -mcpu=54[56]lp ] [ -mfar-mode | -mf ] 
- [ -merrors-to-file <filename> | -me <filename> ]
+
+@emph{Target TIC54X options:}
+ [@b{-mcpu=54[123589]}|@b{-mcpu=54[56]lp}] [@b{-mfar-mode}|@b{-mf}] 
+ [@b{-merrors-to-file} @var{<filename>}|@b{-me} @var{<filename>}]
 @end ifset
 @ifset Z8000
 @c Z8000 has no machine-dependent assembler options
 @end ifset
-@ifset I960
-@c see md_parse_option in tc-i960.c
- [ -ACA | -ACA_A | -ACB | -ACC | -AKA | -AKB | -AKC | -AMC ]
- [ -b ] [ -no-relax ]
-@end ifset
-@ifset M32R
- [ --m32rx | --[no-]warn-explicit-parallel-conflicts | --W[n]p ]
-@end ifset
-@ifset M680X0
- [ -l ] [ -m68000 | -m68010 | -m68020 | ... ]
-@end ifset
-@ifset MCORE
- [ -jsri2bsr ] [ -sifilter ] [ -relax ]
- [ -mcpu=[210|340] ]
-@end ifset
-@ifset M68HC11
- [ -m68hc11 | -m68hc12 ]
- [ --force-long-branchs ] [ --short-branchs ] [ --strict-direct-mode ]
- [ --print-insn-syntax ] [ --print-opcodes ] [ --generate-example ]
-@end ifset
-@ifset MIPS
- [ -nocpp ] [ -EL ] [ -EB ] [ -G @var{num} ] [ -mcpu=@var{CPU} ]
- [ -mips1 ] [ -mips2 ] [ -mips3 ] [ -mips4 ] [ -mips5 ]
- [ -mips32 ] [ -mips64 ]
- [ -m4650 ] [ -no-m4650 ]
- [ --trap ] [ --break ]
- [ --emulation=@var{name} ]
-@end ifset
- [ -- | @var{files} @dots{} ]
+@c man end
 @end smallexample
 
-@table @code
+@c man begin OPTIONS
+
+@table @gcctabopt
 @item -a[cdhlmns]
 Turn on listings, in any of a variety of ways:
 
-@table @code
+@table @gcctabopt
 @item -ac
 omit false conditionals
 
@@ -369,8 +505,24 @@ Keep (in the symbol table) local symbols.  On traditional a.out systems
 these start with @samp{L}, but different systems have different local
 label prefixes.
 
+@item --listing-lhs-width=@var{number}
+Set the maximum width, in words, of the output data column for an assembler
+listing to @var{number}.
+
+@item --listing-lhs-width2=@var{number}
+Set the maximum width, in words, of the output data column for continuation
+lines in an assembler listing to @var{number}.
+
+@item --listing-rhs-width=@var{number}
+Set the maximum width of an input source line, as displayed in a listing, to
+@var{number} bytes.
+
+@item --listing-cont-lines=@var{number}
+Set the maximum number of lines printed in a listing for a single line of input
+to @var{number} + 1.
+
 @item -o @var{objfile}
-Name the object-file output from @code{@value{AS}} @var{objfile}.
+Name the object-file output from @command{@value{AS}} @var{objfile}.
 
 @item -R
 Fold the data section into the text section.
@@ -384,10 +536,10 @@ Remove local absolute symbols from the outgoing symbol table.
 
 @item -v
 @itemx -version
-Print the @code{as} version.
+Print the @command{as} version.
 
 @item --version
-Print the @code{as} version and exit.
+Print the @command{as} version and exit.
 
 @item -W
 @itemx --no-warn
@@ -417,7 +569,7 @@ Standard input, or source files to assemble.
 The following options are available when @value{AS} is configured for
 an ARC processor.
 
-@table @code
+@table @gcctabopt
 @item -marc[5|6|7|8]
 This option selects the core processor variant.
 @item -EB | -EL
@@ -429,15 +581,15 @@ Select either big-endian (-EB) or little-endian (-EL) output.
 The following options are available when @value{AS} is configured for the ARM
 processor family.
 
-@table @code
-@item -m[arm][1|2|3|6|7|8|9][...] 
+@table @gcctabopt
+@item -mcpu=@var{processor}[+@var{extension}@dots{}]
 Specify which ARM processor variant is the target.
-@item -m[arm]v[2|2a|3|3m|4|4t|5|5t]
+@item -march=@var{architecture}[+@var{extension}@dots{}]
 Specify which ARM architecture variant is used by the target.
-@item -mthumb | -mall
-Enable or disable Thumb only instruction decoding.
-@item -mfpa10 | -mfpa11 | -mfpe-old | -mno-fpu
+@item -mfpu=@var{floating-point-format}
 Select which Floating Point architecture is the target.
+@item -mthumb
+Enable Thumb only instruction decoding.
 @item -mapcs-32 | -mapcs-26 | -mapcs-float | -mapcs-reentrant | -moabi
 Select which procedure calling convention is in use.
 @item -EB | -EL
@@ -450,10 +602,14 @@ Specify that PIC code has been generated.
 @end table
 @end ifset
 
+@ifset CRIS
+See the info pages for documentation of the CRIS-specific options.
+@end ifset
+
 @ifset D10V
 The following options are available when @value{AS} is configured for
 a D10V processor.
-@table @code
+@table @gcctabopt
 @cindex D10V optimization
 @cindex optimization, D10V
 @item -O
@@ -464,7 +620,7 @@ Optimize output by parallelizing instructions.
 @ifset D30V
 The following options are available when @value{AS} is configured for a D30V
 processor.
-@table @code
+@table @gcctabopt
 @cindex D30V optimization
 @cindex optimization, D30V
 @item -O
@@ -484,7 +640,7 @@ Warn when a nop after a 32-bit multiply instruction is generated.
 The following options are available when @value{AS} is configured for the
 Intel 80960 processor.
 
-@table @code
+@table @gcctabopt
 @item -ACA | -ACA_A | -ACB | -ACC | -AKA | -AKB | -AKC | -AMC
 Specify which variant of the 960 architecture is the target.
 
@@ -502,7 +658,7 @@ error if necessary.
 The following options are available when @value{AS} is configured for the
 Mitsubishi M32R series.
 
-@table @code
+@table @gcctabopt
 
 @item --m32rx
 Specify which processor in the M32R family is the target.  The default
@@ -523,13 +679,14 @@ encountered.
 The following options are available when @value{AS} is configured for the
 Motorola 68000 series.
 
-@table @code
+@table @gcctabopt
 
 @item -l
 Shorten references to undefined symbols, to one word instead of two.
 
-@item -m68000 | -m68008 | -m68010 | -m68020 | -m68030 | -m68040 | -m68060
-@itemx | -m68302 | -m68331 | -m68332 | -m68333 | -m68340 | -mcpu32 | -m5200
+@item -m68000 | -m68008 | -m68010 | -m68020 | -m68030
+@itemx | -m68040 | -m68060 | -m68302 | -m68331 | -m68332
+@itemx | -m68333 | -m68340 | -mcpu32 | -m5200
 Specify what processor in the 68000 family is the target.  The default
 is normally the 68020, but this can be changed at configuration time.
 
@@ -547,11 +704,42 @@ unit coprocessor.  The default is to assume an MMU for 68020 and up.
 @end table
 @end ifset
 
+@ifset PDP11
+
+For details about the PDP-11 machine dependent features options,
+see @ref{PDP-11-Options}.
+
+@table @gcctabopt
+@item -mpic | -mno-pic
+Generate position-independent (or position-dependent) code.  The
+default is @option{-mpic}.
+
+@item -mall
+@itemx -mall-extensions
+Enable all instruction set extensions.  This is the default.
+
+@item -mno-extensions
+Disable all instruction set extensions.
+
+@item -m@var{extension} | -mno-@var{extension}
+Enable (or disable) a particular instruction set extension.
+
+@item -m@var{cpu}
+Enable the instruction set extensions supported by a particular CPU, and
+disable all other extensions.
+
+@item -m@var{machine}
+Enable the instruction set extensions supported by a particular machine
+model, and disable all other extensions.
+@end table
+
+@end ifset
+
 @ifset PJ
 The following options are available when @value{AS} is configured for
 a picoJava processor.
 
-@table @code
+@table @gcctabopt
 
 @cindex PJ endianness
 @cindex endianness, PJ
@@ -570,7 +758,7 @@ Generate ``little endian'' format output.
 The following options are available when @value{AS} is configured for the
 Motorola 68HC11 or 68HC12 series.
 
-@table @code
+@table @gcctabopt
 
 @item -m68hc11 | -m68hc12
 Specify what processor is the target.  The default is
@@ -597,16 +785,16 @@ print the list of instructions with syntax and then exit.
 
 @item --generate-example
 print an example of instruction for each possible instruction and then exit.
-This option is only useful for testing @code{@value{AS}}.
+This option is only useful for testing @command{@value{AS}}.
 
 @end table
 @end ifset
 
 @ifset SPARC
-The following options are available when @code{@value{AS}} is configured
+The following options are available when @command{@value{AS}} is configured
 for the SPARC architecture:
 
-@table @code
+@table @gcctabopt
 @item -Av6 | -Av7 | -Av8 | -Asparclet | -Asparclite
 @itemx -Av8plus | -Av8plusa | -Av9 | -Av9a
 Explicitly select a variant of the SPARC architecture.
@@ -630,7 +818,7 @@ Warn when the assembler switches to another architecture.
 The following options are available when @value{AS} is configured for the 'c54x
 architecture. 
 
-@table @code
+@table @gcctabopt
 @item -mfar-mode
 Enable extended addressing mode.  All addresses and relocations will assume
 extended addressing (usually 23 bits).
@@ -646,7 +834,7 @@ behaviour in the shell.
 The following options are available when @value{AS} is configured for
 a MIPS processor.
 
-@table @code
+@table @gcctabopt
 @item -G @var{num}
 This option sets the largest size of an object that can be referenced
 implicitly with the @code{gp} register.  It is only accepted for targets that
@@ -668,6 +856,7 @@ Generate ``little endian'' format output.
 @itemx -mips3
 @itemx -mips4
 @itemx -mips32
+@itemx -mips64
 Generate code for a particular MIPS Instruction Set Architecture level.
 @samp{-mips1} corresponds to the @sc{r2000} and @sc{r3000} processors,
 @samp{-mips2} to the @sc{r6000} processor, and @samp{-mips3} to the @sc{r4000}
@@ -690,7 +879,7 @@ understood.
 
 @cindex emulation
 @item --emulation=@var{name}
-This option causes @code{@value{AS}} to emulate @code{@value{AS}} configured
+This option causes @command{@value{AS}} to emulate @command{@value{AS}} configured
 for some other target, in all respects, including output format (choosing
 between ELF and ECOFF only), handling of pseudo-opcodes which may generate
 debugging information or store symbol table information, and default
@@ -703,7 +892,7 @@ in the name.  Using @samp{-EB} or @samp{-EL} will override the endianness
 selection in any case.
 
 This option is currently supported only when the primary target
-@code{@value{AS}} is configured for is a MIPS ELF or ECOFF target.
+@command{@value{AS}} is configured for is a MIPS ELF or ECOFF target.
 Furthermore, the primary target or others specified with
 @samp{--enable-targets=@dots{}} at configuration time must include support for
 the other format, if both are to be available.  For example, the Irix 5
@@ -714,7 +903,7 @@ fine-grained control over the assembler's behavior, and will be supported for
 more processors.
 
 @item -nocpp
-@code{@value{AS}} ignores this option.  It is accepted for compatibility with
+@command{@value{AS}} ignores this option.  It is accepted for compatibility with
 the native tools.
 
 @need 900
@@ -727,6 +916,10 @@ Control how to deal with multiplication overflow and division by zero.
 (and only work for Instruction Set Architecture level 2 and higher);
 @samp{--break} or @samp{--no-trap} (also synonyms, and the default) take a
 break exception.
+
+@item -n
+When this option is used, @command{@value{AS}} will issue a warning every
+time it generates a nop instruction from a macro.
 @end table
 @end ifset
 
@@ -734,7 +927,7 @@ break exception.
 The following options are available when @value{AS} is configured for
 an MCore processor.
 
-@table @code
+@table @gcctabopt
 @item -jsri2bsr
 @itemx -nojsri2bsr
 Enable or disable the JSRI to BSR transformation.  By default this is enabled.
@@ -761,6 +954,12 @@ Assemble for a little endian target.
 @end table
 @end ifset
 
+@ifset MMIX
+See the info pages for documentation of the MMIX-specific options.
+@end ifset
+
+@c man end
+
 @menu
 * Manual::                      Structure of this Manual
 * GNU Assembler::               The GNU Assembler
@@ -776,13 +975,13 @@ Assemble for a little endian target.
 
 @cindex manual, structure and purpose
 This manual is intended to describe what you need to know to use
-@sc{gnu} @code{@value{AS}}.  We cover the syntax expected in source files, including
+@sc{gnu} @command{@value{AS}}.  We cover the syntax expected in source files, including
 notation for symbols, constants, and expressions; the directives that
-@code{@value{AS}} understands; and of course how to invoke @code{@value{AS}}.
+@command{@value{AS}} understands; and of course how to invoke @command{@value{AS}}.
 
 @ifclear GENERIC
 We also cover special features in the @value{TARGET}
-configuration of @code{@value{AS}}, including assembler directives.
+configuration of @command{@value{AS}}, including assembler directives.
 @end ifclear
 @ifset GENERIC
 This manual also describes some of the machine-dependent features of
@@ -828,10 +1027,10 @@ computer (in particular, the kinds of computers that @sc{gnu} can run on);
 once this assumption is granted examples and definitions need less
 qualification.
 
-@code{@value{AS}} is part of a team of programs that turn a high-level
+@command{@value{AS}} is part of a team of programs that turn a high-level
 human-readable series of instructions into a low-level
 computer-readable series of instructions.  Different versions of
-@code{@value{AS}} are used for different kinds of computer.
+@command{@value{AS}} are used for different kinds of computer.
 @end ignore
 
 @c There used to be a section "Terminology" here, which defined
@@ -846,9 +1045,11 @@ computer-readable series of instructions.  Different versions of
 @node GNU Assembler
 @section The GNU Assembler
 
-@sc{gnu} @code{as} is really a family of assemblers.
+@c man begin DESCRIPTION
+
+@sc{gnu} @command{as} is really a family of assemblers.
 @ifclear GENERIC
-This manual describes @code{@value{AS}}, a member of that family which is
+This manual describes @command{@value{AS}}, a member of that family which is
 configured for the @value{TARGET} architectures.
 @end ifclear
 If you use (or have used) the @sc{gnu} assembler on one architecture, you
@@ -858,9 +1059,9 @@ including object file formats, most assembler directives (often called
 @dfn{pseudo-ops}) and assembler syntax.@refill
 
 @cindex purpose of @sc{gnu} assembler
-@code{@value{AS}} is primarily intended to assemble the output of the
+@command{@value{AS}} is primarily intended to assemble the output of the
 @sc{gnu} C compiler @code{@value{GCC}} for use by the linker
-@code{@value{LD}}.  Nevertheless, we've tried to make @code{@value{AS}}
+@code{@value{LD}}.  Nevertheless, we've tried to make @command{@value{AS}}
 assemble correctly everything that other assemblers for the same
 machine would assemble.
 @ifset VAX
@@ -869,12 +1070,14 @@ Any exceptions are documented explicitly (@pxref{Machine Dependencies}).
 @ifset M680X0
 @c This remark should appear in generic version of manual; assumption
 @c here is that generic version sets M680x0.
-This doesn't mean @code{@value{AS}} always uses the same syntax as another
+This doesn't mean @command{@value{AS}} always uses the same syntax as another
 assembler for the same architecture; for example, we know of several
 incompatible versions of 680x0 assembly language syntax.
 @end ifset
 
-Unlike older assemblers, @code{@value{AS}} is designed to assemble a source
+@c man end
+
+Unlike older assemblers, @command{@value{AS}} is designed to assemble a source
 program in one pass of the source file.  This has a subtle impact on the
 @kbd{.org} directive (@pxref{Org,,@code{.org}}).
 
@@ -889,20 +1092,20 @@ are typically different in different file formats.  @xref{Symbol
 Attributes,,Symbol Attributes}.
 @ifclear GENERIC
 @ifclear MULTI-OBJ
-On the @value{TARGET}, @code{@value{AS}} is configured to produce
+On the @value{TARGET}, @command{@value{AS}} is configured to produce
 @value{OBJ-NAME} format object files.
 @end ifclear
 @c The following should exhaust all configs that set MULTI-OBJ, ideally
 @ifset A29K
-On the @value{TARGET}, @code{@value{AS}} can be configured to produce either
+On the @value{TARGET}, @command{@value{AS}} can be configured to produce either
 @code{a.out} or COFF format object files.
 @end ifset
 @ifset I960
-On the @value{TARGET}, @code{@value{AS}} can be configured to produce either
+On the @value{TARGET}, @command{@value{AS}} can be configured to produce either
 @code{b.out} or COFF format object files.
 @end ifset
 @ifset HPPA
-On the @value{TARGET}, @code{@value{AS}} can be configured to produce either
+On the @value{TARGET}, @command{@value{AS}} can be configured to produce either
 SOM or ELF format object files.
 @end ifset
 @end ifclear
@@ -911,7 +1114,8 @@ SOM or ELF format object files.
 @section Command Line
 
 @cindex command line conventions
-After the program name @code{@value{AS}}, the command line may contain
+
+After the program name @command{@value{AS}}, the command line may contain
 options and file names.  Options may appear in any order, and may be
 before, after, or between file names.  The order of file names is
 significant.
@@ -919,12 +1123,12 @@ significant.
 @cindex standard input, as input file
 @kindex --
 @file{--} (two hyphens) by itself names the standard input file
-explicitly, as one of the files for @code{@value{AS}} to assemble.
+explicitly, as one of the files for @command{@value{AS}} to assemble.
 
 @cindex options, command line
 Except for @samp{--} any command line argument that begins with a
 hyphen (@samp{-}) is an option.  Each option changes the behavior of
-@code{@value{AS}}.  No option changes the way another option works.  An
+@command{@value{AS}}.  No option changes the way another option works.  An
 option is a @samp{-} followed by one or more letters; the case of
 the letter is important.   All options are optional.
 
@@ -945,7 +1149,7 @@ standard).  These two command lines are equivalent:
 @cindex source program
 @cindex files, input
 We use the phrase @dfn{source program}, abbreviated @dfn{source}, to
-describe the program input to one run of @code{@value{AS}}.  The program may
+describe the program input to one run of @command{@value{AS}}.  The program may
 be in one or more files; how the source is partitioned into files
 doesn't change the meaning of the source.
 
@@ -954,25 +1158,28 @@ doesn't change the meaning of the source.
 The source program is a concatenation of the text in all the files, in the
 order specified.
 
-Each time you run @code{@value{AS}} it assembles exactly one source
+@c man begin DESCRIPTION
+Each time you run @command{@value{AS}} it assembles exactly one source
 program.  The source program is made up of one or more files.
 (The standard input is also a file.)
 
-You give @code{@value{AS}} a command line that has zero or more input file
+You give @command{@value{AS}} a command line that has zero or more input file
 names.  The input files are read (from left file name to right).  A
 command line argument (in any position) that has no special meaning
 is taken to be an input file name.
 
-If you give @code{@value{AS}} no file names it attempts to read one input file
-from the @code{@value{AS}} standard input, which is normally your terminal.  You
-may have to type @key{ctl-D} to tell @code{@value{AS}} there is no more program
+If you give @command{@value{AS}} no file names it attempts to read one input file
+from the @command{@value{AS}} standard input, which is normally your terminal.  You
+may have to type @key{ctl-D} to tell @command{@value{AS}} there is no more program
 to assemble.
 
 Use @samp{--} if you need to explicitly name the standard input file
 in your command line.
 
-If the source is empty, @code{@value{AS}} produces a small, empty object
+If the source is empty, @command{@value{AS}} produces a small, empty object
 file.
+
+@c man end
 
 @subheading Filenames and Line-numbers
 
@@ -984,12 +1191,12 @@ number in a physical file; the other refers to a line number in a
 ``logical'' file.  @xref{Errors, ,Error and Warning Messages}.
 
 @dfn{Physical files} are those files named in the command line given
-to @code{@value{AS}}.
+to @command{@value{AS}}.
 
 @dfn{Logical files} are simply names declared explicitly by assembler
 directives; they bear no relation to physical files.  Logical file names help
-error messages reflect the original source file, when @code{@value{AS}} source
-is itself synthesized from other files.  @code{@value{AS}} understands the
+error messages reflect the original source file, when @command{@value{AS}} source
+is itself synthesized from other files.  @command{@value{AS}} understands the
 @samp{#} directives emitted by the @code{@value{GCC}} preprocessor.  See also
 @ref{File,,@code{.file}}.
 
@@ -1000,7 +1207,7 @@ is itself synthesized from other files.  @code{@value{AS}} understands the
 @cindex output file
 @kindex a.out
 @kindex .o
-Every time you run @code{@value{AS}} it produces an output file, which is
+Every time you run @command{@value{AS}} it produces an output file, which is
 your assembly language program translated into numbers.  This file
 is the object file.  Its default name is
 @ifclear BOUT
@@ -1010,9 +1217,9 @@ is the object file.  Its default name is
 @ifset GENERIC
 @code{a.out}, or 
 @end ifset
-@code{b.out} when @code{@value{AS}} is configured for the Intel 80960.
+@code{b.out} when @command{@value{AS}} is configured for the Intel 80960.
 @end ifset
-You can give it another name by using the @code{-o} option.  Conventionally,
+You can give it another name by using the @option{-o} option.  Conventionally,
 object file names end with @file{.o}.  The default name is used for historical
 reasons: older assemblers were capable of assembling self-contained programs
 directly into a runnable program.  (For some formats, this isn't currently
@@ -1031,14 +1238,18 @@ information for the debugger.
 @node Errors
 @section Error and Warning Messages
 
+@c man begin DESCRIPTION
+
 @cindex error messages
 @cindex warning messages
 @cindex messages from assembler
-@code{@value{AS}} may write warnings and error messages to the standard error
+@command{@value{AS}} may write warnings and error messages to the standard error
 file (usually your terminal).  This should not happen when  a compiler
-runs @code{@value{AS}} automatically.  Warnings report an assumption made so
-that @code{@value{AS}} could keep assembling a flawed program; errors report a
+runs @command{@value{AS}} automatically.  Warnings report an assumption made so
+that @command{@value{AS}} could keep assembling a flawed program; errors report a
 grave problem that stops the assembly.
+
+@c man end
 
 @cindex format of warning messages
 Warning messages have the format
@@ -1090,7 +1301,9 @@ to the @value{TARGET}.
 to particular machine architectures.
 @end ifset
 
-If you are invoking @code{@value{AS}} via the @sc{gnu} C compiler (version 2),
+@c man begin DESCRIPTION
+
+If you are invoking @command{@value{AS}} via the @sc{gnu} C compiler (version 2),
 you can use the @samp{-Wa} option to pass arguments through to the assembler.
 The assembler arguments must be separated from each other (and the @samp{-Wa})
 by commas.  For example:
@@ -1110,6 +1323,8 @@ command-line options are automatically passed to the assembler by the compiler.
 precisely what options it passes to each compilation pass, including the
 assembler.)
 
+@c man end
+
 @menu
 * a::             -a[cdhlns] enable listings
 * D::             -D for compatibility
@@ -1123,6 +1338,7 @@ assembler.)
 @end ifset
 
 * L::             -L to retain local labels
+* listing::       --listing-XXX to configure listing output
 * M::		  -M or --mri to assemble in MRI compatibility mode
 * MD::            --MD for dependency tracking
 * o::             -o to name the object file
@@ -1135,7 +1351,7 @@ assembler.)
 @end menu
 
 @node a
-@section Enable Listings: @code{-a[cdhlns]}
+@section Enable Listings: @option{-a[cdhlns]}
 
 @kindex -a
 @kindex -ac
@@ -1176,20 +1392,27 @@ listing-control directives have no effect.
 The letters after @samp{-a} may be combined into one option,
 @emph{e.g.}, @samp{-aln}.
 
+Note if the assembler source is coming from the standard input (eg because it
+is being created by @code{@value{GCC}} and the @samp{-pipe} command line switch
+is being used) then the listing will not contain any comments or preprocessor
+directives.  This is because the listing code buffers input source lines from
+stdin only after they have been preprocessed by the assembler.  This reduces
+memory usage and makes the code more efficient.
+
 @node D
-@section @code{-D}
+@section @option{-D}
 
 @kindex -D
 This option has no effect whatsoever, but it is accepted to make it more
 likely that scripts written for other assemblers also work with
-@code{@value{AS}}.
+@command{@value{AS}}.
 
 @node f
-@section Work Faster: @code{-f}
+@section Work Faster: @option{-f}
 
 @kindex -f
 @cindex trusted compiler
-@cindex faster processing (@code{-f})
+@cindex faster processing (@option{-f})
 @samp{-f} should only be used when assembling programs written by a
 (trusted) compiler.  @samp{-f} stops the assembler from doing whitespace
 and comment preprocessing on
@@ -1198,27 +1421,27 @@ the input file(s) before assembling them.  @xref{Preprocessing,
 
 @quotation
 @emph{Warning:} if you use @samp{-f} when the files actually need to be
-preprocessed (if they contain comments, for example), @code{@value{AS}} does
+preprocessed (if they contain comments, for example), @command{@value{AS}} does
 not work correctly.
 @end quotation
 
 @node I
-@section @code{.include} search path: @code{-I} @var{path}
+@section @code{.include} search path: @option{-I} @var{path}
 
 @kindex -I @var{path}
 @cindex paths for @code{.include}
 @cindex search path for @code{.include}
 @cindex @code{include} directive search path
 Use this option to add a @var{path} to the list of directories
-@code{@value{AS}} searches for files specified in @code{.include}
-directives (@pxref{Include,,@code{.include}}).  You may use @code{-I} as
+@command{@value{AS}} searches for files specified in @code{.include}
+directives (@pxref{Include,,@code{.include}}).  You may use @option{-I} as
 many times as necessary to include a variety of paths.  The current
-working directory is always searched first; after that, @code{@value{AS}}
+working directory is always searched first; after that, @command{@value{AS}}
 searches any @samp{-I} directories in the same order as they were
 specified (left to right) on the command line.
 
 @node K
-@section Difference Tables: @code{-K}
+@section Difference Tables: @option{-K}
 
 @kindex -K
 @ifclear DIFF-TBL-KLUGE
@@ -1233,14 +1456,14 @@ alteration on other platforms.
 @ifset DIFF-TBL-KLUGE
 @cindex difference tables, warning
 @cindex warning for altered difference tables
-@code{@value{AS}} sometimes alters the code emitted for directives of the form
+@command{@value{AS}} sometimes alters the code emitted for directives of the form
 @samp{.word @var{sym1}-@var{sym2}}; @pxref{Word,,@code{.word}}.
 You can use the @samp{-K} option if you want a warning issued when this
 is done.
 @end ifset
 
 @node L
-@section Include Local Labels: @code{-L}
+@section Include Local Labels: @option{-L}
 
 @kindex -L
 @cindex local labels, retaining in output
@@ -1248,10 +1471,10 @@ Labels beginning with @samp{L} (upper case only) are called @dfn{local
 labels}. @xref{Symbol Names}.  Normally you do not see such labels when
 debugging, because they are intended for the use of programs (like
 compilers) that compose assembler programs, not for your notice.
-Normally both @code{@value{AS}} and @code{@value{LD}} discard such labels, so you do not
+Normally both @command{@value{AS}} and @code{@value{LD}} discard such labels, so you do not
 normally debug with them.
 
-This option tells @code{@value{AS}} to retain those @samp{L@dots{}} symbols
+This option tells @command{@value{AS}} to retain those @samp{L@dots{}} symbols
 in the object file.  Usually if you do this you also tell the linker
 @code{@value{LD}} to preserve symbols whose names begin with @samp{L}.
 
@@ -1261,19 +1484,58 @@ target is allowed to redefine the local label prefix.
 On the HPPA local labels begin with @samp{L$}.
 @end ifset
 
+@node listing
+@section Configuring listing output: @option{--listing}
+
+The listing feature of the assembler can be enabled via the command line switch
+@samp{-a} (@pxref{a}).  This feature combines the input source file(s) with a
+hex dump of the corresponding locations in the output object file, and displays
+them as a listing file.  The format of this listing can be controlled by pseudo
+ops inside the assembler source (@pxref{List} @pxref{Title} @pxref{Sbttl}
+@pxref{Psize} @pxref{Eject}) and also by the following switches:
+
+@table @gcctabopt
+@item --listing-lhs-width=@samp{number}
+@kindex --listing-lhs-width
+@cindex Width of first line disassembly output
+Sets the maximum width, in words, of the first line of the hex byte dump.  This
+dump appears on the left hand side of the listing output.
+
+@item --listing-lhs-width2=@samp{number}
+@kindex --listing-lhs-width2
+@cindex Width of continuation lines of disassembly output
+Sets the maximum width, in words, of any further lines of the hex byte dump for
+a given inut source line.  If this value is not specified, it defaults to being
+the same as the value specified for @samp{--listing-lhs-width}.  If neither
+switch is used the default is to one.
+
+@item --listing-rhs-width=@samp{number}
+@kindex --listing-rhs-width
+@cindex Width of source line output
+Sets the maximum width, in characters, of the source line that is displayed
+alongside the hex dump.  The default value for this parameter is 100.  The
+source line is displayed on the right hand side of the listing output.
+
+@item --listing-cont-lines=@samp{number}
+@kindex --listing-cont-lines
+@cindex Maximum number of continuation lines
+Sets the maximum number of continuation lines of hex dump that will be
+displayed for a given single line of source input.  The default value is 4.
+@end table
+
 @node M
-@section Assemble in MRI Compatibility Mode: @code{-M}
+@section Assemble in MRI Compatibility Mode: @option{-M}
 
 @kindex -M
 @cindex MRI compatibility mode
-The @code{-M} or @code{--mri} option selects MRI compatibility mode.  This
-changes the syntax and pseudo-op handling of @code{@value{AS}} to make it
+The @option{-M} or @option{--mri} option selects MRI compatibility mode.  This
+changes the syntax and pseudo-op handling of @command{@value{AS}} to make it
 compatible with the @code{ASM68K} or the @code{ASM960} (depending upon the
 configured target) assembler from Microtec Research.  The exact nature of the
 MRI syntax will not be documented here; see the MRI manuals for more
 information.  Note in particular that the handling of macros and macro
 arguments is somewhat different.  The purpose of this option is to permit
-assembling existing MRI assembler code using @code{@value{AS}}.
+assembling existing MRI assembler code using @command{@value{AS}}.
 
 The MRI compatibility is not complete.  Certain operations of the MRI assembler
 depend upon its object file format, and can not be supported using other object
@@ -1284,7 +1546,7 @@ individually.  These are:
 @item global symbols in common section
 
 The m68k MRI assembler supports common sections which are merged by the linker.
-Other object file formats do not support this.  @code{@value{AS}} handles
+Other object file formats do not support this.  @command{@value{AS}} handles
 common sections by treating them as a single common symbol.  It permits local
 symbols to be defined within a common section, but it can not support global
 symbols, since it has no way to describe them.
@@ -1299,7 +1561,7 @@ are not support by other object file formats.
 
 The MRI @code{END} pseudo-op permits the specification of a start address.
 This is not supported by other object file formats.  The start address may
-instead be specified using the @code{-e} option to the linker, or in a linker
+instead be specified using the @option{-e} option to the linker, or in a linker
 script.
 
 @item @code{IDNT}, @code{.ident} and @code{NAME} pseudo-ops
@@ -1310,14 +1572,14 @@ name to the output file.  This is not supported by other object file formats.
 @item @code{ORG} pseudo-op
 
 The m68k MRI @code{ORG} pseudo-op begins an absolute section at a given
-address.  This differs from the usual @code{@value{AS}} @code{.org} pseudo-op,
+address.  This differs from the usual @command{@value{AS}} @code{.org} pseudo-op,
 which changes the location within the current section.  Absolute sections are
 not supported by other object file formats.  The address of a section may be
 assigned within a linker script.
 @end itemize
 
 There are some other features of the MRI assembler which are not supported by
-@code{@value{AS}}, typically either because they are difficult or because they
+@command{@value{AS}}, typically either because they are difficult or because they
 seem of little consequence.  Some of these may be supported in future releases.
 
 @itemize @bullet
@@ -1342,7 +1604,7 @@ The m68k @code{NOOBJ} pseudo-op is not supported.
 @item @code{OPT} branch control options
 
 The m68k @code{OPT} branch control options---@code{B}, @code{BRS}, @code{BRB},
-@code{BRL}, and @code{BRW}---are ignored.  @code{@value{AS}} automatically
+@code{BRL}, and @code{BRW}---are ignored.  @command{@value{AS}} automatically
 relaxes all branches, whether forward or backward, to an appropriate size, so
 these options serve no purpose.
 
@@ -1393,13 +1655,13 @@ The i960 @code{.setreal} pseudo-op is not supported.
 @end itemize
 
 @node MD
-@section Dependency tracking: @code{--MD}
+@section Dependency tracking: @option{--MD}
 
 @kindex --MD
 @cindex dependency tracking
 @cindex make rules
 
-@code{@value{AS}} can generate a dependency file for the file it creates.  This
+@command{@value{AS}} can generate a dependency file for the file it creates.  This
 file consists of a single rule suitable for @code{make} describing the
 dependencies of the main source file.
 
@@ -1408,12 +1670,12 @@ The rule is written to the file named in its argument.
 This feature is used in the automatic updating of makefiles.
 
 @node o
-@section Name the Object File: @code{-o}
+@section Name the Object File: @option{-o}
 
 @kindex -o
 @cindex naming object file
 @cindex object file name
-There is always one object file output when you run @code{@value{AS}}.  By
+There is always one object file output when you run @command{@value{AS}}.  By
 default it has the name
 @ifset GENERIC
 @ifset I960
@@ -1434,65 +1696,65 @@ default it has the name
 You use this option (which takes exactly one filename) to give the
 object file a different name.
 
-Whatever the object file is called, @code{@value{AS}} overwrites any
+Whatever the object file is called, @command{@value{AS}} overwrites any
 existing file of the same name.
 
 @node R
-@section Join Data and Text Sections: @code{-R}
+@section Join Data and Text Sections: @option{-R}
 
 @kindex -R
 @cindex data and text sections, joining
 @cindex text and data sections, joining
 @cindex joining text and data sections
 @cindex merging text and data sections
-@code{-R} tells @code{@value{AS}} to write the object file as if all
+@option{-R} tells @command{@value{AS}} to write the object file as if all
 data-section data lives in the text section.  This is only done at
 the very last moment:  your binary data are the same, but data
 section parts are relocated differently.  The data section part of
 your object file is zero bytes long because all its bytes are
 appended to the text section.  (@xref{Sections,,Sections and Relocation}.)
 
-When you specify @code{-R} it would be possible to generate shorter
+When you specify @option{-R} it would be possible to generate shorter
 address displacements (because we do not have to cross between text and
 data section).  We refrain from doing this simply for compatibility with
-older versions of @code{@value{AS}}.  In future, @code{-R} may work this way.
+older versions of @command{@value{AS}}.  In future, @option{-R} may work this way.
 
 @ifset COFF
-When @code{@value{AS}} is configured for COFF output,
+When @command{@value{AS}} is configured for COFF output,
 this option is only useful if you use sections named @samp{.text} and
 @samp{.data}.
 @end ifset
 
 @ifset HPPA
-@code{-R} is not supported for any of the HPPA targets.  Using
-@code{-R} generates a warning from @code{@value{AS}}.
+@option{-R} is not supported for any of the HPPA targets.  Using
+@option{-R} generates a warning from @command{@value{AS}}.
 @end ifset
 
 @node statistics
-@section Display Assembly Statistics: @code{--statistics}
+@section Display Assembly Statistics: @option{--statistics}
 
 @kindex --statistics
 @cindex statistics, about assembly
 @cindex time, total for assembly
 @cindex space used, maximum for assembly
 Use @samp{--statistics} to display two statistics about the resources used by
-@code{@value{AS}}: the maximum amount of space allocated during the assembly
+@command{@value{AS}}: the maximum amount of space allocated during the assembly
 (in bytes), and the total execution time taken for the assembly (in @sc{cpu}
 seconds).
 
 @node traditional-format
-@section Compatible output: @code{--traditional-format}
+@section Compatible output: @option{--traditional-format}
 
 @kindex --traditional-format
-For some targets, the output of @code{@value{AS}} is different in some ways
+For some targets, the output of @command{@value{AS}} is different in some ways
 from the output of some existing assembler.  This switch requests
-@code{@value{AS}} to use the traditional format instead.
+@command{@value{AS}} to use the traditional format instead.
 
 For example, it disables the exception frame optimizations which
-@code{@value{AS}} normally does by default on @code{@value{GCC}} output.
+@command{@value{AS}} normally does by default on @code{@value{GCC}} output.
 
 @node v
-@section Announce Version: @code{-v}
+@section Announce Version: @option{-v}
 
 @kindex -v
 @kindex -version
@@ -1503,41 +1765,41 @@ option @samp{-v} (which you can also spell as @samp{-version}) on the
 command line.
 
 @node W
-@section Control Warnings: @code{-W}, @code{--warn}, @code{--no-warn}, @code{--fatal-warnings}
+@section Control Warnings: @option{-W}, @option{--warn}, @option{--no-warn}, @option{--fatal-warnings}
 
-@code{@value{AS}} should never give a warning or error message when
+@command{@value{AS}} should never give a warning or error message when
 assembling compiler output.  But programs written by people often
-cause @code{@value{AS}} to give a warning that a particular assumption was
+cause @command{@value{AS}} to give a warning that a particular assumption was
 made.  All such warnings are directed to the standard error file.
 
 @kindex @samp{-W}
 @kindex @samp{--no-warn}
 @cindex suppressing warnings
 @cindex warnings, suppressing
-If you use the @code{-W} and @code{--no-warn} options, no warnings are issued.
+If you use the @option{-W} and @option{--no-warn} options, no warnings are issued.
 This only affects the warning messages: it does not change any particular of
-how @code{@value{AS}} assembles your file.  Errors, which stop the assembly,
+how @command{@value{AS}} assembles your file.  Errors, which stop the assembly,
 are still reported.
 
 @kindex @samp{--fatal-warnings}
 @cindex errors, caused by warnings
 @cindex warnings, causing error
-If you use the @code{--fatal-warnings} option, @code{@value{AS}} considers
+If you use the @option{--fatal-warnings} option, @command{@value{AS}} considers
 files that generate warnings to be in error.
 
 @kindex @samp{--warn}
 @cindex warnings, switching on
-You can switch these options off again by specifying @code{--warn}, which
+You can switch these options off again by specifying @option{--warn}, which
 causes warnings to be output as usual.
 
 @node Z
-@section Generate Object File in Spite of Errors: @code{-Z}
+@section Generate Object File in Spite of Errors: @option{-Z}
 @cindex object file, after errors
 @cindex errors, continuing after
-After an error message, @code{@value{AS}} normally produces no output.  If for
+After an error message, @command{@value{AS}} normally produces no output.  If for
 some reason you are interested in object file output even after
-@code{@value{AS}} gives an error message on your program, use the @samp{-Z}
-option.  If there are any errors, @code{@value{AS}} continues anyways, and
+@command{@value{AS}} gives an error message on your program, use the @samp{-Z}
+option.  If there are any errors, @command{@value{AS}} continues anyways, and
 writes an object file after a final warning message of the form @samp{@var{n}
 errors, @var{m} warnings, generating bad object file.}
 
@@ -1547,13 +1809,13 @@ errors, @var{m} warnings, generating bad object file.}
 @cindex machine-independent syntax
 @cindex syntax, machine-independent
 This chapter describes the machine-independent syntax allowed in a
-source file.  @code{@value{AS}} syntax is similar to what many other
+source file.  @command{@value{AS}} syntax is similar to what many other
 assemblers use; it is inspired by the BSD 4.2
 @ifclear VAX
 assembler.
 @end ifclear
 @ifset VAX
-assembler, except that @code{@value{AS}} does not assemble Vax bit-fields.
+assembler, except that @command{@value{AS}} does not assemble Vax bit-fields.
 @end ifset
 
 @menu
@@ -1569,7 +1831,7 @@ assembler, except that @code{@value{AS}} does not assemble Vax bit-fields.
 @section Preprocessing
 
 @cindex preprocessing
-The @code{@value{AS}} internal preprocessor:
+The @command{@value{AS}} internal preprocessor:
 @itemize @bullet
 @cindex whitespace, removed by preprocessor
 @item
@@ -1626,7 +1888,7 @@ as exactly one space.
 @section Comments
 
 @cindex comments
-There are two ways of rendering comments to @code{@value{AS}}.  In both
+There are two ways of rendering comments to @command{@value{AS}}.  In both
 cases the comment is equivalent to one space.
 
 Anything from @samp{/*} through the next @samp{*/} is a comment.
@@ -1668,8 +1930,14 @@ is considered a comment and is ignored.  The line comment character is
 @ifset I960
 @samp{#} on the i960;
 @end ifset
+@ifset PDP11
+@samp{;} for the PDP-11;
+@end ifset
 @ifset PJ
 @samp{;} for picoJava;
+@end ifset
+@ifset PPC
+@samp{;} for Motorola PowerPC;
 @end ifset
 @ifset SH
 @samp{!} for the Hitachi SH;
@@ -1686,6 +1954,9 @@ is considered a comment and is ignored.  The line comment character is
 @ifset M68HC11
 @samp{#} on the 68HC11 and 68HC12;
 @end ifset
+@ifset M880X0
+@samp{;} on the M880x0;
+@end ifset
 @ifset VAX
 @samp{#} on the Vax;
 @end ifset
@@ -1696,7 +1967,7 @@ is considered a comment and is ignored.  The line comment character is
 @samp{#} on the V850;
 @end ifset
 see @ref{Machine Dependencies}.  @refill
-@c FIXME What about m88k, i860?
+@c FIXME What about i860?
 
 @ifset GENERIC
 On some machines there are two different line comment characters.  One
@@ -1729,7 +2000,7 @@ the line is ignored.  (Just like a comment.)
                           # This is logical line # 36.
 @end smallexample
 This feature is deprecated, and may disappear from future versions
-of @code{@value{AS}}.
+of @command{@value{AS}}.
 
 @node Symbol Intro
 @section Symbols
@@ -1827,7 +2098,7 @@ directive: typically valid for any computer.  If the symbol begins with
 a letter the statement is an assembly language @dfn{instruction}: it
 assembles into a machine language instruction.
 @ifset GENERIC
-Different versions of @code{@value{AS}} for different computers
+Different versions of @command{@value{AS}} for different computers
 recognize different instructions.  In fact, the same symbol may
 represent a different instruction in a different computer's assembly
 language.@refill
@@ -1898,8 +2169,8 @@ double-quotes or null characters.  The way to get special characters
 into a string is to @dfn{escape} these characters: precede them with
 a backslash @samp{\} character.  For example @samp{\\} represents
 one backslash:  the first @code{\} is an escape which tells
-@code{@value{AS}} to interpret the second character literally as a backslash
-(which prevents @code{@value{AS}} from recognizing the second @code{\} as an
+@command{@value{AS}} to interpret the second character literally as a backslash
+(which prevents @command{@value{AS}} from recognizing the second @code{\} as an
 escape character).  The complete list of escapes follows.
 
 @cindex escape codes, character
@@ -1982,8 +2253,8 @@ this character, because an unescaped @samp{"} would end the string.
 Any other character when escaped by @kbd{\} gives a warning, but
 assembles as if the @samp{\} was not present.  The idea is that if
 you used an escape sequence you clearly didn't want the literal
-interpretation of the following character.  However @code{@value{AS}} has no
-other interpretation, so @code{@value{AS}} knows it is giving you the wrong
+interpretation of the following character.  However @command{@value{AS}} has no
+other interpretation, so @command{@value{AS}} knows it is giving you the wrong
 code and warns you of the fact.
 @end table
 
@@ -2023,7 +2294,7 @@ H8/500)
 immediately following an acute accent is taken as a literal character
 and does not count as the end of a statement.  The value of a character
 constant in a numeric expression is the machine's byte-wide code for
-that character.  @code{@value{AS}} assumes your character code is ASCII:
+that character.  @command{@value{AS}} assumes your character code is ASCII:
 @kbd{'A} means 65, @kbd{'B} means 66, and so on. @refill
 
 @node Numbers
@@ -2031,7 +2302,7 @@ that character.  @code{@value{AS}} assumes your character code is ASCII:
 
 @cindex constants, number
 @cindex number constants
-@code{@value{AS}} distinguishes three kinds of numbers according to how they
+@command{@value{AS}} distinguishes three kinds of numbers according to how they
 are stored in the target machine.  @emph{Integers} are numbers that
 would fit into an @code{int} in the C language.  @emph{Bignums} are
 integers, but they are stored in more than 32 bits.  @emph{Flonums}
@@ -2096,10 +2367,10 @@ integers are permitted while bignums are not.
 @cindex precision, floating point
 A @dfn{flonum} represents a floating point number.  The translation is
 indirect: a decimal floating point number from the text is converted by
-@code{@value{AS}} to a generic binary floating point number of more than
+@command{@value{AS}} to a generic binary floating point number of more than
 sufficient precision.  This generic floating point number is converted
 to a particular computer's floating point format (or formats) by a
-portion of @code{@value{AS}} specialized to that computer.
+portion of @command{@value{AS}} specialized to that computer.
 
 A flonum is written by writing (in order)
 @itemize @bullet
@@ -2110,7 +2381,7 @@ The digit @samp{0}.
 @end ifset
 
 @item
-A letter, to tell @code{@value{AS}} the rest of the number is a flonum.
+A letter, to tell @command{@value{AS}} the rest of the number is a flonum.
 @ifset GENERIC
 @kbd{e} is recommended.  Case is not important.
 @ignore
@@ -2179,9 +2450,9 @@ One or more decimal digits.
 At least one of the integer part or the fractional part must be
 present.  The floating point number has the usual base-10 value.
 
-@code{@value{AS}} does all processing using integers.  Flonums are computed
+@command{@value{AS}} does all processing using integers.  Flonums are computed
 independently of any floating point hardware in the computer running
-@code{@value{AS}}.
+@command{@value{AS}}.
 
 @ifclear GENERIC
 @ifset I960
@@ -2199,7 +2470,7 @@ specify two numbers separated by a colon---
 @var{mask}:@var{value}
 @end example
 @noindent
-@code{@value{AS}} applies a bitwise @sc{and} between @var{mask} and
+@command{@value{AS}} applies a bitwise @sc{and} between @var{mask} and
 @var{value}.
 
 The resulting number is then packed
@@ -2241,11 +2512,11 @@ For example there may be a ``read only'' section.
 @cindex linker, and assembler
 @cindex assembler, and linker
 The linker @code{@value{LD}} reads many object files (partial programs) and
-combines their contents to form a runnable program.  When @code{@value{AS}}
+combines their contents to form a runnable program.  When @command{@value{AS}}
 emits an object file, the partial program is assumed to start at address 0.
 @code{@value{LD}} assigns the final addresses for the partial program, so that
 different partial programs do not overlap.  This is actually an
-oversimplification, but it suffices to explain how @code{@value{AS}} uses
+oversimplification, but it suffices to explain how @command{@value{AS}} uses
 sections.
 
 @code{@value{LD}} moves blocks of bytes of your program to their run-time
@@ -2258,12 +2529,12 @@ the proper run-time addresses.
 @ifset H8
 For the H8/300 and H8/500,
 and for the Hitachi SH,
-@code{@value{AS}} pads sections if needed to
+@command{@value{AS}} pads sections if needed to
 ensure they end on a word (sixteen bit) boundary.
 @end ifset
 
 @cindex standard assembler sections
-An object file written by @code{@value{AS}} has at least three sections, any
+An object file written by @command{@value{AS}} has at least three sections, any
 of which may be empty.  These are named @dfn{text}, @dfn{data} and
 @dfn{bss} sections.
 
@@ -2271,7 +2542,7 @@ of which may be empty.  These are named @dfn{text}, @dfn{data} and
 @ifset GENERIC
 When it generates COFF output,
 @end ifset
-@code{@value{AS}} can also generate whatever other named sections you specify
+@command{@value{AS}} can also generate whatever other named sections you specify
 using the @samp{.section} directive (@pxref{Section,,@code{.section}}).
 If you do not use any directives that place output in the @samp{.text}
 or @samp{.data} sections, these sections still exist, but are empty.
@@ -2279,16 +2550,16 @@ or @samp{.data} sections, these sections still exist, but are empty.
 
 @ifset HPPA
 @ifset GENERIC
-When @code{@value{AS}} generates SOM or ELF output for the HPPA,
+When @command{@value{AS}} generates SOM or ELF output for the HPPA,
 @end ifset
-@code{@value{AS}} can also generate whatever other named sections you
+@command{@value{AS}} can also generate whatever other named sections you
 specify using the @samp{.space} and @samp{.subspace} directives.  See
 @cite{HP9000 Series 800 Assembly Language Reference Manual}
 (HP 92432-90001) for details on the @samp{.space} and @samp{.subspace}
 assembler directives.
 
 @ifset SOM
-Additionally, @code{@value{AS}} uses different names for the standard
+Additionally, @command{@value{AS}} uses different names for the standard
 text, data, and bss sections when generating SOM output.  Program text
 is placed into the @samp{$CODE$} section, data into @samp{$DATA$}, and
 BSS into @samp{$BSS$}.
@@ -2305,7 +2576,7 @@ section starts at address @code{0}, the data section at address
 @end ifset
 
 To let @code{@value{LD}} know which data changes when the sections are
-relocated, and how to change that data, @code{@value{AS}} also writes to the
+relocated, and how to change that data, @command{@value{AS}} also writes to the
 object file details of the relocation needed.  To perform relocation
 @code{@value{LD}} must know, each time an address in the object
 file is mentioned:
@@ -2326,12 +2597,12 @@ Is the reference to an address ``Program-Counter relative''?
 
 @cindex addresses, format of
 @cindex section-relative addressing
-In fact, every address @code{@value{AS}} ever uses is expressed as
+In fact, every address @command{@value{AS}} ever uses is expressed as
 @display
 (@var{section}) + (@var{offset into section})
 @end display
 @noindent
-Further, most expressions @code{@value{AS}} computes have this section-relative
+Further, most expressions @command{@value{AS}} computes have this section-relative
 nature.
 @ifset SOM
 (For some object formats, such as SOM for the HPPA, some expressions are
@@ -2367,7 +2638,7 @@ the addresses of all partial programs' text sections.  Likewise for
 data and bss sections.
 
 Some sections are manipulated by @code{@value{LD}}; others are invented for
-use of @code{@value{AS}} and have no meaning except during assembly.
+use of @command{@value{AS}} and have no meaning except during assembly.
 
 @node Ld Sections
 @section Linker Sections
@@ -2386,7 +2657,7 @@ use of @code{@value{AS}} and have no meaning except during assembly.
 @itemx text section
 @itemx data section
 @end ifset
-These sections hold your program.  @code{@value{AS}} and @code{@value{LD}} treat them as
+These sections hold your program.  @command{@value{AS}} and @code{@value{LD}} treat them as
 separate but equal sections.  Anything you can say of one section is
 true another.
 @ifset aout-bout
@@ -2479,11 +2750,11 @@ DDDD}\boxit{2cm}{\tt 00000}\ \dots\hfil}
 
 @cindex internal assembler sections
 @cindex sections in messages, internal
-These sections are meant only for the internal use of @code{@value{AS}}.  They
+These sections are meant only for the internal use of @command{@value{AS}}.  They
 have no meaning at run-time.  You do not really need to know about these
-sections for most purposes; but they can be mentioned in @code{@value{AS}}
+sections for most purposes; but they can be mentioned in @command{@value{AS}}
 warning messages, so it might be helpful to have an idea of their
-meanings to @code{@value{AS}}.  These sections are used to permit the
+meanings to @command{@value{AS}}.  These sections are used to permit the
 value of every expression in your assembly language program to be a
 section-relative address.
 
@@ -2529,7 +2800,7 @@ text or data
 @end ifset
 @end ifclear
 that you want to end up near to each other in the object file, even though they
-are not contiguous in the assembler source.  @code{@value{AS}} allows you to
+are not contiguous in the assembler source.  @command{@value{AS}} allows you to
 use @dfn{subsections} for this purpose.  Within each section, there can be
 numbered subsections with values from 0 to 8192.  Objects assembled into the
 same subsection go into the object file together with other objects in the same
@@ -2545,7 +2816,7 @@ goes in subsection number zero.
 @ifset GENERIC
 Each subsection is zero-padded up to a multiple of four bytes.
 (Subsections may be padded a different amount on different flavors
-of @code{@value{AS}}.)
+of @command{@value{AS}}.)
 @end ifset
 @ifclear GENERIC
 @ifset H8
@@ -2607,7 +2878,7 @@ begins in @code{text 0}.  For instance:
 
 Each section has a @dfn{location counter} incremented by one for every byte
 assembled into that section.  Because subsections are merely a convenience
-restricted to @code{@value{AS}} there is no concept of a subsection location
+restricted to @command{@value{AS}} there is no concept of a subsection location
 counter.  There is no way to directly manipulate a location counter---but the
 @code{.align} directive changes it, and any label definition captures its
 current value.  The location counter of the section where statements are being
@@ -2648,7 +2919,7 @@ to debug.
 
 @quotation
 @cindex debuggers, and symbol order
-@emph{Warning:} @code{@value{AS}} does not place symbols in the object file in
+@emph{Warning:} @command{@value{AS}} does not place symbols in the object file in
 the same order they were declared.  This may break some debuggers.
 @end quotation
 
@@ -2674,7 +2945,7 @@ definitions.
 @ifset HPPA
 On the HPPA, the usual form for a label need not be immediately followed by a
 colon, but instead must start in column zero.  Only one label may be defined on
-a single line.  To work around this, the HPPA version of @code{@value{AS}} also
+a single line.  To work around this, the HPPA version of @command{@value{AS}} also
 provides a special directive @code{.label} for defining labels more flexibly.
 @end ifset
 
@@ -2729,56 +3000,92 @@ in a program.
 @cindex temporary symbol names
 @cindex symbol names, temporary
 Local symbols help compilers and programmers use names temporarily.
-There are ten local symbol names, which are re-used throughout the
-program.  You may refer to them using the names @samp{0} @samp{1}
-@dots{} @samp{9}.  To define a local symbol, write a label of the form
-@samp{@b{N}:} (where @b{N} represents any digit).  To refer to the most
-recent previous definition of that symbol write @samp{@b{N}b}, using the
-same digit as when you defined the label.  To refer to the next
-definition of a local label, write @samp{@b{N}f}---where @b{N} gives you
-a choice of 10 forward references.  The @samp{b} stands for
-``backwards'' and the @samp{f} stands for ``forwards''.
+They create symbols which are guaranteed to be unique over the entire scope of
+the input source code and which can be referred to by a simple notation.
+To define a local symbol, write a label of the form @samp{@b{N}:} (where @b{N}
+represents any positive integer).  To refer to the most recent previous
+definition of that symbol write @samp{@b{N}b}, using the same number as when
+you defined the label.  To refer to the next definition of a local label, write
+@samp{@b{N}f}--- The @samp{b} stands for``backwards'' and the @samp{f} stands
+for ``forwards''.
 
-Local symbols are not emitted by the current @sc{gnu} C compiler.
+There is no restriction on how you can use these labels, and you can reuse them
+too.  So that it is possible to repeatedly define the same local label (using
+the same number @samp{@b{N}}), although you can only refer to the most recently
+defined local label of that number (for a backwards reference) or the next
+definition of a specific local label for a forward reference.  It is also worth
+noting that the first 10 local labels (@samp{@b{0:}}@dots{}@samp{@b{9:}}) are
+implemented in a slightly more efficient manner than the others.
 
-There is no restriction on how you can use these labels, but
-remember that at any point in the assembly you can refer to at most
-10 prior local labels and to at most 10 forward local labels.
+Here is an example:
 
-Local symbol names are only a notation device.  They are immediately
-transformed into more conventional symbol names before the assembler
-uses them.  The symbol names stored in the symbol table, appearing in
-error messages and optionally emitted to the object file have these
+@smallexample
+1:        branch 1f
+2:        branch 1b
+1:        branch 2f
+2:        branch 1b
+@end smallexample
+
+Which is the equivalent of:
+
+@smallexample
+label_1:  branch label_3
+label_2:  branch label_1
+label_3:  branch label_4
+label_4:  branch label_3
+@end smallexample
+
+Local symbol names are only a notational device.  They are immediately
+transformed into more conventional symbol names before the assembler uses them.
+The symbol names stored in the symbol table, appearing in error messages and
+optionally emitted to the object file.  The names are constructed using these
 parts:
 
 @table @code
 @item L
-All local labels begin with @samp{L}. Normally both @code{@value{AS}} and
+All local labels begin with @samp{L}. Normally both @command{@value{AS}} and
 @code{@value{LD}} forget symbols that start with @samp{L}. These labels are
 used for symbols you are never intended to see.  If you use the
-@samp{-L} option then @code{@value{AS}} retains these symbols in the
+@samp{-L} option then @command{@value{AS}} retains these symbols in the
 object file. If you also instruct @code{@value{LD}} to retain these symbols,
 you may use them in debugging.
 
-@item @var{digit}
-If the label is written @samp{0:} then the digit is @samp{0}.
-If the label is written @samp{1:} then the digit is @samp{1}.
-And so on up through @samp{9:}.
+@item @var{number}
+This is the number that was used in the local label definition.  So if the
+label is written @samp{55:} then the number is @samp{55}. 
 
-@item @kbd{C-A}
-This unusual character is included so you do not accidentally invent
-a symbol of the same name.  The character has ASCII value
-@samp{\001}.
+@item @kbd{C-B}
+This unusual character is included so you do not accidentally invent a symbol
+of the same name.  The character has ASCII value of @samp{\002} (control-B).
 
 @item @emph{ordinal number}
-This is a serial number to keep the labels distinct.  The first
-@samp{0:} gets the number @samp{1}; The 15th @samp{0:} gets the
-number @samp{15}; @emph{etc.}.  Likewise for the other labels @samp{1:}
-through @samp{9:}.
+This is a serial number to keep the labels distinct.  The first definition of
+@samp{0:} gets the number @samp{1}.  The 15th definition of @samp{0:} gets the 
+number @samp{15}, and so on.  Likewise the first definition of @samp{1:} gets
+the number @samp{1} and its 15th defintion gets @samp{15} as well.
 @end table
 
-For instance, the first @code{1:} is named @code{L1@kbd{C-A}1}, the 44th
-@code{3:} is named @code{L3@kbd{C-A}44}.
+So for example, the first @code{1:} is named @code{L1@kbd{C-B}1}, the 44th
+@code{3:} is named @code{L3@kbd{C-B}44}.
+
+@subheading Dollar Local Labels
+@cindex dollar local symbols
+
+@code{@value{AS}} also supports an even more local form of local labels called
+dollar labels.  These labels go out of scope (ie they become undefined) as soon
+as a non-local label is defined.  Thus they remain valid for only a small
+region of the input source code.  Normal local labels, by contrast, remain in
+scope for the entire file, or until they are redefined by another occurrence of
+the same local label.
+
+Dollar labels are defined in exactly the same way as ordinary local labels,
+except that instead of being terminated by a colon, they are terminated by a
+dollar sign.  eg @samp{@b{55$}}.
+
+They can also be distinguished from ordinary local labels by their transformed
+name which uses ASCII character @samp{\001} (control-A) as the magic character
+to distinguish them from ordinary labels.  Thus the 5th defintion of @samp{6$}
+is named @samp{L6@kbd{C-A}5}.
 
 @node Dot
 @section The Special Dot Symbol
@@ -2788,7 +3095,7 @@ For instance, the first @code{1:} is named @code{L1@kbd{C-A}1}, the 44th
 @cindex current address
 @cindex location counter
 The special symbol @samp{.} refers to the current address that
-@code{@value{AS}} is assembling into.  Thus, the expression @samp{melvin:
+@command{@value{AS}} is assembling into.  Thus, the expression @samp{melvin:
 .long .} defines @code{melvin} to contain its own address.
 Assigning a value to @code{.} is treated the same as a @code{.org}
 directive.  Thus, the expression @samp{.=.+4} is the same as saying
@@ -2813,7 +3120,7 @@ attributes.
 The detailed definitions are in @file{a.out.h}.
 @end ifset
 
-If you use a symbol without defining it, @code{@value{AS}} assumes zero for
+If you use a symbol without defining it, @command{@value{AS}} assumes zero for
 all these attributes, and probably won't warn you.  This makes the
 symbol an externally defined symbol, which is generally what you
 would want.
@@ -2885,7 +3192,7 @@ format depends on the object-code output format in use.
 
 @cindex @code{b.out} symbol attributes
 @cindex symbol attributes, @code{b.out}
-These symbol attributes appear only when @code{@value{AS}} is configured for
+These symbol attributes appear only when @command{@value{AS}} is configured for
 one of the Berkeley-descended object output formats---@code{a.out} or
 @code{b.out}.
 
@@ -2919,13 +3226,13 @@ one of the Berkeley-descended object output formats---@code{a.out} or
 This is an arbitrary 16-bit value.  You may establish a symbol's
 descriptor value by using a @code{.desc} statement
 (@pxref{Desc,,@code{.desc}}).  A descriptor value means nothing to
-@code{@value{AS}}.
+@command{@value{AS}}.
 
 @node Symbol Other
 @subsubsection Other
 
 @cindex other attribute, of @code{a.out} symbol
-This is an arbitrary 8-bit value.  It means nothing to @code{@value{AS}}.
+This is an arbitrary 8-bit value.  It means nothing to @command{@value{AS}}.
 @end ifset
 
 @ifset COFF
@@ -2948,7 +3255,7 @@ respectively, with @code{.val} and @code{.type}.
 @subsubsection Auxiliary Attributes
 
 @cindex auxiliary attributes, COFF symbols
-The @code{@value{AS}} directives @code{.dim}, @code{.line}, @code{.scl},
+The @command{@value{AS}} directives @code{.dim}, @code{.line}, @code{.scl},
 @code{.size}, and @code{.tag} can generate auxiliary symbol table
 information for COFF.
 @end ifset
@@ -2979,10 +3286,10 @@ Whitespace may precede and/or follow an expression.
 
 The result of an expression must be an absolute number, or else an offset into
 a particular section.  If an expression is not absolute, and there is not
-enough information when @code{@value{AS}} sees the expression to know its
+enough information when @command{@value{AS}} sees the expression to know its
 section, a second pass over the source program might be necessary to interpret
 the expression---but the second pass is currently not implemented.
-@code{@value{AS}} aborts with an error message in this situation.
+@command{@value{AS}} aborts with an error message in this situation.
 
 @menu
 * Empty Exprs::                 Empty Expressions
@@ -2996,7 +3303,7 @@ the expression---but the second pass is currently not implemented.
 @cindex expressions, empty
 An empty expression has no value: it is just whitespace or null.
 Wherever an absolute expression is required, you may omit the
-expression, and @code{@value{AS}} assumes a value of (absolute) 0.  This
+expression, and @command{@value{AS}} assumes a value of (absolute) 0.  This
 is compatible with other assemblers.
 
 @node Integer Exprs
@@ -3036,7 +3343,7 @@ integer.
 Numbers are usually integers.
 
 A number can be a flonum or bignum.  In this case, you are warned
-that only the low order 32 bits are used, and @code{@value{AS}} pretends
+that only the low order 32 bits are used, and @command{@value{AS}} pretends
 these 32 bits are an integer.  You may write integer-manipulating
 instructions that act on exotic constants, compatible with other
 assemblers.
@@ -3061,7 +3368,7 @@ whitespace.
 @subsection Prefix Operator
 
 @cindex prefix operators
-@code{@value{AS}} has the following @dfn{prefix operators}.  They each take
+@command{@value{AS}} has the following @dfn{prefix operators}.  They each take
 one argument, which must be absolute.
 
 @c the tex/end tex stuff surrounding this small table is meant to make
@@ -3089,7 +3396,7 @@ one argument, which must be absolute.
 @cindex operators, permitted arguments
 @dfn{Infix operators} take two arguments, one on either side.  Operators
 have precedence, but operations with equal precedence are performed left
-to right.  Apart from @code{+} or @code{-}, both arguments must be
+to right.  Apart from @code{+} or @option{-}, both arguments must be
 absolute, and the result is absolute.
 
 @enumerate
@@ -3274,6 +3581,7 @@ Some machine configurations provide additional directives.
 * hword::                       @code{.hword @var{expressions}}
 * Ident::                       @code{.ident}
 * If::                          @code{.if @var{absolute expression}}
+* Incbin::                      @code{.incbin "@var{file}"[,@var{skip}[,@var{count}]]}
 * Include::                     @code{.include "@var{file}"}
 * Int::                         @code{.int @var{expressions}}
 @ifset ELF
@@ -3375,7 +3683,7 @@ Some machine configurations provide additional directives.
 This directive stops the assembly immediately.  It is for
 compatibility with other assemblers.  The original idea was that the
 assembly language source would be piped into the assembler.  If the sender
-of the source quit, it could use this directive tells @code{@value{AS}} to
+of the source quit, it could use this directive tells @command{@value{AS}} to
 quit also.  One day @code{.abort} will not be supported.
 
 @ifset COFF
@@ -3383,11 +3691,11 @@ quit also.  One day @code{.abort} will not be supported.
 @section @code{.ABORT}
 
 @cindex @code{ABORT} directive
-When producing COFF output, @code{@value{AS}} accepts this directive as a
+When producing COFF output, @command{@value{AS}} accepts this directive as a
 synonym for @samp{.abort}.
 
 @ifset BOUT
-When producing @code{b.out} output, @code{@value{AS}} accepts this directive,
+When producing @code{b.out} output, @command{@value{AS}} accepts this directive,
 but ignores it.
 @end ifset
 @end ifset
@@ -3519,7 +3827,7 @@ example, an alignment of 16 means that the least significant 4 bits of the
 address should be zero).  The alignment must be an absolute expression, and it
 must be a power of two.  If @code{@value{LD}} allocates uninitialized memory
 for the common symbol, it will use the alignment when placing the symbol.  If
-no alignment is specified, @code{@value{AS}} will set the alignment to the
+no alignment is specified, @command{@value{AS}} will set the alignment to the
 largest power of two less than or equal to the size of the symbol, up to a
 maximum of 16.
 @end ifset
@@ -3533,7 +3841,7 @@ The syntax for @code{.comm} differs slightly on the HPPA.  The syntax is
 @section @code{.data @var{subsection}}
 
 @cindex @code{data} directive
-@code{.data} tells @code{@value{AS}} to assemble the following statements onto the
+@code{.data} tells @command{@value{AS}} to assemble the following statements onto the
 end of the data subsection numbered @var{subsection} (which is an
 absolute expression).  If @var{subsection} is omitted, it defaults
 to zero.
@@ -3549,7 +3857,7 @@ Begin defining debugging information for a symbol @var{name}; the
 definition extends until the @code{.endef} directive is encountered.
 @ifset BOUT
 
-This directive is only observed when @code{@value{AS}} is configured for COFF
+This directive is only observed when @command{@value{AS}} is configured for COFF
 format output; when producing @code{b.out}, @samp{.def} is recognized,
 but ignored.
 @end ifset
@@ -3566,9 +3874,9 @@ This directive sets the descriptor of the symbol (@pxref{Symbol Attributes})
 to the low 16 bits of an absolute expression.
 
 @ifset COFF
-The @samp{.desc} directive is not available when @code{@value{AS}} is
+The @samp{.desc} directive is not available when @command{@value{AS}} is
 configured for COFF output; it is only for @code{a.out} or @code{b.out}
-object format.  For the sake of compatibility, @code{@value{AS}} accepts
+object format.  For the sake of compatibility, @command{@value{AS}} accepts
 it, but produces no output, when configured for COFF.
 @end ifset
 @end ifset
@@ -3586,7 +3894,7 @@ information in the symbol table.  It is only permitted inside
 @ifset BOUT
 
 @samp{.dim} is only meaningful when generating COFF format output; when
-@code{@value{AS}} is generating @code{b.out}, it accepts this directive but
+@command{@value{AS}} is generating @code{b.out}, it accepts this directive but
 ignores it.
 @end ifset
 @end ifset
@@ -3600,7 +3908,7 @@ ignores it.
 assembles floating point numbers.
 @ifset GENERIC
 The exact kind of floating point numbers emitted depends on how
-@code{@value{AS}} is configured.  @xref{Machine Dependencies}.
+@command{@value{AS}} is configured.  @xref{Machine Dependencies}.
 @end ifset
 @ifclear GENERIC
 @ifset IEEEFLOAT
@@ -3622,7 +3930,7 @@ Force a page break at this point, when generating assembly listings.
 @section @code{.else}
 
 @cindex @code{else} directive
-@code{.else} is part of the @code{@value{AS}} support for conditional
+@code{.else} is part of the @command{@value{AS}} support for conditional
 assembly; @pxref{If,,@code{.if}}.  It marks the beginning of a section
 of code to be assembled if the condition for the preceding @code{.if}
 was false.
@@ -3631,7 +3939,7 @@ was false.
 @section @code{.elseif}
 
 @cindex @code{elseif} directive
-@code{.elseif} is part of the @code{@value{AS}} support for conditional
+@code{.elseif} is part of the @command{@value{AS}} support for conditional
 assembly; @pxref{If,,@code{.if}}.  It is shorthand for beginning a new
 @code{.if} block that would otherwise fill the entire @code{.else} section.
 
@@ -3639,7 +3947,7 @@ assembly; @pxref{If,,@code{.if}}.  It is shorthand for beginning a new
 @section @code{.end}
 
 @cindex @code{end} directive
-@code{.end} marks the end of the assembly file.  @code{@value{AS}} does not
+@code{.end} marks the end of the assembly file.  @command{@value{AS}} does not
 process anything in the file past the @code{.end} directive.
 
 @ifset COFF
@@ -3652,7 +3960,7 @@ This directive flags the end of a symbol definition begun with
 @ifset BOUT
 
 @samp{.endef} is only meaningful when generating COFF format output; if
-@code{@value{AS}} is configured to generate @code{b.out}, it accepts this
+@command{@value{AS}} is configured to generate @code{b.out}, it accepts this
 directive but ignores it.
 @end ifset
 @end ifset
@@ -3666,7 +3974,7 @@ directive but ignores it.
 @section @code{.endif}
 
 @cindex @code{endif} directive
-@code{.endif} is part of the @code{@value{AS}} support for conditional assembly;
+@code{.endif} is part of the @command{@value{AS}} support for conditional assembly;
 it marks the end of a block of code that is only assembled
 conditionally.  @xref{If,,@code{.if}}.
 
@@ -3701,8 +4009,8 @@ Except for the contents of the error message, this is roughly equivalent to
 @node Err
 @section @code{.err}
 @cindex @code{err} directive
-If @code{@value{AS}} assembles a @code{.err} directive, it will print an error
-message and, unless the @code{-Z} option was used, it will not generate an
+If @command{@value{AS}} assembles a @code{.err} directive, it will print an error
+message and, unless the @option{-Z} option was used, it will not generate an
 object file.  This can be used to signal error an conditionally compiled code.
 
 @node Exitm
@@ -3714,7 +4022,7 @@ Exit early from the current macro definition.  @xref{Macro}.
 
 @cindex @code{extern} directive
 @code{.extern} is accepted in the source program---for compatibility
-with other assemblers---but it is ignored.  @code{@value{AS}} treats
+with other assemblers---but it is ignored.  @command{@value{AS}} treats
 all undefined symbols as external.
 
 @node Fail
@@ -3722,8 +4030,8 @@ all undefined symbols as external.
 
 @cindex @code{fail} directive
 Generates an error or a warning.  If the value of the @var{expression} is 500
-or more, @code{@value{AS}} will print a warning message.  If the value is less
-than 500, @code{@value{AS}} will print an error message.  The message will
+or more, @command{@value{AS}} will print a warning message.  If the value is less
+than 500, @command{@value{AS}} will print an error message.  The message will
 include the value of @var{expression}.  This can occasionally be useful inside
 complex nested macros or conditional assembly.
 
@@ -3734,14 +4042,14 @@ complex nested macros or conditional assembly.
 @cindex @code{file} directive
 @cindex logical file name
 @cindex file name, logical
-@code{.file} tells @code{@value{AS}} that we are about to start a new logical
+@code{.file} tells @command{@value{AS}} that we are about to start a new logical
 file.  @var{string} is the new file name.  In general, the filename is
 recognized whether or not it is surrounded by quotes @samp{"}; but if you wish
 to specify an empty file name, you must give the quotes--@code{""}.  This
 statement may go away in future: it is only recognized to be compatible with
-old @code{@value{AS}} programs.
+old @command{@value{AS}} programs.
 @ifset A29K
-In some configurations of @code{@value{AS}}, @code{.file} has already been
+In some configurations of @command{@value{AS}}, @code{.file} has already been
 removed to avoid conflicts with other assemblers.  @xref{Machine Dependencies}.
 @end ifset
 @end ifclear
@@ -3752,14 +4060,14 @@ removed to avoid conflicts with other assemblers.  @xref{Machine Dependencies}.
 @cindex @code{fill} directive
 @cindex writing patterns in memory
 @cindex patterns, writing in memory
-@var{result}, @var{size} and @var{value} are absolute expressions.
+@var{repeat}, @var{size} and @var{value} are absolute expressions.
 This emits @var{repeat} copies of @var{size} bytes.  @var{Repeat}
 may be zero or more.  @var{Size} may be zero or more, but if it is
 more than 8, then it is deemed to have the value 8, compatible with
 other people's assemblers.  The contents of each @var{repeat} bytes
 is taken from an 8-byte number.  The highest order 4 bytes are
 zero.  The lowest order 4 bytes are @var{value} rendered in the
-byte-order of an integer on the computer @code{@value{AS}} is assembling for.
+byte-order of an integer on the computer @command{@value{AS}} is assembling for.
 Each @var{size} bytes in a repetition is taken from the lowest order
 @var{size} bytes of this number.  Again, this bizarre behavior is
 compatible with other people's assemblers.
@@ -3778,7 +4086,7 @@ This directive assembles zero or more flonums, separated by commas.  It
 has the same effect as @code{.single}.
 @ifset GENERIC
 The exact kind of floating point numbers emitted depends on how
-@code{@value{AS}} is configured.
+@command{@value{AS}} is configured.
 @xref{Machine Dependencies}.
 @end ifset
 @ifclear GENERIC
@@ -3864,7 +4172,7 @@ This directive is a synonym for both @samp{.short} and @samp{.word}.
 
 @cindex @code{ident} directive
 This directive is used by some assemblers to place tags in object files.
-@code{@value{AS}} simply accepts the directive for source-file
+@command{@value{AS}} simply accepts the directive for source-file
 compatibility with such assemblers, but does not actually emit anything
 for it.
 
@@ -3945,6 +4253,22 @@ Assembles the following section of code if the argument is not equal to zero
 Like @code{.ifeqs}, but the sense of the test is reversed: this assembles the
 following section of code if the two strings are not the same.
 @end table
+
+@node Incbin
+@section @code{.incbin "@var{file}"[,@var{skip}[,@var{count}]]}
+
+@cindex @code{incbin} directive
+@cindex binary files, including
+The @code{incbin} directive includes @var{file} verbatim at the current
+location. You can control the search paths used with the @samp{-I} command-line
+option (@pxref{Invoking,,Command-Line Options}).  Quotation marks are required
+around @var{file}.
+
+The @var{skip} argument skips a number of bytes from the start of the
+@var{file}.  The @var{count} argument indicates the maximum number of bytes to
+read.  Note that the data is not aligned in any way, so it is the user's
+responsibility to make sure that proper alignment is provided both before and
+after the @code{incbin} directive.
 
 @node Include
 @section @code{.include "@var{file}"}
@@ -4078,7 +4402,7 @@ The syntax for @code{.lcomm} differs slightly on the HPPA.  The syntax is
 @section @code{.lflags}
 
 @cindex @code{lflags} directive (ignored)
-@code{@value{AS}} accepts this directive, for compatibility with other
+@command{@value{AS}} accepts this directive, for compatibility with other
 assemblers, but ignores it.
 
 @ifclear no-line-dir
@@ -4099,7 +4423,7 @@ Change the logical line number.  @var{line-number} must be an absolute
 expression.  The next line has that logical line number.  Therefore any other
 statements on the current line (after a statement separator character) are
 reported as on logical line number @var{line-number} @minus{} 1.  One day
-@code{@value{AS}} will no longer support this directive: it is recognized only
+@command{@value{AS}} will no longer support this directive: it is recognized only
 for compatibility with existing assembler programs.
 
 @ifset GENERIC
@@ -4112,7 +4436,7 @@ not available; use the synonym @code{.ln} in that context.
 
 @ifclear no-line-dir
 Even though this is a directive associated with the @code{a.out} or
-@code{b.out} object-code formats, @code{@value{AS}} still recognizes it
+@code{b.out} object-code formats, @command{@value{AS}} still recognizes it
 when producing COFF output, and treats @samp{.line} as though it
 were the COFF @samp{.ln} @emph{if} it is found outside a
 @code{.def}/@code{.endef} pair.
@@ -4167,14 +4491,14 @@ Warn if any of the duplicates do not have exactly the same contents.
 @samp{.ln} is a synonym for @samp{.line}.
 @end ifclear
 @ifset no-line-dir
-Tell @code{@value{AS}} to change the logical line number.  @var{line-number}
+Tell @command{@value{AS}} to change the logical line number.  @var{line-number}
 must be an absolute expression.  The next line has that logical
 line number, so any other statements on the current line (after a
 statement separator character @code{;}) are reported as on logical
 line number @var{line-number} @minus{} 1.
 @ifset BOUT
 
-This directive is accepted, but ignored, when @code{@value{AS}} is
+This directive is accepted, but ignored, when @command{@value{AS}} is
 configured for @code{b.out}; its effect is only associated with COFF
 output format.
 @end ifset
@@ -4185,8 +4509,8 @@ output format.
 
 @cindex @code{mri} directive
 @cindex MRI mode, temporarily
-If @var{val} is non-zero, this tells @code{@value{AS}} to enter MRI mode.  If
-@var{val} is zero, this tells @code{@value{AS}} to exit MRI mode.  This change
+If @var{val} is non-zero, this tells @command{@value{AS}} to enter MRI mode.  If
+@var{val} is zero, this tells @command{@value{AS}} to exit MRI mode.  This change
 affects code assembled until the next @code{.mri} directive, or until the end
 of the file.  @xref{M, MRI mode, MRI mode}.
 
@@ -4307,7 +4631,7 @@ Exit early from the current macro definition.
 @cindex number of macros executed
 @cindex macros, count executed
 @item \@@
-@code{@value{AS}} maintains a counter of how many macros it has
+@command{@value{AS}} maintains a counter of how many macros it has
 executed in this pseudo-variable; you can copy that number to your
 output with @samp{\@@}, but @emph{only within a macro definition}.
 
@@ -4362,7 +4686,7 @@ expression with the same section as the current subsection.  That is,
 you can't use @code{.org} to cross sections: if @var{new-lc} has the
 wrong section, the @code{.org} directive is ignored.  To be compatible
 with former assemblers, if the section of @var{new-lc} is absolute,
-@code{@value{AS}} issues a warning, then pretends the section of @var{new-lc}
+@command{@value{AS}} issues a warning, then pretends the section of @var{new-lc}
 is the same as the current subsection.
 
 @code{.org} may only increase the location counter, or leave it
@@ -4372,7 +4696,7 @@ backwards.
 @c double negative used below "not undefined" because this is a specific
 @c reference to "undefined" (as SEG_UNKNOWN is called in this manual)
 @c section. doc@cygnus.com 18feb91
-Because @code{@value{AS}} tries to assemble programs in one pass, @var{new-lc}
+Because @command{@value{AS}} tries to assemble programs in one pass, @var{new-lc}
 may not be undefined.  If you really detest this restriction we eagerly await
 a chance to share your improved assembler.
 
@@ -4462,7 +4786,7 @@ stack.
 @section @code{.print @var{string}}
 
 @cindex @code{print} directive
-@code{@value{AS}} will print @var{string} on the standard output during
+@command{@value{AS}} will print @var{string} on the standard output during
 assembly.  You must put @var{string} in double quotes.
 
 @ifset ELF
@@ -4495,7 +4819,7 @@ If you do not use @code{.psize}, listings use a default line-count
 of 60.  You may omit the comma and @var{columns} specification; the
 default width is 200 columns.
 
-@code{@value{AS}} generates formfeeds whenever the specified number of
+@command{@value{AS}} generates formfeeds whenever the specified number of
 lines is exceeded (or whenever you explicitly request one, using
 @code{.eject}).
 
@@ -4596,7 +4920,7 @@ symbolic debugging information.
 @ifset BOUT
 
 The @samp{.scl} directive is primarily associated with COFF output; when
-configured to generate @code{b.out} output format, @code{@value{AS}}
+configured to generate @code{b.out} output format, @command{@value{AS}}
 accepts this directive but ignores it.
 @end ifset
 @end ifset
@@ -4642,7 +4966,9 @@ shared section (meaningful for PE targets)
 
 If no flags are specified, the default flags depend upon the section name.  If
 the section name is not recognized, the default will be for the section to be
-loaded and writable.
+loaded and writable.  Note the @code{n} and @code{w} flags remove attributes
+from the section, rather than adding them, so if they are used on their own it
+will be as if no flags had been specified at all.
 
 If the optional argument to the @code{.section} directive is not quoted, it is
 taken as a subsegment number (@pxref{Sub-Sections}).
@@ -4663,7 +4989,7 @@ This is one of the ELF section stack manipulation directives.  The others are
 For ELF targets, the @code{.section} directive is used like this:
 
 @smallexample
-.section @var{name} [, "@var{flags}"[, @@@var{type}]]
+.section @var{name} [, "@var{flags}"[, @@@var{type}[, @@@var{entsize}]]]
 @end smallexample
 
 The optional @var{flags} argument is a quoted string which may contain any
@@ -4675,6 +5001,10 @@ section is allocatable
 section is writable
 @item x
 section is executable
+@item M
+section is mergeable
+@item S
+section contains zero terminated strings
 @end table
 
 The optional @var{type} argument may contain one of the following constants:
@@ -4684,6 +5014,13 @@ section contains data
 @item @@nobits
 section does not contain data (i.e., section only occupies space)
 @end table
+
+If @var{flags} contains @code{M} flag, @var{type} argument must be specified
+as well as @var{entsize} argument. Sections with @code{M} flag but not
+@code{S} flag must contain fixed size constants, each @var{entsize} octets
+long. Sections with both @code{M} and @code{S} must contain zero terminated
+strings where each character is @var{entsize} bytes long. The linker may remove
+duplicates within sections with the same name, same entity size and same flags. 
 
 If no flags are specified, the default flags depend upon the section name.  If
 the section name is not recognized, the default will be for the section to have
@@ -4763,7 +5100,7 @@ This directive assembles zero or more flonums, separated by commas.  It
 has the same effect as @code{.float}.
 @ifset GENERIC
 The exact kind of floating point numbers emitted depends on how
-@code{@value{AS}} is configured.  @xref{Machine Dependencies}.
+@command{@value{AS}} is configured.  @xref{Machine Dependencies}.
 @end ifset
 @ifclear GENERIC
 @ifset IEEEFLOAT
@@ -4782,7 +5119,7 @@ information in the symbol table.  It is only permitted inside
 
 @ifset BOUT
 @samp{.size} is only meaningful when generating COFF format output; when
-@code{@value{AS}} is generating @code{b.out}, it accepts this directive but
+@command{@value{AS}} is generating @code{b.out}, it accepts this directive but
 ignores it.
 @end ifset
 
@@ -4857,7 +5194,7 @@ compatibility with other AMD 29K assemblers.
 @cindex @code{stab@var{x}} directives
 There are three directives that begin @samp{.stab}.
 All emit symbols (@pxref{Symbols}), for use by symbolic debuggers.
-The symbols are not entered in the @code{@value{AS}} hash table: they
+The symbols are not entered in the @command{@value{AS}} hash table: they
 cannot be referenced elsewhere in the source file.
 Up to five fields are required:
 
@@ -5032,7 +5369,7 @@ definitions in the symbol table with instances of those structures.
 @ifset BOUT
 
 @samp{.tag} is only used when generating COFF format output; when
-@code{@value{AS}} is generating @code{b.out}, it accepts this directive but
+@command{@value{AS}} is generating @code{b.out}, it accepts this directive but
 ignores it.
 @end ifset
 @end ifset
@@ -5041,7 +5378,7 @@ ignores it.
 @section @code{.text @var{subsection}}
 
 @cindex @code{text} directive
-Tells @code{@value{AS}} to assemble the following statements onto the end of
+Tells @command{@value{AS}} to assemble the following statements onto the end of
 the text subsection numbered @var{subsection}, which is an absolute
 expression.  If @var{subsection} is omitted, subsection number zero
 is used.
@@ -5068,7 +5405,7 @@ records the integer @var{int} as the type attribute of a symbol table entry.
 
 @ifset BOUT
 @samp{.type} is associated only with COFF format output; when
-@code{@value{AS}} is configured for @code{b.out} output, it accepts this
+@command{@value{AS}} is configured for @code{b.out} output, it accepts this
 directive but ignores it.
 @end ifset
 
@@ -5119,7 +5456,7 @@ records the address @var{addr} as the value attribute of a symbol table
 entry.
 @ifset BOUT
 
-@samp{.val} is used only for COFF output; when @code{@value{AS}} is
+@samp{.val} is used only for COFF output; when @command{@value{AS}} is
 configured for @code{b.out}, it accepts this directive but ignores it.
 @end ifset
 @end ifset
@@ -5168,10 +5505,10 @@ This directive expects zero or more @var{expressions}, of any section,
 separated by commas.
 @ifclear GENERIC
 @ifset W32
-For each expression, @code{@value{AS}} emits a 32-bit number.
+For each expression, @command{@value{AS}} emits a 32-bit number.
 @end ifset
 @ifset W16
-For each expression, @code{@value{AS}} emits a 16-bit number.
+For each expression, @command{@value{AS}} emits a 16-bit number.
 @end ifset
 @end ifclear
 @ifset GENERIC
@@ -5197,11 +5534,11 @@ interest to you does 32-bit addressing (or doesn't require it;
 
 @end ifset
 In order to assemble compiler output into something that works,
-@code{@value{AS}} occasionally does strange things to @samp{.word} directives.
+@command{@value{AS}} occasionally does strange things to @samp{.word} directives.
 Directives of the form @samp{.word sym1-sym2} are often emitted by
-compilers as part of jump tables.  Therefore, when @code{@value{AS}} assembles a
+compilers as part of jump tables.  Therefore, when @command{@value{AS}} assembles a
 directive of the form @samp{.word sym1-sym2}, and the difference between
-@code{sym1} and @code{sym2} does not fit in 16 bits, @code{@value{AS}}
+@code{sym1} and @code{sym2} does not fit in 16 bits, @command{@value{AS}}
 creates a @dfn{secondary jump table}, immediately before the next label.
 This secondary jump table is preceded by a short-jump to the
 first byte after the secondary table.  This short-jump prevents the flow
@@ -5219,7 +5556,7 @@ minus the address of the long-jump to @code{sym4}; and so on, for as many
 entries in the original jump table as necessary.
 
 @ifset INTERNALS
-@emph{This feature may be disabled by compiling @code{@value{AS}} with the
+@emph{This feature may be disabled by compiling @command{@value{AS}} with the
 @samp{-DWORKING_DOT_WORD} option.} This feature is likely to confuse
 assembly language programmers.
 @end ifset
@@ -5244,11 +5581,11 @@ They are included for compatibility with older assemblers.
 
 @cindex machine dependencies
 The machine instruction sets are (almost by definition) different on
-each machine where @code{@value{AS}} runs.  Floating point representations
-vary as well, and @code{@value{AS}} often supports a few additional
+each machine where @command{@value{AS}} runs.  Floating point representations
+vary as well, and @command{@value{AS}} often supports a few additional
 directives or command-line options for compatibility with other
 assemblers on a particular platform.  Finally, some versions of
-@code{@value{AS}} support special pseudo-instructions for branch
+@command{@value{AS}} support special pseudo-instructions for branch
 optimization.
 
 This chapter discusses most of these differences, though it does not
@@ -5259,11 +5596,17 @@ subject, see the hardware manufacturer's manual.
 @ifset A29K
 * AMD29K-Dependent::            AMD 29K Dependent Features
 @end ifset
+@ifset ALPHA
+* Alpha-Dependent::		Alpha Dependent Features
+@end ifset
 @ifset ARC
 * ARC-Dependent::               ARC Dependent Features
 @end ifset
 @ifset ARM
 * ARM-Dependent::               ARM Dependent Features
+@end ifset
+@ifset CRIS
+* CRIS-Dependent::              CRIS Dependent Features
 @end ifset
 @ifset D10V
 * D10V-Dependent::              D10V Dependent Features
@@ -5301,14 +5644,27 @@ subject, see the hardware manufacturer's manual.
 @ifset M68HC11
 * M68HC11-Dependent::           M68HC11 and 68HC12 Dependent Features
 @end ifset
+@ifset M880X0
+* M88K-Dependent::		M880x0 Dependent Features
+@end ifset
 @ifset MIPS
 * MIPS-Dependent::              MIPS Dependent Features
 @end ifset
+@ifset MMIX
+* MMIX-Dependent::              MMIX Dependent Features
+@end ifset
 @ifset SH
 * SH-Dependent::                Hitachi SH Dependent Features
+* SH64-Dependent::              Hitachi SH64 Dependent Features
+@end ifset
+@ifset PDP11
+* PDP-11-Dependent::            PDP-11 Dependent Features
 @end ifset
 @ifset PJ
 * PJ-Dependent::                picoJava Dependent Features
+@end ifset
+@ifset PPC
+* PPC-Dependent::               PowerPC Dependent Features
 @end ifset
 @ifset SPARC
 * Sparc-Dependent::             SPARC Dependent Features
@@ -5338,16 +5694,24 @@ subject, see the hardware manufacturer's manual.
 @c node and sectioning commands; hence the repetition of @chapter BLAH
 @c in both conditional blocks.
 
-@ifset ARC
-@include c-arc.texi
-@end ifset
-
 @ifset A29K
 @include c-a29k.texi
 @end ifset
 
+@ifset ALPHA
+@include c-alpha.texi
+@end ifset
+
+@ifset ARC
+@include c-arc.texi
+@end ifset
+
 @ifset ARM
 @include c-arm.texi
+@end ifset
+
+@ifset CRIS
+@include c-cris.texi
 @end ifset
 
 @ifset Hitachi-all
@@ -5357,7 +5721,7 @@ subject, see the hardware manufacturer's manual.
 
 The machine instruction sets are different on each Hitachi chip family,
 and there are also some syntax differences among the families.  This
-chapter describes the specific @code{@value{AS}} features for each
+chapter describes the specific @command{@value{AS}} features for each
 family.
 
 @menu
@@ -5417,20 +5781,37 @@ family.
 @include c-m68hc11.texi
 @end ifset
 
+@ifset M880X0
+@include c-m88k.texi
+@end ifset
+
 @ifset MIPS
 @include c-mips.texi
+@end ifset
+
+@ifset MMIX
+@include c-mmix.texi
 @end ifset
 
 @ifset NS32K
 @include c-ns32k.texi
 @end ifset
 
+@ifset PDP11
+@include c-pdp11.texi
+@end ifset
+
 @ifset PJ
 @include c-pj.texi
 @end ifset
 
+@ifset PPC
+@include c-ppc.texi
+@end ifset
+
 @ifset SH
 @include c-sh.texi
+@include c-sh64.texi
 @end ifset
 
 @ifset SPARC
@@ -5463,12 +5844,12 @@ family.
 @cindex bugs in assembler
 @cindex reporting bugs in assembler
 
-Your bug reports play an essential role in making @code{@value{AS}} reliable.
+Your bug reports play an essential role in making @command{@value{AS}} reliable.
 
 Reporting a bug may help you by bringing a solution to your problem, or it may
 not.  But in any case the principal function of a bug report is to help the
-entire community by making the next version of @code{@value{AS}} work better.
-Bug reports are your contribution to the maintenance of @code{@value{AS}}.
+entire community by making the next version of @command{@value{AS}} work better.
+Bug reports are your contribution to the maintenance of @command{@value{AS}}.
 
 In order for a bug report to serve its purpose, you must include the
 information that enables us to fix the bug.
@@ -5490,21 +5871,21 @@ If you are not sure whether you have found a bug, here are some guidelines:
 @cindex crash of assembler
 @item
 If the assembler gets a fatal signal, for any input whatever, that is a
-@code{@value{AS}} bug.  Reliable assemblers never crash.
+@command{@value{AS}} bug.  Reliable assemblers never crash.
 
 @cindex error on valid input
 @item
-If @code{@value{AS}} produces an error message for valid input, that is a bug.
+If @command{@value{AS}} produces an error message for valid input, that is a bug.
 
 @cindex invalid input
 @item
-If @code{@value{AS}} does not produce an error message for invalid input, that
+If @command{@value{AS}} does not produce an error message for invalid input, that
 is a bug.  However, you should note that your idea of ``invalid input'' might
 be our idea of ``an extension'' or ``support for traditional practice''.
 
 @item
 If you are an experienced user of assemblers, your suggestions for improvement
-of @code{@value{AS}} are welcome in any case.
+of @command{@value{AS}} are welcome in any case.
 @end itemize
 
 @node Bug Reporting
@@ -5513,14 +5894,14 @@ of @code{@value{AS}} are welcome in any case.
 @cindex assembler bugs, reporting
 
 A number of companies and individuals offer support for @sc{gnu} products.  If
-you obtained @code{@value{AS}} from a support organization, we recommend you
+you obtained @command{@value{AS}} from a support organization, we recommend you
 contact that organization first.
 
 You can find contact information for many support companies and
 individuals in the file @file{etc/SERVICE} in the @sc{gnu} Emacs
 distribution.
 
-In any event, we also recommend that you send bug reports for @code{@value{AS}}
+In any event, we also recommend that you send bug reports for @command{@value{AS}}
 to @samp{bug-binutils@@gnu.org}.
 
 The fundamental principle of reporting bugs usefully is this:
@@ -5550,21 +5931,21 @@ To enable us to fix the bug, you should include all these things:
 
 @itemize @bullet
 @item
-The version of @code{@value{AS}}.  @code{@value{AS}} announces it if you start
+The version of @command{@value{AS}}.  @command{@value{AS}} announces it if you start
 it with the @samp{--version} argument.
 
 Without this, we will not know whether there is any point in looking for
-the bug in the current version of @code{@value{AS}}.
+the bug in the current version of @command{@value{AS}}.
 
 @item
-Any patches you may have applied to the @code{@value{AS}} source.
+Any patches you may have applied to the @command{@value{AS}} source.
 
 @item
 The type of machine you are using, and the operating system name and
 version number.
 
 @item
-What compiler (and its version) was used to compile @code{@value{AS}}---e.g.
+What compiler (and its version) was used to compile @command{@value{AS}}---e.g.
 ``@code{gcc-2.7}''.
 
 @item
@@ -5582,20 +5963,20 @@ high level language source.  Most compilers will produce the assembler source
 when run with the @samp{-S} option.  If you are using @code{@value{GCC}}, use
 the options @samp{-v --save-temps}; this will save the assembler source in a
 file with an extension of @file{.s}, and also show you exactly how
-@code{@value{AS}} is being run.
+@command{@value{AS}} is being run.
 
 @item
 A description of what behavior you observe that you believe is
 incorrect.  For example, ``It gets a fatal signal.''
 
-Of course, if the bug is that @code{@value{AS}} gets a fatal signal, then we
+Of course, if the bug is that @command{@value{AS}} gets a fatal signal, then we
 will certainly notice it.  But if the bug is incorrect output, we might not
 notice unless it is glaringly wrong.  You might as well not give us a chance to
 make a mistake.
 
 Even if the problem you experience is a fatal signal, you should still say so
 explicitly.  Suppose something strange is going on, such as, your copy of
-@code{@value{AS}} is out of synch, or you have encountered a bug in the C
+@command{@value{AS}} is out of synch, or you have encountered a bug in the C
 library on your system.  (This has happened!)  Your copy might crash and ours
 would not.  If you told us to expect a crash, then when ours fails to crash, we
 would know that the bug was not happening for us.  If you had not told us to
@@ -5603,10 +5984,10 @@ expect a crash, then we would not be able to draw any conclusion from our
 observations.
 
 @item
-If you wish to suggest changes to the @code{@value{AS}} source, send us context
+If you wish to suggest changes to the @command{@value{AS}} source, send us context
 diffs, as generated by @code{diff} with the @samp{-u}, @samp{-c}, or @samp{-p}
 option.  Always send diffs from the old file to the new file.  If you even
-discuss something in the @code{@value{AS}} source, refer to it by context, not
+discuss something in the @command{@value{AS}} source, refer to it by context, not
 by line number.
 
 The line numbers in our development sources will not match those in your
@@ -5644,7 +6025,7 @@ the necessary information, such as the test case, on the assumption that
 a patch is all we need.  We might see problems with your patch and decide
 to fix the problem another way, or we might not understand it at all.
 
-Sometimes with a program as complicated as @code{@value{AS}} it is very hard to
+Sometimes with a program as complicated as @command{@value{AS}} it is very hard to
 construct an example that will make the program follow a certain path through
 the code.  If you do not send us the example, we will not be able to construct
 one, so we will not be able to verify that the bug is fixed.
@@ -5663,7 +6044,7 @@ things without first using the debugger to find the facts.
 @node Acknowledgements
 @chapter Acknowledgements
 
-If you have contributed to @code{@value{AS}} and your name isn't listed here,
+If you have contributed to @command{@value{AS}} and your name isn't listed here,
 it is not meant as a slight.  We just don't know about it.  Send mail to the
 maintainer, and we'll correct the situation.  Currently 
 @c (January 1994), 
@@ -5724,7 +6105,7 @@ Ian Lance Taylor of Cygnus Support merged the Motorola and MIT syntax for the
 added support for MIPS ECOFF and ELF targets, wrote the initial RS/6000 and
 PowerPC assembler, and made a few other minor patches.
 
-Steve Chamberlain made @code{@value{AS}} able to generate listings.
+Steve Chamberlain made @command{@value{AS}} able to generate listings.
 
 Hewlett-Packard contributed support for the HP9000/300.
 

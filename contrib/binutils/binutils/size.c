@@ -1,22 +1,22 @@
 /* size.c -- report size of various sections of an executable file.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
-This file is part of GNU Binutils.
+   This file is part of GNU Binutils.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Extensions/incompatibilities:
    o - BSD output has filenames at the end.
@@ -26,13 +26,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    o - We also handle core files.
    o - We also handle archives.
    If you write shell scripts which manipulate this info then you may be
-   out of luck; there's no --compatibility or --pedantic option.
-*/
+   out of luck; there's no --compatibility or --pedantic option.  */
 
 #include "bfd.h"
-#include "getopt.h"
 #include "bucomm.h"
 #include "libiberty.h"
+#include "getopt.h"
 
 #ifndef BSD_DEFAULT
 #define BSD_DEFAULT 1
@@ -43,49 +42,63 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 enum
   {
     decimal, octal, hex
-  } radix = decimal;
+  }
+radix = decimal;
+
 int berkeley_format = BSD_DEFAULT;	/* 0 means use AT&T-style output.  */
 int show_version = 0;
 int show_help = 0;
+int show_totals = 0;
+
+static bfd_size_type total_bsssize;
+static bfd_size_type total_datasize;
+static bfd_size_type total_textsize;
 
 /* Program exit status.  */
 int return_code = 0;
 
 static char *target = NULL;
 
-/* Static declarations */
+/* Static declarations.  */
 
-static void usage PARAMS ((FILE *, int));
-static void display_file PARAMS ((char *filename));
-static void display_bfd PARAMS ((bfd *));
-static void display_archive PARAMS ((bfd *));
-static int size_number PARAMS ((bfd_size_type));
+static void usage                 PARAMS ((FILE *, int));
+static void display_file          PARAMS ((char *));
+static void display_bfd           PARAMS ((bfd *));
+static void display_archive       PARAMS ((bfd *));
+static int size_number            PARAMS ((bfd_size_type));
 #if 0
-static void lprint_number PARAMS ((int, bfd_size_type));
+static void lprint_number         PARAMS ((int, bfd_size_type));
 #endif
-static void rprint_number PARAMS ((int, bfd_size_type));
+static void rprint_number         PARAMS ((int, bfd_size_type));
 static void print_berkeley_format PARAMS ((bfd *));
-static void sysv_internal_sizer PARAMS ((bfd *, asection *, PTR));
+static void sysv_internal_sizer   PARAMS ((bfd *, asection *, PTR));
 static void sysv_internal_printer PARAMS ((bfd *, asection *, PTR));
-static void print_sysv_format PARAMS ((bfd *));
-static void print_sizes PARAMS ((bfd * file));
-static void berkeley_sum PARAMS ((bfd *, sec_ptr, PTR));
+static void print_sysv_format     PARAMS ((bfd *));
+static void print_sizes           PARAMS ((bfd * file));
+static void berkeley_sum          PARAMS ((bfd *, sec_ptr, PTR));
 
 static void
 usage (stream, status)
      FILE *stream;
      int status;
 {
-  fprintf (stream, _("\
-Usage: %s [-A | --format=sysv | -B | --format=berkeley]\n\
-       [-o | --radix=8 | -d | --radix=10 | -h | --radix=16]\n\
-       [-V | --version] [--target=bfdname] [--help] [file...]\n"),
-	   program_name);
+  fprintf (stream, _("Usage: %s [option(s)] [file(s)]\n"), program_name);
+  fprintf (stream, _(" Displays the sizes of sections inside binary files\n"));
+  fprintf (stream, _(" If no input file(s) are specified, a.out is assumed\n"));  
+  fprintf (stream, _(" The options are:\n\
+  -A|-B     --format={sysv|berkeley}  Select output style (default is %s)\n\
+  -o|-d|-h  --radix={8|10|16}         Display numbers in octal, decimal or hex\n\
+  -t        --totals                  Display the total sizes (Berkeley only)\n\
+            --target=<bfdname>        Set the binary file format\n\
+  -h        --help                    Display this information\n\
+  -v        --version                 Display the program's version\n\
+\n"),
 #if BSD_DEFAULT
-  fputs (_("default is --format=berkeley\n"), stream);
+  "berkeley"
 #else
-  fputs (_("default is --format=sysv\n"), stream);
+  "sysv"
 #endif
+);
   list_supported_targets (program_name, stream);
   if (status == 0)
     fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
@@ -97,10 +110,13 @@ struct option long_options[] =
   {"format", required_argument, 0, 200},
   {"radix", required_argument, 0, 201},
   {"target", required_argument, 0, 202},
+  {"totals", no_argument, &show_totals, 1},
   {"version", no_argument, &show_version, 1},
   {"help", no_argument, &show_help, 1},
   {0, no_argument, 0, 0}
 };
+
+int main PARAMS ((int, char **));
 
 int
 main (argc, argv)
@@ -113,6 +129,9 @@ main (argc, argv)
 #if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
   setlocale (LC_MESSAGES, "");
 #endif
+#if defined (HAVE_SETLOCALE)
+  setlocale (LC_CTYPE, "");
+#endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
 
@@ -122,7 +141,7 @@ main (argc, argv)
   bfd_init ();
   set_default_bfd_target ();
 
-  while ((c = getopt_long (argc, argv, "ABVdfox", long_options,
+  while ((c = getopt_long (argc, argv, "ABHhVvdfotx", long_options,
 			   (int *) 0)) != EOF)
     switch (c)
       {
@@ -176,6 +195,7 @@ main (argc, argv)
       case 'B':
 	berkeley_format = 1;
 	break;
+      case 'v':
       case 'V':
 	show_version = 1;
 	break;
@@ -187,6 +207,9 @@ main (argc, argv)
 	break;
       case 'o':
 	radix = octal;
+	break;
+      case 't':
+	show_totals = 1;
 	break;
       case 'f': /* FIXME : For sysv68, `-f' means `full format', i.e.
 		   `[fname:] M(.text) + N(.data) + O(.bss) + P(.comment) = Q'
@@ -200,6 +223,8 @@ main (argc, argv)
 	break;
       case 0:
 	break;
+      case 'h':
+      case 'H':
       case '?':
 	usage (stderr, 1);
       }
@@ -214,6 +239,20 @@ main (argc, argv)
   else
     for (; optind < argc;)
       display_file (argv[optind++]);
+
+  if (show_totals && berkeley_format)
+    {
+      bfd_size_type total = total_textsize + total_datasize + total_bsssize;
+
+      rprint_number (7, total_textsize);
+      putchar('\t');
+      rprint_number (7, total_datasize);
+      putchar('\t');
+      rprint_number (7, total_bsssize);
+      printf (((radix == octal) ? "\t%7lo\t%7lx\t" : "\t%7lu\t%7lx\t"),
+	      (unsigned long) total, (unsigned long) total);
+      fputs ("(TOTALS)\n", stdout);
+    }
 
   return return_code;
 }
@@ -248,7 +287,7 @@ display_bfd (abfd)
 
   if (bfd_check_format_matches (abfd, bfd_core, &matching))
     {
-      CONST char *core_cmd;
+      const char *core_cmd;
 
       print_sizes (abfd);
       fputs (" (core file", stdout);
@@ -277,6 +316,7 @@ display_archive (file)
      bfd *file;
 {
   bfd *arfile = (bfd *) NULL;
+  bfd *last_arfile = (bfd *) NULL;
 
   for (;;)
     {
@@ -294,8 +334,14 @@ display_archive (file)
 	}
 
       display_bfd (arfile);
-      /* Don't close the archive elements; we need them for next_archive */
+
+      if (last_arfile != NULL)
+	bfd_close (last_arfile);
+      last_arfile = arfile;
     }
+
+  if (last_arfile != NULL)
+    bfd_close (last_arfile);
 }
 
 static void
@@ -303,6 +349,7 @@ display_file (filename)
      char *filename;
 {
   bfd *file = bfd_openr (filename, target);
+
   if (file == NULL)
     {
       bfd_nonfatal (filename);
@@ -330,6 +377,7 @@ size_number (num)
      bfd_size_type num;
 {
   char buffer[40];
+
   sprintf (buffer,
 	   (radix == decimal ? "%lu" :
 	   ((radix == octal) ? "0%lo" : "0x%lx")),
@@ -348,6 +396,7 @@ lprint_number (width, num)
      bfd_size_type num;
 {
   char buffer[40];
+
   sprintf (buffer,
 	   (radix == decimal ? "%lu" :
 	   ((radix == octal) ? "0%lo" : "0x%lx")),
@@ -364,6 +413,7 @@ rprint_number (width, num)
      bfd_size_type num;
 {
   char buffer[40];
+
   sprintf (buffer,
 	   (radix == decimal ? "%lu" :
 	   ((radix == octal) ? "0%lo" : "0x%lx")),
@@ -423,6 +473,13 @@ print_berkeley_format (abfd)
 
   total = textsize + datasize + bsssize;
 
+  if (show_totals)
+    {
+      total_textsize += textsize;
+      total_datasize += datasize;
+      total_bsssize  += bsssize;
+    }
+
   rprint_number (7, textsize);
   putchar ('\t');
   rprint_number (7, datasize);
@@ -432,6 +489,7 @@ print_berkeley_format (abfd)
 	  (unsigned long) total, (unsigned long) total);
 
   fputs (bfd_get_filename (abfd), stdout);
+
   if (bfd_my_archive (abfd))
     printf (" (ex %s)", bfd_get_filename (bfd_my_archive (abfd)));
 }
@@ -450,15 +508,18 @@ sysv_internal_sizer (file, sec, ignore)
      PTR ignore ATTRIBUTE_UNUSED;
 {
   bfd_size_type size = bfd_section_size (file, sec);
-  if (!bfd_is_abs_section (sec)
-      && !bfd_is_com_section (sec)
-      && !bfd_is_und_section (sec))
+
+  if (   ! bfd_is_abs_section (sec)
+      && ! bfd_is_com_section (sec)
+      && ! bfd_is_und_section (sec))
     {
       int namelen = strlen (bfd_section_name (file, sec));
+
       if (namelen > svi_namelen)
 	svi_namelen = namelen;
 
       svi_total += size;
+
       if (bfd_section_vma (file, sec) > svi_maxvma)
 	svi_maxvma = bfd_section_vma (file, sec);
     }
@@ -471,9 +532,10 @@ sysv_internal_printer (file, sec, ignore)
      PTR ignore ATTRIBUTE_UNUSED;
 {
   bfd_size_type size = bfd_section_size (file, sec);
-  if (!bfd_is_abs_section (sec)
-      && !bfd_is_com_section (sec)
-      && !bfd_is_und_section (sec))
+
+  if (   ! bfd_is_abs_section (sec)
+      && ! bfd_is_com_section (sec)
+      && ! bfd_is_und_section (sec))
     {
       svi_total += size;
 
@@ -489,12 +551,13 @@ static void
 print_sysv_format (file)
      bfd *file;
 {
-  /* size all of the columns */
+  /* Size all of the columns.  */
   svi_total = 0;
   svi_maxvma = 0;
   svi_namelen = 0;
   bfd_map_over_sections (file, sysv_internal_sizer, (PTR) NULL);
   svi_vmalen = size_number ((bfd_size_type)svi_maxvma);
+
   if ((size_t) svi_vmalen < sizeof ("addr") - 1)
     svi_vmalen = sizeof ("addr")-1;
 
@@ -504,11 +567,13 @@ print_sysv_format (file)
 
   svi_total = 0;
   printf ("%s  ", bfd_get_filename (file));
+
   if (bfd_my_archive (file))
     printf (" (ex %s)", bfd_get_filename (bfd_my_archive (file)));
 
   printf (":\n%-*s   %*s   %*s\n", svi_namelen, "section",
 	  svi_sizelen, "size", svi_vmalen, "addr");
+
   bfd_map_over_sections (file, sysv_internal_printer, (PTR) NULL);
 
   printf ("%-*s   ", svi_namelen, "Total");

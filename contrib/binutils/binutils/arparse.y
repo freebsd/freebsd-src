@@ -74,6 +74,7 @@ session:
 
 command_line:
 		command NEWLINE { prompt(); }
+	;
 
 command:
 		open_command	

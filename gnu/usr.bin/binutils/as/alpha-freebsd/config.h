@@ -28,6 +28,9 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
 
+/* Define if you need to in order for stat and other things to work.  */
+/* #undef _POSIX_SOURCE */
+
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
 
@@ -146,7 +149,7 @@
 #define PACKAGE "gas"
 
 /* Version number of package */
-/* #define VERSION "2.11" */
+/* #define VERSION "2.12" */
 
 /* Define if defaulting to ELF on SCO 5. */
 /* #undef SCO_ELF */
@@ -154,14 +157,14 @@
 /* Using strict COFF? */
 /* #undef STRICTCOFF */
 
-/* Use ELF stabs for MIPS, not ECOFF stabs */
-/* #undef MIPS_STABS_ELF */
-
 /* Define if default target is PowerPC Solaris. */
 /* #undef TARGET_SOLARIS_COMMENT */
 
 /* Define as 1 if big endian. */
 /* #undef TARGET_BYTES_BIG_ENDIAN */
+
+/* Use ELF stabs for MIPS, not ECOFF stabs */
+/* #undef MIPS_STABS_ELF */
 
 /* Default architecture. */
 /* #undef DEFAULT_ARCH */
@@ -212,7 +215,7 @@
 /* #undef USE_EMULATIONS */
 
 /* Supported emulations. */
-#define EMULATIONS 
+#define EMULATIONS
 
 /* Default emulation. */
 #define DEFAULT_EMULATION ""
@@ -224,19 +227,19 @@
 #define BFD_ASSEMBLER 1
 
 /* Target alias. */
-#define TARGET_ALIAS "alpha-unknown-freebsd4"
+#define TARGET_ALIAS "alpha-obrien-freebsd5.0"
 
 /* Canonical target. */
-#define TARGET_CANONICAL "alpha-unknown-freebsd4"
+#define TARGET_CANONICAL "alpha-obrien-freebsd5.0"
 
 /* Target CPU. */
 #define TARGET_CPU "alpha"
 
 /* Target vendor. */
-#define TARGET_VENDOR "unknown"
+#define TARGET_VENDOR "obrien"
 
 /* Target OS. */
-#define TARGET_OS "freebsd4"
+#define TARGET_OS "freebsd5.0"
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */

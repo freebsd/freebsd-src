@@ -205,12 +205,12 @@ clean: mostlyclean
 
 distclean: clean
 	rm -f Makefile Makefile.in *.mo *.msg *.cat *.cat.m
-	rm -f SRC-POTFILES BLD-POTFILES SRC-POTFILES.in	BLD-POTFILES.in
+	rm -f SRC-POTFILES BLD-POTFILES 
 
 maintainer-clean: distclean
 	@echo "This command is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
-	rm -f $(GMOFILES)
+	rm -f $(GMOFILES) SRC-POTFILES.in BLD-POTFILES.in
 
 distdir = ../$(PACKAGE)-$(VERSION)/$(subdir)
 dist distdir: update-po $(DISTFILES)

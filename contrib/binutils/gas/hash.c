@@ -1,6 +1,6 @@
 /* hash.c -- gas hash table code
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999,
-   2000
+   2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -30,6 +30,7 @@
    structure.  */
 
 #include "as.h"
+#include "safe-ctype.h"
 #include "obstack.h"
 
 /* The default number of entries to use when creating a hash table.  */
@@ -458,8 +459,7 @@ main ()
       printf ("hash_test command: ");
       gets (answer);
       command = answer[0];
-      if (isupper (command))
-	command = tolower (command);	/* Ecch!  */
+      command = TOLOWER (command);	/* Ecch!  */
       switch (command)
 	{
 	case '#':

@@ -1,12 +1,8 @@
 /* Main header file for the bfd library -- portable access to object files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
-
-** NOTE: bfd.h and bfd-in2.h are GENERATED files.  Don't change them;
-** instead, change bfd-in.h or the other BFD source files processed to
-** generate these files.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -24,25 +20,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* bfd.h -- The only header file required by users of the bfd library
-
-The bfd.h file is generated from bfd-in.h and various .c files; if you
-change it, your changes will probably be lost.
-
-All the prototypes and definitions following the comment "THE FOLLOWING
-IS EXTRACTED FROM THE SOURCE" are extracted from the source files for
-BFD.  If you change it, someone oneday will extract it from the source
-again, and your changes will be lost.  To save yourself from this bind,
-change the definitions in the source in the bfd directory.  Type "make
-docs" and then "make headers" in that directory, and magically this file
-will change to reflect your changes.
-
-If you don't have the tools to perform the extraction, then you are
-safe from someone on your system trampling over your header files.
-You should still maintain the equivalence between the source and this
-file though; every change you make to the .c file should be reflected
-here.  */
-
 #ifndef __BFD_H_SEEN__
 #define __BFD_H_SEEN__
 
@@ -51,10 +28,31 @@ extern "C" {
 #endif
 
 #include "ansidecl.h"
+#include "symcat.h"
+#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
+#ifndef SABER
+/* This hack is to avoid a problem with some strict ANSI C preprocessors.
+   The problem is, "32_" is not a valid preprocessing token, and we don't
+   want extra underscores (e.g., "nlm_32_").  The XCONCAT2 macro will
+   cause the inner CONCAT2 macros to be evaluated first, producing
+   still-valid pp-tokens.  Then the final concatenation can be done.  */
+#undef CONCAT4
+#define CONCAT4(a,b,c,d) XCONCAT2(CONCAT2(a,b),CONCAT2(c,d))
+#endif
+#endif
 
-/* These two lines get substitutions done by commands in Makefile.in.  */
-#define BFD_VERSION  "@VERSION@"
+#define BFD_VERSION @bfd_version@
+#define BFD_VERSION_DATE @bfd_version_date@
+#define BFD_VERSION_STRING @bfd_version_string@
+
+/* The word size used by BFD on the host.  This may be 64 with a 32
+   bit target if the host is 64 bit, or if other 64 bit targets have
+   been selected with --enable-targets, or if --enable-64-bit-bfd.  */
 #define BFD_ARCH_SIZE @wordsize@
+
+/* The word size of the default bfd target.  */
+#define BFD_DEFAULT_TARGET_SIZE @bfd_default_target_size@
+
 #define BFD_HOST_64BIT_LONG @BFD_HOST_64BIT_LONG@
 #if @BFD_HOST_64_BIT_DEFINED@
 #define BFD_HOST_64_BIT @BFD_HOST_64_BIT@
@@ -73,7 +71,7 @@ extern "C" {
 #endif
 #endif
 
-/* forward declaration */
+/* Forward declaration.  */
 typedef struct _bfd bfd;
 
 /* To squelch erroneous compiler warnings ("illegal pointer
@@ -90,8 +88,16 @@ typedef struct _bfd bfd;
 /* Yup, SVR4 has a "typedef enum boolean" in <sys/types.h>  -fnf */
 /* It gets worse if the host also defines a true/false enum... -sts */
 /* And even worse if your compiler has built-in boolean types... -law */
+/* And even worse if your compiler provides a stdbool.h that conflicts
+   with these definitions... gcc 2.95 and later do.  If so, it must
+   be included first.  -drow */
 #if defined (__GNUG__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 6))
 #define TRUE_FALSE_ALREADY_DEFINED
+#else
+#if defined (__bool_true_false_are_defined)
+/* We have <stdbool.h>.  */
+#define TRUE_FALSE_ALREADY_DEFINED
+#endif
 #endif
 #ifdef MPW
 /* Pre-emptive strike - get the file with the enum.  */
@@ -105,16 +111,6 @@ typedef enum bfd_boolean {false, true} boolean;
 /* Use enum names that will appear nowhere else.  */
 typedef enum bfd_boolean {bfd_fffalse, bfd_tttrue} boolean;
 #endif
-
-/* A pointer to a position in a file.  */
-/* FIXME:  This should be using off_t from <sys/types.h>.
-   For now, try to avoid breaking stuff by not including <sys/types.h> here.
-   This will break on systems with 64-bit file offsets (e.g. 4.4BSD).
-   Probably the best long-term answer is to avoid using file_ptr AND off_t
-   in this header file, and to handle this in the BFD implementation
-   rather than in its interface.  */
-/* typedef off_t	file_ptr; */
-typedef long int file_ptr;
 
 /* Support for different sizes of target format ints and addresses.
    If the type `long' is at least 64 bits, BFD_HOST_64BIT_LONG will be
@@ -183,20 +179,37 @@ typedef unsigned long bfd_size_type;
 
 #endif /* not BFD64  */
 
+/* A pointer to a position in a file.  */
+/* FIXME:  This should be using off_t from <sys/types.h>.
+   For now, try to avoid breaking stuff by not including <sys/types.h> here.
+   This will break on systems with 64-bit file offsets (e.g. 4.4BSD).
+   Probably the best long-term answer is to avoid using file_ptr AND off_t
+   in this header file, and to handle this in the BFD implementation
+   rather than in its interface.  */
+/* typedef off_t	file_ptr; */
+typedef bfd_signed_vma file_ptr;
+typedef bfd_vma ufile_ptr;
+
+extern void bfd_sprintf_vma PARAMS ((bfd *, char *, bfd_vma));
+extern void bfd_fprintf_vma PARAMS ((bfd *, PTR, bfd_vma));
+
 #define printf_vma(x) fprintf_vma(stdout,x)
+#define bfd_printf_vma(abfd,x) bfd_fprintf_vma (abfd,stdout,x)
 
 typedef unsigned int flagword;	/* 32 bits of flags */
 typedef unsigned char bfd_byte;
 
-/** File formats */
+/* File formats.  */
 
-typedef enum bfd_format {
-	      bfd_unknown = 0,	/* file format is unknown */
-	      bfd_object,	/* linker/assember/compiler output */
-	      bfd_archive,	/* object archive file */
-	      bfd_core,		/* core dump */
-	      bfd_type_end}	/* marks the end; don't use it! */
-         bfd_format;
+typedef enum bfd_format
+{
+  bfd_unknown = 0,	/* File format is unknown.  */
+  bfd_object,		/* Linker/assember/compiler output.  */
+  bfd_archive,		/* Object archive file.  */
+  bfd_core,		/* Core dump.  */
+  bfd_type_end		/* Marks the end; don't use it!  */
+}
+bfd_format;
 
 /* Values that may appear in the flags field of a BFD.  These also
    appear in the object_flags field of the bfd_target structure, where
@@ -255,7 +268,7 @@ typedef enum bfd_format {
    memory.  If this is set, iostream points to a bfd_in_memory struct.  */
 #define BFD_IN_MEMORY 0x800
 
-/* symbols and relocation */
+/* Symbols and relocation.  */
 
 /* A count of carsyms (canonical archive symbols).  */
 typedef unsigned long symindex;
@@ -279,30 +292,40 @@ typedef const struct reloc_howto_struct reloc_howto_type;
 #define bfd_asymbol_flavour(x) (bfd_asymbol_bfd(x)->xvec->flavour)
 
 /* A canonical archive symbol.  */
-/* This is a type pun with struct ranlib on purpose! */
-typedef struct carsym {
+/* This is a type pun with struct ranlib on purpose!  */
+typedef struct carsym
+{
   char *name;
-  file_ptr file_offset;		/* look here to find the file */
-} carsym;			/* to make these you call a carsymogen */
+  file_ptr file_offset;	/* Look here to find the file.  */
+}
+carsym;			/* To make these you call a carsymogen.  */
 
 /* Used in generating armaps (archive tables of contents).
-   Perhaps just a forward definition would do? */
-struct orl {			/* output ranlib */
-  char **name;			/* symbol name */
-  file_ptr pos;			/* bfd* or file position */
-  int namidx;			/* index into string table */
+   Perhaps just a forward definition would do?  */
+struct orl 			/* Output ranlib.  */
+{
+  char **name;		/* Symbol name.  */
+  union
+  {
+    file_ptr pos;
+    bfd *abfd;
+  } u;			/* bfd* or file position.  */
+  int namidx;		/* Index into string table.  */
 };
 
-/* Linenumber stuff */
-typedef struct lineno_cache_entry {
-  unsigned int line_number;	/* Linenumber from start of function*/
-  union {
-    struct symbol_cache_entry *sym; /* Function name */
-    unsigned long offset;	/* Offset into section */
+/* Linenumber stuff.  */
+typedef struct lineno_cache_entry
+{
+  unsigned int line_number;	/* Linenumber from start of function.  */
+  union
+  {
+    struct symbol_cache_entry *sym;	/* Function name.  */
+    bfd_vma offset;	    		/* Offset into section.  */
   } u;
-} alent;
+}
+alent;
 
-/* object and core file sections */
+/* Object and core file sections.  */
 
 #define	align_power(addr, align)	\
 	( ((addr) + ((1<<(align))-1)) & (-1 << (align)))
@@ -341,11 +364,11 @@ typedef struct _symbol_info
 {
   symvalue value;
   char type;
-  CONST char *name;            /* Symbol name.  */
+  const char *name;            /* Symbol name.  */
   unsigned char stab_type;     /* Stab type.  */
   char stab_other;             /* Stab other.  */
   short stab_desc;             /* Stab desc.  */
-  CONST char *stab_name;       /* String for stab type.  */
+  const char *stab_name;       /* String for stab type.  */
 } symbol_info;
 
 /* Get the name of a stabs type code.  */
@@ -438,47 +461,39 @@ extern void bfd_hash_traverse PARAMS ((struct bfd_hash_table *,
 				       boolean (*) (struct bfd_hash_entry *,
 						    PTR),
 				       PTR info));
-
-/* Semi-portable string concatenation in cpp.
-   The CAT4 hack is to avoid a problem with some strict ANSI C preprocessors.
-   The problem is, "32_" is not a valid preprocessing token, and we don't
-   want extra underscores (e.g., "nlm_32_").  The XCAT2 macro will cause the
-   inner CAT macros to be evaluated first, producing still-valid pp-tokens.
-   Then the final concatenation can be done.  (Sigh.)  */
-#ifndef CAT
-#ifdef SABER
-#define CAT(a,b)	a##b
-#define CAT3(a,b,c)	a##b##c
-#define CAT4(a,b,c,d)	a##b##c##d
-#else
-#if defined(__STDC__) || defined(ALMOST_STDC)
-#define CAT(a,b) a##b
-#define CAT3(a,b,c) a##b##c
-#define XCAT2(a,b)	CAT(a,b)
-#define CAT4(a,b,c,d)	XCAT2(CAT(a,b),CAT(c,d))
-#else
-#define CAT(a,b) a/**/b
-#define CAT3(a,b,c) a/**/b/**/c
-#define CAT4(a,b,c,d)	a/**/b/**/c/**/d
-#endif
-#endif
-#endif
 
 #define COFF_SWAP_TABLE (PTR) &bfd_coff_std_swap_table
-
-/* User program access to BFD facilities */
+
+/* User program access to BFD facilities.  */
 
 /* Direct I/O routines, for programs which know more about the object
    file than BFD does.  Use higher level routines if possible.  */
 
-extern bfd_size_type bfd_read
-  PARAMS ((PTR, bfd_size_type size, bfd_size_type nitems, bfd *abfd));
-extern bfd_size_type bfd_write
-  PARAMS ((const PTR, bfd_size_type size, bfd_size_type nitems, bfd *abfd));
-extern int bfd_seek PARAMS ((bfd *abfd, file_ptr fp, int direction));
-extern long bfd_tell PARAMS ((bfd *abfd));
-extern int bfd_flush PARAMS ((bfd *abfd));
-extern int bfd_stat PARAMS ((bfd *abfd, struct stat *));
+extern bfd_size_type bfd_bread PARAMS ((PTR, bfd_size_type, bfd *));
+extern bfd_size_type bfd_bwrite PARAMS ((const PTR, bfd_size_type, bfd *));
+extern int bfd_seek PARAMS ((bfd *, file_ptr, int));
+extern ufile_ptr bfd_tell PARAMS ((bfd *));
+extern int bfd_flush PARAMS ((bfd *));
+extern int bfd_stat PARAMS ((bfd *, struct stat *));
+
+/* Deprecated old routines.  */
+#if __GNUC__
+#define bfd_read(BUF, ELTSIZE, NITEMS, ABFD)				\
+  (warn_deprecated ("bfd_read", __FILE__, __LINE__, __FUNCTION__),	\
+   bfd_bread ((BUF), (ELTSIZE) * (NITEMS), (ABFD)))
+#define bfd_write(BUF, ELTSIZE, NITEMS, ABFD)				\
+  (warn_deprecated ("bfd_write", __FILE__, __LINE__, __FUNCTION__),	\
+   bfd_bwrite ((BUF), (ELTSIZE) * (NITEMS), (ABFD)))
+#else
+#define bfd_read(BUF, ELTSIZE, NITEMS, ABFD)				\
+  (warn_deprecated ("bfd_read", (const char *) 0, 0, (const char *) 0), \
+   bfd_bread ((BUF), (ELTSIZE) * (NITEMS), (ABFD)))
+#define bfd_write(BUF, ELTSIZE, NITEMS, ABFD)				\
+  (warn_deprecated ("bfd_write", (const char *) 0, 0, (const char *) 0),\
+   bfd_bwrite ((BUF), (ELTSIZE) * (NITEMS), (ABFD)))
+#endif
+extern void warn_deprecated
+  PARAMS ((const char *, const char *, int, const char *));
 
 /* Cast from const char * to char * so that caller can assign to
    a char * without a warning.  */
@@ -513,6 +528,9 @@ extern int bfd_stat PARAMS ((bfd *abfd, struct stat *));
 #define bfd_get_symbol_leading_char(abfd) ((abfd)->xvec->symbol_leading_char)
 
 #define bfd_set_cacheable(abfd,bool) (((abfd)->cacheable = (boolean) (bool)), true)
+
+extern boolean bfd_cache_close PARAMS ((bfd *abfd));
+/* NB: This declaration should match the autogenerated one in libbfd.h.  */
 
 extern boolean bfd_record_phdr
   PARAMS ((bfd *, unsigned long, boolean, flagword, boolean, bfd_vma,
@@ -622,17 +640,21 @@ extern struct bfd_link_needed_list *bfd_elf_get_needed_list
 extern boolean bfd_elf_get_bfd_needed_list
   PARAMS ((bfd *, struct bfd_link_needed_list **));
 extern boolean bfd_elf32_size_dynamic_sections
-  PARAMS ((bfd *, const char *, const char *, boolean, const char *,
+  PARAMS ((bfd *, const char *, const char *, const char *,
 	   const char * const *, struct bfd_link_info *, struct sec **,
 	   struct bfd_elf_version_tree *));
 extern boolean bfd_elf64_size_dynamic_sections
-  PARAMS ((bfd *, const char *, const char *, boolean, const char *,
+  PARAMS ((bfd *, const char *, const char *, const char *,
 	   const char * const *, struct bfd_link_info *, struct sec **,
 	   struct bfd_elf_version_tree *));
 extern void bfd_elf_set_dt_needed_name PARAMS ((bfd *, const char *));
 extern void bfd_elf_set_dt_needed_soname PARAMS ((bfd *, const char *));
 extern const char *bfd_elf_get_dt_soname PARAMS ((bfd *));
 extern struct bfd_link_needed_list *bfd_elf_get_runpath_list
+  PARAMS ((bfd *, struct bfd_link_info *));
+extern boolean bfd_elf32_discard_info
+  PARAMS ((bfd *, struct bfd_link_info *));
+extern boolean bfd_elf64_discard_info
   PARAMS ((bfd *, struct bfd_link_info *));
 
 /* Return an upper bound on the number of bytes required to store a
@@ -656,6 +678,9 @@ extern int bfd_get_arch_size PARAMS ((bfd *));
 extern int bfd_get_sign_extend_vma PARAMS ((bfd *));
 
 extern boolean bfd_m68k_elf32_create_embedded_relocs
+  PARAMS ((bfd *, struct bfd_link_info *, struct sec *, struct sec *,
+	   char **));
+extern boolean bfd_mips_elf32_create_embedded_relocs
   PARAMS ((bfd *, struct bfd_link_info *, struct sec *, struct sec *,
 	   char **));
 
@@ -683,7 +708,8 @@ extern boolean bfd_sparclinux_size_dynamic_sections
 struct _bfd_window_internal;
 typedef struct _bfd_window_internal bfd_window_internal;
 
-typedef struct _bfd_window {
+typedef struct _bfd_window
+{
   /* What the user asked for.  */
   PTR data;
   bfd_size_type size;
@@ -694,7 +720,8 @@ typedef struct _bfd_window {
      application; don't want to give the same region back when the
      application wants two writable copies!  */
   struct _bfd_window_internal *i;
-} bfd_window;
+}
+bfd_window;
 
 extern void bfd_init_window PARAMS ((bfd_window *));
 extern void bfd_free_window PARAMS ((bfd_window *));
@@ -708,10 +735,9 @@ extern boolean bfd_xcoff_link_record_set
 	   bfd_size_type));
 extern boolean bfd_xcoff_import_symbol
   PARAMS ((bfd *, struct bfd_link_info *, struct bfd_link_hash_entry *,
-	   bfd_vma, const char *, const char *, const char *));
+	   bfd_vma, const char *, const char *, const char *, unsigned int));
 extern boolean bfd_xcoff_export_symbol
-  PARAMS ((bfd *, struct bfd_link_info *, struct bfd_link_hash_entry *,
-	   boolean));
+  PARAMS ((bfd *, struct bfd_link_info *, struct bfd_link_hash_entry *));
 extern boolean bfd_xcoff_link_count_reloc
   PARAMS ((bfd *, struct bfd_link_info *, const char *));
 extern boolean bfd_xcoff_record_link_assignment
@@ -720,6 +746,8 @@ extern boolean bfd_xcoff_size_dynamic_sections
   PARAMS ((bfd *, struct bfd_link_info *, const char *, const char *,
 	   unsigned long, unsigned long, unsigned long, boolean,
 	   int, boolean, boolean, struct sec **));
+extern boolean bfd_xcoff_link_generate_rtinit
+  PARAMS ((bfd *, const char *, const char *));
 
 /* Externally visible COFF routines.  */
 

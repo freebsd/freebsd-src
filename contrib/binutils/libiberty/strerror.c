@@ -13,6 +13,7 @@
    incompatible with our later declaration, perhaps by using const
    attributes.  So we hide the declaration in errno.h (if any) using a
    macro. */
+#define sys_nerr sys_nerr__
 #define sys_errlist sys_errlist__
 #endif
 
@@ -20,6 +21,7 @@
 #include <errno.h>
 
 #ifdef HAVE_SYS_ERRLIST
+#undef sys_nerr
 #undef sys_errlist
 #endif
 
@@ -56,10 +58,10 @@ static void init_error_tables PARAMS ((void));
 
 struct error_info
 {
-  int value;		/* The numeric value from <errno.h> */
-  const char *name;	/* The equivalent symbolic value */
+  const int value;		/* The numeric value from <errno.h> */
+  const char *const name;	/* The equivalent symbolic value */
 #ifndef HAVE_SYS_ERRLIST
-  const char *msg;	/* Short message about this value */
+  const char *const msg;	/* Short message about this value */
 #endif
 };
 
@@ -560,28 +562,23 @@ init_error_tables ()
 
 /*
 
-NAME
 
-	errno_max -- return the max errno value
+@deftypefn Extension int errno_max (void)
 
-SYNOPSIS
+Returns the maximum @code{errno} value for which a corresponding
+symbolic name or message is available.  Note that in the case where we
+use the @code{sys_errlist} supplied by the system, it is possible for
+there to be more symbolic names than messages, or vice versa.  In
+fact, the manual page for @code{perror(3C)} explicitly warns that one
+should check the size of the table (@code{sys_nerr}) before indexing
+it, since new error codes may be added to the system before they are
+added to the table.  Thus @code{sys_nerr} might be smaller than value
+implied by the largest @code{errno} value defined in @code{<errno.h>}.
 
-	int errno_max ();
+We return the maximum value that can be used to obtain a meaningful
+symbolic name or message.
 
-DESCRIPTION
-
-	Returns the maximum errno value for which a corresponding symbolic
-	name or message is available.  Note that in the case where
-	we use the sys_errlist supplied by the system, it is possible for
-	there to be more symbolic names than messages, or vice versa.
-	In fact, the manual page for perror(3C) explicitly warns that one
-	should check the size of the table (sys_nerr) before indexing it,
-	since new error codes may be added to the system before they are
-	added to the table.  Thus sys_nerr might be smaller than value
-	implied by the largest errno value defined in <errno.h>.
-
-	We return the maximum value that can be used to obtain a meaningful
-	symbolic name or message.
+@end deftypefn
 
 */
 
@@ -602,31 +599,25 @@ errno_max ()
 
 /*
 
-NAME
+@deftypefn Supplemental char* strerror (int @var{errnoval})
 
-	strerror -- map an error number to an error message string
+Maps an @code{errno} number to an error message string, the contents
+of which are implementation defined.  On systems which have the
+external variables @code{sys_nerr} and @code{sys_errlist}, these
+strings will be the same as the ones used by @code{perror}.
 
-SYNOPSIS
+If the supplied error number is within the valid range of indices for
+the @code{sys_errlist}, but no message is available for the particular
+error number, then returns the string @samp{Error @var{num}}, where
+@var{num} is the error number.
 
-	char *strerror (int errnoval)
+If the supplied error number is not a valid index into
+@code{sys_errlist}, returns @code{NULL}.
 
-DESCRIPTION
+The returned string is only guaranteed to be valid only until the
+next call to @code{strerror}.
 
-	Maps an errno number to an error message string, the contents of
-	which are implementation defined.  On systems which have the external
-	variables sys_nerr and sys_errlist, these strings will be the same
-	as the ones used by perror().
-
-	If the supplied error number is within the valid range of indices
-	for the sys_errlist, but no message is available for the particular
-	error number, then returns the string "Error NUM", where NUM is the
-	error number.
-
-	If the supplied error number is not a valid index into sys_errlist,
-	returns NULL.
-
-	The returned string is only guaranteed to be valid only until the
-	next call to strerror.
+@end deftypefn
 
 */
 
@@ -634,7 +625,7 @@ char *
 strerror (errnoval)
   int errnoval;
 {
-  char *msg;
+  const char *msg;
   static char buf[32];
 
 #ifndef HAVE_SYS_ERRLIST
@@ -676,32 +667,24 @@ strerror (errnoval)
 
 /*
 
-NAME
+@deftypefn Replacement {const char*} strerrno (int @var{errnum})
 
-	strerrno -- map an error number to a symbolic name string
+Given an error number returned from a system call (typically returned
+in @code{errno}), returns a pointer to a string containing the
+symbolic name of that error number, as found in @code{<errno.h>}.
 
-SYNOPSIS
+If the supplied error number is within the valid range of indices for
+symbolic names, but no name is available for the particular error
+number, then returns the string @samp{Error @var{num}}, where @var{num}
+is the error number.
 
-	const char *strerrno (int errnoval)
+If the supplied error number is not within the range of valid
+indices, then returns @code{NULL}.
 
-DESCRIPTION
+The contents of the location pointed to are only guaranteed to be
+valid until the next call to @code{strerrno}.
 
-	Given an error number returned from a system call (typically
-	returned in errno), returns a pointer to a string containing the
-	symbolic name of that error number, as found in <errno.h>.
-
-	If the supplied error number is within the valid range of indices
-	for symbolic names, but no name is available for the particular
-	error number, then returns the string "Error NUM", where NUM is
-	the error number.
-
-	If the supplied error number is not within the range of valid
-	indices, then returns NULL.
-
-BUGS
-
-	The contents of the location pointed to are only guaranteed to be
-	valid until the next call to strerrno.
+@end deftypefn
 
 */
 
@@ -744,18 +727,12 @@ strerrno (errnoval)
 
 /*
 
-NAME
+@deftypefn Extension int strtoerrno (const char *@var{name})
 
-	strtoerrno -- map a symbolic errno name to a numeric value
+Given the symbolic name of a error number (e.g., @code{EACCES}), map it
+to an errno value.  If no translation is found, returns 0.
 
-SYNOPSIS
-
-	int strtoerrno (char *name)
-
-DESCRIPTION
-
-	Given the symbolic name of a error number, map it to an errno value.
-	If no translation is found, returns 0.
+@end deftypefn
 
 */
 
@@ -806,7 +783,7 @@ main ()
   int errn;
   int errnmax;
   const char *name;
-  char *msg;
+  const char *msg;
   char *strerror ();
 
   errnmax = errno_max ();

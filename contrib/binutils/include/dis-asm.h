@@ -1,6 +1,6 @@
 /* Interface between the opcode library and its callers.
 
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2002 Free Software Foundation, Inc.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,6 +73,11 @@ typedef struct disassemble_info {
   unsigned long mach;
   /* Endianness (for bi-endian cpus).  Mono-endian cpus can ignore this.  */
   enum bfd_endian endian;
+  /* An arch/mach-specific bitmask of selected instruction subsets, mainly
+     for processors with run-time-switchable instruction sets.  The default,
+     zero, means that there is no constraint.  CGEN-based opcodes ports
+     may use ISA_foo masks.  */
+  unsigned long insn_sets;
 
   /* Some targets need information about the current section to accurately
      display insns.  If this is NULL, the target disassembler function
@@ -145,8 +150,7 @@ typedef struct disassemble_info {
   enum bfd_endian display_endian;
 
   /* Number of octets per incremented target address 
-     Normally one, but some DSPs have byte sizes of 16 or 32 bits
-   */
+     Normally one, but some DSPs have byte sizes of 16 or 32 bits.  */
   unsigned int octets_per_byte;
 
   /* Results from instruction decoders.  Not all decoders yet support
@@ -172,12 +176,13 @@ typedef struct disassemble_info {
 
 
 /* Standard disassemblers.  Disassemble one instruction at the given
-   target address.  Return number of bytes processed.  */
+   target address.  Return number of octets processed.  */
 typedef int (*disassembler_ftype)
      PARAMS((bfd_vma, disassemble_info *));
 
 extern int print_insn_big_mips		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_mips	PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_i386		PARAMS ((bfd_vma, disassemble_info *));
 extern int print_insn_i386_att		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_i386_intel	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_ia64		PARAMS ((bfd_vma, disassemble_info*));
@@ -192,38 +197,49 @@ extern int print_insn_h8300h		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_h8300s		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_h8500		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_alpha		PARAMS ((bfd_vma, disassemble_info*));
-extern disassembler_ftype arc_get_disassembler PARAMS ((void *));
 extern int print_insn_big_arm		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_arm	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_sparc		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_big_a29k		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_a29k	PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_avr		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_d10v		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_d30v		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_fr30		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_hppa		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_i860		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_i960		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_sh		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_shl		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_hppa		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_fr30		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_m32r		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_m88k		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_mcore		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_mmix		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_mn10200		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_mn10300		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_ns32k		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_openrisc		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_big_or32          PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_little_or32       PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_pdp11		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_pj		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_big_powerpc	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_powerpc	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_rs6000		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_w65		PARAMS ((bfd_vma, disassemble_info*));
-extern disassembler_ftype cris_get_disassembler PARAMS ((bfd *));
-extern int print_insn_d10v		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_d30v		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_v850		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_s390              PARAMS ((bfd_vma, disassemble_info*)); 
+extern int print_insn_sh		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_shl		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_tic30		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_vax		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_tic54x		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_tic80		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_pj		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_avr		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_v850		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_vax		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_w65		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_xstormy16		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_sh64		PARAMS ((bfd_vma, disassemble_info *));
+extern int print_insn_sh64l		PARAMS ((bfd_vma, disassemble_info *));
+extern int print_insn_sh64x_media	PARAMS ((bfd_vma, disassemble_info *));
+
+extern disassembler_ftype arc_get_disassembler PARAMS ((void *));
+extern disassembler_ftype cris_get_disassembler PARAMS ((bfd *));
 
 extern void print_arm_disassembler_options PARAMS ((FILE *));
 extern void parse_arm_disassembler_option  PARAMS ((char *));
@@ -267,6 +283,7 @@ extern int generic_symbol_at_address
   (INFO).flavour = bfd_target_unknown_flavour, \
   (INFO).arch = bfd_arch_unknown, \
   (INFO).mach = 0, \
+  (INFO).insn_sets = 0, \
   (INFO).endian = BFD_ENDIAN_UNKNOWN, \
   (INFO).octets_per_byte = 1, \
   INIT_DISASSEMBLE_INFO_NO_ARCH(INFO, STREAM, FPRINTF_FUNC)
@@ -294,6 +311,7 @@ extern int generic_symbol_at_address
   (INFO).bytes_per_line = 0, \
   (INFO).bytes_per_chunk = 0, \
   (INFO).display_endian = BFD_ENDIAN_UNKNOWN, \
+  (INFO).disassembler_options = NULL, \
   (INFO).insn_info_valid = 0
 
 #ifdef __cplusplus

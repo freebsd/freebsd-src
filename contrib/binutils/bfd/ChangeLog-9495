@@ -178,7 +178,7 @@ Fri Dec  1 14:46:51 1995  Ian Lance Taylor  <ian@cygnus.com>
 
 	* bfd.c (bfd_record_phdr): New function.
 	* bfd-in.h (bfd_record_phdr): Declare.
-	* bfd_in2.h: Rebuild.
+	* bfd-in2.h: Rebuild.
 
 	* elf32-sparc.c (elf32_sparc_relocate_section): Remove bogus
 	BFD_ASSERT.
@@ -407,7 +407,7 @@ Wed Nov 15 18:05:52 1995  Ian Lance Taylor  <ian@cygnus.com>
 	_bfd_print_private_bfd_data from void * to PTR.
 	* libbfd-in.h (_bfd_generic_bfd_print_private_bfd_data): Cast
 	using PTR rather than void *.
-	* bfd-in2, libbfd.h: Rebuild.
+	* bfd-in2.h, libbfd.h: Rebuild.
 	* peicode.h (pe_print_private_bfd_data): Change vfile from void *
 	to PTR.
 	* elfxx-target.h (bfd_elfNN_bfd_print_private_bfd_data): Define as
@@ -2357,7 +2357,7 @@ Wed Aug  6 09:12:50 1995  Doug Evans  <dje@canuck.cygnus.com>
 
 Sat Aug  5 00:04:08 1995  Jeff Law  (law@snake.cs.utah.edu)
 
-	* som (som_get_reloc_upper_bound): Return -1 on error.  Compute
+	* som.c (som_get_reloc_upper_bound): Return -1 on error.  Compute
 	return value with sizeof (arelent *), not sizeof (arelent).
 
 Wed Aug  2 12:32:21 1995  Ian Lance Taylor  <ian@cygnus.com>
@@ -4334,7 +4334,7 @@ Thu Nov 17 17:37:39 1994  Ken Raeburn  <raeburn@cujo.cygnus.com>
 
 Thu Nov 17 13:12:08 1994  Jeff Law  (law@snake.cs.utah.edu)
 
-	* bfd/elf32-hppa.c (elf32_hppa_bfd_final_link_relocated): Use the
+	* elf32-hppa.c (elf32_hppa_bfd_final_link_relocated): Use the
 	vma from the output_section containing $global$ when computing
 	global_vlaue.
 
@@ -6887,7 +6887,7 @@ Tue May 24 16:17:18 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 	* libelf.h (struct elf_obj_tdata): Add new field bad_symtab.
 	(elf_bad_symtab): Define new accessor macro.
 	(_bfd_elf_link_hash_newfunc): Declare.
-	(_bew_elf_link_hash_table_init): Declare.
+	(_bfd_elf_link_hash_table_init): Declare.
 	* elfcode.h (elf_object_p): Call backend object_p hook after
 	swapping in all the section headers.
 	(map_program_segments): Correct typo: Internal for External.
@@ -7454,7 +7454,7 @@ Fri Apr 15 12:22:07 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 	gas does this anyhow, but some other assemblers seem to leave
 	garbage in the R_IHCONST address field.
 
-	* bfd/archive.c: Consistently use ARFMAG; from
+	* archive.c: Consistently use ARFMAG; from
 	schwab@issan.informatik.uni-dortmund.de (Andreas Schwab).
 	(_bfd_write_archive_contents): Use ARFMAG rather than '`' and
 	'\012'.
@@ -8307,7 +8307,7 @@ Mon Mar 21 12:28:19 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 Sun Mar 20 09:24:36 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
 
-	* bfd/som.c (som_begin_writing): Fix thinko (off by one error).
+	* som.c (som_begin_writing): Fix thinko (off by one error).
 
 	* som.c (bfd_section_from_som_symbol): Only to do the value
 	comparison for function symbols within executables.
@@ -8539,7 +8539,7 @@ Mon Mar 14 11:41:23 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
 	undefined symbols.  Correctly distinguish between debugger symbols
 	and section symbols.
 
-	* som (setup_sections): Set SEC_DEBUGGING and the section attributes
+	* som.c (setup_sections): Set SEC_DEBUGGING and the section attributes
 	for spaces and subspaces.
 
 	* som.c (som_bfd_count_ar_symbols): Fix typo.
@@ -9587,7 +9587,7 @@ Mon Jan 24 12:38:54 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 	* elf32-hppa.c (hppa_elf_gen_reloc_type): Typo (== for =).
 
-	* bfd/aoutx.h (aout_link_input_section_std,
+	* aoutx.h (aout_link_input_section_std,
 	aout_link_input_section_ext): Pass additional arguments to
 	reloc_overflow callback.
 	* coff-alpha.c (alpha_ecoff_get_relocated_section_contents,

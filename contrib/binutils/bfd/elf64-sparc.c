@@ -1,5 +1,5 @@
 /* SPARC-specific support for 64-bit ELF
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -35,44 +35,55 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define MINUS_ONE (~ (bfd_vma) 0)
 
 static struct bfd_link_hash_table * sparc64_elf_bfd_link_hash_table_create
-  PARAMS((bfd *));
+  PARAMS ((bfd *));
+static bfd_reloc_status_type init_insn_reloc
+  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *,
+	   bfd *, bfd_vma *, bfd_vma *));
 static reloc_howto_type *sparc64_elf_reloc_type_lookup
   PARAMS ((bfd *, bfd_reloc_code_real_type));
 static void sparc64_elf_info_to_howto
   PARAMS ((bfd *, arelent *, Elf_Internal_Rela *));
 
 static void sparc64_elf_build_plt
-  PARAMS((bfd *, unsigned char *, int));
+  PARAMS ((bfd *, unsigned char *, int));
 static bfd_vma sparc64_elf_plt_entry_offset
-  PARAMS((int));
+  PARAMS ((bfd_vma));
 static bfd_vma sparc64_elf_plt_ptr_offset
-  PARAMS((int, int));
+  PARAMS ((bfd_vma, bfd_vma));
 
 static boolean sparc64_elf_check_relocs
-  PARAMS((bfd *, struct bfd_link_info *, asection *sec,
-	  const Elf_Internal_Rela *));
+  PARAMS ((bfd *, struct bfd_link_info *, asection *sec,
+	   const Elf_Internal_Rela *));
 static boolean sparc64_elf_adjust_dynamic_symbol
-  PARAMS((struct bfd_link_info *, struct elf_link_hash_entry *));
+  PARAMS ((struct bfd_link_info *, struct elf_link_hash_entry *));
 static boolean sparc64_elf_size_dynamic_sections
-  PARAMS((bfd *, struct bfd_link_info *));
+  PARAMS ((bfd *, struct bfd_link_info *));
 static int sparc64_elf_get_symbol_type
   PARAMS (( Elf_Internal_Sym *, int));
 static boolean sparc64_elf_add_symbol_hook
   PARAMS ((bfd *, struct bfd_link_info *, const Elf_Internal_Sym *,
-        const char **, flagword *, asection **, bfd_vma *));
+	   const char **, flagword *, asection **, bfd_vma *));
+static boolean sparc64_elf_output_arch_syms
+  PARAMS ((bfd *, struct bfd_link_info *, PTR,
+	   boolean (*) (PTR, const char *, Elf_Internal_Sym *, asection *)));
 static void sparc64_elf_symbol_processing
   PARAMS ((bfd *, asymbol *));
 
-static boolean sparc64_elf_copy_private_bfd_data
-  PARAMS ((bfd *, bfd *));
 static boolean sparc64_elf_merge_private_bfd_data
   PARAMS ((bfd *, bfd *));
 
+static const char *sparc64_elf_print_symbol_all
+  PARAMS ((bfd *, PTR, asymbol *));
 static boolean sparc64_elf_relax_section
   PARAMS ((bfd *, asection *, struct bfd_link_info *, boolean *));
 static boolean sparc64_elf_relocate_section
   PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
 	   Elf_Internal_Rela *, Elf_Internal_Sym *, asection **));
+static boolean sparc64_elf_finish_dynamic_symbol
+  PARAMS ((bfd *, struct bfd_link_info *, struct elf_link_hash_entry *,
+	   Elf_Internal_Sym *));
+static boolean sparc64_elf_finish_dynamic_sections
+  PARAMS ((bfd *, struct bfd_link_info *));
 static boolean sparc64_elf_object_p PARAMS ((bfd *));
 static long sparc64_elf_get_reloc_upper_bound PARAMS ((bfd *, asection *));
 static long sparc64_elf_get_dynamic_reloc_upper_bound PARAMS ((bfd *));
@@ -83,6 +94,8 @@ static boolean sparc64_elf_slurp_reloc_table
 static long sparc64_elf_canonicalize_dynamic_reloc
   PARAMS ((bfd *, arelent **, asymbol **));
 static void sparc64_elf_write_relocs PARAMS ((bfd *, asection *, PTR));
+static enum elf_reloc_type_class sparc64_elf_reloc_type_class
+  PARAMS ((const Elf_Internal_Rela *));
 
 /* The relocation "howto" table.  */
 
@@ -103,7 +116,7 @@ static reloc_howto_type sparc64_elf_howto_table[] =
   HOWTO(R_SPARC_32,        0,2,32,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_32",      false,0,0xffffffff,true),
   HOWTO(R_SPARC_DISP8,     0,0, 8,true, 0,complain_overflow_signed,  bfd_elf_generic_reloc,  "R_SPARC_DISP8",   false,0,0x000000ff,true),
   HOWTO(R_SPARC_DISP16,    0,1,16,true, 0,complain_overflow_signed,  bfd_elf_generic_reloc,  "R_SPARC_DISP16",  false,0,0x0000ffff,true),
-  HOWTO(R_SPARC_DISP32,    0,2,32,true, 0,complain_overflow_signed,  bfd_elf_generic_reloc,  "R_SPARC_DISP32",  false,0,0x00ffffff,true),
+  HOWTO(R_SPARC_DISP32,    0,2,32,true, 0,complain_overflow_signed,  bfd_elf_generic_reloc,  "R_SPARC_DISP32",  false,0,0xffffffff,true),
   HOWTO(R_SPARC_WDISP30,   2,2,30,true, 0,complain_overflow_signed,  bfd_elf_generic_reloc,  "R_SPARC_WDISP30", false,0,0x3fffffff,true),
   HOWTO(R_SPARC_WDISP22,   2,2,22,true, 0,complain_overflow_signed,  bfd_elf_generic_reloc,  "R_SPARC_WDISP22", false,0,0x003fffff,true),
   HOWTO(R_SPARC_HI22,     10,2,22,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_HI22",    false,0,0x003fffff,true),
@@ -122,8 +135,8 @@ static reloc_howto_type sparc64_elf_howto_table[] =
   HOWTO(R_SPARC_RELATIVE,  0,0,00,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_RELATIVE",false,0,0x00000000,true),
   HOWTO(R_SPARC_UA32,      0,2,32,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_UA32",    false,0,0xffffffff,true),
 #ifndef SPARC64_OLD_RELOCS
+  HOWTO(R_SPARC_PLT32,     0,2,32,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_PLT32",   false,0,0xffffffff,true),
   /* These aren't implemented yet.  */
-  HOWTO(R_SPARC_PLT32,     0,0,00,false,0,complain_overflow_dont,    sparc_elf_notsup_reloc, "R_SPARC_PLT32",    false,0,0x00000000,true),
   HOWTO(R_SPARC_HIPLT22,   0,0,00,false,0,complain_overflow_dont,    sparc_elf_notsup_reloc, "R_SPARC_HIPLT22",  false,0,0x00000000,true),
   HOWTO(R_SPARC_LOPLT10,   0,0,00,false,0,complain_overflow_dont,    sparc_elf_notsup_reloc, "R_SPARC_LOPLT10",  false,0,0x00000000,true),
   HOWTO(R_SPARC_PCPLT32,   0,0,00,false,0,complain_overflow_dont,    sparc_elf_notsup_reloc, "R_SPARC_PCPLT32",  false,0,0x00000000,true),
@@ -147,7 +160,7 @@ static reloc_howto_type sparc64_elf_howto_table[] =
   HOWTO(R_SPARC_5,         0,2, 5,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_5",       false,0,0x0000001f,true),
   HOWTO(R_SPARC_6,         0,2, 6,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_6",       false,0,0x0000003f,true),
   HOWTO(R_SPARC_DISP64,    0,4,64,true, 0,complain_overflow_signed,  bfd_elf_generic_reloc,  "R_SPARC_DISP64",  false,0,MINUS_ONE, true),
-  HOWTO(R_SPARC_PLT64,     0,4,64,false,0,complain_overflow_bitfield,sparc_elf_notsup_reloc, "R_SPARC_PLT64",   false,0,MINUS_ONE, false),
+  HOWTO(R_SPARC_PLT64,     0,4,64,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_PLT64",   false,0,MINUS_ONE, true),
   HOWTO(R_SPARC_HIX22,     0,4, 0,false,0,complain_overflow_bitfield,sparc_elf_hix22_reloc,  "R_SPARC_HIX22",   false,0,MINUS_ONE, false),
   HOWTO(R_SPARC_LOX10,     0,4, 0,false,0,complain_overflow_dont,    sparc_elf_lox10_reloc,  "R_SPARC_LOX10",   false,0,MINUS_ONE, false),
   HOWTO(R_SPARC_H44,      22,2,22,false,0,complain_overflow_unsigned,bfd_elf_generic_reloc,  "R_SPARC_H44",     false,0,0x003fffff,false),
@@ -163,10 +176,11 @@ struct elf_reloc_map {
   unsigned char elf_reloc_val;
 };
 
-static CONST struct elf_reloc_map sparc_reloc_map[] =
+static const struct elf_reloc_map sparc_reloc_map[] =
 {
   { BFD_RELOC_NONE, R_SPARC_NONE, },
   { BFD_RELOC_16, R_SPARC_16, },
+  { BFD_RELOC_16_PCREL, R_SPARC_DISP16 },
   { BFD_RELOC_8, R_SPARC_8 },
   { BFD_RELOC_8_PCREL, R_SPARC_DISP8 },
   { BFD_RELOC_CTOR, R_SPARC_64 },
@@ -175,6 +189,7 @@ static CONST struct elf_reloc_map sparc_reloc_map[] =
   { BFD_RELOC_HI22, R_SPARC_HI22 },
   { BFD_RELOC_LO10, R_SPARC_LO10, },
   { BFD_RELOC_32_PCREL_S2, R_SPARC_WDISP30 },
+  { BFD_RELOC_64_PCREL, R_SPARC_DISP64 },
   { BFD_RELOC_SPARC22, R_SPARC_22 },
   { BFD_RELOC_SPARC13, R_SPARC_13 },
   { BFD_RELOC_SPARC_GOT10, R_SPARC_GOT10 },
@@ -207,6 +222,9 @@ static CONST struct elf_reloc_map sparc_reloc_map[] =
   { BFD_RELOC_SPARC_5, R_SPARC_5 },
   { BFD_RELOC_SPARC_6, R_SPARC_6 },
   { BFD_RELOC_SPARC_DISP64, R_SPARC_DISP64 },
+#ifndef SPARC64_OLD_RELOCS
+  { BFD_RELOC_SPARC_PLT32, R_SPARC_PLT32 },
+#endif
   { BFD_RELOC_SPARC_PLT64, R_SPARC_PLT64 },
   { BFD_RELOC_SPARC_HIX22, R_SPARC_HIX22 },
   { BFD_RELOC_SPARC_LOX10, R_SPARC_LOX10 },
@@ -280,13 +298,12 @@ sparc64_elf_slurp_one_reloc_table (abfd, asect, rel_hdr, symbols, dynamic)
   bfd_size_type count;
   arelent *relents;
 
-  allocated = (PTR) bfd_malloc ((size_t) rel_hdr->sh_size);
+  allocated = (PTR) bfd_malloc (rel_hdr->sh_size);
   if (allocated == NULL)
     goto error_return;
 
   if (bfd_seek (abfd, rel_hdr->sh_offset, SEEK_SET) != 0
-      || (bfd_read (allocated, 1, rel_hdr->sh_size, abfd)
-	  != rel_hdr->sh_size))
+      || bfd_bread (allocated, rel_hdr->sh_size, abfd) != rel_hdr->sh_size)
     goto error_return;
 
   native_relocs = (bfd_byte *) allocated;
@@ -371,6 +388,7 @@ sparc64_elf_slurp_reloc_table (abfd, asect, symbols, dynamic)
   struct bfd_elf_section_data * const d = elf_section_data (asect);
   Elf_Internal_Shdr *rel_hdr;
   Elf_Internal_Shdr *rel_hdr2;
+  bfd_size_type amt;
 
   if (asect->relocation != NULL)
     return true;
@@ -401,9 +419,9 @@ sparc64_elf_slurp_reloc_table (abfd, asect, symbols, dynamic)
       rel_hdr2 = NULL;
     }
 
-  asect->relocation = ((arelent *)
-		       bfd_alloc (abfd,
-				  asect->reloc_count * 2 * sizeof (arelent)));
+  amt = asect->reloc_count;
+  amt *= 2 * sizeof (arelent);
+  asect->relocation = (arelent *) bfd_alloc (abfd, amt);
   if (asect->relocation == NULL)
     return false;
 
@@ -639,9 +657,9 @@ sparc64_elf_bfd_link_hash_table_create (abfd)
      bfd *abfd;
 {
   struct sparc64_elf_link_hash_table *ret;
+  bfd_size_type amt = sizeof (struct sparc64_elf_link_hash_table);
 
-  ret = ((struct sparc64_elf_link_hash_table *)
-	 bfd_zalloc (abfd, sizeof (struct sparc64_elf_link_hash_table)));
+  ret = (struct sparc64_elf_link_hash_table *) bfd_zalloc (abfd, amt);
   if (ret == (struct sparc64_elf_link_hash_table *) NULL)
     return NULL;
 
@@ -759,8 +777,8 @@ sparc_elf_wdisp16_reloc (abfd, reloc_entry, symbol, data, input_section,
   if (status != bfd_reloc_other)
     return status;
 
-  insn = (insn & ~0x303fff) | ((((relocation >> 2) & 0xc000) << 6)
-			       | ((relocation >> 2) & 0x3fff));
+  insn &= ~ (bfd_vma) 0x303fff;
+  insn |= (((relocation >> 2) & 0xc000) << 6) | ((relocation >> 2) & 0x3fff);
   bfd_put_32 (abfd, insn, (bfd_byte *) data + reloc_entry->address);
 
   if ((bfd_signed_vma) relocation < - 0x40000
@@ -798,7 +816,7 @@ sparc_elf_hix22_reloc (abfd,
     return status;
 
   relocation ^= MINUS_ONE;
-  insn = (insn & ~0x3fffff) | ((relocation >> 10) & 0x3fffff);
+  insn = (insn &~ (bfd_vma) 0x3fffff) | ((relocation >> 10) & 0x3fffff);
   bfd_put_32 (abfd, insn, (bfd_byte *) data + reloc_entry->address);
 
   if ((relocation & ~ (bfd_vma) 0xffffffff) != 0)
@@ -834,7 +852,7 @@ sparc_elf_lox10_reloc (abfd,
   if (status != bfd_reloc_other)
     return status;
 
-  insn = (insn & ~0x1fff) | 0x1c00 | (relocation & 0x3ff);
+  insn = (insn &~ (bfd_vma) 0x1fff) | 0x1c00 | (relocation & 0x3ff);
   bfd_put_32 (abfd, insn, (bfd_byte *) data + reloc_entry->address);
 
   return bfd_reloc_ok;
@@ -865,7 +883,7 @@ sparc64_elf_build_plt (output_bfd, contents, nentries)
      We fill them with `illtrap 0' to force ld.so to do something.  */
 
   for (i = 0; i < PLT_HEADER_SIZE/4; ++i)
-    bfd_put_32 (output_bfd, 0, contents+i*4);
+    bfd_put_32 (output_bfd, (bfd_vma) 0, contents+i*4);
 
   /* The first 32768 entries are close enough to plt1 to get there via
      a straight branch.  */
@@ -881,14 +899,14 @@ sparc64_elf_build_plt (output_bfd, contents, nentries)
       /* ba,a,pt %xcc, plt1 */
       ba = 0x30680000 | (((contents+PLT_ENTRY_SIZE) - (entry+4)) / 4 & 0x7ffff);
 
-      bfd_put_32 (output_bfd, sethi, entry);
-      bfd_put_32 (output_bfd, ba, entry+4);
-      bfd_put_32 (output_bfd, nop, entry+8);
-      bfd_put_32 (output_bfd, nop, entry+12);
-      bfd_put_32 (output_bfd, nop, entry+16);
-      bfd_put_32 (output_bfd, nop, entry+20);
-      bfd_put_32 (output_bfd, nop, entry+24);
-      bfd_put_32 (output_bfd, nop, entry+28);
+      bfd_put_32 (output_bfd, (bfd_vma) sethi, entry);
+      bfd_put_32 (output_bfd, (bfd_vma) ba,    entry + 4);
+      bfd_put_32 (output_bfd, (bfd_vma) nop,   entry + 8);
+      bfd_put_32 (output_bfd, (bfd_vma) nop,   entry + 12);
+      bfd_put_32 (output_bfd, (bfd_vma) nop,   entry + 16);
+      bfd_put_32 (output_bfd, (bfd_vma) nop,   entry + 20);
+      bfd_put_32 (output_bfd, (bfd_vma) nop,   entry + 24);
+      bfd_put_32 (output_bfd, (bfd_vma) nop,   entry + 28);
     }
 
   /* Now the tricky bit.  Entries 32768 and higher are grouped in blocks of
@@ -906,17 +924,23 @@ sparc64_elf_build_plt (output_bfd, contents, nentries)
 	  entry = contents + i*PLT_ENTRY_SIZE + j*4*6;
 	  ptr = contents + i*PLT_ENTRY_SIZE + block*4*6 + j*8;
 
-	  /* ldx [%o7 + ptr - entry+4], %g1 */
-	  ldx = 0xc25be000 | ((ptr - entry+4) & 0x1fff);
+	  /* ldx [%o7 + ptr - (entry+4)], %g1 */
+	  ldx = 0xc25be000 | ((ptr - (entry+4)) & 0x1fff);
 
-	  bfd_put_32 (output_bfd, 0x8a10000f, entry);    /* mov %o7,%g5 */
-	  bfd_put_32 (output_bfd, 0x40000002, entry+4);  /* call .+8 */
-	  bfd_put_32 (output_bfd, nop, entry+8);         /* nop */
-	  bfd_put_32 (output_bfd, ldx, entry+12);        /* ldx [%o7+P],%g1 */
-	  bfd_put_32 (output_bfd, 0x83c3c001, entry+16); /* jmpl %o7+%g1,%g1 */
-	  bfd_put_32 (output_bfd, 0x9e100005, entry+20); /* mov %g5,%o7 */
+	  /* mov %o7,%g5
+	     call .+8
+	     nop
+	     ldx [%o7+P],%g1
+	     jmpl %o7+%g1,%g1
+	     mov %g5,%o7  */
+	  bfd_put_32 (output_bfd, (bfd_vma) 0x8a10000f, entry);
+	  bfd_put_32 (output_bfd, (bfd_vma) 0x40000002, entry + 4);
+	  bfd_put_32 (output_bfd, (bfd_vma) nop,        entry + 8);
+	  bfd_put_32 (output_bfd, (bfd_vma) ldx,        entry + 12);
+	  bfd_put_32 (output_bfd, (bfd_vma) 0x83c3c001, entry + 16);
+	  bfd_put_32 (output_bfd, (bfd_vma) 0x9e100005, entry + 20);
 
-	  bfd_put_64 (output_bfd, contents - (entry+4), ptr);
+	  bfd_put_64 (output_bfd, (bfd_vma) (contents - (entry + 4)), ptr);
 	}
     }
 }
@@ -925,9 +949,9 @@ sparc64_elf_build_plt (output_bfd, contents, nentries)
 
 static bfd_vma
 sparc64_elf_plt_entry_offset (index)
-     int index;
+     bfd_vma index;
 {
-  int block, ofs;
+  bfd_vma block, ofs;
 
   if (index < LARGE_PLT_THRESHOLD)
     return index * PLT_ENTRY_SIZE;
@@ -937,22 +961,21 @@ sparc64_elf_plt_entry_offset (index)
   block = (index - LARGE_PLT_THRESHOLD) / 160;
   ofs = (index - LARGE_PLT_THRESHOLD) % 160;
 
-  return ((bfd_vma) (LARGE_PLT_THRESHOLD + block*160) * PLT_ENTRY_SIZE
-	  + ofs * 6*4);
+  return (LARGE_PLT_THRESHOLD + block * 160) * PLT_ENTRY_SIZE + ofs * 6 * 4;
 }
 
 static bfd_vma
 sparc64_elf_plt_ptr_offset (index, max)
-     int index, max;
+     bfd_vma index;
+     bfd_vma max;
 {
-  int block, ofs, last;
+  bfd_vma block, ofs, last;
 
   BFD_ASSERT(index >= LARGE_PLT_THRESHOLD);
 
   /* See above for details.  */
 
-  block = (((index - LARGE_PLT_THRESHOLD) / 160) * 160)
-	  + LARGE_PLT_THRESHOLD;
+  block = (((index - LARGE_PLT_THRESHOLD) / 160) * 160) + LARGE_PLT_THRESHOLD;
   ofs = index - block;
   if (block + 160 > max)
     last = (max - LARGE_PLT_THRESHOLD) % 160;
@@ -1073,10 +1096,11 @@ sparc64_elf_check_relocs (abfd, info, sec, relocs)
                  symbol.  */
 	      if (local_got_offsets == NULL)
 		{
-		  size_t size;
+		  bfd_size_type size;
 		  register unsigned int i;
 
-		  size = symtab_hdr->sh_info * sizeof (bfd_vma);
+		  size = symtab_hdr->sh_info;
+		  size *= sizeof (bfd_vma);
 		  local_got_offsets = (bfd_vma *) bfd_alloc (abfd, size);
 		  if (local_got_offsets == NULL)
 		    return false;
@@ -1148,8 +1172,10 @@ sparc64_elf_check_relocs (abfd, info, sec, relocs)
 	    }
 
 	  h->elf_link_hash_flags |= ELF_LINK_HASH_NEEDS_PLT;
-	  break;
-
+	  if (ELF64_R_TYPE_ID (rel->r_info) != R_SPARC_PLT32
+	      && ELF64_R_TYPE_ID (rel->r_info) != R_SPARC_PLT64)
+	    break;
+	  /* Fall through.  */
 	case R_SPARC_PC10:
 	case R_SPARC_PC22:
 	case R_SPARC_PC_HH22:
@@ -1235,6 +1261,8 @@ sparc64_elf_check_relocs (abfd, info, sec, relocs)
 			  || ! bfd_set_section_alignment (dynobj, sreloc, 3))
 			return false;
 		    }
+		  if (sec->flags & SEC_READONLY)
+		    info->flags |= DF_TEXTREL;
 		}
 
 	      sreloc->_raw_size += sizeof (Elf64_External_Rela);
@@ -1247,7 +1275,7 @@ sparc64_elf_check_relocs (abfd, info, sec, relocs)
 
 	default:
 	  (*_bfd_error_handler) (_("%s: check_relocs: unhandled reloc type %d"),
-				bfd_get_filename(abfd),
+				bfd_archive_filename (abfd),
 				ELF64_R_TYPE_ID (rel->r_info));
 	  return false;
 	}
@@ -1269,7 +1297,7 @@ sparc64_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
      asection **secp ATTRIBUTE_UNUSED;
      bfd_vma *valp ATTRIBUTE_UNUSED;
 {
-  static char *stt_types[] = { "NOTYPE", "OBJECT", "FUNCTION" };
+  static const char *const stt_types[] = { "NOTYPE", "OBJECT", "FUNCTION" };
 
   if (ELF_ST_TYPE (sym->st_info) == STT_REGISTER)
     {
@@ -1284,7 +1312,7 @@ sparc64_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
 	default:
           (*_bfd_error_handler)
             (_("%s: Only registers %%g[2367] can be declared using STT_REGISTER"),
-             bfd_get_filename (abfd));
+             bfd_archive_filename (abfd));
 	  return false;
 	}
 
@@ -1303,11 +1331,10 @@ sparc64_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
       if (p->name != NULL && strcmp (p->name, *namep))
 	{
           (*_bfd_error_handler)
-            (_("Register %%g%d used incompatibly: "
-               "previously declared in %s to %s, in %s redefined to %s"),
-             (int)sym->st_value,
-             bfd_get_filename (p->abfd), *p->name ? p->name : "#scratch",
-             bfd_get_filename (abfd), **namep ? *namep : "#scratch");
+            (_("Register %%g%d used incompatibly: %s in %s, previously %s in %s"),
+             (int) sym->st_value,
+             **namep ? *namep : "#scratch", bfd_archive_filename (abfd),
+             *p->name ? p->name : "#scratch", bfd_archive_filename (p->abfd));
 	  return false;
 	}
 
@@ -1324,11 +1351,12 @@ sparc64_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
 		{
 		  unsigned char type = h->type;
 
-		  if (type > STT_FUNC) type = 0;
+		  if (type > STT_FUNC)
+		    type = 0;
 		  (*_bfd_error_handler)
-		    (_("Symbol `%s' has differing types: "
-		       "previously %s, REGISTER in %s"),
-		     *namep, stt_types [type], bfd_get_filename (abfd));
+		    (_("Symbol `%s' has differing types: REGISTER in %s, previously %s in %s"),
+		     *namep, bfd_archive_filename (abfd),
+		     stt_types[type], bfd_archive_filename (p->abfd));
 		  return false;
 		}
 
@@ -1357,9 +1385,8 @@ sparc64_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
       *namep = NULL;
       return true;
     }
-  else if (! *namep || ! **namep)
-    return true;
-  else
+  else if (*namep && **namep
+	   && info->hash->creator->flavour == bfd_target_elf_flavour)
     {
       int i;
       struct sparc64_elf_app_reg *p;
@@ -1370,12 +1397,12 @@ sparc64_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
 	  {
 	    unsigned char type = ELF_ST_TYPE (sym->st_info);
 
-	    if (type > STT_FUNC) type = 0;
+	    if (type > STT_FUNC)
+	      type = 0;
 	    (*_bfd_error_handler)
-	      (_("Symbol `%s' has differing types: "
-		 "REGISTER in %s, %s in %s"),
-	       *namep, bfd_get_filename (p->abfd), stt_types [type],
-	       bfd_get_filename (abfd));
+	      (_("Symbol `%s' has differing types: %s in %s, previously REGISTER in %s"),
+	       *namep, stt_types[type], bfd_archive_filename (abfd),
+	       bfd_archive_filename (p->abfd));
 	    return false;
 	  }
     }
@@ -1653,7 +1680,6 @@ sparc64_elf_size_dynamic_sections (output_bfd, info)
 {
   bfd *dynobj;
   asection *s;
-  boolean reltext;
   boolean relplt;
 
   dynobj = elf_hash_table (info)->dynobj;
@@ -1685,7 +1711,6 @@ sparc64_elf_size_dynamic_sections (output_bfd, info)
   /* The check_relocs and adjust_dynamic_symbol entry points have
      determined the sizes of the various dynamic sections.  Allocate
      memory for them.  */
-  reltext = false;
   relplt = false;
   for (s = dynobj->sections; s != NULL; s = s->next)
     {
@@ -1718,18 +1743,6 @@ sparc64_elf_size_dynamic_sections (output_bfd, info)
 	    }
 	  else
 	    {
-	      const char *outname;
-	      asection *target;
-
-	      /* If this relocation section applies to a read only
-		 section, then we probably need a DT_TEXTREL entry.  */
-	      outname = bfd_get_section_name (output_bfd,
-					      s->output_section);
-	      target = bfd_get_section_by_name (output_bfd, outname + 5);
-	      if (target != NULL
-		  && (target->flags & SEC_READONLY) != 0)
-		reltext = true;
-
 	      if (strcmp (name, ".rela.plt") == 0)
 		relplt = true;
 
@@ -1766,37 +1779,38 @@ sparc64_elf_size_dynamic_sections (output_bfd, info)
 	 must add the entries now so that we get the correct size for
 	 the .dynamic section.  The DT_DEBUG entry is filled in by the
 	 dynamic linker and used by the debugger.  */
+#define add_dynamic_entry(TAG, VAL) \
+  bfd_elf64_add_dynamic_entry (info, (bfd_vma) (TAG), (bfd_vma) (VAL))
+
       int reg;
       struct sparc64_elf_app_reg * app_regs;
-      struct bfd_strtab_hash *dynstr;
+      struct elf_strtab_hash *dynstr;
       struct elf_link_hash_table *eht = elf_hash_table (info);
 
-      if (! info->shared)
+      if (!info->shared)
 	{
-	  if (! bfd_elf64_add_dynamic_entry (info, DT_DEBUG, 0))
+	  if (!add_dynamic_entry (DT_DEBUG, 0))
 	    return false;
 	}
 
       if (relplt)
 	{
-	  if (! bfd_elf64_add_dynamic_entry (info, DT_PLTGOT, 0)
-	      || ! bfd_elf64_add_dynamic_entry (info, DT_PLTRELSZ, 0)
-	      || ! bfd_elf64_add_dynamic_entry (info, DT_PLTREL, DT_RELA)
-	      || ! bfd_elf64_add_dynamic_entry (info, DT_JMPREL, 0))
+	  if (!add_dynamic_entry (DT_PLTGOT, 0)
+	      || !add_dynamic_entry (DT_PLTRELSZ, 0)
+	      || !add_dynamic_entry (DT_PLTREL, DT_RELA)
+	      || !add_dynamic_entry (DT_JMPREL, 0))
 	    return false;
 	}
 
-      if (! bfd_elf64_add_dynamic_entry (info, DT_RELA, 0)
-	  || ! bfd_elf64_add_dynamic_entry (info, DT_RELASZ, 0)
-	  || ! bfd_elf64_add_dynamic_entry (info, DT_RELAENT,
-					    sizeof (Elf64_External_Rela)))
+      if (!add_dynamic_entry (DT_RELA, 0)
+	  || !add_dynamic_entry (DT_RELASZ, 0)
+	  || !add_dynamic_entry (DT_RELAENT, sizeof (Elf64_External_Rela)))
 	return false;
 
-      if (reltext)
+      if (info->flags & DF_TEXTREL)
 	{
-	  if (! bfd_elf64_add_dynamic_entry (info, DT_TEXTREL, 0))
+	  if (!add_dynamic_entry (DT_TEXTREL, 0))
 	    return false;
-	  info->flags |= DF_TEXTREL;
 	}
 
       /* Add dynamic STT_REGISTER symbols and corresponding DT_SPARC_REGISTER
@@ -1809,7 +1823,7 @@ sparc64_elf_size_dynamic_sections (output_bfd, info)
 	  {
 	    struct elf_link_local_dynamic_entry *entry, *e;
 
-	    if (! bfd_elf64_add_dynamic_entry (info, DT_SPARC_REGISTER, 0))
+	    if (!add_dynamic_entry (DT_SPARC_REGISTER, 0))
 	      return false;
 
 	    entry = (struct elf_link_local_dynamic_entry *)
@@ -1824,7 +1838,7 @@ sparc64_elf_size_dynamic_sections (output_bfd, info)
 	    entry->isym.st_size = 0;
 	    if (*app_regs [reg].name != '\0')
 	      entry->isym.st_name
-		= _bfd_stringtab_add (dynstr, app_regs[reg].name, true, false);
+		= _bfd_elf_strtab_add (dynstr, app_regs[reg].name, false);
 	    else
 	      entry->isym.st_name = 0;
 	    entry->isym.st_other = 0;
@@ -1846,6 +1860,7 @@ sparc64_elf_size_dynamic_sections (output_bfd, info)
 	    eht->dynsymcount++;
 	  }
     }
+#undef add_dynamic_entry
 
   return true;
 }
@@ -1865,6 +1880,17 @@ sparc64_elf_relax_section (abfd, section, link_info, again)
   return true;
 }
 
+/* This is the condition under which finish_dynamic_symbol will be called
+   from elflink.h.  If elflink.h doesn't call our finish_dynamic_symbol
+   routine, we'll need to do something about initializing any .plt and
+   .got entries in relocate_section.  */
+#define WILL_CALL_FINISH_DYNAMIC_SYMBOL(DYN, INFO, H)			\
+  ((DYN)								\
+   && ((INFO)->shared							\
+       || ((H)->elf_link_hash_flags & ELF_LINK_FORCED_LOCAL) == 0)	\
+   && ((H)->dynindx != -1						\
+       || ((H)->elf_link_hash_flags & ELF_LINK_FORCED_LOCAL) != 0))
+
 /* Relocate a SPARC64 ELF section.  */
 
 static boolean
@@ -1912,8 +1938,10 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
       struct elf_link_hash_entry *h;
       Elf_Internal_Sym *sym;
       asection *sec;
-      bfd_vma relocation;
+      bfd_vma relocation, off;
       bfd_reloc_status_type r;
+      boolean is_plt = false;
+      boolean unresolved_reloc;
 
       r_type = ELF64_R_TYPE_ID (rel->r_info);
       if (r_type < 0 || r_type >= (int) R_SPARC_max_std)
@@ -1948,13 +1976,12 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
       h = NULL;
       sym = NULL;
       sec = NULL;
+      unresolved_reloc = false;
       if (r_symndx < symtab_hdr->sh_info)
 	{
 	  sym = local_syms + r_symndx;
 	  sec = local_sections[r_symndx];
-	  relocation = (sec->output_section->vma
-			+ sec->output_offset
-			+ sym->st_value);
+	  relocation = _bfd_elf_rela_local_sym (output_bfd, sym, sec, rel);
 	}
       else
 	{
@@ -1962,107 +1989,30 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	  while (h->root.type == bfd_link_hash_indirect
 		 || h->root.type == bfd_link_hash_warning)
 	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
+
+	  relocation = 0;
 	  if (h->root.type == bfd_link_hash_defined
 	      || h->root.type == bfd_link_hash_defweak)
 	    {
-	      boolean skip_it = false;
 	      sec = h->root.u.def.section;
-
-	      switch (r_type)
-		{
-		case R_SPARC_WPLT30:
-		case R_SPARC_PLT32:
-		case R_SPARC_HIPLT22:
-		case R_SPARC_LOPLT10:
-		case R_SPARC_PCPLT32:
-		case R_SPARC_PCPLT22:
-		case R_SPARC_PCPLT10:
-		case R_SPARC_PLT64:
-		  if (h->plt.offset != (bfd_vma) -1)
-		    skip_it = true;
-		  break;
-
-		case R_SPARC_GOT10:
-		case R_SPARC_GOT13:
-		case R_SPARC_GOT22:
-		  if (elf_hash_table(info)->dynamic_sections_created
-		      && (!info->shared
-			  || (!info->symbolic && h->dynindx != -1)
-			  || !(h->elf_link_hash_flags
-			       & ELF_LINK_HASH_DEF_REGULAR)))
-		    skip_it = true;
-		  break;
-
-		case R_SPARC_PC10:
-		case R_SPARC_PC22:
-		case R_SPARC_PC_HH22:
-		case R_SPARC_PC_HM10:
-		case R_SPARC_PC_LM22:
-		  if (!strcmp(h->root.root.string, "_GLOBAL_OFFSET_TABLE_"))
-		    break;
-		  /* FALLTHRU */
-
-		case R_SPARC_8:
-		case R_SPARC_16:
-		case R_SPARC_32:
-		case R_SPARC_DISP8:
-		case R_SPARC_DISP16:
-		case R_SPARC_DISP32:
-		case R_SPARC_WDISP30:
-		case R_SPARC_WDISP22:
-		case R_SPARC_HI22:
-		case R_SPARC_22:
-		case R_SPARC_13:
-		case R_SPARC_LO10:
-		case R_SPARC_UA32:
-		case R_SPARC_10:
-		case R_SPARC_11:
-		case R_SPARC_64:
-		case R_SPARC_OLO10:
-		case R_SPARC_HH22:
-		case R_SPARC_HM10:
-		case R_SPARC_LM22:
-		case R_SPARC_WDISP19:
-		case R_SPARC_WDISP16:
-		case R_SPARC_7:
-		case R_SPARC_5:
-		case R_SPARC_6:
-		case R_SPARC_DISP64:
-		case R_SPARC_HIX22:
-		case R_SPARC_LOX10:
-		case R_SPARC_H44:
-		case R_SPARC_M44:
-		case R_SPARC_L44:
-		case R_SPARC_UA64:
-		case R_SPARC_UA16:
-		  if (info->shared
-		      && ((!info->symbolic && h->dynindx != -1)
-			  || !(h->elf_link_hash_flags
-			       & ELF_LINK_HASH_DEF_REGULAR)))
-		    skip_it = true;
-		  break;
-		}
-
-	      if (skip_it)
-		{
-		  /* In these cases, we don't need the relocation
-                     value.  We check specially because in some
-                     obscure cases sec->output_section will be NULL.  */
-		  relocation = 0;
-		}
+	      if (sec->output_section == NULL)
+		/* Set a flag that will be cleared later if we find a
+		   relocation value for this symbol.  output_section
+		   is typically NULL for symbols satisfied by a shared
+		   library.  */
+		unresolved_reloc = true;
 	      else
-		{
-		  relocation = (h->root.u.def.value
-				+ sec->output_section->vma
-				+ sec->output_offset);
-		}
+		relocation = (h->root.u.def.value
+			      + sec->output_section->vma
+			      + sec->output_offset);
 	    }
 	  else if (h->root.type == bfd_link_hash_undefweak)
-	    relocation = 0;
-	  else if (info->shared && !info->symbolic
+	    ;
+	  else if (info->shared
+		   && (!info->symbolic || info->allow_shlib_undefined)
 		   && !info->no_undefined
 		   && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
-	    relocation = 0;
+	    ;
 	  else
 	    {
 	      if (! ((*info->callbacks->undefined_symbol)
@@ -2083,9 +2033,10 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    }
 	}
 
+ do_dynreloc:
       /* When generating a shared object, these relocations are copied
 	 into the output file to be resolved at run time.  */
-      if (info->shared && (input_section->flags & SEC_ALLOC))
+      if (info->shared && r_symndx != 0 && (input_section->flags & SEC_ALLOC))
 	{
 	  switch (r_type)
 	    {
@@ -2101,11 +2052,11 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    case R_SPARC_DISP8:
 	    case R_SPARC_DISP16:
 	    case R_SPARC_DISP32:
+	    case R_SPARC_DISP64:
 	    case R_SPARC_WDISP30:
 	    case R_SPARC_WDISP22:
 	    case R_SPARC_WDISP19:
 	    case R_SPARC_WDISP16:
-	    case R_SPARC_DISP64:
 	      if (h == NULL)
 		break;
 	      /* Fall through.  */
@@ -2136,7 +2087,7 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    case R_SPARC_UA16:
 	      {
 		Elf_Internal_Rela outrel;
-		boolean skip;
+		boolean skip, relocate;
 
 		if (sreloc == NULL)
 		  {
@@ -2159,22 +2110,15 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		  }
 
 		skip = false;
+		relocate = false;
 
-		if (elf_section_data (input_section)->stab_info == NULL)
-		  outrel.r_offset = rel->r_offset;
-		else
-		  {
-		    bfd_vma off;
-
-		    off = (_bfd_stab_section_offset
-			   (output_bfd, &elf_hash_table (info)->stab_info,
-			    input_section,
-			    &elf_section_data (input_section)->stab_info,
-			    rel->r_offset));
-		    if (off == MINUS_ONE)
-		      skip = true;
-		    outrel.r_offset = off;
-		  }
+		outrel.r_offset =
+		  _bfd_elf_section_offset (output_bfd, info, input_section,
+					   rel->r_offset);
+		if (outrel.r_offset == (bfd_vma) -1)
+		  skip = true;
+		else if (outrel.r_offset == (bfd_vma) -2)
+		  skip = true, relocate = true;
 
 		outrel.r_offset += (input_section->output_section->vma
 				    + input_section->output_offset);
@@ -2201,13 +2145,25 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		  case R_SPARC_UA64:
 		    if (!(outrel.r_offset & 7)) r_type = R_SPARC_64;
 		    break;
+		  case R_SPARC_DISP8:
+		  case R_SPARC_DISP16:
+		  case R_SPARC_DISP32:
+		  case R_SPARC_DISP64:
+		    /* If the symbol is not dynamic, we should not keep
+		       a dynamic relocation.  But an .rela.* slot has been
+		       allocated for it, output R_SPARC_NONE.
+		       FIXME: Add code tracking needed dynamic relocs as
+		       e.g. i386 has.  */
+		    if (h->dynindx == -1)
+		      skip = true, relocate = true;
+		    break;
 		  }
 
 		if (skip)
 		  memset (&outrel, 0, sizeof outrel);
 		/* h->dynindx may be -1 if the symbol was marked to
 		   become local.  */
-		else if (h != NULL
+		else if (h != NULL && ! is_plt
 			 && ((! info->symbolic && h->dynindx != -1)
 			     || (h->elf_link_hash_flags
 				 & ELF_LINK_HASH_DEF_REGULAR) == 0))
@@ -2231,7 +2187,9 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		      {
 			long indx;
 
-			if (h == NULL)
+			if (is_plt)
+			  sec = splt;
+			else if (h == NULL)
 			  sec = local_sections[r_symndx];
 			else
 			  {
@@ -2261,7 +2219,7 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 				BFD_FAIL ();
 				(*_bfd_error_handler)
 				  (_("%s: probably compiled without -fPIC?"),
-				   bfd_get_filename (input_bfd));
+				   bfd_archive_filename (input_bfd));
 				bfd_set_error (bfd_error_bad_value);
 				return false;
 			      }
@@ -2283,11 +2241,8 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		++sreloc->reloc_count;
 
 		/* This reloc will be computed at runtime, so there's no
-		   need to do anything now, unless this is a RELATIVE
-		   reloc in an unallocated section.  */
-		if (skip
-		    || (input_section->flags & SEC_ALLOC) != 0
-		    || ELF64_R_TYPE_ID (outrel.r_info) != R_SPARC_RELATIVE)
+		   need to do anything now.  */
+		if (! relocate)
 		  continue;
 	      }
 	    break;
@@ -2309,14 +2264,18 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 
 	  if (h != NULL)
 	    {
-	      bfd_vma off = h->got.offset;
-	      BFD_ASSERT (off != (bfd_vma) -1);
+	      boolean dyn;
 
-	      if (! elf_hash_table (info)->dynamic_sections_created
+	      off = h->got.offset;
+	      BFD_ASSERT (off != (bfd_vma) -1);
+	      dyn = elf_hash_table (info)->dynamic_sections_created;
+
+	      if (! WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn, info, h)
 		  || (info->shared
-		      && (info->symbolic || h->dynindx == -1)
-		      && (h->elf_link_hash_flags
-			  & ELF_LINK_HASH_DEF_REGULAR)))
+		      && (info->symbolic
+			  || h->dynindx == -1
+			  || (h->elf_link_hash_flags & ELF_LINK_FORCED_LOCAL))
+		      && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR)))
 		{
 		  /* This is actually a static link, or it is a -Bsymbolic
 		     link and the symbol is defined locally, or the symbol
@@ -2339,12 +2298,11 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		      h->got.offset |= 1;
 		    }
 		}
-	      relocation = sgot->output_offset + off - got_base;
+	      else
+		unresolved_reloc = false;
 	    }
 	  else
 	    {
-	      bfd_vma off;
-
 	      BFD_ASSERT (local_got_offsets != NULL);
 	      off = local_got_offsets[r_symndx];
 	      BFD_ASSERT (off != (bfd_vma) -1);
@@ -2368,7 +2326,8 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 			 Note this is different behaviour to the
 			 32-bit linker, which both adds the contents
 			 and ignores the addend.  So clear the location.  */
-		      bfd_put_64 (output_bfd, 0, sgot->contents + off);
+		      bfd_put_64 (output_bfd, (bfd_vma) 0,
+				  sgot->contents + off);
 
 		      /* We need to generate a R_SPARC_RELATIVE reloc
 			 for the dynamic linker.  */
@@ -2389,8 +2348,8 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		  else
 		    bfd_put_64 (output_bfd, relocation, sgot->contents + off);
 		}
-	      relocation = sgot->output_offset + off - got_base;
 	    }
+	  relocation = sgot->output_offset + off - got_base;
 	  goto do_default;
 
 	case R_SPARC_WPLT30:
@@ -2422,8 +2381,15 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	  relocation = (splt->output_section->vma
 			+ splt->output_offset
 			+ sparc64_elf_plt_entry_offset (h->plt.offset));
+	  unresolved_reloc = false;
 	  if (r_type == R_SPARC_WPLT30)
 	    goto do_wplt30;
+	  if (r_type == R_SPARC_PLT32 || r_type == R_SPARC_PLT64)
+	    {
+	      r_type = r_type == R_SPARC_PLT32 ? R_SPARC_32 : R_SPARC_64;
+	      is_plt = true;
+	      goto do_dynreloc;
+	    }
 	  goto do_default;
 
 	case R_SPARC_OLO10:
@@ -2434,7 +2400,7 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    relocation = (relocation & 0x3ff) + ELF64_R_TYPE_DATA (rel->r_info);
 
 	    x = bfd_get_32 (input_bfd, contents + rel->r_offset);
-	    x = (x & ~0x1fff) | (relocation & 0x1fff);
+	    x = (x & ~(bfd_vma) 0x1fff) | (relocation & 0x1fff);
 	    bfd_put_32 (input_bfd, x, contents + rel->r_offset);
 
 	    r = bfd_check_overflow (howto->complain_on_overflow,
@@ -2455,8 +2421,9 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    relocation -= rel->r_offset;
 
 	    x = bfd_get_32 (input_bfd, contents + rel->r_offset);
-	    x = (x & ~0x303fff) | ((((relocation >> 2) & 0xc000) << 6)
-				   | ((relocation >> 2) & 0x3fff));
+	    x &= ~(bfd_vma) 0x303fff;
+	    x |= ((((relocation >> 2) & 0xc000) << 6)
+		  | ((relocation >> 2) & 0x3fff));
 	    bfd_put_32 (input_bfd, x, contents + rel->r_offset);
 
 	    r = bfd_check_overflow (howto->complain_on_overflow,
@@ -2474,7 +2441,7 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    relocation = relocation ^ MINUS_ONE;
 
 	    x = bfd_get_32 (input_bfd, contents + rel->r_offset);
-	    x = (x & ~0x3fffff) | ((relocation >> 10) & 0x3fffff);
+	    x = (x & ~(bfd_vma) 0x3fffff) | ((relocation >> 10) & 0x3fffff);
 	    bfd_put_32 (input_bfd, x, contents + rel->r_offset);
 
 	    r = bfd_check_overflow (howto->complain_on_overflow,
@@ -2492,7 +2459,7 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    relocation = (relocation & 0x3ff) | 0x1c00;
 
 	    x = bfd_get_32 (input_bfd, contents + rel->r_offset);
-	    x = (x & ~0x1fff) | relocation;
+	    x = (x & ~(bfd_vma) 0x1fff) | relocation;
 	    bfd_put_32 (input_bfd, x, contents + rel->r_offset);
 
 	    r = bfd_reloc_ok;
@@ -2581,7 +2548,7 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 			      || reg == G0 || reg == O7)
 			    break;
 
-			  bfd_put_32 (input_bfd, INSN_NOP,
+			  bfd_put_32 (input_bfd, (bfd_vma) INSN_NOP,
 				      contents + rel->r_offset + 4);
 			}
 		      break;
@@ -2598,6 +2565,17 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	  break;
 	}
 
+      if (unresolved_reloc
+	  && !(info->shared
+	       && (input_section->flags & SEC_DEBUGGING) != 0
+	       && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_DYNAMIC) != 0))
+	(*_bfd_error_handler)
+	  (_("%s(%s+0x%lx): unresolvable relocation against symbol `%s'"),
+	   bfd_archive_filename (input_bfd),
+	   bfd_get_section_name (input_bfd, input_section),
+	   (long) rel->r_offset,
+	   h->root.root.string);
+
       switch (r)
 	{
 	case bfd_reloc_ok:
@@ -2610,6 +2588,16 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	case bfd_reloc_overflow:
 	  {
 	    const char *name;
+
+	    /* The Solaris native linker silently disregards
+	       overflows.  We don't, but this breaks stabs debugging
+	       info, whose relocations are only 32-bits wide.  Ignore
+	       overflows in this case.  */
+	    if (r_type == R_SPARC_32
+		&& (input_section->flags & SEC_DEBUGGING) != 0
+		&& strcmp (bfd_section_name (input_bfd, input_section),
+			   ".stab") == 0)
+	      break;
 
 	    if (h != NULL)
 	      {
@@ -2686,7 +2674,7 @@ sparc64_elf_finish_dynamic_symbol (output_bfd, info, h, sym)
 	}
       else
 	{
-	  int max = splt->_raw_size / PLT_ENTRY_SIZE;
+	  bfd_vma max = splt->_raw_size / PLT_ENTRY_SIZE;
 	  rela.r_offset = sparc64_elf_plt_ptr_offset (h->plt.offset, max);
 	  rela.r_addend = -(sparc64_elf_plt_entry_offset (h->plt.offset) + 4)
 			  -(splt->output_section->vma + splt->output_offset);
@@ -2732,7 +2720,7 @@ sparc64_elf_finish_dynamic_symbol (output_bfd, info, h, sym)
 
       rela.r_offset = (sgot->output_section->vma
 		       + sgot->output_offset
-		       + (h->got.offset &~ 1));
+		       + (h->got.offset &~ (bfd_vma) 1));
 
       /* If this is a -Bsymbolic link, and the symbol is defined
 	 locally, we just want to emit a RELATIVE reloc.  Likewise if
@@ -2874,8 +2862,8 @@ sparc64_elf_finish_dynamic_sections (output_bfd, info)
       /* Initialize the contents of the .plt section.  */
       if (splt->_raw_size > 0)
 	{
-	  sparc64_elf_build_plt(output_bfd, splt->contents,
-				splt->_raw_size / PLT_ENTRY_SIZE);
+	  sparc64_elf_build_plt (output_bfd, splt->contents,
+				 (int) (splt->_raw_size / PLT_ENTRY_SIZE));
 	}
 
       elf_section_data (splt->output_section)->this_hdr.sh_entsize =
@@ -2900,26 +2888,25 @@ sparc64_elf_finish_dynamic_sections (output_bfd, info)
 
   return true;
 }
+
+static enum elf_reloc_type_class
+sparc64_elf_reloc_type_class (rela)
+     const Elf_Internal_Rela *rela;
+{
+  switch ((int) ELF64_R_TYPE (rela->r_info))
+    {
+    case R_SPARC_RELATIVE:
+      return reloc_class_relative;
+    case R_SPARC_JMP_SLOT:
+      return reloc_class_plt;
+    case R_SPARC_COPY:
+      return reloc_class_copy;
+    default:
+      return reloc_class_normal;
+    }
+}
 
 /* Functions for dealing with the e_flags field.  */
-
-/* Copy backend specific data from one object module to another */
-static boolean
-sparc64_elf_copy_private_bfd_data (ibfd, obfd)
-     bfd *ibfd, *obfd;
-{
-  if (   bfd_get_flavour (ibfd) != bfd_target_elf_flavour
-      || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
-    return true;
-
-  BFD_ASSERT (!elf_flags_init (obfd)
-              || (elf_elfheader (obfd)->e_flags
-                  == elf_elfheader (ibfd)->e_flags));
-
-  elf_elfheader (obfd)->e_flags = elf_elfheader (ibfd)->e_flags;
-  elf_flags_init (obfd) = true;
-  return true;
-}
 
 /* Merge backend specific data from an object file to the output
    object file when linking.  */
@@ -2976,7 +2963,7 @@ sparc64_elf_merge_private_bfd_data (ibfd, obfd)
 	      error = true;
 	      (*_bfd_error_handler)
 		(_("%s: linking UltraSPARC specific with HAL specific code"),
-		 bfd_get_filename (ibfd));
+		 bfd_archive_filename (ibfd));
 	    }
 	  /* Choose the most restrictive memory ordering.  */
 	  old_mm = (old_flags & EF_SPARCV9_MM);
@@ -2995,7 +2982,7 @@ sparc64_elf_merge_private_bfd_data (ibfd, obfd)
           error = true;
           (*_bfd_error_handler)
             (_("%s: uses different e_flags (0x%lx) fields than previous modules (0x%lx)"),
-             bfd_get_filename (ibfd), (long)new_flags, (long)old_flags);
+             bfd_archive_filename (ibfd), (long) new_flags, (long) old_flags);
         }
 
       elf_elfheader (obfd)->e_flags = old_flags;
@@ -3029,8 +3016,8 @@ sparc64_elf_print_symbol_all (abfd, filep, symbol)
   fprintf (file, "REG_%c%c%11s%c%c    R", "GOLI" [reg / 8], '0' + (reg & 7), "",
 		 ((type & BSF_LOCAL)
 		  ? (type & BSF_GLOBAL) ? '!' : 'l'
-  	          : (type & BSF_GLOBAL) ? 'g' : ' '),
-  	         (type & BSF_WEAK) ? 'w' : ' ');
+	          : (type & BSF_GLOBAL) ? 'g' : ' '),
+	         (type & BSF_WEAK) ? 'w' : ' ');
   if (symbol->name == NULL || symbol->name [0] == '\0')
     return "#scratch";
   else
@@ -3142,8 +3129,6 @@ const struct elf_size_info sparc64_elf_size_info =
   sparc64_elf_print_symbol_all
 #define elf_backend_output_arch_syms \
   sparc64_elf_output_arch_syms
-#define bfd_elf64_bfd_copy_private_bfd_data \
-  sparc64_elf_copy_private_bfd_data
 #define bfd_elf64_bfd_merge_private_bfd_data \
   sparc64_elf_merge_private_bfd_data
 
@@ -3151,6 +3136,8 @@ const struct elf_size_info sparc64_elf_size_info =
   sparc64_elf_size_info
 #define elf_backend_object_p \
   sparc64_elf_object_p
+#define elf_backend_reloc_type_class \
+  sparc64_elf_reloc_type_class
 
 #define elf_backend_want_got_plt 0
 #define elf_backend_plt_readonly 0

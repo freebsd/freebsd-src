@@ -62,7 +62,7 @@
 #include "dwarf2dbg.h"
 #endif
 
-#include <ctype.h>
+#include "safe-ctype.h"
 
 /* Local types */
 
@@ -81,7 +81,7 @@ struct alpha_insn {
   unsigned insn;
   int nfixups;
   struct alpha_fixup fixups[MAX_INSN_FIXUPS];
-  unsigned sequence[MAX_INSN_FIXUPS];
+  long sequence;
 };
 
 enum alpha_macro_arg {
@@ -92,10 +92,6 @@ enum alpha_macro_arg {
   MACRO_CPIR,
   MACRO_FPR,
   MACRO_EXP,
-  MACRO_LITERAL,
-  MACRO_BASE,
-  MACRO_BYTOFF,
-  MACRO_JSR
 };
 
 struct alpha_macro {
@@ -110,19 +106,30 @@ struct alpha_macro {
 #define O_pregister	O_md1	/* O_register, in parentheses */
 #define O_cpregister	O_md2	/* + a leading comma */
 
-#ifdef RELOC_OP_P
 /* Note, the alpha_reloc_op table below depends on the ordering
-   of O_literal .. O_gprelow.  */
+   of O_literal .. O_gpre16.  */
 #define O_literal	O_md3	/* !literal relocation */
-#define O_lituse_base	O_md4	/* !lituse_base relocation */
-#define O_lituse_bytoff	O_md5	/* !lituse_bytoff relocation */
-#define O_lituse_jsr	O_md6	/* !lituse_jsr relocation */
-#define O_gpdisp	O_md7	/* !gpdisp relocation */
-#define O_gprelhigh	O_md8	/* !gprelhigh relocation */
-#define O_gprellow	O_md9	/* !gprellow relocation */
+#define O_lituse_addr	O_md4	/* !lituse_addr relocation */
+#define O_lituse_base	O_md5	/* !lituse_base relocation */
+#define O_lituse_bytoff	O_md6	/* !lituse_bytoff relocation */
+#define O_lituse_jsr	O_md7	/* !lituse_jsr relocation */
+#define O_gpdisp	O_md8	/* !gpdisp relocation */
+#define O_gprelhigh	O_md9	/* !gprelhigh relocation */
+#define O_gprellow	O_md10	/* !gprellow relocation */
+#define O_gprel		O_md11	/* !gprel relocation */
+#define O_samegp	O_md12	/* !samegp relocation */
 
-#define USER_RELOC_P(R) ((R) >= O_literal && (R) <= O_gprellow)
-#endif
+#define DUMMY_RELOC_LITUSE_ADDR		(BFD_RELOC_UNUSED + 1)
+#define DUMMY_RELOC_LITUSE_BASE		(BFD_RELOC_UNUSED + 2)
+#define DUMMY_RELOC_LITUSE_BYTOFF	(BFD_RELOC_UNUSED + 3)
+#define DUMMY_RELOC_LITUSE_JSR		(BFD_RELOC_UNUSED + 4)
+
+#define LITUSE_ADDR	0
+#define LITUSE_BASE	1
+#define LITUSE_BYTOFF	2
+#define LITUSE_JSR	3
+
+#define USER_RELOC_P(R) ((R) >= O_literal && (R) <= O_samegp)
 
 /* Macros for extracting the type and number of encoded register tokens */
 
@@ -188,6 +195,9 @@ struct alpha_macro {
 
 /* Prototypes for all local functions */
 
+static struct alpha_reloc_tag *get_alpha_reloc_tag PARAMS ((long));
+static void alpha_adjust_symtab_relocs PARAMS ((bfd *, asection *, PTR));
+
 static int tokenize_arguments PARAMS ((char *, expressionS *, int));
 static const struct alpha_opcode *find_opcode_match
   PARAMS ((const struct alpha_opcode *, const expressionS *, int *, int *));
@@ -197,16 +207,15 @@ static unsigned insert_operand
   PARAMS ((unsigned, const struct alpha_operand *, offsetT, char *, unsigned));
 static void assemble_insn
   PARAMS ((const struct alpha_opcode *, const expressionS *, int,
-	   struct alpha_insn *));
+	   struct alpha_insn *, bfd_reloc_code_real_type));
 static void emit_insn PARAMS ((struct alpha_insn *));
 static void assemble_tokens_to_insn
   PARAMS ((const char *, const expressionS *, int, struct alpha_insn *));
 static void assemble_tokens
   PARAMS ((const char *, const expressionS *, int, int));
 
-static int load_expression
-  PARAMS ((int, const expressionS *, int *, expressionS *,
-	   const expressionS *));
+static long load_expression
+  PARAMS ((int, const expressionS *, int *, expressionS *));
 
 static void emit_ldgp PARAMS ((const expressionS *, int, const PTR));
 static void emit_division PARAMS ((const expressionS *, int, const PTR));
@@ -257,16 +266,14 @@ static void s_alpha_base PARAMS ((int));
 static void s_alpha_align PARAMS ((int));
 static void s_alpha_stringer PARAMS ((int));
 static void s_alpha_space PARAMS ((int));
+static void s_alpha_ucons PARAMS ((int));
+static void s_alpha_arch PARAMS ((int));
 
 static void create_literal_section PARAMS ((const char *, segT *, symbolS **));
 #ifndef OBJ_ELF
 static void select_gp_value PARAMS ((void));
 #endif
 static void alpha_align PARAMS ((int, char *, symbolS *, int));
-
-#ifdef RELOC_OP_P
-static void alpha_adjust_symtab_relocs PARAMS ((bfd *, asection *, PTR));
-#endif
 
 /* Generic assembler global variables which must be defined by all
    targets.  */
@@ -469,103 +476,59 @@ static int alpha_flag_show_after_trunc = 0;		/* -H */
    that op-O_literal indexes into it.  */
 
 #define ALPHA_RELOC_TABLE(op)						\
-&alpha_reloc_op[ ((!USER_RELOC_P (op))					\
+(&alpha_reloc_op[ ((!USER_RELOC_P (op))					\
 		  ? (abort (), 0)					\
-		  : (int) (op) - (int) O_literal) ]
+		  : (int) (op) - (int) O_literal) ])
 
-#define LITUSE_BASE	1
-#define LITUSE_BYTOFF	2
-#define LITUSE_JSR	3
+#define DEF(NAME, RELOC, REQ, ALLOW) \
+ { #NAME, sizeof(#NAME)-1, O_##NAME, RELOC, REQ, ALLOW}
 
 static const struct alpha_reloc_op_tag {
   const char *name;				/* string to lookup */
   size_t length;				/* size of the string */
-  bfd_reloc_code_real_type reloc;		/* relocation before frob */
   operatorT op;					/* which operator to use */
-  int lituse;					/* addened to specify lituse */
+  bfd_reloc_code_real_type reloc;		/* relocation before frob */
+  unsigned int require_seq : 1;			/* require a sequence number */
+  unsigned int allow_seq : 1;			/* allow a sequence number */
 } alpha_reloc_op[] = {
-
-  {
-    "literal",					/* name */
-    sizeof ("literal")-1,			/* length */
-    BFD_RELOC_ALPHA_USER_LITERAL,		/* reloc */
-    O_literal,					/* op */
-    0,						/* lituse */
-  },
-
-  {
-    "lituse_base",				/* name */
-    sizeof ("lituse_base")-1,			/* length */
-    BFD_RELOC_ALPHA_USER_LITUSE_BASE,		/* reloc */
-    O_lituse_base,				/* op */
-    LITUSE_BASE,				/* lituse */
-  },
-
-  {
-    "lituse_bytoff",				/* name */
-    sizeof ("lituse_bytoff")-1,			/* length */
-    BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF,		/* reloc */
-    O_lituse_bytoff,				/* op */
-    LITUSE_BYTOFF,				/* lituse */
-  },
-
-  {
-    "lituse_jsr",				/* name */
-    sizeof ("lituse_jsr")-1,			/* length */
-    BFD_RELOC_ALPHA_USER_LITUSE_JSR,		/* reloc */
-    O_lituse_jsr,				/* op */
-    LITUSE_JSR,					/* lituse */
-  },
-
-  {
-    "gpdisp",					/* name */
-    sizeof ("gpdisp")-1,			/* length */
-    BFD_RELOC_ALPHA_USER_GPDISP,		/* reloc */
-    O_gpdisp,					/* op */
-    0,						/* lituse */
-  },
-
-  {
-    "gprelhigh",				/* name */
-    sizeof ("gprelhigh")-1,			/* length */
-    BFD_RELOC_ALPHA_USER_GPRELHIGH,		/* reloc */
-    O_gprelhigh,				/* op */
-    0,						/* lituse */
-  },
-
-  {
-    "gprellow",					/* name */
-    sizeof ("gprellow")-1,			/* length */
-    BFD_RELOC_ALPHA_USER_GPRELLOW,		/* reloc */
-    O_gprellow,					/* op */
-    0,						/* lituse */
-  },
+  DEF(literal, BFD_RELOC_ALPHA_ELF_LITERAL, 0, 1),
+  DEF(lituse_addr, DUMMY_RELOC_LITUSE_ADDR, 1, 1),
+  DEF(lituse_base, DUMMY_RELOC_LITUSE_BASE, 1, 1),
+  DEF(lituse_bytoff, DUMMY_RELOC_LITUSE_BYTOFF, 1, 1),
+  DEF(lituse_jsr, DUMMY_RELOC_LITUSE_JSR, 1, 1),
+  DEF(gpdisp, BFD_RELOC_ALPHA_GPDISP, 1, 1),
+  DEF(gprelhigh, BFD_RELOC_ALPHA_GPREL_HI16, 0, 0),
+  DEF(gprellow, BFD_RELOC_ALPHA_GPREL_LO16, 0, 0),
+  DEF(gprel, BFD_RELOC_GPREL16, 0, 0),
+  DEF(samegp, BFD_RELOC_ALPHA_BRSGP, 0, 0)
 };
+
+#undef DEF
 
 static const int alpha_num_reloc_op
   = sizeof (alpha_reloc_op) / sizeof (*alpha_reloc_op);
+#endif /* RELOC_OP_P */
 
 /* Maximum # digits needed to hold the largest sequence # */
 #define ALPHA_RELOC_DIGITS 25
 
-/* Whether a sequence number is valid.  */
-#define ALPHA_RELOC_SEQUENCE_OK(X) ((X) > 0 && ((unsigned) (X)) == (X))
-
 /* Structure to hold explict sequence information.  */
-struct alpha_literal_tag
+struct alpha_reloc_tag
 {
-  fixS *lituse;			/* head of linked list of !literals */
+  fixS *slaves;			/* head of linked list of !literals */
   segT segment;			/* segment relocs are in or undefined_section*/
-  int multi_section_p;		/* True if more than one section was used */
-  unsigned sequence;		/* sequence # */
-  unsigned n_literals;		/* # of literals */
-  unsigned n_lituses;		/* # of lituses */
+  long sequence;		/* sequence # */
+  unsigned n_master;		/* # of literals */
+  unsigned n_slaves;		/* # of lituses */
+  char multi_section_p;		/* True if more than one section was used */
   char string[1];		/* printable form of sequence to hash with */
 };
 
 /* Hash table to link up literals with the appropriate lituse */
 static struct hash_control *alpha_literal_hash;
-#endif
+
+/* Sequence numbers for internal use by macros.  */
+static long next_sequence_num = -1;
 
 /* A table of CPU names and opcode sets.  */
 
@@ -606,48 +569,48 @@ static const struct cpu_type {
 static const struct alpha_macro alpha_macros[] = {
 /* Load/Store macros */
   { "lda",	emit_lda, NULL,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_LITERAL, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldah",	emit_ldah, NULL,
     { MACRO_IR, MACRO_EXP, MACRO_EOA } },
 
   { "ldl",	emit_ir_load, "ldl",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldl_l",	emit_ir_load, "ldl_l",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldq",	emit_ir_load, "ldq",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_LITERAL, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldq_l",	emit_ir_load, "ldq_l",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldq_u",	emit_ir_load, "ldq_u",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldf",	emit_loadstore, "ldf",
-    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldg",	emit_loadstore, "ldg",
-    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "lds",	emit_loadstore, "lds",
-    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldt",	emit_loadstore, "ldt",
-    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
 
   { "ldb",	emit_ldX, (PTR) 0,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldbu",	emit_ldXu, (PTR) 0,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldw",	emit_ldX, (PTR) 1,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ldwu",	emit_ldXu, (PTR) 1,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
 
   { "uldw",	emit_uldX, (PTR) 1,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "uldwu",	emit_uldXu, (PTR) 1,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "uldl",	emit_uldX, (PTR) 2,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "uldlu",	emit_uldXu, (PTR) 2,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "uldq",	emit_uldXu, (PTR) 3,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
 
   { "ldgp",	emit_ldgp, NULL,
     { MACRO_IR, MACRO_EXP, MACRO_PIR, MACRO_EOA } },
@@ -672,34 +635,34 @@ static const struct alpha_macro alpha_macros[] = {
 #endif
 
   { "stl",	emit_loadstore, "stl",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "stl_c",	emit_loadstore, "stl_c",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "stq",	emit_loadstore, "stq",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "stq_c",	emit_loadstore, "stq_c",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "stq_u",	emit_loadstore, "stq_u",
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "stf",	emit_loadstore, "stf",
-    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "stg",	emit_loadstore, "stg",
-    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "sts",	emit_loadstore, "sts",
-    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "stt",	emit_loadstore, "stt",
-    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_FPR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
 
   { "stb",	emit_stX, (PTR) 0,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "stw",	emit_stX, (PTR) 1,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ustw",	emit_ustX, (PTR) 1,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ustl",	emit_ustX, (PTR) 2,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
   { "ustq",	emit_ustX, (PTR) 3,
-    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_BASE, MACRO_EOA } },
+    { MACRO_IR, MACRO_EXP, MACRO_OPIR, MACRO_EOA } },
 
 /* Arithmetic macros */
 #if 0
@@ -762,15 +725,15 @@ static const struct alpha_macro alpha_macros[] = {
       MACRO_IR, MACRO_EXP, MACRO_EOA */ } },
 
   { "jsr",	emit_jsrjmp, "jsr",
-    { MACRO_PIR, MACRO_EXP, MACRO_JSR, MACRO_EOA,
-      MACRO_PIR, MACRO_JSR, MACRO_EOA,
-      MACRO_IR,  MACRO_EXP, MACRO_JSR, MACRO_EOA,
-      MACRO_EXP, MACRO_JSR, MACRO_EOA } },
+    { MACRO_PIR, MACRO_EXP, MACRO_EOA,
+      MACRO_PIR, MACRO_EOA,
+      MACRO_IR,  MACRO_EXP, MACRO_EOA,
+      MACRO_EXP, MACRO_EOA } },
   { "jmp",	emit_jsrjmp, "jmp",
-    { MACRO_PIR, MACRO_EXP, MACRO_JSR, MACRO_EOA,
-      MACRO_PIR, MACRO_JSR, MACRO_EOA,
-      MACRO_IR,  MACRO_EXP, MACRO_JSR, MACRO_EOA,
-      MACRO_EXP, MACRO_JSR, MACRO_EOA } },
+    { MACRO_PIR, MACRO_EXP, MACRO_EOA,
+      MACRO_PIR, MACRO_EOA,
+      MACRO_IR,  MACRO_EXP, MACRO_EOA,
+      MACRO_EXP, MACRO_EOA } },
   { "ret",	emit_retjcr, "ret",
     { MACRO_IR, MACRO_EXP, MACRO_EOA,
       MACRO_IR, MACRO_EOA,
@@ -825,7 +788,8 @@ md_begin ()
       name = alpha_opcodes[i].name;
       retval = hash_insert (alpha_opcode_hash, name, (PTR) &alpha_opcodes[i]);
       if (retval)
-	as_fatal (_("internal error: can't hash opcode `%s': %s"), name, retval);
+	as_fatal (_("internal error: can't hash opcode `%s': %s"),
+		  name, retval);
 
       /* Some opcodes include modifiers of various sorts with a "/mod"
 	 syntax, like the architecture manual suggests.  However, for
@@ -912,12 +876,10 @@ md_begin ()
     }
 #endif /* OBJ_ELF */
 
-  subseg_set (text_section, 0);
-
-#ifdef RELOC_OP_P
   /* Create literal lookup hash table.  */
   alpha_literal_hash = hash_new ();
-#endif
+
+  subseg_set (text_section, 0);
 }
 
 /* The public interface to the instruction assembler.  */
@@ -1158,13 +1120,14 @@ md_pcrel_from (fixP)
    the distance to the "lda" instruction for setting the addend to
    GPDISP.  */
 
-int
-md_apply_fix (fixP, valueP)
+void
+md_apply_fix3 (fixP, valP, seg)
      fixS *fixP;
-     valueT *valueP;
+     valueT * valP;
+     segT seg;
 {
   char * const fixpos = fixP->fx_frag->fr_literal + fixP->fx_where;
-  valueT value = *valueP;
+  valueT value = * valP;
   unsigned image, size;
 
   switch (fixP->fx_r_type)
@@ -1176,10 +1139,13 @@ md_apply_fix (fixP, valueP)
     case BFD_RELOC_ALPHA_GPDISP_HI16:
       {
 	fixS *next = fixP->fx_next;
-	assert (next->fx_r_type == BFD_RELOC_ALPHA_GPDISP_LO16);
 
-	fixP->fx_offset = (next->fx_frag->fr_address + next->fx_where
-			   - fixP->fx_frag->fr_address - fixP->fx_where);
+	/* With user-specified !gpdisp relocations, we can be missing
+	   the matching LO16 reloc.  We will have already issued an
+	   error message.  */
+	if (next)
+	  fixP->fx_offset = (next->fx_frag->fr_address + next->fx_where
+			     - fixP->fx_frag->fr_address - fixP->fx_where);
 
 	value = (value - sign_extend_16 (value)) >> 16;
       }
@@ -1196,7 +1162,7 @@ md_apply_fix (fixP, valueP)
 #endif
 
     do_reloc_gp:
-      fixP->fx_addsy = section_symbol (now_seg);
+      fixP->fx_addsy = section_symbol (seg);
       md_number_to_chars (fixpos, value, 2);
       break;
 
@@ -1220,7 +1186,7 @@ md_apply_fix (fixP, valueP)
 	  md_number_to_chars (fixpos, value, size);
 	  goto done;
 	}
-      return 1;
+      return;
 
 #ifdef OBJ_ECOFF
     case BFD_RELOC_GPREL32:
@@ -1229,11 +1195,13 @@ md_apply_fix (fixP, valueP)
       /* FIXME: inherited this obliviousness of `value' -- why? */
       md_number_to_chars (fixpos, -alpha_gp_value, 4);
       break;
-#endif
-#ifdef OBJ_ELF
+#else
     case BFD_RELOC_GPREL32:
-      return 1;
 #endif
+    case BFD_RELOC_GPREL16:
+    case BFD_RELOC_ALPHA_GPREL_HI16:
+    case BFD_RELOC_ALPHA_GPREL_LO16:
+      return;
 
     case BFD_RELOC_23_PCREL_S2:
       if (fixP->fx_pcrel == 0 && fixP->fx_addsy == 0)
@@ -1242,7 +1210,7 @@ md_apply_fix (fixP, valueP)
 	  image = (image & ~0x1FFFFF) | ((value >> 2) & 0x1FFFFF);
 	  goto write_done;
 	}
-      return 1;
+      return;
 
     case BFD_RELOC_ALPHA_HINT:
       if (fixP->fx_pcrel == 0 && fixP->fx_addsy == 0)
@@ -1251,43 +1219,27 @@ md_apply_fix (fixP, valueP)
 	  image = (image & ~0x3FFF) | ((value >> 2) & 0x3FFF);
 	  goto write_done;
 	}
-      return 1;
+      return;
+
+#ifdef OBJ_ELF
+    case BFD_RELOC_ALPHA_BRSGP:
+      return;
+#endif
 
 #ifdef OBJ_ECOFF
     case BFD_RELOC_ALPHA_LITERAL:
       md_number_to_chars (fixpos, value, 2);
-      return 1;
-
-    case BFD_RELOC_ALPHA_LITUSE:
-      return 1;
+      return;
 #endif
-#ifdef OBJ_ELF
     case BFD_RELOC_ALPHA_ELF_LITERAL:
     case BFD_RELOC_ALPHA_LITUSE:
-      return 1;
-#endif
-#ifdef OBJ_EVAX
     case BFD_RELOC_ALPHA_LINKAGE:
     case BFD_RELOC_ALPHA_CODEADDR:
-      return 1;
-#endif
-
-#ifdef RELOC_OP_P
-    case BFD_RELOC_ALPHA_USER_LITERAL:
-    case BFD_RELOC_ALPHA_USER_LITUSE_BASE:
-    case BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF:
-    case BFD_RELOC_ALPHA_USER_LITUSE_JSR:
-      return 1;
-
-    case BFD_RELOC_ALPHA_USER_GPDISP:
-    case BFD_RELOC_ALPHA_USER_GPRELHIGH:
-    case BFD_RELOC_ALPHA_USER_GPRELLOW:
-      abort ();
-#endif
+      return;
 
     case BFD_RELOC_VTABLE_INHERIT:
     case BFD_RELOC_VTABLE_ENTRY:
-      return 1;
+      return;
 
     default:
       {
@@ -1317,7 +1269,7 @@ md_apply_fix (fixP, valueP)
     }
 
   if (fixP->fx_addsy != 0 || fixP->fx_pcrel != 0)
-    return 1;
+    return;
   else
     {
       as_warn_where (fixP->fx_file, fixP->fx_line,
@@ -1330,12 +1282,9 @@ write_done:
 
 done:
   fixP->fx_done = 1;
-  return 0;
 }
 
-/*
- * Look for a register name in the given symbol.
- */
+/* Look for a register name in the given symbol.  */
 
 symbolS *
 md_undefined_symbol (name)
@@ -1354,7 +1303,7 @@ md_undefined_symbol (name)
 	  /* FALLTHRU */
 
 	case 'r':
-	  if (!isdigit (*++name))
+	  if (!ISDIGIT (*++name))
 	    break;
 	  /* FALLTHRU */
 
@@ -1362,7 +1311,7 @@ md_undefined_symbol (name)
 	case '5': case '6': case '7': case '8': case '9':
 	  if (name[1] == '\0')
 	    num = name[0] - '0';
-	  else if (name[0] != '0' && isdigit (name[1]) && name[2] == '\0')
+	  else if (name[0] != '0' && ISDIGIT (name[1]) && name[2] == '\0')
 	    {
 	      num = (name[0] - '0') * 10 + name[1] - '0';
 	      if (num >= 32)
@@ -1422,8 +1371,51 @@ alpha_define_label (sym)
   alpha_insn_label = sym;
 }
 
+/* If we have a BRSGP reloc to a local symbol, adjust it to BRADDR and
+   let it get resolved at assembly time.  */
+
+void
+alpha_validate_fix (f)
+     fixS *f;
+{
+#ifdef OBJ_ELF
+  int offset = 0;
+  const char *name;
+
+  if (f->fx_r_type != BFD_RELOC_ALPHA_BRSGP)
+    return;
+
+  if (! S_IS_DEFINED (f->fx_addsy))
+    return;
+
+  switch (S_GET_OTHER (f->fx_addsy) & STO_ALPHA_STD_GPLOAD)
+    {
+    case STO_ALPHA_NOPV:
+      break;
+    case STO_ALPHA_STD_GPLOAD:
+      offset = 8;
+      break;
+    default:
+      if (S_IS_LOCAL (f->fx_addsy))
+	name = "<local>";
+      else
+	name = S_GET_NAME (f->fx_addsy);
+      as_bad_where (f->fx_file, f->fx_line,
+		    _("!samegp reloc against symbol without .prologue: %s"),
+		    name);
+      break;
+    }
+
+  if (! (S_IS_EXTERN (f->fx_addsy) || S_IS_WEAK (f->fx_addsy)))
+    {
+      f->fx_r_type = BFD_RELOC_23_PCREL_S2;
+      f->fx_offset += offset;
+    }
+#endif
+}
+
 /* Return true if we must always emit a reloc for a type and false if
-   there is some hope of resolving it a assembly time.  */
+   there is some hope of resolving it at assembly time.  */
 
 int
 alpha_force_relocation (f)
@@ -1437,27 +1429,16 @@ alpha_force_relocation (f)
     case BFD_RELOC_ALPHA_GPDISP_HI16:
     case BFD_RELOC_ALPHA_GPDISP_LO16:
     case BFD_RELOC_ALPHA_GPDISP:
-#ifdef OBJ_ECOFF
     case BFD_RELOC_ALPHA_LITERAL:
-#endif
-#ifdef OBJ_ELF
     case BFD_RELOC_ALPHA_ELF_LITERAL:
-#endif
     case BFD_RELOC_ALPHA_LITUSE:
+    case BFD_RELOC_GPREL16:
     case BFD_RELOC_GPREL32:
-#ifdef OBJ_EVAX
+    case BFD_RELOC_ALPHA_GPREL_HI16:
+    case BFD_RELOC_ALPHA_GPREL_LO16:
     case BFD_RELOC_ALPHA_LINKAGE:
     case BFD_RELOC_ALPHA_CODEADDR:
-#endif
-#ifdef RELOC_OP_P
-    case BFD_RELOC_ALPHA_USER_LITERAL:
-    case BFD_RELOC_ALPHA_USER_LITUSE_BASE:
-    case BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF:
-    case BFD_RELOC_ALPHA_USER_LITUSE_JSR:
-    case BFD_RELOC_ALPHA_USER_GPDISP:
-    case BFD_RELOC_ALPHA_USER_GPRELHIGH:
-    case BFD_RELOC_ALPHA_USER_GPRELLOW:
-#endif
+    case BFD_RELOC_ALPHA_BRSGP:
     case BFD_RELOC_VTABLE_INHERIT:
     case BFD_RELOC_VTABLE_ENTRY:
       return 1;
@@ -1469,8 +1450,6 @@ alpha_force_relocation (f)
       return 0;
 
     default:
-      assert ((int) f->fx_r_type < 0
-	      && -(int) f->fx_r_type < (int) alpha_num_operands);
       return 0;
     }
 }
@@ -1494,37 +1473,24 @@ alpha_fix_adjustable (f)
     case BFD_RELOC_ALPHA_GPDISP_HI16:
     case BFD_RELOC_ALPHA_GPDISP_LO16:
     case BFD_RELOC_ALPHA_GPDISP:
+    case BFD_RELOC_ALPHA_BRSGP:
       return 0;
 
-#ifdef OBJ_ECOFF
     case BFD_RELOC_ALPHA_LITERAL:
-#endif
-#ifdef OBJ_ELF
     case BFD_RELOC_ALPHA_ELF_LITERAL:
-#endif
-#ifdef RELOC_OP_P
-    case BFD_RELOC_ALPHA_USER_LITERAL:
-#endif
-#ifdef OBJ_EVAX
+    case BFD_RELOC_ALPHA_LITUSE:
     case BFD_RELOC_ALPHA_LINKAGE:
     case BFD_RELOC_ALPHA_CODEADDR:
-#endif
       return 1;
 
-    case BFD_RELOC_ALPHA_LITUSE:
-#ifdef RELOC_OP_P
-    case BFD_RELOC_ALPHA_USER_LITUSE_BASE:
-    case BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF:
-    case BFD_RELOC_ALPHA_USER_LITUSE_JSR:
-    case BFD_RELOC_ALPHA_USER_GPDISP:
-    case BFD_RELOC_ALPHA_USER_GPRELHIGH:
-    case BFD_RELOC_ALPHA_USER_GPRELLOW:
-#endif
     case BFD_RELOC_VTABLE_ENTRY:
     case BFD_RELOC_VTABLE_INHERIT:
       return 0;
 
+    case BFD_RELOC_GPREL16:
     case BFD_RELOC_GPREL32:
+    case BFD_RELOC_ALPHA_GPREL_HI16:
+    case BFD_RELOC_ALPHA_GPREL_LO16:
     case BFD_RELOC_23_PCREL_S2:
     case BFD_RELOC_32:
     case BFD_RELOC_64:
@@ -1532,8 +1498,6 @@ alpha_fix_adjustable (f)
       return 1;
 
     default:
-      assert ((int) f->fx_r_type < 0
-	      && - (int) f->fx_r_type < (int) alpha_num_operands);
       return 1;
     }
   /*NOTREACHED*/
@@ -1591,7 +1555,8 @@ tc_gen_reloc (sec, fixp)
        * at assembly time.  bfd_perform_reloc doesn't know about this sort
        * of thing, and as a result we need to fake it out here.
        */
-      if ((S_IS_EXTERN (fixp->fx_addsy) || S_IS_WEAK (fixp->fx_addsy))
+      if ((S_IS_EXTERN (fixp->fx_addsy) || S_IS_WEAK (fixp->fx_addsy)
+	   || (S_GET_SEGMENT (fixp->fx_addsy)->flags & SEC_MERGE))
 	  && !S_IS_COMMON (fixp->fx_addsy))
 	reloc->addend -= symbol_get_bfdsym (fixp->fx_addsy)->value;
 #endif
@@ -1649,31 +1614,45 @@ alpha_frob_file_before_adjust ()
 
 #endif /* OBJ_ECOFF */
 
-#ifdef RELOC_OP_P
+static struct alpha_reloc_tag *
+get_alpha_reloc_tag (sequence)
+     long sequence;
+{
+  char buffer[ALPHA_RELOC_DIGITS];
+  struct alpha_reloc_tag *info;
+
+  sprintf (buffer, "!%ld", sequence);
+
+  info = (struct alpha_reloc_tag *) hash_find (alpha_literal_hash, buffer);
+  if (! info)
+    {
+      size_t len = strlen (buffer);
+      const char *errmsg;
+
+      info = (struct alpha_reloc_tag *)
+	xcalloc (sizeof (struct alpha_reloc_tag) + len, 1);
+
+      info->segment = now_seg;
+      info->sequence = sequence;
+      strcpy (info->string, buffer);
+      errmsg = hash_insert (alpha_literal_hash, info->string, (PTR) info);
+      if (errmsg)
+	as_fatal (errmsg);
+    }
+
+  return info;
+}
 
 /* Before the relocations are written, reorder them, so that user
    supplied !lituse relocations follow the appropriate !literal
-   relocations.  Also convert the gas-internal relocations to the
-   appropriate linker relocations.  */
+   relocations, and similarly for !gpdisp relocations.  */
 
 void
 alpha_adjust_symtab ()
 {
   if (alpha_literal_hash)
-    {
-#ifdef DEBUG2_ALPHA
-      fprintf (stderr, "alpha_adjust_symtab called\n");
-#endif
-
-      /* Go over each section, reordering the relocations so that all
-         of the explicit LITUSE's are adjacent to the explicit
-         LITERAL's.  */
-      bfd_map_over_sections (stdoutput, alpha_adjust_symtab_relocs,
-			     (char *) 0);
-    }
+    bfd_map_over_sections (stdoutput, alpha_adjust_symtab_relocs, NULL);
 }
-
-/* Inner function to move LITUSE's next to the LITERAL.  */
 
 static void
 alpha_adjust_symtab_relocs (abfd, sec, ptr)
@@ -1685,14 +1664,8 @@ alpha_adjust_symtab_relocs (abfd, sec, ptr)
   fixS **prevP;
   fixS *fixp;
   fixS *next;
-  fixS *lituse;
-  int n_lituses = 0;
-
-#ifdef DEBUG2_ALPHA
-  int n = 0;
-  int n_literals = 0;
-  int n_dup_literals = 0;
-#endif
+  fixS *slave;
+  unsigned long n_slaves = 0;
 
   /* If seginfo is NULL, we did not create this section; don't do
      anything with it.  By using a pointer to a pointer, we can update
@@ -1704,121 +1677,94 @@ alpha_adjust_symtab_relocs (abfd, sec, ptr)
   if (! seginfo->fix_root)
     return;
 
-  /* First rebuild the fixup chain without the expicit lituse's.  */
-  prevP = &(seginfo->fix_root);
+  /* First rebuild the fixup chain without the expicit lituse and
+     gpdisp_lo16 relocs.  */
+  prevP = &seginfo->fix_root;
   for (fixp = seginfo->fix_root; fixp; fixp = next)
     {
       next = fixp->fx_next;
       fixp->fx_next = (fixS *) 0;
-#ifdef DEBUG2_ALPHA
-      n++;
-#endif
 
       switch (fixp->fx_r_type)
 	{
+	case BFD_RELOC_ALPHA_LITUSE:
+	  n_slaves++;
+	  if (fixp->tc_fix_data.info->n_master == 0)
+	    as_bad_where (fixp->fx_file, fixp->fx_line,
+			  _("No !literal!%ld was found"),
+			  fixp->tc_fix_data.info->sequence);
+	  break;
+
+	case BFD_RELOC_ALPHA_GPDISP_LO16:
+	  n_slaves++;
+	  if (fixp->tc_fix_data.info->n_master == 0)
+	    as_bad_where (fixp->fx_file, fixp->fx_line,
+			  _("No ldah !gpdisp!%ld was found"),
+			  fixp->tc_fix_data.info->sequence);
+	  break;
+
 	default:
 	  *prevP = fixp;
-	  prevP = &(fixp->fx_next);
-#ifdef DEBUG2_ALPHA
-	  fprintf (stderr,
-		   "alpha_adjust_symtab_relocs: 0x%lx, other relocation %s\n",
-		   (long) fixp,
-		   bfd_get_reloc_code_name (fixp->fx_r_type));
-#endif
-	  break;
-
-	case BFD_RELOC_ALPHA_USER_LITERAL:
-	  *prevP = fixp;
-	  prevP = &(fixp->fx_next);
-	  /* prevent assembler from trying to adjust the offset */
-#ifdef DEBUG2_ALPHA
-	  n_literals++;
-	  if (fixp->tc_fix_data.info->n_literals != 1)
-	    n_dup_literals++;
-	  fprintf (stderr,
-		   "alpha_adjust_symtab_relocs: 0x%lx, !literal!%.6d, # literals = %2d\n",
-		   (long) fixp,
-		   fixp->tc_fix_data.info->sequence,
-		   fixp->tc_fix_data.info->n_literals);
-#endif
-	  break;
-
-	  /* do not link in lituse's */
-	case BFD_RELOC_ALPHA_USER_LITUSE_BASE:
-	case BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF:
-	case BFD_RELOC_ALPHA_USER_LITUSE_JSR:
-	  n_lituses++;
-	  if (fixp->tc_fix_data.info->n_literals == 0)
-	    as_bad_where (fixp->fx_file, fixp->fx_line,
-			  _("No !literal!%d was found"),
-			  fixp->tc_fix_data.info->sequence);
-#ifdef DEBUG2_ALPHA
-	  fprintf (stderr,
-		   "alpha_adjust_symtab_relocs: 0x%lx, !lituse !%.6d, # lituses  = %2d, next_lituse = 0x%lx\n",
-		   (long) fixp,
-		   fixp->tc_fix_data.info->sequence,
-		   fixp->tc_fix_data.info->n_lituses,
-		   (long) fixp->tc_fix_data.next_lituse);
-#endif
+	  prevP = &fixp->fx_next;
 	  break;
 	}
     }
 
-  /* If there were any lituses, go and add them to the chain, unless there is
-     more than one !literal for a given sequence number.  They are linked
-     through the next_lituse field in reverse order, so as we go through the
-     next_lituse chain, we effectively reverse the chain once again.  If there
-     was more than one !literal, we fall back to loading up the address w/o
-     optimization.  Also, if the !literals/!lituses are spread in different
-     segments (happens in the Linux kernel semaphores), suppress the
-     optimization.  */
-  if (n_lituses)
+  /* If there were any dependent relocations, go and add them back to
+     the chain.  They are linked through the next_reloc field in
+     reverse order, so as we go through the next_reloc chain, we
+     effectively reverse the chain once again.
+
+     Except if there is more than one !literal for a given sequence
+     number.  In that case, the programmer and/or compiler is not sure
+     how control flows from literal to lituse, and we can't be sure to
+     get the relaxation correct.
+
+     ??? Well, actually we could, if there are enough lituses such that
+     we can make each literal have at least one of each lituse type
+     present.  Not implemented.
+
+     Also suppress the optimization if the !literals/!lituses are spread
+     in different segments.  This can happen with "intersting" uses of
+     inline assembly; examples are present in the Linux kernel semaphores.  */
+
+  for (fixp = seginfo->fix_root; fixp; fixp = next)
     {
-      for (fixp = seginfo->fix_root; fixp; fixp = fixp->fx_next)
+      next = fixp->fx_next;
+      switch (fixp->fx_r_type)
 	{
-	  switch (fixp->fx_r_type)
+	case BFD_RELOC_ALPHA_ELF_LITERAL:
+	  if (fixp->tc_fix_data.info->n_master == 1
+	      && ! fixp->tc_fix_data.info->multi_section_p)
 	    {
-	    default:
-	      break;
-
-	    case BFD_RELOC_ALPHA_USER_LITERAL:
-#ifdef OBJ_ELF
-	      fixp->fx_r_type = BFD_RELOC_ALPHA_ELF_LITERAL;
-#else
-	      fixp->fx_r_type = BFD_RELOC_ALPHA_LITERAL;	/* XXX check this */
-#endif
-	      if (fixp->tc_fix_data.info->n_literals == 1
-		  && ! fixp->tc_fix_data.info->multi_section_p)
+	      for (slave = fixp->tc_fix_data.info->slaves;
+		   slave != (fixS *) 0;
+		   slave = slave->tc_fix_data.next_reloc)
 		{
-		  for (lituse = fixp->tc_fix_data.info->lituse;
-		       lituse != (fixS *) 0;
-		       lituse = lituse->tc_fix_data.next_lituse)
-		    {
-		      lituse->fx_next = fixp->fx_next;
-		      fixp->fx_next = lituse;
-		    }
+		  slave->fx_next = fixp->fx_next;
+		  fixp->fx_next = slave;
 		}
-	      break;
-
-	    case BFD_RELOC_ALPHA_USER_LITUSE_BASE:
-	    case BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF:
-	    case BFD_RELOC_ALPHA_USER_LITUSE_JSR:
-	      fixp->fx_r_type = BFD_RELOC_ALPHA_LITUSE;
-	      break;
 	    }
+	  break;
+
+	case BFD_RELOC_ALPHA_GPDISP_HI16:
+	  if (fixp->tc_fix_data.info->n_slaves == 0)
+	    as_bad_where (fixp->fx_file, fixp->fx_line,
+			  _("No lda !gpdisp!%ld was found"),
+			  fixp->tc_fix_data.info->sequence);
+	  else
+	    {
+	      slave = fixp->tc_fix_data.info->slaves;
+	      slave->fx_next = next;
+	      fixp->fx_next = slave;
+	    }
+	  break;
+
+	default:
+	  break;
 	}
     }
-
-#ifdef DEBUG2_ALPHA
-  fprintf (stderr, "alpha_adjust_symtab_relocs: %s, %d literal%s, %d duplicate literal%s, %d lituse%s\n\n",
-	   sec->name,
-	   n_literals, (n_literals == 1) ? "" : "s",
-	   n_dup_literals, (n_dup_literals == 1) ? "" : "s",
-	   n_lituses, (n_lituses == 1) ? "" : "s");
-#endif
 }
-
-#endif /* RELOC_OP_P */
 
 #ifdef DEBUG_ALPHA
 static void
@@ -1869,15 +1815,15 @@ debug_exp (tok, ntok)
 	case O_pregister:		name = "O_pregister";		break;
 	case O_cpregister:		name = "O_cpregister";		break;
 	case O_literal:			name = "O_literal";		break;
+	case O_lituse_addr:		name = "O_lituse_addr";		break;
 	case O_lituse_base:		name = "O_lituse_base";		break;
 	case O_lituse_bytoff:		name = "O_lituse_bytoff";	break;
 	case O_lituse_jsr:		name = "O_lituse_jsr";		break;
 	case O_gpdisp:			name = "O_gpdisp";		break;
 	case O_gprelhigh:		name = "O_gprelhigh";		break;
 	case O_gprellow:		name = "O_gprellow";		break;
-	case O_md10:			name = "O_md10";		break;
-	case O_md11:			name = "O_md11";		break;
-	case O_md12:			name = "O_md12";		break;
+	case O_gprel:			name = "O_gprel";		break;
+	case O_samegp:			name = "O_samegp";		break;
 	case O_md13:			name = "O_md13";		break;
 	case O_md14:			name = "O_md14";		break;
 	case O_md15:			name = "O_md15";		break;
@@ -1908,19 +1854,22 @@ tokenize_arguments (str, tok, ntok)
 #ifdef DEBUG_ALPHA
   expressionS *orig_tok = tok;
 #endif
-#ifdef RELOC_OP_P
   char *p;
   const struct alpha_reloc_op_tag *r;
   int c, i;
   size_t len;
   int reloc_found_p = 0;
-#endif
 
   memset (tok, 0, sizeof (*tok) * ntok);
 
   /* Save and restore input_line_pointer around this function */
   old_input_line_pointer = input_line_pointer;
   input_line_pointer = str;
+
+#ifdef RELOC_OP_P
+  /* ??? Wrest control of ! away from the regular expression parser.  */
+  is_end_of_line[(unsigned char) '!'] = 1;
+#endif
 
   while (tok < end_tok && *input_line_pointer)
     {
@@ -1944,59 +1893,66 @@ tokenize_arguments (str, tok, ntok)
 	  if (!saw_arg)
 	    goto err;
 
-	  for (p = ++input_line_pointer;
-	       ((c = *p) != '!' && c != ';' && c != '#' && c != ','
-		&& !is_end_of_line[c]);
-	       p++)
-	    ;
+	  ++input_line_pointer;
+          SKIP_WHITESPACE ();
+	  p = input_line_pointer;
+	  c = get_symbol_end ();
 
 	  /* Parse !relocation_type */
-	  len = p - input_line_pointer;
+	  len = input_line_pointer - p;
 	  if (len == 0)
 	    {
 	      as_bad (_("No relocation operand"));
 	      goto err_report;
 	    }
 
-	  if (c != '!')
-	    {
-	      as_bad (_("No !sequence-number after !%s"), input_line_pointer);
-	      goto err_report;
-	    }
-
 	  r = &alpha_reloc_op[0];
 	  for (i = alpha_num_reloc_op - 1; i >= 0; i--, r++)
-	    {
-	      if (len == r->length
-		  && memcmp (input_line_pointer, r->name, len) == 0)
-		break;
-	    }
+	    if (len == r->length && memcmp (p, r->name, len) == 0)
+	      break;
 	  if (i < 0)
 	    {
-	      as_bad (_("Unknown relocation operand: !%s"),
-		      input_line_pointer);
+	      as_bad (_("Unknown relocation operand: !%s"), p);
 	      goto err_report;
 	    }
 
-	  input_line_pointer = ++p;
-
-	  /* Parse !sequence_number */
-	  memset (tok, '\0', sizeof (expressionS));
-	  expression (tok);
-
-	  if (tok->X_op != O_constant
-	      || ! ALPHA_RELOC_SEQUENCE_OK (tok->X_add_number))
+	  *input_line_pointer = c;
+          SKIP_WHITESPACE ();
+	  if (*input_line_pointer != '!')
 	    {
-	      as_bad (_("Bad sequence number: !%s!%s"),
-		      r->name, input_line_pointer);
-	      goto err_report;
+	      if (r->require_seq)
+		{
+		  as_bad (_("no sequence number after !%s"), p);
+		  goto err_report;
+		}
+
+	      tok->X_add_number = 0;
+	    }
+	  else
+	    {
+	      if (! r->allow_seq)
+		{
+		  as_bad (_("!%s does not use a sequence number"), p);
+		  goto err_report;
+		}
+
+	      input_line_pointer++;
+
+	      /* Parse !sequence_number */
+	      expression (tok);
+	      if (tok->X_op != O_constant || tok->X_add_number <= 0)
+		{
+		  as_bad (_("Bad sequence number: !%s!%s"),
+			  r->name, input_line_pointer);
+		  goto err_report;
+		}
 	    }
 
 	  tok->X_op = r->op;
 	  reloc_found_p = 1;
 	  ++tok;
 	  break;
-#endif
+#endif /* RELOC_OP_P */
 
 	case ',':
 	  ++input_line_pointer;
@@ -2048,18 +2004,25 @@ fini:
 #ifdef DEBUG_ALPHA
   debug_exp (orig_tok, ntok - (end_tok - tok));
 #endif
+#ifdef RELOC_OP_P
+  is_end_of_line[(unsigned char) '!'] = 0;
+#endif
 
   return ntok - (end_tok - tok);
 
 err:
+#ifdef RELOC_OP_P
+  is_end_of_line[(unsigned char) '!'] = 0;
+#endif
   input_line_pointer = old_input_line_pointer;
   return TOKENIZE_ERROR;
 
-#ifdef RELOC_OP_P
 err_report:
+#ifdef RELOC_OP_P
+  is_end_of_line[(unsigned char) '!'] = 0;
+#endif
   input_line_pointer = old_input_line_pointer;
   return TOKENIZE_ERROR_REPORT;
-#endif
 }
 
 /* Search forward through all variants of an opcode looking for a
@@ -2247,7 +2210,6 @@ find_macro_match (first_macro, tok, pntok)
 		case O_register:
 		case O_pregister:
 		case O_cpregister:
-#ifdef RELOC_OP_P
 		case O_literal:
 		case O_lituse_base:
 		case O_lituse_bytoff:
@@ -2255,45 +2217,14 @@ find_macro_match (first_macro, tok, pntok)
 		case O_gpdisp:
 		case O_gprelhigh:
 		case O_gprellow:
-#endif
+		case O_gprel:
+		case O_samegp:
 		  goto match_failed;
 
 		default:
 		  break;
 		}
 	      ++tokidx;
-	      break;
-
-	      /* optional !literal!<number> */
-	    case MACRO_LITERAL:
-#ifdef RELOC_OP_P
-	      if (tokidx < ntok && tok[tokidx].X_op == O_literal)
-		tokidx++;
-#endif
-	      break;
-
-	      /* optional !lituse_base!<number> */
-	    case MACRO_BASE:
-#ifdef RELOC_OP_P
-	      if (tokidx < ntok && tok[tokidx].X_op == O_lituse_base)
-		tokidx++;
-#endif
-	      break;
-
-	      /* optional !lituse_bytoff!<number> */
-	    case MACRO_BYTOFF:
-#ifdef RELOC_OP_P
-	      if (tokidx < ntok && tok[tokidx].X_op == O_lituse_bytoff)
-		tokidx++;
-#endif
-	      break;
-
-	      /* optional !lituse_jsr!<number> */
-	    case MACRO_JSR:
-#ifdef RELOC_OP_P
-	      if (tokidx < ntok && tok[tokidx].X_op == O_lituse_jsr)
-		tokidx++;
-#endif
 	      break;
 
 	    match_failed:
@@ -2370,12 +2301,15 @@ insert_operand (insn, operand, val, file, line)
  */
 
 static void
-assemble_insn (opcode, tok, ntok, insn)
+assemble_insn (opcode, tok, ntok, insn, reloc)
      const struct alpha_opcode *opcode;
      const expressionS *tok;
      int ntok;
      struct alpha_insn *insn;
+     bfd_reloc_code_real_type reloc;
 {
+  const struct alpha_operand *reloc_operand = NULL;
+  const expressionS *reloc_exp = NULL;
   const unsigned char *argidx;
   unsigned image;
   int tokidx = 0;
@@ -2431,22 +2365,83 @@ assemble_insn (opcode, tok, ntok, insn)
 
 	case O_constant:
 	  image = insert_operand (image, operand, t->X_add_number, NULL, 0);
+	  assert (reloc_operand == NULL);
+	  reloc_operand = operand;
+	  reloc_exp = t;
 	  break;
 
 	default:
-	  {
-	    struct alpha_fixup *fixup;
+	  /* This is only 0 for fields that should contain registers,
+	     which means this pattern shouldn't have matched.  */
+	  if (operand->default_reloc == 0)
+	    abort ();
 
-	    if (insn->nfixups >= MAX_INSN_FIXUPS)
-	      as_fatal (_("too many fixups"));
+	  /* There is one special case for which an insn receives two
+	     relocations, and thus the user-supplied reloc does not 
+	     override the operand reloc.  */
+	  if (operand->default_reloc == BFD_RELOC_ALPHA_HINT)
+	    {
+	      struct alpha_fixup *fixup;
 
-	    fixup = &insn->fixups[insn->nfixups++];
+	      if (insn->nfixups >= MAX_INSN_FIXUPS)
+		as_fatal (_("too many fixups"));
 
-	    fixup->exp = *t;
-	    fixup->reloc = operand->default_reloc;
-	  }
+	      fixup = &insn->fixups[insn->nfixups++];
+	      fixup->exp = *t;
+	      fixup->reloc = BFD_RELOC_ALPHA_HINT;
+	    }
+	  else
+	    {
+	      if (reloc == BFD_RELOC_UNUSED)
+		reloc = operand->default_reloc;
+
+	      assert (reloc_operand == NULL);
+	      reloc_operand = operand;
+	      reloc_exp = t;
+	    }
 	  break;
 	}
+    }
+
+  if (reloc != BFD_RELOC_UNUSED)
+    {
+      struct alpha_fixup *fixup;
+
+      if (insn->nfixups >= MAX_INSN_FIXUPS)
+	as_fatal (_("too many fixups"));
+
+      /* ??? My but this is hacky.  But the OSF/1 assembler uses the same
+	 relocation tag for both ldah and lda with gpdisp.  Choose the
+	 correct internal relocation based on the opcode.  */
+      if (reloc == BFD_RELOC_ALPHA_GPDISP)
+	{
+	  if (strcmp (opcode->name, "ldah") == 0)
+	    reloc = BFD_RELOC_ALPHA_GPDISP_HI16;
+	  else if (strcmp (opcode->name, "lda") == 0)
+	    reloc = BFD_RELOC_ALPHA_GPDISP_LO16;
+	  else
+	    as_bad (_("invalid relocation for instruction"));
+	}
+
+      /* If this is a real relocation (as opposed to a lituse hint), then
+	 the relocation width should match the operand width.  */
+      else if (reloc < BFD_RELOC_UNUSED)
+	{
+	  reloc_howto_type *reloc_howto
+	    = bfd_reloc_type_lookup (stdoutput, reloc);
+	  if (reloc_howto->bitsize != reloc_operand->bits)
+	    {
+	      as_bad (_("invalid relocation for field"));
+	      return;
+	    }
+	}
+
+      fixup = &insn->fixups[insn->nfixups++];
+      if (reloc_exp)
+	fixup->exp = *reloc_exp;
+      else
+	fixup->exp.X_op = O_absent;
+      fixup->reloc = reloc;
     }
 
   insn->insn = image;
@@ -2483,12 +2478,9 @@ emit_insn (insn)
     {
       const struct alpha_operand *operand = (const struct alpha_operand *) 0;
       struct alpha_fixup *fixup = &insn->fixups[i];
+      struct alpha_reloc_tag *info;
       int size, pcrel;
       fixS *fixP;
-#ifdef RELOC_OP_P
-      char buffer[ALPHA_RELOC_DIGITS];
-      struct alpha_literal_tag *info;
-#endif
 
       /* Some fixups are only used internally and so have no howto */
       if ((int) fixup->reloc < 0)
@@ -2497,43 +2489,24 @@ emit_insn (insn)
 	  size = 4;
 	  pcrel = ((operand->flags & AXP_OPERAND_RELATIVE) != 0);
 	}
+      else if (fixup->reloc > BFD_RELOC_UNUSED
+	       || fixup->reloc == BFD_RELOC_ALPHA_GPDISP_HI16
+	       || fixup->reloc == BFD_RELOC_ALPHA_GPDISP_LO16)
+	{
+	  size = 2;
+	  pcrel = 0;
+	}
       else
-	switch (fixup->reloc)
-	  {
-#ifdef OBJ_ELF
-	    /* These relocation types are only used internally.  */
-	  case BFD_RELOC_ALPHA_GPDISP_HI16:
-	  case BFD_RELOC_ALPHA_GPDISP_LO16:
-	    size = 2;
-	    pcrel = 0;
-	    break;
-#endif
-#ifdef RELOC_OP_P
-	    /* and these also are internal only relocations */
-	  case BFD_RELOC_ALPHA_USER_LITERAL:
-	  case BFD_RELOC_ALPHA_USER_LITUSE_BASE:
-	  case BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF:
-	  case BFD_RELOC_ALPHA_USER_LITUSE_JSR:
-	  case BFD_RELOC_ALPHA_USER_GPDISP:
-	  case BFD_RELOC_ALPHA_USER_GPRELHIGH:
-	  case BFD_RELOC_ALPHA_USER_GPRELLOW:
-	    size = 2;
-	    pcrel = 0;
-	    break;
-#endif
+	{
+	  reloc_howto_type *reloc_howto
+	    = bfd_reloc_type_lookup (stdoutput, fixup->reloc);
+	  assert (reloc_howto);
 
-	  default:
-	    {
-	      reloc_howto_type *reloc_howto
-		= bfd_reloc_type_lookup (stdoutput, fixup->reloc);
-	      assert (reloc_howto);
+	  size = bfd_get_reloc_size (reloc_howto);
+	  assert (size >= 1 && size <= 4);
 
-	      size = bfd_get_reloc_size (reloc_howto);
-	      pcrel = reloc_howto->pc_relative;
-	    }
-	    assert (size >= 1 && size <= 4);
-	    break;
-	  }
+	  pcrel = reloc_howto->pc_relative;
+	}
 
       fixP = fix_new_exp (frag_now, f - frag_now->fr_literal, size,
 			  &fixup->exp, pcrel, fixup->reloc);
@@ -2542,79 +2515,75 @@ emit_insn (insn)
          and copy in the sequence number for the explicit relocations.  */
       switch (fixup->reloc)
 	{
-	case BFD_RELOC_ALPHA_GPDISP_LO16:
-#ifdef OBJ_ECOFF
-	case BFD_RELOC_ALPHA_LITERAL:
-#endif
-#ifdef OBJ_ELF
-	case BFD_RELOC_ALPHA_ELF_LITERAL:
-#endif
+	case BFD_RELOC_ALPHA_HINT:
 	case BFD_RELOC_GPREL32:
+	case BFD_RELOC_GPREL16:
+	case BFD_RELOC_ALPHA_GPREL_HI16:
+	case BFD_RELOC_ALPHA_GPREL_LO16:
 	  fixP->fx_no_overflow = 1;
 	  break;
 
-#ifdef RELOC_OP_P
-	case BFD_RELOC_ALPHA_USER_LITERAL:
+	case BFD_RELOC_ALPHA_GPDISP_HI16:
 	  fixP->fx_no_overflow = 1;
-	  sprintf (buffer, "!%u", insn->sequence[i]);
-	  info = ((struct alpha_literal_tag *)
-		  hash_find (alpha_literal_hash, buffer));
+	  fixP->fx_addsy = section_symbol (now_seg);
+	  fixP->fx_offset = 0;
 
-	  if (! info)
-	    {
-	      size_t len = strlen (buffer);
-	      const char *errmsg;
-
-	      info = ((struct alpha_literal_tag *)
-		      xcalloc (sizeof (struct alpha_literal_tag) + len, 1));
-
-	      info->segment = now_seg;
-	      info->sequence = insn->sequence[i];
-	      strcpy (info->string, buffer);
-	      errmsg = hash_insert (alpha_literal_hash, info->string, (PTR) info);
-	      if (errmsg)
-		as_bad (errmsg);
-	    }
-
-	  ++info->n_literals;
-
+	  info = get_alpha_reloc_tag (insn->sequence);
+	  if (++info->n_master > 1)
+	    as_bad (_("too many ldah insns for !gpdisp!%ld"), insn->sequence);
 	  if (info->segment != now_seg)
-	    info->multi_section_p = 1;
-
+	    as_bad (_("both insns for !gpdisp!%ld must be in the same section"),
+		    insn->sequence);
 	  fixP->tc_fix_data.info = info;
 	  break;
 
-	case BFD_RELOC_ALPHA_USER_LITUSE_BASE:
-	case BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF:
-	case BFD_RELOC_ALPHA_USER_LITUSE_JSR:
-	  sprintf (buffer, "!%u", insn->sequence[i]);
-	  info = ((struct alpha_literal_tag *)
-		  hash_find (alpha_literal_hash, buffer));
+	case BFD_RELOC_ALPHA_GPDISP_LO16:
+	  fixP->fx_no_overflow = 1;
 
-	  if (! info)
-	    {
-	      size_t len = strlen (buffer);
-	      const char *errmsg;
-
-	      info = ((struct alpha_literal_tag *)
-		      xcalloc (sizeof (struct alpha_literal_tag) + len, 1));
-
-	      info->segment = now_seg;
-	      info->sequence = insn->sequence[i];
-	      strcpy (info->string, buffer);
-	      errmsg = hash_insert (alpha_literal_hash, info->string, (PTR) info);
-	      if (errmsg)
-		as_bad (errmsg);
-	    }
-	  info->n_lituses++;
+	  info = get_alpha_reloc_tag (insn->sequence);
+	  if (++info->n_slaves > 1)
+	    as_bad (_("too many lda insns for !gpdisp!%ld"), insn->sequence);
+	  if (info->segment != now_seg)
+	    as_bad (_("both insns for !gpdisp!%ld must be in the same section"),
+		    insn->sequence);
 	  fixP->tc_fix_data.info = info;
-	  fixP->tc_fix_data.next_lituse = info->lituse;
-	  info->lituse = fixP;
+	  info->slaves = fixP;
+	  break;
+
+	case BFD_RELOC_ALPHA_LITERAL:
+	case BFD_RELOC_ALPHA_ELF_LITERAL:
+	  fixP->fx_no_overflow = 1;
+
+	  info = get_alpha_reloc_tag (insn->sequence);
+	  info->n_master++;
 	  if (info->segment != now_seg)
 	    info->multi_section_p = 1;
-
+	  fixP->tc_fix_data.info = info;
 	  break;
-#endif
+
+	case DUMMY_RELOC_LITUSE_ADDR:
+	  fixP->fx_offset = LITUSE_ADDR;
+	  goto do_lituse;
+	case DUMMY_RELOC_LITUSE_BASE:
+	  fixP->fx_offset = LITUSE_BASE;
+	  goto do_lituse;
+	case DUMMY_RELOC_LITUSE_BYTOFF:
+	  fixP->fx_offset = LITUSE_BYTOFF;
+	  goto do_lituse;
+	case DUMMY_RELOC_LITUSE_JSR:
+	  fixP->fx_offset = LITUSE_JSR;
+	do_lituse:
+	  fixP->fx_addsy = section_symbol (now_seg);
+	  fixP->fx_r_type = BFD_RELOC_ALPHA_LITUSE;
+
+	  info = get_alpha_reloc_tag (insn->sequence);
+	  info->n_slaves++;
+	  fixP->tc_fix_data.info = info;
+	  fixP->tc_fix_data.next_reloc = info->slaves;
+	  info->slaves = fixP;
+	  if (info->segment != now_seg)
+	    info->multi_section_p = 1;
+	  break;
 
 	default:
 	  if ((int) fixup->reloc < 0)
@@ -2650,7 +2619,7 @@ assemble_tokens_to_insn (opname, tok, ntok, insn)
       opcode = find_opcode_match (opcode, tok, &ntok, &cpumatch);
       if (opcode)
 	{
-	  assemble_insn (opcode, tok, ntok, insn);
+	  assemble_insn (opcode, tok, ntok, insn, BFD_RELOC_UNUSED);
 	  return;
 	}
       else if (cpumatch)
@@ -2677,9 +2646,15 @@ assemble_tokens (opname, tok, ntok, local_macros_on)
   const struct alpha_opcode *opcode;
   const struct alpha_macro *macro;
   int cpumatch = 1;
+  bfd_reloc_code_real_type reloc = BFD_RELOC_UNUSED;
 
-  /* search macros */
-  if (local_macros_on)
+  /* If a user-specified relocation is present, this is not a macro.  */
+  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
+    {
+      reloc = ALPHA_RELOC_TABLE (tok[ntok - 1].X_op)->reloc;
+      ntok--;
+    }
+  else if (local_macros_on)
     {
       macro = ((const struct alpha_macro *)
 	       hash_find (alpha_macro_hash, opname));
@@ -2695,17 +2670,6 @@ assemble_tokens (opname, tok, ntok, local_macros_on)
 	}
     }
 
-#ifdef RELOC_OP_P
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const expressionS *reloc_exp = &tok[ntok - 1];
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-      as_bad (_("Cannot use !%s!%d with %s"), r->name,
-	      (int) reloc_exp->X_add_number, opname);
-      ntok--;
-    }
-#endif
-
   /* search opcodes */
   opcode = (const struct alpha_opcode *) hash_find (alpha_opcode_hash, opname);
   if (opcode)
@@ -2715,18 +2679,25 @@ assemble_tokens (opname, tok, ntok, local_macros_on)
       if (opcode)
 	{
 	  struct alpha_insn insn;
-	  assemble_insn (opcode, tok, ntok, &insn);
+	  assemble_insn (opcode, tok, ntok, &insn, reloc);
+
+	  /* Copy the sequence number for the reloc from the reloc token.  */
+	  if (reloc != BFD_RELOC_UNUSED)
+	    insn.sequence = tok[ntok].X_add_number;
+
 	  emit_insn (&insn);
 	  return;
 	}
     }
 
   if (found_something)
-    if (cpumatch)
-      as_bad (_("inappropriate arguments for opcode `%s'"), opname);
-    else
-      as_bad (_("opcode `%s' not supported for target %s"), opname,
-	      alpha_target_name);
+    {
+      if (cpumatch)
+	as_bad (_("inappropriate arguments for opcode `%s'"), opname);
+      else
+	as_bad (_("opcode `%s' not supported for target %s"), opname,
+		alpha_target_name);
+    }
   else
     as_bad (_("unknown opcode `%s'"), opname);
 }
@@ -2761,17 +2732,6 @@ FIXME
   expressionS newtok[3];
   expressionS addend;
 
-#ifdef RELOC_OP_P
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const expressionS *reloc_exp = &tok[ntok - 1];
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-      as_bad (_("Cannot use !%s!%d with %s"), r->name,
-	      (int) reloc_exp->X_add_number, "ldgp");
-      ntok--;
-    }
-#endif
-
 #ifdef OBJ_ECOFF
   if (regno (tok[2].X_add_number) == AXP_REG_PV)
     ecoff_set_gp_prolog_size (0);
@@ -2795,6 +2755,7 @@ FIXME
   insn.nfixups = 1;
   insn.fixups[0].exp = addend;
   insn.fixups[0].reloc = BFD_RELOC_ALPHA_GPDISP_HI16;
+  insn.sequence = next_sequence_num;
 
   emit_insn (&insn);
 
@@ -2809,6 +2770,7 @@ FIXME
   insn.nfixups = 1;
   insn.fixups[0].exp = addend;
   insn.fixups[0].reloc = BFD_RELOC_ALPHA_GPDISP_LO16;
+  insn.sequence = next_sequence_num--;
 
   emit_insn (&insn);
 #endif /* OBJ_ECOFF || OBJ_ELF */
@@ -2888,18 +2850,18 @@ add_to_link_pool (basesym, sym, addend)
    If explicit relocations of the form !literal!<number> are allowed,
    and used, then explict_reloc with be an expression pointer.
 
-   Finally, the return value is true if the calling macro may emit a
-   LITUSE reloc if otherwise appropriate.  */
+   Finally, the return value is nonzero if the calling macro may emit
+   a LITUSE reloc if otherwise appropriate; the return value is the
+   sequence number to use.  */
 
-static int
-load_expression (targreg, exp, pbasereg, poffset, explicit_reloc)
+static long
+load_expression (targreg, exp, pbasereg, poffset)
      int targreg;
      const expressionS *exp;
      int *pbasereg;
      expressionS *poffset;
-     const expressionS *explicit_reloc;
 {
-  int emit_lituse = 0;
+  long emit_lituse = 0;
   offsetT addend = exp->X_add_number;
   int basereg = *pbasereg;
   struct alpha_insn insn;
@@ -2949,9 +2911,9 @@ load_expression (targreg, exp, pbasereg, poffset, explicit_reloc)
 
 	assemble_tokens_to_insn ("ldq", newtok, 3, &insn);
 
-	assert (explicit_reloc == (const expressionS *) 0);
 	assert (insn.nfixups == 1);
 	insn.fixups[0].reloc = BFD_RELOC_ALPHA_LITERAL;
+	insn.sequence = emit_lituse = next_sequence_num--;
 #endif /* OBJ_ECOFF */
 #ifdef OBJ_ELF
 	/* emit "ldq r, gotoff(gp)" */
@@ -2988,25 +2950,14 @@ load_expression (targreg, exp, pbasereg, poffset, explicit_reloc)
 	assemble_tokens_to_insn ("ldq", newtok, 3, &insn);
 
 	assert (insn.nfixups == 1);
-	if (!explicit_reloc)
-	  insn.fixups[0].reloc = BFD_RELOC_ALPHA_ELF_LITERAL;
-	else
-	  {
-#ifdef RELOC_OP_P
-	    insn.fixups[0].reloc
-	      = (ALPHA_RELOC_TABLE (explicit_reloc->X_op))->reloc;
-	    insn.sequence[0] = explicit_reloc->X_add_number;
-#else
-	    abort ();
-#endif
-	  }
+	insn.fixups[0].reloc = BFD_RELOC_ALPHA_ELF_LITERAL;
+	insn.sequence = emit_lituse = next_sequence_num--;
 #endif /* OBJ_ELF */
 #ifdef OBJ_EVAX
 	offsetT link;
 
 	/* Find symbol or symbol pointer in link section.  */
 
-	assert (explicit_reloc == (const expressionS *) 0);
 	if (exp->X_add_symbol == alpha_evax_proc.symbol)
 	  {
 	    if (range_signed_16 (addend))
@@ -3048,8 +2999,6 @@ load_expression (targreg, exp, pbasereg, poffset, explicit_reloc)
 	emit_insn (&insn);
 
 #ifndef OBJ_EVAX
-	emit_lituse = 1;
-
 	if (basereg != alpha_gp_register && basereg != AXP_REG_ZERO)
 	  {
 	    /* emit "addq r, base, r" */
@@ -3065,14 +3014,12 @@ load_expression (targreg, exp, pbasereg, poffset, explicit_reloc)
       break;
 
     case O_constant:
-      assert (explicit_reloc == (const expressionS *) 0);
       break;
 
     case O_subtract:
       /* Assume that this difference expression will be resolved to an
 	 absolute value and that that value will fit in 16 bits.  */
 
-      assert (explicit_reloc == (const expressionS *) 0);
       set_tok_reg (newtok[0], targreg);
       newtok[1] = *exp;
       set_tok_preg (newtok[2], basereg);
@@ -3099,8 +3046,9 @@ load_expression (targreg, exp, pbasereg, poffset, explicit_reloc)
   if (!range_signed_32 (addend))
     {
       offsetT lit;
+      long seq_num = next_sequence_num--;
 
-      /* for 64-bit addends, just put it in the literal pool */
+      /* For 64-bit addends, just put it in the literal pool.  */
 
 #ifdef OBJ_EVAX
       /* emit "ldq targreg, lit(basereg)"  */
@@ -3160,6 +3108,7 @@ load_expression (targreg, exp, pbasereg, poffset, explicit_reloc)
 #ifdef OBJ_ELF
       insn.fixups[0].reloc = BFD_RELOC_ALPHA_ELF_LITERAL;
 #endif
+      insn.sequence = seq_num;
 
       emit_insn (&insn);
 
@@ -3171,16 +3120,10 @@ load_expression (targreg, exp, pbasereg, poffset, explicit_reloc)
       assemble_tokens_to_insn ("ldq", newtok, 3, &insn);
 
       assert (insn.nfixups < MAX_INSN_FIXUPS);
-      if (insn.nfixups > 0)
-	{
-	  memmove (&insn.fixups[1], &insn.fixups[0],
-		   sizeof (struct alpha_fixup) * insn.nfixups);
-	}
+      insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_BASE;
+      insn.fixups[insn.nfixups].exp.X_op = O_absent;
       insn.nfixups++;
-      insn.fixups[0].reloc = BFD_RELOC_ALPHA_LITUSE;
-      insn.fixups[0].exp.X_op = O_symbol;
-      insn.fixups[0].exp.X_add_symbol = section_symbol (now_seg);
-      insn.fixups[0].exp.X_add_number = LITUSE_BASE;
+      insn.sequence = seq_num;
       emit_lituse = 0;
 
       emit_insn (&insn);
@@ -3260,66 +3203,19 @@ load_expression (targreg, exp, pbasereg, poffset, explicit_reloc)
    large constants.  */
 
 static void
-emit_lda (tok, ntok, opname)
+emit_lda (tok, ntok, unused)
      const expressionS *tok;
      int ntok;
-     const PTR opname;
+     const PTR unused ATTRIBUTE_UNUSED;
 {
   int basereg;
-  const expressionS *reloc = (const expressionS *) 0;
-
-#ifdef RELOC_OP_P
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const struct alpha_reloc_op_tag *r;
-
-      reloc = &tok[ntok - 1];
-      r = ALPHA_RELOC_TABLE (reloc->X_op);
-      switch (reloc->X_op)
-	{
-	default:
-	  as_bad (_("Cannot use !%s!%d with %s"), r->name,
-		  (int) reloc->X_add_number, (const char *) opname);
-
-	  reloc = (const expressionS *) 0;
-	  ntok--;
-	  break;
-
-	case O_literal:
-	  ntok--;
-	  break;
-
-	  /* For lda $x,0($x)!lituse_base!y, don't use load_expression, since
-	     it is really too general for our needs.  Instead just generate the
-	     lda directly.  */
-	case O_lituse_base:
-	  if (ntok != 4
-	      || tok[0].X_op != O_register
-	      || !is_ir_num (tok[0].X_add_number)
-	      || tok[1].X_op != O_constant
-	      || tok[2].X_op != O_pregister
-	      || !is_ir_num (tok[2].X_add_number))
-	    {
-	      as_bad (_("bad instruction format for lda !%s!%ld"), r->name,
-		      (long) reloc->X_add_number);
-
-	      reloc = (const expressionS *) 0;
-	      ntok--;
-	      break;
-	    }
-
-	  emit_loadstore (tok, ntok, "lda");
-	  return;
-	}
-    }
-#endif
 
   if (ntok == 2)
     basereg = (tok[1].X_op == O_constant ? AXP_REG_ZERO : alpha_gp_register);
   else
     basereg = tok[2].X_add_number;
 
-  (void) load_expression (tok[0].X_add_number, &tok[1], &basereg, NULL, reloc);
+  (void) load_expression (tok[0].X_add_number, &tok[1], &basereg, NULL);
 }
 
 /* The ldah macro differs from the ldah instruction in that it has $31
@@ -3332,17 +3228,6 @@ emit_ldah (tok, ntok, unused)
      const PTR unused ATTRIBUTE_UNUSED;
 {
   expressionS newtok[3];
-
-#ifdef RELOC_OP_P
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const expressionS *reloc_exp = &tok[ntok - 1];
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-      as_bad (_("Cannot use !%s!%d with %s"), r->name,
-	      (int) reloc_exp->X_add_number, "ldah");
-      ntok--;
-    }
-#endif
 
   newtok[0] = tok[0];
   newtok[1] = tok[1];
@@ -3361,40 +3246,10 @@ emit_ir_load (tok, ntok, opname)
      int ntok;
      const PTR opname;
 {
-  int basereg, lituse;
+  int basereg;
+  long lituse;
   expressionS newtok[3];
   struct alpha_insn insn;
-
-#ifdef RELOC_OP_P
-  const expressionS *reloc = (const expressionS *) 0;
-
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const struct alpha_reloc_op_tag *r;
-
-      reloc = &tok[ntok - 1];
-      switch (reloc->X_op)
-	{
-	case O_lituse_base:
-	  ntok--;
-	  break;
-
-	case O_literal:
-	  if (strcmp ((const char *) opname, "ldq") == 0)
-	    {
-	      emit_lda (tok, ntok, opname);
-	      return;
-	    }
-
-	  /* fall through */
-	default:
-	  ntok--;
-	  r = ALPHA_RELOC_TABLE (reloc->X_op);
-	  as_bad (_("Cannot use !%s!%d with %s"), r->name,
-		  (int) reloc->X_add_number, (const char *) opname);
-	}
-    }
-#endif
 
   if (ntok == 2)
     basereg = (tok[1].X_op == O_constant ? AXP_REG_ZERO : alpha_gp_register);
@@ -3402,42 +3257,20 @@ emit_ir_load (tok, ntok, opname)
     basereg = tok[2].X_add_number;
 
   lituse = load_expression (tok[0].X_add_number, &tok[1], &basereg,
-			    &newtok[1], (const expressionS *) 0);
+			    &newtok[1]);
 
   newtok[0] = tok[0];
   set_tok_preg (newtok[2], basereg);
 
   assemble_tokens_to_insn ((const char *) opname, newtok, 3, &insn);
 
-#ifdef RELOC_OP_P
-  if (reloc)
-    {
-      int nfixups = insn.nfixups;
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc->X_op);
-
-      assert (nfixups < MAX_INSN_FIXUPS);
-      insn.fixups[nfixups].reloc = r->reloc;
-      insn.fixups[nfixups].exp.X_op = O_symbol;
-      insn.fixups[nfixups].exp.X_add_symbol = section_symbol (now_seg);
-      insn.fixups[nfixups].exp.X_add_number = r->lituse;
-      insn.sequence[nfixups] = reloc->X_add_number;
-      insn.nfixups++;
-    }
-#endif
-
   if (lituse)
     {
       assert (insn.nfixups < MAX_INSN_FIXUPS);
-      if (insn.nfixups > 0)
-	{
-	  memmove (&insn.fixups[1], &insn.fixups[0],
-		   sizeof (struct alpha_fixup) * insn.nfixups);
-	}
+      insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_BASE;
+      insn.fixups[insn.nfixups].exp.X_op = O_absent;
       insn.nfixups++;
-      insn.fixups[0].reloc = BFD_RELOC_ALPHA_LITUSE;
-      insn.fixups[0].exp.X_op = O_symbol;
-      insn.fixups[0].exp.X_add_symbol = section_symbol (now_seg);
-      insn.fixups[0].exp.X_add_number = LITUSE_BASE;
+      insn.sequence = lituse;
     }
 
   emit_insn (&insn);
@@ -3452,24 +3285,10 @@ emit_loadstore (tok, ntok, opname)
      int ntok;
      const PTR opname;
 {
-  int basereg, lituse;
+  int basereg;
+  long lituse;
   expressionS newtok[3];
   struct alpha_insn insn;
-
-#ifdef RELOC_OP_P
-  const expressionS *reloc = (const expressionS *) 0;
-
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      reloc = &tok[--ntok];
-      if (reloc->X_op != O_lituse_base)
-	{
-	  const struct alpha_reloc_op_tag *r = &alpha_reloc_op[reloc->X_md];
-	  as_bad (_("Cannot use !%s!%d with %s"), r->name,
-		  (int) reloc->X_add_number, (const char *) opname);
-	}
-    }
-#endif
 
   if (ntok == 2)
     basereg = (tok[1].X_op == O_constant ? AXP_REG_ZERO : alpha_gp_register);
@@ -3481,8 +3300,7 @@ emit_loadstore (tok, ntok, opname)
       if (alpha_noat_on)
 	as_bad (_("macro requires $at register while noat in effect"));
 
-      lituse = load_expression (AXP_REG_AT, &tok[1], &basereg, &newtok[1],
-				(const expressionS *) 0);
+      lituse = load_expression (AXP_REG_AT, &tok[1], &basereg, &newtok[1]);
     }
   else
     {
@@ -3495,35 +3313,13 @@ emit_loadstore (tok, ntok, opname)
 
   assemble_tokens_to_insn ((const char *) opname, newtok, 3, &insn);
 
-#ifdef RELOC_OP_P
-  if (reloc)
-    {
-      int nfixups = insn.nfixups;
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc->X_op);
-
-      assert (nfixups < MAX_INSN_FIXUPS);
-      insn.fixups[nfixups].reloc = r->reloc;
-      insn.fixups[nfixups].exp.X_op = O_symbol;
-      insn.fixups[nfixups].exp.X_add_symbol = section_symbol (now_seg);
-      insn.fixups[nfixups].exp.X_add_number = r->lituse;
-      insn.sequence[nfixups] = reloc->X_add_number;
-      insn.nfixups++;
-    }
-#endif
-
   if (lituse)
     {
       assert (insn.nfixups < MAX_INSN_FIXUPS);
-      if (insn.nfixups > 0)
-	{
-	  memmove (&insn.fixups[1], &insn.fixups[0],
-		   sizeof (struct alpha_fixup) * insn.nfixups);
-	}
+      insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_BASE;
+      insn.fixups[insn.nfixups].exp.X_op = O_absent;
       insn.nfixups++;
-      insn.fixups[0].reloc = BFD_RELOC_ALPHA_LITUSE;
-      insn.fixups[0].exp.X_op = O_symbol;
-      insn.fixups[0].exp.X_add_symbol = section_symbol (now_seg);
-      insn.fixups[0].exp.X_add_number = LITUSE_BASE;
+      insn.sequence = lituse;
     }
 
   emit_insn (&insn);
@@ -3542,41 +3338,57 @@ emit_ldXu (tok, ntok, vlgsize)
   else
     {
       expressionS newtok[3];
-
-#ifdef RELOC_OP_P
-      if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-	{
-	  const expressionS *reloc_exp = &tok[ntok - 1];
-	  const struct alpha_reloc_op_tag *r
-	    = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-
-	  as_bad (_("Cannot use !%s!%d with %s"), r->name,
-		  (int) reloc_exp->X_add_number, "ldbu/ldwu");
-	  ntok--;
-	}
-#endif
+      struct alpha_insn insn;
+      int basereg;
+      long lituse;
 
       if (alpha_noat_on)
 	as_bad (_("macro requires $at register while noat in effect"));
 
+      if (ntok == 2)
+	basereg = (tok[1].X_op == O_constant
+		   ? AXP_REG_ZERO : alpha_gp_register);
+      else
+	basereg = tok[2].X_add_number;
+
       /* emit "lda $at, exp" */
 
-      memcpy (newtok, tok, sizeof (expressionS) * ntok);
-      newtok[0].X_add_number = AXP_REG_AT;
-      assemble_tokens ("lda", newtok, ntok, 1);
+      lituse = load_expression (AXP_REG_AT, &tok[1], &basereg, NULL);
 
       /* emit "ldq_u targ, 0($at)" */
 
       newtok[0] = tok[0];
       set_tok_const (newtok[1], 0);
-      set_tok_preg (newtok[2], AXP_REG_AT);
-      assemble_tokens ("ldq_u", newtok, 3, 1);
+      set_tok_preg (newtok[2], basereg);
+      assemble_tokens_to_insn ("ldq_u", newtok, 3, &insn);
+
+      if (lituse)
+	{
+	  assert (insn.nfixups < MAX_INSN_FIXUPS);
+	  insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_BASE;
+	  insn.fixups[insn.nfixups].exp.X_op = O_absent;
+	  insn.nfixups++;
+	  insn.sequence = lituse;
+	}
+
+      emit_insn (&insn);
 
       /* emit "extXl targ, $at, targ" */
 
-      set_tok_reg (newtok[1], AXP_REG_AT);
+      set_tok_reg (newtok[1], basereg);
       newtok[2] = newtok[0];
-      assemble_tokens (extXl_op[(long) vlgsize], newtok, 3, 1);
+      assemble_tokens_to_insn (extXl_op[(long) vlgsize], newtok, 3, &insn);
+
+      if (lituse)
+	{
+	  assert (insn.nfixups < MAX_INSN_FIXUPS);
+	  insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_BYTOFF;
+	  insn.fixups[insn.nfixups].exp.X_op = O_absent;
+	  insn.nfixups++;
+	  insn.sequence = lituse;
+	}
+
+      emit_insn (&insn);
     }
 }
 
@@ -3671,17 +3483,6 @@ emit_ldil (tok, ntok, unused)
 {
   expressionS newtok[2];
 
-#ifdef RELOC_OP_P
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const expressionS *reloc_exp = &tok[ntok - 1];
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-      as_bad (_("Cannot use !%s!%d with %s"), r->name,
-	      (int) reloc_exp->X_add_number, "ldil");
-      ntok--;
-    }
-#endif
-
   memcpy (newtok, tok, sizeof (newtok));
   newtok[1].X_add_number = sign_extend_32 (tok[1].X_add_number);
 
@@ -3703,35 +3504,75 @@ emit_stX (tok, ntok, vlgsize)
   else
     {
       expressionS newtok[3];
+      struct alpha_insn insn;
+      int basereg;
+      long lituse;
 
       if (alpha_noat_on)
 	as_bad (_("macro requires $at register while noat in effect"));
 
+      if (ntok == 2)
+	basereg = (tok[1].X_op == O_constant
+		   ? AXP_REG_ZERO : alpha_gp_register);
+      else
+	basereg = tok[2].X_add_number;
+
       /* emit "lda $at, exp" */
 
-      memcpy (newtok, tok, sizeof (expressionS) * ntok);
-      newtok[0].X_add_number = AXP_REG_AT;
-      assemble_tokens ("lda", newtok, ntok, 1);
+      lituse = load_expression (AXP_REG_AT, &tok[1], &basereg, NULL);
 
       /* emit "ldq_u $t9, 0($at)" */
 
       set_tok_reg (newtok[0], AXP_REG_T9);
       set_tok_const (newtok[1], 0);
-      set_tok_preg (newtok[2], AXP_REG_AT);
-      assemble_tokens ("ldq_u", newtok, 3, 1);
+      set_tok_preg (newtok[2], basereg);
+      assemble_tokens_to_insn ("ldq_u", newtok, 3, &insn);
+
+      if (lituse)
+	{
+	  assert (insn.nfixups < MAX_INSN_FIXUPS);
+	  insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_BASE;
+	  insn.fixups[insn.nfixups].exp.X_op = O_absent;
+	  insn.nfixups++;
+	  insn.sequence = lituse;
+	}
+
+      emit_insn (&insn);
 
       /* emit "insXl src, $at, $t10" */
 
       newtok[0] = tok[0];
-      set_tok_reg (newtok[1], AXP_REG_AT);
+      set_tok_reg (newtok[1], basereg);
       set_tok_reg (newtok[2], AXP_REG_T10);
-      assemble_tokens (insXl_op[lgsize], newtok, 3, 1);
+      assemble_tokens_to_insn (insXl_op[lgsize], newtok, 3, &insn);
+
+      if (lituse)
+	{
+	  assert (insn.nfixups < MAX_INSN_FIXUPS);
+	  insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_BYTOFF;
+	  insn.fixups[insn.nfixups].exp.X_op = O_absent;
+	  insn.nfixups++;
+	  insn.sequence = lituse;
+	}
+
+      emit_insn (&insn);
 
       /* emit "mskXl $t9, $at, $t9" */
 
       set_tok_reg (newtok[0], AXP_REG_T9);
       newtok[2] = newtok[0];
-      assemble_tokens (mskXl_op[lgsize], newtok, 3, 1);
+      assemble_tokens_to_insn (mskXl_op[lgsize], newtok, 3, &insn);
+
+      if (lituse)
+	{
+	  assert (insn.nfixups < MAX_INSN_FIXUPS);
+	  insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_BYTOFF;
+	  insn.fixups[insn.nfixups].exp.X_op = O_absent;
+	  insn.nfixups++;
+	  insn.sequence = lituse;
+	}
+
+      emit_insn (&insn);
 
       /* emit "or $t9, $t10, $t9" */
 
@@ -3740,9 +3581,20 @@ emit_stX (tok, ntok, vlgsize)
 
       /* emit "stq_u $t9, 0($at) */
 
-      set_tok_const (newtok[1], 0);
+      set_tok_const(newtok[1], 0);
       set_tok_preg (newtok[2], AXP_REG_AT);
-      assemble_tokens ("stq_u", newtok, 3, 1);
+      assemble_tokens_to_insn ("stq_u", newtok, 3, &insn);
+
+      if (lituse)
+	{
+	  assert (insn.nfixups < MAX_INSN_FIXUPS);
+	  insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_BASE;
+	  insn.fixups[insn.nfixups].exp.X_op = O_absent;
+	  insn.nfixups++;
+	  insn.sequence = lituse;
+	}
+
+      emit_insn (&insn);
     }
 }
 
@@ -3846,19 +3698,6 @@ emit_sextX (tok, ntok, vlgsize)
       int bitshift = 64 - 8 * (1 << lgsize);
       expressionS newtok[3];
 
-#ifdef RELOC_OP_P
-      if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-	{
-	  const expressionS *reloc_exp = &tok[ntok - 1];
-	  const struct alpha_reloc_op_tag *r
-	    = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-
-	  as_bad (_("Cannot use !%s!%d with %s"), r->name,
-		  (int) reloc_exp->X_add_number, "setxt");
-	  ntok--;
-	}
-#endif
-
       /* emit "sll src,bits,dst" */
 
       newtok[0] = tok[0];
@@ -3904,17 +3743,6 @@ emit_division (tok, ntok, symname)
   int xr, yr, rr;
   symbolS *sym;
   expressionS newtok[3];
-
-#ifdef RELOC_OP_P
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const expressionS *reloc_exp = &tok[ntok - 1];
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-      as_bad (_("Cannot use !%s!%d with %s"), r->name,
-	      (int) reloc_exp->X_add_number, (char char *) symname);
-      ntok--;
-    }
-#endif
 
   xr = regno (tok[0].X_add_number);
   yr = regno (tok[1].X_add_number);
@@ -4015,17 +3843,6 @@ emit_division (tok, ntok, symname)
   symbolS *sym;
   expressionS newtok[3];
 
-#ifdef RELOC_OP_P
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const expressionS *reloc_exp = &tok[ntok - 1];
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-      as_bad (_("Cannot use !%s!%d with %s"), r->name,
-	      (int) reloc_exp->X_add_number, (const char *) symname);
-      ntok--;
-    }
-#endif
-
   xr = regno (tok[0].X_add_number);
   yr = regno (tok[1].X_add_number);
 
@@ -4120,18 +3937,8 @@ emit_jsrjmp (tok, ntok, vopname)
   const char *opname = (const char *) vopname;
   struct alpha_insn insn;
   expressionS newtok[3];
-  int r, tokidx = 0, lituse = 0;
-
-#ifdef RELOC_OP_P
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const expressionS *reloc_exp = &tok[ntok - 1];
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-      as_bad (_("Cannot use !%s!%d with %s"), r->name,
-	      (int) reloc_exp->X_add_number, opname);
-      ntok--;
-    }
-#endif
+  int r, tokidx = 0;
+  long lituse = 0;
 
   if (tokidx < ntok && tok[tokidx].X_op == O_register)
     r = regno (tok[tokidx++].X_add_number);
@@ -4149,8 +3956,7 @@ emit_jsrjmp (tok, ntok, vopname)
   else
     {
       int basereg = alpha_gp_register;
-      lituse = load_expression (r = AXP_REG_PV, &tok[tokidx], &basereg, NULL,
-				(const expressionS *) 0);
+      lituse = load_expression (r = AXP_REG_PV, &tok[tokidx], &basereg, NULL);
     }
 #endif
 
@@ -4167,20 +3973,13 @@ emit_jsrjmp (tok, ntok, vopname)
 
   assemble_tokens_to_insn (opname, newtok, 3, &insn);
 
-  /* add the LITUSE fixup */
   if (lituse)
     {
       assert (insn.nfixups < MAX_INSN_FIXUPS);
-      if (insn.nfixups > 0)
-	{
-	  memmove (&insn.fixups[1], &insn.fixups[0],
-		   sizeof (struct alpha_fixup) * insn.nfixups);
-	}
+      insn.fixups[insn.nfixups].reloc = DUMMY_RELOC_LITUSE_JSR;
+      insn.fixups[insn.nfixups].exp.X_op = O_absent;
       insn.nfixups++;
-      insn.fixups[0].reloc = BFD_RELOC_ALPHA_LITUSE;
-      insn.fixups[0].exp.X_op = O_symbol;
-      insn.fixups[0].exp.X_add_symbol = section_symbol (now_seg);
-      insn.fixups[0].exp.X_add_number = LITUSE_JSR;
+      insn.sequence = lituse;
     }
 
   emit_insn (&insn);
@@ -4198,17 +3997,6 @@ emit_retjcr (tok, ntok, vopname)
   const char *opname = (const char *) vopname;
   expressionS newtok[3];
   int r, tokidx = 0;
-
-#ifdef RELOC_OP_P
-  if (ntok && USER_RELOC_P (tok[ntok - 1].X_op))
-    {
-      const expressionS *reloc_exp = &tok[ntok - 1];
-      const struct alpha_reloc_op_tag *r = ALPHA_RELOC_TABLE (reloc_exp->X_op);
-      as_bad (_("Cannot use !%s!%d with %s"), r->name,
-	      (int) reloc_exp->X_add_number, opname);
-      ntok--;
-    }
-#endif
 
   if (tokidx < ntok && tok[tokidx].X_op == O_register)
     r = regno (tok[tokidx++].X_add_number);
@@ -4243,7 +4031,11 @@ s_alpha_text (i)
      int i;
 
 {
+#ifdef OBJ_ELF
+  obj_elf_text (i);
+#else
   s_text (i);
+#endif
   alpha_insn_label = NULL;
   alpha_auto_align_on = 1;
   alpha_current_align = 0;
@@ -4256,7 +4048,11 @@ static void
 s_alpha_data (i)
      int i;
 {
+#ifdef OBJ_ELF
+  obj_elf_data (i);
+#else
   s_data (i);
+#endif
   alpha_insn_label = NULL;
   alpha_auto_align_on = 1;
   alpha_current_align = 0;
@@ -4472,7 +4268,7 @@ s_alpha_ent (dummy)
 	      input_line_pointer++;
 	      SKIP_WHITESPACE ();
 	    }
-	  if (isdigit (*input_line_pointer) || *input_line_pointer == '-')
+	  if (ISDIGIT (*input_line_pointer) || *input_line_pointer == '-')
 	    (void) get_absolute_expression ();
 	}
       demand_empty_rest_of_line ();
@@ -5657,6 +5453,34 @@ select_gp_value ()
 }
 #endif /* OBJ_ECOFF */
 
+#ifdef OBJ_ELF
+/* Map 's' to SHF_ALPHA_GPREL.  */
+
+int
+alpha_elf_section_letter (letter, ptr_msg)
+     int letter;
+     char **ptr_msg;
+{
+  if (letter == 's')
+    return SHF_ALPHA_GPREL;
+
+  *ptr_msg = _("Bad .section directive: want a,s,w,x,M,S in string");
+  return 0;
+}
+
+/* Map SHF_ALPHA_GPREL to SEC_SMALL_DATA.  */
+
+flagword
+alpha_elf_section_flags (flags, attr, type)
+     flagword flags;
+     int attr, type ATTRIBUTE_UNUSED;
+{
+  if (attr & SHF_ALPHA_GPREL)
+    flags |= SEC_SMALL_DATA;
+  return flags;
+}
+#endif /* OBJ_ELF */
+
 /* Called internally to handle all alignment needs.  This takes care
    of eliding calls to frag_align if'n the cached current alignment
    says we've already got it, as well as taking care of the auto-align
@@ -5703,10 +5527,10 @@ void
 alpha_handle_align (fragp)
      fragS *fragp;
 {
-  static char const unop[4] = { 0x00, 0x00, 0xe0, 0x2f };
+  static char const unop[4] = { 0x00, 0x00, 0xfe, 0x2f };
   static char const nopunop[8] = {
     0x1f, 0x04, 0xff, 0x47,
-    0x00, 0x00, 0xe0, 0x2f
+    0x00, 0x00, 0xfe, 0x2f
   };
 
   int bytes, fix;

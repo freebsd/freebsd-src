@@ -394,7 +394,7 @@ input_scrub_next_buffer (bufp)
       partial_where = 0;
       if (partial_size > 0)
 	{
-	  as_warn (_("Partial line at end of file ignored"));
+	  as_warn (_("partial line at end of file ignored"));
 	}
 
       /* Tell the listing we've finished the file.  */

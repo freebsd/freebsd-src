@@ -61,6 +61,9 @@
 /* Define if you have the dcgettext function.  */
 #undef HAVE_DCGETTEXT
 
+/* Define if you have the getc_unlocked function.  */
+#undef HAVE_GETC_UNLOCKED
+
 /* Define if you have the getcwd function.  */
 #undef HAVE_GETCWD
 
@@ -130,6 +133,12 @@
 /* Define if you have the <sys/param.h> header file.  */
 #undef HAVE_SYS_PARAM_H
 
+/* Define if you have the <sys/stat.h> header file.  */
+#undef HAVE_SYS_STAT_H
+
+/* Define if you have the <sys/types.h> header file.  */
+#undef HAVE_SYS_TYPES_H
+
 /* Define if you have the <unistd.h> header file.  */
 #undef HAVE_UNISTD_H
 
@@ -159,6 +168,12 @@
 
 /* Suffix used for executables, if any. */
 #undef EXECUTABLE_SUFFIX
+
+/* Is fopen64 available? */
+#undef HAVE_FOPEN64
+
+/* Enable LFS */
+#undef _LARGEFILE64_SOURCE
 
 /* Is the type time_t defined in <time.h>? */
 #undef HAVE_TIME_T_IN_TIME_H

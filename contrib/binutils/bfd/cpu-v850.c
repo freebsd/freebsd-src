@@ -1,5 +1,5 @@
 /* BFD support for the NEC V850 processor
-   Copyright 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -20,8 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bfd.h"
 #include "sysdep.h"
 #include "libbfd.h"
+#include "safe-ctype.h"
 
-#include <ctype.h>
+static boolean scan PARAMS ((const struct bfd_arch_info *, const char *));
 
 static boolean
 scan (info, string)
@@ -33,38 +34,34 @@ scan (info, string)
   unsigned long number;
   enum bfd_architecture arch;
 
-  /* First test for an exact match */
+  /* First test for an exact match.  */
   if (strcasecmp (string, info->printable_name) == 0)
     return true;
 
   /* See how much of the supplied string matches with the
      architecture, eg the string m68k:68020 would match the m68k entry
-     up to the :, then we get left with the machine number */
-
+     up to the :, then we get left with the machine number.  */
   for (ptr_src = string, ptr_tst = info->arch_name;
        *ptr_src && *ptr_tst;
        ptr_src++, ptr_tst++)
-    {
-      if (*ptr_src != *ptr_tst) break;
-    }
+    if (*ptr_src != *ptr_tst)
+      break;
 
-  /* Chewed up as much of the architecture as will match, skip any
-     colons */
+  /* Chewed up as much of the architecture as will match;
+     if there is a colon present skip it.  */
   if (*ptr_src == ':')
-    ptr_src++;
+    ptr_src ++;
 
   if (*ptr_src == 0)
-    {
-      /* nothing more, then only keep this one if it is the default
-	 machine for this architecture */
-      return info->the_default;
-    }
+    /* Nothing more, then only keep this one if it is
+       the default machine for this architecture.  */
+    return info->the_default;
 
   number = 0;
-  while (isdigit ((unsigned char) *ptr_src))
+  while (ISDIGIT (*ptr_src))
     {
       number = number * 10 + * ptr_src  - '0';
-      ptr_src++;
+      ptr_src ++;
     }
 
   switch (number)
@@ -92,12 +89,12 @@ scan (info, string)
 
 static const bfd_arch_info_type arch_info_struct[] =
 {
-  N (bfd_mach_v850e,  "v850e",  false, &arch_info_struct[1]),
+  N (bfd_mach_v850e,  "v850e",  false, & arch_info_struct[1]),
   N (bfd_mach_v850ea, "v850ea", false, NULL)
 };
 
-#undef NEXT
-#define NEXT &arch_info_struct[0]
+#undef  NEXT
+#define NEXT & arch_info_struct[0]
 
 const bfd_arch_info_type bfd_v850_arch =
   N (bfd_mach_v850, "v850", true, NEXT);

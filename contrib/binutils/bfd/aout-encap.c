@@ -1,5 +1,6 @@
 /* BFD back-end for a.out files encapsulated with COFF headers.
-   Copyright 1990, 1991, 1994, 1995, 2000 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1994, 1995, 2000, 2001
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -27,9 +28,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #endif
 
 #include "bfd.h"
-#include <sysdep.h>
+#include "sysdep.h"
 #include "libbfd.h"
-#include <aout/aout64.h>
+#include "aout/aout64.h"
 #include "aout/stab_gnu.h"
 #include "aout/ar.h"
 #include "libaout.h"           /* BFD a.out internal data structures */
@@ -45,39 +46,40 @@ encap_object_p (abfd)
   short coff_magic;
   struct external_exec exec_bytes;
   struct internal_exec exec;
+  bfd_size_type amt = sizeof (magicbuf);
 
-  if (bfd_read ((PTR)magicbuf, 1, sizeof (magicbuf), abfd) !=
-      sizeof (magicbuf))
+  if (bfd_bread ((PTR) magicbuf, amt, abfd) != amt)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
       return 0;
     }
 
-  coff_magic = bfd_h_get_16 (abfd, magicbuf);
+  coff_magic = H_GET_16 (abfd, magicbuf);
   if (coff_magic != COFF_MAGIC)
     return 0;			/* Not an encap coff file */
 
-  __header_offset_temp==COFF_MAGIC ? sizeof (struct coffheader) : 0)
-  (fseek ((f), HEADER_OFFSET((f)), 1))
+  magic = H_GET_32 (abfd, magicbuf);
 
-  magic = bfd_h_get_32 (abfd, magicbuf);
-
-  if (N_BADMAG (*((struct internal_exec *) &magic))) return 0;
-
-  struct external_exec exec_bytes;
-  if (bfd_read ((PTR) &exec_bytes, 1, EXEC_BYTES_SIZE, abfd)
-      != EXEC_BYTES_SIZE) {
-    if (bfd_get_error () != bfd_error_system_call)
-      bfd_set_error (bfd_error_wrong_format);
+  if (N_BADMAG (*((struct internal_exec *) &magic)))
     return 0;
-  }
+
+  if (bfd_seek (abfd, (file_ptr) sizeof (struct coffheader), SEEK_SET) != 0)
+    return 0;
+
+  amt = EXEC_BYTES_SIZE;
+  if (bfd_bread ((PTR) &exec_bytes, amt, abfd) != amt)
+    {
+      if (bfd_get_error () != bfd_error_system_call)
+	bfd_set_error (bfd_error_wrong_format);
+      return 0;
+    }
   NAME(aout,swap_exec_header_in) (abfd, &exec_bytes, &exec);
 
   return aout_32_some_aout_object_p (abfd, &exec, encap_realcallback);
 }
 
-/* Finish up the reading of a encapsulated-coff a.out file header */
+/* Finish up the reading of an encapsulated-coff a.out file header.  */
 const bfd_target *
 encap_real_callback (abfd)
      bfd *abfd;
@@ -90,24 +92,26 @@ encap_real_callback (abfd)
      text_start and exec_data_start.  This is particularly useful
      for remote debugging of embedded systems.  */
   if (N_FLAGS(exec_aouthdr) & N_FLAGS_COFF_ENCAPSULATE)
-  {
-	  struct coffheader ch;
-	  int val;
-	  val = lseek (execchan, -(sizeof (AOUTHDR) + sizeof (ch)), 1);
-	  if (val == -1)
-		  perror_with_name (filename);
-	  val = myread (execchan, &ch, sizeof (ch));
-	  if (val < 0)
-		  perror_with_name (filename);
-	  text_start = ch.text_start;
-	  exec_data_start = ch.data_start;
-  } else
-	 {
-	  text_start =
-	    IS_OBJECT_FILE (exec_aouthdr) ? 0 : N_TXTADDR (exec_aouthdr);
-	  exec_data_start = IS_OBJECT_FILE (exec_aouthdr)
-	    ? exec_aouthdr.a_text : N_DATADDR (exec_aouthdr);
-  }
+    {
+      struct coffheader ch;
+      int val;
+      val = lseek (execchan, -(sizeof (AOUTHDR) + sizeof (ch)), 1);
+      if (val == -1)
+	perror_with_name (filename);
+      val = myread (execchan, &ch, sizeof (ch));
+      if (val < 0)
+	perror_with_name (filename);
+      text_start = ch.text_start;
+      exec_data_start = ch.data_start;
+    }
+  else
+    {
+      text_start =
+	IS_OBJECT_FILE (exec_aouthdr) ? 0 : N_TXTADDR (exec_aouthdr);
+      exec_data_start = (IS_OBJECT_FILE (exec_aouthdr)
+			 ? exec_aouthdr.a_text
+			 : N_DATADDR (exec_aouthdr));
+    }
 
   /* Determine the architecture and machine type of the object file.  */
   bfd_default_set_arch_mach(abfd, bfd_arch_m68k, 0); /* FIXME */
@@ -127,10 +131,10 @@ encap_write_object_contents (abfd)
   struct external_exec exec_bytes;
   struct internal_exec *execp = exec_hdr (abfd);
 
-/****** FIXME:  Fragments from the old GNU LD program for dealing with
-        encap coff.  */
-struct coffheader coffheader;
-int need_coff_header;
+  /* FIXME:  Fragments from the old GNU LD program for dealing with
+     encap coff.  */
+  struct coffheader coffheader;
+  int need_coff_header;
 
   /* Determine whether to count the header as part of
      the text size, and initialize the text size accordingly.

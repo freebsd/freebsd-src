@@ -53,5 +53,6 @@ START_RELOC_NUMBERS (elf_m68k_reloc_type)
 END_RELOC_NUMBERS (R_68K_max)
 
 #define EF_CPU32    0x00810000
+#define EF_M68000   0x01000000
 
 #endif

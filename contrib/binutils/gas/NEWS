@@ -1,5 +1,29 @@
 -*- text -*-
 
+Changes in 2.12:
+
+Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
+
+Support for the OpenRISC 32-bit embedded processor by OpenCores.
+
+The ARM assembler now accepts -march=..., -mcpu=... and -mfpu=... for
+specifying the target instruction set.  The old method of specifying the
+target processor has been deprecated, but is still accepted for
+compatibility.
+
+Support for the VFP floating-point instruction set has been added to
+the ARM assembler.
+
+New psuedo op: .incbin to include a set of binary data at a given point
+in the assembly.  Contributed by Anders Norlander.
+
+The MIPS assembler now accepts -march/-mtune. -mcpu has been deprecated
+but still works for compatability.
+
+The MIPS assembler no longer issues a warning by default when it
+generates a nop instruction from a macro. The new command line option
+-n will turn on the warning.
+
 Changes in 2.11:
 
 x86 gas now supports the full Pentium4 instruction set.

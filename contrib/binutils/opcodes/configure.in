@@ -43,7 +43,7 @@ AC_ARG_ENABLE(commonbfdlib,
   *)   AC_MSG_ERROR([bad value ${enableval} for opcodes commonbfdlib option]) ;;
 esac])dnl
 
-build_warnings="-W -Wall"
+build_warnings="-W -Wall -Wstrict-prototypes -Wmissing-prototypes"
 AC_ARG_ENABLE(build-warnings,
 [  --enable-build-warnings Enable build-time compiler warnings if gcc is used],
 [case "${enableval}" in
@@ -69,7 +69,6 @@ AM_CONFIG_HEADER(config.h:config.in)
 if test -z "$target" ; then
     AC_MSG_ERROR(Unrecognized target system type; please check config.sub.)
 fi
-AC_ARG_PROGRAM
 
 AM_MAINTAINER_MODE
 AC_EXEEXT
@@ -78,10 +77,12 @@ AC_EXEEXT
 
 AC_PROG_CC
 
-ALL_LINGUAS=
+ALL_LINGUAS="fr sv tr es da de"
 CY_GNU_GETTEXT
 
 . ${srcdir}/../bfd/configure.host
+
+BFD_CC_FOR_BUILD
 
 AC_SUBST(HDEFINES)
 AC_PROG_INSTALL
@@ -193,16 +194,33 @@ if test x${all_targets} = xfalse ; then
 	bfd_m88k_arch)		ta="$ta m88k-dis.lo" ;;
 	bfd_mcore_arch)		ta="$ta mcore-dis.lo" ;;
 	bfd_mips_arch)		ta="$ta mips-dis.lo mips-opc.lo mips16-opc.lo" ;;
+	bfd_mmix_arch)		ta="$ta mmix-dis.lo mmix-opc.lo" ;;
 	bfd_mn10200_arch)	ta="$ta m10200-dis.lo m10200-opc.lo" ;;
 	bfd_mn10300_arch)	ta="$ta m10300-dis.lo m10300-opc.lo" ;;
 	bfd_ns32k_arch)		ta="$ta ns32k-dis.lo" ;;
+	bfd_openrisc_arch)	ta="$ta openrisc-asm.lo openrisc-desc.lo openrisc-dis.lo openrisc-ibld.lo openrisc-opc.lo" using_cgen=yes ;;
+	bfd_or32_arch)		ta="$ta or32-dis.lo or32-opc.lo" using_cgen=yes ;;
+	bfd_pdp11_arch)		ta="$ta pdp11-dis.lo pdp11-opc.lo" ;;
 	bfd_pj_arch)	        ta="$ta pj-dis.lo pj-opc.lo" ;;
 	bfd_powerpc_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
 	bfd_powerpc_64_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
 	bfd_pyramid_arch)	;;
 	bfd_romp_arch)		;;
 	bfd_rs6000_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
+	bfd_s390_arch)		ta="$ta s390-dis.lo s390-opc.lo" ;;
 	bfd_sh_arch)
+	  # We can't decide what we want just from the CPU family.
+	  # We want SH5 support unless a specific version of sh is
+	  # specified, as in sh3-elf, sh3b-linux-gnu, etc.
+	  # Include it just for ELF targets, since the SH5 bfd:s are ELF only.
+	  for t in $target $canon_targets; do
+	    case $t in
+	      all |  sh64-* | sh-*-*elf* | shl-*-*elf* | sh-*-linux* | shl-*-linux*)
+				ta="$ta sh64-dis.lo sh64-opc.lo"
+				archdefs="$archdefs -DINCLUDE_SHMEDIA"
+				break;;
+	    esac;
+	  done
 				ta="$ta sh-dis.lo" ;;
 	bfd_sparc_arch)		ta="$ta sparc-dis.lo sparc-opc.lo" ;;
 	bfd_tahoe_arch)		;;
@@ -215,6 +233,7 @@ if test x${all_targets} = xfalse ; then
 	bfd_vax_arch)		ta="$ta vax-dis.lo" ;;
 	bfd_w65_arch)		ta="$ta w65-dis.lo" ;;
 	bfd_we32k_arch)		;;
+	bfd_xstormy16_arch)	ta="$ta xstormy16-asm.lo xstormy16-desc.lo xstormy16-dis.lo xstormy16-ibld.lo xstormy16-opc.lo" using_cgen=yes ;;
 	bfd_z8k_arch)		ta="$ta z8k-dis.lo" ;;
 
 	"")			;;

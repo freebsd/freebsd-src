@@ -1,5 +1,6 @@
 /* ar.c - Archive modify and extract.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -279,8 +280,14 @@ usage (help)
       fprintf (s, _("  [-X32_64]    - (ignored)\n"));
     }
   else
+    {
     /* xgettext:c-format */
-    fprintf (s, _("Usage: %s [-vV] archive\n"), program_name);
+      fprintf (s, _("Usage: %s [options] archive\n"), program_name);
+      fprintf (s, _(" Generate an index to speed access to archives\n"));
+      fprintf (s, _(" The options are:\n\
+  -h --help                    Print this help message\n\
+  -V --version                 Print version information\n"));
+    }
 
   list_supported_targets (program_name, stderr);
 
@@ -357,6 +364,8 @@ remove_output ()
 /* The option parsing should be in its own function.
    It will be when I have getopt working.  */
 
+int main PARAMS ((int, char **));
+
 int
 main (argc, argv)
      int argc;
@@ -377,6 +386,9 @@ main (argc, argv)
 
 #if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
   setlocale (LC_MESSAGES, "");
+#endif
+#if defined (HAVE_SETLOCALE)
+  setlocale (LC_CTYPE, "");
 #endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
@@ -447,7 +459,10 @@ main (argc, argv)
     {
       boolean touch = false;
 
-      if (argc < 2 || strcmp (argv[1], "--help") == 0)
+      if (argc < 2
+	  || strcmp (argv[1], "--help") == 0
+	  || strcmp (argv[1], "-h") == 0
+	  || strcmp (argv[1], "-H") == 0)
 	usage (0);
       if (strcmp (argv[1], "-V") == 0
 	  || strcmp (argv[1], "-v") == 0
@@ -827,7 +842,7 @@ print_contents (abfd)
     /* xgettext:c-format */
     printf (_("\n<member %s>\n\n"), bfd_get_filename (abfd));
 
-  bfd_seek (abfd, 0, SEEK_SET);
+  bfd_seek (abfd, (file_ptr) 0, SEEK_SET);
 
   size = buf.st_size;
   while (ncopied < size)
@@ -838,8 +853,7 @@ print_contents (abfd)
       if (tocopy > BUFSIZE)
 	tocopy = BUFSIZE;
 
-      nread = bfd_read (cbuf, 1, tocopy, abfd);	/* oops -- broke
-							   abstraction!  */
+      nread = bfd_bread (cbuf, (bfd_size_type) tocopy, abfd);
       if (nread != tocopy)
 	/* xgettext:c-format */
 	fatal (_("%s is not a valid archive"),
@@ -883,7 +897,7 @@ extract_file (abfd)
   if (verbose)
     printf ("x - %s\n", bfd_get_filename (abfd));
 
-  bfd_seek (abfd, 0, SEEK_SET);
+  bfd_seek (abfd, (file_ptr) 0, SEEK_SET);
 
   ostream = NULL;
   if (size == 0)
@@ -907,7 +921,7 @@ extract_file (abfd)
 	if (tocopy > BUFSIZE)
 	  tocopy = BUFSIZE;
 
-	nread = bfd_read (cbuf, 1, tocopy, abfd);
+	nread = bfd_bread (cbuf, (bfd_size_type) tocopy, abfd);
 	if (nread != tocopy)
 	  /* xgettext:c-format */
 	  fatal (_("%s is not a valid archive"),
