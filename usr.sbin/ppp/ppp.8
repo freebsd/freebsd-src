@@ -3065,10 +3065,11 @@ The
 .Sq default
 section is always checked first (even though it is only ever automatically
 loaded at startup).
-Each successive
 .Dq allow users
-command overrides the previous one, so it's possible to allow users access
-to everything except a given label by specifying default users in the
+commands are cumulative in a given section, but users allowed in any given
+section override users allowed in the default section, so it's possible to
+allow users access to everything except a given label by specifying default
+users in the
 .Sq default
 section, and then specifying a new user list for that label.
 .Pp
