@@ -122,17 +122,11 @@ static struct cdevsw crd_cdevsw =
 void
 pccard_configure()
 {
-	struct slot_ctrl *cp;
-	struct slot *sp;
-
-
 	dev_attach(&kdc_pccard0);
 
 #include "pcic.h"
 #if NPCIC > 0
-	{
 	pcic_probe();
-	}
 #endif
 }
 
@@ -322,6 +316,10 @@ pccard_alloc_slot(struct slot_ctrl *cp)
 	kdc_pccard0.kdc_state = DC_BUSY;
 	MALLOC(sp, struct slot *, sizeof(*sp), M_DEVBUF, M_WAITOK);
 	bzero(sp, sizeof(*sp));
+#ifdef DEVFS
+	sp->devfs_token = devfs_add_devswf( &crd_cdevsw, 
+		0, DV_CHR, 0, 0, 0600, "card%d", slotno);
+#endif
 	if (cp->extra) {
 		MALLOC(sp->cdata, void *, cp->extra, M_DEVBUF, M_WAITOK);
 		bzero(sp->cdata, cp->extra);
@@ -356,7 +354,7 @@ pccard_alloc_slot(struct slot_ctrl *cp)
 int
 pccard_alloc_intr(int imask, inthand2_t *hand, int unit, int *maskp)
 {
-	int rv, irq;
+	int irq;
 	unsigned int mask;
 
 	imask =  1<< 3;
@@ -683,8 +681,8 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
 static	int
 crdwrite(dev_t dev, struct uio *uio, int ioflag)
 {
-struct slot *sp = pccard_slots[minor(dev)];
-	unsigned char *p, c;
+	struct slot *sp = pccard_slots[minor(dev)];
+	unsigned char *p;
 	int	error = 0, win, count;
 	struct mem_desc *mp, oldmap;
 	unsigned int offs;
@@ -927,16 +925,6 @@ crd_drvinit(void *unused)
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev,&crd_cdevsw, NULL);
 		crd_devsw_installed = 1;
-#ifdef DEVFS
-/* expand on this when ever you know what the f*ck pccard devices
-look like and when you know where to store the devfs_token
-I had a quick look but thios driver is not one for a quick look */
-		{
-			void *devfs_token;
-			devfs_token=devfs_add_devsw(
-	"/", "crd", &crd_cdevsw, 0, DV_CHR, 0, 0, 0600);
-		}
-#endif
     	}
 }
 
