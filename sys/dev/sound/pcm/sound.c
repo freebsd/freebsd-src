@@ -93,7 +93,7 @@ static devclass_t pcm_devclass;
 
 #ifdef USING_DEVFS
 static int snd_unit = 0;
-TUNABLE_INT("hw.snd.unit", &snd_unit);
+TUNABLE_INT("hw.snd.unit", snd_unit);
 #endif
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");

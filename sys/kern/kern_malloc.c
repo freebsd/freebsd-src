@@ -463,7 +463,7 @@ kmeminit(dummy)
 #endif
 
 	/* Allow final override from the kernel environment */
-	TUNABLE_INT_FETCH("kern.vm.kmem.size", &vm_kmem_size);
+	TUNABLE_INT_FETCH("kern.vm.kmem.size", vm_kmem_size);
 
 	/*
 	 * Limit kmem virtual size to twice the physical memory.
