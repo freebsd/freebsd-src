@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.257
+    Original revision: 1.259
 -->
 
 <articleinfo>
@@ -945,17 +945,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para arch="i386">&man.aac.4; が
         Adaptec PCI-SCSI RAID コントローラの FSA ファミリに対応しました.
-        &merged;</para>
-
-      <para arch="i386">&man.aac.4; ドライバが
-        Adaptec SCSI RAID 5400S コントローラに対応しました.
-        &merged;</para>
-
-      <para arch="i386">The &man.aac.4; ドライバが更新され,
-        アダプタによって発行されるコマンド,
+	このドライバは, アダプタによって発行されるコマンド,
         ディスクデバイスの脱着, クラッシュダンプ機能,
-        CLI 管理に使われる &man.ioctl.2;
-        コマンドなどを正しく処理できるようになりました.
+        CLI 管理に使われる &man.ioctl.2; コマンドが正しく処理される
+	ようになり, Adaptec により検証・認定されました.
         &merged;</para>
 
       <para>&man.ahc.4; ドライバに対して非常に数多くの更新や
@@ -1734,6 +1727,11 @@ hw.pcic.irq="0"</programlisting>
     <para><filename>/etc/master.passwd</filename> の中身が
       見えてしまう &man.pw.8; の競合条件が修正されました
       (セキュリティ勧告 FreeBSD-SA-02:02 参照). &merged;</para>
+
+    <para>&man.k5su.8; のバグにより, 一度スーパユーザ権限を
+      与えられたことのあるプロセスが, 再び獲得することができました.
+      このバグは修正されています.
+      (セキュリティ勧告 FreeBSD-SA-02:07 参照). &merged;</para>
   </sect2>
 
   <sect2 id="userland">
