@@ -183,6 +183,7 @@ fo_write(fp, uio, cred, flags, td)
 	struct thread *td;
 	int flags;
 {
+
 	return ((*fp->f_ops->fo_write)(fp, uio, cred, flags, td));
 }
 
@@ -193,6 +194,7 @@ fo_ioctl(fp, com, data, td)
 	caddr_t data;
 	struct thread *td;
 {
+
 	return ((*fp->f_ops->fo_ioctl)(fp, com, data, td));
 }
 
@@ -203,7 +205,7 @@ fo_poll(fp, events, cred, td)
 	struct ucred *cred;
 	struct thread *td;
 {
-	/* select(2) and poll(2) hold file descriptors. */
+
 	return ((*fp->f_ops->fo_poll)(fp, events, cred, td));
 }
 
@@ -213,6 +215,7 @@ fo_stat(fp, sb, td)
 	struct stat *sb;
 	struct thread *td;
 {
+
 	return ((*fp->f_ops->fo_stat)(fp, sb, td));
 }
 
