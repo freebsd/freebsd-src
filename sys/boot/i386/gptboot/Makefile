@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1998/10/15 22:08:13 rnordier Exp $
+#	$Id: Makefile,v 1.8 1998/10/20 20:20:48 rnordier Exp $
 
 PROG=		boot2
 NOMAN=
@@ -11,6 +11,7 @@ CLEANFILES+=	boot1 boot1.out boot1.o \
 
 M4?=	m4
 
+B1INT13X?=	0
 B2SIOPRT?=	0x3f8
 B2SIOFMT?=	0x3
 B2SIODIV?=	0xc
@@ -41,7 +42,7 @@ boot1.out: boot1.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
 
 boot1.o: boot1.m4 boot1.s
-	(cd ${.CURDIR}; ${M4} boot1.m4 boot1.s) | \
+	(cd ${.CURDIR}; ${M4} -DFLAGS=${B1INT13X} boot1.m4 boot1.s) | \
 		${AS} ${AFLAGS} -o ${.TARGET}
 
 boot2: boot2.ldr boot2.bin

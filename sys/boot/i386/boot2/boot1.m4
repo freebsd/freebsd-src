@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+#	$Id: boot1.m4,v 1.1.1.1 1998/10/12 21:16:26 rnordier Exp $
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl
@@ -60,3 +60,4 @@ define(movbi1,`.byte 0xc6; .byte 0x40 | $3; .byte $2; .byte $1')dnl
 define(callwi,`.byte 0xe8; .word $1 - . - 0x2')dnl
 define(jmpnwi,`.byte 0xe9; .word $1 - . - 0x2')dnl
 define(tstbi0,`.byte 0xf6; .byte $2; .byte $1')dnl
+define(tstbim,`.byte 0xf6; .byte 0x6; .word $2; .byte $1')dnl
