@@ -52,6 +52,22 @@ changes the specified pages to have protection
 .Fa prot .
 Not all implementations will guarantee protection on a page basis;
 the granularity of protection changes may be as large as an entire region.
+A region is the virtual address space defined by the start
+and end addresses of a
+.Vt "struct vm_map_entry" .
+.Pp
+Currently these protection bits are known,
+which can be combined, OR'd together:
+.Bl -tag width "PROT_WRITE"
+.It PROT_NONE
+No permissions at all.
+.It PROT_READ
+The pages can be read.
+.It PROT_WRITE
+The pages can be written.
+.It PROT_EXEC
+The pages can be executed.
+.El
 .Sh RETURN VALUES
 .Rv -std mprotect
 .Sh ERRORS
