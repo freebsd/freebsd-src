@@ -42,13 +42,10 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 
-static void asa __P((FILE *));
-int main __P((int, char *[]));
+static void asa(FILE *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	FILE *fp;
 
@@ -72,8 +69,7 @@ main(argc, argv)
 }
 
 static void
-asa(f)
-	FILE *f;
+asa(FILE *f)
 {
 	size_t len;
 	char *buf;
