@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.40 1998/09/15 18:16:38 sos Exp $
+ *	$Id: syscons.h,v 1.41 1998/09/23 09:59:00 yokota Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -203,7 +203,7 @@ typedef struct default_attr {
 /* misc prototypes used by different syscons related LKM's */
 
 /* syscons.c */
-extern int (*sc_user_ioctl)(dev_t dev, int cmd, caddr_t data, int flag, 
+extern int (*sc_user_ioctl)(dev_t dev, u_long cmd, caddr_t data, int flag, 
 			    struct proc *p);
 
 int set_mode(scr_stat *scp);
@@ -224,6 +224,7 @@ int sc_clean_up(scr_stat *scp);
 void sc_alloc_scr_buffer(scr_stat *scp, int wait, int clear);
 void sc_alloc_cut_buffer(scr_stat *scp, int wait);
 void sc_alloc_history_buffer(scr_stat *scp, int lines, int extra, int wait);
+struct tty *scdevtotty(dev_t dev);
 
 /* scvidctl.c */
 int sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode,
