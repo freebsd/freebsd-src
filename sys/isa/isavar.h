@@ -49,10 +49,21 @@ typedef void isa_config_cb(void *arg, struct isa_config *config, int enable);
 #define ISA_ORDER_SPECULATIVE	1 /* legacy non-sensitive hardware */
 #define ISA_ORDER_PNP		2 /* plug-and-play hardware */
 
+/*
+ * Limits on resources that we can manage
+ */
 #define	ISA_NPORT	50
-#define	ISA_NMEM	8
-#define	ISA_NIRQ	2
-#define	ISA_NDRQ	2
+#define	ISA_NMEM	50
+#define	ISA_NIRQ	50
+#define	ISA_NDRQ	50
+
+/*
+ * Limits on resources the hardware can actually handle
+ */
+#define ISA_PNP_NPORT	8
+#define ISA_PNP_NMEM	4
+#define ISA_PNP_NIRQ	2
+#define ISA_PNP_NDRQ	2
 
 #define ISADMA_READ	0x00100000
 #define ISADMA_WRITE	0
