@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: rshd.c,v 1.9.2.5 1998/02/18 11:52:20 markm Exp $";
+	"$Id: rshd.c,v 1.9.2.6 1998/03/06 01:46:10 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -171,7 +171,7 @@ main(argc, argv)
 	fromlen = sizeof (from);
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0) {
 		syslog(LOG_ERR, "getpeername: %m");
-		_exit(1);
+		exit(1);
 	}
 	if (keepalive &&
 	    setsockopt(0, SOL_SOCKET, SO_KEEPALIVE, (char *)&on,

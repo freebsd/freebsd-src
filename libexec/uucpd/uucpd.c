@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: uucpd.c,v 1.7.2.3 1997/12/18 07:32:42 charnier Exp $";
+	"$Id: uucpd.c,v 1.7.2.4 1998/03/06 01:49:10 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -236,7 +236,7 @@ void dologout(void)
 	char line[32];
 
 	while ((pid=wait((int *)&status)) > 0) {
-		sprintf(line, "uucp%ld", pid);
+		sprintf(line, "uucp%ld", (long)pid);
 		logwtmp(line, "", "");
 	}
 }
@@ -261,7 +261,7 @@ void dologin(struct passwd *pw, struct sockaddr_in *sin)
 		    sizeof (remotehost));
 	remotehost[sizeof remotehost - 1] = '\0';
 	/* hack, but must be unique and no tty line */
-	sprintf(line, "uucp%ld", getpid());
+	sprintf(line, "uucp%ld", (long)getpid());
 	time(&cur_time);
 	if ((f = open(_PATH_LASTLOG, O_RDWR)) >= 0) {
 		struct lastlog ll;

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tftpd.c,v 1.4.2.4 1997/12/18 07:31:37 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -122,8 +122,8 @@ main(argc, argv)
 	char *chroot_dir = NULL;
 	struct passwd *nobody;
 
-	openlog("tftpd", LOG_PID, LOG_FTP);
-	while ((ch = getopt(argc, argv, "lns:")) !=  -1) {
+	openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
+	while ((ch = getopt(argc, argv, "lns:")) != -1) {
 		switch (ch) {
 		case 'l':
 			logging = 1;

@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: bootpd.c,v 1.4 1996/09/22 21:51:56 wosch Exp $
+	$Id: bootpd.c,v 1.4.2.1 1998/02/18 05:55:29 jkh Exp $
 
 ************************************************************************/
 
@@ -162,8 +162,7 @@ char *progname;
 char *chdir_path;
 struct in_addr my_ip_addr;
 
-struct utsname my_uname;
-char *hostname;
+char *hostname, default_hostname[MAXHOSTNAMELEN + 1];
 
 /* Flags set by signal catcher. */
 PRIVATE int do_readtab = 0;
@@ -256,11 +255,11 @@ main(argc, argv)
 	stmp = NULL;
 	timeout = &actualtimeout;
 
-	if (uname(&my_uname) < 0) {
+	if (gethostname(default_hostname, MAXHOSTNAMELEN) < 0) {
 		report(LOG_ERR, "bootpd: can't get hostname\n");
 		exit(1);
 	}
-	hostname = my_uname.nodename;
+	hostname = default_hostname;
 
 	/*
 	 * Read switches.
