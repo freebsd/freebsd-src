@@ -112,7 +112,7 @@ static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
 static int	mount_root_delay = 5;
-TUNABLE_INT("mount_root_delay", &mount_root_delay);
+TUNABLE_INT("vfs.root.mountdelay", &mount_root_delay);
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 
