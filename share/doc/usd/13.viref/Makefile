@@ -1,17 +1,16 @@
 #	From: @(#)Makefile	8.16 (Berkeley) 8/15/94
-#	$Id: Makefile,v 1.2 1995/05/30 06:58:01 rgrimes Exp $
+#	$Id: Makefile,v 1.3 1995/11/29 16:25:21 bde Exp $
 
 VOLUME=	usd/13.viref
 SRCS=	vi.ref
-EXTRA=	ex.cmd.roff ../../install/recover.script ref.so set.opt.roff \
-	vi.cmd.roff
+EXTRA=	ex.cmd.roff ref.so set.opt.roff vi.cmd.roff
 OBJS=	index.so
 MACROS=	-me
 CLEANFILES+=index index.so
 USE_SOELIM=	yes
 USE_SOELIMPP=	yes
 USE_TBL=	yes
-SRCDIR=	${.CURDIR}/../../../../usr.bin/vi/USD.doc/vi.ref
+SRCDIR=	${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/vi.ref
 
 index.so:: ${SRCS} ${EXTRA}
 ALLSRCS=	${SRCS:S;^;${SRCDIR}/;}
