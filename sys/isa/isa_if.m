@@ -26,6 +26,10 @@
 # $FreeBSD$
 #
 
+CODE {
+#include <isa/isavar.h>
+};
+
 INTERFACE isa;
 
 #
@@ -62,4 +66,44 @@ METHOD void delete_resource {
 	device_t	child;
 	int		type;
 	int		rid;
+};
+
+#
+# Add a Plug-and-play configuration to the device. Configurations with 
+# a lower priority are preferred.
+#
+METHOD int add_config {
+	device_t	dev;
+	device_t	child;
+	int		priority;
+	struct isa_config *config;
+};
+
+#
+# Register a function which can be called to configure a device with
+# a given set of resources. The function will be called with a struct
+# isa_config representing the desired configuration and a flag to
+# state whether the device should be enabled.
+#
+METHOD void set_config_callback {
+	device_t	dev;
+	device_t	child;
+	isa_config_cb	*fn;
+	void		*arg;
+};
+
+#
+# A helper method for implementing probe methods for PnP compatible
+# drivers. The driver calls this method with a list of PnP ids and
+# descriptions and it returns zero if one of the ids matches or ENXIO
+# otherwise.
+# 
+# If the device is not plug-and-play compatible, this method returns
+# ENOENT, allowing the caller to fall back to heuristic probing
+# techniques.
+#  
+METHOD int pnp_probe {
+	device_t	dev;
+	device_t	child;
+	struct isa_pnp_id *ids;
 };

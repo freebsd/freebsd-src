@@ -83,6 +83,13 @@ struct ata_softc *atadevices[MAXATA];
 static devclass_t ata_devclass;
 
 #if NISA > 0
+static struct isa_pnp_id ata_ids[] = {
+    {0x0006d041,	"Generic ESDI/IDE/ATA controller"}, /* PNP0600 */
+    {0x0106d041,	"Plus Hardcard II"},		/* PNP0601 */
+    {0x0206d041,	"Plus Hardcard IIXL/EZ"},	/* PNP0602 */
+    {0x0306d041,	"Generic ATA"},			/* PNP0603 */
+    {0}
+};
 
 static int
 ata_isaprobe(device_t dev)
@@ -92,7 +99,11 @@ ata_isaprobe(device_t dev)
     int32_t ctlr, res;
     int32_t lun;
 
-    /* allocate the port range */
+    /* Check isapnp ids */
+    if (ISA_PNP_PROBE(device_get_parent(dev), dev, ata_ids) == ENXIO)
+	return (ENXIO);
+    
+    /* Allocate the port range */
     rid = 0;
     port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
     if (!port)

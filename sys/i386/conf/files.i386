@@ -234,7 +234,6 @@ i386/isa/pcvt/pcvt_kbd.c	optional	vt
 i386/isa/pcvt/pcvt_out.c	optional	vt
 i386/isa/pcvt/pcvt_sup.c	optional	vt
 i386/isa/pcvt/pcvt_vtf.c	optional	vt
-i386/isa/pnp.c			optional	pnp
 i386/isa/ppc.c			optional	ppc
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/random_machdep.c	standard
@@ -244,11 +243,6 @@ i386/isa/scd.c			optional	scd
 i386/isa/si.c			optional	si
 i386/isa/si2_z280.c		optional	si
 i386/isa/si3_t225.c		optional	si
-i386/isa/snd/ad1848.c		optional	pcm
-i386/isa/snd/clones.c		optional	pcm
-i386/isa/snd/dmabuf.c		optional	pcm
-i386/isa/snd/sb_dsp.c		optional	pcm
-i386/isa/snd/sound.c		optional	pcm
 i386/isa/sound/ad1848.c		optional	css
 i386/isa/sound/ad1848.c		optional	gus
 i386/isa/sound/ad1848.c		optional	gusxvi
@@ -391,5 +385,4 @@ libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-pci/es1370.c			optional	pcm pci
 pci/ide_pci.c			optional	wd pci

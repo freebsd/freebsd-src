@@ -125,6 +125,9 @@
 #include <i386/isa/isa_device.h>
 #include "pnp.h"
 
+#undef NPNP
+#define NPNP 0
+
 #if NPNP > 0
 #include <i386/isa/pnp.h>
 #endif

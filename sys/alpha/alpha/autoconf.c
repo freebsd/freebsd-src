@@ -63,7 +63,12 @@ SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
 
-device_t	isa_bus_device = 0;
+#include "isa.h"
+#if NISA > 0
+#include <isa/isavar.h>
+device_t isa_bus_device = 0;
+#endif
+
 struct cam_sim *boot_sim = 0;
 extern int nfs_diskless_valid;
 
@@ -194,8 +199,10 @@ configure(void *dummy)
 		/*
 		 * Probe ISA devices after everything.
 		 */
+#if NISA > 0
 		if (isa_bus_device)
-			bus_generic_attach(isa_bus_device);
+			isa_probe_children(isa_bus_device);
+#endif
 	} 
 	configure_finish();
 

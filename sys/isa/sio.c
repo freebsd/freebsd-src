@@ -577,6 +577,15 @@ card_intr(struct pccard_devinfo *devi)
 #define SET_FLAG(dev, bit)	isa_set_flags(dev, isa_get_flags(dev) | (bit))
 #define CLR_FLAG(dev, bit)	isa_set_flags(dev, isa_get_flags(dev) & ~(bit))
 
+static struct isa_pnp_id sio_ids[] = {
+	{0x0005d041, "Standard PC COM port"},	/* PNP0500 */
+	{0x0105d041, "16550A-compatible COM port"},	/* PNP0501 */
+	{0x0205d041, "Multiport serial device (non-intelligent 16550)"}, /* PNP0502 */
+	{0x1005d041, "Generic IRDA-compatible device"},	/* PNP0510 */
+	{0x1105d041, "Generic IRDA-compatible device"},	/* PNP0511 */
+	{0}
+};
+
 static int
 sioprobe(dev)
 	device_t	dev;
@@ -596,10 +605,7 @@ sioprobe(dev)
 	struct resource *port;
 
 	/* Check isapnp ids */
-	if (isa_get_vendorid(dev)
-	    && isa_get_compatid(dev) != PNP_EISAID("PNP0500")
-	    && isa_get_compatid(dev) != PNP_EISAID("PNP0501")
-	    && isa_get_compatid(dev) != PNP_EISAID("PNP0502"))
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
 		return (ENXIO);
 
 	rid = 0;
@@ -2628,10 +2634,11 @@ static cn_putc_t siocnputc;
 #ifdef __i386__
 CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc, siocnputc);
 
+#endif
+
 /* To get the GDB related variables */
 #if DDB > 0
 #include <ddb/ddb.h>
-#endif
 #endif
 
 static void
@@ -2830,16 +2837,14 @@ siocnprobe(cp)
 				siocniobase = iobase;
 				siocnunit = unit;
 			}
-			if (COM_DEBUGGER(flags) && !COM_LLCONSOLE(flags)) {
+			if (COM_DEBUGGER(flags)) {
 				printf("sio%d: gdb debugging port\n", unit);
 				siogdbiobase = iobase;
 				siogdbunit = unit;
-#ifdef	__i386__
 #if DDB > 0
 				gdbdev = makedev(CDEV_MAJOR, unit);
 				gdb_getc = siocngetc;
 				gdb_putc = siocnputc;
-#endif
 #endif
 			}
 		}

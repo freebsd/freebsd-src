@@ -766,4 +766,17 @@ isa_if.h		optional isa					\
 	clean		"isa_if.h"
 isa/isa_common.c	optional isa
 isa/isahint.c		optional isa
+isa/pnp.c		optional pnp
 isa/bt_isa.c		optional bt isa
+dev/pcm/sound.c		optional pcm
+dev/pcm/ac97.c		optional pcm
+dev/pcm/dsp.c		optional pcm
+dev/pcm/channel.c	optional pcm
+dev/pcm/feeder.c	optional pcm
+dev/pcm/fake.c		optional pcm
+dev/pcm/mixer.c		optional pcm
+dev/pcm/isa/mss.c	optional pcm isa
+dev/pcm/isa/sb.c	optional pcm isa
+dev/pcm/pci/es1370.c	optional pcm pci
+dev/pcm/pci/t4dwave.c	optional pcm pci
+dev/pcm/pci/aureal.c	optional pcm pci
