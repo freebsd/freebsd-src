@@ -121,7 +121,7 @@
 #define FD_360in5_25    16
 #define FD_640in5_25    17
 
-#define BIO_RDSECTID	BIO_FLAG1
+#define BIO_RDSECTID	BIO_CMD1
 
 static struct fd_type fd_types[NUMTYPES] =
 {
@@ -215,8 +215,7 @@ static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
 static int fdstate(struct fdc_data *);
 static int retrier(struct fdc_data *);
-static int fdformat(dev_t, struct fd_formb *, struct proc *);
-static int fdreadid(dev_t, struct fdc_readid *);
+static int fdmisccmd(dev_t, u_int, void *);
 
 static int enable_fifo(fdc_p fdc);
 static void fd_clone (void *arg, char *name, int namelen, dev_t *dev);
@@ -1497,7 +1496,7 @@ fdstrategy(struct bio *bp)
 		goto bad;
 	}
 	fdblk = 128 << (fd->ft->secsize);
-	if (bp->bio_cmd != BIO_FORMAT && (bp->bio_flags & BIO_RDSECTID) == 0) {
+	if (bp->bio_cmd != BIO_FORMAT && bp->bio_cmd != BIO_RDSECTID) {
 		if (bp->bio_blkno < 0) {
 			printf(
 		"fd%d: fdstrat: bad request blkno = %lu, bcount = %ld\n",
@@ -1712,7 +1711,7 @@ fdstate(fdc_p fdc)
 	else
 		idf = ISADMA_WRITE;
 	format = bp->bio_cmd == BIO_FORMAT;
-	rdsectid = bp->bio_flags & BIO_RDSECTID;
+	rdsectid = bp->bio_cmd == BIO_RDSECTID;
 	if (format) {
 		finfo = (struct fd_formb *)bp->bio_data;
 		fd->skip = (char *)&(finfo->fd_formb_cylno(0))
@@ -2253,147 +2252,90 @@ fdbiodone(struct bio *bp)
 }
 
 static int
-fdformat(dev_t dev, struct fd_formb *finfo, struct proc *p)
+fdmisccmd(dev_t dev, u_int cmd, void *data)
 {
- 	fdu_t	fdu;
- 	fd_p	fd;
-
+ 	fdu_t fdu;
+ 	fd_p fd;
 	struct bio *bp;
-	int rv = 0, s;
+	struct fd_formb *finfo;
+	struct fdc_readid *idfield;
 	size_t fdblk;
 
- 	fdu	= FDUNIT(minor(dev));
-	fd	= devclass_get_softc(fd_devclass, fdu);
+ 	fdu = FDUNIT(minor(dev));
+	fd = devclass_get_softc(fd_devclass, fdu);
 	fdblk = 128 << fd->ft->secsize;
+	finfo = (struct fd_formb *)data;
+	idfield = (struct fdc_readid *)data;
 
-	/* set up a buffer header for fdstrategy() */
-	bp = (struct bio *)malloc(sizeof(struct bio), M_TEMP, M_NOWAIT);
-	if(bp == 0)
-		return ENOMEM;
-	/*
-	 * keep the process from being swapped
-	 */
-	PHOLD(p);
-	bzero((void *)bp, sizeof(*bp));
-	bp->bio_cmd = BIO_FORMAT;
+	bp = malloc(sizeof(struct bio), M_TEMP, M_ZERO | M_NOWAIT);
+	if (bp == 0)
+		return (ENOMEM);
 
 	/*
-	 * calculate a fake blkno, so fdstrategy() would initiate a
-	 * seek to the requested cylinder
+	 * Set up a bio request for fdstrategy().  bio_blkno is faked
+	 * so that fdstrategy() will seek to the the requested
+	 * cylinder, and use the desired head.  Since we are not
+	 * interested in bioqdisksort() munging with our faked bio
+	 * request, we mark it as being an ordered request.
 	 */
-	bp->bio_blkno = (finfo->cyl * (fd->ft->sectrac * fd->ft->heads)
-		+ finfo->head * fd->ft->sectrac) * fdblk / DEV_BSIZE;
-
-	bp->bio_bcount = sizeof(struct fd_idfield_data) * finfo->fd_formb_nsecs;
-	bp->bio_data = (caddr_t)finfo;
-
-	/* now do the format */
+	bp->bio_cmd = cmd;
+	if (cmd == BIO_FORMAT) {
+		bp->bio_blkno =
+		    (finfo->cyl * (fd->ft->sectrac * fd->ft->heads) +
+		     finfo->head * fd->ft->sectrac) *
+		    fdblk / DEV_BSIZE;
+		bp->bio_bcount = sizeof(struct fd_idfield_data) *
+		    finfo->fd_formb_nsecs;
+	} else if (cmd == BIO_RDSECTID) {
+		bp->bio_blkno =
+		    (idfield->cyl * (fd->ft->sectrac * fd->ft->heads) +
+		     idfield->head * fd->ft->sectrac) *
+		    fdblk / DEV_BSIZE;
+		bp->bio_bcount = sizeof(struct fdc_readid);
+	} else
+		panic("wrong cmd in fdmisccmd()");
+	bp->bio_data = data;
 	bp->bio_dev = dev;
 	bp->bio_done = fdbiodone;
-	fdstrategy(bp);
-
-	/* ...and wait for it to complete */
-	s = splbio();
-	while(!(bp->bio_flags & BIO_DONE)) {
-		rv = tsleep((caddr_t)bp, PRIBIO, "fdform", 20 * hz);
-		if (rv == EWOULDBLOCK)
-			break;
-	}
-	splx(s);
-
-	if (rv == EWOULDBLOCK) {
-		/* timed out */
-		rv = EIO;
-		device_unbusy(fd->dev);
-	}
-	if (bp->bio_flags & BIO_ERROR)
-		rv = bp->bio_error;
-	/*
-	 * allow the process to be swapped
-	 */
-	PRELE(p);
-	free(bp, M_TEMP);
-	return rv;
-}
-
-static int
-fdreadid(dev_t dev, struct fdc_readid *idfield)
-{
- 	fdu_t	fdu;
- 	fd_p	fd;
-
-	struct bio *bp;
-	int rv = 0, s;
-	size_t fdblk;
-
- 	fdu	= FDUNIT(minor(dev));
-	fd	= devclass_get_softc(fd_devclass, fdu);
-	fdblk = 128 << fd->ft->secsize;
-
-	/* set up a buffer header for fdstrategy() */
-	bp = (struct bio *)malloc(sizeof(struct bio), M_TEMP, M_NOWAIT);
-	if(bp == 0)
-		return ENOMEM;
-
-	bzero((void *)bp, sizeof(*bp));
-	bp->bio_cmd = BIO_READ;
-	bp->bio_flags |= BIO_RDSECTID;
+	bp->bio_flags = BIO_ORDERED;
 
 	/*
-	 * calculate a fake blkno, so fdstrategy() would initiate a
-	 * seek to the requested cylinder
+	 * Now run the cmd.  The wait loop is a version of bufwait()
+	 * adapted for struct bio instead of struct buf and
+	 * specialized for the current context.
 	 */
-	bp->bio_blkno = (idfield->cyl * (fd->ft->sectrac * fd->ft->heads)
-		+ idfield->head * fd->ft->sectrac) * fdblk / DEV_BSIZE;
-	bp->bio_bcount = sizeof(struct fdc_readid);
-	bp->bio_data = (caddr_t)idfield;
-	bp->bio_dev = dev;
-	bp->bio_done = fdbiodone;
 	fdstrategy(bp);
+	while((bp->bio_flags & BIO_DONE) == 0)
+		tsleep(bp, PRIBIO, "fdcmd", 0);
 
-	/* ...and wait for it to complete */
-	s = splbio();
-	while(!(bp->bio_flags & BIO_DONE)) {
-		rv = tsleep((caddr_t)bp, PRIBIO, "fdrdid", 10 * hz);
-		if (rv == EWOULDBLOCK)
-			break;
-	}
-	splx(s);
-
-	if (rv == EWOULDBLOCK) {
-		/* timed out */
-		rv = EIO;
-		device_unbusy(fd->dev);
-	}
-	if (bp->bio_flags & BIO_ERROR)
-		rv = bp->bio_error;
 	free(bp, M_TEMP);
-	return rv;
+	return (bp->bio_flags & BIO_ERROR ? bp->bio_error : 0);
 }
-
-/*
- * TODO: don't allocate buffer on stack.
- */
 
 static int
 fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
- 	fdu_t	fdu = FDUNIT(minor(dev));
- 	fd_p	fd = devclass_get_softc(fd_devclass, fdu);
-	size_t fdblk;
-
+ 	fdu_t fdu;
+ 	fd_p fd;
 	struct fd_type *fdt;
 	struct disklabel *dl;
 	struct fdc_status *fsp;
 	struct fdc_readid *rid;
-	char buffer[DEV_BSIZE];
+	char *buffer;
+	size_t fdblk;
 	int error = 0;
 
+	fdu = FDUNIT(minor(dev));
+	fd = devclass_get_softc(fd_devclass, fdu);
 	fdblk = 128 << fd->ft->secsize;
 
 	switch (cmd) {
 	case DIOCGDINFO:
-		bzero(buffer, sizeof (buffer));
+		buffer = malloc(DEV_BSIZE, M_TEMP, M_ZERO | M_NOWAIT);
+		if (buffer == 0) {
+			error = ENOMEM;
+			break;
+		}
 		dl = (struct disklabel *)buffer;
 		dl->d_secsize = fdblk;
 		fdt = fd->ft;
@@ -2407,6 +2349,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			error = EINVAL;
 
 		*(struct disklabel *)addr = *dl;
+		free(buffer, M_TEMP);
 		break;
 
 	case DIOCSDINFO:
@@ -2427,12 +2370,19 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 		dl = (struct disklabel *)addr;
 
+		buffer = malloc(DEV_BSIZE, M_TEMP, M_ZERO | M_NOWAIT);
+		if (buffer == 0) {
+			error = ENOMEM;
+			break;
+		}
 		if ((error = setdisklabel((struct disklabel *)buffer, dl,
 					  (u_long)0)) != 0)
 			break;
 
 		error = writedisklabel(dev, (struct disklabel *)buffer);
+		free(buffer, M_TEMP);
 		break;
+
 	case FD_FORM:
 		if ((flag & FWRITE) == 0)
 			error = EBADF;	/* must be opened for writing */
@@ -2440,7 +2390,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			FD_FORMAT_VERSION)
 			error = EINVAL;	/* wrong version of formatting prog */
 		else
-			error = fdformat(dev, (struct fd_formb *)addr, p);
+			error = fdmisccmd(dev, BIO_FORMAT, addr);
 		break;
 
 	case FD_GTYPE:                  /* get drive type */
@@ -2462,6 +2412,12 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		fd->options = *(int *)addr;
 		break;
 
+#ifdef FDC_DEBUG
+	case FD_DEBUG:
+		fd_debug = *(int *)addr;
+		break;
+#endif
+
 	case FD_CLRERR:
 		if (suser(p) != 0)
 			return EPERM;
@@ -2479,7 +2435,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		rid = (struct fdc_readid *)addr;
 		if (rid->cyl > MAX_CYLINDER || rid->head > MAX_HEAD)
 			return EINVAL;
-		error = fdreadid(dev, rid);
+		error = fdmisccmd(dev, BIO_RDSECTID, addr);
 		break;
 
 	default:
