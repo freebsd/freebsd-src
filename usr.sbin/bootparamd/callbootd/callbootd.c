@@ -5,7 +5,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
-	$Id$
+	$Id: callbootd.c,v 1.1.1.1 1995/02/26 23:40:53 wpaul Exp $
 */
 
 
@@ -90,6 +90,11 @@ char **argv;
     clnt = clnt_create(server,BOOTPARAMPROG, BOOTPARAMVERS, "udp");
   } 
 
+  if ( clnt == NULL ) {
+     fprintf (stderr, "%s: could not contact bootparam server on host %s\n",
+			argv[0], server);
+     exit (1);
+  }
 
   switch (argc) {
   case 3:
