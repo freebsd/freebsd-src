@@ -42,6 +42,7 @@ my %ARCHES	= (
 );
 my $HOST	= 'cueball.rtp.freebsd.org';
 my $USER	= 'des';
+my $TBDIR	= "/home/$USER/tinderbox";
 my $EMAIL	= 'src-developers@freebsd.org';
 
 sub report($$$) {
@@ -64,7 +65,7 @@ sub tinderbox($$$$) {
     my $arch = shift;
     my $machine = shift;
 
-    my $logfile = "tinderbox-$branch-$arch-$machine.log";
+    my $logfile = "$TBDIR/tinderbox-$branch-$arch-$machine.log";
 
     my @args = ($tinderbox, @OPTIONS);
     push(@args, "--branch=$branch");
