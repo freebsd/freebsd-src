@@ -210,13 +210,14 @@ system(command)
 		return(1);
 
 	omask = sigblock(sigmask(SIGCHLD));
-	switch(pid = fork()) {
+	switch(pid = vfork()) {
 	case -1:			/* error */
-		err(1, "fork");
+		err(1, "vfork");
 	case 0:				/* child */
 		(void)sigsetmask(omask);
 		execl(shell, name, "-c", command, NULL);
-		err(1, "%s", shell);
+		warn("%s", shell);
+		_exit(1);
 	}
 	intsave = signal(SIGINT, SIG_IGN);
 	quitsave = signal(SIGQUIT, SIG_IGN);
