@@ -315,67 +315,35 @@ icmp_input(m, off, proto)
 	case ICMP_UNREACH:
 		switch (code) {
 			case ICMP_UNREACH_NET:
-				code = PRC_UNREACH_HOST;
-				break;
-
 			case ICMP_UNREACH_HOST:
-				code = PRC_UNREACH_HOST;
-				break;
-
-			case ICMP_UNREACH_PROTOCOL:
-				code = PRC_UNREACH_HOST;
-				break;
-
-			case ICMP_UNREACH_PORT:
-				code = PRC_UNREACH_HOST;
-				break;
-
 			case ICMP_UNREACH_SRCFAIL:
-				code = PRC_UNREACH_HOST;
+			case ICMP_UNREACH_NET_UNKNOWN:
+			case ICMP_UNREACH_HOST_UNKNOWN:
+			case ICMP_UNREACH_ISOLATED:
+			case ICMP_UNREACH_TOSNET:
+			case ICMP_UNREACH_TOSHOST:
+			case ICMP_UNREACH_HOST_PRECEDENCE:
+			case ICMP_UNREACH_PRECEDENCE_CUTOFF:
+				code = PRC_UNREACH_NET;
 				break;
 
 			case ICMP_UNREACH_NEEDFRAG:
 				code = PRC_MSGSIZE;
 				break;
 
-			case ICMP_UNREACH_NET_UNKNOWN:
-				code = PRC_UNREACH_HOST;
+			/*
+			 * RFC 1122, Sections 3.2.2.1 and 4.2.3.9.
+			 * Treat subcodes 2,3 as immediate RST
+			 */
+			case ICMP_UNREACH_PROTOCOL:
+			case ICMP_UNREACH_PORT:
+				code = PRC_UNREACH_ADMIN_PROHIB;
 				break;
 
 			case ICMP_UNREACH_NET_PROHIB:
-				code = PRC_UNREACH_ADMIN_PROHIB;
-				break;
-
-			case ICMP_UNREACH_TOSNET:
-				code = PRC_UNREACH_HOST;
-				break;
-
-			case ICMP_UNREACH_HOST_UNKNOWN:
-				code = PRC_UNREACH_HOST;
-				break;
-
-			case ICMP_UNREACH_ISOLATED:
-				code = PRC_UNREACH_HOST;
-				break;
-
 			case ICMP_UNREACH_HOST_PROHIB:
-				code = PRC_UNREACH_ADMIN_PROHIB;
-				break;
-
-			case ICMP_UNREACH_TOSHOST:
-				code = PRC_UNREACH_HOST;
-				break;
-
 			case ICMP_UNREACH_FILTER_PROHIB:
 				code = PRC_UNREACH_ADMIN_PROHIB;
-				break;
-
-			case ICMP_UNREACH_HOST_PRECEDENCE:
-				code = PRC_UNREACH_HOST;
-				break;
-
-			case ICMP_UNREACH_PRECEDENCE_CUTOFF:
-				code = PRC_UNREACH_HOST;
 				break;
 
 			default:
