@@ -359,7 +359,7 @@ stopprofclock(p)
 			p->p_flag |= P_STOPPROF;
 			while (p->p_profthreads != 0)
 				msleep(&p->p_profthreads, &p->p_mtx, PPAUSE,
-				    "stopprof", NULL);
+				    "stopprof", 0);
 			p->p_flag &= ~P_STOPPROF;
 		}
 		mtx_lock_spin(&sched_lock);

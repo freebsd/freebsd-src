@@ -292,7 +292,7 @@ apecs_attach(device_t dev)
 	sc->smem_base = APECS_PCI_SPARSE;
 	sc->io_base = APECS_PCI_SIO;
 	sc->cfg0_base = KV(APECS_PCI_CONF);
-	sc->cfg1_base = NULL;
+	sc->cfg1_base = 0;
 
 	set_iointr(alpha_dispatch_intr);
 
