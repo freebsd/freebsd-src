@@ -408,7 +408,11 @@ AcpiRsExtendedIrqResource (
     Buffer += 1;
     ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
 
+    /* Check for the minimum length. */
+    if (Temp16 < 6)
+        return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
     *BytesConsumed = Temp16 + 3;
+
     OutputStruct->Id = ACPI_RSTYPE_EXT_IRQ;
 
     /*
@@ -446,6 +450,12 @@ AcpiRsExtendedIrqResource (
     Buffer += 1;
     Temp8 = *Buffer;
 
+    /* Minimum number of IRQs is one. */
+    if (Temp8 < 1) {
+        *BytesConsumed = 0;
+        return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
+    }
+
     OutputStruct->Data.ExtendedIrq.NumberOfInterrupts = Temp8;
 
     /*
@@ -480,7 +490,8 @@ AcpiRsExtendedIrqResource (
      * stream that are default.
      */
     if (*BytesConsumed >
-        ((ACPI_SIZE) OutputStruct->Data.ExtendedIrq.NumberOfInterrupts * 4) + 5)
+        ((ACPI_SIZE) OutputStruct->Data.ExtendedIrq.NumberOfInterrupts * 4)
+        + 5 + 1)
     {
         /* Dereference the Index */
 
