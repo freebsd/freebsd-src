@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)kvm_mkdb.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)kvm_mkdb.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -52,10 +52,20 @@ static char sccsid[] = "@(#)kvm_mkdb.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "extern.h"
 
 static void usage __P((void));
+
+HASHINFO openinfo = {
+	4096,		/* bsize */
+	128,		/* ffactor */
+	1024,		/* nelem */
+	2048 * 1024,	/* cachesize */
+	NULL,		/* hash() */
+	0		/* lorder */
+};
 
 int
 main(argc, argv)
@@ -65,7 +75,6 @@ main(argc, argv)
 	DB *db;
 	int ch;
 	char *p, *nlistpath, *nlistname, dbtemp[MAXPATHLEN], dbname[MAXPATHLEN];
-	HASHINFO hdefault;
 
 	while ((ch = getopt(argc, argv, "")) != EOF)
 		switch (ch) {
@@ -93,14 +102,8 @@ main(argc, argv)
 	    _PATH_VARDB, nlistname);
 	(void)umask(0);
 
-	/* don't handicap db/hash by using the defaults... */
-	memset(&hdefault,0,sizeof hdefault);
-	hdefault.bsize = getpagesize();
-	hdefault.cachesize = 50*getpagesize();
-	hdefault.nelem = 1000;
-
 	db = dbopen(dbtemp, O_CREAT | O_EXLOCK | O_TRUNC | O_RDWR,
-	    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, DB_HASH, &hdefault);
+	    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, DB_HASH, &openinfo);
 	if (db == NULL)
 		err(1, "%s", dbtemp);
 	create_knlist(nlistpath, db);
