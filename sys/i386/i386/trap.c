@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.130 1998/12/06 00:03:30 archie Exp $
+ *	$Id: trap.c,v 1.131 1998/12/16 15:21:50 bde Exp $
  */
 
 /*
@@ -91,6 +91,10 @@
 
 #ifdef VM86
 #include <machine/vm86.h>
+#endif
+
+#ifdef DDB
+	extern int in_Debugger, debugger_on_panic;
 #endif
 
 #include "isa.h"
@@ -901,7 +905,7 @@ trap_fatal(frame, eva)
 		return;
 #endif
 #ifdef DDB
-	if (kdb_trap (type, 0, frame))
+	if ((debugger_on_panic || in_Debugger) && kdb_trap(type, 0, frame))
 		return;
 #endif
 	printf("trap number		= %d\n", type);
