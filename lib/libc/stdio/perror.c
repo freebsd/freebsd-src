@@ -50,7 +50,7 @@ perror(s)
 	struct iovec iov[4];
 
 	v = iov;
-	if (s != NULL) {
+	if (s != NULL && *s != '\0') {
 		v->iov_base = (char *)s;
 		v->iov_len = strlen(s);
 		v++;
