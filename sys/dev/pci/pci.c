@@ -1171,7 +1171,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 			  ((cp != NULL) && (scp != NULL)) ? ", " : "",
 			  scp ? : "");
 	}
-	printf(" at %d:%d (no driver attached)\n",
+	printf(" at %d.%d (no driver attached)\n",
 	       pci_get_slot(child),
 	       pci_get_function(child));
 	return;
