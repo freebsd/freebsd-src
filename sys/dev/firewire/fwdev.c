@@ -471,13 +471,11 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		it->flag |= (0x3f & ichreq->ch);
 		it->flag |= ((0x3 & ichreq->tag) << 6);
 		d->it = it;
-		err = 0;
 		break;
 	case FW_GTSTREAM:
 		if (it != NULL) {
 			ichreq->ch = it->flag & 0x3f;
 			ichreq->tag = it->flag >> 2 & 0x3;
-			err = 0;
 		} else
 			err = EINVAL;
 		break;
@@ -507,13 +505,11 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		if (d->ir != NULL) {
 			ichreq->ch = ir->flag & 0x3f;
 			ichreq->tag = ir->flag >> 2 & 0x3;
-			err = 0;
 		} else
 			err = EINVAL;
 		break;
 	case FW_SSTBUF:
 		bcopy(ibufreq, &d->bufreq, sizeof(d->bufreq));
-		err = 0;
 		break;
 	case FW_GSTBUF:
 		bzero(&ibufreq->rx, sizeof(ibufreq->rx));
@@ -532,14 +528,18 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 	case FW_ASYREQ:
 	{
 		struct tcode_info *tinfo;
+		int pay_len = 0;
 
-		xfer = fw_xfer_alloc_buf(M_FWXFER, asyreq->req.len,
-		    PAGE_SIZE/*XXX*/);
-		if(xfer == NULL){
-			err = ENOMEM;
-			return err;
-		}
 		fp = &asyreq->pkt;
+		tinfo = &sc->fc->tcode[fp->mode.hdr.tcode];
+
+		if ((tinfo->flag & FWTI_BLOCK_ASY) != 0)
+			pay_len = MAX(0, asyreq->req.len - tinfo->hdr_len);
+
+		xfer = fw_xfer_alloc_buf(M_FWXFER, pay_len, PAGE_SIZE/*XXX*/);
+		if (xfer == NULL)
+			return (ENOMEM);
+
 		switch (asyreq->req.type) {
 		case FWASREQNODE:
 			break;
@@ -550,7 +550,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 				device_printf(sc->fc->bdev,
 					"cannot find node\n");
 				err = EINVAL;
-				goto error;
+				goto out;
 			}
 			fp->mode.hdr.dst = FWLOCALBUS | fwdev->dst;
 			break;
@@ -561,38 +561,35 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			/* nothing to do */
 			break;
 		}
-		xfer->send.spd = asyreq->req.sped;
-		tinfo = &sc->fc->tcode[fp->mode.hdr.tcode];
+
 		bcopy(fp, (void *)&xfer->send.hdr, tinfo->hdr_len);
-		if ((tinfo->flag & FWTI_BLOCK_ASY) != 0)
+		if (pay_len > 0)
 			bcopy((char *)fp + tinfo->hdr_len,
-			    (void *)&xfer->send.payload,
-			    asyreq->req.len - tinfo->hdr_len);
+			    (void *)&xfer->send.payload, pay_len);
+		xfer->send.spd = asyreq->req.sped;
 		xfer->act.hand = fw_asy_callback;
-		err = fw_asyreq(sc->fc, -1, xfer);
-		if(err){
-			fw_xfer_free_buf(xfer);
-			return err;
+
+		if ((err = fw_asyreq(sc->fc, -1, xfer)) != 0)
+			goto out;
+		if ((err = tsleep(xfer, FWPRI, "asyreq", hz)) != 0)
+			goto out;
+		if (xfer->resp != 0) {
+			err = EIO;
+			goto out;
 		}
-		err = tsleep(xfer, FWPRI, "asyreq", hz);
-		if (err == 0) {
-			if (xfer->resp != 0) {
-				err = EIO;
-				goto error;
-			}
-			tinfo = &sc->fc->tcode[xfer->recv.hdr.mode.hdr.tcode];
-			if (asyreq->req.len >= xfer->recv.pay_len +
-			    tinfo->hdr_len) {
-				asyreq->req.len = xfer->recv.pay_len;
-			}else{
-				err = EINVAL;
-			}
-			bcopy(&xfer->recv.hdr, fp, tinfo->hdr_len);
-			bcopy(xfer->recv.payload,
-			    (char *)fp + tinfo->hdr_len,
-			    asyreq->req.len - tinfo->hdr_len);
-		}
-error:
+		if ((tinfo->flag & FWTI_TLABEL) == 0)
+			goto out;
+
+		/* copy response */
+		tinfo = &sc->fc->tcode[xfer->recv.hdr.mode.hdr.tcode];
+		if (asyreq->req.len >= xfer->recv.pay_len + tinfo->hdr_len)
+			asyreq->req.len = xfer->recv.pay_len;
+		else
+			err = EINVAL;
+		bcopy(&xfer->recv.hdr, fp, tinfo->hdr_len);
+		bcopy(xfer->recv.payload, (char *)fp + tinfo->hdr_len,
+		    MAX(0, asyreq->req.len - tinfo->hdr_len));
+out:
 		fw_xfer_free_buf(xfer);
 		break;
 	}
