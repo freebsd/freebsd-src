@@ -37,6 +37,7 @@
  */
 
 #include "opt_inet.h"
+#include "opt_natm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
