@@ -42,11 +42,21 @@ struct fpreg;
 struct thread;
 struct reg;
 
+struct ia64_fdesc {
+	u_int64_t	func;
+	u_int64_t	gp;
+};
+
+#define FDESC_FUNC(fn)  (((struct ia64_fdesc *) fn)->func)
+#define FDESC_GP(fn)    (((struct ia64_fdesc *) fn)->gp)
+
 void	busdma_swi(void);
 void	cpu_halt(void);
 void	cpu_reset(void);
-int	is_physical_memory(vm_offset_t addr);
-void	swi_vm(void *);
 int	ia64_running_in_simulator(void);
+int	is_physical_memory(vm_offset_t addr);
+void	os_boot_rendez(void);
+void	os_mca(void);
+void	swi_vm(void *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */
