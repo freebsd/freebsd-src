@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94
- *	$Id: ftpcmd.y,v 1.11 1997/07/24 09:26:10 davidn Exp $
  */
 
 /*
@@ -42,7 +41,11 @@
 %{
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>

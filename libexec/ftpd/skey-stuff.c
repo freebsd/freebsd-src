@@ -1,7 +1,10 @@
 /* Author: Wietse Venema, Eindhoven University of Technology. 
- *
- *	$Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <stdio.h>
 #include <string.h>

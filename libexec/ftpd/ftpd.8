@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.17 1997/04/27 08:29:21 davidn Exp $
+.\"	$Id: ftpd.8,v 1.18 1997/04/29 12:42:07 davidn Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -63,7 +63,7 @@ service specification; see
 .Xr services 5 .
 .Pp
 Available options:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl d
 Debugging information is written to the syslog using LOG_FTP.
 .It Fl l
@@ -80,35 +80,33 @@ by default, and may have to be enabled in
 configuration file.
 .It Fl D
 With this option set,
-.Nm ftpd
+.Nm
 will detach and become a daemon, accepting connections on the FTP port and
 forking children processes to handle them. This is lower overhead than
 starting
-.Nm ftpd
+.Nm
 from
 .Xr inetd 8
 and is thus useful on busy servers to reduce load.
 .It Fl R
 With this option set,
-.Nm ftpd
+.Nm
 will revert to historical behavior with regard to security checks on
 user operations and restrictions on PORT requests.
 Currently,
-.Nm ftpd
+.Nm
 will only honor PORT commands directed to unprivileged ports on the 
 remote user's host (which violates the FTP protocol specification but
 closes some security holes).
-.
 .It Fl S
 With this option set,
-.Nm ftpd
+.Nm
 logs all anonymous transfers to the file
 .Pa /var/log/ftpd
 when this file exists.
-.
 .It Fl U
 In previous versions of
-.Nm ftpd ,
+.Nm Ns ,
 when a passive mode client requested a data connection to the server,
 the server would use data ports in the range 1024..4999.  Now, by default,
 the server will use data ports in the range 40000..44999.  Specifying this
@@ -136,7 +134,7 @@ When
 is specified, write the daemon's process ID to
 .Ar file .
 .It Fl A
-Allow only anonymous ftp access
+Allow only anonymous ftp access.
 .El
 .Pp
 The file
@@ -161,7 +159,7 @@ prints it after a successful login.
 The ftp server currently supports the following ftp requests.
 The case of the requests is ignored.
 .Bl -column "Request" -offset indent
-.It Request Ta "Description"
+.It Sy Request Ta Sy "Description"
 .It ABOR Ta "abort previous command"
 .It ACCT Ta "specify account (ignored)"
 .It ALLO Ta "allocate storage (vacuously)"
@@ -213,7 +211,7 @@ SITE request.
 .It UMASK Ta change umask, e.g. ``SITE UMASK 002''
 .It IDLE Ta set idle-timer, e.g. ``SITE IDLE 60''
 .It CHMOD Ta change mode of a file, e.g. ``SITE CHMOD 755 filename''
-.It HELP Ta give help information.
+.It HELP Ta give help information
 .El
 .Pp
 The remaining ftp requests specified in Internet RFC 959
@@ -307,7 +305,7 @@ option is set, all transfers are logged as well.
 .El
 .Pp
 In the last case, 
-.Nm ftpd
+.Nm
 takes special measures to restrict the client's access privileges.
 The server performs a 
 .Xr chroot 2
@@ -358,7 +356,7 @@ account in this directory.
 .El
 .Pp
 If the system has multiple IP addresses,
-.Nm ftpd
+.Nm
 supports the idea of virtual hosts, which provides the ability to
 define multiple anonymous ftp areas, each one allocated to a different
 internet address.
@@ -405,7 +403,7 @@ to setup and maintenance to guard against security related problems.
 If compiled with the
 .Em INTERNAL_LS
 option,
-.Nm ftpd
+.Nm
 will have internal support for handling remote requests to list
 files, and will not execute
 .Pa /bin/ls
