@@ -79,26 +79,6 @@ tmp(void)
 	return(fd);
 }
 
-void *
-emalloc(len)
-	int len;
-{
-	void *p;
-
-	if ((p = malloc((u_int)len)) == NULL)
-		error(archive);
-	return(p);
-}
-
-char *
-rname(path)
-	char *path;
-{
-	register char *ind;
-
-	return((ind = rindex(path, '/')) ? ind + 1 : path);
-}
-
 void
 badfmt(void)
 {
