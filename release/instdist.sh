@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.33 1994/11/29 23:54:07 jkh Exp $
+# $Id: instdist.sh,v 1.32 1994/11/28 22:13:05 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -47,7 +47,7 @@ media_reset()
 # Set the location of our temporary unpacking directory.
 media_set_tmpdir()
 {
-	TITLE="Chose temporary directory"
+	TITLE="Choose temporary directory"
 	DEFAULT_VALUE="${TMPDIR}"
 	if ! input \
 "Please specify the name of a directory containing enough free
@@ -89,72 +89,57 @@ Please select the site closest to you or \"other\" if you'd like\n\
 to specify another choice.  Also note that not all sites carry\n\
 every possible distribution!  Distributions other than the basic\n\
 binary set are only guaranteed to be available from the Primary site." \
--1 -1 10 \
+-1 -1 5 \
    "Primary" "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" \
    "U.S-2" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
    "U.S-3" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
    "U.S-4" "ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" \
+   "Holland" "ftp://ftp.nl.net:/pub/os/FreeBSD/${DISTNAME}" \
    "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
    "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
    "France" "ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" \
    "Finland" "ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}" \
    "Russia" "ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" \
+   "Japan" "ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/${DISTNAME}" \
+   "Japan-2" "ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/${DISTNAME}" \
+   "Japan-3" "ftp://ftp.waseda.ac.jp/pub/FreeBSD/${DISTNAME}" \
+   "Japan-4" "ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/${DISTNAME}" \
+   "Japan-5" "ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/${DISTNAME}" \
    "other" "None of the above.  I want to specify my own." \
       2> ${TMP}/menu.tmp.$$
 	RETVAL=$?
 	ANSWER=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
 	if ! handle_rval ${RETVAL}; then return 1; fi
-	case ${ANSWER} in
-	Primary)
-		FTP_PATH="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}"
-	;;
-
-	U.S-2)
-		FTP_PATH="ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}"
-	;;
-
-	U.S-3)
-		FTP_PATH="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}"
-	;;
-
-   	U.S-4)
-		FTP_PATH="ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}"
-	;;
-
-	Taiwan)
-		FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}"
-	;;
-
-	Australia)
-		FTP_PATH="ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}"
-	;;
-
-	France)
-		FTP_PATH="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}"
-	;;
-
-	Finland)
-		FTP_PATH="ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}"
-	;;
-
-	Russia)
-		FTP_PATH="ftp://ftp.kiae.su/FreeBSD/${DISTNAME}"
-	;;
-
-	other)
-		TITLE="FTP Installation Information"
-		DEFAULT_VALUE="${FTP_PATH}"
-		if ! input \
+   case ${ANSWER} in
+   Primary) FTP_PATH="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" ;;
+   U.S-2) FTP_PATH="ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" ;;
+   U.S-3) FTP_PATH="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" ;;
+   U.S-4) FTP_PATH="ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" ;;
+   Holland) FTP_PATH="ftp://ftp.nl.net:/pub/os/FreeBSD/${DISTNAME}" ;;
+   Taiwan) FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" ;;
+   Australia) FTP_PATH="ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" ;;
+   France) FTP_PATH="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" ;;
+   Finland) FTP_PATH="ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}" ;;
+   Japan) FTP_PATH="ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/${DISTNAME}" ;;
+   Japan-2) FTP_PATH="ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/${DISTNAME}" ;;
+   Japan-3) FTP_PATH="ftp://ftp.waseda.ac.jp/pub/FreeBSD/${DISTNAME}" ;;
+   Japan-4) FTP_PATH="ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/${DISTNAME}" ;;
+   Japan-5) FTP_PATH="ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/${DISTNAME}" ;;
+   Russia) FTP_PATH="ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" ;;
+   other)
+	TITLE="FTP Installation Information"
+	DEFAULT_VALUE="${FTP_PATH}"
+	if ! input \
 "Please specify the machine and directory location of the
 distribution you wish to load.  This should be either a \"URL style\"
 specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
 the name of a host to connect to.  If only a host name is specified,
 the installation assumes that you will properly connect and \"mget\"
 the files yourself."; then return 1; fi
-		FTP_PATH=${ANSWER}
-	;;
-	esac
+	FTP_PATH=${ANSWER}
+   ;;
+   esac
 }
 
 media_extract_dist()
@@ -178,6 +163,7 @@ media_extract_dist()
 		fi
 	else    
 		error "Improper distribution.  No checksum script found!"
+		media_reset
 	fi
 }
 
@@ -222,7 +208,7 @@ media_install_set()
 		while [ "${COPYING}" = "yes" ]; do
 			progress "Asking for DOS diskette"
 			if dialog --title "Insert distribution diskette" \
-			  --yesno "Please enter the next diskette and select <OK> to continue or <Cancel> if finished" -1 -1; then
+			  --yesno "Please enter the next diskette and select <Yes> to continue or <No> if finished" -1 -1; then
 				umount ${MNT} > /dev/null 2>&1
 				if ! mount_msdos ${MEDIA_DEVICE} ${MNT}; then
 					error "Unable to mount floppy!  Please correct."
@@ -316,6 +302,8 @@ to the mount point).  The directory you enter should be the
 			MEDIA_DEVICE=${MEDIA_DEVICE}/${ANSWER}
 			DISTRIB_SUBDIR=${ANSWER}
 		fi
+	else
+		return 1
 	fi
 }
 
@@ -356,7 +344,7 @@ to proceed." -1 -1 7 \
 	;;
 
 	Tape)
-		dialog --title "Chose Tape Type" --menu \
+		dialog --title "Choose Tape Type" --menu \
 "Which type of tape drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n" -1 -1 3 \
 		"SCSI" "SCSI tape drive attached to supported SCSI controller" \
@@ -383,7 +371,7 @@ system?  FreeBSD supports the following types:\n" -1 -1 3 \
 	;;
 
 	CDROM)
-		dialog --title "Chose CDROM Type" --menu \
+		dialog --title "Choose CDROM Type" --menu \
 "Which type of CDROM drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n" -1 -1 2 \
 		"SCSI" "SCSI CDROM drive attached to supported SCSI controller" \
@@ -460,10 +448,10 @@ for this to work!\n"; then continue; fi
 		DEFAULT_VALUE="${NFS_OPTIONS}"
 		if input \
 "Do you wish to specify any options to NFS?  If you're installing
-from a Sun 4.1.x system, you may wish to specify \`-P' to send
+from a Sun 4.1.x system, you may wish to specify \`-o resvport' to send
 NFS requests over a privileged port (use this if you get nasty
 \`\`credential too weak'' errors from the server).  When using a slow
-ethernet card or network link, \`-r 1024 -w 1024' may also prove helpful.
+ethernet card or network link, \`-o -r=1024,-w=1024' may also prove helpful.
 Options, if any, should be separated by commas."; then
 			if [ "${ANSWER}" != "" ]; then
 				NFS_OPTIONS="${ANSWER}"
