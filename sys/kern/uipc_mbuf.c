@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.18 1996/05/02 14:20:29 phk Exp $
+ * $Id: uipc_mbuf.c,v 1.19 1996/05/06 17:18:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@ SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
 struct mbuf *mbutl;
 char	*mclrefcnt;
 struct mbstat mbstat;
+struct mbuf *mmbfree;
 union mcluster *mclfree;
 int	max_linkhdr;
 int	max_protohdr;
@@ -71,18 +72,64 @@ mbinit(dummy)
 {
 	int s;
 
+#define NMB_INIT	16
 #if MCLBYTES < 4096
 #define NCL_INIT	(4096/MCLBYTES)
 #else
 #define NCL_INIT	1
 #endif
+
+	mmbfree = NULL; mclfree = NULL;
 	s = splimp();
+	if (m_mballoc(NMB_INIT, M_DONTWAIT) == 0)
+		goto bad;
 	if (m_clalloc(NCL_INIT, M_DONTWAIT) == 0)
 		goto bad;
 	splx(s);
 	return;
 bad:
 	panic("mbinit");
+}
+
+/*
+ * Allocate at least nmb mbufs and place on mbuf free list.
+ * Must be called at splimp.
+ */
+/* ARGSUSED */
+int
+m_mballoc(nmb, nowait)
+	register int nmb;
+	int nowait;
+{
+	register caddr_t p;
+	register int i;
+	int nbytes;
+
+	/* Once we run out of map space, it will be impossible to get
+	 * any more (nothing is ever freed back to the map) (XXX which
+	 * is dumb). (however you are not dead as m_reclaim might
+	 * still be able to free a substantial amount of space).
+	 */
+	if (mb_map_full)
+		return (0);
+
+	nbytes = round_page(nmb * MSIZE);
+	p = (caddr_t)kmem_malloc(mb_map, nbytes, nowait ? M_NOWAIT : M_WAITOK);
+	/*
+	 * Either the map is now full, or this is nowait and there
+	 * are no pages left.
+	 */
+	if (p == NULL)
+		return (0);
+
+	nmb = nbytes / MSIZE;
+	for (i = 0; i < nmb; i++) {
+		((struct mbuf *)p)->m_next = mmbfree;
+		mmbfree = (struct mbuf *)p;
+		p += MSIZE;
+	}
+	mbstat.m_mbufs += nmb;
+	return (1);
 }
 
 /*
@@ -352,6 +399,61 @@ nospace:
 	m_freem(top);
 	MCFail++;
 	return (0);
+}
+
+/*
+ * Copy an entire packet, including header (which must be present).
+ * An optimization of the common case `m_copym(m, 0, M_COPYALL, how)'.
+ */
+struct mbuf *
+m_copypacket(m, how)
+	struct mbuf *m;
+	int how;
+{
+	struct mbuf *top, *n, *o;
+
+	MGET(n, how, m->m_type);
+	top = n;
+	if (!n)
+		goto nospace;
+
+	M_COPY_PKTHDR(n, m);
+	n->m_len = m->m_len;
+	if (m->m_flags & M_EXT) {
+		n->m_data = m->m_data;
+		mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+		n->m_ext = m->m_ext;
+		n->m_flags |= M_EXT;
+	} else {
+		bcopy(mtod(m, char *), mtod(n, char *), n->m_len);
+	}
+
+	m = m->m_next;
+	while (m) {
+		MGET(o, how, m->m_type);
+		if (!o)
+			goto nospace;
+
+		n->m_next = o;
+		n = n->m_next;
+
+		n->m_len = m->m_len;
+		if (m->m_flags & M_EXT) {
+			n->m_data = m->m_data;
+			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+			n->m_ext = m->m_ext;
+			n->m_flags |= M_EXT;
+		} else {
+			bcopy(mtod(m, char *), mtod(n, char *), n->m_len);
+		}
+
+		m = m->m_next;
+	}
+	return top;
+nospace:
+	m_freem(top);
+	MCFail++;
+	return 0;
 }
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.15 1996/02/25 23:34:03 hsu Exp $
+ * $Id: mbuf.h,v 1.14 1996/03/11 02:14:16 hsu Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -149,6 +149,17 @@ struct mbuf {
 #define	M_DONTWAIT	M_NOWAIT
 #define	M_WAIT		M_WAITOK
 
+/* Freelists:
+ *
+ * Normal mbuf clusters are normally treated as character arrays
+ * after allocation, but use the first word of the buffer as a free list
+ * pointer while on the free list.
+ */
+union mcluster {
+	union	mcluster *mcl_next;
+	char	mcl_buf[MCLBYTES];
+};
+
 /*
  * mbuf utility macros:
  *
@@ -173,29 +184,43 @@ struct mbuf {
  * and internal data.
  */
 #define	MGET(m, how, type) { \
-	MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
-	if (m) { \
+	  int _ms = splimp(); \
+	  if (mmbfree == 0) \
+		(void)m_mballoc(1, (how)); \
+	  if (((m) = mmbfree) != 0) { \
+		mmbfree = (m)->m_next; \
+		mbstat.m_mtypes[MT_FREE]--; \
 		(m)->m_type = (type); \
-		MBUFLOCK(mbstat.m_mtypes[type]++;) \
+		mbstat.m_mtypes[type]++; \
 		(m)->m_next = (struct mbuf *)NULL; \
 		(m)->m_nextpkt = (struct mbuf *)NULL; \
 		(m)->m_data = (m)->m_dat; \
 		(m)->m_flags = 0; \
-	} else \
+		splx(_ms); \
+	} else { \
+		splx(_ms); \
 		(m) = m_retry((how), (type)); \
+	} \
 }
 
 #define	MGETHDR(m, how, type) { \
-	MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
-	if (m) { \
+	  int _ms = splimp(); \
+	  if (mmbfree == 0) \
+		(void)m_mballoc(1, (how)); \
+	  if (((m) = mmbfree) != 0) { \
+		mmbfree = (m)->m_next; \
+		mbstat.m_mtypes[MT_FREE]--; \
 		(m)->m_type = (type); \
-		MBUFLOCK(mbstat.m_mtypes[type]++;) \
+		mbstat.m_mtypes[type]++; \
 		(m)->m_next = (struct mbuf *)NULL; \
 		(m)->m_nextpkt = (struct mbuf *)NULL; \
 		(m)->m_data = (m)->m_pktdat; \
 		(m)->m_flags = M_PKTHDR; \
-	} else \
+		splx(_ms); \
+	} else { \
+		splx(_ms); \
 		(m) = m_retryhdr((how), (type)); \
+	} \
 }
 
 /*
@@ -205,16 +230,7 @@ struct mbuf {
  * the flag M_EXT is set upon success.
  * MCLFREE releases a reference to a cluster allocated by MCLALLOC,
  * freeing the cluster if the reference count has reached 0.
- *
- * Normal mbuf clusters are normally treated as character arrays
- * after allocation, but use the first word of the buffer as a free list
- * pointer while on the free list.
  */
-union mcluster {
-	union	mcluster *mcl_next;
-	char	mcl_buf[MCLBYTES];
-};
-
 #define	MCLALLOC(p, how) \
 	MBUFLOCK( \
 	  if (mclfree == 0) \
@@ -256,21 +272,38 @@ union mcluster {
 		if ((m)->m_ext.ext_free) \
 			(*((m)->m_ext.ext_free))((m)->m_ext.ext_buf, \
 			    (m)->m_ext.ext_size); \
-		else \
-			MCLFREE((m)->m_ext.ext_buf); \
+		else { \
+			char *p = (m)->m_ext.ext_buf; \
+			if (--mclrefcnt[mtocl(p)] == 0) { \
+			((union mcluster *)(p))->mcl_next = mclfree; \
+			mclfree = (union mcluster *)(p); \
+			mbstat.m_clfree++; \
+		} \
 	  } \
 	  (n) = (m)->m_next; \
-	  FREE((m), mbtypes[(m)->m_type]); \
+	  (m)->m_type = MT_FREE; \
+	  mbstat.m_mtypes[MT_FREE]++; \
+	  (m)->m_next = mmbfree; \
+	  mmbfree = (m); \
 	}
 #else /* notyet */
 #define	MFREE(m, nn) \
-	{ MBUFLOCK(mbstat.m_mtypes[(m)->m_type]--;) \
-	  if ((m)->m_flags & M_EXT) { \
-		MCLFREE((m)->m_ext.ext_buf); \
-	  } \
-	  (nn) = (m)->m_next; \
-	  FREE((m), mbtypes[(m)->m_type]); \
-	}
+	MBUFLOCK ( \
+		mbstat.m_mtypes[(m)->m_type]--; \
+		if ((m)->m_flags & M_EXT) { \
+			char *p = (m)->m_ext.ext_buf; \
+			if (--mclrefcnt[mtocl(p)] == 0) { \
+				((union mcluster *)(p))->mcl_next = mclfree; \
+				mclfree = (union mcluster *)(p); \
+				mbstat.m_clfree++; \
+			} \
+		} \
+		(nn) = (m)->m_next; \
+		(m)->m_type = MT_FREE; \
+		mbstat.m_mtypes[MT_FREE]++; \
+		(m)->m_next = mmbfree; \
+		mmbfree = (m); \
+	)
 #endif
 
 /*
@@ -361,6 +394,7 @@ extern struct mbuf *mbutl;		/* virtual address of mclusters */
 extern char	*mclrefcnt;		/* cluster reference counts */
 extern struct mbstat mbstat;
 extern int	nmbclusters;
+extern struct mbuf *mmbfree;
 extern union mcluster *mclfree;
 extern int	max_linkhdr;		/* largest link-level header */
 extern int	max_protohdr;		/* largest protocol header */
@@ -369,6 +403,7 @@ extern int	max_datalen;		/* MHLEN - max_hdr */
 extern int	mbtypes[];		/* XXX */
 
 struct	mbuf *m_copym __P((struct mbuf *, int, int, int));
+struct	mbuf *m_copypacket __P((struct mbuf *, int));
 struct	mbuf *m_devget __P((char *, int, int, struct ifnet *,
 			    void (*copy)(char *, caddr_t, u_int)));
 struct	mbuf *m_free __P((struct mbuf *));
@@ -382,6 +417,7 @@ struct	mbuf *m_retryhdr __P((int, int));
 struct	mbuf *m_split __P((struct mbuf *,int,int));
 void	m_adj __P((struct mbuf *, int));
 void	m_cat __P((struct mbuf *,struct mbuf *));
+int	m_mballoc __P((int, int));
 int	m_clalloc __P((int, int));
 void	m_copyback __P((struct mbuf *, int, int, caddr_t));
 void	m_copydata __P((struct mbuf *,int,int,caddr_t));
