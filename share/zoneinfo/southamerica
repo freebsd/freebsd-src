@@ -1,4 +1,4 @@
-# @(#)southamerica	7.36
+# @(#)southamerica	7.37
 
 # $FreeBSD$
 
@@ -118,7 +118,7 @@ Rule	Arg	1999	only	-	Oct	Sun>=1	0:00	1:00	S
 Rule	Arg	2000	only	-	Mar	Sun>=1	0:00	0	-
 #
 # From Peter Gradelski via Steffen Thorsen (2000-03-01):
-# We just checked with our San Paulo office and they say the government of
+# We just checked with our Sao Paulo office and they say the government of
 # Argentina decided not to become one of the countries that go on or off DST.
 # So Buenos Aires should be -3 hours from GMT at all times.
 #
@@ -252,11 +252,15 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # Brazilian official page
 # </a>
 #
-# From Paul Eggert (1998-10-29):
+# From Paul Eggert (2000-10-02):
 # The official decrees referenced below are taken from
 # <a href="http://pcdsh01.on.br/DecHV.html">
 # Decretos sobre o Horario de Verao no Brasil
 # </a> (1999-10-04, in Portuguese).
+# The official site for all decrees, including those not related to time, is
+# <a href="http://www.presidencia.gov.br/CCIVIL/decreto/principal_ano.htm">
+# Presidencia da Republica, Subchefia para Assuntos Juridicos, Decretos
+# </a> (in Portuguese).
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 # Decree <a href="http://pcdsh01.on.br/HV20466.htm">20,466</a> (1931-10-01)
@@ -366,11 +370,15 @@ Rule	Brazil	1999	only	-	Feb	21	 0:00	0	-
 # Decree <a href="http://pcdsh01.on.br/figuras/HV3150.gif">3,150</a>
 # (1999-08-23) adopted by same states.
 # Decree <a href="http://pcdsh01.on.br/DecHV99.gif">3,188</a> (1999-09-30)
-# adds SE, AL, PE, PR, RN, CE, PI, MA and RR.
+# adds SE, AL, PB, PE, RN, CE, PI, MA and RR.
+Rule	Brazil	1999	only	-	Oct	 3	 0:00	1:00	S
+Rule	Brazil	2000	only	-	Feb	27	 0:00	0	-
+# Decree <a href="http://pcdsh01.on.br/DEC3592.htm">3,592</a> (2000-09-06)
+# adopted by the same states as before.
 # These give only one year's rules.  After that, the rules are guesses
 # and are quite possibly wrong, but are more likely than no DST at all.
-Rule	Brazil	1999	max	-	Oct	Sun>=1	 0:00	1:00	S
-Rule	Brazil	2000	max	-	Feb	lastSun	 0:00	0	-
+Rule	Brazil	2000	max	-	Oct	Sun>=8	 0:00	1:00	S
+Rule	Brazil	2001	max	-	Feb	Sun>=15	 0:00	0	-
 
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -580,7 +588,11 @@ Rule	Para	1996	1998	-	Oct	Sun>=1	0:00	1:00	S
 # go with Shanks.
 Rule	Para	1999	max	-	Feb	lastSun	0:00	0	-
 # IATA SSIM (2000-02) says 1999-10-10.
-Rule	Para	1999	max	-	Oct	Sun>=8	0:00	1:00	S
+Rule	Para	1999	only	-	Oct	10	0:00	1:00	S
+# From Steffen Thorsen (2000-10-02):
+# I have three independent reports that Paraguay changed to DST this Sunday
+# (10-01).
+Rule	Para	2000	max	-	Oct	Sun>=1	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Asuncion	-3:50:40 -	LMT	1890
 			-3:50:40 -	AMT	1931 Oct 10 # Asuncion Mean Time
