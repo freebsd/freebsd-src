@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aicasm/aicasm.c#4 $
+ * $Id: //depot/src/aic7xxx/aicasm/aicasm.c#5 $
  *
  * $FreeBSD$
  */
@@ -320,7 +320,8 @@ output_code()
 	    cur_instr != NULL;
 	    cur_instr = cur_instr->links.stqe_next) {
 
-		fprintf(ofile, "\t0x%02x, 0x%02x, 0x%02x, 0x%02x,\n",
+		fprintf(ofile, "%s\t0x%02x, 0x%02x, 0x%02x, 0x%02x",
+			cur_instr == seq_program.stqh_first ? "" : ",\n",
 #if BYTE_ORDER == LITTLE_ENDIAN
 			cur_instr->format.bytes[0],
 			cur_instr->format.bytes[1],
@@ -334,7 +335,7 @@ output_code()
 #endif
 		instrcount++;
 	}
-	fprintf(ofile, "};\n\n");
+	fprintf(ofile, "\n};\n\n");
 
 	/*
 	 *  Output patch information.  Patch functions first.
@@ -367,7 +368,8 @@ struct patch {
 	for(cur_patch = STAILQ_FIRST(&patches);
 	    cur_patch != NULL;
 	    cur_patch = STAILQ_NEXT(cur_patch,links)) {
-		fprintf(ofile, "\t{ ahc_patch%d_func, %d, %d, %d },\n",
+		fprintf(ofile, "%s\t{ ahc_patch%d_func, %d, %d, %d }",
+			cur_patch == STAILQ_FIRST(&patches) ? "" : ",\n",
 			cur_patch->patch_func, cur_patch->begin,
 			cur_patch->skip_instr, cur_patch->skip_patch);
 	}
@@ -383,11 +385,16 @@ struct patch {
 	for(cs = TAILQ_FIRST(&cs_tailq);
 	    cs != NULL;
 	    cs = TAILQ_NEXT(cs, links)) {
-		fprintf(ofile, "\t{ %d, %d },\n",
+		fprintf(ofile, "%s\t{ %d, %d }",
+			cs == TAILQ_FIRST(&cs_tailq) ? "" : ",\n",
 			cs->begin_addr, cs->end_addr);
 	}
 
 	fprintf(ofile, "\n};\n");
+
+	fprintf(ofile,
+"const int num_critical_sections = sizeof(critical_sections)
+				 / sizeof(*critical_sections);\n");
 
 	fprintf(stderr, "%s: %d instructions used\n", appname, instrcount);
 }
