@@ -1205,6 +1205,7 @@ svr4_sys_waitsys(p, uap)
 
 loop:
 	nfound = 0;
+	PROCTREE_LOCK(PT_SHARED);
 	for (q = p->p_children.lh_first; q != 0; q = q->p_sibling.le_next) {
 		if (SCARG(uap, id) != WAIT_ANY &&
 		    q->p_pid != SCARG(uap, id) &&
@@ -1216,6 +1217,7 @@ loop:
 		nfound++;
 		if (q->p_stat == SZOMB && 
 		    ((SCARG(uap, options) & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
+			PROCTREE_LOCK(PT_RELEASE);
 			*retval = 0;
 			DPRINTF(("found %d\n", q->p_pid));
 			if ((error = svr4_setinfo(q, q->p_xstat,
@@ -1236,14 +1238,18 @@ loop:
 			 * parent a SIGCHLD.  The rest of the cleanup will be
 			 * done when the old parent waits on the child.
 			 */
-			if ((q->p_flag & P_TRACED) &&
-			    q->p_oppid != q->p_pptr->p_pid) {
-				t = pfind(q->p_oppid);
-				proc_reparent(q, t ? t : initproc);
-				q->p_oppid = 0;
-				q->p_flag &= ~(P_TRACED | P_WAITED);
-				wakeup((caddr_t)q->p_pptr);
-				return 0;
+			if (q->p_flag & P_TRACED) {
+				PROCTREE_LOCK(PT_EXCLUSIVE);
+				if (q->p_oppid != q->p_pptr->p_pid) {
+					t = pfind(q->p_oppid);
+					proc_reparent(q, t ? t : initproc);
+					q->p_oppid = 0;
+					q->p_flag &= ~(P_TRACED | P_WAITED);
+					wakeup((caddr_t)q->p_pptr);
+					PROCTREE_LOCK(PT_RELEASE);
+					return 0;
+				}
+				PROCTREE_LOCK(PT_RELEASE);
 			}
 			q->p_xstat = 0;
 			ruadd(&p->p_stats->p_cru, q->p_ru);
@@ -1260,7 +1266,9 @@ loop:
 			LIST_REMOVE(q, p_list); /* off zombproc */
 			ALLPROC_LOCK(AP_RELEASE);
 
+			PROCTREE_LOCK(PT_EXCLUSIVE);
 			LIST_REMOVE(q, p_sibling);
+			PROCTREE_LOCK(PT_RELEASE);
 
 			/*
 			 * Decrement the count of procs running with this uid.

@@ -267,10 +267,12 @@ interpret:
 	 * it that it now has its own resources back
 	 */
 	p->p_flag |= P_EXEC;
+	PROCTREE_LOCK(PT_SHARED);
 	if (p->p_pptr && (p->p_flag & P_PPWAIT)) {
 		p->p_flag &= ~P_PPWAIT;
 		wakeup((caddr_t)p->p_pptr);
 	}
+	PROCTREE_LOCK(PT_RELEASE);
 
 	/*
 	 * Implement image setuid/setgid.

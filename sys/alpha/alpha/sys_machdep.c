@@ -173,6 +173,7 @@ alpha_set_uac(struct proc *p, char *args)
 	if (error)
 		return (error);
 
+	PROCTREE_LOCK(PT_SHARED);
 	if (p->p_pptr) {
 		s = splimp();
 		if (p->p_pptr) {
@@ -182,6 +183,7 @@ alpha_set_uac(struct proc *p, char *args)
 			error = ESRCH;
 		splx(s);
 	}
+	PROCTREE_LOCK(PT_RELEASE);
 	return error;
 }
 
@@ -192,6 +194,7 @@ alpha_get_uac(struct proc *p, char *args)
 	unsigned long uac;
 
 	error = ESRCH;
+	PROCTREE_LOCK(PT_SHARED);
 	if (p->p_pptr) {
 		s = splimp();
 		if (p->p_pptr) {
@@ -200,5 +203,6 @@ alpha_get_uac(struct proc *p, char *args)
 		}
 		splx(s);
 	}
+	PROCTREE_LOCK(PT_RELEASE);
 	return error;
 }
