@@ -24,6 +24,7 @@
 #include <sys/resource.h>
 
 #include "sigdesc.h"		/* generated automatically */
+#include "top.h"
 #include "boolean.h"
 #include "utils.h"
 
