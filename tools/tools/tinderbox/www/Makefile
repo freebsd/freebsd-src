@@ -3,6 +3,7 @@
 CGI		 = index.cgi
 DATA		 = tb.css
 IMAGES		 = daemon.png valid-css.png valid-xhtml10.png
+CLEANFILES	+= ${IMAGES}
 WWWDIR		?= ${HOME}/public_html
 WWWOWN		?= ${USER}
 WWWGRP		?= ${USER}
