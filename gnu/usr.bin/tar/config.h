@@ -273,7 +273,7 @@
 #define HAVE_SETLOCALE 1
 
 /* Define if you have the <sgtty.h> header file. */
-#define HAVE_SGTTY_H 1
+/* #define HAVE_SGTTY_H 1 */
 
 /* Define if you have the <stdbool.h> header file. */
 #define HAVE_STDBOOL_H 1
