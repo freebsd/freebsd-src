@@ -180,6 +180,35 @@ useracc(addr, len, rw)
 }
 
 /*
+ * MPSAFE
+ */
+void
+vslock(addr, len)
+	void *addr;
+	u_int len;
+{
+
+	vm_map_wire(&curproc->p_vmspace->vm_map, trunc_page((vm_offset_t)addr),
+	    round_page((vm_offset_t)addr + len),
+	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
+}
+
+/*
+ * MPSAFE
+ */
+void
+vsunlock(addr, len)
+	void *addr;
+	u_int len;
+{
+
+	vm_map_unwire(&curproc->p_vmspace->vm_map,
+	    trunc_page((vm_offset_t)addr),
+	    round_page((vm_offset_t)addr + len),
+	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
+}
+
+/*
  * Create the U area for a new process.
  * This routine directly affects the fork perf for a process.
  */
