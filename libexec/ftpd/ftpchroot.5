@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm ftpchroot
-.Nd list users and groups subject to FTP access restrictions
+.Nd "list users and groups subject to FTP access restrictions"
 .Sh DESCRIPTION
 The file
 .Nm
@@ -38,7 +38,8 @@ is read by
 at the beginning of an FTP session, after having authenticated the user.
 Each line in
 .Nm
-corresponds to a user or group.  If a line in
+corresponds to a user or group.
+If a line in
 .Nm
 matches the current user or a group he is a member of,
 access restrictions will be applied to this
@@ -53,13 +54,13 @@ Fields on each line are separated by tabs or spaces.
 .Pp
 The first field specifies a user or group name.
 If it is prefixed by an
-.Qq at
+.Dq at
 sign,
-.Ql \&@ ,
+.Ql @ ,
 it specifies a group name;
 the line will match each user who is a member of this group.
 As a special case, a single
-.Ql \&@
+.Ql @
 in this field will match any user.
 A username is specified otherwise.
 .Pp
@@ -70,23 +71,23 @@ Be it omitted, the user's login directory will be used.
 If it is not an absolute pathname, then it will be relative
 to the user's login directory.
 If it contains the
-.Qq \&/./
-seprator,
+.Pa /./
+separator,
 .Xr ftpd 8
 will treat its left-hand side as the name of the directory to do
 .Xr chroot 2
 to, and its right-hand side to change the current directory to afterwards.
 .Sh FILES
-.Bl -tag -width /etc/ftpchroot -compact
+.Bl -tag -width ".Pa /etc/ftpchroot" -compact
 .It Pa /etc/ftpchroot
 .El
 .Sh EXAMPLES
 These lines in
 .Nm
 will lock up the user
-.Qq webuser
+.Dq Li webuser
 and each member of the group
-.Qq hostee
+.Dq Li hostee
 in their respective login directories:
 .Bd -literal -offset indent
 webuser
@@ -96,26 +97,24 @@ webuser
 And this line will tell
 .Xr ftpd 8
 to lock up the user
-.Qq joe
+.Dq Li joe
 in
 .Pa /var/spool/ftp
 and then to change the current directory to
 .Pa /joe ,
 which is relative to the session's new root:
-.Bd -literal -offset indent
-joe	/var/spool/ftp/./joe
-.Ed
+.Pp
+.Dl "joe	/var/spool/ftp/./joe"
 .Pp
 And finally the following line will lock up every user connecting
 through FTP in his respective
-.Pa \&~/public_html ,
+.Pa ~/public_html ,
 thus lowering possible impact on the system
 from intrinsic insecurity of FTP:
-.Bd -literal -offset indent
-@	public_html
-.Ed
+.Pp
+.Dl "@	public_html"
 .Sh SEE ALSO
 .Xr chroot 2 ,
 .Xr group 5 ,
 .Xr passwd 5 ,
-.Xr ftpd 8 .
+.Xr ftpd 8
