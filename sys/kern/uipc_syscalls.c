@@ -103,7 +103,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
 /*
  * System call interface to the socket abstraction.
  */
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 #define COMPAT_OLDSOCK
 #endif
 

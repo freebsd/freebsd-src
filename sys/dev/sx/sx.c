@@ -35,7 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 #include <sys/ioctl_compat.h>
 #endif
 #include <sys/tty.h>

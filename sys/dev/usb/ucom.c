@@ -539,7 +539,7 @@ ucomioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 	int error;
 	int s;
 	int d;
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	u_long oldcmd;
 	struct termios term;
 #endif
@@ -552,7 +552,7 @@ ucomioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 
 	DPRINTF(("ucomioctl: cmd = 0x%08lx\n", cmd));
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	term = tp->t_termios;
 	oldcmd = cmd;
 	error = ttsetcompat(tp, &cmd, data, &term);

@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/utsname.h>
 
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 
 #ifndef _SYS_SYSPROTO_H_
 struct gethostname_args {
@@ -121,7 +121,7 @@ ogethostid(td, uap)
 	*(long *)(td->td_retval) = hostid;
 	return (0);
 }
-#endif /* COMPAT_43 || COMPAT_SUNOS */
+#endif /* COMPAT_43 */
 
 #ifdef COMPAT_43
 #ifndef _SYS_SYSPROTO_H_

@@ -146,7 +146,7 @@ sstk(td, uap)
 	return (EOPNOTSUPP);
 }
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 #ifndef _SYS_SYSPROTO_H_
 struct getpagesize_args {
 	int dummy;
@@ -163,7 +163,7 @@ ogetpagesize(td, uap)
 	td->td_retval[0] = PAGE_SIZE;
 	return (0);
 }
-#endif				/* COMPAT_43 || COMPAT_SUNOS */
+#endif				/* COMPAT_43 */
 
 
 /*

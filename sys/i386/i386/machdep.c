@@ -275,7 +275,7 @@ osendsig(catcher, sig, mask, code)
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct osigframe *)(td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct osigframe));
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
@@ -415,7 +415,7 @@ freebsd4_sendsig(catcher, sig, mask, code)
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe4 *)(td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct sigframe4));
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
@@ -552,7 +552,7 @@ sendsig(catcher, sig, mask, code)
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sp = td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct sigframe);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
@@ -769,7 +769,7 @@ osigreturn(td, uap)
 	regs->tf_eflags = eflags;
 
 	PROC_LOCK(p);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	if (scp->sc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
@@ -876,7 +876,7 @@ freebsd4_sigreturn(td, uap)
 	}
 
 	PROC_LOCK(p);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
@@ -986,7 +986,7 @@ sigreturn(td, uap)
 	}
 
 	PROC_LOCK(p);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
