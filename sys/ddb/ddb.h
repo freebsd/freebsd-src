@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.8 1995/11/29 10:25:50 phk Exp $
+ *	$Id: ddb.h,v 1.9 1995/12/07 12:45:08 davidg Exp $
  */
 
 /*
@@ -88,7 +88,6 @@ void		db_write_bytes __P((vm_offset_t addr, int size, char *data));
 				/* machine-dependent */
 void		kdb_init __P((void));
 void		kdbprintf __P((const char *fmt, ...));
-void		kdbprinttrap __P((int, int));
 
 db_cmdfcn_t	db_breakpoint_cmd;
 db_cmdfcn_t	db_continue_cmd;

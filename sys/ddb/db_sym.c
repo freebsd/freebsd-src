@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.11 1995/11/29 10:25:35 phk Exp $
+ *	$Id: db_sym.c,v 1.12 1995/12/07 12:44:58 davidg Exp $
  */
 
 /*
@@ -47,7 +47,7 @@
 static db_symtab_t	db_symtabs[MAXNOSYMTABS] = {{0,},};
 static int db_nsymtab = 0;
 
-db_symtab_t	*db_last_symtab;
+static db_symtab_t	*db_last_symtab;
 
 static db_sym_t		db_lookup __P(( char *symstr));
 static char		*db_qualify __P((db_sym_t sym, char *symtabname));
