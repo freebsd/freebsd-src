@@ -118,6 +118,10 @@ case ${ipv6_firewall_type} in
 	${fw6cmd} add pass all from ${ip} to ${net}/${prefixlen}
 	${fw6cmd} add pass all from ${net}/${prefixlen} to ${ip}
 
+	# Allow any link-local multicast traffic
+	${fw6cmd} add pass all from fe80::/10 to ff02::/16
+	${fw6cmd} add pass all from ${net}/${prefixlen} to ff02::/16
+
 	# Allow TCP through if setup succeeded
 	${fw6cmd} add pass tcp from any to any established
 
@@ -140,6 +144,10 @@ case ${ipv6_firewall_type} in
 	# Allow NTP queries out in the world
 	${fw6cmd} add pass udp from any 123 to ${ip}
 	${fw6cmd} add pass udp from ${ip} to any 123
+
+	# Allow ICMPv6 destination unreach and packet too big
+	${fw6cmd} add pass ipv6-icmp from any to ${ip} icmptypes 1,2
+	${fw6cmd} add pass ipv6-icmp from ${ip} to any icmptypes 1,2
 
 	# Everything else is denied by default, unless the
 	# IPV6FIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
@@ -207,8 +215,8 @@ case ${ipv6_firewall_type} in
 	${fw6cmd} add deny all from 2002:c0a8::/32 to any via ${oif}
 	${fw6cmd} add deny all from any to 2002:c0a8::/32 via ${oif}
 
-	${fw6cmd} add deny all from ff05::/32 to any via ${oif}
-	${fw6cmd} add deny all from any to ff05::/32 via ${oif}
+	${fw6cmd} add deny all from ff05::/16 to any via ${oif}
+	${fw6cmd} add deny all from any to ff05::/16 via ${oif}
 
 	# Allow TCP through if setup succeeded
 	${fw6cmd} add pass tcp from any to any established
@@ -241,8 +249,26 @@ case ${ipv6_firewall_type} in
 	${fw6cmd} add pass udp from any 123 to ${oip}
 	${fw6cmd} add pass udp from ${oip} to any 123
 
-	# RIPng
+	# Allow RIPng
 	#${fw6cmd} add pass udp from fe80::/10 521 to ff02::9 521
+	#${fw6cmd} add pass udp from fe80::/10 521 to fe80::/10 521
+
+	# Allow ICMPv6 destination unreach and packet too big
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 1,2
+
+	# Allow NS/NA
+	${fw6cmd} add pass ipv6-icmp from ${inet}/${iprefixlen} to ff02::/16 \
+		icmptypes 135
+	${fw6cmd} add pass ipv6-icmp from ${iip} to ${inet}/${iprefixlen} \
+		icmptypes 135,136
+	${fw6cmd} add pass ipv6-icmp from ${inet}/${iprefixlen} to ${iip} \
+		icmptypes 135,136
+	${fw6cmd} add pass ipv6-icmp from ${onet}/${oprefixlen} to ff02::/16 \
+		icmptypes 135
+	${fw6cmd} add pass ipv6-icmp from ${oip} to ${onet}/${oprefixlen} \
+		icmptypes 135,136
+	${fw6cmd} add pass ipv6-icmp from ${onet}/${oprefixlen} to ${oip} \
+		icmptypes 135,136
 
 	# Everything else is denied by default, unless the
 	# IPV6FIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
