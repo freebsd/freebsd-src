@@ -187,7 +187,11 @@ them onto the tape with a command like:
         cd /freebsd/distdir
         tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 
-When you go to do the installation, you should make sure that you
+Make sure that the `floppies/' directory is one of the "dists" given
+above, since the installation will look for `floppies/root.flp' on
+the tape.
+
+When you go to do the installation, you should also make sure that you
 leave enough room in some temporary directory (which you'll be allowed
 to choose) to accommodate the FULL contents of the tape you've
 created.  Due to the non-random access nature of tapes, this method of
