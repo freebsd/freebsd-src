@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: exec.c,v 1.5 1994/10/29 10:01:32 phk Exp $
+ * $Id: exec.c,v 1.6 1994/11/08 14:04:16 jkh Exp $
  *
  */
 
@@ -24,6 +24,7 @@
 #include <sys/wait.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/reboot.h>
 
 #include "sysinstall.h"
 
@@ -73,8 +74,8 @@ exec(int magic, char *cmd, char *args, ...)
 	
 	while ((w = wait(&status)) != pid && w != -1)
 		;
-	if (w == 20 && magic == 3)	/* special case for bininst */
-		execl("/sbin/init", "/sbin/init", 0);
+	if ((status >> 8) == 20 && magic == 3)	/* special case for bininst */
+		reboot(RB_AUTOBOOT);
 	if (w == -1)
 		Fatal("Child process %s terminated abnormally\n", cmd);
 	return(status);

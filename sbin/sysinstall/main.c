@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.11 1994/11/06 04:05:45 phk Exp $
+ * $Id: main.c,v 1.12 1994/11/06 04:34:46 phk Exp $
  *
  */
 
@@ -40,16 +40,14 @@ extern int alloc_memory();
 int
 main(int argc, char **argv)
 {
-	int i;
-
 	/* Are we running as init? */
 	if (getpid() == 1) {
+		setsid();
 		close(0); open("/dev/console",O_RDWR);
 		close(1); dup(0);
 		close(2); dup(0);
 		printf("sysinstall running as init\n\r");
-		i = 1;
-		ioctl(0,TIOCSPGRP,&i);
+		ioctl(0,TIOCSCTTY,(char *)NULL);
 		setlogin("root");
 		debug_fd = open("/dev/ttyv1",O_WRONLY);
 	} else {
