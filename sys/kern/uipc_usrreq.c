@@ -404,7 +404,7 @@ uipc_sense(struct socket *so, struct stat *sb)
 	}
 	sb->st_dev = NOUDEV;
 	if (unp->unp_ino == 0)
-		unp->unp_ino = unp_ino++;
+		unp->unp_ino = (++unp_ino == 0) ? ++unp_ino : unp_ino;
 	sb->st_ino = unp->unp_ino;
 	return (0);
 }
