@@ -22,13 +22,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crt1.c,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
+ *      $Id: crt1.c,v 1.2 1998/09/07 23:31:59 jdp Exp $
  */
 
 #ifndef __GNUC__
 #error "GCC is needed to compile this file"
 #endif
 
+#include <stddef.h>
 #include <stdlib.h>
 
 typedef void (*fptr)(void);
@@ -72,10 +73,15 @@ _start(char *arguments, ...)
     argc = * (int *) (argv - 1);
     env = argv + argc + 1;
     environ = env;
-    if(argc > 0)
+    if(argc > 0 && argv[0] != NULL) {
+	char *s;
 	__progname = argv[0];
+	for (s = __progname; *s != '\0'; s++)
+	    if (*s == '/')
+		__progname = s + 1;
+    }
 
-    if(&_DYNAMIC != 0)
+    if(&_DYNAMIC != NULL)
 	atexit(rtld_cleanup);
 
 #ifdef GCRT
