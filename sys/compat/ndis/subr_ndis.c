@@ -177,6 +177,7 @@ __stdcall static void ndis_alloc_packet(ndis_status *,
 	ndis_packet **, ndis_handle);
 __stdcall static void ndis_release_packet(ndis_packet *);
 __stdcall static void ndis_unchain_headbuf(ndis_packet *, ndis_buffer **);
+__stdcall static void ndis_unchain_tailbuf(ndis_packet *, ndis_buffer **);
 __stdcall static void ndis_alloc_bufpool(ndis_status *,
 	ndis_handle *, uint32_t);
 __stdcall static void ndis_free_bufpool(ndis_handle);
@@ -231,6 +232,10 @@ __stdcall static ndis_status ndis_remove_miniport(ndis_handle *);
 __stdcall static void ndis_termwrap(ndis_handle, void *);
 __stdcall static void ndis_get_devprop(ndis_handle, void *, void *,
 	void *, cm_resource_list *, cm_resource_list *);
+__stdcall static void ndis_firstbuf(ndis_packet *, ndis_buffer **,
+	void **, uint32_t *, uint32_t *);
+__stdcall static void ndis_firstbuf_safe(ndis_packet *, ndis_buffer **,
+	void **, uint32_t *, uint32_t *, uint32_t);
 __stdcall static void dummy(void);
 
 
@@ -1501,6 +1506,36 @@ ndis_unchain_headbuf(packet, buf)
 	return;
 }
 
+__stdcall static void
+ndis_unchain_tailbuf(packet, buf)
+	ndis_packet		*packet;
+	ndis_buffer		**buf;
+{
+	ndis_packet_private	*priv;
+	ndis_buffer		*tmp;
+
+	if (packet == NULL || buf == NULL)
+		return;
+
+	priv = &packet->np_private;
+
+	priv->npp_validcounts = FALSE;
+
+	if (priv->npp_head == priv->npp_tail) {
+		*buf = priv->npp_head;
+		priv->npp_head = priv->npp_tail = NULL;
+	} else {
+		*buf = priv->npp_tail;
+		tmp = priv->npp_head;
+		while (tmp->nb_next != priv->npp_tail)
+			tmp = tmp->nb_next;
+		priv->npp_tail = tmp;
+		tmp->nb_next = NULL;
+	}
+
+	return;
+}
+
 /*
  * The NDIS "buffer" manipulation functions are somewhat misnamed.
  * They don't really allocate buffers: they allocate buffer mappings.
@@ -2094,6 +2129,43 @@ __stdcall static void ndis_get_devprop(adapter, phydevobj,
 }
 
 __stdcall static void
+ndis_firstbuf(packet, buf, firstva, firstlen, totlen)
+	ndis_packet		*packet;
+	ndis_buffer		**buf;
+	void			**firstva;
+	uint32_t		*firstlen;
+	uint32_t		*totlen;
+{
+	ndis_buffer		*tmp;
+
+	tmp = packet->np_private.npp_head;
+	*buf = tmp;
+	if (tmp == NULL) {
+		*firstva = NULL;
+		*firstlen = *totlen = 0;
+	} else {
+		*firstva = tmp->nb_startva;
+		*firstlen = *totlen = tmp->nb_bytecount;
+		for (tmp = tmp->nb_next; tmp != NULL; tmp = tmp->nb_next)
+			*totlen += tmp->nb_bytecount;
+	}
+
+	return;
+}
+
+__stdcall static void
+ndis_firstbuf_safe(packet, buf, firstva, firstlen, totlen, prio)
+	ndis_packet		*packet;
+	ndis_buffer		**buf;
+	void			**firstva;
+	uint32_t		*firstlen;
+	uint32_t		*totlen;
+	uint32_t		prio;
+{
+	ndis_firstbuf(packet, buf, firstva, firstlen, totlen);
+}
+
+__stdcall static void
 dummy()
 {
 	printf ("NDIS dummy called...\n");
@@ -2101,6 +2173,9 @@ dummy()
 }
 
 image_patch_table ndis_functbl[] = {
+	{ "NdisUnchainBufferAtBack",	(FUNC)ndis_unchain_tailbuf, },
+	{ "NdisGetFirstBufferFromPacket", (FUNC)ndis_firstbuf },
+	{ "NdisGetFirstBufferFromPacketSafe", (FUNC)ndis_firstbuf_safe },
 	{ "NdisGetBufferPhysicalArraySize", (FUNC)ndis_buf_physpages },
 	{ "NdisMGetDeviceProperty",	(FUNC)ndis_get_devprop },
 	{ "NdisInitAnsiString",		(FUNC)ndis_init_ansi_string },
