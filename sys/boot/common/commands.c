@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: commands.c,v 1.4 1998/10/07 02:38:26 msmith Exp $
+ *	$Id: commands.c,v 1.5 1998/10/09 07:09:22 msmith Exp $
  */
 
 #include <stand.h>
@@ -59,10 +59,10 @@ command_commandlist(int argc, char *argv[])
     int				i;
     
     printf("Available commands:\n");
-    cmdp = (struct bootblk_command **)Xcommand_set.ls_items;
-    for (i = 0; i < Xcommand_set.ls_length; i++)
-	if ((cmdp[i]->c_name != NULL) && (cmdp[i]->c_desc != NULL))
-	    printf("  %-15s  %s\n", cmdp[i]->c_name, cmdp[i]->c_desc);
+    SET_FOREACH(cmdp, Xcommand_set) {
+	if (((*cmdp)->c_name != NULL) && ((*cmdp)->c_desc != NULL))
+	    printf("  %-15s  %s\n", (*cmdp)->c_name, (*cmdp)->c_desc);
+    }
     return(CMD_OK);
 }
 

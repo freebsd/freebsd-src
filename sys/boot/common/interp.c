@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.5 1998/10/07 02:38:26 msmith Exp $
+ *	$Id: interp.c,v 1.6 1998/10/09 07:09:22 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -58,10 +58,10 @@ perform(int argc, char *argv[])
     cmd = NULL;
     result = CMD_ERROR;
 
-    cmdp = (struct bootblk_command **)Xcommand_set.ls_items;
-    for (i = 0; i < Xcommand_set.ls_length; i++) {
-	if ((cmdp[i]->c_name != NULL) && !strcmp(argv[0], cmdp[i]->c_name))
-	    cmd = cmdp[i]->c_fn;
+    /* search the command set for the command */
+    SET_FOREACH(cmdp, Xcommand_set) {
+	if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
+	    cmd = (*cmdp)->c_fn;
     }
     if (cmd != NULL) {
 	result = (cmd)(argc, argv);

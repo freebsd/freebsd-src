@@ -23,10 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.12 1998/10/09 07:09:22 msmith Exp $
+ *	$Id: bootstrap.h,v 1.13 1998/10/09 23:11:05 peter Exp $
  */
 
 #include <sys/types.h>
+#include <sys/queue.h>
 
 /* XXX debugging */
 extern struct console vidconsole;
@@ -94,33 +95,36 @@ extern void		cons_probe(void);
 /*
  * Plug-and-play enumerator/configurator interface.
  */
-struct pnpident
-{
-    char		*id_ident;	/* ASCII identifier, actual format varies with bus/handler */
-    struct pnpident	*id_next;	/* the next identifier */
-};
-
-struct pnphandler;
-struct pnpinfo
-{
-    struct pnpident	*pi_ident;	/* list of identifiers */
-    int			pi_revision;	/* optional revision (or -1) if not supported */
-    char		*pi_module;	/* module/args nominated to handle device */
-    int			pi_argc;	/* module arguments */
-    char		**pi_argv;
-    struct pnphandler	*pi_handler;	/* handler which detected this device */
-    struct pnpinfo	*pi_next;
-};
-
 struct pnphandler 
 {
-    char	*pp_name;				/* handler/bus name */
-    void	(* pp_enumerate)(struct pnpinfo **);    /* add detected devices to chain */
+    char	*pp_name;		/* handler/bus name */
+    void	(* pp_enumerate)(void);	/* enumerate PnP devices, add to chain */
+};
+
+struct pnpident
+{
+    char			*id_ident;	/* ASCII identifier, actual format varies with bus/handler */
+    STAILQ_ENTRY(pnpident)	id_link;
+};
+
+struct pnpinfo
+{
+    char			*pi_desc;	/* ASCII description, optional */
+    int				pi_revision;	/* optional revision (or -1) if not supported */
+    char			*pi_module;	/* module/args nominated to handle device */
+    int				pi_argc;	/* module arguments */
+    char			**pi_argv;
+    struct pnphandler		*pi_handler;	/* handler which detected this device */
+    STAILQ_HEAD(,pnpident)	pi_ident;	/* list of identifiers */
+    STAILQ_ENTRY(pnpinfo)	pi_link;
 };
 
 extern struct pnphandler	*pnphandlers[];		/* provided by MD code */
 
 extern void			pnp_addident(struct pnpinfo *pi, char *ident);
+extern struct pnpinfo		*pnp_allocinfo(void);
+extern void			pnp_freeinfo(struct pnpinfo *pi);
+extern void			pnp_addinfo(struct pnpinfo *pi);
 
 /*
  * Module metadata header.
@@ -180,6 +184,7 @@ extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
 
 extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 
+#ifndef NEW_LINKER_SET
 #if defined(__ELF__)
 
 /*
@@ -231,6 +236,50 @@ struct linker_set {
     int             ls_length;
     const void      *ls_items[1];	/* really ls_length of them, trailing NULL */
 };
+
+/* XXX just for conversion's sake, until we move to the new linker set code */
+
+#define SET_FOREACH(pvar, set)				\
+	    for (pvar = set.ls_items;			\
+		 pvar < set.ls_items + set.ls_length;	\
+		 pvar++)
+
+#else /* NEW_LINKER_SET */
+
+/*
+ * Private macros, not to be used outside this header file.
+ */
+#define __MAKE_SET(set, sym)						\
+	static void *__CONCAT(__setentry,__LINE__)			\
+	__attribute__((__section__("set_" #set),__unused__)) = &sym
+#define __SET_BEGIN(set)						\
+	({ extern void *__CONCAT(__start_set_,set);			\
+	    &__CONCAT(__start_set_,set); })
+#define __SET_END(set)							\
+	({ extern void *__CONCAT(__stop_set_,set);			\
+	    &__CONCAT(__stop_set_,set); })
+
+/*
+ * Public macros.
+ */
+
+/* Add an entry to a set. */
+#define TEXT_SET(set, sym) __MAKE_SET(set, sym)
+#define DATA_SET(set, sym) __MAKE_SET(set, sym)
+#define BSS_SET(set, sym)  __MAKE_SET(set, sym)
+#define ABS_SET(set, sym)  __MAKE_SET(set, sym)
+
+/*
+ * Iterate over all the elements of a set.
+ *
+ * Sets always contain addresses of things, and "pvar" points to words
+ * containing those addresses.  Thus is must be declared as "type **pvar",
+ * and the address of each set item is obtained inside the loop by "*pvar".
+ */
+#define SET_FOREACH(pvar, set)						\
+	for (pvar = (__typeof__(pvar))__SET_BEGIN(set);			\
+	    pvar < (__typeof__(pvar))__SET_END(set); pvar++)
+#endif
 
 /*
  * Support for commands 
