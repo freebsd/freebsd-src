@@ -263,14 +263,14 @@ trap(a0, a1, a2, entry, framep)
 	u_int sticks;
 	int user;
 #ifdef SMP
-	critical_t s;
+	register_t s;
 #endif
 
 	/*
 	 * Find our per-cpu globals.
 	 */
 #ifdef SMP
-	s = cpu_critical_enter();
+	s = intr_disable();
 #endif
 	pcpup = (struct pcpu *) alpha_pal_rdval();
 	td = curthread;
@@ -280,7 +280,7 @@ trap(a0, a1, a2, entry, framep)
 		cpu_halt();
 	}
 	td->td_md.md_kernnest++;
-	cpu_critical_exit(s);
+	intr_restore(s);
 #endif
 	p = td->td_proc;
 
@@ -666,20 +666,20 @@ syscall(code, framep)
 	u_int64_t args[10];					/* XXX */
 	u_int hidden = 0, nargs;
 #ifdef SMP
-	critical_t s;
+	register_t s;
 #endif
 
 	/*
 	 * Find our per-cpu globals.
 	 */
 #ifdef SMP
-	s = cpu_critical_enter();
+	s = intr_disable();
 #endif
 	pcpup = (struct pcpu *) alpha_pal_rdval();
 	td = curthread;
 #ifdef SMP
 	td->td_md.md_kernnest++;
-	cpu_critical_exit(s);
+	intr_restore(s);
 #endif
 	p = td->td_proc;
 

@@ -155,7 +155,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 	db_regs_t *regs;
 {
 	int ddb_mode = !(boothowto & RB_GDB);
-	critical_t s;
+	register_t s;
 
 	/*
 	 * Don't bother checking for usermode, since a benign entry
@@ -192,7 +192,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 
 	ddb_regs = *regs;
 
-	s = cpu_critical_enter();
+	s = intr_disable();
 
 #ifdef SMP
 #ifdef DIAGNOSTIC
@@ -219,7 +219,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 	restart_cpus(stopped_cpus);
 #endif
 
-	cpu_critical_exit(s);
+	intr_restore(s);
 
 	*regs = ddb_regs;
 
