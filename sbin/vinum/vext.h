@@ -32,13 +32,16 @@
  * in contract, strict liability, or tort (including negligence or
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
- *
  */
 
-/* $FreeBSD$ */
+/*
+ * $Id: vext.h,v 1.17 2000/05/07 04:17:12 grog Exp grog $
+ * $FreeBSD$
+ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
-#define PLEXINITSIZE 61440				    /* this is what the system does somewhere */
+#define PLEXINITSIZE 65536				    /* init in this size chunks */
+#define MAXPLEXINITSIZE 65536				    /* max chunk size to use for init */
 #define MAXDATETEXT 128					    /* date text in history (far too much) */
 
 enum {
@@ -49,12 +52,14 @@ enum {
 
 #define VINUMMOD "vinum"
 
-#define DEFAULT_HISTORYFILE "/var/tmp/vinum_history"	    /* default name for history stuff */
+#define DEFAULT_HISTORYFILE "/var/log/vinum_history"	    /* default name for history stuff */
 
 /* Prototype declarations */
 void parseline(int c, char *args[]);			    /* parse a line with c parameters at args */
 void checkentry(int index);
 int haveargs(int);					    /* check arg, error message if not valid */
+void setsigs();
+void catchsig(int ignore);
 void vinum_create(int argc, char *argv[], char *arg0[]);
 void vinum_read(int argc, char *argv[], char *arg0[]);
 void vinum_modify(int argc, char *argv[], char *arg0[]);
@@ -66,6 +71,7 @@ void vinum_list(int argc, char *argv[], char *arg0[]);
 void vinum_info(int argc, char *argv[], char *arg0[]);
 void vinum_set(int argc, char *argv[], char *arg0[]);
 void vinum_rm(int argc, char *argv[], char *arg0[]);
+void vinum_mv(int argc, char *argv[], char *arg0[]);
 void vinum_init(int argc, char *argv[], char *arg0[]);
 void initvol(int volno);
 void initplex(int plexno, char *name);
@@ -93,10 +99,13 @@ void vinum_replace(int argc, char *argv[], char *argv0[]);
 void vinum_printconfig(int argc, char *argv[], char *argv0[]);
 void printconfig(FILE * of, char *comment);
 void vinum_saveconfig(int argc, char *argv[], char *argv0[]);
+int checkupdates();
 void genvolname();
 struct drive *create_drive(char *devicename);
 void vinum_concat(int argc, char *argv[], char *argv0[]);
 void vinum_stripe(int argc, char *argv[], char *argv0[]);
+void vinum_raid4(int argc, char *argv[], char *argv0[]);
+void vinum_raid5(int argc, char *argv[], char *argv0[]);
 void vinum_mirror(int argc, char *argv[], char *argv0[]);
 void vinum_label(int argc, char *argv[], char *arg0[]);
 void vinum_ld(int argc, char *argv[], char *arg0[]);
@@ -106,6 +115,7 @@ void vinum_lv(int argc, char *argv[], char *arg0[]);
 void vinum_setstate(int argc, char *argv[], char *argv0[]);
 void vinum_checkparity(int argc, char *argv[], char *argv0[]);
 void vinum_rebuildparity(int argc, char *argv[], char *argv0[]);
+void parityops(int argc, char *argv[], enum parityop op);
 void start_daemon(void);
 #ifdef VINUMDEBUG
 void vinum_debug(int argc, char *argv[], char *arg0[]);
@@ -116,6 +126,9 @@ void make_vol_dev(int, int);
 void make_plex_dev(int, int);
 void make_sd_dev(int);
 void list_defective_objects();
+void vinum_dumpconfig(int argc, char *argv[], char *argv0[]);
+void dumpconfig(char *part);
+int check_drive(char *devicename);
 void get_drive_info(struct drive *drive, int index);
 void get_sd_info(struct sd *sd, int index);
 void get_plex_sd_info(struct sd *sd, int plexno, int sdno);
@@ -123,22 +136,24 @@ void get_plex_info(struct plex *plex, int index);
 void get_volume_info(struct volume *volume, int index);
 struct drive *find_drive_by_devname(char *name);
 int find_object(const char *name, enum objecttype *type);
-char *lltoa(long long l, char *s);
+char *lltoa(int64_t l, char *s);
 void vinum_ldi(int, int);
 void vinum_lvi(int, int);
 void vinum_lpi(int, int);
 void vinum_lsi(int, int);
 int vinum_li(int object, enum objecttype type);
-char *roughlength(long long bytes, int);
+char *roughlength(int64_t bytes, int);
 u_int64_t sizespec(char *spec);
 
 void timestamp();
 
 extern int force;					    /* set to 1 to force some dangerous ops */
-extern int verbose;					    /* set verbose operation */
+extern int interval;					    /* interval in ms between init/revive */
+extern int vflag;					    /* set verbose operation or verify */
 extern int Verbose;					    /* very verbose operation */
 extern int recurse;					    /* set recursion */
 extern int sflag;					    /* show statistics */
+extern int SSize;					    /* sector size for revive */
 extern int dowait;					    /* wait for children to exit */
 extern char *objectname;				    /* name for some functions */
 

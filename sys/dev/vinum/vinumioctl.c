@@ -41,12 +41,12 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumioctl.c,v 1.12 2000/02/29 02:20:31 grog Exp grog $
  * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
-#include <sys/sysproto.h>				    /* for sync(2) */
 
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
@@ -56,11 +56,12 @@ void attachobject(struct vinum_ioctl_msg *);
 void detachobject(struct vinum_ioctl_msg *);
 void renameobject(struct vinum_rename_msg *);
 void replaceobject(struct vinum_ioctl_msg *);
+void moveobject(struct vinum_ioctl_msg *);
 
 jmp_buf command_fail;					    /* return on a failed command */
 
 /* ioctl routine */
-int 
+int
 vinumioctl(dev_t dev,
     u_long cmd,
     caddr_t data,
@@ -301,6 +302,15 @@ vinumioctl(dev_t dev,
 	    *(int *) data = daemon_options;
 	    return 0;
 
+	case VINUM_PARITYOP:				    /* check/rebuild RAID-4/5 parity */
+	    parityops((struct vinum_ioctl_msg *) data);
+	    return 0;
+
+	    /* move an object */
+	case VINUM_MOVE:
+	    moveobject((struct vinum_ioctl_msg *) data);
+	    return 0;
+
 	default:
 	    /* FALLTHROUGH */
 	}
@@ -321,9 +331,6 @@ vinumioctl(dev_t dev,
 	sd = &SD[objno];
 
 	switch (cmd) {
-	case VINUM_INITSD:				    /* initialize subdisk */
-	    return initsd(objno);
-
 	case DIOCGDINFO:				    /* get disk label */
 	    get_volume_label(sd->name, 1, sd->sectors, (struct disklabel *) data);
 	    break;
@@ -352,7 +359,7 @@ vinumioctl(dev_t dev,
 	switch (cmd) {
 	case DIOCGDINFO:				    /* get disk label */
 	    get_volume_label(plex->name, 1, plex->length, (struct disklabel *) data);
-	break;
+	    break;
 
 	    /*
 	     * We don't have this stuff on hardware,
@@ -471,7 +478,7 @@ validvol(int volno, struct _ioctl_reply *reply)
 }
 
 /* reset an object's stats */
-void 
+void
 resetstats(struct vinum_ioctl_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -550,7 +557,7 @@ resetstats(struct vinum_ioctl_msg *msg)
 }
 
 /* attach an object to a superior object */
-void 
+void
 attachobject(struct vinum_ioctl_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -580,7 +587,7 @@ attachobject(struct vinum_ioctl_msg *msg)
 	     * number of subdisks, we have a lot of reshuffling
 	     * to do. XXX
 	     */
-	    if ((plex->organization != plex_concat)	    /* can't attach to striped and raid-5 */
+	    if ((plex->organization != plex_concat)	    /* can't attach to striped and RAID-4/5 */
 	    &&(!msg->force)) {				    /* without using force */
 		reply->error = EINVAL;			    /* no message, the user should check */
 		strcpy(reply->msg, "Can't attach to this plex organization");
@@ -596,7 +603,6 @@ attachobject(struct vinum_ioctl_msg *msg)
 	    give_sd_to_plex(plex->plexno, sd->sdno);	    /* and give it to the plex */
 	    update_sd_config(sd->sdno, 0);
 	    save_config();
-	    reply->error = 0;
 	}
 	if (sd->state == sd_reviving)
 	    reply->error = EAGAIN;			    /* need to revive it */
@@ -631,7 +637,7 @@ attachobject(struct vinum_ioctl_msg *msg)
 }
 
 /* detach an object from a superior object */
-void 
+void
 detachobject(struct vinum_ioctl_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -690,8 +696,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 		sd->name[MAXSDNAME - 1] = '\0';
 	    }
 	    update_plex_config(plex->plexno, 0);
-	    if ((plex->organization == plex_striped)	    /* we've just mutilated our plex, */
-	    ||(plex->organization == plex_raid5))	    /* the data no longer matches */
+	    if (isstriped(plex))			    /* we've just mutilated our plex, */
 		set_plex_state(plex->plexno,
 		    plex_down,
 		    setstate_force | setstate_configuring);
@@ -759,7 +764,7 @@ detachobject(struct vinum_ioctl_msg *msg)
     }
 }
 
-void 
+void
 renameobject(struct vinum_rename_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -840,7 +845,7 @@ renameobject(struct vinum_rename_msg *msg)
  * message->index is the drive number of the old drive
  * message->otherobject is the drive number of the new drive
  */
-void 
+void
 replaceobject(struct vinum_ioctl_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -848,6 +853,44 @@ replaceobject(struct vinum_ioctl_msg *msg)
     reply->error = ENODEV;				    /* until I know how to do this */
     strcpy(reply->msg, "replace not implemented yet");
 /*      save_config (); */
+}
+
+void
+moveobject(struct vinum_ioctl_msg *msg)
+{
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
+    struct drive *drive;
+    struct sd *sd;
+
+    /* Check that our objects are valid (i.e. they exist) */
+    drive = validdrive(msg->index, (struct _ioctl_reply *) msg);
+    if (drive == NULL)
+	return;
+    sd = validsd(msg->otherobject, (struct _ioctl_reply *) msg);
+    if (sd == NULL)
+	return;
+    if (sd->driveno == msg->index)			    /* sd already belongs to drive */
+	return;
+
+    if (sd->state > sd_stale)
+	set_sd_state(sd->sdno, sd_stale, setstate_force);   /* make the subdisk stale */
+    else
+	sd->state = sd_empty;
+    if (sd->plexno >= 0)				    /* part of a plex, */
+	update_plex_state(sd->plexno);			    /* update its state */
+
+    /* Return the space on the old drive */
+    if ((sd->driveno >= 0)				    /* we have a drive, */
+    &&(sd->sectors > 0))				    /* and some space on it */
+	return_drive_space(sd->driveno,			    /* return the space */
+	    sd->driveoffset,
+	    sd->sectors);
+
+    /* Reassign the old subdisk */
+    sd->driveno = msg->index;
+    sd->driveoffset = -1;				    /* let the drive decide where to put us */
+    give_sd_to_drive(sd->sdno);
+    reply->error = 0;
 }
 
 /* Local Variables: */

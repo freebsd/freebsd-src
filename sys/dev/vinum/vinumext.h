@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -33,6 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumext.h,v 1.24 2000/04/02 03:21:34 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -43,6 +44,10 @@ extern struct _vinum_conf vinum_conf;			    /* configuration information */
 #ifdef VINUMDEBUG
 extern int debug;					    /* debug flags */
 #endif
+
+/* Physical read and write drive */
+#define read_drive(a, b, c, d) driveio (a, b, c, d, B_READ)
+#define write_drive(a, b, c, d) driveio (a, b, c, d, B_WRITE)
 
 #define CHECKALLOC(ptr, msg) \
   if (ptr == NULL) \
@@ -59,6 +64,7 @@ struct proc;
 int vinum_inactive(int);
 void free_vinum(int);
 int give_sd_to_plex(int plexno, int sdno);
+void give_sd_to_drive(int sdno);
 int give_plex_to_volume(int volno, int plexno);
 struct drive *check_drive(char *);
 enum drive_label_info read_drive_label(struct drive *, int);
@@ -100,7 +106,7 @@ void write_config(char *, int);
 int start_config(int);
 void finish_config(int);
 void remove(struct vinum_ioctl_msg *msg);
-void remove_drive_entry(int driveno, int force, int recurse);
+void remove_drive_entry(int driveno, int force);
 void remove_sd_entry(int sdno, int force, int recurse);
 void remove_plex_entry(int plexno, int force, int recurse);
 void remove_volume_entry(int volno, int force, int recurse);
@@ -116,8 +122,6 @@ int init_drive(struct drive *, int);
 void throw_rude_remark(int, char *,...);
 
 /* XXX die die */
-int read_drive(struct drive *drive, void *buf, size_t length, off_t offset);
-int write_drive(struct drive *drive, void *buf, size_t length, off_t offset);
 void format_config(char *config, int len);
 void checkkernel(char *op);
 void free_drive(struct drive *drive);
@@ -187,12 +191,14 @@ void setstate(struct vinum_ioctl_msg *msg);
 void setstate_by_force(struct vinum_ioctl_msg *msg);
 void vinum_label(int);
 int vinum_writedisklabel(struct volume *, struct disklabel *);
-int initsd(int);
+int initsd(int, int);
+struct buf *parityrebuild(struct plex *, u_int64_t, int, enum parityop, struct rangelock **, off_t *);
 enum requeststatus sddownstate(struct request *rq);
 
 int restart_plex(int plexno);
 int revive_read(struct sd *sd);
 int revive_block(int sdno);
+void parityops(struct vinum_ioctl_msg *);
 
 /* Auxiliary functions */
 enum sdstates sdstatemap(struct plex *plex);
@@ -239,3 +245,7 @@ int vinum_finddaemon(void);
 int vinum_setdaemonopts(int);
 extern struct daemonq *daemonq;				    /* daemon's work queue */
 extern struct daemonq *dqend;				    /* and the end of the queue */
+
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */

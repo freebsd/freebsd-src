@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -33,12 +33,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumparser.c,v 1.20 2000/04/22 05:32:50 grog Exp grog $
  * $FreeBSD$
  */
 
 /*
  * This file contains the parser for the configuration routines.  It's used
- * both in the kernel and in the user interface program, thus the separate file. 
+ * both in the kernel and in the user interface program, thus the separate file.
  */
 
 /*
@@ -53,7 +54,7 @@
  * grey space.
  *
  * Error conditions are end of line before end of quote, or no space after
- * a closing quote.  In this case, tokenize() returns -1. 
+ * a closing quote.  In this case, tokenize() returns -1.
  */
 
 #include <sys/param.h>
@@ -71,8 +72,6 @@
 #include <sys/disklabel.h>
 #include <sys/mount.h>
 #include <sys/conf.h>
-#include <sys/device.h>
-#include <sys/buf.h>
 
 #include <dev/vinum/vinumvar.h>
 #include <dev/vinum/vinumkw.h>
@@ -80,9 +79,10 @@
 #include <dev/vinum/vinumext.h>
 
 #ifdef KERNEL
-#define isspace(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
+#define iswhite(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
 #else /* get it from the headers */
 #include <ctype.h>
+#define iswhite isspace					    /* use the ctype macro */
 #endif
 
 /* enum keyword is defined in vinumvar.h */
@@ -94,6 +94,7 @@
 /* Normal keywords.  These are all the words that vinum knows. */
 struct _keywords keywords[] =
 {keypair(drive),
+    keypair(partition),
     keypair(sd),
     keypair(subdisk),
     keypair(plex),
@@ -108,6 +109,7 @@ struct _keywords keywords[] =
     keypair(raw),
     keypair(device),
     keypair(concat),
+    keypair(raid4),
     keypair(raid5),
     keypair(striped),
     keypair(plexoffset),
@@ -123,9 +125,9 @@ struct _keywords keywords[] =
 #ifndef KERNEL						    /* for vinum(8) only */
 #ifdef VINUMDEBUG
     keypair(debug),
+#endif
     keypair(stripe),
     keypair(mirror),
-#endif
 #endif
     keypair(attach),
     keypair(detach),
@@ -144,6 +146,8 @@ struct _keywords keywords[] =
     keypair(info),
     keypair(set),
     keypair(rm),
+    keypair(mv),
+    keypair(move),
     keypair(init),
     keypair(label),
     keypair(resetconfig),
@@ -160,7 +164,8 @@ struct _keywords keywords[] =
     keypair(resetstats),
     keypair(setstate),
     keypair(checkparity),
-    keypair(rebuildparity)
+    keypair(rebuildparity),
+    keypair(dumpconfig)
 };
 struct keywordset keyword_set = KEYWORDSET(keywords);
 
@@ -177,7 +182,14 @@ struct keywordset flag_set = KEYWORDSET(flag_keywords);
 
 #endif
 
-int 
+/*
+ * Take a blank separated list of tokens and turn it into a list of
+ * individual nul-delimited strings.  Build a list of pointers at
+ * token, which must have enough space for the tokens.  Return the
+ * number of tokens, or -1 on error (typically a missing string
+ * delimiter).
+ */
+int
 tokenize(char *cptr, char *token[])
 {
     char delim;						    /* delimiter for searching for the partner */
@@ -185,7 +197,7 @@ tokenize(char *cptr, char *token[])
     tokennr = 0;					    /* none found yet */
 
     for (;;) {
-	while (isspace(*cptr))
+	while (iswhite(*cptr))
 	    cptr++;					    /* skip initial white space */
 	if ((*cptr == '\0') || (*cptr == '\n') || (*cptr == '#')) /* end of line */
 	    return tokennr;				    /* return number of tokens found */
@@ -198,14 +210,14 @@ tokenize(char *cptr, char *token[])
 		cptr++;
 		if ((*cptr == delim) && (cptr[-1] != '\\')) { /* found the partner */
 		    cptr++;				    /* move on past */
-		    if (!isspace(*cptr))		    /* error, no space after closing quote */
+		    if (!iswhite(*cptr))		    /* error, no space after closing quote */
 			return -1;
 		    *cptr++ = '\0';			    /* delimit */
 		} else if ((*cptr == '\0') || (*cptr == '\n')) /* end of line */
 		    return -1;
 	    }
 	} else {					    /* not quoted */
-	    while ((*cptr != '\0') && (!isspace(*cptr)) && (*cptr != '\n'))
+	    while ((*cptr != '\0') && (!iswhite(*cptr)) && (*cptr != '\n'))
 		cptr++;
 	    if (*cptr != '\0')				    /* not end of the line, */
 		*cptr++ = '\0';				    /* delimit and move to the next */
@@ -214,7 +226,7 @@ tokenize(char *cptr, char *token[])
 }
 
 /* Find a keyword and return an index */
-enum keyword 
+enum keyword
 get_keyword(char *name, struct keywordset *keywordset)
 {
     int i;

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1997, 1998, 1999
- *	Nan Yang Computer Services Limited.  All rights reserved.
+ *  Nan Yang Computer Services Limited.  All rights reserved.
  *
  *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
  *
@@ -37,6 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumrequest.c,v 1.26 1999/12/30 07:38:33 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -82,6 +83,7 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
     case loginfo_user_bpl:
     case loginfo_sdio:					    /* subdisk I/O */
     case loginfo_sdiol:					    /* subdisk I/O launch */
+    case loginfo_sdiodone:				    /* subdisk I/O complete */
 	bcopy(info.bp, &rqip->info.b, sizeof(struct buf));
 	rqip->devmajor = major(info.bp->b_dev);
 	rqip->devminor = minor(info.bp->b_dev);
@@ -147,7 +149,7 @@ vinumstrategy(struct buf *bp)
 	    return;
 	}
 	if (vinum_bounds_check(bp, vol) <= 0) {		    /* don't like them bounds */
-	    biodone(bp);				    /* have nothing to do with this */
+	    biodone(bp);
 	    return;
 	}
 	/* FALLTHROUGH */
@@ -234,8 +236,6 @@ vinumstart(struct buf *bp, int reviveok)
 	 * effects, however.
 	 */
 	if (vol != NULL) {
-	    vol->reads++;
-	    vol->bytes_read += bp->b_bcount;
 	    plexno = vol->preferred_plex;		    /* get the plex to use */
 	    if (plexno < 0) {				    /* round robin */
 		plexno = vol->last_plex_read;
@@ -265,16 +265,13 @@ vinumstart(struct buf *bp, int reviveok)
 	return launch_requests(rq, reviveok);		    /* now start the requests if we can */
     } else
 	/*
-	 * This is a write operation.  We write to all
-	 * plexes.  If this is a RAID 5 plex, we must also
-	 * update the parity stripe.
+	 * This is a write operation.  We write to all plexes.  If this is
+	 * a RAID-4 or RAID-5 plex, we must also update the parity stripe.
 	 */
     {
-	if (vol != NULL) {
-	    vol->writes++;
-	    vol->bytes_written += bp->b_bcount;
+	if (vol != NULL)
 	    status = build_write_request(rq);		    /* Not all the subdisks are up */
-	} else {					    /* plex I/O */
+	else {						    /* plex I/O */
 	    daddr_t diskstart;
 
 	    diskstart = bp->b_blkno;			    /* start offset of transfer */
@@ -308,7 +305,8 @@ launch_requests(struct request *rq, int reviveok)
     struct rqgroup *rqg;
     int rqno;						    /* loop index */
     struct rqelement *rqe;				    /* current element */
-    int s;
+    struct drive *drive;
+    int rcount;						    /* request count */
 
     /*
      * First find out whether we're reviving, and the
@@ -316,6 +314,7 @@ launch_requests(struct request *rq, int reviveok)
      * the request off plex->waitlist of the first
      * plex we find which is reviving
      */
+
     if ((rq->flags & XFR_REVIVECONFLICT)		    /* possible revive conflict */
     &&(!reviveok)) {					    /* and we don't want to do it now, */
 	struct sd *sd;
@@ -333,9 +332,9 @@ launch_requests(struct request *rq, int reviveok)
 #if VINUMDEBUG
 	if (debug & DEBUG_REVIVECONFLICT)
 	    log(LOG_DEBUG,
-		"Revive conflict sd %d: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
+		"Revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
 		rq->sdno,
-		(u_int) rq,
+		rq,
 		rq->bp->b_flags & B_READ ? "Read" : "Write",
 		major(rq->bp->b_dev),
 		minor(rq->bp->b_dev),
@@ -345,39 +344,79 @@ launch_requests(struct request *rq, int reviveok)
 	return 0;					    /* and get out of here */
     }
     rq->active = 0;					    /* nothing yet */
-    /* XXX This is probably due to a bug */
-    if (rq->rqg == NULL) {				    /* no request */
-	log(LOG_ERR, "vinum: null rqg\n");
-	abortrequest(rq, EINVAL);
-	return -1;
-    }
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "Request: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
-	    (u_int) rq,
+	    "Request: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
+	    rq,
 	    rq->bp->b_flags & B_READ ? "Read" : "Write",
 	    major(rq->bp->b_dev),
 	    minor(rq->bp->b_dev),
 	    rq->bp->b_blkno,
 	    rq->bp->b_bcount);
-    vinum_conf.lastrq = (int) rq;
+    vinum_conf.lastrq = rq;
     vinum_conf.lastbuf = rq->bp;
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_user_bpl, (union rqinfou) rq->bp, rq->bp);
 #endif
-    s = splbio();
+
+    /*
+     * We used to have an splbio() here anyway, out
+     * of superstition.  With the division of labour
+     * below (first count the requests, then issue
+     * them), it looks as if we don't need this
+     * splbio() protection.  In fact, as dillon
+     * points out, there's a race condition
+     * incrementing and decrementing rq->active and
+     * rqg->active.  This splbio() didn't help
+     * there, because the device strategy routine
+     * can sleep.  Solve this by putting shorter
+     * duration locks on the code.
+     */
+    /*
+     * This loop happens without any participation
+     * of the bottom half, so it requires no
+     * protection.
+     */
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	rqg->active = rqg->count;			    /* they're all active */
 	for (rqno = 0; rqno < rqg->count; rqno++) {
 	    rqe = &rqg->rqe[rqno];
 	    if (rqe->flags & XFR_BAD_SUBDISK)		    /* this subdisk is bad, */
 		rqg->active--;				    /* one less active request */
-	    else {					    /* we can do it */
-		if ((rqe->b.b_flags & B_READ) == 0)
-		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
-		rqe->b.b_flags |= B_ORDERED;		    /* stick to the request order */
-#if VINUMDEBUG
+	}
+	if (rqg->active)				    /* we have at least one active request, */
+	    rq->active++;				    /* one more active request group */
+    }
+
+    /*
+     * Now fire off the requests.  In this loop the
+     * bottom half could be completing requests
+     * before we finish, so we need splbio() protection.
+     */
+    for (rqg = rq->rqg; rqg != NULL;) {			    /* through the whole request chain */
+	if (rqg->lockbase >= 0)				    /* this rqg needs a lock first */
+	    rqg->lock = lockrange(rqg->lockbase, rqg->rq->bp, &PLEX[rqg->plexno]);
+	rcount = rqg->count;
+	for (rqno = 0; rqno < rcount;) {
+	    rqe = &rqg->rqe[rqno];
+
+	    /*
+	     * Point to next rqg before the bottom end
+	     * changes the structures.
+	     */
+	    if (++rqno >= rcount)
+		rqg = rqg->next;
+	    if ((rqe->flags & XFR_BAD_SUBDISK) == 0) {	    /* this subdisk is good, */
+		drive = &DRIVE[rqe->driveno];		    /* look at drive */
+		drive->active++;
+		if (drive->active >= drive->maxactive)
+		    drive->maxactive = drive->active;
+		vinum_conf.active++;
+		if (vinum_conf.active >= vinum_conf.maxactive)
+		    vinum_conf.maxactive = vinum_conf.active;
+
+#ifdef VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
 		    log(LOG_DEBUG,
 			"  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
@@ -388,11 +427,6 @@ launch_requests(struct request *rq, int reviveok)
 			(u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
 			rqe->b.b_blkno,
 			rqe->b.b_bcount);
-		if (debug & DEBUG_NUMOUTPUT)
-		    log(LOG_DEBUG,
-			"  vinumstart sd %d numoutput %ld\n",
-			rqe->sdno,
-			rqe->b.b_vp->v_numoutput);
 		if (debug & DEBUG_LASTREQS)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
@@ -400,10 +434,7 @@ launch_requests(struct request *rq, int reviveok)
 		(*bdevsw[major(rqe->b.b_dev)]->d_strategy) (&rqe->b);
 	    }
 	}
-	if (rqg->active)				    /* we have at least one active request, */
-	    rq->active++;				    /* one more active request group */
     }
-    splx(s);
     return 0;
 }
 
@@ -460,8 +491,8 @@ bre(struct request *rq,
 	    if (*diskaddr < (sd->plexoffset + sd->sectors)) { /* the request starts in this subdisk */
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
-		    bp->b_flags |= B_ERROR;
 		    bp->b_error = ENOMEM;
+		    bp->b_flags |= B_ERROR;
 		    biodone(bp);
 		    return REQUEST_ENOMEM;
 		}
@@ -499,8 +530,8 @@ bre(struct request *rq,
 		*diskaddr += rqe->datalen;		    /* bump the address */
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
-		    bp->b_flags |= B_ERROR;
 		    bp->b_error = ENOMEM;
+		    bp->b_flags |= B_ERROR;
 		    biodone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
@@ -544,8 +575,8 @@ bre(struct request *rq,
 		sd = &SD[plex->sdnos[sdno]];		    /* the subdisk in question */
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
-		    bp->b_flags |= B_ERROR;
 		    bp->b_error = ENOMEM;
+		    bp->b_flags |= B_ERROR;
 		    biodone(bp);
 		    return REQUEST_ENOMEM;
 		}
@@ -609,8 +640,8 @@ bre(struct request *rq,
 		}
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
-		    bp->b_flags |= B_ERROR;
 		    bp->b_error = ENOMEM;
+		    bp->b_flags |= B_ERROR;
 		    biodone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
@@ -626,9 +657,10 @@ bre(struct request *rq,
 	break;
 
 	/*
-	 * RAID5 is complicated enough to have
-	 * its own function
+	 * RAID-4 and RAID-5 are complicated enough to have their own
+	 * function.
 	 */
+    case plex_raid4:
     case plex_raid5:
 	status = bre5(rq, plexno, diskaddr, diskend);
 	break;
@@ -697,19 +729,19 @@ build_read_request(struct request *rq,			    /* request */
 	case REQUEST_DEGRADED:				    /* can't access the plex */
 	    plexmask = ((1 << vol->plexes) - 1)		    /* all plexes in the volume */
 	    &~(1 << plexindex);				    /* except for the one we were looking at */
-		for (plexno = 0; plexno < vol->plexes; plexno++) {
+	    for (plexno = 0; plexno < vol->plexes; plexno++) {
 		if (plexmask == 0)			    /* no plexes left to try */
 		    return REQUEST_DOWN;		    /* failed */
-		    diskaddr = startaddr;		    /* start at the beginning again */
+		diskaddr = startaddr;			    /* start at the beginning again */
 		if (plexmask & (1 << plexno)) {		    /* we haven't tried this plex yet */
-			bre(rq, vol->plex[plexno], &diskaddr, diskend);	/* try a request */
+		    bre(rq, vol->plex[plexno], &diskaddr, diskend); /* try a request */
 		    if (diskaddr > startaddr) {		    /* we satisfied another part */
-			    recovered = 1;		    /* we recovered from the problem */
-			    status = REQUEST_OK;	    /* don't complain about it */
-			    break;
-			}
+			recovered = 1;			    /* we recovered from the problem */
+			status = REQUEST_OK;		    /* don't complain about it */
+			break;
 		    }
 		}
+	    }
 	    if (diskaddr == startaddr)			    /* didn't get any further, */
 		return status;
 	}
@@ -769,10 +801,10 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     ubp = rqe->rqg->rq->bp;				    /* pointer to user buffer header */
 
     /* Initialize the buf struct */
-    bp->b_flags = ubp->b_flags & (B_NOCACHE | B_READ | B_ASYNC); /* copy these flags from user bp */
+    /* copy these flags from user bp */
+    bp->b_flags = ubp->b_flags & (B_ORDERED | B_NOCACHE | B_READ | B_ASYNC);
     bp->b_flags |= B_CALL | B_BUSY;			    /* inform us when it's done */
-    bp->b_iodone = complete_rqe;			    /* by calling us here */
-
+    bp->b_iodone = complete_rqe;
     /*
      * You'd think that we wouldn't need to even
      * build the request buffer for a dead subdisk,
@@ -782,10 +814,8 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
      * obviously doesn't include drive information
      * when the drive is dead.
      */
-    if ((rqe->flags & XFR_BAD_SUBDISK) == 0) {		    /* subdisk is accessible, */
-        bp->b_dev = DRIVE[rqe->driveno].dev;		    /* drive device */
-	bp->b_vp = DRIVE[rqe->driveno].vp;		    /* drive vnode */
-    }
+    if ((rqe->flags & XFR_BAD_SUBDISK) == 0)		    /* subdisk is accessible, */
+	bp->b_dev = DRIVE[rqe->driveno].dev;		    /* drive device */
     bp->b_blkno = rqe->sdoffset + sd->driveoffset;	    /* start address */
     bp->b_bcount = rqe->buflen << DEV_BSHIFT;		    /* number of bytes to transfer */
     bp->b_resid = bp->b_bcount;				    /* and it's still all waiting */
@@ -830,9 +860,9 @@ abortrequest(struct request *rq, int error)
 {
     struct buf *bp = rq->bp;				    /* user buffer */
 
-    bp->b_flags |= B_ERROR;
     bp->b_error = error;
     freerq(rq);						    /* free everything we're doing */
+    bp->b_flags |= B_ERROR;
     biodone(bp);
     return error;					    /* and give up */
 }
@@ -859,26 +889,45 @@ sdio(struct buf *bp)
     daddr_t endoffset;
     struct drive *drive;
 
+#if VINUMDEBUG
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_sdio, (union rqinfou) bp, bp);
+#endif
     sd = &SD[Sdno(bp->b_dev)];				    /* point to the subdisk */
     drive = &DRIVE[sd->driveno];
 
-    if (sd->state < sd_empty) {				    /* nothing to talk to, */
-	bp->b_flags |= B_ERROR;
+    if (drive->state != drive_up) {
+	if (sd->state >= sd_crashed) {
+	    if ((bp->b_flags & B_READ) == 0)		    /* writing, */
+		set_sd_state(sd->sdno, sd_stale, setstate_force);
+	    else
+		set_sd_state(sd->sdno, sd_crashed, setstate_force);
+	}
 	bp->b_error = EIO;
-	if (bp->b_flags & B_BUSY)  
-	    biodone(bp);
+	bp->b_flags |= B_ERROR;
+	biodone(bp);
+	return;
+    }
+    /*
+     * We allow access to any kind of subdisk as long as we can expect
+     * to get the I/O performed.
+     */
+    if (sd->state < sd_empty) {				    /* nothing to talk to, */
+	bp->b_error = EIO;
+	bp->b_flags |= B_ERROR;
+	biodone(bp);
 	return;
     }
     /* Get a buffer */
     sbp = (struct sdbuf *) Malloc(sizeof(struct sdbuf));
     if (sbp == NULL) {
-	bp->b_flags |= B_ERROR;
 	bp->b_error = ENOMEM;
+	bp->b_flags |= B_ERROR;
 	biodone(bp);
 	return;
     }
     bzero(sbp, sizeof(struct sdbuf));			    /* start with nothing */
-    sbp->b.b_flags = bp->b_flags | B_CALL;		    /* inform us when it's done */
+    sbp->b.b_flags = bp->b_flags | B_CALL | B_BUSY;	    /* inform us when it's done */
     sbp->b.b_bufsize = bp->b_bufsize;			    /* buffer size */
     sbp->b.b_bcount = bp->b_bcount;			    /* number of bytes to transfer */
     sbp->b.b_resid = bp->b_resid;			    /* and amount waiting */
@@ -886,8 +935,6 @@ sdio(struct buf *bp)
     sbp->b.b_data = bp->b_data;				    /* data buffer */
     sbp->b.b_blkno = bp->b_blkno + sd->driveoffset;
     sbp->b.b_iodone = sdio_done;			    /* come here on completion */
-
-    sbp->b.b_vp = DRIVE[sd->driveno].vp;		    /* vnode */
     sbp->bp = bp;					    /* note the address of the original header */
     sbp->sdno = sd->sdno;				    /* note for statistics */
     sbp->driveno = sd->driveno;
@@ -901,8 +948,6 @@ sdio(struct buf *bp)
 	    return;
 	}
     }
-    if ((sbp->b.b_flags & B_READ) == 0)			    /* write */
-	sbp->b.b_vp->v_numoutput++;			    /* one more output going */
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
@@ -914,18 +959,11 @@ sdio(struct buf *bp)
 	    (u_int) (sbp->b.b_blkno - SD[sbp->sdno].driveoffset),
 	    (int) sbp->b.b_blkno,
 	    sbp->b.b_bcount);
-    if (debug & DEBUG_NUMOUTPUT)
-	log(LOG_DEBUG,
-	    "  vinumstart sd %d numoutput %ld\n",
-	    sbp->sdno,
-	    sbp->b.b_vp->v_numoutput);
 #endif
     s = splbio();
 #if VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_sdiol,
-	    (union rqinfou) (struct buf *) sbp,
-	    (struct buf *) sbp);
+	logrq(loginfo_sdiol, (union rqinfou) &sbp->b, &sbp->b);
 #endif
     (*bdevsw[major(sbp->b.b_dev)]->d_strategy) (&sbp->b);
     splx(s);
@@ -959,9 +997,9 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	&& bp->b_blkno + size > LABELSECTOR		    /* and finishes after */
 #endif
 	&& (!(vol->flags & VF_RAW))			    /* and it's not raw */
-	&&major(bp->b_dev) == BDEV_MAJOR		    /* and it's the block device */
-	&& (bp->b_flags & B_READ) == 0			    /* and it's a write */
-	&& (!vol->flags & (VF_WLABEL | VF_LABELLING))) {    /* and we're not allowed to write the label */
+	&&major(bp->b_dev) == VINUM_BDEV_MAJOR		    /* and it's the block device */
+	&& ((bp->b_flags & B_READ) == 0)		    /* and it's a write */
+	&&(!vol->flags & (VF_WLABEL | VF_LABELLING))) {	    /* and we're not allowed to write the label */
 	bp->b_error = EROFS;				    /* read-only */
 	bp->b_flags |= B_ERROR;
 	return -1;
@@ -1011,6 +1049,7 @@ allocrqg(struct request *rq, int elements)
 	rqg->rq = rq;					    /* point back to the parent request */
 	rqg->count = elements;				    /* number of requests in the group */
     }
+    rqg->lockbase = -1;					    /* no lock required yet */
     return rqg;
 }
 
@@ -1056,3 +1095,7 @@ vinumwrite(dev_t dev, struct uio *uio, int ioflag)
 {
     return (physio(vinumstrategy, NULL, dev, 0, minphys, uio));
 }
+
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */

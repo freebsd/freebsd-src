@@ -20,7 +20,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *	This product includes software developed by Nan Yang Computer
- *      Services Limited.
+ *	Services Limited.
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -37,6 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumvar.h,v 1.24 2000/03/01 02:34:57 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -49,13 +50,14 @@
  * These aren't as bad as they look: most of them are soft limits.
  */
 
+#define VINUMROOT
 enum constants {
     VINUM_HEADER = 512,					    /* size of header on disk */
     MAXCONFIGLINE = 1024,				    /* maximum size of a single config line */
     MINVINUMSLICE = 1048576,				    /* minimum size of a slice */
 
-    CDEV_MAJOR = 91,					    /* major number for character device */
-    BDEV_MAJOR = 25,					    /* and block device */
+    VINUM_CDEV_MAJOR = 91,				    /* major number for character device */
+    VINUM_BDEV_MAJOR = 25,				    /* and legacy major number for block device */
 
     ROUND_ROBIN_READPOL = -1,				    /* round robin read policy */
 
@@ -79,7 +81,7 @@ enum constants {
 
 /*
    * Shifts for the second half of raw plex and
-   * subdisk numbers 
+   * subdisk numbers
  */
     VINUM_RAWPLEX_SHIFT = 8,				    /* shift the second half this much */
     VINUM_RAWPLEX_WIDTH = 12,				    /* width of second half */
@@ -95,59 +97,63 @@ enum constants {
     MAXNAME = 64,					    /* maximum length of any name */
 
 
-/*
- * Define a minor device number.
- * This is not used directly; instead, it's
- * called by the other macros.
- */
+    /*
+     * Define a minor device number.
+     * This is not used directly; instead, it's
+     * called by the other macros.
+     */
 #define VINUMMINOR(v,p,s,t)  ( (v << VINUM_VOL_SHIFT)		\
-			     | (p << VINUM_PLEX_SHIFT)		\
-			     | (s << VINUM_SD_SHIFT) 		\
-			     | (t << VINUM_TYPE_SHIFT) )
+			      | (p << VINUM_PLEX_SHIFT)		\
+			      | (s << VINUM_SD_SHIFT)		\
+			      | (t << VINUM_TYPE_SHIFT) )
 
-/* Create block and character device minor numbers */
-#define VINUMBDEV(v,p,s,t)  makedev (BDEV_MAJOR, VINUMMINOR (v, p, s, t))
-#define VINUMCDEV(v,p,s,t)  makedev (CDEV_MAJOR, VINUMMINOR (v, p, s, t))
+    /* Create device minor numbers */
+#define VINUMDEV(v,p,s,t)  makedev (VINUM_CDEV_MAJOR, VINUMMINOR (v, p, s, t))
 
-#define VINUM_BLOCK_PLEX(p)	makedev (BDEV_MAJOR,				\
-					 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
-					 | (p & 0xff)				\
-					 | ((p & ~0xff) << 8) )
+#define VINUM_PLEX(p)	makedev (VINUM_CDEV_MAJOR,				\
+				 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
+				 | (p & 0xff)				\
+				 | ((p & ~0xff) << 8) )
 
-#define VINUM_CHAR_PLEX(p)	makedev (CDEV_MAJOR,				\
-					 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
-					 | (p & 0xff)				\
-					 | ((p & ~0xff) << 8) )
+#define VINUM_SD(s)	makedev (VINUM_CDEV_MAJOR,				\
+				 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
+				 | (s & 0xff)				\
+				 | ((s & ~0xff) << 8) )
 
-#define VINUM_BLOCK_SD(s)	makedev (BDEV_MAJOR,				\
-					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
-					 | (s & 0xff)				\
-					 | ((s & ~0xff) << 8) )
+    /* Create a bit mask for x bits */
+#define MASK(x)	 ((1 << (x)) - 1)
 
-#define VINUM_CHAR_SD(s)	makedev (CDEV_MAJOR,				\
-					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
-					 | (s & 0xff)				\
-					 | ((s & ~0xff) << 8) )
-
-/* Create a bit mask for x bits */
-#define MASK(x)  ((1 << (x)) - 1)
-
-/* Create a raw block device minor number */
+    /* Create a raw block device minor number */
 #define VINUMRMINOR(d,t) ( ((d & MASK (VINUM_VOL_WIDTH)) << VINUM_VOL_SHIFT)	\
-			     | ((d & ~MASK (VINUM_VOL_WIDTH))				\
-				<< (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH)) 		\
-			     | (t << VINUM_TYPE_SHIFT) )
+			  | ((d & ~MASK (VINUM_VOL_WIDTH))			\
+			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH))		\
+			  | (t << VINUM_TYPE_SHIFT) )
 
-#define VINUMRBDEV(d,t)	makedev (BDEV_MAJOR, VINUMRMINOR (d, t))
+#define VINUMRBDEV(d,t)	makedev (VINUM_BDEV_MAJOR, VINUMRMINOR (d, t))
 
-/* extract device type */
+    /* Block device stuff */
+#define VINUMDEV(v,p,s,t)  makedev (VINUM_CDEV_MAJOR, VINUMMINOR (v, p, s, t))
+
+#define VINUM_BLOCK_PLEX(p)    makedev (VINUM_BDEV_MAJOR,                            \
+					(VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
+					| (p & 0xff)                           \
+					| ((p & ~0xff) << 8) )
+
+#define VINUM_BLOCK_SD(s)      makedev (VINUM_BDEV_MAJOR,                            \
+					(VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
+					| (s & 0xff)                           \
+					| ((s & ~0xff) << 8) )
+
+#define VINUMBDEV(v,p,s,t)  makedev (VINUM_BDEV_MAJOR, VINUMMINOR (v, p, s, t))
+
+    /* extract device type */
 #define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 7)
 
-/*
- * This mess is used to catch people who compile
- * a debug vinum(8) and non-debug kernel module,
- * or the other way round.
- */
+    /*
+     * This mess is used to catch people who compile
+     * a debug vinum(8) and non-debug kernel module,
+     * or the other way round.
+     */
 
 #ifdef VINUMDEBUG
 #define	VINUM_SUPERDEV VINUMMINOR (1, 0, 0, VINUM_SUPERDEV_TYPE) /* superdevice number */
@@ -175,8 +181,9 @@ enum constants {
     INITIAL_SUBDISKS_IN_DRIVE = 4,			    /* number of subdisks to allocate to a drive */
     INITIAL_DRIVE_FREELIST = 16,			    /* number of entries in drive freelist */
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
-    INITIAL_LOCKS = 64,					    /* number of locks to allocate to a plex */
-    DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* size of block to transfer in one op */
+    INITIAL_LOCKS = 256,				    /* number of locks to allocate to a plex */
+    MAX_REVIVE_BLOCKSIZE = MAXPHYS,			    /* maximum revive block size */
+    DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* default revive block size */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
 };
 
@@ -202,7 +209,7 @@ enum constants {
 struct devcode {
 /*
  * CARE.  These fields assume a big-endian word.  On a
- * little-endian system, they're the wrong way around 
+ * little-endian system, they're the wrong way around
  */
     unsigned volume:8;					    /* up to 256 volumes */
     unsigned major:8;					    /* this is where the major number fits */
@@ -217,7 +224,7 @@ struct devcode {
      VINUM_SUBDISK = 2,
      VINUM_DRIVE = 3,
      VINUM_SUPERDEV = 4,
-     VINUM_RAWPLEX = 5,                                       
+     VINUM_RAWPLEX = 5,
      VINUM_RAWSD = 6 */
     unsigned signbit:1;					    /* to make 32 bits */
 };
@@ -241,7 +248,7 @@ struct devcode {
 /*
  * Flags for all objects.  Most of them only apply to
  * specific objects, but we have space for all in any
- * 32 bit flags word. 
+ * 32 bit flags word.
  */
 enum objflags {
     VF_LOCKED = 1,					    /* somebody has locked access to this object */
@@ -289,8 +296,12 @@ struct _vinum_conf {
     int volumes_used;
 
     int flags;
+
+#define VINUM_MAXACTIVE  30000				    /* maximum number of active requests */
+    int active;						    /* current number of requests outstanding */
+    int maxactive;					    /* maximum number of requests ever outstanding */
 #if VINUMDEBUG
-    int lastrq;
+    struct request *lastrq;
     struct buf *lastbuf;
 #endif
 };
@@ -338,7 +349,7 @@ enum {
  * hostname is 256 bytes long, but we don't need to shlep
  * multiple copies in vinum.  We use the host name just
  * to identify this system, and 32 bytes should be ample
- * for that purpose 
+ * for that purpose
  */
 
 struct vinum_label {
@@ -354,7 +365,7 @@ struct vinum_label {
 };
 
 struct vinum_hdr {
-    long long magic;					    /* we're long on magic numbers */
+    uint64_t magic;					    /* we're long on magic numbers */
 #define VINUM_MAGIC    22322600044678729LL		    /* should be this */
 #define VINUM_NOMAGIC  22322600044678990LL		    /* becomes this after obliteration */
     /*
@@ -398,10 +409,8 @@ struct drive {
     u_int64_t writes;					    /* number of writes on this drive */
     u_int64_t bytes_read;				    /* number of bytes read */
     u_int64_t bytes_written;				    /* number of bytes written */
-    dev_t dev;						    /* and device number */
     char devicename[MAXDRIVENAME];			    /* name of the slice it's on */
-    struct vnode *vp;					    /* vnode pointer */
-    struct proc *p;
+    dev_t dev;						    /* device information */
     struct vinum_label label;				    /* and the label information */
     struct partinfo partinfo;				    /* partition information */
     int freelist_size;					    /* number of entries alloced in free list */
@@ -410,6 +419,9 @@ struct drive {
 	u_int64_t offset;				    /* offset of entry */
 	u_int64_t sectors;				    /* and length in sectors */
     } *freelist;
+#define DRIVE_MAXACTIVE  30000				    /* maximum number of active requests */
+    int active;						    /* current number of requests outstanding */
+    int maxactive;					    /* maximum number of requests ever outstanding */
 #ifdef VINUMDEBUG
     char lockfilename[16];				    /* name of file from which we were locked */
     int lockline;					    /* and the line number */
@@ -425,10 +437,11 @@ struct sd {
     /* offsets in blocks */
     int64_t driveoffset;				    /* offset on drive */
     /*
-     * plexoffset is the offset from the beginning of the
-     * plex to the very first part of the subdisk, in
-     * sectors.  For striped and RAID-5 plexes, only
-     * the first stripe is located at this offset 
+     * plexoffset is the offset from the beginning
+     * of the plex to the very first part of the
+     * subdisk, in sectors.  For striped, RAID-4 and
+     * RAID-5 plexes, only the first stripe is
+     * located at this offset
      */
     int64_t plexoffset;					    /* offset in plex */
     u_int64_t sectors;					    /* and length in sectors */
@@ -445,7 +458,12 @@ struct sd {
     u_int64_t revived;					    /* block number of current revive request */
     int revive_blocksize;				    /* revive block size (bytes) */
     int revive_interval;				    /* and time to wait between transfers */
+    pid_t reviver;					    /* PID of reviving process */
     struct request *waitlist;				    /* list of requests waiting on revive op */
+    /* init parameters */
+    u_int64_t initialized;				    /* block number of current init request */
+    int init_blocksize;					    /* init block size (bytes) */
+    int init_interval;					    /* and time to wait between transfers */
     char name[MAXSDNAME];				    /* name of subdisk */
 };
 
@@ -456,8 +474,13 @@ enum plexorg {
     plex_disorg,					    /* disorganized */
     plex_concat,					    /* concatenated plex */
     plex_striped,					    /* striped plex */
+    plex_raid4,						    /* RAID4 plex */
     plex_raid5						    /* RAID5 plex */
 };
+
+/* Recognize plex organizations */
+#define isstriped(p) (p->organization >= plex_striped)	    /* RAID 1, 4 or 5 */
+#define isparity(p) (p->organization >= plex_raid4)	    /* RAID 4 or 5 */
 
 struct plex {
     enum plexorg organization;				    /* Plex organization */
@@ -476,6 +499,7 @@ struct plex {
     int usedlocks;					    /* number currently in use */
     int lockwaits;					    /* and number of waits for locks */
     struct rangelock *lock;				    /* ranges of locked addresses */
+    off_t checkblock;					    /* block number for parity op */
     /* Statistics */
     u_int64_t reads;					    /* number of reads on this plex */
     u_int64_t writes;					    /* number of writes on this plex */
@@ -533,7 +557,7 @@ struct volume {
 /*
  * Table expansion.  Expand table, which contains oldcount
  * entries of type element, by increment entries, and change
- * oldcount accordingly 
+ * oldcount accordingly
  */
 #define EXPAND(table, element, oldcount, increment)         \
 {							    \
@@ -551,13 +575,14 @@ struct meminfo {
     struct mc *malloced;				    /* pointer to kernel table */
 };
 
+#define MCFILENAMELEN	16
 struct mc {
     struct timeval time;
     int seq;
     int size;
     short line;
     caddr_t address;
-    char file[16];
+    char file[MCFILENAMELEN];
 };
 
 /*
@@ -568,7 +593,7 @@ struct mc {
  * Bit 1: Other plexes in the volume are up
  * Bit 2: The current plex is up
  * Maybe they should be local to
- * state.c 
+ * state.c
  */
 enum volplexstate {
     volplex_onlyusdown = 0,				    /* 0: we're the only plex, and we're down */
@@ -599,12 +624,19 @@ enum sdstates {
  * This is really just a parameter to pass to
  * set_<foo>_state, but since it needs to be known
  * in the external definitions, we need to define
- * it here 
+ * it here
  */
 enum setstateflags {
     setstate_none = 0,					    /* no flags */
     setstate_force = 1,					    /* force the state change */
     setstate_configuring = 2,				    /* we're currently configuring, don't save */
+};
+
+/* Operations for parityops to perform. */
+enum parityop {
+    checkparity,
+    rebuildparity,
+    rebuildandcheckparity,				    /* rebuildparity with the -v option */
 };
 
 #ifdef VINUMDEBUG
@@ -623,7 +655,9 @@ enum debugflags {
 };
 
 #ifdef KERNEL
+#ifdef __i386__
 #define longjmp LongJmp					    /* test our longjmps */
+#endif
 #endif
 #endif
 /* Local Variables: */

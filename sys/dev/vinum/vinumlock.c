@@ -37,6 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumlock.c,v 1.13 2000/05/02 23:25:02 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -51,10 +52,10 @@
 
 /* Lock a drive, wait if it's in use */
 #if VINUMDEBUG
-int 
+int
 lockdrive(struct drive *drive, char *file, int line)
 #else
-int 
+int
 lockdrive(struct drive *drive)
 #endif
 {
@@ -87,7 +88,7 @@ lockdrive(struct drive *drive)
 	 * of conflicts is negligible.
 	 */
 	if ((error = tsleep(&lockdrive,
-		    PRIBIO | PCATCH,
+		    PRIBIO,
 		    "vindrv",
 		    0)) != 0)
 	    return error;
@@ -103,7 +104,7 @@ lockdrive(struct drive *drive)
 }
 
 /* Unlock a drive and let the next one at it */
-void 
+void
 unlockdrive(struct drive *drive)
 {
     drive->flags &= ~VF_LOCKED;
@@ -112,7 +113,7 @@ unlockdrive(struct drive *drive)
 }
 
 /* Lock a volume, wait if it's in use */
-int 
+int
 lockvol(struct volume *vol)
 {
     int error;
@@ -126,7 +127,7 @@ lockvol(struct volume *vol)
 	 * table expansion.  The address we choose won't change.
 	 */
 	if ((error = tsleep(&vinum_conf.volume + vol->volno,
-		    PRIBIO | PCATCH,
+		    PRIBIO,
 		    "volock",
 		    0)) != 0)
 	    return error;
@@ -136,7 +137,7 @@ lockvol(struct volume *vol)
 }
 
 /* Unlock a volume and let the next one at it */
-void 
+void
 unlockvol(struct volume *vol)
 {
     vol->flags &= ~VF_LOCKED;
@@ -147,7 +148,7 @@ unlockvol(struct volume *vol)
 }
 
 /* Lock a plex, wait if it's in use */
-int 
+int
 lockplex(struct plex *plex)
 {
     int error;
@@ -161,7 +162,7 @@ lockplex(struct plex *plex)
 	 * table expansion.  The address we choose won't change.
 	 */
 	if ((error = tsleep(&vinum_conf.plex + plex->sdnos[0],
-		    PRIBIO | PCATCH,
+		    PRIBIO,
 		    "plexlk",
 		    0)) != 0)
 	    return error;
@@ -171,7 +172,7 @@ lockplex(struct plex *plex)
 }
 
 /* Unlock a plex and let the next one at it */
-void 
+void
 unlockplex(struct plex *plex)
 {
     plex->flags &= ~VF_LOCKED;
@@ -236,26 +237,24 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 		 * conflict would be an additional
 		 * schedule and time through this loop.
 		 */
-		while (lock->stripe) {			    /* wait for it to become free */
 #ifdef VINUMDEBUG
-		    if (debug & DEBUG_LASTREQS) {
-			struct rangelock info;
+		if (debug & DEBUG_LASTREQS) {
+		    struct rangelock info;
 
-			info.stripe = stripe;
-			info.bp = bp;
-			info.plexno = plex->plexno;
-			logrq(loginfo_lockwait, (union rqinfou) &info, bp);
-		    }
-#endif
-		    tsleep((void *) lock->stripe, PRIBIO | PCATCH, "vrlock", 2 * hz);
-		    plex->lockwaits++;			    /* waited one more time */
+		    info.stripe = stripe;
+		    info.bp = bp;
+		    info.plexno = plex->plexno;
+		    logrq(loginfo_lockwait, (union rqinfou) &info, bp);
 		}
-		break;					    /* out of the inner level loop */
+#endif
+		plex->lockwaits++;			    /* waited one more time */
+		tsleep((void *) lock->stripe, PRIBIO, "vrlock", 2 * hz);
+		lock = plex->lock;			    /* start again */
+		foundlocks = 0;
+		pos = NULL;
 	    }
-	} else {
-	    if (pos == NULL)				    /* still looking for somewhere? */
-		pos = lock;				    /* a place to put this one */
-	}
+	} else if (pos == NULL)				    /* still looking for somewhere? */
+	    pos = lock;					    /* a place to put this one */
     }
 
     /*
@@ -270,7 +269,7 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 	    while (newlock < plex->alloclocks)
 		plex->lock[newlock++].stripe = 0;
 	} else
-	pos = lock;					    /* put it at the end */
+	    pos = lock;					    /* put it at the end */
     }
     pos->stripe = stripe;
     pos->bp = bp;
@@ -285,7 +284,7 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 }
 
 /* Unlock a volume and let the next one at it */
-void 
+void
 unlockrange(int plexno, struct rangelock *lock)
 {
     daddr_t lockaddr;
@@ -301,14 +300,14 @@ unlockrange(int plexno, struct rangelock *lock)
 }
 
 /* Get a lock for the global config, wait if it's not available */
-int 
+int
 lock_config(void)
 {
     int error;
 
     while ((vinum_conf.flags & VF_LOCKED) != 0) {
 	vinum_conf.flags |= VF_LOCKING;
-	if ((error = tsleep(&vinum_conf, PRIBIO | PCATCH, "vincfg", 0)) != 0)
+	if ((error = tsleep(&vinum_conf, PRIBIO, "vincfg", 0)) != 0)
 	    return error;
     }
     vinum_conf.flags |= VF_LOCKED;
@@ -316,7 +315,7 @@ lock_config(void)
 }
 
 /* Unlock and wake up any waiters  */
-void 
+void
 unlock_config(void)
 {
     vinum_conf.flags &= ~VF_LOCKED;

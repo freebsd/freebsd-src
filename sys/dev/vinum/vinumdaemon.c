@@ -21,7 +21,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -34,6 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumdaemon.c,v 1.10 2000/05/10 06:08:19 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -47,16 +48,26 @@
 /* declarations */
 void recover_io(struct request *rq);
 
-struct daemonq *daemonq;				    /* daemon's work queue */
-struct daemonq *dqend;					    /* and the end of the queue */
 int daemon_options = 0;					    /* options */
 int daemonpid;						    /* PID of daemon */
+struct daemonq *daemonq;				    /* daemon's work queue */
+struct daemonq *dqend;					    /* and the end of the queue */
 
-void 
+/*
+ * We normally call Malloc to get a queue element.  In interrupt
+ * context, we can't guarantee that we'll get one, since we're not
+ * allowed to wait.  If malloc fails, use one of these elements.
+ */
+
+#define INTQSIZE 4
+struct daemonq intq[INTQSIZE];				    /* queue elements for interrupt context */
+struct daemonq *intqp;					    /* and pointer in it */
+
+void
 vinum_daemon(void)
 {
-    struct daemonq *request;
     int s;
+    struct daemonq *request;
 
     curproc->p_flag |= P_INMEM | P_SYSTEM;		    /* we're a system process */
     daemon_save_config();				    /* start by saving the configuration */
@@ -72,7 +83,7 @@ vinum_daemon(void)
 	 */
 	if (curproc->p_pid != daemonpid) {		    /* we've been ousted in our sleep */
 	    if (daemon_options & daemon_verbose)
-		log(LOG_INFO, "vinumd: abdicating\n");
+		log(LOG_INFO, "vinum: abdicating\n");
 	    return;
 	}
 	while (daemonq != NULL) {			    /* we have work to do, */
@@ -86,15 +97,15 @@ vinum_daemon(void)
 	    switch (request->type) {
 		/*
 		 * We had an I/O error on a request.  Go through the
-		 * request and try to salvage it 
+		 * request and try to salvage it
 		 */
 	    case daemonrq_ioerror:
 		if (daemon_options & daemon_verbose) {
 		    struct request *rq = request->info.rq;
 
 		    log(LOG_WARNING,
-			"vinumd: recovering I/O request: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
-			(u_int) rq,
+			"vinum: recovering I/O request: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
+			rq,
 			rq->bp->b_flags & B_READ ? "Read" : "Write",
 			major(rq->bp->b_dev),
 			minor(rq->bp->b_dev),
@@ -107,7 +118,7 @@ vinum_daemon(void)
 		/*
 		 * Write the config to disk.  We could end up with
 		 * quite a few of these in a row.  Only honour the
-		 * last one 
+		 * last one
 		 */
 	    case daemonrq_saveconfig:
 		if ((daemonq == NULL)			    /* no more requests */
@@ -123,7 +134,7 @@ vinum_daemon(void)
 			   * the end.
 			 */
 			if (daemon_options & daemon_verbose)
-			    log(LOG_INFO, "vinumd: saving config\n");
+			    log(LOG_INFO, "vinum: saving config\n");
 			daemon_save_config();		    /* save it */
 		    }
 		}
@@ -131,7 +142,7 @@ vinum_daemon(void)
 
 	    case daemonrq_return:			    /* been told to stop */
 		if (daemon_options & daemon_verbose)
-		    log(LOG_INFO, "vinumd: stopping\n");
+		    log(LOG_INFO, "vinum: stopping\n");
 		daemon_options |= daemon_stopped;	    /* note that we've stopped */
 		Free(request);
 		while (daemonq != NULL) {		    /* backed up requests, */
@@ -144,7 +155,7 @@ vinum_daemon(void)
 
 	    case daemonrq_ping:				    /* tell the caller we're here */
 		if (daemon_options & daemon_verbose)
-		    log(LOG_INFO, "vinumd: ping reply\n");
+		    log(LOG_INFO, "vinum: ping reply\n");
 		wakeup(&vinum_finddaemon);		    /* wake up the caller */
 		break;
 
@@ -161,7 +172,10 @@ vinum_daemon(void)
 		log(LOG_WARNING, "Invalid request\n");
 		break;
 	    }
-	    Free(request);				    /* done with the request */
+	    if (request->privateinuse)			    /* one of ours, */
+		request->privateinuse = 0;		    /* no longer in use */
+	    else
+		Free(request);				    /* return it */
 	}
     }
 }
@@ -181,7 +195,7 @@ vinum_daemon(void)
  * taken.
  *
  */
-void 
+void
 recover_io(struct request *rq)
 {
     vinumstrategy(rq->bp);				    /* reissue the command */
@@ -190,12 +204,28 @@ recover_io(struct request *rq)
 /* Functions called to interface with the daemon */
 
 /* queue a request for the daemon */
-void 
+void
 queue_daemon_request(enum daemonrq type, union daemoninfo info)
 {
     int s;
 
     struct daemonq *qelt = (struct daemonq *) Malloc(sizeof(struct daemonq));
+
+    if (qelt == NULL) {					    /* malloc failed, we're prepared for that */
+	/*
+	 * Take one of our spares.  Give up if it's still in use; the only
+	 * message we're likely to get here is a 'drive failed' message,
+	 * and that'll come by again if we miss it.
+	 */
+	if (intqp->privateinuse)			    /* still in use? */
+	    return;					    /* yes, give up */
+	qelt = intqp++;
+	if (intqp == &intq[INTQSIZE])			    /* got to the end, */
+	    intqp = intq;				    /* wrap around */
+	qelt->privateinuse = 1;				    /* it's ours, and it's in use */
+    } else
+	qelt->privateinuse = 0;
+
     qelt->next = NULL;					    /* end of the chain */
     qelt->type = type;
     qelt->info = info;
@@ -213,9 +243,9 @@ queue_daemon_request(enum daemonrq type, union daemoninfo info)
 
 /*
  * see if the daemon is running.  Return 0 (no error)
- * if it is, ESRCH otherwise 
+ * if it is, ESRCH otherwise
  */
-int 
+int
 vinum_finddaemon()
 {
     int result;
@@ -231,7 +261,7 @@ vinum_finddaemon()
     return 0;
 }
 
-int 
+int
 vinum_setdaemonopts(int options)
 {
     daemon_options = options;

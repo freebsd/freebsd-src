@@ -45,6 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumconfig.c,v 1.30 2000/05/01 09:45:50 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -147,25 +148,6 @@ throw_rude_remark(int error, char *msg,...)
     longjmp(command_fail, error);
 }
 
-/* Function declarations */
-int atoi(char *);					    /* no atoi in the kernel */
-
-/* Minimal version of atoi */
-int
-atoi(char *s)
-{							    /* no atoi in the kernel */
-    int r = 0;
-    int sign = 1;
-
-    while (((*s >= '0') && (*s <= '9')) || (*s == '-')) {
-	if (*s == '-')
-	    sign = -sign;
-	else
-	    r = r * 10 + (*s - '0');
-    }
-    return r;
-}
-
 /*
  * Check a volume to see if the plex is already assigned to it.
  * Return index in volume->plex, or -1 if not assigned
@@ -260,7 +242,7 @@ give_sd_to_plex(int plexno, int sdno)
 
 	    if (plex->organization == plex_concat)	    /* concat, */
 		sd->plexoffset = lastsd->sectors + lastsd->plexoffset; /* starts here */
-	    else					    /* striped or RAID-5, */
+	    else					    /* striped, RAID-4 or RAID-5 */
 		sd->plexoffset = plex->stripesize * plex->subdisks; /* starts here */
 	} else						    /* first subdisk */
 	    sd->plexoffset = 0;				    /* start at the beginning */
@@ -276,7 +258,7 @@ give_sd_to_plex(int plexno, int sdno)
 	EXPAND(plex->sdnos, int, plex->subdisks_allocated, INITIAL_SUBDISKS_IN_PLEX);
 
     /* Adjust size of plex and volume. */
-    if (plex->organization == plex_raid5)
+    if (isparity(plex))					    /* RAID-4 or RAID-5 */
 	plex->length = (plex->subdisks - 1) * sd->sectors;  /* size is one disk short */
     else
 	plex->length += sd->sectors;			    /* plex gets this much bigger */
@@ -303,20 +285,22 @@ give_sd_to_plex(int plexno, int sdno)
     }
 
     /*
-     * The plex doesn't have any subdisk with a larger
-     * offset.  Insert it
+     * The plex doesn't have any subdisk with a
+     * larger offset.  Insert it here.
      */
     plex->sdnos[i] = sdno;
     sd->plexsdno = i;					    /* note where we are in the subdisk */
+    sd->plexno = plex->plexno;				    /* and who we belong to */
     return i;
 }
 
 /*
- * Add a subdisk to drive if possible.  The pointer to the drive
- * must already be stored in the sd structure, but the drive
- * doesn't know about the subdisk yet.
+ * Add a subdisk to drive if possible.  The
+ * pointer to the drive must already be stored in
+ * the sd structure, but the drive doesn't know
+ * about the subdisk yet.
  */
-static void
+void
 give_sd_to_drive(int sdno)
 {
     struct sd *sd;					    /* pointer to subdisk */
@@ -405,12 +389,14 @@ give_sd_to_drive(int sdno)
 	    u_int64_t dend = drive->freelist[fe].offset + drive->freelist[fe].sectors; /* end of entry */
 	    if (dend >= sdend) {			    /* fits before here */
 		if (drive->freelist[fe].offset > sd->driveoffset) { /* starts after the beginning of sd area */
-		    sd->driveoffset = -1;			    /* don't be confusing */
-		    free_sd(sd->sdno);
+		    sd->driveoffset = -1;		    /* don't be confusing */
+		    set_sd_state(sd->sdno, sd_down, setstate_force);
 		    throw_rude_remark(ENOSPC,
-			"No space for subdisk %s on drive %s at offset %lld",
+			"No space for %s on drive %s at offset %lld",
 			sd->name,
-			drive->label.name);
+			drive->label.name,
+			sd->driveoffset);
+		    return;
 		}
 		/*
 		 * We've found the space, and we can allocate it.
@@ -590,9 +576,9 @@ void
 free_drive(struct drive *drive)
 {
     if ((drive->state > drive_referenced)		    /* real drive */
-    ||(drive->vp)) {					    /* how can it be open without a state? */
+    ||(drive->flags & VF_OPEN)) {			    /* how can it be open without a state? */
 	LOCKDRIVE(drive);
-	if (drive->vp) {				    /* it's open, */
+	if (drive->flags & VF_OPEN) {			    /* it's open, */
 	    close_locked_drive(drive);			    /* close it */
 	    drive->state = drive_down;			    /* and note the fact */
 	}
@@ -727,7 +713,7 @@ return_drive_space(int driveno, int64_t offset, int length)
 }
 
 /*
- * Free an allocated sd entry
+ * Free an allocated sd entry.
  * This performs memory management only.  remove()
  * is responsible for checking relationships.
  */
@@ -746,6 +732,7 @@ free_sd(int sdno)
 	PLEX[sd->plexno].subdisks--;			    /* one less subdisk */
     bzero(sd, sizeof(struct sd));			    /* and clear it out */
     sd->state = sd_unallocated;
+    vinum_conf.subdisks_used--;				    /* one less sd */
 }
 
 /* Find an empty plex in the plex table */
@@ -830,6 +817,7 @@ get_empty_volume(void)
 {
     int volno;
     struct volume *vol;
+    int i;
 
     /* first see if we have one which has been deallocated */
     for (volno = 0; volno < vinum_conf.volumes_allocated; volno++) {
@@ -845,6 +833,8 @@ get_empty_volume(void)
     bzero(vol, sizeof(struct volume));
     vol->flags |= VF_NEWBORN | VF_CREATED;		    /* newly born volume */
     vol->preferred_plex = ROUND_ROBIN_READPOL;		    /* round robin */
+    for (i = 0; i < MAXPLEX; i++)			    /* mark the plexes missing */
+	vol->plex[i] = -1;
     return volno;					    /* return the index */
 }
 
@@ -905,6 +895,7 @@ config_drive(int update)
     int driveno;					    /* index of drive in vinum_conf */
     struct drive *drive;				    /* and pointer to it */
     int otherdriveno;					    /* index of possible second drive */
+    int sdno;
 
     if (tokens < 2)					    /* not enough tokens */
 	throw_rude_remark(EINVAL, "Drive has no name\n");
@@ -999,7 +990,7 @@ config_drive(int update)
 	case kw_state:
 	    parameter++;				    /* skip the keyword */
 	    if (vinum_conf.flags & VF_READING_CONFIG)
-	    drive->state = DriveState(token[parameter]);    /* set the state */
+		drive->state = DriveState(token[parameter]); /* set the state */
 	    break;
 
 	case kw_hotspare:				    /* this drive is a hot spare */
@@ -1020,6 +1011,20 @@ config_drive(int update)
 	throw_rude_remark(EINVAL, "No device name for %s", drive->label.name);
     }
     vinum_conf.drives_used++;				    /* passed all hurdles: one more in use */
+    /*
+     * If we're replacing a drive, it could be that
+     * we already have subdisks referencing this
+     * drive.  Note where they should be and change
+     * their state to obsolete.
+     */
+    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) {
+	if ((SD[sdno].state > sd_referenced)
+	    && (SD[sdno].driveno == driveno)) {
+	    give_sd_to_drive(sdno);
+	    if (SD[sdno].state > sd_stale)
+		SD[sdno].state = sd_stale;
+	}
+    }
 }
 
 /*
@@ -1040,6 +1045,7 @@ config_subdisk(int update)
     enum sdstate state = sd_unallocated;		    /* state to set, if specified */
     int autosize = 0;					    /* set if we autosize in give_sd_to_drive */
     int namedsdno;					    /* index of another with this name */
+    char partition = 0;					    /* partition of external subdisk */
 
     sdno = get_empty_sd();				    /* allocate an SD to initialize */
     sd = &SD[sdno];					    /* and get a pointer */
@@ -1092,7 +1098,10 @@ config_subdisk(int update)
 	    &&(vinum_conf.flags & VF_READING_CONFIG))	    /* reading from disk */
 		break;					    /* invalid sd; just ignore it */
 	    if ((size % DEV_BSIZE) != 0)
-		throw_rude_remark(EINVAL, "sd %s, bad plex offset alignment: %lld", sd->name, size);
+		throw_rude_remark(EINVAL,
+		    "sd %s, bad plex offset alignment: %lld",
+		    sd->name,
+		    (long long) size);
 	    else
 		sd->plexoffset = size / DEV_BSIZE;
 	    break;
@@ -1103,7 +1112,10 @@ config_subdisk(int update)
 	    &&(vinum_conf.flags & VF_READING_CONFIG))	    /* reading from disk */
 		break;					    /* invalid sd; just ignore it */
 	    if ((size % DEV_BSIZE) != 0)
-		throw_rude_remark(EINVAL, "sd %s, bad drive offset alignment: %lld", sd->name, size);
+		throw_rude_remark(EINVAL,
+		    "sd %s, bad drive offset alignment: %lld",
+		    sd->name,
+		    (long long) size);
 	    else
 		sd->driveoffset = size / DEV_BSIZE;
 	    break;
@@ -1144,11 +1156,25 @@ config_subdisk(int update)
 	case kw_state:
 	    parameter++;				    /* skip the keyword */
 	    if (vinum_conf.flags & VF_READING_CONFIG)
-	    state = SdState(token[parameter]);		    /* set the state */
+		state = SdState(token[parameter]);	    /* set the state */
 	    break;
 
+	case kw_partition:
+	    parameter++;				    /* skip the keyword */
+	    if ((strlen(token[parameter]) != 1)
+		|| (token[parameter][0] < 'a')
+		|| (token[parameter][0] > 'h'))
+		throw_rude_remark(EINVAL,
+		    "%s: invalid partition %c",
+		    sd->name,
+		    token[parameter][0]);
+	    else
+		partition = token[parameter][0];
+	    break;
+
+
 	default:
-	    throw_rude_remark(EINVAL, "sd %s, invalid keyword: %s", sd->name, token[parameter]);
+	    throw_rude_remark(EINVAL, "%s: invalid keyword: %s", sd->name, token[parameter]);
 	}
     }
 
@@ -1283,6 +1309,20 @@ config_plex(int update)
 		    break;
 		}
 
+	    case kw_raid4:
+		{
+		    int stripesize = sizespec(token[++parameter]);
+
+		    plex->organization = plex_raid4;
+		    if (stripesize % DEV_BSIZE != 0)	    /* not a multiple of block size, */
+			throw_rude_remark(EINVAL, "plex %s: stripe size %d not a multiple of sector size",
+			    plex->name,
+			    stripesize);
+		    else
+			plex->stripesize = stripesize / DEV_BSIZE;
+		    break;
+		}
+
 	    case kw_raid5:
 		{
 		    int stripesize = sizespec(token[++parameter]);
@@ -1300,8 +1340,7 @@ config_plex(int update)
 	    default:
 		throw_rude_remark(EINVAL, "Invalid plex organization");
 	    }
-	    if (((plex->organization == plex_striped)
-		    || (plex->organization == plex_raid5))
+	    if (isstriped(plex)
 		&& (plex->stripesize == 0))		    /* didn't specify a valid stripe size */
 		throw_rude_remark(EINVAL, "Need a stripe size parameter");
 	    break;
@@ -1323,7 +1362,7 @@ config_plex(int update)
 	case kw_state:
 	    parameter++;				    /* skip the keyword */
 	    if (vinum_conf.flags & VF_READING_CONFIG)
-	    state = PlexState(token[parameter]);	    /* set the state */
+		state = PlexState(token[parameter]);	    /* set the state */
 	    break;
 
 	default:
@@ -1441,7 +1480,7 @@ config_volume(int update)
 	case kw_state:
 	    parameter++;				    /* skip the keyword */
 	    if (vinum_conf.flags & VF_READING_CONFIG)
-	    vol->state = VolState(token[parameter]);	    /* set the state */
+		vol->state = VolState(token[parameter]);    /* set the state */
 	    break;
 
 	    /*
@@ -1467,7 +1506,6 @@ config_volume(int update)
 		token[parameter]);
 	}
     }
-
     current_volume = volno;				    /* note last referred volume */
     vol->volno = volno;					    /* also note in volume */
 
@@ -1573,7 +1611,7 @@ remove(struct vinum_ioctl_msg *msg)
 
     switch (message.type) {
     case drive_object:
-	remove_drive_entry(message.index, message.force, message.recurse);
+	remove_drive_entry(message.index, message.force);
 	updateconfig(0);
 	return;
 
@@ -1600,9 +1638,10 @@ remove(struct vinum_ioctl_msg *msg)
 
 /* Remove a drive.  */
 void
-remove_drive_entry(int driveno, int force, int recurse)
+remove_drive_entry(int driveno, int force)
 {
     struct drive *drive = &DRIVE[driveno];
+    int sdno;
 
     if ((driveno > vinum_conf.drives_allocated)		    /* not a valid drive */
     ||(drive->state == drive_unallocated)) {		    /* or nothing there */
@@ -1610,18 +1649,10 @@ remove_drive_entry(int driveno, int force, int recurse)
 	strcpy(ioctl_reply->msg, "No such drive");
     } else if (drive->opencount > 0) {			    /* we have subdisks */
 	if (force) {					    /* do it at any cost */
-	    int sdno;
-	    struct vinum_ioctl_msg sdmsg;
-
 	    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) {
 		if ((SD[sdno].state != sd_unallocated)	    /* subdisk is allocated */
-		&&(SD[sdno].driveno == driveno)) {	    /* and it belongs to this drive */
-		    sdmsg.index = sdno;
-		    sdmsg.type = sd_object;
-		    sdmsg.recurse = 1;
-		    sdmsg.force = force;
-		    remove(&sdmsg);			    /* remove the subdisk by force */
-		}
+		&&(SD[sdno].driveno == driveno))	    /* and it belongs to this drive */
+		    remove_sd_entry(sdno, force, 0);
 	    }
 	    remove_drive(driveno);			    /* now remove it */
 	    vinum_conf.drives_used--;			    /* one less drive */
@@ -1655,34 +1686,34 @@ remove_sd_entry(int sdno, int force, int recurse)
 		mysdno < plex->subdisks && &SD[plex->sdnos[mysdno]] != sd;
 		mysdno++);
 	    if (mysdno == plex->subdisks)		    /* didn't find it */
-		throw_rude_remark(ENOENT,
-		    "plex %s does not contain subdisk %s",
-		    plex->name,
-		    sd->name);
-	    if (mysdno < (plex->subdisks - 1))		    /* not the last subdisk */
-		bcopy(&plex->sdnos[mysdno + 1],
-		    &plex->sdnos[mysdno],
-		    (plex->subdisks - 1 - mysdno) * sizeof(int));
-	    plex->subdisks--;
-	    sd->plexno = -1;				    /* disown the subdisk */
+		log(LOG_ERR,
+		    "Error removing subdisk %s: not found in plex %s\n",
+		    SD[mysdno].name,
+		    plex->name);
+	    else {					    /* remove the subdisk from plex */
+		if (mysdno < (plex->subdisks - 1))	    /* not the last subdisk */
+		    bcopy(&plex->sdnos[mysdno + 1],
+			&plex->sdnos[mysdno],
+			(plex->subdisks - 1 - mysdno) * sizeof(int));
+		plex->subdisks--;
+		sd->plexno = -1;			    /* disown the subdisk */
+	    }
 
 	    /*
-	     * removing a subdisk from a striped or
-	     * RAID-5 plex really tears the hell out of
-	     * the structure, and it needs to be
-	     * reinitialized.
+	     * Removing a subdisk from a striped or
+	     * RAID-4 or RAID-5 plex really tears the
+	     * hell out of the structure, and it needs
+	     * to be reinitialized.
 	     */
 	    if (plex->organization != plex_concat)	    /* not concatenated, */
 		set_plex_state(plex->plexno, plex_faulty, setstate_force); /* need to reinitialize */
 	    log(LOG_INFO, "vinum: removing %s\n", sd->name);
 	    free_sd(sdno);
-	    vinum_conf.subdisks_used--;			    /* one less sd */
 	} else
 	    ioctl_reply->error = EBUSY;			    /* can't do that */
     } else {
 	log(LOG_INFO, "vinum: removing %s\n", sd->name);
 	free_sd(sdno);
-	vinum_conf.subdisks_used--;			    /* one less sd */
     }
 }
 
@@ -1704,12 +1735,12 @@ remove_plex_entry(int plexno, int force, int recurse)
     if (plex->subdisks) {
 	if (force) {					    /* do it anyway */
 	    if (recurse) {				    /* remove all below */
-		for (sdno = 0; sdno < plex->subdisks; sdno++) {
+		int sds = plex->subdisks;
+		for (sdno = 0; sdno < sds; sdno++)
 		    free_sd(plex->sdnos[sdno]);		    /* free all subdisks */
-		    vinum_conf.subdisks_used--;		    /* one less sd */
-		}
 	    } else {					    /* just tear them out */
-		for (sdno = 0; sdno < plex->subdisks; sdno++)
+		int sds = plex->subdisks;
+		for (sdno = 0; sdno < sds; sdno++)
 		    SD[plex->sdnos[sdno]].plexno = -1;	    /* no plex any more */
 	    }
 	} else {					    /* can't do it without force */
@@ -1718,14 +1749,6 @@ remove_plex_entry(int plexno, int force, int recurse)
 	}
     }
     if (plex->volno >= 0) {				    /* we are part of a volume */
-	/*
-	 * XXX This should be more intelligent.  We should
-	 * be able to remove a plex as long as the volume
-	 * does not lose any data, which is normally the
-	 * case when it has more than one plex.  To do it
-	 * right we must compare the completeness of the
-	 * mapping of all the plexes in the volume
-	 */
 	if (force) {					    /* do it at any cost */
 	    struct volume *vol = &VOL[plex->volno];
 	    int myplexno;
@@ -1733,20 +1756,15 @@ remove_plex_entry(int plexno, int force, int recurse)
 	    for (myplexno = 0; myplexno < vol->plexes; myplexno++)
 		if (vol->plex[myplexno] == plexno)	    /* found it */
 		    break;
-	    if (myplexno == vol->plexes) {		    /* didn't find it.  Huh? */
-		if (force)
-		    log(LOG_ERR,
-			"volume %s does not contain plex %s",
-			vol->name,
-			plex->name);
-		else
-		    throw_rude_remark(ENOENT,
-			"volume %s does not contain plex %s",
-			vol->name,
-			plex->name);
-	    }
+	    if (myplexno == vol->plexes)		    /* didn't find it.  Huh? */
+		log(LOG_ERR,
+		    "Error removing plex %s: not found in volume %s\n",
+		    plex->name,
+		    vol->name);
 	    if (myplexno < (vol->plexes - 1))		    /* not the last plex in the list */
-		bcopy(&vol->plex[myplexno + 1], &vol->plex[myplexno], vol->plexes - 1 - myplexno);
+		bcopy(&vol->plex[myplexno + 1],
+		    &vol->plex[myplexno],
+		    vol->plexes - 1 - myplexno);
 	    vol->plexes--;
 	} else {
 	    ioctl_reply->error = EBUSY;			    /* can't do that */
@@ -1773,15 +1791,11 @@ remove_volume_entry(int volno, int force, int recurse)
 	ioctl_reply->error = EBUSY;			    /* no getting around that */
     else if (vol->plexes) {
 	if (recurse && force) {				    /* remove all below */
-	    struct vinum_ioctl_msg plexmsg;
+	    int plexes = vol->plexes;
 
-	    plexmsg.type = plex_object;
-	    plexmsg.recurse = 1;
-	    plexmsg.force = force;
-	    for (plexno = vol->plexes; plexno > 0; plexno--) {
-		plexmsg.index = vol->plex[0];		    /* plex number */
-		remove(&plexmsg);
-	    }
+/*       for (plexno = plexes - 1; plexno >= 0; plexno--) */
+	    for (plexno = 0; plexno < plexes; plexno++)
+		remove_plex_entry(vol->plex[plexno], force, recurse);
 	    log(LOG_INFO, "vinum: removing %s\n", vol->name);
 	    free_volume(volno);
 	    vinum_conf.volumes_used--;			    /* one less volume */
@@ -1815,7 +1829,7 @@ update_plex_config(int plexno, int diskconfig)
     int required_sds;					    /* number of subdisks we need */
     struct sd *sd;
     struct volume *vol;
-    int data_sds;					    /* number of sds carrying data, for RAID-5 */
+    int data_sds;					    /* number of sds carrying data */
 
     if (plex->state < plex_init)			    /* not a real plex, */
 	return;
@@ -1840,20 +1854,19 @@ update_plex_config(int plexno, int diskconfig)
     }
     /*
      * Check that our subdisks make sense.  For
-     * striped and RAID5 plexes, we need at least
-     * two subdisks, and they must all be the same
-     * size
+     * striped, RAID-4 and RAID-5 plexes, we need at
+     * least two subdisks, and they must all be the
+     * same size.
      */
-
     if (plex->organization == plex_striped) {
 	data_sds = plex->subdisks;
 	required_sds = 2;
-    } else if (plex->organization == plex_raid5) {
+    } else if (isparity(plex)) {			    /* RAID 4 or 5 */
 	data_sds = plex->subdisks - 1;
 	required_sds = 3;
     } else
 	required_sds = 0;
-    if (required_sds > 0) {				    /* striped or RAID-5 */
+    if (required_sds > 0) {				    /* striped, RAID-4 or RAID-5 */
 	if (plex->subdisks < required_sds) {
 	    log(LOG_ERR,
 		"vinum: plex %s does not have at least %d subdisks\n",
@@ -1893,8 +1906,7 @@ update_plex_config(int plexno, int diskconfig)
     size = 0;
     for (sdno = 0; sdno < plex->subdisks; sdno++) {
 	sd = &SD[plex->sdnos[sdno]];
-	if (((plex->organization == plex_striped)
-		|| (plex->organization == plex_raid5))
+	if (isstriped(plex)
 	    && (sdno > 0)
 	    && (sd->sectors != SD[plex->sdnos[sdno - 1]].sectors)) {
 	    log(LOG_ERR, "vinum: %s must have equal sized subdisks\n", plex->name);
@@ -1910,23 +1922,20 @@ update_plex_config(int plexno, int diskconfig)
 	 * XXX We shouldn't need to calculate the size any
 	 * more.  Check this some time
 	 */
-	if (plex->organization == plex_raid5)
-	    size = size / plex->subdisks * (plex->subdisks - 1); /* less space for RAID-5 */
+	if (isparity(plex))
+	    size = size / plex->subdisks * (plex->subdisks - 1); /* less space for RAID-4 and RAID-5 */
 	if (plex->length != size)
 	    log(LOG_INFO,
 		"Correcting length of %s: was %lld, is %lld\n",
 		plex->name,
-		plex->length,
-		size);
+		(long long) plex->length,
+		(long long) size);
 	plex->length = size;
     } else {						    /* no subdisks, */
 	plex->length = 0;				    /* no size */
 	state = plex_down;				    /* take it down */
     }
-    if (diskconfig)
-	sdstatemap(plex);				    /* set the sddowncount */
-    else
-	set_plex_state(plexno, state, setstate_none | setstate_configuring); /* set all the state */
+    update_plex_state(plexno);				    /* set the state */
     plex->flags &= ~VF_NEWBORN;
 }
 
@@ -1995,7 +2004,7 @@ start_config(int force)
     current_drive = -1;					    /* note the last drive we mention, for
 							    * some defaults */
     current_plex = -1;					    /* and the same for the last plex */
-    current_volume = -1;				    /* and the last volme */
+    current_volume = -1;				    /* and the last volume */
     while ((vinum_conf.flags & VF_CONFIGURING) != 0) {
 	vinum_conf.flags |= VF_WILL_CONFIGURE;
 	if ((error = tsleep(&vinum_conf, PRIBIO | PCATCH, "vincfg", 0)) != 0)
@@ -2034,7 +2043,7 @@ finish_config(int update)
     vinum_conf.flags &= ~VF_CONFIGURING;		    /* and now other people can take a turn */
     if ((vinum_conf.flags & VF_WILL_CONFIGURE) != 0) {
 	vinum_conf.flags &= ~VF_WILL_CONFIGURE;
-	wakeup(&vinum_conf);
+	wakeup_one(&vinum_conf);
     }
 }
 /* Local Variables: */

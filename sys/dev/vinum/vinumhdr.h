@@ -35,7 +35,10 @@
  */
 
 /* Header files used by all modules */
-/* $FreeBSD$ */
+/*
+ * $Id: vinumhdr.h,v 1.16 1999/12/30 07:02:44 grog Exp grog $
+ * $FreeBSD$
+ */
 
 #include <sys/param.h>
 #ifdef KERNEL
@@ -43,10 +46,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #endif
-#ifdef DEVFS
-#error "DEVFS code not complete yet"
-#include <sys/devfsext.h>
-#endif /*DEVFS */
 #include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/dkstat.h>
@@ -59,11 +58,9 @@
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h>
 #include <sys/mount.h>
-#include <sys/device.h>
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
-#include <sys/dkbad.h>
 #include <sys/queue.h>
 #ifdef KERNEL
 #include <machine/setjmp.h>
@@ -77,6 +74,7 @@
 #include <dev/vinum/vinumio.h>
 #include <dev/vinum/vinumkw.h>
 #include <dev/vinum/vinumext.h>
+#include <machine/cpu.h>
 
 #undef Free						    /* defined in some funny net stuff */
 #ifdef KERNEL
@@ -87,7 +85,7 @@ caddr_t MMalloc (int size, char *, int);
 void FFree (void *mem, char *, int);
 #define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
 #else
-#define Malloc(x)  malloc((x), M_DEVBUF, M_WAITOK)
+#define Malloc(x)  malloc((x), M_DEVBUF, intr_nesting_level == 0)
 #define Free(x)    free((x), M_DEVBUF)
 #define LOCKDRIVE(d) lockdrive (d)
 #endif

@@ -22,7 +22,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -35,6 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinum.c,v 1.32 2000/05/10 07:54:29 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -44,6 +45,7 @@
 #include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 #include <sys/sysproto.h>				    /* for sync(2) */
+#include <sys/devicestat.h>
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
 int debug = 0;
@@ -80,7 +82,7 @@ void
 vinumattach(void *dummy)
 {
     /* modload should prevent multiple loads, so this is worth a panic */
-    if ((vinum_conf.flags & VF_LOADED) != NULL)
+    if ((vinum_conf.flags & VF_LOADED) != 0)
 	panic("vinum: already loaded");
 
     log(LOG_INFO, "vinum: loaded\n");
@@ -89,10 +91,7 @@ vinumattach(void *dummy)
     daemonq = NULL;					    /* initialize daemon's work queue */
     dqend = NULL;
 
-    cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &vinum_cdevsw);
-#ifdef DEVFS
-#error DEVFS not finished yet
-#endif
+    cdevsw_add_generic(VINUM_BDEV_MAJOR, VINUM_CDEV_MAJOR, &vinum_cdevsw);
 
     /* allocate space: drives... */
     DRIVE = (struct drive *) Malloc(sizeof(struct drive) * INITIAL_DRIVES);
@@ -130,7 +129,7 @@ vinumattach(void *dummy)
  *
  * Return 0 if not inactive, 1 if inactive.
  */
-int 
+int
 vinum_inactive(int confopen)
 {
     int i;
@@ -157,7 +156,7 @@ vinum_inactive(int confopen)
  *
  * Before coming here, ensure that no volumes are open.
  */
-void 
+void
 free_vinum(int cleardrive)
 {
     int i;
@@ -175,7 +174,7 @@ free_vinum(int cleardrive)
     }
     while ((vinum_conf.flags & (VF_STOPPING | VF_DAEMONOPEN))
 	== (VF_STOPPING | VF_DAEMONOPEN)) {		    /* at least one daemon open, we're stopping */
-	queue_daemon_request(daemonrq_return, (union daemoninfo) NULL);	/* stop the daemon */
+	queue_daemon_request(daemonrq_return, (union daemoninfo) 0); /* stop the daemon */
 	tsleep(&vinumclose, PUSER, "vstop", 1);		    /* and wait for it */
     }
     if (SD != NULL)
@@ -196,7 +195,7 @@ free_vinum(int cleardrive)
     bzero(&vinum_conf, sizeof(vinum_conf));
 }
 
-STATIC int 
+STATIC int
 vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 {
     struct sync_args dummyarg =
@@ -240,8 +239,8 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	    }
 	}
 #endif
-	cdevsw[CDEV_MAJOR] = NULL;			    /* no cdevsw any more */
-	bdevsw[BDEV_MAJOR] = NULL;			    /* nor bdevsw */
+	cdevsw[VINUM_CDEV_MAJOR] = NULL;		    /* no cdevsw any more */
+	bdevsw[VINUM_BDEV_MAJOR] = NULL;		    /* nor bdevsw */
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
     default:
@@ -256,11 +255,11 @@ moduledata_t vinum_mod =
     (modeventhand_t) vinum_modevent,
     0
 };
-DECLARE_MODULE(vinum, vinum_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+DECLARE_MODULE(vinum, vinum_mod, SI_SUB_VINUM, SI_ORDER_MIDDLE);
 
 /* ARGSUSED */
 /* Open a vinum object */
-int 
+int
 vinumopen(dev_t dev,
     int flags,
     int fmt,
@@ -335,8 +334,8 @@ vinumopen(dev_t dev,
 	sd = &SD[index];
 
 	/*
-	 * Opening a subdisk is always a special operation, so we 
-	 * ignore the state as long as it represents a real subdisk 
+	 * Opening a subdisk is always a special operation, so we
+	 * ignore the state as long as it represents a real subdisk
 	 */
 	switch (sd->state) {
 	case sd_unallocated:
@@ -369,7 +368,7 @@ vinumopen(dev_t dev,
 }
 
 /* ARGSUSED */
-int 
+int
 vinumclose(dev_t dev,
     int flags,
     int fmt,
@@ -450,7 +449,7 @@ vinumclose(dev_t dev,
 }
 
 /* size routine */
-int 
+int
 vinumsize(dev_t dev)
 {
     struct volume *vol;
@@ -466,9 +465,13 @@ vinumsize(dev_t dev)
     return size;
 }
 
-int 
+int
 vinumdump(dev_t dev)
 {
     /* Not implemented. */
     return ENXIO;
 }
+
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */

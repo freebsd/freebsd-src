@@ -22,7 +22,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -35,6 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumutil.c,v 1.15 2000/02/16 02:10:08 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -99,7 +100,10 @@ plex_org(enum plexorg org)
 	return "striped";
 	break;
 
-    case plex_raid5:					    /* RAID5 plex */
+    case plex_raid4:					    /* RAID-4 plex */
+	return "raid4";
+
+    case plex_raid5:					    /* RAID-5 plex */
 	return "raid5";
 	break;
 
@@ -123,9 +127,9 @@ sd_state(enum sdstate state)
 /* Now convert in the other direction */
 /*
  * These are currently used only internally,
- * so we don't do too much error checking 
+ * so we don't do too much error checking
  */
-enum drivestate 
+enum drivestate
 DriveState(char *text)
 {
     int i;
@@ -135,7 +139,7 @@ DriveState(char *text)
     return -1;
 }
 
-enum sdstate 
+enum sdstate
 SdState(char *text)
 {
     int i;
@@ -145,7 +149,7 @@ SdState(char *text)
     return -1;
 }
 
-enum plexstate 
+enum plexstate
 PlexState(char *text)
 {
     int i;
@@ -155,7 +159,7 @@ PlexState(char *text)
     return -1;
 }
 
-enum volumestate 
+enum volumestate
 VolState(char *text)
 {
     int i;
@@ -179,7 +183,7 @@ VolState(char *text)
  * m    megabytes (of 1024 * 1024 bytes)
  * g    gigabytes (of 1024 * 1024 * 1024 bytes)
  */
-u_int64_t 
+u_int64_t
 sizespec(char *spec)
 {
     u_int64_t size;
@@ -238,9 +242,9 @@ sizespec(char *spec)
 
 /*
  * Extract the volume number from a device number.
- * Perform no checking. 
+ * Perform no checking.
  */
-int 
+int
 Volno(dev_t dev)
 {
     return (minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT;
@@ -249,9 +253,9 @@ Volno(dev_t dev)
 /*
  * Extract a plex number from a device number.
  * Don't check the major number, but check the
- * type.  Return -1 for invalid types. 
+ * type.  Return -1 for invalid types.
  */
-int 
+int
 Plexno(dev_t dev)
 {
     switch (DEVTYPE(dev)) {
@@ -277,9 +281,9 @@ Plexno(dev_t dev)
 /*
  * Extract a subdisk number from a device number.
  * Don't check the major number, but check the
- * type.  Return -1 for invalid types. 
+ * type.  Return -1 for invalid types.
  */
-int 
+int
 Sdno(dev_t dev)
 {
     switch (DEVTYPE(dev)) {

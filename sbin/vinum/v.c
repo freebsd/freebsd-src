@@ -36,9 +36,9 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: v.c,v 1.30 2000/05/07 04:20:53 grog Exp grog $
+ * $FreeBSD$
  */
-
-/* $FreeBSD$ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -82,10 +82,12 @@ int inerror;						    /* set to 1 to exit after end of config file */
 int debug = 0;						    /* debug flag, usage varies */
 #endif
 int force = 0;						    /* set to 1 to force some dangerous ops */
-int verbose = 0;					    /* set verbose operation */
+int interval = 0;					    /* interval in ms between init/revive */
+int vflag = 0;						    /* set verbose operation or verify */
 int Verbose = 0;					    /* set very verbose operation */
 int recurse = 0;					    /* set recursion */
 int sflag = 0;						    /* show statistics */
+int SSize = 0;						    /* sector size for revive */
 int dowait = 0;						    /* wait for completion */
 char *objectname;					    /* name to be passed for -n flag */
 
@@ -110,6 +112,8 @@ int tokens;						    /* number of tokens */
 int
 main(int argc, char *argv[], char *envp[])
 {
+    struct stat histstat;
+
     if (modfind(VINUMMOD) < 0) {
 	/* need to load the vinum module */
 	if (kldload(VINUMMOD) < 0 || modfind(VINUMMOD) < 0) {
@@ -123,17 +127,28 @@ main(int argc, char *argv[], char *envp[])
     historyfile = getenv("VINUM_HISTORY");
     if (historyfile == NULL)
 	historyfile = DEFAULT_HISTORYFILE;
+    if (stat(historyfile, &histstat) == 0) {		    /* history file exists */
+	if ((histstat.st_mode & S_IFMT) != S_IFREG) {
+	    fprintf(stderr,
+		"Vinum history file %s must be a regular file\n",
+		historyfile);
+	    exit(1);
+	}
+    } else if ((errno != ENOENT)			    /* not "not there",  */
+    &&(errno != EROFS)) {				    /* and not read-only file system */
+	fprintf(stderr,
+	    "Can't open %s: %s (%d)\n",
+	    historyfile,
+	    strerror(errno),
+	    errno);
+	exit(1);
+    }
     history = fopen(historyfile, "a+");
     if (history != NULL) {
 	timestamp();
 	fprintf(history, "*** " VINUMMOD " started ***\n");
 	fflush(history);				    /* before we start the daemon */
-    } else
-	fprintf(stderr,
-	    "Can't open history file %s: %s (%d)\n",
-	    historyfile,
-	    strerror(errno),
-	    errno);
+    }
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open vinum superdevice */
     if (superdev < 0) {					    /* no go */
 	if (errno == ENODEV) {				    /* not configured, */
@@ -178,11 +193,20 @@ main(int argc, char *argv[], char *envp[])
 	    return -1;
 	parseline(argc - 1, &argv[1]);			    /* do it */
     } else {
+	/*
+	 * Catch a possible race condition which could cause us to
+	 * longjmp() into nowhere if we receive a SIGINT in the next few
+	 * lines.
+	 */
+	if (setjmp(command_fail))			    /* come back here on catastrophic failure */
+	    return 1;
+	setsigs();					    /* set signal handler */
 	for (;;) {					    /* ugh */
 	    char *c;
 	    int childstatus;				    /* from wait4 */
 
-	    setjmp(command_fail);			    /* come back here on catastrophic failure */
+	    if (setjmp(command_fail) == 2)		    /* come back here on catastrophic failure */
+		fprintf(stderr, "*** interrupted ***\n");   /* interrupted */
 
 	    while (wait4(-1, &childstatus, WNOHANG, NULL) > 0);	/* wait for all dead children */
 	    c = readline(VINUMMOD " -> ");		    /* get an input */
@@ -218,7 +242,26 @@ vinum_quit(int argc, char *argv[], char *argv0[])
     exit(0);
 }
 
+/* Set action on receiving a SIGINT */
+void
+setsigs()
+{
+    struct sigaction act;
+
+    act.sa_handler = catchsig;
+    act.sa_flags = 0;
+    sigemptyset(&act.sa_mask);
+    sigaction(SIGINT, &act, NULL);
+}
+
+void
+catchsig(int ignore)
+{
+    longjmp(command_fail, 2);
+}
+
 #define FUNKEY(x) { kw_##x, &vinum_##x }		    /* create pair "kw_foo", vinum_foo */
+#define vinum_move vinum_mv				    /* synonym for 'mv' */
 
 struct funkey {
     enum keyword kw;
@@ -242,6 +285,8 @@ struct funkey {
 	FUNKEY(label),
 	FUNKEY(resetconfig),
 	FUNKEY(rm),
+	FUNKEY(mv),
+	FUNKEY(move),
 	FUNKEY(attach),
 	FUNKEY(detach),
 	FUNKEY(rename),
@@ -255,13 +300,16 @@ struct funkey {
 	FUNKEY(quit),
 	FUNKEY(concat),
 	FUNKEY(stripe),
+	FUNKEY(raid4),
+	FUNKEY(raid5),
 	FUNKEY(mirror),
 	FUNKEY(setdaemon),
 	FUNKEY(readpol),
 	FUNKEY(resetstats),
 	FUNKEY(setstate),
 	FUNKEY(checkparity),
-	FUNKEY(rebuildparity)
+	FUNKEY(rebuildparity),
+	FUNKEY(dumpconfig)
 };
 
 /* Take args arguments at argv and attempt to perform the operation specified */
@@ -288,7 +336,7 @@ parseline(int args, char *argv[])
     command = get_keyword(argv[0], &keyword_set);
     dowait = 0;						    /* initialize flags */
     force = 0;						    /* initialize flags */
-    verbose = 0;					    /* initialize flags */
+    vflag = 0;						    /* initialize flags */
     Verbose = 0;					    /* initialize flags */
     recurse = 0;					    /* initialize flags */
     sflag = 0;						    /* initialize flags */
@@ -313,10 +361,20 @@ parseline(int args, char *argv[])
 		force = 1;
 		break;
 
+	    case 'i':					    /* interval */
+		interval = 0;
+		if (argv[i][j + 1] != '\0')		    /* operand follows, */
+		    interval = atoi(&argv[i][j + 1]);	    /* use it */
+		else if (args > (i + 1))		    /* another following, */
+		    interval = atoi(argv[++i]);		    /* use it */
+		if (interval == 0)			    /* nothing valid, */
+		    fprintf(stderr, "-i: no interval specified\n");
+		break;
+
 	    case 'n':					    /* -n: get name */
 		if (i == args - 1) {			    /* last arg */
-		    printf("-n requires a name parameter\n");
-		    exit(1);
+		    fprintf(stderr, "-n requires a name parameter\n");
+		    return;
 		}
 		objectname = argv[++i];			    /* pick it up */
 		j = strlen(argv[i]);			    /* skip the next parm */
@@ -330,12 +388,22 @@ parseline(int args, char *argv[])
 		sflag = 1;
 		break;
 
+	    case 'S':
+		SSize = 0;
+		if (argv[i][j + 1] != '\0')		    /* operand follows, */
+		    SSize = atoi(&argv[i][j + 1]);	    /* use it */
+		else if (args > (i + 1))		    /* another following, */
+		    SSize = atoi(argv[++i]);		    /* use it */
+		if (SSize == 0)				    /* nothing valid, */
+		    fprintf(stderr, "-S: no size specified\n");
+		break;
+
 	    case 'v':					    /* -v: verbose */
-		verbose++;
+		vflag++;
 		break;
 
 	    case 'V':					    /* -V: Very verbose */
-		verbose++;
+		vflag++;
 		Verbose++;
 		break;
 
@@ -471,28 +539,28 @@ make_devices(void)
     system("rm -rf " VINUM_DIR " " VINUM_RDIR);		    /* remove the old directories */
     system("mkdir -p " VINUM_DIR "/drive "		    /* and make them again */
 	VINUM_DIR "/plex "
-	VINUM_DIR "/rplex "
 	VINUM_DIR "/sd "
+	VINUM_DIR "/rplex "
 	VINUM_DIR "/rsd "
-	VINUM_DIR "/vol "
 	VINUM_DIR "/rvol "
-	VINUM_RDIR);
+	VINUM_RDIR " "
+	VINUM_DIR "/vol");
 
     if (mknod(VINUM_SUPERDEV_NAME,
 	    S_IRWXU | S_IFBLK,				    /* block device, user only */
-	    makedev(BDEV_MAJOR, VINUM_SUPERDEV)) < 0)
+	    makedev(VINUM_BDEV_MAJOR, VINUM_SUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_SUPERDEV_NAME, strerror(errno));
 
     if (mknod(VINUM_WRONGSUPERDEV_NAME,
 	    S_IRWXU | S_IFBLK,				    /* block device, user only */
-	    makedev(BDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
+	    makedev(VINUM_BDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_WRONGSUPERDEV_NAME, strerror(errno));
 
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open the super device */
 
     if (mknod(VINUM_DAEMON_DEV_NAME,			    /* daemon super device */
 	    S_IRWXU | S_IFBLK,				    /* block device, user only */
-	    makedev(BDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
+	    makedev(VINUM_BDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_DAEMON_DEV_NAME, strerror(errno));
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
@@ -513,7 +581,7 @@ make_devices(void)
 	char filename[PATH_MAX];			    /* for forming file names */
 
 	get_drive_info(&drive, driveno);
-	if (drive.state != drive_unallocated) {
+	if (drive.state > drive_referenced) {
 	    sprintf(filename, "ln -s %s " VINUM_DIR "/drive/%s", drive.devicename, drive.label.name);
 	    system(filename);
 	}
@@ -532,7 +600,7 @@ make_vol_dev(int volno, int recurse)
     get_volume_info(&vol, volno);
     if (vol.state != volume_unallocated) {		    /* we could have holes in our lists */
 	voldev = VINUMBDEV(volno, 0, 0, VINUM_VOLUME_TYPE); /* create a block device number */
-	rvoldev = VINUMCDEV(volno, 0, 0, VINUM_VOLUME_TYPE); /* and a character device */
+	rvoldev = VINUMDEV(volno, 0, 0, VINUM_VOLUME_TYPE); /* and a character device */
 
 	/* Create /dev/vinum/<myvol> */
 	sprintf(filename, VINUM_DIR "/%s", vol.name);
@@ -586,7 +654,7 @@ make_plex_dev(int plexno, int recurse)
     get_plex_info(&plex, plexno);
     if (plex.state != plex_unallocated) {
 	plexdev = VINUM_BLOCK_PLEX(plexno);
-	plexcdev = VINUM_CHAR_PLEX(plexno);
+	plexcdev = VINUM_PLEX(plexno);
 
 	/* /dev/vinum/plex/<plex> */
 	sprintf(filename, VINUM_DIR "/plex/%s", plex.name);
@@ -632,7 +700,7 @@ make_sd_dev(int sdno)
     get_sd_info(&sd, sdno);
     if (sd.state != sd_unallocated) {
 	sddev = VINUM_BLOCK_SD(sdno);
-	sdcdev = VINUM_CHAR_SD(sdno);
+	sdcdev = VINUM_SD(sdno);
 
 	/* /dev/vinum/sd/<sd> */
 	sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
@@ -727,11 +795,20 @@ continue_revive(int sdno)
 
 	openlog(VINUMMOD, LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
 	syslog(LOG_INFO | LOG_KERN, "reviving %s", sd.name);
+	setproctitle("reviving %s", sd.name);
 
 	for (reply.error = EAGAIN; reply.error == EAGAIN;) { /* revive the subdisk */
+	    if (interval)
+		usleep(interval * 1000);		    /* pause between each copy */
 	    message->index = sdno;			    /* pass sd number */
 	    message->type = sd_object;			    /* and type of object */
 	    message->state = object_up;
+	    if (SSize != 0) {				    /* specified a size for init */
+		if (SSize < 512)
+		    SSize <<= DEV_BSHIFT;
+		message->blocksize = SSize;
+	    } else
+		message->blocksize = DEFAULT_REVIVE_BLOCKSIZE;
 	    ioctl(superdev, VINUM_SETSTATE, message);
 	}
 	if (reply.error) {
@@ -749,7 +826,7 @@ continue_revive(int sdno)
 	}
     } else if (pid < 0)					    /* couldn't fork? */
 	fprintf(stderr, "Can't continue reviving %s: %s\n", sd.name, strerror(errno));
-    else
+    else						    /* parent */
 	printf("Reviving %s in the background\n", sd.name);
 }
 
@@ -793,7 +870,7 @@ start_daemon(void)
 	setproctitle(VINUMMOD " daemon");		    /* show what we're doing */
 	status = ioctl(superdev, VINUM_FINDDAEMON, NULL);
 	if (status != 0) {				    /* no daemon, */
-	    ioctl(superdev, VINUM_DAEMON, &verbose);	    /* we should hang here */
+	    ioctl(superdev, VINUM_DAEMON, &vflag);	    /* we should hang here */
 	    syslog(LOG_ERR | LOG_KERN, "%s", strerror(errno));
 	    exit(1);
 	}
