@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.22 1999/05/06 20:16:04 ken Exp $
+ *      $Id: scsi_da.c,v 1.23 1999/05/07 07:02:59 phk Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -333,7 +333,8 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 		ccb->ccb_h.ccb_bp = NULL;
 
 		error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
-					  /*sense_flags*/SF_RETRY_UA,
+					  /*sense_flags*/SF_RETRY_UA |
+							 SF_RETRY_SELTO,
 					  &softc->device_stats);
 
 		xpt_release_ccb(ccb);
@@ -1217,6 +1218,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			else
 				sf = 0;
 
+			/* Retry selection timeouts */
+			sf |= SF_RETRY_SELTO;
+
 			if ((error = daerror(done_ccb, 0, sf)) == ERESTART) {
 				/*
 				 * A retry was scheuled, so
@@ -1323,7 +1327,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Retry any UNIT ATTENTION type errors.  They
 			 * are expected at boot.
 			 */
-			error = daerror(done_ccb, 0, SF_RETRY_UA|SF_NO_PRINT);
+			error = daerror(done_ccb, 0, SF_RETRY_UA |
+					SF_RETRY_SELTO | SF_NO_PRINT);
 			if (error == ERESTART) {
 				/*
 				 * A retry was scheuled, so

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.9 1998/12/22 20:05:23 eivind Exp $
+ *      $Id: scsi_ch.c,v 1.10 1999/02/10 00:03:15 ken Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -634,7 +634,8 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			int error;
 
-			error = cherror(done_ccb, 0, SF_RETRY_UA|SF_NO_PRINT);
+			error = cherror(done_ccb, 0, SF_RETRY_UA |
+					SF_NO_PRINT | SF_RETRY_SELTO);
 			/*
 			 * Retry any UNIT ATTENTION type errors.  They
 			 * are expected at boot.
@@ -874,7 +875,7 @@ chmove(struct cam_periph *periph, struct changer_move *cm)
 			 /* timeout */ CH_TIMEOUT_MOVE_MEDIUM);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/0,
-				  /*sense_flags*/ SF_RETRY_UA,
+				  /*sense_flags*/ SF_RETRY_UA | SF_RETRY_SELTO,
 				  &softc->device_stats);
 
 	xpt_release_ccb(ccb);
@@ -937,7 +938,7 @@ chexchange(struct cam_periph *periph, struct changer_exchange *ce)
 			     /* timeout */ CH_TIMEOUT_EXCHANGE_MEDIUM);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/0,
-				  /*sense_flags*/ SF_RETRY_UA,
+				  /*sense_flags*/ SF_RETRY_UA | SF_RETRY_SELTO,
 				  &softc->device_stats);
 
 	xpt_release_ccb(ccb);
@@ -983,7 +984,7 @@ chposition(struct cam_periph *periph, struct changer_position *cp)
 				 /* timeout */ CH_TIMEOUT_POSITION_TO_ELEMENT);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  /*sense_flags*/ SF_RETRY_UA,
+				  /*sense_flags*/ SF_RETRY_UA | SF_RETRY_SELTO,
 				  &softc->device_stats);
 
 	xpt_release_ccb(ccb);
@@ -1139,7 +1140,7 @@ chgetelemstatus(struct cam_periph *periph,
 				 /* timeout */ CH_TIMEOUT_READ_ELEMENT_STATUS);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  /* sense_flags */ SF_RETRY_UA,
+				  /*sense_flags*/ SF_RETRY_UA | SF_RETRY_SELTO,
 				  &softc->device_stats);
 
 	if (error)
@@ -1175,7 +1176,7 @@ chgetelemstatus(struct cam_periph *periph,
 				 /* timeout */ CH_TIMEOUT_READ_ELEMENT_STATUS);
 	
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  /* sense_flags */ SF_RETRY_UA,
+				  /*sense_flags*/ SF_RETRY_UA | SF_RETRY_SELTO,
 				  &softc->device_stats);
 
 	if (error)
@@ -1254,7 +1255,7 @@ chielem(struct cam_periph *periph,
 				      /* timeout */ timeout);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  /* sense_flags */ SF_RETRY_UA,
+				  /*sense_flags*/ SF_RETRY_UA | SF_RETRY_SELTO,
 				  &softc->device_stats);
 
 	xpt_release_ccb(ccb);
@@ -1341,7 +1342,7 @@ chsetvoltag(struct cam_periph *periph,
 			     /* timeout */ CH_TIMEOUT_SEND_VOLTAG);
 	
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  /*sense_flags*/ SF_RETRY_UA,
+				  /*sense_flags*/ SF_RETRY_UA | SF_RETRY_SELTO,
 				  &softc->device_stats);
 
 	xpt_release_ccb(ccb);
@@ -1405,7 +1406,8 @@ chgetparams(struct cam_periph *periph)
 			/* timeout */ CH_TIMEOUT_MODE_SENSE);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  /* sense_flags */ SF_RETRY_UA |SF_NO_PRINT,
+				  /* sense_flags */ SF_RETRY_UA |
+				  SF_NO_PRINT | SF_RETRY_SELTO,
 				  &softc->device_stats);
 
 	if (error) {
@@ -1417,7 +1419,8 @@ chgetparams(struct cam_periph *periph)
 
 			sms->byte2 &= ~SMS_DBD;
 			error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  		  /* sense_flags */ SF_RETRY_UA,
+				  		  /*sense_flags*/ SF_RETRY_UA |
+						  SF_RETRY_SELTO,
 						  &softc->device_stats);
 		} else {
 			/*
@@ -1467,8 +1470,8 @@ chgetparams(struct cam_periph *periph)
 			/* timeout */ CH_TIMEOUT_MODE_SENSE);
 	
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  /* sense_flags */ SF_RETRY_UA|SF_NO_PRINT,
-				  &softc->device_stats);
+				  /* sense_flags */ SF_RETRY_UA | SF_NO_PRINT |
+				  SF_RETRY_SELTO, &softc->device_stats);
 
 	if (error) {
 		if (dbd) {
@@ -1479,7 +1482,8 @@ chgetparams(struct cam_periph *periph)
 
 			sms->byte2 &= ~SMS_DBD;
 			error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  		  /* sense_flags */ SF_RETRY_UA,
+				  		  /*sense_flags*/ SF_RETRY_UA |
+						  SF_RETRY_SELTO,
 						  &softc->device_stats);
 		} else {
 			/*
