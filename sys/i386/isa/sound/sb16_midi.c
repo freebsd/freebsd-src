@@ -294,7 +294,14 @@ reset_sb16midi (void)
 int
 probe_sb16midi (struct address_info *hw_config)
 {
+  struct address_info *sb_config;
   int             ok = 0;
+
+  if (!(sb_config = sound_getconf (SNDCARD_SB)))
+    {
+      printk ("SB16 Error: Plain SB not configured\n");
+      return 0;
+    }
 
   if (sbc_major < 4)
     return 0;			/* Not a SB16 */
@@ -307,9 +314,10 @@ probe_sb16midi (struct address_info *hw_config)
   ok = reset_sb16midi ();
 
   sb16midi_detected = ok;
-  if (ok)
+  if (ok) {
+    hw_config->irq = sb_config->irq;
     return 2;
-  else
+  } else
     return 0;
 }
 
