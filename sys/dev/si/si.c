@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.3 1995/08/13 15:18:05 peter Exp $
+ *	$Id: si.c,v 1.4 1995/08/13 15:44:37 peter Exp $
  */
 
 #ifndef lint
@@ -86,7 +86,6 @@ enum si_mctl { GET, SET, BIS, BIC };
 static void si_command __P((struct si_port *, int, int));
 static int si_modem __P((struct si_port *, enum si_mctl, int));
 static void si_write_enable __P((struct si_port *, int));
-static int si_drainwait __P((struct si_port *, char *));
 static int si_Sioctl __P((dev_t, int, caddr_t, int, struct proc *));
 static void si_start __P((struct tty *));
 static void si_lstart __P((struct si_port *));
@@ -1347,6 +1346,7 @@ siparam(tp, t)
 	int error = 0;		/* shutup gcc */
 	int ispeed = 0;		/* shutup gcc */
 	int ospeed = 0;		/* shutup gcc */
+	BYTE val;
 
 	DPRINT((pp, DBG_ENTRY|DBG_PARAM, "siparam(%x,%x)\n", tp, t));
 	cflag = t->c_cflag;
@@ -1373,91 +1373,120 @@ siparam(tp, t)
 	oldspl = spltty();
 
 	ccbp = pp->sp_ccb;
-	if (iflag & IGNBRK)			/* Breaks */
-		ccbp->hi_break = BR_IGN;
-	else
-		ccbp->hi_break = 0;
-	if (iflag & BRKINT)			/* Interrupt on break? */
-		ccbp->hi_break |= BR_INT;
-	if (iflag & PARMRK)			/* Parity mark? */
-		ccbp->hi_break |= BR_PARMRK;
-	if (iflag & IGNPAR)			/* Ignore chars with parity errors? */
-		ccbp->hi_break |= BR_PARIGN;
 
+	/* ========== set hi_break ========== */
+	val = 0;
+	if (iflag & IGNBRK)		/* Breaks */
+		val |= BR_IGN;
+	if (iflag & BRKINT)		/* Interrupt on break? */
+		val |= BR_INT;
+	if (iflag & PARMRK)		/* Parity mark? */
+		val |= BR_PARMRK;
+	if (iflag & IGNPAR)		/* Ignore chars with parity errors? */
+		val |= BR_PARIGN;
+	ccbp->hi_break = val;
+
+	/* ========== set hi_csr ========== */
 	/* if not hung up.. */
 	if (t->c_ospeed != 0) {
 		/* Set I/O speeds */
-		ccbp->hi_csr = (ispeed << 4) | ospeed;
+		 val = (ispeed << 4) | ospeed;
 	}
+	ccbp->hi_csr = val;
 
+	/* ========== set hi_mr2 ========== */
+	val = 0;
 	if (cflag & CSTOPB)				/* Stop bits */
-		ccbp->hi_mr2 = MR2_2_STOP;
+		val |= MR2_2_STOP;
 	else
-		ccbp->hi_mr2 = MR2_1_STOP;
+		val |= MR2_1_STOP;
+	/*
+	 * Enable H/W RTS/CTS handshaking. The default TA/MTA is
+	 * a DCE, hence the reverse sense of RTS and CTS
+	 */
+	/* Output Flow - RTS must be raised before data can be sent */
+	if (cflag & CCTS_OFLOW)
+		val |= MR2_RTSCONT;
+
+	ccbp->hi_mr1 = val;
+
+	/* ========== set hi_mr1 ========== */
+	val = 0;
 	if (!(cflag & PARENB))				/* Parity */
-		ccbp->hi_mr1 = MR1_NONE;
+		val |= MR1_NONE;
 	else
-		ccbp->hi_mr1 = MR1_WITH;
+		val |= MR1_WITH;
 	if (cflag & PARODD)
-		ccbp->hi_mr1 |= MR1_ODD;
+		val |= MR1_ODD;
 
 	if ((cflag & CS8) == CS8) {			/* 8 data bits? */
-		ccbp->hi_mr1 |= MR1_8_BITS;
-		ccbp->hi_mask = 0xFF;
+		val |= MR1_8_BITS;
 	} else if ((cflag & CS7) == CS7) {		/* 7 data bits? */
-		ccbp->hi_mr1 |= MR1_7_BITS;
-		ccbp->hi_mask = 0x7F;
+		val |= MR1_7_BITS;
 	} else if ((cflag & CS6) == CS6) {		/* 6 data bits? */
-		ccbp->hi_mr1 |= MR1_6_BITS;
-		ccbp->hi_mask = 0x3F;
+		val |= MR1_6_BITS;
 	} else {					/* Must be 5 */
-		ccbp->hi_mr1 |= MR1_5_BITS;
-		ccbp->hi_mask = 0x1F;
+		val |= MR1_5_BITS;
 	}
+	/*
+	 * Enable H/W RTS/CTS handshaking. The default TA/MTA is
+	 * a DCE, hence the reverse sense of RTS and CTS
+	 */
+	/* Input Flow - CTS is raised when port is ready to receive data */
+	if (cflag & CRTS_IFLOW)
+		val |= MR1_CTSCONT;
 
+	ccbp->hi_mr1 = val;
+
+	/* ========== set hi_mask ========== */
+	val = 0xff;
+	if ((cflag & CS8) == CS8) {			/* 8 data bits? */
+		val &= 0xFF;
+	} else if ((cflag & CS7) == CS7) {		/* 7 data bits? */
+		val &= 0x7F;
+	} else if ((cflag & CS6) == CS6) {		/* 6 data bits? */
+		val &= 0x3F;
+	} else {					/* Must be 5 */
+		val &= 0x1F;
+	}
 	if (iflag & ISTRIP)
-		ccbp->hi_mask &= 0x7F;
+		val &= 0x7F;
 
+	ccbp->hi_mask = val;
+
+	/* ========== set hi_prtcl ========== */
+	val = 0;
 				/* Monitor DCD etc. if a modem */
 	if (!(cflag & CLOCAL))
-		ccbp->hi_prtcl = SP_DCEN;
-	else
-		ccbp->hi_prtcl = 0;
+		val |= SP_DCEN;
+	if (iflag & IXANY)
+		val |= SP_TANY;
+	if (iflag & IXON)
+		val |= SP_TXEN;
+	if (iflag & IXOFF)
+		val |= SP_RXEN;
+	if (iflag & INPCK)
+		val |= SP_PAEN;
 
-	/* XXX: the card handles all the flow control... */
+	ccbp->hi_prtcl = val;
+
+
+	/* ========== set hi_{rx|tx}{on|off} ========== */
+	/* XXX: the card TOTALLY shields us from the flow control... */
 	ccbp->hi_txon = t->c_cc[VSTART];
 	ccbp->hi_txoff = t->c_cc[VSTOP];
 
 	ccbp->hi_rxon = t->c_cc[VSTART];
 	ccbp->hi_rxoff = t->c_cc[VSTOP];
 
-	if (iflag & IXANY)
-		ccbp->hi_prtcl |= SP_TANY;
-	if (iflag & IXON)
-		ccbp->hi_prtcl |= SP_TXEN;
-	if (iflag & IXOFF)
-		ccbp->hi_prtcl |= SP_RXEN;
-	if (iflag & INPCK)
-		ccbp->hi_prtcl |= SP_PAEN;
-
-	/*
-	 * Enable H/W RTS/CTS handshaking. The default TA/MTA is
-	 * a DCE, hence the reverse sense of RTS and CTS
-	 */
-
-	/* Output - RTS must be raised before data can be sent */
-	if (cflag & CCTS_OFLOW)
-		ccbp->hi_mr2 |= MR2_RTSCONT;
-	/* Input - CTS is raised when port is ready to receive data */
-	if (cflag & CRTS_IFLOW)
-		ccbp->hi_mr1 |= MR1_CTSCONT;
-
+	/* ========== send settings to the card ========== */
 	/* potential sleep here */
 	if (ccbp->hi_stat == IDLE_CLOSE)		/* Not yet open */
 		si_command(pp, LOPEN, SI_WAIT);		/* open it */
 	else
 		si_command(pp, CONFIG, SI_WAIT);	/* change params */
 
+	/* ========== set DTR etc ========== */
 	/* Hangup if ospeed == 0 */
 	if (t->c_ospeed == 0) {
 		(void) si_modem(pp, BIC, TIOCM_DTR|TIOCM_RTS);
@@ -1474,65 +1503,6 @@ siparam(tp, t)
 
 	splx(oldspl);
 out:
-	return(error);
-}
-
-/*
- * Wait for buffered TX characters to drain away.
- * IT IS THE RESPONSIBILITY OF THE CALLER TO DISABLE/ENABLE WRITES.
- */
-static int
-si_drainwait(pp, msg)
-	register struct si_port *pp;
-	char *msg;
-{
-	register struct tty *tp = pp->sp_tty;
-	volatile struct si_channel *ccbp = pp->sp_ccb;
-	int error, oldspl, time;
-	BYTE x;
-
-	DPRINT((pp, DBG_ENTRY|DBG_DRAIN, "si_drainwait(%x,%s)\n",
-		pp, msg));
-	error = 0;
-
-	oldspl = spltty();
-
-	/* number of pending characters in output buffer */
-	x = (int)ccbp->hi_txipos - (int)ccbp->hi_txopos;
-
- 	while ( (x != 0 && (tp->t_state & TS_BUSY))
-		|| (ccbp->hi_stat == IDLE_BREAK)) {
-
-		DPRINT((pp, DBG_DRAIN,
-			"  x %d. t_state %x sp_state %x hi_stat %x\n",
-			x, tp->t_state, pp->sp_state, ccbp->hi_stat));
-
-		/* else waiting got chars */
-		/* guess how long */
-		time = ttspeedtab(tp->t_ospeed, chartimes);
-
-		if (time == 0 || time > x)
-			time = 1;
-		else
-			time = x/time + 1;
-
-		error = ttysleep(tp, (caddr_t)pp,
-			TTOPRI|PCATCH, msg, time);
-
-		if (error != EWOULDBLOCK) {
-			DPRINT((pp, DBG_DRAIN|DBG_FAIL,
-			  "%s, wait for drain broken by signal %d\n",
-			  msg, error));
-			break;
-		}
-		error = 0;
-
-		/* reload count */
-		x = (int)ccbp->hi_txipos - (int)ccbp->hi_txopos;
-	}
-	tp->t_state &= ~TS_BUSY;
-	ttwwakeup(tp);
-	splx(oldspl);
 	return(error);
 }
 
@@ -1688,7 +1658,7 @@ out:
  * it is called.
  */
 
-static char rxbuf[SLXOS_BUFFERSIZE];	/* input staging area */
+static BYTE rxbuf[SLXOS_BUFFERSIZE];	/* input staging area */
 
 int
 siintr(int bdnum)
@@ -1701,7 +1671,7 @@ siintr(int bdnum)
 	register struct tty *tp;
 	volatile caddr_t maddr;
 	BYTE op, ip, cc;
-	int x, card, port, n;
+	int x, card, port, n, i;
 	volatile BYTE *z;
 	BYTE c;
 	static int in_poll = 0;
@@ -1889,8 +1859,11 @@ siintr(int bdnum)
 						}
 					} else {
 						for(x = 0; x < n; x++) {
-							(*linesw[tp->t_line].l_rint)(
-								rxbuf[x], tp);
+							i = rxbuf[x];
+							(*linesw[tp->t_line].l_rint)(rxbuf[x], tp);
+							if (pp->sp_hotchar && i == pp->sp_hotchar) {
+								setsofttty();
+							}
 						}
 					}
 
@@ -2187,6 +2160,7 @@ si_disc_optim(tp, t, pp)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
+
 	/*
 	 * Prepare to reduce input latency for packet
 	 * discplines with a end of packet character.
@@ -2197,6 +2171,10 @@ si_disc_optim(tp, t, pp)
 		pp->sp_hotchar = 0x7e;
 	else
 		pp->sp_hotchar = 0;
+
+	DPRINT((pp, DBG_OPTIM, "bypass: %s, hotchar: %x\n", 
+		(tp->t_state & TS_CAN_BYPASS_L_RINT) ? "on" : "off",
+		pp->sp_hotchar));
 }
 
 
