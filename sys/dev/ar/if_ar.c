@@ -182,8 +182,6 @@ static int irqtable[16] = {
 
 #ifndef NETGRAPH
 MODULE_DEPEND(if_ar, sppp, 1, 1, 1);
-#else
-MODULE_DEPEND(ng_sync_ar, netgraph, 1, 1, 1);
 #endif
 
 static void arintr(void *arg);
@@ -215,7 +213,6 @@ static void ar_timer_intr(struct ar_hardc *hc, int scano, u_char isr);
 
 #ifdef	NETGRAPH
 static	void	ngar_watchdog_frame(void * arg);
-static	void	ngar_init(void* ignored);
 
 static ng_constructor_t	ngar_constructor;
 static ng_rcvmsg_t	ngar_rcvmsg;
@@ -237,8 +234,7 @@ static struct ng_type typestruct = {
 	.rcvdata =	ngar_rcvdata,
 	.disconnect =	ngar_disconnect,
 };
-
-static int	ngar_done_init = 0;
+NETGRAPH_INIT(sync_ar, &typestruct);
 #endif /* NETGRAPH */
 
 int
@@ -321,10 +317,6 @@ ar_attach(device_t device)
 
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
 #else	/* NETGRAPH */
-		/*
-		 * we have found a node, make sure our 'type' is availabe.
-		 */
-		if (ngar_done_init == 0) ngar_init(NULL);
 		if (ng_make_node_common(&typestruct, &sc->node) != 0)
 			return (1);
 		sprintf(sc->nodename, "%s%d", NG_AR_NODE_TYPE, sc->unit);
@@ -2343,18 +2335,6 @@ ngar_disconnect(hook_p hook)
 		sc->debug_hook = NULL;
 	}
 	return (0);
-}
-
-/*
- * called during bootup
- * or LKM loading to put this type into the list of known modules
- */
-static void
-ngar_init(void *ignored)
-{
-	if (ng_newtype(&typestruct))
-		printf("ngar install failed\n");
-	ngar_done_init = 1;
 }
 #endif /* NETGRAPH */
 
