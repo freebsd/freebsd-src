@@ -525,7 +525,6 @@ aio_proc_rundown(struct proc *p)
 	struct aio_liojob *lj, *ljn;
 	struct aiocblist *aiocbe, *aiocbn;
 	struct file *fp;
-	struct filedesc *fdp;
 	struct socket *so;
 
 	ki = p->p_aioinfo;
@@ -544,24 +543,12 @@ aio_proc_rundown(struct proc *p)
 	 * Move any aio ops that are waiting on socket I/O to the normal job
 	 * queues so they are cleaned up with any others.
 	 */
-	fdp = p->p_fd;
-
 	s = splnet();
 	for (aiocbe = TAILQ_FIRST(&ki->kaio_sockqueue); aiocbe; aiocbe =
 	    aiocbn) {
 		aiocbn = TAILQ_NEXT(aiocbe, plist);
-		fp = fdp->fd_ofiles[aiocbe->uaiocb.aio_fildes];
-		
-		/*
-		 * Under some circumstances, the aio_fildes and the file
-		 * structure don't match.  This would leave aiocbe's in the
-		 * TAILQ associated with the socket and cause a panic later.
-		 * 
-		 * Detect and fix.
-		 */
-		if ((fp == NULL) || (fp != aiocbe->fd_file))
-			fp = aiocbe->fd_file;
-		if (fp) {
+		fp = aiocbe->fd_file;
+		if (fp != NULL) {
 			so = (struct socket *)fp->f_data;
 			TAILQ_REMOVE(&so->so_aiojobq, aiocbe, list);
 			if (TAILQ_EMPTY(&so->so_aiojobq)) {
@@ -683,14 +670,12 @@ aio_selectjob(struct aiothreadlist *aiop)
 static void
 aio_process(struct aiocblist *aiocbe)
 {
-	struct filedesc *fdp;
 	struct thread *td;
 	struct proc *mycp;
 	struct aiocb *cb;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
-	unsigned int fd;
 	int cnt;
 	int error;
 	int oublock_st, oublock_end;
@@ -699,16 +684,7 @@ aio_process(struct aiocblist *aiocbe)
 	td = curthread;
 	mycp = td->td_proc;
 	cb = &aiocbe->uaiocb;
-
-	fdp = mycp->p_fd;
-	fd = cb->aio_fildes;
-	fp = fdp->fd_ofiles[fd];
-
-	if ((fp == NULL) || (fp != aiocbe->fd_file)) {
-		cb->_aiocb_private.error = EBADF;
-		cb->_aiocb_private.status = -1;
-		return;
-	}
+	fp = aiocbe->fd_file;
 
 	aiov.iov_base = (void *)(uintptr_t)cb->aio_buf;
 	aiov.iov_len = cb->aio_nbytes;
@@ -888,17 +864,6 @@ aio_daemon(void *uproc)
 				if (tmpvm != myvm) {
 					vmspace_free(tmpvm);
 				}
-				
-				/*
-				 * Disassociate from previous clients file
-				 * descriptors, and associate to the new clients
-				 * descriptors.  Note that the daemon doesn't
-				 * need to worry about its orginal descriptors,
-				 * because they were originally freed.
-				 */
-				if (mycp->p_fd)
-					fdfree(td);
-				mycp->p_fd = fdshare(userp);
 				curcp = userp;
 			}
 
@@ -997,13 +962,6 @@ aio_daemon(void *uproc)
 			/* Remove our vmspace reference. */
 			vmspace_free(tmpvm);
 			
-			/*
-			 * Disassociate from the user process's file
-			 * descriptors.
-			 */
-			if (mycp->p_fd)
-				fdfree(td);
-			mycp->p_fd = NULL;
 			curcp = mycp;
 		}
 
