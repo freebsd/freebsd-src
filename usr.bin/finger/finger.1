@@ -148,8 +148,7 @@ All name matching performed by
 is case insensitive.
 .Pp
 .It Fl T
-Disable the use of T/TCP (see
-.Xr ttcp 4 ).
+Disable the piggybacking of data on the initial connection request.
 This option is needed to finger hosts with a broken TCP implementation.
 .El
 .Pp
@@ -218,7 +217,6 @@ last login data base
 .Xr chpass 1 ,
 .Xr w 1 ,
 .Xr who 1 ,
-.Xr ttcp 4 ,
 .Xr finger.conf 5 ,
 .Xr fingerd 8
 .Rs
