@@ -88,7 +88,7 @@ struct socket {
 	u_short	so_error;		/* error affecting connection */
 	struct	sigio *so_sigio;	/* [sg] information for async I/O or
 					   out of band data (SIGURG) */
-	u_long	so_oobmark;		/* chars to oob mark */
+	u_long	so_oobmark;		/* (c) chars to oob mark */
 	TAILQ_HEAD(, aiocblist) so_aiojobq; /* AIO ops waiting on socket */
 /*
  * Variables for socket buffering.

@@ -2295,13 +2295,12 @@ step6:
 		 */
 		if (SEQ_GT(th->th_seq+th->th_urp, tp->rcv_up)) {
 			tp->rcv_up = th->th_seq + th->th_urp;
+			SOCKBUF_LOCK(&so->so_rcv);
 			so->so_oobmark = so->so_rcv.sb_cc +
 			    (tp->rcv_up - tp->rcv_nxt) - 1;
-			if (so->so_oobmark == 0) {
-				SOCKBUF_LOCK(&so->so_rcv);
+			if (so->so_oobmark == 0)
 				so->so_rcv.sb_state |= SBS_RCVATMARK;
-				SOCKBUF_UNLOCK(&so->so_rcv);
-			}
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			sohasoutofband(so);
 			tp->t_oobflags &= ~(TCPOOB_HAVEDATA | TCPOOB_HADDATA);
 		}
