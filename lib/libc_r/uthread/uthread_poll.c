@@ -97,5 +97,15 @@ _poll(struct pollfd *fds, unsigned int nfds, int timeout)
 	return (ret);
 }
 
-__strong_reference(_poll, poll);
+int
+poll(struct pollfd *fds, unsigned int nfds, int timeout)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _poll(fds, nfds, timeout);
+	_thread_leave_cancellation_point();
+
+	return ret;
+}
 #endif

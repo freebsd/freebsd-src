@@ -201,5 +201,15 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 	return (ret);
 }
 
-__strong_reference(_writev, writev);
+ssize_t
+writev(int fd, const struct iovec *iov, int iovcnt)
+{
+	ssize_t ret;
+
+	_thread_enter_cancellation_point();
+	ret = _writev(fd, iov, iovcnt);
+	_thread_leave_cancellation_point();
+
+	return ret;
+}
 #endif
