@@ -29,9 +29,9 @@ ${MANP}: ${.CURDIR}/apropos.man
 	${.CURDIR}/apropos.man > $@
 
 install: ${TARG} maninstall
-	install -c -o bin -g bin -m 555 ${TARG} /usr/bin
+	install -c -o bin -g bin -m 555 ${TARG} ${DESTDIR}/usr/bin
 
 maninstall: ${MANP}
-	install -c -o bin -g bin -m 444 ${MANP} /usr/share/man/man1
+	install -c -o bin -g bin -m 444 ${MANP} ${DESTDIR}/usr/share/man/man1
 
 .include "../Makefile.inc"
