@@ -1545,7 +1545,7 @@ ata_get_lun(u_int32_t *map)
 int
 ata_test_lun(u_int32_t *map, int lun)
 {
-    return (*map & ~(1 << lun));
+    return (*map & (1 << lun));
 }
 
 void
