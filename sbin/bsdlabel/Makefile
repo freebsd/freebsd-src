@@ -16,8 +16,8 @@ LINKS=	${BINDIR}/bsdlabel ${BINDIR}/disklabel
 MLINKS+= bsdlabel.8 disklabel.8
 .endif
 
-DDADD=  ${LIBGEOM}
-LDADD=  -lgeom -lbsdxml -lsbuf
+DPADD=	${LIBGEOM}
+LDADD=	-lgeom
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
