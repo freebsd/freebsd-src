@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.46 1998/12/06 11:36:24 jkh Exp $
+ * $Id: cd9660_vfsops.c,v 1.52 1999/04/18 10:58:02 dcs Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
+#include <sys/syslog.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/iso_rrip.h>
@@ -160,7 +161,7 @@ iso_mountroot(mp, p)
 	if (bootverbose)
 		printf("iso_mountroot(): using session at block %d\n",
 		       args.ssector);
-	if (error = iso_mountfs(rootvp, mp, p, &args))
+	if ((error = iso_mountfs(rootvp, mp, p, &args)) != 0)
 		return (error);
 
 	(void)cd9660_statfs(mp, &mp->mnt_stat, p);
@@ -231,20 +232,19 @@ cd9660_mount(mp, path, data, ndp, p)
 	}
 
 	/*       
-	 * If mount by non-root, then verify that user has necessary
-	 * permissions on the device.
+	 * Verify that user has necessary permissions on the device,
+	 * or has superuser abilities
 	 */
-	if (p->p_ucred->cr_uid != 0) {
-		accessmode = VREAD;
-		if ((mp->mnt_flag & MNT_RDONLY) == 0)
-			accessmode |= VWRITE;
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if (error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) {
-			vput(devvp);
-			return (error);
-		}
-		VOP_UNLOCK(devvp, 0, p);
+	accessmode = VREAD;
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+	error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p);
+	if (error) 
+		error = suser(p->p_ucred, &p->p_acflag);
+	if (error) {
+		vput(devvp);
+		return (error);
 	}
+	VOP_UNLOCK(devvp, 0, p);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERR)
@@ -282,20 +282,22 @@ iso_mountfs(devvp, mp, p, argp)
 {
 	register struct iso_mnt *isomp = (struct iso_mnt *)0;
 	struct buf *bp = NULL;
+	struct buf *pribp = NULL, *supbp = NULL;
 	dev_t dev = devvp->v_rdev;
 	int error = EINVAL;
 	int needclose = 0;
 	int high_sierra = 0;
-	int ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	int iso_bsize;
 	int iso_blknum;
+	int joliet_level;
 	struct iso_volume_descriptor *vdp = 0;
-	struct iso_primary_descriptor *pri;
-	struct iso_sierra_primary_descriptor *pri_sierra;
+	struct iso_primary_descriptor *pri = NULL;
+	struct iso_sierra_primary_descriptor *pri_sierra = NULL;
+	struct iso_supplementary_descriptor *sup = NULL;
 	struct iso_directory_record *rootp;
 	int logical_block_size;
 
-	if (!ronly)
+	if (!(mp->mnt_flag & MNT_RDONLY))
 		return EROFS;
 
 	/*
@@ -311,7 +313,7 @@ iso_mountfs(devvp, mp, p, argp)
 	if ((error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0)))
 		return (error);
 
-	if ((error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p)))
+	if ((error = VOP_OPEN(devvp, FREAD, FSCRED, p)))
 		return error;
 	needclose = 1;
 
@@ -321,11 +323,12 @@ iso_mountfs(devvp, mp, p, argp)
 	 */
 	iso_bsize = ISO_DEFAULT_BLOCK_SIZE;
 
+	joliet_level = 0;
 	for (iso_blknum = 16 + argp->ssector;
 	     iso_blknum < 100 + argp->ssector;
 	     iso_blknum++) {
-		if (error = bread(devvp, iso_blknum * btodb(iso_bsize),
-				  iso_bsize, NOCRED, &bp))
+		if ((error = bread(devvp, iso_blknum * btodb(iso_bsize),
+				  iso_bsize, NOCRED, &bp)) != 0)
 			goto out;
 		
 		vdp = (struct iso_volume_descriptor *)bp->b_data;
@@ -337,24 +340,58 @@ iso_mountfs(devvp, mp, p, argp)
 			} else
 				high_sierra = 1;
 		}
-
-		if (isonum_711 (high_sierra? vdp->type_sierra: vdp->type) == ISO_VD_END) {
-			error = EINVAL;
-			goto out;
-		}
-
-		if (isonum_711 (high_sierra? vdp->type_sierra: vdp->type) == ISO_VD_PRIMARY)
+		switch (isonum_711 (high_sierra? vdp->type_sierra: vdp->type)){
+		case ISO_VD_PRIMARY:
+			if (pribp == NULL) {
+				pribp = bp;
+				bp = NULL;
+				pri = (struct iso_primary_descriptor *)vdp;
+				pri_sierra =
+				  (struct iso_sierra_primary_descriptor *)vdp;
+			}
 			break;
+
+		case ISO_VD_SUPPLEMENTARY:
+			if (supbp == NULL) {
+				supbp = bp;
+				bp = NULL;
+				sup = (struct iso_supplementary_descriptor *)vdp;
+
+				if (!(argp->flags & ISOFSMNT_NOJOLIET)) {
+					if (bcmp(sup->escape, "%/@", 3) == 0)
+						joliet_level = 1;
+					if (bcmp(sup->escape, "%/C", 3) == 0)
+						joliet_level = 2;
+					if (bcmp(sup->escape, "%/E", 3) == 0)
+						joliet_level = 3;
+
+					if (isonum_711 (sup->flags) & 1)
+						joliet_level = 0;
+				}
+			}
+			break;
+
+		case ISO_VD_END:
+			goto vd_end;
+
+		default:
+			break;
+		}
+		if (bp) {
+			brelse(bp);
+			bp = NULL;
+		}
+	}
+ vd_end:
+	if (bp) {
 		brelse(bp);
+		bp = NULL;
 	}
 
-	if (isonum_711 (high_sierra? vdp->type_sierra: vdp->type) != ISO_VD_PRIMARY) {
+	if (pri == NULL) {
 		error = EINVAL;
 		goto out;
 	}
-
-	pri = (struct iso_primary_descriptor *)vdp;
-	pri_sierra = (struct iso_sierra_primary_descriptor *)vdp;
 
 	logical_block_size =
 		isonum_723 (high_sierra?
@@ -379,6 +416,7 @@ iso_mountfs(devvp, mp, p, argp)
 		isonum_733 (high_sierra?
 			    pri_sierra->volume_space_size:
 			    pri->volume_space_size);
+	isomp->joliet_level = 0;
 	/*
 	 * Since an ISO9660 multi-session CD can also access previous
 	 * sessions, we have to include them into the space consider-
@@ -393,13 +431,11 @@ iso_mountfs(devvp, mp, p, argp)
 	isomp->root_size = isonum_733 (rootp->size);
 
 	isomp->im_bmask = logical_block_size - 1;
-	isomp->im_bshift = 0;
-	while ((1 << isomp->im_bshift) < isomp->logical_block_size)
-		isomp->im_bshift++;
+	isomp->im_bshift = ffs(logical_block_size) - 1;
 
-	bp->b_flags |= B_AGE;
-	brelse(bp);
-	bp = NULL;
+	pribp->b_flags |= B_AGE;
+	brelse(pribp);
+	pribp = NULL;
 
 	mp->mnt_data = (qaddr_t)isomp;
 	mp->mnt_stat.f_fsid.val[0] = (long)dev;
@@ -414,10 +450,10 @@ iso_mountfs(devvp, mp, p, argp)
 
 	/* Check the Rock Ridge Extention support */
 	if (!(argp->flags & ISOFSMNT_NORRIP)) {
-		if (error = bread(isomp->im_devvp,
+		if ((error = bread(isomp->im_devvp,
 				  (isomp->root_extent + isonum_711(rootp->ext_attr_length)) <<
 				  (isomp->im_bshift - DEV_BSHIFT),
-				  isomp->logical_block_size, NOCRED, &bp))
+				  isomp->logical_block_size, NOCRED, &bp)) != 0)
 		    goto out;
 		
 		rootp = (struct iso_directory_record *)bp->b_data;
@@ -436,12 +472,14 @@ iso_mountfs(devvp, mp, p, argp)
 		brelse(bp);
 		bp = NULL;
 	}
-	isomp->im_flags = argp->flags&(ISOFSMNT_NORRIP|ISOFSMNT_GENS|ISOFSMNT_EXTATT);
+	isomp->im_flags = argp->flags & (ISOFSMNT_NORRIP | ISOFSMNT_GENS |
+					 ISOFSMNT_EXTATT | ISOFSMNT_NOJOLIET);
 
-	if(high_sierra)
+	if (high_sierra) {
 		/* this effectively ignores all the mount flags */
+		log(LOG_INFO, "cd9660: High Sierra Format\n");
 		isomp->iso_ftype = ISO_FTYPE_HIGH_SIERRA;
-	else
+	} else
 		switch (isomp->im_flags&(ISOFSMNT_NORRIP|ISOFSMNT_GENS)) {
 		  default:
 			  isomp->iso_ftype = ISO_FTYPE_DEFAULT;
@@ -450,17 +488,40 @@ iso_mountfs(devvp, mp, p, argp)
 			  isomp->iso_ftype = ISO_FTYPE_9660;
 			  break;
 		  case 0:
+			  log(LOG_INFO, "cd9660: RockRidge Extension\n");
 			  isomp->iso_ftype = ISO_FTYPE_RRIP;
 			  break;
 		}
+
+	/* Decide whether to use the Joliet descriptor */
+
+	if (isomp->iso_ftype != ISO_FTYPE_RRIP && joliet_level) {
+		log(LOG_INFO, "cd9660: Joliet Extension\n");
+		rootp = (struct iso_directory_record *)
+			sup->root_directory_record;
+		bcopy (rootp, isomp->root, sizeof isomp->root);
+		isomp->root_extent = isonum_733 (rootp->extent);
+		isomp->root_size = isonum_733 (rootp->size);
+		isomp->joliet_level = joliet_level;
+		supbp->b_flags |= B_AGE;
+	}
+
+	if (supbp) {
+		brelse(supbp);
+		supbp = NULL;
+	}
 
 	return 0;
 out:
 	devvp->v_specmountpoint = NULL;
 	if (bp)
 		brelse(bp);
+	if (pribp)
+		brelse(pribp);
+	if (supbp)
+		brelse(supbp);
 	if (needclose)
-		(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p);
+		(void)VOP_CLOSE(devvp, FREAD, NOCRED, p);
 	if (isomp) {
 		free((caddr_t)isomp, M_ISOFSMNT);
 		mp->mnt_data = (qaddr_t)0;
@@ -578,9 +639,6 @@ cd9660_statfs(mp, sbp, p)
 		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
 		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
 	}
-	/* Use the first spare for flags: */
-	/* Don't do this!!! XXX */
-	/* sbp->f_spare[0] = isomp->im_flags; */
 	return 0;
 }
 
@@ -641,7 +699,7 @@ cd9660_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	if (np == NULL)
 		return (EACCES);
 
-	if (error = VFS_VGET(mp, ifhp->ifid_ino, &nvp)) {
+	if ((error = VFS_VGET(mp, ifhp->ifid_ino, &nvp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -700,7 +758,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		return (0);
 
 	/* Allocate a new vnode/iso_node. */
-	if (error = getnewvnode(VT_ISOFS, mp, cd9660_vnodeop_p, &vp)) {
+	if ((error = getnewvnode(VT_ISOFS, mp, cd9660_vnodeop_p, &vp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -787,7 +845,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		ip->iso_start = ino >> imp->im_bshift;
 		if (bp != 0)
 			brelse(bp);
-		if (error = cd9660_blkatoff(vp, (off_t)0, NULL, &bp)) {
+		if ((error = cd9660_blkatoff(vp, (off_t)0, NULL, &bp)) != 0) {
 			vput(vp);
 			return (error);
 		}
@@ -840,7 +898,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		 * if device, look at device number table for translation
 		 */
 		vp->v_op = cd9660_specop_p;
-		if (nvp = checkalias(vp, ip->inode.iso_rdev, mp)) {
+		if ((nvp = checkalias(vp, ip->inode.iso_rdev, mp)) != NULL) {
 			/*
 			 * Discard unneeded vnode, but save its iso_node.
 			 * Note that the lock is carried over in the iso_node
@@ -857,6 +915,8 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 			vp = nvp;
 			ip->i_vnode = vp;
 		}
+		break;
+	default:
 		break;
 	}
 	
