@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.14 2002/05/09 11:31:12 ue Exp $
-	basiert auf: 1.87
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.17 2002/05/20 11:29:54 ue Exp $
+	basiert auf: 1.91
 -->
 
 <sect1>
@@ -119,7 +119,7 @@
         </listitem>
 
         <listitem>
-          <para>SiS 630, 633, 635, 645, 730, 733, 735</para>
+          <para>SiS 630, 633, 635, 645, 730, 733, 735, 740, 745, 750</para>
         </listitem>
 
         <listitem>
@@ -1608,7 +1608,7 @@
       (&man.cue.4; Treiber) 
       <itemizedlist>
 	<listitem>
-	  <para>Belkin F5U011, Belkin F5U111</para>
+	  <para>Belkin F5U011, F5U111</para>
 	</listitem>
 
 	<listitem>
@@ -2293,6 +2293,11 @@
 
 	<listitem>
 	  <para>Avaya Wireless PC Card</para>
+	</listitem>
+
+	<listitem>
+	  <para>Blue Concentric Circle CF Wireless LAN Model
+	    WL-379F</para>
 	</listitem>
 
 	<listitem>
