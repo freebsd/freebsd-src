@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.266
+    Original revision: 1.269
 -->
 
 <articleinfo>
@@ -199,7 +199,7 @@
 
     <para>カーネル設定パラメータ <varname>maxusers</varname>
       に <literal>0</literal> を指定すると,
-      ブート時に適切な値 (32 から 512 の間で, 搭載メモリ量に依存して)
+      ブート時に適切な値 (32 から 384 の間で, 搭載メモリ量に依存して)
       を計算するようになりました
       すべての <filename>GENERIC</filename> カーネルではこの値が
       デフォルトとなりました. &merged;</para>
@@ -920,7 +920,18 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	輻輳の頻度が上がることを防ぐために,
 	<varname>net.inet.tcp.local_slowstart_flightsize</varname>
 	のデフォルトの値が無限から 4 に変更されました.
-	&merged;</para>
+	&merged;
+        <note>
+	  <para>負荷のかかるホストでは, 新しい大きなバッファサイズ
+	    では <varname>NMBCLUSTERS</varname> パラメータの値を
+	    カーネル設定ファイルか調整可能なローダ変数
+	    <varname>kern.ipc.nmbclusters</varname>
+	    のどちらかで手動で増やす必要があるかも知れません.
+	    mbuf クラスタの状態は
+	    <command>netstat -mb</command>
+	    で監視することができます.</para>
+	</note>
+      </para>
 
       <para>TCP が RFC 1948 (Defending Against Sequence
         Number Attacks) に対応しました.
@@ -2673,6 +2684,16 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.sysinstall.8; がインストール中に KLD を
       ロードできるようになりました. &merged;</para>
+
+    <para>インストールメディアから実行された場合,
+      &man.sysinstall.8; は
+      <literal>mfsroot</literal> フロッピーかファイルシステムイメージ
+      の <filename>/stand/modules</filename> ディレクトリ
+      内に見つかったデバイスドライバを自動的にロードするようになりました.
+      その結果, それらのドライバはカーネルのブートメッセージには
+      現れないことに注意してください.
+      &man.sysinstall.8; デバッグスクリーンに追加情報が提供されます.
+      &merged;</para>
 
     <para>&man.sysinstall.8; がルートファイルシステムを除き,
       作成する全てのファイルシステムにおいて Soft Updates を
