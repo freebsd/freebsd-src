@@ -193,6 +193,7 @@ static struct part_type
 	,{0xA6, "OpenBSD"}
 	,{0xA7, "NeXTSTEP"}
 	,{0xA9, "NetBSD"}
+	,{0xAC, "IBM JFS"}
 	,{0xB7, "BSDI BSD/386 filesystem"}
 	,{0xB8, "BSDI BSD/386 swap"}
 	,{0xC1, "DRDOS/sec with 12-bit FAT"}
