@@ -314,6 +314,11 @@
     smaller units of scheduling than a process (but only one thread
     per process is allowed at this time).</para>
 
+    <para arch="i386">The &man.loader.8; now has optional support
+    (enabled at compile-time, off by default) for loading
+    <application>bzip2</application>-compressed kernels and
+    modules. &merged;</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -978,6 +983,10 @@
 	<para>A new <literal>maxconnecttime</literal> keyword is now
 	accepted in &man.isdnd.rc.5; files to limit the time a
 	connection may remain open. &merged;</para>
+
+	<para>&man.isdnphone.8; now supports a <option>-k</option> for
+	sending messages via the keypad facility to a PBX or exchange
+	office.</para>
       </sect4>
 
       <sect4 id="kame-kernel">
@@ -1250,7 +1259,11 @@
     <filename>/etc/apmd.conf</filename> for the syntax. &merged;</para>
 
     <para>&man.arp.8; now prints the applicable interface name for
-    each ARP entry.</para>
+    each ARP entry. &merged</para>
+
+    <para>&man.arp.8; now prints <literal>[fddi]</literal> or
+    <literal>[atm]</literal> tags for addresses on interfaces of those
+    types.</para>
 
     <para>&man.atacontrol.8; has been added to control various aspects
     of the &man.ata.4; driver.</para>
@@ -1561,6 +1574,10 @@
     <para arch="i386"><filename>libdisk</filename> can now do
     install-time configuration of the <filename>boot0</filename>
     boot loader. &merged;</para>
+
+    <para><filename>libstand</filename> now has support for
+    filesystems containing <application>bzip2</application>-compressed
+    files. &merged;</para>
 
     <para>The default TCP port range used by
     <filename>libfetch</filename> for passive FTP retrievals has
