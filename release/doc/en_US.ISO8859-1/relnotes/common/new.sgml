@@ -148,7 +148,8 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para>A short hiccup in the &man.em.4; during parameter
+	reconfiguration, has been fixed.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
@@ -162,9 +163,10 @@
 	enabled with the <literal>TCP_SIGNATURE</literal> and
 	<literal>FAST_IPSEC</literal> kernel options, is a TCP option
 	for authenticating TCP sessions.  &man.setkey.8; now includes
-	support for the TCP-MD5 class of security associations.
-	</para>
+	support for the TCP-MD5 class of security associations.</para>
 
+      <para>The &man.ng.vlan.4; NetGraph node type, which supports
+        IEEE 802.1Q VLAN tagging has been added.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -202,6 +204,9 @@
     <para>&man.ifconfig.8; now supports a <option>staticarp</option>
       option for an interface, which disables the sending of ARP
       requests for that interface.</para>
+
+    <para>&man.ifconfig.8; now prints the &man.polling.4; status
+      on the interface.</para>
 
     <para>&man.killall.1; now supports a <option>-e</option> flag to
       make the <option>-u</option> operate on effective, rather than
