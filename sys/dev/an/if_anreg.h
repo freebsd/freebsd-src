@@ -503,6 +503,7 @@ int	an_alloc_aux_memory	(device_t, int, int);
 int	an_alloc_irq		(device_t, int, int);
 int	an_probe	(device_t);
 void	an_shutdown	(device_t);
+void	an_resume	(device_t);
 int	an_attach		(struct an_softc *, int, int);
 void    an_stop		(struct an_softc *);
 
