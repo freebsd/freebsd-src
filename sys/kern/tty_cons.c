@@ -72,6 +72,11 @@ static	d_ioctl_t	cnioctl;
 static	d_poll_t	cnpoll;
 static	d_kqfilter_t	cnkqfilter;
 
+/*
+ * XXX: We really want major #0, but zero here means
+ * XXX: allocate a major number automatically.
+ * XXX: kern_conf.c knows what to do when it sees 256.
+ */
 static struct cdevsw cn_cdevsw = {
 	.d_open =	cnopen,
 	.d_close =	cnclose,
@@ -81,11 +86,6 @@ static struct cdevsw cn_cdevsw = {
 	.d_poll =	cnpoll,
 	.d_name =	"console",
 	.d_maj =	256,
-			/*
-			 * XXX: We really want major #0, but zero here means
-			 * XXX: allocate a major number automatically.
-			 * XXX: kern_conf.c knows what to do when it sees 256.
-			 */
 	.d_flags =	D_TTY,
 	.d_kqfilter =	cnkqfilter,
 };
