@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.13 1994/11/26 19:38:30 bde Exp $
+ * $Id: ufs_vnops.c,v 1.14 1995/01/09 16:05:27 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -58,6 +58,7 @@
 #include <vm/vm.h>
 
 #include <miscfs/specfs/specdev.h>
+#include <miscfs/fifofs/fifo.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
