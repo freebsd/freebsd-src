@@ -523,6 +523,10 @@ case ${local_startup} in
 	;;
 esac
 
+if [ -n "${network_pass3_done}" ]; then
+	network_pass4
+fi
+
 # Raise kernel security level.  This should be done only after `fsck' has
 # repaired local file systems if you want the securelevel to be greater than 1.
 #

@@ -256,16 +256,6 @@ network_pass1() {
 		;;
 	esac
 
-	case ${log_in_vain} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		echo -n ' log_in_vain=YES'
-		sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null
-		sysctl -w net.inet.udp.log_in_vain=1 >/dev/null
-		;;
-	esac
-
 	case ${icmp_bmcastecho} in
 	[Yy][Ee][Ss])
 		echo -n ' broadcast ping responses=YES'
@@ -590,4 +580,20 @@ network_pass3() {
 
 	echo '.'
 	network_pass3_done=YES
+}
+
+network_pass4() {
+	echo -n 'Additional TCP options:'
+	case ${log_in_vain} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' log_in_vain=YES'
+		sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null
+		sysctl -w net.inet.udp.log_in_vain=1 >/dev/null
+		;;
+	esac
+
+	echo '.'
+	network_pass4_done=YES
 }
