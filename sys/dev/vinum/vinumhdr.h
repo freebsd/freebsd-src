@@ -36,7 +36,7 @@
  */
 
 /* Header files used by all modules */
-/* $Id: vinumhdr.h,v 1.4 1998/12/28 04:56:24 peter Exp $ */
+/* $Id: vinumhdr.h,v 1.11 1998/12/30 05:11:15 grog Exp grog $ */
 
 #ifdef KERNEL
 #define REALLYKERNEL
@@ -72,6 +72,7 @@
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
 #include <sys/dkbad.h>
+#include <sys/queue.h>
 #ifdef KERNEL
 #include <machine/setjmp.h>
 #include <machine/stdarg.h>
@@ -80,16 +81,6 @@
 #include <stdarg.h>
 #endif
 #include <vm/vm.h>
-#ifdef USES_VM
-/* XXX Do we need this? */
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_object.h>
-#include <vm/vm_prot.h>
-/* #include <vm/vm_page.h> */
-#include <sys/vmmeter.h>
-/* #include <machine/pmap.h> */
-#endif							    /* USES_VM */
 #include <dev/vinum/vinumvar.h>
 #include <dev/vinum/vinumio.h>
 #include <dev/vinum/vinumkw.h>
