@@ -1098,13 +1098,11 @@ Static void aue_tick(xsc)
 	}
 
 	mii_tick(mii);
-	if (!sc->aue_link) {
-		mii_pollstat(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc->aue_link++;
-			if (ifp->if_snd.ifq_head != NULL)
-				aue_start(ifp);
+	if (!sc->aue_link && mii->mii_media_status & IFM_ACTIVE &&
+	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		sc->aue_link++;
+		if (ifp->if_snd.ifq_head != NULL)
+			aue_start(ifp);
 	}
 
 	sc->aue_stat_ch = timeout(aue_tick, sc, hz);
