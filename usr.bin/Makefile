@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.110 1998/09/05 12:25:50 asami Exp $
+#	$Id: Makefile,v 1.111 1998/09/16 09:32:29 dfr Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -215,10 +215,8 @@ SUBDIR+=ar \
 	strip \
 	systat \
 	truss \
-	vmstat
-.if ${OBJFORMAT} == aout
-SUBDIR+=doscmd
-.endif
+	vmstat \
+	doscmd
 .endif
 
 .include <bsd.subdir.mk>
