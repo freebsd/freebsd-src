@@ -990,22 +990,6 @@ bawrite(struct buf * bp)
 }
 
 /*
- *	bowrite:
- *
- *	Ordered write.  Start output on a buffer, and flag it so that the 
- *	device will write it in the order it was queued.  The buffer is 
- *	released when the output completes.  bwrite() ( or the VOP routine
- *	anyway ) is responsible for handling B_INVAL buffers.
- */
-int
-bowrite(struct buf * bp)
-{
-	bp->b_ioflags |= BIO_ORDERED;
-	bp->b_flags |= B_ASYNC;
-	return (BUF_WRITE(bp));
-}
-
-/*
  *	bwillwrite:
  *
  *	Called prior to the locking of any vnodes when we are expecting to
