@@ -1,0 +1,72 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 21, 2001
+.Dt VFS_GETVFS 9
+.Os
+.Sh NAME
+.Nm vfs_getvfs
+.Nd "returns a mount point given its fsid"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft struct mount *
+.Fn vfs_getvfs "fsid_t *fsid"
+.Sh DESCRIPTION
+The
+.Fn vfs_getvfs
+function returns the mount point structure for a filesystem given its filesystem
+identifier.  The filesystem id should have been allocated by calling
+.Fn vfs_getnewfsid ;
+otherwise, it will not be found.
+.Pp
+A major user of
+.Fn vfs_getvfs
+is NFS, which uses the fsid as part of file handles in order to determine the
+filesystem a given RPC is for.
+If
+.Fn vfs_getvfs
+fails to find the mount point related to
+.Fa fsid
+the filesystem is considered stale.
+.Sh RETURN VALUES
+If
+.Fa fsid
+is found the mount point for the id is returned; otherwise,
+.Dv NULL
+is returned.
+.Sh PSEUDOCODE
+.Bd -literal
+	if ((mp = vfs_getvfs(&fhp->fh_fsid)) == NULL) {
+		error = ESTALE;
+		goto out;
+	}
+.Ed
+.Sh AUTHORS
+This man page was written by
+.An Chad David Aq davidc@acns.ab.ca .
