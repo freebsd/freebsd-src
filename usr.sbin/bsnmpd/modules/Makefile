@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../../contrib/bsnmp/snmpd
 
-.if !defined(NOATM)
+.if !defined(NO_ATM)
 _snmp_atm= snmp_atm
 .endif
 
