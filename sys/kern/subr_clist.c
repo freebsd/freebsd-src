@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.16 1995/11/01 15:59:55 peter Exp $
+ * $Id: tty_subr.c,v 1.17 1995/11/02 08:37:22 peter Exp $
  */
 
 /*
@@ -38,8 +38,7 @@ static void cblock_alloc_cblocks __P((int number));
 static void cblock_free __P((struct cblock *cblockp));
 static void cblock_free_cblocks __P((int number));
 
-#define	CBLOCK_DIAG
-#ifdef CBLOCK_DIAG
+#ifdef DDB
 static void cbstat __P((void));
 
 static void
@@ -50,7 +49,7 @@ cbstat()
 	       ctotcount * CBSIZE, ctotcount * CBSIZE - cfreecount, cfreecount,
 	       cfreecount - cslushcount * CBSIZE, cslushcount * CBSIZE);
 }
-#endif
+#endif /* DDB */
 
 /*
  * Called from init_main.c
