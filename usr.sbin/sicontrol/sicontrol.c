@@ -44,7 +44,9 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 
+#define SI_DEBUG
 #include <dev/si/si.h>
+#include <dev/si/sivar.h>
 
 struct lv {
 	char	*lv_name;
@@ -158,8 +160,12 @@ main(int argc, char **argv)
 		}
 		if (stat(Devname, &st) < 0)
 			errx(1, "can't stat %s", Devname);
+#if 0
 		dev.sid_card = SI_CARD(minor(st.st_rdev));
 		dev.sid_port = SI_PORT(minor(st.st_rdev));
+#else
+		errx(1, "Sorry, code missing to parse device name into card/port");
+#endif
 		tc.tc_dev = dev;
 	}
 	ctlfd = opencontrol();
