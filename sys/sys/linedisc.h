@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.42 1998/06/25 11:27:56 phk Exp $
+ * $Id: conf.h,v 1.43 1998/07/04 22:30:26 julian Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -194,19 +194,6 @@ d_open_t	nullopen;
 d_close_t	nullclose;
 #define	nullstop nostop		/* one void return is as good as another */
 #define	nullreset noreset	/* one unused function is as good as another */
-
-d_open_t	nxopen;
-d_close_t	nxclose;
-d_read_t	nxread;
-d_write_t	nxwrite;
-d_ioctl_t	nxioctl;
-#define	nxstop	nostop		/* one void return is as good as another */
-#define	nxreset	noreset		/* one unused function is as good as another */
-#define	nxdevtotty nodevtotty	/* one NULL return is as good as another */
-#define	nxmmap	nommap		/* one -1 return is as good as another */
-#define	nxstrategy nostrategy	/* one NULL value is as good as another */
-d_dump_t	nxdump;
-#define	nxpsize	nopsize		/* one NULL value is as good as another */
 
 l_read_t	l_noread;
 l_write_t	l_nowrite;
