@@ -49,7 +49,7 @@ typedef struct {
  * Flags for wordexp().
  */
 #define	WRDE_APPEND	0x1		/* append to previously generated */
-#define	WRDE_DOOFS	0x2		/* we_offs member is valid */
+#define	WRDE_DOOFFS	0x2		/* we_offs member is valid */
 #define	WRDE_NOCMD	0x4		/* disallow command substitution */
 #define	WRDE_REUSE	0x8		/* reuse wordexp_t */
 #define	WRDE_SHOWERR	0x10		/* don't redirect stderr to /dev/null */
