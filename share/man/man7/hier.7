@@ -158,6 +158,12 @@ misc. utility data files
 system daemons & system utilities (executed by other programs)
 .It Li local/
 local executables, libraries, etc.
+.br
+Also used as the default destination for the FreeBSD ports framework.
+Within local/, the general layout sketched out by
+.Xr hier 7
+should be used.  Exceptions are the man directory is directly under local/
+rather than under local/share/.  Ports documentation is in share/loc/<port>/
 .It Li X11R6/
 X11R6 distribution executables, libraries, etc.
 .It Li ports
