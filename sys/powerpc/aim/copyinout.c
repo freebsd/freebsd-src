@@ -66,6 +66,8 @@ static const char rcsid[] =
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
+int	setfault(faultbuf);	/* defined in locore.S */
+
 /*
  * Makes sure that the right segment of userspace is mapped in.
  */
@@ -90,9 +92,6 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-
-	printf("copyout: called with %p, %p, %d (td=%p)\n", kaddr, udaddr, len,
-	    td);
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
@@ -134,9 +133,6 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-
-	printf("copyin: called with %p, %p, %d (td=%p)\n", udaddr, kaddr, len,
-	    td);
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
