@@ -311,11 +311,10 @@ trap(a0, a1, a2, entry, framep)
 		 */
 		if (user) {
 			mtx_lock(&Giant);
-			if ((i = unaligned_fixup(a0, a1, a2, td)) == 0) {
-				mtx_unlock(&Giant);
-				goto out;
-			}
+			i = unaligned_fixup(a0, a1, a2, td);
 			mtx_unlock(&Giant);
+			if (i == 0)
+				goto out;
 			ucode = a0;		/* VA */
 			break;
 		}
@@ -572,12 +571,10 @@ trap(a0, a1, a2, entry, framep)
 				} else if (rv == KERN_PROTECTION_FAILURE)
 					rv = KERN_INVALID_ADDRESS;
 			}
-			if (rv == KERN_SUCCESS) {
-				mtx_unlock(&Giant);
-				goto out;
-			}
-
 			mtx_unlock(&Giant);
+			if (rv == KERN_SUCCESS)
+				goto out;
+
 			if (!user) {
 				/* Check for copyin/copyout fault */
 				if (td != NULL &&
