@@ -79,6 +79,7 @@ fore_xmit_allocate(fup)
 	Fore_unit	*fup;
 {
 	void		*memp;
+	vm_paddr_t	pmemp;
 	H_xmit_queue	*hxp;
 	int		i;
 
@@ -92,11 +93,11 @@ fore_xmit_allocate(fup)
 	}
 	fup->fu_xmit_stat = (Q_status *) memp;
 
-	memp = (void *)vtophys(fup->fu_xmit_stat);
-	if (memp == NULL) {
+	pmemp = vtophys(fup->fu_xmit_stat);
+	if (pmemp == NULL) {
 		return (1);
 	}
-	fup->fu_xmit_statd = (Q_status *) memp;
+	fup->fu_xmit_statd = pmemp;
 
 	/*
 	 * Allocate memory for transmit descriptors
@@ -118,7 +119,7 @@ fore_xmit_allocate(fup)
 			return (1);
 		}
 
-		hxp->hxq_descr_dma = (Xmit_descr *)vtophys(hxp->hxq_descr);
+		hxp->hxq_descr_dma = vtophys(hxp->hxq_descr);
 		if (hxp->hxq_descr_dma == NULL) {
 			return (1);
 		}
@@ -150,7 +151,7 @@ fore_xmit_initialize(fup)
 	Xmit_queue	*cqp;
 	H_xmit_queue	*hxp;
 	Q_status	*qsp;
-	Q_status	*qsp_dma;
+	vm_paddr_t	qsp_dma;
 	int		i;
 
 	/*
@@ -195,7 +196,7 @@ fore_xmit_initialize(fup)
 		 */
 		hxp++;
 		qsp++;
-		qsp_dma++;
+		qsp_dma += sizeof(Q_status);
 		cqp++;
 	}
 

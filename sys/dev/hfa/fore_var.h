@@ -74,7 +74,7 @@ struct h_xmit_queue {
 	Xmit_queue	*hxq_cpelem;	/* CP queue element */
 	Q_status	*hxq_status;	/* Element status word */
 	Xmit_descr	*hxq_descr;	/* Element's transmit descriptor */
-	Xmit_descr	*hxq_descr_dma;	/* Element's transmit descriptor */
+	vm_paddr_t	hxq_descr_dma;	/* Element's transmit descriptor */
 	Fore_vcc	*hxq_vcc;	/* Data's VCC */
 	KBuffer		*hxq_buf;	/* Data's buffer chain head */
 	H_dma		hxq_dma[XMIT_MAX_SEGS];	/* DMA addresses for segments */
@@ -93,7 +93,7 @@ struct h_recv_queue {
 	Recv_queue	*hrq_cpelem;	/* CP queue element */
 	Q_status	*hrq_status;	/* Element status word */
 	Recv_descr	*hrq_descr;	/* Element's receive descriptor */
-	Recv_descr	*hrq_descr_dma;	/* Element's receive descriptor */
+	vm_paddr_t	hrq_descr_dma;	/* Element's receive descriptor */
 };
 typedef struct h_recv_queue	H_recv_queue;
 
@@ -109,7 +109,7 @@ struct h_buf_queue {
 	Buf_queue	*hbq_cpelem;	/* CP queue element */
 	Q_status	*hbq_status;	/* Element status word */
 	Buf_descr	*hbq_descr;	/* Element's buffer descriptor array */
-	Buf_descr	*hbq_descr_dma;	/* Element's buffer descriptor array */
+	vm_paddr_t	hbq_descr_dma;	/* Element's buffer descriptor array */
 };
 typedef struct h_buf_queue	H_buf_queue;
 
@@ -181,24 +181,24 @@ struct fore_unit {
 	H_xmit_queue	*fu_xmit_head;	/* Queue head */
 	H_xmit_queue	*fu_xmit_tail;	/* Queue tail */
 	Q_status	*fu_xmit_stat;	/* Status array (host) */
-	Q_status	*fu_xmit_statd;	/* Status array (DMA) */
+	vm_paddr_t	fu_xmit_statd;	/* Status array (DMA) */
 
 	/* Receive Queue */
 	H_recv_queue	fu_recv_q[RECV_QUELEN];	/* Host queue */
 	H_recv_queue	*fu_recv_head;	/* Queue head */
 	Q_status	*fu_recv_stat;	/* Status array (host) */
-	Q_status	*fu_recv_statd;	/* Status array (DMA) */
+	vm_paddr_t	fu_recv_statd;	/* Status array (DMA) */
 	Recv_descr	*fu_recv_desc;	/* Descriptor array (host) */
-	Recv_descr	*fu_recv_descd;	/* Descriptor array (DMA) */
+	vm_paddr_t	fu_recv_descd;	/* Descriptor array (DMA) */
 
 	/* Buffer Supply Queue - Strategy 1 Small */
 	H_buf_queue	fu_buf1s_q[BUF1_SM_QUELEN];	/* Host queue */
 	H_buf_queue	*fu_buf1s_head;	/* Queue head */
 	H_buf_queue	*fu_buf1s_tail;	/* Queue tail */
 	Q_status	*fu_buf1s_stat;	/* Status array (host) */
-	Q_status	*fu_buf1s_statd;/* Status array (DMA) */
+	vm_paddr_t	fu_buf1s_statd;/* Status array (DMA) */
 	Buf_descr	*fu_buf1s_desc;	/* Descriptor array (host) */
-	Buf_descr	*fu_buf1s_descd;/* Descriptor array (DMA) */
+	vm_paddr_t	fu_buf1s_descd;/* Descriptor array (DMA) */
 	Queue_t		fu_buf1s_bq;	/* Queue of supplied buffers */
 	u_int		fu_buf1s_cnt;	/* Count of supplied buffers */
 
@@ -207,9 +207,9 @@ struct fore_unit {
 	H_buf_queue	*fu_buf1l_head;	/* Queue head */
 	H_buf_queue	*fu_buf1l_tail;	/* Queue tail */
 	Q_status	*fu_buf1l_stat;	/* Status array (host) */
-	Q_status	*fu_buf1l_statd;/* Status array (DMA) */
+	vm_paddr_t	fu_buf1l_statd;/* Status array (DMA) */
 	Buf_descr	*fu_buf1l_desc;	/* Descriptor array (host) */
-	Buf_descr	*fu_buf1l_descd;/* Descriptor array (DMA) */
+	vm_paddr_t	fu_buf1l_descd;/* Descriptor array (DMA) */
 	Queue_t		fu_buf1l_bq;	/* Queue of supplied buffers */
 	u_int		fu_buf1l_cnt;	/* Count of supplied buffers */
 
@@ -218,14 +218,14 @@ struct fore_unit {
 	H_cmd_queue	*fu_cmd_head;	/* Queue head */
 	H_cmd_queue	*fu_cmd_tail;	/* Queue tail */
 	Q_status	*fu_cmd_stat;	/* Status array (host) */
-	Q_status	*fu_cmd_statd;	/* Status array (DMA) */
+	vm_paddr_t	fu_cmd_statd;	/* Status array (DMA) */
 
 	Fore_stats	*fu_stats;	/* Device statistics buffer */
-	Fore_stats	*fu_statsd;	/* Device statistics buffer (DMA) */
+	vm_paddr_t	fu_statsd;	/* Device statistics buffer (DMA) */
 	time_t		fu_stats_time;	/* Last stats request timestamp */
 	int		fu_stats_ret;	/* Stats request return code */
 	Fore_prom	*fu_prom;	/* Device PROM buffer */
-	Fore_prom	*fu_promd;	/* Device PROM buffer (DMA) */
+	vm_paddr_t	fu_promd;	/* Device PROM buffer (DMA) */
 	struct callout_handle fu_thandle;	/* Timer handle */
 	int		fu_ft4;		/* Running ForeThought 4 firmware */
 

@@ -264,7 +264,7 @@ fore_xmit_segment(fup, m, hxp, segp, lenp)
 	H_dma		*sdmap;
 	KBuffer		*m0, *m1, *mprev;
 	caddr_t		cp, bfr;
-	void		*dma;
+	vm_paddr_t	dma;
 	int		pdulen, nsegs, len, align;
 	int		compressed = 0;
 
@@ -404,7 +404,7 @@ retry:
 		/*
 		 * Get a DMA address for the data
 		 */
-		dma = (void *)vtophys(bfr);
+		dma = vtophys(bfr);
 		if (dma == NULL) {
 			fup->fu_stats->st_drv.drv_xm_segdma++;
 			fore_seg_dma_free(hxp, m0, nsegs);
