@@ -96,7 +96,3 @@ Boston, MA 02111-1307, USA.  */
 
 /* Tell libgcc2.c that FreeBSD targets support atexit(3).  */
 #define HAVE_ATEXIT
-
-/* Our malloc can allocte pagesized blocks efficiently.  The default size 
-   of 4072 bytes is not optimal on the i386 nor the Alpha.  */
-#define OBSTACK_CHUNK_SIZE	(getpagesize())
