@@ -8,8 +8,10 @@ all: maybe_stripped
 
 maybe_stripped: strip
 	cp -p strip maybe_stripped
+.if defined(STRIP)
 .if ${STRIP:M-s} != ""
 	./strip maybe_stripped
+.endif
 .endif
 
 install: maninstall
