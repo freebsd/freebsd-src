@@ -45,6 +45,10 @@
  * 		unsetenv    ( addr n -- )
  * 		copyin      ( addr addr' len -- )
  * 		copyout     ( addr addr' len -- )
+ * 		findfile    ( name len type len' -- addr )
+ * 		pnpdevices  ( -- addr )
+ * 		pnphandlers ( -- addr )
+ * 		ccall       ( [[...[p10] p9] ... p1] n addr -- result )
  */
 
 void
@@ -202,6 +206,97 @@ ficlCopyout(FICL_VM *pVM)
 	src = stackPopINT(pVM->pStack);
 
 	archsw.arch_copyout(src, dest, len);
+
+	return;
+}
+
+void
+ficlFindfile(FICL_VM *pVM)
+{
+	char	*name, *type, *namep, *typep;
+	struct	preloaded_file* fp;
+	int	names, types;
+
+#if FICL_ROBUST > 1
+	vmCheckStack(pVM, 4, 1);
+#endif
+
+	types = stackPopINT(pVM->pStack);
+	typep = (char*) stackPopPtr(pVM->pStack);
+	names = stackPopINT(pVM->pStack);
+	namep = (char*) stackPopPtr(pVM->pStack);
+	name = (char*) ficlMalloc(names+1);
+	if (!name)
+		vmThrowErr(pVM, "Error: out of memory");
+	strncpy(name, namep, names);
+	name[names] = '\0';
+	type = (char*) ficlMalloc(types+1);
+	if (!type)
+		vmThrowErr(pVM, "Error: out of memory");
+	strncpy(type, typep, types);
+	type[types] = '\0';
+
+	fp = file_findfile(name, type);
+	stackPushPtr(pVM->pStack, fp);
+
+	return;
+}
+
+void
+ficlPnpdevices(FICL_VM *pVM)
+{
+	static int pnp_devices_initted = 0;
+#if FICL_ROBUST > 1
+	vmCheckStack(pVM, 0, 1);
+#endif
+
+	if(!pnp_devices_initted) {
+		STAILQ_INIT(&pnp_devices);
+		pnp_devices_initted = 1;
+	}
+
+	stackPushPtr(pVM->pStack, &pnp_devices);
+
+	return;
+}
+
+void
+ficlPnphandlers(FICL_VM *pVM)
+{
+#if FICL_ROBUST > 1
+	vmCheckStack(pVM, 0, 1);
+#endif
+
+	stackPushPtr(pVM->pStack, pnphandlers);
+
+	return;
+}
+
+void
+ficlCcall(FICL_VM *pVM)
+{
+	int (*func)(int, ...);
+	int result, p[10];
+	int nparam, i;
+
+#if FICL_ROBUST > 1
+	vmCheckStack(pVM, 2, 0);
+#endif
+
+	func = stackPopPtr(pVM->pStack);
+	nparam = stackPopINT(pVM->pStack);
+
+#if FICL_ROBUST > 1
+	vmCheckStack(pVM, nparam, 1);
+#endif
+
+	for (i = 0; i < nparam; i++)
+		p[i] = stackPopINT(pVM->pStack);
+
+	result = func(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
+	    p[9]);
+
+	stackPushINT(pVM->pStack, result);
 
 	return;
 }
