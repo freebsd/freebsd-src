@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -182,6 +182,7 @@ int write_volume_label(int);
 void start_object(struct vinum_ioctl_msg *);
 void stop_object(struct vinum_ioctl_msg *);
 void setstate(struct vinum_ioctl_msg *msg);
+void setstate_by_force(struct vinum_ioctl_msg *msg);
 void vinum_label(int);
 int vinum_writedisklabel(struct volume *, struct disklabel *);
 int initsd(int);
