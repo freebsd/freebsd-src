@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.10 1995/10/23 13:19:41 jkh Exp $
+ * $Id: installFinal.c,v 1.12 1995/10/26 08:55:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -237,6 +237,8 @@ installNetworking(char *unused)
 	vsystem("echo >> /etc/exports");
 	systemExecute("ee /etc/exports");
     }
+    configResolv();
+    configSysconfig();
     return i;
 }
 
