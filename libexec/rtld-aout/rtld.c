@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.36 1996/10/01 11:54:38 peter Exp $
+ *	$Id: rtld.c,v 1.37 1996/10/01 16:09:18 nate Exp $
  */
 
 #include <sys/param.h>
@@ -1872,7 +1872,7 @@ __dlsym(fd, sym)
 	/*
 	 * Restrict search to passed map if dlopen()ed.
 	 */
-	if (LM_PRIVATE(smp)->spd_flags & RTLD_DL)
+	if (smp != NULL && LM_PRIVATE(smp)->spd_flags & RTLD_DL)
 		src_map = smp;
 
 	np = lookup(sym, &src_map, 1);
