@@ -6,7 +6,7 @@ SRCS = archive.c archures.c bfd.c cache.c coffgen.c core.c ctor.c \
 
 CFLAGS+= -I$(.CURDIR)/. -I$(.CURDIR)/../gdb/.
 CFLAGS+= -DDEFAULT_VECTOR=freebsd386_vec -DSELECT_VECS='&freebsd386_vec' \
-         -DSELECT_ARCHITECTURES='bfd_i386_arch'
+         -DSELECT_ARCHITECTURES='bfd_i386_arch' -DTRAD_CORE
 
 NOPROFILE=no
 NOPIC=no
