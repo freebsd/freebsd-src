@@ -1499,6 +1499,10 @@ ParseAddCmd(gnp, cmd)
     /* if target already supplied, ignore commands */
     if (!(gn->type & OP_HAS_COMMANDS))
 	(void)Lst_AtEnd(gn->commands, cmd);
+    else
+	Parse_Error(PARSE_WARNING,
+		    "duplicate script for target \"%s\" ignored",
+		    gn->name);
     return(0);
 }
 
