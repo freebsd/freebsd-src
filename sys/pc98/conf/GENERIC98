@@ -30,6 +30,7 @@ maxusers	32
 options 	PC98			#PC98
 options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
+options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
 options 	MFS			#Memory Filesystem
@@ -287,6 +288,8 @@ pseudo-device	ppp	1	# Kernel PPP
 pseudo-device	tun		# Packet tunnel.
 pseudo-device	pty		# Pseudo-ttys (telnet etc)
 pseudo-device	md		# Memory "disks"
+pseudo-device	gif	4	# IPv6 and IPv4 tunneling
+pseudo-device	faith	1	# IPv6-to-IPv4 relaying (translation)
 
 # The `bpf' pseudo-device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
@@ -304,7 +307,7 @@ pseudo-device	bpf		#Berkeley packet filter
 #device		ulpt		# Printer
 #device		umass		# Disks/Mass storage - Requires scbus and da
 #device		ums		# Mouse
-# USB Ethernet
+# USB Ethernet, requires mii
 #device		aue		# ADMtek USB ethernet
 #device		cue		# CATC USB ethernet
 #device		kue		# Kawasaki LSI USB ethernet
