@@ -250,15 +250,18 @@ nb_connect_in(struct nbpcb *nbp, struct sockaddr_in *to, struct thread *td)
 	if (error)
 		goto bad;
 	s = splnet();
+	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-		tsleep(&so->so_timeo, PSOCK, "nbcon", 2 * hz);
+		msleep(&so->so_timeo, SOCK_MTX(so), PSOCK, "nbcon", 2 * hz);
 		if ((so->so_state & SS_ISCONNECTING) && so->so_error == 0 &&
 			(error = nb_intr(nbp, td->td_proc)) != 0) {
 			so->so_state &= ~SS_ISCONNECTING;
+			SOCK_UNLOCK(so);
 			splx(s);
 			goto bad;
 		}
 	}
+	SOCK_UNLOCK(so);
 	if (so->so_error) {
 		error = so->so_error;
 		so->so_error = 0;
@@ -408,12 +411,15 @@ nbssn_recv(struct nbpcb *nbp, struct mbuf **mpp, int *lenp,
 	for(;;) {
 		m = NULL;
 		error = nbssn_recvhdr(nbp, &len, &rpcode, MSG_DONTWAIT, td);
+		SOCK_LOCK(so);
 		if (so->so_state &
 		    (SS_ISDISCONNECTING | SS_ISDISCONNECTED | SS_CANTRCVMORE)) {
+			SOCK_UNLOCK(so);
 			nbp->nbp_state = NBST_CLOSED;
 			NBDEBUG("session closed by peer\n");
 			return ECONNRESET;
 		}
+		SOCK_UNLOCK(so);
 		if (error)
 			return error;
 		if (len == 0 && nbp->nbp_state != NBST_SESSION)
@@ -639,8 +645,10 @@ smb_nbst_intr(struct smb_vc *vcp)
 
 	if (nbp == NULL || nbp->nbp_tso == NULL)
 		return;
+	SOCK_LOCK(nbp->nbp_tso);
 	sorwakeup(nbp->nbp_tso);
 	sowwakeup(nbp->nbp_tso);
+	SOCK_UNLOCK(nbp->nbp_tso);
 }
 
 static int

@@ -104,13 +104,16 @@ soo_ioctl(fp, cmd, data, td)
 	switch (cmd) {
 
 	case FIONBIO:
+		SOCK_LOCK(so);
 		if (*(int *)data)
 			so->so_state |= SS_NBIO;
 		else
 			so->so_state &= ~SS_NBIO;
+		SOCK_UNLOCK(so);
 		return (0);
 
 	case FIOASYNC:
+		SOCK_LOCK(so);
 		if (*(int *)data) {
 			so->so_state |= SS_ASYNC;
 			so->so_rcv.sb_flags |= SB_ASYNC;
@@ -120,6 +123,7 @@ soo_ioctl(fp, cmd, data, td)
 			so->so_rcv.sb_flags &= ~SB_ASYNC;
 			so->so_snd.sb_flags &= ~SB_ASYNC;
 		}
+		SOCK_UNLOCK(so);
 		return (0);
 
 	case FIONREAD:
@@ -141,7 +145,9 @@ soo_ioctl(fp, cmd, data, td)
 		return (0);
 
 	case SIOCATMARK:
+		SOCK_LOCK(so);
 		*(int *)data = (so->so_state&SS_RCVATMARK) != 0;
+		SOCK_UNLOCK(so);
 		return (0);
 	}
 	/*
@@ -181,11 +187,13 @@ soo_stat(fp, ub, td)
 	 * If SS_CANTRCVMORE is set, but there's still data left in the
 	 * receive buffer, the socket is still readable.
 	 */
+	SOCK_LOCK(so);
 	if ((so->so_state & SS_CANTRCVMORE) == 0 ||
 	    so->so_rcv.sb_cc != 0)
 		ub->st_mode |= S_IRUSR | S_IRGRP | S_IROTH;
 	if ((so->so_state & SS_CANTSENDMORE) == 0)
 		ub->st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+	SOCK_UNLOCK(so);
 	ub->st_size = so->so_rcv.sb_cc;
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;

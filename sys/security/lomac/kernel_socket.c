@@ -245,8 +245,14 @@ lomac_local_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto bad;
 	}
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
-		if ((so2->so_options & SO_ACCEPTCONN) == 0 ||
-		    (so3 = sonewconn(so2, 0)) == 0) {
+		SOCK_LOCK(so2);
+		if ((so2->so_options & SO_ACCEPTCONN) == 0) {
+			SOCK_UNLOCK(so2);
+			error = ECONNREFUSED;
+			goto bad;
+		}
+		SOCK_UNLOCK(so2);
+		if ((so3 = sonewconn(so2, 0)) == 0) {
 			error = ECONNREFUSED;
 			goto bad;
 		}
@@ -345,15 +351,20 @@ lomac_local_send( struct socket *so, int flags, struct mbuf *m,
 			error = ENOTCONN;
 			goto out;
 		}
-	} else if ((so->so_state & SS_ISCONNECTED) == 0) {
-		if (addr != NULL) {
-			error = lomac_local_connect(so, addr, td);
-			if (error)
-				goto out;	/* XXX */
-		} else {
-			error = ENOTCONN;
-			goto out;
-		}
+	} else {
+		SOCK_LOCK(so);
+		if ((so->so_state & SS_ISCONNECTED) == 0) {
+			SOCK_UNLOCK(so);
+			if (addr != NULL) {
+				error = lomac_local_connect(so, addr, td);
+				if (error)
+					goto out;	/* XXX */
+			} else {
+				error = ENOTCONN;
+				goto out;
+			}
+		} else
+			SOCK_UNLOCK(so);
 	}
 	vp = unp->unp_vnode;
 	if (vp != NULL) {
@@ -560,8 +571,12 @@ bad:
 	}
 	if (mp)
 		*mp = (struct mbuf *)0;
-	if (so->so_state & SS_ISCONFIRMING && uio->uio_resid)
+	SOCK_LOCK(so);
+	if (so->so_state & SS_ISCONFIRMING && uio->uio_resid) {
+		SOCK_UNLOCK(so);
 		(*pr->pr_usrreqs->pru_rcvd)(so, 0);
+	} else
+		SOCK_UNLOCK(so);
 
 restart:
 	error = sblock(&so->so_rcv, SBLOCKWAIT(flags));
@@ -597,7 +612,9 @@ restart:
 				so->so_error = 0;
 			goto release;
 		}
+		SOCK_LOCK(so);
 		if (so->so_state & SS_CANTRCVMORE) {
+			SOCK_UNLOCK(so);
 			if (m)
 				goto dontblock;
 			else
@@ -606,19 +623,25 @@ restart:
 		for (; m; m = m->m_next)
 			if (m->m_type == MT_OOBDATA  || (m->m_flags & M_EOR)) {
 				m = so->so_rcv.sb_mb;
+				SOCK_UNLOCK(so);
 				goto dontblock;
 			}
 		if ((so->so_state & (SS_ISCONNECTED|SS_ISCONNECTING)) == 0 &&
 		    (so->so_proto->pr_flags & PR_CONNREQUIRED)) {
+			SOCK_UNLOCK(so);
 			error = ENOTCONN;
 			goto release;
 		}
-		if (uio->uio_resid == 0)
+		if (uio->uio_resid == 0) {
+			SOCK_UNLOCK(so);
 			goto release;
+		}
 		if ((so->so_state & SS_NBIO) || (flags & MSG_DONTWAIT)) {
+			SOCK_UNLOCK(so);
 			error = EWOULDBLOCK;
 			goto release;
 		}
+		SOCK_LOCK(so);
 		sbunlock(&so->so_rcv);
 		error = sbwait(&so->so_rcv);
 		splx(s);
@@ -687,7 +710,9 @@ dontblock:
 		else
 		    KASSERT(m->m_type == MT_DATA || m->m_type == MT_HEADER,
 			("receive 3"));
+		SOCK_LOCK(so);
 		so->so_state &= ~SS_RCVATMARK;
+		SOCK_UNLOCK(so);
 		len = uio->uio_resid;
 		if (so->so_oobmark && len > so->so_oobmark - offset)
 			len = so->so_oobmark - offset;
@@ -746,7 +771,9 @@ dontblock:
 			if ((flags & MSG_PEEK) == 0) {
 				so->so_oobmark -= len;
 				if (so->so_oobmark == 0) {
+					SOCK_LOCK(so);
 					so->so_state |= SS_RCVATMARK;
+					SOCK_UNLOCK(so);
 					break;
 				}
 			} else {
@@ -766,8 +793,12 @@ dontblock:
 		 */
 		while (flags & MSG_WAITALL && m == 0 && uio->uio_resid > 0 &&
 		    !sosendallatonce(so) && !nextrecord) {
-			if (so->so_error || so->so_state & SS_CANTRCVMORE)
+			SOCK_LOCK(so);
+			if (so->so_error || so->so_state & SS_CANTRCVMORE) {
+				SOCK_UNLOCK(so);
 				break;
+			}
+			SOCK_UNLOCK(so);
 			/*
 			 * Notify the protocol that some data has been
 			 * drained before blocking.
@@ -797,12 +828,15 @@ dontblock:
 		if (pr->pr_flags & PR_WANTRCVD && so->so_pcb)
 			(*pr->pr_usrreqs->pru_rcvd)(so, flags);
 	}
+	SOCK_LOCK(so);
 	if (orig_resid == uio->uio_resid && orig_resid &&
 	    (flags & MSG_EOR) == 0 && (so->so_state & SS_CANTRCVMORE) == 0) {
+		SOCK_UNLOCK(so);
 		sbunlock(&so->so_rcv);
 		splx(s);
 		goto restart;
 	}
+	SOCK_UNLOCK(so);
 
 	if (flagsp)
 		*flagsp |= flags;

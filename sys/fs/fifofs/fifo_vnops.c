@@ -203,26 +203,32 @@ fifo_open(ap)
 		}
 		fip->fi_readers = fip->fi_writers = 0;
 		wso->so_snd.sb_lowat = PIPE_BUF;
+		SOCK_LOCK(rso);
 		rso->so_state |= SS_CANTRCVMORE;
+		SOCK_UNLOCK(rso);
 	}
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
 		if (fip->fi_readers == 1) {
+			SOCK_LOCK(fip->fi_writesock);
 			fip->fi_writesock->so_state &= ~SS_CANTSENDMORE;
 			if (fip->fi_writers > 0) {
 				wakeup((caddr_t)&fip->fi_writers);
 				sowwakeup(fip->fi_writesock);
 			}
+			SOCK_UNLOCK(fip->fi_writesock);
 		}
 	}
 	if (ap->a_mode & FWRITE) {
 		fip->fi_writers++;
 		if (fip->fi_writers == 1) {
+			SOCK_LOCK(fip->fi_readsock);
 			fip->fi_readsock->so_state &= ~SS_CANTRCVMORE;
 			if (fip->fi_readers > 0) {
 				wakeup((caddr_t)&fip->fi_readers);
 				sorwakeup(fip->fi_writesock);
 			}
+			SOCK_UNLOCK(fip->fi_readsock);
 		}
 	}
 	if ((ap->a_mode & FREAD) && (ap->a_mode & O_NONBLOCK) == 0) {
@@ -282,15 +288,21 @@ fifo_read(ap)
 #endif
 	if (uio->uio_resid == 0)
 		return (0);
-	if (ap->a_ioflag & IO_NDELAY)
+	if (ap->a_ioflag & IO_NDELAY) {
+		SOCK_LOCK(rso);
 		rso->so_state |= SS_NBIO;
+		SOCK_UNLOCK(rso);
+	}
 	startresid = uio->uio_resid;
 	VOP_UNLOCK(ap->a_vp, 0, td);
 	error = soreceive(rso, (struct sockaddr **)0, uio, (struct mbuf **)0,
 	    (struct mbuf **)0, (int *)0);
 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (ap->a_ioflag & IO_NDELAY)
+	if (ap->a_ioflag & IO_NDELAY) {
+		SOCK_LOCK(rso);
 		rso->so_state &= ~SS_NBIO;
+		SOCK_UNLOCK(rso);
+	}
 	return (error);
 }
 
@@ -315,14 +327,20 @@ fifo_write(ap)
 	if (ap->a_uio->uio_rw != UIO_WRITE)
 		panic("fifo_write mode");
 #endif
-	if (ap->a_ioflag & IO_NDELAY)
+	if (ap->a_ioflag & IO_NDELAY) {
+		SOCK_LOCK(wso);
 		wso->so_state |= SS_NBIO;
+		SOCK_UNLOCK(wso);
+	}
 	VOP_UNLOCK(ap->a_vp, 0, td);
 	error = sosend(wso, (struct sockaddr *)0, ap->a_uio, 0,
 		       (struct mbuf *)0, 0, td);
 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (ap->a_ioflag & IO_NDELAY)
+	if (ap->a_ioflag & IO_NDELAY) {
+		SOCK_LOCK(wso);
 		wso->so_state &= ~SS_NBIO;
+		SOCK_UNLOCK(wso);
+	}
 	return (error);
 }
 
@@ -412,10 +430,13 @@ filt_fiforead(struct knote *kn, long hint)
 	struct socket *so = (struct socket *)kn->kn_hook;
 
 	kn->kn_data = so->so_rcv.sb_cc;
+	SOCK_LOCK(so);
 	if (so->so_state & SS_CANTRCVMORE) {
+		SOCK_UNLOCK(so);
 		kn->kn_flags |= EV_EOF;
 		return (1);
 	}
+	SOCK_UNLOCK(so);
 	kn->kn_flags &= ~EV_EOF;
 	return (kn->kn_data > 0);
 }
@@ -436,10 +457,13 @@ filt_fifowrite(struct knote *kn, long hint)
 	struct socket *so = (struct socket *)kn->kn_hook;
 
 	kn->kn_data = sbspace(&so->so_snd);
+	SOCK_LOCK(so);
 	if (so->so_state & SS_CANTSENDMORE) {
+		SOCK_UNLOCK(so);
 		kn->kn_flags |= EV_EOF;
 		return (1);
 	}
+	SOCK_UNLOCK(so);
 	kn->kn_flags &= ~EV_EOF;
 	return (kn->kn_data >= so->so_snd.sb_lowat);
 }

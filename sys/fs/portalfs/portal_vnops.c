@@ -43,24 +43,26 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/proc.h>
-#include <sys/filedesc.h>
-#include <sys/vnode.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/mount.h>
+#include <sys/filedesc.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/namei.h>
 #include <sys/mbuf.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/stat.h>
+#include <sys/systm.h>
+#include <sys/sysproto.h>
+#include <sys/time.h>
 #include <sys/un.h>
 #include <sys/unpcb.h>
+#include <sys/vnode.h>
 #include <fs/portalfs/portal.h>
 
 static int portal_fileid = PORTAL_ROOTFILEID+1;
@@ -182,8 +184,12 @@ portal_connect(so, so2)
 	if (so->so_type != so2->so_type)
 		return (EPROTOTYPE);
 
-	if ((so2->so_options & SO_ACCEPTCONN) == 0)
+	SOCK_LOCK(so2);
+	if ((so2->so_options & SO_ACCEPTCONN) == 0) {
+		SOCK_UNLOCK(so2);
 		return (ECONNREFUSED);
+	}
+	SOCK_UNLOCK(so2);
 
 	if ((so3 = sonewconn(so2, 0)) == 0)
 		return (ECONNREFUSED);
@@ -280,14 +286,17 @@ portal_open(ap)
 	 * and keep polling the reference count.   XXX.
 	 */
 	s = splnet();
+	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		if (fmp->pm_server->f_count == 1) {
+			SOCK_UNLOCK(so);
 			error = ECONNREFUSED;
 			splx(s);
 			goto bad;
 		}
-		(void) tsleep((caddr_t) &so->so_timeo, PSOCK, "portalcon", 5 * hz);
+		(void) msleep((caddr_t) &so->so_timeo, SOCK_MTX(so), PSOCK, "portalcon", 5 * hz);
 	}
+	SOCK_UNLOCK(so);
 	splx(s);
 
 	if (so->so_error) {

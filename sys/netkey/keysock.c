@@ -174,7 +174,9 @@ key_sendup0(rp, m, promisc)
 		error = ENOBUFS;
 	} else
 		error = 0;
+	SOCK_LOCK(rp->rcb_socket);
 	sorwakeup(rp->rcb_socket);
+	SOCK_UNLOCK(rp->rcb_socket);
 	return error;
 }
 
@@ -427,8 +429,10 @@ key_attach(struct socket *so, int proto, struct thread *td)
 	key_cb.any_count++;
 	kp->kp_raw.rcb_laddr = &key_src;
 	kp->kp_raw.rcb_faddr = &key_dst;
-	soisconnected_locked(so);
+	SOCK_LOCK(so);
+	soisconnected(so);
 	so->so_options |= SO_USELOOPBACK;
+	SOCK_UNLOCK(so);
 
 	splx(s);
 	return 0;

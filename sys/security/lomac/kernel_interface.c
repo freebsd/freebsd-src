@@ -413,10 +413,15 @@ set_object_lattr(lomac_object_t *obj, lattr_t lattr) {
 	case LO_TYPE_SOCKETPAIR:
 		socket = obj->lo_object.socket;
 		/* KASSERT that socket peer levels are synchronized */
-		if (lattr.level == LOMAC_HIGHEST_LEVEL)
+		if (lattr.level == LOMAC_HIGHEST_LEVEL) {
+			SOCK_LOCK(socket);
 			socket->so_state &= ~SOCKET_LEVEL_LOWEST;
-		else
+			SOCK_UNLOCK(socket);
+		} else {
+			SOCK_LOCK(socket);
 			socket->so_state |= SOCKET_LEVEL_LOWEST;
+			SOCK_UNLOCK(socket);
+		}
 #ifdef NOT_YET
 		pipe = pipe->pipe_peer;
 		if (pipe != NULL) {
@@ -474,8 +479,10 @@ get_object_lattr(const lomac_object_t *obj, lattr_t *lattr) {
 		break;
 	case LO_TYPE_SOCKETPAIR:
 		socket = obj->lo_object.socket;
+		SOCK_LOCK(socket);
 		lattr->level = (socket->so_state & SOCKET_LEVEL_LOWEST) ?
 		    LOMAC_LOWEST_LEVEL : LOMAC_HIGHEST_LEVEL;
+		SOCK_UNLOCK(socket);
 		lattr->flags = 0;		
 		break;
 	default:

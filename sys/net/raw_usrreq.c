@@ -37,6 +37,7 @@
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -105,7 +106,9 @@ raw_input(m0, proto, src, dst)
 					/* should notify about lost packet */
 					m_freem(n);
 				else {
+					SOCK_LOCK(last);
 					sorwakeup(last);
+					SOCK_UNLOCK(last);
 					sockets++;
 				}
 			}
@@ -117,7 +120,9 @@ raw_input(m0, proto, src, dst)
 		    m, (struct mbuf *)0) == 0)
 			m_freem(m);
 		else {
+			SOCK_LOCK(last);
 			sorwakeup(last);
+			SOCK_UNLOCK(last);
 			sockets++;
 		}
 	} else
@@ -145,8 +150,11 @@ raw_uabort(struct socket *so)
 	if (rp == 0)
 		return EINVAL;
 	raw_disconnect(rp);
+	SOCK_LOCK(so);
 	sotryfree(so);
+	SOCK_LOCK(so);
 	soisdisconnected(so);	/* XXX huh? called after the sofree()? */
+	SOCK_UNLOCK(so);
 	return 0;
 }
 
@@ -203,7 +211,9 @@ raw_udisconnect(struct socket *so)
 		return ENOTCONN;
 	}
 	raw_disconnect(rp);
+	SOCK_LOCK(so);
 	soisdisconnected(so);
+	SOCK_UNLOCK(so);
 	return 0;
 }
 
