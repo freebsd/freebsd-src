@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.32 1996/02/24 13:38:26 phk Exp $
+ *	$Id: ip_fw.c,v 1.33 1996/02/26 15:28:15 phk Exp $
  */
 
 /*
@@ -70,8 +70,8 @@ static int	port_match __P((u_short *portptr, int nports, u_short port,
 static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static void	ipfw_report __P((char *txt, int rule, struct ip *ip));
 
-static int (*old_chk_ptr)(struct mbuf *, struct ip *,struct ifnet *, int dir);
-static int (*old_ctl_ptr)(int,struct mbuf **);
+static ip_fw_chk_t *old_chk_ptr;
+static ip_fw_ctl_t *old_ctl_ptr;
 
 /*
  * Returns 1 if the port is matched by the vector, 0 otherwise
@@ -107,6 +107,10 @@ tcpflg_match(tcp, f)
 {
 	u_char		flg_set, flg_clr;
 	
+	if ((f->fw_tcpf & IP_FW_TCPF_ESTAB) &&
+	    (tcp->th_flags & (IP_FW_TCPF_RST | IP_FW_TCPF_ACK)))
+		return 1;
+
 	flg_set = tcp->th_flags & f->fw_tcpf;
 	flg_clr = tcp->th_flags & f->fw_tcpnf;
 
@@ -225,14 +229,15 @@ ipfw_report(char *txt, int rule, struct ip *ip)
  */
 
 int 
-ip_fw_chk(m, ip, rif, dir)
-	struct mbuf *m;
-	struct ip *ip;
+ip_fw_chk(pip, hlen, rif, dir, m)
+	struct ip **pip;
 	struct ifnet *rif;
-	int dir;
+	int hlen, dir;
+	struct mbuf **m;
 {
 	struct ip_fw_chain *chain;
 	register struct ip_fw *f = NULL;
+	struct ip *ip = *pip;
 	struct tcphdr *tcp = (struct tcphdr *) ((u_long *) ip + ip->ip_hl);
 	struct udphdr *udp = (struct udphdr *) ((u_long *) ip + ip->ip_hl);
 	struct icmp *icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
@@ -247,7 +252,7 @@ ip_fw_chk(m, ip, rif, dir)
 	 */
 	if ((ip->ip_off & IP_OFFMASK) == 1) {
 		ipfw_report("Refuse", -1, ip);
-		m_freem(m);
+		m_freem(*m);
 		return 0;
 	}
 
@@ -422,15 +427,15 @@ got_match:
 		 */
 		if ((f_prt != IP_FW_F_ICMP) && (f->fw_flg & IP_FW_F_ICMPRPL)) {
 			if (f_prt == IP_FW_F_ALL)
-				icmp_error(m, ICMP_UNREACH, 
+				icmp_error(*m, ICMP_UNREACH, 
 					ICMP_UNREACH_HOST, 0L, 0);
 			else
-				icmp_error(m, ICMP_UNREACH, 
+				icmp_error(*m, ICMP_UNREACH, 
 					ICMP_UNREACH_PORT, 0L, 0);
 			return 0;
 		}
 	}
-	m_freem(m);
+	m_freem(*m);
 	return 0;
 }
 
