@@ -258,7 +258,7 @@ static void fdc_reset(struct fdc_data *);
 SYSCTL_NODE(_debug, OID_AUTO, fdc, CTLFLAG_RW, 0, "fdc driver");
 
 static int fifo_threshold = 8;
-SYSCTL_INT(_debug_fdc, OID_AUTO, fifo, CTLFLAG_RW, &fifo_threshold, 0, 
+SYSCTL_INT(_debug_fdc, OID_AUTO, fifo, CTLFLAG_RW, &fifo_threshold, 0,
 	"FIFO threshold setting");
 
 static int debugflags = 0;
@@ -739,7 +739,7 @@ fdc_worker(struct fdc_data *fdc)
 		fd->flags &= ~FD_ISADMA;
 		mtx_unlock(&fdc->fdc_mtx);
 	}
-		
+
 	/* Unwedge the controller ? */
 	if (fdc->flags & FDC_NEEDS_RESET) {
 		fdc->flags &= ~FDC_NEEDS_RESET;
@@ -921,7 +921,7 @@ fdc_worker(struct fdc_data *fdc)
 			msleep(fdc->fd, NULL, PRIBIO, "fdhdstl", settle);
 	}
 
-	/* 
+	/*
 	 * SEEK to where we want to be
 	 *
 	 * Enhanced controllers do implied seeks for read&write as long as
@@ -949,7 +949,7 @@ fdc_worker(struct fdc_data *fdc)
 	}
 	fd->track = cylinder;
 
-	if (debugflags & 8) 
+	if (debugflags & 8)
 		printf("op %x bn %ju siz %u ptr %p retry %d\n",
 		    bp->bio_cmd, bp->bio_pblkno, fd->fd_iosize,
 		    fd->fd_ioptr, fdc->retry);
@@ -1162,7 +1162,7 @@ fdc_thread(void *arg)
 }
 
 /*
- * Enqueue a requst.
+ * Enqueue a request.
  */
 static void
 fd_enqueue(struct fd_data *fd, struct bio *bp)
@@ -1930,7 +1930,7 @@ fd_attach2(void *arg, int flag)
 	struct	fd_data *fd;
 
 	fd = arg;
-	
+
 	fd->fd_geom = g_new_geomf(&g_fd_class,
 	    "fd%d", device_get_unit(fd->fdc->fdc_dev));
 	fd->fd_provider = g_new_providerf(fd->fd_geom, fd->fd_geom->name);
