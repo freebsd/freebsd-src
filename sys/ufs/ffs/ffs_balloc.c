@@ -40,6 +40,7 @@
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
+#include <sys/proc.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
