@@ -4,7 +4,7 @@
  *                    All rights reserved
  * Versions of malloc and friends that check their results, and never return
  * failure (they call fatal if they encounter an error).
- * 
+ *
  * As far as I am concerned, the code I have written for this software
  * can be used freely for any purpose.  Any derived versions of this
  * software must be clearly marked as such, and if the derived work is
@@ -13,16 +13,21 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: xmalloc.c,v 1.8 2000/09/07 20:27:55 deraadt Exp $");
+RCSID("$OpenBSD: xmalloc.c,v 1.15 2001/04/16 08:05:34 deraadt Exp $");
 
-#include "ssh.h"
+#include "xmalloc.h"
+#include "log.h"
 
 void *
 xmalloc(size_t size)
 {
-	void *ptr = malloc(size);
+	void *ptr;
+
+	if (size == 0)
+		fatal("xmalloc: zero size");
+	ptr = malloc(size);
 	if (ptr == NULL)
-		fatal("xmalloc: out of memory (allocating %d bytes)", (int) size);
+		fatal("xmalloc: out of memory (allocating %lu bytes)", (u_long) size);
 	return ptr;
 }
 
@@ -31,11 +36,14 @@ xrealloc(void *ptr, size_t new_size)
 {
 	void *new_ptr;
 
+	if (new_size == 0)
+		fatal("xrealloc: zero size");
 	if (ptr == NULL)
-		fatal("xrealloc: NULL pointer given as argument");
-	new_ptr = realloc(ptr, new_size);
+		new_ptr = malloc(new_size);
+	else
+		new_ptr = realloc(ptr, new_size);
 	if (new_ptr == NULL)
-		fatal("xrealloc: out of memory (new_size %d bytes)", (int) new_size);
+		fatal("xrealloc: out of memory (new_size %lu bytes)", (u_long) new_size);
 	return new_ptr;
 }
 
@@ -50,9 +58,12 @@ xfree(void *ptr)
 char *
 xstrdup(const char *str)
 {
-	int len = strlen(str) + 1;
+	size_t len = strlen(str) + 1;
+	char *cp;
 
-	char *cp = xmalloc(len);
+	if (len == 0)
+		fatal("xstrdup: zero size");
+	cp = xmalloc(len);
 	strlcpy(cp, str, len);
 	return cp;
 }

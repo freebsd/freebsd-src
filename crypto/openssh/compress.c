@@ -12,14 +12,17 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: compress.c,v 1.9 2000/09/07 20:27:50 deraadt Exp $");
+RCSID("$OpenBSD: compress.c,v 1.14 2001/04/05 10:39:01 markus Exp $");
 
-#include "ssh.h"
+#include "log.h"
 #include "buffer.h"
 #include "zlib.h"
+#include "compress.h"
 
 static z_stream incoming_stream;
 static z_stream outgoing_stream;
+static int compress_init_send_called = 0;
+static int compress_init_recv_called = 0;
 
 /*
  * Initializes compression; level is compression level from 1 to 9
@@ -27,19 +30,29 @@ static z_stream outgoing_stream;
  */
 
 void
-buffer_compress_init(int level)
+buffer_compress_init_send(int level)
 {
+	if (compress_init_send_called == 1)
+		deflateEnd(&incoming_stream);
+	compress_init_send_called = 1;
 	debug("Enabling compression at level %d.", level);
 	if (level < 1 || level > 9)
 		fatal("Bad compression level %d.", level);
-	inflateInit(&incoming_stream);
 	deflateInit(&outgoing_stream, level);
+}
+void
+buffer_compress_init_recv(void)
+{
+	if (compress_init_recv_called == 1)
+		inflateEnd(&incoming_stream);
+	compress_init_recv_called = 1;
+	inflateInit(&incoming_stream);
 }
 
 /* Frees any data structures allocated for compression. */
 
 void
-buffer_compress_uninit()
+buffer_compress_uninit(void)
 {
 	debug("compress outgoing: raw data %lu, compressed %lu, factor %.2f",
 	      outgoing_stream.total_in, outgoing_stream.total_out,
@@ -49,8 +62,10 @@ buffer_compress_uninit()
 	      incoming_stream.total_out, incoming_stream.total_in,
 	      incoming_stream.total_out == 0 ? 0.0 :
 	      (double) incoming_stream.total_in / incoming_stream.total_out);
-	inflateEnd(&incoming_stream);
-	deflateEnd(&outgoing_stream);
+	if (compress_init_recv_called == 1)
+		inflateEnd(&incoming_stream);
+	if (compress_init_send_called == 1)
+		deflateEnd(&outgoing_stream);
 }
 
 /*
@@ -73,13 +88,13 @@ buffer_compress(Buffer * input_buffer, Buffer * output_buffer)
 		return;
 
 	/* Input is the contents of the input buffer. */
-	outgoing_stream.next_in = (unsigned char *) buffer_ptr(input_buffer);
+	outgoing_stream.next_in = (u_char *) buffer_ptr(input_buffer);
 	outgoing_stream.avail_in = buffer_len(input_buffer);
 
 	/* Loop compressing until deflate() returns with avail_out != 0. */
 	do {
 		/* Set up fixed-size output buffer. */
-		outgoing_stream.next_out = (unsigned char *)buf;
+		outgoing_stream.next_out = (u_char *)buf;
 		outgoing_stream.avail_out = sizeof(buf);
 
 		/* Compress as much data into the buffer as possible. */
@@ -112,12 +127,12 @@ buffer_uncompress(Buffer * input_buffer, Buffer * output_buffer)
 	char buf[4096];
 	int status;
 
-	incoming_stream.next_in = (unsigned char *) buffer_ptr(input_buffer);
+	incoming_stream.next_in = (u_char *) buffer_ptr(input_buffer);
 	incoming_stream.avail_in = buffer_len(input_buffer);
 
 	for (;;) {
 		/* Set up fixed-size output buffer. */
-		incoming_stream.next_out = (unsigned char *) buf;
+		incoming_stream.next_out = (u_char *) buf;
 		incoming_stream.avail_out = sizeof(buf);
 
 		status = inflate(&incoming_stream, Z_PARTIAL_FLUSH);
