@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.24 1995/12/08 23:20:02 phk Exp $
+ *	$Id: mem.c,v 1.25 1995/12/10 15:54:26 bde Exp $
  */
 
 /*
@@ -90,6 +90,8 @@ static void *random_devfs_token;
 static void *urandom_devfs_token;
 static void *zero_devfs_token;
 static void *io_devfs_token;
+
+static void memdevfs_init __P((void));
 
 static void 
 memdevfs_init()
