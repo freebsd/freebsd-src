@@ -1337,6 +1337,15 @@
 /* Define if you have the strstr function.  */
 #define HAVE_STRSTR 1
 
+/* Define if `fhs_fh' is member of `struct fhstatus'. */
+/* #undef HAVE_STRUCT_FHSTATUS_FHS_FH */
+
+/* Define if `ifa_next' is member of `struct ifaddrs'. */
+#define HAVE_STRUCT_IFADDRS_IFA_NEXT 1
+
+/* Define if `ifr_addr' is member of `struct ifreq'. */
+#define HAVE_STRUCT_IFREQ_IFR_ADDR 1
+
 /* Define if you have the svc_getreq function.  */
 #define HAVE_SVC_GETREQ 1
 
