@@ -466,14 +466,14 @@ ibrsv (int handle, int v)
 }
 
 int
-ibsad (int handle, int v)
+ibsad (int handle, int sad)
 {
 	struct ibarg io;
 
 	io.__ident = __ID_IBSAD;
 	io.handle = handle;
-	io.v = v;
-	io.__field = __F_HANDLE | __F_V;
+	io.sad = v;
+	io.__field = __F_HANDLE | __F_SAD;
 	return (__ibsubmit(&io));
 }
 
