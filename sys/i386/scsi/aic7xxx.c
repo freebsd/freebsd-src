@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.12 1996/04/28 19:33:58 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.13 1996/05/10 16:42:13 gibbs Exp $
  */
 /*
  * TODO:
@@ -133,8 +133,6 @@
 
 #include <dev/aic7xxx/aic7xxx_reg.h>
 
-#define PAGESIZ 4096
-
 #include <sys/kernel.h>
 #define KVTOPHYS(x)   vtophys(x)
 
@@ -231,7 +229,8 @@ static int	ahc_reset_device __P((struct ahc_data *ahc, int target,
 static void	ahc_reset_current_bus __P((u_long iobase));
 static void	ahc_run_done_queue __P((struct ahc_data *ahc));
 static void	ahc_scsirate __P((struct ahc_data* ahc, u_char *scsirate,
-				  int period, int offset, int target));
+				  int period, int offset, char channel,
+				  int target));
 static timeout_t
 		ahc_timeout;
 static void	ahc_busy_target __P((int target, char channel,
@@ -288,11 +287,6 @@ static struct {
 	{ 0x100,  50, "20.0"  },
 	{ 0x110,  62, "16.0"  },
 	{ 0x120,  75, "13.4"  },
-	{ 0x130, 175,  "5.7"  },
-	{ 0x140, 200,  "5.0"  },
-	{ 0x150, 225,  "4.4"  },
-	{ 0x160, 250,  "4.0"  },
-	{ 0x170, 275,  "3.6"  },
 	{ 0x000, 100, "10.0"  },
 	{ 0x010, 125,  "8.0"  },
 	{ 0x020, 150,  "6.67" },
@@ -386,39 +380,52 @@ ahc_reset(iobase)
  * Look up the valid period to SCSIRATE conversion in our table.
  */
 static void
-ahc_scsirate(ahc, scsirate, period, offset, target )
+ahc_scsirate(ahc, scsirate, period, offset, channel, target )
 	struct	ahc_data *ahc;
 	u_char	*scsirate;
 	short	period;
 	u_char	offset;
+	char	channel;
 	int	target;
 {
 	int i;
 
 	for (i = 0; i < ahc_num_syncrates; i++) {
+		u_char ultra_enb;
+		u_long ultra_enb_addr;
 
 		if ((ahc_syncrates[i].period - period) >= 0) {
 			/*
 			 * Watch out for Ultra speeds when ultra is not
 			 * enabled and vice-versa.
 			 */
-			if (ahc->type & AHC_ULTRA) {
-				if (!(ahc_syncrates[i].sxfr & ULTRA_SXFR))
-					break; /* Use Async */
-			}
-			else {
-				if (ahc_syncrates[i].sxfr & ULTRA_SXFR) {
-					/*
-					 * This should only happen if the
-					 * drive is the first to negotiate
-					 * and chooses a high rate.  We'll
-					 * just move down the table util
-					 * we hit a non ultra speed.
-					 */
-					continue;
-				}
+			if(!(ahc->type & AHC_ULTRA) 
+			 && (ahc_syncrates[i].sxfr & ULTRA_SXFR)) {
+				/*
+				 * This should only happen if the
+				 * drive is the first to negotiate
+				 * and chooses a high rate.  We'll
+				 * just move down the table util
+				 * we hit a non ultra speed.
+				 */
+				continue;
 			}
 			*scsirate = (ahc_syncrates[i].sxfr) | (offset & 0x0f);
+			/*
+			 * Ensure Ultra mode is set properly for
+			 * this target.
+			 */
+
+			ultra_enb_addr = ahc->baseport + ULTRA_ENB;
+			if(channel == 'B' || target > 7)
+				ultra_enb_addr++;
+			ultra_enb = inb(ultra_enb_addr);	
+			if (ahc_syncrates[i].sxfr & ULTRA_SXFR)
+				ultra_enb |= 0x01 << (target & 0x07);
+			else
+				ultra_enb &= ~(0x01 << (target & 0x07));
+			outb(ultra_enb_addr, ultra_enb);
+			
 			if(bootverbose) {
 				printf("ahc%d: target %d synchronous at %sMHz,"
 				       " offset = 0x%x\n", ahc->unit, target,
@@ -765,7 +772,7 @@ ahc_intr(arg)
 		
                 switch (intstat & SEQINT_MASK) {
                     case BAD_PHASE:
-                        panic("ahc%d:%c:%d: unknown scsi bus phase.  "
+                        printf("ahc%d:%c:%d: unknown scsi bus phase.  "
 			      "Attempting to continue\n",
 			      ahc->unit, channel, target);  
                         break; 
@@ -849,7 +856,6 @@ ahc_intr(arg)
 				if(intstat & CMDCMPLT) {
 					int   scb_index;
 
-					printf("PIC\n");
 					outb(CLRINT + iobase, CLRCMDINT);
 					scb_index = inb(QOUTFIFO + iobase);
 					if(!(inb(QOUTCNT + iobase) & ahc->qcntmask))
@@ -970,9 +976,9 @@ pagein_done:
 					maxoffset = 0x08;
 				else
 					maxoffset = 0x0f;
-				ahc_scsirate(ahc, &rate, period, 
-					     MIN(offset,maxoffset),
-					    target);
+				ahc_scsirate(ahc, &rate, period,
+					     MIN(offset, maxoffset),
+					     channel, target);
 				/* Preserve the WideXfer flag */
 				targ_scratch = rate | (targ_scratch & WIDEXFER);
 				outb(TARG_SCRATCH + iobase + scratch_offset,
@@ -1449,10 +1455,7 @@ clear:
 
 		int scb_index = inb(SCB_TAG + iobase);
 		status = inb(SSTAT1 + iobase);
-
 		scb = ahc->scbarray[scb_index];
-		xs = scb->xs;
-
 
 		if (status & SCSIRSTI) {
 			char channel;
@@ -1485,6 +1488,7 @@ clear:
 			u_char	mesg_out = MSG_NOP;
 			u_char	lastphase = inb(LASTPHASE + iobase);
 
+			xs = scb->xs;
 			sc_print_addr(xs->sc_link);
 
 			switch(lastphase) {
@@ -1536,6 +1540,8 @@ clear:
 		else if (status & SELTO) {
 			u_char waiting;
 			u_char flags;
+
+			xs = scb->xs;
                         xs->error = XS_SELTIMEOUT;
 			/*
 			 * Clear any pending messages for the timed out
@@ -1676,6 +1682,7 @@ ahc_init(ahc)
 {
 	u_long	iobase = ahc->baseport;
 	u_char	scsi_conf, sblkctl, i;
+	u_short	ultraenable = 0;
 	int     max_targ = 15;
 	/*
 	 * Assume we have a board at this stage and it has been reset.
@@ -1880,6 +1887,16 @@ ahc_init(ahc)
 				 */
 				target_settings &= 0x7f;
 			}
+			if(ahc->type & AHC_ULTRA) {
+				/*
+				 * Enable Ultra for any target that
+				 * has a valid ultra syncrate setting.
+				 */
+				u_char rate = target_settings & 0x70;
+				if( rate == 0x00 || rate == 0x10 ||
+				    rate == 0x20 )
+					ultraenable |= (0x01 << i);
+			}
 		}
 		outb(TARG_SCRATCH+i+iobase,target_settings);
 	}
@@ -1897,6 +1914,9 @@ ahc_init(ahc)
 	ahc->wdtrpending = 0;
 	ahc->tagenable = 0;
 	ahc->orderedtag = 0;
+
+	outb(ULTRA_ENB + iobase, ultraenable & 0xff);
+	outb(ULTRA_ENB + 1 + iobase, (ultraenable >> 8) & 0xff);
 
 #ifdef AHC_DEBUG
 	/* How did we do? */
@@ -1970,8 +1990,8 @@ ahcminphys(bp)
  * discontinuous physically, hense the "page per segment" limit
  * enforced here.
  */
-        if (bp->b_bcount > ((AHC_NSEG - 1) * PAGESIZ)) {
-                bp->b_bcount = ((AHC_NSEG - 1) * PAGESIZ);
+        if (bp->b_bcount > ((AHC_NSEG - 1) * PAGE_SIZE)) {
+                bp->b_bcount = ((AHC_NSEG - 1) * PAGE_SIZE);
         }
 }
 
@@ -2081,8 +2101,8 @@ ahc_scsi_cmd(xs)
 				 * length
 				 */
 				/* how far to the end of the page */
-				nextphys = (thisphys & (~(PAGESIZ - 1)))
-					   + PAGESIZ;
+				nextphys = (thisphys & (~(PAGE_SIZE- 1)))
+					   + PAGE_SIZE;
 				bytes_this_page = nextphys - thisphys;
 				/**** or the data ****/
 				bytes_this_page = min(bytes_this_page ,datalen);
@@ -2090,8 +2110,8 @@ ahc_scsi_cmd(xs)
 				datalen -= bytes_this_page;
 
 				/* get more ready for the next page */
-				thiskv = (thiskv & (~(PAGESIZ - 1)))
-					 + PAGESIZ;
+				thiskv = (thiskv & (~(PAGE_SIZE - 1)))
+					 + PAGE_SIZE;
 				if (datalen)
 					thisphys = KVTOPHYS(thiskv);
 			}
@@ -2371,18 +2391,15 @@ ahc_timeout(arg)
 {
 	struct	scb *scb = (struct scb *)arg;
 	struct	ahc_data *ahc;
-	int	s, h, found;
+	int	s, found;
 	u_char	bus_state;
 	u_long	iobase;
 	char	channel;
 
 	s = splbio();
 
-	h = splhigh();
-
 	if (!(scb->flags & SCB_ACTIVE)) {
 		/* Previous timeout took care of me already */
-		splx(h);
 		splx(s);
 		return;
 	}
@@ -2414,13 +2431,11 @@ ahc_timeout(arg)
 			scb->flags |= SCB_TIMEDOUT;
 			timeout(ahc_timeout, (caddr_t)scb, 
 				(scb->xs->timeout * hz) / 1000);
-			splx(h);
 			splx(s);
 			return;
 		}
 	}
 	ahc->in_timeout = TRUE;
-	splx(h);
 
 	/*      
 	 * Ensure that the card doesn't do anything
