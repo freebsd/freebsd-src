@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.460.2.20 1999/05/30 22:36:44 billf Exp $
+#	$Id: Makefile,v 1.460.2.21 1999/08/13 16:00:21 kuriyama Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -135,7 +135,12 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 CRUNCH_TARGETS=	boot fixit
 .endif
 
+.if ${MACHINE_ARCH} == "i386"
+# Make both PC-card boot.flp and plain boot.flp
+EXTRAS= floppies cdrom.1 ftp.1
+.else
 EXTRAS= cdrom.1 ftp.1
+.endif
 
 .if !defined(NODOC)
 DOCREL= doc.1
@@ -270,6 +275,9 @@ release.1:
 	rm -rf /R/*
 	mkdir ${RD}
 	mkdir ${RD}/floppies
+.if ${MACHINE_ARCH} == "i386"
+	mkdir ${RD}/floppies/pccard
+.endif
 	mkdir ${RD}/trees
 	mkdir ${RD}/dists
 	mkdir ${RD}/kernels
@@ -513,7 +521,11 @@ release.9:
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
 	@cp ${.CURDIR}/texts/FLOPPIES.TXT ${RD}/floppies/README.TXT
-	@(cd ${RD}/floppies; md5 * > CHECKSUM.MD5)
+	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
+.if ${MACHINE_ARCH} == "i386"
+	@cp ${.CURDIR}/texts/PCCARD.TXT ${RD}/floppies/pccard/README.TXT
+	@(cd ${RD}/floppies/pccard; md5 *.flp > CHECKSUM.MD5)
+.endif
 	touch release.9
 
 #
@@ -610,6 +622,11 @@ doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.4 release.5 \
 	@echo "Release done"
 
 floppies:
+.if ${MACHINE_ARCH} == "i386"
+	@cd ${.CURDIR} && ${MAKE} PCCARD=YES boot.flp
+	mv ${RD}/floppies/boot.flp ${RD}/floppies/kern.flp \
+		${RD}/floppies/mfsroot.flp ${RD}/floppies/pccard
+.endif
 	@cd ${.CURDIR} && ${MAKE} boot.flp
 	@cd ${.CURDIR} && ${MAKE} fixit.flp
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
