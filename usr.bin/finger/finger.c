@@ -274,7 +274,6 @@ userlist(argc, argv)
 	char conf_alias[LINE_MAX];
 	char *conf_realname;
 	int conf_length;
-	int nip;
 
 	if ((nargv = malloc((argc+1) * sizeof(char *))) == NULL ||
 	    (used = calloc(argc, sizeof(int))) == NULL)
@@ -333,17 +332,14 @@ userlist(argc, argv)
 			}
 		}
 	else {
-		nip = 0;
-		while (nip < argc && (pw = getpwent()) != NULL) {
+		while ((pw = getpwent()) != NULL) {
 			for (p = argv, ip = used; *p; ++p, ++ip)
 				if (**p == '/' && *ip != 1
-				    && show_text("", *p, "")) {
+				    && show_text("", *p, ""))
 					*ip = 1;
-					nip++;
-				} else if (match(pw, *p) && !hide(pw)) {
+				else if (match(pw, *p) && !hide(pw)) {
 					enter_person(pw);
 					*ip = 1;
-					nip++;
 				}
 		}
 		for (p = argv, ip = used; *p; ++p, ++ip)
