@@ -58,6 +58,7 @@ ENTRY list[] = {
 	{ "office phone",	p_gecos,  0,  12, e2,   },
 	{ "home phone",		p_gecos,  0,  10, e2,   },
 	{ "location",		p_gecos,  0,   8, e2,   },
+	{ "other information",	p_gecos,  0,  11, e1,   },
 	{ "home directory",	p_hdir,   1,  14, e1,   },
 	{ "shell",		p_shell,  0,   5, e1,   },
 	{ NULL, 0, },
