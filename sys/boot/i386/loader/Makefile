@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.26 1999/01/10 20:20:27 msmith Exp $
+# $Id: Makefile,v 1.27 1999/01/11 05:52:28 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -79,7 +79,7 @@ ${BASE}.bin: ${BASE}.sym
 	strip ${.TARGET}
 
 ${BASE}.help: help.common help.i386
-	perl ${.CURDIR}/../../common/merge_help.pl ${.ALLSRC} > ${.TARGET}
+	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 beforeinstall:
 .if exists(${DESTDIR}/boot/loader)
