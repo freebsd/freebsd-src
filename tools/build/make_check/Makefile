@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 # Test for broken LHS expansion.
-# This *must* case make(1) to detect a recursive variable, and fail as such.
+# This *must* cause make(1) to detect a recursive variable, and fail as such.
 .if make(lhs_expn)
 FOO=		${BAR}
 BAR${NIL}=	${FOO}
@@ -32,6 +32,12 @@ all:
 	@echo "Running test lhs_expn"
 	@! ${MAKE} lhs_expn && true || ${MAKE} failure
 	@echo "PASS: Test lhs_expn detected no regression."
+	@echo "Running test notdef"
+	@${MAKE} notdef || ${MAKE} failure
+	@echo "PASS: Test notdef detected no regression."
+	@echo "Running test modifiers"
+	@${MAKE} modifiers || ${MAKE} failure
+	@echo "PASS: Test modifiers detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -56,6 +62,24 @@ sysvmatch:
 # the left-hand-side's embedded variables above.
 lhs_expn:
 	@true
+
+.if make(notdef)
+# make(1) claims to only evaluate a conditional as far as is necessary
+# to determine its value; that was not always the case.
+.undef notdef
+notdef:
+.if defined(notdef) && ${notdef:U}
+.endif
+.endif
+
+.if make(modifiers)
+# See if make(1) supports the C modifier.
+modifiers:
+	@if ${MAKE} -V .CURDIR:C/.// 2>&1 >/dev/null | \
+	    grep -q "Unknown modifier 'C'"; then \
+		false; \
+	fi
+.endif
 
 failure:
 	@echo "FAIL: Test failed: regression detected.  See above."
