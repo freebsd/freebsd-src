@@ -133,6 +133,20 @@ g_dev_register_cloner(void *foo __unused)
 
 SYSINIT(geomdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,g_dev_register_cloner,NULL);
 
+struct g_provider *
+g_dev_getprovider(dev_t dev)
+{
+	struct g_consumer *cp;
+
+	if (dev == NULL)
+		return (NULL);
+	if (devsw(dev) != &g_dev_cdevsw)
+		return (NULL);
+	cp = dev->si_drv2;
+	return (cp->provider);
+}
+
+
 static struct g_geom *
 g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
