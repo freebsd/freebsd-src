@@ -28,13 +28,15 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: xdryp.c,v 1.1 1993/11/01 23:56:28 paul Exp $";
+static char *rcsid = "$Id: xdryp.c,v 1.1 1994/08/07 23:04:54 wollman Exp $";
 #endif
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
@@ -49,6 +51,30 @@ struct ypresp_all {
 	union {
 		struct ypresp_key_val val;
 	} ypresp_all_u;
+};
+
+enum ypxfrstat {
+	YPXFR_SUCC = 1,
+	YPXFR_AGE = 2,
+	YPXFR_NOMAP = -1,
+	YPXFR_NODOM = -2,
+	YPXFR_RSRC = -3,
+	YPXFR_RPC = -4,
+	YPXFR_MADDR = -5,
+	YPXFR_YPERR = -6,
+	YPXFR_BADARGS = -7,
+	YPXFR_DBM = -8,
+	YPXFR_FILE = -9,
+	YPXFR_SKEW = -10,
+	YPXFR_CLEAR = -11,
+	YPXFR_FORCE = -12,
+	YPXFR_XFRERR = -13,
+	YPXFR_REFUSED = -14,
+};
+
+struct ypresp_xfr {
+	u_int transid;
+	enum ypxfrstat xfrstat;
 };
 
 bool_t
@@ -388,6 +414,95 @@ struct ypresp_order *objp;
 		return (FALSE);
 	}
 	if (!xdr_u_long(xdrs, &objp->ordernum)) {
+		return (FALSE);
+	}
+	return (TRUE);
+}
+
+bool_t
+xdr_ypxfrstat(xdrs, objp)
+XDR *xdrs;
+enum ypxfrstat *objp;
+{
+	if (!xdr_enum(xdrs, (enum_t *)objp)) {
+		return (FALSE);
+	}
+	return (TRUE);
+}
+
+bool_t
+xdr_ypresp_xfr(xdrs, objp)
+XDR *xdrs;
+struct ypresp_xfr *objp;
+{
+	if (!xdr_u_int(xdrs, &objp->transid)) {
+		return (FALSE);
+	}
+	if (!xdr_ypxfrstat(xdrs, &objp->xfrstat)) {
+		return (FALSE);
+	}
+	return (TRUE);
+}
+
+bool_t
+xdr_ypmap_parms(xdrs, objp)
+XDR *xdrs;
+struct ypmap_parms *objp;
+{
+	if (!xdr_domainname(xdrs, &objp->domain)) {
+		return (FALSE);
+	}
+	if (!xdr_mapname(xdrs, &objp->map)) {
+		return (FALSE);
+	}
+	if (!xdr_u_long(xdrs, &objp->ordernum)) {
+		return (FALSE);
+	}
+	if (!xdr_peername(xdrs, &objp->owner)) {
+		return (FALSE);
+	}
+}
+
+bool_t
+xdr_ypreq_xfr(xdrs, objp)
+XDR *xdrs;
+struct ypreq_xfr *objp;
+{
+	if (!xdr_ypmap_parms(xdrs, &objp->map_parms)) {
+		return (FALSE);
+	}
+	if (!xdr_u_long(xdrs, &objp->transid)) {
+		return (FALSE);
+	}
+	if (!xdr_u_long(xdrs, &objp->proto)) {
+		return (FALSE);
+	}
+	if (!xdr_u_short(xdrs, &objp->port)) {
+		return (FALSE);
+	}
+	return (TRUE);
+}
+
+bool_t
+xdr_yppush_status(xdrs, objp)
+XDR *xdrs;
+enum yppush_status *objp;
+{
+	if (!xdr_enum(xdrs, (enum_t *)objp)) {
+		return (FALSE);
+	}
+	return (TRUE);
+}
+
+bool_t
+xdr_yppushresp_xfr(xdrs, objp)
+XDR *xdrs;
+struct yppushresp_xfr *objp;
+{
+	if (!xdr_u_long(xdrs, &objp->transid)) {
+		return (FALSE);
+	}
+	if (!xdr_yppush_status(xdrs, &objp->status)) {
 		return (FALSE);
 	}
 	return (TRUE);
