@@ -23,14 +23,14 @@ clean:
 		*.gz
 
 install: 
-	rm -f ${MFS_MOUNTPOINT}/stand/*
-	cp crunch1 ${MFS_MOUNTPOINT}/stand/crunch
-	chmod 555 ${MFS_MOUNTPOINT}/stand/crunch
+	rm -f ${MFS_MOUNTPOINT}/sbin/*
+	cp crunch1 ${MFS_MOUNTPOINT}/sbin/crunch
+	chmod 555 ${MFS_MOUNTPOINT}/sbin/crunch
 	for i in `crunchgen -l crunch1.conf` ; \
 	do \
-		ln ${MFS_MOUNTPOINT}/stand/crunch ${MFS_MOUNTPOINT}/stand/$${i}; \
+		ln ${MFS_MOUNTPOINT}/sbin/crunch ${MFS_MOUNTPOINT}/sbin/$${i}; \
 	done
-	rm ${MFS_MOUNTPOINT}/stand/crunch
+	rm ${MFS_MOUNTPOINT}/sbin/crunch
 	# Install the MIB files
 	#cp mibs/*.txt ${MFS_MOUNTPOINT}/usr/local/share/snmp/mibs/
 
