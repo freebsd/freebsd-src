@@ -9,6 +9,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

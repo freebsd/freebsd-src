@@ -3,6 +3,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -77,7 +80,7 @@
 #if 0
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1.4.2 2001/07/15 22:00:14 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1.4.5 2002/02/22 15:32:58 darrenr Exp $";
 #endif
 #endif
 
@@ -303,14 +306,14 @@ int	ptest;
 		ip->ip_len = MIN(768 + 20, mtu - 68);
 		i = 512;
 		for (; i < (63 * 1024 + 768); i += 768) {
-			ip->ip_off = htons(IP_MF | (i >> 3));
+			ip->ip_off = htons(IP_MF | ((i >> 3) & 0x1fff));
 			(void) send_ip(nfd, mtu, ip, gwip, 1);
 			printf("%d\r", i);
 			fflush(stdout);
 			PAUSE();
 		}
 		ip->ip_len = 896 + 20;
-		ip->ip_off = htons(i >> 3);
+		ip->ip_off = htons((i >> 3) & 0x1fff);
 		(void) send_ip(nfd, mtu, ip, gwip, 1);
 		printf("%d\r", i);
 		putchar('\n');
@@ -337,7 +340,7 @@ int	ptest;
 		ip->ip_len = MIN(768 + 20, mtu - 68);
 		i = 512;
 		for (; i < (63 * 1024 + 768); i += 768) {
-			ip->ip_off = htons(IP_MF | (i >> 3));
+			ip->ip_off = htons(IP_MF | ((i >> 3) & 0x1fff));
 			if ((rand() & 0x1f) != 0) {
 				(void) send_ip(nfd, mtu, ip, gwip, 1);
 				printf("%d\r", i);
@@ -347,7 +350,7 @@ int	ptest;
 			PAUSE();
 		}
 		ip->ip_len = 896 + 20;
-		ip->ip_off = htons(i >> 3);
+		ip->ip_off = htons((i >> 3) & 0x1fff);
 		if ((rand() & 0x1f) != 0) {
 			(void) send_ip(nfd, mtu, ip, gwip, 1);
 			printf("%d\r", i);
@@ -374,14 +377,14 @@ int	ptest;
 		ip->ip_len = MIN(768 + 20, mtu - 68);
 		i = 512;
 		for (; i < (32 * 1024 + 768); i += 768) {
-			ip->ip_off = htons(IP_MF | (i >> 3));
+			ip->ip_off = htons(IP_MF | ((i >> 3) & 0x1fff));
 			(void) send_ip(nfd, mtu, ip, gwip, 1);
 			printf("%d\r", i);
 			fflush(stdout);
 			PAUSE();
 		}
 		ip->ip_len = 896 + 20;
-		ip->ip_off = htons(i >> 3);
+		ip->ip_off = htons((i >> 3) & 0x1fff);
 		(void) send_ip(nfd, mtu, ip, gwip, 1);
 		printf("%d\r", i);
 		putchar('\n');
@@ -1034,6 +1037,7 @@ int	ptest;
 	struct sockaddr_in sin;
 	int fd, slen;
 
+	fd = -1;
 	bzero((char *)&sin, sizeof(sin));
 
 	for (i = 1; i < 63; i++) {
@@ -1266,7 +1270,7 @@ int	ptest;
 
 		for (j = 768; j < 3584; j += 768) {
 			ip->ip_len = sizeof(*ip) + 768;
-			ip->ip_off = htons(IP_MF|(j>>3));
+			ip->ip_off = htons(IP_MF|((j>>3) & 0x1fff));
 			(void) send_ip(nfd, 1500, ip, gwip, 1);
 			printf("%d %d\r", i, j);
 			fflush(stdout);
@@ -1274,7 +1278,7 @@ int	ptest;
 
 			ip->ip_len = sizeof(*ip) + 128;
 			for (k = j - 768; k < j; k += 128) {
-				ip->ip_off = htons(IP_MF|(k>>3));
+				ip->ip_off = htons(IP_MF|((k>>3) & 0x1fff));
 				(void) send_ip(nfd, 1500, ip, gwip, 1);
 				printf("%d %d\r", i, k);
 				fflush(stdout);
