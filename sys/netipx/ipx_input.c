@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.7 1996/01/05 20:47:04 wollman Exp $
+ * $Id: ipx_input.c,v 1.8 1996/03/11 15:13:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -138,7 +138,7 @@ ipxintr()
 	register struct ipxpcb *ipxp;
 	register int i;
 	int len, s, error;
-	char oddpacketp;
+	char oddshortpacket = 0;
 
 next:
 	/*
@@ -167,9 +167,13 @@ next:
 
 	ipx = mtod(m, struct ipx *);
 	len = ntohs(ipx->ipx_len);
-	if (oddpacketp = len & 1) {
-		len++;		/* If this packet is of odd length,
-				   preserve garbage byte for checksum */
+	if ((len < m->m_pkthdr.len) && (oddshortpacket = len & 1)) {
+		/*
+		 * If this packet is of odd length, and the length
+		 * inside the header is less than the received packet
+		 * length, preserve garbage byte for possible checksum.
+		 */
+		len++;
 	}
 
 	/*
@@ -241,7 +245,7 @@ next:
 	 */
 	ipxintr_swtch++;
 	if (ipxp) {
-		if (oddpacketp) {
+		if (oddshortpacket) {
 			m_adj(m, -1);
 		}
 		if ((ipxp->ipxp_flags & IPXP_ALL_PACKETS)==0)
