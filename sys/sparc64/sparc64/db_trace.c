@@ -272,20 +272,6 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 }
 
 void
-db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
-{
-	struct thread *td;
-
-	td = (have_addr) ? kdb_thr_lookup(addr) : kdb_thread;
-	if (td == NULL) {
-		db_printf("Thread %d not found\n", (int)addr);
-		return;
-	}
-	db_trace_thread(td, count);
-}
-
-void
 db_trace_self(void)
 {
 	db_expr_t addr;
