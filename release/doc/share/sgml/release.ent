@@ -29,7 +29,7 @@
 <!ENTITY release.branch "5-CURRENT">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "ftp://current.FreeBSD.org/pub/FreeBSD/">
+<!ENTITY release.url "http://snapshots.jp.FreeBSD.org/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
