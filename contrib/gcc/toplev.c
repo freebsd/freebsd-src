@@ -1075,7 +1075,7 @@ documented_lang_options[] =
   { "-Wmain", "Warn about suspicious declarations of main" },
   { "-Wframe-size-<N>", 
       "Warn if frame uses greater than <N> bytes." },
-  { "-Wlarglist-size-<N>", 
+  { "-Warglist-size-<N>", 
       "Warn if function argument list uses greater than <N> bytes." },
   { "-Wno-main", "" },
   { "-Wmissing-braces",
@@ -4723,6 +4723,8 @@ check_lang_option (option, lang_option)
     return 0;
 
   if ((space = strchr (lang_option, ' ')) != NULL)
+    len = space - lang_option;
+  else if ((space = strchr (lang_option, '<')) != NULL)
     len = space - lang_option;
   else
     len = strlen (lang_option);
