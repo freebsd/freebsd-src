@@ -38,7 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)chflags.c	8.5 (Berkeley) 4/1/94";
+#if 0
+static char sccsid[] = "@(#)chflags.c	8.5 (Berkeley) 4/1/94";
+#endif
+static const char rcsid[] =
+	"$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>

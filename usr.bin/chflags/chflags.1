@@ -48,17 +48,17 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Ar flags
-.Ar file ...
+.Ar
 .Sh DESCRIPTION
 The
-.Nm chflags
+.Nm
 utility modifies the file flags of the listed files
 as specified by the
 .Ar flags
 operand.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl H
 If the
 .Fl R
@@ -107,7 +107,7 @@ Symbolic links do not have flags, so unless the
 or
 .Fl L
 option is set,
-.Nm chflags
+.Nm
 on a symbolic link always succeeds and has no effect.
 The
 .Fl H ,
@@ -121,9 +121,9 @@ In addition, these options override each other and the
 command's actions are determined by the last one specified.
 .Pp
 You can use "ls -lo" to see the flags of existing files.
-.Pp
+.Sh DIAGNOSTICS
 The
-.Nm chflags
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr ls 1 ,
@@ -133,6 +133,6 @@ utility exits 0 on success, and >0 if an error occurs.
 .Xr symlink 7
 .Sh HISTORY
 The
-.Nm chflags
+.Nm
 command first appeared in
 .Bx 4.4 .
