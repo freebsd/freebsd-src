@@ -1056,6 +1056,7 @@ fxp_start(ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct fxp_cb_tx *txp;
+	FXP_SPLVAR(s)
 
 #if !defined(__NetBSD__)
 	FXP_LOCK(sc, s);
@@ -1456,6 +1457,7 @@ fxp_stop(sc)
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_cb_tx *txp;
 	int i;
+	FXP_SPLVAR(s)
 
 #if !defined(__NetBSD__)
 	FXP_LOCK(sc, s);
