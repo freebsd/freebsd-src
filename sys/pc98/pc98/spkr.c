@@ -15,7 +15,6 @@
 
 #if NSPEAKER > 0
 
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -585,8 +584,8 @@ spkrioctl(dev, cmd, cmdarg, flags, p)
 	struct proc	*p;
 {
 #ifdef DEBUG
-    (void) printf("spkrioctl: entering with dev = %lx, cmd = %lx\n",
-    	(unsigned long)dev, cmd);
+    (void) printf("spkrioctl: entering with dev = %s, cmd = %lx\n",
+    	devtoname(dev), cmd);
 #endif /* DEBUG */
 
     if (minor(dev) != 0)
@@ -623,18 +622,10 @@ spkrioctl(dev, cmd, cmdarg, flags, p)
     return(EINVAL);
 }
 
-
-static int spkr_devsw_installed;
-
 static void
 spkr_drvinit(void *unused)
 {
-
-	if( ! spkr_devsw_installed ) {
-		cdevsw_add(&spkr_cdevsw);
-		spkr_devsw_installed = 1;
-		make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "speaker");
-    	}
+	make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "speaker");
 }
 
 SYSINIT(spkrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spkr_drvinit,NULL)
