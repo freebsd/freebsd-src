@@ -21,7 +21,7 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_tape.h,v 1.10 1994/10/28 13:19:34 jkh Exp $
+ *	$Id: scsi_tape.h,v 1.11 1995/03/21 11:21:03 dufault Exp $
  */
 #ifndef	SCSI_SCSI_TAPE_H
 #define SCSI_SCSI_TAPE_H 1
@@ -121,8 +121,8 @@ struct scsi_blk_limits
 #define WRITE_COMMAND_TAPE	0x0a
 #define	WRITE_FILEMARKS		0x10
 #define	SPACE			0x11
-#define	ERASE			0x19 /* AKL */
-#define LOAD_UNLOAD		0x1b /* same as above */
+#define	ERASE			0x19
+#define LOAD_UNLOAD		0x1b
 
 
 
