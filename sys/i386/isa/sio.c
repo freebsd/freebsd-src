@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.222 1999/01/08 19:17:49 bde Exp $
+ *	$Id: sio.c,v 1.223 1999/01/12 01:04:37 eivind Exp $
  */
 
 #include "opt_comconsole.h"
@@ -86,6 +86,7 @@
 
 #include "card.h"
 #if NCARD > 0
+#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 #endif
@@ -465,17 +466,7 @@ static int	sioinit		__P((struct pccard_devinfo *));
 static void	siounload	__P((struct pccard_devinfo *));
 static int	card_intr	__P((struct pccard_devinfo *));
 
-static struct pccard_device sio_info = {
-	driver_name,
-	sioinit,
-	siounload,
-	card_intr,
-	0,			/* Attributes - presently unused */
-	&tty_imask		/* Interrupt mask for device */
-				/* XXX - Should this also include net_imask? */
-};
-
-DATA_SET(pccarddrv_set, sio_info);
+PCCARD_MODULE(sio, sioinit, siounload, card_intr, 0, tty_imask);
 
 /*
  *	Initialize the device - called from Slot manager.

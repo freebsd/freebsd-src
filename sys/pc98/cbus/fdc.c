@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.48 1998/12/30 08:06:41 kato Exp $
+ *	$Id: fd.c,v 1.49 1999/01/16 11:40:02 kato Exp $
  *
  */
 
@@ -370,6 +370,7 @@ static int volatile fd_debug = 0;
 #ifdef FDC_YE
 #if NCARD > 0
 #include <sys/select.h>
+#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
@@ -381,16 +382,7 @@ static int yeinit(struct pccard_devinfo *);		/* init device */
 static void yeunload(struct pccard_devinfo *); 		/* Disable driver */
 static int yeintr(struct pccard_devinfo *); 		/* Interrupt handler */
 
-static struct pccard_device ye_info = {
-	"fdc",
-	yeinit,
-	yeunload,
-	yeintr,
-	0,			/* Attributes - presently unused */
-	&bio_imask		/* Interrupt mask for device */
-};
-
-DATA_SET(pccarddrv_set, ye_info);
+PCCARD_MODULE(fdc, yeinit, yeunload, yeintr, 0, bio_imask);
 
 /*
  * this is the secret PIO data port (offset from base)

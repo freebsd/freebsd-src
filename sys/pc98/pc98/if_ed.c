@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.56 1998/12/14 08:58:12 kato Exp $
+ *	$Id: if_ed.c,v 1.57 1998/12/31 03:23:39 kato Exp $
  */
 
 /*
@@ -241,6 +241,7 @@ static u_long	ds_crc		__P((u_char *ep));
 #endif
 #if NCARD > 0
 #include <sys/select.h>
+#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 
@@ -251,17 +252,7 @@ static int	edinit		__P((struct pccard_devinfo *));
 static void	edunload	__P((struct pccard_devinfo *));
 static int	card_intr	__P((struct pccard_devinfo *));
 
-static struct pccard_device ed_info = {
-	"ed",
-	edinit,
-	edunload,
-	card_intr,
-	0,			/* Attributes - presently unused */
-	&net_imask		/* Interrupt mask for device */
-				/* XXX - Should this also include net_imask? */
-};
-
-DATA_SET(pccarddrv_set, ed_info);
+PCCARD_MODULE(ed, edinit, edunload, card_intr, 0, net_imask);
 
 /*
  *	Initialize the device - called from Slot manager.

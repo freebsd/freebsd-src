@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.218 1998/11/15 18:25:17 dfr Exp $
+ *	$Id: sio.c,v 1.219 1998/12/13 23:12:54 steve Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.215
  */
@@ -92,6 +92,7 @@
 
 #include "card.h"
 #if NCARD > 0
+#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 #endif
@@ -494,17 +495,7 @@ static int	sioinit		__P((struct pccard_devinfo *));
 static void	siounload	__P((struct pccard_devinfo *));
 static int	card_intr	__P((struct pccard_devinfo *));
 
-static struct pccard_device sio_info = {
-	driver_name,
-	sioinit,
-	siounload,
-	card_intr,
-	0,			/* Attributes - presently unused */
-	&tty_imask		/* Interrupt mask for device */
-				/* XXX - Should this also include net_imask? */
-};
-
-DATA_SET(pccarddrv_set, sio_info);
+PCCARD_MODULE(sio, sioinit, siounload, card_intr, 0, tty_imask);
 
 /*
  *	Initialize the device - called from Slot manager.
