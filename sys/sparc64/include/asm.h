@@ -73,30 +73,6 @@
 #define	CCFSZ	192
 #define	SPOFF	2047
 
-#define _START_ENTRY \
-	.text ; \
-	.p2align 4
-
-/*
- * Define a function entry point.
- *
- * The compiler produces #function for the .type pseudo-op, but the '#'
- * character has special meaning in cpp macros, so we use @function like
- * other architectures.  The assembler seems to accept both.
- * The assembler also accepts a .proc pseudo-op, which is used by the
- * peep hole optimizer, whose argument is the type code of the return
- * value.  Since this is difficult to predict and its expected that
- * assembler code is already optimized, we leave it out.
- */
-#define	_ENTRY(x) \
-	_START_ENTRY ; \
-	.globl	CNAME(x) ; \
-	.type	CNAME(x),@function ; \
-CNAME(x):
-
-#define	ENTRY(x)	_ENTRY(x)
-#define	END(x)		.size x, . - x
-
 /*
  * Kernel RCS ID tag and copyright macros
  */
