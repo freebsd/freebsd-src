@@ -48,7 +48,7 @@
 #include "ipf.h"
 #include "iplang.h"
 
-#ifndef __NetBSD__
+#if !defined(__NetBSD__) && !defined(__FreeBSD__)
 extern	struct ether_addr *ether_aton __P((char *));
 #endif
 
