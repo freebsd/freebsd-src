@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.34 1999/05/09 19:01:47 peter Exp $
+ * $Id: asnames.h,v 1.35 1999/05/12 21:38:57 luoqi Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -172,6 +172,7 @@
 #define _arith_invalid			arith_invalid
 #define _arith_overflow			arith_overflow
 #define _arith_underflow		arith_underflow
+#define _astpending			astpending
 #define _bcopy				bcopy
 #define _bcopy_vector			bcopy_vector
 #define _bigJump			bigJump
