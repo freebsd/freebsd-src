@@ -126,7 +126,7 @@ struct ngm_atm_config {
  * Structure to open a VCC.
  */
 struct ngm_atm_cpcs_init {
-	char		name[NG_HOOKLEN + 1];
+	char		name[NG_HOOKSIZ];
 	uint32_t	flags;		/* flags. (if_atm.h) */
 	uint16_t	vci;		/* VCI to open */
 	uint16_t	vpi;		/* VPI to open */
@@ -177,7 +177,7 @@ struct ngm_atm_cpcs_init {
  * Structure to close a VCI without disconnecting the hook
  */
 struct ngm_atm_cpcs_term {
-	char		name[NG_HOOKLEN + 1];
+	char		name[NG_HOOKSIZ];
 };
 #define NGM_ATM_CPCS_TERM_INFO 					\
 	{							\
