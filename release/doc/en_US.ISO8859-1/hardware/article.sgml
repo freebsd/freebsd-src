@@ -1506,7 +1506,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Ethernet and Fast Ethernet NICs based on the 3Com
+    <para>Ethernet and Fast Ethernet NICs based on the 3Com
     3XP Typhoon/Sidewinder (3CR990) chipset (&man.txp.4; driver)
       <itemizedlist>
         <listitem>
