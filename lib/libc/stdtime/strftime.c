@@ -17,7 +17,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strftime.c,v 1.11.2.3 1997/02/05 23:22:13 joerg Exp $";
+	"$Id: strftime.c,v 1.11.2.4 1997/02/08 14:16:11 joerg Exp $";
 #endif
 
 #ifndef lint
@@ -40,72 +40,8 @@ static const char	sccsid[] = "@(#)strftime.c	5.4 (Berkeley) 3/14/89";
 
 #include "tzfile.h"
 #include <fcntl.h>
-#include <locale.h>
 #include <sys/stat.h>
-#include "setlocale.h"
-
-struct lc_time_T {
-	const char *	mon[12];
-	const char *	month[12];
-	const char *	wday[7];
-	const char *	weekday[7];
-	const char *	X_fmt;
-	const char *	x_fmt;
-	const char *	c_fmt;
-	const char *	am;
-	const char *	pm;
-	const char *	date_fmt;
-};
-
-static struct lc_time_T		localebuf;
-static int using_locale;
-
-#define Locale	(using_locale ? &localebuf : &C_time_locale)
-
-static const struct lc_time_T	C_time_locale = {
-	{
-		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-	}, {
-		"January", "February", "March", "April", "May", "June",
-		"July", "August", "September", "October", "November", "December"
-	}, {
-		"Sun", "Mon", "Tue", "Wed",
-		"Thu", "Fri", "Sat"
-	}, {
-		"Sunday", "Monday", "Tuesday", "Wednesday",
-		"Thursday", "Friday", "Saturday"
-	},
-
-	/* X_fmt */
-	"%H:%M:%S",
-
-	/*
-	** x_fmt
-	** Since the C language standard calls for
-	** "date, using locale's date format," anything goes.
-	** Using just numbers (as here) makes Quakers happier;
-	** it's also compatible with SVR4.
-	*/
-	"%m/%d/%y",
-
-	/*
-	** c_fmt (ctime-compatible)
-	** Note that
-	**	"%a %b %d %H:%M:%S %Y"
-	** is used by Solaris 2.3.
-	*/
-	"%a %b %e %X %Y",
-
-	/* am */
-	"AM",
-
-	/* pm */
-	"PM",
-
-	/* date_fmt */
-	"%a %b %e %X %Z %Y"
-};
+#include "timelocal.h"
 
 static char *	_add P((const char *, char *, const char *));
 static char *	_conv P((int, const char *, char *, const char *));
@@ -460,115 +396,4 @@ _add(str, pt, ptlim)
 	while (pt < ptlim && (*pt = *str++) != '\0')
 		++pt;
 	return pt;
-}
-
-int
-__time_load_locale(const char *name)
-{
-	static char *		locale_buf;
-	static char		locale_buf_C[] = "C";
-
-	int			fd;
-	char *			lbuf;
-	char *			p;
-	const char **		ap;
-	const char *		plim;
-	char                    filename[PATH_MAX];
-	struct stat		st;
-	size_t			namesize;
-	size_t			bufsize;
-	int                     save_using_locale;
-
-	save_using_locale = using_locale;
-	using_locale = 0;
-
-	if (name == NULL)
-		goto no_locale;
-
-	if (!strcmp(name, "C") || !strcmp(name, "POSIX"))
-		return 0;
-
-	/*
-	** If the locale name is the same as our cache, use the cache.
-	*/
-	lbuf = locale_buf;
-	if (lbuf != NULL && strcmp(name, lbuf) == 0) {
-		p = lbuf;
-		for (ap = (const char **) &localebuf;
-			ap < (const char **) (&localebuf + 1);
-				++ap)
-					*ap = p += strlen(p) + 1;
-		using_locale = 1;
-		return 0;
-	}
-	/*
-	** Slurp the locale file into the cache.
-	*/
-	namesize = strlen(name) + 1;
-
-	if (!_PathLocale)
-		goto no_locale;
-	/* Range checking not needed, 'name' size is limited */
-	strcpy(filename, _PathLocale);
-	strcat(filename, "/");
-	strcat(filename, name);
-	strcat(filename, "/LC_TIME");
-	fd = open(filename, O_RDONLY);
-	if (fd < 0)
-		goto no_locale;
-	if (fstat(fd, &st) != 0)
-		goto bad_locale;
-	if (st.st_size <= 0)
-		goto bad_locale;
-	bufsize = namesize + st.st_size;
-	locale_buf = NULL;
-	lbuf = (lbuf == NULL || lbuf == locale_buf_C) ?
-		malloc(bufsize) : realloc(lbuf, bufsize);
-	if (lbuf == NULL)
-		goto bad_locale;
-	(void) strcpy(lbuf, name);
-	p = lbuf + namesize;
-	plim = p + st.st_size;
-	if (read(fd, p, (size_t) st.st_size) != st.st_size)
-		goto bad_lbuf;
-	if (close(fd) != 0)
-		goto bad_lbuf;
-	/*
-	** Parse the locale file into localebuf.
-	*/
-	if (plim[-1] != '\n')
-		goto bad_lbuf;
-	for (ap = (const char **) &localebuf;
-		ap < (const char **) (&localebuf + 1);
-			++ap) {
-				if (p == plim)
-					goto reset_locale;
-				*ap = p;
-				while (*p != '\n')
-					++p;
-				*p++ = '\0';
-	}
-	/*
-	** Record the successful parse in the cache.
-	*/
-	locale_buf = lbuf;
-
-	using_locale = 1;
-	return 0;
-
-reset_locale:
-	/*
-	 * XXX - This may not be the correct thing to do in this case.
-	 * setlocale() assumes that we left the old locale alone.
-	 */
-	locale_buf = locale_buf_C;
-	localebuf = C_time_locale;
-	save_using_locale = 0;
-bad_lbuf:
-	free(lbuf);
-bad_locale:
-	(void) close(fd);
-no_locale:
-	using_locale = save_using_locale;
-	return -1;
 }

@@ -40,6 +40,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "setlocale.h"
 
 extern int		_none_init __P((_RuneLocale *));
@@ -82,8 +83,19 @@ _xpg4_setrunelocale(encoding)
 		return(0);
 	}
 
-	if (!_PathLocale)
-		_PathLocale = _PATH_LOCALE;
+	if (_PathLocale == NULL) {
+		char *p = getenv("PATH_LOCALE");
+
+		if (p != NULL && !issetugid()) {
+			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
+			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX)
+				return(EFAULT);
+			_PathLocale = strdup(p);
+			if (_PathLocale == NULL)
+				return (errno);
+		} else
+			_PathLocale = _PATH_LOCALE;
+	}
 	/* Range checking not needed, encoding length already checked above */
 	(void) strcpy(name, _PathLocale);
 	(void) strcat(name, "/");
