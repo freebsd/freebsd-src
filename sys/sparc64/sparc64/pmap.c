@@ -892,6 +892,8 @@ pmap_kremove(vm_offset_t va)
 	tp = tsb_kvtotte(va);
 	CTR3(KTR_PMAP, "pmap_kremove: va=%#lx tp=%p data=%#lx", va, tp,
 	    tp->tte_data);
+	if ((tp->tte_data & TD_V) == 0)
+		return;
 	m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
 	TAILQ_REMOVE(&m->md.tte_list, tp, tte_link);
 	pmap_cache_remove(m, va);
