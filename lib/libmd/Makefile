@@ -37,8 +37,6 @@ CFLAGS+= -DRMD160_ASM -DELF
 .endif
 .endif
 
-all: md2.3 md4.3 md5.3
-
 md2hl.c: mdXhl.c
 	(echo '#define LENGTH 16'; \
 		sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' ${.ALLSRC}) > ${.TARGET}
@@ -67,17 +65,11 @@ rmd160hl.c: mdXhl.c
 			-e 's/RIPEMD160__/RIPEMD160_/g' \
 			${.ALLSRC}) > ${.TARGET}
 
-md2.3: ${.CURDIR}/mdX.3
-	sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' ${.ALLSRC} > ${.TARGET}
-	cat ${.CURDIR}/md2.copyright >> ${.TARGET}
-
-md4.3: ${.CURDIR}/mdX.3
-	sed -e 's/mdX/md4/g' -e 's/MDX/MD4/g' ${.ALLSRC} > ${.TARGET}
-	cat ${.CURDIR}/md4.copyright >> ${.TARGET}
-
-md5.3: ${.CURDIR}/mdX.3
-	sed -e 's/mdX/md5/g' -e 's/MDX/MD5/g' ${.ALLSRC} > ${.TARGET}
-	cat ${.CURDIR}/md5.copyright >> ${.TARGET}
+.for i in 2 4 5
+md${i}.3: ${.CURDIR}/mdX.3
+	sed -e "s/mdX/md${i}/g" -e "s/MDX/MD${i}/g" ${.ALLSRC} > ${.TARGET}
+	cat ${.CURDIR}/md${i}.copyright >> ${.TARGET}
+.endfor
 
 md2.ref:
 	echo 'MD2 test suite:' > ${.TARGET}
