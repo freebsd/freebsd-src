@@ -83,13 +83,13 @@ complete_rqe(struct buf *bp)
     if ((drive->active == (DRIVE_MAXACTIVE - 1))	    /* we were at the drive limit */
     ||(vinum_conf.active == VINUM_MAXACTIVE))		    /* or the global limit */
 	wakeup(&launch_requests);			    /* let another one at it */
-    if ((bp->b_ioflags & BIO_ERROR) != 0) {			    /* transfer in error */
+    if ((bp->b_io.bio_flags & BIO_ERROR) != 0) {	    /* transfer in error */
 	if (bp->b_error != 0)				    /* did it return a number? */
 	    rq->error = bp->b_error;			    /* yes, put it in. */
 	else if (rq->error == 0)			    /* no: do we have one already? */
 	    rq->error = EIO;				    /* no: catchall "I/O error" */
 	SD[rqe->sdno].lasterror = rq->error;
-	if (bp->b_iocmd == BIO_READ) {
+	if (bp->b_iocmd == BIO_READ) {			    /* read operation */
 	    log(LOG_ERR, "%s: fatal read I/O error\n", SD[rqe->sdno].name);
 	    set_sd_state(rqe->sdno, sd_crashed, setstate_force); /* subdisk is crashed */
 	} else {					    /* write operation */
@@ -112,8 +112,10 @@ complete_rqe(struct buf *bp)
 	SD[rqe->sdno].bytes_read += bp->b_bcount;
 	PLEX[rqe->rqg->plexno].reads++;
 	PLEX[rqe->rqg->plexno].bytes_read += bp->b_bcount;
-	if (PLEX[rqe->rqg->plexno].volno >= 0)
+	if (PLEX[rqe->rqg->plexno].volno >= 0) {	    /* volume I/O, not plex */
+	    VOL[PLEX[rqe->rqg->plexno].volno].reads++;
 	    VOL[PLEX[rqe->rqg->plexno].volno].bytes_read += bp->b_bcount;
+	}
     } else {						    /* write operation */
 	DRIVE[rqe->driveno].writes++;
 	DRIVE[rqe->driveno].bytes_written += bp->b_bcount;
@@ -121,8 +123,10 @@ complete_rqe(struct buf *bp)
 	SD[rqe->sdno].bytes_written += bp->b_bcount;
 	PLEX[rqe->rqg->plexno].writes++;
 	PLEX[rqe->rqg->plexno].bytes_written += bp->b_bcount;
-	if (PLEX[rqe->rqg->plexno].volno >= 0)
+	if (PLEX[rqe->rqg->plexno].volno >= 0) {	    /* volume I/O, not plex */
+	    VOL[PLEX[rqe->rqg->plexno].volno].writes++;
 	    VOL[PLEX[rqe->rqg->plexno].volno].bytes_written += bp->b_bcount;
+    }
     }
     if (rqg->flags & XFR_RECOVERY_READ) {		    /* recovery read, */
 	int *sdata;					    /* source */
@@ -134,7 +138,7 @@ complete_rqe(struct buf *bp)
 	/* XOR destination is the user data */
 	sdata = (int *) &rqe->b.b_data[rqe->groupoffset << DEV_BSHIFT];	/* old data contents */
 	data = (int *) &urqe->b.b_data[urqe->groupoffset << DEV_BSHIFT]; /* destination */
-	length = urqe->grouplen << (DEV_BSHIFT - 2);	    /* and count involved */
+	length = urqe->grouplen * (DEV_BSIZE / sizeof(int)); /* and number of ints */
 
 	for (count = 0; count < length; count++)
 	    data[count] ^= sdata[count];
@@ -154,9 +158,15 @@ complete_rqe(struct buf *bp)
 	    bcopy(src, dst, length);			    /* move it */
 	}
     } else if ((rqg->flags & (XFR_NORMAL_WRITE | XFR_DEGRADED_WRITE)) /* RAID 4/5 group write operation  */
-    &&(rqg->active == 1))				    /* and this is the last rq of phase 1 */
+    &&(rqg->active == 1))				    /* and this is the last active request */
 	complete_raid5_write(rqe);
-    rqg->active--;					    /* one less request active */
+    /*
+     * This is the earliest place where we can be
+     * sure that the request has really finished,
+     * since complete_raid5_write can issue new
+     * requests.
+     */
+    rqg->active--;					    /* this request now finished */
     if (rqg->active == 0) {				    /* request group finished, */
 	rq->active--;					    /* one less */
 	if (rqg->lock) {				    /* got a lock? */
@@ -174,7 +184,7 @@ complete_rqe(struct buf *bp)
 
 	if (rq->error) {				    /* did we have an error? */
 	    if (rq->isplex) {				    /* plex operation, */
-		ubp->b_ioflags |= BIO_ERROR;		    /* yes, propagate to user */
+		ubp->b_io.bio_flags |= BIO_ERROR;	    /* yes, propagate to user */
 		ubp->b_error = rq->error;
 	    } else					    /* try to recover */
 		queue_daemon_request(daemonrq_ioerror, (union daemoninfo) rq); /* let the daemon complete */
@@ -216,8 +226,8 @@ sdio_done(struct buf *bp)
     struct sdbuf *sbp;
 
     sbp = (struct sdbuf *) bp;
-    if (sbp->b.b_ioflags & BIO_ERROR) {			    /* had an error */
-	sbp->bp->b_ioflags |= BIO_ERROR;			    /* propagate upwards */
+    if (sbp->b.b_io.bio_flags & BIO_ERROR) {		    /* had an error */
+	sbp->bp->b_io.bio_flags |= BIO_ERROR;		    /* propagate upwards */
 	sbp->bp->b_error = sbp->b.b_error;
     }
 #ifdef VINUMDEBUG
@@ -251,7 +261,7 @@ complete_raid5_write(struct rqelement *rqe)
     int count;						    /* loop counter */
     int rqno;						    /* request index */
     int rqoffset;					    /* offset of request data from parity data */
-    struct buf *bp;					    /* user buffer header */
+    struct buf *ubp;					    /* user buffer header */
     struct request *rq;					    /* pointer to our request */
     struct rqgroup *rqg;				    /* and to the request group */
     struct rqelement *prqe;				    /* point to the parity block */
@@ -259,7 +269,7 @@ complete_raid5_write(struct rqelement *rqe)
 
     rqg = rqe->rqg;					    /* and to our request group */
     rq = rqg->rq;					    /* point to our request */
-    bp = rq->bp;					    /* user's buffer header */
+    ubp = rq->bp;					    /* user's buffer header */
     prqe = &rqg->rqe[0];				    /* point to the parity block */
 
     /*
@@ -270,25 +280,18 @@ complete_raid5_write(struct rqelement *rqe)
      * difference is the origin of the data and the
      * address range.
      */
-
     if (rqe->flags & XFR_DEGRADED_WRITE) {		    /* do the degraded write stuff */
 	pdata = (int *) (&prqe->b.b_data[(prqe->groupoffset) << DEV_BSHIFT]); /* parity data pointer */
 	bzero(pdata, prqe->grouplen << DEV_BSHIFT);	    /* start with nothing in the parity block */
 
 	/* Now get what data we need from each block */
 	for (rqno = 1; rqno < rqg->count; rqno++) {	    /* for all the data blocks */
-	    /*
-	     * This can do with improvement.  If we're doing
-	     * both a degraded and a normal write, we don't
-	     * need to xor (nor to read) the part of the block
-	     * that we're going to overwrite.  FIXME XXX
-	     */
 	    rqe = &rqg->rqe[rqno];			    /* this request */
 	    sdata = (int *) (&rqe->b.b_data[rqe->groupoffset << DEV_BSHIFT]); /* old data */
 	    length = rqe->grouplen << (DEV_BSHIFT - 2);	    /* and count involved */
 
 	    /*
-	     * add the data block to the parity block.  Before
+	     * Add the data block to the parity block.  Before
 	     * we started the request, we zeroed the parity
 	     * block, so the result of adding all the other
 	     * blocks and the block we want to write will be
@@ -312,7 +315,8 @@ complete_raid5_write(struct rqelement *rqe)
 		sdata = (int *) &rqe->b.b_data[rqe->dataoffset << DEV_BSHIFT]; /* old data contents */
 		rqoffset = rqe->dataoffset + rqe->sdoffset - prqe->sdoffset; /* corresponding parity block offset */
 		pdata = (int *) (&prqe->b.b_data[rqoffset << DEV_BSHIFT]); /* parity data pointer */
-		length = rqe->datalen << (DEV_BSHIFT - 2);  /* and count involved */
+		length = rqe->datalen * (DEV_BSIZE / sizeof(int)); /* and number of ints */
+
 		/*
 		 * "remove" the old data block
 		 * from the parity block
@@ -326,9 +330,9 @@ complete_raid5_write(struct rqelement *rqe)
 		    pdata[count] ^= sdata[count];
 
 		/* "add" the new data block */
-		sdata = (int *) (&bp->b_data[rqe->useroffset << DEV_BSHIFT]); /* new data */
-		if ((sdata < ((int *) bp->b_data))
-		    || (&sdata[length] > ((int *) (bp->b_data + bp->b_bcount))))
+		sdata = (int *) (&ubp->b_data[rqe->useroffset << DEV_BSHIFT]); /* new data */
+		if ((sdata < ((int *) ubp->b_data))
+		    || (&sdata[length] > ((int *) (ubp->b_data + ubp->b_bcount))))
 		    panic("complete_raid5_write: bounds overflow");
 		for (count = 0; count < length; count++)
 		    pdata[count] ^= sdata[count];
@@ -346,7 +350,7 @@ complete_raid5_write(struct rqelement *rqe)
 		    rqe->b.b_iocmd = BIO_WRITE;		    /* we're writing now */
 		    rqe->b.b_iodone = complete_rqe;	    /* call us here when done */
 		    rqe->flags &= ~XFR_PARITYOP;	    /* reset flags that brought us here */
-		    rqe->b.b_data = &bp->b_data[rqe->useroffset << DEV_BSHIFT];	/* point to the user data */
+		    rqe->b.b_data = &ubp->b_data[rqe->useroffset << DEV_BSHIFT]; /* point to the user data */
 		    rqe->b.b_bcount = rqe->datalen << DEV_BSHIFT; /* length to write */
 		    rqe->b.b_bufsize = rqe->b.b_bcount;	    /* don't claim more */
 		    rqe->b.b_resid = rqe->b.b_bcount;	    /* nothing transferred */
@@ -373,7 +377,7 @@ complete_raid5_write(struct rqelement *rqe)
 			    rqe->b.b_blkno,
 			    rqe->b.b_bcount);
 		    if (debug & DEBUG_LASTREQS)
-			logrq(loginfo_raid5_data, (union rqinfou) rqe, bp);
+			logrq(loginfo_raid5_data, (union rqinfou) rqe, ubp);
 #endif
 		    DEV_STRATEGY(&rqe->b, 0);
 		}
@@ -412,7 +416,11 @@ complete_raid5_write(struct rqelement *rqe)
 	    rqe->b.b_blkno,
 	    rqe->b.b_bcount);
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_raid5_parity, (union rqinfou) rqe, bp);
+	logrq(loginfo_raid5_parity, (union rqinfou) rqe, ubp);
 #endif
     DEV_STRATEGY(&rqe->b, 0);
 }
+
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
