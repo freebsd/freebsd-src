@@ -55,7 +55,7 @@ static const char rcsid[] =
  *	   with the highest cpu utilization is picked (p_estcpu).  Ties are
  *	   broken by picking the highest pid.
  *	3) The sleeper with the shortest sleep time is next.  With ties,
- *	   we pick out just "short-term" sleepers (P_SINTR == 0).
+ *	   we pick out just "short-term" sleepers (PS_SINTR == 0).
  *	4) Further ties are broken by picking the highest pid.
  *
  * If you change this, be sure to consider making the change in the kernel
@@ -116,9 +116,9 @@ proc_compare(p1, p2)
 	/*
 	 * favor one sleeping in a non-interruptible sleep
 	 */
-	if (p1->ki_flag & P_SINTR && (p2->ki_flag & P_SINTR) == 0)
+	if (p1->ki_sflag & PS_SINTR && (p2->ki_sflag & PS_SINTR) == 0)
 		return (1);
-	if (p2->ki_flag & P_SINTR && (p1->ki_flag & P_SINTR) == 0)
+	if (p2->ki_sflag & PS_SINTR && (p1->ki_sflag & PS_SINTR) == 0)
 		return (0);
 	return (p2->ki_pid > p1->ki_pid);		/* tie - return highest pid */
 }
