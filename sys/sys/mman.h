@@ -65,7 +65,12 @@
 #define	MAP_NOEXTEND	 0x0100	/* for MAP_FILE, don't change file size */
 #define	MAP_HASSEMAPHORE 0x0200	/* region may contain semaphores */
 #define	MAP_STACK	 0x0400	/* region grows down, like a stack */
-#define MAP_NOSYNC	 0x0800 /* page to but do not sync underlying file */
+#define	MAP_NOSYNC	 0x0800 /* page to but do not sync underlying file */
+
+/*
+ * Extended flags
+ */
+#define	MAP_NOCORE	 0x00020000 /* dont include these pages in a coredump */
 
 #ifdef _P1003_1B_VISIBLE
 /*
@@ -106,6 +111,8 @@
 #define	MADV_FREE	5	/* dont need these pages, and junk contents */
 #define	MADV_NOSYNC	6	/* try to avoid flushes to physical media */
 #define	MADV_AUTOSYNC	7	/* revert to default flushing strategy */
+#define	MADV_NOCORE	8	/* do not include these pages in a core file */
+#define	MADV_CORE	9	/* revert to including pages in a core file */
 
 /*
  * Return bits from mincore

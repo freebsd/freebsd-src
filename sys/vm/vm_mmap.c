@@ -664,7 +664,7 @@ madvise(p, uap)
 	/*
 	 * Check for illegal behavior
 	 */
-	if (uap->behav < 0 || uap->behav > MADV_AUTOSYNC)
+	if (uap->behav < 0 || uap->behav > MADV_CORE)
 		return (EINVAL);
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
@@ -1095,6 +1095,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		docow |= MAP_COPY_ON_WRITE;
 	if (flags & MAP_NOSYNC)
 		docow |= MAP_DISABLE_SYNCER;
+	if (flags & MAP_NOCORE)
+		docow |= MAP_DISABLE_COREDUMP;
 
 #if defined(VM_PROT_READ_IS_EXEC)
 	if (prot & VM_PROT_READ)

@@ -427,7 +427,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t new_entry;
 	vm_map_entry_t prev_entry;
 	vm_map_entry_t temp_entry;
-	u_char protoeflags;
+	vm_eflags_t protoeflags;
 
 	/*
 	 * Check that the start and end points are not bogus.
@@ -468,6 +468,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	}
 	if (cow & MAP_DISABLE_SYNCER)
 		protoeflags |= MAP_ENTRY_NOSYNC;
+	if (cow & MAP_DISABLE_COREDUMP)
+		protoeflags |= MAP_ENTRY_NOCOREDUMP;
 
 	if (object) {
 		/*
@@ -1039,6 +1041,8 @@ vm_map_madvise(map, start, end, behav)
 	case MADV_RANDOM:
 	case MADV_NOSYNC:
 	case MADV_AUTOSYNC:
+	case MADV_NOCORE:
+	case MADV_CORE:
 		modify_map = 1;
 		vm_map_lock(map);
 		break;
@@ -1095,6 +1099,12 @@ vm_map_madvise(map, start, end, behav)
 				break;
 			case MADV_AUTOSYNC:
 				current->eflags &= ~MAP_ENTRY_NOSYNC;
+				break;
+			case MADV_NOCORE:
+				current->eflags |= MAP_ENTRY_NOCOREDUMP;
+				break;
+			case MADV_CORE:
+				current->eflags &= ~MAP_ENTRY_NOCOREDUMP;
 				break;
 			default:
 				break;
