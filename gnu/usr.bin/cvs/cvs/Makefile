@@ -12,7 +12,8 @@ MAINTAINER=	peter@FreeBSD.org
 PROG=	cvs
 MAN=	cvs.1 cvs.5
 
-SRCS=	add.c admin.c annotate.c buffer.c checkin.c checkout.c classify.c client.c \
+SRCS=	version.h add.c admin.c annotate.c buffer.c \
+	checkin.c checkout.c classify.c client.c \
 	commit.c create_adm.c cvsrc.c diff.c edit.c entries.c error.c \
 	expand_path.c fileattr.c filesubr.c find_names.c \
 	hardlink.c hash.c history.c \
@@ -24,7 +25,7 @@ SRCS=	add.c admin.c annotate.c buffer.c checkin.c checkout.c classify.c client.c
 	wrapper.c zlib.c
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../lib -DHAVE_CONFIG_H \
-	 -I${CVSDIR}/src -I${CVSDIR}/lib -I${CVSDIR}/diff
+	 -I${CVSDIR}/src -I${CVSDIR}/lib -I${CVSDIR}/diff -I.
 
 DPADD+=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD+=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
@@ -40,11 +41,11 @@ DISTRIBUTION=	krb4
 CFLAGS+= -DENCRYPTION
 .endif
 
-CLEANFILES+=	version.c
+CLEANFILES+=	version.h
 VERSION!=	sed < ${CVSDIR}/configure \
 		-e '/^VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q
 
-version.c: version.c.in
+version.h: version.h.in
 	sed -e "s,@VERSION@,${VERSION}-FreeBSD,g" ${.ALLSRC} > ${.TARGET}
 
 #
