@@ -29,7 +29,7 @@
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	$FreeBSD$
-.\"     $Id$
+.\"     $Id: ums.4,v 1.4 1999/07/12 21:01:58 nik Exp $
 .\"
 .Dd April 11, 1999
 .Dt UMS 4 i386
@@ -98,19 +98,23 @@ For XFree86 3.3.1 the entry should be:
 .Dl Protocol "MouseSystems"
 .Pp
 .Sh SEE ALSO
-.Xr uhci 4 ,
 .Xr ohci 4 ,
-.Xr usb 4 ,
-.Xr moused 8 ,
 .Xr sysmouse 4 ,
-.Xr XF86Config 4/5
+.Xr uhci 4 ,
+.Xr usb 4 ,
+.Xr XF86Config 5 ,
+.Xr moused 8 
 .\".Sh HISTORY
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm ums
 driver was written by
 .An Lennart Augustsson Aq augustss@cs.chalmers.se
-for NetBSD and was adapted for FreeBSD by
+for
+.Nx
+and was adopted for
+.Fx
+by
 .An MAEKAWA Masahide Aq bishop@rr.iij4u.or.jp .
 .Pp
 This manual page was written by

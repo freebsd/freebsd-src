@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: sleep.9,v 1.13 1998/12/23 00:24:59 dillon Exp $
+.\" $Id: sleep.9,v 1.14 1999/02/01 22:55:54 mpp Exp $
 .\" "
 .Dd December 17, 1998
 .Os
@@ -222,10 +222,13 @@ appeared in
 .Bx 4.4 .
 .Pp
 .Nm Asleep/await 
-first appeared in FreeBSD-3.0.1 and is designed to shift the burden of blocking
+first appeared in
+.Fx 3.0
+and is designed to shift the burden of blocking
 away from extremely low level routines and push it up to their callers.
 .Sh AUTHORS
 This man page has been written by
 .ie t J\(:org Wunsch.
 .el Joerg Wunsch. 
-asleep/await designed and written by Matthew Dillon.
+asleep/await designed and written by
+.An Matthew Dillon.
