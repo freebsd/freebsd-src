@@ -32,6 +32,7 @@ beforeinstall:
 	@${ECHO} "libtermlib.so.2.1 -> libtermcap.so.2.1" ; \
 		cd ${DESTDIR}${LIBCOMPATDIR}/aout ; \
 		ln -sf libtermcap.so.2.1 libtermlib.so.2.1
+	rm -f ${LIBS:S@^@${DESTDIR}${SHLIBDIR}/@}
 
 # Get all the fruit, even though we don't set PROG.
 # XXX bsd.lib.mk has fruitflies, e.g., it fails if LIBS is empty.
