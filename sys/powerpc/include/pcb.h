@@ -56,11 +56,6 @@ struct pcb {
 							stuff. */
 };
 
-struct md_coredump {
-	struct trapframe frame;
-	struct fpu fpstate;
-};
-
 #ifdef	_KERNEL
 
 #ifndef curpcb
