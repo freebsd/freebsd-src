@@ -270,7 +270,7 @@ struct tm *localtime(const time_t *);
 struct hostent  *gethostbyname(const char *);
 #endif
 
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #include <kafs.h>
 
