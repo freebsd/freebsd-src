@@ -42,6 +42,7 @@ Internet Trivial File Transfer Protocol server
 .Nm tftpd
 .Op Fl l
 .Op Fl n
+.Op Fl s Ar directory
 .Op Ar directory ...
 .Sh DESCRIPTION
 .Nm Tftpd
@@ -87,6 +88,15 @@ names are prefixed by the one of the given directories.
 The given directories are also treated as a search path for 
 relative filename requests.
 .Pp
+The chroot option provides additional security by restricting access
+of tftpd to only a chroot'd file system.  This is useful when moving
+from an OS that supported
+.Nm -s
+as a boot server.  Because chroot is restricted to root, you must run
+tftpd as root.  However, if you chroot, then
+.Nm tftpd
+will set its user id to nobody.
+.Pp
 The options are:
 .Bl -tag -width Ds
 .It Fl l
@@ -95,6 +105,11 @@ Logs all requests using
 .It Fl n
 Suppresses negative acknowledgement of requests for nonexistent
 relative filenames.
+.It Fl s Ar directory
+Causes tftpd to chroot to
+.Pa directory
+before accepting commands.  In addition, the user id is set to
+nobody.
 .El
 .Sh SEE ALSO
 .Xr tftp 1 ,
