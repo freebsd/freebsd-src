@@ -83,12 +83,13 @@ brace_subst(char *orig, char **store, char *path, int len)
 /*
  * queryuser --
  *	print a message to standard error and then read input from standard
- *	input. If the input is 'y' then 1 is returned.
+ *	input. If the input is an affirmative response (according to the
+ *	current locale) then 1 is returned.
  */
 int
 queryuser(char *argv[])
 {
-	int ch, first, nl;
+	char *p, resp[256];
 
 	(void)fprintf(stderr, "\"%s", *argv);
 	while (*++argv)
@@ -96,20 +97,13 @@ queryuser(char *argv[])
 	(void)fprintf(stderr, "\"? ");
 	(void)fflush(stderr);
 
-	first = ch = getchar();
-	for (nl = 0;;) {
-		if (ch == '\n') {
-			nl = 1;
-			break;
-		}
-		if (ch == EOF)
-			break;
-		ch = getchar();
-	}
-
-	if (!nl) {
+	if (fgets(resp, sizeof(resp), stdin) == NULL)
+		*resp = '\0';
+	if ((p = strchr(resp, '\n')) != NULL)
+		*p = '\0';
+	else {
 		(void)fprintf(stderr, "\n");
 		(void)fflush(stderr);
 	}
-        return (first == 'y');
+        return (rpmatch(resp) == 1);
 }
