@@ -878,12 +878,14 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 				vm_page_hold(m);
 			}
 		} else {
+			sched_pin();
 			pte = *pmap_pte_quick(pmap, va);
 			if (pte != 0 &&
 			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
 				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
 				vm_page_hold(m);
 			}
+			sched_unpin();
 		}
 	}
 	vm_page_unlock_queues();
