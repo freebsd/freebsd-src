@@ -2843,8 +2843,8 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 			panic("pmap_emulate_reference: user ref to kernel");
 		pte = vtopte(v);
 	} else {
-		KASSERT(p == NULL, ("pmap_emulate_reference: bad proc"));
-		KASSERT(p->p_vmspace == NULL, ("pmap_emulate_reference: bad p_vmspace"));
+		KASSERT(p != NULL, ("pmap_emulate_reference: bad proc"));
+		KASSERT(p->p_vmspace != NULL, ("pmap_emulate_reference: bad p_vmspace"));
 		pte = pmap_lev3pte(p->p_vmspace->vm_map.pmap, v);
 	}
 #ifdef DEBUG				/* These checks are more expensive */
@@ -2872,7 +2872,8 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 #endif
 	pa = pmap_pte_pa(pte);
 
-	KASSERT((*pte & PG_MANAGED) == 0, ("pmap_emulate_reference(%p, 0x%lx, %d, %d): pa 0x%lx not managed",
+	KASSERT((*pte & PG_MANAGED) != 0,
+	    ("pmap_emulate_reference(%p, 0x%lx, %d, %d): pa 0x%lx not managed",
 	    p, v, user, write, pa));
 
 	/*
