@@ -702,7 +702,7 @@ badAck:
 		priv->recvSeq = seq;
 
 		/* We need to acknowledge this packet; do it soon... */
-		if (!(a->sackTimer.c_flags & CALLOUT_PENDING)) {
+		if (!(callout_pending(&a->sackTimer))) {
 			int maxWait;
 
 			/* Take 1/4 of the estimated round trip time */
