@@ -64,6 +64,7 @@ ACPI_STATUS
 AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *Context)
 {
     struct acpi_task	*at;
+    int pri;
 
     FUNCTION_TRACE(__func__);
 
@@ -77,25 +78,24 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
 
     at->at_function = Function;
     at->at_context = Context;
-    at->at_task.ta_func = AcpiOsExecuteQueue;
-    at->at_task.ta_context = at;
     switch (Priority) {
     case OSD_PRIORITY_GPE:
-	at->at_task.ta_priority = 4;
+	pri = 4;
 	break;
     case OSD_PRIORITY_HIGH:
-	at->at_task.ta_priority = 3;
+	pri = 3;
 	break;
     case OSD_PRIORITY_MED:
-	at->at_task.ta_priority = 2;
+	pri = 2;
 	break;
     case OSD_PRIORITY_LO:
-	at->at_task.ta_priority = 1;
+	pri = 1;
 	break;
     default:
 	free(at, M_ACPITASK);
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
+    TASK_INIT(&at->at_task, pri, AcpiOsExecuteQueue, at);
 
     taskqueue_enqueue(taskqueue_swi, (struct task *)at);
     return_ACPI_STATUS(AE_OK);
