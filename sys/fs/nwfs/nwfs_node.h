@@ -44,10 +44,6 @@
 #define	NNEW		0x0008		/* vnode has been allocated */
 #define	NVOLUME		0x0010		/* vnode references a volume */
 
-#ifndef	VT_NWFS
-#define	VT_NWFS		VT_TFS
-#endif
-
 struct nwnode {
 	LIST_ENTRY(nwnode)	n_hash;
 	struct vnode 		*n_vnode;
