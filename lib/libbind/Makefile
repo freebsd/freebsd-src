@@ -2,16 +2,14 @@
 
 BIND_DIR=${.CURDIR}/../../contrib/bind
 
-CFLAGS+= -I${BIND_DIR}/port/freebsd/include -I${BIND_DIR}/include
+CFLAGS+= -idirafter ${BIND_DIR}/port/freebsd/include \
+	 -idirafter ${BIND_DIR}/include
 
 LIB=	bind
 
-.PATH:	${BIND_DIR}/lib/resolv
-SRCS+=	herror.c res_debug.c res_data.c res_comp.c res_init.c \
-	res_mkquery.c res_query.c res_send.c res_mkupdate.c \
-	res_update.c
-
-.if defined(WANT_IRS_AUDIT)
+# This may or may not work yet.  It's not compatable with the core
+# system components since it overrides the master.passwd handling etc.
+.if defined(WANT_IRS)
 .PATH:	${BIND_DIR}/lib/irs
 SRCS+=	dns.c dns_gr.c dns_ho.c dns_nw.c dns_pr.c dns_pw.c dns_sv.c gen.c \
 	gen_gr.c gen_ho.c gen_ng.c gen_nw.c gen_pr.c gen_pw.c gen_sv.c \
@@ -22,18 +20,11 @@ SRCS+=	dns.c dns_gr.c dns_ho.c dns_nw.c dns_pr.c dns_pw.c dns_sv.c gen.c \
 .endif
 
 .PATH:	${BIND_DIR}/lib/isc
-SRCS+=	tree.c base64.c bitncmp.c assertions.c \
+SRCS+=	tree.c bitncmp.c assertions.c \
 	memcluster.c logging.c heap.c \
 	eventlib.c ev_connects.c ev_files.c \
 	ev_timers.c ev_streams.c ev_waits.c
-
-.PATH:	${BIND_DIR}/lib/inet
-SRCS+=	nsap_addr.c inet_addr.c inet_ntop.c inet_pton.c \
-	inet_ntoa.c inet_neta.c inet_net_ntop.c inet_net_pton.c \
-	inet_lnaof.c inet_makeaddr.c inet_netof.c inet_network.c
-
-.PATH:	${BIND_DIR}/lib/nameser
-SRCS+=	ns_parse.c ns_print.c ns_netint.c ns_ttl.c ns_name.c
+#	base64.c
 
 INTERNALLIB=		true
 NOPIC=			true
