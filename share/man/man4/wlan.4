@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2003
+.Dd September 25, 2003
 .Dt WLAN 4
 .Os
 .Sh NAME
@@ -44,6 +44,29 @@ Currently it is required for the
 and
 .Xr ath 4
 drivers but will eventually be required by all 802.11 drivers.
+.Pp
+If the associated interface is marked for debugging with, for example,
+.Bd -literal -offset indent
+ifconfig wi0 debug
+.Ed
+.Pp
+then messages describing the operation of the 802.11 protocol will
+be sent to the console.
+With the interface marked for debugging, doing:
+.Bd -literal -offset indent
+sysctl debug.ieee80211=1
+.Ed
+.Pp
+causes additional messages to be generated.
+Many drivers will also display the contents of each 802.11 frame
+sent and received when the interface is marked with
+both debugging and ``link2''; e.g.
+.Bd -literal -offset indent
+ifconfig wi0 debug link2
+.Ed
+.Pp
+Beware however that some management frames may be processed entirely within
+the device and not be received by the host.
 .Sh COMPATIBILITY
 The module name of
 .Nm
@@ -63,10 +86,13 @@ The
 driver first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
-Support for generic 802.11 devices was adapted from
+Atsushi Onoe is the original author of this software.
+The
 .Nx
+support was adapted to
+.Fx
 by
 .An -nosplit
-.An Sam Leffler Aq sam@FreeBSD.org .
+.An Sam Leffler .
 This manual page was written by
 .An Tom Rhodes Aq trhodes@FreeBSD.org .
