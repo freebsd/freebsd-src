@@ -52,7 +52,19 @@ static DB *_pw_db;			/* password database */
 static int _pw_keynum;			/* key counter */
 static int _pw_stayopen;		/* keep fd's open */
 #ifdef YP
+struct _namelist {
+	char *name;
+	struct _namelist *next;
+};
 static struct passwd _pw_copy;
+struct _pw_cache {
+	struct passwd pw_entry;
+	struct _namelist *namelist;
+	struct _pw_cache *next;
+};
+static int pluscnt, minuscnt;
+static struct _pw_cache *plushead =NULL, *minushead = NULL;
+static void _createcaches(), _freecaches();
 static int _yp_enabled;			/* set true when yp enabled */
 static int _pw_stepping_yp;		/* set true when stepping thru map */
 #endif
@@ -143,10 +155,7 @@ getpwnam(name)
 	 */
 	if (rval && _pw_passwd.pw_name[0] == '+') rval = 0;
 
-	if (!_pw_stayopen) {
-		(void)(_pw_db->close)(_pw_db);
-		_pw_db = (DB *)NULL;
-	}
+	endpwent();
 	return(rval ? &_pw_passwd : (struct passwd *)NULL);
 }
 
@@ -179,10 +188,8 @@ getpwuid(uid)
 		rval = _getyppass(&_pw_passwd, ypbuf, "passwd.byuid");
 	}
 #endif
-	if (!_pw_stayopen) {
-		(void)(_pw_db->close)(_pw_db);
-		_pw_db = (DB *)NULL;
-	}
+
+	endpwent();
 	return(rval ? &_pw_passwd : (struct passwd *)NULL);
 }
 
@@ -219,6 +226,9 @@ endpwent()
 	if (_pw_db) {
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
+#ifdef YP
+		_freecaches();
+#endif
 	}
 }
 
@@ -246,6 +256,7 @@ __initdb()
 			} else {
 				_yp_enabled = (int)*((char *)data.data) - 2;
 			}
+			_createcaches();
 		}
 #endif
 		return(1);
@@ -306,6 +317,137 @@ __hashpw(key)
 }
 
 #ifdef YP
+/*
+ * Build special +@netgroup and -@netgroup caches. We do the
+ * actual netgroup lookups here so that we don't have to do a
+ * bunch of innetgr() calls when doing a getpwent(). This lets us
+ * query the netgroup database only once for each special entry.
+ * The alternative is to do use innetgr() inside _getyppass() and
+ * _netyppass(), which would make getpwent() unbearably slow.
+ */
+static void
+_createcaches()
+{
+	DBT key, data;
+	int i, len, rval;
+	char bf[UT_NAMESIZE + 2];
+	char entry[UT_NAMESIZE];
+	struct _pw_cache *p, *m;
+	struct _namelist *n, *namehead;
+	char *user, *host, *domain;
+
+	/* Assume that the database has already been initialized. */
+
+	/*
+	 * For the plus lists, we have to store both the linked list of
+	 * names and the +@entries from the password database so we can
+	 * do the substitution later if we find a match.
+	 */
+	bf[0] = _PW_KEYPLUSCNT;
+	key.data = (u_char*)bf;
+	key.size = 1;
+	if (!(_pw_db->get)(_pw_db, &key, &data, 0)) {
+		pluscnt = (int)*((char *)data.data);
+		for (i = 0; i < pluscnt; i++) {
+			bf[0] = _PW_KEYPLUSBYNUM;
+			bcopy(&i, bf + 1, sizeof(i) + 1);
+			key.size = (sizeof(i)) + 1;
+			if ((rval = __hashpw(&key))) {
+				p = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
+				setnetgrent(_pw_passwd.pw_name+2);
+				namehead = NULL;
+				while(getnetgrent(&host, &user, &domain)) {
+					n = (struct _namelist *)malloc(sizeof (struct _namelist));
+					n->name = strdup(user);
+					n->next = namehead;
+					namehead = n;
+				}
+				p->pw_entry.pw_name = strdup(_pw_passwd.pw_name);
+				p->pw_entry.pw_passwd = strdup(_pw_passwd.pw_passwd);
+				p->pw_entry.pw_uid = _pw_passwd.pw_uid;
+				p->pw_entry.pw_gid = _pw_passwd.pw_gid;
+				p->pw_entry.pw_expire = _pw_passwd.pw_expire;
+				p->pw_entry.pw_change = _pw_passwd.pw_change;
+				p->pw_entry.pw_class = strdup(_pw_passwd.pw_class);
+				p->pw_entry.pw_gecos = strdup(_pw_passwd.pw_gecos);
+				p->pw_entry.pw_dir = strdup(_pw_passwd.pw_dir);
+				p->pw_entry.pw_shell = strdup(_pw_passwd.pw_shell);
+				p->pw_entry.pw_fields = _pw_passwd.pw_fields;
+				p->namelist = namehead;
+				p->next = plushead;
+				plushead = p;
+			}
+		}
+	}
+
+	/*
+	 * All we need for the minuslist are the usernames.
+	 * The actual -@entries can be ignored since no substitution
+	 * will be done: anybody on the minus list is treated like a
+	 * non-person.
+	 */
+	bf[0] = _PW_KEYMINUSCNT;
+	key.data = (u_char*)bf;
+	key.size = 1;
+	if (!(_pw_db->get)(_pw_db, &key, &data, 0)) {
+		minuscnt = (int)*((char *)data.data);
+		for (i = 0; i < minuscnt; i++) {
+			bf[0] = _PW_KEYMINUSBYNUM;
+			bcopy(&i, bf + 1, sizeof(i) + 1);
+			key.size = (sizeof(i)) + 1;
+			if ((rval = __hashpw(&key))) {
+				m = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
+				setnetgrent(_pw_passwd.pw_name+2);
+				namehead = NULL;
+				while(getnetgrent(&host, &user, &domain)) {
+					n = (struct _namelist *)malloc(sizeof (struct _namelist));
+					n->name = strdup(user);
+					n->next = namehead;
+					namehead = n;
+				}
+				m->namelist = namehead;
+				m->next = minushead;
+				minushead = m;
+			}
+		}
+	}
+}
+
+/*
+ * Free the +@netgroup/-@netgroup caches. Should be called
+ * from endpwent(). We have to blow away both the list of
+ * netgroups and the attached linked lists of usernames.
+ */
+static void
+_freecaches()
+{
+struct _pw_cache *p, *m;
+struct _namelist *n;
+
+	while (plushead) {
+			while(plushead->namelist) {
+				n = plushead->namelist->next;
+				free(plushead->namelist);
+				plushead->namelist = n;
+			}
+		p = plushead->next;
+		free(plushead);
+		plushead = p;
+	}
+
+	while(minushead) {
+			while(minushead->namelist) {
+				n = minushead->namelist->next;
+				free(minushead->namelist);
+				minushead->namelist = n;
+			}
+		m = minushead->next;
+		free(minushead);
+		minushead = m;
+	}
+	pluscnt = minuscnt = 0;
+}
+
 static void
 _pw_breakout_yp(struct passwd *pw, char *result, int master)
 {
@@ -399,6 +541,8 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	int resultlen;
 	char mastermap[1024];
 	int gotmaster = 0;
+	struct _pw_cache *m, *p;
+	struct _namelist *n;
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
@@ -423,6 +567,35 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
+	s = strsep(&result,":");
+	if (minuscnt && minushead) {
+		m = minushead;
+		while (m) {
+			n = m->namelist;
+			while (n) {
+				if (!strcmp(n->name, s)) {
+					free(result);
+					return (0);
+				}
+				n = n->next;
+			}
+			m = m->next;
+		}
+	}
+	if (pluscnt && plushead) {
+		p = plushead;
+		while (p) {
+			n = p->namelist;
+			while (n) {
+				if (!strcmp(n->name, s))
+					bcopy((char *)&p->pw_entry,
+					(char *)&_pw_passwd, sizeof(p->pw_entry));
+				n = n->next;
+			}
+			p = p->next;
+		}
+	}
+	free(result);
 	result = resultbuf;
 	_pw_breakout_yp(pw, resultbuf, gotmaster);
 
@@ -432,7 +605,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 static int
 _nextyppass(struct passwd *pw)
 {
-	static char *key;
+	static char *key, *s;
 	static int keylen;
 	char *lastkey, *result;
 	static char resultbuf[1024];
@@ -440,6 +613,8 @@ _nextyppass(struct passwd *pw)
 	int rv;
 	char *map = "passwd.byname";
 	int gotmaster = 0;
+	struct _pw_cache *m, *p;
+	struct _namelist *n;
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
@@ -480,6 +655,34 @@ unpack:
 		}
 
 		strcpy(resultbuf, result);
+		s = strsep(&result,":");
+		if (minuscnt && minushead) {
+			m = minushead;
+			while (m) {
+				n = m->namelist;
+				while (n) {
+					if (!strcmp(n->name, s)) {
+						free(result);
+						goto tryagain;
+					}
+					n = n->next;
+				}
+				m = m->next;
+			}
+		}
+		if (pluscnt && plushead) {
+			p = plushead;
+			while (p) {
+				n = p->namelist;
+				while (n) {
+					if (!strcmp(n->name, s))
+						bcopy((char *)&p->pw_entry,
+						(char*)&_pw_passwd, sizeof(p->pw_entry));
+					n = n->next;
+				}
+				p = p->next;
+			}
+		}
 		free(result);
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
 		_pw_breakout_yp(pw, resultbuf, gotmaster);
