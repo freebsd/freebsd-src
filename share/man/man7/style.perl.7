@@ -49,11 +49,24 @@ source tree.
  # Fill them so they look like real paragraphs.
 .Ed
 .Pp
+All scripts should follow the copyright block at the start of the
+script with a comment block that describes what the script does.
+.Bd -literal -offset 0i
+ #!/usr/bin/perl -w
+
+ # COPYRIGHT
+ # BLOCK
+
+ # This script processes an old kernel config file, which it gets on
+ # stdin, and outputs a new style hints file to stdout.
+.Ed
 All scripts should use the
 .Fa strict
 module and run without warnings. For example:
 .Bd -literal -offset 0i
  #!/usr/bin/perl -w
+
+ # Copyright, description of what the script does, etc
 
  use strict;
  ...
