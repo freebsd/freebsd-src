@@ -28,28 +28,28 @@
     db
         entropy         uname=operator gname=operator mode=0700
         ..
-        ipf		mode=0700
+        ipf             mode=0700
         ..
         pkg
         ..
     ..
-/set gname=games
-    games	mode=0775
+/set gname=games mode=0775
+    games
         hackdir         mode=0770
             save            mode=0770
             ..
         ..
-        larn	mode=0775
+        larn
         ..
-        phantasia	mode=0775
+        phantasia
         ..
     ..
-/set gname=wheel
+/set gname=wheel mode=0755
     heimdal         mode=0700
     ..
     log
     ..
-    mail            gname=mail	mode=0775
+    mail            gname=mail mode=0775
     ..
     msgs            uname=daemon
     ..
@@ -61,10 +61,10 @@
         ppp             gname=network mode=0770
         ..
     ..
-    rwho            gname=daemon	mode=0775
+    rwho            gname=daemon mode=0775
     ..
     spool
-        lock            uname=uucp gname=dialer	mode=0775
+        lock            uname=uucp gname=dialer mode=0775
         ..
 /set gname=daemon
         lpd
@@ -77,7 +77,7 @@
             lpd
             ..
         ..
-/set uname=root gname=wheel
+/set gname=wheel
     ..
     tmp             mode=01777
         vi.recover      mode=01777
