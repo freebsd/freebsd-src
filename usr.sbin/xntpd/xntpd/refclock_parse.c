@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
 /*
- * /src/NTP/REPOSITORY/v3/xntpd/refclock_parse.c,v 3.51 1994/03/03 09:49:54 kardel Exp
+ * /src/NTP/REPOSITORY/v3/xntpd/refclock_parse.c,v 3.53 1994/03/25 13:07:39 kardel Exp
  *
- * refclock_parse.c,v 3.51 1994/03/03 09:49:54 kardel Exp
+ * refclock_parse.c,v 3.53 1994/03/25 13:07:39 kardel Exp
  *
  * generic reference clock driver for receivers
  *
@@ -30,6 +30,8 @@
  *  PPS		      - supply loopfilter with PPS samples (if configured)
  *  PPSPPS            - notify loopfilter of PPS file descriptor
  *
+ *  FREEBSD_CONRAD    - Make very cheap "Conrad DCF77 RS-232" gadget work
+ *			with FreeBSD.
  * TTY defines:
  *  HAVE_BSD_TTYS     - currently unsupported
  *  HAVE_SYSV_TTYS    - will use termio.h
@@ -82,6 +84,9 @@
 #include <time.h>
 
 #include <sys/errno.h>
+#ifdef FREEBSD_CONRAD
+#include <sys/ioctl.h>
+#endif
 extern int errno;
 
 #if !defined(STREAM) && !defined(HAVE_SYSV_TTYS) && !defined(HAVE_BSD_TTYS) && !defined(HAVE_TERMIOS)
@@ -129,7 +134,7 @@ CURRENTLY NO BSD TTY SUPPORT
 #include "parse.h"
 
 #if !defined(NO_SCCSID) && !defined(lint) && !defined(__GNUC__)
-static char rcsid[]="refclock_parse.c,v 3.51 1994/03/03 09:49:54 kardel Exp";
+static char rcsid[]="refclock_parse.c,v 3.53 1994/03/25 13:07:39 kardel Exp";
 #endif
 
 /**===========================================================================
@@ -440,7 +445,12 @@ static poll_info_t wsdcf_pollinfo = { WS_POLLRATE, WS_POLLCMD, WS_CMDSIZE };
 #define RAWDCF_ROOTDELAY	0x00000364 /* 13 ms */
 #define RAWDCF_FORMAT		"RAW DCF77 Timecode"
 #define RAWDCF_MAXUNSYNC	(0) /* sorry - its a true receiver - no signal - no time */
+
+#ifdef FREEBSD_CONRAD
+#define RAWDCF_CFLAG            (CS8|CREAD|CLOCAL)
+#else
 #define RAWDCF_CFLAG            (B50|CS8|CREAD|CLOCAL)
+#endif
 #define RAWDCF_IFLAG		0
 #define RAWDCF_OFLAG		0
 #define RAWDCF_LFLAG		0
@@ -1482,11 +1492,22 @@ local_receive(rbufp)
   struct parseunit *parse = (struct parseunit *)rbufp->recv_srcclock;
   register int count;
   register char *s;
+#ifdef FREEBSD_CONRAD
+  struct timeval foo;
+#endif
+
   /*
    * eat all characters, parsing then and feeding complete samples
    */
   count = rbufp->recv_length;
   s = rbufp->recv_buffer;
+#ifdef FREEBSD_CONRAD
+  ioctl(parse->fd,TIOCTIMESTAMP,&foo);
+  TVTOTS(&foo, &rbufp->recv_time);
+  rbufp->recv_time.l_uf += TS_ROUNDBIT;
+  rbufp->recv_time.l_ui += JAN_1970;
+  rbufp->recv_time.l_uf &= TS_MASK;
+#endif
 
   while (count--)
     {
@@ -2271,7 +2292,10 @@ parse_start(sysunit, peer)
       tm.c_iflag     = clockinfo[type].cl_iflag;
       tm.c_oflag     = clockinfo[type].cl_oflag;
       tm.c_lflag     = clockinfo[type].cl_lflag;
-	
+#ifdef FREEBSD_CONRAD
+      tm.c_ispeed    = 50;
+      tm.c_ospeed    = 50;
+#endif
       if (TTY_SETATTR(fd232, &tm) == -1)
 	{
 	  syslog(LOG_ERR, "PARSE receiver #%d: parse_start: tcsetattr(%d, &tm): %m", unit, fd232);
@@ -2314,6 +2338,21 @@ parse_start(sysunit, peer)
       return 0;		/* well, ok - special initialisation broke */
     }
   
+#ifdef FREEBSD_CONRAD
+      {
+	int i,j;
+	struct timeval tv;
+	ioctl(parse->fd,TIOCTIMESTAMP,&tv);
+	j = TIOCM_RTS;
+	i = ioctl(fd232, TIOCMBIC, &j);
+	if (i < 0) {
+	  syslog(LOG_ERR, 
+	    "PARSE receiver #%d: lowrts_poll: failed to lower RTS: %m", 
+	    CL_UNIT(parse->unit));
+	}
+      }
+#endif
+	
   strcpy(tmp_ctl.parseformat.parse_buffer, parse->parse_type->cl_format);
   tmp_ctl.parseformat.parse_count = strlen(tmp_ctl.parseformat.parse_buffer);
 
@@ -2824,7 +2863,7 @@ parse_control(unit, in, out)
       sprintf(tt, "refclock_iomode=\"%s\"", parse->binding->bd_description);
 
       tt = add_var(&out->kv_list, 128, RO);
-      sprintf(tt, "refclock_driver_version=\"refclock_parse.c,v 3.51 1994/03/03 09:49:54 kardel Exp\"");
+      sprintf(tt, "refclock_driver_version=\"refclock_parse.c,v 3.53 1994/03/25 13:07:39 kardel Exp\"");
 
       out->lencode       = strlen(outstatus);
       out->lastcode      = outstatus;
@@ -3103,7 +3142,11 @@ parse_process(parse, parsetime)
       L_ADD(&off, &offset);
       rectime = off;		/* this makes org time and xmt time somewhat artificial */
     
-      if (parse->flags & PARSE_STAT_FILTER)
+      L_SUB(&off, &parsetime->parse_stime.fp);
+
+      if ((parse->flags & PARSE_STAT_FILTER) &&
+	  (off.l_i > -60) &&
+	  (off.l_i <  60))				/* take usec error only if within +- 60 secs */
 	{
 	  struct timeval usecerror;
 	  /*
@@ -3114,10 +3157,6 @@ parse_process(parse, parsetime)
 
 	  sTVTOTS(&usecerror, &off);
 	  L_ADD(&off, &offset);
-	}
-      else
-	{
-	  L_SUB(&off, &parsetime->parse_stime.fp);
 	}
     }
 
@@ -3409,6 +3448,12 @@ trimble_init(parse)
  * History:
  *
  * refclock_parse.c,v
+ * Revision 3.53  1994/03/25  13:07:39  kardel
+ * fixed offset calculation for large (>4 Min) offsets
+ *
+ * Revision 3.52  1994/03/03  09:58:00  kardel
+ * stick -kv in cvs is no fun
+ *
  * Revision 3.49  1994/02/20  13:26:00  kardel
  * rcs id cleanup
  *

@@ -1,0 +1,48 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa00412; 19 Apr 94 18:04 EDT
+Received: from swan.cl.cam.ac.uk by louie.udel.edu id aa13181;
+          19 Apr 94 17:44 EDT
+Received: from labes.cl.cam.ac.uk (user pb (rfc931)) by swan.cl.cam.ac.uk 
+          with SMTP (PP-6.5) to cl; Tue, 19 Apr 1994 22:44:05 +0100
+To: Mills@udel.edu
+cc: Piete Brooks <Piete.Brooks@cl.cam.ac.uk>
+Subject: Re: Cisco/Multicast/ntp3.3m
+In-reply-to: Your message of Tue, 19 Apr 1994 12:24:31 -0400. <9404191224.aa28707@huey.udel.edu>
+Date: Tue, 19 Apr 1994 22:43:58 +0100
+From: Piete Brooks <Piete.Brooks@cl.cam.ac.uk>
+Message-ID: <"swan.cl.cam.:140740:940419214417"@cl.cam.ac.uk>
+
+> Yes, I think you have caught all the gotchas.
+
+I fear not :-((
+
+> I take it you have the latest kernel mods.
+
+Look for a call sign I assume ....
+Do I take it that they are **REQUIRED** ?  :-(((
+
+
+Other problems .....
+
+It appears that you have your own in.h in include/ntp_in.h
+
+I suspect that that is why things are failing ...
+Why not use the syatem's own in.h ??
+
+To make it compile I added:
+
+*** include/ntp_in.h.dist	Thu Apr 14 16:20:29 1994
+--- include/ntp_in.h	Tue Apr 19 21:40:12 1994
+***************
+*** 19,24 ****
+--- 19,27 ----
+  
+  #ifndef _netinet_in_h
+  #define _netinet_in_h
++ #define	_NETINET_IN_H_
++ #define	_SYS_IN_INCLUDED
++ #define	__IN_HEADER
+  
+  /*
+   * Protocols
+

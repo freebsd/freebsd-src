@@ -70,11 +70,11 @@ extern	int	getppid		P((void));
 
 extern	int	close		P((int));
 extern  int	ioctl		P((int, int, char *));
-extern	int	read		P((int, char *, unsigned));
+extern	int	read		P((int, void *, unsigned));
 extern  int	rename		P((char *, char *));
-extern	int	write		P((int, char *, int));
-extern	int	unlink		P((char *));
-extern	int	link		P((char *, char *));
+extern	int	write		P((int, const void *, unsigned));
+extern	int	unlink		P((const char *));
+extern	int	link		P((const char *, const char *));
 
 #ifdef FILE
 extern  int	fclose		P((FILE *));

@@ -382,6 +382,12 @@ other clock performance information.
 Obtain debugging information for a clock peer.  This information is
 provided only by some clock drivers and is mostly undecodable without
 a copy of the driver source in hand.
+.PP
+.B kerninfo
+.PP
+Obtain and print kernel phase-lock loop operating parameters.  This
+information is available only if the kernel has been specially modified
+for a precision timekeeping function.
 .SH RUNTIME CONFIGURATION REQUESTS
 .PP
 All requests which cause state changes in the server are authenticated
@@ -494,15 +500,16 @@ deleted.  When appropriate, however, the association may persist in
 an unconfigured mode if the remote peer is willing to continue on in
 this fashion.
 .PP
-.B set bclient|auth
+.B set bclient|mclient|auth
 [
 .I ...
 ]
 .PP
-Allows the setting of the broadcast client and/or authenticate system
-flags.  Setting the former causes the server to listen for broadcast
-NTP to to synchronize to broadcasts when appropriate.  Setting the
-latter flag causes the server to only synchronize with peers which
+Allows the setting of the broadcast/multicast client and/or authenticate
+system flags.  Setting bclient causes the server to listen for broadcast
+NTP to to synchronize to broadcasts when appropriate.  Setting mclient
+causes the same thing, but using multicast facilities, when available.
+Setting auth causes the server to only synchronize with peers which
 include an authentication field encrypted with one of the local server's
 trusted keys.
 .PP
@@ -511,9 +518,9 @@ trusted keys.
 .I ...
 ]
 .PP
-Allows the broadcast client and/or authenticate system flags to be
-cleared.  Clearing the former causes incoming broadcast NTP packets
-to be ignored.  Clearing the latter allows peers which have not included
+Allows the broadcast/multicast client and/or authenticate system flags to be
+cleared.  Clearing bclient causes incoming broadcast and multicast NTP packets
+to be ignored.  Clearing auth allows peers which have not included
 an authentication field, or which have included one but have encrypted
 it with an untrusted key, to be considered synchronization candidates.
 .PP
@@ -663,14 +670,6 @@ done.
 .PP
 Sets the precision which the server advertises to the specified value.  This
 should be a negative integer in the range -4 through -20.
-.PP
-.B setselect
-.I algorithm_number
-.PP
-Sets the selection weight algorithm to that indicated by the specified number.
-This should be an integer value between 1 and 5 inclusive.  Algorithm 1
-is that specified in RFC 1119, the other 4 algorithms are experimental
-and should be used with caution.
 .SH SEE ALSO
 .PP
 .IR xntpd (8)

@@ -31,6 +31,10 @@ this distribution. To make these programs:
     For custom tailored configuration copying Config.local.dist to Config.local
     and editing Config.local to suit the local needs is neccessary (at most
     3 lines to change), or use one of the make's above and then tweak it.
+    Config.local can also be used to override common settings from the
+    machines/* files like the AUTHDEFS= to select very specific configurations.
+    Please use this feature with care and don't be disappointed if it doesn't
+    work the way you expect.
 
 (2) Type "make" to compile everything of general interest. Expect few or
     no warnings using cc and a moderate level of warnings using gcc.
@@ -140,6 +144,7 @@ the meal. The converse is not always true.
 	PC	BSD/386 1.0	gcc	LOCAL_CLOCK possibly	see "build problems"
 	PC	Linux (pl14)	gcc	LOCAL_CLOCK		(dw 93/10/30)
 	PC	Dell SVR4 v2.2	gcc	?			(tl 93/12/30)
+	PC	Unixware1/SVR4	cc	no tickadj, ?		(ras 93/04/11)
 	NCR3445	NCR SVR4	cc	LOCAL_CLOCK		(tm 93/11/29)
 
 	pb: Piete Brooks
@@ -149,6 +154,7 @@ the meal. The converse is not always true.
 	tl: Tony Lill <ajlill@tlill.hookup.net>
 	tm: Tom Moore <Tom.Moore@DaytonOH.NCR.COM>
 	jmj: Jim Jagielski <jim@jagubox.gsfc.nasa.gov>
+	ras: Ray Schnitzler <schnitz@unipress.com>
 
 Build Problems (and workaround):
 

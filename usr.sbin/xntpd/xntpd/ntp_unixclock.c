@@ -251,10 +251,23 @@ clock_parms(tickadj, tick)
  * Note that this version grovels about in /dev/kmem to determine
  * these values.  This probably should be elsewhere.
  */
-
-/* Define the following to be what the tick and tickadj variables are 
- * called in your kernel. 
+#if defined(SYS_UNIXWARE1)
+/*
+ * clock_parms - return the local clock tickadj and tick parameters
+ *
+ * The values set here were determined experimentally on a 486 system
+ * I'm not confident in them. - RAS
+ *
  */
+static void
+clock_parms(tickadj, tick)
+	U_LONG *tickadj;
+	U_LONG *tick;
+{
+	*tick = 10000;		/* microseconds */
+	*tickadj = 80;		/* microseconds */
+}
+#else /* SYS_UNIXWARE1 */
 
 #if defined(SYS_AUX3) || defined(SYS_AUX2) || defined(SYS_SVR4) || defined(SYS_PTX)
 #define K_TICKADJ_NAME	"tickadj"
@@ -373,6 +386,7 @@ clock_parms(tickadj, tick)
 #undef	K_TICK_NAME
 #undef	N_NAME
 }
+#endif /* SYS_UNIXWARE1 */
 #endif /* HAVE_READKMEM */
 
 #if defined(SOLARIS)&&defined(ADJTIME_IS_ACCURATE)
@@ -420,7 +434,6 @@ clock_parms(tickadj, tick)
 	*tickadj = 150;
 }
 #endif /* sgi */
-
 
 #ifdef NOKMEM
 
