@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
+.\"     $Id$
 .\"
 .Dd December 11, 1993
 .Dt ACCEPT 2
@@ -164,6 +165,10 @@ will fail if:
 .Bl -tag -width EWOULDBLOCK
 .It Bq Er EBADF
 The descriptor is invalid.
+.It Bq Er EMFILE
+The per-process descriptor table is full.
+.It Bq Er ENFILE
+The system file table is full.
 .It Bq Er ENOTSOCK
 The descriptor references a file, not a socket.
 .It Bq Er EOPNOTSUPP
