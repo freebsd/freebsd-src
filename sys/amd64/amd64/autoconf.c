@@ -176,7 +176,7 @@ configure_final(dummy)
 {
 	int i;
 
-	cninit_finish();
+/*	cninit_finish(); */
 
 	if (bootverbose) {
 
