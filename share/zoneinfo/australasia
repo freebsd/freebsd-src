@@ -1,4 +1,4 @@
-# @(#)australasia	7.65
+# @(#)australasia	7.66
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -399,10 +399,8 @@ Zone	Pacific/Fakaofo	-11:24:56 -	LMT	1901
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Tonga	1999	only	-	Oct	 7	2:00s	1:00	S
 Rule	Tonga	2000	only	-	Mar	19	2:00s	0	-
-Rule	Tonga	2000	only	-	Nov	 4	2:00s	1:00	S
-Rule	Tonga	2001	only	-	Jan	27	2:00s	0	-
-Rule	Tonga	2001	only	-	Nov	25	2:00s	1:00	S
-Rule	Tonga	2002	only	-	Mar	 3	2:00s	0	-
+Rule	Tonga	2000	max	-	Nov	Sun>=1	2:00	1:00	S
+Rule	Tonga	2001	max	-	Jan	lastSun	2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Tongatapu	12:19:20 -	LMT	1901
 			12:20	-	TOT	1941 # Tonga Time
@@ -1227,10 +1225,11 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # From Rives McDow (2000-12-01):
 # Tonga is observing DST as of 2000-11-04 and will stop on 2001-01-27.
 
-# From Rives McDow (2001-07-17):
-# The Kingdom of Tonga will move to DST at 0200 local time on Sunday,
-# November 25, 2001 and revert back to standard time at 0300 local
-# time on Sunday, March 3, 2002.
+# From Sione Moala-Mafi (2001-09-20) via Rives McDow:
+# At 2:00am on the first Sunday of November, the standard time in the Kingdom
+# shall be moved forward by one hour to 3:00am.  At 2:00am on the last Sunday
+# of January the standard time in the Kingdom shall be moved backward by one
+# hour to 1:00am.
 
 
 ###############################################################################
