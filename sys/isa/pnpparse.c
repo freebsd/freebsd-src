@@ -35,6 +35,8 @@
 #include <isa/pnpreg.h>
 #include <isa/pnpvar.h>
 
+#define	MAXDEP	8
+
 #define I16(p)	((p)[0] + ((p)[1] << 8))
 #define I32(p)	(I16(p) + (I16(p+2) << 16))
 
@@ -42,8 +44,7 @@
  * Parse resource data for Logical Devices.
  *
  * This function exits as soon as it gets an error reading *ANY*
- * Resource Data or ir reaches the end of Resource Data.  In the first
- * case the return value will be TRUE, FALSE otherwise.
+ * Resource Data or it reaches the end of Resource Data.
  */
 void
 pnp_parse_resources(device_t dev, u_char *resources, int len)
@@ -52,16 +53,17 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 	u_char tag, *resp, *resinfo;
 	int large_len, scanning = len;
 	u_int32_t id, compat_id;
-	struct isa_config logdev, alt;
 	struct isa_config *config;
-	int priority = 0;
-	int seenalt = 0;
+	int ncfgs = 1;
+	int priorities[1 + MAXDEP];
+	struct isa_config configs[1 + MAXDEP];
 	char buf[100];
+	int i;
 
 	id = isa_get_logicalid(dev);
-	bzero(&logdev, sizeof logdev);
-	bzero(&alt, sizeof alt);
-	config = &logdev;
+	bzero(configs, sizeof configs);
+	config = &configs[0];
+	priorities[0] = 0;
 	resp = resources;
 	while (scanning > 0) {
 		tag = *resp++;
@@ -94,7 +96,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					       I16(resinfo));
 				}
 				if (config->ic_nirq == ISA_NIRQ) {
-					device_printf(parent, "too many irqs");
+					device_printf(parent, "too many irqs\n");
 					scanning = 0;
 					break;
 				}
@@ -110,7 +112,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					       resinfo[0]);
 				}
 				if (config->ic_ndrq == ISA_NDRQ) {
-					device_printf(parent, "too many drqs");
+					device_printf(parent, "too many drqs\n");
 					scanning = 0;
 					break;
 				}
@@ -124,25 +126,22 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					printf("%s: start dependant\n",
 					       pnp_eisaformat(id));
 				}
-				if (config == &alt) {
-					ISA_ADD_CONFIG(parent, dev,
-						       priority, config);
-				} else if (config != &logdev) {
-					device_printf(parent, "malformed\n");
+				if (ncfgs >= MAXDEP) {
+					device_printf(parent, "too many dependant configs (%d)\n", MAXDEP);
 					scanning = 0;
 					break;
 				}
+				config = &configs[ncfgs];
 				/*
 				 * If the priority is not specified,
 				 * then use the default of
 				 * 'acceptable'
 				 */
 				if (PNP_SRES_LEN(tag) > 0)
-					priority = resinfo[0];
+					priorities[ncfgs] = resinfo[0];
 				else
-					priority = 1;
-				alt = logdev;
-				config = &alt;
+					priorities[ncfgs] = 1;
+				ncfgs++;
 				break;
 
 			case PNP_TAG_END_DEPENDANT:
@@ -150,9 +149,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					printf("%s: end dependant\n",
 					       pnp_eisaformat(id));
 				}
-				ISA_ADD_CONFIG(parent, dev, priority, config);
-				config = &logdev;
-				seenalt = 1;
+				config = &configs[0];	/* back to main config */
 				break;
 
 			case PNP_TAG_IO_RANGE:
@@ -167,7 +164,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					       resinfo[5]);
 				}
 				if (config->ic_nport == ISA_NPORT) {
-					device_printf(parent, "too many ports");
+					device_printf(parent, "too many ports\n");
 					scanning = 0;
 					break;
 				}
@@ -188,7 +185,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 
 			case PNP_TAG_IO_FIXED:
 				if (bootverbose) {
-					printf("%s: adding io range "
+					printf("%s: adding fixed io range "
 					       "%#x-%#x, size=%#x, "
 					       "align=%#x\n",
 					       pnp_eisaformat(id),
@@ -198,7 +195,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					       1);
 				}
 				if (config->ic_nport == ISA_NPORT) {
-					device_printf(parent, "too many ports");
+					device_printf(parent, "too many ports\n");
 					scanning = 0;
 					break;
 				}
@@ -214,7 +211,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 
 			case PNP_TAG_END:
 				if (bootverbose) {
-					printf("%s: start dependant\n",
+					printf("%s: end config\n",
 					       pnp_eisaformat(id));
 				}
 				scanning = 0;
@@ -222,7 +219,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 
 			default:
 				/* Skip this resource */
-				device_printf(parent, "unexpected tag %d\n",
+				device_printf(parent, "unexpected small tag %d\n",
 					      PNP_SRES_NUM(tag));
 				break;
 			}
@@ -251,9 +248,9 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 				bcopy(resinfo, buf, large_len);
 
 				/*
-				 * Trim trailing spaces.
+				 * Trim trailing spaces and garbage.
 				 */
-				while (buf[large_len-1] == ' ')
+				while (large_len > 0 && buf[large_len - 1] <= ' ')
 					large_len--;
 				buf[large_len] = '\0';
 				device_set_desc_copy(dev, buf);
@@ -261,14 +258,15 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 				
 			case PNP_TAG_MEMORY_RANGE:
 				if (bootverbose) {
+					int temp = I16(resinfo + 7) << 8;
+
 					printf("%s: adding memory range "
 					       "%#x-%#x, size=%#x, "
 					       "align=%#x\n",
 					       pnp_eisaformat(id),
 					       I16(resinfo + 1)<<8,
-					       (I16(resinfo + 3)<<8)
-					       + I16(resinfo + 7) - 1,
-					       I16(resinfo + 7),
+					       (I16(resinfo + 3)<<8) + temp - 1,
+					       temp,
 					       I16(resinfo + 5));
 				}
 
@@ -282,9 +280,9 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					I16(resinfo + 1)<<8;
 				config->ic_mem[config->ic_nmem].ir_end =
 					(I16(resinfo + 3)<<8)
-					+ I16(resinfo + 7) - 1;
+					+ (I16(resinfo + 7) << 8) - 1;
 				config->ic_mem[config->ic_nmem].ir_size =
-					I16(resinfo + 7);
+					I16(resinfo + 7) << 8;
 				config->ic_mem[config->ic_nmem].ir_align =
 					I16(resinfo + 5);
 				if (!config->ic_mem[config->ic_nmem].ir_align)
@@ -295,7 +293,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 
 			case PNP_TAG_MEMORY32_RANGE:
 				if (bootverbose) {
-					printf("%s: adding memory range "
+					printf("%s: adding memory32 range "
 					       "%#x-%#x, size=%#x, "
 					       "align=%#x\n",
 					       pnp_eisaformat(id),
@@ -307,7 +305,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 				}
 
 				if (config->ic_nmem == ISA_NMEM) {
-					device_printf(parent, "too many memory ranges");
+					device_printf(parent, "too many memory ranges\n");
 					scanning = 0;
 					break;
 				}
@@ -333,7 +331,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					continue;
 				}
 				if (bootverbose) {
-					printf("%s: adding memory range "
+					printf("%s: adding fixed memory32 range "
 					       "%#x-%#x, size=%#x\n",
 					       pnp_eisaformat(id),
 					       I32(resinfo + 1),
@@ -343,7 +341,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 				}
 
 				if (config->ic_nmem == ISA_NMEM) {
-					device_printf(parent, "too many memory ranges");
+					device_printf(parent, "too many memory ranges\n");
 					scanning = 0;
 					break;
 				}
@@ -361,19 +359,52 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 
 			default:
 				/* Skip this resource */
-				device_printf(parent, "unexpected tag %d\n",
+				device_printf(parent, "unexpected large tag %d\n",
 					      PNP_SRES_NUM(tag));
 			}
 		}
 	}
-
-	/*
-	 * Some devices (e.g. network cards) don't have start
-	 * dependant tags and only have a single configuration. If we
-	 * finish parsing without seeing an end dependant tag, add the 
-	 * non-dependant configuration to the device.
-	 */
-	if (!seenalt)
-		ISA_ADD_CONFIG(parent, dev, 1, config);
+	if(ncfgs == 1) {
+		/* Single config without dependants */
+		(void)ISA_ADD_CONFIG(parent, dev, priorities[0], &configs[0]);
+		return;
+	}
+	/* Cycle through dependant configs merging primary details */
+	for(i = 1; i < ncfgs; i++) {
+		int j;
+		config = &configs[i];
+		for(j = 0; j < configs[0].ic_nmem; j++) {
+			if (config->ic_nmem == ISA_NMEM) {
+				device_printf(parent, "too many memory ranges\n");
+				return;
+			}
+			config->ic_mem[config->ic_nmem] = configs[0].ic_mem[j];
+			config->ic_nmem++;
+		}
+		for(j = 0; j < configs[0].ic_nport; j++) {
+			if (config->ic_nport == ISA_NPORT) {
+				device_printf(parent, "too many port ranges\n");
+				return;
+			}
+			config->ic_port[config->ic_nport] = configs[0].ic_port[j];
+			config->ic_nport++;
+		}
+		for(j = 0; j < configs[0].ic_nirq; j++) {
+			if (config->ic_nirq == ISA_NIRQ) {
+				device_printf(parent, "too many irq ranges\n");
+				return;
+			}
+			config->ic_irqmask[config->ic_nirq] = configs[0].ic_irqmask[j];
+			config->ic_nirq++;
+		}
+		for(j = 0; j < configs[0].ic_ndrq; j++) {
+			if (config->ic_ndrq == ISA_NDRQ) {
+				device_printf(parent, "too many drq ranges\n");
+				return;
+			}
+			config->ic_drqmask[config->ic_ndrq] = configs[0].ic_drqmask[j];
+			config->ic_ndrq++;
+		}
+		(void)ISA_ADD_CONFIG(parent, dev, priorities[i], &configs[i]);
+	}
 }
-
