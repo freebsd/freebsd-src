@@ -52,13 +52,13 @@ The
 .Nm
 utility
 displays statistics about the amount of free disk space on the specified
-.Ar filesystem
-or on the filesystem of which
+.Ar file system
+or on the file system of which
 .Ar file
 is a part.
 Values are displayed in 512-byte per block counts.
-If neither a file or a filesystem operand is specified,
-statistics for all mounted filesystems are displayed
+If neither a file or a file system operand is specified,
+statistics for all mounted file systems are displayed
 (subject to the
 .Fl t
 option below).
@@ -94,20 +94,20 @@ this overrides the
 .Ev BLOCKSIZE
 specification from the environment.
 .It Fl l
-Only display information about locally-mounted filesystems.
+Only display information about locally-mounted file systems.
 .It Fl m
 Use 1048576-byte (1-Mbyte) blocks rather than the default.  Note that
 this overrides the
 .Ev BLOCKSIZE
 specification from the environment.
 .It Fl n
-Print out the previously obtained statistics from the filesystems.
+Print out the previously obtained statistics from the file systems.
 This option should be used if it is possible that one or more
-filesystems are in a state such that they will not be able to provide
+file systems are in a state such that they will not be able to provide
 statistics without a long delay.
 When this option is specified,
 .Nm
-will not request new statistics from the filesystems, but will respond
+will not request new statistics from the file systems, but will respond
 with the possibly stale statistics that were previously obtained.
 .It Fl P
 Use POSIX compliant output of 512-byte blocks rather than the default.
@@ -115,27 +115,27 @@ Note that this overrides the
 .Ev BLOCKSIZE
 specification from the environment.
 .It Fl t
-Only print out statistics for filesystems of the specified types.
+Only print out statistics for file systems of the specified types.
 More than one type may be specified in a comma separated list.
-The list of filesystem types can be prefixed with
+The list of file system types can be prefixed with
 .Dq no
-to specify the filesystem types for which action should
+to specify the file system types for which action should
 .Em not
 be taken.
 For example, the
 .Nm
 command:
 .Bd -literal -offset indent
-df -t nonfs,mfs
+df -t nonfs,nullfs
 .Ed
 .Pp
-lists all filesystems except those of type
+lists all file systems except those of type
 .Tn NFS
 and
-.Tn MFS .
+.Tn NULLFS .
 The
 .Xr lsvfs 1
-command can be used to find out the types of filesystems
+command can be used to find out the types of file systems
 that are available on the system.
 .El
 .Sh ENVIRONMENT
@@ -150,7 +150,7 @@ The
 .Fl n
 and
 .Fl t
-flags are ignored if a file or filesystem is specified.
+flags are ignored if a file or file system is specified.
 .Sh SEE ALSO
 .Xr lsvfs 1 ,
 .Xr quota 1 ,
