@@ -434,6 +434,8 @@ usage()
 	fprintf(stderr, "\t-g average file size\n");
 	fprintf(stderr, "\t-h average files per directory\n");
 	fprintf(stderr, "\t-i number of bytes per inode\n");
+	fprintf(stderr, "\t-l enable multilabel MAC\n");
+	fprintf(stderr, "\t-n do not create .snap directory\n");
 	fprintf(stderr, "\t-m minimum free space %%\n");
 	fprintf(stderr, "\t-o optimization preference (`space' or `time')\n");
 	fprintf(stderr, "\t-s file systemsize (sectors)\n");
