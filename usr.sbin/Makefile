@@ -3,11 +3,18 @@
 # XXX MISSING:		cron mkproto sa
 # XXX MISSING SOURCES:	ac quot
 # XXX TEMP. BROKEN:	iostat
-SUBDIR=	XNSrouted accton amd arp chown chroot dev_mkdb diskpart \
+SUBDIR=	accton amd arp chown chroot dev_mkdb diskpart \
 	edquota inetd kgmon kvm_mkdb lpr mtree portmap pstat \
 	pwd_mkdb quotaon repquota routed rmt rwhod sendmail \
-	sliplogin sysctl syslogd traceroute trpt trsp vipw \
+	sliplogin sysctl syslogd traceroute trpt vipw \
 	ypbind yppoll ypset
+
+#
+# XNSrouted and trsp are of very marginal utility to anyone at this
+# point.  Users who actually have a use for these programs (unlikely)
+# are free to add them back in.
+#
+# SUBDIR+=XNSrouted trsp
 
 .if   make(clean) || make(cleandir)
 SUBDIR+=bad144 config config.new eeprom iostat timed 
