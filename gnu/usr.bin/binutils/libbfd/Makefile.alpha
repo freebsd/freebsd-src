@@ -3,8 +3,8 @@
 DEFAULT_VECTOR=	bfd_elf64_alpha_freebsd_vec
 
 SRCS+=	coff-alpha.c cpu-alpha.c ecoff.c ecofflink.c elf64-alpha-fbsd.c \
-	elf64-target.h elf64.c elflink.c
-VECS=	${DEFAULT_VECTOR} ecoffalpha_little_vec
+	elf64-alpha.c elf64-target.h elf64.c elflink.c
+VECS=	${DEFAULT_VECTOR} bfd_elf64_alpha_vec ecoffalpha_little_vec
 .if ${TARGET_ARCH} == "alpha"
 CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
 .endif
