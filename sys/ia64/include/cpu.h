@@ -78,10 +78,10 @@ struct clockframe {
  * through trap, marking the proc as needing a profiling tick.
  */
 #define	need_proftick(p) do {						\
-	mtx_lock_spin(&sched_lock);				\
+	mtx_lock_spin(&sched_lock);					\
 	(p)->p_sflag |= PS_OWEUPC;					\
 	aston((p));							\
-	mtx_unlock_spin(&sched_lock);				\
+	mtx_unlock_spin(&sched_lock);					\
 } while (0)
 
 
