@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.44 1997/04/07 07:15:54 peter Exp $
+ *	$Id: swtch.s,v 1.45 1997/04/14 18:12:05 phk Exp $
  */
 
 #include "npx.h"
@@ -66,6 +66,9 @@ _curpcb:	.long	0			/* pointer to curproc's PCB area */
 _whichqs:	.long	0			/* which run queues have data */
 _whichrtqs:	.long	0			/* which realtime run queues have data */
 _whichidqs:	.long	0			/* which idletime run queues have data */
+	.globl	_hlt_vector
+_hlt_vector:	.long	_default_halt		/* pointer to halt routine */
+
 
 	.globl	_qs,_cnt,_panic
 
@@ -275,14 +278,11 @@ idle_loop:
 	call	*_hlt_vector			/* wait for interrupt */
 	jmp	idle_loop
 
-defaulthlt:
+CROSSJUMPTARGET(_idle)
+
+ENTRY(default_halt)
 	hlt
 	ret
-
-	.globl	_hlt_vector
-_hlt_vector:	.long	defaulthlt
-
-CROSSJUMPTARGET(_idle)
 
 /*
  * cpu_switch()
