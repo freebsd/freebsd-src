@@ -58,4 +58,3 @@ delay(int usecs)
 
 	while (OF_milliseconds() - start < msecs);
 }
-	
