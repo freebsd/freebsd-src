@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.12 1996/01/28 16:36:24 jfieber Exp $ -->
+<!-- $Id: porting.sgml,v 1.13 1996/01/31 14:26:13 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.12 1996/01/28 16:36:24 jfieber Exp $
+ # $Id: porting.sgml,v 1.13 1996/01/31 14:26:13 mpp Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -524,7 +524,7 @@ work/foozolix-1.0/
 	  <tt>&dollar;{DISTDIR}</tt> for later use.
 
       <sect3>
-	<heading>CATEGORIES and KEYWORDS</heading>
+	<heading>CATEGORIES</heading>
 	<p>When a package is created, it is put under
 	  <tt>/usr/ports/packages/All</tt> and links are made from one
 	  or more subdirectories of <tt>/usr/ports/packages</tt>.  The
@@ -537,12 +537,6 @@ work/foozolix-1.0/
 	  the ones that are suitable for your port.  If your port
 	  truly belongs to something that is different from all the
 	  existing ones, you can even create a new category name.
-
-	<p>If you want to add more information than just the category
-	  names, add them to <tt>&dollar;{KEYWORDS}</tt>.  The value
-	  of this variable defaults to that of
-	  <tt>&dollar;{CATEGORIES}</tt>.  This is currently used only
-	  as a field of the <tt>/usr/ports/INDEX</tt> file.
 
       <sect3>
 	<heading>MASTER_SITES</heading>
@@ -911,15 +905,14 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.12 1996/01/28 16:36:24 jfieber Exp $
+ # $Id: porting.sgml,v 1.13 1996/01/31 14:26:13 mpp Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #
  
  [section to describe the package itself and main ftp site - DISTNAME
   is always first, followed by PKGNAME (if necessary), CATEGORIES,
-  KEYWORDs (if necessary) and then MASTER_SITES, and optionally
-  EXTRACT_SUFX or DISTFILES]
+  and then MASTER_SITES, and optionally EXTRACT_SUFX or DISTFILES]
  DISTNAME=	xdvi
  PKGNAME=	xdvi-pl18
  CATEGORIES+=	printing
