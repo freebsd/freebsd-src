@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.41 1995/06/28 12:01:13 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.42 1995/07/06 11:48:48 davidg Exp $
  */
 
 /*
@@ -124,11 +124,8 @@ vnode_pager_alloc(handle, size, prot, offset)
 {
 	register vm_pager_t pager;
 	register vn_pager_t vnp;
-	vm_object_t object, tobject;
-	struct vattr vattr;
+	vm_object_t object;
 	struct vnode *vp;
-	struct proc *p = curproc;	/* XXX */
-	int rtval;
 
 	/*
 	 * Pageout to vnode, no can do yet.
@@ -169,25 +166,10 @@ vnode_pager_alloc(handle, size, prot, offset)
 		/*
 		 * And an object of the appropriate size
 		 */
-		if ((rtval = VOP_GETATTR(vp, &vattr, p->p_ucred, p)) == 0) {
-			object = vm_object_allocate(round_page(vattr.va_size));
-			object->flags = OBJ_CANPERSIST;
-			vm_object_enter(object, pager);
-			object->pager = pager;
-		} else {
-			/*
-			 * The VOP_GETATTR failed...
-			 * Unlock, wakeup any waiters, free pagers, and exit.
-			 */
-			vp->v_flag &= ~VOLOCK;
-			if (vp->v_flag & VOWANT) {
-				vp->v_flag &= ~VOWANT;
-				wakeup(vp);
-			}
-			free((caddr_t) vnp, M_VMPGDATA);
-			free((caddr_t) pager, M_VMPAGER);
-			return (NULL);
-		}
+		object = vm_object_allocate(round_page(size));
+		object->flags = OBJ_CANPERSIST;
+		vm_object_enter(object, pager);
+		object->pager = pager;
 
 		/*
 		 * Hold a reference to the vnode and initialize pager data.
@@ -195,7 +177,7 @@ vnode_pager_alloc(handle, size, prot, offset)
 		VREF(vp);
 		vnp->vnp_flags = 0;
 		vnp->vnp_vp = vp;
-		vnp->vnp_size = vattr.va_size;
+		vnp->vnp_size = size;
 
 		TAILQ_INSERT_TAIL(&vnode_pager_list, pager, pg_list);
 		pager->pg_handle = handle;
