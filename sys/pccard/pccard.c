@@ -318,7 +318,7 @@ pccard_event(struct slot *slt, enum card_event event)
 		 *	The slot and devices are disabled, but the
 		 *	data structures are not unlinked.
 		 */
-		if (slt->state == filled) {
+		if (slt->state == filled || slt->state == inactive) {
 			slt->state = empty;
 			disable_slot_to(slt);
 		}
@@ -600,11 +600,13 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		if (!pwval) {
 			if (slt->state != filled)
 				return EINVAL;
+			pccard_event(slt, card_removed);
+			slt->state = inactive;
 		} else {
-			if (slt->state != empty)
+			if (slt->state != empty && slt->state != inactive)
 				return EINVAL;
+			pccard_event(slt, card_inserted);
 		}
-		pccard_event(slt, pwval == 0 ? card_removed : card_inserted);
 		break;
 	case PIOCSBEEP:
 		if (pccard_beep_select(*(int *)data)) {
