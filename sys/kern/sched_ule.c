@@ -288,9 +288,19 @@ static int kseq_idled(struct kseq *kseq);
 static void kseq_notify(struct kse *ke, int cpu);
 static void kseq_assign(struct kseq *);
 static struct kse *kseq_steal(struct kseq *kseq, int stealidle);
+/*
+ * On P4 Xeons the round-robin interrupt delivery is broken.  As a result of
+ * this, we can't pin interrupts to the cpu that they were delivered to, 
+ * otherwise all ithreads only run on CPU 0.
+ */
+#ifdef __i386__
+#define	KSE_CAN_MIGRATE(ke, class)					\
+    ((ke)->ke_thread->td_pinned == 0 && ((ke)->ke_flags & KEF_BOUND) == 0)
+#else /* !__i386__ */
 #define	KSE_CAN_MIGRATE(ke, class)					\
     ((class) != PRI_ITHD && (ke)->ke_thread->td_pinned == 0 &&		\
     ((ke)->ke_flags & KEF_BOUND) == 0)
+#endif /* !__i386__ */
 #endif
 
 void
