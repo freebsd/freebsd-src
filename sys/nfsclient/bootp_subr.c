@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.8 1998/01/18 18:46:20 tegge Exp $	*/
+/*	$Id: bootp_subr.c,v 1.9 1998/02/09 06:10:32 eivind Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -766,10 +766,10 @@ bootpc_init(void)
     return;
 
   /*
-   * Bump time if 0.
+   * Wait until arp entries can be handled.
    */
-  if (!time.tv_sec)
-    time.tv_sec++;
+  while (time.tv_sec == 0)
+	tsleep(&time, PZERO+8, "arpkludge", 10);
 
   /*
    * Find a network interface.

@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
-/*	$Id: krpc_subr.c,v 1.6 1997/10/12 20:25:36 phk Exp $	*/
+/*	$Id: krpc_subr.c,v 1.7 1997/10/28 15:59:03 bde Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -337,7 +337,7 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 			timo++;
 		else
 			printf("RPC timeout for server 0x%x\n",
-			       ntohl(sin->sin_addr.s_addr));
+			       ntohl(sa->sin_addr.s_addr));
 
 		/*
 		 * Wait for up to timo seconds for a reply.
