@@ -93,7 +93,6 @@
  * we were suspended.  Others do not.  We make no use of this functionality
  * at this time.
  */
-
 enum cardstate { noslot, empty, suspend, filled, inactive };
 
 /*

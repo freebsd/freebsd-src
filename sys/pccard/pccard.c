@@ -166,8 +166,6 @@ disable_slot(struct slot *slt)
 static void
 disable_slot_to(struct slot *slt)
 {
-	int wasinactive;
-
 	disable_slot(slt);
 	if (slt->state == empty)
 		printf("pccard: card removed, slot %d\n", slt->slotnum);
@@ -704,4 +702,5 @@ pccard_resume(device_t dev)
 	struct slot *slt = PCCARD_DEVICE2SOFTC(dev);
 
 	slt->ctrl->resume(slt);
+	return (0);
 }

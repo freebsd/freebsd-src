@@ -408,9 +408,9 @@ pcic_pci_intr(void *arg)
 		/* Ack the interrupt, all of them to be safe */
 		bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
 	}
-	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
 
 	/* Now call children interrupts if any */
+	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
 	if (sp->intr && (stat & CB_SS_CD) == 0)
 		sp->intr(sp->argp);
 }
@@ -447,7 +447,7 @@ pcic_pci_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, desc);
 
-#if __FreeBSD_version > 500000
+#if __FreeBSD_version >= 430002
 	/*
 	 * Take us out of power down mode.
 	 */
