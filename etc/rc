@@ -159,7 +159,7 @@ case ${swapfile} in
 [Nn][Oo] | '')
 	;;
 *)
-	if [ -w "${swapfile}" -a -b /dev/vn0b ]; then
+	if [ -w "${swapfile}" -a -c /dev/vn0b ]; then
 		echo "Adding ${swapfile} as additional swap."
 		vnconfig /dev/vn0b ${swapfile} && swapon /dev/vn0b
 	fi
