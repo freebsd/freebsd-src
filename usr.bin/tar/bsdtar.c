@@ -110,6 +110,7 @@ static const char *tar_opts = "+Bb:C:cF:f:HhjkLlmnOoPprtT:UuvW:wX:xyZz";
 #define	OPTION_CHECK_LINKS 3
 #define	OPTION_EXCLUDE 6
 #define	OPTION_FAST_READ 9
+#define	OPTION_FORMAT 10
 #define	OPTION_HELP 12
 #define	OPTION_INCLUDE 15
 #define	OPTION_NODUMP 18
@@ -137,7 +138,7 @@ static const struct option tar_longopts[] = {
 	{ "extract",            no_argument,       NULL, 'x' },
 	{ "fast-read",          no_argument,       NULL, OPTION_FAST_READ },
 	{ "file",               required_argument, NULL, 'f' },
-	{ "format",             required_argument, NULL, 'F' },
+	{ "format",             required_argument, NULL, OPTION_FORMAT },
 	{ "gunzip",             no_argument,       NULL, 'z' },
 	{ "gzip",               no_argument,       NULL, 'z' },
 	{ "help",               no_argument,       NULL, OPTION_HELP },
@@ -249,7 +250,7 @@ main(int argc, char **argv)
 				bsdtar_errc(bsdtar, 1, 0,
 				    "Couldn't exclude %s\n", optarg);
 			break;
-		case 'F':
+		case OPTION_FORMAT:
 			bsdtar->create_format = optarg;
 			break;
 		case 'f': /* SUSv2 */
@@ -652,7 +653,7 @@ static const char *long_help_msg =
 	"Create: %p -c [options] [<file> | <dir> | @<archive> | -C <dir> ]\n"
 	"  <file>, <dir>  add these items to archive\n"
 	"  -z, -j  Compress archive with gzip/bzip2\n"
-	"  -F {ustar|pax|cpio|shar}  Select archive format\n"
+	"  --format {ustar|pax|cpio|shar}  Select archive format\n"
 #ifdef HAVE_GETOPT_LONG
 	"  --exclude <pattern>  Skip files that match pattern\n"
 #else
