@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.81 1995/01/14 12:51:40 jkh Exp $
+#	$Id: Makefile,v 1.82 1995/01/14 20:15:38 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -141,6 +141,7 @@ release20:
 	-mkdir ${RELEASEDIR}
 	chflags -R noschg ${RELEASEDIR}/.
 	rm -rf ${RELEASEDIR}/*
+	mkdir -p ${RELEASEDIR}/tarballs
 	( cd ${.CURDIR}/.. ;  \
 		${MAKE} all distribute NOCRYPT=yes)
 	( cd ${.CURDIR}/../etc ;  \
@@ -163,17 +164,6 @@ release20:
 	( cd ${RELEASEDIR}/tarballs/bindist; ${.CURDIR}/scripts/mkchecksums.sh )
 	( cd ${.CURDIR} ;  \
 		${MAKE} floppies )
-foo:
-	( cd ${.CURDIR}/../etc ; \
-		${MAKE} srcebones-tarball \
-			DESTDIR=${RELEASEDIR}/filesys \
-			NOCRYPT=yes SHARED=copies )
-		
-bar:
-	( cd ${.CURDIR}/../etc ; \
-		${MAKE} des-tarball \
-			DESTDIR=${RELEASEDIR}/filesys \
-			SHARED=copies )
 
 EXTRADISTRIBUTIONS=	secure src games manpages proflibs dict info
 DISTRIBUTIONS=	bin ${EXTRADISTRIBUTIONS}
@@ -181,10 +171,15 @@ MTREEFILES=	${.CURDIR}/../etc/mtree
 SECRSRC=	src/secure src/eBones
 
 jkhdist:
+	@echo "--> Making all"
 	( cd ${.CURDIR}/..; ${MAKE} all )
+	@echo "--> Making distribute"
 	( cd ${.CURDIR}/..; ${MAKE} distribute )
+	@echo "--> Making beforetarballs"
 	( cd ${.CURDIR}; ${MAKE} beforetarballs )
+	@echo "--> Making tarballs"
 	( cd ${.CURDIR}; ${MAKE} tarballs )
+	@echo "--> Making floppies"
 	( cd ${.CURDIR}; ${MAKE} floppies )
 
 distribute: 
