@@ -124,11 +124,6 @@ struct vm86_kernel {
 	caddr_t	vm86_sproc;			/* address of sproc */
 };
 
-struct i386_vm86_args {
-	int	sub_op;			/* sub-operation to perform */
-	char 	*sub_args;		/* args */
-};
-
 #define VM86_INIT	1
 #define VM86_SET_VME	2
 #define VM86_GET_VME	3
