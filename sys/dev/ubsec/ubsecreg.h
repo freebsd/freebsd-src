@@ -46,6 +46,7 @@
 
 #define	PCI_VENDOR_BROADCOM	0x14e4		/* Broadcom */
 #define	PCI_VENDOR_BLUESTEEL	0x15ab		/* Bluesteel Networks */
+#define	PCI_VENDOR_SUN		0x108e		/* Sun Microsystems */
 
 /* Bluesteel Networks */
 #define	PCI_PRODUCT_BLUESTEEL_5501	0x0000		/* 5501 */
@@ -61,6 +62,10 @@
 #define	PCI_PRODUCT_BROADCOM_5821	0x5821		/* 5821 */
 #define	PCI_PRODUCT_BROADCOM_5822	0x5822		/* 5822 */
 #define	PCI_PRODUCT_BROADCOM_5823	0x5823		/* 5823 */
+
+/* Sun Microsystems */
+#define PCI_PRODUCT_SUN_5821		0x5454		/* Crypto 5821 */
+#define PCI_PRODUCT_SUN_SCA1K		0x5455		/* Crypto 1K */
 
 #define	UBS_PCI_RTY_SHIFT			8
 #define	UBS_PCI_RTY_MASK			0xff
