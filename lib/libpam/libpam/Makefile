@@ -61,9 +61,11 @@ HDRS3=		pam_mod_misc.h
 
 # Static PAM modules:
 STATIC_MODULES+= ${MODOBJDIR}/pam_cleartext_pass_ok/libpam_cleartext_pass_ok.a
+STATIC_MODULES+= ${MODOBJDIR}/pam_deny/libpam_deny.a
 .if defined(MAKE_KERBEROS4)
 STATIC_MODULES+= ${MODOBJDIR}/pam_kerberosIV/libpam_kerberosIV.a
 .endif
+STATIC_MODULES+= ${MODOBJDIR}/pam_permit/libpam_permit.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_radius/libpam_radius.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_skey/libpam_skey.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_tacplus/libpam_tacplus.a

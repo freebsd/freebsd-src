@@ -27,17 +27,25 @@
  */
 
 #include <sys/types.h>
+#include <sys/time.h>
+#include <login_cap.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <unistd.h>
 
 #define PAM_SM_AUTH
+#define PAM_SM_ACCOUNT
 #include <security/pam_modules.h>
 
 #include "pam_mod_misc.h"
 
 #define PASSWORD_PROMPT	"Password:"
+
+/*
+ * authentication management
+ */
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
@@ -85,6 +93,72 @@ PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	return PAM_SUCCESS;
+}
+
+/* 
+ * account management
+ *
+ * check pw_change and pw_expire fields
+ */
+PAM_EXTERN
+int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
+		     int argc, const char **argv)
+{
+	const char *user;
+	struct passwd *pw;
+	struct timeval tp;
+	time_t warntime;
+	login_cap_t *lc = NULL;
+	char buf[128];
+	int retval;
+
+	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	if (retval != PAM_SUCCESS || user == NULL)
+		/* some implementations return PAM_SUCCESS here */
+		return PAM_USER_UNKNOWN;
+
+	if ((pw = getpwnam(user)) == NULL)
+		return PAM_USER_UNKNOWN;
+
+	retval = PAM_SUCCESS;
+	lc = login_getpwclass(pw);
+
+	if (pw->pw_change || pw->pw_expire)
+		gettimeofday(&tp, NULL);
+
+#define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
+
+	warntime = login_getcaptime(lc, "warnpassword", DEFAULT_WARN,
+	    DEFAULT_WARN);
+
+	if (pw->pw_change) {
+		if (tp.tv_sec >= pw->pw_change)
+			/* some implementations return PAM_AUTHTOK_EXPIRED */
+			retval = PAM_NEW_AUTHTOK_REQD;
+		else if (pw->pw_change - tp.tv_sec < warntime) {
+			snprintf(buf, sizeof(buf),
+			    "Warning: your password expires on %s",
+			    ctime(&pw->pw_change));
+			pam_prompt(pamh, PAM_ERROR_MSG, buf, NULL);
+		}
+	}
+
+	warntime = login_getcaptime(lc, "warnexpire", DEFAULT_WARN,
+	    DEFAULT_WARN);
+
+	if (pw->pw_expire) {
+		if (tp.tv_sec >= pw->pw_expire)
+			retval = PAM_ACCT_EXPIRED;
+		else if (pw->pw_expire - tp.tv_sec < warntime) {
+			snprintf(buf, sizeof(buf),
+			    "Warning: your account expires on %s",
+			    ctime(&pw->pw_expire));
+			pam_prompt(pamh, PAM_ERROR_MSG, buf, NULL);
+		}
+	}
+
+	login_close(lc);
+	return retval;
 }
 
 PAM_MODULE_ENTRY("pam_unix");

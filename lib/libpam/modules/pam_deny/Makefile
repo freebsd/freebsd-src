@@ -1,4 +1,4 @@
-# Copyright 1998 Juniper Networks, Inc.
+# Copyright 1999 Max Khon.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,15 +24,18 @@
 #
 #	$FreeBSD$
 
-SUBDIR+=	pam_cleartext_pass_ok
-SUBDIR+=	pam_deny
-.if defined(MAKE_KERBEROS4)
-SUBDIR+=	pam_kerberosIV
-.endif
-SUBDIR+=	pam_permit
-SUBDIR+=	pam_radius
-SUBDIR+=	pam_skey
-SUBDIR+=	pam_tacplus
-SUBDIR+=	pam_unix
+PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
-.include <bsd.subdir.mk>
+.PATH:		${PAMDIR}/modules/pam_deny
+
+LIB=		pam_deny
+SHLIB_NAME=	pam_deny.so
+SRCS=		pam_deny.c
+CFLAGS+=	-Wall
+CFLAGS+=	-I${PAMDIR}/libpam/include
+DPADD+=		${LIBGCC_PIC}
+LDADD+=		-lgcc_pic
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
+
+.include <bsd.lib.mk>
