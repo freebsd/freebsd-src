@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.105 1998/07/04 20:45:37 julian Exp $
+ * $Id: nfs_vnops.c,v 1.106 1998/08/13 08:09:08 dfr Exp $
  */
 
 
@@ -622,6 +622,7 @@ nfs_setattr(ap)
 			 */
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
+			vnode_pager_setsize(vp, (u_long)vap->va_size);
  			if (np->n_flag & NMODIFIED) {
  			    if (vap->va_size == 0)
  				error = nfs_vinvalbuf(vp, 0,
@@ -629,12 +630,13 @@ nfs_setattr(ap)
  			    else
  				error = nfs_vinvalbuf(vp, V_SAVE,
  					ap->a_cred, ap->a_p, 1);
- 			    if (error)
+ 			    if (error) {
+				vnode_pager_setsize(vp, (u_long)np->n_size);
  				return (error);
+			    }
  			}
  			tsize = np->n_size;
  			np->n_size = np->n_vattr.va_size = vap->va_size;
- 			vnode_pager_setsize(vp, (u_long)np->n_size);
   		};
   	} else if ((vap->va_mtime.tv_sec != VNOVAL ||
 		vap->va_atime.tv_sec != VNOVAL) && (np->n_flag & NMODIFIED) &&
