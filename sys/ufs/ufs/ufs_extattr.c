@@ -490,6 +490,20 @@ ufs_extattr_get(struct vnode *vp, char *name, struct uio *uio,
 		goto vopunlock_exit;
 	}
 
+	/* valid for the current inode generation? */
+	if (ueh.ueh_i_gen != ip->i_gen) {
+		/*
+		 * The inode itself has a different generation number
+		 * than the attribute data.  For now, the best solution
+		 * is to coerce this to undefined, and let it get cleaned
+		 * up by the next write or extattrctl clean.
+		 */
+		printf("ufs_extattr: inode number inconsistency (%d, %d)\n",
+		    ueh.ueh_i_gen, ip->i_gen);
+		error = ENOENT;
+		goto vopunlock_exit;
+	}
+
 	/* local size consistency check */
 	if (ueh.ueh_len > attribute->uele_fileheader.uef_size) {
 		error = ENXIO;
@@ -621,6 +635,7 @@ ufs_extattr_set(struct vnode *vp, char *name, struct uio *uio,
 	 */
 	ueh.ueh_len = uio->uio_resid;
 	ueh.ueh_flags = UFS_EXTATTR_ATTR_FLAG_INUSE;
+	ueh.ueh_i_gen = ip->i_gen;
 	local_aiov.iov_base = (caddr_t) &ueh;
 	local_aiov.iov_len = sizeof(struct ufs_extattr_header);
 	local_aio.uio_iov = &local_aiov;
@@ -659,7 +674,7 @@ ufs_extattr_set(struct vnode *vp, char *name, struct uio *uio,
 	 */
 	uio->uio_offset = base_offset + sizeof(struct ufs_extattr_header);
 	
-	error = VOP_WRITE(attribute->uele_backing_vnode, uio, 0,
+	error = VOP_WRITE(attribute->uele_backing_vnode, uio, IO_SYNC,
 	    ump->um_extattr.uepm_ucred);
 
 vopunlock_exit:
