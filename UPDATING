@@ -23,7 +23,8 @@ build and install as described in the COMMON ITEMS section.
 	When exec'ing set[ug]id executables, the kernel now ensures that the
 	stdio file descriptors (0..2) are open.  
 
-20020316:	p3
+20020316:	p3	FreeBSD-SA-02:21.tcpip
+			FreeBSD-SA-02:22.mmap
 	IP routing table leak in icmp_relect().
 	mmap/msync bug which can panic the kernel.
 	TCP broadcast connection bug.
@@ -31,7 +32,8 @@ build and install as described in the COMMON ITEMS section.
 20020307:	p2	FreeBSD-SA-02:13.openssh
 	OpenSSH off-by-one bug.
 
-20020223:	p1
+20020223:	p1	FreeBSD-SA-02:18.zlib
+			FreeBSD-SA-02:20.syncache
 	zlib inflate error handling.
 	bzip2 updated to fix insecure permissions during symlink dereferencing  
 	and a race condition while creating new files
