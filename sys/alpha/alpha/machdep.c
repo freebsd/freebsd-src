@@ -415,6 +415,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	char *bootinfo_msg, *bootinfo_booted_kernel;
 	vm_offset_t kernstart, kernend;
 	vm_offset_t kernstartpfn, kernendpfn, pfn0, pfn1;
+	u_long physmem_tunable;
 	struct mddt *mddtp;
 	struct mddt_cluster *memc;
 	int i, mddtweird;
@@ -771,39 +772,8 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	Maxmem = alpha_btop(MAXMEM * 1024);
 #endif
 
-	/*
-	 * hw.physmem is a size in bytes; we also allow k, m, and g suffixes
-	 * for the appropriate modifiers.  This overrides MAXMEM.
-	 */
-	if ((p = getenv("hw.physmem")) != NULL) {
-		u_int64_t AllowMem, sanity;
-		char *ep;
-
-		sanity = AllowMem = strtouq(p, &ep, 0);
-		if ((ep != p) && (*ep != 0)) {
-			switch(*ep) {
-			case 'g':
-			case 'G':
-				AllowMem <<= 10;
-			case 'm':
-			case 'M':
-				AllowMem <<= 10;
-			case 'k':
-			case 'K':
-				AllowMem <<= 10;
-				break;
-			default:
-				AllowMem = sanity = 0;
-			}
-			if (AllowMem < sanity)
-				AllowMem = 0;
-		}
-		if (AllowMem == 0)
-			printf("Ignoring invalid memory size of '%s'\n", p);
-		else
-			Maxmem = alpha_btop(AllowMem);
-		freeenv(p);
-	}
+	if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable))
+		Maxmem = alpha_btop(physmem_tunable);
 
 	while (physmem > Maxmem) {
 		int i = phys_avail_cnt - 2;
