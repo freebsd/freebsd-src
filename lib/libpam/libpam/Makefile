@@ -51,6 +51,7 @@ SRCS=	openpam_borrow_cred.c \
 	openpam_load.c \
 	openpam_log.c \
 	openpam_nullconv.c \
+	openpam_readline.c \
 	openpam_restore_cred.c \
 	openpam_set_option.c \
 	openpam_ttyconv.c \
@@ -88,6 +89,7 @@ MAN=	openpam.3 \
 	openpam_get_option.3 \
 	openpam_log.3 \
 	openpam_nullconv.3 \
+	openpam_readline.3 \
 	openpam_restore_cred.3 \
 	openpam_set_option.3 \
 	openpam_ttyconv.3 \
