@@ -153,10 +153,10 @@ devfs_attemptoverflow(int insist)
 	bzero(ot, nb);
 	nb = sizeof (int) * n;
 	MALLOC(or, int *, nb, M_DEVFS, insist ? M_WAITOK : M_NOWAIT);
-	if (or == NULL) 
+	if (or == NULL)
 		goto bail;
 	bzero(or, nb);
-	if (!atomic_cmpset_ptr(&devfs_overflow, NULL, ot)) 
+	if (!atomic_cmpset_ptr(&devfs_overflow, NULL, ot))
 		goto bail;
 	devfs_refoverflow = or;
 	devfs_noverflow = n;
@@ -249,10 +249,8 @@ devfs_delete(struct devfs_dirent *dd, struct devfs_dirent *de)
 		FREE(de->de_symlink, M_DEVFS);
 		de->de_symlink = NULL;
 	}
-	if (de->de_vnode) {
+	if (de->de_vnode)
 		de->de_vnode->v_data = NULL;
-		vdrop(de->de_vnode);
-	}
 	TAILQ_REMOVE(&dd->de_dlist, de, de_list);
 	FREE(de, M_DEVFS);
 }
@@ -281,7 +279,7 @@ devfs_populate(struct devfs_mount *dm)
 	struct devfs_dirent *de, **dep;
 	char *q, *s;
 
-	if (dm->dm_generation == devfs_generation) 
+	if (dm->dm_generation == devfs_generation)
 		return (0);
 	lockmgr(&dm->dm_lock, LK_UPGRADE, 0, curproc);
 	if (devfs_noverflow && dm->dm_overflow == NULL) {
@@ -304,10 +302,8 @@ devfs_populate(struct devfs_mount *dm)
 				dd = de->de_dir;
 				*dep = NULL;
 				TAILQ_REMOVE(&dd->de_dlist, de, de_list);
-				if (de->de_vnode) {
+				if (de->de_vnode)
 					de->de_vnode->v_data = NULL;
-					vdrop(de->de_vnode);
-				}
 				FREE(de, M_DEVFS);
 				devfs_dropref(i);
 				continue;
@@ -323,7 +319,7 @@ devfs_populate(struct devfs_mount *dm)
 			for (;;) {
 				for (q = s; *q != '/' && *q != '\0'; q++)
 					continue;
-				if (*q != '/') 
+				if (*q != '/')
 					break;
 				de = devfs_find(dd, s, q - s);
 				if (de == NULL) {
