@@ -1,5 +1,4 @@
 /* public key routines */
-/* $FreeBSD$ */
 /* functions:
 	genkeys(char *public, char *secret)
 	common_key(char *secret, char *public, desData *deskey)
@@ -9,6 +8,9 @@
 	char public[HEXKEYBYTES + 1];
 	char secret[HEXKEYBYTES + 1];
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/time.h>
 #include <openssl/des.h>
