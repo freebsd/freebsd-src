@@ -46,6 +46,7 @@ protos.h
 random.c
 random.h
 regex.c
+regex.h
 stamp-h.in
 vms/
 
