@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.36 1996/07/31 21:52:33 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.37 1996/10/14 19:41:42 jkh Exp $";
 #endif
 
 /*
@@ -401,7 +401,8 @@ pkg_do(char *pkg)
 	FILE *fp;
 	char buf[BUFSIZ];
 
-	fp = fopen(p->name, "r");
+	snprintf(buf, sizeof buf, "%s/%s", LogDir, p->name);
+	fp = fopen(buf, "r");
 	if (fp) {
 	    putc('\n', stdout);
 	    while (fgets(buf, sizeof(buf), fp))
@@ -409,7 +410,7 @@ pkg_do(char *pkg)
 	    putc('\n', stdout);
 	    (void) fclose(fp);
 	} else
-	    whinge("Cannot open display file `%s'.", p->name);
+	    whinge("Cannot open %s as display file.", buf);
     }
 
     goto success;
