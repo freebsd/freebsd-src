@@ -388,6 +388,7 @@ main(int argc, char *argv[])
 	sync();
 	sblock = (struct fs *)sblock_buf;
 	for (i = 0; sblock_try[i] != -1; i++) {
+		sblock->fs_fsize = SBLOCKSIZE; /* needed in bread */
 		bread(sblock_try[i] >> dev_bshift, (char *) sblock, SBLOCKSIZE);
 		if ((sblock->fs_magic == FS_UFS1_MAGIC ||
 		     (sblock->fs_magic == FS_UFS2_MAGIC &&
