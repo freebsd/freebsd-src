@@ -311,7 +311,7 @@ chn_rdfeed(struct pcm_channel *c)
 		sndbuf_dump(bs, "bs", 0x02);
 	})
 
-	ret = sndbuf_feed(b, bs, c, c->feeder, sndbuf_getblksz(b));
+	ret = sndbuf_feed(b, bs, c, c->feeder, sndbuf_getready(b));
 
 	if (ret == 0)
 		chn_wakeup(c);
@@ -352,7 +352,7 @@ chn_rdintr(struct pcm_channel *c)
 	/* ...and feed from primary to secondary */
 	ret = chn_rdfeed(c);
 	if (ret)
-		chn_rddump(c, sndbuf_getblksz(b));
+		chn_rddump(c, sndbuf_getready(b));
 }
 
 /*
@@ -375,21 +375,24 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 	ret = 0;
 	count = hz;
 	while (!ret && (buf->uio_resid > 0) && (count > 0)) {
-		sz = MIN(buf->uio_resid, sndbuf_getblksz(bs));
+		sz = MIN(buf->uio_resid, sndbuf_getready(bs));
 
-		if (sz <= sndbuf_getready(bs)) {
+		if (sz > 0) {
 			ret = sndbuf_uiomove(bs, buf, sz);
 		} else {
-			if (c->flags & CHN_F_NBIO)
+			if (c->flags & CHN_F_NBIO) {
 				ret = EWOULDBLOCK;
-			else {
+			} else {
 				timeout = (hz * sndbuf_getblksz(bs)) / (sndbuf_getspd(bs) * sndbuf_getbps(bs));
 				if (timeout < 1)
 					timeout = 1;
+				timeout = 1;
 	   			ret = chn_sleep(c, "pcmrd", timeout);
 				if (ret == EWOULDBLOCK) {
 					count -= timeout;
 					ret = 0;
+				} else {
+					count = hz;
 				}
 			}
 		}
