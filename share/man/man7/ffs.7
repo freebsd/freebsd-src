@@ -15,9 +15,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. The names of the authors may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -40,7 +37,6 @@
 .Nd Berkeley fast filesystem
 .Sh SYNOPSIS
 In the kernel configuration file:
-.Cd "options ENABLE_VFS_IOOPT"
 .Cd "options FFS"
 .Cd "options QUOTA"
 .Cd "options SOFTUPDATES"
@@ -64,29 +60,6 @@ for speed and reliability
 and is the default
 .Fx
 filesystem.
-.Ss VFS I/O optimization
-.Bl -tag -width 2n
-.It Cd "options ENABLE_VFS_IOOPT"
-This option enables the I/O optimization through the VM system,
-using VM operations instead of copying operations when possible.
-This option adds a
-.Xr sysctl 8
-MIB,
-.Va vfs.ioopt .
-The following are values and effects for
-.Va vfs.ioopt :
-.Pp
-.Bl -tag -width ".Em Value" -offset indent -compact
-.It Em Value
-.Em Effect
-.It Li 0
-No optimization
-.It Li 1
-VM operations if a request fits
-.It Li 2
-Aggressive optimization (VM used as much as possible)
-.El
-.El
 .Ss Quotas
 .Bl -tag -width 2n
 .It Cd "options QUOTA"
