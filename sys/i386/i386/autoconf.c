@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.56.2.4 1997/03/04 00:31:13 nate Exp $
+ *	$Id: autoconf.c,v 1.56.2.5 1997/05/11 18:01:23 tegge Exp $
  */
 
 /*
@@ -45,6 +45,8 @@
  * devices are determined (from possibilities mentioned in ioconf.c),
  * and the drivers are initialized.
  */
+#include "opt_cd9660.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
@@ -100,9 +102,6 @@ extern struct vfsops	lfs_vfsops;
 #ifdef NFS
 extern int	nfs_mountroot __P((void *));
 #endif
-#ifdef CD9660
-extern int	cd9660_mountroot __P((void *));
-#endif
 #ifdef MSDOSFS
 extern int	msdosfs_mountroot __P((void *));
 #endif
@@ -113,7 +112,19 @@ static int	setdumpdev __P((dev_t dev));
 static void	setroot __P((void));
 
 #ifdef CD9660
-/* We need to try out all our potential CDROM drives, so we need a table. */
+
+#include <sys/fcntl.h>
+#include <sys/proc.h>
+#include <sys/stat.h>
+#include <sys/vnode.h>
+#include <machine/clock.h>
+#include <isofs/cd9660/iso.h>
+
+/*
+ * XXX All this CD-ROM root stuff is fairly messy.  Ick.
+ *
+ * We need to try out all our potential CDROM drives, so we need a table.
+ */
 static struct {
 	char *name;
 	int major;
@@ -122,25 +133,44 @@ static struct {
 	{ "mcd", 7 },
 	{ "scd", 16 },
 	{ "matcd", 17 },
+	{ "wcd", 19 },
 	{ 0, 0}
 };
 
-static int	find_cdrom_root __P((void *));
+static int	find_cdrom_root __P((void));
 
 static int
-find_cdrom_root(dummy)
-	void *dummy;
+find_cdrom_root()
 {
-	int i,j,k;
+	int i, j, error;
+	struct bdevsw *bd;
+	dev_t orootdev;
 
-	for (j = 0 ; j < 2; j++)
-		for (k = 0 ; try_cdrom[k].name ; k++) {
-			rootdev = makedev(try_cdrom[k].major,j*8);
-			printf("trying rootdev=0x%lx (%s%d)\n",
-				rootdev, try_cdrom[k].name,j);
-			i = (*cd9660_mountroot)((void *)NULL);
-			if (!i) return i;
+#if CD9660_ROOTDELAY > 0
+	DELAY(CD9660_ROOTDELAY * 1000000);
+#endif
+	orootdev = rootdev;
+	for (i = 0 ; i < 2; i++)
+		for (j = 0 ; try_cdrom[j].name ; j++) {
+			if (try_cdrom[j].major >= nblkdev)
+				continue;
+			rootdev = makedev(try_cdrom[j].major, i * 8);
+			bd = bdevsw[major(rootdev)];
+			if (bd == NULL || bd->d_open == NULL)
+				continue;
+			if (bootverbose)
+				printf("trying %s%d as rootdev (0x%x)\n",
+				       try_cdrom[j].name, i, rootdev);
+			error = (bd->d_open)(rootdev, FREAD, S_IFBLK, curproc);
+			if (error == 0) {
+				if (bd->d_close != NULL)
+					(bd->d_close)(rootdev, FREAD, S_IFBLK,
+						      curproc);
+				return 0;
+			}
 		}
+
+	rootdev = orootdev;
 	return EINVAL;
 }
 #endif /* CD9660 */
@@ -238,7 +268,11 @@ configure(dummy)
 	if ((boothowto & RB_CDROM) && !mountroot) {
 		if (bootverbose)
 			printf("Considering CD-ROM root f/s.\n");
-		mountroot = find_cdrom_root;
+		/* NB: find_cdrom_root() sets rootdev if successful. */
+		if (find_cdrom_root() == 0)
+			mountroot = cd9660_mountroot;	/* XXX goes away*/
+		else if (bootverbose)
+			printf("No CD-ROM available as root f/s.\n");
 	}
 #endif
 
@@ -248,16 +282,6 @@ configure(dummy)
 			printf("Considering MFS root f/s.\n");
 		mountroot = vfs_mountroot;	/* XXX goes away*/
 		mountrootvfsops = &mfs_vfsops;
-		/*
-		 * Ignore the -a flag if this kernel isn't compiled
-		 * with a generic root/swap configuration: if we skip
-		 * setroot() and we aren't a generic kernel, chaos
-		 * will ensue because setconf() will be a no-op.
-		 * (rootdev is always initialized to NODEV in a
-		 * generic configuration, so we test for that.)
-		 */
-		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
-			setroot();
 	}
 #endif
 
