@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.14 1997/05/27 19:28:10 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.16 1997/05/29 05:58:41 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -51,7 +51,7 @@
 #if defined(APIC_IO)
 #include <i386/include/md_var.h>	/* setidt() */
 #include <i386/isa/icu.h>		/* Xinvltlb() */
-#include <i386/isa/isa_device.h>	/* Xinvltlb() */
+#include <i386/isa/intr_machdep.h>	/* Xinvltlb() */
 #endif	/* APIC_IO */
 
 #define WARMBOOT_TARGET	0
