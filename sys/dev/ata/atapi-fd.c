@@ -65,8 +65,8 @@ static struct cdevsw afd_cdevsw = {
 	/* maj */	118,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	D_DISK,
-	/* bmaj */	32,
+	/* flags */	D_DISK | D_TRACKCLOSE,
+	/* bmaj */	32
 };
 static struct cdevsw afddisk_cdevsw;
 
@@ -215,7 +215,8 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 
     atapi_test_ready(fdp->atp);
 
-    afd_prevent_allow(fdp, 1);
+    if (!fdp->refcnt++)
+	afd_prevent_allow(fdp, 1);
 
     if (afd_sense(fdp))
 	printf("afd%d: sense media type failed\n", fdp->lun);
@@ -237,7 +238,8 @@ afdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct afd_softc *fdp = dev->si_drv1;
 
-    afd_prevent_allow(fdp, 0); 
+    if (!--fdp->refcnt)
+	afd_prevent_allow(fdp, 0); 
     return 0;
 }
 
@@ -248,12 +250,12 @@ afdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 
     switch (cmd) {
     case CDIOCEJECT:
-	if ((fdp->flags & F_OPEN) && fdp->refcnt)
+	if (fdp->refcnt > 1)
 	    return EBUSY;
 	return afd_eject(fdp, 0);
 
     case CDIOCCLOSE:
-	if ((fdp->flags & F_OPEN) && fdp->refcnt)
+	if (fdp->refcnt > 1)
 	    return 0;
 	return afd_eject(fdp, 1);
 
