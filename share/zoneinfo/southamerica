@@ -1,4 +1,4 @@
-# @(#)southamerica	7.11
+# @(#)southamerica	7.12
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -170,7 +170,6 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # about time zone changes after 1990 Feb 11.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Brazil	1914	only	-	Jan	 1	 0:00	0	S
 Rule	Brazil	1931	only	-	Oct	 3	11:00	1	D
 Rule	Brazil	1932	1933	-	Apr	 1	 0:00	0	S
 Rule	Brazil	1932	only	-	Oct	 3	 0:00	1	D
@@ -275,7 +274,6 @@ Zone Pacific/Galapagos	-5:58:24 -	LMT	1931 # Puerto Baquerizo Moreno
 
 # Falklands
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Falk	1912	only	-	Mar	12	0:00	0	S
 Rule	Falk	1937	1938	-	Sep	lastSun	0:00	1:00	D
 Rule	Falk	1938	1942	-	Mar	Sun>=19	0:00	0	S
 Rule	Falk	1939	only	-	Oct	1	0:00	1:00	D
@@ -323,7 +321,6 @@ Zone	America/Guyana	-3:52:40 -	LMT	1915 Mar	# Georgetown
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Para	1974	only	-	Apr	 1	0:00	0	S
 Rule	Para	1975	1978	-	Oct	 1	0:00	1:00	D
 Rule	Para	1975	1978	-	Mar	 1	0:00	0	S
 # Shanks says 1979 was all DST.
@@ -342,7 +339,6 @@ Zone America/Asuncion	-3:50:40 -	LMT	1890
 
 # Peru
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Peru	1908	only	-	Jul	28	0:00	0	S
 Rule	Peru	1938	only	-	Jan	 1	0:00	1:00	D
 Rule	Peru	1938	only	-	Apr	 1	0:00	0	S
 Rule	Peru	1938	1939	-	Sep	lastSun	0:00	1:00	D
@@ -390,7 +386,6 @@ Zone America/Port_of_Spain -4:06:04 -	LMT	1912 Mar 2
 # Uruguay wins the prize for the strangest peacetime manipulation of the rules.
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Uruguay	1920	only	-	May	 1	 0:00	0	S
 # Whitman gives 1923 Oct 1; go with Shanks.
 Rule	Uruguay	1923	only	-	Oct	 2	 0:00	0:30	HD
 Rule	Uruguay	1924	1926	-	Apr	 1	 0:00	0	S
