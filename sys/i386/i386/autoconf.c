@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.109 1998/10/10 08:12:22 jkh Exp $
+ *	$Id: autoconf.c,v 1.110 1998/10/26 07:05:34 bde Exp $
  */
 
 /*
@@ -92,22 +92,23 @@
 #include <pci/pcivar.h>
 #endif
 
-#include "card.h"
-#if NCARD > 0
-#include <pccard/driver.h>
-#endif
-
-#include "scbus.h"
-
 #include <sys/bus.h>
 
+static void	configure_first __P((void *));
 static void	configure __P((void *));
-SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
+static void	configure_final __P((void *));
 
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
 static int	setdumpdev __P((dev_t dev));
 static void	setroot __P((void));
+
+SYSINIT(configure1, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure_first, NULL);
+/* SI_ORDER_SECOND is hookable */
+SYSINIT(configure2, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL);
+/* SI_ORDER_MIDDLE is hookable */
+SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
+
 
 #if defined(CD9660) || defined(CD9660_ROOT)
 
@@ -171,8 +172,6 @@ find_cdrom_root()
 }
 #endif /* CD9660 || CD9660_ROOT */
 
-extern void xpt_init __P((void));
-
 #ifdef MFS_ROOT
 extern u_char *mfs_getimage __P((void));
 #endif
@@ -180,9 +179,6 @@ extern u_char *mfs_getimage __P((void));
 static void
 configure_start()
 {
-#if NSCBUS > 0
-	xpt_init();
-#endif
 }
 
 static void
@@ -194,12 +190,17 @@ configure_finish()
  * Determine i/o configuration for a machine.
  */
 static void
+configure_first(dummy)
+	void *dummy;
+{
+
+	configure_start();		/* DDB hook? */
+}
+
+static void
 configure(dummy)
 	void *dummy;
 {
-	int i;
-
-	configure_start();
 
 	/* Allow all routines to decide for themselves if they want intrs */
 	/*
@@ -255,13 +256,15 @@ configure(dummy)
 	 * at splhigh()), but we want at least bio interrupts to work.
 	 */
 	safepri = cpl;
+}
 
-#if NCARD > 0
-	/* After everyone else has a chance at grabbing resources */
-	pccard_configure();
-#endif
+static void
+configure_final(dummy)
+	void *dummy;
+{
+	int i;
 
-	configure_finish();
+	configure_finish();			/* DDB hook? */
 
 	cninit_finish();
 
