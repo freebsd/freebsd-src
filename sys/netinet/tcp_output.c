@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.11.4.1 1995/09/15 08:58:07 davidg Exp $
+ * $Id: tcp_output.c,v 1.11.4.2 1996/01/31 11:02:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -165,6 +165,19 @@ again:
 		if (len > 0 && tp->t_state == TCPS_SYN_SENT &&
 		    taop->tao_ccsent == 0)
 			return 0;
+	}
+
+	/*
+	 * Be careful not to send data and/or FIN on SYN segments
+	 * in cases when no CC option will be sent.
+	 * This measure is needed to prevent interoperability problems
+	 * with not fully conformant TCP implementations.
+	 */
+	if ((flags & TH_SYN) &&
+	    ((tp->t_flags & TF_NOOPT) || !(tp->t_flags & TF_REQ_CC) ||
+	     ((flags & TH_ACK) && !(tp->t_flags & TF_RCVD_CC)))) {
+		len = 0;
+		flags &= ~TH_FIN;
 	}
 
 	if (len < 0) {
