@@ -1,5 +1,4 @@
 /*	$OpenBSD: channels.h,v 1.70 2002/06/24 14:33:27 markus Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
