@@ -49,7 +49,8 @@
 typedef enum {
 	DEVSTAT_ARG_NOTYPE,
 	DEVSTAT_ARG_UINT64,
-	DEVSTAT_ARG_LD
+	DEVSTAT_ARG_LD,
+	DEVSTAT_ARG_SKIP
 } devstat_arg_type;
 
 char devstat_errbuf[DEVSTAT_ERRBUF_SIZE];
@@ -109,7 +110,8 @@ struct devstat_args {
 	{ DSM_BLOCKS_PER_SECOND_WRITE, DEVSTAT_ARG_LD },
 	{ DSM_MS_PER_TRANSACTION, DEVSTAT_ARG_LD },
 	{ DSM_MS_PER_TRANSACTION_READ, DEVSTAT_ARG_LD },
-	{ DSM_MS_PER_TRANSACTION_WRITE, DEVSTAT_ARG_LD }
+	{ DSM_MS_PER_TRANSACTION_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_SKIP, DEVSTAT_ARG_SKIP }
 };
 
 static char *namelist[] = {
@@ -1129,89 +1131,24 @@ compute_stats(struct devstat *current, struct devstat *previous,
 	      long double *mb_per_second, long double *blocks_per_second,
 	      long double *ms_per_transaction)
 {
-	u_int64_t totalbytes, totaltransfers, totalblocks;
-	char *func_name = "compute_stats";
-
-	/*
-	 * current is the only mandatory field.
-	 */
-	if (current == NULL) {
-		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-			"%s: current stats structure was NULL",
-			func_name);
-		return(-1);
-	}
-
-	totalbytes = (current->bytes_written + current->bytes_read) -
-		     ((previous) ? (previous->bytes_written +
-				    previous->bytes_read) : 0);
-
-	if (total_bytes)
-		*total_bytes = totalbytes;
-
-	totaltransfers = (current->num_reads +
-			  current->num_writes +
-			  current->num_other) -
-			 ((previous) ?
-			  (previous->num_reads +
-			   previous->num_writes +
-			   previous->num_other) : 0);
-	if (total_transfers)
-		*total_transfers = totaltransfers;
-
-	if (transfers_per_second) {
-		if (etime > 0.0) {
-			*transfers_per_second = totaltransfers;
-			*transfers_per_second /= etime;
-		} else
-			*transfers_per_second = 0.0;
-	}
-
-	if (kb_per_transfer) {
-		*kb_per_transfer = totalbytes;
-		*kb_per_transfer /= 1024;
-		if (totaltransfers > 0)
-			*kb_per_transfer /= totaltransfers;
-		else
-			*kb_per_transfer = 0.0;
-	}
-
-	if (mb_per_second) {
-		*mb_per_second = totalbytes;
-		*mb_per_second /= 1024 * 1024;
-		if (etime > 0.0)
-			*mb_per_second /= etime;
-		else
-			*mb_per_second = 0.0;
-	}
-
-	totalblocks = totalbytes;
-	if (current->block_size > 0)
-		totalblocks /= current->block_size;
-	else
-		totalblocks /= 512;
-
-	if (total_blocks)
-		*total_blocks = totalblocks;
-
-	if (blocks_per_second) {
-		*blocks_per_second = totalblocks;
-		if (etime > 0.0)
-			*blocks_per_second /= etime;
-		else
-			*blocks_per_second = 0.0;
-	}
-
-	if (ms_per_transaction) {
-		if (totaltransfers > 0) {
-			*ms_per_transaction = etime;
-			*ms_per_transaction /= totaltransfers;
-			*ms_per_transaction *= 1000;
-		} else
-			*ms_per_transaction = 0.0;
-	}
-
-	return(0);
+	return(devstat_compute_statistics(current, previous, etime,
+	       total_bytes ? DSM_TOTAL_BYTES : DSM_SKIP,
+	       total_bytes,
+	       total_transfers ? DSM_TOTAL_TRANSFERS : DSM_SKIP,
+	       total_transfers,
+	       total_blocks ? DSM_TOTAL_BLOCKS : DSM_SKIP,
+	       total_blocks,
+	       kb_per_transfer ? DSM_KB_PER_TRANSFER : DSM_SKIP,
+	       kb_per_transfer,
+	       transfers_per_second ? DSM_TRANSFERS_PER_SECOND : DSM_SKIP,
+	       transfers_per_second,
+	       mb_per_second ? DSM_MB_PER_SECOND : DSM_SKIP,
+	       mb_per_second,
+	       blocks_per_second ? DSM_BLOCKS_PER_SECOND : DSM_SKIP,
+	       blocks_per_second,
+	       ms_per_transaction ? DSM_MS_PER_TRANSACTION : DSM_SKIP,
+	       ms_per_transaction,
+	       DSM_NONE));
 }
 
 long double
@@ -1309,34 +1246,21 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		switch (devstat_arg_list[metric].argtype) {
 		case DEVSTAT_ARG_UINT64:
 			destu64 = (u_int64_t *)va_arg(ap, u_int64_t *);
-			if (destu64 == NULL) {
-				snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-					 "%s: argument type not u_int64_t * or "
-					 "argument type missing", func_name);
-				retval = -1;
-				goto bailout;
-				break; /* NOTREACHED */
-			}
 			break;
 		case DEVSTAT_ARG_LD:
 			destld = (long double *)va_arg(ap, long double *);
-			if (destld == NULL) {
-				snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-					 "%s: argument type not long double * "
-					 "or argument type missing", func_name);
-				retval = -1;
-				goto bailout;
-				break; /* NOTREACHED */
-			}
+			break;
+		case DEVSTAT_ARG_SKIP:
+			destld = (long double *)va_arg(ap, long double *);
 			break;
 		default:
-			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-				 "%s: unknown argument type %d", func_name,
-				 devstat_arg_list[metric].argtype);
 			retval = -1;
 			goto bailout;
 			break; /* NOTREACHED */
 		}
+
+		if (devstat_arg_list[metric].argtype == DEVSTAT_ARG_SKIP)
+			continue;
 
 		switch (metric) {
 		case DSM_TOTAL_BYTES:
