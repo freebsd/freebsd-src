@@ -170,10 +170,11 @@ struct ccd_s {
 	struct ccdiinfo	 *sc_itable;		/* interleave table */
 	struct devstat	 device_stats;		/* device statistics */
 	struct ccdgeom   sc_geom;		/* pseudo geometry info */
-	struct disklabel sc_label;		/* generic disk device info */
 	int		 sc_openmask;
 	int		 sc_pick;		/* side of mirror picked */
 	daddr_t		 sc_blk[2];		/* mirror localization */
+	struct disk	 *sc_disk;
+	struct cdev	 *sc_dev;
 };
 
 /* sc_flags */
