@@ -444,7 +444,7 @@ distrib-dirs:
 	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -deU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
 # Compatibility stuff, remove obsoleted links, if exists
-	-if [ -d	${DESTDIR}/usr/share/locale ] ;	\
+	if [ -d	${DESTDIR}/usr/share/locale ] ;	\
 	then \
 		cd ${DESTDIR}/usr/share/locale;	\
 		for l in ${LATIN1LINKS}	; do \
