@@ -1,0 +1,14 @@
+$FreeBSD$
+
+GNU regex (from grep):
+
+originals can be found at:      ftp://ftp.gnu.org/gnu/grep/
+
+Imported by:
+
+cvs import \
+	-m "Virgin import (trimmed) of GNU regex, from GNU grep 2.4.2" \
+	src/gnu/lib/libregex FSF from_grep_v2_4_2
+
+ache@FreeBSD.org
+25 Feb 2004
