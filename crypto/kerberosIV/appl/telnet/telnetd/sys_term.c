@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: sys_term.c,v 1.85.2.1 1999/07/22 03:23:19 assar Exp $");
+RCSID("$Id: sys_term.c,v 1.89.2.6 2000/12/08 23:34:05 assar Exp $");
 
 #if defined(_CRAY) || (defined(__hpux) && !defined(HAVE_UTMPX_H))
 # define PARENT_DOES_UTMP
@@ -388,7 +388,7 @@ int getpty(int *ptynum)
     p = _getpty(&master, O_RDWR, 0600, 1);
     if(p == NULL)
 	return -1;
-    strcpy_truncate(line, p, sizeof(Xline));
+    strlcpy(line, p, sizeof(Xline));
     return master;
 #else
 
@@ -420,7 +420,7 @@ int getpty(int *ptynum)
 #ifdef HAVE_UNLOCKPT
 	    unlockpt(p);
 #endif
-	    strcpy_truncate(line, ptsname(p), sizeof(Xline));
+	    strlcpy(line, ptsname(p), sizeof(Xline));
 	    really_stream = 1;
 	    return p;
 	}
@@ -1154,7 +1154,7 @@ startslave(char *host, int autologin, char *autoname)
 	/*
 	 * Create utmp entry for child
 	 */
-	time(&wtmp.ut_time);
+	wtmp.ut_time = time(NULL);
 	wtmp.ut_type = LOGIN_PROCESS;
 	wtmp.ut_pid = pid;
 	strncpy(wtmp.ut_user,  "LOGIN", sizeof(wtmp.ut_user));
@@ -1205,26 +1205,50 @@ init_env(void)
 /*
  * scrub_env()
  *
- * Remove variables from the environment that might cause login to
- * behave in a bad manner. To avoid this, login should be staticly
- * linked.
+ * We only accept the environment variables listed below.
  */
 
-static void scrub_env(void)
+static void
+scrub_env(void)
 {
-    static char *remove[] = { "LD_", "_RLD_", "LIBPATH=", "IFS=", NULL };
+    static const char *reject[] = {
+	"TERMCAP=/",
+	NULL
+    };
+
+    static const char *accept[] = {
+	"XAUTH=", "XAUTHORITY=", "DISPLAY=",
+	"TERM=",
+	"EDITOR=",
+	"PAGER=",
+	"PRINTER=",
+	"LOGNAME=",
+	"POSIXLY_CORRECT=",
+	"TERMCAP=",
+	NULL
+    };
 
     char **cpp, **cpp2;
-    char **p;
+    const char **p;
   
     for (cpp2 = cpp = environ; *cpp; cpp++) {
-	for(p = remove; *p; p++)
+	int reject_it = 0;
+
+	for(p = reject; *p; p++)
+	    if(strncmp(*cpp, *p, strlen(*p)) == 0) {
+		reject_it = 1;
+		break;
+	    }
+	if (reject_it)
+	    continue;
+
+	for(p = accept; *p; p++)
 	    if(strncmp(*cpp, *p, strlen(*p)) == 0)
 		break;
-	if(*p == NULL)
+	if(*p != NULL)
 	    *cpp2++ = *cpp;
     }
-    *cpp2 = 0;
+    *cpp2 = NULL;
 }
 
 
@@ -1376,7 +1400,7 @@ static int addarg(struct arg_val *argv, char *val)
 static void
 rmut(void)
 {
-    struct utmpx *utxp, utmpx;
+    struct utmpx utmpx, *non_save_utxp;
     char *clean_tty = clean_ttyname(line);
 
     /*
@@ -1387,8 +1411,14 @@ rmut(void)
     memset(&utmpx, 0, sizeof(utmpx));
     strncpy(utmpx.ut_line, clean_tty, sizeof(utmpx.ut_line));
     utmpx.ut_type = LOGIN_PROCESS;
-    utxp = getutxline(&utmpx);
-    if (utxp) {
+    non_save_utxp = getutxline(&utmpx);
+    if (non_save_utxp) {
+	struct utmpx *utxp;
+	char user0;
+
+	utxp = malloc(sizeof(struct utmpx));
+	*utxp = *non_save_utxp;
+	user0 = utxp->ut_user[0];
 	utxp->ut_user[0] = '\0';
 	utxp->ut_type = DEAD_PROCESS;
 #ifdef HAVE_STRUCT_UTMPX_UT_EXIT
@@ -1406,6 +1436,7 @@ rmut(void)
 	gettimeofday(&utxp->ut_tv, NULL);
 	pututxline(utxp);
 #ifdef WTMPX_FILE
+	utxp->ut_user[0] = user0;
 	updwtmpx(WTMPX_FILE, utxp);
 #elif defined(WTMP_FILE)
 	/* This is a strange system with a utmpx and a wtmp! */
@@ -1418,14 +1449,13 @@ rmut(void)
 #ifdef HAVE_STRUCT_UTMP_UT_HOST
 	    strncpy(wtmp.ut_host,  "", sizeof(wtmp.ut_host));
 #endif
-	    time(&wtmp.ut_time);
+	    wtmp.ut_time = time(NULL);
 	    write(f, &wtmp, sizeof(wtmp));
 	    close(f);
 	  }
 	}
-#else
-
 #endif
+	free (utxp);
     }
     endutxent();
 }  /* end of rmut */
@@ -1463,7 +1493,7 @@ rmut(void)
 #ifdef HAVE_STRUCT_UTMP_UT_HOST
 		strncpy(u->ut_host,  "", sizeof(u->ut_host));
 #endif
-		time(&u->ut_time);
+		u->ut_time = time(NULL);
 		write(f, u, sizeof(wtmp));
 		found++;
 	    }
@@ -1478,7 +1508,7 @@ rmut(void)
 #ifdef HAVE_STRUCT_UTMP_UT_HOST
 	    strncpy(wtmp.ut_host,  "", sizeof(wtmp.ut_host));
 #endif
-	    time(&wtmp.ut_time);
+	    wtmp.ut_time = time(NULL);
 	    write(f, &wtmp, sizeof(wtmp));
 	    close(f);
 	}

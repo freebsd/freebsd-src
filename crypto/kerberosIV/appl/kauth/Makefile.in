@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.40 1999/03/10 19:01:11 joda Exp $
+# $Id: Makefile.in,v 1.40.16.1 2000/06/23 02:52:31 assar Exp $
 
 SHELL = /bin/sh
 
@@ -17,6 +17,7 @@ WFLAGS = @WFLAGS@
 LD_FLAGS = @LD_FLAGS@
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_SCRIPT  = @INSTALL_SCRIPT@
 LIBS = @LIBS@
 MKINSTALLDIRS = @top_srcdir@/mkinstalldirs
 
@@ -28,9 +29,10 @@ bindir = @bindir@
 transform=@program_transform_name@
 EXECSUFFIX=@EXECSUFFIX@
 
-PROG_BIN	= kauth$(EXECSUFFIX) ksrvtgt
+PROG_BIN	= kauth$(EXECSUFFIX)
+SCRIPT_BIN	= ksrvtgt
 PROG_LIBEXEC	= kauthd$(EXECSUFFIX)
-PROGS = $(PROG_BIN) $(PROG_LIBEXEC)
+PROGS = $(PROG_BIN) $(SCRIPT_BIN) $(PROG_LIBEXEC)
 
 SOURCES_KAUTH  = kauth.c rkinit.c
 SOURCES_KAUTHD = kauthd.c
@@ -58,6 +60,9 @@ install: all
 	for x in $(PROG_BIN); do \
 	  $(INSTALL_PROGRAM) $$x $(DESTDIR)$(bindir)/`echo $$x| sed '$(transform)'`; \
 	done
+	for x in $(SCRIPT_BIN); do \
+	  $(INSTALL_SCRIPT) $$x $(DESTDIR)$(bindir)/`echo $$x| sed '$(transform)'`; \
+	done
 	if test -f $(DESTDIR)$(bindir)/zrefresh -o -r  $(DESTDIR)$(bindir)/zrefresh; then \
 	  true; \
 	else \
@@ -68,7 +73,7 @@ install: all
 	done
 
 uninstall:
-	for x in $(PROG_BIN); do \
+	for x in $(PROG_BIN) $(SCRIPT_BIN); do \
 	  rm -f $(DESTDIR)$(bindir)/`echo $$x| sed '$(transform)'`; \
 	done
 	for x in $(PROG_LIBEXEC); do \

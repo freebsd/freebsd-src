@@ -33,7 +33,7 @@
 
 #include "sia_locl.h"
 
-RCSID("$Id: sia.c,v 1.32 1999/10/03 15:49:36 joda Exp $");
+RCSID("$Id: sia.c,v 1.32.2.1 1999/12/20 09:49:30 joda Exp $");
 
 int 
 siad_init(void)
@@ -145,7 +145,7 @@ doauth(SIAENTITY *entity, int pkgind, char *name)
 	
 #ifdef SIA_KRB4
     snprintf(s->ticket, sizeof(s->ticket),
-	     TKT_ROOT "%u_%u", (unsigned)pwd->pw_uid, (unsigned)getpid());
+	     "%s%u_%u", TKT_ROOT, (unsigned)pwd->pw_uid, (unsigned)getpid());
     krb_get_lrealm(realm, 1);
     toname = name;
     toinst = "";
@@ -160,8 +160,8 @@ doauth(SIAENTITY *entity, int pkgind, char *name)
 	    SIA_DEBUG(("DEBUG", "failed to getpwuid(%u)", ouid));
 	    return SIADFAIL;
 	}
-	snprintf(s->ticket, sizeof(s->ticket), TKT_ROOT "_%s_to_%s_%d", 
-		 fpwd->pw_name, pwd->pw_name, getpid());
+	snprintf(s->ticket, sizeof(s->ticket), "%s_%s_to_%s_%d", 
+		 TKT_ROOT, fpwd->pw_name, pwd->pw_name, getpid());
 	if(strcmp(pwd->pw_name, "root") == 0){
 	    toname = fpwd->pw_name;
 	    toinst = pwd->pw_name;
@@ -454,7 +454,7 @@ init_change(sia_collect_func_t *collect, krb_principal *princ)
     if(ret != SIACOLSUCCESS)
 	return SIADFAIL;
     snprintf(tktstring, sizeof(tktstring), 
-	     TKT_ROOT "_cpw_%u", (unsigned)getpid());
+	     "%s_cpw_%u", TKT_ROOT, (unsigned)getpid());
     krb_set_tkt_string(tktstring);
     
     ret = krb_get_pw_in_tkt(princ->name, princ->instance, princ->realm, 

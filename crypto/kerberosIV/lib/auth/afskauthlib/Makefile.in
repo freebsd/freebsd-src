@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.25 1999/11/15 10:20:46 assar Exp $
+# $Id: Makefile.in,v 1.25.2.1 2000/06/23 03:20:05 assar Exp $
 #
 
 SHELL = /bin/sh
@@ -54,7 +54,7 @@ Wall:
 install: all
 	$(MKINSTALLDIRS) $(DESTDIR)$(libdir)
 	-if test "$(LIB)" != ""; then \
-	 $(INSTALL_DATA) -m 0555 $(LIB) $(DESTDIR)$(libdir)/$(LIB) ; \
+	 $(INSTALL_DATA) $(LIB) $(DESTDIR)$(libdir)/$(LIB) ; \
 	fi
 
 uninstall:

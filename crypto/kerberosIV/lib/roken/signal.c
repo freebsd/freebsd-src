@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: signal.c,v 1.9 1999/12/02 16:58:52 joda Exp $");
+RCSID("$Id: signal.c,v 1.9.2.1 2000/03/12 19:36:16 assar Exp $");
 #endif
 
 #include <signal.h>
@@ -42,7 +42,7 @@ RCSID("$Id: signal.c,v 1.9 1999/12/02 16:58:52 joda Exp $");
  * We would like to always use this signal but there is a link error
  * on NEXTSTEP
  */
-#ifndef NeXT
+#if !defined(NeXT) && !defined(__APPLE__)
 /*
  * Bugs:
  *
