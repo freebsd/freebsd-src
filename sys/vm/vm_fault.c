@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_fault.c	8.4 (Berkeley) 1/12/94
+ *	@(#)vm_fault.c	8.5 (Berkeley) 1/9/95
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -893,7 +893,8 @@ vm_fault_wire(map, start, end)
  *
  *	Unwire a range of virtual addresses in a map.
  */
-void vm_fault_unwire(map, start, end)
+void
+vm_fault_unwire(map, start, end)
 	vm_map_t	map;
 	vm_offset_t	start, end;
 {
@@ -942,7 +943,8 @@ void vm_fault_unwire(map, start, end)
  *		entry corresponding to a main map entry that is wired down).
  */
 
-void vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
+void
+vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	vm_map_t	dst_map;
 	vm_map_t	src_map;
 	vm_map_entry_t	dst_entry;

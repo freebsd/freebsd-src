@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_map.c	8.3 (Berkeley) 1/12/94
+ *	@(#)vm_map.c	8.9 (Berkeley) 5/17/95
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -72,7 +72,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-#include <vm/vm_object.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
@@ -140,7 +139,8 @@ vm_map_t	kmap_free;
 static void	_vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void	_vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 
-void vm_map_startup()
+void
+vm_map_startup()
 {
 	register int i;
 	register vm_map_entry_t mep;
@@ -218,7 +218,8 @@ vmspace_free(vm)
  *	the given physical map structure, and having
  *	the given lower and upper address bounds.
  */
-vm_map_t vm_map_create(pmap, min, max, pageable)
+vm_map_t
+vm_map_create(pmap, min, max, pageable)
 	pmap_t		pmap;
 	vm_offset_t	min, max;
 	boolean_t	pageable;
@@ -228,9 +229,9 @@ vm_map_t vm_map_create(pmap, min, max, pageable)
 
 	if (kmem_map == NULL) {
 		result = kmap_free;
-		kmap_free = (vm_map_t) result->header.next;
 		if (result == NULL)
 			panic("vm_map_create: out of maps");
+		kmap_free = (vm_map_t) result->header.next;
 	} else
 		MALLOC(result, vm_map_t, sizeof(struct vm_map),
 		       M_VMMAP, M_WAITOK);
@@ -262,7 +263,7 @@ vm_map_init(map, min, max, pageable)
 	map->first_free = &map->header;
 	map->hint = &map->header;
 	map->timestamp = 0;
-	lock_init(&map->lock, TRUE);
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, 0);
 	simple_lock_init(&map->ref_lock);
 	simple_lock_init(&map->hint_lock);
 }
@@ -273,7 +274,8 @@ vm_map_init(map, min, max, pageable)
  *	Allocates a VM map entry for insertion.
  *	No entry fields are filled in.  This routine is
  */
-vm_map_entry_t vm_map_entry_create(map)
+vm_map_entry_t
+vm_map_entry_create(map)
 	vm_map_t	map;
 {
 	vm_map_entry_t	entry;
@@ -305,7 +307,8 @@ vm_map_entry_t vm_map_entry_create(map)
  *
  *	Inverse of vm_map_entry_create.
  */
-void vm_map_entry_dispose(map, entry)
+void
+vm_map_entry_dispose(map, entry)
 	vm_map_t	map;
 	vm_map_entry_t	entry;
 {
@@ -353,13 +356,18 @@ void vm_map_entry_dispose(map, entry)
  *	Creates another valid reference to the given map.
  *
  */
-void vm_map_reference(map)
+void
+vm_map_reference(map)
 	register vm_map_t	map;
 {
 	if (map == NULL)
 		return;
 
 	simple_lock(&map->ref_lock);
+#ifdef DEBUG
+	if (map->ref_count == 0)
+		panic("vm_map_reference: zero ref_count");
+#endif
 	map->ref_count++;
 	simple_unlock(&map->ref_lock);
 }
@@ -371,19 +379,17 @@ void vm_map_reference(map)
  *	destroying it if no references remain.
  *	The map should not be locked.
  */
-void vm_map_deallocate(map)
+void
+vm_map_deallocate(map)
 	register vm_map_t	map;
 {
-	register int		c;
 
 	if (map == NULL)
 		return;
 
 	simple_lock(&map->ref_lock);
-	c = --map->ref_count;
-	simple_unlock(&map->ref_lock);
-
-	if (c > 0) {
+	if (--map->ref_count > 0) {
+		simple_unlock(&map->ref_lock);
 		return;
 	}
 
@@ -392,11 +398,13 @@ void vm_map_deallocate(map)
 	 *	to it.
 	 */
 
-	vm_map_lock(map);
+	vm_map_lock_drain_interlock(map);
 
 	(void) vm_map_delete(map, map->min_offset, map->max_offset);
 
 	pmap_destroy(map->pmap);
+
+	vm_map_unlock(map);
 
 	FREE(map, M_VMMAP);
 }
@@ -546,7 +554,8 @@ vm_map_insert(map, object, offset, start, end)
  *	result indicates whether the address is
  *	actually contained in the map.
  */
-boolean_t vm_map_lookup_entry(map, address, entry)
+boolean_t
+vm_map_lookup_entry(map, address, entry)
 	register vm_map_t	map;
 	register vm_offset_t	address;
 	vm_map_entry_t		*entry;		/* OUT */
@@ -714,7 +723,8 @@ vm_map_find(map, object, offset, addr, length, find_space)
  *		removing extra sharing maps
  *		[XXX maybe later] merging with a neighbor
  */
-void vm_map_simplify_entry(map, entry)
+void
+vm_map_simplify_entry(map, entry)
 	vm_map_t	map;
 	vm_map_entry_t	entry;
 {
@@ -788,7 +798,8 @@ void vm_map_simplify_entry(map, entry)
  *	This routine is called only when it is known that
  *	the entry must be split.
  */
-static void _vm_map_clip_start(map, entry, start)
+static void
+_vm_map_clip_start(map, entry, start)
 	register vm_map_t	map;
 	register vm_map_entry_t	entry;
 	register vm_offset_t	start;
@@ -842,7 +853,8 @@ static void _vm_map_clip_start(map, entry, start)
  *	This routine is called only when it is known that
  *	the entry must be split.
  */
-static void _vm_map_clip_end(map, entry, end)
+static void
+_vm_map_clip_end(map, entry, end)
 	register vm_map_t	map;
 	register vm_map_entry_t	entry;
 	register vm_offset_t	end;
@@ -1182,7 +1194,7 @@ vm_map_pageable(map, start, end, new_pageable)
 		 *	If a region becomes completely unwired,
 		 *	unwire its physical pages and mappings.
 		 */
-		lock_set_recursive(&map->lock);
+		vm_map_set_recursive(&map->lock);
 
 		entry = start_entry;
 		while ((entry != &map->header) && (entry->start < end)) {
@@ -1194,7 +1206,7 @@ vm_map_pageable(map, start, end, new_pageable)
 
 		    entry = entry->next;
 		}
-		lock_clear_recursive(&map->lock);
+		vm_map_clear_recursive(&map->lock);
 	}
 
 	else {
@@ -1303,8 +1315,8 @@ vm_map_pageable(map, start, end, new_pageable)
 		    vm_map_unlock(map);		/* trust me ... */
 		}
 		else {
-		    lock_set_recursive(&map->lock);
-		    lock_write_to_read(&map->lock);
+		    vm_map_set_recursive(&map->lock);
+		    lockmgr(&map->lock, LK_DOWNGRADE, (void *)0, curproc);
 		}
 
 		rv = 0;
@@ -1335,7 +1347,7 @@ vm_map_pageable(map, start, end, new_pageable)
 		    vm_map_lock(map);
 		}
 		else {
-		    lock_clear_recursive(&map->lock);
+		    vm_map_clear_recursive(&map->lock);
 		}
 		if (rv) {
 		    vm_map_unlock(map);
@@ -1450,7 +1462,8 @@ vm_map_clean(map, start, end, syncio, invalidate)
  *	The map in question should be locked.
  *	[This is the reason for this routine's existence.]
  */
-void vm_map_entry_unwire(map, entry)
+void
+vm_map_entry_unwire(map, entry)
 	vm_map_t		map;
 	register vm_map_entry_t	entry;
 {
@@ -1463,7 +1476,8 @@ void vm_map_entry_unwire(map, entry)
  *
  *	Deallocate the given entry from the target map.
  */		
-void vm_map_entry_delete(map, entry)
+void
+vm_map_entry_delete(map, entry)
 	register vm_map_t	map;
 	register vm_map_entry_t	entry;
 {
@@ -1609,7 +1623,8 @@ vm_map_remove(map, start, end)
  *	privilege on the entire address region given.
  *	The entire region must be allocated.
  */
-boolean_t vm_map_check_protection(map, start, end, protection)
+boolean_t
+vm_map_check_protection(map, start, end, protection)
 	register vm_map_t	map;
 	register vm_offset_t	start;
 	register vm_offset_t	end;
@@ -1659,7 +1674,8 @@ boolean_t vm_map_check_protection(map, start, end, protection)
  *	Copies the contents of the source entry to the destination
  *	entry.  The entries *must* be aligned properly.
  */
-void vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
+void
+vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 	vm_map_t		src_map, dst_map;
 	register vm_map_entry_t	src_entry, dst_entry;
 {
@@ -1855,7 +1871,7 @@ vm_map_copy(dst_map, src_map,
 	if (src_map == dst_map) {
 		vm_map_lock(src_map);
 	}
-	else if ((int) src_map < (int) dst_map) {
+	else if ((long) src_map < (long) dst_map) {
 	 	vm_map_lock(src_map);
 		vm_map_lock(dst_map);
 	} else {
@@ -1984,7 +2000,7 @@ vm_map_copy(dst_map, src_map,
 			else {
 			 	new_src_map = src_map;
 				new_src_start = src_entry->start;
-				lock_set_recursive(&src_map->lock);
+				vm_map_set_recursive(&src_map->lock);
 			}
 
 			if (dst_entry->is_a_map) {
@@ -2022,7 +2038,7 @@ vm_map_copy(dst_map, src_map,
 			else {
 			 	new_dst_map = dst_map;
 				new_dst_start = dst_entry->start;
-				lock_set_recursive(&dst_map->lock);
+				vm_map_set_recursive(&dst_map->lock);
 			}
 
 			/*
@@ -2034,9 +2050,9 @@ vm_map_copy(dst_map, src_map,
 				FALSE, FALSE);
 
 			if (dst_map == new_dst_map)
-				lock_clear_recursive(&dst_map->lock);
+				vm_map_clear_recursive(&dst_map->lock);
 			if (src_map == new_src_map)
-				lock_clear_recursive(&src_map->lock);
+				vm_map_clear_recursive(&src_map->lock);
 		}
 
 		/*
@@ -2405,7 +2421,8 @@ vm_map_lookup(var_map, vaddr, fault_type, out_entry,
 			 *	share map to the new object.
 			 */
 
-			if (lock_read_to_write(&share_map->lock)) {
+			if (lockmgr(&share_map->lock, LK_EXCLUPGRADE,
+				    (void *)0, curproc)) {
 				if (share_map != map)
 					vm_map_unlock_read(map);
 				goto RetryLookup;
@@ -2418,7 +2435,8 @@ vm_map_lookup(var_map, vaddr, fault_type, out_entry,
 				
 			entry->needs_copy = FALSE;
 			
-			lock_write_to_read(&share_map->lock);
+			lockmgr(&share_map->lock, LK_DOWNGRADE,
+				(void *)0, curproc);
 		}
 		else {
 			/*
@@ -2435,7 +2453,8 @@ vm_map_lookup(var_map, vaddr, fault_type, out_entry,
 	 */
 	if (entry->object.vm_object == NULL) {
 
-		if (lock_read_to_write(&share_map->lock)) {
+		if (lockmgr(&share_map->lock, LK_EXCLUPGRADE,
+				(void *)0, curproc)) {
 			if (share_map != map)
 				vm_map_unlock_read(map);
 			goto RetryLookup;
@@ -2444,7 +2463,7 @@ vm_map_lookup(var_map, vaddr, fault_type, out_entry,
 		entry->object.vm_object = vm_object_allocate(
 					(vm_size_t)(entry->end - entry->start));
 		entry->offset = 0;
-		lock_write_to_read(&share_map->lock);
+		lockmgr(&share_map->lock, LK_DOWNGRADE, (void *)0, curproc);
 	}
 
 	/*
@@ -2480,7 +2499,8 @@ vm_map_lookup(var_map, vaddr, fault_type, out_entry,
  *	(according to the handle returned by that lookup).
  */
 
-void vm_map_lookup_done(map, entry)
+void
+vm_map_lookup_done(map, entry)
 	register vm_map_t	map;
 	vm_map_entry_t		entry;
 {
@@ -2510,7 +2530,8 @@ void vm_map_lookup_done(map, entry)
  *		at allocation time because the adjacent entry
  *		is often wired down.
  */
-void vm_map_simplify(map, start)
+void
+vm_map_simplify(map, start)
 	vm_map_t	map;
 	vm_offset_t	start;
 {
@@ -2558,7 +2579,8 @@ void vm_map_simplify(map, start)
 /*
  *	vm_map_print:	[ debug ]
  */
-void vm_map_print(map, full)
+void
+vm_map_print(map, full)
 	register vm_map_t	map;
 	boolean_t		full;
 {

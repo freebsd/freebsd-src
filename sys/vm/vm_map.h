@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_map.h	8.3 (Berkeley) 3/15/94
+ *	@(#)vm_map.h	8.9 (Berkeley) 5/17/95
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -159,14 +159,42 @@ typedef struct {
  *		Perform locking on the data portion of a map.
  */
 
-#define	vm_map_lock(map) { \
-	lock_write(&(map)->lock); \
+#include <sys/proc.h>	/* XXX for curproc and p_pid */
+
+#define	vm_map_lock_drain_interlock(map) { \
+	lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
+		&(map)->ref_lock, curproc); \
 	(map)->timestamp++; \
 }
-#define	vm_map_unlock(map)	lock_write_done(&(map)->lock)
-#define	vm_map_lock_read(map)	lock_read(&(map)->lock)
-#define	vm_map_unlock_read(map)	lock_read_done(&(map)->lock)
-
+#ifdef DIAGNOSTIC
+#define	vm_map_lock(map) { \
+	if (lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) != 0) { \
+		panic("vm_map_lock: failed to get lock"); \
+	} \
+	(map)->timestamp++; \
+}
+#else
+#define	vm_map_lock(map) { \
+	lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc); \
+	(map)->timestamp++; \
+}
+#endif /* DIAGNOSTIC */
+#define	vm_map_unlock(map) \
+		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc)
+#define	vm_map_lock_read(map) \
+		lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc)
+#define	vm_map_unlock_read(map) \
+		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc)
+#define vm_map_set_recursive(map) { \
+	simple_lock(&(map)->lk_interlock); \
+	(map)->lk_flags |= LK_CANRECURSE; \
+	simple_unlock(&(map)->lk_interlock); \
+}
+#define vm_map_clear_recursive(map) { \
+	simple_lock(&(map)->lk_interlock); \
+	(map)->lk_flags &= ~LK_CANRECURSE; \
+	simple_unlock(&(map)->lk_interlock); \
+}
 /*
  *	Functions implemented as macros
  */
