@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.86 1995/09/30 15:19:44 davidg Exp $
+ *	$Id: wd.c,v 1.81.4.1 1995/10/02 08:14:31 davidg Exp $
  */
 
 /* TODO:
@@ -301,11 +301,34 @@ wdprobe(struct isa_device *dvp)
 	/* check if we have registers that work */
 	outb(du->dk_port + wd_sdh, WDSD_IBM);   /* set unit 0 */
 	outb(du->dk_port + wd_cyl_lo, 0xa5);	/* wd_cyl_lo is read/write */
-	if (inb(du->dk_port + wd_cyl_lo) == 0xff)	/* XXX too weak */
-		goto nodevice;
+	if (inb(du->dk_port + wd_cyl_lo) == 0xff) {     /* XXX too weak */
+#ifdef ATAPI
+		/* There is no master, try the ATAPI slave. */
+		outb(du->dk_port + wd_sdh, WDSD_IBM | 0x10);
+		outb(du->dk_port + wd_cyl_lo, 0xa5);
+		if (inb(du->dk_port + wd_cyl_lo) == 0xff)
+#endif
+			goto nodevice;
+	}
 
-	if (wdreset(du) != 0 && (DELAY(RECOVERYTIME), wdreset(du)) != 0)
+	if (wdreset(du) == 0)
+		goto reset_ok;
+#ifdef ATAPI
+	/* test for ATAPI signature */
+	outb(du->dk_port + wd_sdh, WDSD_IBM);           /* master */
+	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
+	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
+		goto reset_ok;
+	du->dk_unit = 1;
+	outb(du->dk_port + wd_sdh, WDSD_IBM | 0x10); /* slave */
+	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
+	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
+		goto reset_ok;
+#endif
+	DELAY(RECOVERYTIME);
+	if (wdreset(du) != 0)
 		goto nodevice;
+reset_ok:
 
 	/* execute a controller only command */
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_DIAGNOSE) != 0
@@ -1916,13 +1939,6 @@ wdreset(struct disk *du)
 	du->dk_error = inb(wdc + wd_error);
 	if (du->dk_error != 0x01)
 		err = 1;                /* the drive is incompatible */
-	if (err) {
-		/* no IDE drive, test for ATAPI signature */
-		int lo = inb(wdc + wd_cyl_lo);
-		int hi = inb(wdc + wd_cyl_hi);
-		if (lo == 0x14 && hi == 0xeb)
-			err = 0;        /* ATAPI drive detected */
-	}
 #else
 	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
 	    || (du->dk_error = inb(wdc + wd_error)) != 0x01)
@@ -2042,6 +2058,18 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 			min_retries[du->dk_ctrlr] = timeout;
 #endif
 		du->dk_status = status = inb(wdc + wd_status);
+#ifdef ATAPI
+		/*
+		 * Atapi drives have a very interesting feature, when attached
+		 * as a slave on the IDE bus, and there is no master.
+		 * They release the bus after getting the command.
+		 * We should reselect the drive here to get the status.
+		 */
+		if (status == 0xff) {
+			outb(wdc + wd_sdh, WDSD_IBM | du->dk_unit << 4);
+			du->dk_status = status = inb(wdc + wd_status);
+		}
+#endif
 		if (!(status & WDCS_BUSY)) {
 			if (status & WDCS_ERR) {
 				du->dk_error = inb(wdc + wd_error);
