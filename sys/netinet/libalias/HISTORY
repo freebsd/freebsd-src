@@ -120,3 +120,7 @@ Version 2.4: September 1, 1997 (cjm)
       This part of the code was incorrectly re-implemented
       in version 2.1.
 
+Version 2.5: December, 1997 (ee)
+    - Added PKT_ALIAS_PUNCH_FW mode for firewall
+      bypass of FTP/IRC DCC data connections.  Also added
+      improved TCP connection monitoring.

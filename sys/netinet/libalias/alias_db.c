@@ -90,7 +90,7 @@
         SetExpire() function added. (cjm)
 
         DeleteLink() no longer frees memory association with a pointer
-        to a fragment (this bug was first recognized by E. Eiklund in
+        to a fragment (this bug was first recognized by E. Eklund in
         v1.9).
 
     Version 2.1: May, 1997 (cjm)
@@ -102,6 +102,8 @@
         added to the API.  The first function is a more generalized
         version of PacketAliasPermanentLink().  The second function
         implements static network address translation.
+
+    See HISTORY file for additional revisions.
 */
 
 
@@ -114,6 +116,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <osreldate.h>
 
 /* BSD network include files */
 #include <netinet/in_systm.h>
@@ -143,9 +146,32 @@
 /* Timouts (in seconds) for different link types) */
 #define ICMP_EXPIRE_TIME             60
 #define UDP_EXPIRE_TIME              60
-#define TCP_EXPIRE_TIME              90
 #define FRAGMENT_ID_EXPIRE_TIME      10
 #define FRAGMENT_PTR_EXPIRE_TIME     30
+
+/* TCP link expire time for different cases */
+/* When the link has been used and closed - minimal grace time to
+   allow ACKs and potential re-connect in FTP (XXX - is this allowed?)  */
+#ifndef TCP_EXPIRE_DEAD
+#   define TCP_EXPIRE_DEAD           10
+#endif
+
+/* When the link has been used and closed on one side - the other side
+   is allowed to still send data */
+#ifndef TCP_EXPIRE_SINGLEDEAD
+#   define TCP_EXPIRE_SINGLEDEAD     90
+#endif
+
+/* When the link isn't yet up */
+#ifndef TCP_EXPIRE_INITIAL
+#   define TCP_EXPIRE_INITIAL       300
+#endif
+
+/* When the link is up */
+#ifndef TCP_EXPIRE_CONNECTED
+#   define TCP_EXPIRE_CONNECTED   86400
+#endif
+
 
 /* Dummy port number codes used for FindLinkIn/Out() and AddLink().
    These constants can be anything except zero, which indicates an
@@ -206,6 +232,7 @@ struct tcp_dat
 {
     struct tcp_state state;
     struct ack_data_record ack[N_LINK_TCP_DATA];
+    int fwhole;             /* Which firewall record is used for this hole? */
 };
 
 struct alias_link                /* Main data structure */
@@ -234,6 +261,7 @@ struct alias_link                /* Main data structure */
 #define LINK_UNKNOWN_DEST_ADDR     0x02
 #define LINK_PERMANENT             0x04
 #define LINK_PARTIALLY_SPECIFIED   0x03 /* logical-or of first two bits */
+#define LINK_UNFIREWALLED          0x08
 
     int timestamp;               /* Time link was last accessed         */
     int expire_time;             /* Expire time for link                */
@@ -309,12 +337,16 @@ static int deleteAllLinks;           /* If equal to zero, DeleteLink()  */
 static FILE *monitorFile;            /* File descriptor for link        */
                                      /* statistics monitoring file      */
 
-static int firstCall = 1;            /* Needed by InitAlias()           */
-
 static int newDefaultLink;           /* Indicates if a new aliasing     */
                                      /* link has been created after a   */
                                      /* call to PacketAliasIn/Out().    */
              
+static int fireWallFD = -1;          /* File descriptor to be able to   */
+                                     /* control firewall.  Opened by    */
+                                     /* PacketAliasSetMode on first     */
+                                     /* setting the PKT_ALIAS_PUNCH_FW  */
+                                     /* flag.                           */
+
 
 
 
@@ -344,6 +376,14 @@ static int SeqDiff(u_long, u_long);
 
 static void ShowAliasStats(void);
 
+/* Firewall control */
+static void InitPunchFW(void);
+static void UninitPunchFW(void);
+static void ClearFWHole(struct alias_link *link);
+
+/* Log file control */
+static void InitPacketAliasLog(void);
+static void UninitPacketAliasLog(void);
 
 static u_int
 StartPointIn(struct in_addr alias_addr,
@@ -429,6 +469,7 @@ Link creation and deletion:
     IncrementalCleanup()    - look for stale links in a single chain
     DeleteLink()            - remove link
     AddLink()               - add link 
+    ReLink()                - change link 
 
 Link search:
     FindLinkOut()           - find link for outgoing packets
@@ -448,6 +489,11 @@ static void DeleteLink(struct alias_link *);
 
 static struct alias_link *
 AddLink(struct in_addr, struct in_addr, struct in_addr,
+        u_short, u_short, int, int);
+
+static struct alias_link *
+ReLink(struct alias_link *,
+       struct in_addr, struct in_addr, struct in_addr,
         u_short, u_short, int, int);
 
 static struct alias_link *
@@ -680,8 +726,8 @@ IncrementalCleanup(void)
                     struct tcp_dat *tcp_aux;
 
                     tcp_aux = link->data.tcp; 
-                    if (tcp_aux->state.in  != 1
-                     || tcp_aux->state.out != 1)
+                    if (tcp_aux->state.in  != ALIAS_TCP_STATE_CONNECTED
+                     || tcp_aux->state.out != ALIAS_TCP_STATE_CONNECTED)
                     {
                         DeleteLink(link);
                         icount++;
@@ -705,6 +751,9 @@ DeleteLink(struct alias_link *link)
 /* Don't do anything if the link is marked permanent */
     if (deleteAllLinks == 0 && link->flags & LINK_PERMANENT)
         return;
+
+/* Delete associatied firewall hole, if any */
+    ClearFWHole(link);
 
 /* Adjust output table pointers */
     link_last = link->last_out;
@@ -820,7 +869,7 @@ AddLink(struct in_addr  src_addr,
             link->expire_time = UDP_EXPIRE_TIME;
             break;
         case LINK_TCP:
-            link->expire_time = TCP_EXPIRE_TIME;
+            link->expire_time = TCP_EXPIRE_INITIAL;
             break;
         case LINK_FRAGMENT_ID:
             link->expire_time = FRAGMENT_ID_EXPIRE_TIME;
@@ -889,12 +938,13 @@ AddLink(struct in_addr  src_addr,
                     int i;
 
                     tcpLinkCount++;
-                    aux_tcp->state.in = 0;
-                    aux_tcp->state.out = 0;
+                    aux_tcp->state.in = ALIAS_TCP_STATE_NOT_CONNECTED;
+                    aux_tcp->state.out = ALIAS_TCP_STATE_NOT_CONNECTED;
                     aux_tcp->state.index = 0;
                     aux_tcp->state.ack_modified = 0;
                     for (i=0; i<N_LINK_TCP_DATA; i++)
                         aux_tcp->ack[i].active = 0;
+                    aux_tcp->fwhole = -1;
                 }
                 else
                 {
@@ -924,6 +974,30 @@ AddLink(struct in_addr  src_addr,
     return(link);
 }
 
+static struct alias_link *
+ReLink(struct alias_link *old_link,
+       struct in_addr  src_addr,
+       struct in_addr  dst_addr,
+       struct in_addr  alias_addr,
+       u_short         src_port,
+       u_short         dst_port,
+       int             alias_port_param,   /* if less than zero, alias   */
+       int             link_type)          /* port will be automatically */
+{                                          /* chosen. If greater than    */
+    struct alias_link *new_link;           /* zero, equal to alias port  */
+
+    new_link = AddLink(src_addr, dst_addr, alias_addr,
+                       src_port, dst_port, alias_port_param,
+                       link_type);
+    if (new_link != NULL &&
+        old_link->link_type == LINK_TCP &&
+        old_link->data.tcp &&
+        old_link->data.tcp->fwhole > 0) {
+      PunchFWHole(new_link);
+    }
+    DeleteLink(old_link);
+    return new_link;
+}
 
 static struct alias_link *
 FindLinkOut(struct in_addr src_addr,
@@ -1057,55 +1131,34 @@ FindLinkIn(struct in_addr  dst_addr,
 
     if (link_fully_specified != NULL)
     {
-        return (link_fully_specified);
+        return link_fully_specified;
     }
     else if (link_unknown_dst_port != NULL)
     {
-        if (replace_partial_links)
-        {
-            link = AddLink(link_unknown_dst_port->src_addr, dst_addr,
-                           alias_addr,
-                           link_unknown_dst_port->src_port, dst_port,
-                           alias_port, link_type);
-            DeleteLink(link_unknown_dst_port);
-            return(link);
-        }
-        else
-        {
-            return(link_unknown_dst_port);
-        }
+        return replace_partial_links
+          ? ReLink(link_unknown_dst_port,
+                   link_unknown_dst_port->src_addr, dst_addr, alias_addr,
+                   link_unknown_dst_port->src_port, dst_port, alias_port,
+                   link_type)
+          : link_unknown_dst_port;
     }
     else if (link_unknown_dst_addr != NULL)
     {
-        if (replace_partial_links)
-        {
-            link = AddLink(link_unknown_dst_addr->src_addr, dst_addr,
-                           alias_addr,
-                           link_unknown_dst_addr->src_port, dst_port,
-                           alias_port, link_type);
-            DeleteLink(link_unknown_dst_addr);
-            return(link);
-        }
-        else
-        {
-            return(link_unknown_dst_addr);
-        }
+        return replace_partial_links
+          ? ReLink(link_unknown_dst_addr,
+                   link_unknown_dst_addr->src_addr, dst_addr, alias_addr,
+                   link_unknown_dst_addr->src_port, dst_port, alias_port,
+                   link_type)
+          : link_unknown_dst_addr;
     }
     else if (link_unknown_all != NULL)
     {
-        if (replace_partial_links)
-        {
-            link = AddLink(link_unknown_all->src_addr, dst_addr,
-                           alias_addr,
-                           link_unknown_all->src_port, dst_port,
-                           alias_port, link_type);
-            DeleteLink(link_unknown_all);
-            return(link);
-        }
-        else
-        {
-            return(link_unknown_all);
-        }
+        return replace_partial_links
+          ? ReLink(link_unknown_all,
+                   link_unknown_all->src_addr, dst_addr, alias_addr,
+                   link_unknown_all->src_port, dst_port, alias_port,
+                   link_type)
+          : link_unknown_all;
     }
     else
     {
@@ -1389,7 +1442,24 @@ void
 SetStateIn(struct alias_link *link, int state)
 {
     /* TCP input state */
-    (link->data.tcp)->state.in = state;
+    switch (state) {
+    case ALIAS_TCP_STATE_DISCONNECTED:
+        if (link->data.tcp->state.out != ALIAS_TCP_STATE_CONNECTED) {
+            link->expire_time = TCP_EXPIRE_DEAD;
+        } else {
+            link->expire_time = TCP_EXPIRE_SINGLEDEAD;
+        }
+        link->data.tcp->state.in = state;
+        break;
+    case ALIAS_TCP_STATE_CONNECTED:
+        link->expire_time = TCP_EXPIRE_CONNECTED;
+        /*FALLTHROUGH*/
+    case ALIAS_TCP_STATE_NOT_CONNECTED:
+        link->data.tcp->state.in = state;
+        break;
+    default:
+        abort();
+    }
 }
 
 
@@ -1397,7 +1467,24 @@ void
 SetStateOut(struct alias_link *link, int state)
 {
     /* TCP output state */
-    (link->data.tcp)->state.out = state;
+    switch (state) {
+    case ALIAS_TCP_STATE_DISCONNECTED:
+        if (link->data.tcp->state.in != ALIAS_TCP_STATE_CONNECTED) {
+            link->expire_time = TCP_EXPIRE_DEAD;
+        } else {
+            link->expire_time = TCP_EXPIRE_SINGLEDEAD;
+        }
+        link->data.tcp->state.out = state;
+        break;
+    case ALIAS_TCP_STATE_CONNECTED:
+        link->expire_time = TCP_EXPIRE_CONNECTED;
+        /*FALLTHROUGH*/
+    case ALIAS_TCP_STATE_NOT_CONNECTED:
+        link->data.tcp->state.out = state;
+        break;
+    default:
+        abort();
+    }
 }
 
 
@@ -1405,7 +1492,7 @@ int
 GetStateIn(struct alias_link *link)
 {
     /* TCP input state */
-    return( (link->data.tcp)->state.in);
+    return link->data.tcp->state.in;
 }
 
 
@@ -1413,7 +1500,7 @@ int
 GetStateOut(struct alias_link *link)
 {
     /* TCP output state */
-    return( (link->data.tcp)->state.out);
+    return link->data.tcp->state.out;
 }
 
 
@@ -1471,12 +1558,17 @@ GetAliasPort(struct alias_link *link)
     return(link->alias_port);
 }
 
+u_short
+GetDestPort(struct alias_link *link)
+{
+    return(link->dst_port);
+}
 
 void
 SetAckModified(struct alias_link *link)
 {
 /* Indicate that ack numbers have been modified in a TCP connection */
-    (link->data.tcp)->state.ack_modified = 1;
+    link->data.tcp->state.ack_modified = 1;
 }
 
 
@@ -1484,7 +1576,7 @@ int
 GetAckModified(struct alias_link *link)
 {
 /* See if ack numbers have been modified */
-    return( (link->data.tcp)->state.ack_modified );
+    return link->data.tcp->state.ack_modified;
 }
 
 
@@ -1511,7 +1603,7 @@ packet size was altered is searched.
     {
         struct ack_data_record x;
 
-        x = (link->data.tcp)->ack[i];
+        x = link->data.tcp->ack[i];
         if (x.active == 1)
         {
             int ack_diff;
@@ -1562,7 +1654,7 @@ packet size was altered is searched.
     {
         struct ack_data_record x;
 
-        x = (link->data.tcp)->ack[i];
+        x = link->data.tcp->ack[i];
         if (x.active == 1)
         {
             int seq_diff;
@@ -1615,14 +1707,14 @@ been altered, then this list will begin to overwrite itself.
     x.delta = delta;
     x.active = 1;
 
-    i = (link->data.tcp)->state.index;
-    (link->data.tcp)->ack[i] = x;
+    i = link->data.tcp->state.index;
+    link->data.tcp->ack[i] = x;
 
     i++;
     if (i == N_LINK_TCP_DATA)
-        (link->data.tcp)->state.index = 0;
+        link->data.tcp->state.index = 0;
     else
-        (link->data.tcp)->state.index = i;
+        link->data.tcp->state.index = i;
 }
 
 void
@@ -1722,7 +1814,7 @@ HouseKeeping(void)
 
 
 /* Init the log file and enable logging */
-void
+static void
 InitPacketAliasLog(void)
 {
    if ((~packetAliasMode & PKT_ALIAS_LOG)
@@ -1736,7 +1828,7 @@ InitPacketAliasLog(void)
 
 
 /* Close the log-file and disable logging. */
-void
+static void
 UninitPacketAliasLog(void)
 {
     if( monitorFile )
@@ -1758,6 +1850,7 @@ UninitPacketAliasLog(void)
     PacketAliasRedirectDelete()
     PacketAliasSetAddress()
     PacketAliasInit()
+    PacketAliasUninit()
     PacketAliasSetMode()
 
 (prototypes in alias.h)
@@ -1868,6 +1961,7 @@ PacketAliasInit(void)
     int i;
     struct timeval tv;
     struct timezone tz;
+    static int firstCall = 1;
 
     if (firstCall == 1)
     {
@@ -1881,6 +1975,7 @@ PacketAliasInit(void)
         for (i=0; i<LINK_TABLE_IN_SIZE; i++)
             linkTableIn[i] = NULL;
 
+        atexit(PacketAliasUninit);
         firstCall = 0;
     }
     else
@@ -1907,11 +2002,19 @@ PacketAliasInit(void)
                     | PKT_ALIAS_RESET_ON_ADDR_CHANGE;
 }
 
+void
+PacketAliasUninit(void) {
+    deleteAllLinks = 1;
+    CleanupAliasData();
+    deleteAllLinks = 0;
+    UninitPacketAliasLog();
+    UninitPunchFW();
+}
+
 
 /* Change mode for some operations */
 unsigned int
-PacketAliasSetMode
-(
+PacketAliasSetMode(
     unsigned int flags, /* Which state to bring flags to */
     unsigned int mask   /* Mask of which flags to affect (use 0 to do a
                            probe for flag values) */
@@ -1921,10 +2024,19 @@ PacketAliasSetMode
     if (flags & mask & PKT_ALIAS_LOG)
     {
         InitPacketAliasLog();     /* Do the enable */
-    }
+    } else
 /* _Disable_ logging? */
     if (~flags & mask & PKT_ALIAS_LOG) {
         UninitPacketAliasLog();
+    }
+
+/* Start punching holes in the firewall? */
+    if (flags & mask & PKT_ALIAS_PUNCH_FW) {
+        InitPunchFW();
+    } else
+/* Stop punching holes in the firewall? */
+    if (~flags & mask & PKT_ALIAS_PUNCH_FW) {
+        UninitPunchFW();
     }
 
 /* Other flags can be set/cleared without special action */
@@ -1937,4 +2049,183 @@ int
 PacketAliasCheckNewLink(void)
 {
     return newDefaultLink;
+}
+
+
+/*****************
+  Code to support firewall punching.  This shouldn't really be in this
+  file, but making variables global is evil too.
+  ****************/
+
+/* Firewall include files */
+#include <sys/queue.h>
+#include <netinet/ip_fw.h>
+#include <string.h>
+#include <err.h>
+
+static void ClearAllFWHoles(void);
+
+static int fireWallBaseNum;     /* The first firewall entry free for our use */
+static int fireWallNumNums;     /* How many entries can we use? */
+static int fireWallActiveNum;   /* Which entry did we last use? */
+static char *fireWallField;     /* bool array for entries */
+
+#define fw_setfield(field, num)                         \
+do {                                                    \
+    (field)[num] = 1;                                   \
+} /*lint -save -e717 */ while(0) /*lint -restore */
+#define fw_clrfield(field, num)                         \
+do {                                                    \
+    (field)[num] = 0;                                   \
+} /*lint -save -e717 */ while(0) /*lint -restore */
+#define fw_tstfield(field, num) ((field)[num])
+
+void
+PacketAliasSetFWBase(unsigned int base, unsigned int num) {
+    fireWallBaseNum = base;
+    fireWallNumNums = num;
+}
+
+static void
+InitPunchFW(void) {
+    fireWallField = malloc(fireWallNumNums);
+    if (fireWallField) {
+        memset(fireWallField, 0, fireWallNumNums);
+        if (fireWallFD < 0) {
+            fireWallFD = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+        }
+        ClearAllFWHoles();
+        fireWallActiveNum = fireWallBaseNum;
+    }
+}
+
+static void
+UninitPunchFW(void) {
+    ClearAllFWHoles();
+    if (fireWallFD >= 0)
+        close(fireWallFD);
+    fireWallFD = -1;
+    if (fireWallField)
+        free(fireWallField);
+    fireWallField = NULL;
+    packetAliasMode &= ~PKT_ALIAS_PUNCH_FW;
+}
+
+/* Make a certain link go through the firewall */
+void
+PunchFWHole(struct alias_link *link) {
+    int r;                      /* Result code */
+    struct ip_fw rule;          /* On-the-fly built rule */
+    int fwhole;                 /* Where to punch hole */
+
+/* Don't do anything unless we are asked to */
+    if ( !(packetAliasMode & PKT_ALIAS_PUNCH_FW) ||
+         fireWallFD < 0 ||
+         link->link_type != LINK_TCP ||
+         !link->data.tcp)
+        return;
+
+    memset(&rule, 0, sizeof rule);
+
+/** Build rule **/
+
+    /* Find empty slot */
+    for (fwhole = fireWallActiveNum;
+         fwhole < fireWallBaseNum + fireWallNumNums &&
+             fw_tstfield(fireWallField, fwhole);
+         fwhole++)
+        ;
+    if (fwhole >= fireWallBaseNum + fireWallNumNums ||
+        fw_tstfield(fireWallField, fwhole)) {
+        for (fwhole = fireWallBaseNum;
+             fwhole < fireWallActiveNum &&
+                 fw_tstfield(fireWallField, fwhole);
+             fwhole++)
+            ;
+        if (fwhole == fireWallActiveNum) {
+            /* No rule point empty - we can't punch more holes. */
+            fireWallActiveNum = fireWallBaseNum;
+            fprintf(stderr, "libalias: Unable to create firewall hole!\n");
+            return;
+        }
+    }
+    /* Start next search at next position */
+    fireWallActiveNum = fwhole+1;
+
+    /* Build generic part of the two rules */
+    rule.fw_number = fwhole;
+#if __FreeBSD_version < 300000
+    rule.fw_nsp = 1;            /* 1 source port */
+    rule.fw_ndp = 1;            /* 1 destination port */
+#else
+    rule.fw_nports = 1;         /* Number of source ports; dest ports follow */
+#endif
+    rule.fw_flg = IP_FW_F_ACCEPT;
+    rule.fw_prot = IPPROTO_TCP;
+    rule.fw_smsk.s_addr = INADDR_BROADCAST;
+    rule.fw_dmsk.s_addr = INADDR_BROADCAST;
+
+    /* Build and apply specific part of the rules */
+    rule.fw_src = GetOriginalAddress(link);
+    rule.fw_dst = GetDestAddress(link);
+    rule.fw_pts[0] = ntohs(GetOriginalPort(link));
+    rule.fw_pts[1] = ntohs(GetDestPort(link));
+
+    /* Skip non-bound links - XXX should not be strictly necessary,
+       but seems to leave hole if not done.  Leak of non-bound links?
+       (Code should be left even if the problem is fixed - it is a
+       clear optimization) */
+    if (rule.fw_pts[0] != 0 && rule.fw_pts[1] != 0) {
+        r = setsockopt(fireWallFD, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
+        if (r)
+            err(1, "alias punch inbound(1) setsockopt(IP_FW_ADD)");
+        rule.fw_src = GetDestAddress(link);
+        rule.fw_dst = GetOriginalAddress(link);
+        rule.fw_pts[0] = ntohs(GetDestPort(link));
+        rule.fw_pts[1] = ntohs(GetOriginalPort(link));
+        r = setsockopt(fireWallFD, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
+        if (r)
+            err(1, "alias punch inbound(2) setsockopt(IP_FW_ADD)");
+    }
+/* Indicate hole applied */
+    link->data.tcp->fwhole = fwhole;
+    fw_setfield(fireWallField, fwhole);
+}
+
+/* Remove a hole in a firewall associated with a particular alias
+   link.  Calling this too often is harmless. */
+static void
+ClearFWHole(struct alias_link *link) {
+    if (link->link_type == LINK_TCP && link->data.tcp) {
+        int fwhole =  link->data.tcp->fwhole; /* Where is the firewall hole? */
+        struct ip_fw rule;
+
+        if (fwhole < 0)
+            return;
+
+        memset(&rule, 0, sizeof rule);
+        rule.fw_number = fwhole;
+        while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule))
+            ;
+        fw_clrfield(fireWallField, fwhole);
+        link->data.tcp->fwhole = -1;
+    }
+}
+
+/* Clear out the entire range dedicated to firewall holes. */
+static void
+ClearAllFWHoles(void) {
+    struct ip_fw rule;          /* On-the-fly built rule */
+    int i;
+    
+    if (fireWallFD < 0)
+        return;
+
+    memset(&rule, 0, sizeof rule);
+    for (i = fireWallBaseNum; i < fireWallBaseNum + fireWallNumNums; i++) {
+        rule.fw_number = i;
+        while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule))
+            ;
+    }
+    memset(fireWallField, 0, fireWallNumNums);
 }

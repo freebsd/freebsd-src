@@ -20,8 +20,10 @@ of the text.
 1. Introduction
 2. Initialization and Control
     2.1 PacketAliasInit()
-    2.2 PacketAliasSetAddress()
-    2.3 PacketAliasSetMode()
+    2.2 PacketAliasUninit()
+    2.3 PacketAliasSetAddress()
+    2.4 PacketAliasSetMode()
+    2.5 PacketAliasSetFWBase()
 3. Packet Handling
     3.1 PacketAliasOut()
     3.2 PacketAliasIn()
@@ -116,7 +118,24 @@ PacketAliasSetMode().
 It is mandatory that this function be called
 at the beginning of a program prior to any
 packet handling.
-.Ss 2.2 PacketAliasSetAddress()
+.Ss 2.2 PacketAliasUnInit()
+
+.Ft void
+.Fn PacketAliasUnInit "void"
+
+This function has no argument or return
+value and is used to clear any resources
+attached to internal data structures.
+
+This functions should be called when a
+program stop using the aliasing engine;
+it do, among other things, clear out any
+firewall holes.  To provide backwards
+compatibility and extra security, it is
+added to the atexit() chain by
+PacketAliasInit().  Calling it multiple
+times is harmless.
+.Ss 2.3 PacketAliasSetAddress()
 
 .Ft void
 .Fn PacketAliasSetAddress "struct in_addr addr"
@@ -145,7 +164,7 @@ call).
 
 It is mandatory that this function be called
 prior to any packet handling.
-.Ss 2.3 PacketAliasSetMode()
+.Ss 2.4 PacketAliasSetMode()
 
 .Ft void
 .Fn PacketAliasSetMode "int mode" "int mask"
@@ -224,7 +243,31 @@ change or remain the same between dial-ups.
 If this mode bit is not set, it the link table
 will never be reset in the event of an
 address change.
+.It PKT_ALIAS_PUNCH_FW.
+This option make libalias `punch holes' in an
+ipfw based firewall for FTP/IRC DCC connections.
+The holes punched are bound by from/to IP address
+and port; it will not be possible to use a hole
+for another connection.  A hole is removed when
+the connection that use it die.  To cater for
+unexpected death of a program using libalias (e.g
+kill -9), changing the state of the flag will
+clear the entire ipfw range allocated for holes.
+This will also happen on the initial call to
+PacketAliasSetFWBase().  This call must happen
+prior to setting this flag.
+
 .El
+
+.Ss 2.5 PacketAliasSetFWBase()
+
+.Ft void
+.Fn PacketAliasSetFWBase "unsigned int base" "unsigned int num"
+
+Set IPFW range allocated for punching firewall holes (with the
+PKT_ALIAS_PUNCH_FW flag).  The range will be cleared for all rules on
+initialization.
+
 .Sh 3. Packet Handling
 The packet handling functions are used to 
 modify incoming (remote->local) and outgoing
@@ -295,7 +338,7 @@ protocols place addresss and port information in
 the encapsulated data stream which have to be
 modified and can account for changes in packet
 length.  Well known examples of such protocols
-are FTP and IRC.
+are FTP and IRC DCC.
 
 Return codes:
 .Bl -hang -offset left
@@ -570,9 +613,10 @@ valid, PacketAliasInternetChecksum() will return zero.
 .Sh 7. Authors
 Charles Mott (cmott@srv.net), versions 1.0 - 1.8, 2.0 - 2.4. 
 
-Eivind Eiklund (eivind@freebsd.org), versions 1.8b and 1.9.
-Added IRC support as well as contributing a number of
-architectural improvements.
+Eivind Eklund (eivind@freebsd.org), versions 1.8b, 1.9 and
+2.5.  Added IRC DCC support as well as contributing a number of
+architectural improvements; added the firewall bypass
+for FTP/IRC DCC.
 
 .Sh 8. Acknowledgments
 

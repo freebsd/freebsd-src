@@ -73,6 +73,8 @@
         - Eliminated PacketAliasIn2() and
           PacketAliasOut2() as poorly conceived.
 
+    See HISTORY file for additional revisions.
+
 */
 
 #include <stdio.h>
@@ -149,12 +151,15 @@ TcpMonitorIn(struct ip *pip, struct alias_link *link)
 
     switch (GetStateIn(link))
     {
-        case 0:
-            if (tc->th_flags & TH_SYN) SetStateIn(link, 1);
+        case ALIAS_TCP_STATE_NOT_CONNECTED:
+            if (tc->th_flags & TH_SYN)
+                SetStateIn(link, ALIAS_TCP_STATE_CONNECTED);
             break;
-        case 1:
+        case ALIAS_TCP_STATE_CONNECTED:
             if (tc->th_flags & TH_FIN
-             || tc->th_flags & TH_RST) SetStateIn(link, 2);
+                || tc->th_flags & TH_RST)
+                SetStateIn(link, ALIAS_TCP_STATE_DISCONNECTED);
+            break;
     }
 }
 
@@ -167,12 +172,15 @@ TcpMonitorOut(struct ip *pip, struct alias_link *link)
      
     switch (GetStateOut(link))
     {
-        case 0:
-            if (tc->th_flags & TH_SYN) SetStateOut(link, 1);
+        case ALIAS_TCP_STATE_NOT_CONNECTED:
+            if (tc->th_flags & TH_SYN)
+                SetStateOut(link, ALIAS_TCP_STATE_CONNECTED);
             break;
-        case 1:
+        case ALIAS_TCP_STATE_CONNECTED:
             if (tc->th_flags & TH_FIN
-             || tc->th_flags & TH_RST) SetStateOut(link, 2);
+                || tc->th_flags & TH_RST)
+                SetStateOut(link, ALIAS_TCP_STATE_DISCONNECTED);
+            break;
     }
 }
 
@@ -776,7 +784,7 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
          || ntohs(tc->th_sport) == FTP_CONTROL_PORT_NUMBER)
             AliasHandleFtpOut(pip, link, maxpacketsize);
         if (ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_1
-			|| ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_2)
+                        || ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_2)
             AliasHandleIrcOut(pip, link, maxpacketsize);
 
 /* Adjust TCP checksum since source port is being aliased */
@@ -977,6 +985,11 @@ PacketAliasIn(char *ptr, int maxpacketsize)
     pip = (struct ip *) ptr;
     alias_addr = pip->ip_dst;
         
+    /* Defense against mangled packets */
+    if (ntohs(pip->ip_len) > maxpacketsize
+     || (pip->ip_hl<<2) > maxpacketsize)
+        return PKT_ALIAS_IGNORED;
+        
     iresult = PKT_ALIAS_IGNORED;
     if ( (ntohs(pip->ip_off) & IP_OFFMASK) == 0 )
     {
@@ -1002,7 +1015,7 @@ PacketAliasIn(char *ptr, int maxpacketsize)
             {
                 iresult = PKT_ALIAS_FOUND_HEADER_FRAGMENT;
                 SetFragmentAddr(link, pip->ip_dst);
-	    }
+            }
             else
             {
                 iresult = PKT_ALIAS_ERROR;
@@ -1048,6 +1061,11 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
     HouseKeeping();
     ClearCheckNewLink();
     pip = (struct ip *) ptr;
+
+    /* Defense against mangled packets */
+    if (ntohs(pip->ip_len) > maxpacketsize
+     || (pip->ip_hl<<2) > maxpacketsize)
+        return PKT_ALIAS_IGNORED;
 
     addr_save = GetDefaultAliasAddress();
     if (packetAliasMode & PKT_ALIAS_UNREGISTERED_ONLY)

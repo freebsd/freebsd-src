@@ -32,6 +32,8 @@
          Very minor changes to conform with
          local/global/function naming conventions
          withing the packet alising module.
+
+    See HISTORY file for record of revisions.
 */
 
 /* Includes */
@@ -150,6 +152,9 @@ NewFtpPortCommand(struct ip *pip,
         int slen, hlen, tlen, dlen;
         struct tcphdr *tc;
 
+/* Punch hole in firewall */
+        PunchFWHole(ftp_link);
+
 /* Calculate data length of TCP packet */
         tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
         hlen = (pip->ip_hl + tc->th_off) << 2;
@@ -167,7 +172,7 @@ NewFtpPortCommand(struct ip *pip,
         
 /* Decompose alias address into quad format */
             alias_address = GetAliasAddress(link);
-            ptr = (char *) &alias_address;
+            ptr = (u_char *) &alias_address.s_addr;
             a1 = *ptr++; a2=*ptr++; a3=*ptr++; a4=*ptr;
 
 /* Decompose alias port into pair format */
