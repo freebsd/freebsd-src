@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.5 1995/05/01 12:35:05 dufault Exp $
+ *	$Id: scsi.c,v 1.6 1995/05/01 12:54:32 dufault Exp $
  */
 
 #include <stdio.h>
@@ -450,6 +450,29 @@ void mode_sense(int fd, u_char *data, int len, int pc, int page)
 	free(scsireq);
 }
 
+void mode_select(int fd, u_char *data, int len, int perm)
+{
+	scsireq_t *scsireq;
+
+	scsireq = scsireq_new();
+
+	if (scsireq_enter(fd, scsireq_build(scsireq,
+	 len, data, SCCMD_WRITE,
+	 "15 0:7 v:1 {SP} 0 0 v:i1 {Allocation Length} 0", perm, len)) == -1)	/* Mode select */
+	{
+		scsi_debug(stderr, -1, scsireq);
+		exit(errno);
+	}
+
+	if (SCSIREQ_ERROR(scsireq))
+	{
+		scsi_debug(stderr, 0, scsireq);
+		exit(-1);
+	}
+
+	free(scsireq);
+}
+
 
 #define START_ENTRY '{'
 #define END_ENTRY '}'
@@ -541,15 +564,152 @@ static char *mode_lookup(int page)
 	return (found) ? fmt : 0;
 }
 
-static void mode_edit(int fd, int page, int edit, int argc, char *argv[])
+/* -------- edit: Mode Select Editor ---------
+ */
+struct editinfo
+{
+	int can_edit;
+	int default_value;
+} editinfo[64];	/* XXX Bogus fixed size */
+
+static int editind;
+static FILE *edit_file;
+static char edit_name[L_tmpnam];
+
+static inline void
+edit_rewind(void)
+{
+	editind = 0;
+}
+
+static void
+edit_init(void)
+{
+	edit_rewind();
+	if (tmpnam(edit_name) == 0) {
+		perror("tmpnam failed");
+		exit(errno);
+	}
+	if ( (edit_file = fopen(edit_name, "w")) == 0) {
+		perror(edit_name);
+		exit(errno);
+	}
+}
+
+static void
+edit_check(void *hook, int letter, void *arg, int count, char *name)
+{
+	if (letter != 'i' && letter != 'b') {
+		fprintf(stderr, "Can't edit format %c.\n", letter);
+		exit(-1);
+	}
+
+	if (editind >= sizeof(editinfo) / sizeof(editinfo[0])) {
+		fprintf(stderr, "edit table overflow\n");
+		exit(ENOMEM);
+	}
+	editinfo[editind].can_edit = ((int)arg != 0);
+	editind++;
+}
+
+static void
+edit_defaults(void *hook, int letter, void *arg, int count, char *name)
+{
+	if (letter != 'i' && letter != 'b') {
+		fprintf(stderr, "Can't edit format %c.\n", letter);
+		exit(-1);
+	}
+
+	editinfo[editind].default_value = ((int)arg);
+	editind++;
+}
+
+static void
+edit_report(void *hook, int letter, void *arg, int count, char *name)
+{
+	if (editinfo[editind].can_edit) {
+		if (letter != 'i' && letter != 'b') {
+			fprintf(stderr, "Can't report format %c.\n", letter);
+			exit(-1);
+		}
+
+		fprintf(edit_file, "%s:  %d\n", name, (int)arg);
+	}
+
+	editind++;
+}
+
+static int
+edit_get(void *hook, char *name)
+{
+	struct get_hook *h = (struct get_hook *)hook;
+	int arg = editinfo[editind].default_value;
+
+	if (editinfo[editind].can_edit) {
+		char line[80];
+		if (fgets(line, sizeof(line), edit_file) == 0) {
+			perror("fgets");
+			exit(errno);
+		}
+
+		line[strlen(line) - 1] = 0;
+
+		if (strncmp(name, line, strlen(name)) != 0) {
+			fprintf(stderr, "Expected \"%s\" and read \"%s\"\n",
+			name, line);
+			exit(-1);
+		}
+
+		arg = strtoul(line + strlen(name) + 2, 0, 0);
+	}
+
+	editind++;
+	return arg;
+}
+
+static void
+edit_edit(void)
+{
+	char *system_line;
+	char *editor = getenv("EDITOR");
+	if (!editor)
+		editor = "vi";
+
+	fclose(edit_file);
+
+	system_line = malloc(strlen(editor) + strlen(edit_name) + 6);
+	sprintf(system_line, "%s %s", editor, edit_name);
+	system(system_line);
+	free(system_line);
+
+	if ( (edit_file = fopen(edit_name, "r")) == 0) {
+		perror(edit_name);
+		exit(errno);
+	}
+}
+
+static void
+mode_edit(int fd, int page, int edit, int argc, char *argv[])
 {
 	int i;
 	u_char data[255];
-	int mode_data_length;
-	int block_descriptor_length;
-	u_char *mode_data;
-	u_char *mode_parameters;
-	int page_length;
+	u_char *mode_pars;
+	struct mode_header
+	{
+		u_char mdl;	/* Mode data length */
+		u_char medium_type;
+		u_char dev_spec_par;
+		u_char bdl;	/* Block descriptor length */
+	};
+
+	struct mode_page_header
+	{
+		u_char page_code;
+		u_char page_length;
+	};
+
+	struct mode_header *mh;
+	struct mode_page_header *mph;
 
 	char *fmt = mode_lookup(page);
 	if (!fmt && verbose) {
@@ -558,29 +718,97 @@ static void mode_edit(int fd, int page, int edit, int argc, char *argv[])
 		mode_db, page, (edit ? "edit" : "display"));
 	}
 
-	if (edit)
-		fprintf(stderr, "Sorry; can't edit yet.\n");
+	if (edit) {
+		if (!fmt) {
+			fprintf(stderr, "Sorry: can't edit without a format.\n");
+			exit(-1);
+		}
+
+		if (pagectl != 0 && pagectl != 3) {
+			fprintf(stderr,
+"It only makes sense to edit page 0 (current) or page 3 (saved values)\n");
+			exit(-1);
+		}
+
+		verbose = 1;
+
+		mode_sense(fd, data, sizeof(data), 1, page);
+
+		mh = (struct mode_header *)data;
+		mph = (struct mode_page_header *)
+		(((char *)mh) + sizeof(*mh) + mh->bdl);
+
+		mode_pars = (char *)mph + sizeof(*mph);
+
+		edit_init();
+		scsireq_buff_decode_visit(mode_pars, mh->mdl,
+		fmt, edit_check, 0);
+
+		mode_sense(fd, data, sizeof(data), 0, page);
+
+		edit_rewind();
+		scsireq_buff_decode_visit(mode_pars, mh->mdl,
+		fmt, edit_defaults, 0);
+
+		edit_rewind();
+		scsireq_buff_decode_visit(mode_pars, mh->mdl,
+		fmt, edit_report, 0);
+
+		edit_edit();
+
+		edit_rewind();
+		scsireq_buff_encode_visit(mode_pars, mh->mdl, 
+		fmt, edit_get, 0);
+
+		/* Eliminate block descriptors:
+		 */
+		bcopy((char *)mph, ((char *)mh) + sizeof(*mh),
+		sizeof(*mph) + mph->page_length);
+
+		mh->bdl = 0;
+		mph = (struct mode_page_header *) (((char *)mh) + sizeof(*mh));
+		mode_pars = ((char *)mph) + 2;
+
+#if 0
+		/* Turn this on to see what you're sending to the
+		 * device:
+		 */
+		edit_rewind();
+		scsireq_buff_decode_visit(mode_pars,
+		mh->mdl, fmt, arg_put, 0);
+#endif
+
+		/* Make it permanent if pageselect is three.
+		 */
+
+		mph->page_code &= ~0xC0;	/* Clear PS and RESERVED */
+		mh->mdl = 0;				/* Reserved for mode select */
+
+		mode_select(fd, (char *)mh,
+		sizeof(*mh) + mh->bdl + sizeof(*mph) + mph->page_length,
+		(pagectl == 3));
+
+		exit(0);
+	}
 
 	mode_sense(fd, data, sizeof(data), pagectl, page);
 
 	/* Skip over the block descriptors.
 	 */
-	mode_data_length = data[0];
-	block_descriptor_length = data[3];
-	mode_data = data + 4 + block_descriptor_length;
-	page_length = mode_data[1];
-	mode_parameters = mode_data + 2;
+	mh = (struct mode_header *)data;
+	mph = (struct mode_page_header *)(((char *)mh) + sizeof(*mh) + mh->bdl);
+	mode_pars = (char *)mph + sizeof(*mph);
 
 	if (!fmt) {
-		for (i = 0; i < mode_data_length; i++) {
-			printf("%02x%c",mode_parameters[i],
+		for (i = 0; i < mh->mdl; i++) {
+			printf("%02x%c",mode_pars[i],
 			(((i + 1) % 8) == 0) ? '\n' : ' ');
 		}
 		putc('\n', stdout);
 	} else {
 			verbose = 1;
-			scsireq_buff_decode_visit(mode_parameters,
-			mode_data_length, fmt, arg_put, 0);
+			scsireq_buff_decode_visit(mode_pars,
+			mh->mdl, fmt, arg_put, 0);
 	}
 }
 
