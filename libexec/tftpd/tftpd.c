@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tftpd.c,v 1.4 1996/09/22 21:56:07 wosch Exp $
  */
 
 #ifndef lint
@@ -435,7 +435,7 @@ validate_access(filep, mode)
 			return (err);
 		*filep = filename = pathname;
 	}
-	fd = open(filename, mode == RRQ ? 0 : 1);
+	fd = open(filename, mode == RRQ ? O_RDONLY : O_WRONLY|O_TRUNC);
 	if (fd < 0)
 		return (errno + 100);
 	file = fdopen(fd, (mode == RRQ)? "r":"w");
