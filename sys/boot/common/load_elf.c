@@ -586,7 +586,6 @@ elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef) {
 	  case MDT_VERSION:
 	    s = strdupout((vm_offset_t)(md.md_cval + ef->off));
 	    file_addmodule(fp, s, NULL);
-	    printf("  module: %s\n", s);
 	    free(s);
 	    modcnt++;
 	    break;
