@@ -159,7 +159,7 @@ struct ktr_csw {
 void	ktrnamei __P((struct vnode *,char *));
 void	ktrcsw __P((struct vnode *,int,int));
 void	ktrpsig __P((struct vnode *,int, sig_t, int, int));
-void	ktrgenio __P((struct vnode *,int, enum uio_rw,struct iovec *,int,int));
+void	ktrgenio __P((struct vnode *, int, enum uio_rw, struct uio *, int));
 void	ktrsyscall __P((struct vnode *, int, int narg, int args[]));
 void	ktrsysret __P((struct vnode *, int, int, int));
 
