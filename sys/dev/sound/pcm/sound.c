@@ -798,7 +798,7 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 	struct snddev_info *d;
     	struct snddev_channel *sce;
 	struct pcm_channel *c;
-	int err, oldcnt, newcnt, cnt;
+	int err, newcnt, cnt;
 
 	d = oidp->oid_arg1;
 
@@ -809,10 +809,21 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 		if ((c->direction == PCMDIR_PLAY) && (c->flags & CHN_F_VIRTUAL))
 			cnt++;
 	}
-	oldcnt = cnt;
 	newcnt = cnt;
 
+	pcm_unlock(d);
 	err = sysctl_handle_int(oidp, &newcnt, sizeof(newcnt), req);
+	pcm_lock(d);
+	/*
+	 * Since we dropped the pcm_lock, reload cnt now as it may
+	 * have changed.
+	 */
+	cnt = 0;
+	SLIST_FOREACH(sce, &d->channels, link) {
+		c = sce->channel;
+		if ((c->direction == PCMDIR_PLAY) && (c->flags & CHN_F_VIRTUAL))
+			cnt++;
+	}
 	if (err == 0 && req->newptr != NULL) {
 		if (newcnt < 0 || newcnt > SND_MAXVCHANS) {
 			pcm_unlock(d);
