@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sb16_dsp.c,v 1.7 1994/09/27 17:58:24 davidg Exp $
+ * $Id: ad1848.c,v 1.2 1994/10/01 02:16:28 swallace Exp $
  */
 
 #define DEB(x)
@@ -93,7 +93,6 @@ static void     ad1848_start_input (int dev, unsigned long buf, int count, int i
 static int      ad1848_prepare_for_IO (int dev, int bsize, int bcount);
 static void     ad1848_reset (int dev);
 static void     ad1848_halt (int dev);
-void            ad1848_interrupt (int dev);
 
 static int
 ad_read (ad1848_info * devc, int reg)
@@ -661,7 +660,7 @@ int
 ad1848_detect (int io_base)
 {
 
-#define DDB(x)	x
+#define SDDB(x)	x
 
   unsigned char   tmp;
   int             i;
@@ -692,7 +691,7 @@ ad1848_detect (int io_base)
 
   if ((INB (devc->base) & 0x80) != 0x00)	/* Not a AD1884 */
     {
-      DDB (printk ("ad_detect_A\n"));
+      SDDB (printk ("ad_detect_A\n"));
       return 0;
     }
 
@@ -707,7 +706,7 @@ ad1848_detect (int io_base)
 
   if ((tmp1 = ad_read (devc, 0)) != 0xaa || (tmp2 = ad_read (devc, 1)) != 0x45)
     {
-      DDB (printk ("ad_detect_B (%x/%x)\n", tmp1, tmp2));
+      SDDB (printk ("ad_detect_B (%x/%x)\n", tmp1, tmp2));
       return 0;
     }
 
@@ -716,7 +715,7 @@ ad1848_detect (int io_base)
 
   if ((tmp1 = ad_read (devc, 0)) != 0x45 || (tmp2 = ad_read (devc, 1)) != 0xaa)
     {
-      DDB (printk ("ad_detect_C (%x/%x)\n", tmp1, tmp2));
+      SDDB (printk ("ad_detect_C (%x/%x)\n", tmp1, tmp2));
       return 0;
     }
 
@@ -730,7 +729,7 @@ ad1848_detect (int io_base)
 
   if ((tmp & 0x0f) != ((tmp1 = ad_read (devc, 12)) & 0x0f))
     {
-      DDB (printk ("ad_detect_D (%x)\n", tmp1));
+      SDDB (printk ("ad_detect_D (%x)\n", tmp1));
       return 0;
     }
 
@@ -751,7 +750,7 @@ ad1848_detect (int io_base)
   for (i = 0; i < 16; i++)
     if ((tmp1 = ad_read (devc, i)) != (tmp2 = ad_read (devc, i + 16)))
       {
-	DDB (printk ("ad_detect_F(%d/%x/%x)\n", i, tmp1, tmp2));
+	SDDB (printk ("ad_detect_F(%d/%x/%x)\n", i, tmp1, tmp2));
 	return 0;
       }
 
@@ -782,7 +781,7 @@ ad1848_detect (int io_base)
 	  ad_write (devc, 0, 0xaa);
 	  if ((tmp1 = ad_read (devc, 16)) == 0xaa)	/* Rotten bits? */
 	    {
-	      DDB (printk ("ad_detect_H(%x)\n", tmp1));
+	      SDDB (printk ("ad_detect_H(%x)\n", tmp1));
 	      return 0;
 	    }
 
