@@ -101,8 +101,6 @@ main(argc, argv)
 	int ch, count, gnentries, mntflags, nentries;
 	char *gmapfile, *mapfile, buf[20];
 	char source[MAXPATHLEN], target[MAXPATHLEN];
-	struct vfsconf vfc;
-	int error;
 
 	mntflags = 0;
 	mapfile = gmapfile = NULL;
@@ -227,17 +225,7 @@ main(argc, argv)
 	args.gnentries = gnentries;
 	args.gmapdata = gmapdata;
 
-	error = getvfsbyname("umapfs", &vfc);
-	if (error && vfsisloadable("umapfs")) {
-		if(vfsload("umapfs"))
-			err(1, "vfsload(umapfs)");
-		endvfsent();
-		error = getvfsbyname("umapfs", &vfc);
-	}
-	if (error)
-		errx(1, "umap filesystem is not available");
-
-	if (mount(vfc.vfc_name, argv[1], mntflags, &args))
+	if (mount("umapfs", argv[1], mntflags, &args))
 		err(1, NULL);
 	exit(0);
 }

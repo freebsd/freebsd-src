@@ -77,7 +77,6 @@ main(argc, argv)
 	int ch, mntflags;
 	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
-	struct vfsconf vfc;
 	int error;
 
 	mntflags = 0;
@@ -104,20 +103,10 @@ main(argc, argv)
 		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
 		    argv[0], target, argv[1]);
 
-	error = getvfsbyname("nullfs", &vfc);
-	if (error && vfsisloadable("nullfs")) {
-		if(vfsload("nullfs"))
-			err(EX_OSERR, "vfsload(nullfs)");
-		endvfsent();
-		error = getvfsbyname("nullfs", &vfc);
-	}
-	if (error)
-		errx(EX_OSERR, "null/loopback filesystem is not available");
-
 	iov[0].iov_base = "fstype";
 	iov[0].iov_len = sizeof("fstype");
-	iov[1].iov_base = vfc.vfc_name;
-	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[1].iov_base = "nullfs";
+	iov[1].iov_len = strlen("nullfs") + 1;
 	iov[2].iov_base = "fspath";
 	iov[2].iov_len = sizeof("fspath");
 	iov[3].iov_base = source;

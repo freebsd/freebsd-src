@@ -75,8 +75,6 @@ main(argc, argv)
 	struct iovec iov[6];
 	int ch, mntflags;
 	char *fs_name, *options, *fspec, mntpath[MAXPATHLEN];
-	struct vfsconf vfc;
-	int error;
 
 	options = NULL;
 	mntflags = 0;
@@ -105,21 +103,10 @@ main(argc, argv)
 	(void)checkpath(fs_name, mntpath);
 	(void)rmslashes(fspec, fspec);
 
-	error = getvfsbyname("ext2fs", &vfc);
-	if (error && vfsisloadable("ext2fs")) {
-		if (vfsload("ext2fs")) {
-			err(EX_OSERR, "vfsload(ext2fs)");
-		}
-		endvfsent();	/* flush cache */
-		error = getvfsbyname("ext2fs", &vfc);
-	}
-	if (error)
-		errx(EX_OSERR, "ext2fs filesystem is not available");
-
 	iov[0].iov_base = "fstype";
 	iov[0].iov_len = sizeof("fstype");
-	iov[1].iov_base = vfc.vfc_name;
-	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[1].iov_base = "ext2fs";
+	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
 	iov[2].iov_base = "fspath";
 	iov[2].iov_len = sizeof("fspath");
 	iov[3].iov_base = mntpath;
