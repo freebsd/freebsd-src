@@ -281,10 +281,8 @@ setroot()
 	}
 	majdev = B_TYPE(bootdev);
 	dev = makebdev(majdev, 0);
-	if (devsw(dev) == NULL) {
-		printf("no devsw (majdev=%d bootdev=%#lx)\n", majdev, bootdev);
+	if (devsw(dev) == NULL)
 		return;
-	}
 	unit = B_UNIT(bootdev);
 	slice = B_SLICE(bootdev);
 	if (slice == WHOLE_DISK_SLICE)
