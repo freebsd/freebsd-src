@@ -142,3 +142,103 @@ void usb_tx_done(m)
 
 	return;
 }
+
+struct mbuf *
+usb_ether_newbuf(void)
+{
+	struct mbuf *m_new;
+
+	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m_new == NULL)
+		return (NULL);
+	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+
+	m_adj(m_new, ETHER_ALIGN);
+	return (m_new);
+}
+
+int
+usb_ether_rx_list_init(void *sc, struct ue_cdata *cd,
+    usbd_device_handle ue_udev)
+{
+	struct ue_chain *c;
+	int i;
+
+	for (i = 0; i < UE_RX_LIST_CNT; i++) {
+		c = &cd->ue_rx_chain[i];
+		c->ue_sc = sc;
+		c->ue_idx = i;
+		c->ue_mbuf = usb_ether_newbuf();
+		if (c->ue_mbuf == NULL)
+			return (ENOBUFS);
+		if (c->ue_xfer == NULL) {
+			c->ue_xfer = usbd_alloc_xfer(ue_udev);
+			if (c->ue_xfer == NULL)
+				return (ENOBUFS);
+			c->ue_buf = usbd_alloc_buffer(c->ue_xfer, UE_BUFSZ);
+			if (c->ue_buf == NULL)
+				return (ENOBUFS);
+		}
+	}
+
+	return (0);
+}
+
+int
+usb_ether_tx_list_init(void *sc, struct ue_cdata *cd,
+    usbd_device_handle ue_udev)
+{
+	struct ue_chain *c;
+	int i;
+
+	for (i = 0; i < UE_TX_LIST_CNT; i++) {
+		c = &cd->ue_tx_chain[i];
+		c->ue_sc = sc;
+		c->ue_idx = i;
+		c->ue_mbuf = NULL;
+		if (c->ue_xfer == NULL) {
+			c->ue_xfer = usbd_alloc_xfer(ue_udev);
+			if (c->ue_xfer == NULL)
+				return (ENOBUFS);
+			c->ue_buf = usbd_alloc_buffer(c->ue_xfer, UE_BUFSZ);
+			if (c->ue_buf == NULL)
+				return (ENOBUFS);
+		}
+	}
+
+	return (0);
+}
+
+void
+usb_ether_rx_list_free(struct ue_cdata *cd)
+{
+	int i;
+
+	for (i = 0; i < UE_RX_LIST_CNT; i++) {
+		if (cd->ue_rx_chain[i].ue_mbuf != NULL) {
+			m_freem(cd->ue_rx_chain[i].ue_mbuf);
+			cd->ue_rx_chain[i].ue_mbuf = NULL;
+		}
+		if (cd->ue_rx_chain[i].ue_xfer != NULL) {
+			usbd_free_xfer(cd->ue_rx_chain[i].ue_xfer);
+			cd->ue_rx_chain[i].ue_xfer = NULL;
+		}
+	}
+}
+
+void
+usb_ether_tx_list_free(struct ue_cdata *cd)
+{
+	int i;
+
+	for (i = 0; i < UE_RX_LIST_CNT; i++) {
+		if (cd->ue_tx_chain[i].ue_mbuf != NULL) {
+			m_freem(cd->ue_tx_chain[i].ue_mbuf);
+			cd->ue_tx_chain[i].ue_mbuf = NULL;
+		}
+		if (cd->ue_tx_chain[i].ue_xfer != NULL) {
+			usbd_free_xfer(cd->ue_tx_chain[i].ue_xfer);
+			cd->ue_tx_chain[i].ue_xfer = NULL;
+		}
+	}
+}

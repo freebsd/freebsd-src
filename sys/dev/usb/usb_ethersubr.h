@@ -35,13 +35,47 @@
 #ifndef _USB_ETHERSUBR_H_
 #define _USB_ETHERSUBR_H_
 
+#include <sys/bus.h>
+#include <sys/module.h>
+
+#include <dev/usb/usbdi.h>
+
+#define UE_TX_LIST_CNT		1
+#define UE_RX_LIST_CNT		1
+#define UE_BUFSZ		1536
+
 struct usb_qdat {
 	struct ifnet		*ifp;
 	void (*if_rxstart)	(struct ifnet *);
 };
 
+struct ue_chain {
+	void			*ue_sc;
+	usbd_xfer_handle	ue_xfer;
+	char			*ue_buf;
+	struct mbuf		*ue_mbuf;
+	int			ue_idx;
+};
+
+struct ue_cdata {
+	struct ue_chain		ue_tx_chain[UE_TX_LIST_CNT];
+	struct ue_chain		ue_rx_chain[UE_RX_LIST_CNT];
+	void			*ue_ibuf;
+	int			ue_tx_prod;
+	int			ue_tx_cons;
+	int			ue_tx_cnt;
+	int			ue_rx_prod;
+};
+
 void usb_register_netisr	(void);
 void usb_ether_input		(struct mbuf *);
 void usb_tx_done		(struct mbuf *);
+struct mbuf *usb_ether_newbuf	(void);
+int usb_ether_rx_list_init	(void *, struct ue_cdata *,
+    usbd_device_handle);
+int usb_ether_tx_list_init	(void *, struct ue_cdata *,
+    usbd_device_handle);
+void usb_ether_rx_list_free	(struct ue_cdata *);
+void usb_ether_tx_list_free	(struct ue_cdata *);
 
-#endif
+#endif /* _USB_ETHERSUBR_H_ */

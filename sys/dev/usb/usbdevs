@@ -133,6 +133,7 @@ vendor DIGI2		0x04d0	Digi International
 vendor ITTCANON		0x04d1	ITT Canon
 vendor ALTEC		0x04d2	Altec Lansing Technologies
 vendor PANASONIC	0x04da	Panasonic (Matsushita)
+vendor SHARP		0x04dd	Sharp
 vendor IIYAMA		0x04e1	Iiyama
 vendor SHUTTLE		0x04e6	Shuttle Technology
 vendor SAMSUNG		0x04e8	Samsung Electronics
@@ -351,6 +352,7 @@ vendor SMC3		0x0d5c  Standard Microsystems
 vendor PNY		0x0d7d	PNY
 vendor MSI		0x0db0	Micro Star International
 vendor HAWKING		0x0e66	Hawking Technologies
+vendor GMATE		0x0e7e	G.Mate, Inc
 vendor MICROTUNE	0x0f4d	Microtune, Inc.
 vendor QUALCOMM2	0x1004	Qualcomm
 vendor WESTERN		0x1058	Western Digital
@@ -723,6 +725,9 @@ product	GENESYS GL650		0x0604	GL650 Hub
 product	GENESYS GL641USB	0x0700	GL641USB CompactFlash Card Reader
 product	GENESYS GL641USB2IDE_2	0x0701	GL641USB USB-IDE Bridge No 2
 product	GENESYS GL641USB2IDE	0x0702	GL641USB USB-IDE Bridge
+
+/* G.Mate, Inc products */
+product GMATE YP3X00		0x1001	YP3X00 PDA
 
 /* HAL Corporation products */
 product HAL IMR001		0x0011	Crossam2+USB IR commander
@@ -1135,6 +1140,7 @@ product PROLIFIC RSAQ2		0x04bb	PL2303 Serial adapter (IODATA USB-RSAQ2)
 product PROLIFIC PL2303 	0x2303  PL2303 Serial adapter (ATEN/IOGEAR UC232A)
 product PROLIFIC PL2305		0x2305	Parallel printer adapter
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Bridge Controller
+product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
 
 /* Putercom products */
 product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
@@ -1180,6 +1186,13 @@ product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
 /* ScanLogic products */
 product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
 product SCANLOGIC 336CX		0x0300	Phantom 336CX - C3 scanner
+
+/* Sharp products */
+product SHARP SL5500		0x8004	Zaurus SL-5500 PDA
+product SHARP SLA300		0x8005	Zaurus SL-A300 PDA
+product SHARP SL5600		0x8006	Zaurus SL-5600 PDA
+product SHARP SLC700		0x8007	Zaurus SL-C700 PDA
+product SHARP SLC750		0x9031	Zaurus SL-C750 PDA
 
 /* Shuttle Technology products */
 product SHUTTLE EUSB		0x0001	E-USB Bridge

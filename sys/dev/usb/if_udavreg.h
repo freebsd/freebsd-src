@@ -34,9 +34,6 @@
 #define	UDAV_IFACE_INDEX	0
 #define	UDAV_CONFIG_NO		1
 
-#define	UDAV_TX_LIST_CNT	1
-#define	UDAV_RX_LIST_CNT	1
-
 #define	UDAV_TX_TIMEOUT		1000
 #define	UDAV_TIMEOUT		10000
 
@@ -44,9 +41,7 @@
 
 
 /* Packet length */
-#define	UDAV_MAX_MTU		1536 /* XXX: max frame size is unknown */
 #define	UDAV_MIN_FRAME_LEN	60
-#define	UDAV_BUFSZ		UDAV_MAX_MTU
 
 /* Request */
 #define	UDAV_REQ_REG_READ	0x00 /* Read from register(s) */
@@ -163,27 +158,6 @@
 #endif
 #endif
 
-struct udav_chain {
-	struct udav_softc	*udav_sc;
-	usbd_xfer_handle	udav_xfer;
-	char			*udav_buf;
-	struct mbuf		*udav_mbuf;
-	int			udav_idx;
-};
-
-struct udav_cdata {
-	struct udav_chain	udav_tx_chain[UDAV_TX_LIST_CNT];
-	struct udav_chain	udav_rx_chain[UDAV_TX_LIST_CNT];
-#if 0
-	/* XXX: Intrrupt Endpoint is not yet supported! */
-	struct udav_intrpkg	udav_ibuf;
-#endif
-	int			udav_tx_prod;
-	int			udav_tx_cons;
-	int			udav_tx_cnt;
-	int			udav_rx_prod;
-};
-
 struct udav_softc {
 #if defined(__FreeBSD__)
 	struct arpcom		sc_ac ; /* struct ifnet must be top of softc */
@@ -221,7 +195,7 @@ struct udav_softc {
 #if NRND > 0
 	rndsource_element_t	rnd_source;
 #endif
-	struct udav_cdata	sc_cdata;
+	struct ue_cdata		sc_cdata;
 
 	int                     sc_attached;
 	int			sc_dying;

@@ -800,6 +800,7 @@ dev/usb/usb_if.m	optional usb
 dev/usb/hid.c		optional usb
 dev/usb/if_aue.c	optional aue
 dev/usb/if_axe.c	optional axe
+dev/usb/if_cdce.c	optional cdce
 dev/usb/if_cue.c	optional cue
 dev/usb/if_udav.c	optional udav
 dev/usb/if_kue.c	optional kue

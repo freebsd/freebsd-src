@@ -38,6 +38,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _USBDI_H_
+#define _USBDI_H_
+
 typedef struct usbd_bus		*usbd_bus_handle;
 typedef struct usbd_device	*usbd_device_handle;
 typedef struct usbd_interface	*usbd_interface_handle;
@@ -286,3 +289,5 @@ int usbd_driver_load(module_t mod, int what, void *arg);
 #endif /* USB_USE_SOFTINTR */
 #define splhardusb splbio
 #define IPL_USB IPL_BIO
+
+#endif /* _USBDI_H_ */

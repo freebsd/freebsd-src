@@ -93,6 +93,7 @@ nodevice	urio
 nodevice	uscanner
 nodevice	aue
 nodevice	axe
+nodevice	cdce
 nodevice	cue
 nodevice	kue
 nodevice	rue

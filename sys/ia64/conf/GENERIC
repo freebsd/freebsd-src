@@ -127,6 +127,7 @@ device		xl		# 3Com 3c90x ("Boomerang", "Cyclone")
 
 # USB Ethernet
 device		aue		# ADMtek USB Ethernet
+device		cdce		# Generic USB over Ethernet
 device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
