@@ -416,6 +416,11 @@ tcp_timer_rexmt(xtp)
 	}
 	tp->snd_nxt = tp->snd_una;
 	/*
+	 * Note:  We overload snd_recover to function also as the
+	 * snd_last variable described in RFC 2582
+	 */
+	tp->snd_recover = tp->snd_max;
+	/*
 	 * Force a segment to be sent.
 	 */
 	tp->t_flags |= TF_ACKNOW;
