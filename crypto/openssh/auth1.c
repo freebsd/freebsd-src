@@ -81,19 +81,16 @@ do_authloop(Authctxt *authctxt)
 	u_int ulen;
 	int type = 0;
 	struct passwd *pw = authctxt->pw;
-	void (*authlog) (const char *fmt,...) = verbose;
 #ifdef HAVE_LOGIN_CAP
 	login_cap_t *lc;
 #endif /* HAVE_LOGIN_CAP */
 #ifdef USE_PAM
 	struct inverted_pam_cookie *pam_cookie;
 #endif /* USE_PAM */
-#if defined(HAVE_LOGIN_CAP)
 	const char *from_host, *from_ip;
 
 	from_host = get_canonical_hostname(options.verify_reverse_mapping);
 	from_ip = get_remote_ipaddr();
-#endif /* HAVE_LOGIN_CAP */
 
 	debug("Attempting authentication for %s%.100s.",
 	    authctxt->valid ? "" : "illegal user ", authctxt->user);
@@ -386,8 +383,7 @@ do_authloop(Authctxt *authctxt)
 
 		if (pw != NULL && pw->pw_uid == 0)
 		  log("ROOT LOGIN as '%.100s' from %.100s",
-		      pw->pw_name,
-			  get_canonical_hostname(options.verify_reverse_mapping));
+		      pw->pw_name, from_host );
 
 		/* Log before sending the reply */
 		auth_log(authctxt, authenticated, get_authname(type), info);
