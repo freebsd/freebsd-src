@@ -107,10 +107,11 @@ struct kse_mailbox {
 #define KSE_SWITCHIN_SETTMBX	0x01
 
 /* Commands for kse_thr_interrupt */
-#define KSE_INTR_INTERRUPT	0x01
-#define KSE_INTR_RESTART	0x02
-#define KSE_INTR_SENDSIG	0x03
-#define KSE_INTR_SIGEXIT	0x04
+#define KSE_INTR_INTERRUPT	1
+#define KSE_INTR_RESTART	2
+#define KSE_INTR_SENDSIG	3
+#define KSE_INTR_SIGEXIT	4
+#define KSE_INTR_DBSUSPEND	5
 
 #ifndef _KERNEL
 int	kse_create(struct kse_mailbox *, int);
