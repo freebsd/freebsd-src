@@ -495,7 +495,7 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	/*
 	 * Dx -> Dx is a nop always.
 	 */
-	if (pci_get_powerstate(dev) == state)
+	if (pci_get_powerstate(child) == state)
 		return (0);
 
 	if (cfg->pp.pp_cap != 0) {
