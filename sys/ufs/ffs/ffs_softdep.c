@@ -2497,7 +2497,7 @@ handle_workitem_freeblocks(freeblks, flags)
 #ifdef DIAGNOSTIC
 	if (freeblks->fb_chkcnt != blocksreleased &&
 	    ((fs->fs_flags & FS_UNCLEAN) == 0 || (flags & LK_NOWAIT) != 0))
-		printf("handle_workitem_freeblocks: block count");
+		printf("handle_workitem_freeblocks: block count\n");
 	if (allerror)
 		softdep_error("handle_workitem_freeblks", allerror);
 #endif /* DIAGNOSTIC */
