@@ -283,7 +283,7 @@ If the peer requests Microsoft CHAP authentication and
 .Nm
 is compiled with DES support, an appropriate MD4/DES response will be
 made.
-.It Supports RADIUS (rfc 2138) authentication.
+.It Supports RADIUS (rfc 2138 & 2548) authentication.
 An extension to PAP and CHAP,
 .Em \&R Ns No emote
 .Em \&A Ns No ccess
