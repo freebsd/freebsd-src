@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.23.4.1 1995/07/23 04:55:01 davidg Exp $
+ *	$Id: route.c,v 1.23.4.2 1995/11/03 07:59:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -393,6 +393,11 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 					       rt_fixdelete, rt);
 		}
 
+		if (rt->rt_gwroute) {
+			rt = rt->rt_gwroute; RTFREE(rt);
+			(rt = (struct rtentry *)rn)->rt_gwroute = 0;
+		}
+
 		/*
 		 * NB: RTF_UP must be set during the search above,
 		 * because we might delete the last ref, causing
@@ -400,10 +405,6 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 */
 		rt->rt_flags &= ~RTF_UP;
 
-		if (rt->rt_gwroute) {
-			rt = rt->rt_gwroute; RTFREE(rt);
-			(rt = (struct rtentry *)rn)->rt_gwroute = 0;
-		}
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
 		rttrash++;
@@ -479,6 +480,8 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 				rn = rnh->rnh_addaddr((caddr_t)ndst,
 						      (caddr_t)netmask,
 						      rnh, rt->rt_nodes);
+			} else if (rt2) {
+				RTFREE(rt2);
 			}
 		}
 
