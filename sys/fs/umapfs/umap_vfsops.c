@@ -69,8 +69,6 @@ static int	umapfs_root(struct mount *mp, struct vnode **vpp);
 static int	umapfs_start(struct mount *mp, int flags, struct thread *td);
 static int	umapfs_statfs(struct mount *mp, struct statfs *sbp,
 				   struct thread *td);
-static int	umapfs_sync(struct mount *mp, int waitfor,
-				 struct ucred *cred, struct thread *td);
 static int	umapfs_unmount(struct mount *mp, int mntflags,
 				    struct thread *td);
 static int	umapfs_vget(struct mount *mp, ino_t ino, int flags,
@@ -383,19 +381,6 @@ umapfs_statfs(mp, sbp, td)
 }
 
 static int
-umapfs_sync(mp, waitfor, cred, td)
-	struct mount *mp;
-	int waitfor;
-	struct ucred *cred;
-	struct thread *td;
-{
-	/*
-	 * XXX - Assumes no data cached at umap layer.
-	 */
-	return (0);
-}
-
-static int
 umapfs_vget(mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -458,7 +443,7 @@ static struct vfsops umap_vfsops = {
 	umapfs_root,
 	umapfs_quotactl,
 	umapfs_statfs,
-	umapfs_sync,
+	vfs_stdsync,
 	umapfs_vget,
 	umapfs_fhtovp,
 	umapfs_checkexp,
