@@ -972,8 +972,10 @@ pathname
 			 */
 			if (logged_in && $1) {
 				glob_t gl;
+				char *p, **pp;
 				int flags =
 				 GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE;
+				int n;
 
 				memset(&gl, 0, sizeof(gl));
 				flags |= GLOB_LIMIT;
@@ -982,11 +984,22 @@ pathname
 				    gl.gl_pathc == 0) {
 					reply(550, "wildcard expansion error");
 					$$ = NULL;
-				} else if (gl.gl_pathc > 1) {
-					reply(550, "ambiguous");
-					$$ = NULL;
 				} else {
-					$$ = strdup(gl.gl_pathv[0]);
+					n = 0;
+					for (pp = gl.gl_pathv; *pp; pp++)
+						if (strcspn(*pp, "\r\n") ==
+						    strlen(*pp)) {
+							p = *pp;
+							n++;
+						}
+					if (n == 0)
+						$$ = strdup($1);
+					else if (n == 1)
+						$$ = strdup(p);
+					else {
+						reply(550, "ambiguous");
+						$$ = NULL;
+					}
 				}
 				globfree(&gl);
 				free($1);
