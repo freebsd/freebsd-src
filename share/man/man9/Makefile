@@ -113,6 +113,7 @@ MLINKS+=atomic.9 atomic_set.9
 MLINKS+=atomic.9 atomic_subtract.9
 MLINKS+=atomic.9 atomic_store.9
 MLINKS+=bus_activate_resource.9 bus_deactivate_resource.9
+MLINKS+=bus_dma.9 busdma.9
 MLINKS+=bus_dma.9 bus_dma_tag_create.9
 MLINKS+=bus_dma.9 bus_dma_tag_destroy.9
 MLINKS+=bus_dma.9 bus_dmamap_create.9
