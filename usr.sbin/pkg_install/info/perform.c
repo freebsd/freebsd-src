@@ -1,5 +1,6 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.18 1995/10/25 15:38:31 jkh Exp $";
+static const char rcsid[] =
+	"$Id: perform.c,v 1.19 1996/06/16 16:33:34 jkh Exp $";
 #endif
 
 /*
@@ -112,13 +113,13 @@ pkg_do(char *pkg)
 	 * be very optimistic.
 	 */
 	if (stat(fname, &sb) == FAIL) {
-	    whinge("Can't stat package file '%s'.", fname);
+	    warnx("can't stat package file '%s'", fname);
 	    code = 1;
 	    goto bail;
 	}
 	Home = make_playpen(PlayPen, sb.st_size / 2);
 	if (unpack(fname, "+*")) {
-	    whinge("Error during unpacking, no info for '%s' available.", pkg);
+	    warnx("error during unpacking, no info for '%s' available", pkg);
 	    code = 1;
 	    goto bail;
 	}
@@ -130,11 +131,11 @@ pkg_do(char *pkg)
 	sprintf(log_dir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
 		pkg);
 	if (!fexists(log_dir)) {
-	    whinge("Can't find package `%s' installed or in a file!", pkg);
+	    warnx("can't find package `%s' installed or in a file!", pkg);
 	    return 1;
 	}
 	if (chdir(log_dir) == FAIL) {
-	    whinge("Can't change directory to '%s'!", log_dir);
+	    warnx("can't change directory to '%s'!", log_dir);
 	    return 1;
 	}
 	installed = TRUE;
@@ -144,7 +145,7 @@ pkg_do(char *pkg)
     plist.head = plist.tail = NULL;
     fp = fopen(CONTENTS_FNAME, "r");
     if (!fp) {
-	whinge("Unable to open %s file.", CONTENTS_FNAME);
+	warnx("unable to open %s file", CONTENTS_FNAME);
 	code = 1;
 	goto bail;
     }

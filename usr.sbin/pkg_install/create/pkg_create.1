@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\"	$Id: pkg_create.1,v 1.16.2.4 1997/07/01 06:14:11 jkh Exp $	
+.\"	$Id: pkg_create.1,v 1.16.2.5 1997/09/27 14:10:47 hoek Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -28,7 +28,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm pkg_create
-.Nd a utility for creating software package distributions.
+.Nd a utility for creating software package distributions
 .Sh SYNOPSIS
 .Nm
 .Op Fl YNOhv
@@ -42,6 +42,7 @@
 .Op Fl X Ar excludefile
 .Op Fl D Ar displayfile
 .Op Fl m Ar mtreefile
+.Fl c Ar comment
 .Fl d Ar description
 .Fl f Ar packlist
 .Ar pkg-name
@@ -56,7 +57,7 @@ do so.  It is more expected that you will use a front-end tool for
 the job rather than muddling through it yourself.  Nonetheless, a short
 description of the input syntax is included in this document.
 .Sh OPTIONS
-The following command line options are supported.
+The following command line options are supported:
 .Bl -tag -width indent
 .It Fl f Ar packinglist
 Fetch ``packing list'' for package from the file
@@ -68,7 +69,6 @@ if
 is a
 .Cm -
 (dash).
-.Em "Mandatory."
 .It Fl c Ar [-]desc
 Fetch package ``one line description'' from file
 .Ar desc
@@ -77,17 +77,14 @@ or, if preceded by
 the argument itself.  This string should also
 give some idea of which version of the product (if any) the package
 represents.
-.Em "Mandatory."
 .It Fl d Ar [-]desc
 Fetch long description for package from file
 .Ar desc
 or, if preceded by
 .Cm - ,
 the argument itself.
-.Em "Mandatory."
 .It Fl Y
 Assume a default answer of `Yes' for any questions asked.
-.Em "Optional."
 .It Fl N
 Assume a default answer of `No' for any questions asked.
 .It Fl O
@@ -96,49 +93,42 @@ Go into a `packing list Only' mode.  This is a custom hack for the
 and is used to do `fake pkg_add' operations when a port is installed.
 In such cases, it is necessary to know what the final, adjusted packing
 list will look like.
-.Em "Optional."
 .It Fl v
-Turns on verbose output.
-.Em "Optional."
+Turn on verbose output.
 .It Fl h
-Forces tar to follow symbolic links, so that the files they point to
+Force tar to follow symbolic links, so that the files they point to
 are dumped, rather than the links themselves.
 .It Fl i Ar iscript
-Sets
+Set
 .Ar iscript
 to be the install procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 when the package is later installed.
-.Em "Optional."
 .It Fl P Ar pkgs
-Sets the initial package dependency list to
+Set the initial package dependency list to
 .Ar pkgs .
 This is assumed to be a whitespace separated list of package names
 and is meant as a convenient shorthand for specifying multiple
 .Cm @pkgdep
 directives in the packing list (see PACKING LIST DETAILS section below).
-.Em "Optional."
 .It Fl p Ar prefix
-Sets
+Set
 .Ar prefix
 as the initial directory ``base'' to start from in selecting files for
 the package.
-.Em "Optional."
 .It Fl k Ar dscript
-Sets
+Set
 .Ar dscript
 to be the de-install procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 when the package is later (if ever) de-installed.
-.Em "Optional."
 .It Fl r Ar rscript
-Sets
+Set
 .Ar rscript
 to be the ``requirements'' procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 at installation/deinstallation time to determine whether or not
 installation/deinstallation should proceed.
-.Em "Optional."
 .It Fl t Ar template
 Use
 .Ar template
@@ -153,7 +143,6 @@ directory is limited.  Be sure to leave some number of `X' characters
 for
 .Xr mktemp 3
  to fill in with a unique ID.
-.Em "Optional."
 .It Fl X Ar excludefile
 Pass
 .Ar excludefile
@@ -206,14 +195,14 @@ installed with.  This is done by imbeding specialized command sequences
 in the packing list.  Briefly described, these sequences are:
 .Bl -tag -width indent -compact
 .It Cm @cwd Ar directory
-Sets the internal directory pointer to point to
+Set the internal directory pointer to point to
 .Ar directory .
 All subsequent filenames will be assumed relative to this directory.
 Note:
 .Cm @cd
 is also an alias for this command.
 .It Cm @srcdir Ar directory
-Behaves just like
+Behave just like
 .Cm @cwd
 during creation, but will be ignored during extraction
 or listing.
@@ -236,17 +225,17 @@ and the last extracted file was
 Expands to the last filename extracted (as specified), in the example case
 .Pa bin/emacs
 .It Cm "%D"
-Expands to the current directory prefix, as set with
+Expand to the current directory prefix, as set with
 .Cm @cwd ,
 in the example case
 .Pa /usr/local .
 .It Cm "%B"
-Expands to the ``basename'' of the fully qualified filename, that
+Expand to the ``basename'' of the fully qualified filename, that
 is the current directory prefix, plus the last filespec, minus
 the trailing filename.  In the example case, that would be
 .Pa /usr/local/bin .
 .It Cm "%f"
-Expands to the ``filename'' part of the fully qualified name, or
+Expand to the ``filename'' part of the fully qualified name, or
 the converse of
 .Cm %B ,
 being in the example case,
@@ -272,7 +261,7 @@ sequence expansion'' to get at files regardless of where they've
 been potentially redirected (see
 .Fl p ) .
 .It Cm @mode Ar mode
-Sets default permission for all subsequently extracted files to
+Set default permission for all subsequently extracted files to
 .Ar mode .
 Format is the same as that used by the
 .Cm chmod
@@ -280,7 +269,7 @@ command (well, considering that it's later handed off to it, that's
 no surprise).  Use without an arg to set back to default (extraction)
 permissions.
 .It Cm @option Ar option
-Sets internal package options, the only two currently supported ones
+Set internal package options, the only two currently supported ones
 being
 .Ar extract-in-place ,
 which tells the pkg_add command not to extract the package's tarball
@@ -292,12 +281,12 @@ which tells pkg_add to move any existing files out of the way,
 preserving the previous contents (which are also resurrected on
 pkg_delete, so caveat emptor).
 .It Cm @owner Ar user
-Sets default ownership for all subsequently extracted files to
+Set default ownership for all subsequently extracted files to
 .Ar user .
 Use without an arg to set back to default (extraction)
 ownership.
 .It Cm @group Ar group
-Sets default group ownership for all subsequently extracted files to
+Set default group ownership for all subsequently extracted files to
 .Ar group .
 Use without an arg to set back to default (extraction)
 group ownership.
@@ -318,7 +307,7 @@ file, so you can pack a
 specialized datafile in with a distribution for your install script (or
 something) yet have the installer ignore it.
 .It Cm @name Ar name
-Sets the name of the package.  This is mandatory and is usually
+Set the name of the package.  This is mandatory and is usually
 put at the top.  This name is potentially different than the name of
 the file it came in, and is used when keeping track of the package
 for later deinstallation.  Note that
@@ -354,7 +343,7 @@ as the file to be displayed at install time (see
 .Fl D
 above).
 .It Cm @pkgdep Ar pkgname
-Declares a dependency on the
+Declare a dependency on the
 .Ar pkgname
 package.  The
 .Ar pkgname

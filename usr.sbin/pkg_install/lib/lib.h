@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.21 1996/06/20 18:33:53 jkh Exp $ */
+/* $Id: lib.h,v 1.22 1996/07/30 10:48:19 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -165,7 +165,6 @@ int		plist_cmd(char *, char **);
 int		delete_package(Boolean, Boolean, Package *);
 
 /* For all */
-void		usage(const char *, const char *, ...);
 int		pkg_perform(char **);
 
 /* Externs */

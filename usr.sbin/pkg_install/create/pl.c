@@ -1,5 +1,6 @@
 #ifndef lint
-static const char *rcsid = "$Id: pl.c,v 1.7 1995/05/30 03:49:56 rgrimes Exp $";
+static const char rcsid[] =
+	"$Id: pl.c,v 1.8 1996/07/30 10:48:13 jkh Exp $";
 #endif
 
 /*
@@ -25,6 +26,7 @@ static const char *rcsid = "$Id: pl.c,v 1.7 1995/05/30 03:49:56 rgrimes Exp $";
 #include "lib.h"
 #include "create.h"
 #include <errno.h>
+#include <err.h>
 #include <md5.h>
 
 /* Check a list for files that require preconversion */
@@ -84,7 +86,7 @@ trylink(const char *from, const char *to)
 	if (where_count > sizeof(STARTSTRING)-1) { \
 		    strcat(where_args, "|tar xpf -"); \
 		    if (system(where_args)) \
-			barf("can't invoke tar pipeline"); \
+			cleanup(0), errx(2, "can't invoke tar pipeline"); \
 		    memset(where_args, 0, maxargs); \
  		    last_chdir = NULL; \
 		    strcpy(where_args, STARTSTRING); \
@@ -111,7 +113,7 @@ copy_plist(char *home, Package *plist)
 					   and sh -c */
     where_args = malloc(maxargs);
     if (!where_args)
-	barf("can't get argument list space");
+	cleanup(0), errx(2, "can't get argument list space");
 
     memset(where_args, 0, maxargs);
     strcpy(where_args, STARTSTRING);
@@ -172,7 +174,7 @@ copy_plist(char *home, Package *plist)
 		    last_chdir = home;
 		}
 		if (add_count > maxargs - where_count)
-		    barf("oops, miscounted strings!");
+		    cleanup(0), errx(2, "oops, miscounted strings!");
 		where_count += add_count;
 	    }
 	    /*
@@ -206,7 +208,7 @@ copy_plist(char *home, Package *plist)
 					 mythere ? mythere : where,
 					 p->name);
 		if (add_count > maxargs - where_count)
-		    barf("oops, miscounted strings!");
+		    cleanup(0), errx(2, "oops, miscounted strings!");
 		where_count += add_count;
 		last_chdir = (mythere ? mythere : where);
 	    }
