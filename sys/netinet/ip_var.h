@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.34 1997/09/07 05:26:46 bde Exp $
+ *	$Id: ip_var.h,v 1.35 1998/05/19 14:04:36 dg Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -151,7 +151,6 @@ struct	ipstat {
 	u_long	ips_notmember;		/* multicasts for unregistered grps */
 };
 
-#define	IPFLOW_HASHBITS		6	/* should not be a multiple of 8 */
 struct ipflow {
 	LIST_ENTRY(ipflow) ipf_next;	/* next ipflow in bucket */
 	struct in_addr ipf_dst;		/* destination address */
