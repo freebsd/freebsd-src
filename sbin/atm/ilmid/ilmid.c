@@ -626,7 +626,7 @@ asn_set_int (u_char **bufp, int val)
 		u_char	c[4];
 	} u;
 	int	len = sizeof(int);
-	int	i = 0;
+	size_t	i = 0;
 	u_char	*bp = *bufp;
 
 	/* Check for special case where val == 0 */
@@ -1145,7 +1145,7 @@ oid_ncmp (Objid *oid1, Objid *oid2, int len)
 static int
 find_var (Variable *var)
 {
-	int	i;
+	size_t	i;
 
 	for ( i = 0; i < NUM_OIDS; i++ )
 		if ( oid_cmp ( &var->oid, &Objids[i] ) == 0 ) {
@@ -2215,7 +2215,7 @@ lmi_object_find (Variable *var)
 {
 	Objid *	obj_var;
 	Objid *	obj_cur;
-	int	x;
+	size_t	x;
 	int	y;
 
 	obj_var = &var->oid;
