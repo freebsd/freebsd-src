@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.4 1995/03/19 13:28:34 joerg Exp $
+ *	$Id: main.c,v 1.5 1995/05/30 00:06:47 rgrimes Exp $
  */
 
 #ifndef lint
@@ -59,6 +59,7 @@ static char *rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
 #include <ctype.h>
 #include <setjmp.h>
 #include <pwd.h>
+#include <locale.h>
 
 #include "ed.h"
 
@@ -111,6 +112,8 @@ main(argc, argv)
 {
 	int c, n;
 	long status = 0;
+
+	(void)setlocale(LC_ALL, "");
 
 	red = (n = strlen(argv[0])) > 2 && argv[0][n - 3] == 'r';
 top:
@@ -280,7 +283,7 @@ extract_addr_range()
 }
 
 
-#define	SKIP_BLANKS() while (isspace(*ibufp) && *ibufp != '\n') ibufp++
+#define SKIP_BLANKS() while (isspace((unsigned char)*ibufp) && *ibufp != '\n') ibufp++
 
 #define MUST_BE_FIRST() \
 	if (!first) { sprintf(errmsg, "invalid address"); return ERR; }
@@ -305,10 +308,10 @@ next_addr()
 		case '^':
 			ibufp++;
 			SKIP_BLANKS();
-			if (isdigit(*ibufp)) {
+			if (isdigit((unsigned char)*ibufp)) {
 				STRTOL(n, ibufp);
 				addr += (c == '-' || c == '^') ? -n : n;
-			} else if (!isspace(c))
+			} else if (!isspace((unsigned char)c))
 				addr += (c == '-' || c == '^') ? -1 : 1;
 			break;
 		case '0': case '1': case '2':
@@ -490,7 +493,7 @@ exec_command()
 		if (addr_cnt > 0) {
 			sprintf(errmsg, "unexpected address");
 			return ERR;
-		} else if (!isspace(*ibufp)) {
+		} else if (!isspace((unsigned char)*ibufp)) {
 			sprintf(errmsg, "unexpected command suffix");
 			return ERR;
 		} else if ((fnp = get_filename()) == NULL)
@@ -520,7 +523,7 @@ exec_command()
 		if (addr_cnt > 0) {
 			sprintf(errmsg, "unexpected address");
 			return ERR;
-		} else if (!isspace(*ibufp)) {
+		} else if (!isspace((unsigned char)*ibufp)) {
 			sprintf(errmsg, "unexpected command suffix");
 			return ERR;
 		} else if ((fnp = get_filename()) == NULL)
@@ -651,7 +654,7 @@ exec_command()
 		gflag =  (modified && !scripted && c == 'q') ? EMOD : EOF;
 		break;
 	case 'r':
-		if (!isspace(*ibufp)) {
+		if (!isspace((unsigned char)*ibufp)) {
 			sprintf(errmsg, "unexpected command suffix");
 			return ERR;
 		} else if (addr_cnt == 0)
@@ -784,7 +787,7 @@ exec_command()
 			gflag = EOF;
 			ibufp++;
 		}
-		if (!isspace(*ibufp)) {
+		if (!isspace((unsigned char)*ibufp)) {
 			sprintf(errmsg, "unexpected command suffix");
 			return ERR;
 		} else if ((fnp = get_filename()) == NULL)
@@ -1260,7 +1263,7 @@ mark_line_node(lp, n)
 	line_t *lp;
 	int n;
 {
-	if (!islower(n)) {
+	if (!islower((unsigned char)n)) {
 		sprintf(errmsg, "invalid mark character");
 		return ERR;
 	} else if (mark[n - 'a'] == NULL)
@@ -1275,7 +1278,7 @@ long
 get_marked_node_addr(n)
 	int n;
 {
-	if (!islower(n)) {
+	if (!islower((unsigned char)n)) {
 		sprintf(errmsg, "invalid mark character");
 		return ERR;
 	}
