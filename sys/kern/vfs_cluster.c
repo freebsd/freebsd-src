@@ -65,6 +65,7 @@ static struct cluster_save *
 static struct buf *
 	cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 			 daddr_t blkno, long size, int run, struct buf *fbp);
+static void cluster_callback(struct buf *);
 
 static int write_behind = 1;
 SYSCTL_INT(_vfs, OID_AUTO, write_behind, CTLFLAG_RW, &write_behind, 0,
@@ -510,7 +511,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
  * extra memory (if there were no empty buffer headers at allocbuf time)
  * that we will need to shift around.
  */
-void
+static void
 cluster_callback(bp)
 	struct buf *bp;
 {
