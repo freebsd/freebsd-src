@@ -96,6 +96,7 @@ sh "mkdir $ddir"
 set f [open $ddir/Makefile.inc w]
 puts $f "#\n# \$FreeBSD\$\n#\n"
 puts $f "CFLAGS+=\t-I\${.CURDIR} -I\${.CURDIR}/../include"
+puts $f "CFLAGS+=\t-Dbsd4_4"
 puts $f "CFLAGS+=\t-DGCC_INCLUDE_DIR=\\\"FOO\\\""
 puts $f "CFLAGS+=\t-DDEFAULT_TARGET_VERSION=\\\"$version\\\""
 puts $f "CFLAGS+=\t-DDEFAULT_TARGET_MACHINE=\\\"$target\\\""
