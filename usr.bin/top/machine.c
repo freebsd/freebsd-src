@@ -49,7 +49,6 @@
 
 /* Swap */
 #include <stdlib.h>
-#include <sys/conf.h>
 
 #include <unistd.h>
 #include <osreldate.h> /* for changes in kernel structures */
