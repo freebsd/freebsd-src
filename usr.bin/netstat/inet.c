@@ -333,10 +333,13 @@ ip_stats(off, name)
 	p(ips_noproto, "\t%lu packet%s for unknown/unsupported protocol\n");
 	p(ips_forward, "\t%lu packet%s forwarded\n");
 	p(ips_cantforward, "\t%lu packet%s not forwardable\n");
+	p(ips_notmember,
+	  "\t%lu packet%s received for unknown multicast group\n");
 	p(ips_redirectsent, "\t%lu redirect%s sent\n");
 	p(ips_localout, "\t%lu packet%s sent from this host\n");
 	p(ips_rawout, "\t%lu packet%s sent with fabricated ip header\n");
-	p(ips_odropped, "\t%lu output packet%s dropped due to no bufs, etc.\n");
+	p(ips_odropped,
+	  "\t%lu output packet%s dropped due to no bufs, etc.\n");
 	p(ips_noroute, "\t%lu output packet%s discarded due to no route\n");
 	p(ips_fragmented, "\t%lu output datagram%s fragmented\n");
 	p(ips_ofragments, "\t%lu fragment%s created\n");
