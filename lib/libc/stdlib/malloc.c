@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.43 1998/09/30 06:13:59 jb Exp $
+ * $Id: malloc.c,v 1.43.2.1 1999/05/09 18:41:49 alc Exp $
  *
  */
 
@@ -1081,6 +1081,8 @@ malloc(size_t size)
     THREAD_UNLOCK();
     if (malloc_xmalloc && !r)
 	wrterror("out of memory.\n");
+    if (!r)
+	errno = ENOMEM;
     return (r);
 }
 
@@ -1133,6 +1135,8 @@ realloc(void *ptr, size_t size)
     THREAD_UNLOCK();
     if (malloc_xmalloc && !r)
 	wrterror("out of memory.\n");
+    if (!r)
+	errno = ENOMEM;
     return (r);
 }
 
