@@ -162,13 +162,13 @@ g_stripe_remove_disk(struct g_consumer *cp)
 	no = cp->index;
 
 	G_STRIPE_DEBUG(0, "Disk %s removed from %s.", cp->provider->name,
-	    sc->sc_geom->name);
+	    sc->sc_name);
 
 	sc->sc_disks[no] = NULL;
 	if (sc->sc_provider != NULL) {
 		g_orphan_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
-		G_STRIPE_DEBUG(0, "Device %s removed.", sc->sc_geom->name);
+		G_STRIPE_DEBUG(0, "Device %s removed.", sc->sc_name);
 	}
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
@@ -607,7 +607,8 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	if (g_stripe_nvalid(sc) != sc->sc_ndisks)
 		return;
 
-	sc->sc_provider = g_new_providerf(sc->sc_geom, "%s", sc->sc_geom->name);
+	sc->sc_provider = g_new_providerf(sc->sc_geom, "stripe/%s",
+	    sc->sc_name);
 	/*
 	 * Find the smallest disk.
 	 */
@@ -630,7 +631,7 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	sc->sc_provider->mediasize = mediasize * sc->sc_ndisks;
 	g_error_provider(sc->sc_provider, 0);
 
-	G_STRIPE_DEBUG(0, "Device %s activated.", sc->sc_geom->name);
+	G_STRIPE_DEBUG(0, "Device %s activated.", sc->sc_name);
 }
 
 static int
@@ -717,7 +718,7 @@ g_stripe_add_disk(struct g_stripe_softc *sc, struct g_provider *pp, u_int no)
 	cp->index = no;
 	sc->sc_disks[no] = cp;
 
-	G_STRIPE_DEBUG(0, "Disk %s attached to %s.", pp->name, gp->name);
+	G_STRIPE_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_name);
 
 	g_stripe_check_and_run(sc);
 
@@ -738,27 +739,24 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 	struct g_geom *gp;
 	u_int no;
 
-	G_STRIPE_DEBUG(1, "Creating device %s.stripe (id=%u).", md->md_name,
+	G_STRIPE_DEBUG(1, "Creating device %s (id=%u).", md->md_name,
 	    md->md_id);
 
 	/* Two disks is minimum. */
-	if (md->md_all <= 1) {
-		G_STRIPE_DEBUG(0, "Too few disks defined for %s.stripe.",
-		    md->md_name);
+	if (md->md_all < 2) {
+		G_STRIPE_DEBUG(0, "Too few disks defined for %s.", md->md_name);
 		return (NULL);
 	}
 #if 0
 	/* Stripe size have to be grater than or equal to sector size. */
 	if (md->md_stripesize < sectorsize) {
-		G_STRIPE_DEBUG(0, "Invalid stripe size for %s.stripe.",
-		    md->md_name);
+		G_STRIPE_DEBUG(0, "Invalid stripe size for %s.", md->md_name);
 		return (NULL);
 	}
 #endif
 	/* Stripe size have to be power of 2. */
 	if (!powerof2(md->md_stripesize)) {
-		G_STRIPE_DEBUG(0, "Invalid stripe size for %s.stripe.",
-		    md->md_name);
+		G_STRIPE_DEBUG(0, "Invalid stripe size for %s.", md->md_name);
 		return (NULL);
 	}
 
@@ -767,11 +765,11 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 		sc = gp->softc;
 		if (sc != NULL && strcmp(sc->sc_name, md->md_name) == 0) {
 			G_STRIPE_DEBUG(0, "Device %s already configured.",
-			    gp->name);
+			    sc->sc_name);
 			return (NULL);
 		}
 	}
-	gp = g_new_geomf(mp, "%s.stripe", md->md_name);
+	gp = g_new_geomf(mp, "%s", md->md_name);
 	gp->softc = NULL;	/* for a moment */
 
 	sc = malloc(sizeof(*sc), M_STRIPE, M_WAITOK | M_ZERO);
@@ -781,7 +779,6 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 	gp->access = g_stripe_access;
 	gp->dumpconf = g_stripe_dumpconf;
 
-	strlcpy(sc->sc_name, md->md_name, sizeof(sc->sc_name));
 	sc->sc_id = md->md_id;
 	sc->sc_stripesize = md->md_stripesize;
 	sc->sc_stripebits = BITCOUNT(sc->sc_stripesize - 1);
@@ -796,7 +793,7 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 	sc->sc_geom = gp;
 	sc->sc_provider = NULL;
 
-	G_STRIPE_DEBUG(0, "Device %s created (id=%u).", gp->name, sc->sc_id);
+	G_STRIPE_DEBUG(0, "Device %s created (id=%u).", sc->sc_name, sc->sc_id);
 
 	return (gp);
 }
@@ -920,7 +917,7 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	} else {
 		gp = g_stripe_create(mp, &md, G_STRIPE_TYPE_AUTOMATIC);
 		if (gp == NULL) {
-			G_STRIPE_DEBUG(0, "Cannot create device %s.stripe.",
+			G_STRIPE_DEBUG(0, "Cannot create device %s.",
 			    md.md_name);
 			return (NULL);
 		}
@@ -1002,7 +999,7 @@ g_stripe_ctl_create(struct gctl_req *req, struct g_class *mp)
 
 	gp = g_stripe_create(mp, &md, G_STRIPE_TYPE_MANUAL);
 	if (gp == NULL) {
-		gctl_error(req, "Can't configure %s.stripe.", md.md_name);
+		gctl_error(req, "Can't configure %s.", md.md_name);
 		return;
 	}
 
@@ -1042,10 +1039,8 @@ g_stripe_find_device(struct g_class *mp, const char *name)
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
-		if (strcmp(gp->name, name) == 0 ||
-		    strcmp(sc->sc_name, name) == 0) {
+		if (strcmp(sc->sc_name, name) == 0)
 			return (sc);
-		}
 	}
 	return (NULL);
 }
@@ -1091,7 +1086,7 @@ g_stripe_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		error = g_stripe_destroy(sc, *force);
 		if (error != 0) {
 			gctl_error(req, "Cannot destroy device %s (error=%d).",
-			    sc->sc_geom->name, error);
+			    sc->sc_name, error);
 			return;
 		}
 	}

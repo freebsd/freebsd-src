@@ -189,8 +189,8 @@ The following example shows how to set up striped device from four disks
 for automatic configuration, create a file system on it, and mount it:
 .Bd -literal -offset indent
 gstripe label -v -s 4096 data /dev/da0 /dev/da1 /dev/da2 /dev/da3
-newfs /dev/data.stripe
-mount /dev/data.stripe /mnt
+newfs /dev/stripe/data
+mount /dev/stripe/data /mnt
 [...]
 umount /mnt
 gstripe stop data

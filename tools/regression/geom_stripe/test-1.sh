@@ -13,7 +13,7 @@ gstripe create -s 16384 $name /dev/md${us} /dev/md`expr $us + 1` /dev/md`expr $u
 
 # Size of created device should be 1MB * 3.
 
-size=`diskinfo /dev/${name}.stripe | awk '{print $3}'`
+size=`diskinfo /dev/stripe/${name} | awk '{print $3}'`
 
 if [ $size -eq 3145728 ]; then
 	echo "PASS"
