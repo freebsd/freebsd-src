@@ -826,7 +826,7 @@ enroll(const char *description, struct lock_class *lock_class)
 {
 	struct witness *w;
 
-	if (!witness_watch)
+	if (!witness_watch || witness_dead)
 		return (NULL);
 
 	if ((lock_class->lc_flags & LC_SPINLOCK) && witness_skipspin)
@@ -1097,6 +1097,10 @@ witness_get(void)
 {
 	struct witness *w;
 
+	if (witness_dead) {
+		mtx_unlock_spin(&w_mtx);
+		return (NULL);
+	}
 	if (STAILQ_EMPTY(&w_free)) {
 		witness_dead = 1;
 		mtx_unlock_spin(&w_mtx);
@@ -1121,6 +1125,10 @@ witness_child_get(void)
 {
 	struct witness_child_list_entry *wcl;
 
+	if (witness_dead) {
+		mtx_unlock_spin(&w_mtx);
+		return (NULL);
+	}
 	wcl = w_child_free;
 	if (wcl == NULL) {
 		witness_dead = 1;
@@ -1146,6 +1154,8 @@ witness_lock_list_get(void)
 {
 	struct lock_list_entry *lle;
 
+	if (witness_dead)
+		return (NULL);
 	mtx_lock_spin(&w_mtx);
 	lle = w_lock_list_free;
 	if (lle == NULL) {
@@ -1222,6 +1232,9 @@ witness_list(struct proc *p)
 	    ("%s: p != curproc and we aren't in the debugger", __func__));
 	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 
+	if (!db_active && witness_dead)
+		return (0);
+
 	nheld = witness_list_locks(&p->p_sleeplocks);
 
 	/*
@@ -1250,7 +1263,7 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	struct lock_instance *instance;
 
 	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
-	if (lock->lo_witness == NULL)
+	if (lock->lo_witness == NULL || witness_dead)
 		return;
 
 	KASSERT(lock->lo_class->lc_flags & LC_SLEEPLOCK,
@@ -1270,7 +1283,7 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	struct lock_instance *instance;
 
 	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
-	if (lock->lo_witness == NULL)
+	if (lock->lo_witness == NULL || witness_dead)
 		return;
 
 	KASSERT(lock->lo_class->lc_flags & LC_SLEEPLOCK,
