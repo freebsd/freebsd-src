@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.71 1998/06/07 17:13:04 dfr Exp $
+ * $Id: systm.h,v 1.72 1998/06/09 12:52:35 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -96,21 +96,21 @@ int	ureadc __P((int, struct uio *));
 void	*hashinit __P((int count, struct malloc_type *type, u_long *hashmask));
 void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
 
-void	panic __P((const char *, ...)) __dead2;
+void	panic __P((const char *, ...)) __dead2 __printflike(1, 2);
 void	cpu_boot __P((int));
 void	cpu_rootconf __P((void));
 void	cpu_dumpconf __P((void));
 void	tablefull __P((const char *));
-int	addlog __P((const char *, ...));
+int	addlog __P((const char *, ...)) __printflike(1, 2);
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
-		      _BSD_VA_LIST_));
-void	log __P((int, const char *, ...));
+		      _BSD_VA_LIST_)) __printflike(1, 0);
+void	log __P((int, const char *, ...)) __printflike(2, 3);
 void	logwakeup __P((void));
-int	printf __P((const char *, ...));
-int	sprintf __P((char *buf, const char *, ...));
-void	uprintf __P((const char *, ...));
-void	vprintf __P((const char *, _BSD_VA_LIST_));
-void	ttyprintf __P((struct tty *, const char *, ...));
+int	printf __P((const char *, ...)) __printflike(1, 2);
+int	sprintf __P((char *buf, const char *, ...)) __printflike(2, 3);
+void	uprintf __P((const char *, ...)) __printflike(1, 2);
+void	vprintf __P((const char *, _BSD_VA_LIST_)) __printflike(1, 0);
+void	ttyprintf __P((struct tty *, const char *, ...)) __printflike(2, 3);
 
 void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));

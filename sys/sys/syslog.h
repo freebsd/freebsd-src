@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id: syslog.h,v 1.14 1997/10/06 18:20:23 joerg Exp $
+ * $Id: syslog.h,v 1.15 1997/10/06 20:37:01 joerg Exp $
  */
 
 #ifndef _SYS_SYSLOG_H_
@@ -192,8 +192,8 @@ __BEGIN_DECLS
 void	closelog __P((void));
 void	openlog __P((const char *, int, int));
 int	setlogmask __P((int));
-void	syslog __P((int, const char *, ...));
-void	vsyslog __P((int, const char *, _BSD_VA_LIST_));
+void	syslog __P((int, const char *, ...)) __printflike(2, 3);
+void	vsyslog __P((int, const char *, _BSD_VA_LIST_)) __printflike(2, 0);
 __END_DECLS
 
 #endif /* !KERNEL */

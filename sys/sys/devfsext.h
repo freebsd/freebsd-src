@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsext.h,v 1.19 1998/04/20 04:55:17 julian Exp $
+ * $Id: devfsext.h,v 1.20 1998/04/28 00:10:52 julian Exp $
  */
 
 #ifndef _SYS_DEVFSEXT_H_
@@ -35,14 +35,15 @@
  * and the initial default perms/ownerships.
  */
 void	*devfs_add_devswf __P((void *devsw, int minor, int chrblk, uid_t uid,
-			       gid_t gid, int perms, char *fmt, ...)); 
+			       gid_t gid, int perms, char *fmt, ...))
+			       __printflike(7, 8);
 /*
  * Make a link to a device you already made, and have the cookie for 
  * We get another cookie, but for now, it can be discarded, as
  * at the moment there is nothing you can do with it that you couldn't do
  * with the original cookie. ( XXX this might be something I should change )
  */
-void	*devfs_link __P((void *original, char *fmt, ...));
+void	*devfs_link __P((void *original, char *fmt, ...)) __printflike(2, 3);
 
 /*
  * Remove all instances of a device you have made. INCLUDING LINKS.
