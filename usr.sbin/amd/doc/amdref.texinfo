@@ -37,7 +37,7 @@
 @c
 @c	@(#)amdref.texinfo	8.1 (Berkeley) 6/6/93
 @c
-@c $Id: amdref.texinfo,v 5.2.2.1 1992/02/09 15:11:50 jsp beta $
+@c $Id: amdref.texinfo,v 1.1.1.1 1994/05/26 05:22:11 rgrimes Exp $
 @c
 @setfilename amdref.info
 @c @setfilename /usr/local/emacs/info/amd
@@ -1902,6 +1902,7 @@ effect visible to the user.@refill
 * Unix Filesystem::		Native disk filesystem.
 * Program Filesystem::		Generic Program mounts.
 * Symbolic Link Filesystem::	Local link referencing existing filesystem.
+* Symbolic Link Filesystem II::	More on referencing existing filesystems.
 * Automount Filesystem::
 * Direct Automount Filesystem::
 * Union Filesystem::
@@ -2221,7 +2222,7 @@ jsp   host==charm;type:=link;fs:=/home/charm;sublink:=jsp
 @end example
 which would return a symbolic link pointing to @file{/home/charm/jsp}.
 
-@node     Symbolic Link Filesystem II, Automount Filesystem, Program Filesystem, Filesystem Types
+@node     Symbolic Link Filesystem II, Automount Filesystem, Symbolic Link Filesystem, Filesystem Types,
 @comment  node-name,  next,  previous,  up
 @section Symbolic Link Filesystem II (@samp{type:=link})
 @cindex Symbolic link filesystem II
@@ -2877,7 +2878,7 @@ off.  The ``-D'' option has a similar behaviour.
 * FSinfo filesystems::              Defining locally attached filesystems.
 * FSinfo static mounts::            Defining additional static mounts.
 * FSinfo automount definitions::
-* FSinfo command line options::
+* FSinfo Command Line Options::
 * FSinfo errors::
 @end menu
 
@@ -3000,7 +3001,7 @@ fsinfo_attr : host | automount ;
 * FSinfo automount definitions::
 @end menu
 
-@node FSinfo host definitions, FSinfo host attributes, FSinfo grammar, FSinfo
+@node FSinfo host definitions, FSinfo host attributes, FSinfo Grammar, FSinfo
 @comment  node-name,  next,  previous,  up
 @section @i{FSinfo} host definitions
 @cindex FSinfo host definitions
@@ -3805,7 +3806,7 @@ It specifies directories in which to find include files
 Removes any initial definition of the symbol @dfn{name}.  Inverse of the
 @code{-D} option.
 
-@node FSinfo errors, , FSinfo command line options, FSinfo
+@node FSinfo errors, , FSinfo Command Line Options, FSinfo
 @comment  node-name,  next,  previous,  up
 @section Errors produced by @i{FSinfo}
 @cindex FSinfo error messages
@@ -3990,7 +3991,7 @@ than zero.  Swap devices should not be dumped.@refill
 * User Filesystems::
 * Home Directories::
 * Architecture Sharing::
-* Wildcard names::
+* Wildcard Names::
 * rwho servers::
 * /vol::
 @end menu
@@ -4544,7 +4545,7 @@ Microsystems, Inc.
 in the USA and other countries.
 @end itemize
 
-@node Index, Intro, Acknowledgements & Trademarks, Top
+@node Index, , Acknowledgements & Trademarks, Top
 @comment  node-name,  next,  previous,  up
 @unnumbered Index
 

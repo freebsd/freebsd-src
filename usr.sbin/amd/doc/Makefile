@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 5.2 90/06/23 22:21:25 jsp Rel $
+# $Id: Makefile,v 1.1.1.1 1994/05/26 05:22:14 rgrimes Exp $
 #
 # Copyright (c) 1990 Jan-Simon Pendry
 # Copyright (c) 1990 Imperial College of Science, Technology & Medicine
@@ -40,14 +40,15 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 #
 
-PROG = amdref
+INFO = amdref
 SRCS = amdref.texinfo
 
-${PROG}: amdref.dvi
+# Use the following instead if you have TeX installed on your system.
+#${PROG}: amdref.dvi amdref.info
+
+CLEANFILES+=	*.info* *.aux *.cp *.dvi *.fn *.ky *.log *.pg *.toc *.tp *.vr
 
 amdref.dvi: ${SRCS}
 	-tex amdref; tex amdref
 
-clean:
-	-rm -f amdref.aux amdref.cp amdref.dvi amdref.fn amdref.ky \
-		amdref.log amdref.pg amdref.toc amdref.tp amdref.vr
+.include <bsd.info.mk>
