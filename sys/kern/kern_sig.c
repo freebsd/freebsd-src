@@ -1084,9 +1084,9 @@ kill(td, uap)
 		/* kill single process */
 		if ((p = pfind(uap->pid)) == NULL) {
 			error = ESRCH;
-		} else if (p_cansignal(td->td_proc, p, uap->signum)) {
+		} else if ((error = p_cansignal(td->td_proc, p, uap->signum))
+		    != 0) {
 			PROC_UNLOCK(p);
-			error = EPERM;
 		} else {
 			if (uap->signum)
 				psignal(p, uap->signum);
