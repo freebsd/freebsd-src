@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" Copyright (c) 2005 Bruce M Simpson <bms@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2003
+.Dd Jan 22, 2005
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -193,6 +193,11 @@ of a PCI device, given its
 .Fa slot ,
 and
 .Fa func .
+The
+.Fa slot
+number actually refers to the number of the device on the bus,
+which does not necessarily indicate its geographic location
+in terms of a physical slot.
 .Pp
 The
 .Fn pci_find_device
@@ -237,7 +242,10 @@ space on the target architecture.
 .Re
 .Sh AUTHORS
 This man page was written by
-.An Bruce M Simpson Aq bms@spc.org .
+.An Bruce M Simpson Aq bms@FreeBSD.org .
 .Sh BUGS
-This manual page does not yet document PAE and how it affects memory-space
-mapping of PCI devices.
+The kernel PCI code has a number of references to 'slot numbers'.
+These do not refer to the geographic location of PCI devices,
+but to the device number assigned by the combination of the PCI IDSEL
+mechanism and the platform firmware.
+This should be taken note of when working with the kernel PCI code.
