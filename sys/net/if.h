@@ -265,8 +265,6 @@ __END_DECLS
 #ifdef _KERNEL
 struct proc;
 
-int	prison_if __P((struct proc *p, struct sockaddr *sa));
-
 /* XXX - this should go away soon. */
 #include <net/if_var.h>
 #endif

@@ -167,7 +167,7 @@ typedef struct cap	*cap_t;
 struct proc;
 struct ucred;
 struct vnode;
-int	cap_check(const struct ucred *, const struct proc *, cap_value_t, int);
+int	cap_check(struct ucred *, struct proc *, cap_value_t, int);
 int	cap_change_on_inherit(struct cap *cap_p);
 int	cap_inherit(struct vnode *vp, struct proc *p);
 void	cap_init_proc0(struct cap *);

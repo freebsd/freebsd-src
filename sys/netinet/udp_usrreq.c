@@ -49,6 +49,7 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/jail.h>
 
 #include <vm/vm_zone.h>
 
@@ -675,7 +676,8 @@ udp_output(inp, m, addr, control, p)
 
 	if (addr) {
 		sin = (struct sockaddr_in *)addr;
-		prison_remote_ip(p, 0, &sin->sin_addr.s_addr);
+		if (p && jailed(p->p_ucred))
+			prison_remote_ip(p->p_ucred, 0, &sin->sin_addr.s_addr);
 		laddr = inp->inp_laddr;
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			error = EISCONN;
@@ -848,7 +850,8 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 		return EISCONN;
 	s = splnet();
 	sin = (struct sockaddr_in *)nam;
-	prison_remote_ip(p, 0, &sin->sin_addr.s_addr);
+	if (p && jailed(p->p_ucred))
+		prison_remote_ip(p->p_ucred, 0, &sin->sin_addr.s_addr);
 	error = in_pcbconnect(inp, nam, p);
 	splx(s);
 	if (error == 0)

@@ -32,8 +32,11 @@ MALLOC_DECLARE(M_PRISON);
 
 /*
  * This structure describes a prison.  It is pointed to by all struct
- * proc's of the inmates.  pr_ref keeps track of them and is used to
+ * ucreds's of the inmates.  pr_ref keeps track of them and is used to
  * delete the struture when the last inmate is dead.
+ *
+ * XXX: Note: this structure needs a mutex to protect the reference count
+ * and other mutable fields (pr_host, pr_linux).
  */
 
 struct prison {
@@ -49,6 +52,19 @@ struct prison {
 extern int	jail_set_hostname_allowed;
 extern int	jail_socket_unixiproute_only;
 extern int	jail_sysvipc_allowed;
+
+/*
+ * Kernel support functions for jail().
+ */
+struct ucred;
+struct sockaddr;
+int jailed __P((struct ucred *cred));
+int prison_check __P((struct ucred *cred1, struct ucred *cred2));
+void prison_free __P((struct prison *pr));
+void prison_hold __P((struct prison *pr));
+int prison_if __P((struct ucred *cred, struct sockaddr *sa));
+int prison_ip __P((struct ucred *cred, int flag, u_int32_t *ip));
+void prison_remote_ip __P((struct ucred *cred, int flags, u_int32_t *ip));
 
 #endif /* !_KERNEL */
 #endif /* !_SYS_JAIL_H_ */

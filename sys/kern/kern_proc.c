@@ -49,6 +49,7 @@
 #include <vm/vm_map.h>
 #include <sys/user.h>
 #include <vm/vm_zone.h>
+#include <sys/jail.h>
 
 static MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -478,6 +479,9 @@ fill_kinfo_proc(p, kp)
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;
 	kp->ki_flag = p->p_flag;
+	/* If jailed(p->p_ucred), emulate the old P_JAILED flag. */
+	if (jailed(p->p_ucred))
+		kp->ki_flag |= P_JAILED;
 	kp->ki_lock = p->p_lock;
 	PROC_UNLOCK(p);
 	PROCTREE_LOCK(PT_SHARED);

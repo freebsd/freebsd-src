@@ -50,6 +50,7 @@
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <sys/jail.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -1080,7 +1081,8 @@ ifconf(cmd, data)
 		for ( ; space > sizeof (ifr) && ifa;
 		    ifa = TAILQ_NEXT(ifa, ifa_link)) {
 			register struct sockaddr *sa = ifa->ifa_addr;
-			if (curproc->p_prison && prison_if(curproc, sa))
+			if (jailed(curproc->p_ucred) &&
+			    prison_if(curproc->p_ucred, sa))
 				continue;
 			addrs++;
 #ifdef COMPAT_43

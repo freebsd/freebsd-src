@@ -146,12 +146,12 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
-	if (req->p->p_prison) {
+	if (jailed(req->p->p_ucred)) {
 		if (!jail_set_hostname_allowed && req->newptr)
 			return(EPERM);
 		error = sysctl_handle_string(oidp, 
-		    req->p->p_prison->pr_host,
-		    sizeof req->p->p_prison->pr_host, req);
+		    req->p->p_ucred->cr_prison->pr_host,
+		    sizeof req->p->p_ucred->cr_prison->pr_host, req);
 	} else
 		error = sysctl_handle_string(oidp, 
 		    hostname, sizeof hostname, req);
