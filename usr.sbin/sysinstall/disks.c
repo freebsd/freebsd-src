@@ -120,7 +120,7 @@ print_chunks(Disk *d, int u)
     for (i = 0; chunk_info[i]; i++)
 	Total += chunk_info[i]->size;
 #ifdef PC98
-    if (d->bios_cyl >= 65536 || d->bios_hd > 16 || d->bios_sect >= 256) {
+    if (d->bios_cyl >= 65536 || d->bios_hd > 256 || d->bios_sect >= 256) {
 #else
     if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
 #endif

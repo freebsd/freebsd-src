@@ -40,7 +40,11 @@ Sanitize_Bios_Geom(struct disk *disk)
 	if (disk->bios_cyl > 1024)
 #endif
 		sane = 0;
+#ifdef PC98
+	if (disk->bios_hd >= 256)
+#else
 	if (disk->bios_hd > 16)
+#endif
 		sane = 0;
 #ifdef PC98
 	if (disk->bios_sect >= 256)
@@ -68,8 +72,8 @@ Sanitize_Bios_Geom(struct disk *disk)
 		return;
 
 	/* Hmm, try harder... */
-#ifdef PC98
 	/* Assume standard SCSI parameter */
+#ifdef PC98
 	disk->bios_sect = 128;
 	disk->bios_hd = 8;
 #else
@@ -77,6 +81,25 @@ Sanitize_Bios_Geom(struct disk *disk)
 #endif
 	disk->bios_cyl = disk->chunks->size /
 		(disk->bios_sect * disk->bios_hd);
+
+#ifdef PC98
+	if (disk->bios_cyl < 65536)
+		return;
+
+	/* Assume UIDE-133/98-A Challenger BIOS 0.9821C parameter */
+	disk->bios_sect = 255;
+	disk->bios_hd = 16;
+	disk->bios_cyl = disk->chunks->size /
+		(disk->bios_sect * disk->bios_hd);
+
+	if (disk->bios_cyl < 65536)
+		return;
+
+	/* BIG-na-Drive? */
+	disk->bios_hd = 255;
+	disk->bios_cyl = disk->chunks->size /
+		(disk->bios_sect * disk->bios_hd);
+#endif
 }
 
 void
