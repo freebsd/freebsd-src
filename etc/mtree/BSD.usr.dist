@@ -319,6 +319,8 @@
                     ..
                 ..
             ..
+            libdialog
+	    ..
             libvgl
             ..
             lkm
