@@ -71,6 +71,9 @@
 #include <netinet6/in6_ifattach.h>
 #endif
 #endif
+#ifdef INET
+#include <netinet/if_ether.h>
+#endif
 
 static int	ifconf(u_long, caddr_t);
 static void	if_grow(void);
@@ -1827,7 +1830,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr != NULL &&
 			    ifa->ifa_addr->sa_family == AF_INET)
-				arp_ifinit((struct arpcom *)ifp, ifa);
+				arp_ifinit(ifp, ifa);
 		}
 #endif
 	}
