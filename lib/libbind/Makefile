@@ -2,9 +2,6 @@
 
 BIND_DIR=${.CURDIR}/../../contrib/bind
 
-# contrib/bind/include/* must not override any real system includes
-CFLAGS+= -I${BIND_DIR}/port/freebsd/include -I${BIND_DIR}/include
-
 LIB=	bind
 WANT_IRS=	for now
 
@@ -86,3 +83,6 @@ NOPIC=			true
 INTERNALSTATICLIB=	true
 
 .include <bsd.lib.mk>
+
+# XXX contrib/bind/include/* must not override any real system includes
+CFLAGS:= -I${BIND_DIR}/port/freebsd/include -I${BIND_DIR}/include ${CFLAGS}
