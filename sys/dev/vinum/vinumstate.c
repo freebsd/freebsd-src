@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.13 1999/10/12 04:38:48 grog Exp grog $
+ * $Id: vinumstate.c,v 2.15 2000/01/04 04:39:25 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -199,10 +199,10 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 	    case sd_obsolete:
 		/*
 
-		 *  1.  If the subdisk is not part of a
-		 *      plex, bring it up, don't revive.
+		 * 1.  If the subdisk is not part of a
+		 *     plex, bring it up, don't revive.
 		 *
-		 *  2.  If the subdisk is part of a
+		 * 2.  If the subdisk is part of a
 		 *     one-plex volume or an unattached
 		 *     plex, and it's not RAID-5, we
 		 *     *can't revive*.  The subdisk
@@ -326,7 +326,7 @@ set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
 	/*
 	 * We can't bring the plex up, even by force,
 	 * unless it's ready.  update_plex_state
-	 * checks that
+	 * checks that.
 	 */
     case plex_up:					    /* bring the plex up */
 	update_plex_state(plex->plexno);		    /* it'll come up if it can */
@@ -493,7 +493,7 @@ update_plex_state(int plexno)
 
     if (statemap & sd_initstate)			    /* something initializing? */
 	plex->state = plex_initializing;		    /* yup, that makes the plex the same */
-    if ((statemap == sd_emptystate)			    /* all subdisks empty */
+    else if ((statemap == sd_emptystate)		    /* all subdisks empty */
     ||(statemap == sd_initializedstate)) {		    /* or all initialized */
 	if ((vps & volplex_otherup) == 0) {		    /*  no other plex is up */
 	    struct volume *vol = &VOL[plex->volno];	    /* possible volume to which it points */
@@ -536,9 +536,9 @@ update_plex_state(int plexno)
 	    plex->state = plex_faulty;			    /* and bring it up */
 	    /* change the subdisks to up state */
 	    for (sdno = 0; sdno < plex->subdisks; sdno++) {
-		SD[plex->sdnos[sdno]].state = sd_reviving;
+		SD[plex->sdnos[sdno]].state = sd_stale;
 		log(LOG_INFO,				    /* tell them about it */
-		    "vinum: %s is reviving\n",
+		    "vinum: %s must be revived\n",
 		    SD[plex->sdnos[sdno]].name);
 	    }
 	}
@@ -724,7 +724,7 @@ sdstatemap(struct plex *plex)
 	    break;
 
 	case sd_obsolete:
-	    statemap |= sd_obsolete;
+	    statemap |= sd_obsoletestate;
 	    (plex->sddowncount)++;			    /* another unusable subdisk */
 	    break;
 
@@ -856,7 +856,9 @@ start_object(struct vinum_ioctl_msg *data)
 	break;
 
     case sd_object:
-	if (SD[objindex].state == sd_reviving) {	    /* reviving, */
+	if ((SD[objindex].state == sd_reviving)		    /* reviving, */
+	||(SD[objindex].state == sd_stale)) {		    /* or stale, will revive */
+	    SD[objindex].state = sd_reviving;		    /* make sure we're reviving */
 	    if (data->blocksize)
 		SD[objindex].revive_blocksize = data->blocksize;
 	    ioctl_reply->error = revive_block(objindex);    /* revive another block */
