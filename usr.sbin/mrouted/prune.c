@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: prune.c,v 3.6 1995/06/25 19:18:43 fenner Exp $
+ * $Id: prune.c,v 1.8 1995/06/28 17:58:42 wollman Exp $
  */
 
 
@@ -2201,7 +2201,7 @@ accept_mtrace(src, dst, group, data, no, datalen)
     bzero(resp, sizeof(struct tr_resp));
     datalen += RLEN;
 
-    resp->tr_qarr    = ((tp.tv_sec + JAN_1970) << 16) + 
+    resp->tr_qarr    = htonl((tp.tv_sec + JAN_1970) << 16) + 
 				((tp.tv_usec >> 4) & 0xffff);
 
     resp->tr_rproto  = PROTO_DVMRP;
@@ -2219,7 +2219,7 @@ accept_mtrace(src, dst, group, data, no, datalen)
      */
     v_req.vifi = vifi;
     if (ioctl(udp_socket, SIOCGETVIFCNT, (char *)&v_req) >= 0)
-	resp->tr_vifout  =  v_req.ocount;
+	resp->tr_vifout  =  htonl(v_req.ocount);
 
     /*
      * fill in scoping & pruning information
@@ -2236,7 +2236,7 @@ accept_mtrace(src, dst, group, data, no, datalen)
 	sg_req.src.s_addr = qry->tr_src;
 	sg_req.grp.s_addr = group;
 	if (ioctl(udp_socket, SIOCGETSGCNT, (char *)&sg_req) >= 0)
-	    resp->tr_pktcnt = sg_req.pktcnt;
+	    resp->tr_pktcnt = htonl(sg_req.pktcnt);
 
 	if (VIFM_ISSET(vifi, gt->gt_scope))
 	    resp->tr_rflags = TR_SCOPED;
@@ -2267,7 +2267,7 @@ accept_mtrace(src, dst, group, data, no, datalen)
 	/* get # of packets in on interface */
 	v_req.vifi = rt->rt_parent;
 	if (ioctl(udp_socket, SIOCGETVIFCNT, (char *)&v_req) >= 0)
-	    resp->tr_vifin = v_req.icount;
+	    resp->tr_vifin = htonl(v_req.icount);
 
 	MASK_TO_VAL(rt->rt_originmask, resp->tr_smask);
 	src = uvifs[rt->rt_parent].uv_lcl_addr;
