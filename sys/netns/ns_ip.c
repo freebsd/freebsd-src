@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_ip.c	8.1 (Berkeley) 6/10/93
- * $Id: ns_ip.c,v 1.2 1994/08/02 07:51:50 davidg Exp $
+ * $Id: ns_ip.c,v 1.3 1995/03/19 14:29:03 davidg Exp $
  */
 
 /*
@@ -401,7 +401,6 @@ nsip_ctlinput(cmd, sa)
 	int cmd;
 	struct sockaddr *sa;
 {
-	extern u_char inetctlerrmap[];
 	struct sockaddr_in *sin;
 	int in_rtchange();
 

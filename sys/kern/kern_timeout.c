@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.12 1995/03/16 18:12:29 bde Exp $
+ * $Id: kern_clock.c,v 1.13 1995/05/30 08:05:20 rgrimes Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -77,7 +77,6 @@
 
 /* Does anybody else really care about these? */
 struct callout *callfree, *callout, calltodo;
-int ncallout;
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 long cp_time[CPUSTATES];

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.13 1995/03/20 21:30:21 wollman Exp $
+ * $Id: route.h,v 1.14 1995/05/30 08:08:26 rgrimes Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -254,9 +254,9 @@ struct route_cb {
 	else \
 		(rt)->rt_refcnt--;
 
-struct	route_cb route_cb;
-struct	rtstat	rtstat;
-struct	radix_node_head *rt_tables[AF_MAX+1];
+extern struct route_cb route_cb;
+extern struct rtstat rtstat;
+extern struct radix_node_head *rt_tables[AF_MAX+1];
 
 void	 route_init __P((void));
 int	 route_output __P((struct mbuf *, struct socket *));

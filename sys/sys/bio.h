@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.18 1995/04/19 10:31:56 davidg Exp $
+ * $Id: buf.h,v 1.19 1995/05/30 08:14:07 rgrimes Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -172,8 +172,8 @@ struct cluster_save {
  */
 #define BUFFER_QUEUES	6	/* number of free buffer queues */
 
-LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
-TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
+extern LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
+extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 
 #define QUEUE_NONE	0	/* on no queue */
 #define QUEUE_LOCKED	1	/* locked buffers */

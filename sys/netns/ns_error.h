@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_error.h	8.1 (Berkeley) 6/10/93
- * $Id: ns_error.h,v 1.2 1994/08/02 07:51:47 davidg Exp $
+ * $Id: ns_error.h,v 1.3 1994/08/21 06:22:07 paul Exp $
  */
 
 #ifndef _NETNS_NS_ERROR_H_
@@ -90,7 +90,7 @@ struct	ns_errstat {
 };
 
 #ifdef KERNEL
-struct	ns_errstat ns_errstat;
+extern struct	ns_errstat ns_errstat;
 #endif
 
 #endif

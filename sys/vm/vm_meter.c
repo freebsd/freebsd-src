@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.6 1995/01/10 07:32:47 davidg Exp $
+ * $Id: vm_meter.c,v 1.7 1995/07/13 08:48:30 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/sysctl.h>
 
 struct loadavg averunnable;	/* load average, of runnable procs */
+struct vmmeter cnt;
 
 int maxslp = MAXSLP;
 

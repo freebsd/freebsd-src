@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: spp_usrreq.c,v 1.3 1995/03/19 14:29:04 davidg Exp $
+ * $Id: spp_usrreq.c,v 1.4 1995/05/30 08:12:31 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -68,8 +68,9 @@ spp_init()
 }
 struct spidp spp_savesi;
 int traceallspps = 0;
-extern int sppconsdebug;
 int spp_hardnosed;
+struct spp_istat spp_istat;
+u_short spp_iss;
 int spp_use_delack = 0;
 u_short spp_newchecks[50];
 
@@ -1116,7 +1117,6 @@ spp_setpersist(cb)
 	register struct sppcb *cb;
 {
 	register t = ((cb->s_srtt >> 2) + cb->s_rttvar) >> 1;
-	extern int spp_backoff[];
 
 	if (cb->s_timer[SPPT_REXMT] && spp_do_persist_panics)
 		panic("spp_output REXMT");

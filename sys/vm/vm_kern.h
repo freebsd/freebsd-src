@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.h,v 1.4 1994/08/18 22:36:03 wollman Exp $
+ * $Id: vm_kern.h,v 1.5 1995/01/09 16:05:44 davidg Exp $
  */
 
 #ifndef _VM_VM_KERN_H_
@@ -72,9 +72,9 @@ extern vm_map_t buffer_map;
 extern vm_map_t kernel_map;
 extern vm_map_t kmem_map;
 extern vm_map_t mb_map;
+extern int mb_map_full;
 extern vm_map_t io_map;
 extern vm_map_t clean_map;
-extern vm_map_t pager_map;
 extern vm_map_t phys_map;
 extern vm_map_t exec_map;
 extern vm_map_t u_map;

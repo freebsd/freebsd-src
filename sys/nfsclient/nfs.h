@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.9 1995/02/14 06:22:18 phk Exp $
+ * $Id: nfs.h,v 1.10 1995/06/27 11:06:33 dfr Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -304,7 +304,7 @@ struct nfsreq {
 /*
  * Queue head for nfsreq's
  */
-TAILQ_HEAD(, nfsreq) nfs_reqq;
+extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 
 /* Flag values for r_flags */
 #define R_TIMING	0x01		/* timing request (in mntp) */
@@ -398,8 +398,8 @@ struct nfssvc_sock {
 #define	SLP_LASTFRAG	0x20
 #define SLP_ALLFLAGS	0xff
 
-TAILQ_HEAD(, nfssvc_sock) nfssvc_sockhead;
-int nfssvc_sockhead_flag;
+extern TAILQ_HEAD(nfssvc_sockhead, nfssvc_sock) nfssvc_sockhead;
+extern int nfssvc_sockhead_flag;
 #define	SLP_INIT	0x01
 #define	SLP_WANTINIT	0x02
 
@@ -464,8 +464,8 @@ struct nfsrv_descript {
 #define ND_KERBFULL	0x40
 #define ND_KERBAUTH	(ND_KERBNICK | ND_KERBFULL)
 
-TAILQ_HEAD(, nfsd) nfsd_head;
-int nfsd_head_flag;
+extern TAILQ_HEAD(nfsd_head, nfsd) nfsd_head;
+extern int nfsd_head_flag;
 #define	NFSD_CHECKSLP	0x01
 
 /*
