@@ -670,6 +670,9 @@ i386_ioconf()
 		isa_devtab(fp, "net", &dev_id);
 		isa_devtab(fp, "null", &dev_id);
 	}
+	if (seen_scbus) {
+		scbus_devtab(fp, &dev_id);
+	}
 	/* XXX David did this differently!!! */
 	/* pseudo_ioconf(fp); */
 	(void) fclose(fp);
@@ -732,6 +735,149 @@ isa_devtab(fp, table, dev_idp)
 			dp->d_flags);
 	}
 	fprintf(fp, "0\n};\n");
+}
+
+static char *id(int unit)
+{
+	char *s;
+	switch(unit)
+	{
+		case UNKNOWN:
+		s ="SCCONF_UNSPEC";
+		break;
+
+		case QUES:
+		s ="SCCONF_ANY";
+		break;
+
+		default:
+		s = qu(unit);
+	}
+
+	return s;
+}
+
+static void id_put(fp, unit, s)
+	FILE *fp;
+	int unit;
+	char *s;
+{
+	fprintf(fp, "%s%s", id(unit), s);
+}
+
+struct node
+{
+	char *id;
+	struct node *next;
+};
+
+static void
+add_unique(struct node *node, char *id)
+{
+	struct node *prev = node;
+
+	for (prev = node; node; node = node->next)
+	{
+		if (strcmp(node->id, id) == 0)	/* Already there */
+			return;
+
+		prev = node;
+	}
+
+	node = (struct node *)malloc(sizeof(node));
+	prev->next = node;
+
+	node->id = id;
+	node->next = 0;
+}
+
+static  int
+is_old_scsi_device(char *name)
+{
+	static char *tab[] = {"cd", "ch", "sd", "st", "uk"};
+	int i;
+	for (i = 0; i < sizeof(tab) / sizeof(tab[0]); i++)
+		if (eq(tab[i], name))
+			return 1;
+
+	return 0;
+}
+
+/* XXX: dufault@hda.com: wiped out mkioconf.c locally:
+ *      All that nice "conflicting SCSI ID checking" is now
+ *      lost and should be put back in.
+ */
+scbus_devtab(fp, dev_idp)
+	FILE	*fp;
+	int	*dev_idp;
+{
+	register struct device *dp, *mp;
+	struct node unique, *node;
+	unique.id = "unique";
+	unique.next = 0;
+
+	fprintf(fp, "#include \"scsi/scsiconf.h\"\n");
+	fprintf(fp, "\nstruct scsi_ctlr_config scsi_cinit[] = {\n");
+	fprintf(fp, "/* unit  driver  driver unit */\n");
+
+	/* XXX: Why do we always get an entry such as:
+	 * { '?', "ncr", '?' },
+	 */
+
+	for (dp = dtab; dp; dp = dp->d_next) {
+		mp = dp->d_conn;
+		if (dp->d_type != CONTROLLER || mp == TO_NEXUS || mp == 0 ||
+		!eq(dp->d_name, "scbus")) {
+			continue;
+		}
+		fprintf(fp, "{ %s, ", id(dp->d_unit));
+		fprintf(fp, "\"%s\", ", mp->d_name);
+		fprintf(fp, "%s },\n", id(mp->d_unit));
+	}
+	fprintf(fp, "{ 0, 0, 0 }\n};\n");
+
+	fprintf(fp, "\nstruct scsi_device_config scsi_dinit[] = {\n");
+	fprintf(fp, "/* name    unit  cunit   target   LUN  flags */\n");
+	for (dp = dtab; dp; dp = dp->d_next) {
+		if (dp->d_type == CONTROLLER || dp->d_type == MASTER ||
+		    dp->d_type == PSEUDO_DEVICE)
+			continue;
+
+		/* For backward compatability we must add the original
+		 * SCSI devices by name even if we don't know it is
+		 * connected to a SCSI bus.
+		 */
+		if (is_old_scsi_device(dp->d_name))
+			add_unique(&unique, dp->d_name);
+
+		mp = dp->d_conn;
+		if (mp == 0 || !eq(mp->d_name, "scbus")) {
+			continue;
+		}
+		mp = mp->d_conn;
+		if (mp == 0) {
+			printf("%s%s: devices not attached to a SCSI  controller\n",
+				dp->d_name, wnum(dp->d_unit));
+			continue;
+		}
+		
+		fprintf(fp, "{ ");
+		fprintf(fp, "\"%s\", ", dp->d_name);
+		id_put(fp, dp->d_unit, ", ");
+		id_put(fp, mp->d_unit, ", ");
+		id_put(fp, dp->d_target, ", ");
+		id_put(fp, dp->d_lun, ", ");
+		fprintf(fp, " 0x%x },\n", dp->d_flags);
+		add_unique(&unique, dp->d_name);
+	}
+	fprintf(fp, "{ 0, 0, 0, 0, 0, 0 }\n};\n");
+
+	for (node = unique.next; node; node = node->next)
+		fprintf(fp, "extern void %sinit();\n", node->id);
+	fprintf(fp, "void (*scsi_tinit[])(void) = {\n");
+	for (node = unique.next; node; node = node->next)
+		fprintf(fp, "	%sinit,\n", node->id);
+	fprintf(fp, "0,\n};\n");
 }
 
 /*

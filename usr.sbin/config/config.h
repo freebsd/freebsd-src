@@ -114,6 +114,8 @@ struct device {
 	int	d_addr;			/* address of csr */
 	int	d_unit;			/* unit number */
 	int	d_drive;		/* drive number */
+	int	d_target;		/* target number */
+	int	d_lun;			/* unit number */
 	int	d_slave;		/* slave number */
 #define QUES	-1	/* -1 means '?' */
 #define	UNKNOWN -2	/* -2 means not set yet */
@@ -193,6 +195,7 @@ int	seen_vba;
 #endif
 #if MACHINE_I386
 int	seen_isa;
+int	seen_scbus;
 #endif
 int	seen_cd;
 
