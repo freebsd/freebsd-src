@@ -1,4 +1,4 @@
-#	$Id: options,v 1.57 1998/02/04 04:41:34 eivind Exp $
+#	$Id: options,v 1.58 1998/02/04 22:32:02 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -13,7 +13,6 @@ DDB_UNATTENDED	opt_ddb.h
 GDB_REMOTE_CHAT	opt_ddb.h
 DEVFS
 DEVFS_ROOT	opt_devfs.h
-DIAGNOSTIC
 FAILSAFE
 KTRACE
 MD5
@@ -170,5 +169,7 @@ NULLFS_DIAGNOSTIC	opt_debug_nullfs.h
 SI_DEBUG		opt_debug_si.h
 
 
-# This cause changes all over the kernel
+# These cause changes all over the kernel
+DEBUG			opt_global.h
+DIAGNOSTIC		opt_global.h
 SIMPLELOCK_DEBUG	opt_global.h
