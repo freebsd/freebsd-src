@@ -3,6 +3,9 @@
 #
 # name	getty				type	status		comments
 #
+# This entry needed for asking password when init goes to single-user mode
+console	none				unknown	off insecure
+#
 ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
 ttyv1	"/usr/libexec/getty Pc"		cons25	on secure
