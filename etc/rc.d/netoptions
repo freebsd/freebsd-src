@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.19 1998/02/20 14:45:06 brian Exp $
+#	$Id$
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -195,6 +195,15 @@ network_pass2() {
 	    if [ "X${nis_ypset_enable}" = X"YES" ]; then
 		    echo -n ' ypset'; ypset ${nis_ypset_flags}
 	    fi
+    fi
+
+    # Start keyserv if we are running Secure RPC
+    if [ "X${keyserv_enable}" = X"YES" ]; then
+	    echo -n ' keyserv';		keyserv ${keyserv_flags}
+    fi
+    # Start ypupdated if we are running Secure RPC and we are NIS master
+    if [ "X$rpc_ypupdated_enable" = X"YES" ]; then
+	    echo -n ' rpc.ypupdated';	rpc.ypupdated
     fi
 
     echo '.'
