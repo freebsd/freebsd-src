@@ -137,9 +137,11 @@ union_list_unlock(ix)
  *	The uppervp, if not NULL, must be referenced and not locked by us
  *	The lowervp, if not NULL, must be referenced.
  *
- *	if uppervp and lowervp match pointers already installed, nothing
- *	happens. The passed vp's (when matching) are not adjusted.  This
- *	routine may only be called by union_newupper() and union_newlower().
+ *	If uppervp and lowervp match pointers already installed, then
+ *	nothing happens. The passed vp's (when matching) are not adjusted.
+ *
+ *	This routine may only be called by union_newupper() and
+ *	union_newlower().
  */
 
 static void
@@ -273,7 +275,7 @@ union_newsize(vp, uppersz, lowersz)
 		UDEBUG(("union: %s size now %ld\n",
 			(uppersz != VNOVAL ? "upper" : "lower"), (long)sz));
 		/*
-		 * There is no need to change size of non-existent object
+		 * There is no need to change size of non-existent object.
 		 */
 		/* vnode_pager_setsize(vp, sz); */
 	}
@@ -287,13 +289,13 @@ union_newsize(vp, uppersz, lowersz)
  *		error occurs.
  *
  *	mp	Holds the mount point.  mp may or may not be busied. 
- *		allocvp makes no changes to mp.
+ *		allocvp() makes no changes to mp.
  *
  *	dvp	Holds the parent union_node to the one we wish to create.
  *		XXX may only be used to traverse an uncopied lowervp-based
  *		tree?  XXX
  *
- *		dvp may or may not be locked.  allocvp makes no changes
+ *		dvp may or may not be locked.  allocvp() makes no changes
  *		to dvp.
  *
  *	upperdvp Holds the parent vnode to uppervp, generally used along
@@ -313,26 +315,26 @@ union_newsize(vp, uppersz, lowersz)
  * 
  *	cnp	Holds path component information to be coupled with
  *		lowervp and upperdvp to allow unionfs to create an uppervp
- *		later on.  Only used if lowervp is valid.  The conents
+ *		later on.  Only used if lowervp is valid.  The contents
  *		of cnp is only valid for the duration of the call.
  *
  *	docache	Determine whether this node should be entered in the
  *		cache or whether it should be destroyed as soon as possible.
  *
- * all union_nodes are maintained on a singly-linked
- * list.  new nodes are only allocated when they cannot
- * be found on this list.  entries on the list are
+ * All union_nodes are maintained on a singly-linked
+ * list.  New nodes are only allocated when they cannot
+ * be found on this list.  Entries on the list are
  * removed when the vfs reclaim entry is called.
  *
- * a single lock is kept for the entire list.  this is
+ * A single lock is kept for the entire list.  This is
  * needed because the getnewvnode() function can block
  * waiting for a vnode to become free, in which case there
  * may be more than one process trying to get the same
- * vnode.  this lock is only taken if we are going to
- * call getnewvnode, since the kernel itself is single-threaded.
+ * vnode.  This lock is only taken if we are going to
+ * call getnewvnode(), since the kernel itself is single-threaded.
  *
- * if an entry is found on the list, then call vget() to
- * take a reference.  this is done because there may be
+ * If an entry is found on the list, then call vget() to
+ * take a reference.  This is done because there may be
  * zero references to it and so it needs to removed from
  * the vnode free list.
  */
@@ -500,7 +502,7 @@ loop:
 		/*
 		 * Save information about the lower layer.
 		 * This needs to keep track of pathname
-		 * and directory information which union_vn_create
+		 * and directory information which union_vn_create()
 		 * might need.
 		 */
 		if (lowervp != un->un_lowervp) {
@@ -533,7 +535,7 @@ loop:
 
 	if (docache) {
 		/*
-		 * otherwise lock the vp list while we call getnewvnode
+		 * Otherwise lock the vp list while we call getnewvnode()
 		 * since that can block.
 		 */ 
 		hash = UNION_HASH(uppervp, lowervp);
@@ -543,13 +545,13 @@ loop:
 	}
 
 	/*
-	 * Create new node rather then replace old node
+	 * Create new node rather than replace old node.
 	 */
 
 	error = getnewvnode("union", mp, union_vnodeop_p, vpp);
 	if (error) {
 		/*
-		 * If an error occurs clear out vnodes.
+		 * If an error occurs, clear out vnodes.
 		 */
 		if (lowervp)
 			vrele(lowervp);
@@ -650,8 +652,8 @@ union_freevp(vp)
 }
 
 /*
- * copyfile.  copy the vnode (fvp) to the vnode (tvp)
- * using a sequence of reads and writes.  both (fvp)
+ * copyfile.  Copy the vnode (fvp) to the vnode (tvp)
+ * using a sequence of reads and writes.  Both (fvp)
  * and (tvp) are locked on entry and exit.
  *
  * fvp and tvp are both exclusive locked on call, but their refcount's
@@ -671,10 +673,10 @@ union_copyfile(fvp, tvp, cred, td)
 
 	/*
 	 * strategy:
-	 * allocate a buffer of size MAXBSIZE.
-	 * loop doing reads and writes, keeping track
+	 * Allocate a buffer of size MAXBSIZE.
+	 * Loop doing reads and writes, keeping track
 	 * of the current uio offset.
-	 * give up at the first sign of trouble.
+	 * Give up at the first sign of trouble.
 	 */
 
 	bzero(&uio, sizeof(uio));
@@ -695,7 +697,7 @@ union_copyfile(fvp, tvp, cred, td)
 		int bufoffset;
 
 		/*
-		 * Setup for big read
+		 * Setup for big read.
 		 */
 		uio.uio_iov = &iov;
 		uio.uio_iovcnt = 1;
@@ -709,7 +711,7 @@ union_copyfile(fvp, tvp, cred, td)
 
 		/*
 		 * Get bytes read, handle read eof case and setup for
-		 * write loop
+		 * write loop.
 		 */
 		if ((count = MAXBSIZE - uio.uio_resid) == 0)
 			break;
@@ -778,7 +780,7 @@ union_copyup(un, docopy, cred, td)
 	if (docopy) {
 		/*
 		 * XX - should not ignore errors
-		 * from VOP_CLOSE
+		 * from VOP_CLOSE()
 		 */
 		vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = VOP_OPEN(lvp, FREAD, cred, td);
@@ -852,9 +854,9 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
 	 * A new componentname structure must be faked up because
 	 * there is no way to know where the upper level cnp came
 	 * from or what it is being used for.  This must duplicate
-	 * some of the work done by NDINIT, some of the work done
-	 * by namei, some of the work done by lookup and some of
-	 * the work done by VOP_LOOKUP when given a CREATE flag.
+	 * some of the work done by NDINIT(), some of the work done
+	 * by namei(), some of the work done by lookup() and some of
+	 * the work done by VOP_LOOKUP() when given a CREATE flag.
 	 * Conclusion: Horrible.
 	 */
 	cn->cn_namelen = pathlen;
@@ -904,8 +906,8 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
  * (um) points to the union mount structure for access to the
  * the mounting process's credentials.
  * (dvp) is the directory in which to create the shadow directory,
- * it is locked (but not ref'd) on entry and return.
- * (cnp) is the componentname to be created.
+ * It is locked (but not ref'd) on entry and return.
+ * (cnp) is the component name to be created.
  * (vpp) is the returned newly created shadow directory, which
  * is returned locked and ref'd
  */
@@ -945,7 +947,7 @@ union_mkshadow(um, dvp, cnp, vpp)
 	}
 
 	/*
-	 * policy: when creating the shadow directory in the
+	 * Policy: when creating the shadow directory in the
 	 * upper layer, create it owned by the user who did
 	 * the mount, group from parent directory, and mode
 	 * 777 modified by umask (ie mostly identical to the
@@ -975,8 +977,8 @@ union_mkshadow(um, dvp, cnp, vpp)
  * (um) points to the union mount structure for access to the
  * the mounting process's credentials.
  * (dvp) is the directory in which to create the whiteout.
- * it is locked on entry and return.
- * (cnp) is the componentname to be created.
+ * It is locked on entry and return.
+ * (cnp) is the component name to be created.
  */
 int
 union_mkwhiteout(um, dvp, cnp, path)
@@ -1026,11 +1028,11 @@ union_mkwhiteout(um, dvp, cnp, path)
 
 /*
  * union_vn_create: creates and opens a new shadow file
- * on the upper union layer.  this function is similar
- * in spirit to calling vn_open but it avoids calling namei().
- * the problem with calling namei is that a) it locks too many
+ * on the upper union layer.  This function is similar
+ * in spirit to calling vn_open() but it avoids calling namei().
+ * The problem with calling namei() is that a) it locks too many
  * things, and b) it doesn't start at the "right" directory,
- * whereas relookup is told where to start.
+ * whereas relookup() is told where to start.
  *
  * On entry, the vnode associated with un is locked.  It remains locked
  * on return.
@@ -1060,7 +1062,7 @@ union_vn_create(vpp, un, td)
 
 	/*
 	 * Build a new componentname structure (for the same
-	 * reasons outlines in union_mkshadow).
+	 * reasons outlines in union_mkshadow()).
 	 * The difference here is that the file is owned by
 	 * the current user, rather than by the person who
 	 * did the mount, since the current user needs to be
@@ -1189,7 +1191,7 @@ union_removed_upper(un)
 #endif
 
 /*
- * determine whether a whiteout is needed
+ * Determine whether a whiteout is needed
  * during a remove/rmdir operation.
  */
 int
