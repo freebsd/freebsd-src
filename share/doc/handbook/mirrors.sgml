@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.15 1995/12/29 07:11:38 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.16 1996/01/01 17:24:28 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -307,12 +307,6 @@ and on CD-ROM from Walnut Creek CDROM:
 	name="ftp://kryten.atinc.com/pub/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:jmb@kryten.atinc.com"
 	name="jmb@kryten.atinc.com">.
-
-<item>
-<htmlurl url="ftp://ftp.dataplex.net/pub/FreeBSD"
-	name="ftp://ftp.dataplex.net/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:rkw@dataplex.net"
-	name="rkw@dataplex.net">.
 
 <item>
 <htmlurl url="ftp://ftp.cps.cmich.edu/pub/ftp.freebsd.org"
