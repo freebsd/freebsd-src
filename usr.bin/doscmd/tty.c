@@ -409,7 +409,7 @@ video_update(REGISTERS)
 	XGCValues v;
 
 	if (kbd_read)
-	    kbd_event(kbd_fd, sc);
+	    kbd_event(kbd_fd, REGS);
 
     	if (--icnt == 0) {
 
@@ -734,7 +734,7 @@ debug_event(int fd, REGISTERS)
 		    ap += c;
     	    	}
     	    } else if (!strcasecmp(av[0], "regs")) {
-		dump_regs(sc);
+		dump_regs(REGS);
     	    } else if (!strcasecmp(av[0], "force")) {
 		char *p = av[1];
 
@@ -962,7 +962,7 @@ printf("FORCED REDRAW\n");
 	    case 0x14:	/* T */
 		tmode ^= 1;
 		if (!tmode)
-		    resettrace(&saved_sigframe->sf_siginfo.si_sc); 
+		    resettrace(&saved_sigframe->sf_uc.uc_mcontext);
 		return(0xffff);
 	    case 0x53:	/* DEL */
 		quit(0);
@@ -1456,7 +1456,7 @@ video_event(XEvent *ev)
 				    tmode ^= 1;
 				    if (!tmode)
 					    resettrace(&saved_sigframe->
-						sf_siginfo.si_sc); 
+						sf_uc.uc_mcontext); 
 				    break;
 				}
 				if (ks == 'R' || ks == 'r') {
@@ -1743,8 +1743,8 @@ tty_read(REGISTERS, int flag)
 	     *       all the way to the user, but...
 	     */
 	    if (ivec[0x23] && (ivec[0x23] >> 16) != 0xF000) {
-    	    	fake_int(sc, 0x23);
-		SET16(sc->sc_eip, GET16(sc->sc_eip) - 2);
+    	    	fake_int(REGS, 0x23);
+		R_EIP = R_EIP - 2;
 		return(-2);
 	    }
     	}
@@ -1785,8 +1785,8 @@ tty_peek(REGISTERS, int flag)
 	     *       all the way to the user, but...
 	     */
 	    if (ivec[0x23] && (ivec[0x23] >> 16) != 0xF000) {
-    	    	fake_int(sc, 0x23);
-		SET16(sc->sc_eip, GET16(sc->sc_eip) - 2);
+    	    	fake_int(REGS, 0x23);
+		R_EIP = R_EIP - 2;
 		return(-2);
 	    }
     	}

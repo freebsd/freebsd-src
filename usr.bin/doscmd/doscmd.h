@@ -37,6 +37,7 @@
 #define USE_VM86
 #endif
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -48,6 +49,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+
+#include <sys/signalvar.h>
+#include <machine/sigframe.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>

@@ -273,7 +273,7 @@ int2f11_open(regcontext_t *REGS)
     ** get attributes/access mode off stack : low byte is attribute, high
     ** byte is (sometimes) used in conjunction with 'action'
     */
-    attr = *(u_short *)N_GETPTR(R_SS, R_SP) & 0xff;
+    attr = *(u_short *)MAKEPTR(R_SS, R_SP) & 0xff;
 
     /* which style? */
     switch(R_AL) {
@@ -482,8 +482,8 @@ int2f11_fnqual(regcontext_t *REGS)
     
     savedrive = diskdrive;		/* to get CWD for network drive */
     diskdrive = n_drive;
-    fname = (char *)N_GETPTR(R_DS, R_SI);	/* path pointers */
-    tname = (char *)N_GETPTR(R_ES, R_DI);
+    fname = (char *)MAKEPTR(R_DS, R_SI);	/* path pointers */
+    tname = (char *)MAKEPTR(R_ES, R_DI);
     
     error = dos_makepath(fname, tname);
     if (error)
@@ -610,7 +610,7 @@ int2f11_validate(regcontext_t *REGS)
 
     case 0x0c:		/* in es:di */
     case 0x1c:
-	r_cds = (CDS *)N_GETPTR(R_ES, R_DI);
+	r_cds = (CDS *)MAKEPTR(R_ES, R_DI);
 	break;
     }
 
@@ -628,7 +628,7 @@ int2f11_validate(regcontext_t *REGS)
     case 0x21:
     case 0x2d:
     case 0x2e:
-	r_sft = (SFT *)N_GETPTR(R_ES, R_DI);
+	r_sft = (SFT *)MAKEPTR(R_ES, R_DI);
 	break;
     }
     
@@ -796,8 +796,8 @@ intff(regcontext_t *REGS)
 	debug(D_REDIR, "redirector duplicate install ignored\n");
 	return;
     }
-    lol = (LOL *)N_GETPTR(R_BX, R_DX);	/* where DOS keeps its goodies */
-    sda = (SDA *)N_GETPTR(R_DI, R_SI);
+    lol = (LOL *)MAKEPTR(R_BX, R_DX);	/* where DOS keeps its goodies */
+    sda = (SDA *)MAKEPTR(R_DI, R_SI);
     init_drives();
     
     /* initialise dispatcher */

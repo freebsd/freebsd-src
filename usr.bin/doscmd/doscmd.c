@@ -103,12 +103,12 @@ int
 main(int argc, char **argv)
 {
 #ifndef USE_VM86
-    struct sigcontext sc;
+    ucontext_t uc;
 #else
     struct vm86_struct vm86s;
 #define	sc	vm86s.substr.regs.vmsc
 #endif
-    regcontext_t *REGS = (regcontext_t *)&sc;
+    regcontext_t *REGS = (regcontext_t *)&uc.uc_mcontext;
     int fd;
     int i;    
     char buffer[4096];
@@ -250,14 +250,14 @@ main(int argc, char **argv)
 	video_vector = insert_generic_trampoline(
 	    sizeof(video_trampoline), video_trampoline);
 	
-	N_PUSH(R_FLAGS, REGS);
-	N_PUSH(R_CS, REGS);
-	N_PUSH(R_IP, REGS);
-	N_PUTVEC(R_CS, R_IP, video_vector);
+	PUSH(R_FLAGS, REGS);
+	PUSH(R_CS, REGS);
+	PUSH(R_IP, REGS);
+	PUTVEC(R_CS, R_IP, video_vector);
     }
 
-    sigemptyset(&sc.sc_mask);
-    sc.sc_onstack = 0;
+    sigemptyset(&uc.uc_sigmask);
+    sigaltstack(NULL, &uc.uc_stack);
 
     if (tmode)
 	tracetrap(REGS);
@@ -268,7 +268,7 @@ main(int argc, char **argv)
 
     i386_vm86(VM86_INIT, &kargs);
 
-    sigreturn(&sc);
+    sigreturn(&uc);
     debug(D_ALWAYS,"sigreturn failed : %s\n", strerror(errno));
 #else
     vm86s.cpu_type = VCPU_586;
@@ -276,7 +276,7 @@ main(int argc, char **argv)
 #endif
 
     /* shouldn't get here */
-    if (vflag) dump_regs((regcontext_t *)&sc);
+    if (vflag) dump_regs(REGS);
     fatal ("vm86 returned (no kernel support?)\n");
 #undef	sc
 }

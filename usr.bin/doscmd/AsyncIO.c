@@ -28,7 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI AsyncIO.c,v 2.2 1996/04/08 19:32:10 bostic Exp
+ *
+ * $FreeBSD$
  */
+
 #include <stdio.h>
 #include <sys/param.h>
 #include <sys/types.h>
@@ -269,7 +272,7 @@ if (0)
 				 * STEP 3: Call the handler
 				 */
 				(*handlers[fd].func)(handlers[fd].arg, 
-				    &sf->sf_siginfo.si_sc);
+				    (regcontext_t*)&sf->sf_uc);
 
 				/*
 				 * STEP 4: Just turn SIGIO off.  No check.
