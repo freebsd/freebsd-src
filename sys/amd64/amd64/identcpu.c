@@ -338,6 +338,21 @@ print_AMD_assoc(int i)
 }
 
 static void
+print_AMD_l2_assoc(int i)
+{
+	switch (i & 0x0f) {
+	case 0: printf(", disabled/not present\n"); break;
+	case 1: printf(", direct mapped\n"); break;
+	case 2: printf(", 2-way associative\n"); break;
+	case 4: printf(", 4-way associative\n"); break;
+	case 6: printf(", 8-way associative\n"); break;
+	case 8: printf(", 16-way associative\n"); break;
+	case 15: printf(", fully associative\n"); break;
+	default: printf(", reserved configuration\n"); break;
+	}
+}
+
+static void
 print_AMD_info(void)
 {
 
@@ -345,24 +360,59 @@ print_AMD_info(void)
 		u_int regs[4];
 
 		do_cpuid(0x80000005, regs);
-		printf("Data TLB: %d entries", (regs[1] >> 16) & 0xff);
+		printf("L1 2MB data TLB: %d entries", (regs[0] >> 16) & 0xff);
+		print_AMD_assoc(regs[0] >> 24);
+
+		printf("L1 2MB instruction TLB: %d entries", regs[0] & 0xff);
+		print_AMD_assoc((regs[0] >> 8) & 0xff);
+
+		printf("L1 4KB data TLB: %d entries", (regs[1] >> 16) & 0xff);
 		print_AMD_assoc(regs[1] >> 24);
-		printf("Instruction TLB: %d entries", regs[1] & 0xff);
+
+		printf("L1 4KB instruction TLB: %d entries", regs[1] & 0xff);
 		print_AMD_assoc((regs[1] >> 8) & 0xff);
+
 		printf("L1 data cache: %d kbytes", regs[2] >> 24);
 		printf(", %d bytes/line", regs[2] & 0xff);
 		printf(", %d lines/tag", (regs[2] >> 8) & 0xff);
 		print_AMD_assoc((regs[2] >> 16) & 0xff);
+
 		printf("L1 instruction cache: %d kbytes", regs[3] >> 24);
 		printf(", %d bytes/line", regs[3] & 0xff);
 		printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
 		print_AMD_assoc((regs[3] >> 16) & 0xff);
-		if (cpu_exthigh >= 0x80000006) {	/* K6-III only */
+
+		if (cpu_exthigh >= 0x80000006) {
 			do_cpuid(0x80000006, regs);
-			printf("L2 internal cache: %d kbytes", regs[2] >> 16);
+			if ((regs[0] >> 16) != 0) {
+				printf("L2 2MB data TLB: %d entries",
+				    (regs[0] >> 16) & 0xfff);
+				print_AMD_l2_assoc(regs[0] >> 28);
+				printf("L2 2MB instruction TLB: %d entries",
+				    regs[0] & 0xfff);
+				print_AMD_l2_assoc((regs[0] >> 28) & 0xf);
+			} else {
+				printf("L2 2MB unified TLB: %d entries",
+				    regs[0] & 0xfff);
+				print_AMD_l2_assoc((regs[0] >> 28) & 0xf);
+			}
+			if ((regs[1] >> 16) != 0) {
+				printf("L2 4KB data TLB: %d entries",
+				    (regs[1] >> 16) & 0xfff);
+				print_AMD_l2_assoc(regs[1] >> 28);
+
+				printf("L2 4KB instruction TLB: %d entries",
+				    (regs[1] >> 16) & 0xfff);
+				print_AMD_l2_assoc((regs[1] >> 28) & 0xf);
+			} else {
+				printf("L2 4KB unified TLB: %d entries",
+				    (regs[1] >> 16) & 0xfff);
+				print_AMD_l2_assoc((regs[1] >> 28) & 0xf);
+			}
+			printf("L2 unified cache: %d kbytes", regs[2] >> 16);
 			printf(", %d bytes/line", regs[2] & 0xff);
 			printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
-			print_AMD_assoc((regs[2] >> 12) & 0x0f);	
+			print_AMD_l2_assoc((regs[2] >> 12) & 0x0f);	
 		}
 	}
 }
