@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.28 1999/07/14 04:09:11 jdp Exp $
+ *      $Id: rtld.c,v 1.29 1999/07/18 00:02:19 jdp Exp $
  */
 
 /*
@@ -1523,14 +1523,14 @@ unload_object(Obj_Entry *root, bool do_fini_funcs)
 static void
 unref_object_dag(Obj_Entry *root)
 {
+    const Needed_Entry *needed;
+
     assert(root->refcount != 0);
     root->refcount--;
-    if (root->refcount == 0) {
-	const Needed_Entry *needed;
-
+    if (root->refcount == 0)
 	for (needed = root->needed;  needed != NULL;  needed = needed->next)
-	    unref_object_dag(needed->obj);
-    }
+	    if (needed->obj != NULL)
+		unref_object_dag(needed->obj);
 }
 
 /*
