@@ -1,5 +1,5 @@
 /*
- * $Id: log.c,v 1.18 1997/11/04 01:17:00 brian Exp $
+ * $Id: log.c,v 1.19 1997/11/09 06:22:42 brian Exp $
  */
 
 #include <sys/param.h>
@@ -14,6 +14,7 @@
 #include "log.h"
 #include "loadalias.h"
 #include "command.h"
+#include "defs.h"
 #include "vars.h"
 
 static char *LogNames[] = {

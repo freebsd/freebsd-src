@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.19 1997/11/09 06:22:48 brian Exp $
+ * $Id: systems.c,v 1.20 1997/11/09 13:18:18 brian Exp $
  *
  *  TODO:
  */
@@ -69,7 +69,7 @@ SelectSystem(char *name, char *file)
   char *cp, *wp;
   int n, len;
   u_char olauth;
-  char line[200];
+  char line[LINE_LEN];
   char filename[200];
   int linenum;
 
