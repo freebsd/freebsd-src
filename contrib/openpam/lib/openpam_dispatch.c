@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_dispatch.c#18 $
+ * $P4: //depot/projects/openpam/lib/openpam_dispatch.c#19 $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,9 @@ openpam_dispatch(pam_handle_t *pamh,
 {
 	pam_chain_t *chain;
 	int err, fail, r;
+#ifdef DEBUG
+	int debug;
+#endif
 
 	ENTER();
 	if (pamh == NULL)
@@ -96,8 +99,6 @@ openpam_dispatch(pam_handle_t *pamh,
 
 	/* execute */
 	for (err = fail = 0; chain != NULL; chain = chain->next) {
-		openpam_log(PAM_LOG_DEBUG, "calling %s() in %s",
-		    _pam_sm_func_name[primitive], chain->module->path);
 		if (chain->module->func[primitive] == NULL) {
 			openpam_log(PAM_LOG_ERROR, "%s: no %s()",
 			    chain->module->path, _pam_sm_func_name[primitive]);
@@ -105,12 +106,23 @@ openpam_dispatch(pam_handle_t *pamh,
 		} else {
 			pamh->primitive = primitive;
 			pamh->current = chain;
+#ifdef DEBUG
+			debug = (openpam_get_option(pamh, "debug") != NULL);
+			if (debug)
+				++_openpam_debug;
+			openpam_log(PAM_LOG_DEBUG, "calling %s() in %s",
+			    _pam_sm_func_name[primitive], chain->module->path);
+#endif
 			r = (chain->module->func[primitive])(pamh, flags,
 			    chain->optc, (const char **)chain->optv);
 			pamh->current = NULL;
+#ifdef DEBUG
 			openpam_log(PAM_LOG_DEBUG, "%s: %s(): %s",
 			    chain->module->path, _pam_sm_func_name[primitive],
 			    pam_strerror(pamh, r));
+			if (debug)
+				--_openpam_debug;
+#endif
 		}
 
 		if (r == PAM_IGNORE)

@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd January 6, 2003
+.Dd May 2, 2003
 .Dt PAM 3
 .Os
 .Sh NAME
@@ -75,7 +75,7 @@
 .Fn pam_get_item "pam_handle_t *pamh" "int item_type" "const void **item"
 .Ft int
 .Fn pam_get_user "pam_handle_t *pamh" "const char **user" "const char *prompt"
-.Ft char *
+.Ft const char *
 .Fn pam_getenv "pam_handle_t *pamh" "const char *name"
 .Ft char **
 .Fn pam_getenvlist "pam_handle_t *pamh"
