@@ -287,7 +287,7 @@ pc98/pc98/scvidctl.c		optional	sc	device-driver
 i386/isa/tw.c			optional	tw	device-driver
 pc98/pc98/wd.c			optional	wdc	device-driver
 pc98/pc98/wd.c			optional	wd	device-driver
-i386/isa/atapi.c		optional	atapi	device-driver
+pc98/pc98/atapi.c		optional	atapi	device-driver
 i386/isa/atapi-cd.c		optional	acd	device-driver
 i386/isa/wfd.c			optional	wfd	device-driver
 i386/isa/wst.c			optional	wst	device-driver
