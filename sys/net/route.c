@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id: route.c,v 1.6 1994/09/08 00:17:22 wollman Exp $
+ * $Id: route.c,v 1.7 1994/09/14 03:10:05 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -145,7 +145,7 @@ rtfree(rt)
 			panic ("rtfree 2");
 		rttrash--;
 		if (rt->rt_refcnt < 0) {
-			printf("rtfree: %x not freed (neg refs)\n", rt);
+			printf("rtfree: %p not freed (neg refs)\n", rt);
 			return;
 		}
 		ifa = rt->rt_ifa;
@@ -273,9 +273,13 @@ rtioctl(req, data, p)
 	caddr_t data;
 	struct proc *p;
 {
+#ifdef INET
 	extern int (*mrt_ioctl)(int, caddr_t, struct proc *);
 	/* Multicast goop, grrr... */
 	return mrt_ioctl(req, data, p);
+#else /* INET */
+	return ENXIO;
+#endif /* INET */
 }
 
 struct ifaddr *
@@ -500,7 +504,8 @@ rtinit(ifa, cmd, flags)
 			rt_maskedcopy(dst, deldst, ifa->ifa_netmask);
 			dst = deldst;
 		}
-		if (rt = rtalloc1(dst, 0)) {
+		rt = rtalloc1(dst, 0);
+		if (rt) {
 			rt->rt_refcnt--;
 			if (rt->rt_ifa != ifa) {
 				if (m)
@@ -524,7 +529,7 @@ rtinit(ifa, cmd, flags)
 	if (cmd == RTM_ADD && error == 0 && (rt = nrt)) {
 		rt->rt_refcnt--;
 		if (rt->rt_ifa != ifa) {
-			printf("rtinit: wrong ifa (%x) was (%x)\n", ifa,
+			printf("rtinit: wrong ifa (%p) was (%p)\n", ifa,
 				rt->rt_ifa);
 			if (rt->rt_ifa->ifa_rtrequest)
 			    rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));

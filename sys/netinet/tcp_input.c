@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- * $Id: tcp_input.c,v 1.7 1994/08/26 22:27:16 wollman Exp $
+ * $Id: tcp_input.c,v 1.8 1994/09/15 10:36:54 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -258,7 +258,8 @@ tcp_input(m, iphlen)
 	ti->ti_x1 = 0;
 	ti->ti_len = (u_short)tlen;
 	HTONS(ti->ti_len);
-	if (ti->ti_sum = in_cksum(m, len)) {
+	ti->ti_sum = in_cksum(m, len);
+	if (ti->ti_sum) {
 		tcpstat.tcps_rcvbadsum++;
 		goto drop;
 	}
@@ -1128,9 +1129,9 @@ step6:
 	 * Don't look at window if no ACK: TAC's send garbage on first SYN.
 	 */
 	if ((tiflags & TH_ACK) &&
-	    (SEQ_LT(tp->snd_wl1, ti->ti_seq) || tp->snd_wl1 == ti->ti_seq &&
-	    (SEQ_LT(tp->snd_wl2, ti->ti_ack) ||
-	     tp->snd_wl2 == ti->ti_ack && tiwin > tp->snd_wnd))) {
+	    (SEQ_LT(tp->snd_wl1, ti->ti_seq) || 
+	    (tp->snd_wl1 == ti->ti_seq && (SEQ_LT(tp->snd_wl2, ti->ti_ack) ||
+	     (tp->snd_wl2 == ti->ti_ack && tiwin > tp->snd_wnd))))) {
 		/* keep track of pure window updates */
 		if (ti->ti_len == 0 &&
 		    tp->snd_wl2 == ti->ti_ack && tiwin > tp->snd_wnd)

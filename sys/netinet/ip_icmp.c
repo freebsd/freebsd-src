@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: ip_icmp.c,v 1.2 1994/08/02 07:48:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -85,7 +85,7 @@ icmp_error(n, type, code, dest, destifp)
 
 #ifdef ICMPPRINTFS
 	if (icmpprintfs)
-		printf("icmp_error(%x, %d, %d)\n", oip, type, code);
+		printf("icmp_error(%p, %x, %d)\n", oip, type, code);
 #endif
 	if (type != ICMP_REDIRECT)
 		icmpstat.icps_error++;
@@ -191,7 +191,7 @@ icmp_input(m, hlen)
 	 */
 #ifdef ICMPPRINTFS
 	if (icmpprintfs)
-		printf("icmp_input from %x to %x, len %d\n",
+		printf("icmp_input from %lx to %lx, len %d\n",
 			ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr),
 			icmplen);
 #endif
@@ -292,7 +292,8 @@ icmp_input(m, hlen)
 			printf("deliver to protocol %d\n", icp->icmp_ip.ip_p);
 #endif
 		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
-		if (ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput)
+		ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput;
+		if (ctlfunc)
 			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
 			    &icp->icmp_ip);
 		break;
@@ -373,8 +374,9 @@ reflect:
 		icmpdst.sin_addr = icp->icmp_gwaddr;
 #ifdef	ICMPPRINTFS
 		if (icmpprintfs)
-			printf("redirect dst %x to %x\n", icp->icmp_ip.ip_dst,
-				icp->icmp_gwaddr);
+			printf("redirect dst %lx to %lx\n", 
+				NTOHL(icp->icmp_ip.ip_dst.s_addr),
+				NTOHL(icp->icmp_gwaddr.s_addr));
 #endif
 		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
 		rtredirect((struct sockaddr *)&icmpsrc,
@@ -497,7 +499,8 @@ icmp_reflect(m)
 			    }
 		    }
 		    /* Terminate & pad, if necessary */
-		    if (cnt = opts->m_len % 4) {
+		    cnt = opts->m_len % 4;
+		    if (cnt) {
 			    for (; cnt < 4; cnt++) {
 				    *(mtod(opts, caddr_t) + opts->m_len) =
 					IPOPT_EOL;
@@ -552,7 +555,8 @@ icmp_send(m, opts)
 	m->m_len += hlen;
 #ifdef ICMPPRINTFS
 	if (icmpprintfs)
-		printf("icmp_send dst %x src %x\n", ip->ip_dst, ip->ip_src);
+		printf("icmp_send dst %lx src %lx\n",
+			NTOHL(ip->ip_dst.s_addr), NTOHL(ip->ip_src.s_addr));
 #endif
 	(void) ip_output(m, opts, NULL, 0, NULL);
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: udp_usrreq.c,v 1.3 1994/08/02 07:49:24 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -144,7 +144,8 @@ udp_input(m, iphlen)
 		((struct ipovly *)ip)->ih_prev = 0;
 		((struct ipovly *)ip)->ih_x1 = 0;
 		((struct ipovly *)ip)->ih_len = uh->uh_ulen;
-		if (uh->uh_sum = in_cksum(m, len + sizeof (struct ip))) {
+		uh->uh_sum = in_cksum(m, len + sizeof (struct ip));
+		if (uh->uh_sum) {
 			udpstat.udps_badsum++;
 			m_freem(m);
 			return;

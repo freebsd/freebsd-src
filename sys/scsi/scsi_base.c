@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.11 1994/08/27 16:14:33 davidg Exp $
+ *      $Id: scsi_base.c,v 1.12 1994/08/31 06:17:44 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
