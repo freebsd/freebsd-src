@@ -57,6 +57,7 @@ sed	-e '/	pci$/d' \
 	-e '/ppi/d' \
 	-e '/uhid/d' \
 	-e '/ulpt/d' \
+	-e '/urio/d' \
 	-e '/uscanner/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
@@ -84,6 +85,7 @@ sed	-e '/pty/d' \
 	-e '/ppi/d' \
 	-e '/uhid/d' \
 	-e '/ulpt/d' \
+	-e '/urio/d' \
 	-e '/uscanner/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
