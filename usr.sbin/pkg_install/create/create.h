@@ -42,7 +42,9 @@ extern char	*InstalledPkg;
 extern char	PlayPen[];
 extern int	Dereference;
 extern int	PlistOnly;
-extern int	UseBzip2;
+
+enum zipper {NONE, GZIP, BZIP, BZIP2 };
+extern enum zipper	Zipper;
 
 void		check_list(const char *, Package *);
 int		pkg_perform(char **);
