@@ -34,7 +34,8 @@ CFLAGS+=	-mpreferred-stack-boundary=2
 #
 # On the alpha, make sure that we don't use floating-point registers and
 # allow the use of EV56 instructions (only needed for low-level i/o).
+# Also, reserve register t7 to point at per-cpu global variables.
 #
 .if ${MACHINE_ARCH} == "alpha"
-CFLAGS+=	-mno-fp-regs -Wa,-mev56
+CFLAGS+=	-mno-fp-regs -ffixed-8 -Wa,-mev56
 .endif
