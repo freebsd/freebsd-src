@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.27 1999/06/02 15:59:04 brian Exp $
+ * $Id: mbuf.c,v 1.28 1999/08/09 22:56:18 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -221,7 +221,7 @@ mbuf_Show(struct cmdargs const *arg)
 {
   int i;
   static const char *mbuftype[] = { 
-    "ip in", "ip out", "alias in", "alias out", "mp in", "mp out",
+    "ip in", "ip out", "nat in", "nat out", "mp in", "mp out",
     "vj in", "vj out", "icompd in", "icompd out", "compd in", "compd out",
     "lqr in", "lqr out", "echo in", "echo out", "proto in", "proto out",
     "acf in", "acf out", "sync in", "sync out", "hdlc in", "hdlc out",

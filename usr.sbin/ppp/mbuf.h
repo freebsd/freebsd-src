@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.17 1999/05/09 20:02:25 brian Exp $
+ * $Id: mbuf.h,v 1.18 1999/06/02 15:59:05 brian Exp $
  *
  *	TODO:
  */
@@ -44,8 +44,8 @@ struct mqueue {
 
 #define MB_IPIN		0
 #define MB_IPOUT	1
-#define MB_ALIASIN	2
-#define MB_ALIASOUT	3
+#define MB_NATIN	2
+#define MB_NATOUT	3
 #define MB_MPIN		4
 #define MB_MPOUT	5
 #define MB_VJIN		6
