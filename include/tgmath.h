@@ -143,7 +143,7 @@
 #define	logb(x)		__tg_simple(x, logb)
 #define	lrint(x)	__tg_simple(x, lrint)
 #define	lround(x)	__tg_simple(x, lround)
-#define	nextbyint(x)	__tg_simple(x, nextbyint)
+#define	nearbyint(x)	__tg_simple(x, nearbyint)
 #define	nextafter(x, y)	__tg_simple2(x, y, nextafter)
 #define	nexttoward(x, y) __tg_simplev(x, nexttoward, x, y)
 #define	remainder(x, y)	__tg_simple2(x, y, remainder)
