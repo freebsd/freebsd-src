@@ -28,20 +28,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: modunload.c,v 1.5 1997/03/11 12:24:00 peter Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <err.h>
-#include <string.h>
-#include <a.out.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
-#include <sys/conf.h>
-#include <sys/mount.h>
 #include <sys/lkm.h>
 #include <sys/file.h>
 #include <sys/errno.h>
@@ -98,7 +97,7 @@ main(argc, argv)
 
 	/*
 	 * Open the virtual device device driver for exclusive use (needed
-	 * to ioctl() to retrive the loaded module(s) status).
+	 * to ioctl() to retrieve the loaded module(s) status).
 	 */
 	if ((devfd = open(_PATH_LKM, O_RDWR, 0)) == -1)
 		err(2, _PATH_LKM);
