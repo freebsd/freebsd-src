@@ -36,6 +36,8 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)realpath.c	8.1 (Berkeley) 2/16/94";
+static char rcsid[] =
+"$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -136,7 +138,8 @@ loop:
 		rootd = 0;
 
 	if (*wbuf) {
-		if (strlen(resolved) + strlen(wbuf) + rootd + 1 > MAXPATHLEN) {
+		if (strlen(resolved) + strlen(wbuf) + (1-rootd) + 1 >
+		    MAXPATHLEN) {
 			errno = ENAMETOOLONG;
 			goto err1;
 		}
