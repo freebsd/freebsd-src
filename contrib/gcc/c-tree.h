@@ -1,5 +1,5 @@
 /* Definitions for C parsing and type checking.
-   Copyright (C) 1987, 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1993, 1994, 1995, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -40,27 +40,27 @@ struct lang_identifier
 /* This represents the value which the identifier has in the
    file-scope namespace.  */
 #define IDENTIFIER_GLOBAL_VALUE(NODE)	\
-  (((struct lang_identifier *)(NODE))->global_value)
+  (((struct lang_identifier *) (NODE))->global_value)
 /* This represents the value which the identifier has in the current
    scope.  */
 #define IDENTIFIER_LOCAL_VALUE(NODE)	\
-  (((struct lang_identifier *)(NODE))->local_value)
+  (((struct lang_identifier *) (NODE))->local_value)
 /* This represents the value which the identifier has as a label in
    the current label scope.  */
 #define IDENTIFIER_LABEL_VALUE(NODE)	\
-  (((struct lang_identifier *)(NODE))->label_value)
+  (((struct lang_identifier *) (NODE))->label_value)
 /* This records the extern decl of this identifier, if it has had one
    at any point in this compilation.  */
 #define IDENTIFIER_LIMBO_VALUE(NODE)	\
-  (((struct lang_identifier *)(NODE))->limbo_value)
+  (((struct lang_identifier *) (NODE))->limbo_value)
 /* This records the implicit function decl of this identifier, if it
    has had one at any point in this compilation.  */
 #define IDENTIFIER_IMPLICIT_DECL(NODE)	\
-  (((struct lang_identifier *)(NODE))->implicit_decl)
+  (((struct lang_identifier *) (NODE))->implicit_decl)
 /* This is the last function in which we printed an "undefined variable"
    message for this identifier.  Value is a FUNCTION_DECL or null.  */
 #define IDENTIFIER_ERROR_LOCUS(NODE)	\
-  (((struct lang_identifier *)(NODE))->error_locus)
+  (((struct lang_identifier *) (NODE))->error_locus)
 
 /* In identifiers, C uses the following fields in a special way:
    TREE_PUBLIC        to record that there was a previous local extern decl.
@@ -109,7 +109,7 @@ struct lang_type
 
 /* Store a value in that field.  */
 #define C_SET_EXP_ORIGINAL_CODE(exp, code) \
-  (TREE_COMPLEXITY (exp) = (int)(code))
+  (TREE_COMPLEXITY (exp) = (int) (code))
 
 /* Record whether a typedef for type `int' was actually `signed int'.  */
 #define C_TYPEDEF_EXPLICITLY_SIGNED(exp) DECL_LANG_FLAG_1 ((exp))
@@ -123,6 +123,9 @@ struct lang_type
    TYPE_ARG_TYPES for functions with prototypes, but created for functions
    without prototypes.  */
 #define TYPE_ACTUAL_ARG_TYPES(NODE) TYPE_NONCOPIED_PARTS (NODE)
+
+/* In a FIELD_DECL, nonzero if the decl was originally a bitfield.  */
+#define DECL_C_BIT_FIELD(NODE) DECL_LANG_FLAG_4 (NODE)
 
 /* Nonzero if the type T promotes to itself.
    ANSI C states explicitly the list of types that promote;
@@ -146,6 +149,7 @@ struct lang_type
 extern tree lookup_interface			PROTO((tree));
 extern tree is_class_name			PROTO((tree));
 extern void maybe_objc_check_decl		PROTO((tree));
+extern void finish_file				PROTO((void));
 extern int maybe_objc_comptypes                 PROTO((tree, tree, int));
 extern tree maybe_building_objc_message_expr    PROTO((void));
 extern tree maybe_objc_method_name		PROTO((tree));
@@ -159,12 +163,15 @@ extern void gen_aux_info_record                 PROTO((tree, int, int, int));
 extern void declare_function_name               PROTO((void));
 extern void decl_attributes                     PROTO((tree, tree, tree));
 extern void init_function_format_info		PROTO((void));
-extern void record_function_format		PROTO((tree, tree, int, int, int, int));
 extern void check_function_format		PROTO((tree, tree, tree));
+extern int c_get_alias_set                      PROTO((tree));
 /* Print an error message for invalid operands to arith operation CODE.
    NOP_EXPR is used as a special case (see truthvalue_conversion).  */
 extern void binary_op_error                     PROTO((enum tree_code));
 extern void c_expand_expr_stmt                  PROTO((tree));
+extern void c_expand_start_cond                 PROTO((tree, int, int));
+extern void c_expand_start_else                 PROTO((void));
+extern void c_expand_end_cond                   PROTO((void));
 /* Validate the expression after `case' and apply default promotions.  */
 extern tree check_case_value                    PROTO((tree));
 /* Concatenate a list of STRING_CST nodes into one STRING_CST.  */
@@ -174,7 +181,14 @@ extern tree convert_and_check			PROTO((tree, tree));
 extern void overflow_warning			PROTO((tree));
 extern void unsigned_conversion_warning		PROTO((tree, tree));
 /* Read the rest of the current #-directive line.  */
-extern char *get_directive_line                 STDIO_PROTO((FILE *));
+#if USE_CPPLIB
+extern char *get_directive_line                 PROTO((void));
+#define GET_DIRECTIVE_LINE() get_directive_line ()
+#else
+extern char *get_directive_line                 PROTO((FILE *));
+#define GET_DIRECTIVE_LINE() get_directive_line (finput)
+#endif
+
 /* Subroutine of build_binary_op, used for comparison operations.
    See if the operands have both been converted from subword integer types
    and, if so, perhaps change them both back to their original type.  */
@@ -199,6 +213,7 @@ extern tree double_ftype_double;
 extern tree double_ftype_double_double;
 extern tree double_type_node;
 extern tree float_type_node;
+extern tree intTI_type_node;
 extern tree intDI_type_node;
 extern tree intHI_type_node;
 extern tree intQI_type_node;
@@ -228,6 +243,7 @@ extern tree signed_wchar_type_node;
 extern tree string_ftype_ptr_ptr;
 extern tree string_type_node;
 extern tree unsigned_char_type_node;
+extern tree unsigned_intTI_type_node;
 extern tree unsigned_intDI_type_node;
 extern tree unsigned_intHI_type_node;
 extern tree unsigned_intQI_type_node;
@@ -248,7 +264,7 @@ extern tree build_enumerator                    PROTO((tree, tree));
 extern tree builtin_function                    PROTO((char *, tree, enum built_in_function function_, char *));
 /* Add qualifiers to a type, in the fashion for C.  */
 extern tree c_build_type_variant                PROTO((tree, int, int));
-extern int  c_decode_option                     PROTO((char *));
+extern int  c_decode_option                     PROTO((int, char **));
 extern void c_mark_varargs                      PROTO((void));
 extern tree check_identifier                    PROTO((tree, tree));
 extern void clear_parm_order                    PROTO((void));
@@ -285,12 +301,9 @@ extern void pending_xref_error                  PROTO((void));
 extern void pop_c_function_context              PROTO((void));
 extern void pop_label_level                     PROTO((void));
 extern tree poplevel                            PROTO((int, int, int));
-extern void print_lang_decl                     STDIO_PROTO((FILE *, tree,
-							     int));
-extern void print_lang_identifier               STDIO_PROTO((FILE *, tree,
-							     int));
-extern void print_lang_type                     STDIO_PROTO((FILE *, tree,
-							     int));
+extern void print_lang_decl                     PROTO((FILE *, tree, int));
+extern void print_lang_identifier               PROTO((FILE *, tree, int));
+extern void print_lang_type                     PROTO((FILE *, tree, int));
 extern void push_c_function_context             PROTO((void));
 extern void push_label_level                    PROTO((void));
 extern void push_parm_decl                      PROTO((tree));
@@ -365,6 +378,7 @@ extern void c_expand_return			PROTO((tree));
 extern tree c_expand_start_case                 PROTO((tree));
 
 /* in c-iterate.c */
+extern void init_iterators			PROTO((void));
 extern void iterator_expand			PROTO((tree));
 extern void iterator_for_loop_start		PROTO((tree));
 extern void iterator_for_loop_end		PROTO((tree));
@@ -382,6 +396,11 @@ extern int current_function_returns_value;
 
 extern int current_function_returns_null;
 
+/* Nonzero means the expression being parsed will never be evaluated.
+   This is a count, since unevaluated expressions can nest.  */
+
+extern int skip_evaluation;
+
 /* Nonzero means `$' can be in an identifier.  */
 
 extern int dollars_in_ident;
@@ -394,6 +413,10 @@ extern int flag_cond_mismatch;
 /* Nonzero means don't recognize the keyword `asm'.  */
 
 extern int flag_no_asm;
+
+/* Nonzero means environment is hosted (i.e., not freestanding) */
+
+extern int flag_hosted;
 
 /* Nonzero means ignore `#ident' directives.  */
 
@@ -458,6 +481,10 @@ extern int warn_char_subscripts;
 
 extern int warn_conversion;
 
+/* Warn if main is suspicious. */
+
+extern int warn_main;
+
 /* Nonzero means do some things the same way PCC does.  */
 
 extern int flag_traditional;
@@ -474,10 +501,13 @@ extern int warn_parentheses;
 
 extern int warn_missing_braces;
 
-/* Nonzero means this is a function to call to perform comptypes
-   on two record types.  */
+/* Warn about comparison of signed and unsigned values.  */
 
-extern int (*comptypes_record_hook) ();
+extern int warn_sign_compare;
+
+/* Warn about multicharacter constants.  */
+
+extern int warn_multichar;
 
 /* Nonzero means we are reading code that came from a system header file.  */
 
@@ -486,5 +516,8 @@ extern int system_header_p;
 /* Nonzero enables objc features.  */
 
 extern int doing_objc_thang;
+
+/* In c-decl.c */
+extern void finish_incomplete_decl PROTO((tree));
 
 #endif /* not _C_TREE_H */
