@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.130 1995/12/22 14:58:55 bde Exp $
+ *	$Id: sio.c,v 1.131 1995/12/29 12:50:54 bde Exp $
  */
 
 #include "sio.h"
@@ -380,6 +380,8 @@ static struct kern_devconf kdc_sio[NSIO] = { {
 } };
 
 #ifdef COM_ESP
+/* XXX configure this properly. */
+static	Port_t	likely_com_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, };
 static	Port_t	likely_esp_ports[] = { 0x140, 0x180, 0x280, 0 };
 #endif
 
