@@ -1,4 +1,4 @@
-/* Define data type for representing bison's grammar input as it is parsed,
+/* Storage allocation interface for bison,
    Copyright (C) 1984, 1989 Free Software Foundation, Inc.
 
 This file is part of Bison, the GNU Compiler Compiler.
@@ -19,10 +19,18 @@ the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-typedef
-  struct shorts
-    {
-      struct shorts *next;
-      short value;
-    }
-  shorts;
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#define	NEW(t)		((t *) xmalloc((unsigned) sizeof(t)))
+#define	NEW2(n, t)	((t *) xmalloc((unsigned) ((n) * sizeof(t))))
+
+#ifdef __STDC__
+#define	FREE(x)		(x ? (void) free((char *) (x)) : (void)0)
+#else
+#define FREE(x) 	((x) != 0 && (free ((char *) (x)), 0))
+#endif
+
+extern char *xmalloc  PARAMS((register unsigned));
+extern char *xrealloc PARAMS((register char *, register unsigned));

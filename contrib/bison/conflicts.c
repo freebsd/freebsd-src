@@ -15,12 +15,13 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include "system.h"
 #include "machine.h"
-#include "new.h"
+#include "alloc.h"
 #include "files.h"
 #include "gram.h"
 #include "state.h"
@@ -35,14 +36,20 @@ extern unsigned *LA;
 extern short *LAruleno;
 extern short *lookaheads;
 extern int verboseflag;
+extern int fixed_outfiles;
 
-void set_conflicts();
-void resolve_sr_conflict();
-void flush_shift();
-void log_resolution();
-void total_conflicts();
-void count_sr_conflicts();
-void count_rr_conflicts();
+void initialize_conflicts PARAMS((void));
+void set_conflicts PARAMS((int));
+void resolve_sr_conflict PARAMS((int, int));
+void flush_shift PARAMS((int, int));
+void log_resolution PARAMS((int, int, int, char *));
+void conflict_log PARAMS((void));
+void verbose_conflict_log PARAMS((void));
+void total_conflicts PARAMS((void));
+void count_sr_conflicts PARAMS((int));
+void count_rr_conflicts PARAMS((int));
+void print_reductions PARAMS((int));
+void finalize_conflicts PARAMS((void));
 
 char any_conflicts;
 char *conflicts;
@@ -59,7 +66,7 @@ static int rrc_count;
 
 
 void
-initialize_conflicts()
+initialize_conflicts (void)
 {
   register int i;
 /*  register errs *sp; JF unused */
@@ -78,8 +85,7 @@ initialize_conflicts()
 
 
 void
-set_conflicts(state)
-int state;
+set_conflicts (int state)
 {
   register int i;
   register int k;
@@ -165,9 +171,7 @@ A conflict is resolved by modifying the shift or reduce tables
 so that there is no longer a conflict.  */
 
 void
-resolve_sr_conflict(state, lookaheadnum)
-int state;
-int lookaheadnum;
+resolve_sr_conflict (int state, int lookaheadnum)
 {
   register int i;
   register int mask;
@@ -192,13 +196,13 @@ int lookaheadnum;
 	{
 	  if (sprec[i] < redprec)
 	    {
-	      if (verboseflag) log_resolution(state, lookaheadnum, i, "reduce");
+	      if (verboseflag) log_resolution(state, lookaheadnum, i, _("reduce"));
 	      *fp2 &= ~mask;  /* flush the shift for this token */
 	      flush_shift(state, i);
 	    }
 	  else if (sprec[i] > redprec)
 	    {
-	      if (verboseflag) log_resolution(state, lookaheadnum, i, "shift");
+	      if (verboseflag) log_resolution(state, lookaheadnum, i, _("shift"));
 	      *fp1 &= ~mask;  /* flush the reduce for this token */
 	    }
 	  else
@@ -212,15 +216,15 @@ int lookaheadnum;
 		{
 
 		case RIGHT_ASSOC:
-	          if (verboseflag) log_resolution(state, lookaheadnum, i, "shift");
+	          if (verboseflag) log_resolution(state, lookaheadnum, i, _("shift"));
 		  break;
 
 		case LEFT_ASSOC:
-	          if (verboseflag) log_resolution(state, lookaheadnum, i, "reduce");
+	          if (verboseflag) log_resolution(state, lookaheadnum, i, _("reduce"));
 		  break;
 
 		case NON_ASSOC:
-	          if (verboseflag) log_resolution(state, lookaheadnum, i, "an error");
+	          if (verboseflag) log_resolution(state, lookaheadnum, i, _("an error"));
 		  break;
 		}
 
@@ -268,9 +272,7 @@ int lookaheadnum;
 Used when we resolve a shift-reduce conflict in favor of the reduction.  */
 
 void
-flush_shift(state, token)
-int state;
-int token;
+flush_shift (int state, int token)
 {
   register shifts *shiftp;
   register int k, i;
@@ -291,18 +293,16 @@ int token;
 
 
 void
-log_resolution(state, LAno, token, resolution)
-int state, LAno, token;
-char *resolution;
+log_resolution (int state, int LAno, int token, char *resolution)
 {
   fprintf(foutput,
-	  "Conflict in state %d between rule %d and token %s resolved as %s.\n",
+	  _("Conflict in state %d between rule %d and token %s resolved as %s.\n"),
 	  state, LAruleno[LAno], tags[token], resolution);
 }
 
 
 void
-conflict_log()
+conflict_log (void)
 {
   register int i;
 
@@ -325,7 +325,7 @@ conflict_log()
   
 
 void
-verbose_conflict_log()
+verbose_conflict_log (void)
 {
   register int i;
 
@@ -341,20 +341,20 @@ verbose_conflict_log()
 	  src_total += src_count;
 	  rrc_total += rrc_count;
 
-	  fprintf(foutput, "State %d contains", i);
+	  fprintf(foutput, _("State %d contains"), i);
 
 	  if (src_count == 1)
-	    fprintf(foutput, " 1 shift/reduce conflict");
+	    fprintf(foutput, _(" 1 shift/reduce conflict"));
 	  else if (src_count > 1)
-	    fprintf(foutput, " %d shift/reduce conflicts", src_count);
+	    fprintf(foutput, _(" %d shift/reduce conflicts"), src_count);
 
 	  if (src_count > 0 && rrc_count > 0)
-	    fprintf(foutput, " and");
+	    fprintf(foutput, _(" and"));
 
 	  if (rrc_count == 1)
-	    fprintf(foutput, " 1 reduce/reduce conflict");
+	    fprintf(foutput, _(" 1 reduce/reduce conflict"));
 	  else if (rrc_count > 1)
-	    fprintf(foutput, " %d reduce/reduce conflicts", rrc_count);
+	    fprintf(foutput, _(" %d reduce/reduce conflicts"), rrc_count);
 
 	  putc('.', foutput);
 	  putc('\n', foutput);
@@ -366,10 +366,8 @@ verbose_conflict_log()
 
 
 void
-total_conflicts()
+total_conflicts (void)
 {
-  extern int fixed_outfiles;
-
   if (src_total == expected_conflicts && rrc_total == 0)
     return;
 
@@ -377,31 +375,31 @@ total_conflicts()
     {
       /* If invoked under the name `yacc', use the output format
 	 specified by POSIX.  */
-      fprintf(stderr, "conflicts: ");
+      fprintf(stderr, _("conflicts: "));
       if (src_total > 0)
-	fprintf(stderr, " %d shift/reduce", src_total);
+	fprintf(stderr, _(" %d shift/reduce"), src_total);
       if (src_total > 0 && rrc_total > 0)
 	fprintf(stderr, ",");
       if (rrc_total > 0)
-	fprintf(stderr, " %d reduce/reduce", rrc_total);
+	fprintf(stderr, _(" %d reduce/reduce"), rrc_total);
       putc('\n', stderr);
     }
   else
     {
-      fprintf(stderr, "%s contains", infile);
+      fprintf(stderr, _("%s contains"), infile);
 
       if (src_total == 1)
-	fprintf(stderr, " 1 shift/reduce conflict");
+	fprintf(stderr, _(" 1 shift/reduce conflict"));
       else if (src_total > 1)
-	fprintf(stderr, " %d shift/reduce conflicts", src_total);
+	fprintf(stderr, _(" %d shift/reduce conflicts"), src_total);
 
       if (src_total > 0 && rrc_total > 0)
-	fprintf(stderr, " and");
+	fprintf(stderr, _(" and"));
 
       if (rrc_total == 1)
-	fprintf(stderr, " 1 reduce/reduce conflict");
+	fprintf(stderr, _(" 1 reduce/reduce conflict"));
       else if (rrc_total > 1)
-	fprintf(stderr, " %d reduce/reduce conflicts", rrc_total);
+	fprintf(stderr, _(" %d reduce/reduce conflicts"), rrc_total);
 
       putc('.', stderr);
       putc('\n', stderr);
@@ -410,8 +408,7 @@ total_conflicts()
 
 
 void
-count_sr_conflicts(state)
-int state;
+count_sr_conflicts (int state)
 {
   register int i;
   register int k;
@@ -478,8 +475,7 @@ int state;
 
 
 void
-count_rr_conflicts(state)
-int state;
+count_rr_conflicts (int state)
 {
   register int i;
   register int j;
@@ -525,8 +521,7 @@ int state;
 
 
 void
-print_reductions(state)
-int state;
+print_reductions (int state)
 {
   register int i;
   register int j;
@@ -541,7 +536,7 @@ int state;
   register int m;
   register int n;
   register int default_LA;
-  register int default_rule;
+  register int default_rule = 0;
   register int cmax;
   register int count;
   register shifts *shiftp;
@@ -600,7 +595,7 @@ int state;
       for (i = 0; i < ntokens; i++)
 	{
 	  if (mask & *fp3)
-	    fprintf(foutput, "    %-4s\t[reduce using rule %d (%s)]\n",
+	    fprintf(foutput, _("    %-4s\t[reduce using rule %d (%s)]\n"),
 		    tags[i], default_rule, tags[rlhs[default_rule]]);
 
 	  mask <<= 1;
@@ -611,7 +606,7 @@ int state;
 	    }
 	}
 
-      fprintf(foutput, "    $default\treduce using rule %d (%s)\n\n",
+      fprintf(foutput, _("    $default\treduce using rule %d (%s)\n\n"),
 	      default_rule, tags[rlhs[default_rule]]);
     }
   else if (n - m >= 1)
@@ -697,7 +692,7 @@ int state;
 		      if (j != default_LA)
 			{
 			  rule = LAruleno[j];
-			  fprintf(foutput, "    %-4s\treduce using rule %d (%s)\n",
+			  fprintf(foutput, _("    %-4s\treduce using rule %d (%s)\n"),
 				  tags[i], rule, tags[rlhs[rule]]);
 			}
 		      else defaulted = 1;
@@ -709,12 +704,12 @@ int state;
 		      if (defaulted)
 			{
 			  rule = LAruleno[default_LA];
-			  fprintf(foutput, "    %-4s\treduce using rule %d (%s)\n",
+			  fprintf(foutput, _("    %-4s\treduce using rule %d (%s)\n"),
 				  tags[i], rule, tags[rlhs[rule]]);
 			  defaulted = 0;
 			}
 		      rule = LAruleno[j];
-		      fprintf(foutput, "    %-4s\t[reduce using rule %d (%s)]\n",
+		      fprintf(foutput, _("    %-4s\t[reduce using rule %d (%s)]\n"),
 			      tags[i], rule, tags[rlhs[rule]]);
 		    }
 		}
@@ -735,7 +730,7 @@ int state;
 
       if (default_LA >= 0)
 	{
-	  fprintf(foutput, "    $default\treduce using rule %d (%s)\n",
+	  fprintf(foutput, _("    $default\treduce using rule %d (%s)\n"),
 		  default_rule, tags[rlhs[default_rule]]);
 	}
 
@@ -745,7 +740,7 @@ int state;
 
 
 void
-finalize_conflicts()
+finalize_conflicts (void)
 {
   FREE(conflicts);
   FREE(shiftset);
