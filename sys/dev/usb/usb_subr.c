@@ -1345,13 +1345,11 @@ usbd_fill_deviceinfo(usbd_device_handle dev, struct usb_device_info *di,
 	di->udi_speed = dev->speed;
 
 	if (dev->subdevs != NULL) {
-		for (i = 0; dev->subdevs[i] && i < USB_MAX_DEVNAMES; i++) {
-			if (device_is_attached(dev->subdevs[i]))
-				strlcpy(di->udi_devnames[i],
-				    USBDEVPTRNAME(dev->subdevs[i]),
-				    USB_MAX_DEVNAMELEN);
-			else
-				di->udi_devnames[i][0] = 0;
+		for (i = 0; dev->subdevs[i] &&
+			     i < USB_MAX_DEVNAMES; i++) {
+			strncpy(di->udi_devnames[i], USBDEVPTRNAME(dev->subdevs[i]),
+				USB_MAX_DEVNAMELEN);
+			di->udi_devnames[i][USB_MAX_DEVNAMELEN-1] = '\0';
                 }
         } else {
                 i = 0;
