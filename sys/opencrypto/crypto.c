@@ -34,6 +34,7 @@
 
 #include <vm/uma.h>
 #include <opencrypto/cryptodev.h>
+#include <opencrypto/xform.h>			/* XXX for M_XDATA */
 
 #define	SESID2HID(sid)	(((sid) >> 32) & 0xffffffff)
 
@@ -499,11 +500,10 @@ crypto_unblock(u_int32_t driverid, int what)
 	struct cryptocap *cap;
 	int needwakeup, err;
 
-	needwakeup = 0;
-
 	CRYPTO_Q_LOCK();
 	cap = crypto_checkdriver(driverid);
 	if (cap != NULL) {
+		needwakeup = 0;
 		if (what & CRYPTO_SYMQ) {
 			needwakeup |= cap->cc_qblocked;
 			cap->cc_qblocked = 0;
@@ -512,13 +512,12 @@ crypto_unblock(u_int32_t driverid, int what)
 			needwakeup |= cap->cc_kqblocked;
 			cap->cc_kqblocked = 0;
 		}
+		if (needwakeup)
+			wakeup_one(&crp_q);
 		err = 0;
 	} else
 		err = EINVAL;
 	CRYPTO_Q_UNLOCK();
-
-	if (needwakeup)
-		wakeup_one(&crp_q);
 
 	return err;
 }
@@ -584,8 +583,12 @@ crypto_kinvoke(struct cryptkop *krp, int hint)
 	mtx_assert(&crypto_q_mtx, MA_OWNED);
 
 	/* Sanity checks. */
-	if (krp == NULL || krp->krp_callback == NULL)
+	if (krp == NULL)
 		return EINVAL;
+	if (krp->krp_callback == NULL) {
+		free(krp, M_XDATA);		/* XXX allocated in cryptodev */
+		return EINVAL;
+	}
 
 	for (hid = 0; hid < crypto_drivers_num; hid++) {
 		if ((crypto_drivers[hid].cc_flags & CRYPTOCAP_F_SOFTWARE) &&
@@ -607,9 +610,7 @@ crypto_kinvoke(struct cryptkop *krp, int hint)
 
 	if (error) {
 		krp->krp_status = error;
-		CRYPTO_RETQ_LOCK();
-		TAILQ_INSERT_TAIL(&crp_ret_kq, krp, krp_next);
-		CRYPTO_RETQ_UNLOCK();
+		crypto_kdone(krp);
 	}
 	return 0;
 }
@@ -626,14 +627,15 @@ crypto_invoke(struct cryptop *crp, int hint)
 	mtx_assert(&crypto_q_mtx, MA_OWNED);
 
 	/* Sanity checks. */
-	if (crp == NULL || crp->crp_callback == NULL)
+	if (crp == NULL)
 		return EINVAL;
-
+	if (crp->crp_callback == NULL) {
+		crypto_freereq(crp);
+		return EINVAL;
+	}
 	if (crp->crp_desc == NULL) {
 		crp->crp_etype = EINVAL;
-		CRYPTO_RETQ_LOCK();
-		TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
-		CRYPTO_RETQ_UNLOCK();
+		crypto_done(crp);
 		return 0;
 	}
 
@@ -661,9 +663,7 @@ crypto_invoke(struct cryptop *crp, int hint)
 			crp->crp_sid = nid;
 
 		crp->crp_etype = EAGAIN;
-		CRYPTO_RETQ_LOCK();
-		TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
-		CRYPTO_RETQ_UNLOCK();
+		crypto_done(crp);
 		return 0;
 	} else {
 		/*
@@ -728,10 +728,10 @@ crypto_done(struct cryptop *crp)
 	CRYPTO_RETQ_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_ret_q);
 	TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
-	CRYPTO_RETQ_UNLOCK();
 
 	if (wasempty)
-		wakeup_one(&crp_q);	/* shared wait channel */
+		wakeup_one(&crp_ret_q);		/* shared wait channel */
+	CRYPTO_RETQ_UNLOCK();
 }
 
 /*
@@ -745,10 +745,10 @@ crypto_kdone(struct cryptkop *krp)
 	CRYPTO_RETQ_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_ret_kq);
 	TAILQ_INSERT_TAIL(&crp_ret_kq, krp, krp_next);
-	CRYPTO_RETQ_UNLOCK();
 
 	if (wasempty)
-		wakeup_one(&crp_q);	/* shared wait channel */
+		wakeup_one(&crp_ret_q);		/* shared wait channel */
+	CRYPTO_RETQ_UNLOCK();
 }
 
 int
@@ -787,20 +787,20 @@ crypto_shutdown(void *arg, int howto)
 }
 
 /*
- * Crypto thread, runs as a kernel thread to process crypto requests.
+ * Crypto thread, dispatches crypto requests.
  */
 static void
 crypto_proc(void)
 {
-	struct cryptop *crp, *crpt, *submit;
-	struct cryptkop *krp, *krpt;
+	struct cryptop *crp, *submit;
+	struct cryptkop *krp;
 	struct cryptocap *cap;
 	int result, hint;
 
-	mtx_lock(&Giant);		/* XXX for msleep */
-
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, crypto_shutdown, NULL,
 			      SHUTDOWN_PRI_FIRST);
+
+	CRYPTO_Q_LOCK();
 
 	for (;;) {
 		/*
@@ -810,7 +810,6 @@ crypto_proc(void)
 		 */
 		submit = NULL;
 		hint = 0;
-		CRYPTO_Q_LOCK();
 		TAILQ_FOREACH(crp, &crp_q, crp_next) {
 			u_int32_t hid = SESID2HID(crp->crp_sid);
 			cap = crypto_checkdriver(hid);
@@ -888,29 +887,8 @@ crypto_proc(void)
 				TAILQ_INSERT_HEAD(&crp_kq, krp, krp_next);
 			}
 		}
-		CRYPTO_Q_UNLOCK();
 
-		/* Harvest return q for completed ops */
-		CRYPTO_RETQ_LOCK();
-		crpt = TAILQ_FIRST(&crp_ret_q);
-		if (crpt != NULL)
-			TAILQ_REMOVE(&crp_ret_q, crpt, crp_next);
-		CRYPTO_RETQ_UNLOCK();
-
-		if (crpt != NULL)
-			crpt->crp_callback(crpt);
-
-		/* Harvest return q for completed kops */
-		CRYPTO_RETQ_LOCK();
-		krpt = TAILQ_FIRST(&crp_ret_kq);
-		if (krpt != NULL)
-			TAILQ_REMOVE(&crp_ret_kq, krpt, krp_next);
-		CRYPTO_RETQ_UNLOCK();
-
-		if (krpt != NULL)
-			krp->krp_callback(krp);
-
-		if (crp == NULL && krp == NULL && crpt == NULL && krpt == NULL) {
+		if (submit == NULL && krp == NULL) {
 			/*
 			 * Nothing more to be processed.  Sleep until we're
 			 * woken because there are more ops to process.
@@ -923,14 +901,76 @@ crypto_proc(void)
 			 * out of order if dispatched to different devices
 			 * and some become blocked while others do not.
 			 */
-			tsleep(&crp_q, PWAIT, "crypto_wait", 0);
+			msleep(&crp_q, &crypto_q_mtx, PWAIT, "crypto_wait", 0);
 		}
 	}
 }
-
 static struct kproc_desc crypto_kp = {
 	"crypto",
 	crypto_proc,
 	&cryptoproc
 };
-SYSINIT(crypto_proc, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &crypto_kp)
+SYSINIT(crypto_proc, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY,
+	kproc_start, &crypto_kp)
+
+static struct proc *cryptoretproc;
+
+static void
+crypto_ret_shutdown(void *arg, int howto)
+{
+	/* XXX flush queues */
+}
+
+/*
+ * Crypto returns thread, does callbacks for processed crypto requests.
+ * Callbacks are done here, rather than in the crypto drivers, because
+ * callbacks typically are expensive and would slow interrupt handling.
+ */
+static void
+crypto_ret_proc(void)
+{
+	struct cryptop *crpt;
+	struct cryptkop *krpt;
+
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, crypto_ret_shutdown, NULL,
+			      SHUTDOWN_PRI_FIRST);
+
+	CRYPTO_RETQ_LOCK();
+
+	for (;;) {
+		/* Harvest return q's for completed ops */
+		crpt = TAILQ_FIRST(&crp_ret_q);
+		if (crpt != NULL)
+			TAILQ_REMOVE(&crp_ret_q, crpt, crp_next);
+
+		krpt = TAILQ_FIRST(&crp_ret_kq);
+		if (krpt != NULL)
+			TAILQ_REMOVE(&crp_ret_kq, krpt, krp_next);
+
+		if (crpt != NULL || krpt != NULL) {
+			CRYPTO_RETQ_UNLOCK();
+			/*
+			 * Run callbacks unlocked.
+			 */
+			if (crpt != NULL)
+				crpt->crp_callback(crpt);
+			if (krpt != NULL)
+				krpt->krp_callback(krpt);
+			CRYPTO_RETQ_LOCK();
+		} else {
+			/*
+			 * Nothing more to be processed.  Sleep until we're
+			 * woken because there are more returns to process.
+			 */
+			msleep(&crp_ret_q, &crypto_ret_q_mtx, PWAIT,
+				"crypto_ret_wait", 0);
+		}
+	}
+}
+static struct kproc_desc crypto_ret_kp = {
+	"crypto returns",
+	crypto_ret_proc,
+	&cryptoretproc
+};
+SYSINIT(crypto_ret_proc, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY,
+	kproc_start, &crypto_ret_kp)
