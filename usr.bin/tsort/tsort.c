@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #ifndef lint
@@ -424,6 +426,6 @@ find_cycle(from, to, longest_len, depth)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: tsort [-l] [file]\n");
+	(void)fprintf(stderr, "usage: tsort [-dl] [file]\n");
 	exit(1);
 }
