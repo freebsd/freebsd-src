@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.103 2002/09/27 15:37:38 provos Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.104 2004/07/17 20:16:13 mycroft Exp $	*/
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -758,6 +758,9 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 {
 	usbd_pipe_handle pipe = xfer->pipe;
 	usb_dma_t *dmap = &xfer->dmabuf;
+	int sync = xfer->flags & USBD_SYNCHRONOUS;
+	int erred = xfer->status == USBD_CANCELLED ||
+	    xfer->status == USBD_TIMEOUT;
 	int repeat = pipe->repeat;
 	int polling;
 
@@ -842,14 +845,12 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 	pipe->methods->done(xfer);
 #endif
 
-	if ((xfer->flags & USBD_SYNCHRONOUS) && !polling)
+	if (sync && !polling)
 		wakeup(xfer);
 
 	if (!repeat) {
 		/* XXX should we stop the queue on all errors? */
-		if ((xfer->status == USBD_CANCELLED ||
-		     xfer->status == USBD_TIMEOUT) &&
-		    pipe->iface != NULL)		/* not control pipe */
+		if (erred && pipe->iface != NULL)	/* not control pipe */
 			pipe->running = 0;
 		else
 			usbd_start_next(pipe);
