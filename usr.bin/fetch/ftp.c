@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.3.2.2 1997/03/11 20:09:49 joerg Exp $
+ *	$Id: ftp.c,v 1.3.2.3 1997/08/03 18:53:17 peter Exp $
  */
 
 #include <sys/types.h>
@@ -52,6 +52,10 @@ struct ftp_state {
 	char *ftp_user;
 	char *ftp_password;
 	char *ftp_remote_file;
+	char **ftp_remote_dirs;
+	int ftp_remote_ndirs;
+	char *ftp_remote_path;
+	char *ftp_type;
 	unsigned ftp_port;
 };
 
@@ -67,7 +71,7 @@ static int
 ftp_parse(struct fetch_state *fs, const char *uri)
 {
 	const char *p, *slash, *q;
-	char *hostname, *atsign, *colon;
+	char *hostname, *atsign, *colon, *path, *r, *s, **dp;
 	unsigned port;
 	struct ftp_state *ftps;
 
@@ -151,12 +155,41 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 		ftps->ftp_hostname = safe_strdup(hostname);
 	ftps->ftp_port = port;
 
-	p = ftps->ftp_remote_file = percent_decode(p);
-	/* now p is the decoded version */
+	/* Save the full path for error messages. */
+	ftps->ftp_remote_path = percent_decode(p);
+
+	/* Build a list of directory components plus the filename. */
+	ftps->ftp_remote_ndirs = 0;
+	q = p;
+	while ((q = strchr(q, '/')) != 0) {
+		q++;
+		ftps->ftp_remote_ndirs++;
+	}
+	path = safe_strdup(p);
+	if (ftps->ftp_remote_ndirs != 0) {
+		ftps->ftp_remote_dirs = safe_malloc(ftps->ftp_remote_ndirs *
+								sizeof(char *));
+		r = s = path = safe_strdup(p);
+		dp = ftps->ftp_remote_dirs;
+		while ((s = strchr(s, '/')) != 0) {
+			*s++ = '\0';
+			*dp++ = percent_decode(r);
+			r = s;
+		}
+	} else {
+		ftps->ftp_remote_dirs = 0;
+		r = path;
+	}
+	if ((s = strchr(r, ';')) != 0 && strncmp(s, ";type=", 6) == 0) {
+		*s = '\0';
+		ftps->ftp_type = percent_decode(s+6);
+	} else
+		ftps->ftp_type = 0;
+	ftps->ftp_remote_file = percent_decode(r);
+	free(path);
 
 	if (fs->fs_outputfile == 0) {
-		slash = strrchr(p, '/');
-		fs->fs_outputfile = slash ? slash + 1 : p;
+		fs->fs_outputfile = ftps->ftp_remote_file;
 	}
 
 	if (ftps->ftp_password == 0)
@@ -271,12 +304,21 @@ static int
 ftp_close(struct fetch_state *fs)
 {
 	struct ftp_state *ftps = fs->fs_proto;
+	int i;
+	char **dp;
 
 	if (ftps->ftp_user)
 		free(ftps->ftp_user);
 	free(ftps->ftp_hostname);
 	free(ftps->ftp_password);
 	free(ftps->ftp_remote_file);
+	for (i = 0, dp = ftps->ftp_remote_dirs; i < ftps->ftp_remote_ndirs; i++, dp++)
+		free(*dp);
+	if (ftps->ftp_remote_dirs)
+		free(ftps->ftp_remote_dirs);
+	free(ftps->ftp_remote_path);
+	if (ftps->ftp_type)
+		free(ftps->ftp_type);
 	free(ftps);
 	fs->fs_proto = 0;
 	fs->fs_outputfile = 0;
@@ -288,7 +330,8 @@ ftp_retrieve(struct fetch_state *fs)
 {
 	struct ftp_state *ftps = fs->fs_proto;
 	FILE *ftp, *remote, *local;
-	int status;
+	char **dp;
+	int i, status;
 	off_t size;
 	off_t seekloc, wehave;
 	time_t modtime;
@@ -304,13 +347,28 @@ ftp_retrieve(struct fetch_state *fs)
 		      status ? ftpErrString(status) : hstrerror(h_errno));
 		return EX_IOERR;
 	}
-	ftpBinary(ftp);
+	if (ftps->ftp_type && strcasecmp(ftps->ftp_type, "i") != 0) {
+		if (strcasecmp(ftps->ftp_type, "a") == 0)
+			ftpAscii(ftp);
+		else {
+			warnx("unknown or unsupported type %s", ftps->ftp_type);
+			return EX_USAGE;
+		}
+	} else
+		ftpBinary(ftp);
 	ftpPassive(ftp, fs->fs_passive_mode);
+	for (i = 0, dp = ftps->ftp_remote_dirs; i < ftps->ftp_remote_ndirs; i++, dp++) {
+		if ((status = ftpChdir(ftp, *dp)) != 0) {
+			warnx("%s: %s: %s", ftps->ftp_hostname,
+				*dp, ftpErrString(status));
+			return EX_IOERR;
+		}
+	}
 	size = ftpGetSize(ftp, ftps->ftp_remote_file);
 	modtime = ftpGetModtime(ftp, ftps->ftp_remote_file);
 	if (modtime <= 0) {	/* xxx */
 		warnx("%s: cannot get remote modification time", 
-		      ftps->ftp_remote_file);
+		      ftps->ftp_remote_path);
 		modtime = -1;
 	}
 	fs->fs_modtime = modtime;
@@ -346,7 +404,7 @@ ftp_retrieve(struct fetch_state *fs)
 	if (remote == 0) {
 		if (ftpErrno(ftp)) {
 			warnx("ftp://%s/%s: FTP error:",
-				ftps->ftp_hostname, ftps->ftp_remote_file);
+				ftps->ftp_hostname, ftps->ftp_remote_path);
 			warnx("%s", ftpErrString(ftpErrno(ftp)));
 			fclose(ftp);
 			return EX_IOERR;
