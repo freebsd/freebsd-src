@@ -65,7 +65,7 @@ static void			moduledir_rebuild(void);
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
-static const char	*default_searchpath ="/boot/kernel;/boot/modules;/modules";
+static const char	*default_searchpath ="/boot/kernel;/boot/modules";
 
 static STAILQ_HEAD(, moduledir) moduledir_list = STAILQ_HEAD_INITIALIZER(moduledir_list);
 

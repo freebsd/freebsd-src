@@ -200,7 +200,7 @@
 
 	Sets the list of directories which will be searched in for modules
 	named in a load command or implicitly required by a dependancy. The
-	default module_path is "/boot/kernel;/boot/modules;/modules".
+	default module_path is "/boot/kernel;/boot/modules".
 
 ################################################################################
 # Tset Sprompt DSet the command prompt
