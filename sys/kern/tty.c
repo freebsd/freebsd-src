@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.49 1995/07/21 13:56:29 bde Exp $
+ * $Id: tty.c,v 1.50 1995/07/21 14:15:09 bde Exp $
  */
 
 /*-
@@ -185,6 +185,9 @@ char const char_type[] = {
 #define	CLR(t, f)	(t) &= ~(f)
 #define	ISSET(t, f)	((t) & (f))
 
+#undef MAX_INPUT		/* XXX wrong in <sys/syslimits.h> */
+#define	MAX_INPUT	TTYHOG
+
 /*
  * Initial open of tty, or (re)entry to standard tty line discipline.
  */
@@ -308,7 +311,11 @@ ttyinput(c, tp)
 			if (ISSET(iflag, IGNPAR))
 				return (0);
 			else if (ISSET(iflag, PARMRK)) {
-parmrk:				(void)putc(0377 | TTY_QUOTE, &tp->t_rawq);
+parmrk:
+				if (tp->t_rawq.c_cc + tp->t_canq.c_cc >
+				    MAX_INPUT - 3)
+					goto input_overflow;
+				(void)putc(0377 | TTY_QUOTE, &tp->t_rawq);
 				(void)putc(0 | TTY_QUOTE, &tp->t_rawq);
 				(void)putc(c | TTY_QUOTE, &tp->t_rawq);
 				goto endcase;
@@ -518,7 +525,8 @@ parmrk:				(void)putc(0377 | TTY_QUOTE, &tp->t_rawq);
 	/*
 	 * Check for input buffer overflow
 	 */
-	if (tp->t_rawq.c_cc + tp->t_canq.c_cc >= TTYHOG) {
+	if (tp->t_rawq.c_cc + tp->t_canq.c_cc >= MAX_INPUT) {
+input_overflow:
 		if (ISSET(iflag, IMAXBEL)) {
 			if (tp->t_outq.c_cc < tp->t_hiwat)
 				(void)ttyoutput(CTRL('g'), tp);
