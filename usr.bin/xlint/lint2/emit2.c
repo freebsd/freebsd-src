@@ -1,6 +1,7 @@
-/*	$NetBSD: emit2.c,v 1.2 1995/07/03 21:24:44 cgd Exp $	*/
+/* $NetBSD: emit2.c,v 1.8 2002/01/21 19:49:52 tv Exp $ */
 
 /*
+ * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
  *
@@ -31,24 +32,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static char rcsid[] = "$NetBSD: emit2.c,v 1.2 1995/07/03 21:24:44 cgd Exp $";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: emit2.c,v 1.8 2002/01/21 19:49:52 tv Exp $");
 #endif
-
-#include <err.h>
 
 #include "lint2.h"
 
-static	void	outtype __P((type_t *));
-static	void	outdef __P((hte_t *, sym_t *));
-static	void	dumpname __P((hte_t *));
+static	void	outtype(type_t *);
+static	void	outdef(hte_t *, sym_t *);
+static	void	dumpname(hte_t *);
+static	void	outfiles(void);
 
 /*
  * Write type into the output buffer.
  */
 static void
-outtype(tp)
-	type_t	*tp;
+outtype(type_t *tp)
 {
 	int	t, s, na;
 	tspec_t	ts;
@@ -105,9 +105,15 @@ outtype(tp)
 			} else if (tp->t_istynam) {
 				outint(2);
 				outname(tp->t_tynam->h_name);
-			} else {
-				outint(0);
-			}
+			} else if (tp->t_isuniqpos) {
+				outint(3);
+				outint(tp->t_uniqpos.p_line);
+				outchar('.');
+				outint(tp->t_uniqpos.p_file);
+				outchar('.');
+				outint(tp->t_uniqpos.p_uniq);
+			} else
+				errx(1, "internal error: outtype() 2");
 		} else if (ts == FUNC && tp->t_args != NULL) {
 			na = 0;
 			for (ap = tp->t_args; *ap != NULL; ap++)
@@ -128,10 +134,9 @@ outtype(tp)
  * Write a definition.
  */
 static void
-outdef(hte, sym)
-	hte_t	*hte;
-	sym_t	*sym;
+outdef(hte_t *hte, sym_t *sym)
 {
+
 	/* reset output buffer */
 	outclr();
 
@@ -180,8 +185,7 @@ outdef(hte, sym)
  * Write the first definition of a name into the lint library.
  */
 static void
-dumpname(hte)
-	hte_t	*hte;
+dumpname(hte_t *hte)
 {
 	sym_t	*sym, *def;
 
@@ -191,7 +195,7 @@ dumpname(hte)
 
 	/*
 	 * If there is a definition, write it. Otherwise write a tentative
-	 * definition. This is neccessary because more than one tentative
+	 * definition. This is necessary because more than one tentative
 	 * definition is allowed (except with sflag).
 	 */
 	def = NULL;
@@ -213,8 +217,7 @@ dumpname(hte)
  * Write a new lint library.
  */
 void
-outlib(name)
-	const	char *name;
+outlib(const char *name)
 {
 	/* Open of output file and initialisation of the output buffer */
 	outopen(name);
@@ -228,9 +231,67 @@ outlib(name)
 	outchar('s');
 	outstrg(name);
 
+	/*
+	 * print the names of all files references by unnamed
+	 * struct/union/enum declarations.
+	 */
+	outfiles();
+
 	/* write all definitions with external linkage */
 	forall(dumpname);
 
 	/* close the output */
 	outclose();
+}
+
+/*
+ * Write out the name of a file referenced by a type.
+ */
+struct outflist {
+	short		ofl_num;
+	struct outflist *ofl_next;
+};
+static struct outflist *outflist;
+
+int
+addoutfile(short num)
+{
+	struct outflist *ofl, **pofl;
+	int i;
+
+	ofl = outflist;
+	pofl = &outflist;
+	i = 1;				/* library is 0 */
+
+	while (ofl != NULL) {
+		if (ofl->ofl_num == num)
+			break;
+
+		pofl = &ofl->ofl_next;
+		ofl = ofl->ofl_next;
+		i++;
+	}
+
+	if (ofl == NULL) {
+		ofl = *pofl = xmalloc(sizeof (struct outflist));
+		ofl->ofl_num = num;
+		ofl->ofl_next = NULL;
+	}
+	return (i);
+}
+
+static void
+outfiles(void)
+{
+	struct outflist *ofl;
+	int i;
+
+	for (ofl = outflist, i = 1; ofl != NULL; ofl = ofl->ofl_next, i++) {
+		/* reset output buffer */
+		outclr();
+
+		outint(i);
+		outchar('s');
+		outstrg(fnames[ofl->ofl_num]);
+	}
 }

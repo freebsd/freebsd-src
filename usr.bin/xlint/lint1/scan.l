@@ -1,7 +1,8 @@
 %{
-/*	$NetBSD: scan.l,v 1.8 1995/10/23 13:38:51 jpo Exp $	*/
+/* $NetBSD: scan.l,v 1.26 2002/01/31 22:30:21 tv Exp $ */
 
 /*
+ * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
  *
@@ -32,8 +33,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static char rcsid[] = "$NetBSD: scan.l,v 1.8 1995/10/23 13:38:51 jpo Exp $";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: scan.l,v 1.26 2002/01/31 22:30:21 tv Exp $");
 #endif
 
 #include <stdlib.h>
@@ -43,44 +45,42 @@ static char rcsid[] = "$NetBSD: scan.l,v 1.8 1995/10/23 13:38:51 jpo Exp $";
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
-#include <err.h>
 
 #include "lint1.h"
-#include "y.tab.h"
+#include "cgram.h"
 
 #define CHAR_MASK	(~(~0 << CHAR_BIT))
-
-/* XXX declaration of strtouq() is missing in stdlib.h ? */
-extern	u_quad_t strtouq __P((const char *, char **, int));
+#define YY_NO_UNPUT
 
 /* Current position (its also updated when an included file is parsed) */
-pos_t	curr_pos = { 1, "" };
+pos_t	curr_pos = { 1, "", 0 };
 
 /*
  * Current position in C source (not updated when an included file is
  * parsed).
  */
-pos_t	csrc_pos = { 1, "" };
+pos_t	csrc_pos = { 1, "", 0 };
 
-static	void	incline __P((void));
-static	void	badchar __P((int));
-static	sbuf_t	*allocsb __P((void));
-static	void	freesb __P((sbuf_t *));
-static	int	inpc __P((void));
-static	int	hash __P((const char *));
-static	sym_t	*search __P((sbuf_t *));
-static	int	name __P((void));
-static	int	keyw __P((sym_t *));
-static	int	icon __P((int));
-static	int	fcon __P((void));
-static	int	operator __P((int, op_t));
-static	int	ccon __P((void));
-static	int	wccon __P((void));
-static	int	getescc __P((int));
-static	void	directive __P((void));
-static	void	comment __P((void));
-static	int	string __P((void));
-static	int	wcstrg __P((void));
+static	void	incline(void);
+static	void	badchar(int);
+static	sbuf_t	*allocsb(void);
+static	void	freesb(sbuf_t *);
+static	int	inpc(void);
+static	int	hash(const char *);
+static	sym_t	*search(sbuf_t *);
+static	int	name(void);
+static	int	keyw(sym_t *);
+static	int	icon(int);
+static	int	fcon(void);
+static	int	operator(int, op_t);
+static	int	ccon(void);
+static	int	wccon(void);
+static	int	getescc(int);
+static	void	directive(void);
+static	void	comment(void);
+static	void	slashslashcomment(void);
+static	int	string(void);
+static	int	wcstrg(void);
 
 %}
 
@@ -154,22 +154,26 @@ EX	([eE][+-]?[0-9]+)
 \n				incline();
 \t|" "|\f|\v			;
 "/*"				comment();
+"//"				slashslashcomment();
 .				badchar(yytext[0]);
 
 %%
 
 static void
-incline()
+incline(void)
 {
 	curr_pos.p_line++;
-	if (curr_pos.p_file == csrc_pos.p_file)
+	curr_pos.p_uniq = 0;
+	if (curr_pos.p_file == csrc_pos.p_file) {
 		csrc_pos.p_line++;
+		csrc_pos.p_uniq = 0;
+	}
 }
 
 static void
-badchar(c)
-	int	c;
+badchar(int c)
 {
+
 	/* unknown character \%o */
 	error(250, c);
 }
@@ -212,6 +216,7 @@ static	struct	kwtab {
 	{ "__inline__",	T_SCLASS,	INLINE,	0,	0,	  0, 0 },
 	{ "__inline",	T_SCLASS,	INLINE,	0,	0,	  0, 0 },
 	{ "int",	T_TYPE,		0,	INT,	0,	  0, 0 },
+	{ "__symbolrename", T_SYMBOLRENAME, 0,	0,	0,	  0, 0 },
 	{ "long",	T_TYPE,		0,	LONG,	0,	  0, 0 },
 	{ "register",	T_SCLASS,	REG,	0,	0,	  0, 0 },
 	{ "return",	T_RETURN,	0,	0,	0,	  0, 0 },
@@ -238,13 +243,13 @@ static	struct	kwtab {
 static	sym_t	*symtab[HSHSIZ1];
 
 /* bit i of the entry with index i is set */
-u_quad_t qbmasks[sizeof(u_quad_t) * CHAR_BIT];
+uint64_t qbmasks[sizeof(uint64_t) * CHAR_BIT];
 
 /* least significant i bits are set in the entry with index i */
-u_quad_t qlmasks[sizeof(u_quad_t) * CHAR_BIT + 1];
+uint64_t qlmasks[sizeof(uint64_t) * CHAR_BIT + 1];
 
 /* least significant i bits are not set in the entry with index i */
-u_quad_t qumasks[sizeof(u_quad_t) * CHAR_BIT + 1];
+uint64_t qumasks[sizeof(uint64_t) * CHAR_BIT + 1];
 
 /* free list for sbuf structures */
 static	sbuf_t	 *sbfrlst;
@@ -258,12 +263,12 @@ symt_t	symtyp;
  * in a extra table for each name we found.
  */
 void
-initscan()
+initscan(void)
 {
 	struct	kwtab *kw;
 	sym_t	*sym;
 	int	h, i;
-	u_quad_t uq;
+	uint64_t uq;
 
 	for (kw = kwtab; kw->kw_name != NULL; kw++) {
 		if (kw->kw_stdc && tflag)
@@ -288,21 +293,21 @@ initscan()
 	}
 
 	/* initialize bit-masks for quads */
-	for (i = 0; i < sizeof (u_quad_t) * CHAR_BIT; i++) {
-		qbmasks[i] = (u_quad_t)1 << i;
-		uq = ~(u_quad_t)0 << i;
+	for (i = 0; i < sizeof (uint64_t) * CHAR_BIT; i++) {
+		qbmasks[i] = (uint64_t)1 << i;
+		uq = ~(uint64_t)0 << i;
 		qumasks[i] = uq;
 		qlmasks[i] = ~uq;
 	}
 	qumasks[i] = 0;
-	qlmasks[i] = ~(u_quad_t)0;
+	qlmasks[i] = ~(uint64_t)0;
 }
 
 /*
  * Get a free sbuf structure, if possible from the free list
  */
 static sbuf_t *
-allocsb()
+allocsb(void)
 {
 	sbuf_t	*sb;
 
@@ -319,9 +324,9 @@ allocsb()
  * Put a sbuf structure to the free list
  */
 static void
-freesb(sb)
-	sbuf_t	*sb;
+freesb(sbuf_t *sb)
 {
+
 	sb->sb_nxt = sbfrlst;
 	sbfrlst = sb;
 }
@@ -331,7 +336,7 @@ freesb(sb)
  * Increment line count(s) if necessary.
  */
 static int
-inpc()
+inpc(void)
 {
 	int	c;
 
@@ -341,8 +346,7 @@ inpc()
 }
 
 static int
-hash(s)
-	const	char *s;
+hash(const char *s)
 {
 	u_int	v;
 	const	u_char *us;
@@ -371,7 +375,7 @@ hash(s)
  * to the symbol table entry.
  */
 static int
-name()
+name(void)
 {
 	char	*s;
 	sbuf_t	*sb;
@@ -409,8 +413,7 @@ name()
 }
 
 static sym_t *
-search(sb)
-	sbuf_t	*sb;
+search(sbuf_t *sb)
 {
 	sym_t	*sym;
 
@@ -423,10 +426,9 @@ search(sb)
 
 	return (NULL);
 }
-			
+
 static int
-keyw(sym)
-	sym_t	*sym;
+keyw(sym_t *sym)
 {
 	int	t;
 
@@ -445,16 +447,15 @@ keyw(sym)
  * The value is returned in yylval. icon() (and yylex()) returns T_CON.
  */
 static int
-icon(base)
-	int	base;
+icon(int base)
 {
 	int	l_suffix, u_suffix;
 	int	len;
 	const	char *cp;
 	char	c, *eptr;
 	tspec_t	typ;
-	u_long	ul;
-	u_quad_t uq;
+	u_long	ul = 0;
+	uint64_t uq = 0;
 	int	ansiu;
 	static	tspec_t contypes[2][3] = {
 		{ INT,  LONG,  QUAD },
@@ -509,7 +510,7 @@ icon(base)
 		warning(252);
 
 	/*
-         * If the value is to big for the current type, we must choose
+	 * If the value is to big for the current type, we must choose
 	 * another type.
 	 */
 	ansiu = 0;
@@ -555,21 +556,45 @@ icon(base)
 		}
 		break;
 		/* LINTED (enumeration values not handled in switch) */
+	case STRUCT:
+	case VOID:
+	case LDOUBLE:
+	case FUNC:
+	case ARRAY:
+	case PTR:
+	case ENUM:
+	case UNION:
+	case SIGNED:
+	case NOTSPEC:
+	case DOUBLE:
+	case FLOAT:
+	case UQUAD:
+	case ULONG:
+	case USHORT:
+	case SHORT:
+	case UCHAR:
+	case SCHAR:
+	case CHAR:
+	case UNSIGN:
+		break;
+
+	case NTSPEC:	/* this value unused */
+		break;
 	}
 
 	if (typ != QUAD && typ != UQUAD) {
 		if (isutyp(typ)) {
 			uq = ul;
 		} else {
-			uq = (quad_t)(long)ul;
+			uq = (int64_t)(long)ul;
 		}
 	}
 
-	uq = (u_quad_t)xsign((quad_t)uq, typ, -1);
+	uq = (uint64_t)xsign((int64_t)uq, typ, -1);
 
 	(yylval.y_val = xcalloc(1, sizeof (val_t)))->v_tspec = typ;
 	yylval.y_val->v_ansiu = ansiu;
-	yylval.y_val->v_quad = (quad_t)uq;
+	yylval.y_val->v_quad = (int64_t)uq;
 
 	return (T_CON);
 }
@@ -581,22 +606,18 @@ icon(base)
  * to the width of type t.
  */
 int
-sign(q, t, len)
-	quad_t	q;
-	tspec_t	t;
-	int	len;
+sign(int64_t q, tspec_t t, int len)
 {
+
 	if (t == PTR || isutyp(t))
 		return (0);
 	return (msb(q, t, len));
 }
 
 int
-msb(q, t, len)
-	quad_t	q;
-	tspec_t	t;
-	int	len;
+msb(int64_t q, tspec_t t, int len)
 {
+
 	if (len <= 0)
 		len = size(t);
 	return ((q & qbmasks[len - 1]) != 0);
@@ -605,12 +626,10 @@ msb(q, t, len)
 /*
  * Extends the sign of q.
  */
-quad_t
-xsign(q, t, len)
-	quad_t	q;
-	tspec_t	t;
-	int	len;
+int64_t
+xsign(int64_t q, tspec_t t, int len)
 {
+
 	if (len <= 0)
 		len = size(t);
 
@@ -627,17 +646,17 @@ xsign(q, t, len)
  * representation. Type and value are returned in yylval. fcon()
  * (and yylex()) returns T_CON.
  * XXX Currently it is not possible to convert constants of type
- * long double which are greater then DBL_MAX.
+ * long double which are greater than DBL_MAX.
  */
 static int
-fcon()
+fcon(void)
 {
 	const	char *cp;
 	int	len;
 	tspec_t typ;
 	char	c, *eptr;
 	double	d;
-	float	f;
+	float	f = 0;
 
 	cp = yytext;
 	len = yyleng;
@@ -667,7 +686,7 @@ fcon()
 
 	if (typ == FLOAT) {
 		f = (float)d;
-		if (isinf(f)) {
+		if (!finite(f)) {
 			/* floating-point constant out of range */
 			warning(248);
 			f = f > 0 ? FLT_MAX : -FLT_MAX;
@@ -685,10 +704,9 @@ fcon()
 }
 
 static int
-operator(t, o)
-	int	t;
-	op_t	o;
+operator(int t, op_t o)
 {
+
 	yylval.y_op = o;
 	return (t);
 }
@@ -697,7 +715,7 @@ operator(t, o)
  * Called if lex found a leading \'.
  */
 static int
-ccon()
+ccon(void)
 {
 	int	n, val, c;
 	char	cv;
@@ -727,7 +745,7 @@ ccon()
 		cv = (char)val;
 		val = cv;
 	}
-	
+
 	yylval.y_val = xcalloc(1, sizeof (val_t));
 	yylval.y_val->v_tspec = INT;
 	yylval.y_val->v_quad = val;
@@ -739,7 +757,7 @@ ccon()
  * Called if lex found a leading L\'
  */
 static int
-wccon()
+wccon(void)
 {
 	static	char buf[MB_LEN_MAX + 1];
 	int	i, c;
@@ -789,11 +807,10 @@ wccon()
  * string.
  *
  * Returns -1 if the end of the character constant or string is reached,
- * -2 if the EOF is reached, and the charachter otherwise.
+ * -2 if the EOF is reached, and the character otherwise.
  */
 static int
-getescc(d)
-	int	d;
+getescc(int d)
 {
 	static	int pbc = -1;
 	int	n, c, v;
@@ -808,9 +825,12 @@ getescc(d)
 		return (-1);
 	switch (c) {
 	case '\n':
-		/* newline in string or char constant */
-		error(254);
-		return (-2);
+		if (tflag) {
+			/* newline in string or char constant */
+			error(254);
+			return (-2);
+		}
+		return (c);
 	case EOF:
 		return (-2);
 	case '\\':
@@ -833,11 +853,7 @@ getescc(d)
 			if (tflag)
 				/* \a undefined in traditional C */
 				warning(81);
-#ifdef __STDC__
 			return ('\a');
-#else
-			return ('\007');
-#endif
 		case 'b':
 			return ('\b');
 		case 'f':
@@ -852,11 +868,7 @@ getescc(d)
 			if (tflag)
 				/* \v undefined in traditional C */
 				warning(264);
-#ifdef __STDC__
 			return ('\v');
-#else
-			return ('\013');
-#endif
 		case '8': case '9':
 			/* bad octal digit %c */
 			warning(77, c);
@@ -930,7 +942,7 @@ getescc(d)
  *	# lineno "filename"
  */
 static void
-directive()
+directive(void)
 {
 	const	char *cp, *fn;
 	char	c, *eptr;
@@ -939,9 +951,10 @@ directive()
 	static	int first = 1;
 
 	/* Go to first non-whitespace after # */
-	for (cp = yytext + 1; (c = *cp) == ' ' || c == '\t'; cp++) ;
+	for (cp = yytext + 1; (c = *cp) == ' ' || c == '\t'; cp++)
+		continue;
 
-	if (!isdigit(c)) {
+	if (!isdigit((unsigned char)c)) {
 	error:
 		/* undefined or invalid # directive */
 		warning(255);
@@ -952,7 +965,8 @@ directive()
 		goto error;
 	if ((c = *(cp = eptr)) != ' ' && c != '\t' && c != '\0')
 		goto error;
-	while ((c = *cp++) == ' ' || c == '\t') ;
+	while ((c = *cp++) == ' ' || c == '\t')
+		continue;
 	if (c != '\0') {
 		if (c != '"')
 			goto error;
@@ -963,11 +977,18 @@ directive()
 			goto error;
 		if ((fnl = cp++ - fn) > PATH_MAX)
 			goto error;
-		while ((c = *cp++) == ' ' || c == '\t') ;
+		while ((c = *cp++) == ' ' || c == '\t')
+			continue;
 #if 0
 		if (c != '\0')
 			warning("extra character(s) after directive");
 #endif
+
+		/* empty string means stdin */
+		if (fnl == 0) {
+			fn = "{standard input}";
+			fnl = 16;			/* strlen (fn) */
+		}
 		curr_pos.p_file = fnnalloc(fn, fnl);
 		/*
 		 * If this is the first directive, the name is the name
@@ -981,13 +1002,17 @@ directive()
 		}
 	}
 	curr_pos.p_line = (int)ln - 1;
-	if (curr_pos.p_file == csrc_pos.p_file)
+	curr_pos.p_uniq = 0;
+	if (curr_pos.p_file == csrc_pos.p_file) {
 		csrc_pos.p_line = (int)ln - 1;
+		csrc_pos.p_uniq = 0;
+	}
 }
 
 /*
  * Handle lint comments. Following comments are currently understood:
  *	ARGSUSEDn
+ *	BITFIELDTYPE
  *	CONSTCOND CONSTANTCOND CONSTANTCONDITION
  *	FALLTHRU FALLTHROUGH
  *	LINTLIBRARY
@@ -1002,15 +1027,16 @@ directive()
  * parsed and a function which handles this comment is called.
  */
 static void
-comment()
+comment(void)
 {
 	int	c, lc;
 	static struct {
 		const	char *keywd;
 		int	arg;
-		void	(*func) __P((int));
+		void	(*func)(int);
 	} keywtab[] = {
 		{ "ARGSUSED",		1,	argsused	},
+		{ "BITFIELDTYPE",	0,	bitfieldtype	},
 		{ "CONSTCOND",		0,	constcond	},
 		{ "CONSTANTCOND",	0,	constcond	},
 		{ "CONSTANTCONDITION",	0,	constcond	},
@@ -1034,7 +1060,8 @@ comment()
 	eoc = 0;
 
 	/* Skip white spaces after the start of the comment */
-	while ((c = inpc()) != EOF && isspace(c)) ;
+	while ((c = inpc()) != EOF && isspace(c))
+		continue;
 
 	/* Read the potential keyword to keywd */
 	l = 0;
@@ -1100,6 +1127,22 @@ comment()
 }
 
 /*
+ * Handle // style comments
+ */
+static void
+slashslashcomment(void)
+{
+	int c;
+
+	if (sflag < 2 && !gflag)
+		/* // comments only supported in C99 */
+		(void)gnuism(312, tflag ? "traditional" : "ANSI");
+
+	while ((c = inpc()) != EOF && c != '\n')
+		continue;
+}
+
+/*
  * Clear flags for lint comments LINTED, LONGLONG and CONSTCOND.
  * clrwflgs() is called after function definitions and global and
  * local declarations and definitions. It is also called between
@@ -1107,8 +1150,9 @@ comment()
  * (if, switch, for, while).
  */
 void
-clrwflgs()
+clrwflgs(void)
 {
+
 	nowarn = 0;
 	quadflg = 0;
 	ccflg = 0;
@@ -1120,7 +1164,7 @@ clrwflgs()
  * by the parser are responsible for freeing this buffer.
  */
 static int
-string()
+string(void)
 {
 	u_char	*s;
 	int	c;
@@ -1151,7 +1195,7 @@ string()
 }
 
 static int
-wcstrg()
+wcstrg(void)
 {
 	char	*s;
 	int	c, i, n, wi;
@@ -1221,8 +1265,7 @@ wcstrg()
  * XXX calls to getsym() should be delayed until decl1*() is called
  */
 sym_t *
-getsym(sb)
-	sbuf_t	*sb;
+getsym(sbuf_t *sb)
 {
 	dinfo_t	*di;
 	char	*s;
@@ -1270,7 +1313,7 @@ getsym(sb)
 		di = dcs;
 	}
 
-	STRUCT_ASSIGN(sym->s_dpos, curr_pos);
+	UNIQUE_CURR_POS(sym->s_dpos);
 	if ((sym->s_kind = symtyp) != FLAB)
 		sym->s_type = gettyp(INT);
 
@@ -1293,9 +1336,9 @@ getsym(sb)
  * back to the symbol table.
  */
 void
-rmsym(sym)
-	sym_t	*sym;
+rmsym(sym_t *sym)
 {
+
 	if ((*sym->s_rlink = sym->s_link) != NULL)
 		sym->s_link->s_rlink = sym->s_rlink;
 	sym->s_blklev = -1;
@@ -1307,8 +1350,7 @@ rmsym(sym)
  * table.
  */
 void
-rmsyms(syms)
-	sym_t	*syms;
+rmsyms(sym_t *syms)
 {
 	sym_t	*sym;
 
@@ -1326,9 +1368,7 @@ rmsyms(syms)
  * Put a symbol into the symbol table
  */
 void
-inssym(bl, sym)
-	int	bl;
-	sym_t	*sym;
+inssym(int bl, sym_t *sym)
 {
 	int	h;
 
@@ -1348,7 +1388,7 @@ inssym(bl, sym)
  * level 0.
  */
 void
-cleanup()
+cleanup(void)
 {
 	sym_t	*sym, *nsym;
 	int	i;
@@ -1371,8 +1411,7 @@ cleanup()
  * Create a new symbol with the name of an existing symbol.
  */
 sym_t *
-pushdown(sym)
-	sym_t	*sym;
+pushdown(sym_t *sym)
 {
 	int	h;
 	sym_t	*nsym;
@@ -1382,7 +1421,7 @@ pushdown(sym)
 	if (sym->s_blklev > blklev)
 		lerror("pushdown()");
 	nsym->s_name = sym->s_name;
-	STRUCT_ASSIGN(nsym->s_dpos, curr_pos);
+	UNIQUE_CURR_POS(nsym->s_dpos);
 	nsym->s_kind = sym->s_kind;
 	nsym->s_blklev = blklev;
 
@@ -1402,9 +1441,7 @@ pushdown(sym)
  * The type of information in yylval is described by tok.
  */
 void
-freeyyv(sp, tok)
-	void	*sp;
-	int	tok;
+freeyyv(void *sp, int tok)
 {
 	if (tok == T_NAME || tok == T_TYPENAME) {
 		sbuf_t *sb = *(sbuf_t **)sp;
@@ -1422,5 +1459,5 @@ freeyyv(sp, tok)
 			lerror("fryylv() 1");
 		}
 		free(strg);
-	}	
+	}
 }

@@ -1,4 +1,4 @@
-/*	$NetBSD: err.c,v 1.8 1995/10/02 17:37:00 jpo Exp $	*/
+/*	$NetBSD: err.c,v 1.16 2001/12/13 23:56:00 augustss Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -31,9 +31,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static char rcsid[] = "$NetBSD: err.c,v 1.8 1995/10/02 17:37:00 jpo Exp $";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: err.c,v 1.16 2001/12/13 23:56:00 augustss Exp $");
 #endif
+
+#include <sys/types.h>
+#include <stdlib.h>
+#include <stdarg.h>
+
+#include "lint1.h"
 
 /* number of errors found */
 int	nerr;
@@ -41,18 +48,10 @@ int	nerr;
 /* number of syntax errors */
 int	sytxerr;
 
-#include <stdlib.h>
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
-#include "lint1.h"
-
-static	const	char *basename __P((const char *));
-static	void	verror __P((int, va_list));
-static	void	vwarning __P((int, va_list));
+static	const	char *basename(const char *);
+static	void	verror(int, va_list);
+static	void	vwarning(int, va_list);
 
 
 const	char *msgs[] = {
@@ -218,7 +217,7 @@ const	char *msgs[] = {
 	"assignment in conditional context",			      /* 159 */
 	"operator '==' found where '=' was expected",		      /* 160 */
 	"constant in conditional context",			      /* 161 */
-	"comparision of %s with %s, op %s",			      /* 162 */
+	"comparison of %s with %s, op %s",			      /* 162 */
 	"a cast does not yield an lvalue",			      /* 163 */
 	"assignment of negative constant to unsigned type",	      /* 164 */
 	"constant truncated by assignment",			      /* 165 */
@@ -286,7 +285,7 @@ const	char *msgs[] = {
 	"const object %s should have initializer",		      /* 227 */
 	"function cannot return const or volatile object",	      /* 228 */
 	"questionable conversion of function pointer",		      /* 229 */
-	"nonportable character comparision, op %s",		      /* 230 */
+	"nonportable character comparison, op %s",		      /* 230 */
 	"argument %s unused in function %s",			      /* 231 */
 	"label %s unused in function %s",			      /* 232 */
 	"struct %s never defined",				      /* 233 */
@@ -299,7 +298,7 @@ const	char *msgs[] = {
 	"assignment of different structures",			      /* 240 */
 	"dubious operation on enum, op %s",			      /* 241 */
 	"combination of '%s' and '%s', op %s",			      /* 242 */
-	"dubious comparision of enums, op %s",			      /* 243 */
+	"dubious comparison of enums, op %s",			      /* 243 */
 	"illegal structure pointer combination",		      /* 244 */
 	"illegal structure pointer combination, op %s",		      /* 245 */
 	"dubious conversion of enum to '%s'",			      /* 246 */
@@ -330,7 +329,7 @@ const	char *msgs[] = {
 	"switch expression must be of type `int' in traditional C",   /* 271 */
 	"empty translation unit",				      /* 272 */
 	"bit-field type '%s' invalid in ANSI C",		      /* 273 */
-	"ANSI C forbids comparision of %s with %s",		      /* 274 */
+	"ANSI C forbids comparison of %s with %s",		      /* 274 */
 	"cast discards 'const' from pointer target type",	      /* 275 */
 	"",							      /* 276 */
 	"initialisation of '%s' with '%s'",			      /* 277 */
@@ -366,15 +365,29 @@ const	char *msgs[] = {
 	"static variable %s set but not used",			      /* 307 */
 	"",							      /* 308 */
 	"extra bits set to 0 in conversion of '%s' to '%s', op %s",   /* 309 */
+	"symbol renaming can't be used on function arguments",	      /* 310 */
+	"symbol renaming can't be used on automatic variables",	      /* 311 */
+	"%s C does not support // comments",			      /* 312 */
 };
+
+/*
+ * print a list of the messages with their ids
+ */
+void
+msglist(void)
+{
+	int i;
+
+	for (i = 0; i < sizeof(msgs) / sizeof(msgs[0]); i++)
+		printf("%d\t%s\n", i, msgs[i]);
+}
 
 /*
  * If Fflag is not set basename() returns a pointer to the last
  * component of the path, otherwise it returns the argument.
  */
 static const char *
-basename(path)
-	const	char *path;
+basename(const char *path)
 {
 	const	char *cp, *cp1, *cp2;
 
@@ -392,25 +405,27 @@ basename(path)
 }
 
 static void
-verror(n, ap)
-	int	n;
-	va_list	ap;
+verror( int n, va_list ap)
 {
 	const	char *fn;
+
+	if (ERR_ISSET(n, &msgset))
+		return;
 
 	fn = basename(curr_pos.p_file);
 	(void)printf("%s(%d): ", fn, curr_pos.p_line);
 	(void)vprintf(msgs[n], ap);
-	(void)printf("\n");
+	(void)printf(" [%d]\n", n);
 	nerr++;
 }
 
 static void
-vwarning(n, ap)
-	int	n;
-	va_list	ap;
+vwarning( int n, va_list ap)
 {
 	const	char *fn;
+
+	if (ERR_ISSET(n, &msgset))
+		return;
 
 	if (nowarn)
 		/* this warning is suppressed by a LINTED comment */
@@ -419,46 +434,28 @@ vwarning(n, ap)
 	fn = basename(curr_pos.p_file);
 	(void)printf("%s(%d): warning: ", fn, curr_pos.p_line);
 	(void)vprintf(msgs[n], ap);
-	(void)printf("\n");
+	(void)printf(" [%d]\n", n);
+	if (wflag)
+		nerr++;
 }
 
 void
-#ifdef __STDC__
 error(int n, ...)
-#else
-error(n, va_alist)
-	int	n;
-	va_dcl
-#endif
 {
 	va_list	ap;
 
-#ifdef __STDC__
 	va_start(ap, n);
-#else
-	va_start(ap);
-#endif
 	verror(n, ap);
 	va_end(ap);
 }
 
 void
-#ifdef __STDC__
 lerror(const char *msg, ...)
-#else
-lerror(msg, va_alist)
-	const	char *msg;
-	va_dcl
-#endif
 {
 	va_list	ap;
 	const	char *fn;
 
-#ifdef __STDC__
 	va_start(ap, msg);
-#else
-	va_start(ap);
-#endif
 	fn = basename(curr_pos.p_file);
 	(void)fprintf(stderr, "%s(%d): lint error: ", fn, curr_pos.p_line);
 	(void)vfprintf(stderr, msg, ap);
@@ -468,66 +465,39 @@ lerror(msg, va_alist)
 }
 
 void
-#ifdef __STDC__
 warning(int n, ...)
-#else
-warning(n, va_alist)
-	int	n;
-	va_dcl
-#endif
 {
 	va_list	ap;
 
-#ifdef __STDC__
 	va_start(ap, n);
-#else
-	va_start(ap);
-#endif
 	vwarning(n, ap);
 	va_end(ap);
 }
 
 void
-#ifdef __STDC__
 message(int n, ...)
-#else
-message(n, va_alist)
-	int	n;
-	va_dcl
-#endif
 {
 	va_list	ap;
 	const	char *fn;
 
-#ifdef __STDC__
+	if (ERR_ISSET(n, &msgset))
+		return;
+
 	va_start(ap, n);
-#else
-	va_start(ap);
-#endif
 	fn = basename(curr_pos.p_file);
 	(void)printf("%s(%d): ", fn, curr_pos.p_line);
 	(void)vprintf(msgs[n], ap);
-	(void)printf("\n");
+	(void)printf(" [%d]\n", n);
 	va_end(ap);
 }
 
 int
-#ifdef __STDC__
 gnuism(int n, ...)
-#else
-gnuism(n, va_alist)
-	int	n;
-	va_dcl
-#endif
 {
 	va_list	ap;
 	int	msg;
 
-#ifdef __STDC__
 	va_start(ap, n);
-#else
-	va_start(ap);
-#endif
 	if (sflag && !gflag) {
 		verror(n, ap);
 		msg = 1;

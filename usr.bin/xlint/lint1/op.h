@@ -48,7 +48,7 @@ typedef	struct {
 	u_int	m_tlansiu : 1;	/* warning if left op. is unsign. in ANSI C */
 	u_int	m_transiu : 1;	/* warning if right op. is unsign. in ANSI C */
 	u_int	m_tpconf : 1;	/* test possible precedence confusion */
-	u_int	m_comp : 1;	/* op. performs comparision */
+	u_int	m_comp : 1;	/* op. performs comparison */
 	u_int	m_enumop : 1;	/* valid operation on enums */
 	u_int	m_badeop : 1;	/* dubious operation on enums */
 	u_int	m_eqwarn : 1;	/* warning if on operand stems from == */

@@ -1,4 +1,4 @@
-/*	$NetBSD: tree.c,v 1.12 1995/10/02 17:37:57 jpo Exp $	*/
+/*	$NetBSD: tree.c,v 1.24 2002/01/31 22:30:20 tv Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -31,8 +31,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static char rcsid[] = "$NetBSD: tree.c,v 1.12 1995/10/02 17:37:57 jpo Exp $";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: tree.c,v 1.24 2002/01/31 22:30:20 tv Exp $");
 #endif
 
 #include <stdlib.h>
@@ -42,51 +43,51 @@ static char rcsid[] = "$NetBSD: tree.c,v 1.12 1995/10/02 17:37:57 jpo Exp $";
 #include <math.h>
 
 #include "lint1.h"
-#include "y.tab.h"
+#include "cgram.h"
 
 /* Various flags for each operator. */
 static	mod_t	modtab[NOPS];
 
-static	tnode_t	*getinode __P((tspec_t, quad_t));
-static	void	ptrcmpok __P((op_t, tnode_t *, tnode_t *));
-static	int	asgntypok __P((op_t, int, tnode_t *, tnode_t *));
-static	void	chkbeop __P((op_t, tnode_t *, tnode_t *));
-static	void	chkeop2 __P((op_t, int, tnode_t *, tnode_t *));
-static	void	chkeop1 __P((op_t, int, tnode_t *, tnode_t *));
-static	tnode_t	*mktnode __P((op_t, type_t *, tnode_t *, tnode_t *));
-static	void	balance __P((op_t, tnode_t **, tnode_t **));
-static	void	incompat __P((op_t, tspec_t, tspec_t));
-static	void	illptrc __P((mod_t *, type_t *, type_t *));
-static	void	mrgqual __P((type_t **, type_t *, type_t *));
-static	int	conmemb __P((type_t *));
-static	void	ptconv __P((int, tspec_t, tspec_t, type_t *, tnode_t *));
-static	void	iiconv __P((op_t, int, tspec_t, tspec_t, type_t *, tnode_t *));
-static	void	piconv __P((op_t, tspec_t, type_t *, tnode_t *));
-static	void	ppconv __P((op_t, tnode_t *, type_t *));
-static	tnode_t	*bldstr __P((op_t, tnode_t *, tnode_t *));
-static	tnode_t	*bldincdec __P((op_t, tnode_t *));
-static	tnode_t	*bldamper __P((tnode_t *, int));
-static	tnode_t	*bldplmi __P((op_t, tnode_t *, tnode_t *));
-static	tnode_t	*bldshft __P((op_t, tnode_t *, tnode_t *));
-static	tnode_t	*bldcol __P((tnode_t *, tnode_t *));
-static	tnode_t	*bldasgn __P((op_t, tnode_t *, tnode_t *));
-static	tnode_t	*plength __P((type_t *));
-static	tnode_t	*fold __P((tnode_t *));
-static	tnode_t	*foldtst __P((tnode_t *));
-static	tnode_t	*foldflt __P((tnode_t *));
-static	tnode_t	*chkfarg __P((type_t *, tnode_t *));
-static	tnode_t	*parg __P((int, type_t *, tnode_t *));
-static	void	nulleff __P((tnode_t *));
-static	void	displexpr __P((tnode_t *, int));
-static	void	chkaidx __P((tnode_t *, int));
-static	void	chkcomp __P((op_t, tnode_t *, tnode_t *));
-static	void	precconf __P((tnode_t *));
+static	tnode_t	*getinode(tspec_t, int64_t);
+static	void	ptrcmpok(op_t, tnode_t *, tnode_t *);
+static	int	asgntypok(op_t, int, tnode_t *, tnode_t *);
+static	void	chkbeop(op_t, tnode_t *, tnode_t *);
+static	void	chkeop2(op_t, int, tnode_t *, tnode_t *);
+static	void	chkeop1(op_t, int, tnode_t *, tnode_t *);
+static	tnode_t	*mktnode(op_t, type_t *, tnode_t *, tnode_t *);
+static	void	balance(op_t, tnode_t **, tnode_t **);
+static	void	incompat(op_t, tspec_t, tspec_t);
+static	void	illptrc(mod_t *, type_t *, type_t *);
+static	void	mrgqual(type_t **, type_t *, type_t *);
+static	int	conmemb(type_t *);
+static	void	ptconv(int, tspec_t, tspec_t, type_t *, tnode_t *);
+static	void	iiconv(op_t, int, tspec_t, tspec_t, type_t *, tnode_t *);
+static	void	piconv(op_t, tspec_t, type_t *, tnode_t *);
+static	void	ppconv(op_t, tnode_t *, type_t *);
+static	tnode_t	*bldstr(op_t, tnode_t *, tnode_t *);
+static	tnode_t	*bldincdec(op_t, tnode_t *);
+static	tnode_t	*bldamper(tnode_t *, int);
+static	tnode_t	*bldplmi(op_t, tnode_t *, tnode_t *);
+static	tnode_t	*bldshft(op_t, tnode_t *, tnode_t *);
+static	tnode_t	*bldcol(tnode_t *, tnode_t *);
+static	tnode_t	*bldasgn(op_t, tnode_t *, tnode_t *);
+static	tnode_t	*plength(type_t *);
+static	tnode_t	*fold(tnode_t *);
+static	tnode_t	*foldtst(tnode_t *);
+static	tnode_t	*foldflt(tnode_t *);
+static	tnode_t	*chkfarg(type_t *, tnode_t *);
+static	tnode_t	*parg(int, type_t *, tnode_t *);
+static	void	nulleff(tnode_t *);
+static	void	displexpr(tnode_t *, int);
+static	void	chkaidx(tnode_t *, int);
+static	void	chkcomp(op_t, tnode_t *, tnode_t *);
+static	void	precconf(tnode_t *);
 
 /*
  * Initialize mods of operators.
  */
 void
-initmtab()
+initmtab(void)
 {
 	static	struct {
 		op_t	op;
@@ -217,9 +218,7 @@ initmtab()
  * This is most often used to change type "T" in type "pointer to T".
  */
 type_t *
-incref(tp, t)
-	type_t	*tp;
-	tspec_t	t;
+incref(type_t *tp, tspec_t t)
 {
 	type_t	*tp2;
 
@@ -233,9 +232,7 @@ incref(tp, t)
  * same for use in expressions
  */
 type_t *
-tincref(tp, t)
-	type_t	*tp;
-	tspec_t	t;
+tincref(type_t *tp, tspec_t t)
 {
 	type_t	*tp2;
 
@@ -249,9 +246,7 @@ tincref(tp, t)
  * Create a node for a constant.
  */
 tnode_t *
-getcnode(tp, v)
-	type_t	*tp;
-	val_t	*v;
+getcnode(type_t *tp, val_t *v)
 {
 	tnode_t	*n;
 
@@ -270,9 +265,7 @@ getcnode(tp, v)
  * Create a node for a integer constant.
  */
 static tnode_t *
-getinode(t, q)
-	tspec_t	t;
-	quad_t	q;
+getinode(tspec_t t, int64_t q)
 {
 	tnode_t	*n;
 
@@ -290,9 +283,7 @@ getinode(t, q)
  * ntok is the token which follows the name.
  */
 tnode_t *
-getnnode(sym, ntok)
-	sym_t	*sym;
-	int	ntok;
+getnnode(sym_t *sym, int ntok)
 {
 	tnode_t	*n;
 
@@ -338,8 +329,7 @@ getnnode(sym, ntok)
  * Create a node for a string.
  */
 tnode_t *
-getsnode(strg)
-	strg_t	*strg;
+getsnode(strg_t *strg)
 {
 	size_t	len;
 	tnode_t	*n;
@@ -377,10 +367,7 @@ getsnode(strg)
  * member of the struct or union specified by the tn argument.
  */
 sym_t *
-strmemb(tn, op, msym)
-	tnode_t	*tn;
-	op_t	op;
-	sym_t	*msym;
+strmemb(tnode_t *tn, op_t op, sym_t *msym)
 {
 	str_t	*str;
 	type_t	*tp;
@@ -537,9 +524,7 @@ strmemb(tn, op, msym)
  * rn	if not NULL, right operand
  */
 tnode_t *
-build(op, ln, rn)
-	op_t	op;
-	tnode_t	*ln, *rn;
+build(op_t op, tnode_t *ln, tnode_t *rn)
 {
 	mod_t	*mp;
 	tnode_t	*ntn;
@@ -565,7 +550,7 @@ build(op, ln, rn)
 		rn = cconv(rn);
 
 	/*
-	 * Print some warnings for comparisions of unsigned values with
+	 * Print some warnings for comparisons of unsigned values with
 	 * constants lower than or equal to null. This must be done
 	 * before promote() because otherwise unsigned char and unsigned
 	 * short would be promoted to int. Also types are tested to be
@@ -670,7 +655,7 @@ build(op, ln, rn)
 		break;
 	}
 
-	/* Return if an error occured. */
+	/* Return if an error occurred. */
 	if (ntn == NULL)
 		return (NULL);
 
@@ -717,8 +702,7 @@ build(op, ln, rn)
  * Lvalues are converted to rvalues.
  */
 tnode_t *
-cconv(tn)
-	tnode_t	*tn;
+cconv(tnode_t *tn)
 {
 	type_t	*tp;
 
@@ -762,14 +746,12 @@ cconv(tn)
  * If the types are ok, typeok() returns 1, otherwise 0.
  */
 int
-typeok(op, arg, ln, rn)
-	op_t	op;
-	int	arg;
-	tnode_t	*ln, *rn;
+typeok(op_t op, int arg, tnode_t *ln, tnode_t *rn)
 {
 	mod_t	*mp;
-	tspec_t	lt, rt, lst, rst, olt, ort;
-	type_t	*ltp, *rtp, *lstp, *rstp;
+	tspec_t	lt, rt = NOTSPEC, lst = NOTSPEC, rst = NOTSPEC, olt = NOTSPEC,
+	    ort = NOTSPEC;
+	type_t	*ltp, *rtp = NULL, *lstp = NULL, *rstp = NULL;
 	tnode_t	*tn;
 
 	mp = &modtab[op];
@@ -806,12 +788,14 @@ typeok(op, arg, ln, rn)
 		 * For these operations we need the types before promotion
 		 * and balancing.
 		 */
-		for (tn=ln; tn->tn_op==CVT && !tn->tn_cast; tn=tn->tn_left) ;
+		for (tn=ln; tn->tn_op==CVT && !tn->tn_cast; tn=tn->tn_left)
+			continue;
 		olt = tn->tn_type->t_tspec;
-		for (tn=rn; tn->tn_op==CVT && !tn->tn_cast; tn=tn->tn_left) ;
+		for (tn=rn; tn->tn_op==CVT && !tn->tn_cast; tn=tn->tn_left)
+			continue;
 		ort = tn->tn_type->t_tspec;
 	}
-		
+
 	switch (op) {
 	case POINT:
 		/*
@@ -978,10 +962,10 @@ typeok(op, arg, ln, rn)
 			if (!isutyp(rt) && rn->tn_val->v_quad < 0) {
 				/* negative shift */
 				warning(121);
-			} else if ((u_quad_t)rn->tn_val->v_quad == size(lt)) {
+			} else if ((uint64_t)rn->tn_val->v_quad == size(lt)) {
 				/* shift equal to size fo object */
 				warning(267);
-			} else if ((u_quad_t)rn->tn_val->v_quad > size(lt)) {
+			} else if ((uint64_t)rn->tn_val->v_quad > size(lt)) {
 				/* shift greater than size of object */
 				warning(122);
 			}
@@ -991,7 +975,7 @@ typeok(op, arg, ln, rn)
 	case NE:
 		/*
 		 * Accept some things which are allowed with EQ and NE,
-		 * but not with ordered comparisions.
+		 * but not with ordered comparisons.
 		 */
 		if (lt == PTR && ((rt == PTR && rst == VOID) || isityp(rt))) {
 			if (rn->tn_op == CON && rn->tn_val->v_quad == 0)
@@ -1133,6 +1117,32 @@ typeok(op, arg, ln, rn)
 			nulleff(ln);
 		break;
 		/* LINTED (enumeration values not handled in switch) */
+	case CON:
+	case CASE:
+	case PUSH:
+	case LOAD:
+	case ICALL:
+	case CVT:
+	case CALL:
+	case FSEL:
+	case STRING:
+	case NAME:
+	case LOGOR:
+	case LOGAND:
+	case OR:
+	case XOR:
+	case AND:
+	case MOD:
+	case DIV:
+	case MULT:
+	case UMINUS:
+	case UPLUS:
+	case DEC:
+	case INC:
+	case COMPL:
+	case NOT:
+	case NOOP:
+		break;
 	}
 
 	if (mp->m_badeop &&
@@ -1148,9 +1158,7 @@ typeok(op, arg, ln, rn)
 }
 
 static void
-ptrcmpok(op, ln, rn)
-	op_t	op;
-	tnode_t	*ln, *rn;
+ptrcmpok(op_t op, tnode_t *ln, tnode_t *rn)
 {
 	type_t	*ltp, *rtp;
 	tspec_t	lt, rt;
@@ -1164,7 +1172,7 @@ ptrcmpok(op, ln, rn)
 			/* (void *)0 already handled in typeok() */
 			*(lt == FUNC ? &lts : &rts) = "function pointer";
 			*(lt == VOID ? &lts : &rts) = "'void *'";
-			/* ANSI C forbids comparision of %s with %s */
+			/* ANSI C forbids comparison of %s with %s */
 			warning(274, lts, rts);
 		}
 		return;
@@ -1188,13 +1196,10 @@ ptrcmpok(op, ln, rn)
  * If the types are (almost) compatible, 1 is returned, otherwise 0.
  */
 static int
-asgntypok(op, arg, ln, rn)
-	op_t	op;
-	int	arg;
-	tnode_t	*ln, *rn;
+asgntypok(op_t op, int arg, tnode_t *ln, tnode_t *rn)
 {
-	tspec_t	lt, rt, lst, rst;
-	type_t	*ltp, *rtp, *lstp, *rstp;
+	tspec_t	lt, rt, lst = NOTSPEC, rst = NOTSPEC;
+	type_t	*ltp, *rtp, *lstp = NULL, *rstp = NULL;
 	mod_t	*mp;
 	const	char *lts, *rts;
 
@@ -1329,9 +1334,7 @@ asgntypok(op, arg, ln, rn)
  * enum type, is applied to an enum type.
  */
 static void
-chkbeop(op, ln, rn)
-	op_t	op;
-	tnode_t	*ln, *rn;
+chkbeop(op_t op, tnode_t *ln, tnode_t *rn)
 {
 	mod_t	*mp;
 
@@ -1364,10 +1367,7 @@ chkbeop(op, ln, rn)
  * Prints a warning if an operator is applied to two different enum types.
  */
 static void
-chkeop2(op, arg, ln, rn)
-	op_t	op;
-	int	arg;
-	tnode_t	*ln, *rn;
+chkeop2(op_t op, int arg, tnode_t *ln, tnode_t *rn)
 {
 	mod_t	*mp;
 
@@ -1395,7 +1395,7 @@ chkeop2(op, arg, ln, rn)
 #if 0
 	} else if (mp->m_comp && op != EQ && op != NE) {
 		if (eflag)
-			/* dubious comparisions of enums */
+			/* dubious comparisons of enums */
 			warning(243, mp->m_name);
 #endif
 	}
@@ -1406,11 +1406,9 @@ chkeop2(op, arg, ln, rn)
  * types.
  */
 static void
-chkeop1(op, arg, ln, rn)
-	op_t	op;
-	int	arg;
-	tnode_t	*ln, *rn;
+chkeop1(op_t op, int arg, tnode_t *ln, tnode_t *rn)
 {
+
 	if (!eflag)
 		return;
 
@@ -1448,10 +1446,7 @@ chkeop1(op, arg, ln, rn)
  * Build and initialize a new node.
  */
 static tnode_t *
-mktnode(op, type, ln, rn)
-	op_t	op;
-	type_t	*type;
-	tnode_t	*ln, *rn;
+mktnode(op_t op, type_t *type, tnode_t *ln, tnode_t *rn)
 {
 	tnode_t	*ntn;
 	tspec_t	t;
@@ -1484,10 +1479,7 @@ mktnode(op, type, ln, rn)
  * float to double.
  */
 tnode_t *
-promote(op, farg, tn)
-	op_t	op;
-	int	farg;
-	tnode_t	*tn;
+promote(op_t op, int farg, tnode_t *tn)
 {
 	tspec_t	t;
 	type_t	*ntp;
@@ -1562,9 +1554,7 @@ promote(op, farg, tn)
  * type. This is done in different ways for traditional C and ANIS C.
  */
 static void
-balance(op, lnp, rnp)
-	op_t	op;
-	tnode_t	**lnp, **rnp;
+balance(op_t op, tnode_t **lnp, tnode_t **rnp)
 {
 	tspec_t	lt, rt, t;
 	int	i, u;
@@ -1639,14 +1629,10 @@ balance(op, lnp, rnp)
  * If op is FARG, arg is the number of the argument (used for warnings).
  */
 tnode_t *
-convert(op, arg, tp, tn)
-	op_t	op;
-	int	arg;
-	type_t	*tp;
-	tnode_t	*tn;
+convert(op_t op, int arg, type_t *tp, tnode_t *tn)
 {
 	tnode_t	*ntn;
-	tspec_t	nt, ot, ost;
+	tspec_t	nt, ot, ost = NOTSPEC;
 
 	if (tn->tn_lvalue)
 		lerror("convert() 1");
@@ -1692,11 +1678,7 @@ convert(op, arg, tp, tn)
  * in asgntypok().
  */
 static void
-ptconv(arg, nt, ot, tp, tn)
-	int	arg;
-	tspec_t	nt, ot;
-	type_t	*tp;
-	tnode_t	*tn;
+ptconv(int arg, tspec_t nt, tspec_t ot, type_t *tp, tnode_t *tn)
 {
 	tnode_t	*ptn;
 
@@ -1748,12 +1730,7 @@ ptconv(arg, nt, ot, tp, tn)
  */
 /* ARGSUSED */
 static void
-iiconv(op, arg, nt, ot, tp, tn)
-	op_t	op;
-	int	arg;
-	tspec_t	nt, ot;
-	type_t	*tp;
-	tnode_t	*tn;
+iiconv(op_t op, int arg, tspec_t nt, tspec_t ot, type_t *tp, tnode_t *tn)
 {
 	if (tn->tn_op == CON)
 		return;
@@ -1784,7 +1761,7 @@ iiconv(op, arg, nt, ot, tp, tn)
 			} else {
 				warning(132, tyname(tn->tn_type));
 			}
-		} 
+		}
 	}
 }
 
@@ -1792,12 +1769,9 @@ iiconv(op, arg, nt, ot, tp, tn)
  * Print warnings for dubious conversions of pointer to integer.
  */
 static void
-piconv(op, nt, tp, tn)
-	op_t	op;
-	tspec_t	nt;
-	type_t	*tp;
-	tnode_t	*tn;
+piconv(op_t op, tspec_t nt, type_t *tp, tnode_t *tn)
 {
+
 	if (tn->tn_op == CON)
 		return;
 
@@ -1821,10 +1795,7 @@ piconv(op, nt, tp, tn)
  * Print warnings for questionable pointer conversions.
  */
 static void
-ppconv(op, tn, tp)
-	op_t	op;
-	tnode_t	*tn;
-	type_t	*tp;
+ppconv(op_t op, tnode_t *tn, type_t *tp)
 {
 	tspec_t nt, ot;
 	const	char *nts, *ots;
@@ -1855,7 +1826,7 @@ ppconv(op, tn, tp)
 		warning(229);
 		return;
 	}
-	
+
 	if (getbound(tp->t_subt) > getbound(tn->tn_type->t_subt)) {
 		if (hflag)
 			/* possible pointer alignment problem */
@@ -1881,16 +1852,12 @@ ppconv(op, tn, tp)
  * v		old constant
  */
 void
-cvtcon(op, arg, tp, nv, v)
-	op_t	op;
-	int	arg;
-	type_t	*tp;
-	val_t	*nv, *v;
+cvtcon(op_t op, int arg, type_t *tp, val_t *nv, val_t *v)
 {
 	tspec_t	ot, nt;
-	ldbl_t	max, min;
+	ldbl_t	max = 0.0, min = 0.0;
 	int	sz, rchk;
-	quad_t	xmask, xmsk1;
+	int64_t	xmask, xmsk1;
 	int	osz, nsz;
 
 	ot = v->v_tspec;
@@ -1921,7 +1888,7 @@ cvtcon(op, arg, tp, nv, v)
 		case QUAD:
 			max = QUAD_MAX;		min = QUAD_MIN;		break;
 		case UQUAD:
-			max = (u_quad_t)UQUAD_MAX; min = 0;		break;
+			max = (uint64_t)UQUAD_MAX; min = 0;		break;
 		case FLOAT:
 			max = FLT_MAX;		min = -FLT_MAX;		break;
 		case DOUBLE:
@@ -1954,18 +1921,18 @@ cvtcon(op, arg, tp, nv, v)
 			nv->v_ldbl = v->v_ldbl;
 		} else {
 			nv->v_quad = (nt == PTR || isutyp(nt)) ?
-				(u_quad_t)v->v_ldbl : (quad_t)v->v_ldbl;
+				(uint64_t)v->v_ldbl : (int64_t)v->v_ldbl;
 		}
 	} else {
 		if (nt == FLOAT) {
 			nv->v_ldbl = (ot == PTR || isutyp(ot)) ?
-			       (float)(u_quad_t)v->v_quad : (float)v->v_quad;
+			       (float)(uint64_t)v->v_quad : (float)v->v_quad;
 		} else if (nt == DOUBLE) {
 			nv->v_ldbl = (ot == PTR || isutyp(ot)) ?
-			       (double)(u_quad_t)v->v_quad : (double)v->v_quad;
+			       (double)(uint64_t)v->v_quad : (double)v->v_quad;
 		} else if (nt == LDOUBLE) {
 			nv->v_ldbl = (ot == PTR || isutyp(ot)) ?
-			       (ldbl_t)(u_quad_t)v->v_quad : (ldbl_t)v->v_quad;
+			       (ldbl_t)(uint64_t)v->v_quad : (ldbl_t)v->v_quad;
 		} else {
 			rchk = 1;		/* Check for lost precision. */
 			nv->v_quad = v->v_quad;
@@ -1987,7 +1954,7 @@ cvtcon(op, arg, tp, nv, v)
 		sz = tp->t_isfield ? tp->t_flen : size(nt);
 		nv->v_quad = xsign(nv->v_quad, nt, sz);
 	}
-	
+
 	if (rchk && op != CVT) {
 		osz = size(ot);
 		nsz = tp->t_isfield ? tp->t_flen : size(nt);
@@ -2114,9 +2081,7 @@ cvtcon(op, arg, tp, nv, v)
  * Prints a appropriate warning.
  */
 static void
-incompat(op, lt, rt)
-	op_t	op;
-	tspec_t	lt, rt;
+incompat(op_t op, tspec_t lt, tspec_t rt)
 {
 	mod_t	*mp;
 
@@ -2148,9 +2113,7 @@ incompat(op, lt, rt)
  * Print an appropriate warning.
  */
 static void
-illptrc(mp, ltp, rtp)
-	mod_t	*mp;
-	type_t	*ltp, *rtp;
+illptrc(mod_t *mp, type_t *ltp, type_t *rtp)
 {
 	tspec_t	lt, rt;
 
@@ -2184,9 +2147,9 @@ illptrc(mp, ltp, rtp)
  * of tp1->t_subt and tp2->t_subt.
  */
 static void
-mrgqual(tpp, tp1, tp2)
-	type_t	**tpp, *tp1, *tp2;
+mrgqual(type_t **tpp, type_t *tp1, type_t *tp2)
 {
+
 	if ((*tpp)->t_tspec != PTR ||
 	    tp1->t_tspec != PTR || tp2->t_tspec != PTR) {
 		lerror("mrgqual()");
@@ -2212,8 +2175,7 @@ mrgqual(tpp, tp1, tp2)
  * (maybe recursively).
  */
 static int
-conmemb(tp)
-	type_t	*tp;
+conmemb(type_t *tp)
 {
 	sym_t	*m;
 	tspec_t	t;
@@ -2233,8 +2195,7 @@ conmemb(tp)
 }
 
 const char *
-tyname(tp)
-	type_t	*tp;
+tyname(type_t *tp)
 {
 	tspec_t	t;
 	const	char *s;
@@ -2273,9 +2234,7 @@ tyname(tp)
  * Create a new node for one of the operators POINT and ARROW.
  */
 static tnode_t *
-bldstr(op, ln, rn)
-	op_t	op;
-	tnode_t	*ln, *rn;
+bldstr(op_t op, tnode_t *ln, tnode_t *rn)
 {
 	tnode_t	*ntn, *ctn;
 	int	nolval;
@@ -2327,9 +2286,7 @@ bldstr(op, ln, rn)
  * Create a node for INCAFT, INCBEF, DECAFT and DECBEF.
  */
 static tnode_t *
-bldincdec(op, ln)
-	op_t	op;
-	tnode_t	*ln;
+bldincdec(op_t op, tnode_t *ln)
 {
 	tnode_t	*cn, *ntn;
 
@@ -2339,7 +2296,7 @@ bldincdec(op, ln)
 	if (ln->tn_type->t_tspec == PTR) {
 		cn = plength(ln->tn_type);
 	} else {
-		cn = getinode(INT, (quad_t)1);
+		cn = getinode(INT, (int64_t)1);
 	}
 	ntn = mktnode(op, ln->tn_type, ln, cn);
 
@@ -2350,13 +2307,11 @@ bldincdec(op, ln)
  * Create a tree node for the & operator
  */
 static tnode_t *
-bldamper(tn, noign)
-	tnode_t	*tn;
-	int	noign;
+bldamper(tnode_t *tn, int noign)
 {
 	tnode_t	*ntn;
 	tspec_t	t;
-	
+
 	if (!noign && ((t = tn->tn_type->t_tspec) == ARRAY || t == FUNC)) {
 		/* & before array or function: ignored */
 		if (tflag)
@@ -2370,7 +2325,7 @@ bldamper(tn, noign)
 	    tn->tn_left->tn_type->t_subt == tn->tn_type) {
 		return (tn->tn_left);
 	}
-	    
+
 	ntn = mktnode(AMPER, tincref(tn->tn_type, PTR), tn, NULL);
 
 	return (ntn);
@@ -2380,9 +2335,7 @@ bldamper(tn, noign)
  * Create a node for operators PLUS and MINUS.
  */
 static tnode_t *
-bldplmi(op, ln, rn)
-	op_t	op;
-	tnode_t	*ln, *rn;
+bldplmi(op_t op, tnode_t *ln, tnode_t *rn)
 {
 	tnode_t	*ntn, *ctn;
 	type_t	*tp;
@@ -2435,9 +2388,7 @@ bldplmi(op, ln, rn)
  * Create a node for operators SHL and SHR.
  */
 static tnode_t *
-bldshft(op, ln, rn)
-	op_t	op;
-	tnode_t	*ln, *rn;
+bldshft(op_t op, tnode_t *ln, tnode_t *rn)
 {
 	tspec_t	t;
 	tnode_t	*ntn;
@@ -2452,8 +2403,7 @@ bldshft(op, ln, rn)
  * Create a node for COLON.
  */
 static tnode_t *
-bldcol(ln, rn)
-	tnode_t	*ln, *rn;
+bldcol(tnode_t *ln, tnode_t *rn)
 {
 	tspec_t	lt, rt, pdt;
 	type_t	*rtp;
@@ -2531,9 +2481,7 @@ bldcol(ln, rn)
  * Create a node for an assignment operator (both = and op= ).
  */
 static tnode_t *
-bldasgn(op, ln, rn)
-	op_t	op;
-	tnode_t	*ln, *rn;
+bldasgn(op_t op, tnode_t *ln, tnode_t *rn)
 {
 	tspec_t	lt, rt;
 	tnode_t	*ntn, *ctn;
@@ -2594,8 +2542,7 @@ bldasgn(op, ln, rn)
  * Get length of type tp->t_subt.
  */
 static tnode_t *
-plength(tp)
-	type_t	*tp;
+plength(type_t *tp)
 {
 	int	elem, elsz;
 	tspec_t	st;
@@ -2657,39 +2604,28 @@ plength(tp)
 	st = INT;
 #endif
 
-	return (getinode(st, (quad_t)(elem * elsz / CHAR_BIT)));
+	return (getinode(st, (int64_t)(elem * elsz / CHAR_BIT)));
 }
 
-#ifdef XXX_BROKEN_GCC
-static int
-quad_t_eq(x, y)
-	quad_t x, y;
-{
-	return (x == y);
-}
-
-static int
-u_quad_t_eq(x, y)
-	u_quad_t x, y;
-{
-	return (x == y);
-}
-#endif
-
+/*
+ * XXX
+ * Note: There appear to be a number of bugs in detecting overflow in
+ * this function. An audit and a set of proper regression tests are needed.
+ *     --Perry Metzger, Nov. 16, 2001
+ */
 /*
  * Do only as much as necessary to compute constant expressions.
  * Called only if the operator allows folding and (both) operands
  * are constants.
  */
 static tnode_t *
-fold(tn)
-	tnode_t	*tn;
+fold(tnode_t *tn)
 {
 	val_t	*v;
 	tspec_t	t;
 	int	utyp, ovfl;
-	quad_t	sl, sr, q, mask;
-	u_quad_t ul, ur;
+	int64_t	sl, sr = 0, q = 0, mask;
+	uint64_t ul, ur = 0;
 	tnode_t	*cn;
 
 	v = xcalloc(1, sizeof (val_t));
@@ -2700,6 +2636,7 @@ fold(tn)
 	if (modtab[tn->tn_op].m_binary)
 		ur = sr = tn->tn_right->tn_val->v_quad;
 
+	mask = qlmasks[size(t)];
 	ovfl = 0;
 
 	switch (tn->tn_op) {
@@ -2715,9 +2652,17 @@ fold(tn)
 		q = ~sl;
 		break;
 	case MULT:
-		q = utyp ? ul * ur : sl * sr;
-		if (msb(q, t, -1) != (msb(sl, t, -1) ^ msb(sr, t, -1)))
-			ovfl = 1;
+		if (utyp) {
+			q = ul * ur;
+			if (q != (q & mask))
+				ovfl = 1;
+			else if ((ul != 0) && ((q / ul) != ur))
+				ovfl = 1;
+		} else {
+			q = sl * sr;
+			if (msb(q, t, -1) != (msb(sl, t, -1) ^ msb(sr, t, -1)))
+				ovfl = 1;
+		}
 		break;
 	case DIV:
 		if (sr == 0) {
@@ -2762,7 +2707,7 @@ fold(tn)
 		break;
 	case SHR:
 		/*
-		 * The sign must be explizitly extended because
+		 * The sign must be explicitly extended because
 		 * shifts of signed values are implementation dependent.
 		 */
 		q = ul >> sr;
@@ -2781,11 +2726,7 @@ fold(tn)
 		q = utyp ? ul > ur : sl > sr;
 		break;
 	case EQ:
-#ifdef XXX_BROKEN_GCC
-		q = utyp ? u_quad_t_eq(ul, ur) : quad_t_eq(sl, sr);
-#else
 		q = utyp ? ul == ur : sl == sr;
-#endif
 		break;
 	case NE:
 		q = utyp ? ul != ur : sl != sr;
@@ -2803,10 +2744,8 @@ fold(tn)
 		lerror("fold() 5");
 	}
 
-	mask = qlmasks[size(t)];
-
 	/* XXX does not work for quads. */
-	if (ovfl || ((q | mask) != ~(u_quad_t)0 && (q & ~mask) != 0)) {
+	if (ovfl || ((q | mask) != ~(uint64_t)0 && (q & ~mask) != 0)) {
 		if (hflag)
 			/* integer overflow detected, op %s */
 			warning(141, modtab[tn->tn_op].m_name);
@@ -2819,23 +2758,13 @@ fold(tn)
 	return (cn);
 }
 
-#ifdef XXX_BROKEN_GCC
-int
-ldbl_t_neq(x, y)
-	ldbl_t x, y;
-{
-	return (x != y);
-}
-#endif
-
 /*
  * Same for operators whose operands are compared with 0 (test context).
  */
 static tnode_t *
-foldtst(tn)
-	tnode_t	*tn;
+foldtst(tnode_t *tn)
 {
-	int	l, r;
+	int	l, r = 0;
 	val_t	*v;
 
 	v = xcalloc(1, sizeof (val_t));
@@ -2844,22 +2773,14 @@ foldtst(tn)
 		lerror("foldtst() 1");
 
 	if (isftyp(tn->tn_left->tn_type->t_tspec)) {
-#ifdef XXX_BROKEN_GCC
-		l = ldbl_t_neq(tn->tn_left->tn_val->v_ldbl, 0.0);
-#else
 		l = tn->tn_left->tn_val->v_ldbl != 0.0;
-#endif
 	} else {
 		l = tn->tn_left->tn_val->v_quad != 0;
 	}
 
 	if (modtab[tn->tn_op].m_binary) {
 		if (isftyp(tn->tn_right->tn_type->t_tspec)) {
-#ifdef XXX_BROKEN_GCC
-			r = ldbl_t_neq(tn->tn_right->tn_val->v_ldbl, 0.0);
-#else
 			r = tn->tn_right->tn_val->v_ldbl != 0.0;
-#endif
 		} else {
 			r = tn->tn_right->tn_val->v_quad != 0;
 		}
@@ -2889,12 +2810,11 @@ foldtst(tn)
  * Same for operands with floating point type.
  */
 static tnode_t *
-foldflt(tn)
-	tnode_t	*tn;
+foldflt(tnode_t *tn)
 {
 	val_t	*v;
 	tspec_t	t;
-	ldbl_t	l, r;
+	ldbl_t	l, r = 0;
 
 	v = xcalloc(1, sizeof (val_t));
 	v->v_tspec = t = tn->tn_type->t_tspec;
@@ -2966,7 +2886,7 @@ foldflt(tn)
 
 	if (isnan((double)v->v_ldbl))
 		lerror("foldflt() 5");
-	if (isinf((double)v->v_ldbl) ||
+	if (!finite((double)v->v_ldbl) ||
 	    (t == FLOAT &&
 	     (v->v_ldbl > FLT_MAX || v->v_ldbl < -FLT_MAX)) ||
 	    (t == DOUBLE &&
@@ -2989,8 +2909,7 @@ foldflt(tn)
  * Create a constant node for sizeof.
  */
 tnode_t *
-bldszof(tp)
-	type_t	*tp;
+bldszof(type_t *tp)
 {
 	int	elem, elsz;
 	tspec_t	st;
@@ -3050,16 +2969,14 @@ bldszof(tp)
 	st = UINT;
 #endif
 
-	return (getinode(st, (quad_t)(elem * elsz / CHAR_BIT)));
+	return (getinode(st, (int64_t)(elem * elsz / CHAR_BIT)));
 }
 
 /*
  * Type casts.
  */
 tnode_t *
-cast(tn, tp)
-	tnode_t	*tn;
-	type_t	*tp;
+cast(tnode_t *tn, type_t *tp)
 {
 	tspec_t	nt, ot;
 
@@ -3118,8 +3035,7 @@ cast(tn, tp)
  * in funcarg() we have no information about expected argument types.
  */
 tnode_t *
-funcarg(args, arg)
-	tnode_t	*args, *arg;
+funcarg(tnode_t *args, tnode_t *arg)
 {
 	tnode_t	*ntn;
 
@@ -3129,7 +3045,7 @@ funcarg(args, arg)
 	 * will not change.
 	 */
 	if (arg == NULL)
-		arg = getinode(INT, (quad_t)0);
+		arg = getinode(INT, (int64_t)0);
 
 	ntn = mktnode(PUSH, arg->tn_type, arg, args);
 
@@ -3141,8 +3057,7 @@ funcarg(args, arg)
  * function arguments and insert conversions, if necessary.
  */
 tnode_t *
-funccall(func, args)
-	tnode_t	*func, *args;
+funccall(tnode_t *func, tnode_t *args)
 {
 	tnode_t	*ntn;
 	op_t	fcop;
@@ -3181,9 +3096,7 @@ funccall(func, args)
  * if necessary.
  */
 static tnode_t *
-chkfarg(ftp, args)
-	type_t	*ftp;		/* type of called function */
-	tnode_t	*args;		/* arguments */
+chkfarg(type_t *ftp, tnode_t *args)
 {
 	tnode_t	*arg;
 	sym_t	*asym;
@@ -3206,14 +3119,15 @@ chkfarg(ftp, args)
 		error(150, narg, narg > 1 ? "s" : "", npar);
 		asym = NULL;
 	}
-	
+
 	for (n = 1; n <= narg; n++) {
 
 		/*
 		 * The rightmost argument is at the top of the argument
 		 * subtree.
 		 */
-		for (i = narg, arg = args; i > n; i--, arg = arg->tn_right) ;
+		for (i = narg, arg = args; i > n; i--, arg = arg->tn_right)
+			continue;
 
 		/* some things which are always not allowd */
 		if ((at = arg->tn_left->tn_type->t_tspec) == VOID) {
@@ -3255,10 +3169,9 @@ chkfarg(ftp, args)
  * the type of the parameter.
  */
 static tnode_t *
-parg(n, tp, tn)
-	int	n;		/* pos of arg */
-	type_t	*tp;		/* expected type (from prototype) */
-	tnode_t	*tn;		/* argument */
+parg(	int	n,		/* pos of arg */
+	type_t	*tp,		/* expected type (from prototype) */
+	tnode_t	*tn)		/* argument */
 {
 	tnode_t	*ln;
 	int	warn;
@@ -3281,8 +3194,7 @@ parg(n, tp, tn)
  * type, an error message is printed.
  */
 val_t *
-constant(tn)
-	tnode_t	*tn;
+constant(tnode_t *tn)
 {
 	val_t	*v;
 
@@ -3334,10 +3246,9 @@ constant(tn)
  * for the expression.
  */
 void
-expr(tn, vctx, tctx)
-	tnode_t	*tn;
-	int	vctx, tctx;
+expr(tnode_t *tn, int vctx, int tctx)
 {
+
 	if (tn == NULL && nerr == 0)
 		lerror("expr() 1");
 
@@ -3376,9 +3287,9 @@ expr(tn, vctx, tctx)
 }
 
 static void
-nulleff(tn)
-	tnode_t	*tn;
+nulleff(tnode_t *tn)
 {
+
 	if (!hflag)
 		return;
 
@@ -3397,7 +3308,7 @@ nulleff(tn)
 			 * operands has a side effect
 			 */
 			tn = tn->tn_right;
-		} else if (tn->tn_op == COLON) {
+		} else if (tn->tn_op == COLON || tn->tn_op == COMMA) {
 			/*
 			 * : has a side effect if at least one of its operands
 			 * has a side effect
@@ -3423,11 +3334,9 @@ nulleff(tn)
  * only used for debugging
  */
 static void
-displexpr(tn, offs)
-	tnode_t	*tn;
-	int	offs;
+displexpr(tnode_t *tn, int offs)
 {
-	u_quad_t uq;
+	uint64_t uq;
 
 	if (tn == NULL) {
 		(void)printf("%*s%s\n", offs, "", "NULL");
@@ -3481,9 +3390,8 @@ displexpr(tn, offs)
  */
 /* ARGSUSED */
 void
-chkmisc(tn, vctx, tctx, eqwarn, fcall, rvdisc, szof)
-	tnode_t	*tn;
-	int	vctx, tctx, eqwarn, fcall, rvdisc, szof;
+chkmisc(tnode_t *tn, int vctx, int tctx, int eqwarn, int fcall, int rvdisc,
+	int szof)
 {
 	tnode_t	*ln, *rn;
 	mod_t	*mp;
@@ -3576,6 +3484,44 @@ chkmisc(tn, vctx, tctx, eqwarn, fcall, rvdisc, szof)
 	case STRING:
 		return;
 		/* LINTED (enumeration values not handled in switch) */
+	case OR:
+	case XOR:
+	case NE:
+	case GE:
+	case GT:
+	case LE:
+	case LT:
+	case SHR:
+	case SHL:
+	case MINUS:
+	case PLUS:
+	case MOD:
+	case DIV:
+	case MULT:
+	case STAR:
+	case UMINUS:
+	case UPLUS:
+	case DEC:
+	case INC:
+	case COMPL:
+	case NOT:
+	case POINT:
+	case ARROW:
+	case NOOP:
+	case AND:
+	case FARG:
+	case CASE:
+	case INIT:
+	case RETURN:
+	case ICALL:
+	case CVT:
+	case COMMA:
+	case FSEL:
+	case COLON:
+	case QUEST:
+	case LOGOR:
+	case LOGAND:
+		break;
 	}
 
 	cvctx = mp->m_vctx;
@@ -3603,6 +3549,9 @@ chkmisc(tn, vctx, tctx, eqwarn, fcall, rvdisc, szof)
 	case COLON:
 		chkmisc(rn, cvctx, ctctx, mp->m_eqwarn, 0, 0, szof);
 		break;
+	case COMMA:
+		chkmisc(rn, vctx, tctx, mp->m_eqwarn, 0, 0, szof);
+		break;
 	default:
 		if (mp->m_binary)
 			chkmisc(rn, 1, 0, mp->m_eqwarn, 0, 0, szof);
@@ -3618,14 +3567,12 @@ chkmisc(tn, vctx, tctx, eqwarn, fcall, rvdisc, szof)
  * after the array.
  */
 static void
-chkaidx(tn, amper)
-	tnode_t	*tn;
-	int	amper;
+chkaidx(tnode_t *tn, int amper)
 {
 	int	dim;
 	tnode_t	*ln, *rn;
 	int	elsz;
-	quad_t	con;
+	int64_t	con;
 
 	ln = tn->tn_left;
 	rn = tn->tn_right;
@@ -3641,7 +3588,7 @@ chkaidx(tn, amper)
 		return;
 	if (ln->tn_left->tn_type->t_tspec != ARRAY)
 		return;
-	
+
 	/*
 	 * For incomplete array types, we can print a warning only if
 	 * the index is negative.
@@ -3656,7 +3603,7 @@ chkaidx(tn, amper)
 
 	/* Change the unit of the index from bytes to element size. */
 	if (isutyp(rn->tn_type->t_tspec)) {
-		con = (u_quad_t)rn->tn_val->v_quad / elsz;
+		con = (uint64_t)rn->tn_val->v_quad / elsz;
 	} else {
 		con = rn->tn_val->v_quad / elsz;
 	}
@@ -3666,19 +3613,17 @@ chkaidx(tn, amper)
 	if (!isutyp(rn->tn_type->t_tspec) && con < 0) {
 		/* array subscript cannot be negative: %ld */
 		warning(167, (long)con);
-	} else if (dim > 0 && (u_quad_t)con >= dim) {
+	} else if (dim > 0 && (uint64_t)con >= dim) {
 		/* array subscript cannot be > %d: %ld */
 		warning(168, dim - 1, (long)con);
 	}
 }
 
 /*
- * Check for ordered comparisions of unsigned values with 0.
+ * Check for ordered comparisons of unsigned values with 0.
  */
 static void
-chkcomp(op, ln, rn)
-	op_t	op;
-	tnode_t	*ln, *rn;
+chkcomp(op_t op, tnode_t *ln, tnode_t *rn)
 {
 	tspec_t	lt, rt;
 	mod_t	*mp;
@@ -3696,25 +3641,25 @@ chkcomp(op, ln, rn)
 	if ((hflag || pflag) && lt == CHAR && rn->tn_op == CON &&
 	    (rn->tn_val->v_quad < 0 ||
 	     rn->tn_val->v_quad > ~(~0 << (CHAR_BIT - 1)))) {
-		/* nonportable character comparision, op %s */
+		/* nonportable character comparison, op %s */
 		warning(230, mp->m_name);
 		return;
 	}
 	if ((hflag || pflag) && rt == CHAR && ln->tn_op == CON &&
 	    (ln->tn_val->v_quad < 0 ||
 	     ln->tn_val->v_quad > ~(~0 << (CHAR_BIT - 1)))) {
-		/* nonportable character comparision, op %s */
+		/* nonportable character comparison, op %s */
 		warning(230, mp->m_name);
 		return;
 	}
 	if (isutyp(lt) && !isutyp(rt) &&
 	    rn->tn_op == CON && rn->tn_val->v_quad <= 0) {
 		if (rn->tn_val->v_quad < 0) {
-			/* comparision of %s with %s, op %s */
+			/* comparison of %s with %s, op %s */
 			warning(162, tyname(ln->tn_type), "negative constant",
 				mp->m_name);
 		} else if (op == LT || op == GE || (hflag && op == LE)) {
-			/* comparision of %s with %s, op %s */
+			/* comparison of %s with %s, op %s */
 			warning(162, tyname(ln->tn_type), "0", mp->m_name);
 		}
 		return;
@@ -3722,11 +3667,11 @@ chkcomp(op, ln, rn)
 	if (isutyp(rt) && !isutyp(lt) &&
 	    ln->tn_op == CON && ln->tn_val->v_quad <= 0) {
 		if (ln->tn_val->v_quad < 0) {
-			/* comparision of %s with %s, op %s */
+			/* comparison of %s with %s, op %s */
 			warning(162, "negative constant", tyname(rn->tn_type),
 				mp->m_name);
 		} else if (op == GT || op == LE || (hflag && op == GE)) {
-			/* comparision of %s with %s, op %s */
+			/* comparison of %s with %s, op %s */
 			warning(162, "0", tyname(rn->tn_type), mp->m_name);
 		}
 		return;
@@ -3747,10 +3692,7 @@ chkcomp(op, ln, rn)
  * representation (including width).
  */
 int
-conaddr(tn, symp, offsp)
-	tnode_t	*tn;
-	sym_t	**symp;
-	ptrdiff_t *offsp;
+conaddr(tnode_t *tn, sym_t **symp, ptrdiff_t *offsp)
 {
 	sym_t	*sym;
 	ptrdiff_t offs1, offs2;
@@ -3812,8 +3754,7 @@ conaddr(tn, symp, offsp)
  * Concatenate two string constants.
  */
 strg_t *
-catstrg(strg1, strg2)
-	strg_t	*strg1, *strg2;
+catstrg(strg_t *strg1, strg_t *strg2)
 {
 	size_t	len1, len2, len;
 
@@ -3849,12 +3790,11 @@ catstrg(strg1, strg2)
  * expressions are already folded.
  */
 static void
-precconf(tn)
-	tnode_t	*tn;
+precconf(tnode_t *tn)
 {
 	tnode_t	*ln, *rn;
-	op_t	lop, rop;
-	int	lparn, rparn;
+	op_t	lop, rop = NOOP;
+	int	lparn, rparn = 0;
 	mod_t	*mp;
 	int	warn;
 
@@ -3914,6 +3854,61 @@ precconf(tn)
 		}
 		break;
 		/* LINTED (enumeration values not handled in switch) */
+	case DECAFT:
+	case XORASS:
+	case SHLASS:
+	case NOOP:
+	case ARROW:
+	case ORASS:
+	case POINT:
+	case NAME:
+	case NOT:
+	case COMPL:
+	case CON:
+	case INC:
+	case STRING:
+	case DEC:
+	case INCBEF:
+	case DECBEF:
+	case INCAFT:
+	case FSEL:
+	case CALL:
+	case COMMA:
+	case CVT:
+	case ICALL:
+	case LOAD:
+	case PUSH:
+	case RETURN:
+	case INIT:
+	case CASE:
+	case FARG:
+	case SUBASS:
+	case ADDASS:
+	case MODASS:
+	case DIVASS:
+	case MULASS:
+	case ASSIGN:
+	case COLON:
+	case QUEST:
+	case LOGAND:
+	case NE:
+	case EQ:
+	case GE:
+	case GT:
+	case LE:
+	case LT:
+	case MINUS:
+	case PLUS:
+	case MOD:
+	case DIV:
+	case MULT:
+	case AMPER:
+	case STAR:
+	case UMINUS:
+	case SHRASS:
+	case UPLUS:
+	case ANDASS:
+		break;
 	}
 
 	if (warn) {
