@@ -82,6 +82,8 @@ MLINKS+=spl.9 splstatclock.9 spl.9 spltty.9 spl.9 splvm.9 spl.9 splx.9
 MLINKS+=store.9 subyte.9 store.9 suswintr.9 store.9 susword.9 store.9 suword.9
 MLINKS+=time.9 boottime.9 time.9 mono_time.9 time.9 runtime.9
 MLINKS+=timeout.9 untimeout.9
+MLINKS+=timeout.9 callout_handle_init.9 timeout.9 callout_init.9
+MLINKS+=timeout.9 callout_stop.9 timeout.9 callout_reset.9
 MLINKS+=uio.9 uiomove.9
 MLINKS+=vref.9 VREF.9
 MLINKS+=vslock.9 vsunlock.9
@@ -122,6 +124,8 @@ MLINKS+=taskqueue.9 taskqueue_run.9
 MLINKS+=taskqueue.9 TASK_INIT.9
 MLINKS+=taskqueue.9 TASKQUEUE_DECLARE.9
 MLINKS+=taskqueue.9 TASKQUEUE_DEFINE.9
+
+MLINKS+=suser.9 suser_xxx.9
 
 MLINKS+=sysctl_add_oid.9 sysctl_remove_oid.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_OID.9
