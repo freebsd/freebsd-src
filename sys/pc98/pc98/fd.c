@@ -879,8 +879,7 @@ static int pc98_fd_check_ready(fdu_t fdu)
 		DELAY(100);
 		out_fdc(fdc, fdu); /* Drive number */
 		DELAY(100);
-		fd_in(fdc, &status);
-		if ((status & NE7_ST3_RD)) {
+		if ((fd_in(fdc, &status) == 0) && (status & NE7_ST3_RD)) {
 			fdctl_wr(fdc, FDC_DMAE | FDC_MTON);
 			DELAY(10);
 			return 0;
