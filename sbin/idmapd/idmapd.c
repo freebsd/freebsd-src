@@ -215,8 +215,8 @@ idmap_service(struct idmap_e * e)
 	}
 
 	if (e->msg.msg_len != sizeof(struct idmap_msg)) {
-		fprintf(stderr, "bad message length: %zd/%zd\n", e->msg.msg_len,
-	    	sizeof(struct idmap_msg));
+		fprintf(stderr, "bad message length: %zu/%zu\n", e->msg.msg_len,
+			sizeof(struct idmap_msg));
 		return -1;
 	}
 
