@@ -87,9 +87,6 @@ void	change_svgid(struct ucred *newcred, gid_t svgid);
 void	change_svuid(struct ucred *newcred, uid_t svuid);
 void	crcopy(struct ucred *dest, struct ucred *src);
 struct ucred	*crdup(struct ucred *cr);
-#ifdef DIAGNOSTIC
-void	cred_free_thread(struct thread *td);
-#endif
 void	cred_update_thread(struct thread *td);
 void	crfree(struct ucred *cr);
 struct ucred	*crget(void);
