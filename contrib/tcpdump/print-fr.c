@@ -395,12 +395,12 @@ q933_print(const u_char *p, int length)
 		    break;
 		case LINK_VERIFY_IE_91:
 		case LINK_VERIFY_IE_94:
-		    sprintf(temp_str,"TX Seq: %3d, RX Seq: %3d",
+		    snprintf(temp_str, sizeof(temp_str), "TX Seq: %3d, RX Seq: %3d",
 			    ptemp[2], ptemp[3]);
 		    decode_str = temp_str;
 		    break;
 		case PVC_STATUS_IE:
-		    sprintf(temp_str,"DLCI %d: status %s %s",
+		    snprintf(temp_str, sizeof(temp_str), "DLCI %d: status %s %s",
 			    ((ptemp[2]&0x3f)<<4)+ ((ptemp[3]&0x78)>>3), 
 			    ptemp[4] & 0x8 ?"new,":" ",
 			    ptemp[4] & 0x2 ?"Active":"Inactive");

@@ -506,7 +506,7 @@ tcpport_string(u_short port)
 	tp->addr = i;
 	tp->nxt = newhnamemem();
 
-	(void)sprintf(buf, "%u", i);
+	(void)snprintf(buf, sizeof(buf), "%u", i);
 	tp->name = savestr(buf);
 	return (tp->name);
 }
@@ -525,7 +525,7 @@ udpport_string(register u_short port)
 	tp->addr = i;
 	tp->nxt = newhnamemem();
 
-	(void)sprintf(buf, "%u", i);
+	(void)snprintf(buf, sizeof(buf), "%u", i);
 	tp->name = savestr(buf);
 	return (tp->name);
 }
@@ -551,7 +551,7 @@ init_servarray(void)
 		while (table->name)
 			table = table->nxt;
 		if (nflag) {
-			(void)sprintf(buf, "%d", port);
+			(void)snprintf(buf, sizeof(buf), "%d", port);
 			table->name = savestr(buf);
 		} else
 			table->name = savestr(sv->s_name);
