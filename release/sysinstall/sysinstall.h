@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.36 1997/06/06 13:01:07 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.37 1997/06/09 01:20:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -137,7 +137,6 @@
 #define VAR_NO_CONFIRM			"noConfirm"
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
-#define VAR_NTPDATE			"ntpdate"
 #define VAR_PARTITION			"partition"
 #define VAR_PCNFSD			"pcnfsd"
 #define VAR_PCNFSD_PKG			"pcnfsd_pkg"
@@ -493,6 +492,7 @@ extern int	dmenuSetValue(dialogMenuItem *tmp);
 extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max, Boolean buttons);
 extern Boolean	dmenuOpenSimple(DMenu *menu, Boolean buttons);
 extern int	dmenuVarCheck(dialogMenuItem *item);
+extern int	dmenuVarsCheck(dialogMenuItem *item);
 extern int	dmenuFlagCheck(dialogMenuItem *item);
 extern int	dmenuRadioCheck(dialogMenuItem *item);
 
@@ -702,6 +702,7 @@ extern void	variable_set2(char *name, char *value);
 extern char 	*variable_get(char *var);
 extern void	variable_unset(char *var);
 extern char	*variable_get_value(char *var, char *prompt);
+extern int 	variable_check(char *data);
 
 /* variable_load.c */
 extern int	variableLoad(dialogMenuItem *self);

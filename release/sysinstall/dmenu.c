@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.25.2.4 1997/01/15 04:50:07 jkh Exp $
+ * $Id: dmenu.c,v 1.25.2.5 1997/01/19 10:27:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -174,26 +174,42 @@ dmenuFlagCheck(dialogMenuItem *item)
 int
 dmenuVarCheck(dialogMenuItem *item)
 {
-    char *w, *cp, *cp2, *cp3, tmp[256];
+    char *w;
 
     w = (char *)item->aux;
     if (!w)
 	w = (char *)item->data;
     if (!w)
 	return FALSE;
-    SAFE_STRCPY(tmp, w);
-    if ((cp = index(tmp, '=')) != NULL) {
-        *(cp++) = '\0';
-	if ((cp3 = index(cp, ',')) != NULL)
-	    *cp3 = '\0';
-        cp2 = getenv(tmp);
-        if (cp2)
-            return !strcmp(cp, cp2);
-        else
-            return FALSE;
+    return variable_check(w);
+}
+
+int
+dmenuVarsCheck(dialogMenuItem *item)
+{
+    int res, init;
+    char *w, *cp1, *cp2;
+    char *copy;
+
+    w = (char *)item->aux;
+    if (!w)
+	w = (char *)item->data;
+    if (!w)
+	return FALSE;
+    
+    copy = strdup(w);
+    res = TRUE;
+    init = FALSE;
+    for (cp1 = copy; cp1 != NULL;) {
+        init = TRUE;
+	cp2 = index(cp1, ',');
+	if (cp2 != NULL)
+	    *cp2++ = '\0';
+	res = res && variable_check(cp1);
+	cp1 = cp2;
     }
-    else
-        return (int)getenv(tmp);
+    free(copy);
+    return res && init;
 }
 
 int
