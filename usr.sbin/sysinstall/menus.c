@@ -871,7 +871,11 @@ DMenu MenuSubDistributions = {
       { " local",	"Local additions collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
       { " XFree86",	"The XFree86 3.3.6 distribution",
+#ifdef X_AS_PKG
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_XF86 },
+#else
 	x11FlagCheck,	distSetXF86 },
+#endif
       { NULL } },
 };
 
@@ -1304,8 +1308,13 @@ DMenu MenuStartup = {
 #ifdef __i386__
       { " linux",	"This host wants to be able to run linux binaries.",
 	dmenuVarCheck, configLinux, NULL, VAR_LINUX_ENABLE "=YES" },
+      { " SVR4",	"This host wants to be able to run SVR4 binaries.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "svr4_enable=YES" },
       { " SCO",		"This host wants to be able to run IBCS2 binaries.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "ibcs2_enable=YES" },
+#elif __alpha__
+      { " OSF/1",	"This host wants to be able to run DEC OSF/1 binaries.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "osf1_enable=YES" },
 #endif
       { " quotas",	"This host wishes to check quotas on startup.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "check_quotas=YES" },

@@ -19,6 +19,9 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
 CFLAGS+= -I${.CURDIR}/../../sys
+.if ${MACHINE_ARCH} != "i386"
+CFLAGS+= -DX_AS_PKG
+.endif
 
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk -lftpio
