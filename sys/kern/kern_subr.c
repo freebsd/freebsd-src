@@ -50,6 +50,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
@@ -554,7 +555,7 @@ uio_yield()
 	td = curthread;
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT();
-	td->td_priority = td->td_ksegrp->kg_user_pri; /* XXXKSE */
+	sched_prio(td, td->td_ksegrp->kg_user_pri); /* XXXKSE */
 	td->td_proc->p_stats->p_ru.ru_nivcsw++;
 	mi_switch();
 	mtx_unlock_spin(&sched_lock);

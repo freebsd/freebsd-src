@@ -51,6 +51,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/time.h>
@@ -295,8 +296,7 @@ donice(struct thread *td, struct proc *p, int n)
  	if (n < low && suser(td))
 		return (EACCES);
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
-		kg->kg_nice = n;
-		(void)resetpriority(kg);
+		sched_nice(kg, n);
 	}
 	return (0);
 }

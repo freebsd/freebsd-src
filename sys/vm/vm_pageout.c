@@ -82,6 +82,7 @@
 #include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
@@ -1191,9 +1192,7 @@ rescan0:
 			killproc(bigproc, "out of swap space");
 			mtx_lock_spin(&sched_lock);
 			FOREACH_KSEGRP_IN_PROC(bigproc, kg) {
-				kg->kg_estcpu = 0;
-				kg->kg_nice = PRIO_MIN; /* XXXKSE ??? */
-				resetpriority(kg);
+				sched_nice(kg, PRIO_MIN); /* XXXKSE ??? */
 			}
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(bigproc);

@@ -97,15 +97,10 @@ reassigned to keep this true.
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sched.h>
 #include <machine/critical.h>
 
 CTASSERT((RQB_BPW * RQB_LEN) == RQ_NQS);
-
-/*
- * Global run queue.
- */
-static struct runq runq;
-SYSINIT(runq, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, runq_init, &runq)
 
 void panc(char *string1, char *string2);
 
@@ -129,7 +124,7 @@ choosethread(void)
 	struct ksegrp *kg;
 
 retry:
-	if ((ke = runq_choose(&runq))) {
+	if ((ke = sched_choose())) {
 		td = ke->ke_thread;
 		KASSERT((td->td_kse == ke), ("kse/thread mismatch"));
 		kg = ke->ke_ksegrp;
@@ -228,7 +223,7 @@ kse_reassign(struct kse *ke)
 		kg->kg_last_assigned = td;
 		td->td_kse = ke;
 		ke->ke_thread = td;
-		runq_add(&runq, ke);
+		sched_add(ke);
 		/*
 		 * if we have already borrowed this,
 		 * just pass it to the new thread,
@@ -282,12 +277,6 @@ kse_reassign(struct kse *ke)
 	CTR1(KTR_RUNQ, "kse_reassign: ke%p idled", ke);
 }
 
-int
-kserunnable(void)
-{
-	return runq_check(&runq);
-}
-
 /*
  * Remove a thread from its KSEGRP's run queue.
  * This in turn may remove it from a KSE if it was already assigned
@@ -314,7 +303,7 @@ remrunqueue(struct thread *td)
 	TD_SET_CAN_RUN(td);
 	if ((td->td_flags & TDF_UNBOUND) == 0)  {
 		/* Bring its kse with it, leave the thread attached */
-		runq_remove(&runq, ke);
+		sched_rem(ke);
 		ke->ke_state = KES_THREAD; 
 		return;
 	}
@@ -358,7 +347,7 @@ setrunqueue(struct thread *td)
 		 * and the KSE is always already attached.
 		 * Totally ignore the ksegrp run queue.
 		 */
-		runq_add(&runq, td->td_kse);
+		sched_add(td->td_kse);
 		return;
 	}
 	if ((td->td_flags & TDF_UNBOUND) == 0) {
@@ -371,7 +360,7 @@ setrunqueue(struct thread *td)
 			TAILQ_REMOVE(&kg->kg_lq, ke, ke_kgrlist);
 			kg->kg_loan_kses--;
 		}
-		runq_add(&runq, td->td_kse);
+		sched_add(td->td_kse);
 		return;
 	}
 
@@ -416,7 +405,7 @@ setrunqueue(struct thread *td)
 			ke->ke_thread = NULL;
 			tda = kg->kg_last_assigned =
 		    	    TAILQ_PREV(tda, threadqueue, td_runq);
-			runq_remove(&runq, ke);
+			sched_rem(ke);
 		}
 	} else {
 		/* 
@@ -475,7 +464,7 @@ setrunqueue(struct thread *td)
 			td2->td_kse = ke;
 			ke->ke_thread = td2;
 		}
-		runq_add(&runq, ke);
+		sched_add(ke);
 	}
 }
 
@@ -592,15 +581,6 @@ runq_add(struct runq *rq, struct kse *ke)
 	struct rqhead *rqh;
 	int pri;
 
-	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((ke->ke_thread != NULL), ("runq_add: No thread on KSE"));
-	KASSERT((ke->ke_thread->td_kse != NULL),
-	    ("runq_add: No KSE on thread"));
-	KASSERT(ke->ke_state != KES_ONRUNQ,
-	    ("runq_add: kse %p (%s) already in run queue", ke,
-	    ke->ke_proc->p_comm));
-	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
-		("runq_add: process swapped out"));
 	pri = ke->ke_thread->td_priority / RQ_PPQ;
 	ke->ke_rqindex = pri;
 	runq_setbit(rq, pri);
@@ -608,8 +588,6 @@ runq_add(struct runq *rq, struct kse *ke)
 	CTR4(KTR_RUNQ, "runq_add: p=%p pri=%d %d rqh=%p",
 	    ke->ke_proc, ke->ke_thread->td_priority, pri, rqh);
 	TAILQ_INSERT_TAIL(rqh, ke, ke_procq);
-	ke->ke_ksegrp->kg_runq_kses++;
-	ke->ke_state = KES_ONRUNQ;
 }
 
 /*
@@ -636,9 +614,7 @@ runq_check(struct runq *rq)
 }
 
 /*
- * Find and remove the highest priority process from the run queue.
- * If there are no runnable processes, the per-cpu idle process is
- * returned.  Will not return NULL under any circumstances.
+ * Find the highest priority process on the run queue.
  */
 struct kse *
 runq_choose(struct runq *rq)
@@ -654,20 +630,6 @@ runq_choose(struct runq *rq)
 		KASSERT(ke != NULL, ("runq_choose: no proc on busy queue"));
 		CTR3(KTR_RUNQ,
 		    "runq_choose: pri=%d kse=%p rqh=%p", pri, ke, rqh);
-		TAILQ_REMOVE(rqh, ke, ke_procq);
-		ke->ke_ksegrp->kg_runq_kses--;
-		if (TAILQ_EMPTY(rqh)) {
-			CTR0(KTR_RUNQ, "runq_choose: empty");
-			runq_clrbit(rq, pri);
-		}
-
-		ke->ke_state = KES_THREAD;
-		KASSERT((ke->ke_thread != NULL),
-		    ("runq_choose: No thread on KSE"));
-		KASSERT((ke->ke_thread->td_kse != NULL),
-		    ("runq_choose: No KSE on thread"));
-		KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
-			("runq_choose: process swapped out"));
 		return (ke);
 	}
 	CTR1(KTR_RUNQ, "runq_choose: idleproc pri=%d", pri);
@@ -686,8 +648,6 @@ runq_remove(struct runq *rq, struct kse *ke)
 	struct rqhead *rqh;
 	int pri;
 
-	KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue"));
-	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 		("runq_remove: process swapped out"));
 	pri = ke->ke_rqindex;
@@ -700,8 +660,6 @@ runq_remove(struct runq *rq, struct kse *ke)
 		CTR0(KTR_RUNQ, "runq_remove: empty");
 		runq_clrbit(rq, pri);
 	}
-	ke->ke_state = KES_THREAD; 
-	ke->ke_ksegrp->kg_runq_kses--;
 }
 
 #if 0

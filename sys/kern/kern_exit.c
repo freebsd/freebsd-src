@@ -57,6 +57,7 @@
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/sched.h>
 #include <sys/sx.h>
 #include <sys/ptrace.h>
 #include <sys/acct.h>		/* for acct_process() function prototype */
@@ -605,21 +606,13 @@ loop:
 		nfound++;
 		if (p->p_state == PRS_ZOMBIE) {
 			/*
-			 * charge childs scheduling cpu usage to parent
-			 * XXXKSE assume only one thread & kse & ksegrp
-			 * keep estcpu in each ksegrp
-			 * so charge it to the ksegrp that did the wait
-			 * since process estcpu is sum of all ksegrps,
-			 * this is strictly as expected.
-			 * Assume that the child process aggregated all 
-			 * tke estcpu into the 'build-in' ksegrp.
-			 * XXXKSE
+			 * Allow the scheduler to adjust the priority of the
+			 * parent when a kseg is exiting.
 			 */
 			if (curthread->td_proc->p_pid != 1) {
 				mtx_lock_spin(&sched_lock);
-				curthread->td_ksegrp->kg_estcpu =
-				    ESTCPULIM(curthread->td_ksegrp->kg_estcpu +
-				    FIRST_KSEGRP_IN_PROC(p)->kg_estcpu);
+				sched_exit(curthread->td_ksegrp,
+				    FIRST_KSEGRP_IN_PROC(p));
 				mtx_unlock_spin(&sched_lock);
 			}
 
