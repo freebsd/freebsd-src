@@ -89,8 +89,8 @@ static void	RefreshAddr (int);
 static void	ParseOption (const char* option, const char* parms);
 static void	ReadConfigFile (const char* fileName);
 static void	SetupPortRedirect (const char* parms);
+static void	SetupProtoRedirect(const char* parms);
 static void	SetupAddressRedirect (const char* parms);
-static void	SetupPptpAlias (const char* parms);
 static void	StrToAddr (const char* str, struct in_addr* addr);
 static u_short  StrToPort (const char* str, const char* proto);
 static int      StrToPortRange (const char* str, const char* proto, port_range *portRange);
@@ -98,6 +98,7 @@ static int 	StrToProto (const char* str);
 static int      StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, port_range *portRange);
 static void	ParseArgs (int argc, char** argv);
 static void	FlushPacketBuffer (int fd);
+static void	SetupPunchFW(const char *strValue);
 
 /*
  * Globals.
@@ -859,15 +860,17 @@ enum Option {
 	OutPort,
 	Port,
 	AliasAddress,
+	TargetAddress,
 	InterfaceName,
 	RedirectPort,
+	RedirectProto,
 	RedirectAddress,
 	ConfigFile,
 	DynamicMode,
-	PptpAlias,
 	ProxyRule,
  	LogDenied,
- 	LogFacility
+ 	LogFacility,
+	PunchFW
 };
 
 enum Param {
@@ -1005,6 +1008,14 @@ static struct OptionInfo optionTable[] = {
 		"alias_address",
 		"a" },
 	
+	{ TargetAddress,
+		0,
+		Address,
+		"x.x.x.x",
+		"address to use for incoming sessions",
+		"target_address",
+		"t" },
+	
 	{ InterfaceName,
 		0,
 		String,
@@ -1025,26 +1036,26 @@ static struct OptionInfo optionTable[] = {
 	{ RedirectPort,
 		0,
 		String,
-	        "tcp|udp local_addr:local_port_range [public_addr:]public_port_range"
+	        "tcp|udp local_addr:local_port_range[,...] [public_addr:]public_port_range"
 	 	" [remote_addr[:remote_port_range]]",
 		"redirect a port (or ports) for incoming traffic",
 		"redirect_port",
 		NULL },
 
+	{ RedirectProto,
+		0,
+		String,
+	        "proto local_addr [public_addr] [remote_addr]",
+		"redirect packets of a given proto",
+		"redirect_proto",
+		NULL },
+
 	{ RedirectAddress,
 		0,
 		String,
-	        "local_addr public_addr",
+	        "local_addr[,...] public_addr",
 		"define mapping between local and public addresses",
 		"redirect_address",
-		NULL },
-
-       { PptpAlias,
-		0,
-		String,
-		"src",
-		"define inside machine for PPTP traffic",
-		"pptpalias",
 		NULL },
 
 	{ ConfigFile,
@@ -1069,8 +1080,15 @@ static struct OptionInfo optionTable[] = {
 	        "facility",
 		"name of syslog facility to use for logging",
 		"log_facility",
-		NULL }
+		NULL },
 
+	{ PunchFW,
+		0,
+		String,
+	        "basenumber:count",
+		"punch holes in the firewall for incoming FTP/IRC DCC connections",
+		"punch_fw",
+		NULL }
 };
 	
 static void ParseOption (const char* option, const char* parms)
@@ -1196,16 +1214,20 @@ static void ParseOption (const char* option, const char* parms)
 		memcpy (&aliasAddr, &addrValue, sizeof (struct in_addr));
 		break;
 
+	case TargetAddress:
+		PacketAliasSetTarget(addrValue);
+		break;
+
 	case RedirectPort:
 		SetupPortRedirect (strValue);
 		break;
 
-	case RedirectAddress:
-		SetupAddressRedirect (strValue);
+	case RedirectProto:
+		SetupProtoRedirect(strValue);
 		break;
 
-	case PptpAlias:
-		SetupPptpAlias (strValue);
+	case RedirectAddress:
+		SetupAddressRedirect (strValue);
 		break;
 
 	case ProxyRule:
@@ -1245,6 +1267,10 @@ static void ParseOption (const char* option, const char* parms)
 		if(fac_record->c_name == NULL)
 			errx(1, "Unknown log facility name: %s", strValue);	
 
+		break;
+
+	case PunchFW:
+		SetupPunchFW(strValue);
 		break;
 	}
 }
@@ -1329,29 +1355,11 @@ static void Usage ()
 	exit (1);
 }
 
-void SetupPptpAlias (const char* parms)
-{
-	char		buf[128];
-	char*		ptr;
-	struct in_addr	srcAddr;
-
-	strcpy (buf, parms);
-
-/*
- * Extract source address.
- */
-	ptr = strtok (buf, " \t");
-	if (!ptr)
-		errx(1, "pptpalias: missing src address");
-
-	StrToAddr (ptr, &srcAddr);
-	PacketAliasPptp (srcAddr);
-}
-
 void SetupPortRedirect (const char* parms)
 {
 	char		buf[128];
 	char*		ptr;
+	char*		serverPool;
 	struct in_addr	localAddr;
 	struct in_addr	publicAddr;
 	struct in_addr	remoteAddr;
@@ -1366,6 +1374,7 @@ void SetupPortRedirect (const char* parms)
 	char*		protoName;
 	char*		separator;
 	int             i;
+	struct alias_link *link = NULL;
 
 	strcpy (buf, parms);
 /*
@@ -1383,11 +1392,20 @@ void SetupPortRedirect (const char* parms)
 	if (!ptr)
 		errx (1, "redirect_port: missing local address");
 
-	if ( StrToAddrAndPortRange (ptr, &localAddr, protoName, &portRange) != 0 )
-	        errx (1, "redirect_port: invalid local port range");
+	separator = strchr(ptr, ',');
+	if (separator) {		/* LSNAT redirection syntax. */
+		localAddr.s_addr = INADDR_NONE;
+		localPort = ~0;
+		numLocalPorts = 1;
+		serverPool = ptr;
+	} else {
+		if ( StrToAddrAndPortRange (ptr, &localAddr, protoName, &portRange) != 0 )
+			errx (1, "redirect_port: invalid local port range");
 
-	localPort     = GETLOPORT(portRange);
-	numLocalPorts = GETNUMPORTS(portRange);
+		localPort     = GETLOPORT(portRange);
+		numLocalPorts = GETNUMPORTS(portRange);
+		serverPool = NULL;
+	}
 
 /*
  * Extract public port and optionally address.
@@ -1450,22 +1468,98 @@ void SetupPortRedirect (const char* parms)
 	        if (numRemotePorts == 1 && remotePort == 0)
 		        remotePortCopy = 0;
 
-	        PacketAliasRedirectPort (localAddr,
-					 htons(localPort + i),
-					 remoteAddr,
-					 htons(remotePortCopy),
-					 publicAddr,
-					 htons(publicPort + i),
-					 proto);
+		link = PacketAliasRedirectPort (localAddr,
+						htons(localPort + i),
+						remoteAddr,
+						htons(remotePortCopy),
+						publicAddr,
+						htons(publicPort + i),
+						proto);
 	}
+
+/*
+ * Setup LSNAT server pool.
+ */
+	if (serverPool != NULL && link != NULL) {
+		ptr = strtok(serverPool, ",");
+		while (ptr != NULL) {
+			if (StrToAddrAndPortRange(ptr, &localAddr, protoName, &portRange) != 0)
+				errx(1, "redirect_port: invalid local port range");
+
+			localPort = GETLOPORT(portRange);
+			if (GETNUMPORTS(portRange) != 1)
+				errx(1, "redirect_port: local port must be single in this context");
+			PacketAliasAddServer(link, localAddr, htons(localPort));
+			ptr = strtok(NULL, ",");
+		}
+	}
+}
+
+void
+SetupProtoRedirect(const char* parms)
+{
+	char		buf[128];
+	char*		ptr;
+	struct in_addr	localAddr;
+	struct in_addr	publicAddr;
+	struct in_addr	remoteAddr;
+	int		proto;
+	char*		protoName;
+	struct protoent *protoent;
+
+	strcpy (buf, parms);
+/*
+ * Extract protocol.
+ */
+	protoName = strtok(buf, " \t");
+	if (!protoName)
+		errx(1, "redirect_proto: missing protocol");
+
+	protoent = getprotobyname(protoName);
+	if (protoent == NULL)
+		errx(1, "redirect_proto: unknown protocol %s", protoName);
+	else
+		proto = protoent->p_proto;
+/*
+ * Extract local address.
+ */
+	ptr = strtok(NULL, " \t");
+	if (!ptr)
+		errx(1, "redirect_proto: missing local address");
+	else
+		StrToAddr(ptr, &localAddr);
+/*
+ * Extract optional public address.
+ */
+	ptr = strtok(NULL, " \t");
+	if (ptr)
+		StrToAddr(ptr, &publicAddr);
+	else
+		publicAddr.s_addr = INADDR_ANY;
+/*
+ * Extract optional remote address.
+ */
+	ptr = strtok(NULL, " \t");
+	if (ptr)
+		StrToAddr(ptr, &remoteAddr);
+	else
+		remoteAddr.s_addr = INADDR_ANY;
+/*
+ * Create aliasing link.
+ */
+	(void)PacketAliasRedirectProto(localAddr, remoteAddr, publicAddr,
+				       proto);
 }
 
 void SetupAddressRedirect (const char* parms)
 {
 	char		buf[128];
 	char*		ptr;
+	char*		separator;
 	struct in_addr	localAddr;
 	struct in_addr	publicAddr;
+	char*		serverPool;
+	struct alias_link *link;
 
 	strcpy (buf, parms);
 /*
@@ -1475,7 +1569,14 @@ void SetupAddressRedirect (const char* parms)
 	if (!ptr)
 		errx (1, "redirect_address: missing local address");
 
-	StrToAddr (ptr, &localAddr);
+	separator = strchr(ptr, ',');
+	if (separator) {		/* LSNAT redirection syntax. */
+		localAddr.s_addr = INADDR_NONE;
+		serverPool = ptr;
+	} else {
+		StrToAddr (ptr, &localAddr);
+		serverPool = NULL;
+	}
 /*
  * Extract public address.
  */
@@ -1484,7 +1585,19 @@ void SetupAddressRedirect (const char* parms)
 		errx (1, "redirect_address: missing public address");
 
 	StrToAddr (ptr, &publicAddr);
-	PacketAliasRedirectAddr (localAddr, publicAddr);
+	link = PacketAliasRedirectAddr(localAddr, publicAddr);
+
+/*
+ * Setup LSNAT server pool.
+ */
+	if (serverPool != NULL && link != NULL) {
+		ptr = strtok(serverPool, ",");
+		while (ptr != NULL) {
+			StrToAddr(ptr, &localAddr);
+			PacketAliasAddServer(link, localAddr, htons(~0));
+			ptr = strtok(NULL, ",");
+		}
+	}
 }
 
 void StrToAddr (const char* str, struct in_addr* addr)
@@ -1586,4 +1699,16 @@ int StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, p
 
 	StrToAddr (str, addr);
 	return StrToPortRange (ptr, proto, portRange);
+}
+
+static void
+SetupPunchFW(const char *strValue)
+{
+	unsigned int base, num;
+
+	if (sscanf(strValue, "%u:%u", &base, &num) != 2)
+		errx(1, "punch_fw: basenumber:count parameter required");
+
+	PacketAliasSetFWBase(base, num);
+	(void)PacketAliasSetMode(PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
 }

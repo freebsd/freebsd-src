@@ -173,236 +173,253 @@ option is used,
 .Nm
 will monitor the routing socket for alterations to the
 .Ar interface
-passed.  If the interfaces IP number is changed,
+passed.
+If the interface's IP number is changed,
 .Nm
 will dynamically alter its concept of the alias address.
-
-.It Fl i | inport Ar inport
-Read from and write to
-.Ar inport ,
-treating all packets as packets coming into the machine.
-
-.It Fl o | outport Ar outport
-Read from and write to
-.Ar outport ,
-treating all packets as packets going out of the machine.
-
-.It Fl p | port Ar port
+.It Fl in_port | i Ar port
 Read from and write to
 .Ar port ,
-distinguishing packets as incoming our outgoing using the rules specified in
+treating all packets as packets coming into the machine.
+.It Fl out_port | o Ar port
+Read from and write to
+.Ar port ,
+treating all packets as packets going out of the machine.
+.It Fl port | p Ar port
+Read from and write to
+.Ar port ,
+distinguishing packets as incoming our outgoing using the rules
+specified in
 .Xr divert 4 .
 If
 .Ar port
 is not numeric, it is searched for in the
-.Pa /etc/services
-database using the
-.Xr getservbyname 3
-function.  If this flag is not specified, the divert port named natd will
-be used as a default.  An example entry in the
-.Pa /etc/services
-database would be:
-
-  natd   8668/divert  # Network Address Translation socket
-
-Refer to
 .Xr services 5
-for further details.
-
-.It Fl a | alias_address Ar address
+database.
+If this option is not specified, the divert port named
+.Em natd
+will be used as a default.
+.It Fl alias_address | a Ar address
 Use
 .Ar address
-as the alias address.  If this option is not specified, the
-.Fl n
-or
+as the aliasing address.
+If this option is not specified, the
 .Fl interface
-option must be used.  The specified address should be the address assigned
-to the public network interface.
+option must be used.
+The specified address is usually the address assigned to the
+public network interface.
 .Pp
-All data passing out through this addresses interface will be rewritten
-with a source address equal to
+All data passing
+.Em out
+will be rewritten with a source address equal to
 .Ar address .
-All data arriving at the interface from outside will be checked to
-see if it matches any already-aliased outgoing connection.  If it does,
-the packet is altered accordingly.  If not, all
-.Fl redirect_port
+All data coming
+.Em in
+will be checked to see if it matches any already-aliased outgoing
+connection.
+If it does, the packet is altered accordingly.
+If not, all
+.Fl redirect_port ,
+.Fl redirect_proto
 and
 .Fl redirect_address
-assignments are checked and actioned.  If no other action can be made,
-and if
+assignments are checked and actioned.
+If no other action can be made and if
 .Fl deny_incoming
-is not specified, the packet is delivered to the local machine and port
-as specified in the packet.
-
-.It Fl n | interface Ar interface
+is not specified, the packet is delivered unaltered to the local
+machine and port as specified in the packet, but see the
+.Fl target_address
+option below.
+.It Fl t | target_address Ar address
+Set the target address.
+When an incoming packet not associated with any pre-existing link
+arrives at the host machine, it will be sent to the specified
+.Ar address .
+.Pp
+The target address may be set to
+.Ar 255.255.255.255 ,
+in which case all new incoming packets go to the alias address set by
+.Fl alias_address
+or
+.Fl interface .
+.Pp
+If this option is not used, or called with the argument
+.Ar 0.0.0.0 ,
+then all new incoming packets go to the address specified in
+the packet.
+This allows external machines to talk directly to internal machines if
+they can route packets to the machine in question.
+.It Fl interface | n Ar interface
 Use
 .Ar interface
-to determine the alias address.  If there is a possibility that the
-IP number associated with
+to determine the aliasing address.
+If there is a possibility that the IP number associated with
 .Ar interface
 may change, the
 .Fl dynamic
-flag should also be used.  If this option is not specified, the
-.Fl a
-or
+option should also be used.
+If this option is not specified, the
 .Fl alias_address
-flag must be used.
+option must be used.
 .Pp
 The specified
 .Ar interface
-must be the public network interface.
-.It Fl f | config Ar configfile
+is usually the public network interface.
+.It Fl config | f Ar file
 Read configuration from
-.Ar configfile .
-.Ar Configfile
-contains a list of options, one per line in the same form as the
-long form of the above command line flags.  For example, the line
-
-  alias_address 158.152.17.1
-
-would specify an alias address of 158.152.17.1.  Options that don't
-take an argument are specified with an option of
+.Ar file .
+A
+.Ar file
+should contain a list of options, one per line, in the same form
+as the long form of the above command line options.
+For example, the line
+.Pp
+.Dl alias_address 158.152.17.1
+.Pp
+would specify an alias address of 158.152.17.1.
+Options that do not take an argument are specified with an option of
 .Ar yes
 or
 .Ar no
-in the configuration file.  For example, the line
-
-  log yes
-
-is synonomous with
+in the configuration file.
+For example, the line
+.Pp
+.Dl log yes
+.Pp
+is synonymous with
 .Fl log .
 .Pp
 Trailing spaces and empty lines are ignored.
 A
 .Ql \&#
 sign will mark the rest of the line as a comment.
-
 .It Fl reverse
-Reverse operation of natd.
-This can be useful in some 
-transparent proxying situations when outgoing traffic
-is redirected to the local machine and natd is running on the
-incoming interface (it usually runs on the outgoing interface).
-
+This option makes
+.Nm
+reverse the way it handles incoming and outgoing packets,
+allowing it to operate on the internal interface rather than
+the external one.
+.Pp
+This can be useful in some transparent proxying situations
+when outgoing traffic is redirected to the local machine
+and
+.Nm
+is running on the internal interface (it usually runs on the
+external interface).
 .It Fl proxy_only
-Force natd to perform transparent proxying
-only.
+Force
+.Nm
+to perform transparent proxying only.
 Normal address translation is not performed.
-
-.It Fl proxy_rule Ar [type encode_ip_hdr|encode_tcp_stream] port xxxx server a.b.c.d:yyyy
+.It Fl proxy_rule Xo
+.Op Ar type encode_ip_hdr | encode_tcp_stream
+.Ar port xxxx
+.Ar server a.b.c.d:yyyy
+.Xc
 Enable transparent proxying.
-Packets with the given port going through this
+Outgoing TCP packets with the given port going through this
 host to any other host are redirected to the given server and port.
 Optionally, the original target address can be encoded into the packet.
-Use 
-.Dq encode_ip_hdr
+Use
+.Ar encode_ip_hdr
 to put this information into the IP option field or
-.Dq encode_tcp_stream
+.Ar encode_tcp_stream
 to inject the data into the beginning of the TCP stream.
-
-.It Fl pptpalias Ar localIP
-Allow PPTP packets to go to the defined localIP address.
-PPTP is a VPN or secure
-IP tunneling technology being developed primarily by Microsoft.
-For its encrypted traffic,
-it uses an old IP encapsulation protocol called GRE (47).
-This natd option will translate any traffic of this protocol to a
-single, specified IP address.
-This would allow either one client or one server 
-to be serviced with natd.
-If you are setting up a server, don't forget to allow the TCP traffic
-for the PPTP setup.
-For a client or server,
-you must allow GRE (protocol 47) if you have firewall lists active.
-
+.It Fl punch_fw Xo
+.Ar basenumber Ns : Ns Ar count
+.Xc
+This option makes
+.Nm
+.Ql punch holes
+in an
+.Xr ipfirewall 4
+based firewall for FTP/IRC DCC connections.
+The holes punched are bound by from/to IP address and port; it
+will not be possible to use a hole for another connection.
+A hole is removed when the connection that uses it dies.
+.Pp
+Arguments
+.Ar basenumber
+and
+.Ar count
+set the firewall range allocated for punching firewall holes.
+The range will be cleared for all rules on startup.
 .El
-
 .Sh RUNNING NATD
 The following steps are necessary before attempting to run
 .Nm natd :
-
 .Bl -enum
 .It
-Get FreeBSD version 2.2 or higher.  Versions before this do not support
-.Xr divert 4
-sockets.
-
-.It
 Build a custom kernel with the following options:
-
-  options IPFIREWALL
-  options IPDIVERT
-
+.Bd -literal -offset indent
+options IPFIREWALL
+options IPDIVERT
+.Ed
+.Pp
 Refer to the handbook for detailed instructions on building a custom
 kernel.
-
 .It
-Ensure that your machine is acting as a gateway.  This can be done by
-specifying the line
-
-  gateway_enable=YES
-
-in
-.Pa /etc/rc.conf ,
-or using the command
-
-  sysctl -w net.inet.ip.forwarding=1
-
+Ensure that your machine is acting as a gateway.
+This can be done by specifying the line
+.Pp
+.Dl gateway_enable=YES
+.Pp
+in the
+.Pa /etc/rc.conf
+file or using the command
+.Pp
+.Dl sysctl -w net.inet.ip.forwarding=1
+.Pp
 .It
-If you wish to use the
-.Fl n
-or
+If you use the
 .Fl interface
-flags, make sure that your interface is already configured.  If, for
-example, you wish to specify tun0 as your
+option, make sure that your interface is already configured.
+If, for example, you wish to specify tun0 as your
 .Ar interface ,
-and you're using
+and you are using
 .Xr ppp 8
 on that interface, you must make sure that you start
 .Nm ppp
 prior to starting
 .Nm natd .
-
-.It
-Create an entry in
-.Pa /etc/services :
-
-  natd          8668/divert  # Network Address Translation socket
-
-This gives a default for the
-.Fl p
-or
-.Fl port
-flag.
-
 .El
 .Pp
 Running
 .Nm
-is fairly straight forward.  The line
-
-  natd -interface ed0
-
-should suffice in most cases (substituting the correct interface name).  Once
+is fairly straight forward.
+The line
+.Pp
+.Dl natd -interface ed0
+.Pp
+should suffice in most cases (substituting the correct interface name).
+Once
 .Nm
-is running, you must ensure that traffic is diverted to natd:
-
+is running, you must ensure that traffic is diverted to
+.Nm natd :
 .Bl -enum
 .It
 You will need to adjust the
 .Pa /etc/rc.firewall
-script to taste.  If you're not interested in having a firewall, the
+script to taste.
+If you are not interested in having a firewall, the
 following lines will do:
-
-  /sbin/ipfw -f flush
-  /sbin/ipfw add divert natd all from any to any via ed0
-  /sbin/ipfw add pass all from any to any
-
-The second line depends on your interface (change ed0 as appropriate)
-and assumes that you've updated
-.Pa /etc/services
-with the natd entry as above.  If you specify real firewall rules, it's
-best to specify line 2 at the start of the script so that
+.Bd -literal -offset indent
+/sbin/ipfw -f flush
+/sbin/ipfw add divert natd all from any to any via ed0
+/sbin/ipfw add pass all from any to any
+.Ed
+.Pp
+The second line depends on your interface (change ed0 as appropriate).
+.Pp
+You should be aware of the fact that, with these firewall settings,
+everyone on your local network can fake his source-address using your
+host as gateway.
+If there are other hosts on your local network, you are strongly
+encouraged to create firewall rules that only allow traffic to and
+from trusted hosts.
+.Pp
+If you specify real firewall rules, it is best to specify line 2 at
+the start of the script so that
 .Nm
 sees all packets before they are dropped by the firewall.
 .Pp
@@ -411,37 +428,37 @@ After translation by
 packets re-enter the firewall at the rule number following the rule number
 that caused the diversion (not the next rule if there are several at the
 same number).
-
 .It
 Enable your firewall by setting
-
-  firewall_enable=YES
-
+.Pp
+.Dl firewall_enable=YES
+.Pp
 in
 .Pa /etc/rc.conf .
 This tells the system startup scripts to run the
 .Pa /etc/rc.firewall
-script.  If you don't wish to reboot now, just run this by hand from the
-console.  NEVER run this from a virtual session unless you put it into
-the background.  If you do, you'll lock yourself out after the flush
-takes place, and execution of
+script.
+If you do not wish to reboot now, just run this by hand from the console.
+NEVER run this from a remote session unless you put it into the background.
+If you do, you will lock yourself out after the flush takes place, and
+execution of
 .Pa /etc/rc.firewall
-will stop at this point - blocking all accesses permanently.  Running
-the script in the background should be enough to prevent this disaster.
-
+will stop at this point - blocking all accesses permanently.
+Running the script in the background should be enough to prevent this
+disaster.
 .El
-
 .Sh SEE ALSO
-.Xr socket 2 ,
-.Xr getservbyname 3 ,
 .Xr divert 4 ,
+.Xr protocols 5 ,
+.Xr rc.conf 5 ,
 .Xr services 5 ,
-.Xr ipfw 8
-
+.Xr syslog.conf 5 ,
+.Xr ipfw 8 ,
+.Xr ppp 8 .
 .Sh AUTHORS
 This program is the result of the efforts of many people at different
 times:
-
+.Pp
 .An Archie Cobbs Aq archie@whistle.com
 (divert sockets)
 .An Charles Mott Aq cmott@scientech.com
@@ -451,6 +468,6 @@ times:
 .An Ari Suutari Aq suutari@iki.fi
 (natd)
 .An Dru Nelson Aq dnelson@redwoodsoft.com
-(PPTP support)
+(early PPTP support)
 .An Brian Somers Aq brian@awfulhak.org
 (glue)
