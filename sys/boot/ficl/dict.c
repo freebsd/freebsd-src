@@ -352,6 +352,7 @@ FICL_DICT  *dictCreateHashed(unsigned nCells, unsigned nHash)
 
     pDict = ficlMalloc(nAlloc);
     assert(pDict);
+    memset(pDict, 0, sizeof (FICL_DICT));
     pDict->size = nCells;
     dictEmpty(pDict, nHash);
     return pDict;
