@@ -920,6 +920,8 @@ change_root(vp, td)
 /*
  * Check permissions, allocate an open file structure,
  * and call the device open routine if any.
+ *
+ * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct open_args {
@@ -968,8 +970,10 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
+	mtx_lock(&Giant);
 	error = vn_open(&nd, &flags, cmode, indx);
 	if (error) {
+		mtx_unlock(&Giant);
 
 		/*
 		 * If the vn_open replaced the method vector, something
@@ -1040,6 +1044,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		FILE_UNLOCK(fp);
 		VOP_UNLOCK(vp, 0, td);
 		vn_close(vp, flags & FMASK, fp->f_cred, td);
+		mtx_unlock(&Giant);
 		fdrop(fp, td);
 		td->td_retval[0] = indx;
 		return (0);
@@ -1091,6 +1096,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		if (error)
 			goto bad;
 	}
+	mtx_unlock(&Giant);
 	/*
 	 * Release our private reference, leaving the one associated with
 	 * the descriptor table intact.
@@ -1099,6 +1105,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	td->td_retval[0] = indx;
 	return (0);
 bad:
+	mtx_unlock(&Giant);
 	FILEDESC_LOCK(fdp);
 	if (fdp->fd_ofiles[indx] == fp) {
 		fdp->fd_ofiles[indx] = NULL;
@@ -1115,6 +1122,8 @@ bad:
 #ifdef COMPAT_43
 /*
  * Create a file.
+ *
+ * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct ocreat_args {
@@ -1130,16 +1139,9 @@ ocreat(td, uap)
 		int mode;
 	} */ *uap;
 {
-	struct open_args /* {
-		char *path;
-		int flags;
-		int mode;
-	} */ nuap;
 
-	nuap.path = uap->path;
-	nuap.mode = uap->mode;
-	nuap.flags = O_WRONLY | O_CREAT | O_TRUNC;
-	return (open(td, &nuap));
+	return (kern_open(td, uap->path, UIO_USERSPACE,
+	    O_WRONLY | O_CREAT | O_TRUNC, uap->mode));
 }
 #endif /* COMPAT_43 */
 
