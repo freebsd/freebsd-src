@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.83 1998/04/16 16:35:23 kato Exp $
+ *  $Id: syscons.c,v 1.84 1998/04/18 05:09:07 kato Exp $
  */
 
 #include "sc.h"
@@ -4033,13 +4033,11 @@ scinit(void)
     init_done = WARM;
 
 #ifdef PC98
-#ifdef AUTO_CLOCK
 	if (pc98_machine_type & M_8M) {
 	    BELL_PITCH = 1339;
 	} else {
 	    BELL_PITCH = 1678;
 	}
-#endif /* AUTO_CLOCK */
 	outb(0x62, 0xd);
 	outb(0xA2, 0xd);
 	/* Extract cursor location */
