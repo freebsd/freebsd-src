@@ -363,7 +363,7 @@ main(int argc, char *argv[])
 		sigaction(SIGTTOU, &sa, NULL);
 		close(fds[0]);
 		setpgid(child_pid, child_pid);
-		tcsetpgrp(1, child_pid);
+		tcsetpgrp(STDERR_FILENO, child_pid);
 		close(fds[1]);
 		sigaction(SIGPIPE, &sa_pipe, NULL);
 		while ((pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
@@ -377,6 +377,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		}
+		tcsetpgrp(STDERR_FILENO, getpgrp());
 		if (pid == -1)
 			err(1, "waitpid");
 		PAM_END();
