@@ -102,8 +102,14 @@ struct cstate {
   u_short cs_hlen;		/* size of hdr (receive only) */
   u_char cs_id;			/* connection # associated with this state */
   u_char cs_filler;
-  struct ip cs_ip;		/* ip/tcp hdr from most recent packet */
-};
+  union {
+    char csu_hdr[MAX_HDR];
+    struct ip csu_ip;		/* ip/tcp hdr from most recent packet */
+  } slcs_u;
+ };
+
+#define cs_ip slcs_u.csu_ip
+#define cs_hdr slcs_u.csu_hdr
 
 /*
  * all the state data for one serial line (we need one of these
