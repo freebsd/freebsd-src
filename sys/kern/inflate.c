@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: inflate.c,v 1.10 1997/10/11 18:31:20 phk Exp $
+ * $Id: inflate.c,v 1.11 1997/10/12 20:23:40 phk Exp $
  *
  *
  */
@@ -16,10 +16,13 @@
 #include <sys/inflate.h>
 #ifdef KERNEL
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #endif
 #include <sys/malloc.h>
 
+#ifdef KERNEL
 static MALLOC_DEFINE(M_GZIP, "Gzip trees", "Gzip trees");
+#endif
 
 /* needed to make inflate() work */
 #define	uch u_char
@@ -47,8 +50,10 @@ extern void putstr (char *);
 static const int qflag = 0;
 
 #ifndef KERNEL /* want to use this file in kzip also */
-extern unsigned char *malloc (int, int, int);
-extern void free (void*, int);
+extern unsigned char *kzipmalloc (int);
+extern void kzipfree (void*);
+#define malloc(x, y, z) kzipmalloc((x))
+#define free(x, y) kzipfree((x))
 #endif
 
 /*
