@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.27 1999/05/06 09:44:54 bde Exp $
+ *	$Id: ipl.s,v 1.28 1999/06/01 18:20:15 jlemon Exp $
  */
 
 
@@ -236,6 +236,7 @@ doreti_unpend:
 	TEST_CIL
 	/* we enter with cpl locked */
 	bsfl	%ecx, %ecx		/* slow, but not worth optimizing */
+	lock
 	btrl	%ecx, _ipending
 	jnc	doreti_next2		/* some intr cleared memory copy */
 	cmpl	$NHWI, %ecx
@@ -377,7 +378,7 @@ swi_ast_phantom:
 	 */
 	cli
 	ICPL_LOCK
-	orl $SWI_AST_PENDING, _ipending
+	MPLOCKED orl $SWI_AST_PENDING, _ipending
 	/* cpl is unlocked in doreti_exit */
 	subl	%eax,%eax
 #ifdef CPL_AND_CML
