@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.c,v 1.10 1998/12/28 19:22:26 mjacob Exp $ */
-/* release_01_29_99 */
+/* $Id: isp_freebsd.c,v 1.11 1999/01/30 07:29:00 mjacob Exp $ */
+/* release_02_05_99 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -346,8 +346,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			} else {
 				*dptr &= ~DPARM_SYNC;
 			}
-			IDPRINTF(3, ("%s: target %d new dev_flags 0x%x\n",
-			    isp->isp_name, tgt,
+			IDPRINTF(3, ("%s: set target %d period %d offset %d "
+			    "dev_flags 0x%x\n", isp->isp_name, tgt,
+			    sdp->isp_devparam[tgt].sync_period,
+			    sdp->isp_devparam[tgt].sync_offset,
 			    sdp->isp_devparam[tgt].dev_flags));
 			s = splcam();
 			sdp->isp_devparam[tgt].dev_update = 1;
@@ -450,18 +452,16 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_RESET_BUS:		/* Reset the specified bus */
-		if (isp->isp_type & ISP_HA_FC) {
-			ccb->ccb_h.status = CAM_REQ_CMP;
-			xpt_done(ccb);
-                	break;
-		}
 		s = splcam();
 		error = isp_control(isp, ISPCTL_RESET_BUS, NULL);
 		(void) splx(s);
 		if (error)
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-		else
+		else {
+			if (isp->isp_path != NULL)
+				xpt_async(AC_BUS_RESET, isp->isp_path, NULL);
 			ccb->ccb_h.status = CAM_REQ_CMP;
+		}
 		xpt_done(ccb);
 		break;
 
@@ -548,6 +548,10 @@ isp_done(struct ccb_scsiio *sccb)
 		}
 	}
 	if (isp->isp_osinfo.simqfrozen) {
+
+		xpt_print_path(sccb->ccb_h.path);
+		printf("isp_done releasing SIMQ\n");
+
 		sccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		isp->isp_osinfo.simqfrozen = 0;
 	}
@@ -568,6 +572,29 @@ isp_async(isp, cmd, arg)
 {
 	int rv = 0;
 	switch (cmd) {
+	case ISPASYNC_LOOP_DOWN:
+		if (isp->isp_path) {
+			/*
+			 * We can get multiple LOOP downs, so only count one.
+			 */
+			if (isp->isp_osinfo.simqfrozen == 0) {
+				xpt_freeze_simq(isp->isp_sim, 1);
+				isp->isp_osinfo.simqfrozen = 1;
+				xpt_print_path(isp->isp_path);
+				printf("freezing SIMQ until loop comes up\n");
+			}
+		}
+		break;
+	case ISPASYNC_LOOP_UP:
+		if (isp->isp_path) {
+			xpt_print_path(isp->isp_path);
+			if (isp->isp_osinfo.simqfrozen) {
+				isp->isp_osinfo.simqfrozen = 0;
+				printf("releasing frozen SIMQ\n");
+				xpt_release_simq(isp->isp_sim, 1);
+			}
+		}
+		break;
 	case ISPASYNC_NEW_TGT_PARAMS:
 		if (isp->isp_type & ISP_HA_SCSI) {
 			int flags, tgt;
@@ -603,9 +630,9 @@ isp_async(isp, cmd, arg)
 				neg.valid |= CCB_TRANS_SYNC_RATE_VALID |
 						CCB_TRANS_SYNC_OFFSET_VALID;
 			}
-			xpt_print_path(tmppath);
-			printf("new target params period %d offset %d\n",
-			    neg.sync_period, neg.sync_offset);
+			IDPRINTF(3, ("%s: new params target %d period %d "
+			    "offset %d flags 0x%x\n", isp->isp_name, tgt,
+			    neg.sync_period, neg.sync_offset, flags));
 			xpt_setup_ccb(&neg.ccb_h, tmppath, 1);
 			xpt_async(AC_TRANSFER_NEG, tmppath, &neg);
 			xpt_free_path(tmppath);
@@ -662,6 +689,9 @@ isp_attach(struct ispsoftc *isp)
 			((sdparam *)isp->isp_param)->isp_initiator_id;
 		scbus->maxtarg = MAX_TARGETS-1;
 	}
+
+	(void) isp_control(isp, ISPCTL_RESET_BUS, NULL);
+
 	/*
 	 * Prepare the scsibus_data area for the upperlevel scsi code.
 	 */ 
