@@ -197,7 +197,7 @@ ccp_ReportStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "any bits, ");
   switch (ccp->cfg.mppe.state) {
   case MPPE_STATEFUL:
-    prompt_Printf(arg->prompt, "statefull");
+    prompt_Printf(arg->prompt, "stateful");
     break;
   case MPPE_STATELESS:
     prompt_Printf(arg->prompt, "stateless");
