@@ -22,6 +22,7 @@ sed	\
 	-e '/UFS_DIRHASH/d' \
 	-e '/WITNESS/d' \
 	-e '/	atapist	/d' \
+	-e '/	awi	/d' \
 	-e '/	faith	/d' \
 	-e '/	gif	/d' \
 	-e '/	lpt	/d' \
