@@ -2187,7 +2187,7 @@ dropafterack:
 			  &tcp_savetcp, 0);
 #endif
 	if (headlocked)
-	    INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
 	m_freem(m);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
@@ -2217,7 +2217,7 @@ dropwithreset:
 	/* IPv6 anycast check is done at tcp6_input() */
 
 	if (tp)
-	    INP_UNLOCK(inp);
+		INP_UNLOCK(inp);
 	/*
 	 * Perform bandwidth limiting.
 	 */
@@ -2241,7 +2241,7 @@ dropwithreset:
 			    (tcp_seq)0, TH_RST|TH_ACK);
 	}
 	if (headlocked)
-	    INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
 	return;
 
 drop:
@@ -2254,10 +2254,10 @@ drop:
 			  &tcp_savetcp, 0);
 #endif
 	if (tp)
-	    INP_UNLOCK(inp);
+		INP_UNLOCK(inp);
 	m_freem(m);
 	if (headlocked)
-	    INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
 	return;
 }
 
