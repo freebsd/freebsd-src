@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
  * The interface for this module is:
  *	Dir_Init  	    Initialize the module.
  *
- *	Dir_End  	    Cleanup the module.
- *
  *	Dir_HasWildcards    Returns TRUE if the name given it needs to
  *	    	  	    be wildcard-expanded.
  *
@@ -240,31 +238,6 @@ Dir_InitDot(void)
 	 * reference count to make sure it's not destroyed.
 	 */
 	dot->refCount += 1;
-}
-
-/*-
- *-----------------------------------------------------------------------
- * Dir_End --
- *	cleanup things for this module
- *
- * Results:
- *	none
- *
- * Side Effects:
- *	none
- *-----------------------------------------------------------------------
- */
-void
-Dir_End(void)
-{
-
-	dot->refCount -= 1;
-	Dir_Destroy(dot);
-	Dir_ClearPath(&dirSearchPath);
-	Lst_Destroy(&dirSearchPath, NOFREE);
-	Dir_ClearPath(&openDirectories);
-	Lst_Destroy(&openDirectories, NOFREE);
-	Hash_DeleteTable(&mtimes);
 }
 
 /*-
