@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1991, 1993
+ * Copyright (c) 1982, 1986, 1991, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.11 1995/05/03 07:16:51 davidg Exp $
+ * $Id: in_pcb.c,v 1.12 1995/05/30 08:09:28 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -137,7 +137,7 @@ in_pcbbind(inp, nam)
 			/* GROSS */
 			if (ntohs(lport) < IPPORT_RESERVED &&
 			    (error = suser(p->p_ucred, &p->p_acflag)))
-				return (error);
+				return (EACCES);
 			t = in_pcblookup(head, zeroin_addr, 0,
 			    sin->sin_addr, lport, wild);
 			if (t && (reuseport & t->inp_socket->so_options) == 0)
