@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.81 1997/05/27 18:56:03 jkh Exp $
+ * $Id: system.c,v 1.82 1997/07/31 11:08:45 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -51,9 +51,11 @@ handle_intr(int sig)
 static char *
 expand(char *fname)
 {
+    char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
+
     Mkdir(DOC_TMP_DIR);
     unlink(DOC_TMP_FILE);
-    if (!file_readable(fname) || vsystem("gzip -c -d %s > %s", fname, DOC_TMP_FILE))
+    if (!file_readable(fname) || vsystem("%s -c %s > %s", gunzip, fname, DOC_TMP_FILE))
 	return NULL;
     return DOC_TMP_FILE;
 }
