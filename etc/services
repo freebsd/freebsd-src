@@ -7,7 +7,7 @@
 # Updated from RFC 1340, ``Assigned Numbers'' (July 1992).  Not all ports
 # are included, only the more common ones.
 #
-#	$Id$
+#	$Id: services,v 1.3 1993/11/07 00:31:23 wollman Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 tcpmux		1/tcp		# TCP port service multiplexer
@@ -175,3 +175,6 @@ kpasswd		761/tcp		kpwd	# Kerberos "passwd"
 #klogin		543/tcp			# Kerberos rlogin
 eklogin		2105/tcp		# Kerberos encrypted rlogin
 #kshell		544/tcp		krcmd	# Kerberos remote shell
+#
+supfilesrv	871/tcp			# for SUP
+supfiledbg	1127/tcp		# for SUP
