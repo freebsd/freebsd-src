@@ -37,7 +37,6 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- * $FreeBSD$
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
@@ -193,8 +192,10 @@ static int	null_getattr(struct vop_getattr_args *ap);
 static int	null_inactive(struct vop_inactive_args *ap);
 static int	null_lock(struct vop_lock_args *ap);
 static int	null_lookup(struct vop_lookup_args *ap);
+static int	null_open(struct vop_open_args *ap);
 static int	null_print(struct vop_print_args *ap);
 static int	null_reclaim(struct vop_reclaim_args *ap);
+static int	null_rename(struct vop_rename_args *ap);
 static int	null_setattr(struct vop_setattr_args *ap);
 static int	null_unlock(struct vop_unlock_args *ap);
 
@@ -448,6 +449,8 @@ null_getattr(ap)
 
 	if ((error = null_bypass((struct vop_generic_args *)ap)) != 0)
 		return (error);
+
+	ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
 	return (0);
 }
 
@@ -480,6 +483,66 @@ null_access(ap)
 			break;
 		}
 	}
+	return (null_bypass((struct vop_generic_args *)ap));
+}
+
+/*
+ * We must handle open to be able to catch MNT_NODEV and friends.
+ */
+static int
+null_open(ap)
+	struct vop_open_args /* {
+		struct vnode *a_vp;
+		int  a_mode;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode *lvp = NULLVPTOLOWERVP(ap->a_vp);
+
+	if ((vp->v_mount->mnt_flag & MNT_NODEV) &&
+	    (lvp->v_type == VBLK || lvp->v_type == VCHR))
+		return ENXIO;
+
+	return (null_bypass((struct vop_generic_args *)ap));
+}
+
+/*
+ * We handle this to eliminate null FS to lower FS
+ * file moving. Don't know why we don't allow this,
+ * possibly we should.
+ */
+static int
+null_rename(ap)
+	struct vop_rename_args /* {
+		struct vnode *a_fdvp;
+		struct vnode *a_fvp;
+		struct componentname *a_fcnp;
+		struct vnode *a_tdvp;
+		struct vnode *a_tvp;
+		struct componentname *a_tcnp;
+	} */ *ap;
+{
+	struct vnode *tdvp = ap->a_tdvp;
+	struct vnode *fvp = ap->a_fvp;
+	struct vnode *fdvp = ap->a_fdvp;
+	struct vnode *tvp = ap->a_tvp;
+
+	/* Check for cross-device rename. */
+	if ((fvp->v_mount != tdvp->v_mount) ||
+	    (tvp && (fvp->v_mount != tvp->v_mount))) {
+		if (tdvp == tvp)
+			vrele(tdvp);
+		else
+			vput(tdvp);
+		if (tvp)
+			vput(tvp);
+		vrele(fdvp);
+		vrele(fvp);
+		return (EXDEV);
+	}
+	
 	return (null_bypass((struct vop_generic_args *)ap));
 }
 
@@ -568,7 +631,9 @@ null_reclaim(ap)
 	 */
 	/* After this assignment, this node will not be re-used. */
 	xp->null_lowervp = NULLVP;
+	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, ap->a_p);
 	LIST_REMOVE(xp, null_hash);
+	lockmgr(&null_hashlock, LK_RELEASE, NULL, ap->a_p);
 	FREE(vp->v_data, M_TEMP);
 	vp->v_data = NULL;
 	vrele (lowervp);
@@ -593,13 +658,18 @@ vop_t **null_vnodeop_p;
 static struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) null_bypass },
 	{ &vop_access_desc,		(vop_t *) null_access },
+	{ &vop_bmap_desc,		(vop_t *) vop_eopnotsupp },
 	{ &vop_getattr_desc,		(vop_t *) null_getattr },
+	{ &vop_getwritemount_desc,	(vop_t *) vop_stdgetwritemount},
 	{ &vop_inactive_desc,		(vop_t *) null_inactive },
 	{ &vop_lock_desc,		(vop_t *) null_lock },
 	{ &vop_lookup_desc,		(vop_t *) null_lookup },
+	{ &vop_open_desc,		(vop_t *) null_open },
 	{ &vop_print_desc,		(vop_t *) null_print },
 	{ &vop_reclaim_desc,		(vop_t *) null_reclaim },
+	{ &vop_rename_desc,		(vop_t *) null_rename },
 	{ &vop_setattr_desc,		(vop_t *) null_setattr },
+	{ &vop_strategy_desc,		(vop_t *) vop_eopnotsupp },
 	{ &vop_unlock_desc,		(vop_t *) null_unlock },
 	{ NULL, NULL }
 };
