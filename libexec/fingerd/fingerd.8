@@ -46,16 +46,21 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is a simple protocol based on
+utility uses a simple protocol based on
 .%T RFC1196
-that provides an interface to the
-Name and Finger programs at several network sites.
-The program is supposed to return a friendly,
+that provides an interface to
+.Xr finger 1
+at several network sites.  It is supposed to return a friendly,
 human-oriented status report on either the system at the moment
 or a particular person in depth.
 There is no required format and the
 protocol consists mostly of specifying a single
-.Dq command line .
+.Dq command line Ns ,
+thus,
+.Nm
+can also be used to implement other protocols in conjunction with the
+.Fl p
+flag.
 .Pp
 The
 .Nm
