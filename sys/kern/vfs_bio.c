@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104 1996/10/17 03:04:43 dyson Exp $
+ * $Id: vfs_bio.c,v 1.104.2.1 1996/11/28 22:01:06 phk Exp $
  */
 
 /*
@@ -51,6 +51,8 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
+#include <vm/lock.h>
+#include <vm/vm_map.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
@@ -92,7 +94,6 @@ int vfs_update_wakeup;
 /*
  * buffers base kva
  */
-caddr_t buffers_kva;
 
 /*
  * bogus page -- for I/O to/from partially complete buffers
@@ -134,7 +135,6 @@ bufinit()
 	for (i = 0; i < BUFFER_QUEUES; i++)
 		TAILQ_INIT(&bufqueues[i]);
 
-	buffers_kva = (caddr_t) kmem_alloc_pageable(buffer_map, MAXBSIZE * nbuf);
 	/* finally, initialize each buffer header and stick on empty q */
 	for (i = 0; i < nbuf; i++) {
 		bp = &buf[i];
@@ -145,7 +145,6 @@ bufinit()
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
 		bp->b_vnbufs.le_next = NOLIST;
-		bp->b_data = buffers_kva + i * MAXBSIZE;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	}
@@ -155,7 +154,7 @@ bufinit()
  * cache is still the same as it would be for 8K filesystems.  This
  * keeps the size of the buffer cache "in check" for big block filesystems.
  */
-	maxbufspace = 2 * (nbuf + 8) * PAGE_SIZE;
+	maxbufspace = (nbuf + 8) * DFLTBSIZE;
 /*
  * reserve 1/3 of the buffers for metadata (VDIR) which might not be VMIO'ed
  */
@@ -173,6 +172,25 @@ bufinit()
 	bogus_page = vm_page_alloc(kernel_object,
 			((bogus_offset - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
 			VM_ALLOC_NORMAL);
+
+}
+
+/*
+ * Free the kva allocation for a buffer
+ * Must be called only at splbio or higher,
+ *  as this is the only locking for buffer_map.
+ */
+static void
+bfreekva(struct buf * bp)
+{
+	if (bp->b_kvasize == 0)
+		return;
+		
+	vm_map_delete(buffer_map,
+		(vm_offset_t) bp->b_kvabase,
+		(vm_offset_t) bp->b_kvabase + bp->b_kvasize);
+
+	bp->b_kvasize = 0;
 
 }
 
@@ -562,6 +580,10 @@ brelse(struct buf * bp)
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
+		/*
+		 * Get rid of the kva allocation *now*
+		 */
+		bfreekva(bp);
 		if (needsbuffer) {
 			wakeup(&needsbuffer);
 			needsbuffer=0;
@@ -724,7 +746,7 @@ vfs_vmio_release(bp)
 /*
  * Check to see if a block is currently memory resident.
  */
-__inline struct buf *
+struct buf *
 gbincore(struct vnode * vp, daddr_t blkno)
 {
 	struct buf *bp;
@@ -812,10 +834,11 @@ vfs_bio_awrite(struct buf * bp)
  * Find a buffer header which is available for use.
  */
 static struct buf *
-getnewbuf(int slpflag, int slptimeo, int doingvmio)
+getnewbuf(int slpflag, int slptimeo, int size, int maxsize)
 {
 	struct buf *bp;
 	int nbyteswritten = 0;
+	vm_offset_t addr;
 
 start:
 	if (bufspace >= maxbufspace)
@@ -926,15 +949,53 @@ fillbuf:
 	bp->b_resid = 0;
 	bp->b_bcount = 0;
 	bp->b_npages = 0;
-	bp->b_data = buffers_kva + (bp - buf) * MAXBSIZE;
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_validoff = bp->b_validend = 0;
 	bp->b_usecount = 4;
-	if (bufspace >= maxbufspace + nbyteswritten) {
+
+	maxsize = (maxsize + PAGE_MASK) & ~PAGE_MASK;
+
+	/*
+	 * we assume that buffer_map is not at address 0
+	 */
+	addr = 0;
+	if (maxsize != bp->b_kvasize) {
+		bfreekva(bp);
+		
+		/*
+		 * See if we have buffer kva space
+		 */
+		if (vm_map_findspace(buffer_map,
+			vm_map_min(buffer_map), maxsize, &addr)) {
+			bp->b_flags |= B_INVAL;
+			brelse(bp);
+			goto trytofreespace;
+		}
+	}
+
+	/*
+	 * See if we are below are allocated minimum
+	 */
+	if (bufspace >= (maxbufspace + nbyteswritten)) {
 		bp->b_flags |= B_INVAL;
 		brelse(bp);
 		goto trytofreespace;
 	}
+
+	/*
+	 * create a map entry for the buffer -- in essence
+	 * reserving the kva space.
+	 */
+	if (addr) {
+		vm_map_insert(buffer_map, NULL, 0,
+			addr, addr + maxsize,
+			VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
+
+		bp->b_kvabase = (caddr_t) addr;
+		bp->b_kvasize = maxsize;
+	}
+	bp->b_data = bp->b_kvabase;
+	
 	return (bp);
 }
 
@@ -1057,6 +1118,18 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	struct buf *bp;
 	int s;
 	struct bufhashhdr *bh;
+	int maxsize;
+
+	if (vp->v_mount) {
+		maxsize = vp->v_mount->mnt_stat.f_iosize;
+		/*
+		 * This happens on mount points.
+		 */
+		if (maxsize < size)
+			maxsize = size;
+	} else {
+		maxsize = size;
+	}
 
 	if (size > MAXBSIZE)
 		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
@@ -1086,7 +1159,7 @@ loop:
 		 */
 
 		if (bp->b_bcount != size) {
-			if (bp->b_flags & B_VMIO) {
+			if ((bp->b_flags & B_VMIO) && (size <= bp->b_kvasize)) {
 				allocbuf(bp, size);
 			} else {
 				bp->b_flags |= B_NOCACHE;
@@ -1101,14 +1174,8 @@ loop:
 		return (bp);
 	} else {
 		vm_object_t obj;
-		int doingvmio;
 
-		if ((obj = vp->v_object) && (vp->v_flag & VVMIO)) {
-			doingvmio = 1;
-		} else {
-			doingvmio = 0;
-		}
-		if ((bp = getnewbuf(slpflag, slptimeo, doingvmio)) == 0) {
+		if ((bp = getnewbuf(slpflag, slptimeo, size, maxsize)) == 0) {
 			if (slpflag || slptimeo) {
 				splx(s);
 				return NULL;
@@ -1138,7 +1205,7 @@ loop:
 		bh = BUFHASH(vp, blkno);
 		LIST_INSERT_HEAD(bh, bp, b_hash);
 
-		if (doingvmio) {
+		if ((obj = vp->v_object) && (vp->v_flag & VVMIO)) {
 			bp->b_flags |= (B_VMIO | B_CACHE);
 #if defined(VFS_BIO_DEBUG)
 			if (vp->v_type != VREG && vp->v_type != VBLK)
@@ -1171,7 +1238,7 @@ geteblk(int size)
 	int s;
 
 	s = splbio();
-	while ((bp = getnewbuf(0, 0, 0)) == 0);
+	while ((bp = getnewbuf(0, 0, size, MAXBSIZE)) == 0);
 	splx(s);
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;
@@ -1201,6 +1268,9 @@ allocbuf(struct buf * bp, int size)
 	if (!(bp->b_flags & B_BUSY))
 		panic("allocbuf: buffer not busy");
 
+	if (bp->b_kvasize < size)
+		panic("allocbuf: buffer too small");
+
 	if ((bp->b_flags & B_VMIO) == 0) {
 		caddr_t origbuf;
 		int origbufsize;
@@ -1227,7 +1297,7 @@ allocbuf(struct buf * bp, int size)
 					free(bp->b_data, M_BIOBUF);
 					bufspace -= bp->b_bufsize;
 					bufmallocspace -= bp->b_bufsize;
-					bp->b_data = (caddr_t) buffers_kva + (bp - buf) * MAXBSIZE;
+					bp->b_data = bp->b_kvabase;
 					bp->b_bufsize = 0;
 					bp->b_bcount = 0;
 					bp->b_flags &= ~B_MALLOC;
@@ -1268,7 +1338,7 @@ allocbuf(struct buf * bp, int size)
 			if (bp->b_flags & B_MALLOC) {
 				origbuf = bp->b_data;
 				origbufsize = bp->b_bufsize;
-				bp->b_data = (caddr_t) buffers_kva + (bp - buf) * MAXBSIZE;
+				bp->b_data = bp->b_kvabase;
 				bufspace -= bp->b_bufsize;
 				bufmallocspace -= bp->b_bufsize;
 				bp->b_bufsize = 0;

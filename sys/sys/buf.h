@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.33 1996/09/06 05:35:00 gibbs Exp $
+ * $Id: buf.h,v 1.34 1996/10/13 14:36:37 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -80,6 +80,8 @@ struct buf {
 	struct {
 		caddr_t	b_addr;		/* Memory, superblocks, indirect etc. */
 	} b_un;
+	caddr_t	b_kvabase;		/* base kva for buffer */
+	int	b_kvasize;		/* size of kva for buffer */
 	void	*b_saveaddr;		/* Original b_addr for physio. */
 	daddr_t	b_lblkno;		/* Logical block number. */
 	daddr_t	b_blkno;		/* Underlying physical block number. */
