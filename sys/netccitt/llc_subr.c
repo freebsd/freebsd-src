@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_subr.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: llc_subr.c,v 1.2 1994/08/02 07:47:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -282,7 +282,7 @@ llc_getsapinfo(u_char sap, struct ifnet *ifp)
 	si_addr.sdl_data[saploc] = sap;
 	si_addr.sdl_alen++;
 
-	if ((sirt = rtalloc1((struct sockaddr *)&si_addr, 0))) 	
+	if ((sirt = rtalloc1((struct sockaddr *)&si_addr, 0, 0UL))) 	
 		sirt->rt_refcnt--; 
 	else return(0);
 

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_input.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: pk_input.c,v 1.2 1994/08/02 07:47:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -265,7 +265,7 @@ pk_ctlinput (code, src, addr)
 	case PRC_CONNECT_INDICATION: {
 		struct rtentry *llrt;
 
-		if ((llrt = rtalloc1(src, 0)) == 0)
+		if ((llrt = rtalloc1(src, 0, 0UL)) == 0)
 			return 0;
 		else llrt -> rt_refcnt--;
 		
