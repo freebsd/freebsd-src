@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: rshd.c,v 1.18 1997/07/18 21:04:19 wosch Exp $
  */
 
 #ifndef lint
@@ -40,7 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -239,7 +241,7 @@ doit(fromp)
 #endif
 	fromp->sin_port = ntohs((u_short)fromp->sin_port);
 	if (fromp->sin_family != AF_INET) {
-		syslog(LOG_ERR, "malformed \"from\" address (af %d)\n",
+		syslog(LOG_ERR, "malformed \"from\" address (af %d)",
 		    fromp->sin_family);
 		exit(1);
 	}
@@ -259,7 +261,7 @@ doit(fromp)
 			u_char c = optbuf[i];
 			if (c == IPOPT_LSRR || c == IPOPT_SSRR) {
 				syslog(LOG_NOTICE,
-					"Connection refused from %s with IP option %s",
+					"connection refused from %s with IP option %s",
 					inet_ntoa(fromp->sin_addr),
 					c == IPOPT_LSRR ? "LSRR" : "SSRR");
 				exit(1);
@@ -278,7 +280,7 @@ doit(fromp)
 		if (fromp->sin_port >= IPPORT_RESERVED ||
 		    fromp->sin_port < IPPORT_RESERVED/2) {
 			syslog(LOG_NOTICE|LOG_AUTH,
-			    "Connection from %s on illegal port %u",
+			    "connection from %s on illegal port %u",
 			    inet_ntoa(fromp->sin_addr),
 			    fromp->sin_port);
 			exit(1);
@@ -361,7 +363,7 @@ doit(fromp)
 			hp = gethostbyname(remotehost);
 			if (hp == NULL) {
 				syslog(LOG_INFO,
-				    "Couldn't look up address for %s",
+				    "couldn't look up address for %s",
 				    remotehost);
 				errorstr =
 				"Couldn't look up address for your host (%s)\n";
@@ -372,7 +374,7 @@ doit(fromp)
 			} else for (; ; hp->h_addr_list++) {
 				if (hp->h_addr_list[0] == NULL) {
 					syslog(LOG_NOTICE,
-					  "Host addr %s not listed for host %s",
+					  "host addr %s not listed for host %s",
 					    inet_ntoa(fromp->sin_addr),
 					    hp->h_name);
 					errorstr =
