@@ -282,7 +282,7 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 		return NULL;
 	}
 
-	if (sndbuf_alloc(ch->buffer, sc->dmat, sc->bufsz))
+	if (sndbuf_alloc(ch->buffer, sc->dmat, sc->bufsz) != 0)
 		return NULL;
 
 	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)(ch->desc_addr), 4);

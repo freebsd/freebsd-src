@@ -585,7 +585,7 @@ sbchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	ch->channel = c;
 	ch->dir = dir;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, sb->bufsize) == -1)
+	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, sb->bufsize) != 0)
 		return NULL;
 	sndbuf_dmasetup(ch->buffer, sb->drq);
 	return ch;

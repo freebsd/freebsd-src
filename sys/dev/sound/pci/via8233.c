@@ -447,7 +447,7 @@ via8233wr_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->rbase = VIA_WR_BASE(c->num);
 	via_wr(via, ch->rbase + VIA_WR_RP_SGD_FORMAT, WR_FIFO_ENABLE, 1);
 
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
 		return NULL;
 	via8233chan_sgdinit(via, ch, c->num);
 	via8233chan_reset(via, ch);
@@ -475,7 +475,7 @@ via8233dxs_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->rbase = VIA_DXS_BASE(NDXSCHANS - 1 - via->n_dxs_registered);
 	via->n_dxs_registered++;
 
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
 		return NULL;
 	via8233chan_sgdinit(via, ch, NWRCHANS + c->num);
 	via8233chan_reset(via, ch);
@@ -496,7 +496,7 @@ via8233msgd_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->dir = dir;
 	ch->rbase = VIA_MC_SGD_STATUS;
 
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) != 0)
 		return NULL;
 	via8233chan_sgdinit(via, ch, NWRCHANS + c->num);
 	via8233chan_reset(via, ch);

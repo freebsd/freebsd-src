@@ -557,7 +557,7 @@ esschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->parent = sc;
 	ch->channel = c;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsize) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsize) != 0)
 		return NULL;
 	ch->dir = dir;
 	ch->hwch = 1;

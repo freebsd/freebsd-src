@@ -332,7 +332,7 @@ au88x0_chan_init(kobj_t obj, void *arg,
 	struct au88x0_info *aui = arg;
 	struct au88x0_chan_info *auci = au88x0_channel(aui, dir);
 
-	if (sndbuf_alloc(buf, aui->aui_dmat, aui->aui_bufsize) == -1)
+	if (sndbuf_alloc(buf, aui->aui_dmat, aui->aui_bufsize) != 0)
 		return (NULL);
 	auci->auci_aui = aui;
 	auci->auci_pcmchan = chan;
