@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.47 1996/08/05 02:35:04 alex Exp $
+ *	$Id: ip_fw.c,v 1.48 1996/08/13 19:43:40 pst Exp $
  */
 
 /*
@@ -57,10 +57,10 @@ static int fw_verbose_limit = 0;
 LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
 
 #ifdef SYSCTL_NODE
-SYSCTL_NODE(net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_INT(net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW, &fw_debug, 0, "");
-SYSCTL_INT(net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw_verbose, 0, "");
-SYSCTL_INT(net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw_verbose_limit, 0, "");
+SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW, &fw_debug, 0, "");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw_verbose, 0, "");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw_verbose_limit, 0, "");
 #endif
 
 #define dprintf(a)	if (!fw_debug); else printf a
