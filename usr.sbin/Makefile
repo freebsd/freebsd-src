@@ -7,6 +7,7 @@ SUBDIR=	IPXrouted \
 	accton \
 	adduser \
 	amd \
+	ancontrol \
 	arp \
 	atm \
 	bootparamd \

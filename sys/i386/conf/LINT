@@ -1261,6 +1261,8 @@ options 	COM_MULTIPORT		#code for some cards with shared IRQs
 # wi: Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
 #     the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
 #     bridge with a PCMCIA adapter plugged into it.
+# an: Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
+#     PCI and ISA varieties.
 # xe: Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller.
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133
 #       (no options needed)
@@ -1281,6 +1283,7 @@ device rdp0 at isa? port 0x378 irq 7 flags 2
 device sr0 at isa? port 0x300 irq 5 iomem 0xd0000
 device sn0 at isa? port 0x300 irq 10
 device wi0
+device an0
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
 device wl0 at isa? port 0x300 irq ?
