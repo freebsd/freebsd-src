@@ -1,6 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/08/30 03:12:16 peter Exp $
-#
-all depend lint tags:
+#	$Id: Makefile,v 1.4 1996/08/30 19:26:49 peter Exp $
 
 NOOBJ=	noobj
 
