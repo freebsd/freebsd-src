@@ -75,17 +75,17 @@ logged in, the amount of time since the user typed on the keyboard,
 and the remote host they logged in from (if applicable).
 .El
 .Sh DIAGNOSTICS
-.Bl -tag -width indent
-.It Nm Ns : RPC: Program not registered
+.Bl -diag
+.It rusers: RPC: Program not registered
 The
 .Xr rpc.rusersd 8
 daemon has not been started on the remote host.
-.It Nm Ns : RPC: Timed out
+.It rusers: RPC: Timed out
 A communication error occurred.  Either the network is
 excessively congested, or the
 .Xr rpc.rusersd 8
 daemon has terminated on the remote host.
-.It Nm Ns : "RPC: Port mapper failure - RPC: Timed out"
+.It rusers: "RPC: Port mapper failure - RPC: Timed out"
 The remote host is not running the portmapper (see
 .Xr portmap 8 ) ,
 and cannot accommodate any RPC-based services.  The host may be down.

@@ -57,13 +57,11 @@ If the secondary
 DMA channel is C, set the flags to (C | 0x10). For a sound card without the
 secondary DMA channel, the flags should be set to zero.
 .Sh DIAGNOSTICS
-.Bl -tag -width 2m
+.Bl -diag
 .It sb_dspwr(XX) timed out.
-.Pp
 A command to the DSP has timed out.
 Check the I/O port configuration.
 .It bad irq XX (5/7/9/10 valid)
-.Pp
 The IRQ given to the driver is not valid.
 .El
 .Sh HISTORY
