@@ -733,7 +733,7 @@ installFixupBin(dialogMenuItem *self)
     char *cp;
     int i;
     FILE *fp;
-    int kstat;
+    int kstat = 1;
 
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
