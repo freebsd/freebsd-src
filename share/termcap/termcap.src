@@ -2381,14 +2381,15 @@ vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
 	:md=2\E[1m:mr=2\E[7m:mb=2\E[5m:me=2\E[m:\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;24r\E[24;1H:\
 	:if=/usr/share/tabset/vt100:nw=2\EE:ho=\E[H:\
-	:as=2\E(0:ae=2\E(B:ac=llmmkkjjuuttvvwwqqxxnnpprr``aa:\
+	:as=2\E(0:ae=2\E(B:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||:\
 	:rs=\E>\E[?1;3;4;5l\E[?7;8h:ks=\E[?1h\E=:ke=\E[?1l\E>:\
 	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=\177:\
 	:k0=\EOy:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\EOt:\
 	:k6=\EOu:k7=\EOv:k8=\EOl:k9=\EOw:k;=\EOx:@8=\EOM:\
-	:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:K5=\EOn:pt:sr=2*\EM:vt#3:xn:\
+	:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:K5=\EOn:pt:sr=2*\EM:xn:\
 	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
-	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:ut:\
+	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:\
 	:RA=\E[?7l:SA=\E[?7h:
 vt100-nam|dec-vt100-nam|vt100nam|vt100 w/no am:\
 	:am@:xn@:\
@@ -2606,6 +2607,23 @@ d6|vt520|DEC VT520 :\
 df|vt520nam|vt520-nam|v520n|DEC VT520 with no automargins:\
 	:am@:tc=vt520:
 
+#
+#
+vt100-color|vt100-co|vt100 with ANSI colors:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt100:
+vt102-color|vt102-co|vt102 with ANSI colors:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt102:
+vt220-color|vt220-co|vt220 with ANSI colors:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt220:
+# Attempt to save some of 1024 buf space
+vt320-co:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt320:
+vt320-color:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt320:
+vt340-co:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt340:
+vt340-color:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt340:
 #
 # SC,SW names needed for screen(1)        ache
 SC|screen|VT 100/ANSI X3.64 virtual terminal:\
