@@ -52,16 +52,21 @@ static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 #else
 #include <sgtty.h>
 #endif
+#include <sys/types.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_slvar.h>
+#include <net/slip.h>
 #include <netdb.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
+#include <string.h>
+#include <unistd.h>
 
 #define DEFAULT_BAUD    B9600
 int     speed = DEFAULT_BAUD;
@@ -71,7 +76,7 @@ int     speed = DEFAULT_BAUD;
 int	flowcontrol = FC_NONE;
 char	*annex;
 int	hup;
-int	logged_in;
+int	logged_in = 0;
 int	wait_time = 60;		/* then back off */
 #define	MAXTRIES	6	/* w/60 sec and doubling, takes an hour */
 #define	PIDFILE		"/var/run/startslip.pid"
@@ -100,6 +105,10 @@ main(argc, argv)
 	void sighup();
 	FILE *wfd = NULL, *pfd;
 	char *dialerstring = 0, buf[BUFSIZ];
+	int unitnum;
+	char unitname[32];
+	char *devicename, *username, *password;
+	char *upscript = NULL, *downscript = NULL;
 	int first = 1, tries = 0;
 	int pausefirst = 0;
 	int pid;
@@ -109,7 +118,7 @@ main(argc, argv)
 	struct sgttyb sgtty;
 #endif
 
-	while ((ch = getopt(argc, argv, "db:s:p:A:F:")) != EOF)
+	while ((ch = getopt(argc, argv, "db:s:p:A:F:U:D:")) != EOF)
 		switch (ch) {
 		case 'd':
 			debug = 1;
@@ -123,10 +132,16 @@ main(argc, argv)
 			pausefirst = atoi(optarg);
 			break;
 		case 's':
-			dialerstring = optarg;
+			dialerstring = strdup(optarg);
 			break;
 		case 'A':
-			annex = optarg;
+			annex = strdup(optarg);
+			break;
+		case 'U':
+			upscript = strdup(optarg);
+			break;
+		case 'D':
+			downscript = strdup(optarg);
 			break;
 		case 'F':
 #ifdef POSIX
@@ -156,6 +171,22 @@ main(argc, argv)
 	if (argc != 3)
 		usage();
 
+	/*
+	 * Copy these so they exist after we clobber them.
+	 */
+	devicename = strdup(argv[0]);
+	username = strdup(argv[1]);
+	password = strdup(argv[2]);
+
+	/*
+	 * Security hack.  Do not want private information such as the
+	 * password and possible phone number to be left around.
+	 * So we clobber the arguments.
+	 */
+	for (ap = argv - optind + 1; ap < argv + 3; ap++)
+		for (cp = *ap; *cp != 0; cp++)
+			*cp = '\0';
+
 	openlog("startslip", LOG_PID, LOG_DAEMON);
 
 #if BSD <= 43
@@ -177,6 +208,10 @@ main(argc, argv)
 		fclose(pfd);
 	}
 restart:
+	if (logged_in) {
+		sprintf(buf, "%s %s down", downscript ? downscript : "ifconfig" , unitname);
+		(void) system(buf);
+	}
 	logged_in = 0;
 	if (++tries > MAXTRIES) {
 		syslog(LOG_ERR, "exiting after %d tries\n", tries);
@@ -221,12 +256,13 @@ restart:
 		sleep(5);
 	}
 	printd("open");
-	if ((fd = open(argv[0], O_RDWR)) < 0) {
-		perror(argv[0]);
-		syslog(LOG_ERR, "open %s: %m\n", argv[0]);
+	if ((fd = open(devicename, O_RDWR)) < 0) {
+		perror(devicename);
+		syslog(LOG_ERR, "open %s: %m\n", devicename);
 		if (first)
 			exit(1);
 		else {
+			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
 			sleep(wait_time * tries);
 			goto restart;
 		}
@@ -246,13 +282,13 @@ restart:
 	if (ioctl(fd, TIOCSETD, &disc) < 0) {
 	        perror("ioctl(TIOCSETD)");
 		syslog(LOG_ERR, "%s: ioctl (TIOCSETD 0): %m\n",
-		    argv[0]);
+		    devicename);
 	}
 	printd(", ioctl");
 #ifdef POSIX
 	if (tcgetattr(fd, &t) < 0) {
 		perror("tcgetattr");
-		syslog(LOG_ERR, "%s: tcgetattr: %m\n", argv[0]);
+		syslog(LOG_ERR, "%s: tcgetattr: %m\n", devicename);
 	        exit(2);
 	}
 	cfmakeraw(&t);
@@ -272,10 +308,11 @@ restart:
 	cfsetspeed(&t, speed);
 	if (tcsetattr(fd, TCSAFLUSH, &t) < 0) {
 		perror("tcsetattr");
-		syslog(LOG_ERR, "%s: tcsetattr: %m\n", argv[0]);
+		syslog(LOG_ERR, "%s: tcsetattr: %m\n", devicename);
 	        if (first) 
 			exit(2);
 		else {
+			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
 			sleep(wait_time * tries);
 			goto restart;
 		}
@@ -284,7 +321,7 @@ restart:
 	if (ioctl(fd, TIOCGETP, &sgtty) < 0) {
 	        perror("ioctl (TIOCGETP)");
 		syslog(LOG_ERR, "%s: ioctl (TIOCGETP): %m\n",
-		    argv[0]);
+		    devicename);
 	        exit(2);
 	}
 	sgtty.sg_flags = RAW | ANYP;
@@ -293,10 +330,11 @@ restart:
 	if (ioctl(fd, TIOCSETP, &sgtty) < 0) {
 	        perror("ioctl (TIOCSETP)");
 		syslog(LOG_ERR, "%s: ioctl (TIOCSETP): %m\n",
-		    argv[0]);
+		    devicename);
 	        if (first) 
 			exit(2);
 		else {
+			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
 			sleep(wait_time * tries);
 			goto restart;
 		}
@@ -324,7 +362,8 @@ restart:
 	 */
 	printd("look for login: ");
 	for (;;) {
-		if (getline(buf, BUFSIZ, fd) == 0 || hup) {
+		if (getline(buf, BUFSIZ, fd, 90) == 0 || hup) {
+			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
 			sleep(wait_time * tries);
 			goto restart;
 		}
@@ -335,38 +374,29 @@ restart:
 				continue;
 			}
 			if (bcmp(&buf[1], "sername:", 8) == 0) {
-				fprintf(wfd, "%s\r", argv[1]);
-				printd("Sent login: %s\n", argv[1]);
+				fprintf(wfd, "%s\r", username);
+				printd("Sent login: %s\n", username);
 				continue;
 			}
 			if (bcmp(&buf[1], "assword:", 8) == 0) {
-				fprintf(wfd, "%s\r", argv[2]);
-				printd("Sent password: %s\n", argv[2]);
+				fprintf(wfd, "%s\r", password);
+				printd("Sent password: %s\n", password);
 				break;
 			}
 		} else {
 			if (bcmp(&buf[1], "ogin:", 5) == 0) {
-				fprintf(wfd, "%s\r", argv[1]);
-				printd("Sent login: %s\n", argv[1]);
+				fprintf(wfd, "%s\r", username);
+				printd("Sent login: %s\n", username);
 				continue;
 			}
 			if (bcmp(&buf[1], "assword:", 8) == 0) {
-				fprintf(wfd, "%s\r", argv[2]);
-				printd("Sent password: %s\n", argv[2]);
+				fprintf(wfd, "%s\r", password);
+				printd("Sent password: %s\n", password);
 				break;
 			}
 		}
 	}
 	
-	/*
-	 * Security hack.  Do not want private information such as the
-	 * password and possible phone number to be left around.
-	 * So we clobber the arguments.
-	 */
-	for (ap = argv - optind + 1; ap < argv + 3; ap++)
-		for (cp = *ap; *cp != 0; cp++)
-			*cp = '\0';
-
 	/*
 	 * Attach
 	 */
@@ -375,9 +405,15 @@ restart:
 	if (ioctl(fd, TIOCSETD, &disc) < 0) {
 	        perror("ioctl(TIOCSETD)");
 		syslog(LOG_ERR, "%s: ioctl (TIOCSETD SLIP): %m\n",
-		    argv[0]);
+		    devicename);
 	        exit(1);
 	}
+	if (ioctl(fd, SLIOCGUNIT, (caddr_t)&unitnum) < 0) {
+	        perror("ioctl(SLIOCGUNIT)");
+		syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
+		exit(1);
+	}
+	sprintf(unitname, "sl%d", unitnum);
 	if (first && debug == 0) {
 		close(0);
 		close(1);
@@ -386,10 +422,13 @@ restart:
 		(void) dup2(0, 1);
 		(void) dup2(0, 2);
 	}
-	(void) system("ifconfig sl0 up");
+
+	sprintf(buf, "%s %s up", upscript ? upscript : "ifconfig" , unitname);
+	(void) system(buf);
+
 	printd(", ready\n");
 	if (!first)
-		syslog(LOG_INFO, "reconnected (%d tries).\n", tries);
+		syslog(LOG_INFO, "reconnected on %s (%d tries).\n", unitname, tries);
 	first = 0;
 	tries = 0;
 	logged_in = 1;
@@ -410,35 +449,50 @@ sighup()
 	hup = 1;
 }
 
-getline(buf, size, fd)
+getline(buf, size, fd, timeout)
 	char *buf;
-	int size, fd;
+	int size, fd, timeout;
 {
 	register int i;
 	int ret;
+	fd_set readfds;
+	struct timeval tv;
 
 	size--;
 	for (i = 0; i < size; i++) {
 		if (hup)
 			return (0);
-	        if ((ret = read(fd, &buf[i], 1)) == 1) {
-	                buf[i] &= 0177;
-	                if (buf[i] == '\r' || buf[i] == '\0')
-	                        buf[i] = '\n';
-	                if (buf[i] != '\n' && buf[i] != ':')
-	                        continue;
-	                buf[i + 1] = '\0';
-			printd("Got %d: \"%s\"\n", i + 1, buf);
-	                return (i+1);
-	        }
-		if (ret <= 0) {
-			if (ret < 0)
-				perror("getline: read");
-			else
-				fprintf(stderr, "read returned 0\n");
-			buf[i] = '\0';
-			printd("returning 0 after %d: \"%s\"\n", i, buf);
-			return (0);
+		FD_ZERO(&readfds);
+		FD_SET(fd, &readfds);
+		tv.tv_sec = timeout;
+		tv.tv_usec = 0;
+		if ((ret = select(fd + 1, &readfds, NULL, NULL, &tv)) < 0) {
+			if (errno != EINTR) 
+				perror("getline: select");
+		} else {
+			if (! ret) {
+				printd("getline: timed out\n");
+				return (0);
+			}
+			if ((ret = read(fd, &buf[i], 1)) == 1) {
+				buf[i] &= 0177;
+				if (buf[i] == '\r' || buf[i] == '\0')
+					buf[i] = '\n';
+				if (buf[i] != '\n' && buf[i] != ':')
+					continue;
+				buf[i + 1] = '\0';
+				printd("Got %d: \"%s\"\n", i + 1, buf);
+				return (i+1);
+			}
+			if (ret <= 0) {
+				if (ret < 0) {
+					perror("getline: read");
+				} else
+					fprintf(stderr, "read returned 0\n");
+				buf[i] = '\0';
+				printd("returning 0 after %d: \"%s\"\n", i, buf);
+				return (0);
+			}
 		}
 	}
 	return (0);
@@ -447,6 +501,6 @@ getline(buf, size, fd)
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: startslip [-d] [-b speed] [-s string] [-A annexname] [-F flowcontrol] dev user passwd\n");
+	    "usage: startslip [-d] [-b speed] [-s string] [-A annexname] [-F flowcontrol] [-U upscript] [-D downscript] dev user passwd\n");
 	exit(1);
 }
