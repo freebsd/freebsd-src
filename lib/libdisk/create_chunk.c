@@ -23,6 +23,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <err.h>
+#include <grp.h>
+#include <pwd.h>
 #include "libdisk.h"
 
 /* Clone these two from sysinstall because we need our own copies
@@ -216,7 +218,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 {
     int i;
     struct chunk *c1;
-    u_long offset,edge;
+    u_long offset;
     
     if (!parent)
 	parent = d->chunks;
@@ -242,8 +244,10 @@ int
 MakeDev(struct chunk *c1, const char *path)
 {
     char *p = c1->name;
-    u_long cmaj, bmaj, min, unit, part, slice;
+    u_long cmaj, min, unit, part, slice;
     char buf[BUFSIZ], buf2[BUFSIZ];
+    struct group *grp;
+    struct passwd *pwd;
 
     *buf2 = '\0';
     if (isDebug())
@@ -252,21 +256,23 @@ MakeDev(struct chunk *c1, const char *path)
 	return 0;
     
     if (!strncmp(p, "wd", 2))
-	bmaj = 0, cmaj = 3, p += 2;
-    else if (!strncmp(p, "ad", 2))	/* XXX change if "ad' moves */
-	bmaj = 0, cmaj = 3, p += 2;
+	cmaj = 3, p += 2;
+    else if (!strncmp(p, "ad", 2))
+	cmaj = 116, p += 2;
     else if (!strncmp(p, "wfd", 3))
-	bmaj = 1, cmaj = 87, p += 3;
+	cmaj = 87, p += 3;
+    else if (!strncmp(p, "afd", 3))
+	cmaj = 118, p += 3;
     else if (!strncmp(p, "fla", 3))
-	bmaj = 28, cmaj = 102, p += 3;
+	cmaj = 102, p += 3;
     else if (!strncmp(p, "ida", 3))
-	bmaj = 29, cmaj = 109, p += 3;
+	cmaj = 109, p += 3;
     else if (!strncmp(p, "mlxd", 4))
-	bmaj = 27, cmaj = 131, p += 4;
+	cmaj = 131, p += 4;
     else if (!strncmp(p, "amrd", 4))
-	bmaj = 35, cmaj = 133, p += 4;
+	cmaj = 133, p += 4;
     else if (!strncmp(p, "da", 2))	/* CAM support */
-	bmaj = 4, cmaj = 13, p += 2;
+	cmaj = 13, p += 2;
     else {
 	msgDebug("MakeDev: Unknown major/minor for devtype %s\n", p);
 	return 0;
@@ -326,11 +332,23 @@ MakeDev(struct chunk *c1, const char *path)
 	return 0;
     if (slice > 32)
 	return 0;
+    if ((pwd = getpwnam("root")) == NULL) {
+	msgDebug("MakeDev: Unable to lookup user \"root\".\n");
+	return 0;
+    }
+    if ((grp = getgrnam("operator")) == NULL) {
+	msgDebug("MakeDev: Unable to lookup group \"operator\".\n");
+	return 0;
+    }
     min = unit * 8 + 65536 * slice + part;
     sprintf(buf, "%s/r%s", path, c1->name);
     unlink(buf);
     if (mknod(buf, S_IFCHR|0640, makedev(cmaj,min)) == -1) {
 	msgDebug("mknod of %s returned failure status!\n", buf);
+	return 0;
+    }
+    if (chown(buf, pwd->pw_uid, grp->gr_gid) == -1) {
+	msgDebug("chown of %s returned failure status!\n", buf);
 	return 0;
     }
     if (*buf2) {
@@ -340,11 +358,19 @@ MakeDev(struct chunk *c1, const char *path)
 	    msgDebug("mknod of %s returned failure status!\n", buf);
 	    return 0;
 	}
+	if (chown(buf, pwd->pw_uid, grp->gr_gid) == -1) {
+	    msgDebug("chown of %s returned failure status!\n", buf);
+	    return 0;
+	}
     }
     sprintf(buf, "%s/%s", path, c1->name);
     unlink(buf);
-    if (mknod(buf, S_IFBLK|0640, makedev(bmaj,min)) == -1) {
+    if (mknod(buf, S_IFCHR|0640, makedev(cmaj,min)) == -1) {
 	msgDebug("mknod of %s returned failure status!\n", buf);
+	return 0;
+    }
+    if (chown(buf, pwd->pw_uid, grp->gr_gid) == -1) {
+	msgDebug("chown of %s returned failure status!\n", buf);
 	return 0;
     }
     return 1;
