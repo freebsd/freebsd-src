@@ -37,15 +37,15 @@
 #include <sys/sysent.h>
 #include <sys/cdefs.h>
 
-struct ia32_ps_strings {
+struct freebsd32_ps_strings {
 	u_int32_t ps_argvstr;	/* first of 0 or more argument strings */
 	int	ps_nargvstr;	/* the number of argument strings */
 	u_int32_t ps_envstr;	/* first of 0 or more environment strings */
 	int	ps_nenvstr;	/* the number of environment strings */
 };
 
-#define IA32_USRSTACK	((1ul << 32) - PAGE_SIZE)
-#define IA32_PS_STRINGS	(IA32_USRSTACK - sizeof(struct ia32_ps_strings))
+#define FREEBSD32_PS_STRINGS	\
+	(FREEBSD32_USRSTACK - sizeof(struct freebsd32_ps_strings))
 
 static __inline caddr_t stackgap_init(void);
 static __inline void *stackgap_alloc(caddr_t *, size_t);
@@ -54,7 +54,8 @@ static __inline caddr_t
 stackgap_init()
 {
 #define	szsigcode (*(curproc->p_sysent->sv_szsigcode))
-	return (caddr_t)(((caddr_t)IA32_PS_STRINGS) - szsigcode - SPARE_USRSPACE);
+	return (caddr_t)(((caddr_t)FREEBSD32_PS_STRINGS) - szsigcode -
+	    SPARE_USRSPACE);
 #undef szsigcode
 }
 
@@ -71,15 +72,16 @@ stackgap_alloc(sgp, sz)
 }
 
 
-extern const char ia32_emul_path[];
-int ia32_emul_find(struct thread *, caddr_t *, const char *, char *,
+extern const char freebsd32_emul_path[];
+int freebsd32_emul_find(struct thread *, caddr_t *, const char *, char *,
 			char **, int);
 
 #define CHECKALT(p, sgp, path, i)					\
 	do {								\
 		int _error;						\
 									\
-		_error = ia32_emul_find(p, sgp, ia32_emul_path, path,	\
+		_error = freebsd32_emul_find(p, sgp,			\
+					freebsd32_emul_path, path,	\
 					&path, i);			\
 		if (_error == EFAULT)					\
 			return (_error);				\
