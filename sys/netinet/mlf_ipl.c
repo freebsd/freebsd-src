@@ -89,7 +89,7 @@ static	int	if_ipl_remove __P((void));
 int	xxxinit __P((struct lkm_table *, int, int));
 
 
-struct	cdevsw	ipldevsw = 
+static struct	cdevsw	ipldevsw = 
 {
 	iplopen,		/* open */
 	iplclose,		/* close */
@@ -140,7 +140,7 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_defaultauthage, CTLFLAG_RW,
 #endif
 
 #ifdef DEVFS
-void *ipf_devfs[IPL_LOGMAX + 1];
+static void *ipf_devfs[IPL_LOGMAX + 1];
 #endif
 
 #if !defined(__FreeBSD_version) || (__FreeBSD_version < 220000)
@@ -152,7 +152,7 @@ extern struct cdevsw cdevsw[];
 extern int vd_unuseddev __P((void));
 extern int nchrdev;
 #else
-int	ipl_major = CDEV_MAJOR;
+static int	ipl_major = CDEV_MAJOR;
 
 static struct cdevsw ipl_cdevsw = {
 	iplopen,	iplclose,	iplread,	nowrite, /* 79 */

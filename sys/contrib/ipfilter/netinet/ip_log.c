@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 1.3 1998/03/21 14:42:45 peter Exp $
+ * $Id: ip_log.c,v 1.4 1998/04/06 11:40:42 phk Exp $
  */
 #include "opt_ipfilter.h"
 
@@ -122,8 +122,8 @@ extern	kcondvar_t	iplwait;
 
 iplog_t	**iplh[IPL_LOGMAX+1], *iplt[IPL_LOGMAX+1];
 int	iplused[IPL_LOGMAX+1];
-u_long	iplcrc[IPL_LOGMAX+1];
-u_long	iplcrcinit;
+static u_long	iplcrc[IPL_LOGMAX+1];
+static u_long	iplcrcinit;
 #ifdef	linux
 static struct wait_queue *iplwait[IPL_LOGMAX+1];
 #endif
