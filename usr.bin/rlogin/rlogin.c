@@ -259,7 +259,7 @@ main(argc, argv)
 		exit(1);
 	}
 
-	(void)strcpy(term, (p = getenv("TERM")) ? p : "network");
+	(void)strncpy(term, (p = getenv("TERM")) ? p : "network", sizeof(term));
 	if (ioctl(0, TIOCGETP, &ttyb) == 0) {
 		(void)strcat(term, "/");
 		(void)strcat(term, speeds[(int)ttyb.sg_ospeed]);
