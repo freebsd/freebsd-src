@@ -70,15 +70,9 @@ LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 MINUSLPAM?=	-lpam
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
-.if defined(MAKE_KERBEROS4) || defined(MAKE_KERBEROS5)
-.ifdef MAKE_KERBEROS4
-LIBPAM+=	${LIBKRB}
-MINUSLPAM+=	-lkrb
-.endif
-.ifdef MAKE_KERBEROS5
+.if defined(MAKE_KERBEROS5)
 LIBPAM+=	${LIBKRB5} ${LIBASN1} ${LIBROKEN}
 MINUSLPAM+=	-lkrb5 -lasn1 -lroken
-.endif
 LIBPAM+=	${LIBCOM_ERR}
 MINUSLPAM+=	-lcom_err
 .endif
