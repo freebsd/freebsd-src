@@ -989,7 +989,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>The &man.ata.4; driver now has support for rebuilding
 	failed drives in a RAID1 configuration, under control of
-	&man.atacontrol.8;</para>
+	&man.atacontrol.8;. &merged;</para>
 
       <para>The BurnProof(TM) feature, for applicable ATAPI CD-ROM
 	burners, is now supported. &merged;</para>
@@ -1686,7 +1686,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       those types.</para>
 
     <para>&man.atacontrol.8; has been added to control various aspects
-      of the &man.ata.4; driver.</para>
+      of the &man.ata.4; driver. &merged;</para>
 
     <para arch="sparc64">The system &man.awk.1; refers to
       <application>BWK awk</application> on the &arch; platform.  It
