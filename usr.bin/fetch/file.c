@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: file.c,v 1.3 1997/11/12 04:39:33 obrien Exp $
+ *	$Id: file.c,v 1.1.2.2 1997/11/12 04:40:45 obrien Exp $
  */
 
 #include <sys/types.h>
@@ -118,6 +118,22 @@ file_retrieve(struct fetch_state *fs)
 			return EX_OSERR;
 		}
 		fs->fs_status = "done";
+	} else if (strcmp(fs->fs_outputfile, "-") == 0) {
+	        FILE *f;
+		int ch;
+		
+		if ((f = fopen(fs->fs_proto, "r")) == NULL) {
+		        warn("fopen");
+			return EX_OSERR;
+		}
+		while ((ch = fgetc(f)) != EOF)
+		        fputc(ch, stdout);
+		if (ferror(f)) {
+		        warn("fgetc");
+			fclose(f);
+			return EX_OSERR;
+		}
+		fclose(f);
 	} else {
 		pid_t pid;
 		int status;
