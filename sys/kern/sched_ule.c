@@ -267,7 +267,7 @@ static void kseq_assign(struct kseq *);
 static struct kse *kseq_steal(struct kseq *kseq);
 #define	KSE_CAN_MIGRATE(ke, class)					\
     ((class) != PRI_ITHD && (ke)->ke_thread->td_pinned == 0 &&		\
-    (ke)->ke_flags & KEF_BOUND) == 0)
+    ((ke)->ke_flags & KEF_BOUND) == 0)
 #endif
 
 void
