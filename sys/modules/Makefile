@@ -149,66 +149,7 @@ SUBDIR+=syscons
 
 # XXX some of these can move to the general case when de-i386'ed
 # XXX some of these can move now, but are untested on other architectures.
-.if ${MACHINE} == "i386"
-SUBDIR+=aac \
-	acpi \
-	aic \
-	aout \
-	apm \
-	ar \
-	arcnet \
-	asr \
-	atspeaker \
-	bktr \
-	cardbus \
-	cbb \
-	ciss \
-	cm \
-	coff \
-	drm \
-	ed \
-	el \
-	em \
-	ep \
-	exca \
-	fe \
-	firewire \
-	fpu \
-	gnufpu \
-	hea \
-	hfa \
-	ibcs2 \
-	iir \
-	linprocfs \
-	linux \
-	lnc \
-	lomac \
-	mly \
-	ncv \
-	netgraph \
-	nsp \
-	oltr \
-	pccard \
-	pecoff \
-	ray \
-	rc \
-	s3 \
-	sbni \
-	scsi_low \
-	smbfs \
-	sound \
-	splash \
-	sppp \
-	sr \
-	stg \
-	streams \
-	vesa \
-	vinum \
-	wi \
-	xe
-.endif
-
-.if ${MACHINE} == "pc98"
+.if ${MACHINE_ARCH} == "i386"
 SUBDIR+=aic \
 	aout \
 	apm \
@@ -216,9 +157,11 @@ SUBDIR+=aic \
 	arcnet \
 	bktr \
 	coff \
+	ed \
 	em \
 	ep \
 	fe \
+	firewire \
 	fpu \
 	gnufpu \
 	hea \
@@ -226,20 +169,18 @@ SUBDIR+=aic \
 	ibcs2 \
 	linprocfs \
 	linux \
+	lnc \
 	lomac \
 	ncv \
 	netgraph \
 	nsp \
 	oltr \
 	pccard \
-	pcspeaker \
 	pecoff \
-	pmc \
 	ray \
 	sbni \
 	scsi_low \
 	smbfs \
-	snc \
 	sound \
 	splash \
 	sppp \
@@ -249,6 +190,30 @@ SUBDIR+=aic \
 	vinum \
 	wi \
 	xe
+
+.if ${MACHINE} == "i386"
+SUBDIR+=aac \
+	acpi \
+	asr \
+	atspeaker \
+	cardbus \
+	cbb \
+	ciss \
+	cm \
+	drm \
+	el \
+	exca \
+	iir \
+	mly \
+	rc \
+	s3 \
+	vesa
+	
+.elif ${MACHINE} == "pc98"
+SUBDIR+=pcspeaker \
+	pmc \
+	snc
+.endif
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
