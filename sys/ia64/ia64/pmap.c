@@ -104,6 +104,7 @@
 #include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -219,6 +220,7 @@ static u_int64_t pmap_ptc_e_stride2 = 0x100000000;
  */
 static u_int64_t *pmap_ridbusy;
 static int pmap_ridmax, pmap_ridcount;
+struct mtx pmap_ridmutex;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -343,6 +345,7 @@ pmap_bootstrap()
 		pmap_steal_memory(pmap_ridmax / 8);
 	bzero(pmap_ridbusy, pmap_ridmax / 8);
 	pmap_ridbusy[0] |= 0xff;
+	mtx_init(&pmap_ridmutex, "RID allocator lock", MTX_DEF);
 
 	/*
 	 * Allocate some memory for initial kernel 'page tables'.
@@ -565,18 +568,15 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
 		("invalidating TLB for non-current pmap"));
-	ia64_ptc_l(va, PAGE_SHIFT << 2);
+	ia64_ptc_g(va, PAGE_SHIFT << 2);
 }
 
 static void
-pmap_invalidate_all(pmap_t pmap)
+pmap_invalidate_all_1(void *arg)
 {
 	u_int64_t addr;
 	int i, j;
 	critical_t psr;
-
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
-		("invalidating TLB for non-current pmap"));
 
 	psr = cpu_critical_enter();
 	addr = pmap_ptc_e_base;
@@ -588,6 +588,20 @@ pmap_invalidate_all(pmap_t pmap)
 		addr += pmap_ptc_e_stride1;
 	}
 	cpu_critical_exit(psr);
+}
+
+static void
+pmap_invalidate_all(pmap_t pmap)
+{
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+		("invalidating TLB for non-current pmap"));
+
+
+#ifdef SMP
+	smp_rendezvous(0, pmap_invalidate_all_1, 0, 0);
+#else
+	pmap_invalidate_all_1(0);
+#endif
 }
 
 static u_int32_t
@@ -610,8 +624,10 @@ pmap_allocate_rid(void)
 static void
 pmap_free_rid(u_int32_t rid)
 {
+	mtx_lock(&pmap_ridmutex);
 	pmap_ridbusy[rid / 64] &= ~(1L << (rid & 63));
 	pmap_ridcount--;
+	mtx_unlock(&pmap_ridmutex);
 }
 
 static void
@@ -622,11 +638,13 @@ pmap_ensure_rid(pmap_t pmap, vm_offset_t va)
 	rr = va >> 61;
 	if (pmap->pm_rid[rr])
 		return;
-	pmap->pm_rid[rr] = pmap_allocate_rid();
 
+	mtx_lock(&pmap_ridmutex);
+	pmap->pm_rid[rr] = pmap_allocate_rid();
 	if (pmap == PCPU_GET(current_pmap))
 		ia64_set_rr(IA64_RR_BASE(rr),
 			    (pmap->pm_rid[rr] << 8)|(PAGE_SHIFT << 2)|1);
+	mtx_unlock(&pmap_ridmutex);
 }
 
 /***************************************************
@@ -850,11 +868,6 @@ void
 pmap_release(pmap_t pmap)
 {
 	int i;
-
-#if defined(DIAGNOSTIC)
-	if (object->ref_count != 1)
-		panic("pmap_release: pteobj reference count != 1");
-#endif
 
 	for (i = 0; i < 5; i++)
 		if (pmap->pm_rid[i])
@@ -1278,7 +1291,7 @@ pmap_clear_pte(struct ia64_lpte *pte, vm_offset_t va)
 {
 	if (pte->pte_p) {
 		pmap_remove_vhpt(va);
-		ia64_ptc_l(va, PAGE_SHIFT << 2);
+		ia64_ptc_g(va, PAGE_SHIFT << 2);
 		pte->pte_p = 0;
 	}
 }
@@ -1353,7 +1366,7 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 		pmap_set_pte(pte, tva, VM_PAGE_TO_PHYS(m[i]),
 			     0, PTE_PL_KERN, PTE_AR_RWX);
 		if (wasvalid)
-			ia64_ptc_l(tva, PAGE_SHIFT << 2);
+			ia64_ptc_g(tva, PAGE_SHIFT << 2);
 	}
 }
 
@@ -1387,7 +1400,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	wasvalid = pte->pte_p;
 	pmap_set_pte(pte, va, pa, 0, PTE_PL_KERN, PTE_AR_RWX);
 	if (wasvalid)
-		ia64_ptc_l(va, PAGE_SHIFT << 2);
+		ia64_ptc_g(va, PAGE_SHIFT << 2);
 }
 
 /*
@@ -2554,12 +2567,21 @@ pmap_t
 pmap_install(pmap_t pmap)
 {
 	pmap_t oldpmap;
+	critical_t c;
 	int i;
+
+	c = cpu_critical_enter();
 
 	oldpmap = PCPU_GET(current_pmap);
 
-	if (pmap == oldpmap || pmap == kernel_pmap)
+	if (pmap == oldpmap || pmap == kernel_pmap) {
+		cpu_critical_exit(c);
 		return pmap;
+	}
+
+	if (oldpmap) {
+		atomic_clear_32(&pmap->pm_active, PCPU_GET(cpumask));
+	}
 
 	PCPU_SET(current_pmap, pmap);
 	if (!pmap) {
@@ -2572,15 +2594,17 @@ pmap_install(pmap_t pmap)
 		ia64_set_rr(IA64_RR_BASE(2), (2 << 8)|(PAGE_SHIFT << 2)|1);
 		ia64_set_rr(IA64_RR_BASE(3), (3 << 8)|(PAGE_SHIFT << 2)|1);
 		ia64_set_rr(IA64_RR_BASE(4), (4 << 8)|(PAGE_SHIFT << 2)|1);
+		cpu_critical_exit(c);
 		return oldpmap;
 	}
 
-	pmap->pm_active = 1;	/* XXX use bitmap for SMP */
+	atomic_set_32(&pmap->pm_active, PCPU_GET(cpumask));
 
 	for (i = 0; i < 5; i++)
 		ia64_set_rr(IA64_RR_BASE(i),
 			    (pmap->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
 
+	cpu_critical_exit(c);
 	return oldpmap;
 }
 
