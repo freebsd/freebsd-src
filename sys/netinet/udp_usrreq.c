@@ -531,7 +531,7 @@ udp_ctlinput(cmd, sa, vip)
                     ip->ip_src, uh->uh_sport, 0, NULL);
 		if (inp != NULL) {
 			INP_LOCK(inp);
-			if(inp->inp_socket != NULL) {
+			if (inp->inp_socket != NULL) {
 				(*notify)(inp, inetctlerrmap[cmd]);
 			}
 			INP_UNLOCK(inp);
@@ -568,8 +568,10 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * OK, now we're committed to doing something.
 	 */
 	s = splnet();
+	INP_INFO_RLOCK(&udbinfo);
 	gencnt = udbinfo.ipi_gencnt;
 	n = udbinfo.ipi_count;
+	INP_INFO_RUNLOCK(&udbinfo);
 	splx(s);
 
 	sysctl_wire_old_buffer(req, 2 * (sizeof xig)
@@ -604,7 +606,6 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
 			xi.xi_len = sizeof xi;
@@ -612,9 +613,9 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 			bcopy(inp, &xi.xi_inp, sizeof *inp);
 			if (inp->inp_socket)
 				sotoxsocket(inp->inp_socket, &xi.xi_socket);
+			xi.xi_inp.inp_gencnt = inp->inp_gencnt;
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
 		}
-		INP_UNLOCK(inp);
 	}
 	if (!error) {
 		/*
