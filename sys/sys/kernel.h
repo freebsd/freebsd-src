@@ -267,7 +267,7 @@ SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## 
 
 #define	TUNABLE_INT_FETCH(path, var)			\
 do {							\
-	getenv_int((path), (var));			\
+	getenv_int((path), &(var));			\
 } while (0)
 
 #define	TUNABLE_STR(path, var, size)			\

@@ -85,9 +85,9 @@ static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 static int ata_dma = 1;
 static int ata_wc = 0;
 static int ata_tags = 0; 
-TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
-TUNABLE_INT("hw.ata.wc", &ata_wc);
-TUNABLE_INT("hw.ata.tags", &ata_tags);
+TUNABLE_INT("hw.ata.ata_dma", ata_dma);
+TUNABLE_INT("hw.ata.wc", ata_wc);
+TUNABLE_INT("hw.ata.tags", ata_tags);
 
 /* sysctl vars */
 SYSCTL_DECL(_hw_ata);
