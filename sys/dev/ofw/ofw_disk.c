@@ -98,8 +98,7 @@ ofwd_strategy(struct bio *bp)
 		return;
 	}
 
-	r = OF_seek(sc->ofwd_instance,
-	    (u_quad_t)(bp->bio_blkno * OFWD_BLOCKSIZE));
+	r = OF_seek(sc->ofwd_instance, bp->bio_offset);
 	if (r == -1) {
 		bp->bio_resid = bp->bio_bcount;
 		device_printf(sc->ofwd_dev, "seek failed\n");

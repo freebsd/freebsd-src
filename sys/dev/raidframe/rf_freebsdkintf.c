@@ -1372,15 +1372,16 @@ raidstart(raidPtr)
 		 * partition.. Need to make it absolute to the underlying 
 		 * device.. */
 
-		blocknum = bp->bio_blkno;
+		blocknum = bp->bio_pblkno =
+		    bp->bio_offset >> raidPtr->logBytesPerSector;
 
-		rf_printf(3, "Blocks: %ld, %ld\n", (long)bp->bio_blkno, (long)blocknum);
+		rf_printf(3, "Blocks: %ld, %ld\n", (long)bp->bio_pblkno, (long)blocknum);
 		
 		rf_printf(3, "bp->bio_bcount = %d\n", (int) bp->bio_bcount);
 		rf_printf(3, "bp->bio_resid = %d\n", (int) bp->bio_resid);
 		
 		/* *THIS* is where we adjust what block we're going to... 
-		 * but DO NOT TOUCH bp->bio_blkno!!! */
+		 * but DO NOT TOUCH bp->bio_pblkno!!! */
 		raid_addr = blocknum;
 		
 		num_blocks = bp->bio_bcount >> raidPtr->logBytesPerSector;
@@ -1522,8 +1523,8 @@ rf_DispatchKernelIO(queue, req)
 		    queue->raidPtr->logBytesPerSector, req->b_proc);
 
 		if (rf_debugKernelAccess) {
-			rf_printf(0, "dispatch: bp->bio_blkno = %ld\n",
-				(long) bp->bio_blkno);
+			rf_printf(0, "dispatch: bp->bio_pblkno = %ld\n",
+				(long) bp->bio_pblkno);
 		}
 		queue->numOutstanding++;
 		queue->last_deq_sector = req->sectorOffset;
@@ -1544,7 +1545,6 @@ rf_DispatchKernelIO(queue, req)
 			raidbp->rf_buf.b_vp->v_numoutput++;
 		}
 #endif
-		raidbp->rf_buf.b_iooffset = dbtob(raidbp->rf_buf.b_blkno);
 		(*devsw(raidbp->rf_buf.bio_dev)->d_strategy)(&raidbp->rf_buf);
 
 		break;
@@ -1658,8 +1658,8 @@ InitBP(bp, b_vp, rw_flag, dev, startSect, numSect, buf, cbFunc, cbArg,
 	bp->bio_error = 0;
 	bp->bio_dev = dev;
 	bp->bio_data = buf;
-	bp->bio_blkno = startSect;
 	bp->bio_resid = bp->bio_bcount;	/* XXX is this right!?!?!! */
+	bp->bio_offset = startSect << logBytesPerSector;
 	if (bp->bio_bcount == 0) {
 		panic("bp->bio_bcount is zero in InitBP!!\n");
 	}
