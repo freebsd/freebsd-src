@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_icmp.c,v 1.33 1998/12/04 04:21:25 dillon Exp $
+ *	$Id: ip_icmp.c,v 1.34 1999/03/06 23:10:42 archie Exp $
  */
 
 #include <sys/param.h>
@@ -69,6 +69,14 @@ static int	icmpmaskrepl = 0;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
 	&icmpmaskrepl, 0, "");
 
+static int	log_redirect = 0;
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_RW, 
+	&log_redirect, 0, "");
+
+static int	drop_redirect = 0;
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_RW, 
+	&drop_redirect, 0, "");
+
 #ifdef ICMP_BANDLIM 
  
 /*    
@@ -92,8 +100,8 @@ SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RD,
  */
 
 static int	icmpbmcastecho = 0;
-SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW, &icmpbmcastecho,
-	   0, "");
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW,
+	&icmpbmcastecho, 0, "");
 
 
 #ifdef ICMPPRINTFS
@@ -462,6 +470,23 @@ reflect:
 		return;
 
 	case ICMP_REDIRECT:
+		if (log_redirect) {
+			u_long src, dst, gw;
+
+			src = ntohl(ip->ip_src.s_addr);
+			dst = ntohl(icp->icmp_ip.ip_dst.s_addr);
+			gw = ntohl(icp->icmp_gwaddr.s_addr);
+			printf("icmp redirect from %d.%d.%d.%d: "
+			       "%d.%d.%d.%d => %d.%d.%d.%d\n",
+			       (int)(src >> 24), (int)((src >> 16) & 0xff),
+			       (int)((src >> 8) & 0xff), (int)(src & 0xff),
+			       (int)(dst >> 24), (int)((dst >> 16) & 0xff),
+			       (int)((dst >> 8) & 0xff), (int)(dst & 0xff),
+			       (int)(gw >> 24), (int)((gw >> 16) & 0xff),
+			       (int)((gw >> 8) & 0xff), (int)(gw & 0xff));
+		}
+		if (drop_redirect)
+			break;
 		if (code > 3)
 			goto badcode;
 		if (icmplen < ICMP_ADVLENMIN || icmplen < ICMP_ADVLEN(icp) ||
