@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.2.2.1 1995/06/05 18:53:53 jkh Exp $
+ * $Id: attr.c,v 1.2.2.2 1995/06/06 00:11:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -167,7 +167,7 @@ attr_match(Attribs *attr, char *name)
     }
 
     if (isDebug())
-	msgDebug("Stopped on attribute %u\n", m);
+	msgDebug("Stopped on attribute %u\n", n);
 
     if (n < num_attribs) {
 	if (isDebug())
