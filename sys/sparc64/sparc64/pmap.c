@@ -1603,7 +1603,7 @@ pmap_zero_page(vm_page_t m)
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 
 	CTR1(KTR_PMAP, "pmap_zero_page: pa=%#lx", pa);
-	dcache_inval_phys(pa, pa + PAGE_SIZE);
+	dcache_inval_phys(pa, pa + PAGE_SIZE - 1);
 	aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
 }
 
@@ -1615,7 +1615,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	CTR3(KTR_PMAP, "pmap_zero_page_area: pa=%#lx off=%#x size=%#x",
 	    pa, off, size);
 	KASSERT(off + size <= PAGE_SIZE, ("pmap_zero_page_area: bad off/size"));
-	dcache_inval_phys(pa + off, pa + off + size);
+	dcache_inval_phys(pa + off, pa + off + size - 1);
 	aszero(ASI_PHYS_USE_EC, pa + off, size);
 }
 
@@ -1629,7 +1629,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	vm_offset_t dst = VM_PAGE_TO_PHYS(mdst);
 
 	CTR2(KTR_PMAP, "pmap_copy_page: src=%#lx dst=%#lx", src, dst);
-	dcache_inval_phys(dst, dst + PAGE_SIZE);
+	dcache_inval_phys(dst, dst + PAGE_SIZE - 1);
 	ascopy(ASI_PHYS_USE_EC, src, dst, PAGE_SIZE);
 }
 
