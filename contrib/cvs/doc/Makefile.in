@@ -12,12 +12,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-# $CVSid: @(#)Makefile.in 1.8 94/10/22 $
-
 SHELL = /bin/sh
 
 srcdir = @srcdir@
@@ -34,6 +28,7 @@ INSTALL_DATA = @INSTALL_DATA@
 
 DISTFILES = \
 	.cvsignore ChangeLog ChangeLog.fsf Makefile.in \
+	RCSFILES \
 	cvs-paper.ms cvs-paper.ps \
 	cvs.texinfo \
 	cvsclient.texi
@@ -99,10 +94,12 @@ cvsclient.txt: cvsclient.texi CVSvn.texi
 # it, and builds it in a seperate build dir, then *.info* are in srcdir.
 # If the user builds *.info (e.g. after editing *.texi), then *.info* are
 # in the build dir.
-install-info: info
-	test -f cvs.info || cd $(srcdir); \
-	for i in *.info* ; do \
-	  $(INSTALL_DATA) $$i $(infodir)/$$i ; \
+# (Note: don't solve this problem with "cd"; INSTALL_DATA might be a
+# relative path to install-sh).
+install-info: info installdirs
+	if test -f cvs.info ; then docdir=.; else docdir=$(srcdir);fi; \
+	for i in $$docdir/*.info* ; do \
+	  $(INSTALL_DATA) $$i $(infodir)/`basename $$i` ; \
 	done
 
 installdirs: 
@@ -130,10 +127,7 @@ cvsclient.dvi cvsclient.aux: cvsclient.texi CVSvn.texi
 		ln -s $(srcdir)/CVSvn.texi . || \
 		ln $(srcdir)/CVSvn.texi . || \
 		cp $(srcdir)/CVSvn.texi . ; else true; fi
-	$(SET_TEXINPUTS) $(TEX) cvsclient.texi
-	$(SET_TEXINPUTS) $(TEX) cvsclient.texi
-	$(TEXINDEX) cvsclient.??
-	$(SET_TEXINPUTS) $(TEX) cvsclient.texi
+	$(TEXI2DVI) $(srcdir)/cvsclient.texi
 	rm -f cvsclient.?? cvsclient.log cvsclient.toc cvsclient.??s
 
 cvs.ps: cvs.dvi

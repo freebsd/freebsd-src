@@ -1,4 +1,135 @@
-Changes since 1.7:
+Changes since 1.9:
+
+* The client no longer needs an external patch program (assuming both
+the client and the server have been updated to the new version).
+
+* "cvs admin [options]" will now recurse.  In previous versions of
+CVS, it was an error and one needed to specify "cvs admin [options] ."
+to recurse.  This change brings admin in line with the other CVS
+commands.
+
+* New "logout" command to remove the password for a remote cvs
+repository from the cvspass file.
+
+* Read-only repository access is implemented for the
+password-authenticated server (other access methods are just governed
+by Unix file permissions, since they require login access to the
+repository machine anyway).  See the "Repository" section of
+cvs.texinfo for details.  Note that the security cautions in
+cvs.texinfo ("Password authentication security"), and the requirement
+that read-only users be able to create locks and write the history
+file, both apply.
+
+* The "checkout" command now creates a CVS directory at the top level
+of the new working directory, in addition to CVS directories created
+within checked-out directories.
+
+* There is a new administrative file verifymsg which is like editinfo
+but merely validates the message, rather than also getting it from the
+user.  It therefore works with client/server CVS or if one uses the -m
+or -F options to commit.  See the verifymsg section of cvs.texinfo for
+details.
+
+* The %s format formerly accepted in loginfo has been extended to
+formats such as %{sVv}, so that loginfo scripts have access to the
+version numbers being changed.  See the Loginfo section of cvs.texinfo
+for details.
+
+* The postscript documentation (doc/cvs.ps) shipped with CVS is now
+formatted for US letter size instead of A4.  This is not because we
+consider this size "better" than A4, but because we believe that the
+US letter version will print better on A4 paper than the other way
+around.
+
+* The "cvs export" command is now logged in the history file and there
+is a "cvs history -x E" command to select history file entries
+produced by export.
+
+* CVS no longer uses the CVS_PASSWORD environment variable.  Storing
+passwords in cleartext in an environment variable is a security risk,
+especially since (on BSD variants) any user on the system can display
+any process's environment using 'ps'.  Users should use the 'cvs
+login' command instead.
+
+
+Changes from 1.8 to 1.9:
+
+* Windows NT client should now work on Windows 95 as well.
+
+* New option "--help-synonyms" prints a list of all recognized command
+synonyms.
+
+* The "log" command is now implemented internally rather than via the
+RCS "rlog" program.  The main user-visible consequence is that
+symbolic branch names now work (for example "cvs log -rbranch1").
+Also, the date formats accepted by -d have changed.  They previously
+had been a bewildering variety of poorly-documented date formats.  Now
+they are the same as the date formats accepted by the -D options to
+the other CVS commands, which is also a (different) bewildering
+variety of poorly-documented date formats, but at least we are
+consistently bewildering :-).
+
+* Encryption is now supported over a Kerberos client/server
+connection.  The new "-x" global option requests it.  You must
+configure with the --enable-encryption option in order to enable
+encryption.
+
+* The format of the CVS commit message has changed slightly when
+committing changes on a branch.  The tag on which the commit is
+ocurring is now reported correctly in all cases.
+
+* New flag -k in wrappers allows you to specify the keyword expansion
+mode for added files based on their name.  For example, you can
+specify that files whose name matches *.exe are binary by default.
+See the Wrappers section of cvs.texinfo for more details.
+
+* Remote CVS with the "-z" option now uses the zlib library (included
+with CVS) to compress all communication between the client and the
+server, rather than invoking gzip on each file separately.  This means
+that compression is better and there is no need for an external gzip
+program (except to interoperate with older version of CVS).
+
+* The "cvs rlog" command is deprecated and running it will print a
+warning; use the synonymous "cvs log" command instead.  It is
+confusing for rlog to mean the same as log because some other CVS
+commands are in pairs consisting of a plain command which operates on
+a working directory and an "r" command which does not (diff/rdiff;
+tag/rtag).
+
+* "cvs diff" has a bunch of new options, mostly long options.  Most of
+these work only if rcsdiff and diff support them, and are named the
+same as the corresponding options to diff.
+
+* The -q and -Q command options to "cvs diff" were removed (use the
+global options instead).  This brings "cvs diff" into line with the
+rest of the CVS commands.
+
+* The "annotate" command can now be used to annotate a revision other
+than the head revision on the trunk (see the -r, -D, and -f options in
+the annotate node of cvs.texinfo for details).
+
+* The "tag" command has a new option "-c" which checks that all files
+  are not locally modified before tagging.
+
+* The -d command line option now overrides the cvsroot setting stored
+in the CVS/Root file in each working directory, and specifying -d will
+cause CVS/Root to be updated.
+
+* Local (non-client/server) CVS now runs on Windows NT.  See
+windows-NT/README for details.
+
+* The CVSROOT variable specification has changed to support more
+access methods.  In addition to "pserver," "server" (internal rsh
+client), "ext" (external rsh client), "kserver" (kerberos), and
+"local" (local filesystem access) can now be specified.  For more
+details on each method, see cvs.texinfo (there is an index entry for
+:local: and each of the other access methods).
+
+* The "login" command no longer prompts the user for username and
+hostname, since one will have to provide that information via the `-d'
+flag or by setting CVSROOT.
+
+Changes from 1.7 to 1.8:
 
 * New "cvs annotate" command to display the last modification for each
 line of a file, with the revision number, user checking in the
@@ -903,5 +1034,3 @@ Mon Nov 19 23:15:11 1990  Brian Berliner  (berliner at prisma.com)
 	1986 version of CVS and making it available to the world.  Dick's
 	version is available on uunet.uu.net in the
 	comp.sources.unix/volume6/cvs directory.
-
-$CVSid: @(#)ChangeLog 1.35 94/10/22 $

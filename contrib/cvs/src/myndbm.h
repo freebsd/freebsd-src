@@ -1,5 +1,3 @@
-/* $CVSid: @(#)myndbm.h 1.4 94/09/21 $	 */
-
 #ifdef MY_NDBM
 
 #define	DBLKSIZ	4096
