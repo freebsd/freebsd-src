@@ -50,9 +50,11 @@ static const char rcsid[] = "$Id: yp_server.c,v 1.10 1996/05/31 16:01:51 wpaul E
 
 int forked = 0;
 int children = 0;
-DB *spec_dbp = NULL;	/* Special global DB handle for ypproc_all. */
-char *master_string = "YP_MASTER_NAME";
-char *order_string = "YP_LAST_MODIFIED";
+static DB *spec_dbp = NULL;	/* Special global DB handle for ypproc_all. */
+static char *master_string = "YP_MASTER_NAME";
+static char *order_string = "YP_LAST_MODIFIED";
+static int master_sz = sizeof("YP_MASTER_NAME") - 1;
+static int order_sz = sizeof("YP_LAST_MODIFIED") - 1;
 
 /*
  * NIS v2 support. This is where most of the action happens.
@@ -64,7 +66,11 @@ ypproc_null_2_svc(void *argp, struct svc_req *rqstp)
 	static char * result;
 	static char rval = 0;
 
+#ifdef DB_CACHE
+	if (yp_access(NULL, NULL, (struct svc_req *)rqstp))
+#else
 	if (yp_access(NULL, (struct svc_req *)rqstp))
+#endif
 		return(NULL);
 
 	result = &rval;
@@ -77,7 +83,11 @@ ypproc_domain_2_svc(domainname *argp, struct svc_req *rqstp)
 {
 	static bool_t  result;
 
+#ifdef DB_CACHE
+	if (yp_access(NULL, NULL, (struct svc_req *)rqstp)) {
+#else
 	if (yp_access(NULL, (struct svc_req *)rqstp)) {
+#endif
 		result = FALSE;
 		return (&result);
 	}
@@ -95,7 +105,11 @@ ypproc_domain_nonack_2_svc(domainname *argp, struct svc_req *rqstp)
 {
 	static bool_t  result;
 
+#ifdef DB_CACHE
+	if (yp_access(NULL, NULL, (struct svc_req *)rqstp))
+#else
 	if (yp_access(NULL, (struct svc_req *)rqstp))
+#endif
 		return (NULL);
 
 	if (argp == NULL || yp_validdomain(*argp))
@@ -114,8 +128,12 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 
 	result.val.valdat_val = "";
 	result.val.valdat_len = 0;
-	
+
+#ifdef DB_CACHE
+	if (yp_access(argp->map, argp->domain, (struct svc_req *)rqstp)) {
+#else
 	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
+#endif
 		result.stat = YP_YPERR;
 		return (&result);
 	}
@@ -138,7 +156,13 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	 * Do DNS lookups for hosts maps if database lookup failed.
 	 */
 
+#ifdef DB_CACHE
+	if (result.stat != YP_TRUE &&
+	    (yp_testflag(argp->map, argp->domain, YP_INTERDOMAIN) ||
+	    (strstr(argp->map, "hosts") && do_dns))) {
+#else
 	if (do_dns && result.stat != YP_TRUE && strstr(argp->map, "hosts")) {
+#endif
 		char *rval = NULL;
 
 	/* DNS lookups can take time -- do them in a subprocess */
@@ -197,8 +221,12 @@ ypproc_first_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 
 	result.val.valdat_val = result.key.keydat_val = "";
 	result.val.valdat_len = result.key.keydat_len = 0;
-	
+
+#ifdef DB_CACHE
+	if (yp_access(argp->map, argp->domain, (struct svc_req *)rqstp)) {
+#else
 	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
+#endif
 		result.stat = YP_YPERR;
 		return (&result);
 	}
@@ -242,7 +270,11 @@ ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	result.val.valdat_val = result.key.keydat_val = "";
 	result.val.valdat_len = result.key.keydat_len = 0;
 
+#ifdef DB_CACHE
+	if (yp_access(argp->map, argp->domain, (struct svc_req *)rqstp)) {
+#else
 	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
+#endif
 		result.stat = YP_YPERR;
 		return (&result);
 	}
@@ -297,7 +329,7 @@ static void ypxfr_callback(rval,addr,transid,prognum,port)
 
 	if ((clnt = clntudp_create(addr,prognum,1,timeout,&sock)) == NULL) {
 		yp_error("%s: %s", inet_ntoa(addr->sin_addr),
-		    clnt_spcreateerror("failed to establish callback handle"));
+		  clnt_spcreateerror("failed to establish callback handle"));
 		return;
 	}
 
@@ -338,7 +370,12 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 	result.transid = argp->transid;
 	rqhost = svc_getcaller(rqstp->rq_xprt);
 
+#ifdef DB_CACHE
+	if (yp_access(argp->map_parms.map,
+			argp->map_parms.domain, (struct svc_req *)rqstp)) {
+#else
 	if (yp_access(argp->map_parms.map, (struct svc_req *)rqstp)) {
+#endif
 		YPXFR_RETURN(YPXFR_REFUSED);
 	}
 
@@ -405,7 +442,11 @@ ypproc_clear_2_svc(void *argp, struct svc_req *rqstp)
 	static char * result;
 	static char rval = 0;
 
+#ifdef DB_CACHE
+	if (yp_access(NULL, NULL, (struct svc_req *)rqstp))
+#else
 	if (yp_access(NULL, (struct svc_req *)rqstp))
+#endif
 		return (NULL);
 #ifdef DB_CACHE
 	/* clear out the database cache */
@@ -476,7 +517,11 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	result.ypresp_all_u.val.key.keydat_len = 0;
 	result.ypresp_all_u.val.key.keydat_val = "";
 
+#ifdef DB_CACHE
+	if (yp_access(argp->map, argp->domain, (struct svc_req *)rqstp)) {
+#else
 	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
+#endif
 		result.ypresp_all_u.val.stat = YP_YPERR;
 		return (&result);
 	}
@@ -530,11 +575,15 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_master  result;
 	static char ypvalbuf[YPMAXRECORD];
-	DBT key, data;
+	DBT key = { master_string, master_sz }, data;
 
 	result.peer = "";
 
-	if (yp_access(NULL, (struct svc_req *)rqstp)) {
+#ifdef DB_CACHE
+	if (yp_access(argp->map, argp->domain, (struct svc_req *)rqstp)) {
+#else
+	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
+#endif
 		result.stat = YP_YPERR;
 		return(&result);
 	}
@@ -543,9 +592,6 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		result.stat = YP_BADARGS;
 		return (&result);
 	}
-
-	key.data = master_string;
-	key.size = strlen(master_string);
 
 	/*
 	 * Note that we copy the data retrieved from the database to
@@ -570,11 +616,15 @@ ypresp_order *
 ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_order  result;
-	DBT key,data;
+	DBT key = { order_string, order_sz }, data;
 
 	result.ordernum = 0;
 
-	if (yp_access(NULL, (struct svc_req *)rqstp)) {
+#ifdef DB_CACHE
+	if (yp_access(argp->map, argp->domain, (struct svc_req *)rqstp)) {
+#else
+	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
+#endif
 		result.stat = YP_YPERR;
 		return(&result);
 	}
@@ -590,9 +640,6 @@ ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 * was touched, not the last time the database contents were
 	 * updated.
 	 */
-
-	key.data = order_string;
-	key.size = strlen(order_string);
 
 	if ((result.stat = yp_get_record(argp->domain, argp->map,
 						&key, &data, 1)) == YP_TRUE)
@@ -672,7 +719,11 @@ ypproc_maplist_2_svc(domainname *argp, struct svc_req *rqstp)
 {
 	static ypresp_maplist  result = { 0, NULL };
 
+#ifdef DB_CACHE
+	if (yp_access(NULL, NULL, (struct svc_req *)rqstp)) {
+#else
 	if (yp_access(NULL, (struct svc_req *)rqstp)) {
+#endif
 		result.stat = YP_YPERR;
 		return(&result);
 	}

@@ -208,8 +208,15 @@ void load_securenets()
  * it.
  */
 
+#ifdef DB_CACHE
+int yp_access(map, domain, rqstp)
+#else
 int yp_access(map, rqstp)
+#endif
 	const char *map;
+#ifdef DB_CACHE
+	const char *domain;
+#endif
 	const struct svc_req *rqstp;
 {
 	struct sockaddr_in *rqhost;
@@ -249,7 +256,11 @@ possible spoof attempt from %s:%d",
 				map, inet_ntoa(rqhost->sin_addr),
 				ntohs(rqhost->sin_port));
 		}
+#ifdef DB_CACHE
+		if ((yp_testflag((char *)map, (char *)domain, YP_SECURE) ||
+#else
 		if ((strstr(map, "master.passwd.") ||
+#endif
 		    (rqstp->rq_prog == YPPROG &&
 		     rqstp->rq_proc == YPPROC_XFR) ||
 		    (rqstp->rq_prog == YPXFRD_FREEBSD_PROG &&
