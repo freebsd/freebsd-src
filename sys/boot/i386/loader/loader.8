@@ -531,19 +531,24 @@ This is the STRING word set's
 .It Ic -rot
 .El
 .Ss FREEBSD EXTRA WORDS
-.Bl -tag -width XXXXXXX -offset indent
-.It Ic tib> Pq -- Ar addr len
-Returns the remainder of the input buffer as a string on the stack.
+.Bl -tag -width XXXXXXXX -offset indent
 .It Ic \&% Pq --
 Evaluates the remainder of the input buffer under a
 .Ic catch
 exception guard.
 .It Ic \&$ Pq --
 Evaluates the remainder of the input buffer, after having printed it first.
-.It Ic fopen Pq Ar addr len -- fd
-Open a file. Returns a file descriptor, or -1 in case of failure.
+.It Ic inb Pq Ar port -- char
+Reads a byte from a port.
 .It Ic fclose Pq Ar fd --
 Closes a file.
+.It Ic fkey Pq Ar fd -- char
+Reads a single character from a file.
+.It Ic fload Pq Ar fd --
+Process file
+.Em fd .
+.It Ic fopen Pq Ar addr len -- fd
+Open a file. Returns a file descriptor, or -1 in case of failure.
 .It Xo
 .Ic fread
 .Pq Ar fd addr len -- len'
@@ -556,11 +561,6 @@ into buffer
 .Em addr .
 Returns the actual number of bytes read, or -1 in case of error or end of
 file.
-.It Ic fload Pq Ar fd --
-Process file
-.Em fd .
-.It Ic fkey Pq Ar fd -- char
-Reads a single character from a file.
 .It Ic key Pq -- Ar char
 Reads a single character from the console.
 .It Ic key? Pq -- Ar flag
@@ -571,15 +571,15 @@ if there is a character available to be read from the console.
 Waits
 .Em u
 microseconds.
+.It Ic outb Pq Ar port char --
+Writes a byte to a port.
 .It Ic seconds Pq -- Ar u
 Returns the number of seconds since midnight.
+.It Ic tib> Pq -- Ar addr len
+Returns the remainder of the input buffer as a string on the stack.
 .It Ic trace! Pq Ar flag --
 Activates or deactivates tracing. Does not work with
 .Ic catch .
-.It Ic outb Pq Ar port char --
-Writes a byte to a port.
-.It Ic inb Pq Ar port -- char
-Reads a byte from a port.
 .El
 .Ss FREEBSD DEFINED ENVIRONMENTAL QUERIES
 .Bl -tag -width Ds -offset indent
