@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.22 1999/01/17 14:25:19 yokota Exp $
+ *	$Id: snake_saver.c,v 1.23 1999/02/05 12:40:15 des Exp $
  */
 
 #include <sys/param.h>
@@ -34,16 +34,18 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
-#include <machine/md_var.h>
 #include <machine/pc/display.h>
 
-#include <saver.h>
+#include <dev/fb/fbreg.h>
+#include <dev/fb/splashreg.h>
+#include <dev/syscons/syscons.h>
 
 static char	*message;
-static u_char	**messagep;
+static int	*messagep;
 static int	messagelen;
-static u_short	*window;
 static int	blanked;
 
 static int
@@ -51,36 +53,50 @@ snake_saver(video_adapter_t *adp, int blank)
 {
 	static int	dirx, diry;
 	int		f;
-	scr_stat	*scp = cur_console;
+	sc_softc_t	*sc;
+	scr_stat	*scp;
 
 /* XXX hack for minimal changes. */
 #define	save	message
 #define	savs	messagep
 
+	sc = sc_find_softc(adp, NULL);
+	if (sc == NULL)
+		return EAGAIN;
+	scp = sc->cur_scp;
+
 	if (blank) {
 		if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 			return EAGAIN;
 		if (blanked <= 0) {
-			window = (u_short *)adp->va_window;
-			fillw(((FG_LIGHTGREY|BG_BLACK)<<8) | scr_map[0x20],
-			      window, scp->xsize * scp->ysize);
+#ifdef PC98
+			if (epson_machine_id == 0x20) {
+				outb(0x43f, 0x42);
+				outb(0x0c17, inb(0xc17) & ~0x08);
+				outb(0x43f, 0x40);
+			}
+#endif /* PC98 */
+			sc_vtb_clear(&scp->scr, sc->scr_map[0x20],
+				     (FG_LIGHTGREY | BG_BLACK) << 8);
+			(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
 			set_border(scp, 0);
 			dirx = (scp->xpos ? 1 : -1);
 			diry = (scp->ypos ?
 				scp->xsize : -scp->xsize);
 			for (f=0; f< messagelen; f++)
-				savs[f] = (u_char *)window + 2 *
-					  (scp->xpos+scp->ypos*scp->xsize);
-			*(savs[0]) = scr_map[*save];
+				savs[f] = scp->xpos + scp->ypos*scp->xsize;
+			sc_vtb_putc(&scp->scr, savs[0], sc->scr_map[*save],
+				    (FG_LIGHTGREY | BG_BLACK) << 8);
 			blanked = 1;
 		}
 		if (blanked++ < 4)
 			return 0;
 		blanked = 1;
-		*(savs[messagelen-1]) = scr_map[0x20];
+		sc_vtb_putc(&scp->scr, savs[messagelen - 1], sc->scr_map[0x20],
+			    (FG_LIGHTGREY | BG_BLACK) << 8);
 		for (f=messagelen-1; f > 0; f--)
 			savs[f] = savs[f-1];
-		f = (savs[0] - (u_char *)window) / 2;
+		f = savs[0];
 		if ((f % scp->xsize) == 0 ||
 		    (f % scp->xsize) == scp->xsize - 1 ||
 		    (random() % 50) == 0)
@@ -89,11 +105,19 @@ snake_saver(video_adapter_t *adp, int blank)
 		    (f / scp->xsize) == scp->ysize - 1 ||
 		    (random() % 20) == 0)
 			diry = -diry;
-		savs[0] += 2*dirx + 2*diry;
+		savs[0] += dirx + diry;
 		for (f=messagelen-1; f>=0; f--)
-			*(savs[f]) = scr_map[save[f]];
+			sc_vtb_putc(&scp->scr, savs[f], sc->scr_map[save[f]],
+				    (FG_LIGHTGREY | BG_BLACK) << 8);
 	}
 	else {
+#ifdef PC98
+		if (epson_machine_id == 0x20) {
+			outb(0x43f, 0x42);
+			outb(0x0c17, inb(0xc17) | 0x08);
+			outb(0x43f, 0x40);
+		}
+#endif /* PC98 */
 		blanked = 0;
 	}
 	return 0;

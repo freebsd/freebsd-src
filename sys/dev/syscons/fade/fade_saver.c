@@ -25,17 +25,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fade_saver.c,v 1.15 1998/11/04 03:49:38 peter Exp $
+ *	$Id: fade_saver.c,v 1.16 1999/01/11 03:18:46 yokota Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
-#include <i386/isa/isa.h>
-
-#include <saver.h>
+#include <dev/fb/fbreg.h>
+#include <dev/fb/splashreg.h>
+#include <dev/syscons/syscons.h>
 
 static u_char palette[256*3];
 static int blanked;
@@ -49,11 +51,10 @@ fade_saver(video_adapter_t *adp, int blank)
 
 	if (blank) {
 		blanked = TRUE;
-		switch (adp->va_type) {
-		case KD_VGA:
+		if (ISPALAVAIL(adp->va_flags)) {
 			if (count <= 0)
 				save_palette(adp, palette);
-			if (count < 64) {
+			if (count < 256) {
 				pal[0] = pal[1] = pal[2] = 0;
 				for (i = 3; i < 256*3; i++) {
 					if (palette[i] - count > 60)
@@ -64,39 +65,17 @@ fade_saver(video_adapter_t *adp, int blank)
 				load_palette(adp, pal);
 				count++;
 			}
-			break;
-		case KD_EGA:
-			/* not yet done XXX */
-			break;
-		case KD_CGA:
-			outb(adp->va_crtc_addr + 4, 0x25);
-			break;
-		case KD_MONO:
-		case KD_HERCULES:
-			outb(adp->va_crtc_addr + 4, 0x21);
-			break;
-		default:
-			break;
+		} else {
+	    		(*vidsw[adp->va_index]->blank_display)(adp,
+							       V_DISPLAY_BLANK);
 		}
-	}
-	else {
-		switch (adp->va_type) {
-		case KD_VGA:
+	} else {
+		if (ISPALAVAIL(adp->va_flags)) {
 			load_palette(adp, palette);
 			count = 0;
-			break;
-		case KD_EGA:
-			/* not yet done XXX */
-			break;
-		case KD_CGA:
-			outb(adp->va_crtc_addr + 4, 0x2d);
-			break;
-		case KD_MONO:
-		case KD_HERCULES:
-			outb(adp->va_crtc_addr + 4, 0x29);
-			break;
-		default:
-			break;
+		} else {
+	    		(*vidsw[adp->va_index]->blank_display)(adp,
+							       V_DISPLAY_ON);
 		}
 		blanked = FALSE;
 	}
@@ -106,21 +85,9 @@ fade_saver(video_adapter_t *adp, int blank)
 static int
 fade_init(video_adapter_t *adp)
 {
-	switch (adp->va_type) {
-	case KD_MONO:
-	case KD_HERCULES:
-	case KD_CGA:
-		/* 
-		 * `fade' saver is not fully implemented for MDA and CGA.
-		 * It simply blanks the display instead.
-		 */
-	case KD_VGA:
-		break;
-	case KD_EGA:
-		/* EGA is yet to be supported */
-	default:
+	if (!ISPALAVAIL(adp->va_flags)
+	    && (*vidsw[adp->va_index]->blank_display)(adp, V_DISPLAY_ON) != 0)
 		return ENODEV;
-	}
 	blanked = FALSE;
 	return 0;
 }

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.606 1999/06/15 13:14:40 des Exp $
+#	$Id: LINT,v 1.607 1999/06/19 20:20:52 rnordier Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -912,6 +912,9 @@ options		VGA_NO_MODE_CHANGE	# don't change video modes
 # Older video cards may require this option for proper operation.
 options		VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
 
+# The following option probably won't work with the LCD displays.
+options		VGA_WIDTH90		# support 90 column modes
+
 # To include support for VESA video modes
 options		VESA
 
@@ -939,18 +942,20 @@ options		PCVT_VT220KEYB
 # The syscons console driver (sco color console compatible).
 device		sc0	at isa?
 options		MAXCONS=16		# number of virtual consoles
-options		STD8X16FONT		# Compile font in
-makeoptions	STD8X16FONT=cp850
-options		SC_HISTORY_SIZE=200	# number of history buffer lines
+options		SC_ALT_MOUSE_IMAGE	# simplified mouse cursor in text mode
+options		SC_DFLT_FONT		# compile font in
+makeoptions	SC_DFLT_FONT="cp850"
+options		SC_DISABLE_DDBKEY	# disable `debug' key
 options		SC_DISABLE_REBOOT	# disable reboot key sequence
+options		SC_HISTORY_SIZE=200	# number of history buffer lines
+options		SC_MOUSE_CHAR=0x3	# char code for text mode mouse cursor
+options		SC_PIXEL_MODE		# add support for the raster text mode
 
-#
-# `flags' for sc0:
-#       0x01    Use a 'visual' bell
-#       0x02    Use a 'blink' cursor
-#       0x04    Use a 'underline' cursor
-#       0x06    Use a 'blinking underline' (destructive) cursor
-#	0x40	Make the bell quiet if it is rung in the background vty.
+# You can selectively disable features in syscons.
+options		SC_NO_CUTPASTE
+options		SC_NO_FONT_LOADING
+options		SC_NO_HISTORY
+options		SC_NO_SYSMOUSE
 
 #
 # The Numeric Processing eXtension driver.  This should be configured if
@@ -2154,6 +2159,10 @@ options		UKBD_DEBUG
 options		ULPT_DEBUG
 options		UMASS_DEBUG
 options		UMS_DEBUG
+
+# options for ukbd:
+options		UKBD_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	UKBD_DFLT_KEYMAP="it.iso"
 
 #
 # Embedded system options:

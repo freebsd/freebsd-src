@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: fbreg.h,v 1.2 1999/01/19 11:31:11 yokota Exp $
+ * $Id: fbreg.h,v 1.3 1999/04/12 13:34:56 des Exp $
  */
 
 #ifndef _DEV_FB_FBREG_H_
@@ -35,15 +35,22 @@
 
 /* some macros */
 #ifdef __i386__
-#define bcopy_toio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), c)
-#define bcopy_fromio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), c)
-#define bzero_io(d, c)		generic_bzero((void *)(d), c)
+#define bcopy_io(s, d, c)	generic_bcopy((void *)(s), (void *)(d), (c))
+#define bcopy_toio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), (c))
+#define bcopy_fromio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), (c))
+#define bzero_io(d, c)		generic_bzero((void *)(d), (c))
+#define fill_io(p, d, c)	fill((p), (void *)(d), (c))
+#define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
 void generic_bcopy(const void *s, void *d, size_t c);
 void generic_bzero(void *d, size_t c);
 #else /* !__i386__ */
-#define bcopy_toio(s, d, c)	memcpy_toio(d, s, c)
-#define bcopy_fromio(s, d, c)	memcpy_fromio(d, s, c)
-#define bzero_io(d, c)		memset_io(d, 0, c)
+#define bcopy_io(s, d, c)	memcpy_io((d), (s), (c))
+#define bcopy_toio(s, d, c)	memcpy_toio((d), (void *)(s), (c))
+#define bcopy_fromio(s, d, c)	memcpy_fromio((void *)(d), (s), (c))
+#define bzero_io(d, c)		memset_io((d), 0, (c))
+#define fill_io(p, d, c)	memset_io((d), (p), (c))
+#define fillw(p, d, c)		memsetw((d), (p), (c))
+#define fillw_io(p, d, c)	memsetw_io((d), (p), (c))
 #endif /* !__i386__ */
 
 /* video function table */
@@ -68,12 +75,16 @@ typedef int vi_set_hw_cursor_t(video_adapter_t *adp, int col, int row);
 typedef int vi_set_hw_cursor_shape_t(video_adapter_t *adp, int base,
 				     int height, int celsize, int blink);
 typedef int vi_blank_display_t(video_adapter_t *adp, int mode);
-#define V_DISPLAY_POWER_ON	0
-#define V_DISPLAY_SUSPEND	1
-#define V_DISPLAY_SUSPEND1	1
-#define V_DISPLAY_SUSPEND2	2
-#define V_DISPLAY_POWER_OFF	3
-typedef int vi_mmap_t(video_adapter_t *adp, vm_offset_t offset);
+#define V_DISPLAY_ON		0
+#define V_DISPLAY_BLANK		1
+#define V_DISPLAY_STAND_BY	2
+#define V_DISPLAY_SUSPEND	3
+typedef int vi_mmap_t(video_adapter_t *adp, vm_offset_t offset, int prot);
+typedef int vi_ioctl_t(video_adapter_t *adp, u_long cmd, caddr_t data);
+typedef int vi_clear_t(video_adapter_t *adp);
+typedef int vi_fill_rect_t(video_adapter_t *adp, int val, int x, int y,
+			   int cx, int cy);
+typedef int vi_bitblt_t(video_adapter_t *adp,...);
 typedef int vi_diag_t(video_adapter_t *adp, int level);
 
 typedef struct video_switch {
@@ -96,6 +107,12 @@ typedef struct video_switch {
     vi_set_hw_cursor_shape_t *set_hw_cursor_shape;
     vi_blank_display_t	*blank_display;
     vi_mmap_t		*mmap;
+    vi_ioctl_t		*ioctl;
+    vi_clear_t		*clear;
+    vi_fill_rect_t	*fill_rect;
+    vi_bitblt_t		*bitblt;
+    int			(*reserved1)(void);
+    int			(*reserved2)(void);
     vi_diag_t		*diag;
 } video_switch_t;
 
@@ -158,6 +175,26 @@ int		fb_attach(dev_t dev, video_adapter_t *adp,
 int		fb_detach(dev_t dev, video_adapter_t *adp,
 			  struct cdevsw *cdevsw);
 
+/* generic frame buffer cdev driver functions */
+
+typedef struct genfb_softc {
+	int		gfb_flags;	/* flag/status bits */
+#define FB_OPEN		(1 << 0)
+} genfb_softc_t;
+
+int		genfbopen(genfb_softc_t *sc, video_adapter_t *adp,
+			  int flag, int mode, struct proc *p);
+int		genfbclose(genfb_softc_t *sc, video_adapter_t *adp,
+			   int flag, int mode, struct proc *p);
+int		genfbread(genfb_softc_t *sc, video_adapter_t *adp,
+			  struct uio *uio, int flag);
+int		genfbwrite(genfb_softc_t *sc, video_adapter_t *adp,
+			   struct uio *uio, int flag);
+int		genfbioctl(genfb_softc_t *sc, video_adapter_t *adp,
+			   u_long cmd, caddr_t arg, int flag, struct proc *p);
+int		genfbmmap(genfb_softc_t *sc, video_adapter_t *adp,
+			  vm_offset_t offset, int prot);
+
 #endif /* FB_INSTALL_CDEV */
 
 /* generic low-level driver functions */
@@ -165,6 +202,8 @@ int		fb_detach(dev_t dev, video_adapter_t *adp,
 void		fb_dump_adp_info(char *driver, video_adapter_t *adp, int level);
 void		fb_dump_mode_info(char *driver, video_adapter_t *adp,
 				  video_info_t *info, int level);
+int		fb_type(int adp_type);
+int		fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg);
 
 #endif /* KERNEL */
 

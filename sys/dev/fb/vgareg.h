@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id:$
+ * $Id: vgareg.h,v 1.1 1999/01/09 02:44:49 yokota Exp $
  */
 
 #ifndef _DEV_FB_VGAREG_H_
@@ -60,8 +60,38 @@
 #define GDCIDX		(IO_VGA + 0x0E)		/* graph data controller idx */
 #define GDCREG		(IO_VGA + 0x0F)		/* graph data controller data */
 
+#define VGA_DRIVER_NAME		"vga"
+#define VGA_UNIT(dev)		minor(dev)
+#define VGA_MKMINOR(unit)	(unit)
+
 #ifdef KERNEL
-extern int		(*vga_sub_configure)(int flags);
+
+struct video_adapter;
+typedef struct vga_softc {
+	struct video_adapter	*adp;
+#ifdef FB_INSTALL_CDEV
+	genfb_softc_t		gensc;
 #endif
+} vga_softc_t;
+
+int		vga_probe_unit(int unit, struct video_adapter *adp, int flags);
+int		vga_attach_unit(int unit, vga_softc_t *sc, int flags);
+
+#ifdef FB_INSTALL_CDEV
+int		vga_open(dev_t dev, vga_softc_t *sc, int flag, int mode,
+			 struct proc *p);
+int		vga_close(dev_t dev, vga_softc_t *sc, int flag, int mode,
+			  struct proc *p);
+int		vga_read(dev_t dev, vga_softc_t *sc, struct uio *uio, int flag);
+int		vga_write(dev_t dev, vga_softc_t *sc, struct uio *uio, int flag);
+int		vga_ioctl(dev_t dev, vga_softc_t *sc, u_long cmd, caddr_t arg,
+			  int flag, struct proc *p);
+int		vga_mmap(dev_t dev, vga_softc_t *sc, vm_offset_t offset,
+			 int prot);
+#endif
+
+extern int	(*vga_sub_configure)(int flags);
+
+#endif /* KERNEL */
 
 #endif /* _DEV_FB_VGAREG_H_ */
