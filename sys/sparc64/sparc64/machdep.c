@@ -243,24 +243,20 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 		end = (vm_offset_t)_end;
 	}
 
+#ifdef DDB
+	kdb_init();
+#endif
+
 	/*
-	 * XXX calculate physmem
+	 * Initialize virtual memory and calculate physmem.
 	 */
+	pmap_bootstrap(end);
 
 	/*
 	 * Initialize tunables.
 	 */
 	init_param1();
 	init_param2(physmem);
-
-#ifdef DDB
-	kdb_init();
-#endif
-
-	/*
-	 * Initialize virtual memory.
-	 */
-	pmap_bootstrap(end);
 
 	/*
 	 * Disable tick for now.
