@@ -944,6 +944,7 @@
 	<listitem arch="i386">
 	  <para>Sony proprietary interface (all models) (&man.scd.4;)</para>
 	</listitem>
+
 	<listitem>
 	  <para>ATAPI IDE interface (&man.acd.4;)</para>
 	</listitem>
