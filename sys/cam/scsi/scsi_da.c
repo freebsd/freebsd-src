@@ -453,7 +453,7 @@ static	d_open_t	daopen;
 static	d_close_t	daclose;
 static	d_strategy_t	dastrategy;
 static	d_ioctl_t	daioctl;
-static	d_dump_t	dadump;
+static	dumper_t	dadump;
 static	periph_init_t	dainit;
 static	void		daasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
@@ -814,14 +814,16 @@ daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 }
 
 static int
-dadump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
 	struct	    cam_periph *periph;
 	struct	    da_softc *softc;
 	u_int	    secsize;
 	struct	    ccb_scsiio csio;
+	struct	    disk *dp;
 
-	periph = (struct cam_periph *)dev->si_drv1;
+	dp = arg;
+	periph = (struct cam_periph *)dp->d_dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 	softc = (struct da_softc *)periph->softc;
