@@ -665,7 +665,7 @@ pipetrans(pi, i, flag)
 		goto bad;
 	}
 
-	printf("* pipe %8x <-> %8x", (int)pi, (int)pip.pipe_peer);
+	printf("* pipe %8lx <-> %8lx", (u_long)pi, (u_long)pip.pipe_peer);
 	printf(" %6d", (int)pip.pipe_buffer.cnt);
 	rw[0] = '\0';
 	if (flag & FREAD)
@@ -763,16 +763,16 @@ socktrans(sock, i)
 					    (void *)so.so_pcb);
 					goto bad;
 				}
-				printf(" %x", (int)inpcb.inp_ppcb);
+				printf(" %lx", (u_long)inpcb.inp_ppcb);
 			}
 		}
 		else if (so.so_pcb)
-			printf(" %x", (int)so.so_pcb);
+			printf(" %lx", (u_long)so.so_pcb);
 		break;
 	case AF_UNIX:
 		/* print address of pcb and connected pcb */
 		if (so.so_pcb) {
-			printf(" %x", (int)so.so_pcb);
+			printf(" %lx", (u_long)so.so_pcb);
 			if (kvm_read(kd, (u_long)so.so_pcb, (char *)&unpcb,
 			    sizeof(struct unpcb)) != sizeof(struct unpcb)){
 				dprintf(stderr, "can't read unpcb at %p\n",
@@ -789,14 +789,14 @@ socktrans(sock, i)
 				if (!(so.so_state & SS_CANTSENDMORE))
 					*cp++ = '>';
 				*cp = '\0';
-				printf(" %s %x", shoconn,
-				    (int)unpcb.unp_conn);
+				printf(" %s %lx", shoconn,
+				    (u_long)unpcb.unp_conn);
 			}
 		}
 		break;
 	default:
 		/* print protocol number and socket address */
-		printf(" %d %x", proto.pr_protocol, (int)sock);
+		printf(" %d %lx", proto.pr_protocol, (u_long)sock);
 	}
 	printf("\n");
 	return;
@@ -818,8 +818,7 @@ dev2udev(dev)
 	if (KVM_READ(dev, &si, sizeof si)) {
 		return si.si_udev;
 	} else {
-		dprintf(stderr, "can't convert dev_t %p to a udev_t\n",
-		    (void *)dev);
+		dprintf(stderr, "can't convert dev_t %x to a udev_t\n", dev);
 		return -1;
 	}
 }
