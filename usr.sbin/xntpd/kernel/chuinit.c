@@ -1,7 +1,7 @@
 /*
 **	dynamically loadable chu driver
 **
-**	$Header: /home/ncvs/src/usr.sbin/xntpd/kernel/chuinit.c,v 1.1.1.1 1994/09/29 23:02:42 wollman Exp $
+** $FreeBSD$
 **
 **	william robertson <rob@agate.berkeley.edu>
 */
