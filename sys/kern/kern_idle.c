@@ -103,7 +103,7 @@ idle_proc(void *dummy)
 				continue;
 
 			/* call out to any cpu-becoming-idle events */
-			EVENTHANDLER_FAST_INVOKE(idle_event, count);
+			EVENTHANDLER_FAST_INVOKE(idle_event);
 		}
 
 		mtx_enter(&sched_lock, MTX_SPIN);
