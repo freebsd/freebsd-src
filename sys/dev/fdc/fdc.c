@@ -215,22 +215,6 @@ static int enable_fifo(fdc_p fdc);
 
 static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
 
-
-#define DEVIDLE		0
-#define FINDWORK	1
-#define	DOSEEK		2
-#define SEEKCOMPLETE 	3
-#define	IOCOMPLETE	4
-#define RECALCOMPLETE	5
-#define	STARTRECAL	6
-#define	RESETCTLR	7
-#define	SEEKWAIT	8
-#define	RECALWAIT	9
-#define	MOTORWAIT	10
-#define	IOTIMEDOUT	11
-#define	RESETCOMPLETE	12
-#define PIOREAD		13
-
 #ifdef	FDC_DEBUG
 static char const * const fdstates[] =
 {
