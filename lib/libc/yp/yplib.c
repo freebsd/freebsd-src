@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -103,6 +104,10 @@ static void _yp_unbind(struct dom_binding *);
 struct dom_binding *_ypbindlist;
 static char _yp_domain[MAXHOSTNAMELEN];
 int _yplib_timeout = 10;
+
+static mutex_t _ypmutex = PTHREAD_MUTEX_INITIALIZER;
+#define YPLOCK()	mutex_lock(&_ypmutex);
+#define YPUNLOCK()	mutex_unlock(&_ypmutex);
 
 #ifdef YPMATCHCACHE
 static void
@@ -686,8 +691,8 @@ again:
 	return (r);
 }
 
-int
-yp_get_default_domain(char **domp)
+static int
+yp_get_default_domain_locked(char **domp)
 {
 	*domp = NULL;
 	if (_yp_domain[0] == '\0')
@@ -695,6 +700,17 @@ yp_get_default_domain(char **domp)
 			return (YPERR_NODOM);
 	*domp = _yp_domain;
 	return (0);
+}
+
+int
+yp_get_default_domain(char **domp)
+{
+	int r;
+
+	YPLOCK();
+	r = yp_get_default_domain_locked(domp);
+	YPUNLOCK();
+	return (r);
 }
 
 int
@@ -1078,16 +1094,21 @@ _yp_check(char **dom)
 {
 	char *unused;
 
+	YPLOCK();
 	if (_yp_domain[0]=='\0')
-		if (yp_get_default_domain(&unused))
+		if (yp_get_default_domain_locked(&unused)) {
+			YPUNLOCK();
 			return (0);
+		}
 
 	if (dom)
 		*dom = _yp_domain;
 
 	if (yp_bind(_yp_domain) == 0) {
 		yp_unbind(_yp_domain);
+		YPUNLOCK();
 		return (1);
 	}
+	YPUNLOCK();
 	return (0);
 }
