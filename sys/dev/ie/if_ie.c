@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.64 1999/08/20 14:12:13 mdodd Exp $
+ *	$Id: if_ie.c,v 1.65 1999/08/20 14:36:40 mdodd Exp $
  */
 
 /*
@@ -190,7 +190,7 @@ static void	ee16_eeprom_outbits(struct ie_softc * ie, int edata, int cnt);
 static void	ee16_eeprom_clock(struct ie_softc * ie, int state);
 static u_short	ee16_read_eeprom(struct ie_softc * ie, int location);
 static int	ee16_eeprom_inbits(struct ie_softc * ie);
-static void	ee16_shutdown(int howto, void *sc);
+static void	ee16_shutdown(void *sc, int howto);
 
 static void	iereset(int unit);
 static void	ie_readframe(int unit, struct ie_softc * ie, int bufno);
@@ -550,7 +550,7 @@ ni_probe(struct isa_device *dvp)
 
 
 static void
-ee16_shutdown(int howto, void *sc)
+ee16_shutdown(void *sc, int howto)
 {
 	struct	ie_softc *ie = (struct ie_softc *)sc;
 	int	unit = ie - &ie_softc[0];
@@ -832,7 +832,8 @@ ieattach(struct isa_device *dvp)
 	ifp->if_hdrlen = 14;
 
 	if (ie->hard_type == IE_EE16)
-		at_shutdown(ee16_shutdown, ie, SHUTDOWN_POST_SYNC);
+		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
+				      ie, SHUTDOWN_PRI_DEFAULT);
 
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));

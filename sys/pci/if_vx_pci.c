@@ -44,14 +44,14 @@
 
 #include <dev/vx/if_vxreg.h>
 
-static void vx_pci_shutdown(int, void *);
+static void vx_pci_shutdown(void *, int);
 static const char *vx_pci_probe(pcici_t, pcidi_t);
 static void vx_pci_attach(pcici_t, int unit);
 
 static void
 vx_pci_shutdown(
-	int howto,
-	void *sc)
+	void *sc,
+	int howto)
 {
    vxstop(sc); 
    vxfree(sc);
@@ -122,7 +122,8 @@ vx_pci_attach(
      * doing do could allow DMA to corrupt kernel memory during the
      * reboot before the driver initializes.
      */
-    at_shutdown(vx_pci_shutdown, sc, SHUTDOWN_POST_SYNC);
+    EVENTHANDLER_REGISTER(shutdown_post_sync, vx_pci_shutdown, sc,
+			  SHUTDOWN_PRI_DEFAULT);
 
     pci_map_int(config_id, vxintr, (void *) sc, &net_imask);
 }

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.94 1999/07/23 23:45:50 alc Exp $
+ * $Id: systm.h,v 1.95 1999/07/24 09:34:11 dfr Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -268,20 +268,6 @@ typedef void (*forklist_fn) __P((struct proc *parent, struct proc *child,
 
 int	at_fork __P((forklist_fn function));
 int	rm_at_fork __P((forklist_fn function));
-
-/* Shutdown callout list definitions and declarations. */
-#define	SHUTDOWN_PRE_SYNC	0
-#define	SHUTDOWN_POST_SYNC	1
-#define	SHUTDOWN_FINAL		2
-#define	SHUTDOWN_PRI_FIRST	0
-#define	SHUTDOWN_PRI_DEFAULT	10000
-#define	SHUTDOWN_PRI_LAST	20000
-
-typedef void (*bootlist_fn) __P((int, void *));
-
-int	at_shutdown __P((bootlist_fn function, void *arg, int position));
-int	at_shutdown_pri __P((bootlist_fn function, void *arg, int position, int pri));
-int	rm_at_shutdown __P((bootlist_fn function, void *arg));
 
 /*
  * Not exactly a callout LIST, but a callout entry.

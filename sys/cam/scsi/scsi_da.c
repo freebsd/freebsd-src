@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.32 1999/08/14 11:40:31 phk Exp $
+ *      $Id: scsi_da.c,v 1.33 1999/08/15 23:34:40 mjacob Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -38,6 +38,7 @@
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
@@ -198,7 +199,7 @@ static void		daprevent(struct cam_periph *periph, int action);
 static void		dasetgeom(struct cam_periph *periph,
 				  struct scsi_read_capacity_data * rdcap);
 static timeout_t	dasendorderedtag;
-static void		dashutdown(int howto, void *arg);
+static void		dashutdown(void *arg, int howto);
 
 #ifndef DA_DEFAULT_TIMEOUT
 #define DA_DEFAULT_TIMEOUT 60	/* Timeout in seconds */
@@ -815,7 +816,6 @@ dainit(void)
 		printf("da: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
 	} else {
-		int err;
 
 		/* If we were successfull, register our devsw */
 		cdevsw_add(&da_cdevsw);
@@ -827,9 +827,10 @@ dainit(void)
 		timeout(dasendorderedtag, NULL,
 			(DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL);
 
-		if ((err = at_shutdown(dashutdown, NULL,
-				       SHUTDOWN_POST_SYNC)) != 0)
-			printf("dainit: at_shutdown returned %d!\n", err);
+		/* Register our shutdown event handler */
+		if ((EVENTHANDLER_REGISTER(shutdown_post_sync, dashutdown, 
+					   NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
+		    printf("dainit: shutdown event registration failed!\n");
 	}
 }
 
@@ -1553,7 +1554,7 @@ dasendorderedtag(void *arg)
  * sync the disk cache to physical media.
  */
 static void
-dashutdown(int howto, void *arg)
+dashutdown(void * arg, int howto)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;

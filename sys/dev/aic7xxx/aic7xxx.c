@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.31 1999/05/23 18:55:58 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.32 1999/08/16 22:49:28 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -96,6 +96,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/eventhandler.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 
@@ -209,7 +210,7 @@ static bus_dmamap_callback_t	ahcdmamapcb;
 #if UNUSED
 static void	ahc_dump_targcmd(struct target_cmd *cmd);
 #endif
-static void	ahc_shutdown(int howto, void *arg);
+static void	ahc_shutdown(void *arg, int howto);
 static cam_status
 		ahc_find_tmode_devs(struct ahc_softc *ahc,
 				    struct cam_sim *sim, union ccb *ccb,
@@ -4291,7 +4292,7 @@ ahc_init(struct ahc_softc *ahc)
 	ahc_loadseq(ahc);
 
 	/* We have to wait until after any system dumps... */
-	at_shutdown(ahc_shutdown, ahc, SHUTDOWN_FINAL);
+	EVENTHANDLER_REGISTER(shutdown_final, ahc_shutdown, ahc, SHUTDOWN_PRI_DEFAULT);
 
 	return (0);
 }
@@ -6436,7 +6437,7 @@ ahc_dump_targcmd(struct target_cmd *cmd)
 #endif
 
 static void
-ahc_shutdown(int howto, void *arg)
+ahc_shutdown(void *arg, int howto)
 {
 	struct	ahc_softc *ahc;
 	int	i;

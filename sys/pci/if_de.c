@@ -5126,7 +5126,7 @@ static struct pci_device dedevice = {
 COMPAT_PCI_DRIVER(de, dedevice);
 
 static void
-tulip_shutdown(int howto, void *arg)
+tulip_shutdown(void *arg, int howto)
 {
     tulip_softc_t * const sc = arg;
     TULIP_CSR_WRITE(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
@@ -5313,7 +5313,8 @@ tulip_pci_attach(pcici_t config_id, int unit)
 		return;
 	    }
 	}
-	at_shutdown(tulip_shutdown, sc, SHUTDOWN_POST_SYNC);
+	EVENTHANDLER_REGISTER(shutdown_post_sync, tulip_shutdown, sc,
+			      SHUTDOWN_PRI_DEFAULT);
 #if defined(TULIP_USE_SOFTINTR)
 	if (sc->tulip_unit > tulip_softintr_max_unit)
 	    tulip_softintr_max_unit = sc->tulip_unit;
