@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.103 1997/08/02 14:33:11 bde Exp $
+**  $Id: ncr.c,v 1.104 1997/08/23 21:53:47 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -865,7 +865,7 @@ struct dsb {
 
 struct ccb {
 	/*
-	**	This filler ensure that the global header is 
+	**	This filler ensures that the global header is 
 	**	cache line size aligned.
 	*/
 	ncrcmd	filler[4];
@@ -1035,12 +1035,6 @@ struct ncb {
 	*/
 	volatile
 	struct ncr_reg* reg;
-
-	/*
-	**	A copy of the scripts, relocated for this ncb.
-	*/
-	struct script	*script0;
-	struct scripth	*scripth0;
 
 	/*
 	**	Scripts instance virtual address.
@@ -1346,7 +1340,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.103 1997/08/02 14:33:11 bde Exp $\n";
+	"\n$Id: ncr.c,v 1.104 1997/08/23 21:53:47 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3115,7 +3109,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 **==========================================================
 */
 
-void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int len)
+static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int len)
 {
 	ncrcmd  opcode, new, old, tmp1, tmp2;
 	ncrcmd	*start, *end;
@@ -3301,8 +3295,8 @@ u_int32_t ncr_info (int unit)
 */
 typedef struct {
 	unsigned long	device_id;
-	unsigned short	revision_id;
-	char	*name;
+	unsigned short	minrevid;
+	char	       *name;
 	unsigned char	maxburst;
 	unsigned char	maxoffs;
 	unsigned char	clock_divn;
@@ -3310,56 +3304,62 @@ typedef struct {
 } ncr_chip;
 
 static ncr_chip ncr_chip_table[] = {
- {NCR_810_ID, 0x0f, "ncr 53c810 fast10 scsi",			4,  8, 4,
+ {NCR_810_ID, 0x00,	"ncr 53c810 fast10 scsi",		4,  8, 4,
  FE_ERL}
  ,
- {NCR_810_ID, 0xff, "ncr 53c810a fast10 scsi",			4,  8, 4,
- FE_CACHE_SET|FE_LDSTR|FE_PFEN|FE_BOF}
+ {NCR_810_ID, 0x10,	"ncr 53c810a fast10 scsi",		4,  8, 4,
+ FE_ERL|FE_LDSTR|FE_PFEN|FE_BOF}
  ,
- {NCR_815_ID, 0xff,	"ncr 53c815 fast10 scsi", 		4,  8, 4,
+ {NCR_815_ID, 0x00,	"ncr 53c815 fast10 scsi", 		4,  8, 4,
  FE_ERL|FE_BOF}
  ,
- {NCR_820_ID, 0xff,	"ncr 53c820 fast10 wide scsi", 		4,  8, 4,
+ {NCR_820_ID, 0x00,	"ncr 53c820 fast10 wide scsi", 		4,  8, 4,
  FE_WIDE|FE_ERL}
  ,
- {NCR_825_ID, 0x0f,	"ncr 53c825 fast10 wide scsi",		4,  8, 4,
+ {NCR_825_ID, 0x00,	"ncr 53c825 fast10 wide scsi",		4,  8, 4,
  FE_WIDE|FE_ERL|FE_BOF}
  ,
- {NCR_825_ID, 0xff,	"ncr 53c825a fast10 wide scsi",		7,  8, 4,
- FE_WIDE|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ {NCR_825_ID, 0x10,	"ncr 53c825a fast10 wide scsi",		7,  8, 4,
+ FE_WIDE|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN/*|FE_RAM*/}
  ,
- {NCR_860_ID, 0xff,	"ncr 53c860 fast20 scsi",		4,  8, 5,
- FE_ULTRA|FE_CLK80|FE_CACHE_SET|FE_BOF|FE_LDSTR|FE_PFEN}
+ {NCR_825_ID, 0x13,	"ncr 53c825a fast10 wide scsi",		7,  8, 4,
+ FE_WIDE|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
  ,
- {NCR_875_ID, 0x01,	"ncr 53c875 fast20 wide scsi",		7, 16, 5,
- FE_WIDE|FE_ULTRA|FE_CLK80|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ {NCR_860_ID, 0x00,	"ncr 53c860 fast20 scsi",		4,  8, 5,
+ FE_ULTRA|FE_CLK80|FE_CACHE_SET|FE_LDSTR|FE_PFEN}
  ,
- {NCR_875_ID, 0xff,	"ncr 53c875 fast20 wide scsi",		7, 16, 5,
- FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ {NCR_875_ID, 0x00,	"ncr 53c875 fast20 wide scsi",		7, 16, 5,
+ FE_WIDE|FE_ULTRA|FE_CLK80|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
  ,
- {NCR_875_ID2, 0xff,	"ncr 53c875j fast20 wide scsi",		7, 16, 5,
- FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ {NCR_875_ID, 0x02,	"ncr 53c875 fast20 wide scsi",		7, 16, 5,
+ FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
  ,
- {NCR_885_ID, 0xff,	"ncr 53c885 fast20 wide scsi",		7, 16, 5,
- FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ {NCR_875_ID2, 0x00,	"ncr 53c875j fast20 wide scsi",		7, 16, 5,
+ FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
  ,
- {NCR_895_ID, 0xff,	"ncr 53c895 fast40 wide scsi",		7, 31, 7,
- FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ {NCR_885_ID, 0x00,	"ncr 53c885 fast20 wide scsi",		7, 16, 5,
+ FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
  ,
- {NCR_896_ID, 0xff,	"ncr 53c896 fast40 wide scsi",		7, 31, 7,
- FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ {NCR_895_ID, 0x00,	"ncr 53c895 fast40 wide scsi",		7, 31, 7,
+ FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
+ ,
+ {NCR_896_ID, 0x00,	"ncr 53c896 fast40 wide scsi",		7, 31, 7,
+ FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
 };
 
 static int ncr_chip_lookup(u_long device_id, u_char revision_id)
 {
 	int i, found;
-
+	
 	found = -1;
 	for (i = 0; i < sizeof(ncr_chip_table)/sizeof(ncr_chip_table[0]); i++) {
 		if (device_id	== ncr_chip_table[i].device_id &&
-		    revision_id	<= ncr_chip_table[i].revision_id) {
-			found = i;
-			break;
+		    ncr_chip_table[i].minrevid <= revision_id) {
+			if (found < 0 || 
+			    ncr_chip_table[found].minrevid 
+			      < ncr_chip_table[i].minrevid) {
+				found = i;
+			}
 		}
 	}
 	return found;
@@ -3541,37 +3541,11 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	bzero (np, sizeof (*np));
 
 	np->ccb = (ccb_p) malloc (sizeof (struct ccb), M_DEVBUF, M_WAITOK);
+printf ("CCB address = %p\n", np->ccb);
 	if (!np->ccb) return;
 	bzero (np->ccb, sizeof (*np->ccb));
 
 	np->unit = unit;
-
-	/*
-	**	Allocate structure for script relocation.
-	*/
-#ifdef __FreeBSD__
-	if (sizeof (struct script) > PAGE_SIZE) {
-		np->script0  = (struct script*) vm_page_alloc_contig 
-			(round_page(sizeof (struct script)), 
-			 0x100000, 0xffffffff, PAGE_SIZE);
-	} else {
-		np->script0  = (struct script *)
-			malloc (sizeof (struct script),  M_DEVBUF, M_WAITOK);
-	}
-	if (sizeof (struct scripth) > PAGE_SIZE) {
-		np->scripth0 = (struct scripth*) vm_page_alloc_contig 
-			(round_page(sizeof (struct scripth)), 
-			 0x100000, 0xffffffff, PAGE_SIZE);
-	} else {
-		np->scripth0 = (struct scripth *)
-			malloc (sizeof (struct scripth), M_DEVBUF, M_WAITOK);
-	}
-#else  /* __FreeBSD___ */
-	np->script0  = (struct script *)
-		malloc (sizeof (struct script),  M_DEVBUF, M_WAITOK);
-	np->scripth0 = (struct scripth *)
-		malloc (sizeof (struct scripth), M_DEVBUF, M_WAITOK);
-#endif /* __FreeBSD__ */
 
 	/*
 	**	Try to map the controller chip to
@@ -3773,7 +3747,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 #ifndef NCR_IOMAPPED
 	/*
-	**	Get on-board RAM bus address when supported
+	**	Get on-chip SRAM address, if supported
 	*/
 	if ((np->features & FE_RAM) && sizeof(struct script) <= 4096)
 #ifdef __NetBSD__
@@ -3783,13 +3757,42 @@ static	void ncr_attach (pcici_t config_id, int unit)
 #endif	/* __NetBSD */
 #endif	/* !NCR_IOMAPPED */
 
+	/*
+	**	Allocate structure for script relocation.
+	*/
+	if (np->vaddr2 != NULL) {
+		np->script = np->vaddr2;
+		np->p_script = np->paddr2;
+#ifdef __FreeBSD__
+	} else if (sizeof (struct script) > PAGE_SIZE) {
+		np->script  = (struct script*) vm_page_alloc_contig 
+			(round_page(sizeof (struct script)), 
+			 0x100000, 0xffffffff, PAGE_SIZE);
+#endif /* __FreeBSD__ */
+	} else {
+		np->script  = (struct script *)
+			malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
+	}
+
+#ifdef __FreeBSD__
+	if (sizeof (struct scripth) > PAGE_SIZE) {
+		np->scripth = (struct scripth*) vm_page_alloc_contig 
+			(round_page(sizeof (struct scripth)), 
+			 0x100000, 0xffffffff, PAGE_SIZE);
+	} else 
+#endif /* __FreeBSD__ */
+		{
+		np->scripth = (struct scripth *)
+			malloc (sizeof (struct scripth), M_DEVBUF, M_WAITOK);
+	}
+
 #ifdef SCSI_NCR_PCI_CONFIG_FIXUP
 	/*
 	**	If cache line size is enabled, check PCI config space and 
 	**	try to fix it up if necessary.
 	*/
 #ifdef PCIR_CACHELNSZ	/* To be sure that new PCI stuff is present */
-	do {
+	{
 		u_char cachelnsz = pci_cfgread(config_id, PCIR_CACHELNSZ, 1);
 		u_short command  = pci_cfgread(config_id, PCIR_COMMAND, 2);
 
@@ -3806,7 +3809,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 				ncr_name(np));
 			pci_cfgwrite(config_id, PCIR_COMMAND, command, 2);
 		}
-	} while (0);
+	}
 #endif /* PCIR_CACHELNSZ */
 
 #endif /* SCSI_NCR_PCI_CONFIG_FIXUP */
@@ -3814,7 +3817,8 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	/*
 	**	Bells and whistles   ;-)
 	*/
-	printf("%s: minsync=%d, maxsync=%d, maxoffs=%d, %d dwords burst, %s dma fifo\n",
+	if (bootverbose)
+		printf("%s: minsync=%d, maxsync=%d, maxoffs=%d, %d dwords burst, %s dma fifo\n",
 		ncr_name(np), np->minsync, np->maxsync, np->maxoffs,
 		burst_length(np->maxburst),
 		(np->rv_ctest5 & DFS) ? "large" : "normal");
@@ -3827,24 +3831,21 @@ static	void ncr_attach (pcici_t config_id, int unit)
 			ncr_name(np),
 			np->rv_stest2 & 0x20 ? "differential" : "single-ended",
 			np->rv_dcntl & IRQM ? "totem pole" : "open drain",
-			np->vaddr2 ? ", using on-board RAM" : "");
+			np->vaddr2 ? ", using on-chip SRAM" : "");
 			
 	/*
 	**	Patch scripts to physical addresses
 	*/
 	ncr_script_fill (&script0, &scripth0);
 
-	np->scripth	= np->scripth0;
+	np->p_script	= vtophys(np->script);
 	np->p_scripth	= vtophys(np->scripth);
 
-	np->script	= np->vaddr2 ? (struct script *) np->vaddr2:np->script0;
-	np->p_script	= np->vaddr2 ? np->paddr2 : vtophys(np->script0);
-
 	ncr_script_copy_and_bind (np, (ncrcmd *) &script0,
-			(ncrcmd *) np->script0, sizeof(struct script));
+			(ncrcmd *) np->script, sizeof(struct script));
 
 	ncr_script_copy_and_bind (np, (ncrcmd *) &scripth0,
-		(ncrcmd *) np->scripth0, sizeof(struct scripth));
+		(ncrcmd *) np->scripth, sizeof(struct scripth));
 
 	np->ccb->p_ccb	= vtophys (np->ccb);
 
@@ -3853,9 +3854,9 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	*/
 
 	if (np->features & FE_LED0) {
-		np->script0->reselect[0]  = SCR_REG_REG(gpreg, SCR_OR,  0x01);
-		np->script0->reselect1[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
-		np->script0->reselect2[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
+		np->script->reselect[0]  = SCR_REG_REG(gpreg, SCR_OR,  0x01);
+		np->script->reselect1[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
+		np->script->reselect2[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
 	}
 
 	/*
@@ -4964,15 +4965,6 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	}
 
 	/*
-	**    Upload the script into on-board RAM
-	*/
-	if (np->vaddr2) {
-		if (bootverbose)
-			printf ("%s: copying script fragments into the on-board RAM ...\n", ncr_name(np));
-		bcopy(np->script0, np->script, sizeof(struct script));
-	}
-
-	/*
 	**	Reinitialize usrsync.
 	**	Have to renegotiate synch mode.
 	*/
@@ -5610,20 +5602,27 @@ static void ncr_log_hard_error(ncb_p np, u_short sist, u_char dstat)
 
 	dsp	= INL (nc_dsp);
 
-	if (dsp > np->p_script && dsp <= np->p_script + sizeof(struct script)) {
+	if (np->p_script < dsp && 
+	    dsp <= np->p_script + sizeof(struct script)) {
 		script_ofs	= dsp - np->p_script;
 		script_size	= sizeof(struct script);
 		script_base	= (u_char *) np->script;
 		script_name	= "script";
 	}
-	else {
+	else if (np->p_scripth < dsp && 
+		 dsp <= np->p_scripth + sizeof(struct scripth)) {
 		script_ofs	= dsp - np->p_scripth;
 		script_size	= sizeof(struct scripth);
 		script_base	= (u_char *) np->scripth;
 		script_name	= "scripth";
+	} else {
+		script_ofs	= dsp;
+		script_size	= 0;
+		script_base	= 0;
+		script_name	= "mem";
 	}
 
-	printf ("%s:%d: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ %s (%x:%08x).\n",
+	printf ("%s:%d: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ (%s %x:%08x).\n",
 		ncr_name (np), (unsigned)INB (nc_ctest0)&0x0f, dstat, sist,
 		(unsigned)INB (nc_socl), (unsigned)INB (nc_sbcl), (unsigned)INB (nc_sbdl),
 		(unsigned)INB (nc_sxfer),(unsigned)INB (nc_scntl3), script_name, script_ofs,
@@ -5654,8 +5653,6 @@ void ncr_exception (ncb_p np)
 {
 	u_char	istat, dstat;
 	u_short	sist;
-	u_long	dsp, dsa;
-	int	i, script_ofs;
 
 	/*
 	**	interrupt on the fly ?
