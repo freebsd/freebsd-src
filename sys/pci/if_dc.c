@@ -2464,9 +2464,6 @@ static void dc_txeof(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
-
 	/*
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been transmitted.
@@ -2542,10 +2539,11 @@ static void dc_txeof(sc)
 		DC_INC(idx, DC_TX_LIST_CNT);
 	}
 
-	sc->dc_cdata.dc_tx_cons = idx;
-	if (cur_tx != NULL)
-		ifp->if_flags &= ~IFF_OACTIVE;
-
+        if (idx != sc->dc_cdata.dc_tx_cons) {    
+		sc->dc_cdata.dc_tx_cons = idx;
+                ifp->if_flags &= ~IFF_OACTIVE;
+        }
+        ifp->if_timer = (sc->dc_cdata.dc_tx_cnt == 0) ? 0 : 5;
 	return;
 }
 
