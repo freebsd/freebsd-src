@@ -50,6 +50,7 @@
 
 #define	PT_ATTACH	10	/* trace some running process */
 #define	PT_DETACH	11	/* stop tracing a process */
+#define PT_IO		12	/* do I/O to/from stopped process. */
 
 #define PT_GETREGS      33	/* get general-purpose registers */
 #define PT_SETREGS      34	/* set general-purpose registers */
@@ -60,6 +61,21 @@
 
 #define	PT_FIRSTMACH	64	/* for machine-specific requests */
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
+
+struct ptrace_io_desc {
+	int	piod_op;	/* I/O operation */
+	void	*piod_offs;	/* child offset */
+	void	*piod_addr;	/* parent offset */
+	size_t	piod_len;	/* request length */
+};
+
+/*
+ * Operations in piod_op.
+ */
+#define PIOD_READ_D	1	/* Read from D space */
+#define PIOD_WRITE_D	2	/* Write to D space */
+#define PIOD_READ_I	3	/* Read from I space */
+#define PIOD_WRITE_I	4	/* Write to I space */
 
 #ifdef _KERNEL
 int	ptrace_set_pc(struct thread *_td, unsigned long _addr);
