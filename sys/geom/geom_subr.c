@@ -114,46 +114,6 @@ g_new_geomf(struct g_class *mp, char *fmt, ...)
 	return (gp);
 }
 
-/*
- * Add a magic space to a geom.  There is no locking here because nobody
- * should be modifying these except the geom itself during configuration,
- * so it cannot go away while we fiddling it.
- * For now, no provision exists for removing magic spaces or for changing
- * them on the fly.
- */
-
-int
-g_add_magicspace(struct g_geom *gp, const char *name, off_t start, u_int len, u_int flags)
-{
-	int i;
-	struct g_magicspaces *msps;
-	struct g_magicspace *msp, *msp2;
-
-	if (gp->magicspaces == NULL) {
-		msps = g_malloc(sizeof *gp->magicspaces, M_WAITOK | M_ZERO);
-		msps->geom_id = (uintptr_t)gp;
-		strncpy(msps->class, gp->class->name, sizeof msps->class);
-		gp->magicspaces = msps;
-	}
-	msps = gp->magicspaces;
-	if (msps->nmagic >= msps->nspace) {
-		i = msps->nspace + 1;
-		msp = g_malloc(sizeof(*msp) * i, M_WAITOK | M_ZERO);
-		bcopy(msps->magicspace, msp, sizeof(*msp) * msps->nmagic);
-		msp2 = msps->magicspace;
-		msps->magicspace = msp;
-		if (msp2 != NULL)
-			g_free(msp2);
-		msps->nspace = i;
-	}
-	msp = &msps->magicspace[msps->nmagic++];
-	strncpy(msp->name, name, sizeof msp->name);
-	msp->offset = start;
-	msp->len = len;
-	msp->flags = flags;
-	return (0);
-}
-
 void
 g_destroy_geom(struct g_geom *gp)
 {
@@ -169,10 +129,6 @@ g_destroy_geom(struct g_geom *gp)
 	    gp->name, LIST_FIRST(&gp->consumer)));
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
-	if (gp->magicspaces) {
-		g_free(gp->magicspaces->magicspace);
-		g_free(gp->magicspaces);
-	}
 	g_free(gp->name);
 	g_free(gp);
 }

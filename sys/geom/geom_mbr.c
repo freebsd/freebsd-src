@@ -251,9 +251,6 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	g_topology_lock();
 	error = g_access_rel(cp, -1, 0, 0);
 	if (npart > 0) {
-		g_add_magicspace(gp, "boot", 0, DOSPARTOFF, 0);
-		g_add_magicspace(gp, "mbr", DOSPARTOFF, 4 * 16, 0);
-		g_add_magicspace(gp, "magic", 510, 2, 0);
 		LIST_FOREACH(pp, &gp->provider, provider)
 			g_error_provider(pp, 0);
 		return (gp);
