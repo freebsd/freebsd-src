@@ -50,8 +50,10 @@ behavior when a system call is interrupted by the specified signal.
 If the flag is false (0), then system calls will be restarted if
 they are interrupted by the specified signal
 and no data has been transferred yet.
-System call restart is the default behavior on
-.Bx 4.2 .
+System call restart has been the default behavior since
+.Bx 4.2 ,
+and is the default behaviour on
+.Tn FreeBSD .
 .Pp
 If the flag is true (1),
 then restarting of system calls is disabled.
