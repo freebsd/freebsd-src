@@ -48,16 +48,13 @@
 #include <vm/vm_object.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
-#if NAPM > 0
-#include <machine/apm_bios.h>
-#endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 
+/* device structures */
 static d_open_t		adopen;
 static d_strategy_t	adstrategy;
 static d_dump_t		addump;
-
 static struct cdevsw ad_cdevsw = {
 	/* open */	adopen,
 	/* close */	nullclose,
@@ -99,6 +96,7 @@ static void ad_timeout(struct ad_request *);
 static int32_t ad_version(u_int16_t);
 
 /* internal vars */
+static u_int32_t adp_lun_map = 0;
 MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 
 /* defines */
@@ -109,22 +107,23 @@ void
 ad_attach(struct ata_softc *scp, int32_t device)
 {
     struct ad_softc *adp;
-    static int32_t adnlun = 0;
-    dev_t dev1;
+    dev_t dev;
     int32_t secsperint;
 
-#ifdef ATA_STATIC_ID
-    adnlun = (scp->lun << 1) + ATA_DEV(device);   
-#endif
+
     if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT))) {
-	printf("ad%d: failed to allocate driver storage\n", adnlun);
+	ata_printf(scp, device, "failed to allocate driver storage\n");
 	return;
     }
     bzero(adp, sizeof(struct ad_softc));
     scp->dev_softc[ATA_DEV(device)] = adp;
     adp->controller = scp;
     adp->unit = device;
-    adp->lun = adnlun++;
+#ifdef ATA_STATIC_ID
+    adp->lun = (device_get_unit(scp->dev) << 1) + ATA_DEV(device);
+#else
+    adp->lun = ata_get_lun(&adp_lun_map);
+#endif
     adp->heads = AD_PARAM->heads;
     adp->sectors = AD_PARAM->sectors;
     adp->total_secs = AD_PARAM->cylinders * adp->heads * adp->sectors;	
@@ -162,7 +161,7 @@ ad_attach(struct ata_softc *scp, int32_t device)
     if (bootverbose) {
 	printf("ad%d: <%.40s/%.8s> ATA-%d disk at ata%d as %s\n", 
 	       adp->lun, AD_PARAM->model, AD_PARAM->revision,
-	       ad_version(AD_PARAM->versmajor), scp->lun,
+	       ad_version(AD_PARAM->versmajor), device_get_unit(scp->dev),
 	       (adp->unit == ATA_MASTER) ? "master" : "slave");
 
 	 printf("ad%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
@@ -184,7 +183,7 @@ ad_attach(struct ata_softc *scp, int32_t device)
 	printf("ad%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s using %s\n",
 	       adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
 	       AD_PARAM->model, adp->total_secs / (adp->heads * adp->sectors),
-	       adp->heads, adp->sectors, scp->lun,
+	       adp->heads, adp->sectors, device_get_unit(scp->dev),
 	       (adp->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
 
@@ -193,16 +192,32 @@ ad_attach(struct ata_softc *scp, int32_t device)
 		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_DISK);
 
-    dev1 = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, &addisk_cdevsw);
-    dev1->si_drv1 = adp;
-    dev1->si_iosize_max = 256 * DEV_BSIZE;
+    dev = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, &addisk_cdevsw);
+    dev->si_drv1 = adp;
+    dev->si_iosize_max = 256 * DEV_BSIZE;
+    adp->dev1 = dev;
 
-    dev1 = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw,
+    dev = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw,
 		       &fakewddisk_cdevsw);
-    dev1->si_drv1 = adp;
-    dev1->si_iosize_max = 256 * DEV_BSIZE;
+    dev->si_drv1 = adp;
+    dev->si_iosize_max = 256 * DEV_BSIZE;
+    adp->dev2 = dev;
 
     bufq_init(&adp->queue);
+}
+
+void
+ad_detach(struct ata_softc *scp, int32_t device)
+{
+    struct ad_softc *adp = scp->dev_softc[ATA_DEV(device)];
+  
+    disk_invalidate(&adp->disk);
+    disk_destroy(adp->dev1);
+    disk_destroy(adp->dev2);
+    devstat_remove_entry(&adp->stats);
+    ata_free_lun(&adp_lun_map, adp->lun);
+    free(adp, M_AD);
+    scp->dev_softc[ATA_DEV(device)] = NULL;
 }
 
 static int
@@ -300,7 +315,7 @@ addump(dev_t dev)
     }
 
     if (ata_wait(adp->controller, adp->unit, ATA_S_READY | ATA_S_DSC) < 0)
-	printf("addump: timeout waiting for final ready\n");
+	printf("ad%d: timeout waiting for final ready\n", adp->lun);
 
     return 0;
 }
@@ -315,7 +330,7 @@ ad_start(struct ad_softc *adp)
 	return;
 
     if (!(request = malloc(sizeof(struct ad_request), M_AD, M_NOWAIT))) {
-	printf("ad_start: out of memory\n");
+	printf("ad%d: out of memory in start\n", adp->lun);
 	return;
     }
 
@@ -365,7 +380,8 @@ ad_transfer(struct ad_request *request)
 	count = howmany(request->bytecount, DEV_BSIZE);
 	if (count > 256) {
 	    count = 256;
-	    printf("ad%d: count=%d not supported\n", adp->lun, count);
+	    printf("ad%d: count %d size transfers not supported\n",
+		   adp->lun, count);
 	}
 
 	if (adp->flags & AD_F_LBA_ENABLED) {
@@ -406,7 +422,7 @@ ad_transfer(struct ad_request *request)
 
 	if (ata_command(adp->controller, adp->unit, cmd, 
 			cylinder, head, sector, count, 0, ATA_IMMEDIATE)) {
-	    printf("ad%d: wouldn't take transfer command\n", adp->lun);
+	    printf("ad%d: error executing command\n", adp->lun);
 	    return;
 	}
 
@@ -452,7 +468,7 @@ ad_interrupt(struct ad_request *request)
 
     /* get drive status */
     if (ata_wait(adp->controller, adp->unit, 0) < 0)
-	 printf("ad_interrupt: timeout waiting for status");
+	 printf("ad%d: timeout waiting for status", adp->lun);
 
     /* do we have a corrected soft error ? */
     if (adp->controller->status & ATA_S_CORR)
@@ -499,7 +515,7 @@ oops:
 
     /* if we arrived here with forced PIO mode, DMA doesn't work right */
     if (request->flags & AR_F_FORCE_PIO)
-	printf("ad%d: DMA problem, fallback to PIO mode\n", adp->lun);
+	printf("ad%d: DMA problem fallback to PIO mode\n", adp->lun);
 
     /* if this was a PIO read operation, get the data */
     if (!(request->flags & AR_F_DMA_USED) &&
@@ -508,11 +524,11 @@ oops:
 	/* ready to receive data? */
 	if ((adp->controller->status & (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
 	    != (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
-	    printf("ad_interrupt: read interrupt arrived early");
+	    printf("ad%d: read interrupt arrived early", adp->lun);
 
 	if (ata_wait(adp->controller, adp->unit, 
 		     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) != 0) {
-	    printf("ad_interrupt: read error detected late");
+	    printf("ad%d: read error detected late", adp->lun);
 	    goto oops;	 
 	}
 
@@ -574,13 +590,14 @@ ad_timeout(struct ad_request *request)
     int32_t s = splbio();
 
     adp->controller->running = NULL;
-    printf("ad%d: ad_timeout: lost disk contact - resetting\n", adp->lun);
+    printf("ad%d: %s command timeout - resetting\n",
+	   adp->lun, (request->flags & AR_F_READ) ? "READ" : "WRITE");
 
     if (request->flags & AR_F_DMA_USED) {
 	ata_dmadone(adp->controller);
         if (request->retries == AD_MAX_RETRIES) {
 	    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1,-1);
-	    printf("ad%d: ad_timeout: trying fallback to PIO mode\n", adp->lun);
+	    printf("ad%d: trying fallback to PIO mode\n", adp->lun);
 	    request->retries = 0;
 	}
     }

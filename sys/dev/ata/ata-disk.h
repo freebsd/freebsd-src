@@ -47,6 +47,7 @@ struct ad_softc {
     struct buf_queue_head	queue;		/* head of request queue */
     struct devstat		stats;		/* devstat entry */
     struct disk			disk;		/* disklabel/slice stuff */
+    dev_t			dev1, dev2;	/* device place holder */
 };
 
 struct ad_request {
@@ -70,6 +71,7 @@ struct ad_request {
 };
 
 void ad_attach(struct ata_softc *, int32_t);
+void ad_detach(struct ata_softc *, int32_t);
 void ad_transfer(struct ad_request *);
 int32_t ad_interrupt(struct ad_request *);
 void ad_reinit(struct ad_softc *);
