@@ -77,4 +77,3 @@
 #include <dev/vinum/vinumext.h>
 #include <dev/vinum/vinumutil.h>
 #include <machine/cpu.h>
-extern struct cdevsw vinum_cdevsw;
