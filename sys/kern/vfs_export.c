@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.151 1998/04/18 06:26:16 peter Exp $
+ * $Id: vfs_subr.c,v 1.152 1998/04/19 23:32:03 julian Exp $
  */
 
 /*
@@ -2149,9 +2149,13 @@ void
 vfs_unmountall()
 {
 	struct mount *mp, *nmp;
-	struct proc *p = initproc;	/* XXX XXX should this be proc0? */
+	struct proc *p;
 	int error;
 
+	if (curproc != NULL)
+		p = curproc;
+	else
+		p = initproc;	/* XXX XXX should this be proc0? */
 	/*
 	 * Since this only runs when rebooting, it is not interlocked.
 	 */
