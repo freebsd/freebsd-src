@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.80 1996/06/29 09:15:39 davidg Exp $
+ * $Id: vm_pageout.c,v 1.81 1996/07/08 02:25:53 dyson Exp $
  */
 
 /*
@@ -564,7 +564,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 static int
 vm_pageout_scan()
 {
-	vm_page_t m, next, nextnext;
+	vm_page_t m, next;
 	int page_shortage, addl_page_shortage, maxscan, maxlaunder, pcount;
 	int pages_freed;
 	struct proc *p, *bigproc;
@@ -755,22 +755,14 @@ rescan0:
 
 	pcount = cnt.v_active_count;
 	m = TAILQ_FIRST(&vm_page_queue_active);
-	nextnext = NULL;
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
 		int refcount;
 
 		if (m->queue != PQ_ACTIVE) {
-			m = nextnext;
-			if ((m == NULL) || (m->queue != PQ_ACTIVE))
-				break;
+			break;
 		}
 
 		next = TAILQ_NEXT(m, pageq);
-		if (next)
-			nextnext = TAILQ_NEXT(next, pageq);
-		else
-			nextnext = NULL;
-
 		/*
 		 * Don't deactivate pages that are busy.
 		 */
