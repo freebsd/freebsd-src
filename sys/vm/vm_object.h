@@ -174,6 +174,7 @@ extern vm_object_t kmem_object;
 #define	VM_OBJECT_LOCK_ASSERT(object, type) \
 					mtx_assert(&(object)->mtx, (type))
 #define	VM_OBJECT_LOCKED(object)	mtx_owned(&(object)->mtx)
+#define	VM_OBJECT_MTX(object)		(&(object)->mtx)
 #define	VM_OBJECT_UNLOCK(object)	mtx_unlock(&(object)->mtx)
 
 #define	vm_object_lock(object) \
@@ -187,7 +188,6 @@ void vm_object_pip_add(vm_object_t object, short i);
 void vm_object_pip_subtract(vm_object_t object, short i);
 void vm_object_pip_wakeup(vm_object_t object);
 void vm_object_pip_wakeupn(vm_object_t object, short i);
-void vm_object_pip_sleep(vm_object_t object, char *waitid);
 void vm_object_pip_wait(vm_object_t object, char *waitid);
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);

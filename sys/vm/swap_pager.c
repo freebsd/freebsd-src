@@ -428,7 +428,9 @@ swap_pager_dealloc(object)
 	}
 	mtx_unlock(&sw_alloc_mtx);
 
+	VM_OBJECT_LOCK(object);
 	vm_object_pip_wait(object, "swpdea");
+	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * Free all remaining metadata.  We only bother to free it from 
@@ -1775,7 +1777,9 @@ restart:
 	     * We wait on an arbitrary object to clock our rescans
 	     * to the rate of paging completion.
 	     */
+	    VM_OBJECT_LOCK(waitobj);
 	    vm_object_pip_wait(waitobj, "swpoff");
+	    VM_OBJECT_UNLOCK(waitobj);
 	    goto full_rescan;
 	}
 	if (*sw_used)
