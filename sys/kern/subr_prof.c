@@ -178,8 +178,12 @@ kmstartup(dummy)
 	p->kcount = (HISTCOUNTER *)cp;
 	cp += p->kcountsize;
 	p->froms = (u_short *)cp;
+	p->histcounter_type = FUNCTION_ALIGNMENT / HISTFRACTION * NBBY;
 
 #ifdef GUPROF
+	/* Signed counters. */
+	p->histcounter_type = -p->histcounter_type;
+
 	/* Initialize pointers to overhead counters. */
 	p->cputime_count = &KCOUNT(p, PC_TO_I(p, cputime));
 	p->mcount_count = &KCOUNT(p, PC_TO_I(p, mcount));
