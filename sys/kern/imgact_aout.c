@@ -177,14 +177,16 @@ exec_aout_imgact(imgp)
 	/*
 	 * text/data/bss must not exceed limits
 	 */
-	mtx_assert(&Giant, MA_OWNED);
+	PROC_LOCK(imgp->proc);
 	if (/* text can't exceed maximum text size */
 	    a_out->a_text > maxtsiz ||
 
 	    /* data + bss can't exceed rlimit */
-	    a_out->a_data + bss_size >
-		imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
+	    a_out->a_data + bss_size > lim_cur(imgp->proc, RLIMIT_DATA)) {
+			PROC_UNLOCK(imgp->proc);
 			return (ENOMEM);
+	}
+	PROC_UNLOCK(imgp->proc);
 
 	/* copy in arguments and/or environment from old process */
 	error = exec_extract_strings(imgp);

@@ -531,7 +531,7 @@ struct proc {
 	struct filedesc_to_leader *p_fdtol; /* (b) Ptr to tracking node */
 					/* Accumulated stats for all KSEs? */
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
-	struct plimit	*p_limit;	/* (c*) Process limits. */
+	struct plimit	*p_limit;	/* (c) Process limits. */
 	struct vm_object *p_upages_obj; /* (a) Upages object. */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
 	/*
@@ -616,7 +616,6 @@ struct proc {
 	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
 };
 
-#define	p_rlimit	p_limit->pl_rlimit
 #define	p_session	p_pgrp->pg_session
 #define	p_pgid		p_pgrp->pg_id
 

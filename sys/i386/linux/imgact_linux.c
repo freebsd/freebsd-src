@@ -106,10 +106,13 @@ exec_linux_imgact(struct image_params *imgp)
     /*
      * text/data/bss must not exceed limits
      */
-    mtx_assert(&Giant, MA_OWNED);
+    PROC_LOCK(imgp->proc);
     if (a_out->a_text > maxtsiz ||
-	a_out->a_data + bss_size > imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
+	a_out->a_data + bss_size > lim_cur(imgp->proc, RLIMIT_DATA)) {
+	PROC_UNLOCK(imgp->proc);
 	return (ENOMEM);
+    }
+    PROC_UNLOCK(imgp->proc);
 
     VOP_UNLOCK(imgp->vp, 0, td);
 

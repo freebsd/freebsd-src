@@ -390,23 +390,25 @@ osf1_getrlimit(td, uap)
 	struct thread *td;
 	struct osf1_getrlimit_args *uap;
 {
-	struct __getrlimit_args /* {
-		syscallarg(u_int) which;
-		syscallarg(struct rlimit *) rlp;
-	} */ a;
+	struct rlimit bsd_rlim;
+	struct proc *p;
+	int which;
 
 	if (uap->which >= OSF1_RLIMIT_NLIMITS)
 		return (EINVAL);
 
 	if (uap->which <= OSF1_RLIMIT_LASTCOMMON)
-		a.which = uap->which;
+		which = uap->which;
 	else if (uap->which == OSF1_RLIMIT_NOFILE)
-		a.which = RLIMIT_NOFILE;
+		which = RLIMIT_NOFILE;
 	else
 		return (0);
-	a.rlp = (struct rlimit *)uap->rlp;
 
-	return getrlimit(td, &a);
+	p = td->td_proc;
+	PROC_LOCK(p);
+	lim_rlimit(p, which, &bsd_rlim);
+	PROC_UNLOCK(p);
+	return (copyout(&bsd_rlim, uap->rlp, sizeof(bsd_rlim)));
 }
 
 
@@ -415,23 +417,24 @@ osf1_setrlimit(td, uap)
 	struct thread *td;
 	struct osf1_setrlimit_args  *uap;
 {
-	struct __setrlimit_args /* {
-		syscallarg(u_int) which;
-		syscallarg(struct rlimit *) rlp;
-	} */ a;
+	struct rlimit bsd_rlim;
+	int error, which;
 
 	if (uap->which >= OSF1_RLIMIT_NLIMITS)
 		return (EINVAL);
 
 	if (uap->which <= OSF1_RLIMIT_LASTCOMMON)
-		a.which = uap->which;
+		which = uap->which;
 	else if (uap->which == OSF1_RLIMIT_NOFILE)
-		a.which = RLIMIT_NOFILE;
+		which = RLIMIT_NOFILE;
 	else
 		return (0);
-	a.rlp = (struct rlimit *)uap->rlp;
 
-	return setrlimit(td, &a);
+	error = copyin(uap->rlp, &bsd_rlim, sizeof(bsd_rlim));
+	if (error)
+		return (error);
+
+	return (kern_setrlimit(td, which, &bsd_rlim));
 }
 
 

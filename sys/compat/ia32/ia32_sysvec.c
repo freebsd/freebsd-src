@@ -273,50 +273,33 @@ static void
 ia32_fixlimits(struct image_params *imgp)
 {
 	struct proc *p = imgp->proc;
+	struct plimit *oldlim, *newlim;
 
+	if (ia32_maxdsiz == 0 && ia32_maxssiz == 0 && ia32_maxvmem == 0)
+		return;
+	newlim = lim_alloc();
+	PROC_LOCK(p);
+	oldlim = p->p_limit;
+	lim_copy(newlim, oldlim);
 	if (ia32_maxdsiz != 0) {
-		if (p->p_rlimit[RLIMIT_DATA].rlim_cur > ia32_maxdsiz ||
-		    p->p_rlimit[RLIMIT_DATA].rlim_max > ia32_maxdsiz) {
-			if (p->p_limit->p_refcnt > 1) {
-				p->p_limit->p_refcnt--;
-				p->p_limit = limcopy(p->p_limit);
-			}
-			if (p->p_rlimit[RLIMIT_DATA].rlim_cur > ia32_maxdsiz)
-				p->p_rlimit[RLIMIT_DATA].rlim_cur =
-				    ia32_maxdsiz;
-			if (p->p_rlimit[RLIMIT_DATA].rlim_max > ia32_maxdsiz)
-				p->p_rlimit[RLIMIT_DATA].rlim_max =
-				    ia32_maxdsiz;
-		}
+		if (newlim->pl_rlimit[RLIMIT_DATA].rlim_cur > ia32_maxdsiz)
+		    newlim->pl_rlimit[RLIMIT_DATA].rlim_cur = ia32_maxdsiz;
+		if (newlim->pl_rlimit[RLIMIT_DATA].rlim_max > ia32_maxdsiz)
+		    newlim->pl_rlimit[RLIMIT_DATA].rlim_max = ia32_maxdsiz;
 	}
 	if (ia32_maxssiz != 0) {
-		if (p->p_rlimit[RLIMIT_STACK].rlim_cur > ia32_maxssiz ||
-		    p->p_rlimit[RLIMIT_STACK].rlim_max > ia32_maxssiz) {
-			if (p->p_limit->p_refcnt > 1) {
-				p->p_limit->p_refcnt--;
-				p->p_limit = limcopy(p->p_limit);
-			}
-			if (p->p_rlimit[RLIMIT_STACK].rlim_cur > ia32_maxssiz)
-				p->p_rlimit[RLIMIT_STACK].rlim_cur =
-				    ia32_maxssiz;
-			if (p->p_rlimit[RLIMIT_STACK].rlim_max > ia32_maxssiz)
-				p->p_rlimit[RLIMIT_STACK].rlim_max =
-				    ia32_maxssiz;
-		}
+		if (newlim->pl_rlimit[RLIMIT_STACK].rlim_cur > ia32_maxssiz)
+		    newlim->pl_rlimit[RLIMIT_STACK].rlim_cur = ia32_maxssiz;
+		if (newlim->pl_rlimit[RLIMIT_STACK].rlim_max > ia32_maxssiz)
+		    newlim->pl_rlimit[RLIMIT_STACK].rlim_max = ia32_maxssiz;
 	}
 	if (ia32_maxvmem != 0) {
-		if (p->p_rlimit[RLIMIT_VMEM].rlim_cur > ia32_maxvmem ||
-		    p->p_rlimit[RLIMIT_VMEM].rlim_max > ia32_maxvmem) {
-			if (p->p_limit->p_refcnt > 1) {
-				p->p_limit->p_refcnt--;
-				p->p_limit = limcopy(p->p_limit);
-			}
-			if (p->p_rlimit[RLIMIT_VMEM].rlim_cur > ia32_maxvmem)
-				p->p_rlimit[RLIMIT_VMEM].rlim_cur =
-				    ia32_maxvmem;
-			if (p->p_rlimit[RLIMIT_VMEM].rlim_max > ia32_maxvmem)
-				p->p_rlimit[RLIMIT_VMEM].rlim_max =
-				    ia32_maxvmem;
-		}
+		if (newlim->pl_rlimit[RLIMIT_VMEM].rlim_cur > ia32_maxvmem)
+		    newlim->pl_rlimit[RLIMIT_VMEM].rlim_cur = ia32_maxvmem;
+		if (newlim->pl_rlimit[RLIMIT_VMEM].rlim_max > ia32_maxvmem)
+		    newlim->pl_rlimit[RLIMIT_VMEM].rlim_max = ia32_maxvmem;
 	}
+	p->p_limit = newlim;
+	PROC_UNLOCK(p);
+	lim_free(oldlim);
 }

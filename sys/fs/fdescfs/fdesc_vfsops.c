@@ -169,7 +169,9 @@ fdesc_statfs(mp, sbp, td)
 	 * limit is ever reduced below the current number
 	 * of open files... ]
 	 */
-	lim = td->td_proc->p_rlimit[RLIMIT_NOFILE].rlim_cur;
+	PROC_LOCK(td->td_proc);
+	lim = lim_cur(td->td_proc, RLIMIT_NOFILE);
+	PROC_UNLOCK(td->td_proc);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_LOCK(fdp);
 	last = min(fdp->fd_nfiles, lim);
