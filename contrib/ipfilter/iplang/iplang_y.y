@@ -7,6 +7,7 @@
  * to the original author and the contributors.
  *
  * $Id: iplang_y.y,v 2.2 1999/12/04 03:37:04 darrenr Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>
@@ -48,7 +49,7 @@
 #include "ipf.h"
 #include "iplang.h"
 
-#ifndef __NetBSD__
+#if !defined(__NetBSD__) && !defined(__FreeBSD__)
 extern	struct ether_addr *ether_aton __P((char *));
 #endif
 
