@@ -65,9 +65,15 @@
 #define ATOMIC_ASM(NAME, TYPE, OP, V)			\
 	extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
 
+extern int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
+
 #else /* !KLD_MODULE */
 #if defined(SMP)
+#if defined(LOCORE)
+#define	MPLOCKED	lock ;
+#else
 #define MPLOCKED	"lock ; "
+#endif
 #else
 #define MPLOCKED
 #endif
@@ -86,6 +92,62 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 			 : "=m" (*p)			\
 			 :  "0" (*p), "ir" (V)); 	\
 }
+
+/*
+ * Atomic compare and set, used by the mutex functions
+ *
+ * if (*dst == exp) *dst = src (all 32 bit words)
+ *
+ * Returns 0 on failure, non-zero on success
+ */
+
+#if defined(I386_CPU)
+static __inline int
+atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
+{
+	int res = exp;
+
+	__asm __volatile(
+	"	pushfl ;		"
+	"	cli ;			"
+	"	cmpl	%1,%3 ;		"
+	"	jne	1f ;		"
+	"	movl	%2,%3 ;		"
+	"1:				"
+	"       sete	%%al;		"
+	"	movzbl	%%al,%0 ;	"
+	"	popfl ;			"
+	"# atomic_cmpset_int"
+	: "=a" (res)			/* 0 (result) */
+	: "0" (exp),			/* 1 */
+	  "r" (src),			/* 2 */
+	  "m" (*(dst))			/* 3 */
+	: "memory");
+
+	return (res);
+}
+#else /* defined(I386_CPU) */
+static __inline int
+atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
+{
+	int res = exp;
+
+	__asm __volatile (
+	"	" MPLOCKED "		"
+	"	cmpxchgl %2,%3 ;	"
+	"       setz	%%al ;		"
+	"	movzbl	%%al,%0 ;	"
+	"1:				"
+	"# atomic_cmpset_int"
+	: "=a" (res)			/* 0 (result) */
+	: "0" (exp),			/* 1 */
+	  "r" (src),			/* 2 */
+	  "m" (*(dst))			/* 3 */
+	: "memory");				 
+
+	return (res);
+}
+#endif /* defined(I386_CPU) */
 
 #else
 /* gcc <= 2.8 version */
@@ -146,6 +208,16 @@ ATOMIC_ASM(clear,    long,  "andl %1,%0", ~v)
 ATOMIC_ASM(add,	     long,  "addl %1,%0",  v)
 ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
 
+#endif
+
+#ifndef WANT_FUNCTIONS
+static __inline int
+atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
+{
+
+	return (
+	    atomic_cmpset_int((volatile u_int *)dst, (u_int)exp, (u_int)src));
+}
 #endif
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
