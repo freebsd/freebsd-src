@@ -239,10 +239,11 @@ static struct lockit {
 #define FREE_LOCK_INTERLOCKED(lk)
 
 #else /* DEBUG */
-#define NOHOLDER ((struct thread *)-1)
+#define NOHOLDER	((struct thread *)-1)
+#define SPECIAL_FLAG	((struct thread *)-2)
 static struct lockit {
 	int	lkt_spl;
-	struct thread *	lkt_held;
+	struct	thread *lkt_held;
 } lk = { 0, NOHOLDER };
 static int lockcnt;
 
@@ -321,7 +322,7 @@ free_lock_interlocked(lk)
  */
 struct sema {
 	int	value;
-	struct thread *holder;
+	struct	thread *holder;
 	char	*name;
 	int	prio;
 	int	timo;
@@ -3423,7 +3424,6 @@ softdep_disk_write_complete(bp)
 	struct bmsafemap *bmsafemap;
 
 #ifdef DEBUG
-#define SPECIAL_FLAG NOHOLDER-1
 	if (lk.lkt_held != NOHOLDER)
 		panic("softdep_disk_write_complete: lock is held");
 	lk.lkt_held = SPECIAL_FLAG;
