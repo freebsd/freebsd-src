@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.51 1998/04/25 05:19:33 kato Exp $
+ *	$Id: wd.c,v 1.52 1998/05/04 04:55:36 kato Exp $
  */
 
 /* TODO:
@@ -2279,7 +2279,7 @@ failed:
 		else if (wp->wdp_lbasize < 128*63*1024) {	/* <=4.228 GB */
 			du->dk_dd.d_ntracks = 128;
 		}
-		else if (wp->wdp_lbasize < 128*63*1024) {	/* <=8.422 GB */
+		else if (wp->wdp_lbasize < 255*63*1024) {	/* <=8.422 GB */
 			du->dk_dd.d_ntracks = 255;
 		}
 		else {						/* >8.422 GB */
@@ -2298,6 +2298,11 @@ failed:
 			du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
 		du->dk_dd.d_secperunit = 
 			du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
+		if (du->dk_dd.d_secperunit < wp->wdp_lbasize) {
+			du->dk_dd.d_secperunit = wp->wdp_lbasize;
+			du->dk_dd.d_ncylinders = 
+				du->dk_dd.d_secperunit / du->dk_dd.d_secpercyl;
+		}
 	}
 	if (WDOPT_FORCEHD(du->cfg_flags)) {
 		du->dk_dd.d_ntracks = WDOPT_FORCEHD(du->cfg_flags);
