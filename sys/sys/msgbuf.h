@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)msgbuf.h	8.1 (Berkeley) 6/2/93
- * $Id: msgbuf.h,v 1.4 1994/08/21 04:41:54 paul Exp $
+ * $Id: msgbuf.h,v 1.5 1995/03/16 18:16:21 bde Exp $
  */
 
 #ifndef _SYS_MSGBUF_H_
 #define _SYS_MSGBUF_H_
 
-#define	MSG_BSIZE	(4096 - 3 * sizeof(long))
+#define	MSG_BSIZE	(4096 - 3 * sizeof(unsigned int))
 struct	msgbuf {
 #define	MSG_MAGIC	0x063061
-	long	msg_magic;
-	long	msg_bufx;		/* write pointer */
-	long	msg_bufr;		/* read pointer */
-	char	msg_bufc[MSG_BSIZE];	/* buffer */
+	unsigned int	msg_magic;
+	unsigned int	msg_bufx;		/* write pointer */
+	unsigned int	msg_bufr;		/* read pointer */
+	char		msg_bufc[MSG_BSIZE];	/* buffer */
 };
 #ifdef KERNEL
 extern int	msgbufmapped;

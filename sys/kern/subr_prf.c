@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.14 1995/06/14 07:55:07 bde Exp $
+ * $Id: subr_prf.c,v 1.15 1995/08/06 22:00:17 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -504,8 +504,10 @@ putchar(c, flags, tp)
 	if ((flags & TOLOG) &&
 	    c != '\0' && c != '\r' && c != 0177 && msgbufmapped) {
 		mbp = msgbufp;
-		if (mbp->msg_magic != MSG_MAGIC) {
-			bzero((caddr_t)mbp, sizeof(*mbp));
+		if (mbp->msg_magic != MSG_MAGIC ||
+		    mbp->msg_bufx >= MSG_BSIZE ||
+		    mbp->msg_bufr >= MSG_BSIZE) {
+			bzero(mbp, sizeof(struct msgbuf));
 			mbp->msg_magic = MSG_MAGIC;
 		}
 		mbp->msg_bufc[mbp->msg_bufx++] = c;
