@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.40 1997/09/07 05:25:43 bde Exp $
+ * $Id: kern_clock.c,v 1.41 1997/09/21 22:00:07 gibbs Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -696,7 +696,9 @@ void
 softclock()
 {
 	register struct callout *c;
+	register struct callout_tailq *bucket;
 	register int s;
+	register int curticks;
 	register int steps;	/*
 				 * Number of steps taken since
 				 * we last allowed interrupts.
@@ -709,16 +711,22 @@ softclock()
 	steps = 0;
 	s = splhigh();
 	while (softticks != ticks) {
-		c = TAILQ_FIRST(&callwheel[++softticks & callwheelmask]);
+		softticks++;
+		/*
+		 * softticks may be modified by hard clock, so cache
+		 * it while we work on a given bucket.
+		 */
+		curticks = softticks;
+		bucket = &callwheel[curticks & callwheelmask];
+		c = TAILQ_FIRST(bucket);
 		while (c) {
-			if (c->c_time > 0) {
-				c->c_time--;
+			if (c->c_time != curticks) {
 				c = TAILQ_NEXT(c, c_links.tqe);
 				++steps;
 				if (steps >= MAX_SOFTCLOCK_STEPS) {
 					nextsoftcheck = c;
+					/* Give interrupts a chance. */
 					splx(s);
-					/* Give hardclock() a chance. */
 					s = splhigh();
 					c = nextsoftcheck;
 					steps = 0;
@@ -728,7 +736,7 @@ softclock()
 				void *c_arg;
 
 				nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
-				TAILQ_REMOVE(c->c_bucket, c, c_links.tqe);
+				TAILQ_REMOVE(bucket, c, c_links.tqe);
 				c_func = c->c_func;
 				c_arg = c->c_arg;
 				c->c_func = NULL;
@@ -786,9 +794,9 @@ timeout(ftn, arg, to_ticks)
 	SLIST_REMOVE_HEAD(&callfree, c_links.sle);
 	new->c_arg = arg;
 	new->c_func = ftn;
-	new->c_time = to_ticks >> callwheelbits;
-	new->c_bucket = &callwheel[(ticks + to_ticks) & callwheelmask];
-	TAILQ_INSERT_TAIL(new->c_bucket, new, c_links.tqe);
+	new->c_time = ticks + to_ticks;
+	TAILQ_INSERT_TAIL(&callwheel[new->c_time & callwheelmask],
+			  new, c_links.tqe);
 
 	splx(s);
 	handle.callout = new;
@@ -818,7 +826,7 @@ untimeout(ftn, arg, handle)
 		if (nextsoftcheck == handle.callout) {
 			nextsoftcheck = TAILQ_NEXT(handle.callout, c_links.tqe);
 		}
-		TAILQ_REMOVE(handle.callout->c_bucket,
+		TAILQ_REMOVE(&callwheel[handle.callout->c_time & callwheelmask],
 			     handle.callout, c_links.tqe);
 		handle.callout->c_func = NULL;
 		SLIST_INSERT_HEAD(&callfree, handle.callout, c_links.sle);
