@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.141 1996/10/17 16:42:12 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.142 1996/10/19 21:21:33 alex Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -248,7 +248,7 @@
           <item>Johann Tonsing &lt;jtonsing@mikom.csir.co.za&gt;
 	  <item>John Capo &lt;jc@irbs.com&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
-	  <item>John-Mark Gurney &lt;jmg@nike.efn.org&gt;
+	  <item>John-Mark Gurney &lt;gurney_j@efn.org&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
 	  <item>Juha Inkari &lt;inkari@cc.hut.fi&gt;
 	  <item>Julian Jenkins &lt;kaveman@magna.com.au&gt;
