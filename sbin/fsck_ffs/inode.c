@@ -562,7 +562,7 @@ pinode(ino_t ino)
 	printf("MODE=%o\n", DIP(dp, di_mode));
 	if (preen)
 		printf("%s: ", cdevname);
-	printf("SIZE=%qu ", DIP(dp, di_size));
+	printf("SIZE=%ju ", (uintmax_t)DIP(dp, di_size));
 	t = DIP(dp, di_mtime);
 	p = ctime(&t);
 	printf("MTIME=%12.12s %4.4s ", &p[4], &p[20]);
@@ -572,7 +572,7 @@ void
 blkerror(ino_t ino, const char *type, ufs2_daddr_t blk)
 {
 
-	pfatal("%lld %s I=%lu", (intmax_t)blk, type, (u_long)ino);
+	pfatal("%jd %s I=%ju", (intmax_t)blk, type, (uintmax_t)ino);
 	printf("\n");
 	switch (inoinfo(ino)->ino_state) {
 
