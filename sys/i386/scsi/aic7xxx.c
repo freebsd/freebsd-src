@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.16 1997/03/24 05:11:03 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.17 1997/03/24 19:17:33 gibbs Exp $
  */
 /*
  * TODO:
@@ -1646,12 +1646,13 @@ ahc_handle_scsiint(ahc, intstat)
 							   next_scb, links);
 					next_scb->flags |= SCB_WAITINGQ;
 				}
-				scb->xs->error = XS_DRIVER_STUFFUP;
+				scb->xs->error = XS_TIMEOUT;
 				sc_print_addr(scb->xs->sc_link);
 				ahc_done(ahc, scb);
 				scb = NULL;
-			} else
+			} else {
 				printf("%s: ", ahc_name(ahc));
+			}
 			printf("Unexpected busfree.  LASTPHASE == 0x%x\n"
 			       "SEQADDR == 0x%x\n",
 			       lastphase, (ahc_inb(ahc, SEQADDR1) << 8)
@@ -2934,17 +2935,7 @@ ahc_timeout(arg)
 		 * Some other SCB has started a recovery operation
 		 * and is still working on cleaning things up.
 		 */
-		if (scb->flags & SCB_TIMEDOUT) {
-			/*
-			 * This SCB has been here before and is not the
-			 * recovery SCB. Cut our losses and panic.  Its
-			 * better to do this than trash a filesystem.
-			 */
-			sc_print_addr(scb->xs->sc_link);
-			panic("%s: Timed-out command times out "
-			      "again.  SCB = 0x%x\n", ahc_name(ahc),
-			      scb->hscb->tag);
-		} else if ((scb->flags & SCB_RECOVERY_SCB) == 0) {
+		if ((scb->flags & SCB_RECOVERY_SCB) == 0) {
 			/*
 			 * This is not the SCB that started this timeout
 			 * processing.  Give this scb another lifetime so
@@ -3038,7 +3029,7 @@ bus_reset:
 				    SELBUSB : 0)));
 		scb->flags |= SCB_SENTORDEREDTAG|SCB_RECOVERY_SCB;
 		ahc->orderedtag |= mask;
-		timeout(ahc_timeout, (caddr_t)scb, (1 * hz));
+		timeout(ahc_timeout, (caddr_t)scb, (5 * hz));
 		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		printf("Ordered Tag queued\n");
 	} else {
