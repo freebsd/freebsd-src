@@ -51,13 +51,18 @@ AcpiOsTerminate(void)
 }
 
 ACPI_STATUS
-AcpiOsGetRootPointer(UINT32 Flags, ACPI_PHYSICAL_ADDRESS *RsdpPhysicalAddress)
+AcpiOsGetRootPointer(UINT32 Flags, ACPI_POINTER *RsdpAddress)
 {
 
-	if (ia64_efi_acpi20_table)
-		*RsdpPhysicalAddress = ia64_efi_acpi20_table;
-	else if (ia64_efi_acpi_table)
-		*RsdpPhysicalAddress = ia64_efi_acpi_table;
+	if (ia64_efi_acpi20_table) {
+		RsdpAddress->PointerType = ACPI_PHYSICAL_POINTER;
+		RsdpAddress->Pointer.Physical = ia64_efi_acpi20_table;
+
+	}
+	else if (ia64_efi_acpi_table) {
+		RsdpAddress->PointerType = ACPI_PHYSICAL_POINTER;
+		RsdpAddress->Pointer.Physical = ia64_efi_acpi_table;
+	}
 	else
 		return(AE_NOT_FOUND);
 

@@ -56,7 +56,7 @@ AcpiOsTerminate(void)
 ACPI_STATUS
 AcpiOsGetRootPointer(
     UINT32			Flags,
-    ACPI_PHYSICAL_ADDRESS	*RsdpPhysicalAddress)
+    ACPI_POINTER         	*RsdpPhysicalAddress)
 {
     /*
      * The loader passes the physical address at which it found the

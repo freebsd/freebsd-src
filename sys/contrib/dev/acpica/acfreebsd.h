@@ -139,6 +139,11 @@
 #define asm         __asm
 #define __cli()     disable_intr()
 #define __sti()     enable_intr()
+#ifdef __i386__
+#define ACPI_FLUSH_CPU_CACHE()	wbinvd()
+#else
+#define ACPI_FLUSH_CPU_CACHE()	/* XXX ia64_fc()? */
+#endif
 
 #ifdef ACPI_DEBUG
 #ifdef DEBUGGER_THREADING
@@ -158,6 +163,7 @@
 
 #define __cli()
 #define __sti()
+#define ACPI_FLUSH_CPU_CACHE()
 
 #endif /* _KERNEL */
 

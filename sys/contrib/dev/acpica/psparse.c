@@ -319,7 +319,7 @@ AcpiPsCompleteThisOp (
 
                 /*
                  * These opcodes contain TermArg operands.  The current
-                 * op must be replace by a placeholder return op
+                 * op must be replaced by a placeholder return op
                  */
                 ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
                 if (!ReplacementOp)
@@ -332,15 +332,39 @@ AcpiPsCompleteThisOp (
 
                 /*
                  * These opcodes contain TermArg operands.  The current
-                 * op must be replace by a placeholder return op
+                 * op must be replaced by a placeholder return op
                  */
-                if ((Op->Parent->Opcode == AML_REGION_OP)               ||
-                    (Op->Parent->Opcode == AML_DATA_REGION_OP))
+                if ((Op->Parent->Opcode == AML_REGION_OP)       ||
+                    (Op->Parent->Opcode == AML_DATA_REGION_OP)  ||
+                    (Op->Parent->Opcode == AML_BUFFER_OP)       ||
+                    (Op->Parent->Opcode == AML_PACKAGE_OP)      ||
+                    (Op->Parent->Opcode == AML_VAR_PACKAGE_OP))
                 {
                     ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
                     if (!ReplacementOp)
                     {
                         return_VALUE (FALSE);
+                    }
+                }
+
+                if ((Op->Parent->Opcode == AML_NAME_OP) &&
+                    (WalkState->DescendingCallback != AcpiDsExecBeginOp))
+
+                {
+                    if ((Op->Opcode == AML_BUFFER_OP) ||
+                        (Op->Opcode == AML_PACKAGE_OP) ||
+                        (Op->Opcode == AML_VAR_PACKAGE_OP))
+                    {
+                        ReplacementOp = AcpiPsAllocOp (Op->Opcode);
+                        if (!ReplacementOp)
+                        {
+                            return_VALUE (FALSE);
+                        }
+
+                        ((ACPI_PARSE2_OBJECT *) ReplacementOp)->Data = 
+                            ((ACPI_PARSE2_OBJECT *) Op)->Data;
+                        ((ACPI_PARSE2_OBJECT *) ReplacementOp)->Length = 
+                            ((ACPI_PARSE2_OBJECT *) Op)->Length;
                     }
                 }
                 break;
@@ -364,6 +388,7 @@ AcpiPsCompleteThisOp (
                 {
                     ReplacementOp->Parent    = Op->Parent;
                     ReplacementOp->Value.Arg = NULL;
+                    ReplacementOp->Node      = Op->Node;
                     Op->Parent->Value.Arg    = ReplacementOp;
                     ReplacementOp->Next      = Op->Next;
                 }
@@ -384,10 +409,11 @@ AcpiPsCompleteThisOp (
                 {
                     if (ReplacementOp)
                     {
-                        ReplacementOp->Parent = Op->Parent;
+                        ReplacementOp->Parent    = Op->Parent;
                         ReplacementOp->Value.Arg = NULL;
-                        Prev->Next = ReplacementOp;
-                        ReplacementOp->Next = Op->Next;
+                        ReplacementOp->Node      = Op->Node;
+                        Prev->Next               = ReplacementOp;
+                        ReplacementOp->Next      = Op->Next;
                         Next = NULL;
                     }
                     else
@@ -422,9 +448,10 @@ AcpiPsCompleteThisOp (
  *
  * PARAMETERS:  ParserState         - Current parser state object
  *
- * RETURN:
+ * RETURN:      Status
  *
- * DESCRIPTION:
+ * DESCRIPTION: Update the parser state based upon the return exception from
+ *              the parser callback.
  *
  ******************************************************************************/
 
@@ -553,7 +580,7 @@ AcpiPsParseLoop (
     ACPI_PARSE_OBJECT       *Arg = NULL;
     ACPI_PARSE_OBJECT       PreOp;
     ACPI_PARSE_STATE        *ParserState;
-    UINT8                   *AmlOpStart;
+    UINT8                   *AmlOpStart = NULL;
 
 
     ACPI_FUNCTION_TRACE_PTR ("PsParseLoop", WalkState);
@@ -580,7 +607,6 @@ AcpiPsParseLoop (
                 (WalkState->ControlState->Common.State ==
                     ACPI_CONTROL_PREDICATE_EXECUTING))
             {
-
                 /*
                  * A predicate was just completed, get the value of the
                  * predicate and branch based on that value
@@ -608,7 +634,6 @@ AcpiPsParseLoop (
             AcpiPsPopScope (ParserState, &Op, &WalkState->ArgTypes, &WalkState->ArgCount);
             ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Popped scope, Op=%p\n", Op));
         }
-
         else if (WalkState->PrevOp)
         {
             /* We were in the middle of an op */
@@ -656,8 +681,8 @@ AcpiPsParseLoop (
                 /* The opcode is unrecognized.  Just skip unknown opcodes */
 
                 ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                    "Found unknown opcode %X at AML offset %X, ignoring\n",
-                    WalkState->Opcode, WalkState->AmlOffset));
+                    "Found unknown opcode %X at AML address %p offset %X, ignoring\n",
+                    WalkState->Opcode, ParserState->Aml, WalkState->AmlOffset));
 
                 ACPI_DUMP_BUFFER (ParserState->Aml, 128);
 
@@ -673,9 +698,7 @@ AcpiPsParseLoop (
                 ParserState->Aml += AcpiPsGetOpcodeSize (WalkState->Opcode);
                 WalkState->ArgTypes = WalkState->OpInfo->ParseArgs;
                 break;
-
             }
-
 
             /* Create Op structure and append to parent's argument list */
 
@@ -692,7 +715,6 @@ AcpiPsParseLoop (
                     AcpiPsAppendArg (&PreOp, Arg);
                     INCREMENT_ARG_LIST (WalkState->ArgTypes);
                 }
-
 
                 /* We know that this arg is a name, move to next arg */
 
@@ -753,7 +775,6 @@ AcpiPsParseLoop (
                     ((ACPI_PARSE2_OBJECT * ) Op)->Length  = 0;
                 }
             }
-
             else
             {
                 /* Not a named opcode, just allocate Op and append to parent */
@@ -817,7 +838,7 @@ AcpiPsParseLoop (
 
         if (WalkState->ArgTypes)   /* Are there any arguments that must be processed? */
         {
-            /* get arguments */
+            /* Get arguments */
 
             switch (Op->Opcode)
             {
@@ -827,7 +848,7 @@ AcpiPsParseLoop (
             case AML_QWORD_OP:      /* AML_QWORDATA_ARG */
             case AML_STRING_OP:     /* AML_ASCIICHARLIST_ARG */
 
-                /* fill in constant or string argument directly */
+                /* Fill in constant or string argument directly */
 
                 AcpiPsGetNextSimpleArg (ParserState,
                                         GET_CURRENT_ARG_TYPE (WalkState->ArgTypes), Op);
@@ -859,10 +880,12 @@ AcpiPsParseLoop (
                     INCREMENT_ARG_LIST (WalkState->ArgTypes);
                 }
 
-                /* For a method, save the length and address of the body */
-
-                if (Op->Opcode == AML_METHOD_OP)
+                switch (Op->Opcode)
                 {
+                case AML_METHOD_OP:
+
+                    /* For a method, save the length and address of the body */
+
                     /*
                      * Skip parsing of control method or opregion body,
                      * because we don't have enough info in the first pass
@@ -871,7 +894,6 @@ AcpiPsParseLoop (
                     ((ACPI_PARSE2_OBJECT * ) Op)->Data   = ParserState->Aml;
                     ((ACPI_PARSE2_OBJECT * ) Op)->Length = (UINT32) (ParserState->PkgEnd -
                                                                      ParserState->Aml);
-
                     /*
                      * Skip body of method.  For OpRegions, we must continue
                      * parsing because the opregion is not a standalone
@@ -879,18 +901,43 @@ AcpiPsParseLoop (
                      */
                     ParserState->Aml    = ParserState->PkgEnd;
                     WalkState->ArgCount = 0;
-                }
-                else if (Op->Opcode == AML_WHILE_OP)
-                {
+                    break;
+
+                case AML_BUFFER_OP:
+                case AML_PACKAGE_OP:
+                case AML_VAR_PACKAGE_OP:
+
+                    if ((Op->Parent) &&
+                        (Op->Parent->Opcode == AML_NAME_OP) &&
+                        (WalkState->DescendingCallback != AcpiDsExecBeginOp))
+                    {
+                        /*
+                         * Skip parsing of 
+                         * because we don't have enough info in the first pass
+                         * to parse them correctly.
+                         */
+                        ((ACPI_PARSE2_OBJECT * ) Op)->Data   = AmlOpStart;
+                        ((ACPI_PARSE2_OBJECT * ) Op)->Length = (UINT32) (ParserState->PkgEnd -
+                                                                         AmlOpStart);
+                        /*
+                         * Skip body
+                         */
+                        ParserState->Aml    = ParserState->PkgEnd;
+                        WalkState->ArgCount = 0;
+                    }
+                    break;
+
+                case AML_WHILE_OP:
+
                     if (WalkState->ControlState)
                     {
                         WalkState->ControlState->Control.PackageEnd = ParserState->PkgEnd;
                     }
+                    break;
                 }
                 break;
             }
         }
-
 
         /* Check for arguments that need to be processed */
 
@@ -902,7 +949,6 @@ AcpiPsParseLoop (
             Op = NULL;
             continue;
         }
-
 
         /* All arguments have been processed -- Op is complete, prepare for next */
 
