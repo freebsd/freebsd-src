@@ -1359,7 +1359,7 @@ securelevel_ge(struct ucred *cr, int level)
  *             u1 may equal u2, in which case only one reference is required
  */
 int
-u_cansee(struct ucred *u1, struct ucred *u2)
+cr_cansee(struct ucred *u1, struct ucred *u2)
 {
 	int error;
 
@@ -1384,8 +1384,8 @@ int
 p_cansee(struct proc *p1, struct proc *p2)
 {
 
-	/* Wrap u_cansee() for all functionality. */
-	return (u_cansee(p1->p_ucred, p2->p_ucred));
+	/* Wrap cr_cansee() for all functionality. */
+	return (cr_cansee(p1->p_ucred, p2->p_ucred));
 }
 
 /*-
