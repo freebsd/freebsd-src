@@ -207,7 +207,7 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 			    acpi_state, device_get_nameunit(child),
 			    AcpiFormatException(status));
 	}
-	if (state > old_state)
+	if (old_state > state)
 		return (pci_set_powerstate_method(dev, child, state));
 	else
 		return (0);
