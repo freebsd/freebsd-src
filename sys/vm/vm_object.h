@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.44 1998/01/31 11:56:43 dyson Exp $
+ * $Id: vm_object.h,v 1.45 1998/02/05 03:32:45 dyson Exp $
  */
 
 /*
@@ -162,6 +162,28 @@ vm_object_pip_wakeup(vm_object_t object)
 		object->flags &= ~OBJ_PIPWNT;
 		wakeup(object);
 	}
+}
+
+static __inline void
+vm_object_pip_sleep(vm_object_t object, char *waitid)
+{
+	int s;
+
+	if (object->paging_in_progress) {
+		s = splvm();
+		if (object->paging_in_progress) {
+			object->flags |= OBJ_PIPWNT;
+			tsleep(object, PVM, waitid, 0);
+		}
+		splx(s);
+	}
+}
+
+static __inline void
+vm_object_pip_wait(vm_object_t object, char *waitid)
+{
+	while (object->paging_in_progress)
+		vm_object_pip_sleep(object, waitid);
 }
 
 vm_object_t vm_object_allocate __P((objtype_t, vm_size_t));

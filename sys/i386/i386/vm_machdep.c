@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.99 1998/02/06 12:13:11 eivind Exp $
+ *	$Id: vm_machdep.c,v 1.100 1998/02/13 05:30:18 bde Exp $
  */
 
 #include "npx.h"
@@ -53,6 +53,8 @@
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -913,6 +915,11 @@ grow(p, sp)
 	return (1);
 }
 
+
+int cnt_prezero;
+
+SYSCTL_INT(_machdep, OID_AUTO, cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
+
 /*
  * Implement the pre-zeroed page mechanism.
  * This routine is called from the idle loop.
@@ -924,10 +931,6 @@ vm_page_zero_idle()
 	vm_page_t m;
 	int s;
 
-#ifdef WRONG
-	if (cnt.v_free_count <= cnt.v_interrupt_free_min) 
-		return (0);
-#endif
 	/*
 	 * XXX
 	 * We stop zeroing pages when there are sufficent prezeroed pages.
@@ -944,36 +947,39 @@ vm_page_zero_idle()
 	if (cnt.v_free_count - vm_page_zero_count <= cnt.v_free_reserved / 2)
 		return (0);
 #ifdef SMP
-	get_mplock();
+	if (try_mplock()) {
 #endif
-	s = splvm();
-	enable_intr();
-	m = vm_page_list_find(PQ_FREE, free_rover);
-	if (m != NULL) {
-		--(*vm_page_queues[m->queue].lcnt);
-		TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
-		m->queue = PQ_NONE;
+		s = splvm();
+		enable_intr();
+		m = vm_page_list_find(PQ_FREE, free_rover);
+		if (m != NULL) {
+			--(*vm_page_queues[m->queue].lcnt);
+			TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
+			m->queue = PQ_NONE;
+			splx(s);
+#if 0
+			rel_mplock();
+#endif
+			pmap_zero_page(VM_PAGE_TO_PHYS(m));
+#ifdef 0
+			get_mplock();
+#endif
+			(void)splvm();
+			m->queue = PQ_ZERO + m->pc;
+			++(*vm_page_queues[m->queue].lcnt);
+			TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m, pageq);
+			free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
+			++vm_page_zero_count;
+			++cnt_prezero;
+		}
 		splx(s);
+		disable_intr();
 #ifdef SMP
 		rel_mplock();
-#endif
-		pmap_zero_page(VM_PAGE_TO_PHYS(m));
-#ifdef SMP
-		get_mplock();
-#endif
-		(void)splvm();
-		m->queue = PQ_ZERO + m->pc;
-		++(*vm_page_queues[m->queue].lcnt);
-		TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m, pageq);
-		free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
-		++vm_page_zero_count;
+		return (1);
 	}
-	splx(s);
-	disable_intr();
-#ifdef SMP
-	rel_mplock();
 #endif
-	return (1);
+	return (0);
 }
 
 /*

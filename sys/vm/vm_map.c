@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.115 1998/02/20 13:11:54 bde Exp $
+ * $Id: vm_map.c,v 1.116 1998/02/23 08:22:33 dyson Exp $
  */
 
 /*
@@ -2632,12 +2632,7 @@ vm_freeze_copyopts(object, froma, toa)
 
 		vm_object_reference(robject);
 
-		s = splvm();
-		while (robject->paging_in_progress) {
-			robject->flags |= OBJ_PIPWNT;
-			tsleep(robject, PVM, "objfrz", 0);
-		}
-		splx(s);
+		vm_object_pip_wait(robject, "objfrz");
 
 		if (robject->ref_count == 1) {
 			vm_object_deallocate(robject);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.18 1997/02/22 09:48:08 peter Exp $
+ *	$Id: swap_pager.h,v 1.19 1998/02/23 08:22:27 dyson Exp $
  */
 
 /*
@@ -78,6 +78,7 @@ void swap_pager_copy __P((vm_object_t, vm_pindex_t, vm_object_t,
 void swap_pager_freespace __P((vm_object_t, vm_pindex_t, vm_size_t));
 void swap_pager_dmzspace __P((vm_object_t, vm_pindex_t, vm_size_t));
 void swap_pager_swap_init __P((void));
+void swap_pager_sync __P((void));
 #endif
 
 #endif				/* _SWAP_PAGER_ */
