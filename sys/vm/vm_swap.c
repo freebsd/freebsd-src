@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.16 1995/05/12 03:54:59 phk Exp $
+ * $Id: vm_swap.c,v 1.17 1995/05/14 03:00:10 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@
 #endif
 static struct swdevt should_be_malloced[NSWAPDEV];
 struct swdevt *swdevt = should_be_malloced;
-int nswap;
+int nswap;			/* first block after the interleaved devs */
 int nswdev = NSWAPDEV;
 int vm_swap_size;
 int bswneeded;
@@ -73,12 +73,6 @@ swstrategy(bp)
 	struct vnode *vp;
 
 	sz = howmany(bp->b_bcount, DEV_BSIZE);
-	if (bp->b_blkno + sz > nswap) {
-		bp->b_error = EINVAL;
-		bp->b_flags |= B_ERROR;
-		biodone(bp);
-		return;
-	}
 	if (nswdev > 1) {
 		off = bp->b_blkno % dmmax;
 		if (off + sz > dmmax) {
@@ -94,6 +88,12 @@ swstrategy(bp)
 	} else
 		index = 0;
 	sp = &swdevt[index];
+	if (bp->b_blkno + sz > sp->sw_nblks) {
+		bp->b_error = EINVAL;
+		bp->b_flags |= B_ERROR;
+		biodone(bp);
+		return;
+	}
 	if ((bp->b_dev = sp->sw_dev) == NODEV)
 		panic("swstrategy");
 	if (sp->sw_vp == NULL) {
@@ -241,17 +241,11 @@ swaponvp(p, vp, dev, nblks)
 	sp->sw_nblks = nblks;
 
 	if (nblks * nswdev > nswap)
-		nswap = nblks * nswdev;
+		nswap = (nblks+1) * nswdev;
 
 	for (dvbase = dmmax; dvbase < nblks; dvbase += dmmax) {
-		blk = nblks - dvbase;
-
-		if ((vsbase = index * dmmax + dvbase * nswdev) >= nswap)
-			panic("swfree");
-		if (blk > dmmax)
-			blk = dmmax;
-		/* XXX -- we need to exclude the first cluster as above */
-		/* but for now, this will work fine... */
+		blk = min(nblks - dvbase,dmmax);
+		vsbase = index * dmmax + dvbase * nswdev;
 		rlist_free(&swaplist, vsbase, vsbase + blk - 1);
 		vm_swap_size += blk;
 	}
