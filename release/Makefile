@@ -776,7 +776,6 @@ doMFSKERN:
 .endif
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
 .if ${MACHINE_ARCH} == "i386"
 	@echo "-P" >> ${RD}/image.${FSIMAGE}/boot.config
 .endif
@@ -786,7 +785,6 @@ doMFSKERN:
 	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 .endif
 	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
-	@touch ${RD}/image.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
 .if defined(BIGBOOT)
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
