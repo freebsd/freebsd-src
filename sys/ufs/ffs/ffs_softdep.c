@@ -3281,14 +3281,13 @@ softdep_disk_io_initiation(bp)
 	 * We only care about write operations. There should never
 	 * be dependencies for reads.
 	 */
-	if (bp->b_iocmd == BIO_READ)
-		panic("softdep_disk_io_initiation: read");
+	if (bp->b_iocmd != BIO_WRITE)
+		panic("softdep_disk_io_initiation: not write");
 	ACQUIRE_LOCK(&lk);
 	/*
 	 * Do any necessary pre-I/O processing.
 	 */
-	for (wk = LIST_FIRST(&bp->b_dep); wk; wk = nextwk) {
-		nextwk = LIST_NEXT(wk, wk_list);
+	LIST_FOREACH_SAFE(wk, &bp->b_dep, wk_list, nextwk) {
 		switch (wk->wk_type) {
 
 		case D_PAGEDEP:
