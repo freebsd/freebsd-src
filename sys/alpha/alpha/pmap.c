@@ -1070,7 +1070,11 @@ _pmap_allocpte(pmap, ptepindex)
 	 */
 	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
+		PMAP_UNLOCK(pmap);
+		vm_page_unlock_queues();
 		VM_WAIT;
+		vm_page_lock_queues();
+		PMAP_LOCK(pmap);
 
 		/*
 		 * Indicate the need to retry.  While waiting, the page table
@@ -1107,10 +1111,8 @@ _pmap_allocpte(pmap, ptepindex)
 		pt_entry_t* l2map;
 		if (!pmap_pte_v(l1pte)) {
 			if (_pmap_allocpte(pmap, NUSERLEV3MAPS + l1index) == NULL) {
-				vm_page_lock_queues();
 				vm_page_unhold(m);
 				vm_page_free(m);
-				vm_page_unlock_queues();
 				return (NULL);
 			}
 		} else {
@@ -1402,11 +1404,11 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 	pv->pv_pmap = pmap;
 	pv->pv_ptem = mpte;
 
-	vm_page_lock_queues();
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count++;
-	vm_page_unlock_queues();
 }
 
 /*
@@ -1697,6 +1699,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 #endif
 
 	mpte = NULL;
+
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
+
 	/*
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
@@ -1762,11 +1768,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if (opa) {
 		int err;
-		vm_page_lock_queues();
-		PMAP_LOCK(pmap);
 		err = pmap_remove_pte(pmap, pte, va);
-		PMAP_UNLOCK(pmap);
-		vm_page_unlock_queues();
 		if (err)
 			panic("pmap_enter: pte vanished, va: 0x%lx", va);
 	}
@@ -1820,6 +1822,8 @@ validate:
 		if (prot & VM_PROT_EXECUTE)
 			alpha_pal_imb();
 	}
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -1838,6 +1842,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 	register pt_entry_t *pte;
 	int managed;
+
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
 
 	/*
 	 * In the case that a page table page is not
@@ -1892,12 +1899,10 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	pte = vtopte(va);
 	if (*pte) {
 		if (mpte != NULL) {
-			vm_page_lock_queues();
 			pmap_unwire_pte_hold(pmap, va, mpte);
-			vm_page_unlock_queues();
+			mpte = NULL;
 		}
-		alpha_pal_imb();		/* XXX overkill? */
-		return 0;
+		goto out;
 	}
 
 	/*
@@ -1920,8 +1925,10 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	 * Now validate mapping with RO protection
 	 */
 	*pte = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m)) | PG_V | PG_KRE | PG_URE | managed;
-
+out:
 	alpha_pal_imb();			/* XXX overkill? */
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pmap);
 	return mpte;
 }
 
