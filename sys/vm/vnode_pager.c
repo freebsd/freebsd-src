@@ -69,6 +69,7 @@
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
+static void vnode_pager_init __P((void));
 static vm_offset_t vnode_pager_addr __P((struct vnode *vp, vm_ooffset_t address,
 					 int *run));
 static void vnode_pager_iodone __P((struct buf *bp));
@@ -80,7 +81,7 @@ static void vnode_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, 
 static boolean_t vnode_pager_haspage __P((vm_object_t, vm_pindex_t, int *, int *));
 
 struct pagerops vnodepagerops = {
-	NULL,
+	vnode_pager_init,
 	vnode_pager_alloc,
 	vnode_pager_dealloc,
 	vnode_pager_getpages,
@@ -89,8 +90,14 @@ struct pagerops vnodepagerops = {
 	NULL
 };
 
-int vnode_pbuf_freecnt = -1;	/* start out unlimited */
+int vnode_pbuf_freecnt;
 
+void
+vnode_pager_init(void)
+{
+
+	vnode_pbuf_freecnt = nswbuf / 2 + 1;
+}
 
 /*
  * Allocate (or lookup) pager for a vnode.
@@ -109,13 +116,6 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 */
 	if (handle == NULL)
 		return (NULL);
-
-	/*
-	 * XXX hack - This initialization should be put somewhere else.
-	 */
-	if (vnode_pbuf_freecnt < 0) {
-	    vnode_pbuf_freecnt = nswbuf / 2 + 1;
-	}
 
 	vp = (struct vnode *) handle;
 
