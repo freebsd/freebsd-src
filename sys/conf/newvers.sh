@@ -81,8 +81,8 @@ then
 fi
 
 touch version
-u=`/usr/bin/logname`
-v=`cat version` u=${u:-root} d=`pwd` h=${HOSTNAME-`hostname`} t=`date`
+USER=${USER-`logname`}
+v=`cat version` u=${USER-root} d=`pwd` h=${HOSTNAME-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 cat << EOF > vers.c
 $COPYRIGHT
