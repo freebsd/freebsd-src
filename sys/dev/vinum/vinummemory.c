@@ -88,6 +88,19 @@ LongJmp(jmp_buf buf, int retval)
 	panic("Invalid longjmp");
     longjmp(buf, retval);
 }
+
+/* find the base name of a path name */
+char *
+basename(char *file)
+{
+    char *f = rindex(file, '/');			    /* chop off dirname if present */
+
+    if (f == NULL)
+	return file;
+    else
+	return ++f;					    /* skip the / */
+}
+
 #else
 #define LongJmp longjmp					    /* just use the kernel function */
 #endif
@@ -145,12 +158,8 @@ MMalloc(int size, char *file, int line)
 		Debugger("Malloc overlap");
 	}
 	if (result) {
-	    char *f = rindex(file, '/');		    /* chop off dirname if present */
+	    char *f = basename(file);
 
-	    if (f == NULL)
-		f = file;
-	    else
-		f++;					    /* skip the / */
 	    i = malloccount++;
 	    total_malloced += size;
 	    microtime(&malloced[i].time);
