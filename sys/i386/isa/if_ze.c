@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.18 1995/07/25 22:18:55 bde Exp $
+ * $Id: if_ze.c,v 1.19 1995/08/16 16:12:35 bde Exp $
  */
 
 #include "ze.h"
@@ -90,7 +90,7 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
-#include <i386/isa/if_zereg.h>
+#include <i386/isa/if_edreg.h>
 #include <i386/isa/pcic.h>
 
 #include "apm.h"
@@ -398,12 +398,12 @@ ze_probe(isa_dev)
 	sc->memwidth = 16;
 
 	/* allocate 1 xmit buffer */
-	sc->smem_ring = sc->smem_start + (ZE_PAGE_SIZE * ZE_TXBUF_SIZE);
+	sc->smem_ring = sc->smem_start + (ED_PAGE_SIZE * ED_TXBUF_SIZE);
 	sc->txb_cnt = 1;
-	sc->rec_page_start = ZE_TXBUF_SIZE + ZE_PAGE_OFFSET;
+	sc->rec_page_start = ED_TXBUF_SIZE + ZE_PAGE_OFFSET;
 	sc->smem_size = memsize;
 	sc->smem_end = sc->smem_start + memsize;
-	sc->rec_page_stop = memsize / ZE_PAGE_SIZE + ZE_PAGE_OFFSET;
+	sc->rec_page_stop = memsize / ED_PAGE_SIZE + ZE_PAGE_OFFSET;
 	sc->tx_page_start = ZE_PAGE_OFFSET;
 
 	/* get station address */
@@ -612,15 +612,7 @@ ze_attach(isa_dev)
 	ifp->if_reset = ze_reset;
 	ifp->if_watchdog = ze_watchdog;
 
-	/*
-	 * Set default state for IIF_LINK0 flag (used to disable the tranceiver
-	 *	for AUI operation), based on compile-time config option.
-	 */
-	if (isa_dev->id_flags & ZE_FLAGS_DISABLE_TRANCEIVER)
-		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS
-			| IFF_LINK0);
-	else
-		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS);
+	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS);
 
 	/*
 	 * Attach the interface
@@ -653,11 +645,10 @@ ze_attach(isa_dev)
 	/*
 	 * Print additional info when attached
 	 */
-	printf("ze%d: address %s, type %s (%dbit)%s, MAU %s\n",
+	printf("ze%d: address %s, type %s (%dbit), MAU %s\n",
 	       isa_dev->id_unit,
 	       ether_sprintf(sc->arpcom.ac_enaddr), sc->type_str,
 	       sc->memwidth,
-	       (ifp->if_flags & IFF_LINK0 ? " [tranceiver disabled]" : ""),
 	       sc->mau);
 
 	/*
@@ -716,14 +707,14 @@ ze_stop(unit)
 	/*
 	 * Stop everything on the interface, and select page 0 registers.
 	 */
-	outb(sc->nic_addr + ZE_P0_CR, ZE_CR_RD2|ZE_CR_STP);
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STP);
 
 	/*
 	 * Wait for interface to enter stopped state, but limit # of checks
 	 *	to 'n' (about 5ms). It shouldn't even take 5us on modern
 	 *	DS8390's, but just in case it's an old one.
 	 */
-	while (((inb(sc->nic_addr + ZE_P0_ISR) & ZE_ISR_RST) == 0) && --n);
+	while (((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) == 0) && --n);
 	pcic_power_off(sc->slot);
 
 }
@@ -744,18 +735,18 @@ ze_watchdog(unit)
     if(!(sc->arpcom.ac_if.if_flags & IFF_UP))
 	return;
     /* select page zero */
-    outb (sc->nic_addr + ZE_P0_CR,
-	  (inb (sc->nic_addr + ZE_P0_CR) & 0x3f) | ZE_CR_PAGE_0);
+    outb (sc->nic_addr + ED_P0_CR,
+	  (inb (sc->nic_addr + ED_P0_CR) & 0x3f) | ED_CR_PAGE_0);
 
     /* read interrupt status register */
-    isr = inb (sc->nic_addr + ZE_P0_ISR) & 0xff;
+    isr = inb (sc->nic_addr + ED_P0_ISR) & 0xff;
 
     /* select page two */
-    outb (sc->nic_addr + ZE_P0_CR,
-	  (inb (sc->nic_addr + ZE_P0_CR) & 0x3f) | ZE_CR_PAGE_2);
+    outb (sc->nic_addr + ED_P0_CR,
+	  (inb (sc->nic_addr + ED_P0_CR) & 0x3f) | ED_CR_PAGE_2);
 
     /* read interrupt mask register */
-    imr = inb (sc->nic_addr + ZE_P2_IMR) & 0xff;
+    imr = inb (sc->nic_addr + ED_P2_IMR) & 0xff;
 
     imask = inb(IO_ICU2) << 8 | inb(IO_ICU1);
 
@@ -809,54 +800,54 @@ ze_init(unit)
 	/*
 	 * Set interface for page 0, Remote DMA complete, Stopped
 	 */
-	outb(sc->nic_addr + ZE_P0_CR, ZE_CR_RD2|ZE_CR_STP);
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STP);
 
 	if (sc->memwidth == 16) {
 		/*
 		 * Set FIFO threshold to 8, No auto-init Remote DMA,
 		 *	byte order=80x86, word-wide DMA xfers
 		 */
-		outb(sc->nic_addr + ZE_P0_DCR, ZE_DCR_FT1|ZE_DCR_WTS);
+		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_FT1|ED_DCR_WTS);
 	} else {
 		/*
 		 * Same as above, but byte-wide DMA xfers
 		 */
-		outb(sc->nic_addr + ZE_P0_DCR, ZE_DCR_FT1);
+		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_FT1);
 	}
 
 	/*
 	 * Clear Remote Byte Count Registers
 	 */
-	outb(sc->nic_addr + ZE_P0_RBCR0, 0);
-	outb(sc->nic_addr + ZE_P0_RBCR1, 0);
+	outb(sc->nic_addr + ED_P0_RBCR0, 0);
+	outb(sc->nic_addr + ED_P0_RBCR1, 0);
 
 	/*
 	 * Enable reception of broadcast packets
 	 */
-	outb(sc->nic_addr + ZE_P0_RCR, ZE_RCR_AB);
+	outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AB);
 
 	/*
 	 * Place NIC in internal loopback mode
 	 */
-	outb(sc->nic_addr + ZE_P0_TCR, ZE_TCR_LB0);
+	outb(sc->nic_addr + ED_P0_TCR, ED_TCR_LB0);
 
 	/*
 	 * Initialize transmit/receive (ring-buffer) Page Start
 	 */
-	outb(sc->nic_addr + ZE_P0_TPSR, sc->tx_page_start);
-	outb(sc->nic_addr + ZE_P0_PSTART, sc->rec_page_start);
+	outb(sc->nic_addr + ED_P0_TPSR, sc->tx_page_start);
+	outb(sc->nic_addr + ED_P0_PSTART, sc->rec_page_start);
 
 	/*
 	 * Initialize Receiver (ring-buffer) Page Stop and Boundry
 	 */
-	outb(sc->nic_addr + ZE_P0_PSTOP, sc->rec_page_stop);
-	outb(sc->nic_addr + ZE_P0_BNRY, sc->rec_page_start);
+	outb(sc->nic_addr + ED_P0_PSTOP, sc->rec_page_stop);
+	outb(sc->nic_addr + ED_P0_BNRY, sc->rec_page_start);
 
 	/*
 	 * Clear all interrupts. A '1' in each bit position clears the
 	 *	corresponding flag.
 	 */
-	outb(sc->nic_addr + ZE_P0_ISR, 0xff);
+	outb(sc->nic_addr + ED_P0_ISR, 0xff);
 
 	/*
 	 * Enable the following interrupts: receive/transmit complete,
@@ -864,19 +855,19 @@ ze_init(unit)
 	 *
 	 * Counter overflow and Remote DMA complete are *not* enabled.
 	 */
-	outb(sc->nic_addr + ZE_P0_IMR,
-		ZE_IMR_PRXE|ZE_IMR_PTXE|ZE_IMR_RXEE|ZE_IMR_TXEE|ZE_IMR_OVWE);
+	outb(sc->nic_addr + ED_P0_IMR,
+		ED_IMR_PRXE|ED_IMR_PTXE|ED_IMR_RXEE|ED_IMR_TXEE|ED_IMR_OVWE);
 
 	/*
 	 * Program Command Register for page 1
 	 */
-	outb(sc->nic_addr + ZE_P0_CR, ZE_CR_PAGE_1|ZE_CR_RD2|ZE_CR_STP);
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1|ED_CR_RD2|ED_CR_STP);
 
 	/*
 	 * Copy out our station address
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		outb(sc->nic_addr + ZE_P1_PAR0 + i, sc->arpcom.ac_enaddr[i]);
+		outb(sc->nic_addr + ED_P1_PAR0 + i, sc->arpcom.ac_enaddr[i]);
 
 #if NBPFILTER > 0
 	/*
@@ -884,24 +875,24 @@ ze_init(unit)
 	 *	 all multicasts (only used when in promiscuous mode)
 	 */
 	for (i = 0; i < 8; ++i)
-		outb(sc->nic_addr + ZE_P1_MAR0 + i, 0xff);
+		outb(sc->nic_addr + ED_P1_MAR0 + i, 0xff);
 #endif
 
 	/*
 	 * Set Current Page pointer to next_packet (initialized above)
 	 */
-	outb(sc->nic_addr + ZE_P1_CURR, sc->next_packet);
+	outb(sc->nic_addr + ED_P1_CURR, sc->next_packet);
 
 	/*
 	 * Set Command Register for page 0, Remote DMA complete,
 	 * 	and interface Start.
 	 */
-	outb(sc->nic_addr + ZE_P1_CR, ZE_CR_RD2|ZE_CR_STA);
+	outb(sc->nic_addr + ED_P1_CR, ED_CR_RD2|ED_CR_STA);
 
 	/*
 	 * Take interface out of loopback
 	 */
-	outb(sc->nic_addr + ZE_P0_TCR, 0);
+	outb(sc->nic_addr + ED_P0_TCR, 0);
 
 	/*
 	 * Set 'running' flag, and clear output active flag.
@@ -930,24 +921,24 @@ ze_xmit(ifp)
 	/*
 	 * Set NIC for page 0 register access
 	 */
-	outb(sc->nic_addr + ZE_P0_CR, ZE_CR_RD2|ZE_CR_STA);
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STA);
 
 	/*
 	 * Set TX buffer start page
 	 */
-	outb(sc->nic_addr + ZE_P0_TPSR, sc->tx_page_start +
-		sc->txb_next * ZE_TXBUF_SIZE);
+	outb(sc->nic_addr + ED_P0_TPSR, sc->tx_page_start +
+		sc->txb_next * ED_TXBUF_SIZE);
 
 	/*
 	 * Set TX length
 	 */
-	outb(sc->nic_addr + ZE_P0_TBCR0, len & 0xff);
-	outb(sc->nic_addr + ZE_P0_TBCR1, len >> 8);
+	outb(sc->nic_addr + ED_P0_TBCR0, len & 0xff);
+	outb(sc->nic_addr + ED_P0_TBCR1, len >> 8);
 
 	/*
 	 * Set page 0, Remote DMA complete, Transmit Packet, and *Start*
 	 */
-	outb(sc->nic_addr + ZE_P0_CR, ZE_CR_RD2|ZE_CR_TXP|ZE_CR_STA);
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_TXP|ED_CR_STA);
 
 	sc->xmit_busy = 1;
 	sc->data_buffered = 0;
@@ -1029,7 +1020,7 @@ outloop:
 	 * Copy the mbuf chain into the transmit buffer
 	 */
 
-	buffer = sc->smem_start + (sc->txb_next * ZE_TXBUF_SIZE * ZE_PAGE_SIZE);
+	buffer = sc->smem_start + (sc->txb_next * ED_TXBUF_SIZE * ED_PAGE_SIZE);
 	len = 0;
 	for (m0 = m; m != 0; m = m->m_next) {
 		bcopy(mtod(m, caddr_t), buffer, m->m_len);
@@ -1080,12 +1071,12 @@ ze_rint(unit)
 	register struct ze_softc *sc = &ze_softc[unit];
 	u_char boundry, current;
 	u_short len;
-	struct ze_ring *packet_ptr;
+	struct ed_ring *packet_ptr;
 
 	/*
 	 * Set NIC to page 1 registers to get 'current' pointer
 	 */
-	outb(sc->nic_addr + ZE_P0_CR, ZE_CR_PAGE_1|ZE_CR_RD2|ZE_CR_STA);
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1|ED_CR_RD2|ED_CR_STA);
 
 	/*
 	 * 'sc->next_packet' is the logical beginning of the ring-buffer - i.e.
@@ -1095,11 +1086,11 @@ ze_rint(unit)
 	 *	We loop here until the logical beginning equals the logical
 	 *	end (or in other words, until the ring-buffer is empty).
 	 */
-	while (sc->next_packet != inb(sc->nic_addr + ZE_P1_CURR)) {
+	while (sc->next_packet != inb(sc->nic_addr + ED_P1_CURR)) {
 
 		/* get pointer to this buffer header structure */
-		packet_ptr = (struct ze_ring *)(sc->smem_ring +
-			 (sc->next_packet - sc->rec_page_start) * ZE_PAGE_SIZE);
+		packet_ptr = (struct ed_ring *)(sc->smem_ring +
+			 (sc->next_packet - sc->rec_page_start) * ED_PAGE_SIZE);
 
 		/*
 		 * The byte count includes the FCS - Frame Check Sequence (a
@@ -1143,15 +1134,15 @@ ze_rint(unit)
 		/*
 		 * Set NIC to page 0 registers to update boundry register
 		 */
-		outb(sc->nic_addr + ZE_P0_CR, ZE_CR_RD2|ZE_CR_STA);
+		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STA);
 
-		outb(sc->nic_addr + ZE_P0_BNRY, boundry);
+		outb(sc->nic_addr + ED_P0_BNRY, boundry);
 
 		/*
 		 * Set NIC to page 1 registers before looping to top (prepare to
 		 *	get 'CURR' current pointer)
 		 */
-		outb(sc->nic_addr + ZE_P0_CR, ZE_CR_PAGE_1|ZE_CR_RD2|ZE_CR_STA);
+		outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1|ED_CR_RD2|ED_CR_STA);
 	}
 }
 
@@ -1170,19 +1161,19 @@ zeintr(unit)
 	/*
 	 * Set NIC to page 0 registers
 	 */
-	outb(sc->nic_addr + ZE_P0_CR, ZE_CR_RD2|ZE_CR_STA);
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STA);
 
 	/*
 	 * loop until there are no more new interrupts
 	 */
-	while (isr = inb(sc->nic_addr + ZE_P0_ISR)) {
+	while (isr = inb(sc->nic_addr + ED_P0_ISR)) {
 
 		/*
 		 * reset all the bits that we are 'acknowleging'
 		 *	by writing a '1' to each bit position that was set
 		 * (writing a '1' *clears* the bit)
 		 */
-		outb(sc->nic_addr + ZE_P0_ISR, isr);
+		outb(sc->nic_addr + ED_P0_ISR, isr);
 
 		/*
 		 * Transmit error. If a TX completed with an error, we end up
@@ -1192,14 +1183,14 @@ zeintr(unit)
 		 *	the flow. Of course, with UDP we're screwed, but this is
 		 *	expected when a network is heavily loaded.
 		 */
-		if (isr & ZE_ISR_TXE) {
-			u_char tsr = inb(sc->nic_addr + ZE_P0_TSR);
-			u_char ncr = inb(sc->nic_addr + ZE_P0_NCR);
+		if (isr & ED_ISR_TXE) {
+			u_char tsr = inb(sc->nic_addr + ED_P0_TSR);
+			u_char ncr = inb(sc->nic_addr + ED_P0_NCR);
 
 			/*
 			 * Excessive collisions (16)
 			 */
-			if ((tsr & ZE_TSR_ABT) && (ncr == 0)) {
+			if ((tsr & ED_TSR_ABT) && (ncr == 0)) {
 				/*
 				 *    When collisions total 16, the P0_NCR will
 				 * indicate 0, and the TSR_ABT is set.
@@ -1230,11 +1221,11 @@ zeintr(unit)
 		 * Receiver Error. One or more of: CRC error, frame alignment error
 		 *	FIFO overrun, or missed packet.
 		 */
-		if (isr & ZE_ISR_RXE) {
+		if (isr & ED_ISR_RXE) {
 			++sc->arpcom.ac_if.if_ierrors;
 #ifdef ZE_DEBUG
 			printf("ze%d: receive error %b\n", unit,
-				inb(sc->nic_addr + ZE_P0_RSR),
+				inb(sc->nic_addr + ED_P0_RSR),
 			       "\20\8DEF\7REC DISAB\6PHY/MC\5MISSED\4OVR\3ALIGN\2FCS\1RCVD");
 #endif
 		}
@@ -1248,7 +1239,7 @@ zeintr(unit)
 		 *	seen only with early rev chips - Methinks this
 		 *	bug was fixed in later revs. -DG
 		 */
-		if (isr & ZE_ISR_OVW) {
+		if (isr & ED_ISR_OVW) {
 			++sc->arpcom.ac_if.if_ierrors;
 			/*
 			 * Stop/reset/re-init NIC
@@ -1259,7 +1250,7 @@ zeintr(unit)
 		/*
 		 * Transmission completed normally.
 		 */
-		if (isr & ZE_ISR_PTX) {
+		if (isr & ED_ISR_PTX) {
 
 			/*
 			 * reset tx busy and output active flags
@@ -1283,7 +1274,7 @@ zeintr(unit)
 			 *	transmission.
 			 */
 			sc->arpcom.ac_if.if_collisions += inb(sc->nic_addr +
-				ZE_P0_TBCR0);
+				ED_P0_TBCR0);
 		}
 
 		/*
@@ -1292,7 +1283,7 @@ zeintr(unit)
 		 *	   shouldn't be any data to get (we've configured the
 		 *	   interface to not accept packets with errors).
 		 */
-		if (isr & (ZE_ISR_PRX|ZE_ISR_RXE)) {
+		if (isr & (ED_ISR_PRX|ED_ISR_RXE)) {
 			ze_rint (unit);
 		}
 
@@ -1313,7 +1304,7 @@ zeintr(unit)
 		 *	in the transmit routine, is *okay* - it is 'edge'
 		 *	triggered from low to high)
 		 */
-		outb(sc->nic_addr + ZE_P0_CR, ZE_CR_RD2|ZE_CR_STA);
+		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STA);
 
 		/*
 		 * If the Network Talley Counters overflow, read them to
@@ -1321,10 +1312,10 @@ zeintr(unit)
 		 *	clear the ISR flag otherwise - resulting in an
 		 *	infinite loop.
 		 */
-		if (isr & ZE_ISR_CNT) {
-			(void) inb(sc->nic_addr + ZE_P0_CNTR0);
-			(void) inb(sc->nic_addr + ZE_P0_CNTR1);
-			(void) inb(sc->nic_addr + ZE_P0_CNTR2);
+		if (isr & ED_ISR_CNT) {
+			(void) inb(sc->nic_addr + ED_P0_CNTR0);
+			(void) inb(sc->nic_addr + ED_P0_CNTR1);
+			(void) inb(sc->nic_addr + ED_P0_CNTR2);
 		}
 	}
 }
@@ -1426,15 +1417,15 @@ ze_ioctl(ifp, command, data)
 			 *		hashing array. For now we assume that
 			 *		this was done in ze_init().
 			 */
-			outb(sc->nic_addr + ZE_P0_RCR,
-				ZE_RCR_PRO|ZE_RCR_AM|ZE_RCR_AB);
+			outb(sc->nic_addr + ED_P0_RCR,
+				ED_RCR_PRO|ED_RCR_AM|ED_RCR_AB);
 		} else {
 			/*
 			 * XXX - for multicasts to work, we would need to
 			 *	rewrite the multicast hashing array with the
 			 *	proper hash (would have been destroyed above).
 			 */
-			outb(sc->nic_addr + ZE_P0_RCR, ZE_RCR_AB);
+			outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AB);
 		}
 #endif
 		break;

@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_edreg.h,v 1.17 1995/01/23 19:06:08 davidg Exp $
+ * $Id: if_edreg.h,v 1.18 1995/05/30 08:02:00 rgrimes Exp $
  */
 /*
  * National Semiconductor DS8390 NIC register definitions
@@ -568,6 +568,7 @@ struct ed_ring	{
 #define ED_VENDOR_WD_SMC	0x00		/* Western Digital/SMC */
 #define ED_VENDOR_3COM		0x01		/* 3Com */
 #define ED_VENDOR_NOVELL	0x02		/* Novell */
+#define ED_VENDOR_PCCARD	0x03		/* PCMCIA/PCCARD */
 
 /*
  * Compile-time config flags
@@ -981,3 +982,22 @@ struct ed_ring	{
  * Reset register; reading from this register causes a board reset
  */
 #define ED_NOVELL_RESET		0x0f
+
+/*
+ *		Definitions for PCCARD
+ */
+#define ED_PC_PAGE_OFFSET	0x40	/* page offset for NIC access to mem */
+#define ED_PC_IO_PORTS		32
+#define ED_PC_RESET		0x1f
+#define ED_PC_MISC		0x18
+
+/* 
+ * if_ze.h  constants
+ */
+
+#define ZE_PAGE_OFFSET		0x40	/* mem buffer starts at 0x4000 */
+
+#define ZE_DATA_IO	0x10
+#define ZE_MISC		0x18
+#define ZE_RESET	0x1F
+
