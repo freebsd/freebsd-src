@@ -56,6 +56,12 @@ void	taskqueue_free(struct taskqueue *queue);
 void	taskqueue_run(struct taskqueue *queue);
 
 /*
+ * Functions for dedicated thread taskqueues
+ */
+void	taskqueue_thread_loop(void *arg);
+void	taskqueue_thread_enqueue(void *context);
+
+/*
  * Initialise a task structure.
  */
 #define TASK_INIT(task, priority, func, context) do {	\
@@ -90,6 +96,11 @@ SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
 	taskqueue_define_##name, NULL)					\
 									\
 struct __hack
+#define TASKQUEUE_DEFINE_THREAD(name)					\
+static struct proc *taskqueue_##name##_proc;				\
+TASKQUEUE_DEFINE(name, taskqueue_thread_enqueue, &taskqueue_##name,	\
+	kthread_create(taskqueue_thread_loop, &taskqueue_##name,	\
+	&taskqueue_##name##_proc, 0, 0, #name " taskq"))
 
 /*
  * These queues are serviced by software interrupt handlers.  To enqueue
