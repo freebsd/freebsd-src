@@ -276,10 +276,10 @@ rerelease release:
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	echo "	(cd etc; make distrib-dirs distribution)" >> ${CHROOTDIR}/mk
-	echo "	make world"			>> ${CHROOTDIR}/mk
+	echo "	make world && \\"		>> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
-	echo "	make all install"		>> ${CHROOTDIR}/mk
+	echo "	make all install && \\"		>> ${CHROOTDIR}/mk
 .endif
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
