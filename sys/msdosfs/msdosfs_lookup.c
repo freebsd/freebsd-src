@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.3 1995/05/09 16:30:44 bde Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.4 1995/05/30 08:07:41 rgrimes Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-
@@ -547,7 +547,7 @@ createde(dep, ddep, depp)
 /*
  * Read in a directory entry and mark it as being deleted.
  */
-int
+static int
 markdeleted(pmp, dirclust, diroffset)
 	struct msdosfsmount *pmp;
 	u_long dirclust;
