@@ -236,18 +236,18 @@ static void kseq_add(struct kseq *kseq, struct kse *ke);
 static void kseq_rem(struct kseq *kseq, struct kse *ke);
 static void kseq_nice_add(struct kseq *kseq, int nice);
 static void kseq_nice_rem(struct kseq *kseq, int nice);
-void kseq_print(struct kseq *kseq);
+void kseq_print(int cpu);
 #ifdef SMP
 struct kseq * kseq_load_highest(void);
 #endif
 
 void
-kseq_print(struct kseq *kseq)
+kseq_print(int cpu)
 {
+	struct kseq *kseq;
 	int i;
 
-	if (kseq == NULL)
-		kseq = KSEQ_SELF();
+	kseq = KSEQ_CPU(cpu);
 
 	printf("kseq:\n");
 	printf("\tload:           %d\n", kseq->ksq_load);
@@ -409,6 +409,7 @@ kseq_setup(struct kseq *kseq)
 	kseq->ksq_loads[PRI_REALTIME] = 0;
 	kseq->ksq_loads[PRI_TIMESHARE] = 0;
 	kseq->ksq_loads[PRI_IDLE] = 0;
+	kseq->ksq_load = 0;
 #ifdef SMP
 	kseq->ksq_rslices = 0;
 #endif
@@ -973,7 +974,7 @@ sched_runnable(void)
 			if (CPU_ABSENT(i))
 				continue;
 			kseq = KSEQ_CPU(i);
-			if (kseq->ksq_load)
+			if (kseq->ksq_load > 1)
 				return (1);
 		}
 	}
@@ -1071,6 +1072,7 @@ sched_add(struct kse *ke)
 		kseq = KSEQ_SELF();
 		ke->ke_runq = kseq->ksq_curr;
 		ke->ke_slice = SCHED_SLICE_MAX;
+		ke->ke_cpu = PCPU_GET(cpuid);
 		break;
 	case PRI_TIMESHARE:
 		kseq = KSEQ_CPU(ke->ke_cpu);
