@@ -1,5 +1,5 @@
-/* $Id: $ */
-/* release_12_28_98_A */
+/* $Id: ispreg.h,v 1.4 1998/12/28 19:22:27 mjacob Exp $ */
+/* release_01_29_99 */
 /*
  * Machine Independent (well, as best as possible) register
  * definitions for Qlogic ISP SCSI adapters.
@@ -514,6 +514,7 @@
 #define		RISC_MTR2100	RISC_BLOCK+0x30
 
 #define	RISC_EMB	RISC_BLOCK+0x30	/* RW*: Ext Mem Boundary */
+#define		DUAL_BANK	8
 #define	RISC_SP		RISC_BLOCK+0x32	/* RW*: Stack Pointer */
 #define	RISC_HRL	RISC_BLOCK+0x3e	/* R *: Hardware Rev Level */
 #define	HCCR		RISC_BLOCK+0x40	/* RW : Host Command & Ctrl */

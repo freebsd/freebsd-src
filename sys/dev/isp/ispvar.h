@@ -1,5 +1,5 @@
-/* $Id: ispvar.h,v 1.7 1998/12/28 19:22:27 mjacob Exp $ */
-/* release_12_28_98_A+ */
+/* $Id: ispvar.h,v 1.8 1999/01/10 02:51:48 mjacob Exp $ */
+/* release_01_29_99 */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -51,7 +51,7 @@
 #define	ISP_CORE_VERSION_MINOR	5
 
 /*
- * Vector for MD code to provide specific services.
+ * Vector for bus specific code to provide specific services.
  */
 struct ispsoftc;
 struct ispmdvec {
@@ -91,7 +91,7 @@ struct ispmdvec {
 	((in == out)? (qlen - 1) : ((in > out)? \
 		((qlen - 1) - (in - out)) : (out - in - 1)))
 /*
- * SCSI (as opposed to FC-PH) Specific Host Adapter Parameters
+ * SCSI Specific Host Adapter Parameters
  */
 
 typedef struct {
@@ -100,6 +100,7 @@ typedef struct {
 			isp_cmd_dma_burst_enable: 1,
 			isp_data_dma_burst_enabl: 1,
 			isp_fifo_threshold	: 3,
+			isp_ultramode		: 1,
 			isp_diffmode		: 1,
 			isp_fast_mttr		: 1,
 			isp_initiator_id	: 4,
@@ -112,8 +113,11 @@ typedef struct {
         u_int8_t	isp_retry_count;
         u_int8_t	isp_retry_delay;
 	struct {
-		u_int	dev_update	:	1,
+		u_int
 			dev_enable	:	1,
+			dev_announced	:	1,
+			dev_update	:	1,
+			dev_refresh	:	1,
 			exc_throttle	:	7,
 			sync_offset	:	4,
 			sync_period	:	8;
@@ -272,7 +276,7 @@ struct ispsoftc {
 	 * jeez, so I blow a couple of KB per host adapter...
 	 * and it *is* faster.
 	 */
-	volatile ISP_SCSI_XFER_T *isp_xflist[RQUEST_QUEUE_LEN];
+	ISP_SCSI_XFER_T *isp_xflist[RQUEST_QUEUE_LEN];
 
 	/*
 	 * request/result queues and dma handles for them.
@@ -340,7 +344,7 @@ struct ispsoftc {
 #define	ISP_HA_FC_2100		0x10
 
 /*
- * Macros to read, write ISP registers through MD code
+ * Macros to read, write ISP registers through bus specific code.
  */
 
 #define	ISP_READ(isp, reg)	\
@@ -403,13 +407,14 @@ int isp_intr __P((void *));
 int32_t ispscsicmd __P((ISP_SCSI_XFER_T *));
 
 /*
- * Platform Dependent to Internal Control Point
+ * Platform Dependent to External to Internal Control Function
  *
  * For: 	Aborting a running command	- arg is an ISP_SCSI_XFER_T *
  *		Resetting a Device		- arg is target to reset
  *		Resetting a BUS			- arg is ignored
  *		Updating parameters		- arg is ignored
  *
+ * First argument is this instance's softc pointer.
  * Second argument is an index into xflist array.
  * Assumes all locks must be held already.
  */
@@ -420,6 +425,21 @@ typedef enum {
 	ISPCTL_UPDATE_PARAMS,
 } ispctl_t;
 int isp_control __P((struct ispsoftc *, ispctl_t, void *));
+
+
+/*
+ * Platform Dependent to Internal to External Control Function
+ * (each platform must provide such a function)
+ *
+ * For: 	Announcing Target Paramter Changes (arg is target)
+ *
+ * Assumes all locks are held.
+ */
+
+typedef enum {
+	ISPASYNC_NEW_TGT_PARAMS	
+} ispasync_t;
+int isp_async __P((struct ispsoftc *, ispasync_t, void *));
 
 /*
  * lost command routine (XXXX IN TRANSITION XXXX)
