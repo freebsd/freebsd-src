@@ -68,8 +68,9 @@
 .Op Fl l Ar lockfile
 .Op Fl p Ar pass-phrase
 .Op Fl L Ar lockfile
-.Sh NOTICE
-.Pp
+.Sh DESCRIPTION
+.Bf -emphasis
+NOTICE:
 Please be aware that this code has not yet received much review
 and analysis by qualified cryptographers and therefore should be considered
 a slightly suspect experimental facility.
@@ -77,10 +78,12 @@ a slightly suspect experimental facility.
 We cannot at this point guarantee that the on-disk format will not change
 in response to reviews or bug-fixes, so potential users are adviced to
 be prepared that
-.Xr dump 8 /
+.Xr dump 8 Ns / Ns
 .Xr restore 8
 based migrations may be called for in the future.
-.Sh DESCRIPTION
+.Ef
+.Pp
+The
 .Nm
 program is the only official operation and management interface for the
 .Xr gbde 4
@@ -137,10 +140,9 @@ argument
 specifies the pass-phrase used to opening the device.
 If not specified, the controlling terminal will be used to prompt the user
 for the pass-phrase.
-Be aware that using this option may exposed the pass-phrase to other
+Be aware that using this option may expose the pass-phrase to other
 users who happen to run
-.Xr
-ps 1
+.Xr ps 1
 or similar while the command is running.
 .Pp
 The
@@ -153,10 +155,9 @@ and
 subcommands.
 If not specified, the user is prompted for the new pass-phrase on the
 controlling terminal.
-Be aware that using this option may exposed the pass-phrase to other
+Be aware that using this option may expose the pass-phrase to other
 users who happen to run
-.Xr
-ps 1
+.Xr ps 1
 or similar while the command is running.
 .Sh EXAMPLES
 To initialize a device, using default parameters:
@@ -190,5 +191,5 @@ DARPA CHATS research program.
 .Sh AUTHORS
 .An "Poul-Henning Kamp" Aq phk@FreeBSD.org
 .Sh BUGS
-The cryptographic algorithms and the over-all design has not been
+The cryptographic algorithms and the overall design has not been
 attacked mercilessly for over 10 years by a gang or cryptoanalysts.
