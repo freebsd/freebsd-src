@@ -224,7 +224,7 @@ static void dc_acpi		(device_t);
 #endif
 static struct dc_type *dc_devtype	(device_t);
 static int dc_newbuf		(struct dc_softc *, int, int);
-static int dc_encap		(struct dc_softc *, struct mbuf *);
+static int dc_encap		(struct dc_softc *, struct mbuf **);
 static void dc_pnic_rx_bug_war	(struct dc_softc *, int);
 static int dc_rx_resync		(struct dc_softc *);
 static void dc_rxeof		(struct dc_softc *);
@@ -3266,7 +3266,7 @@ dc_dma_map_txbuf(arg, segs, nseg, mapsize, error)
  * pointers to the fragment pointers.
  */
 static int
-dc_encap(struct dc_softc *sc, struct mbuf *m_head)
+dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 {
 	struct mbuf *m;
 	int error, idx, chainlen = 0;
@@ -3283,15 +3283,15 @@ dc_encap(struct dc_softc *sc, struct mbuf *m_head)
 	 * by all packets, we'll m_defrag long chains so that they
 	 * do not use up the entire list, even if they would fit.
 	 */
-	for (m = m_head; m != NULL; m = m->m_next)
+	for (m = *m_head; m != NULL; m = m->m_next)
 		chainlen++;
 
 	if ((chainlen > DC_TX_LIST_CNT / 4) ||
 	    ((DC_TX_LIST_CNT - (chainlen + sc->dc_cdata.dc_tx_cnt)) < 6)) {
-		m = m_defrag(m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_DONTWAIT);
 		if (m == NULL)
 			return (ENOBUFS);
-		m_head = m;
+		*m_head = m;
 	}
 
 	/*
@@ -3301,12 +3301,12 @@ dc_encap(struct dc_softc *sc, struct mbuf *m_head)
 	 */
 	idx = sc->dc_cdata.dc_tx_prod;
 	error = bus_dmamap_load_mbuf(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
-	    m_head, dc_dma_map_txbuf, sc, 0);
+	    *m_head, dc_dma_map_txbuf, sc, 0);
 	if (error)
 		return (error);
 	if (sc->dc_cdata.dc_tx_err != 0)
 		return (sc->dc_cdata.dc_tx_err); 
-	sc->dc_cdata.dc_tx_chain[idx] = m_head;
+	sc->dc_cdata.dc_tx_chain[idx] = *m_head;
 	bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
 	    BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
@@ -3362,7 +3362,7 @@ dc_start(struct ifnet *ifp)
 			}
 		}
 
-		if (dc_encap(sc, m_head)) {
+		if (dc_encap(sc, &m_head)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
