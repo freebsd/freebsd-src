@@ -1115,12 +1115,6 @@ findpcb:
 		}
 		FREE(sin, M_SONAME);
 	      }
-		tp->t_template = tcp_template(tp);
-		if (tp->t_template == 0) {
-			tp = tcp_drop(tp, ENOBUFS);
-			dropsocket = 0;		/* socket is already gone */
-			goto drop;
-		}
 		if ((taop = tcp_gettaocache(inp)) == NULL) {
 			taop = &tao_noncached;
 			bzero(taop, sizeof(*taop));
