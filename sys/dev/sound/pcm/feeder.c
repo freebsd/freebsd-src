@@ -113,11 +113,6 @@ feed_root(pcm_feeder *feeder, pcm_channel *ch, u_int8_t *buffer, u_int32_t count
 	count &= ~((1 << ch->align) - 1);
 	KASSERT(count, ("feed_root: aligned count == 0"));
 	s = spltty();
-	if (ch->smegcnt > 0) {
-		c = min(ch->smegcnt, count);
-		bcopy(ch->smegbuf, buffer, c);
-		ch->smegcnt -= c;
-	}
 	count = min(count, stream->uio_resid);
 	if (count) {
 		ret = uiomove(buffer, count, stream);
