@@ -1,59 +1,58 @@
-#	@(#)sys.mk	8.2 (Berkeley) 3/21/94
+#	from: @(#)sys.mk	5.11 (Berkeley) 3/13/91
+#	$Id: sys.mk,v 1.7 1994/06/13 21:02:48 csgr Exp $
 
-unix		?=	We run UNIX.
+unix=		We run FreeBSD, not UNIX.
 
-.SUFFIXES: .out .a .ln .o .c .F .f .e .r .y .l .s .cl .p .h 
+.SUFFIXES: .out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .s .cl .p .h 
 
 .LIBS:		.a
 
-AR		?=	ar
-ARFLAGS		?=	rl
-RANLIB		?=	ranlib
+AR=		ar
+ARFLAGS=	rl
+RANLIB=		ranlib
 
-AS		?=	as
-AFLAGS		?=
+AS=		as
+AFLAGS=
 
-CC		?=	gcc
+CC=		cc
+CFLAGS=		-O
 
-.if ${MACHINE} == "sparc"
-CFLAGS		?=	-O4
-.else
-CFLAGS		?=	-O2
-.endif
+CXX=		g++
+CXXFLAGS=	${CXXINCLUDES} ${CFLAGS}
 
-CPP		?=	cpp
+CPP=		cpp
 
-FC		?=	f77
-FFLAGS		?=	-O
-EFLAGS		?=
+FC=		f77
+FFLAGS=		-O
+EFLAGS=
 
-LEX		?=	lex
-LFLAGS		?=
+LEX=		lex
+LFLAGS=
 
-LD		?=	ld
-LDFLAGS		?=
+LD=		ld
+LDFLAGS=
 
-LINT		?=	lint
-LINTFLAGS	?=	-chapbx
+LINT=		lint
+LINTFLAGS=	-chapbx
 
-MAKE		?=	make
+MAKE=		make
 
-PC		?=	pc
-PFLAGS		?=
+PC=		pc
+PFLAGS=
 
-RC		?=	f77
-RFLAGS		?=
+RC=		f77
+RFLAGS=
 
-SHELL		?=	sh
+SHELL=		sh
 
-YACC		?=	yacc
-YFLAGS		?=	-d
-
-.c:
-	${CC} ${CFLAGS} ${.IMPSRC} -o ${.TARGET}
+YACC=		yacc
+YFLAGS=-d
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
+
+.cc.o .cxx.o .C.o:
+	${CXX} ${CXXFLAGS} -c ${.IMPSRC}
 
 .p.o:
 	${PC} ${PFLAGS} -c ${.IMPSRC}
@@ -99,3 +98,9 @@ YFLAGS		?=	-d
 	${LEX} ${LFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} lex.yy.c ${LDLIBS} -ll -o ${.TARGET}
 	rm -f lex.yy.c
+
+.include <bsd.own.mk>
+
+.if exists(/etc/make.conf)
+.include </etc/make.conf>
+.endif
