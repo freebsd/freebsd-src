@@ -152,5 +152,38 @@
       needed include &man.gbde.8; and the new <quote>fast
       IPsec</quote> implementation.</para>
 
+    <para>Attempting to unmount smbfs shares may fail with
+      <errorname>Device busy</errorname> errors even when the
+      mount-point is not really busy.  A workaround is to keep trying
+      to unmount the share until it eventually succeeds.  This bug has
+      been fixed in 5.0-CURRENT.</para>
+
+    <para>Forcefully unmounting (<command>umount -f</command>) smbfs
+      shares may cause a kernel panic.  This bug has been fixed in
+      5.0-CURRENT.</para>
+
+    <para>When called on a connected socket file descriptor,
+      &man.fstat.2; is supposed to return the number of bytes
+      available to read in the <varname>st_size</varname> member of
+      <varname>struct stat</varname>. However,
+      <varname>st_size</varname> is always erroneously reported as
+      <literal>0</literal> on TCP sockets.  This bug has been fixed in
+      5.0-CURRENT.</para>
+
+    <para>The &man.kqueue.2; <literal>EVFILT_READ</literal> filter
+      erroneously indicates that <literal>0</literal> bytes are
+      available to be read on TCP sockets, regardless of the number of
+      bytes that are actually available. The
+      <literal>NOTE_LOWAT</literal> flag for
+      <literal>EVFILT_READ</literal> is also broken on TCP sockets.
+      This bug has been fixed in 5.0-CURRENT.</para>
+
+    <para>&os; 5.0-RELEASE introduced support for POSIX named semaphores
+      but the implementation contains a critical bug that causes
+      &man.sem.open.3; to incorrectly handle the opening of the same
+      semaphore multiple times by the same process, and that causes
+      &man.sem.close.3; to crash calling programs.  This bug has been
+      fixed in 5.0-CURRENT.</para>
+
   </sect1>
 </article>
