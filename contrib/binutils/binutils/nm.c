@@ -1,5 +1,5 @@
 /* nm.c -- Describe symbol table of a rel file.
-   Copyright 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -247,9 +247,11 @@ static int print_radix = 16;
 static char other_format[] = "%02x";
 static char desc_format[] = "%04x";
 
-/* IMPORT */
-extern char *program_name;
-extern char *target;
+static char *target = NULL;
+
+/* Used to cache the line numbers for a BFD.  */
+static bfd *lineno_cache_bfd;
+static bfd *lineno_cache_rel_bfd;
 
 static struct option long_options[] =
 {
@@ -297,7 +299,7 @@ Usage: %s [-aABCDglnopPrsuvV] [-t radix] [--radix=radix] [--target=bfdname]\n\
 	   program_name);
   list_supported_targets (program_name, stream);
   if (status == 0)
-    fprintf (stream, "Report bugs to bug-gnu-utils@prep.ai.mit.edu\n");
+    fprintf (stream, "Report bugs to bug-gnu-utils@gnu.org\n");
   exit (status);
 }
 
@@ -530,12 +532,20 @@ display_archive (file)
 	}
 
       if (last_arfile != NULL)
-	bfd_close (last_arfile);
+	{
+	  bfd_close (last_arfile);
+	  lineno_cache_bfd = NULL;
+	  lineno_cache_rel_bfd = NULL;
+	}
       last_arfile = arfile;
     }
 
   if (last_arfile != NULL)
-    bfd_close (last_arfile);
+    {
+      bfd_close (last_arfile);
+      lineno_cache_bfd = NULL;
+      lineno_cache_rel_bfd = NULL;
+    }
 }
 
 static boolean
@@ -575,6 +585,9 @@ display_file (filename)
 
   if (bfd_close (file) == false)
     bfd_fatal (filename);
+
+  lineno_cache_bfd = NULL;
+  lineno_cache_rel_bfd = NULL;
 
   return retval;
 }
@@ -779,7 +792,7 @@ sort_symbols_by_size (abfd, dynamic, minisyms, symcount, size, symsizesp)
 {
   struct size_sym *symsizes;
   bfd_byte *from, *fromend;
-  asymbol *sym;
+  asymbol *sym = NULL;
   asymbol *store_sym, *store_next;
 
   qsort (minisyms, symcount, size, size_forward1);
@@ -1124,7 +1137,6 @@ print_symbol (abfd, sym, archive_bfd)
 
   if (line_numbers)
     {
-      static bfd *cache_bfd;
       static asymbol **syms;
       static long symcount;
       const char *filename, *functionname;
@@ -1133,7 +1145,7 @@ print_symbol (abfd, sym, archive_bfd)
       /* We need to get the canonical symbols in order to call
          bfd_find_nearest_line.  This is inefficient, but, then, you
          don't have to use --line-numbers.  */
-      if (abfd != cache_bfd && syms != NULL)
+      if (abfd != lineno_cache_bfd && syms != NULL)
 	{
 	  free (syms);
 	  syms = NULL;
@@ -1149,24 +1161,22 @@ print_symbol (abfd, sym, archive_bfd)
 	  symcount = bfd_canonicalize_symtab (abfd, syms);
 	  if (symcount < 0)
 	    bfd_fatal (bfd_get_filename (abfd));
-	  cache_bfd = abfd;
+	  lineno_cache_bfd = abfd;
 	}
 
       if (bfd_is_und_section (bfd_get_section (sym)))
 	{
-	  static bfd *cache_rel_bfd;
 	  static asection **secs;
 	  static arelent ***relocs;
 	  static long *relcount;
-	  unsigned int seccount, i;
+	  static unsigned int seccount;
+	  unsigned int i;
 	  const char *symname;
 
 	  /* For an undefined symbol, we try to find a reloc for the
              symbol, and print the line number of the reloc.  */
 
-	  seccount = bfd_count_sections (abfd);
-
-	  if (abfd != cache_rel_bfd && relocs != NULL)
+	  if (abfd != lineno_cache_rel_bfd && relocs != NULL)
 	    {
 	      for (i = 0; i < seccount; i++)
 		if (relocs[i] != NULL)
@@ -1183,6 +1193,8 @@ print_symbol (abfd, sym, archive_bfd)
 	    {
 	      struct get_relocs_info info;
 
+	      seccount = bfd_count_sections (abfd);
+
 	      secs = (asection **) xmalloc (seccount * sizeof *secs);
 	      relocs = (arelent ***) xmalloc (seccount * sizeof *relocs);
 	      relcount = (long *) xmalloc (seccount * sizeof *relcount);
@@ -1192,13 +1204,13 @@ print_symbol (abfd, sym, archive_bfd)
 	      info.relcount = relcount;
 	      info.syms = syms;
 	      bfd_map_over_sections (abfd, get_relocs, (PTR) &info);
-	      cache_rel_bfd = abfd;
+	      lineno_cache_rel_bfd = abfd;
 	    }
 
 	  symname = bfd_asymbol_name (sym);
 	  for (i = 0; i < seccount; i++)
 	    {
-	      unsigned int j;
+	      long j;
 
 	      for (j = 0; j < relcount[i]; j++)
 		{
