@@ -31,7 +31,7 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 # are building an official release.  Otherwise, we are building for
 # a branch.
 .if defined(RELEASETAG)
-ISRELEASE!=	expr ${RELEASETAG} : '^RELENG_.*_RELEASE$$' || true
+ISRELEASE!=	expr "${RELEASETAG}" : '^RELENG_.*_RELEASE$$' || true
 .if ${ISRELEASE} != 0
 # Convert "RELENG_ver_RELEASE" to "RELEASE_ver" for ports and doc trees.
 AUXRELEASETAG!=	echo ${RELEASETAG} | sed -e 's/^RELENG_/RELEASE_/' -e 's/_RELEASE$$//'
@@ -331,7 +331,7 @@ rerelease release:
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 	echo "export OBJFORMAT=${OBJFORMAT}"	>> ${CHROOTDIR}/mk
 .if defined(RELEASETAG)
-	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
+	echo "export RELEASETAG=\"${RELEASETAG}\""	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOPORTS)
 	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
