@@ -65,7 +65,7 @@ ENTRY(vfork)
 	je	1f		/* yes */
 	movl	$0,%eax
 1:
-	jmp	%ecx
+	jmp	*%ecx
 2:
 	pushl	%ecx
 	PIC_PROLOGUE
