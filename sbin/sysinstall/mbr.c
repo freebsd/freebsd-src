@@ -358,7 +358,7 @@ edit_mbr(int disk)
 	ok = 0;
 	while (!ok && (key != ESC)) {
 		for (i=0; i < NDOSPART; i++) {
-			sprintf(mbr_field[(i*12)+1].field, "%s", part_type(mbr->dospart[i].dp_typ)); 
+			sprintf(mbr_field[(i*12)+1].field, "%d", mbr->dospart[i].dp_typ); 
 			sprintf(mbr_field[(i*12)+2].field, "%ld", mbr->dospart[i].dp_start);
 			sprintf(mbr_field[(i*12)+3].field, "%d", mbr->dospart[i].dp_scyl);
 			sprintf(mbr_field[(i*12)+4].field, "%d", mbr->dospart[i].dp_shd);
@@ -383,6 +383,7 @@ edit_mbr(int disk)
 												mbr_field[cur_field].field);
 				/* Propagate changes to MBR */
 				for (i=0; i < NDOSPART; i++) {
+					mbr->dospart[i].dp_typ = atoi(mbr_field[(i*12)+1].field);
 					mbr->dospart[i].dp_start = atoi(mbr_field[(i*12)+2].field);
 					mbr->dospart[i].dp_scyl = atoi(mbr_field[(i*12)+3].field);
 					mbr->dospart[i].dp_shd = atoi(mbr_field[(i*12)+4].field);
@@ -417,6 +418,20 @@ edit_mbr(int disk)
 			cur_field = next;
 	} 
 
+	/* Clear active flags */
+	for (i=0; i < NDOSPART; i++)
+		mbr->dospart[i].dp_flag = 0;
+
+	/* Find first FreeBSD partition and make it active */
+
+	disk_list[disk].inst_part = -1;
+	for (i=0; i < NDOSPART; i++)
+		if (mbr->dospart[i].dp_typ == MBR_PTYPE_FreeBSD) {
+			disk_list[disk].inst_part = i;
+			mbr->dospart[i].dp_flag = ACTIVE;
+			break;
+		}
+
 	sprintf(scratch, "\nWriting a new master boot record can erase the current disk contents.\n\n                Are you sure you want to write the new MBR?\n");
 	dialog_clear_norefresh();
 	if (!dialog_yesno("Write new MBR?", scratch, -1, -1)) {
@@ -428,13 +443,6 @@ edit_mbr(int disk)
 		}
 	}
 
-	/* Find first FreeBSD partition, as kernel would upon boot */
-	disk_list[disk].inst_part = -1;
-	for (i=0; i < NDOSPART; i++)
-		if (mbr->dospart[i].dp_typ == MBR_PTYPE_FreeBSD) {
-			disk_list[disk].inst_part = i;
-			break;
-		}
 
 	if (disk_list[disk].inst_part == -1) {
 		sprintf(errmsg, "\nThere is no space allocated to FreeBSD on %s\n",
