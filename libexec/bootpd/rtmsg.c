@@ -39,7 +39,7 @@
 
 /*
  * from arp.c	8.2 (Berkeley) 1/2/94
- * $Id: rtmsg.c,v 1.1.1.1 1994/09/30 05:45:06 pst Exp $
+ * $Id: rtmsg.c,v 1.2 1995/01/16 18:57:45 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,7 @@
 #if BSD >= 199306
 
 #include <sys/socket.h>
+#include <sys/filio.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -84,6 +85,18 @@ static void getsocket () {
 		if (s < 0) {
 			report(LOG_ERR, "socket %s", strerror(errno));
 			exit(1);
+		}
+	} else {
+		/*
+		 * Drain the socket of any unwanted routing messages.
+		 */
+		int n;
+		char buf[512];
+
+		ioctl(s, FIONREAD, &n);
+		while (n > 0) {
+			read(s, buf, sizeof buf);
+			ioctl(s, FIONREAD, &n);
 		}
 	}
 }
@@ -228,7 +241,7 @@ static int rtmsg(cmd)
 	}
 	do {
 		l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
-	} while (l > 0 && (rtm->rtm_seq != seq || rtm->rtm_pid != getpid()));
+	} while (l > 0 && (rtm->rtm_type != cmd || rtm->rtm_seq != seq || rtm->rtm_pid != getpid()));
 	if (l < 0)
 		report(LOG_WARNING, "arp: read from routing socket: %s\n",
 		    strerror(errno));
