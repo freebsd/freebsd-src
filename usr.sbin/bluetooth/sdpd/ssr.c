@@ -41,6 +41,7 @@
 #include "profile.h"
 #include "provider.h"
 #include "server.h"
+#include "uuid-private.h"
 
 /*
  * Prepare SDP Service Search Response
@@ -56,7 +57,8 @@ server_prepare_service_search_response(server_p srv, int32_t fd)
 
 	uint8_t		*ptr = NULL;
 	provider_t	*provider = NULL;
-	int32_t		 type, ssplen, rsp_limit, rcount, cslen, cs, uuid;
+	int32_t		 type, ssplen, rsp_limit, rcount, cslen, cs;
+	uint128_t	 uuid, puuid;
 
 	/*
 	 * Minimal SDP Service Search Request
@@ -145,12 +147,33 @@ server_prepare_service_search_response(server_p srv, int32_t fd)
 			if (ssplen < 2)
 				return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
 
-			SDP_GET16(uuid, req);
+			memcpy(&uuid, &uuid_base, sizeof(uuid));
+			uuid.b[2] = *req ++;
+			uuid.b[3] = *req ++;
 			ssplen -= 2;
 			break;
 
-		case SDP_DATA_UUID32: /* XXX FIXME */
-		case SDP_DATA_UUID128: /* XXX FIXME */
+		case SDP_DATA_UUID32:
+			if (ssplen < 4)
+				return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
+
+			memcpy(&uuid, &uuid_base, sizeof(uuid));
+			uuid.b[0] = *req ++;
+			uuid.b[1] = *req ++;
+			uuid.b[2] = *req ++;
+			uuid.b[3] = *req ++;
+			ssplen -= 4;
+			break;
+
+		case SDP_DATA_UUID128:
+			if (ssplen < 16)
+				return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
+
+			memcpy(uuid.b, req, 16);
+			req += 16;
+			ssplen -= 16; 
+			break;
+
 		default:
 			return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
 			/* NOT REACHED */
@@ -162,8 +185,12 @@ server_prepare_service_search_response(server_p srv, int32_t fd)
 			if (!provider_match_bdaddr(provider, &srv->req_sa.l2cap_bdaddr))
 				continue;
 
-			if (provider->profile->uuid == uuid ||
-			    SDP_SERVICE_CLASS_PUBLIC_BROWSE_GROUP == uuid) {
+			memcpy(&puuid, &uuid_base, sizeof(puuid));
+			puuid.b[2] = provider->profile->uuid >> 8;
+			puuid.b[3] = provider->profile->uuid;
+
+			if (memcmp(&uuid, &puuid, sizeof(uuid)) == 0 ||
+			    memcmp(&uuid, &uuid_public_browse_group, sizeof(uuid)) == 0) {
 				SDP_PUT32(provider->handle, ptr);
 				rcount ++;
 			}
