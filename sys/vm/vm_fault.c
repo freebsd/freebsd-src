@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.3 1994/08/02 07:55:18 davidg Exp $
+ * $Id: vm_fault.c,v 1.4 1994/08/06 09:15:37 davidg Exp $
  */
 
 /*
@@ -266,11 +266,11 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			 *	If the page is being brought in,
 			 *	wait for it and then retry.
 			 */
-			if (m->flags & PG_BUSY) {
+			if (m->flags & (PG_BUSY|PG_VMIO)) {
 				int s;
 				UNLOCK_THINGS;
 				s = splhigh();
-				if (m->flags & PG_BUSY) {
+				if (m->flags & (PG_BUSY|PG_VMIO)) {
 					m->flags |= PG_WANTED;
 					tsleep((caddr_t)m,PSWP,"vmpfw",0);
 				}
@@ -643,7 +643,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 				- copy_object->shadow_offset;
 			copy_m = vm_page_lookup(copy_object, copy_offset);
 			if (page_exists = (copy_m != NULL)) {
-				if (copy_m->flags & PG_BUSY) {
+				if (copy_m->flags & (PG_BUSY|PG_VMIO)) {
 					/*
 					 *	If the page is being brought
 					 *	in, wait for it and then retry.

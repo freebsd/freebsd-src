@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.7 1994/08/29 06:23:19 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.8 1994/09/06 17:53:24 davidg Exp $
  */
 
 /*
@@ -150,7 +150,10 @@ vnode_pager_alloc(handle, size, prot, offset)
 	 * with vm_pager_lookup.
 	 */
 	vp = (struct vnode *) handle;
-	pager = (vm_pager_t) vp->v_vmdata;
+	object = (vm_object_t) vp->v_vmdata;
+	pager = NULL;
+	if( object != NULL)
+		pager = object->pager;
 	if (pager == NULL) {
 
 		/*
@@ -191,14 +194,14 @@ vnode_pager_alloc(handle, size, prot, offset)
 		pager->pg_type = PG_VNODE;
 		pager->pg_ops = &vnodepagerops;
 		pager->pg_data = (caddr_t) vnp;
-		vp->v_vmdata = (caddr_t) pager;
+		vp->v_vmdata = (caddr_t) object;
 	} else {
 
 		/*
 		 * vm_object_lookup() will remove the object from the cache if
 		 * found and also gain a reference to the object.
 		 */
-		object = vm_object_lookup(pager);
+		(void) vm_object_lookup(pager);
 	}
 	return (pager);
 }
@@ -213,11 +216,7 @@ vnode_pager_dealloc(pager)
 
 	if (vp = vnp->vnp_vp) {
 		vp->v_vmdata = NULL;
-		vp->v_flag &= ~VTEXT;
-#if 0
-		/* can hang if done at reboot on NFS FS */
-		(void) VOP_FSYNC(vp, p->p_ucred, p);
-#endif
+		vp->v_flag &= ~(VTEXT|VVMIO);
 		vrele(vp);
 	}
 	TAILQ_REMOVE(&vnode_pager_list, pager, pg_list);
@@ -308,6 +307,10 @@ vnode_pager_haspage(pager, offset)
 	err = VOP_BMAP(vnp->vnp_vp,
 		       offset / vnp->vnp_vp->v_mount->mnt_stat.f_iosize,
 		       (struct vnode **) 0, &bn, 0);
+/*
+	printf("vnode_pager_haspage: (%d)0x%x: err: %d, bn: %d\n",
+		offset, offset, err, bn);
+*/
 	if (err) {
 		return (TRUE);
 	}
@@ -341,7 +344,11 @@ vnode_pager_setsize(vp, nsize)
 	/*
 	 * Hasn't changed size
 	 */
-	pager = (vm_pager_t) vp->v_vmdata;
+	object = (vm_object_t) vp->v_vmdata;
+	if( object == NULL)
+		return;
+	if( (pager = object->pager) == NULL)
+		return;
 	vnp = (vn_pager_t) pager->pg_data;
 	if (nsize == vnp->vnp_size)
 		return;
@@ -446,7 +453,10 @@ vnode_pager_uncache(vp)
 	/*
 	 * Not a mapped vnode
 	 */
-	pager = (vm_pager_t) vp->v_vmdata;
+	object = (vm_object_t) vp->v_vmdata;
+	if( object == NULL)
+		return(TRUE);
+	pager = object->pager;
 	if (pager == NULL)
 		return (TRUE);
 
@@ -829,6 +839,9 @@ vnode_pager_input(vnp, m, count, reqpage)
  */
 
 
+#ifdef NOTYET
+	if( (vp->v_flag & VVMIO) == 0) {
+#endif
 	/*
 	 * This pathetic hack gets data from the buffer cache, if it's there.
 	 * I believe that this is not really necessary, and the ends can be
@@ -838,89 +851,92 @@ vnode_pager_input(vnp, m, count, reqpage)
 	 * and keep from flushing it by reading in a program.
 	 */
 
-	/*
-	 * calculate logical block and offset
-	 */
-	block = foff / bsize;
-	offset = foff % bsize;
-	s = splbio();
-
-	/*
-	 * if we have a buffer in core, then try to use it
-	 */
-	while (bp = incore(vp, block)) {
-		int     amount;
+		/*
+		 * calculate logical block and offset
+		 */
+		block = foff / bsize;
+		offset = foff % bsize;
+		s = splbio();
 
 		/*
-		 * wait until the buffer is avail or gone
+		 * if we have a buffer in core, then try to use it
 		 */
-		if (bp->b_flags & B_BUSY) {
-			bp->b_flags |= B_WANTED;
-			tsleep((caddr_t) bp, PVM, "vnwblk", 0);
-			continue;
-		}
-		amount = PAGE_SIZE;
-		if ((foff + amount) > vnp->vnp_size)
-			amount = vnp->vnp_size - foff;
-
-		/*
-		 * make sure that this page is in the buffer
-		 */
-		if ((amount > 0) && (offset + amount) <= bp->b_bcount) {
-			bp->b_flags |= B_BUSY;
-			splx(s);
-			kva = kmem_alloc_pageable( pager_map, PAGE_SIZE);
+		while (bp = incore(vp, block)) {
+			int     amount;
 
 			/*
-			 * map the requested page
+			 * wait until the buffer is avail or gone
 			 */
-			pmap_qenter(kva, &m[reqpage], 1);
-
-			/*
-			 * copy the data from the buffer
-			 */
-			bcopy(bp->b_un.b_addr + offset, (caddr_t) kva, amount);
-			if (amount < PAGE_SIZE) {
-				bzero((caddr_t) kva + amount, PAGE_SIZE - amount);
+			if (bp->b_flags & B_BUSY) {
+				bp->b_flags |= B_WANTED;
+				tsleep((caddr_t) bp, PVM, "vnwblk", 0);
+				continue;
 			}
-
+			amount = PAGE_SIZE;
+			if ((foff + amount) > vnp->vnp_size)
+				amount = vnp->vnp_size - foff;
+	
 			/*
-			 * unmap the page and free the kva
+			 * make sure that this page is in the buffer
 			 */
-			pmap_qremove( kva, 1);
-			kmem_free_wakeup(pager_map, kva, PAGE_SIZE);
+			if ((amount > 0) && (offset + amount) <= bp->b_bcount) {
+				bp->b_flags |= B_BUSY;
+				splx(s);
+				kva = kmem_alloc_wait( pager_map, PAGE_SIZE);
 
-			/*
-			 * release the buffer back to the block subsystem
-			 */
-			bp->b_flags &= ~B_BUSY;
-			wakeup((caddr_t) bp);
+				/*
+				 * map the requested page
+				 */
+				pmap_qenter(kva, &m[reqpage], 1);
 
-			/*
-			 * we did not have to do any work to get the requested
-			 * page, the read behind/ahead does not justify a read
-			 */
-			for (i = 0; i < count; i++) {
-				if (i != reqpage) {
-					vnode_pager_freepage(m[i]);
+				/*
+				 * copy the data from the buffer
+				 */
+				bcopy(bp->b_un.b_addr + offset, (caddr_t) kva, amount);
+				if (amount < PAGE_SIZE) {
+					bzero((caddr_t) kva + amount, PAGE_SIZE - amount);
 				}
+
+				/*
+				 * unmap the page and free the kva
+				 */
+				pmap_qremove( kva, 1);
+				kmem_free_wakeup(pager_map, kva, PAGE_SIZE);
+
+				/*
+				 * release the buffer back to the block subsystem
+				 */
+				bp->b_flags &= ~B_BUSY;
+				wakeup((caddr_t) bp);
+
+				/*
+				 * we did not have to do any work to get the requested
+				 * page, the read behind/ahead does not justify a read
+				 */
+				for (i = 0; i < count; i++) {
+					if (i != reqpage) {
+						vnode_pager_freepage(m[i]);
+					}
+				}
+				count = 1;
+				reqpage = 0;
+				m[0] = m[reqpage];
+
+				/*
+				 * sorry for the goto
+				 */
+				goto finishup;
 			}
-			count = 1;
-			reqpage = 0;
-			m[0] = m[reqpage];
 
 			/*
-			 * sorry for the goto
+			 * buffer is nowhere to be found, read from the disk
 			 */
-			goto finishup;
+			break;
 		}
-
-		/*
-		 * buffer is nowhere to be found, read from the disk
-		 */
-		break;
+		splx(s);
+#ifdef NOTYET
 	}
-	splx(s);
+#endif
 
 	reqaddr = vnode_pager_addr(vp, foff);
 	s = splbio();
@@ -934,7 +950,11 @@ vnode_pager_input(vnp, m, count, reqpage)
 	first = reqpage;
 	for (i = reqpage - 1; i >= 0; --i) {
 		if (failflag ||
-		    incore(vp, (foff + (i - reqpage) * PAGE_SIZE) / bsize) ||
+#ifdef NOTYET
+		    ((vp->v_flag & VVMIO) == 0 && incore(vp, (foff + (i - reqpage) * PAGE_SIZE) / bsize)) ||
+#else
+		    (incore(vp, (foff + (i - reqpage) * PAGE_SIZE) / bsize)) ||
+#endif
 		    (vnode_pager_addr(vp, m[i]->offset + paging_offset))
 		    != reqaddr + (i - reqpage) * PAGE_SIZE) {
 			vnode_pager_freepage(m[i]);
@@ -952,7 +972,11 @@ vnode_pager_input(vnp, m, count, reqpage)
 	last = reqpage + 1;
 	for (i = reqpage + 1; i < count; i++) {
 		if (failflag ||
-		    incore(vp, (foff + (i - reqpage) * PAGE_SIZE) / bsize) ||
+#ifdef NOTYET
+		    ((vp->v_flag & VVMIO) == 0 && incore(vp, (foff + (i - reqpage) * PAGE_SIZE) / bsize)) ||
+#else
+		    (incore(vp, (foff + (i - reqpage) * PAGE_SIZE) / bsize)) ||
+#endif
 		    (vnode_pager_addr(vp, m[i]->offset + paging_offset))
 		    != reqaddr + (i - reqpage) * PAGE_SIZE) {
 			vnode_pager_freepage(m[i]);
@@ -1384,27 +1408,33 @@ retryoutput:
 	/*
 	 * next invalidate the incore vfs_bio data
 	 */
-	for (i = 0; i < count; i++) {
-		int     filblock = (foff + i * PAGE_SIZE) / bsize;
-		struct buf *fbp;
+#ifdef NOTYET
+	if( (vp->v_flag & VVMIO) == 0) {
+#endif
+		for (i = 0; i < count; i++) {
+			int     filblock = (foff + i * PAGE_SIZE) / bsize;
+			struct buf *fbp;
 
-		s = splbio();
-		if (fbp = incore(vp, filblock)) {
-			fbp = getblk(vp, filblock, fbp->b_bufsize, 0, 0);
-			if (fbp->b_flags & B_DELWRI) {
-				if (fbp->b_bufsize <= PAGE_SIZE)
-					fbp->b_flags &= ~B_DELWRI;
-				else {
-					bwrite(fbp);
-					fbp = getblk(vp, filblock,
-						     fbp->b_bufsize, 0, 0);
+			s = splbio();
+			if (fbp = incore(vp, filblock)) {
+				fbp = getblk(vp, filblock, fbp->b_bufsize, 0, 0);
+				if (fbp->b_flags & B_DELWRI) {
+					if (fbp->b_bufsize <= PAGE_SIZE)
+						fbp->b_flags &= ~B_DELWRI;
+					else {
+						bwrite(fbp);
+						fbp = getblk(vp, filblock,
+							     fbp->b_bufsize, 0, 0);
+					}
 				}
+				fbp->b_flags |= B_INVAL;
+				brelse(fbp);
 			}
-			fbp->b_flags |= B_INVAL;
-			brelse(fbp);
+			splx(s);
 		}
-		splx(s);
+#ifdef NOTYET
 	}
+#endif
 
 
 	VHOLD(vp);
