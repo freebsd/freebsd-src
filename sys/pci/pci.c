@@ -950,7 +950,9 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 	u_int8_t ln2size;
 	u_int8_t ln2range;
 	u_int32_t testval;
+#ifdef PCI_ENABLE_IO_MODES
 	u_int16_t cmd;
+#endif
 	int type;
 
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
