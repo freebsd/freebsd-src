@@ -142,16 +142,13 @@ isURL(char *fname)
 char *
 fileGetURL(char *base, char *spec)
 {
-    char host[HOSTNAME_MAX], file[FILENAME_MAX];
-    char pword[HOSTNAME_MAX + 40], *uname, *cp, *rp;
+    char *cp, *rp;
     char fname[FILENAME_MAX];
     char pen[FILENAME_MAX];
     char buf[8192];
-    struct passwd *pw;
     FILE *ftp;
     pid_t tpid;
     int pfd[2], pstat;
-    int i, status;
     size_t r, w;
     char *hint;
 
@@ -248,6 +245,8 @@ fileFindByPath(char *base, char *fname)
 {
     static char tmp[FILENAME_MAX];
     char *cp;
+    char *suffixes[] = {".tgz", ".tar", ".tbz2", NULL};
+    int i;
 
     if (fexists(fname) && isfile(fname)) {
 	strcpy(tmp, fname);
@@ -261,23 +260,26 @@ fileFindByPath(char *base, char *fname)
 	    *cp = '\0';	/* chop name */
 	    cp = strrchr(tmp, '/');
 	}
-	if (cp) {
-	    *(cp + 1) = '\0';
-	    strcat(cp, "All/");
-	    strcat(cp, fname);
-	    strcat(cp, ".tgz");
-	    if (fexists(tmp))
-		return tmp;
-	}
+	if (cp)
+	    for (i = 0; suffixes[i] != NULL; i++) {
+		*(cp + 1) = '\0';
+		strcat(cp, "All/");
+		strcat(cp, fname);
+		strcat(cp, suffixes[i]);
+		if (fexists(tmp))
+		    return tmp;
+	    }
     }
 
     cp = getenv("PKG_PATH");
     while (cp) {
 	char *cp2 = strsep(&cp, ":");
 
-	snprintf(tmp, FILENAME_MAX, "%s/%s.tgz", cp2 ? cp2 : cp, fname);
-	if (fexists(tmp) && isfile(tmp))
-	    return tmp;
+	for (i = 0; suffixes[i] != NULL; i++) {
+	    snprintf(tmp, FILENAME_MAX, "%s/%s%s", cp2 ? cp2 : cp, fname, suffixes[i]);
+	    if (fexists(tmp) && isfile(tmp))
+		return tmp;
+	}
     }
     return NULL;
 }
@@ -438,14 +440,18 @@ unpack(char *pkg, char *flist)
     args[0] = '\0';
     /*
      * Figure out by a crude heuristic whether this or not this is probably
-     * compressed.
+     * compressed and whichever compression utility was used (gzip or bzip2).
      */
     if (strcmp(pkg, "-")) {
 	cp = strrchr(pkg, '.');
 	if (cp) {
 	    strcpy(suffix, cp + 1);
-	    if (strchr(suffix, 'z') || strchr(suffix, 'Z'))
-		strcpy(args, "-z");
+	    if (strchr(suffix, 'z') || strchr(suffix, 'Z')) {
+		if (strchr(suffix, 'b'))
+		    strcpy(args, "-y");
+		else
+		    strcpy(args, "-z");
+	    }
 	}
     }
     else

@@ -447,6 +447,9 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    }
 	    last_file = p->name;
 	    break;
+
+	default:
+	    break;
 	}
     }
     return fail;
