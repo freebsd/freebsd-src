@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2000 Mitsaru Iwasaki
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
@@ -64,7 +65,7 @@ AcpiOsFree (void *Memory)
 }
 
 ACPI_STATUS
-AcpiOsMapMemory (void *PhysicalAddress, UINT32 Length, void **LogicalAddress)
+AcpiOsMapMemory (ACPI_PHYSICAL_ADDRESS PhysicalAddress, UINT32 Length, void **LogicalAddress)
 {
     *LogicalAddress = pmap_mapdev((vm_offset_t)PhysicalAddress, Length);
     if (*LogicalAddress == NULL)
@@ -92,5 +93,94 @@ BOOLEAN
 AcpiOsWritable (void *Pointer, UINT32 Length)
 {
     return(TRUE);
+}
+
+static __inline
+UINT32
+AcpiOsMemInX (UINT32 Length, ACPI_PHYSICAL_ADDRESS InAddr)
+{
+    UINT32	Value;
+    void	*LogicalAddress;
+
+    if (AcpiOsMapMemory(InAddr, Length, &LogicalAddress) != AE_OK) {
+	return(0);
+    }
+
+    switch (Length) {
+    case 1:
+	Value = (*(volatile u_int8_t *)LogicalAddress) & 0xff;
+	break;
+    case 2:
+	Value = (*(volatile u_int16_t *)LogicalAddress) & 0xffff;
+	break;
+    case 4:
+	Value = (*(volatile u_int32_t *)LogicalAddress);
+	break;
+    }
+
+    AcpiOsUnmapMemory(LogicalAddress, Length);
+
+    return(Value);
+}
+
+UINT8
+AcpiOsMemIn8 (ACPI_PHYSICAL_ADDRESS InAddr)
+{
+    return((UINT8)AcpiOsMemInX(1, InAddr));
+}
+ 
+UINT16
+AcpiOsMemIn16 (ACPI_PHYSICAL_ADDRESS InAddr)
+{
+    return((UINT16)AcpiOsMemInX(2, InAddr));
+}
+ 
+UINT32
+AcpiOsMemIn32 (ACPI_PHYSICAL_ADDRESS InAddr)
+{
+    return((UINT32)AcpiOsMemInX(4, InAddr));
+}
+ 
+static __inline
+void
+AcpiOsMemOutX (UINT32 Length, ACPI_PHYSICAL_ADDRESS OutAddr, UINT32 Value)
+{
+    void	*LogicalAddress;
+
+    if (AcpiOsMapMemory(OutAddr, Length, &LogicalAddress) != AE_OK) {
+	return;
+    }
+
+    switch (Length) {
+    case 1:
+	(*(volatile u_int8_t *)LogicalAddress) = Value & 0xff;
+	break;
+    case 2:
+	(*(volatile u_int16_t *)LogicalAddress) = Value & 0xffff;
+	break;
+    case 4:
+	(*(volatile u_int32_t *)LogicalAddress) = Value;
+	break;
+    }
+
+    AcpiOsUnmapMemory(LogicalAddress, Length);
+}
+
+void
+AcpiOsMemOut8 (ACPI_PHYSICAL_ADDRESS OutAddr, UINT8 Value)
+{
+    AcpiOsMemOutX(1, OutAddr, (UINT32)Value);
+}
+ 
+void
+AcpiOsMemOut16 (ACPI_PHYSICAL_ADDRESS OutAddr, UINT16 Value)
+{
+    AcpiOsMemOutX(2, OutAddr, (UINT32)Value);
+}
+
+void
+AcpiOsMemOut32 (ACPI_PHYSICAL_ADDRESS OutAddr, UINT32 Value)
+{
+    AcpiOsMemOutX(4, OutAddr, (UINT32)Value);
 }
 
