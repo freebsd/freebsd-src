@@ -739,9 +739,11 @@ _startup_libs+=	gnu/lib/csu gnu/lib/libgcc
 
 _prebuild_libs=	lib/libcom_err lib/libcrypt lib/libkvm lib/libmd \
 		lib/libncurses lib/libopie lib/libradius lib/librpcsvc \
-		lib/libsbuf lib/libtacplus lib/libutil lib/libz lib/msun
+		lib/libsbuf lib/libtacplus lib/libutil lib/libz lib/msun \
+		lib/libypclnt
 
 lib/libopie__L lib/libradius__L lib/libtacplus__L: lib/libmd__L
+lib/libypclnt__L: lib/librpcsvc__L
 
 _generic_libs=	lib gnu/lib
 
