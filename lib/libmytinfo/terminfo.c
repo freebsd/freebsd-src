@@ -52,7 +52,7 @@ int *err; {
 	char buf[MAX_BUF];
 
 
-	if (term == NULL) 
+	if (term == NULL)
 		term = getenv("TERM");
 	if (term == NULL)
 		RETERR(0, "TERM not set\n")
@@ -99,7 +99,7 @@ int *err; {
 		_term_buf.fd = fd;
 		if (_init_tty() == ERR)
 			RETERR(0, "problem initializing tty\n");
-		if ((s = getenv("LINES")) != NULL && atoi(s) > 0) 
+		if ((s = getenv("LINES")) != NULL && atoi(s) > 0)
 			lines = atoi(s);
 		if ((s = getenv("COLUMNS")) != NULL && atoi(s) > 0)
 			columns = atoi(s);

@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_scalbnf.c,v 1.2 1994/08/18 23:10:15 jtc Exp $";
+static char rcsid[] = "$Id: s_scalbnf.c,v 1.1.1.1 1994/08/19 09:39:58 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -44,11 +44,11 @@ tiny   = 1.0e-30;
             if ((ix&0x7fffffff)==0) return x; /* +-0 */
 	    x *= two25;
 	    GET_FLOAT_WORD(ix,x);
-	    k = ((ix&0x7f800000)>>23) - 25; 
+	    k = ((ix&0x7f800000)>>23) - 25;
             if (n< -50000) return tiny*x; 	/*underflow*/
 	    }
         if (k==0xff) return x+x;		/* NaN or Inf */
-        k = k+n; 
+        k = k+n;
         if (k >  0xfe) return huge*copysignf(huge,x); /* overflow  */
         if (k > 0) 				/* normal result */
 	    {SET_FLOAT_WORD(x,(ix&0x807fffff)|(k<<23)); return x;}

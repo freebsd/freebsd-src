@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
 
-/* 
+/*
  * tty.c: tty interface stuff
  */
 #include "sys.h"
@@ -57,7 +57,7 @@ typedef struct ttymap_t {
 } ttymap_t;
 
 
-private ttyperm_t ttyperm = {   
+private ttyperm_t ttyperm = {
     {
 	{ "iflag:", ICRNL, (INLCR|IGNCR) },
 	{ "oflag:", (OPOST|ONLCR), ONLRET },
@@ -87,8 +87,8 @@ private ttyperm_t ttyperm = {
 
 private ttychar_t ttychar = {
     {
-	CINTR,		 CQUIT, 	 CERASE, 	   CKILL,	
-	CEOF, 		 CEOL, 		 CEOL2, 	   CSWTCH, 
+	CINTR,		 CQUIT, 	 CERASE, 	   CKILL,
+	CEOF, 		 CEOL, 		 CEOL2, 	   CSWTCH,
 	CDSWTCH,	 CERASE2,	 CSTART, 	   CSTOP,
 	CWERASE, 	 CSUSP, 	 CDSUSP, 	   CREPRINT,
 	CDISCARD, 	 CLNEXT,	 CSTATUS,	   CPAGE,
@@ -96,15 +96,15 @@ private ttychar_t ttychar = {
 	CTIME
     },
     {
-	CINTR, 		 CQUIT, 	  CERASE, 	   CKILL, 
-	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 
-	_POSIX_VDISABLE, CERASE2,	  CSTART, 	   CSTOP, 	   
-	_POSIX_VDISABLE, CSUSP,           _POSIX_VDISABLE, _POSIX_VDISABLE, 
-	CDISCARD, 	 _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 
+	CINTR, 		 CQUIT, 	  CERASE, 	   CKILL,
+	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE,
+	_POSIX_VDISABLE, CERASE2,	  CSTART, 	   CSTOP,
+	_POSIX_VDISABLE, CSUSP,           _POSIX_VDISABLE, _POSIX_VDISABLE,
+	CDISCARD, 	 _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE,
 	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 1,
 	0
     },
-    {	
+    {
 	0,		 0,		  0,		   0,
 	0,		 0,		  0,		   0,
 	0,		 0,		  0,		   0,
@@ -117,38 +117,38 @@ private ttychar_t ttychar = {
 
 private ttymap_t tty_map[] = {
 #ifdef VERASE
-	{ C_ERASE,   VERASE,	
+	{ C_ERASE,   VERASE,
 	    { ED_DELETE_PREV_CHAR, VI_DELETE_PREV_CHAR, ED_PREV_CHAR } },
 #endif /* VERASE */
 #ifdef VERASE2
-	{ C_ERASE2,  VERASE2,	
+	{ C_ERASE2,  VERASE2,
 	    { ED_DELETE_PREV_CHAR, VI_DELETE_PREV_CHAR, ED_PREV_CHAR } },
 #endif /* VERASE2 */
 #ifdef VKILL
-    	{ C_KILL,    VKILL,	
+    	{ C_KILL,    VKILL,
 	    { EM_KILL_LINE, VI_KILL_LINE_PREV, ED_UNASSIGNED } },
 #endif /* VKILL */
 #ifdef VKILL2
-    	{ C_KILL2,   VKILL2,	
+    	{ C_KILL2,   VKILL2,
 	    { EM_KILL_LINE, VI_KILL_LINE_PREV, ED_UNASSIGNED } },
 #endif /* VKILL2 */
 #ifdef VEOF
-    	{ C_EOF,     VEOF,	
+    	{ C_EOF,     VEOF,
 	    { EM_DELETE_OR_LIST, VI_LIST_OR_EOF, ED_UNASSIGNED } },
 #endif /* VEOF */
 #ifdef VWERASE
-    	{ C_WERASE,  VWERASE,	
+    	{ C_WERASE,  VWERASE,
 	    { ED_DELETE_PREV_WORD, ED_DELETE_PREV_WORD, ED_PREV_WORD } },
 #endif /* VWERASE */
 #ifdef VREPRINT
-   	{ C_REPRINT, VREPRINT,	
+   	{ C_REPRINT, VREPRINT,
 	    { ED_REDISPLAY, ED_INSERT, ED_REDISPLAY } },
 #endif /* VREPRINT */
 #ifdef VLNEXT
-    	{ C_LNEXT,   VLNEXT,	
+    	{ C_LNEXT,   VLNEXT,
 	    { ED_QUOTED_INSERT, ED_QUOTED_INSERT, ED_UNASSIGNED } },
 #endif /* VLNEXT */
-	{ -1,	     -1,	
+	{ -1,	     -1,
 	    { ED_UNASSIGNED, ED_UNASSIGNED, ED_UNASSIGNED } }
     };
 
@@ -359,7 +359,7 @@ private ttymodes_t ttymodes[] = {
     { "extproc",EXTPROC, M_LIN },
 # endif /* EXTPROC */
 
-# if defined(VINTR) 
+# if defined(VINTR)
     { "intr",		C_SH(C_INTR), 	M_CHAR },
 # endif /* VINTR */
 # if defined(VQUIT)
@@ -422,7 +422,7 @@ private ttymodes_t ttymodes[] = {
 # if defined(VPGOFF)
     { "pgoff",		C_SH(C_PGOFF), 	M_CHAR },
 # endif /* VPGOFF */
-# if defined(VKILL2) 
+# if defined(VKILL2)
     { "kill2",		C_SH(C_KILL2), 	M_CHAR },
 # endif /* VKILL2 */
 # if defined(VBRK)
@@ -440,7 +440,7 @@ private ttymodes_t ttymodes[] = {
 
 
 #define tty_getty(el, td) tcgetattr((el)->el_infd, (td))
-#define tty_setty(el, td) tcsetattr((el)->el_infd, TCSADRAIN, (td)) 
+#define tty_setty(el, td) tcsetattr((el)->el_infd, TCSADRAIN, (td))
 
 #define tty__gettabs(td)     ((((td)->c_oflag & TAB3) == TAB3) ? 0 : 1)
 #define tty__geteightbit(td) (((td)->c_cflag & CSIZE) == CS8)
@@ -457,14 +457,14 @@ private int     tty_setup	__P((EditLine *));
 /* tty_setup():
  *	Get the tty parameters and initialize the editing state
  */
-private int 
+private int
 tty_setup(el)
     EditLine *el;
 {
     int rst = 1;
     if (tty_getty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
-	(void) fprintf(el->el_errfile, 
+	(void) fprintf(el->el_errfile,
 		       "tty_setup: tty_getty: %s\n", strerror(errno));
 #endif /* DEBUG_TTY */
 	return(-1);
@@ -509,7 +509,7 @@ tty_setup(el)
         tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
         if (tty_setty(el, &el->el_tty.t_ex) == -1) {
 #ifdef DEBUG_TTY
-            (void) fprintf(el->el_errfile, "tty_setup: tty_setty: %s\n", 
+            (void) fprintf(el->el_errfile, "tty_setup: tty_setty: %s\n",
 			   strerror(errno));
 #endif /* DEBUG_TTY */
             return(-1);
@@ -580,7 +580,7 @@ private void
 tty__getchar(td, s)
     struct termios *td;
     unsigned char *s;
-{   
+{
 # ifdef VINTR
     s[C_INTR]	= td->c_cc[VINTR];
 # endif /* VINTR */
@@ -663,7 +663,7 @@ private void
 tty__setchar(td, s)
     struct termios *td;
     unsigned char *s;
-{   
+{
 # ifdef VINTR
     td->c_cc[VINTR]	= s[C_INTR];
 # endif /* VINTR */
@@ -810,7 +810,7 @@ tty_rawmode(el)
     el->el_tty.t_eight = tty__geteightbit(&el->el_tty.t_ts);
     el->el_tty.t_speed = tty__getspeed(&el->el_tty.t_ts);
 
-    if (tty__getspeed(&el->el_tty.t_ex) != el->el_tty.t_speed || 
+    if (tty__getspeed(&el->el_tty.t_ex) != el->el_tty.t_speed ||
 	tty__getspeed(&el->el_tty.t_ed) != el->el_tty.t_speed) {
 	(void) cfsetispeed(&el->el_tty.t_ex, el->el_tty.t_speed);
 	(void) cfsetospeed(&el->el_tty.t_ex, el->el_tty.t_speed);
@@ -819,7 +819,7 @@ tty_rawmode(el)
     }
 
     if (tty__cooked_mode(&el->el_tty.t_ts)) {
-	if (el->el_tty.t_ts.c_cflag != el->el_tty.t_ex.c_cflag) { 
+	if (el->el_tty.t_ts.c_cflag != el->el_tty.t_ex.c_cflag) {
 	    el->el_tty.t_ex.c_cflag  = el->el_tty.t_ts.c_cflag;
 	    el->el_tty.t_ex.c_cflag &= ~el->el_tty.t_t[EX_IO][M_CTL].t_clrmask;
 	    el->el_tty.t_ex.c_cflag |=  el->el_tty.t_t[EX_IO][M_CTL].t_setmask;
@@ -862,9 +862,9 @@ tty_rawmode(el)
 	    el->el_tty.t_ed.c_oflag |=  el->el_tty.t_t[ED_IO][M_OUT].t_setmask;
 	}
 
-	if (tty__gettabs(&el->el_tty.t_ex) == 0) 
+	if (tty__gettabs(&el->el_tty.t_ex) == 0)
 	    el->el_tty.t_tabs = 0;
-	else 
+	else
 	    el->el_tty.t_tabs = EL_CAN_TAB ? 1 : 0;
 
 	{
@@ -879,7 +879,7 @@ tty_rawmode(el)
 	    for (i = 0; i < C_NCC; i++)
 		if (el->el_tty.t_c[TS_IO][i] != el->el_tty.t_c[EX_IO][i])
 		    break;
-		
+
 	    if (i != C_NCC) {
 		/*
 		 * Propagate changes only to the unprotected chars
@@ -910,7 +910,7 @@ tty_rawmode(el)
 
     if (tty_setty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
-	(void) fprintf(el->el_errfile, "tty_rawmode: tty_setty: %s\n", 
+	(void) fprintf(el->el_errfile, "tty_rawmode: tty_setty: %s\n",
 		       strerror(errno));
 #endif /* DEBUG_TTY */
 	return -1;
@@ -932,7 +932,7 @@ tty_cookedmode(el)
 
     if (tty_setty(el, &el->el_tty.t_ex) == -1) {
 #ifdef DEBUG_TTY
-	(void) fprintf(el->el_errfile, "tty_cookedmode: tty_setty: %s\n", 
+	(void) fprintf(el->el_errfile, "tty_cookedmode: tty_setty: %s\n",
 		       strerror(errno));
 #endif /* DEBUG_TTY */
 	return -1;
@@ -968,7 +968,7 @@ tty_quotemode(el)
 
     if (tty_setty(el, &el->el_tty.t_qu) == -1) {
 #ifdef DEBUG_TTY
-	(void) fprintf(el->el_errfile, "QuoteModeOn: tty_setty: %s\n", 
+	(void) fprintf(el->el_errfile, "QuoteModeOn: tty_setty: %s\n",
 		       strerror(errno));
 #endif /* DEBUG_TTY */
 	return -1;
@@ -989,7 +989,7 @@ tty_noquotemode(el)
 	return 0;
     if (tty_setty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
-	(void) fprintf(el->el_errfile, "QuoteModeOff: tty_setty: %s\n", 
+	(void) fprintf(el->el_errfile, "QuoteModeOff: tty_setty: %s\n",
 		       strerror(errno));
 #endif /* DEBUG_TTY */
 	return -1;
@@ -1019,7 +1019,7 @@ tty_stty(el, argc, argv)
 	return -1;
     name = *argv++;
 
-    while (argv && *argv && argv[0][0] == '-' && argv[0][2] == '\0') 
+    while (argv && *argv && argv[0][0] == '-' && argv[0][2] == '\0')
 	switch (argv[0][1]) {
 	case 'a':
 	    aflag++;
@@ -1048,7 +1048,7 @@ tty_stty(el, argc, argv)
 	int len = 0, st = 0, cu;
 	for (m = ttymodes; m->m_name; m++) {
 	    if (m->m_type != i) {
-		(void) fprintf(el->el_outfile, "%s%s", i != -1 ? "\n" : "", 
+		(void) fprintf(el->el_outfile, "%s%s", i != -1 ? "\n" : "",
 			el->el_tty.t_t[z][m->m_type].t_name);
 		i = m->m_type;
 		st = len = strlen(el->el_tty.t_t[z][m->m_type].t_name);
@@ -1065,7 +1065,7 @@ tty_stty(el, argc, argv)
 		    (void) fprintf(el->el_outfile, "\n%*s", st, "");
 		    len = st + cu;
 		}
-		else 
+		else
 		    len += cu;
 
 		if (x != '\0')
@@ -1131,7 +1131,7 @@ tty_printchar(el, s)
     int i;
 
     for (i = 0; i < C_NCC; i++) {
-	for (m = el->el_tty.t_t; m->m_name; m++) 
+	for (m = el->el_tty.t_t; m->m_name; m++)
 	    if (m->m_type == M_CHAR && C_SH(i) == m->m_value)
 		break;
 	if (m->m_name)
@@ -1139,6 +1139,6 @@ tty_printchar(el, s)
 	if (i % 5 == 0)
 	    (void) fprintf(el->el_errfile, "\n");
     }
-    (void) fprintf(el->el_errfile, "\n"); 
+    (void) fprintf(el->el_errfile, "\n");
 }
 #endif /* notyet */

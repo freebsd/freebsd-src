@@ -8,16 +8,16 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_expf.c,v 1.1 1994/08/10 20:34:03 jtc Exp $";
+static char rcsid[] = "$Id: w_expf.c,v 1.1.1.1 1994/08/19 09:39:59 jkh Exp $";
 #endif
 
-/* 
+/*
  * wrapper expf(x)
  */
 
@@ -52,7 +52,7 @@ u_threshold= -1.0397208405e+02;  /* 0xc2cff1b5 */
 	    else if(x<u_threshold)
 	        /* exp underflow */
 	        return (float)__kernel_standard((double)x,(double)x,107);
-	} 
+	}
 	return z;
 #endif
 }

@@ -59,7 +59,7 @@ register int (*outc)();
 	/* some programmes expect this behaviour from tputs */
 	if (sp == NULL) {
 #ifdef DEBUG
-		fprintf(stderr, "tputs: NULL\n");	
+		fprintf(stderr, "tputs: NULL\n");
 #endif
 		return 0;
 	}
@@ -181,7 +181,7 @@ register int (*outc)();
 #endif
 			if (cur_term->pad || must_pad) {
 				cnt = ((long) l * cur_term->baudrate
-				       * (multiply_pad ? count : 1) 
+				       * (multiply_pad ? count : 1)
 				       + (10000L * BITSPERCHAR / 2L))
 				      / (10000L * BITSPERCHAR);
 #ifdef TEST
@@ -247,7 +247,7 @@ char **argv; {
 	test_term.baudrate = 1200;
 	test_term.pad = 0;
 	test_term.padch = 0;
-	if (argc > 1) 
+	if (argc > 1)
 		test_term.baudrate = atoi(argv[1]);
 	if (argc > 2)
 		test_term.padch = argv[2][0];

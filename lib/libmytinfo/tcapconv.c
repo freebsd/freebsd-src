@@ -30,7 +30,7 @@ static char *C_HT = "\t";
 
 /*
  * This routine fills in caps that either had defaults under termcap or
- * can be manufactured from obsolete termcap capabilities. 
+ * can be manufactured from obsolete termcap capabilities.
  */
 
 void
@@ -56,7 +56,7 @@ _tcapdefault() {
 	}
 /* vi doesn't use "do", but it does seems to use nl (or '\n') instead */
 	if (NOTSET(cursor_down)) {
-		if (DEF(linefeed_if_not_lf)) 
+		if (DEF(linefeed_if_not_lf))
 			cursor_down = _addstr(linefeed_if_not_lf);
 		else if (linefeed_is_newline != 1) {
 			if (new_line_delay > 0) {
@@ -69,7 +69,7 @@ _tcapdefault() {
 	set_scroll_forward_to_lf = 0;
 	if (NOTSET(scroll_forward) && crt_without_scrolling != 1) {
 		set_scroll_forward_to_lf = 1;
-		if (DEF(linefeed_if_not_lf)) 
+		if (DEF(linefeed_if_not_lf))
 			scroll_forward = _addstr(linefeed_if_not_lf);
 		else if (linefeed_is_newline != 1) {
 			if (new_line_delay > 0) {

@@ -6,12 +6,12 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: config.c,v 1.1 1994/11/13 20:47:43 phk Exp $
  *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: config.c,v 1.1 1994/01/14 12:24:39 jkh Exp $";
+static char rcsid[] = "$Id: config.c,v 1.1 1994/11/13 20:47:43 phk Exp $";
 #endif				/* LIBC_SCCS and not lint */
 
 /*
@@ -21,7 +21,7 @@ static char rcsid[] = "$Id: config.c,v 1.1 1994/01/14 12:24:39 jkh Exp $";
  *	Will open the named file, read it into a private malloc'ed area,
  *	and close the file again.
  *	All lines where the first !isspace() char is '#' are deleted.
- *	If contlines are non-zero lines where the first char is isspace() 
+ *	If contlines are non-zero lines where the first char is isspace()
  *	will be joined to the preceeding line.
  *	In case of trouble the name of the offending system call will be
  *	returned.  On success NULL is returned.
@@ -93,8 +93,8 @@ config_open(const char *filename, int contlines)
 
 	/*
          * /^[ \t]*#[^\n]*$/d
-	 * 
-	 * Delete all lines where the first !isspace() char is '#' 
+	 *
+	 * Delete all lines where the first !isspace() char is '#'
          */
 
 	ptr = file_buf;

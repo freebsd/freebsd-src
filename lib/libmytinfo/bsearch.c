@@ -52,7 +52,7 @@ static char const SCCSid[] = "@(#) mytinfo bsearch.c 3.4 92/06/04 public domain,
  * $OLog:	bsearch.c,v $
  * Revision 1.1  88/06/11  20:41:48  root
  * Initial revision
- * 
+ *
 */
 #endif
 

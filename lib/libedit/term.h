@@ -92,7 +92,7 @@ protected int  term_init		__P((EditLine *));
 protected void term_bind_arrow		__P((EditLine *));
 protected void term_print_arrow		__P((EditLine *, char *));
 protected int  term_clear_arrow		__P((EditLine *, char *));
-protected int  term_set_arrow		__P((EditLine *, char *, 
+protected int  term_set_arrow		__P((EditLine *, char *,
 					     key_value_t *, int));
 protected void term_end			__P((EditLine *));
 protected int  term_set			__P((EditLine *, char *));

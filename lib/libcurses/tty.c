@@ -75,7 +75,7 @@ int
 gettmode()
 {
 	useraw = 0;
-	
+
 	if (tcgetattr(__tty_fileno = STDIN_FILENO, &__orig_termios))
 	    if (tcgetattr(__tty_fileno = STDOUT_FILENO, &__orig_termios))
 		__noterm = 1;
@@ -160,14 +160,14 @@ nocbreak()
 	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
-	
+
 int
 echo()
 {
 	rawt.c_lflag |= ECHO;
 	cbreakt.c_lflag |= ECHO;
 	__baset.c_lflag |= ECHO;
-	
+
 	__echoit = 1;
 	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
@@ -179,7 +179,7 @@ noecho()
 	rawt.c_lflag &= ~ECHO;
 	cbreakt.c_lflag &= ~ECHO;
 	__baset.c_lflag &= ~ECHO;
-	
+
 	__echoit = 0;
 	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);

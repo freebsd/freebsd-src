@@ -32,7 +32,7 @@ tgoto(str, x, y)
 char *str;
 int x,y; {
 	register char *sp;
-	
+
 	static char buf[MAX_LINE] = {'\\', '@'};
 
 	sp = str = tparm(str, y, x);

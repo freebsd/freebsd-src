@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 /*
- * Hp300 machine dependent routines for kvm.  Hopefully, the forthcoming 
+ * Hp300 machine dependent routines for kvm.  Hopefully, the forthcoming
  * vm code will one day obsolete this module.
  */
 
@@ -161,7 +161,7 @@ _kvm_vatop(kd, sta, va, pa)
 		addr = (u_long)&sta[va >> SG4_SHIFT1];
 		/*
 		 * Can't use KREAD to read kernel segment table entries.
-		 * Fortunately it is 1-to-1 mapped so we don't have to. 
+		 * Fortunately it is 1-to-1 mapped so we don't have to.
 		 */
 		if (sta == vm->Sysseg) {
 			if (lseek(kd->pmfd, (off_t)addr, 0) == -1 ||
@@ -180,7 +180,7 @@ _kvm_vatop(kd, sta, va, pa)
 		 * Address from level 1 STE is a physical address,
 		 * so don't use kvm_read.
 		 */
-		if (lseek(kd->pmfd, (off_t)(addr - lowram), 0) == -1 || 
+		if (lseek(kd->pmfd, (off_t)(addr - lowram), 0) == -1 ||
 		    read(kd->pmfd, (char *)&ste, sizeof(ste)) < 0)
 			goto invalid;
 		if ((ste & SG_V) == 0) {
@@ -194,7 +194,7 @@ _kvm_vatop(kd, sta, va, pa)
 		addr = (u_long)&sta[va >> SEGSHIFT];
 		/*
 		 * Can't use KREAD to read kernel segment table entries.
-		 * Fortunately it is 1-to-1 mapped so we don't have to. 
+		 * Fortunately it is 1-to-1 mapped so we don't have to.
 		 */
 		if (sta == vm->Sysseg) {
 			if (lseek(kd->pmfd, (off_t)addr, 0) == -1 ||
@@ -212,7 +212,7 @@ _kvm_vatop(kd, sta, va, pa)
 	/*
 	 * Address from STE is a physical address so don't use kvm_read.
 	 */
-	if (lseek(kd->pmfd, (off_t)(addr - lowram), 0) == -1 || 
+	if (lseek(kd->pmfd, (off_t)(addr - lowram), 0) == -1 ||
 	    read(kd->pmfd, (char *)&pte, sizeof(pte)) < 0)
 		goto invalid;
 	addr = pte & PG_FRAME;
@@ -221,7 +221,7 @@ _kvm_vatop(kd, sta, va, pa)
 		return (0);
 	}
 	*pa = addr - lowram + offset;
-	
+
 	return (NBPG - offset);
 invalid:
 	_kvm_err(kd, 0, "invalid address (%x)", va);

@@ -68,7 +68,7 @@ initscr()
 		return (NULL);
 
 	/* Need either homing or cursor motion for refreshes */
-	if (!HO && !CM) 
+	if (!HO && !CM)
 		return (NULL);
 
 	if (curscr != NULL)

@@ -3,7 +3,7 @@
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
- * Peter McIlroy and by Dan Bernstein at New York University, 
+ * Peter McIlroy and by Dan Bernstein at New York University,
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,13 +40,13 @@ static char sccsid[] = "@(#)radixsort.c	8.1 (Berkeley) 6/4/93";
 
 /*
  * Radixsort routines.
- * 
+ *
  * Program r_sort_a() is unstable but uses O(logN) extra memory for a stack.
  * Use radixsort(a, n, trace, endchar) for this case.
- * 
+ *
  * For stable sorting (using N extra pointers) use sradixsort(), which calls
  * r_sort_b().
- * 
+ *
  * For a description of this code, see D. McIlroy, P. McIlroy, K. Bostic,
  * "Engineering Radix Sort".
  */
@@ -294,7 +294,7 @@ r_sort_b(a, ta, n, i, tr, endch)
 			*--top[tr[(*ak)[i]]] = *ak;
 	}
 }
-		
+
 static inline void
 simplesort(a, n, b, tr, endch)	/* insertion sort */
 	register const u_char **a;

@@ -10,61 +10,61 @@ Ftp_connect_hook(FTP *ftp,int code, char *msg)
 {
   FtpLog(ftp->title,msg);
   longjmp(connectstack,1);
-  
-}
-  
 
-Ftp_connect(ARGS) 
+}
+
+
+Ftp_connect(ARGS)
 {
   STATUS (*func1)(),(*func2)();
 
   if (*w2==0) w2=readline("Host:");
 
-  if (FtpGetHost(w2)==NULL && FtpInit.IO != NULL) 
+  if (FtpGetHost(w2)==NULL && FtpInit.IO != NULL)
     {
       char *msg;
       extern int h_errno;
-      
+
       switch(h_errno)
 	{
 	case HOST_NOT_FOUND:	  msg = "Host unknown";	  break;
 	case TRY_AGAIN:	          msg = "Hostname lookup failure";break;
-	default:	          msg = "gethostbyname failure";	  
+	default:	          msg = "gethostbyname failure";
 	}
       return (*FtpInit.IO)(LINK,QUIT,msg);
     }
-  
+
   newframe(0);
-  
+
   func1 = FtpInit.error;
   func2 = FtpInit.IO;
-  
-  if (trymode) 
+
+  if (trymode)
     {
       FtpSetErrorHandler(&FtpInit,Ftp_connect_hook);
       FtpSetIOHandler(&FtpInit,Ftp_connect_hook);
       setjmp(connectstack);
     }
-  
+
   FtpConnect(&LINK,w2);
   strcpy(iftp[frame].host,FtpGetHost(w2)->h_name);
-  
+
   FtpSetErrorHandler(LINK,func1);
   FtpSetErrorHandler(&FtpInit,func1);
   FtpSetIOHandler(LINK,func2);
   FtpSetIOHandler(&FtpInit,func2);
-  
+
   return;
 }
 
 Ftp_user(ARGS)
 {
-  
+
   if (*w2==0)
     {
       sprintf(tmp,"login (default %s):",defaultuser);
       w2=readline(tmp);
-      if (*w2==0) 
+      if (*w2==0)
 	w2=defaultuser;
     }
   strcpy(iftp[frame].user,w2);
@@ -74,11 +74,11 @@ Ftp_user(ARGS)
 
 Ftp_pass(ARGS)
 {
-  if (*w2==0) 
+  if (*w2==0)
     {
       String pass;
       String host;
-  
+
       gethostname(host, sizeof host);
       strcpy(host,FtpGetHost(host)->h_name);
       sprintf(pass,"%s@%s",getpwuid(getuid())->pw_name,host);
@@ -86,7 +86,7 @@ Ftp_pass(ARGS)
       w2=getpass(tmp);
       if (*w2==0) w2=pass;
     }
-  
+
   strcpy(iftp[frame].pass,w2);
   FtpPassword(LINK,w2);
   strcpy(iftp[frame].pwd,FtpPwd(LINK));
@@ -96,11 +96,11 @@ Ftp_open(ARGS)
 {
   register char *p1;
   STATUS (*err)();
-  
+
   Ftp_connect("",w2,"","","","");
   Ftp_user("",w3,w4,"","","" );
   if (ifalias("autologin")) execute("autologin");
-  if (*w5) 
+  if (*w5)
     Ftp_cd("cd",w5,"","","","");
 }
 
@@ -121,11 +121,11 @@ Ftp_ftp(ARGS)
 {
   String pass;
   String host;
-  
+
   gethostname(host, sizeof host);
   strcpy(host,FtpGetHost(host)->h_name);
   sprintf(pass,"%s@%s",getpwuid(getuid())->pw_name,host);
-  
+
   Ftp_open("",w2,"anonymous",pass,w3,"");
   return;
 }
@@ -147,14 +147,14 @@ Ftp_lcd(ARGS)
   glob_t gl;
 
   bzero(&gl,sizeof gl);
- 
+
   glob(w2,GLOB_BRACE|GLOB_TILDE|GLOB_QUOTE,
        Ftp_mput_handler, &gl);
-  
-  
+
+
   if (gl.gl_matchc<1 || chdir(*gl.gl_pathv))
     perror(w2);
-  
+
   printf("Local directory is \"%s\"\n",getwd(tmp));
 }
 
@@ -163,35 +163,35 @@ Ftp_dir(ARGS)
   char *cmd1;
   String cmd;
   char mode=LINK->mode;
-  
-  if ( !strcmp(w1,"dir") ) 
+
+  if ( !strcmp(w1,"dir") )
     cmd1="LIST";
   else
     cmd1="NLST";
-  
+
   strcpy(cmd,makestr(cmd1,w2,w3,w4,w5,w6,NULL));
 
   if ( LINK->mode != 'A' ) FtpAscii(LINK);
   FtpRetr(LINK,cmd,"","-");
   if ( LINK->mode != mode ) FtpType(LINK,mode);
-  
+
 }
 
 Ftp_close(ARGS)
 {
   register int i;
-  
-  if (isdigit(*w2)) 
+
+  if (isdigit(*w2))
     {
       i=atoi(w2);
     }
-  else 
+  else
     {
       i=frame;
     }
-  
+
   FtpQuickBye(ftp[i]);
-  
+
   iftp[i].host[0]=0;
   iftp[i].pwd[0]=0;
   ftp[i]=NULL;
@@ -203,19 +203,19 @@ INLINE SetLogicalVar(char arg, int * var, char *msg)
 {
   switch(arg)
     {
-      
+
     case 'y':
-      
+
       *var=1;
       break;
-      
+
     case 'n':
-      
+
       *var=0;
       break;
-      
+
     default:
-      
+
       (*var)?(*var=0):(*var=1);
       break;
     }
@@ -227,7 +227,7 @@ Ftp_set(ARGS)
 {
   if (!strcmp("frame",w2))
     return atoi(w3)<NFRAMES?frame=atoi(w3):0;
-  
+
   if (!strcmp("timeout",w2))
     {
       FtpSetTimeout(&FtpInit,atoi(w3));
@@ -235,17 +235,17 @@ Ftp_set(ARGS)
 	FtpSetTimeout(LINK,atoi(w3));
       return;
     }
-  
+
   if (!strcmp("sleep",w2))
     {
       sleeptime=atoi(w3);
       return;
     }
-  
+
   if (!strcmp("debug",w2))
     {
-      if ( *w3=='y' || *w3==0) 
-	{ 
+      if ( *w3=='y' || *w3==0)
+	{
 	  if (LINK!=NULL) FtpSetDebugHandler(LINK,FtpDebugDebug);
 	  FtpSetDebugHandler(&FtpInit,FtpDebugDebug);
 	  return puts("Debuging on for current and next session");
@@ -257,11 +257,11 @@ Ftp_set(ARGS)
 	  return puts("Debuging off for current and next session");
 	}
     }
-  
+
   if (!strcmp("bin",w2))
     {
-      if ( *w3=='y' || *w3==0) 
-	{ 
+      if ( *w3=='y' || *w3==0)
+	{
 	  FtpInit.mode='I';
 	  return puts("Binary mode enable");
 	}
@@ -271,7 +271,7 @@ Ftp_set(ARGS)
 	  return puts("Binary mode disable");
 	}
     }
-  
+
   if (!strcmp("try",w2))
     return SetLogicalVar(*w3,&trymode,"Try mode");
   if (!strcmp("hash",w2))
@@ -280,16 +280,16 @@ Ftp_set(ARGS)
     return SetLogicalVar(*w3,&glassmode,"Glass mode");
   if (!strcmp("rest",w2)||!strcmp(w2,"restore"))
     return SetLogicalVar(*w3,&restmode,"Restore mode");
-  
+
   if (!strcmp("prompt",w2))
     {
       strcpy(prompt,w3);
       return;
     }
-  
+
   if (!strcmp("port",w2))
     {
-      if ( isdigit(*w3)) 
+      if ( isdigit(*w3))
 	return FtpSetPort(&FtpInit,atoi(w3));
       puts("Port must be number");
       fflush(stdout);
@@ -298,7 +298,7 @@ Ftp_set(ARGS)
 
   if (!strcmp("noopinterval",w2)||!strcmp("noop",w2))
     {
-      if ( isdigit(*w3)) 
+      if ( isdigit(*w3))
 	return noopinterval=(time_t)atoi(w3);
       puts("Time must be number");
       fflush(stdout);
@@ -307,21 +307,21 @@ Ftp_set(ARGS)
 
   if (!strcmp("nooptimeout",w2))
     {
-      if ( isdigit(*w3)) 
+      if ( isdigit(*w3))
 	return nooptimeout=(time_t)atoi(w3);
       puts("Time must be number");
       fflush(stdout);
       return;
     }
 
-      
+
 
   if (!strcmp("user",w2)||!strcmp("login",w2))
     {
       strcpy(defaultuser,w3);
       return;
     }
-  
+
   if (!strcmp("",w2))
     {
 
@@ -342,8 +342,8 @@ Ftp_set(ARGS)
       fflush(stdout);
       return;
     }
-  return puts("arg 2 unknown"); 
-  
+  return puts("arg 2 unknown");
+
 }
 
 jmp_buf getstack;
@@ -351,13 +351,13 @@ jmp_buf getstack;
 Ftp_get_hook(FTP *con,int code, char *msg)
 {
 
-  if ( abs(code)==550 && FtpBadReply550(msg) ) 
+  if ( abs(code)==550 && FtpBadReply550(msg) )
     {
       FtpLog(con->title,msg);
       log("Transfer cancel");
       longjmp(getstack,2);
     }
-  
+
   if ( code == LQUIT )
     {
       log(msg);
@@ -366,7 +366,7 @@ Ftp_get_hook(FTP *con,int code, char *msg)
     }
 
 
-  
+
   FtpLog(con->title,msg);
   FtpQuickBye(LINK);
   LINK=NULL;
@@ -374,11 +374,11 @@ Ftp_get_hook(FTP *con,int code, char *msg)
   log("sleeping......");
   sleep(sleeptime);
   log("try again...");
-  
+
   longjmp(getstack,1);
-  
+
 }
-  
+
 void Ftp_get_intr(int sig)
 {
   signal(SIGINT,intr);
@@ -393,19 +393,19 @@ Ftp_get(ARGS)
   int back=0;
   int code;
   int status=0;
-  
+
   OldInit=FtpInit;
-  
+
   if (strstr(w1,"put")!=NULL) back=1;
-  
-  
+
+
   if (restmode || ((*w1=='r')&&(*(w1+1)=='e')) )
     FtpSetFlag(LINK,FTP_REST);
   else
-    FtpClearFlag(LINK,FTP_REST);    
-  
-  
-  
+    FtpClearFlag(LINK,FTP_REST);
+
+
+
   if (trymode)
     {
       FtpSetErrorHandler(LINK,Ftp_get_hook);
@@ -414,28 +414,28 @@ Ftp_get(ARGS)
       FTPCMD(&FtpInit)=FTPCMD(&OldInit);
       FTPDATA(&FtpInit)=FTPDATA(&OldInit);
     }
-  
+
   signal(SIGINT,Ftp_get_intr);
   FtpSetHashHandler(LINK,NULL);
-  
-  
-  if ((status=setjmp(getstack))==2||status==3) 
+
+
+  if ((status=setjmp(getstack))==2||status==3)
     goto done;
-  
+
   if ((LINK==NULL)||(LINK->sock==FtpInit.sock))
     {
       FtpLogin(&LINK,iftp[frame].host,iftp[frame].user,
-	       iftp[frame].pass,NULL);	  
+	       iftp[frame].pass,NULL);
       FtpChdir(LINK,iftp[frame].pwd);
     }
-  
+
   if (hashmode && isatty(fileno(stdout)))
     FtpSetHashHandler(LINK,myhash);
   else
     FtpSetHashHandler(LINK,NULL);
-    
+
   myhash(LINK,0);
-  
+
   if (!back)
     FtpGet(LINK,w2,makefilename(w2,w3));
   else
@@ -443,15 +443,15 @@ Ftp_get(ARGS)
 
 
   log("Transfer compliete");
-  
-  
+
+
 done:
-  
-  
+
+
   FtpSetHashHandler(LINK,NULL);
   FtpSetErrorHandler(LINK,my_error);
   FtpSetIOHandler(LINK,my_error);
-  FtpClearFlag(LINK,FTP_REST);    
+  FtpClearFlag(LINK,FTP_REST);
   FtpInit=OldInit;
 }
 
@@ -459,7 +459,7 @@ Ftp_mget(ARGS)
 {
   FILE *list;
   char mode=LINK->mode;
-  
+
   sprintf(tmp,"/tmp/uftplist-%s.XXXXXX",getpwuid(getuid())->pw_name);
   mktemp(tmp);
 
@@ -487,10 +487,10 @@ Ftp_mget(ARGS)
 Ftp_mput(ARGS)
 {
   glob_t gl;
- 
+
   glob(w2,GLOB_BRACE|GLOB_TILDE|GLOB_QUOTE,
        Ftp_mput_handler, &gl);
-  
+
   while(gl.gl_matchc--)
     {
       Ftp_get("put",*gl.gl_pathv,"","","","");
@@ -501,51 +501,51 @@ Ftp_mput(ARGS)
 
 Ftp_bget(ARGS)
 {
-  
+
   String fn,lfn;
   char *p;
 
   newframe(0);
-  
+
   if (!FtpFullSyntax(w2,iftp[frame].host,iftp[frame].user,
 		     iftp[frame].pass,fn))
     return puts("Filename syntax error");
-  
+
   strcpy(iftp[frame].pwd,"/");
-  
-  if ((p=strrchr(fn,'/'))!=NULL) 
+
+  if ((p=strrchr(fn,'/'))!=NULL)
     strcpy(lfn,p+1);
   else
     strcpy(lfn,fn);
-  
+
   FtpQuickBye(LINK);
   LINK=FtpCreateObject();
   LINK->sock=NULL;
-  
+
   Ftp_get("get",fn,(*w3==0)?lfn:w3,"","","");
 }
 
 Ftp_bput(ARGS)
 {
-  
+
   String fn,lfn;
   char *p;
 
   if (!FtpFullSyntax((*w3==0)?w2:w3,iftp[frame].host,iftp[frame].user,
 		     iftp[frame].pass,fn))
     return puts("Filename syntax error");
-  
+
   strcpy(iftp[frame].pwd,"/");
-  
-  if ((p=strrchr(fn,'/'))!=NULL) 
+
+  if ((p=strrchr(fn,'/'))!=NULL)
     strcpy(lfn,p+1);
   else
     strcpy(lfn,fn);
-  
+
   FtpQuickBye(LINK);
   LINK=FtpCreateObject();
   LINK->sock=NULL;
-  
+
   Ftp_get("put",(*w3==0)?lfn:w2,fn,"","","");
 }
 
@@ -553,10 +553,10 @@ Ftp_copy(ARGS)
 {
   char *p;
   int in,out;
-  
+
   if ( !*w2 || !*w3 ) return puts("Must pass two args");
-  
-  if ((p=strchr(w2,'!'))!=NULL) 
+
+  if ((p=strchr(w2,'!'))!=NULL)
     {
       *p=0;
       in=atoi(w2);
@@ -565,7 +565,7 @@ Ftp_copy(ARGS)
   else
     in=frame;
 
-  if ((p=strchr(w3,'!'))!=NULL) 
+  if ((p=strchr(w3,'!'))!=NULL)
     {
       *p=0;
       out=atoi(w3);
@@ -573,9 +573,9 @@ Ftp_copy(ARGS)
     }
   else
     in=frame;
-  
+
   if (in==out) return puts("Files must been from different frames");
-  
+
   FtpCopy(ftp[in],ftp[out],w2,w3);
 }
 
@@ -583,10 +583,10 @@ Ftp_ccopy(ARGS)
 {
   char *p;
   int in,out;
-  
+
   if ( !*w2 || !*w3 ) return puts("Must pass two args");
-  
-  if ((p=strchr(w2,'!'))!=NULL) 
+
+  if ((p=strchr(w2,'!'))!=NULL)
     {
       *p=0;
       in=atoi(w2);
@@ -595,7 +595,7 @@ Ftp_ccopy(ARGS)
   else
     in=frame;
 
-  if ((p=strchr(w3,'!'))!=NULL) 
+  if ((p=strchr(w3,'!'))!=NULL)
     {
       *p=0;
       out=atoi(w3);
@@ -603,9 +603,9 @@ Ftp_ccopy(ARGS)
     }
   else
     in=frame;
-  
+
   if (in==out) return puts("Files must been from different frames");
-  
+
   FtpPassiveTransfer(ftp[in],ftp[out],w2,w3);
 }
 
@@ -628,17 +628,17 @@ Ftp_cd(ARGS)
 
 
 Ftp_dup(ARGS)
-{ 
+{
   LINKINFO oldinfo;
   FTP oldftp;
-  
+
   oldinfo=iftp[frame];
   oldftp=*LINK;
-  
+
   newframe(0);
   puts("Make alternative connection...");
   Ftp_open("",oldinfo.host,oldinfo.user,oldinfo.pass,"","");
-  if (strcmp(oldinfo.pwd,iftp[frame].pwd)) 
+  if (strcmp(oldinfo.pwd,iftp[frame].pwd))
     Ftp_cd("",oldinfo.pwd,"","","","");
   if (LINK->mode!=oldftp.mode)
     FtpType(LINK,oldftp.mode);
@@ -649,23 +649,23 @@ Ftp_dup(ARGS)
   FtpSetIOHandler(LINK,oldftp.IO);
   FtpSetHashHandler(LINK,oldftp.hash);
 }
-  
 
-  
+
+
 Ftp_bg(ARGS)
 {
   if (fork())
     {
-      
+
       log("Backgrounding...");
       return;
     }
   else
     {
       int i=frame;
-  
+
       lastcmd=1;
-     
+
       /* Ignoring keypad */
 
       alarm (0);
@@ -680,7 +680,7 @@ Ftp_bg(ARGS)
 
       /* Droping output */
 
-  
+
       sprintf(tmp,"/tmp/uftp-%s.XXXXXX",getpwuid(getuid())->pw_name);
       mktemp(tmp);
       close(0);close(1);close(2);
@@ -693,21 +693,21 @@ Ftp_bg(ARGS)
 	  free(ftp[i]);
 	  ftp[i]=NULL;
 	}
-      
+
       return executev(w2,w3,w4,w5,w6,"");
     }
 }
-  
+
 
 Ftp_list()
 {
   register int i;
-      
-#define _FMT "%-5s %-15s %-10s %-25s %-7s %-4s\n" 
-#define  FMT "%-5d %-15s %-10s %-25s %-7d %-4d\n" 
-      
+
+#define _FMT "%-5s %-15s %-10s %-25s %-7s %-4s\n"
+#define  FMT "%-5d %-15s %-10s %-25s %-7d %-4d\n"
+
   printf(_FMT,"Frame","Host name","User's name","Working directory","Timeout","Port");
-  
+
   for ( i = 0 ; i < NFRAMES ; i++ )
     if (ftp[i]!=NULL)
       printf(FMT,i,iftp[i].host,iftp[i].user,iftp[i].pwd,
@@ -739,10 +739,10 @@ Ftp_page(ARGS)
 {
   register char *pager;
   String out={'|',0};
-  
-  if ((pager=(char *)getenv("PAGER"))==NULL) 
+
+  if ((pager=(char *)getenv("PAGER"))==NULL)
     pager="more";
- 
+
   strcat(out,pager);
   FtpGet(LINK,w2,out);
 }
@@ -759,24 +759,24 @@ Ftp_rm(ARGS)
 
   sprintf(tmp,"/tmp/uftplist-%s.XXXXXX",getpwuid(getuid())->pw_name);
   mktemp(tmp);
-  
-  if (*w2==0) 
+
+  if (*w2==0)
     {
       log("Filename specification must present");
       return;
     }
-  
+
   FtpRetr(LINK,"NLST %s",w2,tmp);
-  
+
   if ((list=fopen(tmp,"r"))==NULL)
     return FtpLog(tmp,sys_errlist[errno]);
-  
+
   while ( fgets(tmp,sizeof tmp,list)!=NULL)
     {
       tmp[strlen(tmp)-1]=0;
       FtpCommand(LINK,"DELE %s",tmp,0,EOF);
     }
-  
+
   fclose(list);
 }
 
@@ -791,7 +791,7 @@ Ftp_move(ARGS)
 Ftp_help(ARGS)
 {
   register int i,ii;
- 
+
   if ( !*w2 )
     {
       puts("Warrning!!!! \nPlease read general information using command \"help etc\"\n\n");
@@ -806,7 +806,7 @@ Ftp_help(ARGS)
 	putchar ('\n');
       }
     }
-  
+
 
   for ( i = 0 ; 1; i++)
     {
@@ -817,13 +817,13 @@ Ftp_help(ARGS)
     }
 
   puts(cmds[i].help);
-      
+
 }
 
 Ftp_quote(ARGS)
 {
   String new;
-  
+
   new[0]=0;
 
   if (*w2!=0) strcpy(new,w2);
@@ -838,8 +838,8 @@ Ftp_quote(ARGS)
 Ftp_alias(ARGS)
 {
   ALIAS *a=firstalias;
-  
-  
+
+
   if ( *w2==0 )
     {
       while (a!=NULL)
@@ -851,20 +851,20 @@ Ftp_alias(ARGS)
     }
 
 
-  while (1) 
+  while (1)
     {
 
       if ( a == NULL )
-	{ 
+	{
 	  firstalias = a = (ALIAS *) malloc(sizeof(ALIAS));
 	  memset(a,0,sizeof(ALIAS));
 	  a -> next = NULL;
 	  break;
 	}
-      
+
       if (!strcmp(a->name,w2))
 	break;
-      
+
       if ( a->next == NULL)
 	{
 	  a -> next = (ALIAS *) malloc(sizeof(ALIAS));
@@ -875,7 +875,7 @@ Ftp_alias(ARGS)
 	}
       a=a->next;
     }
-  
+
   strcpy(a -> name,w2);
   strcpy(a -> str,makestr(w3,w4,w5,w6,NULL));
 }
@@ -889,7 +889,7 @@ Ftp_mkalias(ARGS)
   sprintf(new,"open \"%s\" \"%s\" \"%s\" \"%s\"",
 	  iftp[frame].host,iftp[frame].user,
 	  iftp[frame].pass,iftp[frame].pwd);
-  
+
   Ftp_alias("alias",w2,new,"","","");
 }
 
@@ -947,31 +947,31 @@ Ftp_acd(ARGS)
   static int targets=0;
   static String what={0};
   static ARCHIE result[ARCHIE_MAX_TARGETS];
-  
+
   int i, selected_target;
   String tmp;
   char *p;
 
-  
+
   if ( (what[0] == 0 || strcmp(w2,what) != 0) && *w2!=0 )
     {
-      if ((targets=FtpArchie(w2,result,ARCHIE_MAX_TARGETS))<1) 
+      if ((targets=FtpArchie(w2,result,ARCHIE_MAX_TARGETS))<1)
 	return puts("Archie failure or target not found");
       strcpy(what,w2);
     }
-  
+
   for (i=0;i<targets;i++)
     printf("%2d %s:%s\n",i,result[i].host,result[i].file);
-  
+
   if (strcmp(w1,"archie")==0)
     return;
-  
-  
+
+
   p = readline("Your selection? ");
   if (p==NULL) return;
-  
+
   selected_target = atoi(p);
-  
+
   if ( result[selected_target].file[strlen(result[selected_target].file)-1]
       == '/' )
     {
@@ -989,25 +989,25 @@ Ftp_acd(ARGS)
 
 
 CMDS cmds[]={
-  
+
   "connect",		Ftp_connect,      0,
   "connect <hostname> - make new ftp connection",
 
   "open",		Ftp_open,         0,
   "open <hostname> <user> <pass> <directory> - login to server",
-  
+
   "reopen",		Ftp_reopen,       1,
   "Open again connection with existing frame information",
-  
+
   "ftp",		Ftp_ftp,          0,
   "ftp <hostname> - anonymously login to server",
-  
+
   "close",		Ftp_close,        1,
   "Close connection",
-  
+
   "quit",		Ftp_quit,         0,
   "Exit from uftp",
-  
+
   "set",		Ftp_set,          0,
 "Set variables: (Without args print current settings)\n\
        frame <number>    - select another session(frame)\n\
@@ -1028,7 +1028,7 @@ CMDS cmds[]={
 
   "prompt",               NULL,         0,
   "\
-prompt is a string, which may be contains %<char> 
+prompt is a string, which may be contains %<char>
 or ^<char> combitanion, which have next interprets:
 
 %H, %h - full and short remote host names
@@ -1038,8 +1038,8 @@ or ^<char> combitanion, which have next interprets:
 %D     - local current directory
 %f     - number of current frame
 %p     - the ftp's port number
-%t     - timeout 
-%T     - current time 
+%t     - timeout
+%T     - current time
 %P     - uftp process id
 %%     - character %
 ^<char>- control character
@@ -1114,7 +1114,7 @@ or ^<char> combitanion, which have next interprets:
 
   "bput",		Ftp_bput,         0,
 "bput [<localfile>] <libftp_file> - full session procedure (See \"help etc\")",
-  
+
   "copy",               Ftp_copy,         1,
 "copy [<frame>!]file [<frame>!]file - copy file via client cache",
 
@@ -1123,7 +1123,7 @@ or ^<char> combitanion, which have next interprets:
 
   "cat",		Ftp_type,         1,
 "cat <file> - print body of remote file to screen",
-  
+
   "page",		Ftp_page,         1,
 "page <file> - print body of remote file to screen via pager",
 

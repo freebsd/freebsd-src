@@ -65,7 +65,7 @@ struct cleaner_stats {
 	int	segs_error;
 } cleaner_stats;
 
-struct seglist { 
+struct seglist {
 	int sl_id;	/* segment number */
 	int sl_cost; 	/* cleaning cost */
 	char sl_empty;	/* is segment empty */
@@ -84,7 +84,7 @@ int	 lfs_markv __P((fsid_t *, BLOCK_INFO *, int));
 
 /* function prototypes */
 int	 bi_tossold __P((const void *, const void *, const void *));
-int	 choose_segments __P((FS_INFO *, struct seglist *, 
+int	 choose_segments __P((FS_INFO *, struct seglist *,
 	     int (*)(FS_INFO *, SEGUSE *)));
 void	 clean_fs __P((FS_INFO	*, int (*)(FS_INFO *, SEGUSE *)));
 int	 clean_loop __P((FS_INFO *));
@@ -117,14 +117,14 @@ cost_benefit(fsp, su)
 
 	gettimeofday(&t, NULL);
 
-	live = su->su_nbytes;	
+	live = su->su_nbytes;
 	age = t.tv_sec < su->su_lastmod ? 0 : t.tv_sec - su->su_lastmod;
-	
+
 	lfsp = &fsp->fi_lfs;
 	if (live == 0)
 		return (t.tv_sec * lblkno(lfsp, seg_size(lfsp)));
 	else {
-		/* 
+		/*
 		 * from lfsSegUsage.c (Mendel's code).
 		 * priority calculation is done using INTEGER arithmetic.
 		 * sizes are in BLOCKS (that is why we use lblkno below).
@@ -212,7 +212,7 @@ main(argc, argv)
 		(void)printf("Cleaner going to sleep.\n");
 #endif
 		if (lfs_segwait(&fsid, &timeout) < 0)
-			err(0, "lfs_segwait: returned error\n");	
+			err(0, "lfs_segwait: returned error\n");
 #ifdef VERBOSE
 		(void)printf("Cleaner waking up.\n");
 #endif
@@ -233,8 +233,8 @@ clean_loop(fsp)
 	 * number of free blocks.
 	 */
 	max_free_segs = fsp->fi_statfsp->f_bfree / fsp->fi_lfs.lfs_ssize;
-	
-	/* 
+
+	/*
 	 * We will clean if there are not enough free blocks or total clean
 	 * space is less than BUSY_LIM % of possible clean space.
 	 */
@@ -247,7 +247,7 @@ clean_loop(fsp)
 		clean_fs(fsp, cost_benefit);
 		return (1);
 	} else {
-	        /* 
+	        /*
 		 * We will also clean if the system is reasonably idle and
 		 * the total clean space is less then IDLE_LIM % of possible
 		 * clean space.
@@ -256,16 +256,16 @@ clean_loop(fsp)
 			perror("getloadavg: failed\n");
 			return (-1);
 		}
-		if (loadavg[ONE_MIN] == 0.2 && loadavg[FIVE_MIN] && 
+		if (loadavg[ONE_MIN] == 0.2 && loadavg[FIVE_MIN] &&
 		    fsp->fi_cip->clean < max_free_segs * IDLE_LIM) {
 		        clean_fs(fsp, cost_benefit);
 			printf("Cleaner running (system idle) at %s",
 			    ctime(&now));
 			return (1);
 		}
-	} 
+	}
 #ifdef VERBOSE
-	printf("Cleaner not running at %s", ctime(&now)); 
+	printf("Cleaner not running at %s", ctime(&now));
 #endif
 	return (0);
 }
@@ -456,7 +456,7 @@ clean_segment(fsp, id)
 		}
 		num_blocks -= clean_blocks;
 	}
-		
+
 	free(block_array);
 	munmap_segment(fsp, seg_buf, do_mmap);
 	++cleaner_stats.segs_cleaned;

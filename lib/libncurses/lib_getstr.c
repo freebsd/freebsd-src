@@ -20,7 +20,7 @@ inline void backspace(WINDOW *win)
 	waddstr(win, "\b \b");
 	fputs("\b \b", SP->_ofp);
 	fflush(SP->_ofp);
-	SP->_curscol--; 
+	SP->_curscol--;
 }
 
 int wgetnstr(WINDOW *win, char *str, int maxlen)
@@ -30,7 +30,7 @@ char	erasec;
 char	killc;
 char	*oldstr;
 int ch;
-  
+
 	T(("wgetnstr(%x,%x, %d) called", win, str, maxlen));
 
 	oldnl = SP->_nl;

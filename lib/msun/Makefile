@@ -1,45 +1,45 @@
-#  @(#)Makefile 5.1beta 93/09/24 
-#  $Id: Makefile,v 1.3 1994/09/08 10:40:23 bde Exp $
-# 
+#  @(#)Makefile 5.1beta 93/09/24
+#  $Id: Makefile,v 1.4 1995/03/08 01:41:40 bde Exp $
+#
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
-# 
+#
 #  Developed at SunPro, a Sun Microsystems, Inc. business.
 #  Permission to use, copy, modify, and distribute this
-#  software is freely granted, provided that this notice 
+#  software is freely granted, provided that this notice
 #  is preserved.
 #  ====================================================
-# 
-# 
+#
+#
 
 #
 # There are two options in making libm at fdlibm compile time:
 # 	_IEEE_LIBM 	--- IEEE libm; smaller, and somewhat faster
-#	_MULTI_LIBM	--- Support multi-standard at runtime by 
-#			    imposing wrapper functions defined in 
+#	_MULTI_LIBM	--- Support multi-standard at runtime by
+#			    imposing wrapper functions defined in
 #			    fdlibm.h:
 #				_IEEE_MODE 	-- IEEE
 #				_XOPEN_MODE 	-- X/OPEN
 #				_POSIX_MODE 	-- POSIX/ANSI
 #				_SVID3_MODE 	-- SVID
 #
-# Here is how to set up CFLAGS to create the desired libm at 
+# Here is how to set up CFLAGS to create the desired libm at
 # compile time:
 #
 # 	CFLAGS = -D_IEEE_LIBM		... IEEE libm (recommended)
 #	CFLAGS = -D_SVID3_MODE	... Multi-standard supported
-#					    libm with SVID as the 
+#					    libm with SVID as the
 #					    default standard
 #	CFLAGS = -D_XOPEN_MODE	... Multi-standard supported
-#					    libm with XOPEN as the 
+#					    libm with XOPEN as the
 #					    default standard
 #	CFLAGS = -D_POSIX_MODE	... Multi-standard supported
-#					    libm with POSIX as the 
+#					    libm with POSIX as the
 #					    default standard
 #	CFLAGS = 			... Multi-standard supported
-#					    libm with IEEE as the 
+#					    libm with IEEE as the
 #					    default standard
-# 
+#
 
 # Enable if you have a i387 (or i486 or Pentium)
 .if defined(HAVE_FPU)
@@ -53,7 +53,7 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 .PATH:	${.CURDIR}/man
 .PATH:	${.CURDIR}/src
 
-CFLAGS+= -D_MULTI_LIBM -D_POSIX_MODE -D_IEEE_LIBM 
+CFLAGS+= -D_MULTI_LIBM -D_POSIX_MODE -D_IEEE_LIBM
 
 LIB=	m
 COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
@@ -90,7 +90,7 @@ COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 
 SRCS=${COMMON_SRCS}
 
-# Substitute common sources with any arch specific sources 
+# Substitute common sources with any arch specific sources
 .for i in ${ARCH_SRCS}
     SRCS:=${SRCS:S/${i:S/.S/.c/}/$i/}
 .endfor

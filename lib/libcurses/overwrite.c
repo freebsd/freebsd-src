@@ -66,7 +66,7 @@ overwrite(win1, win2)
 	x = endx - startx;
 	for (y = starty; y < endy; y++) {
 		(void)memcpy(
-		    &win2->lines[y - win2->begy]->line[startx - win2->begx], 
+		    &win2->lines[y - win2->begy]->line[startx - win2->begx],
 		    &win1->lines[y - win1->begy]->line[startx - win1->begx],
 		    x * __LDATASIZE);
 		__touchline(win2, y, startx - win2->begx, endx - win2->begx,

@@ -145,7 +145,7 @@ extern char	 __unctrllen[256];	/* Control strings length. */
  * A line is an array of __LDATA structures pointed to by the 'line' pointer.
  *
  * IMPORTANT: the __LDATA structure must NOT induce any padding, so if new
- * fields are added -- padding fields with *constant values* should ensure 
+ * fields are added -- padding fields with *constant values* should ensure
  * that the compiler will not generate any padding when storing an array of
  *  __LDATA structures.  This is to enable consistent use of memcmp, and memcpy
  * for comparing and copying arrays.
@@ -188,7 +188,7 @@ typedef struct __window {		/* Window structure. */
 #define	__SCROLLOK	0x020		/* Scrolling ok. */
 #define	__CLEAROK	0x040		/* Clear on next refresh. */
 #define __WSTANDOUT	0x080		/* Standout window */
-#define __LEAVEOK	0x100		/* If curser left */	
+#define __LEAVEOK	0x100		/* If curser left */
 #define __FULLLINE      0x200           /* Line width = terminal width. */
 	u_int flags;
 } WINDOW;

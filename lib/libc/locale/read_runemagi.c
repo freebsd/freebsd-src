@@ -128,7 +128,7 @@ _Read_RuneMagi(fp)
 
 	if (!rl->mapupper_ext.nranges)
 		rl->mapupper_ext.ranges = 0;
-	    
+
 	return(rl);
 }
 

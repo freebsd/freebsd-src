@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_perror.c 1.15 87/10/07 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_perror.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_perror.c,v 1.1 1993/10/27 05:40:20 paul Exp $";
+static char *rcsid = "$Id: clnt_perror.c,v 1.1 1994/08/07 18:35:44 wollman Exp $";
 #endif
 
 /*
@@ -77,17 +77,17 @@ clnt_sperror(rpch, s)
 		return (0);
 	CLNT_GETERR(rpch, &e);
 
-	(void) sprintf(str, "%s: ", s);  
+	(void) sprintf(str, "%s: ", s);
 	str += strlen(str);
 
-	(void) strcpy(str, clnt_sperrno(e.re_status));  
+	(void) strcpy(str, clnt_sperrno(e.re_status));
 	str += strlen(str);
 
 	switch (e.re_status) {
 	case RPC_SUCCESS:
 	case RPC_CANTENCODEARGS:
 	case RPC_CANTDECODERES:
-	case RPC_TIMEDOUT:     
+	case RPC_TIMEDOUT:
 	case RPC_PROGUNAVAIL:
 	case RPC_PROCUNAVAIL:
 	case RPC_CANTDECODEARGS:
@@ -102,13 +102,13 @@ clnt_sperror(rpch, s)
 	case RPC_CANTSEND:
 	case RPC_CANTRECV:
 		(void) sprintf(str, "; errno = %s",
-		    strerror(e.re_errno)); 
+		    strerror(e.re_errno));
 		str += strlen(str);
 		break;
 
 	case RPC_VERSMISMATCH:
 		(void) sprintf(str,
-			"; low version = %lu, high version = %lu", 
+			"; low version = %lu, high version = %lu",
 			e.re_vers.low, e.re_vers.high);
 		str += strlen(str);
 		break;
@@ -128,15 +128,15 @@ clnt_sperror(rpch, s)
 		break;
 
 	case RPC_PROGVERSMISMATCH:
-		(void) sprintf(str, 
-			"; low version = %lu, high version = %lu", 
+		(void) sprintf(str,
+			"; low version = %lu, high version = %lu",
 			e.re_vers.low, e.re_vers.high);
 		str += strlen(str);
 		break;
 
 	default:	/* unknown */
-		(void) sprintf(str, 
-			"; s1 = %lu, s2 = %lu", 
+		(void) sprintf(str,
+			"; s1 = %lu, s2 = %lu",
 			e.re_lb.s1, e.re_lb.s2);
 		str += strlen(str);
 		break;
@@ -160,41 +160,41 @@ struct rpc_errtab {
 };
 
 static struct rpc_errtab  rpc_errlist[] = {
-	{ RPC_SUCCESS, 
-		"RPC: Success" }, 
-	{ RPC_CANTENCODEARGS, 
+	{ RPC_SUCCESS,
+		"RPC: Success" },
+	{ RPC_CANTENCODEARGS,
 		"RPC: Can't encode arguments" },
-	{ RPC_CANTDECODERES, 
+	{ RPC_CANTDECODERES,
 		"RPC: Can't decode result" },
-	{ RPC_CANTSEND, 
+	{ RPC_CANTSEND,
 		"RPC: Unable to send" },
-	{ RPC_CANTRECV, 
+	{ RPC_CANTRECV,
 		"RPC: Unable to receive" },
-	{ RPC_TIMEDOUT, 
+	{ RPC_TIMEDOUT,
 		"RPC: Timed out" },
-	{ RPC_VERSMISMATCH, 
+	{ RPC_VERSMISMATCH,
 		"RPC: Incompatible versions of RPC" },
-	{ RPC_AUTHERROR, 
+	{ RPC_AUTHERROR,
 		"RPC: Authentication error" },
-	{ RPC_PROGUNAVAIL, 
+	{ RPC_PROGUNAVAIL,
 		"RPC: Program unavailable" },
-	{ RPC_PROGVERSMISMATCH, 
+	{ RPC_PROGVERSMISMATCH,
 		"RPC: Program/version mismatch" },
-	{ RPC_PROCUNAVAIL, 
+	{ RPC_PROCUNAVAIL,
 		"RPC: Procedure unavailable" },
-	{ RPC_CANTDECODEARGS, 
+	{ RPC_CANTDECODEARGS,
 		"RPC: Server can't decode arguments" },
-	{ RPC_SYSTEMERROR, 
+	{ RPC_SYSTEMERROR,
 		"RPC: Remote system error" },
-	{ RPC_UNKNOWNHOST, 
+	{ RPC_UNKNOWNHOST,
 		"RPC: Unknown host" },
 	{ RPC_UNKNOWNPROTO,
 		"RPC: Unknown protocol" },
-	{ RPC_PMAPFAILURE, 
+	{ RPC_PMAPFAILURE,
 		"RPC: Port mapper failure" },
-	{ RPC_PROGNOTREGISTERED, 
+	{ RPC_PROGNOTREGISTERED,
 		"RPC: Program not registered"},
-	{ RPC_FAILED, 
+	{ RPC_FAILED,
 		"RPC: Failed (unspecified error)"}
 };
 
@@ -265,7 +265,7 @@ clnt_pcreateerror(s)
 }
 
 struct auth_errtab {
-	enum auth_stat status;	
+	enum auth_stat status;
 	char *message;
 };
 

@@ -65,7 +65,7 @@ iso_addr(addr)
 			new = *addr - 'a' + 10;
 		} else if ((*addr >= 'A') && (*addr <= 'F')) {
 			new = *addr - 'A' + 10;
-		} else if (*addr == 0) 
+		} else if (*addr == 0)
 			state |= END;
 		else
 			state |= DELIM;
@@ -86,7 +86,7 @@ iso_addr(addr)
 			break;
 		}
 		break;
-	} while (cp < cplim); 
+	} while (cp < cplim);
 	out_addr.isoa_len = cp - out_addr.isoa_genaddr;
 	return (&out_addr);
 }

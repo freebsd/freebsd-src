@@ -2,7 +2,7 @@
  * mkversion.c
  *
  * By Ross Ridge
- * Public Domain 
+ * Public Domain
  * 92/02/01 07:30:09
  *
  * generates version.c

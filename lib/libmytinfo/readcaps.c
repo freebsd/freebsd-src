@@ -67,7 +67,7 @@ int len; {
 		c = getc(f);
 		if (c == EOF)
 			return EOF;
-			
+
 	}
 	*s = '\0';
 #ifdef TEST
@@ -108,7 +108,7 @@ int max; {
 				else
 					buf[count].flag = ' ';
 			}
-	
+
 			c = getfield(f, buf[count].var, MAX_VARNAME);
 			if (c == EOF || c == '\n' || c == 0)
 				return -1;

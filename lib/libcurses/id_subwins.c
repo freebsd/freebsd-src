@@ -59,7 +59,7 @@ __id_subwins(orig)
 
 		oy = orig->cury;
 		for (y = realy - win->begy; y < win->maxy; y++, oy++)
-			win->lines[y]->line = 
+			win->lines[y]->line =
 				&orig->lines[oy]->line[win->ch_off];
 	}
 }

@@ -6,7 +6,7 @@
  * 92/02/01 07:29:47
  *
  * clear
- * 
+ *
  * clears the terminal's screen
  *
  */
@@ -146,7 +146,7 @@ int c;
 
 int
 main() {
-	setupterm((char *) 0, 1, (int *) 0); 
+	setupterm((char *) 0, 1, (int *) 0);
 	if (clear_screen == (char *) 0)
 		exit(1);
 	tputs(clear_screen, lines > 0 ? lines : 1, putch);

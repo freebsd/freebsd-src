@@ -29,7 +29,7 @@ char **sstrnames[NUM_OF_STRS], **sstrcodes[NUM_OF_STRS], **sstrfnames[NUM_OF_STR
 int
 main() {
 	register int i;
-	
+
 	i = NUM_OF_BOOLS;
 	while(i) {
 		i--;
@@ -37,7 +37,7 @@ main() {
 		sboolcodes[i] = &boolcodes[i];
 		sboolfnames[i] = &boolfnames[i];
 	}
-	
+
 	i = NUM_OF_NUMS;
 	while(i) {
 		i--;
@@ -119,7 +119,7 @@ main() {
 	printf("};\n\n");
 
 	printf("char **_sstrcodes[] = {\n");
-	for(i = 0; i < NUM_OF_STRS; i++) 
+	for(i = 0; i < NUM_OF_STRS; i++)
 		printf("\tstrcodes + %d,\n", sstrcodes[i] - strcodes);
 	printf("	(char **) 0\n");
 	printf("};\n\n");

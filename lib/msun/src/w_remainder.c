@@ -5,16 +5,16 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_remainder.c,v 1.4 1994/08/10 20:35:32 jtc Exp $";
+static char rcsid[] = "$Id: w_remainder.c,v 1.1.1.1 1994/08/19 09:39:54 jkh Exp $";
 #endif
 
-/* 
+/*
  * wrapper remainder(x,p)
  */
 
@@ -34,7 +34,7 @@ static char rcsid[] = "$Id: w_remainder.c,v 1.4 1994/08/10 20:35:32 jtc Exp $";
 	double z;
 	z = __ieee754_remainder(x,y);
 	if(_LIB_VERSION == _IEEE_ || isnan(y)) return z;
-	if(y==0.0) 
+	if(y==0.0)
 	    return __kernel_standard(x,y,28); /* remainder(x,0) */
 	else
 	    return z;

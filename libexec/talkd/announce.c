@@ -55,9 +55,9 @@ extern char hostname[];
 /*
  * Announce an invitation to talk.
  */
-	
+
 /*
- * See if the user is accepting messages. If so, announce that 
+ * See if the user is accepting messages. If so, announce that
  * a talk is requested.
  */
 announce(request, remote_machine)
@@ -80,7 +80,7 @@ announce(request, remote_machine)
 #define N_CHARS 120
 
 /*
- * Build a block of characters containing the message. 
+ * Build a block of characters containing the message.
  * It is sent blank filled and in a single block to
  * try to keep the message in one piece if the recipient
  * in in vi at the time

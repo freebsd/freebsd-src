@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_j0f.c,v 1.2 1994/08/18 23:05:32 jtc Exp $";
+static char rcsid[] = "$Id: e_j0f.c,v 1.1.1.1 1994/08/19 09:39:55 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -27,9 +27,9 @@ static float pzerof(), qzerof();
 #endif
 
 #ifdef __STDC__
-static const float 
+static const float
 #else
-static float 
+static float
 #endif
 huge 	= 1e30,
 one	= 1.0,
@@ -52,9 +52,9 @@ static float zero = 0.0;
 #endif
 
 #ifdef __STDC__
-	float __ieee754_j0f(float x) 
+	float __ieee754_j0f(float x)
 #else
-	float __ieee754_j0f(x) 
+	float __ieee754_j0f(x)
 	float x;
 #endif
 {
@@ -121,9 +121,9 @@ v03  =  2.5915085189e-07, /* 0x348b216c */
 v04  =  4.4111031494e-10; /* 0x2ff280c2 */
 
 #ifdef __STDC__
-	float __ieee754_y0f(float x) 
+	float __ieee754_y0f(float x)
 #else
-	float __ieee754_y0f(x) 
+	float __ieee754_y0f(x)
 	float x;
 #endif
 {
@@ -133,7 +133,7 @@ v04  =  4.4111031494e-10; /* 0x2ff280c2 */
 	GET_FLOAT_WORD(hx,x);
         ix = 0x7fffffff&hx;
     /* Y0(NaN) is NaN, y0(-inf) is Nan, y0(inf) is 0  */
-	if(ix>=0x7f800000) return  one/(x+x*x); 
+	if(ix>=0x7f800000) return  one/(x+x*x);
         if(ix==0) return -one/zero;
         if(hx<0) return zero/zero;
         if(ix >= 0x40000000) {  /* |x| >= 2.0 */
@@ -306,7 +306,7 @@ static float pS2[5] = {
 	s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*q[4]))));
 	return one+ r/s;
 }
-		
+
 
 /* For x >= 8, the asymptotic expansions of qzero is
  *	-1/8 s + 75/1024 s^3 - ..., where s = 1/x.

@@ -192,7 +192,7 @@ innetgr(group, host, user, dom)
 	char *hst, *usr, *dm;
 
 	/* Sanity check */
-	
+
 	if (group == NULL || !strlen(group))
 		return (0);
 

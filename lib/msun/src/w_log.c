@@ -5,13 +5,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_log.c,v 1.4 1994/08/10 20:35:09 jtc Exp $";
+static char rcsid[] = "$Id: w_log.c,v 1.1.1.1 1994/08/19 09:39:54 jkh Exp $";
 #endif
 
 /*
@@ -37,7 +37,7 @@ static char rcsid[] = "$Id: w_log.c,v 1.4 1994/08/10 20:35:09 jtc Exp $";
 	if(_LIB_VERSION == _IEEE_ || isnan(x) || x > 0.0) return z;
 	if(x==0.0)
 	    return __kernel_standard(x,x,16); /* log(0) */
-	else 
+	else
 	    return __kernel_standard(x,x,17); /* log(x<0) */
 #endif
 }

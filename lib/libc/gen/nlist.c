@@ -95,8 +95,8 @@ __fdnlist(fd, list)
 	 * does not start at a page boundary - we save ourselves a
 	 * lot of nastiness by mmapping the whole file.
 	 *
-	 * This gives us an easy way to randomly access all the strings, 
-	 * without making the memory allocation permanent as with 
+	 * This gives us an easy way to randomly access all the strings,
+	 * without making the memory allocation permanent as with
 	 * malloc/free (i.e., munmap will return it to the system).
 	 */
 	a_out_mmap = mmap(NULL, (size_t)st.st_size, PROT_READ, 0, fd, (off_t)0);

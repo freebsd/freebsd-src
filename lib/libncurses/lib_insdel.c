@@ -8,7 +8,7 @@
 **
 **	The routine winsdel(win, n).
 **  positive n insert n lines above current line
-**  negative n delete n lines starting from current line 
+**  negative n delete n lines starting from current line
 **
 */
 

@@ -58,7 +58,7 @@ werase(win)
 		end = &start[win->maxx];
 		for (sp = start; sp < end; sp++)
 			if (sp->ch != ' ' || sp->attr != 0) {
-				maxx = sp; 
+				maxx = sp;
 				if (minx == -1)
 					minx = sp - start;
 				sp->ch = ' ';

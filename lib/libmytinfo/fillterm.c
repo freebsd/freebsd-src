@@ -33,13 +33,13 @@ struct term_path *path; {
 		_term_buf.strs[--i] = (char *) -1;
 
 	_term_buf.name_all = NULL;
-	
+
 	r = _findterm(name, path, buf);
 	switch(r) {
 	case 1:
 		if (_gettcap(buf, &_term_buf, path) != 0)
 			return -3;
-		_tcapconv(); 
+		_tcapconv();
 		_tcapdefault();
 		break;
 	case 2:

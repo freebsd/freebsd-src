@@ -46,7 +46,7 @@
 #include <termios.h>
 
 /* Define our own since everyone gets it wrong! */
-#define CONTROL(A)	((A) & 037)	
+#define CONTROL(A)	((A) & 037)
 
 /*
  * Aix compatible names
@@ -444,7 +444,7 @@
 #define M_CHAR	4
 #define M_NN	5
 
-typedef struct { 
+typedef struct {
     char *t_name;
     int  t_setmask;
     int  t_clrmask;

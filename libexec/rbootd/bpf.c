@@ -253,7 +253,7 @@ BpfGetIntfName(errmsg)
 #endif
 	ifrp = ibuf;
 	ifend = (struct ifreq *)((char *)ibuf + ifc.ifc_len);
-	
+
 	mp = 0;
 	minunit = 666;
 	for (; ifrp < ifend; ++ifrp) {

@@ -50,8 +50,8 @@ static char sccsid[] = "@(#)cbrt.c	8.1 (Berkeley) 6/4/93";
  * long interger at the address of a floating point number will be the
  * leading 32 bits of that floating point number (i.e., sign, exponent,
  * and the 20 most significant bits).
- * On a National machine, it has different ordering; therefore, this code 
- * must be compiled with flag -DNATIONAL. 
+ * On a National machine, it has different ordering; therefore, this code
+ * must be compiled with flag -DNATIONAL.
  */
 #if !defined(vax)&&!defined(tahoe)
 
@@ -65,7 +65,7 @@ static const double
 	    F= 45./28.,
 	    G= 5./14.;
 
-double cbrt(x) 
+double cbrt(x)
 double x;
 {
 	double r,s,t=0.0,w;
@@ -93,15 +93,15 @@ double x;
 	   t*=x; pt[n0]=pt[n0]/3+B2;
 	  }
 	else
-	  pt[n0]=px[n0]/3+B1;	
+	  pt[n0]=px[n0]/3+B1;
 
 
     /* new cbrt to 23 bits, may be implemented in single precision */
 	r=t*t/x;
 	s=C+r*t;
-	t*=G+F/(s+E+D/s);	
+	t*=G+F/(s+E+D/s);
 
-    /* chopped to 20 bits and make it larger than cbrt(x) */ 
+    /* chopped to 20 bits and make it larger than cbrt(x) */
 	pt[n1]=0; pt[n0]+=0x00000001;
 
 

@@ -12,7 +12,7 @@ main()
 
     scrollok(stdscr, TRUE);
 
-    for (i=0; i<25; i++) 
+    for (i=0; i<25; i++)
       printw("This is in the background, this should be left alone!\n");
 
     refresh();

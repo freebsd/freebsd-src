@@ -26,7 +26,7 @@ int idlok(WINDOW *win, int flag)
 	if ((insert_line || parm_insert_line) && (delete_line || parm_delete_line)) {
 		win->_idlok = TRUE;
 	}
-	return OK; 
+	return OK;
 }
 
 
@@ -38,7 +38,7 @@ int clearok(WINDOW *win, int flag)
 	    newscr->_clear = flag;
 	else
 	    win->_clear = flag;
-	return OK; 
+	return OK;
 }
 
 
@@ -51,7 +51,7 @@ int leaveok(WINDOW *win, int flag)
    		curs_set(0);
    	else
    		curs_set(1);
-	return OK; 
+	return OK;
 }
 
 
@@ -60,7 +60,7 @@ int scrollok(WINDOW *win, int flag)
 	T(("scrollok(%x,%d) called", win, flag));
 
    	win->_scroll = flag;
-	return OK; 
+	return OK;
 }
 
 int halfdelay(int t)
@@ -114,10 +114,10 @@ int keypad(WINDOW *win, int flag)
 	    putp(keypad_xmit);
 	else if (! flag  &&  keypad_local)
 	    putp(keypad_local);
-	    
+
 	if (SP->_keytry == UNINITIALISED)
 	    init_keytry();
-	return OK; 
+	return OK;
 }
 
 
@@ -132,7 +132,7 @@ int meta(WINDOW *win, int flag)
 	    putp(meta_on);
 	else if (! flag  &&  meta_off)
 	    putp(meta_off);
-	return OK; 
+	return OK;
 }
 
 /*
@@ -148,7 +148,7 @@ static struct  try *newtry;
 static void init_keytry()
 {
     newtry = NULL;
-	
+
 #include "keys.tries"
 
 	SP->_keytry = newtry;
@@ -162,15 +162,15 @@ struct try      *ptr, *savedptr;
 
 	if (! str  ||  out_of_memory)
 	    	return;
-	
+
 	if (newtry != NULL)    {
     	ptr = savedptr = newtry;
-	    
+
        	for (;;) {
 	       	while (ptr->ch != (unsigned char) *str
 		       &&  ptr->sibling != NULL)
 	       		ptr = ptr->sibling;
-	    
+
 	       	if (ptr->ch == (unsigned char) *str) {
 	    		if (*(++str)) {
 	           		if (ptr->child != NULL)
@@ -186,53 +186,53 @@ struct try      *ptr, *savedptr;
 	        		out_of_memory = TRUE;
 					return;
 	    		}
-		    
+
 	    		savedptr = ptr = ptr->sibling;
 	    		ptr->child = ptr->sibling = NULL;
 	    		ptr->ch = *str++;
 	    		ptr->value = (short) NULL;
-	    
+
            		break;
 	       	}
-	   	} /* end for (;;) */  
+	   	} /* end for (;;) */
 	} else {   /* newtry == NULL :: First sequence to be added */
 	    	savedptr = ptr = newtry = (struct try *) malloc(sizeof *ptr);
-	    
+
 	    	if (ptr == NULL) {
 	        	out_of_memory = TRUE;
 				return;
 	    	}
-	    
+
 	    	ptr->child = ptr->sibling = NULL;
 	    	ptr->ch = *(str++);
 	    	ptr->value = (short) NULL;
 	}
-	
+
 	    /* at this point, we are adding to the try.  ptr->child == NULL */
-	    
+
 	while (*str) {
 	   	ptr->child = (struct try *) malloc(sizeof *ptr);
-	    
+
 	   	ptr = ptr->child;
-	   
+
 	   	if (ptr == NULL) {
 	       	out_of_memory = TRUE;
-		
+
 			ptr = savedptr;
 			while (ptr != NULL) {
 		    	savedptr = ptr->child;
 		    	free(ptr);
 		    	ptr = savedptr;
 			}
-		
+
 			return;
 		}
-	    
+
 	   	ptr->child = ptr->sibling = NULL;
 	   	ptr->ch = *(str++);
 	   	ptr->value = (short) NULL;
 	}
-	
+
 	ptr->value = code;
 	return;
 }

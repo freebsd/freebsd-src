@@ -8,22 +8,22 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_acoshf.c,v 1.2 1994/08/18 23:04:57 jtc Exp $";
+static char rcsid[] = "$Id: e_acoshf.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
 #endif
 
 #include "math.h"
 #include "math_private.h"
 
 #ifdef __STDC__
-static const float 
+static const float
 #else
-static float 
+static float
 #endif
 one	= 1.0,
 ln2	= 6.9314718246e-01;  /* 0x3f317218 */
@@ -34,7 +34,7 @@ ln2	= 6.9314718246e-01;  /* 0x3f317218 */
 	float __ieee754_acoshf(x)
 	float x;
 #endif
-{	
+{
 	float t;
 	int32_t hx;
 	GET_FLOAT_WORD(hx,x);
@@ -43,7 +43,7 @@ ln2	= 6.9314718246e-01;  /* 0x3f317218 */
 	} else if(hx >=0x4d800000) {	/* x > 2**28 */
 	    if(hx >=0x7f800000) {	/* x is inf of NaN */
 	        return x+x;
-	    } else 
+	    } else
 		return __ieee754_logf(x)+ln2;	/* acosh(huge)=log(2x) */
 	} else if (hx==0x3f800000) {
 	    return 0.0;			/* acosh(1) = 0 */

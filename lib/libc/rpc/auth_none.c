@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,15 +30,15 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_none.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_none.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_none.c,v 1.1 1993/10/27 05:40:10 paul Exp $";
+static char *rcsid = "$Id: auth_none.c,v 1.1 1994/08/07 18:35:38 wollman Exp $";
 #endif
 
 /*
  * auth_none.c
- * Creates a client authentication handle for passing "null" 
- * credentials and verifiers to remote systems. 
- * 
- * Copyright (C) 1984, Sun Microsystems, Inc. 
+ * Creates a client authentication handle for passing "null"
+ * credentials and verifiers to remote systems.
+ *
+ * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
 #include <rpc/types.h>
@@ -110,7 +110,7 @@ authnone_marshal(client, xdrs)
 	    ap->marshalled_client, ap->mcnt));
 }
 
-static void 
+static void
 authnone_verf()
 {
 }

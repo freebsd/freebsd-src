@@ -30,7 +30,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)getrpcent.c 1.14 91/03/11 Copyr 1984 Sun Micro";*/
-static char *rcsid = "$Id: getrpcent.c,v 1.1 1993/10/27 05:40:29 paul Exp $";
+static char *rcsid = "$Id: getrpcent.c,v 1.1 1994/08/07 18:35:51 wollman Exp $";
 #endif
 
 /*
@@ -279,7 +279,7 @@ interpret(val, len)
 	d->rpc.r_number = atoi(cp);
 	q = d->rpc.r_aliases = d->rpc_aliases;
 	cp = strpbrk(cp, " \t");
-	if (cp != NULL) 
+	if (cp != NULL)
 		*cp++ = '\0';
 	while (cp && *cp) {
 		if (*cp == ' ' || *cp == '\t') {

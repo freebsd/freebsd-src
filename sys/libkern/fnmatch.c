@@ -149,13 +149,13 @@ rangematch(pattern, test, flags)
 	 */
 	if (negate = (*pattern == '!' || *pattern == '^'))
 		++pattern;
-	
+
 	for (ok = 0; (c = *pattern++) != ']';) {
 		if (c == '\\' && !(flags & FNM_NOESCAPE))
 			c = *pattern++;
 		if (c == EOS)
 			return (NULL);
-		if (*pattern == '-' 
+		if (*pattern == '-'
 		    && (c2 = *(pattern+1)) != EOS && c2 != ']') {
 			pattern += 2;
 			if (c2 == '\\' && !(flags & FNM_NOESCAPE))

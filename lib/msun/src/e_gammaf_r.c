@@ -8,18 +8,18 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_gammaf_r.c,v 1.1 1994/08/10 20:30:54 jtc Exp $";
+static char rcsid[] = "$Id: e_gammaf_r.c,v 1.1.1.1 1994/08/19 09:39:54 jkh Exp $";
 #endif
 
 /* __ieee754_gammaf_r(x, signgamp)
- * Reentrant version of the logarithm of the Gamma function 
- * with user provide pointer for the sign of Gamma(x). 
+ * Reentrant version of the logarithm of the Gamma function
+ * with user provide pointer for the sign of Gamma(x).
  *
  * Method: See __ieee754_lgammaf_r
  */

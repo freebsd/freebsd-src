@@ -27,7 +27,7 @@ char *passwd;   /* Password, any length */
 	MDX_CTX md;
 	u_long results[4];
 	unsigned int buflen;
-	
+
 	buflen = strlen(seed) + strlen(passwd);
 	if((buf = malloc(buflen+1)) == NULL)
 		return -1;
@@ -138,7 +138,7 @@ int n;
 	written to standard error instead of standard output.  That means that
 	anyone using the program from a terminal won't notice, but capturing
 	standard output will get the key words without a newline in front of
-	them. 
+	them.
 	*/
         fprintf(stderr, "\n");
         fflush(stderr);

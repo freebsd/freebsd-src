@@ -94,7 +94,7 @@ mpool_open(key, fd, pagesize, maxcache)
 	mp->free.cnext = mp->free.cprev = (BKT *)&mp->free;
 	mp->lru.cnext = mp->lru.cprev = (BKT *)&mp->lru;
 	for (entry = 0; entry < HASHSIZE; ++entry)
-		mp->hashtable[entry].hnext = mp->hashtable[entry].hprev = 
+		mp->hashtable[entry].hnext = mp->hashtable[entry].hprev =
 		    mp->hashtable[entry].cnext = mp->hashtable[entry].cprev =
 		    (BKT *)&mp->hashtable[entry];
 	mp->curcache = 0;
@@ -106,8 +106,8 @@ mpool_open(key, fd, pagesize, maxcache)
 	mp->pgin = mp->pgout = NULL;
 
 #ifdef STATISTICS
-	mp->cachehit = mp->cachemiss = mp->pagealloc = mp->pageflush = 
-	    mp->pageget = mp->pagenew = mp->pageput = mp->pageread = 
+	mp->cachehit = mp->cachemiss = mp->pagealloc = mp->pageflush =
+	    mp->pageget = mp->pagenew = mp->pageput = mp->pageread =
 	    mp->pagewrite = 0;
 #endif
 	return (mp);
@@ -132,7 +132,7 @@ mpool_filter(mp, pgin, pgout, pgcookie)
 	mp->pgout = pgout;
 	mp->pgcookie = pgcookie;
 }
-	
+
 /*
  * MPOOL_NEW -- get a new page
  *
@@ -335,7 +335,7 @@ mpool_sync(mp)
  *	mp:	mpool cookie
  *
  * Returns:
- *	NULL on failure and a pointer to the BKT on success	
+ *	NULL on failure and a pointer to the BKT on success
  */
 static BKT *
 mpool_bkt(mp)
@@ -478,7 +478,7 @@ mpool_stat(mp)
 	    mp->pagealloc, mp->pageflush);
 	if (mp->cachehit + mp->cachemiss)
 		(void)fprintf(stderr,
-		    "%.0f%% cache hit rate (%lu hits, %lu misses)\n", 
+		    "%.0f%% cache hit rate (%lu hits, %lu misses)\n",
 		    ((double)mp->cachehit / (mp->cachehit + mp->cachemiss))
 		    * 100, mp->cachehit, mp->cachemiss);
 	(void)fprintf(stderr, "%lu page reads, %lu page writes\n",
@@ -497,7 +497,7 @@ mpool_stat(mp)
 			cnt = 0;
 		} else
 			sep = ", ";
-			
+
 	}
 	(void)fprintf(stderr, "\n");
 }

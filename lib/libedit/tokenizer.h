@@ -47,7 +47,7 @@ typedef struct tokenizer Tokenizer;
 Tokenizer 	*tok_init	__P((const char *));
 void		 tok_reset	__P((Tokenizer *));
 void		 tok_end	__P((Tokenizer *));
-int		 tok_line	__P((Tokenizer *, const char *, 
+int		 tok_line	__P((Tokenizer *, const char *,
 				     int *, char ***));
 
 #endif /* _h_tokenizer */

@@ -41,9 +41,9 @@ static char sccsid[] = "@(#)curses.c	8.3 (Berkeley) 5/4/94";
 int	__echoit = 1;			/* If stty indicates ECHO. */
 int	__pfast;
 int	__rawmode = 0;			/* If stty indicates RAW mode. */
-int	__noqch = 0;			/* 
-					 * If terminal doesn't have 
-					 * insert/delete line capabilities 
+int	__noqch = 0;			/*
+					 * If terminal doesn't have
+					 * insert/delete line capabilities
 					 * or change scroll capabilities
 					 * for quick change on refresh.
 					 */

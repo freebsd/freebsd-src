@@ -50,15 +50,15 @@ int linesize, i;
 	nwin->_curx       = win->_curx;
 	nwin->_cury       = win->_cury;
 	nwin->_maxy       = win->_maxy;
-	nwin->_maxx       = win->_maxx;       
+	nwin->_maxx       = win->_maxx;
 	nwin->_begy       = win->_begy;
 	nwin->_begx       = win->_begx;
 
 	nwin->_flags      = win->_flags;
 	nwin->_attrs      = win->_attrs;
-	nwin->_bkgd	  = win->_bkgd; 
+	nwin->_bkgd	  = win->_bkgd;
 
-	nwin->_clear      = win->_clear; 
+	nwin->_clear      = win->_clear;
 	nwin->_scroll     = win->_scroll;
 	nwin->_leave      = win->_leave;
 	nwin->_use_keypad = win->_use_keypad;
@@ -68,7 +68,7 @@ int linesize, i;
 	nwin->_sync	  = win->_sync;
 	nwin->_parx	  = win->_parx;
 	nwin->_pary	  = win->_pary;
-	nwin->_parent	  = win->_parent; 
+	nwin->_parent	  = win->_parent;
 
 	nwin->_regtop     = win->_regtop;
 	nwin->_regbottom  = win->_regbottom;

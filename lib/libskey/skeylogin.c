@@ -10,7 +10,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
- 
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -84,7 +84,7 @@ char *ss;
 		return -1;
 	}
 	return -1;	/* Can't happen */
-}	
+}
 
 /* Find an entry in the One-time Password database.
  * Return codes:
@@ -264,7 +264,7 @@ fprintf(stderr, "window= %d micro seconds \n"  , microsec);
 
 
 	fclose(mp->keyfile);
-	
+
 	setpriority(PRIO_PROCESS, 0, 0);
 	return 0;
 }

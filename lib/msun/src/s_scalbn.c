@@ -5,19 +5,19 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_scalbn.c,v 1.6 1994/08/18 23:10:13 jtc Exp $";
+static char rcsid[] = "$Id: s_scalbn.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
 #endif
 
-/* 
+/*
  * scalbn (double x, int n)
- * scalbn(x,n) returns x* 2**n  computed by  exponent  
- * manipulation rather than by actually performing an 
+ * scalbn(x,n) returns x* 2**n  computed by  exponent
+ * manipulation rather than by actually performing an
  * exponentiation or a multiplication.
  */
 
@@ -46,13 +46,13 @@ tiny   = 1.0e-300;
         k = (hx&0x7ff00000)>>20;		/* extract exponent */
         if (k==0) {				/* 0 or subnormal x */
             if ((lx|(hx&0x7fffffff))==0) return x; /* +-0 */
-	    x *= two54; 
+	    x *= two54;
 	    GET_HIGH_WORD(hx,x);
-	    k = ((hx&0x7ff00000)>>20) - 54; 
+	    k = ((hx&0x7ff00000)>>20) - 54;
             if (n< -50000) return tiny*x; 	/*underflow*/
 	    }
         if (k==0x7ff) return x+x;		/* NaN or Inf */
-        k = k+n; 
+        k = k+n;
         if (k >  0x7fe) return huge*copysign(huge,x); /* overflow  */
         if (k > 0) 				/* normal result */
 	    {SET_HIGH_WORD(x,(hx&0x800fffff)|(k<<20)); return x;}

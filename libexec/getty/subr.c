@@ -382,7 +382,7 @@ speed(val)
 	for (sp = speedtab; sp->speed; sp++)
 		if (sp->speed == val)
 			return (sp->uxname);
-	
+
 	return (B300);		/* default in impossible cases */
 }
 

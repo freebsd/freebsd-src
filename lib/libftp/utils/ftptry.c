@@ -2,9 +2,9 @@
 Library for ftpd clients.(libftp)
 			Copyright by Oleg Orel
 			 All rights reserved.
-			
-This  library is desined  for  free,  non-commercial  software  creation. 
-It is changeable and can be improved. The author would greatly appreciate 
+
+This  library is desined  for  free,  non-commercial  software  creation.
+It is changeable and can be improved. The author would greatly appreciate
 any  advises, new  components  and  patches  of  the  existing  programs.
 Commercial  usage is  also  possible  with  participation of it's author.
 
@@ -27,7 +27,7 @@ will be described in usage, if the  program is started without them.\n\
 \n\
   The libftp you may transfer from host lpuds.oea.ihep.su via ftp-anonymous.\n\
   All question are sent to author via e-mail (orel@oea.ihep.su)\n\
-  ";  
+  ";
 
 #include <FtpLibrary.h>
 #include <sys/types.h>
@@ -95,7 +95,7 @@ main(int argc,char **argv)
 
   if (setjmp(trap)!=0)
     exit(1);
-  
+
   signal(SIGHUP,sighup);
   signal(SIGTRAP,done);
   signal(SIGINT,done);
@@ -106,13 +106,13 @@ main(int argc,char **argv)
 	  gethost());
 
   progname=argv[0];
-  
+
   FtpDebug(&FtpInit);
   FtpSetErrorHandler(&FtpInit,my_abort);
   FtpSetIOHandler(&FtpInit,my_IO);
   FtpSetFlag(&FtpInit,FTP_REST);
   FtpSetTimeout(&FtpInit,DEFAULT_TIMEOUT);
- 
+
   setoptions();
   optind=1;
   options(argc,argv);
@@ -122,7 +122,7 @@ main(int argc,char **argv)
     {
 
     case lm_file:
-      
+
       if (fork()) quit("Deattaching.....");
       close(0);close(1);close(2);
 
@@ -133,7 +133,7 @@ main(int argc,char **argv)
 	}
       else
 	strcpy(tmp,logfile);
-      
+
       open(tmp,O_TRUNC|O_CREAT|O_WRONLY,0600);
       dup(0);
       dup(0);
@@ -142,23 +142,23 @@ main(int argc,char **argv)
     case lm_mail:
 
 
-      
+
       if (fork()) quit("Deattaching.....");
-      
+
       close(0);close(1);close(2);
       if (popen("/usr/lib/sendmail -t","w")==NULL)
 	perror("sendmail"),
 	quit("");
-      
+
       dup(0);
       dup(0);
-      
+
       printf("From: %s@%s\n",USERNAME,gethost());
       printf("To: %s@%s\n",USERNAME,gethost());
-      printf("Subject: ftptry session log\n\n"); 
-      
+      printf("Subject: ftptry session log\n\n");
+
       fflush(stdout);
-      
+
       break;
     }
 
@@ -174,12 +174,12 @@ main(int argc,char **argv)
 INLINE noargs(int argc, char **argv, int optind)
 {
   int i;
-  
+
   for (i=optind;i<argc;i++)
     if (argv[i]!=NULL) return 0;
   return 1;
 }
-	  
+
 
 
 /* Main loop */
@@ -192,15 +192,15 @@ loop(int argc, char **argv, int optind /* First args as filename */ )
   String filename;
   String localfilename;
   char *p1;
-  
+
   for(i=optind;;(i==argc-1)?i=optind,
       sprintf(tmp,"Sleeping %d secs",sleeptime),log(tmp),sleep(sleeptime):
       i++)
     {
       if (noargs(argc,argv,optind))
 	quit("Nothing doing");
-      
-      if (strchr(argv[i],':')==NULL) 
+
+      if (strchr(argv[i],':')==NULL)
 	{
 	  if (find_archie(argv[i],machine,filename,localfilename)==0)
 	    argv[i]=NULL;
@@ -226,19 +226,19 @@ transfer(char *machine, char *file, char *localfile)
 {
   int r;
   String tmp;
-  
+
   if ((r=setjmp(stack))!=0)
     return r;
-  
+
   sprintf(tmp,"Start transfer, machine is %s, remote file is %s, local file is %s",
 	  machine, file, localfile);
   DEBUG(tmp);
-  
+
   FtpLogin(&ftp,machine,user,password,NULL);
 
   if (type==binary)
     FtpBinary(ftp);
-      
+
   switch (mode)
     {
 
@@ -260,11 +260,11 @@ transfer(char *machine, char *file, char *localfile)
     case multiget:
       domultiget(file);
       break;
-      
+
     }
-  
+
   FtpBye(ftp);
-  
+
   DEBUG("Transfer complete");
   return OK_;
 }
@@ -288,11 +288,11 @@ quit(char *s)
   log(s);
   longjmp(trap,1);
 }
-    
+
 
 my_IO(FTP *ftp, int n, char *s )
 {
-  
+
   DEBUG(s);
   leave(BREAK_);
 }
@@ -312,7 +312,7 @@ domultiget(char *file)
 {
   String list,localname,tmp_name;
   char *p1;
-  
+
   sprintf(list,"/tmp/ftptry-%s-multiget.XXXXXX",USERNAME);
   mktemp(list);
 
@@ -405,7 +405,7 @@ void done(sig)
 options(int argc,char **argv)
 {
   char c;
-  
+
   while((c=getopt(argc,argv,"GOIBDru:p:Pdbs:o:l:t:cm"))!=EOF)
     {
       switch(c)
@@ -414,16 +414,16 @@ options(int argc,char **argv)
 	case 'G':
 	  mode=multiget;
 	  break;
-	  
+
 	case 'c':
 
 	  if (localfile==NULL) localfile="*STDOUT*";
 	  break;
-	  
+
 	case 'I':
 	  fprintf(stderr,intro);
 	  exit(0);
-	    
+
 	case 'r':
 
 	  mode=put;
@@ -444,12 +444,12 @@ options(int argc,char **argv)
 
 	  localfile=optarg;
 	  break;
-	  
+
 	case 'D':
 
 	  debug=true;
 	  break;
-	  
+
 	case 'u':
 
 	  user=optarg;
@@ -464,7 +464,7 @@ options(int argc,char **argv)
 
 	  password=(char *)getpass("Password:");
 	  break;
-	  
+
 	case 'b':
 
 	  type=binary;
@@ -480,14 +480,14 @@ options(int argc,char **argv)
 	  logmode=lm_file;
 	  logfile=optarg;
 	  break;
-	  
+
 	case 'm':
 
 	  logmode=lm_mail;
 	  break;
-	  
+
 	case 'B':
-	  
+
 	  logmode=lm_file;
 	  logfile=NULL;
 	  break;
@@ -495,8 +495,8 @@ options(int argc,char **argv)
 	default:
 
 	  usage();
-	  
-	} 
+
+	}
     }
 }
 
@@ -510,14 +510,14 @@ setoptions()
 
 
 
-  
+
   if ((p=(char *)getenv(FTPTRY))!=NULL && *p!=0)
     strcpy(x,p);
   else
     return;
 
-  
-  
+
+
   for (argv[0]="",p=x,sp=x,argc=1; *p!=0 ; p++)
     {
       if (*p==' ')
@@ -529,7 +529,7 @@ setoptions()
     }
 
   argv[argc++]=sp;
-  
+
   options(argc,argv);
 }
 
@@ -562,7 +562,7 @@ find_archie(char *what,char *machine, char *filename, char *localfilename)
   static String oldwhat={'\0'};
   char *p1;
   int i;
- 
+
   if (!init || strcmp(oldwhat,what)!=0 || last==0)
     {
       String cmd;
@@ -571,10 +571,10 @@ find_archie(char *what,char *machine, char *filename, char *localfilename)
       for (i=0;i<MAXHOPS;i++) result[i][0]=0;
       sprintf(cmd,"archie -l -m %d %s",MAXHOPS,what);
       DEBUG(cmd);
-      
+
       if ((archie = popen(cmd,"r"))==NULL)
 	quit("Archie can't execute");
-      
+
       for(i=0;i<MAXHOPS;i++)
 	{
 	  if (fgets(result[i],sizeof (result[i]), archie)==NULL)
@@ -582,17 +582,17 @@ find_archie(char *what,char *machine, char *filename, char *localfilename)
 	  result[i][strlen(result[i])-1]=0;
 	  DEBUG(result[i]);
 	}
-      
-      
+
+
       last=i;
 
-      if ( last==0 ) 
+      if ( last==0 )
 	{
 	  DEBUG("archie not found need file");
 	  return(0);
 	}
-  
-  
+
+
       init=1;
       first=0;
       strcpy(oldwhat,what);
@@ -606,23 +606,23 @@ find_archie(char *what,char *machine, char *filename, char *localfilename)
 	first=i+1;
 	break;
       }
-  
+
   DEBUG("Archie select is ... (see next line)");
   DEBUG(result[i]);
-  
+
   if (sscanf ( result[i] , "%*[^ ] %*[^ ] %[^ ] %s", machine, filename )!=2)
     {
       DEBUG("Bad archie output format");
       last=0;
       return(0);
     }
-  
-  
+
+
   if ( (p1=strrchr(filename,'/'))!= NULL)
     strcpy(localfilename,p1+1);
   else
     strcpy(localfilename,filename);
-  
+
   return(1);
 }
 

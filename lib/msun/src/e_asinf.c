@@ -8,22 +8,22 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_asinf.c,v 1.2 1994/08/18 23:05:05 jtc Exp $";
+static char rcsid[] = "$Id: e_asinf.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
 #endif
 
 #include "math.h"
 #include "math_private.h"
 
 #ifdef __STDC__
-static const float 
+static const float
 #else
-static float 
+static float
 #endif
 one =  1.0000000000e+00, /* 0x3F800000 */
 huge =  1.000e+30,
@@ -55,13 +55,13 @@ qS4 =  7.7038154006e-02; /* 0x3d9dc62e */
 	ix = hx&0x7fffffff;
 	if(ix==0x3f800000) {
 		/* asin(1)=+-pi/2 with inexact */
-	    return x*pio2_hi+x*pio2_lo;	
+	    return x*pio2_hi+x*pio2_lo;
 	} else if(ix> 0x3f800000) {	/* |x|>= 1 */
-	    return (x-x)/(x-x);		/* asin(|x|>1) is NaN */   
+	    return (x-x)/(x-x);		/* asin(|x|>1) is NaN */
 	} else if (ix<0x3f000000) {	/* |x|<0.5 */
 	    if(ix<0x32000000) {		/* if |x| < 2**-27 */
 		if(huge+x>one) return x;/* return x with inexact if x!=0*/
-	    } else 
+	    } else
 		t = x*x;
 		p = t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))));
 		q = one+t*(qS1+t*(qS2+t*(qS3+t*qS4)));
@@ -87,6 +87,6 @@ qS4 =  7.7038154006e-02; /* 0x3d9dc62e */
 	    p  = (float)2.0*s*r-(pio2_lo-(float)2.0*c);
 	    q  = pio4_hi-(float)2.0*w;
 	    t  = pio4_hi-(p-q);
-	}    
-	if(hx>0) return t; else return -t;    
+	}
+	if(hx>0) return t; else return -t;
 }

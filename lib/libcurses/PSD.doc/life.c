@@ -128,7 +128,7 @@ getstart()
 
 	if (Head != NULL)			/* start new list */
 		dellist(Head);
-	Head = malloc(sizeof (LIST)); 
+	Head = malloc(sizeof (LIST));
 
 	/*
 	 * loop through the screen looking for 'x's, and add a list

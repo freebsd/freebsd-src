@@ -19,7 +19,7 @@
 extern int errno;
 #endif
 
-int _tracing = 0;  
+int _tracing = 0;
 
 static int	tracefd;
 
@@ -56,15 +56,15 @@ struct {unsigned int val; char *name;}
 names[] =
     {
 	{A_STANDOUT,	"A_STANDOUT, ",},
-	{A_UNDERLINE,	"A_UNDERLINE, ",},	
+	{A_UNDERLINE,	"A_UNDERLINE, ",},
 	{A_REVERSE,	"A_REVERSE, ",},
 	{A_BLINK,	"A_BLINK, ",},
 	{A_DIM,		"A_DIM, ",},
-	{A_BOLD,		"A_BOLD, ",},	
-	{A_ALTCHARSET,	"A_ALTCHARSET, ",},	
+	{A_BOLD,		"A_BOLD, ",},
+	{A_ALTCHARSET,	"A_ALTCHARSET, ",},
 	{A_INVIS,	"A_INVIS, ",},
 	{A_PROTECT,	"A_PROTECT, ",},
-	{A_CHARTEXT,	"A_CHARTEXT, ",},	
+	{A_CHARTEXT,	"A_CHARTEXT, ",},
 	{A_NORMAL,	"A_NORMAL, ",},
     },
 colors[] =
@@ -150,7 +150,7 @@ char *visbuf(const char *buf)
 char *_tracechar(const unsigned char ch)
 {
     static char crep[20];
-    /* 
+    /*
      * We can show the actual character if it's either an ordinary printable
      * or one of the high-half characters.
      */

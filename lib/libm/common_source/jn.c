@@ -46,18 +46,18 @@ static char sccsid[] = "@(#)jn.c	8.2 (Berkeley) 11/30/93";
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  *
  * ******************* WARNING ********************
  * This is an alpha version of SunPro's FDLIBM (Freely
- * Distributable Math Library) for IEEE double precision 
+ * Distributable Math Library) for IEEE double precision
  * arithmetic. FDLIBM is a basic math library written
- * in C that runs on machines that conform to IEEE 
- * Standard 754/854. This alpha version is distributed 
- * for testing purpose. Those who use this software 
- * should report any bugs to 
+ * in C that runs on machines that conform to IEEE
+ * Standard 754/854. This alpha version is distributed
+ * for testing purpose. Those who use this software
+ * should report any bugs to
  *
  *		fdlibm-comments@sunpro.eng.sun.com
  *
@@ -69,7 +69,7 @@ static char sccsid[] = "@(#)jn.c	8.2 (Berkeley) 11/30/93";
  * jn(int n, double x), yn(int n, double x)
  * floating point Bessel's function of the 1st and 2nd kind
  * of order n
- *          
+ *
  * Special cases:
  *	y0(0)=y1(0)=yn(n,0) = -inf with division by zero signal;
  *	y0(-ve)=y1(-ve)=yn(n,-ve) are NaN with invalid signal.
@@ -88,7 +88,7 @@ static char sccsid[] = "@(#)jn.c	8.2 (Berkeley) 11/30/93";
  *	yn(n,x) is similar in all respects, except
  *	that forward recursion is used for all
  *	values of n>1.
- *	
+ *
  */
 
 #include <math.h>
@@ -120,7 +120,7 @@ double jn(n,x)
      */
     /* if J(n,NaN) is NaN */
 	if (_IEEE && isnan(x)) return x+x;
-	if (n<0){		
+	if (n<0){
 		n = -n;
 		x = -x;
 	}
@@ -134,10 +134,10 @@ double jn(n,x)
 			/* Safe to use J(n+1,x)=2n/x *J(n,x)-J(n-1,x) */
 	    if (_IEEE && x >= 8.148143905337944345e+090) {
 					/* x >= 2**302 */
-    /* (x >> n**2) 
+    /* (x >> n**2)
      *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
      *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
-     *	    Let s=sin(x), c=cos(x), 
+     *	    Let s=sin(x), c=cos(x),
      *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
      *
      *		   n	sin(xn)*sqt2	cos(xn)*sqt2
@@ -154,7 +154,7 @@ double jn(n,x)
 		    case 3: temp =  cos(x)-sin(x); break;
 		}
 		b = invsqrtpi*temp/sqrt(x);
-	    } else {	
+	    } else {
 	        a = j0(x);
 	        b = j1(x);
 	        for(i=1;i<n;i++){
@@ -165,7 +165,7 @@ double jn(n,x)
 	    }
 	} else {
 	    if (x < 1.86264514923095703125e-009) { /* x < 2**-29 */
-    /* x is tiny, return the first Taylor expansion of J(n,x) 
+    /* x is tiny, return the first Taylor expansion of J(n,x)
      * J(n,x) = 1/n!*(x/2)^n  - ...
      */
 		if (n > 33)	/* underflow */
@@ -180,14 +180,14 @@ double jn(n,x)
 		}
 	    } else {
 		/* use backward recurrence */
-		/* 			x      x^2      x^2       
+		/* 			x      x^2      x^2
 		 *  J(n,x)/J(n-1,x) =  ----   ------   ------   .....
 		 *			2n  - 2(n+1) - 2(n+2)
 		 *
-		 * 			1      1        1       
+		 * 			1      1        1
 		 *  (for large x)   =  ----  ------   ------   .....
 		 *			2n   2(n+1)   2(n+2)
-		 *			-- - ------ - ------ - 
+		 *			-- - ------ - ------ -
 		 *			 x     x         x
 		 *
 		 * Let w = 2n/x and h=2/x, then the above quotient
@@ -203,9 +203,9 @@ double jn(n,x)
 		 * To determine how many terms needed, let
 		 * Q(0) = w, Q(1) = w(w+h) - 1,
 		 * Q(k) = (w+k*h)*Q(k-1) - Q(k-2),
-		 * When Q(k) > 1e4	good for single 
-		 * When Q(k) > 1e9	good for double 
-		 * When Q(k) > 1e17	good for quadruple 
+		 * When Q(k) > 1e4	good for single
+		 * When Q(k) > 1e9	good for double
+		 * When Q(k) > 1e17	good for quadruple
 		 */
 	    /* determine k */
 		double t,v;
@@ -254,7 +254,7 @@ double jn(n,x)
 	}
 	return ((sgn == 1) ? -b : b);
 }
-double yn(n,x) 
+double yn(n,x)
 	int n; double x;
 {
 	int i, sign;
@@ -275,10 +275,10 @@ double yn(n,x)
 	if (n == 0) return(y0(x));
 	if (n == 1) return(sign*y1(x));
 	if(_IEEE && x >= 8.148143905337944345e+090) { /* x > 2**302 */
-    /* (x >> n**2) 
+    /* (x >> n**2)
      *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
      *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
-     *	    Let s=sin(x), c=cos(x), 
+     *	    Let s=sin(x), c=cos(x),
      *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
      *
      *		   n	sin(xn)*sqt2	cos(xn)*sqt2

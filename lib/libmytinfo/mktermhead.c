@@ -2,7 +2,7 @@
  * mktermhead.c
  *
  * By Ross Ridge
- * Public Domain 
+ * Public Domain
  * 92/06/04 11:38:57
  *
  * mktermhead [-n caps] file

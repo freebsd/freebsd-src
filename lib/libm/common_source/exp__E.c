@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)exp__E.c	8.1 (Berkeley) 6/4/93";
  * exp__E RETURNS
  *
  *			 /  exp(x+c) - 1 - x ,  1E-19 < |x| < .3465736
- *       exp__E(x,c) = 	| 		     
+ *       exp__E(x,c) = 	|
  *			 \  0 ,  |x| < 1E-19.
  *
  * DOUBLE PRECISION (IEEE 53 bits, VAX D FORMAT 56 BITS)
@@ -50,12 +50,12 @@ static char sccsid[] = "@(#)exp__E.c	8.1 (Berkeley) 6/4/93";
  * REVISED BY K.C. NG on 3/16/85, 4/16/85.
  *
  * Required system supported function:
- *	copysign(x,y)	
+ *	copysign(x,y)
  *
  * Method:
  *	1. Rational approximation. Let r=x+c.
  *	   Based on
- *                                   2 * sinh(r/2)     
+ *                                   2 * sinh(r/2)
  *                exp(r) - 1 =   ----------------------   ,
  *                               cosh(r/2) - sinh(r/2)
  *	   exp__E(r) is computed using
@@ -76,7 +76,7 @@ static char sccsid[] = "@(#)exp__E.c	8.1 (Berkeley) 6/4/93";
  * Approximation error:
  *
  *   |	exp(x) - 1			   |        2**(-57),  (IEEE double)
- *   | ------------  -  (exp__E(x,0)+x)/x  |  <= 
+ *   | ------------  -  (exp__E(x,0)+x)/x  |  <=
  *   |	     x			           |	    2**(-69).  (VAX D)
  *
  * Constants:
@@ -120,7 +120,7 @@ double x,c;
 #else	/* defined(vax)||defined(tahoe) */
            q = z*( q1 +z*  q2 );
 #endif	/* defined(vax)||defined(tahoe) */
-           xp= x*p     ; 
+           xp= x*p     ;
 	   xh= x*half  ;
            w = xh-(q-xp)  ;
 	   p = p+p;

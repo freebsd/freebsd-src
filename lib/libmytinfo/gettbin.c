@@ -18,13 +18,13 @@ static const char SCCSid[] = "@(#) mytinfo gettbin.c 3.2 92/02/01 public domain,
 
 extern int _boolorder[], _numorder[], _strorder[];
 
-#ifdef TRUE_BYTE_ORDERING 
+#ifdef TRUE_BYTE_ORDERING
 /* 8 bit char, 16 bit short, lsb first, twos complement */
 #define convshort(s) (*(short *)(s))
 
 #else
 
-#ifdef TWOS_COPLEMENT 
+#ifdef TWOS_COPLEMENT
 /* 8 bit char, 16 bit short, lsb last, twos complement */
 #define convshort(s) ((short)(((s[0] & 0377) << 8) | (s[1] & 0377)))
 
@@ -101,7 +101,7 @@ TERMINAL *cur; {
 
 	s = buf + 12 + sz_names + sz_bools;
 	for(i = 0; i < n_nums && _numorder[i] != -1; i++, s += 2) {
-		if (convshort(s) == -2) 
+		if (convshort(s) == -2)
 			cur->nums[_numorder[i]] = -1;
 		else if (cur->nums[_numorder[i]] == -2 && convshort(s) != -1)
 			cur->nums[_numorder[i]] = convshort(s);
@@ -120,7 +120,7 @@ TERMINAL *cur; {
 			if ((cur->strs[_strorder[i]]
 			     = _addstr(strtbl + convshort(s))) == NULL)
 				return 1;
-		} 
+		}
 	}
 
 	return 0;
