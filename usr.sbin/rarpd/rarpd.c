@@ -26,7 +26,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.8 1996/11/18 22:07:41 wpaul Exp $ (LBL)";
+    "@(#) $Header: rarpd.c,v 1.22 96/06/14 20:40:14 leres Exp $ (LBL)";
 #endif
 
 /*
@@ -76,7 +76,11 @@ extern int optind, opterr;
 extern int errno;
 #endif
 
-#ifdef SUNOS4
+#if defined(SUNOS4) || defined(__FreeBSD__) /* XXX */
+#define HAVE_DIRENT_H
+#endif
+
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
 #else
 #include <sys/dir.h>
@@ -394,9 +398,9 @@ init(target)
 	/* Verbose stuff */
 	if (verbose)
 		for (ii = iflist; ii != NULL; ii = ii->ii_next)
-			syslog(LOG_DEBUG, "%s %s 0x%x %s",
-			    ii->ii_ifname, intoa(ii->ii_ipaddr),
-			    ii->ii_netmask, eatoa(ii->ii_eaddr));
+			syslog(LOG_DEBUG, "%s %s 0x%08x %s",
+			    ii->ii_ifname, intoa(ntohl(ii->ii_ipaddr)),
+			    ntohl(ii->ii_netmask), eatoa(ii->ii_eaddr));
 }
 
 void
@@ -505,7 +509,9 @@ rarp_check(p, len)
 
 	if (len < sizeof(*ep) + sizeof(*ap)) {
 		syslog(LOG_ERR, "truncated request");
+#ifdef DEBUG
 		printf ("len: %d expected: %d\n", len, sizeof(*ep) + sizeof(*ap));
+#endif
 		return 0;
 	}
 	/*
@@ -564,10 +570,10 @@ rarp_loop()
 	}
 
 	while (1) {
-	/*
-	 * Find the highest numbered file descriptor for select().
-	 * Initialize the set of descriptors to listen to.
-	 */
+		/*
+		 * Find the highest numbered file descriptor for select().
+		 * Initialize the set of descriptors to listen to.
+		 */
 		FD_ZERO(&fds);
 		for (ii = iflist; ii != NULL; ii = ii->ii_next) {
 			FD_SET(ii->ii_fd, &fds);
@@ -635,7 +641,7 @@ int
 rarp_bootable(addr)
 	u_long addr;
 {
-#ifdef SUNOS4
+#ifdef HAVE_DIRENT_H
 	register struct dirent *dent;
 #else
 	register struct direct *dent;
@@ -644,7 +650,7 @@ rarp_bootable(addr)
 	char ipname[9];
 	static DIR *dd = NULL;
 
-	(void)sprintf(ipname, "%08X", (unsigned int )addr);
+	(void)sprintf(ipname, "%08X", (unsigned int )ntohl(addr));
 
 	/*
 	 * If directory is already open, rewind it.  Otherwise, open it.
@@ -702,6 +708,7 @@ rarp_process(ii, pkt, len)
 	char ename[256];
 
 	ep = (struct ether_header *)pkt;
+	/* should this be arp_tha? */
 	if (ether_ntohost(ename, &ep->ether_shost) != 0)
 		return;
 
@@ -711,24 +718,25 @@ rarp_process(ii, pkt, len)
 	 * Choose correct address from list.
 	 */
 	if (hp->h_addrtype != AF_INET) {
-		syslog(LOG_ERR, "cannot handle non IP addresses");
-		exit(1);
+		syslog(LOG_ERR, "cannot handle non IP addresses for %s",
+								ename);
+		return;
 	}
-	target_ipaddr = htonl(choose_ipaddr((u_long **)hp->h_addr_list,
+	target_ipaddr = choose_ipaddr((u_long **)hp->h_addr_list,
 				      ii->ii_ipaddr & ii->ii_netmask,
-				      ii->ii_netmask));
+				      ii->ii_netmask);
 	if (target_ipaddr == 0) {
 		syslog(LOG_ERR, "cannot find %s on net %s",
-		       ename, intoa(htonl(ii->ii_ipaddr & ii->ii_netmask)));
+		       ename, intoa(ntohl(ii->ii_ipaddr & ii->ii_netmask)));
 		return;
 	}
 	if (rarp_bootable(target_ipaddr))
 		rarp_reply(ii, ep, target_ipaddr, len);
 	else if (verbose > 1)
-		syslog(LOG_DEBUG, "%s %s at %s DENIED (not bootable)",
+		syslog(LOG_INFO, "%s %s at %s DENIED (not bootable)",
 		    ii->ii_ifname,
-		    eatoa(ii->ii_eaddr),
-		    intoa(ii->ii_ipaddr));
+		    eatoa(ep->ether_shost),
+		    intoa(ntohl(target_ipaddr)));
 }
 
 /*
@@ -774,7 +782,7 @@ update_arptab(ep, ipaddr)
 	}
 
 	ar = &sin_inarp;
-	ar->sin_addr.s_addr = htonl(ipaddr);
+	ar->sin_addr.s_addr = ipaddr;
 	ll = &sin_dl;
 	bcopy(ep, LLADDR(ll), 6);
 
@@ -791,14 +799,14 @@ update_arptab(ep, ipaddr)
 	errno = 0;
 	if (write(r, rt, rt->rtm_msglen) < 0 && errno != ESRCH) {
 		syslog(LOG_ERR, "rtmsg get write: %m");
-		exit(1);
+		return;
 	}
 	do {
 		cc = read(r, rt, sizeof(rtmsg));
 	} while (cc > 0 && (rt->rtm_seq != seq || rt->rtm_pid != pid));
 	if (cc < 0) {
 		syslog(LOG_ERR, "rtmsg get read: %m");
-		exit(1);
+		return;
 	}
 	ll2 = (struct sockaddr_dl *)((u_char *)ar2 + ar2->sin_len);
 	if (ll2->sdl_family != AF_LINK) {
@@ -807,8 +815,8 @@ update_arptab(ep, ipaddr)
 		 * directly connected network (the family is AF_INET in
 		 * this case).
 		 */
-		syslog(LOG_ERR, "bogus link family (%d) wrong net?\n",
-		    ll2->sdl_family);
+		syslog(LOG_ERR, "bogus link family (%d) wrong net for %08X?\n",
+		    ll2->sdl_family, ipaddr);
 		return;
 	}
 	xtype = ll2->sdl_type;
@@ -835,14 +843,14 @@ update_arptab(ep, ipaddr)
 	errno = 0;
 	if (write(r, rt, rt->rtm_msglen) < 0 && errno != EEXIST) {
 		syslog(LOG_ERR, "rtmsg add write: %m");
-		exit(1);
+		return;
 	}
 	do {
 		cc = read(r, rt, sizeof(rtmsg));
 	} while (cc > 0 && (rt->rtm_seq != seq || rt->rtm_pid != pid));
 	if (cc < 0) {
 		syslog(LOG_ERR, "rtmsg add read: %m");
-		exit(1);
+		return;
 	}
 }
 #else
@@ -857,7 +865,7 @@ update_arptab(ep, ipaddr)
 	request.arp_flags = 0;
 	sin = (struct sockaddr_in *)&request.arp_pa;
 	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = htonl(ipaddr);
+	sin->sin_addr.s_addr = ipaddr;
 	request.arp_ha.sa_family = AF_UNSPEC;
 	bcopy((char *)ep, (char *)request.arp_ha.sa_data, 6);
 
@@ -923,7 +931,6 @@ rarp_reply(ii, ep, ipaddr, len)
 	bcopy((char *)ii->ii_eaddr, (char *)&ep->ether_shost, 6);
 	bcopy((char *)ii->ii_eaddr, (char *)&ap->arp_sha, 6);
 
-	ipaddr = htonl(ipaddr);
 	bcopy((char *)&ipaddr, (char *)ap->arp_tpa, 4);
 	/* Target hardware is unchanged. */
 	bcopy((char *)&ii->ii_ipaddr, (char *)ap->arp_spa, 4);
@@ -935,9 +942,9 @@ rarp_reply(ii, ep, ipaddr, len)
 	if (n != len)
 		syslog(LOG_ERR, "write: only %d of %d bytes written", n, len);
 	if (verbose)
-		syslog(LOG_DEBUG, "%s %s at %s", ii->ii_ifname,
-		    eatoa(ii->ii_eaddr),
-		    intoa(ii->ii_ipaddr));
+		syslog(LOG_INFO, "%s %s at %s REPLIED", ii->ii_ifname,
+		    eatoa(ap->arp_sha),
+		    intoa(ntohl(ipaddr)));
 }
 
 /*
@@ -948,15 +955,15 @@ u_long
 ipaddrtonetmask(addr)
 	u_long addr;
 {
+	addr = ntohl(addr);
 	if (IN_CLASSA(addr))
-		return IN_CLASSA_NET;
+		return htonl(IN_CLASSA_NET);
 	if (IN_CLASSB(addr))
-		return IN_CLASSB_NET;
+		return htonl(IN_CLASSB_NET);
 	if (IN_CLASSC(addr))
-		return IN_CLASSC_NET;
+		return htonl(IN_CLASSC_NET);
 	syslog(LOG_DEBUG, "unknown IP address class: %08X", addr);
-	exit(1);
-	/* NOTREACHED */
+	return htonl(0xffffffff);
 }
 
 /*
