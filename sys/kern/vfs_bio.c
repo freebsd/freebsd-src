@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.17 1995/01/09 16:04:52 davidg Exp $
+ * $Id: vfs_bio.c,v 1.18 1995/01/10 07:32:35 davidg Exp $
  */
 
 /*
@@ -1349,7 +1349,6 @@ biodone(register struct buf * bp)
 				    m->valid, m->dirty, m->bmapped);
 				panic("biodone: page busy < 0\n");
 			}
-			m->flags &= ~PG_FAKE;
 			--m->busy;
 			PAGE_WAKEUP(m);
 			--obj->paging_in_progress;
