@@ -65,7 +65,7 @@
 #define KTR_NFS		0x00040000		/* The obvious */
 #define KTR_VOP		0x00080000		/* The obvious */
 #define KTR_VM		0x00100000		/* The virtual memory system */
-#define KTR_IDLELOOP	0x00200000		/* checks done in the idle process */
+#define KTR_WITNESS	0x00200000
 #define	KTR_RUNQ	0x00400000		/* Run queue */
 #define	KTR_ALL		0x007fffff
 
@@ -91,16 +91,17 @@
 
 #include <sys/time.h>
 
-struct ktr_entry {
-	struct	timespec ktr_tv;
-#ifdef KTR_EXTEND
 #ifndef KTRDESCSIZE
 #define KTRDESCSIZE 80
 #endif
+
+struct ktr_entry {
+	struct	timespec ktr_tv;
+	int	ktr_cpu;
+#ifdef KTR_EXTEND
 	char	ktr_desc[KTRDESCSIZE];
 	const	char *ktr_filename;
 	int	ktr_line;
-	int	ktr_cpu;
 #else
 	const	char *ktr_desc;
 	u_long	ktr_parm1;
@@ -124,10 +125,6 @@ extern struct ktr_entry ktr_buf[];
 
 #endif /* !LOCORE */
 #ifdef KTR
-
-#ifndef KTR_ENTRIES
-#define	KTR_ENTRIES	1024
-#endif
 
 #ifdef KTR_EXTEND
 void	ktr_tracepoint(u_int mask, const char *filename, u_int line,
