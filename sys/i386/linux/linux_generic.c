@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_generic.c,v 1.3 1995/06/25 17:30:46 sos Exp $
+ *  $Id: linux_generic.c,v 1.1 1995/06/25 17:32:34 sos Exp $
  */
 
 #include <i386/linux/linux.h>
@@ -48,7 +48,7 @@ caddr_t ua_alloc_init(int len)
     caddr_t ptr;
 
     ptr = (caddr_t)ALIGN((PS_STRINGS));
-    ptr += sizeof(struct ps_strings);
+    ptr -= SPARE_USRSPACE;
     ua_ptr = (caddr_t)(ptr + ALIGN(len));
     return ptr;
 }

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2.h,v 1.3 1994/10/17 22:13:06 sos Exp $
+ *	$Id: ibcs2.h,v 1.4 1995/05/30 07:59:50 rgrimes Exp $
  */
 
 /* trace all iBCS2 system calls */
@@ -65,7 +65,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 
 /* misc defines */
 #define UA_ALLOC() \
-	(ALIGN(((caddr_t)PS_STRINGS) + sizeof(struct ps_strings)))
+	(ALIGN(((caddr_t)PS_STRINGS) - SPARE_USRSPACE))
 #define IBCS2_RETVAL_SIZE	(3 * sizeof(int))
 #define IBCS2_MAGIC_IN		0xe215
 #define IBCS2_MAGIC_OUT		0x8e11

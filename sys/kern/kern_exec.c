@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.21 1995/05/30 08:05:24 rgrimes Exp $
+ *	$Id: kern_exec.c,v 1.21.4.1 1995/08/31 10:00:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -444,7 +444,9 @@ exec_copyout_strings(iparams)
 	 * Calculate string base and vector table pointers.
 	 */
 	arginfo = PS_STRINGS;
-	destp =	(caddr_t)arginfo - roundup((ARG_MAX - iparams->stringspace), sizeof(char *));
+	destp =	(caddr_t)arginfo - SPARE_USRSPACE -
+		roundup((ARG_MAX - iparams->stringspace), sizeof(char *));
+
 	/*
 	 * The '+ 2' is for the null pointers at the end of each of the
 	 *	arg and	env vector sets
@@ -469,7 +471,7 @@ exec_copyout_strings(iparams)
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	suword(&arginfo->ps_argvstr, (int)destp);
+	suword(&arginfo->ps_argvstr, (int)vectp);
 	suword(&arginfo->ps_nargvstr, argc);
 
 	/*
@@ -485,7 +487,7 @@ exec_copyout_strings(iparams)
 	/* a null vector table pointer seperates the argp's from the envp's */
 	suword(vectp++, NULL);
 
-	suword(&arginfo->ps_envstr, (int)destp);
+	suword(&arginfo->ps_envstr, (int)vectp);
 	suword(&arginfo->ps_nenvstr, envc);
 
 	/*
