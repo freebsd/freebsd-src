@@ -42,22 +42,22 @@
 .Nd Operation and management utility for Geom Based Disk Encryption.
 .Sh SYNOPSIS
 .Nm
-attach
+.Cm attach
 .Ar destination
 .Op Fl l Ar lockfile
 .Op Fl p Ar pass-phrase
 .Nm
-detach
+.Cm detach
 .Ar destination
 .Nm
-init
+.Cm init
 .Ar destination
 .Op Fl i
 .Op Fl f Ar filename
 .Op Fl L Ar lockfile
 .Op Fl P Ar pass-phrase
 .Nm
-setkey
+.Cm setkey
 .Ar destination
 .Op Fl n Ar key
 .Op Fl l Ar lockfile
@@ -65,7 +65,7 @@ setkey
 .Op Fl L Ar new-lockfile
 .Op Fl P Ar new-pass-phrase
 .Nm
-destroy
+.Cm destroy
 .Ar destination
 .Op Fl n Ar key
 .Op Fl l Ar lockfile
@@ -80,9 +80,10 @@ The interaction between the
 .Nm
 program and the kernel part is not a published interface.
 .Pp
-The operational aspect consists of two subcommands, one to open and attach 
-a device and one to close and detach
-a device to the in-kernel cryptographic gbde module.
+The operational aspect consists of two subcommands:
+one to open and attach 
+a device to the in-kernel cryptographic gbde module,
+and one to close and detach a device.
 .Pp
 The management part allows initialization of the master key and lock sectors
 on a device, initialization and replacement of pass-phrases and
@@ -93,34 +94,46 @@ The
 argument is used to supply the lock selector data.
 If no
 .Fl l
-argument is specified, the first sector is used for this purpose.
+option is specified, the first sector is used for this purpose.
 .Pp
+The
 .Fl L Ar new-lockfile
+argument
 specifies the lock selector file for the key modified with the
 .Ar setkey subcommand.
 .Pp
 The
 .Fl n Ar key
-argument can be used to specify which of the four keys the operation applies to.
-A value of 1 to 4 selects the specified key, a value of 0 (the default) means "this key" (ie, the key used to gain access to the device) and a value of -1 means "all keys".
+argument can be used to specify which of the four keys
+to which the operation applies.
+A value of 1 to 4 selects the specified key, a value of 0 (the default)
+means
+.Dq "this key"
+(i.e., the key used to gain access to the device)
+and a value of -1 means
+.Dq "all keys" .
 .Pp
 The
 .Fl f Ar filename
 specifies an optional parameter file for use under initialization.
 .Pp
-Alternatively the
+Alternatively, the
 .Fl i
-optional toggles an interactive mode where a template file with descriptions
+option toggles an interactive mode where a template file with descriptions
 of the parameters can be interactively edited.
 .Pp
+The
 .Fl p Ar pass-phrase
+argument
 specifies the pass-phrase used to opening the device.
-If not specified the controlling terminal will be used to prompt the user
+If not specified, the controlling terminal will be used to prompt the user
 for the pass-phrase.
 .Pp
+The
 .Fl P Ar new-pass-phrase
+argument
 can be used to specify the new pass-phrase to the
-.Ar setkey
+.Cm setkey
 subcommand.
 If not specified, the user is prompted for the new pass-phrase on the
 controlling terminal.
