@@ -1,9 +1,10 @@
 /*
  *	(c)Copyright 1998, Matthew Dillon.  Terms for use and redistribution
  *	are covered by the BSD Copyright as found in /usr/src/COPYRIGHT.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -69,7 +70,6 @@ vm_pageq_requeue(vm_page_t m)
 
 /*
  *	vm_pageq_enqueue:
- *
  */
 void
 vm_pageq_enqueue(int queue, vm_page_t m)

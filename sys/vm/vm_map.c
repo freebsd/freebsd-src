@@ -60,13 +60,14 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- *
- * $FreeBSD$
  */
 
 /*
  *	Virtual memory mapping module.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

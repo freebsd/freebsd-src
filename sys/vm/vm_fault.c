@@ -65,13 +65,15 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- *
- * $FreeBSD$
  */
 
 /*
  *	Page fault handling module.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
