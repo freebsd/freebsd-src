@@ -181,7 +181,6 @@ struct kseq	kseq_cpu[MAXCPU];
 static int sched_slice(struct ksegrp *kg);
 static int sched_priority(struct ksegrp *kg);
 void sched_pctcpu_update(struct kse *ke);
-void sched_check_runqs(void);
 int sched_pickcpu(void);
 
 static void
@@ -553,20 +552,6 @@ sched_clock(struct thread *td)
 	}
 }
 
-void sched_print_load(void);
-
-void
-sched_print_load(void)
-{
-	int cpu;
-
-	for (cpu = 0; cpu < mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
-		printf("%d: %d\n", cpu, kseq_cpu[cpu].ksq_load);
-	}
-}
-
 int
 sched_runnable(void)
 {
@@ -610,26 +595,6 @@ sched_userret(struct thread *td)
 	}
 }
 
-void
-sched_check_runqs(void)
-{
-	struct kseq *kseq;
-	int cpu;
-
-	for (cpu = 0; cpu < mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
-		kseq = &kseq_cpu[cpu];
-		if (kseq->ksq_load !=
-		    (runq_depth(kseq->ksq_curr) + runq_depth(kseq->ksq_next))) {
-			printf("CPU: %d\tload: %d\tcurr: %d\tnext: %d\n",
-			    cpu, kseq->ksq_load, runq_depth(kseq->ksq_curr),
-			    runq_depth(kseq->ksq_next));
-			Debugger("Imbalance");
-		}
-	}
-}
-
 struct kse * sched_choose_kseq(struct kseq *kseq);
 
 struct kse *
@@ -662,9 +627,6 @@ sched_choose(void)
 		ke->ke_state = KES_THREAD;
 #ifdef SMP
 		kseq_cpu[cpu].ksq_load--;
-#if 0
-		sched_check_runqs();
-#endif
 #endif
 	}
 
@@ -731,9 +693,6 @@ sched_add(struct kse *ke)
 	runq_add(ke->ke_runq, ke);
 #ifdef SMP
 	kseq_cpu[ke->ke_oncpu].ksq_load++;
-#if 0
-	sched_check_runqs();
-#endif
 #endif
 }
 
@@ -749,9 +708,6 @@ sched_rem(struct kse *ke)
 	ke->ke_ksegrp->kg_runq_kses--;
 #ifdef SMP
 	kseq_cpu[ke->ke_oncpu].ksq_load--;
-#if 0
-	sched_check_runqs();
-#endif
 #endif
 }
 
