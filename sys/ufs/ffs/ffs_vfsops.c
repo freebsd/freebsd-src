@@ -184,7 +184,11 @@ ffs_mount(mp, path, data, ndp, td)
 			/*
 			 * Flush any dirty data.
 			 */
-			VFS_SYNC(mp, MNT_WAIT, td->td_proc->p_ucred, td);
+			if ((error = VFS_SYNC(mp, MNT_WAIT,
+			    td->td_proc->p_ucred, td)) != 0) {
+				vn_finished_write(mp);
+				return (error);
+			}
 			/*
 			 * Check for and optionally get rid of files open
 			 * for writing.
@@ -1156,7 +1160,7 @@ loop:
 		if ((error = softdep_flushworklist(ump->um_mountp, &count, td)))
 			allerror = error;
 		/* Flushed work items may create new vnodes to clean */
-		if (count) {
+		if (allerror == 0 && count) {
 			mtx_lock(&mntvnode_mtx);
 			goto loop;
 		}
@@ -1172,7 +1176,7 @@ loop:
 		if ((error = VOP_FSYNC(devvp, cred, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(devvp, 0, td);
-		if (waitfor == MNT_WAIT) {
+		if (allerror == 0 && waitfor == MNT_WAIT) {
 			mtx_lock(&mntvnode_mtx);
 			goto loop;
 		}

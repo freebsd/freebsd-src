@@ -307,7 +307,10 @@ restart:
 	 */
 	for (;;) {
 		vn_finished_write(wrtmp);
-		vfs_write_suspend(vp->v_mount);
+		if ((error = vfs_write_suspend(vp->v_mount)) != 0) {
+			vn_start_write(NULL, &wrtmp, V_WAIT);
+			goto out;
+		}
 		if (mp->mnt_kern_flag & MNTK_SUSPENDED)
 			break;
 		vn_start_write(NULL, &wrtmp, V_WAIT);

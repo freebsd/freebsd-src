@@ -3425,7 +3425,7 @@ sync_fsync(ap)
 	struct vnode *syncvp = ap->a_vp;
 	struct mount *mp = syncvp->v_mount;
 	struct thread *td = ap->a_td;
-	int asyncflag;
+	int error, asyncflag;
 
 	/*
 	 * We only need to do something if this is a lazy evaluation.
@@ -3456,12 +3456,12 @@ sync_fsync(ap)
 	asyncflag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &= ~MNT_ASYNC;
 	vfs_msync(mp, MNT_NOWAIT);
-	VFS_SYNC(mp, MNT_LAZY, ap->a_cred, td);
+	error = VFS_SYNC(mp, MNT_LAZY, ap->a_cred, td);
 	if (asyncflag)
 		mp->mnt_flag |= MNT_ASYNC;
 	vn_finished_write(mp);
 	vfs_unbusy(mp, td);
-	return (0);
+	return (error);
 }
 
 /*
