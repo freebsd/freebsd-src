@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.43 1995/09/08 19:46:31 jfieber Exp $
+#	$Id: BSD.usr.dist,v 1.44 1995/09/30 15:42:49 jfieber Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -195,13 +195,57 @@
         isdn
         ..
         locale
+	    da_DK.ISO_8859-1
+            ..
+	    de_AT.ISO_8859-1
+            ..
+	    de_CH.ISO_8859-1
+            ..
+	    de_DE.ISO_8859-1
+            ..
+	    en_AU.ISO_8859-1
+            ..
+	    en_CA.ISO_8859-1
+            ..
+	    en_GB.ISO_8859-1
+            ..
+	    en_US.ISO_8859-1
+            ..
+	    es_ES.ISO_8859-1
+            ..
+	    fi_FI.ISO_8859-1
+            ..
+	    fr_BE.ISO_8859-1
+            ..
+	    fr_CA.ISO_8859-1
+            ..
+	    fr_CH.ISO_8859-1
+            ..
+	    fr_FR.ISO_8859-1
+            ..
+	    is_IS.ISO_8859-1
+            ..
+	    it_CH.ISO_8859-1
+            ..
+	    it_IT.ISO_8859-1
+            ..
             ja_JP.EUC
             ..
 	    lt_LN.ISO_8859-1
             ..
+	    nl_BE.ISO_8859-1
+            ..
+	    nl_NL.ISO_8859-1
+            ..
+	    no_NO.ISO_8859-1
+            ..
+	    pt_PT.ISO_8859-1
+            ..
             ru_SU.CP866
             ..
             ru_SU.KOI8-R
+            ..
+	    sv_SE.ISO_8859-1
             ..
         ..
 /set type=dir uname=man gname=bin mode=0755
