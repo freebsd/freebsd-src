@@ -93,7 +93,7 @@ struct ngpppoestat {
 This generic message returns is a human-readable version of the node status.
 (not yet)
 .It Dv NGM_PPPOE_CONNECT
-Tell a nominated newly created hook that it's session should enter
+Tell a nominated newly created hook that its session should enter
 the state machine in a manner to become a client.
 It must be newly created and
 a service name can be given as an argument.
@@ -104,7 +104,7 @@ This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
 .It Dv NGM_PPPOE_LISTEN
-Tell a nominated newly created hook that it's session should enter
+Tell a nominated newly created hook that its session should enter
 the state machine in a manner to become a server listener.
 The argument
 given is the name of the service to listen on behalf of
@@ -118,7 +118,7 @@ This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
 .It Dv NGM_PPPOE_OFFER
-Tell a nominated newly created hook that it's session should enter
+Tell a nominated newly created hook that its session should enter
 the state machine in a manner to become a server.
 The argument given is the name of the service to offer.
 A zero length service
