@@ -50,9 +50,10 @@ struct utopia_print {
 #define	UTP_REGT_INT19		0x5	/* 19 bit LE hex */
 #define	UTP_REGT_INT20		0x6	/* 20 bit LE hex */
 #define	UTP_REGT_INT21		0x7	/* 21 bit LE hex */
+#define	UTP_REGT_INT18		0x8	/* 18 bit LE hex */
 
 /* number of additional registers per type */
-#define	UTP_REG_ADD	0, 0, 1, 1, 1, 2, 2, 2
+#define	UTP_REG_ADD	0, 0, 1, 1, 1, 2, 2, 2, 2
 
 /* flags field */
 #define	UTP_FL_NORESET		0x0001	/* cannot write MRESET register */
@@ -87,6 +88,7 @@ struct utopia_print {
 #define	UTP_TYPE_SUNI_622	3
 #define	UTP_TYPE_IDT77105	4
 #define	UTP_TYPE_IDT77155	5
+#define	UTP_TYPE_CX28250	6
 
 /*
  * Statistics. These structures are versioned.
