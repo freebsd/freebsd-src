@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.36 1998/09/01 07:18:09 kato Exp $
+#	$Id: Makefile.pc98,v 1.37 1998/09/05 02:35:21 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -43,6 +43,9 @@ INCLUDES+= -I/usr/include
 .endif
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+
+# Use the system default for genassym
+GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
 # Select the correct set of tools. Can't set OBJFORMAT here because it
 # doesn't get exported into the environment.
@@ -165,10 +168,10 @@ assym.s: genassym
 
 genassym.o: ${I386}/i386/genassym.c
 	rm -f ./machine ; ln -s ${I386}/include ./machine
-	${CC} -c ${CFLAGS} -UKERNEL ${I386}/i386/genassym.c
+	${CC} -c ${GEN_CFLAGS} -UKERNEL ${I386}/i386/genassym.c
 
 genassym: genassym.o
-	${CC} ${CFLAGS} genassym.o -o ${.TARGET}
+	${CC} ${GEN_CFLAGS} genassym.o -o ${.TARGET}
 
 ${SYSTEM_OBJS}: opt_global.h
 
