@@ -108,7 +108,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 {
 	struct l_sysinfo sysinfo;
 	vm_object_t object;
-	int i;
+	int i, j;
 	struct timespec ts;
 
 	/* Uptime is copied out of print_uptime() in kern_shutdown.c */
@@ -144,13 +144,9 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	sysinfo.sharedram *= PAGE_SIZE;
 	sysinfo.bufferram = 0;
 
-	if (swapblist == NULL) {
-		sysinfo.totalswap= 0;
-		sysinfo.freeswap = 0;
-	} else {
-		sysinfo.totalswap = swapblist->bl_blocks * 1024;
-		sysinfo.freeswap = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
-	}
+	swap_pager_status(&i, &j);
+	sysinfo.totalswap= i * PAGE_SIZE;
+	sysinfo.freeswap = (i - j) * PAGE_SIZE;
 
 	sysinfo.procs = 20; /* Hack */
 

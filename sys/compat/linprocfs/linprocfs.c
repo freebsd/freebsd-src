@@ -121,6 +121,7 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	unsigned long long swapused;	/* used swap space in bytes */
 	unsigned long long swapfree;	/* free swap space in bytes */
 	vm_object_t object;
+	int i, j;
 
 	memtotal = physmem * PAGE_SIZE;
 	/*
@@ -135,14 +136,10 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	 */
 	memused = cnt.v_wire_count * PAGE_SIZE;
 	memfree = memtotal - memused;
-	if (swapblist == NULL) {
-		swaptotal = 0;
-		swapfree = 0;
-	} else {
-		swaptotal = (u_quad_t)swapblist->bl_blocks * 1024; /* XXX why 1024? */
-		swapfree = (u_quad_t)swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
-	}
-	swapused = swaptotal - swapfree;
+	swap_pager_status(&i, &j);
+	swaptotal = i * PAGE_SIZE;
+	swapused = j * PAGE_SIZE;
+	swapfree = swaptotal - swapused;
 	memshared = 0;
 	TAILQ_FOREACH(object, &vm_object_list, object_list)
 		if (object->shadow_count > 1)
