@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd 28 March 1999
+.Dd 16 September 1999
 .Dt VINUM 4
 .Os
 .Sh NAME
@@ -191,11 +191,12 @@ If the VINUMDEBUG variables do not match, vinum(8) will fail with a message
 explaining the problem and what to do to correct it.
 .Pp
 .Nm
-is currently available in two versions: a freely available version which does
+was previously available in two versions: a freely available version which did
 not contain RAID-5 functionality, and a full version including RAID-5
-functionality, which is available from Cybernet Systems
-Inc.   See their web page at 
-.Pa http://www.cybernet.com .
+functionality, which was available only from Cybernet Systems Inc.  The version
+of
+.Nm
+in FreeBSD 3.3 includes the RAID-5 functionality.
 .Sh RUNNING VINUM
 Normally, you start a configured version of
 .Nm
@@ -747,12 +748,9 @@ The drive is up and running.
 .Bl -enum
 .It
 .Nm
-is a new product.  Many bugs can be expected.  The configuration mechanism is
-not yet fully functional.  If you have difficulties, please look at
-.Pa http://www.lemis.com/vinum_beta.html
-and
-.Pa http://www.lemis.com/vinum_debugging.html 
-before reporting problems.
+is a new product.  Bugs can be expected.  The configuration mechanism is not yet
+fully functional.  If you have difficulties, please look at the section
+DEBUGGING PROBLEMS WITH VINUM before reporting problems.
 .It
 Kernels with the
 .Nm
@@ -762,6 +760,14 @@ kernel and test with the kld module.
 .It
 Detection of differences between the version of the kernel and the kld is not
 yet implemented.
+.It
+The RAID-5 functionality is new in FreeBSD 3.3.  Some problems have been
+reported with 
+.Nm
+in combination with soft updates, but these are not reproducible on all
+systems.  If you are planning to use
+.Nm
+in a production environment, please test carefully.
 .El
 .Sh DEBUGGING PROBLEMS WITH VINUM
 .Pp
@@ -1009,6 +1015,27 @@ For an initial investigation, the most important information is the output of
 the
 .Nm bt
 (backtrace) command above.
+.Ss Reporting problems with Vinum
+.Pp
+If you find any bugs in
+.Nm vinum ,
+please report them to Greg Lehey <grog@lemis.com>.  Supply the following
+information:
+.Pp
+.Bl -bullet
+.It
+The output of the
+.Nm vinum list
+command.
+.It
+Any messages printed in
+.Pa /var/log/messages .
+All such messages will be identified by the text
+.Nm
+at the beginning.
+.It
+If you have a panic, a stack trace as described above.
+.El
 .Sh AUTHOR
 .An Greg Lehey Aq grog@lemis.com .
 .Sh HISTORY
