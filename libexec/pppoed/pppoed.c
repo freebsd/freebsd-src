@@ -141,7 +141,7 @@ ConfigureNode(const char *prog, const char *iface, const char *provider,
 
   /* Get our list back */
   resp = (struct ng_mesg *)rbuf;
-  if (NgRecvMsg(cs, resp, sizeof rbuf, NULL) < 0) {
+  if (NgRecvMsg(cs, resp, sizeof rbuf, NULL) <= 0) {
     perror("Cannot get netgraph response");
     return EX_UNAVAILABLE;
   }
@@ -359,9 +359,15 @@ Spawn(const char *prog, const char *acname, const char *provider,
         syslog(LOG_INFO, "Waiting for a SUCCESS reply %s", path);
 
       do {
-        if (NgRecvMsg(cs, rep, sizeof msgbuf, NULL) < 0) {
+        if ((ret = NgRecvMsg(cs, rep, sizeof msgbuf, NULL) < 0)) {
           syslog(LOG_ERR, "%s: Cannot receive a message: %m", path);
           _exit(EX_OSERR);
+        }
+
+        if (ret == 0) {
+          /* The socket has been closed */
+          syslog(LOG_INFO, "%s: Client timed out", path);
+          _exit(EX_TEMPFAIL);
         }
 
         if (rep->header.version != NG_VERSION) {
