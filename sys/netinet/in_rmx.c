@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.13 1995/05/30 08:09:31 rgrimes Exp $
+ * $Id: in_rmx.c,v 1.13.4.1 1995/07/23 05:19:01 davidg Exp $
  */
 
 /*
@@ -77,6 +77,7 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
 	struct sockaddr_in *sin = (struct sockaddr_in *)rt_key(rt);
+	struct radix_node *ret;
 
 	/*
 	 * For IP, all unicast non-host routes are automatically cloning.
@@ -115,7 +116,32 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 				      ? rt->rt_ifp->if_mtu
 				      : tcp_mssdflt + sizeof(struct tcpiphdr));
 
-	return rn_addroute(v_arg, n_arg, head, treenodes);
+	ret = rn_addroute(v_arg, n_arg, head, treenodes);
+	if (ret == NULL && rt->rt_flags & RTF_HOST) {
+		struct rtentry *rt2;
+		/*
+		 * We are trying to add a host route, but can't.
+		 * Find out if it is because of an
+		 * ARP entry and delete it if so.
+		 */
+		rt2 = rtalloc1((struct sockaddr *)sin, 0,
+				RTF_CLONING | RTF_PRCLONING);
+		if (rt2) {
+			if (rt2->rt_flags & RTF_LLINFO &&
+				rt2->rt_flags & RTF_HOST &&
+				rt2->rt_gateway &&
+				rt2->rt_gateway->sa_family == AF_LINK) {
+				rtrequest(RTM_DELETE,
+					  (struct sockaddr *)rt_key(rt2),
+					  rt2->rt_gateway,
+					  rt_mask(rt2), rt2->rt_flags, 0);
+				ret = rn_addroute(v_arg, n_arg, head,
+					treenodes);
+			}
+			RTFREE(rt2);
+		}
+	}
+	return ret;
 }
 
 /*
