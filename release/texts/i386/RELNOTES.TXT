@@ -165,6 +165,20 @@ differences between the FreeBSD and OpenBSD/NetBSD make programs.
 The "in use" percentage metric displayed by netstat(1) now really
 reflects the percentage of network mbufs used.
 
+chio(1) now has the ability to specify elements by volume tag instead
+of by their physical location as well as the ability to return an
+element to its previous location.
+
+The ISC library from the BIND distribution is now built as
+libisc.
+
+OpenSSH has been upgraded to 2.2.0.  ssh-add(1) and ssh-agent(1) can now
+handle DSA keys.  An sftp server interoperable with ssh.com clients
+and others has been added.  scp(1) can now handle files >2GB.
+Interoperability with other ssh2 clients/servers has been improved.  A
+new feature to limit the number of outstanding unauthenticated ssh
+connections in sshd has been added.
+
 
 2. Supported Configurations
 ---------------------------
