@@ -75,28 +75,34 @@ off_t
 ftello(fp)
 	register FILE *fp;
 {
-	register off_t rv;
+	fpos_t rv;
+	int ret;
 
 	/* make sure stdio is set up */
 	if (!__sdidinit)
 		__sinit();
 
 	FLOCKFILE(fp);
-	rv = _ftello(fp);
+	ret = _ftello(fp, &rv);
 	FUNLOCKFILE(fp);
+	if (ret)
+		return (-1);
+	if (rv < 0)     /* Unspecified value because of ungetc() at 0 */
+		rv = 0;
 	return (rv);
 }
 
-off_t
-_ftello(fp)
+int
+_ftello(fp, offset)
 	register FILE *fp;
+	fpos_t *offset;
 {
 	register fpos_t pos, spos;
 	size_t n;
 
 	if (fp->_seek == NULL) {
 		errno = ESPIPE;			/* historic practice */
-		return (-1);
+		return (1);
 	}
 
 	/*
@@ -110,7 +116,7 @@ _ftello(fp)
 get_real_pos:
 		spos = pos = (*fp->_seek)(fp->_cookie, (fpos_t)0, SEEK_CUR);
 		if (pos == -1)
-			return (-1);
+			return (1);
 	}
 	if (fp->_flags & __SRD) {
 		/*
@@ -118,16 +124,21 @@ get_real_pos:
 		 * those from ungetc) cause the position to be
 		 * smaller than that in the underlying object.
 		 */
-		if ((pos -= fp->_r) < 0 ||
-		    (HASUB(fp) && (pos -= fp->_ur) < 0)) {
-			fp->_p = fp->_bf._base;
-			fp->_r = 0;
-			if (HASUB(fp))
-				FREEUB(fp);
+		if ((pos -= (HASUB(fp) ? fp->_ur : fp->_r)) < 0) {
+			/* Lost position, resync. */
+			if (HASUB(fp)) {
+				fp->_extra->_up = fp->_bf._base;
+				fp->_ur = 0;
+			} else {
+				fp->_p = fp->_bf._base;
+				fp->_r = 0;
+			}
 			if (spos == -1)
 				goto get_real_pos;
 			pos = spos;
 		}
+		if (HASUB(fp))
+			pos -= fp->_r;  /* Can be negative at this point. */
 	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
 		/*
 		 * Writing.  Any buffered characters cause the
@@ -137,9 +148,10 @@ get_real_pos:
 		n = fp->_p - fp->_bf._base;
 		if (pos > OFF_MAX - n) {
 			errno = EOVERFLOW;
-			return (-1);
+			return (1);
 		}
 		pos += n;
 	}
-	return (pos);
+	*offset = pos;
+	return (0);
 }

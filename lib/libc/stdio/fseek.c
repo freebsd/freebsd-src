@@ -129,9 +129,10 @@ _fseeko(fp, offset, whence, ltest)
 		 * we have to first find the current stream offset via
 		 * ftell (see ftell for details).
 		 */
-		if ((curoff = _ftello(fp)) == -1)
+		if (_ftello(fp, &curoff))
 			return (-1);
-		if (offset > 0 && curoff > OFF_MAX - offset) {
+		if ((offset > 0 && curoff > OFF_MAX - offset) ||
+		    (offset < 0 && curoff < OFF_MIN - offset)) {
 			errno = EOVERFLOW;
 			return (-1);
 		}
@@ -210,8 +211,15 @@ _fseeko(fp, offset, whence, ltest)
 		}
 	}
 
-	if (!havepos && (curoff = _ftello(fp)) == -1)
+	if (!havepos && _ftello(fp, &curoff))
 		goto dumb;
+
+	/*
+	 * (If the buffer was modified, we have to
+	 * skip this; see fgetln.c.)
+	 */
+	if (fp->_flags & __SMOD)
+		goto abspos;
 
 	/*
 	 * Compute the number of bytes in the input buffer (pretending
@@ -220,28 +228,29 @@ _fseeko(fp, offset, whence, ltest)
 	 * file offset for the first byte in the current input buffer.
 	 */
 	if (HASUB(fp)) {
-		if (curoff > OFF_MAX - fp->_r)
+		if (curoff > 0 && fp->_r > OFF_MAX - curoff)
 			goto abspos;
 		curoff += fp->_r;	/* kill off ungetc */
 		n = fp->_extra->_up - fp->_bf._base;
+		if (curoff < 0 && -((off_t)n) < OFF_MIN - curoff)
+			goto abspos;
 		curoff -= n;
 		n += fp->_ur;
 	} else {
 		n = fp->_p - fp->_bf._base;
+		if (curoff < 0 && -((off_t)n) < OFF_MIN - curoff)
+			goto abspos;
 		curoff -= n;
 		n += fp->_r;
 	}
-	/* curoff can be negative at this point. */
 
 	/*
 	 * If the target offset is within the current buffer,
 	 * simply adjust the pointers, clear EOF, undo ungetc(),
-	 * and return.  (If the buffer was modified, we have to
-	 * skip this; see fgetln.c.)
+	 * and return.
 	 */
-	if ((fp->_flags & __SMOD) == 0 &&
-	    target >= curoff &&
-	    (curoff <= 0 || curoff <= OFF_MAX - n) &&
+	if (target >= curoff &&
+	    (curoff <= 0 || n <= OFF_MAX - curoff) &&
 	    target < curoff + n) {
 		size_t o = target - curoff;
 

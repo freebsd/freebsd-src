@@ -46,8 +46,8 @@
  * in particular, macros and private variables.
  */
 
-extern off_t	_ftello __P((FILE *));
-extern int      _fseeko __P((FILE *, off_t, int, int));
+extern int	_ftello __P((FILE *, fpos_t *));
+extern int	_fseeko __P((FILE *, off_t, int, int));
 extern int	__fflush __P((FILE *fp));
 extern int	__sflush __P((FILE *));
 extern FILE	*__sfp __P((void));
