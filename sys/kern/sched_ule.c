@@ -172,7 +172,7 @@ struct td_sched *thread0_sched = &td_sched;
  */
 #define	SCHED_SLICE_MIN			(slice_min)
 #define	SCHED_SLICE_MAX			(slice_max)
-#define	SCHED_SLICE_INTERACTIVE		(slice_min * 4)
+#define	SCHED_SLICE_INTERACTIVE		(slice_max)
 #define	SCHED_SLICE_NTHRESH	(SCHED_PRI_NHALF - 1)
 #define	SCHED_SLICE_RANGE		(SCHED_SLICE_MAX - SCHED_SLICE_MIN + 1)
 #define	SCHED_SLICE_SCALE(val, max)	(((val) * SCHED_SLICE_RANGE) / (max))
