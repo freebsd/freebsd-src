@@ -200,7 +200,7 @@ vfs_mountroot_try(char *mountfrom)
 		printf("setrootbyname failed\n");
 
 	/* If the root device is a type "memory disk", mount RW */
-	if (devsw(rootdev) && (devsw(rootdev)->d_flags & D_MEMDISK))
+	if (rootdev != NODEV && devsw(rootdev) && (devsw(rootdev)->d_flags & D_MEMDISK))
 		mp->mnt_flag &= ~MNT_RDONLY;
 
 	error = VFS_MOUNT(mp, NULL, NULL, NULL, curproc);

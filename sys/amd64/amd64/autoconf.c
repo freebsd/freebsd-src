@@ -48,6 +48,7 @@
 #include "opt_bootp.h"
 #include "opt_ffs.h"
 #include "opt_cd9660.h"
+#include "opt_nfs.h"
 #include "opt_nfsroot.h"
 #include "opt_bus.h"
 #include "opt_rootdevname.h"
@@ -213,12 +214,18 @@ configure_final(dummy)
 	cold = 0;
 }
 
+#ifdef BOOTP
+extern void bootpc_init(void);
+#endif
 /*
  * Do legacy root filesystem discovery.
  */
 void
 cpu_rootconf()
 {
+#ifdef BOOTP
+        bootpc_init();
+#endif
 #if defined(NFS) && defined(NFS_ROOT)
 #if !defined(BOOTP_NFSROOT)
 	if (nfs_diskless_valid)
@@ -226,7 +233,8 @@ cpu_rootconf()
 		rootdevnames[0] = "nfs:";
 #endif
 #if defined(FFS) && defined(FFS_ROOT)
-	setroot();
+        if (!rootdevnames[0])
+                setroot();
 #endif
 }
 SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
