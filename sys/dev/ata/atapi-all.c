@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.9 1999/05/20 09:12:04 sos Exp $
+ *	$Id: atapi-all.c,v 1.10 1999/06/25 09:03:01 sos Exp $
  */
 
 #include "ata.h"
@@ -64,6 +64,38 @@ int32_t astattach(struct atapi_softc *);
 
 static struct intr_config_hook *atapi_attach_hook;
 
+static __inline int
+apiomode(struct atapi_params *ap)
+{
+    if ((ap->atavalid & 2) == 2) {
+        if ((ap->apiomodes & 2) == 2) return 4;
+        if ((ap->apiomodes & 1) == 1) return 3;
+    }
+    return -1;
+}
+
+static __inline int
+wdmamode(struct atapi_params *ap)
+{
+    if ((ap->atavalid & 2) == 2) {
+        if ((ap->wdmamodes & 4) == 4) return 2;
+        if ((ap->wdmamodes & 2) == 2) return 1;
+        if ((ap->wdmamodes & 1) == 1) return 0;
+    }
+    return -1;
+}
+
+static __inline int
+udmamode(struct atapi_params *ap)
+{
+    if ((ap->atavalid & 4) == 4) {
+        if ((ap->udmamodes & 4) == 4) return 2;
+        if ((ap->udmamodes & 2) == 2) return 1;
+        if ((ap->udmamodes & 1) == 1) return 0;
+    }
+    return -1;
+}
+
 static void
 atapi_attach(void *notused)
 {
@@ -90,6 +122,19 @@ atapi_attach(void *notused)
                     free(atp, M_DEVBUF);
                     continue;
                 }
+                printf("atapi: piomode=%d, dmamode=%d, udmamode=%d\n",
+                       apiomode(atp->atapi_parm),
+                       wdmamode(atp->atapi_parm),
+                       udmamode(atp->atapi_parm));
+        	if (!(atp->atapi_parm->drqtype == ATAPI_DRQT_INTR) &&
+                    !ata_dmainit(atp->controller, atp->unit,
+                                 apiomode(atp->atapi_parm),
+                                 wdmamode(atp->atapi_parm),
+                                 udmamode(atp->atapi_parm)))
+                    atp->flags |= ATAPI_F_DMA_ENABLED;
+
+		printf("atapi: %s transfer mode set\n", 
+		       (atp->flags & ATAPI_F_DMA_ENABLED) ? "DMA" :"PIO");
 
 		switch (atp->atapi_parm->device_type) {
 #if NATAPICD > 0
@@ -240,10 +285,21 @@ atapi_transfer(struct atapi_request *request)
 #ifdef ATAPI_DEBUG
     printf("atapi: trying to start %s cmd\n", atapi_cmd2str(request->ccb[0]));
 #endif
+    /* if DMA enabled setup DMA hardware */
+    atp->flags &= ~ATAPI_F_DMA_USED;
+    if ((request->ccb[0]==ATAPI_READ_BIG || request->ccb[0]==ATAPI_WRITE_BIG) &&
+        (atp->flags & ATAPI_F_DMA_ENABLED) &&
+        !ata_dmasetup(atp->controller, atp->unit,
+                          (void *)request->data, request->bytecount,
+                          request->flags & A_READ)) {
+        atp->flags |= ATAPI_F_DMA_USED;
+    }
 
     /* start ATAPI operation */
     ata_command(atp->controller, atp->unit, ATA_C_PACKET_CMD, 
-		request->bytecount, 0, 0, 0, 0, ATA_IMMEDIATE);
+                request->bytecount, 0, 0, 0, 
+                (atp->flags & ATAPI_F_DMA_USED) ? ATA_F_DMA : 0,
+                ATA_IMMEDIATE);
 
     /* command interrupt device ? just return */
     if (atp->atapi_parm->drqtype == ATAPI_DRQT_INTR)
@@ -268,6 +324,9 @@ atapi_transfer(struct atapi_request *request)
     /* this seems to be needed for some (slow) devices */
     DELAY(10);
 
+    if (atp->flags & ATAPI_F_DMA_USED)
+        ata_dmastart(atp->controller, atp->unit);
+
     /* send actual command */
     outsw(atp->controller->ioaddr + ATA_DATA, request->ccb, 
 	  request->ccbsize / sizeof(int16_t));
@@ -277,13 +336,16 @@ int32_t
 atapi_interrupt(struct atapi_request *request)
 {
     struct atapi_softc *atp;
-    int32_t length, reason, resid;
+    int32_t length, reason, resid, dma_stat = 0;
 
 #ifdef ATAPI_DEBUG
 printf("atapi_interrupt: enter\n");
 #endif
     /* get device params */
     atp = request->device;
+
+    if (atp->flags & ATAPI_F_DMA_USED)
+        dma_stat = ata_dmadone(atp->controller, atp->unit);
 
     /* get drive status */
     if (atapi_wait(atp, 0) < 0) {
@@ -303,6 +365,21 @@ printf("atapi_interrupt: enter\n");
 #ifdef ATAPI_DEBUG
 printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
 #endif
+
+    if (atp->flags & ATAPI_F_DMA_USED) {
+        if (atp->controller->status & (ATA_S_ERROR | ATA_S_DWF) &&
+	    dma_stat != ATA_BMSTAT_INTERRUPT)
+            request->result = atp->controller->error;
+	else {
+	    request->donecount = request->bytecount;
+            request->bytecount = 0;
+            request->result = 0;
+	}
+        TAILQ_REMOVE(&atp->controller->atapi_queue, request, chain);
+        atp->flags &= ~ATAPI_F_DMA_USED; 
+        wakeup((caddr_t)request);
+	return ATA_OP_FINISHED;
+    }
 
     switch (reason) {
     
