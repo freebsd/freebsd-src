@@ -43,8 +43,8 @@
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #include <dev/sbni/if_sbnireg.h>
 #include <dev/sbni/if_sbnivar.h>

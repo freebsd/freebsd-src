@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: maestro.c,v 1.12 2000/09/06 03:32:34 taku Exp $
+ *	$Id: maestro.c,v 1.18 2003/07/01 15:52:01 scottl Exp $
  */
 
 /*
@@ -46,8 +46,8 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/sound/pci/maestro_reg.h>
 

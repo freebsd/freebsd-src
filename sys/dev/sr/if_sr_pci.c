@@ -42,7 +42,7 @@
 #include <machine/bus_memio.h>
 #include <sys/rman.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 #include <machine/md_var.h>
 
 #include <dev/ic/hd64570.h>

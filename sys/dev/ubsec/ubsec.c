@@ -73,8 +73,8 @@
 #include <sys/md5.h>
 #include <sys/random.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 /* grr, #defines for gratuitous incompatibility in queue.h */
 #define	SIMPLEQ_HEAD		STAILQ_HEAD
