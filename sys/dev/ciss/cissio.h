@@ -108,84 +108,81 @@ typedef union {
 	u_int8_t	Dev;
 	u_int8_t	Bus:6;
 	u_int8_t	Mode:2;
-    } PeripDev __packed;
+    } __packed PeripDev;
     struct {
 	u_int8_t	DevLSB;
 	u_int8_t	DevMSB:6;
 	u_int8_t	Mode:2;
-    } LogDev __packed;
+    } __packed LogDev;
     struct {
 	u_int8_t	Dev:5;
 	u_int8_t	Bus:3;
 	u_int8_t	Targ:6;
 	u_int8_t	Mode:2;
-    } LogUnit __packed;
+    } __packed LogUnit;
 } SCSI3Addr_struct;
 
-struct PhysDevAddr {
+typedef struct {
     u_int32_t		TargetId:24;
     u_int32_t		Bus:6;
     u_int32_t		Mode:2;
     SCSI3Addr_struct	Target[2];
-} __packed;
+} __packed PhysDevAddr_struct;
   
-struct LogDevAddr {
+typedef struct {
     u_int32_t		VolId:30;
     u_int32_t		Mode:2;
     u_int8_t		reserved[4];
-} __packed;
+} __packed LogDevAddr_struct;
 
 typedef union {
     u_int8_t		LunAddrBytes[8];
     SCSI3Addr_struct	SCSI3Lun[4];
-    struct PhysDevAddr	PhysDev;
-    struct LogDevAddr	LogDev;
-} LUNAddr_struct;
+    PhysDevAddr_struct	PhysDev;
+    LogDevAddr_struct	LogDev;
+} __packed LUNAddr_struct;
 
-struct RequestBlock {
+typedef struct {
     u_int8_t	CDBLen;
     struct {
 	u_int8_t	Type:3;
 	u_int8_t	Attribute:3;
 	u_int8_t	Direction:2;
-    } Type __packed;
+    } __packed Type;
     u_int16_t	Timeout;
     u_int8_t	CDB[16];
-} __packed;
-typedef struct RequestBlock RequestBlock_struct;
+} __packed RequestBlock_struct;
 
 typedef union {
     struct {
 	u_int8_t	Reserved[3];
 	u_int8_t	Type;
 	u_int32_t	ErrorInfo;
-    } Common_Info __packed;
+    } __packed Common_Info;
     struct {
 	u_int8_t	Reserved[2];
 	u_int8_t	offense_size;
 	u_int8_t	offense_num;
 	u_int32_t	offense_value;
-    } Invalid_Cmd __packed;
-} MoreErrInfo_struct;
+    } __packed Invalid_Cmd;
+} __packed MoreErrInfo_struct;
 
-struct ErrorInfo {
+typedef struct {
     u_int8_t		ScsiStatus;
     u_int8_t		SenseLen;
     u_int16_t		CommandStatus;
     u_int32_t		ResidualCnt;
     MoreErrInfo_struct	MoreErrInfo;
     u_int8_t		SenseInfo[SENSEINFOBYTES];
-} __packed;
-typedef struct ErrorInfo ErrorInfo_struct;
+} __packed ErrorInfo_struct;
 
-struct IOCTL_Command {
+typedef struct {
     LUNAddr_struct	LUN_info;	/* 8 */
     RequestBlock_struct	Request;	/* 20 */
     ErrorInfo_struct	error_info;	/* 48 */
     u_int16_t		buf_size;	/* 2 */
     u_int8_t		*buf;		/* 4 */
-} __packed;
-typedef struct IOCTL_Command IOCTL_Command_struct;
+} __packed IOCTL_Command_struct;
 
 /*
  * Note that we'd normally pass the struct in directly, but
