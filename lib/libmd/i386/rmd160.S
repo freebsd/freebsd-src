@@ -30,7 +30,7 @@
 
 #if defined(ELF) || defined(SOL)
 #define OK              1
-#define ALIGN           16
+#define ALIGN           4
 #endif
 
 #ifndef OK
@@ -52,7 +52,7 @@ BSDI - a.out with a very primative version of as.
 	.version	"01.01"
 gcc2_compiled.:
 .text
-	.align ALIGN
+	.p2align ALIGN
 .globl ripemd160_block_x86
 	TYPE(ripemd160_block_x86,@function)
 ripemd160_block_x86:
