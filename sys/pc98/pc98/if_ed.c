@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.40 1998/02/27 15:22:06 kato Exp $
+ *	$Id: if_ed.c,v 1.41 1998/02/28 07:38:18 kato Exp $
  */
 
 /*
@@ -60,7 +60,6 @@
 
 #include "ed.h"
 #include "bpfilter.h"
-#include "opt_inet.h"
 #include "pnp.h"
 
 #ifndef EXTRA_ED
@@ -85,16 +84,6 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_mib.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
