@@ -1,52 +1,72 @@
-#	from: @(#)sys.mk	5.11 (Berkeley) 3/13/91
-#	$Id: sys.mk,v 1.7 1994/06/13 21:02:48 csgr Exp $
+#	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
+#	$Id: sys.mk,v 1.2 1994/08/04 21:09:27 wollman Exp $
 
-unix=		We run FreeBSD, not UNIX.
+unix		?=	We run FreeBSD, not UNIX.
 
 .SUFFIXES: .out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .s .cl .p .h 
 
 .LIBS:		.a
 
-AR=		ar
-ARFLAGS=	rl
-RANLIB=		ranlib
+AR		?=	ar
+ARFLAGS		?=	rl
+RANLIB		?=	ranlib
 
-AS=		as
-AFLAGS=
+AS		?=	as
+AFLAGS		?=
 
-CC=		cc
-CFLAGS=		-O
+CC		?=	cc
 
-CXX=		g++
-CXXFLAGS=	${CXXINCLUDES} ${CFLAGS}
+.if ${MACHINE} == "sparc"
+CFLAGS		?=	-O4
+.else
+CFLAGS		?=	-O
+.endif
 
-CPP=		cpp
+CXX		?=	g++
+CXXFLAGS	?=	${CXXINCLUDES} ${CFLAGS}
 
-FC=		f77
-FFLAGS=		-O
-EFLAGS=
+CPP		?=	cpp
 
-LEX=		lex
-LFLAGS=
+.if ${.MAKEFLAGS:M-s} == ""
+ECHO		?=	echo
+ECHODIR		?=	echo
+.else
+ECHO		?=	true
+.if ${.MAKEFLAGS:M-s} == "-s"
+ECHODIR		?=	echo
+.else
+ECHODIR		?=	true
+.endif
+.endif
 
-LD=		ld
-LDFLAGS=
+FC		?=	f77
+FFLAGS		?=	-O
+EFLAGS		?=
 
-LINT=		lint
-LINTFLAGS=	-chapbx
+LEX		?=	lex
+LFLAGS		?=
 
-MAKE=		make
+LD		?=	ld
+LDFLAGS		?=
 
-PC=		pc
-PFLAGS=
+LINT		?=	lint
+LINTFLAGS	?=	-chapbx
 
-RC=		f77
-RFLAGS=
+MAKE		?=	make
 
-SHELL=		sh
+PC		?=	pc
+PFLAGS		?=
 
-YACC=		yacc
-YFLAGS=-d
+RC		?=	f77
+RFLAGS		?=
+
+SHELL		?=	sh
+
+YACC		?=	yacc
+YFLAGS		?=	-d
+
+.c:
+	${CC} ${CFLAGS} ${.IMPSRC} -o ${.TARGET}
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
