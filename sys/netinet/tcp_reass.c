@@ -2840,7 +2840,6 @@ tcp_newreno(tp, th)
 		callout_stop(tp->tt_rexmt);
 		tp->t_rtttime = 0;
 		tp->snd_nxt = th->th_ack;
-		tp->snd_cwnd = tp->t_maxseg;
 		/*
 		 * Set snd_cwnd to one segment beyond acknowledged offset
 		 * (tp->snd_una has not yet been updated when this function 
