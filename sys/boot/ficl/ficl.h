@@ -281,13 +281,13 @@ typedef struct _ficl_string
 
 typedef struct 
 {
-    UNS32 count;
+    FICL_UNS count;
     char *cp;
 } STRINGINFO;
 
 #define SI_COUNT(si) (si.count)
 #define SI_PTR(si)   (si.cp)
-#define SI_SETLEN(si, len) (si.count = (UNS32)(len))
+#define SI_SETLEN(si, len) (si.count = (FICL_UNS)(len))
 #define SI_SETPTR(si, ptr) (si.cp = (char *)(ptr))
 /* 
 ** Init a STRINGINFO from a pointer to NULL-terminated string
@@ -316,7 +316,7 @@ typedef struct
 */
 typedef struct
 {
-    INT32 index;
+    FICL_INT index;
     char *end;
     char *cp;
 } TIB;
@@ -425,8 +425,8 @@ typedef struct vm
     IPTYPE          ip;         /* instruction pointer              */
     struct ficl_word 
                    *runningWord;/* address of currently running word (often just *(ip-1) ) */
-    UNS32           state;      /* compiling or interpreting        */
-    UNS32           base;       /* number conversion base           */
+    FICL_UNS        state;      /* compiling or interpreting        */
+    FICL_UNS        base;       /* number conversion base           */
     FICL_STACK     *pStack;     /* param stack                      */
     FICL_STACK     *rStack;     /* return stack                     */
     CELL            sourceID;   /* -1 if string, 0 if normal input  */
@@ -517,11 +517,17 @@ STRINGINFO  vmGetWord(FICL_VM *pVM);
 STRINGINFO  vmGetWord0(FICL_VM *pVM);
 int         vmGetWordToPad(FICL_VM *pVM);
 STRINGINFO  vmParseString(FICL_VM *pVM, char delimiter);
+STRINGINFO  vmParseStringEx(FICL_VM *pVM, char delimiter, char fSkipLeading);
+CELL        vmPop(FICL_VM *pVM);
+void        vmPush(FICL_VM *pVM, CELL c);
 void        vmPopIP  (FICL_VM *pVM);
 void        vmPushIP (FICL_VM *pVM, IPTYPE newIP);
 void        vmQuit   (FICL_VM *pVM);
 void        vmReset  (FICL_VM *pVM);
 void        vmSetTextOut(FICL_VM *pVM, OUTFUNC textOut);
+#if FICL_WANT_DEBUGGER
+void        vmStep(FICL_VM *pVM);
+#endif
 void        vmTextOut(FICL_VM *pVM, char *text, int fNewline);
 void        vmThrow  (FICL_VM *pVM, int except);
 void        vmThrowErr(FICL_VM *pVM, char *fmt, ...);
@@ -533,13 +539,13 @@ void        vmThrowErr(FICL_VM *pVM, char *fmt, ...);
 ** The inner interpreter - coded as a macro (see note for 
 ** INLINE_INNER_LOOP in sysdep.h for complaints about VC++ 5
 */
-#define M_INNER_LOOP(pVM) \
-    for (;;) \
-    {  \
+#define M_VM_STEP(pVM) \
         FICL_WORD *tempFW = *(pVM)->ip++; \
         (pVM)->runningWord = tempFW; \
         tempFW->code(pVM); \
-    }
+
+#define M_INNER_LOOP(pVM) \
+    for (;;)  { M_VM_STEP(pVM) }
 
 
 #if INLINE_INNER_LOOP != 0
@@ -566,7 +572,7 @@ void        vmCheckStack(FICL_VM *pVM, int popCells, int pushCells);
 ** PopTib restores the TIB state given a saved TIB from PushTib
 ** GetInBuf returns a pointer to the next unused char of the TIB
 */
-void        vmPushTib(FICL_VM *pVM, char *text, INT32 nChars, TIB *pSaveTib);
+void        vmPushTib(FICL_VM *pVM, char *text, FICL_INT nChars, TIB *pSaveTib);
 void        vmPopTib(FICL_VM *pVM, TIB *pTib);
 #define     vmGetInBuf(pVM) ((pVM)->tib.cp + (pVM)->tib.index)
 #define     vmGetInBufLen(pVM) ((pVM)->tib.end - (pVM)->tib.cp)
@@ -666,7 +672,7 @@ typedef struct ficl_dict
     FICL_HASH *pSearch[FICL_DEFAULT_VOCS];
     int        nLists;
     unsigned   size;    /* Number of cells in dict (total)*/
-    CELL       dict[1]; /* Base of dictionary memory      */
+    CELL       *dict;   /* Base of dictionary memory      */
 } FICL_DICT;
 
 void       *alignPtr(void *ptr);
@@ -752,7 +758,7 @@ void       ficlTermSystem(void);
 **      Successful creation and init of the VM by ficlNewVM (or equiv)
 */
 int        ficlExec (FICL_VM *pVM, char *pText);
-int        ficlExecC(FICL_VM *pVM, char *pText, INT32 nChars);
+int        ficlExecC(FICL_VM *pVM, char *pText, FICL_INT nChars);
 int        ficlExecXT(FICL_VM *pVM, FICL_WORD *pWord);
 
 /*
@@ -770,6 +776,16 @@ int        ficlExecFD(FICL_VM *pVM, int fd);
 ** Precondition: successful execution of ficlInitSystem
 */
 FICL_VM   *ficlNewVM(void);
+
+/*
+** Force deletion of a VM. You do not need to do this 
+** unless you're creating and discarding a lot of VMs.
+** For systems that use a constant pool of VMs for the life
+** of the system, ficltermSystem takes care of VM cleanup
+** automatically.
+*/
+void ficlFreeVM(FICL_VM *pVM);
+
 
 /*
 ** Set the stack sizes (return and parameter) to be used for all
@@ -791,8 +807,8 @@ FICL_WORD *ficlLookup(char *name);
 */
 FICL_DICT *ficlGetDict(void);
 FICL_DICT *ficlGetEnv(void);
-void       ficlSetEnv(char *name, UNS32 value);
-void       ficlSetEnvD(char *name, UNS32 hi, UNS32 lo);
+void       ficlSetEnv(char *name, FICL_UNS value);
+void       ficlSetEnvD(char *name, FICL_UNS hi, FICL_UNS lo);
 #if FICL_WANT_LOCALS
 FICL_DICT *ficlGetLoc(void);
 #endif
@@ -829,15 +845,34 @@ void       constantParen(FICL_VM *pVM);
 void       twoConstParen(FICL_VM *pVM);
 
 /*
+** Dictionary on-demand resizing
+*/
+extern unsigned int dictThreshold;
+extern unsigned int dictIncrease;
+
+/*
 ** So we can more easily debug...
 */
 #ifdef FICL_TRACE
 extern int ficl_trace;
 #endif
 
+/*
+** Various FreeBSD goodies
+*/
+
 #if defined(__i386__) && !defined(TESTMAIN)
 extern void ficlOutb(FICL_VM *pVM);
 extern void ficlInb(FICL_VM *pVM);
+#endif
+
+#if !defined(TESTMAIN)
+extern void ficlSetenv(FICL_VM *pVM);
+extern void ficlSetenvq(FICL_VM *pVM);
+extern void ficlGetenv(FICL_VM *pVM);
+extern void ficlUnsetenv(FICL_VM *pVM);
+extern void ficlCopyin(FICL_VM *pVM);
+extern void ficlCopyout(FICL_VM *pVM);
 #endif
 
 #ifdef __cplusplus
