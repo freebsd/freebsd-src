@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_device.h,v 2.0.0.3 94/09/15 19:23:53 wolf Exp $
+**  $Id: pci_device.h,v 2.1 94/09/16 08:01:36 wolf Rel $
 **
 **  #define   for pci based device drivers
 **

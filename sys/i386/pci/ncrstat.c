@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrstat.c,v 2.0.0.9 94/09/11 22:12:21 wolf Exp $
+**  $Id: ncrstat.c,v 2.0.0.10 94/09/16 09:38:24 wolf Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -55,24 +55,20 @@
 #include <errno.h>
 #include <paths.h>
 #include <limits.h>
+#include <kvm.h>
 #include <i386/pci/ncr.c>
 
 /*
 **	used external functions
 */
 
-#ifdef __NetBSD__
-#include <kvm.h>
+#if defined(__NetBSD__) || (__FreeBSD__ >= 2)
 kvm_t	*kvm;
 #define	KVM_NLIST(n)		(kvm_nlist(kvm, (n)) >= 0)
-#define	KVM_READ(o, p, l)	(kvm_read(kvm, (o), (p), (l)) == (l))
+#define	KVM_READ(o, p, l)	(kvm_read(kvm, (o), (void*)(p), (l)) == (l))
 #else
-extern int   kvm_openfiles();
-extern int   kvm_nlist();
-extern char* kvm_geterr();
-extern int   kvm_read();
 #define	KVM_NLIST(n)		(kvm_nlist((n)) >= 0)
-#define	KVM_READ(o, p, l)	(kvm_read((o), (p), (l)) == (l))
+#define	KVM_READ(o, p, l)	(kvm_read((void*)(o), (p), (l)) == (l))
 #endif
 
 extern void  exit();
@@ -143,7 +139,7 @@ read_ccb(u_long base)
 {
 	ccb_base = base;
 	if (!KVM_READ (
-		(void*)base,
+		base,
 		&ccb,
 		sizeof (struct ccb))) {
 		fprintf (stderr, "%s: bad kvm read at %x.\n", prog, base);
@@ -155,7 +151,7 @@ read_lcb(u_long base)
 {
 	lcb_base = base;
 	if (!KVM_READ (
-		(void*)base,
+		base,
 		&lcb,
 		sizeof (struct lcb))) {
 		fprintf (stderr, "%s: bad kvm read at %x.\n", prog, base);
@@ -166,7 +162,7 @@ read_lcb(u_long base)
 read_ncr()
 {
 	if (!KVM_READ (
-		(void*)ncr_base,
+		ncr_base,
 		&ncr,
 		sizeof (ncr))) {
 		fprintf (stderr, "%s: bad kvm read at %x.\n", prog, ncr_base);
@@ -178,13 +174,13 @@ void open_kvm(int flags)
 {
 	int i;
 	u_long	kernel_version;
-#ifdef __NetBSD__
+#if defined(__NetBSD__) || (__FreeBSD__ >= 2)
 	char 	errbuf[_POSIX2_LINE_MAX];
 #endif
 
 	if (kvm_isopen) return;
 
-#ifdef __NetBSD__
+#if defined(__NetBSD__) || (__FreeBSD__ >= 2)
 	kvm = kvm_openfiles(vmunix, kmemf, NULL, flags, errbuf);
 	if (kvm == NULL) {
 		fprintf(stderr, "%s: kvm_openfiles: %s\n", prog, errbuf);
@@ -211,7 +207,7 @@ void open_kvm(int flags)
 		}
 
 	if (!KVM_READ (
-		(void*)nl[N_NCR_VERSION].n_value,
+		nl[N_NCR_VERSION].n_value,
 		&kernel_version,
 		sizeof (kernel_version))) {
 		fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -227,7 +223,7 @@ void open_kvm(int flags)
 #ifdef __NetBSD__
 
 	if (!KVM_READ (
-		(void*)nl[N_NCRCD].n_value,
+		nl[N_NCRCD].n_value,
 		&ncrcd,
 		sizeof (ncrcd))) {
 		fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -241,7 +237,7 @@ void open_kvm(int flags)
 	};
 
 	if (!KVM_READ (
-		(void*)ncrcd.cd_devs+4*ncr_unit,
+		ncrcd.cd_devs+4*ncr_unit,
 		&ncr_base,
 		sizeof (ncr_base))) {
 		fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -257,7 +253,7 @@ void open_kvm(int flags)
 #else /* !__NetBSD__ */
 
 	if (!KVM_READ (
-		(void*)nl[N_NNCR].n_value,
+		nl[N_NNCR].n_value,
 		&ncr_units,
 		sizeof (ncr_units))) {
 		fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -271,7 +267,7 @@ void open_kvm(int flags)
 	};
 
 	if (!KVM_READ (
-		(void*)nl[N_NCRP].n_value+4*ncr_unit,
+		nl[N_NCRP].n_value+4*ncr_unit,
 		&ncr_base,
 		sizeof (ncr_base))) {
 		fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -662,7 +658,7 @@ u_char in (u_char reg)
 {
 	u_char res;
 	if (!KVM_READ (
-		(void*)(ncr.vaddr + reg),
+		(ncr.vaddr + reg),
 		&res,
 		1)) {
 		fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -691,7 +687,7 @@ void do_set (char * arg)
 
 	for (i=3; i; i--) {
 		if (!KVM_READ (
-			(void*)(addr),
+			(addr),
 			&user,
 			sizeof (user))) {
 			fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -1220,7 +1216,7 @@ static void dump_lcb (u_long base)
 	printf ("----------------------\n");
 
 	if (!KVM_READ (
-		(void*)base,
+		base,
 		&l,
 		sizeof (struct lcb))) {
 		fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -1241,7 +1237,7 @@ static void dump_lcb (u_long base)
 		cn++;
 		printf ("ccb #%d:\n", cn);
 		if (!KVM_READ (
-			(void*)cp,
+			cp,
 			&c,
 			sizeof (struct ccb))) {
 			fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -1321,7 +1317,7 @@ static void dump_ncr (void)
 		struct ncr_reg reg;
 
 		if (!KVM_READ (
-			(void*)ncr.vaddr,
+			ncr.vaddr,
 			&reg,
 			sizeof (reg))) {
 			fprintf (stderr, "%s: bad kvm read.\n", prog);
@@ -1357,7 +1353,7 @@ static void dump_ncr (void)
 		u_long	startpos;
 
 		if (!KVM_READ (
-			(void*)((u_long)ncr.script
+			((u_long)ncr.script
 				+offsetof(struct script, startpos)),
 			&startpos,
 			sizeof (startpos))) {
@@ -1457,7 +1453,7 @@ do_debug(char * arg)
 	if (strchr (debug_opt, 'r')) {
 		struct ncr_reg reg;
 		if (!KVM_READ (
-			(void*)ncr.vaddr,
+			ncr.vaddr,
 			&reg,
 			sizeof (reg))) {
 			fprintf (stderr, "%s: bad kvm read.\n", prog);
