@@ -48,11 +48,12 @@
 
 #include "card_if.h"
 
+extern int	pccard_cis_debug;
+
 #define PCCARDCISDEBUG
 #ifdef PCCARDCISDEBUG
-int	pccardcis_debug = 0;
-#define	DPRINTF(arg) if (pccardcis_debug) printf arg
-#define	DEVPRINTF(arg) if (pccardcis_debug) device_printf arg
+#define	DPRINTF(arg) if (pccard_cis_debug) printf arg
+#define	DEVPRINTF(arg) if (pccard_cis_debug) device_printf arg
 #else
 #define	DPRINTF(arg)
 #define	DEVPRINTF(arg)
