@@ -98,7 +98,7 @@ url_get(origline, proxyenv)
 	const char *proxyenv;
 {
 	struct addrinfo hints;
-	struct addrinfo *res;
+	struct addrinfo *res0, *res;
 	char nameinfo[2 * INET6_ADDRSTRLEN + 1];
 	int i, out, isftpurl;
 	char *port;
@@ -207,9 +207,10 @@ url_get(origline, proxyenv)
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	error = getaddrinfo(host, port, &hints, &res);
+	res0 = res;
 	if (error) {
 		warnx("%s: %s", host, gai_strerror(error));
-		if (error = EAI_SYSTEM)
+		if (error == EAI_SYSTEM)
 			warnx("%s: %s", host, strerror(errno));
 		goto cleanup_url_get;
 	}
@@ -238,11 +239,13 @@ url_get(origline, proxyenv)
 		res = res->ai_next;
 		if (res)
 			continue;
+		warn("Can't connect to %s", host);
 		goto cleanup_url_get;
 	}
 
 	break;
       }
+	freeaddrinfo(res0);
 
 	/*
 	 * Construct and send the request.  We're expecting a return
@@ -394,6 +397,8 @@ cleanup_url_get:
 	if (proxy)
 		free(proxy);
 	free(line);
+	if (res0 != NULL)
+		freeaddrinfo(res0);
 	return (-1);
 }
 

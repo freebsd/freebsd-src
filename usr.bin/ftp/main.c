@@ -232,10 +232,9 @@ main(argc, argv)
 		hints.ai_socktype = SOCK_STREAM;
 		error = getaddrinfo(src_addr, NULL, &hints, &res);
 		if (error) {
-			fprintf(stderr, "%s: %s", src_addr,
-				gai_strerror(error));
+			warnx("%s: %s", src_addr, gai_strerror(error));
 			if (error == EAI_SYSTEM)
-				errx(1, "%s", strerror(errno));
+				warnx("%s", strerror(errno));
 			exit(1);
 		}
 		memcpy(&bindto, res->ai_addr, res->ai_addrlen);
