@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.4 1996/10/04 14:25:23 jkh Exp $
+ * $Id: uc_main.c,v 1.5 1996/10/05 02:12:35 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -46,256 +46,243 @@ extern void	msgDebug(char *fmt, ...);
 #ifdef KERN_NO_SYMBOLS
 #include "kern-nlist.h"
 #else
-struct nlist    nl[] = {
-  {"_isa_devtab_bio"},
-  {"_isa_devtab_tty"},
-  {"_isa_devtab_net"},
-  {"_isa_devtab_null"},
-  {"_isa_biotab_wdc"},
-  {"_isa_biotab_fdc"},
-  {"_eisadriver_set"},
-  {"_eisa_dev_list"},
-  {"_pcidevice_set"},
-  {"_device_list"},
-  {"_scbusses"},
-  {"_scsi_cinit"},
-  {"_scsi_dinit"},
-  {"_scsi_tinit"},
-  {""},
+static struct nlist nl[] = {
+    {"_isa_devtab_bio"},
+    {"_isa_devtab_tty"},
+    {"_isa_devtab_net"},
+    {"_isa_devtab_null"},
+    {"_isa_biotab_wdc"},
+    {"_isa_biotab_fdc"},
+    {"_eisadriver_set"},
+    {"_eisa_dev_list"},
+    {"_pcidevice_set"},
+    {"_device_list"},
+    {"_scbusses"},
+    {"_scsi_cinit"},
+    {"_scsi_dinit"},
+    {"_scsi_tinit"},
+    {""},
 };
 #endif
 
 struct kernel *
 uc_open(char *name){
-  int kd, flags, incore;
-  struct kernel *kern;
-  struct stat sb;
-  char kname[80];
-  int i = 0;
-
-  if (strcmp(name, "-incore")==0){
-    incore=1;
-  } else {
-    incore=0;
-  }
-
-  if (incore||(strcmp(name,"-bootfile")==0)) {
-    strncpy(kname, getbootfile(), 79);
-  } else {
-    strncpy(kname, name, 79);
-  }
-  if (isDebug())
-      msgDebug("uc_open: kernel name is %s, incore = %d\n", kname, incore);
-
-  kern=(struct kernel *)malloc(sizeof(struct kernel));
-
+    int kd, flags, incore;
+    struct kernel *kern;
+    struct stat sb;
+    char kname[80];
+    int i = 0;
+    
+    if (strcmp(name, "-incore") == 0)
+	incore = 1;
+    else
+	incore=0;
+    
+    if (incore || (strcmp(name,"-bootfile") == 0))
+	strncpy(kname, getbootfile(), 79);
+    else
+	strncpy(kname, name, 79);
+    
+    if (isDebug())
+	msgDebug("uc_open: kernel name is %s, incore = %d\n", kname, incore);
+    
+    kern=(struct kernel *)malloc(sizeof(struct kernel));
+    
 #ifdef KERN_NO_SYMBOLS
-  if (incore) {
-      kern->nl=nl;
-      i = 0;
-  }
-  else
-#else
-  i = nlist(kname, nl);
+    if (incore) {
+	kern->nl = nl;
+	i = 0;
+    }
+    else
 #endif
-  if (i == -1) {
-      msgDebug("uc_open: kernel %s does not contain symbols.\n", kname);
-      kern = (struct kernel *)-5;
-      return kern;
-  }
+	i = nlist(kname, nl);
+    if (i == -1) {
+	msgDebug("uc_open: kernel %s does not contain symbols.\n", kname);
+	kern = (struct kernel *)-5;
+	return kern;
+    }
 #ifdef KERN_NO_SYMBOLS
-  if (!incore) {
+    if (!incore) {
 #else
-  {
+    {
 #endif
 	kern->nl=(struct nlist *)malloc(sizeof(nl));
 	bcopy(nl, kern->nl, sizeof(nl));
-  }
-
-  if(incore){
-    if((kd=open("/dev/kmem", O_RDONLY))<0){
-      free(kern);
-      kern=(struct kernel *)-3;
-      msgDebug("uc_open: Unable to open /dev/kmem.\n");
-      return(kern);
     }
-
-    kern->core=(caddr_t)NULL;
-    kern->incore=1;
-    kern->size=0;
-
-  } else {
-    if(stat(kname, &sb)<0){
-      free(kern);
-      kern=(struct kernel *)-1;
-      msgDebug("uc_open: Unable to stat %s.\n", kname);
-      return(kern);
+	
+    if (incore) {
+	if ((kd=open("/dev/kmem", O_RDONLY)) < 0) {
+	    free(kern);
+	    kern = (struct kernel *)-3;
+	    msgDebug("uc_open: Unable to open /dev/kmem.\n");
+	    return kern;
+	}
+	
+	kern->core = (caddr_t)NULL;
+	kern->incore = 1;
+	kern->size = 0;
     }
-    kern->size=sb.st_size;
-    flags=sb.st_flags;
-
-    if (chflags(kname, 0)<0){
-      free(kern);
-      kern=(struct kernel *)-2;
-      msgDebug("uc_open: Unable to chflags %s.\n", kname);
-      return(kern);
+    else {
+	if (stat(kname, &sb) < 0) {
+	    free(kern);
+	    kern = (struct kernel *)-1;
+	    msgDebug("uc_open: Unable to stat %s.\n", kname);
+	    return kern;
+	}
+	kern->size = sb.st_size;
+	flags = sb.st_flags;
+	
+	if (chflags(kname, 0) < 0) {
+	    free(kern);
+	    kern = (struct kernel *)-2;
+	    msgDebug("uc_open: Unable to chflags %s.\n", kname);
+	    return kern;
+	}
+	
+	if (isDebug())
+	    msgDebug("uc_open: attempting to open %s\n", kname);
+	if((kd = open(kname, O_RDWR, 0644)) < 0) {
+	    free(kern);
+	    kern = (struct kernel *)-3;
+	    msgDebug("uc_open: Unable to open %s.\n", kname);
+	    return kern;
+	}
+	
+	fchflags(kd, flags);
+	
+	if (isDebug())
+	    msgDebug("uc_open: attempting to mmap %d bytes\n", sb.st_size);
+	kern->core = mmap((caddr_t)0, sb.st_size, PROT_READ | PROT_WRITE,
+			  MAP_SHARED, kd, 0);
+	kern->incore = 0;
+	
+	if (kern->core == (caddr_t)0) {
+	    free(kern);
+	    kern = (struct kernel *)-4;
+	    msgDebug("uc_open: Unable to mmap from %s.\n", kname);
+	    return kern;
+	}
     }
-
+    
+    kern->fd = kd;
+    
     if (isDebug())
-	msgDebug("uc_open: attempting to open %s\n", kname);
-    if((kd=open(kname, O_RDWR, 0644))<0){
-      free(kern);
-      kern=(struct kernel *)-3;
-      msgDebug("uc_open: Unable to open %s.\n", kname);
-      return(kern);
-    }
-
-    fchflags(kd, flags);
-
+	msgDebug("uc_open: getting isa information\n");
+    get_isa_info(kern);
+    
     if (isDebug())
-	msgDebug("uc_open: attempting to mmap %d bytes\n", sb.st_size);
-    kern->core=mmap((caddr_t)0, sb.st_size, PROT_READ | PROT_WRITE,
-		    MAP_SHARED, kd, 0);
-    kern->incore=0;
-
-    if(kern->core == (caddr_t)0){
-      free(kern);
-      kern=(struct kernel *)-4;
-      msgDebug("uc_open: Unable to mmap from %s.\n", kname);
-      return(kern);
-    }
-  }
-
-  kern->fd=kd;
-
-  if (isDebug())
-      msgDebug("uc_open: getting isa information\n");
-  get_isa_info(kern);
-
-  if (isDebug())
-      msgDebug("uc_open: getting pci information\n");
-  get_pci_info(kern);
-
-  if (isDebug())
-      msgDebug("uc_open: getting eisa information\n");
-  get_eisa_info(kern);
-
-  if (isDebug())
-      msgDebug("uc_open: getting scsi information\n");
-  get_scsi_info(kern);
-
-  return(kern);
+	msgDebug("uc_open: getting pci information\n");
+    get_pci_info(kern);
+    
+    if (isDebug())
+	msgDebug("uc_open: getting eisa information\n");
+    get_eisa_info(kern);
+    
+    if (isDebug())
+	msgDebug("uc_open: getting scsi information\n");
+    get_scsi_info(kern);
+    
+    return kern;
 }
-
+    
 int
-uc_close(struct kernel *kern, int writeback){
-  if(kern->isa_devp){
-    isa_free(kern, writeback);
-  }
-
-  if(kern->eisa_devp){
-    eisa_free(kern, writeback); /* `writeback' isn't really useful here */
-  }
-
-  if(kern->pci_devp){
-    pci_free(kern, writeback); /* or here */
-  }
-
-  if(kern->scsi_devp){
-    scsi_free(kern, writeback);
-  }
-
-  if(!kern->incore) {
-    munmap(kern->core, kern->size);
-  }
-  close(kern->fd);
-  free(kern->nl);
-  free(kern);
-
-  return(0);
+uc_close(struct kernel *kern, int writeback)
+{
+    if (kern->isa_devp)
+	isa_free(kern, writeback);
+    
+    if (kern->eisa_devp)
+	eisa_free(kern, writeback); /* `writeback' isn't really useful here */
+    
+    if (kern->pci_devp)
+	pci_free(kern, writeback); /* or here */
+    
+    if (kern->scsi_devp)
+	scsi_free(kern, writeback);
+    
+    if (!kern->incore)
+	munmap(kern->core, kern->size);
+    
+    close(kern->fd);
+    free(kern->nl);
+    free(kern);
+    
+    return 0;
 }
 
 struct list *
-uc_getdev(struct kernel *kern, char *dev){
-  struct list *list=(struct list *)0;
-
-  if(*dev=='-'){ /* asked for -isa, -eisa, -pci, -scsi, -all */
-    if(strcmp(dev, "-all")==0) {
-      list=list_new();
-      if(kern->isa_devp) {
-	list_append(list, "isa");
-      }
-
-      if(kern->eisa_devp) {
-	list_append(list, "eisa");
-      }
-
-      if(kern->pci_devp) {
-	list_append(list, "pci");
-      }
-
-      if(kern->scsi_devp) {
-	list_append(list, "scsi");
-      }
-
-    } else if (strcmp(dev, "-isa")==0) {
-      list=get_isa_devlist(kern);
-    } else if (strcmp(dev, "-eisa")==0) {
-      list=get_eisa_devlist(kern);
-    } else if (strcmp(dev, "-pci")==0) {
-      list=get_pci_devlist(kern);
-    } else if (strcmp(dev, "-scsi")==0) {
-      list=get_scsi_devlist(kern);
-    }
-  } else {
-    /* we gotta figure out which real device to report */
-    struct uc_isa *ip;
-    struct uc_scsi *sp;
-    struct uc_pci *pp;
-    struct uc_eisa *ep;
-
-    if(kern->isa_devp){
-      for(ip=kern->isa_devp;ip->device;ip++){
-	if(strcmp(dev, ip->device)==0) {
-	  list=get_isa_device(ip);
-	  goto end;
+uc_getdev(struct kernel *kern, char *dev)
+{
+    struct list *list = (struct list *)0;
+    
+    if (*dev == '-') { /* asked for -isa, -eisa, -pci, -scsi, -all */
+	if (strcmp(dev, "-all") == 0) {
+	    list = list_new();
+	    if (kern->isa_devp)
+		list_append(list, "isa");
+	    
+	    if (kern->eisa_devp)
+		list_append(list, "eisa");
+	    
+	    if (kern->pci_devp)
+		list_append(list, "pci");
+	    
+	    if (kern->scsi_devp)
+		list_append(list, "scsi");
+	    
 	}
-      }
+	else if (strcmp(dev, "-isa") == 0)
+	    list = get_isa_devlist(kern);
+	else if (strcmp(dev, "-eisa") == 0)
+	    list = get_eisa_devlist(kern);
+	else if (strcmp(dev, "-pci") == 0)
+	    list = get_pci_devlist(kern);
+	else if (strcmp(dev, "-scsi") == 0)
+	    list = get_scsi_devlist(kern);
     }
-
-    if (kern->scsi_devp) {
-      for(sp=kern->scsi_devp;sp->device;sp++){
-	if(strcmp(dev, sp->device)==0){
-	  list=get_scsi_device(sp);
-	  goto end;
+    else {
+	/* we gotta figure out which real device to report */
+	struct uc_isa *ip;
+	struct uc_scsi *sp;
+	struct uc_pci *pp;
+	struct uc_eisa *ep;
+	
+	if (kern->isa_devp) {
+	    for (ip = kern->isa_devp; ip->device; ip++) {
+		if (strcmp(dev, ip->device) == 0) {
+		    list = get_isa_device(ip);
+		    goto end;
+		}
+	    }
 	}
-      }
-    }
-
-    if (kern->pci_devp) {
-      for(pp=kern->pci_devp;pp->device;pp++){
-	if(strcmp(dev, pp->device)==0){
-	  list=get_pci_device(pp);
-	  goto end;
+	
+	if (kern->scsi_devp) {
+	    for (sp = kern->scsi_devp; sp->device; sp++) {
+		if (strcmp(dev, sp->device) == 0) {
+		    list = get_scsi_device(sp);
+		    goto end;
+		}
+	    }
 	}
-      }
-    }
-
-    if (kern->eisa_devp) {
-      for(ep=kern->eisa_devp;ep->device;ep++){
-	if(strcmp(dev, ep->device)==0){
-	  list=get_eisa_device(ep);
-	  goto end;
+	
+	if (kern->pci_devp) {
+	    for(pp = kern->pci_devp; pp->device; pp++) {
+		if (strcmp(dev, pp->device) == 0) {
+		    list = get_pci_device(pp);
+		    goto end;
+		}
+	    }
 	}
-      }
+	
+	if (kern->eisa_devp) {
+	    for (ep = kern->eisa_devp; ep->device; ep++) {
+		if (strcmp(dev, ep->device) == 0) {
+		    list = get_eisa_device(ep);
+		    goto end;
+		}
+	    }
+	}
     }
-
-  }
-
 end:
-  return(list);
+    return(list);
 }
-
-
-/* end of userconfig/uc_main.c */
-
