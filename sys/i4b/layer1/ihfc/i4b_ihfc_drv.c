@@ -233,8 +233,9 @@ ihfc_control(ihfc_sc_t *sc, int flag)
 		else
 		{
 			S_SCTRL  &= ~0x04;	/* TE mode	*/
+			S_STDEL  &=  0x7f;	/* use mask!	*/
 			S_CLKDEL &= ~0x7f;	/* clear delay	*/
-			S_CLKDEL |= S_STDEL; 	/* set delay	*/
+			S_CLKDEL |= S_STDEL;	/* set delay 	*/
 		}
 		if (S_DLP)		/* configure D-priority */
 		{
@@ -1419,10 +1420,18 @@ ihfc_hdlc_Bwrite (ihfc_sc_t *sc, u_char chan)
 			i4b_Bfreembuf(S_MBUF);
 			S_MBUF = ihfc_getmbuf(sc, chan);
 
-			if (!S_MBUF) goto d0;
-
-			src = S_MBUFDATA;
-			len = S_MBUFLEN;
+			if (S_MBUF)
+			{
+				src = S_MBUFDATA;
+				len = S_MBUFLEN;
+			}
+			else
+			{
+				sendlen = 0;	/* Exit after final FS, *
+						 * else the buffer will *
+						 * only be filled with  *
+						 * "0x7e"-bytes!        */
+			}
 		},
 		{/* wrd */
 			
@@ -1437,7 +1446,6 @@ ihfc_hdlc_Bwrite (ihfc_sc_t *sc, u_char chan)
 		S_MBUFLEN  = len;
 	}
 
-  d0:
 	S_HDLC_IB	= ib;
 	S_HDLC_BLEVEL	= blevel;
 	S_HDLC_TMP  	= tmp;
