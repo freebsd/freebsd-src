@@ -27,7 +27,7 @@ echo    enter '"copy"' at the prompt to copy the kernel on this
 echo    floppy to your hard disk.  enter anything else to reboot,
 echo	but wait for the machine to restart to remove the floppy.
 echo    ""
-echo -n "> "
+echo -n "kc> "
 
 read todo
 
@@ -36,7 +36,7 @@ if [ "$todo"X = copyX ]; then
 	echo    "what disk partition should the kernel be installed on?"
 	echo    "(e.g. "wd0a", "sd0a", etc.)"
 	echo    ""
-	echo -n "> "
+	echo -n "copy kernel to> "
 	
 	read diskpart
 
