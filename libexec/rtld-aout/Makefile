@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1995/08/26 13:17:39 joerg Exp $
+#	$Id: Makefile,v 1.16 1996/01/11 03:45:55 jdp Exp $
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c
@@ -24,8 +24,8 @@ realinstall:
 	test -f ${DESTDIR}${BINDIR}/${PROG}.old && \
 		chflags noschg ${DESTDIR}${BINDIR}/${PROG}.old || \
 		:
-	chflags noschg ${DESTDIR}${BINDIR}/${PROG}
-	ln -f ${DESTDIR}${BINDIR}/${PROG} ${DESTDIR}${BINDIR}/${PROG}.old
+	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}
+	-ln -f ${DESTDIR}${BINDIR}/${PROG} ${DESTDIR}${BINDIR}/${PROG}.old
 	mv ${DESTDIR}${BINDIR}/${PROG}.new ${DESTDIR}${BINDIR}/${PROG}
 	chflags schg ${DESTDIR}${BINDIR}/${PROG}
 	rm ${DESTDIR}${BINDIR}/${PROG}.old
