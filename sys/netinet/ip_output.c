@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.44.2.4 1997/03/02 19:03:01 fenner Exp $
+ *	$Id: ip_output.c,v 1.44.2.5 1997/05/17 19:18:15 fenner Exp $
  */
 
 #define _IP_VHL
@@ -334,7 +334,7 @@ sendit:
         /*
 	 * IpHack's section.
 	 * - Xlate: translate packet's addr/port (NAT).
-	 * - Firewall: deny/allow
+	 * - Firewall: deny/allow/etc.
 	 * - Wrap: fake packet's addr/port <unimpl.>
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
 	 */ 
@@ -349,27 +349,24 @@ sendit:
 	 * Check with the firewall...
 	 */
 	if (ip_fw_chk_ptr) {
-		int action;
-
 #ifdef IPDIVERT
-		action = (*ip_fw_chk_ptr)(&ip,
-				hlen, ifp, (~0 << 16) | ip_divert_ignore, &m);
+		ip_divert_port = (*ip_fw_chk_ptr)(&ip,
+		    hlen, ifp, ip_divert_ignore, &m);
 		ip_divert_ignore = 0;
-#else
-		action = (*ip_fw_chk_ptr)(&ip, hlen, ifp, (~0 << 16), &m);
-#endif
-		if (action == -1) {
-			error = EACCES;		/* XXX is this appropriate? */
-			goto done;
-		} else if (action != 0) {
-#ifdef IPDIVERT
-			ip_divert_port = action;	/* divert to port */
+		if (ip_divert_port) {		/* Divert packet */
 			(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
 			goto done;
+		}
 #else
-			m_freem(m);	/* ipfw says divert, but we can't */
+		/* If ipfw says divert, we have to just drop packet */
+		if ((*ip_fw_chk_ptr)(&ip, hlen, ifp, 0, &m)) {
+			m_freem(m);
 			goto done;
+		}
 #endif
+		if (!m) {
+			error = EACCES;
+			goto done;
 		}
 	}
 #endif /* COMPAT_IPFW */

@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.1 1997/01/29 13:15:42 adam Exp $
+ *	$Id: ip_fw.c,v 1.4 1997/06/04 21:44:56 archie Exp $
  */
 
 /*
@@ -37,11 +37,14 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
+#include <netinet/tcp.h>
+#include <netinet/tcp_timer.h>
+#include <netinet/tcp_var.h>
+#include <netinet/tcpip.h>
+#include <netinet/udp.h>
 
 static int fw_debug = 1;
 #ifdef IPFIREWALL_VERBOSE
@@ -74,24 +77,25 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw_verbose_lim
 #define dprint_ip(a)	if (!fw_debug); else print_ip(a)
 
 static int	add_entry __P((struct ip_fw_head *chainptr, struct ip_fw *frwl));
-static int	del_entry __P((struct ip_fw_head *chainptr, struct ip_fw *frwl));
+static int	del_entry __P((struct ip_fw_head *chainptr, u_short number));
 static int	zero_entry __P((struct mbuf *m));
-static struct ip_fw *
-		check_ipfw_struct __P(( struct mbuf *m));
+static struct ip_fw *check_ipfw_struct __P((struct ip_fw *m));
+static struct ip_fw *check_ipfw_mbuf __P((struct mbuf *fw));
 static int	ipopts_match __P((struct ip *ip, struct ip_fw *f));
 static int	port_match __P((u_short *portptr, int nports, u_short port,
 				int range_flag));
 static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
-static void	ipfw_report __P((char *txt, int rule, struct ip *ip, int counter, struct ifnet *rif));
+static void	ipfw_report __P((struct ip_fw *f, struct ip *ip,
+				struct ifnet *rif, struct ifnet *oif));
 
 #ifdef IPFIREWALL_MODULE
 static ip_fw_chk_t *old_chk_ptr;
 static ip_fw_ctl_t *old_ctl_ptr;
 #endif
 
-static int	ip_fw_chk __P((struct ip **pip, int hlen, struct ifnet *rif,
-			       int dirport, struct mbuf **m));
+static int	ip_fw_chk __P((struct ip **pip, int hlen,
+			struct ifnet *oif, int ignport, struct mbuf **m));
 static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
 
 static char err_prefix[] = "ip_fw_ctl:";
@@ -214,17 +218,86 @@ ipopts_match(struct ip *ip, struct ip_fw *f)
 		return 0;
 }
 
-static void
-ipfw_report(char *txt, int rule, struct ip *ip, int counter, struct ifnet *rif)
+static inline int
+iface_match(struct ifnet *ifp, union ip_fw_if *ifu, int byname)
 {
-	struct tcphdr *tcp = (struct tcphdr *) ((u_long *) ip + ip->ip_hl);
-	struct udphdr *udp = (struct udphdr *) ((u_long *) ip + ip->ip_hl);
-	struct icmp *icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
-	if (!fw_verbose)
+	/* Check by name or by IP address */
+	if (byname) {
+		/* Check unit number (-1 is wildcard) */
+		if (ifu->fu_via_if.unit != -1
+		    && ifp->if_unit != ifu->fu_via_if.unit)
+			return(0);
+		/* Check name */
+		if (strncmp(ifp->if_name, ifu->fu_via_if.name, FW_IFNLEN))
+			return(0);
+		return(1);
+	} else if (ifu->fu_via_ip.s_addr != 0) {	/* Zero == wildcard */
+		struct ifaddr *ia;
+
+		for (ia = ifp->if_addrlist; ia; ia = ia->ifa_next) {
+			if (ia->ifa_addr == NULL)
+				continue;
+			if (ia->ifa_addr->sa_family != AF_INET)
+				continue;
+			if (ifu->fu_via_ip.s_addr != ((struct sockaddr_in *)
+			    (ia->ifa_addr))->sin_addr.s_addr)
+				continue;
+			return(1);
+		}
+		return(0);
+	}
+	return(1);
+}
+
+static void
+ipfw_report(struct ip_fw *f, struct ip *ip,
+	struct ifnet *rif, struct ifnet *oif)
+{
+	static int counter;
+	struct tcphdr *const tcp = (struct tcphdr *) ((u_long *) ip+ ip->ip_hl);
+	struct udphdr *const udp = (struct udphdr *) ((u_long *) ip+ ip->ip_hl);
+	struct icmp *const icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
+	int count;
+
+	/* Print command name */
+	printf("ipfw: %d ", f ? f->fw_number : -1);
+	if (!f)
+		printf("Refuse");
+	else
+		switch (f->fw_flg & IP_FW_F_COMMAND) {
+		case IP_FW_F_DENY:
+			printf("Deny");
+			break;
+		case IP_FW_F_REJECT:
+			if (f->fw_reject_code == IP_FW_REJECT_RST)
+				printf("Reset");
+			else
+				printf("Unreach");
+			break;
+		case IP_FW_F_ACCEPT:
+			printf("Accept");
+			break;
+		case IP_FW_F_COUNT:
+			printf("Count");
+			break;
+		case IP_FW_F_DIVERT:
+			printf("Divert %d", f->fw_divert_port);
+			break;
+		case IP_FW_F_TEE:
+			printf("Tee %d", f->fw_divert_port);
+			break;
+		case IP_FW_F_SKIPTO:
+			printf("SkipTo %d", f->fw_skipto_rule);
+			break;
+		default:	
+			printf("UNKNOWN");
+			break;
+		}
+	printf(" ");
+
+	count = f ? f->fw_pcnt : ++counter;
+	if (fw_verbose_limit != 0 && count > fw_verbose_limit)
 		return;
-	if (fw_verbose_limit != 0 && counter > fw_verbose_limit)
-		return;
-	printf("ipfw: %d %s ",rule, txt);
 	switch (ip->ip_p) {
 	case IPPROTO_TCP:
 		printf("TCP ");
@@ -253,66 +326,58 @@ ipfw_report(char *txt, int rule, struct ip *ip, int counter, struct ifnet *rif)
 		print_ip(ip->ip_dst);
 		break;
 	}
-	printf(" via %s%d", rif->if_name, rif->if_unit);
+	if (oif)
+		printf(" out via %s%d", oif->if_name, oif->if_unit);
+	else if (rif)
+		printf(" in via %s%d", rif->if_name, rif->if_unit);
 	if ((ip->ip_off & IP_OFFMASK)) 
 		printf(" Fragment = %d",ip->ip_off & IP_OFFMASK);
 	printf("\n");
-	if (fw_verbose_limit != 0 && counter == fw_verbose_limit)
-		printf("ipfw: limit reached on rule #%d\n", rule);
+	if (fw_verbose_limit != 0 && count == fw_verbose_limit)
+		printf("ipfw: limit reached on rule #%d\n",
+		f ? f->fw_number : -1);
 }
 
 /*
- * We overload the "dirport" parameter:
+ * Parameters:
  *
- *   If dirport is negative, packet is outgoing; otherwise incoming.
- *   The low order 16 bits of dirport, if non-zero, indicate that
- *   we should ignore all ``divert <port>'' rules, where <port> is
- *   the low order 16 bits.
+ *	ip	Pointer to packet header (struct ip *)
+ *	hlen	Packet header length
+ *	oif	Outgoing interface, or NULL if packet is incoming
+ *	ignport	Ignore all divert/tee rules to this port (if non-zero)
+ *	*m	The packet; we set to NULL when/if we nuke it.
  *
  * Return value:
  *
- *   -1		The packet was denied/rejected and has been dropped 
- *    0		The packet is to be accepted; route normally
- *   <port>	Divert the packet to divert <port>, if any socket
- *		is bound to it; otherwise just drop it.
+ *	0	The packet is to be accepted and routed normally OR
+ *      	the packet was denied/rejected and has been dropped;
+ *		in the latter case, *m is equal to NULL upon return.
+ *	port	Divert the packet to port.
  */
 
 static int 
 ip_fw_chk(struct ip **pip, int hlen,
-	struct ifnet *rif, int dirport, struct mbuf **m)
+	struct ifnet *oif, int ignport, struct mbuf **m)
 {
 	struct ip_fw_chain *chain;
-	register struct ip_fw *f = NULL;
+	struct ip_fw *rule = NULL;
 	struct ip *ip = *pip;
-	struct tcphdr *tcp = (struct tcphdr *) ((u_long *) ip + ip->ip_hl);
-	struct udphdr *udp = (struct udphdr *) ((u_long *) ip + ip->ip_hl);
-	struct icmp *icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
-	struct ifaddr *ia = NULL, *ia_p;
-	struct in_addr src, dst, ia_i;
-	u_short src_port, dst_port, offset;
-
-	src = ip->ip_src;
-	dst = ip->ip_dst;
-
-	/*
-	 * If we got interface from which packet came-store pointer to it's
-	 * first adress
-	 */
-	if (rif != NULL)
-		ia = rif->if_addrlist;
+	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
+	u_short offset = (ip->ip_off & IP_OFFMASK);
+	u_short src_port, dst_port;
 
 	/*
 	 * Go down the chain, looking for enlightment
 	 */
 	for (chain=ip_fw_chain.lh_first; chain; chain = chain->chain.le_next) {
-		f = chain->rule;
+		register struct ip_fw *const f = chain->rule;
 
 		/* Check direction inbound */
-		if (dirport >= 0 && !(f->fw_flg & IP_FW_F_IN))
+		if (!oif && !(f->fw_flg & IP_FW_F_IN))
 			continue;
 
 		/* Check direction outbound */
-		if (dirport < 0 && !(f->fw_flg & IP_FW_F_OUT))
+		if (oif && !(f->fw_flg & IP_FW_F_OUT))
 			continue;
 
 		/* Fragments */
@@ -320,169 +385,234 @@ ip_fw_chk(struct ip **pip, int hlen,
 			continue;
 
 		/* If src-addr doesn't match, not this rule. */
-		if ((f->fw_flg & IP_FW_F_INVSRC) != 0
-		  ^ (src.s_addr & f->fw_smsk.s_addr) != f->fw_src.s_addr)
+		if (((f->fw_flg & IP_FW_F_INVSRC) != 0) ^ ((ip->ip_src.s_addr
+		    & f->fw_smsk.s_addr) != f->fw_src.s_addr))
 			continue;
 
 		/* If dest-addr doesn't match, not this rule. */
-		if ((f->fw_flg & IP_FW_F_INVDST) != 0
-		  ^ (dst.s_addr & f->fw_dmsk.s_addr) != f->fw_dst.s_addr)
+		if (((f->fw_flg & IP_FW_F_INVDST) != 0) ^ ((ip->ip_dst.s_addr
+		    & f->fw_dmsk.s_addr) != f->fw_dst.s_addr))
 			continue;
 
-		/* If a i/f name was specified, and we don't know */
-		if ((f->fw_flg & IP_FW_F_IFNAME) && !rif)
-			continue;
+		/* Interface check */
+		if ((f->fw_flg & IF_FW_F_VIAHACK) == IF_FW_F_VIAHACK) {
+			struct ifnet *const iface = oif ? oif : rif;
 
-		/* If a i/f name was specified, check it */
-		if ((f->fw_flg & IP_FW_F_IFNAME) && f->fw_via_name[0]) {
-
-			/* Not same unit, don't match */
-			if (!(f->fw_flg & IP_FW_F_IFUWILD) && rif->if_unit != f->fw_via_unit)
+			/* Backwards compatibility hack for "via" */
+			if (!iface || !iface_match(iface,
+			    &f->fw_in_if, f->fw_flg & IP_FW_F_OIFNAME))
 				continue;
-
-			/* Not same name */
-			if (strncmp(rif->if_name, f->fw_via_name, FW_IFNLEN))
+		} else {
+			/* Check receive interface */
+			if ((f->fw_flg & IP_FW_F_IIFACE)
+			    && (!rif || !iface_match(rif,
+			      &f->fw_in_if, f->fw_flg & IP_FW_F_IIFNAME)))
+				continue;
+			/* Check outgoing interface */
+			if ((f->fw_flg & IP_FW_F_OIFACE)
+			    && (!oif || !iface_match(oif,
+			      &f->fw_out_if, f->fw_flg & IP_FW_F_OIFNAME)))
 				continue;
 		}
 
-		/* If a i/f addr was specified, check it */
-		if (!(f->fw_flg & IP_FW_F_IFNAME) && f->fw_via_ip.s_addr) {
-			int match = 0;
+		/* Check IP options */
+		if (f->fw_ipopt != f->fw_ipnopt && !ipopts_match(ip, f))
+			continue;
 
-			for (ia_p = ia; ia_p != NULL; ia_p = ia_p->ifa_next) {
-				if ((ia_p->ifa_addr == NULL))
-					continue;
-				if (ia_p->ifa_addr->sa_family != AF_INET)
-					continue;
-				ia_i.s_addr =
-				    ((struct sockaddr_in *)
-				    (ia_p->ifa_addr))->sin_addr.s_addr;
-				if (ia_i.s_addr != f->fw_via_ip.s_addr)
-					continue;
-				match = 1;
-				break;
-			}
-			if (!match)
-				continue;
-		}
-
-		/* 
-		 * Check IP options
-		 */
-		if (f->fw_ipopt != f->fw_ipnopt)
-			if (!ipopts_match(ip, f))
-				continue;
-			
-		/* If wildcard, match */
+		/* Check protocol; if wildcard, match */
 		if (f->fw_prot == IPPROTO_IP)
 			goto got_match;
 
-		/* If different, dont match */
+		/* If different, don't match */
 		if (ip->ip_p != f->fw_prot) 
 			continue;
 
+#define PULLUP_TO(len)	do {						\
+			    if ((*m)->m_len < (len)			\
+				&& (*m = m_pullup(*m, (len))) == 0) {	\
+				    goto bogusfrag;			\
+			    }						\
+			    *pip = ip = mtod(*m, struct ip *);		\
+			    offset = (ip->ip_off & IP_OFFMASK);		\
+			} while (0)
+
+		/* Protocol specific checks */
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
-			offset = ip->ip_off & IP_OFFMASK;
-			if (offset == 1) {
-				static int frag_counter = 0;
-				++frag_counter;
-				ipfw_report("Refuse", -1, ip, frag_counter, rif);
-				m_freem(*m);
-				return -1;
-			}
-			if ((offset == 0) &&
-			    (f->fw_tcpf != f->fw_tcpnf) &&
-			    !tcpflg_match(tcp, f))
-				continue;
+		    {
+			struct tcphdr *tcp;
 
+			if (offset == 1)	/* cf. RFC 1858 */
+				goto bogusfrag;
+			if (offset != 0)	/* Flags, ports aren't valid */
+				break;
+			PULLUP_TO(hlen + 14);
+			tcp = (struct tcphdr *) ((u_long *)ip + ip->ip_hl);
+			if (f->fw_tcpf != f->fw_tcpnf && !tcpflg_match(tcp, f))
+				continue;
 			src_port = ntohs(tcp->th_sport);
 			dst_port = ntohs(tcp->th_dport);
 			goto check_ports;
+		    }
 
 		case IPPROTO_UDP:
+		    {
+			struct udphdr *udp;
+
+			if (offset != 0)	/* Ports aren't valid */
+				break;
+			PULLUP_TO(hlen + 4);
+			udp = (struct udphdr *) ((u_long *)ip + ip->ip_hl);
 			src_port = ntohs(udp->uh_sport);
 			dst_port = ntohs(udp->uh_dport);
-
 check_ports:
-			if (!port_match(&f->fw_pts[0], f->fw_nsp,
-					src_port, f->fw_flg & IP_FW_F_SRNG))
+			if (!port_match(&f->fw_pts[0],
+			    IP_FW_GETNSRCP(f), src_port,
+			    f->fw_flg & IP_FW_F_SRNG))
 				continue;
-			if (!port_match(&f->fw_pts[f->fw_nsp], f->fw_ndp,
-					dst_port, f->fw_flg & IP_FW_F_DRNG)) 
+			if (!port_match(&f->fw_pts[IP_FW_GETNSRCP(f)],
+			    IP_FW_GETNDSTP(f), dst_port,
+			    f->fw_flg & IP_FW_F_DRNG)) 
 				continue;
 			break;
+		    }
 
 		case IPPROTO_ICMP:
+		    {
+			struct icmp *icmp;
+
+			if (offset != 0)	/* Type isn't valid */
+				break;
+			PULLUP_TO(hlen + 2);
+			icmp = (struct icmp *) ((u_long *)ip + ip->ip_hl);
 			if (!icmptype_match(icmp, f))
 				continue;
-			goto got_match;
-
-		default:
 			break;
+		    }
+#undef PULLUP_TO
+
+bogusfrag:
+			if (fw_verbose)
+				ipfw_report(NULL, ip, rif, oif);
+			goto dropit;
 		}
 
 got_match:
-		f->fw_pcnt++;
-		f->fw_bcnt+=ip->ip_len;
-		f->timestamp = time.tv_sec;
-		if (f->fw_flg & IP_FW_F_PRN) {
-			if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_ACCEPT) {
-				ipfw_report("Allow",
-					f->fw_number, ip, f->fw_pcnt, rif);
-			} else if ((f->fw_flg & IP_FW_F_COMMAND)
-			    == IP_FW_F_DIVERT) {
-				if (f->fw_divert_port != (dirport & 0xffff))
-					ipfw_report("Divert", f->fw_number,
-							ip, f->fw_pcnt, rif);
-			} else if ((f->fw_flg & IP_FW_F_COMMAND)
-			    == IP_FW_F_COUNT) {
-				ipfw_report("Count",
-					f->fw_number, ip, f->fw_pcnt, rif);
-			} else {
-				ipfw_report("Deny",
-					f->fw_number, ip, f->fw_pcnt, rif);
-			}
+		/* Ignore divert/tee rule if socket port is "ignport" */
+		switch (f->fw_flg & IP_FW_F_COMMAND) {
+		case IP_FW_F_DIVERT:
+		case IP_FW_F_TEE:
+			if (f->fw_divert_port == ignport)
+				continue;       /* ignore this rule */
+			break;
 		}
 
+		/* Update statistics */
+		f->fw_pcnt += 1;
+		f->fw_bcnt += ip->ip_len;
+		f->timestamp = time.tv_sec;
+
+		/* Log to console if desired */
+		if ((f->fw_flg & IP_FW_F_PRN) && fw_verbose)
+			ipfw_report(f, ip, rif, oif);
+
 		/* Take appropriate action */
-		if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_ACCEPT) {
-			return 0;
-		} else if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_COUNT) {
+		switch (f->fw_flg & IP_FW_F_COMMAND) {
+		case IP_FW_F_ACCEPT:
+			return(0);
+		case IP_FW_F_COUNT:
 			continue;
-		} else if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_DIVERT) {
-			if (f->fw_divert_port == (dirport & 0xffff))
-				continue;	/* ignore this rule */
-			return (f->fw_divert_port);
-		} else
-			break;		/* ie, deny/reject */
+		case IP_FW_F_DIVERT:
+			return(f->fw_divert_port);
+		case IP_FW_F_TEE:
+			/*
+			 * XXX someday tee packet here, but beware that you
+			 * can't use m_copym() or m_copypacket() because
+			 * the divert input routine modifies the mbuf
+			 * (and these routines only increment reference
+			 * counts in the case of mbuf clusters), so need
+			 * to write custom routine.
+			 */
+			continue;
+		case IP_FW_F_SKIPTO:
+#ifdef DIAGNOSTIC
+			while (chain->chain.le_next
+			    && chain->chain.le_next->rule->fw_number
+				< f->fw_skipto_rule)
+#else
+			while (chain->chain.le_next->rule->fw_number
+			    < f->fw_skipto_rule)
+#endif
+				chain = chain->chain.le_next;
+			continue;
+		}
+
+		/* Deny/reject this packet using this rule */
+		rule = f;
+		break;
 	}
 
 #ifdef DIAGNOSTIC
-	if (!chain)			/* rule 65535 should always be there */
+	/* Rule 65535 should always be there and should always match */
+	if (!chain)
 		panic("ip_fw: chain");
-	if (!f)	
-		panic("ip_fw: entry");
 #endif
 
 	/*
 	 * At this point, we're going to drop the packet.
-	 * Send an ICMP only if all of the following are true:
+	 * Send a reject notice if all of the following are true:
 	 *
-	 * - The packet is an incoming packet
-	 * - The packet matched a deny rule
+	 * - The packet matched a reject rule
 	 * - The packet is not an ICMP packet
-	 * - The rule has the special ICMP reply flag set
+	 * - The packet is not a multicast or broadcast packet
 	 */
-	if (dirport >= 0
-	    && (f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_DENY
-	    && (ip->ip_p != IPPROTO_ICMP)
-	    && (f->fw_flg & IP_FW_F_ICMPRPL)) {
-		icmp_error(*m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0L, 0);
-		return -1;
+	if ((rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_REJECT
+	    && ip->ip_p != IPPROTO_ICMP
+	    && !((*m)->m_flags & (M_BCAST|M_MCAST))
+	    && !IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+		switch (rule->fw_reject_code) {
+		case IP_FW_REJECT_RST:
+		  {
+			struct tcphdr *const tcp =
+				(struct tcphdr *) ((u_long *)ip + ip->ip_hl);
+			struct tcpiphdr ti;
+
+			if (offset != 0 || (tcp->th_flags & TH_RST))
+				break;
+			ti.ti_i = *((struct ipovly *) ip);
+			ti.ti_t = *tcp;
+			NTOHL(ti.ti_seq);
+			NTOHL(ti.ti_ack);
+			ti.ti_len = ip->ip_len - hlen - (ti.ti_off << 2);
+			if (tcp->th_flags & TH_ACK) {
+				tcp_respond(NULL, &ti, *m,
+				    (tcp_seq)0, ntohl(tcp->th_ack), TH_RST);
+			} else {
+				if (tcp->th_flags & TH_SYN)
+					ti.ti_len++;
+				tcp_respond(NULL, &ti, *m, ti.ti_seq
+				    + ti.ti_len, (tcp_seq)0, TH_RST|TH_ACK);
+			}
+			*m = NULL;
+			break;
+		  }
+		default:	/* Send an ICMP unreachable using code */
+			icmp_error(*m, ICMP_UNREACH,
+			    rule->fw_reject_code, 0L, 0);
+			*m = NULL;
+			break;
+		}
 	}
-	m_freem(*m);
-	return -1;
+
+dropit:
+	/*
+	 * Finally, drop the packet.
+	 */
+	if (*m) {
+		m_freem(*m);
+		*m = NULL;
+	}
+	return(0);
 }
 
 static int
@@ -517,6 +647,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 		if (fwc)  free(fwc, M_IPFW);
 		if (ftmp) free(ftmp, M_IPFW);
 		splx(s);
+		dprintf(("%s bad rule number\n", err_prefix));
 		return (EINVAL);
         }
 
@@ -552,7 +683,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 }
 
 static int
-del_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
+del_entry(struct ip_fw_head *chainptr, u_short number)
 {
 	struct ip_fw_chain *fcp;
 	int s;
@@ -560,9 +691,9 @@ del_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	s = splnet();
 
 	fcp = chainptr->lh_first; 
-	if (frwl->fw_number != (u_short)-1) {
+	if (number != (u_short)-1) {
 		for (; fcp; fcp = fcp->chain.le_next) {
-			if (fcp->rule->fw_number == frwl->fw_number) {
+			if (fcp->rule->fw_number == number) {
 				LIST_REMOVE(fcp, chain);
 				splx(s);
 				free(fcp->rule, M_IPFW);
@@ -584,10 +715,9 @@ zero_entry(struct mbuf *m)
 	int s;
 
 	if (m) {
-		frwl = check_ipfw_struct(m);
-
-		if (!frwl)
+		if (m->m_len != sizeof(struct ip_fw))
 			return(EINVAL);
+		frwl = mtod(m, struct ip_fw *);
 	}
 	else
 		frwl = NULL;
@@ -605,56 +735,80 @@ zero_entry(struct mbuf *m)
 		}
 	splx(s);
 
+#if 0
 	if ( frwl )
 		printf("ipfw: Entry %d cleared.\n", frwl->fw_number);
 	else
 		printf("ipfw: Accounting cleared.\n");
+#endif
 	return(0);
 }
 
 static struct ip_fw *
-check_ipfw_struct(struct mbuf *m)
+check_ipfw_mbuf(struct mbuf *m)
 {
-	struct ip_fw *frwl;
-
+	/* Check length */
 	if (m->m_len != sizeof(struct ip_fw)) {
 		dprintf(("%s len=%d, want %d\n", err_prefix, m->m_len,
 		    sizeof(struct ip_fw)));
 		return (NULL);
 	}
-	frwl = mtod(m, struct ip_fw *);
+	return(check_ipfw_struct(mtod(m, struct ip_fw *)));
+}
 
+static struct ip_fw *
+check_ipfw_struct(struct ip_fw *frwl)
+{
+	/* Check for invalid flag bits */
 	if ((frwl->fw_flg & ~IP_FW_F_MASK) != 0) {
 		dprintf(("%s undefined flag bits set (flags=%x)\n",
 		    err_prefix, frwl->fw_flg));
 		return (NULL);
 	}
-
-	/* If neither In nor Out, then both */
-	if (!(frwl->fw_flg & (IP_FW_F_IN | IP_FW_F_OUT)))
-		frwl->fw_flg |= IP_FW_F_IN | IP_FW_F_OUT;
-
-	if ((frwl->fw_flg & IP_FW_F_SRNG) && frwl->fw_nsp < 2) {
+	/* Must apply to incoming or outgoing (or both) */
+	if (!(frwl->fw_flg & (IP_FW_F_IN | IP_FW_F_OUT))) {
+		dprintf(("%s neither in nor out\n", err_prefix));
+		return (NULL);
+	}
+	/* Empty interface name is no good */
+	if (((frwl->fw_flg & IP_FW_F_IIFNAME)
+	      && !*frwl->fw_in_if.fu_via_if.name)
+	    || ((frwl->fw_flg & IP_FW_F_OIFNAME)
+	      && !*frwl->fw_out_if.fu_via_if.name)) {
+		dprintf(("%s empty interface name\n", err_prefix));
+		return (NULL);
+	}
+	/* Sanity check interface matching */
+	if ((frwl->fw_flg & IF_FW_F_VIAHACK) == IF_FW_F_VIAHACK) {
+		;		/* allow "via" backwards compatibility */
+	} else if ((frwl->fw_flg & IP_FW_F_IN)
+	    && (frwl->fw_flg & IP_FW_F_OIFACE)) {
+		dprintf(("%s outgoing interface check on incoming\n",
+		    err_prefix));
+		return (NULL);
+	}
+	/* Sanity check port ranges */
+	if ((frwl->fw_flg & IP_FW_F_SRNG) && IP_FW_GETNSRCP(frwl) < 2) {
 		dprintf(("%s src range set but n_src_p=%d\n",
-		    err_prefix, frwl->fw_nsp));
+		    err_prefix, IP_FW_GETNSRCP(frwl)));
 		return (NULL);
 	}
-	if ((frwl->fw_flg & IP_FW_F_DRNG) && frwl->fw_ndp < 2) {
+	if ((frwl->fw_flg & IP_FW_F_DRNG) && IP_FW_GETNDSTP(frwl) < 2) {
 		dprintf(("%s dst range set but n_dst_p=%d\n",
-		    err_prefix, frwl->fw_ndp));
+		    err_prefix, IP_FW_GETNDSTP(frwl)));
 		return (NULL);
 	}
-	if (frwl->fw_nsp + frwl->fw_ndp > IP_FW_MAX_PORTS) {
+	if (IP_FW_GETNSRCP(frwl) + IP_FW_GETNDSTP(frwl) > IP_FW_MAX_PORTS) {
 		dprintf(("%s too many ports (%d+%d)\n",
-		    err_prefix, frwl->fw_nsp, frwl->fw_ndp));
+		    err_prefix, IP_FW_GETNSRCP(frwl), IP_FW_GETNDSTP(frwl)));
 		return (NULL);
 	}
 	/*
-	 *	ICMP protocol doesn't use port range
+	 *	Protocols other than TCP/UDP don't use port range
 	 */
 	if ((frwl->fw_prot != IPPROTO_TCP) &&
 	    (frwl->fw_prot != IPPROTO_UDP) &&
-	    (frwl->fw_nsp || frwl->fw_ndp)) {
+	    (IP_FW_GETNSRCP(frwl) || IP_FW_GETNDSTP(frwl))) {
 		dprintf(("%s port(s) specified for non TCP/UDP rule\n",
 		    err_prefix));
 		return(NULL);
@@ -671,12 +825,34 @@ check_ipfw_struct(struct mbuf *m)
 		return(NULL);
 	}
 
-	/* Diverting to port zero is illegal */
-	if ((frwl->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_DIVERT
-	     && frwl->fw_divert_port == 0) {
-		dprintf(("ip_fw_ctl: can't divert to port 0\n"));
-		return (NULL);
+	/* Check command specific stuff */
+	switch (frwl->fw_flg & IP_FW_F_COMMAND)
+	{
+	case IP_FW_F_REJECT:
+		if (frwl->fw_reject_code >= 0x100
+		    && !(frwl->fw_prot == IPPROTO_TCP
+		      && frwl->fw_reject_code == IP_FW_REJECT_RST)) {
+			dprintf(("%s unknown reject code\n", err_prefix));
+			return(NULL);
+		}
+		break;
+	case IP_FW_F_DIVERT:		/* Diverting to port zero is invalid */
+	case IP_FW_F_TEE:
+		if (frwl->fw_divert_port == 0) {
+			dprintf(("%s can't divert to port 0\n", err_prefix));
+			return (NULL);
+		}
+		break;
+	case IP_FW_F_DENY:
+	case IP_FW_F_ACCEPT:
+	case IP_FW_F_COUNT:
+	case IP_FW_F_SKIPTO:
+		break;
+	default:
+		dprintf(("%s invalid command\n", err_prefix));
+		return(NULL);
 	}
+
 	return frwl;
 }
 
@@ -727,21 +903,31 @@ ip_fw_ctl(int stage, struct mbuf **mm)
 		return (EINVAL);
 	}
 
-	if (stage == IP_FW_ADD || stage == IP_FW_DEL) {
-		struct ip_fw *frwl = check_ipfw_struct(m);
+	if (stage == IP_FW_ADD) {
+		struct ip_fw *frwl = check_ipfw_mbuf(m);
 
-		if (!frwl) {
-			if (m) (void)m_free(m);
-			return (EINVAL);
-		}
-
-		if (stage == IP_FW_ADD)
-			error = add_entry(&ip_fw_chain, frwl);
+		if (!frwl)
+			error = EINVAL;
 		else
-			error = del_entry(&ip_fw_chain, frwl);
+			error = add_entry(&ip_fw_chain, frwl);
 		if (m) (void)m_free(m);
 		return error;
 	}
+	if (stage == IP_FW_DEL) {
+		if (m->m_len != sizeof(struct ip_fw)) {
+			dprintf(("%s len=%d, want %d\n", err_prefix, m->m_len,
+			    sizeof(struct ip_fw)));
+			error = EINVAL;
+		} else if (mtod(m, struct ip_fw *)->fw_number == (u_short)-1) {
+			dprintf(("%s can't delete rule 65535\n", err_prefix));
+			error = EINVAL;
+		} else
+			error = del_entry(&ip_fw_chain,
+			    mtod(m, struct ip_fw *)->fw_number);
+		if (m) (void)m_free(m);
+		return error;
+	}
+
 	dprintf(("%s unknown request %d\n", err_prefix, stage));
 	if (m) (void)m_free(m);
 	return (EINVAL);
@@ -759,8 +945,10 @@ ip_fw_init(void)
 	bzero(&deny, sizeof deny);
 	deny.fw_prot = IPPROTO_IP;
 	deny.fw_number = (u_short)-1;
-	deny.fw_flg = IP_FW_F_IN | IP_FW_F_OUT;
-	add_entry(&ip_fw_chain, &deny);
+	deny.fw_flg |= IP_FW_F_DENY;
+	deny.fw_flg |= IP_FW_F_IN | IP_FW_F_OUT;
+	if (check_ipfw_struct(&deny) == NULL || add_entry(&ip_fw_chain, &deny))
+		panic(__FUNCTION__);
 
 	printf("IP packet filtering initialized, "
 #ifdef IPDIVERT
