@@ -18,6 +18,7 @@ dev/ofw/openfirmio.c		standard
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 geom/geom_bsd.c			standard
+geom/geom_bsd_enc.c		standard
 geom/geom_sunlabel.c		standard
 libkern/ffs.c			standard
 kern/syscalls.c			optional	ktr
