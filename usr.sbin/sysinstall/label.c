@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.17 1995/05/21 10:16:10 jkh Exp $
+ * $Id: label.c,v 1.18 1995/05/21 15:40:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -255,7 +255,7 @@ get_partition_type(void)
 	"Swap",
 	"A swap partition.",
     };
-
+    dialog_clear(); clear();
     i = dialog_menu("Please choose a partition type",
 		    "If you want to use this partition for swap space, select Swap.\nIf you want to put a filesystem on it, choose FS.", -1, -1, 2, 2, fs_types, selection, NULL, NULL);
     if (!i) {
