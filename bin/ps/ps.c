@@ -229,7 +229,7 @@ main(argc, argv)
 			/* FALLTHROUGH */
 		case 't': {
 			struct stat sb;
-			char *ttypath, pathbuf[MAXPATHLEN];
+			char *ttypath, pathbuf[PATH_MAX];
 
 			if (strcmp(optarg, "co") == 0)
 				ttypath = _PATH_CONSOLE;
