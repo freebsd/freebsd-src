@@ -88,12 +88,6 @@
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
-#ifdef __i386__
-#include <sys/bus.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
-#endif
-
 #ifdef PPP_FILTER
 #include <net/bpf.h>
 #endif
