@@ -3387,6 +3387,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 		pmap_vac_me_harder(m, pmap, va);
 	}
+	pmap_dcache_wbinv_all(pmap) /* XXX: Shouldn't be needed. */;
 	vm_page_unlock_queues();
 }
 
