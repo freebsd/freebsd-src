@@ -39,7 +39,9 @@ static const char copyright[] =
 #endif /* not lint */
 
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)recvjob.c	8.2 (Berkeley) 4/27/95";
+#endif /* not lint */
 #endif
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
