@@ -155,7 +155,7 @@ expr:
 		} |
 	ARITH_VAR ARITH_ASSIGN expr
 		{
-		if (arith_assign($1, $3) != 1)
+		if (arith_assign($1, $3) != 0)
 			yyerror("variable assignment error");
 		$$ = $3;
 		} |
