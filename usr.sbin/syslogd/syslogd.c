@@ -325,7 +325,7 @@ main(argc, argv)
 	pid_t ppid = 1;
 	socklen_t len;
 
-	while ((ch = getopt(argc, argv, "46Aa:df:kl:m:np:suv")) != -1)
+	while ((ch = getopt(argc, argv, "46Aa:df:kl:m:np:P:suv")) != -1)
 		switch (ch) {
 		case '4':
 			family = PF_INET;
@@ -366,6 +366,9 @@ main(argc, argv)
 			break;
 		case 'p':		/* path */
 			funixn[0] = optarg;
+			break;
+		case 'P':		/* path for alt. PID */
+			PidFile = optarg;
 			break;
 		case 's':		/* no network mode */
 			SecureMode++;
@@ -596,8 +599,8 @@ usage()
 
 	fprintf(stderr, "%s\n%s\n%s\n",
 		"usage: syslogd [-46Adnsuv] [-a allowed_peer] [-f config_file]",
-		"               [-m mark_interval] [-p log_socket]",
-		"               [-l log_socket]");
+		"               [-m mark_interval] [-l log_socket]",
+		"               [-p log_socket] [-P pid_file]");
 	exit(1);
 }
 
