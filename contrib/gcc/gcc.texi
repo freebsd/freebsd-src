@@ -147,11 +147,11 @@ original English.
 @sp 2
 @center Richard M. Stallman
 @sp 3
-@center Last updated 26 November 1995
+@center Last updated 29 June 1996
 @sp 1
 @c The version number appears twice more in this file.  
 
-@center for version 2.7.2
+@center for version 2.7.2.1
 @page
 @vskip 0pt plus 1filll
 Copyright @copyright{} 1988, 89, 92, 93, 94, 1995 Free Software Foundation, Inc.
@@ -904,18 +904,23 @@ the ones who have actually sued.  Apple's lawsuit was defeated, for
 reasons only partly related to the general issue of interface copyright.
 
 Lotus won lawsuits against two small companies, which were thus put out
-of business.  Then they sued Borland; they won in the trial court (no
+of business.  Then Lotus sued Borland; Lotus won in the trial court (no
 surprise, since it was the same court that had ruled for Lotus twice
-before), but the decision was reversed by the court of appeals, with
-help from the League for Programming Freedom in the form of a
-friend-of-the-court brief.  We are now waiting to see if the Supreme
-Court will hear the case.  If it does, the League for Programming
-Freedom will again submit a brief.
+before), but the court of appeals ruled in favor of Borland, which was
+assisted by a friend-of-the-court brief from the League for Programming
+Freedom.
 
-The battle is not over.  Just this summer a company that produced a
-simulator for a CDC computer was shut down by a copyright lawsuit by
-CDC, which charged that the simulator infringed the copyright on the
-manuals for the computer.
+Lotus appealed the case to the Supreme Court, which heard the case but
+was unable to reach a decision.  This failure means that the appeals
+court decision stands, in one portion of the United States, and may
+influence the other appeals courts, but it does not set a nationwide
+precedent.  The battle is not over, and it is not limited to the United
+States.
+
+The battle is extending into other areas of software as well.  In 1995 a
+company that produced a simulator for a CDC computer was shut down by a
+copyright lawsuit, in which CDC charged that the simulator infringed the
+copyright on the manuals for the computer.
 
 If the monopolists get their way, they will hobble the software field:
 
@@ -1238,11 +1243,11 @@ GNU CC.  The fix is to get rid of the file @code{real-ld} which purify
 installs---so that GNU CC won't try to use it.
 
 @item 
-On Linux SLS 1.01, there is a problem with @file{libc.a}: it does not
-contain the obstack functions.  However, GNU CC assumes that the obstack
-functions are in @file{libc.a} when it is the GNU C library.  To work
-around this problem, change the @code{__GNU_LIBRARY__} conditional
-around line 31 to @samp{#if 1}.
+On SLS 1.01, a Linux-based GNU system, there is a problem with
+@file{libc.a}: it does not contain the obstack functions.  However, GNU
+CC assumes that the obstack functions are in @file{libc.a} when it is
+the GNU C library.  To work around this problem, change the
+@code{__GNU_LIBRARY__} conditional around line 31 to @samp{#if 1}.
 
 @item
 On some 386 systems, building the compiler never finishes because

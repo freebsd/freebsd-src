@@ -243,9 +243,10 @@ hash_value_for_key (cache_ptr cache, const void *key)
 
   if (node)
     do {
-      if ((*cache->compare_func)(node->key, key))
+      if ((*cache->compare_func)(node->key, key)) {
         retval = node->value;
-      else
+              break;
+      } else
         node = node->next;
     } while (!retval && node);
 
