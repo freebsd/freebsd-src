@@ -499,6 +499,10 @@
             ..
             sl_SI.ISO8859-2
             ..
+            sr_YU.ISO8859-2
+            ..
+            sr_YU.ISO8859-5
+            ..
             sv_SE.ISO8859-1
             ..
             sv_SE.ISO8859-15
@@ -818,6 +822,10 @@
             sk_SK.ISO8859-2
             ..
             sl_SI.ISO8859-2
+            ..
+            sr_YU.ISO8859-2
+            ..
+            sr_YU.ISO8859-5
             ..
             sv_SE.ISO8859-1
             ..
