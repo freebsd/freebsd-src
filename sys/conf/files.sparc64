@@ -27,6 +27,7 @@ sparc64/sparc64/machdep.c	standard
 sparc64/sparc64/pmap.c		standard
 sparc64/sparc64/procfs_machdep.c	standard
 sparc64/sparc64/pv.c		standard
+sparc64/sparc64/rwindow.c	standard
 sparc64/sparc64/support.s	standard
 sparc64/sparc64/sys_machdep.c	standard
 sparc64/sparc64/swtch.s		standard
