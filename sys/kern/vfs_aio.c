@@ -42,6 +42,7 @@
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
 #include <sys/vnode.h>
 #include <sys/conf.h>
 #include <sys/event.h>
