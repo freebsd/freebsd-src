@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.5 1995/01/24 10:13:24 davidg Exp $
+ * $Id: vm_object.h,v 1.6 1995/02/02 09:08:56 davidg Exp $
  */
 
 /*
@@ -112,6 +112,7 @@ struct vm_object {
 #define OBJ_DEAD	0x0008		/* used to mark dead objects during rundown */
 #define OBJ_ILOCKED	0x0010		/* lock from modification */
 #define OBJ_ILOCKWT	0x0020		/* wait for lock from modification */
+#define	OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 
 TAILQ_HEAD(vm_object_hash_head, vm_object_hash_entry);
 

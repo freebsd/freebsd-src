@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.17 1995/01/26 01:40:04 davidg Exp $
+ * $Id: vm_fault.c,v 1.18 1995/02/02 09:08:17 davidg Exp $
  */
 
 /*
@@ -165,15 +165,21 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 
 #define	UNLOCK_THINGS	{				\
 	object->paging_in_progress--;			\
-	if (object->paging_in_progress == 0)		\
+	if ((object->paging_in_progress == 0) && \
+	    (object->flags & OBJ_PIPWNT))	{ \
+		object->flags &= ~OBJ_PIPWNT;	\
 		wakeup((caddr_t)object);		\
+	} \
 	vm_object_unlock(object);			\
 	if (object != first_object) {			\
 		vm_object_lock(first_object);		\
 		FREE_PAGE(first_m);			\
 		first_object->paging_in_progress--;	\
-		if (first_object->paging_in_progress == 0) \
+		if ((first_object->paging_in_progress == 0) && \
+		    (first_object->flags & OBJ_PIPWNT)) { \
+			first_object->flags &= ~OBJ_PIPWNT; \
 			wakeup((caddr_t)first_object);	\
+		} \
 		vm_object_unlock(first_object);		\
 	}						\
 	UNLOCK_MAP;					\
@@ -441,8 +447,11 @@ readrest:
 			 */
 			if (object != first_object) {
 				object->paging_in_progress--;
-				if (object->paging_in_progress == 0)
+				if (object->paging_in_progress == 0 &&
+				    (object->flags & OBJ_PIPWNT)) {
+					object->flags &= ~OBJ_PIPWNT;
 					wakeup((caddr_t) object);
+				}
 				vm_object_unlock(object);
 
 				object = first_object;
@@ -460,8 +469,11 @@ readrest:
 			vm_object_lock(next_object);
 			if (object != first_object) {
 				object->paging_in_progress--;
-				if (object->paging_in_progress == 0)
+				if (object->paging_in_progress == 0 &&
+				    (object->flags & OBJ_PIPWNT)) {
+					object->flags &= ~OBJ_PIPWNT;
 					wakeup((caddr_t) object);
+				}
 			}
 			vm_object_unlock(object);
 			object = next_object;
@@ -539,8 +551,11 @@ readrest:
 			 */
 			PAGE_WAKEUP(m);
 			object->paging_in_progress--;
-			if (object->paging_in_progress == 0)
+			if (object->paging_in_progress == 0 &&
+			    (object->flags & OBJ_PIPWNT)) {
+				object->flags &= ~OBJ_PIPWNT;
 				wakeup((caddr_t) object);
+			}
 			vm_object_unlock(object);
 
 			/*
@@ -562,8 +577,11 @@ readrest:
 			 * paging_in_progress to do that...
 			 */
 			object->paging_in_progress--;
-			if (object->paging_in_progress == 0)
+			if (object->paging_in_progress == 0 &&
+			    (object->flags & OBJ_PIPWNT)) {
+				object->flags &= ~OBJ_PIPWNT;
 				wakeup((caddr_t) object);
+			}
 			vm_object_collapse(object);
 			object->paging_in_progress++;
 		} else {

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.35 1995/02/14 06:09:15 phk Exp $
+ * $Id: vm_pageout.c,v 1.36 1995/02/20 23:35:45 davidg Exp $
  */
 
 /*
@@ -290,8 +290,11 @@ vm_pageout_clean(m, sync)
 		 * collapse.
 		 */
 		if (pageout_status[i] != VM_PAGER_PEND) {
-			if (--object->paging_in_progress == 0)
+			if ((--object->paging_in_progress == 0) &&
+			    (object->flags & OBJ_PIPWNT)) {
+				object->flags &= ~OBJ_PIPWNT;
 				wakeup((caddr_t) object);
+			}
 			if ((ms[i]->flags & (PG_REFERENCED|PG_WANTED)) ||
 			    pmap_is_referenced(VM_PAGE_TO_PHYS(ms[i]))) {
 				pmap_clear_reference(VM_PAGE_TO_PHYS(ms[i]));
