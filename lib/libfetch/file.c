@@ -117,7 +117,7 @@ fetchListFile(struct url *u, const char *flags)
     struct url_stat us;
     struct url_ent *ue;
     int size, len;
-    char fn[MAXPATHLEN], *p;
+    char fn[PATH_MAX], *p;
     int l;
 
     if ((dir = opendir(u->doc)) == NULL) {
