@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.13 2001/05/11 20:34:38 jlemon Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.14 2001/05/23 22:10:55 wpaul Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -62,6 +62,7 @@
 #define	MII_OUI_DAVICOM	0x00606e	/* Davicom Semiconductor */
 #define	MII_OUI_ICS	0x00a0be	/* Integrated Circuit Systems */
 #define	MII_OUI_INTEL	0x00aa00	/* Intel */
+#define	MII_OUI_JATO	0x00e083	/* Jato Technologies */
 #define	MII_OUI_LEVEL1	0x00207b	/* Level 1 */
 #define	MII_OUI_NATSEMI	0x080017	/* National Semiconductor */
 #define	MII_OUI_QUALSEMI	0x006051	/* Quality Semiconductor */
@@ -137,6 +138,10 @@
 #define	MII_STR_INTEL_I82562ET	"i82562ET 10/100 media interface"
 #define	MII_MODEL_INTEL_I82553C	0x0035
 #define	MII_STR_INTEL_I82553C	"i82553 10/100 media interface"
+
+/* Jato Technologies PHYs */
+#define	MII_MODEL_JATO_BASEX	0x0000
+#define	MII_STR_JATO_BASEX	"Jato 1000baseX media interface"
 
 /* Level 1 PHYs */
 #define	MII_MODEL_xxLEVEL1_LXT970	0x0000
