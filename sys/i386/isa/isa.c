@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.82 1997/04/27 21:18:58 fsmp Exp $
+ *	$Id: isa.c,v 1.1 1997/05/05 21:54:26 smp Exp smp $
  */
 
 /*
@@ -462,6 +462,23 @@ config_isadev_c(isdp, mp, reconfig)
 		}
 		(*dp->attach)(isdp);
 		if (isdp->id_irq) {
+#if defined(APIC_IO)
+		    /*
+		     * Some motherboards use upper IRQs for traditional
+		     * ISA INTerrupt sources.  In particular we have
+		     * seen the secondary IDE connected to IRQ20.
+		     * This code detects and fixes this situation.
+		     */
+			u_int	apic_mask;
+			int	rirq;
+
+			apic_mask = get_isa_apic_mask( isdp->id_irq );
+			if ( apic_mask != isdp->id_irq ) {
+				rirq = ffs( isdp->id_irq ) - 1;
+				isdp->id_irq = apic_mask;
+				undirect_isa_irq( rirq ); /* free for ISA */
+			}
+#endif  /* APIC_IO */
 			if (mp)
 				INTRMASK(*mp, isdp->id_irq);
 			register_intr(ffs(isdp->id_irq) - 1, isdp->id_id,
@@ -676,8 +693,15 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		printf("isa_dmastart: channel %d not acquired\n", chan);
 #endif
 
+#if 0
+	/*
+	 * XXX This should be checked, but drivers like ad1848 only call
+	 * isa_dmastart() once because they use Auto DMA mode.  If we
+	 * leave this in, drivers that do this will print this continuously.
+	 */
 	if (dma_busy & (1 << chan))
 		printf("isa_dmastart: channel %d busy\n", chan);
+#endif
 
 	dma_busy |= (1 << chan);
 
