@@ -32,7 +32,7 @@
 .\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd May 24, 1995
+.Dd June 30, 2003
 .Dt MOUNT 2
 .Os
 .Sh NAME
@@ -105,6 +105,13 @@ Do not interpret special files on the file system.
 This flag is set automatically when the caller is not the super-user.
 .It Dv MNT_SUIDDIR
 Directories with the SUID bit set chown new files to their own owner.
+This flag requires the SUIDDIR option to have been compiled into the kernel
+to have any effect.
+See the
+.Xr mount 8
+and
+.Xr chmod 2
+pages for more information.
 .It Dv MNT_SYNCHRONOUS
 All I/O to the file system should be done synchronously.
 .It Dv MNT_ASYNC
@@ -112,6 +119,12 @@ All I/O to the file system should be done asynchronously.
 .It Dv MNT_FORCE
 Force a read-write mount even if the file system appears to be unclean.
 Dangerous.
+Together with
+.Dv MNT_UPDATE
+and
+.Dv MNT_RDONLY ,
+specify that the file system is to be forcibly downgraded to a read-only
+mount even if some files are open for writing.
 .It Dv MNT_NOCLUSTERR
 Disable read clustering.
 .It Dv MNT_NOCLUSTERW
@@ -163,24 +176,13 @@ mount point
 .Pp
 The
 .Fa flags
-argument may specify
+argument may include
 .Dv MNT_FORCE
-to specify that the file system should be forcibly unmounted or made read-only
-(if MNT_UPDATE and MNT_RDONLY are also specified)
+to specify that the file system should be forcibly unmounted
 even if files are still active.
 Active special devices continue to work,
 but any further accesses to any other active files result in errors
 even if the file system is later remounted.
-.Pp
-The
-.Dv MNT_SUIDDIR
-option requires the SUIDDIR option to have been compiled into the kernel
-to have any effect.
-See the
-.Xr mount 8
-and
-.Xr chmod 2
-pages for more information.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
