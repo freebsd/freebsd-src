@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.39 1997/04/21 01:01:40 brian Exp $
+ * $Id: command.c,v 1.40 1997/05/07 23:01:25 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -78,7 +78,7 @@ struct cmdtab *plist;
 
   if (argc > 0) {
     for (cmd = plist; cmd->name; cmd++) {
-      if (strcmp(cmd->name, *argv) == 0 && (cmd->lauth & VarLocalAuth)) {
+      if (strcasecmp(cmd->name, *argv) == 0 && (cmd->lauth & VarLocalAuth)) {
 	if (plist == SetCommands)
 		printf("set ");
         printf("%s %s\n", cmd->name, cmd->syntax);
@@ -213,13 +213,13 @@ char **argv;
      if(argc > 0) {
        /* substitute pseudo args */
        for (i=1; i<argc; i++) {
-         if (strcmp(argv[i], "HISADDR") == 0) {
+         if (strcasecmp(argv[i], "HISADDR") == 0) {
            argv[i] = strdup(inet_ntoa(IpcpInfo.his_ipaddr));
          }
-         if (strcmp(argv[i], "INTERFACE") == 0) {
+         if (strcasecmp(argv[i], "INTERFACE") == 0) {
            argv[i] = strdup(IfDevName);
          }
-         if (strcmp(argv[i], "MYADDR") == 0) {
+         if (strcasecmp(argv[i], "MYADDR") == 0) {
            argv[i] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
          }
        }
@@ -478,10 +478,10 @@ int *pmatch;
   struct cmdtab *found = NULL;
 
   while (cmds->func) {
-    if (cmds->name && strncmp(str, cmds->name, len) == 0) {
+    if (cmds->name && strncasecmp(str, cmds->name, len) == 0) {
       nmatch++;
       found = cmds;
-    } else if (cmds->alias && strncmp(str, cmds->alias, len) == 0) {
+    } else if (cmds->alias && strncasecmp(str, cmds->alias, len) == 0) {
       nmatch++;
       found = cmds;
     }
@@ -1147,7 +1147,7 @@ char **argv;
   if (argc == 3) {
     dest = GetIpAddr(argv[0]);
     netmask = GetIpAddr(argv[1]);
-    if (strcmp(argv[2], "HISADDR") == 0)
+    if (strcasecmp(argv[2], "HISADDR") == 0)
       gateway = IpcpInfo.his_ipaddr;
     else
       gateway = GetIpAddr(argv[2]);
@@ -1168,7 +1168,7 @@ char **argv;
 
   if (argc >= 2) {
     dest = GetIpAddr(argv[0]);
-    if (strcmp(argv[1], "HISADDR") == 0)
+    if (strcasecmp(argv[1], "HISADDR") == 0)
       gateway = IpcpInfo.his_ipaddr;
     else
       gateway = GetIpAddr(argv[1]);
@@ -1180,7 +1180,7 @@ char **argv;
       }
     }
     OsSetRoute(RTM_DELETE, dest, gateway, netmask);
-  } else if (argc == 1 && strcmp(argv[0], "ALL") == 0) {
+  } else if (argc == 1 && strcasecmp(argv[0], "ALL") == 0) {
     DeleteIfRoutes(0);
   } else {
     printf("Usage: %s %s\n", list->name, list->syntax);
