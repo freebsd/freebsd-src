@@ -76,7 +76,7 @@
 #	tun	Tunneling IP device
 #	spigot	Video Spigot video aquisition card
 #
-#	$Id: MAKEDEV,v 1.65 1995/02/07 12:07:18 jkh Exp $
+#	$Id: MAKEDEV,v 1.66 1995/02/09 11:10:02 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -410,13 +410,18 @@ pty*)
 	0|1|2|3|4|5|6|7)
 		umask 0
 		eval `echo $offset $name | awk ' { b=$1; n=$2 } END { \
-			for (i = 0; i < 32; i++) { \
+			for (i = 0; i < 32; i++) {
 				c = substr("0123456789abcdefghijklmnopqrstuv", i + 1, 1); \
-				printf("rm -f tty%s%s; mknod tty%s%s c 5 %d; \
-					rm -f pty%s%s; mknod pty%s%s c 6 %d; ", \
-					n, c, n, c, b+i, n, c, n, c, b+i); \
-				} \
-			}'`
+				printf("rm -f tty%s%s pty%s%s; \
+					mknod tty%s%s c 5 %d; \
+					mknod pty%s%s c 6 %d; \
+					chown root.wheel tty%s%s pty%s%s;", \
+					n, c, n, c, \
+					n, c, b+i, \
+					n, c, b+i, \
+					n, c, n, c); \
+			} \
+		}'`
 		umask 77
 		;;
 	esac
@@ -512,7 +517,7 @@ lpt*)
 	mknod lpt$unit c 16 $unit
 	mknod lpctl$unit c 16 `expr $unit + 128`
 	chown root.wheel lpt$unit
-	chown root.wheel lpt$unit
+	chown root.wheel lpctl$unit
 	;;
 
 tw*)
@@ -530,8 +535,9 @@ vty*)
 	units=`expr $i : 'vty\(.*\)'`
 	eval `echo ${chr} ${units} | awk ' { c=$1; n=$2 } END {
 		for (i = 0; i < n; i++)
-			printf("rm -f ttyv%01x; mknod ttyv%01x c %d %d;", \
-				i, i, c, i); }'`
+			printf("rm -f ttyv%01x; mknod ttyv%01x c %d %d; \
+				chown root.wheel ttyv%01x;", \
+				i, i, c, i, i); }'`
 	ln -fs ttyv0 vga	# XXX X still needs this pccons relic
 	;;
 
@@ -567,6 +573,7 @@ ttyd?|tty?)
 	mknod ttyd$unit c 28 $m
 	mknod ttyid$unit c 28 `expr $m + 32`
 	mknod ttyld$unit c 28 `expr $m + 64`
+	chown root.wheel tty*d$unit
 	;;
 
 mse*)
@@ -716,8 +723,9 @@ tun?)
 	;;
 
 local)
-	umask 0
+	umask 0			# XXX should be elsewhere
 	sh MAKEDEV.local
+	umask 77
 	;;
 
 *)
