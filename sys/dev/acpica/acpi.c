@@ -901,7 +901,7 @@ acpi_sysres_alloc(device_t dev)
     struct rman *rm;
 
     rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
-    SLIST_FOREACH(rle, rl, link) {
+    STAILQ_FOREACH(rle, rl, link) {
 	if (rle->res != NULL) {
 	    device_printf(dev, "duplicate resource for %lx\n", rle->start);
 	    continue;
@@ -947,7 +947,7 @@ acpi_sysres_find(device_t dev, int type, u_long addr)
 	goto out;
 
     rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
-    SLIST_FOREACH(rle, rl, link) {
+    STAILQ_FOREACH(rle, rl, link) {
 	if (type == rle->type && addr >= rle->start &&
 	    addr < rle->start + rle->count)
 	    break;

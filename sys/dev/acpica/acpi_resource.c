@@ -691,7 +691,7 @@ acpi_sysres_attach(device_t dev)
     bus = device_get_parent(dev);
     dev_rl = BUS_GET_RESOURCE_LIST(bus, dev);
     bus_rl = BUS_GET_RESOURCE_LIST(device_get_parent(bus), bus);
-    SLIST_FOREACH(dev_rle, dev_rl, link) {
+    STAILQ_FOREACH(dev_rle, dev_rl, link) {
 	if (dev_rle->type != SYS_RES_IOPORT && dev_rle->type != SYS_RES_MEMORY)
 	    continue;
 
@@ -701,7 +701,7 @@ acpi_sysres_attach(device_t dev)
 	type = dev_rle->type;
 	done = FALSE;
 
-	SLIST_FOREACH(bus_rle, bus_rl, link) {
+	STAILQ_FOREACH(bus_rle, bus_rl, link) {
 	    if (bus_rle->type != type)
 		continue;
 
