@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.3 (Berkeley) 1/4/94
- * $Id: rtsock.c,v 1.6 1994/10/08 22:38:26 phk Exp $
+ * $Id: rtsock.c,v 1.7 1994/10/11 23:16:29 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -196,7 +196,7 @@ route_output(m, so)
 	case RTM_GET:
 	case RTM_CHANGE:
 	case RTM_LOCK:
-		rt = rtalloc1(dst, 0);
+		rt = rtalloc1(dst, 0, 0UL);
 		if (rt == 0)
 			senderr(ESRCH);
 		if (rtm->rtm_type != RTM_GET) {/* XXX: too grotty */

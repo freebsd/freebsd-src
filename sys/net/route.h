@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.4 1994/08/21 05:11:46 paul Exp $
+ * $Id: route.h,v 1.5 1994/11/03 01:04:32 wollman Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -69,6 +69,8 @@ struct rt_metrics {
 	u_long	rmx_rtt;	/* estimated round trip time */
 	u_long	rmx_rttvar;	/* estimated rtt variance */
 	u_long	rmx_pksent;	/* packets sent using this route */
+	u_long	rmx_ttcp_cc;	/* cached last T/TCP CC option rcvd */
+	u_long	rmx_ttcp_ccsent; /* cached last T/TCP CC option sent */
 };
 
 /*
@@ -96,15 +98,16 @@ struct rtentry {
 #define	rt_mask(r)	((struct sockaddr *)((r)->rt_nodes->rn_mask))
 	struct	sockaddr *rt_gateway;	/* value */
 	/* XXX - rt_flags should be unified with rt_prflags */
-	short	rt_flags;		/* up/down?, host/net */
+	short	rt_filler;		/* up/down?, host/net */
 	short	rt_refcnt;		/* # held references */
-	u_long	rt_prflags;		/* protocol-specific flags */
+	u_long	rt_flags;		/* protocol-specific flags */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
 	struct	ifaddr *rt_ifa;		/* the answer: interface to use */
 	struct	sockaddr *rt_genmask;	/* for generation of cloned routes */
 	caddr_t	rt_llinfo;		/* pointer to link level info cache */
 	struct	rt_metrics rt_rmx;	/* metrics used by rx'ing protocols */
 	struct	rtentry *rt_gwroute;	/* implied entry for gatewayed routes */
+	int	(*rt_output) __P(());	/* output routine for this (rt,if) */
 };
 
 /*
@@ -139,7 +142,10 @@ struct ortentry {
 #define RTF_PROTO2	0x4000		/* protocol specific routing flag */
 #define RTF_PROTO1	0x8000		/* protocol specific routing flag */
 
-#define RTPRF_WASCLONED	0x1		/* route generated through cloning */
+#define RTF_PRCLONING	0x10000		/* protocol requires cloning */
+#define RTF_WASCLONED	0x20000		/* route generated through cloning */
+#define RTF_PROTO3	0x40000		/* protocol specific routing flag */
+					/* 0x80000 and up unassigned */
 
 /*
  * Routing statistics.
@@ -169,7 +175,7 @@ struct rt_msghdr {
 	struct	rt_metrics rtm_rmx; /* metrics themselves */
 };
 
-#define RTM_VERSION	3	/* Up the ante and ignore older versions */
+#define RTM_VERSION	4	/* Up the ante and ignore older versions */
 
 #define RTM_ADD		0x1	/* Add Route */
 #define RTM_DELETE	0x2	/* Delete Route */
@@ -257,8 +263,9 @@ int	 rt_setgate __P((struct rtentry *,
 void	 rt_setmetrics __P((u_long, struct rt_metrics *, struct rt_metrics *));
 void	 rtable_init __P((void **));
 void	 rtalloc __P((struct route *));
+void	 rtalloc_ign __P((struct route *, unsigned long));
 struct rtentry *
-	 rtalloc1 __P((struct sockaddr *, int));
+	 rtalloc1 __P((struct sockaddr *, int, unsigned long));
 void	 rtfree __P((struct rtentry *));
 int	 rtinit __P((struct ifaddr *, int, int));
 int	 rtioctl __P((int, caddr_t, struct proc *));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.9 1994/11/15 14:41:34 bde Exp $
+ * $Id: if.h,v 1.10 1994/11/16 02:16:18 phk Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -101,6 +101,7 @@ struct ifnet {
 	struct	if_data {
 /* generic interface information */
 		u_char	ifi_type;	/* ethernet, tokenring, etc */
+		u_char	ifi_physical; 	/* e.g., AUI, Thinnet, 10base-T, etc */
 		u_char	ifi_addrlen;	/* media address length */
 		u_char	ifi_hdrlen;	/* media header length */
 		u_long	ifi_mtu;	/* maximum transmission unit */
@@ -146,6 +147,7 @@ struct ifnet {
 };
 #define	if_mtu		if_data.ifi_mtu
 #define	if_type		if_data.ifi_type
+#define if_physical	if_data.ifi_physical
 #define	if_addrlen	if_data.ifi_addrlen
 #define	if_hdrlen	if_data.ifi_hdrlen
 #define	if_metric	if_data.ifi_metric
@@ -185,6 +187,16 @@ struct ifnet {
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI)
+
+
+/*
+ * These really don't belong here, but there's no other obviously appropriate
+ * location.
+ */
+#define IFP_AUI		0
+#define IFP_10BASE2	1
+#define IFP_10BASET	2
+/* etc. */
 
 /*
  * Output queues (ifp->if_snd) and internetwork datagram level (pup level 1)
