@@ -233,8 +233,8 @@ struct buf {
 /*
  * These flags are kept in b_xflags.
  */
-#define	B_VNDIRTY	0x01		/* On vnode dirty list */
-#define	B_VNCLEAN	0x02		/* On vnode clean list */
+#define	BX_VNDIRTY	0x00000001	/* On vnode dirty list */
+#define	BX_VNCLEAN	0x00000002	/* On vnode clean list */
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
