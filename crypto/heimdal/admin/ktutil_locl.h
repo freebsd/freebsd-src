@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: ktutil_locl.h,v 1.9 2000/01/06 08:03:06 assar Exp $
+ * $Id: ktutil_locl.h,v 1.11 2000/02/07 04:26:37 assar Exp $
  */
 
 #ifndef __KTUTIL_LOCL_H__
@@ -53,6 +53,8 @@
 #endif
 #include <roken.h>
 
+#include <des.h>
+
 #include <krb5.h>
 #include <kadm5/admin.h>
 #include <kadm5/kadm5_err.h>
@@ -63,8 +65,6 @@
 extern krb5_context context;
 extern krb5_keytab keytab;
 
-extern int help_flag;
-extern int version_flag;
 extern int verbose_flag;
 extern char *keytab_string; 
 

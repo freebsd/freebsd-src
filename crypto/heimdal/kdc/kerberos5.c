@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kerberos5.c,v 1.108 1999/12/02 17:04:59 joda Exp $");
+RCSID("$Id: kerberos5.c,v 1.109 2000/01/18 03:13:00 assar Exp $");
 
 #define MAX_TIME ((time_t)((1U << 31) - 1))
 
@@ -571,7 +571,9 @@ as_rep(KDC_REQ *req,
 	    e_text = NULL;
 	    goto out;
 	}
-    }else if (require_preauth || client->flags.require_preauth || server->flags.require_preauth) {
+    }else if (require_preauth
+	      || client->flags.require_preauth
+	      || server->flags.require_preauth) {
 	METHOD_DATA method_data;
 	PA_DATA *pa;
 	unsigned char *buf;

@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rsh.c,v 1.46 1999/12/16 11:53:50 assar Exp $");
+RCSID("$Id: rsh.c,v 1.47 2000/02/06 05:58:55 assar Exp $");
 
 enum auth_method auth_method;
 int do_encrypt;
@@ -44,8 +44,10 @@ char tkfile[MAXPATHLEN];
 krb5_context context;
 krb5_keyblock *keyblock;
 krb5_crypto crypto;
+#ifdef KRB4
 des_key_schedule schedule;
 des_cblock iv;
+#endif
 
 
 /*

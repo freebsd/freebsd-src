@@ -1,3 +1,11 @@
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (LDADD): make sure we use the heimdal libdes
+
+2000-02-06  Assar Westerlund  <assar@sics.se>
+
+	* *: conditionalize des stuff on KRB4
+
 1999-12-16  Assar Westerlund  <assar@sics.se>
 
 	* rsh.c (doit): addrinfo returned from getaddrinfo() is not usable
