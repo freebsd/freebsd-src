@@ -55,7 +55,7 @@ struct intfunc_table
 ** must be arranged with all handlers for a given function together, and
 ** that the handler listed with IFT_NOSUBFUNC should be last.
 */
-static inline void
+static __inline void
 intfunc_init(struct intfunc_table table[], int idx[])
 {
     int		hn;
@@ -72,7 +72,7 @@ intfunc_init(struct intfunc_table table[], int idx[])
 ** Call this to get an index matching the function/subfunction 
 ** described by (sc), or -1 if none exist
 */
-static inline int
+static __inline int
 intfunc_find(struct intfunc_table table[], int idx[], int func, int subfunc)
 {
     int	ent = idx[func];				/* look for handler */
@@ -95,7 +95,7 @@ intfunc_find(struct intfunc_table table[], int idx[], int func, int subfunc)
 ** Again, handlers with IFT_NOSUBFUNC should be listed after any with
 ** specific subfunction values.
 */
-static inline int
+static __inline int
 intfunc_search(struct intfunc_table table[], int func, int subfunc)
 {
     int		ent;
