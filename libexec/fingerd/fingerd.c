@@ -161,8 +161,10 @@ main(argc, argv)
 			av[1] = "-l";
 			comp = &av[0];
 		}
-		else if (++ap == av + ENTRIES)
+		else if (++ap == av + ENTRIES) {
+			*ap = NULL;
 			break;
+		}
 		lp = NULL;
 	}
 
