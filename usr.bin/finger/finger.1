@@ -173,6 +173,14 @@ style.
 The
 .Fl l
 option is the only option that may be passed to a remote machine.
+.Sh ENVIRONMENT
+.Nm Finger
+utilizes the following environment variable, if it exists:
+.Bl -tag -width Fl
+.It Ev FINGER
+This variable may be set with favored options to
+.Nm finger .
+.El
 .Sh SEE ALSO
 .Xr chpass 1 ,
 .Xr w 1 ,
