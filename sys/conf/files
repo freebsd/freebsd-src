@@ -677,6 +677,7 @@ dev/xe/if_xe_pccard.c		optional xe card
 dev/xe/if_xe_pccard.c		optional xe pccard
 fs/deadfs/dead_vnops.c	standard
 fs/devfs/devfs_devs.c		standard
+fs/devfs/devfs_rule.c		standard
 fs/devfs/devfs_vfsops.c		standard
 fs/devfs/devfs_vnops.c		standard
 fs/fdescfs/fdesc_vfsops.c	optional fdescfs
