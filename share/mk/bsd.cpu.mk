@@ -1,10 +1,16 @@
 # $FreeBSD$
 
+# Allow TARGET_CPUTYPE to override CPUTYPE to handle the cross-build case.
+
+.if defined(TARGET_CPUTYPE)
+CPUTYPE = ${TARGET_CPUTYPE}
+.endif
+
 # Set default CPU compile flags and baseline CPUTYPE for each arch.  The
 # compile flags must support the minimum CPU type for each architecture but
 # may tune support for more advanced processors.
 
-.if !defined(CPUTYPE)
+.if !defined(CPUTYPE) || ${CPUTYPE} == ""
 . if ${MACHINE_ARCH} == "i386"
 _CPUCFLAGS = -mcpu=pentiumpro
 CPUTYPE = i386
@@ -43,11 +49,7 @@ CPUTYPE = k7
 
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "k7"
-.   if defined(BOOTSTRAPPING)
-_CPUCFLAGS = -march=k6		# gcc 2.95.x didn't support athlon
-.   else
 _CPUCFLAGS = -march=athlon
-.   endif
 .  elif ${CPUTYPE} == "k6-2"
 _CPUCFLAGS = -march=k6
 .  elif ${CPUTYPE} == "k6"
