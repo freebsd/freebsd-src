@@ -473,15 +473,6 @@ hint.wl.0.port="0x300"
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
 
-#
-# Audio drivers: `pca'
-#
-# pca: PCM audio through your PC speaker
-
-device		pca
-hint.pca.0.at="isa"
-hint.pca.0.port="0x040"
-
 # 
 # SCSI host adapters:
 # 
