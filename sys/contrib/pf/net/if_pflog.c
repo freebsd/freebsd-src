@@ -377,6 +377,6 @@ static moduledata_t pflog_mod = {
 
 #define PFLOG_MODVER 1
 
-DECLARE_MODULE(pflog, pflog_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(pflog, pflog_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 MODULE_VERSION(pflog, PFLOG_MODVER);
 #endif /* __FreeBSD__ */
