@@ -259,7 +259,7 @@
     <para>&man.ftpd.8; now supports login directory pathnames
       that specify simultaneously a directory for &man.chroot.2;
       and that to change to in the chrooted environment.  The
-      <quote><literal>/./</literal></quote> separator is used for
+      <literal>/./</literal> separator is used for
       this purpose, like in other FTP daemons having this feature.
       It may be used in both &man.ftpchroot.5; and &man.passwd.5;.</para>
 
