@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.56 1998/04/22 06:20:20 phk Exp $
+ * $Id: ipfw.c,v 1.57 1998/05/15 12:38:07 danny Exp $
  *
  */
 
@@ -223,6 +223,11 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 				printf("unreach ");
 				print_reject_code(chain->fw_reject_code);
 			}
+			break;
+		case IP_FW_F_FWD:
+			printf("fwd %s", inet_ntoa(chain->fw_fwd_ip.sin_addr));
+			if(chain->fw_fwd_ip.sin_port)
+				printf(",%d", chain->fw_fwd_ip.sin_port);
 			break;
 		default:
 			errx(EX_OSERR, "impossible");
@@ -497,7 +502,7 @@ show_usage(const char *fmt, ...)
 "  rule:  action proto src dst extras...\n"
 "    action:\n"
 "      {allow|permit|accept|pass|deny|drop|reject|unreach code|\n"
-"       reset|count|skipto num|divert port|tee port} [log]\n"
+"       reset|count|skipto num|divert port|tee port|fwd ip} [log]\n"
 "    proto: {ip|tcp|udp|icmp|<number>}\n"
 "    src: from [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "    dst: to [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
@@ -896,6 +901,30 @@ add(ac,av)
 			else
 				show_usage("illegal divert port");
 		}
+	} else if (!strncmp(*av,"fwd",strlen(*av)) ||
+		   !strncmp(*av,"forward",strlen(*av))) {
+		struct in_addr dummyip;
+		char *pp;
+		rule.fw_flg |= IP_FW_F_FWD; av++; ac--;
+		if (!ac)
+			show_usage("missing forwarding IP address");
+		rule.fw_fwd_ip.sin_len = sizeof(struct sockaddr_in);
+		rule.fw_fwd_ip.sin_family = AF_INET;
+		rule.fw_fwd_ip.sin_port = 0;
+		pp = strchr(*av, ':');
+		if(pp == NULL)
+			pp = strchr(*av, ',');
+		if(pp != NULL)
+		{
+			*(pp++) = '\0';
+			rule.fw_fwd_ip.sin_port = lookup_port(pp, 1, 1);
+			if(rule.fw_fwd_ip.sin_port == (unsigned int)-1)
+				show_usage("illegal forwarding port");
+		}
+		fill_ip(&(rule.fw_fwd_ip.sin_addr), &dummyip, &ac, &av);
+		if (rule.fw_fwd_ip.sin_addr.s_addr == 0)
+			show_usage("illegal forwarding IP address");
+
 	} else if (!strncmp(*av,"skipto",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_SKIPTO; av++; ac--;
 		if (!ac)
