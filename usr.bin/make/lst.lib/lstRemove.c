@@ -64,42 +64,26 @@ __FBSDID("$FreeBSD$");
  *
  *-----------------------------------------------------------------------
  */
-ReturnStatus
+void
 Lst_Remove(Lst *list, LstNode *ln)
 {
-
-    if (!Lst_Valid(list) || !Lst_NodeValid(ln, list)) {
-	    return (FAILURE);
-    }
 
     /*
      * unlink it from the list
      */
-    if (ln->nextPtr != NULL) {
+    if (ln->nextPtr != NULL)
+	/* unlink from the backward chain */
 	ln->nextPtr->prevPtr = ln->prevPtr;
-    }
-    if (ln->prevPtr != NULL) {
-	ln->prevPtr->nextPtr = ln->nextPtr;
-    }
-
-    /*
-     * if either the firstPtr or lastPtr of the list point to this node,
-     * adjust them accordingly
-     */
-    if (list->firstPtr == ln) {
-	list->firstPtr = ln->nextPtr;
-    }
-    if (list->lastPtr == ln) {
+    else
+	/* this was the last element */
 	list->lastPtr = ln->prevPtr;
-    }
 
-    /*
-     * the only way firstPtr can still point to ln is if ln is the last
-     * node on the list. The list is, therefore, empty and is marked as such
-     */
-    if (list->firstPtr == ln) {
-	list->firstPtr = NULL;
-    }
+    if (ln->prevPtr != NULL)
+	/* unlink from the forward chain */
+	ln->prevPtr->nextPtr = ln->nextPtr;
+    else
+	/* this was the first element */
+	list->firstPtr = ln->nextPtr;
 
     /*
      * note that the datum is unmolested. The caller must free it as
@@ -110,6 +94,4 @@ Lst_Remove(Lst *list, LstNode *ln)
     } else {
 	ln->flags |= LN_DELETED;
     }
-
-    return (SUCCESS);
 }
