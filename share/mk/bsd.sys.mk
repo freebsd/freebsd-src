@@ -6,6 +6,8 @@
 # Enable various levels of compiler warning checks.  These may be
 # overridden (e.g. if using a non-gcc compiler) by defining NO_WARNS.
 
+# for GCC:  http://gcc.gnu.org/onlinedocs/gcc-3.0.4/gcc_3.html#IDX143
+
 .if !defined(NO_WARNS)
 . if defined(WARNS)
 .  if ${WARNS} > 0
@@ -14,7 +16,7 @@ CFLAGS		+=	-Werror
 .   endif
 .  endif
 .  if ${WARNS} > 1
-CFLAGS		+=	-Wall
+CFLAGS		+=	-Wall -Wno-format-y2k
 .  endif
 .  if ${WARNS} > 2
 CFLAGS		+=	-W -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
@@ -41,7 +43,8 @@ WFORMAT		=	1
 . endif
 . if defined(WFORMAT)
 .  if ${WFORMAT} > 0
-CFLAGS		+=	-Wnon-const-format -Wno-format-extra-args
+#CFLAGS		+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
+CFLAGS		+=	-Wformat=2 -Wno-format-extra-args
 .   if !defined(NO_WERROR)
 CFLAGS		+=	-Werror
 .   endif
