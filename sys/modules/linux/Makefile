@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1997/02/22 12:48:23 peter Exp $
+#	$Id: Makefile,v 1.12 1997/12/16 18:45:50 eivind Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod
@@ -9,9 +9,9 @@ SRCS=	linux.c linux_file.c linux_ioctl.c linux_misc.c linux_signal.c \
 OBJS=	linux_locore.o
 MAN8=	linux.8
 
-CFLAGS+= -DLKM -I. -DCOMPAT_LINUX #-DDEBUG
+CFLAGS+= -DLKM -DCOMPAT_LINUX #-DDEBUG
 EXPORT_SYMS=_linux_mod
-CLEANFILES+= vnode_if.h vnode_if.c linux_genassym.o linux_genassym machine \
+CLEANFILES+= vnode_if.h vnode_if.c linux_genassym.o linux_genassym \
 	linux_assym.h opt_compat.h
 
 linux_assym.h:	linux_genassym
@@ -27,13 +27,8 @@ linux_genassym.o:	linux_genassym.c linux.h
 linux_genassym:	linux_genassym.o
 	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET}
 
-machine:
-	ln -fs ${.CURDIR}/../../sys/i386/include machine
-
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
-
-vnode_if.h:	machine
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
