@@ -129,6 +129,14 @@ SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
  * the Strong ES model described in RFC 1122, but since the routing table
  * and transmit implementation do not implement the Strong ES model, so
  * setting this to 1 results in an odd hybrid.
+ *
+ * XXX - ip_checkinterface currently must be disabled if you use
+ * ipnat to translate the destination address to another to another
+ * local interface.
+ *
+ * XXX - ip_checkinterface must be disabled if you add IP aliases
+ * to the loopback interface instead of the interface where the
+ * packets for those addresses are received.
  */
 static int	ip_checkinterface = 1;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
@@ -376,6 +384,17 @@ tooshort:
 		} else
 			m_adj(m, ip->ip_len - m->m_pkthdr.len);
 	}
+
+	/*
+	 * Don't accept packets with a loopback destination address
+	 * unless they arrived via the loopback interface.
+	 */
+	if ((ntohl(ip->ip_dst.s_addr) & IN_CLASSA_NET) ==
+	    (IN_LOOPBACKNET << IN_CLASSA_NSHIFT) && 
+	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
+		goto bad;
+	}
+
 	/*
 	 * IpHack's section.
 	 * Right now when no processing on packet has done
@@ -513,25 +532,18 @@ pass:
 	    ip->ip_dst : ip_fw_fwd_addr->sin_addr;
 
 	/*
-	 * Don't accept packets with a loopback destination address
-	 * unless they arrived via the loopback interface.
-	 */
-	if ((ntohl(ip->ip_dst.s_addr) & IN_CLASSA_NET) ==
-	    (IN_LOOPBACKNET << IN_CLASSA_NSHIFT) && 
-	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
-		m_freem(m);
-#ifdef IPFIREWALL_FORWARD
-		ip_fw_fwd_addr = NULL;
-#endif
-		return;
-	}
-
-	/*
 	 * Enable a consistency check between the destination address
 	 * and the arrival interface for a unicast packet (the RFC 1122
 	 * strong ES model) if IP forwarding is disabled and the packet
 	 * is not locally generated and the packet is not subject to
 	 * 'ipfw fwd'.
+	 *
+         * XXX - Checking also should be disabled if the destination
+	 * address is ipnat'ed to a different interface.
+	 *
+	 * XXX - Checking is incompatible will break IP aliases added
+	 * to the loopback interface instead of the interface where
+	 * the packets are received.
 	 */
 	checkif = ip_checkinterface && (ipforwarding == 0) && 
 	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) &&
