@@ -338,19 +338,19 @@ int
 ata_suspend(device_t dev)
 {
     struct ata_channel *ch;
-    int gotit = 0;
 
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    while (!gotit) {
+    while (1) {
 	mtx_lock(&ch->state_mtx);
 	if (ch->state == ATA_IDLE) {
 	    ch->state = ATA_ACTIVE;
-	    gotit = 1;
+	    mtx_unlock(&ch->state_mtx);
+	    break;
 	}
 	mtx_unlock(&ch->state_mtx);
-	tsleep(&gotit, PRIBIO, "atasusp", hz/10);
+	tsleep(ch, PRIBIO, "atasusp", hz/10);
     }
     ch->locking(ch, ATA_LF_UNLOCK);
     return 0;
