@@ -48,9 +48,13 @@ DELAY(int n)
 }
 
 void
-setstatclockrate(int newhz)
+cpu_startprofclock(void)
 {
-	/* TODO; */
+}
+
+void
+cpu_stopprofclock(void)
+{
 }
 
 int
