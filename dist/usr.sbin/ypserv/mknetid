@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Produce netid.byname map file
+#
+# Written by O.Kirch, 1994.
+#
+PASSWD=$1
+GROUP=$2
+DOMAIN=$3
+
+tempsed=/tmp/pass.$$
+
+    # First, get all login/uid info from passwd file
+    grep -v '^+:' $PASSWD |
+    awk -F: '{ printf "s/^%s:/%s/\n", $1, $3; }' >$tempsed
+    # next one is a giant pipe:
+    grep -v '^+:' $GROUP |
+    grep -v ':[ 	]*$' |
+    sed 's/^[^:]*:[^:]*:\([0-9]*\):\(.*\)/\1,\2/' |
+    	awk -F, '{ for (n=2; n<=NF; n++) 
+    			if ($n != "") print $n":\t"$1;
+    		 }' | 
+    	sed -f $tempsed | sort | grep -v ':' | 
+    	awk  'BEGIN { uid=-1; }
+		    { if (uid == $1) {
+		    	groups=groups","$2;
+		      } else {
+		        if (uid != -1)
+		          print uid":"groups;
+		        uid=$1; groups=$2;
+		      }
+		    }
+	      END   { if (uid != -1) printf("%s:%s\n", uid, groups); }' |
+	sed "s/\(.*\):/unix.\1@$DOMAIN	&/"
+    	rm -f $tempsed
+    	exit 0

@@ -1,0 +1,306 @@
+.\" Copyright (c) 1995
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: ypserv.8,v 1.4 1995/12/10 04:46:38 wpaul Exp $
+.\"
+.Dd February 4, 1995
+.Dt YPSERV 8
+.Os
+.Sh NAME
+.Nm ypserv
+.Nd "NIS database server"
+.Sh SYNOPSIS
+.Nm ypserv
+.Op Fl n
+.Op Fl d
+.Op Fl k
+.Op Fl p Ar path
+.Sh DESCRIPTION
+.Nm NIS
+is an RPC-based service designed to allow a number of UNIX-based
+machines to share a common set of configuration files. Rather than
+requiring a system administrator to update several copies of files
+such as
+.Pa /etc/hosts ,
+.Pa /etc/passwd
+and
+.Pa /etc/group ,
+which tend to require frequent changes in most environments, NIS
+allows groups of computers to share one set of data which can be
+updated from a single location.
+.Pp
+.Nm ypserv
+is the server that distributes NIS databases
+to client systems within an NIS
+.Nm domain.
+Each client in an NIS domain must have its domainname set to
+one of the domains served by
+.Nm ypserv
+using the
+.Xr domainname 1
+command. The clients must also run
+.Xr ypbind 8
+in order to attach to a particular server, since it is possible to
+have serveral servers within a single NIS domain.
+.Pp
+The databases distributed by
+.Nm ypserv
+are stored in
+.Pa /var/yp/[domainname]
+where
+.Pa domainname
+is the name of the domain being served. There can be several
+such directories with different domainnames, and you need only one
+.Nm ypserv
+daemon to handle them all.
+.Pp
+The databases, or
+.Pa maps
+as they are often called,
+are created by
+.Nm /var/yp/Makefile
+using several system files as source. The database files are in
+.Xr db 3
+format to help speed retrieval when there are many records involved.
+In FreeBSD, the
+maps are always readable and writable only by root for security
+reasons. Technically this is only necessary for the password
+maps, but since the data in the other maps can be found in
+other world-readable files anyway, it doesn't hurt and it's considered
+good general practice.
+.Pp
+.Nm ypserv
+is started by
+.Nm /etc/rc
+if it has been enabled in
+.Nm /etc/sysconfig.
+.Sh SPECIAL FEATURES
+There are some problems associated with distributing FreeBSD's password
+database via NIS: FreeBSD normally only stores encrypted passwords
+in
+.Pa /etc/master.passwd ,
+which is readable and writable only by root. By turning this file
+into an NIS map, this security feature would be completely defeated.
+.Pp
+To make up for this, the FreeBSD version of
+.Nm ypserv
+handles the
+.Pa master.passwd.byname
+and
+.Pa master.basswd.byuid
+maps in a special way. When the server receives a request to access
+either of these two maps, it will check the TCP port from which the
+request originated and return an error if the port number is greater
+than 1023. Since only the superuser is allowed to bind to TCP ports
+with values less than 1024, the server can use this test to determine
+whether or not the access request came from a privileged user.
+Any requests made by non-privileged users are therefore rejected.
+.Pp
+Furthermore, the
+.Xr getpwent 3
+routines in FreeBSD's standard C libarary will only attempt to retrieve
+data from the
+.Pa master.passwd.byname
+and
+.Pa master.passwd.byuid
+maps for the superuser: if a normal user calls any of these functions,
+the standard
+.Pa passwd.byname
+and
+.Pa passwd.byuid
+maps will be accessed instead. The latter two maps are constructed by
+.Nm /var/yp/Makefile
+by parsing the
+.Pa master.passwd
+file and stripping out the password fields, and are therefore
+safe to pass on to unprivileged users. In this way, the shadow password
+aspect of the protected
+.Pa master.passwd
+database is maintained through NIS.
+.Pp
+.Sh NOTES
+.Ss Limitations
+There are two problems inherent with password shadowing in NIS
+that users should
+be aware of:
+.Bl -enum -offset indent
+.It
+The 'TCP port less than 1024' test is trivial to defeat for users with
+unrestricted access to machines on your network (even those machines
+which do not run UNIX-based operating systems).
+.It
+If you plan to use a FreeBSD system to serve non-FreeBSD clients that
+have no support for password shadowing (which is most of them), you
+will have to disable the password shadowing entirely by uncommenting the
+.Nm UNSECURE=True
+entry in
+.Nm /var/yp/Makefile .
+This will cause the standard
+.Pa passwd.byname
+and
+.Pa passwd.byuid
+maps to be generated with valid encrypted password fields, which is
+neccesary in order for non-FreeBSD clients to perform user
+authentication through NIS.
+.El
+.Pp
+.Ss Security
+.Nm ypserv
+has support for Wietse Venema's
+.Pa tcpwrapper
+package built in, though it is not compiled in by default since
+the
+.Pa tcpwrapper
+package is not distributed with FreeBSD. However, if you have
+.Nm libwrap.a
+and
+.Nm tcpd.h ,
+you can easily recompile
+.Nm ypserv
+with them, thereby enabling its 'securenets' features: you can
+configure
+.Nm ypserv
+to only handle resquests from machines listed
+in the
+.Pa tcpwrapper
+configuration files, which would help limit vulnerability to the
+first limitation listed above.
+.Pp
+.Ss NIS servers that are also NIS clients
+Care must be taken when running
+.Nm ypserv
+in a multi-server domain where the server machines are also
+NIS clients. It is generally a good idea to force the servers to
+bind to themselves rather than allowing them to broadcast bind
+requests and possibly become bound to each other: strange failure
+modes can result if one server goes down and
+others are dependent upon on it. (Eventually all the clients will
+time out and attempt to bind to other servers, but the delay
+involved can be considerable and the failure mode is still present
+since the servers might bind to each other all over again).
+.Pp
+Refer to the
+.Xr ypbind 8
+man page for details on how to force it to bind to a particular
+server.
+.Sh OPTIONS
+The following options are supported by
+.Nm ypserv :
+.Bl -tag -width flag
+.It Fl n
+This option affects the way
+.Nm ypserv
+handles yp_match requests for the
+.Pa hosts.byname
+and
+.Pa hosts.byaddress
+maps. By default, if
+.Nm ypserv
+can't find an entry for a given host in its hosts maps, it will
+return an error and perform no further processing. With the
+.Fl n
+flag,
+.Nm ypserv
+will go one step further: rather than giving up immediately, it
+will try to resolve the hostname or address using a DNS nameserver
+query. If the query is successful,
+.Nm ypserv
+will construct a fake database record and return it to the client,
+thereby making it seem as though the client's yp_match request
+succeeded.
+.Pp
+This feature is provided for compatiblity with SunOS 4.1.x,
+which has brain-damaged resolver functions in its standard C
+library that depend on NIS for hostname and address resolution.
+FreeBSD's resolver can be configured to do DNS
+queries directly, therefore it is not necessary to enable this
+option when serving only FreeBSD NIS clients.
+.It Fl d
+Causes the server to run in debugging mode. Normally,
+.Nm ypserv
+reports only unusual errors (access violations, file access failures)
+using the
+.Xr syslog 3
+facility. In debug mode, the server does not background
+itself and prints extra status messages to stderr for each
+request that it revceives. Also, while running in debug mode,
+.Nm ypserv
+will not spawn any additional subprocesses as it normally does
+when handling yp_all requests or doing DNS lookups. (These actions
+often take a fair amount of time to complete and are therefore handled
+in subprocesses, allowing the parent server process to go on handling
+other requests.) This makes it easier to trace the server with
+a debugging tool.
+.It Fl k
+This flag is provided for compatibility with SunOS 4. The
+.Xr ypbind 8
+command in SunOS 4 apparently expects to obtain a response from an
+NIS v1 server. Starting
+.Xr ypserv 8
+with the
+.Fl k
+flag causes it to register itself as an NIS v1 server and
+respond to YPPROC_DOMAIN_NONACK requests. Note carefully: this is
+merely a kludge (hence the 'k') to pacify SunOS 4's
+.Xr ypbind 8
+command: attempts to make the server actually handle NIS v1 queries
+will undoubtedly fail quite miserably.
+.It Fl p Ar path
+Normally,
+.Nm ypserv
+assumes that all NIS maps are stored under
+.Pa /var/yp .
+The
+.Fl p
+flag may be used to specify an alternate NIS root path, allowing
+the system administrator to move the map files to a different place
+within the filesystem.
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /var/yp/[domainname]/[maps]
+The NIS maps.
+.It Pa /etc/host.conf
+Resolver configuration file.
+.El
+.Sh SEE ALSO
+.Xr ypbind 8 ,
+.Xr yppasswdd 8 ,
+.Xr yppush 8 ,
+.Xr ypxfr 8 ,
+.Xr ypcat 1 ,
+.Xr yp 8 ,
+.Xr db 3
+.Sh AUTHOR
+Bill Paul <wpaul@ctr.columbia.edu>
+.Sh HISTORY
+This version of
+.Nm ypserv
+first appeared in FreeBSD 2.1.
