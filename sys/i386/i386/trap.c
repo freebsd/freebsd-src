@@ -232,6 +232,14 @@ trap(frame)
 	int i = 0, ucode = 0, type, code;
 	vm_offset_t eva;
 
+#ifdef DDB
+	if (db_active) {
+		eva = (frame.tf_trapno == T_PAGEFLT ? rcr2() : 0);
+		trap_fatal(&frame, eva);
+		return;
+	}
+#endif
+
 	if (!(frame.tf_eflags & PSL_I)) {
 		/*
 		 * Buggy application or kernel code has disabled interrupts
