@@ -607,8 +607,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
 }
 
-#define BUS_DMAMAP_NSEGS ((64 * 1024) / PAGE_SIZE + 1)
-
 /*
  * Map the buffer buf into bus space using the dmamap map.
  */
