@@ -15,6 +15,7 @@ SRCS+=  pccard.c
 .endif
 
 CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
+CFLAGS+= -DX_AS_PKG
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif

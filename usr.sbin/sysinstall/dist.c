@@ -275,7 +275,9 @@ distSetX(void)
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_DOC | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
+#ifndef X_AS_PKG
     return distSetXF86(NULL);
+#endif
     return DITEM_SUCCESS;
 }
 
@@ -863,6 +865,9 @@ distExtractAll(dialogMenuItem *self)
     int old_dists, retries = 0, status = DITEM_SUCCESS;
     char buf[512];
     WINDOW *w;
+#ifdef X_AS_PKG
+    int want_x_package = 0;
+#endif
 
     /* paranoia */
     if (!Dists) {
@@ -880,16 +885,31 @@ distExtractAll(dialogMenuItem *self)
     w = savescr();
     msgNotify("Attempting to install all selected distributions..");
 
+#ifdef X_AS_PKG
+    /* Clear any XFree86 dist flags, but remember they were present. */
+    if(Dists & DIST_XF86)
+    	want_x_package = 1;
+    Dists &= ~DIST_XF86;
+    /*Dists &= ~(DIST_XF86 | XF86Dists | XF86ServerDists | XF86FontDists);*/
+#endif
+    
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
+
+#ifdef X_AS_PKG
+    if (want_x_package)
+	status |= installX11package(NULL);
+#endif
 
     dialog_clear_norefresh();
     /* Only do bin fixup if bin dist was successfully extracted */
     if ((old_dists & DIST_BIN) && !(Dists & DIST_BIN))
 	status |= installFixupBin(self);
+#ifndef X_AS_PKG
     if (old_dists & DIST_XF86)
 	status |= installFixupXFree(self);
+#endif
 
     /* Clear any local dist flags now */
     Dists &= ~DIST_LOCAL;
