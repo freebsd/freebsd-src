@@ -58,7 +58,7 @@ CFLAGS+=	-DDEFAULT_BFD_ARCH=bfd_${GDB_CPU}_arch
 CFLAGS+=	-I${.CURDIR}/${TARGET_ARCH}
 CFLAGS+=	-I${SRCDIR}/binutils -I${SRCDIR}/bfd
 CFLAGS+=	-I${GDBDIR}/gdb -I${GDBDIR}/gdb/config
-CFLAGS+=        -I${.CURDIR}/../../../../../include/gnu
+CFLAGS+=	-I${DESTDIR}/usr/include/gnu
 CFLAGS+=        -I$(.CURDIR)
 
 YFLAGS=

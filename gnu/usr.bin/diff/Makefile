@@ -10,7 +10,7 @@ SRCS=   analyze.c cmpbuf.c context.c diff.c dir.c ed.c \
 CFLAGS+=-funsigned-char
 
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff \
-	-I${.CURDIR}/../../../../include/gnu
+	-I${DESTDIR}/usr/include/gnu
 CFLAGS+=-DHAVE_CONFIG_H
 CFLAGS+=-DPR_PROGRAM=\"/usr/bin/pr\"
 
