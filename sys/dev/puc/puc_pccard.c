@@ -46,7 +46,8 @@
 
 const struct puc_device_description rscom_devices = {
 
-	"RS-com 2 port",
+	"ARGOSY SP320 Dual port serial PCMCIA",
+	/* http://www.argosy.com.tw/product/sp320.htm */
 	NULL,
 		{	0,	0,	0,	0	},
 		{	0,	0,	0,	0	},
@@ -69,7 +70,6 @@ puc_pccard_probe(device_t dev)
 	error = pccard_get_product_str(dev, &product);
 	if (error)
 		return(error);
-	printf("puc_pccard_probe <%s><%s>\n", vendor, product);
 	if (!strcmp(vendor, "PCMCIA") && !strcmp(product, "RS-COM 2P")) {
 		device_set_desc(dev, rscom_devices.name);
 		return (0);
