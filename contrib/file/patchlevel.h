@@ -1,11 +1,15 @@
 #define	FILE_VERSION_MAJOR	3
-#define	patchlevel		33
+#define	patchlevel		34
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.33 2000/11/13 00:30:50 christos Exp $
+ * $Id: patchlevel.h,v 1.34 2001/03/12 05:05:57 christos Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.34  2001/03/12 05:05:57  christos
+ * - new compiled magic format
+ * - lots of magic additions
+ *
  * Revision 1.33  2000/11/13 00:30:50  christos
  * - wordperfect magic fix: freebsd pr 9388
  * - more msdos fixes from freebsd pr's 20131 and 20812

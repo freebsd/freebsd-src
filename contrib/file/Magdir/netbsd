@@ -223,9 +223,9 @@
 
 0	belong&0377777777	043600413	NetBSD/arm32 demand paged
 >0	byte			&0x80
->>20	lelong			<8192		shared library
->>20	lelong			=8192		dynamically linked executable
->>20	lelong			>8192		dynamically linked executable
+>>20	lelong			<4096		shared library
+>>20	lelong			=4096		dynamically linked executable
+>>20	lelong			>4096		dynamically linked executable
 >0	byte			^0x80		executable
 >16	lelong			>0		not stripped
 0	belong&0377777777	043600410	NetBSD/arm32 pure
