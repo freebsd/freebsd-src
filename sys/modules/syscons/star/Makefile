@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.6 1997/07/15 14:49:38 yokota Exp $
+#	$Id: Makefile,v 1.7 1998/02/01 17:59:59 bde Exp $
 
-KMOD=	star_saver_mod
+KMOD=	star_saver
 SRCS= 	star_saver.c
 
 NOMAN=
