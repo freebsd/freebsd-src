@@ -445,8 +445,8 @@ long double	expm1l(long double);
 #endif
 long double	fabsl(long double);
 long double	fdiml(long double, long double);
-#if 0
 long double	floorl(long double);
+#if 0
 long double	fmal(long double, long double, long double);
 #endif
 long double	fmaxl(long double, long double) __pure2;
