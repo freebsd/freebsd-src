@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.32 1995/05/11 19:26:21 rgrimes Exp $
+ *      $Id: ultra14f.c,v 1.33 1995/05/30 08:03:18 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -276,7 +276,7 @@ struct mscp *uha_mscp_phys_kv();
 int	uha_init __P((int unit));
 int	uha24_init __P((int unit));
 
-struct mscp *cheat;
+static	struct mscp *cheat;
 unsigned long int scratch;
 #define	EISA_MAX_SLOTS	16	/* XXX This should go into a comon header */
 static	uha_slot = 0;		/* slot last board was found in */
