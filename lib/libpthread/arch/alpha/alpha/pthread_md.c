@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
  * The constructors.
  */
 struct tcb *
-_tcb_ctor(struct pthread *thread)
+_tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
 

@@ -81,7 +81,7 @@ register struct ia64_tp *_tp __asm("%r13");
 /*
  * The kcb and tcb constructors.
  */
-struct tcb	*_tcb_ctor(struct pthread *);
+struct tcb	*_tcb_ctor(struct pthread *, int);
 void		_tcb_dtor(struct tcb *);
 struct kcb	*_kcb_ctor(struct kse *kse);
 void		_kcb_dtor(struct kcb *);
