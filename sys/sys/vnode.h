@@ -129,7 +129,7 @@ struct vnode {
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
 	struct	vnode *v_dd;			/* .. vnode */
 	u_long	v_ddid;				/* .. capability identifier */
-	struct	{
+	struct {
 		struct	mtx vpi_lock;		/* lock to protect below */
 		struct	selinfo vpi_selinfo;	/* identity of poller(s) */
 		short	vpi_events;		/* what they are looking for */

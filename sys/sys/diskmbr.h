@@ -166,7 +166,7 @@ struct disklabel {
 	u_int16_t d_npartitions;	/* number of partitions in following */
 	u_int32_t d_bbsize;		/* size of boot area at sn0, bytes */
 	u_int32_t d_sbsize;		/* max size of fs superblock, bytes */
-	struct	partition {		/* the partition table */
+	struct partition {		/* the partition table */
 		u_int32_t p_size;	/* number of sectors in partition */
 		u_int32_t p_offset;	/* starting sector */
 		u_int32_t p_fsize;	/* filesystem basic fragment size */

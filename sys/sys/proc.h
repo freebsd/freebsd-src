@@ -232,7 +232,7 @@ They would be given priorities calculated from the KSEG.
  * The first KSE available in the correct group will run this thread.
  * If several are available, use the one on the same CPU as last time.
  */
-struct	thread {
+struct thread {
 	struct proc	*td_proc;	/* Associated process. */
 	struct ksegrp	*td_ksegrp;	/* Associated KSEG. */
 	struct kse	*td_last_kse;	/* Where it wants to be if possible */
@@ -281,7 +281,7 @@ struct	thread {
  * with a KSEG that contains the priority and niceness
  * for the group.
  */
-struct	kse {
+struct kse {
 	struct proc	*ke_proc;	/* Associated process. */
 	struct ksegrp	*ke_ksegrp;	/* Associated KSEG. */
 	struct thread	*ke_thread;	/* Associated thread, if running. */
@@ -319,7 +319,7 @@ struct	kse {
  * be an indivisible unit from a time-sharing perspective, though each KSEG may
  * contain multiple KSEs.
  */
-struct	ksegrp {
+struct ksegrp {
 	struct proc	*kg_proc;	/* Process that contains this KSEG. */
 	TAILQ_ENTRY(ksegrp) kg_ksegrp;	/* Queue of KSEGs in kg_proc. */
 	TAILQ_HEAD(, kse) kg_kseq;	/* (ke_kglist) All KSEs */
@@ -349,7 +349,7 @@ struct	ksegrp {
  * The old fashionned process. May have multiple threads, KSEGRPs
  * and KSEs. Starts off with a single embedded KSEGRP, KSE and THREAD.
  */
-struct	proc {
+struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 	TAILQ_HEAD(, ksegrp) p_ksegrps;	/* (kg_ksegrp) All KSEGs. */
 	TAILQ_HEAD(, thread) p_threads;	/* (td_plist) threads. (shortcut) */
