@@ -319,6 +319,7 @@ http_request(void)
 	http_date();
 
 	sprintf(buff, "Content-length: %lld\r\n", file_status.st_size);
+	write(con_sock, buff, strlen(buff));
 
 	if (strstr(filename,".txt")) {
 	  strcpy(buff,"Content-type: text/plain\r\n");
