@@ -216,14 +216,6 @@ static pcm_channel ds_pchantemplate = {
 	ds1pchan_trigger,
 	ds1pchan_getptr,
 	ds1pchan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
 };
 
 static pcm_channel ds_rchantemplate = {
@@ -235,14 +227,6 @@ static pcm_channel ds_rchantemplate = {
 	ds1rchan_trigger,
 	ds1rchan_getptr,
 	ds1rchan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
