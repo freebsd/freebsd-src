@@ -706,7 +706,7 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
 			make  ${KERNEL} && \
-			strip --strip-all ${KERNEL} && \
+			strip --strip-debug ${KERNEL} && \
 			cp ${KERNEL} ${RD}/kernels/${KERNEL}
 
 #
@@ -727,6 +727,7 @@ doMFSKERN:
 	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir  ${RD}/image.${FSIMAGE}
+	@strip ${RD}/kernels/BOOTMFS
 	@cp ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
