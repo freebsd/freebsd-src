@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.4 1998/12/28 04:56:24 peter Exp $
+ * $Id: vinumkw.h,v 1.11 1999/01/18 03:32:10 grog Exp grog $
  */
 
 #ifdef KERNEL
@@ -60,6 +60,10 @@ enum keyword {
     kw_rm,
     kw_start,
     kw_stop,
+    kw_makedev,						    /* make /dev/vinum devices */
+    kw_setdaemon,					    /* set daemon flags */
+    kw_getdaemon,					    /* set daemon flags */
+    kw_help,
     kw_drive,
     kw_sd,
     kw_subdisk = kw_sd,
@@ -104,6 +108,7 @@ enum keyword {
     kw_debug,						    /* go into debugger */
 #endif
     kw_info,
+    kw_quit,
     kw_invalid_keyword = -1
 };
 
