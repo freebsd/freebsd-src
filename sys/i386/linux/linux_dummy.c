@@ -88,7 +88,6 @@ DUMMY(afs_syscall);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(getsid);
-DUMMY(fdatasync);
 DUMMY(sysctl);
 DUMMY(setresuid);
 DUMMY(getresuid);
