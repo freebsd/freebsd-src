@@ -2,6 +2,7 @@
 
 PROG=	strip
 MAN1=	strip.1
+CLEANFILES += maybe_stripped
 
 all: maybe_stripped
 
