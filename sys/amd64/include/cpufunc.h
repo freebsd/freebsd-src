@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.34 1995/03/03 22:14:42 davidg Exp $
+ *	$Id: cpufunc.h,v 1.35 1995/05/11 07:24:35 bde Exp $
  */
 
 /*
@@ -195,7 +195,7 @@ loadandclear(u_int *addr)
 	u_int	result;
 
 	__asm __volatile("xorl %0,%0; xchgl %1,%0"
-			 : "=r" (result) : "m" (*addr));
+			 : "=&r" (result) : "m" (*addr));
 	return (result);
 }
 
