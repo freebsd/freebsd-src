@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.458 1999/01/14 15:36:53 abial Exp $
+#	$Id: Makefile,v 1.459 1999/01/16 22:42:24 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -535,7 +535,7 @@ cdrom.1:
 doc.1:
 	@echo "Making docs..."
 	@for i in ${DOCPORTS}; do \
-	  cd /usr/ports/$$i && make all install clean FORCE_PKG_REGISTER=yes; \
+	  cd /usr/ports/$$i && make all install clean JADETEX=no FORCE_PKG_REGISTER=yes; \
 	done
 	@cd /usr/doc && make all distribute DISTDIR=${RD}/trees
 	touch doc.1
