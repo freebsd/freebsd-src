@@ -32,7 +32,7 @@
 .\"     @(#)chroot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd January 24, 2002
 .Dt CHROOT 8
 .Os
 .Sh NAME
@@ -45,15 +45,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-command changes its root directory to the supplied directory
+command changes its current and root directories to the supplied directory
 .Ar newroot
-and exec's
+and then exec's
 .Ar command ,
-if supplied, or an interactive copy of your shell.
+if supplied, or an interactive copy of the user's login shell.
 .Sh ENVIRONMENT
 The following environment variable is referenced by
 .Nm :
-.Bl -tag -width SHELL
+.Bl -tag -width ".Ev SHELL"
 .It Ev SHELL
 If set,
 the string specified by
