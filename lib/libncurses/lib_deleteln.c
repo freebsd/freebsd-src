@@ -23,6 +23,10 @@ int	y, touched = 0;
 	temp = win->_line[win->_cury];
 
 	if (win->_idlok && (delete_line != NULL)) {
+		if (back_color_erase) {
+			T(("back_color_erase, turning attributes off"));
+			vidattr(curscr->_attrs = A_NORMAL);
+		}
 		putp(delete_line);
 		touched = 1;
 	}
@@ -43,6 +47,6 @@ int	y, touched = 0;
 	}
 
 	for (end = &(temp[win->_maxx]); temp <= end; )
-	    *temp++ = ' ' | win->_attrs;
+	    *temp++ = ' ';
 	return OK;
 }
