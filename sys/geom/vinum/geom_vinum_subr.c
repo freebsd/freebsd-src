@@ -467,7 +467,7 @@ gv_sd_to_drive(struct gv_softc *sc, struct gv_drive *d, struct gv_sd *s,
 	if (s->size == -1) {
 		/* Find the largest available slot. */
 		LIST_FOREACH(fl, &d->freelist, freelist) {
-			if (fl->size > s->size) {
+			if (fl->size >= s->size) {
 				s->size = fl->size;
 				s->drive_offset = fl->offset;
 				fl2 = fl;
@@ -490,8 +490,9 @@ gv_sd_to_drive(struct gv_softc *sc, struct gv_drive *d, struct gv_sd *s,
 			/* Yes, this subdisk fits. */
 			if (fl->size >= s->size) {
 				i++;
-				/* Override drive_offset, if given. */
-				s->drive_offset = fl->offset;
+				/* Assign drive offset, if not given. */
+				if (s->drive_offset == -1)
+					s->drive_offset = fl->offset;
 				fl2 = fl;
 				break;
 			}
@@ -517,7 +518,7 @@ gv_sd_to_drive(struct gv_softc *sc, struct gv_drive *d, struct gv_sd *s,
 		 * If there are no other subdisks yet, then set the default
 		 * offset to GV_DATA_START.
 		 */
-		if (s->drive_offset == 0)
+		if (s->drive_offset == -1)
 			s->drive_offset = GV_DATA_START;
 
 	/* Check if we have a free slot at the given drive offset. */
