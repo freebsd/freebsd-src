@@ -26,7 +26,8 @@
  * SUCH DAMAGE.
  */
 
-/* Some Credits:
+/*
+ * Credits due to:
  *
  * Grzybowski Rafal, Russell Davies, Mark Handley, Daniel O'Connor for
  * comments, machine time, testing patches, and patience.  VIA for
@@ -47,19 +48,25 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 #define VIA8233_PCI_ID 0x30591106
 
+#define VIA8233_REV_ID_8233PRE	0x10
+#define VIA8233_REV_ID_8233C	0x20
+#define VIA8233_REV_ID_8233	0x30
+#define VIA8233_REV_ID_8233A	0x40
+#define VIA8233_REV_ID_8235	0x50
+
 #define SEGS_PER_CHAN	2			/* Segments per channel */
-#define NCHANS		2			/* Lines-in,out (mic later) */
+#define NDXSCHANS	4			/* No of DXS channels */
+#define NMSGDCHANS	1			/* No of multichannel SGD */
+#define NWRCHANS	1			/* No of write channels */
+#define NCHANS		(NWRCHANS + NDXSCHANS + NMSGDCHANS)
 #define	NSEGS		NCHANS * SEGS_PER_CHAN	/* Segments in SGD table */
 
 #define	VIA_DEFAULT_BUFSZ	0x1000
 
-#undef DEB
-#define DEB(x) x
-
 /* we rely on this struct being packed to 64 bits */
 struct via_dma_op {
-        u_int32_t ptr;
-        u_int32_t flags;
+        volatile u_int32_t ptr;
+        volatile u_int32_t flags;
 #define VIA_DMAOP_EOL         0x80000000
 #define VIA_DMAOP_FLAG        0x40000000
 #define VIA_DMAOP_STOP        0x20000000
@@ -75,7 +82,7 @@ struct via_chinfo {
 	struct via_dma_op *sgd_table;
 	bus_addr_t sgd_addr;
 	int dir, blksz;
-	int rbase; 			/* base register for channel */
+	int rbase;
 };
 
 struct via_info {
@@ -93,9 +100,11 @@ struct via_info {
 
 	unsigned int bufsz;
 
-	struct via_chinfo pch, rch;
+	struct via_chinfo pch[NDXSCHANS + NMSGDCHANS];
+	struct via_chinfo rch[NWRCHANS];
 	struct via_dma_op *sgd_table;
 	u_int16_t codec_caps;
+	u_int16_t n_dxs_registered;
 };
 
 static u_int32_t via_fmt[] = {
@@ -223,14 +232,7 @@ via_buildsgdt(struct via_chinfo *ch)
 	u_int32_t phys_addr, flag;
 	int i, seg_size;
 
-	/*
-	 *  Build the scatter/gather DMA (SGD) table.
-	 *  There are four slots in the table: two for play, two for record.
-	 *  This creates two half-buffers, one of which is playing; the other
-	 *  is feeding.
-	 */
 	seg_size = sndbuf_getsize(ch->buffer) / SEGS_PER_CHAN;
-		
 	phys_addr = sndbuf_getbufaddr(ch->buffer);
 
 	for (i = 0; i < SEGS_PER_CHAN; i++) {
@@ -242,8 +244,47 @@ via_buildsgdt(struct via_chinfo *ch)
 	return 0;
 }
 
+/* -------------------------------------------------------------------- */
+/* Format setting functions */
+
 static int
-via8233pchan_setformat(kobj_t obj, void *data, u_int32_t format)
+via8233wr_setformat(kobj_t obj, void *data, u_int32_t format)
+{
+	struct via_chinfo *ch = data;
+	struct via_info *via = ch->parent;
+	
+	u_int32_t f = WR_FORMAT_STOP_INDEX;
+
+	if (format & AFMT_STEREO)
+		f |= WR_FORMAT_STEREO;
+	if (format & AFMT_S16_LE)
+		f |= WR_FORMAT_16BIT;
+	via_wr(via, VIA_WR0_FORMAT, f, 4);
+
+	return 0;
+}
+
+static int
+via8233dxs_setformat(kobj_t obj, void *data, u_int32_t format)
+{
+	struct via_chinfo *ch = data;
+	struct via_info *via = ch->parent;
+
+	u_int32_t r = ch->rbase + VIA8233_RP_DXS_RATEFMT;
+	u_int32_t v = via_rd(via, r, 4);
+
+	v &= ~(VIA8233_DXS_RATEFMT_STEREO | VIA8233_DXS_RATEFMT_16BIT);
+	if (format & AFMT_STEREO)
+		v |= VIA8233_DXS_RATEFMT_STEREO;
+	if (format & AFMT_16BIT)  
+		v |= VIA8233_DXS_RATEFMT_16BIT;
+	via_wr(via, r, v, 4);
+
+	return 0;
+}
+
+static int
+via8233msgd_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
@@ -265,36 +306,11 @@ via8233pchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
-via8233rchan_setformat(kobj_t obj, void *data, u_int32_t format)
-{
-	struct via_chinfo *ch = data;
-	struct via_info *via = ch->parent;
-	
-	u_int32_t f = WR_FORMAT_STOP_INDEX;
-	if (format & AFMT_STEREO)
-		f |= WR_FORMAT_STEREO;
-	if (format & AFMT_S16_LE)
-		f |= WR_FORMAT_16BIT;
-	via_wr(via, VIA_WR0_FORMAT, f, 4);
-
-	return 0;
-}
+/* -------------------------------------------------------------------- */
+/* Speed setting functions */
 
 static int
-via8233pchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
-{
-	struct via_chinfo *ch = data;
-	struct via_info *via = ch->parent;
-
-	if (via->codec_caps & AC97_EXTCAP_VRA)
-		return ac97_setrate(via->codec, AC97_REGEXT_FDACRATE, speed); 
-
-	return 48000;
-}
-
-static int
-via8233rchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+via8233wr_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
@@ -307,10 +323,41 @@ via8233rchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 }
 
 static int
+via8233dxs_setspeed(kobj_t obj, void *data, u_int32_t speed)
+{
+	struct via_chinfo *ch = data;
+	struct via_info *via = ch->parent;
+
+	u_int32_t r = ch->rbase + VIA8233_RP_DXS_RATEFMT;
+	u_int32_t v = via_rd(via, r, 4) & ~VIA8233_DXS_RATEFMT_48K;
+
+	/* Careful to avoid overflow (divide by 48 per vt8233c docs) */
+
+	v |= VIA8233_DXS_RATEFMT_48K * (speed / 48) / (48000 / 48);
+	via_wr(via, r, v, 4);
+
+	return speed;
+}
+
+static int
+via8233msgd_setspeed(kobj_t obj, void *data, u_int32_t speed)
+{
+	struct via_chinfo *ch = data;
+	struct via_info *via = ch->parent;
+
+	if (via->codec_caps & AC97_EXTCAP_VRA)
+		return ac97_setrate(via->codec, AC97_REGEXT_FDACRATE, speed); 
+
+	return 48000;
+}
+
+/* -------------------------------------------------------------------- */
+/* Common functions */
+
+static int
 via8233chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct via_chinfo *ch = data;
-
 	sndbuf_resize(ch->buffer, SEGS_PER_CHAN, blocksize);
 	ch->blksz = sndbuf_getblksz(ch->buffer);
 	return ch->blksz;
@@ -350,37 +397,102 @@ via8233chan_reset(struct via_info *via, struct via_chinfo *ch)
 	       SGD_STATUS_EOL | SGD_STATUS_FLAG, 1);
 }
 
+/* -------------------------------------------------------------------- */
+/* Channel initialization functions */
+
+static void
+via8233chan_sgdinit(struct via_info *via, struct via_chinfo *ch, int chnum)
+{
+	ch->sgd_table = &via->sgd_table[chnum * SEGS_PER_CHAN];
+	ch->sgd_addr = via->sgd_addr + chnum * SEGS_PER_CHAN * sizeof(struct via_dma_op);
+}
+
 static void*
-via8233chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
-		 struct pcm_channel *c, int dir)
+via8233wr_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
+	       struct pcm_channel *c, int dir)
 {
 	struct via_info *via = devinfo;
-	struct via_chinfo *ch;
-
-	if (dir == PCMDIR_PLAY) {
-		ch = &via->pch;
-		ch->rbase = VIA_MC_SGD_STATUS;
-		ch->sgd_table = &via->sgd_table[0];
-		ch->sgd_addr = via->sgd_addr;
-	} else {
-		ch = &via->rch;
-		ch->rbase = VIA_WR0_SGD_STATUS;
-		ch->sgd_table = &via->sgd_table[SEGS_PER_CHAN];
-		ch->sgd_addr = via->sgd_addr + sizeof(struct via_dma_op) * SEGS_PER_CHAN;
-		via_wr(via, VIA_WR0_SGD_FORMAT, WR_FIFO_ENABLE, 1);
-	}
+	struct via_chinfo *ch = &via->rch[c->num];
 
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
 
+	ch->rbase = VIA_WR_BASE(c->num);
+	via_wr(via, ch->rbase + VIA_WR_RP_SGD_FORMAT, WR_FIFO_ENABLE, 1);
+
 	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
 		return NULL;
-
+	via8233chan_sgdinit(via, ch, c->num);
 	via8233chan_reset(via, ch);
 
 	return ch;
+}
+
+static void*
+via8233dxs_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
+		struct pcm_channel *c, int dir)
+{
+	struct via_info *via = devinfo;
+	struct via_chinfo *ch = &via->pch[c->num];
+
+	ch->parent = via;
+	ch->channel = c;
+	ch->buffer = b;
+	ch->dir = dir;
+
+	/*
+	 * All cards apparently support DXS3, but not other DXS
+	 * channels.  We therefore want to align first DXS channel to
+	 * DXS3.
+	 */
+	ch->rbase = VIA_DXS_BASE(NDXSCHANS - 1 - via->n_dxs_registered);
+	via->n_dxs_registered++;
+
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
+		return NULL;
+	via8233chan_sgdinit(via, ch, NWRCHANS + c->num);
+	via8233chan_reset(via, ch);
+
+	return ch;
+}
+
+static void*
+via8233msgd_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
+		 struct pcm_channel *c, int dir)
+{
+	struct via_info *via = devinfo;
+	struct via_chinfo *ch = &via->pch[c->num];
+
+	ch->parent = via;
+	ch->channel = c;
+	ch->buffer = b;
+	ch->dir = dir;
+	ch->rbase = VIA_MC_SGD_STATUS;
+
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
+		return NULL;
+	via8233chan_sgdinit(via, ch, NWRCHANS + c->num);
+	via8233chan_reset(via, ch);
+
+	return ch;
+}
+
+static void
+via8233chan_mute(struct via_info *via, struct via_chinfo *ch, int muted)
+{
+	if (BASE_IS_VIA_DXS_REG(ch->rbase)) {
+		int r;
+		muted = (muted) ? VIA8233_DXS_MUTE : 0;
+		via_wr(via, ch->rbase + VIA8233_RP_DXS_LVOL, muted, 1);
+		via_wr(via, ch->rbase + VIA8233_RP_DXS_RVOL, muted, 1);
+		r = via_rd(via, ch->rbase + VIA8233_RP_DXS_LVOL, 1) & VIA8233_DXS_MUTE;
+		if (r != muted) {
+			printf("via: failed to set dxs volume "
+			       "(dxs base 0x%02x).\n", ch->rbase);
+		}
+	}
 }
 
 static int
@@ -392,6 +504,7 @@ via8233chan_trigger(kobj_t obj, void* data, int go)
 	switch(go) {
 	case PCMTRIG_START:
 		via_buildsgdt(ch);
+		via8233chan_mute(via, ch, 0);
 		via_wr(via, ch->rbase + VIA_RP_TABLE_PTR, ch->sgd_addr, 4);
 		via_wr(via, ch->rbase + VIA_RP_CONTROL,
 		       SGD_CONTROL_START | SGD_CONTROL_AUTOSTART |
@@ -400,35 +513,48 @@ via8233chan_trigger(kobj_t obj, void* data, int go)
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
 		via_wr(via, ch->rbase + VIA_RP_CONTROL, SGD_CONTROL_STOP, 1);
+		via8233chan_mute(via, ch, 1);
 		via8233chan_reset(via, ch);
 		break;
 	}
 	return 0;
 }
 
-static kobj_method_t via8233pchan_methods[] = {
-    	KOBJMETHOD(channel_init,		via8233chan_init),
-    	KOBJMETHOD(channel_setformat,		via8233pchan_setformat),
-    	KOBJMETHOD(channel_setspeed,		via8233pchan_setspeed),
+static kobj_method_t via8233wr_methods[] = {
+    	KOBJMETHOD(channel_init,		via8233wr_init),
+    	KOBJMETHOD(channel_setformat,		via8233wr_setformat),
+    	KOBJMETHOD(channel_setspeed,		via8233wr_setspeed),
     	KOBJMETHOD(channel_setblocksize,	via8233chan_setblocksize),
     	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
     	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
     	KOBJMETHOD(channel_getcaps,		via8233chan_getcaps),
 	{ 0, 0 }
 };
-CHANNEL_DECLARE(via8233pchan);
+CHANNEL_DECLARE(via8233wr);
 
-static kobj_method_t via8233rchan_methods[] = {
-    	KOBJMETHOD(channel_init,		via8233chan_init),
-    	KOBJMETHOD(channel_setformat,		via8233rchan_setformat),
-    	KOBJMETHOD(channel_setspeed,		via8233rchan_setspeed),
+static kobj_method_t via8233dxs_methods[] = {
+    	KOBJMETHOD(channel_init,		via8233dxs_init),
+    	KOBJMETHOD(channel_setformat,		via8233dxs_setformat),
+    	KOBJMETHOD(channel_setspeed,		via8233dxs_setspeed),
     	KOBJMETHOD(channel_setblocksize,	via8233chan_setblocksize),
     	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
     	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
     	KOBJMETHOD(channel_getcaps,		via8233chan_getcaps),
 	{ 0, 0 }
 };
-CHANNEL_DECLARE(via8233rchan);
+CHANNEL_DECLARE(via8233dxs);
+
+static kobj_method_t via8233msgd_methods[] = {
+    	KOBJMETHOD(channel_init,		via8233msgd_init),
+    	KOBJMETHOD(channel_setformat,		via8233msgd_setformat),
+    	KOBJMETHOD(channel_setspeed,		via8233msgd_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	via8233chan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
+    	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
+    	KOBJMETHOD(channel_getcaps,		via8233chan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(via8233msgd);
 
 /* -------------------------------------------------------------------- */
 
@@ -436,16 +562,28 @@ static void
 via_intr(void *p)
 {
 	struct via_info *via = p;
-	int r = via_rd(via, VIA_MC_SGD_STATUS, 1);
-	if (r & SGD_STATUS_INTR) {
-		via_wr(via, VIA_MC_SGD_STATUS, SGD_STATUS_INTR, 1);
-		chn_intr(via->pch.channel);
-	}
+	int i, stat;
 
-	r = via_rd(via, VIA_WR0_SGD_STATUS, 1);
-	if (r & SGD_STATUS_INTR) {
-		via_wr(via, VIA_WR0_SGD_STATUS, SGD_STATUS_INTR, 1);
-		chn_intr(via->rch.channel);
+	/* Poll playback channels */
+	for (i = 0; i < NDXSCHANS + NMSGDCHANS; i++) {
+		if (via->pch[i].rbase == 0)
+			continue;
+		stat = via->pch[i].rbase + VIA_RP_STATUS;
+		if (via_rd(via, stat, 1) & SGD_STATUS_INTR) {
+			via_wr(via, stat, SGD_STATUS_INTR, 1);
+			chn_intr(via->pch[i].channel);
+		}
+	}
+	
+	/* Poll record channels */
+	for (i = 0; i < NWRCHANS; i++) {
+		if (via->rch[i].rbase == 0)
+			continue;
+		stat = via->rch[i].rbase + VIA_RP_STATUS;
+		if (via_rd(via, stat, 1) & SGD_STATUS_INTR) {
+			via_wr(via, stat, SGD_STATUS_INTR, 1);
+			chn_intr(via->rch[i].channel);
+		}
 	}
 }
 
@@ -458,19 +596,19 @@ via_probe(device_t dev)
 	switch(pci_get_devid(dev)) {
 	case VIA8233_PCI_ID:
 		switch(pci_get_revid(dev)) {
-		case 0x10: 
+		case VIA8233_REV_ID_8233PRE: 
 			device_set_desc(dev, "VIA VT8233 (pre)");
 			return 0;
-		case 0x20:
+		case VIA8233_REV_ID_8233C:
 			device_set_desc(dev, "VIA VT8233C");
 			return 0;
-		case 0x30:
+		case VIA8233_REV_ID_8233:
 			device_set_desc(dev, "VIA VT8233");
 			return 0;
-		case 0x40:
+		case VIA8233_REV_ID_8233A:
 			device_set_desc(dev, "VIA VT8233A");
 			return 0;
-		case 0x50:
+		case VIA8233_REV_ID_8235:
 			device_set_desc(dev, "VIA VT8235");
 			return 0;
 		default:
@@ -519,6 +657,54 @@ via_chip_init(device_t dev)
 	}
 	device_printf(dev, "primary codec not ready (s = 0x%02x)\n", s);
 	return ENXIO;
+}
+
+#ifdef SND_DYNSYSCTL
+static int via8233_spdif_en;
+
+static int
+sysctl_via8233_spdif_enable(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev;
+	int err, new_en, r;
+
+	dev = oidp->oid_arg1;
+
+	
+	new_en = via8233_spdif_en;
+
+	err = sysctl_handle_int(oidp, &new_en, sizeof(new_en), req);
+	if (err || req->newptr == NULL)
+		return err;
+
+	if (new_en < 0 || new_en > 1)
+		return EINVAL;
+	via8233_spdif_en = new_en;
+
+	r = pci_read_config(dev, VIA_PCI_SPDIF, 1) & ~VIA_SPDIF_EN;
+	if (new_en)
+		r |= VIA_SPDIF_EN;
+	pci_write_config(dev, VIA_PCI_SPDIF, r, 1);
+	return 0;
+}
+#endif /* SND_DYNSYSCTL */
+
+static void
+via_init_sysctls(device_t dev)
+{
+#ifdef SND_DYNSYSCTL
+	int r;
+
+	r = pci_read_config(dev, VIA_PCI_SPDIF, 1);
+	via8233_spdif_en = (r & VIA_SPDIF_EN) ? 1 : 0;
+
+	SYSCTL_ADD_PROC(snd_sysctl_tree(dev),
+			SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
+			OID_AUTO, "spdif_enabled", 
+			CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
+			sysctl_via8233_spdif_enable, "I",
+			"Enable S/PDIF output on primary playback channel");
+#endif
 }
 
 static int
@@ -616,12 +802,23 @@ via_attach(device_t dev)
 		 rman_get_start(via->reg), rman_get_start(via->irq));
 
 	/* Register */
-	if (pcm_register(dev, via, 1, 1)) goto bad;
-
-	pcm_addchan(dev, PCMDIR_PLAY, &via8233pchan_class, via);
-	pcm_addchan(dev, PCMDIR_REC, &via8233rchan_class, via);
+	if (pci_get_revid(dev) == VIA8233_REV_ID_8233A) {
+		if (pcm_register(dev, via, NMSGDCHANS + 1, 1)) goto bad;
+		pcm_addchan(dev, PCMDIR_PLAY, &via8233dxs_class, via);
+		pcm_addchan(dev, PCMDIR_PLAY, &via8233msgd_class, via);
+		pcm_addchan(dev, PCMDIR_REC, &via8233wr_class, via);
+	} else {
+		int i;
+		if (pcm_register(dev, via, NMSGDCHANS + NDXSCHANS, NWRCHANS)) goto bad;
+		for (i = 0; i < NDXSCHANS; i++)
+			pcm_addchan(dev, PCMDIR_PLAY, &via8233dxs_class, via);
+		pcm_addchan(dev, PCMDIR_PLAY, &via8233msgd_class, via);
+		for (i = 0; i < NWRCHANS; i++)
+			pcm_addchan(dev, PCMDIR_REC, &via8233wr_class, via);
+	}
 
 	pcm_setstatus(dev, status);
+	via_init_sysctls(dev);
 
 	return 0;
 bad:
