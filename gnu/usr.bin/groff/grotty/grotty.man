@@ -192,5 +192,4 @@ cannot be printed.
 .BR groff_font (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@),
 .BR ul (1),
-.BR more (1),
-.BR less (1)
+.BR more (1)

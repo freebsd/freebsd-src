@@ -88,7 +88,7 @@ MLINKS+=getvfsent.3 getvfsbyname.3 getvfsent.3 getvfsbytype.3 \
 MLINKS+=getusershell.3 endusershell.3 getusershell.3 setusershell.3
 MLINKS+=glob.3 globfree.3
 MLINKS+=popen.3 pclose.3
-MLINKS+=psignal.3 sys_siglist.3
+MLINKS+=psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=pwcache.3 user_from_uid.3 pwcache.3 group_from_gid.3
 MLINKS+=rand48.3 _rand48.3 rand48.3 drand48.3 rand48.3 erand48.3 \
 	rand48.3 jrand48.3 rand48.3 lcong48.3 rand48.3 lrand48.3 \
