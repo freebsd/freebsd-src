@@ -257,20 +257,10 @@ Int_Open_Disk(const char *name, char *conftxt)
 			}
 		} else if (!strcmp(t, "GPT"))
 			i = Add_Chunk(d, off, len, n, ty, 0, 0, 0);
-		else if (!strcmp(t, "BDE"))
-			; /* nothing */
-		else if (!strcmp(t, "CCD"))
-			; /* nothing */
 		else if (!strcmp(t, "APPLE"))
 			i = Add_Chunk(d, off, len, n, apple, 0, 0, sn);
-		else if (!strcmp(t, "STRIPE"))
-			; /* nothing */
-		else if (strstr(t, "VINUM") != NULL)
-			; /* nothing */
-		else {
-			printf("BARF %d\n", __LINE__);
-			exit(0);
-		}
+		else
+			; /* Ignore unknown classes. */
 	}
 	/* PLATFORM POLICY BEGIN ------------------------------------- */
 	/* We have a chance to do things on a blank disk here */
