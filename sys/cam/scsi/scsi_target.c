@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.3 1998/10/22 22:16:56 ken Exp $
+ *      $Id: scsi_target.c,v 1.4 1998/12/10 04:07:42 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -46,6 +46,7 @@
 #include <cam/cam_ccb.h>
 #include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
+#include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 
@@ -63,7 +64,8 @@ typedef enum {
 typedef enum {
 	TARG_FLAG_NONE		 = 0x00,
 	TARG_FLAG_SEND_EOF	 = 0x01,
-	TARG_FLAG_RECEIVE_EOF	 = 0x02
+	TARG_FLAG_RECEIVE_EOF	 = 0x02,
+	TARG_FLAG_LUN_ENABLED	 = 0x04
 } targ_flags;
 
 typedef enum {
@@ -104,6 +106,8 @@ struct targ_softc {
 	u_int		init_level;
 	u_int		inq_data_len;
 	struct		scsi_inquiry_data *inq_data;
+	struct		ccb_hdr_slist accept_tio_slist;
+	struct		ccb_hdr_slist immed_notify_slist;
 	struct		initiator_state istate[MAX_INITIATORS];
 };
 
@@ -155,6 +159,8 @@ static int		targsendccb(struct cam_periph *periph, union ccb *ccb,
 static periph_init_t	targinit;
 static void		targasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
+static cam_status	targenlun(struct cam_periph *periph);
+static cam_status	targdislun(struct cam_periph *periph);
 static periph_ctor_t	targctor;
 static periph_dtor_t	targdtor;
 static void		targrunqueue(struct cam_periph *periph,
@@ -287,10 +293,167 @@ targasync(void *callback_arg, u_int32_t code,
 	}
 }
 
+/* Attempt to enable our lun */
+static cam_status
+targenlun(struct cam_periph *periph)
+{
+	union ccb immed_ccb;
+	struct targ_softc *softc;
+	cam_status status;
+	int i;
+
+	softc = (struct targ_softc *)periph->softc;
+
+	if ((softc->flags & TARG_FLAG_LUN_ENABLED) != 0)
+		return (CAM_REQ_CMP);
+
+	xpt_setup_ccb(&immed_ccb.ccb_h, periph->path, /*priority*/1);
+	immed_ccb.ccb_h.func_code = XPT_EN_LUN;
+
+	/* Don't need support for any vendor specific commands */
+	immed_ccb.cel.grp6_len = 0;
+	immed_ccb.cel.grp7_len = 0;
+	immed_ccb.cel.enable = 1;
+	xpt_action(&immed_ccb);
+	status = immed_ccb.ccb_h.status;
+	if (status != CAM_REQ_CMP) {
+		xpt_print_path(periph->path);
+		printf("targenlun - Enable Lun Rejected for status 0x%x\n",
+		       status);
+		return (status);
+	}
+	
+	softc->flags |= TARG_FLAG_LUN_ENABLED;
+
+	/*
+	 * Build up a buffer of accept target I/O
+	 * operations for incoming selections.
+	 */
+	for (i = 0; i < MAX_ACCEPT; i++) {
+		struct ccb_accept_tio *atio;
+
+		atio = (struct ccb_accept_tio*)malloc(sizeof(*atio), M_DEVBUF,
+						      M_NOWAIT);
+		if (atio == NULL) {
+			status = CAM_RESRC_UNAVAIL;
+			break;
+		}
+
+		atio->ccb_h.ccb_descr = allocdescr();
+
+		if (atio->ccb_h.ccb_descr == NULL) {
+			free(atio, M_DEVBUF);
+			status = CAM_RESRC_UNAVAIL;
+			break;
+		}
+
+		xpt_setup_ccb(&atio->ccb_h, periph->path, /*priority*/1);
+		atio->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
+		atio->ccb_h.cbfcnp = targdone;
+		xpt_action((union ccb *)atio);
+		status = atio->ccb_h.status;
+		if (status != CAM_REQ_INPROG) {
+			free(atio, M_DEVBUF);
+			break;
+		}
+		SLIST_INSERT_HEAD(&softc->accept_tio_slist, &atio->ccb_h,
+				  periph_links.sle);
+	}
+
+	if (i == 0) {
+		xpt_print_path(periph->path);
+		printf("targenlun - Could not allocate accept tio CCBs: "
+		       "status = 0x%x\n", status);
+		targdislun(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
+
+	/*
+	 * Build up a buffer of immediate notify CCBs
+	 * so the SIM can tell us of asynchronous target mode events.
+	 */
+	for (i = 0; i < MAX_ACCEPT; i++) {
+		struct ccb_immed_notify *inot;
+
+		inot = (struct ccb_immed_notify*)malloc(sizeof(*inot), M_DEVBUF,
+						        M_NOWAIT);
+
+		if (inot == NULL) {
+			status = CAM_RESRC_UNAVAIL;
+			break;
+		}
+
+		xpt_setup_ccb(&inot->ccb_h, periph->path, /*priority*/1);
+		inot->ccb_h.func_code = XPT_IMMED_NOTIFY;
+		inot->ccb_h.cbfcnp = targdone;
+		xpt_action((union ccb *)inot);
+		status = inot->ccb_h.status;
+		if (status != CAM_REQ_INPROG) {
+			free(inot, M_DEVBUF);
+			break;
+		}
+		SLIST_INSERT_HEAD(&softc->immed_notify_slist, &inot->ccb_h,
+				  periph_links.sle);
+	}
+
+	if (i == 0) {
+		xpt_print_path(periph->path);
+		printf("targenlun - Could not allocate immediate notify CCBs: "
+		       "status = 0x%x\n", status);
+		targdislun(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
+
+	return (CAM_REQ_CMP);
+}
+
+static cam_status
+targdislun(struct cam_periph *periph)
+{
+	union ccb ccb;
+	struct targ_softc *softc;
+	struct ccb_hdr *ccb_h;
+
+	softc = (struct targ_softc *)periph->softc;
+	if ((softc->flags & TARG_FLAG_LUN_ENABLED) == 0)
+		return CAM_REQ_CMP;
+
+	/* XXX Block for Continue I/O completion */
+
+	/* Kill off all ACCECPT and IMMEDIATE CCBs */
+	SLIST_FOREACH(ccb_h, &softc->accept_tio_slist, periph_links.sle) {
+		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, /*priority*/1);
+		ccb.cab.ccb_h.func_code = XPT_ABORT;
+		ccb.cab.abort_ccb = (union ccb *)ccb_h;
+		xpt_action(&ccb);
+	}
+
+	SLIST_FOREACH(ccb_h, &softc->immed_notify_slist, periph_links.sle) {
+		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, /*priority*/1);
+		ccb.cab.ccb_h.func_code = XPT_ABORT;
+		ccb.cab.abort_ccb = (union ccb *)ccb_h;
+		xpt_action(&ccb);
+	}
+
+	/*
+	 * Dissable this lun.
+	 */
+	xpt_setup_ccb(&ccb.cel.ccb_h, periph->path, /*priority*/1);
+	ccb.cel.ccb_h.func_code = XPT_EN_LUN;
+	ccb.cel.enable = 0;
+	xpt_action(&ccb);
+
+	if (ccb.cel.ccb_h.status != CAM_REQ_CMP)
+		printf("targdislun - Disabling lun on controller failed "
+		       "with status 0x%x\n", ccb.cel.ccb_h.status);
+	else 
+		softc->flags &= ~TARG_FLAG_LUN_ENABLED;
+	return (ccb.cel.ccb_h.status);
+}
+
 static cam_status
 targctor(struct cam_periph *periph, void *arg)
 {
-	union ccb immed_ccb;
 	struct ccb_pathinq *cpi;
 	struct targ_softc *softc;
 	cam_status status;
@@ -313,6 +476,8 @@ targctor(struct cam_periph *periph, void *arg)
 	TAILQ_INIT(&softc->unknown_atio_queue);
 	bufq_init(&softc->snd_buf_queue);
 	bufq_init(&softc->rcv_buf_queue);
+	SLIST_INIT(&softc->accept_tio_slist);
+	SLIST_INIT(&softc->immed_notify_slist);
 	softc->state = TARG_STATE_NORMAL;
 	periph->softc = softc;
 	softc->init_level++;
@@ -348,102 +513,6 @@ targctor(struct cam_periph *periph, void *arg)
 	strncpy(softc->inq_data->revision, "0.0 ", SID_REVISION_SIZE);
 	softc->init_level++;
 
-	/* Attempt to enable the lun of interrest */
-	xpt_setup_ccb(&immed_ccb.ccb_h, periph->path, /*priority*/1);
-	immed_ccb.ccb_h.func_code = XPT_EN_LUN;
-
-	/* Don't need support for any vendor specific commands */
-	immed_ccb.cel.grp6_len = 0;
-	immed_ccb.cel.grp7_len = 0;
-	immed_ccb.cel.enable = 1;
-	xpt_action(&immed_ccb);
-	status = immed_ccb.ccb_h.status;
-
-	if (status != CAM_REQ_CMP) {
-		xpt_print_path(periph->path);
-		printf("targctor - Enable Lun Rejected for status 0x%x\n",
-		       status);
-		targdtor(periph);
-		return (status);
-	}
-
-	softc->init_level++;
-	
-	/*
-	 * Build up a buffer of accept target I/O
-	 * operations for incoming selections.
-	 */
-	for (i = 0; i < MAX_ACCEPT; i++) {
-		struct ccb_accept_tio *atio;
-
-		atio = (struct ccb_accept_tio*)malloc(sizeof(*atio), M_DEVBUF,
-						      M_NOWAIT);
-		if (atio == NULL) {
-			status = CAM_RESRC_UNAVAIL;
-			break;
-		}
-
-		atio->ccb_h.ccb_descr = allocdescr();
-
-		if (atio->ccb_h.ccb_descr == NULL) {
-			free(atio, M_DEVBUF);
-			status = CAM_RESRC_UNAVAIL;
-			break;
-		}
-
-		xpt_setup_ccb(&atio->ccb_h, periph->path, /*priority*/1);
-		atio->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
-		atio->ccb_h.cbfcnp = targdone;
-		xpt_action((union ccb *)atio);
-		status = atio->ccb_h.status;
-		if (status != CAM_REQ_INPROG) {
-			free(atio, M_DEVBUF);
-			break;
-		}
-	}
-
-	if (i == 0) {
-		xpt_print_path(periph->path);
-		printf("targctor - Could not allocate accept tio CCBs: "
-		       "status = 0x%x\n", status);
-		targdtor(periph);
-		return (CAM_REQ_CMP_ERR);
-	}
-
-	/*
-	 * Build up a buffer of immediate notify CCBs
-	 * so the SIM can tell us of asynchronous target mode events.
-	 */
-	for (i = 0; i < MAX_ACCEPT; i++) {
-		struct ccb_immed_notify *inot;
-
-		inot = (struct ccb_immed_notify*)malloc(sizeof(*inot), M_DEVBUF,
-						        M_NOWAIT);
-
-		if (inot == NULL) {
-			status = CAM_RESRC_UNAVAIL;
-			break;
-		}
-
-		xpt_setup_ccb(&inot->ccb_h, periph->path, /*priority*/1);
-		inot->ccb_h.func_code = XPT_IMMED_NOTIFY;
-		inot->ccb_h.cbfcnp = targdone;
-		xpt_action((union ccb *)inot);
-		status = inot->ccb_h.status;
-		if (status != CAM_REQ_INPROG) {
-			free(inot, M_DEVBUF);
-			break;
-		}
-	}
-
-	if (i == 0) {
-		xpt_print_path(periph->path);
-		printf("targctor - Could not allocate immediate notify CCBs: "
-		       "status = 0x%x\n", status);
-		targdtor(periph);
-		return (CAM_REQ_CMP_ERR);
-	}
-
 	return (CAM_REQ_CMP);
 }
 
@@ -456,25 +525,11 @@ targdtor(struct cam_periph *periph)
 
 	softc->state = TARG_STATE_TEARDOWN;
 
+	targdislun(periph);
+
 	switch (softc->init_level) {
 	default:
 		/* FALLTHROUGH */
-	case 3:
-	{
-		struct ccb_en_lun cel;
-		/*
-		 * XXX Spec requires abort of all ACCEPT and
-		 * IMMEDIATE CCBS first.  Act accordingly.
-		 */
-		/*
-		 * Dissable this lun.
-		 */
-		xpt_setup_ccb(&cel.ccb_h, periph->path, /*priority*/1);
-		cel.ccb_h.func_code = XPT_EN_LUN;
-		cel.enable = 0;
-		xpt_action((union ccb *)&cel);
-		/* FALLTHROUGH */
-	}
 	case 2:
 		free(softc->inq_data, M_DEVBUF);
 		/* FALLTHROUGH */
@@ -490,32 +545,68 @@ static int
 targopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct cam_periph *periph;
-	struct targ_softc *softc;
-	u_int  unit;
-	int    s;
+	u_int unit;
+	cam_status status;
+	int error;
+	int s;
 
 	unit = minor(dev);
-	periph = cam_extend_get(targperiphs, unit);
-	if (periph == NULL)
-		return (ENXIO);
-	softc = (struct targ_softc *)periph->softc;
 
-	return (0);
+	s = splsoftcam();
+	periph = cam_extend_get(targperiphs, unit);
+	if (periph == NULL) {
+		return (ENXIO);
+        	splx(s);
+	}
+	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
+		splx(s);
+		return (error);
+	}
+        splx(s);
+	
+	status = targenlun(periph);
+	switch (status) {
+	case CAM_REQ_CMP:
+		error = 0;
+		break;
+	case CAM_RESRC_UNAVAIL:
+		error = ENOMEM;
+		break;
+	case CAM_LUN_ALRDY_ENA:
+		error = EADDRINUSE;
+		break;
+	default:
+		error = ENXIO;
+		break;
+	}
+        cam_periph_unlock(periph);
+	return (error);
 }
 
 static int
 targclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
-	struct cam_periph *periph;
-	struct targ_softc *softc;
-	u_int  unit;
-	int    s;
+	struct	cam_periph *periph;
+	struct	targ_softc *softc;
+	u_int	unit;
+	int	s;
+	int	error;
 
 	unit = minor(dev);
+	s = splsoftcam();
 	periph = cam_extend_get(targperiphs, unit);
-	if (periph == NULL)
+	if (periph == NULL) {
+		splx(s);
 		return (ENXIO);
+	}
+	if ((error = cam_periph_lock(periph, PRIBIO)) != 0)
+		return (error);
 	softc = (struct targ_softc *)periph->softc;
+	splx(s);
+
+	targdislun(periph);
+
+	cam_periph_unlock(periph);
 
 	return (0);
 }
@@ -1059,7 +1150,9 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		descr = (struct targ_cmd_desc*)atio->ccb_h.ccb_descr;
 		istate = &softc->istate[atio->init_id];
 		cdb = atio->cdb_io.cdb_bytes;
-		if (softc->state == TARG_STATE_TEARDOWN) {
+		if (softc->state == TARG_STATE_TEARDOWN
+		 || atio->ccb_h.status == CAM_REQ_ABORTED) {
+			printf("Freed an accept tio\n");
 			freedescr(descr);
 			free(done_ccb, M_DEVBUF);
 			return;
@@ -1373,7 +1466,9 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case XPT_IMMED_NOTIFY:
 	{
-		if (softc->state == TARG_STATE_TEARDOWN) {
+		if (softc->state == TARG_STATE_TEARDOWN
+		 || done_ccb->ccb_h.status == CAM_REQ_ABORTED) {
+			printf("Freed an immediate notify\n");
 			free(done_ccb, M_DEVBUF);
 		}
 		break;
@@ -1451,7 +1546,7 @@ allocdescr()
 static void
 freedescr(struct targ_cmd_desc *descr)
 {
-	free(descr->data, M_DEVBUF);
+	free(descr->backing_store, M_DEVBUF);
 	free(descr, M_DEVBUF);
 }
 
