@@ -478,6 +478,11 @@ stopped_by_watchpoint()
 {
   struct dbreg dbr;
   extern int inferior_pid;
+
+  if (current_target.to_shortname == 0 ||
+      ! (strcmp(current_target.to_shortname, "child") == 0 ||
+	 strcmp(current_target.to_shortname, "freebsd-uthreads") == 0))
+    return 0;
   
   if (inferior_pid != 0 && core_bfd == NULL) 
     {
@@ -511,6 +516,11 @@ insert_watchpoint(addr, len, type)
 {
   struct dbreg dbr;
   extern int inferior_pid;
+  
+  if (current_target.to_shortname == 0 ||
+      ! (strcmp(current_target.to_shortname, "child") == 0 ||
+	 strcmp(current_target.to_shortname, "freebsd-uthreads") == 0))
+    return 0;
   
   if (inferior_pid != 0 && core_bfd == NULL) 
     {
@@ -607,6 +617,11 @@ remove_watchpoint(addr, len, type)
   struct dbreg dbr;
   extern int inferior_pid;
   
+  if (current_target.to_shortname == 0 ||
+      ! (strcmp(current_target.to_shortname, "child") == 0 ||
+	 strcmp(current_target.to_shortname, "freebsd-uthreads") == 0))
+    return 0;
+
   if (inferior_pid != 0 && core_bfd == NULL) 
     {
       int pid = inferior_pid & ((1 << 17) - 1);	/* XXX extract pid from tid */
