@@ -4555,7 +4555,426 @@ AC_SUBST(WFLAGS_NOUNUSED)dnl
 AC_SUBST(WFLAGS_NOIMPLICITINT)dnl
 ])
 
-dnl $Id: db.m4,v 1.8 2002/05/17 15:32:21 joda Exp $
+dnl $Id: test-package.m4,v 1.12 2002/09/10 15:23:38 joda Exp $
+dnl
+dnl rk_TEST_PACKAGE(package,headers,libraries,extra libs,
+dnl			default locations, conditional, config-program)
+
+AC_DEFUN(rk_TEST_PACKAGE,[
+AC_ARG_WITH($1,
+	AC_HELP_STRING([--with-$1=dir],[use $1 in dir]))
+AC_ARG_WITH($1-lib,
+	AC_HELP_STRING([--with-$1-lib=dir],[use $1 libraries in dir]),
+[if test "$withval" = "yes" -o "$withval" = "no"; then
+  AC_MSG_ERROR([No argument for --with-$1-lib])
+elif test "X$with_$1" = "X"; then
+  with_$1=yes
+fi])
+AC_ARG_WITH($1-include,
+	AC_HELP_STRING([--with-$1-include=dir],[use $1 headers in dir]),
+[if test "$withval" = "yes" -o "$withval" = "no"; then
+  AC_MSG_ERROR([No argument for --with-$1-include])
+elif test "X$with_$1" = "X"; then
+  with_$1=yes
+fi])
+AC_ARG_WITH($1-config,
+	AC_HELP_STRING([--with-$1-config=path],[config program for $1]))
+
+m4_ifval([$6],
+	m4_define([rk_pkgname], $6),
+	m4_define([rk_pkgname], AS_TR_CPP($1)))
+
+AC_MSG_CHECKING(for $1)
+
+case "$with_$1" in
+yes|"") d='$5' ;;
+no)	d= ;;
+*)	d="$with_$1" ;;
+esac
+
+header_dirs=
+lib_dirs=
+for i in $d; do
+	if test "$with_$1_include" = ""; then
+		if test -d "$i/include/$1"; then
+			header_dirs="$header_dirs $i/include/$1"
+		fi
+		if test -d "$i/include"; then
+			header_dirs="$header_dirs $i/include"
+		fi
+	fi
+	if test "$with_$1_lib" = ""; then
+		if test -d "$i/lib$abilibdirext"; then
+			lib_dirs="$lib_dirs $i/lib$abilibdirext"
+		fi
+	fi
+done
+
+if test "$with_$1_include"; then
+	header_dirs="$with_$1_include $header_dirs"
+fi
+if test "$with_$1_lib"; then
+	lib_dirs="$with_$1_lib $lib_dirs"
+fi
+
+if test "$with_$1_config" = ""; then
+	with_$1_config='$7'
+fi
+
+$1_cflags=
+$1_libs=
+
+case "$with_$1_config" in
+yes|no|"")
+	;;
+*)
+	$1_cflags="`$with_$1_config --cflags 2>&1`"
+	$1_libs="`$with_$1_config --libs 2>&1`"
+	;;
+esac
+
+found=no
+if test "$with_$1" != no; then
+	save_CFLAGS="$CFLAGS"
+	save_LIBS="$LIBS"
+	if test "$[]$1_cflags" -a "$[]$1_libs"; then
+		CFLAGS="$[]$1_cflags $save_CFLAGS"
+		LIBS="$[]$1_libs $save_LIBS"
+		AC_TRY_LINK([$2],,[
+			INCLUDE_$1="$[]$1_cflags"
+			LIB_$1="$[]$1_libs"
+			AC_MSG_RESULT([from $with_$1_config])
+			found=yes])
+	fi
+	if test "$found" = no; then
+		ires= lres=
+		for i in $header_dirs; do
+			CFLAGS="-I$i $save_CFLAGS"
+			AC_TRY_COMPILE([$2],,ires=$i;break)
+		done
+		for i in $lib_dirs; do
+			LIBS="-L$i $3 $4 $save_LIBS"
+			AC_TRY_LINK([$2],,lres=$i;break)
+		done
+		if test "$ires" -a "$lres" -a "$with_$1" != "no"; then
+			INCLUDE_$1="-I$ires"
+			LIB_$1="-L$lres $3 $4"
+			found=yes
+			AC_MSG_RESULT([headers $ires, libraries $lres])
+		fi
+	fi
+	CFLAGS="$save_CFLAGS"
+	LIBS="$save_LIBS"
+fi
+
+if test "$found" = yes; then
+	AC_DEFINE_UNQUOTED(rk_pkgname, 1, [Define if you have the $1 package.])
+	with_$1=yes
+else
+	with_$1=no
+	INCLUDE_$1=
+	LIB_$1=
+	AC_MSG_RESULT(no)
+fi
+
+AC_SUBST(INCLUDE_$1)
+AC_SUBST(LIB_$1)
+])
+
+dnl $Id: find-func.m4,v 1.1 1997/12/14 15:58:58 joda Exp $
+dnl
+dnl AC_FIND_FUNC(func, libraries, includes, arguments)
+AC_DEFUN(AC_FIND_FUNC, [
+AC_FIND_FUNC_NO_LIBS([$1], [$2], [$3], [$4])
+if test -n "$LIB_$1"; then
+	LIBS="$LIB_$1 $LIBS"
+fi
+])
+
+dnl $Id: find-func-no-libs.m4,v 1.5 1999/10/30 21:08:18 assar Exp $
+dnl
+dnl
+dnl Look for function in any of the specified libraries
+dnl
+
+dnl AC_FIND_FUNC_NO_LIBS(func, libraries, includes, arguments, extra libs, extra args)
+AC_DEFUN(AC_FIND_FUNC_NO_LIBS, [
+AC_FIND_FUNC_NO_LIBS2([$1], ["" $2], [$3], [$4], [$5], [$6])])
+
+dnl $Id: find-func-no-libs2.m4,v 1.6 2001/09/01 10:57:32 assar Exp $
+dnl
+dnl
+dnl Look for function in any of the specified libraries
+dnl
+
+dnl AC_FIND_FUNC_NO_LIBS2(func, libraries, includes, arguments, extra libs, extra args)
+AC_DEFUN(AC_FIND_FUNC_NO_LIBS2, [
+
+AC_MSG_CHECKING([for $1])
+AC_CACHE_VAL(ac_cv_funclib_$1,
+[
+if eval "test \"\$ac_cv_func_$1\" != yes" ; then
+	ac_save_LIBS="$LIBS"
+	for ac_lib in $2; do
+		case "$ac_lib" in
+		"") ;;
+		yes) ac_lib="" ;;
+		no) continue ;;
+		-l*) ;;
+		*) ac_lib="-l$ac_lib" ;;
+		esac
+		LIBS="$6 $ac_lib $5 $ac_save_LIBS"
+		AC_TRY_LINK([$3],[$1($4)],eval "if test -n \"$ac_lib\";then ac_cv_funclib_$1=$ac_lib; else ac_cv_funclib_$1=yes; fi";break)
+	done
+	eval "ac_cv_funclib_$1=\${ac_cv_funclib_$1-no}"
+	LIBS="$ac_save_LIBS"
+fi
+])
+
+eval "ac_res=\$ac_cv_funclib_$1"
+
+if false; then
+	AC_CHECK_FUNCS($1)
+dnl	AC_CHECK_LIBS($2, foo)
+fi
+# $1
+eval "ac_tr_func=HAVE_[]upcase($1)"
+eval "ac_tr_lib=HAVE_LIB[]upcase($ac_res | sed -e 's/-l//')"
+eval "LIB_$1=$ac_res"
+
+case "$ac_res" in
+	yes)
+	eval "ac_cv_func_$1=yes"
+	eval "LIB_$1="
+	AC_DEFINE_UNQUOTED($ac_tr_func)
+	AC_MSG_RESULT([yes])
+	;;
+	no)
+	eval "ac_cv_func_$1=no"
+	eval "LIB_$1="
+	AC_MSG_RESULT([no])
+	;;
+	*)
+	eval "ac_cv_func_$1=yes"
+	eval "ac_cv_lib_`echo "$ac_res" | sed 's/-l//'`=yes"
+	AC_DEFINE_UNQUOTED($ac_tr_func)
+	AC_DEFINE_UNQUOTED($ac_tr_lib)
+	AC_MSG_RESULT([yes, in $ac_res])
+	;;
+esac
+AC_SUBST(LIB_$1)
+])
+
+dnl $Id: crypto.m4,v 1.13 2002/09/10 19:55:48 joda Exp $
+dnl
+dnl test for crypto libraries:
+dnl - libcrypto (from openssl)
+dnl - libdes (from krb4)
+dnl - own-built libdes
+
+m4_define([test_headers], [
+		#undef KRB5 /* makes md4.h et al unhappy */
+		#ifdef HAVE_OPENSSL
+		#include <openssl/md4.h>
+		#include <openssl/md5.h>
+		#include <openssl/sha.h>
+		#include <openssl/des.h>
+		#include <openssl/rc4.h>
+		#else
+		#include <md4.h>
+		#include <md5.h>
+		#include <sha.h>
+		#include <des.h>
+		#include <rc4.h>
+		#endif
+		#ifdef OLD_HASH_NAMES
+		typedef struct md4 MD4_CTX;
+		#define MD4_Init(C) md4_init((C))
+		#define MD4_Update(C, D, L) md4_update((C), (D), (L))
+		#define MD4_Final(D, C) md4_finito((C), (D))
+		typedef struct md5 MD5_CTX;
+		#define MD5_Init(C) md5_init((C))
+		#define MD5_Update(C, D, L) md5_update((C), (D), (L))
+		#define MD5_Final(D, C) md5_finito((C), (D))
+		typedef struct sha SHA_CTX;
+		#define SHA1_Init(C) sha_init((C))
+		#define SHA1_Update(C, D, L) sha_update((C), (D), (L))
+		#define SHA1_Final(D, C) sha_finito((C), (D))
+		#endif
+		])
+m4_define([test_body], [
+		void *schedule = 0;
+		MD4_CTX md4;
+		MD5_CTX md5;
+		SHA_CTX sha1;
+
+		MD4_Init(&md4);
+		MD5_Init(&md5);
+		SHA1_Init(&sha1);
+
+		des_cbc_encrypt(0, 0, 0, schedule, 0, 0);
+		RC4(0, 0, 0, 0);])
+
+
+AC_DEFUN([KRB_CRYPTO],[
+crypto_lib=unknown
+AC_WITH_ALL([openssl])
+
+DIR_des=
+
+AC_MSG_CHECKING([for crypto library])
+
+openssl=no
+old_hash=no
+
+if test "$crypto_lib" = "unknown" -a "$with_krb4" != "no"; then
+	save_CPPFLAGS="$CPPFLAGS"
+	save_LIBS="$LIBS"
+
+	cdirs= clibs=
+	for i in $LIB_krb4; do
+		case "$i" in
+		-L*) cdirs="$cdirs $i";;
+		-l*) clibs="$clibs $i";;
+		esac
+	done
+
+	ires=
+	for i in $INCLUDE_krb4; do
+		CFLAGS="-DHAVE_OPENSSL $i $save_CFLAGS"
+		AC_TRY_COMPILE(test_headers, test_body,
+			openssl=yes ires="$i"; break)
+		CFLAGS="$i $save_CFLAGS"
+		AC_TRY_COMPILE(test_headers, test_body,
+			openssl=no ires="$i"; break)
+		CFLAGS="-DOLD_HASH_NAMES $i $save_CFLAGS"
+		AC_TRY_COMPILE(test_headers, test_body,
+			openssl=no ires="$i" old_hash=yes; break)
+	done
+	lres=
+	for i in $cdirs; do
+		for j in $clibs; do
+			LIBS="$i $j $save_LIBS"
+			AC_TRY_LINK(test_headers, test_body,
+				lres="$i $j"; break 2)
+		done
+	done
+	CFLAGS="$save_CFLAGS"
+	LIBS="$save_LIBS"
+	if test "$ires" -a "$lres"; then
+		INCLUDE_des="$ires"
+		LIB_des="$lres"
+		crypto_lib=krb4
+		AC_MSG_RESULT([same as krb4])
+		LIB_des_a='$(LIB_des)'
+		LIB_des_so='$(LIB_des)'
+		LIB_des_appl='$(LIB_des)'
+	fi
+fi
+
+if test "$crypto_lib" = "unknown" -a "$with_openssl" != "no"; then
+	save_CFLAGS="$CFLAGS"
+	save_LIBS="$LIBS"
+	INCLUDE_des=
+	LIB_des=
+	if test "$with_openssl_include" != ""; then
+		INCLUDE_des="-I${with_openssl}/include"
+	fi
+	if test "$with_openssl_lib" != ""; then
+		LIB_des="-L${with_openssl}/lib"
+	fi
+	CFLAGS="-DHAVE_OPENSSL ${INCLUDE_des} ${CFLAGS}"
+	LIB_des="${LIB_des} -lcrypto"
+	LIB_des_a="$LIB_des"
+	LIB_des_so="$LIB_des"
+	LIB_des_appl="$LIB_des"
+	LIBS="${LIBS} ${LIB_des}"
+	AC_TRY_LINK(test_headers, test_body, [
+		crypto_lib=libcrypto openssl=yes
+		AC_MSG_RESULT([libcrypto])
+	])
+	CFLAGS="$save_CFLAGS"
+	LIBS="$save_LIBS"
+fi
+
+if test "$crypto_lib" = "unknown"; then
+
+  DIR_des='des'
+  LIB_des='$(top_builddir)/lib/des/libdes.la'
+  LIB_des_a='$(top_builddir)/lib/des/.libs/libdes.a'
+  LIB_des_so='$(top_builddir)/lib/des/.libs/libdes.so'
+  LIB_des_appl="-ldes"
+
+  AC_MSG_RESULT([included libdes])
+
+fi
+
+if test "$with_krb4" != no -a "$crypto_lib" != krb4; then
+	AC_MSG_ERROR([the crypto library used by krb4 lacks features
+required by Kerberos 5; to continue, you need to install a newer 
+Kerberos 4 or configure --without-krb4])
+fi
+
+if test "$openssl" = "yes"; then
+  AC_DEFINE([HAVE_OPENSSL], 1, [define to use openssl's libcrypto])
+fi
+if test "$old_hash" = yes; then
+  AC_DEFINE([HAVE_OLD_HASH_NAMES], 1,
+		[define if you have hash functions like md4_finito()])
+fi
+AM_CONDITIONAL(HAVE_OPENSSL, test "$openssl" = yes)dnl
+
+AC_SUBST(DIR_des)
+AC_SUBST(INCLUDE_des)
+AC_SUBST(LIB_des)
+AC_SUBST(LIB_des_a)
+AC_SUBST(LIB_des_so)
+AC_SUBST(LIB_des_appl)
+])
+
+dnl
+dnl $Id: with-all.m4,v 1.1 2001/08/29 17:01:23 assar Exp $
+dnl
+
+dnl AC_WITH_ALL(name)
+
+AC_DEFUN([AC_WITH_ALL], [
+AC_ARG_WITH($1,
+	AC_HELP_STRING([--with-$1=dir],
+		[use $1 in dir]))
+
+AC_ARG_WITH($1-lib,
+	AC_HELP_STRING([--with-$1-lib=dir],
+		[use $1 libraries in dir]),
+[if test "$withval" = "yes" -o "$withval" = "no"; then
+  AC_MSG_ERROR([No argument for --with-$1-lib])
+elif test "X$with_$1" = "X"; then
+  with_$1=yes
+fi])
+
+AC_ARG_WITH($1-include,
+	AC_HELP_STRING([--with-$1-include=dir],
+		[use $1 headers in dir]),
+[if test "$withval" = "yes" -o "$withval" = "no"; then
+  AC_MSG_ERROR([No argument for --with-$1-include])
+elif test "X$with_$1" = "X"; then
+  with_$1=yes
+fi])
+
+case "$with_$1" in
+yes)	;;
+no)	;;
+"")	;;
+*)	if test "$with_$1_include" = ""; then
+		with_$1_include="$with_$1/include"
+	fi
+	if test "$with_$1_lib" = ""; then
+		with_$1_lib="$with_$1/lib$abilibdirext"
+	fi
+	;;
+esac
+])
+dnl $Id: db.m4,v 1.9 2002/09/10 14:29:47 joda Exp $
 dnl
 dnl tests for various db libraries
 dnl
@@ -4747,86 +5166,18 @@ AM_CONDITIONAL(HAVE_DB1, test "$db_type" = db1)dnl
 AM_CONDITIONAL(HAVE_DB3, test "$db_type" = db3)dnl
 AM_CONDITIONAL(HAVE_NDBM, test "$db_type" = ndbm)dnl
 
-DBLIB="$LDFLAGS $DBLIB"
+z=""
+for i in $LDFLAGS; do
+	case "$i" in
+	-L*) z="$z $i";;
+	esac
+done
+DBLIB="$z $DBLIB"
 AC_SUBST(DBLIB)dnl
 AC_SUBST(LIB_NDBM)dnl
 ])
 
-dnl $Id: find-func-no-libs.m4,v 1.5 1999/10/30 21:08:18 assar Exp $
-dnl
-dnl
-dnl Look for function in any of the specified libraries
-dnl
-
-dnl AC_FIND_FUNC_NO_LIBS(func, libraries, includes, arguments, extra libs, extra args)
-AC_DEFUN(AC_FIND_FUNC_NO_LIBS, [
-AC_FIND_FUNC_NO_LIBS2([$1], ["" $2], [$3], [$4], [$5], [$6])])
-
-dnl $Id: find-func-no-libs2.m4,v 1.6 2001/09/01 10:57:32 assar Exp $
-dnl
-dnl
-dnl Look for function in any of the specified libraries
-dnl
-
-dnl AC_FIND_FUNC_NO_LIBS2(func, libraries, includes, arguments, extra libs, extra args)
-AC_DEFUN(AC_FIND_FUNC_NO_LIBS2, [
-
-AC_MSG_CHECKING([for $1])
-AC_CACHE_VAL(ac_cv_funclib_$1,
-[
-if eval "test \"\$ac_cv_func_$1\" != yes" ; then
-	ac_save_LIBS="$LIBS"
-	for ac_lib in $2; do
-		case "$ac_lib" in
-		"") ;;
-		yes) ac_lib="" ;;
-		no) continue ;;
-		-l*) ;;
-		*) ac_lib="-l$ac_lib" ;;
-		esac
-		LIBS="$6 $ac_lib $5 $ac_save_LIBS"
-		AC_TRY_LINK([$3],[$1($4)],eval "if test -n \"$ac_lib\";then ac_cv_funclib_$1=$ac_lib; else ac_cv_funclib_$1=yes; fi";break)
-	done
-	eval "ac_cv_funclib_$1=\${ac_cv_funclib_$1-no}"
-	LIBS="$ac_save_LIBS"
-fi
-])
-
-eval "ac_res=\$ac_cv_funclib_$1"
-
-if false; then
-	AC_CHECK_FUNCS($1)
-dnl	AC_CHECK_LIBS($2, foo)
-fi
-# $1
-eval "ac_tr_func=HAVE_[]upcase($1)"
-eval "ac_tr_lib=HAVE_LIB[]upcase($ac_res | sed -e 's/-l//')"
-eval "LIB_$1=$ac_res"
-
-case "$ac_res" in
-	yes)
-	eval "ac_cv_func_$1=yes"
-	eval "LIB_$1="
-	AC_DEFINE_UNQUOTED($ac_tr_func)
-	AC_MSG_RESULT([yes])
-	;;
-	no)
-	eval "ac_cv_func_$1=no"
-	eval "LIB_$1="
-	AC_MSG_RESULT([no])
-	;;
-	*)
-	eval "ac_cv_func_$1=yes"
-	eval "ac_cv_lib_`echo "$ac_res" | sed 's/-l//'`=yes"
-	AC_DEFINE_UNQUOTED($ac_tr_func)
-	AC_DEFINE_UNQUOTED($ac_tr_lib)
-	AC_MSG_RESULT([yes, in $ac_res])
-	;;
-esac
-AC_SUBST(LIB_$1)
-])
-
-dnl $Id: roken-frag.m4,v 1.42 2002/08/26 13:26:52 assar Exp $
+dnl $Id: roken-frag.m4,v 1.44 2002/09/04 20:57:30 joda Exp $
 dnl
 dnl some code to get roken working
 dnl
@@ -4897,6 +5248,7 @@ AC_CHECK_HEADERS([\
 	shadow.h				\
 	sys/bswap.h				\
 	sys/ioctl.h				\
+	sys/mman.h				\
 	sys/param.h				\
 	sys/proc.h				\
 	sys/resource.h				\
@@ -4937,6 +5289,24 @@ AC_KRB_IPV6
 AC_FIND_FUNC(gethostbyname2, inet6 ip6)
 
 AC_FIND_FUNC(res_search, resolv,
+[
+#include <stdio.h>
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#include <arpa/nameser.h>
+#endif
+#ifdef HAVE_RESOLV_H
+#include <resolv.h>
+#endif
+],
+[0,0,0,0,0])
+
+AC_FIND_FUNC(res_nsearch, resolv,
 [
 #include <stdio.h>
 #ifdef HAVE_SYS_TYPES_H
@@ -5032,6 +5402,8 @@ if test "$ac_cv_func_cgetent" = no; then
 fi
 
 AC_REQUIRE([AC_FUNC_GETLOGIN])
+
+AC_REQUIRE([AC_FUNC_MMAP])
 
 AC_FIND_FUNC_NO_LIBS(getsockopt,,
 [#ifdef HAVE_SYS_TYPES_H
@@ -5537,16 +5909,6 @@ fi
 done
 if false;then
 	AC_CHECK_HEADERS(netinet/ip.h netinet/tcp.h)
-fi
-])
-
-dnl $Id: find-func.m4,v 1.1 1997/12/14 15:58:58 joda Exp $
-dnl
-dnl AC_FIND_FUNC(func, libraries, includes, arguments)
-AC_DEFUN(AC_FIND_FUNC, [
-AC_FIND_FUNC_NO_LIBS([$1], [$2], [$3], [$4])
-if test -n "$LIB_$1"; then
-	LIBS="$LIB_$1 $LIBS"
 fi
 ])
 
@@ -6104,132 +6466,6 @@ if test "$ac_cv_struct_spwd" = "yes"; then
 fi
 ])
 
-dnl $Id: test-package.m4,v 1.11 2002/08/28 19:30:48 joda Exp $
-dnl
-dnl rk_TEST_PACKAGE(package,headers,libraries,extra libs,
-dnl			default locations, conditional, config-program)
-
-AC_DEFUN(rk_TEST_PACKAGE,[
-AC_ARG_WITH($1,
-	AC_HELP_STRING([--with-$1=dir],[use $1 in dir]))
-AC_ARG_WITH($1-lib,
-	AC_HELP_STRING([--with-$1-lib=dir],[use $1 libraries in dir]),
-[if test "$withval" = "yes" -o "$withval" = "no"; then
-  AC_MSG_ERROR([No argument for --with-$1-lib])
-elif test "X$with_$1" = "X"; then
-  with_$1=yes
-fi])
-AC_ARG_WITH($1-include,
-	AC_HELP_STRING([--with-$1-include=dir],[use $1 headers in dir]),
-[if test "$withval" = "yes" -o "$withval" = "no"; then
-  AC_MSG_ERROR([No argument for --with-$1-include])
-elif test "X$with_$1" = "X"; then
-  with_$1=yes
-fi])
-AC_ARG_WITH($1-config,
-	AC_HELP_STRING([--with-$1-config=path],[config program for $1]))
-
-m4_ifval([$6],
-	m4_define([rk_pkgname], $6),
-	m4_define([rk_pkgname], AS_TR_CPP($1)))
-
-AC_MSG_CHECKING(for $1)
-
-case "$with_$1" in
-yes|"") d='$5' ;;
-no)	d= ;;
-*)	d="$with_$1" ;;
-esac
-
-header_dirs=
-lib_dirs=
-for i in $d; do
-	if test "$with_$1_include" = ""; then
-		if test -d "$i/include/$1"; then
-			header_dirs="$header_dirs $i/include/$1"
-		fi
-		if test -d "$i/include"; then
-			header_dirs="$header_dirs $i/include"
-		fi
-	fi
-	if test "$with_$1_lib" = ""; then
-		if test -d "$i/lib$abilibdirext"; then
-			lib_dirs="$lib_dirs $i/lib$abilibdirext"
-		fi
-	fi
-done
-
-if test "$with_$1_include"; then
-	header_dirs="$with_$1_include $header_dirs"
-fi
-if test "$with_$1_lib"; then
-	lib_dirs="$with_$1_lib $lib_dirs"
-fi
-
-if test "$with_$1_config" = ""; then
-	with_$1_config='$7'
-fi
-
-$1_cflags=
-$1_libs=
-
-case "$with_$1_config" in
-yes|no|"")
-	;;
-*)
-	$1_cflags="`$with_$1_config --cflags 2>&1`"
-	$1_libs="`$with_$1_config --libs 2>&1`"
-	;;
-esac
-
-found=no
-if test "$with_$1" != no; then
-	save_CFLAGS="$CFLAGS"
-	save_LIBS="$LIBS"
-	if test "$[]$1_cflags" -a "$[]$1_libs"; then
-		CFLAGS="$[]$1_cflags $save_CFLAGS"
-		LIBS="$[]$1_libs $save_LIBS"
-		AC_TRY_LINK([$2],,[
-			INCLUDE_$1="$[]$1_cflags"
-			LIB_$1="$[]$1_libs"
-			AC_MSG_RESULT([from $with_$1_config])
-			found=yes])
-	fi
-	if test "$found" = no; then
-		ires= lres=
-		for i in $header_dirs; do
-			CFLAGS="-I$i $save_CFLAGS"
-			AC_TRY_COMPILE([$2],,ires=$i;break)
-		done
-		for i in $lib_dirs; do
-			LIBS="-L$i $3 $4 $save_LIBS"
-			AC_TRY_LINK([$2],,lres=$i;break)
-		done
-		if test "$ires" -a "$lres" -a "$with_$1" != "no"; then
-			INCLUDE_$1="-I$ires"
-			LIB_$1="-L$lres $3"
-			found=yes
-			AC_MSG_RESULT([headers $ires, libraries $lres])
-		fi
-	fi
-	CFLAGS="$save_CFLAGS"
-	LIBS="$save_LIBS"
-fi
-
-if test "$found" = yes; then
-	AC_DEFINE_UNQUOTED(rk_pkgname, 1, [Define if you have the $1 package.])
-	with_$1=yes
-else
-	with_$1=no
-	INCLUDE_$1=
-	LIB_$1=
-	AC_MSG_RESULT(no)
-fi
-
-AC_SUBST(INCLUDE_$1)
-AC_SUBST(LIB_$1)
-])
-
 dnl $Id: otp.m4,v 1.2 2002/05/19 20:51:08 joda Exp $
 dnl
 dnl check requirements for OTP library
@@ -6688,247 +6924,6 @@ if test "$ac_cv_func_getpwnam_r_posix" = yes; then
 fi
 fi
 ])
-dnl $Id: crypto.m4,v 1.11 2002/08/28 23:09:05 assar Exp $
-dnl
-dnl test for crypto libraries:
-dnl - libcrypto (from openssl)
-dnl - libdes (from krb4)
-dnl - own-built libdes
-
-AC_DEFUN([KRB_CRYPTO],[
-crypto_lib=unknown
-AC_WITH_ALL([openssl])
-
-DIR_des=
-
-AC_MSG_CHECKING([for crypto library])
-
-openssl=no
-if test "$crypto_lib" = "unknown" -a "$with_openssl" != "no"; then
-
-  save_CPPFLAGS="$CPPFLAGS"
-  save_LIBS="$LIBS"
-  INCLUDE_des=
-  LIB_des=
-  if test "$with_openssl_include" != ""; then
-    INCLUDE_des="-I${with_openssl}/include"
-  fi
-  if test "$with_openssl_lib" != ""; then
-    LIB_des="-L${with_openssl}/lib"
-  fi
-  CPPFLAGS="${INCLUDE_des} ${CPPFLAGS}"
-  LIB_des="${LIB_des} -lcrypto"
-  LIB_des_a="$LIB_des"
-  LIB_des_so="$LIB_des"
-  LIB_des_appl="$LIB_des"
-  LIBS="${LIBS} ${LIB_des}"
-  AC_TRY_LINK([
-  #include <openssl/md4.h>
-  #include <openssl/md5.h>
-  #include <openssl/sha.h>
-  #include <openssl/des.h>
-  #include <openssl/rc4.h>
-  ],
-  [
-    void *schedule = 0;
-    MD4_CTX md4;
-    MD5_CTX md5;
-    SHA_CTX sha1;
-
-    MD4_Init(&md4);
-    MD5_Init(&md5);
-    SHA1_Init(&sha1);
-
-    des_cbc_encrypt(0, 0, 0, schedule, 0, 0);
-    RC4(0, 0, 0, 0);
-  ], [
-  crypto_lib=libcrypto openssl=yes
-  AC_MSG_RESULT([libcrypto])])
-  CPPFLAGS="$save_CPPFLAGS"
-  LIBS="$save_LIBS"
-fi
-
-if test "$crypto_lib" = "unknown" -a "$with_krb4" != "no"; then
-	save_CPPFLAGS="$CPPFLAGS"
-	save_LIBS="$LIBS"
-
-	cdirs= clibs=
-	for i in $LIB_krb4; do
-		case "$i" in
-		-L*) cdirs="$cdirs $i";;
-		-l*) clibs="$clibs $i";;
-		esac
-	done
-
-	ires=
-	for i in $INCLUDE_krb4; do
-		CFLAGS="$i $save_CFLAGS"
-		AC_TRY_COMPILE([
-			#undef KRB5 /* makes md4.h et al unhappy */
-			#define KRB4
-			#include <openssl/md4.h>
-			#include <openssl/md5.h>
-			#include <openssl/sha.h>
-			#include <openssl/des.h>
-			#include <openssl/rc4.h>
-			], [
-			MD4_CTX md4;
-			MD5_CTX md5;
-			SHA_CTX sha1;
-
-			MD4_Init(&md4);
-			MD5_Init(&md5);
-			SHA1_Init(&sha1);
-
-			des_cbc_encrypt(0, 0, 0, 0, 0, 0);
-			RC4(0, 0, 0, 0);],openssl=yes ires="$i"; break)
-		AC_TRY_COMPILE([
-			#undef KRB5 /* makes md4.h et al unhappy */
-			#define KRB4
-			#include <md4.h>
-			#include <md5.h>
-			#include <sha.h>
-			#include <des.h>
-			#include <rc4.h>
-			], [
-			MD4_CTX md4;
-			MD5_CTX md5;
-			SHA_CTX sha1;
-
-			MD4_Init(&md4);
-			MD5_Init(&md5);
-			SHA1_Init(&sha1);
-
-			des_cbc_encrypt(0, 0, 0, 0, 0, 0);
-			RC4(0, 0, 0, 0);],ires="$i"; break)
-	done
-	lres=
-	for i in $cdirs; do
-		for j in $clibs; do
-			LIBS="$i $j $save_LIBS"
-			if test "$openssl" = yes; then
-			AC_TRY_LINK([
-				#undef KRB5 /* makes md4.h et al unhappy */
-				#define KRB4
-				#include <openssl/md4.h>
-				#include <openssl/md5.h>
-				#include <openssl/sha.h>
-				#include <openssl/des.h>
-				#include <openssl/rc4.h>
-				], [
-				MD4_CTX md4;
-				MD5_CTX md5;
-				SHA_CTX sha1;
-	
-				MD4_Init(&md4);
-				MD5_Init(&md5);
-				SHA1_Init(&sha1);
-	
-				des_cbc_encrypt(0, 0, 0, 0, 0, 0);
-				RC4(0, 0, 0, 0);],lres="$i $j"; break 2)
-			else
-			AC_TRY_LINK([
-				#undef KRB5 /* makes md4.h et al unhappy */
-				#define KRB4
-				#include <md4.h>
-				#include <md5.h>
-				#include <sha.h>
-				#include <des.h>
-				#include <rc4.h>
-				], [
-				MD4_CTX md4;
-				MD5_CTX md5;
-				SHA_CTX sha1;
-	
-				MD4_Init(&md4);
-				MD5_Init(&md5);
-				SHA1_Init(&sha1);
-	
-				des_cbc_encrypt(0, 0, 0, 0, 0, 0);
-				RC4(0, 0, 0, 0);],lres="$i $j"; break 2)
-			fi
-		done
-	done
-	CFLAGS="$save_CFLAGS"
-	LIBS="$save_LIBS"
-	if test "$ires" -a "$lres"; then
-		INCLUDE_des="$ires"
-		LIB_des="$lres"
-		crypto_lib=krb4
-		AC_MSG_RESULT([same as krb4])
-		LIB_des_a='$(LIB_des)'
-		LIB_des_so='$(LIB_des)'
-		LIB_des_appl='$(LIB_des)'
-	fi
-fi
-
-if test "$crypto_lib" = "unknown"; then
-
-  DIR_des='des'
-  LIB_des='$(top_builddir)/lib/des/libdes.la'
-  LIB_des_a='$(top_builddir)/lib/des/.libs/libdes.a'
-  LIB_des_so='$(top_builddir)/lib/des/.libs/libdes.so'
-  LIB_des_appl="-ldes"
-
-  AC_MSG_RESULT([included libdes])
-
-fi
-
-if test "$openssl" = "yes"; then
-  AC_DEFINE([HAVE_OPENSSL], 1, [define to use openssl's libcrypto])
-fi
-AM_CONDITIONAL(HAVE_OPENSSL, test "$openssl" = yes)dnl
-
-AC_SUBST(DIR_des)
-AC_SUBST(INCLUDE_des)
-AC_SUBST(LIB_des)
-AC_SUBST(LIB_des_a)
-AC_SUBST(LIB_des_so)
-AC_SUBST(LIB_des_appl)
-])
-
-dnl
-dnl $Id: with-all.m4,v 1.1 2001/08/29 17:01:23 assar Exp $
-dnl
-
-dnl AC_WITH_ALL(name)
-
-AC_DEFUN([AC_WITH_ALL], [
-AC_ARG_WITH($1,
-	AC_HELP_STRING([--with-$1=dir],
-		[use $1 in dir]))
-
-AC_ARG_WITH($1-lib,
-	AC_HELP_STRING([--with-$1-lib=dir],
-		[use $1 libraries in dir]),
-[if test "$withval" = "yes" -o "$withval" = "no"; then
-  AC_MSG_ERROR([No argument for --with-$1-lib])
-elif test "X$with_$1" = "X"; then
-  with_$1=yes
-fi])
-
-AC_ARG_WITH($1-include,
-	AC_HELP_STRING([--with-$1-include=dir],
-		[use $1 headers in dir]),
-[if test "$withval" = "yes" -o "$withval" = "no"; then
-  AC_MSG_ERROR([No argument for --with-$1-include])
-elif test "X$with_$1" = "X"; then
-  with_$1=yes
-fi])
-
-case "$with_$1" in
-yes)	;;
-no)	;;
-"")	;;
-*)	if test "$with_$1_include" = ""; then
-		with_$1_include="$with_$1/include"
-	fi
-	if test "$with_$1_lib" = ""; then
-		with_$1_lib="$with_$1/lib$abilibdirext"
-	fi
-	;;
-esac
-])
 dnl $Id: krb-readline.m4,v 1.5 2002/08/29 02:22:32 assar Exp $
 dnl
 dnl Tests for readline functions
@@ -7126,19 +7121,25 @@ AC_SUBST(LIB_com_err_so)
 
 ])
 
-dnl $Id: auth-modules.m4,v 1.3 2002/08/28 15:04:57 nectar Exp $
+dnl $Id: auth-modules.m4,v 1.5 2002/09/09 13:31:45 joda Exp $
 dnl
 dnl Figure what authentication modules should be built
+dnl
+dnl rk_AUTH_MODULES(module-list)
 
-AC_DEFUN(AC_AUTH_MODULES,[
-AC_MSG_CHECKING(which authentication modules should be built)
+AC_DEFUN(rk_AUTH_MODULES,[
+AC_MSG_CHECKING([which authentication modules should be built])
 
+z='m4_ifval([$1], $1, [sia pam afskauthlib])'
 LIB_AUTH_SUBDIRS=
-
+for i in $z; do
+case $i in
+sia)
 if test "$ac_cv_header_siad_h" = yes; then
 	LIB_AUTH_SUBDIRS="$LIB_AUTH_SUBDIRS sia"
 fi
-
+;;
+pam)
 case "${host}" in
 *-*-freebsd*)	ac_cv_want_pam_krb4=no ;;
 *)		ac_cv_want_pam_krb4=yes ;;
@@ -7149,12 +7150,19 @@ if test "$ac_cv_want_pam_krb4" = yes -a \
     "$enable_shared" = yes; then
 	LIB_AUTH_SUBDIRS="$LIB_AUTH_SUBDIRS pam"
 fi
-
+;;
+afskauthlib)
 case "${host}" in
 *-*-irix[[56]]*) LIB_AUTH_SUBDIRS="$LIB_AUTH_SUBDIRS afskauthlib" ;;
 esac
-
-AC_MSG_RESULT($LIB_AUTH_SUBDIRS)
+;;
+esac
+done
+if test "$LIB_AUTH_SUBDIRS"; then
+	AC_MSG_RESULT($LIB_AUTH_SUBDIRS)
+else
+	AC_MSG_RESULT(none)
+fi
 
 AC_SUBST(LIB_AUTH_SUBDIRS)dnl
 ])

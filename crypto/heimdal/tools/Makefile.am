@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.5 2001/01/29 06:56:33 assar Exp $
+# $Id: Makefile.am,v 1.6 2002/09/09 22:29:26 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -19,6 +19,7 @@ krb5-config: krb5-config.in
 		-e "s,@includedir\@,$(includedir),g" \
 		-e "s,@LIB_crypt\@,$(LIB_crypt),g" \
 		-e "s,@LIB_dbopen\@,$(LIB_dbopen),g" \
+		-e "s,@INCLUDE_des\@,$(INCLUDE_des),g" \
 		-e "s,@LIB_des_appl\@,$(LIB_des_appl),g" \
 		-e "s,@LIBS\@,$(LIBS),g" \
 		$(srcdir)/krb5-config.in > $@

@@ -45,9 +45,10 @@
 
 #include <assert.h>
 
-RCSID("$Id: resolve.c,v 1.33 2002/08/28 20:07:24 joda Exp $");
+RCSID("$Id: resolve.c,v 1.36 2002/09/09 21:39:19 joda Exp $");
 
-#if defined(HAVE_RES_SEARCH) && defined(HAVE_DN_EXPAND)
+#undef HAVE_RES_NSEARCH
+#if (defined(HAVE_RES_SEARCH) || defined(HAVE_RES_NSEARCH)) && defined(HAVE_DN_EXPAND)
 
 #define DECL(X) {#X, T_##X}
 
@@ -110,8 +111,11 @@ dns_free_data(struct dns_reply *r)
     free (r);
 }
 
-static struct dns_reply*
-parse_reply(unsigned char *data, int len)
+#ifndef TEST_RESOLVE
+static
+#endif
+struct dns_reply*
+parse_reply(const unsigned char *data, size_t len)
 {
     const unsigned char *p;
     char host[128];
@@ -366,26 +370,40 @@ dns_lookup_int(const char *domain, int rr_class, int rr_type)
 {
     unsigned char reply[1024];
     int len;
-#ifdef HAVE__RES
+#ifdef HAVE_RES_NSEARCH
+    struct __res_state stat;
+    memset(&stat, 0, sizeof(stat));
+    if(res_ninit(&stat))
+	return NULL; /* is this the best we can do? */
+#elif defined(HAVE__RES)
     u_long old_options = 0;
 #endif
     
     if (_resolve_debug) {
-#ifdef HAVE__RES
+#ifdef HAVE_RES_NSEARCH
+	stat.options |= RES_DEBUG;
+#elif defined(HAVE__RES)
         old_options = _res.options;
 	_res.options |= RES_DEBUG;
 #endif
 	fprintf(stderr, "dns_lookup(%s, %d, %s)\n", domain,
 		rr_class, dns_type_to_string(rr_type));
     }
+#ifdef HAVE_RES_NSEARCH
+    len = res_nsearch(&stat, domain, rr_class, rr_type, reply, sizeof(reply));
+#else
     len = res_search(domain, rr_class, rr_type, reply, sizeof(reply));
+#endif
     if (_resolve_debug) {
-#ifdef HAVE__RES
+#if defined(HAVE__RES) && !defined(HAVE_RES_NSEARCH)
         _res.options = old_options;
 #endif
 	fprintf(stderr, "dns_lookup(%s, %d, %s) --> %d\n",
 		domain, rr_class, dns_type_to_string(rr_type), len);
     }
+#ifdef HAVE_RES_NSEARCH
+    res_nclose(&stat);
+#endif    
     if(len < 0) {
 	return NULL;
     } else {

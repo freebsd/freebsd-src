@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kerberos5.c,v 1.140 2002/07/31 09:42:43 joda Exp $");
+RCSID("$Id: kerberos5.c,v 1.143 2002/09/09 14:03:02 nectar Exp $");
 
 #define MAX_TIME ((time_t)((1U << 31) - 1))
 
@@ -156,51 +156,69 @@ encode_reply(KDC_REP *rep, EncTicketPart *et, EncKDCRepPart *ek,
 	     krb5_enctype etype, 
 	     int skvno, EncryptionKey *skey,
 	     int ckvno, EncryptionKey *ckey,
+	     const char **e_text,
 	     krb5_data *reply)
 {
-    unsigned char buf[8192]; /* XXX The data could be indefinite */
+    unsigned char *buf;
+    size_t buf_size;
     size_t len;
     krb5_error_code ret;
     krb5_crypto crypto;
 
-    ret = encode_EncTicketPart(buf + sizeof(buf) - 1, sizeof(buf), et, &len);
+    ASN1_MALLOC_ENCODE(EncTicketPart, buf, buf_size, et, &len, ret);
     if(ret) {
 	kdc_log(0, "Failed to encode ticket: %s", 
 		krb5_get_err_text(context, ret));
 	return ret;
     }
-    
+    if(buf_size != len) {
+	free(buf);
+	kdc_log(0, "Internal error in ASN.1 encoder");
+	*e_text = "KDC internal error";
+	return KRB5KRB_ERR_GENERIC;
+    }
 
     ret = krb5_crypto_init(context, skey, etype, &crypto);
     if (ret) {
+	free(buf);
 	kdc_log(0, "krb5_crypto_init failed: %s",
 		krb5_get_err_text(context, ret));
 	return ret;
     }
 
-    krb5_encrypt_EncryptedData(context, 
-			       crypto,
-			       KRB5_KU_TICKET,
-			       buf + sizeof(buf) - len,
-			       len,
-			       skvno,
-			       &rep->ticket.enc_part);
-
+    ret = krb5_encrypt_EncryptedData(context, 
+				     crypto,
+				     KRB5_KU_TICKET,
+				     buf,
+				     len,
+				     skvno,
+				     &rep->ticket.enc_part);
+    free(buf);
     krb5_crypto_destroy(context, crypto);
+    if(ret) {
+	kdc_log(0, "Failed to encrypt data: %s",
+		krb5_get_err_text(context, ret));
+	return ret;
+    }
     
     if(rep->msg_type == krb_as_rep && !encode_as_rep_as_tgs_rep)
-	ret = encode_EncASRepPart(buf + sizeof(buf) - 1, sizeof(buf), 
-				  ek, &len);
+	ASN1_MALLOC_ENCODE(EncASRepPart, buf, buf_size, ek, &len, ret);
     else
-	ret = encode_EncTGSRepPart(buf + sizeof(buf) - 1, sizeof(buf), 
-				   ek, &len);
+	ASN1_MALLOC_ENCODE(EncTGSRepPart, buf, buf_size, ek, &len, ret);
     if(ret) {
 	kdc_log(0, "Failed to encode KDC-REP: %s", 
 		krb5_get_err_text(context, ret));
 	return ret;
     }
+    if(buf_size != len) {
+	free(buf);
+	kdc_log(0, "Internal error in ASN.1 encoder");
+	*e_text = "KDC internal error";
+	return KRB5KRB_ERR_GENERIC;
+    }
     ret = krb5_crypto_init(context, ckey, 0, &crypto);
     if (ret) {
+	free(buf);
 	kdc_log(0, "krb5_crypto_init failed: %s",
 		krb5_get_err_text(context, ret));
 	return ret;
@@ -209,20 +227,22 @@ encode_reply(KDC_REP *rep, EncTicketPart *et, EncKDCRepPart *ek,
 	krb5_encrypt_EncryptedData(context,
 				   crypto,
 				   KRB5_KU_AS_REP_ENC_PART,
-				   buf + sizeof(buf) - len,
+				   buf,
 				   len,
 				   ckvno,
 				   &rep->enc_part);
-	ret = encode_AS_REP(buf + sizeof(buf) - 1, sizeof(buf), rep, &len);
+	free(buf);
+	ASN1_MALLOC_ENCODE(AS_REP, buf, buf_size, rep, &len, ret);
     } else {
 	krb5_encrypt_EncryptedData(context,
 				   crypto,
 				   KRB5_KU_TGS_REP_ENC_PART_SESSION,
-				   buf + sizeof(buf) - len,
+				   buf,
 				   len,
 				   ckvno,
 				   &rep->enc_part);
-	ret = encode_TGS_REP(buf + sizeof(buf) - 1, sizeof(buf), rep, &len);
+	free(buf);
+	ASN1_MALLOC_ENCODE(TGS_REP, buf, buf_size, rep, &len, ret);
     }
     krb5_crypto_destroy(context, crypto);
     if(ret) {
@@ -230,7 +250,14 @@ encode_reply(KDC_REP *rep, EncTicketPart *et, EncKDCRepPart *ek,
 		krb5_get_err_text(context, ret));
 	return ret;
     }
-    krb5_data_copy(reply, buf + sizeof(buf) - len, len);
+    if(buf_size != len) {
+	free(buf);
+	kdc_log(0, "Internal error in ASN.1 encoder");
+	*e_text = "KDC internal error";
+	return KRB5KRB_ERR_GENERIC;
+    }
+    reply->data = buf;
+    reply->length = buf_size;
     return 0;
 }
 
@@ -297,6 +324,8 @@ get_pa_etype_info(METHOD_DATA *md, hdb_entry *client,
     
 
     pa.len = client->keys.len;
+    if(pa.len > UINT_MAX/sizeof(*pa.val))
+	return ERANGE;
     pa.val = malloc(pa.len * sizeof(*pa.val));
     if(pa.val == NULL)
 	return ENOMEM;
@@ -333,18 +362,10 @@ get_pa_etype_info(METHOD_DATA *md, hdb_entry *client,
 	pa.len = n;
     }
 
-    len = length_ETYPE_INFO(&pa);
-    buf = malloc(len);
-    if (buf == NULL) {
-	free_ETYPE_INFO(&pa);
-	return ENOMEM;
-    }
-    ret = encode_ETYPE_INFO(buf + len - 1, len, &pa, &len);
+    ASN1_MALLOC_ENCODE(ETYPE_INFO, buf, len, &pa, &len, ret);
     free_ETYPE_INFO(&pa);
-    if(ret) {
-	free(buf);
+    if(ret)
 	return ret;
-    }
     ret = realloc_method_data(md);
     if(ret) {
 	free(buf);
@@ -657,15 +678,10 @@ as_rep(KDC_REQ *req,
 	ret = get_pa_etype_info(&method_data, client, 
 				b->etype.val, b->etype.len); /* XXX check ret */
 	
-	len = length_METHOD_DATA(&method_data);
-	buf = malloc(len);
-	encode_METHOD_DATA(buf + len - 1,
-			   len,
-			   &method_data,
-			   &len);
+	ASN1_MALLOC_ENCODE(METHOD_DATA, buf, len, &method_data, &len, ret);
 	free_METHOD_DATA(&method_data);
-	foo_data.length = len;
 	foo_data.data   = buf;
+	foo_data.length = len;
 	
 	ret = KRB5KDC_ERR_PREAUTH_REQUIRED;
 	krb5_mk_error(context,
@@ -895,7 +911,7 @@ as_rep(KDC_REQ *req,
 
     set_salt_padata (&rep.padata, ckey->salt);
     ret = encode_reply(&rep, &et, &ek, setype, server->kvno, &skey->key,
-		       client->kvno, &ckey->key, reply);
+		       client->kvno, &ckey->key, &e_text, reply);
     free_EncTicketPart(&et);
     free_EncKDCRepPart(&ek);
     free_AS_REP(&rep);
@@ -1065,6 +1081,10 @@ fix_transited_encoding(TransitedEncoding *tr,
 		return ret;
 	    }
 	}
+	if (num_realms < 0 || num_realms + 1 > UINT_MAX/sizeof(*realms)) {
+	    ret = ERANGE;
+	    goto free_realms;
+	}
 	tmp = realloc(realms, (num_realms + 1) * sizeof(*realms));
 	if(tmp == NULL){
 	    ret = ENOMEM;
@@ -1101,6 +1121,7 @@ tgs_make_reply(KDC_REQ_BODY *b,
 	       krb5_principal client_principal, 
 	       hdb_entry *krbtgt,
 	       krb5_enctype cetype,
+	       const char **e_text,
 	       krb5_data *reply)
 {
     KDC_REP rep;
@@ -1256,7 +1277,7 @@ tgs_make_reply(KDC_REQ_BODY *b,
        etype list, even if we don't want a session key with
        DES3? */
     ret = encode_reply(&rep, &et, &ek, etype, adtkt ? 0 : server->kvno, ekey,
-		       0, &tgt->key, reply);
+		       0, &tgt->key, e_text, reply);
 out:
     free_TGS_REP(&rep);
     free_TransitedEncoding(&et.transited);
@@ -1273,11 +1294,13 @@ out:
 static krb5_error_code
 tgs_check_authenticator(krb5_auth_context ac,
 			KDC_REQ_BODY *b, 
+			const char **e_text,
 			krb5_keyblock *key)
 {
     krb5_authenticator auth;
     size_t len;
-    unsigned char buf[8192];
+    unsigned char *buf;
+    size_t buf_size;
     krb5_error_code ret;
     krb5_crypto crypto;
     
@@ -1304,15 +1327,22 @@ tgs_check_authenticator(krb5_auth_context ac,
     }
 		
     /* XXX should not re-encode this */
-    ret = encode_KDC_REQ_BODY(buf + sizeof(buf) - 1, sizeof(buf),
-			      b, &len);
+    ASN1_MALLOC_ENCODE(KDC_REQ_BODY, buf, buf_size, b, &len, ret);
     if(ret){
 	kdc_log(0, "Failed to encode KDC-REQ-BODY: %s", 
 		krb5_get_err_text(context, ret));
 	goto out;
     }
+    if(buf_size != len) {
+	free(buf);
+	kdc_log(0, "Internal error in ASN.1 encoder");
+	*e_text = "KDC internal error";
+	ret = KRB5KRB_ERR_GENERIC;
+	goto out;
+    }
     ret = krb5_crypto_init(context, key, 0, &crypto);
     if (ret) {
+	free(buf);
 	kdc_log(0, "krb5_crypto_init failed: %s",
 		krb5_get_err_text(context, ret));
 	goto out;
@@ -1320,9 +1350,10 @@ tgs_check_authenticator(krb5_auth_context ac,
     ret = krb5_verify_checksum(context,
 			       crypto,
 			       KRB5_KU_TGS_REQ_AUTH_CKSUM,
-			       buf + sizeof(buf) - len, 
+			       buf, 
 			       len,
 			       auth->cksum);
+    free(buf);
     krb5_crypto_destroy(context, crypto);
     if(ret){
 	kdc_log(0, "Failed to verify checksum: %s", 
@@ -1506,7 +1537,7 @@ tgs_rep2(KDC_REQ_BODY *b,
 
     tgt = &ticket->ticket;
 
-    ret = tgs_check_authenticator(ac, b, &tgt->key);
+    ret = tgs_check_authenticator(ac, b, &e_text, &tgt->key);
 
     if (b->enc_authorization_data) {
 	krb5_keyblock *subkey;
@@ -1723,6 +1754,7 @@ tgs_rep2(KDC_REQ_BODY *b,
 			     cp, 
 			     krbtgt, 
 			     cetype, 
+			     &e_text,
 			     reply);
 	
     out:

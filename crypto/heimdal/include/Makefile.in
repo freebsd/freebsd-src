@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# $Id: Makefile.am,v 1.32 2002/05/24 15:36:21 joda Exp $
+# $Id: Makefile.am,v 1.33 2002/09/10 19:59:25 joda Exp $
 
 # $Id: Makefile.am.common,v 1.5 2002/05/19 18:35:37 joda Exp $
 
@@ -204,10 +204,11 @@ NROFF_MAN = groff -mandoc -Tascii
 
 SUBDIRS = kadm5
 
-noinst_PROGRAMS = bits
+noinst_PROGRAMS = bits make_crypto
 CHECK_LOCAL = 
 
 include_HEADERS = krb5-types.h
+noinst_HEADERS = crypto-headers.h
 
 CLEANFILES = \
 	asn1.h		\
@@ -215,6 +216,7 @@ CLEANFILES = \
 	base64.h	\
 	com_err.h	\
 	com_right.h	\
+	crypto-headers.h\
 	der.h		\
 	des.h		\
 	editline.h	\
@@ -249,7 +251,7 @@ subdir = include
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES =
-noinst_PROGRAMS = bits$(EXEEXT)
+noinst_PROGRAMS = bits$(EXEEXT) make_crypto$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
 
 bits_SOURCES = bits.c
@@ -257,6 +259,11 @@ bits_OBJECTS = bits.$(OBJEXT)
 bits_LDADD = $(LDADD)
 bits_DEPENDENCIES =
 bits_LDFLAGS =
+make_crypto_SOURCES = make_crypto.c
+make_crypto_OBJECTS = make_crypto.$(OBJEXT)
+make_crypto_LDADD = $(LDADD)
+make_crypto_DEPENDENCIES =
+make_crypto_LDFLAGS =
 
 DEFS = @DEFS@
 DEFAULT_INCLUDES =  -I. -I$(srcdir) -I.
@@ -273,17 +280,18 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 CFLAGS = @CFLAGS@
-DIST_SOURCES = bits.c
-HEADERS = $(include_HEADERS)
+DIST_SOURCES = bits.c make_crypto.c
+HEADERS = $(include_HEADERS) $(noinst_HEADERS)
 
 
 RECURSIVE_TARGETS = info-recursive dvi-recursive install-info-recursive \
 	uninstall-info-recursive all-recursive install-data-recursive \
 	install-exec-recursive installdirs-recursive install-recursive \
 	uninstall-recursive check-recursive installcheck-recursive
-DIST_COMMON = $(include_HEADERS) Makefile.am Makefile.in config.h.in
+DIST_COMMON = $(include_HEADERS) $(noinst_HEADERS) Makefile.am \
+	Makefile.in
 DIST_SUBDIRS = $(SUBDIRS)
-SOURCES = bits.c
+SOURCES = bits.c make_crypto.c
 
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
@@ -322,6 +330,9 @@ clean-noinstPROGRAMS:
 bits$(EXEEXT): $(bits_OBJECTS) $(bits_DEPENDENCIES) 
 	@rm -f bits$(EXEEXT)
 	$(LINK) $(bits_LDFLAGS) $(bits_OBJECTS) $(bits_LDADD) $(LIBS)
+make_crypto$(EXEEXT): $(make_crypto_OBJECTS) $(make_crypto_DEPENDENCIES) 
+	@rm -f make_crypto$(EXEEXT)
+	$(LINK) $(make_crypto_LDFLAGS) $(make_crypto_OBJECTS) $(make_crypto_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT) core *.core
@@ -731,6 +742,9 @@ install-data-local: install-cat-mans
 
 krb5-types.h: bits$(EXEEXT)
 	./bits$(EXEEXT) krb5-types.h
+
+crypto-headers.h: make_crypto$(EXEEXT)
+	./make_crypto$(EXEEXT) crypto-headers.h
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

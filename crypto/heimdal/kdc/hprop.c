@@ -33,7 +33,7 @@
 
 #include "hprop.h"
 
-RCSID("$Id: hprop.c,v 1.69 2002/04/18 10:18:35 joda Exp $");
+RCSID("$Id: hprop.c,v 1.70 2002/09/04 18:19:41 joda Exp $");
 
 static int version_flag;
 static int help_flag;
@@ -691,7 +691,7 @@ propagate_database (krb5_context context, int type,
 			    HPROP_VERSION,
 			    NULL,
 			    server,
-			    AP_OPTS_MUTUAL_REQUIRED,
+			    AP_OPTS_MUTUAL_REQUIRED | AP_OPTS_USE_SUBKEY,
 			    NULL, /* in_data */
 			    NULL, /* in_creds */
 			    ccache,

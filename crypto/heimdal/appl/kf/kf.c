@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000, 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,13 +32,13 @@
  */
 
 #include "kf_locl.h"
-RCSID("$Id: kf.c,v 1.15 2001/02/20 01:44:44 assar Exp $");
+RCSID("$Id: kf.c,v 1.17 2002/09/05 15:00:03 joda Exp $");
 
 krb5_context context;
 static int help_flag;
 static int version_flag;
 static char *port_str;
-const char *service     = SERVICE;
+const char *service     = KF_SERVICE;
 const char *remote_name = NULL;
 int forwardable   = 0;
 const char *ccache_name = NULL;
@@ -107,7 +107,7 @@ client_setup(krb5_context *context, int *argc, char **argv)
     }
 
     if (port == 0)
-	port = krb5_getportbyname (*context, PORT, "tcp", PORT_NUM);
+	port = krb5_getportbyname (*context, KF_PORT_NAME, "tcp", KF_PORT_NUM);
    
     if(*argc - optind < 1)
         usage(1, args, num_args);
@@ -122,22 +122,19 @@ client_setup(krb5_context *context, int *argc, char **argv)
  */
 
 static int
-proto (int sock, const char *hostname, const char *service)
+proto (int sock, const char *hostname, const char *service,
+       char *message, size_t len)
 {
     krb5_auth_context auth_context;
     krb5_error_code status;
     krb5_principal server;
     krb5_data data;
-    krb5_data packet;
     krb5_data data_send;
-    u_int32_t len, net_len;
 
     krb5_ccache     ccache;
     krb5_creds      creds;
     krb5_kdc_flags  flags;
     krb5_principal  principal;
-    char	    ret_string[10];
-    ssize_t	    n;
 
     status = krb5_auth_con_init (context, &auth_context);
     if (status) {
@@ -166,10 +163,10 @@ proto (int sock, const char *hostname, const char *service)
     status = krb5_sendauth (context,
 			    &auth_context,
 			    &sock,
-			    VERSION,
+			    KF_VERSION_1,
 			    NULL,
 			    server,
-			    AP_OPTS_MUTUAL_REQUIRED,
+			    AP_OPTS_MUTUAL_REQUIRED | AP_OPTS_USE_SUBKEY,
 			    NULL,
 			    NULL,
 			    NULL,
@@ -181,27 +178,19 @@ proto (int sock, const char *hostname, const char *service)
 	return 1;
     }
 
-    if (remote_name == NULL) {
-	remote_name = get_default_username ();
-	if (remote_name == NULL)
-	    errx (1, "who are you?");
-    }
+    if (ccache_name == NULL)
+	ccache_name = "";
 
-    krb5_data_zero(&data_send);
     data_send.data   = (void *)remote_name;
     data_send.length = strlen(remote_name) + 1;
-    status = krb5_write_message(context, &sock, &data_send);
+    status = krb5_write_priv_message(context, auth_context, &sock, &data_send);
     if (status) {
 	krb5_warn (context, status, "krb5_write_message");
 	return 1;
     }
-  
-    if (ccache_name == NULL)
-	ccache_name = "";
-
     data_send.data   = (void *)ccache_name;
     data_send.length = strlen(ccache_name)+1;
-    status = krb5_write_message(context, &sock, &data_send);
+    status = krb5_write_priv_message(context, auth_context, &sock, &data_send);
     if (status) {
 	krb5_warn (context, status, "krb5_write_message");
 	return 1;
@@ -223,16 +212,15 @@ proto (int sock, const char *hostname, const char *service)
 
     creds.client = principal;
     
-    status = krb5_build_principal (context,
-				   &creds.server,
-				   strlen(principal->realm),
-				   principal->realm,
-				   KRB5_TGS_NAME,
-				   principal->realm,
-				   NULL);
+    status = krb5_make_principal (context,
+				  &creds.server,
+				  principal->realm,
+				  KRB5_TGS_NAME,
+				  principal->realm,
+				  NULL);
 
     if (status) {
-	krb5_warn (context, status, "krb5_build_principal");
+	krb5_warn (context, status, "krb5_make_principal");
 	return 1;
     }
 
@@ -254,60 +242,36 @@ proto (int sock, const char *hostname, const char *service)
 	return 1;
     }
 
-    status = krb5_mk_priv (context,
-                           auth_context,
-                           &data,
-                           &packet,
-                           NULL);
+    status = krb5_write_priv_message(context, auth_context, &sock, &data);
+
     if (status) {
 	krb5_warn (context, status, "krb5_mk_priv");
 	return 1;
     }
     
-    len = packet.length;
-    net_len = htonl(len);
-
-    if (krb5_net_write (context, &sock, &net_len, 4) != 4) {
-	krb5_warn (context, errno, "krb5_net_write");
-	return 1;
-    }
-    if (krb5_net_write (context, &sock, packet.data, len) != len) {
-	krb5_warn (context, errno, "krb5_net_write");
-	return 1;
-    }
-
     krb5_data_free (&data);
 
-    n = krb5_net_read (context, &sock, &net_len, 4);
-    if (n == 0) {
-	krb5_warnx (context, "EOF in krb5_net_read");
+    status = krb5_read_priv_message(context, auth_context, &sock, &data);
+    if (status) {
+	krb5_warn (context, status, "krb5_mk_priv");
 	return 1;
     }
-    if (n < 0) {
-	krb5_warn (context, errno, "krb5_net_read");
-	return 1;
+    if(data.length >= len) {
+	krb5_warnx (context, "returned string is too long, truncating");
+	memcpy(message, data.data, len);
+	message[len - 1] = '\0';
+    } else {
+	memcpy(message, data.data, data.length);
+	message[data.length] = '\0';
     }
-    len = ntohl(net_len);
-    if (len >= sizeof(ret_string)) {
-	krb5_warnx (context, "too long string back from %s", hostname);
-	return 1;
-    }
-    n = krb5_net_read (context, &sock, ret_string, len);
-    if (n == 0) {
-	krb5_warnx (context, "EOF in krb5_net_read");
-	return 1;
-    }
-    if (n < 0) {
-	krb5_warn (context, errno, "krb5_net_read");
-	return 1;
-    }
-    ret_string[sizeof(ret_string) - 1] = '\0';
+    krb5_data_free (&data);
 
-    return(strcmp(ret_string,"ok"));
+    return(strcmp(message, "ok"));
 }
 
 static int
-doit (const char *hostname, int port, const char *service)
+doit (const char *hostname, int port, const char *service, 
+      char *message, size_t len)
 {
     struct addrinfo *ai, *a;
     struct addrinfo hints;
@@ -337,7 +301,7 @@ doit (const char *hostname, int port, const char *service)
 	    continue;
 	}
 	freeaddrinfo (ai);
-	return proto (s, hostname, service);
+	return proto (s, hostname, service, message, len);
     }
     warnx ("failed to contact %s", hostname);
     freeaddrinfo (ai);
@@ -353,9 +317,19 @@ main(int argc, char **argv)
     argcc = argc;
     port = client_setup(&context, &argcc, argv);
 
+    if (remote_name == NULL) {
+	remote_name = get_default_username ();
+	if (remote_name == NULL)
+	    errx (1, "who are you?");
+    }
+
     for (i = argcc;i < argc; i++) {
-	ret = doit (argv[i], port, service);
-	warnx ("%s %s", argv[i], ret ? "failed" : "ok");
+	char message[128];
+	ret = doit (argv[i], port, service, message, sizeof(message));
+	if(ret == 0)
+	    warnx ("%s: ok", argv[i]);
+	else
+	    warnx ("%s: failed: %s", argv[i], message);
     }
     return(ret);
 }

@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_keyfile.c,v 1.13 2002/04/18 14:04:21 joda Exp $");
+RCSID("$Id: keytab_keyfile.c,v 1.14 2002/09/09 14:22:26 nectar Exp $");
 
 /* afs keyfile operations --------------------------------------- */
 
@@ -297,7 +297,7 @@ akf_add_entry(krb5_context context,
     fd = open (d->filename, O_RDWR | O_BINARY);
     if (fd < 0) {
 	fd = open (d->filename,
-		   O_RDWR | O_BINARY | O_CREAT, 0600);
+		   O_RDWR | O_BINARY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
 	    ret = errno;
 	    krb5_set_error_string(context, "open(%s): %s", d->filename,

@@ -1,3 +1,13 @@
+2002-09-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* wrap.c (wrap_des3): use ETYPE_DES3_CBC_NONE
+
+	* unwrap.c (unwrap_des3): use ETYPE_DES3_CBC_NONE
+
+2002-09-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* init_sec_context.c: we need to generate a local subkey here
+
 2002-08-20  Jacques Vidrine <n@nectar.com>
 
 	* acquire_cred.c, inquire_cred.c, release_cred.c: Use default

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,10 +33,18 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getnameinfo_verified.c,v 1.5 2001/02/12 13:55:07 assar Exp $");
+RCSID("$Id: getnameinfo_verified.c,v 1.6 2002/09/05 01:36:27 assar Exp $");
 #endif
 
 #include "roken.h"
+
+/*
+ * Try to obtain a verified name for the address in `sa, salen' (much
+ * similar to getnameinfo).
+ * Verified in this context means that forwards and backwards lookups
+ * in DNS are consistent.  If that fails, return an error if the
+ * NI_NAMEREQD flag is set or return the numeric address as a string.
+ */
 
 int
 getnameinfo_verified(const struct sockaddr *sa, socklen_t salen,
@@ -60,13 +68,13 @@ getnameinfo_verified(const struct sockaddr *sa, socklen_t salen,
     ret = getnameinfo (sa, salen, host, hostlen, serv, servlen,
 		       flags | NI_NUMERICSERV);
     if (ret)
-	return ret;
+	goto fail;
 
     memset (&hints, 0, sizeof(hints));
     hints.ai_socktype = SOCK_STREAM;
     ret = getaddrinfo (host, serv, &hints, &ai);
     if (ret)
-	return ret;
+	goto fail;
     for (a = ai; a != NULL; a = a->ai_next) {
 	if (a->ai_addrlen == salen
 	    && memcmp (a->ai_addr, sa, salen) == 0) {
@@ -75,6 +83,7 @@ getnameinfo_verified(const struct sockaddr *sa, socklen_t salen,
 	}
     }
     freeaddrinfo (ai);
+ fail:
     if (flags & NI_NAMEREQD)
 	return EAI_NONAME;
     ret = getnameinfo (sa, salen, host, hostlen, serv, servlen,
