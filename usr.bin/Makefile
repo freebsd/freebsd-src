@@ -5,7 +5,9 @@
 # XXX MISSING SOURCES:	file grep sort
 # XXX MISSING Makefile:	uucp
 # XXX Use GNU versions:	ld man apropos whatis patch
-SUBDIR=	apply ar banner basename bdes biff cal calendar \
+# Moved to secure: bdes
+#
+SUBDIR=	apply ar banner basename biff cal calendar \
 	cap_mkdb checknr chflags chpass cksum col colcrt colrm column \
 	comm compress cpp ctags cut dirname du \
 	env error expand false find finger fmt fold fpr from \
@@ -20,7 +22,7 @@ SUBDIR=	apply ar banner basename bdes biff cal calendar \
 	tn3270 touch tput tr true tset tsort tty ul uname unexpand \
 	unifdef uniq unvis users uudecode uuencode vacation \
 	vgrind vis w wall wc what whereis who whois window write \
-	xargs xinstall xstr yacc yes
+	xargs xinstall xstr yacc yes ypcat ypmatch ypwhich
 
 # Cmp, look and tail all use mmap, so new-VM only.
 # F77 and pascal are VAX/Tahoe only.
