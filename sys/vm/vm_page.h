@@ -118,6 +118,7 @@ struct vm_page {
 	u_short	flags,			/* see below */
 		pc;			/* page color */
 	u_short wire_count;		/* wired down maps refs (P) */
+	u_int cow;			/* page cow mapping count */
 	short hold_count;		/* page hold count */
 	u_char	act_count;		/* page usage count */
 	u_char	busy;			/* page busy count */
@@ -136,7 +137,6 @@ struct vm_page {
 	u_long valid;			/* map of valid DEV_BSIZE chunks (O) */
 	u_long dirty;			/* map of dirty DEV_BSIZE chunks */
 #endif
-	u_int cow;			/* page cow mapping count */
 };
 
 /* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
