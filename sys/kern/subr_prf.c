@@ -49,6 +49,7 @@
 #include <sys/syslog.h>
 #include <sys/cons.h>
 #include <sys/uio.h>
+#include <sys/sysctl.h>
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
@@ -813,6 +814,50 @@ msgbufinit(void *ptr, size_t size)
 	msgbufmapped = 1;
 	oldp = msgbufp;
 }
+
+/* Sysctls for accessing/clearing the msgbuf */
+static int
+sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	/*
+	 * Unwind the buffer, so that it's linear (possibly starting with
+	 * some initial nulls).
+	 */
+	error = sysctl_handle_opaque(oidp, msgbufp->msg_ptr + msgbufp->msg_bufx,
+	    msgbufp->msg_size - msgbufp->msg_bufx, req);
+	if (error)
+		return (error);
+	if (msgbufp->msg_bufx > 0) {
+		error = sysctl_handle_opaque(oidp, msgbufp->msg_ptr,
+		    msgbufp->msg_bufx, req);
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, msgbuf, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, sysctl_kern_msgbuf, "A", "Contents of kernel message buffer");
+
+static int msgbuf_clear;
+
+static int
+sysctl_kern_msgbuf_clear(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (!error && req->newptr) {
+		/* Clear the buffer and reset write pointer */
+		bzero(msgbufp->msg_ptr, msgbufp->msg_size);
+		msgbufp->msg_bufr = msgbufp->msg_bufx = 0;
+		msgbuf_clear = 0;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, msgbuf_clear,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, &msgbuf_clear, 0, 
+    sysctl_kern_msgbuf_clear, "I", "Clear kernel message buffer");
 
 #include "opt_ddb.h"
 #ifdef DDB
