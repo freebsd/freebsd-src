@@ -328,6 +328,14 @@ The command:
 sets the time to
 .Li "2:32 PM" ,
 without modifying the date.
+.Pp
+Finally the command:
+.Pp
+.Dl "date -j -f ""%a %b %d %T %Z %Y"" ""`date`"" ""+%s"""
+.Pp
+can be used to parse the ouput from
+.Nm
+and express it in epoch time.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
