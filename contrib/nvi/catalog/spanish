@@ -1,11 +1,11 @@
 VI_MESSAGE_CATALOG
-Desbordamiento de longitud de l¡neaX
-no se puede borrar la l¡nea %luX
-no se puede a¤adir la l¡nea %luX
-no se puede insertar en la l¡nea %luX
-no se puede guardar la l¡nea %luX
-no se puede obtener la £ltima l¡neaX
-Error: no se puede recuperar la l¡nea %luX
+Desbordamiento de longitud de líneaX
+no se puede borrar la línea %luX
+no se puede añadir la línea %luX
+no se puede insertar en la línea %luX
+no se puede guardar la línea %luX
+no se puede obtener la última líneaX
+Error: no se puede recuperar la línea %luX
 Archivo de logX
 No se realiza log, no se puede deshacerX
 No hay cambios para deshacerX
@@ -13,10 +13,10 @@ No se realiza log, no se puede deshacerX
 No se realiza log, no se puede remontar hacia adelanteX
 No hay cambios para rehacerX
 %s/%d: error de logX
-La entrada y salida est ndar de Vi debe ser una terminalX
+La entrada y salida estándar de Vi debe ser una terminalX
 Marcar %s: no determinadoX
-Marcar %s: se borr¢ la l¡neaX
-Marcar %s: la posici¢n del cursor ya no existeX
+Marcar %s: se borró la líneaX
+Marcar %s: la posición del cursor ya no existeX
 Error: X
 nuevo archivoX
 nombre cambiadoX
@@ -24,91 +24,91 @@ modificadoX
 no modificadoX
 DESTRABADOX
 lectura solamenteX
-l¡nea %lu de %lu [%ld%%]X
-archivo vac¡oX
-l¡nea %luX
-El archivo %s no es un cat logo de mensajesX
-No se puede determinar la opci¢n por omisi¢n %sX
+línea %lu de %lu [%ld%%]X
+archivo vacíoX
+línea %luX
+El archivo %s no es un catálogo de mensajesX
+No se puede determinar la opción por omisión %sX
 Uso: %sX
-determinar: no hay opci¢n %s: 'determinar todo' establece todos los valores de opci¢nX
-determinar: [no] hay opci¢n %s no tiene valorX
-determinar: opci¢n %s no es booleanoX
-determinar: opci¢n %s: %sX
-determinar: opci¢n %s: %s: desbordamiento de valoresX
-determinar: opci¢n %s: %s es un n£mero ilegalX
-determinar: opci¢n %s no es booleanoX
-Las columnas en pantalla son demasiado peque¤as, menos de %dX
-Las columnas en pantalla son demasiado grandes, m s de %dX
-Las l¡neas en pantalla son demasiado peque¤as, menos de %dX
-Las l¡neas en pantalla son demasiado grandes, m s de %dX
-La opci¢n lisp no est  implementadaX
+determinar: no hay opción %s: 'determinar todo' establece todos los valores de opciónX
+determinar: [no] hay opción %s no tiene valorX
+determinar: opción %s no es booleanoX
+determinar: opción %s: %sX
+determinar: opción %s: %s: desbordamiento de valoresX
+determinar: opción %s: %s es un número ilegalX
+determinar: opción %s no es booleanoX
+Las columnas en pantalla son demasiado pequeñas, menos de %dX
+Las columnas en pantalla son demasiado grandes, más de %dX
+Las líneas en pantalla son demasiado pequeñas, menos de %dX
+Las líneas en pantalla son demasiado grandes, más de %dX
+La opción lisp no está implementadaX
 mensajes no desconectados: %sX
 mensajes no conectados: %sX
 
-La opci¢n de p rrafo debe estar en dos grupos de caracteresX
-La opci¢n de secci¢n debe estar en dos grupos de caracteresX
+La opción de párrafo debe estar en dos grupos de caracteresX
+La opción de sección debe estar en dos grupos de caracteresX
 
 
 
-El buffer por omisi¢n est  vac¡oX
-El buffer %s est  vac¡oX
-Los archivos con nuevas l¡neas en el nombre son irrecuperablesX
-Las modificaciones no pueden recuperarse si la sesi¢n fallaX
-Copiando archivo para recuperaci¢n...X
-Preservaci¢n fracasada: %sX
-Las modificaciones no pueden recuperarse si la sesi¢n fallaX
+El buffer por omisión está vacíoX
+El buffer %s está vacíoX
+Los archivos con nuevas líneas en el nombre son irrecuperablesX
+Las modificaciones no pueden recuperarse si la sesión fallaX
+Copiando archivo para recuperación...X
+Preservación fracasada: %sX
+Las modificaciones no pueden recuperarse si la sesión fallaX
 Archivo de respaldo fracasado: %sX
-Copiando archivo para recuperaci¢n...X
-Informaci¢n sobre identificaci¢n del usuario %u no encontradaX
-No se puede trabar archivo de recuperaci¢nX
-Desbordamiento de buffer de archivo de recuperaci¢nX
-Archivo de recuperaci¢nX
-%s: archivo de recuperaci¢n defectuosoX
-%s: archivo de recuperaci¢n defectuosoX
+Copiando archivo para recuperación...X
+Información sobre identificación del usuario %u no encontradaX
+No se puede trabar archivo de recuperaciónX
+Desbordamiento de buffer de archivo de recuperaciónX
+Archivo de recuperaciónX
+%s: archivo de recuperación defectuosoX
+%s: archivo de recuperación defectuosoX
 No hay archivos denominados %s, que usted pueda leer, para recuperarX
-Existen versiones m s antiguas de este archivo que usted puede recuperarX
+Existen versiones más antiguas de este archivo que usted puede recuperarX
 Existen otros archivos que usted puede recuperarX
-no env¡a email: %sX
-Archivo vac¡o; no hay nada para buscarX
-Se alcanz¢ el final del archivo sin encontrar el patr¢nX
-No hay patr¢n anterior de b£squedaX
-No se encontr¢ el patr¢nX
- Se alcanz¢ el principio del archivo sin encontrar el patr¢nX
-B£squeda reiniciadaX
+no envía email: %sX
+Archivo vacío; no hay nada para buscarX
+Se alcanzó el final del archivo sin encontrar el patrónX
+No hay patrón anterior de búsquedaX
+No se encontró el patrónX
+ Se alcanzó el principio del archivo sin encontrar el patrónX
+Búsqueda reiniciadaX
 Buscando...X
-No se encontr¢ ning£n car cter no imprimibleX
+No se encontró ningún carácter no imprimibleX
 Nombre de comando desconocidoX
 
 %s: comando no disponible en modalidad exX
 La cuenta no puede ser ceroX
-%s: mala especificaci¢n de l¡neaX
+%s: mala especificación de líneaX
 Error interno de tabla de sintaxis (%s: %s)X
 Uso: %sX
 %s: buffer temporario no liberadoX
-Desplazamiento de marcador a antes de la l¡nea 1X
-Desplazamiento de marcador m s all  del final del archivoX
+Desplazamiento de marcador a antes de la línea 1X
+Desplazamiento de marcador más allá del final del archivoX
 @ con rango que corre cuando se cambia el archivo/la pantallaX
 Comando global/v que corre cuando se cambia el archivo/la pantallaX
 Comando Ex fracasado: comandos pendientes descartadosX
 Comando Ex fracasado: teclas mapeadas descartadasX
-La segunda direcci¢n es m s peque¤a que la primeraX
+La segunda dirección es más pequeña que la primeraX
 No se suministra nombre de marcaX
 \\ no es seguido por / o ?X
-Referencia a un n£mero de l¡nea menor que 0X
+Referencia a un número de línea menor que 0X
 El comando %s es desconocidoX
-Desbordamiento de valor de direcci¢nX
-Subdesbordamiento de valor de direcci¢nX
-Combinaci¢n de direcci¢n ilegalX
-Direcci¢n ilegal: s¢lo %lu l¡neas en el archivoX
-Direcci¢n ilegal: el archivo est  vac¡oX
-El comando %s no permite una direcci¢n de 0X
+Desbordamiento de valor de direcciónX
+Subdesbordamiento de valor de direcciónX
+Combinación de dirección ilegalX
+Dirección ilegal: sólo %lu líneas en el archivoX
+Dirección ilegal: el archivo está vacíoX
+El comando %s no permite una dirección de 0X
 No hay abreviaturas para visualizarX
-Las abreviaturas deben terminar con un car cter de \"palabra\" X
+Las abreviaturas deben terminar con un carácter de \"palabra\" X
 Las abreviaturas no pueden contener tabs o espaciosX
 Las abreviaturas no pueden mezclar caracteres palabra/no-palabra, salvo al finalX
 \"%s\" no es una abreviaturaX
 Comando Vi fracasado: teclas mapeadas descartadasX
-No hay m s archivos para editarX
+No hay más archivos para editarX
 No hay archivos anteriores para editarX
 No hay archivos anteriores para rebobinarX
 No hay lista de archivos para visualizarX
@@ -117,113 +117,113 @@ No hay nombre de archivo para sustituir por %%X
 No hay nombre de archivo para sustituir por #X
 Error: execl: %sX
 Error de E/S: %sX
-Archivo modificado desde la £ltima escritura completa; escribir o usar ! para alterarX
-No se puede encontrar la ubicaci¢n del directorio inicialX
+Archivo modificado desde la última escritura completa; escribir o usar ! para alterarX
+No se puede encontrar la ubicación del directorio inicialX
 Nuevo directorio actual: %sX
 No hay buffers sueltos para visualizarX
 El comando %s no puede usarse como parte de un comando global o vX
-%s/%s: sin fuente: no le pertenece a usted o a ra¡zX
+%s/%s: sin fuente: no le pertenece a usted o a raízX
 %s/%s: sin fuente: no le pertenece a ustedX
 %s/%s: sin fuente: puede ser escrito por un usuario que no sea el propietarioX
-%s: sin fuente: no le pertenece a usted o a ra¡zX
+%s: sin fuente: no le pertenece a usted o a raízX
 %s: sin fuente: no le pertenece a ustedX
 %s: sin fuente: puede ser escrito por un usuario que no sea el propietarioX
-No hay l¡neas siguientes para unirX
+No hay líneas siguientes para unirX
 No hay anotaciones de mapa de entradaX
 No hay anotaciones de mapa de comandoX
-El car cter %s no puede remapearseX
-\"%s\" no est  mapeado actualmenteX
-Marca de nombres debe ser un s¢lo car cterX
-%s existe, no est  escrito; usar ! para alterarX
+El carácter %s no puede remapearseX
+\"%s\" no está mapeado actualmenteX
+Marca de nombres debe ser un sólo carácterX
+%s existe, no está escrito; usar ! para alterarX
 Nuevo archivo exrc: %sX
-La l¡nea de destino se encuentra dentro del rango de movimientoX
-El comando abierto requiere que se determine la opci¢n abiertaX
-El comando abierto no se ha implementado a£nX
+La línea de destino se encuentra dentro del rango de movimientoX
+El comando abierto requiere que se determine la opción abiertaX
+El comando abierto no se ha implementado aúnX
 No es posible preservar este archivoX
 Archivo preservadoX
 %s: expandido a demasiados nombres de archivoX
-S¢lo pueden leerse los archivos regulares y los conductos nombradosX
+Sólo pueden leerse los archivos regulares y los conductos nombradosX
 %s: traba de lectura no disponibleX
 Leyendo...X
-%s: %lu l¡neas, %lu caracteresX
+%s: %lu líneas, %lu caracteresX
 No hay pantallas de fondo para mostrarX
-El comando de script s¢lo est  disponible en modalidad viX
+El comando de script sólo está disponible en modalidad viX
 No hay comando para ejecutarX
-opci¢n de ancho de desplazamiento en 0X
+opción de ancho de desplazamiento en 0X
 Desbordamiento de cuentaX
 Subdesbordamiento de cuentaX
-Expresi¢n regular especificada; marcador r no tiene significadoX
+Expresión regular especificada; marcador r no tiene significadoX
 Los marcadores #, l y p no pueden combinarse con el marcador c en la modalidad viX
-No se encontr¢ coincidenciaX
-No se ingres¢ un identificador anteriorX
+No se encontró coincidenciaX
+No se ingresó un identificador anteriorX
 Se encontraron menos de %s anotaciones en la pila de identificadores; usar :visualizar i[dentificadores]X
 No hay archivo %s en la pila de identificadores al que se pueda volver; usar :visualizar i[dentificadores]" 
 Presionar Intro para continuar: X
-%s: no se encontr¢ el identificadorX
+%s: no se encontró el identificadorX
 %s: identificador corrompido en %sX
-%s: el n£mero de l¡nea del identificador es posterior al final del archivoX
-La pila de identificadores est  vac¡aX
-%s: patr¢n de b£squeda no encontradoX
-%d archivos m s para editarX
-El buffer %s est  vac¡oX
-¨Confirmar cambio? [n]X
+%s: el número de línea del identificador es posterior al final del archivoX
+La pila de identificadores está vacíaX
+%s: patrón de búsqueda no encontradoX
+%d archivos más para editarX
+El buffer %s está vacíoX
+¿Confirmar cambio? [n]X
 InterrumpidoX
 No hay buffer anterior para ejecutarX
-No hay expresi¢n regular anteriorX
-El comando %s requiere que se haya le¡do un archivoX
+No hay expresión regular anteriorX
+El comando %s requiere que se haya leído un archivoX
 Uso: %sX
-El comando visual requiere que se determine la opci¢n abiertaX
+El comando visual requiere que se determine la opción abiertaX
 
-Archivo vac¡oX
-No hay b£squeda F, f, T o t anteriorX
-%s no se encontr¢X
+Archivo vacíoX
+No hay búsqueda F, f, T o t anteriorX
+%s no se encontróX
 No hay archivo anterior para editarX
-El cursor no est  en un n£meroX
-El n£mero resultante es demasiado grandeX
- El n£mero resultante es demasiado peque¤oX
-No hay car cter coincidente en esta l¡neaX
-No se encontr¢ un car cter coincidenteX
+El cursor no está en un númeroX
+El número resultante es demasiado grandeX
+ El número resultante es demasiado pequeñoX
+No hay carácter coincidente en esta líneaX
+No se encontró un carácter coincidenteX
 No hay caracteres para reemplazarX
 No hay otra pantalla a la que se pueda pasarX
-Caracteres despu‚s de cadena de b£squeda, desplazamiento de l¡nea y/o comando zX
-No hay patr¢n anterior de b£squedaX
-B£squeda vuelve a la posici¢n inicialX
-Se super¢ el l¡mite de expansi¢n de abreviatura: se descartaron caracteresX
-Car cter ilegal; mencionar para entrarX
-Ya se encuentra al principio de la inserci¢nX
-No hay m s caracteres para borrarX
-Movimiento m s all  del final del archivoX
-Movimiento m s all  del final de la l¡neaX
+Caracteres tras de cadena de búsqueda, desplazamiento de línea y/o comando zX
+No hay patrón anterior de búsquedaX
+Búsqueda vuelve a la posición inicialX
+Se superó el límite de expansión de abreviatura: se descartaron caracteresX
+Carácter ilegal; mencionar para entrarX
+Ya se encuentra al principio de la inserciónX
+No hay más caracteres para borrarX
+Movimiento más allá del final del archivoX
+Movimiento más allá del final de la líneaX
 No hay movimiento del cursorX
 Ya se encuentra al principio del archivoX
-Movimiento m s all  del principio del archivoX
+Movimiento más allá del principio del archivoX
 Ya se encuentra en la primera columnaX
 Los buffers deben especificarse antes del comandoX
 Ya se encuentra al final del archivoX
-Ya se encuentra al final de la l¡neaX
+Ya se encuentra al final de la líneaX
 %s no es un comando viX
 Uso: %sX
 No hay caracteres para borrarX
 El comando Q requiere la interfase de terminal exX
 No hay comando para repetirX
-El archivo est  vac¡oX
+El archivo está vacíoX
 %s no puede usarse como comando de movimientoX
 Ya se encuentra en modalidad de comandoX
 El cursor no se encuentra en una palabraX
 
-El valor de opci¢n de Windows es demasiado grande, el m x. es %uX
-A¤adirX
+El valor de opción de Windows es demasiado grande, el máx. es %uX
+AñadirX
 CambiarX
 ComandoX
 InsertarX
 ReemplazarX
-El movimiento va m s all  del final de la pantallaX
-El movimiento va m s all  del principio de la pantallaX
-La pantalla debe tener m s de %d l¡neas para dividirseX
+El movimiento va más allá del final de la pantallaX
+El movimiento va más allá del principio de la pantallaX
+La pantalla debe tener más de %d líneas para dividirseX
 No hay pantallas de fondoX
 No hay pantalla de fondo editando un archivo denominado %sX
-No se puede poner fondo a la £nica pantalla que se visualizaX
-La pantalla s¢lo puede reducirse a %d hilerasX
+No se puede poner fondo a la única pantalla que se visualizaX
+La pantalla sólo puede reducirse a %d hilerasX
 La pantalla no puede reducirseX
 La pantalla no puede aumentarseX
 
@@ -231,12 +231,12 @@ Esta pantalla no puede suspenderseX
 Interrumpido: teclas mapeadas descartadasX
 vi: buffer temporario no liberadoX
 Esta terminal no tiene tecla %sX
-S¢lo un buffer puede especificarseX
-N£mero mayor que %luX
+Sólo un buffer puede especificarseX
+Número mayor que %luX
 InterrumpidoX
 No se puede crear archivo temporarioX
 Advertencia: %s no es un archivo regularX
-%s ya se encuentra trabado, la sesi¢n es de lectura solamenteX
+%s ya se encuentra trabado, la sesión es de lectura solamenteX
 %s: eliminarX
 %s: cerrarX
 %s: eliminarX
@@ -247,49 +247,49 @@ Archivo de lectura solamente, no escrito; usar ! para alterarX
 %s existe, no escritoX
 Archivo parcial, no escrito; usar ! para alterarX
 Archivo parcial, no escritoX
-%s: archivo modificado m s recientemente que esta copia; usar ! para alterarX
-%s: archivo modificado m s recientemente que esta copiaX
+%s: archivo modificado más recientemente que esta copia; usar ! para alterarX
+%s: archivo modificado más recientemente que esta copiaX
 %s: la traba de escritura no estaba disponibleX
 Escribiendo...X
 %s: ADVERTENCIA: ARCHIVO TRUNCADOX
 Ya se encuentra en el primer identificador de este grupoX
-%s: nuevo archivo: %lu l¡neas, %lu caracteresX
-%s: %lu l¡neas, %lu caracteresX
+%s: nuevo archivo: %lu líneas, %lu caracteresX
+%s: %lu líneas, %lu caracteresX
 %s expandido a demasiados nombres de archivosX
 %s: no es un archivo regularX
 %s: no le perteneceX
 %s: accesible por un usuario que no sea el propietarioX
-Archivo modificado desde la £ltima escritura completa; escribir o usar ! para alterarX
-Archivo modificado desde la £ltima escritura completa; escribir o usar :editar! para alterarX
-Archivo modificado desde la £ltima escritura completa; escribir o usar ! para alterarX
-El archivo es temporario; al salir se descartar n las modificacionesX
+Archivo modificado desde la última escritura completa; escribir o usar ! para alterarX
+Archivo modificado desde la última escritura completa; escribir o usar :editar! para alterarX
+Archivo modificado desde la última escritura completa; escribir o usar ! para alterarX
+El archivo es temporario; al salir se descartarán las modificacionesX
 Archivo de lectura solamente, las modificaciones no se autoescribenX
-Se reinici¢ el logX
+Se reinició el logX
 confirmar? [snq]X
 Presionar cualquier tecla para continuar: X
-Presionar cualquier tecla para continuar [: para ingresar m s comandos ex]: X
+Presionar cualquier tecla para continuar [: para ingresar más comandos ex]: X
 Presionar cualquier tecla para continuar [q para salir]: X
 Esta forma de %s requiere la interfase terminal exX
 Ingresando en la modalidad de entrada ex.X
-Comando fracasado, no hay archivo le¡do aun.X
+Comando fracasado, no hay archivo leído aun.X
  cont?X
-Evento inesperado de car cterX
+Evento inesperado de carácterX
 Evento inesperado de final de archivoX
 No hay coincidencias para consultaX
-Evento inesperado de interrupci¢nX
+Evento inesperado de interrupciónX
 Evento inesperado de salidaX
 Evento inesperado de repinturaX
-Ya se encuentra en el £ltimo identificador de este grupoX
+Ya se encuentra en el último identificador de este grupoX
 El comando %s requiere la interfase terminal exX
-Esta forma de %s no se encuentra soportada cuando se determina la opci¢n de edici¢n seguraX
+Esta forma de %s no se encuentra soportada cuando se determina la opción de edición seguraX
 Evento inesperado de cadenaX
 Evento inesperado de tiempo excedidoX
 Evento inesperado de escrituraX
 
-Las expansiones de shell no se encuentran soportadas cuando se determina la opci¢n de edici¢n seguraX
-El comando %s no se encuentra soportado cuando se determina la opci¢n de edici¢n seguraX
-determinar: la opci¢n %s puede no estar desconectadaX
-El monitor es demasiado peque¤o.X
+Las expansiones de shell no se encuentran soportadas cuando se determina la opción de edición seguraX
+El comando %s no se encuentra soportado cuando se determina la opción de edición seguraX
+determinar: la opción %s puede no estar desconectadaX
+El monitor es demasiado pequeño.X
 agregadoX
 cambiadoX
 borradoX
@@ -297,21 +297,21 @@ unidoX
 movidoX
 desplazadoX
 arrancadoX
-l¡neaX
-l¡neasX
-Vi no se carg¢ con un int‚rprete TclX
-Archivo modificado desde la £ltima escritura.X
-Expansi¢n de shell fracasadaX
-No hay opci¢n de edici¢n %s especificadaX
-Vi no se carg¢ con un int‚rprete PerlX
+líneaX
+líneasX
+Vi no se cargó con un intérprete TclX
+Archivo modificado desde la última escritura.X
+Expansión de shell fracasadaX
+No hay opción de edición %s especificadaX
+Vi no se cargó con un intérprete PerlX
 No hay comando ex para ejecutarX
 Ingresar <CR> para ejecutar un comando, :q para salirX
 Usar \"cscope ayuda\" para obtener ayudaX
 No hay conexiones cscope corriendoX
-%s: tipo de b£squeda desconocido: usar uno de %sX
-%d: no existe esta sesi¢n cscopeX
-determinar: la opci¢n %s no puede conectarse nuncaX
-determinar: la opci¢n %s no puede determinarse nunca en 0X
-%s: a¤adido: %lu l¡neas, %lu caracteresX
-Evento inesperado de modificaci¢n de tama¤oX
+%s: tipo de búsqueda desconocido: usar uno de %sX
+%d: no existe esta sesión cscopeX
+determinar: la opción %s no puede conectarse nuncaX
+determinar: la opción %s no puede determinarse nunca en 0X
+%s: añadido: %lu líneas, %lu caracteresX
+Evento inesperado de modificación de tamañoX
 %d archivos para editarX
