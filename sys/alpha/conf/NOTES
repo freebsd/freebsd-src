@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.18 1999/04/01 02:09:37 wpaul Exp $
+#	$Id: GENERIC,v 1.19 1999/04/08 17:42:48 wpaul Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -74,6 +74,19 @@ device		da0
 device		sa0
 device		pass0
 device		cd0
+
+#
+# ATA and ATAPI devices
+# This is work in progress, use at your own risk.
+# It currently reuses the majors of wd.c and friends.
+# It cannot co-exist with the old system in one kernel.
+# You only need one "controller ata0" for it to find all
+# PCI devices on modern machines.
+#controller	ata0
+#device		atadisk0	# ATA disk drives
+#device		atapicd0	# ATAPI CDROM drives
+#device		atapifd0	# ATAPI floppy drives
+#device		atapist0	# ATAPI tape drives
 
 # real time clock
 device		mcclock0 at isa0 port 0x70
