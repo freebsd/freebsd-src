@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 void
-setbuf(fp, buf)
-	FILE *fp;
-	char *buf;
+setbuf(FILE *__restrict fp, char *__restrict buf)
 {
 	(void) setvbuf(fp, buf, buf ? _IOFBF : _IONBF, BUFSIZ);
 }
