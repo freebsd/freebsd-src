@@ -97,6 +97,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#ifdef __sparc64__
+#include <sparc64/fhc/fhcreg.h>
+#endif
+
 #define PUC_ENTRAILS	1
 #include <dev/puc/pucvar.h>
 
@@ -189,7 +193,12 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 
 	printf("puc: name: %s\n", sc->sc_desc.name);
 #endif
+
 	rid = 0;
+#ifdef __sparc64__
+	if (strcmp(device_get_name(device_get_parent(dev)), "fhc") == 0)
+		rid = FHC_UART;
+#endif
 	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (!res)
