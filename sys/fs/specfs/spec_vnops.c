@@ -68,7 +68,6 @@ static int	spec_poll(struct vop_poll_args *);
 static int	spec_print(struct vop_print_args *);
 static int	spec_read(struct vop_read_args *);
 static int	spec_strategy(struct vop_strategy_args *);
-static int	spec_xstrategy(struct vop_strategy_args *);
 static int	spec_specstrategy(struct vop_specstrategy_args *);
 static int	spec_write(struct vop_write_args *);
 
@@ -524,22 +523,13 @@ SYSCTL_INT(_debug, OID_AUTO, doslowdown, CTLFLAG_RW, &doslowdown, 0, "");
  * Just call the device strategy routine
  */
 static int
-spec_xstrategy(ap)
-	struct vop_strategy_args /* {
-		struct vnode *a_vp;
-		struct buf *a_bp;
-	} */ *ap;
+spec_xstrategy(struct vnode *vp, struct buf *bp)
 {
-	struct buf *bp;
-	struct vnode *vp;
 	struct mount *mp;
 	int error;
 	struct cdevsw *dsw;
 	struct thread *td = curthread;
 	
-	bp = ap->a_bp;
-	vp = ap->a_vp;
-
 	KASSERT(bp->b_iocmd == BIO_READ ||
 		bp->b_iocmd == BIO_WRITE ||
 		bp->b_iocmd == BIO_DELETE, 
@@ -632,7 +622,7 @@ spec_strategy(ap)
 		backtrace();
 		once++;
 	}
-	return spec_xstrategy(ap);
+	return spec_xstrategy(ap->a_vp, ap->a_bp);
 }
 
 static int
@@ -643,7 +633,7 @@ spec_specstrategy(ap)
 	} */ *ap;
 {
 
-	return spec_xstrategy((void *)ap);
+	return spec_xstrategy(ap->a_vp, ap->a_bp);
 }
 
 static int
