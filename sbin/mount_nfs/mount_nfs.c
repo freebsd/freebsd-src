@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.20 1997/04/02 11:30:44 dfr Exp $";
+	"$Id: mount_nfs.c,v 1.21 1997/04/18 16:23:10 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -568,6 +568,52 @@ main(argc, argv)
 	exit(0);
 }
 
+/*
+ * Return RPC_SUCCESS if server responds.
+ */
+enum clnt_stat
+pingnfsserver(addr, version, sotype)
+	struct sockaddr_in *addr;
+	int version;
+	int sotype;
+{
+	struct sockaddr_in sin;
+	int tport;
+	CLIENT *clp;
+	int so = RPC_ANYSOCK;
+	enum clnt_stat stat;
+	struct timeval pertry, try;
+
+	sin = *addr;
+
+	if ((tport = port_no ? port_no :
+	     pmap_getport(&sin, RPCPROG_NFS, version, nfsproto)) == 0) {
+		return rpc_createerr.cf_stat;
+	}
+
+	sin.sin_port = htons(tport);
+
+	pertry.tv_sec = 10;
+	pertry.tv_usec = 0;
+	if (sotype == SOCK_STREAM)
+		clp = clnttcp_create(&sin, RPCPROG_NFS, version,
+				     &so, 0, 0);
+	else
+		clp = clntudp_create(&sin, RPCPROG_NFS, version,
+				     pertry, &so);
+	if (clp == NULL)
+		return rpc_createerr.cf_stat;
+	
+	try.tv_sec = 10;
+	try.tv_usec = 0;
+	stat = clnt_call(clp, NFSPROC_NULL,
+			 xdr_void, NULL, xdr_void, NULL, try);
+
+	clnt_destroy(clp);
+
+	return stat;
+}
+
 int
 getnfsargs(spec, nfsargsp)
 	char *spec;
@@ -685,6 +731,20 @@ tryagain:
 			if ((opflags & ISBGRND) == 0)
 				clnt_pcreateerror("NFS Portmap");
 		} else {
+			/*
+			 * First ping the nfs server to see if it supports
+			 * the version of the protocol we want to use.
+			 */
+			clnt_stat = pingnfsserver(&saddr, nfsvers,
+						  nfsargsp->sotype);
+			if (clnt_stat == RPC_PROGVERSMISMATCH) {
+				if (mountmode == ANY) {
+					mountmode = V2;
+					goto tryagain;
+				} else {
+					errx(1, "Can't contact NFS server");
+				}
+			}
 			saddr.sin_port = 0;
 			pertry.tv_sec = 10;
 			pertry.tv_usec = 0;
