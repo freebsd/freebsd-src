@@ -72,6 +72,7 @@ static const struct fe_pccard_product {
         { PCMCIA_CARD(CONTEC, CNETPC, 0), 0, -1 },
 	{ PCMCIA_CARD(FUJITSU, LA501, 0), 0x20, -1 },
 	{ PCMCIA_CARD(FUJITSU, LA10S, 0), 0, -1 },
+	{ PCMCIA_CARD(FUJITSU, NE200, 0), 0, -1 },	/* Sold by Eagle */
 	{ PCMCIA_CARD(RATOC, REX_R280, 0), 0, 0x1fc },
         { { NULL } }
 };
