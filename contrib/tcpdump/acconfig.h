@@ -65,6 +65,27 @@
 /* define if you have ether_ntohost() and it works */
 #undef USE_ETHER_NTOHOST
 
+/* define if libpcap has pcap_version */
+#undef HAVE_PCAP_VERSION
+
+/* define if libpcap has pcap_debug */
+#undef HAVE_PCAP_DEBUG
+
+/* define if libpcap has yydebug */
+#undef HAVE_YYDEBUG
+
+/* define if libpcap has pcap_list_datalinks() */
+#undef HAVE_PCAP_LIST_DATALINKS
+
+/* define if libpcap has pcap_set_datalink() */
+#undef HAVE_PCAP_SET_DATALINK
+
+/* define if libpcap has pcap_datalink_name_to_val() */
+#undef HAVE_PCAP_DATALINK_NAME_TO_VAL
+
+/* define if libpcap has pcap_datalink_val_to_description() */
+#undef HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION
+
 /* define if unaligned memory accesses fail */
 #undef LBL_ALIGN
 
@@ -82,6 +103,7 @@
 
 /* Workaround for missing sized types */
 /* XXX this should move to the more standard uint*_t */
+#undef int8_t
 #undef int16_t
 #undef int32_t
 #undef u_int16_t
@@ -98,3 +120,9 @@
  * in config.h but that should be OK since they're the same.
  */
 #undef const
+
+/* Define if you have the dnet_htoa function.  */
+#undef HAVE_DNET_HTOA
+
+/* Define if you have a dnet_htoa declaration in <netdnet/dnetdb.h>.  */
+#undef HAVE_NETDNET_DNETDB_H_DNET_HTOA

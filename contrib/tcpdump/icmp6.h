@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/icmp6.h,v 1.11 2001/06/01 23:01:04 itojun Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/icmp6.h,v 1.14 2002/12/11 07:13:52 guy Exp $ (LBL) */
 /*	$NetBSD: icmp6.h,v 1.13 2000/08/03 16:30:37 itojun Exp $	*/
 /*	$KAME: icmp6.h,v 1.22 2000/08/03 15:25:16 jinmei Exp $	*/
 
@@ -122,7 +122,13 @@ struct icmp6_hdr {
 #define MLD6_MTRACE_RESP		141	/* mtrace response(to sender) */
 #define MLD6_MTRACE			142	/* mtrace messages */
 
-#define ICMP6_MAXTYPE			142
+/* Folloing numbers are defined in the mobile-ip draft. */
+#define ICMP6_HADISCOV_REQUEST		150	/* XXX To be authorized */
+#define ICMP6_HADISCOV_REPLY		151	/* XXX To be authorized */
+#define ICMP6_MOBILEPREFIX_SOLICIT	152	/* XXX To be authorized */
+#define ICMP6_MOBILEPREFIX_ADVERT	153	/* XXX To be authorized */
+
+#define ICMP6_MAXTYPE			153
 
 #define ICMP6_DST_UNREACH_NOROUTE	0	/* no route to destination */
 #define ICMP6_DST_UNREACH_ADMIN	 	1	/* administratively prohibited */
