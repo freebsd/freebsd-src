@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.1 1995/05/27 10:38:52 jkh Exp $
+ * $Id: floppy.c,v 1.2 1995/05/27 23:39:29 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,12 +43,7 @@
  *
  */
 
-/*
- * These routines deal with getting things off of floppy media, though
- * with one exception:  genericGetDist() is actually used from lots of places
- * since it can think of the world as just "one big floppy" too if that's
- * appropriate.
- */
+/* These routines deal with getting things off of floppy media */
 
 #include "sysinstall.h"
 #include <sys/fcntl.h>
@@ -129,6 +124,7 @@ mediaInitFloppy(Device *dev)
 	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
 	return FALSE;
     }
+    msgConfirm("Please insert media into %s and press return", dev->description);
     msgDebug("initFloppy:  mount floppy %s on /mnt\n", dev->devname); 
     dosargs.fspec = dev->devname;
     if (mount(MOUNT_MSDOS, "/mnt", 0, (caddr_t)&dosargs) == -1) {
@@ -147,7 +143,7 @@ mediaGetFloppy(char *file)
 
     snprintf(buf, PATH_MAX, "/mnt/%s", file);
 
-    return open(buf,O_RDONLY);
+    return open(buf, O_RDONLY);
 }
 
 void
@@ -156,7 +152,9 @@ mediaShutdownFloppy(Device *dev)
     if (floppyMounted) {
 	if (vsystem("umount /mnt") != 0)
 	    msgDebug("Umount of floppy on /mnt failed: %s (%d)\n", strerror(errno), errno);
-	else
+	else {
 	    floppyMounted = FALSE;
+	    msgConfirm("You may remove the floppy from %s", dev->description);
+	}
     }
 }

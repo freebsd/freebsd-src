@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.22 1995/05/27 23:39:34 phk Exp $
+ * $Id: tcpip.c,v 1.23 1995/05/27 23:52:55 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -193,6 +193,7 @@ tcpOpenDialog(Device *devp)
     int			max;
     char                *tmp;
     char		help[FILENAME_MAX];
+    char		title[80];
 
     /* We need a curses window */
     ds_win = newwin(LINES, COLS, 0, 0);
@@ -206,8 +207,8 @@ tcpOpenDialog(Device *devp)
     /* Setup a nice screen for us to splat stuff onto */
     draw_box(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X, TCP_DIALOG_HEIGHT, TCP_DIALOG_WIDTH, dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
-    mvprintw(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X + 20, " Interface %s ", devp->name);
-
+    sprintf(title, " Interface %s ", devp->name);
+    mvwaddstr(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X + 20, title);
     draw_box(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 8, TCP_DIALOG_HEIGHT - 13, TCP_DIALOG_WIDTH - 17,
 	     dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
