@@ -207,6 +207,7 @@ fork1(p1, flags, procp)
 	int ok;
 	static int pidchecked = 0;
 	struct forklist *ep;
+	struct filedesc *fd;
 
 	/* Can't copy and clear */
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
@@ -226,8 +227,10 @@ fork1(p1, flags, procp)
 		if (flags & RFCFDG) {
 			struct filedesc *fdtmp;
 			fdtmp = fdinit(p1);
+			PROC_LOCK(p1);
 			fdfree(p1);
 			p1->p_fd = fdtmp;
+			PROC_UNLOCK(p1);
 		}
 
 		/*
@@ -237,8 +240,10 @@ fork1(p1, flags, procp)
 			if (p1->p_fd->fd_refcnt > 1) {
 				struct filedesc *newfd;
 				newfd = fdcopy(p1);
+				PROC_LOCK(p1);
 				fdfree(p1);
 				p1->p_fd = newfd;
+				PROC_UNLOCK(p1);
 			}
 		}
 		*procp = NULL;
@@ -456,15 +461,19 @@ again:
 
 	/* bump references to the text vnode (for procfs) */
 	p2->p_textvp = p1->p_textvp;
+	PROC_UNLOCK(p1);
+	PROC_UNLOCK(p2);
 	if (p2->p_textvp)
 		VREF(p2->p_textvp);
 
 	if (flags & RFCFDG)
-		p2->p_fd = fdinit(p1);
+		fd = fdinit(p1);
 	else if (flags & RFFDG)
-		p2->p_fd = fdcopy(p1);
+		fd = fdcopy(p1);
 	else
-		p2->p_fd = fdshare(p1);
+		fd = fdshare(p1);
+	PROC_LOCK(p2);
+	p2->p_fd = fd;
 
 	/*
 	 * If p_limit is still copy-on-write, bump refcnt,
@@ -472,6 +481,7 @@ again:
 	 * (If PL_SHAREMOD is clear, the structure is shared
 	 * copy-on-write.)
 	 */
+	PROC_LOCK(p1);
 	if (p1->p_limit->p_lflags & PL_SHAREMOD)
 		p2->p_limit = limcopy(p1->p_limit);
 	else {
@@ -526,15 +536,22 @@ again:
 	 */
 	if (p1->p_traceflag & KTRFAC_INHERIT) {
 		p2->p_traceflag = p1->p_traceflag;
-		if ((p2->p_tracep = p1->p_tracep) != NULL)
+		if ((p2->p_tracep = p1->p_tracep) != NULL) {
+			PROC_UNLOCK(p1);
+			PROC_UNLOCK(p2);
 			VREF(p2->p_tracep);
+			PROC_LOCK(p2);
+			PROC_LOCK(p1);
+		}
 	}
 #endif
 
 	/*
 	 * set priority of child to be that of parent
 	 */
+	mtx_lock_spin(&sched_lock);
 	p2->p_estcpu = p1->p_estcpu;
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * This begins the section where we must prevent the parent
