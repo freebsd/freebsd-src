@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.7 1998/07/19 16:01:23 root Exp root $
+ * $Id: if_cs.c,v 1.1.2.1 1998/07/20 20:11:11 msmith Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -875,7 +875,7 @@ csintr_sc(struct cs_softc *sc, int unit)
 /*
  * Handle interrupts
  */
-static void
+void
 csintr(int unit)
 {
 	struct cs_softc *sc = &cs_softc[unit];
