@@ -1788,6 +1788,9 @@ device		pci
 #
 # The `tx' device provides support for the SMC 9432 TX, BTX and FTX cards.
 #
+# The `txp' device provides support for the 3Com 3cR990 "Typhoon"
+# 10/100 adapters.
+#
 # The `vr' device provides support for various fast ethernet adapters
 # based on the VIA Technologies VT3043 `Rhine I' and VT86C100A `Rhine II'
 # chips, including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking 
@@ -1918,6 +1921,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # Gigabit Ethernet NICs.

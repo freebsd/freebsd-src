@@ -600,7 +600,6 @@ struct txp_softc {
 	struct resource		*sc_res;
 	struct resource		*sc_irq;
 	void			*sc_intrhand;
-	struct mtx		sc_mtx;
 	struct txp_ldata	*sc_ldata;
 	void			*sc_fwbuf;
 	int			sc_rxbufprod;
