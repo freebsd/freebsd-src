@@ -12,6 +12,9 @@
     <style-specification-body>
  
       <![ %output.html; [ 
+         <!-- Generate links to HTML man pages -->
+        (define %refentry-xref-link% #t)
+
 	(define ($email-footer$)
           (make sequence
 	    (make element gi: "p"
@@ -55,37 +58,7 @@
 	      (create-link (list (list "HREF" "http://www.jp.FreeBSD.org/ml.html#doc-jp"))
                  (literal "doc-jp@jp.FreeBSD.org"))
 	      (literal "> まで電子メールでお願いします。"))))))
-
-
-	<!-- Convert " ... " to `` ... '' in the HTML output. -->
-	(element quote
-	  (make sequence
-	    (literal "``")
-	    (process-children)
-	    (literal "''")))
-
-        <!-- Generate links to HTML man pages -->
-        (define %refentry-xref-link% #t)
-
-        <!-- Specify how to generate the man page link HREF -->
-        (define ($create-refentry-xref-link$ #!optional (n (current-node)))
-          (let* ((r (select-elements (children n) (normalize "refentrytitle")))
-                 (m (select-elements (children n) (normalize "manvolnum")))
-                 (v (attribute-string (normalize "vendor") n))
-                 (u (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
-                         (data r) "&" "sektion=" (data m))))
-            (case v
-              (("xfree86") (string-append u "&" "manpath=XFree86+4.2.0"))
-              (("netbsd")  (string-append u "&" "manpath=NetBSD+1.5"))
-              (("ports")   (string-append u "&" "manpath=FreeBSD+Ports"))
-              (else        (string-append u "&" "manpath=FreeBSD+5.0-current")))))
       ]]>
-
-      (define (toc-depth nd)
-        (if (string=? (gi nd) (normalize "book"))
-            3
-            3))
-
     </style-specification-body>
   </style-specification>
 
