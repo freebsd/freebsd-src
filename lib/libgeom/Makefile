@@ -4,9 +4,10 @@ LIB=	geom
 SRCS+=	geom_getxml.c
 SRCS+=	geom_stats.c
 SRCS+=	geom_xml2tree.c
+SRCS+=	geom_ctl.c
 INCS=	libgeom.h
 
-CFLAGS += -I${.CURDIR}
+CFLAGS += -I${.CURDIR} -g
 
 WARNS?=	3
 
