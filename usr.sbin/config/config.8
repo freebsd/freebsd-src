@@ -72,7 +72,6 @@ that give alternate files for a specific machine
 section below).
 .Pp
 Available options and operands:
-.Pp
 .Bl -tag -width SYSTEM_NAME
 .It Fl d Ar destdir
 Use
@@ -96,7 +95,7 @@ configures a system for high resolution profiling.
 .It Fl r
 Remove the old compile directory (see below).
 .It Ar SYSTEM_NAME
-Specifies the name of the system configuration file
+Specify the name of the system configuration file
 containing device specifications, configuration options
 and other system parameters for one system configuration.
 .El
@@ -136,7 +135,7 @@ definitions of
 the number of various devices that will be compiled into the system.
 .Pp
 After running
-.Nm config ,
+.Nm Ns ,
 it is necessary to run
 .Dq Li make depend
 in the directory where the new makefile
@@ -145,7 +144,7 @@ was created.
 prints a reminder of this when it completes.
 .Pp
 If any other error messages are produced by
-.Nm config ,
+.Nm Ns ,
 the problems in the configuration file should be corrected and
 .Nm
 should be run again.
@@ -230,7 +229,9 @@ default kernel build directory for system
 .Pa SYSTEM_NAME .
 .El
 .Sh SEE ALSO
-The SYNOPSIS portion of each device in section 4.
+The
+.Sx SYNOPSIS
+portion of each device in section 4.
 .Rs
 .%T "Building 4.3 BSD UNIX System with Config"
 .Re
