@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)repquota.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: repquota.c,v 1.3.6.2 1997/11/05 07:29:16 charnier Exp $";
+	"$Id: repquota.c,v 1.3.6.3 1998/03/09 13:52:17 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -216,8 +216,8 @@ repquota(fs, type, qfpathname)
 		fup->fu_dqblk = dqbuf;
 	}
 	fclose(qf);
-	printf("                        Block limits               File limits\n");
-	printf("User            used    soft    hard  grace    used  soft  hard  grace\n");
+	printf("                          Block limits                     File limits\n");
+	printf("User             used     soft     hard  grace     used    soft    hard  grace\n");
 	for (id = 0; id <= highid[type]; id++) {
 		fup = lookup(id, type);
 		if (fup == 0)
@@ -226,7 +226,7 @@ repquota(fs, type, qfpathname)
 		    fup->fu_dqblk.dqb_curblocks == 0)
 			continue;
 		printf("%-10s", fup->fu_name);
-		printf("%c%c%8lu%8lu%8lu%7s",
+		printf("%c%c %8lu %8lu %8lu %6s",
 			fup->fu_dqblk.dqb_bsoftlimit &&
 			    fup->fu_dqblk.dqb_curblocks >=
 			    fup->fu_dqblk.dqb_bsoftlimit ? '+' : '-',
@@ -240,7 +240,7 @@ repquota(fs, type, qfpathname)
 			    fup->fu_dqblk.dqb_curblocks >=
 			    fup->fu_dqblk.dqb_bsoftlimit ?
 			    timeprt(fup->fu_dqblk.dqb_btime) : "");
-		printf("  %6lu%6lu%6lu%7s\n",
+		printf("  %7lu %7lu %7lu %6s\n",
 			fup->fu_dqblk.dqb_curinodes,
 			fup->fu_dqblk.dqb_isoftlimit,
 			fup->fu_dqblk.dqb_ihardlimit,
