@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.26 1995/08/06 11:56:42 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.27 1995/08/11 11:31:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -87,85 +87,103 @@ VFS_SET(ufs_vfsops, ufs, MOUNT_UFS, 0);
 
 extern u_long nextgennumber;
 
-/*
- * Called by main() when ufs is going to be mounted as root.
- *
- * Name is updated by mount(8) after booting.
- */
-#define ROOTNAME	"root_device"
-
-int
-ffs_mountroot()
-{
-	register struct fs *fs;
-	register struct mount *mp;
-	struct proc *p = curproc;	/* XXX */
-	struct ufsmount *ump;
-	u_int size;
-	int error;
-
-	/*
-	 * Get vnode for rootdev.
-	 */
-	if (bdevvp(rootdev, &rootvp))
-		panic("ffs_mountroot: can't setup bdevvp for root");
-
-	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
-	bzero((char *)mp, (u_long)sizeof(struct mount));
-	mp->mnt_op = &ufs_vfsops;
-	mp->mnt_flag = MNT_RDONLY;
-	error = ffs_mountfs(rootvp, mp, p);
-	if (error) {
-		free(mp, M_MOUNT);
-		return (error);
-	}
-	error = vfs_lock(mp);
-	if (error) {
-		(void)ffs_unmount(mp, 0, p);
-		free(mp, M_MOUNT);
-		return (error);
-	}
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-	mp->mnt_flag |= MNT_ROOTFS;
-	mp->mnt_vnodecovered = NULLVP;
-	ump = VFSTOUFS(mp);
-	fs = ump->um_fs;
-	bzero(fs->fs_fsmnt, sizeof(fs->fs_fsmnt));
-	fs->fs_fsmnt[0] = '/';
-	bcopy((caddr_t)fs->fs_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
-	    MNAMELEN);
-	(void) copystr(ROOTNAME, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)ffs_statfs(mp, &mp->mnt_stat, p);
-	vfs_unlock(mp);
-	inittodr(fs->fs_time);
-	return (0);
-}
 
 /*
- * VFS Operations.
+ * ffs_mount
  *
- * mount system call
+ * Called when mounting local physical media
+ *
+ * PARAMETERS:
+ *		mountroot
+ *			mp	mount point structure
+ *			path	NULL (flag for root mount!!!)
+ *			data	<unused>
+ *			ndp	<unused>
+ *			p	process (user credentials check [statfs])
+ *
+ *		mount
+ *			mp	mount point structure
+ *			path	path to mount point
+ *			data	pointer to argument struct in user space
+ *			ndp	mount point namei() return (used for
+ *				credentials on reload), reused to look
+ *				up block device.
+ *			p	process (user credentials check)
+ *
+ * RETURNS:	0	Success
+ *		!0	error number (errno.h)
+ *
+ * LOCK STATE:
+ *
+ *		ENTRY
+ *			mount point is locked
+ *		EXIT
+ *			mount point is locked
+ *
+ * NOTES:
+ *		A NULL path can be used for a flag since the mount
+ *		system call will fail with EFAULT in copyinstr in
+ *		namei() if it is a genuine NULL from the user.
  */
 int
-ffs_mount(mp, path, data, ndp, p)
-	register struct mount *mp;
-	char *path;
-	caddr_t data;
-	struct nameidata *ndp;
-	struct proc *p;
+ffs_mount( mp, path, data, ndp, p)
+        register struct mount	*mp;	/* mount struct pointer*/
+        char			*path;	/* path to mount point*/
+        caddr_t			data;	/* arguments to FS specific mount*/
+        struct nameidata	*ndp;	/* mount point credentials*/
+        struct proc		*p;	/* process requesting mount*/
 {
-	struct vnode *devvp;
+	u_int		size;
+	int		err = 0;
+	struct vnode	*devvp;
+
 	struct ufs_args args;
 	struct ufsmount *ump = 0;
 	register struct fs *fs;
-	u_int size;
-	int error, flags;
+	int flags;
 
-	error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args));
-	if (error)
-		return (error);
+	/*
+	 * Use NULL path to flag a root mount
+	 */
+	if( path == NULL) {
+		/*
+		 ***
+		 * Mounting root file system
+		 ***
+		 */
+	
+		/* Get vnode for root device*/
+		if( bdevvp( rootdev, &rootvp))
+			panic("ffs_mountroot: can't setup bdevvp for root");
+
+		/*
+		 * FS specific handling
+		 */
+		mp->mnt_flag |= MNT_RDONLY;	/* XXX globally applicable?*/
+
+		/*
+		 * Attempt mount
+		 */
+		if( ( err = ffs_mountfs(rootvp, mp, p)) != 0) {
+			/* fs specific cleanup (if any)*/
+			goto error_1;
+		}
+
+		goto dostatfs;		/* success*/
+
+	}
+
+	/*
+	 ***
+	 * Mounting non-root file system or updating a file system
+	 ***
+	 */
+
+	/* copy in user arguments*/
+	err = copyin(data, (caddr_t)&args, sizeof (struct ufs_args));
+	if (err)
+		goto error_1;		/* can't get arguments*/
+
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
@@ -173,20 +191,23 @@ ffs_mount(mp, path, data, ndp, p)
 	if (mp->mnt_flag & MNT_UPDATE) {
 		ump = VFSTOUFS(mp);
 		fs = ump->um_fs;
-		error = 0;
+		err = 0;
 		if (fs->fs_ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp))
-				return (EBUSY);
-			error = ffs_flushfiles(mp, flags, p);
+			if (vfs_busy(mp)) {
+				err = EBUSY;
+				goto error_1;
+			}
+			err = ffs_flushfiles(mp, flags, p);
 			vfs_unbusy(mp);
 		}
-		if (!error && (mp->mnt_flag & MNT_RELOAD))
-			error = ffs_reload(mp, ndp->ni_cnd.cn_cred, p);
-		if (error)
-			return (error);
+		if (!err && (mp->mnt_flag & MNT_RELOAD))
+			err = ffs_reload(mp, ndp->ni_cnd.cn_cred, p);
+		if (err) {
+			goto error_1;
+		}
 		if (fs->fs_ronly && (mp->mnt_flag & MNT_WANTRDWR)) {
 			if (!fs->fs_clean) {
 				if (mp->mnt_flag & MNT_FORCE) {
@@ -194,7 +215,8 @@ ffs_mount(mp, path, data, ndp, p)
 				} else {
 					printf("WARNING: R/W mount of %s denied. Filesystem is not clean - run fsck.\n",
 					    fs->fs_fsmnt);
-					return (EPERM);
+					err = EPERM;
+					goto error_1;
 				}
 			}
 			fs->fs_ronly = 0;
@@ -203,55 +225,116 @@ ffs_mount(mp, path, data, ndp, p)
 			fs->fs_clean = 0;
 			ffs_sbupdate(ump, MNT_WAIT);
 		}
+		/* if not updating name...*/
 		if (args.fspec == 0) {
 			/*
-			 * Process export requests.
+			 * Process export requests.  Jumping to "success"
+			 * will return the vfs_export() error code.
 			 */
-			return (vfs_export(mp, &ump->um_export, &args.export));
+			err = vfs_export(mp, &ump->um_export, &args.export);
+			goto success;
 		}
 	}
+
 	/*
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
-	error = namei(ndp);
-	if (error)
-		return (error);
+	err = namei(ndp);
+	if (err) {
+		/* can't get devvp!*/
+		goto error_1;
+	}
+
 	devvp = ndp->ni_vp;
 
 	if (devvp->v_type != VBLK) {
-		vrele(devvp);
-		return (ENOTBLK);
+		err = ENOTBLK;
+		goto error_2;
 	}
 	if (major(devvp->v_rdev) >= nblkdev) {
-		vrele(devvp);
-		return (ENXIO);
+		err = ENXIO;
+		goto error_2;
 	}
-	if ((mp->mnt_flag & MNT_UPDATE) == 0)
-		error = ffs_mountfs(devvp, mp, p);
-	else {
+	if (mp->mnt_flag & MNT_UPDATE) {
+		/*
+		 ********************
+		 * UPDATE
+		 ********************
+		 */
+
 		if (devvp != ump->um_devvp)
-			error = EINVAL;	/* needs translation */
+			err = EINVAL;	/* needs translation */
 		else
 			vrele(devvp);
+		/*
+		 * Update device name only on success
+		 */
+		if( !err) {
+			/* Save "mounted from" info for mount point (NULL pad)*/
+			copyinstr(	args.fspec,
+					mp->mnt_stat.f_mntfromname,
+					MNAMELEN - 1,
+					&size);
+			bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+		}
+	} else {
+		/*
+		 ********************
+		 * NEW MOUNT
+		 ********************
+		 */
+
+		/*
+		 * Since this is a new mount, we want the names for
+		 * the device and the mount point copied in.  If an
+		 * error occurs,  the mountpoint is discarded by the
+		 * upper level code.
+		 */
+		/* Save "last mounted on" info for mount point (NULL pad)*/
+		copyinstr(	path,				/* mount point*/
+				mp->mnt_stat.f_mntonname,	/* save area*/
+				MNAMELEN - 1,			/* max size*/
+				&size);				/* real size*/
+		bzero( mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
+
+		/* Save "mounted from" info for mount point (NULL pad)*/
+		copyinstr(	args.fspec,			/* device name*/
+				mp->mnt_stat.f_mntfromname,	/* save area*/
+				MNAMELEN - 1,			/* max size*/
+				&size);				/* real size*/
+		bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+
+		err = ffs_mountfs(devvp, mp, p);
 	}
-	if (error) {
-		vrele(devvp);
-		return (error);
+	if (err) {
+		goto error_2;
 	}
-	ump = VFSTOUFS(mp);
-	fs = ump->um_fs;
-	(void) copyinstr(path, fs->fs_fsmnt, sizeof(fs->fs_fsmnt) - 1, &size);
-	bzero(fs->fs_fsmnt + size, sizeof(fs->fs_fsmnt) - size);
-	bcopy((caddr_t)fs->fs_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
-	    MNAMELEN);
-	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)ffs_statfs(mp, &mp->mnt_stat, p);
-	return (0);
+
+dostatfs:
+	/*
+	 * Initialize FS stat information in mount struct; uses both
+	 * mp->mnt_stat.f_mntonname and mp->mnt_stat.f_mntfromname
+	 *
+	 * This code is common to root and non-root mounts
+	 */
+	(void)VFS_STATFS(mp, &mp->mnt_stat, p);
+
+	goto success;
+
+
+error_2:	/* error with devvp held*/
+
+	/* release devvp before failing*/
+	vrele(devvp);
+
+error_1:	/* no state to back out*/
+
+success:
+	return( err);
 }
+
 
 /*
  * Reload all incore data for a filesystem (used after running fsck on
@@ -267,8 +350,8 @@ ffs_mount(mp, path, data, ndp, p)
  *	6) re-read inode data for all active vnodes.
  */
 int
-ffs_reload(mountp, cred, p)
-	register struct mount *mountp;
+ffs_reload(mp, cred, p)
+	register struct mount *mp;
 	struct ucred *cred;
 	struct proc *p;
 {
@@ -279,12 +362,12 @@ ffs_reload(mountp, cred, p)
 	struct fs *fs;
 	int i, blks, size, error;
 
-	if ((mountp->mnt_flag & MNT_RDONLY) == 0)
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		return (EINVAL);
 	/*
 	 * Step 1: invalidate all cached meta-data.
 	 */
-	devvp = VFSTOUFS(mountp)->um_devvp;
+	devvp = VFSTOUFS(mp)->um_devvp;
 	if (vinvalbuf(devvp, 0, cred, p, 0, 0))
 		panic("ffs_reload: dirty1");
 	/*
@@ -299,7 +382,7 @@ ffs_reload(mountp, cred, p)
 		brelse(bp);
 		return (EIO);		/* XXX needs translation */
 	}
-	fs = VFSTOUFS(mountp)->um_fs;
+	fs = VFSTOUFS(mp)->um_fs;
 	bcopy(&fs->fs_csp[0], &((struct fs *)bp->b_data)->fs_csp[0],
 	    sizeof(fs->fs_csp));
 	bcopy(bp->b_data, fs, (u_int)fs->fs_sbsize);
@@ -325,7 +408,7 @@ ffs_reload(mountp, cred, p)
 		brelse(bp);
 	}
 loop:
-	for (vp = mountp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
+	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
 		nvp = vp->v_mntvnodes.le_next;
 		/*
 		 * Step 4: invalidate all inactive vnodes.
@@ -356,7 +439,7 @@ loop:
 		    ino_to_fsbo(fs, ip->i_number));
 		brelse(bp);
 		vput(vp);
-		if (vp->v_mount != mountp)
+		if (vp->v_mount != mp)
 			goto loop;
 	}
 	return (0);
@@ -380,6 +463,7 @@ ffs_mountfs(devvp, mp, p)
 	int havepart = 0, blks;
 	int error, i, size;
 	int ronly;
+	u_int strsize;
 
 	/*
 	 * Disallow multiple mounts of the same device.
@@ -477,6 +561,24 @@ ffs_mountfs(devvp, mp, p)
 	devvp->v_specflags |= SI_MOUNTEDON;
 	ffs_oldfscompat(fs);
 	ffs_vmlimits(fs);
+
+	/*
+	 * Set FS local "last mounted on" information (NULL pad)
+	 */
+	copystr(	mp->mnt_stat.f_mntonname,	/* mount point*/
+			fs->fs_fsmnt,			/* copy area*/
+			sizeof(fs->fs_fsmnt) - 1,	/* max size*/
+			&strsize);			/* real size*/
+	bzero( fs->fs_fsmnt + strsize, sizeof(fs->fs_fsmnt) - strsize);
+
+	if( mp->mnt_flag & MNT_ROOTFS) {
+		/*
+		 * Root mount; update timestamp in mount structure.
+		 * this will be used by the common root mount code
+		 * to update the system clock.
+		 */
+		mp->mnt_time = fs->fs_time;
+	}
 	if (ronly == 0)
 		ffs_sbupdate(ump, MNT_WAIT);
 	return (0);

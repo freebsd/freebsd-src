@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.10 1995/08/11 11:31:18 davidg Exp $
+ * $Id: mfs_vfsops.c,v 1.11 1995/08/20 10:26:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -40,10 +40,16 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
+#include <sys/mbuf.h>
+#include <sys/file.h>
+#include <sys/disklabel.h>
+#include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+
+#include <miscfs/specfs/specdev.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -82,74 +88,14 @@ struct vfsops mfs_vfsops = {
 
 VFS_SET(mfs_vfsops, mfs, MOUNT_MFS, 0);
 
-/*
- * Called by main() when mfs is going to be mounted as root.
- *
- * Name is updated by mount(8) after booting.
- */
-#define ROOTNAME	"mfs_root"
-
-int
-mfs_mountroot()
-{
-	register struct fs *fs;
-	register struct mount *mp;
-	struct proc *p = curproc;	/* XXX */
-	struct ufsmount *ump;
-	struct mfsnode *mfsp;
-	u_int size;
-	int error;
-
-	/*
-	 * Get vnode for rootdev.
-	 */
-	if (bdevvp(rootdev, &rootvp))
-		panic("mfs_mountroot: can't setup bdevvp for rootdev");
-
-	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
-	bzero((char *)mp, (u_long)sizeof(struct mount));
-	mp->mnt_op = &mfs_vfsops;
-	mfsp = malloc(sizeof *mfsp, M_MFSNODE, M_WAITOK);
-	rootvp->v_data = mfsp;
-	rootvp->v_op = mfs_vnodeop_p;
-	rootvp->v_tag = VT_MFS;
-	mfsp->mfs_baseoff = mfs_rootbase;
-	mfsp->mfs_size = mfs_rootsize;
-	mfsp->mfs_vnode = rootvp;
-	mfsp->mfs_pid = p->p_pid;
-	mfsp->mfs_buflist = (struct buf *)0;
-	if (error = ffs_mountfs(rootvp, mp, p)) {
-		free(mp, M_MOUNT);
-		free(mfsp, M_MFSNODE);
-		return (error);
-	}
-	if (error = vfs_lock(mp)) {
-		(void)ffs_unmount(mp, 0, p);
-		free(mp, M_MOUNT);
-		free(mfsp, M_MFSNODE);
-		return (error);
-	}
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-	mp->mnt_flag |= MNT_ROOTFS;
-	mp->mnt_vnodecovered = NULLVP;
-	ump = VFSTOUFS(mp);
-	fs = ump->um_fs;
-	bzero(fs->fs_fsmnt, sizeof(fs->fs_fsmnt));
-	fs->fs_fsmnt[0] = '/';
-	bcopy((caddr_t)fs->fs_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
-	    MNAMELEN);
-	(void) copystr(ROOTNAME, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)ffs_statfs(mp, &mp->mnt_stat, p);
-	vfs_unlock(mp);
-	inittodr((time_t)0);
-	return (0);
-}
+int vfs_mountroot __P((caddr_t));	/* XXX goes away*/
 
 /*
  * This is called early in boot to set the base address and size
  * of the mini-root.
+ *
+ * XXX THIS IS A DESIGN ERROR; THIS CODE SHOULD BE MOVED INTO
+ * XXX THE ROOT MOUNT CODE IN "mfs_mount"!!!
  */
 int
 mfs_initminiroot(base)
@@ -161,7 +107,8 @@ mfs_initminiroot(base)
 	if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
 	    fs->fs_bsize < sizeof(struct fs))
 		return (0);
-	mountroot = mfs_mountroot;
+	mountroot = vfs_mountroot;	/* XXX goes away*/
+	mountrootvfsops = &mfs_vfsops;
 	mfs_rootbase = base;
 	mfs_rootsize = fs->fs_fsize * fs->fs_size;
 	rootdev = makedev(255, mfs_minor++);
@@ -169,10 +116,43 @@ mfs_initminiroot(base)
 	return (mfs_rootsize);
 }
 
+
 /*
- * VFS Operations.
+ * mfs_mount
  *
- * mount system call
+ * Called when mounting local physical media
+ *
+ * PARAMETERS:
+ *		mountroot
+ *			mp	mount point structure
+ *			path	NULL (flag for root mount!!!)
+ *			data	<unused>
+ *			ndp	<unused>
+ *			p	process (user credentials check [statfs])
+ *
+ *		mount
+ *			mp	mount point structure
+ *			path	path to mount point
+ *			data	pointer to argument struct in user space
+ *			ndp	mount point namei() return (used for
+ *				credentials on reload), reused to look
+ *				up block device.
+ *			p	process (user credentials check)
+ *
+ * RETURNS:	0	Success
+ *		!0	error number (errno.h)
+ *
+ * LOCK STATE:
+ *
+ *		ENTRY
+ *			mount point is locked
+ *		EXIT
+ *			mount point is locked
+ *
+ * NOTES:
+ *		A NULL path can be used for a flag since the mount
+ *		system call will fail with EFAULT in copyinstr in
+ *		namei() if it is a genuine NULL from the user.
  */
 /* ARGSUSED */
 int
@@ -189,40 +169,103 @@ mfs_mount(mp, path, data, ndp, p)
 	register struct fs *fs;
 	register struct mfsnode *mfsp;
 	u_int size;
-	int flags, error;
+	int flags, err;
 
-	if (error = copyin(data, (caddr_t)&args, sizeof (struct mfs_args)))
-		return (error);
+	/*
+	 * Use NULL path to flag a root mount
+	 */
+	if( path == NULL) {
+		/*
+		 ***
+		 * Mounting root file system
+		 ***
+		 */
+
+		/* Get vnode for root device*/
+		if( bdevvp( rootdev, &rootvp))
+			panic("mfs_mountroot: can't setup bdevvp for rootdev");
+
+		/*
+		 * FS specific handling
+		 */
+		mfsp = malloc(sizeof *mfsp, M_MFSNODE, M_WAITOK);
+		rootvp->v_data = mfsp;
+		rootvp->v_op = mfs_vnodeop_p;
+		rootvp->v_tag = VT_MFS;
+		mfsp->mfs_baseoff = mfs_rootbase;
+		mfsp->mfs_size = mfs_rootsize;
+		mfsp->mfs_vnode = rootvp;
+		mfsp->mfs_pid = p->p_pid;
+		mfsp->mfs_buflist = (struct buf *)0;
+
+		/*
+		 * Attempt mount
+		 */
+		if( (err = ffs_mountfs(rootvp, mp, p)) != 0 ) {
+			/* fs specific cleanup (if any)*/
+			rootvp->v_data = NULL;
+			free(mfsp, M_MFSNODE);
+			goto error_1;
+		}
+
+		goto dostatfs;		/* success*/
+	}
+
+	/*
+	 ***
+	 * Mounting non-root file system or updating a file system
+	 ***
+	 */
+
+	/* copy in user arguments*/
+	if (err = copyin(data, (caddr_t)&args, sizeof (struct mfs_args)))
+		goto error_1;
 
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
+		/*
+		 ********************
+		 * UPDATE
+		 ********************
+		 */
 		ump = VFSTOUFS(mp);
 		fs = ump->um_fs;
 		if (fs->fs_ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp))
-				return (EBUSY);
-			error = ffs_flushfiles(mp, flags, p);
+			if (vfs_busy(mp)) {
+				err = EBUSY;
+				goto error_1;
+			}
+			err = ffs_flushfiles(mp, flags, p);
 			vfs_unbusy(mp);
-			if (error)
-				return (error);
+			if (err)
+				goto error_1;
 		}
 		if (fs->fs_ronly && (mp->mnt_flag & MNT_WANTRDWR))
 			fs->fs_ronly = 0;
 #ifdef EXPORTMFS
-		if (args.fspec == 0)
-			return (vfs_export(mp, &ump->um_export, &args.export));
+		/* if not updating name...*/
+		if (args.fspec == 0) {
+			/*
+			 * Process export requests.  Jumping to "success"
+			 * will return the vfs_export() error code. 
+			 */
+			err = vfs_export(mp, &ump->um_export, &args.export);
+			goto success;
+		}
 #endif
-		return (0);
+
+		/* XXX MFS does not support name updating*/
+		goto success;
 	}
-	error = getnewvnode(VT_MFS, (struct mount *)0, mfs_vnodeop_p, &devvp);
-	if (error)
-		return (error);
+	err = getnewvnode(VT_MFS, (struct mount *)0, mfs_vnodeop_p, &devvp);
+	if (err)
+		goto error_1;
 	devvp->v_type = VBLK;
 	if (checkalias(devvp, makedev(255, mfs_minor++), (struct mount *)0))
 		panic("mfs_mount: dup dev");
@@ -233,23 +276,54 @@ mfs_mount(mp, path, data, ndp, p)
 	mfsp->mfs_vnode = devvp;
 	mfsp->mfs_pid = p->p_pid;
 	mfsp->mfs_buflist = (struct buf *)0;
-	if (error = ffs_mountfs(devvp, mp, p)) {
+
+	/*
+	 * Since this is a new mount, we want the names for
+	 * the device and the mount point copied in.  If an
+	 * error occurs,  the mountpoint is discarded by the
+	 * upper level code.
+	 */
+	/* Save "last mounted on" info for mount point (NULL pad)*/
+	copyinstr(	path,				/* mount point*/
+			mp->mnt_stat.f_mntonname,	/* save area*/
+			MNAMELEN - 1,			/* max size*/
+			&size);				/* real size*/
+	bzero( mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
+
+	/* Save "mounted from" info for mount point (NULL pad)*/
+	copyinstr(	args.fspec,			/* device name*/
+			mp->mnt_stat.f_mntfromname,	/* save area*/
+			MNAMELEN - 1,			/* max size*/
+			&size);				/* real size*/
+	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+
+	if (err = ffs_mountfs(devvp, mp, p)) {
 		mfsp->mfs_buflist = (struct buf *)-1;
-		vrele(devvp);
-		return (error);
+		goto error_2;
 	}
-	ump = VFSTOUFS(mp);
-	fs = ump->um_fs;
-	(void) copyinstr(path, fs->fs_fsmnt, sizeof(fs->fs_fsmnt) - 1, &size);
-	bzero(fs->fs_fsmnt + size, sizeof(fs->fs_fsmnt) - size);
-	bcopy((caddr_t)fs->fs_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
-		MNAMELEN);
-	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-		&size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void) mfs_statfs(mp, &mp->mnt_stat, p);
-	return (0);
+
+dostatfs:
+	/*
+	 * Initialize FS stat information in mount struct; uses both
+	 * mp->mnt_stat.f_mntonname and mp->mnt_stat.f_mntfromname
+	 *
+	 * This code is common to root and non-root mounts
+	 */
+	(void) VFS_STATFS(mp, &mp->mnt_stat, p);
+
+	goto success;
+
+error_2:	/* error with devvp held*/
+
+	/* release devvp before failing*/
+	vrele(devvp);
+
+error_1:	/* no state to back out*/
+
+success:
+	return( err);
 }
+
 
 int	mfs_pri = PWAIT | PCATCH;		/* XXX prob. temp */
 

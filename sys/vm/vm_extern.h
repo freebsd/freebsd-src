@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.16 1995/07/10 08:53:16 davidg Exp $
+ * $Id: vm_extern.h,v 1.17 1995/07/13 08:48:19 davidg Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -91,8 +91,6 @@ void vm_fault_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t
 void vm_fault_unwire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fork __P((struct proc *, struct proc *, int));
-void vm_init_limits __P((struct proc *));
-void vm_mem_init __P((void));
 int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, caddr_t, vm_offset_t));
 vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_set_page_size __P((void));

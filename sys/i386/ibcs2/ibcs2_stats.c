@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_stats.c,v 1.1 1994/10/14 08:53:09 sos Exp $
+ *	$Id: ibcs2_stats.c,v 1.2 1995/05/30 08:00:11 rgrimes Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -103,12 +103,8 @@ ibcs2_stat(struct proc *p, struct ibcs2_stat_args *args, int *retval)
 	if (ibcs2_trace & IBCS2_TRACE_STATS)
 		printf("IBCS2: 'stat' path=%s\n", args->path);
 
-  	nd.ni_cnd.cn_nameiop = LOOKUP;
-	nd.ni_cnd.cn_flags = LOCKLEAF | FOLLOW;
-	nd.ni_cnd.cn_proc = curproc;
-	nd.ni_cnd.cn_cred = curproc->p_cred->pc_ucred;
-  	nd.ni_segflg = UIO_USERSPACE;
-  	nd.ni_dirp = args->path;
+	/* XXX use of 'curproc' should be 'p'?*/
+	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE, args->path, curproc);
   	error = namei(&nd);
 
   	if (!error) {
@@ -132,12 +128,9 @@ ibcs2_lstat(struct proc *p, struct ibcs2_stat_args *args, int *retval)
 
 	if (ibcs2_trace & IBCS2_TRACE_STATS)
 		printf("IBCS2: 'lstat' path=%s\n", args->path);
-  	nd.ni_cnd.cn_nameiop = LOOKUP;
-	nd.ni_cnd.cn_flags = LOCKLEAF | FOLLOW;
-	nd.ni_cnd.cn_proc = curproc;
-	nd.ni_cnd.cn_cred = curproc->p_cred->pc_ucred;
-  	nd.ni_segflg = UIO_USERSPACE;
-  	nd.ni_dirp = args->path;
+
+	/* XXX use of 'curproc' should be 'p'?*/
+	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE, args->path, curproc);
   	error = namei(&nd);
 
   	if (!error) {
@@ -222,12 +215,8 @@ ibcs2_statfs(struct proc *p, struct ibcs2_statfs_args *args, int *retval)
 	if (ibcs2_trace & IBCS2_TRACE_STATS)
 		printf("IBCS2: 'statfs' path=%s\n", args->path);
 	ndp = &nd;
-  	ndp->ni_cnd.cn_nameiop = LOOKUP;
-	ndp->ni_cnd.cn_flags = FOLLOW;
-	ndp->ni_cnd.cn_proc = curproc;
-	ndp->ni_cnd.cn_cred = curproc->p_cred->pc_ucred;
-	ndp->ni_segflg = UIO_USERSPACE;
-	ndp->ni_dirp = args->path;
+	/* XXX use of 'curproc' should be 'p'?*/
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args->path, curproc);
 	if (error = namei(ndp))
 		return error;
 	mp = ndp->ni_vp->v_mount;

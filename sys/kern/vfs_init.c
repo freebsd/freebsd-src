@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.9 1994/10/20 00:48:28 wollman Exp $
+ * $Id: vfs_init.c,v 1.10 1995/05/30 08:06:32 rgrimes Exp $
  */
 
 
@@ -55,6 +55,13 @@
 #include <sys/proc.h>
 #include <vm/vm.h>
 #include <sys/sysctl.h>
+
+/*
+ * System initialization
+ */
+
+static void vfsinit __P((caddr_t));
+SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
 
 /*
  * Sigh, such primitive tools are these...
@@ -230,8 +237,10 @@ struct vattr va_null;
 /*
  * Initialize the vnode structures and initialize each file system type.
  */
-void
-vfsinit()
+/* ARGSUSED*/
+static void
+vfsinit( udata)
+caddr_t		udata;		/* not used*/
 {
 	struct vfsops **vfsp;
 	struct vfsconf **vfc;

@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.22 1995/07/10 08:53:20 davidg Exp $
+ * $Id: vm_glue.c,v 1.23 1995/07/13 08:48:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -80,6 +80,24 @@
 
 #include <machine/stdarg.h>
 #include <machine/cpu.h>
+
+/*
+ * System initialization
+ *
+ * Note: proc0 from proc.h
+ */
+
+static void vm_init_limits __P((caddr_t));
+SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, (caddr_t)&proc0)
+
+/*
+ * THIS MUST BE THE LAST INITIALIZATION ITEM!!!
+ *
+ * Note: run scheduling should be divorced from the vm system.
+ */
+static void scheduler __P((caddr_t));
+SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, scheduler, NULL)
+
 
 extern char kstack[];
 
@@ -264,11 +282,14 @@ vm_fork(p1, p2, isvfork)
 /*
  * Set default limits for VM system.
  * Called for proc 0, and then inherited by all others.
+ *
+ * XXX should probably act directly on proc0.
  */
-void
-vm_init_limits(p)
-	register struct proc *p;
+static void
+vm_init_limits( udata)
+caddr_t		udata;
 {
+	register struct proc *p = (struct proc *)udata;
 	int rss_limit;
 
 	/*
@@ -341,8 +362,10 @@ faultin(p)
  * is enough space for them.  Of course, if a process waits for a long
  * time, it will be swapped in anyway.
  */
-void
-scheduler()
+/* ARGSUSED*/
+static void
+scheduler( udata)
+caddr_t		udata;		/* not used*/
 {
 	register struct proc *p;
 	register int pri;

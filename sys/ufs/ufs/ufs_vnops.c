@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.25 1995/06/28 07:06:55 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.26 1995/08/01 18:51:02 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1123,12 +1123,12 @@ out:
  * A virgin directory (no blushing please).
  */
 static struct dirtemplate mastertemplate = {
-	0, 12, DT_DIR, 1, ".",
-	0, DIRBLKSIZ - 12, DT_DIR, 2, ".."
+	0, 12, DT_DIR, 1, { '.', 0 },
+	0, DIRBLKSIZ - 12, DT_DIR, 2, { '.', '.', 0 }
 };
 static struct odirtemplate omastertemplate = {
-	0, 12, 1, ".",
-	0, DIRBLKSIZ - 12, 2, ".."
+	0, 12, 1, { '.', 0 },
+	0, DIRBLKSIZ - 12, 2, { '.', '.', 0 }
 };
 
 /*

@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.5 1995/05/30 08:06:04 rgrimes Exp $ */
+/*	$Id: sysv_shm.c,v 1.6 1995/07/29 11:40:15 bde Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -60,6 +60,13 @@
  * shmsegs (an array of 'struct shmid_ds')
  * per proc array of 'struct shmmap_state'
  */
+
+/*
+ * System initialization
+ */
+
+extern void shminit();				/* should be static*/
+SYSINIT(sysv_shm, SI_SUB_SYSV_SHM, SI_ORDER_FIRST, shminit, NULL)
 
 int	oshmctl();
 int	shmat(), shmctl(), shmdt(), shmget();

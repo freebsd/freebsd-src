@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.23 1995/08/23 13:30:52 jkh Exp $
+ *	$Id: mount.h,v 1.24 1995/08/26 05:40:52 davidg Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -138,6 +138,8 @@ struct mount {
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
 	qaddr_t		mnt_data;		/* private data */
+/*	struct vfsconf	*mnt_vfc; */		/* configuration info */
+	time_t		mnt_time;		/* last time written*/
 };
 
 /*
@@ -209,11 +211,12 @@ struct vfsconf {
  * NB: these flags refer to IMPLEMENTATION properties, not properties of
  * any actual mounts; i.e., it does not make sense to change the flags.
  */
-#define	VFCF_STATIC	1	/* FS is statically compiled into kernel */
-#define	VFCF_NETWORK	2	/* FS may get data over the network */
-#define	VFCF_READONLY	4	/* writes are not implemented by FS */
-#define VFCF_SYNTHETIC	8	/* data in FS does not represent real files */
-#define	VFCF_LOOPBACK	16	/* FS aliases some other mounted FS */
+#define	VFCF_STATIC	0x00000001	/* statically compiled into kernel */
+#define	VFCF_NETWORK	0x00000002	/* may get data over the network */
+#define	VFCF_READONLY	0x00000004	/* writes are not implemented */
+#define VFCF_SYNTHETIC	0x00000008	/* data does not represent real files */
+#define	VFCF_LOOPBACK	0x00000010	/* aliases some other mounted FS */
+#define	VFCF_UNICODE	0x00000020	/* stores file names as Unicode*/
 
 /*
  * Operations supported on mounted file system.
@@ -464,7 +467,8 @@ struct nfs_args {
 #endif /* NFS */
 
 #ifdef KERNEL
-extern	int (*mountroot) __P((void));
+extern	int (*mountroot) __P((caddr_t));
+extern	struct vfsops	*mountrootvfsops;
 
 /*
  * exported vnode operations
