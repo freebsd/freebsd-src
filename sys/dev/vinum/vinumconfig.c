@@ -339,7 +339,7 @@ give_sd_to_drive(int sdno)
     if ((drive->sectors_available == 0)			    /* no space left */
     ||(sd->sectors > drive->sectors_available)) {	    /* or too big, */
 	sd->driveoffset = -1;				    /* don't be confusing */
-	sd->state = sd_down;				    /* make it down */
+	free_sd(sd->sdno);
 	throw_rude_remark(ENOSPC, "No space for %s on %s", sd->name, drive->label.name);
 	return;						    /* in case we come back here */
     }
@@ -354,11 +354,14 @@ give_sd_to_drive(int sdno)
 		sfe = fe;				    /* and note the index for later */
 	    }
 	}
-	if (sd->sectors == 0)				    /* no luck, */
+	if (sd->sectors == 0) {				    /* no luck, */
+	    sd->driveoffset = -1;			    /* don't be confusing */
+	    free_sd(sd->sdno);
 	    throw_rude_remark(ENOSPC,			    /* give up */
 		"No space for %s on %s",
 		sd->name,
 		drive->label.name);
+	}
 	if (sfe < (drive->freelist_entries - 1))	    /* not the last one, */
 	    bcopy(&drive->freelist[sfe + 1],
 		&drive->freelist[sfe],
@@ -388,7 +391,10 @@ give_sd_to_drive(int sdno)
 	     * Didn't find anything.  Although the drive has
 	     * enough space, it's too fragmented
 	     */
+	{
+	    free_sd(sd->sdno);
 	    throw_rude_remark(ENOSPC, "No space for %s on %s", sd->name, drive->label.name);
+	}
     } else {						    /* specific offset */
 	/*
 	 * For a specific offset to work, the space must be
@@ -398,12 +404,14 @@ give_sd_to_drive(int sdno)
 	for (fe = 0; fe < drive->freelist_entries; fe++) {
 	    u_int64_t dend = drive->freelist[fe].offset + drive->freelist[fe].sectors; /* end of entry */
 	    if (dend >= sdend) {			    /* fits before here */
-		if (drive->freelist[fe].offset > sd->driveoffset) /* starts after the beginning of sd area */
+		if (drive->freelist[fe].offset > sd->driveoffset) { /* starts after the beginning of sd area */
+		    sd->driveoffset = -1;		    /* don't be confusing */
+		    free_sd(sd->sdno);
 		    throw_rude_remark(ENOSPC,
 			"No space for subdisk %s on drive %s at offset %lld",
 			sd->name,
 			drive->label.name);
-
+		}
 		/*
 		 * We've found the space, and we can allocate it.
 		 * We don't need to say that to the subdisk, which
@@ -683,13 +691,15 @@ return_drive_space(int driveno, int64_t offset, int length)
 	 */
 	if (offset == dend) {				    /* Case 1: it starts at the end of this block */
 	    if ((fe < drive->freelist_entries - 1)	    /* we're not the last block in the free list */
-	    &&(sdend == drive->freelist[fe + 1].offset)) {  /* and the subdisk ends at the start of the
-																			   * next block */
-		drive->freelist[fe].sectors = drive->freelist[fe + 1].sectors; /* 1a: merge all three blocks */
+	    /* and the subdisk ends at the start of the next block */
+	    &&(sdend == drive->freelist[fe + 1].offset)) {
+		drive->freelist[fe].sectors		    /* 1a: merge all three blocks */
+		    = drive->freelist[fe + 1].sectors;
 		if (fe < drive->freelist_entries - 2)	    /* still more blocks after next */
 		    bcopy(&drive->freelist[fe + 2],	    /* move down one */
 			&drive->freelist[fe + 1],
-			(drive->freelist_entries - 2 - fe) * sizeof(struct drive_freelist));
+			(drive->freelist_entries - 2 - fe)
+			* sizeof(struct drive_freelist));
 		drive->freelist_entries--;		    /* one less entry in the free list */
 	    } else					    /* 1b: just enlarge this block */
 		drive->freelist[fe].sectors += length;
@@ -697,15 +707,16 @@ return_drive_space(int driveno, int64_t offset, int length)
 	    if (offset > dend)				    /* it starts after this block */
 		fe++;					    /* so look at the next block */
 	    if ((fe < drive->freelist_entries)		    /* we're not the last block in the free list */
-	    &&(sdend == drive->freelist[fe].offset)) {	    /* and the subdisk ends at the start of
-																		   * this block: case 4 */
+	    /* and the subdisk ends at the start of this block: case 4 */
+	    &&(sdend == drive->freelist[fe].offset)) {
 		drive->freelist[fe].offset = offset;	    /* it starts where the sd was */
 		drive->freelist[fe].sectors += length;	    /* and it's this much bigger */
 	    } else {					    /* case 3: non-contiguous */
 		if (fe < drive->freelist_entries)	    /* not after the last block, */
 		    bcopy(&drive->freelist[fe],		    /* move the rest up one entry */
 			&drive->freelist[fe + 1],
-			(drive->freelist_entries - fe) * sizeof(struct drive_freelist));
+			(drive->freelist_entries - fe)
+			* sizeof(struct drive_freelist));
 		drive->freelist_entries++;		    /* one less entry */
 		drive->freelist[fe].offset = offset;	    /* this entry represents the sd */
 		drive->freelist[fe].sectors = length;
@@ -731,6 +742,8 @@ free_sd(int sdno)
 	return_drive_space(sd->driveno,			    /* return the space */
 	    sd->driveoffset,
 	    sd->sectors);
+    if (sd->plexno >= 0)
+	PLEX[sd->plexno].subdisks--;			    /* one less subdisk */
     bzero(sd, sizeof(struct sd));			    /* and clear it out */
     sd->state = sd_unallocated;
 }
@@ -1648,21 +1661,22 @@ remove_sd_entry(int sdno, int force, int recurse)
 		mysdno < plex->subdisks && &SD[plex->sdnos[mysdno]] != sd;
 		mysdno++);
 	    if (mysdno == plex->subdisks)		    /* didn't find it */
-		throw_rude_remark(ENOENT, "plex %s does not contain subdisk %s", plex->name, sd->name);
+		throw_rude_remark(ENOENT,
+		    "plex %s does not contain subdisk %s",
+		    plex->name,
+		    sd->name);
 	    if (mysdno < (plex->subdisks - 1))		    /* not the last subdisk */
 		bcopy(&plex->sdnos[mysdno + 1],
 		    &plex->sdnos[mysdno],
 		    (plex->subdisks - 1 - mysdno) * sizeof(int));
 	    plex->subdisks--;
+	    sd->plexno = -1;				    /* disown the subdisk */
+
 	    /*
 	     * removing a subdisk from a striped or
-	     * RAID-5 plex really tears the hell out
-	     * of the structure, and it needs to be
-	     * reinitialized
-	     */
-	    /*
-	     * XXX Think about this.  Maybe we should just
-	     * leave a hole
+	     * RAID-5 plex really tears the hell out of
+	     * the structure, and it needs to be
+	     * reinitialized.
 	     */
 	    if (plex->organization != plex_concat)	    /* not concatenated, */
 		set_plex_state(plex->plexno, plex_faulty, setstate_force); /* need to reinitialize */
@@ -1727,9 +1741,15 @@ remove_plex_entry(int plexno, int force, int recurse)
 		    break;
 	    if (myplexno == vol->plexes) {		    /* didn't find it.  Huh? */
 		if (force)
-		    log(LOG_ERR, "volume %s does not contain plex %s", vol->name, plex->name);
+		    log(LOG_ERR,
+			"volume %s does not contain plex %s",
+			vol->name,
+			plex->name);
 		else
-		    throw_rude_remark(ENOENT, "volume %s does not contain plex %s", vol->name, plex->name);
+		    throw_rude_remark(ENOENT,
+			"volume %s does not contain plex %s",
+			vol->name,
+			plex->name);
 	    }
 	    if (myplexno < (vol->plexes - 1))		    /* not the last plex in the list */
 		bcopy(&vol->plex[myplexno + 1], &vol->plex[myplexno], vol->plexes - 1 - myplexno);
@@ -1808,10 +1828,19 @@ update_plex_config(int plexno, int diskconfig)
     added_plex = 0;
     if (plex->volno >= 0) {				    /* we have a volume */
 	vol = &VOL[plex->volno];
-	if ((plex->flags & VF_NEWBORN)			    /* we're newly born */
-&&((vol->flags & VF_NEWBORN) == 0)			    /* and the volume isn't */ &&(vol->plexes > 0) /* and it has other plexes, */
-	&&(diskconfig == 0)) {				    /* and we didn't read this mess from disk */
-	    added_plex = 1;				    /* we were added later */
+
+	/*
+	 * If we're newly born,
+	 * and the volume isn't,
+	 * and it has other plexes,
+	 * and we didn't read this mess from disk,
+	 * we were added later.
+	 */
+	if ((plex->flags & VF_NEWBORN)
+	    && ((vol->flags & VF_NEWBORN) == 0)
+	    && (vol->plexes > 0)
+	    && (diskconfig == 0)) {
+	    added_plex = 1;
 	    state = plex_down;				    /* so take ourselves down */
 	}
     }
@@ -1846,7 +1875,8 @@ update_plex_config(int plexno, int diskconfig)
 	if (plex->length > 0) {
 	    if (data_sds > 0) {
 		if (plex->stripesize > 0) {
-		    remainder = (int) (plex->length % ((u_int64_t) plex->stripesize * data_sds)); /* are we exact? */
+		    remainder = (int) (plex->length	    /* are we exact? */
+			% ((u_int64_t) plex->stripesize * data_sds));
 		    if (remainder) {			    /* no */
 			log(LOG_INFO, "vinum: removing %d blocks of partial stripe at the end of %s\n",
 			    remainder,
