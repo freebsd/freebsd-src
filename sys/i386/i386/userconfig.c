@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.36 1995/10/14 12:57:01 jkh Exp $
+ **      $Id: userconfig.c,v 1.37 1995/11/20 12:10:06 phk Exp $
  **/
 
 /**
@@ -118,7 +118,7 @@
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
 				     isa_devtab_null, NULL };
 
-struct isa_device	*isa_devlist = NULL;	/* list read by dset to extract changes */
+static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 
 #define putchar(x)	cnputc(x)
 #define getchar()	cngetc()
@@ -298,6 +298,7 @@ typedef struct _devlist_struct
 static void redraw(void);
 static void insdev(DEV_LIST *dev, DEV_LIST *list);
 static int  devinfo(DEV_LIST *dev);
+static int  visuserconfig(void);
 
 static DEV_LIST	*active = NULL,*inactive = NULL;	/* driver lists */
 static DEV_LIST	*alist,*ilist;				/* visible heads of the driver lists */
@@ -1891,7 +1892,7 @@ dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
  ** 
  ** Do the fullscreen config thang
  **/
-int
+static int
 visuserconfig(void)
 {
     int	actofs = 0, inactofs = 0, mode = 0, ret = -1, i;
@@ -2142,7 +2143,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.36 1995/10/14 12:57:01 jkh Exp $
+ *      $Id: userconfig.c,v 1.37 1995/11/20 12:10:06 phk Exp $
  */
 
 
@@ -2547,7 +2548,7 @@ search_devtable(struct isa_device *dt, char *devname, int unit)
     return NULL;
 }
 
-void
+static void
 cngets(char *input, int maxin)
 {
     int c, nchars = 0;
