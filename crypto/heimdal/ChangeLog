@@ -1,10 +1,99 @@
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Release 0.2n
+
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/Makefile.am: set version to 8:0:0
+	* lib/krb5/keytab.c (krb5_kt_default_name): use strlcpy
+	(krb5_kt_add_entry): set timestamp
+
+2000-02-06  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/krb5.h: add macros for accessing krb5_realm
+	* lib/krb5/time.c (krb5_timeofday): use `krb5_timestamp' instead
+	of `int32_t'
+
+	* lib/krb5/replay.c (checksum_authenticator): update to new API
+	for md5
+
+	* lib/krb5/krb5.h: remove des.h, it's not needed and applications
+	should not have to make sure to find it.
+
+2000-02-03  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/rd_req.c (get_key_from_keytab): rename parameter to
+	`out_key' to avoid conflicting with label.  reported by Sean Doran
+	<smd@ebone.net>
+
+2000-02-02  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/expand_hostname.c: remember to lower-case host names.
+	bug reported by <amu@mit.edu>
+
+	* kdc/kerberos4.c (do_version4): look at check_ticket_addresses
+	and emulate that by setting krb_ignore_ip_address (not a great
+	interface but it doesn't seem like the time to go around fixing
+	libkrb stuff now)
+
+2000-02-01  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/kinit.c: change --noaddresses into --no-addresses
+
+2000-01-28  Assar Westerlund  <assar@sics.se>
+
+	* kpasswd/kpasswd.c (main): make sure the ticket is not
+	forwardable and not proxiable
+
+2000-01-26  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/crypto.c: update to pseudo-standard APIs for
+	md4,md5,sha.  some changes to libdes calls to make them more
+	portable.
+
+2000-01-21  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/verify_init.c (krb5_verify_init_creds): make sure to
+ 	clean up the correct creds.
+
+2000-01-16  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/principal.c (append_component): change parameter to
+	`const char *'.  check malloc
+	* lib/krb5/principal.c (append_component, va_ext_princ, va_princ):
+	const-ize
+	* lib/krb5/mk_req.c (krb5_mk_req): make `service' and `hostname'
+	const
+	* lib/krb5/principal.c (replace_chars): also add space here
+	* lib/krb5/principal.c: (quotable_chars): add space
+
+2000-01-12  Assar Westerlund  <assar@sics.se>
+
+	* kdc/kerberos4.c (do_version4): check if preauth was required and
+	bail-out if so since there's no way that could be done in v4.
+	Return NULL_KEY as an error to the client (which is non-obvious,
+	but what can you do?)
+
+2000-01-09  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/principal.c (krb5_sname_to_principal): use
+	krb5_expand_hostname_realms
+	* lib/krb5/mk_req.c (krb5_km_req): use krb5_expand_hostname_realms
+	* lib/krb5/expand_hostname.c (krb5_expand_hostname_realms): new
+	variant of krb5_expand_hostname that tries until it expands into
+	something that's digestable by krb5_get_host_realm, returning also
+	the result from that function.
+
 2000-01-08  Assar Westerlund  <assar@sics.se>
 
 	* Release 0.2m
 
 2000-01-08  Assar Westerlund  <assar@sics.se>
 
+	* configure.in: replace AC_C_BIGENDIAN with KRB_C_BIGENDIAN
+
 	* lib/krb5/Makefile.am: bump version to 7:1:0
+
 	* lib/krb5/principal.c (krb5_sname_to_principal): use
 	krb5_expand_hostname
 	* lib/krb5/expand_hostname.c (krb5_expand_hostname): handle
@@ -190,6 +279,10 @@ Tue Dec 21 18:03:17 1999  Assar Westerlund  <assar@sics.se>
 	* configure.in (BROKEN): check for freeaddrinfo, getaddrinfo,
 	getnameinfo, gai_strerror
 	(socklen_t): check for
+
+1999-12-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/crypto.c: ARCFOUR_set_key -> RC4_set_key
 
 1999-11-23  Assar Westerlund  <assar@sics.se>
 

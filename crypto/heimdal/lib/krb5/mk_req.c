@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,19 +33,19 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_req.c,v 1.18 1999/12/02 17:05:11 joda Exp $");
+RCSID("$Id: mk_req.c,v 1.20 2000/01/16 10:22:42 assar Exp $");
 
 krb5_error_code
 krb5_mk_req(krb5_context context,
 	    krb5_auth_context *auth_context,
 	    const krb5_flags ap_req_options,
-	    char *service,
-	    char *hostname,
+	    const char *service,
+	    const char *hostname,
 	    krb5_data *in_data,
 	    krb5_ccache ccache,
 	    krb5_data *outbuf)
 {
-    krb5_error_code r;
+    krb5_error_code ret;
     krb5_creds this_cred, *cred;
     char **realms;
     krb5_data realm_data;
@@ -53,45 +53,41 @@ krb5_mk_req(krb5_context context,
 
     memset(&this_cred, 0, sizeof(this_cred));
 
-    r = krb5_cc_get_principal(context, ccache, &this_cred.client);
+    ret = krb5_cc_get_principal(context, ccache, &this_cred.client);
   
-    if(r)
-	return r;
+    if(ret)
+	return ret;
 
-    r = krb5_expand_hostname (context, hostname, &real_hostname);
-    if (r) {
+    ret = krb5_expand_hostname_realms (context, hostname,
+				       &real_hostname, &realms);
+    if (ret) {
 	krb5_free_principal (context, this_cred.client);
-	return r;
+	return ret;
     }
 
-    r = krb5_get_host_realm(context, real_hostname, &realms);
-    if (r) {
-	krb5_free_principal (context, this_cred.client);
-	return r;
-    }
     realm_data.length = strlen(*realms);
     realm_data.data   = *realms;
 
-    r = krb5_build_principal (context, &this_cred.server,
-			      strlen(*realms),
-			      *realms,
-			      service,
-			      real_hostname,
-			      NULL);
+    ret = krb5_build_principal (context, &this_cred.server,
+				strlen(*realms),
+				*realms,
+				service,
+				real_hostname,
+				NULL);
     free (real_hostname);
     krb5_free_host_realm (context, realms);
 
-    if (r) {
+    if (ret) {
 	krb5_free_principal (context, this_cred.client);
-	return r;
+	return ret;
     }
     this_cred.times.endtime = 0;
     if (auth_context && *auth_context && (*auth_context)->keytype)
 	this_cred.session.keytype = (*auth_context)->keytype;
 
-    r = krb5_get_credentials (context, 0, ccache, &this_cred, &cred);
-    if (r)
-	return r;
+    ret = krb5_get_credentials (context, 0, ccache, &this_cred, &cred);
+    if (ret)
+	return ret;
 
     return krb5_mk_req_extended (context,
 				 auth_context,

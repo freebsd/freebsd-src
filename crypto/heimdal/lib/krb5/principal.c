@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -40,7 +40,7 @@
 #endif
 #include "resolve.h"
 
-RCSID("$Id: principal.c,v 1.57 2000/01/08 08:08:03 assar Exp $");
+RCSID("$Id: principal.c,v 1.63 2000/02/07 03:19:05 assar Exp $");
 
 #define princ_num_comp(P) ((P)->name.name_string.len)
 #define princ_type(P) ((P)->name.name_type)
@@ -119,7 +119,7 @@ krb5_parse_name(krb5_context context,
 		    ret = ENOMEM;
 		    goto exit;
 		}
-		strncpy(comp[n], start, q - start);
+		memcpy(comp[n], start, q - start);
 		comp[n][q - start] = 0;
 		n++;
 	    }
@@ -140,7 +140,7 @@ krb5_parse_name(krb5_context context,
 	    ret = ENOMEM;
 	    goto exit;
 	}
-	strncpy(realm, start, q - start);
+	memcpy(realm, start, q - start);
 	realm[q - start] = 0;
     }else{
 	ret = krb5_get_default_realm (context, &realm);
@@ -152,7 +152,7 @@ krb5_parse_name(krb5_context context,
 	    ret = ENOMEM;
 	    goto exit;
 	}
-	strncpy(comp[n], start, q - start);
+	memcpy(comp[n], start, q - start);
 	comp[n][q - start] = 0;
 	n++;
     }
@@ -176,8 +176,8 @@ exit:
     return ret;
 }
 
-static const char quotable_chars[] = "\n\t\b\\/@";
-static const char replace_chars[] = "ntb\\/@";
+static const char quotable_chars[] = " \n\t\b\\/@";
+static const char replace_chars[] = " ntb\\/@";
 
 #define add_char(BASE, INDEX, LEN, C) do { if((INDEX) < (LEN)) (BASE)[(INDEX)++] = (C); }while(0);
 
@@ -348,16 +348,19 @@ krb5_build_principal(krb5_context context,
 
 static krb5_error_code
 append_component(krb5_context context, krb5_principal p, 
-		 general_string comp,
+		 const char *comp,
 		 size_t comp_len)
 {
     general_string *tmp;
     size_t len = princ_num_comp(p);
+
     tmp = realloc(princ_comp(p), (len + 1) * sizeof(*tmp));
     if(tmp == NULL)
 	return ENOMEM;
     princ_comp(p) = tmp;
     princ_ncomp(p, len) = malloc(comp_len + 1);
+    if (princ_ncomp(p, len) == NULL)
+	return ENOMEM;
     memcpy (princ_ncomp(p, len), comp, comp_len);
     princ_ncomp(p, len)[comp_len] = '\0';
     princ_num_comp(p)++;
@@ -368,12 +371,12 @@ static void
 va_ext_princ(krb5_context context, krb5_principal p, va_list ap)
 {
     while(1){
-	char *s;
+	const char *s;
 	int len;
 	len = va_arg(ap, int);
 	if(len == 0)
 	    break;
-	s = va_arg(ap, char*);
+	s = va_arg(ap, const char*);
 	append_component(context, p, s, len);
     }
 }
@@ -382,8 +385,8 @@ static void
 va_princ(krb5_context context, krb5_principal p, va_list ap)
 {
     while(1){
-	char *s;
-	s = va_arg(ap, char*);
+	const char *s;
+	s = va_arg(ap, const char*);
 	if(s == NULL)
 	    break;
 	append_component(context, p, s, strlen(s));
@@ -835,10 +838,11 @@ krb5_524_conv_principal(krb5_context context,
 
     if(type == KRB5_NT_SRV_HST){
 	char *p;
-	strncpy(tmpinst, i, sizeof(tmpinst));
-	tmpinst[sizeof(tmpinst) - 1] = 0;
+
+	strlcpy (tmpinst, i, sizeof(tmpinst));
 	p = strchr(tmpinst, '.');
-	if(p) *p = 0;
+	if(p)
+	    *p = 0;
 	i = tmpinst;
     }
     
@@ -856,8 +860,7 @@ krb5_524_conv_principal(krb5_context context,
 
 /*
  * Create a principal in `ret_princ' for the service `sname' running
- * on host `hostname'.
- */
+ * on host `hostname'.  */
 			
 krb5_error_code
 krb5_sname_to_principal (krb5_context context,
@@ -879,15 +882,17 @@ krb5_sname_to_principal (krb5_context context,
     if(sname == NULL)
 	sname = "host";
     if(type == KRB5_NT_SRV_HST) {
-	ret = krb5_expand_hostname (context, hostname, &host);
+	ret = krb5_expand_hostname_realms (context, hostname,
+					   &host, &realms);
 	if (ret)
 	    return ret;
 	strlwr(host);
 	hostname = host;
+    } else {
+	ret = krb5_get_host_realm(context, hostname, &realms);
+	if(ret)
+	    return ret;
     }
-    ret = krb5_get_host_realm(context, hostname, &realms);
-    if(ret)
-	return ret;
 
     ret = krb5_make_principal(context, ret_princ, realms[0], sname,
 			      hostname, NULL);

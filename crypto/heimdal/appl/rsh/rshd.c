@@ -32,15 +32,18 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rshd.c,v 1.29 1999/12/02 17:04:56 joda Exp $");
+RCSID("$Id: rshd.c,v 1.30 2000/02/06 05:58:56 assar Exp $");
 
 enum auth_method auth_method;
 
 krb5_context context;
 krb5_keyblock *keyblock;
 krb5_crypto crypto;
+
+#ifdef KRB4
 des_key_schedule schedule;
 des_cblock iv;
+#endif
 
 krb5_ccache ccache, ccache2;
 int kerberos_status = 0;

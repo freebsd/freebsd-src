@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kadmin_locl.h,v 1.24 1999/12/02 17:04:58 joda Exp $
+ * $Id: kadmin_locl.h,v 1.25 2000/02/06 05:16:35 assar Exp $
  */
 
 #ifndef __ADMIN_LOCL_H__
@@ -73,6 +73,7 @@
 #endif
 #include <err.h>
 #include <roken.h>
+#include <des.h>
 #include <krb5.h>
 #include <hdb.h>
 #include <hdb_err.h>
