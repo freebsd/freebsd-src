@@ -610,7 +610,7 @@ printcpuinfo(void)
 			 * the number of logical CPU's it contains.
 			 */
 			if (cpu_feature & CPUID_HTT &&
-			    (cpuid_cpuinfo & CPUID_HTT_CORES) > 0x100)
+			    (cpuid_cpuinfo & CPUID_HTT_CORES) >> 16 > 1)
 				printf("\n  Hyperthreading: %d logical CPUs",
 				    (cpuid_cpuinfo & CPUID_HTT_CORES) >> 16);
 		}
