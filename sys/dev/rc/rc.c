@@ -62,14 +62,14 @@
 int     rcprobe         __P((struct isa_device *));
 int     rcattach        __P((struct isa_device *));
 
-int     rcopen          __P((dev_t, int, int, struct proc *));
-int     rcclose         __P((dev_t, int, int, struct proc *));
-int     rcread          __P((dev_t, struct uio *, int));
-int     rcwrite         __P((dev_t, struct uio *, int));
+/*-
+ * This space intentionally left blank to stop __LINE__ from screwing up
+ * regression tests :-(.
+ *
+ *
+ */
 void    rcintr          __P((int));
 void    rcpoll          __P((void));
-void    rcstop          __P((struct tty *, int));
-int     rcioctl         __P((dev_t, int, caddr_t, int, struct proc *));
 
 #define rcin(port)      RC_IN  (nec, port)
 #define rcout(port,v)   RC_OUT (nec, port, v)

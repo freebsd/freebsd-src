@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.66 1995/10/09 15:00:36 joerg Exp $
+ *	$Id: fd.c,v 1.67 1995/10/28 15:38:57 phk Exp $
  *
  */
 
@@ -275,10 +275,6 @@ static int fdattach(struct isa_device *);
 /* exported functions */
 int fdsize (dev_t);
 void fdintr(fdcu_t);
-int Fdopen(dev_t, int, int, struct proc *);
-int fdclose(dev_t, int, int, struct proc *);
-void fdstrategy(struct buf *);
-int fdioctl(dev_t, int, caddr_t, int, struct proc *);
 
 /* needed for ft driver, thus exported */
 int in_fdc(fdcu_t);

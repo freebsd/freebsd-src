@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.17 1995/09/10 21:36:12 bde Exp $
+ * $Id: conf.h,v 1.18 1995/10/04 03:43:18 julian Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -165,5 +165,7 @@ int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw *old));
 int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw *old));
 #endif
 #endif
+
+#include <machine/conf.h>
 
 #endif /* !_SYS_CONF_H_ */

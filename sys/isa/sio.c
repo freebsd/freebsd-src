@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.114 1995/10/21 00:55:25 phk Exp $
+ *	$Id: sio.c,v 1.115 1995/10/22 15:38:05 bde Exp $
  */
 
 #include "sio.h"
@@ -256,17 +256,7 @@ void	siointrts	__P((int unit));
 void	siopoll		__P((void));
 
 /* Device switch entry points. */
-int	sioopen		__P((dev_t dev, int oflags, int devtype,
-			     struct proc *p));
-int	sioclose	__P((dev_t dev, int fflag, int devtype,
-			     struct proc *p));
-int	sioread		__P((dev_t dev, struct uio *uio, int ioflag));
-int	siowrite	__P((dev_t dev, struct uio *uio, int ioflag));
-int	sioioctl	__P((dev_t dev, int cmd, caddr_t data,
-			     int fflag, struct proc *p));
-void	siostop		__P((struct tty *tp, int rw));
 #define	sioreset	noreset
-struct tty *siodevtotty	__P((dev_t dev));
 #define	siommap		nommap
 #define	siostrategy	nostrategy
 

@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.3 1995/10/04 21:51:24 jkh Exp $
+ *  dgb.c $Id: dgb.c,v 1.4 1995/10/12 23:28:31 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -156,17 +156,7 @@ void	dgbintr		__P((int unit));
 void	dgbpoll		__P((void *unit_c));
 
 /* Device switch entry points. */
-int	dgbopen		__P((dev_t dev, int oflags, int devtype,
-			     struct proc *p));
-int	dgbclose	__P((dev_t dev, int fflag, int devtype,
-			     struct proc *p));
-int	dgbread		__P((dev_t dev, struct uio *uio, int ioflag));
-int	dgbwrite	__P((dev_t dev, struct uio *uio, int ioflag));
-int	dgbioctl	__P((dev_t dev, int cmd, caddr_t data,
-			     int fflag, struct proc *p));
-void	dgbstop		__P((struct tty *tp, int rw));
 #define	dgbreset	noreset
-struct tty *dgbdevtotty	__P((dev_t dev));
 #define	dgbmmap		nommap
 #define	dgbstrategy	nostrategy
 

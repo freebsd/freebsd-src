@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.46 1995/09/08 11:07:48 bde Exp $
+ *	$Id: mcd.c,v 1.47 1995/10/28 15:39:15 phk Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -164,11 +164,6 @@ struct mcd_data {
 #define MCD_S_WAITREAD	4
 
 /* prototypes */
-int	mcdopen(dev_t dev, int flags, int fmt, struct proc *p);
-int	mcdclose(dev_t dev, int flags, int fmt, struct proc *p);
-void	mcdstrategy(struct buf *bp);
-int	mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p);
-int	mcdsize(dev_t dev);
 static	void	mcd_start(int unit);
 static	int	mcd_getdisklabel(int unit);
 #ifdef NOTYET

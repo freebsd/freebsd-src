@@ -70,16 +70,10 @@ struct snoop {
 
 #ifdef KERNEL
 /* XXX several wrong storage classes and types here. */
-int	snpclose __P((dev_t dev, int flags, int fmt, struct proc *p));
 int	snp_detach __P((struct snoop *snp));
 int	snpdown __P((struct snoop *snp));
 int	snpin __P((struct snoop *snp, char *buf, int n));
 int	snpinc __P((struct snoop *snp, char c));
-int	snpioctl __P((dev_t dev, int cmd, caddr_t data, int flags, struct proc *p));
-int	snpopen __P((dev_t dev, int flag, int mode, struct proc *p));
-int	snpread __P((dev_t dev, struct uio *uio, int flag));
-int	snpselect __P((dev_t dev, int rw, struct proc *p));
-int	snpwrite __P((dev_t dev, struct uio *uio, int flag));
 #endif /* KERNEL */
 
 #endif /* _SNOOP_H_ */
