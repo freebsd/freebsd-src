@@ -95,6 +95,7 @@ void	mark_buffer_dirty __P((struct buf *bh));
 
 #if !defined(__FreeBSD__)
 int	bwrite();		/* FFS needs a bwrite routine.  XXX */
+#define	gettime	get_time
 #endif
 
 /*

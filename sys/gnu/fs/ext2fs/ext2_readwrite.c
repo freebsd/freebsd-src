@@ -313,11 +313,7 @@ WRITE(ap)
 			uio->uio_resid = resid;
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
-#if !defined(__FreeBSD__)
-		get_time(&tv);
-#else
-		tv = time;
-#endif
+		gettime(&tv);
 		error = VOP_UPDATE(vp, &tv, &tv, 1);
 	}
 	return (error);

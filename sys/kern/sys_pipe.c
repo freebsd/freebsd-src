@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id$
+ * $Id: sys_pipe.c,v 1.24 1997/02/22 09:39:19 peter Exp $
  */
 
 #ifndef OLD_PIPE
@@ -253,11 +253,9 @@ pipeinit(cpipe)
 	cpipe->pipe_state = 0;
 	cpipe->pipe_peer = NULL;
 	cpipe->pipe_busy = 0;
-	s = splhigh();
-	cpipe->pipe_ctime = time;
-	cpipe->pipe_atime = time;
-	cpipe->pipe_mtime = time;
-	splx(s);
+	gettime(&cpipe->pipe_ctime);
+	cpipe->pipe_atime = cpipe->pipe_ctime;
+	cpipe->pipe_mtime = cpipe->pipe_ctime;
 	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
 	cpipe->pipe_pgid = NO_PID;
 
@@ -439,11 +437,8 @@ pipe_read(fp, uio, cred)
 		}
 	}
 
-	if (error == 0) {
-		int s = splhigh();
-		rpipe->pipe_atime = time;
-		splx(s);
-	}
+	if (error == 0)
+		gettime(&rpipe->pipe_atime);
 
 	--rpipe->pipe_busy;
 	if ((rpipe->pipe_busy == 0) && (rpipe->pipe_state & PIPE_WANT)) {
@@ -914,11 +909,9 @@ pipe_write(fp, uio, cred)
 		(error == EPIPE))
 		error = 0;
 
-	if (error == 0) {
-		int s = splhigh();
-		wpipe->pipe_mtime = time;
-		splx(s);
-	}
+	if (error == 0)
+		gettime(&wpipe->pipe_mtime);
+
 	/*
 	 * We have something to offer,
 	 * wake up select.

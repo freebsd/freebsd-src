@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.23 1997/02/22 09:47:09 peter Exp $
+ * $Id: ffs_vnops.c,v 1.24 1997/03/04 18:35:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -321,7 +321,7 @@ loop:
 #endif
 	}
 
-	tv = time;
+	gettime(&tv);
 	return (VOP_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }
 

@@ -241,6 +241,7 @@ return ENOSPC;
 	daddr_t start_lbn, end_lbn, soff, eoff, newblk, blkno;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
 	int i, len, start_lvl, end_lvl, pref, ssize;
+	struct timeval tv;
 
 	vp = ap->a_vp;
 	ip = VTOI(vp);
@@ -346,13 +347,11 @@ return ENOSPC;
 		else
 			bwrite(sbp);
 	} else {
-#if !defined(__FreeBSD__)
-		struct timeval time;
-		get_time(&time);
-#endif
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		if (!doasyncfree)
-			VOP_UPDATE(vp, &time, &time, MNT_WAIT);
+		if (!doasyncfree) {
+			gettime(&tv);
+			VOP_UPDATE(vp, &tv, &tv, MNT_WAIT);
+		}
 	}
 	if (ssize < len)
 		if (doasyncfree)
@@ -441,7 +440,7 @@ ext2_valloc(ap)
 	 * XXX check if this makes sense in ext2
 	 */
 #if !defined(__FreeBSD__)
-	get_time(&time);
+	gettime(&time);
 #endif
 	if (++nextgennumber < (u_long)time.tv_sec)
 		nextgennumber = time.tv_sec;

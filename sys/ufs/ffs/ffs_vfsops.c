@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.47 1997/03/15 18:58:10 sos Exp $
+ * $Id: ffs_vfsops.c,v 1.48 1997/03/18 19:50:12 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -861,7 +861,7 @@ loop:
 		} else {
 			simple_unlock(&mntvnode_slock);
 			simple_unlock(&vp->v_interlock);
-			tv = time;
+			gettime(&tv);
 			/* VOP_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT); */
 			VOP_UPDATE(vp, &tv, &tv, 0);
 			simple_lock(&mntvnode_slock);

@@ -333,10 +333,6 @@ loop:
 #endif
 	}
 	splx(s);
-#if defined(__FreeBSD__)
-	tv = time;
-#else
-	get_time(&tv);
-#endif
+	gettime(&tv);
 	return (VOP_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }

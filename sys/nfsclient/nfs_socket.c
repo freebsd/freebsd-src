@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id$
+ * $Id: nfs_socket.c,v 1.21 1997/02/22 09:42:39 peter Exp $
  */
 
 /*
@@ -761,7 +761,7 @@ nfsmout:
 					rt->srtt = nmp->nm_srtt[proct[rep->r_procnum] - 1];
 					rt->sdrtt = nmp->nm_sdrtt[proct[rep->r_procnum] - 1];
 					rt->fsid = nmp->nm_mountp->mnt_stat.f_fsid;
-					rt->tstamp = time;
+					gettime(&rt->tstamp);
 					if (rep->r_flags & R_TIMING)
 						rt->rtt = rep->r_rtt;
 					else
