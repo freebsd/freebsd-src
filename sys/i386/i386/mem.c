@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.36 1996/07/15 05:23:04 bde Exp $
+ *	$Id: mem.c,v 1.37 1996/07/15 18:22:07 nate Exp $
  */
 
 /*
@@ -80,12 +80,13 @@ static	d_close_t	mmclose;
 static	d_read_t	mmrw;
 static	d_ioctl_t	mmioctl;
 static	d_mmap_t	memmmap;
+static	d_select_t	mmselect;
 
 #define CDEV_MAJOR 2
 static struct cdevsw mem_cdevsw = 
 	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
 	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
-	  seltrue,	memmmap,	NULL,	"mem",	NULL, -1 };
+	  mmselect,	memmmap,	NULL,	"mem",	NULL, -1 };
 
 static caddr_t	zbuf;
 
@@ -472,6 +473,21 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 			return (ENOTTY);
 	}
 	return (0);
+}
+
+int
+mmselect(dev, rw, p)
+	dev_t dev;
+	int rw;
+	struct proc *p;
+{
+	switch (minor(dev)) {
+	case 3:		/* /dev/random */
+		return random_select(dev, rw, p);
+	case 4:		/* /dev/urandom */
+	default:
+		return seltrue(dev, rw, p);
+	}
 }
 
 /*
