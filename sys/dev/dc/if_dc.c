@@ -131,6 +131,8 @@ __FBSDID("$FreeBSD$");
 
 #include <pci/if_dcreg.h>
 
+MODULE_DEPEND(dc, pci, 1, 1, 1);
+MODULE_DEPEND(dc, ether, 1, 1, 1);
 MODULE_DEPEND(dc, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
@@ -306,8 +308,8 @@ SYSCTL_INT(_hw, OID_AUTO, dc_quick, CTLFLAG_RW,
 	&dc_quick,0,"do not mdevget in dc driver");
 #endif
 
-DRIVER_MODULE(if_dc, cardbus, dc_driver, dc_devclass, 0, 0);
-DRIVER_MODULE(if_dc, pci, dc_driver, dc_devclass, 0, 0);
+DRIVER_MODULE(dc, cardbus, dc_driver, dc_devclass, 0, 0);
+DRIVER_MODULE(dc, pci, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
 
 #define DC_SETBIT(sc, reg, x)				\

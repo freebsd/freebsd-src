@@ -79,6 +79,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/fxp/if_fxpvar.h>
 #include <dev/fxp/rcvbundl.h>
 
+MODULE_DEPEND(fxp, pci, 1, 1, 1);
+MODULE_DEPEND(fxp, ether, 1, 1, 1);
 MODULE_DEPEND(fxp, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
@@ -251,8 +253,8 @@ static driver_t fxp_driver = {
 
 static devclass_t fxp_devclass;
 
-DRIVER_MODULE(if_fxp, pci, fxp_driver, fxp_devclass, 0, 0);
-DRIVER_MODULE(if_fxp, cardbus, fxp_driver, fxp_devclass, 0, 0);
+DRIVER_MODULE(fxp, pci, fxp_driver, fxp_devclass, 0, 0);
+DRIVER_MODULE(fxp, cardbus, fxp_driver, fxp_devclass, 0, 0);
 DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, 0, 0);
 
 static int fxp_rnr;

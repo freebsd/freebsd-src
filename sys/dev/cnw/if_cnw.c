@@ -337,7 +337,8 @@ static driver_t cnw_pccard_driver = {
 
 static devclass_t cnw_pccard_devclass;
 
-DRIVER_MODULE(if_cnw, pccard, cnw_pccard_driver, cnw_pccard_devclass, 0, 0);
+DRIVER_MODULE(cnw, pccard, cnw_pccard_driver, cnw_pccard_devclass, 0, 0);
+MODULE_DEPEND(cnw, ether, 1, 1, 1);
 
 #endif /* !defined(__FreeBSD__) */
 

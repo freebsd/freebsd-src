@@ -126,6 +126,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/nge/if_ngereg.h>
 
+MODULE_DEPEND(nge, pci, 1, 1, 1);
+MODULE_DEPEND(nge, ether, 1, 1, 1);
 MODULE_DEPEND(nge, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
@@ -222,7 +224,7 @@ static driver_t nge_driver = {
 
 static devclass_t nge_devclass;
 
-DRIVER_MODULE(if_nge, pci, nge_driver, nge_devclass, 0, 0);
+DRIVER_MODULE(nge, pci, nge_driver, nge_devclass, 0, 0);
 DRIVER_MODULE(miibus, nge, miibus_driver, miibus_devclass, 0, 0);
 
 #define NGE_SETBIT(sc, reg, x)				\

@@ -171,7 +171,9 @@ static driver_t my_driver = {
 
 static devclass_t my_devclass;
 
-DRIVER_MODULE(if_my, pci, my_driver, my_devclass, 0, 0);
+DRIVER_MODULE(my, pci, my_driver, my_devclass, 0, 0);
+MODULE_DEPEND(my, pci, 1, 1, 1);
+MODULE_DEPEND(my, ether, 1, 1, 1);
 
 static long
 my_send_cmd_to_phy(struct my_softc * sc, int opcode, int regad)

@@ -637,5 +637,6 @@ static driver_t alpm_driver = {
 };
 
 DRIVER_MODULE(alpm, pci, alpm_driver, alpm_devclass, 0, 0);
+MODULE_DEPEND(alpm, pci, 1, 1, 1);
 MODULE_DEPEND(alpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(alpm, 1);

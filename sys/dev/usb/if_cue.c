@@ -139,8 +139,9 @@ Static driver_t cue_driver = {
 
 Static devclass_t cue_devclass;
 
-DRIVER_MODULE(if_cue, uhub, cue_driver, cue_devclass, usbd_driver_load, 0);
-MODULE_DEPEND(if_cue, usb, 1, 1, 1);
+DRIVER_MODULE(cue, uhub, cue_driver, cue_devclass, usbd_driver_load, 0);
+MODULE_DEPEND(cue, usb, 1, 1, 1);
+MODULE_DEPEND(cue, ether, 1, 1, 1);
 
 #define CUE_SETBIT(sc, reg, x)				\
 	cue_csr_write_1(sc, reg, cue_csr_read_1(sc, reg) | (x))

@@ -107,6 +107,8 @@ __FBSDID("$FreeBSD$");
 #include <pci/if_skreg.h>
 #include <pci/xmaciireg.h>
 
+MODULE_DEPEND(sk, pci, 1, 1, 1);
+MODULE_DEPEND(sk, ether, 1, 1, 1);
 MODULE_DEPEND(sk, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
@@ -236,7 +238,7 @@ static driver_t sk_driver = {
 
 static devclass_t sk_devclass;
 
-DRIVER_MODULE(if_sk, pci, skc_driver, skc_devclass, 0, 0);
+DRIVER_MODULE(sk, pci, skc_driver, skc_devclass, 0, 0);
 DRIVER_MODULE(sk, skc, sk_driver, sk_devclass, 0, 0);
 DRIVER_MODULE(miibus, sk, miibus_driver, miibus_devclass, 0, 0);
 

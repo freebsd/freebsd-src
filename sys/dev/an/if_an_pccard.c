@@ -105,8 +105,9 @@ static driver_t an_pccard_driver = {
 
 static devclass_t an_pccard_devclass;
 
-DRIVER_MODULE(if_an, pccard, an_pccard_driver, an_pccard_devclass, 0, 0);
-MODULE_DEPEND(if_an, wlan, 1, 1, 1);
+DRIVER_MODULE(an, pccard, an_pccard_driver, an_pccard_devclass, 0, 0);
+MODULE_DEPEND(an, wlan, 1, 1, 1);
+MODULE_DEPEND(an, pccard, 1, 1, 1);
 
 static const struct pccard_product an_pccard_products[] = {
 	PCMCIA_CARD(AIRONET, PC4800, 0),

@@ -93,7 +93,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/if_kuereg.h>
 #include <dev/usb/kue_fw.h>
 
-MODULE_DEPEND(if_kue, usb, 1, 1, 1);
+MODULE_DEPEND(kue, usb, 1, 1, 1);
+MODULE_DEPEND(kue, ether, 1, 1, 1);
 
 /*
  * Various supported device vendors/products.
@@ -167,7 +168,7 @@ Static driver_t kue_driver = {
 
 Static devclass_t kue_devclass;
 
-DRIVER_MODULE(if_kue, uhub, kue_driver, kue_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(kue, uhub, kue_driver, kue_devclass, usbd_driver_load, 0);
 
 /*
  * We have a custom do_request function which is almost like the

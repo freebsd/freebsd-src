@@ -88,6 +88,7 @@ static driver_t cy_pci_driver = {
 static devclass_t	cy_devclass;
 
 DRIVER_MODULE(cy, pci, cy_pci_driver, cy_devclass, 0, 0);
+MODULE_DEPEND(cy, pci, 1, 1, 1);
 
 static int
 cy_pci_probe(dev)

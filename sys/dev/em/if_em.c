@@ -174,7 +174,9 @@ static driver_t em_driver = {
 };
 
 static devclass_t em_devclass;
-DRIVER_MODULE(if_em, pci, em_driver, em_devclass, 0, 0);
+DRIVER_MODULE(em, pci, em_driver, em_devclass, 0, 0);
+MODULE_DEPEND(em, pci, 1, 1, 1);
+MODULE_DEPEND(em, ether, 1, 1, 1);
 
 /*********************************************************************
  *  Device identification routine

@@ -297,5 +297,6 @@ static driver_t an_pci_driver = {
 
 static devclass_t an_devclass;
 
-DRIVER_MODULE(if_an, pci, an_pci_driver, an_devclass, 0, 0);
-MODULE_DEPEND(if_an, wlan, 1, 1, 1);
+DRIVER_MODULE(an, pci, an_pci_driver, an_devclass, 0, 0);
+MODULE_DEPEND(an, pci, 1, 1, 1);
+MODULE_DEPEND(an, wlan, 1, 1, 1);

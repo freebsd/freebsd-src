@@ -152,4 +152,6 @@ static driver_t ed_isa_driver = {
 	sizeof(struct ed_softc)
 };
 
-DRIVER_MODULE(if_ed, isa, ed_isa_driver, ed_devclass, 0, 0);
+DRIVER_MODULE(ed, isa, ed_isa_driver, ed_devclass, 0, 0);
+MODULE_DEPEND(ed, isa, 1, 1, 1);
+MODULE_DEPEND(ed, ether, 1, 1, 1);

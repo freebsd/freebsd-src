@@ -107,8 +107,9 @@ static struct {
 	{0, 0, 0, NULL}
 };
 
-DRIVER_MODULE(if_wi, pci, wi_pci_driver, wi_devclass, 0, 0);
-MODULE_DEPEND(if_wi, wlan, 1, 1, 1);
+DRIVER_MODULE(wi, pci, wi_pci_driver, wi_devclass, 0, 0);
+MODULE_DEPEND(wi, pci, 1, 1, 1);
+MODULE_DEPEND(wi, wlan, 1, 1, 1);
 
 static int
 wi_pci_probe(dev)

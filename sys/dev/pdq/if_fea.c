@@ -293,6 +293,6 @@ static driver_t pdq_eisa_driver = {
 	sizeof(pdq_softc_t),
 };
 
-DRIVER_MODULE(if_fea, eisa, pdq_eisa_driver, pdq_devclass, 0, 0);
-/* MODULE_DEPEND(if_fea, eisa, 1, 1, 1); */
-MODULE_DEPEND(if_fea, fddi, 1, 1, 1);
+DRIVER_MODULE(fea, eisa, pdq_eisa_driver, pdq_devclass, 0, 0);
+/* MODULE_DEPEND(fea, eisa, 1, 1, 1); */
+MODULE_DEPEND(fea, fddi, 1, 1, 1);
