@@ -118,6 +118,7 @@
 #define DEB(x)
 
 static void bdginit(void *);
+static void bdgtakeifaces(void);
 static void flush_table(void);
 static void bdg_promisc_on(void);
 static void parse_bdg_cfg(void);
@@ -321,6 +322,16 @@ sysctl_bdg_cfg SYSCTL_HANDLER_ARGS
     return error ;
 }
 
+static int
+sysctl_refresh SYSCTL_HANDLER_ARGS
+{
+    if (req->newptr)
+	    bdgtakeifaces();
+    
+    return 0;
+}
+
+
 SYSCTL_DECL(_net_link_ether);
 SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge_cfg, CTLTYPE_STRING|CTLFLAG_RW,
 	    &bridge_cfg, sizeof(bridge_cfg), &sysctl_bdg_cfg, "A",
@@ -339,6 +350,9 @@ SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw_drop,
 int bdg_ipfw_colls;
 SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw_collisions,
 	CTLFLAG_RW, &bdg_ipfw_colls,0,"");
+
+SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge_refresh, CTLTYPE_INT|CTLFLAG_WR,
+	    NULL, 0, &sysctl_refresh, "I", "iface refresh");
 
 #if 1 /* diagnostic vars */
 int bdg_in_count = 0 , bdg_in_ticks = 0 , bdg_fw_count = 0, bdg_fw_ticks = 0 ;
@@ -419,11 +433,6 @@ int bdg_ports ;
 static void
 bdginit(void *dummy)
 {
-    int i ;
-    struct ifnet *ifp;
-    struct arpcom *ac ;
-    u_char *eth_addr ;
-    struct bdg_softc *bp;
 
     if (bdg_table == NULL)
 	bdg_table = (struct hash_table *)
@@ -436,8 +445,23 @@ bdginit(void *dummy)
     bzero(ifp2sc, BDG_MAX_PORTS * sizeof(struct bdg_softc) );
 
     bzero(&bdg_stats, sizeof(bdg_stats) );
+    bdgtakeifaces();
+    bdg_timeout(0);
+    do_bridge=0;
+}
+    
+void
+bdgtakeifaces(void)
+{
+    int i ;
+    struct ifnet *ifp;
+    struct arpcom *ac ;
+    u_char *eth_addr ;
+    struct bdg_softc *bp;
+
     bdg_ports = 0 ;
     eth_addr = bdg_addresses ;
+    *bridge_cfg = '\0';
 
     printf("BRIDGE 990810, have %d interfaces\n", if_index);
     for (i = 0 , ifp = ifnet.tqh_first ; i < if_index ;
@@ -466,8 +490,6 @@ bdginit(void *dummy)
 	    bdg_ports ++ ;
 	}
 
-    bdg_timeout(0);
-    do_bridge=0;
 }
 
 /*
