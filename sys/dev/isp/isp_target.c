@@ -447,7 +447,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 			cto->ct_lun = aep->at_lun;
 		}
 		cto->ct_rxid = aep->at_rxid;
-		cto->rsp.m1.ct_scsi_status = sts & 0xff;
+		cto->rsp.m1.ct_scsi_status = sts;
 		cto->ct_flags = CT2_SENDSTATUS | CT2_NO_DATA | CT2_FLAG_MODE1;
 		if (hdl == 0) {
 			cto->ct_flags |= CT2_CCINCR;
@@ -456,7 +456,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 			cto->ct_resid = aep->at_datalen;
 			cto->rsp.m1.ct_scsi_status |= CT2_DATA_UNDER;
 		}
-		if ((sts & 0xff) == SCSI_CHECK && (sts & ECMD_SVALID)) {
+		if (sts == SCSI_CHECK && (code & ECMD_SVALID)) {
 			cto->rsp.m1.ct_resp[0] = 0xf0;
 			cto->rsp.m1.ct_resp[2] = (code >> 12) & 0xf;
 			cto->rsp.m1.ct_resp[7] = 8;
