@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.18 1996/11/07 01:46:47 alex Exp $
+#	$Id: sys.mk,v 1.19 1997/01/06 02:07:35 steve Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -190,8 +190,10 @@ YFLAGS		?=	-d
 	${CC} ${CFLAGS} -c ${.PREFIX}.tmp.c -o ${.TARGET}
 	rm -f ${.PREFIX}.tmp.c
 
+# XXX not -j safe
 .y.c:
-	${YACC} ${YFLAGS} -o ${.TARGET} ${.IMPSRC}
+	${YACC} ${YFLAGS} ${.IMPSRC}
+	mv y.tab.c ${.TARGET}
 
 .l.c:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.TARGET}
