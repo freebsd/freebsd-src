@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2003
+.Dd July 23, 2003
 .Dt TINDERBOX 1
 .Os
 .Sh NAME
@@ -49,12 +49,12 @@ arbitrary target platform.
 .Pp
 The following options are recognized:
 .Bl -tag -width 12n
-.It Fl -arch Ns = Ns Ar ARCH
+.It Fl a Ar ARCH , Fl -arch Ns = Ns Ar ARCH
 Specifies the target architecture.
 The default value is whatever the host system's
 .Xr uname 1
 reports.
-.It Fl -branch Ns = Ns Ar BRANCH
+.It Fl b Ar BRANCH , Fl -branch Ns = Ns Ar BRANCH
 The branch to specify to
 .Xr cvs 1 ,
 using the
@@ -68,7 +68,7 @@ Specifying
 as the argument to
 .Fl -branch
 is equivalent to leaving it unspecified.
-.It Fl -date Ns = Ns Ar DATE
+.It Fl d Ar DATE , Fl -date Ns = Ns Ar DATE
 The date to specify to
 .Xr cvs 1 ,
 using the
@@ -78,7 +78,7 @@ As a special case, the value
 .Dq today
 corresponds to midnight GMT the day the run starts.
 The default is to use the top of whichever branch was specified.
-.It Fl -jobs Ns = Ns Ar NUM
+.It Fl j Ar NUM , Fl -jobs Ns = Ns Ar NUM
 The maximum number of paralell jobs, as specified to
 .Xr make 1
 using the
@@ -96,18 +96,18 @@ or
 to the
 .Fl -jobs
 option is equivalent to leaving it unspecified.
-.It Fl -logfile Ns = Ns Ar FILE
+.It Fl l Ar FILE , Fl -logfile Ns = Ns Ar FILE
 The name of a file to which the output and error messages produced by
 the build should be written.
 Note that this file can grow quite large.
 The default is to redirect all output to
 .Pa /dev/stdout .
-.It Fl -machine Ns = Ns Ar MACHINE
+.It Fl m Ar MACHINE , Fl -machine Ns = Ns Ar MACHINE
 Specifies the target machine.
 The default value is whatever the host system's
 .Xr uname 1
 reports.
-.It Fl -patch Ns = Ns Ar PATCH
+.It Fl p Ar PATCH , Fl -patch Ns = Ns Ar PATCH
 The file name of a patch to apply to the source tree before building
 if the
 .Cm patch
@@ -122,7 +122,7 @@ for more information), regardless of whether the
 .Cm patch
 command was specified.
 The default is to not apply any patches.
-.It Fl -repository Ns = Ns Ar DIR
+.It Fl r Ar DIR , Fl -repository Ns = Ns Ar DIR
 The location of the
 .Xr cvs 1
 repository from which to check out sources if the
@@ -130,11 +130,11 @@ repository from which to check out sources if the
 command is specified.
 The default is
 .Pa /home/ncvs .
-.It Fl -sandbox Ns = Ns Ar DIR
+.It Fl s Ar DIR , Fl -sandbox Ns = Ns Ar DIR
 The location of the sandbox in which the builds are to take place.
 This directory should reside on a reasonably fast disk with at least
 1.5 GB available (3 GB if building a release).
-.It Fl -verbose
+.It Fl v , Fl -verbose
 Enable additional debugging output.
 .El
 .Pp
