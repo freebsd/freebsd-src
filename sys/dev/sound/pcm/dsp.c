@@ -509,6 +509,16 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			*arg_i |= PCM_ENABLE_INPUT;
 		break;
 
+		case SNDCTL_DSP_GETODELAY:
+			if (wrch) {
+				snd_dbuf *b = &wrch->buffer;
+				if (b->dl)
+					chn_dmaupdate(wrch);
+				*arg = b->total;
+			} else
+				ret = EINVAL;
+			break;
+
     	case SNDCTL_DSP_MAPINBUF:
     	case SNDCTL_DSP_MAPOUTBUF:
     	case SNDCTL_DSP_SETSYNCRO:
