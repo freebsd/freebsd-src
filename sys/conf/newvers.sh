@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-#	$Id$
+#	$Id: newvers.sh,v 1.32 1997/02/22 09:28:13 peter Exp $
 
 TYPE="FreeBSD"
 REVISION="3.0"
@@ -52,9 +52,12 @@ year=`date '+%Y'`
 for bsd_copyright in ../$b ../../$b ../../../$b /usr/src/$b /usr/$b
 do
 	if [ -r "$bsd_copyright" ]; then
-		COPYRIGHT=`sed -e "s/\[year\]/$year/" \
-			-e 's/\[your name here\]\. /FreeBSD Inc./' \
-			-e 's/\[your name\]/FreeBSD Inc./' $bsd_copyright`
+		COPYRIGHT=`sed \
+		    -e "s/\[year\]/$year/" \
+		    -e 's/\[your name here\]\.* /FreeBSD Inc./' \
+		    -e 's/\[your name\]\.*/FreeBSD Inc./' \
+		    -e '/\[id for your version control system, if any\]/d' \
+		    $bsd_copyright` 
 		break
 	fi
 done
@@ -62,7 +65,7 @@ done
 # no copyright found, use a dummy
 if [ X"$COPYRIGHT" = X ]; then
 	COPYRIGHT="/*
- * Copyright (C) $year
+ * Copyright (c) $year
  *	FreeBSD Inc. All rights reserved.
  *
  */"
@@ -70,7 +73,6 @@ fi
 
 # add newline
 COPYRIGHT="$COPYRIGHT
-
 "
 
 LC_TIME=C; export LC_TIME
