@@ -78,7 +78,7 @@ ufs_ihashlookup(dev, inum)
 	struct inode *ip;
 
 	mtx_enter(&ufs_ihash_mtx, MTX_DEF);
-	for (ip = INOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next)
+	LIST_FOREACH(ip, INOHASH(dev, inum), i_hash)
 		if (inum == ip->i_number && dev == ip->i_dev)
 			break;
 	mtx_exit(&ufs_ihash_mtx, MTX_DEF);
@@ -103,7 +103,7 @@ ufs_ihashget(dev, inum)
 
 loop:
 	mtx_enter(&ufs_ihash_mtx, MTX_DEF);
-	for (ip = INOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next) {
+	LIST_FOREACH(ip, INOHASH(dev, inum), i_hash) {
 		if (inum == ip->i_number && dev == ip->i_dev) {
 			vp = ITOV(ip);
 			mtx_enter(&vp->v_interlock, MTX_DEF);

@@ -517,8 +517,8 @@ wx_mc_setup(sc)
 		return (wx_init(sc));
 	}
 
-	for (ifma = ifp->if_multiaddrs.lh_first, sc->wx_nmca = 0;
-	    ifma != NULL; ifma = ifma->ifma_link.le_next) {
+	sc->wx_nmca = 0;
+	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK) {
 			continue;
 		}

@@ -397,8 +397,7 @@ loop:
 		while (union_list_lock(hash))
 			continue;
 
-		for (un = unhead[hash].lh_first; un != 0;
-					un = un->un_cache.le_next) {
+		LIST_FOREACH(un, &unhead[hash], un_cache) {
 			if ((un->un_lowervp == lowervp ||
 			     un->un_lowervp == NULLVP) &&
 			    (un->un_uppervp == uppervp ||
