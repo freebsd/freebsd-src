@@ -121,8 +121,7 @@ mp_begin:	/* now running relocated at KERNBASE */
 	call	_ap_init
 
 	call	_rel_mplock
-	lock				/* Avoid livelock (PIII Errata 39) */
-	addl	$0,-4(%esp)
+	wbinvd				/* Avoid livelock */
 2:	
 	cmpl	$0, CNAME(smp_started)	/* Wait for last AP to be ready */
 	jz	2b
@@ -135,8 +134,7 @@ NON_GPROF_ENTRY(wait_ap)
 	pushl	%ebp
 	movl	%esp, %ebp
 	call	_rel_mplock
-	lock				/* Avoid livelock (PIII Errata 39) */
-	addl	$0,0(%esp)
+	wbinvd				/* Avoid livelock */
 	movl	%eax, 8(%ebp)
 1:		
 	cmpl	$0, CNAME(smp_started)
