@@ -222,13 +222,10 @@ pipe(td, uap)
 	struct mtx *pmtx;
 	int fd, error;
 
-	pmtx = malloc(sizeof(*pmtx), M_TEMP, M_WAITOK | M_ZERO);
-	
 	rpipe = wpipe = NULL;
 	if (pipe_create(&rpipe) || pipe_create(&wpipe)) {
 		pipeclose(rpipe); 
 		pipeclose(wpipe); 
-		free(pmtx, M_TEMP);
 		return (ENFILE);
 	}
 	
@@ -239,7 +236,6 @@ pipe(td, uap)
 	if (error) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
-		free(pmtx, M_TEMP);
 		return (error);
 	}
 	/* An extra reference on `rf' has been held for us by falloc(). */
@@ -269,7 +265,6 @@ pipe(td, uap)
 		fdrop(rf, td);
 		/* rpipe has been closed by fdrop(). */
 		pipeclose(wpipe);
-		free(pmtx, M_TEMP);
 		return (error);
 	}
 	/* An extra reference on `wf' has been held for us by falloc(). */
@@ -293,6 +288,7 @@ pipe(td, uap)
 	mac_init_pipe(rpipe);
 	mac_create_pipe(td->td_ucred, rpipe);
 #endif
+	pmtx = malloc(sizeof(*pmtx), M_TEMP, M_WAITOK | M_ZERO);
 	mtx_init(pmtx, "pipe mutex", NULL, MTX_DEF | MTX_RECURSE);
 	rpipe->pipe_mtxp = wpipe->pipe_mtxp = pmtx;
 	fdrop(rf, td);
