@@ -7,7 +7,6 @@
 	${.CURDIR}/../../fs/smbfs
 
 KMOD=	smbfs
-KMODDEPS=	libiconv libmchain
 
 SRCS=	vnode_if.h \
 	opt_inet.h opt_ipx.h \
