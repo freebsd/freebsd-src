@@ -28,7 +28,6 @@
 
 #include "opt_syscons.h"
 
-#include <limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -42,6 +41,7 @@
 #include <sys/random.h>
 #include <sys/signalvar.h>
 #include <sys/tty.h>
+#include <machine/limits.h>
 
 #include <dev/syscons/syscons.h>
 
