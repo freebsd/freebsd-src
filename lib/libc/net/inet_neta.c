@@ -17,7 +17,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char orig_rcsid[] = "From Id: inet_neta.c,v 8.2 1996/08/08 06:54:44 vixie Exp";
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: inet_neta.c,v 1.3 1997/02/22 15:00:20 peter Exp $";
 #endif
 
 #include <sys/types.h>
@@ -27,6 +27,7 @@ static const char rcsid[] = "$Id$";
 
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef SPRINTF_CHAR
 # define SPRINTF(x) strlen(sprintf/**/x)
