@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.9 1996/01/30 02:56:08 mpp Exp $
+ *	$Id: cdio.h,v 1.10 1996/02/01 16:16:11 ache Exp $
  */
 /*
 <1>	Fixed a conflict with ioctl usage.  There were two different
@@ -24,6 +24,12 @@
 /* Shared between kernel & process */
 #ifndef _SYS_CDIO_H_
 #define _SYS_CDIO_H_
+
+#ifdef __GNUC__
+#if __GNUC__ >= 2
+#pragma pack(1)
+#endif
+#endif
 
 union msf_lba {
 	struct {
@@ -258,6 +264,12 @@ struct ioc_capability {			/*<2>*/
 };					/*<2>*/
 
 #define	CDIOCCAPABILITY	_IOR('c',30,struct ioc_capability)	/*<2>*/
+
+#ifdef __GNUC__
+#if __GNUC__ >= 2
+#pragma pack(4)
+#endif
+#endif
 
 #endif /* _SYS_CDIO_H_ */
 
