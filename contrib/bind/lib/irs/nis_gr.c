@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_gr.c,v 1.20 1999/01/30 00:53:16 vixie Exp $";
+static const char rcsid[] = "$Id: nis_gr.c,v 1.21 2001/05/29 05:49:12 marka Exp $";
 /* from getgrent.c 8.2 (Berkeley) 3/21/94"; */
 /* from BSDI Id: getgrent.c,v 2.8 1996/05/28 18:15:14 bostic Exp $	*/
 #endif /* LIBC_SCCS and not lint */
@@ -217,7 +217,7 @@ gr_byname(struct irs_gr *this, const char *name) {
 	int r;
 
 	nisfree(pvt, do_val);
-	r = yp_match(pvt->nis_domain, group_byname, (char *)name, strlen(name),
+	r = yp_match(pvt->nis_domain, group_byname, name, strlen(name),
 		     &pvt->curval_data, &pvt->curval_len);
 	if (r != 0) {
 		errno = ENOENT;
@@ -252,6 +252,7 @@ gr_rewind(struct irs_gr *this) {
 
 static void
 gr_minimize(struct irs_gr *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
@@ -260,7 +261,7 @@ gr_minimize(struct irs_gr *this) {
 static struct group *
 makegroupent(struct irs_gr *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
-	int num_members = 0;
+	unsigned int num_members = 0;
 	char *cp, **new;
 	u_long t;
 

@@ -203,6 +203,10 @@ Operating System Notes
 
 		Read src/port/next/README.FIRST before trying to build.
 
+	MPE/iX	IPv6 is *not* supported. src/port/mpe/recvfrom.c needs to
+		be re-written to support IPv6 if and when the OS supports
+		IPv6.
+
 	Certain older versions of FreeBSD, NetBSD and BSD/OS
 
 		These systems have a /bin/sh based on "ash", which doesn't

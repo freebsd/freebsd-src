@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_notify.c,v 8.14 2001/04/01 18:38:36 vixie Exp $";
+static const char rcsid[] = "$Id: ns_notify.c,v 8.18 2001/11/12 04:49:33 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -146,7 +146,7 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 		       evConsTime(0, 0), &ni->timer) < 0) {
 		ns_error(ns_log_notify, "evSetTimer() failed: %s",
 			 strerror(errno));
-		freestr(ni->name);
+		ni->name = freestr(ni->name);
 		memput(ni, sizeof *ni);
 		return;
 	}
@@ -168,7 +168,7 @@ notify_afterload() {
 	while ((ni = HEAD(loading_notifies)) != NULL) {
 		UNLINK(loading_notifies, ni, link);
 		ns_notify(ni->name, ni->class, ni->type);
-		freestr(ni->name);
+		ni->name = freestr(ni->name);
 		memput(ni, sizeof *ni);
 	}
 }
@@ -262,8 +262,8 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 		for (i = 0; i < zp->z_notify_count; i++) {
 			ns_debug(ns_log_notify, 4, "notifying %s",
 				 inet_ntoa(*also_addr));
-			sysquery(dname, class, type, also_addr, 1, ns_port,
-				 NS_NOTIFY_OP);
+			sysquery(dname, class, type, also_addr, NULL, 1,
+				 ns_port, NS_NOTIFY_OP, 0);
 			also_addr++;
 		}
 		nns += zp->z_notify_count;
@@ -275,8 +275,8 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 		for (i = 0; i < server_options->notify_count; i++) {
 			ns_debug(ns_log_notify, 3, "notifying %s",
 				 inet_ntoa(*also_addr));
-			sysquery(dname, class, type, also_addr,
-				 1, ns_port, ns_o_notify);
+			sysquery(dname, class, type, also_addr, NULL, 1,
+				 ns_port, ns_o_notify, 0);
 			also_addr++;
 		}
 		nns += server_options->notify_count;
@@ -387,14 +387,14 @@ sysnotify_ns(const char *dname, const char *aname,
 		if (!is_us && !cname && !NS_OPTION_P(OPTION_NOFETCHGLUE)) {
 			struct qinfo *qp;
 
-			qp = sysquery(aname, class, ns_t_a, 0, 0, ns_port,
-				      ns_o_query);
+			qp = sysquery(aname, class, ns_t_a, NULL, NULL, 0,
+				      ns_port, ns_o_query, 0);
 			if (qp != NULL)
 				qp->q_notifyzone = zn;
 		}
 		return;
 	}
-	sysquery(dname, class, type, nss, nsc, ns_port, ns_o_notify);
+	sysquery(dname, class, type, nss, NULL, nsc, ns_port, ns_o_notify, 0);
 	(*nns)++;
 	*na += nsc;
 }
@@ -413,7 +413,7 @@ free_notify(struct notify *ni) {
 		evClearTimer(ev, ni->timer);
 		evInitID(&ni->timer);
 	}
-	freestr(ni->name);
+	ni->name = freestr(ni->name);
 	memput(ni, sizeof *ni);
 }
 
@@ -423,6 +423,10 @@ notify_timer(evContext ctx, void *uap,
 	     struct timespec inter)
 {
 	struct notify *ni = uap;
+
+	UNUSED(ctx);
+	UNUSED(due);
+	UNUSED(inter);
 
 	INSIST(evTestID(ni->timer));
 	evInitID(&ni->timer);

@@ -37,7 +37,7 @@ seem to be so for getnetbyaddr
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: irpd.c,v 1.10 2000/12/23 08:14:33 vixie Exp $";
+static const char rcsid[] = "$Id: irpd.c,v 1.13 2001/09/25 04:50:17 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -114,7 +114,7 @@ static const char rcsid[] = "$Id: irpd.c,v 1.10 2000/12/23 08:14:33 vixie Exp $"
 	do{ if ((nd)->field == 0) {					     \
 		(nd)->field = (*(nd)->irs->field ## _map)(nd->irs);	     \
 	        if ((nd)->field == 0) {					     \
-		    char *msg = "net_data " #field " initialization failed"; \
+		    const char *msg = "net_data " #field " initialization failed"; \
 		    ctl_response(sess, respcode, msg, CTL_EXIT, NULL,	     \
 			         NULL, NULL, NULL, 0);			     \
 		    return;						     \
@@ -149,103 +149,111 @@ static struct net_data *get_net_data(struct ctl_sess *sess);
 
 static void irpd_gethostbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			       const struct ctl_verb *verb, const char *rest,
-			       u_int respflags, void *respctx, void *uctx);
+			       u_int respflags, const void *respctx,
+			       void *uctx);
 static void irpd_gethostbyname2(struct ctl_sctx *ctx, struct ctl_sess *sess,
 				const struct ctl_verb *verb, const char *rest,
-				u_int respflags, void *respctx, void *uctx);
+				u_int respflags, const void *respctx,
+			        void *uctx);
+			
 static void irpd_gethostbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			       const struct ctl_verb *verb, const char *rest,
-			       u_int respflags, void *respctx, void *uctx);
+			       u_int respflags, const void *respctx,
+			       void *uctx);
 static void irpd_gethostent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			    const struct ctl_verb *verb, const char *rest,
-			    u_int respflags, void *respctx, void *uctx);
+			    u_int respflags, const void *respctx, void *uctx);
 static void irpd_sethostent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			    const struct ctl_verb *verb, const char *rest,
-			    u_int respflags, void *respctx, void *uctx);
+			    u_int respflags, const void *respctx, void *uctx);
 static void irpd_getpwnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  const struct ctl_verb *verb, const char *rest,
-			  u_int respflags, void *respctx, void *uctx);
+			  u_int respflags, const void *respctx, void *uctx);
 static void irpd_getpwuid(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  const struct ctl_verb *verb, const char *rest,
-			  u_int respflags, void *respctx, void *uctx);
+			  u_int respflags, const void *respctx, void *uctx);
 static void irpd_getpwent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  const struct ctl_verb *verb, const char *rest,
-			  u_int respflags, void *respctx, void *uctx);
+			  u_int respflags, const void *respctx, void *uctx);
 static void irpd_setpwent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  const struct ctl_verb *verb, const char *rest,
-			  u_int respflags, void *respctx, void *uctx);
+			  u_int respflags, const void *respctx, void *uctx);
 static void irpd_getnetbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			      const struct ctl_verb *verb, const char *rest,
-			      u_int respflags, void *respctx, void *uctx);
+			      u_int respflags, const void *respctx, void *uctx);
 static void irpd_getnetbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			      const struct ctl_verb *verb, const char *rest,
-			      u_int respflags, void *respctx, void *uctx);
+			      u_int respflags, const void *respctx, void *uctx);
 static void irpd_getnetent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			   const struct ctl_verb *verb, const char *rest,
-			   u_int respflags, void *respctx, void *uctx);
+			   u_int respflags, const void *respctx, void *uctx);
 static void irpd_setnetent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			   const struct ctl_verb *verb, const char *rest,
-			   u_int respflags, void *respctx, void *uctx);
+			   u_int respflags, const void *respctx, void *uctx);
 static void irpd_getgrnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  const struct ctl_verb *verb, const char *rest,
-			  u_int respflags, void *respctx, void *uctx);
+			  u_int respflags, const void *respctx, void *uctx);
 static void irpd_getgrgid(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  const struct ctl_verb *verb, const char *rest,
-			  u_int respflags, void *respctx, void *uctx);
+			  u_int respflags, const void *respctx, void *uctx);
 static void irpd_getgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  const struct ctl_verb *verb, const char *rest,
-			  u_int respflags, void *respctx, void *uctx);
+			  u_int respflags, const void *respctx, void *uctx);
 static void irpd_setgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  const struct ctl_verb *verb, const char *rest,
-			  u_int respflags, void *respctx, void *uctx);
+			  u_int respflags, const void *respctx, void *uctx);
 static void irpd_getservbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			       const struct ctl_verb *verb, const char *rest,
-			       u_int respflags, void *respctx, void *uctx);
+			       u_int respflags, const void *respctx,
+			       void *uctx);
 static void irpd_getservbyport(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			       const struct ctl_verb *verb, const char *rest,
-			       u_int respflags, void *respctx, void *uctx);
+			       u_int respflags, const void *respctx,
+			       void *uctx);
 static void irpd_getservent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			    const struct ctl_verb *verb, const char *rest,
-			    u_int respflags, void *respctx, void *uctx);
+			    u_int respflags, const void *respctx, void *uctx);
 static void irpd_setservent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			    const struct ctl_verb *verb, const char *rest,
-			    u_int respflags, void *respctx, void *uctx);
+			    u_int respflags, const void *respctx, void *uctx);
 static void irpd_getprotobyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 				const struct ctl_verb *verb, const char *rest,
-				u_int respflags, void *respctx, void *uctx);
+				u_int respflags, const void *respctx,
+			        void *uctx);
 static void irpd_getprotobynumber(struct ctl_sctx *ctx, struct ctl_sess *sess,
 				  const struct ctl_verb *verb, const char *rest,
-				  u_int respflags, void *respctx, void *uctx);
+				  u_int respflags, const void *respctx,
+				  void *uctx);
 static void irpd_getprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			     const struct ctl_verb *verb, const char *rest,
-			     u_int respflags, void *respctx, void *uctx);
+			     u_int respflags, const void *respctx, void *uctx);
 static void irpd_setprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			     const struct ctl_verb *verb, const char *rest,
-			     u_int respflags, void *respctx, void *uctx);
+			     u_int respflags, const void *respctx, void *uctx);
 static void irpd_getnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			     const struct ctl_verb *verb, const char *rest,
-			     u_int respflags, void *respctx, void *uctx);
+			     u_int respflags, const void *respctx, void *uctx);
 static void irpd_innetgr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			 const struct ctl_verb *verb, const char *rest,
-			 u_int respflags, void *respctx, void *uctx);
+			 u_int respflags, const void *respctx, void *uctx);
 static void irpd_setnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			     const struct ctl_verb *verb, const char *rest,
-			     u_int respflags, void *respctx, void *uctx);
+			     u_int respflags, const void *respctx, void *uctx);
 static void irpd_endnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			     const struct ctl_verb *verb, const char *rest,
-			     u_int respflags, void *respctx, void *uctx);
+			     u_int respflags, const void *respctx, void *uctx);
 static void irpd_quit(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		      const struct ctl_verb *verb, const char *rest,
-		      u_int respflags, void *respctx, void *uctx);
+		      u_int respflags, const void *respctx, void *uctx);
 static void irpd_help(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		      const struct ctl_verb *verb, const char *rest,
-		      u_int respflags, void *respctx, void *uctx);
+		      u_int respflags, const void *respctx, void *uctx);
 static void irpd_accept(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			const struct ctl_verb *verb, const char *rest,
-			u_int respflags, void *respctx, void *uctx);
+			u_int respflags, const void *respctx, void *uctx);
 static void irpd_abort(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		       const struct ctl_verb *verb, const char *rest,
-		       u_int respflags, void *respctx, void *uctx);
+		       u_int respflags, const void *respctx, void *uctx);
 
 static void response_done(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  void *uap);
@@ -266,59 +274,59 @@ static int main_needs_exit = 0;
 static evContext ev;
 
 struct ctl_verb verbs [] = {
-	{ "gethostbyname", irpd_gethostbyname },
-	{ "gethostbyname2", irpd_gethostbyname2 },
-	{ "gethostbyaddr", irpd_gethostbyaddr },
-	{ "gethostent", irpd_gethostent },
-	{ "sethostent", irpd_sethostent },
+	{ "gethostbyname", irpd_gethostbyname, NULL },
+	{ "gethostbyname2", irpd_gethostbyname2, NULL },
+	{ "gethostbyaddr", irpd_gethostbyaddr, NULL },
+	{ "gethostent", irpd_gethostent, NULL },
+	{ "sethostent", irpd_sethostent, NULL },
 #ifdef WANT_IRS_PW
-	{ "getpwnam", irpd_getpwnam },
-	{ "getpwuid", irpd_getpwuid },
-	{ "getpwent", irpd_getpwent },
-	{ "setpwent", irpd_setpwent },
+	{ "getpwnam", irpd_getpwnam, NULL },
+	{ "getpwuid", irpd_getpwuid, NULL },
+	{ "getpwent", irpd_getpwent, NULL },
+	{ "setpwent", irpd_setpwent, NULL },
 #endif
-	{ "getnetbyname", irpd_getnetbyname },
-	{ "getnetbyaddr", irpd_getnetbyaddr },
-	{ "getnetent", irpd_getnetent },
-	{ "setnetent", irpd_setnetent },
+	{ "getnetbyname", irpd_getnetbyname, NULL },
+	{ "getnetbyaddr", irpd_getnetbyaddr, NULL },
+	{ "getnetent", irpd_getnetent, NULL },
+	{ "setnetent", irpd_setnetent, NULL },
 #ifdef WANT_IRS_GR
-	{ "getgrnam", irpd_getgrnam },
-	{ "getgrgid", irpd_getgrgid },
-	{ "getgrent", irpd_getgrent },
-	{ "setgrent", irpd_setgrent },
+	{ "getgrnam", irpd_getgrnam, NULL },
+	{ "getgrgid", irpd_getgrgid, NULL },
+	{ "getgrent", irpd_getgrent, NULL },
+	{ "setgrent", irpd_setgrent, NULL },
 #endif
-	{ "getservbyname", irpd_getservbyname },
-	{ "getservbyport", irpd_getservbyport },
-	{ "getservent", irpd_getservent },
-	{ "setservent", irpd_setservent },
+	{ "getservbyname", irpd_getservbyname, NULL },
+	{ "getservbyport", irpd_getservbyport, NULL },
+	{ "getservent", irpd_getservent, NULL },
+	{ "setservent", irpd_setservent, NULL },
 
-	{ "getprotobyname", irpd_getprotobyname },
-	{ "getprotobynumber", irpd_getprotobynumber },
-	{ "getprotoent", irpd_getprotoent },
-	{ "setprotoent", irpd_setprotoent },
+	{ "getprotobyname", irpd_getprotobyname, NULL },
+	{ "getprotobynumber", irpd_getprotobynumber, NULL },
+	{ "getprotoent", irpd_getprotoent, NULL },
+	{ "setprotoent", irpd_setprotoent, NULL },
 
-	{ "getnetgrent", irpd_getnetgrent },
-	{ "innetgr", irpd_innetgr },
-	{ "setnetgrent", irpd_setnetgrent },
-	{ "endnetgrent", irpd_endnetgrent },
-	{ "quit", irpd_quit },
-	{ "help", irpd_help },
+	{ "getnetgrent", irpd_getnetgrent, NULL },
+	{ "innetgr", irpd_innetgr, NULL },
+	{ "setnetgrent", irpd_setnetgrent, NULL },
+	{ "endnetgrent", irpd_endnetgrent, NULL },
+	{ "quit", irpd_quit, NULL },
+	{ "help", irpd_help, NULL },
 
-	{ "", irpd_accept },	/* For connection setups. */
+	{ "", irpd_accept, NULL },	/* For connection setups. */
 
 	/* abort is a verb expected by the ctl library. Is called when the
 	 * client drops the connection unexpectedly.
 	 */
-	{ "abort", irpd_abort },
+	{ "abort", irpd_abort, NULL },
 
-	{ NULL, NULL }
+	{ NULL, NULL, NULL }
 };
 
 /*
  * An empty string causes the library to use the compiled in
  * defaults and to ignore any external files.
  */
-char *conffile = "";			
+const char *conffile = "";			
 
 /* Public. */
 
@@ -332,7 +340,7 @@ main(int argc, char **argv) {
 	struct sockaddr_in iaddr;
 	short port = IRPD_PORT;
 	char *prog = argv[0];
-	char *sockname = IRPD_PATH;
+	const char *sockname = IRPD_PATH;
 	char *p;
 	int ch;
 	size_t socksize;
@@ -420,11 +428,11 @@ main(int argc, char **argv) {
 
 /*
  * static void
- * simple_response(struct ctl_sess *sess, u_int code, char *msg);
+ * simple_response(struct ctl_sess *sess, u_int code, const char *msg);
  *	Send back a simple, one-line response to the client.
  */
 static void
-simple_response(struct ctl_sess *sess, u_int code, char *msg) {
+simple_response(struct ctl_sess *sess, u_int code, const char *msg) {
 	struct response_buff *b = newbuffer(strlen(msg) + 1);
 
 	if (b == 0)
@@ -485,18 +493,24 @@ do_gethostbyname2(struct ctl_sess *sess, struct net_data *nd,
  * static void
  * irpd_gethostbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		      const struct ctl_verb *verb, const char *rest,
- *		      u_int respflags, void *respctx, void *uctx);
+ *		      u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the GETHOSTBYNAME verb.
  */
 static void
 irpd_gethostbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		   const struct ctl_verb *verb, const char *rest,
-		   u_int respflags, void *respctx, void *uctx)
+		   u_int respflags, const void *respctx, void *uctx)
 {
 	char hname[MAXHOSTNAMELEN];
 	struct arg_s *args;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, ho, sess, IRPD_GETHOST_ERROR);
@@ -523,19 +537,25 @@ irpd_gethostbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_gethostbyname2(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		       const struct ctl_verb *verb, const char *rest,
- *		       u_int respflags, void *respctx, void *uctx);
+ *		       u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the GETHOSTBYNAME2 verb.
  */
 static void
 irpd_gethostbyname2(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		    const struct ctl_verb *verb, const char *rest,
-		    u_int respflags, void *respctx, void *uctx)
+		    u_int respflags, const void *respctx, void *uctx)
 {
 	char hname[MAXHOSTNAMELEN];
 	struct arg_s *args;
 	int af;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, ho, sess, IRPD_GETHOST_ERROR);
@@ -572,13 +592,13 @@ irpd_gethostbyname2(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_gethostbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		      const struct ctl_verb *verb, const char *rest,
- *		      u_int respflags, void *respctx, void *uctx);
+ *		      u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the GETHOSTBYADDR verb.
  */
 static void
 irpd_gethostbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		   const struct ctl_verb *verb, const char *rest,
-		   u_int respflags, void *respctx, void *uctx)
+		   u_int respflags, const void *respctx, void *uctx)
 {
 	struct hostent *ho;
 	char haddr[MAXHOSTNAMELEN];
@@ -588,6 +608,12 @@ irpd_gethostbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	int addrlen;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, ho, sess, IRPD_GETHOST_ERROR);
@@ -640,17 +666,24 @@ irpd_gethostbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_gethostent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		   const struct ctl_verb *verb, const char *rest,
- *		   u_int respflags, void *respctx, void *uctx);
+ *		   u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the GETHOSTENT verb
  */
 static void
 irpd_gethostent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		const struct ctl_verb *verb, const char *rest,
-		u_int respflags, void *respctx, void *uctx)
+		u_int respflags, const void *respctx, void *uctx)
 {
 	struct hostent *ho;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, ho, sess, IRPD_GETHOST_ERROR);
@@ -664,16 +697,23 @@ irpd_gethostent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_sethostent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		   const struct ctl_verb *verb, const char *rest,
- *		   u_int respflags, void *respctx, void *uctx);
+ *		   u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the SETHOSTENT verb
  */
 static void
 irpd_sethostent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		const struct ctl_verb *verb, const char *rest,
-		u_int respflags, void *respctx, void *uctx)
+		u_int respflags, const void *respctx, void *uctx)
 {
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, ho, sess, IRPD_GETHOST_ERROR);
@@ -716,19 +756,25 @@ send_pwent(struct ctl_sess *sess, struct passwd *pw) {
  * static void
  * irpd_getpwnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		 const struct ctl_verb *verb, const char *rest,
- *		 u_int respflags, void *respctx, void *uctx);
+ *		 u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the GETPWNAM verb
  */
 static void
 irpd_getpwnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct passwd *pw;
 	char username[64];
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, pw, sess, IRPD_GETUSER_ERROR);
@@ -758,19 +804,25 @@ irpd_getpwnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getpwuid(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		 const struct ctl_verb *verb, const char *rest,
- *		 u_int respflags, void *respctx, void *uctx);
+ *		 u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the GETPWUID verb.
  */
 static void
 irpd_getpwuid(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct passwd *pw;
 	char userid[64];
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, pw, sess, IRPD_GETUSER_ERROR);
@@ -819,17 +871,24 @@ irpd_getpwuid(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getpwent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		 const struct ctl_verb *verb, const char *rest,
- *		 u_int respflags, void *respctx, void *uctx);
+ *		 u_int respflags, const void *respctx, void *uctx);
  *	Implemtnation of the GETPWENT verb. 
  */
 static void
 irpd_getpwent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
 	struct passwd *pw;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, pw, sess, IRPD_GETUSER_ERROR);
@@ -842,16 +901,23 @@ irpd_getpwent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_setpwent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		 const struct ctl_verb *verb, const char *rest,
- *		 u_int respflags, void *respctx, void *uctx);
+ *		 u_int respflags, const void *respctx, void *uctx);
  *	Implemtnation of the SETPWENT verb.
  */
 static void
 irpd_setpwent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, pw, sess, IRPD_GETUSER_ERROR);
@@ -893,13 +959,13 @@ send_nwent(struct ctl_sess *sess, struct nwent *nw) {
  * static void
  * irpd_getnetbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		     const struct ctl_verb *verb, const char *rest,
- *		     u_int respflags, void *respctx, void *uctx);
+ *		     u_int respflags, const void *respctx, void *uctx);
  *	Implementation of GETNETBYNAME verb.
  */
 static void
 irpd_getnetbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		  const struct ctl_verb *verb, const char *rest,
-		  u_int respflags, void *respctx, void *uctx)
+		  u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct netent *ne;
@@ -907,6 +973,12 @@ irpd_getnetbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	char netname[MAXNETNAMELEN];
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, nw, sess, IRPD_GETNET_ERROR);
@@ -947,12 +1019,12 @@ irpd_getnetbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getnetbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		     const struct ctl_verb *verb, const char *rest,
- *		     u_int respflags, void *respctx, void *uctx);
+ *		     u_int respflags, const void *respctx, void *uctx);
  */
 static void
 irpd_getnetbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		  const struct ctl_verb *verb, const char *rest,
-		  u_int respflags, void *respctx, void *uctx)
+		  u_int respflags, const void *respctx, void *uctx)
 {
 	struct netent *ne;
 	struct nwent *nw;
@@ -964,6 +1036,12 @@ irpd_getnetbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	int bits;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, nw, sess, IRPD_GETUSER_ERROR);
@@ -1038,18 +1116,25 @@ irpd_getnetbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getnetent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		  const struct ctl_verb *verb, const char *rest,
- *		  u_int respflags, void *respctx, void *uctx);
+ *		  u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the GETNETENT verb.
  */
 static void
 irpd_getnetent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	       const struct ctl_verb *verb, const char *rest,
-	       u_int respflags, void *respctx, void *uctx)
+	       u_int respflags, const void *respctx, void *uctx)
 {
 	struct netent *ne;
 	struct nwent *nw;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, nw, sess, IRPD_GETNET_ERROR);
@@ -1068,16 +1153,23 @@ irpd_getnetent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_setnetent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		  const struct ctl_verb *verb, const char *rest,
- *		  u_int respflags, void *respctx, void *uctx);
+ *		  u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the SETNETENT verb.
  */
 static void
 irpd_setnetent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	       const struct ctl_verb *verb, const char *rest,
-	       u_int respflags, void *respctx, void *uctx)
+	       u_int respflags, const void *respctx, void *uctx)
 {
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, nw, sess, IRPD_GETNET_ERROR);
@@ -1119,19 +1211,25 @@ send_grent(struct ctl_sess *sess, struct group *gr) {
  * static void
  * irpd_getgrnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		 const struct ctl_verb *verb, const char *rest,
- *		 u_int respflags, void *respctx, void *uctx);
+ *		 u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the GETGRNAM verb.
  */
 static void
 irpd_getgrnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct group *gr;
 	char groupname[64];
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, gr, sess, IRPD_GETGROUP_ERROR);
@@ -1161,19 +1259,25 @@ irpd_getgrnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getgrgid(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		 const struct ctl_verb *verb, const char *rest,
- *		 u_int respflags, void *respctx, void *uctx);
+ *		 u_int respflags, const void *respctx, void *uctx);
  *	Implentation of the GETGRGID verb.
  */
 static void
 irpd_getgrgid(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct group *gr;
 	char groupid[64];
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, gr, sess, IRPD_GETGROUP_ERROR);
@@ -1222,17 +1326,24 @@ irpd_getgrgid(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		 const struct ctl_verb *verb, const char *rest,
- *		 u_int respflags, void *respctx, void *uctx);
+ *		 u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the GETGRENT verb.
  */
 static void
 irpd_getgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
 	struct group *gr;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, gr, sess, IRPD_GETGROUP_ERROR);
@@ -1245,16 +1356,23 @@ irpd_getgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_setgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		 const struct ctl_verb *verb, const char *rest,
- *		 u_int respflags, void *respctx, void *uctx);
+ *		 u_int respflags, const void *respctx, void *uctx);
  *	Implementation of the SETGRENT verb.
  */
 static void
 irpd_setgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, gr, sess, IRPD_GETGROUP_ERROR);
@@ -1290,7 +1408,7 @@ send_servent(struct ctl_sess *sess, struct servent *serv) {
 static void
 irpd_getservbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		   const struct ctl_verb *verb, const char *rest,
-		   u_int respflags, void *respctx, void *uctx)
+		   u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct servent *serv;
@@ -1298,6 +1416,12 @@ irpd_getservbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	char protoname[10];
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, sv, sess, IRPD_GETSERVICE_ERROR);
@@ -1335,13 +1459,13 @@ irpd_getservbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getservbyport(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		      const struct ctl_verb *verb, const char *rest,
- *		      u_int respflags, void *respctx, void *uctx);
+ *		      u_int respflags, const void *respctx, void *uctx);
  *	Handle the GETSERVBYPORT verb.
  */
 static void
 irpd_getservbyport(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		   const struct ctl_verb *verb, const char *rest,
-		   u_int respflags, void *respctx, void *uctx)
+		   u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct servent *sv;
@@ -1349,6 +1473,12 @@ irpd_getservbyport(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	char protoname[10];
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, sv, sess, IRPD_GETSERVICE_ERROR);
@@ -1405,17 +1535,24 @@ irpd_getservbyport(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getservent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		   const struct ctl_verb *verb, const char *rest,
- *		   u_int respflags, void *respctx, void *uctx);
+ *		   u_int respflags, const void *respctx, void *uctx);
  *	Handle the GETSERVENT verb.
  */
 static void
 irpd_getservent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	       const struct ctl_verb *verb, const char *rest,
-	       u_int respflags, void *respctx, void *uctx)
+	       u_int respflags, const void *respctx, void *uctx)
 {
 	struct servent *sv;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, sv, sess, IRPD_GETSERVICE_ERROR);
@@ -1428,16 +1565,23 @@ irpd_getservent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_setservent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		   const struct ctl_verb *verb, const char *rest,
- *		   u_int respflags, void *respctx, void *uctx);
+ *		   u_int respflags, const void *respctx, void *uctx);
  *	Handle the SETSERVENT verb.
  */
 static void
 irpd_setservent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	       const struct ctl_verb *verb, const char *rest,
-	       u_int respflags, void *respctx, void *uctx)
+	       u_int respflags, const void *respctx, void *uctx)
 {
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, sv, sess, IRPD_GETSERVICE_ERROR);
@@ -1479,19 +1623,25 @@ send_prent(struct ctl_sess *sess, struct protoent *pr) {
  * static void
  * irpd_getprotobyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		       const struct ctl_verb *verb, const char *rest,
- *		       u_int respflags, void *respctx, void *uctx);
+ *		       u_int respflags, const void *respctx, void *uctx);
  *	Handle the GETPROTOBYNAME verb.
  */
 static void
 irpd_getprotobyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		    const struct ctl_verb *verb, const char *rest,
-		    u_int respflags, void *respctx, void *uctx)
+		    u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct protoent *pr;
 	char protoname[64];
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, pr, sess, IRPD_GETPROTO_ERROR);
@@ -1520,20 +1670,26 @@ irpd_getprotobyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getprotobynumber(struct ctl_sctx *ctx,
  *			 struct ctl_sess *sess, const struct ctl_verb *verb,
- *			 const char *rest, u_int respflags, void *respctx,
+ *			 const char *rest, u_int respflags, const void *respctx,
  *			 void *uctx);
  *	Handle the GETPROTOBYNUMBER verb.
  */
 static void
 irpd_getprotobynumber(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		      const struct ctl_verb *verb, const char *rest,
-		      u_int respflags, void *respctx, void *uctx)
+		      u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct protoent *pr;
 	char protonum[64];
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, pr, sess, IRPD_GETPROTO_ERROR);
@@ -1582,17 +1738,24 @@ irpd_getprotobynumber(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_getprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		    const struct ctl_verb *verb, const char *rest,
- *		    u_int respflags, void *respctx, void *uctx);
+ *		    u_int respflags, const void *respctx, void *uctx);
  *	Handle the GETPROTOENT verb.
  */
 static void
 irpd_getprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		const struct ctl_verb *verb, const char *rest,
-		u_int respflags, void *respctx, void *uctx)
+		u_int respflags, const void *respctx, void *uctx)
 {
 	struct protoent *pr;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, pr, sess, IRPD_GETPROTO_ERROR);
@@ -1605,16 +1768,23 @@ irpd_getprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_setprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		    const struct ctl_verb *verb, const char *rest,
- *		    u_int respflags, void *respctx, void *uctx);
+ *		    u_int respflags, const void *respctx, void *uctx);
  *	Handle the SETPROTOENT verb.
  */
 static void
 irpd_setprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		const struct ctl_verb *verb, const char *rest,
-		u_int respflags, void *respctx, void *uctx)
+		u_int respflags, const void *respctx, void *uctx)
 {
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, pr, sess, IRPD_GETPROTO_ERROR);
@@ -1630,7 +1800,9 @@ irpd_setprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *	user" response.
  */
 static void
-send_ngent(struct ctl_sess *sess, char *host, char *user, char *domain) {
+send_ngent(struct ctl_sess *sess, const char *host, const char *user,
+	   const char *domain)
+{
 	struct response_buff *b = newbuffer(0);
 
 	if (irp_marshall_ng(host, user, domain, &b->buff,
@@ -1651,16 +1823,22 @@ send_ngent(struct ctl_sess *sess, char *host, char *user, char *domain) {
  * static void
  * irpd_getnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		    const struct ctl_verb *verb, const char *rest,
- *		    u_int respflags, void *respctx, void *uctx);
+ *		    u_int respflags, const void *respctx, void *uctx);
  *	Handle the GETNETGRENT verb. 
  */
 static void
 irpd_getnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		 const struct ctl_verb *verb, const char *rest,
-		 u_int respflags, void *respctx, void *uctx)
+		 u_int respflags, const void *respctx, void *uctx)
 {
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, ng, sess, IRPD_GETNETGR_ERROR);
@@ -1669,7 +1847,7 @@ irpd_getnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		simple_response(sess, IRPD_GETNETGR_ERROR,
 				"GETNETGRENT");
 	} else {
-		char *host, *user, *domain;
+		const char *host, *user, *domain;
 		
 		if (getnetgrent_p(&host, &user, &domain, netdata) == 1) {
 			send_ngent(sess, host, user, domain);
@@ -1684,20 +1862,26 @@ irpd_getnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_innetgr(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		const struct ctl_verb *verb, const char *rest,
- *		u_int respflags, void *respctx, void *uctx);
+ *		u_int respflags, const void *respctx, void *uctx);
  *	Handle the INNETGR verb.
  */
 static void
 irpd_innetgr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		 const struct ctl_verb *verb, const char *rest,
-		 u_int respflags, void *respctx, void *uctx)
+		 u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct net_data *netdata = get_net_data(sess);
-	char *host;
-	char *user;
-	char *domain;
+	const char *host;
+	const char *user;
+	const char *domain;
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, ng, sess, IRPD_GETNETGR_ERROR);
@@ -1741,17 +1925,23 @@ irpd_innetgr(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_setnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		    const struct ctl_verb *verb, const char *rest,
- *		    u_int respflags, void *respctx, void *uctx);
+ *		    u_int respflags, const void *respctx, void *uctx);
  *	Handle the SETNETGRENT verb.
  */
 static void
 irpd_setnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		 const struct ctl_verb *verb, const char *rest,
-		 u_int respflags, void *respctx, void *uctx)
+		 u_int respflags, const void *respctx, void *uctx)
 {
 	struct arg_s *args;
 	struct net_data *netdata = get_net_data(sess);
 	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	INSIST(netdata != NULL);
 
 	ND_INIT(netdata, ng, sess, IRPD_GETNETGR_ERROR);
@@ -1773,15 +1963,21 @@ irpd_setnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_endnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		    const struct ctl_verb *verb, const char *rest,
- *		    u_int respflags, void *respctx, void *uctx);
+ *		    u_int respflags, const void *respctx, void *uctx);
  *	Handle the ENDNETGRENT verb.
  */
 static void
 irpd_endnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		 const struct ctl_verb *verb, const char *rest,
-		 u_int respflags, void *respctx, void *uctx)
+		 u_int respflags, const void *respctx, void *uctx)
 {
 	struct net_data *netdata = get_net_data(sess);
+
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
 	
 	INSIST(netdata != NULL);
 
@@ -1801,14 +1997,21 @@ irpd_endnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_quit(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *	     const struct ctl_verb *verb, const char *rest,
- *	     u_int respflags, void *respctx, void *uctx);
+ *	     u_int respflags, const void *respctx, void *uctx);
  *	Handle the QUIT verb.
  */
 static void
 irpd_quit(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	  const struct ctl_verb *verb, const char *rest,
-	  u_int respflags, void *respctx, void *uctx)
+	  u_int respflags, const void *respctx, void *uctx)
 {
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	ctl_response(sess, irpd_quit_ok, "See ya!", CTL_EXIT, NULL,
 		     0 , NULL, NULL, 0);
 }
@@ -1817,17 +2020,24 @@ irpd_quit(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_help(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *	     const struct ctl_verb *verb, const char *rest,
- *	     u_int respflags, void *respctx, void *uctx);
+ *	     u_int respflags, const void *respctx, void *uctx);
  *	Handle the HELP verb.
  */
 static void
 irpd_help(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	  const struct ctl_verb *verb, const char *rest,
-	  u_int respflags, void *respctx, void *uctx)
+	  u_int respflags, const void *respctx, void *uctx)
 {
 	/* XXX	should make this do something better (like include required
 	 *	arguments.
 	 */
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	ctl_sendhelp(sess, 231);
 }
 
@@ -1835,27 +2045,33 @@ irpd_help(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_accept(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *	       const struct ctl_verb *verb, const char *rest,
- *	       u_int respflags, void *respctx, void *uctx);
+ *	       u_int respflags, const void *respctx, void *uctx);
  *	Handle a new connection.
  */
 static void
 irpd_accept(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	  const struct ctl_verb *verb, const char *rest,
-	  u_int respflags, void *respctx, void *uctx)
+	  u_int respflags, const void *respctx, void *uctx)
 {
-	struct sockaddr *sa = respctx;
+	const struct sockaddr *sa = respctx;
 	char raddr[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"];
 	int reject = 1;
 	int response;
-	char *respmsg = NULL;
+	const char *respmsg = NULL;
+	
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(uctx);
 
 	if (sa->sa_family == AF_UNIX) {
 		syslog (LOG_INFO, "New AF_UNIX connection");
 		reject = 0;
 	} else if (sa->sa_family == AF_INET) {
-		struct sockaddr_in *sin = respctx;
-		static long localhost;
-		static long zero;
+		const struct sockaddr_in *sin = respctx;
+		static unsigned long localhost;
+		static unsigned long zero;
 
 		if (localhost == 0) {
 			/* yes, this could be done with simple arithmetic... */
@@ -1915,15 +2131,22 @@ irpd_accept(struct ctl_sctx *ctx, struct ctl_sess *sess,
  * static void
  * irpd_abort(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *	      const struct ctl_verb *verb, const char *rest,
- *	      u_int respflags, void *respctx, void *uctx);
+ *	      u_int respflags, const void *respctx, void *uctx);
  *	Handle a dropped connection.
  */
 static void
 irpd_abort(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	  const struct ctl_verb *verb, const char *rest,
-	  u_int respflags, void *respctx, void *uctx)
+	  u_int respflags, const void *respctx, void *uctx)
 {
 	struct net_data *netdata = get_net_data(sess);
+
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
 	
 	if (netdata != NULL)
 		net_data_destroy(netdata);
@@ -1937,6 +2160,8 @@ irpd_abort(struct ctl_sctx *ctx, struct ctl_sess *sess,
  */
 static void
 response_done(struct ctl_sctx *ctx, struct ctl_sess *sess, void *uap) {
+	UNUSED(ctx);
+	UNUSED(sess);
 	release_buffer(uap);
 }
 
@@ -1971,8 +2196,9 @@ logger(enum ctl_severity sev, const char *fmt, ...) {
 	fprintf(stderr, "irpd: ");
 	vfprintf(stderr, fmt, ap);
 #else
-	if (vsprintf(buffer, fmt, ap) > (sizeof (buffer) - 1)) {
+	if (vsprintf(buffer, fmt, ap) > (int)(sizeof (buffer) - 1)) {
 		syslog(LOG_CRIT, "Buffer overrun in logger");
+		va_end(ap);
 		abort();
 	}
 	syslog(level, "%s", buffer);
@@ -2080,7 +2306,7 @@ split_string(const char *string) {
 		if (*p == '\0')
 			break;
 
-		iovs[c].iov_base = (void *)p;
+		DE_CONST(p, iovs[c].iov_base);
 
 		while (*p && !isspace(*p)) {
 			p++;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: dnskeygen.c,v 1.11.2.1 2001/04/26 02:56:06 marka Exp $";
+static const char rcsid[] = "$Id: dnskeygen.c,v 1.14 2001/09/25 04:50:14 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -37,7 +37,7 @@ static const char rcsid[] = "$Id: dnskeygen.c,v 1.11.2.1 2001/04/26 02:56:06 mar
 #define PATH_SEP '/'
 #endif
 
-static void usage(char *str, int full);
+static void usage(const char *str, int full);
 
 static short dsa_sizes[] = {512, 576, 640, 704, 768, 832, 896, 960, 1024, 0};
 static char *prog;
@@ -274,9 +274,10 @@ main(int argc, char **argv) {
 }
 
 static void
-usage(char *str, int flag){
+usage(const char *str, int flag) {
 	int i;
-	printf ("\nNo key generated\n");
+
+	printf("\nNo key generated\n");
 	if (*str != '\0')
 		printf("Usage:%s: %s\n",prog, str);
 	printf("Usage:%s -{DHR} <size> [-F] -{zhu} [-ac]  [-p <no>]"
@@ -316,7 +317,5 @@ usage(char *str, int flag){
 		printf("\n");
 	}
 
-	exit (-3);
+	exit (3);
 }
-
-

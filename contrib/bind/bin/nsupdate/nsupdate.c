@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: nsupdate.c,v 8.26 2000/12/23 08:14:48 vixie Exp $";
+static const char rcsid[] = "$Id: nsupdate.c,v 8.27 2001/06/18 14:43:46 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -390,7 +390,7 @@ main(int argc, char **argv) {
 		    exit (1);
 		}
 		r_dname = dnbuf;
-		r_ttl = (r_opcode == ADD) ? -1 : 0;
+		r_ttl = (r_opcode == ADD) ? (~0U) : 0;
 		r_type = -1;
 		r_class = C_IN; /* default to IN */
 		r_size = 0;
@@ -493,7 +493,7 @@ main(int argc, char **argv) {
 			r_size = endp - cp + 1;
 			break;
 		    case ADD:
-			if (r_ttl == -1) {
+			if (r_ttl == ~0U) {
 			    fprintf (stderr,
 		"ttl must be specified for record to be added: %s\n", buf);
 			    exit (1);

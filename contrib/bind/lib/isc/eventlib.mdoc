@@ -1,4 +1,4 @@
-.\" $Id: eventlib.mdoc,v 1.20 1999/08/18 22:09:04 vixie Exp $
+.\" $Id: eventlib.mdoc,v 1.22 2001/12/28 04:24:22 marka Exp $
 .\"
 .\"Copyright (c) 1995-1999 by Internet Software Consortium
 .\"
@@ -70,17 +70,17 @@
 .Sh SYNOPSIS
 .Fd #include <isc/eventlib.h>
 .Ft typedef void
-.Fn (*evConnFunc) "evContext ctx" "void *uap" "int fd" \
+.Fn \*(lp*evConnFunc\*(rp "evContext ctx" "void *uap" "int fd" \
 "const void *la" "int lalen" "const void *ra" "int ralen"
 .Ft typedef void
-.Fn (*evTimerFunc) "evContext ctx" "void *uap" \
+.Fn \*(lp*evTimerFunc\*(rp "evContext ctx" "void *uap" \
 "struct timespec due" "struct timespec inter"
 .Ft typedef void
-.Fn (*evFileFunc) "evContext ctx" "void *uap" "int fd" "int eventmask"
+.Fn \*(lp*evFileFunc\*(rp "evContext ctx" "void *uap" "int fd" "int eventmask"
 .Ft typedef void
-.Fn (*evStreamFunc) "evContext ctx" "void *uap" "int fd" "int bytes"
+.Fn \*(lp*evStreamFunc\*(rp "evContext ctx" "void *uap" "int fd" "int bytes"
 .Ft typedef void
-.Fn (*evWaitFunc) "evContext ctx" "void *uap" "const void *tag"
+.Fn \*(lp*evWaitFunc\*(rp "evContext ctx" "void *uap" "const void *tag"
 .Ft int
 .Fn evCreate "evContext *ctx"
 .Ft int
@@ -197,7 +197,7 @@ The function
 creates an event context which is needed by all the other functions in this
 library.  All information used internally by this library is bound to this
 context, rather than to static storage.  This makes the library 
-.Dq thread safe, 
+.Dq thread safe ,
 and permits other library functions to use events without
 disrupting the application's use of events.
 .Pp
@@ -325,7 +325,7 @@ The function
 adds two
 .Dq Fa struct timespec
 values and returns the result as a
-.Dq Fa struct timespec.
+.Dq Fa struct timespec .
 .Pp
 The function
 .Fn evSubTime
@@ -334,7 +334,7 @@ subtracts its second
 argument from its first
 .Dq Fa struct timespec
 argument and returns the result as a
-.Dq Fa struct timespec.
+.Dq Fa struct timespec .
 .Pp
 The function
 .Fn evCmpTime
@@ -384,15 +384,15 @@ argument.  The event will be delivered at absolute time
 and then if time
 .Fa inter
 is not equal to
-.Dq Fa evConsTime(0,0) ,
+.Dq Fn evConsTime 0 0 ,
 subsequently at intervals equal to time
 .Fa inter .
 As a special case, specifying a
 .Fa due
 argument equal to
-.Dq Fa evConsTime(0,0)
+.Dq Fn evConsTime 0 0
 means 
-.Dq due immediately.  
+.Dq due immediately .
 The
 .Fa opaqueID
 argument, if specified as a value other than
@@ -406,9 +406,8 @@ Note that in a
 timer (which has an
 .Fa inter
 argument equal to
-.Dq Fa evConsTime(0,0)
-.\" putting the ) after the Dq Fa arg did not work well.  --vix
-) the user function
+.Dq Fa evConsTime(0,0) )
+the user function
 .Fa func
 should deallocate any dynamic memory that is uniquely bound to the
 .Fa uap ,
@@ -711,7 +710,7 @@ initiates an outgoing connection on
 to destination address
 .Fa ra
 (whose length is
-.Fa ralen ).
+.Fa ralen ) .
 When the connection is complete,
 .Fa func
 will be called with
@@ -719,7 +718,7 @@ will be called with
 as one of its arguments.  The argument
 .Fa fd
 to
-.Fn (*func)()
+.Fn \*(lp*func\*(rp
 will be
 .Fa -1
 if an error occurred that prevented this connection from completing 
