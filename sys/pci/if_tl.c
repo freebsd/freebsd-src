@@ -219,6 +219,8 @@
 
 #include <pci/if_tlreg.h>
 
+MODULE_DEPEND(tl, miibus, 1, 1, 1);
+
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
