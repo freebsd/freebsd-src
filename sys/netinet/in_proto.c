@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.26 1996/03/11 15:13:15 davidg Exp $
+ *	$Id: in_proto.c,v 1.27 1996/03/26 19:16:43 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ extern	struct domain inetdomain;
 
 struct protosw inetsw[] = {
 { 0,		&inetdomain,	0,		0,
-  0,		ip_output,	0,		0,
+  0,		0,		0,		0,
   0,
   ip_init,	0,		ip_slowtimo,	ip_drain
 },
