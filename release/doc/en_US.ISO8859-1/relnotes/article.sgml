@@ -348,7 +348,7 @@
       <title>Network Protocols</title>
 
       <para>The IPv6 code is now based on a snapshot based on the KAME
-      Project's IPv6 stack as of 28 May, 2001.</para>
+      Project's IPv6 stack as of 28 May, 2001. &merged;</para>
 
       <para>&man.accept.filter.9;, a kernel feature to reduce overheads
       when accepting and reading new connections on listening sockets,
@@ -1144,6 +1144,16 @@
     <para>&man.lpr.1;, &man.lpq.1;, and &man.lpd.8; have received a
     few minor enhancements. &merged;</para>
 
+    <para>&man.lpd.8; now takes two new options:  <option>-c</option>
+    will log all connection errors to &man.syslogd.8;, while
+    <option>-w</option> will allow connections from non-reserved
+    ports.</para>
+
+    <para>&man.lpc.8; has been improved; <command>lpc clean</command>
+    is now somewhat safer, and a new <command>lpc tclean</command>
+    command has been added to check to see what files would be removed
+    by <command>lpc clean</command>.</para>
+
     <para>If the first argument to &man.ancontrol.8; or
     &man.wicontrol.8; doesn't start with a <literal>-</literal>, it is
     assumed to be an interface.</para>
@@ -1477,7 +1487,9 @@
     only) are used together.</para>
 
     <para>&man.whois.1; now directs queries for IP addresses to
-    ARIN. &merged;</para>
+    ARIN. &merged;  If a query to ARIN references APNIC or RIPE, the
+    appropriate server will also be queried, provided that the
+    <option>-Q</option> is not specified.</para>
 
     <para>A new utility &man.diskcheckd.8; has been added; it is a
     daemon which runs in the background, reading entire disks to find
@@ -1524,6 +1536,9 @@
     <para>The &man.kldconfig.8; utility has been added to make it easier to
     manipulate the kernel module search path.</para>
 
+    <para>&man.moused.8; now takes a <option>-a</option> to control
+    mouse acceleration.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1535,7 +1550,7 @@
       <filename>libisc</filename>. &merged;</para>
 
       <para><application>Binutils</application> have been upgraded to
-      2.11.0. &merged;</para>
+      2.11.2.</para>
 
       <para><application>bzip2</application> 1.0.1 has been imported; this
       brings the &man.bzip2.1; program and the <filename>libbz2</filename>
