@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.163 1998/03/23 06:08:43 yokota Exp $
+ * $Id: menus.c,v 1.164 1998/04/16 13:55:11 ache Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -752,7 +752,7 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
-      { "XFree86",	"The XFree86 3.3.1 distribution",
+      { "XFree86",	"The XFree86 3.3.2 distribution",
 	x11FlagCheck,	distSetXF86 },
       { "All",		"All sources, binaries and X Window System binaries",
 	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
@@ -839,8 +839,8 @@ DMenu MenuSrcDistributions = {
 
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
-    "XFree86 3.3.1 Distribution",
-    "Please select the components you need from the XFree86 3.3.1\n"
+    "XFree86 3.3.2 Distribution",
+    "Please select the components you need from the XFree86 3.3.2\n"
     "distribution sets.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
@@ -855,7 +855,7 @@ DMenu MenuXF86Select = {
 
 DMenu MenuXF86SelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "XFree86 3.3.1 base distribution types",
+    "XFree86 3.3.2 base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n"
     "Bin, lib, and set are recommended for a minimum installaion.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
@@ -884,9 +884,9 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
       { "9set",		"XFree86 Setup Utility (PC98)",
 	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
-      { "sources",	"XFree86 3.3.1 standard sources",
+      { "sources",	"XFree86 3.3.2 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
-      { "csources",	"XFree86 3.3.1 contrib sources",
+      { "csources",	"XFree86 3.3.2 contrib sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CSRC },
       { "All",		"Select all of the above",
 	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
