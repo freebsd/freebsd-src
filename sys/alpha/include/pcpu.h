@@ -44,15 +44,15 @@
  * point at the globaldata structure.
  */
 struct globaldata {
-	struct alpha_pcb gd_idlepcb;		/* pcb for idling */
-	struct thread	*gd_curthread;		/* current thread */
-	struct thread	*gd_idlethread;		/* idle thread */
-	struct thread	*gd_fpcurthread;	/* fp state owner */
-	struct pcb	*gd_curpcb;		/* current pcb */
-	struct timeval	gd_switchtime;	
-	int		gd_switchticks;
-	u_int		gd_cpuid;		/* this cpu number */
-	u_int		gd_other_cpus;		/* all other cpus */
+	struct	alpha_pcb gd_idlepcb;		/* pcb for idling */
+	struct	thread *gd_curthread;		/* current thread */
+	struct	thread *gd_idlethread;		/* idle thread */
+	struct	thread *gd_fpcurthread;		/* fp state owner */
+	struct	pcb *gd_curpcb;			/* current pcb */
+	struct	timeval gd_switchtime;	
+	int	gd_switchticks;
+	u_int	gd_cpuid;			/* this cpu number */
+	u_int	gd_other_cpus;			/* all other cpus */
 	u_int64_t	gd_idlepcbphys;		/* pa of gd_idlepcb */
 	u_int64_t	gd_pending_ipis;	/* pending IPI events */
 	u_int32_t	gd_next_asn;		/* next ASN to allocate */
