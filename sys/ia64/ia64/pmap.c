@@ -130,10 +130,6 @@ extern u_int64_t ia64_gateway_page[];
 
 MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 
-#ifndef KSTACK_MAX_PAGES
-#define	KSTACK_MAX_PAGES 32
-#endif
-
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
 #endif
