@@ -91,13 +91,17 @@ wwterminfoinit()
  */
 wwterminfoend()
 {
-
+	char *args[4];
+	args[0] = _PATH_RM;
+	args[1] = "-rf";
+	args[2] = wwterminfopath;
+	args[3] = NULL;
 	switch (vfork()) {
 	case -1:
 		/* can't really do (or say) anything about errors */
 		return -1;
 	case 0:
-		execl(_PATH_RM, _PATH_RM, "-rf", wwterminfopath, 0);
+		execv(args[0], args);
 		_exit(0);
 	default:
 		wait(NULL);
