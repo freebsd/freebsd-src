@@ -50,8 +50,12 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fstab.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-#include "fsck.h"
+char *blockcheck(char *origname);
+
 
 struct part {
 	struct	part *next;		/* forward link of partitions on disk */
