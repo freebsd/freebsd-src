@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.30 1997/12/07 04:09:15 brian Exp $
+ * $Id: route.c,v 1.31 1997/12/13 02:37:32 brian Exp $
  *
  */
 
@@ -140,7 +140,9 @@ OsSetRoute(int cmd,
   rtmes.m_rtm.rtm_msglen = nb;
   wb = write(s, &rtmes, nb);
   if (wb < 0) {
-    LogPrintf(LogTCPIP, "OsSetRoute: Dst = %s\n", inet_ntoa(dst));
+    LogPrintf(LogTCPIP, "OsSetRoute failure:\n");
+    LogPrintf(LogTCPIP, "OsSetRoute:  Cmd = %s\n", cmd);
+    LogPrintf(LogTCPIP, "OsSetRoute:  Dst = %s\n", inet_ntoa(dst));
     LogPrintf(LogTCPIP, "OsSetRoute:  Gateway = %s\n", inet_ntoa(gateway));
     LogPrintf(LogTCPIP, "OsSetRoute:  Mask = %s\n", inet_ntoa(mask));
     switch (rtmes.m_rtm.rtm_errno) {
@@ -153,12 +155,13 @@ OsSetRoute(int cmd,
                 inet_ntoa(dst));
       break;
     case 0:
-      LogPrintf(LogWARN, "%s route failed: %s\n", cmdstr, strerror(errno));
+      LogPrintf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
+                inet_ntoa(dst), strerror(errno));
       break;
     case ENOBUFS:
     default:
-      LogPrintf(LogWARN, "%s route failed: %s\n",
-		cmdstr, strerror(rtmes.m_rtm.rtm_errno));
+      LogPrintf(LogWARN, "%s route failed: %s: %s\n",
+		cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
       break;
     }
   }
@@ -246,7 +249,6 @@ struct bits {
   u_long b_mask;
   char b_val;
 } bits[] = {
-
   { RTF_UP, 'U' },
   { RTF_GATEWAY, 'G' },
   { RTF_HOST, 'H' },
@@ -261,14 +263,24 @@ struct bits {
   { RTF_PROTO1, '1' },
   { RTF_PROTO2, '2' },
   { RTF_BLACKHOLE, 'B' },
-#ifdef __FreeBSD__
+#ifdef RTF_WASCLONED
   { RTF_WASCLONED, 'W' },
+#endif
+#ifdef RTF_PRCLONING
   { RTF_PRCLONING, 'c' },
+#endif
+#ifdef RTF_PROTO3
   { RTF_PROTO3, '3' },
+#endif
+#ifdef RTF_BROADCAST
   { RTF_BROADCAST, 'b' },
 #endif
   { 0, '\0' }
 };
+
+#ifndef RTF_WASCLONED
+#define RTF_WASCLONED (0)
+#endif
 
 static void
 p_flags(u_long f, const char *format)
@@ -426,7 +438,7 @@ DeleteIfRoutes(int all)
   struct rt_msghdr *rtm;
   struct sockaddr *sa;
   struct in_addr sa_dst, sa_none;
-  int needed;
+  int needed, pass;
   char *sp, *cp, *ep;
   int mib[6];
 
@@ -459,26 +471,40 @@ DeleteIfRoutes(int all)
   }
   ep = sp + needed;
 
-  for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
-    rtm = (struct rt_msghdr *) cp;
-    sa = (struct sockaddr *) (rtm + 1);
-    LogPrintf(LogDEBUG, "DeleteIfRoutes: addrs: %x, Netif: %d (%s), flags: %x,"
-	      " dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
-              Index2Nam(rtm->rtm_index), rtm->rtm_flags,
-	      inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
-    if (rtm->rtm_addrs & RTA_DST && rtm->rtm_addrs & RTA_GATEWAY &&
-	rtm->rtm_index == IfIndex &&
-	(all || (rtm->rtm_flags & RTF_GATEWAY))) {
-      sa_dst.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
-      sa = (struct sockaddr *)((char *)sa + sa->sa_len);
-      if (sa->sa_family == AF_INET || sa->sa_family == AF_LINK) {
-        LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it\n");
-        LogPrintf(LogDEBUG, "DeleteIfRoutes: Dst: %s\n", inet_ntoa(sa_dst));
-        OsSetRoute(RTM_DELETE, sa_dst, sa_none, sa_none);
-      } else
-        LogPrintf(LogDEBUG,
-                  "DeleteIfRoutes: Can't remove routes of %d family !\n",
-                  sa->sa_family);
+  for (pass = 0; pass < 2; pass++) {
+    /*
+     * We do 2 passes.  The first deletes all cloned routes.  The second
+     * deletes all non-cloned routes.  This is necessary to avoid
+     * potential errors from trying to delete route X after route Y where
+     * route X was cloned from route Y (which is no longer there).
+     */
+    if (RTF_WASCLONED == 0 && pass == 0)
+      /* So we can't tell ! */
+      continue;
+    for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
+      rtm = (struct rt_msghdr *) cp;
+      sa = (struct sockaddr *) (rtm + 1);
+      LogPrintf(LogDEBUG, "DeleteIfRoutes: addrs: %x, Netif: %d (%s),"
+                " flags: %x, dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
+                Index2Nam(rtm->rtm_index), rtm->rtm_flags,
+	        inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
+      if (rtm->rtm_addrs & RTA_DST && rtm->rtm_addrs & RTA_GATEWAY &&
+	  rtm->rtm_index == IfIndex &&
+	  (all || (rtm->rtm_flags & RTF_GATEWAY))) {
+        sa_dst.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
+        sa = (struct sockaddr *)((char *)sa + sa->sa_len);
+        if (sa->sa_family == AF_INET || sa->sa_family == AF_LINK) {
+          if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
+              (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
+            LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it (pass %d)\n", pass);
+            OsSetRoute(RTM_DELETE, sa_dst, sa_none, sa_none);
+          } else
+            LogPrintf(LogDEBUG, "DeleteIfRoutes: Skip it (pass %d)\n", pass);
+        } else
+          LogPrintf(LogDEBUG,
+                    "DeleteIfRoutes: Can't remove routes of %d family !\n",
+                    sa->sa_family);
+      }
     }
   }
   free(sp);
