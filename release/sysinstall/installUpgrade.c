@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.29 1996/07/08 08:54:28 jkh Exp $
+ * $Id: installUpgrade.c,v 1.30 1996/07/14 01:54:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -181,7 +181,7 @@ installUpgrade(dialogMenuItem *self)
     variable_set2(SYSTEM_STATE, "upgrade");
     systemDisplayHelp("upgrade");
 
-    dialog_clear();
+    dialog_clear_norefresh();
     if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
 		 "risk it all and proceed with this upgrade?"))
 	return DITEM_FAILURE | DITEM_RESTORE;
@@ -194,7 +194,7 @@ installUpgrade(dialogMenuItem *self)
 		   "system.");
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE))
 	    return DITEM_FAILURE | DITEM_RECREATE;
-	dialog_clear();
+	dialog_clear_norefresh();
     }
 
     /* No bin selected?  Not much of an upgrade.. */
@@ -205,7 +205,7 @@ installUpgrade(dialogMenuItem *self)
 		     "menu.")) {
 	    if (!dmenuOpenSimple(&MenuDistributions, FALSE))
 		return DITEM_FAILURE | DITEM_RECREATE;
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	}
     }
 
@@ -361,7 +361,6 @@ installUpgrade(dialogMenuItem *self)
 
     chdir("/");
     dialog_clear();
-    dialog_update();
     end_dialog();
     DialogActive = FALSE;
     endwin();

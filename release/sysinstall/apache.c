@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.24 1996/06/15 17:58:49 jkh Exp $
+ * $Id: apache.c,v 1.25 1996/07/13 06:05:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -383,8 +383,7 @@ apacheOpenDialog(void)
     }
     
     /* Clear this crap off the screen */
-    dialog_clear();
-    refresh();
+    dialog_clear_norefresh();
     use_helpfile(NULL);
     
     if (cancel)
@@ -403,7 +402,7 @@ configApache(dialogMenuItem *self)
     /* Be optimistic */
     i = DITEM_SUCCESS;
 
-    dialog_clear();
+    dialog_clear_norefresh();
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
     i = package_add(APACHE_PACKAGE);
@@ -415,7 +414,7 @@ configApache(dialogMenuItem *self)
         return i | DITEM_RESTORE;
     }
 
-    dialog_clear();
+    dialog_clear_norefresh();
     i = apacheOpenDialog();
     if (DITEM_STATUS(i) != DITEM_SUCCESS) {
 	msgConfirm("Configuration of the Apache WEB server was cancelled per\n"

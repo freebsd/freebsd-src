@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.43 1996/07/02 01:03:55 jkh Exp $
+ * $Id: tcpip.c,v 1.44 1996/07/08 10:08:22 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -235,7 +235,7 @@ tcpOpenDialog(Device *devp)
     char		title[80];
 
     save = savescr();
-    dialog_clear();
+    dialog_clear_norefresh();
     /* We need a curses window */
     ds_win = newwin(LINES, COLS, 0, 0);
     if (ds_win == 0)
@@ -466,8 +466,7 @@ tcpOpenDialog(Device *devp)
     }
 
     /* Clear this crap off the screen */
-    dialog_clear();
-    refresh();
+    dialog_clear_norefresh();
     use_helpfile(NULL);
 
     /* We actually need to inform the rest of sysinstall about this

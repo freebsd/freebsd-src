@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.23 1996/07/11 18:37:47 jkh Exp $
+ * $Id: dmenu.c,v 1.24 1996/08/01 10:58:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -202,7 +202,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max, Boolean bu
 	use_helpfile(systemHelpFile(menu->helpfile, buf));
 
 	/* Pop up that dialog! */
-	dialog_clear();
+	dialog_clear_norefresh();
 	if (menu->type & DMENU_NORMAL_TYPE)
 	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
 			       menu_height(menu, n), -n, items, (char *)buttons, choice, scroll);

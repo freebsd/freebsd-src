@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.43 1996/07/10 11:38:28 jkh Exp $
+ * $Id: package.c,v 1.44 1996/08/01 12:35:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -187,7 +187,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     }
     else {
 	msgDebug("pkg_extract: get operation returned %d\n", fd);
-	dialog_clear();
+	dialog_clear_norefresh();
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Unable to fetch package %s from selected media.\n"
 		      "No package add will be done.", name);
