@@ -157,6 +157,7 @@ struct part_type
 	,{0x93, "Amoeba filesystem"} 
 	,{0x94, "Amoeba bad block table"} 
 	,{0xA5, "FreeBSD/NetBSD/386BSD"} 
+	,{0xA7, "NEXTSTEP"}
 	,{0xB7, "BSDI BSD/386 filesystem"} 
 	,{0xB8, "BSDI BSD/386 swap"} 
 	,{0xDB, "Concurrent CPM or C.DOS or CTOS"}  
