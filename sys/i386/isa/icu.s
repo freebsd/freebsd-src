@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.25 1996/05/31 01:08:07 peter Exp $
+ *	$Id: icu.s,v 1.26 1996/10/30 22:38:46 asami Exp $
  */
 
 /*
@@ -181,8 +181,10 @@ swi_ast:
 	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
 	je	swi_ast_phantom
 	movl	$T_ASTFLT,(2+8+0)*4(%esp)
+	movb	$0,_intr_nesting_level	/* finish becoming a trap handler */
 	call	_trap
 	subl	%eax,%eax		/* recover cpl */
+	movb	$1,_intr_nesting_level	/* for doreti_next to decrement */
 	jmp	doreti_next
 
 	ALIGN_TEXT
