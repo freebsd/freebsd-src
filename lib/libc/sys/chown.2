@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chown.2	8.4 (Berkeley) 4/19/94
-.\"	$Id: chown.2,v 1.4 1996/08/29 21:23:59 wosch Exp $
+.\"	$Id: chown.2,v 1.6 1997/01/11 23:55:59 mpp Exp $
 .\"
 .Dd April 19, 1994
 .Dt CHOWN 2
@@ -88,8 +88,6 @@ will fail and the file will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
-.It Bq Er EINVAL
-The pathname contains a character with the high-order bit set.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or an entire path name exceeded 1023 characters.

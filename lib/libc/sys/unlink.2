@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: unlink.2,v 1.5 1997/01/11 23:56:31 mpp Exp $
 .\"
 .Dd June 4, 1993
 .Dt UNLINK 2
@@ -71,8 +71,6 @@ succeeds unless:
 .Bl -tag -width ENAMETOOLONGAA
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
-.It Bq Er EINVAL
-The pathname contains a character with the high-order bit set.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or an entire path name exceeded 1023 characters.
