@@ -83,8 +83,8 @@ apply_perms(char *dir, char *arg)
 	if (vsystem("cd %s && chmod -R %s %s", cd_to, Mode, arg))
 	    warnx("couldn't change modes of '%s' to '%s'", arg, Mode);
     if (Owner && Group) {
-	if (vsystem("cd %s && chown -R %s.%s %s", cd_to, Owner, Group, arg))
-	    warnx("couldn't change owner/group of '%s' to '%s.%s'",
+	if (vsystem("cd %s && chown -R %s:%s %s", cd_to, Owner, Group, arg))
+	    warnx("couldn't change owner/group of '%s' to '%s:%s'",
 		   arg, Owner, Group);
 	return;
     }
