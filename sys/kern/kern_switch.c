@@ -443,6 +443,8 @@ critical_exit(void)
 {
 	struct thread *td;
 
+	KASSERT(td->td_critnest > 0,
+	    ("critical_exit:  critnest < 0"));
 	td = curthread;
 	if (td->td_critnest == 1) {
 		td->td_critnest = 0;
