@@ -41,6 +41,9 @@ extern void set_ui_file_write (struct ui_file *stream, ui_file_write_ftype *fput
 typedef void (ui_file_fputs_ftype) (const char *, struct ui_file * stream);
 extern void set_ui_file_fputs (struct ui_file *stream, ui_file_fputs_ftype * fputs);
 
+typedef long (ui_file_read_ftype) (struct ui_file * stream, char *buf, long length_buf);
+extern void set_ui_file_read (struct ui_file *stream, ui_file_read_ftype *fread);
+
 typedef int (ui_file_isatty_ftype) (struct ui_file * stream);
 extern void set_ui_file_isatty (struct ui_file *stream, ui_file_isatty_ftype * isatty);
 
@@ -78,6 +81,8 @@ extern char *ui_file_xstrdup (struct ui_file *file, long *length);
 
 
 
+extern long ui_file_read (struct ui_file *file, char *buf, long length_buf);
+
 /* Create/open a memory based file. Can be used as a scratch buffer
    for collecting output. */
 extern struct ui_file *mem_fileopen (void);
@@ -90,4 +95,11 @@ extern struct ui_file *stdio_fileopen (FILE *file);
 /* Open NAME returning an STDIO based UI_FILE. */
 extern struct ui_file *gdb_fopen (char *name, char *mode);
 
+/* Create a file which writes to both ONE and TWO.  CLOSE_ONE
+   and CLOSE_TWO indicate whether the original files should be
+   closed when the new file is closed.  */
+struct ui_file *tee_file_new (struct ui_file *one,
+			      int close_one,
+			      struct ui_file *two,
+			      int close_two);
 #endif

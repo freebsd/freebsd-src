@@ -1,6 +1,6 @@
 /* Read a symbol table in MIPS' format (Third-Eye).
    Copyright 1986, 1987, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1998, 1999, 2000, 2001
+   1998, 1999, 2000, 2001, 2003, 2004
    Free Software Foundation, Inc.
    Contributed by Alessandro Forin (af@cs.cmu.edu) at CMU.  Major work
    by Per Bothner, John Gilmore and Ian Lance Taylor at Cygnus Support.
@@ -29,7 +29,6 @@
 #include "gdb_string.h"
 #include "bfd.h"
 #include "symtab.h"
-#include "symfile.h"
 #include "objfiles.h"
 #include "buildsym.h"
 #include "stabsread.h"
@@ -113,15 +112,15 @@ mipscoff_symfile_read (struct objfile *objfile, int mainline)
 
   if (mainline
       && objfile->ei.entry_point != INVALID_ENTRY_POINT
-      && objfile->ei.entry_file_lowpc == INVALID_ENTRY_LOWPC)
+      && objfile->ei.deprecated_entry_file_lowpc == INVALID_ENTRY_LOWPC)
     {
       struct minimal_symbol *m;
 
       m = lookup_minimal_symbol_by_pc (objfile->ei.entry_point);
-      if (m && SYMBOL_NAME (m + 1))
+      if (m && DEPRECATED_SYMBOL_NAME (m + 1))
 	{
-	  objfile->ei.entry_file_lowpc = SYMBOL_VALUE_ADDRESS (m);
-	  objfile->ei.entry_file_highpc = SYMBOL_VALUE_ADDRESS (m + 1);
+	  objfile->ei.deprecated_entry_file_lowpc = SYMBOL_VALUE_ADDRESS (m);
+	  objfile->ei.deprecated_entry_file_highpc = SYMBOL_VALUE_ADDRESS (m + 1);
 	}
     }
 
@@ -193,23 +192,23 @@ struct alphacoff_dynsecinfo
 static void
 alphacoff_locate_sections (bfd *ignore_abfd, asection *sectp, void *sip)
 {
-  register struct alphacoff_dynsecinfo *si;
+  struct alphacoff_dynsecinfo *si;
 
   si = (struct alphacoff_dynsecinfo *) sip;
 
-  if (STREQ (sectp->name, ".dynsym"))
+  if (DEPRECATED_STREQ (sectp->name, ".dynsym"))
     {
       si->sym_sect = sectp;
     }
-  else if (STREQ (sectp->name, ".dynstr"))
+  else if (DEPRECATED_STREQ (sectp->name, ".dynstr"))
     {
       si->str_sect = sectp;
     }
-  else if (STREQ (sectp->name, ".dynamic"))
+  else if (DEPRECATED_STREQ (sectp->name, ".dynamic"))
     {
       si->dyninfo_sect = sectp;
     }
-  else if (STREQ (sectp->name, ".got"))
+  else if (DEPRECATED_STREQ (sectp->name, ".got"))
     {
       si->got_sect = sectp;
     }

@@ -14,5 +14,7 @@ NAT_FILE= nm-i386v42mp.h
 # continuation character (backslash) to extend a commented line.  As a
 # consequence, make considers subsequent tab-indented lines to be
 # some sort of error.
-NATDEPFILES= corelow.o core-regset.o fork-child.o i386v4-nat.o i387-nat.o solib.o solib-svr4.o solib-legacy.o procfs.o proc-api.o proc-events.o proc-flags.o proc-why.o uw-thread.o
+NATDEPFILES= corelow.o core-regset.o fork-child.o i386v4-nat.o \
+	gcore.o solib.o solib-svr4.o solib-legacy.o procfs.o proc-api.o \
+	proc-events.o proc-flags.o proc-why.o uw-thread.o
 

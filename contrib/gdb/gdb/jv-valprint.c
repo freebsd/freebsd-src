@@ -1,5 +1,7 @@
 /* Support for printing Java values for GDB, the GNU debugger.
-   Copyright 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004 Free
+   Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -30,6 +32,7 @@
 #include "jv-lang.h"
 #include "c-lang.h"
 #include "annotate.h"
+#include "gdb_string.h"
 
 /* Local functions */
 
@@ -109,14 +112,22 @@ java_value_print (struct value *val, struct ui_file *stream, int format,
 		{
 		  read_memory (address, buf, sizeof (buf));
 		  address += TARGET_PTR_BIT / HOST_CHAR_BIT;
-		  element = extract_address (buf, sizeof (buf));
+		  /* FIXME: cagney/2003-05-24: Bogus or what.  It
+                     pulls a host sized pointer out of the target and
+                     then extracts that as an address (while assuming
+                     that the address is unsigned)!  */
+		  element = extract_unsigned_integer (buf, sizeof (buf));
 		}
 
 	      for (reps = 1; i + reps < length; reps++)
 		{
 		  read_memory (address, buf, sizeof (buf));
 		  address += TARGET_PTR_BIT / HOST_CHAR_BIT;
-		  next_element = extract_address (buf, sizeof (buf));
+		  /* FIXME: cagney/2003-05-24: Bogus or what.  It
+                     pulls a host sized pointer out of the target and
+                     then extracts that as an address (while assuming
+                     that the address is unsigned)!  */
+		  next_element = extract_unsigned_integer (buf, sizeof (buf));
 		  if (next_element != element)
 		    break;
 		}
@@ -198,8 +209,9 @@ java_value_print (struct value *val, struct ui_file *stream, int format,
 
   if (TYPE_CODE (type) == TYPE_CODE_PTR
       && TYPE_TARGET_TYPE (type)
-      && TYPE_NAME (TYPE_TARGET_TYPE (type))
-      && strcmp (TYPE_NAME (TYPE_TARGET_TYPE (type)), "java.lang.String") == 0
+      && TYPE_TAG_NAME (TYPE_TARGET_TYPE (type))
+      && strcmp (TYPE_TAG_NAME (TYPE_TARGET_TYPE (type)),
+		 "java.lang.String") == 0
       && (format == 0 || format == 's')
       && address != 0
       && value_as_address (val) != 0)
@@ -288,9 +300,6 @@ java_print_value_fields (struct type *type, char *valaddr, CORE_ADDR address,
 	  java_print_value_fields (baseclass, base_valaddr, address + boffset,
 				   stream, format, recurse + 1, pretty);
 	  fputs_filtered (", ", stream);
-
-	flush_it:
-	  ;
 	}
 
     }
@@ -299,7 +308,6 @@ java_print_value_fields (struct type *type, char *valaddr, CORE_ADDR address,
     fprintf_filtered (stream, "<No data fields>");
   else
     {
-      extern int inspect_it;
       int fields_seen = 0;
 
       for (i = n_baseclasses; i < len; i++)
@@ -448,7 +456,7 @@ java_val_print (struct type *type, char *valaddr, int embedded_offset,
 		CORE_ADDR address, struct ui_file *stream, int format,
 		int deref_ref, int recurse, enum val_prettyprint pretty)
 {
-  register unsigned int i = 0;	/* Number of characters printed */
+  unsigned int i = 0;	/* Number of characters printed */
   struct type *target_type;
   CORE_ADDR addr;
 
@@ -467,7 +475,8 @@ java_val_print (struct type *type, char *valaddr, int embedded_offset,
 	  /* Print the unmangled name if desired.  */
 	  /* Print vtable entry - we only get here if we ARE using
 	     -fvtable_thunks.  (Otherwise, look under TYPE_CODE_STRUCT.) */
-	  print_address_demangle (extract_address (valaddr, TYPE_LENGTH (type)),
+	  /* Extract an address, assume that it is unsigned.  */
+	  print_address_demangle (extract_unsigned_integer (valaddr, TYPE_LENGTH (type)),
 				  stream, demangle);
 	  break;
 	}
@@ -497,18 +506,17 @@ java_val_print (struct type *type, char *valaddr, int embedded_offset,
       return i;
 
     case TYPE_CODE_CHAR:
-      format = format ? format : output_format;
-      if (format)
-	print_scalar_formatted (valaddr, type, format, 0, stream);
-      else
-	LA_PRINT_CHAR ((int) unpack_long (type, valaddr), stream);
-      break;
-
     case TYPE_CODE_INT:
-      /* Can't just call c_val_print because that print bytes as C chars. */
+      /* Can't just call c_val_print because that prints bytes as C
+	 chars.  */
       format = format ? format : output_format;
       if (format)
 	print_scalar_formatted (valaddr, type, format, 0, stream);
+      else if (TYPE_CODE (type) == TYPE_CODE_CHAR
+	       || (TYPE_CODE (type) == TYPE_CODE_INT
+		   && TYPE_LENGTH (type) == 2
+		   && strcmp (TYPE_NAME (type), "char") == 0))
+	LA_PRINT_CHAR ((int) unpack_long (type, valaddr), stream);
       else
 	val_print_type_code_int (type, valaddr, stream);
       break;

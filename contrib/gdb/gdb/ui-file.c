@@ -1,5 +1,6 @@
 /* UI_FILE - a generic STDIO like output stream.
-   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
+
+   Copyright 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,12 +25,12 @@
 #include "ui-file.h"
 #include "gdb_string.h"
 
-#undef XMALLOC
-#define XMALLOC(TYPE) ((TYPE*) xmalloc (sizeof (TYPE)))
+#include <errno.h>
 
 static ui_file_isatty_ftype null_file_isatty;
 static ui_file_write_ftype null_file_write;
 static ui_file_fputs_ftype null_file_fputs;
+static ui_file_read_ftype null_file_read;
 static ui_file_flush_ftype null_file_flush;
 static ui_file_delete_ftype null_file_delete;
 static ui_file_rewind_ftype null_file_rewind;
@@ -41,6 +42,7 @@ struct ui_file
     ui_file_flush_ftype *to_flush;
     ui_file_write_ftype *to_write;
     ui_file_fputs_ftype *to_fputs;
+    ui_file_read_ftype *to_read;
     ui_file_delete_ftype *to_delete;
     ui_file_isatty_ftype *to_isatty;
     ui_file_rewind_ftype *to_rewind;
@@ -58,6 +60,7 @@ ui_file_new (void)
   set_ui_file_flush (file, null_file_flush);
   set_ui_file_write (file, null_file_write);
   set_ui_file_fputs (file, null_file_fputs);
+  set_ui_file_read (file, null_file_read);
   set_ui_file_isatty (file, null_file_isatty);
   set_ui_file_rewind (file, null_file_rewind);
   set_ui_file_put (file, null_file_put);
@@ -125,6 +128,15 @@ null_file_write (struct ui_file *file,
     }
 }
 
+static long
+null_file_read (struct ui_file *file,
+		char *buf,
+		long sizeof_buf)
+{
+  errno = EBADF;
+  return 0;
+}
+
 static void
 null_file_fputs (const char *buf, struct ui_file *file)
 {
@@ -188,6 +200,12 @@ ui_file_write (struct ui_file *file,
   file->to_write (file, buf, length_buf);
 }
 
+long
+ui_file_read (struct ui_file *file, char *buf, long length_buf)
+{
+  return file->to_read (file, buf, length_buf); 
+}
+
 void
 fputs_unfiltered (const char *buf, struct ui_file *file)
 {
@@ -223,6 +241,12 @@ set_ui_file_write (struct ui_file *file,
 		    ui_file_write_ftype *write)
 {
   file->to_write = write;
+}
+
+void
+set_ui_file_read (struct ui_file *file, ui_file_read_ftype *read)
+{
+  file->to_read = read;
 }
 
 void
@@ -385,6 +409,7 @@ mem_file_write (struct ui_file *file,
 
 static ui_file_write_ftype stdio_file_write;
 static ui_file_fputs_ftype stdio_file_fputs;
+static ui_file_read_ftype stdio_file_read;
 static ui_file_isatty_ftype stdio_file_isatty;
 static ui_file_delete_ftype stdio_file_delete;
 static struct ui_file *stdio_file_new (FILE * file, int close_p);
@@ -411,6 +436,7 @@ stdio_file_new (FILE *file, int close_p)
   set_ui_file_flush (ui_file, stdio_file_flush);
   set_ui_file_write (ui_file, stdio_file_write);
   set_ui_file_fputs (ui_file, stdio_file_fputs);
+  set_ui_file_read (ui_file, stdio_file_read);
   set_ui_file_isatty (ui_file, stdio_file_isatty);
   return ui_file;
 }
@@ -437,6 +463,16 @@ stdio_file_flush (struct ui_file *file)
     internal_error (__FILE__, __LINE__,
 		    "stdio_file_flush: bad magic number");
   fflush (stdio->file);
+}
+
+static long
+stdio_file_read (struct ui_file *file, char *buf, long length_buf)
+{
+  struct stdio_file *stdio = ui_file_data (file);
+  if (stdio->magic != &stdio_file_magic)
+    internal_error (__FILE__, __LINE__,
+		    "stdio_file_read: bad magic number");
+  return read (fileno (stdio->file), buf, length_buf);
 }
 
 static void
@@ -484,4 +520,98 @@ gdb_fopen (char *name, char *mode)
   if (f == NULL)
     return NULL;
   return stdio_file_new (f, 1);
+}
+
+/* ``struct ui_file'' implementation that maps onto two ui-file objects.  */
+
+static ui_file_write_ftype tee_file_write;
+static ui_file_fputs_ftype tee_file_fputs;
+static ui_file_isatty_ftype tee_file_isatty;
+static ui_file_delete_ftype tee_file_delete;
+static ui_file_flush_ftype tee_file_flush;
+
+static int tee_file_magic;
+
+struct tee_file
+  {
+    int *magic;
+    struct ui_file *one, *two;
+    int close_one, close_two;
+  };
+
+struct ui_file *
+tee_file_new (struct ui_file *one, int close_one,
+	      struct ui_file *two, int close_two)
+{
+  struct ui_file *ui_file = ui_file_new ();
+  struct tee_file *tee = xmalloc (sizeof (struct tee_file));
+  tee->magic = &tee_file_magic;
+  tee->one = one;
+  tee->two = two;
+  tee->close_one = close_one;
+  tee->close_two = close_two;
+  set_ui_file_data (ui_file, tee, tee_file_delete);
+  set_ui_file_flush (ui_file, tee_file_flush);
+  set_ui_file_write (ui_file, tee_file_write);
+  set_ui_file_fputs (ui_file, tee_file_fputs);
+  set_ui_file_isatty (ui_file, tee_file_isatty);
+  return ui_file;
+}
+
+static void
+tee_file_delete (struct ui_file *file)
+{
+  struct tee_file *tee = ui_file_data (file);
+  if (tee->magic != &tee_file_magic)
+    internal_error (__FILE__, __LINE__,
+		    "tee_file_delete: bad magic number");
+  if (tee->close_one)
+    ui_file_delete (tee->one);
+  if (tee->close_two)
+    ui_file_delete (tee->two);
+
+  xfree (tee);
+}
+
+static void
+tee_file_flush (struct ui_file *file)
+{
+  struct tee_file *tee = ui_file_data (file);
+  if (tee->magic != &tee_file_magic)
+    internal_error (__FILE__, __LINE__,
+		    "tee_file_flush: bad magic number");
+  tee->one->to_flush (tee->one);
+  tee->two->to_flush (tee->two);
+}
+
+static void
+tee_file_write (struct ui_file *file, const char *buf, long length_buf)
+{
+  struct tee_file *tee = ui_file_data (file);
+  if (tee->magic != &tee_file_magic)
+    internal_error (__FILE__, __LINE__,
+		    "tee_file_write: bad magic number");
+  ui_file_write (tee->one, buf, length_buf);
+  ui_file_write (tee->two, buf, length_buf);
+}
+
+static void
+tee_file_fputs (const char *linebuffer, struct ui_file *file)
+{
+  struct tee_file *tee = ui_file_data (file);
+  if (tee->magic != &tee_file_magic)
+    internal_error (__FILE__, __LINE__,
+		    "tee_file_fputs: bad magic number");
+  tee->one->to_fputs (linebuffer, tee->one);
+  tee->two->to_fputs (linebuffer, tee->two);
+}
+
+static int
+tee_file_isatty (struct ui_file *file)
+{
+  struct tee_file *tee = ui_file_data (file);
+  if (tee->magic != &tee_file_magic)
+    internal_error (__FILE__, __LINE__,
+		    "tee_file_isatty: bad magic number");
+  return (0);
 }

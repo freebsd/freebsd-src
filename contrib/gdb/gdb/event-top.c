@@ -1,5 +1,5 @@
 /* Top level stuff for GDB, the GNU debugger.
-   Copyright 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
    Written by Elena Zannoni <ezannoni@cygnus.com> of Cygnus Solutions.
 
    This file is part of GDB.
@@ -26,19 +26,18 @@
 #include "terminal.h"		/* for job_control */
 #include "event-loop.h"
 #include "event-top.h"
+#include "interps.h"
 #include <signal.h>
 
 /* For dont_repeat() */
 #include "gdbcmd.h"
 
 /* readline include files */
-#include <readline/readline.h>
-#include <readline/history.h>
+#include "readline/readline.h"
+#include "readline/history.h"
 
 /* readline defines this.  */
 #undef savestring
-
-extern void _initialize_event_loop (void);
 
 static void rl_callback_read_char_wrapper (gdb_client_data client_data);
 static void command_line_handler (char *rl);
@@ -46,7 +45,6 @@ static void command_line_handler_continuation (struct continuation_arg *arg);
 static void change_line_handler (void);
 static void change_annotation_level (void);
 static void command_handler (char *command);
-void cli_command_loop (void);
 static void async_do_nothing (gdb_client_data arg);
 static void async_disconnect (gdb_client_data arg);
 static void async_stop_sig (gdb_client_data arg);
@@ -250,9 +248,9 @@ display_gdb_prompt (char *new_prompt)
   int prompt_length = 0;
   char *gdb_prompt = get_prompt ();
 
-  /* When an alternative interpreter has been installed, do not
-     display the comand prompt. */
-  if (interpreter_p)
+  /* Each interpreter has its own rules on displaying the command
+     prompt.  */
+  if (!current_interp_display_prompt_p ())
     return;
 
   if (target_executing && sync_execution)
@@ -494,10 +492,8 @@ command_handler (char *command)
   if (display_space)
     {
 #ifdef HAVE_SBRK
-      extern char **environ;
       char *lim = (char *) sbrk (0);
-
-      space_at_cmd_start = (long) (lim - (char *) &environ);
+      space_at_cmd_start = lim - lim_at_start;
 #endif
     }
 
@@ -540,9 +536,8 @@ command_handler (char *command)
       if (display_space)
 	{
 #ifdef HAVE_SBRK
-	  extern char **environ;
 	  char *lim = (char *) sbrk (0);
-	  long space_now = lim - (char *) &environ;
+	  long space_now = lim - lim_at_start;
 	  long space_diff = space_now - space_at_cmd_start;
 
 	  printf_unfiltered ("Space used: %ld (%c%ld for this command)\n",
@@ -579,9 +574,8 @@ command_line_handler_continuation (struct continuation_arg *arg)
   if (display_space)
     {
 #ifdef HAVE_SBRK
-      extern char **environ;
       char *lim = (char *) sbrk (0);
-      long space_now = lim - (char *) &environ;
+      long space_now = lim - lim_at_start;
       long space_diff = space_now - space_at_cmd_start;
 
       printf_unfiltered ("Space used: %ld (%c%ld for this command)\n",
@@ -605,7 +599,7 @@ command_line_handler (char *rl)
 {
   static char *linebuffer = 0;
   static unsigned linelength = 0;
-  register char *p;
+  char *p;
   char *p1;
   extern char *line;
   extern int linesize;
@@ -618,7 +612,7 @@ command_line_handler (char *rl)
   if (annotation_level > 1 && instream == stdin)
     {
       printf_unfiltered ("\n\032\032post-");
-      printf_unfiltered (async_annotation_suffix);
+      puts_unfiltered (async_annotation_suffix);
       printf_unfiltered ("\n");
     }
 
@@ -683,24 +677,21 @@ command_line_handler (char *rl)
 
   xfree (rl);			/* Allocated in readline.  */
 
-  if (*(p - 1) == '\\')
+  if (p > linebuffer && *(p - 1) == '\\')
     {
       p--;			/* Put on top of '\'.  */
 
-      if (*p == '\\')
-	{
-	  readline_input_state.linebuffer = savestring (linebuffer,
-							strlen (linebuffer));
-	  readline_input_state.linebuffer_ptr = p;
+      readline_input_state.linebuffer = savestring (linebuffer,
+						    strlen (linebuffer));
+      readline_input_state.linebuffer_ptr = p;
 
-	  /* We will not invoke a execute_command if there is more
-	     input expected to complete the command. So, we need to
-	     print an empty prompt here. */
-	  more_to_come = 1;
-	  push_prompt ("", "", "");
-	  display_gdb_prompt (0);
-	  return;
-	}
+      /* We will not invoke a execute_command if there is more
+	 input expected to complete the command. So, we need to
+	 print an empty prompt here. */
+      more_to_come = 1;
+      push_prompt ("", "", "");
+      display_gdb_prompt (0);
+      return;
     }
 
 #ifdef STOP_SIGNAL
@@ -711,7 +702,7 @@ command_line_handler (char *rl)
 #define SERVER_COMMAND_LENGTH 7
   server_command =
     (p - linebuffer > SERVER_COMMAND_LENGTH)
-    && STREQN (linebuffer, "server ", SERVER_COMMAND_LENGTH);
+    && strncmp (linebuffer, "server ", SERVER_COMMAND_LENGTH) == 0;
   if (server_command)
     {
       /* Note that we don't set `line'.  Between this and the check in
@@ -980,11 +971,7 @@ void
 async_request_quit (gdb_client_data arg)
 {
   quit_flag = 1;
-#ifdef REQUEST_QUIT
-  REQUEST_QUIT;
-#else
   quit ();
-#endif
 }
 
 /* Tell the event loop what to do if SIGQUIT is received. 
@@ -1093,7 +1080,6 @@ handle_sigwinch (int sig)
 
 
 /* Called by do_setshow_command.  */
-/* ARGSUSED */
 void
 set_async_editing_command (char *args, int from_tty, struct cmd_list_element *c)
 {
@@ -1101,7 +1087,6 @@ set_async_editing_command (char *args, int from_tty, struct cmd_list_element *c)
 }
 
 /* Called by do_setshow_command.  */
-/* ARGSUSED */
 void
 set_async_annotation_level (char *args, int from_tty, struct cmd_list_element *c)
 {
@@ -1109,7 +1094,6 @@ set_async_annotation_level (char *args, int from_tty, struct cmd_list_element *c
 }
 
 /* Called by do_setshow_command.  */
-/* ARGSUSED */
 void
 set_async_prompt (char *args, int from_tty, struct cmd_list_element *c)
 {
@@ -1120,10 +1104,19 @@ set_async_prompt (char *args, int from_tty, struct cmd_list_element *c)
    interface, i.e. via a callback function (rl_callback_read_char),
    and hook up instream to the event loop. */
 void
-_initialize_event_loop (void)
+gdb_setup_readline (void)
 {
+  /* This function is a noop for the sync case.  The assumption is that
+     the sync setup is ALL done in gdb_init, and we would only mess it up
+     here.  The sync stuff should really go away over time. */
+
   if (event_loop_p)
     {
+      gdb_stdout = stdio_fileopen (stdout);
+      gdb_stderr = stdio_fileopen (stderr);
+      gdb_stdlog = gdb_stderr;  /* for moment */
+      gdb_stdtarg = gdb_stderr; /* for moment */
+
       /* If the input stream is connected to a terminal, turn on
          editing.  */
       if (ISATTY (instream))
@@ -1156,9 +1149,6 @@ _initialize_event_loop (void)
          register it with the event loop. */
       input_fd = fileno (instream);
 
-      /* Tell gdb to use the cli_command_loop as the main loop. */
-      command_loop_hook = cli_command_loop;
-
       /* Now we need to create the event sources for the input file
          descriptor. */
       /* At this point in time, this is the only event source that we
@@ -1167,5 +1157,31 @@ _initialize_event_loop (void)
          only when it actually exists (I.e. after we say 'run' or
          after we connect to a remote target. */
       add_file_handler (input_fd, stdin_event_handler, 0);
+    }
+}
+
+/* Disable command input through the standard CLI channels.  Used in
+   the suspend proc for interpreters that use the standard gdb readline
+   interface, like the cli & the mi.  */
+void
+gdb_disable_readline (void)
+{
+  if (event_loop_p)
+    {
+      /* FIXME - It is too heavyweight to delete and remake these
+         every time you run an interpreter that needs readline.
+         It is probably better to have the interpreters cache these,
+         which in turn means that this needs to be moved into interpreter
+         specific code. */
+
+#if 0
+      ui_file_delete (gdb_stdout);
+      ui_file_delete (gdb_stderr);
+      gdb_stdlog = NULL;
+      gdb_stdtarg = NULL;
+#endif
+
+      rl_callback_handler_remove ();
+      delete_file_handler (input_fd);
     }
 }

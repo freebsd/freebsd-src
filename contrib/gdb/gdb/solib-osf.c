@@ -321,7 +321,7 @@ osf_solib_create_inferior_hook (void)
      out what we need to know about them. */
 
   clear_proceed_status ();
-  stop_soon_quietly = 1;
+  stop_soon = STOP_QUIETLY;
   stop_signal = TARGET_SIGNAL_0;
   do
     {
@@ -334,10 +334,10 @@ osf_solib_create_inferior_hook (void)
      But we are stopped in the runtime loader and we do not have symbols
      for the runtime loader. So heuristic_proc_start will be called
      and will put out an annoying warning.
-     Delaying the resetting of stop_soon_quietly until after symbol loading
+     Delaying the resetting of stop_soon until after symbol loading
      suppresses the warning.  */
   solib_add ((char *) 0, 0, (struct target_ops *) 0, auto_solib_add);
-  stop_soon_quietly = 0;
+  stop_soon = NO_STOP_QUIETLY;
 
   /* Enable breakpoints disabled (unnecessarily) by clear_solib().  */
   re_enable_breakpoints_in_shlibs ();
@@ -359,7 +359,14 @@ static int
 open_map (struct read_map_ctxt *ctxt)
 {
 #ifdef USE_LDR_ROUTINES
-  ctxt->proc = ldr_my_process ();
+  /* Note: As originally written, ldr_my_process() was used to obtain
+     the value for ctxt->proc.  This is incorrect, however, since
+     ldr_my_process() retrieves the "unique identifier" associated
+     with the current process (i.e. GDB) and not the one being
+     debugged.  Presumably, the pid of the process being debugged is
+     compatible with the "unique identifier" used by the ldr_
+     routines, so we use that.  */
+  ctxt->proc = ptid_get_pid (inferior_ptid);
   if (ldr_xattach (ctxt->proc) != 0)
     return 0;
   ctxt->next = LDR_NULL_MODULE;

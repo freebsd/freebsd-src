@@ -21,58 +21,7 @@
 #ifndef TM_IA64_H
 #define TM_IA64_H
 
-#if !defined(GDBSERVER)
-
 #define GDB_MULTI_ARCH 1
-
-#else /* defines needed for GDBSERVER */
-
-/* Say how long (ordinary) registers are.  This is a piece of bogosity
-   used in push_word and a few other places; REGISTER_RAW_SIZE is the
-   real way to know how big a register is.  */
-
-#define REGISTER_SIZE 8
-
-#undef  NUM_REGS
-#define NUM_REGS 590
-
-/* Some pseudo register numbers */
-
-#define PC_REGNUM	IA64_IP_REGNUM
-#define SP_REGNUM	IA64_GR12_REGNUM
-#define FP_REGNUM	IA64_VFP_REGNUM
-
-/* Total amount of space needed to store our copies of the machine's
-   register state, the array `registers'.  On the ia64, all registers
-   fit in 64 bits except for the floating point registers which require
-   84 bits.  But 84 isn't a nice number, so we'll just allocate 128
-   bits for each of these.  The expression below says that we
-   need 8 bytes for each register, plus an additional 8 bytes for each
-   of the 128 floating point registers. */
-
-#define REGISTER_BYTES (NUM_REGS*8+128*8)
-
-/* Index within `registers' of the first byte of the space for
-   register N.  */
-
-#define REGISTER_BYTE(N) (((N) * 8) \
-  + ((N) <= IA64_FR0_REGNUM ? 0 : 8 * (((N) > IA64_FR127_REGNUM) ? 128 : (N) - IA64_FR0_REGNUM)))
-
-/* Number of bytes of storage in the actual machine representation
-   for register N.  */
-
-#define REGISTER_RAW_SIZE(N) \
-  ((IA64_FR0_REGNUM <= (N) && (N) <= IA64_FR127_REGNUM) ? 16 : 8)
-
-/* Largest value REGISTER_RAW_SIZE can have.  */
-
-#define MAX_REGISTER_RAW_SIZE 16
-
-
-#define GDBSERVER_RESUME_REGS { IA64_IP_REGNUM, IA64_PSR_REGNUM, SP_REGNUM, IA64_BSP_REGNUM, IA64_CFM_REGNUM }
-
-#endif /* GDBSERVER */
-
 
 /* Register numbers of various important registers */
 

@@ -1,6 +1,6 @@
 /* Support for printing C++ values for GDB, the GNU debugger.
    Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   2000, 2001
+   2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -21,7 +21,7 @@
    Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
-#include "obstack.h"
+#include "gdb_obstack.h"
 #include "symtab.h"
 #include "gdbtypes.h"
 #include "expression.h"
@@ -34,6 +34,7 @@
 #include "c-lang.h"
 #include "target.h"
 #include "cp-abi.h"
+#include "valprint.h"
 
 /* Indication of presence of HP-compiled object files */
 extern int hp_som_som_object_present;	/* defined in symtab.c */
@@ -87,7 +88,7 @@ cp_print_class_method (char *valaddr,
       fprintf_filtered (stream, "<unknown>");
       return;
     }
-  addr = unpack_pointer (lookup_pointer_type (builtin_type_void), valaddr);
+  addr = unpack_pointer (type, valaddr);
   if (METHOD_PTR_IS_VIRTUAL (addr))
     {
       offset = METHOD_PTR_TO_VOFFSET (addr);
@@ -97,13 +98,11 @@ cp_print_class_method (char *valaddr,
 	  f = TYPE_FN_FIELDLIST1 (domain, i);
 	  len2 = TYPE_FN_FIELDLIST_LENGTH (domain, i);
 
+	  check_stub_method_group (domain, i);
 	  for (j = 0; j < len2; j++)
 	    {
-	      QUIT;
 	      if (TYPE_FN_FIELD_VOFFSET (f, j) == offset)
 		{
-		  if (TYPE_FN_FIELD_STUB (f, j))
-		    check_stub_method (domain, i, j);
 		  kind = "virtual ";
 		  goto common;
 		}
@@ -129,15 +128,12 @@ cp_print_class_method (char *valaddr,
 	  f = TYPE_FN_FIELDLIST1 (domain, i);
 	  len2 = TYPE_FN_FIELDLIST_LENGTH (domain, i);
 
+	  check_stub_method_group (domain, i);
 	  for (j = 0; j < len2; j++)
 	    {
-	      QUIT;
-	      if (TYPE_FN_FIELD_STUB (f, j))
-		check_stub_method (domain, i, j);
-	      if (STREQ (SYMBOL_NAME (sym), TYPE_FN_FIELD_PHYSNAME (f, j)))
-		{
-		  goto common;
-		}
+	      if (strcmp (DEPRECATED_SYMBOL_NAME (sym), TYPE_FN_FIELD_PHYSNAME (f, j))
+		  == 0)
+		goto common;
 	    }
 	}
     }
@@ -147,7 +143,7 @@ cp_print_class_method (char *valaddr,
       char *demangled_name;
 
       fprintf_filtered (stream, "&");
-      fprintf_filtered (stream, kind);
+      fputs_filtered (kind, stream);
       demangled_name = cplus_demangle (TYPE_FN_FIELD_PHYSNAME (f, j),
 				       DMGL_ANSI | DMGL_PARAMS);
       if (demangled_name == NULL)
@@ -167,20 +163,12 @@ cp_print_class_method (char *valaddr,
     }
 }
 
-/* This was what it was for gcc 2.4.5 and earlier.  */
-static const char vtbl_ptr_name_old[] =
-{
-  CPLUS_MARKER, 'v', 't', 'b', 'l', '_', 'p', 't', 'r', '_', 
-  't', 'y', 'p', 'e', 0
-};
-
-/* It was changed to this after 2.4.5.  */
+/* GCC versions after 2.4.5 use this.  */
 const char vtbl_ptr_name[] = "__vtbl_ptr_type";
 
-/* HP aCC uses different names */
+/* HP aCC uses different names.  */
 const char hpacc_vtbl_ptr_name[] = "__vfp";
 const char hpacc_vtbl_ptr_type_name[] = "__vftyp";
-
 
 /* Return truth value for assertion that TYPE is of the type
    "pointer to virtual function".  */
@@ -190,9 +178,7 @@ cp_is_vtbl_ptr_type (struct type *type)
 {
   char *typename = type_name_no_tag (type);
 
-  return (typename != NULL
-	  && (STREQ (typename, vtbl_ptr_name)
-	      || STREQ (typename, vtbl_ptr_name_old)));
+  return (typename != NULL && !strcmp (typename, vtbl_ptr_name));
 }
 
 /* Return truth value for the assertion that TYPE is of the type
@@ -201,6 +187,8 @@ cp_is_vtbl_ptr_type (struct type *type)
 int
 cp_is_vtbl_member (struct type *type)
 {
+  /* With older versions of g++, the vtbl field pointed to an array
+     of structures.  Nowadays it points directly to the structure. */
   if (TYPE_CODE (type) == TYPE_CODE_PTR)
     {
       type = TYPE_TARGET_TYPE (type);
@@ -214,6 +202,17 @@ cp_is_vtbl_member (struct type *type)
 	         to virtual functions. */
 	      return cp_is_vtbl_ptr_type (type);
 	    }
+	}
+      else if (TYPE_CODE (type) == TYPE_CODE_STRUCT)  /* if not using thunks */
+	{
+	  return cp_is_vtbl_ptr_type (type);
+	}
+      else if (TYPE_CODE (type) == TYPE_CODE_PTR)     /* if using thunks */
+	{
+	  /* The type name of the thunk pointer is NULL when using dwarf2.
+	     We could test for a pointer to a function, but there is
+	     no type info for the virtual table either, so it wont help.  */
+	  return cp_is_vtbl_ptr_type (type);
 	}
     }
   return 0;
@@ -262,14 +261,12 @@ cp_print_value_fields (struct type *type, struct type *real_type, char *valaddr,
   if ((len == n_baseclasses)
       || ((len - n_baseclasses == 1)
 	  && TYPE_HAS_VTABLE (type)
-	  && STREQN (TYPE_FIELD_NAME (type, n_baseclasses),
-		     hpacc_vtbl_ptr_name, 5))
+	  && strncmp (TYPE_FIELD_NAME (type, n_baseclasses),
+		      hpacc_vtbl_ptr_name, 5) == 0)
       || !len)
     fprintf_filtered (stream, "<No data fields>");
   else
     {
-      extern int inspect_it;
-
       if (dont_print_statmem == 0)
 	{
 	  /* If we're at top level, carve out a completely fresh
@@ -287,7 +284,8 @@ cp_print_value_fields (struct type *type, struct type *real_type, char *valaddr,
 
 	  /* If a vtable pointer appears, we'll print it out later */
 	  if (TYPE_HAS_VTABLE (type)
-	      && STREQN (TYPE_FIELD_NAME (type, i), hpacc_vtbl_ptr_name, 5))
+	      && strncmp (TYPE_FIELD_NAME (type, i), hpacc_vtbl_ptr_name,
+			  5) == 0)
 	    continue;
 
 	  if (fields_seen)
@@ -410,9 +408,8 @@ cp_print_value_fields (struct type *type, struct type *real_type, char *valaddr,
     }				/* if there are data fields */
   /* Now print out the virtual table pointer if there is one */
   if (TYPE_HAS_VTABLE (type)
-      && STREQN (TYPE_FIELD_NAME (type, n_baseclasses),
-		 hpacc_vtbl_ptr_name, 
-		 5))
+      && strncmp (TYPE_FIELD_NAME (type, n_baseclasses),
+		  hpacc_vtbl_ptr_name, 5) == 0)
     {
       struct value *v;
       /* First get the virtual table pointer and print it out */
@@ -557,7 +554,7 @@ cp_print_value (struct type *type, struct type *real_type, char *valaddr,
 	{
 	  boffset = baseclass_offset (type, i,
 				      valaddr + offset,
-				      address + offset);
+				      address);
 	  skip = ((boffset == -1) || (boffset + offset) < 0) ? 1 : -1;
 
 	  if (BASETYPE_VIA_VIRTUAL (type, i))
@@ -572,9 +569,10 @@ cp_print_value (struct type *type, struct type *real_type, char *valaddr,
 		{
 		  /* FIXME (alloca): unsafe if baseclass is really really large. */
 		  base_valaddr = (char *) alloca (TYPE_LENGTH (baseclass));
-		  if (target_read_memory (address + offset + boffset, base_valaddr,
+		  if (target_read_memory (address + boffset, base_valaddr,
 					  TYPE_LENGTH (baseclass)) != 0)
 		    skip = 1;
+		  address = address + boffset;
 		  thisoffset = 0;
 		  boffset = 0;
 		  thistype = baseclass;
@@ -603,7 +601,8 @@ cp_print_value (struct type *type, struct type *real_type, char *valaddr,
 	fprintf_filtered (stream, "<invalid address>");
       else
 	cp_print_value_fields (baseclass, thistype, base_valaddr,
-			       thisoffset + boffset, address, stream, format,
+			       thisoffset + boffset, address + boffset,
+			       stream, format,
 			       recurse, pretty,
 			       ((struct type **)
 				obstack_base (&dont_print_vb_obstack)),
@@ -687,7 +686,7 @@ cp_print_class_member (char *valaddr, struct type *domain,
      print it.  */
   int extra = 0;
   int bits = 0;
-  register unsigned int i;
+  unsigned int i;
   unsigned len = TYPE_NFIELDS (domain);
 
   /* @@ Make VAL into bit offset */
@@ -721,7 +720,7 @@ cp_print_class_member (char *valaddr, struct type *domain,
   if (i < len)
     {
       char *name;
-      fprintf_filtered (stream, prefix);
+      fputs_filtered (prefix, stream);
       name = type_name_no_tag (domain);
       if (name)
 	fputs_filtered (name, stream);

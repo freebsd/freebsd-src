@@ -1,6 +1,6 @@
 /* Build symbol tables in GDB's internal format.
    Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1995, 1996,
-   1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   1997, 1998, 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,6 +22,9 @@
 #if !defined (BUILDSYM_H)
 #define BUILDSYM_H 1
 
+struct objfile;
+struct symbol;
+
 /* This module provides definitions used for creating and adding to
    the symbol table.  These routines are called from various symbol-
    file-reading routines.
@@ -33,6 +36,8 @@
    name EXTERN to null.  It is used to declare variables that are
    normally extern, but which get defined in a single module using
    this technique.  */
+
+struct block;
 
 #ifndef EXTERN
 #define	EXTERN extern
@@ -82,16 +87,6 @@ EXTERN unsigned char processing_gcc_compilation;
    compatible.  */
 
 EXTERN unsigned char processing_acc_compilation;
-
-/* elz: added this flag to know when a block is compiled with HP
-   compilers (cc, aCC). This is necessary because of the macro
-   COERCE_FLOAT_TO_DOUBLE defined in tm_hppa.h, which causes a
-   coercion of float to double to always occur in parameter passing
-   for a function called by gdb (see the function value_arg_coerce in
-   valops.c). This is necessary only if the target was compiled with
-   gcc, not with HP compilers or with g++ */
-
-EXTERN unsigned char processing_hp_compilation;
 
 /* Count symbols as they are processed, for error messages.  */
 
@@ -173,11 +168,8 @@ EXTERN int context_stack_depth;
 
 EXTERN int context_stack_size;
 
-/* Macro "function" for popping contexts from the stack.  Pushing is
-   done by a real function, push_context.  This returns a pointer to a
-   struct context_stack.  */
-
-#define	pop_context() (&context_stack[--context_stack_depth]);
+/* Non-zero if the context stack is empty.  */
+#define outermost_context_p() (context_stack_depth == 0)
 
 /* Nonzero if within a function (so symbols should be local, if
    nothing says specifically).  */
@@ -246,7 +238,7 @@ extern void finish_block (struct symbol *symbol,
 			  CORE_ADDR start, CORE_ADDR end,
 			  struct objfile *objfile);
 
-extern void really_free_pendings (PTR dummy);
+extern void really_free_pendings (void *dummy);
 
 extern void start_subfile (char *name, char *dirname);
 
@@ -269,6 +261,8 @@ extern void buildsym_init (void);
 
 extern struct context_stack *push_context (int desc, CORE_ADDR valu);
 
+extern struct context_stack *pop_context (void);
+
 extern void record_line (struct subfile *subfile, int line, CORE_ADDR pc);
 
 extern void start_symtab (char *name, char *dirname, CORE_ADDR start_addr);
@@ -276,12 +270,6 @@ extern void start_symtab (char *name, char *dirname, CORE_ADDR start_addr);
 extern int hashname (char *name);
 
 extern void free_pending_blocks (void);
-
-/* FIXME: Note that this is used only in buildsym.c and dstread.c,
-   which should be fixed to not need direct access to
-   make_blockvector. */
-
-extern struct blockvector *make_blockvector (struct objfile *objfile);
 
 /* FIXME: Note that this is used only in buildsym.c and dstread.c,
    which should be fixed to not need direct access to
@@ -295,6 +283,10 @@ extern void record_debugformat (char *format);
 
 extern void merge_symbol_lists (struct pending **srclist,
 				struct pending **targetlist);
+
+/* The macro table for the compilation unit whose symbols we're
+   currently reading.  All the symtabs for this CU will point to this.  */
+EXTERN struct macro_table *pending_macros;
 
 #undef EXTERN
 

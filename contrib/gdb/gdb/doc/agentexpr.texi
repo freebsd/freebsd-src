@@ -1,14 +1,14 @@
-\input texinfo
+@c \input texinfo
 @c %**start of header
-@setfilename agentexpr.info
-@settitle GDB Agent Expressions
-@setchapternewpage off
+@c @setfilename agentexpr.info
+@c @settitle GDB Agent Expressions
+@c @setchapternewpage off
 @c %**end of header
 
-Revision: $Id: agentexpr.texi,v 1.2 1998/12/09 21:23:46 jimb Exp $
+@c Revision: $Id: agentexpr.texi,v 1.2 1998/12/09 21:23:46 jimb Exp $
 
-@node The GDB Agent Expression Mechanism
-@chapter The GDB Agent Expression Mechanism
+@node Agent Expressions
+@appendix The GDB Agent Expression Mechanism
 
 In some applications, it is not feasable for the debugger to interrupt
 the program's execution long enough for the developer to learn anything
@@ -299,7 +299,7 @@ Pop two integers from the stack; let @var{a} be the next-to-top value,
 and @var{b} be the top value.  Shift @var{a} left by @var{b} bits, and
 push the result.
 
-@item @code{rsh_signed} (0x0a): @var{a} @var{b} @result{} @var{@code{(signed)}a>>b}
+@item @code{rsh_signed} (0x0a): @var{a} @var{b} @result{} @code{(signed)}@var{a>>b}
 Pop two integers from the stack; let @var{a} be the next-to-top value,
 and @var{b} be the top value.  Shift @var{a} right by @var{b} bits,
 inserting copies of the top bit at the high end, and push the result.
@@ -397,7 +397,7 @@ Thus, an offset of zero denotes the beginning of the expression.
 
 The @var{offset} is stored as a sixteen-bit unsigned value, stored
 immediately following the @code{if_goto} bytecode.  It is always stored
-most signficant byte first, regardless of the target's normal
+most significant byte first, regardless of the target's normal
 endianness.  The offset is not guaranteed to fall at any particular
 alignment within the bytecode stream; thus, on machines where fetching a
 16-bit on an unaligned address raises an exception, you should fetch the
@@ -431,7 +431,7 @@ registers are numbered following GDB's conventions.
 
 The register number @var{n} is encoded as a 16-bit unsigned integer
 immediately following the @code{reg} bytecode.  It is always stored most
-signficant byte first, regardless of the target's normal endianness.
+significant byte first, regardless of the target's normal endianness.
 The register number is not guaranteed to fall at any particular
 alignment within the bytecode stream; thus, on machines where fetching a
 16-bit on an unaligned address raises an exception, you should fetch the
@@ -835,5 +835,3 @@ opcode 0x30 reserved, to remain compatible with the customer who added
 it.
 
 @end table
-
-@bye

@@ -21,7 +21,7 @@
 /* This file is derived from p-typeprint.c */
 
 #include "defs.h"
-#include "obstack.h"
+#include "gdb_obstack.h"
 #include "bfd.h"		/* Binary File Description */
 #include "symtab.h"
 #include "gdbtypes.h"
@@ -50,7 +50,7 @@ void
 pascal_print_type (struct type *type, char *varstring, struct ui_file *stream,
 		   int show, int level)
 {
-  register enum type_code code;
+  enum type_code code;
   int demangled_args;
 
   code = TYPE_CODE (type);
@@ -139,8 +139,8 @@ void
 pascal_type_print_method_args (char *physname, char *methodname,
 			       struct ui_file *stream)
 {
-  int is_constructor = STREQN (physname, "__ct__", 6);
-  int is_destructor = STREQN (physname, "__dt__", 6);
+  int is_constructor = DEPRECATED_STREQN (physname, "__ct__", 6);
+  int is_destructor = DEPRECATED_STREQN (physname, "__dt__", 6);
 
   if (is_constructor || is_destructor)
     {
@@ -440,9 +440,9 @@ void
 pascal_type_print_base (struct type *type, struct ui_file *stream, int show,
 			int level)
 {
-  register int i;
-  register int len;
-  register int lastval;
+  int i;
+  int len;
+  int lastval;
   enum
     {
       s_none, s_public, s_private, s_protected
@@ -460,8 +460,8 @@ pascal_type_print_base (struct type *type, struct ui_file *stream, int show,
   /* void pointer */
   if ((TYPE_CODE (type) == TYPE_CODE_PTR) && (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_VOID))
     {
-      fprintf_filtered (stream,
-			TYPE_NAME (type) ? TYPE_NAME (type) : "pointer");
+      fputs_filtered (TYPE_NAME (type) ? TYPE_NAME (type) : "pointer",
+		      stream);
       return;
     }
   /* When SHOW is zero or less, and there is a valid type name, then always
@@ -559,7 +559,7 @@ pascal_type_print_base (struct type *type, struct ui_file *stream, int show,
 	    {
 	      QUIT;
 	      /* Don't print out virtual function table.  */
-	      if (STREQN (TYPE_FIELD_NAME (type, i), "_vptr", 5)
+	      if (DEPRECATED_STREQN (TYPE_FIELD_NAME (type, i), "_vptr", 5)
 		  && is_cplus_marker ((TYPE_FIELD_NAME (type, i))[5]))
 		continue;
 
@@ -637,8 +637,8 @@ pascal_type_print_base (struct type *type, struct ui_file *stream, int show,
 		{
 		  char *physname = TYPE_FN_FIELD_PHYSNAME (f, j);
 
-		  int is_constructor = STREQN (physname, "__ct__", 6);
-		  int is_destructor = STREQN (physname, "__dt__", 6);
+		  int is_constructor = DEPRECATED_STREQN (physname, "__ct__", 6);
+		  int is_destructor = DEPRECATED_STREQN (physname, "__dt__", 6);
 
 		  QUIT;
 		  if (TYPE_FN_FIELD_PROTECTED (f, j))
@@ -786,6 +786,14 @@ pascal_type_print_base (struct type *type, struct ui_file *stream, int show,
       fputs_filtered ("set of ", stream);
       pascal_print_type (TYPE_INDEX_TYPE (type), "", stream,
 			 show - 1, level);
+      break;
+
+    case TYPE_CODE_BITSTRING:
+      fputs_filtered ("BitString", stream);
+      break;
+
+    case TYPE_CODE_STRING:
+      fputs_filtered ("String", stream);
       break;
 
     default:

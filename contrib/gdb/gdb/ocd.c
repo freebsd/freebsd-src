@@ -1,7 +1,7 @@
 /* Target communications support for Macraigor Systems' On-Chip Debugging
 
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002 Free Software
-   Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004 Free
+   Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -42,17 +42,9 @@
 
 static int ocd_read_bytes (CORE_ADDR memaddr, char *myaddr, int len);
 
-static int ocd_start_remote (PTR dummy);
+static int ocd_start_remote (void *dummy);
 
 static int readchar (int timeout);
-
-static void reset_packet (void);
-
-static void output_packet (void);
-
-static int get_quoted_char (int timeout);
-
-static void put_quoted_char (int c);
 
 static void ocd_interrupt (int signo);
 
@@ -69,17 +61,6 @@ static unsigned char *ocd_get_packet (int cmd, int *pktlen, int timeout);
 static struct target_ops *current_ops = NULL;
 
 static int last_run_status;
-
-/* This was 5 seconds, which is a long time to sit and wait.
-   Unless this is going though some terminal server or multiplexer or
-   other form of hairy serial connection, I would think 2 seconds would
-   be plenty.  */
-
-#if 0
-/* FIXME: Change to allow option to set timeout value on a per target
-   basis. */
-static int remote_timeout = 2;
-#endif
 
 /* Descriptor for I/O to remote machine.  Initialize it to NULL so that
    ocd_open knows that we don't have a file open when the program
@@ -146,7 +127,7 @@ ocd_error (char *s, int error_code)
       s = buf;
     }
 
-  error (s);
+  error ("%s", s);
 }
 
 /*  Return nonzero if the thread TH is still alive on the remote system.  */
@@ -159,7 +140,6 @@ ocd_thread_alive (ptid_t th)
 
 /* Clean up connection to a remote debugger.  */
 
-/* ARGSUSED */
 void
 ocd_close (int quitting)
 {
@@ -171,7 +151,7 @@ ocd_close (int quitting)
 /* Stub for catch_errors.  */
 
 static int
-ocd_start_remote (PTR dummy)
+ocd_start_remote (void *dummy)
 {
   unsigned char buf[10], *p;
   int pktlen;
@@ -211,19 +191,11 @@ ocd_start_remote (PTR dummy)
   printf_unfiltered ("[Wiggler version %x.%x, capability 0x%x]\n",
 		     p[0], p[1], (p[2] << 16) | p[3]);
 
-#if 0
-  /* Reset the target */
-
-  ocd_do_command (OCD_RESET_RUN, &status, &pktlen);
-/*  ocd_do_command (OCD_RESET, &status, &pktlen); */
-#endif
-
   /* If processor is still running, stop it.  */
 
   if (!(status & OCD_FLAG_BDM))
     ocd_stop ();
 
-#if 1
   /* When using a target box, we want to asynchronously return status when
      target stops.  The OCD_SET_CTL_FLAGS command is ignored by Wigglers.dll
      when using a parallel Wiggler */
@@ -242,7 +214,6 @@ ocd_start_remote (PTR dummy)
 
   if (error_code != 0)
     ocd_error ("OCD_SET_CTL_FLAGS:", error_code);
-#endif
 
   immediate_quit--;
 
@@ -254,9 +225,7 @@ ocd_start_remote (PTR dummy)
   flush_cached_frames ();
   registers_changed ();
   stop_pc = read_pc ();
-  set_current_frame (create_new_frame (read_fp (), stop_pc));
-  select_frame (get_current_frame (), 0);
-  print_stack_frame (selected_frame, -1, 1);
+  print_stack_frame (get_selected_frame (), -1, 1);
 
   buf[0] = OCD_LOG_FILE;
   buf[1] = 3;			/* close existing WIGGLERS.LOG */
@@ -739,7 +708,6 @@ ocd_read_bytes (CORE_ADDR memaddr, char *myaddr, int len)
    nonzero.  Returns length of data written or read; 0 for error.  TARGET
    is ignored.  */
 
-/* ARGSUSED */
 int
 ocd_xfer_memory (CORE_ADDR memaddr, char *myaddr, int len, int should_write,
 		 struct mem_attrib *attrib, struct target_ops *target)
@@ -784,112 +752,6 @@ readchar (int timeout)
     }
 }
 
-#if 0
-/* Read a character from the data stream, dequoting as necessary.  SYN is
-   treated special.  Any SYNs appearing in the data stream are returned as the
-   distinct value RAW_SYN (which has a value > 8 bits and therefore cannot be
-   mistaken for real data).  */
-
-static int
-get_quoted_char (int timeout)
-{
-  int ch;
-
-  ch = readchar (timeout);
-
-  switch (ch)
-    {
-    case SERIAL_TIMEOUT:
-      error ("Timeout in mid-packet, aborting");
-    case SYN:
-      return RAW_SYN;
-    case DLE:
-      ch = readchar (timeout);
-      if (ch == SYN)
-	return RAW_SYN;
-      return ch & ~0100;
-    default:
-      return ch;
-    }
-}
-
-static unsigned char pkt[256 * 2 + 10], *pktp;	/* Worst case */
-
-static void
-reset_packet (void)
-{
-  pktp = pkt;
-}
-
-static void
-output_packet (void)
-{
-  if (serial_write (ocd_desc, pkt, pktp - pkt))
-    perror_with_name ("output_packet: write failed");
-
-  reset_packet ();
-}
-
-/* Output a quoted character.  SYNs and DLEs are quoted.  Everything else goes
-   through untouched.  */
-
-static void
-put_quoted_char (int c)
-{
-  switch (c)
-    {
-    case SYN:
-    case DLE:
-      *pktp++ = DLE;
-      c |= 0100;
-    }
-
-  *pktp++ = c;
-}
-
-/* Send a packet to the OCD device.  The packet framed by a SYN character,
-   a byte count and a checksum.  The byte count only counts the number of
-   bytes between the count and the checksum.  A count of zero actually
-   means 256.  Any SYNs within the packet (including the checksum and
-   count) must be quoted.  The quote character must be quoted as well.
-   Quoting is done by replacing the character with the two-character sequence
-   DLE, {char} | 0100.  Note that the quoting mechanism has no effect on the
-   byte count. */
-
-static void
-stu_put_packet (unsigned char *buf, int len)
-{
-  unsigned char checksum;
-  unsigned char c;
-
-  if (len == 0 || len > 256)
-    internal_error (__FILE__, __LINE__, "failed internal consistency check");			/* Can't represent 0 length packet */
-
-  reset_packet ();
-
-  checksum = 0;
-
-  put_quoted_char (RAW_SYN);
-
-  c = len;
-
-  do
-    {
-      checksum += c;
-
-      put_quoted_char (c);
-
-      c = *buf++;
-    }
-  while (len-- > 0);
-
-  put_quoted_char (-checksum & 0xff);
-
-  output_packet ();
-}
-
-#else
-
 /* Send a packet to the OCD device.  The packet framed by a SYN character,
    a byte count and a checksum.  The byte count only counts the number of
    bytes between the count and the checksum.  A count of zero actually
@@ -925,71 +787,6 @@ ocd_put_packet (unsigned char *buf, int len)
   if (serial_write (ocd_desc, packet, packet_ptr - packet))
     perror_with_name ("output_packet: write failed");
 }
-#endif
-
-#if 0
-/* Get a packet from the OCD device.  Timeout is only enforced for the
-   first byte of the packet.  Subsequent bytes are expected to arrive in
-   time <= remote_timeout.  Returns a pointer to a static buffer containing
-   the payload of the packet.  *LENP contains the length of the packet.
- */
-
-static unsigned char *
-stu_get_packet (unsigned char cmd, int *lenp, int timeout)
-{
-  int ch;
-  int len;
-  static unsigned char buf[256 + 10], *p;
-  unsigned char checksum;
-
-find_packet:
-
-  ch = get_quoted_char (timeout);
-
-  if (ch < 0)
-    error ("get_packet (readchar): %d", ch);
-
-  if (ch != RAW_SYN)
-    goto find_packet;
-
-found_syn:			/* Found the start of a packet */
-
-  p = buf;
-  checksum = 0;
-
-  len = get_quoted_char (remote_timeout);
-
-  if (len == RAW_SYN)
-    goto found_syn;
-
-  checksum += len;
-
-  if (len == 0)
-    len = 256;
-
-  len++;			/* Include checksum */
-
-  while (len-- > 0)
-    {
-      ch = get_quoted_char (remote_timeout);
-      if (ch == RAW_SYN)
-	goto found_syn;
-
-      *p++ = ch;
-      checksum += ch;
-    }
-
-  if (checksum != 0)
-    goto find_packet;
-
-  if (cmd != buf[0])
-    error ("Response phase error.  Got 0x%x, expected 0x%x", buf[0], cmd);
-
-  *lenp = p - buf - 1;
-  return buf;
-}
-
-#else
 
 /* Get a packet from the OCD device.  Timeout is only enforced for the
    first byte of the packet.  Subsequent bytes are expected to arrive in
@@ -1139,7 +936,6 @@ ocd_get_packet (int cmd, int *lenp, int timeout)
   *lenp = packet_ptr - packet - 1;	/* Subtract checksum byte */
   return packet;
 }
-#endif
 
 /* Execute a simple (one-byte) command.  Returns a pointer to the data
    following the error code.  */
@@ -1248,9 +1044,6 @@ ocd_load (char *args, int from_tty)
    not yet supported fully */
 
 #define BDM_BREAKPOINT {0x0,0x0,0x0,0x0}	/* For ppc 8xx */
-#if 0
-#define BDM_BREAKPOINT {0x4a,0xfa}	/* BGND insn used for CPU32 */
-#endif
 
 /* BDM (at least on CPU32) uses a different breakpoint */
 
@@ -1353,20 +1146,9 @@ bdm_update_flash_command (char *args, int from_tty)
 
 /*  discard_cleanups (old_chain); */
 }
-
-static void
-bdm_read_register_command (char *args, int from_tty)
-{
-  /* XXX repeat should go on to the next register */
-
-  if (!ocd_desc)
-    error ("Not connected to OCD device.");
-
-  if (!args)
-    error ("Must specify BDM register number.");
-
-}
 
+extern initialize_file_ftype _initialize_remote_ocd; /* -Wmissing-prototypes */
+
 void
 _initialize_remote_ocd (void)
 {
@@ -1384,5 +1166,4 @@ _initialize_remote_ocd (void)
   add_cmd ("reset", class_obscure, bdm_reset_command, "", &ocd_cmd_list);
   add_cmd ("restart", class_obscure, bdm_restart_command, "", &ocd_cmd_list);
   add_cmd ("update-flash", class_obscure, bdm_update_flash_command, "", &ocd_cmd_list);
-  /*  add_cmd ("read-register", class_obscure, bdm_read_register_command, "", &ocd_cmd_list); */
 }

@@ -88,6 +88,29 @@ breakup_args (char *scratch, char **argv)
 
 }
 
+/* When executing a command under the given shell, return non-zero
+   if the '!' character should be escaped when embedded in a quoted
+   command-line argument.  */
+
+static int
+escape_bang_in_quoted_argument (const char *shell_file)
+{
+  const int shell_file_len = strlen (shell_file);
+  
+  /* Bang should be escaped only in C Shells.  For now, simply check
+     that the shell name ends with 'csh', which covers at least csh
+     and tcsh.  This should be good enough for now.  */
+
+  if (shell_file_len < 3)
+    return 0;
+
+  if (shell_file[shell_file_len - 3] == 'c'
+      && shell_file[shell_file_len - 2] == 's'
+      && shell_file[shell_file_len - 1] == 'h')
+    return 1;
+
+  return 0;
+}
 
 /* Start an inferior Unix child process and sets inferior_ptid to its pid.
    EXEC_FILE is the file to run.
@@ -171,6 +194,7 @@ fork_inferior (char *exec_file_arg, char *allargs, char **env,
 
       char *p;
       int need_to_quote;
+      const int escape_bang = escape_bang_in_quoted_argument (shell_file);
 
       strcat (shell_command, "exec ");
 
@@ -215,7 +239,7 @@ fork_inferior (char *exec_file_arg, char *allargs, char **env,
 	    {
 	      if (*p == '\'')
 		strcat (shell_command, "'\\''");
-	      else if (*p == '!')
+	      else if (*p == '!' && escape_bang)
 		strcat (shell_command, "\\!");
 	      else
 		strncat (shell_command, p, 1);
@@ -379,131 +403,6 @@ fork_inferior (char *exec_file_arg, char *allargs, char **env,
 #endif
 }
 
-/* An inferior Unix process CHILD_PID has been created by a call to
-   fork() (or variants like vfork).  It is presently stopped, and waiting
-   to be resumed.  clone_and_follow_inferior will fork the debugger,
-   and that clone will "follow" (attach to) CHILD_PID.  The original copy
-   of the debugger will not touch CHILD_PID again.
-
-   Also, the original debugger will set FOLLOWED_CHILD FALSE, while the
-   clone will set it TRUE.
- */
-void
-clone_and_follow_inferior (int child_pid, int *followed_child)
-{
-  int debugger_pid;
-  int status;
-  char pid_spelling[100];	/* Arbitrary but sufficient length. */
-
-  /* This semaphore is used to coordinate the two debuggers' handoff
-     of CHILD_PID.  The original debugger will detach from CHILD_PID,
-     and then the clone debugger will attach to it.  (It must be done
-     this way because on some targets, only one process at a time can
-     trace another.  Thus, the original debugger must relinquish its
-     tracing rights before the clone can pick them up.)
-   */
-#define SEM_TALK (1)
-#define SEM_LISTEN (0)
-  int handoff_semaphore[2];	/* Original "talks" to [1], clone "listens" to [0] */
-  int talk_value = 99;
-  int listen_value;
-
-  /* Set debug_fork then attach to the child while it sleeps, to debug. */
-  static int debug_fork = 0;
-
-  /* It is generally good practice to flush any possible pending stdio
-     output prior to doing a fork, to avoid the possibility of both the
-     parent and child flushing the same data after the fork. */
-
-  gdb_flush (gdb_stdout);
-  gdb_flush (gdb_stderr);
-
-  /* Open the semaphore pipes.
-   */
-  status = pipe (handoff_semaphore);
-  if (status < 0)
-    error ("error getting pipe for handoff semaphore");
-
-  /* Clone the debugger.  Note that the apparent call to vfork()
-     below *might* actually be a call to fork() due to the fact that
-     autoconf will ``#define vfork fork'' on certain platforms.  */
-  if (debug_fork)
-    debugger_pid = fork ();
-  else
-    debugger_pid = vfork ();
-
-  if (debugger_pid < 0)
-    perror_with_name ("fork");
-
-  /* Are we the original debugger?  If so, we must relinquish all claims
-     to CHILD_PID. */
-  if (debugger_pid != 0)
-    {
-      char signal_spelling[100];	/* Arbitrary but sufficient length */
-
-      /* Detach from CHILD_PID.  Deliver a "stop" signal when we do, though,
-         so that it remains stopped until the clone debugger can attach
-         to it.
-       */
-      detach_breakpoints (child_pid);
-
-      sprintf (signal_spelling, "%d", target_signal_to_host (TARGET_SIGNAL_STOP));
-      target_require_detach (child_pid, signal_spelling, 1);
-
-      /* Notify the clone debugger that it should attach to CHILD_PID. */
-      write (handoff_semaphore[SEM_TALK], &talk_value, sizeof (talk_value));
-
-      *followed_child = 0;
-    }
-
-  /* We're the child. */
-  else
-    {
-      if (debug_fork)
-	sleep (debug_fork);
-
-      /* The child (i.e., the cloned debugger) must now attach to
-         CHILD_PID.  inferior_ptid is presently set to the parent process
-         of the fork, while CHILD_PID should be the child process of the
-         fork.
-
-         Wait until the original debugger relinquishes control of CHILD_PID,
-         though.
-       */
-      read (handoff_semaphore[SEM_LISTEN], &listen_value, sizeof (listen_value));
-
-      /* Note that we DON'T want to actually detach from inferior_ptid,
-         because that would allow it to run free.  The original
-         debugger wants to retain control of the process.  So, we
-         just reset inferior_ptid to CHILD_PID, and then ensure that all
-         breakpoints are really set in CHILD_PID.
-       */
-      target_mourn_inferior ();
-
-      /* Ask the tty subsystem to switch to the one we specified earlier
-         (or to share the current terminal, if none was specified).  */
-
-      new_tty ();
-
-      dont_repeat ();
-      sprintf (pid_spelling, "%d", child_pid);
-      target_require_attach (pid_spelling, 1);
-
-      /* Perform any necessary cleanup, after attachment.  (This form
-         of attaching can behave differently on some targets than the
-         standard method, where a process formerly not under debugger
-         control was suddenly attached to..)
-       */
-      target_post_follow_inferior_by_clone ();
-
-      *followed_child = 1;
-    }
-
-  /* Discard the handoff sempahore. */
-  (void) close (handoff_semaphore[SEM_LISTEN]);
-  (void) close (handoff_semaphore[SEM_TALK]);
-}
-
 /* Accept NTRAPS traps from the inferior.  */
 
 void
@@ -529,12 +428,10 @@ startup_inferior (int ntraps)
   inferior_ignoring_leading_exec_events =
     target_reported_exec_events_per_exec_call () - 1;
 
-#ifdef STARTUP_INFERIOR
-  STARTUP_INFERIOR (pending_execs);
-#else
   while (1)
     {
-      stop_soon_quietly = 1;	/* Make wait_for_inferior be quiet */
+      /* Make wait_for_inferior be quiet */
+      stop_soon = STOP_QUIETLY;
       wait_for_inferior ();
       if (stop_signal != TARGET_SIGNAL_TRAP)
 	{
@@ -568,6 +465,5 @@ startup_inferior (int ntraps)
 	  resume (0, TARGET_SIGNAL_0);	/* Just make it go on */
 	}
     }
-#endif /* STARTUP_INFERIOR */
-  stop_soon_quietly = 0;
+  stop_soon = NO_STOP_QUIETLY;
 }

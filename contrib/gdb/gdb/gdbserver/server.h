@@ -1,5 +1,5 @@
 /* Common definitions for remote server for GDB.
-   Copyright 1993, 1995, 1997, 1998, 1999, 2000, 2002
+   Copyright 1993, 1995, 1997, 1998, 1999, 2000, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -23,48 +23,106 @@
 #define SERVER_H
 
 #include "config.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <setjmp.h>
 
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 
-/* FIXME:  Both of these should be autoconf'd for.  */
-#define NORETURN
+#ifdef NEED_DECLARATION_STRERROR
+#ifndef strerror
+extern char *strerror (int);	/* X3.159-1989  4.11.6.2 */
+#endif
+#endif
+
+#ifndef ATTR_NORETURN
+#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7))
+#define ATTR_NORETURN __attribute__ ((noreturn))
+#else
+#define ATTR_NORETURN           /* nothing */
+#endif
+#endif
+
+#ifndef ATTR_FORMAT
+#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 4))
+#define ATTR_FORMAT(type, x, y) __attribute__ ((format(type, x, y)))
+#else
+#define ATTR_FORMAT(type, x, y) /* nothing */
+#endif
+#endif
+
+/* FIXME: This should probably be autoconf'd for.  It's an integer type at
+   least the size of a (void *).  */
 typedef long long CORE_ADDR;
+
+/* Generic information for tracking a list of ``inferiors'' - threads,
+   processes, etc.  */
+struct inferior_list
+{
+  struct inferior_list_entry *head;
+  struct inferior_list_entry *tail;
+};
+struct inferior_list_entry
+{
+  int id;
+  struct inferior_list_entry *next;
+};
+
+/* Opaque type for user-visible threads.  */
+struct thread_info;
 
 #include "regcache.h"
 #include "gdb/signals.h"
 
-#include <setjmp.h>
+#include "target.h"
+#include "mem-break.h"
 
 /* Target-specific functions */
 
-int create_inferior (char *program, char **allargs);
-void kill_inferior (void);
-void fetch_inferior_registers (int regno);
-void store_inferior_registers (int regno);
-int mythread_alive (int pid);
-void myresume (int step, int signo);
-unsigned char mywait (char *status);
-void read_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len);
-int write_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len);
-int create_inferior ();
 void initialize_low ();
 
-/* Target-specific variables */
+/* From inferiors.c.  */
 
-extern char *registers;
+extern struct inferior_list all_threads;
+void add_inferior_to_list (struct inferior_list *list,
+			   struct inferior_list_entry *new_inferior);
+void for_each_inferior (struct inferior_list *list,
+			void (*action) (struct inferior_list_entry *));
+extern struct thread_info *current_inferior;
+void remove_inferior (struct inferior_list *list,
+		      struct inferior_list_entry *entry);
+void remove_thread (struct thread_info *thread);
+void add_thread (int thread_id, void *target_data);
+void clear_inferiors (void);
+struct inferior_list_entry *find_inferior
+     (struct inferior_list *,
+      int (*func) (struct inferior_list_entry *,
+		   void *),
+      void *arg);
+struct inferior_list_entry *find_inferior_id (struct inferior_list *list,
+					      int id);
+void *inferior_target_data (struct thread_info *);
+void set_inferior_target_data (struct thread_info *, void *);
+void *inferior_regcache_data (struct thread_info *);
+void set_inferior_regcache_data (struct thread_info *, void *);
+void change_inferior_id (struct inferior_list *list,
+			 int new_id);
 
 /* Public variables in server.c */
 
 extern int cont_thread;
 extern int general_thread;
+extern int step_thread;
 extern int thread_from_wait;
 extern int old_thread_from_wait;
+extern int server_waiting;
 
 extern jmp_buf toplevel;
-extern int inferior_pid;
 
 /* Functions from remote-utils.c */
 
@@ -76,14 +134,23 @@ void write_ok (char *buf);
 void write_enn (char *buf);
 void enable_async_io (void);
 void disable_async_io (void);
+void unblock_async_io (void);
+void block_async_io (void);
 void convert_ascii_to_int (char *from, char *to, int n);
 void convert_int_to_ascii (char *from, char *to, int n);
+void new_thread_notify (int id);
+void dead_thread_notify (int id);
 void prepare_resume_reply (char *buf, char status, unsigned char sig);
 
 void decode_m_packet (char *from, CORE_ADDR * mem_addr_ptr,
 		      unsigned int *len_ptr);
 void decode_M_packet (char *from, CORE_ADDR * mem_addr_ptr,
 		      unsigned int *len_ptr, char *to);
+
+int unhexify (char *bin, const char *hex, int count);
+int hexify (char *hex, const char *bin, int count);
+
+int look_up_one_symbol (const char *name, CORE_ADDR *addrp);
 
 /* Functions from ``signals.c''.  */
 enum target_signal target_signal_from_host (int hostsig);
@@ -93,11 +160,13 @@ int target_signal_to_host (enum target_signal oursig);
 /* Functions from utils.c */
 
 void perror_with_name (char *string);
-void error (const char *string,...);
-void fatal (const char *string,...);
+void error (const char *string,...) ATTR_NORETURN;
+void fatal (const char *string,...) ATTR_NORETURN;
 void warning (const char *string,...);
 
+/* Functions from the register cache definition.  */
 
+void init_registers (void);
 
 /* Maximum number of bytes to read/write at once.  The value here
    is chosen to fill up a packet (the headers account for the 32).  */

@@ -1,5 +1,6 @@
 /* Native-dependent definitions for FreeBSD/i386.
-   Copyright 1986, 1987, 1989, 1992, 1994, 1996, 1997, 2000, 2001
+
+   Copyright 1986, 1987, 1989, 1992, 1994, 1996, 1997, 2000, 2001, 2004
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -60,6 +61,9 @@ extern unsigned long i386bsd_dr_get_status (void);
 /* Override child_resume in `infptrace.c' to work around a kernel bug.  */
 #define CHILD_RESUME
 
+/* Override child_pid_to_exec_file in 'inftarg.c'.  */
+#define CHILD_PID_TO_EXEC_FILE
+
 /* We can attach and detach.  */
 #define ATTACH_DETACH
 
@@ -84,20 +88,10 @@ extern CORE_ADDR register_u_addr (CORE_ADDR blockend, int regno);
 
 /* Shared library support.  */
 
-/* The FreeBSD <link.h> uses the same condition to distinguish ELF
-   from a.out.  ELF implies SVR4 shared libraries.  */
-#if (defined (FREEBSD_ELF) || defined (__ELF__)) && !defined (FREEBSD_AOUT)
-#define SVR4_SHARED_LIBS
-#endif
+#include "solib.h"
 
-#include "solib.h"		/* Support for shared libraries. */
-#ifdef SVR4_SHARED_LIBS
-#include "elf/common.h"		/* Additional ELF shared library info. */
-#endif
-
-#ifndef SVR4_SHARED_LIBS
-
-/* Make structure definitions match up with those expected in `solib.c'.  */
+/* Make structure definitions match up with those expected in
+   `solib-sunos.c'.  */
 
 #define link_object	sod
 #define lo_name		sod_name
@@ -151,6 +145,4 @@ extern CORE_ADDR register_u_addr (CORE_ADDR blockend, int regno);
 #define ld_un		d_un
 #define ld_2		d_sdt
 
-#endif /* !SVR4_SHARED_LIBS */
-
-#endif /* NM_FBSD_H */
+#endif /* nm-fbsd.h */

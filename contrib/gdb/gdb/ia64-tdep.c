@@ -1,6 +1,7 @@
 /* Target-dependent code for the IA-64 for GDB, the GNU debugger.
 
-   Copyright 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,17 +22,28 @@
 
 #include "defs.h"
 #include "inferior.h"
-#include "symfile.h"		/* for entry_point_address */
 #include "gdbcore.h"
 #include "arch-utils.h"
 #include "floatformat.h"
 #include "regcache.h"
+#include "reggroups.h"
+#include "frame.h"
+#include "frame-base.h"
+#include "frame-unwind.h"
 #include "doublest.h"
 #include "value.h"
-
+#include "gdb_assert.h"
 #include "objfiles.h"
 #include "elf/common.h"		/* for DT_PLTGOT value */
 #include "elf-bfd.h"
+#include "elf.h"                /* for PT_IA64_UNWIND value */
+#include "dis-asm.h"
+#include "ia64-tdep.h"
+
+#ifdef HAVE_LIBUNWIND_IA64_H
+#include "libunwind-frame.h"
+#include "libunwind-ia64.h"
+#endif
 
 /* Hook for determining the global pointer when calling functions in
    the inferior under AIX.  The initialization code in ia64-aix-nat.c
@@ -79,45 +91,29 @@ typedef enum instruction_type
 
 #define BUNDLE_LEN 16
 
-/* FIXME: These extern declarations should go in ia64-tdep.h.  */
-extern CORE_ADDR ia64_linux_sigcontext_register_address (CORE_ADDR, int);
-extern CORE_ADDR ia64_aix_sigcontext_register_address (CORE_ADDR, int);
-
 static gdbarch_init_ftype ia64_gdbarch_init;
 
 static gdbarch_register_name_ftype ia64_register_name;
-static gdbarch_register_raw_size_ftype ia64_register_raw_size;
-static gdbarch_register_virtual_size_ftype ia64_register_virtual_size;
-static gdbarch_register_virtual_type_ftype ia64_register_virtual_type;
-static gdbarch_register_byte_ftype ia64_register_byte;
+static gdbarch_register_type_ftype ia64_register_type;
 static gdbarch_breakpoint_from_pc_ftype ia64_breakpoint_from_pc;
-static gdbarch_frame_chain_ftype ia64_frame_chain;
-static gdbarch_frame_saved_pc_ftype ia64_frame_saved_pc;
 static gdbarch_skip_prologue_ftype ia64_skip_prologue;
-static gdbarch_frame_init_saved_regs_ftype ia64_frame_init_saved_regs;
-static gdbarch_get_saved_register_ftype ia64_get_saved_register;
 static gdbarch_extract_return_value_ftype ia64_extract_return_value;
-static gdbarch_extract_struct_value_address_ftype ia64_extract_struct_value_address;
 static gdbarch_use_struct_convention_ftype ia64_use_struct_convention;
-static gdbarch_frameless_function_invocation_ftype ia64_frameless_function_invocation;
-static gdbarch_init_extra_frame_info_ftype ia64_init_extra_frame_info;
-static gdbarch_store_return_value_ftype ia64_store_return_value;
-static gdbarch_store_struct_return_ftype ia64_store_struct_return;
-static gdbarch_push_arguments_ftype ia64_push_arguments;
-static gdbarch_push_return_address_ftype ia64_push_return_address;
-static gdbarch_pop_frame_ftype ia64_pop_frame;
-static gdbarch_saved_pc_after_call_ftype ia64_saved_pc_after_call;
-static void ia64_pop_frame_regular (struct frame_info *frame);
 static struct type *is_float_or_hfa_type (struct type *t);
 
-static int ia64_num_regs = 590;
+static struct type *builtin_type_ia64_ext;
 
-static int pc_regnum = IA64_IP_REGNUM;
+#define NUM_IA64_RAW_REGS 462
+
 static int sp_regnum = IA64_GR12_REGNUM;
 static int fp_regnum = IA64_VFP_REGNUM;
 static int lr_regnum = IA64_VRAP_REGNUM;
 
-static LONGEST ia64_call_dummy_words[] = {0};
+/* NOTE: we treat the register stack registers r32-r127 as pseudo-registers because
+   they may not be accessible via the ptrace register get/set interfaces.  */
+enum pseudo_regs { FIRST_PSEUDO_REGNUM = NUM_IA64_RAW_REGS, VBOF_REGNUM = IA64_NAT127_REGNUM + 1, V32_REGNUM, 
+		   V127_REGNUM = V32_REGNUM + 95, 
+		   VP0_REGNUM, VP16_REGNUM = VP0_REGNUM + 16, VP63_REGNUM = VP0_REGNUM + 63, LAST_PSEUDO_REGNUM };
 
 /* Array of register names; There should be ia64_num_regs strings in
    the initializer.  */
@@ -127,18 +123,18 @@ static char *ia64_register_names[] =
   "r8",   "r9",   "r10",  "r11",  "r12",  "r13",  "r14",  "r15",
   "r16",  "r17",  "r18",  "r19",  "r20",  "r21",  "r22",  "r23",
   "r24",  "r25",  "r26",  "r27",  "r28",  "r29",  "r30",  "r31",
-  "r32",  "r33",  "r34",  "r35",  "r36",  "r37",  "r38",  "r39",
-  "r40",  "r41",  "r42",  "r43",  "r44",  "r45",  "r46",  "r47",
-  "r48",  "r49",  "r50",  "r51",  "r52",  "r53",  "r54",  "r55",
-  "r56",  "r57",  "r58",  "r59",  "r60",  "r61",  "r62",  "r63",
-  "r64",  "r65",  "r66",  "r67",  "r68",  "r69",  "r70",  "r71",
-  "r72",  "r73",  "r74",  "r75",  "r76",  "r77",  "r78",  "r79",
-  "r80",  "r81",  "r82",  "r83",  "r84",  "r85",  "r86",  "r87",
-  "r88",  "r89",  "r90",  "r91",  "r92",  "r93",  "r94",  "r95",
-  "r96",  "r97",  "r98",  "r99",  "r100", "r101", "r102", "r103",
-  "r104", "r105", "r106", "r107", "r108", "r109", "r110", "r111",
-  "r112", "r113", "r114", "r115", "r116", "r117", "r118", "r119",
-  "r120", "r121", "r122", "r123", "r124", "r125", "r126", "r127",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
 
   "f0",   "f1",   "f2",   "f3",   "f4",   "f5",   "f6",   "f7",
   "f8",   "f9",   "f10",  "f11",  "f12",  "f13",  "f14",  "f15",
@@ -157,14 +153,14 @@ static char *ia64_register_names[] =
   "f112", "f113", "f114", "f115", "f116", "f117", "f118", "f119",
   "f120", "f121", "f122", "f123", "f124", "f125", "f126", "f127",
 
-  "p0",   "p1",   "p2",   "p3",   "p4",   "p5",   "p6",   "p7",
-  "p8",   "p9",   "p10",  "p11",  "p12",  "p13",  "p14",  "p15",
-  "p16",  "p17",  "p18",  "p19",  "p20",  "p21",  "p22",  "p23",
-  "p24",  "p25",  "p26",  "p27",  "p28",  "p29",  "p30",  "p31",
-  "p32",  "p33",  "p34",  "p35",  "p36",  "p37",  "p38",  "p39",
-  "p40",  "p41",  "p42",  "p43",  "p44",  "p45",  "p46",  "p47",
-  "p48",  "p49",  "p50",  "p51",  "p52",  "p53",  "p54",  "p55",
-  "p56",  "p57",  "p58",  "p59",  "p60",  "p61",  "p62",  "p63",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
+  "",     "",     "",     "",     "",     "",     "",     "",
 
   "b0",   "b1",   "b2",   "b3",   "b4",   "b5",   "b6",   "b7",
 
@@ -205,32 +201,63 @@ static char *ia64_register_names[] =
   "nat104","nat105","nat106","nat107","nat108","nat109","nat110","nat111",
   "nat112","nat113","nat114","nat115","nat116","nat117","nat118","nat119",
   "nat120","nat121","nat122","nat123","nat124","nat125","nat126","nat127",
+
+  "bof",
+  
+  "r32",  "r33",  "r34",  "r35",  "r36",  "r37",  "r38",  "r39",   
+  "r40",  "r41",  "r42",  "r43",  "r44",  "r45",  "r46",  "r47",
+  "r48",  "r49",  "r50",  "r51",  "r52",  "r53",  "r54",  "r55",
+  "r56",  "r57",  "r58",  "r59",  "r60",  "r61",  "r62",  "r63",
+  "r64",  "r65",  "r66",  "r67",  "r68",  "r69",  "r70",  "r71",
+  "r72",  "r73",  "r74",  "r75",  "r76",  "r77",  "r78",  "r79",
+  "r80",  "r81",  "r82",  "r83",  "r84",  "r85",  "r86",  "r87",
+  "r88",  "r89",  "r90",  "r91",  "r92",  "r93",  "r94",  "r95",
+  "r96",  "r97",  "r98",  "r99",  "r100", "r101", "r102", "r103",
+  "r104", "r105", "r106", "r107", "r108", "r109", "r110", "r111",
+  "r112", "r113", "r114", "r115", "r116", "r117", "r118", "r119",
+  "r120", "r121", "r122", "r123", "r124", "r125", "r126", "r127",
+
+  "p0",   "p1",   "p2",   "p3",   "p4",   "p5",   "p6",   "p7",
+  "p8",   "p9",   "p10",  "p11",  "p12",  "p13",  "p14",  "p15",
+  "p16",  "p17",  "p18",  "p19",  "p20",  "p21",  "p22",  "p23",
+  "p24",  "p25",  "p26",  "p27",  "p28",  "p29",  "p30",  "p31",
+  "p32",  "p33",  "p34",  "p35",  "p36",  "p37",  "p38",  "p39",
+  "p40",  "p41",  "p42",  "p43",  "p44",  "p45",  "p46",  "p47",
+  "p48",  "p49",  "p50",  "p51",  "p52",  "p53",  "p54",  "p55",
+  "p56",  "p57",  "p58",  "p59",  "p60",  "p61",  "p62",  "p63",
 };
 
-struct frame_extra_info
-  {
-    CORE_ADDR bsp;	/* points at r32 for the current frame */
-    CORE_ADDR cfm;	/* cfm value for current frame */
-    int sof;		/* Size of frame  (decoded from cfm value) */
-    int	sol;		/* Size of locals (decoded from cfm value) */
-    CORE_ADDR after_prologue;
-			/* Address of first instruction after the last
-			   prologue instruction;  Note that there may
-			   be instructions from the function's body
-			   intermingled with the prologue. */
-    int mem_stack_frame_size;
-			/* Size of the memory stack frame (may be zero),
-			   or -1 if it has not been determined yet. */
-    int	fp_reg;		/* Register number (if any) used a frame pointer
+struct ia64_frame_cache
+{
+  CORE_ADDR base;       /* frame pointer base for frame */
+  CORE_ADDR pc;		/* function start pc for frame */
+  CORE_ADDR saved_sp;	/* stack pointer for frame */
+  CORE_ADDR bsp;	/* points at r32 for the current frame */
+  CORE_ADDR cfm;	/* cfm value for current frame */
+  CORE_ADDR prev_cfm;   /* cfm value for previous frame */
+  int   frameless;
+  int   sof;		/* Size of frame  (decoded from cfm value) */
+  int	sol;		/* Size of locals (decoded from cfm value) */
+  int	sor;		/* Number of rotating registers. (decoded from cfm value) */
+  CORE_ADDR after_prologue;
+  /* Address of first instruction after the last
+     prologue instruction;  Note that there may
+     be instructions from the function's body
+     intermingled with the prologue. */
+  int mem_stack_frame_size;
+  /* Size of the memory stack frame (may be zero),
+     or -1 if it has not been determined yet. */
+  int	fp_reg;		/* Register number (if any) used a frame pointer
 			   for this frame.  0 if no register is being used
 			   as the frame pointer. */
-  };
+  
+  /* Saved registers.  */
+  CORE_ADDR saved_regs[NUM_IA64_RAW_REGS];
+
+};
 
 struct gdbarch_tdep
   {
-    int os_ident;	/* From the ELF header, one of the ELFOSABI_
-                           constants: ELFOSABI_LINUX, ELFOSABI_AIX,
-			   etc. */
     CORE_ADDR (*sigcontext_register_address) (CORE_ADDR, int);
     			/* OS specific function which, given a frame address
 			   and register number, returns the offset to the
@@ -243,106 +270,64 @@ struct gdbarch_tdep
 #define FIND_GLOBAL_POINTER \
   (gdbarch_tdep (current_gdbarch)->find_global_pointer)
 
-static char *
+int
+ia64_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
+			  struct reggroup *group)
+{
+  int vector_p;
+  int float_p;
+  int raw_p;
+  if (group == all_reggroup)
+    return 1;
+  vector_p = TYPE_VECTOR (register_type (gdbarch, regnum));
+  float_p = TYPE_CODE (register_type (gdbarch, regnum)) == TYPE_CODE_FLT;
+  raw_p = regnum < NUM_IA64_RAW_REGS;
+  if (group == float_reggroup)
+    return float_p;
+  if (group == vector_reggroup)
+    return vector_p;
+  if (group == general_reggroup)
+    return (!vector_p && !float_p);
+  if (group == save_reggroup || group == restore_reggroup)
+    return raw_p; 
+  return 0;
+}
+
+static const char *
 ia64_register_name (int reg)
 {
   return ia64_register_names[reg];
 }
 
-int
-ia64_register_raw_size (int reg)
+struct type *
+ia64_register_type (struct gdbarch *arch, int reg)
 {
-  return (IA64_FR0_REGNUM <= reg && reg <= IA64_FR127_REGNUM) ? 16 : 8;
+  if (reg >= IA64_FR0_REGNUM && reg <= IA64_FR127_REGNUM)
+    return builtin_type_ia64_ext;
+  else
+    return builtin_type_long;
 }
 
-int
-ia64_register_virtual_size (int reg)
+static int
+ia64_dwarf_reg_to_regnum (int reg)
 {
-  return (IA64_FR0_REGNUM <= reg && reg <= IA64_FR127_REGNUM) ? 16 : 8;
+  if (reg >= IA64_GR32_REGNUM && reg <= IA64_GR127_REGNUM)
+    return V32_REGNUM + (reg - IA64_GR32_REGNUM);
+  return reg;
 }
 
-/* Return true iff register N's virtual format is different from
-   its raw format. */
-int
-ia64_register_convertible (int nr)
+static int
+floatformat_valid (const struct floatformat *fmt, const char *from)
 {
-  return (IA64_FR0_REGNUM <= nr && nr <= IA64_FR127_REGNUM);
+  return 1;
 }
 
 const struct floatformat floatformat_ia64_ext =
 {
   floatformat_little, 82, 0, 1, 17, 65535, 0x1ffff, 18, 64,
-  floatformat_intbit_yes
+  floatformat_intbit_yes, "floatformat_ia64_ext", floatformat_valid
 };
 
-void
-ia64_register_convert_to_virtual (int regnum, struct type *type,
-                                  char *from, char *to)
-{
-  if (regnum >= IA64_FR0_REGNUM && regnum <= IA64_FR127_REGNUM)
-    {
-      DOUBLEST val;
-      floatformat_to_doublest (&floatformat_ia64_ext, from, &val);
-      store_floating(to, TYPE_LENGTH(type), val);
-    }
-  else
-    error("ia64_register_convert_to_virtual called with non floating point register number");
-}
-
-void
-ia64_register_convert_to_raw (struct type *type, int regnum,
-                              char *from, char *to)
-{
-  if (regnum >= IA64_FR0_REGNUM && regnum <= IA64_FR127_REGNUM)
-    {
-      DOUBLEST val = extract_floating (from, TYPE_LENGTH(type));
-      floatformat_from_doublest (&floatformat_ia64_ext, &val, to);
-    }
-  else
-    error("ia64_register_convert_to_raw called with non floating point register number");
-}
-
-struct type *
-ia64_register_virtual_type (int reg)
-{
-  if (reg >= IA64_FR0_REGNUM && reg <= IA64_FR127_REGNUM)
-    return builtin_type_long_double;
-  else
-    return builtin_type_long;
-}
-
-int
-ia64_register_byte (int reg)
-{
-  return (8 * reg) +
-   (reg <= IA64_FR0_REGNUM ? 0 : 8 * ((reg > IA64_FR127_REGNUM) ? 128 : reg - IA64_FR0_REGNUM));
-}
-
-/* Read the given register from a sigcontext structure in the
-   specified frame.  */
-
-static CORE_ADDR
-read_sigcontext_register (struct frame_info *frame, int regnum)
-{
-  CORE_ADDR regaddr;
-
-  if (frame == NULL)
-    internal_error (__FILE__, __LINE__,
-		    "read_sigcontext_register: NULL frame");
-  if (!frame->signal_handler_caller)
-    internal_error (__FILE__, __LINE__,
-		    "read_sigcontext_register: frame not a signal_handler_caller");
-  if (SIGCONTEXT_REGISTER_ADDRESS == 0)
-    internal_error (__FILE__, __LINE__,
-		    "read_sigcontext_register: SIGCONTEXT_REGISTER_ADDRESS is 0");
-
-  regaddr = SIGCONTEXT_REGISTER_ADDRESS (frame->frame, regnum);
-  if (regaddr)
-    return read_memory_integer (regaddr, REGISTER_RAW_SIZE (regnum));
-  else
-    internal_error (__FILE__, __LINE__,
-		    "read_sigcontext_register: Register %d not in struct sigcontext", regnum);
-}
 
 /* Extract ``len'' bits from an instruction bundle starting at
    bit ``from''.  */
@@ -553,9 +538,9 @@ fetch_instruction (CORE_ADDR addr, instruction_type *it, long long *instr)
    using the pattern seen below. */
 
 #if 0
-#define BREAKPOINT 0x00002000040LL
+#define IA64_BREAKPOINT 0x00002000040LL
 #endif
-#define BREAKPOINT 0x00003333300LL
+#define IA64_BREAKPOINT 0x00003333300LL
 
 static int
 ia64_memory_insert_breakpoint (CORE_ADDR addr, char *contents_cache)
@@ -564,6 +549,7 @@ ia64_memory_insert_breakpoint (CORE_ADDR addr, char *contents_cache)
   int slotnum = (int) (addr & 0x0f) / SLOT_MULTIPLIER;
   long long instr;
   int val;
+  int template;
 
   if (slotnum > 2)
     error("Can't insert breakpoint for slot numbers greater than 2.");
@@ -571,9 +557,18 @@ ia64_memory_insert_breakpoint (CORE_ADDR addr, char *contents_cache)
   addr &= ~0x0f;
 
   val = target_read_memory (addr, bundle, BUNDLE_LEN);
+
+  /* Check for L type instruction in 2nd slot, if present then
+     bump up the slot number to the 3rd slot */
+  template = extract_bit_field (bundle, 0, 5);
+  if (slotnum == 1 && template_encoding_table[template][1] == L)
+    {
+      slotnum = 2;
+    }
+
   instr = slotN_contents (bundle, slotnum);
   memcpy(contents_cache, &instr, sizeof(instr));
-  replace_slotN_contents (bundle, BREAKPOINT, slotnum);
+  replace_slotN_contents (bundle, IA64_BREAKPOINT, slotnum);
   if (val == 0)
     target_write_memory (addr, bundle, BUNDLE_LEN);
 
@@ -587,10 +582,20 @@ ia64_memory_remove_breakpoint (CORE_ADDR addr, char *contents_cache)
   int slotnum = (addr & 0x0f) / SLOT_MULTIPLIER;
   long long instr;
   int val;
+  int template;
 
   addr &= ~0x0f;
 
   val = target_read_memory (addr, bundle, BUNDLE_LEN);
+
+  /* Check for L type instruction in 2nd slot, if present then
+     bump up the slot number to the 3rd slot */
+  template = extract_bit_field (bundle, 0, 5);
+  if (slotnum == 1 && template_encoding_table[template][1] == L)
+    {
+      slotnum = 2;
+    }
+
   memcpy (&instr, contents_cache, sizeof instr);
   replace_slotN_contents (bundle, instr, slotnum);
   if (val == 0)
@@ -601,7 +606,7 @@ ia64_memory_remove_breakpoint (CORE_ADDR addr, char *contents_cache)
 
 /* We don't really want to use this, but remote.c needs to call it in order
    to figure out if Z-packets are supported or not.  Oh, well. */
-unsigned char *
+const unsigned char *
 ia64_breakpoint_from_pc (CORE_ADDR *pcptr, int *lenptr)
 {
   static unsigned char breakpoint[] =
@@ -613,7 +618,7 @@ ia64_breakpoint_from_pc (CORE_ADDR *pcptr, int *lenptr)
   return breakpoint;
 }
 
-CORE_ADDR
+static CORE_ADDR
 ia64_read_pc (ptid_t ptid)
 {
   CORE_ADDR psr_value = read_register_pid (IA64_PSR_REGNUM, ptid);
@@ -659,69 +664,258 @@ rse_address_add(CORE_ADDR addr, int nslots)
   return new_addr;
 }
 
-/* The IA-64 frame chain is a bit odd.  We won't always have a frame
-   pointer, so we use the SP value as the FP for the purpose of
-   creating a frame.  There is sometimes a register (not fixed) which
-   is used as a frame pointer.  When this register exists, it is not
-   especially hard to determine which one is being used.  It isn't
-   even really hard to compute the frame chain, but it can be
-   computationally expensive.  So, instead of making life difficult
-   (and slow), we pick a more convenient representation of the frame
-   chain, knowing that we'll have to make some small adjustments
-   in other places.  (E.g, note that read_fp() and write_fp() are
-   actually read_sp() and write_sp() below in ia64_gdbarch_init()
-   below.) 
-
-   Okay, so what is the frame chain exactly?  It'll be the SP value
-   at the time that the function in question was entered.
-
-   Note that this *should* actually the frame pointer for the current
-   function!  But as I note above, if we were to attempt to find the
-   address of the beginning of the previous frame, we'd waste a lot
-   of cycles for no good reason.  So instead, we simply choose to
-   represent the frame chain as the end of the previous frame instead
-   of the beginning.  */
-
-CORE_ADDR
-ia64_frame_chain (struct frame_info *frame)
+static void
+ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
+                           int regnum, void *buf)
 {
-  if (frame->signal_handler_caller)
-    return read_sigcontext_register (frame, sp_regnum);
-  else if (PC_IN_CALL_DUMMY (frame->pc, frame->frame, frame->frame))
-    return frame->frame;
-  else
+  if (regnum >= V32_REGNUM && regnum <= V127_REGNUM)
     {
-      FRAME_INIT_SAVED_REGS (frame);
-      if (frame->saved_regs[IA64_VFP_REGNUM])
-	return read_memory_integer (frame->saved_regs[IA64_VFP_REGNUM], 8);
+      ULONGEST bsp;
+      ULONGEST cfm;
+      CORE_ADDR reg;
+      regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
+      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+
+      /* The bsp points at the end of the register frame so we
+	 subtract the size of frame from it to get start of register frame.  */
+      bsp = rse_address_add (bsp, -(cfm & 0x7f));
+ 
+      if ((cfm & 0x7f) > regnum - V32_REGNUM) 
+	{
+	  ULONGEST reg_addr = rse_address_add (bsp, (regnum - V32_REGNUM));
+	  reg = read_memory_integer ((CORE_ADDR)reg_addr, 8);
+	  store_unsigned_integer (buf, register_size (current_gdbarch, regnum), reg);
+	}
       else
-	return frame->frame + frame->extra_info->mem_stack_frame_size;
+	store_unsigned_integer (buf, register_size (current_gdbarch, regnum), 0);
     }
-}
-
-CORE_ADDR
-ia64_frame_saved_pc (struct frame_info *frame)
-{
-  if (frame->signal_handler_caller)
-    return read_sigcontext_register (frame, pc_regnum);
-  else if (PC_IN_CALL_DUMMY (frame->pc, frame->frame, frame->frame))
-    return generic_read_register_dummy (frame->pc, frame->frame, pc_regnum);
-  else
+  else if (IA64_NAT0_REGNUM <= regnum && regnum <= IA64_NAT31_REGNUM)
     {
-      FRAME_INIT_SAVED_REGS (frame);
+      ULONGEST unatN_val;
+      ULONGEST unat;
+      regcache_cooked_read_unsigned (regcache, IA64_UNAT_REGNUM, &unat);
+      unatN_val = (unat & (1LL << (regnum - IA64_NAT0_REGNUM))) != 0;
+      store_unsigned_integer (buf, register_size (current_gdbarch, regnum), unatN_val);
+    }
+  else if (IA64_NAT32_REGNUM <= regnum && regnum <= IA64_NAT127_REGNUM)
+    {
+      ULONGEST natN_val = 0;
+      ULONGEST bsp;
+      ULONGEST cfm;
+      CORE_ADDR gr_addr = 0;
+      regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
+      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
 
-      if (frame->saved_regs[IA64_VRAP_REGNUM])
-	return read_memory_integer (frame->saved_regs[IA64_VRAP_REGNUM], 8);
-      else if (frame->next && frame->next->signal_handler_caller)
-	return read_sigcontext_register (frame->next, IA64_BR0_REGNUM);
-      else	/* either frameless, or not far enough along in the prologue... */
-	return ia64_saved_pc_after_call (frame);
+      /* The bsp points at the end of the register frame so we
+	 subtract the size of frame from it to get start of register frame.  */
+      bsp = rse_address_add (bsp, -(cfm & 0x7f));
+ 
+      if ((cfm & 0x7f) > regnum - V32_REGNUM) 
+	gr_addr = rse_address_add (bsp, (regnum - V32_REGNUM));
+      
+      if (gr_addr != 0)
+	{
+	  /* Compute address of nat collection bits.  */
+	  CORE_ADDR nat_addr = gr_addr | 0x1f8;
+	  CORE_ADDR nat_collection;
+	  int nat_bit;
+	  /* If our nat collection address is bigger than bsp, we have to get
+	     the nat collection from rnat.  Otherwise, we fetch the nat
+	     collection from the computed address.  */
+	  if (nat_addr >= bsp)
+	    regcache_cooked_read_unsigned (regcache, IA64_RNAT_REGNUM, &nat_collection);
+	  else
+	    nat_collection = read_memory_integer (nat_addr, 8);
+	  nat_bit = (gr_addr >> 3) & 0x3f;
+	  natN_val = (nat_collection >> nat_bit) & 1;
+	}
+      
+      store_unsigned_integer (buf, register_size (current_gdbarch, regnum), natN_val);
+    }
+  else if (regnum == VBOF_REGNUM)
+    {
+      /* A virtual register frame start is provided for user convenience.
+         It can be calculated as the bsp - sof (sizeof frame). */
+      ULONGEST bsp, vbsp;
+      ULONGEST cfm;
+      CORE_ADDR reg;
+      regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
+      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+
+      /* The bsp points at the end of the register frame so we
+	 subtract the size of frame from it to get beginning of frame.  */
+      vbsp = rse_address_add (bsp, -(cfm & 0x7f));
+      store_unsigned_integer (buf, register_size (current_gdbarch, regnum), vbsp);
+    }
+  else if (VP0_REGNUM <= regnum && regnum <= VP63_REGNUM)
+    {
+      ULONGEST pr;
+      ULONGEST cfm;
+      ULONGEST prN_val;
+      CORE_ADDR reg;
+      regcache_cooked_read_unsigned (regcache, IA64_PR_REGNUM, &pr);
+      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+
+      if (VP16_REGNUM <= regnum && regnum <= VP63_REGNUM)
+	{
+	  /* Fetch predicate register rename base from current frame
+	     marker for this frame. */
+	  int rrb_pr = (cfm >> 32) & 0x3f;
+
+	  /* Adjust the register number to account for register rotation. */
+	  regnum = VP16_REGNUM 
+	         + ((regnum - VP16_REGNUM) + rrb_pr) % 48;
+	}
+      prN_val = (pr & (1LL << (regnum - VP0_REGNUM))) != 0;
+      store_unsigned_integer (buf, register_size (current_gdbarch, regnum), prN_val);
+    }
+  else
+    memset (buf, 0, register_size (current_gdbarch, regnum));
+}
+
+static void
+ia64_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
+			    int regnum, const void *buf)
+{
+  if (regnum >= V32_REGNUM && regnum <= V127_REGNUM)
+    {
+      ULONGEST bsp;
+      ULONGEST cfm;
+      CORE_ADDR reg;
+      regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
+      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+
+      bsp = rse_address_add (bsp, -(cfm & 0x7f));
+ 
+      if ((cfm & 0x7f) > regnum - V32_REGNUM) 
+	{
+	  ULONGEST reg_addr = rse_address_add (bsp, (regnum - V32_REGNUM));
+	  write_memory (reg_addr, (void *)buf, 8);
+	}
+    }
+  else if (IA64_NAT0_REGNUM <= regnum && regnum <= IA64_NAT31_REGNUM)
+    {
+      ULONGEST unatN_val, unat, unatN_mask;
+      regcache_cooked_read_unsigned (regcache, IA64_UNAT_REGNUM, &unat);
+      unatN_val = extract_unsigned_integer (buf, register_size (current_gdbarch, regnum)); 
+      unatN_mask = (1LL << (regnum - IA64_NAT0_REGNUM));
+      if (unatN_val == 0)
+	unat &= ~unatN_mask;
+      else if (unatN_val == 1)
+	unat |= unatN_mask;
+      regcache_cooked_write_unsigned (regcache, IA64_UNAT_REGNUM, unat);
+    }
+  else if (IA64_NAT32_REGNUM <= regnum && regnum <= IA64_NAT127_REGNUM)
+    {
+      ULONGEST natN_val;
+      ULONGEST bsp;
+      ULONGEST cfm;
+      CORE_ADDR gr_addr = 0;
+      regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
+      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+
+      /* The bsp points at the end of the register frame so we
+	 subtract the size of frame from it to get start of register frame.  */
+      bsp = rse_address_add (bsp, -(cfm & 0x7f));
+ 
+      if ((cfm & 0x7f) > regnum - V32_REGNUM) 
+	gr_addr = rse_address_add (bsp, (regnum - V32_REGNUM));
+      
+      natN_val = extract_unsigned_integer (buf, register_size (current_gdbarch, regnum)); 
+
+      if (gr_addr != 0 && (natN_val == 0 || natN_val == 1))
+	{
+	  /* Compute address of nat collection bits.  */
+	  CORE_ADDR nat_addr = gr_addr | 0x1f8;
+	  CORE_ADDR nat_collection;
+	  int natN_bit = (gr_addr >> 3) & 0x3f;
+	  ULONGEST natN_mask = (1LL << natN_bit);
+	  /* If our nat collection address is bigger than bsp, we have to get
+	     the nat collection from rnat.  Otherwise, we fetch the nat
+	     collection from the computed address.  */
+	  if (nat_addr >= bsp)
+	    {
+	      regcache_cooked_read_unsigned (regcache, IA64_RNAT_REGNUM, &nat_collection);
+	      if (natN_val)
+		nat_collection |= natN_mask;
+	      else
+		nat_collection &= ~natN_mask;
+	      regcache_cooked_write_unsigned (regcache, IA64_RNAT_REGNUM, nat_collection);
+	    }
+	  else
+	    {
+	      char nat_buf[8];
+	      nat_collection = read_memory_integer (nat_addr, 8);
+	      if (natN_val)
+		nat_collection |= natN_mask;
+	      else
+		nat_collection &= ~natN_mask;
+	      store_unsigned_integer (nat_buf, register_size (current_gdbarch, regnum), nat_collection);
+	      write_memory (nat_addr, nat_buf, 8);
+	    }
+	}
+    }
+  else if (VP0_REGNUM <= regnum && regnum <= VP63_REGNUM)
+    {
+      ULONGEST pr;
+      ULONGEST cfm;
+      ULONGEST prN_val;
+      ULONGEST prN_mask;
+
+      regcache_cooked_read_unsigned (regcache, IA64_PR_REGNUM, &pr);
+      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+
+      if (VP16_REGNUM <= regnum && regnum <= VP63_REGNUM)
+	{
+	  /* Fetch predicate register rename base from current frame
+	     marker for this frame. */
+	  int rrb_pr = (cfm >> 32) & 0x3f;
+
+	  /* Adjust the register number to account for register rotation. */
+	  regnum = VP16_REGNUM 
+	         + ((regnum - VP16_REGNUM) + rrb_pr) % 48;
+	}
+      prN_val = extract_unsigned_integer (buf, register_size (current_gdbarch, regnum)); 
+      prN_mask = (1LL << (regnum - VP0_REGNUM));
+      if (prN_val == 0)
+	pr &= ~prN_mask;
+      else if (prN_val == 1)
+	pr |= prN_mask;
+      regcache_cooked_write_unsigned (regcache, IA64_PR_REGNUM, pr);
     }
 }
+
+/* The ia64 needs to convert between various ieee floating-point formats
+   and the special ia64 floating point register format.  */
+
+static int
+ia64_convert_register_p (int regno, struct type *type)
+{
+  return (regno >= IA64_FR0_REGNUM && regno <= IA64_FR127_REGNUM);
+}
+
+static void
+ia64_register_to_value (struct frame_info *frame, int regnum,
+                         struct type *valtype, void *out)
+{
+  char in[MAX_REGISTER_SIZE];
+  frame_register_read (frame, regnum, in);
+  convert_typed_floating (in, builtin_type_ia64_ext, out, valtype);
+}
+
+static void
+ia64_value_to_register (struct frame_info *frame, int regnum,
+                         struct type *valtype, const void *in)
+{
+  char out[MAX_REGISTER_SIZE];
+  convert_typed_floating (in, valtype, out, builtin_type_ia64_ext);
+  put_frame_register (frame, regnum, out);
+}
+
 
 /* Limit the number of skipped non-prologue instructions since examining
    of the prologue is expensive.  */
-static int max_skip_non_prologue_insns = 10;
+static int max_skip_non_prologue_insns = 40;
 
 /* Given PC representing the starting address of a function, and
    LIM_PC which is the (sloppy) limit to which to scan when looking
@@ -732,6 +926,9 @@ static int max_skip_non_prologue_insns = 10;
    which will be set to indicate whether the returned limit may be
    used with no further scanning in the event that the function is
    frameless.  */
+
+/* FIXME: cagney/2004-02-14: This function and logic have largely been
+   superseded by skip_prologue_using_sal.  */
 
 static CORE_ADDR
 refine_prologue_limit (CORE_ADDR pc, CORE_ADDR lim_pc, int *trust_limit)
@@ -790,15 +987,41 @@ refine_prologue_limit (CORE_ADDR pc, CORE_ADDR lim_pc, int *trust_limit)
    | (((_instr_) & 0x00008000000LL) >> 20) \
    | (((_instr_) & 0x00000001fc0LL) >> 6))
 
+/* Allocate and initialize a frame cache.  */
+
+static struct ia64_frame_cache *
+ia64_alloc_frame_cache (void)
+{
+  struct ia64_frame_cache *cache;
+  int i;
+
+  cache = FRAME_OBSTACK_ZALLOC (struct ia64_frame_cache);
+
+  /* Base address.  */
+  cache->base = 0;
+  cache->pc = 0;
+  cache->cfm = 0;
+  cache->prev_cfm = 0;
+  cache->sof = 0;
+  cache->sol = 0;
+  cache->sor = 0;
+  cache->bsp = 0;
+  cache->fp_reg = 0;
+  cache->frameless = 1;
+
+  for (i = 0; i < NUM_IA64_RAW_REGS; i++)
+    cache->saved_regs[i] = 0;
+
+  return cache;
+}
+
 static CORE_ADDR
-examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
+examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *next_frame, struct ia64_frame_cache *cache)
 {
   CORE_ADDR next_pc;
   CORE_ADDR last_prologue_pc = pc;
   instruction_type it;
   long long instr;
-  int do_fsr_stuff = 0;
-
   int cfm_reg  = 0;
   int ret_reg  = 0;
   int fp_reg   = 0;
@@ -809,48 +1032,80 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
   CORE_ADDR spill_addr = 0;
   char instores[8];
   char infpstores[8];
+  char reg_contents[256];
   int trust_limit;
+  int frameless = 1;
+  int i;
+  CORE_ADDR addr;
+  char buf[8];
+  CORE_ADDR bof, sor, sol, sof, cfm, rrb_gr;
 
   memset (instores, 0, sizeof instores);
   memset (infpstores, 0, sizeof infpstores);
+  memset (reg_contents, 0, sizeof reg_contents);
 
-  if (frame && !frame->saved_regs)
-    {
-      frame_saved_regs_zalloc (frame);
-      do_fsr_stuff = 1;
-    }
-
-  if (frame 
-      && !do_fsr_stuff
-      && frame->extra_info->after_prologue != 0
-      && frame->extra_info->after_prologue <= lim_pc)
-    return frame->extra_info->after_prologue;
+  if (cache->after_prologue != 0
+      && cache->after_prologue <= lim_pc)
+    return cache->after_prologue;
 
   lim_pc = refine_prologue_limit (pc, lim_pc, &trust_limit);
-
-  /* Must start with an alloc instruction */
   next_pc = fetch_instruction (pc, &it, &instr);
+
+  /* We want to check if we have a recognizable function start before we
+     look ahead for a prologue.  */
   if (pc < lim_pc && next_pc 
       && it == M && ((instr & 0x1ee0000003fLL) == 0x02c00000000LL))
     {
-      /* alloc */
+      /* alloc - start of a regular function.  */
       int sor = (int) ((instr & 0x00078000000LL) >> 27);
       int sol = (int) ((instr & 0x00007f00000LL) >> 20);
       int sof = (int) ((instr & 0x000000fe000LL) >> 13);
-      /* Okay, so sor, sol, and sof aren't used right now; but perhaps
-         we could compare against the size given to us via the cfm as
-	 either a sanity check or possibly to see if the frame has been
-	 changed by a later alloc instruction... */
       int rN = (int) ((instr & 0x00000001fc0LL) >> 6);
+
+      /* Verify that the current cfm matches what we think is the
+	 function start.  If we have somehow jumped within a function,
+	 we do not want to interpret the prologue and calculate the
+	 addresses of various registers such as the return address.  
+	 We will instead treat the frame as frameless. */
+      if (!next_frame ||
+	  (sof == (cache->cfm & 0x7f) &&
+	   sol == ((cache->cfm >> 7) & 0x7f)))
+	frameless = 0;
+
       cfm_reg = rN;
       last_prologue_pc = next_pc;
       pc = next_pc;
     }
   else
     {
-      pc = lim_pc;	/* Frameless: We're done early.  */
-      if (trust_limit)
-	last_prologue_pc = lim_pc;
+      /* Look for a leaf routine.  */
+      if (pc < lim_pc && next_pc
+	  && (it == I || it == M) 
+          && ((instr & 0x1ee00000000LL) == 0x10800000000LL))
+	{
+	  /* adds rN = imm14, rM   (or mov rN, rM  when imm14 is 0) */
+	  int imm = (int) ((((instr & 0x01000000000LL) ? -1 : 0) << 13) 
+	                   | ((instr & 0x001f8000000LL) >> 20)
+		           | ((instr & 0x000000fe000LL) >> 13));
+	  int rM = (int) ((instr & 0x00007f00000LL) >> 20);
+	  int rN = (int) ((instr & 0x00000001fc0LL) >> 6);
+	  int qp = (int) (instr & 0x0000000003fLL);
+	  if (qp == 0 && rN == 2 && imm == 0 && rM == 12 && fp_reg == 0)
+	    {
+	      /* mov r2, r12 - beginning of leaf routine */
+	      fp_reg = rN;
+	      last_prologue_pc = next_pc;
+	    }
+	} 
+
+      /* If we don't recognize a regular function or leaf routine, we are
+	 done.  */
+      if (!fp_reg)
+	{
+	  pc = lim_pc;	
+	  if (trust_limit)
+	    last_prologue_pc = lim_pc;
+	}
     }
 
   /* Loop, looking for prologue instructions, keeping track of
@@ -861,11 +1116,20 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
       if (next_pc == 0)
 	break;
 
-      if ((it == B && ((instr & 0x1e1f800003f) != 0x04000000000))
-          || ((instr & 0x3fLL) != 0LL))
+      if (it == B && ((instr & 0x1e1f800003f) != 0x04000000000))
 	{
-	  /* Exit loop upon hitting a non-nop branch instruction 
-	     or a predicated instruction. */
+	  /* Exit loop upon hitting a non-nop branch instruction. */ 
+	  if (trust_limit)
+	    lim_pc = pc;
+	  break;
+	}
+      else if (((instr & 0x3fLL) != 0LL) && 
+	       (frameless || ret_reg != 0))
+	{
+	  /* Exit loop upon hitting a predicated instruction if
+	     we already have the return register or if we are frameless.  */ 
+	  if (trust_limit)
+	    lim_pc = pc;
 	  break;
 	}
       else if (it == I && ((instr & 0x1eff8000000LL) == 0x00188000000LL))
@@ -907,6 +1171,8 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
 	  else if (qp == 0 && rN == 2 
 	        && ((rM == fp_reg && fp_reg != 0) || rM == 12))
 	    {
+	      char buf[MAX_REGISTER_SIZE];
+	      CORE_ADDR saved_sp = 0;
 	      /* adds r2, spilloffset, rFramePointer 
 	           or
 		 adds r2, spilloffset, r12
@@ -919,11 +1185,30 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
 	      /* Hmm... whether or not this will work will depend on
 	         where the pc is.  If it's still early in the prologue
 		 this'll be wrong.  FIXME */
-	      spill_addr  = (frame ? frame->frame : 0)
+	      if (next_frame)
+		{
+		  frame_unwind_register (next_frame, sp_regnum, buf);
+		  saved_sp = extract_unsigned_integer (buf, 8);
+		}
+	      spill_addr  = saved_sp
 	                  + (rM == 12 ? 0 : mem_stack_frame_size) 
 			  + imm;
 	      spill_reg   = rN;
 	      last_prologue_pc = next_pc;
+	    }
+	  else if (qp == 0 && rM >= 32 && rM < 40 && !instores[rM] && 
+		   rN < 256 && imm == 0)
+	    {
+	      /* mov rN, rM where rM is an input register */
+	      reg_contents[rN] = rM;
+	      last_prologue_pc = next_pc;
+	    }
+	  else if (frameless && qp == 0 && rN == fp_reg && imm == 0 && 
+		   rM == 2)
+	    {
+	      /* mov r12, r2 */
+	      last_prologue_pc = next_pc;
+	      break;
 	    }
 	}
       else if (it == M 
@@ -941,8 +1226,7 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
 	  if (qp == 0 && rN == spill_reg && spill_addr != 0
 	      && ((2 <= fM && fM <= 5) || (16 <= fM && fM <= 31)))
 	    {
-	      if (do_fsr_stuff)
-	        frame->saved_regs[IA64_FR0_REGNUM + fM] = spill_addr;
+	      cache->saved_regs[IA64_FR0_REGNUM + fM] = spill_addr;
 
               if ((instr & 0x1efc0000000) == 0x0eec0000000)
 		spill_addr += imm;
@@ -990,6 +1274,7 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
 	  int rN = (int) ((instr & 0x00007f00000LL) >> 20);
 	  int rM = (int) ((instr & 0x000000fe000LL) >> 13);
 	  int qp = (int) (instr & 0x0000000003fLL);
+	  int indirect = rM < 256 ? reg_contents[rM] : 0;
 	  if (qp == 0 && rN == spill_reg && spill_addr != 0
 	      && (rM == unat_save_reg || rM == pr_save_reg))
 	    {
@@ -1000,15 +1285,13 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
 	      if (rM == unat_save_reg)
 		{
 		  /* Track UNAT register */
-		  if (do_fsr_stuff)
-		    frame->saved_regs[IA64_UNAT_REGNUM] = spill_addr;
+		  cache->saved_regs[IA64_UNAT_REGNUM] = spill_addr;
 		  unat_save_reg = 0;
 		}
 	      else
 	        {
 		  /* Track PR register */
-		  if (do_fsr_stuff)
-		    frame->saved_regs[IA64_PR_REGNUM] = spill_addr;
+		  cache->saved_regs[IA64_PR_REGNUM] = spill_addr;
 		  pr_save_reg = 0;
 		}
 	      if ((instr & 0x1efc0000000LL) == 0x0acc0000000LL)
@@ -1022,6 +1305,13 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
 	    {
 	      /* Allow up to one store of each input register. */
 	      instores[rM-32] = 1;
+	      last_prologue_pc = next_pc;
+	    }
+	  else if (qp == 0 && 32 <= indirect && indirect < 40 && 
+		   !instores[indirect-32])
+	    {
+	      /* Allow an indirect store of an input register.  */
+	      instores[indirect-32] = 1;
 	      last_prologue_pc = next_pc;
 	    }
 	}
@@ -1038,9 +1328,17 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
 	     register is permitted. */
 	  int rM = (int) ((instr & 0x000000fe000LL) >> 13);
 	  int qp = (int) (instr & 0x0000000003fLL);
+	  int indirect = rM < 256 ? reg_contents[rM] : 0;
 	  if (qp == 0 && 32 <= rM && rM < 40 && !instores[rM-32])
 	    {
 	      instores[rM-32] = 1;
+	      last_prologue_pc = next_pc;
+	    }
+	  else if (qp == 0 && 32 <= indirect && indirect < 40 && 
+		   !instores[indirect-32])
+	    {
+	      /* Allow an indirect store of an input register.  */
+	      instores[indirect-32] = 1;
 	      last_prologue_pc = next_pc;
 	    }
 	}
@@ -1076,8 +1374,7 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
 	      /* We've found a spill of one of the preserved general purpose
 	         regs.  Record the spill address and advance the spill
 		 register if appropriate. */
-	      if (do_fsr_stuff)
-		frame->saved_regs[IA64_GR0_REGNUM + rM] = spill_addr;
+	      cache->saved_regs[IA64_GR0_REGNUM + rM] = spill_addr;
 	      if ((instr & 0x1efc0000000LL) == 0x0aec0000000LL)
 	        /* st8.spill [rN] = rM, imm9 */
 		spill_addr += imm9(instr);
@@ -1090,45 +1387,90 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
       pc = next_pc;
     }
 
-  if (do_fsr_stuff) {
-    int i;
-    CORE_ADDR addr;
-    int sor, rrb_gr;
-    
-    /* Extract the size of the rotating portion of the stack
-       frame and the register rename base from the current
-       frame marker. */
-    sor = ((frame->extra_info->cfm >> 14) & 0xf) * 8;
-    rrb_gr = (frame->extra_info->cfm >> 18) & 0x7f;
+  /* If not frameless and we aren't called by skip_prologue, then we need to calculate
+     registers for the previous frame which will be needed later.  */
 
-    for (i = 0, addr = frame->extra_info->bsp;
-	 i < frame->extra_info->sof;
-	 i++, addr += 8)
-      {
-	if (IS_NaT_COLLECTION_ADDR (addr))
-	  {
-	    addr += 8;
-	  }
-	if (i < sor)
-	  frame->saved_regs[IA64_GR32_REGNUM + ((i + (sor - rrb_gr)) % sor)] 
-	    = addr;
-	else
-	  frame->saved_regs[IA64_GR32_REGNUM + i] = addr;
+  if (!frameless && next_frame)
+    {
+      /* Extract the size of the rotating portion of the stack
+	 frame and the register rename base from the current
+	 frame marker. */
+      cfm = cache->cfm;
+      sor = cache->sor;
+      sof = cache->sof;
+      sol = cache->sol;
+      rrb_gr = (cfm >> 18) & 0x7f;
 
-	if (i+32 == cfm_reg)
-	  frame->saved_regs[IA64_CFM_REGNUM] = addr;
-	if (i+32 == ret_reg)
-	  frame->saved_regs[IA64_VRAP_REGNUM] = addr;
-	if (i+32 == fp_reg)
-	  frame->saved_regs[IA64_VFP_REGNUM] = addr;
-      }
-  }
+      /* Find the bof (beginning of frame).  */
+      bof = rse_address_add (cache->bsp, -sof);
+      
+      for (i = 0, addr = bof;
+	   i < sof;
+	   i++, addr += 8)
+	{
+	  if (IS_NaT_COLLECTION_ADDR (addr))
+	    {
+	      addr += 8;
+	    }
+	  if (i+32 == cfm_reg)
+	    cache->saved_regs[IA64_CFM_REGNUM] = addr;
+	  if (i+32 == ret_reg)
+	    cache->saved_regs[IA64_VRAP_REGNUM] = addr;
+	  if (i+32 == fp_reg)
+	    cache->saved_regs[IA64_VFP_REGNUM] = addr;
+	}
 
-  if (frame && frame->extra_info) {
-    frame->extra_info->after_prologue = last_prologue_pc;
-    frame->extra_info->mem_stack_frame_size = mem_stack_frame_size;
-    frame->extra_info->fp_reg = fp_reg;
-  }
+      /* For the previous argument registers we require the previous bof.  
+	 If we can't find the previous cfm, then we can do nothing.  */
+      cfm = 0;
+      if (cache->saved_regs[IA64_CFM_REGNUM] != 0)
+	{
+	  cfm = read_memory_integer (cache->saved_regs[IA64_CFM_REGNUM], 8);
+	}
+      else if (cfm_reg != 0)
+	{
+	  frame_unwind_register (next_frame, cfm_reg, buf);
+	  cfm = extract_unsigned_integer (buf, 8);
+	}
+      cache->prev_cfm = cfm;
+      
+      if (cfm != 0)
+	{
+	  sor = ((cfm >> 14) & 0xf) * 8;
+	  sof = (cfm & 0x7f);
+	  sol = (cfm >> 7) & 0x7f;
+	  rrb_gr = (cfm >> 18) & 0x7f;
+
+	  /* The previous bof only requires subtraction of the sol (size of locals)
+	     due to the overlap between output and input of subsequent frames.  */
+	  bof = rse_address_add (bof, -sol);
+	  
+	  for (i = 0, addr = bof;
+	       i < sof;
+	       i++, addr += 8)
+	    {
+	      if (IS_NaT_COLLECTION_ADDR (addr))
+		{
+		  addr += 8;
+		}
+	      if (i < sor)
+		cache->saved_regs[IA64_GR32_REGNUM + ((i + (sor - rrb_gr)) % sor)] 
+		  = addr;
+	      else
+		cache->saved_regs[IA64_GR32_REGNUM + i] = addr;
+	    }
+	  
+	}
+    }
+      
+  /* Try and trust the lim_pc value whenever possible.  */
+  if (trust_limit && lim_pc >= last_prologue_pc)
+    last_prologue_pc = lim_pc;
+
+  cache->frameless = frameless;
+  cache->after_prologue = last_prologue_pc;
+  cache->mem_stack_frame_size = mem_stack_frame_size;
+  cache->fp_reg = fp_reg;
 
   return last_prologue_pc;
 }
@@ -1136,235 +1478,1218 @@ examine_prologue (CORE_ADDR pc, CORE_ADDR lim_pc, struct frame_info *frame)
 CORE_ADDR
 ia64_skip_prologue (CORE_ADDR pc)
 {
-  return examine_prologue (pc, pc+1024, 0);
+  struct ia64_frame_cache cache;
+  cache.base = 0;
+  cache.after_prologue = 0;
+  cache.cfm = 0;
+  cache.bsp = 0;
+
+  /* Call examine_prologue with - as third argument since we don't have a next frame pointer to send.  */
+  return examine_prologue (pc, pc+1024, 0, &cache);
 }
 
-void
-ia64_frame_init_saved_regs (struct frame_info *frame)
+
+/* Normal frames.  */
+
+static struct ia64_frame_cache *
+ia64_frame_cache (struct frame_info *next_frame, void **this_cache)
 {
-  if (frame->saved_regs)
+  struct ia64_frame_cache *cache;
+  char buf[8];
+  CORE_ADDR cfm, sof, sol, bsp, psr;
+  int i;
+
+  if (*this_cache)
+    return *this_cache;
+
+  cache = ia64_alloc_frame_cache ();
+  *this_cache = cache;
+
+  frame_unwind_register (next_frame, sp_regnum, buf);
+  cache->saved_sp = extract_unsigned_integer (buf, 8);
+
+  /* We always want the bsp to point to the end of frame.
+     This way, we can always get the beginning of frame (bof)
+     by subtracting frame size.  */
+  frame_unwind_register (next_frame, IA64_BSP_REGNUM, buf);
+  cache->bsp = extract_unsigned_integer (buf, 8);
+  
+  frame_unwind_register (next_frame, IA64_PSR_REGNUM, buf);
+  psr = extract_unsigned_integer (buf, 8);
+
+  frame_unwind_register (next_frame, IA64_CFM_REGNUM, buf);
+  cfm = extract_unsigned_integer (buf, 8);
+
+  cache->sof = (cfm & 0x7f);
+  cache->sol = (cfm >> 7) & 0x7f;
+  cache->sor = ((cfm >> 14) & 0xf) * 8;
+
+  cache->cfm = cfm;
+
+  cache->pc = frame_func_unwind (next_frame);
+
+  if (cache->pc != 0)
+    examine_prologue (cache->pc, frame_pc_unwind (next_frame), next_frame, cache);
+  
+  cache->base = cache->saved_sp + cache->mem_stack_frame_size;
+
+  return cache;
+}
+
+static void
+ia64_frame_this_id (struct frame_info *next_frame, void **this_cache,
+		    struct frame_id *this_id)
+{
+  struct ia64_frame_cache *cache =
+    ia64_frame_cache (next_frame, this_cache);
+
+  /* This marks the outermost frame.  */
+  if (cache->base == 0)
     return;
 
-  if (frame->signal_handler_caller && SIGCONTEXT_REGISTER_ADDRESS)
-    {
-      int regno;
-
-      frame_saved_regs_zalloc (frame);
-
-      frame->saved_regs[IA64_VRAP_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_IP_REGNUM);
-      frame->saved_regs[IA64_CFM_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_CFM_REGNUM);
-      frame->saved_regs[IA64_PSR_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_PSR_REGNUM);
-#if 0
-      frame->saved_regs[IA64_BSP_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_BSP_REGNUM);
-#endif
-      frame->saved_regs[IA64_RNAT_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_RNAT_REGNUM);
-      frame->saved_regs[IA64_CCV_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_CCV_REGNUM);
-      frame->saved_regs[IA64_UNAT_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_UNAT_REGNUM);
-      frame->saved_regs[IA64_FPSR_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_FPSR_REGNUM);
-      frame->saved_regs[IA64_PFS_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_PFS_REGNUM);
-      frame->saved_regs[IA64_LC_REGNUM] = 
-	SIGCONTEXT_REGISTER_ADDRESS (frame->frame, IA64_LC_REGNUM);
-      for (regno = IA64_GR1_REGNUM; regno <= IA64_GR31_REGNUM; regno++)
-	if (regno != sp_regnum)
-	  frame->saved_regs[regno] =
-	    SIGCONTEXT_REGISTER_ADDRESS (frame->frame, regno);
-      for (regno = IA64_BR0_REGNUM; regno <= IA64_BR7_REGNUM; regno++)
-	frame->saved_regs[regno] =
-	  SIGCONTEXT_REGISTER_ADDRESS (frame->frame, regno);
-      for (regno = IA64_FR2_REGNUM; regno <= IA64_BR7_REGNUM; regno++)
-	frame->saved_regs[regno] =
-	  SIGCONTEXT_REGISTER_ADDRESS (frame->frame, regno);
-    }
-  else
-    {
-      CORE_ADDR func_start;
-
-      func_start = get_pc_function_start (frame->pc);
-      examine_prologue (func_start, frame->pc, frame);
-    }
+  (*this_id) = frame_id_build_special (cache->base, cache->pc, cache->bsp);
+  if (gdbarch_debug >= 1)
+    fprintf_unfiltered (gdb_stdlog,
+			"regular frame id: code 0x%s, stack 0x%s, special 0x%s, next_frame %p\n",
+			paddr_nz (this_id->code_addr), 
+			paddr_nz (this_id->stack_addr), 
+			paddr_nz (cache->bsp), next_frame);
 }
 
-void
-ia64_get_saved_register (char *raw_buffer, 
-                         int *optimized, 
-			 CORE_ADDR *addrp,
-			 struct frame_info *frame,
-			 int regnum,
-			 enum lval_type *lval)
+static void
+ia64_frame_prev_register (struct frame_info *next_frame, void **this_cache,
+			  int regnum, int *optimizedp,
+			  enum lval_type *lvalp, CORE_ADDR *addrp,
+			  int *realnump, void *valuep)
 {
-  int is_dummy_frame;
+  struct ia64_frame_cache *cache =
+    ia64_frame_cache (next_frame, this_cache);
+  char dummy_valp[MAX_REGISTER_SIZE];
+  char buf[8];
+
+  gdb_assert (regnum >= 0);
 
   if (!target_has_registers)
     error ("No registers.");
 
-  if (optimized != NULL)
-    *optimized = 0;
+  *optimizedp = 0;
+  *addrp = 0;
+  *lvalp = not_lval;
+  *realnump = -1;
 
-  if (addrp != NULL)
-    *addrp = 0;
-
-  if (lval != NULL)
-    *lval = not_lval;
-
-  is_dummy_frame = PC_IN_CALL_DUMMY (frame->pc, frame->frame, frame->frame);
-
-  if (regnum == SP_REGNUM && frame->next)
+  /* Rather than check each time if valuep is non-null, supply a dummy buffer
+     when valuep is not supplied.  */
+  if (!valuep)
+    valuep = dummy_valp;
+  
+  memset (valuep, 0, register_size (current_gdbarch, regnum));
+ 
+  if (regnum == SP_REGNUM)
     {
       /* Handle SP values for all frames but the topmost. */
-      store_address (raw_buffer, REGISTER_RAW_SIZE (regnum), frame->frame);
+      store_unsigned_integer (valuep, register_size (current_gdbarch, regnum),
+			      cache->base);
     }
   else if (regnum == IA64_BSP_REGNUM)
     {
-      store_address (raw_buffer, REGISTER_RAW_SIZE (regnum), 
-                     frame->extra_info->bsp);
+      char cfm_valuep[MAX_REGISTER_SIZE];
+      int  cfm_optim;
+      int  cfm_realnum;
+      enum lval_type cfm_lval;
+      CORE_ADDR cfm_addr;
+      CORE_ADDR bsp, prev_cfm, prev_bsp;
+
+      /* We want to calculate the previous bsp as the end of the previous register stack frame.
+	 This corresponds to what the hardware bsp register will be if we pop the frame
+	 back which is why we might have been called.  We know the beginning of the current
+	 frame is cache->bsp - cache->sof.  This value in the previous frame points to
+	 the start of the output registers.  We can calculate the end of that frame by adding
+	 the size of output (sof (size of frame) - sol (size of locals)).  */
+      ia64_frame_prev_register (next_frame, this_cache, IA64_CFM_REGNUM,
+				&cfm_optim, &cfm_lval, &cfm_addr, &cfm_realnum, cfm_valuep);
+      prev_cfm = extract_unsigned_integer (cfm_valuep, 8);
+
+      bsp = rse_address_add (cache->bsp, -(cache->sof));
+      prev_bsp = rse_address_add (bsp, (prev_cfm & 0x7f) - ((prev_cfm >> 7) & 0x7f));
+
+      store_unsigned_integer (valuep, register_size (current_gdbarch, regnum), 
+			      prev_bsp);
+    }
+  else if (regnum == IA64_CFM_REGNUM)
+    {
+      CORE_ADDR addr = cache->saved_regs[IA64_CFM_REGNUM];
+      
+      if (addr != 0)
+	{
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, valuep, register_size (current_gdbarch, regnum));
+	}
+      else if (cache->prev_cfm)
+	store_unsigned_integer (valuep, register_size (current_gdbarch, regnum), cache->prev_cfm);
+      else if (cache->frameless)
+	{
+	  CORE_ADDR cfm = 0;
+	  frame_unwind_register (next_frame, IA64_PFS_REGNUM, valuep);
+	}
     }
   else if (regnum == IA64_VFP_REGNUM)
     {
       /* If the function in question uses an automatic register (r32-r127)
          for the frame pointer, it'll be found by ia64_find_saved_register()
 	 above.  If the function lacks one of these frame pointers, we can
-	 still provide a value since we know the size of the frame */
-      CORE_ADDR vfp = frame->frame + frame->extra_info->mem_stack_frame_size;
-      store_address (raw_buffer, REGISTER_RAW_SIZE (IA64_VFP_REGNUM), vfp);
+	 still provide a value since we know the size of the frame.  */
+      CORE_ADDR vfp = cache->base;
+      store_unsigned_integer (valuep, register_size (current_gdbarch, IA64_VFP_REGNUM), vfp);
     }
-  else if (IA64_PR0_REGNUM <= regnum && regnum <= IA64_PR63_REGNUM)
+  else if (VP0_REGNUM <= regnum && regnum <= VP63_REGNUM)
     {
-      char *pr_raw_buffer = alloca (MAX_REGISTER_RAW_SIZE);
+      char pr_valuep[MAX_REGISTER_SIZE];
       int  pr_optim;
+      int  pr_realnum;
       enum lval_type pr_lval;
       CORE_ADDR pr_addr;
-      int prN_val;
-      ia64_get_saved_register (pr_raw_buffer, &pr_optim, &pr_addr,
-                               frame, IA64_PR_REGNUM, &pr_lval);
-      if (IA64_PR16_REGNUM <= regnum && regnum <= IA64_PR63_REGNUM)
+      ULONGEST prN_val;
+      ia64_frame_prev_register (next_frame, this_cache, IA64_PR_REGNUM,
+				&pr_optim, &pr_lval, &pr_addr, &pr_realnum, pr_valuep);
+      if (VP16_REGNUM <= regnum && regnum <= VP63_REGNUM)
 	{
 	  /* Fetch predicate register rename base from current frame
-	     marker for this frame. */
-	  int rrb_pr = (frame->extra_info->cfm >> 32) & 0x3f;
+	     marker for this frame.  */
+	  int rrb_pr = (cache->cfm >> 32) & 0x3f;
 
-	  /* Adjust the register number to account for register rotation. */
-	  regnum = IA64_PR16_REGNUM 
-	         + ((regnum - IA64_PR16_REGNUM) + rrb_pr) % 48;
+	  /* Adjust the register number to account for register rotation.  */
+	  regnum = VP16_REGNUM 
+	         + ((regnum - VP16_REGNUM) + rrb_pr) % 48;
 	}
-      prN_val = extract_bit_field ((unsigned char *) pr_raw_buffer,
-                                   regnum - IA64_PR0_REGNUM, 1);
-      store_unsigned_integer (raw_buffer, REGISTER_RAW_SIZE (regnum), prN_val);
+      prN_val = extract_bit_field ((unsigned char *) pr_valuep,
+                                   regnum - VP0_REGNUM, 1);
+      store_unsigned_integer (valuep, register_size (current_gdbarch, regnum), prN_val);
     }
   else if (IA64_NAT0_REGNUM <= regnum && regnum <= IA64_NAT31_REGNUM)
     {
-      char *unat_raw_buffer = alloca (MAX_REGISTER_RAW_SIZE);
+      char unat_valuep[MAX_REGISTER_SIZE];
       int  unat_optim;
+      int  unat_realnum;
       enum lval_type unat_lval;
       CORE_ADDR unat_addr;
-      int unatN_val;
-      ia64_get_saved_register (unat_raw_buffer, &unat_optim, &unat_addr,
-                               frame, IA64_UNAT_REGNUM, &unat_lval);
-      unatN_val = extract_bit_field ((unsigned char *) unat_raw_buffer,
+      ULONGEST unatN_val;
+      ia64_frame_prev_register (next_frame, this_cache, IA64_UNAT_REGNUM,
+				&unat_optim, &unat_lval, &unat_addr, &unat_realnum, unat_valuep);
+      unatN_val = extract_bit_field ((unsigned char *) unat_valuep,
                                    regnum - IA64_NAT0_REGNUM, 1);
-      store_unsigned_integer (raw_buffer, REGISTER_RAW_SIZE (regnum), 
+      store_unsigned_integer (valuep, register_size (current_gdbarch, regnum), 
                               unatN_val);
     }
   else if (IA64_NAT32_REGNUM <= regnum && regnum <= IA64_NAT127_REGNUM)
     {
       int natval = 0;
       /* Find address of general register corresponding to nat bit we're
-         interested in. */
-      CORE_ADDR gr_addr = 0;
+         interested in.  */
+      CORE_ADDR gr_addr;
 
-      if (!is_dummy_frame)
+      gr_addr = cache->saved_regs[regnum - IA64_NAT0_REGNUM 
+				  + IA64_GR0_REGNUM];
+      if (gr_addr != 0)
 	{
-	  FRAME_INIT_SAVED_REGS (frame);
-	  gr_addr = frame->saved_regs[ regnum - IA64_NAT0_REGNUM 
-	                                      + IA64_GR0_REGNUM];
-	}
-      if (gr_addr)
-	{
-	  /* Compute address of nat collection bits */
+	  /* Compute address of nat collection bits.  */
 	  CORE_ADDR nat_addr = gr_addr | 0x1f8;
-	  CORE_ADDR bsp = read_register (IA64_BSP_REGNUM);
+	  CORE_ADDR bsp;
 	  CORE_ADDR nat_collection;
 	  int nat_bit;
 	  /* If our nat collection address is bigger than bsp, we have to get
 	     the nat collection from rnat.  Otherwise, we fetch the nat
-	     collection from the computed address. */
+	     collection from the computed address.  */
+	  frame_unwind_register (next_frame, IA64_BSP_REGNUM, buf);
+	  bsp = extract_unsigned_integer (buf, 8); 
 	  if (nat_addr >= bsp)
-	    nat_collection = read_register (IA64_RNAT_REGNUM);
+	    {
+	      frame_unwind_register (next_frame, IA64_RNAT_REGNUM, buf);
+	      nat_collection = extract_unsigned_integer (buf, 8);
+	    }
 	  else
 	    nat_collection = read_memory_integer (nat_addr, 8);
 	  nat_bit = (gr_addr >> 3) & 0x3f;
 	  natval = (nat_collection >> nat_bit) & 1;
 	}
-      store_unsigned_integer (raw_buffer, REGISTER_RAW_SIZE (regnum), natval);
+
+      store_unsigned_integer (valuep, register_size (current_gdbarch, regnum), natval);
     }
   else if (regnum == IA64_IP_REGNUM)
     {
-      CORE_ADDR pc;
-      if (frame->next)
-        {
-	  /* FIXME: Set *addrp, *lval when possible. */
-	  pc = ia64_frame_saved_pc (frame->next);
-        }
-      else
-        {
-	  pc = read_pc ();
-	}
-      store_address (raw_buffer, REGISTER_RAW_SIZE (IA64_IP_REGNUM), pc);
-    }
-  else if (IA64_GR32_REGNUM <= regnum && regnum <= IA64_GR127_REGNUM)
-    {
-      CORE_ADDR addr = 0;
-      if (!is_dummy_frame)
-	{
-	  FRAME_INIT_SAVED_REGS (frame);
-	  addr = frame->saved_regs[regnum];
-	}
+      CORE_ADDR pc = 0;
+      CORE_ADDR addr = cache->saved_regs[IA64_VRAP_REGNUM];
 
       if (addr != 0)
 	{
-	  if (lval != NULL)
-	    *lval = lval_memory;
-	  if (addrp != NULL)
-	    *addrp = addr;
-	  read_memory (addr, raw_buffer, REGISTER_RAW_SIZE (regnum));
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, buf, register_size (current_gdbarch, IA64_IP_REGNUM));
+	  pc = extract_unsigned_integer (buf, 8);
 	}
-      else
+      else if (cache->frameless)
+	{
+	  frame_unwind_register (next_frame, IA64_BR0_REGNUM, buf);
+	  pc = extract_unsigned_integer (buf, 8);
+	}
+      pc &= ~0xf;
+      store_unsigned_integer (valuep, 8, pc);
+    }
+  else if (regnum == IA64_PSR_REGNUM)
+    {
+      /* We don't know how to get the complete previous PSR, but we need it for
+	 the slot information when we unwind the pc (pc is formed of IP register
+	 plus slot information from PSR).  To get the previous slot information, 
+	 we mask it off the return address.  */
+      ULONGEST slot_num = 0;
+      CORE_ADDR pc= 0;
+      CORE_ADDR psr = 0;
+      CORE_ADDR addr = cache->saved_regs[IA64_VRAP_REGNUM];
+
+      frame_unwind_register (next_frame, IA64_PSR_REGNUM, buf);
+      psr = extract_unsigned_integer (buf, 8);
+
+      if (addr != 0)
+	{
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, buf, register_size (current_gdbarch, IA64_IP_REGNUM));
+	  pc = extract_unsigned_integer (buf, 8);
+	}
+      else if (cache->frameless)
+	{
+	  CORE_ADDR pc;
+	  frame_unwind_register (next_frame, IA64_BR0_REGNUM, buf);
+	  pc = extract_unsigned_integer (buf, 8);
+	}
+      psr &= ~(3LL << 41);
+      slot_num = pc & 0x3LL;
+      psr |= (CORE_ADDR)slot_num << 41;
+      store_unsigned_integer (valuep, 8, psr);
+    }
+  else if (regnum == IA64_BR0_REGNUM)
+    {
+      CORE_ADDR br0 = 0;
+      CORE_ADDR addr = cache->saved_regs[IA64_BR0_REGNUM];
+      if (addr != 0)
+	{
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, buf, register_size (current_gdbarch, IA64_BR0_REGNUM));
+	  br0 = extract_unsigned_integer (buf, 8);
+	}
+      store_unsigned_integer (valuep, 8, br0);
+    }
+ else if ((regnum >= IA64_GR32_REGNUM && regnum <= IA64_GR127_REGNUM) ||
+	   (regnum >= V32_REGNUM && regnum <= V127_REGNUM))
+    {
+      CORE_ADDR addr = 0;
+      if (regnum >= V32_REGNUM)
+	regnum = IA64_GR32_REGNUM + (regnum - V32_REGNUM);
+      addr = cache->saved_regs[regnum];
+      if (addr != 0)
+	{
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, valuep, register_size (current_gdbarch, regnum));
+	}
+      else if (cache->frameless)
         {
-	  /* r32 - r127 must be fetchable via memory.  If they aren't,
-	     then the register is unavailable */
-	  memset (raw_buffer, 0, REGISTER_RAW_SIZE (regnum));
+	  char r_valuep[MAX_REGISTER_SIZE];
+	  int  r_optim;
+	  int  r_realnum;
+	  enum lval_type r_lval;
+	  CORE_ADDR r_addr;
+	  CORE_ADDR prev_cfm, prev_bsp, prev_bof;
+	  CORE_ADDR addr = 0;
+	  if (regnum >= V32_REGNUM)
+	    regnum = IA64_GR32_REGNUM + (regnum - V32_REGNUM);
+	  ia64_frame_prev_register (next_frame, this_cache, IA64_CFM_REGNUM,
+				    &r_optim, &r_lval, &r_addr, &r_realnum, r_valuep); 
+	  prev_cfm = extract_unsigned_integer (r_valuep, 8);
+	  ia64_frame_prev_register (next_frame, this_cache, IA64_BSP_REGNUM,
+				    &r_optim, &r_lval, &r_addr, &r_realnum, r_valuep);
+	  prev_bsp = extract_unsigned_integer (r_valuep, 8);
+	  prev_bof = rse_address_add (prev_bsp, -(prev_cfm & 0x7f));
+
+	  addr = rse_address_add (prev_bof, (regnum - IA64_GR32_REGNUM));
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, valuep, register_size (current_gdbarch, regnum));
         }
     }
   else
     {
+      CORE_ADDR addr = 0;
       if (IA64_FR32_REGNUM <= regnum && regnum <= IA64_FR127_REGNUM)
 	{
 	  /* Fetch floating point register rename base from current
-	     frame marker for this frame. */
-	  int rrb_fr = (frame->extra_info->cfm >> 25) & 0x7f;
+	     frame marker for this frame.  */
+	  int rrb_fr = (cache->cfm >> 25) & 0x7f;
 
 	  /* Adjust the floating point register number to account for
-	     register rotation. */
+	     register rotation.  */
 	  regnum = IA64_FR32_REGNUM
 	         + ((regnum - IA64_FR32_REGNUM) + rrb_fr) % 96;
 	}
 
-      generic_get_saved_register (raw_buffer, optimized, addrp, frame,
-                                  regnum, lval);
+      /* If we have stored a memory address, access the register.  */
+      addr = cache->saved_regs[regnum];
+      if (addr != 0)
+	{
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, valuep, register_size (current_gdbarch, regnum));
+	}
+      /* Otherwise, punt and get the current value of the register.  */
+      else 
+	frame_unwind_register (next_frame, regnum, valuep);
+    }
+
+  if (gdbarch_debug >= 1)
+    fprintf_unfiltered (gdb_stdlog,
+			"regular prev register <%d> <%s> is 0x%s\n", regnum, 
+			(((unsigned) regnum <= IA64_NAT127_REGNUM)
+			 ? ia64_register_names[regnum] : "r??"), 
+			paddr_nz (extract_unsigned_integer (valuep, 8)));
+}
+ 
+static const struct frame_unwind ia64_frame_unwind =
+{
+  NORMAL_FRAME,
+  &ia64_frame_this_id,
+  &ia64_frame_prev_register
+};
+
+static const struct frame_unwind *
+ia64_frame_sniffer (struct frame_info *next_frame)
+{
+  return &ia64_frame_unwind;
+}
+
+/* Signal trampolines.  */
+
+static void
+ia64_sigtramp_frame_init_saved_regs (struct ia64_frame_cache *cache)
+{
+  if (SIGCONTEXT_REGISTER_ADDRESS)
+    {
+      int regno;
+
+      cache->saved_regs[IA64_VRAP_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_IP_REGNUM);
+      cache->saved_regs[IA64_CFM_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_CFM_REGNUM);
+      cache->saved_regs[IA64_PSR_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_PSR_REGNUM);
+      cache->saved_regs[IA64_BSP_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_BSP_REGNUM);
+      cache->saved_regs[IA64_RNAT_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_RNAT_REGNUM);
+      cache->saved_regs[IA64_CCV_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_CCV_REGNUM);
+      cache->saved_regs[IA64_UNAT_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_UNAT_REGNUM);
+      cache->saved_regs[IA64_FPSR_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_FPSR_REGNUM);
+      cache->saved_regs[IA64_PFS_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_PFS_REGNUM);
+      cache->saved_regs[IA64_LC_REGNUM] = 
+	SIGCONTEXT_REGISTER_ADDRESS (cache->base, IA64_LC_REGNUM);
+      for (regno = IA64_GR1_REGNUM; regno <= IA64_GR31_REGNUM; regno++)
+	cache->saved_regs[regno] =
+	  SIGCONTEXT_REGISTER_ADDRESS (cache->base, regno);
+      for (regno = IA64_BR0_REGNUM; regno <= IA64_BR7_REGNUM; regno++)
+	cache->saved_regs[regno] =
+	  SIGCONTEXT_REGISTER_ADDRESS (cache->base, regno);
+      for (regno = IA64_FR2_REGNUM; regno <= IA64_FR31_REGNUM; regno++)
+	cache->saved_regs[regno] =
+	  SIGCONTEXT_REGISTER_ADDRESS (cache->base, regno);
     }
 }
 
-/* Should we use EXTRACT_STRUCT_VALUE_ADDRESS instead of
-   EXTRACT_RETURN_VALUE?  GCC_P is true if compiled with gcc
-   and TYPE is the type (which is known to be struct, union or array).  */
+static struct ia64_frame_cache *
+ia64_sigtramp_frame_cache (struct frame_info *next_frame, void **this_cache)
+{
+  struct ia64_frame_cache *cache;
+  CORE_ADDR addr;
+  char buf[8];
+  int i;
+
+  if (*this_cache)
+    return *this_cache;
+
+  cache = ia64_alloc_frame_cache ();
+
+  frame_unwind_register (next_frame, sp_regnum, buf);
+  /* Note that frame size is hard-coded below.  We cannot calculate it
+     via prologue examination.  */
+  cache->base = extract_unsigned_integer (buf, 8) + 16;
+
+  frame_unwind_register (next_frame, IA64_BSP_REGNUM, buf);
+  cache->bsp = extract_unsigned_integer (buf, 8);
+
+  frame_unwind_register (next_frame, IA64_CFM_REGNUM, buf);
+  cache->cfm = extract_unsigned_integer (buf, 8);
+  cache->sof = cache->cfm & 0x7f;
+
+  ia64_sigtramp_frame_init_saved_regs (cache);
+
+  *this_cache = cache;
+  return cache;
+}
+
+static void
+ia64_sigtramp_frame_this_id (struct frame_info *next_frame,
+			       void **this_cache, struct frame_id *this_id)
+{
+  struct ia64_frame_cache *cache =
+    ia64_sigtramp_frame_cache (next_frame, this_cache);
+
+  (*this_id) = frame_id_build_special (cache->base, frame_pc_unwind (next_frame), cache->bsp);
+  if (gdbarch_debug >= 1)
+    fprintf_unfiltered (gdb_stdlog,
+			"sigtramp frame id: code 0x%s, stack 0x%s, special 0x%s, next_frame %p\n",
+			paddr_nz (this_id->code_addr), 
+			paddr_nz (this_id->stack_addr), 
+			paddr_nz (cache->bsp), next_frame);
+}
+
+static void
+ia64_sigtramp_frame_prev_register (struct frame_info *next_frame,
+				   void **this_cache,
+				   int regnum, int *optimizedp,
+				   enum lval_type *lvalp, CORE_ADDR *addrp,
+				   int *realnump, void *valuep)
+{
+  char dummy_valp[MAX_REGISTER_SIZE];
+  char buf[MAX_REGISTER_SIZE];
+
+  struct ia64_frame_cache *cache =
+    ia64_sigtramp_frame_cache (next_frame, this_cache);
+
+  gdb_assert (regnum >= 0);
+
+  if (!target_has_registers)
+    error ("No registers.");
+
+  *optimizedp = 0;
+  *addrp = 0;
+  *lvalp = not_lval;
+  *realnump = -1;
+
+  /* Rather than check each time if valuep is non-null, supply a dummy buffer
+     when valuep is not supplied.  */
+  if (!valuep)
+    valuep = dummy_valp;
+  
+  memset (valuep, 0, register_size (current_gdbarch, regnum));
+ 
+  if (regnum == IA64_IP_REGNUM)
+    {
+      CORE_ADDR pc = 0;
+      CORE_ADDR addr = cache->saved_regs[IA64_VRAP_REGNUM];
+
+      if (addr != 0)
+	{
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, buf, register_size (current_gdbarch, IA64_IP_REGNUM));
+	  pc = extract_unsigned_integer (buf, 8);
+	}
+      pc &= ~0xf;
+      store_unsigned_integer (valuep, 8, pc);
+    }
+ else if ((regnum >= IA64_GR32_REGNUM && regnum <= IA64_GR127_REGNUM) ||
+	   (regnum >= V32_REGNUM && regnum <= V127_REGNUM))
+    {
+      CORE_ADDR addr = 0;
+      if (regnum >= V32_REGNUM)
+	regnum = IA64_GR32_REGNUM + (regnum - V32_REGNUM);
+      addr = cache->saved_regs[regnum];
+      if (addr != 0)
+	{
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, valuep, register_size (current_gdbarch, regnum));
+	}
+    }
+  else
+    {
+      /* All other registers not listed above.  */
+      CORE_ADDR addr = cache->saved_regs[regnum];
+      if (addr != 0)
+	{
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  read_memory (addr, valuep, register_size (current_gdbarch, regnum));
+	}
+    }
+
+  if (gdbarch_debug >= 1)
+    fprintf_unfiltered (gdb_stdlog,
+			"sigtramp prev register <%s> is 0x%s\n",
+			(((unsigned) regnum <= IA64_NAT127_REGNUM)
+			 ? ia64_register_names[regnum] : "r??"), 
+			paddr_nz (extract_unsigned_integer (valuep, 8)));
+}
+
+static const struct frame_unwind ia64_sigtramp_frame_unwind =
+{
+  SIGTRAMP_FRAME,
+  ia64_sigtramp_frame_this_id,
+  ia64_sigtramp_frame_prev_register
+};
+
+static const struct frame_unwind *
+ia64_sigtramp_frame_sniffer (struct frame_info *next_frame)
+{
+  char *name;
+  CORE_ADDR pc = frame_pc_unwind (next_frame);
+
+  find_pc_partial_function (pc, &name, NULL, NULL);
+  if (PC_IN_SIGTRAMP (pc, name))
+    return &ia64_sigtramp_frame_unwind;
+
+  return NULL;
+}
+
+
+static CORE_ADDR
+ia64_frame_base_address (struct frame_info *next_frame, void **this_cache)
+{
+  struct ia64_frame_cache *cache =
+    ia64_frame_cache (next_frame, this_cache);
+
+  return cache->base;
+}
+
+static const struct frame_base ia64_frame_base =
+{
+  &ia64_frame_unwind,
+  ia64_frame_base_address,
+  ia64_frame_base_address,
+  ia64_frame_base_address
+};
+
+#ifdef HAVE_LIBUNWIND_IA64_H
+
+struct ia64_unwind_table_entry
+  {
+    unw_word_t start_offset;
+    unw_word_t end_offset;
+    unw_word_t info_offset;
+  };
+
+static __inline__ uint64_t
+ia64_rse_slot_num (uint64_t addr)
+{
+  return (addr >> 3) & 0x3f;
+}
+
+/* Skip over a designated number of registers in the backing
+   store, remembering every 64th position is for NAT.  */
+static __inline__ uint64_t
+ia64_rse_skip_regs (uint64_t addr, long num_regs)
+{
+  long delta = ia64_rse_slot_num(addr) + num_regs;
+
+  if (num_regs < 0)
+    delta -= 0x3e;
+  return addr + ((num_regs + delta/0x3f) << 3);
+}
+  
+/* Gdb libunwind-frame callback function to convert from an ia64 gdb register 
+   number to a libunwind register number.  */
+static int
+ia64_gdb2uw_regnum (int regnum)
+{
+  if (regnum == sp_regnum)
+    return UNW_IA64_SP;
+  else if (regnum == IA64_BSP_REGNUM)
+    return UNW_IA64_BSP;
+  else if ((unsigned) (regnum - IA64_GR0_REGNUM) < 128)
+    return UNW_IA64_GR + (regnum - IA64_GR0_REGNUM);
+  else if ((unsigned) (regnum - V32_REGNUM) < 95)
+    return UNW_IA64_GR + 32 + (regnum - V32_REGNUM);
+  else if ((unsigned) (regnum - IA64_FR0_REGNUM) < 128)
+    return UNW_IA64_FR + (regnum - IA64_FR0_REGNUM);
+  else if ((unsigned) (regnum - IA64_PR0_REGNUM) < 64)
+    return -1;
+  else if ((unsigned) (regnum - IA64_BR0_REGNUM) < 8)
+    return UNW_IA64_BR + (regnum - IA64_BR0_REGNUM);
+  else if (regnum == IA64_PR_REGNUM)
+    return UNW_IA64_PR;
+  else if (regnum == IA64_IP_REGNUM)
+    return UNW_REG_IP;
+  else if (regnum == IA64_CFM_REGNUM)
+    return UNW_IA64_CFM;
+  else if ((unsigned) (regnum - IA64_AR0_REGNUM) < 128)
+    return UNW_IA64_AR + (regnum - IA64_AR0_REGNUM);
+  else if ((unsigned) (regnum - IA64_NAT0_REGNUM) < 128)
+    return UNW_IA64_NAT + (regnum - IA64_NAT0_REGNUM);
+  else
+    return -1;
+}
+  
+/* Gdb libunwind-frame callback function to convert from a libunwind register 
+   number to a ia64 gdb register number.  */
+static int
+ia64_uw2gdb_regnum (int uw_regnum)
+{
+  if (uw_regnum == UNW_IA64_SP)
+    return sp_regnum;
+  else if (uw_regnum == UNW_IA64_BSP)
+    return IA64_BSP_REGNUM;
+  else if ((unsigned) (uw_regnum - UNW_IA64_GR) < 32)
+    return IA64_GR0_REGNUM + (uw_regnum - UNW_IA64_GR);
+  else if ((unsigned) (uw_regnum - UNW_IA64_GR) < 128)
+    return V32_REGNUM + (uw_regnum - (IA64_GR0_REGNUM + 32));
+  else if ((unsigned) (uw_regnum - UNW_IA64_FR) < 128)
+    return IA64_FR0_REGNUM + (uw_regnum - UNW_IA64_FR);
+  else if ((unsigned) (uw_regnum - UNW_IA64_BR) < 8)
+    return IA64_BR0_REGNUM + (uw_regnum - UNW_IA64_BR);
+  else if (uw_regnum == UNW_IA64_PR)
+    return IA64_PR_REGNUM;
+  else if (uw_regnum == UNW_REG_IP)
+    return IA64_IP_REGNUM;
+  else if (uw_regnum == UNW_IA64_CFM)
+    return IA64_CFM_REGNUM;
+  else if ((unsigned) (uw_regnum - UNW_IA64_AR) < 128)
+    return IA64_AR0_REGNUM + (uw_regnum - UNW_IA64_AR);
+  else if ((unsigned) (uw_regnum - UNW_IA64_NAT) < 128)
+    return IA64_NAT0_REGNUM + (uw_regnum - UNW_IA64_NAT);
+  else
+    return -1;
+}
+
+/* Gdb libunwind-frame callback function to reveal if register is a float 
+   register or not.  */
+static int
+ia64_is_fpreg (int uw_regnum)
+{
+  return unw_is_fpreg (uw_regnum);
+}
+  
+/* Libunwind callback accessor function for general registers.  */
+static int
+ia64_access_reg (unw_addr_space_t as, unw_regnum_t uw_regnum, unw_word_t *val, 
+		 int write, void *arg)
+{
+  int regnum = ia64_uw2gdb_regnum (uw_regnum);
+  unw_word_t bsp, sof, sol, cfm, psr, ip;
+  struct frame_info *next_frame = arg;
+  long new_sof, old_sof;
+  char buf[MAX_REGISTER_SIZE];
+  
+  if (write)
+    {
+      if (regnum < 0)
+	/* ignore writes to pseudo-registers such as UNW_IA64_PROC_STARTI.  */
+	return 0;
+  
+      switch (uw_regnum)
+	{
+	case UNW_REG_IP:
+	  ia64_write_pc (*val, inferior_ptid);
+	  break;
+
+	case UNW_IA64_AR_BSPSTORE:
+	  write_register (IA64_BSP_REGNUM, *val);
+	  break;
+	  
+	case UNW_IA64_AR_BSP:
+	case UNW_IA64_BSP:
+	  /* Account for the fact that ptrace() expects bsp to point
+	     after the current register frame.  */
+	  cfm = read_register (IA64_CFM_REGNUM);
+	  sof = (cfm & 0x7f);
+	  bsp = ia64_rse_skip_regs (*val, sof);
+	  write_register (IA64_BSP_REGNUM, bsp);
+	  break;
+	  
+	case UNW_IA64_CFM:
+	  /* If we change CFM, we need to adjust ptrace's notion of
+	     bsp accordingly, so that the real bsp remains
+	     unchanged.  */
+	  bsp = read_register (IA64_BSP_REGNUM);
+	  cfm = read_register (IA64_CFM_REGNUM);
+	  old_sof = (cfm & 0x7f);
+	  new_sof = (*val & 0x7f);
+	  if (old_sof != new_sof)
+	    {
+	      bsp = ia64_rse_skip_regs (bsp, -old_sof + new_sof);
+	      write_register (IA64_BSP_REGNUM, bsp);
+	    }
+	  write_register (IA64_CFM_REGNUM, *val);
+	  break;
+	  
+	default:
+	  write_register (regnum, *val);
+	  break;
+	}
+      if (gdbarch_debug >= 1)
+	fprintf_unfiltered (gdb_stdlog, 
+			    "  access_reg: to cache: %4s=0x%s\n",
+			    (((unsigned) regnum <= IA64_NAT127_REGNUM)
+			     ? ia64_register_names[regnum] : "r??"), 
+			    paddr_nz (*val));
+    }
+  else
+    {
+      switch (uw_regnum)
+	{
+	case UNW_REG_IP:
+	  /* Libunwind expects to see the pc value which means the slot number
+	     from the psr must be merged with the ip word address.  */
+	  frame_unwind_register (next_frame, IA64_IP_REGNUM, buf);
+	  ip = extract_unsigned_integer (buf, 8); 
+	  frame_unwind_register (next_frame, IA64_PSR_REGNUM, buf);
+	  psr = extract_unsigned_integer (buf, 8); 
+	  *val = ip | ((psr >> 41) & 0x3);
+	  break;
+	  
+	case UNW_IA64_AR_BSP:
+	  /* Libunwind expects to see the beginning of the current register
+	     frame so we must account for the fact that ptrace() will return a value
+	     for bsp that points *after* the current register frame.  */
+	  frame_unwind_register (next_frame, IA64_BSP_REGNUM, buf);
+	  bsp = extract_unsigned_integer (buf, 8);
+	  frame_unwind_register (next_frame, IA64_CFM_REGNUM, buf);
+	  cfm = extract_unsigned_integer (buf, 8); 
+	  sof = (cfm & 0x7f);
+	  *val = ia64_rse_skip_regs (bsp, -sof);
+	  break;
+	  
+	case UNW_IA64_AR_BSPSTORE:
+	  /* Libunwind wants bspstore to be after the current register frame.
+	     This is what ptrace() and gdb treats as the regular bsp value.  */
+	  frame_unwind_register (next_frame, IA64_BSP_REGNUM, buf);
+	  *val = extract_unsigned_integer (buf, 8);
+	  break;
+
+	default:
+	  /* For all other registers, just unwind the value directly.  */
+	  frame_unwind_register (next_frame, regnum, buf);
+	  *val = extract_unsigned_integer (buf, 8); 
+	  break;
+	}
+      
+      if (gdbarch_debug >= 1)
+	fprintf_unfiltered (gdb_stdlog, 
+			    "  access_reg: from cache: %4s=0x%s\n",
+			    (((unsigned) regnum <= IA64_NAT127_REGNUM)
+			     ? ia64_register_names[regnum] : "r??"), 
+			    paddr_nz (*val));
+    }
+  return 0;
+}
+
+/* Libunwind callback accessor function for floating-point registers.  */
+static int
+ia64_access_fpreg (unw_addr_space_t as, unw_regnum_t uw_regnum, unw_fpreg_t *val, 
+		   int write, void *arg)
+{
+  int regnum = ia64_uw2gdb_regnum (uw_regnum);
+  
+  if (write)
+    regcache_cooked_write (current_regcache, regnum, (char *) val);
+  else
+    regcache_cooked_read (current_regcache, regnum, (char *) val);
+  return 0;
+}
+
+/* Libunwind callback accessor function for accessing memory.  */
+static int
+ia64_access_mem (unw_addr_space_t as,
+		 unw_word_t addr, unw_word_t *val,
+		 int write, void *arg)
+{
+  /* XXX do we need to normalize byte-order here?  */
+  if (write)
+    return target_write_memory (addr, (char *) val, sizeof (unw_word_t));
+  else
+    return target_read_memory (addr, (char *) val, sizeof (unw_word_t));
+}
+
+/* Call low-level function to access the kernel unwind table.  */
+static int
+getunwind_table (void *buf, size_t len)
+{
+  LONGEST x;
+  x = target_read_partial (&current_target, TARGET_OBJECT_UNWIND_TABLE, NULL,
+			   buf, 0, len);
+
+  return (int)x;
+}
+	
+/* Get the kernel unwind table.  */				 
+static int
+get_kernel_table (unw_word_t ip, unw_dyn_info_t *di)
+{
+  size_t size;
+  struct ia64_table_entry
+  {
+    uint64_t start_offset;
+    uint64_t end_offset;
+    uint64_t info_offset;
+  };
+  static struct ia64_table_entry *ktab = NULL, *etab;
+
+  if (!ktab)
+    {
+      size = getunwind_table (NULL, 0);
+      if ((int)size < 0)
+	return -UNW_ENOINFO;
+      ktab = xmalloc (size);
+      getunwind_table (ktab, size);
+  
+      /* Determine length of kernel's unwind table and relocate
+	 it's entries.  */
+      for (etab = ktab; etab->start_offset; ++etab)
+	etab->info_offset += (uint64_t) ktab;
+    }
+  
+  if (ip < ktab[0].start_offset || ip >= etab[-1].end_offset)
+    return -UNW_ENOINFO;
+  
+  di->format = UNW_INFO_FORMAT_TABLE;
+  di->gp = 0;
+  di->start_ip = ktab[0].start_offset;
+  di->end_ip = etab[-1].end_offset;
+  di->u.ti.name_ptr = (unw_word_t) "<kernel>";
+  di->u.ti.segbase = 0;
+  di->u.ti.table_len = ((char *) etab - (char *) ktab) / sizeof (unw_word_t);
+  di->u.ti.table_data = (unw_word_t *) ktab;
+  
+  if (gdbarch_debug >= 1)
+    fprintf_unfiltered (gdb_stdlog, "get_kernel_table: found table `%s': "
+			"segbase=0x%s, length=%s, gp=0x%s\n",
+			(char *) di->u.ti.name_ptr, 
+			paddr_nz (di->u.ti.segbase), 
+			paddr_u (di->u.ti.table_len), 
+			paddr_nz (di->gp));
+  return 0;
+}
+
+/* Find the unwind table entry for a specified address.  */
+static int
+ia64_find_unwind_table (struct objfile *objfile, unw_word_t ip,
+			unw_dyn_info_t *dip, void **buf)
+{
+  Elf_Internal_Phdr *phdr, *p_text = NULL, *p_unwind = NULL;
+  Elf_Internal_Ehdr *ehdr;
+  unw_word_t segbase = 0;
+  CORE_ADDR load_base;
+  bfd *bfd;
+  int i;
+
+  bfd = objfile->obfd;
+  
+  ehdr = elf_tdata (bfd)->elf_header;
+  phdr = elf_tdata (bfd)->phdr;
+
+  load_base = ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+
+  for (i = 0; i < ehdr->e_phnum; ++i)
+    {
+      switch (phdr[i].p_type)
+	{
+	case PT_LOAD:
+	  if ((unw_word_t) (ip - load_base - phdr[i].p_vaddr)
+	      < phdr[i].p_memsz)
+	    p_text = phdr + i;
+	  break;
+
+	case PT_IA_64_UNWIND:
+	  p_unwind = phdr + i;
+	  break;
+
+	default:
+	  break;
+	}
+    }
+
+  if (!p_text || !p_unwind
+      /* Verify that the segment that contains the IP also contains
+	 the static unwind table.  If not, we are dealing with
+	 runtime-generated code, for which we have no info here.  */
+      || (p_unwind->p_vaddr - p_text->p_vaddr) >= p_text->p_memsz)
+    return -UNW_ENOINFO;
+
+  segbase = p_text->p_vaddr + load_base;
+
+  dip->start_ip = segbase;
+  dip->end_ip = dip->start_ip + p_text->p_memsz;
+  dip->gp = FIND_GLOBAL_POINTER (ip);
+  dip->format = UNW_INFO_FORMAT_REMOTE_TABLE;
+  dip->u.rti.name_ptr = (unw_word_t) bfd_get_filename (bfd);
+  dip->u.rti.segbase = segbase;
+  dip->u.rti.table_len = p_unwind->p_memsz / sizeof (unw_word_t);
+  dip->u.rti.table_data = p_unwind->p_vaddr + load_base;
+
+  return 0;
+}
+
+/* Libunwind callback accessor function to acquire procedure unwind-info.  */
+static int
+ia64_find_proc_info_x (unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
+		       int need_unwind_info, void *arg)
+{
+  struct obj_section *sec = find_pc_section (ip);
+  unw_dyn_info_t di;
+  int ret;
+  void *buf = NULL;
+
+  if (!sec)
+    {
+      /* XXX This only works if the host and the target architecture are
+	 both ia64 and if the have (more or less) the same kernel
+	 version.  */
+      if (get_kernel_table (ip, &di) < 0)
+	return -UNW_ENOINFO;
+
+      if (gdbarch_debug >= 1)
+	fprintf_unfiltered (gdb_stdlog, "ia64_find_proc_info_x: 0x%s -> "
+			    "(name=`%s',segbase=0x%s,start=0x%s,end=0x%s,gp=0x%s,"
+			    "length=%s,data=0x%s)\n",
+			    paddr_nz (ip), (char *)di.u.ti.name_ptr,
+			    paddr_nz (di.u.ti.segbase), 
+			    paddr_nz (di.start_ip), paddr_nz (di.end_ip),
+			    paddr_nz (di.gp), 
+			    paddr_u (di.u.ti.table_len), 
+			    paddr_nz ((CORE_ADDR)di.u.ti.table_data));
+    }
+  else
+    {
+      ret = ia64_find_unwind_table (sec->objfile, ip, &di, &buf);
+      if (ret < 0)
+	return ret;
+
+      if (gdbarch_debug >= 1)
+	fprintf_unfiltered (gdb_stdlog, "ia64_find_proc_info_x: 0x%s -> "
+			    "(name=`%s',segbase=0x%s,start=0x%s,end=0x%s,gp=0x%s,"
+			    "length=%s,data=0x%s)\n",
+			    paddr_nz (ip), (char *)di.u.rti.name_ptr,
+			    paddr_nz (di.u.rti.segbase), 
+			    paddr_nz (di.start_ip), paddr_nz (di.end_ip),
+			    paddr_nz (di.gp), 
+			    paddr_u (di.u.rti.table_len), 
+			    paddr_nz (di.u.rti.table_data));
+    }
+
+  ret = libunwind_search_unwind_table (&as, ip, &di, pi, need_unwind_info,
+				       arg);
+
+  /* We no longer need the dyn info storage so free it.  */
+  xfree (buf);
+
+  return ret;
+}
+
+/* Libunwind callback accessor function for cleanup.  */
+static void
+ia64_put_unwind_info (unw_addr_space_t as,
+		      unw_proc_info_t *pip, void *arg)
+{
+  /* Nothing required for now.  */
+}
+
+/* Libunwind callback accessor function to get head of the dynamic 
+   unwind-info registration list.  */ 
+static int
+ia64_get_dyn_info_list (unw_addr_space_t as,
+			unw_word_t *dilap, void *arg)
+{
+  struct obj_section *text_sec;
+  struct objfile *objfile;
+  unw_word_t ip, addr;
+  unw_dyn_info_t di;
+  int ret;
+
+  if (!libunwind_is_initialized ())
+    return -UNW_ENOINFO;
+
+  for (objfile = object_files; objfile; objfile = objfile->next)
+    {
+      void *buf = NULL;
+
+      text_sec = objfile->sections + SECT_OFF_TEXT (objfile);
+      ip = text_sec->addr;
+      ret = ia64_find_unwind_table (objfile, ip, &di, &buf);
+      if (ret >= 0)
+	{
+	  addr = libunwind_find_dyn_list (as, &di, arg);
+	  /* We no longer need the dyn info storage so free it.  */
+	  xfree (buf);
+
+	  if (addr)
+	    {
+	      if (gdbarch_debug >= 1)
+		fprintf_unfiltered (gdb_stdlog,
+				    "dynamic unwind table in objfile %s "
+				    "at 0x%s (gp=0x%s)\n",
+				    bfd_get_filename (objfile->obfd),
+				    paddr_nz (addr), paddr_nz (di.gp));
+	      *dilap = addr;
+	      return 0;
+	    }
+	}
+    }
+  return -UNW_ENOINFO;
+}
+
+
+/* Frame interface functions for libunwind.  */
+
+static void
+ia64_libunwind_frame_this_id (struct frame_info *next_frame, void **this_cache,
+		      struct frame_id *this_id)
+{
+  char buf[8];
+  CORE_ADDR bsp;
+  struct frame_id id;
+
+  libunwind_frame_this_id (next_frame, this_cache, &id);
+
+  /* We must add the bsp as the special address for frame comparison purposes.  */
+  frame_unwind_register (next_frame, IA64_BSP_REGNUM, buf);
+  bsp = extract_unsigned_integer (buf, 8);
+
+  (*this_id) = frame_id_build_special (id.stack_addr, id.code_addr, bsp);
+
+  if (gdbarch_debug >= 1)
+    fprintf_unfiltered (gdb_stdlog,
+			"libunwind frame id: code 0x%s, stack 0x%s, special 0x%s, next_frame %p\n",
+			paddr_nz (id.code_addr), paddr_nz (id.stack_addr), 
+			paddr_nz (bsp), next_frame);
+}
+
+static void
+ia64_libunwind_frame_prev_register (struct frame_info *next_frame,
+				    void **this_cache,
+				    int regnum, int *optimizedp,
+				    enum lval_type *lvalp, CORE_ADDR *addrp,
+				    int *realnump, void *valuep)
+{
+  int reg = regnum;
+
+  if (VP0_REGNUM <= regnum && regnum <= VP63_REGNUM)
+    reg = IA64_PR_REGNUM;
+  else if (IA64_NAT0_REGNUM <= regnum && regnum <= IA64_NAT127_REGNUM)
+    reg = IA64_UNAT_REGNUM;
+
+  /* Let libunwind do most of the work.  */
+  libunwind_frame_prev_register (next_frame, this_cache, reg,
+				 optimizedp, lvalp, addrp, realnump, valuep);
+
+  if (VP0_REGNUM <= regnum && regnum <= VP63_REGNUM)
+    {
+      ULONGEST prN_val;
+
+      if (VP16_REGNUM <= regnum && regnum <= VP63_REGNUM)
+	{
+	  int rrb_pr = 0;
+	  ULONGEST cfm;
+	  unsigned char buf[MAX_REGISTER_SIZE];
+
+	  /* Fetch predicate register rename base from current frame
+	     marker for this frame.  */
+	  frame_unwind_register (next_frame, IA64_CFM_REGNUM, buf);
+	  cfm = extract_unsigned_integer (buf, 8); 
+	  rrb_pr = (cfm >> 32) & 0x3f;
+	  
+	  /* Adjust the register number to account for register rotation.  */
+	  regnum = VP16_REGNUM 
+	    + ((regnum - VP16_REGNUM) + rrb_pr) % 48;
+	}
+      prN_val = extract_bit_field ((unsigned char *) valuep,
+				   regnum - VP0_REGNUM, 1);
+      store_unsigned_integer (valuep, register_size (current_gdbarch, regnum), prN_val);
+    }
+  else if (IA64_NAT0_REGNUM <= regnum && regnum <= IA64_NAT127_REGNUM)
+    {
+      ULONGEST unatN_val;
+
+      unatN_val = extract_bit_field ((unsigned char *) valuep,
+                                   regnum - IA64_NAT0_REGNUM, 1);
+      store_unsigned_integer (valuep, register_size (current_gdbarch, regnum), 
+                              unatN_val);
+    }
+  else if (regnum == IA64_BSP_REGNUM)
+    {
+      char cfm_valuep[MAX_REGISTER_SIZE];
+      int  cfm_optim;
+      int  cfm_realnum;
+      enum lval_type cfm_lval;
+      CORE_ADDR cfm_addr;
+      CORE_ADDR bsp, prev_cfm, prev_bsp;
+
+      /* We want to calculate the previous bsp as the end of the previous register stack frame.
+	 This corresponds to what the hardware bsp register will be if we pop the frame
+	 back which is why we might have been called.  We know that libunwind will pass us back
+	 the beginning of the current frame so we should just add sof to it. */
+      prev_bsp = extract_unsigned_integer (valuep, 8);
+      libunwind_frame_prev_register (next_frame, this_cache, IA64_CFM_REGNUM,
+				     &cfm_optim, &cfm_lval, &cfm_addr, &cfm_realnum, cfm_valuep);
+      prev_cfm = extract_unsigned_integer (cfm_valuep, 8);
+      prev_bsp = rse_address_add (prev_bsp, (prev_cfm & 0x7f));
+
+      store_unsigned_integer (valuep, register_size (current_gdbarch, regnum), 
+			      prev_bsp);
+    }
+
+  if (gdbarch_debug >= 1)
+    fprintf_unfiltered (gdb_stdlog,
+			"libunwind prev register <%s> is 0x%s\n",
+			(((unsigned) regnum <= IA64_NAT127_REGNUM)
+			 ? ia64_register_names[regnum] : "r??"), 
+			paddr_nz (extract_unsigned_integer (valuep, 8)));
+}
+
+static const struct frame_unwind ia64_libunwind_frame_unwind =
+{
+  NORMAL_FRAME,
+  ia64_libunwind_frame_this_id,
+  ia64_libunwind_frame_prev_register
+};
+
+static const struct frame_unwind *
+ia64_libunwind_frame_sniffer (struct frame_info *next_frame)
+{
+  if (libunwind_is_initialized () && libunwind_frame_sniffer (next_frame))
+    return &ia64_libunwind_frame_unwind;
+
+  return NULL;
+}
+
+/* Set of libunwind callback acccessor functions.  */
+static unw_accessors_t ia64_unw_accessors =
+{
+  ia64_find_proc_info_x,
+  ia64_put_unwind_info,
+  ia64_get_dyn_info_list,
+  ia64_access_mem,
+  ia64_access_reg,
+  ia64_access_fpreg,
+  /* resume */
+  /* get_proc_name */
+};
+
+/* Set of ia64 gdb libunwind-frame callbacks and data for generic libunwind-frame code to use.  */
+static struct libunwind_descr ia64_libunwind_descr =
+{
+  ia64_gdb2uw_regnum, 
+  ia64_uw2gdb_regnum, 
+  ia64_is_fpreg, 
+  &ia64_unw_accessors,
+};
+
+#endif /* HAVE_LIBUNWIND_IA64_H  */
+
+/* Should we use DEPRECATED_EXTRACT_STRUCT_VALUE_ADDRESS instead of
+   EXTRACT_RETURN_VALUE?  GCC_P is true if compiled with gcc and TYPE
+   is the type (which is known to be struct, union or array).  */
 int
 ia64_use_struct_convention (int gcc_p, struct type *type)
 {
@@ -1373,154 +2698,72 @@ ia64_use_struct_convention (int gcc_p, struct type *type)
   /* HFAs are structures (or arrays) consisting entirely of floating
      point values of the same length.  Up to 8 of these are returned
      in registers.  Don't use the struct convention when this is the
-     case. */
+     case.  */
   float_elt_type = is_float_or_hfa_type (type);
   if (float_elt_type != NULL
       && TYPE_LENGTH (type) / TYPE_LENGTH (float_elt_type) <= 8)
     return 0;
 
   /* Other structs of length 32 or less are returned in r8-r11.
-     Don't use the struct convention for those either. */
+     Don't use the struct convention for those either.  */
   return TYPE_LENGTH (type) > 32;
 }
 
 void
-ia64_extract_return_value (struct type *type, char *regbuf, char *valbuf)
+ia64_extract_return_value (struct type *type, struct regcache *regcache, void *valbuf)
 {
   struct type *float_elt_type;
 
   float_elt_type = is_float_or_hfa_type (type);
   if (float_elt_type != NULL)
     {
+      char from[MAX_REGISTER_SIZE];
       int offset = 0;
       int regnum = IA64_FR8_REGNUM;
       int n = TYPE_LENGTH (type) / TYPE_LENGTH (float_elt_type);
 
       while (n-- > 0)
 	{
-	  ia64_register_convert_to_virtual (regnum, float_elt_type,
-	    &regbuf[REGISTER_BYTE (regnum)], valbuf + offset);
+	  regcache_cooked_read (regcache, regnum, from);
+	  convert_typed_floating (from, builtin_type_ia64_ext,
+				  (char *)valbuf + offset, float_elt_type);	  
 	  offset += TYPE_LENGTH (float_elt_type);
 	  regnum++;
 	}
     }
   else
-    memcpy (valbuf, &regbuf[REGISTER_BYTE (IA64_GR8_REGNUM)],
-	    TYPE_LENGTH (type));
-}
+    {
+      ULONGEST val;
+      int offset = 0;
+      int regnum = IA64_GR8_REGNUM;
+      int reglen = TYPE_LENGTH (ia64_register_type (NULL, IA64_GR8_REGNUM));
+      int n = TYPE_LENGTH (type) / reglen;
+      int m = TYPE_LENGTH (type) % reglen;
 
-/* FIXME: Turn this into a stack of some sort.  Unfortunately, something
-   like this is necessary though since the IA-64 calling conventions specify
-   that r8 is not preserved. */
-static CORE_ADDR struct_return_address;
+      while (n-- > 0)
+	{
+	  ULONGEST val;
+	  regcache_cooked_read_unsigned (regcache, regnum, &val);
+	  memcpy ((char *)valbuf + offset, &val, reglen);
+	  offset += reglen;
+	  regnum++;
+	}
 
-CORE_ADDR
-ia64_extract_struct_value_address (char *regbuf)
-{
-  /* FIXME: See above. */
-  return struct_return_address;
-}
-
-void
-ia64_store_struct_return (CORE_ADDR addr, CORE_ADDR sp)
-{
-  /* FIXME: See above. */
-  /* Note that most of the work was done in ia64_push_arguments() */
-  struct_return_address = addr;
-}
-
-int
-ia64_frameless_function_invocation (struct frame_info *frame)
-{
-  FRAME_INIT_SAVED_REGS (frame);
-  return (frame->extra_info->mem_stack_frame_size == 0);
+      if (m)
+	{
+          regcache_cooked_read_unsigned (regcache, regnum, &val);
+	  memcpy ((char *)valbuf + offset, &val, m);
+	}
+    }
 }
 
 CORE_ADDR
-ia64_saved_pc_after_call (struct frame_info *frame)
+ia64_extract_struct_value_address (struct regcache *regcache)
 {
-  return read_register (IA64_BR0_REGNUM);
+  error ("ia64_extract_struct_value_address called and cannot get struct value address");
+  return 0;
 }
 
-CORE_ADDR
-ia64_frame_args_address (struct frame_info *frame)
-{
-  /* frame->frame points at the SP for this frame; But we want the start
-     of the frame, not the end.  Calling frame chain will get his for us. */
-  return ia64_frame_chain (frame);
-}
-
-CORE_ADDR
-ia64_frame_locals_address (struct frame_info *frame)
-{
-  /* frame->frame points at the SP for this frame; But we want the start
-     of the frame, not the end.  Calling frame chain will get his for us. */
-  return ia64_frame_chain (frame);
-}
-
-void
-ia64_init_extra_frame_info (int fromleaf, struct frame_info *frame)
-{
-  CORE_ADDR bsp, cfm;
-  int next_frame_is_call_dummy = ((frame->next != NULL)
-    && PC_IN_CALL_DUMMY (frame->next->pc, frame->next->frame,
-                                          frame->next->frame));
-
-  frame->extra_info = (struct frame_extra_info *)
-    frame_obstack_alloc (sizeof (struct frame_extra_info));
-
-  if (frame->next == 0)
-    {
-      bsp = read_register (IA64_BSP_REGNUM);
-      cfm = read_register (IA64_CFM_REGNUM);
-
-    }
-  else if (frame->next->signal_handler_caller)
-    {
-      bsp = read_sigcontext_register (frame->next, IA64_BSP_REGNUM);
-      cfm = read_sigcontext_register (frame->next, IA64_CFM_REGNUM);
-    }
-  else if (next_frame_is_call_dummy)
-    {
-      bsp = generic_read_register_dummy (frame->next->pc, frame->next->frame,
-                                         IA64_BSP_REGNUM);
-      cfm = generic_read_register_dummy (frame->next->pc, frame->next->frame,
-                                         IA64_CFM_REGNUM);
-    }
-  else
-    {
-      struct frame_info *frn = frame->next;
-
-      FRAME_INIT_SAVED_REGS (frn);
-
-      if (frn->saved_regs[IA64_CFM_REGNUM] != 0)
-	cfm = read_memory_integer (frn->saved_regs[IA64_CFM_REGNUM], 8);
-      else if (frn->next && frn->next->signal_handler_caller)
-	cfm = read_sigcontext_register (frn->next, IA64_PFS_REGNUM);
-      else if (frn->next
-               && PC_IN_CALL_DUMMY (frn->next->pc, frn->next->frame,
-	                                           frn->next->frame))
-	cfm = generic_read_register_dummy (frn->next->pc, frn->next->frame,
-	                                   IA64_PFS_REGNUM);
-      else
-	cfm = read_register (IA64_PFS_REGNUM);
-
-      bsp = frn->extra_info->bsp;
-    }
-  frame->extra_info->cfm = cfm;
-  frame->extra_info->sof = cfm & 0x7f;
-  frame->extra_info->sol = (cfm >> 7) & 0x7f;
-  if (frame->next == 0 
-      || frame->next->signal_handler_caller 
-      || next_frame_is_call_dummy)
-    frame->extra_info->bsp = rse_address_add (bsp, -frame->extra_info->sof);
-  else
-    frame->extra_info->bsp = rse_address_add (bsp, -frame->extra_info->sol);
-
-  frame->extra_info->after_prologue = 0;
-  frame->extra_info->mem_stack_frame_size = -1;		/* Not yet determined */
-  frame->extra_info->fp_reg = 0;
-}
 
 static int
 is_float_or_hfa_type_recurse (struct type *t, struct type **etp)
@@ -1560,7 +2803,7 @@ is_float_or_hfa_type_recurse (struct type *t, struct type **etp)
 
 /* Determine if the given type is one of the floating point types or
    and HFA (which is a struct, array, or combination thereof whose
-   bottom-most elements are all of the same floating point type.) */
+   bottom-most elements are all of the same floating point type).  */
 
 static struct type *
 is_float_or_hfa_type (struct type *t)
@@ -1574,7 +2817,7 @@ is_float_or_hfa_type (struct type *t)
 /* Return 1 if the alignment of T is such that the next even slot
    should be used.  Return 0, if the next available slot should
    be used.  (See section 8.5.1 of the IA-64 Software Conventions
-   and Runtime manual.)  */
+   and Runtime manual).  */
 
 static int
 slot_alignment_is_next_even (struct type *t)
@@ -1654,7 +2897,7 @@ generic_elf_find_global_pointer (CORE_ADDR faddr)
 		  status = target_read_memory (addr + 8, buf, sizeof (buf));
 		  if (status != 0)
 		    break;
-		  global_pointer = extract_address (buf, sizeof (buf));
+		  global_pointer = extract_unsigned_integer (buf, sizeof (buf));
 
 		  /* The payoff... */
 		  return global_pointer;
@@ -1672,13 +2915,13 @@ generic_elf_find_global_pointer (CORE_ADDR faddr)
 
 /* Given a function's address, attempt to find (and return) the
    corresponding (canonical) function descriptor.  Return 0 if
-   not found. */
+   not found.  */
 static CORE_ADDR
 find_extant_func_descr (CORE_ADDR faddr)
 {
   struct obj_section *faddr_sect;
 
-  /* Return early if faddr is already a function descriptor */
+  /* Return early if faddr is already a function descriptor.  */
   faddr_sect = find_pc_section (faddr);
   if (faddr_sect && strcmp (faddr_sect->the_bfd_section->name, ".opd") == 0)
     return faddr;
@@ -1720,7 +2963,7 @@ find_extant_func_descr (CORE_ADDR faddr)
 
 /* Attempt to find a function descriptor corresponding to the
    given address.  If none is found, construct one on the
-   stack using the address at fdaptr */
+   stack using the address at fdaptr.  */
 
 static CORE_ADDR
 find_func_descr (CORE_ADDR faddr, CORE_ADDR *fdaptr)
@@ -1742,8 +2985,8 @@ find_func_descr (CORE_ADDR faddr, CORE_ADDR *fdaptr)
       if (global_pointer == 0)
 	global_pointer = read_register (IA64_GR1_REGNUM);
 
-      store_address (buf, 8, faddr);
-      store_address (buf + 8, 8, global_pointer);
+      store_unsigned_integer (buf, 8, faddr);
+      store_unsigned_integer (buf + 8, 8, global_pointer);
 
       write_memory (fdesc, buf, 16);
     }
@@ -1751,9 +2994,35 @@ find_func_descr (CORE_ADDR faddr, CORE_ADDR *fdaptr)
   return fdesc; 
 }
 
-CORE_ADDR
-ia64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
-		    int struct_return, CORE_ADDR struct_addr)
+/* Use the following routine when printing out function pointers
+   so the user can see the function address rather than just the
+   function descriptor.  */
+static CORE_ADDR
+ia64_convert_from_func_ptr_addr (struct gdbarch *gdbarch, CORE_ADDR addr,
+				 struct target_ops *targ)
+{
+  struct obj_section *s;
+
+  s = find_pc_section (addr);
+
+  /* check if ADDR points to a function descriptor.  */
+  if (s && strcmp (s->the_bfd_section->name, ".opd") == 0)
+    return read_memory_unsigned_integer (addr, 8);
+
+  return addr;
+}
+
+static CORE_ADDR
+ia64_frame_align (struct gdbarch *gdbarch, CORE_ADDR sp)
+{
+  return sp & ~0xfLL;
+}
+
+static CORE_ADDR
+ia64_push_dummy_call (struct gdbarch *gdbarch, CORE_ADDR func_addr, 
+		      struct regcache *regcache, CORE_ADDR bp_addr,
+		      int nargs, struct value **args, CORE_ADDR sp,
+		      int struct_return, CORE_ADDR struct_addr)
 {
   int argno;
   struct value *arg;
@@ -1761,11 +3030,11 @@ ia64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
   int len, argoffset;
   int nslots, rseslots, memslots, slotnum, nfuncargs;
   int floatreg;
-  CORE_ADDR bsp, cfm, pfs, new_bsp, funcdescaddr;
+  CORE_ADDR bsp, cfm, pfs, new_bsp, funcdescaddr, pc, global_pointer;
 
   nslots = 0;
   nfuncargs = 0;
-  /* Count the number of slots needed for the arguments */
+  /* Count the number of slots needed for the arguments.  */
   for (argno = 0; argno < nargs; argno++)
     {
       arg = args[argno];
@@ -1781,15 +3050,14 @@ ia64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
       nslots += (len + 7) / 8;
     }
 
-  /* Divvy up the slots between the RSE and the memory stack */
+  /* Divvy up the slots between the RSE and the memory stack.  */
   rseslots = (nslots > 8) ? 8 : nslots;
   memslots = nslots - rseslots;
 
-  /* Allocate a new RSE frame */
+  /* Allocate a new RSE frame.  */
   cfm = read_register (IA64_CFM_REGNUM);
 
   bsp = read_register (IA64_BSP_REGNUM);
-  bsp = rse_address_add (bsp, cfm & 0x7f);
   new_bsp = rse_address_add (bsp, rseslots);
   write_register (IA64_BSP_REGNUM, new_bsp);
 
@@ -1804,20 +3072,20 @@ ia64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
   
   /* We will attempt to find function descriptors in the .opd segment,
      but if we can't we'll construct them ourselves.  That being the
-     case, we'll need to reserve space on the stack for them. */
+     case, we'll need to reserve space on the stack for them.  */
   funcdescaddr = sp - nfuncargs * 16;
   funcdescaddr &= ~0xfLL;
 
   /* Adjust the stack pointer to it's new value.  The calling conventions
      require us to have 16 bytes of scratch, plus whatever space is
-     necessary for the memory slots and our function descriptors */
+     necessary for the memory slots and our function descriptors.  */
   sp = sp - 16 - (memslots + nfuncargs) * 8;
-  sp &= ~0xfLL;				/* Maintain 16 byte alignment */
+  sp &= ~0xfLL;				/* Maintain 16 byte alignment.  */
 
   /* Place the arguments where they belong.  The arguments will be
      either placed in the RSE backing store or on the memory stack.
      In addition, floating point arguments or HFAs are placed in
-     floating point registers. */
+     floating point registers.  */
   slotnum = 0;
   floatreg = IA64_FR8_REGNUM;
   for (argno = 0; argno < nargs; argno++)
@@ -1828,16 +3096,16 @@ ia64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
       type = check_typedef (VALUE_TYPE (arg));
       len = TYPE_LENGTH (type);
 
-      /* Special handling for function parameters */
+      /* Special handling for function parameters.  */
       if (len == 8 
           && TYPE_CODE (type) == TYPE_CODE_PTR 
 	  && TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_FUNC)
 	{
 	  char val_buf[8];
 
-	  store_address (val_buf, 8,
-	    find_func_descr (extract_address (VALUE_CONTENTS (arg), 8),
-	                     &funcdescaddr));
+	  store_unsigned_integer (val_buf, 8,
+				  find_func_descr (extract_unsigned_integer (VALUE_CONTENTS (arg), 8),
+						   &funcdescaddr));
 	  if (slotnum < rseslots)
 	    write_memory (rse_address_add (bsp, slotnum), val_buf, 8);
 	  else
@@ -1846,7 +3114,7 @@ ia64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
 	  continue;
 	}
 
-      /* Normal slots */
+      /* Normal slots.  */
 
       /* Skip odd slot if necessary...  */
       if ((slotnum & 1) && slot_alignment_is_next_even (type))
@@ -1870,7 +3138,7 @@ ia64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
 	  slotnum++;
 	}
 
-      /* Handle floating point types (including HFAs) */
+      /* Handle floating point types (including HFAs).  */
       float_elt_type = is_float_or_hfa_type (type);
       if (float_elt_type != NULL)
 	{
@@ -1878,11 +3146,10 @@ ia64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
 	  len = TYPE_LENGTH (type);
 	  while (len > 0 && floatreg < IA64_FR16_REGNUM)
 	    {
-	      ia64_register_convert_to_raw (
-		float_elt_type,
-		floatreg,
-	        VALUE_CONTENTS (arg) + argoffset,
-		&registers[REGISTER_BYTE (floatreg)]);
+	      char to[MAX_REGISTER_SIZE];
+	      convert_typed_floating (VALUE_CONTENTS (arg) + argoffset, float_elt_type,
+				      to, builtin_type_ia64_ext);
+	      regcache_cooked_write (regcache, floatreg, (void *)to);
 	      floatreg++;
 	      argoffset += TYPE_LENGTH (float_elt_type);
 	      len -= TYPE_LENGTH (float_elt_type);
@@ -1890,174 +3157,89 @@ ia64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
 	}
     }
 
-  /* Store the struct return value in r8 if necessary. */
+  /* Store the struct return value in r8 if necessary.  */
   if (struct_return)
     {
-      store_address (&registers[REGISTER_BYTE (IA64_GR8_REGNUM)],
-                     REGISTER_RAW_SIZE (IA64_GR8_REGNUM),
-		     struct_addr);
+      regcache_cooked_write_unsigned (regcache, IA64_GR8_REGNUM, (ULONGEST)struct_addr);
     }
 
-  /* Sync gdb's idea of what the registers are with the target. */
-  target_store_registers (-1);
-
-  /* FIXME: This doesn't belong here!  Instead, SAVE_DUMMY_FRAME_TOS needs
-     to be defined to call generic_save_dummy_frame_tos().  But at the
-     time of this writing, SAVE_DUMMY_FRAME_TOS wasn't gdbarch'd, so
-     I chose to put this call here instead of using the old mechanisms. 
-     Once SAVE_DUMMY_FRAME_TOS is gdbarch'd, all we need to do is add the
-     line
-
-	set_gdbarch_save_dummy_frame_tos (gdbarch, generic_save_dummy_frame_tos);
-
-     to ia64_gdbarch_init() and remove the line below. */
-  generic_save_dummy_frame_tos (sp);
-
-  return sp;
-}
-
-CORE_ADDR
-ia64_push_return_address (CORE_ADDR pc, CORE_ADDR sp)
-{
-  CORE_ADDR global_pointer = FIND_GLOBAL_POINTER (pc);
+  global_pointer = FIND_GLOBAL_POINTER (func_addr);
 
   if (global_pointer != 0)
     write_register (IA64_GR1_REGNUM, global_pointer);
 
-  write_register (IA64_BR0_REGNUM, CALL_DUMMY_ADDRESS ());
+  write_register (IA64_BR0_REGNUM, bp_addr);
+
+  write_register (sp_regnum, sp);
+
   return sp;
 }
 
-void
-ia64_store_return_value (struct type *type, char *valbuf)
+static struct frame_id
+ia64_unwind_dummy_id (struct gdbarch *gdbarch, struct frame_info *next_frame)
+{
+  char buf[8];
+  CORE_ADDR sp, bsp;
+
+  frame_unwind_register (next_frame, sp_regnum, buf);
+  sp = extract_unsigned_integer (buf, 8);
+
+  frame_unwind_register (next_frame, IA64_BSP_REGNUM, buf);
+  bsp = extract_unsigned_integer (buf, 8);
+
+  if (gdbarch_debug >= 1)
+    fprintf_unfiltered (gdb_stdlog,
+			"dummy frame id: code 0x%s, stack 0x%s, special 0x%s\n",
+			paddr_nz (frame_pc_unwind (next_frame)), 
+			paddr_nz (sp), paddr_nz (bsp));
+
+  return frame_id_build_special (sp, frame_pc_unwind (next_frame), bsp);
+}
+
+static CORE_ADDR 
+ia64_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
+{
+  char buf[8];
+  CORE_ADDR ip, psr, pc;
+
+  frame_unwind_register (next_frame, IA64_IP_REGNUM, buf);
+  ip = extract_unsigned_integer (buf, 8);
+  frame_unwind_register (next_frame, IA64_PSR_REGNUM, buf);
+  psr = extract_unsigned_integer (buf, 8);
+ 
+  pc = (ip & ~0xf) | ((psr >> 41) & 3);
+  return pc;
+}
+
+static void
+ia64_store_return_value (struct type *type, struct regcache *regcache, const void *valbuf)
 {
   if (TYPE_CODE (type) == TYPE_CODE_FLT)
     {
-      ia64_register_convert_to_raw (type, IA64_FR8_REGNUM, valbuf,
-				  &registers[REGISTER_BYTE (IA64_FR8_REGNUM)]);
+      char to[MAX_REGISTER_SIZE];
+      convert_typed_floating (valbuf, type, to, builtin_type_ia64_ext);
+      regcache_cooked_write (regcache, IA64_FR8_REGNUM, (void *)to);
       target_store_registers (IA64_FR8_REGNUM);
     }
   else
-    write_register_bytes (REGISTER_BYTE (IA64_GR8_REGNUM),
-			  valbuf, TYPE_LENGTH (type));
-}
-
-void
-ia64_pop_frame (void)
-{
-  generic_pop_current_frame (ia64_pop_frame_regular);
+    regcache_cooked_write (regcache, IA64_GR8_REGNUM, valbuf);
 }
 
 static void
-ia64_pop_frame_regular (struct frame_info *frame)
-{
-  int regno;
-  CORE_ADDR bsp, cfm, pfs;
-
-  FRAME_INIT_SAVED_REGS (frame);
-
-  for (regno = 0; regno < ia64_num_regs; regno++)
-    {
-      if (frame->saved_regs[regno]
-	  && (!(IA64_GR32_REGNUM <= regno && regno <= IA64_GR127_REGNUM))
-	  && regno != pc_regnum
-	  && regno != sp_regnum
-	  && regno != IA64_PFS_REGNUM
-	  && regno != IA64_CFM_REGNUM
-	  && regno != IA64_BSP_REGNUM
-	  && regno != IA64_BSPSTORE_REGNUM)
-	{
-	  write_register (regno, 
-			  read_memory_integer (frame->saved_regs[regno],
-					       REGISTER_RAW_SIZE (regno)));
-	}
-    }
-
-  write_register (sp_regnum, FRAME_CHAIN (frame));
-  write_pc (FRAME_SAVED_PC (frame));
-
-  cfm = read_register (IA64_CFM_REGNUM);
-
-  if (frame->saved_regs[IA64_PFS_REGNUM])
-    {
-      pfs = read_memory_integer (frame->saved_regs[IA64_PFS_REGNUM],
-				 REGISTER_RAW_SIZE (IA64_PFS_REGNUM));
-    }
-  else
-    pfs = read_register (IA64_PFS_REGNUM);
-
-  /* Compute the new bsp by *adding* the difference between the
-     size of the frame and the size of the locals (both wrt the
-     frame that we're going back to).  This seems kind of strange,
-     especially since it seems like we ought to be subtracting the
-     size of the locals... and we should; but the Linux kernel
-     wants bsp to be set at the end of all used registers.  It's
-     likely that this code will need to be revised to accomodate
-     other operating systems. */
-  bsp = rse_address_add (frame->extra_info->bsp,
-                         (pfs & 0x7f) - ((pfs >> 7) & 0x7f));
-  write_register (IA64_BSP_REGNUM, bsp);
-
-  /* FIXME: What becomes of the epilog count in the PFS? */
-  cfm = (cfm & ~0xffffffffffffLL) | (pfs & 0xffffffffffffLL);
-  write_register (IA64_CFM_REGNUM, cfm);
-
-  flush_cached_frames ();
-}
-
-static void
-ia64_remote_translate_xfer_address (CORE_ADDR memaddr, int nr_bytes,
+ia64_remote_translate_xfer_address (struct gdbarch *gdbarch,
+				    struct regcache *regcache,
+				    CORE_ADDR memaddr, int nr_bytes,
 				    CORE_ADDR *targ_addr, int *targ_len)
 {
   *targ_addr = memaddr;
   *targ_len  = nr_bytes;
 }
 
-static void
-process_note_abi_tag_sections (bfd *abfd, asection *sect, void *obj)
+static int
+ia64_print_insn (bfd_vma memaddr, struct disassemble_info *info)
 {
-  int *os_ident_ptr = obj;
-  const char *name;
-  unsigned int sectsize;
-
-  name = bfd_get_section_name (abfd, sect);
-  sectsize = bfd_section_size (abfd, sect);
-  if (strcmp (name, ".note.ABI-tag") == 0 && sectsize > 0)
-    {
-      unsigned int name_length, data_length, note_type;
-      char *note = alloca (sectsize);
-
-      bfd_get_section_contents (abfd, sect, note,
-                                (file_ptr) 0, (bfd_size_type) sectsize);
-
-      name_length = bfd_h_get_32 (abfd, note);
-      data_length = bfd_h_get_32 (abfd, note + 4);
-      note_type   = bfd_h_get_32 (abfd, note + 8);
-
-      if (name_length == 4 && data_length == 16 && note_type == 1
-          && strcmp (note + 12, "GNU") == 0)
-	{
-	  int os_number = bfd_h_get_32 (abfd, note + 16);
-
-	  /* The case numbers are from abi-tags in glibc */
-	  switch (os_number)
-	    {
-	    case 0 :
-	      *os_ident_ptr = ELFOSABI_LINUX;
-	      break;
-	    case 1 :
-	      *os_ident_ptr = ELFOSABI_HURD;
-	      break;
-	    case 2 :
-	      *os_ident_ptr = ELFOSABI_SOLARIS;
-	      break;
-	    default :
-	      internal_error (__FILE__, __LINE__,
-			      "process_note_abi_sections: unknown OS number %d", os_number);
-	      break;
-	    }
-	}
-    }
+  info->bytes_per_line = SLOT_MULTIPLIER;
+  return print_insn_ia64 (memaddr, info);
 }
 
 static struct gdbarch *
@@ -2065,48 +3247,21 @@ ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 {
   struct gdbarch *gdbarch;
   struct gdbarch_tdep *tdep;
-  int os_ident;
 
-  if (info.abfd != NULL
-      && bfd_get_flavour (info.abfd) == bfd_target_elf_flavour)
-    {
-      os_ident = elf_elfheader (info.abfd)->e_ident[EI_OSABI];
-
-      /* If os_ident is 0, it is not necessarily the case that we're
-         on a SYSV system.  (ELFOSABI_NONE is defined to be 0.)
-         GNU/Linux uses a note section to record OS/ABI info, but
-         leaves e_ident[EI_OSABI] zero.  So we have to check for note
-         sections too. */
-      if (os_ident == 0)
-	{
-	  bfd_map_over_sections (info.abfd,
-	                         process_note_abi_tag_sections,
-				 &os_ident);
-	}
-    }
-  else
-    os_ident = -1;
-
-  for (arches = gdbarch_list_lookup_by_info (arches, &info);
-       arches != NULL;
-       arches = gdbarch_list_lookup_by_info (arches->next, &info))
-    {
-      tdep = gdbarch_tdep (arches->gdbarch);
-      if (tdep &&tdep->os_ident == os_ident)
-	return arches->gdbarch;
-    }
+  /* If there is already a candidate, use it.  */
+  arches = gdbarch_list_lookup_by_info (arches, &info);
+  if (arches != NULL)
+    return arches->gdbarch;
 
   tdep = xmalloc (sizeof (struct gdbarch_tdep));
   gdbarch = gdbarch_alloc (&info, tdep);
-  tdep->os_ident = os_ident;
-
 
   /* Set the method of obtaining the sigcontext addresses at which
      registers are saved.  The method of checking to see if
      native_find_global_pointer is nonzero to indicate that we're
      on AIX is kind of hokey, but I can't think of a better way
      to do it.  */
-  if (os_ident == ELFOSABI_LINUX)
+  if (info.osabi == GDB_OSABI_LINUX)
     tdep->sigcontext_register_address = ia64_linux_sigcontext_register_address;
   else if (native_find_global_pointer != 0)
     tdep->sigcontext_register_address = ia64_aix_sigcontext_register_address;
@@ -2120,12 +3275,28 @@ ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
      generic_elf_find_global_pointer.  This arrangement should (in
      theory) allow us to cross debug GNU/Linux binaries from an AIX
      machine.  */
-  if (os_ident == ELFOSABI_LINUX)
+  if (info.osabi == GDB_OSABI_LINUX)
     tdep->find_global_pointer = generic_elf_find_global_pointer;
   else if (native_find_global_pointer != 0)
     tdep->find_global_pointer = native_find_global_pointer;
   else
     tdep->find_global_pointer = generic_elf_find_global_pointer;
+
+  /* Define the ia64 floating-point format to gdb.  */
+  builtin_type_ia64_ext =
+    init_type (TYPE_CODE_FLT, 128 / 8,
+               0, "builtin_type_ia64_ext", NULL);
+  TYPE_FLOATFORMAT (builtin_type_ia64_ext) = &floatformat_ia64_ext;
+
+  /* According to the ia64 specs, instructions that store long double
+     floats in memory use a long-double format different than that
+     used in the floating registers.  The memory format matches the
+     x86 extended float format which is 80 bits.  An OS may choose to
+     use this format (e.g. GNU/Linux) or choose to use a different
+     format for storing long doubles (e.g. HPUX).  In the latter case,
+     the setting of the format may be moved/overridden in an
+     OS-specific tdep file.  */
+  set_gdbarch_long_double_format (gdbarch, &floatformat_i387_ext);
 
   set_gdbarch_short_bit (gdbarch, 16);
   set_gdbarch_int_bit (gdbarch, 32);
@@ -2133,108 +3304,75 @@ ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_long_long_bit (gdbarch, 64);
   set_gdbarch_float_bit (gdbarch, 32);
   set_gdbarch_double_bit (gdbarch, 64);
-  set_gdbarch_long_double_bit (gdbarch, 64);
+  set_gdbarch_long_double_bit (gdbarch, 128);
   set_gdbarch_ptr_bit (gdbarch, 64);
 
-  set_gdbarch_num_regs (gdbarch, ia64_num_regs);
+  set_gdbarch_num_regs (gdbarch, NUM_IA64_RAW_REGS);
+  set_gdbarch_num_pseudo_regs (gdbarch, LAST_PSEUDO_REGNUM - FIRST_PSEUDO_REGNUM);
   set_gdbarch_sp_regnum (gdbarch, sp_regnum);
-  set_gdbarch_fp_regnum (gdbarch, fp_regnum);
-  set_gdbarch_pc_regnum (gdbarch, pc_regnum);
   set_gdbarch_fp0_regnum (gdbarch, IA64_FR0_REGNUM);
 
   set_gdbarch_register_name (gdbarch, ia64_register_name);
-  set_gdbarch_register_size (gdbarch, 8);
-  set_gdbarch_register_bytes (gdbarch, ia64_num_regs * 8 + 128*8);
-  set_gdbarch_register_byte (gdbarch, ia64_register_byte);
-  set_gdbarch_register_raw_size (gdbarch, ia64_register_raw_size);
-  set_gdbarch_max_register_raw_size (gdbarch, 16);
-  set_gdbarch_register_virtual_size (gdbarch, ia64_register_virtual_size);
-  set_gdbarch_max_register_virtual_size (gdbarch, 16);
-  set_gdbarch_register_virtual_type (gdbarch, ia64_register_virtual_type);
+  /* FIXME:  Following interface should not be needed, however, without it recurse.exp
+     gets a number of extra failures.  */
+  set_gdbarch_deprecated_register_size (gdbarch, 8);
+  set_gdbarch_register_type (gdbarch, ia64_register_type);
+
+  set_gdbarch_pseudo_register_read (gdbarch, ia64_pseudo_register_read);
+  set_gdbarch_pseudo_register_write (gdbarch, ia64_pseudo_register_write);
+  set_gdbarch_dwarf2_reg_to_regnum (gdbarch, ia64_dwarf_reg_to_regnum);
+  set_gdbarch_register_reggroup_p (gdbarch, ia64_register_reggroup_p);
+  set_gdbarch_convert_register_p (gdbarch, ia64_convert_register_p);
+  set_gdbarch_register_to_value (gdbarch, ia64_register_to_value);
+  set_gdbarch_value_to_register (gdbarch, ia64_value_to_register);
 
   set_gdbarch_skip_prologue (gdbarch, ia64_skip_prologue);
-
-  set_gdbarch_frame_num_args (gdbarch, frame_num_args_unknown);
-  set_gdbarch_frameless_function_invocation (gdbarch, ia64_frameless_function_invocation);
-
-  set_gdbarch_saved_pc_after_call (gdbarch, ia64_saved_pc_after_call);
-
-  set_gdbarch_frame_chain (gdbarch, ia64_frame_chain);
-  set_gdbarch_frame_chain_valid (gdbarch, generic_func_frame_chain_valid);
-  set_gdbarch_frame_saved_pc (gdbarch, ia64_frame_saved_pc);
-
-  set_gdbarch_frame_init_saved_regs (gdbarch, ia64_frame_init_saved_regs);
-  set_gdbarch_get_saved_register (gdbarch, ia64_get_saved_register);
-
-  set_gdbarch_register_convertible (gdbarch, ia64_register_convertible);
-  set_gdbarch_register_convert_to_virtual (gdbarch, ia64_register_convert_to_virtual);
-  set_gdbarch_register_convert_to_raw (gdbarch, ia64_register_convert_to_raw);
 
   set_gdbarch_use_struct_convention (gdbarch, ia64_use_struct_convention);
   set_gdbarch_extract_return_value (gdbarch, ia64_extract_return_value);
 
-  set_gdbarch_store_struct_return (gdbarch, ia64_store_struct_return);
   set_gdbarch_store_return_value (gdbarch, ia64_store_return_value);
-  set_gdbarch_extract_struct_value_address (gdbarch, ia64_extract_struct_value_address);
+  set_gdbarch_deprecated_extract_struct_value_address (gdbarch, ia64_extract_struct_value_address);
 
   set_gdbarch_memory_insert_breakpoint (gdbarch, ia64_memory_insert_breakpoint);
   set_gdbarch_memory_remove_breakpoint (gdbarch, ia64_memory_remove_breakpoint);
   set_gdbarch_breakpoint_from_pc (gdbarch, ia64_breakpoint_from_pc);
   set_gdbarch_read_pc (gdbarch, ia64_read_pc);
-  set_gdbarch_write_pc (gdbarch, ia64_write_pc);
+  if (info.osabi == GDB_OSABI_LINUX)
+    set_gdbarch_write_pc (gdbarch, ia64_linux_write_pc);
+  else
+    set_gdbarch_write_pc (gdbarch, ia64_write_pc);
 
   /* Settings for calling functions in the inferior.  */
-  set_gdbarch_use_generic_dummy_frames (gdbarch, 1);
-  set_gdbarch_call_dummy_length (gdbarch, 0);
-  set_gdbarch_push_arguments (gdbarch, ia64_push_arguments);
-  set_gdbarch_push_return_address (gdbarch, ia64_push_return_address);
-  set_gdbarch_pop_frame (gdbarch, ia64_pop_frame);
+  set_gdbarch_push_dummy_call (gdbarch, ia64_push_dummy_call);
+  set_gdbarch_frame_align (gdbarch, ia64_frame_align);
+  set_gdbarch_unwind_dummy_id (gdbarch, ia64_unwind_dummy_id);
 
-  set_gdbarch_call_dummy_p (gdbarch, 1);
-  set_gdbarch_call_dummy_words (gdbarch, ia64_call_dummy_words);
-  set_gdbarch_sizeof_call_dummy_words (gdbarch, sizeof (ia64_call_dummy_words));
-  set_gdbarch_call_dummy_breakpoint_offset_p (gdbarch, 1);
-  set_gdbarch_init_extra_frame_info (gdbarch, ia64_init_extra_frame_info);
-  set_gdbarch_frame_args_address (gdbarch, ia64_frame_args_address);
-  set_gdbarch_frame_locals_address (gdbarch, ia64_frame_locals_address);
-
-  /* We won't necessarily have a frame pointer and even if we do,
-     it winds up being extraordinarly messy when attempting to find
-     the frame chain.  So for the purposes of creating frames (which
-     is all read_fp() is used for), simply use the stack pointer value
-     instead.  */
-  set_gdbarch_read_fp (gdbarch, generic_target_read_sp);
-  set_gdbarch_write_fp (gdbarch, generic_target_write_sp);
+  set_gdbarch_unwind_pc (gdbarch, ia64_unwind_pc);
+  frame_unwind_append_sniffer (gdbarch, ia64_sigtramp_frame_sniffer);
+#ifdef HAVE_LIBUNWIND_IA64_H
+  frame_unwind_append_sniffer (gdbarch, ia64_libunwind_frame_sniffer);
+  libunwind_frame_set_descr (gdbarch, &ia64_libunwind_descr);
+#endif
+  frame_unwind_append_sniffer (gdbarch, ia64_frame_sniffer);
+  frame_base_set_default (gdbarch, &ia64_frame_base);
 
   /* Settings that should be unnecessary.  */
   set_gdbarch_inner_than (gdbarch, core_addr_lessthan);
 
-  set_gdbarch_read_sp (gdbarch, generic_target_read_sp);
-  set_gdbarch_write_sp (gdbarch, generic_target_write_sp);
-
-  set_gdbarch_call_dummy_location (gdbarch, AT_ENTRY_POINT);
-  set_gdbarch_call_dummy_address (gdbarch, entry_point_address);
-  set_gdbarch_call_dummy_breakpoint_offset (gdbarch, 0);
-  set_gdbarch_call_dummy_start_offset (gdbarch, 0);
-  set_gdbarch_pc_in_call_dummy (gdbarch, generic_pc_in_call_dummy);
-  set_gdbarch_call_dummy_stack_adjust_p (gdbarch, 0);
-  set_gdbarch_push_dummy_frame (gdbarch, generic_push_dummy_frame);
-  set_gdbarch_fix_call_dummy (gdbarch, generic_fix_call_dummy);
-
-  set_gdbarch_decr_pc_after_break (gdbarch, 0);
-  set_gdbarch_function_start_offset (gdbarch, 0);
-
   set_gdbarch_remote_translate_xfer_address (
     gdbarch, ia64_remote_translate_xfer_address);
 
+  set_gdbarch_print_insn (gdbarch, ia64_print_insn);
+  set_gdbarch_convert_from_func_ptr_addr (gdbarch, ia64_convert_from_func_ptr_addr);
+
   return gdbarch;
 }
+
+extern initialize_file_ftype _initialize_ia64_tdep; /* -Wmissing-prototypes */
 
 void
 _initialize_ia64_tdep (void)
 {
   register_gdbarch_init (bfd_arch_ia64, ia64_gdbarch_init);
-
-  tm_print_insn = print_insn_ia64;
-  tm_print_insn_info.bytes_per_line = SLOT_MULTIPLIER;
 }

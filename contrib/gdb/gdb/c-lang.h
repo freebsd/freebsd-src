@@ -23,7 +23,10 @@
 #if !defined (C_LANG_H)
 #define C_LANG_H 1
 
+struct ui_file;
+
 #include "value.h"
+#include "macroexp.h"
 
 
 extern int c_parse (void);	/* Defined in c-exp.y */
@@ -49,6 +52,13 @@ extern void c_printstr (struct ui_file * stream, char *string,
 			unsigned int length, int width,
 			int force_ellipses);
 
+extern void scan_macro_expansion (char *expansion);
+extern int scanning_macro_expansion (void);
+extern void finished_macro_expansion (void);
+
+extern macro_lookup_ftype *expression_macro_lookup_func;
+extern void *expression_macro_lookup_baton;
+
 extern struct type *c_create_fundamental_type (struct objfile *, int);
 
 extern struct type **const (c_builtin_types[]);
@@ -56,9 +66,6 @@ extern struct type **const (c_builtin_types[]);
 /* These are in c-typeprint.c: */
 
 extern void c_type_print_base (struct type *, struct ui_file *, int, int);
-
-extern void c_type_print_varspec_prefix (struct type *, struct ui_file *,
-					 int, int);
 
 /* These are in cp-valprint.c */
 

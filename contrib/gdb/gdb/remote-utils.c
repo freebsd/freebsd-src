@@ -86,7 +86,7 @@ usage (char *proto, char *junk)
     fprintf_unfiltered (gdb_stderr, "Unrecognized arguments: `%s'.\n", junk);
 
   error ("Usage: target %s [DEVICE [SPEED [DEBUG]]]\n\
-where DEVICE is the name of a device or HOST:PORT", proto, proto);
+where DEVICE is the name of a device or HOST:PORT", proto);
 
   return;
 }

@@ -1,5 +1,7 @@
 /* MI Command Set - varobj commands.
-   Copyright 2000 Free Software Foundation, Inc.
+
+   Copyright 2000, 2002, 2004 Free Software Foundation, Inc.
+
    Contributed by Cygnus Solutions (a Red Hat company).
 
    This file is part of GDB.
@@ -26,11 +28,7 @@
 #include "varobj.h"
 #include "value.h"
 #include <ctype.h>
-
-/* Convenience macro for allocting typesafe memory. */
-
-#undef XMALLOC
-#define XMALLOC(TYPE) (TYPE*) xmalloc (sizeof (TYPE))
+#include "gdb_string.h"
 
 extern int varobjdebug;		/* defined in varobj.c */
 
@@ -83,7 +81,7 @@ mi_cmd_var_create (char *command, char **argv, int argc)
   else
     {
       var_type = USE_SPECIFIED_FRAME;
-      frameaddr = parse_and_eval_address (frame);
+      frameaddr = string_to_core_addr (frame);
     }
 
   if (varobjdebug)
@@ -191,15 +189,15 @@ mi_cmd_var_set_format (char *command, char **argv, int argc)
 
   len = strlen (formspec);
 
-  if (STREQN (formspec, "natural", len))
+  if (strncmp (formspec, "natural", len) == 0)
     format = FORMAT_NATURAL;
-  else if (STREQN (formspec, "binary", len))
+  else if (strncmp (formspec, "binary", len) == 0)
     format = FORMAT_BINARY;
-  else if (STREQN (formspec, "decimal", len))
+  else if (strncmp (formspec, "decimal", len) == 0)
     format = FORMAT_DECIMAL;
-  else if (STREQN (formspec, "hexadecimal", len))
+  else if (strncmp (formspec, "hexadecimal", len) == 0)
     format = FORMAT_HEXADECIMAL;
-  else if (STREQN (formspec, "octal", len))
+  else if (strncmp (formspec, "octal", len) == 0)
     format = FORMAT_OCTAL;
   else
     error ("mi_cmd_var_set_format: Unknown display format: must be: \"natural\", \"binary\", \"decimal\", \"hexadecimal\", or \"octal\"");
@@ -256,39 +254,58 @@ mi_cmd_var_list_children (char *command, char **argv, int argc)
   struct varobj *var;
   struct varobj **childlist;
   struct varobj **cc;
+  struct cleanup *cleanup_children;
   int numchild;
   char *type;
+  enum print_values print_values;
 
-  if (argc != 1)
-    error ("mi_cmd_var_list_children: Usage: NAME.");
+  if (argc != 1 && argc != 2)
+    error ("mi_cmd_var_list_children: Usage: [PRINT_VALUES] NAME");
 
   /* Get varobj handle, if a valid var obj name was specified */
-  var = varobj_get_handle (argv[0]);
+  if (argc == 1) var = varobj_get_handle (argv[0]);
+  else var = varobj_get_handle (argv[1]);
   if (var == NULL)
-    error ("mi_cmd_var_list_children: Variable object not found");
+    error ("Variable object not found");
 
   numchild = varobj_list_children (var, &childlist);
   ui_out_field_int (uiout, "numchild", numchild);
+  if (argc == 2)
+    if (strcmp (argv[0], "0") == 0
+	|| strcmp (argv[0], "--no-values") == 0)
+      print_values = PRINT_NO_VALUES;
+    else if (strcmp (argv[0], "1") == 0
+	     || strcmp (argv[0], "--all-values") == 0)
+      print_values = PRINT_ALL_VALUES;
+    else
+     error ("Unknown value for PRINT_VALUES: must be: 0 or \"--no-values\", 1 or \"--all-values\"");
+  else print_values = PRINT_NO_VALUES;
 
   if (numchild <= 0)
     return MI_CMD_DONE;
 
-  ui_out_tuple_begin (uiout, "children");
+  if (mi_version (uiout) == 1)
+    cleanup_children = make_cleanup_ui_out_tuple_begin_end (uiout, "children");
+  else
+    cleanup_children = make_cleanup_ui_out_list_begin_end (uiout, "children");
   cc = childlist;
   while (*cc != NULL)
     {
-      ui_out_tuple_begin (uiout, "child");
+      struct cleanup *cleanup_child;
+      cleanup_child = make_cleanup_ui_out_tuple_begin_end (uiout, "child");
       ui_out_field_string (uiout, "name", varobj_get_objname (*cc));
       ui_out_field_string (uiout, "exp", varobj_get_expression (*cc));
       ui_out_field_int (uiout, "numchild", varobj_get_num_children (*cc));
+      if (print_values)
+	ui_out_field_string (uiout, "value", varobj_get_value (*cc));
       type = varobj_get_type (*cc);
       /* C++ pseudo-variables (public, private, protected) do not have a type */
       if (type)
 	ui_out_field_string (uiout, "type", varobj_get_type (*cc));
-      ui_out_tuple_end (uiout);
+      do_cleanups (cleanup_child);
       cc++;
     }
-  ui_out_tuple_end (uiout);
+  do_cleanups (cleanup_children);
   xfree (childlist);
   return MI_CMD_DONE;
 }
@@ -407,6 +424,7 @@ mi_cmd_var_update (char *command, char **argv, int argc)
   struct varobj *var;
   struct varobj **rootlist;
   struct varobj **cr;
+  struct cleanup *cleanup;
   char *name;
   int nv;
 
@@ -421,10 +439,13 @@ mi_cmd_var_update (char *command, char **argv, int argc)
   if ((*name == '*') && (*(name + 1) == '\0'))
     {
       nv = varobj_list (&rootlist);
-      ui_out_tuple_begin (uiout, "changelist");
+      if (mi_version (uiout) <= 1)
+        cleanup = make_cleanup_ui_out_tuple_begin_end (uiout, "changelist");
+      else
+        cleanup = make_cleanup_ui_out_list_begin_end (uiout, "changelist");
       if (nv <= 0)
 	{
-	  ui_out_tuple_end (uiout);
+	  do_cleanups (cleanup);
 	  return MI_CMD_DONE;
 	}
       cr = rootlist;
@@ -434,7 +455,7 @@ mi_cmd_var_update (char *command, char **argv, int argc)
 	  cr++;
 	}
       xfree (rootlist);
-      ui_out_tuple_end (uiout);
+      do_cleanups (cleanup);
     }
   else
     {
@@ -443,9 +464,12 @@ mi_cmd_var_update (char *command, char **argv, int argc)
       if (var == NULL)
 	error ("mi_cmd_var_update: Variable object not found");
 
-      ui_out_tuple_begin (uiout, "changelist");
+      if (mi_version (uiout) <= 1)
+        cleanup = make_cleanup_ui_out_tuple_begin_end (uiout, "changelist");
+      else
+        cleanup = make_cleanup_ui_out_list_begin_end (uiout, "changelist");
       varobj_update_one (var);
-      ui_out_tuple_end (uiout);
+      do_cleanups (cleanup);
     }
     return MI_CMD_DONE;
 }
@@ -459,6 +483,7 @@ varobj_update_one (struct varobj *var)
 {
   struct varobj **changelist;
   struct varobj **cc;
+  struct cleanup *cleanup = NULL;
   int nc;
 
   nc = varobj_update (&var, &changelist);
@@ -471,17 +496,25 @@ varobj_update_one (struct varobj *var)
     return 1;
   else if (nc == -1)
     {
+      if (mi_version (uiout) > 1)
+        cleanup = make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
       ui_out_field_string (uiout, "name", varobj_get_objname(var));
       ui_out_field_string (uiout, "in_scope", "false");
+      if (mi_version (uiout) > 1)
+        do_cleanups (cleanup);
       return -1;
     }
   else if (nc == -2)
     {
+      if (mi_version (uiout) > 1)
+        cleanup = make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
       ui_out_field_string (uiout, "name", varobj_get_objname (var));
       ui_out_field_string (uiout, "in_scope", "true");
       ui_out_field_string (uiout, "new_type", varobj_get_type(var));
       ui_out_field_int (uiout, "new_num_children", 
 			   varobj_get_num_children(var));
+      if (mi_version (uiout) > 1)
+        do_cleanups (cleanup);
     }
   else
     {
@@ -489,9 +522,13 @@ varobj_update_one (struct varobj *var)
       cc = changelist;
       while (*cc != NULL)
 	{
+	  if (mi_version (uiout) > 1)
+	    cleanup = make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
 	  ui_out_field_string (uiout, "name", varobj_get_objname (*cc));
 	  ui_out_field_string (uiout, "in_scope", "true");
 	  ui_out_field_string (uiout, "type_changed", "false");
+	  if (mi_version (uiout) > 1)
+	    do_cleanups (cleanup);
 	  cc++;
 	}
       xfree (changelist);
