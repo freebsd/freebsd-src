@@ -503,7 +503,7 @@ read_for_group(group)
 	register int len, olen;
 	int cont;
 	struct linelist *lp;
-	char line[LINSIZ + 1];
+	char line[LINSIZ + 2];
 #ifdef YP
 	char *result;
 	int resultlen;
@@ -523,7 +523,7 @@ read_for_group(group)
 					continue;
 				}
 			}
-			sprintf(line, "%s %s", group, result);
+			snprintf(line, LINSIZ, "%s %s", group, result);
 			free(result);
 		}
 #else
