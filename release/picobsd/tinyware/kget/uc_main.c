@@ -46,6 +46,7 @@ FILE *f_out;
 static struct nlist _nl[] = {
     {"_isa_devtab_bio"},
     {"_isa_devtab_tty"},
+    {"_isa_devtab_cam"},
     {"_isa_devtab_net"},
     {"_isa_devtab_null"},
     {"_isa_biotab_wdc"},

@@ -56,6 +56,41 @@ lub lubisz robiæ to sam, oto opis poszczególnych kroków:
 	których mo¿na siê poruszaæ naciskaj±c lewy Alt i klawisz funkcyjny
 	F1-F10.
 
+Jak skonfigurowaæ kartê Ethernet?
+---------------------------------
+
+Miejmy nadziejê, ¿e Twoja karta jest obs³ugiwana przez j±dro dostêpne na
+dyskietce, oraz ¿e poprawnie ustawi³e¶ jej parametry (w przypadku kart
+ISA) w edytorze UserConfig. Mo¿esz sprawdziæ, czy PicoBSD wykry³o tê kartê,
+patrz±c na komunikaty startowe ('dmesg | more').
+
+Naj³atwiejszym sposobem na skonfigurowanie dostepu LAN jest ustawienie
+parametrów w pliku konfiguracyjnym systemu ('ee /etc/rc.conf'). Znajd¼ liniê,
+która zaczyna siê od 'network_interfaces' i dopisz nazwê sterownika karty do
+listy interfejsów. Potem dodaj jeszcze jedn± liniê 'ifconfig_<nazwa>',
+która ustawi w³a¶ciwy adres IP i maskê sieci. Np.:
+
+	network_interfaces="lo0 ed0"
+	ifconfig_lo0="inet 127.0.0.1"
+	ifconfig_ed0="inet 192.168.0.1 netmask 255.255.255.0"
+
+Nastêpnie musisz ustawiæ swój domy¶lny router (jest to zazwyczaj adres IP
+routera w Twojej sieci LAN). Np.:
+
+	defaultrouter="192.168.0.100"
+
+Nastêpnie zachowujesz te informacje na dyskietce startowej przy pomocy
+polecenia 'update', i restartujesz system.
+
+Oczywi¶cie mo¿na te¿ zrobiæ to rêcznie, wydaj±c odpowiednie polecenia:
+
+	ifconfig ed0 inet 192.168.0.1 netmask 255.255.255.0
+	route add default 192.168.0.100
+
+Je¶li poprawnie wszystko ustawi³e¶, powiniene¶ byæ w stanie uzyskaæ
+odpowied¼ od swojego routera ('ping 192.168.0.100') oraz od jakiej¶
+maszyny poza Twoj± sieci±.
+
 Skad wzi±æ dodatkowe informacje?
 --------------------------------
 
@@ -69,4 +104,4 @@ Mi³ej zabawy!
   
 Andrzej Bia³ecki <abial@nask.pl>
 
-$Id: README.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+$Id: README.pl,v 1.2 1998/09/26 17:27:19 abial Exp $
