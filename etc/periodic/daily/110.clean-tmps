@@ -28,9 +28,13 @@ case "$daily_clean_tmps_enable" in
 	    set -f noglob
 	    args="-atime +$daily_clean_tmps_days -mtime +$daily_clean_tmps_days"
 	    args="${args} -ctime +$daily_clean_tmps_days"
-	    [ -n "$daily_clean_tmps_ignore" ] &&
+	    dargs="-empty -mtime +$daily_clean_tmps_days"
+	    [ -n "$daily_clean_tmps_ignore" ] && {
 		args="$args "`echo " ${daily_clean_tmps_ignore% }" |
 		    sed 's/[ 	][ 	]*/ ! -name /g'`
+		dargs="$dargs "`echo " ${daily_clean_tmps_ignore% }" |
+		    sed 's/[ 	][ 	]*/ ! -name /g'`
+	    }
 	    case "$daily_clean_tmps_verbose" in
 		[Yy][Ee][Ss])
 		    print=-print;;
@@ -42,8 +46,7 @@ case "$daily_clean_tmps_enable" in
 		do
 		    [ ."${dir#/}" != ."$dir" -a -d $dir ] && cd $dir && {
 			find -d . -type f $args -delete $print
-			find -d . ! -name . -type d -empty -mtime \
-			    +$daily_clean_tmps_days -delete $print
+			find -d . ! -name . -type d $dargs -delete $print
 		    } | sed "s,^\\.,  $dir,"
 		done | tee /dev/stderr | wc -l)
 	    [ -z "$print" ] && rc=0
