@@ -849,6 +849,7 @@ thread_single(int force_exit)
 	struct thread *td;
 	struct thread *td2;
 	struct proc *p;
+	int remaining;
 
 	td = curthread;
 	p = td->td_proc;
@@ -870,7 +871,11 @@ thread_single(int force_exit)
 	p->p_flag |= P_STOPPED_SINGLE;
 	mtx_lock_spin(&sched_lock);
 	p->p_singlethread = td;
-	while ((p->p_numthreads - p->p_suspcount) != 1) {
+	if (force_exit == SINGLE_EXIT)
+		remaining = p->p_numthreads;
+	else
+		remaining = p->p_numthreads - p->p_suspcount;
+	while (remaining != 1) {
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
 				continue;
@@ -898,10 +903,15 @@ thread_single(int force_exit)
 				}
 			}
 		}
+		if (force_exit == SINGLE_EXIT)
+			remaining = p->p_numthreads;
+		else
+			remaining = p->p_numthreads - p->p_suspcount;
+
 		/*
 		 * Maybe we suspended some threads.. was it enough?
 		 */
-		if ((p->p_numthreads - p->p_suspcount) == 1)
+		if (remaining == 1)
 			break;
 
 		/*
@@ -914,6 +924,10 @@ thread_single(int force_exit)
 		mtx_unlock_spin(&sched_lock);
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
+		if (force_exit == SINGLE_EXIT)
+			remaining = p->p_numthreads;
+		else
+			remaining = p->p_numthreads - p->p_suspcount;
 	}
 	if (force_exit == SINGLE_EXIT) {
 		if (td->td_upcall)
