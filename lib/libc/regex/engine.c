@@ -331,7 +331,7 @@ int eflags;
 		NOTE("false alarm");
 		/* recycle starting later */
 		start = m->coldp + XMBRTOWC(NULL, m->coldp,
-		    m->endp - m->coldp, &m->mbs, 0);
+		    stop - m->coldp, &m->mbs, 0);
 		assert(start <= stop);
 	}
 
@@ -807,7 +807,7 @@ sopno stopst;
 		if (p == m->endp)
 			c = OUT;
 		else
-			clen = XMBRTOWC(&c, p, m->endp - p, &m->mbs, BADCHAR);
+			clen = XMBRTOWC(&c, p, stop - p, &m->mbs, BADCHAR);
 		if (EQ(st, fresh))
 			coldp = p;
 
@@ -861,7 +861,7 @@ sopno stopst;
 	assert(coldp != NULL);
 	m->coldp = coldp;
 	if (ISSET(st, stopst))
-		return(p+XMBRTOWC(NULL, p, m->endp - p, &m->mbs, 0));
+		return(p+XMBRTOWC(NULL, p, stop - p, &m->mbs, 0));
 	else
 		return(NULL);
 }
@@ -913,7 +913,7 @@ sopno stopst;
 			c = OUT;
 			clen = 0;
 		} else
-			clen = XMBRTOWC(&c, p, m->endp - p, &m->mbs, BADCHAR);
+			clen = XMBRTOWC(&c, p, stop - p, &m->mbs, BADCHAR);
 
 		/* is there an EOL and/or BOL between lastc and c? */
 		flagch = '\0';
