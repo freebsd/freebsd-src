@@ -151,7 +151,6 @@ tunmodevent(module_t mod, int type, void *data)
 		tununits.rm_descr = "open if_tun units";
 		err = rman_init(&tununits);
 		if (err != 0) {
-			cdevsw_remove(&tun_cdevsw);
 			EVENTHANDLER_DEREGISTER(dev_clone, tag);
 			return (err);
 		}
@@ -160,7 +159,6 @@ tunmodevent(module_t mod, int type, void *data)
 			printf("%s: tununits: rman_manage_region: Failed %d\n",
 			    TUNNAME, err);
 			rman_fini(&tununits);
-			cdevsw_remove(&tun_cdevsw);
 			EVENTHANDLER_DEREGISTER(dev_clone, tag);
 			return (err);
 		}
