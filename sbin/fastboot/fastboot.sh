@@ -35,4 +35,4 @@
 #
 
 cp /dev/null /fastboot
-/sbin/reboot $*
+exec /sbin/reboot $*

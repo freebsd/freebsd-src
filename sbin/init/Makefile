@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
 
 PROG=	init
-MAN8=	init.0
+MAN8=	init.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 BINMODE=500

@@ -19,7 +19,7 @@ SRCS=	itime.c main.c optr.c dumprmt.c tape.c traverse.c unctime.c
 BINOWN=	root
 BINGRP=	tty
 BINMODE=6555
-MAN8=	dump.0
+MAN8=	dump.8
 MLINKS+=dump.8 rdump.8
 
 .include <bsd.prog.mk>

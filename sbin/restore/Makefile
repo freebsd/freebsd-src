@@ -8,7 +8,7 @@ SRCS=	main.c interactive.c restore.c dirs.c symtab.c tape.c utilities.c \
 BINOWN=	root
 BINGRP=	tty
 BINMODE=6555
-MAN8=	restore.0
+MAN8=	restore.8
 MLINKS+=restore.8 rrestore.8
 .PATH:	${.CURDIR}/../dump
 

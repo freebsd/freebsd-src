@@ -2,7 +2,7 @@
 
 PROG=	mount_procfs
 SRCS=	mount_procfs.c getmntopts.c
-MAN8=	mount_procfs.0
+MAN8=	mount_procfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}
