@@ -521,6 +521,7 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
 #define VENDOR_AVER_MEDIA	0x1461
 #define VENDOR_HAUPPAUGE	0x0070
 #define VENDOR_FLYVIDEO		0x1851
+#define VENDOR_FLYVIDEO_2	0x1852
 #define VENDOR_STB		0x10B4
 #define VENDOR_ASKEY_COMP	0x144F
 #define VENDOR_LEADTEK		0x6606
@@ -623,7 +624,8 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
                     goto checkTuner;
                 }
 
-                if (subsystem_vendor_id == VENDOR_FLYVIDEO) {
+                if ((subsystem_vendor_id == VENDOR_FLYVIDEO)
+                 || (subsystem_vendor_id == VENDOR_FLYVIDEO_2) ) {
                     bktr->card = cards[ (card = CARD_FLYVIDEO) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
@@ -872,7 +874,7 @@ checkTuner:
  0x29 Temic 4006FN5         BG/I/DK
  0x2a Temic 4009FR5         BG FM
  0x2b Temic 4046FM5         B/G, I, D/K, L/L'
- 0x2c Temic 4009FN5         B/G, I, D/K, FM (no demod)
+ 0x2c Temic 4009FN5         B/G, I, D/K, FM (no demod)  PHILIPS_PALI
  0x2d Philips TD1536D_FH_44 MN/ATSCDigital DUAL INPUT
 	    */
 
@@ -926,6 +928,7 @@ checkTuner:
 	          case 0xb:
 	          case 0x1d:
 	          case 0x23:
+	          case 0x2c:
 		    select_tuner( bktr, PHILIPS_PALI );
 		    goto checkDBX;
 
