@@ -130,6 +130,7 @@ set CTMcopy  {}
 set CTMdest  {}
 set CTMprefix  .
 set CTMtest 0
+set CTMspecial 0
 set max_damage 100
 
 set damage 0
@@ -150,7 +151,7 @@ if {$CTMdest == ""} {
 set CTMscratch ${CTMtmp}.tmp
 
 while 1 {
-    if { "$CTMcopy" != "" } {
+    if { ! $CTMspecial} {
 	set CTMnbr [lindex [exec cat $CTMcopy/.ctm_status] 1]
 
 	if {![find_delta $CTMnbr]} {
@@ -170,13 +171,17 @@ while 1 {
 	close $fo
 	incr changes -1
 
-	set f1 [open "| ./ctm_scan $CTMcopy"]
     } else {
 	set CTMnbr [lindex [exec cat $CTMref/.ctm_status] 1]
-	set f1 [open /dev/null]
     }
 
-    puts "Doing CTMname $CTMname CTMnbr $CTMnbr CTMdate $CTMdate"
+    if {"$CTMcopy" == "" } { 
+	set f1 [open /dev/null]
+    } else {
+	set f1 [open "| ./ctm_scan $CTMcopy"]
+    }
+
+    puts "Doing CTMname $CTMname CTMnbr $CTMnbr$CTMsuff CTMdate $CTMdate"
     flush stdout
     exec sh -c "rm -f ${CTMtmp}.* ${CTMtmp}:*" >&@ stdout
 
@@ -267,18 +272,12 @@ while 1 {
     flush stdout
     set  nm [format "%s.%04d%s" $CTMname $CTMnbr $CTMsuff]
 
-    set fdmd5 [open "|/sbin/md5 >> $CTMtmp.end" w]
-    set fdout [open "| gzip -9 > ${CTMtmp}:${nm}.gz" w]
+    set fdout [open "| /sbin/md5 -p | gzip -9 > ${CTMtmp}:${nm}.gz" w]
 
     foreach i {begin del rmdir mkdir files} {
-	exec cat $CTMtmp.$i >@$fdmd5
 	exec cat $CTMtmp.$i >@$fdout
     }
-    puts $fdmd5 "CTM_END " nonewline
-    close $fdmd5 ; unset fdmd5
     puts $fdout "CTM_END " nonewline
-    flush $fdout
-    exec cat $CTMtmp.end >@$fdout
     close $fdout ; unset fdout
 
     exec sh -x -c "rm -f ${CTMtmp}.*" >&@ stdout
@@ -300,7 +299,7 @@ while 1 {
     if {$CTMmail != ""} {
 	puts "Mailing delta"
 	flush stdout
-	exec $CTMSW/ctm_smail -m 50000 -c 3000000 $CTMdest/${nm}.gz $CTMmail >&@ stdout
+	exec $CTMSW/ctm_smail -m 100000 -c 3000000 $CTMdest/${nm}.gz $CTMmail >&@ stdout
     }
 
     # If we did an absolute delta: stop.
@@ -315,5 +314,6 @@ while 1 {
     set CTMcopy ""
     set CTMmail ""
     set CTMapply 0
+    set CTMspecial 1
 }
 puts "done."
