@@ -2378,6 +2378,45 @@ is set to
 these are the flags passed to
 .Xr usbd 8
 daemon.
+.It Va jail_enable
+.Pq Vt bool
+If set to
+.Dq Li NO ,
+any configured jails will not be started.
+.It Va jail_list
+.Pq Vt str
+A space separated list of names for jails.
+This is purely a configuration aid to help identify and
+configure multiple jails.
+The names specified in this list will be used to
+identify settings common to an instance of a jail.
+Assuming that the jail in question was named
+.Li vjail ,
+you would have the following dependant variables:
+.Bd -literal
+jail_vjail_hostname="jail.example.com"
+jail_vjail_ip="192.168.1.100"
+jail_vjail_rootdir="/var/jails/vjail/root"
+jail_vjail_exec="/bin/sh /etc/rc"
+.Ed
+.Pp
+The last one is optional. It defaults to
+.Pa /etc/rc
+if it is not set.
+.It Va jail_set_hostname_allow
+.Pq Vt bool
+If set to NO,
+do not allow the root user in a jail to set its hostname.
+.It Va jail_socket_unixiproute_only
+.Pq Vt bool
+If set to NO,
+do not allow any protocol,
+besides TCP/IP,
+to be used within a jail.
+.It Va jail_sysvipc_allow
+.Pq Vt bool
+If set to YES,
+allow applications within a jail to use System V IPC.
 .It Va unaligned_print
 .Pq Vt bool
 If set to
