@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.294 1998/04/06 15:46:17 peter Exp $
+ *	$Id: machdep.c,v 1.295 1998/05/19 00:00:09 tegge Exp $
  */
 
 #include "apm.h"
@@ -44,6 +44,7 @@
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_maxmem.h"
+#include "opt_msgbuf.h"
 #include "opt_perfmon.h"
 #include "opt_smp.h"
 #include "opt_sysvipc.h"
@@ -146,7 +147,7 @@ int	bouncepages = 0;
 #endif	/* BOUNCE_BUFFERS */
 
 int	msgbufmapped = 0;		/* set when safe to use msgbuf */
-int _udatasel, _ucodesel;
+int	_udatasel, _ucodesel;
 u_int	atdevbase;
 
 #if defined(SWTCH_OPTIM_STATS)
@@ -1090,6 +1091,7 @@ init386(first)
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
 	int gsel_tss;
+	char *cp;
 
 	struct isa_device *idp;
 #ifndef SMP
@@ -1503,7 +1505,7 @@ init386(first)
 	 * calculation, etc.).
 	 */
 	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
-	    round_page(sizeof(struct msgbuf)) >= phys_avail[pa_indx]) {
+	    round_page(MSGBUF_SIZE) >= phys_avail[pa_indx]) {
 		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
 		phys_avail[pa_indx--] = 0;
 		phys_avail[pa_indx--] = 0;
@@ -1512,16 +1514,25 @@ init386(first)
 	Maxmem = atop(phys_avail[pa_indx]);
 
 	/* Trim off space for the message buffer. */
-	phys_avail[pa_indx] -= round_page(sizeof(struct msgbuf));
+	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
 
 	avail_end = phys_avail[pa_indx];
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
 	/* Map the message buffer. */
-	for (off = 0; off < round_page(sizeof(struct msgbuf)); off += PAGE_SIZE)
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
 		pmap_enter(kernel_pmap, (vm_offset_t)msgbufp + off,
 			   avail_end + off, VM_PROT_ALL, TRUE);
+
+	cp = (char *)msgbufp;
+	msgbufp = (struct msgbuf *) (cp + MSGBUF_SIZE - sizeof(*msgbufp));
+	if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_ptr != cp) {
+		bzero(cp, MSGBUF_SIZE);
+		msgbufp->msg_magic = MSG_MAGIC;
+		msgbufp->msg_size = (char *)msgbufp - cp;
+		msgbufp->msg_ptr = cp;
+	}
 	msgbufmapped = 1;
 
 	/* make a call gate to reenter kernel with */
@@ -1565,7 +1576,6 @@ f00f_hack(void *unused) {
 	struct region_descriptor r_idt;
 #endif
 	vm_offset_t tmp;
-	int i;
 
 	if (!has_f00f_bug)
 		return;
