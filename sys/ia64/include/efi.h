@@ -35,6 +35,7 @@
 #include <boot/efi/include/efidevp.h>
 #include <boot/efi/include/eficon.h>
 #include <boot/efi/include/efiapi.h>
+#include <boot/efi/include/efifpswa.h>
 
 extern EFI_SYSTEM_TABLE		*ia64_efi_systab;
 extern EFI_RUNTIME_SERVICES	*ia64_efi_runtime;
