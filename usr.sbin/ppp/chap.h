@@ -15,14 +15,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.h,v 1.9.2.6 1998/05/01 19:24:05 brian Exp $
+ * $Id: chap.h,v 1.10 1998/05/21 21:44:27 brian Exp $
  *
  *	TODO:
  */
 
 struct mbuf;
 struct physical;
-struct bundle;
 
 #define	CHAP_CHALLENGE	1
 #define	CHAP_RESPONSE	2
@@ -31,12 +30,11 @@ struct bundle;
 
 struct chap {
   struct authinfo auth;
-  char challenge_data[80];
-  int challenge_len;
+  char challenge[CHAPCHALLENGELEN + AUTHLEN];
   unsigned using_MSChap : 1;	/* A combination of MD4 & DES */
 };
 
 #define auth2chap(a) ((struct chap *)(a))
 
-extern void chap_Input(struct bundle *, struct mbuf *, struct physical *);
-extern void chap_SendChallenge(struct authinfo *, int, struct physical *);
+extern void chap_Init(struct chap *, struct physical *);
+extern void chap_Input(struct physical *, struct mbuf *);

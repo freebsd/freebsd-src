@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.69 1999/01/28 01:56:32 brian Exp $
+ * $Id: ipcp.c,v 1.70 1999/02/02 20:27:12 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -30,10 +30,7 @@
 #include <sys/socket.h>
 #include <net/route.h>
 #include <netdb.h>
-#include <net/if.h>
-#include <sys/sockio.h>
 #include <sys/un.h>
-#include <arpa/nameser.h>
 
 #include <fcntl.h>
 #include <resolv.h>
