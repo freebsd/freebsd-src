@@ -120,7 +120,7 @@ eeprom_rdy(struct ep_softc *sc)
 
 	if (i >= MAX_EEPROMBUSY) {
 		printf("ep%d: eeprom failed to come ready.\n", sc->unit);
-		return (ENXIO);
+ 		return (ENXIO);
 	}
 
 	return (0);
@@ -217,6 +217,8 @@ ep_alloc(device_t dev)
 	sc->epb.res_cfg = result;
 
 bad:
+	if (error != 0)
+		ep_free(dev);
 	return (error);
 }
 
