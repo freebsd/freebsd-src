@@ -363,8 +363,9 @@ bpfopen(dev, flags, fmt, p)
 	 */
 	if (d)
 		return (EBUSY);
-	make_dev(&bpf_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 0600,
-	    "bpf%d", dev2unit(dev));
+	if (!dev->si_flags & SI_NAMED)
+		make_dev(&bpf_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 0600,
+		    "bpf%d", dev2unit(dev));
 	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_WAITOK);
 	bzero(d, sizeof(*d));
 	dev->si_drv1 = d;
