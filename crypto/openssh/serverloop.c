@@ -159,33 +159,37 @@ retry_select:
 
 	/* Initialize select() masks. */
 	FD_ZERO(readset);
+	FD_ZERO(writeset);
 
-	/*
-	 * Read packets from the client unless we have too much buffered
-	 * stdin or channel data.
-	 */
 	if (compat20) {
 		/* wrong: bad condition XXX */
 		if (channel_not_very_much_buffered_data())
 			FD_SET(connection_in, readset);
 	} else {
-		if (buffer_len(&stdin_buffer) < 4096 &&
+		/*
+		 * Read packets from the client unless we have too much
+		 * buffered stdin or channel data.
+		 */
+		if (buffer_len(&stdin_buffer) < buffer_high &&
 		    channel_not_very_much_buffered_data())
 			FD_SET(connection_in, readset);
+		/*
+		 * If there is not too much data already buffered going to
+		 * the client, try to get some more data from the program.
+		 */
+		if (packet_not_very_much_data_to_write()) {
+			if (!fdout_eof)
+				FD_SET(fdout, readset);
+			if (!fderr_eof)
+				FD_SET(fderr, readset);
+		}
+		/*
+		 * If we have buffered data, try to write some of that data
+		 * to the program.
+		 */
+		if (fdin != -1 && buffer_len(&stdin_buffer) > 0)
+			FD_SET(fdin, writeset);
 	}
-
-	/*
-	 * If there is not too much data already buffered going to the
-	 * client, try to get some more data from the program.
-	 */
-	if (!compat20 && packet_not_very_much_data_to_write()) {
-		if (!fdout_eof)
-			FD_SET(fdout, readset);
-		if (!fderr_eof)
-			FD_SET(fderr, readset);
-	}
-	FD_ZERO(writeset);
-
 	/* Set masks for channel descriptors. */
 	channel_prepare_select(readset, writeset);
 
@@ -195,11 +199,6 @@ retry_select:
 	 */
 	if (packet_have_data_to_write())
 		FD_SET(connection_out, writeset);
-
-	/* If we have buffered data, try to write some of that data to the
-	   program. */
-	if (!compat20 && fdin != -1 && buffer_len(&stdin_buffer) > 0)
-		FD_SET(fdin, writeset);
 
 	/* Update the maximum descriptor number if appropriate. */
 	if (channel_max_fd() > max_fd)
@@ -250,20 +249,15 @@ process_input(fd_set * readset)
 		if (len == 0) {
 			verbose("Connection closed by remote host.");
 			fatal_cleanup();
+		} else if (len < 0) {
+			if (errno != EINTR && errno != EAGAIN) {
+				verbose("Read error from remote host: %.100s", strerror(errno));
+				fatal_cleanup();
+			}
+		} else {
+			/* Buffer any received data. */
+			packet_process_incoming(buf, len);
 		}
-		/*
-		 * There is a kernel bug on Solaris that causes select to
-		 * sometimes wake up even though there is no data available.
-		 */
-		if (len < 0 && errno == EAGAIN)
-			len = 0;
-
-		if (len < 0) {
-			verbose("Read error from remote host: %.100s", strerror(errno));
-			fatal_cleanup();
-		}
-		/* Buffer any received data. */
-		packet_process_incoming(buf, len);
 	}
 	if (compat20)
 		return;
@@ -271,9 +265,11 @@ process_input(fd_set * readset)
 	/* Read and buffer any available stdout data from the program. */
 	if (!fdout_eof && FD_ISSET(fdout, readset)) {
 		len = read(fdout, buf, sizeof(buf));
-		if (len <= 0)
+		if (len < 0 && (errno == EINTR || errno == EAGAIN)) {
+			/* do nothing */
+		} else if (len <= 0) {
 			fdout_eof = 1;
-		else {
+		} else {
 			buffer_append(&stdout_buffer, buf, len);
 			fdout_bytes += len;
 		}
@@ -281,10 +277,13 @@ process_input(fd_set * readset)
 	/* Read and buffer any available stderr data from the program. */
 	if (!fderr_eof && FD_ISSET(fderr, readset)) {
 		len = read(fderr, buf, sizeof(buf));
-		if (len <= 0)
+		if (len < 0 && (errno == EINTR || errno == EAGAIN)) {
+			/* do nothing */
+		} else if (len <= 0) {
 			fderr_eof = 1;
-		else
+		} else {
 			buffer_append(&stderr_buffer, buf, len);
+		}
 	}
 }
 
@@ -300,7 +299,9 @@ process_output(fd_set * writeset)
 	if (!compat20 && fdin != -1 && FD_ISSET(fdin, writeset)) {
 		len = write(fdin, buffer_ptr(&stdin_buffer),
 		    buffer_len(&stdin_buffer));
-		if (len <= 0) {
+		if (len < 0 && (errno == EINTR || errno == EAGAIN)) {
+			/* do nothing */
+		} else if (len <= 0) {
 #ifdef USE_PIPES
 			close(fdin);
 #else
@@ -367,6 +368,7 @@ process_buffered_input_packets()
 void
 server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 {
+	fd_set readset, writeset;
 	int wait_status;	/* Status returned by wait(). */
 	pid_t wait_pid;		/* pid returned by wait(). */
 	int waiting_termination = 0;	/* Have displayed waiting close message. */
@@ -386,6 +388,14 @@ server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 	fdin = fdin_arg;
 	fdout = fdout_arg;
 	fderr = fderr_arg;
+
+	/* nonblocking IO */
+	set_nonblock(fdin);
+	set_nonblock(fdout);
+	/* we don't have stderr for interactive terminal sessions, see below */
+	if (fderr != -1)
+		set_nonblock(fderr);
+
 	connection_in = packet_get_connection_in();
 	connection_out = packet_get_connection_out();
 
@@ -426,7 +436,6 @@ server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 
 	/* Main loop of the server for the interactive session mode. */
 	for (;;) {
-		fd_set readset, writeset;
 
 		/* Process buffered packets from the client. */
 		process_buffered_input_packets();
@@ -694,6 +703,9 @@ input_direct_tcpip(void)
 	originator = packet_get_string(NULL);
 	originator_port = packet_get_int();
 	packet_done();
+
+	debug("open direct-tcpip: from %s port %d to %s port %d",
+	   originator, originator_port, target, target_port);
 	/* XXX check permission */
 	sock = channel_connect_to(target, target_port);
 	xfree(target);
@@ -745,7 +757,6 @@ server_input_channel_open(int type, int plen)
 			channel_free(id);
 		}
 	} else if (strcmp(ctype, "direct-tcpip") == 0) {
-		debug("open direct-tcpip");
 		id = input_direct_tcpip();
 		if (id >= 0)
 			c = channel_lookup(id);
