@@ -747,6 +747,7 @@ acpi_DeviceIsPresent(device_t dev)
 	return(FALSE);
     if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
 	return(FALSE);
+    /* XXX 0xf is probably not appropriate */
     if ((devinfo.Valid & ACPI_VALID_HID) && (devinfo.CurrentStatus & 0xf))
 	return(TRUE);
     return(FALSE);
@@ -911,6 +912,28 @@ acpi_ForeachPackageObject(ACPI_OBJECT *pkg, void (* func)(ACPI_OBJECT *comp, voi
     return(AE_OK);
 }
 
+/*
+ * Find the (index)th resource object in a set.
+ */
+ACPI_STATUS
+acpi_FindIndexedResource(ACPI_RESOURCE *resbuf, int index, ACPI_RESOURCE **resp)
+{
+    u_int8_t		*p;
+    int			i;
+
+    p = (u_int8_t *)resbuf;
+    i = index;
+    while (i > 0) {
+	/* range check */
+	if (p > ((u_int8_t *)resbuf + resbuf->Length))
+	    return(AE_BAD_PARAMETER);
+	p += ((ACPI_RESOURCE *)p)->Length;
+	i--;
+    }
+    if (resp != NULL)
+	*resp = (ACPI_RESOURCE *)p;
+    return(AE_OK);
+}
 
 static ACPI_STATUS __inline
 acpi_wakeup(UINT8 state)
@@ -1591,201 +1614,3 @@ acpi_set_debugging(void *junk)
 }
 SYSINIT(acpi_debugging, SI_SUB_TUNABLES, SI_ORDER_ANY, acpi_set_debugging, NULL);
 #endif
-
-/*
- * ACPI Battery Abstruction Layer
- */
-
-struct acpi_batteries {
-	TAILQ_ENTRY(acpi_batteries) link;
-	struct	 acpi_battdesc battdesc;
-};
-
-static TAILQ_HEAD(,acpi_batteries) acpi_batteries;
-static int			acpi_batteries_initted = 0;
-static int			acpi_batteries_units = 0;
-static struct acpi_battinfo	acpi_battery_battinfo;
-
-static int
-acpi_battery_get_units(void)
-{
-
-	return (acpi_batteries_units);
-}
-
-static int
-acpi_battery_get_battdesc(int logical_unit, struct acpi_battdesc *battdesc)
-{
-	int	 i;
-	struct acpi_batteries	*bp;
-
-	if (logical_unit < 0 || logical_unit >= acpi_batteries_units) {
-		return (ENXIO);
-	}
-
-	i = 0;
-	TAILQ_FOREACH(bp, &acpi_batteries, link) {
-		if (logical_unit == i) {
-			battdesc->type = bp->battdesc.type;
-			battdesc->phys_unit = bp->battdesc.phys_unit;
-			return (0);
-		}
-		i++;
-	}
-
-	return (ENXIO);
-}
-
-static int
-acpi_battery_get_battinfo(int unit, struct acpi_battinfo *battinfo)
-{
-	int	 error;
-	struct	 acpi_battdesc battdesc;
-
-	error = 0;
-	if (unit == -1) {
-		error = acpi_cmbat_get_battinfo(-1, battinfo);
-		goto out;
-	} else {
-		if ((error = acpi_battery_get_battdesc(unit, &battdesc)) != 0) {
-			goto out;
-		}
-		switch (battdesc.type) {
-		case ACPI_BATT_TYPE_CMBAT:
-			error = acpi_cmbat_get_battinfo(battdesc.phys_unit,
-			   battinfo);
-			break;
-		default:
-			error = ENXIO;
-			break;
-		}
-	}
-out:
-	return (error);
-}
-
-static int
-acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
-{
-	int	 error;
-	int	 logical_unit;
-	union acpi_battery_ioctl_arg	*ioctl_arg;
-
-	ioctl_arg = (union acpi_battery_ioctl_arg *)addr;
-	error = 0;
-	switch (cmd) {
-	case ACPIIO_BATT_GET_UNITS:
-		*(int *)addr = acpi_battery_get_units();
-		break;
-
-	case ACPIIO_BATT_GET_BATTDESC:
-		logical_unit = ioctl_arg->unit;
-		error = acpi_battery_get_battdesc(logical_unit, &ioctl_arg->battdesc);
-		break;
-
-	case ACPIIO_BATT_GET_BATTINFO:
-		logical_unit = ioctl_arg->unit;
-		error = acpi_battery_get_battinfo(logical_unit,
-		    &ioctl_arg->battinfo);
-		break;
-
-	default:
-		error = EINVAL;
-		break;
-	}
-
-	return (error);
-}
-
-static int
-acpi_battery_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	int	val;
-	int	error;
-
-	acpi_battery_get_battinfo(-1, &acpi_battery_battinfo);
-	val = *(u_int *)oidp->oid_arg1;
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	return (error);
-}
-
-static int
-acpi_battery_init(void)
-{
-	device_t		 dev;
-	struct acpi_softc	*sc;
-	int	 		 error;
-
-	if ((dev = devclass_get_device(acpi_devclass, 0)) == NULL) {
-		return (ENXIO);
-	}
-	if ((sc = device_get_softc(dev)) == NULL) {
-		return (ENXIO);
-	}
-
-	error = 0;
-
-	TAILQ_INIT(&acpi_batteries);
-	acpi_batteries_initted = 1;
-
-	if ((error = acpi_register_ioctl(ACPIIO_BATT_GET_UNITS,
-			acpi_battery_ioctl, NULL)) != 0) {
-		return (error);
-	}
-	if ((error = acpi_register_ioctl(ACPIIO_BATT_GET_BATTDESC,
-			acpi_battery_ioctl, NULL)) != 0) {
-		return (error);
-	}
-	if ((error = acpi_register_ioctl(ACPIIO_BATT_GET_BATTINFO,
-			acpi_battery_ioctl, NULL)) != 0) {
-		return (error);
-	}
-
-	sysctl_ctx_init(&sc->acpi_battery_sysctl_ctx);
-	sc->acpi_battery_sysctl_tree = SYSCTL_ADD_NODE(&sc->acpi_battery_sysctl_ctx,
-				SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-				OID_AUTO, "battery", CTLFLAG_RD, 0, "");
-	SYSCTL_ADD_PROC(&sc->acpi_battery_sysctl_ctx,
-		SYSCTL_CHILDREN(sc->acpi_battery_sysctl_tree),
-		OID_AUTO, "life", CTLTYPE_INT | CTLFLAG_RD,
-		&acpi_battery_battinfo.cap, 0, acpi_battery_sysctl, "I", "");
-	SYSCTL_ADD_PROC(&sc->acpi_battery_sysctl_ctx,
-		SYSCTL_CHILDREN(sc->acpi_battery_sysctl_tree),
-		OID_AUTO, "time", CTLTYPE_INT | CTLFLAG_RD,
-		&acpi_battery_battinfo.min, 0, acpi_battery_sysctl, "I", "");
-	SYSCTL_ADD_PROC(&sc->acpi_battery_sysctl_ctx,
-		SYSCTL_CHILDREN(sc->acpi_battery_sysctl_tree),
-		OID_AUTO, "state", CTLTYPE_INT | CTLFLAG_RD,
-		&acpi_battery_battinfo.state, 0, acpi_battery_sysctl, "I", "");
-	SYSCTL_ADD_INT(&sc->acpi_battery_sysctl_ctx,
-		SYSCTL_CHILDREN(sc->acpi_battery_sysctl_tree),
-		OID_AUTO, "units", CTLFLAG_RD, &acpi_batteries_units, 0, "");
-
-	return (error);
-}
-
-int
-acpi_battery_register(int type, int phys_unit)
-{
-	int	error;
-	struct acpi_batteries	*bp;
-
-	error = 0;
-	if ((bp = malloc(sizeof(*bp), M_ACPIDEV, M_NOWAIT)) == NULL) {
-		return(ENOMEM);
-	}
-
-	bp->battdesc.type = type;
-	bp->battdesc.phys_unit = phys_unit;
-	if (acpi_batteries_initted == 0) {
-		if ((error = acpi_battery_init()) != 0) {
-			free(bp, M_ACPIDEV);
-			return(error);
-		}
-	}
-		
-	TAILQ_INSERT_TAIL(&acpi_batteries, bp, link);
-	acpi_batteries_units++;
-
-	return(0);
-}
