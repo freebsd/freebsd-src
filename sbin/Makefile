@@ -34,7 +34,6 @@ SUBDIR=	adjkerntz \
 	ipfstat \
 	ipfw \
 	ipmon \
-	ipnat \
 	kldconfig \
 	kldload \
 	kldstat \
