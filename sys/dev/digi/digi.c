@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 2001 Brian Somers <brian@Awfulhak.org>
- *                    based on work by Slawa Olhovchenkov
+ *   based on work by Slawa Olhovchenkov
+ *                    John Prince <johnp@knight-trosoft.com>
+ *                    Eric Hernes
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,45 +38,24 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/reboot.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
-#include <sys/dkstat.h>
-#include <sys/file.h>
 #include <sys/linker.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/tty.h>
 #include <sys/syslog.h>
-
-#include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/bus.h>
-
-#include <machine/clock.h>
-
 #include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
 #include <machine/resource.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
 
 #include <dev/digi/digireg.h>
 #include <dev/digi/digiio.h>
 #include <dev/digi/digi.h>
 #include <dev/digi/digi_mod.h>
 #include <dev/digi/digi_pci.h>
-
-#include <machine/ipl.h>
 
 #define	CDEV_MAJOR	162
 
@@ -674,9 +655,6 @@ digi_init(struct digi_softc *sc)
 	}
 
 	sc->hidewin(sc);
-#ifdef DIGI_LOCK_INTR
-	mtx_init(sc->intr_mutex, "digi interrupt mutex", MTX_DEF);
-#endif
 	sc->inttest = timeout(digi_int_test, sc, hz);
 	/* fepcmd_w(&sc->ports[0], 0xff, 0, 0); */
 	sc->status = DIGI_STATUS_ENABLED;
@@ -1457,10 +1435,6 @@ digi_intr(void *vp)
 		return;
 	}
 
-#ifdef DIGI_LOCK_INTR
-	mtx_lock(sc->intr_mutex);
-#endif
-
 #ifdef DIGI_INTERRUPT
 	microtime(&sc->intr_timestamp);
 #endif
@@ -1660,9 +1634,6 @@ eoi:
 		sc->towin(sc, 0);
 	if (window != 0)
 		sc->towin(sc, window);
-#ifdef DIGI_LOCK_INTR
-	mtx_unlock(sc->intr_mutex);
-#endif
 }
 
 static void
@@ -1868,9 +1839,6 @@ digi_free_state(struct digi_softc *sc)
 	callout_handle_init(&sc->inttest);
 
 	bus_teardown_intr(sc->dev, sc->res.irq, sc->res.irqHandler);
-#ifdef DIGI_LOCK_INTR
-	mtx_destroy(sc->intr_mutex);
-#endif
 #ifdef DIGI_INTERRUPT
 	if (sc->res.irq != NULL) {
 		bus_release_resource(dev, SYS_RES_IRQ, sc->res.irqrid,

@@ -1,5 +1,8 @@
 /*-
  * Copyright (c) 2001 Brian Somers <brian@Awfulhak.org>
+ *   based on work by Slawa Olhovchenkov
+ *                    John Prince <johnp@knight-trosoft.com>
+ *                    Eric Hernes
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,11 +40,9 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/tty.h>
-#include <sys/syslog.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <sys/mutex.h>
 #include <machine/resource.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
