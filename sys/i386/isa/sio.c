@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.50 1994/08/23 07:52:23 paul Exp $
+ *	$Id: sio.c,v 1.51 1994/08/25 10:15:28 bde Exp $
  */
 
 #include "sio.h"
@@ -277,6 +277,10 @@ static	int	sioprobe	__P((struct isa_device *dev));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
 static	int	tiocm_xxx2mcr	__P((int tiocm_xxx));
+
+#ifdef DSI_SOFT_MODEM
+static  int 	LoadSoftModem   __P((int unit,int base_io, u_long size, u_char *ptr));
+#endif /* DSI_SOFT_MODEM */
 
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
@@ -592,6 +596,14 @@ sioattach(isdp)
 
 	/* attempt to determine UART type */
 	printf("sio%d: type", unit);
+
+#ifdef DSI_SOFT_MODEM
+	if((inb(iobase+7) ^ inb(iobase+7)) & 0x80) {
+	    printf(" Digicom Systems, Inc. SoftModem");
+        goto determined_type;
+	}
+#endif /* DSI_SOFT_MODEM */
+
 #ifdef COM_MULTIPORT
 	if (!COM_ISMULTIPORT(isdp))
 #endif
@@ -931,6 +943,7 @@ siowrite(dev, uio, flag)
 	mynor = minor(dev);
 	if (mynor & CONTROL_MASK)
 		return (ENODEV);
+
 	unit = MINOR_TO_UNIT(mynor);
 	tp = com_addr(unit)->tp;
 	/*
@@ -1156,6 +1169,7 @@ sioioctl(dev, cmd, data, flag, p)
 
 	mynor = minor(dev);
 	com = com_addr(MINOR_TO_UNIT(mynor));
+	iobase = com->iobase;
 	if (mynor & CONTROL_MASK) {
 		struct termios *ct;
 
@@ -1185,6 +1199,34 @@ sioioctl(dev, cmd, data, flag, p)
 		case TIOCGWINSZ:
 			bzero(data, sizeof(struct winsize));
 			return (0);
+#ifdef DSI_SOFT_MODEM
+		/*
+		 * Download micro-code to Digicom modem.
+		 */
+		case TIOCDSIMICROCODE:
+			{
+			u_long l;
+			u_char *p,*pi;
+
+			pi = (u_char*)(*(caddr_t*)data);
+			error = copyin(pi,&l,sizeof l);
+			if(error) 
+				{return error;};
+			pi += sizeof l;
+
+			p = malloc(l,M_TEMP,M_NOWAIT);
+			if(!p) 
+				{return ENOBUFS;}
+			error = copyin(pi,p,l);
+			if(error) 
+				{free(p,M_TEMP); return error;};
+			if(error = LoadSoftModem(
+			    MINOR_TO_UNIT(mynor),iobase,l,p))
+				{free(p,M_TEMP); return error;}
+			free(p,M_TEMP);
+			return(0);
+			}
+#endif /* DSI_SOFT_MODEM */
 		default:
 			return (ENOTTY);
 		}
@@ -1218,7 +1260,6 @@ sioioctl(dev, cmd, data, flag, p)
 	error = ttioctl(tp, cmd, data, flag);
 	if (error >= 0)
 		return (error);
-	iobase = com->iobase;
 	s = spltty();
 	switch (cmd) {
 	case TIOCSBRK:
@@ -1953,5 +1994,126 @@ siocnputc(dev, c)
 	siocnclose(&sp);
 	splx(s);
 }
+
+#ifdef DSI_SOFT_MODEM
+/*
+ * The magic code to download microcode to a "Connection 14.4+Fax"
+ * modem from Digicom Systems Inc.  Very magic.
+ */
+
+#define DSI_ERROR(str) { ptr = str; goto error; }
+static int
+LoadSoftModem(int unit, int base_io, u_long size, u_char *ptr)
+{
+    int int_c,int_k;
+    int data_0188, data_0187;
+
+    /* 
+     * First see if it is a DSI SoftModem
+     */
+    if(!((inb(base_io+7) ^ inb(base_io+7) & 0x80)))
+	return ENODEV;
+
+    data_0188 = inb(base_io+4);
+    data_0187 = inb(base_io+3);
+    outb(base_io+3,0x80);
+    outb(base_io+4,0x0C);
+    outb(base_io+0,0x31);
+    outb(base_io+1,0x8C);
+    outb(base_io+7,0x10);
+    outb(base_io+7,0x19);
+
+    if(0x18 != (inb(base_io+7) & 0x1A))
+	DSI_ERROR("dsp bus not granted");
+
+    if(0x01 != (inb(base_io+7) & 0x01)) {
+	outb(base_io+7,0x18); 
+	outb(base_io+7,0x19); 
+	if(0x01 != (inb(base_io+7) & 0x01))
+	    DSI_ERROR("program mem not granted");
+    }
+
+    int_c = 0;
+
+    while(1) {
+	if(int_c >= 7 || size <= 0x1800)
+	    break;
+
+	for(int_k = 0 ; int_k < 0x800; int_k++) {
+	    outb(base_io+0,*ptr++);
+	    outb(base_io+1,*ptr++);
+	    outb(base_io+2,*ptr++);
+	}
+
+	size -= 0x1800;
+	int_c++;
+    }
+
+    if(size > 0x1800) {
+ 	outb(base_io+7,0x18);
+ 	outb(base_io+7,0x19);
+	if(0x00 != (inb(base_io+7) & 0x01))
+	    DSI_ERROR("program data not granted");
+	
+	for(int_k = 0 ; int_k < 0x800; int_k++) {
+	    outb(base_io+1,*ptr++);
+	    outb(base_io+2,0);
+	    outb(base_io+1,*ptr++);
+	    outb(base_io+2,*ptr++);
+	}
+	
+	size -= 0x1800;
+
+	while(size > 0x1800) {
+	    for(int_k = 0 ; int_k < 0xC00; int_k++) {
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,*ptr++);
+	    }
+	    size -= 0x1800;
+	}
+
+	if(size < 0x1800) {
+	    for(int_k=0;int_k<size/2;int_k++) {
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,*ptr++);
+	    }
+	}
+	
+    } else if (size > 0) {
+	if(int_c == 7) {
+	    outb(base_io+7,0x18);
+	    outb(base_io+7,0x19);
+	    if(0x00 != (inb(base_io+7) & 0x01))
+		DSI_ERROR("program data not granted");
+	    for(int_k = 0 ; int_k < size/3; int_k++) {
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,0);
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,*ptr++);
+	    }
+	} else {
+	    for(int_k = 0 ; int_k < size/3; int_k++) {
+		outb(base_io+0,*ptr++);
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,*ptr++);
+	    }
+	}
+    }	
+    outb(base_io+7,0x11);
+    outb(base_io+7,3);
+
+    outb(base_io+4,data_0188 & 0xfb);
+
+    outb(base_io+3,data_0187);
+
+    return 0;
+error:
+    printf("sio%d: DSI SoftModem microcode load failed: <%s>\n",ptr);
+    outb(base_io+7,0x00); \
+    outb(base_io+3,data_0187); \
+    outb(base_io+4,data_0188);  \
+    return EIO;
+}
+#endif /* DSI_SOFT_MODEM */
 
 #endif /* NSIO > 0 */
