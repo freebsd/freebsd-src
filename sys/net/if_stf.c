@@ -83,8 +83,11 @@
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
-#include <sys/protosw.h>
 #include <sys/kernel.h>
+#include <sys/protosw.h>
+#include <sys/queue.h>
+#include <machine/bus.h>	/* XXX: Shouldn't really be required! */ 
+#include <sys/rman.h>
 #include <machine/cpu.h>
 
 #include <sys/malloc.h>
@@ -114,6 +117,9 @@
 
 #include <net/bpf.h>
 
+#define STFNAME		"stf"
+#define STF_MAXUNIT	0	/* only one is currently allowed */
+
 #define IN6_IS_ADDR_6TO4(x)	(ntohs((x)->s6_addr16[0]) == 0x2002)
 #define GET_V4(x)	((struct in_addr *)(&(x)->s6_addr16[1]))
 
@@ -125,11 +131,14 @@ struct stf_softc {
 	} __sc_ro46;
 #define sc_ro	__sc_ro46.__sc_ro4
 	const struct encaptab *encap_cookie;
+	struct resource *r_unit;	/* resource allocated for this unit */
+	LIST_ENTRY(stf_softc) sc_list;	/* all stf's are linked */
 };
 
-static struct stf_softc *stf;
+LIST_HEAD(, stf_softc) stf_softc_list;
 
-static MALLOC_DEFINE(M_STF, "stf", "6to4 Tunnel Interface");
+static MALLOC_DEFINE(M_STF, STFNAME, "6to4 Tunnel Interface");
+static struct rman stfunits[1];
 static int ip_stf_ttl = 40;
 
 extern  struct domain inetdomain;
@@ -153,58 +162,117 @@ static int stf_checkaddr6 __P((struct stf_softc *, struct in6_addr *,
 static void stf_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 static int stf_ioctl __P((struct ifnet *, u_long, caddr_t));
 
+int	stf_clone_create __P((struct if_clone *, int *));
+void	stf_clone_destroy __P((struct ifnet *));
+
+struct if_clone stf_cloner =
+    IF_CLONE_INITIALIZER(STFNAME, stf_clone_create, stf_clone_destroy);
+
+int
+stf_clone_create(ifc, unit)
+	struct if_clone *ifc;
+	int *unit;
+{
+	struct resource *r;
+	struct stf_softc *sc;
+
+	if (*unit > STF_MAXUNIT)
+		return (ENXIO);
+
+	if (*unit < 0) {
+		 r = rman_reserve_resource(stfunits, 0, STF_MAXUNIT, 1,
+		     RF_ALLOCATED | RF_ACTIVE, NULL);
+		 if (r == NULL)
+			return (ENOSPC);
+		 *unit = rman_get_start(r);
+	} else {
+		r = rman_reserve_resource(stfunits, *unit, *unit, 1,
+		    RF_ALLOCATED | RF_ACTIVE, NULL);
+		if (r == NULL)
+			 return (EEXIST);
+	}
+
+	sc = malloc(sizeof(struct stf_softc), M_STF, M_WAIT);
+	bzero(sc, sizeof(struct stf_softc));
+
+	sc->sc_if.if_name = STFNAME;
+	sc->sc_if.if_unit = *unit;
+	sc->r_unit = r;
+
+	sc->encap_cookie = encap_attach_func(AF_INET, IPPROTO_IPV6,
+	    stf_encapcheck, &in_stf_protosw, sc);
+	if (sc->encap_cookie == NULL) {
+		printf("%s: attach failed\n", if_name(&sc->sc_if));
+		free(sc, M_STF);
+		return (ENOMEM);
+	}
+
+	sc->sc_if.if_mtu    = IPV6_MMTU;
+	sc->sc_if.if_flags  = 0;
+	sc->sc_if.if_ioctl  = stf_ioctl;
+	sc->sc_if.if_output = stf_output;
+	sc->sc_if.if_type   = IFT_STF;
+	sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
+	if_attach(&sc->sc_if);
+	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
+	LIST_INSERT_HEAD(&stf_softc_list, sc, sc_list);
+	return (0);
+}
+
+void
+stf_clone_destroy(ifp)
+	struct ifnet *ifp;
+{
+	int err;
+	struct stf_softc *sc = (void *) ifp;
+
+	LIST_REMOVE(sc, sc_list);
+	err = encap_detach(sc->encap_cookie);
+	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
+	bpfdetach(ifp);
+	if_detach(ifp);
+
+	err = rman_release_resource(sc->r_unit);
+	KASSERT(err == 0, ("Unexpected error freeing resource"));
+
+	free(sc, M_STF);
+}
+
 static int
 stfmodevent(mod, type, data)
 	module_t mod;
 	int type;
 	void *data;
 {
-	struct stf_softc *sc;
 	int err;
-	const struct encaptab *p;
 
 	switch (type) {
 	case MOD_LOAD:
-		stf = malloc(sizeof(struct stf_softc), M_STF, M_WAITOK);
-		bzero(stf, sizeof(struct stf_softc));
-		sc = stf;
-
-		bzero(sc, sizeof(*sc));
-		sc->sc_if.if_name = "stf";
-		sc->sc_if.if_unit = 0;
-
-		p = encap_attach_func(AF_INET, IPPROTO_IPV6, stf_encapcheck,
-		    &in_stf_protosw, sc);
-		if (p == NULL) {
-			printf("%s: attach failed\n", if_name(&sc->sc_if));
-			return (ENOMEM);
+		stfunits->rm_type = RMAN_ARRAY;
+		stfunits->rm_descr = "configurable if_stf units";
+		err = rman_init(stfunits);
+		if (err != 0)
+			return (err);
+		err = rman_manage_region(stfunits, 0, STF_MAXUNIT);
+		if (err != 0) {
+			printf("%s: stfunits: rman_manage_region: Failed %d\n",
+			    STFNAME, err);
+			rman_fini(stfunits);
+			return (err);
 		}
-		sc->encap_cookie = p;
+		LIST_INIT(&stf_softc_list);
+		if_clone_attach(&stf_cloner);
 
-		sc->sc_if.if_mtu    = IPV6_MMTU;
-		sc->sc_if.if_flags  = 0;
-		sc->sc_if.if_ioctl  = stf_ioctl;
-		sc->sc_if.if_output = stf_output;
-		sc->sc_if.if_type   = IFT_STF;
-#if 0
-		/* turn off ingress filter */
-		sc->sc_if.if_flags  |= IFF_LINK2;
-#endif
-		sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
-		if_attach(&sc->sc_if);
-#ifdef HAVE_OLD_BPF
-		bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
-#else
-		bpfattach(&sc->sc_if.if_bpf, &sc->sc_if, DLT_NULL, sizeof(u_int));
-#endif
 		break;
 	case MOD_UNLOAD:
-		sc = stf;
-		bpfdetach(&sc->sc_if);
-		if_detach(&sc->sc_if);
-		err = encap_detach(sc->encap_cookie);
-		KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
-		free(sc, M_STF);
+		if_clone_detach(&stf_cloner);
+
+		while (!LIST_EMPTY(&stf_softc_list))
+			stf_clone_destroy(&LIST_FIRST(&stf_softc_list)->sc_if);
+
+		err = rman_fini(stfunits);
+		KASSERT(err == 0, ("Unexpected error freeing resource"));
+
 		break;
 	}
 
