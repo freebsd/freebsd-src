@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/* From: NetBSD: ansi.h,v 1.9 1997/11/23 20:20:53 kleink Exp */
-
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
+ *	From: NetBSD: ansi.h,v 1.9 1997/11/23 20:20:53 kleink Exp
+ * $FreeBSD$
  */
 
 #ifndef	_ANSI_H_
