@@ -91,7 +91,7 @@ put_long(l, cp)
 	 * Convert to network order and copy to output buffer
 	 */
 	nl = htonl(l);
-	UM_COPY(&nl, cp, sizeof(u_long));
+	bcopy(&nl, cp, sizeof(u_long));
 }
 
 
@@ -115,7 +115,7 @@ scsp_format_id(idp, buff)
 	/*
 	 * Copy the ID
 	 */
-	UM_COPY(idp->id, buff, idp->id_len);
+	bcopy(idp->id, buff, idp->id_len);
 
 	/*
 	 * Return the ID length
@@ -240,7 +240,7 @@ scsp_format_ext(exp, buff, blen)
 	 */
 	if (exp->len > 0) {
 		buff += sizeof(struct scsp_next);
-		UM_COPY((caddr_t)exp + sizeof(Scsp_ext),
+		bcopy((caddr_t)exp + sizeof(Scsp_ext),
 				buff,
 				exp->len);
 	}
@@ -326,7 +326,7 @@ scsp_format_atmarp(acsp, buff)
 		sanp->sa_shtl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 		/* sa_sha */
-		UM_COPY(acsp->sa_sha.address, cp, len);
+		bcopy(acsp->sa_sha.address, cp, len);
 		cp += len;
 
 		sanp->sa_sstl = 0;
@@ -336,7 +336,7 @@ scsp_format_atmarp(acsp, buff)
 		sanp->sa_shtl = ARP_TL_E164 | (len & ARP_TL_LMASK);
 
 		/* sa_sha */
-		UM_COPY(acsp->sa_sha.address, cp, len);
+		bcopy(acsp->sa_sha.address, cp, len);
 		cp += len;
 
 		if (acsp->sa_ssa.address_format == T_ATM_ENDSYS_ADDR) {
@@ -345,7 +345,7 @@ scsp_format_atmarp(acsp, buff)
 					(len & ARP_TL_LMASK);
 
 			/* sa_ssa */
-			UM_COPY(acsp->sa_ssa.address, cp, len);
+			bcopy(acsp->sa_ssa.address, cp, len);
 			cp += len;
 		} else
 			sanp->sa_sstl = 0;
@@ -363,7 +363,7 @@ scsp_format_atmarp(acsp, buff)
 	/* sa_spa */
 	if (acsp->sa_spa.s_addr != 0) {
 		sanp->sa_spln = sizeof(struct in_addr);
-		UM_COPY(&acsp->sa_spa, cp, sizeof(struct in_addr));
+		bcopy(&acsp->sa_spa, cp, sizeof(struct in_addr));
 		cp += sizeof(struct in_addr);
 	}
 
@@ -374,7 +374,7 @@ scsp_format_atmarp(acsp, buff)
 		sanp->sa_thtl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 		/* sa_tha */
-		UM_COPY(acsp->sa_tha.address, cp, len);
+		bcopy(acsp->sa_tha.address, cp, len);
 		cp += len;
 
 		sanp->sa_tstl = 0;
@@ -384,7 +384,7 @@ scsp_format_atmarp(acsp, buff)
 		sanp->sa_thtl = ARP_TL_E164 | (len & ARP_TL_LMASK);
 
 		/* sa_tha */
-		UM_COPY(acsp->sa_tha.address, cp, len);
+		bcopy(acsp->sa_tha.address, cp, len);
 		cp += len;
 
 		if (acsp->sa_tsa.address_format == T_ATM_ENDSYS_ADDR) {
@@ -393,7 +393,7 @@ scsp_format_atmarp(acsp, buff)
 					(len & ARP_TL_LMASK);
 
 			/* sa_tsa */
-			UM_COPY(acsp->sa_tsa.address, cp, len);
+			bcopy(acsp->sa_tsa.address, cp, len);
 			cp += len;
 		} else
 			sanp->sa_tstl = 0;
@@ -407,7 +407,7 @@ scsp_format_atmarp(acsp, buff)
 	/* sa_tpa */
 	if (acsp->sa_tpa.s_addr != 0) {
 		sanp->sa_tpln = sizeof(struct in_addr);
-		UM_COPY(&acsp->sa_tpa, cp, sizeof(struct in_addr));
+		bcopy(&acsp->sa_tpa, cp, sizeof(struct in_addr));
 	}
 
 	return(pkt_len);
@@ -459,7 +459,7 @@ scsp_format_csa(csap, buff)
 	 */
 	scp->scs_ck_len = csap->key.key_len;
 	odp = buff + sizeof(struct scsp_ncsa);
-	UM_COPY(csap->key.key, odp, scp->scs_ck_len);
+	bcopy(csap->key.key, odp, scp->scs_ck_len);
 
 	/*
 	 * Set the originator ID
@@ -732,11 +732,9 @@ scsp_format_msg(dcsp, msg, bpp)
 	 * Allocate a buffer for the message
 	 */
 	buff_len = dcsp->sd_server->ss_mtu;
-	buff = (char *)UM_ALLOC(buff_len);
-	if (!buff) {
+	buff = calloc(1, buff_len);
+	if (buff == NULL)
 		scsp_mem_err("scsp_format_msg: dcsp->sd_server->ss_mtu");
-	}
-	UM_ZERO(buff, buff_len);
 	*bpp = buff;
 
 	/*
@@ -767,11 +765,9 @@ scsp_format_msg(dcsp, msg, bpp)
 		 * Get a buffer for the extensions
 		 */
 		e_buff_len = 1024;
-		e_buff = (char *)UM_ALLOC(e_buff_len);
-		if (!buff) {
+		e_buff = calloc(1, e_buff_len);
+		if (buff)
 			scsp_mem_err("scsp_format_msg: e_buff_len");
-		}
-		UM_ZERO(e_buff, e_buff_len);
 
 		/*
 		 * Encode the extensions
@@ -789,7 +785,7 @@ scsp_format_msg(dcsp, msg, bpp)
 		 * Free the buffer if we didn't use it
 		 */
 		if (!e_len) {
-			UM_FREE(e_buff);
+			free(e_buff);
 			e_buff = (char *)0;
 		}
 	}
@@ -825,8 +821,8 @@ scsp_format_msg(dcsp, msg, bpp)
 	 */
 	if (e_len) {
 		shp->sh_ext_off = htons(len);
-		UM_COPY(e_buff, buff + len, e_len);
-		UM_FREE(e_buff);
+		bcopy(e_buff, buff + len, e_len);
+		free(e_buff);
 	}
 
 	/*
@@ -846,9 +842,9 @@ scsp_format_msg(dcsp, msg, bpp)
 
 ignore:
 	if (buff)
-		UM_FREE(buff);
+		free(buff);
 	if (e_buff)
-		UM_FREE(e_buff);
+		free(e_buff);
 	*bpp = (char *)0;
 	return(0);
 }
@@ -905,7 +901,7 @@ scsp_send_msg(dcsp, msg)
 	 * Write the message to the DCS
 	 */
 	rc = write(dcsp->sd_sock, (void *)buff, len);
-	UM_FREE(buff);
+	free(buff);
 	if (rc == len || (rc == -1 && errno == EINPROGRESS)) {
 		rc = 0;
 	} else {
