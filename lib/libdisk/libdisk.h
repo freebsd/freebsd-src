@@ -6,9 +6,12 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.2 1995/04/29 01:55:23 phk Exp $
+ * $Id: libdisk.h,v 1.3 1995/04/29 04:00:55 phk Exp $
  *
  */
+
+#define MAX_NO_DISKS	20
+	/* Max # of disks Disk_Names() will return */
 
 typedef enum {whole, foo, fat, freebsd, extended, part, unused, reserved} chunk_e;
 
@@ -26,6 +29,9 @@ struct disk {
 	u_long		bios_cyl;
 	u_long		bios_hd;
 	u_long		bios_sect;
+	u_char		*bootmgr;
+	u_char		*boot1;
+	u_char		*boot2;
 	struct chunk	*chunks;
 };
 
@@ -113,11 +119,27 @@ CheckRules(struct disk *);
 	/* Return char* to warnings about broken design rules in this disklayout
 	 */
 
+char **
+Disk_Names();
+	/* Return char** with all disk's names (wd0, wd1 ...).  You must free
+	 * each pointer, as well as the array by hand
+	 */
+
+void
+Set_Boot_Mgr(struct disk *d, u_char *bootmgr);
+	/* Use this boot-manager on this disk.  Gets written when Write_Disk()
+	 * is called
+	 */
+
+void
+Set_Boot_Blocks(struct disk *d, u_char *boot1, u_char *boot2);
+	/* Use these boot-blocks on this disk.  Gets written when Write_Disk()
+	 * is called
+	 */
+
 /* 
  * Implementation details  >>> DO NOT USE <<<
  */
-
-struct disk *Int_Open_Disk(char *devname, u_long maxsize);
 
 void Debug_Chunk(struct chunk *);
 void Free_Chunk(struct chunk *);
@@ -131,5 +153,81 @@ int Aligned(struct disk *d, u_long offset);
 u_long Next_Aligned(struct disk *d, u_long offset);
 u_long Prev_Aligned(struct disk *d, u_long offset);
 struct chunk * Find_Mother_Chunk(struct chunk *, u_long , u_long , chunk_e);
+struct disk * Int_Open_Disk(char *name, u_long size);
 
 #define dprintf	printf
+
+/* TODO
+ *
+ * Need a error string mechanism from the functions instead of warn()
+ * 
+ * Make sure only FreeBSD start at offset==0
+ * 
+ * Make sure all MBR+extended children are aligned at create.
+ * 
+ * Collapse must align.
+ * 
+ * Make Write_Disk(struct disk*)
+ * 
+ * Consider booting from OnTrack'ed disks.
+ *
+ * Get Bios-geom, ST506 & OnTrack from driver (or otherwise)
+ *
+ * Make Create_DWIM().
+ *
+ *
+ *Sample output from tst01:
+ *
+ * Debug_Disk(wd0)  flags=0  real_geom=0/0/0  bios_geom=0/0/0
+ * >>        0x3d040          0    1411200    1411199 wd0      0 whole    0 0
+ * >>>>      0x3d080          0     960120     960119 wd0s1    3 freebsd  0 8
+ * >>>>>>    0x3d100          0      40960      40959 wd0s1a   5 part     0 0
+ * >>>>>>    0x3d180      40960     131072     172031 wd0s1b   5 part     0 0
+ * >>>>>>    0x3d1c0     172032     409600     581631 wd0s1e   5 part     0 0
+ * >>>>>>    0x3d200     581632     378488     960119 wd0s1f   5 part     0 0
+ * >>>>      0x3d140     960120       5670     965789 wd0s2    4 extended 0 8
+ * >>>>>>    0x3d240     960120          1     960120 -        7 reserved 0 8
+ * >>>>>>    0x3d2c0     960121         62     960182 -        6 unused   0 0
+ * >>>>>>    0x3d0c0     960183       5607     965789 wd0s5    2 fat      0 8
+ * >>>>      0x3d280     965790       1890     967679 wd0s3    1 foo      -2 8
+ * >>>>      0x3d300     967680     443520    1411199 wd0s4    3 freebsd  0 8
+ * >>>>>>    0x3d340     967680     443520    1411199 wd0s4a   5 part     0 0
+ *
+ * ^            ^           ^          ^          ^     ^      ^ ^        ^ ^
+ * level    chunkptr      start      size        end  name    type  subtype flags
+ *
+ * Underlying data structure:
+ *
+ *	Legend:
+ *		<struct chunk> --> part
+ *			|
+ *			v next
+ *
+ *	<wd0> --> <wd0s1> --> <wd0s1a>
+ *		     |           |
+ *		     |           v
+ *		     |        <wd0s1b>
+ *		     |           |
+ *		     |           v
+ *		     |        <wd0s1e>
+ *		     |           |
+ *		     |           v
+ *		     |        <wd0s1f>
+ *		     |
+ *		     v
+ *		  <wd0s2> --> <reserved>
+ *		     |           |
+ *		     |           v
+ *		     |        <unused>
+ *		     |           |
+ *		     |           v
+ *		     |        <wd0s5>
+ *		     |
+ *		     v
+ *		  <wd0s3>	
+ *		     |
+ *		     v
+ *		  <wd0s4> --> <wd0s4a>
+ *
+ *
+ */

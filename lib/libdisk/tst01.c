@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.2 1995/04/29 01:55:25 phk Exp $
+ * $Id: tst01.c,v 1.3 1995/04/29 04:00:57 phk Exp $
  *
  */
 
@@ -24,7 +24,7 @@ CHAR_N;
 int
 main(int argc, char **argv)
 {
-	struct disk *d,*db;
+	struct disk *d;
 	char myprompt[BUFSIZ];
 	char *p,*q=0;
 	char **cp,*cmds[200];
@@ -95,18 +95,14 @@ main(int argc, char **argv)
 				Collapse_Disk(d);
 			continue;
 		}	
-		if (!strcasecmp(*cmds,"read")) { 
-			db=d;
-			if (cmds[1])
-				d = Open_Disk(cmds[1]);
-			else
-				d = Open_Disk(db->name);
-			if (!d) {
-				fprintf(stderr,"Failed to open %s\n",argv[1]);
-				d = db;		
-			} else {
-				Free_Disk(db);
-			}
+		if (!strcasecmp(*cmds,"list")) { 
+			cp = Disk_Names();
+			printf("Disks:");
+			for(i=0;cp[i];i++) {
+				printf(" %s",cp[i]);
+				free(cp[i]);
+			}		
+			free(cp);
 			continue;
 		}
 		if (!strcasecmp(*cmds,"create") && ncmd == 6) { 
@@ -128,6 +124,7 @@ main(int argc, char **argv)
 		printf("\tcollapse [pointer]\n");
 		printf("\tcreate offset size enum subtype flags\n");
 		printf("\tdelete pointer\n");
+		printf("\tlist\n");
 		printf("\tphys cyl hd sect\n");
 		printf("\tquit\n");
 		printf("\tread [disk]\n");
