@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.84 1996/07/31 06:41:29 jkh Exp $
+ * $Id: menus.c,v 1.85 1996/09/08 01:39:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -440,7 +440,7 @@ guaranteed to carry the full range of possible distributions.",
     "install",
 { { "Primary Site",	"ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
-  { "Other",		"Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
+  { "URL",		"Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=other" },
   { "Australia",	"ftp.au.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.au.freebsd.org/pub/FreeBSD/" },
