@@ -815,9 +815,7 @@ sched_switch(struct thread *td)
 			runq_add(ke->ke_runq, ke);
 			/* setrunqueue(td); */
 		}
-		return;
-	}
-	if (ke->ke_runq)
+	} else if (ke->ke_runq)
 		kseq_rem(KSEQ_CPU(ke->ke_cpu), ke);
 	/*
 	 * We will not be on the run queue. So we must be
