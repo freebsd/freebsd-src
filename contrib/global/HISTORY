@@ -3,6 +3,8 @@ GLOBAL history
 
 version 1.0	initial version [21-Apr-96]
 
+	global, gtags, btreeop, extended ctags.
+
 version 1.1	only bugfix [2-May-96]
 
 	[fixed bug]
@@ -72,6 +74,12 @@ version 1.6	support of 1.76 nvi and reconstruction for other OS [21-Jan-97]
 		  now GLOBAL includes BSD ctags in it. so no longer has
 		  patch file (ctags.diff).
 		  (I brought original ctags from FreeBSD 2.1.5R)
+
+		  Thanks to
+			Gary Kline
+			Hideki Mori
+		  for their advice.
+
 	global	- -a option added.
 
 version 1.7	make suitable for large project (mainly FreeBSD kernel) [17-Feb-97]
@@ -143,14 +151,14 @@ version 1.9	support of 1.79 nvi and some additional options [21-Apr-97]
 		  So, changed to convert tabs in source files into spaces.
 		  (expand(1) needed)
 		
-		  Thanks to Andy Newman.
+		  Thanks to Andy Newman for his bug report and fix method.
 
 		- cannot print error message correctly.
 	[changed]
 	gctags, btreeop
 		- modify for SunOS 4.1.3.
 
-		  Thanks to Yoshiharu Ito.
+		  Thanks to Yoshiharu Ito for his information.
 
 	[added]
 	btreeop - META record is available.
@@ -192,12 +200,116 @@ version 2.0	Support of Emacs and CGI Form [7-Jul-97]
 	[deleted]
 	nvi-1.76.diff
 	[added]
-	gtags.el- added emacs support (emulation of 1.34 nvi)
-	htags	- added hyperlink for include files.
-		- added checking if GTAGS is the latest one.
+	gtags.el- emacs support (emulation of 1.34 nvi) added.
+	htags	- hyperlink for include files added.
+		- check if GTAGS is the latest one.
 		- -f option added.
 		  With this option, you can use input form and dynamic
 		  index. (You need to setup httpd server for it.)
 		- -n option added.
 	global	- -f option added.
 	btreeop - -L option added.
+
+version 2.1	Symbol search, incremental update and gozilla [20-Sep-97]
+
+	[changed]
+	gtags	- -e option and -s option were deleted.
+		  These options become default, so you need not to specify
+		  them. Gtags accepts these options for compatibility but
+		  no effect.
+	global	- understand not only 'obj'(MAKEOBJDIR) directory but also
+		  '/usr/obj'(MAKEOBJDIRPREFIX) directory of BSD build system.
+
+		  Thanks to Jordan K. Hubbard. This is his idea.
+
+	gctags, btreeop
+		- remove <err.h> for portability. (Sorry, Philippe...)
+	btreeop - output procedure rewritten.
+			detab() + fprintf -> detab_print()
+	gtags, htags, global
+		- don't restrict PATH to '/bin:/usr/bin' like version 1.9
+		  and the former.
+	[fixed bug]
+	gctags	- cannot treat files which include '\r'.
+
+		  Thanks to Christoph Conrad for his bug report.
+
+		- is disturbed by '_asm' statement.
+		- write buffer beyoned the end when source file doesn't
+		  end with '\n'. It brings segmentation fault.
+	gtags.el- ESC-r command doesn't work.
+	htags	- has a security hole in global.cgi.
+	btreeop	- corrupt database when interrupted.
+	all command
+		- description of exit code in online manual is fixed.
+	[added]
+	gozilla
+		- new command.
+	gtags, gctags, global
+		- can locate specified symbol other than function name
+		  using GSYMS tag file.
+	btreeop - support secondary key.
+		  Optional key number added to -K option and -D option.
+		- -k option added.(prefix read)
+	global
+		- -g option added.(grep pattern)
+
+		  Thanks to Hideaki Okada for his advice.
+
+		- -s option added.(symbol search)
+		- -i option added.(incremental update)
+		- -l option added.(search only under current directory)
+		- -v option added.(verbose mode)
+	gtags	- -i option added.(incremental update)
+		- -v option added.(verbose mode)
+		- -o option added.(stop making GSYMS tag file)
+	gtags.el- gtags-find-symbol command (ESC-s) added.
+		  It is equal to global's -s option.
+		- gtags-find-pattern command (ESC-g) added.
+		  It is equal to global's -g option.
+
+version 2.11	only bugfix [7-Nov-97]
+
+	[fixed bug]
+	htags, gtags
+		- cannot treat symbolic link.
+
+		  Thanks to Yoshiharu Ito for his bug report.
+
+	Makefile.generic
+		- doens't work on Debian GNU/Linux.
+
+		  Thanks to Y.Yoshinaga for his patch.
+
+version 2.2	Rewritten with C for performance [7-Dec-97]
+
+	[changed]
+	gtags, global, gozilla
+		- rewritten with C.
+	global	- adopted POSIX regular expression (extension) instead of
+		  perl's one.
+	htags	- shape up anchor database.
+	btreeop	- some options (-b, -c, -l, -p) were deleted.
+
+version 2.21	bugfix and slightly modified [11-Dec-97]
+
+	[fixed bug]
+	gtags, global
+		- doesn't skip RCS, SCCS, y.tab.c, y.tab.h.
+	global	- generates illegal path name when using GTAGSLIBPATH
+		  with -a option.
+	[changed]
+	lib/Makefile.generic
+		- MANDIR = /usr/share/man -> MANDIR = /usr/man
+		- replace `lorder $(OBJS) | tsort -q` to already sorted list.
+		  for S.u.S.E Linux 5.1.
+
+		Thanks to Christoph Conrad for his information.
+
+	gtags, lib/test.c
+		- some change for Solaris environment.
+
+		Thanks to Yamashita TAKAO for his information.
+
+	htags/Makefile, systags/Makefile
+		- ${DESTDIR}/usr/bin  -> ${DESTDIR}${BINDIR}

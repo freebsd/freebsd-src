@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)assembler.c	8.3 (Berkeley) 6/6/97";
 #include <string.h>
 #include "ctags.h"
 
-#ifdef GTAGS
+#ifdef GLOBAL
 void
 asm_entries()
 {

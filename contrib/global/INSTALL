@@ -1,7 +1,7 @@
 
-Installation of GLOBAL 2.0
+Installation of GLOBAL 2.21
 
-						3-Jul-1997 Shigio Yamaguchi
+						11-Dec-1997 Shigio Yamaguchi
 ---------------------------------------------------------------------------
 Guide line (C style)
 ---------------------------------------------------------------------------
@@ -25,16 +25,17 @@ if (Your system == FreeBSD) {
 		Use 1.79 nvi available on the Internet.
 		break;
 	case 2.2.2R:
+	case 2.2.5R:
 		Your system inlucdes GLOBAL 1.9. You can overwrite it
-		with this 2.0 package.
+		with this 2.2 package.
 		But skip procedure "3. Extended vi (OPTIONAL)", because
 		your /usr/bin/nvi is already extended nvi for GLOBAL.
 		break;
 	default:
-		I don't know. But it semms to be little problem.
+		I don't know. But it seems to be little problem.
 	}
 } else {
-	You may some error message to make GLOBAL.
+	You may some error messages to make GLOBAL.
 	But it seems not so difficult to clear it. If you make a patch for it,
 	please let me know. I would like to include your patch into new
 	version of GLOBAL.
@@ -48,8 +49,8 @@ Install procedure
 
 0. Extracting
 
-	% tar xzvf global-2.0.tar.gz
-	% cd global-2.0
+	% tar xzvf global-2.21.tar.gz
+	% cd global-2.21
 
 1. Preparation for generic UNIX
 
@@ -77,10 +78,26 @@ Install procedure
 
 	ftp://ftp.cis.ufl.edu/pub/perl/CPAN/src/5.0/latest.tar.gz
 
-      If you install perl into other than /usr/bin, please rewrite the header
-      of following commnads.
+   d) Rewrite some files
+
+      If you install GLOBAL into other than /usr/bin, you need rewrite
+      hard coded path in a program. You can find the place by this command.
+
+	% grep '/usr/bin/global' */*.pl
+
+      If you install perl to other than /usr/bin, please rewrite hard coded
+      path in some programs. You can find the places by this command.
  
-	gtags/gtags.pl global/global.pl htags/htags.pl
+	% grep '/usr/bin/perl' */*.pl
+
+   e) POSIX regular expression (extension) library
+
+      If you don't have it, you can use GNU's regex library.
+
+   f) Some UNIX tools
+
+      Find(1), sed(1), sort(1) are needed.
+      If your environment is UNIX, you have them.
 
 2. GLOBAL basic (NEEDED)
 
@@ -89,8 +106,9 @@ Install procedure
 
 3. Extended vi (OPTIONAL)
 
-   GLOBAL supports two version of nvi. There is a little defference between
-   them when a number of functions located. (please see 'README' file.)
+   GLOBAL supports two version of nvi.
+   There is a little defference in behavior between them when a number of
+   functions located. (please see 'README'.)
    Version 1.34 nvi is included by FreeBSD 2.0.5R, 2.1.0R and 2.1.5R.
    Version 1.79 nvi is available on
 
@@ -132,17 +150,27 @@ Install procedure
    You can get it from 
 
 	Emacs 19.34b:
-		prep.ai.mit.edu/pub/gnu/emacs-19.34b.tar.gz
+		ftp://prep.ai.mit.edu/pub/gnu/emacs-19.34b.tar.gz
 	Mule 2.3:
 		ftp://ftp.cs.buffalo.edu/pub/mule/mule-2.3.tar.gz
 
-   If you are a FreeBSD user, install it from package.
+   If you are a FreeBSD user, install it from 'package' (see pkg_add(1)).
 
-   If you have installed it, to use extended emacs, copy gtags.el
-   in this package to the emacs lisp library directory or place the file
-   in a directory (for example "~/lisp") and write $HOME/.emacs like this.
+   If you have installed it then copy gtags.el in this package to the emacs
+   lisp library directory or place the file in a directory
+   (for example "~/lisp") and write $HOME/.emacs like this.
 
 	+-----------------------------------------------
 	|(setq load-path (cons "~/lisp" load-path))
+
+5. Gozilla (OPTIONAL)
+
+   You need X(1) to install gozilla.
+
+	% cd gozilla
+	% xmkmf
+	% make
+	# make install
+	# make install.man
 
 Good luck!
