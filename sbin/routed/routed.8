@@ -112,7 +112,7 @@ The
 packet generated contains a list of known routes, each marked
 with a "hop count" metric (a count of 16 or greater is
 considered "infinite").
-Th advertised metric for a route reflects the metrics associated
+The advertised metric for a route reflects the metrics associated
 with interfaces
 (see
 .Xr ifconfig 8 )
@@ -228,7 +228,9 @@ is received), there is a single default route and a variable number of
 redirected host routes in the kernel table.
 On a host with more than one network interface,
 this default route will be via only one of the interfaces.
-Thus, multi-homed hosts running with \f3\-q\f1 might need
+Thus, multi-homed hosts running with
+.Fl q
+might need
 .Cm no_rdisc
 described below.
 .Pp
@@ -514,16 +516,15 @@ a line starting with
 .Cm if=remote(Hname) ,
 etc. should be used.
 .Ss Parameters
-.Pp
 Lines that start with neither "net" nor "host" must consist of one
 or more of the following parameter settings, separated by commas or
 blanks:
-.Bl -tag -width Ds
-.It Cm if Ns \&= Ns Ar ifname
+.Bl -tag -width indent
+.It Cm if Ns = Ns Ar ifname
 indicates that the other parameters on the line apply to the interface
 name
 .Ar ifname .
-.It Cm subnet Ns \&= Ns Ar nname[/mask][,metric]
+.It Cm subnet Ns = Ns Ar nname Ns Oo / Ns Ar mask Oc Ns Op , Ns Ar metric
 advertises a route to network
 .Ar nname
 with mask
@@ -535,17 +536,20 @@ The network number must specify a full, 32-bit value, as in 192.0.2.0
 instead of 192.0.2.
 .Pp
 Do not use this feature unless necessary.  It is dangerous.
-.It Cm ripv1_mask Ns \&= Ns Ar nname/mask1,mask2
+.It Cm ripv1_mask Ns = Ns Ar nname Ns / Ns Ar mask1 , Ns Ar mask2
 specifies that netmask of the network of which
-.Cm nname/mask1\f1
+.Ar nname Ns / Ns Ar mask1
 is
 a subnet should be
-.Cm mask2 .
-For example \f2ripv1_mask=192.0.2.16/28,27\f1 marks 192.0.2.16/28
+.Ar mask2 .
+For example,
+.Dq Li ripv1_mask=192.0.2.16/28,27
+marks 192.0.2.16/28
 as a subnet of 192.0.2.0/27 instead of 192.0.2.0/24.
 It is better to turn on RIPv2 instead of using this facility, for example
-with \f2ripv2_out\f1.
-.It Cm passwd Ns \&= Ns Ar XXX[|KeyID[start|stop]]
+with
+.Cm ripv2_out .
+.It Cm passwd Ns = Ns Ar XXX[|KeyID[start|stop]]
 specifies a RIPv2 cleartext password that will be included on
 all RIPv2 responses sent, and checked on all RIPv2 responses received.
 Any blanks, tab characters, commas, or '#', '|', or NULL characters in the
@@ -720,5 +724,5 @@ The
 .Nm
 utility appeared in
 .Bx 4.2 .
-\"  LocalWords:  loopback ICMP rtquery ifconfig multicasting Solicitations RIPv
-\"  LocalWords:  netstat rdisc
+.\"  LocalWords:  loopback ICMP rtquery ifconfig multicasting Solicitations RIPv
+.\"  LocalWords:  netstat rdisc
