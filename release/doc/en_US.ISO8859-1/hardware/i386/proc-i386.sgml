@@ -49,6 +49,14 @@
     <varname>machdep.hlt_cpus</varname> sysctl variable.  The
     &man.smp.4; manual page has more details.</para>
 
+  <para>&os; will take advantage of Physical Address Extensions (PAE)
+    support on CPUs that support this feature.  A kernel with the
+    <literal>PAE</literal> feature enabled will detect memory above
+    4 gigabytes and allow it to be used by the system.  This feature
+    places constraints on the device drivers and other features of
+    &os; which may be used; consult the &man.pae.4; manpage for more
+    details.</para>
+
   <para>&os; will generally run on i386-based laptops, albeit with
     varying levels of support for certain hardware features such as
     sound, graphics, power management, and PCCARD expansion slots.
