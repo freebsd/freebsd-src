@@ -9,7 +9,7 @@ the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
 20021110:
-	The definitions of the standard file streams (stdio, stdout, and
+	The definitions of the standard file streams (stdin, stdout, and
 	stderr) have changed so that they are no longer compile-time 
 	constants.  Some older binaries may require updated 3.X 
 	compatability libraries (for example, by setting COMPAT3X=yes 
