@@ -2535,8 +2535,9 @@ PunchFWHole(struct alias_link *link) {
 
     /* Build generic part of the two rules */
     rule.fw_number = fwhole;
-    rule.fw_nports = 1;         /* Number of source ports; dest ports follow */
-    rule.fw_flg = IP_FW_F_ACCEPT;
+    IP_FW_SETNSRCP(&rule, 1);	/* Number of source ports. */
+    IP_FW_SETNDSTP(&rule, 1);	/* Number of destination ports. */
+    rule.fw_flg = IP_FW_F_ACCEPT | IP_FW_F_IN | IP_FW_F_OUT;
     rule.fw_prot = IPPROTO_TCP;
     rule.fw_smsk.s_addr = INADDR_BROADCAST;
     rule.fw_dmsk.s_addr = INADDR_BROADCAST;
