@@ -9,6 +9,7 @@
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
+. /etc/network.subr
 
 name="ipfw"
 rcvar="firewall_enable"
@@ -40,6 +41,16 @@ ipfw_start()
 		# Network Address Translation daemon
 		#
 		if checkyesno natd_enable; then
+			dhcp_list="`list_net_interfaces dhcp`"
+			for ifn in ${dhcp_list}; do
+				case ${natd_interface} in
+				${ifn})
+					natd_flags="$natd_flags -dynamic"
+					;;
+				*)
+					;;
+				esac
+			done
 			if [ -n "${natd_interface}" ]; then
 				if echo ${natd_interface} | \
 				grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
@@ -75,6 +86,8 @@ ipfw_stop()
 	# Disable the firewall
 	#
 	${SYSCTL_W} net.inet.ip.fw.enable=0
+	killall natd;
+	sleep 2;
 }
 
 load_rc_config $name
