@@ -120,10 +120,10 @@ unsigned long
 int	 system(const char *);
 
 int	 mblen(const char *, size_t);
-size_t	 mbstowcs(wchar_t *, const char *, size_t);
+size_t	 mbstowcs(wchar_t *__restrict , const char *__restrict, size_t);
 int	 wctomb(char *, wchar_t);
-int	 mbtowc(wchar_t *, const char *, size_t);
-size_t	 wcstombs(char *, const wchar_t *, size_t);
+int	 mbtowc(wchar_t *__restrict, const char *__restrict, size_t);
+size_t	 wcstombs(char *__restrict, const wchar_t *__restrict, size_t);
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 extern const char *_malloc_options;
