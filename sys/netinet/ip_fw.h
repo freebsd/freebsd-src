@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.31 1998/01/08 03:03:54 alex Exp $
+ *	$Id: ip_fw.h,v 1.32 1998/02/03 22:15:03 bde Exp $
  */
 
 #ifndef _IP_FW_H
@@ -71,6 +71,7 @@ struct ip_fw {
 	u_short fu_divert_port;		/* Divert/tee port (options IPDIVERT) */
 	u_short fu_skipto_rule;		/* SKIPTO command rule number */
 	u_short fu_reject_code;		/* REJECT response code */
+	struct sockaddr_in fu_fwd_ip;
     } fw_un;
     u_char fw_prot;			/* IP protocol */
     u_char fw_nports;			/* N'of src ports and # of dst ports */
@@ -93,6 +94,7 @@ struct ip_fw {
 #define fw_divert_port	fw_un.fu_divert_port
 #define fw_skipto_rule	fw_un.fu_skipto_rule
 #define fw_reject_code	fw_un.fu_reject_code
+#define fw_fwd_ip	fw_un.fu_fwd_ip
 
 struct ip_fw_chain {
         LIST_ENTRY(ip_fw_chain) chain;
@@ -115,6 +117,7 @@ struct ip_fw_chain {
 #define IP_FW_F_DIVERT	0x0040	/* This is a divert rule		*/
 #define IP_FW_F_TEE	0x0050	/* This is a tee rule			*/
 #define IP_FW_F_SKIPTO	0x0060	/* This is a skipto rule		*/
+#define IP_FW_F_FWD	0x0070	/* This is a "change forwarding address" rule */
 
 #define IP_FW_F_PRN	0x0080	/* Print if this rule matches		*/
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.40 1998/06/06 19:39:10 julian Exp $
+ *	$Id: ip_var.h,v 1.41 1998/06/08 09:47:42 bde Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -210,6 +210,9 @@ extern struct pr_usrreqs div_usrreqs;
 extern u_short ip_divert_port;
 extern u_short ip_divert_cookie;
 #endif /* IPDIVERT */
+
+struct sockaddr_in;
+extern struct sockaddr_in *ip_fw_fwd_addr;
 
 #endif /* KERNEL */
 
