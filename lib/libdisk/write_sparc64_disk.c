@@ -72,6 +72,14 @@ Write_Disk(const struct disk *d1)
 		sl->sl_part[i].sdkp_nsectors = c1->size;
 	}
 
+	/*
+	 * We need to fill in the "RAW" partition as well.  Emperical data
+	 * seems to indicate that this covers the "obviously" visible part
+	 * of the disk, ie: sl->sl_ncylinders.
+	 */
+	sl->sl_part[2].sdkp_cyloffset = 0;
+	sl->sl_part[2].sdkp_nsectors = sl->sl_ncylinders * secpercyl;
+
 	sp1 = (u_short *)sl;
 	sp2 = (u_short *)(sl + 1);
 	sl->sl_cksum = cksum = 0;
