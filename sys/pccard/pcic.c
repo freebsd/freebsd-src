@@ -575,7 +575,7 @@ pcic_probe(void)
 		 * ones would need to be probed at the new offset we set after
 		 * we assume it's broken.
 		 */
-		if ((slot == 1) && is_vlsi && (getb(sp, PCIC_ID_REV != 0x84)) {
+		if ((slot == 1) && is_vlsi && (getb(sp, PCIC_ID_REV != 0x84))) {
 			sp->index += 4;
 			sp->data += 4;
 			sp->offset = PCIC_SLOT_SIZE << 1;
