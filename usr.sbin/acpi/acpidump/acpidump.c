@@ -54,7 +54,7 @@ main(int argc, char *argv[])
 {
 	char	c, *progname;
 	char	*dsdt_input_file, *dsdt_output_file;
-	struct	ACPIsdt *sdt;
+	struct	ACPIsdt *rsdt, *sdt;
 
 	dsdt_input_file = dsdt_output_file = NULL;
 	progname = argv[0];
@@ -99,38 +99,41 @@ main(int argc, char *argv[])
 		}
 		if (vflag)
 			warnx("loading DSDT file: %s", dsdt_input_file);
-		sdt = dsdt_load_file(dsdt_input_file);
+		rsdt = dsdt_load_file(dsdt_input_file);
 	} else {
 		if (vflag)
 			warnx("loading RSD PTR from /dev/mem");
-		sdt = sdt_load_devmem();
+		rsdt = sdt_load_devmem();
 	}
 
 	/* Display misc. SDT tables (only available when using /dev/mem) */
 	if (tflag) {
 		if (vflag)
 			warnx("printing various SDT tables");
-		sdt_print_all(sdt);
+		sdt_print_all(rsdt);
 	}
 
 	/* Translate RSDT to DSDT pointer */
 	if (dsdt_input_file == NULL) {
-		sdt = sdt_from_rsdt(sdt, "FACP");
+		sdt = sdt_from_rsdt(rsdt, "FACP", NULL);
 		sdt = dsdt_from_fadt((struct FADTbody *)sdt->body);
+	} else {
+		sdt = rsdt;
+		rsdt = NULL;
 	}
 
 	/* Dump the DSDT to a file */
 	if (dsdt_output_file != NULL) {
 		if (vflag)
 			warnx("saving DSDT file: %s", dsdt_output_file);
-		dsdt_save_file(dsdt_output_file, sdt);
+		dsdt_save_file(dsdt_output_file, rsdt, sdt);
 	}
 
 	/* Disassemble the DSDT into ASL */
 	if (dflag) {
 		if (vflag)
 			warnx("disassembling DSDT, iasl messages follow");
-		aml_disassemble(sdt);
+		aml_disassemble(rsdt, sdt);
 		if (vflag)
 			warnx("iasl processing complete");
 	}
