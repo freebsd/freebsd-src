@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.11 1999/01/18 10:17:35 abial Exp $
+#	$Id: PICOBSD,v 1.12 1999/02/10 02:26:04 des Exp $
 #
 
 machine		"i386"
@@ -54,7 +54,7 @@ disk		fd0	at fdc0 drive 0
 
 #options		ATAPI		#Enable ATAPI support for IDE bus
 #options		ATAPI_STATIC	#Don't do it as an LKM
-#device		wcd0	#IDE CD-ROM
+#device		acd0	#IDE CD-ROM
 
 # syscons is the default console driver, resembling an SCO console
 
@@ -70,11 +70,7 @@ device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
 device		sio2	at isa? disable port "IO_COM3" tty irq 5
 device		sio3	at isa? disable port "IO_COM4" tty irq 9
 
-#device ppc0	at isa? port? net irq 7
-#controller	ppbus0
-#device		nlpt0	at ppbus?
-#device		plip0	at ppbus?
-#device		ppi0	at ppbus?
+#device		lpt0	at isa? port? tty irq 7
 
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
