@@ -45,13 +45,13 @@
 #ifndef _TIME_H_
 #define	_TIME_H_
 
+#include <sys/cdefs.h>
 #include <machine/ansi.h>
-#include <sys/_posix.h>
 
-#ifndef _ANSI_SOURCE
+#if __POSIX_VISIBLE < 200112 || __BSD_VISIBLE
 /*
  * Frequency of the clock ticks reported by times().  Deprecated - use
- * sysconf(_SC_CLK_TCK) instead.
+ * sysconf(_SC_CLK_TCK) instead.  (Removed in 1003.1-2001.)
  */
 #define	CLK_TCK		_BSD_CLK_TCK_
 #endif
@@ -78,10 +78,7 @@ typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
 #endif
 
-/* XXX I'm not sure if _ANSI_SOURCE is playing properly
- *     with the setups in _posix.h:
- */
-#if !defined(_ANSI_SOURCE) && defined(_P1003_1B_VISIBLE_HISTORICALLY)
+#if __POSIX_VISIBLE >= 199309
 /*
  * New in POSIX 1003.1b-1993.
  */
@@ -95,14 +92,8 @@ typedef	_BSD_TIMER_T_	timer_t;
 #undef	_BSD_TIMER_T_
 #endif
 
-#ifndef _TIMESPEC_DECLARED
-#define _TIMESPEC_DECLARED
-struct timespec {
-	time_t	tv_sec;		/* seconds */
-	long	tv_nsec;	/* and nanoseconds */
-};
-#endif
-#endif /* Neither ANSI nor POSIX */
+#include <sys/timespec.h>
+#endif /* __POSIX_VISIBLE >= 199309 */
 
 struct tm {
 	int	tm_sec;		/* seconds after the minute [0-60] */
@@ -118,9 +109,7 @@ struct tm {
 	char	*tm_zone;	/* timezone abbreviation */
 };
 
-#include <sys/cdefs.h>
-
-#ifndef	_ANSI_SOURCE
+#if __POSIX_VISIBLE
 extern char *tzname[];
 #endif
 
@@ -135,7 +124,7 @@ time_t mktime(struct tm *);
 size_t strftime(char *, size_t, const char *, const struct tm *);
 time_t time(time_t *);
 
-#ifndef _ANSI_SOURCE
+#if __BSD_VISIBLE			/* XXX what are these? */
 time_t _time32_to_time(__int32_t t32);
 __int32_t _time_to_time32(time_t t);
 time_t _time64_to_time(__int64_t t64);
@@ -146,29 +135,34 @@ int _time_to_int(time_t t);
 time_t _int_to_time(int tint);
 #endif /* not ANSI */
 
-#ifndef _ANSI_SOURCE
+#if __POSIX_VISIBLE
 void tzset(void);
-#endif /* not ANSI */
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+/* XXX - figure out which standard introduced these */
 char *asctime_r(const struct tm *, char *);
 char *ctime_r(const time_t *, char *);
 struct tm *gmtime_r(const time_t *, struct tm *);
 struct tm *localtime_r(const time_t *, struct tm *);
+#endif
+
+#if __XSI_VISIBLE
 char *strptime(const char *, const char *, struct tm *);
+#endif
+
+#if __BSD_VISIBLE
 char *timezone(int, int);
 void tzsetwall(void);
 time_t timelocal(struct tm * const);
 time_t timegm(struct tm * const);
-#endif /* neither ANSI nor POSIX */
+#endif /* __BSD_VISIBLE */
 
-#if !defined(_ANSI_SOURCE) && defined(_P1003_1B_VISIBLE_HISTORICALLY)
+#if __POSIX_VISIBLE >= 199309
 /* Introduced in POSIX 1003.1b-1993, not part of 1003.1-1990. */
 int clock_getres(clockid_t, struct timespec *);
 int clock_gettime(clockid_t, struct timespec *);
 int clock_settime(clockid_t, const struct timespec *);
 int nanosleep(const struct timespec *, struct timespec *);
-#endif /* neither ANSI nor POSIX */
+#endif /* __POSIX_VISIBLE >= 199309 */
 __END_DECLS
 
 #endif /* !_TIME_H_ */
