@@ -1682,6 +1682,7 @@ vm_page_is_valid(vm_page_t m, int base, int size)
 {
 	int bits = vm_page_bits(base, size);
 
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (m->valid && ((m->valid & bits) == bits))
 		return 1;
 	else
