@@ -5,7 +5,7 @@
  */
 
 /* 
- * Copyright (C) 1991, 1992 the Free Software Foundation, Inc.
+ * Copyright (C) 1991, 1992, 1993 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
@@ -92,6 +92,13 @@
  */
 #define	HAVE_UNDERSCORE_SETJMP	1
 
+/*
+ * LIMITS_H_MISSING
+ *
+ * You don't have a <limits.h> include file.
+ */
+/* #define LIMITS_H_MISSING	1 */
+
 /***********************************************/
 /* Missing library subroutines or system calls */
 /***********************************************/
@@ -147,7 +154,7 @@
  * Your system does not have the strtod() routine for converting
  * strings to double precision floating point values.
  */
-/* #define	STRTOD_MISSING  1 */
+/* #define STRTOD_MISSING	1 */
 
 /*
  * STRFTIME_MISSING
@@ -175,6 +182,15 @@
  * If this is the case *and* strftime() is missing, define this.
  */
 /* #define TZNAME_MISSING	1 */
+
+/*
+ * TM_ZONE_MISSING
+ *
+ * Your "struct tm" is missing the tm_zone field.
+ * If this is the case *and* strftime() is missing *and* tzname is missing,
+ * define this.
+ */
+/* #define TM_ZONE_MISSING	1 */
 
 /*
  * STDC_HEADERS
@@ -268,5 +284,23 @@
  * srandom already has a prototype defined - don't redefine it
  */
 #define	SRANDOM_PROTO	1
+
+/*
+ * getpgrp() in sysvr4 and POSIX takes no argument
+ */
+/* #define GETPGRP_NOARG	0 */
+
+/*
+ * define const to nothing if not __STDC__
+ */
+#ifndef __STDC__
+#define const
+#endif
+
+/* If svr4 and not gcc */
+/* #define SVR4		0 */
+#ifdef SVR4
+#define __svr4__	1
+#endif
 
 /* anything that follows is for system-specific short-term kludges */

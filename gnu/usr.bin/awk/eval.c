@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991, 1992 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
@@ -136,6 +136,10 @@ register NODE *volatile tree;
 	NODE **volatile lhs;	/* lhs == Left Hand Side for assigns, etc */
 	NODE *volatile stable_tree;
 	int volatile traverse = 1;	/* True => loop thru tree (Node_rule_list) */
+
+	/* avoid false source indications */
+	source = NULL;
+	sourceline = 0;
 
 	if (tree == NULL)
 		return 1;
@@ -318,7 +322,10 @@ register NODE *volatile tree;
 		break;
 
 	case Node_K_delete:
-		do_delete(tree->lnode, tree->rnode);
+		if (tree->rnode != NULL)
+			do_delete(tree->lnode, tree->rnode);
+		else
+			assoc_clear(tree->lnode);
 		break;
 
 	case Node_K_next:
@@ -378,7 +385,7 @@ register NODE *tree;
 	register int di;
 	AWKNUM x, x1, x2;
 	long lx;
-#ifdef CRAY
+#ifdef _CRAY
 	long lx2;
 #endif
 
@@ -386,21 +393,25 @@ register NODE *tree;
 	if (tree == NULL)
 		return Nnull_string;
 	if (tree->type == Node_val) {
-		if (tree->stref <= 0) cant_happen();
+		if ((char)tree->stref <= 0) cant_happen();
 		return tree;
 	}
 	if (tree->type == Node_var) {
-		if (tree->var_value->stref <= 0) cant_happen();
+		if ((char)tree->var_value->stref <= 0) cant_happen();
 		return tree->var_value;
 	}
-	if (tree->type == Node_param_list) {
-		if (stack_ptr[tree->param_cnt] == NULL)
-			return Nnull_string;
-		else
-			return stack_ptr[tree->param_cnt]->var_value;
-	}
 #endif
+
+	if (tree->type == Node_param_list) {
+		tree = stack_ptr[tree->param_cnt];
+		if (tree == NULL)
+			return Nnull_string;
+	}
+
 	switch (tree->type) {
+	case Node_var:
+		return tree->var_value;
+
 	case Node_and:
 		return tmp_number((AWKNUM) (eval_condition(tree->lnode)
 					    && eval_condition(tree->rnode)));
@@ -443,7 +454,7 @@ register NODE *tree;
 		return *lhs;
 
 	case Node_var_array:
-		fatal("attempt to use an array in a scalar context");
+		fatal("attempt to use array `%s' in a scalar context", tree->vname);
 
 	case Node_unary_minus:
 		t1 = tree_eval(tree->subnode);
@@ -489,32 +500,52 @@ register NODE *tree;
 	case Node_concat:
 		{
 #define	STACKSIZE	10
-		NODE *stack[STACKSIZE];
-		register NODE **sp;
-		register int len;
+		NODE *treelist[STACKSIZE+1];
+		NODE *strlist[STACKSIZE+1];
+		register NODE **treep;
+		register NODE **strp;
+		register size_t len;
 		char *str;
 		register char *dest;
 
-		sp = stack;
-		len = 0;
+		/*
+		 * This is an efficiency hack for multiple adjacent string
+		 * concatenations, to avoid recursion and string copies.
+		 *
+		 * Node_concat trees grow downward to the left, so
+		 * descend to lowest (first) node, accumulating nodes
+		 * to evaluate to strings as we go.
+		 */
+		treep = treelist;
 		while (tree->type == Node_concat) {
-			*sp = force_string(tree_eval(tree->lnode));
-			tree = tree->rnode;
-			len += (*sp)->stlen;
-			if (++sp == &stack[STACKSIZE-2]) /* one more and NULL */
+			*treep++ = tree->rnode;
+			tree = tree->lnode;
+			if (treep == &treelist[STACKSIZE])
 				break;
 		}
-		*sp = force_string(tree_eval(tree));
-		len += (*sp)->stlen;
-		*++sp = NULL;
+		*treep = tree;
+		/*
+		 * Now, evaluate to strings in LIFO order, accumulating
+		 * the string length, so we can do a single malloc at the
+		 * end.
+		 */
+		strp = strlist;
+		len = 0;
+		while (treep >= treelist) {
+			*strp = force_string(tree_eval(*treep--));
+			len += (*strp)->stlen;
+			strp++;
+		}
+		*strp = NULL;
 		emalloc(str, char *, len+2, "tree_eval");
+		str[len] = str[len+1] = '\0';	/* for good measure */
 		dest = str;
-		sp = stack;
-		while (*sp) {
-			memcpy(dest, (*sp)->stptr, (*sp)->stlen);
-			dest += (*sp)->stlen;
-			free_temp(*sp);
-			sp++;
+		strp = strlist;
+		while (*strp) {
+			memcpy(dest, (*strp)->stptr, (*strp)->stlen);
+			dest += (*strp)->stlen;
+			free_temp(*strp);
+			strp++;
 		}
 		r = make_str_node(str, len, ALREADY_MALLOCED);
 		r->flags |= TEMP;
@@ -629,7 +660,7 @@ register NODE *tree;
 		return tmp_number(x1 - x2);
 
 	case Node_var_array:
-		fatal("attempt to use an array in a scalar context");
+		fatal("attempt to use array `%s' in a scalar context", tree->vname);
 
 	default:
 		fatal("illegal type (%d) in tree_eval", tree->type);
@@ -696,7 +727,7 @@ cmp_nodes(t1, t2)
 register NODE *t1, *t2;
 {
 	register int ret;
-	register int len1, len2;
+	register size_t len1, len2;
 
 	if (t1 == t2)
 		return 0;
@@ -944,22 +975,26 @@ NODE *arg_list;		/* Node_expression_list of calling args. */
 		if (arg->type == Node_param_list)
 			arg = stack_ptr[arg->param_cnt];
 		n = *sp++;
-		if (arg->type == Node_var && n->type == Node_var_array) {
+		if ((arg->type == Node_var || arg->type == Node_var_array)
+		    && n->type == Node_var_array) {
 			/* should we free arg->var_value ? */
 			arg->var_array = n->var_array;
 			arg->type = Node_var_array;
+			arg->array_size = n->array_size;
+			arg->table_size = n->table_size;
+			arg->flags = n->flags;
 		}
-		unref(n->lnode);
+		/* n->lnode overlays the array size, don't unref it if array */
+		if (n->type != Node_var_array)
+			unref(n->lnode);
 		freenode(n);
 		count--;
 	}
 	while (count-- > 0) {
 		n = *sp++;
 		/* if n is an (local) array, all the elements should be freed */
-		if (n->type == Node_var_array) {
+		if (n->type == Node_var_array)
 			assoc_clear(n);
-			free(n->var_array);
-		}
 		unref(n->lnode);
 		freenode(n);
 	}
@@ -985,7 +1020,7 @@ NODE *arg_list;		/* Node_expression_list of calling args. */
  */
 
 NODE **
-get_lhs(ptr, assign)
+r_get_lhs(ptr, assign)
 register NODE *ptr;
 Func_ptr *assign;
 {
@@ -994,11 +1029,11 @@ Func_ptr *assign;
 
 	switch (ptr->type) {
 	case Node_var_array:
-		fatal("attempt to use an array in a scalar context");
+		fatal("attempt to use array `%s' in a scalar context", ptr->vname);
 	case Node_var:
 		aptr = &(ptr->var_value);
 #ifdef DEBUG
-		if (ptr->var_value->stref <= 0)
+		if ((char)ptr->var_value->stref <= 0)
 			cant_happen();
 #endif
 		break;
@@ -1170,7 +1205,7 @@ set_ORS()
 	ORS[ORSlen] = '\0';
 }
 
-static NODE **fmt_list = NULL;
+NODE **fmt_list = NULL;
 static int fmt_ok P((NODE *n));
 static int fmt_index P((NODE *n));
 
