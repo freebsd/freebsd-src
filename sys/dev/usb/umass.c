@@ -2450,16 +2450,24 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_CALC_GEOMETRY:
 	{
-#ifdef USB_DEBUG
 		struct ccb_calc_geometry *ccg = &ccb->ccg;
-#endif
-		DPRINTF(UDMASS_SCSI, ("%s:%d:%d:%d:XPT_CALC_GEOMETRY: "
-			"Volume size = %d (unimplemented)\n",
-			USBDEVNAME(sc->sc_dev), cam_sim_path(umass_sim),
-			ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
-			ccg->volume_size));
+		u_int32_t size_mb;
+		u_int32_t secs_per_cylinder;
+		int extended = 1;
 
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		size_mb = ccg->volume_size
+			/ ((1024L * 1024L) / ccg->block_size);
+
+		if (size_mb >= 1024 && extended) {
+			ccg->heads = 255;
+			ccg->secs_per_track = 63;
+		} else {
+			ccg->heads = 64;
+			ccg->secs_per_track = 32;
+		}
+		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
+		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
+		ccb->ccb_h.status = CAM_REQ_CMP;
 
 		xpt_done(ccb);
 		break;
