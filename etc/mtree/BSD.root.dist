@@ -6,12 +6,12 @@
 # top-level files are owned by root.wheel
 # (else too easy to get root by compromising these)
 
-/set type=file owner=root group=wheel mode=0775
+/set type=file uname=root gname=wheel mode=0775
 
 sys	type=link size=18 link=usr/src/sys
 
 dev	type=dir
-	fd	type=dir owner=bin group=bin mode=555
+	fd	type=dir uname=bin gname=bin mode=555
 	..
 ..
 
@@ -28,7 +28,7 @@ mnt	type=dir
 root	type=dir
 ..
 
-tmp	type=dir owner=bin group=bin mode=01777
+tmp	type=dir uname=bin gname=bin mode=01777
 ..
 
 usr	type=dir
@@ -38,7 +38,7 @@ var	type=dir
 ..
 
 # binary directories:
-/set owner=bin group=bin mode=0755
+/set uname=bin gname=bin mode=0755
 bin	type=dir
 ..
 sbin	type=dir
