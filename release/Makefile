@@ -104,6 +104,7 @@ RELNOTES_LANG?=	en_US.ISO8859-1
 .if defined(NOPORTS) && !defined(NODOC)
 DOMINIMALDOCPORTS=	YES
 .include "Makefile.inc.docports"
+RELEASEPORTSMODULE=	${MINIMALDOCPORTS}
 .endif
 
 # Helper variable
@@ -300,6 +301,21 @@ WMAKEENV!=	echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
 		cd ${.CURDIR}/..; ${CROSSMAKE} -f Makefile.inc1 -V WMAKEENV
 WMAKE=		${WMAKEENV} ${MAKE}
 
+CVS_SRCARGS=	-P
+.if defined(RELEASETAG)
+CVS_SRCARGS+=	-r ${RELEASETAG}
+.endif
+
+CVS_DOCARGS=	-P
+.if defined(DOCRELEASETAG)
+CVS_DOCARGS+=	-r ${DOCRELEASETAG}
+.endif
+
+CVS_PORTSARGS=	-P
+.if defined(PORTSRELEASETAG)
+CVS_PORTSARGS+=	-r ${PORTSRELEASETAG}
+.endif
+
 rerelease release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
@@ -327,12 +343,13 @@ rerelease release:
 	if [ -f /etc/resolv.conf ]; then \
 		cp -p /etc/resolv.conf ${CHROOTDIR}/etc; \
 	fi
-.if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf src && \
-		${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} -P ${RELEASESRCMODULE}
+	rm -rf ${CHROOTDIR}/usr/src
+.if defined(EXTSRCDIR)
+	cd ${CHROOTDIR}/usr && \
+		cp -R ${EXTSRCDIR} src
 .else
-	cd ${CHROOTDIR}/usr && rm -rf src && \
-		${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${RELEASETAG} ${RELEASESRCMODULE}
+	cd ${CHROOTDIR}/usr && \
+		${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_SRCARGS} ${RELEASESRCMODULE}
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch ${PATCH_FLAGS} < ${LOCAL_PATCHES}
@@ -340,24 +357,19 @@ rerelease release:
 .if defined(LOCAL_SCRIPT) && exists(${LOCAL_SCRIPT})
 	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
 .endif
+	rm -rf ${CHROOTDIR}/usr/ports
+.if !defined(NOPORTSATALL)
+	cd ${CHROOTDIR}/usr && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_PORTSARGS} ${RELEASEPORTSMODULE}
+.endif
 .if !defined(NOPORTS)
-.if defined(PORTSRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf ports && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${PORTSRELEASETAG} ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
-.else
-	cd ${CHROOTDIR}/usr && rm -rf ports && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} -P ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
-.endif
-.elif defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
-.if defined(PORTSRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf ports && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${PORTSRELEASETAG} ${MINIMALDOCPORTS}
-.else
-	cd ${CHROOTDIR}/usr && rm -rf ports && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} -P ${MINIMALDOCPORTS}
-.endif
+	cd ${CHROOTDIR}/usr/ports && ${MAKEREADMES}
 .endif
 .if !defined(NODOC)
-.if defined(DOCRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf doc && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${DOCRELEASETAG} ${RELEASEDOCMODULE}
+	rm -rf ${CHROOTDIR}/usr/doc
+.if defined(EXTDOCDIR)
+	cd ${CHROOTDIR}/usr && cp -R ${EXTDOCDIR} doc
 .else
-	cd ${CHROOTDIR}/usr && rm -rf doc && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} -P ${RELEASEDOCMODULE}
+	cd ${CHROOTDIR}/usr && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_DOCARGS} ${RELEASEDOCMODULE}
 .endif
 	if [ -d ${RELEASEDISTFILES}/ ]; then \
 		cp -rp ${RELEASEDISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
