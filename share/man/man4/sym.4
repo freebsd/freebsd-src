@@ -93,16 +93,16 @@ and
 .Tn 53C1010
 PCI SCSI controllers.
 .Pp
-Driver features include support for wide SCSI busses, fast10, fast20,
+Driver features include support for wide SCSI busses and fast10, fast20,
 fast40 and fast80-dt synchronous data transfers depending on controller
 capabilities.
-It also provides generic SCSI features as tagged command
+It also provides generic SCSI features such as tagged command
 queuing and auto-request sense.
 This driver is configured by default
 for a maximum of 446 outstanding commands per bus, 8 LUNs per target
 and 64 tagged tasks per LUN.
-These numbers are not so limited by design,
-as have been considered reasonable values for current SCSI technology.
+These numbers are not so much limited by design
+as they are considered reasonable values for current SCSI technology.
 These values can be increased by changing appropriate
 constants in driver header files (not recommended).
 .Pp
@@ -122,67 +122,67 @@ is never stalled waiting for CPU attention in normal situations.
 also uses LOAD/STORE SCRIPTS instructions for chips that support it.
 Only the early 810, 815 and 825 NCR chips do not support LOAD/STORE.
 Use of LOAD/STORE instead of MEMORY MOVE allows SCRIPTS to access IO
-registers internally to the chip (no external PCI cycles).
+registers internal to the chip (no external PCI cycles).
 As a result, the driver guarantees that no PCI self-mastering will occur
 for chips that support LOAD/STORE.
 .Pp
 LOAD/STORE instructions are also faster than MEMORY MOVE because
-they do not involve the chip DMA fifo and are coded on 2 DWORDs
+they do not involve the chip DMA FIFO and are coded on 2 DWORDs
 instead of 3.
 .Pp
 For the early NCR 810, 815 and 825 chips, the driver uses a separate
 SCRIPTS set that uses MEMORY MOVE instructions for data movements.
 This is because LOAD/STORE are not supported by these chips.
 .Pp
-HVD/LVD capable controllers (895, 895A, 896, 897 and 1010) report
-the actual bus mode from the STEST4 chip IO registers.
+HVD/LVD capable controllers (895, 895A, 896, and 897) report
+the actual bus mode in the STEST4 chip IO registers.
 This feature
-allows to safely probe against bus mode and to set up the chip
+allows the driver to safely probe against bus mode and to set up the chip
 accordingly.
 By default the driver only supports HVD for these chips.
 For other chips that can support HVD but not LVD, the driver has to probe
 implementation dependent registers (GPIO) in order to detect HVD bus mode.
-Only HVD implementations that conform with Symbios Logic recommendation can
+Only HVD implementations that conform with Symbios Logic recommendations can
 be detected by the driver.
 When the
 .Ar SYM_SETUP_SCSI_DIFF
-kernel is provided
-as value 1, the driver will also probe against HVD for 825a, 875, 876 and
+kernel option is assigned
+a value of 1, the driver will also probe against HVD for 825a, 875, 876 and
 885 chips, assuming Symbios Logic compatible implementation of HVD.
 .Pp
-When supplied as 0, the
+When the
 .Ar SYM_SETUP_PCI_PARITY
-kernel configuration option
-indicates the driver not to enable PCI parity checking.
+is assigned a value of 0, the
+driver will not enable PCI parity checking for 53C8XX devices.
 PCI parity
 checking should not be an option for PCI SCSI controllers, but some
-systems have been reported to fail using 53C8XX chips due to spurious or
+systems have been reported to fail using 53C8XX chips, due to spurious or
 permanent PCI parity errors detected.
 This option is supplied for
-convenience but it is not recommended nor supported.
+convenience but it is neither recommended nor supported.
 .Pp
 The generic
-.Nm ncr
+.Xr ncr 4
 driver also supports SYM53C8XX based PCI SCSI controllers,
-except for the SYM53C1010 that is only supported by the
+except for the SYM53C1010, which is only supported by the
 .Nm
 driver.
 .Pp
 By default, when both the
-.Nm ncr
+.Xr ncr 4
 and
 .Nm
 drivers are configured, the
 .Nm
 driver takes precedence over the
-.Nm ncr
+.Xr ncr 4
 driver.
-User can indicate a balancing of chip types between the two drivers
+The user can indicate a balancing of chip types between the two drivers
 by defining the
 .Ar SYM_SETUP_LP_PROBE_MAP
 kernel configuration option as follows:
 .Bl -column "Bit   " "53C8XXA, 53C8XX, 53C8XX, 53C8XX, 53C8XX, 53C8XX"
-.Em Bit	Devices attached by ncr instead
+.Em Bit	Devices to be attached by ncr instead
 0x01	53C810a, 53C860
 0x02	53C825a, 53C875, 53C876, 53C885, 53C895
 0x04	53C895a, 53C896, 53C897, 53C1510d
@@ -191,11 +191,11 @@ kernel configuration option as follows:
 .Pp
 For example, if
 .Ar SYM_SETUP_LP_PROBE_MAP
-is supplied with value 0x41, the
-.Nm ncr
+is supplied with the value 0x41, the
+.Xr ncr 4
 driver will attach to 53C810, 53C815, 53C825, 53C810a, and 53C860 based
-controllers.
-And the
+controllers,
+and the
 .Nm
 driver will attach to all other 53C8XX based controllers.
 .Pp
@@ -204,17 +204,22 @@ When only the
 driver is configured, the
 .Ar SYM_SETUP_LP_PROBE_MAP
 option has no effect.
-Thus in this case the
+Thus, in this case, the
 .Nm
 driver will attach all 53C8XX based controllers present in the system.
 .Pp
-This driver offers other options that are not currently exported to user.
-They are defined and documented in the sym_conf.h driver file.
-It is not
-recommended to change these options unless absolute need.
+This driver offers other options
+that are not currently exported to the user.
+They are defined and documented in the
+.Pa sym_conf.h
+driver file.
+Changing these options is not recommended unless absolutely necessary.
 Some of these
-options are planned to be exported through SYSCTL or equivalent mechanism
-in a further driver release and therefore, no compatibility is guaranteed.
+options are planned to be exported through
+.Xr sysctl 3
+or an equivalent mechanism
+in a future driver releases and therefore,
+no compatibility is guaranteed.
 .Pp
 At initialization, the driver tries to detect and read user settings from
 controller NVRAM.
@@ -247,7 +252,7 @@ Devices that are configured as disabled for 'scan' in the NVRAM are not
 reported to CAM at system start-up.
 They can be discovered later using
 the
-.Nm camcontrol rescan
+.Ql camcontrol rescan
 command.
 .Pp
 The table below summarizes the main features and capabilities of the
@@ -284,22 +289,25 @@ No known bugs.
 .Sh AUTHORS
 The
 .Nm
-driver has been written by Gerard Roudier and is derived from the
+driver was written by
+.An Gerard Roudier
+and is derived from the
 Linux sym53c8xx driver from the same author.
-The sym53c8xx driver is derived from the ncr53c8xx driver that had been
-a port of the
+The sym53c8xx driver is derived from the ncr53c8xx driver,
+which was ported from the
 .Fx
-.Nm ncr
+.Xr ncr 4
 driver to Linux-1.2.13.
 The original
-.Nm ncr
+.Xr ncr 4
 driver was written for 386BSD and
 .Fx
-by Wolfgang Stanglmeier and Stefan Esser.
+by
+.An Wolfgang Stanglmeier
+and
+.An Stefan Esser .
 .Sh HISTORY
 The
 .Nm
 driver appeared in
 .Fx 4.0 .
-
-
