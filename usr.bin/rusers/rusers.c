@@ -191,6 +191,7 @@ onehost(char *host)
 		errx(1, "%s", clnt_sperror(rusers_clnt, ""));
 	addr.sin_addr.s_addr = *(int *)hp->h_addr;
 	rusers_reply((caddr_t)&up, &addr);
+	clnt_destroy(rusers_clnt);
 }
 
 void

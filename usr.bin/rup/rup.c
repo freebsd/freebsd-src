@@ -176,11 +176,13 @@ onehost(char *host)
 	tv.tv_usec = 0;
 	if (clnt_call(rstat_clnt, RSTATPROC_STATS, xdr_void, NULL, xdr_statstime, &host_stat, tv) != RPC_SUCCESS) {
 		warnx("%s: %s", host, clnt_sperror(rstat_clnt, host));
+		clnt_destroy(rstat_clnt);
 		return(-1);
 	}
 
 	addr.sin_addr.s_addr = *(int *)hp->h_addr;
 	rstat_reply((caddr_t)&host_stat, &addr);
+	clnt_destroy(rstat_clnt);
 	return (0);
 }
 
