@@ -683,24 +683,6 @@
 
     <para arch="i386,pc98,alpha">Adaptec Duralink PCI Fast Ethernet adapters based on the Adaptec
     AIC-6915 Fast Ethernet controller chip (&man.sf.4; driver)
-      <itemizedlist>
-        <listitem>
-          <para>ANA-62011 64-bit single port 10/100baseTX adapter</para>
-        </listitem>
-	<listitem>
-	  <para>ANA-62022 64-bit dual port 10/100baseTX adapter</para>
-        </listitem>
-	<listitem>
-	  <para>ANA-62044 64-bit quad port 10/100baseTX adapter</para>
-        </listitem>
-	<listitem>
-	  <para>ANA-69011 32-bit single port 10/100baseTX
-	  adapter</para>
-        </listitem>
-	<listitem>
-	  <para>ANA-62020 64-bit single port 100baseFX adapter</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98">Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
@@ -751,11 +733,6 @@
     </para>
 
     <para arch="i386,pc98">SMC 83c17x (EPIC)-based Ethernet NICs (&man.tx.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>SMC EtherPower II 9432 series</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98">National Semiconductor DS8390-based Ethernet NICs, including
@@ -1091,11 +1068,6 @@
     </para>
 
     <para arch="i386,pc98,alpha">Winbond W89C840F Fast Ethernet NICs (&man.wb.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Trendware TE100-PCIE</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha">VIA Technologies VT3043 <quote>Rhine I</quote>, VT86C100A
@@ -1130,69 +1102,13 @@
 
     <para arch="i386,pc98">National Semiconductor DP83820 and DP83821 Gigabit Ethernet
     NICs (&man.nge.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Addtron AEG320T</para>
-        </listitem>
-	<listitem>
-	  <para>Ark PC SOHO-GA2500T (32-bit PCI) and SOHO-GA2000T
-	  (64-bit PCI)</para>
-	</listitem>
-        <listitem>
-	  <para>Asante FriendlyNet GigaNIC 1000TA and 1000TPC</para>
-        </listitem>
-        <listitem>
-	  <para>D-Link DGE-500T</para>
-        </listitem>
-        <listitem>
-	  <para>LinkSys EG1032 (32-bit PCI) and EG1064 (64-bit PCI)</para>
-        </listitem>
-        <listitem>
-	  <para>Netgear GA621 and GA622T</para>
-        </listitem>
-        <listitem>
-	  <para>SMC EZ Card 1000 (SMC9462TX)</para>
-        </listitem>
-        <listitem>
-	  <para>Surecom Technology EP-320G-TX</para>
-        </listitem>
-	<listitem>
-	  <para>Trendware TEG-PCITX (32-bit PCI) and TEG-PCITX2
-	  (64-bit PCI)</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha">Sundance Technologies ST201 PCI Fast Ethernet NICs
     (&man.ste.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>D-Link DFE-550TX</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha">SysKonnect SK-984x PCI Gigabit Ethernet cards (&man.sk.4; drivers)
-      <itemizedlist>
-        <listitem>
-	  <para>SK-9821 1000baseT copper, single port</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9822 1000baseT copper, dual port</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9841 1000baseLX single mode fiber, single port</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9842 1000baseLX single mode fiber, dual port</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9843 1000baseSX multimode fiber, single port</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9844 1000baseSX multimode fiber, dual port</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha">Texas Instruments ThunderLAN PCI NICs (&man.tl.4; driver)</para>
@@ -1234,14 +1150,6 @@
     </para>
 
     <para arch="i386">DEC EtherWORKS II and III NICs (&man.le.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>DE200, DE201, DE202, DE422</para>
-	</listitem>
-        <listitem>
-	  <para>DE203, DE204, DE205</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha">DEC DC21040, DC21041, DC21140, DC21141, DC21142, and DC21143
@@ -1467,60 +1375,14 @@
 
     <para arch="i386,pc98">Gigabit Ethernet cards based on the Level 1
     LXT1001 NetCellerator controller (&man.lge.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>D-Link DGE-500SX</para>
-	</listitem>
-        <listitem>
-	  <para>SMC TigerCard 1000 (SMC9462SX)</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha">Ethernet and Fast Ethernet NICs based
     on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset (&man.txp.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 3CR990-TX-95</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990-TX-97</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990B-SRV</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990B-TXM</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990SVR95</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990SVR97</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,ia64">Gigabit Ethernet NICs based on the Broadcom BCM570x
     (&man.bge.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 3c996-SX, 3c996-T</para>
-        </listitem>
-        <listitem>
-	  <para>Netgear GA302T</para>
-        </listitem>
-        <listitem>
-	  <para>SysKonnect SK-9D21 and 9D41</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Integrated Gigabit Ethernet NICs on DELL PowerEdge 2550
-	  servers</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Integrated Gigabit Ethernet NICs on IBM x235 servers</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha,ia64">Gigabit Ethernet NICs based on the
