@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.60 1998/09/04 08:06:56 dfr Exp $
+ * $Id: nfs_bio.c,v 1.61 1998/09/29 21:46:54 mckusick Exp $
  */
 
 
@@ -555,6 +555,8 @@ again:
 				bp->b_flags |= B_READ;
 				vfs_busy_pages(bp, 0);
 				error = nfs_doio(bp, cred, p);
+				if (error == 0 && (bp->b_flags & B_INVAL))
+					break;
 				if (error) {
 				    brelse(bp);
 				} else if (i < lbn) {
@@ -573,6 +575,7 @@ again:
 		 *  directory offset cookie of the next block.)
 		 */
 		if (nfs_numasync > 0 && nmp->nm_readahead > 0 &&
+		    (bp->b_flags & B_INVAL) == 0 &&
 		    (np->n_direofoffset == 0 ||
 		    (lbn + 1) * NFS_DIRBLKSIZ < np->n_direofoffset) &&
 		    !(np->n_flag & NQNFSNONCACHE) &&
@@ -1203,6 +1206,8 @@ nfs_doio(bp, cr, p)
 		}
 		if ((nmp->nm_flag & NFSMNT_RDIRPLUS) == 0)
 			error = nfs_readdirrpc(vp, uiop, cr);
+		if (error == 0 && uiop->uio_resid == bp->b_bcount)
+			bp->b_flags |= B_INVAL;
 		break;
 	    default:
 		printf("nfs_doio:  type %x unexpected\n",vp->v_type);
