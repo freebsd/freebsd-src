@@ -1,8 +1,6 @@
-/* $Id$ */
+/* $Id: linux_genassym.c,v 1.4 1997/02/22 09:38:21 peter Exp $ */
 #include <stdio.h>
 #include <sys/param.h>
-#include <sys/buf.h>
-#include <sys/proc.h>
 #include <i386/linux/linux.h>
 
 extern int	main __P((void));

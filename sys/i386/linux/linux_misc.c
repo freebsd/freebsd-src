@@ -25,34 +25,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.27 1997/04/01 08:39:06 bde Exp $
+ *  $Id: linux_misc.c,v 1.28 1997/04/28 02:53:17 msmith Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
-#include <sys/exec.h>
 #include <sys/mman.h>
 #include <sys/proc.h>
-#include <sys/dirent.h>
 #include <sys/fcntl.h>
-#include <sys/filedesc.h>
 #include <sys/imgact_aout.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
-#include <sys/times.h>
-#include <sys/utsname.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_prot.h>

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.22 1997/04/13 01:48:17 dyson Exp $
+ *	$Id: imgact_linux.c,v 1.23 1997/07/20 14:21:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,6 @@
 #include <sys/imgact_aout.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/sysent.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -52,7 +51,6 @@
 #include <vm/vm_extern.h>
 
 #include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
 
 extern int	exec_linux_imgact __P((struct image_params *iparams));
 
