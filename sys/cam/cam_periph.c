@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.2 1998/09/20 07:14:36 gibbs Exp $
+ *      $Id: cam_periph.c,v 1.3 1998/09/29 09:18:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -903,6 +903,8 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 		bcopy(done_ccb->ccb_h.saved_ccb_ptr, done_ccb,
 		      sizeof(union ccb));
 
+		periph->flags &= ~CAM_PERIPH_RECOVERY_INPROG;
+
 		xpt_action(done_ccb);
 
 		break;
@@ -969,6 +971,8 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 				bcopy(done_ccb->ccb_h.saved_ccb_ptr,		
 				      done_ccb, sizeof(union ccb));
 
+				periph->flags &= ~CAM_PERIPH_RECOVERY_INPROG;
+
 				xpt_action(done_ccb);
 			}
 		} else {
@@ -981,6 +985,8 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 			bcopy(done_ccb->ccb_h.saved_ccb_ptr,
 			      done_ccb, sizeof(union ccb));
 
+			periph->flags &= ~CAM_PERIPH_RECOVERY_INPROG;
+
 			xpt_action(done_ccb);
 
 		}
@@ -988,6 +994,8 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	default:
 		bcopy(done_ccb->ccb_h.saved_ccb_ptr, done_ccb,
 		      sizeof(union ccb));
+
+		periph->flags &= ~CAM_PERIPH_RECOVERY_INPROG;
 
 		xpt_action(done_ccb);
 
@@ -1084,6 +1092,28 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				 && save_ccb != NULL 
 				 && ccb->ccb_h.retry_count > 0) {
 
+					/*
+					 * Since error recovery is already
+					 * in progress, don't attempt to
+					 * process this error.  It is probably
+					 * related to the error that caused
+					 * the currently active error recovery
+					 * action.  Also, we only have
+					 * space for one saved CCB, so if we
+					 * had two concurrent error recovery
+					 * actions, we would end up
+					 * over-writing one error recovery
+					 * CCB with another one.
+					 */
+					if (periph->flags &
+					    CAM_PERIPH_RECOVERY_INPROG) {
+						error = ERESTART;
+						break;
+					}
+
+					periph->flags |=
+						CAM_PERIPH_RECOVERY_INPROG;
+
 					/* decrement the number of retries */
 					if ((err_action & 
 					     SSQ_DECREMENT_COUNT) != 0) {
@@ -1153,6 +1183,19 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				      && save_ccb != NULL 
 				      && ccb->ccb_h.retry_count > 0) {
 					int le;
+
+					/*
+					 * Only one error recovery action
+					 * at a time.  See above.
+					 */
+					if (periph->flags &
+					    CAM_PERIPH_RECOVERY_INPROG) {
+						error = ERESTART;
+						break;
+					}
+
+					periph->flags |=
+						CAM_PERIPH_RECOVERY_INPROG;
 
 					/* decrement the number of retries */
 					retry = 1;
@@ -1231,6 +1274,19 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				      && save_ccb != NULL
 				      && ccb->ccb_h.retry_count > 0) {
 					int le;
+
+					/*
+					 * Only one error recovery action
+					 * at a time.  See above.
+					 */
+					if (periph->flags &
+					    CAM_PERIPH_RECOVERY_INPROG) {
+						error = ERESTART;
+						break;
+					}
+
+					periph->flags |=
+						CAM_PERIPH_RECOVERY_INPROG;
 
 					/* decrement the number of retries */
 					retry = 1;
