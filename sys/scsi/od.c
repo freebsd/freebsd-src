@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.41 1998/07/04 22:30:24 julian Exp $
+ *	$Id: od.c,v 1.42 1998/07/13 09:53:11 bde Exp $
  */
 
 /*
@@ -370,6 +370,7 @@ od_open(dev, mode, fmt, p, sc_link)
 
 	/* Build label for whole disk. */
 	bzero(&label, sizeof label);
+	label.d_type = DTYPE_SCSI;
 	label.d_secsize = od->params.secsiz;
 	label.d_nsectors = od->params.sectors;
 	label.d_ntracks = od->params.heads;
