@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.96 1996/08/07 19:28:09 nate Exp $
+#	$Id: Makefile,v 1.98 1996/08/25 05:17:49 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -186,9 +186,23 @@ world:
 	cd ${.CURDIR} && ${MAKE} build-tools
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding.. The whole thing"
+	@echo " Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} depend && ${MAKE} all install
+	cd ${.CURDIR} && ${MAKE} depend
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Building everything.."
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} all
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Installing everything.."
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} install
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding man page indexes"
+	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/share/man && ${MAKE} makedb
 .if target(post-world)
 	@echo
@@ -200,6 +214,7 @@ world:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo "make world completed on `date`"
+	@echo "--------------------------------------------------------------"
 
 #
 # reinstall
@@ -225,10 +240,23 @@ reinstall:
 	cd ${.CURDIR} && ${MAKE} includes
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Reinstalling..  The whole thing"
+	@echo " Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} depend
 	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Building everything.."
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} all
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Installing everything.."
+	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${MAKE} install
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding man page indexes"
+	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/share/man && ${MAKE} makedb
 
 
@@ -363,6 +391,7 @@ includes:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .endif
+	cd ${.CURDIR}/include/rpcsvc &&		${MAKE} all
 	cd ${.CURDIR}/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
