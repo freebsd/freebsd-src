@@ -1,34 +1,34 @@
 .\"	$FreeBSD$
 .\"
-.Dd Nov 8, 1996
+.Dd January 13, 1997
 .Dt PSM 4 i386
-.Os
+.Os FreeBSD
 .Sh NAME
 .Nm psm
 .Nd
 PS/2 mouse style pointing device driver
 .Sh SYNOPSIS
-.\".Cd "options PSM_NOCHECKSYNC"
-.\".Cd "options PSM_NOEMULATION"
-.\".Cd "options" \&"PSM_ACCEL=N\&"
-.Cd "options" \&"PSM_RESETDELAY=N\&"
-.Cd "options" \&"PSM_MAXWAIT=N\&"
+.Cd "options PSM_CHECKSYNC"
+.\".Cd "options PSM_EMULATION"
+.Cd "options" \&"PSM_ACCEL=N\&"
+.Cd "options" \&"KBD_RESETDELAY=N\&"
+.Cd "options" \&"KBD_MAXWAIT=N\&"
 .Cd "options" \&"PSM_DEBUG=N\&"
+.Cd "options" \&"KBDIO_DEBUG=N\&"
 .Cd "device psm0 at isa? port" \&"IO_KBD\&" conflicts tty irq 12 vector psmintr
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for the PS/2 mouse style pointing device.
 
-Note that 
 .Nm port \&"IO_KBD\&"
 and
 .Nm conflicts
-is required 
+are required, 
 as the PS/2 mouse port is located
-at the auxially port of the keyboard controller, thus, the 
+at the auxiliary port of the keyboard controller, thus, the 
 .Nm
-driver has to share the port with the keyboard driver.
+driver has to share the same I/O ports with the keyboard driver.
 Note also that there is currently no provision of changing the 
 .Nm irq
 number.
@@ -38,9 +38,9 @@ A series of data packets is read from the
 driver. A data packet from the PS/2 mouse style pointing device
 is three bytes long:
 .Pp
-.Bl -tag -width Byte_1
+.Bl -tag -width Byte_1 -compact
 .It Byte 1 
-.Bl -tag -width bit_7
+.Bl -tag -width bit_7 -compact
 .It bit 7
 One indicates overflow in the vertical movement count.
 .It bit 6
@@ -50,21 +50,25 @@ Set if the vertical movement count is negative.
 .It bit 4
 Set if the horizontal movement count is negative.
 .It bit 3
-Always one?.
+The ALPS GlidePoint clears this bit when the user `taps' the surface of 
+the pad, otherwise the bit is set.
+Most, if not all, other devices always sets this bit.
 .It bit 2
-Middle button status; set if pressed. For the device without the middle
-button, this bit is always one?.
+Middle button status; set if pressed. For devices without the middle
+button, this bit seems to be always zero.
 .It bit 1
 Right button status; set if pressed.
 .It bit 0
 Left button status; set if pressed.
 .El
 .It Byte 2
-Horizontal movement count in two's compliment;
--128 through 127.
+Horizontal movement count in two's compliment; 
+-256 through 255.
+Note that the sign bit is in the first byte.
 .It Byte 3
-Vertical movement count in two's compliment;
--128 through 127.
+Vertical movement count in two's compliment; 
+-256 through 255.
+Note that the sign bit is in the first byte.
 .El
 .Pp
 The minor device number of the
@@ -75,19 +79,30 @@ minor = (`unit' << 1) | `non-blocking'
 .Ed
 .Pp
 where `unit' is the device number (usually 0) and the `non-blocking' bit
-is set to indicate "don't block waiting for mouse input, return immediately".
+is set to indicate ``don't block waiting for mouse input, 
+return immediately''.
 The `non-blocking' bit should be set for \fIXFree86\fP, 
 therefore the minor device number usually used for \fIXFree86\fP is 1.
+See
+.Sx FILES
+for device node names.
 .Sh KERNEL CONFIGURATION
 There are following options to control the
 .Nm
-device.
+driver.
 .Bl -tag -width MOUSE
-.\".It Em PSM_NOCHECKSYNC
-.\"By default, the driver tries to detect the first byte of 
-.\"the three-byte-long data packet. However, this may not always be 
-.\"reliable. This feature will be turned off by specifying this option.
-.\".It Em PSM_NOEMULATION
+.It Em PSM_CHECKSYNC
+If this option is defined, the driver tries to detect the first byte of 
+the three-byte data packet, by checking the bit pattern of that byte. 
+This may be useful if you often experience wierd mouse movement
+cased by unsynchronization between the application program and the mouse.
+However, the
+.Em PSM_CHECKSYNC
+code may not always work; some systems, mostly notebooks, set the bit 
+pattern differently from the others.
+Note also that the `tapping' feature of the ALPS GlidePoint will be
+lost when this option is used.
+.\".It Em PSM_EMULATION
 .\"The
 .\".Nm
 .\"driver can emulate the Microsoft Serial Mouse's three-byte
@@ -96,20 +111,24 @@ device.
 .\".Fn ioctl
 .\"command
 .\".Dv MOUSE_SETMODE .
-.\"The emulation will be disabled with this option.
-.\".It Em PSM_ACCEL=N
-.\"The
-.\".Nm
-.\"driver somewhat `accelerates' the movement of the pointing device.
-.\"That is, the faster you move the device, the longer the pointer 
-.\"travels on the screen. This option controls the amount of acceleration.
-.\"The smaller
-.\".Fa N
-.\"is, more sensitive the movement becomes. The default value is 2.
-.\"The minimum value, thus the value for the most sensitive setting, allowed
-.\"is 1. Setting this option to zero will completely disables the
-.\"acceleration effect.
-.It Em PSM_RESETDELAY=X, PSM_MAXWAIT=Y
+.\"To enable the emulation feature, define this option.
+.It Em PSM_ACCEL=N
+The
+.Nm
+driver can somewhat `accelerate' the movement of the pointing device.
+That is, the faster you move the device, the further the pointer 
+travels on the screen. This option controls the amount of acceleration.
+The smaller
+.Fa N
+is, more sensitive the movement becomes. 
+The minimum value allowed, thus the value for the most sensitive setting, 
+is 1. Setting this option to zero will completely disables the
+acceleration effect. The default value is 0 (acceleration disabled).
+The acceleration effect can also be controlled via the
+.Fn ioctl
+command
+.Dv MOUSE_SETMODE .
+.It Em KBD_RESETDELAY=X, KBD_MAXWAIT=Y
 The
 .Nm
 driver will attempt to reset the pointing device during the boot process.
@@ -126,197 +145,213 @@ device, you may want to increase these values. The default values are
 and 5
 for
 .Fa Y .
-.It Em PSM_DEBUG=N
+.It Em PSM_DEBUG=N, KBDIO_DEBUG=N
 Sets the debug level to 
 .Fa N .
 The default debug level is zero. See
-.Em DIAGNOSTICS
+.Sx DIAGNOSTICS
 for debug logging.
 .El
-.\".Sh IOCTL
-.\".Bl -tag -width MOUSE
-.\".It Dv MOUSE_GETSTATE, MOUSECREAD
-.\"The command returns the current mouse state in the following structure
-.\"and remove the state information from the internal queue.
-.\".Bd -literal
-.\"struct mouseinfo {
-.\"    unsigned char status;    /* button and motion status bits */
-.\"    char xmotion;            /* horizontal motion count */
-.\"    char ymotion;            /* vertical motion count */
-.\"};
-.\".Ed
-.\".Pp
-.\"The
-.\".Dv status
-.\"holds a ORed value of the following constants:
-.\".Bl -tag -width BUTSTATMASK
-.\".It Dv BUT1STAT
-.\"The Button 1 (left button) is pressed.
-.\".It Dv BUT2STAT
-.\"The Button 2 (middle button) is pressed.
-.\".It Dv BUT3STAT
-.\"The Button 3 (right button) is pressed.
-.\".It Dv BUT1CHNG
-.\"The state of the button 1 has changed.
-.\".It Dv BUT2CHNG
-.\"The state of the button 2 has changed.
-.\".It Dv BUT3CHNG
-.\"The state of the button 3 has changed.
-.\".It Dv MOVEMENT
-.\"Either
-.\".Dv xmotion
-.\"or
-.\".Dv ymotion
-.\"is not zero.
-.\".El
-.\".Pp
-.\"Note that these commands and
-.\".Fn read
-.\"operation on the 
-.\".Nm
-.\"driver uses the same internal queue. Therefore, interleaving
-.\"these commands and 
-.\".Fn read
-.\"operation is not recommended.
-.\".It Dv MOUSE_GETINFO
-.\"Returns the hardware information in the following structure:
-.\".Bd -literal
-.\"typedef struct mousehw {
-.\"    int buttons;    /* number of buttons */
-.\"    int iftype;     /* I/F type */
-.\"    int type;       /* mouse/track ball/pad... */
-.\"    int hwid;       /* I/F dependent hardware ID */
-.\"} mousehw_t;
-.\".Ed
-.\".Pp
-.\"The
-.\".Dv iftype
-.\"is 
-.\".Dv MOUSE_IF_PS2
-.\"for the 
-.\".Nm
-.\"driver. The
-.\".Dv type
-.\"tells the device type:
-.\".Dv MOUSE_MOUSE ,
-.\".Dv MOUSE_TRACKBALL ,
-.\".Dv MOUSE_STICK ,
-.\".Dv MOUSE_PAD ,
-.\"or
-.\".Dv MOUSE_UNKNOWN .
-.\"The user should not heavily rely on this field, as the
-.\".Nm
-.\"driver may not always, in fact it is very rarely able to, identify
-.\"the device type.
-.\"The
-.\".Dv hwid
-.\"is the ID value returned by the pointing device. See below for possible
-.\"values.
-.\".It Dv MOUSE_GETMODE, MOUSE_SETMODE
-.\"The commands get and set operation mode of the 
-.\".Nm
-.\"driver.
-.\".Bd -literal
-.\"typedef struct mousemode {
-.\"    int protocol;    /* MOUSE_PROTO_XXX */
-.\"    int rate;        /* report rate (per sec), -1 if unknown */
-.\"    int resolution;  /* ppi, -1 if unknown */
-.\"    int accelfactor; /* acceleration factor (must be 1 or greater) */
-.\"} mousemode_t;
-.\".Ed
-.\".Pp
-.\"The
-.\".Dv protocol
-.\"selects the format with which the device status is returned by
-.\".Fn read .
-.\"The default is 
-.\".Dv MOUSE_PROTO_PS2 ,
-.\"that is, the data byte from the pointing device is returned as is.
+.Sh IOCTL
+There are only few ioctls for the
+.Nm
+driver. These are defined in
+.Ao Pa machine/mouse.h Ac .
+.Bl -tag -width MOUSE
+.It Dv MOUSEIOCREAD
+The 
+.Dv MOUSEIOCREAD
+command did NOT work before and does NOT work now. It is obsolete. 
+Use the
+.Dv MOUSE_GETSTATE
+command instead.
+.It Dv MOUSE_GETSTATE 
+The command returns the current mouse state in the following structure
+and remove the state information from the internal queue.
+.Bd -literal
+typedef struct mousestatus {
+    int button;     /* button status */
+    int obutton;    /* previous button status */
+    int dx;         /* x movement */
+    int dy;         /* y movement */
+} mousestatus_t;
+.Ed
+.Pp
+The
+.Dv button
+and the
+.Dv obutton
+fields hold the current and the previous state of the mouse buttons.
+When a button is pressed, the corresponding bit is set.
+These bits are defined as 
+.Dv MOUSE_BUTTON1DOWN
+through 
+.Dv MOUSE_BUTTON8DOWN .
+The first three buttons are left, middle and right buttons.
+.Pp
+Note that this command and
+.Fn read
+operation on the 
+.Nm
+driver uses the same internal queue. Therefore, interleaving the
+.Dv MOUSE_GETSTATE
+command and 
+.Fn read
+operation is not recommended.
+.It Dv MOUSE_GETINFO
+Returns the hardware information in the following structure.
+.Bd -literal
+typedef struct mousehw {
+    int buttons;    /* number of buttons */
+    int iftype;     /* I/F type */
+    int type;       /* mouse/track ball/pad... */
+    int hwid;       /* I/F dependent hardware ID */
+} mousehw_t;
+.Ed
+.Pp
+The
+.Dv iftype
+is 
+.Dv MOUSE_IF_PS2
+for the 
+.Nm
+driver. The
+.Dv type
+tells the device type:
+.Dv MOUSE_MOUSE ,
+.Dv MOUSE_TRACKBALL ,
+.Dv MOUSE_STICK ,
+.Dv MOUSE_PAD ,
+or
+.Dv MOUSE_UNKNOWN .
+The user should not heavily rely on this field, as the
+.Nm
+driver may not always, in fact it is very rarely able to, identify
+the device type.
+The
+.Dv hwid
+is the ID value returned by the pointing device. 
+Known IDs include:
+.Bl -tag -width 0__ -compact
+.It Em 0
+Mouse (Microsoft, Logitech and many other manufacturers)
+.It Em 2
+Microsoft Ballpoint mouse
+.El
+.It Dv MOUSE_GETMODE, MOUSE_SETMODE
+The commands get and set the operation mode of the 
+.Nm
+driver.
+.Bd -literal
+typedef struct mousemode {
+    int protocol;    /* MOUSE_PROTO_XXX */
+    int rate;        /* report rate (per sec), -1 if unknown */
+    int resolution;  /* 1:low, 2:medium low, 3:medium high
+                      * 4:high, 0: default, -1 if unknown 
+                      */
+    int accelfactor; /* acceleration factor (must be 1 or greater) */
+} mousemode_t;
+.Ed
+.Pp
+The
+.Dv protocol
+selects the format with which the device status is returned by
+.Fn read .
+The default is 
+.Dv MOUSE_PROTO_PS2 ,
+that is, the data byte from the pointing device is read by user
+programs as is. 
+No other value is allowed at the moment.
 .\"Other possible values are:
 .\".Dv MOUSE_PROTO_MSS
 .\"and
 .\".Dv MOUSE_PROTO_MSC ,
 .\"which specifies Microsoft Serial Mouse three-byte format and
 .\"Mouse Systems Corp.'s five-byte format respectively.
-.\"The
-.\".Dv rate
-.\"is the status report rate (reports/sec) at which the device will send 
-.\"movement report to the host computer.
-.\"The
-.\".Dv resolution
-.\"of the pointing device is expressed in pulse-per-inch. Setting
-.\"this field to an arbitrary value may not always work.
-.\"The
-.\".Dv accelfactor
-.\"holds a value to control acceleration feature (see description on
-.\".Em PSM_ACCEL
-.\"above). It must be one or greater.
-.\"If acceleration is disabled by the kernel configuration, 
-.\"setting this field has no effect.
-.\".El
+.\"Note that the protocol cannot be set to anything other than
+.\".Dv MOUSE_PROTO_PS2
+.\"unless the
+.\".Em PSM_EMULATION
+.\"option is specified in the kernel configuration file.
+.Pp
+The
+.Dv rate
+is the status report rate (reports/sec) at which the device will send 
+movement report to the host computer.
+.Pp
+The
+.Dv resolution
+of the pointing device must be zero through four. The higher the value
+is, the finer resolution the mouse will select. Zero selects the
+default resolution. 
+.Pp
+The
+.Dv accelfactor
+holds a value to control acceleration feature (see description on
+.Em PSM_ACCEL
+above). It must be zero or greater.
+If it is zero, acceleration is disabled.
+.El
 .Sh DIAGNOSTICS
 .Pp
 At debug level 0, little information is logged except for the following
 line during boot process:
 .Bd -literal -offset indent
-psm0: device ID X, N buttons?
+psm0: device ID X
 .Ed
 .Pp
 where
 .Fa X
 the device ID code returned by the found pointing device.
-Known IDs include:
-.Bl -tag -width 0__
-.It Em 0
-Mouse (Microsoft, Logitech and many other manufacturers)
-.It Em 2
-Microsoft Ballpoint mouse
-.El
-.Pp
-Currently the
-.Nm
-driver can detect the 3 button mouse from Logitech and report
-accordingly.
-The 3 button mouse from the other manufacturer may or may not be 
-reported correctly. However, it will not affect the operation of
-the driver.
+See
+.Dv MOUSE_GETINFO
+for known IDs.
 .Pp
 At debug level 1 more information will be logged
-while the driver probes the auxially (mouse) port.
+while the driver probes the auxiliary port (mouse port).
 Messages are logged with the LOG_KERN facility at the LOG_DEBUG level.
 (See 
 .Xr syslogd 8 . )
 .Bd -literal -offset indent
 psm0: current command byte:xxxx
-psm: TEST_AUX_PORT status:0000
-psm: RESET_AUX return code:00fa
-psm: RESET_AUX status:00aa
-psm: RESET_AUX ID:0000
+kbdio: new command byte:yyyy (set_controller...)
+kbdio: TEST_AUX_PORT status:0000
+kbdio: RESET_AUX return code:00fa
+kbdio: RESET_AUX status:00aa
+kbdio: RESET_AUX ID:0000
+psm0: status after reset 00 02 64
+psm: device ID: X
 psm: status xx yy zz (get_mouse_buttons)
-psm0: status 00 03 64
+psm0: status 00 02 64
+kbdio: new command byte:zzzz (set_controller...)
+psm0 at 0x60-0x64 irq 12 on motherboard
+psm0: device ID X, N buttons
 .Ed
 .Pp
 The first line shows the command byte value of the keyboard
-controller just before the auxially port is probed.
-It usually is 4D, 45, 47 or 65, depending on the keyboard device
-driver.
+controller just before the auxiliary port is probed.
+It usually is 4D, 45, 47 or 65, depending on how the motherboard BIOS
+initialized the keyboard controller upon power-up.
 .Pp
-The second line shows the result of the keyboard controller's
-test on the auxially port interface, with zero indicating
+The third line shows the result of the keyboard controller's
+test on the auxiliary port interface, with zero indicating
 no error; note that some controllers report no error even if
 the port does not exist in the system, however.
 .Pp
-The third to fifth lines show the reset status of the pointing device.
+The forth to sixth lines show the reset status of the pointing device.
 The functioning device should return the sequence of FA AA <ID>.
 The ID code is described above.
 .Pp
-The seventh line show the current hardware settings; it consists 
+The tenth line shows the current hardware settings; it consists 
 of three bytes:
-.Bl -tag -width Byte_1
+.Pp
+.Bl -tag -width Byte_1 -compact
 .It Byte 1
-.Bl -tag -width bit_6
+.Bl -tag -width bit_6 -compact
+.It bit 7
+Reserved.
 .It bit 6
-0: stream mode (default after reset), 1: remote mode. 
+0 - stream mode, 1 - remote mode. 
 In the stream mode, the pointing device sends the device status
 whenever its state changes. In the remote mode, the host computer
 must request the status to be sent.
@@ -324,6 +359,8 @@ must request the status to be sent.
 Set if the pointing device is currently enabled. Otherwise zero.
 .It bit 4
 0 - 1:1 scaling, 1 - 2:1 scaling.
+.It bit 3
+Reserved.
 .It bit 2
 Left button status; set if pressed.
 .It bit 1
@@ -332,8 +369,15 @@ Middle button status; set if pressed.
 Right button status; set if pressed.
 .El
 .It Byte 2
-Resolution.
-.Bl -tag -width 100
+.Bl -tag -width bit_6_0 -compact
+.It bit 7
+Reserved.
+.It bit 6-0
+Resolution code: zero through three. The higher the number is, 
+the finer resolution the device has. Actual resolution for
+the resolution code varies from one device to another.
+The typical values are:
+.Bl -tag -width 100 -compact
 .It 0
 25 pulse per inch (ppi)
 .It 1
@@ -343,6 +387,7 @@ Resolution.
 .It 3
 200 ppi
 .El
+.El
 .It Byte 3
 The status report rate (reports/sec) at which the device will send 
 movement report to the host computer.
@@ -350,26 +395,51 @@ movement report to the host computer.
 .Pp
 Note that the pointing device will not be enabled until the 
 .Nm
-device is opened by the user programs.
+driver is opened by the user programs.
+.Pp
+The last line shows the device ID code and the number of detected
+buttons. Currently the
+.Nm
+driver can detect the 3 button mouse from Logitech and report
+accordingly.
+The 3 button mouse from the other manufacturer may or may not be 
+reported correctly. However, it will not affect the operation of
+the driver.
 .Pp
 At debug level 2, much more detailed information is logged.
+.Sh FILES
+.Bl -tag -width /dev/npsm0 -compact
+.It Pa /dev/psm0
+`non-blocking' device node in the system without
+.Em devfs ,
+`blocking' under
+.Em devfs .
+.It Pa /dev/npsm0
+`non-blocking' device node under
+.Em devfs .
+.El
 .Sh CAVEATS
 There is not a guaranteed way to re-synchronize with the first byte
 of the packet once we are out of synchronization with the data
-stream, because there is not a unique bit pattern to identify
-the first byte with.
+stream. However, if you are using the \fIXFree86\fP server and experiencing
+the problem, you may be able to make the X server synchronize with the mouse 
+by switching away to a virtual terminal and getting back to the X server,
+unless the X server is accessing the mouse via
+.Xr moused 1 .
+If you have specified the
+.Em PSM_CHECKSYNC
+option, clicking any button without moving the mouse may also work.
 .Sh BUGS
-The driver includes the code for the 
-.Dv MOUSECREAD
-command of
-.Fn ioctl
-function, which fills a 
-.Fa mouseinfo
-structure (see 
-.Ao Pa machine/mouse.h Ac ).
-However, it currently is not functioning properly, and may be removed
-in the future.
+The 
+.Fn ioctl 
+command
+.Dv MOUSEIOCREAD
+(see
+.Sx IOCTL
+above) was never functional and will not be. The command name
+still remains for compatibility reasons but may be removed in the future.
 .Sh SEE ALSO
+.Xr moused 1 ,
 .Xr syslog 3 ,
 .Xr mse 4 ,
 .Xr syslogd 8
