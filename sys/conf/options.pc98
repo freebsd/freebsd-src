@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.58 1998/03/17 09:10:51 kato Exp $
+#	$Id: options.pc98,v 1.59 1998/04/20 13:52:44 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -73,6 +73,7 @@ I386_CPU		opt_global.h
 I486_CPU		opt_global.h
 I586_CPU		opt_global.h
 I686_CPU		opt_global.h
+LINUX			opt_global.h
 
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
