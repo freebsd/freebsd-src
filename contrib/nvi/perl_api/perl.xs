@@ -9,6 +9,8 @@
  *	Sven Verdoolaege. All rights reserved.
  *
  * See the LICENSE file for redistribution information.
+ *
+ * $FreeBSD$
  */
 
 #include "config.h"
@@ -256,7 +258,7 @@ perl_ex_perl(scrp, cmdp, cmdlen, f_lno, t_lno)
 	SvREFCNT_dec(SvRV(svid));
 	SvROK_off(svid);
 
-	err = SvPV(GvSV(errgv), length);
+	err = SvPV(GvSV(PL_errgv), length);
 	if (!length)
 		return (0);
 
@@ -280,8 +282,8 @@ replace_line(scrp, line, t_lno)
 	char *str, *next;
 	size_t len;
 
-	if (SvOK(GvSV(defgv))) {
-		str = SvPV(GvSV(defgv),len);
+	if (SvOK(GvSV(PL_defgv))) {
+		str = SvPV(GvSV(PL_defgv),len);
 		next = memchr(str, '\n', len);
 		api_sline(scrp, line, str, next ? (next - str) : len);
 		while (next++) {
@@ -347,7 +349,7 @@ perl_ex_perldo(scrp, cmdp, cmdlen, f_lno, t_lno)
 	sv_catpvn(sv, "}", 1);
 	perl_eval_sv(sv, G_DISCARD | G_NOARGS);
 	SvREFCNT_dec(sv);
-	str = SvPV(GvSV(errgv),length);
+	str = SvPV(GvSV(PL_errgv),length);
 	if (length)
 		goto err;
 #endif
@@ -359,7 +361,7 @@ perl_ex_perldo(scrp, cmdp, cmdlen, f_lno, t_lno)
 	ENTER;
 	SAVETMPS;
 	for (i = f_lno; i <= t_lno && !api_gline(scrp, i, &str, &len); i++) {
-		sv_setpvn(GvSV(defgv),str,len);
+		sv_setpvn(GvSV(PL_defgv),str,len);
 		sv_setiv(svstart, i);
 		sv_setiv(svstop, i);
 #ifndef HAVE_PERL_5_003_01
@@ -368,7 +370,7 @@ perl_ex_perldo(scrp, cmdp, cmdlen, f_lno, t_lno)
 		PUSHMARK(sp);
                 perl_call_pv("VI::perldo", G_SCALAR | G_EVAL);
 #endif
-		str = SvPV(GvSV(errgv), length);
+		str = SvPV(GvSV(PL_errgv), length);
 		if (length) break;
 		SPAGAIN;
 		if(SvTRUEx(POPs)) 
@@ -422,7 +424,7 @@ xs_init()
 	char *file = __FILE__;
 
 #ifdef HAVE_PERL_5_003_01
-	dXSUB_SYS;
+	dXSUB_SYS
 #endif
 	newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
 	newXS("VI::bootstrap", boot_VI, file);
@@ -494,7 +496,7 @@ Edit(screen, ...)
 	SCR *nsp;
 
 	CODE:
-	file = (items == 1) ? NULL : (char *)SvPV(ST(1),na);
+	file = (items == 1) ? NULL : (char *)SvPV(ST(1),PL_na);
 	INITMESSAGE;
 	rval = api_edit(screen, file, &nsp, ix);
 	ENDMESSAGE;
@@ -844,7 +846,7 @@ SetOpt(screen, setting)
 	INITMESSAGE;
 	svc = sv_2mortal(newSVpv(":set ", 5));
 	sv_catpv(svc, setting);
-	rval = api_run_str(screen, SvPV(svc, na));
+	rval = api_run_str(screen, SvPV(svc, PL_na));
 	ENDMESSAGE;
 
 # XS_VI_opts_get --
@@ -906,7 +908,7 @@ Warn(warning)
 	PREINIT:
 	int i;
 	CODE:
-	sv_catpv(GvSV(errgv),warning);
+	sv_catpv(GvSV(PL_errgv),warning);
 
 #define TIED(package) \
 	sv_magic((SV *) (hv = \
@@ -975,7 +977,7 @@ FETCH(screen, key)
 		PUSHs(sv_2mortal((boolvalue == -1) ? newSVpv(value, 0)
 						   : newSViv(boolvalue)));
 		free(value);
-	} else ST(0) = &sv_undef;
+	} else ST(0) = &PL_sv_undef;
 	rval = 0;
 	ENDMESSAGE;
 
@@ -991,7 +993,7 @@ STORE(screen, key, value)
 
 	CODE:
 	INITMESSAGE;
-	rval = api_opts_set(screen, key, SvPV(value, na), SvIV(value), 
+	rval = api_opts_set(screen, key, SvPV(value, PL_na), SvIV(value), 
                                          SvTRUEx(value));
 	ENDMESSAGE;
 
@@ -1109,9 +1111,9 @@ FIRSTKEY(screen, ...)
 	PPCODE:
 	if (items == 2) {
 		next = 1;
-		*key = *(char *)SvPV(ST(1),na);
+		*key = *(char *)SvPV(ST(1),PL_na);
 	} else next = 0;
 	if (api_nextmark(screen, next, key) != 1) {
 		EXTEND(sp, 1);
         	PUSHs(sv_2mortal(newSVpv(key, 1)));
-	} else ST(0) = &sv_undef;
+	} else ST(0) = &PL_sv_undef;
