@@ -51,23 +51,56 @@ static struct passwd _pw_passwd;	/* password structure */
 static DB *_pw_db;			/* password database */
 static int _pw_keynum;			/* key counter */
 static int _pw_stayopen;		/* keep fd's open */
+#ifdef YP
+static struct passwd _pw_copy;
+static int _yp_enabled;			/* set true when yp enabled */
+static int _pw_stepping_yp;		/* set true when stepping thru map */
+#endif
 static int __hashpw(), __initdb();
+
+static int _getyppass(struct passwd *, const char *, const char *);
+static int _nextyppass(struct passwd *);
 
 struct passwd *
 getpwent()
 {
 	DBT key;
 	char bf[sizeof(_pw_keynum) + 1];
+	int rv;
 
 	if (!_pw_db && !__initdb())
 		return((struct passwd *)NULL);
 
+#ifdef YP
+	if(_pw_stepping_yp) {
+		_pw_passwd = _pw_copy;
+		return (_nextyppass(&_pw_passwd) ? &_pw_passwd : 0);
+	}
+#endif
+
+tryagain:
 	++_pw_keynum;
 	bf[0] = _PW_KEYBYNUM;
 	bcopy((char *)&_pw_keynum, bf + 1, sizeof(_pw_keynum));
 	key.data = (u_char *)bf;
 	key.size = sizeof(_pw_keynum) + 1;
-	return(__hashpw(&key) ? &_pw_passwd : (struct passwd *)NULL);
+	rv = __hashpw(&key);
+	if(!rv) return (struct passwd *)NULL;
+#ifdef YP
+	if(_pw_passwd.pw_name[0] == '+' && _pw_passwd.pw_name[1]) {
+		_getyppass(&_pw_passwd, &_pw_passwd.pw_name[1], 
+			   "passwd.byname");
+	} else if(_pw_passwd.pw_name[0] == '+') {
+		_pw_copy = _pw_passwd;
+		return (_nextyppass(&_pw_passwd) ? &_pw_passwd : 0);
+	}
+#else
+	/* Ignore YP password file entries when YP is disabled. */
+	if(_pw_passwd.pw_name[0] == '+') {
+		goto tryagain;
+	}
+#endif
+	return(&_pw_passwd);
 }
 
 struct passwd *
@@ -76,7 +109,7 @@ getpwnam(name)
 {
 	DBT key;
 	int len, rval;
-	char bf[UT_NAMESIZE + 1];
+	char bf[UT_NAMESIZE + 2];
 
 	if (!_pw_db && !__initdb())
 		return((struct passwd *)NULL);
@@ -88,6 +121,26 @@ getpwnam(name)
 	key.size = len + 1;
 	rval = __hashpw(&key);
 
+#ifdef YP
+	if (!rval && _yp_enabled) {
+		bf[1] = '+';
+		bcopy(name, bf + 2, MIN(len, UT_NAMESIZE));
+		key.data = (u_char *)bf;
+		key.size = len + 2;
+		rval = __hashpw(&key);
+		if (!rval) {
+			key.size = 2;
+			rval = __hashpw(&key);
+		}
+		rval = _getyppass(&_pw_passwd, name, "passwd.byname");
+	}
+#else
+	/*
+	 * Prevent login attempts when YP is not enabled but YP entries
+	 * are in /etc/master.passwd.
+	 */
+	if (rval && _pw_passwd.pw_name[0] == '+') rval = 0;
+#endif
 	if (!_pw_stayopen) {
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
@@ -117,6 +170,13 @@ getpwuid(uid)
 	key.size = sizeof(keyuid) + 1;
 	rval = __hashpw(&key);
 
+#ifdef YP
+	if (!rval && _yp_enabled) {
+		char ypbuf[16];	/* big enough for 32-bit uids and then some */
+		snprintf(ypbuf, sizeof ypbuf, "%u", (unsigned)uid);
+		rval = _getyppass(&_pw_passwd, ypbuf, "passwd.byuid");
+	}
+#endif
 	if (!_pw_stayopen) {
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
@@ -129,6 +189,9 @@ setpassent(stayopen)
 	int stayopen;
 {
 	_pw_keynum = 0;
+#ifdef YP
+	_pw_stepping_yp = 0;
+#endif
 	_pw_stayopen = stayopen;
 	return(1);
 }
@@ -137,6 +200,9 @@ int
 setpwent()
 {
 	_pw_keynum = 0;
+#ifdef YP
+	_pw_stepping_yp = 0;
+#endif
 	_pw_stayopen = 0;
 	return(1);
 }
@@ -145,6 +211,9 @@ void
 endpwent()
 {
 	_pw_keynum = 0;
+#ifdef YP
+	_pw_stepping_yp = 0;
+#endif
 	if (_pw_db) {
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
@@ -159,8 +228,20 @@ __initdb()
 
 	p = (geteuid()) ? _PATH_MP_DB : _PATH_SMP_DB;
 	_pw_db = dbopen(p, O_RDONLY, 0, DB_HASH, NULL);
-	if (_pw_db)
+	if (_pw_db) {
+#ifdef YP
+		DBT key, data;
+		char buf[] = { _PW_KEYYPENABLED };
+		key.data = buf;
+		key.size = 1;
+		if ((_pw_db->get)(_pw_db, &key, &data, 0)) {
+			_yp_enabled = 0;
+		} else {
+			_yp_enabled = 1;
+		}
+#endif
 		return(1);
+	}
 	if (!warned)
 		syslog(LOG_ERR, "%s: %m", p);
 	return(0);
@@ -197,5 +278,136 @@ __hashpw(key)
 	EXPAND(_pw_passwd.pw_shell);
 	bcopy(p, (char *)&_pw_passwd.pw_expire, sizeof(time_t));
 	p += sizeof(time_t);
+	bcopy(p, (char *)&_pw_passwd.pw_fields, sizeof _pw_passwd.pw_fields);
+	p += sizeof _pw_passwd.pw_fields;
 	return(1);
 }
+
+#ifdef YP
+static void
+_pw_breakout_yp(struct passwd *pw, char *result)
+{
+	char *s;
+
+	s = strsep(&result, ":"); /* name */
+	if(!(pw->pw_fields & _PWF_NAME) || (pw->pw_name[0] == '+')) {
+		pw->pw_name = s;
+		pw->pw_fields |= _PWF_NAME;
+	}
+
+	s = strsep(&result, ":"); /* password */
+	if(!(pw->pw_fields & _PWF_PASSWD)) {
+		pw->pw_passwd = s;
+		pw->pw_fields |= _PWF_PASSWD;
+	}
+
+	s = strsep(&result, ":"); /* uid */
+	if(!(pw->pw_fields & _PWF_UID)) {
+		pw->pw_uid = atoi(s);
+		pw->pw_fields |= _PWF_UID;
+	}
+
+	s = strsep(&result, ":"); /* gid */
+	if(!(pw->pw_fields & _PWF_GID))  {
+		pw->pw_gid = atoi(s);
+		pw->pw_fields |= _PWF_GID;
+	}
+
+	s = strsep(&result, ":"); /* gecos */
+	if(!(pw->pw_fields & _PWF_GECOS)) {
+		pw->pw_gecos = s;
+		pw->pw_fields |= _PWF_GECOS;
+	}
+
+	s = strsep(&result, ":"); /* dir */
+	if(!(pw->pw_fields & _PWF_DIR)) {
+		pw->pw_dir = s;
+		pw->pw_fields |= _PWF_DIR;
+	}
+
+	s = strsep(&result, ":"); /* shell */
+	if(!(pw->pw_fields & _PWF_SHELL)) {
+		pw->pw_shell = s;
+		pw->pw_fields |= _PWF_SHELL;
+	}
+}
+
+static char *_pw_yp_domain;
+
+static int
+_getyppass(struct passwd *pw, const char *name, const char *map)
+{
+	char *result, *s;
+	static char resultbuf[1024];
+	int resultlen;
+
+	if(!_pw_yp_domain) {
+		if(yp_get_default_domain(&_pw_yp_domain))
+		  return 0;
+	}
+
+	if(yp_match(_pw_yp_domain, map, name, strlen(name), 
+		    &result, &resultlen))
+		return 0;
+
+	s = strchr(result, '\n');
+	if(s) *s = '\0';
+
+	if(resultlen >= sizeof resultbuf) return -1;
+	strcpy(resultbuf, result);
+	result = resultbuf;
+	_pw_breakout_yp(pw, resultbuf);
+
+	return 1;
+}
+
+static int
+_nextyppass(struct passwd *pw)
+{
+	static char *key;
+	static int keylen;
+	char *lastkey, *result;
+	static char resultbuf[1024];
+	int resultlen;
+	int rv;
+
+	if(!_pw_yp_domain) {
+		if(yp_get_default_domain(&_pw_yp_domain))
+		  return 0;
+	}
+
+	if(!_pw_stepping_yp) {
+		if(key) free(key);
+		rv = yp_first(_pw_yp_domain, "passwd.byname",
+			      &key, &keylen, &result, &resultlen);
+		if(rv) {
+			return 0;
+		}
+		_pw_stepping_yp = 1;
+		goto unpack;
+	} else {
+tryagain:
+		lastkey = key;
+		rv = yp_next(_pw_yp_domain, "passwd.byname", key, keylen,
+			     &key, &keylen, &result, &resultlen);
+		free(lastkey);
+unpack:
+		if(rv) {
+			_pw_stepping_yp = 0;
+			return 0;
+		}
+
+		if(resultlen > sizeof(resultbuf)) {
+			free(result);
+			goto tryagain;
+		}
+
+		strcpy(resultbuf, result);
+		free(result);
+		if(result = strchr(resultbuf, '\n')) *result = '\0';
+		_pw_breakout_yp(pw, resultbuf);
+	}
+	return 1;
+}
+		
+#endif /* YP */
