@@ -163,15 +163,21 @@ See
 for more details on how to set this option.
 .It Fl f Ar frag-size
 The fragment size of the file system in bytes.
+The default is 1024 bytes.
 .It Fl i Ar number of bytes per inode
 This specifies the density of inodes in the file system.
-The default is to create an inode for each 2048 bytes of data space.
+The default is to create an inode for every (4 * frag-size) bytes of data space.
 If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
 .It Fl m Ar free space \&%
 The percentage of space reserved from normal users; the minimum free
 space threshold.
-The default value used is 10%.
+The default value used is 
+defined by 
+.Dv MINFREE
+from
+.Ao Pa ufs/ffs/fs.h Ac ,
+currently 8%.
 See
 .Xr tunefs 8
 for more details on how to set this option.
@@ -182,9 +188,9 @@ the disk.  Defaults to 1, which essentially disables the rotational position tab
 .Pq ``space'' or ``time''
 The file system can either be instructed to try to minimize the time spent
 allocating blocks, or to try to minimize the space fragmentation on the disk.
-If the value of minfree (see above) is less than 10%,
+If the value of minfree (see above) is less than 8%,
 the default is to optimize for space;
-if the value of minfree is greater than or equal to 10%,
+if the value of minfree is greater than or equal to 8%.
 the default is to optimize for time.
 See
 .Xr tunefs 8
@@ -269,13 +275,20 @@ See the
 .Xr mount 8
 man page for possible options and their meanings.
 .El
+.Sh EXAMPLES
+.Pp
+.Dl mount_mfs -s=20480 -o nosuid,nodev /dev/sd0b /tmp
+.Pp
+Mount a 10240 KB large memory file system on /tmp, with
+.Xr mount 8
+options nosuid and nodev.
 .Sh SEE ALSO
 .Xr fdformat 1 ,
 .Xr disktab 5 ,
 .Xr fs 5 ,
-.Xr dumpfs 8 ,
 .Xr disklabel 8 ,
 .Xr diskpart 8 ,
+.Xr dumpfs 8 ,
 .Xr fsck 8 ,
 .Xr mount 8 ,
 .Xr scsiformat 8 ,
