@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.14 1994/10/15 21:18:11 ache Exp $
+ *	$Id: cpu.h,v 1.15 1994/10/18 03:37:31 ache Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -59,7 +59,21 @@
 
 #define	CLKF_USERMODE(framep)	(ISPL((framep)->cf_cs) == SEL_UPL)
 #define CLKF_INTR(framep)	(0)
+#if 0
+/*
+ * XXX splsoftclock() is very broken and barely worth fixing.  It doesn't
+ * turn off the clock bit in imen or in the icu.  (This is not a serious
+ * problem at 100 Hz but it is serious at 16000 Hz for pcaudio.  softclock()
+ * can take more than 62.5 usec so clock interrupts are lost.)  It doesn't
+ * check for pending interrupts being unmasked.  clkintr() and Xintr0()
+ * assume that the ipl is high when hardclock() returns.  Our SWI_AST
+ * handling is efficient enough that little is gained by calling
+ * softclock() directly.
+ */
 #define	CLKF_BASEPRI(framep)	(((framep)->cf_ppl & ~SWI_AST_MASK) == 0)
+#else
+#define	CLKF_BASEPRI(framep)	(0)
+#endif
 #define	CLKF_PC(framep)		((framep)->cf_eip)
 
 /*
@@ -110,15 +124,12 @@ struct cpu_nameclass {
 }
 
 #ifdef KERNEL
-extern int want_resched;	/* resched was called */
-
-extern int cpu;
-extern int cpu_class;
+extern int	cpu;
+extern int	cpu_class;
 extern struct cpu_nameclass i386_cpus[];
+extern int	want_resched;	/* resched was called */
+
 int	cpu_fork __P((struct proc *, struct proc *));
-int	npxdna __P((void));
-void	npxexit __P((struct proc *p));
-void	resettodr __P((void));
 #endif
 
 #endif /* !_MACHINE_CPU_H_ */
