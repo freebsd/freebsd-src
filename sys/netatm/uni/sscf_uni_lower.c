@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-extern uma_zone_t	unisig_vc_zone;
+extern uma_zone_t	sscf_uni_zone;
 
 /*
  * Local variables
@@ -170,7 +170,7 @@ sscf_uni_lower(cmd, tok, arg1, arg2)
 			sscf_uni_abort(uvp, "sscf_uni: TERM failure\n");
 			return;
 		}
-		uma_zfree(unisig_vc_zone, uvp);
+		uma_zfree(sscf_uni_zone, uvp);
 		sscf_uni_vccnt--;
 		break;
 
