@@ -31,6 +31,7 @@
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -40,7 +41,6 @@
 #include <sys/user.h>
 
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #include <machine/pcb_ext.h>	/* pcb.h included via sys/user.h */
 #include <machine/psl.h>
 #include <machine/specialreg.h>
@@ -50,7 +50,7 @@ extern int i386_extend_pcb	__P((struct proc *));
 extern int vm86pa;
 extern struct pcb *vm86pcb;
 
-static struct mtx vm86pcb_lock;
+MUTEX_DECLARE(static, vm86pcb_lock);
 
 extern int vm86_bioscall(struct vm86frame *);
 extern void vm86_biosret(struct vm86frame *);
@@ -426,7 +426,7 @@ vm86_initialize(void)
 	pcb = &vml->vml_pcb;
 	ext = &vml->vml_ext;
 
-	mtx_init(&vm86pcb_lock, "vm86pcb lock", MTX_DEF);
+	mtx_init(&vm86pcb_lock, "vm86pcb lock", MTX_DEF | MTX_COLD);
 
 	bzero(pcb, sizeof(struct pcb));
 	pcb->new_ptd = vm86pa | PG_V | PG_RW | PG_U;
