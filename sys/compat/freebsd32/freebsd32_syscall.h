@@ -279,9 +279,9 @@
 #define	IA32_SYS_nmount	378
 #define	IA32_SYS_kse_exit	379
 #define	IA32_SYS_kse_wakeup	380
-#define	IA32_SYS_kse_new	381
-#define	IA32_SYS_thread_wakeup	382
-#define	IA32_SYS_kse_yield	383
+#define	IA32_SYS_kse_create	381
+#define	IA32_SYS_kse_thr_interrupt	382
+#define	IA32_SYS_kse_release	383
 #define	IA32_SYS_kenv	390
 #define	IA32_SYS_lchflags	391
 #define	IA32_SYS_uuidgen	392

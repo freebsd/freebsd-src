@@ -547,10 +547,10 @@
 			    int flags); }
 379	NOPROTO	BSD	{ int kse_exit(void); }
 380	NOPROTO	BSD	{ int kse_wakeup(void); }
-381	NOPROTO	BSD	{ int kse_new(struct kse_mailbox * mbx, \
-			int new_grp_flag); }
-382	NOPROTO	BSD	{ int thread_wakeup(struct thread_mailbox *tmbx); }
-383	NOPROTO	BSD	{ int kse_yield(void); }
+381	NOPROTO	BSD	{ int kse_create(struct kse_mailbox *mbx, \
+			    int newgroup); }
+382	NOPROTO	BSD	{ int kse_thr_interrupt(struct kse_thr_mailbox *tmbx); }
+383	NOPROTO	BSD	{ int kse_release(void); }
 384	UNIMPL	BSD	__mac_get_proc
 385	UNIMPL	BSD	__mac_set_proc
 386	UNIMPL	BSD	__mac_get_fd

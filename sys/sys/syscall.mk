@@ -243,9 +243,9 @@ MIASM =  \
 	nmount.o \
 	kse_exit.o \
 	kse_wakeup.o \
-	kse_new.o \
-	thread_wakeup.o \
-	kse_yield.o \
+	kse_create.o \
+	kse_thr_interrupt.o \
+	kse_release.o \
 	__mac_get_proc.o \
 	__mac_set_proc.o \
 	__mac_get_fd.o \

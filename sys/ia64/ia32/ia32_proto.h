@@ -10,8 +10,8 @@
 #define	_IA32_SYSPROTO_H_
 
 #include <sys/signal.h>
-
 #include <sys/acl.h>
+#include <posix4/_semaphore.h>
 
 struct proc;
 
