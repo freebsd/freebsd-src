@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.15 1998/02/08 19:29:45 brian Exp $
+ * $Id: main.c,v 1.121.2.16 1998/02/09 19:21:01 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -68,7 +68,6 @@
 #include "systems.h"
 #include "ip.h"
 #include "sig.h"
-#include "server.h"
 #include "main.h"
 #include "vjcomp.h"
 #include "async.h"
@@ -78,6 +77,7 @@
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
+#include "server.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -724,20 +724,12 @@ StartRedialTimer(int Timeout)
   }
 }
 
-#define IN_SIZE sizeof(struct sockaddr_in)
-#define UN_SIZE sizeof(struct sockaddr_in)
-#define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
-
 static void
 DoLoop(struct bundle *bundle)
 {
   fd_set rfds, wfds, efds;
   int pri, i, n, wfd, nfds;
-  char hisaddr[ADDRSZ];
-  struct sockaddr *sa = (struct sockaddr *)hisaddr;
-  struct sockaddr_in *sin = (struct sockaddr_in *)hisaddr;
   struct timeval timeout, *tp;
-  int ssize = ADDRSZ;
   const u_char *cp;
   int tries;
   int qlen;
@@ -871,12 +863,7 @@ DoLoop(struct bundle *bundle)
     }
 
     descriptor_UpdateSet(&bundle->physical->desc, &rfds, &wfds, &efds, &nfds);
-
-    if (server >= 0) {
-      if (server + 1 > nfds)
-	nfds = server + 1;
-      FD_SET(server, &rfds);
-    }
+    descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
 
 #ifndef SIGALRM
     /*
@@ -888,8 +875,6 @@ DoLoop(struct bundle *bundle)
      */
     usleep(TICKUNIT);
     TimerService();
-#else
-    handle_signals();
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
@@ -898,12 +883,16 @@ DoLoop(struct bundle *bundle)
 	nfds = bundle->tun_fd + 1;
       FD_SET(bundle->tun_fd, &rfds);
     }
+
     if (netfd >= 0) {
       if (netfd + 1 > nfds)
 	nfds = netfd + 1;
       FD_SET(netfd, &rfds);
       FD_SET(netfd, &efds);
     }
+
+    handle_signals();
+
 #ifndef SIGALRM
 
     /*
@@ -915,8 +904,8 @@ DoLoop(struct bundle *bundle)
 #else
 
     /*
-     * When SIGALRM timer is running, a select function will be return -1 and
-     * EINTR after a Time Service signal hundler is done.  If the redial
+     * When SIGALRM timer is running, the select function will return -1 and
+     * EINTR after the Time Service signal handler is done.  If the redial
      * timer is not running and we are trying to dial, poll with a 0 value
      * timer.
      */
@@ -927,6 +916,7 @@ DoLoop(struct bundle *bundle)
     if (i == 0) {
       continue;
     }
+
     if (i < 0) {
       if (errno == EINTR) {
 	handle_signals();
@@ -935,48 +925,15 @@ DoLoop(struct bundle *bundle)
       LogPrintf(LogERROR, "DoLoop: select(): %s\n", strerror(errno));
       break;
     }
+
     if ((netfd >= 0 && FD_ISSET(netfd, &efds)) ||
         descriptor_IsSet(&bundle->physical->desc, &efds)) {
       LogPrintf(LogALERT, "Exception detected.\n");
       break;
     }
-    if (server >= 0 && FD_ISSET(server, &rfds)) {
-      wfd = accept(server, sa, &ssize);
-      if (wfd < 0) {
-	LogPrintf(LogERROR, "DoLoop: accept(): %s\n", strerror(errno));
-	continue;
-      }
-      switch (sa->sa_family) {
-        case AF_LOCAL:
-          LogPrintf(LogPHASE, "Connected to local client.\n");
-          break;
-        case AF_INET:
-          if (ntohs(sin->sin_port) < 1024) {
-            LogPrintf(LogALERT, "Rejected client connection from %s:%u"
-                      "(invalid port number) !\n",
-                      inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
-	    close(wfd);
-	    continue;
-          }
-          LogPrintf(LogPHASE, "Connected to client from %s:%u\n",
-                    inet_ntoa(sin->sin_addr), sin->sin_port);
-          break;
-        default:
-	  write(wfd, "Unrecognised access !\n", 22);
-	  close(wfd);
-	  continue;
-      }
-      if (netfd >= 0) {
-	write(wfd, "Connection already in use.\n", 27);
-	close(wfd);
-	continue;
-      }
-      netfd = wfd;
-      VarTerm = fdopen(netfd, "a+");
-      LocalAuthInit();
-      IsInteractive(1);
-      Prompt(bundle);
-    }
+
+    if (descriptor_IsSet(&server.desc, &rfds))
+      descriptor_Read(&server.desc, bundle);
 
     if (netfd >= 0 && FD_ISSET(netfd, &rfds))
       /* something to read from tty */

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.11 1998/02/07 20:49:32 brian Exp $
+ * $Id: command.c,v 1.131.2.12 1998/02/09 19:20:41 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -66,7 +66,6 @@
 #include "systems.h"
 #include "chat.h"
 #include "bundle.h"
-#include "server.h"
 #include "main.h"
 #include "route.h"
 #include "ccp.h"
@@ -77,6 +76,7 @@
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
+#include "server.h"
 
 struct in_addr ifnetmask;
 static const char *HIDDEN = "********";
@@ -1054,10 +1054,9 @@ SetServer(struct cmdargs const *arg)
 
       if (mask != NULL || passwd != NULL)
         return -1;
-      oserver = server;
-      ServerClose();
-      if (oserver != -1)
-        LogPrintf(LogPHASE, "Disabling server port.\n");
+
+      if (ServerClose())
+        LogPrintf(LogPHASE, "Disabled server port.\n");
       res = 0;
     } else if (*port == '/') {
       mode_t imask;

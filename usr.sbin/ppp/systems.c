@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35.2.1 1998/02/02 19:32:15 brian Exp $
+ * $Id: systems.c,v 1.35.2.2 1998/02/04 01:03:36 brian Exp $
  *
  *  TODO:
  */
@@ -41,6 +41,7 @@
 #include "loadalias.h"
 #include "pathnames.h"
 #include "vars.h"
+#include "descriptor.h"
 #include "server.h"
 #include "systems.h"
 

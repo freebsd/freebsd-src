@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16 1998/01/21 02:15:27 brian Exp $
+ *	$Id: server.c,v 1.16.2.1 1998/02/02 19:32:15 brian Exp $
  */
 
 #include <sys/param.h>
@@ -45,10 +45,108 @@
 #include "loadalias.h"
 #include "defs.h"
 #include "vars.h"
+#include "descriptor.h"
 #include "server.h"
 #include "id.h"
 
-int server = -1;
+static int
+server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+{
+  struct server *s = descriptor2server(d);
+
+  LogPrintf(LogDEBUG, "descriptor2server; %p -> %p\n", d, s);
+  if (s->fd >= 0) {
+    FD_SET(s->fd, r);
+    if (*n < s->fd + 1)
+      *n = s->fd + 1;
+    return 1;
+  }
+  return 0;
+}
+
+static int
+server_IsSet(struct descriptor *d, fd_set *fdset)
+{
+  struct server *s = descriptor2server(d);
+
+  LogPrintf(LogDEBUG, "descriptor2server; %p -> %p\n", d, s);
+  return s->fd >= 0 && FD_ISSET(s->fd, fdset);
+}
+
+#define IN_SIZE sizeof(struct sockaddr_in)
+#define UN_SIZE sizeof(struct sockaddr_in)
+#define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
+
+static void
+server_Read(struct descriptor *d, struct bundle *bundle)
+{
+  struct server *s = descriptor2server(d);
+  char hisaddr[ADDRSZ];
+  struct sockaddr *sa = (struct sockaddr *)hisaddr;
+  struct sockaddr_in *sin = (struct sockaddr_in *)hisaddr;
+  int ssize = ADDRSZ, wfd;
+
+  LogPrintf(LogDEBUG, "descriptor2server; %p -> %p\n", d, s);
+
+  wfd = accept(s->fd, sa, &ssize);
+  if (wfd < 0) {
+    LogPrintf(LogERROR, "server_Read: accept(): %s\n", strerror(errno));
+    return;
+  }
+
+  switch (sa->sa_family) {
+    case AF_LOCAL:
+      LogPrintf(LogPHASE, "Connected to local client.\n");
+      break;
+
+    case AF_INET:
+      if (ntohs(sin->sin_port) < 1024) {
+        LogPrintf(LogALERT, "Rejected client connection from %s:%u"
+                  "(invalid port number) !\n",
+                  inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+        close(wfd);
+        return;
+      }
+      LogPrintf(LogPHASE, "Connected to client from %s:%u\n",
+                inet_ntoa(sin->sin_addr), sin->sin_port);
+      break;
+
+    default:
+      write(wfd, "Unrecognised access !\n", 22);
+      close(wfd);
+      return;
+  }
+
+  if (netfd >= 0) {
+    write(wfd, "Connection already in use.\n", 27);
+    close(wfd);
+  } else {
+    netfd = wfd;
+    VarTerm = fdopen(netfd, "a+");
+    LocalAuthInit();
+    IsInteractive(1);
+    Prompt(bundle);
+  }
+}
+
+static void
+server_Write(struct descriptor *d)
+{
+  /* We never want to write here ! */
+  LogPrintf(LogERROR, "server_Write: Internal error: Bad call !\n");
+}
+
+struct server server = {
+  {
+    SERVER_DESCRIPTOR,
+    NULL,
+    server_UpdateSet,
+    server_IsSet,
+    server_Read,
+    server_Write
+  },
+  -1
+};
 
 static struct sockaddr_un ifsun;
 static char *rm;
@@ -104,7 +202,7 @@ ServerLocalOpen(const char *name, mode_t mask)
     return 5;
   }
   ServerClose();
-  server = s;
+  server.fd = s;
   rm = ifsun.sun_path;
   LogPrintf(LogPHASE, "Listening at local socket %s.\n", name);
   return 0;
@@ -150,20 +248,22 @@ ServerTcpOpen(int port)
     return 9;
   }
   ServerClose();
-  server = s;
+  server.fd = s;
   LogPrintf(LogPHASE, "Listening at port %d.\n", port);
   return 0;
 }
 
-void
+int
 ServerClose()
 {
-  if (server >= 0) {
-    close(server);
+  if (server.fd >= 0) {
+    close(server.fd);
     if (rm) {
       ID0unlink(rm);
       rm = 0;
     }
+    server.fd = -1;
+    return 1;
   }
-  server = -1;
+  return 0;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.13.2.1 1998/01/30 19:45:54 brian Exp $
+ * $Id: mbuf.c,v 1.13.2.2 1998/02/06 02:23:40 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -33,12 +33,11 @@
 #include "defs.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "server.h"
 
 static struct memmap {
   struct mbuf *queue;
   int count;
-}      MemMap[MB_MAX + 2];
+} MemMap[MB_MAX + 2];
 
 static int totalalloced;
 
