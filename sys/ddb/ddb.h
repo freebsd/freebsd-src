@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ddb.h,v 1.14 1997/02/22 09:28:35 peter Exp $
  */
 
 /*
@@ -112,7 +112,6 @@ db_cmdfcn_t	db_delete_cmd;
 db_cmdfcn_t	db_deletewatch_cmd;
 db_cmdfcn_t	db_examine_cmd;
 db_cmdfcn_t	db_listbreak_cmd;
-db_cmdfcn_t	db_listwatch_cmd;
 db_cmdfcn_t	db_print_cmd;
 db_cmdfcn_t	db_ps;
 db_cmdfcn_t	db_search_cmd;
