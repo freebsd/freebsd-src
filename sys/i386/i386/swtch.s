@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.20.4.1 1996/01/29 12:28:27 davidg Exp $
+ *	$Id: swtch.s,v 1.20.4.2 1996/01/30 09:19:27 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -508,7 +508,7 @@ ENTRY(mvesp)
  * Update pcb, saving current processor state.
  */
 ENTRY(savectx)
-	/* PCB */
+	/* fetch PCB */
 	movl	4(%esp),%ecx
 
 	/* caller's return address - child won't execute this routine */
@@ -517,7 +517,8 @@ ENTRY(savectx)
 
 	movl	$1,PCB_EAX(%ecx)		/* return 1 in child */
 	movl	%ebx,PCB_EBX(%ecx)
-	movl	%esp,PCB_ESP(%ecx)
+	leal	4(%esp),%eax			/* stack minus return address */
+	movl	%eax,PCB_ESP(%ecx)
 	movl	%ebp,PCB_EBP(%ecx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)

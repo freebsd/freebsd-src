@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.39 1995/05/30 07:59:46 rgrimes Exp $
+ *	$Id: vm_machdep.c,v 1.39.4.1 1996/01/29 12:28:28 davidg Exp $
  */
 
 #include "npx.h"
@@ -571,17 +571,9 @@ cpu_fork(p1, p2)
 	pmap_activate(&p2->p_vmspace->vm_pmap, &up->u_pcb);
 
 	/*
-	 *
-	 * Arrange for a non-local goto when the new process
-	 * is started, to resume here, returning nonzero from setjmp.
+	 * Return (0) in parent, (1) in child.
 	 */
-	if (savectx(&up->u_pcb)) {
-		/*
-		 * Return 1 in child.
-		 */
-		return (1);
-	}
-	return (0);
+	return (savectx(&up->u_pcb));
 }
 
 void
