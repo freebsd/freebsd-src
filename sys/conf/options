@@ -1,4 +1,4 @@
-#	$Id: options,v 1.108 1998/11/23 09:58:59 phk Exp $
+#	$Id: options,v 1.109 1998/11/26 23:13:11 n_hibma Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -66,6 +66,7 @@ SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 UCONSOLE
+ICMP_BANDLIM
 
 # POSIX kernel options
 P1003_1B	opt_posix.h
