@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.13 1998/09/24 22:43:54 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.14 1998/09/25 22:35:56 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -2517,6 +2517,14 @@ xpt_action(union ccb *start_ccb)
 
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
+	{
+#ifdef CAMDEBUG
+		char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
+		struct cam_path *path;
+
+		path = start_ccb->ccb_h.path;
+#endif
+
 		/*
 		 * For the sake of compatibility with SCSI-1
 		 * devices that may not understand the identify
@@ -2543,7 +2551,13 @@ xpt_action(union ccb *start_ccb)
 		start_ccb->csio.scsi_status = SCSI_STATUS_OK;
 		start_ccb->csio.sense_resid = 0;
 		start_ccb->csio.resid = 0;
+		CAM_DEBUG(path, CAM_DEBUG_CDB,("%s. CDB: %s\n",
+			  scsi_op_desc(start_ccb->csio.cdb_io.cdb_bytes[0],
+			  	       &path->device->inq_data),
+			  scsi_cdb_string(start_ccb->csio.cdb_io.cdb_bytes,
+					  cdb_str)));
 		/* FALLTRHOUGH */
+	}
 	case XPT_TARGET_IO:
 	case XPT_CONT_TARGET_IO:
 	case XPT_ENG_EXEC:

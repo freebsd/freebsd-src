@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.479 1998/10/01 11:48:38 yokota Exp $
+#	$Id: LINT,v 1.480 1998/10/02 05:15:51 ken Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -667,8 +667,8 @@ device sctarg0 at scbus? # SCSI target
 # CAM_DEBUG_BUS:  Debug the given bus.  Use -1 to debug all busses.
 # CAM_DEBUG_TARGET:  Debug the given target.  Use -1 to debug all targets.
 # CAM_DEBUG_LUN:  Debug the given lun.  Use -1 to debug all luns.
-# CAM_DEBUG_FLAGS:  OR together CAM_DEBUG_INFO, CAM_DEBUG_TRACE and
-#                   CAM_DEBUG_SUBTRACE
+# CAM_DEBUG_FLAGS:  OR together CAM_DEBUG_INFO, CAM_DEBUG_TRACE,
+#                   CAM_DEBUG_SUBTRACE, and CAM_DEBUG_CDB
 # 
 # CAM_MAX_HIGHPOWER: Maximum number of concurrent high power (start unit) cmds
 # SCSI_NO_SENSE_STRINGS: When defined disables sense descriptions
@@ -682,7 +682,7 @@ options		CAMDEBUG
 options		"CAM_DEBUG_BUS=-1"
 options		"CAM_DEBUG_TARGET=-1"
 options		"CAM_DEBUG_LUN=-1"
-options		"CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_SUBTRACE"
+options		"CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB"
 options		"CAM_MAX_HIGHPOWER=4"
 options		SCSI_NO_SENSE_STRINGS
 options		SCSI_NO_OP_STRINGS

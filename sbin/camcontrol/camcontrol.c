@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: camcontrol.c,v 1.1 1998/09/15 06:43:02 gibbs Exp $
  */
 
 #include <sys/ioctl.h>
@@ -93,6 +93,7 @@ typedef enum {
 	CAM_ARG_DEBUG_INFO	= 0x10000000,
 	CAM_ARG_DEBUG_TRACE	= 0x20000000,
 	CAM_ARG_DEBUG_SUBTRACE	= 0x40000000,
+	CAM_ARG_DEBUG_CDB	= 0x80000000,
 	CAM_ARG_FLAG_MASK	= 0xfffffff0
 } cam_argmask;
 
@@ -121,7 +122,7 @@ struct camcontrol_opts option_table[] = {
 	{"devlist", CAM_ARG_DEVTREE, NULL},
 	{"periphlist", CAM_ARG_DEVLIST, NULL},
 	{"modepage", CAM_ARG_MODE_PAGE, "dem:P:"},
-	{"debug", CAM_ARG_DEBUG, "ITS"},
+	{"debug", CAM_ARG_DEBUG, "ITSc"},
 	{"help", CAM_ARG_USAGE, NULL},
 	{"-?", CAM_ARG_USAGE, NULL},
 	{"-h", CAM_ARG_USAGE, NULL},
@@ -1676,6 +1677,10 @@ camdebug(int argc, char **argv, char *combinedopt)
 			arglist |= CAM_ARG_DEBUG_SUBTRACE;
 			ccb.cdbg.flags |= CAM_DEBUG_SUBTRACE;
 			break;
+		case 'c':
+			arglist |= CAM_ARG_DEBUG_CDB;
+			ccb.cdbg.flags |= CAM_DEBUG_CDB;
+			break;
 		default:
 			break;
 		}
@@ -1763,7 +1768,7 @@ camdebug(int argc, char **argv, char *combinedopt)
 				}
 			}
 		}
-		close(fd);	
+		close(fd);
 	}
 
 	return(error);
@@ -1826,7 +1831,8 @@ usage(void)
 "debug arguments:\n"
 "-I                CAM_DEBUG_INFO -- scsi commands, errors, data\n"
 "-T                CAM_DEBUG_TRACE -- routine flow tracking\n"
-"-S                CAM_DEBUG_SUBTRACE -- internal routine command flow\n",
+"-S                CAM_DEBUG_SUBTRACE -- internal routine command flow\n"
+"-c                CAM_DEBUG_CDB -- print out SCSI CDBs only\n",
 DEFAULT_DEVICE, DEFAULT_UNIT);
 }
 
