@@ -62,7 +62,10 @@ ldt_init(void)
 void
 _retire_thread(void *entry)
 {
-	*(void **)entry = *ldt_free;
+	if (ldt_free == NULL)
+		*(void **)entry = NULL;
+	else
+		*(void **)entry = *ldt_free;
 	ldt_free = entry;
 }
 
