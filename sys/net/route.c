@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.19 1995/03/21 19:50:34 wollman Exp $
+ *	$Id: route.c,v 1.20 1995/03/23 18:07:29 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -490,7 +490,7 @@ rt_fixdelete(struct radix_node *rn, void *vp)
 	struct rtentry *rt = (struct rtentry *)rn;
 	struct rtentry *rt0 = vp;
 
-	if (rt->rt_parent == rt0) {
+	if (rt->rt_parent == rt0 && !(rt->rt_flags & RTF_PINNED)) {
 		return rtrequest(RTM_DELETE, rt_key(rt), 
 				 (struct sockaddr *)0, rt_mask(rt),
 				 rt->rt_flags, (struct rtentry **)0);
