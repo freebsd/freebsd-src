@@ -627,6 +627,9 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	/* Ok then... */
 
 	error = pp->geom->access(pp, dcr, dcw, dce);
+	KASSERT(dcr > 0 || dcw > 0 || dce > 0 || error == 0,
+	    ("Geom provider %s::%s failed closing ->access()",
+	    pp->geom->class->name, pp->name));
 	if (!error) {
 		/*
 		 * If we open first write, spoil any partner consumers.
