@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
 static const char rcsid[] =
-	"$Id: gcore.c,v 1.9 1998/09/14 10:09:30 des Exp $";
+	"$Id: gcore.c,v 1.10 1998/10/14 16:16:50 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -81,7 +81,7 @@ static const char rcsid[] =
 
 void	core __P((int, int, struct kinfo_proc *));
 void	datadump __P((int, int, struct proc *, u_long, int));
-void	usage __P((void));
+void	usage __P((void)) __dead2;
 void	userdump __P((int, struct proc *, u_long, int));
 
 kvm_t *kd;
@@ -97,11 +97,12 @@ main(argc, argv)
 	char *argv[];
 {
 	register struct proc *p;
-	struct kinfo_proc *ki;
+	struct kinfo_proc *ki = NULL;
 	struct exec exec;
 	int ch, cnt, efd, fd, pid, sflag, uid;
 	char *binfile, *corefile;
 	char errbuf[_POSIX2_LINE_MAX], fname[MAXPATHLEN + 1];
+	int is_aout;
 
 	sflag = 0;
 	corefile = NULL;
@@ -137,27 +138,53 @@ main(argc, argv)
 		usage();
 	}
 
-	kd = kvm_openfiles(0, 0, 0, O_RDONLY, errbuf);
-	if (kd == NULL)
-		errx(1, "%s", errbuf);
+	efd = open(binfile, O_RDONLY, 0);
+	if (efd < 0)
+		err(1, "%s", binfile);
 
-	uid = getuid();
+	cnt = read(efd, &exec, sizeof(exec));
+	if (cnt != sizeof(exec))
+		errx(1, "%s exec header: %s",
+		    binfile, cnt > 0 ? strerror(EIO) : strerror(errno));
+	if (!N_BADMAG(exec)) {
+		is_aout = 1;
+		/*
+		 * This legacy a.out support uses the kvm interface instead
+		 * of procfs.
+		 */
+		kd = kvm_openfiles(0, 0, 0, O_RDONLY, errbuf);
+		if (kd == NULL)
+			errx(1, "%s", errbuf);
 
-	ki = kvm_getprocs(kd, KERN_PROC_PID, pid, &cnt);
-	if (ki == NULL || cnt != 1)
-		errx(1, "%d: not found", pid);
+		uid = getuid();
 
-	p = &ki->kp_proc;
-	if (ki->kp_eproc.e_pcred.p_ruid != uid && uid != 0)
-		errx(1, "%d: not owner", pid);
+		ki = kvm_getprocs(kd, KERN_PROC_PID, pid, &cnt);
+		if (ki == NULL || cnt != 1)
+			errx(1, "%d: not found", pid);
 
-	if (p->p_stat == SZOMB)
-		errx(1, "%d: zombie", pid);
+		p = &ki->kp_proc;
+		if (ki->kp_eproc.e_pcred.p_ruid != uid && uid != 0)
+			errx(1, "%d: not owner", pid);
 
-	if (p->p_flag & P_WEXIT)
-		errx(1, "%d: process exiting", pid);
-	if (p->p_flag & P_SYSTEM)	/* Swapper or pagedaemon. */
-		errx(1, "%d: system process", pid);
+		if (p->p_stat == SZOMB)
+			errx(1, "%d: zombie", pid);
+
+		if (p->p_flag & P_WEXIT)
+			errx(1, "%d: process exiting", pid);
+		if (p->p_flag & P_SYSTEM)	/* Swapper or pagedaemon. */
+			errx(1, "%d: system process", pid);
+		if (exec.a_text != ptoa(ki->kp_eproc.e_vm.vm_tsize))
+			errx(1, "The executable %s does not belong to"
+			    " process %d!\n"
+			    "Text segment size (in bytes): executable %d,"
+			    " process %d", binfile, pid, exec.a_text, 
+			     ptoa(ki->kp_eproc.e_vm.vm_tsize));
+		data_offset = N_DATOFF(exec);
+	} else if (IS_ELF(*(Elf_Ehdr *)&exec)) {
+		is_aout = 0;
+		close(efd);
+	} else
+		errx(1, "Invalid executable file");
 
 	if (corefile == NULL) {
 		(void)snprintf(fname, sizeof(fname), "core.%d", pid);
@@ -167,36 +194,13 @@ main(argc, argv)
 	if (fd < 0)
 		err(1, "%s", corefile);
 
-	efd = open(binfile, O_RDONLY, 0);
-	if (efd < 0)
-		err(1, "%s", binfile);
-
-	cnt = read(efd, &exec, sizeof(exec));
-	if (cnt != sizeof(exec))
-		errx(1, "%s exec header: %s",
-		    binfile, cnt > 0 ? strerror(EIO) : strerror(errno));
-	if (N_BADMAG(exec)) {
-		const Elf_Ehdr *ehdr = (const Elf_Ehdr *)&exec;
-
-		if (IS_ELF(*ehdr))
-			errx(1, "ELF executables are not supported yet");
-		errx(1, "Invalid executable file");
-	}
-
-	/* check the text segment size of the executable and the process */
-	if (exec.a_text != ptoa(ki->kp_eproc.e_vm.vm_tsize))
-		errx(1, 
-		     "The executable %s does not belong to process %d!\n"
-		     "Text segment size (in bytes): executable %d, process %d",
-		     binfile, pid, exec.a_text, 
-		     ptoa(ki->kp_eproc.e_vm.vm_tsize));
-
-	data_offset = N_DATOFF(exec);
-
 	if (sflag && kill(pid, SIGSTOP) < 0)
 		err(1, "%d: stop signal", pid);
 
-	core(efd, fd, ki);
+	if (is_aout)
+		core(efd, fd, ki);
+	else
+		elf_coredump(fd, pid);
 
 	if (sflag && kill(pid, SIGCONT) < 0)
 		err(1, "%d: continue signal", pid);

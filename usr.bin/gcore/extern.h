@@ -33,5 +33,9 @@
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
  */
 
+#include <sys/types.h>
+#include <kvm.h>
+
 void	err __P((int, const char *, ...));
+void	elf_coredump __P((int, pid_t));
 void	md_core __P((kvm_t *, int, struct kinfo_proc *));
