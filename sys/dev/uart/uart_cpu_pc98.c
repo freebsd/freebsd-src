@@ -104,3 +104,9 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	return (ENXIO);
 }
+
+void
+uart_cpu_identify(driver_t *driver, device_t parent)
+{
+ 
+}
