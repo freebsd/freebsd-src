@@ -102,6 +102,7 @@ SUBDIR=	3dfx \
 	trm \
 	tx \
 	txp \
+	ubsa \
 	ubsec \
 	ucom \
 	udbp \
