@@ -306,8 +306,7 @@ vfprintf(fp, fmt0, ap)
 	u_quad_t uqval;		/* %q integers */
 	int base;		/* base for [diouxX] conversion */
 	int dprec;		/* a copy of prec if [diouxX], 0 otherwise */
-	int fieldsz;		/* field size expanded by sign, etc */
-	int realsz;		/* field size expanded by dprec */
+	int realsz;		/* field size expanded by dprec, sign, etc */
 	int size;		/* size of converted field or string */
 	char *xdigs;		/* digits for [xX] conversion */
 #define NIOV 8
@@ -708,14 +707,13 @@ number:			if ((dprec = prec) >= 0)
 		 * floating precision; finally, if LADJUST, pad with blanks.
 		 *
 		 * Compute actual size, so we know how much to pad.
-		 * fieldsz excludes decimal prec; realsz includes it.
+		 * size excludes decimal prec; realsz includes it.
 		 */
-		fieldsz = size;
+		realsz = dprec > size ? dprec : size;
 		if (sign)
-			fieldsz++;
+			realsz++;
 		else if (flags & HEXPREFIX)
-			fieldsz += 2;
-		realsz = dprec > fieldsz ? dprec : fieldsz;
+			realsz += 2;
 
 		/* right-adjusting blank padding */
 		if ((flags & (LADJUST|ZEROPAD)) == 0)
@@ -735,7 +733,7 @@ number:			if ((dprec = prec) >= 0)
 			PAD(width - realsz, zeroes);
 
 		/* leading zeroes from decimal precision */
-		PAD(dprec - fieldsz, zeroes);
+		PAD(dprec - size, zeroes);
 
 		/* the string or number proper */
 #ifdef FLOATING_POINT
