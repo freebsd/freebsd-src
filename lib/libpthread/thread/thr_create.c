@@ -252,6 +252,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			sigemptyset(&new_thread->sigpend);
 			new_thread->check_pending = 0;
 			new_thread->locklevel = 0;
+			new_thread->rdlock_count = 0;
 			new_thread->sigstk.ss_sp = 0;
 			new_thread->sigstk.ss_size = 0;
 			new_thread->sigstk.ss_flags = SS_DISABLE;
