@@ -34,6 +34,8 @@
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
