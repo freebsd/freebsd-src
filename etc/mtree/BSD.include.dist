@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.20 1998/09/15 11:44:39 phk Exp $
+#	$Id: BSD.include.dist,v 1.21 1998/09/19 10:41:35 vanilla Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -50,6 +50,8 @@
     rpc
     ..
     rpcsvc
+    ..
+    security
     ..
     ss
     ..
