@@ -39,4 +39,4 @@ while [ ! -z $1 ]; do
 done
 
 # the remaining arguments are assumed to be files/dirs only.
-exec install -C -p $*
+exec install -c -p $*
