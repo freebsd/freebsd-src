@@ -219,7 +219,7 @@ const char * const	codep;
 static void
 settzname P((void))
 {
-	register struct state * const	sp = lclptr;
+	register struct state * 	sp = lclptr;
 	register int			i;
 
 	tzname[0] = wildabbr;
