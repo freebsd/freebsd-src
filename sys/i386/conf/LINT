@@ -2313,6 +2313,15 @@ options 	HW_WDOG
 options 	PMAP_SHPGPERPROC=201
 
 #
+# Change the size of the kernel virtual address space.  Due to
+# constraints in loader(8) on i386, this must be a multiple of 4.
+# 256 = 1 GB of kernel address space.  Increasing this also causes
+# a reduction of the address space in user processes.  512 splits
+# the 4GB cpu address space in half (2GB user, 2GB kernel).
+#
+options 	KVA_PAGES=260
+
+#
 # Disable swapping. This option removes all code which actually performs
 # swapping, so it's not possible to turn it back on at run-time.
 #
