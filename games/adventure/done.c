@@ -47,6 +47,7 @@ static const char rcsid[] =
 /*      Re-coding of advent in C: termination routines                  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "hdr.h"
 
 int
