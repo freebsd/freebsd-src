@@ -36,14 +36,18 @@ LOCALES=        af_ZA.ISO8859-1 \
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
-USENGLISH=      en_US.ISO8859-1
-USENGLISHLINKS= en_US.US-ASCII en_CA.ISO8859-1 en_GB.ISO8859-1
-GBENGLISH=      en_GB.ISO8859-1
-GBENGLISHLINKS= en_AU.ISO8859-1 en_NZ.ISO8859-1
-FRENCH=         fr_FR.ISO8859-1
-FRENCHLINKS=    fr_CA.ISO8859-1 fr_CH.ISO8859-1
-GERMAN=         de_DE.ISO8859-1
-GERMANLINKS=    de_AT.ISO8859-1
+ASCIILINKS =    en_US
+8859_15_LINKS = af_ZA da_DK de_DE en_US es_ES fi_FI fr_FR is_IS is_IS \
+		it_IT nl_NL no_NO pt_PT sv_SE
+
+USENGLISH=      en_US
+USENGLISHLINKS= en_CA en_GB
+GBENGLISH=      en_GB
+GBENGLISHLINKS= en_AU en_NZ
+FRENCH=         fr_FR
+FRENCHLINKS=    fr_CA fr_CH
+GERMAN=         de_DE
+GERMANLINKS=    de_AT
 
 .SUFFIXES: .src .out
 
@@ -57,14 +61,41 @@ afterinstall:
 	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
 			   ${LOCALEDIR}/${lang}/LC_NUMERIC
 .endfor
+.for link in ${8859_15_LINKS}
+	ln -sf ../${link}.ISO8859-1/LC_NUMERIC \
+	       ${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
+.endfor
 .for link in ${USENGLISHLINKS}
-	ln -sf ../${USENGLISH}/LC_NUMERIC ${LOCALEDIR}/${link}/LC_NUMERIC
+	ln -sf ../${USENGLISH}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
+	ln -sf ../${USENGLISH}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
+	ln -sf ../${USENGLISH}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
 .endfor
 .for link in ${GBENGLISHLINKS}
-	ln -sf ../${GBENGLISH}/LC_NUMERIC ${LOCALEDIR}/${link}/LC_NUMERIC
+	ln -sf ../${GBENGLISH}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
+	ln -sf ../${GBENGLISH}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
+	ln -sf ../${GBENGLISH}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
 .endfor
 .for link in ${FRENCHLINKS}
-	ln -sf ../${FRENCH}/LC_NUMERIC ${LOCALEDIR}/${link}/LC_NUMERIC
+	ln -sf ../${FRENCH}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
+	ln -sf ../${FRENCH}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
+.endfor
+.for link in ${GERMANLINKS}
+	ln -sf ../${GERMAN}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
+	ln -sf ../${GERMAN}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
+.endfor
+.for link in ${ASCIILINKS}
+	ln -sf ../${link}.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
 .endfor
 
 .include <bsd.prog.mk>
