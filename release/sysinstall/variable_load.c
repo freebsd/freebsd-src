@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: variable_load.c,v 1.5 1997/05/22 22:11:17 pst Exp $
+ * $Id: variable_load.c,v 1.6 1997/06/05 09:48:03 jkh Exp $
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.
@@ -38,14 +38,41 @@
 #include <sys/signal.h>
 #include <sys/fcntl.h>
 
-int
-variableLoad(dialogMenuItem * self)
+/* Add a string to a string list */
+static char **
+string_add(char **list, char *str, int *curr, int *max)
 {
-    int             what = DITEM_RESTORE;
+
+    if (*curr == *max) {
+	*max += 20;
+	list = (char **)realloc(list, sizeof(char *) * *max);
+    }
+    list[(*curr)++] = strdup(str);
+    return list;
+}
+
+/* Toss the strings out */
+static void
+strings_free(char **list, int *curr, int *max)
+{
+    int i;
+
+    for (i = 0; i < *curr; i++)
+	free(list[i]);
+    free(list);
+    *curr = *max = 0;
+}
+
+int
+variableLoad(dialogMenuItem *self)
+{
+    int             what = DITEM_RESTORE | DITEM_SUCCESS;
     char            buf[BUFSIZ];
     extern char    *distWanted;
     char           *cp;
     FILE           *fp;
+    int		    i, curr, max;
+    char	  **list;
 
     mediaClose();
     dialog_clear_norefresh();
@@ -55,54 +82,61 @@ variableLoad(dialogMenuItem * self)
 			    "residing on a MSDOS or UFS floppy.");
     if (!cp || !*cp) {
 	variable_unset(VAR_INSTALL_CFG);
-	return DITEM_FAILURE | what;
+	what |= DITEM_FAILURE;
+	return what;
     }
 
-    distWanted = cp = variable_get(VAR_INSTALL_CFG);
-
-    /* Try to open the floppy drive if we can do that first */
+    distWanted = cp;
+    /* Try to open the floppy drive */
     if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
 	msgConfirm("Unable to set media device to floppy.");
 	what |= DITEM_FAILURE;
-	goto terminate_device;
+	mediaClose();
+	return what;
     }
 
     if (!mediaDevice->init(mediaDevice)) {
 	msgConfirm("Unable to mount floppy filesystem.");
 	what |= DITEM_FAILURE;
-	goto terminate_device;
+	mediaClose();
+	return what;
     }
 
     fp = mediaDevice->get(mediaDevice, cp, TRUE);
-    if (!fp) {
+    if (fp) {
+	msgNotify("Loading %s pre-configuration file", cp);
+
+	/* Hint to others that we're running from a script, should they care */
+	variable_set2(VAR_NONINTERACTIVE, "YES");
+
+	/* Now suck in the lot to execute later */
+	curr = max = 0;
+	list = NULL;
+	while (fgets(buf, sizeof buf, fp)) {
+	    if ((cp = strchr(buf, '\n')) != NULL)
+		*cp = '\0';
+	    if (*buf == '\0' || *buf == '#')
+		continue;
+	    list = string_add(list, buf, &curr, &max);
+	}
+	fclose(fp);
+	mediaClose();
+
+	for (i = 0; i < curr; i++) {
+	    if (DITEM_STATUS(dispatchCommand(list[i])) != DITEM_SUCCESS) {
+		msgConfirm("Command `%s' failed - rest of script aborted.\n", buf);
+		what |= DITEM_FAILURE;
+		break;
+	    }
+	}
+	strings_free(list, &curr, &max);
+    }
+    else {
 	msgConfirm("Configuration file '%s' not found.", cp);
 	variable_unset(VAR_INSTALL_CFG);
 	what |= DITEM_FAILURE;
-	goto terminate_device;
+	mediaClose();
     }
-
-    msgNotify("Loading %s pre-configuration file", cp);
-
-    /* Hint to others that we're running from a script, should they care */
-    variable_set2(VAR_NONINTERACTIVE, "YES");
-    while (fgets(buf, sizeof buf, fp)) {
-	if ((cp = strchr(buf, '\n')) != NULL)
-	    *cp = '\0';
-	if (*buf == '\0' || *buf == '#')
-	    continue;
-	if (DITEM_STATUS(dispatchCommand(buf)) != DITEM_SUCCESS) {
-	    msgConfirm("Command `%s' failed - rest of script aborted.\n", buf);
-	    what |= DITEM_FAILURE;
-	    goto terminate_file;
-	}
-    }
-    what |= DITEM_SUCCESS;
-
-terminate_file:
-    fclose(fp);
-
-terminate_device:
-    mediaClose();
 
     variable_unset(VAR_NONINTERACTIVE);
     return what;
