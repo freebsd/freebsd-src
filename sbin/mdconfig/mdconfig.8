@@ -55,7 +55,6 @@
 .Fl o
 .Oo Cm no Oc Ns Ar option
 .Oc
-.Op Fl b Ar baseaddress
 .Op Fl s Ar size
 .Op Fl f Ar file
 .Op Fl u Ar unit
@@ -84,11 +83,6 @@ Select the type of the memory disk.
 Storage for this type of memory disk is allocated with
 .Xr malloc 9 .
 This limits the size to the malloc bucket limit in the kernel.
-.It Cm preload
-This type represents memory disks which are backed by memory outside
-the kernels normal address space.
-These can be instantiated automatically by objects loaded by the
-bootloader or configured on the fly.
 .It Cm vnode
 A file specified with 
 .Fl f Ar file
@@ -96,10 +90,6 @@ becomes the backingstore for this memory disk.
 .It Cm swap
 swapspace is used to back this memory disk.
 .El
-.It Fl b Ar baseaddress
-Starting address in kernel virtual space of the memory to be used for a
-.Cm preload
-type disk.
 .It Fl f Ar file
 Filename to use for the vnode type memory disk.
 .It Fl s Ar size
@@ -175,15 +165,6 @@ tunefs -n enable /dev/md10c
 mount /dev/md10c /tmp
 chmod 1777 /tmp
 .Ed
-.Pp
-It is practically impossible to give a universal example of the
-.Cm preload
-type of disk, it is mainly useful in the embedded systems market,
-but to give a feel for how it works:
-On most standard PC architecture machines this will create a disk
-backed by the BIOS ROM:
-.Pp
-.Dl mdconfig -a -t preload -s 128k -b 0xc00fe000
 .Sh SEE ALSO
 .Xr md 4 ,
 .Xr disklabel 8 ,
