@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.6 1994/08/18 09:16:21 davidg Exp $
+ * $Id: tty.c,v 1.7 1994/10/02 17:35:29 phk Exp $
  */
 
 #include <sys/param.h>
@@ -819,6 +819,9 @@ ttioctl(tp, cmd, data, flag)
 		else
 			CLR(t->c_lflag, EXTPROC);
 		tp->t_lflag = t->c_lflag | ISSET(tp->t_lflag, PENDIN);
+		if (t->c_cc[VMIN] != tp->t_cc[VMIN] ||
+		    t->c_cc[VTIME] != tp->t_cc[VTIME])
+			ttwakeup(tp);
 		bcopy(t->c_cc, tp->t_cc, sizeof(t->c_cc));
 		splx(s);
 		break;
@@ -954,8 +957,11 @@ ttnread(tp)
 	if (ISSET(tp->t_lflag, PENDIN))
 		ttypend(tp);
 	nread = tp->t_canq.c_cc;
-	if (!ISSET(tp->t_lflag, ICANON))
+	if (!ISSET(tp->t_lflag, ICANON)) {
 		nread += tp->t_rawq.c_cc;
+		if (nread < tp->t_cc[VMIN] && tp->t_cc[VTIME] == 0)
+			nread = 0;
+	}
 	return (nread);
 }
 
@@ -1219,24 +1225,31 @@ ttread(tp, uio, flag)
 {
 	register struct clist *qp;
 	register int c;
-	register long lflag;
-	register u_char *cc = tp->t_cc;
+	register tcflag_t lflag;
+	register cc_t *cc = tp->t_cc;
 	register struct proc *p = curproc;
-	int s, first, error = 0;
+	int s, first, error = 0, carrier;
+	int has_stime = 0, last_cc = 0;
+	long slp = 0;		/* XXX this should be renamed `timo'. */
 
-loop:	lflag = tp->t_lflag;
+loop:
 	s = spltty();
+	lflag = tp->t_lflag;
 	/*
 	 * take pending input first
 	 */
-	if (ISSET(lflag, PENDIN))
+	if (ISSET(lflag, PENDIN)) {
 		ttypend(tp);
-	splx(s);
+		splx(s);	/* reduce latency */
+		s = spltty();
+		lflag = tp->t_lflag;	/* XXX ttypend() clobbers it */
+	}
 
 	/*
 	 * Hang process if it's in the background.
 	 */
 	if (isbackground(p, tp)) {
+		splx(s);
 		if ((p->p_sigignore & sigmask(SIGTTIN)) ||
 		   (p->p_sigmask & sigmask(SIGTTIN)) ||
 		    p->p_flag & P_PPWAIT || p->p_pgrp->pg_jobc == 0)
@@ -1256,34 +1269,134 @@ loop:	lflag = tp->t_lflag;
 	 */
 	qp = ISSET(lflag, ICANON) ? &tp->t_canq : &tp->t_rawq;
 
+	if (flag & IO_NDELAY) {
+		if (qp->c_cc > 0)
+			goto read;
+		carrier = ISSET(tp->t_state, TS_CARR_ON) ||
+		    ISSET(tp->t_cflag, CLOCAL);
+		if (!carrier && ISSET(tp->t_state, TS_ISOPEN) ||
+		    !ISSET(lflag, ICANON) && cc[VMIN] == 0) {
+			splx(s);
+			return (0);
+		}
+		splx(s);
+		return (EWOULDBLOCK);
+	}
+	if (!ISSET(lflag, ICANON)) {
+		int m = cc[VMIN];
+		long t = cc[VTIME];
+		struct timeval stime, timecopy;
+		int x;
+
+		/*
+		 * Check each of the four combinations.
+		 * (m > 0 && t == 0) is the normal read case.
+		 * It should be fairly efficient, so we check that and its
+		 * companion case (m == 0 && t == 0) first.
+		 * For the other two cases, we compute the target sleep time
+		 * into slp.
+		 */
+		if (t == 0) {
+			if (qp->c_cc < m)
+				goto sleep;
+			if (qp->c_cc > 0)
+				goto read;
+
+			/* m, t and qp->c_cc are all 0.  0 is enough input. */
+			splx(s);
+			return (0);
+		}
+		t *= 100000;		/* time in us */
+#define diff(t1, t2) (((t1).tv_sec - (t2).tv_sec) * 1000000 + \
+			 ((t1).tv_usec - (t2).tv_usec))
+		if (m > 0) {
+			if (qp->c_cc <= 0)
+				goto sleep;
+			if (qp->c_cc >= m)
+				goto read;
+			x = splclock();
+			timecopy = time;
+			splx(x);
+			if (!has_stime) {
+				/* first character, start timer */
+				has_stime = 1;
+				stime = timecopy;
+				slp = t;
+			} else if (qp->c_cc > last_cc) {
+				/* got a character, restart timer */
+				stime = timecopy;
+				slp = t;
+			} else {
+				/* nothing, check expiration */
+				slp = t - diff(timecopy, stime);
+				if (slp <= 0)
+					goto read;
+			}
+			last_cc = qp->c_cc;
+		} else {	/* m == 0 */
+			if (qp->c_cc > 0)
+				goto read;
+			x = splclock();
+			timecopy = time;
+			splx(x);
+			if (!has_stime) {
+				has_stime = 1;
+				stime = timecopy;
+				slp = t;
+			} else {
+				slp = t - diff(timecopy, stime);
+				if (slp <= 0) {
+					/* Timed out, but 0 is enough input. */
+					splx(s);
+					return (0);
+				}
+			}
+		}
+#undef diff
+		/*
+		 * Rounding down may make us wake up just short
+		 * of the target, so we round up.
+		 * The formula is ceiling(slp * hz/1000000).
+		 * 32-bit arithmetic is enough for hz < 169.
+		 * XXX see hzto() for how to avoid overflow if hz
+		 * is large (divide by `tick' and/or arrange to
+		 * use hzto() if hz is large).
+		 */
+		slp = (long) (((u_long)slp * hz) + 999999) / 1000000;
+		goto sleep;
+	}
+
 	/*
 	 * If there is no input, sleep on rawq
 	 * awaiting hardware receipt and notification.
 	 * If we have data, we don't need to check for carrier.
 	 */
-	s = spltty();
 	if (qp->c_cc <= 0) {
-		int carrier;
-
+sleep:
 		carrier = ISSET(tp->t_state, TS_CARR_ON) ||
 		    ISSET(tp->t_cflag, CLOCAL);
 		if (!carrier && ISSET(tp->t_state, TS_ISOPEN)) {
 			splx(s);
 			return (0);	/* EOF */
 		}
-		if (flag & IO_NDELAY) {
-			splx(s);
-			return (EWOULDBLOCK);
-		}
 		error = ttysleep(tp, &tp->t_rawq, TTIPRI | PCATCH,
-		    carrier ? ttyin : ttopen, 0);
+		    carrier ? ttyin : ttopen, (int)slp);
 		splx(s);
-		if (error)
+		if (error == EWOULDBLOCK)
+			error = 0;
+		else if (error)
 			return (error);
+		/*
+		 * XXX what happens if another process eats some input
+		 * while we are asleep (not just here)?  It would be
+		 * safest to detect changes and reset our state variables
+		 * (has_stime and last_cc).
+		 */
+		slp = 0;
 		goto loop;
 	}
+read:
 	splx(s);
-
 	/*
 	 * Input present, check for input mapping and processing.
 	 */
