@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.113 1999/02/06 07:22:21 dillon Exp $
+ * $Id: swap_pager.c,v 1.114 1999/02/18 19:57:33 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -106,7 +106,8 @@
 
 extern int vm_swap_size;	/* number of free swap blocks, in pages */
 
-int swap_pager_full;		/* swap space exhaustion (w/ hysteresis)*/
+int swap_pager_full;		/* swap space exhaustion (task killing) */
+static int swap_pager_almost_full; /* swap space exhaustion (w/ hysteresis)*/
 static int nsw_rcount;		/* free read buffers			*/
 static int nsw_wcount_sync;	/* limit write buffers / synchronous	*/
 static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
@@ -184,8 +185,8 @@ struct pagerops swappagerops = {
 
 int dmmax;
 static int dmmax_mask;
-int nswap_lowat = 128;		/* in pages, swap_pager_full warning	*/
-int nswap_hiwat = 512;		/* in pages, swap_pager_full warning	*/
+int nswap_lowat = 128;		/* in pages, swap_pager_almost_full warn */
+int nswap_hiwat = 512;		/* in pages, swap_pager_almost_full warn */
 
 static __inline void	swp_sizecheck __P((void));
 static void	swp_pager_sync_iodone __P((struct buf *bp));
@@ -210,8 +211,10 @@ static daddr_t swp_pager_meta_ctl __P((vm_object_t, vm_pindex_t, int));
 /*
  * SWP_SIZECHECK() -	update swap_pager_full indication
  *	
- *	update the swap_pager_full indication and warn when we are
- *	about to run out of swap space.
+ *	update the swap_pager_almost_full indication and warn when we are
+ *	about to run out of swap space, using lowat/hiwat hysteresis.
+ *
+ *	Clear swap_pager_full ( task killing ) indication when lowat is met.
  *
  *	No restrictions on call
  *	This routine may not block.
@@ -222,12 +225,14 @@ static __inline void
 swp_sizecheck()
 {
 	if (vm_swap_size < nswap_lowat) {
-		if (swap_pager_full == 0) {
+		if (swap_pager_almost_full == 0) {
 			printf("swap_pager: out of swap space\n");
-			swap_pager_full = 1;
+			swap_pager_almost_full = 1;
 		}
-	} else if (vm_swap_size > nswap_hiwat) {
+	} else {
 		swap_pager_full = 0;
+		if (vm_swap_size > nswap_hiwat)
+			swap_pager_almost_full = 0;
 	}
 }
 
@@ -480,6 +485,7 @@ swp_pager_getswapspace(npages)
 		if (swap_pager_full != 2) {
 			printf("swap_pager_getswapspace: failed\n");
 			swap_pager_full = 2;
+			swap_pager_almost_full = 1;
 		}
 	} else {
 		vm_swap_size -= npages;
