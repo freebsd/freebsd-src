@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.54 1998/06/08 08:50:43 bde Exp $
+ * $Id: wcd.c,v 1.55 1998/06/25 11:27:20 phk Exp $
  */
 
 #include "wdc.h"
@@ -49,7 +49,7 @@ static	d_strategy_t	wcdstrategy;
 static struct cdevsw wcd_cdevsw;
 static struct bdevsw wcd_bdevsw = 
 	{ wcdopen,	wcdclose,	wcdstrategy,	wcdioctl,	/*19*/
-	  nodump,	nopsize,	0,	"wcd",	&wcd_cdevsw,	-1 };
+	  nodump,	nopsize,	D_DISK,	"wcd",	&wcd_cdevsw,	-1 };
 
 #ifndef ATAPI_STATIC
 static
