@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.9 1998/11/13 09:39:37 dfr Exp $
+ *	$Id: subr_bus.c,v 1.10 1998/11/14 21:58:51 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -420,6 +420,9 @@ devclass_add_device(devclass_t dc, device_t dev)
 static int
 devclass_delete_device(devclass_t dc, device_t dev)
 {
+    if (!dc || !dev)
+	return 0;
+
     PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
 
     if (dev->devclass != dc
@@ -508,7 +511,10 @@ device_add_child(device_t dev, const char *name, int unit, void *ivars)
 
     child = make_device(dev, name, unit, ivars);
 
-    TAILQ_INSERT_TAIL(&dev->children, child, link);
+    if (child)
+	TAILQ_INSERT_TAIL(&dev->children, child, link);
+    else
+	PDEBUG(("%s failed", name));
 
     return child;
 }
@@ -798,7 +804,7 @@ int
 device_probe_and_attach(device_t dev)
 {
     device_t bus = dev->parent;
-    int error;
+    int error = 0;
 
     if (dev->state >= DS_ALIVE)
 	return 0;
@@ -822,7 +828,7 @@ device_probe_and_attach(device_t dev)
 	    printf("not probed (disabled)\n");
     }
 
-    return 0;
+    return error;
 }
 
 int
