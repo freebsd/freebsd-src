@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.11.2.2 1997/04/01 18:07:11 pst Exp $";
+	"$Id: mountd.c,v 1.11.2.3 1997/04/09 20:31:33 guido Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -1717,7 +1717,7 @@ get_net(cp, net, maskflg)
 	struct in_addr inetaddr, inetaddr2;
 	char *name;
 
-	if (np = getnetbyname(cp))
+	if (!maskflg && (np = getnetbyname(cp)))
 		inetaddr = inet_makeaddr(np->n_net, 0);
 	else if (isdigit(*cp)) {
 		if ((netaddr = inet_network(cp)) == -1)
