@@ -206,11 +206,9 @@ g_slice_start(struct bio *bp)
 void
 g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
-	struct g_mbr_softc *mp;
 	struct g_slicer *gsp;
 
 	gsp = gp->softc;
-	mp = gsp->softc;
 	if (gp != NULL && (pp == NULL && cp == NULL)) {
 		sbuf_printf(sb, "%s<frontstuff>%llu</frontstuff>\n",
 		    indent, (unsigned long long)gsp->frontstuff);
