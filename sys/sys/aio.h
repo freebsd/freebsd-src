@@ -133,8 +133,8 @@ __END_DECLS
 #define AIOCBLIST_DONE          0x10
 
 struct aiocblist {
-        TAILQ_ENTRY	(aiocblist) list;	/* List of jobs */
-        TAILQ_ENTRY	(aiocblist) plist;	/* List of jobs for proc */
+        TAILQ_ENTRY(aiocblist) list;	/* List of jobs */
+        TAILQ_ENTRY(aiocblist) plist;	/* List of jobs for proc */
         int	jobflags;
         int	jobstate;
         int	inputcharge, outputcharge;

@@ -161,7 +161,7 @@ struct aiothreadlist {
 	int aiothreadflags;			/* AIO proc flags */
 	TAILQ_ENTRY(aiothreadlist) list;	/* List of processes */
 	struct thread *aiothread;		/* The AIO thread */
-	TAILQ_HEAD (,aiocblist) jobtorun;	/* suggested job to run */
+	TAILQ_HEAD(,aiocblist) jobtorun;	/* suggested job to run */
 };
 
 /*
@@ -174,7 +174,7 @@ struct aio_liojob {
 	int	lioj_queue_count;
 	int	lioj_queue_finished_count;
 	struct	sigevent lioj_signal;	/* signal on all I/O done */
-	TAILQ_ENTRY	(aio_liojob) lioj_list;
+	TAILQ_ENTRY(aio_liojob) lioj_list;
 	struct	kaioinfo *lioj_ki;
 };
 #define	LIOJ_SIGNAL		0x1	/* signal on all done (lio) */
@@ -194,12 +194,12 @@ struct kaioinfo {
 	int	kaio_buffer_count;	/* number of physio buffers */
 	int	kaio_buffer_finished_count; /* count of I/O done */
 	struct 	proc *kaio_p;		/* process that uses this kaio block */
-	TAILQ_HEAD (,aio_liojob) kaio_liojoblist; /* list of lio jobs */
-	TAILQ_HEAD (,aiocblist)	kaio_jobqueue;	/* job queue for process */
-	TAILQ_HEAD (,aiocblist)	kaio_jobdone;	/* done queue for process */
-	TAILQ_HEAD (,aiocblist)	kaio_bufqueue;	/* buffer job queue for process */
-	TAILQ_HEAD (,aiocblist)	kaio_bufdone;	/* buffer done queue for process */
-	TAILQ_HEAD (,aiocblist) kaio_sockqueue; /* queue for aios waiting on sockets */
+	TAILQ_HEAD(,aio_liojob) kaio_liojoblist; /* list of lio jobs */
+	TAILQ_HEAD(,aiocblist) kaio_jobqueue;	/* job queue for process */
+	TAILQ_HEAD(,aiocblist) kaio_jobdone;	/* done queue for process */
+	TAILQ_HEAD(,aiocblist) kaio_bufqueue;	/* buffer job queue for process */
+	TAILQ_HEAD(,aiocblist) kaio_bufdone;	/* buffer done queue for process */
+	TAILQ_HEAD(,aiocblist) kaio_sockqueue;	/* queue for aios waiting on sockets */
 };
 
 #define KAIO_RUNDOWN	0x1	/* process is being run down */
@@ -288,11 +288,11 @@ aio_onceonly(void)
 	TAILQ_INIT(&aio_activeproc);
 	TAILQ_INIT(&aio_jobs);
 	TAILQ_INIT(&aio_bufjobs);
-	kaio_zone = zinit("AIO", sizeof (struct kaioinfo), 0, 0, 1);
-	aiop_zone = zinit("AIOP", sizeof (struct aiothreadlist), 0, 0, 1);
-	aiocb_zone = zinit("AIOCB", sizeof (struct aiocblist), 0, 0, 1);
-	aiol_zone = zinit("AIOL", AIO_LISTIO_MAX * sizeof (int), 0, 0, 1);
-	aiolio_zone = zinit("AIOLIO", AIO_LISTIO_MAX * sizeof (struct
+	kaio_zone = zinit("AIO", sizeof(struct kaioinfo), 0, 0, 1);
+	aiop_zone = zinit("AIOP", sizeof(struct aiothreadlist), 0, 0, 1);
+	aiocb_zone = zinit("AIOCB", sizeof(struct aiocblist), 0, 0, 1);
+	aiol_zone = zinit("AIOL", AIO_LISTIO_MAX * sizeof(int), 0, 0, 1);
+	aiolio_zone = zinit("AIOLIO", AIO_LISTIO_MAX * sizeof(struct
 	    aio_liojob), 0, 0, 1);
 	aiod_timeout = AIOD_TIMEOUT_DEFAULT;
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
