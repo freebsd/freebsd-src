@@ -13,3 +13,4 @@ OFW_PCI_DEBUG		opt_ofw_pci.h
 IOMMU_DEBUG		opt_iommu.h
 # Debug IOMMU inserts/removes using diagnostic accesses. Very loud.
 IOMMU_DIAG		opt_iommu.h
+PMAP_STATS		opt_pmap.h
