@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
- *	$Id: ip.h,v 1.13 1997/12/19 23:33:08 bde Exp $
+ *	$Id: ip.h,v 1.14 1998/02/26 08:31:52 dima Exp $
  */
 
 #ifndef _NETINET_IP_H_
@@ -51,11 +51,11 @@ struct ip {
 	u_char	ip_vhl;			/* version << 4 | header length >> 2 */
 #else
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_char	ip_hl:4,		/* header length */
+	u_int	ip_hl:4,		/* header length */
 		ip_v:4;			/* version */
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_char	ip_v:4,			/* version */
+	u_int	ip_v:4,			/* version */
 		ip_hl:4;		/* header length */
 #endif
 #endif /* not _IP_VHL */
@@ -141,11 +141,11 @@ struct	ip_timestamp {
 	u_char	ipt_len;		/* size of structure (variable) */
 	u_char	ipt_ptr;		/* index of current entry */
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_char	ipt_flg:4,		/* flags, see below */
+	u_int	ipt_flg:4,		/* flags, see below */
 		ipt_oflw:4;		/* overflow counter */
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_char	ipt_oflw:4,		/* overflow counter */
+	u_int	ipt_oflw:4,		/* overflow counter */
 		ipt_flg:4;		/* flags, see below */
 #endif
 	union ipt_timestamp {
