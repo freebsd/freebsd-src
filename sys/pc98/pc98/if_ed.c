@@ -1923,14 +1923,24 @@ ed_probe_SIC98(isa_dev)
 	/* Reset card to force it into a known state. */
 	outb(sc->asic_addr, 0x00);
 	DELAY(100);
-	outb(sc->asic_addr, 0x94);
-	DELAY(100);
-	outb(sc->asic_addr, 0x94);
+	if (ED_TYPE98SUB(isa_dev->id_flags) == 0) {
+		/* SIC-98/SIU-98 */
+		outb(sc->asic_addr, 0x94);
+		DELAY(100);
+		outb(sc->asic_addr, 0x94);
+	} else {
+		/* SIU-98-D */
+		outb(sc->asic_addr, 0x80);
+		DELAY(100);
+		outb(sc->asic_addr, 0x94);
+		DELAY(100);
+		outb(sc->asic_addr, 0x9e);
+	}
 	DELAY(100);
 
 	/* Here we check the card ROM, if the checksum passes, and the
 	 * type code and ethernet address check out, then we know we have
-	 * a SIC card.
+	 * an SIC card.
 	 */
 	sum = sc->mem_start[6 * 2];
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
@@ -1954,7 +1964,10 @@ ed_probe_SIC98(isa_dev)
 	/*
 	 * SIC RAM page 0x0000-0x3fff(or 0x7fff)
 	 */
-	outb(sc->asic_addr, 0x90);
+	if (ED_TYPE98SUB(isa_dev->id_flags) == 0)
+		outb(sc->asic_addr, 0x90);
+	else
+		outb(sc->asic_addr, 0x8e);
 	DELAY(100);
 
 	/*
