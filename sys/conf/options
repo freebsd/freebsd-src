@@ -86,7 +86,13 @@ DDB_TRACE
 DDB_UNATTENDED
 GDB_REMOTE_CHAT	opt_ddb.h
 GDBSPEED	opt_ddb.h
-GEOM
+NO_GEOM		opt_geom.h
+GEOM_AES	opt_geom.h
+GEOM_BSD	opt_geom.h
+GEOM_GPT	opt_geom.h
+GEOM_MBR	opt_geom.h
+GEOM_PC98	opt_geom.h
+GEOM_SUNLABEL	opt_geom.h
 HW_WDOG
 KSTACK_PAGES
 KSTACK_MAX_PAGES

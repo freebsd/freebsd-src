@@ -135,6 +135,9 @@ dev/syscons/scterm.c		optional	sc
 dev/syscons/scterm-dumb.c	optional	sc
 dev/syscons/scvidctl.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
+geom/geom_mbr.c			standard
+geom/geom_bsd.c			standard
+geom/geom_pc98.c		standard
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate \
 	warning "kernel contains GPL contaminated math emulator"
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
