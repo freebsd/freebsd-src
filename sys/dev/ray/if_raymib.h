@@ -28,16 +28,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_rayreg.h,v 1.2 2000/02/20 14:56:17 dmlb Exp $
+ * $Id: if_raymib.h,v 1.1 2000/02/27 19:47:06 dmlb Exp $
  *
  */
-
-#define	RAY_MAXSSIDLEN	32
 
 struct ray_mib_common_head {			/*Offset*/	/*Size*/
     u_int8_t	mib_net_type;			/*00*/ 
     u_int8_t	mib_ap_status;			/*01*/
-    u_int8_t	mib_ssid[RAY_MAXSSIDLEN];	/*02*/		/*20*/
+    u_int8_t	mib_ssid[IEEE80211_NWID_LEN];	/*02*/		/*20*/
     u_int8_t	mib_scan_mode;			/*22*/
     u_int8_t	mib_apm_mode;			/*23*/
     u_int8_t	mib_mac_addr[ETHER_ADDR_LEN];	/*24*/		/*06*/
@@ -144,6 +142,36 @@ struct ray_mib_5 {
 #define mib_test_max_chan	mib_tail.mib_test_max_chan
 
 /*
+ * IOCTL support
+ */
+struct ray_param_req {
+	int		r_failcause;
+	u_int8_t	r_paramid;
+	u_int8_t	r_len;
+	u_int8_t	r_data[256];
+};
+struct ray_stats_req {
+	u_int64_t	rxoverflow;	/* Number of rx overflows	*/
+	u_int64_t	rxcksum;	/* Number of checksum errors	*/
+	u_int64_t	rxhcksum;	/* Number of header checksum errors */
+	u_int8_t	rxnoise;	/* Average receiver level	*/
+};
+#define	RAY_FAILCAUSE_EIDRANGE	1
+#define	RAY_FAILCAUSE_ELENGTH	2
+/* device can possibly return up to 255 */
+#define	RAY_FAILCAUSE_EDEVSTOP	256
+
+#ifdef KERNEL
+#define	RAY_FAILCAUSE_WAITING	257
+#endif
+
+/* Get a param the data is a ray_param_req structure */
+#define	SIOCSRAYPARAM	SIOCSIFGENERIC
+#define	SIOCGRAYPARAM	SIOCGIFGENERIC
+/* Get the error counters the data is a ray_stats_req structure */
+#define	SIOCGRAYSTATS	_IOWR('i', 59, struct ifreq)
+
+/*
  * MIB IDs for the update/report param commands
  */
 #define	RAY_MIB_NET_TYPE			0
@@ -193,6 +221,110 @@ struct ray_mib_5 {
 #define	RAY_MIB_PRIVACY_CAN_JOIN		44
 #define	RAY_MIB_BASIC_RATE_SET			45
 #define	RAY_MIB_MAX				46
+
+/*
+ * Strings for the MIB
+ */
+#define RAY_MIB_STRINGS {		\
+	"NET_TYPE",			\
+	"AP_STATUS",			\
+	"SSID",				\
+	"SCAN_MODE",			\
+	"APM_MODE",			\
+	"MAC_ADDR",			\
+	"FRAG_THRESH",			\
+	"DWELL_TIME",			\
+	"BEACON_PERIOD",		\
+	"DTIM_INTERVAL",		\
+	"MAX_RETRY",			\
+	"ACK_TIMO",			\
+	"SIFS",				\
+	"DIFS",				\
+	"PIFS",				\
+	"RTS_THRESH",			\
+	"SCAN_DWELL",			\
+	"SCAN_MAX_DWELL",		\
+	"ASSOC_TIMO",			\
+	"ADHOC_SCAN_CYCLE",		\
+	"INFRA_SCAN_CYCLE",		\
+	"INFRA_SUPER_SCAN_CYCLE",	\
+	"PROMISC",			\
+	"UNIQ_WORD",			\
+	"SLOT_TIME",			\
+	"ROAM_LOW_SNR_THRESH",		\
+	"LOW_SNR_COUNT",		\
+	"INFRA_MISSED_BEACON_COUNT",	\
+	"ADHOC_MISSED_BEACON_COUNT",	\
+	"COUNTRY_CODE",			\
+	"HOP_SEQ",			\
+	"HOP_SEQ_LEN",			\
+	"CW_MAX",			\
+	"CW_MIN",			\
+	"NOISE_FILTER_GAIN",		\
+	"NOISE_LIMIT_OFFSET",		\
+	"RSSI_THRESH_OFFSET",		\
+	"BUSY_THRESH_OFFSET",		\
+	"SYNC_THRESH",			\
+	"TEST_MODE",			\
+	"TEST_MIN_CHAN",		\
+	"TEST_MAX_CHAN",		\
+	"ALLOW_PROBE_RESP",		\
+	"PRIVACY_MUST_START",		\
+	"PRIVACY_CAN_JOIN",		\
+	"BASIC_RATE_SET"		\
+}
+
+/*
+ * Sizes for each MIB element
+ */
+#define RAY_MIB_SIZES {					\
+	1,	/* RAY_MIB_NET_TYPE */			\
+	1,	/* RAY_MIB_AP_STATUS */			\
+	IEEE80211_NWID_LEN,	/* RAY_MIB_SSID */	\
+	1,	/* RAY_MIB_SCAN_MODE */			\
+	1,	/* RAY_MIB_APM_MODE */			\
+	ETHER_ADDR_LEN,/* RAY_MIB_MAC_ADDR */		\
+	2,	/* RAY_MIB_FRAG_THRESH */		\
+	2,	/* RAY_MIB_DWELL_TIME */		\
+	2,	/* RAY_MIB_BEACON_PERIOD */		\
+	1,	/* RAY_MIB_DTIM_INTERVAL */		\
+	1,	/* RAY_MIB_MAX_RETRY */			\
+	1,	/* RAY_MIB_ACK_TIMO */			\
+	1,	/* RAY_MIB_SIFS */			\
+	1,	/* RAY_MIB_DIFS */			\
+	1,	/* RAY_MIB_PIFS */			\
+	2,	/* RAY_MIB_RTS_THRESH */		\
+	2,	/* RAY_MIB_SCAN_DWELL */		\
+	2,	/* RAY_MIB_SCAN_MAX_DWELL */		\
+	1,	/* RAY_MIB_ASSOC_TIMO */		\
+	1,	/* RAY_MIB_ADHOC_SCAN_CYCLE */		\
+	1,	/* RAY_MIB_INFRA_SCAN_CYCLE */		\
+	1,	/* RAY_MIB_INFRA_SUPER_SCAN_CYCLE */	\
+	1,	/* RAY_MIB_PROMISC */			\
+	2,	/* RAY_MIB_UNIQ_WORD */			\
+	1,	/* RAY_MIB_SLOT_TIME */			\
+	1,	/* RAY_MIB_ROAM_LOW_SNR_THRESH */	\
+	1,	/* RAY_MIB_LOW_SNR_COUNT */		\
+	1,	/* RAY_MIB_INFRA_MISSED_BEACON_COUNT */	\
+	1,	/* RAY_MIB_ADHOC_MISSED_BEACON_COUNT */	\
+	1,	/* RAY_MIB_COUNTRY_CODE */		\
+	1,	/* RAY_MIB_HOP_SEQ */			\
+	1,	/* RAY_MIB_HOP_SEQ_LEN */		\
+	2,	/* RAY_MIB_CW_MAX */			\
+	2,	/* RAY_MIB_CW_MIN */			\
+	1,	/* RAY_MIB_NOISE_FILTER_GAIN */		\
+	1,	/* RAY_MIB_NOISE_LIMIT_OFFSET */	\
+	1,	/* RAY_MIB_RSSI_THRESH_OFFSET */	\
+	1,	/* RAY_MIB_BUSY_THRESH_OFFSET */	\
+	1,	/* RAY_MIB_SYNC_THRESH */		\
+	1,	/* RAY_MIB_TEST_MODE */			\
+	1,	/* RAY_MIB_TEST_MIN_CHAN */		\
+	1,	/* RAY_MIB_TEST_MAX_CHAN */		\
+	1,	/* RAY_MIB_ALLOW_PROBE_RESP */		\
+	1,	/* RAY_MIB_PRIVACY_MUST_START */	\
+	1,	/* RAY_MIB_PRIVACY_CAN_JOIN */		\
+	8	/* RAY_MIB_BASIC_RATE_SET */		\
+}
 
 /*
  * MIB values
