@@ -27,11 +27,9 @@
  *      i4b_iwic - isdn4bsd Winbond W6692 driver
  *      ----------------------------------------
  *
- *      $Id: i4b_iwic_dchan.c,v 1.5 2000/05/29 15:41:42 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Mar  8 16:17:16 2000]
+ *      last edit-date: [Tue Jan 16 13:20:14 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -66,12 +64,8 @@
 
 static void dchan_receive(struct iwic_softc *sc, int ista);
 
-#ifdef NOTDEF
-static void output_bytes(char *prefix, u_char * ptr, int len);
-#endif
-
 /*---------------------------------------------------------------------------*
- *
+ *	initialize D-channel variables and registers
  *---------------------------------------------------------------------------*/
 void
 iwic_dchan_init(struct iwic_softc *sc)
@@ -106,7 +100,7 @@ iwic_dchan_init(struct iwic_softc *sc)
 }
 
 /*---------------------------------------------------------------------------*
- *
+ *	Extended IRQ handler for the D-channel
  *---------------------------------------------------------------------------*/
 void
 iwic_dchan_xirq(struct iwic_softc *sc)
@@ -119,6 +113,7 @@ iwic_dchan_xirq(struct iwic_softc *sc)
 	if (irq_stat & D_EXIR_RDOV)
 	{
 		NDBGL1(L1_I_ERR, "RDOV in state %s", iwic_printstate(sc));
+		IWIC_WRITE(sc, D_CMDR, D_CMDR_RRST);
 	}
 	if (irq_stat & D_EXIR_XDUN)
 	{
@@ -128,6 +123,7 @@ iwic_dchan_xirq(struct iwic_softc *sc)
 	if (irq_stat & D_EXIR_XCOL)
 	{
 		NDBGL1(L1_I_ERR, "XCOL in state %s", iwic_printstate(sc));
+		IWIC_WRITE(sc, D_CMDR, D_CMDR_XRST);
 		sc->sc_dchan.tx_ready = 0;
 	}
 	if (irq_stat & D_EXIR_TIN2)
@@ -226,7 +222,7 @@ iwic_dchan_xfer_irq(struct iwic_softc *sc, int ista)
 }
 
 /*---------------------------------------------------------------------------*
- *
+ *	disable D-channel
  *---------------------------------------------------------------------------*/
 void
 iwic_dchan_disable(struct iwic_softc *sc)
@@ -255,7 +251,7 @@ iwic_dchan_disable(struct iwic_softc *sc)
 }
 
 /*---------------------------------------------------------------------------*
- *
+ *	queue D-channel message for transmission
  *---------------------------------------------------------------------------*/
 int
 iwic_dchan_data_req(struct iwic_softc *sc, struct mbuf *m, int freeflag)
@@ -297,7 +293,7 @@ iwic_dchan_data_req(struct iwic_softc *sc, struct mbuf *m, int freeflag)
 }
 
 /*---------------------------------------------------------------------------*
- *
+ *	allocate an mbuf
  *---------------------------------------------------------------------------*/
 static void
 dchan_get_mbuf(struct iwic_softc *sc, int len)
@@ -313,11 +309,13 @@ dchan_get_mbuf(struct iwic_softc *sc, int len)
 }
 
 /*---------------------------------------------------------------------------*
- *
+ *	D-channel receive data interrupt
  *---------------------------------------------------------------------------*/
 static void
 dchan_receive(struct iwic_softc *sc, int ista)
 {
+	int command = D_CMDR_RACK;
+	
 	if (ista & ISTA_D_RMR)
 	{
 		/* Got 64 bytes in FIFO */
@@ -330,7 +328,7 @@ dchan_receive(struct iwic_softc *sc, int ista)
 		else if ((sc->sc_dchan.ibuf_len + MAX_DFRAME_LEN) >
 			 sc->sc_dchan.ibuf_max_len)
 		{
-/*XXX*/			panic("dchan_receive: not enough space in buffer!\n");
+			panic("dchan_receive: not enough space in buffer!\n");
 		}
 
 		IWIC_RDDFIFO(sc, sc->sc_dchan.ibuf_ptr, 64);
@@ -342,61 +340,69 @@ dchan_receive(struct iwic_softc *sc, int ista)
 	if (ista & ISTA_D_RME)
 	{
 		/* Got end of frame */
-		int hi, lo;
-		int total_frame_len;
 		int status;
-
-		lo = IWIC_READ(sc, D_RBCL);
-		hi = IWIC_READ(sc, D_RBCH);
-		total_frame_len = D_RBC(hi, lo);
-		lo = lo & 0x3f;
-
-		if (lo == 0)
-			lo = IWIC_DCHAN_FIFO_LEN;
-
-		if (!sc->sc_dchan.ibuf)
-		{
-			dchan_get_mbuf(sc, lo);
-		}
-		else if ((sc->sc_dchan.ibuf_len + lo) >
-			 sc->sc_dchan.ibuf_max_len)
-		{
-			panic("dchan_receive: buffer not long enough");
-		}
-
-		IWIC_RDDFIFO(sc, sc->sc_dchan.ibuf_ptr, lo);
-		sc->sc_dchan.ibuf_len += lo;
-		sc->sc_dchan.rx_count += lo;
 
 		status = IWIC_READ(sc, D_RSTA);
 
 		if (status & (D_RSTA_RDOV | D_RSTA_CRCE | D_RSTA_RMB))
 		{
-			NDBGL1(L1_I_ERR, "bad read status 0x%x", status);
+			if (status & D_RSTA_RDOV)
+				NDBGL1(L1_I_ERR, "iwic%d: D-channel Receive Data Overflow", sc->sc_unit);
+			if (status & D_RSTA_CRCE)
+				NDBGL1(L1_I_ERR, "iwic%d: D-channel CRC Error", sc->sc_unit);
+			if (status & D_RSTA_RMB)
+				NDBGL1(L1_I_ERR, "iwic%d: D-channel Receive Message Aborted", sc->sc_unit);
+			command |= D_CMDR_RRST;
 		}
-
-		sc->sc_dchan.ibuf->m_len = sc->sc_dchan.ibuf_len;
-
-		if(sc->sc_trace & TRACE_D_RX)
+		else
 		{
-			i4b_trace_hdr_t hdr;
-			hdr.unit = L0IWICUNIT(sc->sc_unit);
-			hdr.type = TRC_CH_D;
-			hdr.dir = FROM_NT;
-			hdr.count = ++sc->sc_dchan.trace_count;
-			MICROTIME(hdr.time);
-			i4b_l1_trace_ind(&hdr, sc->sc_dchan.ibuf->m_len, sc->sc_dchan.ibuf->m_data);
+			int hi, lo;
+			int total_frame_len;
+	
+			lo = IWIC_READ(sc, D_RBCL);
+			hi = IWIC_READ(sc, D_RBCH);
+			total_frame_len = D_RBC(hi, lo);
+			lo = lo & 0x3f;
+	
+			if (lo == 0)
+				lo = IWIC_DCHAN_FIFO_LEN;
+	
+			if (!sc->sc_dchan.ibuf)
+			{
+				dchan_get_mbuf(sc, lo);
+			}
+			else if ((sc->sc_dchan.ibuf_len + lo) >
+				 sc->sc_dchan.ibuf_max_len)
+			{
+				panic("dchan_receive: buffer not long enough");
+			}
+	
+			IWIC_RDDFIFO(sc, sc->sc_dchan.ibuf_ptr, lo);
+			sc->sc_dchan.ibuf_len += lo;
+			sc->sc_dchan.rx_count += lo;
+	
+			sc->sc_dchan.ibuf->m_len = sc->sc_dchan.ibuf_len;
+	
+			if(sc->sc_trace & TRACE_D_RX)
+			{
+				i4b_trace_hdr_t hdr;
+				hdr.unit = L0IWICUNIT(sc->sc_unit);
+				hdr.type = TRC_CH_D;
+				hdr.dir = FROM_NT;
+				hdr.count = ++sc->sc_dchan.trace_count;
+				MICROTIME(hdr.time);
+				i4b_l1_trace_ind(&hdr, sc->sc_dchan.ibuf->m_len, sc->sc_dchan.ibuf->m_data);
+			}
+			i4b_l1_ph_data_ind(L0IWICUNIT(sc->sc_unit), sc->sc_dchan.ibuf);
+			
+			sc->sc_dchan.ibuf = NULL;
 		}
-
-		i4b_l1_ph_data_ind(L0IWICUNIT(sc->sc_unit), sc->sc_dchan.ibuf);
-		
-		sc->sc_dchan.ibuf = NULL;
 	}
-	IWIC_WRITE(sc, D_CMDR, D_CMDR_RACK);
+	IWIC_WRITE(sc, D_CMDR, command);
 }
 
 /*---------------------------------------------------------------------------*
- *
+ *	transmit D-channel frame
  *---------------------------------------------------------------------------*/
 void
 iwic_dchan_transmit(struct iwic_softc *sc)
@@ -464,29 +470,4 @@ iwic_dchan_transmit(struct iwic_softc *sc)
 	IWIC_WRITE(sc, D_CMDR, cmd);
 }
 
-#ifdef NOTDEF
-/*---------------------------------------------------------------------------*
- *
- *---------------------------------------------------------------------------*/
-static void
-output_bytes(char *prefix, u_char * ptr, int len)
-{
-	char buf[400];
-	char tmp[10];
-	int i;
-
-	sprintf(buf, "%s bytes ", prefix);
-	for (i = 0; i < len; i++)
-	{
-		if (i != (len - 1))
-			sprintf(tmp, "0x%x, ", ptr[i] & 0xff);
-		else
-			sprintf(tmp, "0x%x", ptr[i] & 0xff);
-		strcat(buf, tmp);
-	}
-	strcat(buf, "\n";
-	printf(buf);
-}
-#endif
-
-#endif
+#endif	/* (NIWIC > 0) && (NPCI > 0) */

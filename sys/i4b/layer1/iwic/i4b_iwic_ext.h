@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 2000, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *      i4b_iwic - isdn4bsd Winbond W6692 driver
  *      ----------------------------------------
  *
- *      $Id: i4b_iwic_ext.h,v 1.4 2000/06/02 16:14:36 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jun  2 14:52:10 2000]
+ *      last edit-date: [Sun Jan 21 11:09:14 2001]
  *
  *---------------------------------------------------------------------------*/
 
