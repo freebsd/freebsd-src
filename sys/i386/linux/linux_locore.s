@@ -12,8 +12,7 @@ NON_GPROF_ENTRY(linux_sigcode)
 	movl	$LINUX_SYS_linux_sigreturn,%eax	/* linux_sigreturn() */
 	int	$0x80				/* enter kernel with args on stack */
 	hlt					/* never gets here */
-
-	.align	4				/* long word align */
+	ALIGN_TEXT
 _linux_esigcode:
 
 	.data
