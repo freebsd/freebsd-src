@@ -92,7 +92,7 @@ src-all
 # "secure-supfile" instead.
 #
 # The easiest way to get the export-restricted code is to use the
-# "cvs-crypto" mega-collection.
+# "cvs-crypto" mega-collection.  It does not include "src-crypto-rsa".
 #cvs-crypto
 #
 # These are the individual collections that make up "cvs-crypto".  If
@@ -100,3 +100,7 @@ src-all
 #src-crypto
 #src-secure
 #src-sys-crypto
+#
+# This collection contains the openssl implementation of RSA.  Only request
+# it if you are looking at it for educational purposes or have an RSA license.
+#src-crypto-rsa
