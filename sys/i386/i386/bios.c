@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.1 1997/08/01 06:07:11 msmith Exp $
+ *      $Id: bios.c,v 1.2 1997/08/04 03:29:05 msmith Exp $
  */
 
 /*
@@ -219,7 +219,7 @@ bios_sigsearch(u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs
     while ((sp + sigofs + siglen) < end) {
 	
 	/* compare here */
-	if (!memcmp(sp + sigofs, sig, siglen)) {
+	if (!bcmp(sp + sigofs, sig, siglen)) {
 	    /* convert back to physical address */
 	    return((u_int32_t)BIOS_VADDRTOPADDR(sp));
 	}
