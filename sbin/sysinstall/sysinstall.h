@@ -49,6 +49,7 @@
 #define COPYRIGHT_FILE	"/COPYRIGHT"
 #define README_FILE	"/README"
 #define HELPME_FILE	"/DISKSPACE.FAQ"
+#define RELNOTES_FILE	"/RELNOTES.FreeBSD"
 
 #ifndef EXTERN
 #  define EXTERN extern
