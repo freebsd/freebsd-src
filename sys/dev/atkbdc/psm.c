@@ -92,12 +92,16 @@ __FBSDID("$FreeBSD$");
 
 /* debugging */
 #ifndef PSM_DEBUG
-#define PSM_DEBUG	0	/* logging: 0: none, 1: brief, 2: verbose */
+#define PSM_DEBUG	0	/*
+				 * logging: 0: none, 1: brief, 2: verbose
+				 *          3: sync errors, 4: all packets
+				 */
 #endif
-
-#ifndef PSM_SYNCERR_THRESHOLD1
-#define PSM_SYNCERR_THRESHOLD1	20
-#endif
+#define VLOG(level, args) 	\
+do {				\
+	if (verbose >= level)	\
+		log args;	\
+} while (0)
 
 #ifndef PSM_INPUT_TIMEOUT
 #define PSM_INPUT_TIMEOUT	2000000	/* 2 sec */
@@ -179,7 +183,8 @@ struct psm_softc {		/* Driver status information */
     int		  xold;	/* previous absolute X position */
     int		  yold;	/* previous absolute Y position */
     int		  zmax;	/* maximum pressure value for touchpads */
-    int		  syncerrors; /* XXX: KILL ME! */
+    int		  syncerrors;	/* # of bytes discarded searching for sync */
+    int		  pkterrors;	/* # of packets failed during quaranteen. */
     struct timeval inputtimeout;
     struct timeval lastsoftintr;	/* time of last soft interrupt */
     struct timeval lastinputerr;	/* time last sync error happened */
@@ -383,8 +388,7 @@ enable_aux_dev(KBDC kbdc)
     int res;
 
     res = send_aux_command(kbdc, PSMC_ENABLE_DEV);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm: ENABLE_DEV return code:%04x\n", res);
+    VLOG(2, (LOG_DEBUG, "psm: ENABLE_DEV return code:%04x\n", res));
 
     return (res == PSM_ACK);
 }
@@ -395,8 +399,7 @@ disable_aux_dev(KBDC kbdc)
     int res;
 
     res = send_aux_command(kbdc, PSMC_DISABLE_DEV);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm: DISABLE_DEV return code:%04x\n", res);
+    VLOG(2, (LOG_DEBUG, "psm: DISABLE_DEV return code:%04x\n", res));
 
     return (res == PSM_ACK);
 }
@@ -419,9 +422,8 @@ get_mouse_status(KBDC kbdc, int *status, int flag, int len)
     }
     empty_aux_buffer(kbdc, 5);
     res = send_aux_command(kbdc, cmd);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm: SEND_AUX_DEV_%s return code:%04x\n", 
-	    (flag == 1) ? "DATA" : "STATUS", res);
+    VLOG(2, (LOG_DEBUG, "psm: SEND_AUX_DEV_%s return code:%04x\n", 
+	 (flag == 1) ? "DATA" : "STATUS", res));
     if (res != PSM_ACK)
         return 0;
 
@@ -431,10 +433,8 @@ get_mouse_status(KBDC kbdc, int *status, int flag, int len)
 	    break;
     }
 
-    if (verbose) {
-        log(LOG_DEBUG, "psm: %s %02x %02x %02x\n",
-            (flag == 1) ? "data" : "status", status[0], status[1], status[2]);
-    }
+    VLOG(1, (LOG_DEBUG, "psm: %s %02x %02x %02x\n",
+         (flag == 1) ? "data" : "status", status[0], status[1], status[2]));
 
     return i;
 }
@@ -447,8 +447,7 @@ get_aux_id(KBDC kbdc)
 
     empty_aux_buffer(kbdc, 5);
     res = send_aux_command(kbdc, PSMC_SEND_DEV_ID);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm: SEND_DEV_ID return code:%04x\n", res);
+    VLOG(2, (LOG_DEBUG, "psm: SEND_DEV_ID return code:%04x\n", res));
     if (res != PSM_ACK)
 	return (-1);
 
@@ -456,8 +455,7 @@ get_aux_id(KBDC kbdc)
     DELAY(10000);
 
     id = read_aux_data(kbdc);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm: device ID: %04x\n", id);
+    VLOG(2, (LOG_DEBUG, "psm: device ID: %04x\n", id));
 
     return id;
 }
@@ -468,8 +466,7 @@ set_mouse_sampling_rate(KBDC kbdc, int rate)
     int res;
 
     res = send_aux_command_and_data(kbdc, PSMC_SET_SAMPLING_RATE, rate);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm: SET_SAMPLING_RATE (%d) %04x\n", rate, res);
+    VLOG(2, (LOG_DEBUG, "psm: SET_SAMPLING_RATE (%d) %04x\n", rate, res));
 
     return ((res == PSM_ACK) ? rate : -1);
 }
@@ -489,9 +486,8 @@ set_mouse_scaling(KBDC kbdc, int scale)
 	break;
     }
     res = send_aux_command(kbdc, scale);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm: SET_SCALING%s return code:%04x\n", 
-	    (scale == PSMC_SET_SCALING21) ? "21" : "11", res);
+    VLOG(2, (LOG_DEBUG, "psm: SET_SCALING%s return code:%04x\n", 
+	 (scale == PSMC_SET_SCALING21) ? "21" : "11", res));
 
     return (res == PSM_ACK);
 }
@@ -503,8 +499,7 @@ set_mouse_resolution(KBDC kbdc, int val)
     int res;
 
     res = send_aux_command_and_data(kbdc, PSMC_SET_RESOLUTION, val);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm: SET_RESOLUTION (%d) %04x\n", val, res);
+    VLOG(2, (LOG_DEBUG, "psm: SET_RESOLUTION (%d) %04x\n", val, res));
 
     return ((res == PSM_ACK) ? val : -1);
 }
@@ -519,8 +514,7 @@ set_mouse_mode(KBDC kbdc)
     int res;
 
     res = send_aux_command(kbdc, PSMC_SET_STREAM_MODE);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm: SET_STREAM_MODE return code:%04x\n", res);
+    VLOG(2, (LOG_DEBUG, "psm: SET_STREAM_MODE return code:%04x\n", res));
 
     return (res == PSM_ACK);
 }
@@ -626,10 +620,8 @@ recover_from_error(KBDC kbdc)
     if (!test_controller(kbdc)) 
         log(LOG_ERR, "psm: keyboard controller failed.\n");
     /* if there isn't a keyboard in the system, the following error is OK */
-    if (test_kbd_port(kbdc) != 0) {
-	if (verbose)
-	    log(LOG_ERR, "psm: keyboard port failed.\n");
-    }
+    if (test_kbd_port(kbdc) != 0)
+	VLOG(1, (LOG_ERR, "psm: keyboard port failed.\n"));
 #endif
 }
 
@@ -827,9 +819,8 @@ reinitialize(struct psm_softc *sc, int doinit)
     /* save the current controller command byte */
     empty_both_buffers(sc->kbdc, 10);
     c = get_controller_command_byte(sc->kbdc);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm%d: current command byte: %04x (reinitialize).\n", 
-	    sc->unit, c);
+    VLOG(2, (LOG_DEBUG, "psm%d: current command byte: %04x (reinitialize).\n", 
+	 sc->unit, c));
 
     /* enable the aux port but disable the aux interrupt and the keyboard */
     if ((c == -1) || !set_controller_command_byte(sc->kbdc,
@@ -851,6 +842,8 @@ reinitialize(struct psm_softc *sc, int doinit)
     }
     flushpackets(sc);
     sc->syncerrors = 0;
+    sc->pkterrors = 0;
+    memset(&sc->lastinputerr, 0, sizeof(sc->lastinputerr));
 
     /* try to detect the aux device; are you still there? */
     err = 0;
@@ -1174,7 +1167,7 @@ psmprobe(device_t dev)
     else
         sc->dflt_mode.syncmask[0] = vendortype[i].syncmask;
     if (sc->config & PSM_CONFIG_FORCETAP)
-        sc->mode.syncmask[0] &= ~MOUSE_PS2_TAP;
+        sc->dflt_mode.syncmask[0] &= ~MOUSE_PS2_TAP;
     sc->dflt_mode.syncmask[1] = 0;	/* syncbits */
     sc->mode = sc->dflt_mode;
     sc->mode.packetsize = vendortype[i].packetsize;
@@ -1355,6 +1348,7 @@ psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
     /* empty input buffer */
     flushpackets(sc);
     sc->syncerrors = 0;
+    sc->pkterrors = 0;
 
     /* don't let timeout routines in the keyboard driver to poll the kbdc */
     if (!kbdc_lock(sc->kbdc, TRUE))
@@ -1455,8 +1449,7 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
         }
 
         if (get_mouse_status(sc->kbdc, stat, 0, 3) < 3)
-            log(LOG_DEBUG, "psm%d: failed to get status (psmclose).\n", 
-		unit);
+            log(LOG_DEBUG, "psm%d: failed to get status (psmclose).\n", unit);
     }
 
     if (!set_controller_command_byte(sc->kbdc, 
@@ -1752,6 +1745,10 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
     case MOUSE_GETMODE:
 	s = spltty();
         *(mousemode_t *)addr = sc->mode;
+	if ((sc->flags & PSM_NEED_SYNCBITS) != 0) {
+	    ((mousemode_t *)addr)->syncmask[0] = 0;
+	    ((mousemode_t *)addr)->syncmask[1] = 0;
+	}
         ((mousemode_t *)addr)->resolution = 
 	    MOUSE_RES_LOW - sc->mode.resolution;
 	switch (sc->mode.level) {
@@ -1999,8 +1996,7 @@ psmtimeout(void *arg)
     sc = (struct psm_softc *)arg;
     s = spltty();
     if (sc->watchdog && kbdc_lock(sc->kbdc, TRUE)) {
-	if (verbose >= 4)
-	    log(LOG_DEBUG, "psm%d: lost interrupt?\n", sc->unit);
+	VLOG(4, (LOG_DEBUG, "psm%d: lost interrupt?\n", sc->unit));
 	psmintr(sc);
 	kbdc_lock(sc->kbdc, FALSE);
     }
@@ -2025,6 +2021,13 @@ SYSCTL_INT(_debug, OID_AUTO, psmsecs, CTLFLAG_RW, &psmsecs, 0, "");
 static int psmusecs = 500000;
 SYSCTL_INT(_debug, OID_AUTO, psmusecs, CTLFLAG_RW, &psmusecs, 0, "");
 
+static int psmpkterrthresh = 2;
+SYSCTL_INT(_debug, OID_AUTO, psmpkterrthresh, CTLFLAG_RW,
+    &psmpkterrthresh, 0, "");
+
+SYSCTL_INT(_debug, OID_AUTO, psmloglevel, CTLFLAG_RW, &verbose, 0, "");
+
+
 static void
 psmintr(void *arg)
 {
@@ -2032,7 +2035,6 @@ psmintr(void *arg)
     struct timeval now;
     int c;
     packetbuf_t *pb;
-    int haderror = 0;
 
 
     /* read until there is nothing to read */
@@ -2045,11 +2047,11 @@ psmintr(void *arg)
     
 	getmicrouptime(&now);
 	if ((pb->inputbytes > 0) && timevalcmp(&now, &sc->inputtimeout, >)) {
-#if DEBUG
-	    log(LOG_DEBUG, "psmintr: delay too long; resetting byte count\n");
-#endif
+	    VLOG(3, (LOG_DEBUG, "psmintr: delay too long; "
+		 "resetting byte count\n"));
 	    pb->inputbytes = 0;
 	    sc->syncerrors = 0;
+	    sc->pkterrors = 0;
 	}
 	sc->inputtimeout.tv_sec = PSM_INPUT_TIMEOUT/1000000;
 	sc->inputtimeout.tv_usec = PSM_INPUT_TIMEOUT%1000000;
@@ -2059,66 +2061,89 @@ psmintr(void *arg)
         if (pb->inputbytes < sc->mode.packetsize) 
 	    continue;
 
-#if DEBUG
-        log(LOG_DEBUG, "psmintr: %02x %02x %02x %02x %02x %02x\n",
-	    pb->ipacket[0], pb->ipacket[1], pb->ipacket[2],
-	    pb->ipacket[3], pb->ipacket[4], pb->ipacket[5]);
-#endif
+	VLOG(4, (LOG_DEBUG, "psmintr: %02x %02x %02x %02x %02x %02x\n",
+	     pb->ipacket[0], pb->ipacket[1], pb->ipacket[2],
+	     pb->ipacket[3], pb->ipacket[4], pb->ipacket[5]));
 
 	c = pb->ipacket[0];
 
-	if ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
-	    if ((sc->flags & PSM_NEED_SYNCBITS) != 0) {
-		sc->mode.syncmask[1] = (c & sc->mode.syncmask[0]);
-		sc->flags &= ~PSM_NEED_SYNCBITS;
-		goto valid_sync;
-	    }
-#if DEBUG
-            log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x) %d"
-		" cmds since last error.\n", 
-		c & sc->mode.syncmask[0], sc->mode.syncmask[1],
-		sc->cmdcount - sc->lasterr);
-#endif
-	    haderror = 1;
+	if ((sc->flags & PSM_NEED_SYNCBITS) != 0) {
+	    sc->mode.syncmask[1] = (c & sc->mode.syncmask[0]);
+	    sc->flags &= ~PSM_NEED_SYNCBITS;
+	    VLOG(2, (LOG_DEBUG, "psmintr: Sync bytes now %04x,%04x\n",
+	    	 sc->mode.syncmask[0], sc->mode.syncmask[0]));
+	} else if ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
+	    VLOG(3, (LOG_DEBUG, "psmintr: out of sync (%04x != %04x) %d"
+		 " cmds since last error.\n", 
+		 c & sc->mode.syncmask[0], sc->mode.syncmask[1],
+		 sc->cmdcount - sc->lasterr));
 	    sc->lasterr = sc->cmdcount;
+	    /*
+	     * The sync byte test is a weak measure of packet
+	     * validity.  Conservatively discard any input yet
+	     * to be seen by userland when we detect a sync
+	     * error since there is a good chance some of
+	     * the queued packets have undetected errors.
+	     */
 	    dropqueue(sc);
+	    if (sc->syncerrors == 0)
+		sc->pkterrors++;
 	    ++sc->syncerrors;
 	    sc->lastinputerr = now;
-	    if (sc->syncerrors < sc->mode.packetsize) {
-#if DEBUG
-		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
-#endif
-		--pb->inputbytes;
-		bcopy(&pb->ipacket[1], &pb->ipacket[0], pb->inputbytes);
+	    if (sc->syncerrors >= sc->mode.packetsize * 2 ||
+	        sc->pkterrors >= psmpkterrthresh) {
+
+		/*
+		 * If we've failed to find a single sync byte in 2
+		 * packets worth of data, or we've seen persistent
+		 * packet errors during the validation period,
+		 * reinitialize the mouse in hopes of returning it
+		 * to the expected mode.
+		 */
+		VLOG(3, (LOG_DEBUG, "psmintr: reset the mouse.\n"));
+		reinitialize(sc, TRUE);
 	    } else if (sc->syncerrors == sc->mode.packetsize) {
-#if DEBUG
-		log(LOG_DEBUG, "psmintr: re-enable the mouse.\n");
-#endif
+
+		/*
+		 * Try a soft reset after searching for a sync
+		 * byte through a packet length of bytes.
+		 */
+		VLOG(3, (LOG_DEBUG, "psmintr: re-enable the mouse.\n"));
 		pb->inputbytes = 0;
 		disable_aux_dev(sc->kbdc);
 		enable_aux_dev(sc->kbdc);
-	    } else if (sc->syncerrors < PSM_SYNCERR_THRESHOLD1) {
-#if DEBUG
-		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
-#endif
-		--pb->inputbytes;
+	    } else {
+		VLOG(3, (LOG_DEBUG, "psmintr: discard a byte (%d)\n",
+		     sc->syncerrors));
+		pb->inputbytes--;
 		bcopy(&pb->ipacket[1], &pb->ipacket[0], pb->inputbytes);
-	    } else if (sc->syncerrors >= PSM_SYNCERR_THRESHOLD1) {
-#if DEBUG
-		log(LOG_DEBUG, "psmintr: reset the mouse.\n");
-#endif
-		reinitialize(sc, TRUE);
 	    }
 	    continue;
 	}
-valid_sync:
-	/* if this packet is at all bogus then drop the packet. */
-	if (haderror ||
-	    !timeelapsed(&sc->lastinputerr, psmerrsecs, psmerrusecs, &now)) {
+
+	/*
+	 * We have what appears to be a valid packet.
+	 * Reset the error counters.
+	 */
+	sc->syncerrors = 0;
+
+	/*
+	 * Drop even good packets if they occur within a timeout
+	 * period of a sync error.  This allows the detection of
+	 * a change in the mouse's packet mode without exposing
+	 * erratic mouse behavior to the user.  Some KVMs forget
+	 * enhanced mouse modes during switch events.
+	 */
+	if (!timeelapsed(&sc->lastinputerr, psmerrsecs, psmerrusecs, &now)) {
 		pb->inputbytes = 0;
-		haderror = 0;
 		continue;
 	}
+
+	/*
+	 * Now that we're out of the validation period, reset
+	 * the packet error count.
+	 */
+	sc->pkterrors = 0;
 
 	sc->cmdcount++;
 	if (++sc->pqueue_end >= PSM_PACKETQUEUE)
@@ -2321,11 +2346,10 @@ psmsoftintr(void *arg)
 		default:
 		    x = y = 0;
 		    ms.button = ms.obutton;
-		    if (bootverbose)
-			log(LOG_DEBUG, "psmintr: unknown PS2++ packet type %d: "
-				       "0x%02x 0x%02x 0x%02x\n",
-			    MOUSE_PS2PLUS_PACKET_TYPE(pb->ipacket),
-			    pb->ipacket[0], pb->ipacket[1], pb->ipacket[2]);
+		    VLOG(1, (LOG_DEBUG, "psmintr: unknown PS2++ packet type %d:"
+		         " 0x%02x 0x%02x 0x%02x\n",
+			 MOUSE_PS2PLUS_PACKET_TYPE(pb->ipacket),
+			 pb->ipacket[0], pb->ipacket[1], pb->ipacket[2]));
 		    break;
 		}
 	    } else {
@@ -3245,8 +3269,7 @@ psmresume(device_t dev)
     int unit = device_get_unit(dev);
     int err;
 
-    if (verbose >= 2)
-        log(LOG_NOTICE, "psm%d: system resume hook called.\n", unit);
+    VLOG(2, (LOG_NOTICE, "psm%d: system resume hook called.\n", unit));
 
     if (!(sc->config & PSM_CONFIG_HOOKRESUME))
 	return (0);
@@ -3262,8 +3285,7 @@ psmresume(device_t dev)
         wakeup(sc);
     }
 
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm%d: system resume hook exiting.\n", unit);
+    VLOG(2, (LOG_DEBUG, "psm%d: system resume hook exiting.\n", unit));
 
     return (err);
 }
