@@ -481,7 +481,7 @@ card(c, p2)
 	register int len = 2;
 
 	*p1++ = c;
-	while ((c = *p2++) != '\0') {
+	while ((c = *p2++) != '\0' && len < sizeof(buf)) {
 		*p1++ = (c == '\n') ? ' ' : c;
 		len++;
 	}
