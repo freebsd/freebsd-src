@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.65 1996/04/26 13:47:37 phk Exp $
+ *	$Id: locore.s,v 1.66 1996/04/26 22:26:45 bde Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -92,7 +92,7 @@
 
 /*
  * Access to each processes kernel stack is via a region of
- * per-process address space (at the beginning), immediatly above
+ * per-process address space (at the beginning), immediately above
  * the user process stack.
  */
 	.set	_kstack,USRSTACK
@@ -122,9 +122,9 @@ _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 _atdevbase:	.long	0			/* location of start of iomem in virtual */
 
 _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
-physfree:	.long	0			/* phys addr end of kernel (just after bss) */
-upa:	.long	0			/* phys addr end of kernel (just after bss) */
-p0s:	.long	0			/* phys addr end of kernel (just after bss) */
+physfree:	.long	0			/* phys addr of next free page */
+upa:	.long	0				/* phys addr of proc0's UPAGES */
+p0upt:	.long	0				/* phys addr of proc0's UPAGES page table */
 
 	.globl	_IdlePTD
 _IdlePTD:	.long	0			/* phys addr of kernel PTD */
@@ -133,6 +133,11 @@ _KPTphys:	.long	0			/* phys addr of kernel page tables */
 
 	.globl	_proc0paddr
 _proc0paddr:	.long	0			/* address of proc 0 address space */
+
+#ifdef BDE_DEBUGGER
+	.globl	_bdb_exists			/* flag to indicate BDE debugger is present */
+_bdb_exists:	.long	0
+#endif
 
 
 /**********************************************************************
@@ -143,8 +148,6 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
 
 #define R(foo) ((foo)-KERNBASE)
 
-#define ROUND2PAGE(foo) addl $NBPG-1, foo; andl $~(NBPG-1), foo
-
 #define ALLOCPAGES(foo) \
 	movl	R(physfree), %esi ; \
 	movl	$((foo)*NBPG), %eax ; \
@@ -153,7 +156,9 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
 	movl	%esi, %edi ; \
 	movl	$((foo)*NBPG),%ecx ; \
 	xorl	%eax,%eax ; \
-	cld ; rep ; stosb
+	cld ; \
+	rep ; \
+	stosb
 
 /*
  * fillkpt
@@ -165,7 +170,7 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
 1:	movl	%eax,(%ebx)	; \
 	addl	$NBPG,%eax	; /* increment physical address */ \
 	addl	$4,%ebx		; /* next pte */ \
-	loop	1b		;
+	loop	1b
 
 	.text
 /**********************************************************************
@@ -175,42 +180,89 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
  */
 NON_GPROF_ENTRY(btext)
 
+#ifdef BDE_DEBUGGER
+#ifdef BIOS_STEALS_3K
+	cmpl	$0x0375c339,0x95504
+#else
+	cmpl	$0x0375c339,0x96104	/* XXX - debugger signature */
+#endif
+	jne	1f
+	movb	$1,R(_bdb_exists)
+1:
+#endif
+
 /* Tell the bios to warmboot next time */
 	movw	$0x1234,0x472
 
-/* Set up a real frame, some day we may be doing returns */
+/* Set up a real frame in case the double return in newboot is executed. */
 	pushl	%ebp
 	movl	%esp, %ebp
 
 /* Don't trust what the BIOS gives for eflags. */
 	pushl	$PSL_KERNEL
 	popfl
-	mov	%ds, %ax	/* ... or segment registers */
-	mov	%ax, %es
+
+/*
+ * Don't trust what the BIOS gives for %fs and %gs.  Trust the bootstrap
+ * to set %cs, %ds, %es and %ss.
+ */
+	mov	%ds, %ax
 	mov	%ax, %fs
 	mov	%ax, %gs
 
 	call	recover_bootinfo
 
-/* get onto a stack we know the size of */
+/* Get onto a stack that we can trust. */
+/*
+ * XXX this step is delayed in case recover_bootinfo needs to return via
+ * the old stack, but it need not be, since recover_bootinfo actually
+ * returns via the old frame.
+ */
 	movl	$R(tmpstk),%esp
-	mov	%ds, %ax
-	mov	%ax, %ss
 
 	call	identify_cpu
 
 /* clear bss */
+/*
+ * XXX this should be done a little earlier. (bde)
+ *
+ * XXX we don't check that there is memory for our bss or page tables
+ * before using it. (bde)
+ *
+ * XXX the boot program somewhat bogusly clears the bss.  We still have
+ * to do it in case we were unzipped by kzipboot.  Then the boot program
+ * only clears kzipboot's bss.
+ *
+ * XXX the gdt and idt are still somewhere in the boot program.  We
+ * depend on the convention that the boot program is below 1MB and we
+ * are above 1MB to keep the gdt and idt  away from the bss and page
+ * tables.  The idT is only used if BDE_DEBUGGER is enabled.
+ */
 	movl	$R(_end),%ecx
 	movl	$R(_edata),%edi
 	subl	%edi,%ecx
 	xorl	%eax,%eax
-	cld ; rep ; stosb
+	cld
+	rep
+	stosb
 
 #if NAPM > 0
-	call	_apm_setup	/* ... in i386/apm/apm_setup.s */
-#endif /* NAPM */
+/*
+ * XXX it's not clear that APM can live in the current environonment.
+ * Only pc-relative addressing works.
+ */
+	call	_apm_setup
+#endif
 
 	call	create_pagetables
+
+#ifdef BDE_DEBUGGER
+/*
+ * Adjust as much as possible for paging before enabling paging so that the
+ * adjustments can be traced.
+ */
+	call	bdb_prepare_paging
+#endif
 
 /* Now enable paging */
 	movl	R(_IdlePTD), %eax
@@ -219,7 +271,16 @@ NON_GPROF_ENTRY(btext)
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
 	movl	%eax,%cr0			/* and let's page NOW! */
 
-	pushl	$begin				/* jump to high mem */
+#ifdef BDE_DEBUGGER
+/*
+ * Complete the adjustments for paging so that we can keep tracing through
+ * initi386() after the low (physical) addresses for the gdt and idT become
+ * invalid.
+ */
+	call	bdb_commit_paging
+#endif
+
+	pushl	$begin				/* jump to high virtualized address */
 	ret
 
 /* now running relocated at KERNBASE where the system is linked to run */
@@ -232,10 +293,6 @@ begin:
 	movl	_IdlePTD, %esi
 	movl	%esi,PCB_CR3(%eax)
 
-	/*
-	 * Prepare "first" - physical address of first available page
-	 * after the kernel+pdir+upages+p0stack+page tables
-	 */
 	movl	physfree, %esi
 	pushl	%esi				/* value of first for init386(first) */
 	call	_init386			/* wire 386 chip for unix operation */
@@ -267,12 +324,12 @@ begin:
 	movl	%cr0,%eax			/* get control word */
 	orl	$CR0_WP|CR0_AM,%eax		/* enable i486 features */
 	movl	%eax,%cr0			/* and do it */
+1:
 #endif
 	/*
 	 * on return from main(), we are process 1
 	 * set up address space and stack so that we can 'return' to user mode
 	 */
-1:
 	movl	__ucodesel,%eax
 	movl	__udatasel,%ecx
 
@@ -303,6 +360,7 @@ _esigcode:
 	.globl	_szsigcode
 _szsigcode:
 	.long	_esigcode-_sigcode
+	.text
 
 /**********************************************************************
  *
@@ -349,8 +407,8 @@ recover_bootinfo:
 	/*
 	 * We have some form of return address, so this is either the
 	 * old diskless netboot code, or the new uniform code.  That can
-	 * be detected by looking at the 5th argument, it if is 0 we
-	 * we are being booted by the new unifrom boot code.
+	 * be detected by looking at the 5th argument, if it is 0
+	 * we are being booted by the new uniform boot code.
 	 */
 	cmpl	$0,24(%ebp)
 	je	newboot
@@ -364,7 +422,7 @@ recover_bootinfo:
 
 	/*
 	 * We have been loaded by the new uniform boot code.
-	 * Lets check the bootinfo version, and if we do not understand
+	 * Let's check the bootinfo version, and if we do not understand
 	 * it we return to the loader with a status of 1 to indicate this error
 	 */
 newboot:
@@ -373,8 +431,11 @@ newboot:
 	cmpl	$1,%eax			/* We only understand version 1 */
 	je	1f
 	movl	$1,%eax			/* Return status */
-	add	$4, %esp		/* pop recover_bootinfo's retaddr */
 	leave
+	/*
+	 * XXX this returns to our caller's caller (as is required) since
+	 * we didn't set up a frame and our caller did.
+	 */
 	ret
 
 1:
@@ -397,7 +458,7 @@ newboot:
 	movsb
 
 2:
-	/* 
+	/*
 	 * Determine the size of the boot loader's copy of the bootinfo
 	 * struct.  This is impossible to do properly because old versions
 	 * of the struct don't contain a size field and there are 2 old
@@ -409,7 +470,7 @@ newboot:
 	movl	BI_SIZE(%ebx),%ecx
 got_bi_size:
 
-	/* 
+	/*
 	 * Copy the common part of the bootinfo struct
 	 */
 	movl	%ebx,%esi
@@ -428,7 +489,7 @@ got_common_bi_size:
 	 */
 	movl	BI_NFS_DISKLESS(%ebx),%esi
 	cmpl	$0,%esi
-	je	2f
+	je	olddiskboot
 	lea	_nfs_diskless-KERNBASE,%edi
 	movl	$NFSDISKLESS_SIZE,%ecx
 	cld
@@ -540,9 +601,9 @@ identify_cpu:
 	andb	$~CCR0_NC0,%al
 #ifndef CYRIX_CACHE_REALLY_WORKS
 	orb	$(CCR0_NC1|CCR0_BARB),%al
-#else /* !CYRIX_CACHE_REALLY_WORKS */
+#else /* CYRIX_CACHE_REALLY_WORKS */
 	orb	$CCR0_NC1,%al
-#endif /* CYRIX_CACHE_REALLY_WORKS */
+#endif /* !CYRIX_CACHE_REALLY_WORKS */
 	movb	%al,%ah
 	movb	$CCR0,%al
 	outb	%al,$0x22
@@ -573,7 +634,7 @@ identify_cpu:
 	andl	$~(CR0_CD|CR0_NW),%eax
 	movl	%eax,%cr0
 	invd
-#endif /* CYRIX_CACHE_WORKS */
+#endif /* !CYRIX_CACHE_WORKS */
 	jmp	3f
 
 1:	/* Use the `cpuid' instruction. */
@@ -612,30 +673,31 @@ identify_cpu:
 
 /**********************************************************************
  *
- * Create the first page directory and it's page tables
+ * Create the first page directory and its page tables.
  *
  */
 
 create_pagetables:
 
-/* find end of kernel image */
+/* Find end of kernel image (rounded up to a page boundary). */
 	movl	$R(_end),%esi
 
 /* include symbols in "kernel image" if they are loaded and useful */
 #ifdef DDB
 	movl	R(_bootinfo+BI_ESYMTAB),%edi
 	testl	%edi,%edi
-	je	1f
+	je	over_symalloc
 	movl	%edi,%esi
 	movl	$KERNBASE,%edi
 	addl	%edi,R(_bootinfo+BI_SYMTAB)
 	addl	%edi,R(_bootinfo+BI_ESYMTAB)
-1:
+over_symalloc:
 #endif
 
-	ROUND2PAGE(%esi)
+	addl	$NBPG-1,%esi
+	andl	$~(NBPG-1),%esi
 	movl	%esi,R(_KERNend)	/* save end of kernel */
-	movl	%esi,R(physfree)	/* save end of kernel */
+	movl	%esi,R(physfree)	/* next free page is at end of kernel */
 
 /* Allocate Kernel Page Tables */
 	ALLOCPAGES(NKPT)
@@ -647,13 +709,13 @@ create_pagetables:
 
 /* Allocate UPAGES */
 	ALLOCPAGES(UPAGES)
-	movl	%esi,R(upa);
+	movl	%esi,R(upa)
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_proc0paddr)
 
-/* Allocate P0 Stack */
+/* Allocate proc0's page table for the UPAGES. */
 	ALLOCPAGES(1)
-	movl	%esi,R(p0s);
+	movl	%esi,R(p0upt)
 
 /* Map read-only from zero to the end of the kernel text section */
 	movl	R(_KPTphys), %esi
@@ -662,17 +724,23 @@ create_pagetables:
 	shrl	$PGSHIFT,%ecx
 	movl	$PG_V|PG_KR,%eax
 	movl	%esi, %ebx
+#ifdef BDE_DEBUGGER
+/* If the debugger is present, actually map everything read-write. */
+	cmpl	$0,R(_bdb_exists)
+	jne	map_read_write
+#endif
 	fillkpt
 
 /* Map read-write, data, bss and symbols */
-	andl	$PG_FRAME,%eax 
+map_read_write:
+	andl	$PG_FRAME,%eax
 	movl	R(_KERNend),%ecx
 	subl	%eax,%ecx
 	shrl	$PGSHIFT,%ecx
 	orl	$PG_V|PG_KW,%eax
 	fillkpt
 
-/* Map PD */
+/* Map page directory. */
 	movl	R(_IdlePTD), %eax
 	movl	$1, %ecx
 	movl	%eax, %ebx
@@ -681,8 +749,8 @@ create_pagetables:
 	orl	$PG_V|PG_KW, %eax
 	fillkpt
 
-/* Map Proc 0 kernel stack */
-	movl	R(p0s), %eax
+/* Map proc0's page table for the UPAGES the physical way.  */
+	movl	R(p0upt), %eax
 	movl	$1, %ecx
 	movl	%eax, %ebx
 	shrl	$PGSHIFT-2, %ebx
@@ -690,15 +758,15 @@ create_pagetables:
 	orl	$PG_V|PG_KW, %eax
 	fillkpt
 
-/* ... also in user page table page */
-	movl	R(p0s), %eax
+/* ... and the virtual way */
+	movl	R(p0upt), %eax
 	movl	$1, %ecx
 	orl	$PG_V|PG_KW, %eax
 	movl	R(_KPTphys), %ebx
 	addl	$(KSTKPTEOFF * PTESIZE), %ebx
 	fillkpt
 
-/* Map UPAGES */
+/* Map proc0s UPAGES the physical way */
 	movl	R(upa), %eax
 	movl	$UPAGES, %ecx
 	movl	%eax, %ebx
@@ -707,16 +775,16 @@ create_pagetables:
 	orl	$PG_V|PG_KW, %eax
 	fillkpt
 
-/* ... also in user page table page */
+/* ... and in the special page table for this purpose. */
 	movl	R(upa), %eax
 	movl	$UPAGES, %ecx
 	orl	$PG_V|PG_KW, %eax
-	movl	R(p0s), %ebx
+	movl	R(p0upt), %ebx
 	addl	$(KSTKPTEOFF * PTESIZE), %ebx
 	fillkpt
 
-/* and a pde entry too */
-	movl	R(p0s), %eax
+/* and put the page table in the pde. */
+	movl	R(p0upt), %eax
 	movl	R(_IdlePTD), %esi
 	orl	$PG_V|PG_KW,%eax
 	movl	%eax,KSTKPTDI*PDESIZE(%esi)
@@ -727,10 +795,13 @@ create_pagetables:
 	movl	$ISA_HOLE_LENGTH>>PGSHIFT, %ecx
 	movl	$ISA_HOLE_START, %eax
 	movl	%eax, %ebx
+/* XXX 2 is magic for log2(PTESIZE). */
 	shrl	$PGSHIFT-2, %ebx
 	addl	R(_KPTphys), %ebx
+/* XXX could load %eax directly with $ISA_HOLE_START|PG_V|PG_KW_PG_N. */
 	orl	$PG_V|PG_KW|PG_N, %eax
 	fillkpt
+/* XXX could load %eax directly with $ISA_HOLE_START+KERNBASE. */
 	movl	$ISA_HOLE_START, %eax
 	addl	$KERNBASE, %eax
 	movl	%eax, R(_atdevbase)
@@ -756,3 +827,83 @@ create_pagetables:
 	movl	%eax,PTDPTDI*PDESIZE(%esi)
 
 	ret
+
+#ifdef BDE_DEBUGGER
+bdb_prepare_paging:
+	cmpl	$0,R(_bdb_exists)
+	je	bdb_prepare_paging_exit
+
+	subl	$6,%esp
+
+	/*
+	 * Copy and convert debugger entries from the bootstrap gdt and idt
+	 * to the kernel gdt and idt.  Everything is still in low memory.
+	 * Tracing continues to work after paging is enabled because the
+	 * low memory addresses remain valid until everything is relocated.
+	 * However, tracing through the setidt() that initializes the trace
+	 * trap will crash.
+	 */
+	sgdt	(%esp)
+	movl	2(%esp),%esi		/* base address of bootstrap gdt */
+	movl	$R(_gdt),%edi
+	movl	%edi,2(%esp)		/* prepare to load kernel gdt */
+	movl	$8*18/4,%ecx
+	cld
+	rep				/* copy gdt */
+	movsl
+	movl	$R(_gdt),-8+2(%edi)	/* adjust gdt self-ptr */
+	movb	$0x92,-8+5(%edi)
+	lgdt	(%esp)
+
+	sidt	(%esp)
+	movl	2(%esp),%esi		/* base address of current idt */
+	movl	8+4(%esi),%eax		/* convert dbg descriptor to ... */
+	movw	8(%esi),%ax
+	movl	%eax,R(bdb_dbg_ljmp+1)	/* ... immediate offset ... */
+	movl	8+2(%esi),%eax
+	movw	%ax,R(bdb_dbg_ljmp+5)	/* ... and selector for ljmp */
+	movl	24+4(%esi),%eax		/* same for bpt descriptor */
+	movw	24(%esi),%ax
+	movl	%eax,R(bdb_bpt_ljmp+1)
+	movl	24+2(%esi),%eax
+	movw	%ax,R(bdb_bpt_ljmp+5)
+	movl	$R(_idt),%edi
+	movl	%edi,2(%esp)		/* prepare to load kernel idt */
+	movl	$8*4/4,%ecx
+	cld
+	rep				/* copy idt */
+	movsl
+	lidt	(%esp)
+
+	addl	$6,%esp
+
+bdb_prepare_paging_exit:
+	ret
+
+/* Relocate debugger gdt entries and gdt and idt pointers. */
+bdb_commit_paging:
+	cmpl	$0,_bdb_exists
+	je	bdb_commit_paging_exit
+
+	movl	$_gdt+8*9,%eax		/* adjust slots 9-17 */
+	movl	$9,%ecx
+reloc_gdt:
+	movb	$KERNBASE>>24,7(%eax)	/* top byte of base addresses, was 0, */
+	addl	$8,%eax			/* now KERNBASE>>24 */
+	loop	reloc_gdt
+
+	subl	$6,%esp
+	sgdt	(%esp)
+	addl	$KERNBASE,2(%esp)
+	lgdt	(%esp)
+	sidt	(%esp)
+	addl	$KERNBASE,2(%esp)
+	lidt	(%esp)
+	addl	$6,%esp
+
+	int	$3
+
+bdb_commit_paging_exit:
+	ret
+
+#endif /* BDE_DEBUGGER */
