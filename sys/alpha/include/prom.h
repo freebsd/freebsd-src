@@ -102,5 +102,5 @@ int	promcncheckc __P((dev_t));
 u_int64_t	prom_dispatch __P((u_int64_t, u_int64_t, u_int64_t, u_int64_t,
 		    u_int64_t));
 void		init_bootstrap_console __P((void));
-#endif /* _KERNEL */
+#endif /* KERNEL */
 #endif /* ASSEMBLER */
