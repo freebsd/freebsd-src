@@ -36,6 +36,8 @@
 #ifndef _STDLIB_H_
 #define	_STDLIB_H_
 
+#include <sys/cdefs.h>
+
 #include <machine/ansi.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
@@ -78,8 +80,6 @@ typedef struct {
 
 extern int __mb_cur_max;
 #define	MB_CUR_MAX	__mb_cur_max
-
-#include <sys/cdefs.h>
 
 __BEGIN_DECLS
 void	 abort __P((void)) __dead2;
