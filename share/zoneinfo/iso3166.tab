@@ -1,6 +1,6 @@
 # ISO 3166 2-letter country codes
 #
-# @(#)iso3166.tab	1.7
+# @(#)iso3166.tab	1.8
 #
 # From Paul Eggert <eggert@twinsun.com> (1999-10-13):
 #
@@ -129,7 +129,7 @@ JM	Jamaica
 JO	Jordan
 JP	Japan
 KE	Kenya
-KG	Kirgizstan
+KG	Kyrgyzstan
 KH	Cambodia
 KI	Kiribati
 KM	Comoros

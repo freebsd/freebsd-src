@@ -1,4 +1,4 @@
-# @(#)asia	7.56
+# @(#)asia	7.57
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -110,7 +110,7 @@ Zone	Asia/Baku	3:19:24 -	LMT	1924 May  2
 
 # Bahrain
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Al-Manamah
+Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Al Manamah
 			4:00	-	GST	1972 Jun
 			3:00	-	AST
 
@@ -126,7 +126,7 @@ Zone	Asia/Dacca	6:01:40 -	LMT	1890
 
 # Bhutan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Thimbu	5:58:36 -	LMT	1947 Aug 15
+Zone	Asia/Thimphu	5:58:36 -	LMT	1947 Aug 15 # or Thimbu
 			5:30	-	IST	1987 Oct
 			6:00	-	BTT	# Bhutan Time
 
@@ -196,7 +196,7 @@ Rule	PRC	1986	only	-	May	 4	0:00	1:00	D
 Rule	PRC	1986	1991	-	Sep	Sun>=11	0:00	0	S
 Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Harbin	8:26:44	-	LMT	1928
+Zone	Asia/Harbin	8:26:44	-	LMT	1928 # or Haerbin
 			8:30	-	HART	1932 Mar # Harbin Time
 			8:00	-	CST	1940
 			9:00	-	HART	1966 May
@@ -205,17 +205,17 @@ Zone	Asia/Harbin	8:26:44	-	LMT	1928
 Zone	Asia/Shanghai	8:05:52	-	LMT	1928
 			8:00	Shang	C%sT	1949
 			8:00	PRC	C%sT
-Zone	Asia/Chungking	7:06:20	-	LMT	1928
+Zone	Asia/Chungking	7:06:20	-	LMT	1928 # or Chongqing
 			7:00	-	CHUT	1980 May # Chungking Time
 			8:00	PRC	C%sT
-Zone	Asia/Urumqi	5:50:20	-	LMT	1928
+Zone	Asia/Urumqi	5:50:20	-	LMT	1928 # or Urumchi
 			6:00	-	URUT	1980 May # Urumqi Time
 			8:00	PRC	C%sT
-Zone	Asia/Kashgar	5:03:56	-	LMT	1928
+Zone	Asia/Kashgar	5:03:56	-	LMT	1928 # or Kashi or Kaxgar
 			5:30	-	KAST	1940	 # Kashgar Time
 			5:00	-	KAST	1980 May
 			8:00	PRC	C%sT
-# Hong Kong
+# Hong Kong (Xianggang)
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	HK	1946	only	-	Apr	20	3:30	1:00	S
 Rule	HK	1946	only	-	Dec	1	3:30	0	-
@@ -261,7 +261,7 @@ Rule	Taiwan	1980	only	-	Sep	30	0:00	0	S
 Zone	Asia/Taipei	8:06:00 -	LMT	1896
 			8:00	Taiwan	C%sT
 
-# Macao
+# Macao (Macau, Aomen)
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Macao	1961	1962	-	Mar	Sun>=16	3:30	1:00	S
 Rule	Macao	1961	1964	-	Nov	Sun>=1	3:30	0	-
@@ -301,6 +301,10 @@ Zone	Asia/Nicosia	2:13:28 -	LMT	1921 Nov 14
 			2:00	Cyprus	EE%sT	1998 Sep
 			2:00	EUAsia	EE%sT
 # IATA SSIM (1998-09) has Cyprus using EU rules for the first time.
+
+# Classically, Cyprus belongs to Asia; e.g. see Herodotus, Histories, I.72.
+# However, for various reasons many users expect to find it under Europe.
+Link	Asia/Nicosia	Europe/Nicosia
 
 # Georgia
 # From Paul Eggert <eggert@twinsun.com> (1994-11-19):
@@ -483,7 +487,7 @@ Rule	Iraq	1986	1990	-	Mar	lastSun	1:00s	1:00	D
 # IATA SSIM (1991/1996) says Apr 1 12:01am UTC; guess the `:01' is a typo.
 # Shanks says Iraq did not observe DST 1992/1997 or 1999 on; ignore this.
 Rule	Iraq	1991	max	-	Apr	 1	3:00s	1:00	D
-Rule	Iraq	1991	max	-	Oct	 1	3:00s	0	D
+Rule	Iraq	1991	max	-	Oct	 1	3:00s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Baghdad	2:57:40	-	LMT	1890
 			2:57:36	-	BMT	1918	    # Baghdad Mean Time?
@@ -774,7 +778,7 @@ Zone	Asia/Aqtau	3:21:04	-	LMT	1924 May  2 # or Aktau
 			5:00 E-EurAsia	AQT%sT	1995 Sep lastSun
 			4:00 E-EurAsia	AQT%sT
 
-# Kirgizstan
+# Kyrgyzstan (Kirgizstan)
 # Transitions through 1991 are from Shanks.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Kirgiz	1992	1996	-	Apr	Sun>=7	0:00	1:00	S
@@ -830,7 +834,7 @@ Zone	Asia/Kuwait	3:11:56 -	LMT	1950
 
 # Laos
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Vientiane	6:50:24 -	LMT	1906 Jun  9
+Zone	Asia/Vientiane	6:50:24 -	LMT	1906 Jun  9 # or Viangchan
 			7:06:20	-	SMT	1911 Mar 11 0:01 # Saigon MT?
 			7:00	-	ICT	1912 May
 			8:00	-	ICT	1931 May
@@ -1086,7 +1090,7 @@ Zone	Asia/Manila	-15:56:00 -	LMT	1844
 
 # Qatar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Qatar	3:26:08 -	LMT	1920		# Al Dawhah
+Zone	Asia/Qatar	3:26:08 -	LMT	1920	# Al Dawhah / Doha
 			4:00	-	GST	1972 Jun
 			3:00	-	AST
 
@@ -1175,7 +1179,7 @@ Rule	Syria	1994	max	-	Oct	 1	0:00	0	-
 Rule	Syria	1997	1998	-	Mar	lastMon	0:00	1:00	S
 Rule	Syria	1999	max	-	Apr	 1	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Damascus	2:25:12 -	LMT	1920
+Zone	Asia/Damascus	2:25:12 -	LMT	1920	# Dimashq
 			2:00	Syria	EE%sT
 
 # Tajikistan
@@ -1196,7 +1200,7 @@ Zone	Asia/Bangkok	6:42:04	-	LMT	1880
 # Turkmenistan
 # From Shanks.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Ashkhabad	3:53:32 -	LMT	1924 May  2 # or Ashgabat
+Zone	Asia/Ashgabat	3:53:32 -	LMT	1924 May  2 # or Ashkhabad
 			4:00	-	ASHT	1930 Jun 21 # Ashkhabad Time
 			5:00 RussiaAsia	ASH%sT	1991 Mar 31 2:00
 			4:00 RussiaAsia	ASH%sT	1991 Oct 27 # independence

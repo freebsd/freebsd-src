@@ -1,4 +1,4 @@
-# @(#)northamerica	7.52
+# @(#)northamerica	7.53
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -58,10 +58,36 @@
 # Before the Uniform Time Act of 1966 took effect in 1967, observance of
 # Daylight Saving Time in the US was by local option, except during wartime.
 
+# From Arthur David Olson (2000-09-25):
+# Last night I heard part of a rebroadcast of a 1945 Arch Oboler radio drama.
+# In the introduction, Oboler spoke of "Eastern Peace Time."
+# An AltaVista search turned up
+# <a href="http://rowayton.org/rhs/hstaug45.html">:
+# "When the time is announced over the radio now, it is 'Eastern Peace
+# Time' instead of the old familiar 'Eastern War Time.'  Peace is wonderful."
+# </a> (August 1945) by way of confirmation.
+
+# From Joseph Gallant <notquite@hotmail.com>, citing
+# George H. Douglas, _The Early Days of Radio Broadcasting_ (1987):
+# At 7 P.M. (Eastern War Time) [on 1945-08-14], the networks were set
+# to switch to London for Atlee's address, but the American people
+# never got to hear his speech live. According to one press account,
+# CBS' Bob Trout was first to announce the word of Japan's surrender,
+# but a few seconds later, NBC, ABC and Mutual also flashed the word
+# of surrender, all of whom interrupting the bells of Big Ben in
+# London which were to precede Mr. Atlee's speech.
+
+# From Paul Eggert (2000-10-02):
+# Shanks says that DST was called "War Time" in the US in 1919.
+# In the light of the above, this seems suspect;
+# but we have no better authority yet.
+
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	US	1918	1919	-	Mar	lastSun	2:00	1:00	W # War
 Rule	US	1918	1919	-	Oct	lastSun	2:00	0	S
 Rule	US	1942	only	-	Feb	9	2:00	1:00	W # War
+Rule	US	1945	only	-	Aug	14	23:00u	1:00	P # Peace
 Rule	US	1945	only	-	Sep	30	2:00	0	S
 Rule	US	1967	max	-	Oct	lastSun	2:00	0	S
 Rule	US	1967	1973	-	Apr	lastSun	2:00	1:00	D
@@ -150,6 +176,13 @@ Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 # Go with Shanks.
 
 # US Eastern time, represented by New York
+
+# Connecticut, Delaware, District of Columbia, most of Florida,
+# Georgia, far southeastern Indiana, eastern Kentucky, Maine,
+# Maryland, Massachusetts, New Hampshire, New Jersey, New York, North
+# Carolina, Ohio, Pennsylvania, Rhode Island, South Carolina, eastern
+# Tennessee, Vermont, Virginia, West Virginia
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	NYC	1920	only	-	Mar	lastSun	2:00	1:00	D
 Rule	NYC	1920	only	-	Oct	lastSun	2:00	0	S
@@ -165,6 +198,13 @@ Zone America/New_York	-4:56:02 -	LMT	1883 Nov 18 12:00
 			-5:00	US	E%sT
 
 # US Central time, represented by Chicago
+
+# Alabama, Arkansas, Florida panhandle, Illinois, western Indiana
+# corners, Iowa, most of Kansas, western Kentucky, Louisiana,
+# Minnesota, Mississippi, Missouri, eastern Nebraska, eastern North
+# Dakota, Oklahoma, eastern South Dakota, western Tennessee, most of
+# Texas, Wisconsin
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	Chicago	1920	only	-	Jun	13	2:00	1:00	D
 Rule	Chicago	1920	1921	-	Oct	lastSun	2:00	0	S
@@ -183,6 +223,11 @@ Zone America/Chicago	-5:50:36 -	LMT	1883 Nov 18 12:00
 			-6:00	US	C%sT
 
 # US Mountain time, represented by Denver
+#
+# Colorado, southern Idaho, far western Kansas, Montana, western
+# Nebraska, New Mexico, southwestern North Dakota, far eastern Oregon,
+# western South Dakota, far western Texas, Utah, Wyoming
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	Denver	1920	1921	-	Mar	lastSun	2:00	1:00	D
 Rule	Denver	1920	only	-	Oct	lastSun	2:00	0	S
@@ -198,6 +243,9 @@ Zone America/Denver	-6:59:56 -	LMT	1883 Nov 18 12:00
 			-7:00	US	M%sT
 
 # US Pacific time, represented by Los Angeles
+#
+# California, northern Idaho, Nevada, most of Oregon, and Washington
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	CA	1948	only	-	Mar	14	2:00	1:00	D
 Rule	CA	1949	only	-	Jan	 1	2:00	0	S
@@ -390,6 +438,7 @@ Zone America/Indiana/Vevay -5:40:16 -	LMT	1883 Nov 18 12:00
 			-5:00	-	EST
 
 # Part of Kentucky left its clocks alone in 1974.
+# This also includes a part of Indiana immediately adjacent to Louisville.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule Louisville	1921	only	-	May	1	2:00	1:00	D
 Rule Louisville	1921	only	-	Sep	1	2:00	0	S
@@ -408,16 +457,9 @@ Zone America/Louisville	-5:43:02 -	LMT	1883 Nov 18 12:00
 			-5:00	US	E%sT	1974 Jan  6 2:00
 			-6:00	1:00	CDT	1974 Oct 27 2:00
 			-5:00	US	E%sT
+Link America/Louisville America/Kentucky/Louisville
+#
 # Wayne, Clinton, and Russell Counties, Kentucky
-# From
-# <a href="http://frwebgate.access.gpo.gov/cgi-bin/getdoc.cgi?dbname=1999_register&docid=99-26945-filed">
-# Federal Register Doc. 99-26945
-# </a> (1999-10-14 08:45-04)
-# In response to a petition by the Wayne County, Kentucky, Fiscal Court,
-# the Department of Transportation (DOT) proposed to move Wayne County,
-# Kentucky, from the Central Time Zone to the Eastern Time Zone.... Now
-# the earliest date that the proposed change might take effect is
-# October 29, 2000.
 #
 # From
 # <a href="http://www.lake-cumberland.com/life/archive/news990129time.shtml">
@@ -430,6 +472,36 @@ Zone America/Louisville	-5:43:02 -	LMT	1883 Nov 18 12:00
 # August indicated they would like to change to "fast time" also.
 # The three Lake Cumberland counties are the farthest east of any U.S.
 # location in the Central time zone.
+#
+# From Rich Wales (2000-08-29):
+# After prolonged debate, and despite continuing deep differences of opinion,
+# Wayne County (central Kentucky) is switching from Central (-0600) to Eastern
+# (-0500) time.  They won't "fall back" this year.  See:
+# <a href="http://www.nandotimes.com/nation/story/body/0,1037,500244845-500362432-502132762-0,00.html">
+# Sara Shipley, the difference an hour makes (2000-08-29 15:33 -0400)
+# </a>
+Zone America/Kentucky/Monticello -5:39:24 - LMT	1883 Nov 18 12:00
+			-6:00	US	C%sT	1946
+			-6:00	-	CST	1968
+			-6:00	US	C%sT	2000 Oct 29  2:00
+			-5:00	US	E%sT
+
+
+# From Rives McDow (2000-08-30):
+# Here ... are all the changes in the US since 1985.
+# Kearny County, KS (put all of county on central;
+#	previously split between MST and CST) ... 1990-10
+# Starke County, IN (from CST to EST) ... 1991-10
+# Oliver County, ND (from MST to CST) ... 1992-10
+# West Wendover, NV (from PST TO MST) ... 1999-10
+# Wayne County, KY (from CST to EST) ... 2000-10
+# There is another change in the offing; Mercer County, ND is looking
+# to change from MT to CT. It is possible that two other ND counties
+# (Sioux and Morton) will look to change also.  If made, the earliest
+# a change would be effective is October 2001.
+#
+# From Paul Eggert (2000-10-02):
+# FIXME: I haven't yet had time to incorporate all the above changes.
 
 # Michigan
 #
@@ -558,8 +630,20 @@ Link	Pacific/Honolulu	HST
 # From Paul Eggert <eggert@twinsun.com> (1994-11-22):
 # Alas, this sort of thing must be handled by localization software.
 
-# The data for Canada are all from Shanks.
+# Unless otherwise specified, the data for Canada are all from Shanks.
 
+# From Paul Eggert (2000-10-02):
+# H. David Matthews and Mary Vincent's map
+# <a href="http://www.canadiangeographic.ca/SO98/geomap.htm">
+# "It's about TIME", _Canadian Geographic_ (September-October 1998)
+# </a> contains detailed boundaries for regions observing nonstandard
+# time and daylight saving time arrangements in Canada circa 1998.
+#
+# INMS, the Institute for National Measurement Standards in Ottawa, has
+# <a href="http://www.nrc.ca/inms/time/tze.html">
+# information about standard and daylight saving time zones in Canada.
+# </a> (updated periodically).
+# Its unofficial information is often taken from Matthews and Vincent.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Canada	1918	only	-	Apr	14	2:00	1:00	D
@@ -571,7 +655,13 @@ Rule	Canada	1974	max	-	Oct	lastSun	2:00	0	S
 Rule	Canada	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 
 
-# Newfoundland (except Labrador)
+# Newfoundland (and far southeast Labrador)
+
+# From Paul Eggert (2000-10-02):
+# Matthews and Vincent (1998) write that Labrador should use NST/NDT,
+# but the only part of Labrador that follows the rules is the
+# southeast corner, including Port Hope Simpson and Mary's Harbour,
+# but excluding, say, Black Tickle.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	StJohns	1917	1918	-	Apr	Sun>=8	2:00	1:00	D
@@ -601,10 +691,14 @@ Rule	StJohns	1946	1950	-	May	Sun>=8	2:00	1:00	D
 Rule	StJohns	1946	1950	-	Oct	Sun>=2	2:00	0	S
 Rule	StJohns	1951	1986	-	Apr	lastSun	2:00	1:00	D
 Rule	StJohns	1951	1959	-	Sep	lastSun	2:00	0	S
-Rule	StJohns	1960	max	-	Oct	lastSun	2:00	0	S
-Rule	StJohns	1987	only	-	Apr	Sun>=1	2:00	1:00	D
-Rule	StJohns	1988	only	-	Apr	Sun>=1	2:00	2:00	DD
-Rule	StJohns	1989	max	-	Apr	Sun>=1	2:00	1:00	D
+Rule	StJohns	1960	1986	-	Oct	lastSun	2:00	0	S
+# From Paul Eggert (2000-10-02):
+# INMS (2000-09-12) says that, since 1988 at least, Newfoundland switches
+# at 00:01 local time.  For now, assume it started in 1987.
+Rule	StJohns	1987	only	-	Apr	Sun>=1	0:01	1:00	D
+Rule	StJohns	1987	max	-	Oct	lastSun	0:01	0	S
+Rule	StJohns	1988	only	-	Apr	Sun>=1	0:01	2:00	DD
+Rule	StJohns	1989	max	-	Apr	Sun>=1	0:01	1:00	D
 # St John's has an apostrophe, but Posix file names can't have apostrophes.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Johns	-3:30:52 -	LMT	1884
@@ -612,7 +706,7 @@ Zone America/St_Johns	-3:30:52 -	LMT	1884
 			-3:30	StJohns	N%sT
 
 
-# east Labrador
+# most of east Labrador
 
 # The name `Happy Valley-Goose Bay' is too long; use `Goose Bay'.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -632,6 +726,11 @@ Zone America/Goose_Bay	-4:01:40 -	LMT	1884 # Happy Valley-Goose Bay
 # Glace Bay, NS is the largest that we know of.
 # Shanks also writes that Liverpool, NS was the only town in Canada to observe
 # DST in 1971 but not 1970; for now we'll assume this is a typo.
+
+# From Paul Eggert (2000-10-02):
+# INMS (2000-09-12) says that, since 1988 at least, New Brunswick switches
+# at 00:01 local time.  FIXME: verify and create a new Zone for this.
+
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Halifax	1916	only	-	Apr	 1	0:00	1:00	D
@@ -707,6 +806,17 @@ Zone America/Glace_Bay	-3:59:48 -	LMT	1902 Jun 15
 # For what it's worth, Shanks says that Atikokan has agreed with
 # Rainy River ever since standard time was introduced.
 
+# From Paul Eggert (2000-10-02):
+# Matthews and Vincent (1998) write that Atikokan, Pickle Lake, and
+# New Osnaburgh observe CST all year, that Big Trout Lake observes
+# CST/CDT, and that Upsala and Shebandowan observe EST/EDT, all in
+# violation of the official Ontario rules.
+# They also write that Quebec east of the -63 meridian is supposed to
+# observe AST, but residents as far east as Natashquan use EST/EDT,
+# and residents east of Natashquan use AST.
+# We probably need Zones for far east Quebec and for Atikokan,
+# but we don't know when their practices started.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mont	1917	only	-	Mar	25	2:00	1:00	D
 Rule	Mont	1917	only	-	Apr	24	0:00	0	S
@@ -774,8 +884,12 @@ Rule	Winn	1960	only	-	Sep	lastSun	2:00	0	S
 Rule	Winn	1963	only	-	Apr	lastSun	2:00	1:00	D
 Rule	Winn	1963	only	-	Sep	22	2:00	0	S
 Rule	Winn	1966	1986	-	Apr	lastSun	2:00	1:00	D
-Rule	Winn	1966	max	-	Oct	lastSun	2:00	0	S
+Rule	Winn	1966	1986	-	Oct	lastSun	2:00	0	S
 Rule	Winn	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+# From Paul Eggert (2000-10-02):
+# INMS (2000-09-12) says that, since 1988 at least, Manitoba switches from
+# DST at 03:00 local time.  For now, assume it started in 1987.
+Rule	Winn	1987	max	-	Oct	lastSun	2:00s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Winnipeg	-6:28:36 -	LMT	1887 Jul 16
 			-6:00	Winn	C%sT
@@ -783,10 +897,12 @@ Zone America/Winnipeg	-6:28:36 -	LMT	1887 Jul 16
 
 # Saskatchewan
 
-# From Paul Eggert (1996-06-12):
+# From Paul Eggert (2000-10-02):
 # Shanks writes that since 1970 most of this region has been like Regina.
 # Some western towns (e.g. Swift Current) switched from MST/MDT to CST in 1972.
 # Other western towns (e.g. Lloydminster) are like Edmonton.
+# Matthews and Vincent (1998) write that Denare Beach and Creighton
+# are like Winnipeg, in violation of Saskatchewan law.
 
 # From W. Jones <jones@skdad.usask.ca> (1992-11-06):
 # The. . .below is based on information I got from our law library, the
@@ -874,9 +990,10 @@ Zone America/Edmonton	-7:33:52 -	LMT	1906 Sep
 
 # British Columbia
 
-# From Paul Eggert (1996-06-12):
+# From Paul Eggert (2000-10-02):
 # Shanks writes that since 1970 most of this region has been like Vancouver.
 # Dawson Creek uses MST.  Much of east BC is like Edmonton.
+# Matthews and Vincent (1998) write that Creston is like Dawson Creek.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Vanc	1918	only	-	Apr	14	2:00	1:00	D
@@ -959,6 +1076,18 @@ Zone America/Dawson_Creek -8:00:56 -	LMT	1884
 # central - or Nunavut time - for government offices, and eastern time
 # for municipal offices and schools....  Igloolik [was similar but then]
 # made the switch to central time on Saturday, Nov. 6.
+
+# From Paul Eggert (2000-10-02):
+# Matthews and Vincent (1998) say the following, but we lack histories
+# for these potential new Zones.
+# 
+# The Canadian Forces station at Alert uses Eastern Time while the
+# handful of residents at the Eureka weather station [in the Central
+# zone] skip daylight savings.  Baffin Island, which is crossed by the
+# Central, Eastern and Atlantic Time zones only uses Eastern Time.
+# Gjoa Haven, Taloyoak and Pelly Bay all use Mountain instead of
+# Central Time and Southampton Island [in the Central zone] is not
+# required to use daylight savings.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	NT_YK	1918	only	-	Apr	14	2:00	1:00	D
