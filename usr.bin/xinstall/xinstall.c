@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.23 1997/05/24 05:39:19 peter Exp $";
+	"$Id: xinstall.c,v 1.24 1997/08/27 06:29:23 charnier Exp $";
 #endif /* not lint */
 
 /*-
@@ -388,8 +388,16 @@ install(from_name, to_name, fset, flags)
 		(void)close(from_fd);
 	}
 
-	if (dostrip)
+	if (dostrip) {
+		(void)close(to_fd);
+
 		strip(to_name);
+
+		/* Reopen target. */
+		to_fd = open(to_name, O_RDWR, 0);
+		if (to_fd < 0)
+			err(EX_OSERR, "%s", to_name);
+	}
 
 	/*
 	 * Unfortunately, because we strip the installed file and not the
