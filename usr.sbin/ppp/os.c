@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.17 1997/05/19 02:00:10 brian Exp $
+ * $Id: os.c,v 1.18 1997/05/24 17:32:41 brian Exp $
  *
  */
 #include "fsm.h"
@@ -40,6 +40,7 @@
 
 #include "ipcp.h"
 #include "os.h"
+#include "loadalias.h"
 #include "vars.h"
 #include "arp.h"
 #include "systems.h"
