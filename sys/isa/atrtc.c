@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.61 1996/06/17 12:50:22 bde Exp $
+ *	$Id: clock.c,v 1.62 1996/07/01 18:00:47 bde Exp $
  */
 
 /*
@@ -194,7 +194,7 @@ clkintr(struct clockframe frame)
 			/*
 			 * See microtime.s for this magic.
 			 */
-			time.tv_usec += (27645 *
+			time.tv_usec += (27465 *
 				(timer0_prescaler_count - hardclock_max_count))
 				>> 15;
 			if (time.tv_usec >= 1000000)
