@@ -170,6 +170,7 @@ finish:
 static void
 vfs_freeopts(struct vfsoptlist *opt)
 {
+
 	free(opt->opt, M_MOUNT);
 	free(opt->optbuf, M_MOUNT);
 	free(opt, M_MOUNT);
