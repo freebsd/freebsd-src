@@ -810,7 +810,8 @@ pcmcsa_attach(device_t dev)
 	codec = ac97_create(dev, csa, NULL, csa_rdcd, csa_wrcd);
 	if (codec == NULL)
 		return (ENXIO);
-	mixer_init(devinfo, &ac97_mixer, codec);
+	if (mixer_init(devinfo, &ac97_mixer, codec) == -1)
+		return (ENXIO);
 
 	snprintf(status, SND_STATUSLEN, "at irq %ld", rman_get_start(resp->irq));
 

@@ -776,7 +776,7 @@ es_pci_attach(device_t dev)
 	  	/* our init routine does everything for us */
 	  	/* set to NULL; flag mixer_init not to run the ac97_init */
 	  	/*	  ac97_mixer.init = NULL;  */
-	  	mixer_init(d, &ac97_mixer, codec);
+		if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
 		ct = &es1371_chantemplate;
 	} else if (pci_get_devid(dev) == ES1370_PCI_ID) {
 	  	if (-1 == es1370_init(es)) {
