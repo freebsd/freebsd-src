@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.30 1997/09/03 09:20:17 phk Exp $
+ * $Id: vfs_cache.c,v 1.31 1997/09/04 08:24:44 phk Exp $
  */
 
 #include <sys/param.h>
@@ -85,6 +85,26 @@ static int	doingcache = 1;		/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, vnsize, CTLFLAG_RD, 0, sizeof(struct vnode), "");
 SYSCTL_INT(_debug, OID_AUTO, ncsize, CTLFLAG_RD, 0, sizeof(struct namecache), "");
+
+/*
+ * The new name cache statistics
+ */
+SYSCTL_NODE(_vfs, CTL_VFS,	  cache,     CTLFLAG_RW, 0,
+	"Name cache statistics");
+#define STATNODE(mode, name, var) \
+	SYSCTL_INT(_vfs_cache, OID_AUTO, name, mode, var, 0, "");
+STATNODE(CTLFLAG_RD, numneg, &numneg);
+STATNODE(CTLFLAG_RD, numcache, &numcache);
+static u_long numcalls; STATNODE(CTLFLAG_RD, numcalls, &numcalls);
+static u_long dothits; STATNODE(CTLFLAG_RD, dothits, &dothits);
+static u_long dotdothits; STATNODE(CTLFLAG_RD, dotdothits, &dotdothits);
+static u_long numchecks; STATNODE(CTLFLAG_RD, numchecks, &numchecks);
+static u_long nummiss; STATNODE(CTLFLAG_RD, nummiss, &nummiss);
+static u_long numposzaps; STATNODE(CTLFLAG_RD, numposzaps, &numposzaps);
+static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits);
+static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps);
+static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits);
+
 
 static void cache_zap __P((struct namecache *ncp));
 
@@ -143,12 +163,16 @@ cache_lookup(dvp, vpp, cnp)
 		return (0);
 	}
 
+	numcalls++;
+
 	if (cnp->cn_nameptr[0] == '.') {
 		if (cnp->cn_namelen == 1) {
 			*vpp = dvp;
+			dothits++;
 			return (-1);
 		}
 		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
+			dotdothits++;
 			if (dvp->v_dd->v_id != dvp->v_ddid ||
 			    (cnp->cn_flags & MAKEENTRY) == 0) {
 				dvp->v_ddid = 0;
@@ -160,6 +184,7 @@ cache_lookup(dvp, vpp, cnp)
 	}
 
 	LIST_FOREACH(ncp, (NCHHASH(dvp, cnp)), nc_hash) {
+		numchecks++;
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, (u_int)ncp->nc_nlen))
 			break;
@@ -167,12 +192,14 @@ cache_lookup(dvp, vpp, cnp)
 
 	/* We failed to find an entry */
 	if (ncp == 0) {
+		nummiss++;
 		nchstats.ncs_miss++;
 		return (0);
 	}
 
 	/* We don't want to have an entry, so dump it */
 	if ((cnp->cn_flags & MAKEENTRY) == 0) {
+		numposzaps++;
 		nchstats.ncs_badhits++;
 		cache_zap(ncp);
 		return (0);
@@ -180,6 +207,7 @@ cache_lookup(dvp, vpp, cnp)
 
 	/* We found a "positive" match, return the vnode */
         if (ncp->nc_vp) {
+		numposhits++;
 		nchstats.ncs_goodhits++;
 		*vpp = ncp->nc_vp;
 		return (-1);
@@ -187,11 +215,13 @@ cache_lookup(dvp, vpp, cnp)
 
 	/* We found a negative match, and want to create it, so purge */
 	if (cnp->cn_nameiop == CREATE) {
+		numnegzaps++;
 		nchstats.ncs_badhits++;
 		cache_zap(ncp);
 		return (0);
 	}
 
+	numneghits++;
 	/*
 	 * We found a "negative" match, ENOENT notifies client of this match.
 	 * The nc_vpid field records whether this is a whiteout.
