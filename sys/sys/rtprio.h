@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rtprio.h,v 1.4 1997/02/22 09:45:48 peter Exp $
+ *	$Id: rtprio.h,v 1.5 1998/03/04 10:26:39 dufault Exp $
  */
 
 #ifndef _SYS_RTPRIO_H_
@@ -44,23 +44,14 @@
 #define RTP_PRIO_NORMAL		1
 #define RTP_PRIO_IDLE		2
 
-/* RTP_PRIO_FIFO is Posix 4 SCHED_FIFO.
- * Careful: These are based on the kernel config POSIX4 and not
- * the compile time test _POSIX_PRIORITY_SCHEDULING since they
- * set the behavior of the system.
+/* RTP_PRIO_FIFO is POSIX.4 SCHED_FIFO.
  */
 
-#ifdef POSIX4
 #define RTP_PRIO_FIFO_BIT	4
 #define RTP_PRIO_FIFO		(RTP_PRIO_REALTIME | RTP_PRIO_FIFO_BIT)
 #define RTP_PRIO_BASE(P)	((P) & ~RTP_PRIO_FIFO_BIT)
 #define RTP_PRIO_IS_REALTIME(P) (RTP_PRIO_BASE(P) == RTP_PRIO_REALTIME)
 #define RTP_PRIO_NEED_RR(P)	((P) != RTP_PRIO_FIFO)
-#else
-#define RTP_PRIO_BASE(P)	(P)
-#define RTP_PRIO_IS_REALTIME(P)	(P == RTP_PRIO_REALTIME)
-#define RTP_PRIO_NEED_RR(P)	(1)
-#endif
 
 /* priority range */
 #define RTP_PRIO_MIN		0	/* Highest priority */
