@@ -94,6 +94,7 @@ int	ffs_realloccg __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, int, struct ucred *, struct buf **));
 void	ffs_setblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_snapblkfree __P((struct inode *freeip, ufs_daddr_t bno, long size));
+void	ffs_snapremove __P((struct vnode *vp));
 int	ffs_snapshot __P((struct mount *mp, char *snapfile));
 void	ffs_snapshot_mount __P((struct mount *mp));
 void	ffs_snapshot_unmount __P((struct mount *mp));
