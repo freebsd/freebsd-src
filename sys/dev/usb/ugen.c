@@ -149,9 +149,10 @@ static usb_config_descriptor_t *ugen_get_cdesc __P((struct ugen_softc *sc,
 static usbd_status ugen_set_interface __P((struct ugen_softc *, int, int));
 static int ugen_get_alt_index __P((struct ugen_softc *sc, int ifaceidx));
 
+#define UGENENDPMAX	16	/* maximum number of endpoints, see usb spec */
 #define UGENUNIT(n) ((minor(n) >> 4) & 0xf)
 #define UGENENDPOINT(n) (minor(n) & 0xf)
-#define UGENDEV(u, e) (makedev(0, ((u) << 4) | (e)))
+#define UGENDEV(u, e) (makedev(UGEN_CDEV_MAJOR, ((u) << 4) | (e)))
 
 USB_DECLARE_DRIVER(ugen);
 
@@ -629,7 +630,13 @@ USB_DETACH(ugen)
 	int s;
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	int maj, mn;
+#elif defined(__FreeBSD__)
+	struct vnode *vp;
+	dev_t dev;
+	int endpt;
+#endif
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	DPRINTF(("ugen_detach: sc=%p flags=%d\n", sc, flags));
 #elif defined(__FreeBSD__)
 	DPRINTF(("ugen_detach: sc=%p\n", sc));
@@ -665,7 +672,12 @@ USB_DETACH(ugen)
 	mn = self->dv_unit * USB_MAX_ENDPOINTS;
 	vdevgone(maj, mn, mn + USB_MAX_ENDPOINTS - 1, VCHR);
 #elif defined(__FreeBSD__)
-	/* XXX not implemented yet */
+	for (endpt = 0; endpt < UGENENDPMAX; endpt++) {
+		dev = UGENDEV(device_get_unit(self), endpt);
+		vp = SLIST_FIRST(&dev->si_hlist);
+		if (vp)
+			VOP_REVOKE(vp, REVOKEALL);
+	}
 #endif
 
 	return (0);
