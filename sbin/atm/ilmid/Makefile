@@ -23,14 +23,14 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
+#	@(#) $Id: Makefile,v 1.1 1998/09/15 08:22:47 phk Exp $
 #
 #
 
 PROG=	ilmid
 MAN8=	ilmid.8
 
-CFLAGS+=	-I ${.CURDIR}/../../../sys
+CFLAGS+=	-I${.CURDIR}/../../../sys
 LDADD+=		-latm
 
 .include <bsd.prog.mk>
