@@ -197,9 +197,10 @@ softclock(void *dummy)
 				binuptime(&bt2);
 				bintime_sub(&bt2, &bt1);
 				if (bt2.frac > maxdt) {
+					maxdt = bt2.frac;
 					bintime2timespec(&bt2, &ts2);
 					printf(
-			"Expensive timeout(9) function: %p(%p) %d.%09ld\n",
+			"Expensive timeout(9) function: %p(%p) %d.%09ld s\n",
 					c_func, c_arg,
 					ts2.tv_sec, ts2.tv_nsec);
 				}
