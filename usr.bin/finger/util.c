@@ -411,13 +411,12 @@ int
 hide(pw)
 	struct passwd *pw;
 {
-	char buf[MAXPATHLEN+1];
+	char buf[MAXPATHLEN];
 
 	if (!pw->pw_dir)
 		return 0;
 
 	snprintf(buf, sizeof(buf), "%s/.nofinger", pw->pw_dir);
-	buf[sizeof(buf) - 1] = '\0';
 
 	if (access(buf, F_OK) == 0)
 		return 1;
