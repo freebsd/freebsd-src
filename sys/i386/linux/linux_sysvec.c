@@ -94,6 +94,9 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #define	LINUX_SYS_linux_rt_sendsig	0
 #define	LINUX_SYS_linux_sendsig		0
 
+#define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
+#define	__LINUX_NPXCW__		0x37f
+
 extern char linux_sigcode[];
 extern int linux_szsigcode;
 
@@ -775,12 +778,16 @@ static void
 exec_linux_setregs(struct thread *td, u_long entry,
 		   u_long stack, u_long ps_strings)
 {
+	static const u_short control = __LINUX_NPXCW__;
 	struct pcb *pcb = td->td_pcb;
 
 	exec_setregs(td, entry, stack, ps_strings);
 
 	/* Linux sets %gs to 0, we default to _udatasel */
 	pcb->pcb_gs = 0; load_gs(0);
+
+	/* Linux sets the i387 to extended precision. */
+	fldcw(&control);
 }
 
 struct sysentvec linux_sysvec = {
