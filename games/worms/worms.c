@@ -205,7 +205,7 @@ main(argc, argv)
 	number = 3;
 	trail = ' ';
 	field = NULL;
-	while ((ch = getopt(argc, argv, "fl:n:t")) != EOF)
+	while ((ch = getopt(argc, argv, "fl:n:t")) !=  -1)
 		switch(ch) {
 		case 'f':
 			field = "WORM";

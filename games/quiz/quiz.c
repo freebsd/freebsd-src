@@ -79,7 +79,7 @@ main(argc, argv)
 	char *indexfile;
 
 	indexfile = _PATH_QUIZIDX;
-	while ((ch = getopt(argc, argv, "i:t")) != EOF)
+	while ((ch = getopt(argc, argv, "i:t")) !=  -1)
 		switch(ch) {
 		case 'i':
 			indexfile = optarg;

@@ -62,7 +62,7 @@ main(argc, argv)
 	struct stat	fbuf;		/* for getting files statistics */
 	int ch;
 
-	while ((ch = getopt(argc, argv, "m:")) != EOF)
+	while ((ch = getopt(argc, argv, "m:")) !=  -1)
 		switch(ch) {
 		case 'm':
 			monsterfile = optarg;

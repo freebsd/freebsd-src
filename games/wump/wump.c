@@ -112,9 +112,9 @@ main(argc, argv)
 	int c;
 
 #ifdef DEBUG
-	while ((c = getopt(argc, argv, "a:b:hp:r:t:d")) != EOF)
+	while ((c = getopt(argc, argv, "a:b:hp:r:t:d")) !=  -1)
 #else
-	while ((c = getopt(argc, argv, "a:b:hp:r:t:")) != EOF)
+	while ((c = getopt(argc, argv, "a:b:hp:r:t:")) !=  -1)
 #endif
 		switch (c) {
 		case 'a':

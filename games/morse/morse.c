@@ -212,7 +212,7 @@ main(int argc, char **argv)
 	register int    ch;
 	register char  *p;
 
-	while ((ch = getopt(argc, argv, "spw:f:")) != EOF)
+	while ((ch = getopt(argc, argv, "spw:f:")) !=  -1)
 		switch ((char) ch) {
 		case 'f':
 			freq = atoi(optarg);

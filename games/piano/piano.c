@@ -1,7 +1,7 @@
 /*
  * piano.c - a piano emulator
  */
-static char rcsid[] = "$Id: piano.c,v 1.1.1.1 1995/04/28 17:38:07 jkh Exp $";
+static char rcsid[] = "$Id: piano.c,v 1.2 1995/05/30 03:37:05 rgrimes Exp $";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -139,7 +139,7 @@ main(int argc, char *argv[])
 	extern int optind, opterr;
 	int ch, ex, show_usage = 0;
 	myname = argv[0];
-	while ((ch = getopt(argc, argv, "-vi:")) != EOF) {
+	while ((ch = getopt(argc, argv, "-vi:")) !=  -1) {
 		switch (ch) {
 		default:
 		case 'V':
