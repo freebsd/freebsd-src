@@ -1791,8 +1791,8 @@ ip6_sprintf(addr)
 	static char ip6buf[8][48];
 	int i;
 	char *cp;
-	u_short *a = (u_short *)addr;
-	u_char *d;
+	const u_short *a = (const u_short *)addr;
+	const u_char *d;
 	int dcolon = 0;
 
 	ip6round = (ip6round + 1) & 7;
@@ -1821,7 +1821,7 @@ ip6_sprintf(addr)
 			a++;
 			continue;
 		}
-		d = (u_char *)a;
+		d = (const u_char *)a;
 		*cp++ = digits[*d >> 4];
 		*cp++ = digits[*d++ & 0xf];
 		*cp++ = digits[*d >> 4];
