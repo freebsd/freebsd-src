@@ -189,7 +189,12 @@ ata_pci_match(device_t dev)
 	    return "VIA 8233 ATA133 controller";
 	if (ata_find_dev(dev, 0x31771106, 0))
 	    return "VIA 8235 ATA133 controller";
+	if (ata_find_dev(dev, 0x31491106, 0))
+	    return "VIA 8237 ATA133 controller";
 	return "VIA Apollo ATA controller";
+
+    case 0x31491106:
+	return "VIA 8237 SATA150 controller";
 
     case 0x55131039:
 	if (ata_find_dev(dev, 0x06301039, 0x30) ||
@@ -242,8 +247,17 @@ ata_pci_match(device_t dev)
     case 0x74411022:
 	return "AMD 768 ATA100 controller";
 
+    case 0x74691022:
+	return "AMD 8111 ATA133 controller";
+
     case 0x01bc10de:
 	return "nVIDIA nForce ATA100 controller";
+
+    case 0x006510de:
+	return "nVIDIA nForce2 ATA133 controller";
+
+    case 0x00d510de:
+	return "nVIDIA nForce2 ATA133 controller";
 
     case 0x02111166:
 	return "ServerWorks ROSB4 ATA33 controller";
