@@ -1,9 +1,0 @@
-#	@(#)UNICOS	8.7	(Berkeley)	2/26/1998
-define(`confENVDEF', `-DUNICOS ')
-define(`confOPTIMIZE', `-O')
-define(`confMBINDIR', `/usr/lib')
-define(`confSBINDIR', `/usr/etc')
-define(`confUBINDIR', `/usr/ucb')
-define(`confEBINDIR', `/usr/lib')
-define(`confSTDIR', ` /etc/mail')
-define(`confHFDIR', ` /etc/mail')
