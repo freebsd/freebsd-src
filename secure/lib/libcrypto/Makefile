@@ -363,7 +363,7 @@ MLINKS= des_crypt.3 des_read_password.3 \
 	des_crypt.3 des_set_odd_parity.3 des_crypt.3 des_is_weak_key.3
 
 INCS=		${HDRS} openssl/evp.h openssl/opensslconf.h
-INCSDIR=	/usr/include/openssl
+INCSDIR=	${INCLUDEDIR}/openssl
 INCSLINKS=	openssl/des.h ${INCLUDEDIR}/des.h
 
 afterinstall:
