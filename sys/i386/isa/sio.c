@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.108 1995/07/31 18:29:51 bde Exp $
+ *	$Id: sio.c,v 1.109 1995/07/31 21:10:36 bde Exp $
  */
 
 #include "sio.h"
@@ -985,6 +985,14 @@ comhardclose(com)
 				com->state |= CS_DTR_OFF;
 			}
 		}
+	}
+	if (com->hasfifo) {
+		/*
+		 * Disable fifos so that they are off after controlled
+		 * reboots.  Some BIOSes fail to detect 16550s when the
+		 * fifos are enabled.
+		 */
+		outb(iobase + com_fifo, 0);
 	}
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
