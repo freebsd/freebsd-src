@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: fxp.4,v 1.2.2.1 1997/02/28 03:26:51 mpp Exp $
 .\"
 .Dd January 19, 1997
 .Dt FXP 4 i386
@@ -39,6 +39,23 @@ The
 .Nm
 driver provides support for the EtherExpress Pro/100B PCI Fast Ethernet
 adapter based on the Intel i82557 Ethernet chip.
+.Pp
+To change the operating characteristics of the card,
+use the following flag combinations with
+.Xr ifconfig 8
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It -link0
+Enable auto-negotiation
+.It \ link0 -link1
+Disable auto-negotiation, set 10Mbps operation
+.It \ link0 link1
+Disable auto-negotiation, set 100Mbps operation
+.It \ link0 -link2
+Disable auto-negotiation, set half duplex mode
+.It \ link0 link2
+Disable auto-negotiation, set full duplex mode
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "fxp%d: couldn't map memory"
