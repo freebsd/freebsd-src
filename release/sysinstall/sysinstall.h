@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.45 1995/11/06 08:28:12 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.46 1995/11/09 02:32:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -489,6 +489,7 @@ extern Boolean	rootExtract(void);
 /* installFinal.c */
 extern int	configGated(char *unused);
 extern int	configSamba(char *unused);
+extern int	configPCNFSD(char *unused);
 extern int	configNFSServer(char *unused);
 
 /* label.c */

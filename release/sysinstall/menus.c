@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.44 1995/11/08 07:09:33 jkh Exp $
+ * $Id: menus.c,v 1.42.2.45 1995/11/09 02:32:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -747,7 +747,7 @@ aspects of your system's network configuration.",
   { "Gateway",			"This machine will route packets between interfaces",
 	DMENU_SET_VARIABLE,	"gateway=YES", 0, 0, 0					},
   { "Gated",			"This machine wants to run gated",
-	DMENU_SET_VARIABLE,	"gated=YES", 0, 0, 0					},
+	DMENU_CALL,		configGated, 0, 0, 0					},
   { "Ntpdate",			"Select a clock-syncronization server",
 	DMENU_SUBMENU,		&MenuNTP, (int)"ntpdate", 0, dmenuVarCheck		},
   { "Routed",			"Set flags for routed (default: -q)",
@@ -761,7 +761,7 @@ aspects of your system's network configuration.",
   { "Samba",			"Install Samba for LanManager (NETBUI) access.",
 	DMENU_CALL,		configSamba, 0, 0, 0					},
   { "PCNFSD",			"Run authentication server for clients with PC-NFS.",
-	DMENU_SET_VARIABLE,	"pcnfsd=YES", 0, 0, 0					},
+	DMENU_CALL,		configPCNFSD, 0, 0, 0					},
   { NULL } },
 };
 
