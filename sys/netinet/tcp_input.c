@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.88 1999/08/17 12:17:52 csgr Exp $
+ *	$Id: tcp_input.c,v 1.89 1999/08/18 15:40:05 csgr Exp $
  */
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
@@ -421,14 +421,19 @@ findpcb:
 		if (badport_bandlim(1) < 0)
 			goto drop;
 #endif
-		if(blackhole) { 
+		if (blackhole) { 
 			switch (blackhole) {
-				case 1: if(tiflags & TH_SYN) goto drop;
-				case 2: goto drop ;
-				default : goto drop ;
+			case 1:
+				if (tiflags & TH_SYN)
+					goto drop;
+				break;
+			case 2:
+				goto drop;
+			default:
+				goto drop;
 			}
-		} else
-			goto dropwithreset;
+		}
+		goto dropwithreset;
 	}
 	tp = intotcpcb(inp);
 	if (tp == 0)
