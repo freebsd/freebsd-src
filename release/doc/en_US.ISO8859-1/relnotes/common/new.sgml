@@ -385,7 +385,7 @@
       <para>ICMP <literal>UNREACH_FILTER_PROHIB</literal> messages can
       now RST TCP connections in the <literal>SYN_SENT</literal> state
       if the correct sequence numbers are sent back, as controlled by the
-      <literal>net.inet.tcp.icmp_may_rst</literal>
+      <varname>net.inet.tcp.icmp_may_rst</varname>
       sysctl.</para>
 
       <para>TCP has received some bug fixes for its delayed ACK
@@ -421,13 +421,13 @@
       should reduce the buffer usage on large systems handling many
       connections.</para>
 
-      <para>A new sysctl <literal>net.inet.ip.check_interface</literal>,
+      <para>A new sysctl <varname>net.inet.ip.check_interface</varname>,
       which is on by default, causes IP to verify that an incoming
       packet arrives on an interface that has an address matching the
       packet's destination address. &merged;</para>
 
       <para>A new sysctl
-      <literal>net.link.ether.inet.log_arp_wrong_iface</literal> has
+      <varname>net.link.ether.inet.log_arp_wrong_iface</varname> has
       been added to control the suppression of logging when ARP replies
       arrive on the wrong interface. &merged;</para>
 
