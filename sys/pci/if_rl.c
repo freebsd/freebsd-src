@@ -1382,12 +1382,12 @@ static void rl_rxeof(sc)
 			if (m == NULL) {
 				ifp->if_ierrors++;
 				printf("rl%d: out of mbufs, tried to "
-					"copy %d bytes\n", sc->rl_unit, wrap);
-			}
-			else {
+				    "copy %d bytes\n", sc->rl_unit, wrap);
+			} else {
 				m_adj(m, RL_ETHER_ALIGN);
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
+				m_pullup(m, MHLEN - RL_ETHER_ALIGN);
 			}
 			cur_rx = (total_len - wrap + ETHER_CRC_LEN);
 		} else {
@@ -1396,7 +1396,7 @@ static void rl_rxeof(sc)
 			if (m == NULL) {
 				ifp->if_ierrors++;
 				printf("rl%d: out of mbufs, tried to "
-				"copy %d bytes\n", sc->rl_unit, total_len);
+				    "copy %d bytes\n", sc->rl_unit, total_len);
 			} else
 				m_adj(m, RL_ETHER_ALIGN);
 			cur_rx += total_len + 4 + ETHER_CRC_LEN;
@@ -1474,10 +1474,22 @@ static void rl_txeof(sc)
 		if (txstat & RL_TXSTAT_TX_OK)
 			ifp->if_opackets++;
 		else {
+			int			oldthresh;
 			ifp->if_oerrors++;
 			if ((txstat & RL_TXSTAT_TXABRT) ||
 			    (txstat & RL_TXSTAT_OUTOFWIN))
 				CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG);
+			oldthresh = sc->rl_txthresh;
+			/* error recovery */
+			rl_reset(sc);
+			rl_init(sc);
+			/*
+			 * If there was a transmit underrun,
+			 * bump the TX threshold.
+			 */
+			if (txstat & RL_TXSTAT_TX_UNDERRUN)
+				sc->rl_txthresh = oldthresh + 32;
+			return;
 		}
 		RL_INC(sc->rl_cdata.last_tx);
 		ifp->if_flags &= ~IFF_OACTIVE;
@@ -1532,9 +1544,8 @@ static void rl_intr(arg)
 	/* Re-enable interrupts. */
 	CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
 
-	if (ifp->if_snd.ifq_head != NULL) {
+	if (ifp->if_snd.ifq_head != NULL)
 		rl_start(ifp);
-	}
 
 	return;
 }
@@ -1569,8 +1580,7 @@ static int rl_encap(sc, m_head)
 			return(1);
 		}
 	}
-	m_copydata(m_head, 0, m_head->m_pkthdr.len,	
-				mtod(m_new, caddr_t));
+	m_copydata(m_head, 0, m_head->m_pkthdr.len, mtod(m_new, caddr_t));
 	m_new->m_pkthdr.len = m_new->m_len = m_head->m_pkthdr.len;
 	m_freem(m_head);
 	m_head = m_new;
@@ -1578,7 +1588,7 @@ static int rl_encap(sc, m_head)
 	/* Pad frames to at least 60 bytes. */
 	if (m_head->m_pkthdr.len < RL_MIN_FRAMELEN) {
 		m_head->m_pkthdr.len +=
-			(RL_MIN_FRAMELEN - m_head->m_pkthdr.len);
+		    (RL_MIN_FRAMELEN - m_head->m_pkthdr.len);
 		m_head->m_len = m_head->m_pkthdr.len;
 	}
 
@@ -1625,7 +1635,8 @@ static void rl_start(ifp)
 		CSR_WRITE_4(sc, RL_CUR_TXADDR(sc),
 		    vtophys(mtod(RL_CUR_TXMBUF(sc), caddr_t)));
 		CSR_WRITE_4(sc, RL_CUR_TXSTAT(sc),
-		    RL_TX_EARLYTHRESH | RL_CUR_TXMBUF(sc)->m_pkthdr.len);
+		    RL_TXTHRESH(sc->rl_txthresh) |
+		    RL_CUR_TXMBUF(sc)->m_pkthdr.len);
 
 		RL_INC(sc->rl_cdata.cur_tx);
 	}
@@ -1729,6 +1740,9 @@ static void rl_init(xsc)
 	 * Enable interrupts.
 	 */
 	CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
+
+	/* Set initial TX threshold */
+	sc->rl_txthresh = RL_TX_THRESH_INIT;
 
 	/* Start RX/TX process. */
 	CSR_WRITE_4(sc, RL_MISSEDPKT, 0);
