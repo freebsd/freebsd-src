@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.15 1997/03/23 03:36:01 bde Exp $
+ *  $Id: linux_ioctl.c,v 1.16 1997/03/24 11:37:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,8 @@
 #include <sys/termios.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
 #include <sys/sockio.h>
 
 #include <machine/soundcard.h>
@@ -586,6 +588,47 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
     case LINUX_SIOCGIFNETMASK:
 	args->cmd = OSIOCGIFNETMASK;
 	return ioctl(p, (struct ioctl_args *)args, retval);
+
+	/* get hardware address */
+    case LINUX_SIOCGIFHWADDR:
+    {
+	int			ifn;
+	struct ifnet		*ifp;
+	struct ifaddr		*ifa;
+	struct sockaddr_dl	*sdl;
+	struct linux_ifreq	*ifr = (struct linux_ifreq *)args->arg;
+
+	/* 
+	 * Note that we don't actually respect the name in the ifreq structure, as
+	 * Linux interface names are all different
+	 */
+#ifdef DEBUG
+	{
+	    char	ifname[LINUX_IFNAMSIZ];
+	    
+	    if (!copyin(ifname, (caddr_t)ifr->ifr_name, LINUX_IFNAMSIZ)) {
+		printf("linux_ioctl: get HW address for '%s'\n", ifname);
+	    }
+	}
+#endif
+
+	for (ifn = 0; ifn < if_index; ifn++) {
+
+	    ifp = ifnet_addrs[ifn]->ifa_ifp;	/* pointer to interface */
+	    if (ifp->if_type == IFT_ETHER) {	/* looks good */
+		/* walk the address list */
+		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+		    if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&	/* we have an address structure */
+			(sdl->sdl_family == AF_LINK) &&			/* it's a link address */
+			(sdl->sdl_type == IFT_ETHER)) {			/* for an ethernet link */
+
+			return(copyout(LLADDR(sdl), (caddr_t)&ifr->ifr_hwaddr.sa_data, LINUX_IFHWADDRLEN));
+		    }
+		}
+	    }
+	}
+	return(ENOENT);		/* ??? */
+    }
 
     case LINUX_SIOCADDMULTI:
 	args->cmd = SIOCADDMULTI;
