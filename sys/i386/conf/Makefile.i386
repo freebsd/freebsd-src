@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.32 1994/08/30 17:17:49 bde Exp $
+#	$Id: Makefile.i386,v 1.33 1994/09/02 20:24:15 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -98,8 +98,9 @@ LIBKERN=${LIBKERNP}/libkern.a
 .endif
 
 libkern.a: ${LIBKERN}
+	@rm -f libkern.a
 	ln -s ${LIBKERN} libkern.a
-	echo ln -s ${LIBKERN} libkern.a
+	@echo ln -s ${LIBKERN} libkern.a
 
 ${LIBKERN}:
 	@(cd $S/libkern; make)
