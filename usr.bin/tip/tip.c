@@ -62,6 +62,7 @@ int	disc = OTTYDISC;		/* tip normally runs this way */
 void	intprompt();
 void	timeout();
 void	cleanup();
+void	tipdone();
 char	*sname();
 char	PNbuf[256];			/* This limits the size of a number */
 
@@ -138,6 +139,7 @@ notnumber:
 	(void)signal(SIGQUIT, cleanup);
 	(void)signal(SIGHUP, cleanup);
 	(void)signal(SIGTERM, cleanup);
+	(void)signal(SIGUSR1, tipdone);
 
 	if ((i = hunt(system)) == 0) {
 		printf("all ports busy\n");
@@ -237,6 +239,11 @@ cleanup()
 	exit(0);
 }
 
+void
+tipdone()
+{
+	tipabort("Hangup.");
+}
 /*
  * Muck with user ID's.  We are setuid to the owner of the lock
  * directory when we start.  user_uid() reverses real and effective
