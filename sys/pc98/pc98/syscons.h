@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.27 1999/01/17 15:42:27 kato Exp $
+ *	$Id: syscons.h,v 1.28 1999/01/18 08:38:08 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -265,10 +265,6 @@ scr_stat *sc_get_scr_stat(dev_t dev);
 
 void copy_font(scr_stat *scp, int operation, int font_size, u_char *font_image);
 void set_border(scr_stat *scp, int color);
-#define save_palette(adp, pal)				\
-	(*vidsw[(adp)->va_index]->save_palette)((adp), (pal))
-#define load_palette(adp, pal)				\
-	(*vidsw[(adp)->va_index]->load_palette)((adp), (pal))
 
 void sc_touch_scrn_saver(void);
 void sc_clear_screen(scr_stat *scp);
