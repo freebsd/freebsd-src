@@ -50,7 +50,7 @@ __RCSID("$NetBSD$");
 __COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif
-#ident "$Revision: 2.21 $"
+#ident "$Revision: 2.22 $"
 
 
 pid_t	mypid;
@@ -221,7 +221,7 @@ main(int argc,
 		case 'v':
 			/* display version */
 			verbose++;
-			msglog("version 2.21");
+			msglog("version 2.22");
 			break;
 
 		default:

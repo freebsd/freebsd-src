@@ -38,7 +38,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)tables.c	8.1 (Berkeley) 6/5/
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 2.20 $"
+#ident "$Revision: 2.22 $"
 
 static struct rt_spare *rts_better(struct rt_entry *);
 static struct rt_spare rts_empty = {0,0,0,HOPCNT_INFINITY,0,0,0};
@@ -632,18 +632,22 @@ rtm_type_name(u_char type)
 		"RTM_RESOLVE",
 		"RTM_NEWADDR",
 		"RTM_DELADDR",
-		"RTM_IFINFO"
+		"RTM_IFINFO",
+		"RTM_NEWMADDR",
+		"RTM_DELMADDR"
 	};
-	static char name0[10];
+#define NEW_RTM_PAT "RTM type %#x"
+	static char name0[sizeof(NEW_RTM_PAT)+2];
 
 
 	if (type > sizeof(rtm_types)/sizeof(rtm_types[0])
 	    || type == 0) {
-		sprintf(name0, "RTM type %#x", type);
+		snprintf(name0, sizeof(name0), NEW_RTM_PAT, type);
 		return name0;
 	} else {
 		return rtm_types[type-1];
 	}
+#undef NEW_RTM_PAT
 }
 
 

@@ -40,7 +40,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #include <sys/cdefs.h>
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 2.22 $"
 
 struct interface *ifnet;		/* all interfaces */
 
@@ -1125,6 +1125,9 @@ ifinit(void)
 				if (ifp1->int_if_flags & IFF_POINTOPOINT)
 					continue;
 				if (ifp1->int_dstaddr == RIP_DEFAULT)
+					continue;
+				/* ignore aliases on the right network */
+				if (!strcmp(ifp->int_name, ifp1->int_name))
 					continue;
 				if (on_net(ifp->int_dstaddr,
 					   ifp1->int_net, ifp1->int_mask)
