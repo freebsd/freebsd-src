@@ -103,6 +103,8 @@ static int nbdinfo = 0;
 static int	bd_getgeom(struct open_disk *od);
 static int	bd_read(struct open_disk *od, daddr_t dblk, int blks,
 		    caddr_t dest);
+static int	bd_write(struct open_disk *od, daddr_t dblk, int blks,
+		    caddr_t dest);
 
 static int	bd_int13probe(struct bdinfo *bd);
 
@@ -816,6 +818,7 @@ bd_bestslice(struct open_disk *od)
 
 	dp = &od->od_slicetab[0];
 	for (i = 0; i < od->od_nslices; i++, dp++) {
+
 #ifdef PC98
 		switch(dp->dp_mid & 0x7f) {
 		case DOSMID_386BSD & 0x7f:		/* FreeBSD */
@@ -875,7 +878,7 @@ bd_bestslice(struct open_disk *od)
 	}
 	return (prefslice);
 }
-
+ 
 static int 
 bd_close(struct open_file *f)
 {
@@ -925,10 +928,9 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, siz
 
     DEBUG("open_disk %p", od);
 
-    if (rw != F_READ)
-	return(EROFS);
 
-
+	switch(rw){
+		case F_READ:
     blks = size / BIOSDISK_SECSIZE;
     DEBUG("read %d from %d to %p", blks, dblk, buf);
 
@@ -950,6 +952,33 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, siz
     if (rsize)
 	*rsize = size;
     return (0);
+		break;
+
+		case F_WRITE :
+    blks = size / BIOSDISK_SECSIZE;
+    DEBUG("write %d from %d to %p", blks, dblk, buf);
+
+    if (rsize)
+	*rsize = 0;
+    if (blks && bd_write(od, dblk, blks, buf)) {
+	DEBUG("write error");
+	return (EIO);
+    }
+#ifdef BD_SUPPORT_FRAGS
+	if(fragsize) {
+	DEBUG("Attempted to write a frag");
+		return (EIO);
+	}
+#endif
+
+    if (rsize)
+	*rsize = size;
+    return (0);
+		default:
+		 /* DO NOTHING */
+	}
+
+	return EROFS;
 }
 
 /* Max number of sectors to bounce-buffer if the request crosses a 64k boundary */
@@ -1135,6 +1164,194 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
     return(0);
 }
 
+
+static int
+bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
+{
+    u_int	x, bpc, cyl, hd, sec, result, resid, retry, maxfer;
+    caddr_t	p, xp, bbuf, breg;
+    
+    /* Just in case some idiot actually tries to read -1 blocks... */
+    if (blks < 0)
+	return (-1);
+
+    bpc = (od->od_sec * od->od_hds);		/* blocks per cylinder */
+    resid = blks;
+    p = dest;
+
+    /* Decide whether we have to bounce */
+#ifdef PC98
+    if (
+#else
+    if ((od->od_unit < 0x80) && 
+#endif
+	((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16))) {
+
+	/* 
+	 * There is a 64k physical boundary somewhere in the destination buffer, so we have
+	 * to arrange a suitable bounce buffer.  Allocate a buffer twice as large as we
+	 * need to.  Use the bottom half unless there is a break there, in which case we
+	 * use the top half.
+	 */
+
+#ifdef PC98
+	x = min(od->od_sec, (unsigned)blks);
+#else
+	x = min(FLOPPY_BOUNCEBUF, (unsigned)blks);
+#endif
+	bbuf = malloc(x * 2 * BIOSDISK_SECSIZE);
+	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(dest + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
+	    breg = bbuf;
+	} else {
+	    breg = bbuf + x * BIOSDISK_SECSIZE;
+	}
+	maxfer = x;			/* limit transfers to bounce region size */
+    } else {
+	breg = bbuf = NULL;
+	maxfer = 0;
+    }
+
+    while (resid > 0) {
+	x = dblk;
+	cyl = x / bpc;			/* block # / blocks per cylinder */
+	x %= bpc;			/* block offset into cylinder */
+	hd = x / od->od_sec;		/* offset / blocks per track */
+	sec = x % od->od_sec;		/* offset into track */
+
+	/* play it safe and don't cross track boundaries (XXX this is probably unnecessary) */
+	x = min(od->od_sec - sec, resid);
+	if (maxfer > 0)
+	    x = min(x, maxfer);		/* fit bounce buffer */
+
+	/* where do we transfer to? */
+	xp = bbuf == NULL ? p : breg;
+
+	/* correct sector number for 1-based BIOS numbering */
+#ifdef PC98
+	if ((od->od_unit & 0xf0) == 0x30 || (od->od_unit & 0xf0) == 0x90)
+	    sec++;
+#else
+	sec++;
+#endif
+
+
+	/* Put your Data In, Put your Data out,
+	   Put your Data In, and shake it all about 
+	*/
+	if (bbuf != NULL)
+	    bcopy(p, breg, x * BIOSDISK_SECSIZE);
+	p += (x * BIOSDISK_SECSIZE);
+	dblk += x;
+	resid -= x;
+
+	/* Loop retrying the operation a couple of times.  The BIOS may also retry. */
+	for (retry = 0; retry < 3; retry++) {
+	    /* if retrying, reset the drive */
+	    if (retry > 0) {
+#ifdef PC98
+		v86.ctl = V86_FLAGS;
+		v86.addr = 0x1b;
+		v86.eax = 0x0300 | od->od_unit;
+#else
+		v86.ctl = V86_FLAGS;
+		v86.addr = 0x13;
+		v86.eax = 0;
+		v86.edx = od->od_unit;
+#endif
+		v86int();
+	    }
+	    
+#ifdef PC98
+	    v86.ctl = V86_FLAGS;
+	    v86.addr = 0x1b;
+	    if (od->od_flags & BD_FLOPPY) {
+		v86.eax = 0xd500 | od->od_unit;
+		v86.ecx = 0x0200 | (cyl & 0xff);
+	    } else {
+		v86.eax = 0x0500 | od->od_unit;
+		v86.ecx = cyl;
+	    }
+	    v86.edx = (hd << 8) | sec;
+	    v86.ebx = x * BIOSDISK_SECSIZE;
+	    v86.es = VTOPSEG(xp);
+	    v86.ebp = VTOPOFF(xp);
+	    v86int();
+	    result = (v86.efl & 0x1);
+	    if (result == 0)
+		break;
+#else
+	    if(cyl > 1023) {
+	        /* use EDD if the disk supports it, otherwise, return error */
+	        if(od->od_flags & BD_MODEEDD1) {
+		    static unsigned short packet[8];
+
+		    packet[0] = 0x10;
+		    packet[1] = x;
+		    packet[2] = VTOPOFF(xp);
+		    packet[3] = VTOPSEG(xp);
+		    packet[4] = dblk & 0xffff;
+		    packet[5] = dblk >> 16;
+		    packet[6] = 0;
+		    packet[7] = 0;
+		    v86.ctl = V86_FLAGS;
+		    v86.addr = 0x13;
+			/* Should we Write with verify ?? 0x4302 ? */
+		    v86.eax = 0x4300;
+		    v86.edx = od->od_unit;
+		    v86.ds = VTOPSEG(packet);
+		    v86.esi = VTOPOFF(packet);
+		    v86int();
+		    result = (v86.efl & 0x1);
+		    if(result == 0)
+		      break;
+		} else {
+		    result = 1;
+		    break;
+		}
+	    } else {
+	        /* Use normal CHS addressing */
+	        v86.ctl = V86_FLAGS;
+		v86.addr = 0x13;
+		v86.eax = 0x300 | x;
+		v86.ecx = ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec;
+		v86.edx = (hd << 8) | od->od_unit;
+		v86.es = VTOPSEG(xp);
+		v86.ebx = VTOPOFF(xp);
+		v86int();
+		result = (v86.efl & 0x1);
+		if (result == 0)
+		  break;
+	    }
+#endif
+	}
+	
+#ifdef PC98
+	DEBUG("%d sectors from %d/%d/%d to %p (0x%x) %s", x, cyl, hd,
+	    od->od_flags & BD_FLOPPY ? sec - 1 : sec, p, VTOP(p),
+	    result ? "failed" : "ok");
+	/* BUG here, cannot use v86 in printf because putchar uses it too */
+	DEBUG("ax = 0x%04x cx = 0x%04x dx = 0x%04x status 0x%x", 
+	    od->od_flags & BD_FLOPPY ? 0xd600 | od->od_unit : 0x0600 | od->od_unit,
+	    od->od_flags & BD_FLOPPY ? 0x0200 | cyl : cyl, (hd << 8) | sec,
+	    (v86.eax >> 8) & 0xff);
+#else
+ 	DEBUG("%d sectors from %d/%d/%d to %p (0x%x) %s", x, cyl, hd, sec - 1, p, VTOP(p), result ? "failed" : "ok");
+	/* BUG here, cannot use v86 in printf because putchar uses it too */
+	DEBUG("ax = 0x%04x cx = 0x%04x dx = 0x%04x status 0x%x", 
+	      0x200 | x, ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec, (hd << 8) | od->od_unit, (v86.eax >> 8) & 0xff);
+#endif
+	if (result) {
+	    if (bbuf != NULL)
+		free(bbuf);
+	    return(-1);
+	}
+    }
+	
+/*    hexdump(dest, (blks * BIOSDISK_SECSIZE)); */
+    if (bbuf != NULL)
+	free(bbuf);
+    return(0);
+}
 static int
 bd_getgeom(struct open_disk *od)
 {
