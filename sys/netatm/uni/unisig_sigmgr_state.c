@@ -1,5 +1,4 @@
 /*
- *
  * ===================================
  * HARP  |  Host ATM Research Platform
  * ===================================
@@ -22,9 +21,6 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
 
 /*
@@ -32,8 +28,10 @@
  * ----------------------------------------
  *
  * Signalling manager finite state machine
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -60,11 +58,6 @@
 #include <netatm/uni/uni.h>
 #include <netatm/uni/unisig.h>
 #include <netatm/uni/unisig_var.h>
-
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
-
 
 /*
  * Local functions
