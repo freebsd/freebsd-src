@@ -292,7 +292,7 @@
 /* Kodak products */
 #define	USB_PRODUCT_KODAK_DC260	0x0110		/* Digital Science DC260 */
 #define	USB_PRODUCT_KODAK_DC265	0x0111		/* Digital Science DC265 */
-#define	USB_PRODUCT_KODAK_DC290	0x0111		/* Digital Science DC290 */
+#define	USB_PRODUCT_KODAK_DC290	0x0112		/* Digital Science DC290 */
 #define	USB_PRODUCT_KODAK_DC240	0x0120		/* Digital Science DC240 */
 #define	USB_PRODUCT_KODAK_DC280	0x0130		/* Digital Science DC280 */
 
