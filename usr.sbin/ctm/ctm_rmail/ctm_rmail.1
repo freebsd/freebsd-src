@@ -5,9 +5,9 @@
 .\"
 .\" Author: Stephen McKay
 .\"
-.Dd January 15, 1995
-.Os
+.Dd January 24, 1995
 .Dt CTM_MAIL 1
+.Os
 .Sh NAME
 .Nm ctm_smail, ctm_rmail
 .Nd send and receive
@@ -21,7 +21,7 @@ deltas via mail
 .Ar ctm-delta
 .Ar mail-alias
 .Nm ctm_rmail
-.Op Fl D
+.Op Fl Df
 .Op Fl l Ar log
 .Op Fl p Ar piecedir
 .Op Fl d Ar deltadir
@@ -37,14 +37,14 @@ and
 are used to distribute changes to a source tree via email.
 .Nm ctm_smail
 is given a compressed
-.Nm ctm
+.Xr ctm
 delta, and a mailing list to send it to.  It splits the delta into manageable
 pieces, encodes them as mail messages and sends them to the mailing list.
 Each recipient uses
 .Nm ctm_rmail
 (either manually or automatically) to decode and reassemble the delta, and
 optionally call
-.Xr ctm 1
+.Xr ctm
 to apply it to the source tree.
 At the moment,
 only two source trees are distributed, and both by the same site.  These are
@@ -96,7 +96,7 @@ Collect pieces of deltas in this directory.  Each piece corresponds to a
 single mail message.  Pieces are removed when complete deltas are built.
 If this flag is not given, no input files will be read, but completed
 deltas may still be applied with
-.Xr ctm 1
+.Xr ctm
 if the
 .Fl b
 flag is given.
@@ -120,11 +120,34 @@ file in
 does not exist).
 .It Fl D
 Delete deltas after successful application by
-.Xr ctm 1 .
+.Xr ctm .
 It is probably a good idea to avoid this flag (and keep all the deltas)
 as one of the possible future enhancements to
-.Xr ctm 1
+.Xr ctm
 is the ability to recover small groups of files from a full set of deltas.
+.It Fl f
+Fork and execute in the background while applying deltas with
+.Xr ctm .
+This is useful when automatically invoking
+.Nm ctm_rmail
+from
+.Xr sendmail
+because
+.Xr ctm
+can take a very long time to complete, causing other people's mail to
+be delayed, and can in theory cause spurious
+mail retransmission due to the remote
+.Xr sendmail
+timing out, or even termination of
+.Nm ctm_rmail
+by mail filters such as
+.Xr "MH's"
+.Xr slocal .
+Don't worry about zillions of background
+.Xr ctm
+processes loading your machine, since locking is used to prevent more than one
+.Xr ctm
+invocation at a time.
 .El
 .Pp
 The file arguments (or
@@ -132,6 +155,15 @@ The file arguments (or
 if there are none) are scanned for delta pieces.  Multiple delta pieces
 can be read from a single file, so an entire maildrop can be scanned
 and processed with a single command.
+.Pp
+It is safe to invoke
+.Nm ctm_rmail
+multiple times concurrently (with different input files),
+as might happen when
+.Xr sendmail
+.nh
+is delivering mail asynchronously.  This is because locking is used to
+keep things orderly.
 .Sh FILE FORMAT
 Following are the important parts of an actual (very small) delta piece:
 .Bd -literal
@@ -174,7 +206,7 @@ You are then on your own!
 To send delta 32 of
 .Em src-cur
 to a group of wonderful code hackers known to
-.Xr sendmail 8
+.Xr sendmail
 as
 .Em src-guys ,
 limiting the mail size to roughly 60000 bytes, you could use:
@@ -229,13 +261,15 @@ the window for mischief is quite small.
 is careful to write only to the directories given to it (by not believing any
 .Dq /
 characters in the delta name), and the latest
-.Nm ctm
-disallows absolute pathnames in files it manipulates, so the worst you
+.Xr ctm
+disallows absolute pathnames and
+.Dq \&\.\.
+in files it manipulates, so the worst you
 could lose are a few source tree files (recoverable from your deltas).
 Since
-.Nm ctm
+.Xr ctm
 requires that a
-.Nm md5
+.Xr md5
 checksum match before it touches a file, only fellow
 source recipients would be able to generate a fake delta, and they're such
 nice folk that they wouldn't even think of it! :-)
@@ -273,7 +307,7 @@ is expected to be called from a mail transfer program, and thus signals
 failure only when the input mail message should be bounced (preferably into
 your regular maildrop, not back to the sender).  In short, failure to
 apply a completed delta with
-.Nm ctm
+.Xr ctm
 is not considered an error important enough to bounce the mail, and
 .Nm ctm_rmail
 returns an exit status of 0.
@@ -293,10 +327,20 @@ ctm_rmail: src-cur.0250.gz 2/2 stored
 ctm_rmail: src-cur.0250.gz complete
 .Ed
 .Pp
+If any of the input files do not contain a valid delta piece,
+.Nm ctm_rmail
+will report:
+.Bd -literal -offset indent
+ctm_rmail: message contains no delta
+.Ed
+.sp \n(Ppu
+and return an exit status of 1.  You can use this to redirect wayward messages
+back into your real mailbox if your mail filter goes wonky.
+.Pp
 These messages go to
 .Em stderr
 or to the log file.  Messages from
-.Nm ctm
+.Xr ctm
 turn up here too.  Error messages should be self explanatory.
 .\" The next request is for sections 2 and 3 error and signal handling only.
 .\" .Sh ERRORS
