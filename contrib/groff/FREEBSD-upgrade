@@ -19,7 +19,7 @@ To upgrade to a newer version of groff, when it is available:
 
 Do not, under any circumstances, deviate from this procedure.
 
-To make local changes to tcpdump, simply patch and commit to the main
+To make local changes to groff, simply patch and commit to the main
 branch (aka HEAD).  Never make local changes on the FSF branch.
 
 All local changes should be submitted to "jjc@jclark.com" for
