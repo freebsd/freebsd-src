@@ -59,6 +59,13 @@ union ciss_device_address
 #define CISS_HDR_ADDRESS_MODE_LOGICAL		0x1
 #define CISS_HDR_ADDRESS_MODE_MASK_PERIPHERAL	0x3
 
+#define CISS_EXTRA_MODE2(extra)		((extra & 0xc0000000) >> 30)
+#define CISS_EXTRA_BUS2(extra)		((extra & 0x3f000000) >> 24)
+#define CISS_EXTRA_TARGET2(extra)	((extra & 0x00ff0000) >> 16)
+#define CISS_EXTRA_MODE3(extra)		((extra & 0x0000c000) >> 14)
+#define CISS_EXTRA_BUS3(extra)		((extra & 0x00003f00) >> 8)
+#define CISS_EXTRA_TARGET3(extra)	((extra & 0x000000ff))
+
 struct ciss_header
 {
     u_int8_t	:8;			/* reserved */

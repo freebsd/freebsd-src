@@ -126,6 +126,7 @@ static void	ciss_command_map_helper(void *arg, bus_dma_segment_t *segs,
 static int	ciss_identify_adapter(struct ciss_softc *sc);
 static int	ciss_init_logical(struct ciss_softc *sc);
 static int	ciss_init_physical(struct ciss_softc *sc);
+static int	ciss_filter_physical(struct ciss_softc *sc, struct ciss_lun_report *cll);
 static int	ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld);
 static int	ciss_get_ldrive_status(struct ciss_softc *sc,  struct ciss_ldrive *ld);
 static int	ciss_update_config(struct ciss_softc *sc);
@@ -188,6 +189,7 @@ static void	ciss_notify_event(struct ciss_softc *sc);
 static void	ciss_notify_complete(struct ciss_request *cr);
 static int	ciss_notify_abort(struct ciss_softc *sc);
 static int	ciss_notify_abort_bmic(struct ciss_softc *sc);
+static void	ciss_notify_hotplug(struct ciss_softc *sc, struct ciss_notify *cn);
 static void	ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn);
 static void	ciss_notify_physical(struct ciss_softc *sc, struct ciss_notify *cn);
 
@@ -234,6 +236,13 @@ static struct cdevsw ciss_cdevsw = {
     nopoll, nommap, nostrategy, "ciss", CISS_CDEV_MAJOR,
     nodump, nopsize, 0, nokqfilter
 };
+
+/*
+ * This tunable can be set at boot time and controls whether physical devices
+ * that are marked hidden by the firmware should be exposed anyways.
+ */
+static unsigned int ciss_expose_hidden_physical = 0;
+TUNABLE_INT("hw.ciss.expose_hidden_physical", &ciss_expose_hidden_physical);
 
 /************************************************************************
  * CISS adapters amazingly don't have a defined programming interface
@@ -1064,14 +1073,14 @@ ciss_init_logical(struct ciss_softc *sc)
     }
 
     sc->ciss_logical =
-	malloc(sc->ciss_max_bus_number * sizeof(struct ciss_ldrive *),
+	malloc(sc->ciss_max_logical_bus * sizeof(struct ciss_ldrive *),
 	       CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
     if (sc->ciss_logical == NULL) {
 	error = ENXIO;
 	goto out;
     }
 
-    for (i = 0; i <= sc->ciss_max_bus_number; i++) {
+    for (i = 0; i <= sc->ciss_max_logical_bus; i++) {
 	sc->ciss_logical[i] =
 	    malloc(CISS_MAX_LOGICAL * sizeof(struct ciss_ldrive),
 		   CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
@@ -1119,8 +1128,12 @@ ciss_init_physical(struct ciss_softc *sc)
     struct ciss_lun_report	*cll;
     int				error = 0, i;
     int				nphys;
+    int				bus, target;
 
     debug_called(1);
+
+    bus = 0;
+    target = 0;
 
     cll = ciss_report_luns(sc, CISS_OPCODE_REPORT_PHYSICAL_LUNS,
 			   CISS_MAX_PHYSICAL);
@@ -1137,6 +1150,30 @@ ciss_init_physical(struct ciss_softc *sc)
     }
 
     /*
+     * Figure out the bus mapping.
+     * Logical buses include both the local logical bus for local arrays and
+     * proxy buses for remote arrays.  Physical buses are numbered by the
+     * controller and represent physical buses that hold physical devices.
+     * We shift these bus numbers so that everything fits into a single flat
+     * numbering space for CAM.  Logical buses occupy the first 32 CAM bus
+     * numbers, and the physical bus numbers are shifted to be above that.
+     * This results in the various driver arrays being indexed as follows:
+     *
+     * ciss_controllers[] - indexed by logical bus
+     * ciss_cam_sim[]     - indexed by both logical and physical, with physical
+     *                      being shifted by 32.
+     * ciss_logical[][]   - indexed by logical bus
+     * ciss_physical[][]  - indexed by physical bus
+     *
+     * XXX This is getting more and more hackish.  CISS really doesn't play
+     *     well with a standard SCSI model; devices are addressed via magic
+     *     cookies, not via b/t/l addresses.  Since there is no way to store
+     *     the cookie in the CAM device object, we have to keep these lookup
+     *     tables handy so that the devices can be found quickly at the cost
+     *     of wasting memory and having a convoluted lookup scheme.  This
+     *     driver should probably be converted to block interface.
+     */
+    /*
      * If the L2 and L3 SCSI addresses are 0, this signifies a proxy
      * controller. A proxy controller is another physical controller
      * behind the primary PCI controller. We need to know about this
@@ -1145,15 +1182,19 @@ ciss_init_physical(struct ciss_softc *sc)
      * find the highest numbered one so the array can be properly
      * sized.
      */
-    sc->ciss_max_bus_number = 1;
+    sc->ciss_max_logical_bus = 1;
     for (i = 0; i < nphys; i++) {
 	if (cll->lun[i].physical.extra_address == 0) {
-	    sc->ciss_max_bus_number = cll->lun[i].physical.bus + 1;
+	    bus = cll->lun[i].physical.bus;
+	    sc->ciss_max_logical_bus = max(sc->ciss_max_logical_bus, bus) + 1;
+	} else {
+	    bus = CISS_EXTRA_BUS2(cll->lun[i].physical.extra_address);
+	    sc->ciss_max_physical_bus = max(sc->ciss_max_physical_bus, bus);
 	}
     }
 
     sc->ciss_controllers =
-	malloc(sc->ciss_max_bus_number * sizeof (union ciss_device_address),
+	malloc(sc->ciss_max_logical_bus * sizeof (union ciss_device_address),
 	       CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
 
     if (sc->ciss_controllers == NULL) {
@@ -1169,11 +1210,79 @@ ciss_init_physical(struct ciss_softc *sc)
 	}
     }
 
+    sc->ciss_physical =
+	malloc(sc->ciss_max_physical_bus * sizeof(struct ciss_pdrive *),
+	       CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
+    if (sc->ciss_physical == NULL) {
+	ciss_printf(sc, "Could not allocate memory for physical device map\n");
+	error = ENOMEM;
+	goto out;
+    }
+
+    for (i = 0; i < sc->ciss_max_physical_bus; i++) {
+	sc->ciss_physical[i] =
+	    malloc(sizeof(struct ciss_pdrive) * CISS_MAX_PHYSTGT,
+		   CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
+	if (sc->ciss_physical[i] == NULL) {
+	    ciss_printf(sc, "Could not allocate memory for target map\n");
+	    error = ENOMEM;
+	    goto out;
+	}
+    }
+
+    ciss_filter_physical(sc, cll);
+
 out:
     if (cll != NULL)
 	free(cll, CISS_MALLOC_CLASS);
 
     return(error);
+}
+
+static int
+ciss_filter_physical(struct ciss_softc *sc, struct ciss_lun_report *cll)
+{
+    u_int32_t ea;
+    int i, nphys;
+    int	bus, target;
+
+    nphys = (ntohl(cll->list_size) / sizeof(union ciss_device_address));
+    for (i = 0; i < nphys; i++) {
+	if (cll->lun[i].physical.extra_address == 0)
+	    continue;
+
+	/*
+	 * Filter out devices that we don't want.  Level 3 LUNs could
+	 * probably be supported, but the docs don't give enough of a
+	 * hint to know how.
+	 *
+	 * The mode field of the physical address is likely set to have
+	 * hard disks masked out.  Honor it unless the user has overridden
+	 * us with the tunable.  We also munge the inquiry data for these
+	 * disks so that they only show up as passthrough devices.  Keeping
+	 * them visible in this fashion is useful for doing things like
+	 * flashing firmware.
+	 */
+	ea = cll->lun[i].physical.extra_address;
+	if ((CISS_EXTRA_BUS3(ea) != 0) || (CISS_EXTRA_TARGET3(ea) != 0) ||
+	    (CISS_EXTRA_MODE2(ea) == 0x3))
+	    continue;
+	if ((ciss_expose_hidden_physical == 0) &&
+	   (cll->lun[i].physical.mode == CISS_HDR_ADDRESS_MODE_MASK_PERIPHERAL))
+	    continue;
+
+	/*
+	 * Note: CISS firmware numbers physical busses starting at '1', not
+	 *       '0'.  This numbering is internal to the firmware and is only
+	 *       used as a hint here.
+	 */
+	bus = CISS_EXTRA_BUS2(ea) - 1;
+	target = CISS_EXTRA_TARGET2(ea);
+	sc->ciss_physical[bus][target].cp_address = cll->lun[i];
+	sc->ciss_physical[bus][target].cp_online = 1;
+    }
+
+    return (0);
 }
 
 static int
@@ -1561,7 +1670,14 @@ ciss_free(struct ciss_softc *sc)
 
     /* disconnect from CAM */
     if (sc->ciss_cam_sim) {
-	for (i = 0; i < sc->ciss_max_bus_number; i++) {
+	for (i = 0; i < sc->ciss_max_logical_bus; i++) {
+	    if (sc->ciss_cam_sim[i]) {
+		xpt_bus_deregister(cam_sim_path(sc->ciss_cam_sim[i]));
+		cam_sim_free(sc->ciss_cam_sim[i], 0);
+	    }
+	}
+	for (i = CISS_PHYSICAL_BASE; i < sc->ciss_max_physical_bus +
+	     CISS_PHYSICAL_BASE; i++) {
 	    if (sc->ciss_cam_sim[i]) {
 		xpt_bus_deregister(cam_sim_path(sc->ciss_cam_sim[i]));
 		cam_sim_free(sc->ciss_cam_sim[i], 0);
@@ -1573,9 +1689,15 @@ ciss_free(struct ciss_softc *sc)
 	cam_simq_free(sc->ciss_cam_devq);
 
     if (sc->ciss_logical) {
-	for (i = 0; i < sc->ciss_max_bus_number; i++)
+	for (i = 0; i < sc->ciss_max_logical_bus; i++)
 	    free(sc->ciss_logical[i], CISS_MALLOC_CLASS);
 	free(sc->ciss_logical, CISS_MALLOC_CLASS);
+    }
+
+    if (sc->ciss_physical) {
+	for (i = 0; i < sc->ciss_max_physical_bus; i++)
+	    free(sc->ciss_physical[i], CISS_MALLOC_CLASS);
+	free(sc->ciss_physical, CISS_MALLOC_CLASS);
     }
 
     if (sc->ciss_controllers)
@@ -2274,7 +2396,7 @@ out:
 static int
 ciss_cam_init(struct ciss_softc *sc)
 {
-    int			i;
+    int			i, maxbus;
 
     debug_called(1);
 
@@ -2289,15 +2411,23 @@ ciss_cam_init(struct ciss_softc *sc)
 
     /*
      * Create a SIM.
+     *
+     * This naturally wastes a bit of memory.  The alternative is to allocate
+     * and register each bus as it is found, and then track them on a linked
+     * list.  Unfortunately, the driver has a few places where it needs to
+     * look up the SIM based solely on bus number, and it's unclear whether
+     * a list traversal would work for these situations.
      */
-    sc->ciss_cam_sim = malloc(sc->ciss_max_bus_number * sizeof(struct cam_sim *),
+    maxbus = max(sc->ciss_max_logical_bus, sc->ciss_max_physical_bus +
+		 CISS_PHYSICAL_BASE);
+    sc->ciss_cam_sim = malloc(maxbus * sizeof(struct cam_sim*),
 			      CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
     if (sc->ciss_cam_sim == NULL) {
 	ciss_printf(sc, "can't allocate memory for controller SIM\n");
 	return(ENOMEM);
     }
 
-    for (i = 0; i < sc->ciss_max_bus_number; i++) {
+    for (i = 0; i < sc->ciss_max_logical_bus; i++) {
 	if ((sc->ciss_cam_sim[i] = cam_sim_alloc(ciss_cam_action, ciss_cam_poll,
 						 "ciss", sc,
 						 device_get_unit(sc->ciss_dev),
@@ -2311,10 +2441,29 @@ ciss_cam_init(struct ciss_softc *sc)
 	/*
 	 * Register bus with this SIM.
 	 */
-	if ((i == 0 || sc->ciss_controllers[i].physical.bus != 0) &&
-	    xpt_bus_register(sc->ciss_cam_sim[i], i) != 0) {
+	if (i == 0 || sc->ciss_controllers[i].physical.bus != 0) { 
+	    if (xpt_bus_register(sc->ciss_cam_sim[i], i) != 0) {
+		ciss_printf(sc, "can't register SCSI bus %d\n", i);
+		return (ENXIO);
+	    }
+	}
+    }
+
+    for (i = CISS_PHYSICAL_BASE; i < sc->ciss_max_physical_bus +
+	 CISS_PHYSICAL_BASE; i++) {
+	if ((sc->ciss_cam_sim[i] = cam_sim_alloc(ciss_cam_action, ciss_cam_poll,
+						 "ciss", sc,
+						 device_get_unit(sc->ciss_dev),
+						 sc->ciss_max_requests - 2,
+						 1,
+						 sc->ciss_cam_devq)) == NULL) {
+	    ciss_printf(sc, "can't allocate CAM SIM for controller %d\n", i);
+	    return (ENOMEM);
+	}
+
+	if (xpt_bus_register(sc->ciss_cam_sim[i], i) != 0) {
 	    ciss_printf(sc, "can't register SCSI bus %d\n", i);
-	    return(ENXIO);
+	    return (ENXIO);
 	}
     }
 
@@ -2363,7 +2512,12 @@ ciss_cam_rescan_all(struct ciss_softc *sc)
 {
     int i;
 
-    for (i = 0; i < sc->ciss_max_bus_number; i++)
+    /* Rescan the logical buses */
+    for (i = 0; i < sc->ciss_max_logical_bus; i++)
+	ciss_cam_rescan_target(sc, i, CAM_TARGET_WILDCARD);
+    /* Rescan the physical buses */
+    for (i = CISS_PHYSICAL_BASE; i < sc->ciss_max_physical_bus +
+	 CISS_PHYSICAL_BASE; i++)
 	ciss_cam_rescan_target(sc, i, CAM_TARGET_WILDCARD);
 }
 
@@ -2383,11 +2537,13 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
     struct ciss_softc	*sc;
     struct ccb_scsiio	*csio;
     int			bus, target;
+    int			physical;
 
     sc = cam_sim_softc(sim);
     bus = cam_sim_bus(sim);
     csio = (struct ccb_scsiio *)&ccb->csio;
     target = csio->ccb_h.target_id;
+    physical = CISS_IS_PHYSICAL(bus);
 
     switch (ccb->ccb_h.func_code) {
 
@@ -2401,15 +2557,19 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
     case XPT_CALC_GEOMETRY:
     {
 	struct ccb_calc_geometry	*ccg = &ccb->ccg;
-	struct ciss_ldrive		*ld = &sc->ciss_logical[bus][target];
+	struct ciss_ldrive		*ld;
 
 	debug(1, "XPT_CALC_GEOMETRY %d:%d:%d", cam_sim_bus(sim), ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 
+	ld = NULL;
+	if (!physical)
+	    ld = &sc->ciss_logical[bus][target];
+	    
 	/*
 	 * Use the cached geometry settings unless the fault tolerance
 	 * is invalid.
 	 */
-	if (ld->cl_geometry.fault_tolerance == 0xFF) {
+	if (physical || ld->cl_geometry.fault_tolerance == 0xFF) {
 	    u_int32_t			secs_per_cylinder;
 
 	    ccg->heads = 255;
@@ -2535,7 +2695,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      * request completes.
      */
     if ((error = ciss_get_request(sc, &cr)) != 0) {
-	xpt_freeze_simq(sc->ciss_cam_sim[bus], 1);
+	xpt_freeze_simq(sim, 1);
 	csio->ccb_h.status |= CAM_REQUEUE_REQ;
 	return(error);
     }
@@ -2552,7 +2712,12 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
     /*
      * Target the right logical volume.
      */
-    cc->header.address = sc->ciss_logical[bus][target].cl_address;
+    if (CISS_IS_PHYSICAL(bus))
+	cc->header.address =
+	    sc->ciss_physical[CISS_CAM_TO_PBUS(bus)][target].cp_address;
+    else
+	cc->header.address =
+	    sc->ciss_logical[bus][target].cl_address;
     cc->cdb.cdb_length = csio->cdb_len;
     cc->cdb.type = CISS_CDB_TYPE_COMMAND;
     cc->cdb.attribute = CISS_CDB_ATTRIBUTE_SIMPLE;	/* XXX ordered tags? */
@@ -2581,7 +2746,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      * if the adapter rejects the command).
      */
     if ((error = ciss_start(cr)) != 0) {
-	xpt_freeze_simq(sc->ciss_cam_sim[bus], 1);
+	xpt_freeze_simq(sim, 1);
 	if (error == EINPROGRESS) {
 	    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	    error = 0;
@@ -2608,6 +2773,15 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
     bus = cam_sim_bus(xpt_path_sim(csio->ccb_h.path));
     opcode = (csio->ccb_h.flags & CAM_CDB_POINTER) ?
 	*(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0];
+
+    if (CISS_IS_PHYSICAL(bus)) {
+	if (sc->ciss_physical[CISS_CAM_TO_PBUS(bus)][target].cp_online != 1) {
+	    csio->ccb_h.status = CAM_SEL_TIMEOUT;
+	    xpt_done((union ccb *)csio);
+	    return(1);
+	} else
+	    return(0);
+    }
 
     /*
      * Handle requests for volumes that don't exist or are not online.
@@ -2747,6 +2921,17 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	inq = (struct scsi_inquiry_data *)csio->data_ptr;
 	target = csio->ccb_h.target_id;
 	bus = cam_sim_bus(xpt_path_sim(csio->ccb_h.path));
+
+	/*
+	 * Don't let hard drives be seen by the DA driver.  They will still be
+	 * attached by the PASS driver.
+	 */
+	if (CISS_IS_PHYSICAL(bus)) {
+	    if (SID_TYPE(inq) == T_DIRECT)
+		inq->device = (inq->device & 0xe0) | T_NODEVICE;
+	    return;
+	}
+
 	cl = &sc->ciss_logical[bus][target];
 
 	padstr(inq->vendor, "COMPAQ", 8);
@@ -2787,8 +2972,11 @@ ciss_name_device(struct ciss_softc *sc, int bus, int target)
 {
     struct cam_periph	*periph;
 
+    if (CISS_IS_PHYSICAL(bus) == 0)
+	return (0);
     if ((periph = ciss_find_periph(sc, bus, target)) != NULL) {
-	sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d", periph->periph_name, periph->unit_number);
+	sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d",
+		periph->periph_name, periph->unit_number);
 	return(0);
     }
     sc->ciss_logical[bus][target].cl_name[0] = 0;
@@ -3215,7 +3403,7 @@ ciss_notify_rescan_logical(struct ciss_softc *sc)
      * Delete any of the drives which were destroyed by the
      * firmware.
      */
-    for (i = 0; i < sc->ciss_max_bus_number; i++) {
+    for (i = 0; i < sc->ciss_max_logical_bus; i++) {
 	for (j = 0; j < CISS_MAX_LOGICAL; j++) {
 	    ld = &sc->ciss_logical[i][j];
 
@@ -3354,6 +3542,51 @@ ciss_notify_physical(struct ciss_softc *sc, struct ciss_notify *cn)
 }
 
 /************************************************************************
+ * Handle a notify event relating to the status of a physical drive.
+ */
+static void
+ciss_notify_hotplug(struct ciss_softc *sc, struct ciss_notify *cn)
+{
+    struct ciss_lun_report *cll;
+    int bus, target;
+    int s;
+
+    switch (cn->subclass) {
+    case CISS_NOTIFY_HOTPLUG_PHYSICAL:
+    case CISS_NOTIFY_HOTPLUG_NONDISK:
+	bus = CISS_BIG_MAP_BUS(sc, cn->data.drive.big_physical_drive_number);
+	target =
+	    CISS_BIG_MAP_TARGET(sc, cn->data.drive.big_physical_drive_number);
+
+	s = splcam();
+	if (cn->detail == 0) {
+	    /*
+	     * Mark the device offline so that it'll start producing selection
+	     * timeouts to the upper layer.
+	     */
+	    sc->ciss_physical[bus][target].cp_online = 0;
+	} else {
+	    /*
+	     * Rescan the physical lun list for new items
+	     */
+	    cll = ciss_report_luns(sc, CISS_OPCODE_REPORT_PHYSICAL_LUNS,
+				   CISS_MAX_PHYSICAL);
+	    if (cll == NULL) {
+		ciss_printf(sc, "Warning, cannot get physical lun list\n");
+		break;
+	    }
+	    ciss_filter_physical(sc, cll);
+	}
+	splx(s);
+	break;
+
+    default:
+	ciss_printf(sc, "Unknown hotplug event %d\n", cn->subclass);
+	return;
+    }
+}
+
+/************************************************************************
  * Handle deferred processing of notify events.  Notify events may need
  * sleep which is unsafe during an interrupt.
  */
@@ -3388,6 +3621,9 @@ ciss_notify_thread(void *arg)
 	cn = (struct ciss_notify *)cr->cr_data;
 
 	switch (cn->class) {
+	case CISS_NOTIFY_HOTPLUG:
+	    ciss_notify_hotplug(sc, cn);
+	    break;
 	case CISS_NOTIFY_LOGICAL:
 	    ciss_notify_logical(sc, cn);
 	    break;
@@ -3584,12 +3820,14 @@ ciss_print_adapter(struct ciss_softc *sc)
     ciss_printf(sc, "flags %b\n", sc->ciss_flags,
 	"\20\1notify_ok\2control_open\3aborting\4running\21fake_synch\22bmic_abort\n");
 
-    for (i = 0; i < sc->ciss_max_bus_number; i++) {
+    for (i = 0; i < sc->ciss_max_logical_bus; i++) {
 	for (j = 0; j < CISS_MAX_LOGICAL; j++) {
 	    ciss_printf(sc, "LOGICAL DRIVE %d:  ", i);
 	    ciss_print_ldrive(sc, &sc->ciss_logical[i][j]);
 	}
     }
+
+    /* XXX Should physical drives be printed out here? */
 
     for (i = 1; i < sc->ciss_max_requests; i++)
 	ciss_print_request(sc->ciss_request + i);
