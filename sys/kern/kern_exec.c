@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.47.2.3 1997/04/03 06:37:42 davidg Exp $
+ *	$Id: kern_exec.c,v 1.47.2.4 1997/04/04 01:32:09 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -159,7 +159,6 @@ interpret:
 	 * Check file permissions (also 'opens' file)
 	 */
 	error = exec_check_permissions(imgp);
-
 	if (error) {
 		VOP_UNLOCK(imgp->vp);
 		goto exec_fail_dealloc;
@@ -187,9 +186,8 @@ interpret:
 		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, NULL, p);
 	}
 	VOP_UNLOCK(imgp->vp);
-	if (error) {
+	if (error)
 		goto exec_fail_dealloc;
-	}
 
 	/*
 	 * Loop through list of image activators, calling each one.
@@ -204,7 +202,6 @@ interpret:
 			error = (*execsw[i]->ex_imgact)(imgp);
 		else
 			continue;
-
 		if (error == -1)
 			continue;
 		if (error)
@@ -216,6 +213,7 @@ interpret:
 				bp = NULL;
 			} else {
 				free((void *)imgp->image_header, M_TEMP);
+				imgp->image_header = NULL;
 			}
 			/* free old vnode and name buffer */
 			vrele(ndp->ni_vp);
@@ -573,14 +571,6 @@ exec_check_permissions(imgp)
 	struct vattr *attr = imgp->attr;
 	int error;
 
-	/*
-	 * Check number of open-for-writes on the file and deny execution
-	 *	if there are any.
-	 */
-	if (vp->v_writecount) {
-		return (ETXTBSY);
-	}
-
 	/* Get file attributes */
 	error = VOP_GETATTR(vp, attr, p->p_ucred, p);
 	if (error)
@@ -607,24 +597,33 @@ exec_check_permissions(imgp)
 		return (ENOEXEC);
 
 	/*
-	 * Disable setuid/setgid if the filesystem prohibits it or if
-	 *	the process is being traced.
-	 */
-        if ((vp->v_mount->mnt_flag & MNT_NOSUID) || (p->p_flag & P_TRACED))
-		attr->va_mode &= ~(VSUID | VSGID);
-
-	/*
 	 *  Check for execute permission to file based on current credentials.
-	 *	Then call filesystem specific open routine (which does nothing
-	 *	in the general case).
 	 */
 	error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p);
 	if (error)
 		return (error);
 
+	/*
+	 * Check number of open-for-writes on the file and deny execution
+	 * if there are any.
+	 */
+	if (vp->v_writecount)
+		return (ETXTBSY);
+
+	/*
+	 * Call filesystem specific open routine (which does nothing in the
+	 * general case).
+	 */
 	error = VOP_OPEN(vp, FREAD, p->p_ucred, p);
 	if (error)
 		return (error);
+
+	/*
+	 * Disable setuid/setgid if the filesystem prohibits it or if
+	 * the process is being traced.
+	 */
+        if ((vp->v_mount->mnt_flag & MNT_NOSUID) || (p->p_flag & P_TRACED))
+		attr->va_mode &= ~(VSUID | VSGID);
 
 	return (0);
 }
