@@ -155,12 +155,13 @@ cia_swiz_set_hae_mem(void *arg, u_int32_t pa)
 		 * Seems fairly paranoid but this is what Linux does...
 		 */
 		u_int32_t msb = pa & REG1;
-		int s = splhigh();
+		int s = save_intr();
+		disable_intr();
 		cia_hae_mem = (cia_hae_mem & ~REG1) | msb;
 		REGVAL(CIA_CSR_HAE_MEM) = cia_hae_mem;
 		alpha_mb();
 		cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
-		splx(s);
+		restore_intr(s);
 	}
 	return pa & ~REG1;
 }
@@ -228,8 +229,9 @@ cia_sgmap_invalidate_pyxis(void)
 	u_int32_t ctrl;
 	int i, s;
 
-	s = splhigh();
-
+	s = save_intr();
+	disable_intr();
+	
 	/*
 	 * Put the Pyxis into PCI loopback mode.
 	 */
@@ -259,7 +261,7 @@ cia_sgmap_invalidate_pyxis(void)
 	REGVAL(CIA_CSR_CTRL) = ctrl;
 	alpha_mb();
 
-	splx(s);
+	restore_intr(s);
 }
 
 static void
@@ -391,7 +393,6 @@ cia_probe(device_t dev)
 
 	pci_init_resources();
 	isa_init_intr();
-	cia_init_sgmap();
 
 	cia_rev = REGVAL(CIA_CSR_REV) & REV_MASK;
 
@@ -406,8 +407,8 @@ cia_probe(device_t dev)
 		cia_ispyxis = TRUE;
 	else
 		cia_ispyxis = FALSE;
-	
 
+	cia_init_sgmap();
 
 	/*
 	 * ALCOR/ALCOR2 Revisions >= 2 and Pyxis have the CNFG register.
