@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/eventhandler.h>
 #include <vm/uma.h>
 #include <machine/atomic.h>
 #include <geom/geom.h>
@@ -108,17 +109,22 @@ SYSCTL_UINT(_kern_geom_raid3_stat, OID_AUTO, 4k_failed, CTLFLAG_RD,
 	G_RAID3_DEBUG(4, "%s: Woken up %p.", __func__, (ident));	\
 } while (0)
 
+static eventhandler_tag g_raid3_ehtag = NULL;
 
 static int g_raid3_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
 static g_taste_t g_raid3_taste;
+static void g_raid3_init(struct g_class *mp);
+static void g_raid3_fini(struct g_class *mp);
 
 struct g_class g_raid3_class = {
 	.name = G_RAID3_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_raid3_config,
 	.taste = g_raid3_taste,
-	.destroy_geom = g_raid3_destroy_geom
+	.destroy_geom = g_raid3_destroy_geom,
+	.init = g_raid3_init,
+	.fini = g_raid3_fini
 };
 
 
@@ -512,6 +518,7 @@ static void
 g_raid3_destroy_device(struct g_raid3_softc *sc)
 {
 	struct g_raid3_event *ep;
+	struct g_raid3_disk *disk;
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	u_int n;
@@ -521,8 +528,12 @@ g_raid3_destroy_device(struct g_raid3_softc *sc)
 	gp = sc->sc_geom;
 	if (sc->sc_provider != NULL)
 		g_raid3_destroy_provider(sc);
-	for (n = 0; n < sc->sc_ndisks; n++)
-		g_raid3_destroy_disk(&sc->sc_disks[n]);
+	for (n = 0; n < sc->sc_ndisks; n++) {
+		disk = &sc->sc_disks[n];
+		disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
+		g_raid3_update_metadata(disk);
+		g_raid3_destroy_disk(disk);
+	}
 	while ((ep = g_raid3_event_get(sc)) != NULL) {
 		if ((ep->e_flags & G_RAID3_EVENT_DONTWAIT) != 0)
 			g_raid3_event_free(ep);
@@ -2911,6 +2922,44 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
 		    g_raid3_device_state2str(sc->sc_state));
 	}
+}
+
+static void
+g_raid3_shutdown(void *arg, int howto)
+{
+	struct g_class *mp;
+	struct g_geom *gp, *gp2;
+
+	mp = arg;
+	g_topology_lock();
+	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
+		if (gp->softc == NULL)
+			continue;
+		g_raid3_destroy(gp->softc, 1);
+	}
+	g_topology_unlock();
+#if 0
+	tsleep(&gp, PRIBIO, "r3:shutdown", hz * 20);
+#endif
+}
+
+static void
+g_raid3_init(struct g_class *mp)
+{
+
+	g_raid3_ehtag = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    g_raid3_shutdown, mp, SHUTDOWN_PRI_FIRST);
+	if (g_raid3_ehtag == NULL)
+		G_RAID3_DEBUG(0, "Warning! Cannot register shutdown event.");
+}
+
+static void
+g_raid3_fini(struct g_class *mp)
+{
+
+	if (g_raid3_ehtag == NULL)
+		return;
+	EVENTHANDLER_DEREGISTER(shutdown_post_sync, g_raid3_ehtag);
 }
 
 DECLARE_GEOM_CLASS(g_raid3_class, g_raid3);
