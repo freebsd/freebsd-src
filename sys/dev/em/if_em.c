@@ -1632,11 +1632,12 @@ em_print_link_status(struct adapter * adapter)
 			em_get_speed_and_duplex(&adapter->hw, 
 						&adapter->link_speed, 
 						&adapter->link_duplex);
-			printf("em%d: Link is up %d Mbps %s\n",
-			       adapter->unit,
-			       adapter->link_speed,
-			       ((adapter->link_duplex == FULL_DUPLEX) ?
-				"Full Duplex" : "Half Duplex"));
+			if (bootverbose)
+				printf("em%d: Link is up %d Mbps %s\n",
+				       adapter->unit,
+				       adapter->link_speed,
+				       ((adapter->link_duplex == FULL_DUPLEX) ?
+					"Full Duplex" : "Half Duplex"));
 			adapter->link_active = 1;
 			adapter->smartspeed = 0;
 		}
@@ -1644,7 +1645,8 @@ em_print_link_status(struct adapter * adapter)
 		if (adapter->link_active == 1) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			printf("em%d: Link is Down\n", adapter->unit);
+			if (bootverbose)
+				printf("em%d: Link is Down\n", adapter->unit);
 			adapter->link_active = 0;
 		}
 	}
