@@ -734,7 +734,7 @@ installFixupBin(dialogMenuItem *self)
     int i;
     FILE *fp;
     struct statfs rootfs;
-    int kstat;
+    int kstat = 1;
 
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
@@ -766,7 +766,7 @@ installFixupBin(dialogMenuItem *self)
 
 			while (*cp && !isdigit(*cp))
 			    ++cp;
-			fprintf(fp, "root_disk_unit=%d\n", *cp - 48);
+			fprintf(fp, "root_disk_unit=\"%d\"\n", *cp - 48);
 		    }
 		    fclose(fp);
 		}
