@@ -105,10 +105,6 @@ void vm_pager_sync __P((void));
 void vm_pager_unmap_pages __P((vm_offset_t, int));
 void vm_pager_unmap_page __P((vm_offset_t));
 void vm_pager_strategy __P((vm_object_t object, struct buf *bp));
-struct buf *getchainbuf(struct buf *bp, struct vnode *vp, int flags);
-void flushchainbuf(struct buf *nbp);
-void waitchainbuf(struct buf *bp, int count, int done);
-void autochaindone(struct buf *bp);
 
 /*
  *	vm_page_get_pages:
