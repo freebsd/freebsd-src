@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Sam Leffler, Errno Consulting
+ * Copyright (c) 2004-2005 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
