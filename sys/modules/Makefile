@@ -203,7 +203,6 @@ SUBDIR+=3dfx \
 	i2c \
 	ibcs2 \
 	ie \
-	if_ndis \
 	linprocfs \
 	linux \
 	lnc \
