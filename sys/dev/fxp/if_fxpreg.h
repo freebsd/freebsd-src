@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1995, David Greenman
  * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
+ * Copyright (c) 1995, David Greenman
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,6 @@
 #define	FXP_CSR_FLASHCONTROL	12	/* flash control (2 bytes) */
 #define	FXP_CSR_EEPROMCONTROL	14	/* eeprom control (2 bytes) */
 #define	FXP_CSR_MDICONTROL	16	/* mdi control (4 bytes) */
-#define	FXP_CSR_FLOWCONTROL	0x19	/* flow control (2 bytes) */
 
 /*
  * FOR REFERENCE ONLY, the old definition of FXP_CSR_SCB_RUSCUS:
@@ -72,17 +71,6 @@
 #define FXP_SCB_CUS_SUSPENDED		1
 #define FXP_SCB_CUS_ACTIVE		2
 
-#define FXP_SCB_INTR_DISABLE		0x01	/* Disable all interrupts */
-#define FXP_SCB_INTR_SWI		0x02	/* Generate SWI */
-#define FXP_SCB_INTMASK_FCP		0x04
-#define FXP_SCB_INTMASK_ER		0x08
-#define FXP_SCB_INTMASK_RNR		0x10
-#define FXP_SCB_INTMASK_CNA		0x20
-#define FXP_SCB_INTMASK_FR		0x40
-#define FXP_SCB_INTMASK_CXTNO		0x80
-
-#define FXP_SCB_STATACK_FCP		0x01	/* Flow Control Pause */
-#define FXP_SCB_STATACK_ER		0x02	/* Early Receive */
 #define FXP_SCB_STATACK_SWI		0x04
 #define FXP_SCB_STATACK_MDI		0x08
 #define FXP_SCB_STATACK_RNR		0x10
@@ -248,10 +236,7 @@ struct fxp_cb_tx {
 	volatile u_int8_t tx_threshold;
 	volatile u_int8_t tbd_number;
 	/*
-	 * The following structure isn't actually part of the TxCB,
-	 * unless the extended TxCB feature is being used.  In this
-	 * case, the first two elements of the structure below are 
-	 * fetched along with the TxCB.
+	 * The following isn't actually part of the TxCB.
 	 */
 	volatile struct fxp_tbd tbd[FXP_NTXSEG];
 };
