@@ -96,6 +96,8 @@ static	struct proc *cryptoproc;
 static	void crypto_ret_proc(void);
 static	struct proc *cryptoretproc;
 static	void crypto_destroy(void);
+static	int crypto_invoke(struct cryptop *crp, int hint);
+static	int crypto_kinvoke(struct cryptkop *krp, int hint);
 
 static	struct cryptostats cryptostats;
 SYSCTL_STRUCT(_kern, OID_AUTO, crypto_stats, CTLFLAG_RW, &cryptostats,
@@ -652,8 +654,9 @@ crypto_unblock(u_int32_t driverid, int what)
 int
 crypto_dispatch(struct cryptop *crp)
 {
+	u_int32_t hid = SESID2HID(crp->crp_sid);
 	struct cryptocap *cap;
-	int wasempty;
+	int result;
 
 	cryptostats.cs_ops++;
 
@@ -663,18 +666,30 @@ crypto_dispatch(struct cryptop *crp)
 #endif
 
 	CRYPTO_Q_LOCK();
-	wasempty = TAILQ_EMPTY(&crp_q);
-	TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
-
-	/*
-	 * Wakeup processing thread if driver is not blocked.
-	 */
-	cap = crypto_checkdriver(SESID2HID(crp->crp_sid));
-	if (cap && !cap->cc_qblocked && wasempty)
-		wakeup_one(&crp_q);
+	cap = crypto_checkdriver(hid);
+	if (cap && !cap->cc_qblocked) {
+		result = crypto_invoke(crp, 0);
+		if (result == ERESTART) {
+			/*
+			 * The driver ran out of resources, mark the
+			 * driver ``blocked'' for cryptop's and put
+			 * the request on the queue.
+			 */
+			crypto_drivers[hid].cc_qblocked = 1;
+			TAILQ_INSERT_HEAD(&crp_q, crp, crp_next);
+			cryptostats.cs_blocks++;
+		}
+	} else {
+		/*
+		 * The driver is blocked, just queue the op until
+		 * it unblocks and the kernel thread gets kicked.
+		 */
+		TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
+		result = 0;
+	}
 	CRYPTO_Q_UNLOCK();
 
-	return 0;
+	return result;
 }
 
 /*
@@ -685,23 +700,39 @@ int
 crypto_kdispatch(struct cryptkop *krp)
 {
 	struct cryptocap *cap;
-	int wasempty;
+	int result;
 
 	cryptostats.cs_kops++;
 
 	CRYPTO_Q_LOCK();
-	wasempty = TAILQ_EMPTY(&crp_kq);
-	TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
-
-	/*
-	 * Wakeup processing thread if driver is not blocked.
-	 */
 	cap = crypto_checkdriver(krp->krp_hid);
-	if (cap && !cap->cc_kqblocked && wasempty)
-		wakeup_one(&crp_q);	/* NB: shared wait channel */
+	if (cap && !cap->cc_kqblocked) {
+		result = crypto_kinvoke(krp, 0);
+		if (result == ERESTART) {
+			/*
+			 * The driver ran out of resources, mark the
+			 * driver ``blocked'' for cryptkop's and put
+			 * the request back in the queue.  It would
+			 * best to put the request back where we got
+			 * it but that's hard so for now we put it
+			 * at the front.  This should be ok; putting
+			 * it at the end does not work.
+			 */
+			crypto_drivers[krp->krp_hid].cc_kqblocked = 1;
+			TAILQ_INSERT_HEAD(&crp_kq, krp, krp_next);
+			cryptostats.cs_kblocks++;
+		}
+	} else {
+		/*
+		 * The driver is blocked, just queue the op until
+		 * it unblocks and the kernel thread gets kicked.
+		 */
+		TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
+		result = 0;
+	}
 	CRYPTO_Q_UNLOCK();
 
-	return 0;
+	return result;
 }
 
 /*
