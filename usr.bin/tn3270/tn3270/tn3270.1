@@ -39,7 +39,7 @@
 .Nd full-screen remote login to
 .Tn IBM VM/CMS
 .Sh SYNOPSIS
-.Nm tn3270
+.Nm
 .Op Fl d
 .Op Fl n Ar filename
 .Op Fl t Ar commandname
@@ -79,15 +79,15 @@ The flags to
 are as follows:
 .Bl -tag -width Fl
 .It Fl d
-Turn on socket-level tracing (for super-user only)
-.Fl n Ns Ar filename
+Turn on socket-level tracing (for super-user only).
+.It Fl n Ns Ar filename
 Specify a file to receive network trace data
 output (from commands "toggle netdata" and
 "toggle options", see
 .Xr telnet 1 ) ;
 the default is for output
 to be directed to the standard error file.
-.Fl t Ns Ar commandname
+.It Fl t Ns Ar commandname
 Specify a
 .Tn UNIX
 command to process
@@ -103,7 +103,7 @@ command (see below).
 .It Ar port
 The port to connect to on the remote system.
 Normally,
-.Nm tn3270
+.Nm
 attempts to connect to the
 standard
 .Tn TELNET
@@ -112,26 +112,26 @@ port (port
 .El
 .Pp
 When
-.Nm tn3270
+.Nm
 first connects to the remote system, it will negotiate to go into
 3270 mode.
 Part of this negotiation involves telling the remote system what model
 3270 it is emulating.
 In all cases,
-.Nm tn3270
+.Nm
 emulates a 3278 terminal.
 To decide which specific model,
-.Nm tn3270
+.Nm
 looks at the number of lines and columns on the actual terminal (as
 defined in the
 .Ev TERM
 environment variable; see
 .Xr termcap  5  ) .
 The terminal (or window in which
-.Nm tn3270
+.Nm
 is running, on multiple
 window systems) must have at least 80 columns and 24 lines, or
-.Nm tn3270
+.Nm
 will not go into emulation mode.
 If the terminal does have at least 80 columns and at least 24 lines,
 the following table describes the emulation:
@@ -184,11 +184,11 @@ Any special function keys on the
 keyboard are used whenever possible.
 If an entry for the user's terminal
 is not found,
-.Nm tn3270
+.Nm
 looks for an entry for the terminal type
 .Em unknown .
 If this is not found,
-.Nm tn3270
+.Nm
 uses a default keyboard mapping
 (see
 .Xr map3270  5  ) .
@@ -203,7 +203,7 @@ a control character, or an
 delete
 .Pq Tn DEL .
 If the user types an unrecognized function key sequence,
-.Nm tn3270
+.Nm
 sends an
 .Tn ASCII
 bell
@@ -215,13 +215,13 @@ and nothing is sent to the
 host.
 .Pp
 If
-.Nm tn3270
+.Nm
 is invoked without specifying a remote host system name,
 it enters local command mode,
 indicated by the prompt
 .Dq Li tn3270>\  .
 In this mode,
-.Nm tn3270
+.Nm
 accepts and executes
 all the commands of
 .Xr telnet  1  ,
@@ -240,7 +240,7 @@ command for
 command mode may also be entered, after connecting to a host, by typing
 a special escape sequence.
 If
-.Nm tn3270
+.Nm
 has succeeded in negotiating 3270 mode with the remote host, the
 escape sequence will be as defined by the map3270 (see
 .Xr map3270  5  )
@@ -271,7 +271,7 @@ or by typing ``quit'' or ``close'' while in local command mode.
 The
 .Tn IBM
 4994 style transparent mode command is invoked when
-.Nm tn3270
+.Nm
 receives
 .Tn IBM
 4994 style transparent output from the remote host.
@@ -325,11 +325,12 @@ and
 .Re
 .Sh HISTORY
 The
-.Nm tn3270
+.Nm
 command appeared in
 .Bx 4.3 .
 .Sh BUGS
-Tn3270 is slow and uses system resources prodigiously.
+.Nm Tn3270
+is slow and uses system resources prodigiously.
 .Pp
 Not all 3270 functions are supported,
 nor all Yale enhancements.

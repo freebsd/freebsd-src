@@ -42,7 +42,7 @@ to
 .Tn IBM
 3270 keyboard map
 .Sh SYNOPSIS
-.Nm mset
+.Nm
 .Op Fl picky
 .Op Fl shell
 .Op Ar keyboardname
@@ -66,7 +66,7 @@ command (see
 .Xr tn3270  1  ) .
 .Pp
 The default
-.Nm mset
+.Nm
 output can be used to store the mapping information in the process environment
 in order to avoid scanning
 .Nm map3270
@@ -83,7 +83,7 @@ set noglob; setenv MAP3270 "\(gamset\(ga"; unset noglob
 If the
 .Ar keyboardname
 argument is not supplied,
-.Nm mset
+.Nm
 attempts to determine the name of the keyboard the user is using,
 by checking the
 .Ev KEYBD
@@ -91,12 +91,12 @@ environment variable.
 If the
 .Ev KEYBD
 environment variable is not set, then
-.Nm mset
+.Nm
 uses the user's terminal type from the environment variable
 .Ev TERM
 as the keyboard name.
 Normally,
-.Nm mset
+.Nm
 then uses the file
 .Xr map3270 5
 to find the keyboard mapping for that terminal.
@@ -117,7 +117,7 @@ then a default mapping
 is used.
 .Pp
 The arguments to
-.Nm mset
+.Nm
 are:
 .Pp
 .Bl -tag -width Fl
@@ -126,20 +126,20 @@ When processing the various
 .Pa map3270
 entries (for the user's keyboard,
 and all those encountered before the one for the user's keyboard),
-.Nm mset
+.Nm
 normally will not complain about entries for unknown functions (like
 .Dq PFX1 ;
 the
 .Fl picky
 argument causes
-.Nm mset
+.Nm
 to issue warning messages about these unknown entries.
 .It Fl shell
 If the
 .Pa map3270
-entry is longer than the shell's 1024 environmental variable
+entry is longer than the shell's 1024 environment variable
 length limit, the default
-.Nm mset
+.Nm
 output cannot be used to store the mapping information in the process
 environment to avoid scanning
 .Pa map3270
@@ -149,11 +149,11 @@ is invoked.
 The
 .Fl shell
 argument causes
-.Nm mset
-to generate shell commands to set the environmental variables
+.Nm
+to generate shell commands to set the environment variables
 .Ev MAP3270  ,
 .Ev MAP3270A ,
-and so on, breaking up the entry to fit within the shell environmental
+and so on, breaking up the entry to fit within the shell environment
 variable length limit.
 To set these variables, place the following command in your
 .Pa .login
@@ -165,14 +165,14 @@ mset -shell > tmp ; source tmp ; /bin/rm tmp
 When searching for the
 .Pa map3270
 entry that matches the user's keyboard,
-.Nm mset
+.Nm
 will use
 .Ar keyboardname
 instead of determining the keyboard name from the
 .Ev KEYBD
 or
 .Ev TERM
-environmental variables.
+environment variables.
 .Sh FILES
 .Bl -tag -width /usr/share/misc/map3270 -compact
 .It Pa /usr/share/misc/map3270
@@ -183,6 +183,6 @@ keyboard mapping for known keyboards
 .Xr map3270 5
 .Sh HISTORY
 The
-.Nm mset
+.Nm
 command appeared in
 .Bx 4.3 .
