@@ -288,6 +288,7 @@ int warn_sign_compare;
 /* Warn about *printf or *scanf format/argument anomalies.  */
 
 int warn_format;
+int warn_format_extra_args = 1;
 
 /* Warn about a subscript that has type char.  */
 
