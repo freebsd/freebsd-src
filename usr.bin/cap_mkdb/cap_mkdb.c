@@ -136,7 +136,7 @@ dounlink()
 #define SHADOW	(char)2
 
 /*
- * Db_build() builds the name and capabilty databases according to the
+ * Db_build() builds the name and capability databases according to the
  * details above.
  */
 void
@@ -201,8 +201,10 @@ db_build(ifiles)
 		++reccnt;
 
 		/* If only one name, ignore the rest. */
-		if ((p = strchr(bp, '|')) == NULL)
+		*p = '\0';
+		if (strchr(bp, '|') == NULL)
 			continue;
+		*p = ':';
 
 		/* The rest of the names reference the entire name. */
 		((char *)(data.data))[0] = SHADOW;
