@@ -1,3 +1,5 @@
+#	$Id:$
+
 default:
 .if exists(/etc/mail/ips.txt)
 	mv -f /etc/mail/ips.txt /etc/mail/ips.txt.0
