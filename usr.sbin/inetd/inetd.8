@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.24 1999/04/11 09:22:17 markm Exp $
+.\"	$Id: inetd.8,v 1.22.2.1 1999/05/01 22:01:52 obrien Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -103,7 +103,9 @@ file which, by default, is
 .Pa /etc/inetd.conf .
 There must be an entry for each field of the configuration
 file, with entries for each field separated by a tab or
-a space.  Comments are denoted by a ``#'' at the beginning
+a space.  Comments are denoted by a
+.Dq #
+at the beginning
 of a line.  There must be an entry for each field.  The
 fields of the configuration file are as follows:
 .Pp
@@ -279,17 +281,27 @@ requests until a timeout.
 TCPMUX services must use 
 .Dq nowait .
 .Pp
-The maximum number of outstanding child processes (or ``threads'')
-for a ``nowait'' service may be explicitly specified by appending a
-``/'' followed by the number to the ``nowait'' keyword. Normally
+The maximum number of outstanding child processes (or
+.Dq threads )
+for a
+.Dq nowait
+service may be explicitly specified by appending a
+.Dq /
+followed by the number to the
+.Dq nowait
+keyword. Normally
 (or if a value of zero is specified) there is no maximum. Otherwise,
 once the maximum is reached, further connection attempts will be
 queued up until an existing child process exits. This also works
-in the case of ``wait'' mode, although a value other than one (the
+in the case of
+.Dq wait
+mode, although a value other than one (the
 default) might not make sense in some cases.
 You can also specify the maximum number of connections per minute
 for a given IP address by appending
-a ``/'' followed by the number to the maximum number of
+a
+.Dq /
+followed by the number to the maximum number of
 outstanding child processes. Once the maximum is reached, further
 connections from this IP address will be dropped until the end of the
 minute.
@@ -301,12 +313,18 @@ should run.  This allows for servers to be given less permission
 than root.
 Optional
 .Em group
-part separated by ``:'' allows to specify group name different
+part separated by
+.Dq :
+allows to specify group name different
 than default group for this user.
 Optional
 .Em login-class
-part separated by ``/'' allows to specify login class different
-than default ``daemon'' login class.
+part separated by
+.Dq /
+allows to specify login class different
+than default
+.Dq daemon
+login class.
 .Pp
 The
 .Em server-program
@@ -382,14 +400,17 @@ Except when started in debugging mode,
 records its process ID in the file
 .Pa /var/run/inetd.pid
 to assist in reconfiguration.
+.Sh IMPLEMENTATION NOTES
 .Pp
 Support is provided for TCP Wrappers; see the relevant documentation (
 .Xr hosts_access 5
 ).
 The 
 .Pa tcpd
-daemon is not required, as that functionality is builtin. This also allows
-the ``internal'' services to be wrapped.
+daemon is not required, as that functionality is builtin.
+Only stream-based services, including
+.Dq internal
+services, may be wrapped.
 .Sh TCPMUX
 .Pp
 .Tn RFC 1078 
@@ -403,7 +424,8 @@ explanation, terminated with a <CRLF>.  If the reply was positive,
 the selected protocol begins; otherwise the connection is closed.''
 The program is passed the TCP connection as file descriptors 0 and 1.
 .Pp
-If the TCPMUX service name begins with a ``+'',
+If the TCPMUX service name begins with a
+.Dq + ,
 .Nm
 returns the positive reply for the program.
 This allows you to invoke programs that use stdin/stdout
