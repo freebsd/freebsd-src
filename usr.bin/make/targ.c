@@ -158,7 +158,7 @@ Targ_NewGN (name)
     register GNode *gn;
 
     gn = (GNode *) emalloc (sizeof (GNode));
-    gn->name = strdup (name);
+    gn->name = estrdup (name);
     gn->path = (char *) 0;
     if (name[0] == '-' && name[1] == 'l') {
 	gn->type = OP_LIB;
@@ -169,6 +169,7 @@ Targ_NewGN (name)
     gn->make = 	    	FALSE;
     gn->made = 	    	UNMADE;
     gn->childMade = 	FALSE;
+    gn->order =		0;
     gn->mtime = gn->cmtime = 0;
     gn->iParents =  	Lst_Init (FALSE);
     gn->cohorts =   	Lst_Init (FALSE);
@@ -467,9 +468,9 @@ Targ_FmtTime (time)
 
     parts = localtime(&time);
 
-    sprintf (buf, "%d:%02d:%02d %s %d, 19%d",
+    sprintf (buf, "%d:%02d:%02d %s %d, %d",
 	     parts->tm_hour, parts->tm_min, parts->tm_sec,
-	     months[parts->tm_mon], parts->tm_mday, parts->tm_year);
+	     months[parts->tm_mon], parts->tm_mday, 1900 + parts->tm_year);
     return(buf);
 }
 

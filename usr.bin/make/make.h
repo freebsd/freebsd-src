@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)make.h	8.1 (Berkeley) 6/6/93
+ *	from: @(#)make.h	8.3 (Berkeley) 6/13/95
  */
 
 /*-
@@ -50,13 +50,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#ifndef MAKE_BOOTSTRAP
+#if !defined(MAKE_BOOTSTRAP) && defined(BSD)
 #include <sys/cdefs.h>
 #else
+#ifndef __P
 #if defined(__STDC__) || defined(__cplusplus)
 #define	__P(protos)	protos		/* full-blown ANSI C */
 #else
 #define	__P(protos)	()		/* traditional C preprocessor */
+#endif
 #endif
 #endif
 #if __STDC__
@@ -100,6 +102,7 @@ typedef struct GNode {
     char            *name;     	/* The target's name */
     char    	    *path;     	/* The full pathname of the file */
     int             type;      	/* Its type (see the OP flags, below) */
+    int		    order;	/* Its wait weight */
 
     Boolean         make;      	/* TRUE if this target needs to be remade */
     enum {
@@ -192,6 +195,7 @@ typedef struct GNode {
 				     * local variables. */
 #define OP_NOTMAIN	0x00008000  /* The node is exempt from normal 'main
 				     * target' processing in parse.c */
+#define OP_PHONY	0x00010000  /* Not a file target; run always */
 /* Attributes applied by PMake */
 #define OP_TRANSFORM	0x80000000  /* The node is a transformation rule */
 #define OP_MEMBER 	0x40000000  /* Target is a member of an archive */
@@ -321,6 +325,8 @@ extern time_t 	now;	    	/* The time at the start of this whole
 				 * process */
 
 extern Boolean	oldVars;    	/* Do old-style variable substitution */
+
+extern Lst	sysIncPath;	/* The system include path. */
 
 /*
  * debug control:

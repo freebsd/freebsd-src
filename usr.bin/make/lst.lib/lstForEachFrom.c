@@ -66,7 +66,7 @@ void
 Lst_ForEachFrom (l, ln, proc, d)
     Lst	    	    	l;
     LstNode    	  	ln;
-    register int	(*proc)();
+    register int	(*proc) __P((ClientData, ClientData));
     register ClientData	d;
 {
     register ListNode	tln = (ListNode)ln;
@@ -109,3 +109,4 @@ Lst_ForEachFrom (l, ln, proc, d)
     } while (!result && !LstIsEmpty(list) && !done);
 
 }
+
