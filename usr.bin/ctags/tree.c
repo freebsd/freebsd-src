@@ -71,7 +71,7 @@ pfnote(name, ln)
 		free_tree(head);
 		/*NOSTRICT*/
 		if (!(head = np = (NODE *)malloc(sizeof(NODE))))
-			err(1, "out of space");
+			errx(1, "out of space");
 	}
 	if (!xflag && !strcmp(name, "main")) {
 		if (!(fp = strrchr(curfile, '/')))
