@@ -106,7 +106,6 @@ isa_dmainit(chan, bouncebufsize)
 		 * Reset the DMA hardware.
 		 */
 		outb(DMA1_RESET, 0);
-		outb((IO_DMA1 + 1*14), 0);
 		outb(DMA2_RESET, 0);
 		isa_dmacascade(4);
 	    
