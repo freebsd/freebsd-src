@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.46 1995/09/08 19:30:11 se Exp $
+**  $Id: ncr.c,v 1.47 1995/09/11 12:10:19 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -877,28 +877,24 @@ struct ccb {
 	u_char			scsi_smsg2[8];
 
 	/*
-	**	A few physical addresses that are often 
-	**	referenced ...
-	*/
-
-	u_long		p_scsi_smsg;
-	u_long		p_scsi_smsg2;
-	u_long		p_sensecmd;
-	u_long		p_phys;
-
-	/*
 	**	Lock this ccb.
 	**	Flag is used while looking for a free ccb.
 	*/
 
-	u_long			magic;
+	u_long		magic;
+
+	/*
+	**	Physical address of this instance of ccb
+	*/
+
+	u_long		p_ccb;
 
 	/*
 	**	Completion time out for this job.
 	**	It's set to time of start + allowed number of seconds.
 	*/
 
-	u_long			tlimit;
+	u_long		tlimit;
 
 	/*
 	**	All ccbs of one hostadapter are chained.
@@ -927,6 +923,8 @@ struct ccb {
 
 	u_char			tag;
 };
+
+#define CCB_PHYS(cp,lbl)	(cp->p_ccb + offsetof(struct ccb, lbl))
 
 /*==========================================================
 **
@@ -977,6 +975,10 @@ struct ncb {
 	**	A copy of the script, relocated for this ncb.
 	*/
 	struct script	*script;
+
+	/*
+	**	Physical address of this instance of ncb->script
+	*/
 	u_long		p_script;
 
 	/*
@@ -1059,18 +1061,6 @@ struct ncb {
 	struct ccb      ccb;
 
 	/*
-	**	A few physical addresses that are often 
-	**	referenced ...
-	*/
-
-	u_long		p_data_in;
-	u_long		p_data_out;
-	u_long		p_no_data;
-	u_long		p_select;
-	u_long		p_idle;
-	u_long		p_resel_tmp;
-
-	/*
 	**	message buffers.
 	**	Should be longword aligned,
 	**	because they're written with a
@@ -1102,6 +1092,8 @@ struct ncb {
 	u_short		port;
 #endif
 };
+
+#define NCB_SCRIPT_PHYS(np,lbl)	(np->p_script + offsetof (struct script, lbl))
 
 /*==========================================================
 **
@@ -1259,7 +1251,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.46 1995/09/08 19:30:11 se Exp $\n";
+	"\n$Id: ncr.c,v 1.47 1995/09/11 12:10:19 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3076,7 +3068,7 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 					new = (old & ~RELOC_MASK) + np->paddr;
 					break;
 				case RELOC_LABEL:
-					new = (old & ~RELOC_MASK) + vtophys(np->script);
+					new = (old & ~RELOC_MASK) + np->p_script;
 					break;
 				case RELOC_SOFTC:
 					new = (old & ~RELOC_MASK) + vtophys(np);
@@ -3314,25 +3306,14 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 	ncr_script_fill (&script0);
 	ncr_script_copy_and_bind (&script0, np);
+	np->ccb.p_ccb		= vtophys (&np->ccb);
 
 	/*
 	**	init data structure
 	*/
 
-	np -> jump_tcb.l_cmd	= SCR_JUMP;
-	np -> jump_tcb.l_paddr	= vtophys (&np->script->abort);
-
-	np -> p_data_in		= vtophys (&np->script->data_in);
-	np -> p_data_out	= vtophys (&np->script->data_out);
-	np -> p_no_data		= vtophys (&np->script->no_data);
-	np -> p_select		= vtophys (&np->script->select);
-	np -> p_idle		= vtophys (&np->script->idle);
-	np -> p_resel_tmp	= vtophys (&np->script->resel_tmp);
-
-	np->ccb.p_scsi_smsg	= vtophys (&np->ccb.scsi_smsg);
-	np->ccb.p_scsi_smsg2	= vtophys (&np->ccb.scsi_smsg2);
-	np->ccb.p_sensecmd	= vtophys (&np->ccb.sensecmd);
-	np->ccb.p_phys		= vtophys (&np->ccb.phys);
+	np->jump_tcb.l_cmd	= SCR_JUMP;
+	np->jump_tcb.l_paddr	= NCB_SCRIPT_PHYS (np, abort);
 
 	/*
 	**	Make the controller's registers available.
@@ -3877,13 +3858,13 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	*/
 
 	if (flags & SCSI_DATA_IN) {
-		cp->phys.header.savep = np->p_data_in;
+		cp->phys.header.savep = NCB_SCRIPT_PHYS (np, data_in);
 		cp->phys.header.goalp = cp->phys.header.savep +20 +segments*16;
 	} else if (flags & SCSI_DATA_OUT) {
-		cp->phys.header.savep = np->p_data_out;
+		cp->phys.header.savep = NCB_SCRIPT_PHYS (np, data_out);
 		cp->phys.header.goalp = cp->phys.header.savep +20 +segments*16;
 	} else {
-		cp->phys.header.savep = np->p_no_data;
+		cp->phys.header.savep = NCB_SCRIPT_PHYS (np, no_data);
 		cp->phys.header.goalp = cp->phys.header.savep;
 	};
 	cp->phys.header.lastp = cp->phys.header.savep;
@@ -3903,7 +3884,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	/*
 	**	Startqueue
 	*/
-	cp->phys.header.launch.l_paddr	= np->p_select;
+	cp->phys.header.launch.l_paddr	= NCB_SCRIPT_PHYS (np, select);
 	cp->phys.header.launch.l_cmd	= SCR_JUMP;
 	/*
 	**	select
@@ -3914,10 +3895,12 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	/*
 	**	message
 	*/
-	cp->phys.smsg.addr		= cp->p_scsi_smsg;
+/*	cp->phys.smsg.addr		= cp->p_scsi_smsg;*/
+	cp->phys.smsg.addr		= CCB_PHYS (cp, scsi_smsg);
 	cp->phys.smsg.size		= msglen;
 
-	cp->phys.smsg2.addr		= cp->p_scsi_smsg2;
+/*	cp->phys.smsg2.addr		= cp->p_scsi_smsg2;*/
+	cp->phys.smsg2.addr		= CCB_PHYS (cp, scsi_smsg2);
 	cp->phys.smsg2.size		= msglen2;
 	/*
 	**	command
@@ -3927,7 +3910,8 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	/*
 	**	sense command
 	*/
-	cp->phys.scmd.addr		= cp->p_sensecmd;
+/*	cp->phys.scmd.addr		= cp->p_sensecmd;*/
+	cp->phys.scmd.addr		= CCB_PHYS (cp, sensecmd);
 	cp->phys.scmd.size		= 6;
 	/*
 	**	patch requested size into sense command
@@ -3976,15 +3960,15 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 
 	ptr = np->squeueput + 1;
 	if (ptr >= MAX_START) ptr=0;
-	np->squeue [ptr	  ] = np->p_idle;
-	np->squeue [np->squeueput] = cp->p_phys;
+	np->squeue [ptr	  ] = NCB_SCRIPT_PHYS (np, idle);
+	np->squeue [np->squeueput] = CCB_PHYS (cp, phys);
 	np->squeueput = ptr;
 
 	if(DEBUG_FLAGS & DEBUG_QUEUE)
 		printf ("%s: queuepos=%d tryoffset=%d.\n", ncr_name (np),
 		np->squeueput,
-		(unsigned)(np->script->startpos[0]-
-			(vtophys(&np->script->tryloop))));
+		(unsigned)(np->script->startpos[0]- 
+			   (NCB_SCRIPT_PHYS (np, tryloop))));
 
 	/*
 	**	Script processor may be waiting for reselect.
@@ -4100,7 +4084,7 @@ void ncr_complete (ncb_p np, ccb_p cp)
 	/*
 	**	No starting.
 	*/
-	cp->phys.header.launch.l_paddr= np->p_idle;
+	cp->phys.header.launch.l_paddr= NCB_SCRIPT_PHYS (np, idle);
 
 	/*
 	**	timestamp
@@ -4397,14 +4381,14 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	*/
 
 	for (i=0;i<MAX_START;i++)
-		np -> squeue [i] = vtophys (&np->script->idle);
+		np -> squeue [i] = NCB_SCRIPT_PHYS (np, idle);
 
 	/*
 	**	Start at first entry.
 	*/
 
 	np->squeueput = 0;
-	np->script->startpos[0] = vtophys (&np->script->tryloop);
+	np->script->startpos[0] = NCB_SCRIPT_PHYS (np, tryloop);
 	np->script->start0  [0] = SCR_INT ^ IFFALSE (0);
 
 	/*
@@ -4498,7 +4482,7 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	**    Start script processor.
 	*/
 
-	OUTL (nc_dsp, vtophys (&np->script->start));
+	OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, start));
 }
 
 /*==========================================================
@@ -4886,11 +4870,11 @@ static void ncr_timeout (ncb_p np)
 			*/
 			cp->jump_ccb.l_cmd = (SCR_JUMP);
 			if (cp->phys.header.launch.l_paddr ==
-				vtophys (&np->script->select)) {
+				NCB_SCRIPT_PHYS (np, select)) {
 				printf ("%s: timeout ccb=%x (skip)\n",
 					ncr_name (np), (unsigned)cp);
 				cp->phys.header.launch.l_paddr
-				= vtophys (&np->script->skip);
+				= NCB_SCRIPT_PHYS (np, skip);
 			};
 
 			switch (cp->host_status) {
@@ -4901,7 +4885,7 @@ static void ncr_timeout (ncb_p np)
 				** still in start queue ?
 				*/
 				if (cp->phys.header.launch.l_paddr ==
-					vtophys (&np->script->skip))
+					NCB_SCRIPT_PHYS (np, skip))
 					continue;
 
 				/* fall through */
@@ -5035,7 +5019,7 @@ void ncr_exception (ncb_p np)
 		**      Target wants more data than available.
 		**	The "no_data" script will do it.
 		*/
-		OUTL (nc_dsp, vtophys(&np->script->no_data));
+		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, no_data));
 		return;
 	};
 
@@ -5099,7 +5083,7 @@ void ncr_exception (ncb_p np)
 	dsp = (unsigned) INL (nc_dsp);
 	dsa = (unsigned) INL (nc_dsa);
 
-	script_ofs = dsp - vtophys(np->script);
+	script_ofs = dsp - np->p_script;
 
 	printf ("%s:%d: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ (%x:%08x).\n",
 		ncr_name (np), INB (nc_ctest0)&0x0f, dstat, sist,
@@ -5143,7 +5127,7 @@ void ncr_exception (ncb_p np)
 		DELAY (1000);
 		OUTB (nc_scntl1, 0x00);
 		OUTB (nc_scr0, HS_FAIL);
-		OUTL (nc_dsp, vtophys(&np->script->cleanup));
+		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, cleanup));
 		return;
 	}
 
@@ -5156,7 +5140,7 @@ void ncr_exception (ncb_p np)
 		!(sist  & (STO|GEN|HTH|MA|SGE|RST|PAR)) &&
 		!(dstat & (MDPE|BF|ABRT|SIR|IID))) {
 		OUTB (nc_scr0, HS_UNEXPECTED);
-		OUTL (nc_dsp, vtophys(&np->script->cleanup));
+		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, cleanup));
 		return;
 	};
 
@@ -5297,7 +5281,7 @@ void ncr_int_sto (ncb_p np)
 
 	dsa = INL (nc_dsa);
 	cp = &np->ccb;
-	while (cp && (vtophys(&cp->phys) != dsa))
+	while (cp && (CCB_PHYS (cp, phys) != dsa))
 		cp = cp->link_ccb;
 
 	if (cp) {
@@ -5310,13 +5294,13 @@ void ncr_int_sto (ncb_p np)
 	*/
 
 	scratcha = INL (nc_scratcha);
-	diff = scratcha - vtophys(&np->script->tryloop);
+	diff = scratcha - NCB_SCRIPT_PHYS (np, tryloop);
 
 /*	assert ((diff <= MAX_START * 20) && !(diff % 20));*/
 
 	if ((diff <= MAX_START * 20) && !(diff % 20)) {
 		np->script->startpos[0] = scratcha;
-		OUTL (nc_dsp, vtophys (&np->script->start));
+		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, start));
 		return;
 	};
 	ncr_init (np, "selection timeout", HS_FAIL);
@@ -5382,7 +5366,7 @@ static void ncr_int_ma (ncb_p np)
 	*/
 	dsa = INL (nc_dsa);
 	cp = &np->ccb;
-	while (cp && (cp->p_phys != dsa))
+	while (cp && (CCB_PHYS (cp, phys) != dsa))
 		cp = cp->link_ccb;
 
 	if (!cp) {
@@ -5408,7 +5392,7 @@ static void ncr_int_ma (ncb_p np)
 		vdsp = &cp->patch[4];
 		nxtdsp = vdsp[3];
 	} else {
-		vdsp = (u_long*) ((char*)np->script - vtophys(np->script) + dsp -8);
+		vdsp = (u_long*) ((char*)np->script - np->p_script + dsp -8);
 		nxtdsp = dsp;
 	};
 
@@ -5503,7 +5487,7 @@ static void ncr_int_ma (ncb_p np)
 	*/
 	np->profile.num_break++;
 	OUTL (nc_temp, vtophys (newcmd));
-	OUTL (nc_dsp, vtophys (&np->script->dispatch));
+	OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, dispatch));
 }
 
 /*==========================================================
@@ -5554,7 +5538,7 @@ void ncr_int_sir (ncb_p np)
 		*/
 		dsa = INL (nc_dsa);
 		cp = &np->ccb;
-		while (cp && (cp->p_phys != dsa))
+		while (cp && (CCB_PHYS (cp, phys) != dsa))
 			cp = cp->link_ccb;
 
 		assert (cp);
@@ -5601,8 +5585,8 @@ void ncr_int_sir (ncb_p np)
 		if (cp) {
 			if (DEBUG_FLAGS & DEBUG_RESTART)
 				printf ("+ restart job ..\n");
-			OUTL (nc_dsa, cp->p_phys);
-			OUTL (nc_dsp, vtophys (&np->script->getcc));
+			OUTL (nc_dsa, CCB_PHYS (cp, phys));
+			OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, getcc));
 			return;
 		};
 
@@ -5744,7 +5728,7 @@ void ncr_int_sir (ncb_p np)
 		np->msgin [0] = M_NOOP;
 		np->msgout[0] = M_NOOP;
 		cp->nego_status = 0;
-		OUTL (nc_dsp,vtophys (&np->script->dispatch));
+		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, dispatch));
 		break;
 
 	case SIR_NEGO_SYNC:
@@ -5813,13 +5797,13 @@ void ncr_int_sir (ncb_p np)
 					**	Answer wasn't acceptable.
 					*/
 					ncr_setsync (np, cp, 0xe0);
-					OUTL (nc_dsp,vtophys (&np->script->msg_bad));
+					OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, msg_bad));
 				} else {
 					/*
 					**	Answer is ok.
 					*/
 					ncr_setsync (np, cp, (fak<<5)|ofs);
-					OUTL (nc_dsp,vtophys (&np->script->clrack));
+					OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, clrack));
 				};
 				return;
 
@@ -5852,7 +5836,7 @@ void ncr_int_sir (ncb_p np)
 		}
 
 		if (!ofs) {
-			OUTL (nc_dsp,vtophys (&np->script->msg_bad));
+			OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, msg_bad));
 			return;
 		}
 		np->msgin [0] = M_NOOP;
@@ -5910,13 +5894,13 @@ void ncr_int_sir (ncb_p np)
 					**	Answer wasn't acceptable.
 					*/
 					ncr_setwide (np, cp, 0);
-					OUTL (nc_dsp,vtophys (&np->script->msg_bad));
+					OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, msg_bad));
 				} else {
 					/*
 					**	Answer is ok.
 					*/
 					ncr_setwide (np, cp, wide);
-					OUTL (nc_dsp,vtophys (&np->script->clrack));
+					OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, clrack));
 				};
 				return;
 
@@ -6087,7 +6071,7 @@ void ncr_int_sir (ncb_p np)
 			/*
 			**	wait for reselection
 			*/
-			OUTL (nc_dsp, vtophys (&np->script->reselect));
+			OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, reselect));
 			return;
 		};
 
@@ -6230,10 +6214,10 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 			offsetof(struct tcb    , wval    )) &3) == 0);
 
 		tp->call_lun.l_cmd   = (SCR_CALL);
-		tp->call_lun.l_paddr = vtophys (&np->script->resel_lun);
+		tp->call_lun.l_paddr = NCB_SCRIPT_PHYS (np, resel_lun);
 
 		tp->jump_lcb.l_cmd   = (SCR_JUMP);
-		tp->jump_lcb.l_paddr = vtophys (&np->script->abort);
+		tp->jump_lcb.l_paddr = NCB_SCRIPT_PHYS (np, abort);
 		np->jump_tcb.l_paddr = vtophys (&tp->jump_tcb);
 
 		ncr_setmaxtags (tp, SCSI_NCR_MAX_TAGS);
@@ -6258,10 +6242,10 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 		lp->jump_lcb.l_paddr = tp->jump_lcb.l_paddr;
 
 		lp->call_tag.l_cmd   = (SCR_CALL);
-		lp->call_tag.l_paddr = vtophys (&np->script->resel_tag);
+		lp->call_tag.l_paddr = NCB_SCRIPT_PHYS (np, resel_tag);
 
 		lp->jump_ccb.l_cmd   = (SCR_JUMP);
-		lp->jump_ccb.l_paddr = vtophys (&np->script->aborttag);
+		lp->jump_ccb.l_paddr = NCB_SCRIPT_PHYS (np, aborttag);
 
 		lp->actlink = 1;
 
@@ -6312,19 +6296,16 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 	**	Fill in physical addresses
 	*/
 
-	cp->p_scsi_smsg	     = vtophys (&cp->scsi_smsg);
-	cp->p_scsi_smsg2     = vtophys (&cp->scsi_smsg2);
-	cp->p_sensecmd	     = vtophys (&cp->sensecmd);
-	cp->p_phys	     = vtophys (&cp->phys);
+	cp->p_ccb	     = vtophys (cp);
 
 	/*
 	**	Chain into reselect list
 	*/
 	cp->jump_ccb.l_cmd   = SCR_JUMP;
 	cp->jump_ccb.l_paddr = lp->jump_ccb.l_paddr;
-	lp->jump_ccb.l_paddr = vtophys(&cp->jump_ccb);
+	lp->jump_ccb.l_paddr = CCB_PHYS (cp, jump_ccb);
 	cp->call_tmp.l_cmd   = SCR_CALL;
-	cp->call_tmp.l_paddr = np->p_resel_tmp;
+	cp->call_tmp.l_paddr = NCB_SCRIPT_PHYS (np, resel_tmp);
 
 	/*
 	**	Chain into wakeup list
@@ -6560,7 +6541,7 @@ static int ncr_snooptest (struct ncb* np)
 	/*
 	**	init
 	*/
-	pc  = vtophys (&np->script->snooptest);
+	pc  = NCB_SCRIPT_PHYS (np, snooptest);
 	host_wr = 1;
 	ncr_wr  = 2;
 	/*
@@ -6604,7 +6585,7 @@ static int ncr_snooptest (struct ncb* np)
 	/*
 	**	Check termination position.
 	*/
-	if (pc != vtophys (&np->script->snoopend)+8) {
+	if (pc != NCB_SCRIPT_PHYS (np, snoopend)+8) {
 		printf ("CACHE TEST FAILED: script execution failed.\n");
 		return (0x40);
 	};
