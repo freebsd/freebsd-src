@@ -65,6 +65,9 @@
 .Ic cap
 .Ar channel device
 .Nm
+.Ic enclosure
+.Ar channel device
+.Nm
 .Ic list
 .Sh DESCRIPTION
 .Nm
@@ -145,6 +148,11 @@ the device name and manufacture/version strings are shown.
 Show detailed info about the device on
 .Ar channel device
 where device is 0 for master and 1 for slave.
+.It Ic enclosure
+Show detailed info about the encolsure on
+.Ar channel device
+where device is 0 for master and 1 for slave.
+Fan RPM speed, enclosure temperature, 5V and 12V levels are shown.
 .It Ic list
 Show info about all attached devices on all active controllers.
 .El
