@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: disklabel.c,v 1.13 1998/06/04 06:49:13 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -247,9 +247,6 @@ main(argc, argv)
 		err(4, "%s", specname);
 
 	switch(op) {
-
-	case UNSPEC:
-		break;
 
 	case EDIT:
 		if (argc != 1)
@@ -460,13 +457,14 @@ l_perror(s)
 	switch (errno) {
 
 	case ESRCH:
-		warnx("%s: no disk label on disk;\n"
-		      "use \"disklabel -r\" to install initial label", s);
+		warnx("%s: no disk label on disk;", s);
+		fprintf(stderr,
+			"use \"disklabel -r\" to install initial label\n");
 		break;
 
 	case EINVAL:
-		warnx("%s: label magic number or checksum is wrong!\n"
-		      "(disklabel or kernel is out of date?)", s);
+		warnx("%s: label magic number or checksum is wrong!", s);
+		fprintf(stderr, "(disklabel or kernel is out of date?)\n");
 		break;
 
 	case EBUSY:
@@ -475,7 +473,7 @@ l_perror(s)
 
 	case EXDEV:
 		warnx(
-  "%s: labeled partition or 'a' partition must start at beginning of disk", s);
+ "%s: labeled partition or 'a' partition must start at beginning of disk", s);
 		break;
 
 	default:
@@ -505,9 +503,9 @@ readlabel(f)
 				break;
 		if (lp > (struct disklabel *)(bootarea+BBSIZE-sizeof(*lp)) ||
 		    lp->d_magic != DISKMAGIC || lp->d_magic2 != DISKMAGIC ||
-		    dkcksum(lp) != 0) {
-     errx(1, "bad pack magic number (label is damaged, or pack is unlabeled)");
-		}
+		    dkcksum(lp) != 0)
+			errx(1,
+	    "bad pack magic number (label is damaged, or pack is unlabeled)");
 	} else {
 		lp = &lab;
 		if (ioctl(f, DIOCGDINFO, lp) < 0)
