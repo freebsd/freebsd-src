@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.20 1997/09/27 13:39:29 kato Exp $
+ * $Id: union_vfsops.c,v 1.21 1997/10/12 20:24:57 phk Exp $
  */
 
 /*
@@ -60,17 +60,17 @@ extern int	union_init __P((struct vfsconf *));
 extern int	union_fhtovp __P((struct mount *mp, struct fid *fidp,
 				  struct mbuf *nam, struct vnode **vpp,
 				  int *exflagsp, struct ucred **credanonp));
-extern int	union_mount __P((struct mount *mp, char *path, caddr_t data,
+static int	union_mount __P((struct mount *mp, char *path, caddr_t data,
 				 struct nameidata *ndp, struct proc *p));
 extern int	union_quotactl __P((struct mount *mp, int cmd, uid_t uid,
 				    caddr_t arg, struct proc *p));
-extern int	union_root __P((struct mount *mp, struct vnode **vpp));
-extern int	union_start __P((struct mount *mp, int flags, struct proc *p));
-extern int	union_statfs __P((struct mount *mp, struct statfs *sbp,
+static int	union_root __P((struct mount *mp, struct vnode **vpp));
+static int	union_start __P((struct mount *mp, int flags, struct proc *p));
+static int	union_statfs __P((struct mount *mp, struct statfs *sbp,
 				  struct proc *p));
 extern int	union_sync __P((struct mount *mp, int waitfor,
 				struct ucred *cred, struct proc *p));
-extern int	union_unmount __P((struct mount *mp, int mntflags,
+static int	union_unmount __P((struct mount *mp, int mntflags,
 				   struct proc *p));
 extern int	union_vget __P((struct mount *mp, ino_t ino,
 				struct vnode **vpp));
@@ -79,7 +79,7 @@ extern int	union_vptofh __P((struct vnode *vp, struct fid *fhp));
 /*
  * Mount union filesystem
  */
-int
+static int
 union_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -93,8 +93,6 @@ union_mount(mp, path, data, ndp, p)
 	struct vnode *upperrootvp = NULLVP;
 	struct union_mount *um = 0;
 	struct ucred *cred = 0;
-	struct ucred *scred;
-	struct vattr va;
 	char *cp = 0;
 	int len;
 	u_int size;
@@ -303,7 +301,7 @@ bad:
  * on the underlying filesystem(s) will have been called
  * when that filesystem was mounted.
  */
-int
+static int
 union_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -316,7 +314,7 @@ union_start(mp, flags, p)
 /*
  * Free reference to union layer
  */
-int
+static int
 union_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -397,7 +395,7 @@ union_unmount(mp, mntflags, p)
 	return (0);
 }
 
-int
+static int
 union_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -454,7 +452,7 @@ union_root(mp, vpp)
 	return (error);
 }
 
-int
+static int
 union_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -547,7 +545,7 @@ union_statfs(mp, sbp, p)
 	    eopnotsupp)
 #define union_vptofh ((int (*) __P((struct vnode *, struct fid *)))eopnotsupp)
 
-struct vfsops union_vfsops = {
+static struct vfsops union_vfsops = {
 	union_mount,
 	union_start,
 	union_unmount,
