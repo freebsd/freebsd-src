@@ -526,6 +526,7 @@ sendsig(catcher, sig, mask, code)
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
+	char *sp;
 	struct trapframe *regs;
 	int oonstack;
 
@@ -564,13 +565,15 @@ sendsig(catcher, sig, mask, code)
 	/* Allocate space for the signal handler context. */
 	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct sigframe));
+		sp = p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct sigframe);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
-		sfp = (struct sigframe *)regs->tf_esp - 1;
+		sp = (char *)regs->tf_esp - sizeof(struct sigframe);
+	/* Align to 16 bytes. */
+	sfp = (struct sigframe *)((unsigned int)sp & ~0xF);
 	PROC_UNLOCK(p);
 
 	/* Translate the signal if appropriate. */
