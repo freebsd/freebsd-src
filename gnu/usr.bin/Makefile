@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-SUBDIR= awk bc binutils cpio dc dialog diff diff3 \
-	grep gzip man patch ptx rcs sdiff send-pr sort tar texinfo
+SUBDIR= awk bc binutils cpio dc dialog diff diff3 gperf \
+	grep groff gzip man patch ptx rcs sdiff send-pr tar texinfo
 
 .if !defined(NO_CVS)
 SUBDIR+=cvs
@@ -15,10 +15,6 @@ SUBDIR+=as ld
 
 .if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
 SUBDIR+=cc
-.endif
-
-.if !defined(NO_CXX)
-SUBDIR+=gperf groff
 .endif
 
 .if !defined(NOPERL) && !defined(NO_PERL) && exists(${.CURDIR}/perl)
