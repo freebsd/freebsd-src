@@ -1031,13 +1031,13 @@ ohci_intr1(ohci_softc_t *sc)
 		done &= ~OHCI_DONE_INTRS;
 		if (sc->sc_done == 0)
 			sc->sc_done = done;
-		else {
+		else { /* there is at least one */
 			/* Tack on at the end of sc_done. */
 			ohci_physaddr_t ldone;
 			ohci_soft_td_t *std;
 
 			ldone = sc->sc_done;	/* always non 0 */
-			do {
+			do { /* use  do{}while here to silence gcc warnings */
 				std = ohci_hash_find_td(sc, ldone);
 				ldone = le32toh(std->td.td_nexttd);
 			} while (ldone != 0);
