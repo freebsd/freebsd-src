@@ -1,4 +1,4 @@
-# @(#)europe	7.73
+# @(#)europe	7.74
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -164,7 +164,26 @@
 # main SHAEF archives held in the US National Archives, SHAEF/5252/8/516)
 # agree that the usage is BDST (this appears in a message dated 17 Feb 1945).
 
-# Howse writes (p 157) `DBST'; let's assume this is a typo.
+# From Joseph S. Meyers (2000-08-10):
+# On 18th April 1941, Sir Stephen Tallents of the BBC wrote to Sir
+# Alexander Maxwell of the Home Office asking whether there was any
+# official designation; the reply of the 21st was that there wasn't
+# but he couldn't think of anything better than the "Double British
+# Summer Time" that the BBC had been using informally.
+# I've put a copy of the Home Office letter at
+# http://student.cusu.cam.ac.uk/~jsm28/british-time/ho-19410421.png
+# and the BBC letter may follow if I get permission from the BBC.
+
+# From Sir Alexander Maxwell in the above-mentioned letter (1941-04-21):
+# [N]o official designation has as far as I know been adopted for the time
+# which is to be introduced in May....
+# I cannot think of anything better than "Double British Summer Time"
+# which could not be said to run counter to any official description.
+
+# From Paul Eggert (2000-10-02):
+# Howse writes (p 157) `DBST' too, but `BDST' seems to have been common
+# and follows the more usual convention of putting the location name first,
+# so we use `BDST'.
 
 # Peter Ilieve <peter@aldie.co.uk> (1998-04-19) described at length
 # the history of summer time legislation in the United Kingdom.
@@ -705,14 +724,14 @@ Rule	Thule	1993	max	-	Apr	Sun>=1	2:00	1:00	D
 Rule	Thule	1993	max	-	Oct	lastSun	2:00	0	S
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone America/Scoresbysund -1:29:00 -	LMT	1916 Jul 28 # Ittoqqortoormit
+Zone America/Scoresbysund -1:29:00 -	LMT	1916 Jul 28 # Ittoqqortoormiit
 			-2:00	-	CGT	1980 Apr  6 2:00
 			-2:00	C-Eur	CG%sT	1981 Mar 29
 			-1:00	EU	EG%sT
 Zone America/Godthab	-3:26:56 -	LMT	1916 Jul 28 # Nuuk
 			-3:00	-	WGT	1980 Apr  6 2:00
 			-3:00	EU	WG%sT
-Zone America/Thule	-4:35:08 -	LMT	1916 Jul 28 # Pituffik
+Zone America/Thule	-4:35:08 -	LMT	1916 Jul 28 # Pituffik air base
 			-4:00	Thule	A%sT
 
 # Estonia
