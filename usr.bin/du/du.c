@@ -96,13 +96,13 @@ struct ignentry {
 	SLIST_ENTRY(ignentry)	next;
 };
 
-int		linkchk __P((FTSENT *));
-static void	usage __P((void));
-void		prthumanval __P((double));
-unit_t		unit_adjust __P((double *));
-void		ignoreadd __P((const char *));
-void		ignoreclean __P((void));
-int		ignorep __P((FTSENT *));
+int		linkchk(FTSENT *);
+static void	usage(void);
+void		prthumanval(double);
+unit_t		unit_adjust(double *);
+void		ignoreadd(const char *);
+void		ignoreclean(void);
+int		ignorep(FTSENT *);
 
 int
 main(argc, argv)

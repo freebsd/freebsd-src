@@ -49,7 +49,7 @@ static const char sccsid[] = "@(#)dirname.c	8.4 (Berkeley) 5/4/95";
 #include <stdlib.h>
 #include <unistd.h>
 
-void usage __P((void));
+void usage(void);
 
 int
 main(argc, argv)

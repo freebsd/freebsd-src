@@ -80,9 +80,9 @@ char	*curfile;		/* current input file name */
 char	searchar = '/';		/* use /.../ searches by default */
 char	lbuf[LINE_MAX];
 
-void	init __P((void));
-void	find_entries __P((char *));
-static void usage __P((void));
+void	init(void);
+void	find_entries(char *);
+static void usage(void);
 
 int
 main(argc, argv)

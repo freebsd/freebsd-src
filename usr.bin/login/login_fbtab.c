@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include "login.h"
 #include "pathnames.h"
 
-static void	login_protect	__P((const char *, char *, int, uid_t, gid_t));
+static void	login_protect(const char *, char *, int, uid_t, gid_t);
 
 #define	WSPACE		" \t\n"
 

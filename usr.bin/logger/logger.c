@@ -60,10 +60,10 @@ static const char rcsid[] =
 #define	SYSLOG_NAMES
 #include <syslog.h>
 
-int	decode __P((char *, CODE *));
-int	pencode __P((char *));
-static void	logmessage __P((int, char *, char *));
-static void	usage __P((void));
+int	decode(char *, CODE *);
+int	pencode(char *);
+static void	logmessage(int, char *, char *);
+static void	usage(void);
 
 struct socks {
     int sock;

@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 int	lflag, sflag, xflag, zflag;
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(argc, argv)

@@ -59,12 +59,12 @@ __FBSDID("$FreeBSD$");
 
 #define	TAB	8
 
-void  c_columnate __P((void));
-void  input __P((FILE *));
-void  maketbl __P((void));
-void  print __P((void));
-void  r_columnate __P((void));
-void  usage __P((void));
+void  c_columnate(void);
+void  input(FILE *);
+void  maketbl(void);
+void  print(void);
+void  r_columnate(void);
+void  usage(void);
 
 int termwidth = 80;		/* default terminal width */
 

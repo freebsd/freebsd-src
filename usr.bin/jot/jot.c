@@ -83,11 +83,11 @@ int	nofinalnl;
 const	char *sepstring = "\n";
 char	format[BUFSIZ];
 
-int		main __P((int, char *[]));
-void		getformat __P((void));
-int		getprec __P((char *));
-int		putdata __P((double, long));
-static void	usage __P((void));
+int		main(int, char *[]);
+void		getformat(void);
+int		getprec(char *);
+int		putdata(double, long);
+static void	usage(void);
 
 int
 main(argc, argv)

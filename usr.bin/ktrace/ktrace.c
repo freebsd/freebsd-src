@@ -59,8 +59,8 @@ static const char rcsid[] =
 
 #include "ktrace.h"
 
-void no_ktrace __P((int));
-void usage __P((void));
+void no_ktrace(int);
+void usage(void);
 
 main(argc, argv)
 	int argc;

@@ -75,11 +75,11 @@ char	printall;
 
 FILE	*f;
 
-int		main __P((int, char *[]));
-static void	move __P((int, int));
-static void	pflush __P((int));
-static int	plus __P((char, char));
-static void	usage __P((void));
+int		main(int, char *[]);
+static void	move(int, int);
+static void	pflush(int);
+static int	plus(char, char);
+static void	usage(void);
 
 int
 main(argc, argv)

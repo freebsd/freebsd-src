@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 
 #include "ctags.h"
 
-static void	add_node __P((NODE *, NODE *));
-static void	free_tree __P((NODE *));
+static void	add_node(NODE *, NODE *);
+static void	free_tree(NODE *);
 
 /*
  * pfnote --

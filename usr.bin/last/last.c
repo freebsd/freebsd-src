@@ -98,16 +98,16 @@ static time_t	snaptime;			/* if != 0, we will only
 						 * at this snapshot time
 						 */
 
-void	 addarg __P((int, char *));
-time_t	 dateconv __P((char *));
-void	 doentry __P((struct utmp *));
-void	 hostconv __P((char *));
-void	 onintr __P((int));
-void	 printentry __P((struct utmp *, struct ttytab *));
-char	*ttyconv __P((char *));
-int	 want __P((struct utmp *));
-void	 usage __P((void));
-void	 wtmp __P((void));
+void	 addarg(int, char *);
+time_t	 dateconv(char *);
+void	 doentry(struct utmp *);
+void	 hostconv(char *);
+void	 onintr(int);
+void	 printentry(struct utmp *, struct ttytab *);
+char	*ttyconv(char *);
+int	 want(struct utmp *);
+void	 usage(void);
+void	 wtmp(void);
 
 void
 usage(void)

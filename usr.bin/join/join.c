@@ -102,15 +102,15 @@ int spans = 1;			/* span multiple delimiters (-t) */
 char *empty;			/* empty field replacement string (-e) */
 char *tabchar = " \t";		/* delimiter characters (-t) */
 
-int  cmp __P((LINE *, u_long, LINE *, u_long));
-void fieldarg __P((char *));
-void joinlines __P((INPUT *, INPUT *));
-void obsolete __P((char **));
-void outfield __P((LINE *, u_long, int));
-void outoneline __P((INPUT *, LINE *));
-void outtwoline __P((INPUT *, LINE *, INPUT *, LINE *));
-void slurp __P((INPUT *));
-void usage __P((void));
+int  cmp(LINE *, u_long, LINE *, u_long);
+void fieldarg(char *);
+void joinlines(INPUT *, INPUT *);
+void obsolete(char **);
+void outfield(LINE *, u_long, int);
+void outoneline(INPUT *, LINE *);
+void outtwoline(INPUT *, LINE *, INPUT *, LINE *);
+void slurp(INPUT *);
+void usage(void);
 
 int
 main(argc, argv)
