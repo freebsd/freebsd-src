@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_evnt.c,v 1.18 2002/09/04 21:38:38 max Exp $
+ * $Id: ng_l2cap_evnt.c,v 1.4 2003/04/01 18:15:26 max Exp $
  * $FreeBSD$
  */
 
@@ -844,7 +844,8 @@ ng_l2cap_process_discon_req(ng_l2cap_con_p con, u_int8_t ident)
 	}
 
 	/* XXX Verify channel state and reject if invalid -- is that true? */
-	if (ch->state != NG_L2CAP_OPEN && ch->state != NG_L2CAP_CONFIG) {
+	if (ch->state != NG_L2CAP_OPEN && ch->state != NG_L2CAP_CONFIG &&
+	    ch->state != NG_L2CAP_W4_L2CAP_DISCON_RSP) {
 		NG_L2CAP_ERR(
 "%s: %s - unexpected L2CAP_DisconnectReq. " \
 "Invalid channel state, cid=%d, state=%d\n",
@@ -869,8 +870,10 @@ ng_l2cap_process_discon_req(ng_l2cap_con_p con, u_int8_t ident)
 	 * with L2CAP_DisconnectRsp.
 	 */
 
-	ng_l2cap_l2ca_discon_ind(ch); /* do not care about result */
-	ng_l2cap_free_chan(ch);
+	if (ch->state != NG_L2CAP_W4_L2CAP_DISCON_RSP) {
+		ng_l2cap_l2ca_discon_ind(ch); /* do not care about result */
+		ng_l2cap_free_chan(ch);
+	}
 
 	/* Send L2CAP_DisconnectRsp */
 	cmd = ng_l2cap_new_cmd(con, NULL, ident, NG_L2CAP_DISCON_RSP, 0);

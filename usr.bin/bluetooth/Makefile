@@ -1,5 +1,8 @@
+# $Id $
 # $FreeBSD$
-SUBDIR=	btsockstat
+
+SUBDIR=	btsockstat \
+	rfcomm_sppd
 
 .include <bsd.subdir.mk>
 

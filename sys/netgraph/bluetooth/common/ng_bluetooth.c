@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_bluetooth.c,v 1.1.1.1 2002/09/04 21:47:41 max Exp $
+ * $Id: ng_bluetooth.c,v 1.3 2003/04/26 22:37:31 max Exp $
  * $FreeBSD$
  */
 
@@ -43,7 +43,6 @@
 
 static u_int32_t	bluetooth_hci_command_timeout_value  = 5;   /* sec */
 static u_int32_t	bluetooth_hci_connect_timeout_value  = 60;  /* sec */
-static u_int32_t	bluetooth_hci_watchdog_timeout_value = 60;  /* sec */
 static u_int32_t	bluetooth_hci_max_neighbor_age_value = 600; /* sec */
 static u_int32_t	bluetooth_l2cap_rtx_timeout_value    = 60;  /* sec */
 static u_int32_t	bluetooth_l2cap_ertx_timeout_value   = 300; /* sec */
@@ -110,10 +109,6 @@ SYSCTL_PROC(_net_bluetooth_hci, OID_AUTO, connection_timeout,
 	&bluetooth_hci_connect_timeout_value, 60, 
 	bluetooth_set_hci_connect_timeout_value,
 	"I", "HCI connect timeout (sec)");
-
-SYSCTL_INT(_net_bluetooth_hci, OID_AUTO, watchdog_timeout, CTLFLAG_RW,
-	&bluetooth_hci_watchdog_timeout_value, 60,
-	"HCI connection watchdog timeout (sec)");
 
 SYSCTL_INT(_net_bluetooth_hci, OID_AUTO, max_neighbor_age, CTLFLAG_RW,
 	&bluetooth_hci_max_neighbor_age_value, 600,
@@ -192,12 +187,6 @@ bluetooth_hci_connect_timeout(void)
 } /* bluetooth_hci_connect_timeout */
 
 u_int32_t
-bluetooth_hci_watchdog_timeout(void)
-{
-	return (bluetooth_hci_watchdog_timeout_value * hz);
-} /* bluetooth_hci_watchdog_timeout */ 
-
-u_int32_t
 bluetooth_hci_max_neighbor_age(void)
 {
 	return (bluetooth_hci_max_neighbor_age_value);
@@ -214,6 +203,13 @@ bluetooth_l2cap_ertx_timeout(void)
 {
 	return (bluetooth_l2cap_ertx_timeout_value * hz);
 } /* bluetooth_l2cap_ertx_timeout */
+
+/* 
+ * RFCOMM
+ */
+
+SYSCTL_NODE(_net_bluetooth, OID_AUTO, rfcomm, CTLFLAG_RW,
+	0, "Bluetooth RFCOMM family");
 
 /*
  * Handle loading and unloading for this code.

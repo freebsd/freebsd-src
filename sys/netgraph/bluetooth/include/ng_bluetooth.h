@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_bluetooth.h,v 1.1.1.1 2002/09/04 21:47:41 max Exp $
+ * $Id: ng_bluetooth.h,v 1.4 2003/04/26 22:32:34 max Exp $
  * $FreeBSD$
  */
 
@@ -47,6 +47,7 @@
 SYSCTL_DECL(_net_bluetooth);
 SYSCTL_DECL(_net_bluetooth_hci);
 SYSCTL_DECL(_net_bluetooth_l2cap);
+SYSCTL_DECL(_net_bluetooth_rfcomm);
 #endif /* SYSCTL_DECL */
 
 /*
@@ -84,7 +85,7 @@ typedef struct ng_bt_mbufq *	ng_bt_mbufq_p;
 
 #define NG_BT_MBUFQ_LEN(q)	(q)->len
 
-#define NG_BT_MBUFQ_FULL(q)	(q)->len >= (q)->maxlen
+#define NG_BT_MBUFQ_FULL(q)	((q)->len >= (q)->maxlen)
 
 #define NG_BT_MBUFQ_DROP(q)	(q)->drops ++
 
@@ -223,7 +224,6 @@ typedef struct ng_bt_itemq *	ng_bt_itemq_p;
 
 u_int32_t	bluetooth_hci_command_timeout	(void);
 u_int32_t	bluetooth_hci_connect_timeout	(void);
-u_int32_t	bluetooth_hci_watchdog_timeout	(void);
 u_int32_t	bluetooth_hci_max_neighbor_age	(void);
 u_int32_t	bluetooth_l2cap_rtx_timeout	(void);
 u_int32_t	bluetooth_l2cap_ertx_timeout	(void);

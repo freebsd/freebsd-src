@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_llpi.c,v 1.16 2002/09/04 21:38:38 max Exp $
+ * $Id: ng_l2cap_llpi.c,v 1.4 2003/04/28 21:44:59 max Exp $
  * $FreeBSD$
  */
 
@@ -108,12 +108,15 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 	bcopy(bdaddr, &ep->bdaddr, sizeof(ep->bdaddr));
 	ep->link_type = NG_HCI_LINK_ACL;
 
+	con->flags |= NG_L2CAP_CON_OUTGOING;
 	con->state = NG_L2CAP_W4_LP_CON_CFM;
 	ng_l2cap_lp_timeout(con);
 
 	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, NULL);
-	if (error != 0)
-		ng_l2cap_free_con(con); /* will remove timeout */
+	if (error != 0) {
+		ng_l2cap_lp_untimeout(con);
+		ng_l2cap_free_con(con);
+	}
 	
 	return (error);
 } /* ng_l2cap_lp_con_req */
@@ -174,11 +177,8 @@ ng_l2cap_lp_con_cfm(ng_l2cap_p l2cap, struct ng_mesg *msg)
 		con->state = NG_L2CAP_CON_OPEN;
 		con->con_handle = ep->con_handle;
 		ng_l2cap_lp_deliver(con);
-	} else {
-		/* Negative confirmation - remove connection descriptor */
-		con->state = NG_L2CAP_CON_CLOSED;
+	} else /* Negative confirmation - remove connection descriptor */
 		ng_l2cap_con_fail(con, ep->status);
-	}
 out:
 	return (error);
 } /* ng_l2cap_lp_con_cfm */
@@ -258,8 +258,10 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	ng_l2cap_lp_timeout(con);
 
 	NG_SEND_MSG_HOOK(error, l2cap->node, rsp, l2cap->hci, NULL);
-	if (error != 0)
-		ng_l2cap_free_con(con); /* will remove timeout */
+	if (error != 0) {
+		ng_l2cap_lp_untimeout(con);
+		ng_l2cap_free_con(con);
+	}
 out:
 	return (error);
 } /* ng_hci_lp_con_ind */
@@ -310,7 +312,9 @@ ng_l2cap_lp_discon_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	}
 
 	/* Notify upper layer and remove connection */
-	con->state = NG_L2CAP_CON_CLOSED;
+	if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)
+		ng_l2cap_discon_untimeout(con);
+
 	ng_l2cap_con_fail(con, ep->reason);
 out:
 	return (error);
@@ -800,7 +804,45 @@ ng_l2cap_process_lp_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	 * connection, channels and pending commands.
 	 */
 
-	con->state = NG_L2CAP_CON_CLOSED;
+	con->flags &= ~NG_L2CAP_CON_LP_TIMO;
 	ng_l2cap_con_fail(con, NG_L2CAP_TIMEOUT);
 } /* ng_l2cap_process_lp_timeout */
+
+/*
+ * Process auto disconnect timeout and send LP_DisconReq event to the 
+ * lower layer protocol
+ */
+
+void
+ng_l2cap_process_discon_timeout(node_p node, hook_p hook, void *arg1, int arg2)
+{
+	ng_l2cap_con_p		 con = (ng_l2cap_con_p) arg1;
+	ng_l2cap_p		 l2cap = con->l2cap;
+	struct ng_mesg		*msg = NULL;
+	ng_hci_lp_discon_req_ep	*ep = NULL;
+	int			 error;
+
+	con->flags &= ~NG_L2CAP_CON_AUTO_DISCON_TIMO;
+
+	/* Check if lower layer protocol is still connected */
+	if (l2cap->hci == NULL || NG_HOOK_NOT_VALID(l2cap->hci)) {
+		NG_L2CAP_ERR(
+"%s: %s - hook \"%s\" is not connected or valid\n",
+			__func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
+
+		return;
+	}
+
+	/* Create and send LP_DisconReq event */
+	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_LP_DISCON_REQ,
+		sizeof(*ep), M_NOWAIT);
+	if (msg == NULL)
+		return;
+
+	ep = (ng_hci_lp_discon_req_ep *) (msg->data);
+	ep->con_handle = con->con_handle;
+	ep->reason = 0x13; /* User Ended Connection */
+
+	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, NULL);
+} /* ng_l2cap_process_discon_timeout */
 

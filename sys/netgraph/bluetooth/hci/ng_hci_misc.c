@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_misc.c,v 1.18 2002/10/30 00:18:19 max Exp $
+ * $Id: ng_hci_misc.c,v 1.4 2003/04/26 22:35:21 max Exp $
  * $FreeBSD$
  */
 
@@ -53,7 +53,6 @@
 
 static void	ng_hci_command_queue_timeout		(void *);
 static void	ng_hci_con_queue_timeout		(void *);
-static void	ng_hci_con_queue_watchdog_timeout	(void *);
 
 /*
  * Give packet to RAW hook
@@ -270,7 +269,6 @@ ng_hci_new_con(ng_hci_unit_p unit, int link_type)
 		NG_BT_ITEMQ_INIT(&con->conq, num_pkts);
 
 		callout_handle_init(&con->con_timo);
-		callout_handle_init(&con->watchdog_timo);
 
 		LIST_INSERT_HEAD(&unit->con_list, con, next);
 	}
@@ -290,9 +288,6 @@ ng_hci_free_con(ng_hci_unit_con_p con)
 	/* Remove all timeouts (if any) */
 	if (con->flags & NG_HCI_CON_TIMEOUT_PENDING)
 		ng_hci_con_untimeout(con);
-
-	if (con->flags & NG_HCI_CON_WATCHDOG_TIMEOUT_PENDING)
-		ng_hci_con_watchdog_untimeout(con);
 
 	/*
 	 * If we have pending packets then assume that Host Controller has 
@@ -441,59 +436,6 @@ ng_hci_con_queue_timeout(void *context)
 
 	NG_NODE_UNREF(node);
 } /* ng_hci_con_queue_timeout */
-
-/*
- * Set HCI connection watchdog timeout
- */
-
-void
-ng_hci_con_watchdog_timeout(ng_hci_unit_con_p con)
-{
-	if (!(con->flags & NG_HCI_CON_WATCHDOG_TIMEOUT_PENDING)) {
-		NG_NODE_REF(con->unit->node);
-		con->flags |= NG_HCI_CON_WATCHDOG_TIMEOUT_PENDING;
-		con->watchdog_timo = timeout(ng_hci_con_queue_watchdog_timeout,
-					con, bluetooth_hci_watchdog_timeout());
-	} else
-		KASSERT(0,
-("%s: %s - Duplicated connection watchdog timeout!\n",
-			__func__, NG_NODE_NAME(con->unit->node)));
-} /* ng_hci_con_watchdog_timeout */
-
-/*
- * Unset HCI connection watchdog timeout
- */
-
-void
-ng_hci_con_watchdog_untimeout(ng_hci_unit_con_p con)
-{
-	if (con->flags & NG_HCI_CON_WATCHDOG_TIMEOUT_PENDING) {
-		con->flags &= ~NG_HCI_CON_WATCHDOG_TIMEOUT_PENDING;
-		untimeout(ng_hci_con_queue_watchdog_timeout, con, 
-			con->watchdog_timo);
-		NG_NODE_UNREF(con->unit->node);
-	} else
-		KASSERT(0,
-("%s: %s - No connection watchdog timeout!\n",
-			 __func__, NG_NODE_NAME(con->unit->node)));
-} /* ng_hci_con_watchdog_untimeout */
-
-/*
- * OK timeout has happend, so queue timeout processing function
- */
-
-static void
-ng_hci_con_queue_watchdog_timeout(void *context)
-{
-	ng_hci_unit_con_p	con = (ng_hci_unit_con_p) context;
-	node_p			node = con->unit->node;
-
-	if (NG_NODE_IS_VALID(node))
-		ng_send_fn(node, NULL, &ng_hci_process_con_watchdog_timeout, 
-			con, 0);
-
-	NG_NODE_UNREF(node);
-} /* ng_hci_con_queue_watchdog_timeout */
 
 #if 0
 /*

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_misc.c,v 1.16 2002/09/04 21:38:38 max Exp $
+ * $Id: ng_l2cap_misc.c,v 1.4 2003/04/28 21:44:59 max Exp $
  * $FreeBSD$
  */
 
@@ -48,6 +48,7 @@
 #include "ng_l2cap_misc.h"
 
 static u_int16_t	ng_l2cap_get_cid		(ng_l2cap_p);
+static void		ng_l2cap_queue_discon_timeout	(void *);
 static void		ng_l2cap_queue_lp_timeout	(void *);
 static void		ng_l2cap_queue_command_timeout	(void *);
 
@@ -93,9 +94,8 @@ ng_l2cap_send_hook_info(node_p node, hook_p hook, void *arg1, int arg2)
 } /* ng_l2cap_send_hook_info */
 
 /*
- * Create new connection descriptor for the "remote" unit. Will create new
- * connection descriptor and signal channel. Will link both connection and
- * channel to the l2cap node.
+ * Create new connection descriptor for the "remote" unit. 
+ * Will link connection descriptor to the l2cap node.
  */
 
 ng_l2cap_con_p
@@ -125,6 +125,104 @@ ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 } /* ng_l2cap_new_con */
 
 /*
+ * Add reference to the connection descriptor
+ */
+
+void
+ng_l2cap_con_ref(ng_l2cap_con_p con)
+{
+	con->refcnt ++;
+
+	if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO) {
+		if ((con->state != NG_L2CAP_CON_OPEN) ||
+		    (con->flags & NG_L2CAP_CON_OUTGOING) == 0)
+			panic("%s: %s - bad auto disconnect timeout\n",
+				__func__, NG_NODE_NAME(con->l2cap->node));
+
+		ng_l2cap_discon_untimeout(con);
+	}
+} /* ng_l2cap_con_ref */
+
+/*
+ * Remove reference from the connection descriptor
+ */
+
+void
+ng_l2cap_con_unref(ng_l2cap_con_p con)
+{
+	con->refcnt --;
+
+	if (con->refcnt < 0)
+		panic("%s: %s - con->refcnt < 0\n",
+			__func__, NG_NODE_NAME(con->l2cap->node));
+
+	/*
+	 * Set auto disconnect timer only if the following conditions are met:
+	 * 1) we have no reference on the connection
+	 * 2) connection is in OPEN state
+	 * 3) it is an outgoing connection
+	 * 4) disconnect timeout > 0
+	 */
+
+	if ((con->refcnt == 0) &&
+	    (con->state == NG_L2CAP_CON_OPEN) &&
+	    (con->flags & NG_L2CAP_CON_OUTGOING) && 
+	    (con->l2cap->discon_timo > 0)) {
+		if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)
+			panic("%s: %s - duplicated auto disconnect timeout\n",
+				__func__, NG_NODE_NAME(con->l2cap->node));
+
+		ng_l2cap_discon_timeout(con);
+	}
+} /* ng_l2cap_con_unref */
+
+/*
+ * Set auto disconnect timeout
+ */
+
+void
+ng_l2cap_discon_timeout(ng_l2cap_con_p con)
+{
+	if (con->flags & (NG_L2CAP_CON_LP_TIMO|NG_L2CAP_CON_AUTO_DISCON_TIMO))
+		panic("%s: %s - invalid timeout, state=%d, flags=%#x\n",
+			__func__, NG_NODE_NAME(con->l2cap->node),
+			con->state, con->flags);
+
+	NG_NODE_REF(con->l2cap->node);
+	con->flags |= NG_L2CAP_CON_AUTO_DISCON_TIMO;
+	con->con_timo = timeout(ng_l2cap_queue_discon_timeout, con,
+					con->l2cap->discon_timo * hz);
+} /* ng_l2cap_discon_timeout */
+
+/*
+ * Unset auto disconnect timeout
+ */
+
+void
+ng_l2cap_discon_untimeout(ng_l2cap_con_p con)
+{
+	untimeout(ng_l2cap_queue_discon_timeout, con, con->con_timo);
+	con->flags &= ~NG_L2CAP_CON_AUTO_DISCON_TIMO;
+	NG_NODE_UNREF(con->l2cap->node);
+} /* ng_l2cap_discon_untimeout */
+
+/*
+ *  Queue auto disconnect timeout
+ */
+
+static void
+ng_l2cap_queue_discon_timeout(void *context)
+{
+	ng_l2cap_con_p	con = (ng_l2cap_con_p) context;
+	node_p		node = con->l2cap->node;
+
+	if (NG_NODE_IS_VALID(node))
+		ng_send_fn(node,NULL,&ng_l2cap_process_discon_timeout,con,0);
+
+	NG_NODE_UNREF(node);
+} /* ng_l2cap_queue_discon_timeout */
+
+/*
  * Free connection descriptor. Will unlink connection and free everything.
  */
 
@@ -133,8 +231,12 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
 {
 	ng_l2cap_chan_p f = NULL, n = NULL;
 
-	if (con->state == NG_L2CAP_W4_LP_CON_CFM)
+	if (con->flags & NG_L2CAP_CON_LP_TIMO)
 		ng_l2cap_lp_untimeout(con);
+	else if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)
+		ng_l2cap_discon_untimeout(con);
+
+	con->state = NG_L2CAP_CON_CLOSED;
 
 	if (con->tx_pkt != NULL) {
 		while (con->tx_pkt != NULL) {
@@ -234,6 +336,8 @@ ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm)
 		ch->link_timo = NG_L2CAP_LINK_TIMO_DEFAULT;
 
 		LIST_INSERT_HEAD(&l2cap->chan_list, ch, next);
+
+		ng_l2cap_con_ref(con);
 	} else {
 		bzero(ch, sizeof(*ch));
 		FREE(ch, M_NETGRAPH_L2CAP);
@@ -281,6 +385,9 @@ ng_l2cap_free_chan(ng_l2cap_chan_p ch)
 	}
 
 	LIST_REMOVE(ch, next);
+
+	ng_l2cap_con_unref(ch->con);
+
 	bzero(ch, sizeof(*ch));
 	FREE(ch, M_NETGRAPH_L2CAP);
 } /* ng_l2cap_free_chan */
@@ -337,7 +444,13 @@ ng_l2cap_cmd_by_ident(ng_l2cap_con_p con, u_int8_t ident)
 void
 ng_l2cap_lp_timeout(ng_l2cap_con_p con)
 {
+	if (con->flags & (NG_L2CAP_CON_LP_TIMO|NG_L2CAP_CON_AUTO_DISCON_TIMO))
+		panic("%s: %s - invalid timeout, state=%d, flags=%#x\n",
+			__func__, NG_NODE_NAME(con->l2cap->node),
+			con->state, con->flags);
+
 	NG_NODE_REF(con->l2cap->node);
+	con->flags |= NG_L2CAP_CON_LP_TIMO;
 	con->con_timo = timeout(ng_l2cap_queue_lp_timeout, con,
 				bluetooth_hci_connect_timeout());
 } /* ng_l2cap_lp_timeout */
@@ -350,6 +463,7 @@ void
 ng_l2cap_lp_untimeout(ng_l2cap_con_p con)
 {
 	untimeout(ng_l2cap_queue_lp_timeout, con, con->con_timo);
+	con->flags &= ~NG_L2CAP_CON_LP_TIMO;
 	NG_NODE_UNREF(con->l2cap->node);
 } /* ng_l2cap_lp_untimeout */
 

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_main.c,v 1.28 2002/11/12 22:35:40 max Exp $
+ * $Id: ng_hci_main.c,v 1.2 2003/03/18 00:09:36 max Exp $
  * $FreeBSD$
  */
 
@@ -119,6 +119,7 @@ ng_hci_constructor(node_p node)
 
 	unit->link_policy_mask = 0xffff; /* Enable all supported modes */
 	unit->packet_mask = 0xffff; /* Enable all packet types */
+	unit->role_switch = 1; /* Enable role switch (if device supports it) */
 
 	/*
 	 * Set default buffer info
@@ -535,7 +536,6 @@ ng_hci_default_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				bcopy(&c->bdaddr, &e2->bdaddr, 
 					sizeof(e2->bdaddr));
 
-
 				e2 ++;
 				if (--s <= 0)
 					break;
@@ -591,6 +591,31 @@ ng_hci_default_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			unit->packet_mask = 
 				*((ng_hci_node_packet_mask_ep *)(msg->data));
+			break;
+
+		/* Get role switch */
+		case NGM_HCI_NODE_GET_ROLE_SWITCH:
+			NG_MKRESPONSE(rsp, msg, sizeof(unit->role_switch),
+				M_NOWAIT);
+			if (rsp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+
+			*((ng_hci_node_role_switch_ep *)(rsp->data)) = 
+				unit->role_switch;
+			break;
+
+		/* Set role switch */
+		case NGM_HCI_NODE_SET_ROLE_SWITCH:
+			if (msg->header.arglen !=
+					sizeof(ng_hci_node_role_switch_ep)) {
+				error = EMSGSIZE;
+				break;
+			}
+
+			unit->role_switch = 
+				*((ng_hci_node_role_switch_ep *)(msg->data));
 			break;
 
 		default:
