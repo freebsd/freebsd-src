@@ -629,8 +629,20 @@ pcic_probe(void)
 			setb(sp, 0x3A, 0x40);
 			c = sp->getb(sp, PCIC_ID_REV);
 			if (c & 0x08) {
-				sp->controller = ((sp->revision = c & 7) == 4) ?	
-					PCIC_VG469 : PCIC_VG468 ;
+				switch (sp->revision = c & 7) {
+				case 1:
+					sp->controller = PCIC_VG365;
+					break;
+				case 2:
+					sp->controller = PCIC_VG465;
+					break;
+				case 3:
+					sp->controller = PCIC_VG468;
+					break;
+				default:
+					sp->controller = PCIC_VG469;
+					break;
+				}
 				clrb(sp, 0x3A, 0x40);
 			}
 
@@ -692,6 +704,12 @@ pcic_probe(void)
 			break;
 		case PCIC_PD6710:
 			cinfo.name = "Cirrus Logic PD6710";
+			break;
+		case PCIC_VG365:
+			cinfo.name = "Vadem 365";
+			break;
+		case PCIC_VG465:
+			cinfo.name = "Vadem 465";
 			break;
 		case PCIC_VG468:
 			cinfo.name = "Vadem 468";
@@ -868,6 +886,8 @@ pcic_power(struct slot *slt)
 #endif
 	case PCIC_PD672X:
 	case PCIC_PD6710:
+	case PCIC_VG365:
+	case PCIC_VG465:
 	case PCIC_VG468:
 	case PCIC_VG469:
 	case PCIC_RF5C396:
@@ -897,8 +917,10 @@ pcic_power(struct slot *slt)
 				break;
 			}
 			reg |= PCIC_VCC_3V;
-			if ((sp->controller == PCIC_VG468)||
-				(sp->controller == PCIC_VG469))
+			if ((sp->controller == PCIC_VG468) ||
+				(sp->controller == PCIC_VG469) ||
+				(sp->controller == PCIC_VG465) ||
+				(sp->controller == PCIC_VG365))
 				setb(sp, 0x2f, 0x03) ;
 			else
 				setb(sp, 0x16, 0x02);
@@ -909,8 +931,10 @@ pcic_power(struct slot *slt)
                                 break;
                         }
 			reg |= PCIC_VCC_5V;
-			if ((sp->controller == PCIC_VG468)||
-				(sp->controller == PCIC_VG469))
+			if ((sp->controller == PCIC_VG468) ||
+				(sp->controller == PCIC_VG469) ||
+				(sp->controller == PCIC_VG465) ||
+				(sp->controller == PCIC_VG365))
 				clrb(sp, 0x2f, 0x03) ;
 			else
 				clrb(sp, 0x16, 0x02);
