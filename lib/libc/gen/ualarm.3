@@ -68,8 +68,8 @@ signal will be sent
 to the process every
 .Fa interval
 microseconds after the timer expires (e.g. after
-.Fa value
-microseconds have passed).
+.Fa microseconds
+number of microseconds have passed).
 .Pp
 Due to
 .Xr setitimer 2
@@ -78,7 +78,7 @@ restriction the maximum number of
 and
 .Fa interval
 is limited to 100000000000000
-(in case this value fit in the unsigned integer).
+(in case this value fits in the unsigned integer).
 .Sh RETURN VALUES
 When the signal has successfully been caught,
 .Fn ualarm
