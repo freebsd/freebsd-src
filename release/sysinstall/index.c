@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.50 1997/05/05 08:38:12 jkh Exp $
+ * $Id: index.c,v 1.38.2.11 1997/06/06 13:01:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,7 +108,11 @@ static char *descrs[] = {
     "shells", "Various shells (tcsh, bash, etc).",
     "sysutils", "Various system utilities.",
     "textproc", "Text processing/search utilities.",
-    "tk41", "Utilities & packages for the TK 4.1 toolkit.",
+    "tcl75", "TCL v7.5 and packages which depend on it.",
+    "tcl76", "TCL v7.6 and packages which depend on it.",
+    "tk41", "Tk4.1 and packages which depend on it.",
+    "tk42", "Tk4.2 and packages which depend on it.",
+    "tk80", "Tk8.0 and packages which depend on it.",
     "troff", "TROFF Text formatting utilities.",
     "utils", "Various user utilities.",
     "utilities", "Various user utilities.",
