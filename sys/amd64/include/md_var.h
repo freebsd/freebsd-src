@@ -45,7 +45,7 @@ extern	int	(*copyout_vector)(const void *kaddr, void *udaddr, size_t len);
 extern	u_int	cpu_exthigh;
 extern	u_int	cpu_feature;
 extern	u_int	cpu_high;
-extern	u_int	cpuid_cpuinfo;
+extern	u_int	cpu_procinfo;
 extern	u_int	cpu_id;
 extern	u_int	cpu_fxsr;
 extern	char	cpu_vendor[];
