@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- *       Copyright (c) 2000-01 Intel Corporation
+ *       Copyright (c) 2000-03 Intel Corporation
  *       All Rights Reserved
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
  * TODO:     
  */
 
-#ident "$Id: iir.c 1.2 2001/06/21 20:28:32 achim Exp $"
+#ident "$Id: iir.c 1.3 2003/03/21 16:28:32 achim Exp $"
 
 #define _IIR_C_
 
@@ -206,7 +206,7 @@ iir_init(struct gdt_softc *gdt)
 
     /* DMA tag for mapping buffers into device visible space. */
     if (bus_dma_tag_create(gdt->sc_parent_dmat, /*alignment*/1, /*boundary*/0,
-                           /*lowaddr*/BUS_SPACE_MAXADDR,
+                           /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
                            /*highaddr*/BUS_SPACE_MAXADDR,
                            /*filter*/NULL, /*filterarg*/NULL,
                            /*maxsize*/MAXBSIZE, /*nsegments*/GDT_MAXSG,
@@ -220,11 +220,14 @@ iir_init(struct gdt_softc *gdt)
     gdt->sc_init_level++;
 
     /* DMA tag for our ccb structures */
-    if (bus_dma_tag_create(gdt->sc_parent_dmat, /*alignment*/1, /*boundary*/0,
-                           /*lowaddr*/BUS_SPACE_MAXADDR,
+    if (bus_dma_tag_create(gdt->sc_parent_dmat,
+			   /*alignment*/1,
+			   /*boundary*/0,
+                           /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
                            /*highaddr*/BUS_SPACE_MAXADDR,
-                           /*filter*/NULL, /*filterarg*/NULL,
-                           GDT_MAXCMDS * sizeof(struct gdt_ccb),
+                           /*filter*/NULL,
+			   /*filterarg*/NULL,
+                           GDT_MAXCMDS * sizeof(struct gdt_ccb), /* maxsize */
                            /*nsegments*/1,
                            /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
                            /*flags*/0, &gdt->sc_gccb_dmat) != 0) {
@@ -391,6 +394,23 @@ iir_init(struct gdt_softc *gdt)
                 return (1);
             }
         }
+    }
+
+    /* OEM */
+    gdt_enc32(gccb->gc_scratch + GDT_OEM_VERSION, 0x01);
+    gdt_enc32(gccb->gc_scratch + GDT_OEM_BUFSIZE, sizeof(gdt_oem_record_t));
+    if (gdt_internal_cmd(gdt, gccb, GDT_CACHESERVICE, GDT_IOCTL,
+                         GDT_OEM_STR_RECORD, GDT_INVALID_CHANNEL,
+                         sizeof(gdt_oem_str_record_t))) {
+	    strncpy(gdt->oem_name, ((gdt_oem_str_record_t *)
+            gccb->gc_scratch)->text.scsi_host_drive_inquiry_vendor_id, 7);
+		gdt->oem_name[7]='\0';
+	} else {
+		/* Old method, based on PCI ID */
+		if (gdt->sc_vendor == INTEL_VENDOR_ID)
+            strcpy(gdt->oem_name,"Intel  ");
+        else 
+       	    strcpy(gdt->oem_name,"ICP    ");
     }
 
     /* Scan for cache devices */
@@ -748,7 +768,7 @@ gdt_next(struct gdt_softc *gdt)
             }
         } else if (target >= GDT_MAX_HDRIVES || 
                    !gdt->sc_hdr[target].hd_present || lun != 0) {
-            ccbh->status = CAM_SEL_TIMEOUT;
+            ccbh->status = CAM_DEV_NOT_THERE;
             --gdt_stat.io_count_act;
             xpt_done(ccb);
         } else {
@@ -1180,7 +1200,7 @@ gdt_internal_cache_cmd(struct gdt_softc *gdt,union ccb *ccb)
             inq->response_format = 2; 
             inq->additional_length = 32; 
             inq->flags = SID_CmdQue | SID_Sync; 
-            strcpy(inq->vendor, "IIR     ");
+            strcpy(inq->vendor, gdt->oem_name);
             sprintf(inq->product, "Host Drive   #%02d", t);
             strcpy(inq->revision, "   ");
             break;
@@ -1294,13 +1314,9 @@ gdtexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
     }
 
     if (nseg != 0) {
-        int op;
-
-        if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
-            op = BUS_DMASYNC_PREREAD;
-        else
-            op = BUS_DMASYNC_PREWRITE;
-        bus_dmamap_sync(gdt->sc_buffer_dmat, gccb->gc_dmamap, op);
+        bus_dmamap_sync(gdt->sc_buffer_dmat, gccb->gc_dmamap, 
+            (ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN ?
+            BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
     }
     
     /* We must NOT abort the command here if CAM_REQ_INPROG is not set,
@@ -1682,7 +1698,7 @@ iir_intr(void *arg)
     }
 }
 
-static int
+int
 gdt_async_event(struct gdt_softc *gdt, int service)
 {
     struct gdt_ccb *gccb;
@@ -1742,12 +1758,11 @@ gdt_async_event(struct gdt_softc *gdt, int service)
     return (0);
 }
 
-static int
+int
 gdt_sync_event(struct gdt_softc *gdt, int service, 
                u_int8_t index, struct gdt_ccb *gccb)
 {
     union ccb *ccb;
-    int op;
 
     GDT_DPRINTF(GDT_D_INTR,
                 ("gdt_sync_event(%p, %d, %d, %p)\n", gdt,service,index,gccb));
@@ -1854,11 +1869,9 @@ gdt_sync_event(struct gdt_softc *gdt, int service,
             return (2);
         }
 
-        if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
-            op = BUS_DMASYNC_POSTREAD;
-        else
-            op = BUS_DMASYNC_POSTWRITE;
-        bus_dmamap_sync(gdt->sc_buffer_dmat, gccb->gc_dmamap, op);
+        bus_dmamap_sync(gdt->sc_buffer_dmat, gccb->gc_dmamap, 
+            (ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN ?
+            BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
 
         ccb->csio.resid = 0;
         if (gdt->sc_status == GDT_S_OK) {
@@ -1886,7 +1899,7 @@ gdt_sync_event(struct gdt_softc *gdt, int service,
             } else {
                 /* raw service */
                 if (gdt->sc_status != GDT_S_RAW_SCSI || gdt->sc_info >= 0x100) {
-                    ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+                    ccb->ccb_h.status = CAM_DEV_NOT_THERE;
                 } else {
                     ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR|CAM_AUTOSNS_VALID;
                     ccb->csio.scsi_status = gdt->sc_info;

@@ -46,8 +46,9 @@
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
+#include <sys/disk.h>
 #include <sys/stat.h>
-#include <sys/ioccom.h>
+#include <sys/disklabel.h>
 #include <machine/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -78,6 +79,9 @@ static struct cdevsw iir_cdevsw = {
 	.d_maj =	CDEV_MAJOR,
 };
 
+/*
+static int iir_devsw_installed = 0;
+*/
 #ifndef SDEV_PER_HBA
 static int sdev_made = 0;
 #endif
@@ -97,12 +101,12 @@ gdt_make_dev(int unit)
 
 #ifdef SDEV_PER_HBA
     dev = make_dev(&iir_cdevsw, hba2minor(unit), UID_ROOT, GID_OPERATOR,
-                   S_IRUSR | S_IWUSR | S_IRGRP, "iir%d", unit);
+                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, "iir%d", unit);
 #else
     if (sdev_made)
         return (0);
     dev = make_dev(&iir_cdevsw, 0, UID_ROOT, GID_OPERATOR,
-                   S_IRUSR | S_IWUSR | S_IRGRP, "iir");
+                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, "iir");
     sdev_made = 1;
 #endif
     return (dev);
@@ -348,3 +352,18 @@ iir_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, d_thread_t * p)
     --gdt_stat.io_count_act;
     return (0);
 }
+
+/*
+static void
+iir_drvinit(void *unused)
+{
+    GDT_DPRINTF(GDT_D_DEBUG, ("iir_drvinit()\n"));
+                
+    if (!iir_devsw_installed) {
+        cdevsw_add(&iir_cdevsw);
+        iir_devsw_installed = 1;
+    }
+}
+
+SYSINIT(iir_dev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, iir_drvinit, NULL)
+*/
