@@ -28,58 +28,53 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.1 1995/02/26 19:34:33 rgrimes Exp $
+ *	$Id: if_ix.c,v 1.2 1995/02/26 19:40:06 rgrimes Exp $
  */
 
 #include "ix.h"
-#if NIX > 0
 
-#include "param.h"
-#include "systm.h"
-#include "mbuf.h"
-#include "socket.h"
-#include "ioctl.h"
-#include "errno.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/errno.h>
+#include <sys/syslog.h>
+#include <sys/devconf.h>
 
-#include "net/if.h"
-#include "net/if_types.h"
-#include "net/if_dl.h"
-#include "net/netisr.h"
-#include "net/route.h"
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/if_dl.h>
 
 #ifdef INET
-#include "netinet/in.h"
-#include "netinet/in_systm.h"
-#include "netinet/in_var.h"
-#include "netinet/ip.h"
-#include "netinet/if_ether.h"
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #endif /* INET */
 
 #ifdef NS /*ZZZ no work done on this, this is just here to remind me*/
-#include "netns/ns.h"
-#include "netns/ns_if.h"
+#include <netns/ns.h>
+#include <netns/ns_if.h>
 #endif /* NS */
 
 #ifdef ISO /*ZZZ no work done on this, this is just here to remind me*/
-#include "netiso/iso.h"
-#include "netiso/iso_var.h"
+#include <netiso/iso.h>
+#include <netiso/iso_var.h>
 extern char all_es_snpa[], all_is_snpa[], all_l1is_snpa[], all_l2is_snpa[];
 #endif /* ISO */
 
 /*ZZZ no work done on this, this is just here to remind me*/
 #include "bpfilter.h"
 #if NBPFILTER > 0
-#include "net/bpf.h"
-#include "net/bpfdesc.h"
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
 #endif /* NBPFILTER > 0 */
 
-#include "i386/isa/isa_device.h"
-#include "i386/isa/icu.h"
-
-#include "i386/include/pio.h"
-
-#include "i386/isa/if_ixreg.h"
+#include <i386/isa/isa_device.h>
+#include <i386/isa/icu.h>
+#include <i386/isa/if_ixreg.h>
 
 ix_softc_t	ix_softc[NIX];
 
@@ -161,7 +156,7 @@ void ixstart(struct ifnet *);
 int ixstop(struct ifnet *);
 int ixdone(struct ifnet *);
 int ixioctl(struct ifnet *, int, caddr_t);
-void ixreset(int, int);
+void ixreset(int);
 void ixwatchdog(int);
 u_short ixeeprom_read(int, int);
 void ixeeprom_outbits(int, int, int);
@@ -1233,8 +1228,6 @@ ixintr_fr_copy(int unit, rfd_t *rfd) {
 	 * the board.  eh is only used by ether_input,
 	 * it is not passed to the upper layer */
 	eh = (struct ether_header *)rb;
-	/* ether_input expects the ether_type to be in host order */
-	eh->ether_type = ntohs((u_short)eh->ether_type);
 
 	/* here we go, lets build an mbuf chain up to hold all this */
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -1514,9 +1507,7 @@ ixioctl(struct ifnet *ifp, int cmd, caddr_t data) {
 		switch(ifa->ifa_addr->sa_family) {
 #ifdef INET
 			case AF_INET: {
-				((struct arpcom *)ifp)->ac_ipaddr =
-					IA_SIN(ifa)->sin_addr;
-				arpwhohas((struct arpcom *)ifp, &IA_SIN(ifa)->sin_addr);
+				arp_ifinit((struct arpcom *)ifp, ifa);
 				break;
 			}
 #endif /* INET */
@@ -1565,7 +1556,7 @@ ixioctl(struct ifnet *ifp, int cmd, caddr_t data) {
 }
 
 void
-ixreset(int unit, int uban) { /* XXX uban is no longer used!!! */
+ixreset(int unit) {
 	ix_softc_t	*sc = &ix_softc[unit];
 	struct	ifnet	*ifp = &sc->arpcom.ac_if;
 	int		s;
@@ -1596,7 +1587,7 @@ ixwatchdog(int unit) {
 
 	log(LOG_ERR, "ix%d: device timeout\n", unit);
 	sc->arpcom.ac_if.if_oerrors++;
-	ixreset(unit,unit);
+	ixreset(unit);
 	return;
 }
 
@@ -1674,5 +1665,3 @@ ixeeprom_clock(int unit, int state) {
 	outb(ix_softc[unit].iobase + ee_ctrl, eeprom_control);
 	DELAY(9); /* EESK must be stable for 8.38 uSec */
 }
-
-#endif /* NIX > 0 */

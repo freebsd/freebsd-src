@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ixreg.h,v 1.1 1995/02/26 19:34:34 rgrimes Exp $
+ *	$Id: if_ixreg.h,v 1.2 1995/02/26 19:40:07 rgrimes Exp $
  */
 
 /*
@@ -240,7 +240,7 @@ typedef volatile struct /* command block - nop (also the common part of cb's */
 	u_short	next;		/* pointer to the next cb */
 	}	cb_t;
 
-typedef	volatile struct /* command block - individual address setup command */
+typedef	struct /* command block - individual address setup command */
 	{
 	cb_t	common;		/* common part of all command blocks */
 	u_char	source[ETHER_ADDRESS_LENGTH];
