@@ -246,9 +246,9 @@ struct ether_header eh_prototype =
 	 ETHERTYPE_PPPOE_DISC};
 
 #define PPPOE_KEEPSTANDARD	-1	/* never switch to nonstandard mode */
-#define PPPOE_STANDARD		0	/* try standard mode (default) */
+#define PPPOE_STANDARD		0	/* try standard mode (dangerous!) */
 #define PPPOE_NONSTANDARD	1	/* just be in nonstandard mode */
-static int pppoe_mode = PPPOE_STANDARD;
+static int pppoe_mode = PPPOE_KEEPSTANDARD;
 
 static int
 ngpppoe_set_ethertype(SYSCTL_HANDLER_ARGS)
