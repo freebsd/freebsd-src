@@ -272,6 +272,49 @@ static int volatile fd_debug = 0;
 #define TRACE1(arg1, arg2)
 #endif /* FDC_DEBUG */
 
+static void
+fdout_wr(fdc_p fdc, u_int8_t v)
+{
+	bus_space_write_1(fdc->portt, fdc->porth, FDOUT+fdc->port_off, v);
+}
+
+static u_int8_t
+fdsts_rd(fdc_p fdc)
+{
+	return bus_space_read_1(fdc->portt, fdc->porth, FDSTS+fdc->port_off);
+}
+
+static void
+fddata_wr(fdc_p fdc, u_int8_t v)
+{
+	bus_space_write_1(fdc->portt, fdc->porth, FDDATA+fdc->port_off, v);
+}
+
+static u_int8_t
+fddata_rd(fdc_p fdc)
+{
+	return bus_space_read_1(fdc->portt, fdc->porth, FDDATA+fdc->port_off);
+}
+
+static void
+fdctl_wr(fdc_p fdc, u_int8_t v)
+{
+	if (fdc->flags & FDC_ISPNP)
+		bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
+	else
+		bus_space_write_1(fdc->portt, fdc->porth, FDCTL, v);
+}
+
+#if 0
+
+static u_int8_t
+fdin_rd(fdc_p fdc)
+{
+	return bus_space_read_1(fdc->portt, fdc->porth, FDIN);
+}
+
+#endif
+
 #ifdef FDC_YE
 #if NCARD > 0
 #include <sys/select.h>
@@ -308,9 +351,9 @@ static int yeinit(struct pccard_devinfo *devi)
 	/*
 	 * reset controller
 	 */
-	outb(fdc->baseport+FDOUT, 0);
+	fdout_wr(fdc, 0);
 	DELAY(100);
-	outb(fdc->baseport+FDOUT, FDO_FRST);
+	fdout_wr(fdc, FDO_FRST);
 
 	/*
 	 * wire into system
@@ -463,7 +506,7 @@ enable_fifo(fdc_p fdc)
 		
 		/* If command is invalid, return */
 		j = 100000;
-		while ((i = inb(fdc->baseport + FDSTS) & (NE7_DIO | NE7_RQM))
+		while ((i = fdsts_rd(fdc) & (NE7_DIO | NE7_RQM))
 		       != NE7_RQM && j-- > 0)
 			if (i == (NE7_DIO | NE7_RQM)) {
 				fdc_reset(fdc);
@@ -563,19 +606,27 @@ fd_read_status(fdc_p fdc, int fdsu)
 /*                      autoconfiguration stuff                             */
 /****************************************************************************/
 
+static struct isa_pnp_id fdc_ids[] = {
+	{0x0007d041, "PC standard floppy disk controller"}, /* PNP0700 */
+	{0x0107d041, "Standard floppy controller supporting MS Device Bay Spec"}, /* PNP0701 */
+	{0}
+};
+
+
 /*
  * fdc controller section.
  */
 static int
 fdc_probe(device_t dev)
 {
-	int	error, i, ic_type;
+	int	error, ispnp, ic_type;
 	struct	fdc_data *fdc;
-	char	myname[8];	/* better be long enough */
 
-	/* No pnp support */
-	if (isa_get_vendorid(dev))
-		return (ENXIO);
+	/* Check pnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
+	if (error == ENXIO)
+		return ENXIO;
+	ispnp = (error == 0);
 
 	fdc = device_get_softc(dev);
 	bzero(fdc, sizeof *fdc);
@@ -585,21 +636,44 @@ fdc_probe(device_t dev)
 
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 					     &fdc->rid_ioport, 0ul, ~0ul, 
-					     IO_FDCSIZE, RF_ACTIVE);
+					     ispnp ? 1 : IO_FDCSIZE,
+					     RF_ACTIVE);
 	if (fdc->res_ioport == 0) {
-		device_print_prettyname(dev);
-		printf("cannot reserve I/O port range\n");
+		device_printf(dev, "cannot reserve I/O port range\n");
 		error = ENXIO;
 		goto out;
 	}
-	fdc->baseport = fdc->res_ioport->r_start;
+	fdc->portt = rman_get_bustag(fdc->res_ioport);
+	fdc->porth = rman_get_bushandle(fdc->res_ioport);
+
+	if (ispnp) {
+		/*
+		 * Some bios' report the device at 0x3f2-0x3f5,0x3f7
+		 * and some at 0x3f0-0x3f5,0x3f7. We detect the former 
+		 * by checking the size and adjust the port address
+		 * accordingly.
+		 */
+		if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
+			fdc->port_off = -2;
+		fdc->flags |= FDC_ISPNP;
+		fdc->rid_ctl = 1;
+		fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT,
+						  &fdc->rid_ctl, 0ul, ~0ul, 
+						  1, RF_ACTIVE);
+		if (fdc->res_ctl == 0) {
+			device_printf(dev, "cannot reserve I/O port range\n");
+			error = ENXIO;
+			goto out;
+		}
+		fdc->ctlt = rman_get_bustag(fdc->res_ctl);
+		fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
+	}
 
 	fdc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ,
 					  &fdc->rid_irq, 0ul, ~0ul, 1, 
 					  RF_ACTIVE);
 	if (fdc->res_irq == 0) {
-		device_print_prettyname(dev);
-		printf("cannot reserve interrupt line\n");
+		device_printf(dev, "cannot reserve interrupt line\n");
 		error = ENXIO;
 		goto out;
 	}
@@ -607,8 +681,7 @@ fdc_probe(device_t dev)
 					  &fdc->rid_drq, 0ul, ~0ul, 1, 
 					  RF_ACTIVE);
 	if (fdc->res_drq == 0) {
-		device_print_prettyname(dev);
-		printf("cannot reserve DMA request line\n");
+		device_printf(dev, "cannot reserve DMA request line\n");
 		error = ENXIO;
 		goto out;
 	}
@@ -617,9 +690,9 @@ fdc_probe(device_t dev)
 			       INTR_TYPE_BIO, fdc_intr, fdc, &fdc->fdc_intr);
 
 	/* First - lets reset the floppy controller */
-	outb(fdc->baseport + FDOUT, 0);
+	fdout_wr(fdc, 0);
 	DELAY(100);
-	outb(fdc->baseport + FDOUT, FDO_FRST);
+	fdout_wr(fdc, FDO_FRST);
 
 	/* see if it can handle a command */
 	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(3, 240), 
@@ -650,12 +723,6 @@ fdc_probe(device_t dev)
 		}
 	}
 
-	snprintf(myname, sizeof(myname), "%s%d", device_get_name(dev),
-		 device_get_unit(dev));
-	for (i = resource_query_string(-1, "at", myname); i != -1;
-	     i = resource_query_string(i, "at", myname))
-		fdc_add_device(dev, resource_query_name(i),
-			       resource_query_unit(i));
 #ifdef FDC_YE
 	/*
 	 * don't succeed on probe; wait
@@ -675,6 +742,12 @@ out:
 					fdc->res_irq);
 		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
 				     fdc->res_irq);
+	}
+	if (fdc->res_ctl != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
+					fdc->res_ctl);
+		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
+				     fdc->res_ctl);
 	}
 	if (fdc->res_ioport != 0) {
 		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
@@ -718,6 +791,13 @@ fdc_attach(device_t dev)
 {
 	struct	fdc_data *fdc = device_get_softc(dev);
 	fdcu_t	fdcu = device_get_unit(dev);
+	int	i;
+
+	for (i = resource_query_string(-1, "at", device_get_nameunit(dev));
+	     i != -1;
+	     i = resource_query_string(i, "at", device_get_nameunit(dev)))
+		fdc_add_device(dev, resource_query_name(i),
+			       resource_query_unit(i));
 
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
@@ -729,7 +809,7 @@ fdc_attach(device_t dev)
 	fdc->state = DEVIDLE;
 
 	/* reset controller, turn motor off, clear fdout mirror reg */
-	outb(fdc->baseport + FDOUT, ((fdc->fdout = 0)));
+	fdout_wr(fdc, ((fdc->fdout = 0)));
 	bufq_init(&fdc->head);
 
 #ifdef FIFO_BEFORE_MOTORON
@@ -1002,7 +1082,7 @@ static int yeattach(struct isa_device *dev)
 	fdc->flags = FDC_ATTACHED|FDC_PCMCIA;
 	fdc->state = DEVIDLE;
 	/* reset controller, turn motor off, clear fdout mirror reg */
-	outb(fdc->baseport + FDOUT, ((fdc->fdout = 0)));
+	fdout_wr(fdc, ((fdc->fdout = 0)));
 	bufq_init(&fdc->head);
 	/*
 	 * assume 2 drives/ "normal" controller
@@ -1100,7 +1180,7 @@ set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 		fdout |= (FDO_FRST|FDO_FDMAEN);
 	}
 
-	outb(fdc->baseport+FDOUT, fdout);
+	fdout_wr(fdc, fdout);
 	fdc->fdout = fdout;
 	TRACE1("[0x%x->FDOUT]", fdout);
 
@@ -1173,14 +1253,14 @@ static void
 fdc_reset(fdc_p fdc)
 {
 	/* Try a reset, keep motor on */
-	outb(fdc->baseport + FDOUT, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
+	fdout_wr(fdc, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
 	TRACE1("[0x%x->FDOUT]", fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
 	DELAY(100);
 	/* enable FDC, but defer interrupts a moment */
-	outb(fdc->baseport + FDOUT, fdc->fdout & ~FDO_FDMAEN);
+	fdout_wr(fdc, fdc->fdout & ~FDO_FDMAEN);
 	TRACE1("[0x%x->FDOUT]", fdc->fdout & ~FDO_FDMAEN);
 	DELAY(100);
-	outb(fdc->baseport + FDOUT, fdc->fdout);
+	fdout_wr(fdc, fdc->fdout);
 	TRACE1("[0x%x->FDOUT]", fdc->fdout);
 
 	/* XXX after a reset, silently believe the FDC will accept commands */
@@ -1197,20 +1277,19 @@ fdc_reset(fdc_p fdc)
 int
 in_fdc(struct fdc_data *fdc)
 {
-	int baseport = fdc->baseport;
 	int i, j = 100000;
-	while ((i = inb(baseport+FDSTS) & (NE7_DIO|NE7_RQM))
+	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
 		!= (NE7_DIO|NE7_RQM) && j-- > 0)
 		if (i == NE7_RQM)
 			return fdc_err(fdc, "ready for output in input\n");
 	if (j <= 0)
 		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
 #ifdef	FDC_DEBUG
-	i = inb(baseport+FDDATA);
+	i = fddata_rd(fdc);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
 	return(i);
 #else	/* !FDC_DEBUG */
-	return inb(baseport+FDDATA);
+	return fddata_rd(fdc);
 #endif	/* FDC_DEBUG */
 }
 
@@ -1220,21 +1299,20 @@ in_fdc(struct fdc_data *fdc)
 static int
 fd_in(struct fdc_data *fdc, int *ptr)
 {
-	int baseport = fdc->baseport;
 	int i, j = 100000;
-	while ((i = inb(baseport+FDSTS) & (NE7_DIO|NE7_RQM))
+	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
 		!= (NE7_DIO|NE7_RQM) && j-- > 0)
 		if (i == NE7_RQM)
 			return fdc_err(fdc, "ready for output in input\n");
 	if (j <= 0)
 		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
 #ifdef	FDC_DEBUG
-	i = inb(baseport+FDDATA);
+	i = fddata_rd(fdc);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
 	*ptr = i;
 	return 0;
 #else	/* !FDC_DEBUG */
-	i = inb(baseport+FDDATA);
+	i = fddata_rd(fdc);
 	if (ptr)
 		*ptr = i;
 	return 0;
@@ -1244,22 +1322,21 @@ fd_in(struct fdc_data *fdc, int *ptr)
 int
 out_fdc(struct fdc_data *fdc, int x)
 {
-	int baseport = fdc->baseport;
 	int i;
 
 	/* Check that the direction bit is set */
 	i = 100000;
-	while ((inb(baseport+FDSTS) & NE7_DIO) && i-- > 0);
+	while ((fdsts_rd(fdc) & NE7_DIO) && i-- > 0);
 	if (i <= 0) return fdc_err(fdc, "direction bit not set\n");
 
 	/* Check that the floppy controller is ready for a command */
 	i = 100000;
-	while ((inb(baseport+FDSTS) & NE7_RQM) == 0 && i-- > 0);
+	while ((fdsts_rd(fdc) & NE7_RQM) == 0 && i-- > 0);
 	if (i <= 0)
 		return fdc_err(fdc, bootverbose? "output ready timeout\n": 0);
 
 	/* Send the command and return */
-	outb(baseport+FDDATA, x);
+	fddata_wr(fdc, x);
 	TRACE1("[0x%x->FDDATA]", x);
 	return (0);
 }
@@ -1624,7 +1701,7 @@ fdstate(fdc_p fdc)
 		fd->skip = 0;
 		fdc->fd = fd;
 		fdc->fdu = fdu;
-		outb(fdc->baseport+FDCTL, fd->ft->trans);
+		fdctl_wr(fdc, fd->ft->trans);
 		TRACE1("[0x%x->FDCTL]", fd->ft->trans);
 		/*******************************************************\
 		* If the next drive has a motor startup pending, then	*
