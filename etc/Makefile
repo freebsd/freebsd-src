@@ -58,8 +58,6 @@ ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 # Special top level files for FreeBSD
 FREEBSD=COPYRIGHT
 
-etc:
-
 distribute:
 	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 .if defined(OBJFORMAT)
