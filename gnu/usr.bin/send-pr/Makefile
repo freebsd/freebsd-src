@@ -10,6 +10,7 @@ CLEANFILES+=	send-pr send-pr.el
 SUBDIR+= doc
 
 LINKS=	${BINDIR}/send-pr ${BINDIR}/sendbug
+MLINKS=	send-pr.1 sendbug.1
 
 all: send-pr _PROGSUBDIR
 
