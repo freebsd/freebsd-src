@@ -98,6 +98,7 @@ static char 	*envs[256];
 static char	*dos_path = 0;
 char		cmdname[256];	/* referenced from dos.c */
 
+static struct i386_vm86_args vm86;
 static struct vm86_init_args kargs;
 
 /* lobotomise */
@@ -272,7 +273,9 @@ main(int argc, char **argv)
     R_EAX = (booting || raw_kbd) ? (int)&vconnect_area : -1;
     R_EFLAGS |= PSL_VM | PSL_VIF;			/* request VM86 mode */
 
-    i386_vm86(VM86_INIT, &kargs);
+    vm86.sub_op = VM86_INIT;
+    vm86.sub_args = (char *)&kargs;
+    i = sysarch(I386_VM86, &vm86);
 
     sigreturn(&uc);
     debug(D_ALWAYS,"sigreturn failed : %s\n", strerror(errno));

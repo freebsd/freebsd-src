@@ -32,15 +32,18 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
 #include <sys/param.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <sys/time.h>
-#include <signal.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
+
 #include "doscmd.h"
+#include "AsyncIO.h"
 
 #define FD_ISZERO(p)	((p)->fds_bits[0] == 0)
 
@@ -55,11 +58,11 @@
  * Request that ``func'' be called everytime data is available on ``fd''
  */
 
-static	fd_set	fdset = { 0 };		/* File Descriptors to select on */
+static	fd_set	fdset;		/* File Descriptors to select on */
 
 typedef	struct {
 	void	(*func)(void *, REGISTERS);
-					/* Function to call when data arrives */
+					/* Function to call on data arrival */
 	void	(*failure)(void *);	/* Function to call on failure */
 	void	*arg;			/* Argument to above functions */
 	int	lockcnt;		/* Nested level of lock */
@@ -99,13 +102,11 @@ printf("%d: Invalid FD\n", fd);
         }
 
 	if (firsttime) {
-		struct sigaction sa;
-
 		firsttime = 0;
     	    	setsignal(SIGIO, HandleIO);
 	}
 
-	if (handlers[fd].func = func) {
+	if ((handlers[fd].func = func) != 0) {
 		as->lockcnt = 0;
 		as->arg = arg;
 		as->failure = failure;

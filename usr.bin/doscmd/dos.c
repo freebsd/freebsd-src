@@ -44,7 +44,6 @@
 #include <glob.h>
 #include <errno.h>
 #include <ctype.h>
-#include <paths.h>
 #include <stddef.h>
 
 #include "dispatch.h"
@@ -143,7 +142,6 @@ upcase(u_char c)
 static void
 upcase_entry(regcontext_t *REGS)
 {
-    u_char c;
 
     R_AL = upcase(R_AL);
 }
@@ -156,13 +154,7 @@ static int
 int21_free(regcontext_t *REGS)
 {
     fsstat_t		fs;
-    struct statfs	fsstat;
-    char		fspath[PATH_MAX];
-    int			junk;
-    int			spc,fclus,bps,nclus;
-    long		nsec;
     int			error;
-    int			dd_save;
     int			drive;
 
     /* work out drive */
@@ -223,7 +215,6 @@ pack_name(u_char *p, u_char *q)
 static void
 dosdir_to_dta(dosdir_t *dosdir, find_block_t *dta)
 {
-    u_char *p, *q;
 
     dta->attr = dosdir->attr;
     dta->time = dosdir->time;
@@ -274,7 +265,7 @@ translate_filename(u_char *dname, u_char *uname, int *drivep)
 
     if (!strcasecmp(dname, "con")) {
 	*drivep = -1;
-	strcpy(uname, _PATH_TTY);
+	strcpy(uname, "/dev/tty");
 	return (0);
     }
 
@@ -282,7 +273,7 @@ translate_filename(u_char *dname, u_char *uname, int *drivep)
     /* Really need a better way to handle devices */
     if (!strcasecmp(dname, "emmxxxx0")) {
 	*drivep = -1;
-	strcpy(uname, _PATH_DEVNULL);
+	strcpy(uname, "/dev/null");
 	return (0);
     }
 
@@ -444,6 +435,8 @@ static int
 int21_00(regcontext_t *REGS)
 {
     done(REGS,0);
+    /* keep `gcc -Wall' happy */
+    return(0);
 }
 
 /*
@@ -456,7 +449,7 @@ int21_01(regcontext_t *REGS)
 {
     int		n;
     
-    if ((n = tty_read(&REGS->sc, TTYF_BLOCKALL)) >= 0)
+    if ((n = tty_read((regcontext_t *)&REGS->sc, TTYF_BLOCKALL)) >= 0)
 	R_AL = n;
     return(0);
 }
@@ -487,7 +480,7 @@ int21_06(regcontext_t *REGS)
     
     /* XXX - should be able to read a file */
     if (R_DL == 0xff) {
-	n = tty_read(&REGS->sc, TTYF_ECHO|TTYF_REDIRECT);
+	n = tty_read((regcontext_t *)&REGS->sc, TTYF_ECHO|TTYF_REDIRECT);
 	if (n < 0) {
 	    R_FLAGS |= PSL_Z;		/* nothing available */
 	    R_AL = 0;
@@ -511,7 +504,8 @@ int21_06(regcontext_t *REGS)
 static int
 int21_07(regcontext_t *REGS)
 {
-    R_AL = tty_read(&REGS->sc, TTYF_BLOCK|TTYF_REDIRECT) & 0xff;
+    R_AL = tty_read((regcontext_t *)&REGS->sc,
+		    TTYF_BLOCK|TTYF_REDIRECT) & 0xff;
     return(0);
 }
 
@@ -525,7 +519,8 @@ int21_08(regcontext_t *REGS)
 {
     int		n;
     
-    if ((n = tty_read(&REGS->sc, TTYF_BLOCK|TTYF_CTRL|TTYF_REDIRECT)) >= 0)
+    if ((n = tty_read((regcontext_t *)&REGS->sc,
+		      TTYF_BLOCK|TTYF_CTRL|TTYF_REDIRECT)) >= 0)
 	R_AL = n;
     return(0);
 }
@@ -579,7 +574,8 @@ int21_0a(regcontext_t *REGS)
 
     /* read loop */
     while (1) {
-	n = tty_read(&REGS->sc, TTYF_BLOCK|TTYF_CTRL|TTYF_REDIRECT);
+	n = tty_read((regcontext_t *)&REGS->sc,
+		     TTYF_BLOCK|TTYF_CTRL|TTYF_REDIRECT);
 	if (n < 0)			/* end of input */
 	    n = '\r';			/* make like CR */
 	
@@ -1271,9 +1267,8 @@ int21_3e(regcontext_t *REGS)
 static int
 int21_3f(regcontext_t *REGS)
 {
-    int		fd;
     char	*addr;
-    int		nbytes,n;
+    int		n;
     int		avail;
     
     addr = (char *)MAKEPTR(R_DS, R_DX);
@@ -1540,6 +1535,7 @@ static int
 int21_44_9(regcontext_t *REGS)
 {
     R_DX = 0x1200;		/* disk is remote, direct I/O not allowed */
+    return(0);
 }
 
 /*
@@ -1675,13 +1671,13 @@ static int
 int21_4b(regcontext_t *REGS)
 {
     int		fd;
-    char	*fname[PATH_MAX];
     u_short	*param;
     
     debug(D_EXEC, "exec(%s)\n",(u_char *)MAKEPTR(R_DS, R_DX));
 
     if ((fd = open_prog((u_char *)MAKEPTR(R_DS, R_DX))) < 0) {
-	debug(D_EXEC, "%s: command not found\n", fname);
+	debug(D_EXEC, "%s: command not found\n",
+	      (u_char *)MAKEPTR(R_DS, R_DX));
 	return (FILE_NOT_FOUND);
     }
 
@@ -1789,12 +1785,12 @@ static int
 int21_57_0(regcontext_t *REGS)
 {
     struct stat	sb;
-    u_short	date,time;
+    u_short	date, mtime;
     
     if (fstat(R_BX, &sb) < 0)
 	return (HANDLE_INVALID);
-    encode_dos_file_time(sb.st_mtime, &date, &time);
-    R_CX = time;
+    encode_dos_file_time(sb.st_mtime, &date, &mtime);
+    R_CX = mtime;
     R_DX = date;
     return(0);
 }
@@ -1951,6 +1947,7 @@ static int
 int21_62(regcontext_t *REGS)
 {
     R_BX = pspseg;
+    return(0);
 }
 
 /*
@@ -2224,9 +2221,9 @@ int21_fcb(regcontext_t *REGS)
 			      &nbytes);
 	debug(D_FILE_OPS, "%d %s, FCB: %d, %.11s\n",
 	      nbytes,
-	      MAKEPTR(R_DS, R_SI),
+	      (char *)MAKEPTR(R_DS, R_SI),
 	      *(int *)MAKEPTR(R_ES, R_DI),
-	      MAKEPTR(R_ES, R_DI) + 1);
+	      (char *)MAKEPTR(R_ES, R_DI) + 1);
 	
 	R_SI += nbytes;
 	break;
@@ -2491,12 +2488,12 @@ static void
 int21(regcontext_t *REGS)
 {
     int error;
-    int index;
+    int idx;
     
     /* look for a handler */
-    index = intfunc_find(int21_table, int21_fastlookup, R_AH, R_AL);
+    idx = intfunc_find(int21_table, int21_fastlookup, R_AH, R_AL);
 
-    if (index == -1) {			/* no matching functions */
+    if (idx == -1) {			/* no matching functions */
 	unknown_int3(0x21, R_AH, R_AL, REGS);
 	R_FLAGS |= PSL_C;               /* Flag an error */
         R_AX = 0xff;
@@ -2504,9 +2501,9 @@ int21(regcontext_t *REGS)
     }
 
     /* call the handler */
-    error = int21_table[index].handler(REGS);
+    error = int21_table[idx].handler(REGS);
     debug(D_DOSCALL, "msdos call %02x (%s) returns %d (%s)\n", 
-	  int21_table[index].func, int21_table[index].desc,  error,
+	  int21_table[idx].func, int21_table[idx].desc,  error,
 	  ((error >= 0) && (error <= dos_ret_size)) ? dos_return[error] : "unknown");
 
     if (error) {
@@ -2542,7 +2539,6 @@ void
 dos_init(void)
 {
     u_long	vec;
-    int	hn;
 
     /* hook vectors */
     vec = insert_softint_trampoline();
@@ -2571,7 +2567,7 @@ dos_init(void)
 	sizeof(upcase_trampoline), upcase_trampoline);
     register_callback(upcase_vector, upcase_entry, "upcase");
 
-    /* build fastlookup index into the monster table of interrupts */
+    /* build fastlookup idx into the monster table of interrupts */
     intfunc_init(int21_table, int21_fastlookup);
 
     ems_init();
