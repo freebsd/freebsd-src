@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.10 1995/05/30 08:06:21 rgrimes Exp $
+ * $Id: uipc_socket.c,v 1.11 1995/08/25 20:27:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,10 @@
 #include <sys/socketvar.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
+
+static int somaxconn = SOMAXCONN;
+SYSCTL_INT(_kern, KERN_SOMAXCONN, somaxconn, CTLFLAG_RW, &somaxconn, 0, "");
 
 /*
  * Socket operation routines.
@@ -125,9 +129,9 @@ solisten(so, backlog)
 	}
 	if (so->so_q == 0)
 		so->so_options |= SO_ACCEPTCONN;
-	if (backlog < 0)
-		backlog = 0;
-	so->so_qlimit = min(backlog, SOMAXCONN);
+	if (backlog < 0 || backlog > somaxconn)
+		backlog = somaxconn;
+	so->so_qlimit = backlog;
 	splx(s);
 	return (0);
 }
