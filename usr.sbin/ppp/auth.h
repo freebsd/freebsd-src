@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.h,v 1.12 1998/08/07 18:42:47 brian Exp $
+ * $Id: auth.h,v 1.13 1999/02/01 13:42:24 brian Exp $
  *
  *	TODO:
  */
@@ -25,7 +25,6 @@ struct bundle;
 
 struct authinfo {
   void (*ChallengeFunc)(struct authinfo *, int, struct physical *);
-  void (*FailedFunc)(struct physical *);
   struct pppTimer authtimer;
   int retry;
   int id;
@@ -41,8 +40,7 @@ extern void auth_Init(struct authinfo *);
 extern void auth_StopTimer(struct authinfo *);
 extern void auth_StartChallenge(struct authinfo *, struct physical *,
                                 void (*)(struct authinfo *, int,
-                                         struct physical *),
-                                void (*)(struct physical *));
+                                         struct physical *));
 extern int auth_Validate(struct bundle *, const char *, const char *,
                          struct physical *);
 extern char *auth_GetSecret(struct bundle *, const char *, int,
