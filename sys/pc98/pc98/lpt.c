@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.23 1998/10/22 05:58:45 bde Exp $
+ *	$Id: lpt.c,v 1.24 1998/12/11 08:48:21 kato Exp $
  */
 
 /*
@@ -289,7 +289,9 @@ static u_char *ctxmith;
 
 /* Functions for the lp# interface */
 static void lpattach(struct lpt_softc *,int);
+#ifndef PC98
 static int lpinittables(void);
+#endif
 static int lpioctl(struct ifnet *, u_long, caddr_t);
 static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *);
@@ -311,7 +313,7 @@ static struct cdevsw lpt_cdevsw =
 	  lptioctl,	nullstop,	nullreset,	nodevtotty,/* lpt */
 	  seltrue,	nommap,		nostrat,	"lpt",	NULL,	-1 };
 
-
+#ifndef PC98
 /*
  * Internal routine to lptprobe to do port tests of one byte value
  */
@@ -332,6 +334,7 @@ lpt_port_test (int port, u_char data, u_char mask)
 		port, data, temp, timeout));
 	return (temp == data);
 }
+#endif /* PC98 */
 
 /*
  * New lpt port probe Geoff Rehmet - Rhodes University - 14/2/94
@@ -493,7 +496,11 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_softc *sc;
 	int s;
+#ifdef PC98
+	int port;
+#else
 	int trys, port;
+#endif
 	u_int unit = LPTUNIT(minor(dev));
 
 	sc = lpt_sc + unit;
@@ -633,7 +640,9 @@ static	int
 lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
+#ifndef PC98
 	int port = sc->sc_port;
+#endif
 
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
@@ -792,8 +801,10 @@ static void
 lptintr(int unit)
 {
 	struct lpt_softc *sc = lpt_sc + unit;
+#ifndef PC98
 	int port = sc->sc_port, sts;
 	int i;
+#endif
 
 #ifdef INET
 	if(sc->sc_if.if_flags & IFF_UP) {
@@ -915,6 +926,8 @@ lpattach (struct lpt_softc *sc, int unit)
 	bpfattach(ifp, DLT_NULL, LPIPHDRLEN);
 #endif
 }
+
+#ifndef PC98
 /*
  * Build the translation tables for the LPIP (BSD unix) protocol.
  * We don't want to calculate these nasties in our tight loop, so we
@@ -953,6 +966,7 @@ lpinittables (void)
 
     return 0;
 }
+#endif /* PC98 */
 
 /*
  * Process an ioctl request.
@@ -1240,7 +1254,9 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 {
     register int lpt_data_port = lpt_sc[ifp->if_unit].sc_port + lpt_data;
     register int lpt_stat_port = lpt_sc[ifp->if_unit].sc_port + lpt_status;
+#ifndef PC98
 	     int lpt_ctrl_port = lpt_sc[ifp->if_unit].sc_port + lpt_control;
+#endif
 
     int s, err;
     struct mbuf *mm;
