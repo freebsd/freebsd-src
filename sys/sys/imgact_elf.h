@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.h,v 1.10 1999/01/01 14:30:11 bde Exp $
+ *	$Id: imgact_elf.h,v 1.11 1999/02/04 12:42:39 newton Exp $
  */
 
 #ifndef _SYS_IMGACT_ELF_H_
@@ -64,9 +64,9 @@ typedef struct {
 
 #define MAX_BRANDS      8
 
+int	elf_brand_inuse        __P((Elf32_Brandinfo *entry));
 int	elf_insert_brand_entry __P((Elf32_Brandinfo *entry));
 int	elf_remove_brand_entry __P((Elf32_Brandinfo *entry));
-int	elf_brand_inuse        __P((Elf32_Brandinfo *entry));
 
 #else /* !(ELF_TARG_CLASS == ELFCLASS32) */
 
@@ -95,6 +95,7 @@ typedef struct {
 
 #define MAX_BRANDS      8
 
+int	elf_brand_inuse        __P((Elf32_Brandinfo *entry));
 int	elf_insert_brand_entry __P((Elf64_Brandinfo *entry));
 int	elf_remove_brand_entry __P((Elf64_Brandinfo *entry));
 
