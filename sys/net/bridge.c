@@ -91,14 +91,17 @@
 #include <sys/param.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/protosw.h>
 #include <sys/systm.h>
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/ctype.h>	/* string functions */
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
+#include <net/pfil.h>	/* for ipfilter */
 #include <net/if.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h> /* for struct arpcom */
 #include <netinet/in_systm.h>
@@ -153,6 +156,9 @@ struct cluster_softc {
 };
 
 
+extern struct protosw inetsw[];			/* from netinet/ip_input.c */
+extern u_char ip_protox[];			/* from netinet/ip_input.c */
+
 static int n_clusters;				/* number of clusters */
 static struct cluster_softc *clusters;
 
@@ -195,6 +201,7 @@ static struct cluster_softc *clusters;
 static int bdginit(void);
 static void parse_bdg_cfg(void);
 
+static int bdg_ipf = 0;		/* IPFilter enabled in bridge */
 static int bdg_ipfw = 0 ;
 
 #if 0 /* debugging only */
@@ -524,6 +531,9 @@ SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge, CTLTYPE_INT|CTLFLAG_RW,
 SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw, CTLFLAG_RW,
 	    &bdg_ipfw,0,"Pass bridged pkts through firewall");
 
+SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipf, CTLFLAG_RW,
+	    &bdg_ipf, 0,"Pass bridged pkts through IPFilter");
+
 /*
  * The follow macro declares a variable, and maps it to
  * a SYSCTL_INT entry with the same name.
@@ -789,6 +799,10 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     int once = 0;      /* loop only once */
     struct ifnet *real_dst = dst ; /* real dst from ether_output */
     struct ip_fw *rule = NULL ; /* did we match a firewall rule ? */
+#ifdef PFIL_HOOKS
+    struct packet_filter_hook *pfh;
+    int rv;
+#endif /* PFIL_HOOKS */
 
     /*
      * XXX eh is usually a pointer within the mbuf (some ethernet drivers
@@ -839,7 +853,12 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
      * Additional restrictions may apply e.g. non-IP, short packets,
      * and pkts already gone through a pipe.
      */
-    if (IPFW_LOADED && bdg_ipfw != 0 && src != NULL) {
+    if (src != NULL && (
+#ifdef PFIL_HOOKS
+	((pfh = pfil_hook_get(PFIL_IN, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh)) != NULL && bdg_ipf !=0) ||
+#endif
+	(IPFW_LOADED && bdg_ipfw != 0))) {
+
 	struct ip *ip ;
 	int i;
 
@@ -871,14 +890,32 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	ip->ip_off = ntohs(ip->ip_off);
 
 	/*
+	 * NetBSD-style generic packet filter, pfil(9), hooks.
+	 * Enables ipf(8) in bridging.
+	 */
+#ifdef PFIL_HOOKS
+        for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
+	    if (pfh->pfil_func) {
+		rv = pfh->pfil_func(ip, ip->ip_hl << 2, src, 0, &m0);
+		if (rv != 0 || m0 == NULL)
+		    return m0;
+		ip = mtod(m0, struct ip *);
+	    }
+#endif /* PFIL_HOOKS */
+
+	/*
 	 * The third parameter to the firewall code is the dst. interface.
 	 * Since we apply checks only on input pkts we use NULL.
 	 * The firewall knows this is a bridged packet as the cookie ptr
 	 * is NULL.
 	 */
-	i = ip_fw_chk_ptr(&ip, 0, NULL, NULL /* cookie */, &m0, &rule, NULL);
-	if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
-	    return m0 ;
+	if (IPFW_LOADED && bdg_ipfw != 0) {
+	    i = ip_fw_chk_ptr(&ip, 0, NULL, NULL /* cookie */, &m0, &rule, NULL);
+	    if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
+		return m0 ;
+	} else
+	    i = 0;	/* Treat it as a "pass" when not using ipfw. */
+
 	/*
 	 * If we get here, the firewall has passed the pkt, but the mbuf
 	 * pointer might have changed. Restore ip and the fields ntohs()'d.
@@ -973,7 +1010,7 @@ forward:
 		bdg_predict++;
 	    } else {
 		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-	        if (!m && verbose)
+		if (!m && verbose)
 		    printf("M_PREPEND failed\n");
 		if (m == NULL)
 		    return m0;
