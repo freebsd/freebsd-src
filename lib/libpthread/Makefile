@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1998/06/09 23:25:13 jb Exp $
+#	$Id: Makefile,v 1.12 1998/06/12 02:21:27 jb Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
@@ -9,7 +9,7 @@ LIB=c_r
 SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
 CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS -I${.CURDIR}/../libc/include
-CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE -I${.CURDIR}/uthread
+CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE -DNOPOLL -I${.CURDIR}/uthread
 
 # Uncomment this if you want libc_r to contain debug information for
 # thread locking.
