@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.6 1995/05/18 09:01:57 jkh Exp $
+ * $Id: label.c,v 1.7 1995/05/18 17:38:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -584,8 +584,10 @@ diskLabelEditor(char *str)
 		    msgConfirm("Can't find any disk devicse!");
 		    break;
 		}
-		for (i = 0; ((Disk *)devs[i]->private); i++)
-		    slice_wizard(((Disk *)devs[i]->private));
+		for (i = 0; ((Disk *)devs[i]->private); i++) {
+		    if (devs[i]->enabled)
+		    	slice_wizard(((Disk *)devs[i]->private));
+		}
 		dialog_clear();
 		DialogActive = TRUE;
 		record_label_chunks();
