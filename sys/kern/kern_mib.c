@@ -167,6 +167,15 @@ SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
 	0, 0, sysctl_hw_physmem, "LU", "");
 
 static int
+sysctl_hw_realmem(SYSCTL_HANDLER_ARGS)
+{
+	u_long val;
+	val = ctob(realmem);
+	return (sysctl_handle_long(oidp, &val, 0, req));
+}
+SYSCTL_PROC(_hw, HW_REALMEM, realmem, CTLTYPE_ULONG | CTLFLAG_RD,
+	0, 0, sysctl_hw_realmem, "LU", "");
+static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 {
 	u_long val;

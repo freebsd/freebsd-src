@@ -458,7 +458,8 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	HW_DISKSTATS	 9		/* struct: diskstats[] */
 #define HW_FLOATINGPT	10		/* int: has HW floating point? */
 #define HW_MACHINE_ARCH	11		/* string: machine architecture */
-#define	HW_MAXID	12		/* number of valid hw ids */
+#define	HW_REALMEM	12		/* int: 'real' memory */
+#define	HW_MAXID	13		/* number of valid hw ids */
 
 #define CTL_HW_NAMES { \
 	{ 0, 0 }, \
@@ -472,6 +473,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	{ "disknames", CTLTYPE_STRUCT }, \
 	{ "diskstats", CTLTYPE_STRUCT }, \
 	{ "floatingpoint", CTLTYPE_INT }, \
+	{ "realmem", CTLTYPE_ULONG }, \
 }
 
 /*
