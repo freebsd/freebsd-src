@@ -1416,6 +1416,8 @@ gotit:
 		fs->fs_cstotal.cs_ndir++;
 		fs->fs_cs(fs, cg).cs_ndir++;
 	}
+	if (fs->fs_active != 0)
+		atomic_clear_int(&ACTIVECGNUM(fs, cg), ACTIVECGOFF(cg));
 	bdwrite(bp);
 	return (cg * fs->fs_ipg + ipref);
 }
@@ -1684,6 +1686,8 @@ ffs_freefile(fs, devvp, ino, mode)
 		fs->fs_cs(fs, cg).cs_ndir--;
 	}
 	fs->fs_fmod = 1;
+	if (fs->fs_active != 0)
+		atomic_clear_int(&ACTIVECGNUM(fs, cg), ACTIVECGOFF(cg));
 	bdwrite(bp);
 	return (0);
 }
