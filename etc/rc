@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.159 1998/10/08 18:47:29 des Exp $
+#	$Id: rc,v 1.160 1998/10/09 17:11:14 des Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -252,17 +252,20 @@ if [ -x /sbin/ldconfig ]; then
 		ldconfig -elf ${_LDC}
 	fi
 
-	# Default the a.out ldconfig path, in case the system's
-	# /etc/rc.conf hasn't been updated.
-	: ${ldconfig_paths_aout=${ldconfig_paths}}
-	_LDC=/usr/lib/aout
-	for i in $ldconfig_paths_aout; do
-		if test -d $i; then
-			_LDC="${_LDC} $i"
-		fi
-	done
-	echo 'setting a.out ldconfig path:' ${_LDC}
-	ldconfig -aout ${_LDC}
+	# Legacy aout support for i386 only
+	if [ X"`sysctl hw.machine`" = X"i386" ]; then
+		# Default the a.out ldconfig path, in case the system's
+		# /etc/rc.conf hasn't been updated.
+		: ${ldconfig_paths_aout=${ldconfig_paths}}
+		_LDC=/usr/lib/aout
+		for i in $ldconfig_paths_aout; do
+			if test -d $i; then
+				_LDC="${_LDC} $i"
+			fi
+		done
+		echo 'setting a.out ldconfig path:' ${_LDC}
+		ldconfig -aout ${_LDC}
+	fi
 fi
 
 # Now start up miscellaneous daemons that don't belong anywhere else
