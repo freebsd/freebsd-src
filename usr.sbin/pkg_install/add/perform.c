@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.26.2.2 1995/10/09 11:16:19 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.26.2.3 1995/10/14 19:11:02 jkh Exp $";
 #endif
 
 /*
@@ -77,7 +77,7 @@ pkg_do(char *pkg)
     where_to = NULL;
 
     /* Are we coming in for a second pass, everything already extracted? */
-    if (AddMode == SLAVE) {
+    if (!pkg) {
 	char tmp_dir[FILENAME_MAX];
 
 	fgets(tmp_dir, FILENAME_MAX, stdin);
@@ -90,11 +90,13 @@ pkg_do(char *pkg)
     }
     /* Nope - do it now */
     else {
+	/* Is it an ftp://foo.bar.baz/file.tgz specification? */
 	if (isURL(pkg)) {
 	    if (!(Home = fileGetURL(NULL, pkg))) {
 		whinge("Unable to fetch `%s' by URL.", pkg);
 		return 1;
 	    }
+	    where_to = Home;
 	    strcpy(pkg_fullname, pkg);
 	    cfile = fopen(CONTENTS_FNAME, "r");
 	    if (!cfile) {
@@ -103,7 +105,6 @@ pkg_do(char *pkg)
 	    }
 	    read_plist(&Plist, cfile);
 	    fclose(cfile);
-
 	}
 	else {
 	    if (pkg[0] == '/')	/* full pathname? */
@@ -126,7 +127,7 @@ pkg_do(char *pkg)
 	    Home = make_playpen(playpen, sb.st_size * 4);
 	    if (!Home)
 		whinge("Unable to make playpen for %d bytes.\n", sb.st_size * 4);
-	    where_to = playpen;
+	    where_to = Home;
 	    sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
 	    if (unpack(pkg_fullname, extract_contents)) {
 		whinge("Unable to extract table of contents file from `%s' - not a package?.", pkg_fullname);
@@ -188,10 +189,10 @@ pkg_do(char *pkg)
 		goto bomb;
 	    }
 
-	    /* Check for sanity and dependencies */
-	    if (sanity_check(pkg_fullname))
-		goto bomb;
 	}
+	/* Check for sanity and dependencies */
+	if (sanity_check(pkg))
+	    goto bomb;
 
 	/* If we're running in MASTER mode, just output the plist and return */
 	if (AddMode == MASTER) {
@@ -229,12 +230,10 @@ pkg_do(char *pkg)
 	if (p->type != PLIST_PKGDEP)
 	    continue;
 	if (Verbose)
-	    printf("Package `%s' depends on `%s'\n", pkg, p->name);
+	    printf("Package `%s' depends on `%s'.\n", PkgName, p->name);
 	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
 	    char path[FILENAME_MAX], *cp = NULL;
 
-	    if (Verbose)
-		printf("which is not currently loaded.\n");
 	    if (!Fake && !isURL(pkg)) {
 		snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
 		if (fexists(path))
@@ -247,7 +246,7 @@ pkg_do(char *pkg)
 	    else if (!Fake && (cp = fileGetURL(pkg, p->name)) != NULL) {
 		if (Verbose)
 		    printf("Finished loading %s over FTP.\n", p->name);
-		if (!Fake && vsystem("(pwd; cat +CONTENTS) | pkg_add -S")) {
+		if (!Fake && vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S"), Verbose ? "-v " : "") {
 		    whinge("Autoload of dependency `%s' failed%s", p->name, Force ? " (proceeding anyway)" : "!");
 		    if (!Force)
 			++code;

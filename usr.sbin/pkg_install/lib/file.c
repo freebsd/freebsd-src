@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.10.4.4 1995/10/09 11:54:27 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.10.4.5 1995/10/14 19:11:44 jkh Exp $";
 #endif
 
 /*
@@ -103,6 +103,8 @@ isURL(char *fname)
      * also be looking for here, but for now I'll just be happy to get ftp
      * working.
      */
+    if (!fname)
+	return FALSE;
     while (isspace(*fname))
 	++fname;
     if (!strncmp(fname, "ftp://", 6))

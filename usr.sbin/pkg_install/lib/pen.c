@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.13.4.3 1995/10/14 19:11:46 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.13.4.4 1995/10/15 04:39:56 jkh Exp $";
 #endif
 
 /*
@@ -29,6 +29,7 @@ static const char *rcsid = "$Id: pen.c,v 1.13.4.3 1995/10/14 19:11:46 jkh Exp $"
 
 /* For keeping track of where we are */
 static char Current[FILENAME_MAX];
+static char Previous[FILENAME_MAX];
 
 char *
 where_playpen(void)
@@ -72,7 +73,6 @@ char *
 make_playpen(char *pen, size_t sz)
 {
     char *tmp;
-    static char Previous[FILENAME_MAX];
 
     if (!find_play_pen(pen, sz))
 	return NULL;
@@ -96,7 +96,9 @@ make_playpen(char *pen, size_t sz)
 	     "with more space and\ntry the command again.", pen);
         return NULL;
     }
-    if (!getcwd(Previous, FILENAME_MAX)) {
+    if (Current[0])
+	strcpy(Previous, Current);
+    else if (!getcwd(Previous, FILENAME_MAX)) {
 	upchuck("getcwd");
 	return NULL;
     }
@@ -108,22 +110,20 @@ make_playpen(char *pen, size_t sz)
 
 /* Convenience routine for getting out of playpen */
 void
-leave_playpen(char *to)
+leave_playpen(char *save)
 {
     void (*oldsig)(int);
 
     /* Don't interrupt while we're cleaning up */
     oldsig = signal(SIGINT, SIG_IGN);
-    if (to && chdir(to) == FAIL)
-	barf("Can't chdir back to '%s'.", to);
+    if (chdir(Previous) == FAIL)
+	barf("Can't chdir back to '%s'.", Previous);
     else if (Current[0]) {
 	if (vsystem("rm -rf %s", Current))
-	    fprintf(stderr, "Couldn't remove temporary dir '%s'\n", Current);
+	    whinge("Couldn't remove temporary dir '%s'", Current);
+	strcpy(Current, Previous);
     }
-    if (to)
-    	strcpy(Current, to);
-    else
-	Current[0] = '\0';
+    strcpy(Previous, save);
     signal(SIGINT, oldsig);
 }
 
