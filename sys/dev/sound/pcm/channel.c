@@ -686,10 +686,10 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 		goto out;
 
 	ret = ENOMEM;
-	b = sndbuf_create(c->name, "primary");
+	b = sndbuf_create(c->dev, c->name, "primary");
 	if (b == NULL)
 		goto out;
-	bs = sndbuf_create(c->name, "secondary");
+	bs = sndbuf_create(c->dev, c->name, "secondary");
 	if (bs == NULL)
 		goto out;
 	sndbuf_setup(bs, NULL, 0);
@@ -1032,6 +1032,7 @@ chn_buildfeeder(struct pcm_channel *c)
 	struct feeder_class *fc;
 	struct pcm_feederdesc desc;
 	u_int32_t tmp[2], type, flags, hwfmt;
+	int err;
 
 	CHN_LOCKASSERT(c);
 	while (chn_removefeeder(c) == 0);
@@ -1041,13 +1042,13 @@ chn_buildfeeder(struct pcm_channel *c)
 
 	if (SLIST_EMPTY(&c->children)) {
 		fc = feeder_getclass(NULL);
-		if (fc == NULL) {
-			DEB(printf("can't find root feeder\n"));
-			return EINVAL;
-		}
-		if (chn_addfeeder(c, fc, NULL)) {
-			DEB(printf("can't add root feeder\n"));
-			return EINVAL;
+		KASSERT(fc != NULL, ("can't find root feeder"));
+
+		err = chn_addfeeder(c, fc, NULL);
+		if (err) {
+			DEB(printf("can't add root feeder, err %d\n", err));
+
+			return err;
 		}
 		c->feeder->desc->out = c->format;
 	} else {
@@ -1058,20 +1059,20 @@ chn_buildfeeder(struct pcm_channel *c)
 		fc = feeder_getclass(&desc);
 		if (fc == NULL) {
 			DEB(printf("can't find vchan feeder\n"));
-			return EINVAL;
+
+			return EOPNOTSUPP;
 		}
-		if (chn_addfeeder(c, fc, &desc)) {
-			DEB(printf("can't add vchan feeder\n"));
-			return EINVAL;
+
+		err = chn_addfeeder(c, fc, &desc);
+		if (err) {
+			DEB(printf("can't add vchan feeder, err %d\n", err));
+
+			return err;
 		}
 	}
 	flags = c->feederflags;
 
-	if ((c->flags & CHN_F_MAPPED) && (flags != 0)) {
-		DEB(printf("can't build feeder chain on mapped channel\n"));
-		return EINVAL;
-	}
-	DEB(printf("not mapped, flags %x\n", flags));
+	DEB(printf("not mapped, feederflags %x\n", flags));
 
 	for (type = FEEDER_RATE; type <= FEEDER_LAST; type++) {
 		if (flags & (1 << type)) {
@@ -1084,7 +1085,8 @@ chn_buildfeeder(struct pcm_channel *c)
 			DEB(printf("got %p\n", fc));
 			if (fc == NULL) {
 				DEB(printf("can't find required feeder type %d\n", type));
-				return EINVAL;
+
+				return EOPNOTSUPP;
 			}
 
 			if (c->feeder->desc->out != fc->desc->in) {
@@ -1093,14 +1095,17 @@ chn_buildfeeder(struct pcm_channel *c)
 				tmp[1] = 0;
 				if (chn_fmtchain(c, tmp) == 0) {
 					DEB(printf("failed\n"));
-					return EINVAL;
+
+					return ENODEV;
 				}
  				DEB(printf("ok\n"));
 			}
 
-			if (chn_addfeeder(c, fc, fc->desc)) {
-				DEB(printf("can't add feeder %p, output %x\n", fc, fc->desc->out));
-				return EINVAL;
+			err = chn_addfeeder(c, fc, fc->desc);
+			if (err) {
+				DEB(printf("can't add feeder %p, output %x, err %d\n", fc, fc->desc->out, err));
+
+				return err;
 			}
 			DEB(printf("added feeder %p, output %x\n", fc, c->feeder->desc->out));
 		}
@@ -1119,9 +1124,10 @@ chn_buildfeeder(struct pcm_channel *c)
 	}
 
 	if (hwfmt == 0)
-		return EINVAL;
+		return ENODEV;
 
 	sndbuf_setfmt(c->bufhard, hwfmt);
+
 	return 0;
 }
 
