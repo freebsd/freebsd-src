@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.107 1995/01/24 02:41:52 jkh Exp $
+# $Id: bsd.port.mk,v 1.108 1995/01/30 10:06:56 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -204,6 +204,7 @@ MASTER_SITES=	${MASTER_SITE_OVERRIDE}
 # Derived names so that they're easily overridable.
 DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
 PKGNAME?=		${DISTNAME}
+MAINTAINER?=	FreeBSD-Ports@FreeBSD.ORG
 
 .if exists(${PACKAGES})
 PKGFILE?=		${PACKAGES}/${PKGNAME}${PKG_SUFX}
