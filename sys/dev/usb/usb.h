@@ -217,8 +217,9 @@ typedef struct {
 	uByte		bLength;
 	uByte		bDescriptorType;
 	uByte		bEndpointAddress;
-#define UE_IN		0x80
-#define UE_OUT		0x00
+#define UE_DIR		0x80	/* mask */
+#define  UE_IN		0x80
+#define  UE_OUT		0x00
 #define UE_ADDR		0x0f
 #define UE_GET_ADDR(a)	((a) & UE_ADDR)
 #define UE_GET_IN(a)	(((a) >> 7) & 1)
@@ -329,20 +330,32 @@ typedef struct {
 
 #define UDESC_HUB		0x29
 
-#define UCLASS_UNSPEC		0
-#define UCLASS_AUDIO		1
+#define UCLASS_UNSPEC		0	/* Unspecified */
+#define UCLASS_AUDIO		1	/* Audio */
 #define  USUBCLASS_AUDIOCONTROL	1
 #define  USUBCLASS_AUDIOSTREAM	2
-#define UCLASS_CDC		2 /* communication */
+#define UCLASS_CDC		2	/* Communication */
 #define  USUBCLASS_ABSTRACT_CONTROL_MODEL	2
 #define   UPROTO_CDC_AT		1
-#define UCLASS_HID		3
+#define UCLASS_HID		3	/* Human Interface Device */
 #define  USUBCLASS_BOOT	 	1
-#define UCLASS_PRINTER		7
+#define UCLASS_PRINTER		7	/* Printer/Parallel Port */
 #define  USUBCLASS_PRINTER	1
-#define  UPROTO_PRINTER_UNI	1
-#define  UPROTO_PRINTER_BI	2
-#define UCLASS_HUB		9
+#define  UPROTO_PRINTER_UNI	1	/* Unidirectional */
+#define  UPROTO_PRINTER_BI	2	/* Bidirectional */
+#define UCLASS_MASS		8	/* Mass Storage */
+#define  USUBCLASS_RBC		1	/* Reduced Block comm. (e.g. Flash ) */
+#define  USUBCLASS_SFF8020I	2	/* (e.g. CD ROM) */
+#define  USUBCLASS_QIC157	3	/* (e.g. tape drives) */
+#define  USUBCLASS_UFI		4	/* (e.g. floppy drives) */
+#define  USUBCLASS_SFF8070I	5	/* (e.g. floppy drives) */
+#define  USUBCLASS_SCSI		6	/* SCSI transparent comman set */
+#define  UPROTO_MASS_CBI_I	0	/* CBI protocol with comm. compl. int */
+#define  UPROTO_MASS_CBI	1	/* CBI protocol */
+/* unknown yet 1999-04-05
+#define  UPROTO_MASS_BULK	??	/ * Bulk only transport * /
+*/
+#define UCLASS_HUB		9	/* Hub */
 #define  USUBCLASS_HUB		0
 #define UCLASS_DATA		10
 
