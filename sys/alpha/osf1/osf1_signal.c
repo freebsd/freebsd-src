@@ -444,7 +444,9 @@ osf1_signal(p, uap)
 			sigset_t *bmask;
 
 			bmask = stackgap_alloc(&sg, sizeof(sigset_t));
+			PROC_LOCK(p);
 			set = p->p_sigmask;
+			PROC_UNLOCK(p);
 			SIGDELSET(set, signum);
 			SCARG(&sa, sigmask) = bmask;
 			if ((error = copyout(&set, bmask, sizeof(set))) != 0)
@@ -476,7 +478,7 @@ osf1_sigprocmask(p, uap)
 
 	osf1_to_bsd_sigset(&uap->mask, &bss);
 
-	(void) splhigh();
+	PROC_LOCK(p);
 
 	switch (SCARG(uap, how)) {
 	case OSF1_SIG_BLOCK:
@@ -498,7 +500,7 @@ osf1_sigprocmask(p, uap)
 		break;
 	}
 
-	(void) spl0();
+	PROC_UNLOCK(p);
 
 	return error;
 }
@@ -513,8 +515,10 @@ osf1_sigpending(p, uap)
 	osf1_sigset_t oss;
 	sigset_t bss;
 
+	PROC_LOCK(p);
 	bss = p->p_siglist;
 	SIGSETAND(bss, p->p_sigmask);
+	PROC_UNLOCK(p);
 	bsd_to_osf1_sigset(&bss, &oss);
 
 	return copyout(&oss, SCARG(uap, mask), sizeof(oss));
@@ -581,6 +585,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct sigacts *psp;
 
 	p = curproc;
+	PROC_LOCK(p);
 	psp = p->p_sigacts;
 
 	frame = p->p_md.md_tf;
@@ -601,6 +606,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	} else
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
+	PROC_UNLOCK(p);
 
 	(void)grow_stack(p, (u_long)sip);
 	if (useracc((caddr_t)sip, fsize, VM_PROT_WRITE) == 0) {
@@ -608,10 +614,12 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		SIGACTION(p, SIGILL) = SIG_DFL;
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
+		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
 		return;
 	}
@@ -699,6 +707,7 @@ osf1_sigreturn(struct proc *p,
 	/*
 	 * Restore the user-supplied information.
 	 */
+	PROC_LOCK(p);
 	if (ksc.sc_onstack)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
@@ -711,6 +720,7 @@ osf1_sigreturn(struct proc *p,
 	 */
 	osf1_to_bsd_sigset(&ksc.sc_mask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
+	PROC_UNLOCK(p);
 
 	set_regs(p, (struct reg *)ksc.sc_regs);
 	p->p_md.md_tf->tf_regs[FRAME_PC] = ksc.sc_pc;
