@@ -137,8 +137,6 @@ struct nfsnode {
 #define	NACC		0x0100	/* Special file accessed */
 #define	NUPD		0x0200	/* Special file updated */
 #define	NCHG		0x0400	/* Special file times changed */
-#define NLOCKED		0x0800  /* node is locked */
-#define NWANTED		0x0100  /* someone wants to lock */
 
 /*
  * Convert between nfsnode pointers and vnode pointers
