@@ -62,7 +62,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 	else
 		p = &proc0;
 
-	db_printf("  pid   proc     addr    uid  ppid  pgrp  flag  stat wmesg   wchan   cmd\n");
+	db_printf("  pid   proc     addr    uid  ppid  pgrp  flag   stat  wmesg    wchan  cmd\n");
 	while (--np >= 0) {
 		/*
 		 * XXX just take 20 for now...
@@ -101,24 +101,24 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		switch(p->p_state) {
 		case PRS_NORMAL:
 			if (P_SHOULDSTOP(p))
-				state = "stopped";
+				state = "stop";
 			else
-				state = "Normal";
+				state = "norm";
 			break;
 		case PRS_NEW:
-			state = "New";
+			state = "new ";
 			break;
 		case PRS_WAIT:
-			state = "Wait";
+			state = "wait";
 			break;
 		case PRS_ZOMBIE:
-			state = "Zombie";
+			state = "zomp";
 			break;
 		default:
-			state = "Unknown";
+			state = "Unkn";
 			break;
 		}
-		db_printf("%5d %8p %8p %4d %5d %5d %07x  %s",
+		db_printf("%5d %8p %8p %4d %5d %5d %07x %-4s",
 		    p->p_pid, (volatile void *)p, (void *)p->p_uarea, 
 		    p->p_ucred ? p->p_ucred->cr_ruid : 0, pp->p_pid,
 		    p->p_pgrp ? p->p_pgrp->pg_id : 0, p->p_flag, state);
@@ -140,7 +140,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		} else {
 			td = FIRST_THREAD_IN_PROC(p);
 			if (td->td_wchan) {
-				db_printf("  %6s %8p", td->td_wmesg,
+				db_printf("  %-6s %8p", td->td_wmesg,
 				    (void *)td->td_wchan);
 			} else if (td->td_state == TDS_MTX) {
 				db_printf("  %6s %8p", td->td_mtxname,
