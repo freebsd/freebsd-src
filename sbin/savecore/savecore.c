@@ -42,13 +42,14 @@ static const char copyright[] =
 static char sccsid[] = "@(#)savecore.c	8.3 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: savecore.c,v 1.21 1998/07/28 06:38:57 charnier Exp $";
+	"$Id: savecore.c,v 1.22 1999/03/12 14:46:00 gallatin Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/syslog.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -74,29 +75,26 @@ static const char rcsid[] =
 #endif
 
 struct nlist current_nl[] = {	/* Namelist for currently running system. */
-#define X_DUMPDEV	0
-	{ "_dumpdev" },
-#define X_DUMPLO	1
+#define X_DUMPLO	0
 	{ "_dumplo" },
-#define X_TIME		2
+#define X_TIME		1
 	{ "_time_second" },
-#define	X_DUMPSIZE	3
+#define	X_DUMPSIZE	2
 	{ "_dumpsize" },
-#define X_VERSION	4
+#define X_VERSION	3
 	{ "_version" },
-#define X_PANICSTR	5
+#define X_PANICSTR	4
 	{ "_panicstr" },
-#define	X_DUMPMAG	6
+#define	X_DUMPMAG	5
 	{ "_dumpmag" },
 	{ "" },
 };
-int cursyms[] = { X_DUMPDEV, X_DUMPLO, X_VERSION, X_DUMPMAG, -1 };
+int cursyms[] = { X_DUMPLO, X_VERSION, X_DUMPMAG, -1 };
 int dumpsyms[] = { X_TIME, X_DUMPSIZE, X_VERSION, X_PANICSTR, X_DUMPMAG, -1 };
 
 struct nlist dump_nl[] = {	/* Name list for dumped system. */
-	{ "_dumpdev" },		/* Entries MUST be the same as */
-	{ "_dumplo" },		/*	those in current_nl[].  */
-	{ "_time_second" },
+	{ "_dumplo" },		/* Entries MUST be the same as */
+	{ "_time_second" },	/*	those in current_nl[].  */
 	{ "_dumpsize" },
 	{ "_version" },
 	{ "_panicstr" },
@@ -216,6 +214,8 @@ kmem_setup()
 	FILE *fp;
 	int kmem, i;
 	const char *dump_sys;
+	int mib[2];
+	size_t len;
 
 	/*
 	 * Some names we need for the currently running system, others for
@@ -245,13 +245,19 @@ kmem_setup()
 			exit(1);
 		}
 
-	kmem = Open(_PATH_KMEM, O_RDONLY);
-	Lseek(kmem, (off_t)current_nl[X_DUMPDEV].n_value, L_SET);
-	(void)Read(kmem, &dumpdev, sizeof(dumpdev));
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_DUMPDEV;
+	len = sizeof dumpdev;
+	if (sysctl(mib, 2, &dumpdev, &len, NULL, 0) == -1) {
+		syslog(LOG_ERR, "sysctl: kern.dumpdev: %m");
+		exit(1);
+	}
 	if (dumpdev == NODEV) {
 		syslog(LOG_WARNING, "no core dump (no dumpdev)");
 		exit(1);
 	}
+
+	kmem = Open(_PATH_KMEM, O_RDONLY);
 	Lseek(kmem, (off_t)current_nl[X_DUMPLO].n_value, L_SET);
 	(void)Read(kmem, &dumplo, sizeof(dumplo));
 	if (verbose)
