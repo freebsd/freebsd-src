@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 MODULES		 =
+MODULES		+= pam_chroot
 MODULES		+= pam_deny
 MODULES		+= pam_echo
 MODULES		+= pam_exec
