@@ -37,13 +37,13 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	MFS			#Memory Filesystem
-#options 	DEVFS			#Device Filesystem
 options 	MD_ROOT			#MD is a potential root device
 options 	NFS			#Network Filesystem
 options 	NFS_ROOT		#NFS usable as root device, NFS required
 options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	CD9660_ROOT		#CD-ROM usable as root, CD9660 required
+#options 	DEVFS			#Device Filesystem
 options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
@@ -90,9 +90,9 @@ device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
 device		adv
 device		adw
-device		bt
 device		aha	1
 device		aic
+device		bt
 
 device		ncv		# NCR 53C500
 device		nsp		# Workbit Ninja SCSI-3
@@ -112,8 +112,8 @@ device		pass		# Passthrough device (direct SCSI access)
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID
-device		ida		# Compaq Smart RAID
 device		amr		# AMI MegaRAID
+device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960 family
 device		twe		# 3ware ATA RAID
 
@@ -181,11 +181,11 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # ISA Ethernet NICs.
+device		cs
 device		ed
 device		ex
 device		ep
 device		fe
-device		cs
 device		sn
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
 # exists only as a PCMCIA device, so there is no ISA attatement needed
@@ -201,6 +201,7 @@ device		an
 device		awi
 # Xircom pccard ethernet
 device		xe
+
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie
 device		le
