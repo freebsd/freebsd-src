@@ -26,6 +26,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/select.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
