@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.9 1997/02/22 09:30:05 peter Exp $
+ *	$Id: bios.S,v 1.10 1997/05/16 10:39:59 bde Exp $
  */
 
 /*
@@ -50,10 +50,45 @@ NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
+/*
+ * Extensions for El Torito CD-ROM booting:
+ *
+ * Copyright © 1997 Pluto Technologies International, Inc.  Boulder CO
+ * Copyright © 1997 interface business GmbH, Dresden.
+ *      All rights reserved.
+ *
+ * This code has been written by Jörg Wunsch, Dresden.
+ * Direct comments to <joerg_wunsch@interface-business.de>.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
 	.file	"bios.s"
 
 #include "asm.h"
 	.text
+
+#ifndef CDBOOT
 
 /*
  * biosread(dev, cyl, head, sec, nsec, offset)
@@ -115,6 +150,97 @@ ENTRY(biosread)
 
 	ret
 
+#else /* CDBOOT */
+
+
+/*
+ * int
+ * getbootspec(struct specpacket *offset)
+ *
+ * Read CD-ROM boot specification packet to "offset".
+ */
+ENTRY(getbootspec)
+	push	%ebp
+	mov	%esp, %ebp
+
+	push	%esi
+	push	%ebx
+
+	movw	0x8(%ebp), %si
+	mov	$0x7f, %edx
+
+	/* prot_to_real will set %es to BOOTSEG */
+	call	EXT(prot_to_real)	/* enter real mode */
+	movw	$0x4b01, %ax		/* (do not) terminate disk emulation */
+	movb	$0x7f, %dl		/* any drive */
+
+	sti
+	int	$0x13
+	cli
+
+	/* save return value (actually movw %ax, %bx) */
+	mov	%eax, %ebx
+
+	data32
+	call	EXT(real_to_prot)	/* back to protected mode */
+
+	xor	%eax, %eax
+	movb	%bh, %al		/* return value in %ax */
+
+	pop	%ebx
+	pop	%esi
+	pop	%ebp
+
+	ret
+
+
+/*
+ * int
+ * biosreadlba(struct daddrpacket *daddr)
+ *	Read sectors using the BIOS "read extended" function
+ * BIOS call "INT 0x13 Function 0x42" to read sectors from disk into memory
+ *	Call with	%ah = 0x42
+ *			%dl = drive (0x0 for floppy disk, or emulated CD)
+ *			%ds:%si = ptr to disk address packet
+ *	Return:
+ *			%ah = 0x0 on success; err code on failure
+ */
+
+ENTRY(biosreadlba)
+	push	%ebp
+	mov	%esp, %ebp
+
+	push	%ebx
+	push	%esi
+
+	movw	8(%ebp), %si
+	movl	$0, %edx		/* emulated CD is always drive 0 */
+
+	/* prot_to_real will set %es to BOOTSEG */
+	call	EXT(prot_to_real)	/* enter real mode */
+	movw	$0x4200, %ax		/* subfunction */
+	movb	$0, %dl
+
+	sti
+	int	$0x13
+	cli
+
+	/* save return value (actually movw %ax, %bx) */
+	mov	%eax, %ebx
+
+	data32
+	call	EXT(real_to_prot)	/* back to protected mode */
+
+	xor	%eax, %eax
+	movb	%bh, %al		/* return value in %ax */
+
+	pop	%esi
+	pop	%ebx
+	pop	%ebp
+
+	ret
+
+#endif /* !CDBOOT */
 
 /*
  * putc(ch)

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.22 1997/05/27 16:26:39 bde Exp $
+ *	$Id: io.c,v 1.23 1997/06/09 05:10:55 bde Exp $
  */
 
 #include "boot.h"
@@ -56,7 +56,7 @@ gateA20(void)
 {
 #ifdef	IBM_L40
 	outb(0x92, 0x2);
-#else	IBM_L40
+#else	/* !IBM_L40 */
 	while (inb(K_STATUS) & K_IBUF_FUL);
 	while (inb(K_STATUS) & K_OBUF_FUL)
 		(void)inb(K_RDWR);
@@ -65,7 +65,7 @@ gateA20(void)
 	while (inb(K_STATUS) & K_IBUF_FUL);
 	outb(K_RDWR, KB_A20);
 	while (inb(K_STATUS) & K_IBUF_FUL);
-#endif	IBM_L40
+#endif	/* IBM_L40 */
 }
 
 /* printf - only handles %d as decimal, %c as char, %s as string */
@@ -258,6 +258,8 @@ gets(char *buf)
 	return 0;
 }
 
+#ifndef CDBOOT
+
 int
 strcmp(const char *s1, const char *s2)
 {
@@ -269,11 +271,36 @@ strcmp(const char *s1, const char *s2)
 	return 1;
 }
 
-void
-bcopy(const char *from, char *to, int len)
+#else /* CDBOOT */
+
+int
+strncasecmp(const char *s1, const char *s2, size_t s)
 {
+	/*
+	 * We only consider ASCII chars and don't anticipate
+	 * control characters (they are invalid in filenames
+	 * anyway).
+	 */
+	while (s > 0 && (*s1 & 0x5f) == (*s2 & 0x5f)) {
+		if (!*s1++)
+			return 0;
+		s2++;
+	}
+	if (s == 0)
+		return 0;
+	return 1;
+}
+
+#endif /* !CDBOOT */
+
+void
+bcopy(const void *from, void *to, size_t len)
+{
+	char *fp = (char *)from;
+	char *tp = (char *)to;
+
 	while (len-- > 0)
-		*to++ = *from++;
+		*tp++ = *fp++;
 }
 
 /* To quote Ken: "You are not expected to understand this." :) */
