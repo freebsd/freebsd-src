@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: quotacheck.c,v 1.7 1997/06/16 06:38:14 charnier Exp $
+ *	$Id: quotacheck.c,v 1.8 1997/06/30 11:08:29 charnier Exp $
  */
 
 #ifndef lint
@@ -361,11 +361,13 @@ update(fsname, quotafile, type)
 				printf("%s: ", fsname);
 			printf("%-8s fixed:", fup->fu_name);
 			if (dqbuf.dqb_curinodes != fup->fu_curinodes)
-				(void)printf("\tinodes %ld -> %ld",
-					dqbuf.dqb_curinodes, fup->fu_curinodes);
+				(void)printf("\tinodes %lu -> %lu",
+				    (u_long)dqbuf.dqb_curinodes,
+				    (u_long)fup->fu_curinodes);
 			if (dqbuf.dqb_curblocks != fup->fu_curblocks)
-				(void)printf("\tblocks %ld -> %ld",
-					dqbuf.dqb_curblocks, fup->fu_curblocks);
+				(void)printf("\tblocks %lu -> %lu",
+				    (u_long)dqbuf.dqb_curblocks,
+				    (u_long)fup->fu_curblocks);
 			(void)printf("\n");
 		}
 		/*
@@ -613,5 +615,5 @@ bread(bno, buf, cnt)
 
 	if (lseek(fi, (off_t)bno * dev_bsize, SEEK_SET) < 0 ||
 	    read(fi, buf, cnt) != cnt)
-		errx(1, "block %ld", bno);
+		errx(1, "block %ld", (long)bno);
 }
