@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: symbol.h,v 1.1 1997/03/16 07:08:19 gibbs Exp $
+ *      $Id: aicasm_symbol.h,v 1.2 1997/06/27 19:38:56 gibbs Exp $
  */
 
 #include <sys/queue.h>
@@ -42,6 +42,7 @@ typedef enum {
 	MASK,
 	BIT,
 	CONST,
+	DOWNLOAD_CONST,
 	LABEL,
 	CONDITIONAL
 }symtype;
