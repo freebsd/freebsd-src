@@ -42,8 +42,8 @@
 
 #ifndef MROUTING
 extern u_long	_ip_mcast_src(int vifi);
-extern int	_ip_mforward(struct ip *ip, struct ifnet *ifp,
-				  struct mbuf *m, struct ip_moptions *imo);
+extern int	_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
+		    struct ip_moptions *imo);
 extern int	_ip_mrouter_done(void);
 extern int	_ip_mrouter_get(struct socket *so, struct sockopt *sopt);
 extern int	_ip_mrouter_set(struct socket *so, struct sockopt *sopt);
