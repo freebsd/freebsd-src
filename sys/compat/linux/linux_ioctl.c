@@ -33,12 +33,10 @@
 #include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/cdio.h>
-#include <sys/consio.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
-#include <sys/kbio.h>
 #include <sys/linker_set.h>
 #include <sys/malloc.h>
 #include <sys/tty.h>
@@ -49,6 +47,8 @@
 #include <sys/sockio.h>
 #include <sys/soundcard.h>
 #include <sys/disklabel.h>
+
+#include <machine/console.h>
 
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
