@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.23 1997/08/25 00:29:13 brian Exp $
+ * $Id: ip.c,v 1.24 1997/09/03 00:40:49 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -33,6 +33,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <alias.h>
+#include <errno.h>
 #include "loadalias.h"
 #include "vars.h"
 #include "filter.h"
@@ -382,7 +383,11 @@ IpInput(struct mbuf * bp)
       nb = ntohs(((struct ip *) tunbuff)->ip_len);
       nw = write(tun_out, tunbuff, nb);
       if (nw != nb)
-	LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
+        if (nw == -1)
+	  LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
+                    strerror(errno));
+        else
+	  LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
 
       if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
 	while ((fptr = VarPacketAliasGetFragment(tunbuff)) != NULL) {
@@ -390,7 +395,11 @@ IpInput(struct mbuf * bp)
 	  nb = ntohs(((struct ip *) fptr)->ip_len);
 	  nw = write(tun_out, fptr, nb);
 	  if (nw != nb)
-	    LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
+            if (nw == -1)
+	      LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
+                        strerror(errno));
+            else
+	      LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
 	  free(fptr);
 	}
       }
@@ -412,7 +421,10 @@ IpInput(struct mbuf * bp)
     ipInOctets += nb;
     nw = write(tun_out, tunbuff, nb);
     if (nw != nb)
-      LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
+      if (nw == -1)
+	LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb, strerror(errno));
+      else
+        LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
   }
   pfree(bp);
 
