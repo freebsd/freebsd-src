@@ -42,7 +42,10 @@ __weak_reference(_pthread_detach, pthread_detach);
 int
 _pthread_detach(pthread_t pthread)
 {
-	struct pthread *curthread, *joiner;
+	struct pthread *curthread = _get_curthread();
+	struct pthread *joiner;
+	kse_critical_t crit;
+	int dead;
 	int rval = 0;
 
 	/* Check for invalid calling parameters: */
@@ -50,13 +53,19 @@ _pthread_detach(pthread_t pthread)
 		/* Return an invalid argument error: */
 		rval = EINVAL;
 
-	/* Check if the thread is already detached: */
-	else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0)
+	else if ((rval = _thr_ref_add(curthread, pthread,
+	    /*include dead*/1)) != 0) {
 		/* Return an error: */
+		_thr_leave_cancellation_point(curthread);
+	}
+
+	/* Check if the thread is already detached: */
+	else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
+		/* Return an error: */
+		_thr_ref_delete(curthread, pthread);
 		rval = EINVAL;
-	else {
+	} else {
 		/* Lock the detached thread: */
-		curthread = _get_curthread();
 		THR_SCHED_LOCK(curthread, pthread);
 
 		/* Flag the thread as detached: */
@@ -65,19 +74,34 @@ _pthread_detach(pthread_t pthread)
 		/* Retrieve any joining thread and remove it: */
 		joiner = pthread->joiner;
 		pthread->joiner = NULL;
+		if (joiner->kseg == pthread->kseg) {
+			/*
+			 * We already own the scheduler lock for the joiner.
+			 * Take advantage of that and make the joiner runnable.
+			 */
+			if (joiner->join_status.thread == pthread) {
+				/*
+				 * Set the return value for the woken thread:
+				 */
+				joiner->join_status.error = ESRCH;
+				joiner->join_status.ret = NULL;
+				joiner->join_status.thread = NULL;
 
-		/* We are already in a critical region. */
-		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
-		if ((pthread->flags & THR_FLAGS_GC_SAFE) != 0) {
-			THR_LIST_REMOVE(pthread);
-			THR_GCLIST_ADD(pthread);
-			atomic_store_rel_int(&_gc_check, 1);
-			if (KSE_WAITING(_kse_initial))
-				KSE_WAKEUP(_kse_initial);
+				_thr_setrunnable_unlocked(joiner);
+			}
+			joiner = NULL;
 		}
-		KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
-
+		dead = (pthread->flags & THR_FLAGS_GC_SAFE) != 0;
 		THR_SCHED_UNLOCK(curthread, pthread);
+
+		if (dead != 0) {
+			crit = _kse_critical_enter();
+			KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
+			THR_GCLIST_ADD(pthread);
+			KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+			_kse_critical_leave(crit);
+		}
+		_thr_ref_delete(curthread, pthread);
 
 		/* See if there is a thread waiting in pthread_join(): */
 		if (joiner != NULL) {

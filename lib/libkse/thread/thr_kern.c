@@ -84,16 +84,6 @@ __FBSDID("$FreeBSD");
 #define	KSE_SET_EXITED(kse)	(kse)->k_flags |= KF_EXITED
 
 /*
- * Add/remove threads from a KSE's scheduling queue.
- * For now the scheduling queue is hung off the KSEG.
- */
-#define	KSEG_THRQ_ADD(kseg, thr)	\
-	TAILQ_INSERT_TAIL(&(kseg)->kg_threadq, thr, kle)
-#define	KSEG_THRQ_REMOVE(kseg, thr)	\
-	TAILQ_REMOVE(&(kseg)->kg_threadq, thr, kle)
-
-
-/*
  * Macros for manipulating the run queues.  The priority queue
  * routines use the thread's pqe link and also handle the setting
  * and clearing of the thread's THR_FLAGS_IN_RUNQ flag.
@@ -116,6 +106,7 @@ static TAILQ_HEAD(, kse)	active_kseq;
 static TAILQ_HEAD(, kse)	free_kseq;
 static TAILQ_HEAD(, kse_group)	free_kse_groupq;
 static TAILQ_HEAD(, kse_group)	active_kse_groupq;
+static TAILQ_HEAD(, kse_group)	gc_ksegq;
 static struct lock		kse_lock;	/* also used for kseg queue */
 static int			free_kse_count = 0;
 static int			free_kseg_count = 0;
@@ -135,13 +126,15 @@ static void	kse_sched_multi(struct kse *curkse);
 static void	kse_sched_single(struct kse *curkse);
 static void	kse_switchout_thread(struct kse *kse, struct pthread *thread);
 static void	kse_wait(struct kse *kse);
+static void	kse_free_unlocked(struct kse *kse);
 static void	kseg_free(struct kse_group *kseg);
 static void	kseg_init(struct kse_group *kseg);
 static void	kse_waitq_insert(struct pthread *thread);
 static void	thr_cleanup(struct kse *kse, struct pthread *curthread);
-static void	thr_gc(struct kse *curkse);
+#ifdef NOT_YET
 static void	thr_resume_wrapper(int unused_1, siginfo_t *unused_2,
 		    ucontext_t *ucp);
+#endif
 static void	thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
 		    struct pthread_sigframe *psf);
 static int	thr_timedout(struct pthread *thread, struct timespec *curtime);
@@ -232,6 +225,7 @@ _kse_single_thread(struct pthread *curthread)
 	while ((kseg = TAILQ_FIRST(&free_kse_groupq)) != NULL) {
 		TAILQ_REMOVE(&free_kse_groupq, kseg, kg_qe);
 		_lock_destroy(&kseg->kg_lock);
+		_pq_free(&kseg->kg_schedq.sq_runq);
 		free(kseg);
 	}
 	free_kseg_count = 0;
@@ -242,6 +236,7 @@ _kse_single_thread(struct pthread *curthread)
 		kseg_next = TAILQ_NEXT(kseg, kg_qe);
 		TAILQ_REMOVE(&active_kse_groupq, kseg, kg_qe);
 		_lock_destroy(&kseg->kg_lock);
+		_pq_free(&kseg->kg_schedq.sq_runq);
 		free(kseg);
 	}
 	active_kseg_count = 0;
@@ -261,9 +256,11 @@ _kse_single_thread(struct pthread *curthread)
 
 	/* Free the to-be-gc'd threads. */
 	while ((thread = TAILQ_FIRST(&_thread_gc_list)) != NULL) {
-		TAILQ_REMOVE(&_thread_gc_list, thread, tle);
+		TAILQ_REMOVE(&_thread_gc_list, thread, gcle);
 		free(thread);
 	}
+	TAILQ_INIT(&gc_ksegq);
+	_gc_count = 0;
 
 	if (inited != 0) {
 		/*
@@ -309,6 +306,7 @@ _kse_init(void)
 		TAILQ_INIT(&free_kseq);
 		TAILQ_INIT(&free_kse_groupq);
 		TAILQ_INIT(&free_threadq);
+		TAILQ_INIT(&gc_ksegq);
 		if (_lock_init(&kse_lock, LCK_ADAPTIVE,
 		    _kse_lock_wait, _kse_lock_wakeup) != 0)
 			PANIC("Unable to initialize free KSE queue lock");
@@ -320,6 +318,7 @@ _kse_init(void)
 			PANIC("Unable to initialize thread list lock");
 		active_kse_count = 0;
 		active_kseg_count = 0;
+		_gc_count = 0;
 		inited = 1;
 	}
 }
@@ -766,10 +765,6 @@ kse_sched_multi(struct kse *curkse)
 	/* This has to be done without the scheduling lock held. */
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 	kse_check_signals(curkse);
-
-	/* Check for GC: */
-	if (_gc_check != 0)
-		thr_gc(curkse);
 	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
 
 	dump_queues(curkse);
@@ -785,8 +780,6 @@ kse_sched_multi(struct kse *curkse)
 		kse_check_waitq(curkse);
 		KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 		kse_check_signals(curkse);
-		if (_gc_check != 0)
-			thr_gc(curkse);
 		KSE_SCHED_LOCK(curkse, curkse->k_kseg);
 	}
 
@@ -853,7 +846,7 @@ kse_sched_multi(struct kse *curkse)
 	 * signals or needs a cancellation check, we need to add a
 	 * signal frame to the thread's context.
 	 */
-#if 0
+#ifdef NOT_YET
 	if ((curframe == NULL) && ((curthread->check_pending != 0) ||
 	    (((curthread->cancelflags & THR_AT_CANCEL_POINT) == 0) &&
 	    ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0)))) {
@@ -904,6 +897,7 @@ kse_check_signals(struct kse *curkse)
 	}
 }
 
+#ifdef NOT_YET
 static void
 thr_resume_wrapper(int unused_1, siginfo_t *unused_2, ucontext_t *ucp)
 {
@@ -911,6 +905,7 @@ thr_resume_wrapper(int unused_1, siginfo_t *unused_2, ucontext_t *ucp)
 
 	thr_resume_check(curthread, ucp, NULL);
 }
+#endif
 
 static void
 thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
@@ -944,7 +939,6 @@ static void
 thr_cleanup(struct kse *curkse, struct pthread *thread)
 {
 	struct pthread *joiner;
-	int free_thread = 0;
 
 	if ((joiner = thread->joiner) != NULL) {
 		thread->joiner = NULL;
@@ -969,71 +963,81 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 		thread->attr.flags |= PTHREAD_DETACHED;
 	}
 
-	thread->flags |= THR_FLAGS_GC_SAFE;
-	thread->kseg->kg_threadcount--;
-	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
-	_thr_stack_free(&thread->attr);
-	if ((thread->attr.flags & PTHREAD_DETACHED) != 0) {
-		/* Remove this thread from the list of all threads: */
-		THR_LIST_REMOVE(thread);
-		if (thread->refcount == 0) {
-			THR_GCLIST_REMOVE(thread);
-			TAILQ_REMOVE(&thread->kseg->kg_threadq, thread, kle);
-			free_thread = 1;
-		}
+	if ((thread->attr.flags & PTHREAD_SCOPE_PROCESS) == 0) {
+		/*
+		 * Remove the thread from the KSEG's list of threads.
+	 	 */
+		KSEG_THRQ_REMOVE(thread->kseg, thread);
+		/*
+		 * Migrate the thread to the main KSE so that this
+		 * KSE and KSEG can be cleaned when their last thread
+		 * exits.
+		 */
+		thread->kseg = _kse_initial->k_kseg;
+		thread->kse = _kse_initial;
 	}
+	thread->flags |= THR_FLAGS_GC_SAFE;
+
+	/*
+	 * We can't hold the thread list lock while holding the
+	 * scheduler lock.
+	 */
+	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+	DBG_MSG("Adding thread %p to GC list\n", thread);
+	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+	THR_GCLIST_ADD(thread);
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
-	if (free_thread != 0)
-		_thr_free(curkse, thread);
+	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
 }
 
 void
-thr_gc(struct pthread *curthread)
+_thr_gc(struct pthread *curthread)
 {
-	struct pthread *td, *joiner;
-	struct kse_group *free_kseg;
+	struct pthread *td, *td_next;
+	kse_critical_t crit;
+	int clean;
 
-	_gc_check = 0;
-	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
-	while ((td = TAILQ_FIRST(&_thread_gc_list)) != NULL) {
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
+
+	/* Check the threads waiting for GC. */
+	for (td = TAILQ_FIRST(&_thread_gc_list); td != NULL; td = td_next) {
+		td_next = TAILQ_NEXT(td, gcle);
+		if ((td->flags & THR_FLAGS_GC_SAFE) == 0)
+			continue;
+#ifdef NOT_YET
+		else if (((td->attr.flags & PTHREAD_SCOPE_PROCESS) != 0) &&
+		    (td->kse->k_mbx.km_flags == 0)) {
+			/*
+			 * The thread and KSE are operating on the same
+			 * stack.  Wait for the KSE to exit before freeing
+			 * the thread's stack as well as everything else.
+			 */
+			continue;
+		}
+#endif
 		THR_GCLIST_REMOVE(td);
-		clean = (td->attr.flags & PTHREAD_DETACHED) != 0;
-		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+		clean = ((td->attr.flags & PTHREAD_DETACHED) != 0) &&
+		    (td->refcount == 0);
+		_thr_stack_free(&td->attr);
+		KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+		DBG_MSG("Found thread %p in GC list, clean? %d\n", td, clean);
 
-		KSE_SCHED_LOCK(curkse, td->kseg);
-		TAILQ_REMOVE(&td->kseg->kg_threadq, td, kle);
-		if (TAILQ_EMPTY(&td->kseg->kg_threadq))
-			free_kseg = td->kseg;
-		else
-			free_kseg = NULL;
-		joiner = NULL;
-		if ((td->joiner != NULL) && (td->joiner->state == PS_JOIN) &&
-		    (td->joiner->join_status.thread == td)) {
-			joiner = td->joiner;
-			joiner->join_status.thread = NULL;
-
-			/* Set the return status for the joining thread: */
-			joiner->join_status.ret = td->ret;
-
-			/* Make the thread runnable. */
-			if (td->kseg == joiner->kseg) {
-				_thr_setrunnable_unlocked(joiner);
-				joiner = NULL;
-			}
+		if ((td->attr.flags & PTHREAD_SCOPE_PROCESS) != 0) {
+			KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
+			kse_free_unlocked(td->kse);
+			kseg_free(td->kseg);
+			KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
 		}
-		td->joiner = NULL;
-		KSE_SCHED_UNLOCK(curkse, td->kseg);
-		if (free_kseg != NULL)
-			kseg_free(free_kseg);
-		if (joiner != NULL) {
-			KSE_SCHED_LOCK(curkse, joiner->kseg);
-			_thr_setrunnable_unlocked(joiner);
-			KSE_SCHED_LOCK(curkse, joiner->kseg);
+		if (clean != 0) {
+			_kse_critical_leave(crit);
+			_thr_free(curthread, td);
+			crit = _kse_critical_enter();
 		}
-		_thr_free(curkse, td);
-		KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
 	}
-	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+	KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+	_kse_critical_leave(crit);
 }
 
 
@@ -1402,11 +1406,33 @@ static void
 kse_fini(struct kse *kse)
 {
 	struct timespec ts;
+	struct kse_group *free_kseg = NULL;
 
+	if ((kse->k_kseg->kg_flags & KGF_SINGLE_THREAD) != 0)
+		kse_exit();
 	/*
-	 * Check to see if this is the main kse.
+	 * Check to see if this is one of the main kses.
 	 */
-	if (kse == _kse_initial) {
+	else if (kse->k_kseg != _kse_initial->k_kseg) {
+		/* Remove this KSE from the KSEG's list of KSEs. */
+		KSE_SCHED_LOCK(kse, kse->k_kseg);
+		TAILQ_REMOVE(&kse->k_kseg->kg_kseq, kse, k_kgqe);
+		if (TAILQ_EMPTY(&kse->k_kseg->kg_kseq))
+			free_kseg = kse->k_kseg;
+		KSE_SCHED_UNLOCK(kse, kse->k_kseg);
+
+		/*
+		 * Add this KSE to the list of free KSEs along with
+		 * the KSEG if is now orphaned.
+		 */
+		KSE_LOCK_ACQUIRE(kse, &kse_lock);
+		if (free_kseg != NULL)
+			kseg_free(free_kseg);
+		kse_free_unlocked(kse);
+		KSE_LOCK_RELEASE(kse, &kse_lock);
+		kse_exit();
+		/* Never returns. */
+	} else {
 		/*
 		 * Wait for the last KSE/thread to exit, or for more
 		 * threads to be created (it is possible for additional
@@ -1435,12 +1461,6 @@ kse_fini(struct kse *kse)
 			__isthreaded = 0;
 			exit(0);
 		}
-	} else {
-		/* Mark this KSE for GC: */
-		KSE_LOCK_ACQUIRE(kse, &_thread_list_lock);
-		TAILQ_INSERT_TAIL(&free_kseq, kse, k_qe);
-		KSE_LOCK_RELEASE(kse, &_thread_list_lock);
-		kse_exit();
 	}
 }
 
@@ -1580,25 +1600,28 @@ _set_curkse(struct kse *kse)
 /*
  * Allocate a new KSEG.
  *
- * We allow the current KSE (curkse) to be NULL in the case that this
+ * We allow the current thread to be NULL in the case that this
  * is the first time a KSEG is being created (library initialization).
  * In this case, we don't need to (and can't) take any locks.
  */
 struct kse_group *
-_kseg_alloc(struct kse *curkse)
+_kseg_alloc(struct pthread *curthread)
 {
 	struct kse_group *kseg = NULL;
+	kse_critical_t crit;
 
-	if ((curkse != NULL) && (free_kseg_count > 0)) {
+	if ((curthread != NULL) && (free_kseg_count > 0)) {
 		/* Use the kse lock for the kseg queue. */
-		KSE_LOCK_ACQUIRE(curkse, &kse_lock);
+		crit = _kse_critical_enter();
+		KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
 		if ((kseg = TAILQ_FIRST(&free_kse_groupq)) != NULL) {
 			TAILQ_REMOVE(&free_kse_groupq, kseg, kg_qe);
 			free_kseg_count--;
 			active_kseg_count++;
 			TAILQ_INSERT_TAIL(&active_kse_groupq, kseg, kg_qe);
 		}
-		KSE_LOCK_RELEASE(curkse, &kse_lock);
+		KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
+		_kse_critical_leave(crit);
 	}
 
 	/*
@@ -1608,15 +1631,27 @@ _kseg_alloc(struct kse *curkse)
 	 */
 	if ((kseg == NULL) &&
 	    ((kseg = (struct kse_group *)malloc(sizeof(*kseg))) != NULL)) {
-		THR_ASSERT(_pq_alloc(&kseg->kg_schedq.sq_runq,
-		    THR_MIN_PRIORITY, THR_LAST_PRIORITY) == 0,
-		    "Unable to allocate priority queue.");
-		kseg_init(kseg);
-		if (curkse != NULL)
-			KSE_LOCK_ACQUIRE(curkse, &kse_lock);
-		kseg_free(kseg);
-		if (curkse != NULL)
-			KSE_LOCK_RELEASE(curkse, &kse_lock);
+		if (_pq_alloc(&kseg->kg_schedq.sq_runq,
+		    THR_MIN_PRIORITY, THR_LAST_PRIORITY) != 0) {
+			free(kseg);
+			kseg = NULL;
+		} else {
+			kseg_init(kseg);
+			/* Add the KSEG to the list of active KSEGs. */
+			if (curthread != NULL) {
+				crit = _kse_critical_enter();
+				KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
+				active_kseg_count++;
+				TAILQ_INSERT_TAIL(&active_kse_groupq,
+				    kseg, kg_qe);
+				KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
+				_kse_critical_leave(crit);
+			} else {
+				active_kseg_count++;
+				TAILQ_INSERT_TAIL(&active_kse_groupq,
+				    kseg, kg_qe);
+			}
+		}
 	}
 	return (kseg);
 }
@@ -1628,6 +1663,7 @@ _kseg_alloc(struct kse *curkse)
 static void
 kseg_free(struct kse_group *kseg)
 {
+	TAILQ_REMOVE(&active_kse_groupq, kseg, kg_qe);
 	TAILQ_INSERT_HEAD(&free_kse_groupq, kseg, kg_qe);
 	kseg_init(kseg);
 	free_kseg_count++;
@@ -1637,19 +1673,21 @@ kseg_free(struct kse_group *kseg)
 /*
  * Allocate a new KSE.
  *
- * We allow the current KSE (curkse) to be NULL in the case that this
+ * We allow the current thread to be NULL in the case that this
  * is the first time a KSE is being created (library initialization).
  * In this case, we don't need to (and can't) take any locks.
  */
 struct kse *
-_kse_alloc(struct kse *curkse)
+_kse_alloc(struct pthread *curthread)
 {
 	struct kse *kse = NULL;
+	kse_critical_t crit;
 	int need_ksd = 0;
 	int i;
 
-	if ((curkse != NULL) && (free_kse_count > 0)) {
-		KSE_LOCK_ACQUIRE(curkse, &kse_lock);
+	if ((curthread != NULL) && (free_kse_count > 0)) {
+		crit = _kse_critical_enter();
+		KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
 		/* Search for a finished KSE. */
 		kse = TAILQ_FIRST(&free_kseq);
 #define KEMBX_DONE	0x01
@@ -1664,7 +1702,8 @@ _kse_alloc(struct kse *curkse)
 			active_kse_count++;
 			TAILQ_INSERT_TAIL(&active_kseq, kse, k_qe);
 		}
-		KSE_LOCK_RELEASE(curkse, &kse_lock);
+		KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
+		_kse_critical_leave(crit);
 	}
 	if ((kse == NULL) &&
 	    ((kse = (struct kse *)malloc(sizeof(*kse))) != NULL)) {
@@ -1700,12 +1739,16 @@ _kse_alloc(struct kse *curkse)
 	}
 	if ((kse != NULL) && (need_ksd != 0)) {
 		/* This KSE needs initialization. */
-		if (curkse != NULL)
-			KSE_LOCK_ACQUIRE(curkse, &kse_lock);
+		if (curthread != NULL) {
+			crit = _kse_critical_enter();
+			KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
+		}
 		/* Initialize KSD inside of the lock. */
 		if (_ksd_create(&kse->k_ksd, (void *)kse, sizeof(*kse)) != 0) {
-			if (curkse != NULL)
-				KSE_LOCK_RELEASE(curkse, &kse_lock);
+			if (curthread != NULL) {
+				KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
+				_kse_critical_leave(crit);
+			}
 			free(kse->k_mbx.km_stack.ss_sp);
 			for (i = 0; i < MAX_KSE_LOCKLEVEL; i++) {
 				_lockuser_destroy(&kse->k_lockusers[i]);
@@ -1716,36 +1759,38 @@ _kse_alloc(struct kse *curkse)
 		kse->k_flags = 0;
 		active_kse_count++;
 		TAILQ_INSERT_TAIL(&active_kseq, kse, k_qe);
-		if (curkse != NULL)
-			KSE_LOCK_RELEASE(curkse, &kse_lock);
-
+		if (curthread != NULL) {
+			KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
+			_kse_critical_leave(crit);
+		}
 	}
 	return (kse);
 }
 
 void
-_kse_free(struct kse *curkse, struct kse *kse)
+kse_free_unlocked(struct kse *kse)
 {
-	struct kse_group *kseg = NULL;
-
-	if (curkse == kse)
-		PANIC("KSE trying to free itself");
-	KSE_LOCK_ACQUIRE(curkse, &kse_lock);
 	active_kse_count--;
-	if ((kseg = kse->k_kseg) != NULL) {
-		TAILQ_REMOVE(&kseg->kg_kseq, kse, k_qe);
-		/*
-		 * Free the KSEG if there are no more threads associated
-		 * with it.
-		 */
-		if (TAILQ_EMPTY(&kseg->kg_threadq))
-			kseg_free(kseg);
-	}
 	kse->k_kseg = NULL;
 	kse->k_flags &= ~KF_INITIALIZED;
 	TAILQ_INSERT_HEAD(&free_kseq, kse, k_qe);
 	free_kse_count++;
-	KSE_LOCK_RELEASE(curkse, &kse_lock);
+}
+
+void
+_kse_free(struct pthread *curthread, struct kse *kse)
+{
+	kse_critical_t crit;
+
+	if (curthread == NULL)
+		kse_free_unlocked(kse);
+	else {
+		crit = _kse_critical_enter();
+		KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
+		kse_free_unlocked(kse);
+		KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
+		_kse_critical_leave(crit);
+	}
 }
 
 static void
@@ -1754,7 +1799,6 @@ kseg_init(struct kse_group *kseg)
 	TAILQ_INIT(&kseg->kg_kseq);
 	TAILQ_INIT(&kseg->kg_threadq);
 	TAILQ_INIT(&kseg->kg_schedq.sq_waitq);
-	TAILQ_INIT(&kseg->kg_schedq.sq_blockedq);
 	_lock_init(&kseg->kg_lock, LCK_ADAPTIVE, _kse_lock_wait,
 	    _kse_lock_wakeup);
 	kseg->kg_threadcount = 0;
@@ -1769,16 +1813,16 @@ _thr_alloc(struct pthread *curthread)
 	struct pthread *thread = NULL;
 
 	if (curthread != NULL) {
-		if (_gc_check != 0)
-			thread_gc(curthread);
+		if (GC_NEEDED())
+			_thr_gc(curthread);
 		if (free_thread_count > 0) {
 			crit = _kse_critical_enter();
-			KSE_LOCK_ACQUIRE(curkse, &thread_lock);
+			KSE_LOCK_ACQUIRE(curthread->kse, &thread_lock);
 			if ((thread = TAILQ_FIRST(&free_threadq)) != NULL) {
 				TAILQ_REMOVE(&free_threadq, thread, tle);
 				free_thread_count--;
 			}
-			KSE_LOCK_RELEASE(curkse, &thread_lock);
+			KSE_LOCK_RELEASE(curthread->kse, &thread_lock);
 		}
 	}
 	if (thread == NULL)
@@ -1791,14 +1835,16 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 {
 	kse_critical_t crit;
 
+	DBG_MSG("Freeing thread %p\n", thread);
 	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS))
 		free(thread);
 	else {
 		crit = _kse_critical_enter();
-		KSE_LOCK_ACQUIRE(curkse, &thread_lock);
+		KSE_LOCK_ACQUIRE(curthread->kse, &thread_lock);
+		THR_LIST_REMOVE(thread);
 		TAILQ_INSERT_HEAD(&free_threadq, thread, tle);
 		free_thread_count++;
-		KSE_LOCK_RELEASE(curkse, &thread_lock);
+		KSE_LOCK_RELEASE(curthread->kse, &thread_lock);
 		_kse_critical_leave(crit);
 	}
 }

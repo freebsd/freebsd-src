@@ -153,7 +153,6 @@ typedef struct pq_queue {
 struct sched_queue {
 	pq_queue_t		sq_runq;
 	TAILQ_HEAD(, pthread)	sq_waitq;	/* waiting in userland */
-	TAILQ_HEAD(, pthread)	sq_blockedq;	/* waiting in kernel */
 };
 
 /* Used to maintain pending and active signals: */
@@ -180,7 +179,8 @@ struct kse {
 	struct kse_group	*k_kseg;	/* parent KSEG */
 	struct sched_queue	*k_schedq;	/* scheduling queue */
 	/* -- end of location and order specific items -- */
-	TAILQ_ENTRY(kse)	k_qe;		/* link entry */
+	TAILQ_ENTRY(kse)	k_qe;		/* KSE list link entry */
+	TAILQ_ENTRY(kse)	k_kgqe;		/* KSEG's KSE list entry */
 	struct ksd		k_ksd;		/* KSE specific data */
 	/*
 	 * Items that are only modified by the kse, or that otherwise
@@ -219,6 +219,23 @@ struct kse_group {
 #define	KGF_SINGLE_THREAD		0x0001	/* scope system kse group */
 #define	KGF_SCHEDQ_INITED		0x0002	/* has an initialized schedq */
 };
+
+/*
+ * Add/remove threads from a KSE's scheduling queue.
+ * For now the scheduling queue is hung off the KSEG.
+ */
+#define	KSEG_THRQ_ADD(kseg, thr)			\
+do {							\
+	TAILQ_INSERT_TAIL(&(kseg)->kg_threadq, thr, kle);\
+	(kseg)->kg_threadcount++;			\
+} while (0)
+
+#define	KSEG_THRQ_REMOVE(kseg, thr)			\
+do {							\
+	TAILQ_REMOVE(&(kseg)->kg_threadq, thr, kle);	\
+	(kseg)->kg_threadcount--;			\
+} while (0)
+
 
 /*
  * Lock acquire and release for KSEs.
@@ -860,16 +877,20 @@ do {								\
 } while (0)
 #define	THR_GCLIST_ADD(thrd) do {				\
 	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) == 0) {	\
-		TAILQ_INSERT_HEAD(&_thread_gc_list, thrd, tle);	\
+		TAILQ_INSERT_HEAD(&_thread_gc_list, thrd, gcle);\
 		(thrd)->flags |= THR_FLAGS_IN_GCLIST;		\
+		_gc_count++;					\
 	}							\
 } while (0)
 #define	THR_GCLIST_REMOVE(thrd) do {				\
 	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) != 0) {	\
-		TAILQ_REMOVE(&_thread_gc_list, thrd, tle);	\
+		TAILQ_REMOVE(&_thread_gc_list, thrd, gcle);	\
 		(thrd)->flags &= ~THR_FLAGS_IN_GCLIST;		\
+		_gc_count--;					\
 	}							\
 } while (0)
+
+#define GC_NEEDED()	(atomic_load_acq_int(&_gc_count) >= 5)
 
 /*
  * Locking the scheduling queue for another thread uses that thread's
@@ -965,7 +986,7 @@ SCLASS pid_t		_thr_pid		SCLASS_PRESET(0);
 /* Garbage collector lock. */
 SCLASS struct lock	_gc_lock;
 SCLASS int		_gc_check		SCLASS_PRESET(0);
-SCLASS pthread_t	_gc_thread;
+SCLASS int		_gc_count		SCLASS_PRESET(0);
 
 SCLASS struct lock	_mutex_static_lock;
 SCLASS struct lock	_rwlock_static_lock;
@@ -990,12 +1011,12 @@ void	_cond_wait_backout(struct pthread *);
 struct pthread *_get_curthread(void);
 struct kse *_get_curkse(void);
 void	_set_curkse(struct kse *);
-struct kse *_kse_alloc(struct kse *);
+struct kse *_kse_alloc(struct pthread *);
 kse_critical_t _kse_critical_enter(void);
 void	_kse_critical_leave(kse_critical_t);
-void	_kse_free(struct kse *, struct kse *);
+void	_kse_free(struct pthread *, struct kse *);
 void	_kse_init();
-struct kse_group *_kseg_alloc(struct kse *);
+struct kse_group *_kseg_alloc(struct pthread *);
 void	_kse_lock_wait(struct lock *, struct lockuser *lu);
 void	_kse_lock_wakeup(struct lock *, struct lockuser *lu);
 void	_kse_sig_check_pending(struct kse *);
@@ -1011,6 +1032,7 @@ int	_mutex_reinit(struct pthread_mutex *);
 void	_mutex_unlock_private(struct pthread *);
 void	_libpthread_init(struct pthread *);
 int	_pq_alloc(struct pq_queue *, int, int);
+void	_pq_free(struct pq_queue *);
 int	_pq_init(struct pq_queue *);
 void	_pq_remove(struct pq_queue *pq, struct pthread *);
 void	_pq_insert_head(struct pq_queue *pq, struct pthread *);
@@ -1030,7 +1052,9 @@ int	_pthread_mutexattr_settype(pthread_mutexattr_t *, int);
 int	_pthread_once(pthread_once_t *, void (*) (void));
 struct pthread *_pthread_self(void);
 int	_pthread_setspecific(pthread_key_t, const void *);
-struct pthread *_thr_alloc(struct kse *);
+struct pthread *_thr_alloc(struct pthread *);
+int	_thread_enter_uts(struct kse_thr_mailbox *, struct kse_mailbox *);
+int	_thread_switch(struct kse_thr_mailbox *, struct kse_thr_mailbox **);
 void	_thr_exit(char *, int, char *);
 void	_thr_exit_cleanup(void);
 void	_thr_lock_wait(struct lock *lock, struct lockuser *lu);
@@ -1046,7 +1070,8 @@ void	_thr_sig_dispatch(struct kse *, int, siginfo_t *);
 int	_thr_stack_alloc(struct pthread_attr *);
 void	_thr_stack_free(struct pthread_attr *);
 void    _thr_exit_cleanup(void);
-void	_thr_free(struct kse *, struct pthread *);
+void	_thr_free(struct pthread *, struct pthread *);
+void	_thr_gc(struct pthread *);
 void    _thr_panic_exit(char *, int, char *);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);

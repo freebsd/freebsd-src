@@ -101,6 +101,13 @@ _pq_alloc(pq_queue_t *pq, int minprio, int maxprio)
 	return (ret);
 }
 
+void
+_pq_free(pq_queue_t *pq)
+{
+	if ((pq != NULL) && (pq->pq_lists != NULL))
+		free(pq->pq_lists);
+}
+
 int
 _pq_init(pq_queue_t *pq)
 {

@@ -55,7 +55,10 @@ _pthread_resume_np(pthread_t thread)
 			/* Lock the threads scheduling queue: */
 			THR_SCHED_LOCK(curthread, thread);
 
-			resume_common(thread);
+			if ((curthread->state != PS_DEAD) &&
+			    (curthread->state != PS_DEADLOCK) &&
+			    ((curthread->flags & THR_FLAGS_EXITING) != 0))
+				resume_common(thread);
 
 			/* Unlock the threads scheduling queue: */
 			THR_SCHED_UNLOCK(curthread, thread);

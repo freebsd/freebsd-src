@@ -56,9 +56,7 @@ _pthread_suspend_np(pthread_t thread)
 	    == 0) {
 		/* Lock the threads scheduling queue: */
 		THR_SCHED_LOCK(curthread, thread);
-
 		suspend_common(thread);
-
 		/* Unlock the threads scheduling queue: */
 		THR_SCHED_UNLOCK(curthread, thread);
 
@@ -80,10 +78,7 @@ _pthread_suspend_all_np(void)
 	KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
 
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
-		if ((thread != curthread) &&
-		    (thread->state != PS_DEAD) &&
-		    (thread->state != PS_DEADLOCK) &&
-		    ((thread->flags & THR_FLAGS_EXITING) == 0)) {
+		if (thread != curthread) {
 			THR_SCHED_LOCK(curthread, thread);
 			suspend_common(thread);
 			THR_SCHED_UNLOCK(curthread, thread);
@@ -98,9 +93,13 @@ _pthread_suspend_all_np(void)
 void
 suspend_common(struct pthread *thread)
 {
-	thread->flags |= THR_FLAGS_SUSPENDED;
-	if (thread->flags & THR_FLAGS_IN_RUNQ) {
-		THR_RUNQ_REMOVE(thread);
-		THR_SET_STATE(thread, PS_SUSPENDED);
+	if ((thread->state != PS_DEAD) &&
+	    (thread->state != PS_DEADLOCK) &&
+	    ((thread->flags & THR_FLAGS_EXITING) == 0)) {
+		thread->flags |= THR_FLAGS_SUSPENDED;
+		if ((thread->flags & THR_FLAGS_IN_RUNQ) != 0) {
+			THR_RUNQ_REMOVE(thread);
+			THR_SET_STATE(thread, PS_SUSPENDED);
+		}
 	}
 }
