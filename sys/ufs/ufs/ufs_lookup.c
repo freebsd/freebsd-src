@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.22 1998/03/08 09:59:29 julian Exp $
+ * $Id: ufs_lookup.c,v 1.23 1998/03/30 09:56:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -878,12 +878,6 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 		/*
 		 * First entry in block: set d_ino to zero.
 		 */
-#if 0
-		error =
-		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp);
-		if (error)
-			return (error);
-#endif
 		ep->d_ino = 0;
 	} else {
 		/*
@@ -903,24 +897,15 @@ out:
 	} else {
 		if (ip)
 			ip->i_nlink--;
-		error = bowrite(bp); /* maybe this should be as below? */
+		if (flags & DOWHITEOUT)
+			error = VOP_BWRITE(bp);
+		else if (dvp->v_mount->mnt_flag & MNT_ASYNC
+		    && dp->i_count != 0) {
+			bdwrite(bp);
+			error = 0;
+		} else
+			error = bowrite(bp);
 	}
-#if 0
-	/*
-	 * Collapse new free space into previous entry.
-	 */
-	error = UFS_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
-	    (char **)&ep, &bp);
-	if (error)
-		return (error);
-	ep->d_reclen += dp->i_reclen;
-	if (dvp->v_mount->mnt_flag & MNT_ASYNC) {
-		bdwrite(bp);
-		error = 0;
-	} else {
-		error = bowrite(bp);
-	}
-#endif
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
