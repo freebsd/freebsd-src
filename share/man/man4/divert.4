@@ -128,6 +128,7 @@ If different fragments divert to different ports,
 then which port ultimately gets chosen is unpredictable.
 .Pp
 Packets are received and sent unchanged, except that
+packets read as outgoing have invalid IP header checksums, and
 packets written as outgoing have their IP header checksums overwritten
 with the correct value.
 Packets written as incoming and having incorrect checksums will be dropped.
