@@ -38,6 +38,14 @@
 #define	_SYS_UCRED_H_
 
 /*
+ * XXXMAC: Recursively include mac.h due to an API assumption that it
+ * it is sufficient to include types.h and ucred.h to have a defined
+ * struct ucred.  This should be changed so that struct ucred is not
+ * exported to userland via _KERNEL.
+ */
+#include <sys/mac.h>
+
+/*
  * Credentials.
  *
  * Please do not inspect cr_uid directly to determine superuserness.
@@ -56,7 +64,8 @@ struct ucred {
 	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(4) */
-#define	cr_endcopy	cr_mtxp
+#define	cr_endcopy	cr_label
+	struct label	cr_label;	/* MAC label */
 	struct mtx	*cr_mtxp;      	/* protect refcount */
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
