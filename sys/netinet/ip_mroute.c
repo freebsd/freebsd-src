@@ -598,23 +598,20 @@ get_vif_cnt(struct sioc_vif_req *req)
 static void
 ip_mrouter_reset(void)
 {
-    int callout_flag;
-
     bzero((caddr_t)mfctable, sizeof(mfctable));
     bzero((caddr_t)nexpire, sizeof(nexpire));
 
     pim_assert = 0;
     mrt_api_config = 0;
 
-    callout_flag = debug_mpsafenet ? CALLOUT_MPSAFE : 0;
-    callout_init(&expire_upcalls_ch, callout_flag);
+    callout_init(&expire_upcalls_ch, NET_CALLOUT_MPSAFE);
 
     bw_upcalls_n = 0;
     bzero((caddr_t)bw_meter_timers, sizeof(bw_meter_timers));
-    callout_init(&bw_upcalls_ch, callout_flag);
-    callout_init(&bw_meter_ch, callout_flag);
+    callout_init(&bw_upcalls_ch, NET_CALLOUT_MPSAFE);
+    callout_init(&bw_meter_ch, NET_CALLOUT_MPSAFE);
 
-    callout_init(&tbf_reprocess_ch, callout_flag);
+    callout_init(&tbf_reprocess_ch, NET_CALLOUT_MPSAFE);
 }
 
 static struct mtx mrouter_mtx;		/* used to synch init/done work */
