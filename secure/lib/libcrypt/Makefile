@@ -16,16 +16,23 @@ SONAME=		${LCRYPTSO}
 .endif
 
 .PATH:		${.CURDIR}/../../../lib/libmd ${.CURDIR}/../../../lib/libcrypt
-SRCS=		crypt.c crypt-md5.c misc.c
+SRCS=		crypt.c crypt-md5.c md5c.c misc.c
 STATICSRCS=	md5c.c
 STATICOBJS=	${STATICSRCS:S/.c/.o/g}
-SRCS+=		crypt-des.c
+SRCS+=		crypt-des.c crypt-blowfish.c blowfish.c
 MAN3=		crypt.3
 MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_set_format.3
 CFLAGS+=	-I${.CURDIR}/../../../lib/libmd
 CFLAGS+=	-I${.CURDIR}/../../../lib/libcrypt
-CFLAGS+=	-DNONEXPORTABLE_CRYPT
+CFLAGS+=	-DHAS_BLOWFISH -DHAS_DES
 CFLAGS+=	-DLIBC_SCCS -Wall
+# And the auth_getval() code and support.
+.PATH:		${.CURDIR}/../../../lib/libutil
+SRCS+=		auth.c property.c
+.for sym in MD5Init MD5Final MD5Update MD5Pad auth_getval \
+		property_find properties_read properties_free
+CFLAGS+=	-D${sym}=__${sym}
+.endfor
 PRECIOUSLIB=	yes
 
 # Include this early to pick up the definitions of SHLIB_MAJOR and
