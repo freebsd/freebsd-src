@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.11 1997/03/16 00:59:08 jmg Exp $
+# $Id: ppp.conf.sample,v 1.12 1997/05/08 00:55:42 brian Exp $
 #
 #################################################################
 
@@ -91,6 +91,8 @@ ondemand:
 #  IP will be either, take a wild guess at an some IPs that you can't
 #  currently route to.  Ensure that the "delete" and "add" lines are also
 #  present in ppp.linkup so that when we connect, things will be put straight.
+#  Note that it is illegal to use HISADDR here - HISADDR is only available
+#  in ppp.linkup (after the value has been established).
 #
 #  The /0 bit says that we insist on 0 bits of the specified IP actually
 #  being correct, therefore, the other side can assign any IP numbers.
@@ -104,7 +106,7 @@ pmdemand:
  set timeout 120
  set ifaddr 10.10.10.10/0 10.10.11.11/0 255.255.255.0
  delete ALL
- add 0 0 HISADDR
+ add 0 0 10.10.11.11
  set openmode active
 
 # Examples to connect using a null-modem cable from one machine to another.
