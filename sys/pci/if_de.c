@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.20 1995/04/09 04:46:15 davidg Exp $
+ * $Id: if_de.c,v 1.21 1995/04/13 04:46:40 davidg Exp $
  *
  */
 
@@ -1419,8 +1419,8 @@ tulip_pci_attach(
     }
 
     revinfo = pci_conf_read(config_id, PCI_CFRV) & 0xFF;
-    if (tulip_chipids[unit] == TULIP_DC21040 && revinfo < 0x23) {
-	printf("de%d: not configured; DC21040 pass 2.3 required (%d.%d found)\n",
+    if (tulip_chipids[unit] == TULIP_DC21040 && revinfo < 0x22) {
+	printf("de%d: not configured; DC21040 pass 2.2 required (%d.%d found)\n",
 	       unit, revinfo >> 4, revinfo & 0x0f);
 	return;
     } else if (tulip_chipids[unit] == TULIP_DC21140 && revinfo < 0x11) {
