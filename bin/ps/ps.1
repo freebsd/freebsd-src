@@ -37,26 +37,14 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl aCcefHhjlmrSTuvwXxZ
-.Oo Fl G Ar gid Ns Xo
-.Op , Ns Ar gid Ns No ...
-.Xc
-.Oc
+.Op Fl G Ar gid Ns Op , Ns Ar gid Ns Ar ...
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl O Ar fmt
 .Op Fl o Ar fmt
-.Oo Fl p Ar pid Ns Xo
-.Op , Ns Ar pid Ns No ...
-.Xc
-.Oc
-.Oo Fl t Ar tty Ns Xo
-.Op , Ns Ar tty Ns No ...
-.Xc
-.Oc
-.Oo Fl U Ar username Ns Xo
-.Op , Ns Ar username Ns No ...
-.Xc
-.Oc
+.Op Fl p Ar pid Ns Op , Ns Ar pid Ns Ar ...
+.Op Fl t Ar tty Ns Op , Ns Ar tty Ns Ar ...
+.Op Fl U Ar username Ns Op , Ns Ar username Ns Ar ...
 .Nm
 .Op Fl L
 .Sh DESCRIPTION
@@ -69,7 +57,7 @@ processes that have controlling terminals.
 .Pp
 A different set of processes can be selected for display by using any
 combination of the
-.Fl a , G , p , T , t
+.Fl a , G , p , T , t ,
 and
 .Fl U
 options.
@@ -86,8 +74,7 @@ The
 option may result in multiple output lines (one line per thread) for
 some processes.
 By default all of these output lines are sorted first by controlling
-terminal, then by process
-.Tn ID .
+terminal, then by process ID.
 The
 .Fl m , r , u ,
 and
@@ -98,14 +85,12 @@ will be sorted by the last sorting option which was specified.
 .Pp
 For the processes which have been selected for display, the information
 to display is selected based on a set of keywords (see the
-.Fl L
-.Fl O
+.Fl L , O ,
 and
 .Fl o
 options).
-The default output format includes, for each process, the process'
-.Tn ID ,
-controlling terminal, cpu time (including both user and system time),
+The default output format includes, for each process, the process' ID,
+controlling terminal, CPU time (including both user and system time),
 state, and associated command.
 .Pp
 The process file system (see
@@ -126,25 +111,30 @@ This can be disabled by setting the
 .Va security.bsd.see_other_uids
 sysctl to zero.
 .It Fl c
-Change the ``command'' column output to just contain the executable name,
+Change the
+.Dq command
+column output to just contain the executable name,
 rather than the full command line.
 .It Fl C
-Change the way the cpu percentage is calculated by using a ``raw''
-cpu calculation that ignores ``resident'' time (this normally has
+Change the way the CPU percentage is calculated by using a
+.Dq raw
+CPU calculation that ignores
+.Dq resident
+time (this normally has
 no effect).
 .It Fl e
 Display the environment as well.
 .It Fl f
 Show commandline and environment information about swapped out processes.
-This option is honored only if the uid of the user is 0.
+This option is honored only if the UID of the user is 0.
 .It Fl G
 Display information about processes which are running with the specified
-real group
-.Tn ID(s) .
+real group IDs.
 .It Fl H
 Show all of the
 .Em kernel visible
-threads associated with each process.  Depending on the threading package that
+threads associated with each process.
+Depending on the threading package that
 is in use, this may show only the process, only the kernel scheduled entities,
 or all of the process threads.
 .It Fl h
@@ -152,7 +142,9 @@ Repeat the information header as often as necessary to guarantee one
 header per page of information.
 .It Fl j
 Print information associated with the following keywords:
-user, pid, ppid, pgid, jobc, state, tt, time and command.
+.Cm user , pid , ppid , pgid , jobc , state , tt , time ,
+and
+.Cm command .
 .It Fl L
 List the set of keywords available for the
 .Fl O
@@ -161,25 +153,27 @@ and
 options.
 .It Fl l
 Display information associated with the following keywords:
-uid, pid, ppid, cpu, pri, nice, vsz, rss, mwchan, state, tt, time
-and command.
+.Cm uid , pid , ppid , cpu , pri , nice , vsz , rss , mwchan , state ,
+.Cm tt , time ,
+and
+.Cm command .
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the currently running system.
 .It Fl m
 Sort by memory usage, instead of the combination of controlling
-terminal and process
-.Tn ID .
+terminal and process ID.
 .It Fl N
 Extract the name list from the specified system instead of the default,
 which is the kernel image the system has booted from.
 .It Fl O
 Add the information associated with the space or comma separated list
-of keywords specified, after the process
-.Tn ID ,
+of keywords specified, after the process ID,
 in the default information
 display.
-Keywords may be appended with an equals (``='') sign and a string.
+Keywords may be appended with an equals
+.Pq Ql =
+sign and a string.
 This causes the printed header to use the specified string instead of
 the standard header.
 .It Fl o
@@ -188,16 +182,16 @@ list of keywords specified.
 Multiple keywords may also be given in the form of more than one
 .Fl o
 option.
-Keywords may be appended with an equals (``='') sign and a string.
+Keywords may be appended with an equals
+.Pq Ql =
+sign and a string.
 This causes the printed header to use the specified string instead of
 the standard header.
 .It Fl p
-Display information about processes which match the specified process
-.Tn ID(s) .
+Display information about processes which match the specified process IDs.
 .It Fl r
-Sort by current cpu usage, instead of the combination of controlling
-terminal and process
-.Tn ID .
+Sort by current CPU usage, instead of the combination of controlling
+terminal and process ID.
 .It Fl S
 Change the way the process time is calculated by summing all exited
 children to their parent process.
@@ -206,13 +200,14 @@ Display information about processes attached to the device associated
 with the standard input.
 .It Fl t
 Display information about processes attached to the specified terminal
-device(s).
+devices.
 .It Fl U
-Display the processes belonging to the specified
-.Ar username Ns (s) .
+Display the processes belonging to the specified usernames.
 .It Fl u
 Display information associated with the following keywords:
-user, pid, %cpu, %mem, vsz, rss, tt, state, start, time and command.
+.Cm user , pid , %cpu , %mem , vsz , rss , tt , state , start , time ,
+and
+.Cm command .
 The
 .Fl u
 option implies the
@@ -220,8 +215,10 @@ option implies the
 option.
 .It Fl v
 Display information associated with the following keywords:
-pid, state, time, sl, re, pagein, vsz, rss, lim, tsiz,
-%cpu, %mem and command.
+.Cm pid , state , time , sl , re , pagein , vsz , rss , lim , tsiz ,
+.Cm %cpu , %mem ,
+and
+.Cm command .
 The
 .Fl v
 option implies the
@@ -260,16 +257,16 @@ will display information.
 A complete list of the available keywords are listed below.
 Some of these keywords are further specified as follows:
 .Bl -tag -width lockname
-.It %cpu
-The cpu utilization of the process; this is a decaying average over up to
+.It Cm %cpu
+The CPU utilization of the process; this is a decaying average over up to
 a minute of previous (real) time.
 Since the time base over which this is computed varies (since processes may
 be very young) it is possible for the sum of all
-.Tn \&%CPU
+.Cm %cpu
 fields to exceed 100%.
-.It %mem
+.It Cm %mem
 The percentage of real memory used by this process.
-.It flags
+.It Cm flags
 The flags associated with the process as in
 the include file
 .In sys/proc.h :
@@ -298,104 +295,112 @@ the include file
 .It Dv "P_JAILED" Ta No "0x1000000	Process is in jail"
 .It Dv "P_INEXEC" Ta No "0x4000000	Process is in execve()"
 .El
-.It label
+.It Cm label
 The MAC label of the process.
-.It lim
+.It Cm lim
 The soft limit on memory used, specified via a call to
 .Xr setrlimit 2 .
-.It lstart
-The exact time the command started, using the ``%c'' format described in
+.It Cm lstart
+The exact time the command started, using the
+.Ql %c
+format described in
 .Xr strftime 3 .
-.It lockname
+.It Cm lockname
 The name of the lock that the process is currently blocked on.
 If the name is invalid or unknown, then
 .Dq ???\&
 is displayed.
-.It mwchan
+.It Cm mwchan
 The event name if the process is blocked normally, or the lock name if
 the process is blocked on a lock.
 See the wchan and lockname keywords
 for details.
-.It nice
+.It Cm nice
 The process scheduling increment (see
 .Xr setpriority 2 ) .
-.It rss
+.It Cm rss
 the real memory (resident set) size of the process (in 1024 byte units).
-.It start
+.It Cm start
 The time the command started.
 If the command started less than 24 hours ago, the start time is
-displayed using the ``%l:ps.1p'' format described in
+displayed using the
+.Dq Li %l:ps.1p
+format described in
 .Xr strftime 3 .
 If the command started less than 7 days ago, the start time is
-displayed using the ``%a6.15p'' format.
-Otherwise, the start time is displayed using the ``%e%b%y'' format.
-.It state
+displayed using the
+.Dq Li %a6.15p
+format.
+Otherwise, the start time is displayed using the
+.Dq Li %e%b%y
+format.
+.It Cm state
 The state is given by a sequence of characters, for example,
-.Dq Tn RWNA .
+.Dq Li RWNA .
 The first character indicates the run state of the process:
 .Pp
 .Bl -tag -width indent -compact
-.It D
+.It Li D
 Marks a process in disk (or other short term, uninterruptible) wait.
-.It I
+.It Li I
 Marks a process that is idle (sleeping for longer than about 20 seconds).
-.It L
+.It Li L
 Marks a process that is waiting to acquire a lock.
-.It R
+.It Li R
 Marks a runnable process.
-.It S
+.It Li S
 Marks a process that is sleeping for less than about 20 seconds.
-.It T
+.It Li T
 Marks a stopped process.
-.It W
+.It Li W
 Marks an idle interrupt thread.
-.It Z
-Marks a dead process (a ``zombie'').
+.It Li Z
+Marks a dead process (a
+.Dq zombie ) .
 .El
 .Pp
 Additional characters after these, if any, indicate additional state
 information:
 .Pp
 .Bl -tag -width indent -compact
-.It +
+.It Li +
 The process is in the foreground process group of its control terminal.
-.It <
-The process has raised
-.Tn CPU
-scheduling priority.
-.It E
+.It Li <
+The process has raised CPU scheduling priority.
+.It Li E
 The process is trying to exit.
-.It J
+.It Li J
 Marks a process which is in
 .Xr jail 2 .
 The hostname of the prison can be found in
-.Ql /proc/<pid>/status .
-.It L
+.Pa /proc/ Ns Ao Ar pid Ac Ns Pa /status .
+.It Li L
 The process has pages locked in core (for example, for raw
 .Tn I/O ) .
-.It N
-The process has reduced
-.Tn CPU
-scheduling priority (see
+.It Li N
+The process has reduced CPU scheduling priority (see
 .Xr setpriority 2 ) .
-.It s
+.It Li s
 The process is a session leader.
-.It V
+.It Li V
 The process is suspended during a
 .Xr vfork 2 .
-.It W
+.It Li W
 The process is swapped out.
-.It X
+.It Li X
 The process is being traced or debugged.
 .El
-.It tt
+.It Cm tt
 An abbreviation for the pathname of the controlling terminal, if any.
 The abbreviation consists of the three letters following
 .Pa /dev/tty ,
-or, for the console, ``con''.
-This is followed by a ``-'' if the process can no longer reach that
+or, for the console,
+.Dq Li con .
+This is followed by a
+.Ql -
+if the process can no longer reach that
 controlling terminal (i.e., it has been revoked).
-.It wchan
+.It Cm wchan
 The event (an address in the system) on which a process waits.
 When printed numerically, the initial part of the address is
 trimmed off and the result is printed in hex, for example, 0x80324000 prints
@@ -404,8 +409,11 @@ as 324000.
 .Pp
 When printing using the command keyword, a process that has exited and
 has a parent that has not yet waited for the process (in other words, a zombie)
-is listed as ``<defunct>'', and a process which is blocked while trying
-to exit is listed as ``<exiting>''.
+is listed as
+.Dq Li <defunct> ,
+and a process which is blocked while trying
+to exit is listed as
+.Dq Li <exiting> .
 The
 .Nm
 utility
@@ -420,154 +428,162 @@ The following is a complete list of the available keywords and their
 meanings.
 Several of them have aliases (keywords which are synonyms).
 .Pp
-.Bl -tag -width sigignore -compact
-.It %cpu
-percentage cpu usage (alias pcpu)
-.It %mem
-percentage memory usage (alias pmem)
-.It acflag
-accounting flag (alias acflg)
-.It args
+.Bl -tag -width ".Cm sigignore" -compact
+.It Cm %cpu
+percentage CPU usage (alias
+.Cm pcpu )
+.It Cm %mem
+percentage memory usage (alias
+.Cm pmem )
+.It Cm acflag
+accounting flag (alias
+.Cm acflg )
+.It Cm args
 command and arguments
-.It comm
+.It Cm comm
 command
-.It command
+.It Cm command
 command and arguments
-.It cpu
-short-term cpu usage factor (for scheduling)
-.It etime
+.It Cm cpu
+short-term CPU usage factor (for scheduling)
+.It Cm etime
 elapsed running time
-.It flags
-the process flags, in hexadecimal (alias f)
-.It inblk
-total blocks read (alias inblock)
-.It jobc
+.It Cm flags
+the process flags, in hexadecimal (alias
+.Cm f )
+.It Cm inblk
+total blocks read (alias
+.Cm inblock )
+.It Cm jobc
 job control count
-.It ktrace
+.It Cm ktrace
 tracing flags
-.It label
+.It Cm label
 MAC label
-.It lim
+.It Cm lim
 memoryuse limit
-.It logname
+.It Cm logname
 login name of user who started the process
-.It lstart
+.It Cm lstart
 time started
-.It majflt
+.It Cm majflt
 total page faults
-.It minflt
+.It Cm minflt
 total page reclaims
-.It msgrcv
+.It Cm msgrcv
 total messages received (reads from pipes/sockets)
-.It msgsnd
+.It Cm msgsnd
 total messages sent (writes on pipes/sockets)
-.It lockname
+.It Cm lockname
 lock currently blocked on (as a symbolic name)
-.It mwchan
+.It Cm mwchan
 wait channel or lock currently blocked on
-.It nice
-nice value (alias ni)
-.It nivcsw
+.It Cm nice
+nice value (alias
+.Cm ni )
+.It Cm nivcsw
 total involuntary context switches
-.It nsigs
-total signals taken (alias nsignals)
-.It nswap
+.It Cm nsigs
+total signals taken (alias
+.Cm nsignals )
+.It Cm nswap
 total swaps in/out
-.It nvcsw
+.It Cm nvcsw
 total voluntary context switches
-.It nwchan
+.It Cm nwchan
 wait channel (as an address)
-.It oublk
-total blocks written (alias oublock)
-.It paddr
+.It Cm oublk
+total blocks written (alias
+.Cm oublock )
+.It Cm paddr
 swap address
-.It pagein
+.It Cm pagein
 pageins (same as majflt)
-.It pgid
+.It Cm pgid
 process group number
-.It pid
-process
-.Tn ID
-.It poip
+.It Cm pid
+process ID
+.It Cm poip
 pageouts in progress
-.It ppid
-parent process
-.Tn ID
-.It pri
+.It Cm ppid
+parent process ID
+.It Cm pri
 scheduling priority
-.It re
+.It Cm re
 core residency time (in seconds; 127 = infinity)
-.It rgid
-real group
-.Tn ID
-.It rgroup
+.It Cm rgid
+real group ID
+.It Cm rgroup
 group name (from rgid)
-.It rlink
+.It Cm rlink
 reverse link on run queue, or 0
-.It rss
+.It Cm rss
 resident set size
-.It rtprio
+.It Cm rtprio
 realtime priority (101 = not a realtime process)
-.It ruid
-real user
-.Tn ID
-.It ruser
+.It Cm ruid
+real user ID
+.It Cm ruser
 user name (from ruid)
-.It sid
-session
-.Tn ID
-.It sig
-pending signals (alias pending)
-.It sigcatch
-caught signals (alias caught)
-.It sigignore
-ignored signals (alias ignored)
-.It sigmask
-blocked signals (alias blocked)
-.It sl
+.It Cm sid
+session ID
+.It Cm sig
+pending signals (alias
+.Cm pending )
+.It Cm sigcatch
+caught signals (alias
+.Cm caught )
+.It Cm sigignore
+ignored signals (alias
+.Cm ignored )
+.It Cm sigmask
+blocked signals (alias
+.Cm blocked )
+.It Cm sl
 sleep time (in seconds; 127 = infinity)
-.It start
+.It Cm start
 time started
-.It state
-symbolic process state (alias stat)
-.It svgid
+.It Cm state
+symbolic process state (alias
+.Cm stat )
+.It Cm svgid
 saved gid from a setgid executable
-.It svuid
-saved uid from a setuid executable
-.It tdev
+.It Cm svuid
+saved UID from a setuid executable
+.It Cm tdev
 control terminal device number
-.It time
-accumulated cpu time, user + system (alias cputime)
-.It tpgid
-control terminal process group
-.Tn ID
-.\".It trss
+.It Cm time
+accumulated CPU time, user + system (alias
+.Cm cputime )
+.It Cm tpgid
+control terminal process group ID
+.\".It Cm trss
 .\"text resident set size (in Kbytes)
-.It tsid
-control terminal session
-.Tn ID
-.It tsiz
+.It Cm tsid
+control terminal session ID
+.It Cm tsiz
 text size (in Kbytes)
-.It tt
+.It Cm tt
 control terminal name (two letter abbreviation)
-.It tty
+.It Cm tty
 full name of control terminal
-.It uprocp
+.It Cm uprocp
 process pointer
-.It ucomm
+.It Cm ucomm
 name to be used for accounting
-.It uid
-effective user
-.Tn ID
-.It upr
-scheduling priority on return from system call (alias usrpri)
-.It user
-user name (from uid)
-.It vsz
-virtual size in Kbytes (alias vsize)
-.It wchan
+.It Cm uid
+effective user ID
+.It Cm upr
+scheduling priority on return from system call (alias
+.Cm usrpri )
+.It Cm user
+user name (from UID)
+.It Cm vsz
+virtual size in Kbytes (alias
+.Cm vsize )
+.It Cm wchan
 wait channel (as a symbolic name)
-.It xstat
+.It Cm xstat
 exit or stop status (valid only for stopped or zombie process)
 .El
 .Sh ENVIRONMENT
@@ -609,7 +625,9 @@ utility under
 .Fx
 supports a different set of options from what is described by
 .St -p1003.2 ,
-and what is supported on non-BSD operating systems.
+and what is supported on
+.No non- Ns Bx
+operating systems.
 .Sh HISTORY
 The
 .Nm
