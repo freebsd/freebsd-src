@@ -23,6 +23,9 @@ Many many bugs fixed and security enhancements made.
 1. What's new since 2.2.X-RELEASE
 ------------------------------------
 
+All changes described here are unique to the 3.0 branch unless
+specifically marked as [MERGED] features.
+
 KERNEL CHANGES:
 
 o The code from 4.4BSD-Lite2 has been (finally) merged.
@@ -35,6 +38,9 @@ o Secure RPC is now supported (and usable with NFS et al).
 o Sun's WEBNFS standard is now supported.
 
 o The MSDOS filesystem code now handles VFAT and FAT32 partitions.
+  [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
+
+o ATAPI/IDE CD burner support (BETA).
 
 o The ed0 (wd8xxxx, 3c503, NE2000, HP Lan+) Ethernet device's default IRQ
   has changed from IRQ 5 to IRQ 10.
@@ -47,6 +53,7 @@ o Use the new if_multiaddrs list for multicast addresses rather than the
 
 o The new if_media selection method for ethernet drivers has been brought
   in, obtained from Jason Thorpe's implementation for NetBSD.
+  [MERGED: Also in 2.2.5 and later releases on 2.2-STABLE branch]
 
 o Multi-session ISO-9660 CD-ROMs are now fully supported.  By default, the
   last session will be mounted (including for root mounts).  For non-root
@@ -169,25 +176,35 @@ o Support for the Comtrol Rocketport card.
 o New Plug and Play (PnP) support that allows you to (re)configure PnP
   devices.  Also support modems being detected by the PnP part and
   automatically attached.
+  [MERGED: Also in 2.2.6 and later releases on 2.2-STABLE branch]
 
 o Import of new sound code from Luigi Rizzo.  This code is still being
   developed, but has support for a number of different cards.
+  [MERGED: Also in 2.2.6 and later releases on 2.2-STABLE branch]
 
 o The psm, mse and sysmouse drivers are improved to provide better mouse
   support.  In particular, the psm driver now supports various ``wheeled''
   mice.
+  [MERGED: Also in 2.2.6 and later releases on 2.2-STABLE branch]
 
 o Added support for SMC EtherPower II 10/100 Fast Ethernet card
   (aka SMC9432TX based on SMC83c170 EPIC chip).
+  [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
 
 o Added support for ATAPI floppy drives (LS-120).
+  [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
 
 o Added support for Texas Instruments TNET100 'ThunderLAN' PCI NIC.
+  [MERGED: Also in 2.2.8 and later releases on 2.2-STABLE branch]
 
 o Added full bus master DMA support for 3c900 and 3c905 adapters and
   added support for the 3c905B.
+  [MERGED: Also in 2.2.8 and later releases on 2.2-STABLE branch]
 
-SECURITY CHANGES:
+
+SECURITY CHANGES
+
+[MERGED: all changes soon after specified date in 2.2-STABLE branch]
 
 97/7/29	Lots of lpr/lpd security fixes merged from OpenBSD.
 97/8/22	buffer overflows in tip corrected (benign since tip isn't
@@ -218,7 +235,7 @@ the data records will be of the old size.  For a conversion utility
 to aid with this, see /usr/src/tools/3.0-upgrade.
 
 /etc/sysconfig now replaced by more compact /etc/rc.conf file
-(new since 2.2.1).
+[MERGED: Also in 2.2.1 and later releases on 2.2-STABLE branch]
 
 fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
 This brings it in line with the numbers used in the device names
@@ -240,6 +257,7 @@ uses the correct, unsigned format for printing most of them out.
 
 A new VGA library (/usr/src/lib/libvgl) now exists for doing simple
 VGA graphics to syscons ttys (sort of like Linux's libSVGA).
+[MERGED: Also in 2.2.5 and later releases on 2.2-STABLE branch]
 
 Xntpd's syslogging has been moved out into a facility of its own
 (LOG_NTP, userland name "ntp").
@@ -262,6 +280,7 @@ moused(8) has been modified to support various mice with a ``wheel''.
 It also automatically recognizes mice which support the PnP COM device
 standard, so that the user is no longer required to supply a mouse 
 protocol type on the command line.
+[MERGED: Also in 2.2.6 and later releases on 2.2-STABLE branch]
 
 
 2. Supported Configurations
@@ -494,12 +513,12 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 3.0-SNAP and 2.2.x-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 3.0-RELEASE and 2.2.x-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite D
         Concord CA  94520
-        1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (FAX)
+        1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (FAX)
 
 Or via the Internet from orders@cdrom.com or http://www.cdrom.com.
 Their current catalog can be obtained via ftp from:
@@ -507,11 +526,12 @@ Their current catalog can be obtained via ftp from:
         ftp://ftp.cdrom.com/cdrom/catalog
 
 Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD subscription.
-FreeBSD 3.0-SNAP CDs are $39.95 or $14.95 with a FreeBSD-SNAP subscription
-(-RELEASE and -SNAP subscriptions are entirely separate).  With a
-subscription, you will automatically receive updates as they are released.
-Your credit card will be billed when each disk is shipped and you may cancel
-your subscription at any time without further obligation.
+FreeBSD SNAPshot CDs, when available, are $39.95 or $14.95 with a
+FreeBSD-SNAP subscription (-RELEASE and -SNAP subscriptions are entirely
+separate).  With a subscription, you will automatically receive updates as
+they are released.  Your credit card will be billed when each disk is
+shipped and you may cancel your subscription at any time without further
+obligation.
 
 Shipping (per order not per disc) is $5 in the US, Canada or Mexico
 and $9.00 overseas.  They accept Visa, Mastercard, Discover, American
