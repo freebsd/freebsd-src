@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.145 1996/10/25 10:30:37 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.146 1996/11/02 19:17:51 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -283,6 +283,7 @@
 	  <item>MITA Yoshio &lt;mita@jp.FreeBSD.ORG&gt;
 	  <item>MOROHOSHI Akihiko &lt;moro@race.u-tokyo.ac.jp&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
+	  <item>Nick Sayer &lt;nsayer@quack.kfu.com&gt;
 	  <item>Nisha Talagala &lt;nisha@cs.berkeley.edu&gt;
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
