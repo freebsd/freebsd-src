@@ -228,6 +228,10 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			mtx_unlock_spin(&sched_lock);
 		}
 		break;
+		
+		default:
+			e = EINVAL;
+			break;
 	}
 
 	return e;
