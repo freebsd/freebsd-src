@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rshd.8	8.1 (Berkeley) 6/4/93
-.\"	$Id: rshd.8,v 1.13 1998/12/03 05:45:18 bde Exp $
+.\"	$Id: rshd.8,v 1.14 1998/12/16 07:20:44 peter Exp $
 .\"
 .Dd June 4, 1993
 .Dt RSHD 8
@@ -126,7 +126,7 @@ file,
 unless the user is the superuser.
 .It
 If the file 
-.Pa /etc/nologin
+.Pa /var/run/nologin
 exists and the user is not the superuser,
 the connection is closed.
 The name of the nologin file may be overridden
@@ -231,7 +231,7 @@ and is not preceded by a flag byte.
 .It Pa /etc/hosts.equiv
 .It Pa /etc/login.conf
 .It Pa $HOME/.rhosts
-.It Pa /etc/nologin
+.It Pa /var/run/nologin
 .El
 .Sh BUGS
 The authentication procedure used here assumes the integrity
