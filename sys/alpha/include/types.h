@@ -1,4 +1,4 @@
-/* $Id: types.h,v 1.6 1998/07/10 02:27:13 bde Exp $ */
+/* $Id: types.h,v 1.7 1998/07/10 02:34:50 bde Exp $ */
 /* From: NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp */
 
 /*-
@@ -75,13 +75,11 @@ typedef int64_t			register_t;
 typedef int32_t			ufs_daddr_t;
 
 #ifdef KERNEL
-/* An unsigned integral type that can hold object pointers. */
-typedef	u_int64_t		ptrint_t;
-
-/* An unsigned integral type that can hold function pointers. */
-typedef	u_int64_t		fptrint_t;
-
-typedef u_int64_t		uoff_t;		/* unsigned file offset */
+typedef	long		intfptr_t;
+typedef	unsigned long	uintfptr_t;
+typedef	long		intptr_t;
+typedef	unsigned long	uintptr_t;
+typedef	unsigned long	uoff_t;
 #endif
 
 /* Interrupt mask (spl, xxx_imask, etc) */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id: gmon.h,v 1.12 1997/02/22 09:45:17 peter Exp $
+ * $Id: gmon.h,v 1.13 1997/07/13 16:38:31 bde Exp $
  */
 
 #ifndef _SYS_GMON_H_
@@ -165,8 +165,8 @@ struct gmonparam {
 	struct tostruct	*tos;
 	u_long		tossize;
 	long		tolimit;
-	fptrint_t	lowpc;
-	fptrint_t	highpc;
+	uintfptr_t	lowpc;
+	uintfptr_t	highpc;
 	u_long		textsize;
 	u_long		hashfraction;
 	int		profrate;	/* XXX wrong type to match gmonhdr */
