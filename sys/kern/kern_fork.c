@@ -98,7 +98,7 @@ vfork(p, uap, retval)
 	struct vfork_args *uap;
 	int retval[];
 {
-	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT), retval));
+	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT|RFMEM), retval));
 }
 
 /* ARGSUSED */
