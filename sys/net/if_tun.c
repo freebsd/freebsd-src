@@ -479,7 +479,11 @@ tunread(dev_t dev, struct uio *uio, int flag)
 				return EWOULDBLOCK;
 			}
 			tp->tun_flags |= TUN_RWAIT;
-			tsleep((caddr_t)tp, PZERO + 1, "tunread", 0);
+			if( error = tsleep((caddr_t)tp, PCATCH | (PZERO + 1),
+					"tunread", 0)) {
+				splx(s);
+				return error;
+			}
 		}
 	} while (m0 == 0);
 	splx(s);
