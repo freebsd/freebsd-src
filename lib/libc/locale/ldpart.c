@@ -44,9 +44,9 @@ static void set_from_buf(const char *, int, const char **);
 
 int
 __part_load_locale(const char *name,
-		int* using_locale,
+		int *using_locale,
 		char *locale_buf,
-		const char *category_name,
+		const char *category_filename,
 		int locale_buf_size_max,
 		int locale_buf_size_min,
 		const char **dst_localebuf) {
@@ -54,15 +54,15 @@ __part_load_locale(const char *name,
 	static char		locale_buf_C[] = "C";
 	static int		num_lines;
 
-	int			fd;
-	char *			lbuf;
-	char *			p;
-	const char *		plim;
-	char                    filename[PATH_MAX];
-	struct stat		st;
-	size_t			namesize;
-	size_t			bufsize;
-	int                     save_using_locale;
+	int			 fd;
+	char			*lbuf;
+	char			*p;
+	const char 		*plim;
+	char                     filename[PATH_MAX];
+	struct stat		 st;
+	size_t			 namesize;
+	size_t			 bufsize;
+	int                      save_using_locale;
 
 	save_using_locale = *using_locale;
 	*using_locale = 0;
@@ -82,6 +82,7 @@ __part_load_locale(const char *name,
 		*using_locale = 1;
 		return 0;
 	}
+
 	/*
 	 * Slurp the locale file into the cache.
 	 */
@@ -94,7 +95,7 @@ __part_load_locale(const char *name,
 	strcat(filename, "/");
 	strcat(filename, name);
 	strcat(filename, "/");
-	strcat(filename, category_name);
+	strcat(filename, category_filename);
 	fd = _open(filename, O_RDONLY);
 	if (fd < 0)
 		goto no_locale;
@@ -129,8 +130,8 @@ __part_load_locale(const char *name,
 		goto reset_locale;
 	set_from_buf(lbuf, num_lines, dst_localebuf);
 	/*
-	** Record the successful parse in the cache.
-	*/
+	 * Record the successful parse in the cache.
+	 */
 	locale_buf = lbuf;
 
 	*using_locale = 1;
@@ -149,8 +150,8 @@ no_locale:
 }
 
 static int
-split_lines(char *p, const char *plim)
-{
+split_lines(char *p, const char *plim) {
+
 	int i;
 
 	for (i = 0; p < plim; i++) {
@@ -161,8 +162,8 @@ split_lines(char *p, const char *plim)
 }
 
 static void
-set_from_buf(const char *p, int num_lines, const char **dst_localebuf)
-{
+set_from_buf(const char *p, int num_lines, const char **dst_localebuf) {
+
 	const char **ap;
 	int i;
 
