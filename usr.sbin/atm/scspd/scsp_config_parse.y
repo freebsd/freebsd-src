@@ -24,7 +24,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_config_parse.y,v 1.2 1998/07/24 17:12:14 johnc Exp $
+ *	@(#) $Id: scsp_config_parse.y,v 1.1 1998/09/15 08:23:16 phk Exp $
  *
  */
 
@@ -37,18 +37,8 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_config_parse.y,v 1.2 1998/07/24 17:12:14 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -61,15 +51,26 @@ static char *RCSid = "@(#) $Id: scsp_config_parse.y,v 1.2 1998/07/24 17:12:14 jo
 #include <netatm/atm_ioctl.h>
 
 #include <libatm.h>
-#include "scsp_msg.h"
-#include "scsp_if.h"
-#include "scsp_var.h"
-
 #if __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+
+#include "scsp_msg.h"
+#include "scsp_if.h"
+#include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_config_parse.y,v 1.1 1998/09/15 08:23:16 phk Exp $");
+#endif
+
+
+void	yyerror __P((char *));
 %}
 
 
@@ -403,6 +404,7 @@ parse_error(fmt, va_alist)
 }
 
 
+void
 yyerror(s)
 	char	*s;
 {

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm.h,v 1.1 1998/09/15 08:22:45 phk Exp $
+ *	@(#) $Id: atm.h,v 1.2 1999/01/20 18:36:58 mks Exp $
  *
  */
 
@@ -166,6 +166,7 @@ void		ip_pvcadd __P((int, char **, struct cmd *, struct atmaddreq *,
 	/* atm_print.c */
 void		print_arp_info __P((struct air_arp_rsp *));
 void		print_asrv_info __P((struct air_asrv_rsp *));
+void		print_cfg_info __P((struct air_cfg_rsp *));
 void		print_intf_info __P((struct air_int_rsp *));
 void		print_ip_vcc_info __P((struct air_ip_vcc_rsp *));
 void		print_netif_info __P((struct air_netif_rsp *));

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_output.c,v 1.2 1998/07/12 20:49:45 johnc Exp $
+ *	@(#) $Id: scsp_output.c,v 1.1 1998/09/15 08:23:17 phk Exp $
  *
  */
 
@@ -35,21 +35,12 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_output.c,v 1.2 1998/07/12 20:49:45 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <syslog.h>
 #include <sys/socket.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 #include <netatm/port.h> 
 #include <netatm/queue.h> 
 #include <netatm/atm.h>
@@ -57,11 +48,22 @@ static char *RCSid = "@(#) $Id: scsp_output.c,v 1.2 1998/07/12 20:49:45 johnc Ex
 #include <netatm/atm_sap.h>
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
-  
+
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_output.c,v 1.1 1998/09/15 08:23:17 phk Exp $");
+#endif
 
 
 /*
@@ -140,7 +142,7 @@ scsp_format_mcp(mcp, buff)
 	char		*buff;
 {
 	int			len;
-	char			*idp, *odp;
+	char			*odp;
 	struct scsp_nmcp	*smp;
 
 	/*
@@ -214,7 +216,6 @@ scsp_format_ext(exp, buff, blen)
 	char		*buff;
 	int		blen;
 {
-	int			len;
 	struct scsp_next	*sep;
 
 	/*
@@ -269,7 +270,7 @@ scsp_format_atmarp(acsp, buff)
 	char		*buff;
 {
 	char			*cp;
-	int			len, pkt_len, rc;
+	int			len, pkt_len;
 	struct scsp_atmarp_ncsa	*sanp;
 
 	/*
@@ -432,7 +433,7 @@ scsp_format_csa(csap, buff)
 	char		*buff;
 {
 	int			len = 0;
-	char			*idp, *odp;
+	char			*odp;
 	struct scsp_ncsa	*scp;
 
 	/*
@@ -643,9 +644,8 @@ scsp_format_hello(hp, buff, blen)
 	char		*buff;
 	int		blen;
 {
-	int			i, len, proc_len;
+	int			len, proc_len;
 	struct scsp_nhello	*shp;
-	Scsp_id			*idp;
 	Scsp_id			*ridp;
 
 	/*

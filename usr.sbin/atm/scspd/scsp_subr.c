@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_subr.c,v 1.5 1998/08/13 20:11:16 johnc Exp $
+ *	@(#) $Id: scsp_subr.c,v 1.1 1998/09/15 08:23:17 phk Exp $
  *
  */
 
@@ -36,19 +36,8 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_subr.c,v 1.5 1998/08/13 20:11:16 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -61,11 +50,22 @@ static char *RCSid = "@(#) $Id: scsp_subr.c,v 1.5 1998/08/13 20:11:16 johnc Exp 
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
 #include <netatm/uni/unisig_var.h>
-  
+
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_subr.c,v 1.1 1998/09/15 08:23:17 phk Exp $");
+#endif
 
 
 /*
@@ -89,7 +89,7 @@ scsp_hash(ckp)
 	 */
 	h = 0;
 	for (i = ckp->key_len-1, j = 0;
-			i > 0, j < sizeof(int);
+			i > 0 && j < sizeof(int);
 			i--, j++)
 		h = (h << 8) + ckp->key[i];
 	h = abs(h);
@@ -693,7 +693,6 @@ scsp_get_server_info(ssp)
 	struct air_int_rsp	*intf_rsp = (struct air_int_rsp *)0;
 	struct air_cfg_rsp	*cfg_rsp = (struct air_cfg_rsp *)0;
 	struct sockaddr_in	*ip_addr;
-	struct sockaddr_in	subnet_mask;
 	Atm_addr_nsap		*anp;
 
 	/*
@@ -863,9 +862,9 @@ scsp_process_ca(dcsp, cap)
 	for (csap = cap->ca_csa_rec; csap; csap = next_csap) {
 		next_csap = csap->next;
 		SCSP_LOOKUP(ssp, &csap->key, csep);
-		if (!csep || scsp_cmp_id(&csap->oid,
+		if (!csep || (scsp_cmp_id(&csap->oid,
 					&csep->sc_oid) == 0 &&
-				csap->seq > csep->sc_seq) {
+				csap->seq > csep->sc_seq)) {
 			/*
 			 * CSAS entry not in cache or more
 			 * up to date than cache, add it to CRL
@@ -929,6 +928,7 @@ scsp_process_cache_rsp(ssp, smp)
 			aap++;
 			break;
 		case SCSP_NHRP_PROTO:
+		default:
 			/*
 			 * Not implemented yet
 			 */

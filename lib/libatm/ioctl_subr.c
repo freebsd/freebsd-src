@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ioctl_subr.c,v 1.2 1998/07/10 17:09:20 root Exp $
+ *	@(#) $Id: ioctl_subr.c,v 1.1 1998/09/15 08:22:34 phk Exp $
  *
  */
 
@@ -35,14 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: ioctl_subr.c,v 1.2 1998/07/10 17:09:20 root Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <net/if.h>
@@ -54,7 +48,17 @@ static char *RCSid = "@(#) $Id: ioctl_subr.c,v 1.2 1998/07/10 17:09:20 root Exp 
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
 
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "libatm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: ioctl_subr.c,v 1.1 1998/09/15 08:22:34 phk Exp $");
+#endif
+
 
 #ifndef	TRUE
 #define	TRUE	1
@@ -174,43 +178,6 @@ get_vcc_info(intf, vccp)
 	 */
 	*vccp = (struct air_vcc_rsp *) air.air_buf_addr;
 	return(buf_len);
-}
-
-
-/*
- * Count number of open VCCs
- *
- * Issue a AIOCS_INF_VCC to get info on all open VCCs. Count them and
- * return the answer.
- *
- * Arguments:
- *      intf    pointer to interface name (or null string)
- *
- * Returns:
- *      int     number of VCCs
- *
- */
-int
-count_vccs ( intf )
-char *intf;
-{
-        int     vcc_info_len;
-        int     count = 0;
-        char    *cp;
-        struct air_vcc_rsp *vcc_info, *vcc_info_base;
-
-        vcc_info_len = get_vcc_info ( intf, &vcc_info );
-        if ( !vcc_info )
-                return ( 0 );
-        vcc_info_base = vcc_info;
-
-        for ( ; vcc_info_len >= sizeof ( struct air_vcc_rsp );
-                vcc_info_len -= sizeof ( struct air_vcc_rsp ),
-                vcc_info++ ) {
-                        count++;
-        }
-        free ( vcc_info_base );
-        return ( count );
 }
 
 
@@ -342,7 +309,6 @@ verify_nif_name(name)
 	char *name;
 {
 	int	rc, s;
-	caddr_t	buf;
 	struct atminfreq	air;
 	struct air_netif_rsp    *nif_info;
 

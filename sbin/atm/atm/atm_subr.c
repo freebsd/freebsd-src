@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_subr.c,v 1.11 1998/07/09 22:24:03 johnc Exp $
+ *	@(#) $Id: atm_subr.c,v 1.1 1998/09/15 08:22:46 phk Exp $
  *
  */
 
@@ -35,17 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_subr.c,v 1.11 1998/07/09 22:24:03 johnc Exp $";
-#endif
-
 #include <sys/types.h>  
 #include <sys/param.h>  
-                
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h> 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -55,9 +46,19 @@ static char *RCSid = "@(#) $Id: atm_subr.c,v 1.11 1998/07/09 22:24:03 johnc Exp 
 #include <netatm/atm_sap.h>
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
+#include <arpa/inet.h>
 
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "atm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_subr.c,v 1.1 1998/09/15 08:22:46 phk Exp $");
+#endif
 
 
 /*
@@ -328,7 +329,7 @@ parse_ip_prefix(cp, op)
 	char		*cp;
 	struct in_addr	*op;
 {
-	int		i, len;
+	int		len;
 	char		*mp;
 	struct in_addr	ip_addr;
 
@@ -494,7 +495,7 @@ compress_prefix_list(ipp, ilen)
 				/*
 				 * m1 is longer
 				 */
-				if (ip1->s_addr & m2->s_addr ==
+				if ((ip1->s_addr & m2->s_addr) ==
 						ip2->s_addr) {
 					ip1->s_addr = 0;
 					m1->s_addr = 0;

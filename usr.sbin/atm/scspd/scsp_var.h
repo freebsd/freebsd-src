@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_var.h,v 1.5 1998/08/13 20:11:17 johnc Exp $
+ *	@(#) $Id: scsp_var.h,v 1.1 1998/09/15 08:23:17 phk Exp $
  *
  */
 
@@ -337,6 +337,33 @@ extern int	scsp_cafsm __P((Scsp_dcs *, int, void *));
 
 /* scsp_config.c */
 extern int	scsp_config __P((char *));
+extern int	start_dcs __P((void));
+extern int	finish_dcs __P((void));
+extern int	set_dcs_addr __P((char *, char *));
+extern int	set_dcs_ca_rexmit __P((int));
+extern int	set_dcs_csus_rexmit __P((int));
+extern int	set_dcs_csu_rexmit __P((int));
+extern int	set_dcs_csu_rexmit_max __P((int));
+extern int	set_dcs_hello_df __P((int));
+extern int	set_dcs_hello_int __P((int));
+extern int	set_dcs_hops __P((int));
+extern int	set_dcs_id __P((char *));
+extern int	set_intf __P((char *));
+extern int	set_protocol __P((int));
+extern int	set_server_group __P((int));
+extern int	start_server __P((char *));
+extern int	finish_server __P((void));
+extern int	set_log_file __P((char *));
+
+/* scsp_config_lex.c */
+extern int	yylex __P((void));
+
+/* scsp_config_parse.y */
+#if __STDC__
+extern void	parse_error __P((const char *, ...));
+#else
+extern void	parse_error __P((char *, va_alist));
+#endif
 
 /* scsp_hfsm.c */
 extern int	scsp_hfsm __P((Scsp_dcs *, int, Scsp_msg *));
@@ -398,7 +425,9 @@ extern int		scsp_dcs_read __P((Scsp_dcs *));
 extern int		scsp_server_listen __P(());
 extern int		scsp_server_accept __P((int));
 extern Scsp_if_msg *	scsp_if_sock_read __P((int));
+extern int		scsp_if_sock_write __P((int, Scsp_if_msg *));
 extern int		scsp_server_read __P((Scsp_server *));
+extern int		scsp_send_cache_ind __P((Scsp_server *));
 extern int		scsp_pending_read __P((Scsp_pending *));
 
 /* scsp_subr.c */
@@ -415,6 +444,8 @@ extern void		scsp_server_shutdown __P((Scsp_server *));
 extern void		scsp_server_delete __P((Scsp_server *));
 extern int		scsp_get_server_info __P((Scsp_server *));
 extern void		scsp_process_ca __P((Scsp_dcs *, Scsp_ca *));
+extern void		scsp_process_cache_rsp __P((Scsp_server *,
+				Scsp_if_msg *));
 extern int		scsp_propagate_csa __P(( Scsp_dcs *,
 				Scsp_csa *));
 extern void		scsp_update_cache __P(( Scsp_dcs *,

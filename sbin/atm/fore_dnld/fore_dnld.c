@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_dnld.c,v 1.2 1998/10/30 16:17:43 dg Exp $
+ *	@(#) $Id: fore_dnld.c,v 1.3 1999/05/23 23:18:34 imp Exp $
  *
  */
 
@@ -36,36 +36,37 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: fore_dnld.c,v 1.2 1998/10/30 16:17:43 dg Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
-#include <net/if.h>
 #include <sys/stat.h>
+#include <net/if.h>
 #include <netatm/atm.h>
 #include <netatm/atm_if.h>
 #include <netatm/atm_sap.h>
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
-
 #include <dev/hfa/fore.h>
 #include <dev/hfa/fore_aali.h>
 #include <dev/hfa/fore_slave.h>
 
+#include <ctype.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #if (defined(BSD) && (BSD >= 199103))
 #include <termios.h>
 #else
 #include <termio.h>
 #endif	/* !BSD */
+#include <unistd.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: fore_dnld.c,v 1.3 1999/05/23 23:18:34 imp Exp $");
+#endif
+
 
 #ifdef sun
 #define	DEV_NAME "/dev/sbus%d"
@@ -98,6 +99,7 @@ int	lineptr = 0;
 
 Mon960 *Uart;
 
+void
 delay(cnt)
 	int	cnt;
 {
@@ -256,6 +258,7 @@ int dn;
  * Returns:
  *	none
  */
+void
 xmit_to_i960 ( line, len, dn )
 char *line;
 int len;
@@ -670,10 +673,12 @@ u_char *ram;
 		u_long	start;
 		u_long	entry;
 	} binhdr;
+#ifdef sun
 	union {
 		u_long	w;
 		char	c[4];
 	} w1, w2;
+#endif
 	int	fd;
 	int	n;
 	int	cnt = 0;
@@ -784,9 +789,8 @@ u_char *ram;
 	 */
 	{
 		char	cmd[80];
-		char	c;
 
-		sprintf ( cmd, "go %x\r\n", binhdr.entry );
+		sprintf ( cmd, "go %lx\r\n", binhdr.entry );
 
 		xmit_to_i960 ( cmd, strlen ( cmd ), 0 );
 
@@ -805,6 +809,7 @@ u_char *ram;
 /*
  * Program to download previously processed microcode to series-200 host adapter
  */
+int
 main( argc, argv )
 int argc;
 char *argv[];
@@ -817,7 +822,6 @@ char *argv[];
 	int	i, err;
 	int	binary = 0;		/* Send binary file */
 	caddr_t	buf;			/* Ioctl buffer */
-	Atm_config *adp;		/* Adapter config */
 	char	bus_dev[80];		/* Bus device to mmap on */
 	struct atminfreq req;
 	struct air_cfg_rsp *air;	/* Config info response structure */
@@ -929,7 +933,11 @@ char *argv[];
 			/*
 			 * Create /dev name
 			 */
+#ifdef sun
 			sprintf ( bus_dev, DEV_NAME, air->acp_busslot );
+#else
+			sprintf ( bus_dev, DEV_NAME );
+#endif
 
 			/*
 			 * Setup signal handlers
@@ -1196,6 +1204,8 @@ char *argv[];
 					}
 				    } else
 					sndfile = filename;
+				    break;
+				default:
 				    break;
 			        }
 			    } else
