@@ -566,7 +566,7 @@ done2:
 #ifndef _SYS_SYSPROTO_H_
 struct msgsnd_args {
 	int	msqid;
-	void	*msgp;
+	const void	*msgp;
 	size_t	msgsz;
 	int	msgflg;
 };
@@ -581,7 +581,7 @@ msgsnd(td, uap)
 	register struct msgsnd_args *uap;
 {
 	int msqid = uap->msqid;
-	void *user_msgp = uap->msgp;
+	const void *user_msgp = uap->msgp;
 	size_t msgsz = uap->msgsz;
 	int msgflg = uap->msgflg;
 	int segs_needed, error = 0;
