@@ -178,7 +178,6 @@ enum constants {
     INITIAL_LOCKS = 64,					    /* number of locks to allocate to a plex */
     DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* size of block to transfer in one op */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
-    VINUM_BSIZE_BEST = 4096,				    /* best sector size */
 };
 
 /* device numbers */
@@ -476,6 +475,8 @@ struct plex {
     int usedlocks;					    /* number currently in use */
     int lockwaits;					    /* and number of waits for locks */
     struct rangelock *lock;				    /* ranges of locked addresses */
+    u_int64_t checkblock;				    /* block number for check parity op */
+    u_int64_t rebuildblock;				    /* block number for rebuild parity op */
     /* Statistics */
     u_int64_t reads;					    /* number of reads on this plex */
     u_int64_t writes;					    /* number of writes on this plex */
@@ -605,6 +606,12 @@ enum setstateflags {
     setstate_none = 0,					    /* no flags */
     setstate_force = 1,					    /* force the state change */
     setstate_configuring = 2,				    /* we're currently configuring, don't save */
+};
+
+/* Operations for parityops to perform. */
+enum parityop {
+    checkparity,
+    rebuildparity,
 };
 
 #ifdef VINUMDEBUG
