@@ -8,6 +8,7 @@ CFLAGS+=-I${KRB5DIR}/lib/kafs \
 	-I${KRB5DIR}/include \
 	-I${KRB5OBJDIR} \
 	-I${ASN1OBJDIR}
+INCS=	kafs.h
 SRCS=	afssys.c afskrb5.c common.c
 
 .include <bsd.lib.mk>

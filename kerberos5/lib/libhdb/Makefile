@@ -2,6 +2,13 @@
 
 LIB=	hdb
 
+INCS=	\
+	hdb-private.h	\
+	hdb-protos.h	\
+	hdb.h		\
+	hdb_asn1.h	\
+	hdb_err.h
+
 SRCS=	\
 	common.c			\
 	db.c				\
