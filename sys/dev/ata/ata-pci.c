@@ -172,6 +172,7 @@ ata_pci_match(device_t dev)
 
     case 0x0d30105a:
     case 0x4d30105a:
+    case 0x4d68105a:
 	return "Promise ATA100 controller";
 
     case 0x00041103:
@@ -278,6 +279,7 @@ ata_pci_attach(device_t dev)
     case 0x4d38105a: /* Promise 66 & 100 need their clock changed */
     case 0x4d30105a:
     case 0x0d30105a:
+    case 0x4d68105a:
 	ATA_OUTB(sc->bmio, 0x11, ATA_INB(sc->bmio, 0x11) | 0x0a);
 	/* FALLTHROUGH */
 
@@ -330,12 +332,11 @@ ata_pci_attach(device_t dev)
 	/* set sector size */
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
-	
+
 	/* prepare for ATA-66 on the 82C686 and rev 0x12 and newer 82C596's */
 	if (ata_find_dev(dev, 0x06861106, 0) || 
 	    ata_find_dev(dev, 0x05961106, 0x12)) {
-	    pci_write_config(dev, 0x50, 
-			     pci_read_config(dev, 0x50, 4) | 0x070f070f, 4);   
+	    pci_write_config(dev, 0x50, 0x030b030b, 4);   
 	}
 	break;
 
@@ -401,6 +402,7 @@ ata_pci_intr(struct ata_softc *scp)
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
+    case 0x4d68105a:	/* Promise TX2 ATA100 */
 	if (!(ATA_INL(scp->r_bmio, (scp->channel ? 0x14 : 0x1c)) &
 	      (scp->channel ? 0x00004000 : 0x00000400)))
 	    return 1;
