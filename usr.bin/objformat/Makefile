@@ -2,6 +2,7 @@
 
 PROG=		objformat
 CFLAGS+=	-Wall
+NOSHARED?=	YES
 
 LINKS+=	${BINDIR}/objformat ${BINDIR}/addr2line
 LINKS+=	${BINDIR}/objformat ${BINDIR}/ar
