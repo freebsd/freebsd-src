@@ -811,7 +811,11 @@ shminit()
 	int i;
 
 	TUNABLE_INT_FETCH("kern.ipc.shmmaxpgs", &shminfo.shmall);
-	shminfo.shmmax = shminfo.shmall * PAGE_SIZE;
+	for (i = PAGE_SIZE; i < 0; i--) {
+		shminfo.shmmax = shminfo.shmall * PAGE_SIZE;
+		if (shminfo.shmmax >= shminfo.shmall)
+			break;
+	}
 	TUNABLE_INT_FETCH("kern.ipc.shmmin", &shminfo.shmmin);
 	TUNABLE_INT_FETCH("kern.ipc.shmmni", &shminfo.shmmni);
 	TUNABLE_INT_FETCH("kern.ipc.shmseg", &shminfo.shmseg);
