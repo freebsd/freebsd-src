@@ -61,6 +61,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/uio.h>
 #include <sys/vnode.h>
 #ifdef KTRACE
@@ -167,28 +168,40 @@ bind(td, uap)
 		int	namelen;
 	} */ *uap;
 {
-	struct socket *so;
 	struct sockaddr *sa;
 	int error;
 
-	mtx_lock(&Giant);
-	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
-		goto done2;
 	if ((error = getsockaddr(&sa, uap->name, uap->namelen)) != 0)
-		goto done1;
+		return (error);
+
+	return (kern_bind(td, uap->s, sa));
+}
+
+int
+kern_bind(td, fd, sa)
+	struct thread *td;
+	int fd;
+	struct sockaddr *sa;
+{
+	struct socket *so;
+	int error;
+
+	mtx_lock(&Giant);
+	if ((error = fgetsock(td, fd, &so, NULL)) != 0)
+		goto done2;
 #ifdef MAC
 	error = mac_check_socket_bind(td->td_ucred, so, sa);
-	if (error) {
-		FREE(sa, M_SONAME);
+	if (error)
 		goto done1;
-	}
 #endif
 	error = sobind(so, sa, td);
-	FREE(sa, M_SONAME);
+#ifdef MAC
 done1:
+#endif
 	fputsock(so);
 done2:
 	mtx_unlock(&Giant);
+	FREE(sa, M_SONAME);
 	return (error);
 }
 
@@ -442,20 +455,33 @@ connect(td, uap)
 		int	namelen;
 	} */ *uap;
 {
-	struct socket *so;
 	struct sockaddr *sa;
+	int error;
+
+	error = getsockaddr(&sa, uap->name, uap->namelen);
+	if (error)
+		return error;
+
+	return (kern_connect(td, uap->s, sa));
+}
+
+
+int
+kern_connect(td, fd, sa)
+	struct thread *td;
+	int fd;
+	struct sockaddr *sa;
+{
+	struct socket *so;
 	int error, s;
 
 	mtx_lock(&Giant);
-	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
+	if ((error = fgetsock(td, fd, &so, NULL)) != 0)
 		goto done2;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
 		error = EALREADY;
 		goto done1;
 	}
-	error = getsockaddr(&sa, uap->name, uap->namelen);
-	if (error)
-		goto done1;
 #ifdef MAC
 	error = mac_check_socket_connect(td->td_ucred, so, sa);
 	if (error)
@@ -465,7 +491,6 @@ connect(td, uap)
 	if (error)
 		goto bad;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
-		FREE(sa, M_SONAME);
 		error = EINPROGRESS;
 		goto done1;
 	}
@@ -482,13 +507,13 @@ connect(td, uap)
 	splx(s);
 bad:
 	so->so_state &= ~SS_ISCONNECTING;
-	FREE(sa, M_SONAME);
 	if (error == ERESTART)
 		error = EINTR;
 done1:
 	fputsock(so);
 done2:
 	mtx_unlock(&Giant);
+	FREE(sa, M_SONAME);
 	return (error);
 }
 
