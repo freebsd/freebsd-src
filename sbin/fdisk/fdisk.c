@@ -29,6 +29,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -748,6 +749,9 @@ write_disk(off_t sector, void *buf)
 static int
 get_params()
 {
+    int error;
+    u_int u;
+    off_t o;
 
     if (ioctl(fd, DIOCGDINFO, &disklabel) == -1) {
 	warnx("can't get disk parameters on %s; supplying dummy ones", disk);
@@ -756,7 +760,23 @@ get_params()
 	dos_sectors = sectors = 1;
 	dos_cylsecs = cylsecs = heads * sectors;
 	disksecs = cyls * heads * sectors;
-	return disksecs;
+    }
+    error = ioctl(fd, DIOCGFWSECTORS, &u);
+    if (error == 0)
+	dos_sectors = u;
+    error = ioctl(fd, DIOCGFWHEADS, &u);
+    if (error == 0)
+	dos_heads = u;
+    error = ioctl(fd, DIOCGSECTORSIZE, &u);
+    if (error != 0) {
+	u = 512;
+    }
+    error = ioctl(fd, DIOCGMEDIASIZE, &o);
+    if (error == 0) {
+	dos_cylsecs = dos_heads * dos_sectors;
+	disksecs = o / u;
+	dos_cyls = o / (u * dos_heads * dos_sectors);
+	return (o / u);
     }
 
     dos_cyls = cyls = disklabel.d_ncylinders;
