@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: shutdown.c,v 1.8 1997/08/23 14:10:34 joerg Exp $
+ *	$Id: shutdown.c,v 1.9 1998/01/08 02:21:30 alex Exp $
  */
 
 #ifndef lint
@@ -391,7 +391,7 @@ getoffset(timearg)
 		 */
 		if (lt->tm_year < (this_year % 100) - 1)
 			lt->tm_year += 100;
-		/* adjust for centuries beyond 2000 */
+		/* adjust for the year 2000 and beyond */
 		lt->tm_year += (this_year - (this_year % 100));
 		/* FALLTHROUGH */
 	case 8:
