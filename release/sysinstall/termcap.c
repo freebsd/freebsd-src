@@ -33,8 +33,11 @@ set_termcap(void)
     term = getenv("TERM");
     stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
 
-    if (getpid() != 1)
+    if (getpid() != 1) {
 	DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
+	if (DebugFD < 0)
+	    DebugFD = open("/dev/null", O_RDWR, 0);
+    }
 
     if (stat < 0) {
 	if (!term) {

@@ -2,20 +2,21 @@ HOW TO USE THIS SYSTEM
 ======================
 
 The following keys are recognised in most of the dialogs you'll
-encounter during this installation:
+encounter during this installation [press the PageDown key to go
+to the next screen when you finish reading this one]:
 
 KEY             ACTION
 ---             ------
 SPACE           Select or toggle the current item.
-RETURN          Continue or invoke selected menu button.
-UP ARROW        Move to previous item (or up, in a text field).
-DOWN ARROW      Move to next item (or down, in a text field).
+RETURN          Finish with an item.
+UP ARROW        Move to previous item (or up, in a text display box).
+DOWN ARROW      Move to next item (or down, in a text display box).
 TAB             Move to next item or group.
 RIGHT ARROW     Move to next item or group (same as TAB).
 SHIFT-TAB       Move to previous item or group.
 LEFT ARROW      Move to previous item or group (same as SHIFT-TAB).
-PAGE UP         In text boxes, scrolls up one page.
-PAGE DOWN       In text boxes, scrolls down one page.
+PAGE UP         In text display boxes, scrolls up one page.
+PAGE DOWN       In text display boxes, scrolls down one page.
 
 If you see small "^(-)" or "v(+)" symbols at the edges of a menu, it
 means that there are more items above or below the current one that
@@ -23,9 +24,9 @@ aren't being shown (due to insufficient screen space).  Using the
 up/down arrow keys will cause the menu to scroll.  The PageUp and
 PageDown keys will scroll by entire screens.
 
-In text fields, the amount of text above the current point will be
+In text display boxes, the amount of text above the current point will be
 displayed as a percentage in the lower right corner.  A value of
-100% means that you're at the bottom of the available text.
+100% means that you're at the bottom of the displayed text.
 
 Selecting OK in a menu will confirm whatever action it's controlling.
 Selecting Cancel will cancel the operation and generally return you to
@@ -36,11 +37,8 @@ SPECIAL FEATURES:
 =================
 
 It is also possible to select a menu item by typing the first
-character of its name, if unique.  Such "accelerator" characters will
-be specially highlighted in the item name.  Unfortunately, the
-accellerators aren't always unique (a shortcoming of the dialog menu
-library) so you'll only be able to get at the *first* unique menu
-entry for a given accellerator.
+character of its name, if unique.  This will generally be an
+item number.
 
 The console driver also contains a scroll-back buffer for reviewing
 things that may have scrolled off the screen.  To use scroll-back,
@@ -57,5 +55,6 @@ also find that you have multiple "virtual consoles" and can use them
 to have several active sessions at once.  Use ALT-F<n> to switch
 between them, where `F<n>' is the function key corresponding to the
 screen you wish to see.  By default, the system comes with 3 virtual
-consoles enabled.  You can create more by editing the /etc/ttys file
-(up to a maximum of 12).
+consoles enabled.  You can enable more by editing the /etc/ttys file
+and turning the "off" field to "on" in the relevant vty entries (up to
+12).
