@@ -208,12 +208,12 @@ acpi_asus_probe(device_t dev)
 	ACPI_BUFFER		Buf;
 	ACPI_OBJECT		Arg, *Obj;
 	ACPI_OBJECT_LIST	Args;
+	static char 		*asus_ids[] = { "ATK0100", NULL };
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	if (!acpi_disabled("asus") &&
-	    acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
-	    acpi_MatchHid(acpi_get_handle(dev), "ATK0100")) {
+	    ACPI_ID_PROBE(device_get_parent(dev), dev, asus_ids)) {
 		sc = device_get_softc(dev);
 		sc->dev = dev;
 		sc->handle = acpi_get_handle(dev);
