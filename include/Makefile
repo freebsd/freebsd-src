@@ -55,7 +55,7 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 		${.CURDIR}/../sys/sys/param.h \
 		${.CURDIR}/Makefile
 	@${ECHO} creating osreldate.h from newvers.sh
-	setvar PARAMFILE ${.CURDIR}/../sys/sys/param.h; \
+	@setvar PARAMFILE ${.CURDIR}/../sys/sys/param.h; \
 	. ${.CURDIR}/../sys/conf/newvers.sh;			\
 	echo "$$COPYRIGHT" > osreldate.h;			\
 	echo "#ifdef _KERNEL" >> osreldate.h;			\
