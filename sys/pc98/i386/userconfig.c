@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.13 1996/12/04 04:20:32 asami Exp $
+ **      $Id: userconfig.c,v 1.14 1996/12/09 15:21:04 kato Exp $
  **/
 
 /**
@@ -2257,7 +2257,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.13 1996/12/04 04:20:32 asami Exp $
+ *      $Id: userconfig.c,v 1.14 1996/12/09 15:21:04 kato Exp $
  */
 
 #include "scbus.h"
@@ -2317,6 +2317,13 @@ static int introfunc(CmdParm *);
 
 static int lineno;
 
+/* XXX hack */
+#incldue "eisa.h"
+#if NEISA > 0
+extern int num_eisa_slots;
+static int set_num_eisa_slots(CmdParm *);
+#endif /* NEISA > 0 */
+
 static CmdParm addr_parms[] = {
     { PARM_DEVSPEC, {} },
     { PARM_ADDR, {} },
@@ -2334,10 +2341,20 @@ static CmdParm dev_parms[] = {
     { -1, {} },
 };
 
+#if NEISA > 0
+static CmdParm int_arg[] = {
+    { PARM_INT, {} },
+    { -1, {} },
+};
+#endif /* NEISA > 0 */
+
 static Cmd CmdList[] = {
     { "?", 	helpfunc, 		NULL },		/* ? (help)	*/
     { "di",	set_device_disable,	dev_parms },	/* disable dev	*/
     { "dr",	set_device_drq,		int_parms },	/* drq dev #	*/
+#if NEISA > 0
+    { "ei",	set_num_eisa_slots,	int_arg },	/* # EISA slots */
+#endif /* NEISA > 0 */
     { "en",	set_device_enable,	dev_parms },	/* enable dev	*/
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
@@ -2488,6 +2505,9 @@ list_devices(CmdParm *parms)
     if (lsdevtab(&isa_devtab_tty[0])) return 0;
     if (lsdevtab(&isa_devtab_net[0])) return 0;
     if (lsdevtab(&isa_devtab_null[0])) return 0;
+#if NEISA > 0
+    printf("\nNumber of EISA slots to probe: %d\n", num_eisa_slots);
+#endif /* NEISA > 0 */
     return 0;
 }
 
@@ -2577,6 +2597,18 @@ set_device_disable(CmdParm *parms)
     return 0;
 }
 
+#if NEISA > 0
+static int
+set_num_eisa_slots(CmdParm *parms)
+{
+    int num_slots;
+
+    num_slots = parms[0].parm.iparm;
+    num_eisa_slots = (num_slots <= 16 ? num_slots : 10);
+    return 0;
+}
+#endif /* NEISA > 0 */
+
 static int
 quitfunc(CmdParm *parms)
 {
@@ -2597,6 +2629,9 @@ helpfunc(CmdParm *parms)
     printf("flags <devname> <mask>\tSet device flags\n");
     printf("enable <devname>\tEnable device\n");
     printf("disable <devname>\tDisable device (will not be probed)\n");
+#if NEISA > 0
+    printf("eisa <number>\t\tSet the number of EISA slots to probe\n");
+#endif /* NEISA > 0 */
     printf("quit\t\t\tExit this configuration utility\n");
     printf("reset\t\t\tReset CPU\n");
 #ifdef VISUAL_USERCONFIG
