@@ -887,7 +887,7 @@ static void
 wi_reset(sc)
 	struct wi_softc		*sc;
 {
-#define WI_INIT_TRIES 5
+#define WI_INIT_TRIES 3
 	int i;
 	int tries;
 	
@@ -904,16 +904,18 @@ wi_reset(sc)
 			break;
 		DELAY(WI_DELAY * 1000);
 	}
-	if (i == WI_INIT_TRIES)
+	sc->sc_enabled = 1;
+
+	if (i == tries) {
 		device_printf(sc->dev, "init failed\n");
+		return;
+	}
 
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
 	/* Calibrate timer. */
 	WI_SETVAL(WI_RID_TICK_TIME, 8);
-
-	sc->sc_enabled = 1;
 
 	return;
 }
