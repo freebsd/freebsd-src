@@ -32,7 +32,7 @@
 .\"     from: @(#)acosh.3	5.2 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd May 6, 1991
+.Dd January 14, 2005
 .Dt ACOSH 3
 .Os
 .Sh NAME
@@ -66,22 +66,14 @@ and the
 functions
 return the inverse hyperbolic cosine of
 .Ar x .
-On the
-.Tn VAX
-and
-.Tn Tahoe ,
-if the argument is less than one
+If the argument is less than 1,
 .Fn acosh
-sets the global variable
-.Va errno
-to
-.Er EDOM
-and
-causes a reserved operand fault.
+raises an invalid exception and returns an \*(Na.
 .Sh SEE ALSO
 .Xr asinh 3 ,
 .Xr atanh 3 ,
 .Xr exp 3 ,
+.Xr fenv 3 ,
 .Xr math 3
 .Sh HISTORY
 The
