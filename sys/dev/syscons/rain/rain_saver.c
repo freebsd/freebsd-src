@@ -43,7 +43,12 @@
 #define SAVER_NAME	 "rain_saver"
 #define SCRW		 320
 #define SCRH		 200
-#define MAX		 63
+#define MAX		 63	/* number of colors (in addition to black) */
+#define INCREMENT	 4	/* increment between colors */
+
+#define RED(n)		 ((n) * 3 + 0)
+#define GREEN(n)	 ((n) * 3 + 1)
+#define BLUE(n)		 ((n) * 3 + 2)
 
 static u_char		*vid;
 static u_char		 rain_pal[768];
@@ -53,11 +58,11 @@ static void
 rain_update(video_adapter_t *adp)
 {
 	int i, t;
-	
-	t = rain_pal[(MAX*3+2)];
-	for (i = (MAX*3+2); i > 5; i -= 3)
-		rain_pal[i] = rain_pal[i-3];
-	rain_pal[5] = t;
+
+	t = rain_pal[BLUE(MAX)];
+	for (i = MAX; i > 1; i--)
+		rain_pal[BLUE(i)] = rain_pal[BLUE(i - 1)];
+	rain_pal[BLUE(1)] = t;
 	load_palette(adp, rain_pal);
 }
 
@@ -76,12 +81,13 @@ rain_saver(video_adapter_t *adp, int blank)
 			blanked++;
 			vid = (u_char *)adp->va_window;
 			splx(pl);
-			bzero(vid, SCRW*SCRH);
+			bzero(vid, SCRW * SCRH);
 			for (i = 0; i < SCRW; i += 2)
 				vid[i] = 1 + (random() % MAX);
 			for (j = 1, k = SCRW; j < SCRH; j++)
 				for (i = 0; i < SCRW; i += 2, k += 2)
-					vid[k] = (vid[k-SCRW] < MAX) ? 1 + vid[k-SCRW] : 1;
+					vid[k] = (vid[k - SCRW] < MAX) ?
+					    1 + vid[k - SCRW] : 1;
 		}
 		
 		/* update display */
@@ -107,8 +113,8 @@ rain_init(video_adapter_t *adp)
 	}
 	
 	/* intialize the palette */
-	for (i = 3; i < (MAX+1)*3; i += 3)
-		rain_pal[i+2] = rain_pal[i-1] + 4;
+	for (i = 1; i < MAX; i++)
+		rain_pal[BLUE(i)] = rain_pal[BLUE(i - 1)] + INCREMENT;
 	
 	return (0);
 }
