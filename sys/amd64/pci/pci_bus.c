@@ -23,14 +23,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.38 1997/05/26 21:25:24 se Exp $
+ * $Id: pcibus.c,v 1.39 1997/05/26 21:52:41 se Exp $
  *
  */
 
 #include <sys/types.h>
 #include <sys/systm.h>
 
-#include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <i386/isa/pcibus.h>
 

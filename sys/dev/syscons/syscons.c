@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.224 1997/07/14 03:36:50 yokota Exp $
+ *  $Id: syscons.c,v 1.225 1997/07/15 14:43:22 yokota Exp $
  */
 
 #include "sc.h"
@@ -40,11 +40,7 @@
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/tty.h>
-#include <sys/uio.h>
-#include <sys/callout.h>
 #include <sys/kernel.h>
-#include <sys/syslog.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #ifdef	DEVFS
 #include <sys/devfsext.h>

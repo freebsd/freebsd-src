@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.57 1997/03/24 12:02:48 bde Exp $
+ *	$Id: si.c,v 1.58 1997/04/20 15:36:04 bde Exp $
  */
 
 #ifndef lint
@@ -45,14 +45,11 @@ static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,199
 #include <sys/ioctl_compat.h>
 #endif
 #include <sys/tty.h>
-#include <sys/ttydefaults.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/uio.h>
 #include <sys/dkstat.h>
 #include <sys/kernel.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #ifdef DEVFS
@@ -62,7 +59,6 @@ static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,199
 #include <machine/clock.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <i386/isa/icu.h>

@@ -162,12 +162,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
-#if __FreeBSD__ >= 3
 #include <sys/sockio.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -178,32 +173,19 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <net/if.h>
 #include <net/if_dl.h>
-#include <net/if_types.h>
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
 #include <netinet/if_ether.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
 #endif
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
-#include <machine/cpufunc.h>
 #include <machine/clock.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 
 #include <i386/isa/ic/if_wl_i82586.h>	/* Definitions for the Intel chip */
 

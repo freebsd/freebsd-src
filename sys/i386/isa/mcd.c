@@ -40,23 +40,18 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.91 1997/06/01 15:59:11 peter Exp $
+ *	$Id: mcd.c,v 1.92 1997/06/01 16:03:13 peter Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
 #include "mcd.h"
 #if NMCD > 0
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/stat.h>
-#include <sys/uio.h>
 #include <sys/cdio.h>
-#include <sys/errno.h>
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/kernel.h>
@@ -65,8 +60,6 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #endif /*DEVFS*/
 
 #include <machine/clock.h>
-
-#include <i386/i386/cons.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/mcdreg.h>

@@ -57,10 +57,6 @@ error "Can only have 1 spigot configured."
 #include	<sys/conf.h>
 #include	<sys/proc.h>
 #include	<sys/signalvar.h>
-#include	<sys/file.h>
-#include	<sys/uio.h>
-#include	<sys/malloc.h>
-#include	<sys/errno.h>
 #include	<sys/mman.h>
 #ifdef DEVFS
 #include	<sys/devfsext.h>

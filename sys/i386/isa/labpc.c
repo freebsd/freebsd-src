@@ -41,20 +41,16 @@
 
 #include "labpc.h"
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/time.h>
 
 #include <sys/systm.h>
 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/errno.h>
 #include <sys/buf.h>
 #define b_actf	b_act.tqe_next
 #include <sys/dataacq.h>
 #include <sys/conf.h>
-#include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/

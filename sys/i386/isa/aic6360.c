@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.28 1997/03/23 06:26:47 bde Exp $
+ * $Id: aic6360.c,v 1.29 1997/03/24 11:23:38 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -115,23 +115,16 @@
 #include "opt_ddb.h"
 #include "aic.h"
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/queue.h>
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
-
-#include <sys/kernel.h>
 
 #include "ioconf.h"
 
