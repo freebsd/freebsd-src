@@ -43,12 +43,23 @@ You are going to export this partition to your other machines via a
 READ-ONLY NFS export so do not mix it with other more security-sensitive
 partitions.
 .Pp
-You have to make a choice in regards to /usr/obj.
-You can put /usr/obj in /FreeBSD or you can make /usr/obj its own partition.
-I recommend making /usr/obj its own partition for safety (it is being 
-constantly modified) as well as to make certain things easier in the
-development environment which I describe down the line.
-I recommend a /usr/obj partition of at least 5GB.
+You have to make a choice in regards to
+.Pa /usr/obj .
+You can put
+.Pa /usr/obj
+in
+.Pa /FreeBSD
+or you can make
+.Pa /usr/obj
+its own partition.
+I recommend making it a separate partition for several reasons.  First,
+as a safety measure since this partition is written to a great deal.
+Second, because you typically do not have to back it up.
+Third, because it makes it far easier to mix and match the development
+environments which are described later in this document.
+I recommend a
+.Pa /usr/obj
+partition of at least 5GB.
 .Pp
 On the master server, use cvsup to automatically pull down and maintain
 the
@@ -295,7 +306,7 @@ make buildworld
 If you are on the master server you are running in a -STABLE environment, but
 that does not prevent you from building the -CURRENT world.
 Just cd into the appropriate source directory and you are set.  Do not
-accidently install it on your master server though!
+accidentally install it on your master server though!
 .Bd -literal -offset 4n
 cd /usr/src2
 make buildworld
