@@ -56,7 +56,7 @@ add_filename(const char *filename)
 	}
 	file = zmalloc(sizeof(struct sf_file));
 	file->filename = filename;
-	STAILQ_INSERT_TAIL(&filelist, file, next);
+	TAILQ_INSERT_TAIL(&filelist, file, next);
 }
 
 static acl_t *
@@ -106,8 +106,8 @@ main(int argc, char *argv[])
 	carried_error = local_error = 0;
 	have_mask = have_stdin = n_flag = need_mask = 0;
 
-	STAILQ_INIT(&entrylist);
-	STAILQ_INIT(&filelist);
+	TAILQ_INIT(&entrylist);
+	TAILQ_INIT(&filelist);
 
 	while ((ch = getopt(argc, argv, "M:X:bdkm:nx:")) != -1)
 		switch(ch) {
@@ -117,18 +117,18 @@ main(int argc, char *argv[])
 			if (!entry->acl)
 				err(EX_OSERR, "get_acl_from_file() failed");
 			entry->op = OP_MERGE_ACL;
-			STAILQ_INSERT_TAIL(&entrylist, entry, next);
+			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
 		case 'X':
 			entry = zmalloc(sizeof(struct sf_entry));
 			entry->acl = get_acl_from_file(optarg);
 			entry->op = OP_REMOVE_ACL;
-			STAILQ_INSERT_TAIL(&entrylist, entry, next);
+			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
 		case 'b':
 			entry = zmalloc(sizeof(struct sf_entry));
 			entry->op = OP_REMOVE_EXT;
-			STAILQ_INSERT_TAIL(&entrylist, entry, next);
+			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
 		case 'd':
 			acl_type = ACL_TYPE_DEFAULT;
@@ -136,7 +136,7 @@ main(int argc, char *argv[])
 		case 'k':
 			entry = zmalloc(sizeof(struct sf_entry));
 			entry->op = OP_REMOVE_DEF;
-			STAILQ_INSERT_TAIL(&entrylist, entry, next);
+			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
 		case 'm':
 			entry = zmalloc(sizeof(struct sf_entry));
@@ -144,7 +144,7 @@ main(int argc, char *argv[])
 			if (!entry->acl)
 				err(EX_USAGE, "acl_from_text() failed");
 			entry->op = OP_MERGE_ACL;
-			STAILQ_INSERT_TAIL(&entrylist, entry, next);
+			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
 		case 'n':
 			n_flag++;
@@ -155,7 +155,7 @@ main(int argc, char *argv[])
 			if (!entry->acl)
 				err(EX_USAGE, "acl_from_text() failed");
 			entry->op = OP_REMOVE_ACL;
-			STAILQ_INSERT_TAIL(&entrylist, entry, next);
+			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
 		default:
 			usage();
@@ -164,7 +164,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (STAILQ_EMPTY(&entrylist))
+	if (!n_flag && TAILQ_EMPTY(&entrylist))
 		usage();
 
 	/* take list of files from stdin */
@@ -183,7 +183,7 @@ main(int argc, char *argv[])
 			add_filename(argv[i]);
 
 	/* cycle through each file */
-	STAILQ_FOREACH(file, &filelist, next) {
+	TAILQ_FOREACH(file, &filelist, next) {
 		/* get our initial access and default ACL's */
 		acl = get_file_acls(file->filename);
 		if (!acl)
@@ -196,7 +196,7 @@ main(int argc, char *argv[])
 		local_error = 0;
 
 		/* cycle through each option */
-		STAILQ_FOREACH(entry, &entrylist, next) {
+		TAILQ_FOREACH(entry, &entrylist, next) {
 			if (local_error)
 				continue;
 
@@ -236,7 +236,7 @@ main(int argc, char *argv[])
 		else
 			final_acl = acl[1];
 
-		if (need_mask && (set_acl_mask(final_acl) == -1)) {
+		if (need_mask && (set_acl_mask(&final_acl) == -1)) {
 			warnx("failed to set ACL mask on %s", file->filename);
 			carried_error++;
 		} else if (acl_set_file(file->filename, acl_type,

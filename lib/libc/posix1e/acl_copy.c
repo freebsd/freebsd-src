@@ -35,7 +35,7 @@
 #include <string.h>
 
 /*
- * acl_copy_entry() - copy the contents of ACL entry src_d to
+ * acl_copy_entry() (23.4.4): copy the contents of ACL entry src_d to
  * ACL entry dest_d
  */
 int

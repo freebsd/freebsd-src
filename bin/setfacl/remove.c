@@ -41,8 +41,10 @@
 int
 remove_acl(acl_t acl, acl_t *prev_acl)
 {
-	acl_t acl_new;
-	int carried_error, i;
+	acl_entry_t	entry;
+	acl_t		acl_new;
+	acl_tag_t	tag;
+	int		carried_error, entry_id;
 
 	carried_error = 0;
 
@@ -53,11 +55,17 @@ remove_acl(acl_t acl, acl_t *prev_acl)
 	if (!acl_new)
 		err(EX_OSERR, "acl_dup() failed");
 
+	tag = ACL_UNDEFINED_TAG;
+
 	/* find and delete the entry */
-	for (i = 0; i < acl->acl_cnt; i++) {
-		if (acl->acl_entry[i].ae_tag == ACL_MASK)
+	entry_id = ACL_FIRST_ENTRY;
+	while (acl_get_entry(acl, entry_id, &entry) == 1) {
+		entry_id = ACL_NEXT_ENTRY;
+		if (acl_get_tag_type(entry, &tag) == -1)
+			err(1, "acl_get_tag_type() failed");
+		if (tag == ACL_MASK)
 			have_mask++;
-		if (acl_delete_entry(acl_new, &acl->acl_entry[i]) == -1) {
+		if (acl_delete_entry(acl_new, entry) == -1) {
 			carried_error++;
 			warnx("cannot remove non-existent acl entry");
 		}
@@ -83,8 +91,10 @@ remove_default(acl_t *prev_acl)
 {
 
 	if (prev_acl[1]) {
-		bzero(prev_acl[1], sizeof(struct acl));
-		prev_acl[1]->acl_cnt = 0;
+		acl_free(prev_acl[1]);
+		prev_acl[1] = acl_init(ACL_MAX_ENTRIES);
+		if (!prev_acl[1])
+			err(1, "acl_init() failed");
 	} else {
 		warn("cannot remove default ACL");
 		return -1;
@@ -97,8 +107,10 @@ void
 remove_ext(acl_t *prev_acl)
 {
 	acl_t acl_new, acl_old;
-	acl_perm_t group_perm, mask_perm;
-	int have_mask_entry, i;
+	acl_entry_t entry, entry_new;
+	acl_permset_t perm;
+	acl_tag_t tag;
+	int entry_id, have_mask_entry;
 
 	if (acl_type == ACL_TYPE_ACCESS)
 		acl_old = acl_dup(prev_acl[0]);
@@ -107,41 +119,50 @@ remove_ext(acl_t *prev_acl)
 	if (!acl_old)
 		err(EX_OSERR, "acl_dup() failed");
 
-	group_perm = mask_perm = 0;
 	have_mask_entry = 0;
 	acl_new = acl_init(ACL_MAX_ENTRIES);
 	if (!acl_new)
 		err(EX_OSERR, "%s", "acl_init() failed");
+	tag = ACL_UNDEFINED_TAG;
 
 	/* only save the default user/group/other entries */
-	for (i = 0; i < acl_old->acl_cnt; i++)
-		switch(acl_old->acl_entry[i].ae_tag) {
+	entry_id = ACL_FIRST_ENTRY;
+	while (acl_get_entry(acl_old, entry_id, &entry) == 1) {
+		entry_id = ACL_NEXT_ENTRY;
+
+		if (acl_get_tag_type(entry, &tag) == -1)
+			err(1, "acl_get_tag_type() failed");
+
+		switch(tag) {
 		case ACL_USER_OBJ:
-			acl_new->acl_entry[0] = acl_old->acl_entry[i];
-			break;
 		case ACL_GROUP_OBJ:
-			acl_new->acl_entry[1] = acl_old->acl_entry[i];
-			group_perm = acl_old->acl_entry[i].ae_perm;
-			break;
-		case ACL_OTHER_OBJ:
-			acl_new->acl_entry[2] = acl_old->acl_entry[i];
+		case ACL_OTHER:
+			if (acl_get_tag_type(entry, &tag) == -1)
+				err(1, "acl_get_tag_type() failed");
+			if (acl_get_permset(entry, &perm) == -1)
+				err(1, "acl_get_permset() failed");
+			if (acl_create_entry(&acl_new, &entry_new) == -1)
+				err(1, "acl_create_entry() failed");
+			if (acl_set_tag_type(entry_new, tag) == -1)
+				err(1, "acl_set_tag_type() failed");
+			if (acl_set_permset(entry_new, perm) == -1)
+				err(1, "acl_get_permset() failed");
+			if (acl_copy_entry(entry_new, entry) == -1)
+				err(1, "acl_copy_entry() failed");
 			break;
 		case ACL_MASK:
-			mask_perm = acl_old->acl_entry[i].ae_perm;
 			have_mask_entry = 1;
 			break;
 		default:
 			break;
 		}
-	/*
-	 * If the ACL contains a mask entry, then the permissions associated
-	 * with the owning group entry in the resulting ACL shall be set to
-	 * only those permissions associated with both the owning group entry
-	 * and the mask entry of the current ACL.
-	 */
-	if (have_mask_entry)
-		acl_new->acl_entry[1].ae_perm = group_perm & mask_perm;
-	acl_new->acl_cnt = 3;
+	}
+	if (have_mask_entry && !n_flag) {
+		if (acl_calc_mask(&acl_new) == -1)
+			err(1, "acl_calc_mask() failed");
+	} else {
+		have_mask = 1;
+	}
 
 	if (acl_type == ACL_TYPE_ACCESS) {
 		acl_free(prev_acl[0]);
@@ -150,6 +171,4 @@ remove_ext(acl_t *prev_acl)
 		acl_free(prev_acl[1]);
 		prev_acl[1] = acl_new;
 	}
-
-	have_mask = 0;
 }
