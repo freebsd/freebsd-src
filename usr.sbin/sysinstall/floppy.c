@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.30 1998/10/12 23:45:06 jkh Exp $
+ * $Id: floppy.c,v 1.31 1998/12/22 12:31:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,12 +63,14 @@ mediaInitFloppy(Device *dev)
 {
     struct msdosfs_args dosargs;
     struct ufs_args u_args;
+    char *mp;
 
     if (floppyMounted)
 	return TRUE;
 
-    if (Mkdir(mountpoint)) {
-	msgConfirm("Unable to make %s directory mountpoint for %s!", mountpoint, dev->devname);
+    mp = dev->private ? (char *)dev->private : mountpoint;
+    if (Mkdir(mp)) {
+	msgConfirm("Unable to make %s directory mountpoint for %s!", mp, dev->devname);
 	return FALSE;
     }
 
@@ -90,10 +92,10 @@ mediaInitFloppy(Device *dev)
     memset(&u_args, 0, sizeof(u_args));
     u_args.fspec = dev->devname;
 
-    if (mount("msdos", mountpoint, MNT_RDONLY, (caddr_t)&dosargs) == -1) {
-	if (mount("ufs", mountpoint, MNT_RDONLY, (caddr_t)&u_args) == -1) {
+    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) == -1) {
+	if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) == -1) {
 	    msgConfirm("Error mounting floppy %s (%s) on %s : %s",
-		       dev->name, dev->devname, mountpoint, strerror(errno));
+		       dev->name, dev->devname, mp, strerror(errno));
 	    return FALSE;
 	}
     }
@@ -105,7 +107,7 @@ mediaInitFloppy(Device *dev)
 FILE *
 mediaGetFloppy(Device *dev, char *file, Boolean probe)
 {
-    char	buf[PATH_MAX];
+    char	buf[PATH_MAX], *mp;
     FILE	*fp;
     int		nretries = 5;
 
@@ -114,7 +116,8 @@ mediaGetFloppy(Device *dev, char *file, Boolean probe)
      * to speculatively open files on a floppy disk.  Make user get it
      * right or give up with floppies.
      */
-    snprintf(buf, PATH_MAX, "%s/%s", mountpoint, file);
+    mp = dev->private ? (char *)dev->private : mountpoint;
+    snprintf(buf, PATH_MAX, "%s/%s", mp, file);
     if (!file_readable(buf)) {
 	if (probe)
 	    return NULL;
@@ -139,8 +142,10 @@ void
 mediaShutdownFloppy(Device *dev)
 {
     if (floppyMounted) {
-	if (unmount(mountpoint, MNT_FORCE) != 0)
-	    msgDebug("Umount of floppy on %s failed: %s (%d)\n", mountpoint, strerror(errno), errno);
+    	char *mp = dev->private ? (char *)dev->private : mountpoint;
+
+	if (unmount(mp, MNT_FORCE) != 0)
+	    msgDebug("Umount of floppy on %s failed: %s (%d)\n", mp, strerror(errno), errno);
 	else {
 	    floppyMounted = FALSE;
 	    if (!variable_get(VAR_NONINTERACTIVE))
