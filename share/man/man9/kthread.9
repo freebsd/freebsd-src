@@ -1,4 +1,4 @@
-.\" Copyright (c) 2000
+.\" Copyright (c) 2000-2001
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" All rights reserved.
@@ -185,9 +185,6 @@ The
 and
 .Fn kthread_suspend
 functions return zero on success and non-zero on failure.
-Upon failure, the global variable
-.Va errno
-is set to indicate the error.
 .Sh EXAMPLES
 This example demonstrates the use of a
 .Li struct kproc_desc
@@ -290,22 +287,3 @@ functions were named
 and
 .Fn kproc_suspend_loop ,
 respectively.
-.Sh BUGS
-If a kernel thread exits its main function (specified as the
-.Fa func
-argument to
-.Fn kthread_create
-or in the
-.Li struct kproc_desc
-passed to
-.Fn kpoc_start )
-then it will attempt to return backwards through the
-.Fn fork1
-trampoline code with unpredictable results.
-The code should instead use a trampoline function to launch
-.Fa func
-and call
-.Fn kthread_exit
-if
-.Fa func
-returns.
