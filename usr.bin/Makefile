@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.33 1995/01/19 22:31:17 wollman Exp $
+#	$Id: Makefile,v 1.34 1995/01/21 14:47:33 bde Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -21,7 +21,7 @@ SUBDIR=	apply ar at banner basename biff cal calendar \
 	strings strip su symorder talk tconv tcopy tee telnet tftp time tip \
 	tn3270 touch tput tr true tset tsort tty ul uname unexpand \
 	unifdef uniq unvis users uudecode uuencode vacation \
-	vgrind vi vis w wall wc what whereis who whois window write \
+	vgrind vi vis w wall wc what whereis which who whois window write \
 	xargs xinstall xstr yacc yes ypcat ypmatch ypwhich
 
 # Cmp, look and tail all use mmap, so new-VM only.
