@@ -61,6 +61,8 @@ is an intelligent mail processing system, which has
 a command syntax reminiscent of
 .Xr ed 1
 with lines replaced by messages.
+.Pp
+The following options are available:
 .Bl -tag -width indent
 .It Fl v
 Verbose mode.
@@ -78,7 +80,7 @@ particularly useful when using
 .Nm
 on noisy phone lines.
 .It Fl I
-Forces
+Force
 .Nm
 to run in interactive mode even when
 input is not a terminal.
@@ -87,27 +89,35 @@ In particular, the
 special
 character when sending mail is only active in interactive mode.
 .It Fl n
-Inhibits reading the system-wide
+Inhibit reading the system-wide
 .Pa mail.rc
 files upon startup.
 .It Fl N
-Inhibits the initial display of message headers
+Inhibit the initial display of message headers
 when reading mail or editing a mail folder.
-.It Fl s
-Specify subject on command line.
+.It Fl s Ar subject
+Specify
+.Ar subject
+on command line.
 (Only the first argument after the
 .Fl s
 flag is used as a subject; be careful to quote subjects
 containing spaces.)
-.It Fl c
+.It Fl c Ar cc-addr
 Send carbon copies to
 .Ar cc-addr
 list of users.
-.It Fl b
+The
+.Ar cc-addr
+argument should be a comma-separated list of names.
+.It Fl b Ar bcc-addr
 Send blind carbon copies to
-.Ar bcc-addr .
-List should be a comma-separated list of names.
-.It Fl f
+.Ar bcc-addr
+list of users.
+The
+.Ar bcc-addr
+argument should be a comma-separated list of names.
+.It Fl f Op Ar mbox
 Read in the contents of your
 .Pa mbox
 (or the specified file)
@@ -808,7 +818,7 @@ Add the given names to the direct recipient list.
 .It Ic ~v
 Invoke an alternative editor (defined by the
 .Ev VISUAL
-option) on the
+environment variable) on the
 message collected so far.
 Usually, the alternative editor will be a
 screen editor.
