@@ -75,7 +75,6 @@ struct isa_device {
 	int	id_alive;	/* device is present */
 #define	RI_FAST		1		/* fast interrupt handler */
 	u_int	id_ri_flags;	/* flags for register_intr() */
-	int	id_reconfig;	/* hot eject device support (such as PCMCIA) */
 	int	id_enabled;	/* is device enabled */
 	int	id_conflicts;	/* we're allowed to conflict with things */
 	struct isa_device *id_next; /* used in isa_devlist in userconfig() */
@@ -101,7 +100,6 @@ struct isa_driver {
 #ifdef _KERNEL
 
 int	haveseen_iobase __P((struct isa_device *dvp, int iosize));
-void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 int	isa_compat_nextid __P((void));
 
 #endif
