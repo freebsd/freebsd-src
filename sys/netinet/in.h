@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.21 1996/10/19 20:23:12 alex Exp $
+ * $Id: in.h,v 1.22 1996/10/22 22:25:54 sos Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -219,6 +219,7 @@ struct ip_opts {
 #define IP_RSVP_VIF_ON		17   /* set RSVP per-vif socket */
 #define IP_RSVP_VIF_OFF		18   /* unset RSVP per-vif socket */
 #define IP_PORTRANGE		19   /* int; range to choose for unspec port */
+#define	IP_RECVIF		20   /* bool; receive reception if w/dgram */
 
 #define IP_FW_ADD     		50   /* add a firewall rule to chain */
 #define IP_FW_DEL    		51   /* delete a firewall rule from chain */
