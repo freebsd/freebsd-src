@@ -34,7 +34,7 @@
 
 /* Berkeley */
 #define COPYRIGHT_UCB \
-	"Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California. All rights reserved.\n"
+	"Copyright (c) 1979, 1980, 1983, 1986, 1988, 1989, 1991, 1992, 1993, 1994\n\tThe Regents of the University of California. All rights reserved.\n"
 
 /* a port of FreeBSD to the NEC PC98, Japan */
 #define COPYRIGHT_PC98 \
