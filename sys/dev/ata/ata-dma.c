@@ -93,6 +93,11 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	}
 	scp->dmatab[ATA_DEV(device)] = dmatab;
     }
+    if (udmamode > 2 && !ATA_PARAM(scp, device)->cblid) {
+	ata_printf(scp, device,
+		   "DMA limitted to UDMA33, non-ATA66 compliant cable\n");
+	udmamode = 2;
+    }
 
     switch (scp->chiptype) {
 
@@ -250,8 +255,8 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   "%s setting up UDMA2 mode on Aladdin chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		word54 |= 0x5555;
-		word54 |= (0x0a << (16 + (scp->unit << 3) + (device << 2)));
+		word54 &= ~(0x000f000f << (devno << 2));
+		word54 |= (0x000a0005 << (devno << 2));
 		pci_write_config(parent, 0x54, word54, 4);
 		pci_write_config(parent, 0x53, 
 				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
@@ -335,8 +340,7 @@ via_82c686:
     case 0x05861106:	/* VIA 82C586 */
 via_82c586:
 	/* UDMA2 mode only on 82C586 > rev1, 82C596, AMD 756 */
-	if ((udmamode >= 2 && scp->chiptype == 0x05861106 &&
-	     pci_read_config(scp->dev, 0x08, 1) >= 0x01) ||
+	if ((udmamode >= 2 && ata_find_dev(parent, 0x05861106, 0x02)) ||
 	    (udmamode >= 2 && scp->chiptype == 0x05961106) ||
 	    (udmamode >= 2 && scp->chiptype == 0x74091022)) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
