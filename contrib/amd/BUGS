@@ -5,7 +5,7 @@
 
 (1) mips-sgi-irix*
 
-[1A] known to have flakey NFS V.3 and TCP.  Amd tends to hang or spin
+[1A] known to have flaky NFS V.3 and TCP.  Amd tends to hang or spin
 infinitely after a few hours or days of use.  Users must install recommended
 patches from vendor.  Patches help, but not all the time.  Otherwise avoid
 using NFS V.3 and TCP on these systems, by setting
@@ -14,7 +14,7 @@ using NFS V.3 and TCP on these systems, by setting
 
 [1B] yp_all() leaks a file descriptor.  Eventually amd runs out of file
 descriptors and hangs.  Am-utils circumvents this by using its own version
-of yp_all which uses udp and iterats over NIS maps.  The latter isn't as
+of yp_all which uses udp and iterates over NIS maps.  The latter isn't as
 reliable as yp_all() which uses TCP, but it is better than hanging.
 
 (I have some reports that older version of hpux-9, with older libc, also
@@ -113,3 +113,16 @@ but it is not yet in the glibc-2.0.7-19 RPM.
 A bug in libc results in an amq binary that doesn't work; amq -v dumps core
 in xdr_string.  There is no known fix (source code or vendor patch) at this
 time.  (Please let amd-dev know if you know of a fix.)
+
+
+(7) *-aix4.3.2.0
+
+The plock() function appears to fail with ENOMEM (Not Enough Space).  When
+it fails, it consumes a lot of memory.  This appears to be an AIX bug.  I
+think plock returns an error code, but it partially succeeds to lock some
+pages, thus increasing memory consumption.  When partial failures occur, it
+is possible that AIX fails to unlock those pages it did lock.  Solution:
+turn off usage of plock on AIX.  Put plock=no in your amd.conf file (which
+is the default if you do nothing).
+
+Erez.

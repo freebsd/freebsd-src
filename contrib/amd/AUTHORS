@@ -255,6 +255,9 @@ March 26, 1999: ensure lostaltmail displays Y2K compliant dates.
 * Jon Peatfield <J.S.Peatfield@damtp.cam.ac.uk>
 March 30, 1999: turn off incomplete NFS V.3 support in HPUX 10.20.
 
+September 22, 1999: safe reloading of maps without first clearing old
+copies, and using cached copies if map failed to reload.
+
 * Peter Breitenlohner <peb@mppmu.mpg.de>
 July 24, 1999: patch for linux 2.2.x to work with older libc5 systems, and
 nis_isup mis-logic fixes.
@@ -267,3 +270,7 @@ July 14, 1999: add netgrpd() syntax function which uses FQHN.
 
 * Andrew J. Korty <ajk@purdue.edu>
 September 5, 1999: pawd works for type:=nfsl.
+
+* Nick Williams <njw@ms.com>
+September 1, 1999: bug fix for incorrect symlinks when two locations are
+requested simultaneously.

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: opts.c,v 1.5 1999/08/16 01:16:23 ezk Exp $
+ * $Id: opts.c,v 1.6 1999/09/30 21:01:32 ezk Exp $
  *
  */
 
@@ -175,6 +175,10 @@ static struct opt opt_fields[] = {
 	0,			&gopt.op_sys,	0,		TRUE	},
   { S("osver"),
 	0,			&gopt.op_sys_ver,	0,	TRUE	},
+  { S("full_os"),
+	0,			&gopt.op_sys_full,	0,	TRUE	},
+  { S("vendor"),
+	0,			&gopt.op_sys_vendor,	0,	TRUE	},
   { S("remopts"),
 	&fs_static.opt_remopts,	0,		0,		FALSE	},
   { S("mount"),
