@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: edit.c,v 1.11 1998/08/14 03:18:32 thepish Exp $
+ *	$Id: edit.c,v 1.12 1998/12/06 22:58:14 archie Exp $
  */
 
 #ifndef lint
@@ -149,7 +149,7 @@ display(fd, pw)
 	if (p)
 	  list[E_LOCATE].save = strdup(p);
 	if (!list[E_LOCATE].restricted || !uid)
-	  (void)fprintf(fp, "Location: %s\n", p ? p : "");
+	  (void)fprintf(fp, "Office Location: %s\n", p ? p : "");
 
         p = strsep(&bp, ",");
 	if (p)
