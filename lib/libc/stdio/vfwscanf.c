@@ -149,6 +149,7 @@ __vfwscanf(FILE * __restrict fp, const wchar_t * __restrict fmt, va_list ap)
 	char *mbp;		/* multibyte string pointer for %c %s %[ */
 	size_t nconv;		/* number of bytes in mb. conversion */
 	mbstate_t mbs;		/* multibyte state */
+	char mbbuf[MB_LEN_MAX];	/* temporary mb. character buffer */
 
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
 	static short basefix[17] =
@@ -364,38 +365,56 @@ literal:
 			/* scan arbitrary characters (sets NOSKIP) */
 			if (width == 0)
 				width = 1;
-			if (flags & SUPPRESS) {
-				while (width-- != 0 &&
-				    (wi = __fgetwc(fp)) != WEOF)
-					nread++;
-			} else if (flags & LONG) {
-				p = va_arg(ap, wchar_t *);
+			if (flags & LONG) {
+				if (!(flags & SUPPRESS))
+					p = va_arg(ap, wchar_t *);
 				n = 0;
 				while (width-- != 0 &&
 				    (wi = __fgetwc(fp)) != WEOF) {
-					*p++ = (wchar_t)wi;
+					if (!(flags & SUPPRESS))
+						*p++ = (wchar_t)wi;
 					n++;
 				}
 				if (n == 0)
 					goto input_failure;
 				nread += n;
-				nassigned++;
+				if (!(flags & SUPPRESS))
+					nassigned++;
 			} else {
-				mbp = va_arg(ap, char *);
+				if (!(flags & SUPPRESS))
+					mbp = va_arg(ap, char *);
 				n = 0;
 				memset(&mbs, 0, sizeof(mbs));
-				while (width-- != 0 &&
+				while (width != 0 &&
 				    (wi = __fgetwc(fp)) != WEOF) {
-					nconv = wcrtomb(mbp, wi, &mbs);
-					if (nconv == (size_t)-1)
-						goto input_failure;
-					mbp += nconv;
+					if (width >= MB_CUR_MAX &&
+					    !(flags & SUPPRESS)) {
+						nconv = wcrtomb(mbp, wi, &mbs);
+						if (nconv == (size_t)-1)
+							goto input_failure;
+					} else {
+						nconv = wcrtomb(mbbuf, wi,
+						    &mbs);
+						if (nconv == (size_t)-1)
+							goto input_failure;
+						if (nconv > width) {
+							__ungetwc(wi, fp);
+							break;
+						}
+						if (!(flags & SUPPRESS))
+							memcpy(mbp, mbbuf,
+							    nconv);
+					}
+					if (!(flags & SUPPRESS))
+						mbp += nconv;
+					width -= nconv;
 					n++;
 				}
 				if (n == 0)
 					goto input_failure;
 				nread += n;
-				nassigned++;
+				if (!(flags & SUPPRESS))
+					nassigned++;
 			}
 			nconversions++;
 			break;
@@ -405,7 +424,7 @@ literal:
 			if (width == 0)
 				width = (size_t)~0;	/* `infinity' */
 			/* take only those things in the class */
-			if (flags & SUPPRESS) {
+			if ((flags & SUPPRESS) && (flags & LONG)) {
 				n = 0;
 				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width-- != 0 && INCCL(wi))
@@ -427,21 +446,39 @@ literal:
 				*p = 0;
 				nassigned++;
 			} else {
-				mbp = va_arg(ap, char *);
+				if (!(flags & SUPPRESS))
+					mbp = va_arg(ap, char *);
 				n = 0;
 				memset(&mbs, 0, sizeof(mbs));
 				while ((wi = __fgetwc(fp)) != WEOF &&
-				    width-- != 0 && INCCL(wi)) {
-					nconv = wcrtomb(mbp, wi, &mbs);
-					if (nconv == (size_t)-1)
-						goto input_failure;
-					mbp += nconv;
+				    width != 0 && INCCL(wi)) {
+					if (width >= MB_CUR_MAX &&
+					   !(flags & SUPPRESS)) {
+						nconv = wcrtomb(mbp, wi, &mbs);
+						if (nconv == (size_t)-1)
+							goto input_failure;
+					} else {
+						nconv = wcrtomb(mbbuf, wi,
+						    &mbs);
+						if (nconv == (size_t)-1)
+							goto input_failure;
+						if (nconv > width)
+							break;
+						if (!(flags & SUPPRESS))
+							memcpy(mbp, mbbuf,
+							    nconv);
+					}
+					if (!(flags & SUPPRESS))
+						mbp += nconv;
+					width -= nconv;
 					n++;
 				}
 				if (wi != WEOF)
 					__ungetwc(wi, fp);
-				*mbp = 0;
-				nassigned++;
+				if (!(flags & SUPPRESS)) {
+					*mbp = 0;
+					nassigned++;
+				}
 			}
 			nread += n;
 			nconversions++;
@@ -451,7 +488,7 @@ literal:
 			/* like CCL, but zero-length string OK, & no NOSKIP */
 			if (width == 0)
 				width = (size_t)~0;
-			if (flags & SUPPRESS) {
+			if ((flags & SUPPRESS) && (flags & LONG)) {
 				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width-- != 0 &&
 				    !iswspace(wi))
@@ -471,21 +508,39 @@ literal:
 				*p = '\0';
 				nassigned++;
 			} else {
-				mbp = va_arg(ap, char *);
+				if (!(flags & SUPPRESS))
+					mbp = va_arg(ap, char *);
 				memset(&mbs, 0, sizeof(mbs));
 				while ((wi = __fgetwc(fp)) != WEOF &&
-				    width-- != 0 &&
+				    width != 0 &&
 				    !iswspace(wi)) {
-					nconv = wcrtomb(mbp, wi, &mbs);
-					if (nconv == (size_t)-1)
-						goto input_failure;
-					mbp += nconv;
+					if (width >= MB_CUR_MAX &&
+					    !(flags & SUPPRESS)) {
+						nconv = wcrtomb(mbp, wi, &mbs);
+						if (nconv == (size_t)-1)
+							goto input_failure;
+					} else {
+						nconv = wcrtomb(mbbuf, wi,
+						    &mbs);
+						if (nconv == (size_t)-1)
+							goto input_failure;
+						if (nconv > width)
+							break;
+						if (!(flags & SUPPRESS))
+							memcpy(mbp, mbbuf,
+							    nconv);
+					}
+					if (!(flags & SUPPRESS))
+						mbp += nconv;
+					width -= nconv;
 					nread++;
 				}
 				if (wi != WEOF)
 					__ungetwc(wi, fp);
-				*mbp = 0;
-				nassigned++;
+				if (!(flags & SUPPRESS)) {
+					*mbp = 0;
+					nassigned++;
+				}
 			}
 			nconversions++;
 			continue;
