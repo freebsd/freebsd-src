@@ -216,7 +216,7 @@ MAN1...MAN8	Manual pages (should end in .0).  If no MAN variable is
 PROG		The name of the program to build.  If not supplied, nothing
 		is built.
 
-SRCS		List of source files to build the program.  If PROG is not
+SRCS		List of source files to build the program.  If SRCS is not
 		defined, it's assumed to be ${PROG}.c.
 
 DPADD		Additional dependencies for the program.  Usually used for
