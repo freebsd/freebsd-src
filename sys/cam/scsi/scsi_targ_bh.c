@@ -510,7 +510,8 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 			      /*retries*/2,
 			      targbhdone,
 			      flags,
-			      /*tag_action*/MSG_SIMPLE_Q_TAG,
+			      (flags & CAM_TAG_ACTION_VALID)?
+				MSG_SIMPLE_Q_TAG : 0,
 			      atio->tag_id,
 			      atio->init_id,
 			      desc->status,

@@ -1362,7 +1362,8 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 			      /*retries*/2,
 			      targdone,
 			      flags,
-			      /*tag_action*/MSG_SIMPLE_Q_TAG,
+			      (flags & CAM_TAG_ACTION_VALID)?
+				MSG_SIMPLE_Q_TAG : 0,
 			      atio->tag_id,
 			      atio->init_id,
 			      desc->status,
@@ -1797,7 +1798,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * controller to handle more work.
 				 */
 				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
-					  ("Returning ATIO to target\n"));
+					  ("Returning ATIO to target SIM\n"));
 				atio->ccb_h.ccb_flags = TARG_CCB_NONE;
 				xpt_action((union ccb *)atio);
 				break;
