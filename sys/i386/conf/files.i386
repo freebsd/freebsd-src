@@ -383,6 +383,7 @@ i4b/layer1/i4b_drn_ngo.c	optional	isic
 #i4b/layer1/i4b_dynalink.c	optional	isic
 i4b/layer1/i4b_elsa_qs1i.c	optional	isic
 i4b/layer1/i4b_elsa_qs1p.c	optional	isic
+i4b/layer1/i4b_elsa_pcc16.c	optional	isic
 i4b/layer1/i4b_hscx.c		optional	isic
 i4b/layer1/i4b_isac.c		optional	isic
 i4b/layer1/i4b_isic.c		optional	isic
