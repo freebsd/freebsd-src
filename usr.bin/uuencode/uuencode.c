@@ -120,11 +120,11 @@ encode()
 			ch = ENC(ch);
 			if (putchar(ch) == EOF)
 				break;
-			ch = (*p << 4) & 060 | (p[1] >> 4) & 017;
+			ch = ((*p << 4) & 060) | ((p[1] >> 4) & 017);
 			ch = ENC(ch);
 			if (putchar(ch) == EOF)
 				break;
-			ch = (p[1] << 2) & 074 | (p[2] >> 6) & 03;
+			ch = ((p[1] << 2) & 074) | ((p[2] >> 6) & 03);
 			ch = ENC(ch);
 			if (putchar(ch) == EOF)
 				break;
