@@ -776,7 +776,10 @@ en_txdma(struct en_softc *sc, struct en_txslot *slot)
 
 	EN_COUNT(sc->stats.launch);
 	sc->ifatm.ifnet.if_opackets++;
-  
+
+	sc->vccs[tx.vci]->opackets++;
+	sc->vccs[tx.vci]->obytes += tx.datalen;
+
 #ifdef ENABLE_BPF
 	if (sc->ifatm.ifnet.if_bpf != NULL) {
 		/*
@@ -1887,6 +1890,10 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 
 		m->m_pkthdr.rcvif = &sc->ifatm.ifnet;
 		sc->ifatm.ifnet.if_ipackets++;
+
+		vc->ipackets++;
+		vc->ibytes += m->m_pkthdr.len;
+
 #ifdef EN_DEBUG
 		if (sc->debug & DBG_IPACKETS)
 			en_dump_packet(sc, m);
