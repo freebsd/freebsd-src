@@ -62,6 +62,10 @@ moduleInitialize(void)
 	while ((dp = readdir(dirp))) {
 	    if (dp->d_namlen < (sizeof(".ko") - 1)) continue;
 	    if (strcmp(dp->d_name + dp->d_namlen - (sizeof(".ko") - 1), ".ko") == 0) {
+		strcpy(module, dp->d_name);
+		module[dp->d_namlen - (sizeof(".ko") - 1)] = '\0';
+		if (modfind(module) != -1)
+			continue;
 		strcpy(module, MODULESDIR);
 		strcat(module, "/");
 		strcat(module, dp->d_name);
