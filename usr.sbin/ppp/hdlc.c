@@ -318,22 +318,26 @@ hdlc_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
 
   log_DumpBp(LogHDLC, "hdlc_LayerPull:", bp);
 
-  fcs = hdlc_Fcs(MBUF_CTOP(bp), bp->m_len);
+  bp = m_pullup(bp);
+  len = m_length(bp);
+  fcs = hdlc_Fcs(MBUF_CTOP(bp), len);
 
   log_Printf(LogDEBUG, "%s: hdlc_LayerPull: fcs = %04x (%s)\n",
              p->link.name, fcs, (fcs == GOODFCS) ? "good" : "BAD!");
 
+  p->hdlc.lqm.ifInOctets += len + 1;			/* plus 1 flag octet! */
+
   if (fcs != GOODFCS) {
-    p->hdlc.lqm.SaveInErrors++;
+    p->hdlc.lqm.ifInErrors++;
     p->hdlc.stats.badfcs++;
     m_freem(bp);
     return NULL;
   }
 
-  p->hdlc.lqm.SaveInOctets += bp->m_len + 1;
-  p->hdlc.lqm.SaveInPackets++;
+  /* Either done here or by the sync layer */
+  p->hdlc.lqm.lqr.InGoodOctets += len + 1;		/* plus 1 flag octet! */
+  p->hdlc.lqm.ifInUniPackets++;
 
-  len = m_length(bp);
   if (len < 4) {			/* rfc1662 section 4.3 */
     m_freem(bp);
     bp = NULL;

@@ -65,6 +65,7 @@ extern void link_SequenceQueue(struct link *);
 extern void link_DeleteQueue(struct link *);
 extern size_t link_QueueLen(struct link *);
 extern size_t link_QueueBytes(struct link *);
+extern void link_PendingLowPriorityData(struct link *, size_t *, size_t *);
 extern struct mbuf *link_Dequeue(struct link *);
 
 extern void link_PushPacket(struct link *, struct mbuf *, struct bundle *,
