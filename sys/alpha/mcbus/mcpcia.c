@@ -80,6 +80,9 @@ static int mcpcia_setup_intr(device_t, device_t, struct resource *, int,
 static int
 mcpcia_teardown_intr(device_t, device_t, struct resource *, void *);
 static driver_intr_t mcpcia_intr;
+static void mcpcia_enable_intr(struct mcpcia_softc *, int);
+static void mcpcia_disable_intr(struct mcpcia_softc *, int);
+
 
 static device_method_t mcpcia_methods[] = {
 	/* Device interface */
@@ -566,16 +569,17 @@ mcpcia_attach(device_t dev)
 		if (sc == mcpcia_eisa) {
 			printf("Attaching Real Console\n");
 			dec_kn300_cons_init();
+			/*
+			 * Enable EISA interrupts.
+			 */
+			mcpcia_enable_intr(sc, 16);
 		}
 		bus_generic_attach(dev);
 	}
 	return (rval);
 }
 
-static void mcpcia_enable_intr(struct mcpcia_softc *, int);
-static void mcpcia_disable_intr(struct mcpcia_softc *, int);
-
-void
+static void
 mcpcia_enable_intr(struct mcpcia_softc *sc, int irq)
 {
 	alpha_mb();
@@ -583,7 +587,7 @@ mcpcia_enable_intr(struct mcpcia_softc *sc, int irq)
 	alpha_mb();
 }
 
-void
+static void
 mcpcia_disable_intr(struct mcpcia_softc *sc, int irq)
 {
 	alpha_mb();
