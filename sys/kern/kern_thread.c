@@ -340,12 +340,15 @@ thread_free(struct thread *td)
 int
 thread_export_context(struct thread *td)
 {
-	struct proc *p = td->td_proc;
+	struct proc *p;
 	struct ksegrp *kg;
 	uintptr_t mbx;
 	void *addr;
 	int error;
 	ucontext_t uc;
+
+	p = td->td_proc;
+	kg = td->td_ksegrp;
 
 	/* Export the user/machine context. */
 #if 0
@@ -377,7 +380,6 @@ thread_export_context(struct thread *td)
 	 * Put the saved address of the previous first
 	 * entry into this one
 	 */
-	kg = td->td_ksegrp;
 	for (;;) {
 		mbx = (uintptr_t)kg->kg_completed;
 		if (suword(addr, mbx)) {
