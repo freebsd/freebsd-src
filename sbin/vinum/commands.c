@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.36 2000/12/20 05:05:39 grog Exp $
+ * $Id: commands.c,v 1.14 2000/11/14 20:01:23 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -53,8 +53,6 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <dev/vinum/vinumhdr.h>
-#include <dev/vinum/request.h>
 #include "vext.h"
 #include <sys/types.h>
 #include <sys/linker.h>
@@ -128,7 +126,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
 
 	if (configline == NULL) {
 	    if (ferror(dfd))
-		vinum_perror("Can't read config file");
+		perror("Can't read config file");
 	    break;
 	}
 	file_line++;					    /* count the lines */
@@ -157,8 +155,9 @@ vinum_create(int argc, char *argv[], char *arg0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	vinum_perror("Can't save Vinum config");
-    make_devices();
+	perror("Can't save Vinum config");
+    if (no_devfs)
+	make_devices();
     listconfig();
     checkupdates();					    /* make sure we're updating */
 }
@@ -192,12 +191,13 @@ vinum_read(int argc, char *argv[], char *arg0[])
 	fprintf(stdout, "** %s: %s\n", reply->msg, strerror(reply->error));
 	error = ioctl(superdev, VINUM_RELEASECONFIG, NULL); /* save the config to disk */
 	if (error != 0)
-	    vinum_perror("Can't save Vinum config");
+	    perror("Can't save Vinum config");
     } else {
 	error = ioctl(superdev, VINUM_RELEASECONFIG, NULL); /* save the config to disk */
 	if (error != 0)
-	    vinum_perror("Can't save Vinum config");
-	make_devices();
+	    perror("Can't save Vinum config");
+	if (no_devfs)
+	    make_devices();
     }
     checkupdates();					    /* make sure we're updating */
 }
@@ -288,9 +288,10 @@ vinum_resetconfig(int argc, char *argv[], char *arg0[])
 	    if (errno == EBUSY)
 		fprintf(stderr, "Can't reset configuration: objects are in use\n");
 	    else
-		vinum_perror("Can't find vinum config");
+		perror("Can't find vinum config");
 	} else {
-	    make_devices();				    /* recreate the /dev/vinum hierarchy */
+	    if (no_devfs)
+		make_devices();				    /* recreate the /dev/vinum hierarchy */
 	    printf("\b Vinum configuration obliterated\n");
 	    start_daemon();				    /* then restart the daemon */
 	}
@@ -533,7 +534,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 
 	tokens = 0;					    /* no tokens yet */
 	if (getdevs(&statinfo) < 0) {			    /* find out what devices we have */
-	    vinum_perror("Can't get device list");
+	    perror("Can't get device list");
 	    return;
 	}
 	namelist[0] = '\0';				    /* start with empty namelist */
@@ -543,9 +544,9 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    struct devstat *stat = &statinfo.dinfo->devices[i];
 
 	    if (((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
-&&((stat->device_type & DEVSTAT_TYPE_PASS) == 0)	    /* and not passthrough */
+	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
 	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
-		sprintf(enamelist, "%s%s%d", _PATH_DEV, stat->device_name, stat->unit_number);
+		sprintf(enamelist, _PATH_DEV "%s%d", stat->device_name, stat->unit_number);
 		token[tokens] = enamelist;		    /* point to it */
 		tokens++;				    /* one more token */
 		enamelist = &enamelist[strlen(enamelist) + 1]; /* and start beyond the end */
@@ -708,7 +709,7 @@ vinum_stop(int argc, char *argv[], char *arg0[])
 	fileid = kldfind(VINUMMOD);
 	if ((fileid < 0)				    /* no go */
 	||(kldunload(fileid) < 0))
-	    vinum_perror("Can't unload " VINUMMOD);
+	    perror("Can't unload " VINUMMOD);
 	else {
 	    fprintf(stderr, VINUMMOD " unloaded\n");
 	    exit(0);
@@ -717,7 +718,7 @@ vinum_stop(int argc, char *argv[], char *arg0[])
 	/* If we got here, the stop failed.  Reopen the superdevice. */
 	superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* reopen vinum superdevice */
 	if (superdev < 0) {
-	    vinum_perror("Can't reopen Vinum superdevice");
+	    perror("Can't reopen Vinum superdevice");
 	    exit(1);
 	}
     } else {						    /* stop specified objects */
@@ -796,7 +797,7 @@ reset_volume_stats(int volno, int recurse)
 	fprintf(stderr, "Can't reset stats for volume %d: %s\n", volno, reply->msg);
 	longjmp(command_fail, -1);
     } else if (recurse) {
-	struct volume vol;
+	struct _volume vol;
 	int plexno;
 
 	get_volume_info(&vol, volno);
@@ -819,8 +820,8 @@ reset_plex_stats(int plexno, int recurse)
 	fprintf(stderr, "Can't reset stats for plex %d: %s\n", plexno, reply->msg);
 	longjmp(command_fail, -1);
     } else if (recurse) {
-	struct plex plex;
-	struct sd sd;
+	struct _plex plex;
+	struct _sd sd;
 	int sdno;
 
 	get_plex_info(&plex, plexno);
@@ -874,7 +875,7 @@ vinum_resetstats(int argc, char *argv[], char *argv0[])
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     if (argc == 0) {
@@ -936,7 +937,7 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     msg.index = find_object(objname, &msg.type);	    /* find the object to attach */
@@ -1003,8 +1004,8 @@ vinum_attach(int argc, char *argv[], char *argv0[])
     }
     if (rename) {
 	struct sd;
-	struct plex;
-	struct volume;
+	struct _plex;
+	struct _volume;
 
 	/* we've overwritten msg with the
 	 * ioctl reply, start again */
@@ -1058,7 +1059,7 @@ vinum_detach(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     msg.index = find_object(argv[0], &msg.type);	    /* find the object to detach */
@@ -1198,7 +1199,7 @@ vinum_rename(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     vinum_rename_2(argv[0], argv[1]);
@@ -1228,7 +1229,7 @@ vinum_mv(int argc, char *argv[], char *argv0[])
     }
     /* Get current config */
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Cannot get vinum config\n");
+	perror("Cannot get vinum config\n");
 	return;
     }
     /* Get our destination */
@@ -1330,68 +1331,80 @@ vinum_help(int argc, char *argv[], char *argv0[])
     char commands[] =
     {
 	"COMMANDS\n"
-	"create [-f description-file]\n"
-	"          Create a volume as described in description-file\n"
 	"attach plex volume [rename]\n"
 	"attach subdisk plex [offset] [rename]\n"
-	"          Attach a plex to a volume, or a subdisk to a plex.\n"
-	"debug\n"
-	"          Cause the volume manager to enter the kernel debugger.\n"
+	"        Attach a plex to a volume, or a subdisk to a plex.\n"
+	"checkparity plex [-f] [-v]\n"
+	"        Check the parity blocks of a RAID-4 or RAID-5 plex.\n"
+	"concat [-f] [-n name] [-v] drives\n"
+	"        Create a concatenated volume from the specified drives.\n"
+	"create [-f] description-file\n"
+	"        Create a volume as described in description-file.\n"
+	"debug   Cause the volume manager to enter the kernel debugger.\n"
 	"debug flags\n"
-	"          Set debugging flags.\n"
-	"detach [plex | subdisk]\n"
-	"          Detach a plex or subdisk from the volume or plex to which it is\n"
-	"          attached.\n"
-	"info [-v]\n"
-	"          List information about volume manager state.\n"
-	"init [-v] [-w] plex\n"
-	"          Initialize a plex by writing zeroes to all its subdisks.\n"
+	"        Set debugging flags.\n"
+	"detach [-f] [plex | subdisk]\n"
+	"        Detach a plex or subdisk from the volume or plex to which it is\n"
+	"        attached.\n"
+	"dumpconfig [drive ...]\n"
+	"        List the configuration information stored on the specified\n"
+	"        drives, or all drives in the system if no drive names are speci-\n"
+	"        fied.\n"
+	"info [-v] [-V]\n"
+	"        List information about volume manager state.\n"
+	"init [-S size] [-w] plex | subdisk\n"
+	"        Initialize the contents of a subdisk or all the subdisks of a\n"
+	"        plex to all zeros.\n"
 	"label volume\n"
-	"          Create a volume label\n"
-	"list [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
-	"          List information about specified objects\n"
-	"l [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
-	"          List information about specified objects (alternative to\n"
-	"          list command)\n"
+	"        Create a volume label.\n"
+	"l | list [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
+	"        List information about specified objects.\n"
 	"ld [-r] [-s] [-v] [-V] [volume]\n"
-	"          List information about drives\n"
+	"        List information about drives.\n"
 	"ls [-r] [-s] [-v] [-V] [subdisk]\n"
-	"          List information about subdisks\n"
+	"        List information about subdisks.\n"
 	"lp [-r] [-s] [-v] [-V] [plex]\n"
-	"          List information about plexes\n"
+	"        List information about plexes.\n"
 	"lv [-r] [-s] [-v] [-V] [volume]\n"
-	"          List information about volumes\n"
-	"printconfig [file]\n"
-	"          Write a copy of the current configuration to file.\n"
+	"        List information about volumes.\n"
 	"makedev\n"
-	"          Remake the device nodes in " _PATH_DEV "vinum.\n"
-	"move drive [subdisk | plex | drive]\n"
-	"          Move the subdisks of the specified object(s) to drive.\n"
-	"quit\n"
-	"          Exit the vinum program when running in interactive mode.  Nor-\n"
-	"          mally this would be done by entering the EOF character.\n"
-	"read disk [disk...]\n"
-	"          Read the vinum configuration from the specified disks.\n"
+	"        Remake the device nodes in /dev/vinum.\n"
+	"mirror [-f] [-n name] [-s] [-v] drives\n"
+	"        Create a mirrored volume from the specified drives.\n"
+	"move | mv -f drive object ...\n"
+	"        Move the object(s) to the specified drive.\n"
+	"printconfig [file]\n"
+	"        Write a copy of the current configuration to file.\n"
+	"quit    Exit the vinum program when running in interactive mode.  Nor-\n"
+	"        mally this would be done by entering the EOF character.\n"
+	"read disk ...\n"
+	"        Read the vinum configuration from the specified disks.\n"
 	"rename [-r] [drive | subdisk | plex | volume] newname\n"
-	"          Change the name of the specified object.\n"
+	"        Change the name of the specified object.\n"
+	"rebuildparity plex [-f] [-v] [-V]\n"
+	"        Rebuild the parity blocks of a RAID-4 or RAID-5 plex.\n"
 	"resetconfig\n"
-	"          Reset the complete vinum configuration.\n"
+	"        Reset the complete vinum configuration.\n"
 	"resetstats [-r] [volume | plex | subdisk]\n"
-	"          Reset statistisc counters for the specified objects, or for all\n"
-	"          objects if none are specified.\n"
+	"        Reset statistisc counters for the specified objects, or for all\n"
+	"        objects if none are specified.\n"
 	"rm [-f] [-r] volume | plex | subdisk\n"
-	"          Remove an object\n"
+	"        Remove an object.\n"
 	"saveconfig\n"
-	"          Save vinum configuration to disk.\n"
+	"        Save vinum configuration to disk after configuration failures.\n"
 	"setdaemon [value]\n"
-	"          Set daemon configuration.\n"
-	"start\n"
-	"          Read configuration from all vinum drives.\n"
-	"start [volume | plex | subdisk]\n"
-	"          Allow the system to access the objects\n"
+	"        Set daemon configuration.\n"
+	"setstate state [volume | plex | subdisk | drive]\n"
+	"        Set state without influencing other objects, for diagnostic pur-\n"
+	"        poses only.\n"
+	"start   Read configuration from all vinum drives.\n"
+	"start [-i interval] [-S size] [-w] volume | plex | subdisk\n"
+	"        Allow the system to access the objects.\n"
 	"stop [-f] [volume | plex | subdisk]\n"
-	"          Terminate access to the objects, or stop vinum if no parameters\n"
-	"          are specified.\n"
+	"        Terminate access to the objects, or stop vinum if no parameters\n"
+	"        are specified.\n"
+	"stripe [-f] [-n name] [-v] drives\n"
+	"        Create a striped volume from the specified drives.\n"
     };
     puts(commands);
 }
@@ -1422,20 +1435,6 @@ vinum_setdaemon(int argc, char *argv[], char *argv0[])
 	fprintf(stderr, "Usage: \tsetdaemon [<bitmask>]\n");
     }
     checkupdates();					    /* make sure we're updating */
-}
-
-int
-checkupdates()
-{
-    int options;
-
-    if (ioctl(superdev, VINUM_GETDAEMON, &options) < 0)
-	fprintf(stderr, "Can't get daemon options: %s (%d)\n", strerror(errno), errno);
-    if (options & daemon_noupdate) {
-	fprintf(stderr, "*** Warning: configuration updates are disabled. ***\n");
-	return 1;
-    } else
-	return 0;
 }
 
 /* Save config info */
@@ -1480,7 +1479,7 @@ genvolname()
  * vinumdrive#, where # is a small positive
  * number.  Return the name of the drive.
  */
-struct drive *
+struct _drive *
 create_drive(char *devicename)
 {
     int d;						    /* volume number */
@@ -1539,7 +1538,7 @@ vinum_concat(int argc, char *argv[], char *argv0[])
 {
     int o;						    /* object number */
     char buffer[BUFSIZE];
-    struct drive *drive;				    /* drive we're currently looking at */
+    struct _drive *drive;				    /* drive we're currently looking at */
     struct _ioctl_reply *reply;
     int ioctltype;
     int error;
@@ -1617,7 +1616,7 @@ vinum_concat(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	vinum_perror("Can't save Vinum config");
+	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {
@@ -1638,7 +1637,7 @@ vinum_stripe(int argc, char *argv[], char *argv0[])
 {
     int o;						    /* object number */
     char buffer[BUFSIZE];
-    struct drive *drive;				    /* drive we're currently looking at */
+    struct _drive *drive;				    /* drive we're currently looking at */
     struct _ioctl_reply *reply;
     int ioctltype;
     int error;
@@ -1707,9 +1706,9 @@ vinum_stripe(int argc, char *argv[], char *argv0[])
 		reply->error);
 	longjmp(command_fail, -1);			    /* give up */
     }
-    sprintf(buffer, "plex name %s.p0 org striped 256k", objectname);
+    sprintf(buffer, "plex name %s.p0 org striped 279k", objectname);
     if (vflag)
-	printf("  plex name %s.p0 org striped 256k\n", objectname);
+	printf("  plex name %s.p0 org striped 279k\n", objectname);
     ioctl(superdev, VINUM_CREATE, buffer);
     if (reply->error != 0) {				    /* error in config */
 	if (reply->msg[0])
@@ -1762,7 +1761,7 @@ vinum_stripe(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	vinum_perror("Can't save Vinum config");
+	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {
@@ -1782,7 +1781,7 @@ vinum_raid4(int argc, char *argv[], char *argv0[])
 {
     int o;						    /* object number */
     char buffer[BUFSIZE];
-    struct drive *drive;				    /* drive we're currently looking at */
+    struct _drive *drive;				    /* drive we're currently looking at */
     struct _ioctl_reply *reply;
     int ioctltype;
     int error;
@@ -1851,9 +1850,9 @@ vinum_raid4(int argc, char *argv[], char *argv0[])
 		reply->error);
 	longjmp(command_fail, -1);			    /* give up */
     }
-    sprintf(buffer, "plex name %s.p0 org raid4 256k", objectname);
+    sprintf(buffer, "plex name %s.p0 org raid4 279k", objectname);
     if (vflag)
-	printf("  plex name %s.p0 org raid4 256k\n", objectname);
+	printf("  plex name %s.p0 org raid4 279k\n", objectname);
     ioctl(superdev, VINUM_CREATE, buffer);
     if (reply->error != 0) {				    /* error in config */
 	if (reply->msg[0])
@@ -1906,7 +1905,7 @@ vinum_raid4(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	vinum_perror("Can't save Vinum config");
+	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {
@@ -1926,7 +1925,7 @@ vinum_raid5(int argc, char *argv[], char *argv0[])
 {
     int o;						    /* object number */
     char buffer[BUFSIZE];
-    struct drive *drive;				    /* drive we're currently looking at */
+    struct _drive *drive;				    /* drive we're currently looking at */
     struct _ioctl_reply *reply;
     int ioctltype;
     int error;
@@ -1995,9 +1994,9 @@ vinum_raid5(int argc, char *argv[], char *argv0[])
 		reply->error);
 	longjmp(command_fail, -1);			    /* give up */
     }
-    sprintf(buffer, "plex name %s.p0 org raid5 256k", objectname);
+    sprintf(buffer, "plex name %s.p0 org raid5 279k", objectname);
     if (vflag)
-	printf("  plex name %s.p0 org raid5 256k\n", objectname);
+	printf("  plex name %s.p0 org raid5 279k\n", objectname);
     ioctl(superdev, VINUM_CREATE, buffer);
     if (reply->error != 0) {				    /* error in config */
 	if (reply->msg[0])
@@ -2050,7 +2049,7 @@ vinum_raid5(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	vinum_perror("Can't save Vinum config");
+	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {
@@ -2076,7 +2075,7 @@ vinum_mirror(int argc, char *argv[], char *argv0[])
     int o;						    /* object number */
     int p;						    /* plex number */
     char buffer[BUFSIZE];
-    struct drive *drive;				    /* drive we're currently looking at */
+    struct _drive *drive;				    /* drive we're currently looking at */
     struct _ioctl_reply *reply;
     int ioctltype;
     int error;
@@ -2157,9 +2156,9 @@ vinum_mirror(int argc, char *argv[], char *argv0[])
     }
     for (p = 0; p < 2; p++) {				    /* create each plex */
 	if (sflag) {
-	    sprintf(buffer, "plex name %s.p%d org striped 256k", objectname, p);
+	    sprintf(buffer, "plex name %s.p%d org striped 279k", objectname, p);
 	    if (vflag)
-		printf("  plex name %s.p%d org striped 256k\n", objectname, p);
+		printf("  plex name %s.p%d org striped 279k\n", objectname, p);
 	} else {					    /* concat */
 	    sprintf(buffer, "plex name %s.p%d org concat", objectname, p);
 	    if (vflag)
@@ -2225,7 +2224,7 @@ vinum_mirror(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	vinum_perror("Can't save Vinum config");
+	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {
@@ -2243,8 +2242,8 @@ vinum_readpol(int argc, char *argv[], char *argv0[])
     struct _ioctl_reply reply;
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
     enum objecttype type;
-    struct plex plex;
-    struct volume vol;
+    struct _plex plex;
+    struct _volume vol;
     int plexno;
 
     if (argc == 0) {					    /* start everything */
@@ -2386,7 +2385,7 @@ void
 parityops(int argc, char *argv[], enum parityop op)
 {
     int object;
-    struct plex plex;
+    struct _plex plex;
     struct _ioctl_reply reply;
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
     int index;
