@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.20 1994/11/18 19:10:25 jkh Exp $
+#	$Id: GENERIC,v 1.21 1994/12/16 06:04:14 phk Exp $
 #
 
 machine		"i386"
@@ -25,7 +25,7 @@ options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
 options		"NCONS=4"		#4 virtual consoles
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 
-config		kernel	root on wd0 swap on wd0 and wd1 and sd0 and sd1 dumps on wd0
+config		kernel	root on wd0 swap on wd0 and wd1 and sd0 and sd1 and vn0 dumps on wd0
 
 controller	isa0
 controller	pci0
@@ -93,3 +93,4 @@ pseudo-device	sl	2
 pseudo-device	pty	16
 pseudo-device	speaker
 pseudo-device	gzip		# Exec gzipped a.out's
+pseudo-device	vn
