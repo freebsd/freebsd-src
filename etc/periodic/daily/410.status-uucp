@@ -27,7 +27,7 @@ case "$daily_status_uucp_enable" in
 	    echo ""
 	    echo "UUCP status:"
 
-	    uustat -a && rc=0 || rc=3
+	    (echo "/usr/bin/uustat -a" | su -fm uucp ) && rc=0 || rc=3
 	fi;;
 
     *)  rc=0;;
