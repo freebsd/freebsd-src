@@ -713,60 +713,25 @@ g_bde_start1(struct bio *bp)
 {
 	struct g_bde_softc *sc;
 	struct g_bde_work *wp;
-	off_t zone_start, left;
-	caddr_t p;
+	off_t left;
 
 	sc = bp->bio_to->geom->softc;
 	bp->bio_driver1 = sc;
 
 	mtx_lock(&sc->worklist_mutex);
-	zone_start = bp->bio_offset - bp->bio_offset % sc->zone_cont;
-	wp = g_bde_new_work(sc);
-	if (wp == NULL) {
-		g_io_deliver(bp, ENOMEM);
-		mtx_unlock(&sc->worklist_mutex);
-		return;
-	}
-	left = bp->bio_length;
-	p = bp->bio_data;
-
-	/* Do the first and possible only fragment */
-	wp->bp = bp;
-	wp->offset = bp->bio_offset;
-	wp->data = p;
-	wp->length = zone_start + sc->zone_cont - wp->offset;
-	if (wp->length >= left) {
-		/* Only this one fragment needed */
-		wp->length = left;
-		g_bde_start2(wp);
-		mtx_unlock(&sc->worklist_mutex);
-		return;
-	}
-
-	/* Submit the first fragment */
-	g_bde_start2(wp);
-	left -= wp->length;
-	p += wp->length;
-
-	/* Do the subsequent fragments */
-	for(;left > 0;) {
+	for(left = 0;left < bp->bio_length; left += sc->sectorsize) {
 		wp = g_bde_new_work(sc);
 		if (wp == NULL) {
-			g_bde_contribute(bp, left, ENOMEM);
+			g_io_deliver(bp, ENOMEM);
 			mtx_unlock(&sc->worklist_mutex);
 			return;
 		}
-		zone_start += sc->zone_cont;
 		wp->bp = bp;
-		wp->offset = zone_start;
-		wp->data = p;
-		if (left > sc->zone_cont)
-			wp->length = sc->zone_cont;
-		else
-			wp->length = left;
-		left -= wp->length;
-		p += wp->length;
+		wp->offset = bp->bio_offset + left;
+		wp->data = bp->bio_data + left;
+		wp->length = sc->sectorsize;
 		g_bde_start2(wp);
 	}
 	mtx_unlock(&sc->worklist_mutex);
+	return;
 }
