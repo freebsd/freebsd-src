@@ -22,6 +22,7 @@ SUBDIR=	IPXrouted \
 	crunch \
 	ctm \
 	dev_mkdb \
+	devinfo \
 	diskpart \
 	edquota \
 	extattrctl \
