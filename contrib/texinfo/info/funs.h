@@ -29,7 +29,6 @@ extern void info_prev_node ();
 extern void info_up_node ();
 extern void info_last_node ();
 extern void info_first_node ();
-extern void info_history_node ();
 extern void info_last_menu_item ();
 extern void info_menu_digit ();
 extern void info_menu_item ();
@@ -40,6 +39,7 @@ extern void info_goto_node ();
 extern void info_man ();
 extern void info_top_node ();
 extern void info_dir_node ();
+extern void info_history_node ();
 extern void info_kill_node ();
 extern void info_view_file ();
 extern void info_print_node ();
@@ -58,7 +58,7 @@ extern void info_add_digit_to_numeric_arg ();
 extern void info_universal_argument ();
 extern void info_numeric_arg_digit_loop ();
 
-/* Functions declared in "./echo_area.c". */
+/* Functions declared in "./echo-area.c". */
 extern void ea_forward ();
 extern void ea_backward ();
 extern void ea_beg_of_line ();
