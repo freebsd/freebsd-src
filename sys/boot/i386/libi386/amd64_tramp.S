@@ -108,6 +108,6 @@ longmode:
 	/* We're still running V=P, jump to entry point */
 	movl	%esi, %eax
 	salq	$32, %rax
-	movl	%edi, %eax
+	orq	%rdi, %rax
 	pushq	%rax
 	ret
