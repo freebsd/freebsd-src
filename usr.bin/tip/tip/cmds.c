@@ -137,7 +137,7 @@ cu_take(cc)
 
 	if (prompt("[take] ", copyname))
 		return;
-	if ((argc = args(copyname, argv)) < 1 || argc > 2) {
+	if ((argc = args(copyname, argv, sizeof(argv)/sizeof(argv[0]))) < 1 || argc > 2) {
 		printf("usage: <take> from [to]\r\n");
 		return;
 	}
@@ -506,7 +506,7 @@ cu_put(cc)
 
 	if (prompt("[put] ", copyname))
 		return;
-	if ((argc = args(copyname, argv)) < 1 || argc > 2) {
+	if ((argc = args(copyname, argv, sizeof(argv)/sizeof(argv[0]))) < 1 || argc > 2) {
 		printf("usage: <put> from [to]\r\n");
 		return;
 	}
@@ -811,14 +811,15 @@ execute(s)
 	execl(value(SHELL), cp, "-c", s, 0);
 }
 
-args(buf, a)
+args(buf, a, nargs)
 	char *buf, *a[];
+	int nargs;
 {
 	register char *p = buf, *start;
 	register char **parg = a;
 	register int n = 0;
 
-	do {
+	while (*p && n < nargs) {
 		while (*p && (*p == ' ' || *p == '\t'))
 			p++;
 		start = p;
@@ -830,7 +831,7 @@ args(buf, a)
 			parg++, n++;
 		if (*p)
 			*p++ = '\0';
-	} while (*p);
+	}
 
 	return(n);
 }
