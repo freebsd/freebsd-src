@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.3 1994/08/02 07:42:30 davidg Exp $
+ * $Id: subr_prf.c,v 1.4 1994/08/13 14:21:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -122,8 +122,7 @@ panic(fmt, va_alist)
 	if (boothowto & RB_KDB)
 		kdbpanic();
 #endif
-#include "ddb.h"
-#if NDDB > 0
+#ifdef DDB
 	Debugger ("panic");
 #endif
 	boot(bootopt);

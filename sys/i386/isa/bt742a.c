@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.20 1994/08/21 20:16:13 paul Exp $
+ *      $Id: bt742a.c,v 1.21 1994/08/23 07:52:07 paul Exp $
  */
 
 /*
@@ -38,7 +38,6 @@
 #include <scsi/scsiconf.h>
 
 #ifdef	KERNEL
-#include "ddb.h"
 #include <sys/kernel.h>
 #else /*KERNEL */
 #define	NBT 1

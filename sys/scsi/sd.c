@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.23 1994/04/20 07:06:57 davidg Exp $
+ *      $Id: sd.c,v 1.24 1994/05/25 09:13:32 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -42,19 +42,11 @@
 
 u_int32 sdstrats, sdqueues;
 
-#ifdef NetBSD
 #ifdef	DDB
 int     Debugger();
 #else	/* DDB */
 #define Debugger()
 #endif	/* DDB */
-#else /* NetBSD */
-#include <ddb.h>
-#if	NDDB > 0
-#else	/* NDDB > 0 */
-#define Debugger(s)
-#endif	/* NDDB > 0 */
-#endif
 
 #define PAGESIZ 	4096
 #define SECSIZE 512

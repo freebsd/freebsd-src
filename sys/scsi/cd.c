@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.18 1994/04/20 07:06:51 davidg Exp $
+ *      $Id: cd.c,v 1.19 1994/05/25 09:13:15 rgrimes Exp $
  */
 
 #define SPLCD splbio
@@ -50,11 +50,10 @@ static errval cd_read_toc(u_int32, u_int32, u_int32, struct cd_toc_entry *,
 
 int32   cdstrats, cdqueues;
 
-#include <ddb.h>
-#if	NDDB > 0
-#else	/* NDDB > 0 */
+#ifdef	DDB
+#else	/* DDB */
 #define Debugger()
-#endif	/* NDDB > 0 */
+#endif	/* DDB */
 
 #define PAGESIZ 	4096
 #define SECSIZE 2048	/* XXX */	/* default only */
