@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.43 1996/07/25 18:02:14 wollman Exp $
+ * $Id: sysctl.h,v 1.44 1996/09/10 23:31:13 bde Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -223,7 +223,8 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	KERN_MAXSOCKBUF		31	/* int: max size of a socket buffer */
 #define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */
 #define	KERN_USRSTACK		33	/* int: address of USRSTACK */
-#define KERN_MAXID		34      /* number of valid kern ids */
+#define	KERN_SOMINQUEUE		34	/* int: override socket listen() */
+#define KERN_MAXID		35      /* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -260,6 +261,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "maxsockbuf", CTLTYPE_INT }, \
 	{ "ps_strings", CTLTYPE_INT }, \
 	{ "usrstack", CTLTYPE_INT }, \
+	{ "sominqueue", CTLTYPE_INT }, \
 }
 
 /*
