@@ -87,7 +87,7 @@ ENTRY(_brk)
 
 	/* Return 0 for success */
 	mov	r0, #0x00000000
-	mov	r15, r14
+	RET
 
 	.align	2
 #ifdef PIC

@@ -61,7 +61,7 @@ ASENTRY(CERROR)
 	str	r0, [r1]
 	mvn	r0, #0x00000000
 	mvn	r1, #0x00000000
-	mov	pc, lr
+	RET
 
 #if 0
 	.align	0
