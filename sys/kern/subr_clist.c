@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.6 1994/09/13 16:02:20 davidg Exp $
+ * $Id: tty_subr.c,v 1.7 1994/09/25 19:33:50 phk Exp $
  */
 
 /*
@@ -118,6 +118,8 @@ cblock_free_cblocks(number)
 
 	for (i = 0; i < number; ++i) {
 		tmp = cblock_alloc();
+		if (tmp == NULL)
+			return;
 		free(tmp, M_TTYS);
 	}
 }
