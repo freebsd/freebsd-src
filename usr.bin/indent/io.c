@@ -34,11 +34,16 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "indent_globs.h"
@@ -348,7 +353,7 @@ fill_buffer()
 	    register offset = p - in_buffer;
 	    in_buffer = (char *) realloc(in_buffer, size);
 	    if (in_buffer == 0)
-		err("input line too long");
+		err(1, "input line too long");
 	    p = in_buffer + offset;
 	    in_buffer_limit = in_buffer + size - 2;
 	}
@@ -607,8 +612,7 @@ parsefont(f, s0)
 	else if (*s == '-')
 	    sizedelta--;
 	else {
-	    fprintf(stderr, "indent: bad font specification: %s\n", s0);
-	    exit(1);
+	    errx(1, "bad font specification: %s", s0);
 	}
 	s++;
     }
