@@ -105,14 +105,14 @@ packet to get diverted.
 If different fragments divert to different ports,
 then which port ultimately gets chosen is unpredictable.
 .Pp
-Packets are received and sent unchanged, with two exceptions:
-read as incoming will have their IP header checksum zeroed,
-and packets written as outgoing have their IP header checksums overwritten
+Packets are received and sent unchanged, except that
+packets written as outgoing have their IP header checksums overwritten
 with the correct value.
 Packets written as incoming and having incorrect checksums will be dropped.
 Otherwise, all header fields are unchanged (and therefore in network order).
 .Pp
-Binding to port numbers less than 1024 requires super-user access.
+Binding to port numbers less than 1024 requires super-user access, as does
+creating a socket of type SOCK_RAW.
 .Sh ERRORS
 Writing to a divert socket can return these errors, along with
 the usual errors possible when writing raw packets:
