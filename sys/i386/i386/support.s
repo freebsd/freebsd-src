@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.41.2.3 1996/11/12 22:19:13 phk Exp $
+ *	$Id: support.s,v 1.41.2.4 1996/11/29 19:52:12 phk Exp $
  */
 
 #include "opt_cpu.h"
@@ -893,8 +893,6 @@ ENTRY(fastmove)
 	pushl	%ebp
 	movl	%esp,%ebp
 	subl	$PCB_SAVEFPU_SIZE+3*4,%esp
-	movl	_curpcb,%eax
-	movl	$fastmove_fault,PCB_ONFAULT(%eax)
 
 	movl	8(%ebp),%ecx
 	cmpl	$63,%ecx
@@ -944,6 +942,8 @@ ENTRY(fastmove)
 /* npxproc = curproc; */
 	movl	_curproc,%eax
 	movl	%eax,_npxproc
+	movl	_curpcb,%eax
+	movl	$fastmove_fault,PCB_ONFAULT(%eax)
 4:
 	movl	%ecx,-12(%ebp)
 	cmpl	$1792,%ecx
@@ -1024,6 +1024,9 @@ fastmove_loop:
 	
 	ALIGN_TEXT
 fastmove_tail:
+	movl	_curpcb,%eax
+	movl	$fastmove_tail_fault,PCB_ONFAULT(%eax)
+
 	movb	%cl,%al
 	shrl	$2,%ecx				/* copy longword-wise */
 	cld
@@ -1040,6 +1043,20 @@ fastmove_tail:
 
 	ALIGN_TEXT
 fastmove_fault:
+	movl	_curpcb,%edi
+	addl	$PCB_SAVEFPU,%edi
+	movl	%esp,%esi
+	cld
+	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
+	rep
+	movsl
+
+	smsw	%ax
+	orb	$CR0_TS,%al
+	lmsw	%ax
+	movl	$0,_npxproc
+
+fastmove_tail_fault:
 	movl	%ebp,%esp
 	popl	%ebp
 	addl	$8,%esp
