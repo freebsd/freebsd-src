@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/15 12:04:11 $
+<date>$Date: 1997/01/16 03:51:28 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -43,10 +43,10 @@ Any entries with a &lt;XXX&gt; are under construction.
           Briefly, FreeBSD 2.X is a UN*X type operating system based on
           U.C. Berkeley's 4.4BSD-lite release for the i386 platform.  It is
           also based indirectly on William Jolitz's port of U.C. Berkeley's
-          Net/2 to the i386, known as 386BSD.  However, a very considerable
-          number of bug fixes and enhancements have been made to the original
-          code base, resulting in an extremely powerful and highly sophisticated
-          operating system.
+          Net/2 to the i386, known as 386BSD, though very little of the 386BSD
+	  code remains.  A fuller description of what FreeBSD is and how
+	  it can work for you may be found in the <url url="../../welcome.html"
+          name="Welcome Document">.
 
           FreeBSD is used by companies, Internet Service Providers, researchers,
           computer professionals, students and home users all over the world
@@ -67,7 +67,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           that our first and foremost "mission" is to provide code to any
           and all comers, and for whatever purpose, so that the code gets
           the widest possible use and provides the widest possible benefit.
-          This is, I believe, one of the most fundamental goals of Free
+          This is, we believe, one of the most fundamental goals of Free
           Software and one that we enthusiastically support.
 
           That code in our source tree which falls under the GNU Public License
@@ -107,44 +107,45 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>What is FreeBSD-current?</heading>
 	<p>
-	  FreeBSD-current is the development version of the operating system,
-	  which will in due course become version 3.0.  As such, it is really
-	  only of interest to developers working on the system.  See the section
-	  ``Staying current with FreeBSD'' in the
-
-	  <url url="../handbook/handbook.html" name="FreeBSD Handbook">
+	  <url url=../handbook/current.html" name="FreeBSD-current" is the
+	  development version of the operating system, which will in due
+	  course become version 3.0.  As such, it is really only of interest
+	  to developers working on the system and die-hard hobbiests.
+ 	  See the <url url="../handbook/current.html" name="relevant section">
+	  in the <url url="../handbook/handbook.html" name="handbook"> for
+	  details.
 
       <sect1>
         <heading> What are ``snapshots''?<label id="snapshots"></heading>
         <p>
-          Every now and again, a ``snapshot'' is taken of the development
-          code, which is prepared as if it were an official release; recently,
+          Every now and again, a <url url="../releases/snapshots.html"
+	  name="snapshot"> is taken of the development code and prepared
+	  more or less as if it were an official release; recently,
           CDROMs have even been cut from the snapshots. The intention is to:-
 
           <itemize>
-            <item>Test the latest version of the installation routine.
+            <item>Test the latest version of the installation software.
             <item>Allow people who would like to run -current, but who don't 
                   have the time and/or bandwidth to follow it on a day-to-day 
-                  basis, an easy way to do so.
+                  basis, an easy way to bootstrap it onto their systems.
             <item>
-                  Preserve a fixed reference point as to when the code was 
-                  reasonably reliable.
+                  Preserve a fixed reference point for the code in question,
+		  in case we really break something badly later.
 
             <item>Ensure that a new feature in need of testing has the 
                   greatest possible number of potential testers.
           </itemize>
 
-          The astute reader will have noticed that the last two items are 
-          somewhat mutually incompatible. As snapshots are based on 
-          development code, no claim is made that a snapshot is regarded as 
-          being of ``production quality'' - for that, you will have to use 
-          official releases.
+          No claim is made that a snapshot is regarded as being of
+	  ``production quality'' for any purpose.  For that, you will
+	  have to stick to full releases.
 
       <sect1>
          <heading> What about FreeBSD-stable?</heading>
          <p>
            Back when FreeBSD 2.0.5 was released, we branched FreeBSD 
-           development into two parts. One branch was named -stable, with the 
+           development into two parts. One branch was named <url
+	   url="../handbook/stable.html" name="-stable">, with the 
            intention that only well-tested bug fixes and small incremental 
            enhancements would be made to it (for Internet Service Providers 
            and other commercial enterprises for whom sudden shifts or 
