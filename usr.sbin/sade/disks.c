@@ -154,11 +154,11 @@ static void
 print_command_summary()
 {
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
-    mvprintw(16, 0, "A = Use Entire Disk    G = set Drive Geometry   C = Create Slice");
-    mvprintw(17, 0, "D = Delete Slice       Z = Toggle Size Units    S = Set Bootable");
-    mvprintw(18, 0, "T = Change Type        U = Undo All Changes     Q = Finish");
+    mvprintw(16, 0, "A = Use Entire Disk   G = set Drive Geometry   C = Create Slice   F = `DD' mode");
+    mvprintw(17, 0, "D = Delete Slice      Z = Toggle Size Units    S = Set Bootable   | = Wizard m.");
+    mvprintw(18, 0, "T = Change Type       U = Undo All Changes     Q = Finish");
     if (!RunningAsInit)
-	mvprintw(18, 48, "W = Write Changes");
+	mvprintw(18, 47, "W = Write Changes");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
