@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.82 1996/02/09 12:35:25 jkh Exp $
+#	$Id: Makefile,v 1.83 1996/02/12 15:11:59 wpaul Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
@@ -12,17 +12,6 @@ SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
 	vnconfig watch wormcontrol xntpd xten ypbind yppoll yppush ypset \
 	ypserv zic
 
-#
-# XNSrouted and trsp are of very marginal utility to anyone at this
-# point.  Users who actually have a use for these programs (unlikely)
-# are free to add them back in.
-#
-# SUBDIR+=XNSrouted trsp
-
-#
-# IPXrouted is part of the optional IPX support, but it doesn't take long
-# to build and is _far_ more likely to be used than XNSrouted. :-)
-#
 SUBDIR+=IPXrouted
 
 .if   make(clean) || make(cleandir)
