@@ -1,5 +1,5 @@
 /* ia64-gen.c -- Generate a shrunk set of opcode tables
-   Copyright 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
    Written by Bob Manson, Cygnus Solutions, <manson@cygnus.com>
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -35,10 +35,10 @@
 */
 
 #include <stdio.h>
-#include <ctype.h>
 
 #include "ansidecl.h"
 #include "libiberty.h"
+#include "safe-ctype.h"
 #include "sysdep.h"
 #include "ia64-opc.h"
 #include "ia64-opc-a.c"
@@ -543,7 +543,7 @@ load_insn_classes()
       if (fgets (buf, sizeof(buf), fp) == NULL)
         break;
       
-      while (isspace(buf[strlen(buf)-1]))
+      while (ISSPACE (buf[strlen(buf)-1]))
         buf[strlen(buf)-1] = '\0';
 
       name = tmp = buf;
@@ -571,7 +571,7 @@ load_insn_classes()
           char *subname;
           int sub;
 
-          while (*tmp && isspace(*tmp))
+          while (*tmp && ISSPACE (*tmp))
             {
               ++tmp;
               if (tmp == buf + sizeof(buf))
@@ -633,7 +633,7 @@ parse_resource_users(ref, usersp, nusersp, notesp)
       int create = 0;
       char *name;
       
-      while (isspace(*tmp))
+      while (ISSPACE (*tmp))
         ++tmp;
       name = tmp;
       while (*tmp && *tmp != ',')
@@ -754,7 +754,7 @@ load_depfile (const char *filename, enum ia64_dependency_mode mode)
       if (fgets (buf, sizeof(buf), fp) == NULL)
         break;
 
-      while (isspace(buf[strlen(buf)-1]))
+      while (ISSPACE (buf[strlen(buf)-1]))
         buf[strlen(buf)-1] = '\0';
 
       name = tmp = buf;
@@ -762,21 +762,21 @@ load_depfile (const char *filename, enum ia64_dependency_mode mode)
         ++tmp;
       *tmp++ = '\0';
       
-      while (isspace (*tmp))
+      while (ISSPACE (*tmp))
         ++tmp;
       regp = tmp;
       tmp = strchr (tmp, ';');
       if (!tmp)
         abort ();
       *tmp++ = 0;
-      while (isspace (*tmp))
+      while (ISSPACE (*tmp))
         ++tmp;
       chkp = tmp;
       tmp = strchr (tmp, ';');
       if (!tmp)
         abort ();
       *tmp++ = 0;
-      while (isspace (*tmp))
+      while (ISSPACE (*tmp))
         ++tmp;
       semantics = parse_semantics (tmp);
       extra = semantics == IA64_DVS_OTHER ? xstrdup (tmp) : NULL;

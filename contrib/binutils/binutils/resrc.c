@@ -1,5 +1,5 @@
 /* resrc.c -- read and write Windows rc files.
-   Copyright 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -25,10 +25,10 @@
 #include "bfd.h"
 #include "bucomm.h"
 #include "libiberty.h"
+#include "safe-ctype.h"
 #include "windres.h"
 
 #include <assert.h>
-#include <ctype.h>
 #include <errno.h>
 #include <sys/stat.h>
 #ifdef HAVE_UNISTD_H
@@ -1889,8 +1889,8 @@ write_rc_resource (e, type, name, res, language)
       if (res->res_info.language != 0 && res->res_info.language != *language)
 	fprintf (e, "%sLANGUAGE %d, %d\n",
 		 modifiers ? "// " : "",
-		 res->res_info.language & 0xff,
-		 (res->res_info.language >> 8) & 0xff);
+		 res->res_info.language & ((1<<SUBLANG_SHIFT)-1),
+		 (res->res_info.language >> SUBLANG_SHIFT) & 0xff);
       if (res->res_info.characteristics != 0)
 	fprintf (e, "%sCHARACTERISTICS %lu\n",
 		 modifiers ? "// " : "",
@@ -1976,7 +1976,7 @@ write_rc_accelerators (e, accelerators)
       fprintf (e, "  ");
 
       if ((acc->key & 0x7f) == acc->key
-	  && isprint ((unsigned char) acc->key)
+	  && ISPRINT (acc->key)
 	  && (acc->flags & ACC_VIRTKEY) == 0)
 	{
 	  fprintf (e, "\"%c\"", acc->key);
@@ -2383,7 +2383,7 @@ write_rc_rcdata (e, rcdata, ind)
 	    s = ri->u.string.s;
 	    for (i = 0; i < ri->u.string.length; i++)
 	      {
-		if (isprint ((unsigned char) *s))
+		if (ISPRINT (*s))
 		  putc (*s, e);
 		else
 		  fprintf (e, "\\%03o", *s);
@@ -2421,7 +2421,7 @@ write_rc_rcdata (e, rcdata, ind)
 		if (i + 4 < ri->u.buffer.length || ri->next != NULL)
 		  fprintf (e, ",");
 		for (j = 0; j < 4; ++j)
-		  if (! isprint (ri->u.buffer.data[i + j])
+		  if (! ISPRINT (ri->u.buffer.data[i + j])
 		      && ri->u.buffer.data[i + j] != 0)
 		    break;
 		if (j >= 4)
@@ -2429,7 +2429,7 @@ write_rc_rcdata (e, rcdata, ind)
 		    fprintf (e, "\t// ");
 		    for (j = 0; j < 4; ++j)
 		      {
-			if (! isprint (ri->u.buffer.data[i + j]))
+			if (! ISPRINT (ri->u.buffer.data[i + j]))
 			  fprintf (e, "\\%03o", ri->u.buffer.data[i + j]);
 			else
 			  {
@@ -2455,7 +2455,7 @@ write_rc_rcdata (e, rcdata, ind)
 		if (i + 2 < ri->u.buffer.length || ri->next != NULL)
 		  fprintf (e, ",");
 		for (j = 0; j < 2; ++j)
-		  if (! isprint (ri->u.buffer.data[i + j])
+		  if (! ISPRINT (ri->u.buffer.data[i + j])
 		      && ri->u.buffer.data[i + j] != 0)
 		    break;
 		if (j >= 2)
@@ -2463,7 +2463,7 @@ write_rc_rcdata (e, rcdata, ind)
 		    fprintf (e, "\t// ");
 		    for (j = 0; j < 2; ++j)
 		      {
-			if (! isprint (ri->u.buffer.data[i + j]))
+			if (! ISPRINT (ri->u.buffer.data[i + j]))
 			  fprintf (e, "\\%03o", ri->u.buffer.data[i + j]);
 			else
 			  {
@@ -2483,7 +2483,7 @@ write_rc_rcdata (e, rcdata, ind)
 		if (! first)
 		  indent (e, ind + 2);
 		if ((ri->u.buffer.data[i] & 0x7f) == ri->u.buffer.data[i]
-		    && isprint (ri->u.buffer.data[i]))
+		    && ISPRINT (ri->u.buffer.data[i]))
 		  fprintf (e, "\"%c\"", ri->u.buffer.data[i]);
 		else
 		  fprintf (e, "\"\\%03o\"", ri->u.buffer.data[i]);

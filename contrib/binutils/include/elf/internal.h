@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -42,20 +42,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EI_NIDENT	16		/* Size of e_ident[] */
 
 typedef struct elf_internal_ehdr {
-  unsigned char		e_ident[EI_NIDENT];	/* ELF "magic number" */
-  bfd_vma		e_entry;		/* Entry point virtual address */
-  bfd_size_type		e_phoff;		/* Program header table file offset */
-  bfd_size_type		e_shoff;		/* Section header table file offset */
-  unsigned long		e_version;		/* Identifies object file version */
-  unsigned long		e_flags;		/* Processor-specific flags */
-  unsigned short	e_type;			/* Identifies object file type */
-  unsigned short	e_machine;		/* Specifies required architecture */
-  unsigned short	e_ehsize;		/* ELF header size in bytes */
-  unsigned short	e_phentsize;		/* Program header table entry size */
-  unsigned short	e_phnum;		/* Program header table entry count */
-  unsigned short	e_shentsize;		/* Section header table entry size */
-  unsigned short	e_shnum;		/* Section header table entry count */
-  unsigned short	e_shstrndx;		/* Section header string table index */
+  unsigned char		e_ident[EI_NIDENT]; /* ELF "magic number" */
+  bfd_vma		e_entry;	/* Entry point virtual address */
+  bfd_size_type		e_phoff;	/* Program header table file offset */
+  bfd_size_type		e_shoff;	/* Section header table file offset */
+  unsigned long		e_version;	/* Identifies object file version */
+  unsigned long		e_flags;	/* Processor-specific flags */
+  unsigned short	e_type;		/* Identifies object file type */
+  unsigned short	e_machine;	/* Specifies required architecture */
+  unsigned int		e_ehsize;	/* ELF header size in bytes */
+  unsigned int		e_phentsize;	/* Program header table entry size */
+  unsigned int		e_phnum;	/* Program header table entry count */
+  unsigned int		e_shentsize;	/* Section header table entry size */
+  unsigned int		e_shnum;	/* Section header table entry count */
+  unsigned int		e_shstrndx;	/* Section header string table index */
 } Elf_Internal_Ehdr;
 
 #define elf32_internal_ehdr elf_internal_ehdr
@@ -98,7 +98,7 @@ typedef struct elf_internal_shdr {
 
   /* The internal rep also has some cached info associated with it. */
   asection *	bfd_section;		/* Associated BFD section.  */
-  PTR		contents;		/* Section contents.  */
+  unsigned char *contents;		/* Section contents.  */
 } Elf_Internal_Shdr;
 
 #define elf32_internal_shdr elf_internal_shdr
@@ -114,7 +114,7 @@ struct elf_internal_sym {
   unsigned long	st_name;		/* Symbol name, index in string tbl */
   unsigned char	st_info;		/* Type and binding attributes */
   unsigned char	st_other;		/* Visibilty, and target specific */
-  unsigned short st_shndx;		/* Associated section index */
+  unsigned int  st_shndx;		/* Associated section index */
 };
 
 typedef struct elf_internal_sym Elf_Internal_Sym;
@@ -153,7 +153,7 @@ typedef struct elf_internal_rel {
 typedef struct elf_internal_rela {
   bfd_vma	r_offset;	/* Location at which to apply the action */
   bfd_vma	r_info;		/* Index and Type of relocation */
-  bfd_signed_vma r_addend;	/* Constant addend used to compute value */
+  bfd_vma	r_addend;	/* Constant addend used to compute value */
 } Elf_Internal_Rela;
 
 #define elf32_internal_rela elf_internal_rela

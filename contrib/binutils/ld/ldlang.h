@@ -257,12 +257,10 @@ typedef struct {
 
 typedef struct lang_wild_statement_struct {
   lang_statement_header_type header;
-  const char *section_name;
-  boolean sections_sorted;
   const char *filename;
   boolean filenames_sorted;
+  struct wildcard_list *section_list;
   boolean keep_sections;
-  struct name_list *exclude_filename_list;
   lang_statement_list_type children;
 } lang_wild_statement_type;
 
@@ -292,7 +290,6 @@ typedef struct {
 
 typedef union lang_statement_union {
   lang_statement_header_type header;
-  union lang_statement_union *next;
   lang_wild_statement_type wild_statement;
   lang_data_statement_type data_statement;
   lang_reloc_statement_type reloc_statement;
@@ -385,7 +382,7 @@ extern void lang_section_start PARAMS ((const char *, union etree_union *));
 extern void lang_add_entry PARAMS ((const char *, boolean));
 extern void lang_add_target PARAMS ((const char *));
 extern void lang_add_wild
-  PARAMS ((const char *, boolean, const char *, boolean, boolean, name_list *));
+  PARAMS ((struct wildcard_spec *, struct wildcard_list *, boolean));
 extern void lang_add_map PARAMS ((const char *));
 extern void lang_add_fill PARAMS ((int));
 extern lang_assignment_statement_type * lang_add_assignment PARAMS ((union etree_union *));
@@ -443,10 +440,10 @@ extern bfd_vma lang_size_sections
   PARAMS ((lang_statement_union_type *s,
 	   lang_output_section_statement_type *output_section_statement,
 	   lang_statement_union_type **prev, fill_type fill,
-	   bfd_vma dot, boolean relax));
+	   bfd_vma dot, boolean *relax));
 extern void lang_enter_group PARAMS ((void));
 extern void lang_leave_group PARAMS ((void));
-extern void wild_doit
+extern void lang_add_section
   PARAMS ((lang_statement_list_type *ptr, asection *section,
 	   lang_output_section_statement_type *output,
 	   lang_input_statement_type *file));

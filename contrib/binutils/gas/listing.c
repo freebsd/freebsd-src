@@ -91,10 +91,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
                         on a line
 */
 
-#include <ctype.h>
-
 #include "as.h"
 #include <obstack.h>
+#include "safe-ctype.h"
 #include "input-file.h"
 #include "subsegs.h"
 
@@ -370,7 +369,7 @@ listing_newline (ps)
 		  unsigned char c = *src++;
 
 		  /* Omit control characters in the listing.  */
-		  if (isascii (c) && ! iscntrl (c))
+		  if (!ISCNTRL (c))
 		    *dest++ = c;
 		}
 
@@ -485,7 +484,7 @@ buffer_line (file, line, size)
 	}
 
       last_open_file_info = file;
-      last_open_file = fopen (file->filename, "r");
+      last_open_file = fopen (file->filename, FOPEN_RT);
       if (last_open_file == NULL)
 	{
 	  file->at_end = 1;
@@ -514,9 +513,12 @@ buffer_line (file, line, size)
   if (c == EOF)
     {
       file->at_end = 1;
-      *p++ = '.';
-      *p++ = '.';
-      *p++ = '.';
+      if (count + 2 < size)
+	{
+	  *p++ = '.';
+	  *p++ = '.';
+	  *p++ = '.';
+	}
     }
   file->linenum++;
   *p++ = 0;
@@ -908,7 +910,7 @@ debugging_pseudo (list, line)
   was_debug = in_debug;
   in_debug = 0;
 
-  while (isspace ((unsigned char) *line))
+  while (ISSPACE (*line))
     line++;
 
   if (*line != '.')
@@ -1121,7 +1123,7 @@ listing_print (name)
     }
   else
     {
-      list_file = fopen (name, "w");
+      list_file = fopen (name, FOPEN_WT);
       if (list_file != NULL)
 	using_stdout = 0;
       else
@@ -1295,7 +1297,7 @@ listing_title (depth)
 	}
       else if (*input_line_pointer == '\n')
 	{
-	  as_bad (_("New line in title"));
+	  as_bad (_("new line in title"));
 	  demand_empty_rest_of_line ();
 	  return;
 	}

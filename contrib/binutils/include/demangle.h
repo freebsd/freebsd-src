@@ -1,5 +1,5 @@
 /* Defs for interface to demanglers.
-   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000
+   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001
    Free Software Foundation, Inc.
    
    This program is free software; you can redistribute it and/or modify
@@ -54,6 +54,7 @@
 
 extern enum demangling_styles
 {
+  no_demangling = -1,
   unknown_demangling = 0,
   auto_demangling = DMGL_AUTO,
   gnu_demangling = DMGL_GNU,
@@ -68,6 +69,7 @@ extern enum demangling_styles
 
 /* Define string names for the various demangling styles. */
 
+#define NO_DEMANGLING_STYLE_STRING            "none"
 #define AUTO_DEMANGLING_STYLE_STRING	      "auto"
 #define GNU_DEMANGLING_STYLE_STRING    	      "gnu"
 #define LUCID_DEMANGLING_STYLE_STRING	      "lucid"
@@ -94,11 +96,11 @@ extern enum demangling_styles
 /* Provide information about the available demangle styles. This code is
    pulled from gdb into libiberty because it is useful to binutils also.  */
 
-extern struct demangler_engine
+extern const struct demangler_engine
 {
-  const char *demangling_style_name;
-  enum demangling_styles demangling_style;
-  const char *demangling_style_doc;
+  const char *const demangling_style_name;
+  const enum demangling_styles demangling_style;
+  const char *const demangling_style_doc;
 } libiberty_demanglers[];
 
 extern char *
@@ -121,8 +123,39 @@ cplus_demangle_set_style PARAMS ((enum demangling_styles style));
 extern enum demangling_styles 
 cplus_demangle_name_to_style PARAMS ((const char *name));
 
-/* V3 ABI demangling entry point, defined in cp-demangle.c.  */
+/* V3 ABI demangling entry points, defined in cp-demangle.c.  */
 extern char*
 cplus_demangle_v3 PARAMS ((const char* mangled));
+
+extern char*
+java_demangle_v3 PARAMS ((const char* mangled));
+
+
+enum gnu_v3_ctor_kinds {
+  gnu_v3_complete_object_ctor = 1,
+  gnu_v3_base_object_ctor,
+  gnu_v3_complete_object_allocating_ctor
+};
+
+/* Return non-zero iff NAME is the mangled form of a constructor name
+   in the G++ V3 ABI demangling style.  Specifically, return an `enum
+   gnu_v3_ctor_kinds' value indicating what kind of constructor
+   it is.  */
+extern enum gnu_v3_ctor_kinds
+	is_gnu_v3_mangled_ctor PARAMS ((const char *name));
+
+
+enum gnu_v3_dtor_kinds {
+  gnu_v3_deleting_dtor = 1,
+  gnu_v3_complete_object_dtor,
+  gnu_v3_base_object_dtor
+};
+
+/* Return non-zero iff NAME is the mangled form of a destructor name
+   in the G++ V3 ABI demangling style.  Specifically, return an `enum
+   gnu_v3_dtor_kinds' value, indicating what kind of destructor
+   it is.  */
+extern enum gnu_v3_dtor_kinds
+	is_gnu_v3_mangled_dtor PARAMS ((const char *name));
 
 #endif	/* DEMANGLE_H */

@@ -29,7 +29,7 @@ AC_ARG_ENABLE(64-bit-bfd,
   *)    AC_MSG_ERROR(bad value ${enableval} for 64-bit-bfd option) ;;
 esac],[want64=false])dnl
 
-build_warnings="-W -Wall"
+build_warnings="-W -Wall -Wstrict-prototypes -Wmissing-prototypes"
 AC_ARG_ENABLE(build-warnings,
 [  --enable-build-warnings Enable build-time compiler warnings if gcc is used],
 [case "${enableval}" in
@@ -64,7 +64,7 @@ fi
 AC_PROG_CC
 AC_PROG_INSTALL
 
-ALL_LINGUAS=
+ALL_LINGUAS="fr sv tr es"
 CY_GNU_GETTEXT
 
 AC_EXEEXT

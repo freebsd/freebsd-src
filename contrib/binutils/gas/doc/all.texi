@@ -41,9 +41,13 @@
 @set M32R
 @set M68HC11
 @set M680X0
+@set M880X0
 @set MCORE
 @set MIPS
+@set MMIX
+@set PDP11
 @set PJ
+@set PPC
 @set SH
 @set SPARC
 @set C54X

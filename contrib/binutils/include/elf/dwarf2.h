@@ -32,7 +32,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
    by UNIX International.  Copies of this specification are available from
    UNIX International, 20 Waterview Boulevard, Parsippany, NJ, 07054.
 
-
    This file also now contains definitions from the DWARF 2.1 specification.  */
 
 /* This file is shared between GCC and GDB, and should not contain
@@ -178,6 +177,15 @@ enum dwarf_tag
     DW_TAG_variant_part = 0x33,
     DW_TAG_variable = 0x34,
     DW_TAG_volatile_type = 0x35,
+    /* DWARF 2.1.  */
+    DW_TAG_dwarf_procedure = 0x36,
+    DW_TAG_restrict_type = 0x37,
+    DW_TAG_interface_type = 0x38,
+    DW_TAG_namespace = 0x39,
+    DW_TAG_imported_module = 0x3a,
+    DW_TAG_unspecified_type = 0x3b,
+    DW_TAG_partial_unit = 0x3c,
+    DW_TAG_imported_unit = 0x3d,
     /* SGI/MIPS Extensions.  */
     DW_TAG_MIPS_loop = 0x4081,
     /* GNU extensions.  */
@@ -493,7 +501,9 @@ enum dwarf_type
     DW_ATE_signed = 0x5,
     DW_ATE_signed_char = 0x6,
     DW_ATE_unsigned = 0x7,
-    DW_ATE_unsigned_char = 0x8
+    DW_ATE_unsigned_char = 0x8,
+    /* DWARF 2.1.  */
+    DW_ATE_imaginary_float = 0x9
   };
 
 #define	DW_ATE_lo_user 0x80
@@ -559,8 +569,8 @@ enum dwarf_inline_attribute
     DW_INL_declared_inlined = 3
   };
 
-/* Descriminant lists.  */
-enum dwarf_descrim_list
+/* Discriminant lists.  */
+enum dwarf_discrim_list
   {
     DW_DSC_label = 0,
     DW_DSC_range = 1
@@ -578,7 +588,11 @@ enum dwarf_line_number_ops
     DW_LNS_negate_stmt = 6,
     DW_LNS_set_basic_block = 7,
     DW_LNS_const_add_pc = 8,
-    DW_LNS_fixed_advance_pc = 9
+    DW_LNS_fixed_advance_pc = 9,
+    /* DWARF 3 */
+    DW_LNS_set_prologue_end = 10,
+    DW_LNS_set_epilogue_begin = 11,
+    DW_LNS_set_isa = 12
   };
 
 /* Line number extended opcodes.  */
@@ -651,7 +665,12 @@ enum dwarf_source_language
     DW_LANG_Fortran90 = 0x0008,
     DW_LANG_Pascal83 = 0x0009,
     DW_LANG_Modula2 = 0x000a,
-    DW_LANG_Java = 0x9af4,
+    DW_LANG_Java = 0x000b,
+    /* DWARF 2.1.  */
+    DW_LANG_C99 = 0x000c,
+    DW_LANG_Ada95 = 0x000d,
+    DW_LANG_Fortran95 = 0x000e,
+    /* MIPS.  */
     DW_LANG_Mips_Assembler = 0x8001
   };
 
@@ -668,4 +687,28 @@ enum dwarf_macinfo_record_type
     DW_MACINFO_end_file = 4,
     DW_MACINFO_vendor_ext = 255
   };
+
+/* @@@ For use with GNU frame unwind information.  */
+
+#define DW_EH_PE_absptr		0x00
+#define DW_EH_PE_omit		0xff
+
+#define DW_EH_PE_uleb128	0x01
+#define DW_EH_PE_udata2		0x02
+#define DW_EH_PE_udata4		0x03
+#define DW_EH_PE_udata8		0x04
+#define DW_EH_PE_sleb128	0x09
+#define DW_EH_PE_sdata2		0x0A
+#define DW_EH_PE_sdata4		0x0B
+#define DW_EH_PE_sdata8		0x0C
+#define DW_EH_PE_signed		0x08
+
+#define DW_EH_PE_pcrel		0x10
+#define DW_EH_PE_textrel	0x20
+#define DW_EH_PE_datarel	0x30
+#define DW_EH_PE_funcrel	0x40
+#define DW_EH_PE_aligned	0x50
+
+#define DW_EH_PE_indirect	0x80
+
 #endif /* _ELF_DWARF2_H */

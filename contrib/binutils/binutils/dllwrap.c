@@ -1,5 +1,5 @@
 /* dllwrap.c -- wrapper for DLLTOOL and GCC to generate PE style DLLs
-   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
    Contributed by Mumit Khan (khan@xraylith.wisc.edu).
 
    This file is part of GNU Binutils.
@@ -36,7 +36,6 @@
 #include "getopt.h"
 #include "dyn-string.h"
 
-#include <ctype.h>
 #include <time.h>
 #include <sys/stat.h>
 
@@ -517,7 +516,7 @@ usage (file, status)
      FILE *file;
      int status;
 {
-  fprintf (file, _("Usage %s <options> <object-files>\n"), program_name);
+  fprintf (file, _("Usage %s <option(s)> <object-file(s)>\n"), program_name);
   fprintf (file, _("  Generic options:\n"));
   fprintf (file, _("   --quiet, -q            Work quietly\n"));
   fprintf (file, _("   --verbose, -v          Verbose\n"));
@@ -663,6 +662,15 @@ main (argc, argv)
   char *image_base_str = 0;
 
   program_name = argv[0];
+
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+#if defined (HAVE_SETLOCALE)
+  setlocale (LC_CTYPE, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   saved_argv = (char **) xmalloc (argc * sizeof (char*));
   dlltool_arg_indices = (int *) xmalloc (argc * sizeof (int));
@@ -841,8 +849,8 @@ main (argc, argv)
       delete_def_file = 1;
       free (fileprefix);
       delete_def_file = 1;
-      warn (_("no export definition file provided"));
-      warn (_("creating one, but that may not be what you want"));
+      warn (_("no export definition file provided.\n\
+Creating one, but that may not be what you want"));
     }
   
   /* set the target platform. */

@@ -25,6 +25,20 @@
 #include "ia64-asmtab.h"
 #include "ia64-asmtab.c"
 
+static void get_opc_prefix PARAMS ((const char **, char *));
+static short int find_string_ent PARAMS ((const char *));
+static short int find_main_ent PARAMS ((short int));
+static short int find_completer PARAMS ((short int, short int, const char *));
+static ia64_insn apply_completer PARAMS ((ia64_insn, int));
+static int extract_op_bits PARAMS ((int, int, int));
+static int extract_op PARAMS ((int, int *, unsigned int *));
+static int opcode_verify PARAMS ((ia64_insn, int, enum ia64_insn_type));
+static int locate_opcode_ent PARAMS ((ia64_insn, enum ia64_insn_type));
+static struct ia64_opcode *make_ia64_opcode
+  PARAMS ((ia64_insn, const char *, int, int));
+static struct ia64_opcode *ia64_find_matching_opcode
+  PARAMS ((const char *, short int));
+
 const struct ia64_templ_desc ia64_templ_desc[16] =
   {
     { 0, { IA64_UNIT_M, IA64_UNIT_I, IA64_UNIT_I }, "MII" },	/* 0 */
@@ -149,7 +163,7 @@ find_main_ent (nameindex)
    MAIN_ENT (starting from PREV_COMPLETER) that matches NAME, or
    return -1 if one does not exist. */
 
-static short 
+static short
 find_completer (main_ent, prev_completer, name)
      short main_ent;
      short prev_completer;
@@ -312,7 +326,7 @@ opcode_verify (opcode, place, type)
     {
       return 0;
     }
-  if (main_table[place].flags 
+  if (main_table[place].flags
       & (IA64_OPCODE_F2_EQ_F3 | IA64_OPCODE_LEN_EQ_64MCNT))
     {
       const struct ia64_operand *o1, *o2;
@@ -481,7 +495,7 @@ locate_opcode_ent (opcode, type)
 
               priority = ia64_dis_names[disent].priority;
 
-	      if (opcode_verify (opcode, place, type) 
+	      if (opcode_verify (opcode, place, type)
                   && priority > found_priority)
 		{
 		  break;
@@ -610,7 +624,7 @@ ia64_dis_opcode (insn, type)
 	{
 	  abort ();
 	}
-      return make_ia64_opcode (insn, name, place, 
+      return make_ia64_opcode (insn, name, place,
                                completer_table[ci].dependencies);
     }
 }
@@ -646,7 +660,7 @@ ia64_find_matching_opcode (name, place)
       short completer = -1;
 
       do {
-      	if (suffix[0] == '\0')
+	if (suffix[0] == '\0')
 	  {
 	    completer = find_completer (place, completer, suffix);
 	  }
