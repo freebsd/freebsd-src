@@ -203,13 +203,10 @@ apb_attach(device_t dev)
 	}
 
 	/*
-	 * XXX If the subordinate bus number is less than the secondary bus
-	 * number, we should pick a better value.  One sensible alternative
-	 * would be to pick 255; the only tradeoff here is that configuration
-	 * transactions would be more widely routed than absolutely necessary.
+	 * If we don't hardwire the bus down, pciconf gets confused.
 	 */
 	if (sc->secbus != 0) {
-		child = device_add_child(dev, "pci", -1);
+		child = device_add_child(dev, "pci", sc->secbus);
 		if (child != NULL)
 			return (bus_generic_attach(dev));
 	} else
