@@ -80,7 +80,7 @@ static int do_sigaction(struct proc *p, int sig, struct sigaction *act,
 static int do_sigprocmask(struct proc *p, int how, sigset_t *set,
 			  sigset_t *oset, int old);
 static char *expand_name(const char *, uid_t, pid_t);
-static int killpg1(struct proc *cp, int sig, int pgid, int all);
+static int killpg1(struct thread *td, int sig, int pgid, int all);
 static int sig_ffs(sigset_t *set);
 static int sigprop(int sig);
 static void stop(struct proc *);
@@ -190,7 +190,6 @@ signotify(struct proc *p)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_lock_spin(&sched_lock);
 	if (SIGPENDING(p)) {
 		p->p_sflag |= PS_NEEDSIGCHK;
@@ -991,8 +990,8 @@ done2:
  * cp is calling process.
  */
 int
-killpg1(cp, sig, pgid, all)
-	register struct proc *cp;
+killpg1(td, sig, pgid, all)
+	register struct thread *td;
 	int sig, pgid, all;
 {
 	register struct proc *p;
@@ -1006,11 +1005,12 @@ killpg1(cp, sig, pgid, all)
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			PROC_LOCK(p);
-			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM || p == cp) {
+			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
+			    p == td->td_proc) {
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(cp, p, sig) == 0) {
+			if (p_cansignal(td->td_proc, p, sig) == 0) {
 				nfound++;
 				if (sig)
 					psignal(p, sig);
@@ -1024,7 +1024,7 @@ killpg1(cp, sig, pgid, all)
 			/*
 			 * zero pgid means send to my process group.
 			 */
-			pgrp = cp->p_pgrp;
+			pgrp = td->td_proc->p_pgrp;
 			PGRP_LOCK(pgrp);
 		} else {
 			pgrp = pgfind(pgid);
@@ -1040,14 +1040,11 @@ killpg1(cp, sig, pgid, all)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			mtx_lock_spin(&sched_lock);
 			if (p->p_stat == SZOMB) {
-				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(p);
 				continue;
 			}
-			mtx_unlock_spin(&sched_lock);
-			if (p_cansignal(cp, p, sig) == 0) {
+			if (p_cansignal(td->td_proc, p, sig) == 0) {
 				nfound++;
 				if (sig)
 					psignal(p, sig);
@@ -1074,7 +1071,6 @@ kill(td, uap)
 	register struct thread *td;
 	register struct kill_args *uap;
 {
-	register struct proc *cp = td->td_proc;
 	register struct proc *p;
 	int error = 0;
 
@@ -1086,7 +1082,7 @@ kill(td, uap)
 		/* kill single process */
 		if ((p = pfind(uap->pid)) == NULL) {
 			error = ESRCH;
-		} else if (p_cansignal(cp, p, uap->signum)) {
+		} else if (p_cansignal(td->td_proc, p, uap->signum)) {
 			PROC_UNLOCK(p);
 			error = EPERM;
 		} else {
@@ -1098,13 +1094,13 @@ kill(td, uap)
 	} else {
 		switch (uap->pid) {
 		case -1:		/* broadcast signal */
-			error = killpg1(cp, uap->signum, 0, 1);
+			error = killpg1(td, uap->signum, 0, 1);
 			break;
 		case 0:			/* signal own process group */
-			error = killpg1(cp, uap->signum, 0, 0);
+			error = killpg1(td, uap->signum, 0, 0);
 			break;
 		default:		/* negative explicit process group */
-			error = killpg1(cp, uap->signum, -uap->pid, 0);
+			error = killpg1(td, uap->signum, -uap->pid, 0);
 			break;
 		}
 	}
@@ -1133,7 +1129,7 @@ okillpg(td, uap)
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 	mtx_lock(&Giant);
-	error = killpg1(td->td_proc, uap->signum, uap->pgid, 0);
+	error = killpg1(td, uap->signum, uap->pgid, 0);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -1327,13 +1323,13 @@ psignal(p, sig)
 		SIG_CONTSIGMASK(p->p_siglist);
 	}
 	SIGADDSET(p->p_siglist, sig);
+	mtx_lock_spin(&sched_lock);
 	signotify(p);
 
 	/*
 	 * Defer further processing for signals which are held,
 	 * except that stopped processes must be continued by SIGCONT.
 	 */
-	mtx_lock_spin(&sched_lock);
 	if (action == SIG_HOLD && (!(prop & SA_CONT) || p->p_stat != SSTOP)) {
 		mtx_unlock_spin(&sched_lock);
 		return;
@@ -1348,10 +1344,8 @@ psignal(p, sig)
 		 * be noticed when the process returns through
 		 * trap() or syscall().
 		 */
-		if ((td->td_flags & TDF_SINTR) == 0) {
-			mtx_unlock_spin(&sched_lock);
+		if ((td->td_flags & TDF_SINTR) == 0)
 			goto out;
-		}
 		/*
 		 * Process is sleeping and traced... make it runnable
 		 * so it can discover the signal in issignal() and stop
@@ -1359,7 +1353,6 @@ psignal(p, sig)
 		 */
 		if (p->p_flag & P_TRACED)
 			goto run;
-		mtx_unlock_spin(&sched_lock);
 		/*
 		 * If SIGCONT is default (or ignored) and process is
 		 * asleep, we are finished; the process should not
@@ -1384,6 +1377,7 @@ psignal(p, sig)
 			 */
 			if (p->p_flag & P_PPWAIT)
 				goto out;
+			mtx_unlock_spin(&sched_lock);
 			SIGDELSET(p->p_siglist, sig);
 			p->p_xstat = sig;
 			PROC_LOCK(p->p_pptr);
@@ -1392,14 +1386,12 @@ psignal(p, sig)
 			PROC_UNLOCK(p->p_pptr);
 			mtx_lock_spin(&sched_lock);
 			stop(p);
-			mtx_unlock_spin(&sched_lock);
 			goto out;
 		} else
 			goto runfast;
 		/* NOTREACHED */
 
 	case SSTOP:
-		mtx_unlock_spin(&sched_lock);
 		/*
 		 * If traced process is already stopped,
 		 * then no further action is necessary.
@@ -1428,7 +1420,6 @@ psignal(p, sig)
 				SIGDELSET(p->p_siglist, sig);
 			if (action == SIG_CATCH)
 				goto runfast;
-			mtx_lock_spin(&sched_lock);
 			/*
 			 * XXXKSE
 			 * do this for each thread.
@@ -1443,12 +1434,10 @@ psignal(p, sig)
 						/* mark it as sleeping */
 					}
 				}
-				mtx_unlock_spin(&sched_lock);
 			} else {
 				if (td->td_wchan == NULL)
 					goto run;
 				p->p_stat = SSLEEP;
-				mtx_unlock_spin(&sched_lock);
 			}
 			goto out;
 		}
@@ -1469,7 +1458,6 @@ psignal(p, sig)
 		 * the process runnable, leave it stopped.
 		 * XXXKSE should we wake ALL blocked threads?
 		 */
-		mtx_lock_spin(&sched_lock);
 		if (p->p_flag & P_KSES) {
 			FOREACH_THREAD_IN_PROC(p, td) {
 				if (td->td_wchan && (td->td_flags & TDF_SINTR)){
@@ -1487,7 +1475,6 @@ psignal(p, sig)
 					unsleep(td); /* XXXKSE */
 			}
 		}
-		mtx_unlock_spin(&sched_lock);
 		goto out;
 
 	default:
@@ -1511,7 +1498,6 @@ psignal(p, sig)
 			}
 #endif
 		}
-		mtx_unlock_spin(&sched_lock);
 		goto out;
 	}
 	/*NOTREACHED*/
@@ -1522,7 +1508,6 @@ runfast:
 	 * XXXKSE Should we make them all run fast?
 	 * Maybe just one would be enough?
 	 */
-	mtx_lock_spin(&sched_lock);
 
 	if (FIRST_THREAD_IN_PROC(p)->td_priority > PUSER) {
 		FIRST_THREAD_IN_PROC(p)->td_priority = PUSER;
@@ -1531,9 +1516,10 @@ run:
 	/* If we jump here, sched_lock has to be owned. */
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	setrunnable(td); /* XXXKSE */
-	mtx_unlock_spin(&sched_lock);
 out:
-	/* If we jump here, sched_lock should not be owned. */
+	mtx_unlock_spin(&sched_lock);
+
+	/* Once we get here, sched_lock should not be owned. */
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 }
 
@@ -1861,7 +1847,7 @@ sigexit(td, sig)
 			log(LOG_INFO,
 			    "pid %d (%s), uid %d: exited on signal %d%s\n",
 			    p->p_pid, p->p_comm,
-			    p->p_ucred ? p->p_ucred->cr_uid : -1,
+			    td->td_ucred ? td->td_ucred->cr_uid : -1,
 			    sig &~ WCOREFLAG,
 			    sig & WCOREFLAG ? " (core dumped)" : "");
 	} else {
@@ -1970,7 +1956,7 @@ coredump(struct thread *td)
 {
 	struct proc *p = td->td_proc;
 	register struct vnode *vp;
-	register struct ucred *cred = p->p_ucred;
+	register struct ucred *cred = td->td_ucred;
 	struct flock lf;
 	struct nameidata nd;
 	struct vattr vattr;
@@ -2003,7 +1989,7 @@ coredump(struct thread *td)
 	PROC_UNLOCK(p);
 
 restart:
-	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
+	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid);
 	if (name == NULL)
 		return (EINVAL);
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td); /* XXXKSE */
