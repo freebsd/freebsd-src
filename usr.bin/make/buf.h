@@ -82,10 +82,6 @@ typedef struct Buffer {
 
 void Buf_OvAddByte(Buffer *, Byte);
 void Buf_AddBytes(Buffer *, size_t, const Byte *);
-void Buf_UngetByte(Buffer *, Byte);
-void Buf_UngetBytes(Buffer *, size_t, Byte *);
-int Buf_GetByte(Buffer *);
-int Buf_GetBytes(Buffer *, size_t, Byte *);
 Byte *Buf_GetAll(Buffer *, size_t *);
 void Buf_Discard(Buffer *, size_t);
 size_t Buf_Size(Buffer *);
