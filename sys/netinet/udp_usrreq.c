@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.46 1998/03/28 10:18:26 bde Exp $
+ *	$Id: udp_usrreq.c,v 1.47 1998/05/15 20:11:35 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -166,9 +166,7 @@ udp_input(m, iphlen)
 	 * Checksum extended UDP header and data.
 	 */
 	if (uh->uh_sum) {
-		((struct ipovly *)ip)->ih_next = 0;
-		((struct ipovly *)ip)->ih_prev = 0;
-		((struct ipovly *)ip)->ih_x1 = 0;
+		bzero(((struct ipovly *)ip)->ih_x1, 9);
 		((struct ipovly *)ip)->ih_len = uh->uh_ulen;
 		uh->uh_sum = in_cksum(m, len + sizeof (struct ip));
 		if (uh->uh_sum) {
@@ -507,8 +505,7 @@ udp_output(inp, m, addr, control, p)
 	 * and addresses and length put into network format.
 	 */
 	ui = mtod(m, struct udpiphdr *);
-	ui->ui_next = ui->ui_prev = 0;
-	ui->ui_x1 = 0;
+	bzero(ui->ui_x1, sizeof(ui->ui_x1));
 	ui->ui_pr = IPPROTO_UDP;
 	ui->ui_len = htons((u_short)len + sizeof (struct udphdr));
 	ui->ui_src = inp->inp_laddr;

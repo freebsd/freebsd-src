@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.78 1998/05/31 18:42:49 peter Exp $
+ *	$Id: tcp_input.c,v 1.79 1998/07/06 03:20:19 julian Exp $
  */
 
 #include "opt_ipfw.h"	/* for ipfw_fwd */
@@ -110,7 +110,7 @@ static void	 tcp_xmit_timer __P((struct tcpcb *, int));
  */
 #define	TCP_REASS(tp, ti, m, so, flags) { \
 	if ((ti)->ti_seq == (tp)->rcv_nxt && \
-	    (tp)->seg_next == (struct tcpiphdr *)(tp) && \
+	    (tp)->t_segq == NULL && \
 	    (tp)->t_state == TCPS_ESTABLISHED) { \
 		if (tcp_delack_enabled) \
 			tp->t_flags |= TF_DELACK; \
@@ -134,9 +134,13 @@ tcp_reass(tp, ti, m)
 	register struct tcpiphdr *ti;
 	struct mbuf *m;
 {
-	register struct tcpiphdr *q;
+	struct mbuf *q;
+	struct mbuf *p;
+	struct mbuf *nq;
 	struct socket *so = tp->t_inpcb->inp_socket;
 	int flags;
+
+#define GETTCP(m)	((struct tcpiphdr *)m->m_pkthdr.header)
 
 	/*
 	 * Call with ti==0 after become established to
@@ -145,12 +149,13 @@ tcp_reass(tp, ti, m)
 	if (ti == 0)
 		goto present;
 
+	m->m_pkthdr.header = ti;
+
 	/*
 	 * Find a segment which begins after this one does.
 	 */
-	for (q = tp->seg_next; q != (struct tcpiphdr *)tp;
-	    q = (struct tcpiphdr *)q->ti_next)
-		if (SEQ_GT(q->ti_seq, ti->ti_seq))
+	for (q = tp->t_segq, p = NULL; q; p = q, q = q->m_nextpkt)
+		if (SEQ_GT(GETTCP(q)->ti_seq, ti->ti_seq))
 			break;
 
 	/*
@@ -158,11 +163,10 @@ tcp_reass(tp, ti, m)
 	 * our data already.  If so, drop the data from the incoming
 	 * segment.  If it provides all of our data, drop us.
 	 */
-	if ((struct tcpiphdr *)q->ti_prev != (struct tcpiphdr *)tp) {
+	if (p != NULL) {
 		register int i;
-		q = (struct tcpiphdr *)q->ti_prev;
 		/* conversion to int (in i) handles seq wraparound */
-		i = q->ti_seq + q->ti_len - ti->ti_seq;
+		i = GETTCP(p)->ti_seq + GETTCP(p)->ti_len - ti->ti_seq;
 		if (i > 0) {
 			if (i >= ti->ti_len) {
 				tcpstat.tcps_rcvduppack++;
@@ -180,36 +184,41 @@ tcp_reass(tp, ti, m)
 			ti->ti_len -= i;
 			ti->ti_seq += i;
 		}
-		q = (struct tcpiphdr *)(q->ti_next);
 	}
 	tcpstat.tcps_rcvoopack++;
 	tcpstat.tcps_rcvoobyte += ti->ti_len;
-	REASS_MBUF(ti) = m;		/* XXX */
 
 	/*
 	 * While we overlap succeeding segments trim them or,
 	 * if they are completely covered, dequeue them.
 	 */
-	while (q != (struct tcpiphdr *)tp) {
-		register int i = (ti->ti_seq + ti->ti_len) - q->ti_seq;
+	while (q) {
+		register int i = (ti->ti_seq + ti->ti_len) - GETTCP(q)->ti_seq;
 		if (i <= 0)
 			break;
-		if (i < q->ti_len) {
-			q->ti_seq += i;
-			q->ti_len -= i;
-			m_adj(REASS_MBUF(q), i);
+		if (i < GETTCP(q)->ti_len) {
+			GETTCP(q)->ti_seq += i;
+			GETTCP(q)->ti_len -= i;
+			m_adj(q, i);
 			break;
 		}
-		q = (struct tcpiphdr *)q->ti_next;
-		m = REASS_MBUF((struct tcpiphdr *)q->ti_prev);
-		remque(q->ti_prev);
-		m_freem(m);
+
+		nq = q->m_nextpkt;
+		if (p)
+			p->m_nextpkt = nq;
+		else
+			tp->t_segq = nq;
+		m_freem(q);
+		q = nq;
 	}
 
-	/*
-	 * Stick new segment in its place.
-	 */
-	insque(ti, q->ti_prev);
+	if (p == NULL) {
+		m->m_nextpkt = tp->t_segq;
+		tp->t_segq = m;
+	} else {
+		m->m_nextpkt = p->m_nextpkt;
+		p->m_nextpkt = m;
+	}
 
 present:
 	/*
@@ -218,22 +227,25 @@ present:
 	 */
 	if (!TCPS_HAVEESTABLISHED(tp->t_state))
 		return (0);
-	ti = tp->seg_next;
-	if (ti == (struct tcpiphdr *)tp || ti->ti_seq != tp->rcv_nxt)
+	q = tp->t_segq;
+	if (!q || GETTCP(q)->ti_seq != tp->rcv_nxt)
 		return (0);
 	do {
-		tp->rcv_nxt += ti->ti_len;
-		flags = ti->ti_flags & TH_FIN;
-		remque(ti);
-		m = REASS_MBUF(ti);
-		ti = (struct tcpiphdr *)ti->ti_next;
+		tp->rcv_nxt += GETTCP(q)->ti_len;
+		flags = GETTCP(q)->ti_flags & TH_FIN;
+		nq = q->m_nextpkt;
+		tp->t_segq = nq;
+		q->m_nextpkt = NULL;
 		if (so->so_state & SS_CANTRCVMORE)
-			m_freem(m);
+			m_freem(q);
 		else
-			sbappend(&so->so_rcv, m);
-	} while (ti != (struct tcpiphdr *)tp && ti->ti_seq == tp->rcv_nxt);
+			sbappend(&so->so_rcv, q);
+		q = nq;
+	} while (q && GETTCP(q)->ti_seq == tp->rcv_nxt);
 	sorwakeup(so);
 	return (flags);
+
+#undef GETTCP
 }
 
 /*
@@ -288,8 +300,7 @@ tcp_input(m, iphlen)
 	 */
 	tlen = ((struct ip *)ti)->ip_len;
 	len = sizeof (struct ip) + tlen;
-	ti->ti_next = ti->ti_prev = 0;
-	ti->ti_x1 = 0;
+	bzero(ti->ti_x1, sizeof(ti->ti_x1));
 	ti->ti_len = (u_short)tlen;
 	HTONS(ti->ti_len);
 	ti->ti_sum = in_cksum(m, len);
@@ -572,7 +583,7 @@ findpcb:
 				return;
 			}
 		} else if (ti->ti_ack == tp->snd_una &&
-		    tp->seg_next == (struct tcpiphdr *)tp &&
+		    tp->t_segq == NULL &&
 		    ti->ti_len <= sbspace(&so->so_rcv)) {
 			/*
 			 * this is a pure, in-sequence data packet
