@@ -863,7 +863,7 @@ loop:
 		m->flags = PG_BUSY;
 	}
 	if (req & VM_ALLOC_WIRED) {
-		cnt.v_wire_count++;
+		atomic_add_int(&cnt.v_wire_count, 1);
 		m->wire_count = 1;
 	} else
 		m->wire_count = 0;
@@ -1183,7 +1183,7 @@ vm_page_wire(vm_page_t m)
 	if (m->wire_count == 0) {
 		if ((m->flags & PG_UNMANAGED) == 0)
 			vm_pageq_remove(m);
-		cnt.v_wire_count++;
+		atomic_add_int(&cnt.v_wire_count, 1);
 	}
 	m->wire_count++;
 	KASSERT(m->wire_count != 0, ("vm_page_wire: wire_count overflow m=%p", m));
@@ -1228,7 +1228,7 @@ vm_page_unwire(vm_page_t m, int activate)
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
-			cnt.v_wire_count--;
+			atomic_subtract_int(&cnt.v_wire_count, 1);
 			if (m->flags & PG_UNMANAGED) {
 				;
 			} else if (activate)
