@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.2 1995/01/28 01:18:43 jkh Exp $
+# $Id: netinst.sh,v 1.3 1995/01/30 02:13:05 jkh Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -163,7 +163,7 @@ network_setup()
 		fi
 
 		DEFAULT_VALUE=""
-		if network_dialog "Set extra flags to ${IFCONFIG_CMD}?"; then
+		if network_dialog "Any extra flags to ${IFCONFIG_CMD}, put them here"; then
 			IFCONFIG_FLAGS=${ANSWER}
 		fi
 		echo "Progress <${IFCONFIG_CMD} ${INTERFACE} ${IPADDR} ${REMOTE_IPADDR} netmask ${NETMASK} ${IFCONFIG_FLAGS}>" >/dev/ttyv1
