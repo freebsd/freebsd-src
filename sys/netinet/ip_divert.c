@@ -406,7 +406,19 @@ div_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 
 	s = splnet();
 	inp = sotoinpcb(so);
-	error = in_pcbbind(inp, nam, p);
+	/* in_pcbbind assumes that the socket is a sockaddr_in
+	 * and in_pcbbind requires a valid address. Since divert
+	 * sockets don't we need to make sure the address is
+	 * filled in properly.
+	 * XXX -- divert should not be abusing in_pcbind
+	 * and should probably have its own family.
+	 */
+	if (nam->sa_family != AF_INET) {
+		error = EAFNOSUPPORT;
+	} else {
+		((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
+		error = in_pcbbind(inp, nam, p);
+	}
 	splx(s);
 	return 0;
 }
