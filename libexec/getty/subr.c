@@ -47,7 +47,6 @@ static char sccsid[] = "@(#)subr.c	5.10 (Berkeley) 2/26/91";
  * Melbourne getty.
  */
 #include <sys/param.h>
-#define USE_OLD_TTY
 #include <sgtty.h>
 #include <unistd.h>
 #include <string.h>
@@ -376,7 +375,7 @@ speed(val)
 {
 	register struct speedtab *sp;
 
-	if (val <= 15)
+	if (val <= B115200)
 		return (val);
 
 	for (sp = speedtab; sp->speed; sp++)
