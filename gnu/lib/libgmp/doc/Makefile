@@ -4,8 +4,6 @@
 INFO = gmp
 INFOSECTION= "Programming & development tools."
 
-GMPDIR=	${.CURDIR}/../../../../contrib/libgmp
-.PATH:	${GMPDIR}
+SRCDIR= ${.CURDIR}/../../../../contrib/libgmp
 
-.include "../Makefile.inc"
 .include <bsd.info.mk>
