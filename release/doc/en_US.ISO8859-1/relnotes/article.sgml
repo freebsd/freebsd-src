@@ -435,7 +435,10 @@
       performance of some multi-threaded applications.  Some
       multi-threaded programs need to be recompiled; examples from the
       Ports Collection are <filename
-      role="package">www/mozilla</filename> and variants.</para>
+      role="package">www/mozilla</filename> and variants, <filename
+      role="package">mail/evolution</filename>, <filename
+      role="package">devel/gnomevfs</filename>, and <filename
+      role="package">devel/gnomevfs2</filename>.</para>
 
     <para>&man.savecore.8; now works correctly for dump files larger
       than 2GB.</para>
@@ -460,7 +463,7 @@
     <title>Contributed Software</title>
 
     <para>The <application>ACPI-CA</application> code has been updated
-      from the 20030619 snapshot to the 20031203 snapshot.</para>
+      from the 20030619 snapshot to the 20040220 snapshot.</para>
 
     <para><application>awk</application> from Bell Labs has been
       updated from the 29 July 2003 release to the 7 February 2004
