@@ -1640,7 +1640,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 	cbptr = uap->aiocbp;
 
 	for (i = 0; i < uap->nent; i++) {
-		cbp = (struct aiocb *)fuword((caddr_t)(uintptr_t)&cbptr[i]);
+		cbp = (struct aiocb *)(intptr_t)fuword(&cbptr[i]);
 		if (cbp == 0)
 			continue;
 		ujoblist[njoblist] = cbp;
@@ -1995,7 +1995,7 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	nentqueued = 0;
 	cbptr = uap->acb_list;
 	for (i = 0; i < uap->nent; i++) {
-		iocb = (struct aiocb *)fuword((caddr_t)(uintptr_t)&cbptr[i]);
+		iocb = (struct aiocb *)(intptr_t)fuword(&cbptr[i]);
 		if (((intptr_t)iocb != -1) && ((intptr_t)iocb != NULL)) {
 			error = _aio_aqueue(td, iocb, lj, 0);
 			if (error == 0)
@@ -2029,7 +2029,7 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 				 * user space.
 				 */
 				iocb = (struct aiocb *)
-				    fuword((caddr_t)(uintptr_t)&cbptr[i]);
+				    (intptr_t)fuword(&cbptr[i]);
 				if (((intptr_t)iocb == -1) || ((intptr_t)iocb
 				    == 0))
 					continue;
