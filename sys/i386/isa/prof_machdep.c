@@ -1,3 +1,8 @@
+/*
+ * NEED A COPYRIGHT NOPTICE HERE
+ *
+ *	$Id$
+ */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <machine/clock.h>
