@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.58 1999/01/21 08:29:12 dillon Exp $
+ * $Id: vm_swap.c,v 1.59 1999/01/21 10:17:12 dillon Exp $
  */
 
 #include "opt_devfs.h"
@@ -109,6 +109,14 @@ swwrite(dev_t dev, struct uio *uio, int ioflag)
 {
 	return (physio(swstrategy, NULL, dev, 0, minphys, uio));
 }
+
+/*
+ *	swstrategy:
+ *
+ *	Perform swap strategy interleave device selection
+ *
+ *	The bp is expected to be B_BUSY and *not* B_DONE on call.
+ */
 
 static void
 swstrategy(bp)
