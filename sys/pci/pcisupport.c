@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.76 1998/12/04 22:54:56 archie Exp $
+**  $Id: pcisupport.c,v 1.77 1998/12/07 21:58:48 archie Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1118,7 +1118,8 @@ static char* vga_probe (pcici_t tag, pcidi_t typea)
 		
 		len = strlen(vendor) + strlen(chip) + strlen(type) + 4;
 		MALLOC(buf, char *, len, M_TEMP, M_NOWAIT);
-		sprintf(buf, "%s %s %s", vendor, chip, type);
+		if (buf)
+			sprintf(buf, "%s %s %s", vendor, chip, type);
 		return buf;
 	}
 
@@ -1166,7 +1167,8 @@ static char* vga_probe (pcici_t tag, pcidi_t typea)
 
 		len = strlen(vendor) + strlen(type) + 2 + 6 + 4 + 1;
 		MALLOC(buf, char *, len, M_TEMP, M_NOWAIT);
-		sprintf(buf, "%s model %04x %s", vendor, id >> 16, type);
+		if (buf)
+			sprintf(buf, "%s model %04x %s", vendor, id >> 16, type);
 		return buf;
 	}
 	return type;
