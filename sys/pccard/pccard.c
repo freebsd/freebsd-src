@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.65 1998/09/08 18:09:51 brian Exp $
+ *	$Id: pccard.c,v 1.66 1998/09/24 17:56:31 nate Exp $
  */
 
 #include "opt_devfs.h"
@@ -50,6 +50,7 @@
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
+#include <i386/isa/intr_machdep.h>
 
 #include "apm.h"
 #if	NAPM > 0
