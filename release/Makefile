@@ -299,7 +299,7 @@ BOOTABLE="-b"
 DOCREL= doc.1 doc.2
 .endif
 
-.if !make(release) && !make(rerelease)
+.if !make(release) && !make(rerelease) && !make(package-split)
 BINMAKE!=	cd ${.CURDIR}/..; ${MAKE} -V BINMAKE
 WMAKEENV!=	cd ${.CURDIR}/..; \
 		${BINMAKE} ${CROSSENV} -f Makefile.inc1 -V WMAKEENV
@@ -1213,5 +1213,41 @@ buildBootFloppy:
 	sh -e ${DOFS_SH} ${IMAGEFILE} ${RD} ${MNT} ${FLPSIZE} ${IMAGEDIR} \
 	    ${BOOTINODE} ${FLPLABEL}
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
+
+.if make(package-split)
+# Targets related to making a package split
+#
+# PKG_COPY instructs the script to copy the actual package files rather than
+#     make hard links
+# PKG_TREE is the path to the package tree to be split
+# PKG_DEST is the path to the destination tree to create the split in
+# PKG_VERBOSE asks for verbose output of the layout process
+
+.if defined(PKG_COPY)
+PKG_DO_COPY=	cp
+.else
+PKG_DO_COPY=	ln
+.endif
+PKG_INDEX=	${PKG_DEST}/INDEX.master
+PKG_ENV?=
+.if defined(TARGET_ARCH)
+PKG_ENV+=	PKG_ARCH=${TARGET_ARCH}
+.endif
+.if defined(PKG_VERBOSE)
+PKG_ENV+=	PKG_VERBOSE=1
+.endif
+
+package-split:
+.if !defined(PKG_TREE)
+	@echo "PKG_TREE must be defined" && exit 1
+.endif
+.if !defined(PKG_DEST)
+	@echo "PKG_DEST must be defined" && exit 1
+.endif
+	@env ${PKG_ENV} python ${.CURDIR}/scripts/package-split.py \
+	    ${PKG_TREE}/INDEX ${PKG_INDEX}
+	@env ${PKG_ENV} sh ${.CURDIR}/scripts/package-trees.sh ${PKG_DO_COPY} \
+	    ${PKG_INDEX} ${PKG_TREE} ${PKG_DEST}
+.endif
 
 .include <bsd.obj.mk>
