@@ -4,11 +4,13 @@
 
  $FreeBSD$
 
-	last edit-date: [Mon Jan 18 14:47:09 1999]
+	last edit-date: [Mon Oct  9 18:00:12 2000]
 
 
 1.	Documentation
 ---------------------
+
+	The i4b homepage is at http://www.freebsd-support.de/i4b/
 
 	The command "apropos isdn" will list all manpages available for 
 	isdn4bsd. Two more manual pages of interest to syncronous PPP 
@@ -16,12 +18,16 @@
 
 	Under directory /usr/share/examples/isdn, you will find:
 
+	ThankYou	- contributors to isdn4bsd
+	SupportedCards	- list of supported ISDN cards
+	ReleaseNotes	- list of major changes 
 	FAQ		- isdn4bsd Frequently Asked Questions
-	Overview	- short technical overview (a bit outdated)
 	README		- the original isdn4bsd README file
 	ROADMAP		- this file
 	Resources	- some more information about ISDN
 	isdnd_acct	- perl script to produce accounting reports
+	Overview	- short technical overview (outdated)
+
 
 
 2.	Configuration
@@ -31,18 +37,14 @@
 
 	- configuring a kernel suitable for running isdn4bsd. An
 	  example kernel configuration can be found in the file
-	  /usr/src/sys/i386/conf/LINT. The options available for
-	  isic device driver in the kernel configuration file are
-	  described in the output of "man isic".
+	  /usr/src/sys/i386/conf/NOTES.
 
 	- configuring the network interfaces iprX and/or ispX; the
 	  former are used for "IP over raw HDLC" and the latter are
 	  used for "sync PPP over ISDN". To configure the ipr-
 	  interfaces, read the output of "man i4bipr", to configure
 	  the isp-interfaces, read the output of "man i4bisppp",
-	  "man sppp" and "man spppcontrol" carefully.
-	  Most of this configuration is now available thru the ISDN
-	  and spppcontrol sections in /etc/rc.conf.
+	  "man sppp" and "man ispppcontrol" carefully.
 
 	- writing a configuration file /etc/isdn/isdnd.rc for the
 	  isdn daemon isdnd(8) which is responsible for the ISDN
@@ -59,6 +61,7 @@
 	/usr/src/usr.sbin/i4b and get installed under /usr/sbin.
 
 	Isdntest will not be installed by default.
+	Isdnphone is experimental and may not run with your soundcard.
 
 
 3.	Kernel part
