@@ -24,9 +24,6 @@
 <article>
   <articleinfo>
 
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
     <title>&os; &release.current; Errata</title>
 
     <corpauthor>
@@ -46,9 +43,6 @@
 
   <abstract>
 
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
     <para>This document lists errata items for &os; 
       &release.current;,
       containing significant information discovered after the release.
@@ -58,24 +52,9 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-<![ %release.type.snapshot [
-    <para>This errata document for &os; &release.prev; will be
+    <para>This errata document for &os; &release.current; will be
       maintained until the release of &os; &release.next;.</para>
-]]>
 
-<![ %release.type.release [
-    <para>This is the final version of the errata document for &os;
-      &release.prev;.  Future errata documents along the
-      &release.branch; branch will address &os; &release.current; and
-      later releases.</para>
-]]>
-
-      <para>At this time, &release.current; has no errata, because
-        there have not been any releases on the &release.branch;
-        branch since the last branchpoint.  (The first such release
-        will be &release.next;.)  This file exists to provide a clean
-        template for newly-created branches.  (Clearly this notice
-        should not exist on any branched version of this file.)</para>
   </abstract>
 
   <sect1>
@@ -109,11 +88,15 @@
 
   <sect1>
     <title>Security Advisories</title>
-    <para></para>
+
+    <para>No active security advisories.</para>
+
   </sect1>
 
   <sect1>
-    <title>System Update Information</title>
-    <para></para>
+    <title>Late-Breaking News</title>
+
+    <para>No news.</para>
+
   </sect1>
 </article>
