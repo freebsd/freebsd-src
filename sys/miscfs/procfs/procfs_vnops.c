@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.49 1997/12/20 03:05:47 sef Exp $
+ *	$Id: procfs_vnops.c,v 1.50 1997/12/27 02:56:25 bde Exp $
  */
 
 /*
@@ -235,6 +235,9 @@ procfs_ioctl(ap)
 	if (procp == NULL) {
 		return ENOTTY;
 	}
+
+	if (!CHECKIO(p, procp))
+		return EPERM;
 
 	switch (ap->a_command) {
 	case PIOCBIS:
