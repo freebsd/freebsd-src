@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.8 1997/03/28 15:24:27 imp Exp $
+ *	$Id: options.c,v 1.9 1997/08/29 16:12:27 sos Exp $
  */
 
 #ifndef lint
@@ -42,10 +42,8 @@ static char const sccsid[] = "@(#)options.c	8.2 (Berkeley) 4/18/94";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/mtio.h>
-#include <sys/param.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
