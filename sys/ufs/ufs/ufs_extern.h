@@ -104,6 +104,7 @@ void	softdep_setup_remove __P((struct buf *,struct inode *, struct inode *,
 void	softdep_setup_directory_change __P((struct buf *, struct inode *,
 	    struct inode *, long, int));
 void	softdep_change_linkcnt __P((struct inode *));
+void	softdep_releasefile __P((struct inode *));
 int	softdep_slowdown __P((struct vnode *));
 
 #endif /* !_UFS_UFS_EXTERN_H_ */
