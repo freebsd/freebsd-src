@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.23 1995/04/26 11:43:20 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.24 1995/04/26 12:37:46 jkh Exp $";
 #endif
 
 /*
@@ -180,7 +180,7 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 {
     char tball[FILENAME_MAX];
     char *cmd;
-    int ret, max;
+    int ret, max, len;
     PackingList p;
 
     max = sysconf(_SC_ARG_MAX);
@@ -200,27 +200,46 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 	printf("Creating gzip'd tar ball in '%s'\n", tball);
     strncat(cmd, "cf ", max - strlen(cmd));
     strncat(cmd, tball, max - strlen(cmd));
-    if (ExcludeFrom)
-	snprintf(&cmd[strlen(cmd)], max, " -X %s", ExcludeFrom);
-    snprintf(&cmd[strlen(cmd)], max, " %s %s %s", CONTENTS_FNAME,
-    	    COMMENT_FNAME, DESC_FNAME);
-    if (Install)
-	snprintf(&cmd[strlen(cmd)], max, " %s", INSTALL_FNAME);
-    if (DeInstall)
-	snprintf(&cmd[strlen(cmd)], max, " %s", DEINSTALL_FNAME);
-    if (Require)
-	snprintf(&cmd[strlen(cmd)], max, " %s", REQUIRE_FNAME);
-    if (Display)
-	snprintf(&cmd[strlen(cmd)], max, " %s", DISPLAY_FNAME);
-    if (Mtree)
-	snprintf(&cmd[strlen(cmd)], max, " %s", MTREE_FNAME);
+    if (ExcludeFrom) {
+	len = strlen(cmd);
+	snprintf(&cmd[len], max -= len, " -X %s", ExcludeFrom);
+    }
+    len = strlen(cmd);
+    snprintf(&cmd[len], max -= len, " %s %s %s", CONTENTS_FNAME,
+	     COMMENT_FNAME, DESC_FNAME);
+    if (Install) {
+	len = strlen(cmd);
+	snprintf(&cmd[len], max -= len, " %s", INSTALL_FNAME);
+    }
+    if (DeInstall) {
+	len = strlen(cmd);
+	snprintf(&cmd[len], max -= len, " %s", DEINSTALL_FNAME);
+    }
+    if (Require) {
+	len = strlen(cmd);
+	snprintf(&cmd[len], max -= len, " %s", REQUIRE_FNAME);
+    }
+    if (Display) {
+	len = strlen(cmd);
+	snprintf(&cmd[len], max -= len, " %s", DISPLAY_FNAME);
+    }
+    if (Mtree) {
+	len = strlen(cmd);
+	snprintf(&cmd[len], max -= len, " %s", MTREE_FNAME);
+    }
     for (p = plist->head; p; p = p->next) {
-	if (p->type == PLIST_FILE)
-	    snprintf(&cmd[strlen(cmd)], max, " %s", p->name);
-	else if (p->type == PLIST_CWD)
-	    snprintf(&cmd[strlen(cmd)], max, " -C %s", p->name);
-	else if (p->type == PLIST_SRC)
-	    snprintf(&cmd[strlen(cmd)], max, " -C %s", p->name);
+	if (p->type == PLIST_FILE) {
+	    len = strlen(cmd);
+	    snprintf(&cmd[len], max -= len, " %s", p->name);
+	}
+	else if (p->type == PLIST_CWD) {
+	    len = strlen(cmd);
+	    snprintf(&cmd[len], max -= len, " -C %s", p->name);
+	}
+	else if (p->type == PLIST_SRC) {
+	    len = strlen(cmd);
+	    snprintf(&cmd[len], max -= len, " -C %s", p->name);
+	}
 	else if (p->type == PLIST_IGNORE)
 	     p = p->next;
     }
