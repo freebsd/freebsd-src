@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: atkbdcreg.h,v 1.1 1999/01/09 02:44:50 yokota Exp $
  * from kbdio.h,v 1.8 1998/09/25 11:55:46 yokota Exp
  */
 
@@ -201,7 +201,8 @@ typedef caddr_t KBDC;
 /* function prototypes */
 
 atkbdc_softc_t *atkbdc_get_softc(int unit);
-int atkbdc_probe_unit(atkbdc_softc_t *sc, int unit, int port);
+int atkbdc_probe_unit(int unit, int port);
+int atkbdc_attach_unit(int unit, atkbdc_softc_t *sc, int port);
 int atkbdc_configure(void);
 
 KBDC kbdc_open(int port);
