@@ -10,15 +10,15 @@
 # CLEANFILES	Additional files to remove for the clean target.
 #
 # MAKEOBJDIR 	A pathname for the directory where the targets 
-#		are built.  Note: MAKEOBJDIR is an *enviroment* variable
-#		and works properly only if set as an enviroment variable,
+#		are built.  Note: MAKEOBJDIR is an *environment* variable
+#		and works properly only if set as an environment variable,
 #		not as a global or command line variable!
 #
 #		E.g. use `env MAKEOBJDIR=temp-obj make'
 #
 # MAKEOBJDIRPREFIX  Specifies somewhere other than /usr/obj to root the object
-#		tree.  Note: MAKEOBJDIRPREFIX is an *enviroment* variable
-#		and works properly only if set as an enviroment variable,
+#		tree.  Note: MAKEOBJDIRPREFIX is an *environment* variable
+#		and works properly only if set as an environment variable,
 #		not as a global or command line variable!
 #
 #		E.g. use `env MAKEOBJDIRPREFIX=/somewhere/obj make'
