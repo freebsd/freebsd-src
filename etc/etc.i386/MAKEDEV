@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.183.2.4 1999/03/02 16:50:55 roger Exp $
+#	$Id: MAKEDEV,v 1.183.2.5 1999/03/07 00:37:59 gibbs Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -160,6 +160,11 @@ dkitos() {
 dkminor()
 {
 	echo $(($1 << 25 | ($2 / 32) << 21 | ($2 % 32) << 3 | $3 << 16 | $4))
+}
+# Convert tape (ctrl, unit, mode, access) to minor number
+saminor()
+{
+	echo $(($1 << 29 | ($2 / 16) << 16 | ($2 % 16) << 4 | $3 << 2 | $4))
 }
 
 # Override mknod(2) to add extra handling to it.
@@ -615,25 +620,16 @@ sa*)
 	chr=14
 
 	case $unit in
-	[0-9]|[1-9][0-9]|[1-9][0-9][0-9])
-		if [ $unit -gt 15 ]; then
-			mult=65536
-		else
-			mult=16
-		fi
-		rm -f rsa${unit} nrsa${unit} ersa${unit} rsa${unit}.ctl
-		mknod rsa${unit}.ctl c $chr `expr $unit '*' $mult + 536870912`
-		for mode in 0 1 2 3
+	[0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])
+		mknod rsa${unit}.ctl c $chr `saminor 1 ${unit} 0 0`
+		for m in 0 1 2 3
 		do
-			rm -f rsa${unit}.${mode} nrsa${unit}.${mode} ersa${unit}.${mode}
-			mknod rsa${unit}.${mode} c $chr `expr $unit '*' $mult + $mode '*' 4 + 0`
-			mknod nrsa${unit}.${mode} c $chr `expr $unit '*' $mult + $mode '*' 4 + 1`
-			mknod ersa${unit}.${mode} c $chr `expr $unit '*' $mult + $mode '*' 4 + 2`
-			chgrp operator	rsa${unit}.${mode}\
-					nrsa${unit}.${mode} \
-					ersa${unit}.${mode}
+			mknod rsa${unit}.${m} c $chr `saminor 0 ${unit} ${m} 0`
+			mknod nrsa${unit}.${m} c $chr `saminor 0 ${unit} ${m} 1`
+			mknod ersa${unit}.${m} c $chr `saminor 0 ${unit} ${m} 2`
+			chgrp operator rsa${unit}.${m} nrsa${unit}.${m} \
+				ersa${unit}.${m}
 		done
-
 		ln -f rsa${unit}.0 rsa${unit}
 		ln -f nrsa${unit}.0 nrsa${unit}
 		ln -f ersa${unit}.0 ersa${unit}
