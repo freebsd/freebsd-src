@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#165 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#170 $
  *
  * $FreeBSD$
  */
@@ -406,7 +406,7 @@ ahd_flush_qoutfifo(struct ahd_softc *ahd)
 		u_int	 i;
 		
 		ahd_set_scbptr(ahd, scbid);
-		next_scbid = ahd_inw(ahd, SCB_NEXT_COMPLETE);
+		next_scbid = ahd_inw_scbram(ahd, SCB_NEXT_COMPLETE);
 		scb = ahd_lookup_scb(ahd, scbid);
 		if (scb == NULL) {
 			printf("%s: Warning - DMA-up and complete "
@@ -415,7 +415,7 @@ ahd_flush_qoutfifo(struct ahd_softc *ahd)
 		}
 		hscb_ptr = (uint8_t *)scb->hscb;
 		for (i = 0; i < sizeof(struct hardware_scb); i++)
-			*hscb_ptr++ = ahd_inb(ahd, SCB_BASE + i);
+			*hscb_ptr++ = ahd_inb_scbram(ahd, SCB_BASE + i);
 
 		ahd_complete_scb(ahd, scb);
 		scbid = next_scbid;
@@ -426,7 +426,7 @@ ahd_flush_qoutfifo(struct ahd_softc *ahd)
 	while (!SCBID_IS_NULL(scbid)) {
 
 		ahd_set_scbptr(ahd, scbid);
-		next_scbid = ahd_inw(ahd, SCB_NEXT_COMPLETE);
+		next_scbid = ahd_inw_scbram(ahd, SCB_NEXT_COMPLETE);
 		scb = ahd_lookup_scb(ahd, scbid);
 		if (scb == NULL) {
 			printf("%s: Warning - Complete SCB %d invalid\n",
@@ -1667,7 +1667,7 @@ ahd_handle_pkt_busfree(struct ahd_softc *ahd, u_int busfreetime)
 				next = SCB_LIST_NULL;
 			} else {
 				ahd_set_scbptr(ahd, waiting_h);
-				next = ahd_inw(ahd, SCB_NEXT2);
+				next = ahd_inw_scbram(ahd, SCB_NEXT2);
 			}
 			ahd_set_scbptr(ahd, scbid);
 			ahd_outw(ahd, SCB_NEXT2, next);
@@ -1998,7 +1998,8 @@ ahd_handle_proto_violation(struct ahd_softc *ahd)
 		if ((seq_flags & NO_CDB_SENT) != 0) {
 			ahd_print_path(ahd, scb);
 			printf("No or incomplete CDB sent to device.\n");
-		} else if ((ahd_inb(ahd, SCB_CONTROL) & STATUS_RCVD) == 0) {
+		} else if ((ahd_inb_scbram(ahd, SCB_CONTROL)
+			  & STATUS_RCVD) == 0) {
 			/*
 			 * The target never bothered to provide status to
 			 * us prior to completing the command.  Since we don't
@@ -2615,8 +2616,12 @@ ahd_set_syncrate(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 				       ahd_name(ahd), devinfo->target,
 				       period, offset);
 				options = 0;
+				if ((ppr_options & MSG_EXT_PPR_RD_STRM) != 0) {
+					printf("(RDSTRM");
+					options++;
+				}
 				if ((ppr_options & MSG_EXT_PPR_DT_REQ) != 0) {
-					printf("(DT");
+					printf("%s", options ? "|DT" : "(DT");
 					options++;
 				}
 				if ((ppr_options & MSG_EXT_PPR_IU_REQ) != 0) {
@@ -4990,6 +4995,7 @@ ahd_reset(struct ahd_softc *ahd)
 	 * to disturb the integrity of the bus.
 	 */
 	ahd_pause(ahd);
+	ahd_update_modes(ahd);
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
 	sxfrctl1 = ahd_inb(ahd, SXFRCTL1);
 
@@ -5042,10 +5048,13 @@ ahd_reset(struct ahd_softc *ahd)
 
 	/*
 	 * Mode should be SCSI after a chip reset, but lets
-	 * set it just to be safe.
+	 * set it just to be safe.  We touch the MODE_PTR
+	 * register directly so as to bypass the lazy update
+	 * code in ahd_set_modes().
 	 */
-	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
 	ahd_known_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
+	ahd_outb(ahd, MODE_PTR,
+		 ahd_build_mode_state(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI));
 
 	/*
 	 * Restore SXFRCTL1.
@@ -7689,7 +7698,6 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 {
 	struct hardware_scb *hscb;
 	u_int  qfreeze_cnt;
-	ahd_mode_state saved_modes;
 
 	/*
 	 * The sequencer freezes its select-out queue
@@ -7701,7 +7709,6 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 
 	/* Freeze the queue until the client sees the error. */
 	ahd_pause(ahd);
-	saved_modes = ahd_save_modes(ahd);
 	ahd_clear_critical_section(ahd);
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
 	ahd_freeze_devq(ahd, scb);
