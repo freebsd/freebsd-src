@@ -701,9 +701,7 @@ kern_sendit(td, s, mp, flags, control)
 	int i;
 	int len, error;
 #ifdef KTRACE
-	struct iovec *ktriov = NULL;
-	struct uio ktruio;
-	int iovlen;
+	struct uio *ktruio = NULL;
 #endif
 
 	NET_LOCK_GIANT();
@@ -733,12 +731,8 @@ kern_sendit(td, s, mp, flags, control)
 		}
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_GENIO)) {
-		iovlen = auio.uio_iovcnt * sizeof (struct iovec);
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy(auio.uio_iov, ktriov, iovlen);
-		ktruio = auio;
-	}
+	if (KTRPOINT(td, KTR_GENIO))
+		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, mp->msg_name, &auio,
@@ -757,13 +751,9 @@ kern_sendit(td, s, mp, flags, control)
 	if (error == 0)
 		td->td_retval[0] = len - auio.uio_resid;
 #ifdef KTRACE
-	if (ktriov != NULL) {
-		if (error == 0) {
-			ktruio.uio_iov = ktriov;
-			ktruio.uio_resid = td->td_retval[0];
-			ktrgenio(s, UIO_WRITE, &ktruio, error);
-		}
-		FREE(ktriov, M_TEMP);
+	if (ktruio != NULL) {
+		ktruio->uio_resid = td->td_retval[0];
+		ktrgenio(s, UIO_WRITE, ktruio, error);
 	}
 #endif
 bad:
@@ -842,41 +832,26 @@ osend(td, uap)
 int
 osendmsg(td, uap)
 	struct thread *td;
-	register struct osendmsg_args /* {
+	struct osendmsg_args /* {
 		int	s;
 		caddr_t	msg;
 		int	flags;
 	} */ *uap;
 {
 	struct msghdr msg;
-	struct iovec aiov[UIO_SMALLIOV], *iov;
+	struct iovec *iov;
 	int error;
 
 	error = copyin(uap->msg, &msg, sizeof (struct omsghdr));
 	if (error)
-		goto done2;
-	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
-		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV) {
-			error = EMSGSIZE;
-			goto done2;
-		}
-		MALLOC(iov, struct iovec *,
-		      sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
-		      M_WAITOK);
-	} else {
-		iov = aiov;
-	}
-	error = copyin(msg.msg_iov, iov,
-	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)));
+		return (error);
+	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error)
-		goto done;
-	msg.msg_flags = MSG_COMPAT;
+		return (error);
 	msg.msg_iov = iov;
+	msg.msg_flags = MSG_COMPAT;
 	error = sendit(td, uap->s, &msg, uap->flags);
-done:
-	if (iov != aiov)
-		FREE(iov, M_IOV);
-done2:
+	free(iov, M_IOV);
 	return (error);
 }
 #endif
@@ -887,56 +862,41 @@ done2:
 int
 sendmsg(td, uap)
 	struct thread *td;
-	register struct sendmsg_args /* {
+	struct sendmsg_args /* {
 		int	s;
 		caddr_t	msg;
 		int	flags;
 	} */ *uap;
 {
 	struct msghdr msg;
-	struct iovec aiov[UIO_SMALLIOV], *iov;
+	struct iovec *iov;
 	int error;
 
 	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error)
-		goto done2;
-	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
-		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV) {
-			error = EMSGSIZE;
-			goto done2;
-		}
-		MALLOC(iov, struct iovec *,
-		       sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
-		       M_WAITOK);
-	} else {
-		iov = aiov;
-	}
-	if (msg.msg_iovlen &&
-	    (error = copyin(msg.msg_iov, iov,
-	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)))))
-		goto done;
+		return (error);
+	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+	if (error)
+		return (error);
 	msg.msg_iov = iov;
 #ifdef COMPAT_OLDSOCK
 	msg.msg_flags = 0;
 #endif
 	error = sendit(td, uap->s, &msg, uap->flags);
-done:
-	if (iov != aiov)
-		FREE(iov, M_IOV);
-done2:
+	free(iov, M_IOV);
 	return (error);
 }
 
 static int
 recvit(td, s, mp, namelenp)
-	register struct thread *td;
+	struct thread *td;
 	int s;
-	register struct msghdr *mp;
+	struct msghdr *mp;
 	void *namelenp;
 {
 	struct uio auio;
-	register struct iovec *iov;
-	register int i;
+	struct iovec *iov;
+	int i;
 	socklen_t len;
 	int error;
 	struct mbuf *m, *control = 0;
@@ -944,9 +904,7 @@ recvit(td, s, mp, namelenp)
 	struct socket *so;
 	struct sockaddr *fromsa = 0;
 #ifdef KTRACE
-	struct iovec *ktriov = NULL;
-	struct uio ktruio;
-	int iovlen;
+	struct uio *ktruio = NULL;
 #endif
 
 	NET_LOCK_GIANT();
@@ -982,12 +940,8 @@ recvit(td, s, mp, namelenp)
 		}
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_GENIO)) {
-		iovlen = auio.uio_iovcnt * sizeof (struct iovec);
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy(auio.uio_iov, ktriov, iovlen);
-		ktruio = auio;
-	}
+	if (KTRPOINT(td, KTR_GENIO))
+		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
 	error = so->so_proto->pr_usrreqs->pru_soreceive(so, &fromsa, &auio,
@@ -999,13 +953,9 @@ recvit(td, s, mp, namelenp)
 			error = 0;
 	}
 #ifdef KTRACE
-	if (ktriov != NULL) {
-		if (error == 0) {
-			ktruio.uio_iov = ktriov;
-			ktruio.uio_resid = (int)len - auio.uio_resid;
-			ktrgenio(s, UIO_READ, &ktruio, error);
-		}
-		FREE(ktriov, M_TEMP);
+	if (ktruio != NULL) {
+		ktruio->uio_resid = (int)len - auio.uio_resid;
+		ktrgenio(s, UIO_READ, ktruio, error);
 	}
 #endif
 	if (error)
@@ -1189,46 +1139,29 @@ orecv(td, uap)
 int
 orecvmsg(td, uap)
 	struct thread *td;
-	register struct orecvmsg_args /* {
+	struct orecvmsg_args /* {
 		int	s;
 		struct	omsghdr *msg;
 		int	flags;
 	} */ *uap;
 {
 	struct msghdr msg;
-	struct iovec aiov[UIO_SMALLIOV], *iov;
+	struct iovec *iov;
 	int error;
 
 	error = copyin(uap->msg, &msg, sizeof (struct omsghdr));
 	if (error)
 		return (error);
-
-	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
-		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV) {
-			error = EMSGSIZE;
-			goto done2;
-		}
-		MALLOC(iov, struct iovec *,
-		      sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
-		      M_WAITOK);
-	} else {
-		iov = aiov;
-	}
-	msg.msg_flags = uap->flags | MSG_COMPAT;
-	error = copyin(msg.msg_iov, iov,
-	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)));
+	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error)
-		goto done;
+		return (error);
+	msg.msg_flags = uap->flags | MSG_COMPAT;
 	msg.msg_iov = iov;
 	error = recvit(td, uap->s, &msg, &uap->msg->msg_namelen);
-
 	if (msg.msg_controllen && error == 0)
 		error = copyout(&msg.msg_controllen,
 		    &uap->msg->msg_accrightslen, sizeof (int));
-done:
-	if (iov != aiov)
-		FREE(iov, M_IOV);
-done2:
+	free(iov, M_IOV);
 	return (error);
 }
 #endif
@@ -1239,50 +1172,34 @@ done2:
 int
 recvmsg(td, uap)
 	struct thread *td;
-	register struct recvmsg_args /* {
+	struct recvmsg_args /* {
 		int	s;
 		struct	msghdr *msg;
 		int	flags;
 	} */ *uap;
 {
 	struct msghdr msg;
-	struct iovec aiov[UIO_SMALLIOV], *uiov, *iov;
-	register int error;
+	struct iovec *uiov, *iov;
+	int error;
 
 	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error)
-		goto done2;
-	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
-		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV) {
-			error = EMSGSIZE;
-			goto done2;
-		}
-		MALLOC(iov, struct iovec *,
-		       sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
-		       M_WAITOK);
-	} else {
-		iov = aiov;
-	}
-#ifdef COMPAT_OLDSOCK
-	msg.msg_flags = uap->flags &~ MSG_COMPAT;
-#else
+		return (error);
+	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+	if (error)
+		return (error);
 	msg.msg_flags = uap->flags;
+#ifdef COMPAT_OLDSOCK
+	msg.msg_flags &= ~MSG_COMPAT;
 #endif
 	uiov = msg.msg_iov;
 	msg.msg_iov = iov;
-	error = copyin(uiov, iov,
-	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)));
-	if (error)
-		goto done;
 	error = recvit(td, uap->s, &msg, NULL);
-	if (!error) {
+	if (error == 0) {
 		msg.msg_iov = uiov;
 		error = copyout(&msg, uap->msg, sizeof(msg));
 	}
-done:
-	if (iov != aiov)
-		FREE(iov, M_IOV);
-done2:
+	free(iov, M_IOV);
 	return (error);
 }
 
@@ -1727,10 +1644,9 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	struct vm_page *pg;
 	struct writev_args nuap;
 	struct sf_hdtr hdtr;
-	struct uio hdr_uio;
+	struct uio *hdr_uio = NULL;
 	off_t off, xfsize, hdtr_size, sbytes = 0;
 	int error, headersize = 0, headersent = 0;
-	struct iovec *hdr_iov = NULL;
 
 	mtx_lock(&Giant);
 
@@ -1783,16 +1699,13 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		 * Send any headers.
 		 */
 		if (hdtr.headers != NULL) {
-			hdr_uio.uio_td = td;
-			hdr_uio.uio_rw = UIO_WRITE;
-			error = uiofromiov(hdtr.headers, hdtr.hdr_cnt,
-				&hdr_uio);
+			error = copyinuio(hdtr.headers, hdtr.hdr_cnt, &hdr_uio);
 			if (error)
 				goto done;
-			/* Cache hdr_iov, m_uiotombuf may change it. */
-			hdr_iov = hdr_uio.uio_iov;
-			if (hdr_uio.uio_resid > 0) {
-				m_header = m_uiotombuf(&hdr_uio, M_DONTWAIT, 0);
+			hdr_uio->uio_td = td;
+			hdr_uio->uio_rw = UIO_WRITE;
+			if (hdr_uio->uio_resid > 0) {
+				m_header = m_uiotombuf(hdr_uio, M_DONTWAIT, 0);
 				if (m_header == NULL)
 					goto done;
 				headersize = m_header->m_pkthdr.len;
@@ -2110,8 +2023,8 @@ done:
 		vrele(vp);
 	if (so)
 		fputsock(so);
-	if (hdr_iov)
-		FREE(hdr_iov, M_IOV);
+	if (hdr_uio != NULL)
+		free(hdr_uio, M_IOV);
 	if (m_header)
 		m_freem(m_header);
 

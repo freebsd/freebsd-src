@@ -164,9 +164,7 @@ dofileread(td, fp, fd, buf, nbyte, offset, flags)
 	struct iovec aiov;
 	long cnt, error = 0;
 #ifdef KTRACE
-	struct iovec ktriov;
-	struct uio ktruio;
-	int didktr = 0;
+	struct uio *ktruio = NULL;
 #endif
 
 	aiov.iov_base = buf;
@@ -181,14 +179,8 @@ dofileread(td, fp, fd, buf, nbyte, offset, flags)
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 #ifdef KTRACE
-	/*
-	 * if tracing, save a copy of iovec
-	 */
-	if (KTRPOINT(td, KTR_GENIO)) {
-		ktriov = aiov;
-		ktruio = auio;
-		didktr = 1;
-	}
+	if (KTRPOINT(td, KTR_GENIO))
+		ktruio = cloneuio(&auio);
 #endif
 	cnt = nbyte;
 
@@ -199,10 +191,9 @@ dofileread(td, fp, fd, buf, nbyte, offset, flags)
 	}
 	cnt -= auio.uio_resid;
 #ifdef KTRACE
-	if (didktr && error == 0) {
-		ktruio.uio_iov = &ktriov;
-		ktruio.uio_resid = cnt;
-		ktrgenio(fd, UIO_READ, &ktruio, error);
+	if (ktruio != NULL) {
+		ktruio->uio_resid = cnt;
+		ktrgenio(fd, UIO_READ, ktruio, error);
 	}
 #endif
 	td->td_retval[0] = cnt;
@@ -223,86 +214,46 @@ struct readv_args {
  * MPSAFE
  */
 int
-readv(td, uap)
-	struct thread *td;
-	struct readv_args *uap;
+readv(struct thread *td, struct readv_args *uap)
 {
 	struct file *fp;
-	struct uio auio;
-	struct iovec *iov;
-	struct iovec *needfree;
-	struct iovec aiov[UIO_SMALLIOV];
-	long i, cnt;
+	struct uio *auio = NULL;
+	long cnt;
 	int error;
-	u_int iovlen;
 #ifdef KTRACE
-	struct iovec *ktriov = NULL;
-	struct uio ktruio;
+	struct uio *ktruio = NULL;
 #endif
 
-	if ((error = fget_read(td, uap->fd, &fp)) != 0)
+	error = fget_read(td, uap->fd, &fp);
+	if (error)
 		return (error);
-	needfree = NULL;
-	/* note: can't use iovlen until iovcnt is validated */
-	iovlen = uap->iovcnt * sizeof (struct iovec);
-	if (uap->iovcnt > UIO_SMALLIOV) {
-		if (uap->iovcnt > UIO_MAXIOV) {
-			error = EINVAL;
-			goto done;
-		}
-		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
-		needfree = iov;
-	} else
-		iov = aiov;
-	auio.uio_iov = iov;
-	auio.uio_iovcnt = uap->iovcnt;
-	auio.uio_rw = UIO_READ;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_td = td;
-	auio.uio_offset = -1;
-	if ((error = copyin(uap->iovp, iov, iovlen)))
-		goto done;
-	auio.uio_resid = 0;
-	for (i = 0; i < uap->iovcnt; i++) {
-		if (iov->iov_len > INT_MAX - auio.uio_resid) {
-			error = EINVAL;
-			goto done;
-		}
-		auio.uio_resid += iov->iov_len;
-		iov++;
+	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error) {
+		fdrop(fp, td);
+		return (error);
 	}
+	auio->uio_rw = UIO_READ;
+	auio->uio_td = td;
 #ifdef KTRACE
-	/*
-	 * if tracing, save a copy of iovec
-	 */
-	if (KTRPOINT(td, KTR_GENIO))  {
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy(auio.uio_iov, ktriov, iovlen);
-		ktruio = auio;
-	}
+	if (KTRPOINT(td, KTR_GENIO)) 
+		ktruio = cloneuio(auio);
 #endif
-	cnt = auio.uio_resid;
-	if ((error = fo_read(fp, &auio, td->td_ucred, 0, td))) {
-		if (auio.uio_resid != cnt && (error == ERESTART ||
+	cnt = auio->uio_resid;
+	if ((error = fo_read(fp, auio, td->td_ucred, 0, td))) {
+		if (auio->uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 	}
-	cnt -= auio.uio_resid;
+	cnt -= auio->uio_resid;
 #ifdef KTRACE
-	if (ktriov != NULL) {
-		if (error == 0) {
-			ktruio.uio_iov = ktriov;
-			ktruio.uio_resid = cnt;
-			ktrgenio(uap->fd, UIO_READ, &ktruio, error);
-		}
-		FREE(ktriov, M_TEMP);
+	if (ktruio != NULL) {
+		ktruio->uio_resid = cnt;
+		ktrgenio(uap->fd, UIO_READ, ktruio, error);
 	}
 #endif
 	td->td_retval[0] = cnt;
-done:
+	free(auio, M_IOV);
 	fdrop(fp, td);
-	if (needfree)
-		FREE(needfree, M_IOV);
 	return (error);
 }
 
@@ -389,9 +340,7 @@ dofilewrite(td, fp, fd, buf, nbyte, offset, flags)
 	struct iovec aiov;
 	long cnt, error = 0;
 #ifdef KTRACE
-	struct iovec ktriov;
-	struct uio ktruio;
-	int didktr = 0;
+	struct uio *ktruio = NULL;
 #endif
 
 	aiov.iov_base = (void *)(uintptr_t)buf;
@@ -406,14 +355,8 @@ dofilewrite(td, fp, fd, buf, nbyte, offset, flags)
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 #ifdef KTRACE
-	/*
-	 * if tracing, save a copy of iovec and uio
-	 */
-	if (KTRPOINT(td, KTR_GENIO)) {
-		ktriov = aiov;
-		ktruio = auio;
-		didktr = 1;
-	}
+	if (KTRPOINT(td, KTR_GENIO))
+		ktruio = cloneuio(&auio);
 #endif
 	cnt = nbyte;
 	if (fp->f_type == DTYPE_VNODE)
@@ -431,10 +374,9 @@ dofilewrite(td, fp, fd, buf, nbyte, offset, flags)
 	}
 	cnt -= auio.uio_resid;
 #ifdef KTRACE
-	if (didktr && error == 0) {
-		ktruio.uio_iov = &ktriov;
-		ktruio.uio_resid = cnt;
-		ktrgenio(fd, UIO_WRITE, &ktruio, error);
+	if (ktruio != NULL) {
+		ktruio->uio_resid = cnt;
+		ktrgenio(fd, UIO_WRITE, ktruio, error);
 	}
 #endif
 	td->td_retval[0] = cnt;
@@ -455,68 +397,35 @@ struct writev_args {
  * MPSAFE
  */
 int
-writev(td, uap)
-	struct thread *td;
-	register struct writev_args *uap;
+writev(struct thread *td, struct writev_args *uap)
 {
 	struct file *fp;
-	struct uio auio;
-	register struct iovec *iov;
-	struct iovec *needfree;
-	struct iovec aiov[UIO_SMALLIOV];
-	long i, cnt, error = 0;
-	u_int iovlen;
+	struct uio *auio = NULL;
+	long cnt;
+	int error;
 #ifdef KTRACE
-	struct iovec *ktriov = NULL;
-	struct uio ktruio;
+	struct uio *ktruio = NULL;
 #endif
 
-	if ((error = fget_write(td, uap->fd, &fp)) != 0)
+	error = fget_write(td, uap->fd, &fp);
+	if (error)
 		return (EBADF);
-	needfree = NULL;
-	/* note: can't use iovlen until iovcnt is validated */
-	iovlen = uap->iovcnt * sizeof (struct iovec);
-	if (uap->iovcnt > UIO_SMALLIOV) {
-		if (uap->iovcnt > UIO_MAXIOV) {
-			error = EINVAL;
-			goto done;
-		}
-		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
-		needfree = iov;
-	} else
-		iov = aiov;
-	auio.uio_iov = iov;
-	auio.uio_iovcnt = uap->iovcnt;
-	auio.uio_rw = UIO_WRITE;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_td = td;
-	auio.uio_offset = -1;
-	if ((error = copyin(uap->iovp, iov, iovlen)))
-		goto done;
-	auio.uio_resid = 0;
-	for (i = 0; i < uap->iovcnt; i++) {
-		if (iov->iov_len > INT_MAX - auio.uio_resid) {
-			error = EINVAL;
-			goto done;
-		}
-		auio.uio_resid += iov->iov_len;
-		iov++;
+	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error) {
+		fdrop(fp, td);
+		return (error);
 	}
+	auio->uio_rw = UIO_WRITE;
+	auio->uio_td = td;
 #ifdef KTRACE
-	/*
-	 * if tracing, save a copy of iovec and uio
-	 */
-	if (KTRPOINT(td, KTR_GENIO))  {
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy(auio.uio_iov, ktriov, iovlen);
-		ktruio = auio;
-	}
+	if (KTRPOINT(td, KTR_GENIO))
+		ktruio = cloneuio(auio);
 #endif
-	cnt = auio.uio_resid;
+	cnt = auio->uio_resid;
 	if (fp->f_type == DTYPE_VNODE)
 		bwillwrite();
-	if ((error = fo_write(fp, &auio, td->td_ucred, 0, td))) {
-		if (auio.uio_resid != cnt && (error == ERESTART ||
+	if ((error = fo_write(fp, auio, td->td_ucred, 0, td))) {
+		if (auio->uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 		if (error == EPIPE) {
@@ -525,22 +434,16 @@ writev(td, uap)
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
-	cnt -= auio.uio_resid;
+	cnt -= auio->uio_resid;
 #ifdef KTRACE
-	if (ktriov != NULL) {
-		if (error == 0) {
-			ktruio.uio_iov = ktriov;
-			ktruio.uio_resid = cnt;
-			ktrgenio(uap->fd, UIO_WRITE, &ktruio, error);
-		}
-		FREE(ktriov, M_TEMP);
+	if (ktruio != NULL) {
+		ktruio->uio_resid = cnt;
+		ktrgenio(uap->fd, UIO_WRITE, ktruio, error);
 	}
 #endif
 	td->td_retval[0] = cnt;
-done:
 	fdrop(fp, td);
-	if (needfree)
-		FREE(needfree, M_IOV);
+	free(auio, M_IOV);
 	return (error);
 }
 

@@ -163,8 +163,7 @@ svr4_sendit(td, s, mp, flags)
 	int len, error;
 	struct socket *so;
 #ifdef KTRACE
-	struct iovec *ktriov = NULL;
-	struct uio ktruio;
+	struct uio *ktruio = NULL;
 #endif
 
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
@@ -212,13 +211,8 @@ svr4_sendit(td, s, mp, flags)
 		control = 0;
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_GENIO)) {
-		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
-
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
-		ktruio = auio;
-	}
+	if (KTRPOINT(td, KTR_GENIO))
+		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, to, &auio, 0, control,
@@ -236,13 +230,9 @@ svr4_sendit(td, s, mp, flags)
 	if (error == 0)
 		td->td_retval[0] = len - auio.uio_resid;
 #ifdef KTRACE
-	if (ktriov != NULL) {
-		if (error == 0) {
-			ktruio.uio_iov = ktriov;
-			ktruio.uio_resid = td->td_retval[0];
-			ktrgenio(s, UIO_WRITE, &ktruio, error);
-		}
-		FREE(ktriov, M_TEMP);
+	if (ktruio != NULL) {
+		ktruio->uio_resid = td->td_retval[0];
+		ktrgenio(s, UIO_WRITE, ktruio, error);
 	}
 #endif
 bad:
@@ -269,8 +259,7 @@ svr4_recvit(td, s, mp, namelenp)
 	struct socket *so;
 	struct sockaddr *fromsa = 0;
 #ifdef KTRACE
-	struct iovec *ktriov = NULL;
-	struct uio ktruio;
+	struct uio *ktruio = NULL;
 #endif
 
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
@@ -299,13 +288,8 @@ svr4_recvit(td, s, mp, namelenp)
 		}
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_GENIO)) {
-		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
-
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
-		ktruio = auio;
-	}
+	if (KTRPOINT(td, KTR_GENIO)) 
+		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
 	error = so->so_proto->pr_usrreqs->pru_soreceive(so, &fromsa, &auio,
@@ -317,13 +301,9 @@ svr4_recvit(td, s, mp, namelenp)
 			error = 0;
 	}
 #ifdef KTRACE
-	if (ktriov != NULL) {
-		if (error == 0) {
-			ktruio.uio_iov = ktriov;
-			ktruio.uio_resid = len - auio.uio_resid;
-			ktrgenio(s, UIO_READ, &ktruio, error);
-		}
-		FREE(ktriov, M_TEMP);
+	if (ktruio != NULL) {
+		ktruio->uio_resid = len - auio.uio_resid;
+		ktrgenio(s, UIO_READ, ktruio, error);
 	}
 #endif
 	if (error)
