@@ -65,9 +65,6 @@
 */
 
 /* Includes */
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -82,21 +79,14 @@
 
 struct grehdr			/* Enhanced GRE header. */
 {
-    u_char    gh_recursion:3,	/* Recursion control. */
-              gh_ssr_flag:1,	/* Strict source route present. */
-              gh_seq_no_flag:1,	/* Sequence number present. */
-              gh_key_flag:1,	/* Key present. */
-              gh_rt_flag:1,	/* Routing present. */
-              gh_cksum_flag:1;	/* Checksum present. */
-    u_char    gh_version:3,	/* GRE version. */
-              gh_flags:4,	/* Flags. */
-              gh_ack_no_flag:1;	/* Acknowledgment sequence number present. */
-    u_short   gh_protocol;	/* Protocol type. */
-    u_short   gh_length;	/* Payload length. */
-    u_short   gh_call_id;	/* Call ID. */
+    u_int16_t gh_flags;		/* Flags. */
+    u_int16_t gh_protocol;	/* Protocol type. */
+    u_int16_t gh_length;	/* Payload length. */
+    u_int16_t gh_call_id;	/* Call ID. */
     u_int32_t gh_seq_no;	/* Sequence number (optional). */
     u_int32_t gh_ack_no;	/* Acknowledgment number (optional). */
 };
+typedef struct grehdr		GreHdr;
 
 /* The PPTP protocol ID used in the GRE 'proto' field. */
 #define PPTP_GRE_PROTO          0x880b
@@ -123,7 +113,7 @@ enum {
   PPTP_CallClearRequest = 12,
   PPTP_CallDiscNotify = 13,
   PPTP_WanErrorNotify = 14,
-  PPTP_SetLinkInfo = 15,
+  PPTP_SetLinkInfo = 15
 };
 
   /* Message structures */
@@ -136,6 +126,12 @@ enum {
   };
   typedef struct pptpMsgHead    *PptpMsgHead;
 
+  struct pptpCodes {
+    u_int8_t    resCode;        /* Result Code */
+    u_int8_t    errCode;        /* Error Code */
+  };
+  typedef struct pptpCodes      *PptpCode;
+
   struct pptpCallIds {
     u_int16_t   cid1;           /* Call ID field #1 */
     u_int16_t   cid2;           /* Call ID field #2 */
@@ -144,29 +140,6 @@ enum {
 
 static PptpCallId AliasVerifyPptp(struct ip *, u_int16_t *);
 
-int
-PptpGetCallID(struct ip *pip,
-              u_short *call_id)
-{
-    struct grehdr *gr;
-
-    gr = (struct grehdr *)((char *)pip + (pip->ip_hl << 2));
-
-    /* Check GRE header bits. */
-    if ((ntohl(*((u_int32_t *)gr)) & PPTP_INIT_MASK) == PPTP_INIT_VALUE) {
-	*call_id = gr->gh_call_id;
-	return 1;
-    } else
-	return 0;
-};
-
-void PptpSetCallID(struct ip *pip, u_short call_id)
-{
-    struct grehdr *gr;
-
-    gr = (struct grehdr *)((char *)pip + (pip->ip_hl << 2));
-    gr->gh_call_id = call_id;
-};
 
 void
 AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
@@ -174,6 +147,7 @@ AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
 {
     struct alias_link   *pptp_link;
     PptpCallId    	cptr;
+    PptpCode            codes;
     u_int16_t           ctl_type;           /* control message type */
     struct tcphdr 	*tc;
 
@@ -187,12 +161,20 @@ AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
     case PPTP_OutCallReply:
     case PPTP_InCallRequest:
     case PPTP_InCallReply:
+	/* Establish PPTP link for address and Call ID found in control message. */
+	pptp_link = AddPptp(GetOriginalAddress(link), GetDestAddress(link),
+			    GetAliasAddress(link), cptr->cid1);
+	break;
     case PPTP_CallClearRequest:
     case PPTP_CallDiscNotify:
-
-      /* Establish PPTP link for address and Call ID found in PPTP Control Msg */
-      pptp_link = FindPptpOut(GetOriginalAddress(link), GetDestAddress(link),
-                              cptr->cid1);
+	/* Find PPTP link for address and Call ID found in control message. */
+	pptp_link = FindPptpOutByCallId(GetOriginalAddress(link),
+					GetDestAddress(link),
+					cptr->cid1);
+	break;
+    default:
+	return;
+    }
 
       if (pptp_link != NULL) {
 	int accumulate = cptr->cid1;
@@ -204,11 +186,22 @@ AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
 	tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
 	accumulate -= cptr->cid1;
 	ADJUST_CHECKSUM(accumulate, tc->th_sum);
+
+	switch (ctl_type) {
+	case PPTP_OutCallReply:
+	case PPTP_InCallReply:
+	    codes = (PptpCode)(cptr + 1);
+	    if (codes->resCode == 1)		/* Connection established, */
+		SetDestCallId(pptp_link,	/* note the Peer's Call ID. */
+			      cptr->cid2);
+	    else
+		SetExpire(pptp_link, 0);	/* Connection refused. */
+	    break;
+	case PPTP_CallDiscNotify:		/* Connection closed. */
+	    SetExpire(pptp_link, 0);
+	    break;
+	}
       }
-      break;
-    default:
-      return;
-    }
 }
 
 void
@@ -237,28 +230,46 @@ AliasHandlePptpIn(struct ip *pip,	   /* IP packet to examine/patch */
     case PPTP_InCallReply:
       pcall_id = &cptr->cid2;
       break;
+    case PPTP_CallDiscNotify:			/* Connection closed. */
+      pptp_link = FindPptpInByCallId(GetDestAddress(link),
+				     GetAliasAddress(link),
+				     cptr->cid1);
+      if (pptp_link != NULL)
+	    SetExpire(pptp_link, 0);
+      return;
     default:
       return;
     }
 
     /* Find PPTP link for address and Call ID found in PPTP Control Msg */
-    pptp_link = FindPptpIn(GetDestAddress(link), GetAliasAddress(link),
-                           *pcall_id);
+    pptp_link = FindPptpInByPeerCallId(GetDestAddress(link),
+				       GetAliasAddress(link),
+				       *pcall_id);
 
     if (pptp_link != NULL) {
       int accumulate = *pcall_id;
 
-      /* alias the Call Id */
+      /* De-alias the Peer's Call Id. */
       *pcall_id = GetOriginalPort(pptp_link);
 
       /* Compute TCP checksum for modified packet */
       tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
       accumulate -= *pcall_id;
       ADJUST_CHECKSUM(accumulate, tc->th_sum);
+
+      if (ctl_type == PPTP_OutCallReply || ctl_type == PPTP_InCallReply) {
+	    PptpCode codes = (PptpCode)(cptr + 1);
+
+	    if (codes->resCode == 1)		/* Connection established, */
+		SetDestCallId(pptp_link,	/* note the Call ID. */
+			      cptr->cid1);
+	    else
+		SetExpire(pptp_link, 0);	/* Connection refused. */
+      }
     }
 }
 
-PptpCallId
+static PptpCallId
 AliasVerifyPptp(struct ip *pip, u_int16_t *ptype) /* IP packet to examine/patch */
 {
     int           	hlen, tlen, dlen;
@@ -285,6 +296,71 @@ AliasVerifyPptp(struct ip *pip, u_int16_t *ptype) /* IP packet to examine/patch 
     if ((ntohs(hptr->msgType) != PPTP_CTRL_MSG_TYPE) ||
         (ntohl(hptr->magic) != PPTP_MAGIC))
       return(NULL);
+
+    /* Verify data length. */
+    if ((*ptype == PPTP_OutCallReply || *ptype == PPTP_InCallReply) &&
+	(dlen < sizeof(struct pptpMsgHead) + sizeof(struct pptpCallIds) +
+		sizeof(struct pptpCodes)))
+	return (NULL);
     else
-      return((PptpCallId)(((char *)hptr) + sizeof(struct pptpMsgHead)));
+	return (PptpCallId)(hptr + 1);
+}
+
+
+int
+AliasHandlePptpGreOut(struct ip *pip)
+{
+    GreHdr		*gr;
+    struct alias_link	*link;
+
+    gr = (GreHdr *)((char *)pip + (pip->ip_hl << 2));
+
+    /* Check GRE header bits. */
+    if ((ntohl(*((u_int32_t *)gr)) & PPTP_INIT_MASK) != PPTP_INIT_VALUE)
+	return (-1);
+
+    link = FindPptpOutByPeerCallId(pip->ip_src, pip->ip_dst, gr->gh_call_id);
+    if (link != NULL) {
+	struct in_addr alias_addr = GetAliasAddress(link);
+
+	/* Change source IP address. */
+	DifferentialChecksum(&pip->ip_sum,
+			     (u_short *)&alias_addr,
+			     (u_short *)&pip->ip_src,
+			     2);
+	pip->ip_src = alias_addr;
+    }
+
+    return (0);
+}
+
+
+int
+AliasHandlePptpGreIn(struct ip *pip)
+{
+    GreHdr		*gr;
+    struct alias_link	*link;
+
+    gr = (GreHdr *)((char *)pip + (pip->ip_hl << 2));
+
+    /* Check GRE header bits. */
+    if ((ntohl(*((u_int32_t *)gr)) & PPTP_INIT_MASK) != PPTP_INIT_VALUE)
+	return (-1);
+
+    link = FindPptpInByPeerCallId(pip->ip_src, pip->ip_dst, gr->gh_call_id);
+    if (link != NULL) {
+	struct in_addr src_addr = GetOriginalAddress(link);
+
+	/* De-alias the Peer's Call Id. */
+	gr->gh_call_id = GetOriginalPort(link);
+
+	/* Restore original IP address. */
+	DifferentialChecksum(&pip->ip_sum,
+			     (u_short *)&src_addr,
+			     (u_short *)&pip->ip_dst,
+			     2);
+	pip->ip_dst = src_addr;
+    }
+
+    return (0);
 }
