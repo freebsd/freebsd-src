@@ -36,7 +36,6 @@
 
 extern int	debug_level;
 extern int	grace_expired;
-void sigchild_handler __P((int));
 pid_t	client_request(void);
 extern int nsm_state;
 extern pid_t client_pid;
