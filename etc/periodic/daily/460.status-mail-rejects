@@ -24,7 +24,13 @@ case "$daily_status_mail_rejects_enable" in
 	    {
 		while [ $n -ge 0 ]
 		do
-		    [ -f /var/log/maillog.$n* ] && zcat -fc /var/log/maillog.$n*
+		    if [ -f /var/log/maillog.$n ]
+		    then
+			cat /var/log/maillog.$n
+		    elif [ -f /var/log/maillog.$n.gz ]
+		    then
+			zcat -fc /var/log/maillog.$n.gz
+		    fi
 		    n=$(($n - 1))
 		done
 		cat /var/log/maillog
