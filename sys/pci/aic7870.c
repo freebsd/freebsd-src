@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.2 1995/01/16 16:31:57 gibbs Exp $
+ *	$Id: aic7870.c,v 1.3 1995/01/22 00:47:50 gibbs Exp $
  */
 
 #include <pci.h>
@@ -28,7 +28,7 @@
 #include <sys/systm.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
-#include <i386/pci/pcireg.h>
+#include <pci/pcireg.h>
 #include <i386/scsi/aic7xxx.h>
 
 #define PCI_BASEADR0	PCI_MAP_REG_START

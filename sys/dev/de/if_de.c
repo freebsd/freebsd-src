@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.12 1994/12/22 21:56:19 wollman Exp $
+ * $Id: if_de.c,v 1.13 1994/12/22 23:42:25 davidg Exp $
  *
  */
 
@@ -78,10 +78,10 @@
 
 #include <pci.h>
 #if NPCI > 0
-#include <i386/pci/pcireg.h>
+#include <pci/pcireg.h>
 #endif
 #include <i386/isa/icu.h>
-#include <i386/pci/dc21040.h>
+#include <pci/dc21040.h>
 
 /*
  * This module supports the DEC DC21040 PCI Ethernet Controller.
