@@ -93,9 +93,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/dkstat.h>
@@ -179,23 +176,6 @@ d_psize_t ccdsize;
 d_read_t ccdread;
 d_write_t ccdwrite;
 
-#define CDEV_MAJOR 74
-#define BDEV_MAJOR 21
-
-extern struct cdevsw ccd_cdevsw;
-static struct bdevsw ccd_bdevsw = {
-  ccdopen, ccdclose, ccdstrategy, ccdioctl,
-  ccddump, ccdsize, 0,
-  "ccd", &ccd_cdevsw, -1
-};
-
-static struct cdevsw ccd_cdevsw = {
-  ccdopen, ccdclose, ccdread, ccdwrite,
-  ccdioctl, nostop, nullreset, nodevtotty,
-  seltrue, nommap, ccdstrategy,
-  "ccd", &ccd_bdevsw, -1
-};
-
 /* Called by main() during pseudo-device attachment */
 static void	ccdattach __P((void *));
 PSEUDO_SET(ccdattach, ccd);
@@ -226,12 +206,9 @@ struct	ccd_softc *ccd_softc;
 struct	ccddevice *ccddevs;
 int	numccd = 0;
 
-static int ccd_devsw_installed = 0;
-
 /*
  * Called by main() during pseudo-device attachment.  All we need
- * to do is allocate enough space for devices to be configured later, and
- * add devsw entries.
+ * to do is allocate enough space for devices to be configured later.
  */
 void
 ccdattach(dummy)
@@ -265,17 +242,6 @@ ccdattach(dummy)
 	/* XXX: is this necessary? */
 	for (i = 0; i < numccd; ++i)
 		ccddevs[i].ccd_dk = -1;
-
-	if( ! ccd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&ccd_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&ccd_bdevsw, NULL);
-		ccd_devsw_installed = 1;
-    	}
-	else {
-		printf("huh?\n");
-	}
 }
 
 static int
@@ -1331,7 +1297,7 @@ ccdioctl(dev, cmd, data, flag, p)
 				/*, &cs->sc_dkdev.dk_cpulabel); */
 		if (error == 0) {
 			if (cmd == DIOCWDINFO)
-				error = writedisklabel(CCDLABELDEV(dev),
+				error = correct_writedisklabel(CCDLABELDEV(dev),
 				    ccdstrategy, &cs->sc_dkdev.dk_label);
 				/*
 				    &cs->sc_dkdev.dk_cpulabel); */
@@ -1509,7 +1475,7 @@ ccdgetdisklabel(dev)
 	/*
 	 * Call the generic disklabel extraction routine.
 	 */
-	if (errstring = readdisklabel(CCDLABELDEV(dev), ccdstrategy,
+	if (errstring = correct_readdisklabel(CCDLABELDEV(dev), ccdstrategy,
 	    &cs->sc_dkdev.dk_label/*, &dos_partdummy, &dkbaddummy*/)) 
 		/*, &cs->sc_dkdev.dk_cpulabel)) */
 		ccdmakedisklabel(cs);
