@@ -667,7 +667,7 @@ osf1_fstat(td, uap)
 	struct thread *td;
 	register struct osf1_fstat_args *uap;
 {
-	register struct file *fp;
+	struct file *fp;
 	struct stat ub;
 	struct osf1_stat oub;
 	int error;
