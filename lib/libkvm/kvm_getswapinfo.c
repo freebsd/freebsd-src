@@ -14,7 +14,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kvm_getswapinfo.c,v 1.4 1999/01/27 11:29:15 bde Exp $";
+	"$Id: kvm_getswapinfo.c,v 1.5 1999/02/06 06:31:57 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -175,12 +175,15 @@ kvm_getswapinfo(
 			 *
 			 * new style: swinfo in DEV_BSIZE'd chunks but dmmax
 			 * in pages.
+			 *
+			 * The first dmmax is never allocating to avoid 
+			 * trashing the disklabels
 			 */
 
 			if (type == 1)
-				ttl = dbtoc(swinfo.sw_nblks);
+				ttl = dbtoc(swinfo.sw_nblks - dmmax);
 			else
-				ttl = swinfo.sw_nblks;
+				ttl = swinfo.sw_nblks - dmmax;
 
 			if (ttl == 0)
 				continue;
