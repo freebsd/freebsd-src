@@ -156,9 +156,6 @@ NON_GPROF_ENTRY(wait_ap)
  * 1Meg.		-jackv
  */
 
-#define data32	.byte 0x66
-#define addr32	.byte 0x67
-
 	.data
 	ALIGN_DATA				/* just to be sure */
 
@@ -186,17 +183,11 @@ NON_GPROF_ENTRY(bootMP)
 	mov	$(boot_stk-_bootMP), %esp
 
 	/* Now load the global descriptor table */
-	addr32
-	data32
-	/* XXX: sigh: lgdt	MP_GDTptr-_bootMP GAS BUG! */
-	.byte	0x0f, 0x01, 0x15		/* XXX hand assemble! */
-	.long	MP_GDTptr-_bootMP		/* XXX hand assemble! */
+	lgdt	MP_GDTptr-_bootMP
 
 	/* Enable protected mode */
-	data32
 	movl	%cr0, %eax
 	orl	$CR0_PE, %eax
-	data32
 	movl	%eax, %cr0 
 
 	/*
