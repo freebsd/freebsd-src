@@ -20,7 +20,7 @@ static inline chtype render_char(WINDOW *win, chtype ch)
 		ch = ch_or_attr(ch, win->_bkgd);
 	else if (!(ch & A_ATTRIBUTES))
 		ch = ch_or_attr(ch, (win->_bkgd & A_ATTRIBUTES));
-	TR(TRACE_VIRTPUT, ("bkg = %#lx -> ch = %#lx", win->_bkgd, ch));
+	TR(TRACE_CHARPUT, ("bkg = %#lx -> ch = %#lx", win->_bkgd, ch));
 
 	return(ch);
 }
