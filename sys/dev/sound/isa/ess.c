@@ -678,7 +678,7 @@ esschan_trigger(void *data, int go)
 {
 	struct ess_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR)
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
 	switch (go) {
