@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.48 1997/08/19 23:33:45 nate Exp $
+ *	$Id: rtld.c,v 1.40.2.4 1997/09/02 14:18:52 nate Exp $
  */
 
 #include <sys/param.h>
@@ -199,26 +199,26 @@ struct so_map		*link_map_head;
 struct so_map		*link_map_tail;
 struct rt_symbol	*rt_symbol_head;
 
-static void		*__dlopen __P((char *, int));
+static void		*__dlopen __P((const char *, int));
 static int		__dlclose __P((void *));
-static void		*__dlsym __P((void *, char *));
-static char		*__dlerror __P((void));
+static void		*__dlsym __P((void *, const char *));
+static const char	*__dlerror __P((void));
 static void		__dlexit __P((void));
-static void		*__dlsym3 __P((void *, char *, void *));
+static void		*__dlsym3 __P((void *, const char *, void *));
 
 static struct ld_entry	ld_entry = {
 	__dlopen, __dlclose, __dlsym, __dlerror, __dlexit, __dlsym3
 };
 
        void		xprintf __P((char *, ...));
-static struct so_map	*map_object __P((	char *,
+static struct so_map	*map_object __P((	const char *,
 						struct sod *,
 						struct so_map *));
 static int		map_preload __P((void));
 static int		map_sods __P((struct so_map *));
 static int		reloc_and_init __P((struct so_map *, int));
 static void		unmap_object __P((struct so_map	*, int));
-static struct so_map	*alloc_link_map __P((	char *, struct sod *,
+static struct so_map	*alloc_link_map __P((	const char *, struct sod *,
 						struct so_map *, caddr_t,
 						struct _dynamic *));
 static void		free_link_map __P((struct so_map *));
@@ -515,7 +515,7 @@ ld_trace(smp)
  */
 	static struct so_map *
 alloc_link_map(path, sodp, parent, addr, dp)
-	char		*path;
+	const char	*path;
 	struct sod	*sodp;
 	struct so_map	*parent;
 	caddr_t		addr;
@@ -619,7 +619,7 @@ free_link_map(smp)
  */
 	static struct so_map *
 map_object(path, sodp, parent)
-	char		*path;
+	const char	*path;
 	struct sod	*sodp;
 	struct so_map	*parent;
 {
@@ -872,7 +872,7 @@ map_sods(parent)
 			 */
 			(void)alloc_link_map(NULL, sodp, parent, 0, 0);
 		} else if (ld_ignore_missing_objects) {
-			char *msg;
+			const char *msg;
 			/*
 			 * Call __dlerror() even it we're not going to use
 			 * the message, in order to clear the saved message.
@@ -1839,10 +1839,10 @@ static char  dlerror_buf [DLERROR_BUF_SIZE];
 static char *dlerror_msg = NULL;
 
 
-	static void *
+static void *
 __dlopen(path, mode)
-	char	*path;
-	int	mode;
+	const char	*path;
+	int		 mode;
 {
 	struct so_map	*old_tail = link_map_tail;
 	struct so_map	*smp;
@@ -1872,7 +1872,7 @@ __dlopen(path, mode)
 	return smp;
 }
 
-	static int
+static int
 __dlclose(fd)
 	void	*fd;
 {
@@ -1902,10 +1902,10 @@ __dlclose(fd)
  * it.  It can still be called by old executables that were linked with
  * old versions of crt0.
  */
-	static void *
+static void *
 __dlsym(fd, sym)
-	void	*fd;
-	char	*sym;
+	void		*fd;
+	const char	*sym;
 {
 	if (fd == RTLD_NEXT) {
 		generror("RTLD_NEXT not supported by this version of"
@@ -1975,11 +1975,11 @@ resolvesym(fd, sym, retaddr)
 	return (void *)addr;
 }
 
-	static void *
+static void *
 __dlsym3(fd, sym, retaddr)
-	void	*fd;
-	char	*sym;
-	void	*retaddr;
+	void		*fd;
+	const char	*sym;
+	void		*retaddr;
 {
 	void *result;
 
@@ -2003,10 +2003,10 @@ __dlsym3(fd, sym, retaddr)
 	return result;
 }
 
-	static char *
+static const char *
 __dlerror __P((void))
 {
-        char *err;
+        const char	*err;
 
         err = dlerror_msg;
         dlerror_msg = NULL;  /* Next call will return NULL */
@@ -2014,7 +2014,7 @@ __dlerror __P((void))
         return err;
 }
 
-	static void
+static void
 __dlexit __P((void))
 {
 #ifdef DEBUG
@@ -2030,7 +2030,7 @@ xprintf("__dlexit called\n");
 static void
 die __P((void))
 {
-	char *msg;
+	const char	*msg;
 
 	fprintf(stderr, "ld.so failed");
 	if ((msg = __dlerror()) != NULL)
