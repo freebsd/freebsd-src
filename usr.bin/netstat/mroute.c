@@ -55,9 +55,7 @@
 #include <netinet/in.h>
 #include <netinet/igmp.h>
 #include <net/route.h>
-#define KERNEL 1		/* XXX bogus! */
 #include <netinet/ip_mroute.h>
-#undef KERNEL
 
 #include <stdio.h>
 #include <stdlib.h>
