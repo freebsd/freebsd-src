@@ -76,7 +76,7 @@
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.35 1994/05/21 08:55:52 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.36 1994/05/30 03:53:01 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -120,7 +120,7 @@ std)
 
 # Create device files for new Archive/Wangtek QIC-02 tape driver (vak)
 wt*)
-	umask 2 ; u=`expr $i : '..\(.*\)'`
+	umask 7 ; u=`expr $i : '..\(.*\)'`
 	if [ x$u = x ]; then u=0; fi
 	rm -f r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
 	mknod rwt${u}   c 10 `expr  0 + $u`	# default density, 512b blocks
@@ -264,6 +264,14 @@ sd*|wd*)
 		mknod ${name}${unit}f	b $blk `expr $unit '*' 8 + 5`
 		mknod ${name}${unit}g	b $blk `expr $unit '*' 8 + 6`
 		mknod ${name}${unit}h	b $blk `expr $unit '*' 8 + 7`
+		case $i in
+		wd*)
+		mknod ${name}${unit}i	b $blk `expr $unit '*' 8 + 64`
+		mknod ${name}${unit}j	b $blk `expr $unit '*' 8 + 65`
+		mknod ${name}${unit}k	b $blk `expr $unit '*' 8 + 66`
+		mknod ${name}${unit}l	b $blk `expr $unit '*' 8 + 67`
+		mknod ${name}${unit}m	b $blk `expr $unit '*' 8 + 68`
+		esac
 		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
 		mknod r${name}${unit}b	c $chr `expr $unit '*' 8 + 1`
 		mknod r${name}${unit}c	c $chr `expr $unit '*' 8 + 2`
@@ -272,8 +280,16 @@ sd*|wd*)
 		mknod r${name}${unit}f	c $chr `expr $unit '*' 8 + 5`
 		mknod r${name}${unit}g	c $chr `expr $unit '*' 8 + 6`
 		mknod r${name}${unit}h	c $chr `expr $unit '*' 8 + 7`
-		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
-		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
+		case $i in
+		wd*)
+		mknod r${name}${unit}i	c $chr `expr $unit '*' 8 + 64`
+		mknod r${name}${unit}j	c $chr `expr $unit '*' 8 + 65`
+		mknod r${name}${unit}k	c $chr `expr $unit '*' 8 + 66`
+		mknod r${name}${unit}l	c $chr `expr $unit '*' 8 + 67`
+		mknod r${name}${unit}m	c $chr `expr $unit '*' 8 + 68`
+		esac
+		chgrp operator ${name}${unit}[a-m] r${name}${unit}[a-m]
+		chmod 640 ${name}${unit}[a-m] r${name}${unit}[a-m]
 		;;
 	*)
 		echo bad unit for disk in: $i
@@ -341,7 +357,7 @@ st*)
 					nrst${unit}.${mode} \
 					erst${unit}.${mode} \
 					st${unit}ctl.${mode}
-			chmod 644 	rst${unit}.${mode}\
+			chmod 640 	rst${unit}.${mode}\
 					nrst${unit}.${mode} \
 					erst${unit}.${mode} 
 			chmod 660	st${unit}ctl.${mode}
