@@ -38,11 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-/*
+#if 0
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
-*/
+#endif
 static const char rcsid[] =
-	"$Id: su.c,v 1.19 1997/03/29 04:32:40 imp Exp $";
+	"$Id: su.c,v 1.20 1997/05/10 19:01:32 davidn Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -89,6 +89,7 @@ int use_kerberos = 1;
 
 char   *ontty __P((void));
 int	chshell __P((char *));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -142,10 +143,8 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr, "usage: su [%s] [login]\n",
-				      ARGSTR);
-			exit(1);
-		      }
+			usage();
+		}
 	    else
 	    {
 		user = argv[optind++];
@@ -400,6 +399,13 @@ main(argc, argv)
 
 	execv(shell, np);
 	err(1, "%s", shell);
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: su [%s] [login [args]]\n", ARGSTR);
+	exit(1);
 }
 
 int
