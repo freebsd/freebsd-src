@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.14 1999/03/11 15:09:51 phk Exp $
+ * $Id: pps.c,v 1.15 1999/03/13 16:22:18 phk Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -34,6 +34,7 @@
 
 static struct pps_data {
 	int	pps_unit;
+	int	pps_open;
 	struct	ppb_device pps_dev;	
 	struct	pps_state pps;
 } *softc[NPPS];
@@ -126,11 +127,14 @@ ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	sc = softc[unit];
 
-	if (ppb_request_bus(&sc->pps_dev, PPB_WAIT|PPB_INTR))
-		return (EINTR);
+	if (!sc->pps_open) {
+		if (ppb_request_bus(&sc->pps_dev, PPB_WAIT|PPB_INTR))
+			return (EINTR);
 
-	ppb_wctr(&sc->pps_dev, 0);
-	ppb_wctr(&sc->pps_dev, IRQENABLE);
+		ppb_wctr(&sc->pps_dev, 0);
+		ppb_wctr(&sc->pps_dev, IRQENABLE);
+		sc->pps_open = 1;
+	}
 
 	return(0);
 }
@@ -146,6 +150,7 @@ ppsclose(dev_t dev, int flags, int fmt, struct proc *p)
 	ppb_wctr(&sc->pps_dev, 0);
 
 	ppb_release_bus(&sc->pps_dev);
+	sc->pps_open = 0;
 	return(0);
 }
 
