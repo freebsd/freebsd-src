@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.47 1997/10/26 20:55:09 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.48 1997/10/27 13:33:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -284,7 +284,7 @@ cd9660_read(ap)
 		size = blksize(imp, ip, lbn);
 		rablock = lbn + 1;
 		if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
-			if (lblktosize(imp, rablock) <= ip->i_size)
+			if (lblktosize(imp, rablock) < ip->i_size)
 				error = cluster_read(vp, (off_t)ip->i_size,
 				         lbn, size, NOCRED, uio->uio_resid,
 					 (ap->a_ioflag >> 16), &bp);
