@@ -1,0 +1,120 @@
+Thu Apr 25 12:03:49 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* vi_mode.c (rl_vi_fword, fWord, etc.  All functions use
+	the macro `isident()'.  Fixed movement bug which prevents
+	continious movement through the text.
+
+Fri Jul 27 16:47:01 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (parser_if) Allow "$if term=foo" construct.
+
+Wed May 23 16:10:33 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (rl_dispatch) Correctly remember the last command
+	executed.  Fixed typo in username_completion_function ().
+
+Mon Apr  9 19:55:48 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: username_completion_function (); For text passed in
+	with a leading `~', remember that this could be a filename (after
+	it is completed).
+
+Thu Apr  5 13:44:24 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: rl_search_history (): Correctly handle case of an
+	unfound search string, but a graceful exit (as with ESC).
+
+	* readline.c: rl_restart_output ();  The Apollo passes the address
+	of the file descriptor to TIOCSTART, not the descriptor itself.
+
+Tue Mar 20 05:38:55 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: rl_complete (); second call in a row causes possible
+	completions to be listed.
+
+	* readline.c: rl_redisplay (), added prompt_this_line variable
+	which is the first character character following \n in prompt.
+
+Sun Mar 11 04:32:03 1990  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* Signals are now supposedly handled inside of SYSV compilation.
+
+Wed Jan 17 19:24:09 1990  Brian Fox  (bfox at sbphy.ucsb.edu)
+
+	* history.c: history_expand (); fixed overwriting memory error,
+	added needed argument to call to get_history_event ().
+
+Thu Jan 11 10:54:04 1990  Brian Fox  (bfox at sbphy.ucsb.edu)
+
+	* readline.c: added mark_modified_lines to control the
+	display of an asterisk on modified history lines.  Also
+	added a user variable called mark-modified-lines to the
+	`set' command.
+
+Thu Jan  4 10:38:05 1990  Brian Fox  (bfox at sbphy.ucsb.edu)
+
+	* readline.c: start_insert ().  Only use IC if we don't have an im
+	capability.
+
+Fri Sep  8 09:00:45 1989  Brian Fox  (bfox at aurel)
+
+	* readline.c: rl_prep_terminal ().  Only turn on 8th bit
+	  as meta-bit iff the terminal is not using parity.
+
+Sun Sep  3 08:57:40 1989  Brian Fox  (bfox at aurel)
+
+	* readline.c: start_insert ().  Uses multiple
+	  insertion call in cases where that makes sense.
+
+	  rl_insert ().  Read type-ahead buffer for additional
+	  keys that are bound to rl_insert, and insert them
+	  all at once.  Make insertion of single keys given
+	  with an argument much more efficient.
+
+Tue Aug  8 18:13:57 1989  Brian Fox  (bfox at aurel)
+
+	* readline.c: Changed handling of EOF.  readline () returns
+	 (char *)EOF or consed string.  The EOF character is read from the
+	 tty, or if the tty doesn't have one, defaults to C-d.
+
+	* readline.c: Added support for event driven programs.
+	  rl_event_hook is the address of a function you want called
+	  while Readline is waiting for input.
+
+	* readline.c: Cleanup time.  Functions without type declarations
+	  do not use return with a value.
+
+	* history.c: history_expand () has new variable which is the
+	  characters to ignore immediately following history_expansion_char.
+
+Sun Jul 16 08:14:00 1989  Brian Fox  (bfox at aurel)
+
+	* rl_prep_terminal ()
+	  BSD version turns off C-s, C-q, C-y, C-v.
+
+	* readline.c -- rl_prep_terminal ()
+	  SYSV version hacks readline_echoing_p.
+	  BSD version turns on passing of the 8th bit for the duration
+	  of reading the line.
+
+Tue Jul 11 06:25:01 1989  Brian Fox  (bfox at aurel)
+
+	* readline.c: new variable rl_tilde_expander.
+	  If non-null, this contains the address of a function to call if
+	  the standard meaning for expanding a tilde fails.  The function is
+	  called with the text sans tilde (as in "foo"), and returns a
+	  malloc()'ed string which is the expansion, or a NULL pointer if
+	  there is no expansion. 
+
+	* readline.h - new file chardefs.h
+	  Separates things that only readline.c needs from the standard
+	  header file publishing interesting things about readline.
+
+	* readline.c:
+	  readline_default_bindings () now looks at terminal chararacters
+	  and binds those as well.
+
+Wed Jun 28 20:20:51 1989  Brian Fox  (bfox at aurel)
+
+	* Made readline and history into independent libraries.
+
