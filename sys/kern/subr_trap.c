@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.38 1994/10/10 07:33:01 sos Exp $
+ *	$Id: trap.c,v 1.39 1994/10/11 22:37:14 sos Exp $
  */
 
 /*
@@ -163,6 +163,9 @@ trap(frame)
 	struct proc *p = curproc;
 	u_quad_t sticks = 0;
 	int i = 0, ucode = 0, type, code;
+#ifdef DIAGNOSTIC
+	u_long eva;
+#endif
 
 	frame.tf_eflags &= ~PSL_NT;	/* clear nested trap XXX */
 	type = frame.tf_trapno;
