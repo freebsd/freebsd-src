@@ -345,15 +345,22 @@ intentionally set a less then optimum limit to smooth data flow over a
 network while still being able to specify huge internal TCP buffers.
 .It tcp.inflight_stab
 The bandwidth delay product algorithm requires a slightly larger window
-then it otherwise calculates for stability.  This parameter determines the
-extra window in maximal packets / 10.  The default value of 20 represents 
+than it otherwise calculates for stability.  This parameter determines the
+extra window in maximal packets / 10.  The default value of 20 represents
 2 maximal packets.  Reducing this value is not recommended but you may
 come across a situation with very slow links where the ping time
 reduction of the default inflight code is not sufficient.  If this case
-occurs you should first try reducing tcp.inflight_min and, if that does not
-work, reduce both tcp.inflight_min and tcp.inflight_stab, trying values of
-15, 10, or 5 for the latter.  Never use a value less then 5.  Reducing
-tcp.inflight_stab can lead to upwards of a 20% underutilization of the link
+occurs, you should first try reducing
+.Va tcp.inflight_min
+and, if that does not
+work, reduce both
+.Va tcp.inflight_min
+and
+.Va tcp.inflight_stab ,
+trying values of
+15, 10, or 5 for the latter.  Never use a value less than 5.  Reducing
+.Va tcp.inflight_stab
+can lead to upwards of a 20% underutilization of the link
 as well as reducing the algorithm's ability to adapt to changing
 situations and should only be done as a last resort.
 .El
