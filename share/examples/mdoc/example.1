@@ -29,7 +29,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd January 8, 1997
+.Dd December 8, 1999
 .Dt EXAMPLE 1
 .\" Note: Only specify the operating system when the command
 .\" is FreeBSD specific, otherwise use the .Os macro with no
@@ -94,6 +94,19 @@ of the
 command:
 .Pp
 .Dl % example -abc -d xyzzy /dev/null
+.Sh DIAGNOSTICS
+Exit status is 0 on success, and 1 if the command
+fails for one of the following reasons
+.Bl -diag
+.It example error message
+An example of an error message.
+.It another example error message.
+Self explanatory.
+.El
+.Sh COMPATIBILITY
+The
+.Nm
+command has no known compatibility issues.
 .Sh SEE ALSO
 .Xr example 3 ,
 .Xr example 4 ,
@@ -121,15 +134,6 @@ If the command conforms to some standard, such as
 or
 .St -ansiC ,
 it should be noted here.
-.Sh DIAGNOSTICS
-Exit status is 0 on success, and 1 if the command
-fails for one of the following reasons
-.Bl -diag
-.It example error message
-An example of an error message.
-.It another example error message.
-Self explanatory.
-.El
 .Sh HISTORY
 The
 .Nm
