@@ -39,7 +39,7 @@
 .Nd ascii, decimal, hexadecimal, octal dump
 .Sh SYNOPSIS
 .Nm hexdump
-.Op Fl bcdovx
+.Op Fl bcCdovx
 .Op Fl e Ar format_string
 .Op Fl f Ar format_file
 .Op Fl n Ar length
@@ -64,6 +64,11 @@ in octal, per line.
 Display the input offset in hexadecimal, followed by sixteen
 space-separated, three column, space-filled, characters of input
 data per line.
+.It Fl C
+.Em Canonical hex+ASCII display.
+Display the input offset in hexadecimal, followed by sixteen
+space-separated, two column, hexadecimal bytes, followed by the
+same sixteen bytes in %_p format enclosed in ``|'' characters.
 .It Fl d
 .Em Two-byte decimal display.
 Display the input offset in hexadecimal, followed by eight
