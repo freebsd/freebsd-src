@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_frexpf.c,v 1.2 1994/08/18 23:06:51 jtc Exp $";
+static char rcsid[] = "$Id: s_frexpf.c,v 1.1.1.1 1994/08/19 09:39:58 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -25,7 +25,6 @@ static const float
 #else
 static float
 #endif
-one   =  1.0000000000e+00, /* 0x3F800000 */
 two25 =  3.3554432000e+07; /* 0x4c000000 */
 
 #ifdef __STDC__

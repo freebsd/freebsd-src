@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_rem_pio2.c,v 1.5 1994/08/18 23:05:56 jtc Exp $";
+static char rcsid[] = "$Id: e_rem_pio2.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
 #endif
 
 /* __ieee754_rem_pio2(x,y)
@@ -99,6 +99,31 @@ pio2_3t =  8.47842766036889956997e-32; /* 0x397B839A, 0x252049C1 */
 	ix = hx&0x7fffffff;
 	if(ix<=0x3fe921fb)   /* |x| ~<= pi/4 , no need for reduction */
 	    {y[0] = x; y[1] = 0; return 0;}
+	if(ix<0x4002d97c) {  /* |x| < 3pi/4, special case with n=+-1 */
+	    if(hx>0) { 
+		z = x - pio2_1;
+		if(ix!=0x3ff921fb) { 	/* 33+53 bit pi is good enough */
+		    y[0] = z - pio2_1t;
+		    y[1] = (z-y[0])-pio2_1t;
+		} else {		/* near pi/2, use 33+33+53 bit pi */
+		    z -= pio2_2;
+		    y[0] = z - pio2_2t;
+		    y[1] = (z-y[0])-pio2_2t;
+		}
+		return 1;
+	    } else {	/* negative x */
+		z = x + pio2_1;
+		if(ix!=0x3ff921fb) { 	/* 33+53 bit pi is good enough */
+		    y[0] = z + pio2_1t;
+		    y[1] = (z-y[0])+pio2_1t;
+		} else {		/* near pi/2, use 33+33+53 bit pi */
+		    z += pio2_2;
+		    y[0] = z + pio2_2t;
+		    y[1] = (z-y[0])+pio2_2t;
+		}
+		return -1;
+	    }
+	}
 	if(ix<=0x413921fb) { /* |x| ~<= 2^19*(pi/2), medium size */
 	    t  = fabs(x);
 	    n  = (int32_t) (t*invpio2+half);
