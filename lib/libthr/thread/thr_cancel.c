@@ -15,7 +15,6 @@ int
 _pthread_cancel(pthread_t pthread)
 {
 	int ret;
-	pthread_t curthread;
 
 	if ((ret = _find_thread(pthread)) != 0) {
 		/* NOTHING */
@@ -23,7 +22,6 @@ _pthread_cancel(pthread_t pthread)
 	    || (pthread->flags & PTHREAD_EXITING) != 0) {
 		ret = 0;
 	} else {
-		curthread = _get_curthread();
 		GIANT_LOCK(curthread);
 
 		if (((pthread->cancelflags & PTHREAD_CANCEL_DISABLE) != 0) ||
@@ -94,7 +92,6 @@ _pthread_cancel(pthread_t pthread)
 int
 _pthread_setcancelstate(int state, int *oldstate)
 {
-	struct pthread	*curthread = _get_curthread();
 	int ostate;
 
 	GIANT_LOCK(curthread);
@@ -127,7 +124,6 @@ _pthread_setcancelstate(int state, int *oldstate)
 int
 _pthread_setcanceltype(int type, int *oldtype)
 {
-	struct pthread	*curthread = _get_curthread();
 	int otype;
 
 	GIANT_LOCK(curthread);
@@ -160,8 +156,6 @@ _pthread_setcanceltype(int type, int *oldtype)
 void
 _pthread_testcancel(void)
 {
-	struct pthread	*curthread = _get_curthread();
-
 	GIANT_LOCK(curthread);
 	if (((curthread->cancelflags & PTHREAD_CANCEL_DISABLE) == 0) &&
 	    ((curthread->cancelflags & PTHREAD_CANCELLING) != 0) &&
@@ -183,8 +177,6 @@ _pthread_testcancel(void)
 void
 _thread_enter_cancellation_point(void)
 {
-	struct pthread	*curthread = _get_curthread();
-
 	pthread_testcancel();
 
 	GIANT_LOCK(curthread);
@@ -195,8 +187,6 @@ _thread_enter_cancellation_point(void)
 void
 _thread_leave_cancellation_point(void)
 {
-	struct pthread	*curthread = _get_curthread();
-
 	GIANT_LOCK(curthread);
 	curthread->cancelflags &= ~PTHREAD_AT_CANCEL_POINT;
 	GIANT_UNLOCK(curthread);

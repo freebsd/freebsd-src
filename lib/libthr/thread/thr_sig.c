@@ -116,7 +116,6 @@ void
 _thread_sig_wrapper(int sig, siginfo_t *info, ucontext_t *context)
 {
 	struct pthread_state_data psd;
-	struct pthread	*curthread = _get_curthread();
 	__siginfohandler_t *handler;
 
 	GIANT_LOCK(curthread);
