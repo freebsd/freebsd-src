@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.11 1994/11/13 00:42:01 jkh Exp $
+ *      $Id: userconfig.c,v 1.12 1994/11/13 00:43:29 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -111,19 +111,17 @@ CmdParm dev_parms[] = {
 };
 
 Cmd CmdList[] = {
-    { "ls",	list_devices,		NULL },		/* ls		*/
-    { "list",	list_devices,		NULL },		/* ""		*/
-    { "io",	set_device_ioaddr,	addr_parms },	/* io dev addr	*/
-    { "irq",	set_device_irq,		int_parms },	/* irq dev #	*/
-    { "drq",	set_device_drq,		int_parms },	/* drq dev #	*/
-    { "mem",	set_device_mem,		addr_parms },	/* mem dev addr	*/
-    { "enable",	set_device_enable,	dev_parms },	/* enable dev	*/
-    { "disable", set_device_disable,	dev_parms },	/* disable dev	*/
-    { "quit", 	quitfunc, 		NULL },		/* quit		*/
-    { "q", 	quitfunc, 		NULL },		/* ""		*/
-    { "exit", 	quitfunc, 		NULL },		/* ""		*/
-    { "help", 	helpfunc, 		NULL },		/* help		*/
     { "?", 	helpfunc, 		NULL },		/* ""		*/
+    { "di",	set_device_disable,	dev_parms },	/* disable dev	*/
+    { "dr",	set_device_drq,		int_parms },	/* drq dev #	*/
+    { "en",	set_device_enable,	dev_parms },	/* enable dev	*/
+    { "ex", 	quitfunc, 		NULL },		/* ""		*/
+    { "h", 	helpfunc, 		NULL },		/* help		*/
+    { "io",	set_device_ioaddr,	addr_parms },	/* io dev addr	*/
+    { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
+    { "l",	list_devices,		NULL },		/* ls		*/
+    { "m",	set_device_mem,		addr_parms },	/* mem dev addr	*/
+    { "q", 	quitfunc, 		NULL },		/* ""		*/
     { NULL,	NULL,			NULL },
 };
 
@@ -308,7 +306,8 @@ helpfunc(CmdParm *parms)
     printf("enable <devname>\tEnable device\n");
     printf("disable <devname>\tDisable device (will not be probed)\n");
     printf("quit\t\t\tExit this configuration utility\n");
-    printf("help\t\t\tThis message\n");
+    printf("help\t\t\tThis message\n\n");
+    printf("Commands may also be abbreviated to a unique number of characters\n");
     return 0;
 }
 
