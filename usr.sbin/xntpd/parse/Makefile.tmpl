@@ -1,0 +1,111 @@
+#
+# /src/NTP/REPOSITORY/v3/parse/Makefile.tmpl,v 3.6 1993/10/10 22:44:36 kardel Exp
+#
+LIBNAME=	libparse
+KLIBNAME=	libparse_kernel
+#
+# parse routine that could be used in two places
+#
+COMPILER= cc
+COPTS= -O
+AUTHDEFS=-DDES
+LIBDEFS= -DBIG_ENDIAN
+RANLIB=		ranlib
+INSTALL= install
+CLOCKDEFS=
+DEFS=
+DEFS_OPT=
+DEFS_LOCAL=
+#
+INCL=-I../include
+CFLAGS=	$(COPTS) $(DEFS) $(DEFS_LOCAL) $(INCL)
+CC=		$(COMPILER)
+#
+SOURCE=	parse.c parse_conf.c clk_meinberg.c clk_schmid.c clk_rawdcf.c \
+	clk_dcf7000.c clk_trimble.c
+
+OBJS=	parse.o parse_conf.o clk_meinberg.o clk_schmid.o clk_rawdcf.o \
+	clk_dcf7000.o	clk_trimble.o
+
+all:
+	@echo $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) | \
+		awk '/-DREFCLOCK/ && /-DPARSE/ && /-DCLOCK_/ { makeit=1; }\
+			END { if (makeit) \
+				{ print "echo ; echo --- creating parse libraries ; $(MAKE) $(MFLAGS) MFLAGS=\"$(MFLAGS)\" MAKE=\"$(MAKE)\" libs"; } \
+				else \
+				{ print "echo ; echo --- creating parse placebo libraries ; $(MAKE) $(MFLAGS) MFLAGS=\"$(MFLAGS)\" MAKE=\"$(MAKE)\" emptyplacebolibs";} }' |\
+			sh 
+	@echo $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) | \
+		awk '/-DREFCLOCK/ && /-DPARSE/ && /-DCLOCK_/ {makeit=1; }\
+			END { if (makeit) \
+				{ print "echo ; echo --- creating utility programs ; cd util && $(MAKE) $(MFLAGS) MFLAGS=\"$(MFLAGS)\" MAKE=\"$(MAKE)\" -k"; } \
+				else \
+				{ print ":";} }' |\
+			sh
+	@if (sun) > /dev/null 2>&1; then \
+	   echo $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS); \
+	 else :; fi | \
+		awk '/-DSTREAM/ && /-DREFCLOCK/ && /-DPARSE/ && /-DCLOCK_/ { makeit=1; }\
+			END { if (makeit) \
+				{ print "echo ; echo --- creating kernel files ; $(MAKE) $(MFLAGS) MFLAGS=\"$(MFLAGS)\" MAKE=\"$(MAKE)\" -f Makefile.kernel"; } \
+				else \
+				{ print ":";} }' |\
+			sh
+
+emptyplacebolibs: empty.c
+	@if [ ! -f "$(LIBNAME).a" -o ! -f "$(KLIBNAME).a" ]; then \
+	  $(CC) -c empty.c; \
+	  rm -f $(LIBNAME).a $(KLIBNAME).a; \
+	  ar r $(LIBNAME).a empty.o; \
+	  $(RANLIB) $(LIBNAME).a; \
+	  ar r $(KLIBNAME).a empty.o; \
+	  $(RANLIB) $(KLIBNAME).a; \
+	  rm -f empty.o; \
+	 else \
+	  : sorry guys - but i always get bitten by the broken ultrix sh; \
+	 fi
+
+libs: $(LIBNAME).a $(KLIBNAME).a
+
+$(LIBNAME).a:	$(SOURCE)
+	$(CC) -c $(CFLAGS) $(CLOCKDEFS) -UPARSESTREAM $(SOURCE)
+	ar rv $@ $(OBJS)
+	rm -f $(OBJS)
+	$(RANLIB) $@
+
+$(KLIBNAME).a:	$(SOURCE) $(LIBNAME).a
+	$(CC) -c $(CFLAGS) $(CLOCKDEFS) -DPARSESTREAM $(SOURCE)
+	ar rv $@ $(OBJS)
+	rm -f $(OBJS)
+	$(RANLIB) $@
+
+lintlib:	llib-l$(LIBNAME).ln
+
+llib-l$(LIBNAME).ln:	$(SOURCE)
+	lint -C$(LIBNAME) $(INCL) $(CLOCKDEFS) $(AUTHDEFS) $(LIBDEFS) $(SOURCE) >lintlib.errs
+
+lint:
+	lint -u $(DEFS) $(INCL) $(CLOCKDEFS) $(AUTHDEFS) $(LIBDEFS) $(SOURCE) >lint.errs
+
+depend:
+	mkdep $(CFLAGS) $(SOURCE)
+
+clean:
+	-@rm -f $(LIBNAME).a $(KLIBNAME).a *.o *.out *.ln make.log Makefile.bak \
+		lintlib.errs lint.errs genassym assym.s parsestreams parse
+	-@cd util && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl clean
+
+distclean:	clean
+	-@rm -f *.orig *.rej .version Makefile
+	-@cd util && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl distclean
+
+install: all
+	@echo $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) | \
+		awk '/-DREFCLOCK/ && /-DPARSE/ && /-DCLOCK_/ { makeit=1; }\
+			END { if (makeit) \
+				{ print "echo --- installing utility programs ; cd util && $(MAKE) MAKE=\"$(MAKE)\" $@"; } \
+				else \
+				{ print ":";} }' |\
+			sh
+	@echo "--- Kernel modules like "parse" or "parsestreams.o" must be installed manually"
+	@echo "--- if applicable."

@@ -1,0 +1,10 @@
+SHELL=       /bin/sh
+RANLIB=	     ls # ar does the work of ranlib under System V
+DEFS=        -DSYS_SVR4
+AUTHDEFS=    -DDES -DMD5
+CLOCKDEFS=   
+DAEMONLIBS=  -lnet -lnsl -lsocket -lelf
+RESLIB=      -lnet -lnsl -lsocket -lelf
+INSTALL=$(TOP)scripts/install.sh
+SHELL=       /bin/sh
+RANLIB=	     ls # ar does the work of ranlib under System V

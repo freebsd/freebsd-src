@@ -1,0 +1,32 @@
+#
+# peers for shiningtree.utcs.utoronto.ca (128.100.102.4)
+#
+peer 128.4.0.1 key 1		# dcn1.udel.edu
+peer 130.126.174.40 key 2	# truechimer.cso.uiuc.edu
+peer 192.12.207.1 key 3		# fuzz.sdsc.edu
+peer 128.116.64.3 key 4		# ncarfuzz.ucar.edu
+peer 128.100.63.2 key 21	# gw.ccie
+peer 128.100.49.105 key 22	# suzuki.ccie
+peer 128.100.102.7 key 23	# ipl.utcs
+#
+monitor yes	# keep track of traffic
+
+#
+# drift file
+#
+driftfile /etc/ntp.drift
+
+#
+# authentication stuff.  We're running authenticated, tell it
+# where the keys are and which to trust.
+#
+authenticate yes
+authdelay 0.000323	# seconds, about right for an RT model 125
+trustedkey 1 2 3 4 21 22 23
+keys /etc/ntp.keys
+
+#
+# allow run time reconfiguration using key 65535
+#
+requestkey 65535
+controlkey 65535
