@@ -112,7 +112,7 @@ strtol(nptr, endptr, base)
 	cutlim = cutoff % base;
 	cutoff /= base;
 	for ( ; ; c = *s++) {
-		if (isdigit(c) || (base == 16 && isxdigit(c)))
+		if (isxdigit(c))
 			c = digittoint(c);
 		else if (isascii(c) && isalpha(c))
 			c -= isupper(c) ? 'A' - 10 : 'a' - 10;

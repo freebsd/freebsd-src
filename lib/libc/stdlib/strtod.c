@@ -481,13 +481,13 @@ s2b
 	if (9 < nd0) {
 		s += 9;
 		do
-			b = multadd(b, 10, digittoint((unsigned char)*s++));
+			b = multadd(b, 10, *s++ - '0');
 		while (++i < nd0);
 		s++;
 	} else
 		s += 10;
 	for (; i < nd; i++)
-		b = multadd(b, 10, digittoint((unsigned char)*s++));
+		b = multadd(b, 10, *s++ - '0');
 	return b;
 }
 
@@ -1192,7 +1192,7 @@ strtod
 #endif
 {
 	int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, dsign,
-		 e, e1, esign, i, j, k, n, nd, nd0, nf, nz, nz0, sign;
+		 e, e1, esign, i, j, k, nd, nd0, nf, nz, nz0, sign;
 	CONST char *s, *s0, *s1;
 	double aadj, aadj1, adj, rv, rv0;
 	long L;
@@ -1219,26 +1219,26 @@ strtod
 			goto break2;
 	}
  break2:
-	if (isdigit(c = (unsigned char)*s) && digittoint(c) == 0) {
+	if (*s == '0') {
 		nz0 = 1;
-		while (isdigit(c = (unsigned char)*++s) && digittoint(c) == 0) ;
+		while (*++s == '0') ;
 		if (!*s)
 			goto ret;
 	}
 	s0 = s;
 	y = z = 0;
-	for (nd = nf = 0; isdigit(c = (unsigned char)*s) && (n = digittoint(c)) <= 9; nd++, s++)
+	for (nd = nf = 0; (c = *s) >= '0' && c <= '9'; nd++, s++)
 		if (nd < 9)
-			y = 10*y + n;
+			y = 10*y + c - '0';
 		else if (nd < 16)
-			z = 10*z + n;
+			z = 10*z + c - '0';
 	nd0 = nd;
 	if ((char)c == decimal_point) {
-		c = (unsigned char)*++s;
+		c = *++s;
 		if (!nd) {
-			for (; isdigit(c) && digittoint(c) == 0; c = (unsigned char)*++s)
+			for (; c == '0'; c = *++s)
 				nz++;
-			if (isdigit(c) && (n = digittoint(c)) <= 9) {
+			if (c > '0' && c <= '9') {
 				s0 = s;
 				nf += nz;
 				nz = 0;
@@ -1246,10 +1246,10 @@ strtod
 			}
 			goto dig_done;
 		}
-		for (; isdigit(c) && (n = digittoint(c)) <= 9; c = (unsigned char)*++s) {
+		for (; c >= '0' && c <= '9'; c = *++s) {
  have_dig:
 			nz++;
-			if (n > 0) {
+			if (c - '0' > 0) {
 				nf += nz;
 				for (i = 1; i < nz; i++)
 					if (nd++ < 9)
@@ -1257,9 +1257,9 @@ strtod
 					else if (nd <= DBL_DIG + 1)
 						z *= 10;
 				if (nd++ < 9)
-					y = 10*y + n;
+					y = 10*y + c - '0';
 				else if (nd <= DBL_DIG + 1)
-					z = 10*z + n;
+					z = 10*z + c - '0';
 				nz = 0;
 			}
 		}
@@ -1273,20 +1273,20 @@ strtod
 		}
 		s00 = s;
 		esign = 0;
-		switch(c = (unsigned char)*++s) {
+		switch(c = *++s) {
 			case '-':
 				esign = 1;
 			case '+':
-				c = (unsigned char)*++s;
+				c = *++s;
 		}
-		if (isdigit(c) && digittoint(c) <= 9) {
-			while (isdigit(c) && digittoint(c) == 0)
-				c = (unsigned char)*++s;
-			if (isdigit(c) && (n = digittoint(c)) <= 9) {
-				L = n;
+		if (c >= '0' && c <= '9') {
+			while (c == '0')
+				c = *++s;
+			if (c > '0' && c <= '9') {
+				L = c - '0';
 				s1 = s;
-				while (isdigit(c = (unsigned char)*++s) && (n = digittoint(c)) <= 9)
-					L = 10*L + n;
+				while ((c = *++s) >= '0' && c <= '9')
+					L = 10*L + c - '0';
 				if (s - s1 > 8 || L > 19999)
 					/* Avoid confusion from exponents
 					 * so large that e might overflow.
