@@ -154,8 +154,10 @@ ar_open(const char *name)
 		return(-1);
 
 	if (chdname != NULL)
-		if (chdir(chdname) != 0)
+		if (chdir(chdname) != 0) {
 			syswarn(1, errno, "Failed chdir to %s", chdname);
+			return(-1);
+		}
 	/*
 	 * set up is based on device type
 	 */
