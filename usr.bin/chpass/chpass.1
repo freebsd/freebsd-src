@@ -56,7 +56,7 @@ The information is formatted and supplied to an editor for changes.
 Only the information that the user is allowed to change is displayed.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width flag
 .It Fl a
 The super-user is allowed to directly supply a user database
 entry, in the format specified by
@@ -271,6 +271,27 @@ otherwise
 .Xr yppasswdd 8
 will refuse to update the NIS maps.
 .El
+.Pp
+There are also two extra option flags that are available when
+.Nm chpass
+is compiled with NIS support:
+.Bl -tag -width flag
+.It Fl l
+The
+.Fl l
+flag forces
+.Nm chpass
+to modify the local copy of a user's password
+information in the even that a user exists in both
+the local and NIS databases.
+.It Fl y
+This flag has the opposite effect of
+.Fl l .
+This flag is largely redundant since
+.Nm chpass
+operates on NIS entries by default if NIS is enabled.
+.El
+.Pp
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/master.passwd

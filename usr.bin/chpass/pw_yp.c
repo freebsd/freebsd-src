@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id$
+ *	$Id: pw_yp.c,v 1.2 1995/09/02 03:56:19 wpaul Exp $
  */
 
 #ifdef YP
@@ -75,42 +75,157 @@ HASHINFO openinfo = {
 
 int _use_yp = 0;
 
+/* Save the local and NIS password information */
+struct passwd local_password;
+struct passwd yp_password;
+
+
+void copy_yp_pass(p, x, m)
+char *p;
+int x, m;
+{
+	register char *t, *s = p;
+
+	yp_password.pw_fields = 0;
+
+	t = (char *)malloc(m + 10);
+
+	/* Turn all colons into NULLs */
+	while (strchr(s, ':')) {
+		s = (strchr(s, ':') + 1);
+		*(s - 1)= '\0';
+	}
+
+#define EXPAND(e)       e = t; while (*t++ = *p++);
+        EXPAND(yp_password.pw_name);
+	yp_password.pw_fields |= _PWF_NAME;
+        EXPAND(yp_password.pw_passwd);
+	yp_password.pw_fields |= _PWF_PASSWD;
+	yp_password.pw_uid = atoi(p);
+        p += (strlen(p) + 1);
+	yp_password.pw_fields |= _PWF_UID;
+	yp_password.pw_gid = atoi(p);
+        p += (strlen(p) + 1);
+	yp_password.pw_fields |= _PWF_GID;
+	if (x) {
+		EXPAND(yp_password.pw_class);
+		yp_password.pw_fields |= _PWF_CLASS;
+		yp_password.pw_change = atol(p);
+		p += (strlen(p) + 1);
+		yp_password.pw_fields |= _PWF_CHANGE;
+		yp_password.pw_expire = atol(p);
+		p += (strlen(p) + 1);
+		yp_password.pw_expire |= _PWF_EXPIRE;
+	}
+        EXPAND(yp_password.pw_gecos);
+	yp_password.pw_fields |= _PWF_GECOS;
+        EXPAND(yp_password.pw_dir);
+	yp_password.pw_fields |= _PWF_DIR;
+        EXPAND(yp_password.pw_shell);
+	yp_password.pw_fields |= _PWF_SHELL;
+
+	return;
+}
+
+void copy_local_pass(p,m)
+char *p;
+int m;
+{
+	register char *t;
+
+	t = (char *)malloc(m + 10);
+
+        EXPAND(local_password.pw_name);
+        EXPAND(local_password.pw_passwd);
+        bcopy(p, (char *)&local_password.pw_uid, sizeof(int));
+        p += sizeof(int);
+        bcopy(p, (char *)&local_password.pw_gid, sizeof(int));
+        p += sizeof(int);
+       	bcopy(p, (char *)&local_password.pw_change, sizeof(time_t));
+       	p += sizeof(time_t);
+       	EXPAND(local_password.pw_class);
+        EXPAND(local_password.pw_gecos);
+        EXPAND(local_password.pw_dir);
+        EXPAND(local_password.pw_shell);
+        bcopy(p, (char *)&local_password.pw_expire, sizeof(time_t));
+        p += sizeof(time_t);
+        bcopy(p, (char *)&local_password.pw_fields, sizeof local_password.pw_fields);
+        p += sizeof local_password.pw_fields;
+
+	return;
+}
+
 /*
  * Check if the user we're working with is local or in NIS.
  */
 int use_yp (user)
 char *user;
 {
-	int yp_enabled = 0, user_not_local = 0, exists = 0;
+	int user_local = 0, user_yp = 0, user_exists = 0;
 	DB *dbp;
 	DBT key,data;
 	char bf[UT_NAMESIZE + 2];
+	char *domain;
+	char *result;
+	int resultlen, rval;
 
-	if ((dbp = dbopen(_PATH_MP_DB, O_RDONLY, PERM_SECURE,
+
+	/* Is the user anywhere */
+	if (getpwnam(user) != NULL)
+		user_exists = 1;
+
+	if ((dbp = dbopen(_PATH_SMP_DB, O_RDONLY, PERM_SECURE,
 			DB_HASH, &openinfo)) == NULL)
 			errx(1, "error opening database: %s.", _PATH_MP_DB);
+
+	/* Is NIS turned on */
 	bf[0] = _PW_KEYYPENABLED;
 	key.data = (u_char *)bf;
 	key.size = 1;
-	if (!(dbp->get)(dbp,&key,&data,0))
-		yp_enabled = 1;
+	if (!(dbp->get)(dbp,&key,&data,0)) {
+		if ((rval = yp_get_default_domain(&domain))) {
+			warnx("can't get local NIS domain name: %s",yperr_string(rval));
+			pw_error(NULL, 0, 1);
+		}
+
+		/* Is the user in the NIS passwd map */
+		if (!yp_match(domain, "passwd.byname", user, strlen(user),
+		    &result, &resultlen)) {
+			user_yp = 1;
+			copy_yp_pass(result, 0, resultlen);
+			free(result);
+		}
+		/* Is the user in the NIS passwd map */
+		if (user_yp && !yp_match(domain, "master.passwd.byname",	
+		    user, strlen(user),
+		    &result, &resultlen)) {
+			copy_yp_pass(result, 1, resultlen);
+		}
+		free(result);
+	}
+
+	/* Is the user in the local password database */
 
 	bf[0] = _PW_KEYBYNAME;
 	bcopy((char *)user, bf + 1, MIN(strlen(user), UT_NAMESIZE));
 	key.data = (u_char *)bf;
 	key.size = strlen(user) + 1;
-	if ((dbp->get)(dbp,&key,&data,0))
-		user_not_local = 1;
-	
+	if (!(dbp->get)(dbp,&key,&data,0)) {
+		user_local = 1;
+		copy_local_pass(data.data, data.size);
+	}
+
 	(dbp->close)(dbp);
 
-	if (getpwnam(user) != NULL)
-		exists = 1;
-
-	if (yp_enabled && user_not_local && exists)
-		return(1);
-	else
-		return(0);
+	if (user_local && user_yp && user_exists)
+		return(USER_YP_AND_LOCAL);
+	else if (!user_local && user_yp && user_exists)
+		return(USER_YP_ONLY);
+	else if (user_local && !user_yp && user_exists)
+		return(USER_LOCAL_ONLY);
+	else if (!user_exists)
+		return(USER_UNKNOWN);
+	return(-1);
 }
 
 /*
