@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.57 1997/01/03 06:32:24 jkh Exp $
+ * $Id: devices.c,v 1.58 1997/01/04 13:29:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,6 +42,7 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -246,7 +247,7 @@ deviceGetAll(void)
 	    supportPPP = TRUE;
 	    continue;
 	}
-
+	msgDebug("SupportSLIP = %d, SupportPPP = %d\n", supportSLIP, supportPPP);
 	/* Try and find its description */
 	for (i = 0, descr = NULL; device_names[i].name; i++) {
 	    int len = strlen(device_names[i].name);
