@@ -60,13 +60,13 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include "truss.h"
 #include "syscall.h"
 
 static int fd = -1;
 static int cpid = -1;
 extern int Procfd;
 
-extern FILE *outfile;
 #include "syscalls.h"
 
 static int nsyscalls = sizeof(syscallnames) / sizeof(syscallnames[0]);
@@ -113,7 +113,7 @@ clear_fsc() {
  */
 
 void
-alpha_syscall_entry(int pid, int nargs) {
+alpha_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   char buf[32];
   struct reg regs = { { 0 } };
   int syscall;
@@ -122,14 +122,14 @@ alpha_syscall_entry(int pid, int nargs) {
   struct syscall *sc;
   int indir = 0;	/* indirect system call */
 
-  if (fd == -1 || pid != cpid) {
-    sprintf(buf, "/proc/%d/regs", pid);
+  if (fd == -1 || trussinfo->pid != cpid) {
+    sprintf(buf, "/proc/%d/regs", trussinfo->pid);
     fd = open(buf, O_RDWR);
     if (fd == -1) {
-      fprintf(outfile, "-- CANNOT READ REGISTERS --\n");
+      fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
       return;
     }
-    cpid = pid;
+    cpid = trussinfo->pid;
   }
 
   clear_fsc();
@@ -152,7 +152,7 @@ alpha_syscall_entry(int pid, int nargs) {
   fsc.name =
     (syscall < 0 || syscall > nsyscalls) ? NULL : syscallnames[syscall];
   if (!fsc.name) {
-    fprintf(outfile, "-- UNKNOWN SYSCALL %d --\n", syscall);
+    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall);
   }
 
   if (nargs == 0)
@@ -194,7 +194,7 @@ alpha_syscall_entry(int pid, int nargs) {
     fsc.nargs = sc->nargs;
   } else {
 #if DEBUG
-    fprintf(outfile, "unknown syscall %s -- setting args to %d\n",
+    fprintf(trussinfo->outfile, "unknown syscall %s -- setting args to %d\n",
 	   fsc.name, nargs);
 #endif
     fsc.nargs = nargs;
@@ -235,7 +235,7 @@ alpha_syscall_entry(int pid, int nargs) {
   }
 
 #if DEBUG
-  fprintf(outfile, "\n");
+  fprintf(trussinfo->outfile, "\n");
 #endif
 
   /*
@@ -246,7 +246,7 @@ alpha_syscall_entry(int pid, int nargs) {
    */
 
   if (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit")) {
-    print_syscall(outfile, fsc.name, fsc.nargs, fsc.s_args);
+    print_syscall(trussinfo, fsc.name, fsc.nargs, fsc.s_args);
   }
 
   return;
@@ -259,8 +259,8 @@ alpha_syscall_entry(int pid, int nargs) {
  * the sytem call number instead of, say, an error status).
  */
 
-void
-alpha_syscall_exit(int pid, int syscall) {
+int
+alpha_syscall_exit(struct trussinfo *trussinfo, int syscall) {
   char buf[32];
   struct reg regs;
   int retval;
@@ -268,19 +268,21 @@ alpha_syscall_exit(int pid, int syscall) {
   int errorp;
   struct syscall *sc;
 
-  if (fd == -1 || pid != cpid) {
-    sprintf(buf, "/proc/%d/regs", pid);
+  if (fd == -1 || trussinfo->pid != cpid) {
+    sprintf(buf, "/proc/%d/regs", trussinfo->pid);
     fd = open(buf, O_RDONLY);
     if (fd == -1) {
-      fprintf(outfile, "-- CANNOT READ REGISTERS --\n");
+      fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
       return;
     }
-    cpid = pid;
+    cpid = trussinfo->pid;
   }
 
   lseek(fd, 0L, 0);
-  if (read(fd, &regs, sizeof(regs)) != sizeof(regs))
+  if (read(fd, &regs, sizeof(regs)) != sizeof(regs)) {
+    fprintf(trussinfo->outfile, "\n");
     return;
+  }
   retval = regs.r_regs[R_V0];
   errorp = !!(regs.r_regs[R_A3]);
 
@@ -323,8 +325,8 @@ alpha_syscall_exit(int pid, int syscall) {
    * but that complicates things considerably.
    */
 
-  print_syscall_ret(outfile, fsc.name, fsc.nargs, fsc.s_args, errorp, retval);
+  print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp, retval);
   clear_fsc();
 
-  return;
+  return (retval);
 }
