@@ -42,6 +42,13 @@ static void
 make_variable(char *var, char *value)
 {
     Variable *vp;
+    char *cp;
+
+    /* Trim leading and trailing whitespace */
+    var = string_skipwhite(string_prune(var));
+
+    if (!var || !*var)
+	return;
 
     /* Put it in the environment in any case */
     setenv(var, value, 1);
@@ -80,7 +87,7 @@ variable_set(char *var)
     if ((cp = index(tmp, '=')) == NULL)
 	msgFatal("Invalid variable format: %s", var);
     *(cp++) = '\0';
-    make_variable(tmp, cp);
+    make_variable(tmp, string_skipwhite(cp));
 }
 
 void
@@ -108,7 +115,7 @@ variable_unset(char *var)
     unsetenv(var);
     if ((cp = index(var, '=')) != NULL) {
 	sstrncpy(name, cp, cp - var);
-	var = name;
+	var = string_skipwhite(string_prune(name));
     }
 
     /* Now search to see if it's in our list, if we have one.. */
