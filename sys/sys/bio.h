@@ -71,6 +71,7 @@ struct bio {
 	off_t	bio_length;		/* Like bio_bcount */
 	off_t	bio_completed;		/* Inverse of bio_resid */
 	u_int	bio_children;		/* Number of spawned bios */
+	u_int	bio_inbed;		/* Children safely home by now */
 	struct bio *bio_parent;		/* Pointer to parent */
 	struct bintime bio_t0;		/* Time request started */
 

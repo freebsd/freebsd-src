@@ -154,7 +154,7 @@ g_clone_bio(struct bio *bp)
 		bp2->bio_offset = bp->bio_offset;
 		bp2->bio_data = bp->bio_data;
 		bp2->bio_attribute = bp->bio_attribute;
-		bp->bio_children++;	/* XXX: atomic ? */
+		bp->bio_children++;
 	}
 	/* g_trace(G_T_BIO, "g_clone_bio(%p) = %p", bp, bp2); */
 	return(bp2);
@@ -261,24 +261,46 @@ g_io_check(struct bio *bp)
 void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
+	struct g_provider *pp;
+	struct bintime bt;
 
+	pp = cp->provider;
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
 	KASSERT(bp->bio_data != NULL, ("NULL bp->data in g_io_request"));
-	KASSERT(bp->bio_to == NULL, ("consumer not attached in g_io_request"));
+	KASSERT(pp != NULL, ("consumer not attached in g_io_request"));
+
 	bp->bio_from = cp;
-	bp->bio_to = cp->provider;
+	bp->bio_to = pp;
 	bp->bio_error = 0;
 	bp->bio_completed = 0;
 
-	/* begin_stats(&bp->stats); */
+	if (g_collectstats) {
+		/* Collect statistics */
+		binuptime(&bp->bio_t0);
+		if (cp->stat.nop == cp->stat.nend) {   
+			/* Consumer is idle */
+			bt = bp->bio_t0;
+			bintime_sub(&bt, &cp->stat.wentidle);
+			bintime_add(&cp->stat.it, &bt);
+			if (pp->stat.nop == pp->stat.nend) {
+				/*
+				 * NB: Provider can only be idle if the
+				 * consumer is but we cannot trust them
+				 * to have gone idle at the same time.
+				 */
+				bt = bp->bio_t0;
+				bintime_sub(&bt, &pp->stat.wentidle);
+				bintime_add(&pp->stat.it, &bt);
+			}
+		}
+	}
+	cp->stat.nop++;
+	pp->stat.nop++;
 
-	atomic_add_int(&cp->biocount, 1);
-	
 	/* Pass it on down. */
 	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
-	    bp, bp->bio_from, bp->bio_from->geom->name,
-	    bp->bio_to, bp->bio_to->name, bp->bio_cmd);
+	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd);
 	g_bioq_enqueue_tail(bp, &g_bio_run_down);
 	wakeup(&g_wait_down);
 }
@@ -286,32 +308,69 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 void
 g_io_deliver(struct bio *bp, int error)
 {
+	struct g_consumer *cp;
+	struct g_provider *pp;
+	struct bintime t1;
+	int idx;
 
+	cp = bp->bio_from;
+	pp = bp->bio_to;
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
-	KASSERT(bp->bio_from != NULL, ("NULL bio_from in g_io_deliver"));
-	KASSERT(bp->bio_from->geom != NULL,
-	    ("NULL bio_from->geom in g_io_deliver"));
-	KASSERT(bp->bio_to != NULL, ("NULL bio_to in g_io_deliver"));
+	KASSERT(cp != NULL, ("NULL bio_from in g_io_deliver"));
+	KASSERT(cp->geom != NULL, ("NULL bio_from->geom in g_io_deliver"));
+	KASSERT(pp != NULL, ("NULL bio_to in g_io_deliver"));
 
 	g_trace(G_T_BIO,
 "g_io_deliver(%p) from %p(%s) to %p(%s) cmd %d error %d off %jd len %jd",
-	    bp, bp->bio_from, bp->bio_from->geom->name,
-	    bp->bio_to, bp->bio_to->name, bp->bio_cmd, error,
+	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd, error,
 	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
-	/* finish_stats(&bp->stats); */
+
+	switch (bp->bio_cmd) {
+	case BIO_READ:    idx =  G_STAT_IDX_READ;    break;
+	case BIO_WRITE:   idx =  G_STAT_IDX_WRITE;   break;
+	case BIO_DELETE:  idx =  G_STAT_IDX_DELETE;  break;
+	case BIO_GETATTR: idx =  -1; break;
+	case BIO_SETATTR: idx =  -1; break;
+	default:
+		panic("unknown bio_cmd in g_io_deliver");
+		break;
+	}
+
+	/* Collect statistics */
+	if (g_collectstats) {
+		binuptime(&t1);
+		pp->stat.wentidle = t1;
+		cp->stat.wentidle = t1;
+
+		if (idx >= 0) {
+			bintime_sub(&t1, &bp->bio_t0);
+			bintime_add(&cp->stat.ops[idx].dt, &t1);
+			bintime_add(&pp->stat.ops[idx].dt, &t1);
+			pp->stat.ops[idx].nbyte += bp->bio_completed;
+			cp->stat.ops[idx].nbyte += bp->bio_completed;
+			pp->stat.ops[idx].nop++;
+			cp->stat.ops[idx].nop++;
+			if (error == ENOMEM) {
+				cp->stat.ops[idx].nmem++;
+				pp->stat.ops[idx].nmem++;
+			} else if (error != 0) {
+				cp->stat.ops[idx].nerr++;
+				pp->stat.ops[idx].nerr++;
+			}
+		}
+	}
+
+	pp->stat.nend++; /* In reverse order of g_io_request() */
+	cp->stat.nend++;
 
 	if (error == ENOMEM) {
-		printf("ENOMEM %p on %p(%s)\n",
-			bp, bp->bio_to, bp->bio_to->name);
-		g_io_request(bp, bp->bio_from);
+		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
+		g_io_request(bp, cp);
 		pace++;
 		return;
 	}
-
 	bp->bio_error = error;
-
 	g_bioq_enqueue_tail(bp, &g_bio_run_up);
-
 	wakeup(&g_wait_up);
 }
 
@@ -362,8 +421,6 @@ g_io_schedule_up(struct thread *tp __unused)
 			break;
 
 		cp = bp->bio_from;
-
-		atomic_add_int(&cp->biocount, -1);
 		biodone(bp);
 	}
 }
