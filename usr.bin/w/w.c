@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.16.2.5 1998/03/08 14:31:56 jkh Exp $";
+	"$Id: w.c,v 1.16.2.6 1998/03/12 02:00:38 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -209,6 +209,8 @@ main(argc, argv)
 	for (nusers = 0; fread(&utmp, sizeof(utmp), 1, ut);) {
 		if (utmp.ut_name[0] == '\0')
 			continue;
+		if (!(stp = ttystat(utmp.ut_line))) /* corrupted record */
+			continue;
 		++nusers;
 		if (wcmd == 0 || (sel_user &&
 		    strncmp(utmp.ut_name, sel_user, UT_NAMESIZE) != 0))
@@ -218,7 +220,6 @@ main(argc, argv)
 		*nextp = ep;
 		nextp = &(ep->next);
 		memmove(&(ep->utmp), &utmp, sizeof(struct utmp));
-		stp = ttystat(ep->utmp.ut_line);
 		ep->tdev = stp->st_rdev;
 #ifdef CPU_CONSDEV
 		/*
@@ -475,8 +476,10 @@ ttystat(line)
 	char ttybuf[MAXPATHLEN];
 
 	(void)snprintf(ttybuf, sizeof(ttybuf), "%s/%s", _PATH_DEV, line);
-	if (stat(ttybuf, &sb))
-		err(1, "%s", ttybuf);
+	if (stat(ttybuf, &sb)) {
+		warn("%s", ttybuf);
+		return NULL;
+	}
 	return (&sb);
 }
 
