@@ -159,11 +159,11 @@ mediaSetCDROM(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_SUCCESS | DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
+    return (mediaDevice ? DITEM_SUCCESS | DITEM_LEAVE_MENU : DITEM_FAILURE);
 }
 
 static int
@@ -201,13 +201,13 @@ mediaSetFloppy(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
     }
     else
 	mediaDevice = devs[0];
     if (mediaDevice)
 	mediaDevice->private = NULL;
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE);
 }
 
 static int
@@ -243,11 +243,11 @@ mediaSetDOS(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE);
 }
 
 static int
@@ -285,7 +285,7 @@ mediaSetTape(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
     }
     else
 	mediaDevice = devs[0];
@@ -302,7 +302,7 @@ mediaSetTape(dialogMenuItem *self)
 	else
 	    mediaDevice->private = strdup(val);
     }
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE);
 }
 
 /*
@@ -316,7 +316,6 @@ mediaSetFTP(dialogMenuItem *self)
     char *cp, hostname[MAXHOSTNAMELEN], *dir;
     extern int FtpPort;
     static Device *networkDev = NULL;
-    int what = DITEM_RESTORE;
 
     mediaClose();
     cp = variable_get(VAR_FTP_PATH);
@@ -326,18 +325,15 @@ mediaSetFTP(dialogMenuItem *self)
 	    cp = NULL;
 
     if (!cp) {
-	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
 	else
 	    cp = variable_get(VAR_FTP_PATH);
-	what = DITEM_RESTORE;
     }
     if (!cp)
-	return DITEM_FAILURE | what;
+	return DITEM_FAILURE;
     else if (!strcmp(cp, "other")) {
 	variable_set2(VAR_FTP_PATH, "ftp://", 0);
-	dialog_clear_norefresh();
 	cp = variable_get_value(VAR_FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
 				"remote ftp site.  This site must accept either anonymous\n"
 				"ftp or you should have set an ftp username and password\n"
@@ -347,32 +343,31 @@ mediaSetFTP(dialogMenuItem *self)
 				"home directory of the user being logged in as.", 0);
 	if (!cp || !*cp || !strcmp(cp, "ftp://")) {
 	    variable_unset(VAR_FTP_PATH);
-	    return DITEM_FAILURE | what;
+	    return DITEM_FAILURE;
 	}
     }
     if (strncmp("ftp://", cp, 6)) {
 	msgConfirm("Sorry, %s is an invalid URL!", cp);
 	variable_unset(VAR_FTP_PATH);
-	return DITEM_FAILURE | what;
+	return DITEM_FAILURE;
     }
     SAFE_STRCPY(ftpDevice.name, cp);
     SAFE_STRCPY(hostname, cp + 6);
 
-    dialog_clear_norefresh();
     if (!networkDev || msgYesNo("You've already done the network configuration once,\n"
 				"would you like to skip over it now?") != 0) {
 	if (networkDev)
 	    networkDev->shutdown(networkDev);
 	if (!(networkDev = tcpDeviceSelect())) {
 	    variable_unset(VAR_FTP_PATH);
-	    return DITEM_FAILURE | what;
+	    return DITEM_FAILURE;
 	}
     }
     if (!networkDev->init(networkDev)) {
 	if (isDebug())
 	    msgDebug("mediaSetFTP: Net device init failed.\n");
 	variable_unset(VAR_FTP_PATH);
-	return DITEM_FAILURE | what;
+	return DITEM_FAILURE;
     }
     if ((cp = index(hostname, ':')) != NULL) {
 	*(cp++) = '\0';
@@ -406,7 +401,7 @@ mediaSetFTP(dialogMenuItem *self)
 		    networkDev->shutdown(networkDev);
 		networkDev = NULL;
 		variable_unset(VAR_FTP_PATH);
-		return DITEM_FAILURE | what;
+		return DITEM_FAILURE;
 	    }
 	}
 	if (isDebug())
@@ -421,7 +416,7 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = networkDev;
     mediaDevice = &ftpDevice;
-    return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
+    return DITEM_SUCCESS | DITEM_LEAVE_MENU;
 }
 
 int
@@ -446,7 +441,6 @@ mediaSetUFS(dialogMenuItem *self)
     char *cp;
 
     mediaClose();
-    dialog_clear_norefresh();
     cp = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
 			    "containing the FreeBSD distribution files:", 0);
     if (!cp)
@@ -474,8 +468,8 @@ mediaSetNFS(dialogMenuItem *self)
     static Device *networkDev = NULL;
     char *cp, *idx;
     char hostname[MAXPATHLEN];
+
     mediaClose();
-    dialog_clear_norefresh();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
 			    "host and directory containing the FreeBSD distribution files.\n"
 			    "This should be in the format:  hostname:/some/freebsd/dir", 0);
@@ -725,7 +719,7 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
 int
 mediaGetType(dialogMenuItem *self)
 {
-    return ((dmenuOpenSimple(&MenuMedia, FALSE) && mediaDevice) ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
+    return ((dmenuOpenSimple(&MenuMedia, FALSE) && mediaDevice) ? DITEM_SUCCESS : DITEM_FAILURE);
 }
 
 /* Return TRUE if all the media variables are set up correctly */
@@ -743,16 +737,14 @@ mediaSetFTPUserPass(dialogMenuItem *self)
 {
     char *pass;
 
-    dialog_clear_norefresh();
     if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:", 0)) {
-	dialog_clear_norefresh();
 	DialogInputAttrs |= DITEM_NO_ECHO;
 	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:", 0);
 	DialogInputAttrs &= ~DITEM_NO_ECHO;
     }
     else
 	pass = NULL;
-    return (pass ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
+    return (pass ? DITEM_SUCCESS : DITEM_FAILURE);
 }
 
 /* Set CPIO verbosity level */

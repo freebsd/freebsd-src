@@ -374,22 +374,22 @@ int
 distSetDES(dialogMenuItem *self)
 {
     int i;
- 
+
+    dialog_clear_norefresh();
     if (!dmenuOpenSimple(&MenuDESDistributions, FALSE))
 	i = DITEM_FAILURE;
     else
 	i = DITEM_SUCCESS;
     distVerifyFlags();
-    return i | DITEM_RESTORE;
+    return i | DITEM_REDRAW | DITEM_RESTORE;
 }
 
 static int
 distMaybeSetDES(dialogMenuItem *self)
 {
-    int i = DITEM_SUCCESS;
+    int i = DITEM_SUCCESS | DITEM_REDRAW;
 
-    dialog_clear_norefresh();
-    if (!msgYesNo("Do wish to install DES cryptographic software?\n\n"
+    if (!msgYesNo("Do you wish to install DES cryptographic software?\n\n"
 		  "If you choose No, FreeBSD will use an MD5 based password scheme which,\n"
 		  "while perhaps more secure, is not interoperable with the traditional\n"
 		  "UNIX DES passwords on other non-FreeBSD systems.\n\n"
@@ -404,13 +404,12 @@ distMaybeSetDES(dialogMenuItem *self)
 	    i = DITEM_FAILURE;
     }
     distVerifyFlags();
-    return i | DITEM_RESTORE;
+    return i | DITEM_REDRAW;
 }
 
 static int
 distMaybeSetPorts(dialogMenuItem *self)
 {
-    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to install the FreeBSD ports collection?\n\n"
 		  "This will give you ready access to over 2000 ported software packages,\n"
 		  "though at a cost of around 90MB of disk space when \"clean\" and possibly\n"
@@ -424,7 +423,7 @@ distMaybeSetPorts(dialogMenuItem *self)
 	Dists |= DIST_PORTS;
     else
 	Dists &= ~DIST_PORTS;
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    return DITEM_SUCCESS;
 }
 
 static Boolean
@@ -530,6 +529,7 @@ distSetSrc(dialogMenuItem *self)
 {
     int i;
 
+    dialog_clear_norefresh();
     if (!dmenuOpenSimple(&MenuSrcDistributions, FALSE))
 	i = DITEM_FAILURE;
     else
@@ -543,6 +543,7 @@ distSetXF86(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS;
 
+    dialog_clear_norefresh();
     if (!dmenuOpenSimple(&MenuXF86Select, FALSE))
 	i = DITEM_FAILURE;
     distVerifyFlags();
@@ -582,7 +583,6 @@ distExtract(char *parent, Distribution *me)
     struct sigaction old, new;
 
     status = TRUE;
-    dialog_clear_norefresh();
     if (isDebug())
 	msgDebug("distExtract: parent: %s, me: %s\n", parent ? parent : "(none)", me->my_name);
 
@@ -590,6 +590,8 @@ distExtract(char *parent, Distribution *me)
     new.sa_handler = handle_intr;
     new.sa_flags = 0;
     (void)sigemptyset(&new.sa_mask);
+    dialog_clear_norefresh();
+    dialog_msgbox("Please Wait", "Extracting all requested distributions...", -1, -1, 0);
     sigaction(SIGINT, &new, &old);
 
     /* Loop through to see if we're in our parent's plans */
@@ -848,11 +850,12 @@ distExtractAll(dialogMenuItem *self)
 {
     int old_dists, retries = 0, status = DITEM_SUCCESS;
     char buf[512];
+    WINDOW *w;
 
     /* paranoia */
     if (!Dists) {
 	if (!dmenuOpenSimple(&MenuSubDistributions, FALSE) || !Dists)
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
     }
 
     if (!mediaVerify() || !mediaDevice->init(mediaDevice))
@@ -863,7 +866,8 @@ distExtractAll(dialogMenuItem *self)
 
     dialog_clear_norefresh();
     msgNotify("Attempting to install all selected distributions..");
-
+    w = savescr();
+    
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
@@ -886,7 +890,7 @@ distExtractAll(dialogMenuItem *self)
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"
 		   "media you've chosen:\n\n\t%s", buf);
-	status |= DITEM_RESTORE;
     }
+    restorescr(w);
     return status;
 }

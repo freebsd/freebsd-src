@@ -55,7 +55,8 @@ mediaInitNetwork(Device *dev)
     int i;
     char *rp;
     char *cp, ifconfig[255];
-
+    WINDOW *w;
+    
     if (!RunningAsInit || networkInitialized)
 	return TRUE;
 
@@ -87,6 +88,7 @@ mediaInitNetwork(Device *dev)
 	char *val;
 	char attach[256];
 
+	w = savescr();
 	dialog_clear_norefresh();
 	/* Cheesy slip attach */
 	snprintf(attach, 256, "slattach -a -h -l -s 9600 %s", dev->devname);
@@ -101,6 +103,7 @@ mediaInitNetwork(Device *dev)
 			  "ready, press [ENTER] to execute it.");
 	if (!val) {
 	    msgConfirm("slattach command was empty.  Try again!");
+	    restorescr(w);
 	    return FALSE;
 	}
 	else
@@ -113,8 +116,10 @@ mediaInitNetwork(Device *dev)
 	if (vsystem(attach)) {
 	    msgConfirm("slattach returned a bad status!  Please verify that\n"
 		       "the command is correct and try this operation again.");
+	    restorescr(w);
 	    return FALSE;
 	}
+	restorescr(w);
     }
 
     snprintf(ifconfig, 255, "%s%s", VAR_IFCONFIG, dev->name);
@@ -196,7 +201,8 @@ startPPP(Device *devp)
     pid_t pid = 0;
     char myaddr[16], provider[16], speed[16], authname[32], authkey[16];
     char phone[16];
-
+    WINDOW *w = savescr();
+    
     /* These are needed to make ppp work */
     Mkdir("/var/log");
     Mkdir("/var/run");
@@ -252,6 +258,7 @@ startPPP(Device *devp)
 	fp = fopen("/dev/stderr", "w");
     if (!fp) {
 	msgConfirm("Couldn't open /etc/ppp/ppp.conf file!  This isn't going to work");
+	restorescr(w);
 	return 0;
     }
     authname[0] = '\0';
@@ -293,6 +300,7 @@ startPPP(Device *devp)
 
     if (!Fake && !file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
 	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
+	restorescr(w);
 	return 0;
     }
 
@@ -339,5 +347,6 @@ startPPP(Device *devp)
            "DO NOT PRESS [ENTER] HERE UNTIL THE CONNECTION IS FULLY\n"
            "ESTABLISHED!");
     }
+    restorescr(w);
     return pid;
 }

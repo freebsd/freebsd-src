@@ -74,7 +74,7 @@ package_add(char *name)
 	return index_extract(mediaDevice, &Top, tmp, FALSE);
     else {
 	msgConfirm("Sorry, package %s was not found in the INDEX.", name);
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
     }
 }
 
@@ -134,7 +134,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     vsystem("/sbin/ldconfig -aout /usr/lib/compat/aout /usr/lib/aout /usr/X11R6/lib/aout /usr/local/lib/aout");
 
     /* Be initially optimistic */
-    ret = DITEM_SUCCESS | DITEM_RESTORE;
+    ret = DITEM_SUCCESS;
     /* Make a couple of paranoid locations for temp files to live if user specified none */
     if (!variable_get(VAR_PKG_TMPDIR)) {
 	/* Set it to a location with as much space as possible */
@@ -217,7 +217,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    refresh();
 	    i = waitpid(pid, &tot, 0);
 	    if (sigpipe_caught || i < 0 || WEXITSTATUS(tot)) {
-		ret = DITEM_FAILURE | DITEM_RESTORE;
+		ret = DITEM_FAILURE;
 		if (variable_get(VAR_NO_CONFIRM))
 		    msgNotify("Add of package %s aborted, error code %d -\n"
 			       "Please check the debug screen for more info.", name, WEXITSTATUS(tot));
@@ -236,14 +236,13 @@ package_extract(Device *dev, char *name, Boolean depended)
 	}
     }
     else {
-	dialog_clear_norefresh();
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Unable to fetch package %s from selected media.\n"
 		      "No package add will be done.", name);
 	else
 	    msgConfirm("Unable to fetch package %s from selected media.\n"
 		       "No package add will be done.", name);
-	ret = DITEM_FAILURE | DITEM_RESTORE;
+	ret = DITEM_FAILURE;
     }
     signal(SIGPIPE, SIG_IGN);
     return ret;
