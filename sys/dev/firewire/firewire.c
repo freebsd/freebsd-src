@@ -501,7 +501,7 @@ firewire_attach( device_t dev )
 		mn = unitmask | i;
 		/* XXX device name should be improved */
 		d = make_dev(&firewire_cdevsw, unit2minor(mn),
-			UID_ROOT, GID_OPERATOR, 0770,
+			UID_ROOT, GID_OPERATOR, 0660,
 			"fw%x", mn);
 #if __FreeBSD_version >= 500000
 		if (i == 0)
@@ -513,7 +513,7 @@ firewire_attach( device_t dev )
 #endif
 	}
 	d = make_dev(&firewire_cdevsw, unit2minor(unitmask | FWMEM_FLAG),
-			UID_ROOT, GID_OPERATOR, 0770,
+			UID_ROOT, GID_OPERATOR, 0660,
 			"fwmem%d", device_get_unit(dev));
 #if __FreeBSD_version >= 500000
 	dev_depends(sc->dev, d);
