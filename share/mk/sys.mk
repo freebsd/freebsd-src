@@ -245,6 +245,7 @@ HTAGSFLAGS=
 .endif
 
 .if exists(/etc/defaults/make.conf)
+.error Error, /etc/defaults/make.conf has been moved to /usr/share/examples/etc/make.conf and is not included any more.
 .include </etc/defaults/make.conf>
 .endif
 
@@ -255,7 +256,7 @@ HTAGSFLAGS=
 .include <bsd.cpu.mk>
 
 .if exists(/etc/make.conf.local)
-.error Error, original /etc/make.conf should be moved to the /etc/defaults/ directory and /etc/make.conf.local should be renamed to /etc/make.conf.
+.error Error, /etc/make.conf.local should be renamed to /etc/make.conf.
 .include </etc/make.conf.local>
 .endif
 
