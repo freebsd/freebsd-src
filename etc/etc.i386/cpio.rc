@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: cpio.rc,v 1.1 1994/02/21 21:51:53 rgrimes Exp $
 #
 
 stty status '^T'
@@ -70,7 +70,7 @@ echo "in a place with lots of space, probably under /usr."
 echo "Then, load the remaining distribution files into that temporary"
 echo "directory by issuing one of the following commands:"
 echo
-echo "	load_fd		load_qic_tape	load_scsi_tape"
+echo "	load_dos	load_fd	load_qic_tape	load_scsi_tape"
 echo
 echo "or by fetching the files with ftp (see the installation notes for"
 echo "information on how to do that)."
