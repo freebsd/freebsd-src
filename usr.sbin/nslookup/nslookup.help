@@ -1,4 +1,4 @@
-$Id: nslookup.help,v 8.2 1995/06/29 09:26:34 vixie Exp $
+$Id: nslookup.help,v 1.1.1.2 1995/08/18 22:31:32 peter Exp $
 
 Commands: 	(identifiers are shown in uppercase, [] means optional)
 NAME		- print info about the host/domain NAME using default server
