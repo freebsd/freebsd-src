@@ -146,6 +146,7 @@ again:	if (stat(name, &st) < 0) {
 	disk->d_inoblock = NULL;
 	disk->d_inomin = 0;
 	disk->d_inomax = 0;
+	disk->d_lcg = 0;
 	disk->d_mine = 0;
 	disk->d_ufs = 0;
 	disk->d_error = NULL;
