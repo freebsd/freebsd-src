@@ -395,6 +395,11 @@ wrap_add (line, isTemp)
 	*line='\0';
 	switch(opt){
 	case 'f':
+	    /* Before this is reenabled, need to address the problem in
+	       commit.c (see http://www.cyclic.com/cvs/dev-wrap.txt).  */
+	    error (1, 0,
+		   "-t/-f wrappers not supported by this version of CVS");
+
 	    if(e.fromcvsFilter)
 		free(e.fromcvsFilter);
 	    /* FIXME: error message should say where the bad value
@@ -404,6 +409,11 @@ wrap_add (line, isTemp)
 		error (1, 0, "Correct above errors first");
 	    break;
 	case 't':
+	    /* Before this is reenabled, need to address the problem in
+	       commit.c (see http://www.cyclic.com/cvs/dev-wrap.txt).  */
+	    error (1, 0,
+		   "-t/-f wrappers not supported by this version of CVS");
+
 	    if(e.tocvsFilter)
 		free(e.tocvsFilter);
 	    /* FIXME: error message should say where the bad value

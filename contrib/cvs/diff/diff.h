@@ -1,5 +1,5 @@
 /* Shared definitions for GNU DIFF
-   Copyright (C) 1988, 89, 91, 92, 93, 97 Free Software Foundation, Inc.
+   Copyright (C) 1988, 89, 91, 92, 93, 97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -21,6 +21,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdio.h>
 #include <setjmp.h>
 #include "regex.h"
+#include "diffrun.h"
 
 #define TAB_WIDTH 8
 
@@ -31,6 +32,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #else
 #define EXTERN
 #endif
+
+/* The callbacks to use for output.  */
+EXTERN const struct diff_callbacks *callbacks;
 
 enum output_style {
   /* Default output style.  */
@@ -329,6 +333,13 @@ void debug_script PARAMS((struct change *));
 void diff_error PARAMS((char const *, char const *, char const *));
 void fatal PARAMS((char const *));
 void finish_output PARAMS((void));
+void write_output PARAMS((char const *, size_t));
+void printf_output PARAMS((char const *, ...))
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 6)
+     __attribute__ ((__format__ (__printf__, 1, 2)))
+#endif
+     ;
+void flush_output PARAMS((void));
 void message PARAMS((char const *, char const *, char const *));
 void message5 PARAMS((char const *, char const *, char const *, char const *, char const *));
 void output_1_line PARAMS((char const *, char const *, char const *, char const *));

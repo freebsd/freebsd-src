@@ -701,15 +701,27 @@ admin_fileproc (callerdat, finfo)
 			       rcs->path,
 			       tag, n->data);
 			status = 1;
+			free (tag);
 			continue;
 		    }
 		}
 
-		/* Expand rev if necessary. */
-		rev = RCS_gettag (rcs, p, 0, NULL);
-		RCS_settag (rcs, tag, rev);
-		if (rev != NULL)
+                /* Attempt to perform the requested tagging.  */
+
+		if ((*p == 0 && (rev = RCS_head (rcs)))
+                    || (rev = RCS_tag2rev (rcs, p))) /* tag2rev may exit */
+		{
+		    RCS_check_tag (tag); /* exit if not a valid tag */
+		    RCS_settag (rcs, tag, rev);
 		    free (rev);
+		}
+                else
+		{
+		    error (0, 0,
+			  "%s: Symbolic name or revision %s is undefined",
+			   rcs->path, p);
+		    status = 1;
+		}
 		free (tag);
 		break;
 	    case 's':
