@@ -191,17 +191,12 @@ getpackagesite(void)
 	return sitepath;
     }
 
-    if (getenv("PACKAGEMIRROR"))
-	strcpy(sitepath, getenv("PACKAGEMIRROR"));
+    if (getenv("PACKAGEROOT"))
+	strcpy(sitepath, getenv("PACKAGEROOT"));
     else
 	strcpy(sitepath, "ftp://ftp.FreeBSD.org");
 
-    if (getenv("PACKAGEROOT"))
-	strcpy(sitepath, getenv("PACKAGEMIRRORROOT"));
-    else
-    	strcat(sitepath, "/pub");
-
-    strcat(sitepath, "/FreeBSD/ports/");
+    strcat(sitepath, "/pub/FreeBSD/ports/");
 
     uname(&u);
     strcat(sitepath, u.machine);
