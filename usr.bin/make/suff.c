@@ -173,9 +173,6 @@ static Suff	*suffNull;
 static Suff	*emptySuff;
 
 static void SuffFindDeps(GNode *, Lst *);
-#ifdef DEBUG_SRC
-static int PrintAddr(void *, void *);
-#endif /* DEBUG_SRC */
 
 
 	/*************** Lst Predicates ****************/
@@ -689,15 +686,12 @@ Suff_EndTransform(const GNode *gn)
 /*-
  *-----------------------------------------------------------------------
  * SuffRebuildGraph --
- *	Called from Suff_AddSuffix via Lst_ForEach to search through the
+ *	Called from Suff_AddSuffix via LST_FOREACH to search through the
  *	list of existing transformation rules and rebuild the transformation
  *	graph when it has been destroyed by Suff_ClearSuffixes. If the
  *	given rule is a transformation involving this suffix and another,
  *	existing suffix, the proper relationship is established between
  *	the two.
- *
- * Results:
- *	Always 0.
  *
  * Side Effects:
  *	The appropriate links will be made between this suffix and
@@ -705,11 +699,9 @@ Suff_EndTransform(const GNode *gn)
  *
  *-----------------------------------------------------------------------
  */
-static int
-SuffRebuildGraph(void *transformp, void *sp)
+static void
+SuffRebuildGraph(const GNode *transform, Suff *s)
 {
-	GNode	*transform = transformp;
-	Suff	*s = sp;
 	char	*cp;
 	LstNode	*ln;
 	Suff	*s2 = NULL;
@@ -733,7 +725,7 @@ SuffRebuildGraph(void *transformp, void *sp)
 			 */
 			SuffInsert(&s2->children, s);
 			SuffInsert(&s->parents, s2);
-			return (0);
+			return;
 		}
 	}
 
@@ -760,7 +752,6 @@ SuffRebuildGraph(void *transformp, void *sp)
 			SuffInsert(&s2->parents, s);
 		}
 	}
-	return (0);
 }
 
 /*-
@@ -784,27 +775,32 @@ Suff_AddSuffix(char *str)
 	LstNode	*ln;
 
 	ln = Lst_Find(&sufflist, str, SuffSuffHasNameP);
-	if (ln == NULL) {
-		s = emalloc(sizeof(Suff));
-
-		s->name = estrdup(str);
-		s->nameLen = strlen(s->name);
-		Lst_Init(&s->searchPath);
-		Lst_Init(&s->children);
-		Lst_Init(&s->parents);
-		Lst_Init(&s->ref);
-		s->sNum = sNum++;
-		s->flags = 0;
-		s->refCount = 0;
-
-		Lst_AtEnd(&sufflist, s);
-
+	if (ln != NULL)
 		/*
-		 * Look for any existing transformations from or to this suffix.
-		 * XXX: Only do this after a Suff_ClearSuffixes?
+		 * Already known
 		 */
-		Lst_ForEach(&transforms, SuffRebuildGraph, s);
-	}
+		return;
+
+	s = emalloc(sizeof(Suff));
+
+	s->name = estrdup(str);
+	s->nameLen = strlen(s->name);
+	Lst_Init(&s->searchPath);
+	Lst_Init(&s->children);
+	Lst_Init(&s->parents);
+	Lst_Init(&s->ref);
+	s->sNum = sNum++;
+	s->flags = 0;
+	s->refCount = 0;
+
+	Lst_AtEnd(&sufflist, s);
+
+	/*
+	 * Look for any existing transformations from or to this suffix.
+	 * XXX: Only do this after a Suff_ClearSuffixes?
+	 */
+	LST_FOREACH(ln, &transforms)
+		SuffRebuildGraph(Lst_Datum(ln), s);
 }
 
 /*-
@@ -977,6 +973,9 @@ SuffAddSrc(void *sp, void *lsp)
 	LstSrc	*ls = lsp;
 	Src	*s2;		/* new Src structure */
 	Src	*targ;		/* Target structure */
+#ifdef DEBUG_SRC
+	const LstNode *ln;
+#endif
 
 	targ = ls->s;
 
@@ -1000,7 +999,8 @@ SuffAddSrc(void *sp, void *lsp)
 		Lst_Init(&s2->cp);
 		Lst_AtEnd(&targ->cp, s2);
 		printf("1 add %p %p to %p:", targ, s2, ls->l);
-		Lst_ForEach(ls->l, PrintAddr, (void *)NULL);
+		LST_FOREACH(ln, ls->l)
+			printf("%p ", (const void *)Lst_Datum(ln));
 		printf("\n");
 #endif
 	}
@@ -1018,7 +1018,8 @@ SuffAddSrc(void *sp, void *lsp)
 	Lst_Init(&s2->cp);
 	Lst_AtEnd(&targ->cp, s2);
 	printf("2 add %p %p to %p:", targ, s2, ls->l);
-	Lst_ForEach(ls->l, PrintAddr, (void *)NULL);
+	LST_FOREACH(ln, ls->l)
+		printf("%p ", (const void *)Lst_Datum(ln));
 	printf("\n");
 #endif
 
@@ -1070,7 +1071,8 @@ SuffRemoveSrc(Lst *l)
 
 #ifdef DEBUG_SRC
 	printf("cleaning %lx: ", (unsigned long) l);
-	Lst_ForEach(l, PrintAddr, (void *)NULL);
+	LST_FOREACH(ln, l)
+		printf("%p ", (const void *)Lst_Datum(ln));
 	printf("\n");
 #endif
 
@@ -1101,8 +1103,11 @@ SuffRemoveSrc(Lst *l)
 		}
 #ifdef DEBUG_SRC
 		else {
+			const LstNode *tln;
+
 			printf("keep: [l=%p] p=%p %d: ", l, s, s->children);
-			Lst_ForEach(&s->cp, PrintAddr, (void *)NULL);
+			LST_FOREACH(tln, &s->cp)
+				printf("%p ", (const void *)Lst_Datum(tln));
 			printf("\n");
 		}
 #endif
@@ -2338,16 +2343,3 @@ Suff_PrintAll(void)
 		printf("\n");
 	}
 }
-
-#ifdef DEBUG_SRC
-/*
- * Printaddr --
- * 	Print the address of a node.
- */
-static int
-PrintAddr(void *a, void *b __unused)
-{
-	printf("%p ", a);
-	return (0);
-}
-#endif /* DEBUG_SRC */
