@@ -1832,11 +1832,11 @@ struct ng_queue_entry {
 
 static struct ng_queue_entry   *ngqbase;	/* items to be unqueued */
 static struct ng_queue_entry   *ngqlast;	/* last item queued */
-static const int		ngqroom = 64;	/* max items to queue */
+static const int		ngqroom = 256;	/* max items to queue */
 static int			ngqsize;	/* number of items in queue */
 
 static struct ng_queue_entry   *ngqfree;	/* free ones */
-static const int		ngqfreemax = 16;/* cache at most this many */
+static const int		ngqfreemax = 256;/* cache at most this many */
 static int			ngqfreesize;	/* number of cached entries */
 
 /*
