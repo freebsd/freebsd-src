@@ -40,7 +40,6 @@
 #ifndef _SYS_SYSCTL_H_
 #define	_SYS_SYSCTL_H_
 
-#include <sys/_posix.h>
 #include <sys/queue.h>
 
 struct thread;
