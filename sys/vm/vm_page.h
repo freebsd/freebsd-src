@@ -117,6 +117,7 @@ struct vm_page {
 	vm_object_t object;		/* which object am I in (O,P)*/
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_offset_t phys_addr;		/* physical address of page */
+	struct md_page md;		/* machine dependant stuff */
 	u_short	queue;			/* page queue index */
 	u_short	flags,			/* see below */
 		pc;			/* page color */
@@ -278,6 +279,7 @@ extern struct vpgqueues vm_page_queues[PQ_COUNT];
 extern int vm_page_zero_count;
 
 extern vm_page_t vm_page_array;		/* First resident page in table */
+extern int vm_page_array_size;		/* number of vm_page_t's */
 extern long first_page;			/* first physical page number */
 
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
@@ -396,6 +398,7 @@ vm_page_t vm_page_lookup __P((vm_object_t, vm_pindex_t));
 void vm_page_remove __P((vm_page_t));
 void vm_page_rename __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_offset_t vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
+vm_page_t vm_add_new_page __P((vm_offset_t pa));
 void vm_page_unwire __P((vm_page_t, int));
 void vm_page_wire __P((vm_page_t));
 void vm_page_unqueue __P((vm_page_t));
@@ -448,11 +451,11 @@ vm_page_protect(vm_page_t mem, int prot)
 {
 	if (prot == VM_PROT_NONE) {
 		if (mem->flags & (PG_WRITEABLE|PG_MAPPED)) {
-			pmap_page_protect(VM_PAGE_TO_PHYS(mem), VM_PROT_NONE);
+			pmap_page_protect(mem, VM_PROT_NONE);
 			vm_page_flag_clear(mem, PG_WRITEABLE|PG_MAPPED);
 		}
 	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
-		pmap_page_protect(VM_PAGE_TO_PHYS(mem), VM_PROT_READ);
+		pmap_page_protect(mem, VM_PROT_READ);
 		vm_page_flag_clear(mem, PG_WRITEABLE);
 	}
 }

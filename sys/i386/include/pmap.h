@@ -188,11 +188,11 @@ pmap_kextract(vm_offset_t va)
  * Pmap stuff
  */
 struct	pv_entry;
-typedef struct {
+
+struct md_page {
 	int pv_list_count;
-	struct vm_page		*pv_vm_page;
 	TAILQ_HEAD(,pv_entry)	pv_list;
-} pv_table_t;
+};
 
 struct pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
