@@ -76,9 +76,10 @@
 #define	KTR_CALLOUT	0x02000000		/* Callouts and timeouts */
 #define	KTR_GEOM	0x04000000		/* GEOM I/O events */
 #define	KTR_BUSDMA	0x08000000		/* busdma(9) events */
-#define	KTR_CRITICAL	0x10000000		/* Critical sections */
+#define	KTR_CRITICAL	0010000000		/* Critical sections */
 #define	KTR_SCHED	0x20000000		/* Machine parsed sched info. */
-#define	KTR_ALL		0x3fffffff
+#define	KTR_BUF		0x40000000		/* Buffer cache */
+#define	KTR_ALL		0x7fffffff
 
 /*
  * Trace classes which can be assigned to particular use at compile time
