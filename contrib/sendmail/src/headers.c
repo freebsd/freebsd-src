@@ -1365,7 +1365,7 @@ put_vanilla_header(h, v, mci)
 			*obp++ = ' ';
 	}
 	snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
-		sizeof obuf - (obp - obuf) - 1, v);
+		(int)(sizeof obuf - (obp - obuf) - 1), v);
 	putxline(obuf, strlen(obuf), mci, putflags);
 }
 /*

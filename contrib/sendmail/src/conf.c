@@ -4300,7 +4300,7 @@ load_if_names()
 
 		/* save IP address in text from */
 		(void) snprintf(ip_addr, sizeof ip_addr, "[%.*s]",
-			sizeof ip_addr - 3,
+			(int)sizeof ip_addr - 3,
 			inet_ntoa(ia));
 		if (!wordinclass(ip_addr, 'w'))
 		{
