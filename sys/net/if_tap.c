@@ -223,7 +223,7 @@ bail:
 			ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 			splx(s);
 
-			FREE(tp, M_TAP);
+			free(tp, M_TAP);
 		}
 
  		if (tapbasedev != NOUDEV)
