@@ -356,8 +356,6 @@ main(int argc, char *argv[])
 	lc = login_getpwclass(pwd);
 
 	quietlog = login_getcapbool(lc, "hushlogin", 0);
-	if (!quietlog)
-		pam_silent = 0;
 
 	/*
 	 * Switching needed for NFS with root access disabled.
@@ -383,8 +381,11 @@ main(int argc, char *argv[])
 	}
 	(void)seteuid(euid);
 	(void)setegid(egid);
-	if (!quietlog)
+	if (!quietlog) {
 		quietlog = access(_PATH_HUSHLOGIN, F_OK) == 0;
+		if (!quietlog)
+			pam_silent = 0;
+	}
 
 	shell = login_getcapstr(lc, "shell", pwd->pw_shell, pwd->pw_shell);
 	if (*pwd->pw_shell == '\0')
