@@ -166,6 +166,7 @@ static int sched_attach(void)
 int sched_setparam(struct proc *p,
 	struct sched_setparam_args *uap)
 {
+	struct proc *targetp;
 	int e;
 
 	struct sched_param sched_param;
@@ -173,10 +174,10 @@ int sched_setparam(struct proc *p,
 	if (e)
 		return (e);
 
-	e = p31b_proc(p, uap->pid, &p);
+	e = p31b_proc(p, uap->pid, &targetp);
 	if (e)
 		return (e);
-	e = ksched_setparam(&p->p_retval[0], ksched, p,
+	e = ksched_setparam(&p->p_retval[0], ksched, targetp,
 		(const struct sched_param *)&sched_param);
 	return (e);
 }
@@ -186,11 +187,12 @@ int sched_getparam(struct proc *p,
 {
 	int e;
 	struct sched_param sched_param;
+	struct proc *targetp;
 
-	e = p31b_proc(p, uap->pid, &p);
+	e = p31b_proc(p, uap->pid, &targetp);
 	if (e)
 		return (e);
-	e = ksched_getparam(&p->p_retval[0], ksched, p, &sched_param);
+	e = ksched_getparam(&p->p_retval[0], ksched, targetp, &sched_param);
 	if (e)
 		return (e);
 
@@ -201,16 +203,17 @@ int sched_setscheduler(struct proc *p,
 	struct sched_setscheduler_args *uap)
 {
 	int e;
-
 	struct sched_param sched_param;
+	struct proc *targetp;
+
 	e = copyin(uap->param, &sched_param, sizeof(sched_param));
 	if (e)
 		return (e);
 
-	e = p31b_proc(p, uap->pid, &p);
+	e = p31b_proc(p, uap->pid, &targetp);
 	if (e)
 		return (e);
-	e = ksched_setscheduler(&p->p_retval[0], ksched, p, uap->policy,
+	e = ksched_setscheduler(&p->p_retval[0], ksched, targetp, uap->policy,
 		(const struct sched_param *)&sched_param);
 
 	return (e);
@@ -219,11 +222,12 @@ int sched_getscheduler(struct proc *p,
 	struct sched_getscheduler_args *uap)
 {
 	int e;
+	struct proc *targetp;
 
-	e = p31b_proc(p, uap->pid, &p);
+	e = p31b_proc(p, uap->pid, &targetp);
 	if (e)
 		return (e);
-	e = ksched_getscheduler(&p->p_retval[0], ksched, p);
+	e = ksched_getscheduler(&p->p_retval[0], ksched, targetp);
 
 	return (e);
 }
@@ -248,11 +252,13 @@ int sched_rr_get_interval(struct proc *p,
 	struct sched_rr_get_interval_args *uap)
 {
 	int e;
+	struct proc *targetp;
 
-	e = p31b_proc(p, uap->pid, &p);
+	e = p31b_proc(p, uap->pid, &targetp);
 	if (e)
 		return (e);
-	e = ksched_rr_get_interval(&p->p_retval[0], ksched, p, uap->interval);
+	e = ksched_rr_get_interval(&p->p_retval[0], ksched, targetp,
+	    uap->interval);
 
 	return (e);
 }
