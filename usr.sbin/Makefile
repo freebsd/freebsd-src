@@ -1,11 +1,11 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id$
+#	$Id: Makefile,v 1.64 1995/06/13 18:07:05 wollman Exp $
 
 # XXX MISSING:		mkproto
 # XXX MISSING SOURCES:	quot
 SUBDIR= ac accton adduser amd arp bootparamd chown chroot cron crunch ctm \
 	dev_mkdb diskpart edquota inetd kernbb kgmon kvm_mkdb lpr lsdev \
-	manctl meouted mtree named nslookup pcvt pkg_install pkg_manage \
+	manctl mrouted mtree named nslookup pcvt pkg_install pkg_manage \
 	portmap ppp pppd pppstats pstat pwd_mkdb quotaon rarpd repquota \
 	routed rmt rwhod sa sendmail sliplogin slstat sysctl syslogd \
 	tcpdump timed traceroute trpt tzsetup vipw vnconfig watch xntpd \
