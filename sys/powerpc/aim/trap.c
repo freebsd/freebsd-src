@@ -101,7 +101,6 @@ int	setfault(faultbuf);		/* defined in locore.S */
 /* Why are these not defined in a header? */
 int	badaddr(void *, size_t);
 int	badaddr_read(void *, size_t, int *);
-int	kcopy(const void *, void *, size_t);
 
 #ifdef	WITNESS
 extern char	*syscallnames[];
