@@ -111,8 +111,8 @@ static void decode_syscall(int, struct proc *);
 
 
 static char * watchtype_str(int type);
-int  i386_set_watch(int watchnum, unsigned int watchaddr, 
-                                 int size, int access, struct dbreg * d);
+int  i386_set_watch(int watchnum, unsigned int watchaddr, int size, int access,
+		    struct dbreg * d);
 int  i386_clr_watch(int watchnum, struct dbreg * d);
 int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
 int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
