@@ -382,6 +382,9 @@ int	sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
 	    struct thread *td);
 void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
 int	sbwait(struct sockbuf *sb);
+struct sf_buf *
+	sf_buf_alloc(void);
+void	sf_buf_free(void *addr, void *args);
 int	sb_lock(struct sockbuf *sb);
 int	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
