@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: vnode.9,v 1.5 1998/02/28 15:37:25 jraynard Exp $
+.\" $Id: vnode.9,v 1.6 1998/03/12 07:31:20 charnier Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -153,7 +153,7 @@ and the
 of a vnode reaches zero then the vnode will be put on the freelist
 and may be reused for another file, possibly in another filesystem.
 The transition to and from the freelist is handled by
-.Xr getnetvnode 9 ,
+.Xr getnewvnode 9 ,
 .Xr vfree 9 
 and
 .Xr vbusy 9 .
@@ -193,6 +193,43 @@ field is used by the
 .Dv VOP_*
 macros to call functions in the filesystem which implement the vnode's
 functionality.
+.Sh VNODE TYPES
+.Bl -tag -width VSOCK
+.It Dv VNON
+No type.
+.It Dv VREG
+A regular file; may be with or without VM object backing.  If you want
+to make sure this get a backing object, call
+.Xr vfs_object_create 9 .
+.It Dv VDIR
+A directory.
+.It Dv VBLK
+A block device; may be with or without VM object backing.  If you want
+to make sure this get a backing object, call
+.Xr vfs_object_create 9 .
+.It Dv VCHR
+A character device.
+.It Dv VLNK
+A symbolic link.
+.It Dv VSOCK
+A socket.  Advisory locking won't work on this.
+.It Dv VFIFO
+A FIFO (named pipe).  Adviseroty locking won't work on this.
+.It Dv VBAD
+An old style bad sector map
+.El
+
+.Sh NOTES
+VFIFO uses the "struct fileops" from 
+.Pa /sys/kern/sys_pipe.c .
+VSOCK uses the "struct fileops" from
+.Pa /sys/kern/sys_socket.c .
+Everything else uses the one from
+.Pa /sys/kern/vfs_vnops.c .
+
+The VFIFO/VSOCK code, which is why "struct fileops" is used at all, is
+an artifact of an incomplete integration of the VFS code into the
+kernel.
 .Sh SEE ALSO
 .Xr VFS 9
 .Sh AUTHORS
