@@ -276,6 +276,7 @@ int	nfs_loadattrcache(struct vnode **, struct mbuf **, caddr_t *,
 	    struct vattr *, int);
 int	nfsm_mbuftouio(struct mbuf **, struct uio *, int, caddr_t *);
 void	nfs_nhinit(void);
+int	nfs_nmcancelreqs(struct nfsmount *);
 void	nfs_timer(void*);
 int	nfs_connect(struct nfsmount *, struct nfsreq *);
 void	nfs_disconnect(struct nfsmount *);

@@ -250,13 +250,8 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		}
 		splx(s);
 	}
-	if (nmp->nm_flag & (NFSMNT_SOFT | NFSMNT_INT)) {
-		so->so_rcv.sb_timeo = (5 * hz);
-		so->so_snd.sb_timeo = (5 * hz);
-	} else {
-		so->so_rcv.sb_timeo = 0;
-		so->so_snd.sb_timeo = 0;
-	}
+	so->so_rcv.sb_timeo = 5 * hz;
+	so->so_snd.sb_timeo = 5 * hz;
 
 	/*
 	 * Get buffer reservation size from sysctl, but impose reasonable
@@ -855,6 +850,11 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	int trylater_delay = NQ_TRYLATERDEL, trylater_cnt = 0;
 	u_int32_t xid;
 
+	/* Reject requests while attempting to unmount. */
+	if (vp->v_mount->mnt_kern_flag & MNTK_UNMOUNT) {
+		m_freem(mrest);
+		return (ESTALE);
+	}
 	nmp = VFSTONFS(vp->v_mount);
 	MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
 	rep->r_nmp = nmp;
@@ -1167,6 +1167,41 @@ nfs_timer(void *arg)
 }
 
 /*
+ * Mark all of an nfs mount's outstanding requests with R_SOFTTERM and
+ * wait for all requests to complete. This is used by forced unmounts
+ * to terminate any outstanding RPCs.
+ */
+int
+nfs_nmcancelreqs(nmp)
+	struct nfsmount *nmp;
+{
+	struct nfsreq *req;
+	int i, s;
+
+	s = splnet();
+	TAILQ_FOREACH(req, &nfs_reqq, r_chain) {
+		if (nmp != req->r_nmp || req->r_mrep != NULL ||
+		    (req->r_flags & R_SOFTTERM))
+			continue;
+		nfs_softterm(req);
+	}
+	splx(s);
+
+	for (i = 0; i < 30; i++) {
+		tsleep(&lbolt, PSOCK, "nfscancel", 0);
+		s = splnet();
+		TAILQ_FOREACH(req, &nfs_reqq, r_chain) {
+			if (nmp == req->r_nmp)
+				break;
+		}
+		splx(s);
+		if (req == NULL)
+			return (0);
+	}
+	return (EBUSY);
+}
+
+/*
  * Flag a request as being about to terminate (due to NFSMNT_INT/NFSMNT_SOFT).
  * The nm_send count is decremented now to avoid deadlocks when the process in
  * soreceive() hasn't yet managed to send its own request.
@@ -1289,6 +1324,9 @@ nfs_rcvlock(struct nfsreq *rep)
 			slptimeo = 2 * hz;
 		}
 	}
+	/* Always fail if our request has been cancelled. */
+	if (rep != NULL && (rep->r_flags & R_SOFTTERM))
+		return (EINTR);
 	*statep |= NFSSTA_RCVLOCK;
 	return (0);
 }

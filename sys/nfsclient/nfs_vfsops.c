@@ -918,6 +918,12 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	 * - Close the socket
 	 * - Free up the data structures
 	 */
+	/* In the forced case, cancel any outstanding requests. */
+	if (flags & FORCECLOSE) {
+		error = nfs_nmcancelreqs(nmp);
+		if (error)
+			return (error);
+	}
 	/* We hold 1 extra ref on the root vnode; see comment in mountnfs(). */
 	error = vflush(mp, 1, flags);
 	if (error)
