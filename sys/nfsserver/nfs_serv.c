@@ -2905,10 +2905,9 @@ out:
 	if (dirp)
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
 	nfsm_reply(NFSX_WCCDATA(v3));
-	if (v3) {
+	error = 0;
+	if (v3)
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
-		error = 0;
-	}
 	/* fall through */
 
 nfsmout:
