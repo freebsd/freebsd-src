@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.19 1995/05/30 08:00:28 rgrimes Exp $
+ *	$Id: console.h,v 1.20 1996/01/30 22:54:15 mpp Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -78,6 +78,10 @@
 #define CONS_GETINFO    _IOWR('c', 73, vid_info_t)
 #define CONS_GETVERS	_IOR('c', 74, int)
 
+#ifdef PC98
+#define ADJUST_CLOCK		_IO('t',100)		/* for 98note resume */
+#endif  /* for PC98 */
+
 #define VT_OPENQRY	_IOR('v', 1, int)
 #define VT_SETMODE	_IOW('v', 2, vtmode_t)
 #define VT_GETMODE	_IOR('v', 3, vtmode_t)
@@ -118,6 +122,9 @@ struct mouse_info {
 #define KD_CGA		3		/* color graphics adapter    	*/
 #define KD_EGA		4		/* enhanced graphics adapter 	*/
 #define KD_VGA		5		/* video graphics adapter    	*/
+#ifdef PC98
+#define KD_PC98		6
+#endif
 
 #define KD_TEXT		0		/* set text mode restore fonts  */
 #define KD_TEXT0	0		/* ditto			*/
@@ -242,6 +249,13 @@ typedef struct ssaver ssaver_t;
 #define MKEY		0x400		/* meta key marker (prepend ESC)*/
 #define BKEY		0x800		/* backtab (ESC [ Z)		*/
 
+#ifdef PC98
+#define	KB_DATA		0x41		/* kbd data port 		*/
+#define	KB_STAT		0x43		/* kbd status port 		*/
+#define	KB_BUF_FULL	0x02		/* kbd has char pending 	*/
+#define	KB_READY	0x02		/* kbd ready for command 	*/
+#define KB_WRITE	0x43		/* kbd write command 		*/
+#else
 #define	KB_DATA		0x60		/* kbd data port 		*/
 #define	KB_STAT		0x64		/* kbd status port 		*/
 #define	KB_BUF_FULL	0x01		/* kbd has char pending 	*/
@@ -255,8 +269,13 @@ typedef struct ssaver ssaver_t;
 #define KB_ACK		0xFA		/* kbd acknowledge answer 	*/
 #define KB_RESEND	0xFE		/* kbd resend cmd answer      	*/
 #define KB_RESET	0xFF		/* kbd reset 			*/
+#endif
 
 /* video mode definitions */
+#ifdef PC98
+#define M_PC98_80x25	98	/* PC98 80x25 */
+#define M_PC98_80x30	99	/* PC98 80x30 */
+#else
 #define M_B40x25	0	/* black & white 40 columns */
 #define M_C40x25	1	/* color 40 columns */
 #define M_B80x25	2	/* black & white 80 columns */
@@ -298,7 +317,12 @@ typedef struct ssaver ssaver_t;
 #define M_HGC_P0	0xe0	/* hercules graphics - page 0 @ B0000 */
 #define M_HGC_P1	0xe1	/* hercules graphics - page 1 @ B8000 */
 #define M_MCA_MODE	0xff	/* monochrome adapter mode */
+#endif
 
+#ifdef PC98
+#define SW_PC98_80x25	_IO('S', M_PC98_80x25)
+#define SW_PC98_80x30	_IO('S', M_PC98_80x30)
+#else
 #define SW_B40x25 	_IO('S', M_B40x25)
 #define SW_C40x25  	_IO('S', M_C40x25)
 #define SW_B80x25  	_IO('S', M_B80x25)
@@ -335,5 +359,6 @@ typedef struct ssaver ssaver_t;
 #define SW_CG640x480	_IO('S', M_VGA12)
 #define SW_VGA13	_IO('S', M_VGA13)
 #define SW_VGA_CG320	_IO('S', M_VGA13)
+#endif
 
 #endif

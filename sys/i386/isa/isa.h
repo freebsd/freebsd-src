@@ -34,8 +34,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.17 1995/11/18 09:29:39 bde Exp $
+ *	$Id: isa.h,v 1.18 1996/01/30 22:55:57 mpp Exp $
  */
+
+#ifdef PC98
+#error isa.h is included from PC-9801 source
+#endif
 
 #ifndef _I386_ISA_ISA_H_
 #define	_I386_ISA_ISA_H_

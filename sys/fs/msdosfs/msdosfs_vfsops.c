@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.11 1996/01/05 18:31:43 wollman Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.12 1996/04/03 23:05:40 gpalmer Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -273,6 +273,10 @@ mountmsdosfs(devvp, mp, p)
 	struct buf *bp0 = NULL;
 	struct byte_bpb33 *b33;
 	struct byte_bpb50 *b50;
+#ifdef	PC98
+	u_int	pc98_wrk;
+	u_int	Phy_Sector_Size;
+#endif
 
 	/*
 	 * Multiple mounts of the same block special file aren't allowed.
@@ -311,7 +315,12 @@ mountmsdosfs(devvp, mp, p)
 	 * also add some checking on the bsOemName field.  So far I've seen
 	 * the following values: "IBM  3.3" "MSDOS3.3" "MSDOS5.0"
 	 */
+#ifdef	PC98
+	devvp->v_flag &= 0xffff; 
+	error = bread(devvp, 0, 1024, NOCRED, &bp0);
+#else
 	error = bread(devvp, 0, 512, NOCRED, &bp0);
+#endif
 	if (error)
 		goto error_exit;
 	bp0->b_flags |= B_AGE;
@@ -319,7 +328,14 @@ mountmsdosfs(devvp, mp, p)
 	b33 = (struct byte_bpb33 *) bsp->bs33.bsBPB;
 	b50 = (struct byte_bpb50 *) bsp->bs50.bsBPB;
 #ifdef MSDOSFS_CHECKSIG
+#ifdef	PC98
+	if (bsp->bs50.bsBootSectSig != BOOTSIG &&
+	    bsp->bs50.bsBootSectSig != 0 &&		/* PC98 DOS 3.3x */
+	    bsp->bs50.bsBootSectSig != 15760 &&		/* PC98 DOS 5.0	 */
+	    bsp->bs50.bsBootSectSig != 64070) {		/* PC98 DOS 3.3B */
+#else
 	if (bsp->bs50.bsBootSectSig != BOOTSIG) {
+#endif
 		error = EINVAL;
 		goto error_exit;
 	}
@@ -353,7 +369,11 @@ mountmsdosfs(devvp, mp, p)
 	/* XXX - We should probably check more values here */
     	if (!pmp->pm_BytesPerSec || !pmp->pm_SectPerClust ||
 	    !pmp->pm_Heads || pmp->pm_Heads > 255 ||
+#ifdef PC98
+	    !pmp->pm_SecPerTrack || pmp->pm_SecPerTrack > 255) {
+#else
 	    !pmp->pm_SecPerTrack || pmp->pm_SecPerTrack > 63) {
+#endif
 		error = EINVAL;
 		goto error_exit;
 	}
@@ -365,6 +385,41 @@ mountmsdosfs(devvp, mp, p)
 		pmp->pm_HiddenSects = getushort(b33->bpbHiddenSecs);
 		pmp->pm_HugeSectors = pmp->pm_Sectors;
 	}
+#ifdef	PC98	/* for PC98		added Satoshi Yasuda	*/
+	Phy_Sector_Size = 512;
+	if ((devvp->v_rdev>>8) == 2) {	/* floppy check */
+		if (((devvp->v_rdev&077) == 2) && (pmp->pm_HugeSectors == 1232)) {
+				Phy_Sector_Size = 1024;	/* 2HD */
+				/*
+				 * 1024byte/sector support
+				 */
+				devvp->v_flag |= 0x10000;
+		} else {
+			if ((((devvp->v_rdev&077) == 3)	/* 2DD 8 or 9 sector */
+				&& (pmp->pm_HugeSectors == 1440)) /* 9 sector */
+				|| (((devvp->v_rdev&077) == 4)
+				&& (pmp->pm_HugeSectors == 1280)) /* 8 sector */
+				|| (((devvp->v_rdev&077) == 5)
+				&& (pmp->pm_HugeSectors == 2880))) { /* 1.44M */
+					Phy_Sector_Size = 512;
+			} else {
+				if (((devvp->v_rdev&077) != 1)
+				    && ((devvp->v_rdev&077) != 0)) { /* 2HC */
+					error = EINVAL;
+					goto error_exit;
+				}
+			}
+		}
+	}			
+	pc98_wrk = pmp->pm_BytesPerSec / Phy_Sector_Size;
+	pmp->pm_BytesPerSec = Phy_Sector_Size;
+	pmp->pm_SectPerClust = pmp->pm_SectPerClust * pc98_wrk;
+	pmp->pm_HugeSectors = pmp->pm_HugeSectors * pc98_wrk;
+	pmp->pm_ResSectors = pmp->pm_ResSectors * pc98_wrk;
+	pmp->pm_FATsecs = pmp->pm_FATsecs * pc98_wrk;
+	pmp->pm_SecPerTrack = pmp->pm_SecPerTrack * pc98_wrk;
+	pmp->pm_HiddenSects = pmp->pm_HiddenSects * pc98_wrk;
+#endif			/*						*/ 
 	pmp->pm_fatblk = pmp->pm_ResSectors;
 	pmp->pm_rootdirblk = pmp->pm_fatblk +
 	    (pmp->pm_FATs * pmp->pm_FATsecs);
@@ -420,8 +475,18 @@ mountmsdosfs(devvp, mp, p)
 		bit <<= 1;
 	}
 
+#ifdef	PC98
+	if (Phy_Sector_Size == 512) {
+		pmp->pm_brbomask = 0x01ff;	/* 512 byte blocks only (so far) */
+		pmp->pm_bnshift = 9;	/* shift right 9 bits to get bn */
+	} else {
+		pmp->pm_brbomask = 0x03ff;
+		pmp->pm_bnshift = 10;
+	}
+#else
 	pmp->pm_brbomask = 0x01ff;	/* 512 byte blocks only (so far) */
 	pmp->pm_bnshift = 9;	/* shift right 9 bits to get bn */
+#endif
 
 	/*
 	 * Release the bootsector buffer.

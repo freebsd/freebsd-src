@@ -93,7 +93,11 @@ struct pccard_drv {
  */
 struct pccard_dev {
 	struct pccard_dev *next;	/* List of drivers */
+#ifdef PC98
+	struct pc98_device isahd;	/* Device details */
+#else
 	struct isa_device isahd;	/* Device details */
+#endif
 	struct pccard_drv *drv;
 	void *arg;			/* Device argument */
 	struct slot *sp;		/* Back pointer to slot */

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.5 1995/11/07 14:06:43 phk Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.6 1995/12/03 16:42:01 bde Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-
@@ -171,6 +171,13 @@ msdosfs_lookup(ap)
 #ifdef MSDOSFS_DEBUG
 				printf("msdosfs_lookup(): cache hit, vnode %08x, file %s\n",
 				       vdp, dp->de_Name);
+#endif
+#ifdef	PC98
+			/*
+			 * 1024 byte/sector support
+			 */
+			if (pmp->pm_BytesPerSec == 1024)
+					vdp->v_flag |= 0x10000;
 #endif
 				return 0;
 			}
