@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.372 1998/09/02 18:04:18 max Exp $
+#	$Id: Makefile,v 1.373 1998/09/04 06:31:34 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -226,27 +226,16 @@ rerelease release:
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	# This eases bootstrapping from a more recent hosting environment:
-.if exists(/usr/lib/aout/) && (${OBJFORMAT} == "aout")
-	echo "mkdir -p /usr/lib/compat/aout"	>> ${CHROOTDIR}/mk
-	echo "chflags noschg /usr/lib/aout/lib*.so.*" >> ${CHROOTDIR}/mk
-	echo "mv /usr/lib/aout/lib*.so.* /usr/lib/compat/aout" >> ${CHROOTDIR}/mk
-	echo "ldconfig /usr/lib/compat/aout" 	>> ${CHROOTDIR}/mk
-.else
 	echo "mkdir -p /usr/lib/compat"		>> ${CHROOTDIR}/mk
 	echo "chflags noschg /usr/lib/lib*.so.*" >> ${CHROOTDIR}/mk
 	echo "mv /usr/lib/lib*.so.* /usr/lib/compat" >> ${CHROOTDIR}/mk
-	echo "ldconfig /usr/lib /usr/lib/compat" >> ${CHROOTDIR}/mk
-.endif
 	echo "(cd include; make all install)"   >> ${CHROOTDIR}/mk
 	echo "(cd etc; make distrib-dirs distribution)" >> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
 	echo "(cd etc; make distribution)"	>> ${CHROOTDIR}/mk
 	# Now we've got our own shared libs, remove the bootstrapping
 	# libs again.
-.if !exists(/usr/lib/aout/) && (${OBJFORMAT} == "aout")
 	echo "rm -f /usr/lib/compat/*"		>> ${CHROOTDIR}/mk
-	echo "ldconfig /usr/lib"		>> ${CHROOTDIR}/mk
-.endif
 .endif
 .if make(rerelease)
 	echo "make all install"			>> ${CHROOTDIR}/mk
