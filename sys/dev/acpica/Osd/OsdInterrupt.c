@@ -78,19 +78,19 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
      */
     if (sc->acpi_irq != NULL) {
 	device_printf(sc->acpi_dev, "attempt to register more than one interrupt handler\n");
-	return_ACPI_STATUS(AE_EXIST);
+	return_ACPI_STATUS(AE_ALREADY_EXISTS);
     }
     sc->acpi_irq_rid = 0;
     bus_set_resource(sc->acpi_dev, SYS_RES_IRQ, 0, InterruptNumber, 1);
     if ((sc->acpi_irq = bus_alloc_resource(sc->acpi_dev, SYS_RES_IRQ, &sc->acpi_irq_rid, 0, ~0, 1, 
 					   RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 	device_printf(sc->acpi_dev, "could not allocate SCI interrupt\n");
-	return_ACPI_STATUS(AE_EXIST);
+	return_ACPI_STATUS(AE_ALREADY_EXISTS);
     }
     if (bus_setup_intr(sc->acpi_dev, sc->acpi_irq, INTR_TYPE_MISC, (driver_intr_t *)InterruptWrapper,
 		       Context, &sc->acpi_irq_handle)) {
 	device_printf(sc->acpi_dev, "could not set up SCI interrupt\n");
-	return_ACPI_STATUS(AE_EXIST);
+	return_ACPI_STATUS(AE_ALREADY_EXISTS);
     }
 	
     return_ACPI_STATUS(AE_OK);
