@@ -145,4 +145,4 @@ if [ -f /etc/Distfile ]; then
 	rdist -f /etc/Distfile
 fi
 
-sh /etc/security | mail -s "daily insecurity output" root
+sh /etc/security 2>&1 | mail -s "daily insecurity output" root
