@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.12 2000/11/24 03:41:42 grog Exp grog $
+ * $Id: vinuminterrupt.c,v 1.14 2001/05/23 23:03:37 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -205,7 +205,7 @@ complete_rqe(struct buf *bp)
 	}
     }
     if (rq->active == 0) {				    /* request finished, */
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
 	if (debug & DEBUG_RESID) {
 	    if (ubp->b_resid != 0)			    /* still something to transfer? */
 		Debugger("resid");
@@ -406,7 +406,7 @@ complete_raid5_write(struct rqelement *rqe)
 		    vinum_conf.active++;
 		    if (vinum_conf.active >= vinum_conf.maxactive)
 			vinum_conf.maxactive = vinum_conf.active;
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
 		    if (debug & DEBUG_ADDRESSES)
 			log(LOG_DEBUG,
 			    "  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
@@ -445,7 +445,7 @@ complete_raid5_write(struct rqelement *rqe)
     if (vinum_conf.active >= vinum_conf.maxactive)
 	vinum_conf.maxactive = vinum_conf.active;
 
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
 	    "  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
