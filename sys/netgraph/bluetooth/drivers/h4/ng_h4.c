@@ -51,11 +51,11 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
-#include <ng_bluetooth.h>
-#include <ng_hci.h>
-#include "ng_h4.h"
-#include "ng_h4_var.h"
-#include "ng_h4_prse.h"
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
+#include <netgraph/bluetooth/include/ng_h4.h>
+#include <netgraph/bluetooth/drivers/h4/ng_h4_var.h>
+#include <netgraph/bluetooth/drivers/h4/ng_h4_prse.h>
 
 /*****************************************************************************
  *****************************************************************************

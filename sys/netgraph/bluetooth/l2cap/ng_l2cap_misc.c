@@ -37,15 +37,15 @@
 #include <sys/queue.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include "ng_bluetooth.h"
-#include "ng_hci.h"
-#include "ng_l2cap.h"
-#include "ng_l2cap_var.h"
-#include "ng_l2cap_cmds.h"
-#include "ng_l2cap_evnt.h"
-#include "ng_l2cap_llpi.h"
-#include "ng_l2cap_ulpi.h"
-#include "ng_l2cap_misc.h"
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
+#include <netgraph/bluetooth/include/ng_l2cap.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_var.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_cmds.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_evnt.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_llpi.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_ulpi.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_misc.h>
 
 static u_int16_t	ng_l2cap_get_cid	(ng_l2cap_p);
 

@@ -64,10 +64,10 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
-#include <ng_bluetooth.h>
-#include <ng_hci.h>
-#include "ng_bt3c.h"
-#include "ng_bt3c_var.h"
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
+#include <netgraph/bluetooth/include/ng_bt3c.h>
+#include <netgraph/bluetooth/drivers/bt3c/ng_bt3c_var.h>
 
 /* Netgraph methods */
 static ng_constructor_t	ng_bt3c_constructor;

@@ -63,15 +63,6 @@ INCLUDES+= -I$S/contrib/dev/ath -I$S/contrib/dev/ath/freebsd
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
 
-# ... and the same for the NgBluetooth stuff
-INCLUDES+= -I$S/netgraph/bluetooth/include
-INCLUDES+= -I$S/netgraph/bluetooth/drivers/bt3c
-INCLUDES+= -I$S/netgraph/bluetooth/drivers/h4
-INCLUDES+= -I$S/netgraph/bluetooth/drivers/ubt
-INCLUDES+= -I$S/netgraph/bluetooth/drivers/ubtbcmfw
-INCLUDES+= -I$S/netgraph/bluetooth/hci
-INCLUDES+= -I$S/netgraph/bluetooth/l2cap
-
 COPTS=	${INCLUDES} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 .if ${CC} != "icc"

@@ -410,6 +410,15 @@ options 	LIBMCHAIN
 options 	NETGRAPH		#netgraph(4) system
 options 	NETGRAPH_ASYNC
 options 	NETGRAPH_ATMLLC
+options 	NETGRAPH_ATM_ATMPIF
+options 	NETGRAPH_BLUETOOTH		# ng_bluetooth(4)
+options 	NETGRAPH_BLUETOOTH_BT3C		# ng_bt3c(4)
+options 	NETGRAPH_BLUETOOTH_H4		# ng_h4(4)
+options 	NETGRAPH_BLUETOOTH_HCI		# ng_hci(4)
+options 	NETGRAPH_BLUETOOTH_L2CAP	# ng_l2cap(4)
+options 	NETGRAPH_BLUETOOTH_SOCKET	# ng_btsocket(4)
+options 	NETGRAPH_BLUETOOTH_UBT		# ng_ubt(4)
+options 	NETGRAPH_BLUETOOTH_UBTBCMFW	# ubtbcmfw(4)
 options 	NETGRAPH_BPF
 options 	NETGRAPH_BRIDGE
 options 	NETGRAPH_CISCO
@@ -439,17 +448,6 @@ options 	NETGRAPH_TEE
 options 	NETGRAPH_TTY
 options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
-options 	NETGRAPH_ATM_ATMPIF
-
-# NgBluetooth - Netgraph Bluetooth
-options 	NETGRAPH_BLUETOOTH		# Common parts
-options 	NETGRAPH_BLUETOOTH_BT3C		# 3COM Bluetooth PCCARD
-options 	NETGRAPH_BLUETOOTH_H4		# H4 line discipline
-options 	NETGRAPH_BLUETOOTH_UBT		# Bluetooth USB dongle
-options 	NETGRAPH_BLUETOOTH_UBTBCMFW	# Firmware driver for BCM2033
-options 	NETGRAPH_BLUETOOTH_HCI		# Bluetooth HCI layer
-options 	NETGRAPH_BLUETOOTH_L2CAP	# Bluetooth L2CAP layer
-options 	NETGRAPH_BLUETOOTH_SOCKET	# Bluetooth sockets layer
 
 # NgATM - Netgraph ATM
 options 	NGATM_ATM

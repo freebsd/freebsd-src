@@ -38,13 +38,13 @@
 #include <sys/queue.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include "ng_bluetooth.h"
-#include "ng_hci.h"
-#include "ng_hci_var.h"
-#include "ng_hci_cmds.h"
-#include "ng_hci_evnt.h"
-#include "ng_hci_ulpi.h"
-#include "ng_hci_misc.h"
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
+#include <netgraph/bluetooth/hci/ng_hci_var.h>
+#include <netgraph/bluetooth/hci/ng_hci_cmds.h>
+#include <netgraph/bluetooth/hci/ng_hci_evnt.h>
+#include <netgraph/bluetooth/hci/ng_hci_ulpi.h>
+#include <netgraph/bluetooth/hci/ng_hci_misc.h>
 
 /******************************************************************************
  ******************************************************************************
