@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+SUBDIR+=	T000 T001 T002 T003 T004 T005 T006 T007 T008 T009
+SUBDIR+=	T010 T011 T012
+
+# SUBDIR+=	T999
+
+.include <bsd.subdir.mk>
+
+test:	_SUBDIRUSE
