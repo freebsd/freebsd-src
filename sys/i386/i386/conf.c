@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.87 1995/07/16 10:45:06 phk Exp $
+ *	$Id: conf.c,v 1.88 1995/07/16 14:34:57 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -593,22 +593,6 @@ d_select_t	sndselect;
 #define sndselect       seltrue
 #endif
 
-#include "vat_audio.h"		/* BSD audio driver emulator for voxware */
-#if     NVAT_AUDIO > 0		/* not general purpose, just vat */
-d_open_t	vaopen;
-d_close_t	vaclose;
-d_ioctl_t	vaioctl;
-d_rdwr_t	varead, vawrite;
-d_select_t	vaselect;
-#else
-#define vaopen          nxopen
-#define vaclose         nxclose
-#define vaioctl         nxioctl
-#define varead          nxread
-#define vawrite         nxwrite
-#define vaselect        seltrue
-#endif
-
 /* /dev/fd/NNN */
 d_open_t fdopen;
 
@@ -1104,10 +1088,9 @@ struct cdevsw	cdevsw[] =
  * Otherwise, simply use the one reserved for local use.
  */
 	/* character device 20 is reserved for local use */
-	{ nxopen, nxclose, nxread,	/*20*/
-	  nxwrite, nxioctl, nxstop,
-	  nxreset, nxdevtotty, nxselect,
-	  nxmmap, NULL },
+	{ nxopen,	nxclose,	nxread,		nxwrite,	/*20*/
+	  nxioctl,	nxstop,		nxreset,	nxdevtotty,/* reserved */
+	  nxselect,	nxmmap,		NULL },
 	{ psmopen,	psmclose,	psmread,	nowrite,	/*21*/
 	  psmioctl,	nostop,		nullreset,	nodevtotty,/* psm mice */
 	  psmselect,	nommap,		NULL },
@@ -1120,9 +1103,9 @@ struct cdevsw	cdevsw[] =
  	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
  	  pcaioctl,     nostop,         nullreset,      nodevtotty,/* pcaudio */
  	  pcaselect,	nommap,		NULL },
-	{ vaopen,	vaclose,	varead,		vawrite,	/*25*/
-  	  vaioctl,	nostop,		nullreset,	nodevtotty,/* vat */
-  	  vaselect,	nommap,		NULL },
+	{ nxopen,	nxclose,	nxread,		nxwrite,	/*25*/
+	  nxioctl,	nxstop,		nxreset,	nxdevtotty,/* was vat */
+	  nxselect,	nxmmap,		NULL },
 	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
 	  spkrioctl,    nostop,         nullreset,      nodevtotty,/* spkr */
 	  seltrue,	nommap,		NULL },
@@ -1221,7 +1204,7 @@ struct cdevsw	cdevsw[] =
 	  seltrue,	nommap,		NULL },
 	{ nxopen,	nxclose,	nxread,		nxwrite,	/*58*/
 	  nxioctl,	nxstop,		nxreset,	nxdevtotty,/* unused */
-	  seltrue,	nxmmap,		NULL },
+	  nxselect,	nxmmap,		NULL },
 	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
 	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
 	  seltrue,	nommap,         NULL },
@@ -1237,10 +1220,9 @@ struct cdevsw	cdevsw[] =
 	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
 	  rcioctl,      rcstop,         rcreset,        rcdevtotty,/* rc */
 	  ttselect,	nommap,		NULL },
-	{ nxopen, nxclose, nxread,                                      /*64*/
-	  nxwrite, nxioctl, nxstop,				   /* Talisman*/
-	  nxreset, nxdevtotty, nxselect,
-	  nxmmap, NULL },
+	{ nxopen,	nxclose,	nxread,		nxwrite,	/*64*/
+	  nxioctl,	nxstop,		nxreset,	nxdevtotty,/* Talisman */
+	  nxselect,	nxmmap,		NULL },
 	{ sctargopen,	sctargclose,	rawread,	rawwrite,	/*65*/
 	  sctargioctl,	nostop,		nullreset,	nodevtotty,/* sctarg */
 	  seltrue,	nommap,		sctargstrategy },
