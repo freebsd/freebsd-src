@@ -35,7 +35,7 @@
 .\"     @(#)col.1	8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2004
+.Dd July 29, 2004
 .Dt COL 1
 .Os
 .Sh NAME
@@ -127,6 +127,15 @@ sure the character set is correct when they are output.
 If the input attempts to back up to the last flushed line,
 .Nm
 will display a warning message.
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh SEE ALSO
 .Xr expand 1 ,
 .Xr nroff 1 ,
@@ -142,7 +151,3 @@ A
 command
 appeared in
 .At v6 .
-.Sh BUGS
-The
-.Nm
-utility does not recognize multibyte characters.
