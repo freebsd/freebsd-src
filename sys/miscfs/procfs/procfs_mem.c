@@ -128,46 +128,6 @@ procfs_rwmem(curp, p, uio)
 		 */
 		len = min(PAGE_SIZE - page_offset, uio->uio_resid);
 
-		if (uva >= VM_MAXUSER_ADDRESS) {
-			vm_offset_t tkva;
-
-			if (writing || 
-			    uva >= VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE ||
-			    (ptrace_read_u_check(p,
-						 uva - (vm_offset_t) VM_MAXUSER_ADDRESS,
-						 (size_t) len) &&
-			     !procfs_kmemaccess(curp))) {
-				error = 0;
-				break;
-			}
-
-			/* we are reading the "U area", force it into core */
-			PHOLD(p);
-
-			/* sanity check */
-			if (!(p->p_flag & P_INMEM)) {
-				/* aiee! */
-				PRELE(p);
-				error = EFAULT;
-				break;
-			}
-
-			/* populate the ptrace/procfs area */
-			p->p_addr->u_kproc.kp_proc = *p;
-			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-
-			/* locate the in-core address */
-			tkva = (uintptr_t)p->p_addr + uva - VM_MAXUSER_ADDRESS;
-
-			/* transfer it */
-			error = uiomove((caddr_t)tkva, len, uio);
-
-			/* let the pages go */
-			PRELE(p);
-
-			continue;
-		}
-
 		/*
 		 * Fault the page on behalf of the process
 		 */
