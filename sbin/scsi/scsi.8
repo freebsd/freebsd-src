@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.14 1997/12/29 15:17:57 brian Exp $
+.\"	$Id: scsi.8,v 1.15 1997/12/29 21:08:33 brian Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -91,12 +91,8 @@ The
 option must be specified, and
 .Ar device
 must be the name of a functional SCSI device.  If the device is a
-disk device, it should be the
-.Sq whole slice ,
-ie.
-.Pa /dev/sd0
-or
-.Pa /dev/sd0s1c .
+disk device, it should be the control device,
+.Pq for example Pa /dev/rsd0.ctl .
 Use the
 .Fl p
 option with the
@@ -176,8 +172,8 @@ option and the default is 0.
 .Pp
 The
 .Fl r
-option can be used to reprobe all SCSI devices on the bus that the
-given SCSI device resides.  See
+option can be used to reprobe all SCSI devices on all SCSI busses that
+were present at boot-time.  See
 .Xr scsi 4
 for a description of fixed scsi devices.
 .Pp
