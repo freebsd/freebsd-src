@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.11 1994/03/07 11:38:48 davidg Exp $
+ * 	$Id: pmap.h,v 1.12 1994/03/24 23:12:48 davidg Exp $
  */
 
 #ifndef	_PMAP_MACHINE_
@@ -180,6 +180,7 @@ extern int	IdlePTD;	/* physical address of "Idle" state directory */
 #define	ptetoav(pt)	(i386_ptob(pt - APTmap)) 
 #define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
 
+#ifdef KERNEL
 /*
  *	Routine:	pmap_kextract
  *	Function:
@@ -194,6 +195,7 @@ pmap_kextract(va)
 	pa = (pa & PG_FRAME) | (va & ~PG_FRAME);
 	return pa;
 }
+#endif
 
 /*
  * macros to generate page directory/table indicies
