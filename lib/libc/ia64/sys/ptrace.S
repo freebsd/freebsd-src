@@ -31,7 +31,8 @@
 #include "SYS.h"
 
 ENTRY(ptrace, 4)
-	add	r14=@gprel(errno),gp ;;
+	add	r14=@ltoff(errno),gp ;;
+	ld8	r14=[r14] ;;
 	st4	[r14]=r0
 	CALLSYS_ERROR(ptrace)
 	br.ret.sptk.few rp
