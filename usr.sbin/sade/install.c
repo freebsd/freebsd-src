@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.204 1998/01/16 15:07:55 jkh Exp $
+ * $Id: install.c,v 1.205 1998/02/10 18:31:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -573,13 +573,11 @@ nodisks:
     configRC_conf("/etc/rc.conf");
     sync();
 
-#ifndef USE_XIG_ENVIRONMENT
     if (directory_exists("/usr/X11R6")) {
 	dialog_clear_norefresh();
 	if (!msgYesNo("Would you like to configure your X server at this time?"))
 	    configXEnvironment(self);
     }
-#endif
 
     dialog_clear_norefresh();
     if (!msgYesNo("The FreeBSD package collection is a collection of hundreds of ready-to-run\n"
@@ -708,11 +706,6 @@ try_media:
     }
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
 
-    /* We always try to install X with the XiG product */
-#ifdef USE_XIG_ENVIRONMENT
-    if (directory_exists("/usr/X11R6"))
-	configXEnvironment(self);
-#endif
     return i | DITEM_RESTORE;
 }
 
