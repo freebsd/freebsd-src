@@ -31,12 +31,14 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include <fcntl.h>
 
 
 void usage(char *progname)
 {
-	fprintf(stderr, "usage: %s <filename> [[-]bidir]\n", progname);
+	fprintf(stderr, "usage: %s <filename> [[-]bidir] [dtrwait <n>]\n", progname);
 	exit(1);
 }
 
@@ -44,8 +46,9 @@ int main(int argc, char *argv[])
 {
 	int	fd;
 	int	res;
+	int     dtrwait;
 
-	if ((argc < 2) || (argc > 3)) usage(argv[0]);
+	if ((argc < 2) || (argc > 5)) usage(argv[0]);
 
 	fd = open(argv[1], O_RDONLY|O_NONBLOCK, 0);
 	if (fd < 0) {
@@ -56,24 +59,56 @@ int main(int argc, char *argv[])
 
 	if (argc == 2) {
 		if (ioctl(fd, TIOCMGBIDIR, &res) < 0) {
-			perror("ioctl");
+			perror("TIOCMGBIDIR");
 			exit(1);
 		}
 		if (!res)  printf("-");
-		printf("bidir\n");
-	} else {
-		if (!strcmp(argv[2],"bidir")) {
-			res = 1;
-		} else if (!strcmp(argv[2],"-bidir")) {
-                        res = 0;
-                } else {
-			usage(argv[0]);
+		printf("bidir ");
+		if (ioctl(fd, TIOCMGDTRWAIT, &dtrwait) < 0) {
+			perror("TIOCMGDTRWAIT");
+			exit(1);
 		}
-		if (ioctl(fd, TIOCMSBIDIR, &res) < 0) {
-                        perror("ioctl");
-                        exit(1);
-                }
+		printf("dtrwait %d\n", dtrwait);
+	} else {
+		char *prg = argv[0];
+
+		res = dtrwait = -1;
+		while (argv[2] != NULL) {
+			if (!strcmp(argv[2],"bidir")) {
+				if (res >= 0)
+					usage(prg);
+				res = 1;
+				argv++;
+			} else if (!strcmp(argv[2],"-bidir")) {
+				if (res >= 0)
+					usage(prg);
+				res = 0;
+				argv++;
+			} else if (!strcmp(argv[2],"dtrwait")) {
+				if (dtrwait >= 0)
+					usage(prg);
+				if (argv[3] == NULL || !isdigit(argv[3][0]))
+					usage(prg);
+				dtrwait = atoi(argv[3]);
+				argv += 2;
+			} else {
+				usage(prg);
+			}
+		}
+		if (res >= 0) {
+			if (ioctl(fd, TIOCMSBIDIR, &res) < 0) {
+				perror("TIOCMSBIDIR");
+				exit(1);
+			}
+		}
+		if (dtrwait >= 0) {
+			if (ioctl(fd, TIOCMSDTRWAIT, &dtrwait) < 0) {
+				perror("TIOCMSDTRWAIT");
+				exit(1);
+			}
+		}
 	}
 
 	close(fd);
+	exit(0);
 }
