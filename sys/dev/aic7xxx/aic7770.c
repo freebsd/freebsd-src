@@ -9,34 +9,48 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
- * GNU Public License ("GPL").
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/src/aic7xxx/aic7770.c#12 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#16 $
  *
  * $FreeBSD$
  */
 
-#include <dev/aic7xxx/aic7xxx_freebsd.h>
+#ifdef __linux__
+#include "aic7xxx_osm.h"
+#include "aic7xxx_inline.h"
+#include "aic7xxx_93cx6.h"
+#else
+#include <dev/aic7xxx/aic7xxx_osm.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 #include <dev/aic7xxx/aic7xxx_93cx6.h>
+#endif
 
 #define ID_AIC7770	0x04907770
 #define ID_AHA_274x	0x04907771
@@ -88,7 +102,7 @@ aic7770_find_device(uint32_t id)
 }
 
 int
-aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
+aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 {
 	int	error;
 	u_int	hostconf;
@@ -99,9 +113,17 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	if (error != 0)
 		return (error);
 
-	error = aic7770_map_registers(ahc);
+	error = aic7770_map_registers(ahc, io);
 	if (error != 0)
 		return (error);
+
+	/*
+	 * Before we continue probing the card, ensure that
+	 * its interrupts are *disabled*.  We don't want
+	 * a misstep to hang the machine in an interrupt
+	 * storm.
+	 */
+	ahc_intr_enable(ahc, FALSE);
 
 	ahc->description = entry->name;
 	error = ahc_softc_init(ahc);
@@ -223,7 +245,6 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 {
 	struct	  seeprom_descriptor sd;
 	struct	  seeprom_config sc;
-	uint16_t  checksum = 0;
 	uint8_t   scsi_conf;
 	int	  have_seeprom;
 
@@ -241,20 +262,12 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 
 	if (bootverbose)
 		printf("%s: Reading SEEPROM...", ahc_name(ahc));
-	have_seeprom = read_seeprom(&sd,
-				    (uint16_t *)&sc,
-				    /*start_addr*/0,
-				    sizeof(sc)/2);
+	have_seeprom = ahc_read_seeprom(&sd, (uint16_t *)&sc,
+					/*start_addr*/0, sizeof(sc)/2);
 
 	if (have_seeprom) {
-		/* Check checksum */
-		int i;
-		int maxaddr = (sizeof(sc)/2) - 1;
-		uint16_t *scarray = (uint16_t *)&sc;
 
-		for (i = 0; i < maxaddr; i++)
-			checksum = checksum + scarray[i];
-		if (checksum != sc.checksum) {
+		if (ahc_verify_cksum(&sc) == 0) {
 			if(bootverbose)
 				printf ("checksum error\n");
 			have_seeprom = 0;

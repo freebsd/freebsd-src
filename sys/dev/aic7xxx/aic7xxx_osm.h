@@ -45,7 +45,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>		/* For device_t */
-#include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -185,6 +184,7 @@ struct scb_platform_data {
 };
 
 /********************************* Byte Order *********************************/
+#if HAVE_BSWAP_MACROS
 #define ahc_htobe16(x) htobe16(x)
 #define ahc_htobe32(x) htobe32(x)
 #define ahc_htobe64(x) htobe64(x)
@@ -198,6 +198,21 @@ struct scb_platform_data {
 #define ahc_le16toh(x) le16toh(x)
 #define ahc_le32toh(x) le32toh(x)
 #define ahc_le64toh(x) le64toh(x)
+#else /* !HAVE_BSWAP_MACROS */
+#define ahc_htobe16(x) x
+#define ahc_htobe32(x) x
+#define ahc_htobe64(x) x
+#define ahc_htole16(x) x
+#define ahc_htole32(x) x
+#define ahc_htole64(x) x
+
+#define ahc_be16toh(x) x
+#define ahc_be32toh(x) x
+#define ahc_be64toh(x) x
+#define ahc_le16toh(x) x
+#define ahc_le32toh(x) x
+#define ahc_le64toh(x) x
+#endif /* !HAVE_BSWAP_MACROS */
 
 /***************************** Core Includes **********************************/
 #include <dev/aic7xxx/aic7xxx.h>
