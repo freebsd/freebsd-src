@@ -577,7 +577,7 @@ _strfile=	games/fortune/strfile
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
-    usr.bin/uudecode usr.bin/xinstall \
+    usr.bin/uudecode usr.bin/xinstall usr.bin/touch \
     usr.sbin/config \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
 	${ECHODIR} "===> ${_tool}"; \
