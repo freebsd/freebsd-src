@@ -18,9 +18,9 @@ CFLAGS+=	-I${KRB4DIR}/include \
 LDADD=		-L${ROKENOBJDIR} -lroken -L${SLOBJDIR} -lsl \
 		-L${ACLOBJDIR} -lacl -L${KADMOBJDIR} -lkadm \
 		-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb \
-		-ldes -lcrypt -lcom_err -lreadline -ltermcap
+		-lcrypto -lcrypt -lcom_err -lreadline -ltermcap
 DPADD=		${LIBROKEN} ${LIBSL} ${LIBACL} ${LIBKADM} ${LIBKDB} ${LIBKRB} \
-		${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBREADLINE} \
+		${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBREADLINE} \
 		${LIBTERMCAP}
 
 .include <bsd.prog.mk>
