@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
  * All rights reserved.
  *
