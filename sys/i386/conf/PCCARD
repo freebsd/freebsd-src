@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: PCCARD,v 1.3 1998/09/08 18:09:50 brian Exp $
+#	$Id: PCCARD,v 1.4 1998/09/15 10:01:13 gibbs Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -58,11 +58,9 @@ controller	aic0	at isa? port 0x340 bio irq 11 vector aicintr
 
 controller	scbus0
 
-device		sd0
+device		da0
 
-device		od0	#See LINT for possible `od' options.
-
-device		st0
+device		sa0
 
 device		cd0	#Only need one of these, the code dynamically grows
 
