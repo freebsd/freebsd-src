@@ -61,13 +61,16 @@
 #define NG_ONE2MANY_XMIT_ROUNDROBIN	1	/* round-robin delivery */
 #define NG_ONE2MANY_XMIT_ALL		2	/* send packets to all many hooks */
 
-/* Algorithms for detecting link failure (XXX only one so far) */
+/* Algorithms for detecting link failure */
 #define NG_ONE2MANY_FAIL_MANUAL		1	/* use enabledLinks[] array */
+#define NG_ONE2MANY_FAIL_IFACE_LINK	2	/* use interface state */
 
 /* Node configuration structure */
 struct ng_one2many_config {
 	u_int32_t	xmitAlg;		/* how to distribute packets */
 	u_int32_t	failAlg;		/* how to detect link failure */
+	u_int32_t	interval;		/* interval for IFACE_LINK
+						   failure algorithm */
 	u_char		enabledLinks[NG_ONE2MANY_MAX_LINKS];
 };
 
@@ -75,6 +78,7 @@ struct ng_one2many_config {
 #define NG_ONE2MANY_CONFIG_TYPE_INFO(atype)	{		\
 	  { "xmitAlg",		&ng_parse_uint32_type	},	\
 	  { "failAlg",		&ng_parse_uint32_type	},	\
+	  { "interval",		&ng_parse_uint32_type	},	\
 	  { "enabledLinks",	(atype)			},	\
 	  { NULL }						\
 }
