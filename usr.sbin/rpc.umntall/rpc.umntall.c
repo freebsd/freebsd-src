@@ -110,9 +110,8 @@ main(int argc, char **argv) {
 				    PATH_MOUNTTAB);
 		}
 		for (mtab = mtabhead; mtab != NULL; mtab = mtab->mtab_next) {
-			if (*mtab->mtab_host != '\0' &&
-			    (do_umntall(mtab->mtab_host) ||
-			    mtab->mtab_time <= (time(now) - expire))) {
+			if (*mtab->mtab_host != '\0' ||
+			    mtab->mtab_time <= (time(now) - expire)) {
 				if (keep && is_mounted(mtab->mtab_host,
 				    mtab->mtab_dirp)) {
 					if (verbose) {
@@ -120,8 +119,11 @@ main(int argc, char **argv) {
 						    mtab->mtab_host,
 						    mtab->mtab_dirp);
 					}
-				} else
-					clean_mtab(mtab->mtab_host, NULL);
+				} else if (do_umount(mtab->mtab_host,
+				    mtab->mtab_dirp)) {
+					clean_mtab(mtab->mtab_host,
+					    mtab->mtab_dirp);
+				}
 			}
 		}
 	/* Only do a RPC UMNTALL for this specific host */
@@ -162,6 +164,8 @@ main(int argc, char **argv) {
 
 /*
  * Send a RPC_MNT UMNTALL request to hostname.
+ * XXX This works for all mountd implementations,
+ * but produces a RPC IOERR on non FreeBSD systems.
  */
 int
 do_umntall(char *hostname) {
