@@ -139,6 +139,7 @@ EXTERN struct allocblk *pool_mem;               /* Memory in the pool */
 EXTERN int     pool_irq[16];			/* IRQ allocations */
 EXTERN struct driver *drivers;			/* List of drivers */
 EXTERN struct card *cards;
+EXTERN struct card *last_card;
 EXTERN bitstr_t *mem_avail;
 EXTERN bitstr_t *io_avail;
 EXTERN int pccard_init_sleep;			/* Time to sleep on init */
@@ -173,6 +174,7 @@ void		 readfile(char *);
 #define	BIT2MEM(x) (((x)*MEMUNIT)+MEMSTART)
 
 #define MAXINCLUDES	10
+#define MAXERRORS	10
 
 /*
  * Config index types
