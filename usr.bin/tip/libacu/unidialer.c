@@ -451,7 +451,7 @@ badsynch:
 
 	unidialer_modem_cmd (FD, init_string);
 
-	if (!unidialer_get_okay (250))
+	if (!unidialer_get_okay (reset_delay))
 		goto badsynch;
 
 	fflush (stdout);
@@ -532,7 +532,7 @@ static void unidialer_disconnect ()
 		unidialer_modem_cmd (FD, escape_sequence);
 		acu_nap (timeout_value);
 		unidialer_modem_cmd (FD, hangup_command);
-		okay = unidialer_get_okay (250);
+		okay = unidialer_get_okay (reset_delay);
 	}
 	if (!okay)
 	{
