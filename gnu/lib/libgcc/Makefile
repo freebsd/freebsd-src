@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-TARGET_ARCH?=	${MACHINE_ARCH}
+.include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
-.PATH: ${GCCDIR}/config/${TARGET_ARCH} ${GCCDIR}
+.PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
 
 # allow to be overridden for the a.out case
 .if !defined(LIB) || ${LIB} != "gcc_r"
@@ -128,7 +128,7 @@ OBJS+=	dp-bit.o fp-bit.o
 #	from config/sparc/t-elf
 # We want fine grained libraries, so use the new code to build the
 # floating point emulation libraries.
-LIB1ASMSRC = sparc/lb1spc.asm
+LIB1ASMSRC = lb1spc.asm
 LIB1ASMFUNCS = _mulsi3 _divsi3 _modsi3
 OBJS+=	dp-bit.o fp-bit.o
 .endif
@@ -162,6 +162,10 @@ LIB2FUNCS_2:=	${LIB2FUNCS_2:S/${sym}//g}
 LIB2_DIVMOD_FUNCS:= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
 .endfor
 .endif
+
+ASM_T=		${LIB1ASMFUNCS:S/$/.o/}
+ASM_P=		${LIB1ASMFUNCS:S/$/.po/}
+ASM_S=		${LIB1ASMFUNCS:S/$/.So/}
 
 SYMS=		${LIB1ASMFUNCS}		\
 		${LIB2FUNCS_1}		\
@@ -205,6 +209,27 @@ ${OBJS_P}: libgcc2.c
 	${XCC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
+.endif
+
+.if defined(LIB1ASMSRC)
+${ASM_T}: ${LIB1ASMSRC}
+	${XCC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/config/${LIB1ASMSRC}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
+
+.if !defined(NOPIC)
+${ASM_S}: ${LIB1ASMSRC}
+	${XCC} -x assembler-with-cpp -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/config/${LIB1ASMSRC}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
+.endif
+
+.if !defined(NOPROFILE)
+${ASM_P}: ${LIB1ASMSRC}
+	${XCC} -x assembler-with-cpp -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/config/${TARGET_ARCH}/${LIB1ASMSRC}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
+.endif
 .endif
 
 .include <bsd.lib.mk>
