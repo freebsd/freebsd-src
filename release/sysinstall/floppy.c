@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.14 1995/06/07 05:50:57 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.15 1995/06/08 04:59:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -156,7 +156,9 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
     char		*extn, *var;
     const char 		*val;
     char		attrib[10];
+#ifdef DO_CRC_CHECK
     u_long		cval1, clen1, cval2, clen2;
+#endif
     int			fd;
     int			nretries = 5;
 
@@ -180,6 +182,7 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
     }
 
     fd = open(buf, O_RDONLY);
+#ifdef DO_CRC_CHECK
     if (dist_attrs != NULL && fd != -1) {
 	extn = rindex(buf, '.');
 	snprintf(attrib, 10, "cksum%s", extn);
@@ -198,7 +201,7 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 		return -1;
 	    }
 	    if ((cval1 != cval2) || (clen1 != clen2)) {
-		msgConfirm("Invalid file `%s' (checksum `%ul %ul' should be %s)", file, cval2, clen2, var);
+		msgConfirm("Invalid file `%s' (checksum `%u %u' should be %s)", file, cval2, clen2, var);
 		close(fd);
 		return -1;
 	    }
@@ -207,6 +210,7 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 	else
 	    msgNotify("No checksum information for file %s..", file);
     }
+#endif
     return fd;
 }
 
