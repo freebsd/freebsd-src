@@ -45,8 +45,8 @@ static char sccsid[] = "@(#)clnt_dg.c 1.19 89/03/16 Copyr 1988 Sun Micro";
  * Implements a connectionless client side RPC.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/poll.h>
 #include <sys/types.h>
 #include <sys/time.h>

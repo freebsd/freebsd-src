@@ -40,8 +40,8 @@
  *
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>

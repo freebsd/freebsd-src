@@ -44,8 +44,8 @@ static char *sccsid = "@(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";
  * and a record/tcp stream.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/poll.h>

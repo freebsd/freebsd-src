@@ -49,8 +49,8 @@ static char sccsid[] = "@(#)rpcb_clnt.c 1.30 89/06/21 Copyr 1988 Sun Micro";
  * Copyright (C) 1988, Sun Microsystems, Inc.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>

@@ -47,8 +47,8 @@
  * for the given prognum and procnum.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/types.h>
 #include <rpc/rpc.h>
 #include <rpc/nettype.h>
