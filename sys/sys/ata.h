@@ -351,6 +351,7 @@ struct ata_params {
 #define ATA_UDMA4		0x44
 #define ATA_UDMA5		0x45
 #define ATA_UDMA6		0x46
+#define ATA_SA150		0x47
 #define ATA_DMA_MAX		0x4f
 
 struct ata_cmd {
