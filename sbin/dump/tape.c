@@ -67,6 +67,7 @@ extern	int ntrec;		/* blocking factor on tape */
 extern	int cartridge;
 extern	char *host;
 char	*nexttape;
+FILE	*popenfp = NULL;
 
 static	int atomic(ssize_t (*)(), int, char *, int);
 static	void doslave(int, int);
@@ -336,6 +337,12 @@ trewind(void)
 
 	msg("Closing %s\n", tape);
 
+	if (popenout) {
+		tapefd = -1;
+		(void)pclose(popenfp);
+		popenfp = NULL;
+		return;
+	}
 #ifdef RDUMP
 	if (host) {
 		rmtclose();
@@ -500,7 +507,6 @@ startnewtape(int top)
 	int	parentpid;
 	int	childpid;
 	int	status;
-	int	waitpid;
 	char	*p;
 	sig_t	interrupt_save;
 
@@ -530,9 +536,9 @@ restore_check_point:
 		msg("Tape: %d; parent process: %d child process %d\n",
 			tapeno+1, parentpid, childpid);
 #endif /* TDEBUG */
-		while ((waitpid = wait(&status)) != childpid)
-			msg("Parent %d waiting for child %d has another child %d return\n",
-				parentpid, childpid, waitpid);
+		if (waitpid(childpid, &status, 0) == -1)
+			msg("Waiting for child %d: %s\n", childpid,
+			    strerror(errno));
 		if (status & 0xFF) {
 			msg("Child %d returns LOB status %o\n",
 				childpid, status&0xFF);
@@ -589,20 +595,41 @@ restore_check_point:
 				nexttape = NULL;
 			msg("Dumping volume %d on %s\n", tapeno, tape);
 		}
-#ifdef RDUMP
-		while ((tapefd = (host ? rmtopen(tape, 2) :
-			pipeout ? 1 : open(tape, O_WRONLY|O_CREAT, 0666))) < 0)
-#else
-		while ((tapefd = (pipeout ? 1 :
-				  open(tape, O_WRONLY|O_CREAT, 0666))) < 0)
-#endif
-		    {
-			msg("Cannot open output \"%s\".\n", tape);
-			if (!query("Do you want to retry the open?"))
+		if (pipeout) {
+			tapefd = STDOUT_FILENO;
+		} else if (popenout) {
+			char volno[sizeof("2147483647")];
+
+			(void)sprintf(volno, "%d", spcl.c_volume + 1);
+			if (setenv("DUMP_VOLUME", volno, 1) == -1) {
+				msg("Cannot set $DUMP_VOLUME.\n");
 				dumpabort(0);
+			}
+			popenfp = popen(popenout, "w");
+			if (popenfp == NULL) {
+				msg("Cannot open output pipeline \"%s\".\n",
+				    popenout);
+				dumpabort(0);
+			}
+			tapefd = fileno(popenfp);
+		} else {
+#ifdef RDUMP
+			while ((tapefd = (host ? rmtopen(tape, 2) :
+				open(tape, O_WRONLY|O_CREAT, 0666))) < 0)
+#else
+			while ((tapefd =
+			    open(tape, O_WRONLY|O_CREAT, 0666)) < 0)
+#endif
+			    {
+				msg("Cannot open output \"%s\".\n", tape);
+				if (!query("Do you want to retry the open?"))
+					dumpabort(0);
+			}
 		}
 
 		enslave();  /* Share open tape file descriptor with slaves */
+		if (popenout)
+			close(tapefd);	/* Give up our copy of it. */
 		signal(SIGINFO, infosch);
 
 		asize = 0;
