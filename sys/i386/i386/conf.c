@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.61 1995/02/11 05:54:04 jkh Exp $
+ *	$Id: conf.c,v 1.62 1995/02/14 21:16:43 ugen Exp $
  */
 
 #include <sys/param.h>
@@ -815,6 +815,81 @@ extern	struct tty cy_tty[];
 #define cy_tty          (struct tty *)NULL
 #endif
 
+#include "ity.h"
+#if NITY > 0
+int	ityopen(),ityclose(),ityread(),itywrite(),ityioctl(),ityselect();
+#define ityreset	enxio
+extern	struct tty ity_tty[];
+#else
+#define ityopen		enxio
+#define ityclose	enxio
+#define ityread		enxio
+#define itywrite	enxio
+#define ityioctl	enxio
+#define ityreset	enxio
+#define ityselect	enxio
+#define	ity_tty		NULL
+#endif
+
+#include "nic.h"
+#if NNIC > 0
+int	nicopen(),nicclose(),nicioctl();
+#else
+#define nicopen		enxio
+#define nicclose	enxio
+#define nicioctl	enxio
+#endif
+
+#include "nnic.h"
+#if NNNIC > 0
+int     nnicopen(),nnicclose(),nnicioctl();
+#else
+#define nnicopen                enxio
+#define nnicclose       enxio
+#define nnicioctl       enxio
+#endif
+
+#include "snic.h"
+#if NSNIC > 0
+int	snicopen(),snicclose(),snicioctl();
+#else
+#define snicopen		enxio
+#define snicclose	enxio
+#define snicioctl	enxio
+#endif
+
+#include "isdn.h"
+#if NISDN > 0
+int	isdnopen(),isdnclose(),isdnread(),isdnioctl();
+#else
+#define isdnopen		enxio
+#define isdnclose	enxio
+#define isdnread		enxio
+#define isdnioctl	enxio
+#endif
+
+#include "itel.h"
+#if NITEL > 0
+int	itelopen(),itelclose(),itelread(),itelwrite(),itelioctl();
+#else
+#define itelopen		enxio
+#define itelclose	enxio
+#define itelread		enxio
+#define itelwrite		enxio
+#define itelioctl	enxio
+#endif
+
+#include "ispy.h"
+#if NISPY > 0
+int     ispyopen(),ispyclose(),ispyread(),ispywrite(),ispyioctl();
+#else
+#define ispyopen                enxio
+#define ispyclose       enxio
+#define ispyread                enxio
+#define ispywrite               enxio
+#define ispyioctl       enxio
+#endif
+
 
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
@@ -990,6 +1065,27 @@ struct cdevsw	cdevsw[] =
 	{ snpopen,	snpclose,	snpread,	nowrite,	/*53*/
 	  snpioctl,	nostop,		nullreset,	NULL,	/* snoop */
 	  snpselect,	nommap,		NULL },
+	{ nicopen,	nicclose,	enodev,		enodev,		/*54*/
+	  nicioctl,	nullop,		nullop,		NULL,	/* nic */
+	  seltrue,	enodev,		enodev},
+	{ isdnopen,	isdnclose,	isdnread,	enodev,		/*55*/
+	  isdnioctl,	nullop,		nullop,		NULL,	/* isdn */
+	  seltrue,	enodev,		enodev},
+	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
+	  ityioctl,	enodev,		ityreset,	ity_tty,/* ity */
+	  ityselect,	enodev,		NULL },
+	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
+	  itelioctl,	nullop,		nullop,		NULL,	/* itel */
+	  seltrue,	enodev,		enodev},
+	{ snicopen,	snicclose,	enodev,		enodev,		/*58*/
+	  snicioctl,	nullop,		nullop,		NULL,	/* snic */
+	  seltrue,	enodev,		enodev},
+	{ ispyopen,     ispyclose,      ispyread,       enodev,		/*59*/
+	  ispyioctl,    nullop,         nullop,         NULL,   /* ispy */
+	  seltrue,      enodev,         enodev},
+	{ nnicopen,	nnicclose,	enodev,		enodev,		/*60*/
+	  nnicioctl,	nullop,		nullop,		NULL,	/* nnic */
+	  seltrue,	enodev,		enodev},
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
