@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)bad144.c	8.2 (Berkeley) 4/27/95";
 #endif
 static const char rcsid[] =
-	"$Id: bad144.c,v 1.13 1997/09/04 11:40:51 charnier Exp $";
+	"$Id: bad144.c,v 1.14 1997/12/11 07:12:10 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -144,7 +144,8 @@ bad_scan(argc, argv, dp, f, bstart, bend)
 					curr_sec,bend,(curr_sec*100/bend));
 		}
 
-		lseek(f, curr_sec * ss, L_SET);
+		if (lseek(f, (off_t)ss * curr_sec, SEEK_SET) < 0)
+			err(4, "lseek");
 
 		if ((n = read(f, buf, ss)) != ss) {
 			if (verbose)
