@@ -92,7 +92,12 @@ enum constants {
     MAXNAME = 64,					    /* maximum length of any name */
 
 
-#define VINUMMINOR(v,p,s,t)  (  (v << VINUM_VOL_SHIFT)		\
+/*
+ * Define a minor device number.
+ * This is not used directly; instead, it's
+ * called by the other macros.
+ */
+#define VINUMMINOR(v,p,s,t)  ( (v << VINUM_VOL_SHIFT)		\
 			      | (p << VINUM_PLEX_SHIFT)		\
 			      | (s << VINUM_SD_SHIFT) 		\
 			      | (t << VINUM_TYPE_SHIFT) )
