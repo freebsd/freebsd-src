@@ -54,9 +54,23 @@
 
 /*** Defines ***/
 
+#if defined(__i386__) || defined(__alpha__) || defined(__ia64__)
+#define	WITH_SYSCONS
+#define	WITH_MICE
+#endif
+
+#if defined(__i386__) || defined(__ia64__)
+#define	WITH_SLICES
+#endif
+
+#if defined(__i386__) || defined(__alpha__)
+#define	WITH_LINUX
+#endif
+
 #if defined(PC98)
 #define PCCARD_ARCH 1		        /* Support PCCARD installations */
 #endif
+
 /* device limits */
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
 #define DEV_MAX			100	/* The maximum number of devices we'll deal with */
