@@ -53,10 +53,11 @@ struct snd_dbuf {
 	bus_dma_tag_t dmatag;
 	u_int32_t buf_addr;
 	struct selinfo sel;
+	struct pcm_channel *channel;
 	char name[SNDBUF_NAMELEN];
 };
 
-struct snd_dbuf *sndbuf_create(device_t dev, char *drv, char *desc);
+struct snd_dbuf *sndbuf_create(device_t dev, char *drv, char *desc, struct pcm_channel *channel);
 void sndbuf_destroy(struct snd_dbuf *b);
 
 void sndbuf_dump(struct snd_dbuf *b, char *s, u_int32_t what);

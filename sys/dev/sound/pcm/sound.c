@@ -75,7 +75,23 @@ snd_mtxcreate(const char *desc, const char *type)
 	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (m == NULL)
 		return NULL;
-	mtx_init(m, desc, type, MTX_DEF | MTX_RECURSE);
+	mtx_init(m, desc, type, MTX_DEF);
+	return m;
+#else
+	return (void *)0xcafebabe;
+#endif
+}
+
+void *
+snd_chnmtxcreate(const char *desc, const char *type)
+{
+#ifdef USING_MUTEX
+	struct mtx *m;
+
+	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (m == NULL)
+		return NULL;
+	mtx_init(m, desc, type, MTX_DEF | MTX_DUPOK);
 	return m;
 #else
 	return (void *)0xcafebabe;
@@ -188,13 +204,16 @@ pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid, int chnum)
 			/* try to create a vchan */
 			SLIST_FOREACH(sce, &d->channels, link) {
 				c = sce->channel;
+				CHN_LOCK(c);
 				if (!SLIST_EMPTY(&c->children)) {
 					err = vchan_create(c);
+					CHN_UNLOCK(c);
 					if (!err)
 						return pcm_chnalloc(d, direction, pid, -1);
 					else
 						device_printf(d->dev, "vchan_create(%s) == %d\n", c->name, err);
-				}
+				} else
+					CHN_UNLOCK(c);
 			}
 		}
 	}
@@ -250,15 +269,19 @@ pcm_setmaxautovchans(struct snddev_info *d, int num)
 	if (num > 0 && d->vchancount == 0) {
 		SLIST_FOREACH(sce, &d->channels, link) {
 			c = sce->channel;
+			CHN_LOCK(c);
 			if ((c->direction == PCMDIR_PLAY) && !(c->flags & CHN_F_BUSY)) {
 				c->flags |= CHN_F_BUSY;
 				err = vchan_create(c);
 				if (err) {
-					device_printf(d->dev, "vchan_create(%s) == %d\n", c->name, err);
 					c->flags &= ~CHN_F_BUSY;
-				}
+					CHN_UNLOCK(c);
+					device_printf(d->dev, "vchan_create(%s) == %d\n", c->name, err);
+				} else
+					CHN_UNLOCK(c);
 				return;
 			}
+			CHN_UNLOCK(c);
 		}
 	}
 	if (num == 0 && d->vchancount > 0) {
@@ -313,7 +336,7 @@ sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
 	v = snd_maxautovchans;
 	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
 	if (error == 0 && req->newptr != NULL) {
-		if (v < 0 || v >= SND_MAXVCHANS)
+		if (v < 0 || v >= SND_MAXVCHANS || pcm_devclass == NULL)
 			return EINVAL;
 		if (v != snd_maxautovchans) {
 			for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
@@ -529,20 +552,23 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	err = pcm_chn_add(d, ch);
 	if (err) {
 		device_printf(d->dev, "pcm_chn_add(%s) failed, err=%d\n", ch->name, err);
-		snd_mtxunlock(d->lock);
 		pcm_chn_destroy(ch);
 		return err;
 	}
 
+	CHN_LOCK(ch);
 	if (snd_maxautovchans > 0 && (d->flags & SD_F_AUTOVCHAN) &&
 	    ch->direction == PCMDIR_PLAY && d->vchancount == 0) {
 		ch->flags |= CHN_F_BUSY;
 		err = vchan_create(ch);
 		if (err) {
-			device_printf(d->dev, "vchan_create(%s) == %d\n", ch->name, err);
 			ch->flags &= ~CHN_F_BUSY;
+			CHN_UNLOCK(ch);
+			device_printf(d->dev, "vchan_create(%s) == %d\n", ch->name, err);
+			return err;
 		}
 	}
+	CHN_UNLOCK(ch);
 
 	return err;
 }
@@ -866,11 +892,13 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 	cnt = 0;
 	SLIST_FOREACH(sce, &d->channels, link) {
 		c = sce->channel;
+		CHN_LOCK(c);
 		if ((c->direction == PCMDIR_PLAY) && (c->flags & CHN_F_VIRTUAL)) {
 			cnt++;
 			if (c->flags & CHN_F_BUSY)
 				busy++;
 		}
+		CHN_UNLOCK(c);
 	}
 
 	newcnt = cnt;
@@ -888,23 +916,28 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 			/* add new vchans - find a parent channel first */
 			SLIST_FOREACH(sce, &d->channels, link) {
 				c = sce->channel;
+				CHN_LOCK(c);
 				/* not a candidate if not a play channel */
 				if (c->direction != PCMDIR_PLAY)
-					continue;
+					goto next;
 				/* not a candidate if a virtual channel */
 				if (c->flags & CHN_F_VIRTUAL)
-					continue;
+					goto next;
 				/* not a candidate if it's in use */
-				if ((c->flags & CHN_F_BUSY) && (SLIST_EMPTY(&c->children)))
-					continue;
-				/*
-				 * if we get here we're a nonvirtual play channel, and either
-				 * 1) not busy
-				 * 2) busy with children, not directly open
-				 *
-				 * thus we can add children
-				 */
-				goto addok;
+				if (!(c->flags & CHN_F_BUSY) ||
+				    !(SLIST_EMPTY(&c->children)))
+					/*
+					 * if we get here we're a nonvirtual
+					 * play channel, and either
+					 * 1) not busy
+					 * 2) busy with children, not directly
+					 *    open
+					 *
+					 * thus we can add children
+					 */
+					goto addok;
+next:
+				CHN_UNLOCK(c);
 			}
 			pcm_inprog(d, -1);
 			return EBUSY;
@@ -917,6 +950,7 @@ addok:
 			}
 			if (SLIST_EMPTY(&c->children))
 				c->flags &= ~CHN_F_BUSY;
+			CHN_UNLOCK(c);
 		} else if (newcnt < cnt) {
 			if (busy > newcnt) {
 				printf("cnt %d, newcnt %d, busy %d\n", cnt, newcnt, busy);
@@ -928,13 +962,17 @@ addok:
 			while (err == 0 && newcnt < cnt) {
 				SLIST_FOREACH(sce, &d->channels, link) {
 					c = sce->channel;
+					CHN_LOCK(c);
 					if ((c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL)) == CHN_F_VIRTUAL)
 						goto remok;
+
+					CHN_UNLOCK(c);
 				}
 				snd_mtxunlock(d->lock);
 				pcm_inprog(d, -1);
 				return EINVAL;
 remok:
+				CHN_UNLOCK(c);
 				err = vchan_destroy(c);
 				if (err == 0)
 					cnt--;

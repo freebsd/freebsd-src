@@ -70,9 +70,9 @@ static void
 chn_lockinit(struct pcm_channel *c, int dir)
 {
 	if (dir == PCMDIR_PLAY)
-		c->lock = snd_mtxcreate(c->name, "pcm play channel");
+		c->lock = snd_chnmtxcreate(c->name, "pcm play channel");
 	else
-		c->lock = snd_mtxcreate(c->name, "pcm record channel");
+		c->lock = snd_chnmtxcreate(c->name, "pcm record channel");
 }
 
 static void
@@ -205,16 +205,19 @@ chn_wrfeed(struct pcm_channel *c)
 	unsigned int ret, amt;
 
 	CHN_LOCKASSERT(c);
-    	DEB(
+/*    	DEB(
 	if (c->flags & CHN_F_CLOSING) {
 		sndbuf_dump(b, "b", 0x02);
 		sndbuf_dump(bs, "bs", 0x02);
-	})
+	}) */
 
 	if (c->flags & CHN_F_MAPPED)
 		sndbuf_acquire(bs, NULL, sndbuf_getfree(bs));
 
 	amt = sndbuf_getfree(b);
+	KASSERT(amt <= sndbuf_getsize(bs),
+	    ("%s(%s): amt %d > source size %d, flags 0x%x", __func__, c->name,
+	   amt, sndbuf_getsize(bs), c->flags));
 	if (sndbuf_getready(bs) < amt)
 		c->xruns++;
 
@@ -746,6 +749,16 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 	c->devinfo = NULL;
 	c->feeder = NULL;
 
+	ret = ENOMEM;
+	b = sndbuf_create(c->dev, c->name, "primary", c);
+	if (b == NULL)
+		goto out;
+	bs = sndbuf_create(c->dev, c->name, "secondary", c);
+	if (bs == NULL)
+		goto out;
+
+	CHN_LOCK(c);
+
 	ret = EINVAL;
 	fc = feeder_getclass(NULL);
 	if (fc == NULL)
@@ -753,21 +766,23 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 	if (chn_addfeeder(c, fc, NULL))
 		goto out;
 
-	ret = ENOMEM;
-	b = sndbuf_create(c->dev, c->name, "primary");
-	if (b == NULL)
-		goto out;
-	bs = sndbuf_create(c->dev, c->name, "secondary");
-	if (bs == NULL)
-		goto out;
+	/*
+	 * XXX - sndbuf_setup() & sndbuf_resize() expect to be called
+	 *	 with the channel unlocked because they are also called
+	 *	 from driver methods that don't know about locking
+	 */
+	CHN_UNLOCK(c);
 	sndbuf_setup(bs, NULL, 0);
+	CHN_LOCK(c);
 	c->bufhard = b;
 	c->bufsoft = bs;
 	c->flags = 0;
 	c->feederflags = 0;
 
 	ret = ENODEV;
+	CHN_UNLOCK(c); /* XXX - Unlock for CHANNEL_INIT() malloc() call */
 	c->devinfo = CHANNEL_INIT(c->methods, devinfo, b, c, dir);
+	CHN_LOCK(c);
 	if (c->devinfo == NULL)
 		goto out;
 
@@ -789,6 +804,7 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 
 
 out:
+	CHN_UNLOCK(c);
 	if (ret) {
 		if (c->devinfo) {
 			if (CHANNEL_FREE(c->methods, c->devinfo))
@@ -971,11 +987,17 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 {
 	struct snd_dbuf *b = c->bufhard;
 	struct snd_dbuf *bs = c->bufsoft;
-	int bufsz, irqhz, tmp, ret;
+	int irqhz, tmp, ret, maxsize, reqblksz, tmpblksz;
 
 	CHN_LOCKASSERT(c);
-	if (!CANCHANGE(c) || (c->flags & CHN_F_MAPPED))
+	if (!CANCHANGE(c) || (c->flags & CHN_F_MAPPED)) {
+		KASSERT(sndbuf_getsize(bs) ==  0 ||
+		    sndbuf_getsize(bs) >= sndbuf_getsize(b),
+		    ("%s(%s): bufsoft size %d < bufhard size %d", __func__,
+		    c->name, sndbuf_getsize(bs), sndbuf_getsize(b)));
 		return EINVAL;
+	}
+	c->flags |= CHN_F_SETBLOCKSIZE;
 
 	ret = 0;
 	DEB(printf("%s(%d, %d)\n", __func__, blkcnt, blksz));
@@ -1007,36 +1029,70 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 		c->flags |= CHN_F_HAS_SIZE;
 	}
 
-	bufsz = blkcnt * blksz;
-
-	ret = sndbuf_remalloc(bs, blkcnt, blksz);
-	if (ret)
-		goto out;
+	reqblksz = blksz;
 
 	/* adjust for different hw format/speed */
-	irqhz = (sndbuf_getbps(bs) * sndbuf_getspd(bs)) / sndbuf_getblksz(bs);
+	irqhz = (sndbuf_getbps(bs) * sndbuf_getspd(bs)) / blksz;
 	DEB(printf("%s: soft bps %d, spd %d, irqhz == %d\n", __func__, sndbuf_getbps(bs), sndbuf_getspd(bs), irqhz));
 	RANGE(irqhz, 16, 512);
 
-	sndbuf_setblksz(b, (sndbuf_getbps(b) * sndbuf_getspd(b)) / irqhz);
+	tmpblksz = (sndbuf_getbps(b) * sndbuf_getspd(b)) / irqhz;
 
 	/* round down to 2^x */
 	blksz = 32;
-	while (blksz <= sndbuf_getblksz(b))
+	while (blksz <= tmpblksz)
 		blksz <<= 1;
 	blksz >>= 1;
 
 	/* round down to fit hw buffer size */
-	RANGE(blksz, 16, sndbuf_getmaxsize(b) / 2);
+	if (sndbuf_getmaxsize(b) > 0)
+		RANGE(blksz, 16, sndbuf_getmaxsize(b) / 2);
+	else
+		/* virtual channels don't appear to allocate bufhard */
+		RANGE(blksz, 16, CHN_2NDBUFMAXSIZE / 2);
 	DEB(printf("%s: hard blksz requested %d (maxsize %d), ", __func__, blksz, sndbuf_getmaxsize(b)));
 
+	/* Increase the size of bufsoft if before increasing bufhard. */
+	maxsize = sndbuf_getsize(b);
+	if (sndbuf_getsize(bs) > maxsize)
+		maxsize = sndbuf_getsize(bs);
+	if (reqblksz * blkcnt > maxsize)
+		maxsize = reqblksz * blkcnt;
+	if (sndbuf_getsize(bs) != maxsize || sndbuf_getblksz(bs) != reqblksz) {
+		ret = sndbuf_remalloc(bs, maxsize/reqblksz, reqblksz);
+		if (ret)
+			goto out1;
+	}
+
+	CHN_UNLOCK(c);
 	sndbuf_setblksz(b, CHANNEL_SETBLOCKSIZE(c->methods, c->devinfo, blksz));
+	CHN_LOCK(c);
+
+	/* Decrease the size of bufsoft after decreasing bufhard. */
+	maxsize = sndbuf_getsize(b);
+	if (reqblksz * blkcnt > maxsize)
+		maxsize = reqblksz * blkcnt;
+	if (maxsize > sndbuf_getsize(bs))
+		printf("Danger! %s bufsoft size increasing from %d to %d after CHANNEL_SETBLOCKSIZE()\n",
+		    c->name, sndbuf_getsize(bs), maxsize);
+	if (sndbuf_getsize(bs) != maxsize || sndbuf_getblksz(bs) != reqblksz) {
+		ret = sndbuf_remalloc(bs, maxsize/reqblksz, reqblksz);
+		if (ret)
+			goto out1;
+	}
 
 	irqhz = (sndbuf_getbps(b) * sndbuf_getspd(b)) / sndbuf_getblksz(b);
 	DEB(printf("got %d, irqhz == %d\n", sndbuf_getblksz(b), irqhz));
 
 	chn_resetbuf(c);
+out1:
+	KASSERT(sndbuf_getsize(bs) ==  0 ||
+	    sndbuf_getsize(bs) >= sndbuf_getsize(b),
+	    ("%s(%s): bufsoft size %d < bufhard size %d, reqblksz=%d blksz=%d maxsize=%d blkcnt=%d",
+	    __func__, c->name, sndbuf_getsize(bs), sndbuf_getsize(b), reqblksz,
+	    blksz, maxsize, blkcnt));
 out:
+	c->flags &= ~CHN_F_SETBLOCKSIZE;
 	return ret;
 }
 
@@ -1216,8 +1272,12 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 	struct pcm_channel *child;
 	int run;
 
-	if (SLIST_EMPTY(&c->children))
+	CHN_LOCK(c);
+
+	if (SLIST_EMPTY(&c->children)) {
+		CHN_UNLOCK(c);
 		return ENODEV;
+	}
 
 	run = (c->flags & CHN_F_TRIGGERED)? 1 : 0;
 	/*
@@ -1253,8 +1313,10 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 		blksz = sndbuf_getmaxsize(c->bufhard) / 2;
 		SLIST_FOREACH(pce, &c->children, link) {
 			child = pce->channel;
+			CHN_LOCK(child);
 			if (sndbuf_getblksz(child->bufhard) < blksz)
 				blksz = sndbuf_getblksz(child->bufhard);
+			CHN_UNLOCK(child);
 		}
 		chn_setblocksize(c, 2, blksz);
 	}
@@ -1268,13 +1330,28 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 		nrun = 0;
 		SLIST_FOREACH(pce, &c->children, link) {
 			child = pce->channel;
+			CHN_LOCK(child);
 			if (child->flags & CHN_F_TRIGGERED)
 				nrun = 1;
+			CHN_UNLOCK(child);
 		}
 		if (nrun && !run)
 			chn_start(c, 1);
 		if (!nrun && run)
 			chn_abort(c);
 	}
+	CHN_UNLOCK(c);
 	return 0;
+}
+
+void
+chn_lock(struct pcm_channel *c)
+{
+	CHN_LOCK(c);
+}
+
+void
+chn_unlock(struct pcm_channel *c)
+{
+	CHN_UNLOCK(c);
 }
