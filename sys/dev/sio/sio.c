@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.17 1993/12/09 17:24:19 ache Exp $
+ *	$Id: sio.c,v 1.18 1993/12/11 00:36:14 ache Exp $
  */
 
 #include "sio.h"
@@ -662,7 +662,11 @@ bidir_open_top:
 			 *                                   Ache.
 			 */
 			tp->t_iflag = 0;
+#ifdef COMCONSOLE
+			tp->t_oflag = TTYDEF_OFLAG;
+#else
 			tp->t_oflag = 0;
+#endif
 			tp->t_cflag = CREAD | CS8 | CLOCAL;
 			tp->t_lflag = 0;
 			tp->t_ispeed = tp->t_ospeed = comdefaultrate;
