@@ -553,6 +553,7 @@ mdcreate_preload(struct md_ioctl *mdio)
 	sc->type = MD_PRELOAD;
 	sc->secsize = DEV_BSIZE;
 	sc->nsect = mdio->md_size;
+	sc->flags = mdio->md_options & MD_FORCE;
 	/* Cast to pointer size, then to pointer to avoid warning */
 	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;	
 	sc->pl_len = (mdio->md_size << DEV_BSHIFT);
@@ -587,7 +588,7 @@ mdcreate_malloc(struct md_ioctl *mdio)
 	sc->type = MD_MALLOC;
 	sc->secsize = DEV_BSIZE;
 	sc->nsect = mdio->md_size;
-	sc->flags = mdio->md_options & MD_COMPRESS;
+	sc->flags = mdio->md_options & (MD_COMPRESS | MD_FORCE);
 	MALLOC(sc->secp, u_char **, sc->nsect * sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
 	if (mdio->md_options & MD_RESERVE) {
 		for (u = 0; u < sc->nsect; u++)
@@ -658,6 +659,7 @@ mdcreate_vnode(struct md_ioctl *mdio, struct proc *p)
 		return (EBUSY);
 
 	sc->type = MD_VNODE;
+	sc->flags = mdio->md_options & MD_FORCE;
 
 	flags = FREAD|FWRITE;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, p);
@@ -776,6 +778,7 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 	sc->secsize = PAGE_SIZE;
 	sc->nsect = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
 	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, sc->secsize * (vm_offset_t)sc->nsect, VM_PROT_DEFAULT, 0);
+	sc->flags = mdio->md_options & MD_FORCE;
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
 			vm_pager_deallocate(sc->object);
@@ -827,7 +830,7 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
 			return (ENOENT);
-		if (sc->opencount != 0)
+		if (sc->opencount != 0 && !(sc->flags & MD_FORCE))
 			return (EBUSY);
 		switch(sc->type) {
 		case MD_VNODE:

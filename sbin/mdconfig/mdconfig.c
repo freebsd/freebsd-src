@@ -120,6 +120,10 @@ main(int argc, char **argv)
 				mdio.md_options |= MD_COMPRESS;
 			else if (!strcmp(optarg, "nocompress"))
 				mdio.md_options &= ~MD_COMPRESS;
+			else if (!strcmp(optarg, "force"))
+				mdio.md_options |= MD_FORCE;
+			else if (!strcmp(optarg, "noforce"))
+				mdio.md_options &= ~MD_FORCE;
 			else if (!strcmp(optarg, "reserve"))
 				mdio.md_options |= MD_RESERVE;
 			else if (!strcmp(optarg, "noreserve"))
