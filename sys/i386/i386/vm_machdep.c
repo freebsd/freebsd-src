@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.87 1997/09/02 20:05:31 bde Exp $
+ *	$Id: vm_machdep.c,v 1.88 1997/09/10 12:31:28 joerg Exp $
  */
 
 #include "npx.h"
@@ -959,7 +959,7 @@ vm_page_zero_idle()
 }
 
 /*
- * Tell whether this address is in some adapter memory region.
+ * Tell whether this address is in some physical memory region.
  * Currently used by the kernel coredump code in order to avoid
  * dumping the ``ISA memory hole'' which could cause indefinite hangs,
  * or other unpredictable behaviour.
@@ -968,14 +968,14 @@ vm_page_zero_idle()
 #include "isa.h"
 
 int
-is_adapter_memory(addr)
+is_physical_memory(addr)
 	vm_offset_t addr;
 {
 
 #if NISA > 0
 	/* The ISA ``memory hole''. */
 	if (addr >= 0xa0000 && addr < 0x100000)
-		return 1;
+		return 0;
 #endif
 
 	/*
@@ -983,5 +983,5 @@ is_adapter_memory(addr)
 	 * here
 	 */
 
-	return 0;
+	return 1;
 }
