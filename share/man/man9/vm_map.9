@@ -52,17 +52,18 @@ function.
 .Bd -literal -offset indent
 struct vm_map {
         struct vm_map_entry header;
-        struct lock lock;
+        struct sx lock;
         struct mtx system_mtx;
         int nentries;
         vm_size_t size;
+        u_int timestamp;
         u_char needs_wakeup;
         u_char system_map;
-        u_char infork;
+        vm_flags_t flags;
         vm_map_entry_t root;
-        unsigned int timestamp;
-        vm_map_entry_t first_free;
         pmap_t pmap;
+#define min_offset      header.start
+#define max_offset      header.end
 };
 .Ed
 .Pp
@@ -83,23 +84,38 @@ A mutex which is used if the map is a system map.
 A count of the members in use within the circular map entry list.
 .It Va size
 Specifies the size of the virtual address space.
-.It Va infork
-Indicates if the map structure is currently undergoing fork processing.
+.It Va timestamp
+Used to determine if the map has changed since its last access.
 .It Va needs_wakeup
 Indicates if a thread is waiting for an allocation within the map.
 Used only by system maps.
 .It Va system_map
 Set to TRUE to indicate that map is a system map; otherwise, it belongs
 to a user process.
+.It Va flags
+Map flags.
 .It Va root
 Root node of a binary search tree used for fast lookup of map entries.
-.It Va timestamp
-Used to determine if the map has changed since its last access.
-.It Va first_free
-Provides a hint to the first free space within the map.
 .It Va pmap
 Pointer to the underlying physical map with which this virtual map
 is associated.
+.It Va min_offset
+The minimum
+.Va vm_offset_t
+in this map.
+Programs should never use
+.Va header.start
+or
+.Va header.end
+directly, use
+.Va min_offset
+and
+.Va max_offset
+instead.
+.It Va max_offset
+The maximum
+.Va vm_offset_t
+in this map.
 .El
 .Pp
 The following flags can be passed to
@@ -141,6 +157,8 @@ struct vm_map_entry {
         vm_offset_t start;
         vm_offset_t end;
         vm_offset_t avail_ssize;
+        vm_size_t adj_free;
+        vm_size_t max_free;
         union vm_map_object object;
         vm_ooffset_t offset;
         vm_eflags_t eflags;
@@ -171,6 +189,11 @@ Lower address bound of this entry's region.
 Upper address bound of this entry's region.
 .It Va avail_ssize
 If the entry is for a process stack, specifies how much the entry can grow.
+.It Va adj_free
+The amount of free, unmapped address space adjacent to and immediately
+following this map entry.
+.It Va max_free
+The maximum amount of contiguous free space in this map entry's subtree.
 .It Va object
 Pointer to the
 .Vt struct vm_map_object
