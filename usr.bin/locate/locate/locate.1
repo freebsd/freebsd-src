@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)locate.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: locate.1,v 1.8 1997/03/06 05:11:55 jmg Exp $
+.\"	$Id: locate.1,v 1.5.2.1 1997/03/06 05:22:24 mpp Exp $
 .\"
 .Dd June 6, 1993
 .Dt LOCATE 1
@@ -46,29 +46,45 @@
 .Op Fl d Ar database 
 pattern ...
 .Sh DESCRIPTION
-.Nm Locate
-searches a database for all pathnames which match the specified
+The
+.Nm
+program searches a database for all pathnames which match the specified
 .Ar pattern  .
 The database is recomputed periodically (usually weekly or daily), 
 and contains the pathnames
 of all files which are publicly accessible.
 .Pp
-Shell globbing and quoting characters (``*'', ``?'', ``\e'', ``[''
-and ``]'')
+Shell globbing and quoting characters
+.Po
+.Dq * ,
+.Dq ? ,
+.Dq \e ,
+.Dq [
+and
+.Dq \]
+.Pc
 may be used in
 .Ar pattern  ,
 although they will have to be escaped from the shell.
-Preceding any character with a backslash (``\e'') eliminates any special
+Preceding any character with a backslash
+.Pq Dq \e
+eliminates any special
 meaning which it may have.
 The matching differs in that no characters must be matched explicitly,
-including slashes (``/'').
+including slashes
+.Pq Dq / .
 .Pp
-As a special case, a pattern containing no globbing characters (``foo'')
-is matched as though it were ``*foo*''.
+As a special case, a pattern containing no globbing characters
+.Pq Dq foo
+is matched as though it were
+.Dq *foo* .
 
 Historically, locate store only characters between 32 and 127.  The
-current implementation store any character except newline ('\\n') and
-NUL ('\\0'). The 8-bit character support don't wast extra space for
+current implementation store any character except newline
+.Pq Sq \en
+and NUL
+.Pq Sq \e0 .
+The 8-bit character support doesn't waste extra space for
 plain ASCII file names. Characters less than 32 or greater than 127
 are stored in 2 bytes.
 
@@ -89,20 +105,25 @@ options are allowed.  Each additional
 option adds the specified database to the list
 of databases to be searched.
 
+The option
 .Ar database
 may be a colon-separated list of databases. A single colon is a reference
 to the default database.
 
 $ locate -d $HOME/lib/mydb: foo
 
-will first search string ``foo'' in 
+will first search string
+.Dq foo
+in 
 .Pa $HOME/lib/mydb
 and then in 
 .Pa /var/db/locate.database .
 
 $ locate -d $HOME/lib/mydb::/cdrom/locate.database foo
 
-will first search string ``foo'' in 
+will first search string
+.Dq foo
+in 
 .Pa $HOME/lib/mydb
 and then in 
 .Pa /var/db/locate.database
@@ -110,11 +131,15 @@ and then in
 .Pa /cdrom/locate.database .
 
 
-``$ locate -d db1 -d db2 -d db3 pattern'' is the same as
+.Do
+$ locate -d db1 -d db2 -d db3 pattern
+.Dc
+is the same as
 
-``$ locate -d db1:db2:db3 pattern'' or 
+.Dq $ locate -d db1:db2:db3 pattern
+or 
 
-``$ locate -d db1:db2 -d db3 pattern''. 
+.Dq $ locate -d db1:db2 -d db3 pattern . 
 
 If
 .Ar - 
@@ -174,9 +199,10 @@ option was specified.
 .%P pp. 8-10
 .Re
 .Sh BUGS
+The
 .Nm
-may fail to list some files that are present, or may 
-to list files that have been removed from the system.  This is because
+program may fail to list some files that are present, or may 
+list files that have been removed from the system.  This is because
 locate only reports files that are present in the database, which is
 typically only regenerated once a week by the 
 .Pa /etc/weekly 
@@ -184,6 +210,7 @@ script.  Use
 .Xr find 1
 to locate files that are of a more transitory nature.
 
+The
 .Nm
 database was built by user 
 .Dq nobody .
@@ -214,8 +241,8 @@ a locate database which was built on SunOS/sparc machine
 
 .Sh HISTORY
 The
-.Nm locate
-command appears in
+.Nm
+command first appeared in
 .Bx 4.4 .
 Many new features were
 added in
