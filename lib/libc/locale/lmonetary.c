@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include <limits.h>
 #include "lmonetary.h"
 #include "ldpart.h"
 
@@ -34,7 +35,7 @@ extern int __mlocale_changed;
 #define LCMONETARY_SIZE (sizeof(struct lc_monetary_T) / sizeof(char *))
 
 static char	empty[] = "";
-static char	numempty[] = "-1";
+static char     numempty[] = { CHAR_MAX, '\0' };
 
 static const struct lc_monetary_T _C_monetary_locale = {
 	empty ,		/* int_curr_symbol */
