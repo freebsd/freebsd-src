@@ -49,12 +49,6 @@
 #include <string.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
-#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
-#ifdef NOSUID
-#include <sys/linker.h>
-#endif
-#include <sys/module.h>
-#endif
 #include <termios.h>
 #include <unistd.h>
 
@@ -100,7 +94,7 @@
 #include "iface.h"
 #include "server.h"
 #include "probe.h"
-#ifdef HAVE_DES
+#ifndef NODES
 #include "mppe.h"
 #endif
 
@@ -135,7 +129,7 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
   switch (new) {
   case PHASE_DEAD:
     bundle->phase = new;
-#ifdef HAVE_DES
+#ifndef NODES
     MPPE_MasterKeyValid = 0;
 #endif
     log_DisplayPrompts();
@@ -625,11 +619,18 @@ bundle_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
 
   /* This is not actually necessary as struct mpserver doesn't Write() */
   if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
-    descriptor_Write(&bundle->ncp.mp.server.desc, bundle, fdset);
+    if (descriptor_Write(&bundle->ncp.mp.server.desc, bundle, fdset) == 1)
+      result++;
 
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
-      result += descriptor_Write(&dl->desc, bundle, fdset);
+      switch (descriptor_Write(&dl->desc, bundle, fdset)) {
+      case -1:
+        datalink_ComeDown(dl, CLOSE_NORMAL);
+        break;
+      case 1:
+        result++;
+      }
 
   return result;
 }
@@ -705,13 +706,8 @@ bundle_Create(const char *prefix, int type, int unit)
 	 * Attempt to load the tunnel interface KLD if it isn't loaded
 	 * already.
          */
-        if (modfind("if_tun") == -1) {
-          if (ID0kldload("if_tun") != -1) {
-            bundle.unit--;
-            continue;
-          }
-          log_Printf(LogWARN, "kldload: if_tun: %s\n", strerror(errno));
-        }
+        loadmodules(LOAD_VERBOSLY, "if_tun", NULL);
+        continue;
       }
 #endif
       if (errno != ENOENT || ++enoentcount > 2) {

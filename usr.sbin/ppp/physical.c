@@ -100,6 +100,7 @@
 #endif
 #ifndef NONETGRAPH
 #include "ether.h"
+#include "netgraph.h"
 #endif
 #ifndef NOATM
 #include "atm.h"
@@ -137,6 +138,9 @@ struct {
    * able to identify it as a more specific type of SOCK_DGRAM.
    */
   { ether_Create, ether_iov2device, ether_DeviceSize },
+#ifdef EXPERIMENTAL_NETGRAPH
+  { ng_Create, ng_iov2device, ng_DeviceSize },
+#endif
 #endif
 #ifndef NOATM
   /* Ditto for ATM devices */
@@ -1099,4 +1103,14 @@ physical_AwaitCarrier(struct physical *p)
     return (*p->handler->awaitcarrier)(p);
 
   return CARRIER_OK;
+}
+
+
+void
+physical_SetAsyncParams(struct physical *p, u_int32_t mymap, u_int32_t hismap)
+{
+  if (p->handler && p->handler->setasyncparams)
+    return (*p->handler->setasyncparams)(p, mymap, hismap);
+
+  async_SetLinkParams(&p->async, mymap, hismap);
 }

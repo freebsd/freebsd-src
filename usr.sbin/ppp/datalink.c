@@ -489,7 +489,10 @@ datalink_Write(struct fdescriptor *d, struct bundle *bundle,
     case DATALINK_DIAL:
     case DATALINK_LOGOUT:
     case DATALINK_LOGIN:
-      result = descriptor_Write(&dl->chat.desc, bundle, fdset);
+      if ((result = descriptor_Write(&dl->chat.desc, bundle, fdset)) == -1) {
+        datalink_ComeDown(dl, CLOSE_NORMAL);
+        result = 0;
+      }
       break;
 
     case DATALINK_READY:
@@ -498,16 +501,28 @@ datalink_Write(struct fdescriptor *d, struct bundle *bundle,
     case DATALINK_CBCP:
     case DATALINK_OPEN:
       if (descriptor_IsSet(&dl->chap.desc, fdset))
-        result += descriptor_Write(&dl->chap.desc, bundle, fdset);
+        switch (descriptor_Write(&dl->chap.desc, bundle, fdset)) {
+        case -1:
+          datalink_ComeDown(dl, CLOSE_NORMAL);
+          break;
+        case 1:
+          result++;
+        }
       if (descriptor_IsSet(&dl->physical->desc, fdset))
-        result += descriptor_Write(&dl->physical->desc, bundle, fdset);
+        switch (descriptor_Write(&dl->physical->desc, bundle, fdset)) {
+        case -1:
+          datalink_ComeDown(dl, CLOSE_NORMAL);
+          break;
+        case 1:
+          result++;
+        }
       break;
   }
 
   return result;
 }
 
-static void
+void
 datalink_ComeDown(struct datalink *dl, int how)
 {
   int stayonline;

@@ -51,7 +51,7 @@ struct chap {
     u_char local[CHAPCHALLENGELEN + AUTHLEN];	/* I invented this one */
     u_char peer[CHAPCHALLENGELEN + AUTHLEN];	/* Peer gave us this one */
   } challenge;
-#ifdef HAVE_DES
+#ifndef NODES
   unsigned NTRespSent : 1;		/* Our last response */
   int peertries;
   u_char authresponse[CHAPAUTHRESPONSELEN];	/* CHAP 81 response */

@@ -36,6 +36,7 @@ struct cmdargs;
 #define ETHER_DEVICE	5
 #define EXEC_DEVICE	6
 #define ATM_DEVICE	7
+#define NG_DEVICE	8
 
 /* Returns from awaitcarrier() */
 #define CARRIER_PENDING	1
@@ -64,6 +65,7 @@ struct device {
   int (*raw)(struct physical *);
   void (*offline)(struct physical *);
   void (*cooked)(struct physical *);
+  void (*setasyncparams)(struct physical *, u_int32_t, u_int32_t);
   void (*stoptimer)(struct physical *);
   void (*destroy)(struct physical *);
   ssize_t (*read)(struct physical *, void *, size_t);
@@ -166,3 +168,4 @@ extern void physical_StopDeviceTimer(struct physical *);
 extern int physical_MaxDeviceSize(void);
 extern int physical_AwaitCarrier(struct physical *);
 extern void physical_SetDescriptor(struct physical *);
+extern void physical_SetAsyncParams(struct physical *, u_int32_t, u_int32_t);
