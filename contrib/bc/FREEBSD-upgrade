@@ -4,6 +4,7 @@ bc 1.0.5a
 	originals can be found at: ftp://prep.ai.mit.edu/pub/gnu/
 	removed no subdirectories
 	removed bc/scan.c bc/bc.c bc/bc.h doc/texinfo.tex doc/dc.info
+	removed */getopt*
 	obrien@FreeBSD.ORG
 
 	Imported with the commands:
