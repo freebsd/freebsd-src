@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnd.rc.5,v 1.27 1998/12/05 18:03:23 hm Exp $ 
+.\"	$Id: isdnd.rc.5,v 1.1 1998/12/27 21:47:01 phk Exp $ 
 .\"
 .\"     last edit-date: [Sat Dec  5 18:10:08 1998]
 .\"
@@ -284,7 +284,7 @@ When a remote site calls, hangup and call back the remote site.
 .El
 
 .It Li dialout-type
-This keyword ist used to configure what type of dialout mode is used.
+This keyword is used to configure what type of dialout mode is used.
 The keyword is mandatory.
 The currently supported parameters are:
 .Pp
@@ -510,10 +510,8 @@ ISDN telephony.
 .El
 
 .It Li usrdeviceunit
-Specifies the unit number for the with the
-.em
-usrdevicename
-specified device.
+Specifies the unit number for the device which is specified with
+usrdevicename.
 
 .It Li usedown
 is used to enable the use of the keywords
