@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: watchdogd
-# REQUIRE: DAEMON
+# REQUIRE: DAEMON cleanvar
 # KEYWORD: nojail
 
 . /etc/rc.subr

@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: mrouted
-# REQUIRE: netif routing
+# REQUIRE: netif routing cleanvar
 # KEYWORD: nojail
 
 . /etc/rc.subr
