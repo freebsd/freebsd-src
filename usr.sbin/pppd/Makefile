@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1997/08/22 15:50:09 peter Exp $
+#	$Id: Makefile,v 1.9 1997/08/22 15:57:37 peter Exp $
 
 CFLAGS+= -DHAVE_PATHS_H
 
@@ -12,6 +12,9 @@ BINOWN=	root
 # as per handbook policies section
 MAINTAINER=	peter@freebsd.org
 
+LDADD=	-lcrypt -lutil -lmd
+DPADD=	${LIBCRYPT} ${LIBUTIL} ${LIBMD}
+
 # Support SPX/IPX - not quite ready
 #CFLAGS+=-DIPX_CHANGE
 #SRCS+=	ipxcp.c
@@ -20,7 +23,9 @@ MAINTAINER=	peter@freebsd.org
 CFLAGS+=-DCBCP_SUPPORT
 SRCS+=	cbcp.c
 
-LDADD=	-lcrypt -lutil -lmd
-DPADD=	${LIBCRYPT} ${LIBUTIL} ${LIBMD}
+# Filter support
+CFLAGS+=-DPPP_FILTER
+LDADD+=	-lpcap
+DPADD+=	${LIBPCAP}
 
 .include <bsd.prog.mk>
