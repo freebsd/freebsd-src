@@ -1,6 +1,9 @@
 #
 #	$Id: PICOBSD,v 1.8.2.2 1999/02/15 02:49:24 des Exp $
 #
+#Line starting with #PicoBSD contains PicoBSD build parameters
+#marker                def_sz  init    MFS_inodes      floppy_inodes
+#PicoBSD       2400    init    4096            4096
 
 machine		"i386"
 #cpu		"I386_CPU"
