@@ -61,7 +61,7 @@ static const struct {
     const char *tok;
     int def;
 } opttbl[] = {
-    {"packet", 1},
+    {"packet", 0},
     {"update", 1},
     {"setdrv", 0}
 };
