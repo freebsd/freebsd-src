@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: sem.h,v 1.1 1994/09/13 14:47:35 dfr Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -106,7 +106,7 @@ struct seminfo {
 		semvmx,		/* semaphore maximum value */
 		semaem;		/* adjust on exit max value */
 };
-struct seminfo	seminfo;
+extern struct seminfo	seminfo;
 
 /* internal "mode" bits */
 #define	SEM_ALLOC	01000	/* semaphore is allocated */

@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: sysv_msg.c,v 1.1 1994/09/13 14:46:57 dfr Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -37,7 +37,7 @@ int nfree_msgmaps;		/* # of free map entries */
 short free_msgmaps;		/* head of linked list of free map entries */
 struct msg *free_msghdrs;	/* list of free msg headers */
 
-int
+void
 msginit()
 {
 	register int i;
@@ -288,7 +288,7 @@ msgget(p, uap, retval)
 	int key = uap->key;
 	int msgflg = uap->msgflg;
 	struct ucred *cred = p->p_ucred;
-	register struct msqid_ds *msqptr;
+	register struct msqid_ds *msqptr = NULL;
 
 #ifdef MSG_DEBUG_OK
 	printf("msgget(0x%x, 0%o)\n", key, msgflg);
@@ -450,7 +450,7 @@ msgsnd(p, uap, retval)
 		 * (inside this loop in case msg_qbytes changes while we sleep)
 		 */
 
-		if (msgsz < 0 || msgsz > msqptr->msg_qbytes) {
+		if (msgsz > msqptr->msg_qbytes) {
 #ifdef MSG_DEBUG_OK
 			printf("msgsz > msqptr->msg_qbytes\n");
 #endif
@@ -772,13 +772,6 @@ msgrcv(p, uap, retval)
 		printf("requester doesn't have read access\n");
 #endif
 		return(eval);
-	}
-
-	if (msgsz < 0) {
-#ifdef MSG_DEBUG_OK
-		printf("msgsz < 0\n");
-#endif
-		return(EINVAL);
 	}
 
 	msghdr = NULL;

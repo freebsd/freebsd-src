@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: msg.h,v 1.1 1994/09/13 14:47:34 dfr Exp $ */
 /*	$NetBSD: msg.h,v 1.4 1994/06/29 06:44:43 cgd Exp $	*/
 
 /*
@@ -92,9 +92,9 @@ struct msginfo {
 		msgssz,		/* size of a message segment (see notes above) */
 		msgseg;		/* number of message segments */
 };
-struct msginfo	msginfo;
-
 #ifdef KERNEL
+extern struct msginfo	msginfo;
+
 #ifndef MSGSSZ
 #define MSGSSZ	8		/* Each segment must be 2^N long */
 #endif
@@ -120,13 +120,11 @@ struct msginfo	msginfo;
 #define MSQID(ix,ds)	((ix) & 0xffff | (((ds).msg_perm.seq << 16) & 0xffff0000))
 #define MSQID_IX(id)	((id) & 0xffff)
 #define MSQID_SEQ(id)	(((id) >> 16) & 0xffff)
-#endif
 
 /*
  * The rest of this file is specific to this particular implementation.
  */
 
-#ifdef KERNEL
 
 /*
  * Stuff allocated in machdep.h
@@ -144,7 +142,7 @@ struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 
 #define MSG_LOCKED	01000	/* Is this msqid_ds locked? */
 
-#endif
+#endif /* KERNEL */
 
 #ifndef KERNEL
 #include <sys/cdefs.h>
