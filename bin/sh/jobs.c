@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.4 1995/09/21 13:24:20 bde Exp $
+ *	$Id: jobs.c,v 1.5 1996/09/01 10:20:24 peter Exp $
  */
 
 #ifndef lint
@@ -583,7 +583,7 @@ forkshell(jp, n, mode)
 			if (mode == FORK_FG) {
 				/*** this causes superfluous TIOCSPGRPS ***/
 				if (ioctl(2, TIOCSPGRP, (char *)&pgrp) < 0)
-					error("TIOCSPGRP failed, errno=%d\n", errno);
+					error("TIOCSPGRP failed, errno=%d", errno);
 			}
 			setsignal(SIGTSTP);
 			setsignal(SIGTTOU);
@@ -677,7 +677,7 @@ waitforjob(jp)
 #if JOBS
 	if (jp->jobctl) {
 		if (ioctl(2, TIOCSPGRP, (char *)&mypgrp) < 0)
-			error("TIOCSPGRP failed, errno=%d\n", errno);
+			error("TIOCSPGRP failed, errno=%d", errno);
 	}
 	if (jp->state == JOBSTOPPED)
 		curjob = jp - jobtab + 1;

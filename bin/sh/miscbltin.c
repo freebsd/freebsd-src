@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.4 1995/10/21 00:47:30 joerg Exp $
+ *	$Id: miscbltin.c,v 1.5 1996/09/01 10:20:46 peter Exp $
  */
 
 #ifndef lint
@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #include <sys/resource.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "shell.h"
 #include "options.h"
@@ -242,6 +243,7 @@ umaskcmd(argc, argv)
 
 struct limits {
 	const char *name;
+	const char *units;
 	int	cmd;
 	int	factor;	/* multiply by to get rlim_{cur,max} values */
 	char	option;
@@ -249,39 +251,39 @@ struct limits {
 
 static const struct limits limits[] = {
 #ifdef RLIMIT_CPU
-	{ "time(seconds)",		RLIMIT_CPU,	   1, 't' },
+	{ "cpu time",		"seconds",	RLIMIT_CPU,	   1, 't' },
 #endif
 #ifdef RLIMIT_FSIZE
-	{ "file(512-blocks)",		RLIMIT_FSIZE,	 512, 'f' },
+	{ "file size",		"512-blocks",	RLIMIT_FSIZE,	 512, 'f' },
 #endif
 #ifdef RLIMIT_DATA
-	{ "data(kbytes)",		RLIMIT_DATA,	1024, 'd' },
+	{ "data seg size",	"kbytes",	RLIMIT_DATA,	1024, 'd' },
 #endif
 #ifdef RLIMIT_STACK
-	{ "stack(kbytes)",		RLIMIT_STACK,	1024, 's' },
+	{ "stack size",		"kbytes",	RLIMIT_STACK,	1024, 's' },
 #endif
 #ifdef  RLIMIT_CORE
-	{ "coredump(512-blocks)",	RLIMIT_CORE,	 512, 'c' },
+	{ "core file size",	"512-blocks",	RLIMIT_CORE,	 512, 'c' },
 #endif
 #ifdef RLIMIT_RSS
-	{ "memory(kbytes)",		RLIMIT_RSS,	1024, 'm' },
+	{ "max memory size",	"kbytes",	RLIMIT_RSS,	1024, 'm' },
 #endif
 #ifdef RLIMIT_MEMLOCK
-	{ "lockedmem(kbytes)",		RLIMIT_MEMLOCK, 1024, 'l' },
+	{ "locked memory",	"kbytes",	RLIMIT_MEMLOCK, 1024, 'l' },
 #endif
 #ifdef RLIMIT_NPROC
-	{ "process(processes)",		RLIMIT_NPROC,      1, 'u' },
+	{ "max user processes",	(char *)0,	RLIMIT_NPROC,      1, 'u' },
 #endif
 #ifdef RLIMIT_NOFILE
-	{ "nofiles(descriptors)",	RLIMIT_NOFILE,     1, 'n' },
+	{ "open files",		(char *)0,	RLIMIT_NOFILE,     1, 'n' },
 #endif
 #ifdef RLIMIT_VMEM
-	{ "vmemory(kbytes)",		RLIMIT_VMEM,	1024, 'v' },
+	{ "virtual mem size",	"kbytes",	RLIMIT_VMEM,	1024, 'v' },
 #endif
 #ifdef RLIMIT_SWAP
-	{ "swap(kbytes)",		RLIMIT_SWAP,	1024, 'w' },
+	{ "swap limit",		"kbytes",	RLIMIT_SWAP,	1024, 'w' },
 #endif
-	{ (char *) 0,			0,		   0,  '\0' }
+	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
 
 int
@@ -299,7 +301,7 @@ ulimitcmd(argc, argv)
 	struct rlimit	limit;
 
 	what = 'f';
-	while ((optc = nextopt("HSatfdsmcnpl")) != '\0')
+	while ((optc = nextopt("HSatfdsmcnul")) != '\0')
 		switch (optc) {
 		case 'H':
 			how = HARD;
@@ -317,14 +319,14 @@ ulimitcmd(argc, argv)
 	for (l = limits; l->name && l->option != what; l++)
 		;
 	if (!l->name)
-		error("ulimit: internal error (%c)\n", what);
+		error("internal error (%c)", what);
 
 	set = *argptr ? 1 : 0;
 	if (set) {
 		char *p = *argptr;
 
 		if (all || argptr[1])
-			error("ulimit: too many arguments\n");
+			error("too many arguments");
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
@@ -337,19 +339,27 @@ ulimitcmd(argc, argv)
 					break;
 			}
 			if (c)
-				error("ulimit: bad number\n");
+				error("bad number");
 			val *= l->factor;
 		}
 	}
 	if (all) {
-		for (l = limits; l->name; l++) {
-			getrlimit(l->cmd, &limit);
+		for (l = limits; l->name; l++) { 
+			char optbuf[40];
+			if (getrlimit(l->cmd, &limit) < 0)
+				error("can't get limit: %s", strerror(errno));
 			if (how & SOFT)
 				val = limit.rlim_cur;
 			else if (how & HARD)
 				val = limit.rlim_max;
 
-			out1fmt("%-20s ", l->name);
+			if (l->units)
+				snprintf(optbuf, sizeof(optbuf),
+					"%s (%s, -%c) ", l->name, l->units, l->option);
+			else
+				snprintf(optbuf, sizeof(optbuf),
+					"%s (-%c) ", l->name, l->option);
+			out1fmt("%32s ", optbuf);
 			if (val == RLIM_INFINITY)
 				out1fmt("unlimited\n");
 			else
@@ -361,14 +371,15 @@ ulimitcmd(argc, argv)
 		return 0;
 	}
 
-	getrlimit(l->cmd, &limit);
+	if (getrlimit(l->cmd, &limit) < 0)
+		error("can't get limit: %s", strerror(errno));
 	if (set) {
 		if (how & SOFT)
 			limit.rlim_cur = val;
 		if (how & HARD)
 			limit.rlim_max = val;
 		if (setrlimit(l->cmd, &limit) < 0)
-			error("ulimit: bad limit\n");
+			error("bad limit: %s", strerror(errno));
 	} else {
 		if (how & SOFT)
 			val = limit.rlim_cur;
