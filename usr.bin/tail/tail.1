@@ -41,17 +41,17 @@
 .Nm tail
 .Nd display the last part of a file
 .Sh SYNOPSIS
-.Nm tail
+.Nm
 .Op Fl f Li | Fl r
 .Oo
 .Fl b Ar number |
 .Fl c Ar number |
 .Fl n Ar number
 .Oc
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 The
-.Nm tail
+.Nm
 utility displays the contents of
 .Ar file
 or, by default, its standard input, to the standard output.
@@ -85,7 +85,7 @@ bytes.
 The
 .Fl f
 option causes
-.Nm tail
+.Nm
 to not stop when end of file is reached, but rather to wait for additional
 data to be appended to the input.
 The
@@ -123,7 +123,7 @@ where
 is the name of the file.
 .Pp
 The
-.Nm tail
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr cat 1 ,
@@ -131,8 +131,9 @@ utility exits 0 on success, and >0 if an error occurs.
 .Xr sed 1
 .Sh STANDARDS
 The
-.Nm tail
-utility is expected to be a superset of the POSIX 1003.2
+.Nm
+utility is expected to be a superset of the
+.St -p1003.2-92
 specification.
 In particular, the
 .Fl b
@@ -141,7 +142,7 @@ and
 options are extensions to that standard.
 .Pp
 The historic command line syntax of
-.Nm tail
+.Nm
 is supported by this implementation.
 The only difference between this implementation and historic versions
 of
@@ -160,6 +161,6 @@ would ignore the
 option and display the last 4 lines of the input.
 .Sh HISTORY
 A
-.Nm tail
+.Nm
 command appeared in
 .At v7 .
