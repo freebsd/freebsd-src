@@ -345,7 +345,7 @@ void add_prog(char *progname)
     if(p1 == NULL) progs = p2;
     else p1->next = p2;
 
-    p2->ident = p2->srcdir = p2->objdir = NULL;
+    p2->ident = p2->srcdir = p2->realsrcdir = p2->objdir = NULL;
     p2->links = p2->objs = p2->keeplist = NULL;
     p2->buildopts = NULL;
     p2->goterror = 0;
@@ -578,6 +578,9 @@ void fillin_program(prog_t *p)
     if(!p->objs && verbose)
 	warnx("%s: %s: warning: could not find any .o files",
 		infilename, p->name);
+
+    if(!p->srcdir || !p->objs)
+	p->goterror = 1;
 }
 
 void fillin_program_objs(prog_t *p, char *path)
