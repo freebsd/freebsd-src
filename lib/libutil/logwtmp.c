@@ -36,10 +36,11 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-	"$Id: logwtmp.c,v 1.4 1997/08/13 20:42:18 steve Exp $";
+	"$Id: logwtmp.c,v 1.5 1997/09/04 22:38:59 pst Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -54,6 +55,37 @@ static const char rcsid[] =
 #include <utmp.h>
 
 void
+trimdomain( char * fullhost, int hostsize )
+{
+    static char domain[MAXHOSTNAMELEN + 1];
+    static int first = 1;
+    char *s;
+
+    if (first) {
+        first = 0;
+        if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
+            (s = strchr(domain, '.')))
+            (void) strcpy(domain, s + 1);
+        else
+            domain[0] = 0;
+    }
+
+    if (domain[0]) {
+		s = fullhost;
+        while ((fullhost = strchr(fullhost, '.'))) {
+            if (!strcasecmp(fullhost + 1, domain)) {
+		if ( fullhost - s  < hostsize ) {
+               		*fullhost = '\0';    /* hit it and acceptable size*/
+		}
+                break;
+            } else {
+                fullhost++;
+            }
+        }
+    }
+}
+
+void
 logwtmp(line, name, host)
 	const char *line;
 	const char *name;
@@ -61,7 +93,14 @@ logwtmp(line, name, host)
 {
 	struct utmp ut;
 	struct stat buf;
+	char   fullhost[MAXHOSTNAMELEN + 1];
+	char   *whost = fullhost;
 	int fd;
+	
+	strncpy( whost, host, MAXHOSTNAMELEN );	
+fullhost[MAXHOSTNAMELEN] = '\0';
+	trimdomain( whost, UT_HOSTSIZE );
+	host = whost;
 
 	if (strlen(host) > UT_HOSTSIZE) {
 		struct hostent *hp = gethostbyname(host);
