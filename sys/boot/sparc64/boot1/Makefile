@@ -1,30 +1,27 @@
 # $FreeBSD$
 
-PROG=		boot1
-SRCS=		_start.S boot1.c
+PROG=	boot1.elf
+INTERNALPROG=
 NOMAN=
-STRIP=
-BINDIR?=	/boot
-BINMODE=	444
+FILES=	boot1
+SRCS=	_start.S boot1.c
 
-BOOTBLOCKBASE=	0x4000
+BOOTBLOCKBASE= 0x4000
 
-CFLAGS=	-ffreestanding -mcmodel=medlow -Os -I../.. -I../../common -I${.CURDIR}/../../common
+CFLAGS=	-mcmodel=medlow -Os -I${.CURDIR}/../../common
+LDFLAGS=-N -Ttext ${BOOTBLOCKBASE}
 
-boot1.elf: _start.o boot1.o
-	${LD} -N -Ttext ${BOOTBLOCKBASE} -o ${.TARGET} ${.ALLSRC}
-
-boot1.aout: boot1.elf
-	elf2aout -o ${.TARGET} ${.ALLSRC}
-
-boot1.o:	${.CURDIR}/../../common/ufsread.c
-
-# Construct boot1. disklabel expects it to contain zeroed-out space for the
+# Construct boot1. sunlabel expects it to contain zeroed-out space for the
 # label, and to be of the correct size.
 boot1: boot1.aout
 	dd if=/dev/zero of=${.TARGET} bs=512 count=16
 	dd if=boot1.aout of=${.TARGET} bs=512 oseek=1 conv=notrunc
 
-CLEANFILES+=	boot1.elf boot1.aout
+CLEANFILES= boot1.aout
+
+boot1.aout: boot1.elf
+	elf2aout -o ${.TARGET} ${.ALLSRC}
+
+boot1.o: ${.CURDIR}/../../common/ufsread.c
 
 .include <bsd.prog.mk>
