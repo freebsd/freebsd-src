@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.30 1995/09/09 18:09:59 davidg Exp $
+ * $Id: init_main.c,v 1.31 1995/10/08 00:05:59 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,6 @@
 #include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/clist.h>
-#include <sys/device.h>
 #include <sys/msg.h>
 #include <sys/protosw.h>
 #include <sys/reboot.h>
