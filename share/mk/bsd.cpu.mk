@@ -37,7 +37,11 @@ CPUTYPE = k7
 .if !defined(NO_CPU_CFLAGS) || !defined(NO_CPU_COPTFLAGS)
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "k7"
+.   if defined(BOOTSTRAPPING)
+_CPUCFLAGS = -march=k6		# gcc 2.95.x didn't support athlon
+.   else
 _CPUCFLAGS = -march=athlon
+.   endif
 .  elif ${CPUTYPE} == "k6-2"
 _CPUCFLAGS = -march=k6
 .  elif ${CPUTYPE} == "k6"
