@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.613.2.17 2003/07/30 20:17:04 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.613.2.20 2003/11/25 19:02:24 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -164,6 +164,8 @@ getrequests(e)
 	extern bool refuseconnections __P((char *, ENVELOPE *, int, bool));
 
 
+	/* initialize data for function that generates queue ids */
+	init_qid_alg();
 	for (idx = 0; idx < NDaemons; idx++)
 	{
 		Daemons[idx].d_port = setupdaemon(&(Daemons[idx].d_addr));
@@ -362,7 +364,6 @@ getrequests(e)
 
 			/* Did someone signal while waiting? */
 			CHECK_RESTART;
-
 
 			curdaemon = -1;
 			if (doqueuerun())
@@ -3484,10 +3485,21 @@ getauthinfo(fd, may_be_forged)
 	nleft = sizeof ibuf - 1;
 	while ((i = read(s, p, nleft)) > 0)
 	{
+		char *s;
+
 		p += i;
 		nleft -= i;
 		*p = '\0';
-		if (strchr(ibuf, '\n') != NULL || nleft <= 0)
+		if ((s = strchr(ibuf, '\n')) != NULL)
+		{
+			if (p > s + 1)
+			{
+				p = s + 1;
+				*p = '\0';
+			}
+			break;
+		}
+		if (nleft <= 0)
 			break;
 	}
 	(void) close(s);

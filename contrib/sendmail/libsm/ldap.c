@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2003 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.44.2.3 2003/07/07 20:16:16 gshapiro Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.44.2.5 2003/12/23 21:21:56 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
@@ -570,9 +570,11 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 			**  no need to spin through attributes
 			*/
 
-			if (statp == EX_OK &&
-			    bitset(SM_LDAP_MATCHONLY, flags))
+			if (bitset(SM_LDAP_MATCHONLY, flags))
+			{
+				statp = EX_OK;
 				continue;
+			}
 
 			/* record completed DN's to prevent loops */
 			dn = ldap_get_dn(lmap->ldap_ld, entry);

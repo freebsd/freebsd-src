@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: recipient.c,v 8.330.2.2 2003/09/16 19:56:25 ca Exp $")
+SM_RCSID("@(#)$Id: recipient.c,v 8.330.2.4 2003/10/06 20:43:29 ca Exp $")
 
 static void	includetimeout __P((void));
 static ADDRESS	*self_reference __P((ADDRESS *));
@@ -397,7 +397,8 @@ removefromlist(list, sendq, e)
 			for (pq = sendq; (q = *pq) != NULL; pq = &q->q_next)
 			{
 				if (!QS_IS_DEAD(q->q_state) &&
-				    sameaddr(q, &a))
+				    (sameaddr(q, &a) ||
+				     strcmp(q->q_paddr, a.q_paddr) == 0))
 				{
 					if (tTd(25, 5))
 					{

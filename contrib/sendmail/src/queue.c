@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.863.2.61 2003/09/03 19:58:26 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.863.2.67 2003/12/02 23:56:01 ca Exp $")
 
 #include <dirent.h>
 
@@ -22,7 +22,16 @@ SM_RCSID("@(#)$Id: queue.c,v 8.863.2.61 2003/09/03 19:58:26 ca Exp $")
 
 #  define sm_file_exists(errno) ((errno) == EEXIST)
 
-# define TF_OPEN_FLAGS (O_CREAT|O_WRONLY|O_EXCL)
+# if HASFLOCK && defined(O_EXLOCK)
+#   define SM_OPEN_EXLOCK 1
+#   define TF_OPEN_FLAGS (O_CREAT|O_WRONLY|O_EXCL|O_EXLOCK)
+# else /* HASFLOCK && defined(O_EXLOCK) */
+#  define TF_OPEN_FLAGS (O_CREAT|O_WRONLY|O_EXCL)
+# endif /* HASFLOCK && defined(O_EXLOCK) */
+
+#ifndef SM_OPEN_EXLOCK
+# define SM_OPEN_EXLOCK 0
+#endif /* ! SM_OPEN_EXLOCK */
 
 /*
 **  Historical notes:
@@ -358,6 +367,18 @@ queueup(e, announce, msync)
 	**  Create control file.
 	*/
 
+#define OPEN_TF	do							\
+		{							\
+			MODE_T oldumask = 0;				\
+									\
+			if (bitset(S_IWGRP, QueueFileMode))		\
+				oldumask = umask(002);			\
+			tfd = open(tf, TF_OPEN_FLAGS, QueueFileMode);	\
+			if (bitset(S_IWGRP, QueueFileMode))		\
+				(void) umask(oldumask);			\
+		} while (0)
+
+
 	newid = (e->e_id == NULL) || !bitset(EF_INQUEUE, e->e_flags);
 	(void) sm_strlcpy(tf, queuename(e, NEWQFL_LETTER), sizeof tf);
 	tfp = e->e_lockfp;
@@ -370,9 +391,11 @@ queueup(e, announce, msync)
 		*/
 
 		(void) sm_strlcpy(tf, queuename(e, ANYQFL_LETTER), sizeof tf);
-		tfd = open(tf, TF_OPEN_FLAGS, FileMode);
+		OPEN_TF;
 		if (tfd < 0 ||
+#if !SM_OPEN_EXLOCK
 		    !lockfile(tfd, tf, NULL, LOCK_EX|LOCK_NB) ||
+#endif /* !SM_OPEN_EXLOCK */
 		    (tfp = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT,
 					 (void *) &tfd, SM_IO_WRONLY_B,
 					 NULL)) == NULL)
@@ -396,14 +419,7 @@ queueup(e, announce, msync)
 		{
 			if (tfd < 0)
 			{
-				MODE_T oldumask = 0;
-
-				if (bitset(S_IWGRP, QueueFileMode))
-					oldumask = umask(002);
-				tfd = open(tf, TF_OPEN_FLAGS, QueueFileMode);
-				if (bitset(S_IWGRP, QueueFileMode))
-					(void) umask(oldumask);
-
+				OPEN_TF;
 				if (tfd < 0)
 				{
 					if (errno != EEXIST)
@@ -414,12 +430,22 @@ queueup(e, announce, msync)
 							  tf, (int) geteuid(),
 							  sm_errstring(errno));
 				}
+#if SM_OPEN_EXLOCK
+				else
+					break;
+#endif /* SM_OPEN_EXLOCK */
 			}
 			if (tfd >= 0)
 			{
+#if SM_OPEN_EXLOCK
+				/* file is locked by open() */
+				break;
+#else /* SM_OPEN_EXLOCK */
 				if (lockfile(tfd, tf, NULL, LOCK_EX|LOCK_NB))
 					break;
-				else if (LogLevel > 0 && (i % 32) == 0)
+				else
+#endif /* SM_OPEN_EXLOCK */
+				if (LogLevel > 0 && (i % 32) == 0)
 					sm_syslog(LOG_ALERT, e->e_id,
 						  "queueup: cannot lock %s: %s",
 						  tf, sm_errstring(errno));
@@ -5172,6 +5198,36 @@ queuename(e, type)
 		sm_dprintf("queuename: %s\n", buf);
 	return buf;
 }
+
+/*
+**  INIT_QID_ALG -- Initialize the (static) parameters that are used to
+**	generate a queue ID.
+**
+**	This function is called by the daemon to reset
+**	LastQueueTime and LastQueuePid which are used by assign_queueid().
+**	Otherwise the algorithm may cause problems because
+**	LastQueueTime and LastQueuePid are set indirectly by main()
+**	before the daemon process is started, hence LastQueuePid is not
+**	the pid of the daemon and therefore a child of the daemon can
+**	actually have the same pid as LastQueuePid which means the section
+**	in  assign_queueid():
+**	* see if we need to get a new base time/pid *
+**	is NOT triggered which will cause the same queue id to be generated.
+**
+**	Parameters:
+**		none
+**
+**	Returns:
+**		none.
+*/
+
+void
+init_qid_alg()
+{
+	LastQueueTime = 0;
+	LastQueuePid = -1;
+}
+
 /*
 **  ASSIGN_QUEUEID -- assign a queue ID for this envelope.
 **
@@ -5188,8 +5244,20 @@ queuename(e, type)
 **		none.
 */
 
-static const char QueueIdChars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx";
+static const char QueueIdChars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 # define QIC_LEN	60
+# define QIC_LEN_R	62
+
+/*
+**  Note: the length is "officially" 60 because minutes and seconds are
+**	usually only 0-59.  However (Linux):
+**       tm_sec The number of seconds after the minute, normally in
+**              the range 0 to 59, but can be up to 61 to allow for
+**              leap seconds.
+**	Hence the real length of the string is 62 to take this into account.
+**	Alternatively % QIC_LEN can (should) be used for access everywhere.
+*/
+
 # define queuenextid() CurrentPid
 
 
@@ -5244,8 +5312,8 @@ assign_queueid(e)
 	idbuf[1] = QueueIdChars[tm->tm_mon];
 	idbuf[2] = QueueIdChars[tm->tm_mday];
 	idbuf[3] = QueueIdChars[tm->tm_hour];
-	idbuf[4] = QueueIdChars[tm->tm_min];
-	idbuf[5] = QueueIdChars[tm->tm_sec];
+	idbuf[4] = QueueIdChars[tm->tm_min % QIC_LEN_R];
+	idbuf[5] = QueueIdChars[tm->tm_sec % QIC_LEN_R];
 	idbuf[6] = QueueIdChars[seq / QIC_LEN];
 	idbuf[7] = QueueIdChars[seq % QIC_LEN];
 	(void) sm_snprintf(&idbuf[8], sizeof idbuf - 8, "%06d",
@@ -7357,10 +7425,10 @@ cmpidx(a, b)
 void
 makeworkgroups()
 {
-	int i, j, total_runners = 0;
-	int dir;
+	int i, j, total_runners, dir, h;
 	SORTQGRP_T si[MAXQUEUEGROUPS + 1];
 
+	total_runners = 0;
 	if (NumQueue == 1 && strcmp(Queue[0]->qg_name, "mqueue") == 0)
 	{
 		/*
@@ -7456,18 +7524,19 @@ makeworkgroups()
 				      (WorkGrp[j].wg_numqgrp + 1)));
 		}
 
-		WorkGrp[j].wg_qgs[WorkGrp[j].wg_numqgrp] = Queue[si[i].sg_idx];
+		h = si[i].sg_idx;
+		WorkGrp[j].wg_qgs[WorkGrp[j].wg_numqgrp] = Queue[h];
 		WorkGrp[j].wg_numqgrp++;
-		WorkGrp[j].wg_runners += Queue[i]->qg_maxqrun;
-		Queue[si[i].sg_idx]->qg_wgrp = j;
+		WorkGrp[j].wg_runners += Queue[h]->qg_maxqrun;
+		Queue[h]->qg_wgrp = j;
 
 		if (WorkGrp[j].wg_maxact == 0)
 		{
 			/* can't have more runners than allowed total */
 			if (MaxQueueChildren > 0 &&
-			    Queue[i]->qg_maxqrun > MaxQueueChildren)
-				Queue[i]->qg_maxqrun = MaxQueueChildren;
-			WorkGrp[j].wg_maxact = Queue[i]->qg_maxqrun;
+			    Queue[h]->qg_maxqrun > MaxQueueChildren)
+				Queue[h]->qg_maxqrun = MaxQueueChildren;
+			WorkGrp[j].wg_maxact = Queue[h]->qg_maxqrun;
 		}
 
 		/*
@@ -7477,9 +7546,9 @@ makeworkgroups()
 		*/
 
 		/* keep track of the lowest interval for a persistent runner */
-		if (Queue[si[i].sg_idx]->qg_queueintvl > 0 &&
-		    WorkGrp[j].wg_lowqintvl < Queue[si[i].sg_idx]->qg_queueintvl)
-			WorkGrp[j].wg_lowqintvl = Queue[si[i].sg_idx]->qg_queueintvl;
+		if (Queue[h]->qg_queueintvl > 0 &&
+		    WorkGrp[j].wg_lowqintvl < Queue[h]->qg_queueintvl)
+			WorkGrp[j].wg_lowqintvl = Queue[h]->qg_queueintvl;
 		j += dir;
 	}
 	if (tTd(41, 9))

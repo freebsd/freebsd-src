@@ -2591,9 +2591,9 @@ my.domain and you have
 
 	my.domain	RELAY
 
-in the access map, then all e-mail with a sender address of
-<user@my.domain> gets through, even if check_relay would reject it
-(e.g., based on the hostname or IP address).  This allows spammers
+in the access map, then any e-mail with a sender address of
+<user@my.domain> will not be rejected by check_relay even though
+it would match the hostname or IP address.  This allows spammers
 to get around DNS based blacklist by faking the sender address.  To
 avoid this problem you have to use tagged entries:
 
@@ -3858,11 +3858,11 @@ confMAX_RCPTS_PER_MESSAGE  MaxRecipientsPerMessage
 					receive a 452 error code (i.e., they
 					are deferred for the next delivery
 					attempt).
-confBAD_RCPT_THROTTLE	BadRcptThrottle	[infinite] If set and more than the
-					specified number of recipients in an
-					envelope are rejected, sleep for one
-					second after each rejected RCPT
-					command.
+confBAD_RCPT_THROTTLE	BadRcptThrottle	[infinite] If set and the specified
+					number of recipients in a single SMTP
+					transaction have been rejected, sleep
+					for one second after each subsequent
+					RCPT command in that transaction.
 confDONT_PROBE_INTERFACES  DontProbeInterfaces
 					[False] If set, sendmail will _not_
 					insert the names and addresses of any
@@ -4375,4 +4375,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.623.2.25 $, Last updated $Date: 2003/06/18 18:47:21 $
+$Revision: 8.623.2.27 $, Last updated $Date: 2004/01/11 17:58:25 $
