@@ -140,7 +140,8 @@ main(int argc, char *argv[])
 {
 	extern int __check_rhosts_file;
 	union sockunion from;
-	int ch, fromlen, on;
+	socklen_t fromlen;
+	int ch, on;
 
 	openlog("rlogind", LOG_PID | LOG_CONS, LOG_AUTH);
 
@@ -242,7 +243,8 @@ doit(int f, union sockunion *fromp)
 		if (fromp->su_family == AF_INET)
 	      {
 		u_char optbuf[BUFSIZ/3];
-		int optsize = sizeof(optbuf), ipproto, i;
+		socklen_t optsize = sizeof(optbuf);
+		int ipproto, i;
 		struct protoent *ip;
 
 		if ((ip = getprotobyname("ip")) != NULL)

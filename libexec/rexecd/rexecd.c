@@ -99,7 +99,7 @@ int
 main(int argc, char *argv[])
 {
 	struct sockaddr_storage from;
-	int fromlen;
+	socklen_t fromlen;
 	int ch;
 
 	openlog("rexecd", LOG_PID, LOG_AUTH);
