@@ -260,8 +260,8 @@ void	_setnetdnsent __P((int));
 void	_endnetdnsent __P((void));
 struct hostent * _gethostbynisname __P((const char *, int));
 struct hostent * _gethostbynisaddr __P((const char *, int, int));
-void _map_v4v6_address __P((const char *src, char *dst));
-void _map_v4v6_hostent __P((struct hostent *hp, char **bp, int *len));
+void _map_v4v6_address __P((const char *, char *));
+void _map_v4v6_hostent __P((struct hostent *, char **, int *));
 __END_DECLS
 
 #endif /* !_NETDB_H_ */
