@@ -45,6 +45,7 @@ static const char rcsid[] =
 #define MBRSIZE         512     /* master boot record size */
 
 #define OFF_VERSION	0x1b0	/* offset: version number */
+#define OFF_OPT		0x1b9	/* offset: default boot option */
 #define OFF_DRIVE	0x1ba	/* offset: setdrv drive */
 #define OFF_FLAGS       0x1bb   /* offset: option flags */
 #define OFF_TICKS       0x1bc   /* offset: clock ticks */
@@ -93,17 +94,17 @@ main(int argc, char *argv[])
     int boot0_size, mbr_size;
     const char *bpath, *fpath, *disk;
     int B_flag, v_flag, o_flag;
-    int d_arg, m_arg, t_arg;
+    int d_arg, m_arg, s_arg, t_arg;
     int o_and, o_or;
     int up, c;
 
     bpath = "/boot/boot0";
     fpath = NULL;
     B_flag = v_flag = o_flag = 0;
-    d_arg = m_arg = t_arg = -1;
+    d_arg = m_arg = s_arg = t_arg = -1;
     o_and = 0xff;
     o_or = 0;
-    while ((c = getopt(argc, argv, "Bvb:d:f:m:o:t:")) != -1)
+    while ((c = getopt(argc, argv, "Bvb:d:f:m:o:s:t:")) != -1)
         switch (c) {
         case 'B':
             B_flag = 1;
@@ -127,6 +128,9 @@ main(int argc, char *argv[])
             stropt(optarg, &o_and, &o_or);
             o_flag = 1;
             break;
+        case 's':
+            s_arg = argtoi(optarg, 1, 5, 's');
+            break;
         case 't':
             t_arg = argtoi(optarg, 1, 0xffff, 't');
             break;
@@ -138,7 +142,8 @@ main(int argc, char *argv[])
     if (argc != 1)
         usage();
     disk = mkrdev(*argv);
-    up = B_flag || d_arg != -1 || m_arg != -1 || o_flag || t_arg != -1;
+    up = B_flag || d_arg != -1 || m_arg != -1 || o_flag || s_arg != -1
+	|| t_arg != -1;
 
     /* open the disk and read in the existing mbr */
     mbr_size = read_mbr(disk, &mbr, !B_flag);
@@ -175,6 +180,10 @@ main(int argc, char *argv[])
         boot0[OFF_FLAGS] &= o_and;
         boot0[OFF_FLAGS] |= o_or;
     }
+
+    /* set the default boot selection */
+    if (s_arg != -1)
+        boot0[OFF_OPT] = s_arg - 1;
 
     /* set the timeout */
     if (t_arg != -1)
@@ -285,6 +294,12 @@ display_mbr(u_int8_t *mbr)
 	printf("%s", opttbl[i].tok);
     }
     printf("\n");
+    printf("default_selection=F%d (", mbr[OFF_OPT] + 1);
+    if (mbr[OFF_OPT] < 4)
+	printf("Slice %d", mbr[OFF_OPT] + 1);
+    else
+	printf("Drive 1");
+    printf(")\n");
 }
 
 /*
