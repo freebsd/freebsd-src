@@ -48,6 +48,8 @@
 #include <sys/malloc.h>
 #include <sys/ctype.h>
 
+#include <net/ethernet.h>
+
 #include <netinet/in.h>
 
 #include <netgraph/ng_message.h>
@@ -996,6 +998,62 @@ const struct ng_parse_type ng_parse_ipaddr_type = {
 	ng_ipaddr_unparse,
 	ng_ipaddr_getDefault,
 	ng_int32_getAlign
+};
+
+/************************************************************************
+			ETHERNET ADDRESS TYPE
+ ************************************************************************/
+
+static int
+ng_enaddr_parse(const struct ng_parse_type *type,
+	const char *s, int *const off, const u_char *const start,
+	u_char *const buf, int *const buflen)
+{
+	char *eptr;
+	u_long val;
+	int i;
+
+	if (*buflen < ETHER_ADDR_LEN)
+		return (ERANGE);
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		val = strtoul(s + *off, &eptr, 16);
+		if (val > 0xff || eptr == s + *off)
+			return (EINVAL);
+		buf[i] = (u_char)val;
+		*off = (eptr - s);
+		if (i < ETHER_ADDR_LEN - 1) {
+			if (*eptr != ':')
+				return (EINVAL);
+			(*off)++;
+		}
+	}
+	*buflen = ETHER_ADDR_LEN;
+	return (0);
+}
+
+static int
+ng_enaddr_unparse(const struct ng_parse_type *type,
+	const u_char *data, int *off, char *cbuf, int cbuflen)
+{
+	int len;
+
+	len = snprintf(cbuf, cbuflen, "%02x:%02x:%02x:%02x:%02x:%02x",
+	    data[*off], data[*off + 1], data[*off + 2],
+	    data[*off + 3], data[*off + 4], data[*off + 5]);
+	if (len >= cbuflen)
+		return (ERANGE);
+	*off += ETHER_ADDR_LEN;
+	return (0);
+}
+
+const struct ng_parse_type ng_parse_enaddr_type = {
+	NULL,
+	NULL,
+	NULL,
+	ng_enaddr_parse,
+	ng_enaddr_unparse,
+	NULL,
+	0
 };
 
 /************************************************************************
