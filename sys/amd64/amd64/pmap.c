@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.223 1999/02/19 14:25:33 luoqi Exp $
+ *	$Id: pmap.c,v 1.224 1999/03/05 08:05:44 alc Exp $
  */
 
 /*
@@ -851,55 +851,6 @@ pmap_is_managed(pa)
  ***************************************************/
 
 /*
- * Add a list of wired pages to the kva
- * this routine is only used for temporary
- * kernel mappings that do not need to have
- * page modification or references recorded.
- * Note that old mappings are simply written
- * over.  The page *must* be wired.
- */
-void
-pmap_qenter(va, m, count)
-	vm_offset_t va;
-	vm_page_t *m;
-	int count;
-{
-	int i;
-	register unsigned *pte;
-
-	for (i = 0; i < count; i++) {
-		vm_offset_t tva = va + i * PAGE_SIZE;
-		unsigned npte = VM_PAGE_TO_PHYS(m[i]) | PG_RW | PG_V | pgeflag;
-		unsigned opte;
-		pte = (unsigned *)vtopte(tva);
-		opte = *pte;
-		*pte = npte;
-		if (opte)
-			invltlb_1pg(tva);
-	}
-}
-
-/*
- * this routine jerks page mappings from the
- * kernel -- it is meant only for temporary mappings.
- */
-void
-pmap_qremove(va, count)
-	vm_offset_t va;
-	int count;
-{
-	int i;
-	register unsigned *pte;
-
-	for (i = 0; i < count; i++) {
-		pte = (unsigned *)vtopte(va);
-		*pte = 0;
-		invltlb_1pg(va);
-		va += PAGE_SIZE;
-	}
-}
-
-/*
  * add a wired page to the kva
  * note that in order for the mapping to take effect -- you
  * should do a invltlb after doing the pmap_kenter...
@@ -932,6 +883,45 @@ pmap_kremove(va)
 	pte = (unsigned *)vtopte(va);
 	*pte = 0;
 	invltlb_1pg(va);
+}
+
+/*
+ * Add a list of wired pages to the kva
+ * this routine is only used for temporary
+ * kernel mappings that do not need to have
+ * page modification or references recorded.
+ * Note that old mappings are simply written
+ * over.  The page *must* be wired.
+ */
+void
+pmap_qenter(va, m, count)
+	vm_offset_t va;
+	vm_page_t *m;
+	int count;
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		vm_offset_t tva = va + i * PAGE_SIZE;
+		pmap_kenter(tva, VM_PAGE_TO_PHYS(m[i]));
+	}
+}
+
+/*
+ * this routine jerks page mappings from the
+ * kernel -- it is meant only for temporary mappings.
+ */
+void
+pmap_qremove(va, count)
+	vm_offset_t va;
+	int count;
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		pmap_kremove(va);
+		va += PAGE_SIZE;
+	}
 }
 
 static vm_page_t
@@ -1946,11 +1936,9 @@ pmap_remove_all(pa)
 	register pv_entry_t pv;
 	pv_table_t *ppv;
 	register unsigned *pte, tpte;
-	int nmodify;
 	int update_needed;
 	int s;
 
-	nmodify = 0;
 	update_needed = 0;
 #if defined(PMAP_DIAGNOSTIC)
 	/*
@@ -3203,58 +3191,43 @@ pmap_ts_referenced(vm_offset_t pa)
 	int rtval = 0;
 
 	if (!pmap_is_managed(pa))
-		return FALSE;
+		return (rtval);
 
 	s = splvm();
 
 	ppv = pa_to_pvh(pa);
 
-	if (TAILQ_FIRST(&ppv->pv_list) == NULL) {
-		splx(s);
-		return 0;
-	}
-		
-	/*
-	 * Not found, check current mappings returning immediately if found.
-	 */
-	pvf = 0;
-	for (pv = TAILQ_FIRST(&ppv->pv_list); pv && pv != pvf; pv = pvn) {
-		if (!pvf)
-			pvf = pv;
-		pvn = TAILQ_NEXT(pv, pv_list);
+	if ((pv = TAILQ_FIRST(&ppv->pv_list)) != NULL) {
 
-		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
-		/*
-		 * if the bit being tested is the modified bit, then
-		 * mark clean_map and ptes as never
-		 * modified.
-		 */
-		if (!pmap_track_modified(pv->pv_va)) {
+		pvf = pv;
+
+		do {
+			pvn = TAILQ_NEXT(pv, pv_list);
+
+			TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
+
 			TAILQ_INSERT_TAIL(&ppv->pv_list, pv, pv_list);
-			continue;
-		}
 
-		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-		if (pte == NULL) {
-			TAILQ_INSERT_TAIL(&ppv->pv_list, pv, pv_list);
-			continue;
-		}
+			if (!pmap_track_modified(pv->pv_va))
+				continue;
 
-		if (*pte & PG_A) {
-			rtval++;
-			*pte &= ~PG_A;
-			if (rtval > 4) {
-				TAILQ_INSERT_TAIL(&ppv->pv_list, pv, pv_list);
-				break;
+			pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
+
+			if (pte && *pte & PG_A) {
+				*pte &= ~PG_A;
+				rtval++;
+				if (rtval > 4) {
+					break;
+				}
 			}
-		}
-		TAILQ_INSERT_TAIL(&ppv->pv_list, pv, pv_list);
-	}
+		} while ((pv = pvn) != NULL && pv != pvf);
 
-	splx(s);
-	if (rtval) {
-		invltlb();
+		if (rtval) {
+			invltlb();
+		}
 	}
+	splx(s);
+
 	return (rtval);
 }
 
