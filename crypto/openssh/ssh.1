@@ -222,15 +222,16 @@ of
 .Pp
 If the user is using X11 (the
 .Ev DISPLAY
-environment variable is set), the connection to the X11 display is
-automatically forwarded to the remote side in such a way that any X11
+environment variable is set), the connection to the X11 display can
+be forwarded to the remote side in such a way that any X11
 programs started from the shell (or command) will go through the
 encrypted channel, and the connection to the real X server will be made
 from the local machine.
 The user should not manually set
 .Ev DISPLAY .
-Forwarding of X11 connections can be
-configured on the command line or in configuration files.
+Forwarding of X11 connections weakens the security of ssh and is
+disabled by default.  X11 forwarding can be enabled on the command line
+or in configuration files.
 .Pp
 The
 .Ev DISPLAY
