@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,13 +27,18 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_attr.3x,v 1.19 1998/12/26 19:25:35 tom Exp $
+.\" $Id: curs_attr.3x,v 1.21 2000/07/01 16:50:07 tom Exp $
 .TH curs_attr 3X ""
 .SH NAME
 \fBattroff\fR, \fBwattroff\fR, \fBattron\fR, \fBwattron\fR,
 \fBattrset\fR, \fBwattrset\fR, \fBcolor_set\fR, \fBwcolor_set\fR,
-\fBstandend\fR, \fBwstandend\fR, \fBstandout\fR,
-\fBwstandout\fR - \fBcurses\fR character and window attribute control routines
+\fBstandend\fR, \fBwstandend\fR, \fBstandout\fR, \fBwstandout\fR,
+\fBattr_get\fR, \fBwattr_get\fR,
+\fBattr_off\fR, \fBwattr_off\fR,
+\fBattr_on\fR, \fBwattr_on\fR,
+\fBattr_set\fR, \fBwattr_set\fR,
+\fBchgat\fR, \fBwchgat\fR,
+\fBmvchgat\fR, \fBmvwchgat\fR - \fBcurses\fR character and window attribute control routines
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .br
@@ -75,9 +80,9 @@
 .br
 \fBint wattr_on(WINDOW *win, attr_t attrs, void *opts);\fR
 .br
-\fBint attr_set(attr_t attrs, void *opts);\fR
+\fBint attr_set(attr_t attrs, short pair, void *opts);\fR
 .br
-\fBint wattr_set(WINDOW *win, attr_t attrs, void *opts);\fR
+\fBint wattr_set(WINDOW *win, attr_t attrs, short pair, void *opts);\fR
 .br
 \fBint chgat(int n, attr_t attr, short color,\fR
       \fBconst void *opts)\fR

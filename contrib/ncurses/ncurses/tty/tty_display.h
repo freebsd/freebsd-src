@@ -132,15 +132,6 @@ struct tty_display_data {
 				vidattr(AttrOf(c));
 #endif
 
-/*
- * Check whether the given character can be output by clearing commands.  This
- * includes test for being a space and not including any 'bad' attributes, such
- * as A_REVERSE.  All attribute flags which don't affect appearance of a space
- * or can be output by clearing (A_COLOR in case of bce-terminal) are excluded.
- */
-#define can_clear_with(ch) \
-	((ch & ~(NONBLANK_ATTR|(back_color_erase ? A_COLOR:0))) == BLANK)
-
 #define XMC_CHANGES(c) ((c) & D->_xmc_suppress)
 
 #endif /* TTY_DISPLAY_H */

@@ -1,7 +1,7 @@
 
 BEGIN		{
 		    print  "/****************************************************************************"
-		    print  " * Copyright (c) 1998 Free Software Foundation, Inc.                        *"
+		    print  " * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *"
 		    print  " *                                                                          *"
 		    print  " * Permission is hereby granted, free of charge, to any person obtaining a  *"
 		    print  " * copy of this software and associated documentation files (the            *"
@@ -33,7 +33,7 @@ BEGIN		{
 		    print  "/*    and: Eric S. Raymond <esr@snark.thyrsus.com>                          */"
 		    print  "/****************************************************************************/"
 		    print  ""
-		    print  "/* $Id: MKterm.h.awk.in,v 1.36 1999/09/01 22:36:52 Peter.Wemm Exp $ */"
+		    print  "/* $Id: MKterm.h.awk.in,v 1.37 2000/03/12 02:40:07 tom Exp $ */"
 		    print  ""
 		    print  "/*"
 		    print  "**	term.h -- Definition of struct term"
@@ -174,6 +174,8 @@ $2 == "%%-STOP-HERE-%%"	{
 
 /^#/		{next;}
 
+$1 == "acs_chars"	{acsindex = StringCount}
+
 $3 == "bool"	{
 		    printf "#define %-30s CUR Booleans[%d]\n", $1, BoolCount++
 		}
@@ -196,6 +198,9 @@ END		{
 			printf "#define BOOLCOUNT %d\n", BoolCount
 			printf "#define NUMCOUNT  %d\n", NumberCount
 			printf "#define STRCOUNT  %d\n", StringCount
+			print  ""
+			print  "/* used by code for comparing entries */"
+			print  "#define acs_chars_index	", acsindex
 			print  ""
 			print  "typedef struct termtype {	/* in-core form of terminfo data */"
 			print  "    char  *term_names;		/* str_table offset of term names */"

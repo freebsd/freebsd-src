@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -29,7 +29,7 @@
 #
 # Author: Thomas E. Dickey <dickey@clark.net> 1996
 #
-# $Id: shlib,v 1.5 1998/05/31 00:29:38 mooney Exp $
+# $Id: shlib,v 1.6 2000/05/20 23:01:17 tom Exp $
 # Use this script as a wrapper when running executables linked to shared
 # libraries on systems that use the $LD_LIBRARY_PATH variable and don't embed
 # the soname's path within the linked executable (such as IRIX), e.g,
@@ -55,6 +55,9 @@
 # Using a conventional link, with -L and -l options on Linux results in a
 # statically linked executable, which we don't want at all.
 #
+# Special cases:
+#
+#	BeOS R4.5 uses $LIBRARY_PATH rather than $LD_LIBRARY_PATH.
 
 #
 # Make sure that we use the PATH that was set in run_tic.sh
@@ -74,6 +77,8 @@ done
 if test -n "$q" ; then
 	if test -n "$LD_LIBRARY_PATH"; then
 		LD_LIBRARY_PATH="$q:$LD_LIBRARY_PATH"
+	elif test -n "$LIBRARY_PATH" ; then
+		LIBRARY_PATH="$q:$LIBRARY_PATH"
 	else
 		LD_LIBRARY_PATH="$q"
 	fi

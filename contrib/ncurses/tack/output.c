@@ -23,7 +23,7 @@
 #include <tack.h>
 #include <time.h>
 
-MODULE_ID("$Id: output.c,v 1.4 1999/06/16 00:46:53 tom Exp $")
+MODULE_ID("$Id: output.c,v 1.5 2000/03/04 21:06:57 tom Exp $")
 
 /* globals */
 long char_sent;			/* number of characters sent */
@@ -409,8 +409,8 @@ put_columns(const char *s, int len, int w)
 **	ptext(string)
 **
 **	Output a string but do not assume the terminal will wrap to a
-**	new line.  Break the line at a word boundry then send a CR LF.
-**	This is more estetic on 40 column terminals.
+**	new line.  Break the line at a word boundary then send a CR LF.
+**	This is more esthetic on 40 column terminals.
 */
 void
 ptext(const char *s)

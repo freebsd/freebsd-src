@@ -21,7 +21,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: fun.c,v 1.2 1999/06/16 00:46:12 tom Exp $")
+MODULE_ID("$Id: fun.c,v 1.3 2000/03/04 20:29:21 tom Exp $")
 
 /*
  * Test the function keys on the terminal.  The code for echo tests
@@ -215,7 +215,7 @@ enter_key(
 
 static void
 fresh_line(void)
-{				/* clear the line for a new fumction key line */
+{				/* clear the line for a new function key line */
 	if (over_strike) {
 		put_crlf();
 	} else {
@@ -610,7 +610,7 @@ funkey_prog(
 		mm[i] = '\0';
 		put_crlf();
 		if (mm[0] != 'a' || mm[1] != 'b' || mm[2] != 'c') {
-			sprintf(temp, "Error string recieved was: %s", expand(mm));
+			sprintf(temp, "Error string received was: %s", expand(mm));
 			ptextln(temp);
 		} else {
 			putln("Thank you\n");
@@ -764,8 +764,8 @@ report_help(int crx)
 {
 	ptextln("The following commands may also be entered:");
 	ptextln(" clear   clear screen.");
-	ptextln(" columns print a test patterm to help count screen width.");
-	ptextln(" lines   print a test patterm to help count screen length.");
+	ptextln(" columns print a test pattern to help count screen width.");
+	ptextln(" lines   print a test pattern to help count screen length.");
 	ptextln(" end     exit.");
 	ptextln(" echo    redisplay last report.");
 	if (crx) {

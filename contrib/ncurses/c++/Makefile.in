@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.51 1999/10/23 20:13:02 tom Exp $
+# $Id: Makefile.in,v 1.52 2000/05/28 01:44:34 tom Exp $
 ##############################################################################
 # Copyright (c) 1998,1999 Free Software Foundation, Inc.                     #
 #                                                                            #
@@ -76,7 +76,7 @@ ABI_VERSION	= @cf_cv_abi_version@
 
 LINK		= @LINK_PROGS@ $(CXX) @CXXLDFLAGS@
 
-LIBROOT	= ncurses++
+LIBROOT	= ncurses++@LIB_SUFFIX@
 LIBNAME	= @LIB_PREFIX@$(LIBROOT).a
 
 LDFLAGS		= @EXTRA_LDFLAGS@ -L../lib -L$(libdir) \
@@ -94,7 +94,10 @@ LDFLAGS_DEFAULT	= $(LDFLAGS_@DFT_UPR_MODEL@)
 AUTO_SRC	= \
 		etip.h
 
-all:		$(AUTO_SRC) ../lib/$(LIBNAME) demo$x
+all \
+libs ::		$(AUTO_SRC) ../lib/$(LIBNAME)
+
+all ::		demo$x
 
 sources :	$(AUTO_SRC)
 

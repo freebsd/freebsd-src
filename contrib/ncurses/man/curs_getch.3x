@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,12 +27,15 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getch.3x,v 1.15 1998/11/29 01:04:26 Rick.Ohnemus Exp $
+.\" $Id: curs_getch.3x,v 1.17 2000/07/01 16:45:36 tom Exp $
 .TH curs_getch 3X ""
 .SH NAME
-\fBgetch\fR, \fBwgetch\fR, \fBmvgetch\fR,
-\fBmvwgetch\fR, \fBungetch\fR - get (or push back) characters from
-\fBcurses\fR terminal keyboard
+\fBgetch\fR,
+\fBwgetch\fR,
+\fBmvgetch\fR,
+\fBmvwgetch\fR,
+\fBungetch\fR,
+\fBhas_key\fR \- get (or push back) characters from \fBcurses\fR terminal keyboard
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 
@@ -57,7 +60,7 @@ this is after one character (cbreak mode), or after the first newline (nocbreak
 mode).  In half-delay mode, the program waits until a character is typed or the
 specified timeout has been reached.
 
-If \fBnoecho\fR has been set, then the character will also be echoed into the
+Unless \fBnoecho\fR has been set, then the character will also be echoed into the
 designated window according to the following rules:
 If the character is the current erase character, left arrow, or backspace,
 the cursor is moved one space to the left and that screen position is erased

@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-// $Id: cursesm.h,v 1.12 1999/05/16 17:30:27 juergen Exp $
+// $Id: cursesm.h,v 1.13 1999/10/30 23:59:37 tom Exp $
 
 #ifndef _CURSESM_H
 #define _CURSESM_H
@@ -137,10 +137,10 @@ typedef bool ITEMCALLBACK(NCursesMenuItem&);
 // function pointer for items.
 class NCursesMenuCallbackItem : public NCursesMenuItem {
 private:
-  const ITEMCALLBACK* p_fct;
+  ITEMCALLBACK* p_fct;
 
 public:
-  NCursesMenuCallbackItem(const ITEMCALLBACK* fct = NULL,
+  NCursesMenuCallbackItem(ITEMCALLBACK* fct       = NULL,
 			  const char* p_name      = NULL,
 			  const char* p_descript  = NULL )
     : NCursesMenuItem (p_name, p_descript),
@@ -179,7 +179,7 @@ private:
   // Get the backward pointer to the C++ object from a MENU
   static inline NCursesMenu* getHook(const MENU *m) {
     UserHook* hook = (UserHook*)::menu_userptr(m);
-    assert(hook && hook->m_owner==m);
+    assert(hook != 0 && hook->m_owner==m);
     return (NCursesMenu*)(hook->m_back);
   }
 
@@ -198,13 +198,13 @@ protected:
   // internal routines 
   inline void set_user(void *user) {
     UserHook* uptr = (UserHook*)::menu_userptr (menu);
-    assert (uptr && uptr->m_back==this && uptr->m_owner==menu);
+    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==menu);
     uptr->m_user = user;
   }
 
   inline void *get_user() {
     UserHook* uptr = (UserHook*)::menu_userptr (menu);
-    assert (uptr && uptr->m_back==this && uptr->m_owner==menu);
+    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==menu);
     return uptr->m_user;
   }  
   

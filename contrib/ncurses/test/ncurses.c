@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@ DESCRIPTION
 AUTHOR
    Author: Eric S. Raymond <esr@snark.thyrsus.com> 1993
 
-$Id: ncurses.c,v 1.120 1999/10/23 20:01:30 tom Exp $
+$Id: ncurses.c,v 1.129 2000/06/17 20:02:22 tom Exp $
 
 ***************************************************************************/
 
@@ -88,7 +88,7 @@ $Id: ncurses.c,v 1.120 1999/10/23 20:01:30 tom Exp $
 #ifdef NCURSES_VERSION
 
 #ifdef TRACE
-static int save_trace = TRACE_ORDINARY|TRACE_CALLS;
+static int save_trace = TRACE_ORDINARY | TRACE_CALLS;
 extern int _nc_tracing;
 #endif
 
@@ -100,13 +100,13 @@ extern int _nc_tracing;
 
 #define mmask_t chtype		/* not specified in XSI */
 #define attr_t chtype		/* not specified in XSI */
-#define ACS_S3          (acs_map['p'])  /* scan line 3 */
-#define ACS_S7          (acs_map['r'])  /* scan line 7 */
-#define ACS_LEQUAL      (acs_map['y'])  /* less/equal */
-#define ACS_GEQUAL      (acs_map['z'])  /* greater/equal */
-#define ACS_PI          (acs_map['{'])  /* Pi */
-#define ACS_NEQUAL      (acs_map['|'])  /* not equal */
-#define ACS_STERLING    (acs_map['}'])  /* UK pound sign */
+#define ACS_S3          (acs_map['p'])	/* scan line 3 */
+#define ACS_S7          (acs_map['r'])	/* scan line 7 */
+#define ACS_LEQUAL      (acs_map['y'])	/* less/equal */
+#define ACS_GEQUAL      (acs_map['z'])	/* greater/equal */
+#define ACS_PI          (acs_map['{'])	/* Pi */
+#define ACS_NEQUAL      (acs_map['|'])	/* not equal */
+#define ACS_STERLING    (acs_map['}'])	/* UK pound sign */
 
 #endif
 
@@ -117,118 +117,125 @@ extern int _nc_tracing;
 
 #define QUIT		CTRL('Q')
 #define ESCAPE		CTRL('[')
-#define BLANK		' '		/* this is the background character */
+#define BLANK		' '	/* this is the background character */
 
 /* The behavior of mvhline, mvvline for negative/zero length is unspecified,
  * though we can rely on negative x/y values to stop the macro.
  */
-static void do_h_line(int y, int x, chtype c, int to)
+static void
+do_h_line(int y, int x, chtype c, int to)
 {
-	if ((to) > (x))
-		mvhline(y, x, c, (to) - (x));
+    if ((to) > (x))
+	mvhline(y, x, c, (to) - (x));
 }
 
-static void do_v_line(int y, int x, chtype c, int to)
+static void
+do_v_line(int y, int x, chtype c, int to)
 {
-	if ((to) > (y))
-		mvvline(y, x, c, (to) - (y));
+    if ((to) > (y))
+	mvvline(y, x, c, (to) - (y));
 }
 
 /* Common function to allow ^T to toggle trace-mode in the middle of a test
  * so that trace-files can be made smaller.
  */
-static int wGetchar(WINDOW *win)
+static int
+wGetchar(WINDOW *win)
 {
-	int c;
+    int c;
 #ifdef TRACE
-	while ((c = wgetch(win)) == CTRL('T')) {
-		if (_nc_tracing) {
-			save_trace = _nc_tracing;
-			_tracef("TOGGLE-TRACING OFF");
-			_nc_tracing = 0;
-		} else {
-			_nc_tracing = save_trace;
-		}
-		trace(_nc_tracing);
-		if (_nc_tracing)
-			_tracef("TOGGLE-TRACING ON");
+    while ((c = wgetch(win)) == CTRL('T')) {
+	if (_nc_tracing) {
+	    save_trace = _nc_tracing;
+	    _tracef("TOGGLE-TRACING OFF");
+	    _nc_tracing = 0;
+	} else {
+	    _nc_tracing = save_trace;
 	}
+	trace(_nc_tracing);
+	if (_nc_tracing)
+	    _tracef("TOGGLE-TRACING ON");
+    }
 #else
-	c = wgetch(win);
+    c = wgetch(win);
 #endif
-	return c;
+    return c;
 }
 #define Getchar() wGetchar(stdscr)
 
-static void Pause(void)
+static void
+Pause(void)
 {
-	move(LINES - 1, 0);
-	addstr("Press any key to continue... ");
-	(void) Getchar();
+    move(LINES - 1, 0);
+    addstr("Press any key to continue... ");
+    (void) Getchar();
 }
 
-static void Cannot(const char *what)
+static void
+Cannot(const char *what)
 {
-	printw("\nThis %s terminal %s\n\n", getenv("TERM"), what);
-	Pause();
+    printw("\nThis %s terminal %s\n\n", getenv("TERM"), what);
+    Pause();
 }
 
-static void ShellOut(bool message)
+static void
+ShellOut(bool message)
 {
-	if (message)
-		addstr("Shelling out...");
-	def_prog_mode();
-	endwin();
-	system("sh");
-	if (message)
-		addstr("returned from shellout.\n");
-	refresh();
+    if (message)
+	addstr("Shelling out...");
+    def_prog_mode();
+    endwin();
+    system("sh");
+    if (message)
+	addstr("returned from shellout.\n");
+    refresh();
 }
 
 #ifdef NCURSES_MOUSE_VERSION
-static const char *mouse_decode(MEVENT const *ep)
+static const char *
+mouse_decode(MEVENT const *ep)
 {
-	static char buf[80];
+    static char buf[80];
 
-	(void) sprintf(buf, "id %2d  at (%2d, %2d, %2d) state %4lx = {",
-		       ep->id, ep->x, ep->y, ep->z, ep->bstate);
+    (void) sprintf(buf, "id %2d  at (%2d, %2d, %2d) state %4lx = {",
+	ep->id, ep->x, ep->y, ep->z, ep->bstate);
 
 #define SHOW(m, s) if ((ep->bstate & m)==m) {strcat(buf,s); strcat(buf, ", ");}
-	SHOW(BUTTON1_RELEASED,		"release-1")
-	SHOW(BUTTON1_PRESSED,		"press-1")
-	SHOW(BUTTON1_CLICKED,		"click-1")
-	SHOW(BUTTON1_DOUBLE_CLICKED,	"doubleclick-1")
-	SHOW(BUTTON1_TRIPLE_CLICKED,	"tripleclick-1")
-	SHOW(BUTTON1_RESERVED_EVENT,	"reserved-1")
-	SHOW(BUTTON2_RELEASED,		"release-2")
-	SHOW(BUTTON2_PRESSED,		"press-2")
-	SHOW(BUTTON2_CLICKED,		"click-2")
-	SHOW(BUTTON2_DOUBLE_CLICKED,	"doubleclick-2")
-	SHOW(BUTTON2_TRIPLE_CLICKED,	"tripleclick-2")
-	SHOW(BUTTON2_RESERVED_EVENT,	"reserved-2")
-	SHOW(BUTTON3_RELEASED,		"release-3")
-	SHOW(BUTTON3_PRESSED,		"press-3")
-	SHOW(BUTTON3_CLICKED,		"click-3")
-	SHOW(BUTTON3_DOUBLE_CLICKED,	"doubleclick-3")
-	SHOW(BUTTON3_TRIPLE_CLICKED,	"tripleclick-3")
-	SHOW(BUTTON3_RESERVED_EVENT,	"reserved-3")
-	SHOW(BUTTON4_RELEASED,		"release-4")
-	SHOW(BUTTON4_PRESSED,		"press-4")
-	SHOW(BUTTON4_CLICKED,		"click-4")
-	SHOW(BUTTON4_DOUBLE_CLICKED,	"doubleclick-4")
-	SHOW(BUTTON4_TRIPLE_CLICKED,	"tripleclick-4")
-	SHOW(BUTTON4_RESERVED_EVENT,	"reserved-4")
-	SHOW(BUTTON_CTRL,		"ctrl")
-	SHOW(BUTTON_SHIFT,		"shift")
-	SHOW(BUTTON_ALT,		"alt")
-	SHOW(ALL_MOUSE_EVENTS,		"all-events")
-	SHOW(REPORT_MOUSE_POSITION,	"position")
+    SHOW(BUTTON1_RELEASED, "release-1");
+    SHOW(BUTTON1_PRESSED, "press-1");
+    SHOW(BUTTON1_CLICKED, "click-1");
+    SHOW(BUTTON1_DOUBLE_CLICKED, "doubleclick-1");
+    SHOW(BUTTON1_TRIPLE_CLICKED, "tripleclick-1");
+    SHOW(BUTTON1_RESERVED_EVENT, "reserved-1");
+    SHOW(BUTTON2_RELEASED, "release-2");
+    SHOW(BUTTON2_PRESSED, "press-2");
+    SHOW(BUTTON2_CLICKED, "click-2");
+    SHOW(BUTTON2_DOUBLE_CLICKED, "doubleclick-2");
+    SHOW(BUTTON2_TRIPLE_CLICKED, "tripleclick-2");
+    SHOW(BUTTON2_RESERVED_EVENT, "reserved-2");
+    SHOW(BUTTON3_RELEASED, "release-3");
+    SHOW(BUTTON3_PRESSED, "press-3");
+    SHOW(BUTTON3_CLICKED, "click-3");
+    SHOW(BUTTON3_DOUBLE_CLICKED, "doubleclick-3");
+    SHOW(BUTTON3_TRIPLE_CLICKED, "tripleclick-3");
+    SHOW(BUTTON3_RESERVED_EVENT, "reserved-3");
+    SHOW(BUTTON4_RELEASED, "release-4");
+    SHOW(BUTTON4_PRESSED, "press-4");
+    SHOW(BUTTON4_CLICKED, "click-4");
+    SHOW(BUTTON4_DOUBLE_CLICKED, "doubleclick-4");
+    SHOW(BUTTON4_TRIPLE_CLICKED, "tripleclick-4");
+    SHOW(BUTTON4_RESERVED_EVENT, "reserved-4");
+    SHOW(BUTTON_CTRL, "ctrl");
+    SHOW(BUTTON_SHIFT, "shift");
+    SHOW(BUTTON_ALT, "alt");
+    SHOW(ALL_MOUSE_EVENTS, "all-events");
+    SHOW(REPORT_MOUSE_POSITION, "position");
 #undef SHOW
 
-	if (buf[strlen(buf)-1] == ' ')
-		buf[strlen(buf)-2] = '\0';
-	(void) strcat(buf, "}");
-	return(buf);
+    if (buf[strlen(buf) - 1] == ' ')
+	buf[strlen(buf) - 2] = '\0';
+    (void) strcat(buf, "}");
+    return (buf);
 }
 #endif /* NCURSES_MOUSE_VERSION */
 
@@ -238,19 +245,20 @@ static const char *mouse_decode(MEVENT const *ep)
  *
  ****************************************************************************/
 
-static void getch_test(void)
+static void
+getch_test(void)
 /* test the keypad feature */
 {
-char buf[BUFSIZ];
-int c;
-int incount = 0, firsttime = 0;
-bool blocking = TRUE;
-int y, x;
+    char buf[BUFSIZ];
+    int c;
+    int incount = 0, firsttime = 0;
+    bool blocking = TRUE;
+    int y, x;
 
     refresh();
 
 #ifdef NCURSES_MOUSE_VERSION
-    mousemask(ALL_MOUSE_EVENTS, (mmask_t *)0);
+    mousemask(ALL_MOUSE_EVENTS, (mmask_t *) 0);
 #endif
 
     (void) printw("Delay in 10ths of a second (<CR> for blocking input)? ");
@@ -259,70 +267,59 @@ int y, x;
     noecho();
     nonl();
 
-    if (isdigit(buf[0]))
-    {
+    if (isdigit(buf[0])) {
 	timeout(atoi(buf) * 100);
 	blocking = FALSE;
     }
 
     c = '?';
     raw();
-    for (;;)
-    {
-	if (firsttime++)
-	{
+    for (;;) {
+	if (firsttime++) {
 	    printw("Key pressed: %04o ", c);
 #ifdef NCURSES_MOUSE_VERSION
-	    if (c == KEY_MOUSE)
-	    {
-		MEVENT	event;
+	    if (c == KEY_MOUSE) {
+		MEVENT event;
 
 		getmouse(&event);
 		printw("KEY_MOUSE, %s\n", mouse_decode(&event));
-	    }
-	    else
-#endif	/* NCURSES_MOUSE_VERSION */
-	     if (c >= KEY_MIN)
-	    {
+	    } else
+#endif /* NCURSES_MOUSE_VERSION */
+	    if (c >= KEY_MIN) {
 		(void) addstr(keyname(c));
 		addch('\n');
-	    }
-	    else if (c > 0x80)
-	    {
+	    } else if (c > 0x80) {
 		int c2 = (c & 0x7f);
 		if (isprint(c2))
 		    (void) printw("M-%c", c2);
 		else
 		    (void) printw("M-%s", unctrl(c2));
 		addstr(" (high-half character)\n");
-	    }
-	    else
-	    {
+	    } else {
 		if (isprint(c))
 		    (void) printw("%c (ASCII printable character)\n", c);
 		else
 		    (void) printw("%s (ASCII control character)\n", unctrl(c));
 	    }
 	    getyx(stdscr, y, x);
-	    if (y >= LINES-1)
-		move(0,0);
+	    if (y >= LINES - 1)
+		move(0, 0);
 	    clrtoeol();
 	}
 
-	if (c == 'g')
-	{
+	if (c == 'g') {
 	    addstr("getstr test: ");
-	    echo(); getstr(buf); noecho();
+	    echo();
+	    getstr(buf);
+	    noecho();
 	    printw("I saw `%s'.\n", buf);
 	}
-	if (c == 's')
-	{
+	if (c == 's') {
 	    ShellOut(TRUE);
 	}
 	if (c == 'x' || c == 'q' || (c == ERR && blocking))
 	    break;
-	if (c == '?')
-	{
+	if (c == '?') {
 	    addstr("Type any key to see its keypad value.  Also:\n");
 	    addstr("g -- triggers a getstr test\n");
 	    addstr("s -- shell out\n");
@@ -335,12 +332,12 @@ int y, x;
 		(void) printw("%05d: input timed out\n", incount++);
 	    else {
 		(void) printw("%05d: input error\n", incount++);
-	    	break;
+		break;
 	    }
     }
 
 #ifdef NCURSES_MOUSE_VERSION
-    mousemask(0, (mmask_t *)0);
+    mousemask(0, (mmask_t *) 0);
 #endif
     timeout(-1);
     erase();
@@ -349,27 +346,31 @@ int y, x;
     endwin();
 }
 
-static int show_attr(int row, int skip, chtype attr, const char *name, bool once)
+static int
+show_attr(int row, int skip, chtype attr, const char *name, bool once)
 {
     int ncv = tigetnum("ncv");
 
     mvprintw(row, 8, "%s mode:", name);
     mvprintw(row, 24, "|");
-    if (skip) printw("%*s", skip, " ");
+    if (skip)
+	printw("%*s", skip, " ");
     if (once)
 	attron(attr);
     else
-    	attrset(attr);
+	attrset(attr);
     addstr("abcde fghij klmno pqrst uvwxy z");
     if (once)
 	attroff(attr);
-    if (skip) printw("%*s", skip, " ");
+    if (skip)
+	printw("%*s", skip, " ");
     printw("|");
     if (attr != A_NORMAL) {
 	if (!(termattrs() & attr)) {
 	    printw(" (N/A)");
 	} else if (ncv > 0 && (getbkgd(stdscr) & A_COLOR)) {
-	    static const attr_t table[] = {
+	    static const attr_t table[] =
+	    {
 		A_STANDOUT,
 		A_UNDERLINE,
 		A_REVERSE,
@@ -382,9 +383,9 @@ static int show_attr(int row, int skip, chtype attr, const char *name, bool once
 	    };
 	    unsigned n;
 	    bool found = FALSE;
-	    for (n = 0; n < sizeof(table)/sizeof(table[0]); n++) {
+	    for (n = 0; n < sizeof(table) / sizeof(table[0]); n++) {
 		if ((table[n] & attr) != 0
-		 && ((1 << n) & ncv) != 0) {
+		    && ((1 << n) & ncv) != 0) {
 		    found = TRUE;
 		    break;
 		}
@@ -396,7 +397,8 @@ static int show_attr(int row, int skip, chtype attr, const char *name, bool once
     return row + 2;
 }
 
-static bool attr_getc(int *skip, int *fg, int *bg)
+static bool
+attr_getc(int *skip, int *fg, int *bg)
 {
     int ch = Getchar();
 
@@ -409,36 +411,49 @@ static bool attr_getc(int *skip, int *fg, int *bg)
 	return TRUE;
     } else if (has_colors()) {
 	switch (ch) {
-	case 'f': *fg = (*fg + 1); break;
-	case 'F': *fg = (*fg - 1); break;
-	case 'b': *bg = (*bg + 1); break;
-	case 'B': *bg = (*bg - 1); break;
+	case 'f':
+	    *fg = (*fg + 1);
+	    break;
+	case 'F':
+	    *fg = (*fg - 1);
+	    break;
+	case 'b':
+	    *bg = (*bg + 1);
+	    break;
+	case 'B':
+	    *bg = (*bg - 1);
+	    break;
 	default:
 	    return FALSE;
 	}
-	if (*fg >= COLORS) *fg = 0;
-	if (*fg <  0)      *fg = COLORS - 1;
-	if (*bg >= COLORS) *bg = 0;
-	if (*bg <  0)      *bg = COLORS - 1;
+	if (*fg >= COLORS)
+	    *fg = 0;
+	if (*fg < 0)
+	    *fg = COLORS - 1;
+	if (*bg >= COLORS)
+	    *bg = 0;
+	if (*bg < 0)
+	    *bg = COLORS - 1;
 	return TRUE;
     }
     return FALSE;
 }
 
-static void attr_test(void)
+static void
+attr_test(void)
 /* test text attributes */
 {
     int n;
     int skip = tigetnum("xmc");
     int fg = COLOR_BLACK;	/* color pair 0 is special */
     int bg = COLOR_BLACK;
-    bool *pairs = (bool *)calloc(COLOR_PAIRS, sizeof(bool));
+    bool *pairs = (bool *) calloc(COLOR_PAIRS, sizeof(bool));
     pairs[0] = TRUE;
 
     if (skip < 0)
-    	skip = 0;
+	skip = 0;
 
-    n = skip;	/* make it easy */
+    n = skip;			/* make it easy */
 
     do {
 	int row = 2;
@@ -447,7 +462,7 @@ static void attr_test(void)
 	if (has_colors()) {
 	    int pair = (fg * COLORS) + bg;
 	    if (!pairs[pair]) {
-	        init_pair(pair, fg, bg);
+		init_pair(pair, fg, bg);
 		pairs[pair] = TRUE;
 	    }
 	    normal |= COLOR_PAIR(pair);
@@ -457,30 +472,30 @@ static void attr_test(void)
 
 	mvaddstr(0, 20, "Character attribute test display");
 
-	row = show_attr(row, n, A_STANDOUT,  "STANDOUT",  TRUE);
-	row = show_attr(row, n, A_REVERSE,   "REVERSE",   TRUE);
-	row = show_attr(row, n, A_BOLD,      "BOLD",      TRUE);
+	row = show_attr(row, n, A_STANDOUT, "STANDOUT", TRUE);
+	row = show_attr(row, n, A_REVERSE, "REVERSE", TRUE);
+	row = show_attr(row, n, A_BOLD, "BOLD", TRUE);
 	row = show_attr(row, n, A_UNDERLINE, "UNDERLINE", TRUE);
-	row = show_attr(row, n, A_DIM,       "DIM",       TRUE);
-	row = show_attr(row, n, A_BLINK,     "BLINK",     TRUE);
-	row = show_attr(row, n, A_PROTECT,   "PROTECT",   TRUE);
-	row = show_attr(row, n, A_INVIS,     "INVISIBLE", TRUE);
-	row = show_attr(row, n, A_NORMAL,    "NORMAL",    FALSE);
+	row = show_attr(row, n, A_DIM, "DIM", TRUE);
+	row = show_attr(row, n, A_BLINK, "BLINK", TRUE);
+	row = show_attr(row, n, A_PROTECT, "PROTECT", TRUE);
+	row = show_attr(row, n, A_INVIS, "INVISIBLE", TRUE);
+	row = show_attr(row, n, A_NORMAL, "NORMAL", FALSE);
 
 	mvprintw(row, 8,
-	     "This terminal does %shave the magic-cookie glitch",
-	     tigetnum("xmc") > -1 ? "" : "not ");
-	mvprintw(row+1, 8,
-	     "Enter a digit to set gaps on each side of displayed attributes");
-	mvprintw(row+2, 8,
-	     "^L = repaint");
+	    "This terminal does %shave the magic-cookie glitch",
+	    tigetnum("xmc") > -1 ? "" : "not ");
+	mvprintw(row + 1, 8,
+	    "Enter a digit to set gaps on each side of displayed attributes");
+	mvprintw(row + 2, 8,
+	    "^L = repaint");
 	if (has_colors())
 	    printw(".  f/F/b/F toggle colors (now %d/%d)", fg, bg);
 
-        refresh();
+	refresh();
     } while (attr_getc(&n, &fg, &bg));
 
-    free((char *)pairs);
+    free((char *) pairs);
     bkgdset(A_NORMAL | BLANK);
     erase();
     endwin();
@@ -501,10 +516,19 @@ static NCURSES_CONST char *color_names[] =
     "blue",
     "magenta",
     "cyan",
-    "white"
+    "white",
+    "BLACK",
+    "RED",
+    "GREEN",
+    "YELLOW",
+    "BLUE",
+    "MAGENTA",
+    "CYAN",
+    "WHITE"
 };
 
-static void show_color_name(int y, int x, int color)
+static void
+show_color_name(int y, int x, int color)
 {
     if (COLORS > 8)
 	mvprintw(y, x, "%02d   ", color);
@@ -512,7 +536,8 @@ static void show_color_name(int y, int x, int color)
 	mvaddstr(y, x, color_names[color]);
 }
 
-static void color_test(void)
+static void
+color_test(void)
 /* generate a color test pattern */
 {
     int i;
@@ -525,24 +550,22 @@ static void color_test(void)
     width = (COLORS > 8) ? 4 : 8;
     hello = (COLORS > 8) ? "Test" : "Hello";
 
-    for (base = 0; base < 2; base++)
-    {
-	top = (COLORS > 8) ? 0 : base * (COLORS+3);
+    for (base = 0; base < 2; base++) {
+	top = (COLORS > 8) ? 0 : base * (COLORS + 3);
 	clrtobot();
 	(void) mvprintw(top + 1, 0,
-		"%dx%d matrix of foreground/background colors, bright *%s*\n",
-		COLORS, COLORS,
-		base ? "on" : "off");
+	    "%dx%d matrix of foreground/background colors, bright *%s*\n",
+	    COLORS, COLORS,
+	    base ? "on" : "off");
 	for (i = 0; i < COLORS; i++)
-	    show_color_name(top + 2, (i+1) * width, i);
+	    show_color_name(top + 2, (i + 1) * width, i);
 	for (i = 0; i < COLORS; i++)
 	    show_color_name(top + 3 + i, 0, i);
-	for (i = 1; i < COLOR_PAIRS; i++)
-	{
+	for (i = 1; i < COLOR_PAIRS; i++) {
 	    init_pair(i, i % COLORS, i / COLORS);
-	    attron((attr_t)COLOR_PAIR(i));
+	    attron((attr_t) COLOR_PAIR(i));
 	    if (base)
-		attron((attr_t)A_BOLD);
+		attron((attr_t) A_BOLD);
 	    mvaddstr(top + 3 + (i / COLORS), (i % COLORS + 1) * width, hello);
 	    attrset(A_NORMAL);
 	}
@@ -554,57 +577,59 @@ static void color_test(void)
     endwin();
 }
 
-static void change_color(int current, int field, int value, int usebase)
+static void
+change_color(int current, int field, int value, int usebase)
 {
-	short	red, green, blue;
+    short red, green, blue;
 
-	if (usebase)
-		color_content(current, &red, &green, &blue);
-	else
-		red = green = blue = 0;
+    if (usebase)
+	color_content(current, &red, &green, &blue);
+    else
+	red = green = blue = 0;
 
-	switch (field) {
-	case 0:
-		red += value;
-		break;
-	case 1:
-		green += value;
-		break;
-	case 2:
-		blue += value;
-		break;
-	}
+    switch (field) {
+    case 0:
+	red += value;
+	break;
+    case 1:
+	green += value;
+	break;
+    case 2:
+	blue += value;
+	break;
+    }
 
-	if (init_color(current, red, green, blue) == ERR)
-		beep();
+    if (init_color(current, red, green, blue) == ERR)
+	beep();
 }
 
-static void color_edit(void)
+static void
+color_edit(void)
 /* display the color test pattern, without trying to edit colors */
 {
-    int	i, this_c = 0, value = 0, current = 0, field = 0;
+    int i, this_c = 0, value = 0, current = 0, field = 0;
     int last_c;
+    int max_colors = COLORS > 16 ? 16 : COLORS;
 
     refresh();
 
-    for (i = 0; i < COLORS; i++)
+    for (i = 0; i < max_colors; i++)
 	init_pair(i, COLOR_WHITE, i);
 
-    mvprintw(LINES-2, 0, "Number: %d", value);
+    mvprintw(LINES - 2, 0, "Number: %d", value);
 
     do {
-	short	red, green, blue;
+	short red, green, blue;
 
 	attron(A_BOLD);
 	mvaddstr(0, 20, "Color RGB Value Editing");
 	attroff(A_BOLD);
 
-	for (i = 0; i < COLORS; i++)
-        {
+	for (i = 0; i < max_colors; i++) {
 	    mvprintw(2 + i, 0, "%c %-8s:",
-		     (i == current ? '>' : ' '),
-		     (i < (int) SIZEOF(color_names)
-			? color_names[i] : ""));
+		(i == current ? '>' : ' '),
+		(i < (int) SIZEOF(color_names)
+		    ? color_names[i] : ""));
 	    attrset(COLOR_PAIR(i));
 	    addstr("        ");
 	    attrset(A_NORMAL);
@@ -619,24 +644,30 @@ static void color_edit(void)
 
 	    color_content(i, &red, &green, &blue);
 	    addstr("   R = ");
-	    if (current == i && field == 0) attron(A_STANDOUT);
+	    if (current == i && field == 0)
+		attron(A_STANDOUT);
 	    printw("%04d", red);
-	    if (current == i && field == 0) attrset(A_NORMAL);
+	    if (current == i && field == 0)
+		attrset(A_NORMAL);
 	    addstr(", G = ");
-	    if (current == i && field == 1) attron(A_STANDOUT);
+	    if (current == i && field == 1)
+		attron(A_STANDOUT);
 	    printw("%04d", green);
-	    if (current == i && field == 1) attrset(A_NORMAL);
+	    if (current == i && field == 1)
+		attrset(A_NORMAL);
 	    addstr(", B = ");
-	    if (current == i && field == 2) attron(A_STANDOUT);
+	    if (current == i && field == 2)
+		attron(A_STANDOUT);
 	    printw("%04d", blue);
-	    if (current == i && field == 2) attrset(A_NORMAL);
+	    if (current == i && field == 2)
+		attrset(A_NORMAL);
 	    attrset(A_NORMAL);
 	    addstr(")");
 	}
 
-	mvaddstr(COLORS + 3, 0,
+	mvaddstr(max_colors + 3, 0,
 	    "Use up/down to select a color, left/right to change fields.");
-	mvaddstr(COLORS + 4, 0,
+	mvaddstr(max_colors + 4, 0,
 	    "Modify field by typing nnn=, nnn-, or nnn+.  ? for help.");
 
 	move(2 + current, 0);
@@ -644,16 +675,15 @@ static void color_edit(void)
 	last_c = this_c;
 	this_c = Getchar();
 	if (isdigit(this_c) && !isdigit(last_c))
-		value = 0;
+	    value = 0;
 
-	switch (this_c)
-	{
+	switch (this_c) {
 	case KEY_UP:
-	    current = (current == 0 ? (COLORS - 1) : current - 1);
+	    current = (current == 0 ? (max_colors - 1) : current - 1);
 	    break;
 
 	case KEY_DOWN:
-	    current = (current == (COLORS - 1) ? 0 : current + 1);
+	    current = (current == (max_colors - 1) ? 0 : current + 1);
 	    break;
 
 	case KEY_RIGHT:
@@ -664,8 +694,16 @@ static void color_edit(void)
 	    field = (field == 0 ? 2 : field - 1);
 	    break;
 
-	case '0': case '1': case '2': case '3': case '4':
-	case '5': case '6': case '7': case '8': case '9':
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
 	    value = value * 10 + (this_c - '0');
 	    break;
 
@@ -683,18 +721,18 @@ static void color_edit(void)
 
 	case '?':
 	    erase();
-    P("                      RGB Value Editing Help");
-    P("");
-    P("You are in the RGB value editor.  Use the arrow keys to select one of");
-    P("the fields in one of the RGB triples of the current colors; the one");
-    P("currently selected will be reverse-video highlighted.");
-    P("");
-    P("To change a field, enter the digits of the new value; they are echoed");
-    P("as entered.  Finish by typing `='.  The change will take effect instantly.");
-    P("To increment or decrement a value, use the same procedure, but finish");
-    P("with a `+' or `-'.");
-    P("");
-    P("To quit, do `x' or 'q'");
+	    P("                      RGB Value Editing Help");
+	    P("");
+	    P("You are in the RGB value editor.  Use the arrow keys to select one of");
+	    P("the fields in one of the RGB triples of the current colors; the one");
+	    P("currently selected will be reverse-video highlighted.");
+	    P("");
+	    P("To change a field, enter the digits of the new value; they are echoed");
+	    P("as entered.  Finish by typing `='.  The change will take effect instantly.");
+	    P("To increment or decrement a value, use the same procedure, but finish");
+	    P("with a `+' or `-'.");
+	    P("");
+	    P("To quit, do `x' or 'q'");
 
 	    Pause();
 	    erase();
@@ -708,7 +746,7 @@ static void color_edit(void)
 	    beep();
 	    break;
 	}
-	mvprintw(LINES-2, 0, "Number: %d", value);
+	mvprintw(LINES - 2, 0, "Number: %d", value);
 	clrtoeol();
     } while
 	(this_c != 'x' && this_c != 'q');
@@ -723,17 +761,17 @@ static void color_edit(void)
  *
  ****************************************************************************/
 
-static void slk_test(void)
+static void
+slk_test(void)
 /* exercise the soft keys */
 {
-    int	c, fmt = 1;
+    int c, fmt = 1;
     char buf[9];
 
     c = CTRL('l');
     do {
 	move(0, 0);
-	switch(c)
-	{
+	switch (c) {
 	case CTRL('l'):
 	    erase();
 	    attron(A_BOLD);
@@ -772,7 +810,7 @@ static void slk_test(void)
 	case 's':
 	    mvprintw(20, 0, "Press Q to stop the scrolling-test: ");
 	    while ((c = Getchar()) != 'Q' && (c != ERR))
-		addch((chtype)c);
+		addch((chtype) c);
 	    break;
 
 	case 'd':
@@ -791,15 +829,22 @@ static void slk_test(void)
 	    fmt = 2;
 	    break;
 
-	case '1': case '2': case '3': case '4':
-	case '5': case '6': case '7': case '8':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
 	    (void) mvaddstr(20, 0, "Please enter the label value: ");
 	    echo();
 	    wgetnstr(stdscr, buf, 8);
 	    noecho();
 	    slk_set((c - '0'), buf, fmt);
 	    slk_refresh();
-	    move(20, 0); clrtoeol();
+	    move(20, 0);
+	    clrtoeol();
 	    break;
 
 	case 'x':
@@ -812,7 +857,7 @@ static void slk_test(void)
     } while
 	((c = Getchar()) != EOF);
 
- done:
+  done:
     erase();
     endwin();
 }
@@ -826,121 +871,127 @@ static void slk_test(void)
 /* ISO 6429:  codes 0x80 to 0x9f may be control characters that cause the
  * terminal to perform functions.  The remaining codes can be graphic.
  */
-static void show_upper_chars(int first)
+static void
+show_upper_chars(int first)
 {
-	bool C1 = (first == 128);
-	int code;
-	int last = first + 31;
-	int reply;
+    bool C1 = (first == 128);
+    int code;
+    int last = first + 31;
+    int reply;
 
-	erase();
-	attron(A_BOLD);
-	mvprintw(0, 20, "Display of %s Character Codes %d to %d",
-		C1 ? "C1" : "GR", first, last);
-	attroff(A_BOLD);
-	refresh();
+    erase();
+    attron(A_BOLD);
+    mvprintw(0, 20, "Display of %s Character Codes %d to %d",
+	C1 ? "C1" : "GR", first, last);
+    attroff(A_BOLD);
+    refresh();
 
-	for (code = first; code <= last; code++) {
-		int row = 4 + ((code - first) % 16);
-		int col = ((code - first) / 16) * COLS / 2;
-		char tmp[80];
-		sprintf(tmp, "%3d (0x%x)", code, code);
-		mvprintw(row, col, "%*s: ", COLS/4, tmp);
-		if (C1)
-			nodelay(stdscr, TRUE);
-		echochar(code);
-		if (C1) {
-			/* (yes, this _is_ crude) */
-			while ((reply = Getchar()) != ERR) {
-				addch(reply);
-				napms(10);
-			}
-			nodelay(stdscr, FALSE);
-		}
+    for (code = first; code <= last; code++) {
+	int row = 4 + ((code - first) % 16);
+	int col = ((code - first) / 16) * COLS / 2;
+	char tmp[80];
+	sprintf(tmp, "%3d (0x%x)", code, code);
+	mvprintw(row, col, "%*s: ", COLS / 4, tmp);
+	if (C1)
+	    nodelay(stdscr, TRUE);
+	echochar(code);
+	if (C1) {
+	    /* (yes, this _is_ crude) */
+	    while ((reply = Getchar()) != ERR) {
+		addch(reply);
+		napms(10);
+	    }
+	    nodelay(stdscr, FALSE);
 	}
+    }
 }
 
-static int show_1_acs(int n, const char *name, chtype code)
+static int
+show_1_acs(int n, const char *name, chtype code)
 {
-	const int height = 16;
-	int row = 4 + (n % height);
-	int col = (n / height) * COLS / 2;
-	mvprintw(row, col, "%*s : ", COLS/4, name);
-	addch(code);
-	return n + 1;
+    const int height = 16;
+    int row = 4 + (n % height);
+    int col = (n / height) * COLS / 2;
+    mvprintw(row, col, "%*s : ", COLS / 4, name);
+    addch(code);
+    return n + 1;
 }
 
-static void show_acs_chars(void)
+static void
+show_acs_chars(void)
 /* display the ACS character set */
 {
-	int n;
+    int n;
 
 #define BOTH(name) #name, name
 
-	erase();
-	attron(A_BOLD);
-	mvaddstr(0, 20, "Display of the ACS Character Set");
-	attroff(A_BOLD);
-	refresh();
+    erase();
+    attron(A_BOLD);
+    mvaddstr(0, 20, "Display of the ACS Character Set");
+    attroff(A_BOLD);
+    refresh();
 
-	n = show_1_acs(0, BOTH(ACS_ULCORNER));
-	n = show_1_acs(n, BOTH(ACS_LLCORNER));
-	n = show_1_acs(n, BOTH(ACS_URCORNER));
-	n = show_1_acs(n, BOTH(ACS_LRCORNER));
-	n = show_1_acs(n, BOTH(ACS_RTEE));
-	n = show_1_acs(n, BOTH(ACS_LTEE));
-	n = show_1_acs(n, BOTH(ACS_BTEE));
-	n = show_1_acs(n, BOTH(ACS_TTEE));
-	n = show_1_acs(n, BOTH(ACS_HLINE));
-	n = show_1_acs(n, BOTH(ACS_VLINE));
-	n = show_1_acs(n, BOTH(ACS_PLUS));
-	n = show_1_acs(n, BOTH(ACS_S1));
-	n = show_1_acs(n, BOTH(ACS_S9));
-	n = show_1_acs(n, BOTH(ACS_DIAMOND));
-	n = show_1_acs(n, BOTH(ACS_CKBOARD));
-	n = show_1_acs(n, BOTH(ACS_DEGREE));
-	n = show_1_acs(n, BOTH(ACS_PLMINUS));
-	n = show_1_acs(n, BOTH(ACS_BULLET));
-	n = show_1_acs(n, BOTH(ACS_LARROW));
-	n = show_1_acs(n, BOTH(ACS_RARROW));
-	n = show_1_acs(n, BOTH(ACS_DARROW));
-	n = show_1_acs(n, BOTH(ACS_UARROW));
-	n = show_1_acs(n, BOTH(ACS_BOARD));
-	n = show_1_acs(n, BOTH(ACS_LANTERN));
-	n = show_1_acs(n, BOTH(ACS_BLOCK));
-	n = show_1_acs(n, BOTH(ACS_S3));
-	n = show_1_acs(n, BOTH(ACS_S7));
-	n = show_1_acs(n, BOTH(ACS_LEQUAL));
-	n = show_1_acs(n, BOTH(ACS_GEQUAL));
-	n = show_1_acs(n, BOTH(ACS_PI));
-	n = show_1_acs(n, BOTH(ACS_NEQUAL));
-	n = show_1_acs(n, BOTH(ACS_STERLING));
+    n = show_1_acs(0, BOTH(ACS_ULCORNER));
+    n = show_1_acs(n, BOTH(ACS_LLCORNER));
+    n = show_1_acs(n, BOTH(ACS_URCORNER));
+    n = show_1_acs(n, BOTH(ACS_LRCORNER));
+    n = show_1_acs(n, BOTH(ACS_RTEE));
+    n = show_1_acs(n, BOTH(ACS_LTEE));
+    n = show_1_acs(n, BOTH(ACS_BTEE));
+    n = show_1_acs(n, BOTH(ACS_TTEE));
+    n = show_1_acs(n, BOTH(ACS_HLINE));
+    n = show_1_acs(n, BOTH(ACS_VLINE));
+    n = show_1_acs(n, BOTH(ACS_PLUS));
+    n = show_1_acs(n, BOTH(ACS_S1));
+    n = show_1_acs(n, BOTH(ACS_S9));
+    n = show_1_acs(n, BOTH(ACS_DIAMOND));
+    n = show_1_acs(n, BOTH(ACS_CKBOARD));
+    n = show_1_acs(n, BOTH(ACS_DEGREE));
+    n = show_1_acs(n, BOTH(ACS_PLMINUS));
+    n = show_1_acs(n, BOTH(ACS_BULLET));
+    n = show_1_acs(n, BOTH(ACS_LARROW));
+    n = show_1_acs(n, BOTH(ACS_RARROW));
+    n = show_1_acs(n, BOTH(ACS_DARROW));
+    n = show_1_acs(n, BOTH(ACS_UARROW));
+    n = show_1_acs(n, BOTH(ACS_BOARD));
+    n = show_1_acs(n, BOTH(ACS_LANTERN));
+    n = show_1_acs(n, BOTH(ACS_BLOCK));
+    n = show_1_acs(n, BOTH(ACS_S3));
+    n = show_1_acs(n, BOTH(ACS_S7));
+    n = show_1_acs(n, BOTH(ACS_LEQUAL));
+    n = show_1_acs(n, BOTH(ACS_GEQUAL));
+    n = show_1_acs(n, BOTH(ACS_PI));
+    n = show_1_acs(n, BOTH(ACS_NEQUAL));
+    n = show_1_acs(n, BOTH(ACS_STERLING));
 }
 
-static void acs_display(void)
+static void
+acs_display(void)
 {
-	int	c = 'a';
+    int c = 'a';
 
-	do {
-		switch (c) {
-		case 'a':
-			show_acs_chars();
-			break;
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-			show_upper_chars((c - '0') * 32 + 128);
-			break;
-		}
-		mvprintw(LINES-3,0, "Note: ANSI terminals may not display C1 characters.");
-		mvprintw(LINES-2,0, "Select: a=ACS, 0=C1, 1,2,3=GR characters, q=quit");
-		refresh();
-	} while ((c = Getchar()) != 'x' && c != 'q');
+    do {
+	switch (c) {
+	case 'a':
+	    show_acs_chars();
+	    break;
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	    show_upper_chars((c - '0') * 32 + 128);
+	    break;
+	}
+	mvprintw(LINES - 3, 0,
+	    "Note: ANSI terminals may not display C1 characters.");
+	mvprintw(LINES - 2, 0,
+	    "Select: a=ACS, 0=C1, 1,2,3=GR characters, q=quit");
+	refresh();
+    } while ((c = Getchar()) != 'x' && c != 'q');
 
-	Pause();
-	erase();
-	endwin();
+    Pause();
+    erase();
+    endwin();
 }
 
 /*
@@ -961,58 +1012,59 @@ test_sgr_attributes(void)
 	}
 	bkgdset(normal);
 	erase();
-	mvprintw( 1,20, "Graphic rendition test pattern:");
+	mvprintw(1, 20, "Graphic rendition test pattern:");
 
-	mvprintw( 4, 1, "vanilla");
+	mvprintw(4, 1, "vanilla");
 
 #define set_sgr(mask) bkgdset((normal^(mask)));
 	set_sgr(A_BOLD);
-	mvprintw( 4,40, "bold");
+	mvprintw(4, 40, "bold");
 
 	set_sgr(A_UNDERLINE);
-	mvprintw( 6, 6, "underline");
+	mvprintw(6, 6, "underline");
 
-	set_sgr(A_BOLD|A_UNDERLINE);
-	mvprintw( 6,45, "bold underline");
+	set_sgr(A_BOLD | A_UNDERLINE);
+	mvprintw(6, 45, "bold underline");
 
 	set_sgr(A_BLINK);
-	mvprintw( 8, 1, "blink");
+	mvprintw(8, 1, "blink");
 
-	set_sgr(A_BLINK|A_BOLD);
-	mvprintw( 8,40, "bold blink");
+	set_sgr(A_BLINK | A_BOLD);
+	mvprintw(8, 40, "bold blink");
 
-	set_sgr(A_UNDERLINE|A_BLINK);
+	set_sgr(A_UNDERLINE | A_BLINK);
 	mvprintw(10, 6, "underline blink");
 
-	set_sgr(A_BOLD|A_UNDERLINE|A_BLINK);
-	mvprintw(10,45, "bold underline blink");
+	set_sgr(A_BOLD | A_UNDERLINE | A_BLINK);
+	mvprintw(10, 45, "bold underline blink");
 
 	set_sgr(A_REVERSE);
 	mvprintw(12, 1, "negative");
 
-	set_sgr(A_BOLD|A_REVERSE);
-	mvprintw(12,40, "bold negative");
+	set_sgr(A_BOLD | A_REVERSE);
+	mvprintw(12, 40, "bold negative");
 
-	set_sgr(A_UNDERLINE|A_REVERSE);
+	set_sgr(A_UNDERLINE | A_REVERSE);
 	mvprintw(14, 6, "underline negative");
 
-	set_sgr(A_BOLD|A_UNDERLINE|A_REVERSE);
-	mvprintw(14,45, "bold underline negative");
+	set_sgr(A_BOLD | A_UNDERLINE | A_REVERSE);
+	mvprintw(14, 45, "bold underline negative");
 
-	set_sgr(A_BLINK|A_REVERSE);
+	set_sgr(A_BLINK | A_REVERSE);
 	mvprintw(16, 1, "blink negative");
 
-	set_sgr(A_BOLD|A_BLINK|A_REVERSE);
-	mvprintw(16,40, "bold blink negative");
+	set_sgr(A_BOLD | A_BLINK | A_REVERSE);
+	mvprintw(16, 40, "bold blink negative");
 
-	set_sgr(A_UNDERLINE|A_BLINK|A_REVERSE);
+	set_sgr(A_UNDERLINE | A_BLINK | A_REVERSE);
 	mvprintw(18, 6, "underline blink negative");
 
-	set_sgr(A_BOLD|A_UNDERLINE|A_BLINK|A_REVERSE);
-	mvprintw(18,45, "bold underline blink negative");
+	set_sgr(A_BOLD | A_UNDERLINE | A_BLINK | A_REVERSE);
+	mvprintw(18, 45, "bold underline blink negative");
 
 	bkgdset(normal);
-	mvprintw(LINES-2,1, "%s background. ", pass == 0 ? "Dark" : "Light");
+	mvprintw(LINES - 2, 1, "%s background. ", pass == 0 ? "Dark" :
+	    "Light");
 	clrtoeol();
 	Pause();
     }
@@ -1030,196 +1082,240 @@ test_sgr_attributes(void)
 
 #define BOTLINES	4	/* number of line stolen from screen bottom */
 
-typedef struct
-{
+typedef struct {
     int y, x;
-}
-pair;
+} pair;
 
 #define FRAME struct frame
 FRAME
 {
-	FRAME		*next, *last;
-	bool		do_scroll;
-	bool		do_keypad;
-	WINDOW		*wind;
+    FRAME *next, *last;
+    bool do_scroll;
+    bool do_keypad;
+    WINDOW *wind;
 };
 
 /* We need to know if these flags are actually set, so don't look in FRAME.
  * These names are known to work with SVr4 curses as well as ncurses.
  */
-static bool HaveKeypad(FRAME *curp)
+static bool
+HaveKeypad(FRAME * curp)
 {
-	WINDOW *win = (curp ? curp->wind : stdscr);
-	return win->_use_keypad;
+    WINDOW *win = (curp ? curp->wind : stdscr);
+    return win->_use_keypad;
 }
 
-static bool HaveScroll(FRAME *curp)
+static bool
+HaveScroll(FRAME * curp)
 {
-	WINDOW *win = (curp ? curp->wind : stdscr);
-	return win->_scroll;
+    WINDOW *win = (curp ? curp->wind : stdscr);
+    return win->_scroll;
 }
 
-static void newwin_legend(FRAME *curp)
+static void
+newwin_legend(FRAME * curp)
 {
-	static const struct {
-		const char *msg;
-		int code;
-	} legend[] = {
-		{ "^C = create window",		0 },
-		{ "^N = next window",		0 },
-		{ "^P = previous window",	0 },
-		{ "^F = scroll forward",	0 },
-		{ "^B = scroll backward",	0 },
-		{ "^K = keypad(%s)",		1 },
-		{ "^S = scrollok(%s)",		2 },
-		{ "^W = save window to file",	0 },
-		{ "^R = restore window",	0 },
-#ifdef NCURSES_VERSION
-		{ "^X = resize",		0 },
+    static const struct {
+	const char *msg;
+	int code;
+    } legend[] = {
+	{
+	    "^C = create window", 0
+	},
+	{
+	    "^N = next window", 0
+	},
+	{
+	    "^P = previous window", 0
+	},
+	{
+	    "^F = scroll forward", 0
+	},
+	{
+	    "^B = scroll backward", 0
+	},
+	{
+	    "^K = keypad(%s)", 1
+	},
+	{
+	    "^S = scrollok(%s)", 2
+	},
+	{
+	    "^W = save window to file", 0
+	},
+	{
+	    "^R = restore window", 0
+	},
+#ifdef HAVE_WRESIZE
+	{
+	    "^X = resize", 0
+	},
 #endif
-		{ "^Q%s = exit",		3 }
-	};
-	size_t n;
-	int y, x;
-	bool do_keypad = HaveKeypad(curp);
-	bool do_scroll = HaveScroll(curp);
-	char buf[BUFSIZ];
-
-	move(LINES-4, 0);
-	for (n = 0; n < SIZEOF(legend); n++) {
-		switch (legend[n].code) {
-		default:
-			strcpy(buf, legend[n].msg);
-			break;
-		case 1:
-			sprintf(buf, legend[n].msg, do_keypad ? "yes" : "no");
-			break;
-		case 2:
-			sprintf(buf, legend[n].msg, do_scroll ? "yes" : "no");
-			break;
-		case 3:
-			sprintf(buf, legend[n].msg, do_keypad ? "/ESC" : "");
-			break;
-		}
-		getyx(stdscr, y, x);
-		addstr((COLS < (x + 3 + (int)strlen(buf))) ? "\n" : (n ? ", " : ""));
-		addstr(buf);
+	{
+	    "^Q%s = exit", 3
 	}
-	clrtoeol();
+    };
+    size_t n;
+    int y, x;
+    bool do_keypad = HaveKeypad(curp);
+    bool do_scroll = HaveScroll(curp);
+    char buf[BUFSIZ];
+
+    move(LINES - 4, 0);
+    for (n = 0; n < SIZEOF(legend); n++) {
+	switch (legend[n].code) {
+	default:
+	    strcpy(buf, legend[n].msg);
+	    break;
+	case 1:
+	    sprintf(buf, legend[n].msg, do_keypad ? "yes" : "no");
+	    break;
+	case 2:
+	    sprintf(buf, legend[n].msg, do_scroll ? "yes" : "no");
+	    break;
+	case 3:
+	    sprintf(buf, legend[n].msg, do_keypad ? "/ESC" : "");
+	    break;
+	}
+	getyx(stdscr, y, x);
+	addstr((COLS < (x + 3 + (int) strlen(buf))) ? "\n" : (n ? ", " : ""));
+	addstr(buf);
+    }
+    clrtoeol();
 }
 
-static void transient(FRAME *curp, NCURSES_CONST char *msg)
+static void
+transient(FRAME * curp, NCURSES_CONST char *msg)
 {
     newwin_legend(curp);
-    if (msg)
-    {
+    if (msg) {
 	mvaddstr(LINES - 1, 0, msg);
 	refresh();
 	napms(1000);
     }
 
-    move(LINES-1, 0);
+    move(LINES - 1, 0);
     printw("%s characters are echoed, window should %sscroll.",
 	HaveKeypad(curp) ? "Non-arrow" : "All other",
-	HaveScroll(curp) ? "" : "not " );
+	HaveScroll(curp) ? "" : "not ");
     clrtoeol();
 }
 
-static void newwin_report(FRAME *curp)
+static void
+newwin_report(FRAME * curp)
 /* report on the cursor's current position, then restore it */
 {
-	WINDOW *win = (curp != 0) ? curp->wind : stdscr;
-	int y, x;
+    WINDOW *win = (curp != 0) ? curp->wind : stdscr;
+    int y, x;
 
-	if (win != stdscr)
-		transient(curp, (char *)0);
-	getyx(win, y, x);
-	move(LINES - 1, COLS - 17);
-	printw("Y = %2d X = %2d", y, x);
-	if (win != stdscr)
-		refresh();
-	else
-		wmove(win, y, x);
+    if (win != stdscr)
+	transient(curp, (char *) 0);
+    getyx(win, y, x);
+    move(LINES - 1, COLS - 17);
+    printw("Y = %2d X = %2d", y, x);
+    if (win != stdscr)
+	refresh();
+    else
+	wmove(win, y, x);
 }
 
-static pair *selectcell(int uli, int ulj, int lri, int lrj)
+static pair *
+selectcell(int uli, int ulj, int lri, int lrj)
 /* arrows keys move cursor, return location at current on non-arrow key */
 {
-    static pair	res;			/* result cell */
-    int		si = lri - uli + 1;	/* depth of the select area */
-    int		sj = lrj - ulj + 1;	/* width of the select area */
-    int		i = 0, j = 0;		/* offsets into the select area */
+    static pair res;		/* result cell */
+    int si = lri - uli + 1;	/* depth of the select area */
+    int sj = lrj - ulj + 1;	/* width of the select area */
+    int i = 0, j = 0;		/* offsets into the select area */
 
     res.y = uli;
     res.x = ulj;
-    for (;;)
-    {
+    for (;;) {
 	move(uli + i, ulj + j);
-	newwin_report((FRAME *)0);
+	newwin_report((FRAME *) 0);
 
-	switch(Getchar())
-	{
-	case KEY_UP:	i += si - 1; break;
-	case KEY_DOWN:	i++; break;
-	case KEY_LEFT:	j += sj - 1; break;
-	case KEY_RIGHT:	j++; break;
+	switch (Getchar()) {
+	case KEY_UP:
+	    i += si - 1;
+	    break;
+	case KEY_DOWN:
+	    i++;
+	    break;
+	case KEY_LEFT:
+	    j += sj - 1;
+	    break;
+	case KEY_RIGHT:
+	    j++;
+	    break;
 	case QUIT:
-	case ESCAPE:	return((pair *)0);
+	case ESCAPE:
+	    return ((pair *) 0);
 #ifdef NCURSES_MOUSE_VERSION
 	case KEY_MOUSE:
 	    {
-		MEVENT	event;
+		MEVENT event;
 
 		getmouse(&event);
 		if (event.y > uli && event.x > ulj) {
-			i = event.y - uli;
-			j = event.x - ulj;
+		    i = event.y - uli;
+		    j = event.x - ulj;
 		} else {
-			beep();
-			break;
+		    beep();
+		    break;
 		}
 	    }
 	    /* FALLTHRU */
 #endif
-	default:	res.y = uli + i; res.x = ulj + j; return(&res);
+	default:
+	    res.y = uli + i;
+	    res.x = ulj + j;
+	    return (&res);
 	}
 	i %= si;
 	j %= sj;
     }
 }
 
-static void outerbox(pair ul, pair lr, bool onoff)
+static void
+outerbox(pair ul, pair lr, bool onoff)
 /* draw or erase a box *outside* the given pair of corners */
 {
-    mvaddch(ul.y-1, lr.x-1, onoff ? ACS_ULCORNER : ' ');
-    mvaddch(ul.y-1, lr.x+1, onoff ? ACS_URCORNER : ' ');
-    mvaddch(lr.y+1, lr.x+1, onoff ? ACS_LRCORNER : ' ');
-    mvaddch(lr.y+1, ul.x-1, onoff ? ACS_LLCORNER : ' ');
-    move(ul.y-1, ul.x);   hline(onoff ? ACS_HLINE : ' ', lr.x - ul.x + 1);
-    move(ul.y,   ul.x-1); vline(onoff ? ACS_VLINE : ' ', lr.y - ul.y + 1);
-    move(lr.y+1, ul.x);   hline(onoff ? ACS_HLINE : ' ', lr.x - ul.x + 1);
-    move(ul.y,   lr.x+1); vline(onoff ? ACS_VLINE : ' ', lr.y - ul.y + 1);
+    mvaddch(ul.y - 1, lr.x - 1, onoff ? ACS_ULCORNER : ' ');
+    mvaddch(ul.y - 1, lr.x + 1, onoff ? ACS_URCORNER : ' ');
+    mvaddch(lr.y + 1, lr.x + 1, onoff ? ACS_LRCORNER : ' ');
+    mvaddch(lr.y + 1, ul.x - 1, onoff ? ACS_LLCORNER : ' ');
+    move(ul.y - 1, ul.x);
+    hline(onoff ? ACS_HLINE : ' ', lr.x - ul.x + 1);
+    move(ul.y, ul.x - 1);
+    vline(onoff ? ACS_VLINE : ' ', lr.y - ul.y + 1);
+    move(lr.y + 1, ul.x);
+    hline(onoff ? ACS_HLINE : ' ', lr.x - ul.x + 1);
+    move(ul.y, lr.x + 1);
+    vline(onoff ? ACS_VLINE : ' ', lr.y - ul.y + 1);
 }
 
-static WINDOW *getwindow(void)
+static WINDOW *
+getwindow(void)
 /* Ask user for a window definition */
 {
-    WINDOW	*rwindow;
-    pair	ul, lr, *tmp;
+    WINDOW *rwindow;
+    pair ul, lr, *tmp;
 
-    move(0, 0); clrtoeol();
+    move(0, 0);
+    clrtoeol();
     addstr("Use arrows to move cursor, anything else to mark corner 1");
     refresh();
-    if ((tmp = selectcell(2, 1, LINES-BOTLINES-2, COLS-2)) == (pair *)0)
-	return((WINDOW *)0);
+    if ((tmp = selectcell(2, 1, LINES - BOTLINES - 2, COLS - 2)) == (pair *) 0)
+	return ((WINDOW *) 0);
     memcpy(&ul, tmp, sizeof(pair));
-    mvaddch(ul.y-1, ul.x-1, ACS_ULCORNER);
-    move(0, 0); clrtoeol();
+    mvaddch(ul.y - 1, ul.x - 1, ACS_ULCORNER);
+    move(0, 0);
+    clrtoeol();
     addstr("Use arrows to move cursor, anything else to mark corner 2");
     refresh();
-    if ((tmp = selectcell(ul.y, ul.x, LINES-BOTLINES-2, COLS-2)) == (pair *)0)
-	return((WINDOW *)0);
+    if ((tmp = selectcell(ul.y, ul.x, LINES - BOTLINES - 2, COLS - 2)) ==
+	(pair *) 0)
+	return ((WINDOW *) 0);
     memcpy(&lr, tmp, sizeof(pair));
 
     rwindow = subwin(stdscr, lr.y - ul.y + 1, lr.x - ul.x + 1, ul.y, ul.x);
@@ -1229,78 +1325,78 @@ static WINDOW *getwindow(void)
 
     wrefresh(rwindow);
 
-    move(0, 0); clrtoeol();
-    return(rwindow);
+    move(0, 0);
+    clrtoeol();
+    return (rwindow);
 }
 
-static void newwin_move(FRAME *curp, int dy, int dx)
+static void
+newwin_move(FRAME * curp, int dy, int dx)
 {
-	WINDOW *win = (curp != 0) ? curp->wind : stdscr;
-	int cur_y, cur_x;
-	int max_y, max_x;
+    WINDOW *win = (curp != 0) ? curp->wind : stdscr;
+    int cur_y, cur_x;
+    int max_y, max_x;
 
-	getyx(win, cur_y, cur_x);
-	getmaxyx(win, max_y, max_x);
-	if ((cur_x += dx) < 0)
-		cur_x = 0;
-	else if (cur_x >= max_x)
-		cur_x = max_x - 1;
-	if ((cur_y += dy) < 0)
-		cur_y = 0;
-	else if (cur_y >= max_y)
-		cur_y = max_y - 1;
-	wmove(win, cur_y, cur_x);
+    getyx(win, cur_y, cur_x);
+    getmaxyx(win, max_y, max_x);
+    if ((cur_x += dx) < 0)
+	cur_x = 0;
+    else if (cur_x >= max_x)
+	cur_x = max_x - 1;
+    if ((cur_y += dy) < 0)
+	cur_y = 0;
+    else if (cur_y >= max_y)
+	cur_y = max_y - 1;
+    wmove(win, cur_y, cur_x);
 }
 
-static FRAME *delete_framed(FRAME *fp, bool showit)
+static FRAME *
+delete_framed(FRAME * fp, bool showit)
 {
-	FRAME *np;
+    FRAME *np;
 
-	fp->last->next = fp->next;
-	fp->next->last = fp->last;
+    fp->last->next = fp->next;
+    fp->next->last = fp->last;
 
-	if (showit) {
-		werase(fp->wind);
-		wrefresh(fp->wind);
-	}
-	delwin(fp->wind);
+    if (showit) {
+	werase(fp->wind);
+	wrefresh(fp->wind);
+    }
+    delwin(fp->wind);
 
-	np = (fp == fp->next) ? 0 : fp->next;
-	free(fp);
-	return np;
+    np = (fp == fp->next) ? 0 : fp->next;
+    free(fp);
+    return np;
 }
 
-static void acs_and_scroll(void)
+static void
+acs_and_scroll(void)
 /* Demonstrate windows */
 {
-    int	c, i;
+    int c, i;
     FILE *fp;
-    FRAME *current = (FRAME *)0, *neww;
+    FRAME *current = (FRAME *) 0, *neww;
     WINDOW *usescr = stdscr;
 
 #define DUMPFILE	"screendump"
 
 #ifdef NCURSES_MOUSE_VERSION
-    mousemask(BUTTON1_CLICKED, (mmask_t *)0);
+    mousemask(BUTTON1_CLICKED, (mmask_t *) 0);
 #endif
     c = CTRL('C');
     raw();
     do {
-	transient((FRAME *)0, (char *)0);
-	switch(c)
-	{
+	transient((FRAME *) 0, (char *) 0);
+	switch (c) {
 	case CTRL('C'):
 	    neww = (FRAME *) calloc(1, sizeof(FRAME));
-	    if ((neww->wind = getwindow()) == (WINDOW *)0)
+	    if ((neww->wind = getwindow()) == (WINDOW *) 0)
 		goto breakout;
 
-	    if (current == 0)	/* First element,  */
-	    {
-		neww->next = neww; /*   so point it at itself */
+	    if (current == 0) {	/* First element,  */
+		neww->next = neww;	/*   so point it at itself */
 		neww->last = neww;
-	    }
-	    else
-	    {
+	    } else {
 		neww->next = current->next;
 		neww->last = current;
 		neww->last->next = neww;
@@ -1316,27 +1412,27 @@ static void acs_and_scroll(void)
 	    current->do_scroll = HaveScroll(current);
 	    break;
 
-	case CTRL('N'):		/* go to next window */
+	case CTRL('N'):	/* go to next window */
 	    if (current)
 		current = current->next;
 	    break;
 
-	case CTRL('P'):		/* go to previous window */
+	case CTRL('P'):	/* go to previous window */
 	    if (current)
 		current = current->last;
 	    break;
 
-	case CTRL('F'):		/* scroll current window forward */
+	case CTRL('F'):	/* scroll current window forward */
 	    if (current)
 		wscrl(current->wind, 1);
 	    break;
 
-	case CTRL('B'):		/* scroll current window backwards */
+	case CTRL('B'):	/* scroll current window backwards */
 	    if (current)
 		wscrl(current->wind, -1);
 	    break;
 
-	case CTRL('K'):		/* toggle keypad mode for current */
+	case CTRL('K'):	/* toggle keypad mode for current */
 	    if (current) {
 		current->do_keypad = !current->do_keypad;
 		keypad(current->wind, current->do_keypad);
@@ -1350,13 +1446,12 @@ static void acs_and_scroll(void)
 	    }
 	    break;
 
-	case CTRL('W'):		/* save and delete window */
+	case CTRL('W'):	/* save and delete window */
 	    if (current == current->next)
 		break;
-	    if ((fp = fopen(DUMPFILE, "w")) == (FILE *)0)
+	    if ((fp = fopen(DUMPFILE, "w")) == (FILE *) 0)
 		transient(current, "Can't open screen dump file");
-	    else
-	    {
+	    else {
 		(void) putwin(current->wind, fp);
 		(void) fclose(fp);
 
@@ -1364,11 +1459,10 @@ static void acs_and_scroll(void)
 	    }
 	    break;
 
-	case CTRL('R'):		/* restore window */
-	    if ((fp = fopen(DUMPFILE, "r")) == (FILE *)0)
+	case CTRL('R'):	/* restore window */
+	    if ((fp = fopen(DUMPFILE, "r")) == (FILE *) 0)
 		transient(current, "Can't open screen dump file");
-	    else
-	    {
+	    else {
 		neww = (FRAME *) calloc(1, sizeof(FRAME));
 
 		neww->next = current->next;
@@ -1383,22 +1477,21 @@ static void acs_and_scroll(void)
 	    }
 	    break;
 
-#ifdef NCURSES_VERSION
-	case CTRL('X'):		/* resize window */
-	    if (current)
-	    {
+#ifdef HAVE_WRESIZE
+	case CTRL('X'):	/* resize window */
+	    if (current) {
 		pair *tmp, ul, lr;
 		int mx, my;
 
-		move(0, 0); clrtoeol();
+		move(0, 0);
+		clrtoeol();
 		addstr("Use arrows to move cursor, anything else to mark new corner");
 		refresh();
 
 		getbegyx(current->wind, ul.y, ul.x);
 
-		tmp = selectcell(ul.y, ul.x, LINES-BOTLINES-2, COLS-2);
-		if (tmp == (pair *)0)
-		{
+		tmp = selectcell(ul.y, ul.x, LINES - BOTLINES - 2, COLS - 2);
+		if (tmp == (pair *) 0) {
 		    beep();
 		    break;
 		}
@@ -1411,23 +1504,21 @@ static void acs_and_scroll(void)
 
 		/* strictly cosmetic hack for the test */
 		getmaxyx(current->wind, my, mx);
-		if (my > tmp->y - ul.y)
-		{
-		  getyx(current->wind, lr.y, lr.x);
-		  wmove(current->wind, tmp->y - ul.y + 1, 0);
-		  wclrtobot(current->wind);
-		  wmove(current->wind, lr.y, lr.x);
+		if (my > tmp->y - ul.y) {
+		    getyx(current->wind, lr.y, lr.x);
+		    wmove(current->wind, tmp->y - ul.y + 1, 0);
+		    wclrtobot(current->wind);
+		    wmove(current->wind, lr.y, lr.x);
 		}
 		if (mx > tmp->x - ul.x)
-		  for (i = 0; i < my; i++)
-		  {
-		    wmove(current->wind, i, tmp->x - ul.x + 1);
-		    wclrtoeol(current->wind);
-		  }
+		    for (i = 0; i < my; i++) {
+			wmove(current->wind, i, tmp->x - ul.x + 1);
+			wclrtoeol(current->wind);
+		    }
 		wnoutrefresh(current->wind);
 
 		memcpy(&lr, tmp, sizeof(pair));
-		(void) wresize(current->wind, lr.y-ul.y+0, lr.x-ul.x+0);
+		(void) wresize(current->wind, lr.y - ul.y + 0, lr.x - ul.x + 0);
 
 		getbegyx(current->wind, ul.y, ul.x);
 		getmaxyx(current->wind, lr.y, lr.x);
@@ -1437,11 +1528,12 @@ static void acs_and_scroll(void)
 		wnoutrefresh(stdscr);
 
 		wnoutrefresh(current->wind);
-		move(0, 0); clrtoeol();
+		move(0, 0);
+		clrtoeol();
 		doupdate();
 	    }
 	    break;
-#endif	/* NCURSES_VERSION */
+#endif /* HAVE_WRESIZE */
 
 	case KEY_F(10):	/* undocumented --- use this to test area clears */
 	    selectcell(0, 0, LINES - 1, COLS - 1);
@@ -1450,16 +1542,16 @@ static void acs_and_scroll(void)
 	    break;
 
 	case KEY_UP:
-	    newwin_move(current, -1,  0);
+	    newwin_move(current, -1, 0);
 	    break;
 	case KEY_DOWN:
-	    newwin_move(current,  1,  0);
+	    newwin_move(current, 1, 0);
 	    break;
 	case KEY_LEFT:
-	    newwin_move(current,  0, -1);
+	    newwin_move(current, 0, -1);
 	    break;
 	case KEY_RIGHT:
-	    newwin_move(current,  0,  1);
+	    newwin_move(current, 0, 1);
 	    break;
 
 	case KEY_BACKSPACE:
@@ -1469,9 +1561,9 @@ static void acs_and_scroll(void)
 		int y, x;
 		getyx(current->wind, y, x);
 		if (--x < 0) {
-			if (--y < 0)
-				break;
-			x = getmaxx(current->wind) - 1;
+		    if (--y < 0)
+			break;
+		    x = getmaxx(current->wind) - 1;
 		}
 		mvwdelch(current->wind, y, x);
 	    }
@@ -1483,7 +1575,7 @@ static void acs_and_scroll(void)
 
 	default:
 	    if (current)
-		waddch(current->wind, (chtype)c);
+		waddch(current->wind, (chtype) c);
 	    else
 		beep();
 	    break;
@@ -1493,16 +1585,16 @@ static void acs_and_scroll(void)
 	wrefresh(usescr);
     } while
 	((c = wGetchar(usescr)) != QUIT
-	 && !((c == ESCAPE) && (usescr->_use_keypad))
-	 && (c != ERR));
+	&& !((c == ESCAPE) && (usescr->_use_keypad))
+	&& (c != ERR));
 
- breakout:
+  breakout:
     while (current != 0)
-    	current = delete_framed(current, FALSE);
+	current = delete_framed(current, FALSE);
 
     scrollok(stdscr, TRUE);	/* reset to driver's default */
 #ifdef NCURSES_MOUSE_VERSION
-    mousemask(0, (mmask_t *)0);
+    mousemask(0, (mmask_t *) 0);
 #endif
     noraw();
     erase();
@@ -1520,12 +1612,12 @@ static unsigned long nap_msec = 1;
 
 static NCURSES_CONST char *mod[] =
 {
-	"test ",
-	"TEST ",
-	"(**) ",
-	"*()* ",
-	"<--> ",
-	"LAST "
+    "test ",
+    "TEST ",
+    "(**) ",
+    "*()* ",
+    "<--> ",
+    "LAST "
 };
 
 /*+-------------------------------------------------------------------------
@@ -1535,19 +1627,19 @@ static void
 wait_a_while(unsigned long msec GCC_UNUSED)
 {
 #if HAVE_NAPMS
-	if(nap_msec == 1)
-		wGetchar(stdscr);
-	else
-		napms(nap_msec);
+    if (nap_msec == 1)
+	wGetchar(stdscr);
+    else
+	napms(nap_msec);
 #else
-	if(nap_msec == 1)
-		wGetchar(stdscr);
-	else if(msec > 1000L)
-		sleep((int)msec/1000L);
-	else
-		sleep(1);
+    if (nap_msec == 1)
+	wGetchar(stdscr);
+    else if (msec > 1000L)
+	sleep((int) msec / 1000L);
+    else
+	sleep(1);
 #endif
-}	/* end of wait_a_while */
+}				/* end of wait_a_while */
 
 /*+-------------------------------------------------------------------------
 	saywhat(text)
@@ -1555,10 +1647,10 @@ wait_a_while(unsigned long msec GCC_UNUSED)
 static void
 saywhat(NCURSES_CONST char *text)
 {
-	wmove(stdscr,LINES - 1,0);
-	wclrtoeol(stdscr);
-	waddstr(stdscr, text);
-}	/* end of saywhat */
+    wmove(stdscr, LINES - 1, 0);
+    wclrtoeol(stdscr);
+    waddstr(stdscr, text);
+}				/* end of saywhat */
 
 /*+-------------------------------------------------------------------------
 	mkpanel(rows,cols,tly,tlx) - alloc a win and panel and associate them
@@ -1566,34 +1658,34 @@ saywhat(NCURSES_CONST char *text)
 static PANEL *
 mkpanel(int color, int rows, int cols, int tly, int tlx)
 {
-WINDOW *win;
-PANEL *pan = 0;
+    WINDOW *win;
+    PANEL *pan = 0;
 
-	if ((win = newwin(rows, cols, tly, tlx)) != 0) {
-		if ((pan = new_panel(win)) == 0) {
-			delwin(win);
-		} else if (has_colors()) {
-			int fg = (color == COLOR_BLUE) ? COLOR_WHITE : COLOR_BLACK;
-			int bg = color;
-			init_pair(color, fg, bg);
-			wbkgdset(win, COLOR_PAIR(color) | ' ');
-		} else {
-			wbkgdset(win, A_BOLD | ' ');
-		}
+    if ((win = newwin(rows, cols, tly, tlx)) != 0) {
+	if ((pan = new_panel(win)) == 0) {
+	    delwin(win);
+	} else if (has_colors()) {
+	    int fg = (color == COLOR_BLUE) ? COLOR_WHITE : COLOR_BLACK;
+	    int bg = color;
+	    init_pair(color, fg, bg);
+	    wbkgdset(win, COLOR_PAIR(color) | ' ');
+	} else {
+	    wbkgdset(win, A_BOLD | ' ');
 	}
-	return pan;
-}	/* end of mkpanel */
+    }
+    return pan;
+}				/* end of mkpanel */
 
 /*+-------------------------------------------------------------------------
 	rmpanel(pan)
 --------------------------------------------------------------------------*/
 static void
-rmpanel(PANEL *pan)
+rmpanel(PANEL * pan)
 {
-WINDOW *win = panel_window(pan);
-	del_panel(pan);
-	delwin(win);
-}	/* end of rmpanel */
+    WINDOW *win = panel_window(pan);
+    del_panel(pan);
+    delwin(win);
+}				/* end of rmpanel */
 
 /*+-------------------------------------------------------------------------
 	pflush()
@@ -1601,227 +1693,243 @@ WINDOW *win = panel_window(pan);
 static void
 pflush(void)
 {
-	update_panels();
-	doupdate();
-}	/* end of pflush */
+    update_panels();
+    doupdate();
+}				/* end of pflush */
 
 /*+-------------------------------------------------------------------------
 	fill_panel(win)
 --------------------------------------------------------------------------*/
 static void
-fill_panel(PANEL *pan)
+fill_panel(PANEL * pan)
 {
-WINDOW *win = panel_window(pan);
-int num = ((const char *)panel_userptr(pan))[1];
-int y,x;
+    WINDOW *win = panel_window(pan);
+    int num = ((const char *) panel_userptr(pan))[1];
+    int y, x;
 
-	wmove(win,1,1);
-	wprintw(win,"-pan%c-", num);
-	wclrtoeol(win);
-	box(win, 0, 0);
-	for(y = 2; y < getmaxy(win) - 1; y++)
-	{
-		for(x = 1; x < getmaxx(win) - 1; x++)
-		{
-			wmove(win,y,x);
-			waddch(win,num);
-		}
+    wmove(win, 1, 1);
+    wprintw(win, "-pan%c-", num);
+    wclrtoeol(win);
+    box(win, 0, 0);
+    for (y = 2; y < getmaxy(win) - 1; y++) {
+	for (x = 1; x < getmaxx(win) - 1; x++) {
+	    wmove(win, y, x);
+	    waddch(win, num);
 	}
-}	/* end of fill_panel */
+    }
+}				/* end of fill_panel */
 
-static void demo_panels(void)
+static void
+demo_panels(void)
 {
-int itmp;
-register int y,x;
+    int itmp;
+    register int y, x;
 
-	refresh();
+    refresh();
 
-	for(y = 0; y < LINES - 1; y++)
-	{
-		for(x = 0; x < COLS; x++)
-			wprintw(stdscr,"%d",(y + x) % 10);
+    for (y = 0; y < LINES - 1; y++) {
+	for (x = 0; x < COLS; x++)
+	    wprintw(stdscr, "%d", (y + x) % 10);
+    }
+    for (y = 0; y < 5; y++) {
+	PANEL *p1;
+	PANEL *p2;
+	PANEL *p3;
+	PANEL *p4;
+	PANEL *p5;
+
+	p1 = mkpanel(COLOR_RED,
+	    LINES / 2 - 2,
+	    COLS / 8 + 1,
+	    0,
+	    0);
+	set_panel_userptr(p1, "p1");
+
+	p2 = mkpanel(COLOR_GREEN,
+	    LINES / 2 + 1,
+	    COLS / 7,
+	    LINES / 4,
+	    COLS / 10);
+	set_panel_userptr(p2, "p2");
+
+	p3 = mkpanel(COLOR_YELLOW,
+	    LINES / 4,
+	    COLS / 10,
+	    LINES / 2,
+	    COLS / 9);
+	set_panel_userptr(p3, "p3");
+
+	p4 = mkpanel(COLOR_BLUE,
+	    LINES / 2 - 2,
+	    COLS / 8,
+	    LINES / 2 - 2,
+	    COLS / 3);
+	set_panel_userptr(p4, "p4");
+
+	p5 = mkpanel(COLOR_MAGENTA,
+	    LINES / 2 - 2,
+	    COLS / 8,
+	    LINES / 2,
+	    COLS / 2 - 2);
+	set_panel_userptr(p5, "p5");
+
+	fill_panel(p1);
+	fill_panel(p2);
+	fill_panel(p3);
+	fill_panel(p4);
+	fill_panel(p5);
+	hide_panel(p4);
+	hide_panel(p5);
+	pflush();
+	saywhat("press any key to continue");
+	wait_a_while(nap_msec);
+
+	saywhat("h3 s1 s2 s4 s5; press any key to continue");
+	move_panel(p1, 0, 0);
+	hide_panel(p3);
+	show_panel(p1);
+	show_panel(p2);
+	show_panel(p4);
+	show_panel(p5);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("s1; press any key to continue");
+	show_panel(p1);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("s2; press any key to continue");
+	show_panel(p2);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("m2; press any key to continue");
+	move_panel(p2, LINES / 3 + 1, COLS / 8);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("s3;");
+	show_panel(p3);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("m3; press any key to continue");
+	move_panel(p3, LINES / 4 + 1, COLS / 15);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("b3; press any key to continue");
+	bottom_panel(p3);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("s4; press any key to continue");
+	show_panel(p4);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("s5; press any key to continue");
+	show_panel(p5);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("t3; press any key to continue");
+	top_panel(p3);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("t1; press any key to continue");
+	top_panel(p1);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("t2; press any key to continue");
+	top_panel(p2);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("t3; press any key to continue");
+	top_panel(p3);
+	pflush();
+	wait_a_while(nap_msec);
+
+	saywhat("t4; press any key to continue");
+	top_panel(p4);
+	pflush();
+	wait_a_while(nap_msec);
+
+	for (itmp = 0; itmp < 6; itmp++) {
+	    WINDOW *w4 = panel_window(p4);
+	    WINDOW *w5 = panel_window(p5);
+
+	    saywhat("m4; press any key to continue");
+	    wmove(w4, LINES / 8, 1);
+	    waddstr(w4, mod[itmp]);
+	    move_panel(p4, LINES / 6, itmp * (COLS / 8));
+	    wmove(w5, LINES / 6, 1);
+	    waddstr(w5, mod[itmp]);
+	    pflush();
+	    wait_a_while(nap_msec);
+
+	    saywhat("m5; press any key to continue");
+	    wmove(w4, LINES / 6, 1);
+	    waddstr(w4, mod[itmp]);
+	    move_panel(p5, LINES / 3 - 1, (itmp * 10) + 6);
+	    wmove(w5, LINES / 8, 1);
+	    waddstr(w5, mod[itmp]);
+	    pflush();
+	    wait_a_while(nap_msec);
 	}
-	for(y = 0; y < 5; y++)
-	{
-		PANEL *p1;
-		PANEL *p2;
-		PANEL *p3;
-		PANEL *p4;
-		PANEL *p5;
 
-		p1 = mkpanel(COLOR_RED, LINES/2 - 2, COLS/8 + 1, 0, 0);
-		set_panel_userptr(p1,"p1");
+	saywhat("m4; press any key to continue");
+	move_panel(p4, LINES / 6, itmp * (COLS / 8));
+	pflush();
+	wait_a_while(nap_msec);
 
-		p2 = mkpanel(COLOR_GREEN, LINES/2 + 1, COLS/7, LINES/4, COLS/10);
-		set_panel_userptr(p2,"p2");
+	saywhat("t5; press any key to continue");
+	top_panel(p5);
+	pflush();
+	wait_a_while(nap_msec);
 
-		p3 = mkpanel(COLOR_YELLOW, LINES/4, COLS/10, LINES/2, COLS/9);
-		set_panel_userptr(p3,"p3");
+	saywhat("t2; press any key to continue");
+	top_panel(p2);
+	pflush();
+	wait_a_while(nap_msec);
 
-		p4 = mkpanel(COLOR_BLUE, LINES/2 - 2, COLS/8, LINES/2 - 2, COLS/3);
-		set_panel_userptr(p4,"p4");
+	saywhat("t1; press any key to continue");
+	top_panel(p1);
+	pflush();
+	wait_a_while(nap_msec);
 
-		p5 = mkpanel(COLOR_MAGENTA, LINES/2 - 2, COLS/8, LINES/2, COLS/2 - 2);
-		set_panel_userptr(p5,"p5");
+	saywhat("d2; press any key to continue");
+	rmpanel(p2);
+	pflush();
+	wait_a_while(nap_msec);
 
-		fill_panel(p1);
-		fill_panel(p2);
-		fill_panel(p3);
-		fill_panel(p4);
-		fill_panel(p5);
-		hide_panel(p4);
-		hide_panel(p5);
-		pflush();
-		saywhat("press any key to continue");
-		wait_a_while(nap_msec);
+	saywhat("h3; press any key to continue");
+	hide_panel(p3);
+	pflush();
+	wait_a_while(nap_msec);
 
-		saywhat("h3 s1 s2 s4 s5; press any key to continue");
-		move_panel(p1,0,0);
-		hide_panel(p3);
-		show_panel(p1);
-		show_panel(p2);
-		show_panel(p4);
-		show_panel(p5);
-		pflush();
-		wait_a_while(nap_msec);
+	saywhat("d1; press any key to continue");
+	rmpanel(p1);
+	pflush();
+	wait_a_while(nap_msec);
 
-		saywhat("s1; press any key to continue");
-		show_panel(p1);
-		pflush();
-		wait_a_while(nap_msec);
+	saywhat("d4; press any key to continue");
+	rmpanel(p4);
+	pflush();
+	wait_a_while(nap_msec);
 
-		saywhat("s2; press any key to continue");
-		show_panel(p2);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("m2; press any key to continue");
-		move_panel(p2, LINES/3 + 1, COLS / 8);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("s3;");
-		show_panel(p3);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("m3; press any key to continue");
-		move_panel(p3, LINES/4 + 1, COLS / 15);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("b3; press any key to continue");
-		bottom_panel(p3);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("s4; press any key to continue");
-		show_panel(p4);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("s5; press any key to continue");
-		show_panel(p5);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("t3; press any key to continue");
-		top_panel(p3);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("t1; press any key to continue");
-		top_panel(p1);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("t2; press any key to continue");
-		top_panel(p2);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("t3; press any key to continue");
-		top_panel(p3);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("t4; press any key to continue");
-		top_panel(p4);
-		pflush();
-		wait_a_while(nap_msec);
-
-		for(itmp = 0; itmp < 6; itmp++)
-		{
-			WINDOW *w4 = panel_window(p4);
-			WINDOW *w5 = panel_window(p5);
-
-			saywhat("m4; press any key to continue");
-			wmove(w4, LINES/8, 1);
-			waddstr(w4,mod[itmp]);
-			move_panel(p4, LINES/6, itmp*(COLS/8));
-			wmove(w5, LINES/6, 1);
-			waddstr(w5,mod[itmp]);
-			pflush();
-			wait_a_while(nap_msec);
-
-			saywhat("m5; press any key to continue");
-			wmove(w4, LINES/6, 1);
-			waddstr(w4,mod[itmp]);
-			move_panel(p5, LINES/3 - 1,(itmp*10) + 6);
-			wmove(w5, LINES/8, 1);
-			waddstr(w5,mod[itmp]);
-			pflush();
-			wait_a_while(nap_msec);
-		}
-
-		saywhat("m4; press any key to continue");
-		move_panel(p4, LINES/6, itmp*(COLS/8));
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("t5; press any key to continue");
-		top_panel(p5);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("t2; press any key to continue");
-		top_panel(p2);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("t1; press any key to continue");
-		top_panel(p1);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("d2; press any key to continue");
-		rmpanel(p2);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("h3; press any key to continue");
-		hide_panel(p3);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("d1; press any key to continue");
-		rmpanel(p1);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("d4; press any key to continue");
-		rmpanel(p4);
-		pflush();
-		wait_a_while(nap_msec);
-
-		saywhat("d5; press any key to continue");
-		rmpanel(p5);
-		pflush();
-		wait_a_while(nap_msec);
-		if(nap_msec == 1)
-			break;
-		nap_msec = 100L;
-	}
+	saywhat("d5; press any key to continue");
+	rmpanel(p5);
+	pflush();
+	wait_a_while(nap_msec);
+	if (nap_msec == 1)
+	    break;
+	nap_msec = 100L;
+    }
 
     erase();
     endwin();
@@ -1837,40 +1945,45 @@ register int y,x;
 
 static bool show_panner_legend = TRUE;
 
-static int panner_legend(int line)
+static int
+panner_legend(int line)
 {
-	static const char *const legend[] = {
-		"Use arrow keys (or U,D,L,R) to pan, q to quit (?,t,s flags)",
-		"Use ! to shell-out.  Toggle legend:?, timer:t, scroll mark:s.",
-		"Use +,- (or j,k) to grow/shrink the panner vertically.",
-		"Use <,> (or h,l) to grow/shrink the panner horizontally."
-	};
-	int n = (SIZEOF(legend) - (LINES - line));
-	if (line < LINES && (n >= 0)) {
-		move(line, 0);
-		if (show_panner_legend)
-			printw("%s", legend[n]);
-		clrtoeol();
-		return show_panner_legend;
-	}
-	return FALSE;
+    static const char *const legend[] =
+    {
+	"Use arrow keys (or U,D,L,R) to pan, q to quit (?,t,s flags)",
+	"Use ! to shell-out.  Toggle legend:?, timer:t, scroll mark:s.",
+	"Use +,- (or j,k) to grow/shrink the panner vertically.",
+	"Use <,> (or h,l) to grow/shrink the panner horizontally."
+    };
+    int n = (SIZEOF(legend) - (LINES - line));
+    if (line < LINES && (n >= 0)) {
+	move(line, 0);
+	if (show_panner_legend)
+	    printw("%s", legend[n]);
+	clrtoeol();
+	return show_panner_legend;
+    }
+    return FALSE;
 }
 
-static void panner_h_cleanup(int from_y, int from_x, int to_x)
+static void
+panner_h_cleanup(int from_y, int from_x, int to_x)
 {
-	if (!panner_legend(from_y))
-		do_h_line(from_y, from_x, ' ', to_x);
+    if (!panner_legend(from_y))
+	do_h_line(from_y, from_x, ' ', to_x);
 }
 
-static void panner_v_cleanup(int from_y, int from_x, int to_y)
+static void
+panner_v_cleanup(int from_y, int from_x, int to_y)
 {
-	if (!panner_legend(from_y))
-		do_v_line(from_y, from_x, ' ', to_y);
+    if (!panner_legend(from_y))
+	do_v_line(from_y, from_x, ' ', to_y);
 }
 
-static void panner(WINDOW *pad,
-		   int top_x, int top_y, int porty, int portx,
-		   int (*pgetc)(WINDOW *))
+static void
+panner(WINDOW *pad,
+    int top_x, int top_y, int porty, int portx,
+    int (*pgetc) (WINDOW *))
 {
 #if HAVE_GETTIMEOFDAY
     struct timeval before, after;
@@ -1892,13 +2005,16 @@ static void panner(WINDOW *pad,
 	 * the port size of the pad to accommodate this.  Ncurses automatically
 	 * resizes all of the normal windows to fit on the new screen.
 	 */
-	if (top_x > COLS)	top_x = COLS;
-	if (portx > COLS)	portx = COLS;
-	if (top_y > LINES)	top_y = LINES;
-	if (porty > LINES) 	porty = LINES;
+	if (top_x > COLS)
+	    top_x = COLS;
+	if (portx > COLS)
+	    portx = COLS;
+	if (top_y > LINES)
+	    top_y = LINES;
+	if (porty > LINES)
+	    porty = LINES;
 #endif
-	switch(c)
-	{
+	switch (c) {
 	case KEY_REFRESH:
 	    erase();
 
@@ -1915,7 +2031,7 @@ static void panner(WINDOW *pad,
 	case 't':
 	    timing = !timing;
 	    if (!timing)
-		panner_legend(LINES-1);
+		panner_legend(LINES - 1);
 	    break;
 #endif
 	case 's':
@@ -1925,41 +2041,37 @@ static void panner(WINDOW *pad,
 	    /* Move the top-left corner of the pad, keeping the bottom-right
 	     * corner fixed.
 	     */
-	case 'h':	/* increase-columns: move left edge to left */
+	case 'h':		/* increase-columns: move left edge to left */
 	    if (top_x <= 0)
 		beep();
-	    else
-	    {
+	    else {
 		panner_v_cleanup(top_y, top_x, porty);
 		top_x--;
 	    }
 	    break;
 
-	case 'j':	/* decrease-lines: move top-edge down */
+	case 'j':		/* decrease-lines: move top-edge down */
 	    if (top_y >= porty)
 		beep();
-	    else
-	    {
+	    else {
 		panner_h_cleanup(top_y - 1, top_x - (top_x > 0), portx);
 		top_y++;
 	    }
 	    break;
 
-	case 'k':	/* increase-lines: move top-edge up */
+	case 'k':		/* increase-lines: move top-edge up */
 	    if (top_y <= 0)
 		beep();
-	    else
-	    {
+	    else {
 		top_y--;
 		panner_h_cleanup(top_y, top_x, portx);
 	    }
 	    break;
 
-	case 'l':	/* decrease-columns: move left-edge to right */
+	case 'l':		/* decrease-columns: move left-edge to right */
 	    if (top_x >= portx)
 		beep();
-	    else
-	    {
+	    else {
 		panner_v_cleanup(top_y - (top_y > 0), top_x - 1, porty);
 		top_x++;
 	    }
@@ -1968,47 +2080,43 @@ static void panner(WINDOW *pad,
 	    /* Move the bottom-right corner of the pad, keeping the top-left
 	     * corner fixed.
 	     */
-	case KEY_IC:	/* increase-columns: move right-edge to right */
+	case KEY_IC:		/* increase-columns: move right-edge to right */
 	    if (portx >= pxmax || portx >= COLS)
 		beep();
-	    else
-	    {
+	    else {
 		panner_v_cleanup(top_y - (top_y > 0), portx - 1, porty);
 		++portx;
 	    }
 	    break;
 
-	case KEY_IL:	/* increase-lines: move bottom-edge down */
+	case KEY_IL:		/* increase-lines: move bottom-edge down */
 	    if (porty >= pymax || porty >= LINES)
 		beep();
-	    else
-	    {
+	    else {
 		panner_h_cleanup(porty - 1, top_x - (top_x > 0), portx);
 		++porty;
 	    }
 	    break;
 
-	case KEY_DC:	/* decrease-columns: move bottom edge up */
+	case KEY_DC:		/* decrease-columns: move bottom edge up */
 	    if (portx <= top_x)
 		beep();
-	    else
-	    {
+	    else {
 		portx--;
 		panner_v_cleanup(top_y - (top_y > 0), portx, porty);
 	    }
 	    break;
 
-	case KEY_DL:	/* decrease-lines */
+	case KEY_DL:		/* decrease-lines */
 	    if (porty <= top_y)
 		beep();
-	    else
-	    {
+	    else {
 		porty--;
 		panner_h_cleanup(porty, top_x - (top_x > 0), portx);
 	    }
 	    break;
 
-	case KEY_LEFT:	/* pan leftwards */
+	case KEY_LEFT:		/* pan leftwards */
 	    if (basex > 0)
 		basex--;
 	    else
@@ -2022,18 +2130,32 @@ static void panner(WINDOW *pad,
 		beep();
 	    break;
 
-	case KEY_UP:	/* pan upwards */
+	case KEY_UP:		/* pan upwards */
 	    if (basey > 0)
 		basey--;
 	    else
 		beep();
 	    break;
 
-	case KEY_DOWN:	/* pan downwards */
+	case KEY_DOWN:		/* pan downwards */
 	    if (basey + porty - (pxmax > portx) < pymax)
 		basey++;
 	    else
 		beep();
+	    break;
+
+	case 'H':
+	case KEY_HOME:
+	case KEY_FIND:
+	    basey = 0;
+	    break;
+
+	case 'E':
+	case KEY_END:
+	case KEY_SELECT:
+	    basey = pymax - porty;
+	    if (basey < 0)
+		basey = 0;
 	    break;
 
 	default:
@@ -2046,11 +2168,11 @@ static void panner(WINDOW *pad,
 	do_h_line(top_y - 1, top_x, ACS_HLINE, portx);
 
 	if (scrollers && (pxmax > portx - 1)) {
-	    int length  = (portx - top_x - 1);
+	    int length = (portx - top_x - 1);
 	    float ratio = ((float) length) / ((float) pxmax);
 
-	    lowend  = (int)(top_x + (basex * ratio));
-	    highend = (int)(top_x + ((basex + length) * ratio));
+	    lowend = (int) (top_x + (basex * ratio));
+	    highend = (int) (top_x + ((basex + length) * ratio));
 
 	    do_h_line(porty - 1, top_x, ACS_HLINE, lowend);
 	    if (highend < portx) {
@@ -2059,24 +2181,24 @@ static void panner(WINDOW *pad,
 		attroff(A_REVERSE);
 		do_h_line(porty - 1, highend + 1, ACS_HLINE, portx);
 	    }
-        } else
+	} else
 	    do_h_line(porty - 1, top_x, ACS_HLINE, portx);
 
 	if (scrollers && (pymax > porty - 1)) {
-	    int length  = (porty - top_y - 1);
+	    int length = (porty - top_y - 1);
 	    float ratio = ((float) length) / ((float) pymax);
 
-	    lowend  = (int)(top_y + (basey * ratio));
-	    highend = (int)(top_y + ((basey + length) * ratio));
+	    lowend = (int) (top_y + (basey * ratio));
+	    highend = (int) (top_y + ((basey + length) * ratio));
 
 	    do_v_line(top_y, portx - 1, ACS_VLINE, lowend);
-		if (highend < porty) {
+	    if (highend < porty) {
 		attron(A_REVERSE);
 		do_v_line(lowend, portx - 1, ' ', highend + 1);
 		attroff(A_REVERSE);
 		do_v_line(highend + 1, portx - 1, ACS_VLINE, porty);
 	    }
-        } else
+	} else
 	    do_v_line(top_y, portx - 1, ACS_VLINE, porty);
 
 	mvaddch(top_y - 1, portx - 1, ACS_URCORNER);
@@ -2089,21 +2211,21 @@ static void panner(WINDOW *pad,
 	wnoutrefresh(stdscr);
 
 	pnoutrefresh(pad,
-		 basey, basex,
-		 top_y, top_x,
-		 porty - (pxmax > portx) - 1,
-		 portx - (pymax > porty) - 1);
+	    basey, basex,
+	    top_y, top_x,
+	    porty - (pxmax > portx) - 1,
+	    portx - (pymax > porty) - 1);
 
 	doupdate();
 #if HAVE_GETTIMEOFDAY
 	if (timing) {
-		double elapsed;
-		gettimeofday(&after, 0);
-		elapsed = (after.tv_sec  + after.tv_usec  / 1.0e6)
-			- (before.tv_sec + before.tv_usec / 1.0e6);
-		move(LINES-1, COLS-20);
-		printw("Secs: %2.03f", elapsed);
-		refresh();
+	    double elapsed;
+	    gettimeofday(&after, 0);
+	    elapsed = (after.tv_sec + after.tv_usec / 1.0e6)
+		- (before.tv_sec + before.tv_usec / 1.0e6);
+	    move(LINES - 1, COLS - 20);
+	    printw("Secs: %2.03f", elapsed);
+	    refresh();
 	}
 #endif
 
@@ -2114,47 +2236,69 @@ static void panner(WINDOW *pad,
 }
 
 static
-int padgetch(WINDOW *win)
+int
+padgetch(WINDOW *win)
 {
-    int	c;
+    int c;
 
-    switch(c = wGetchar(win))
-    {
-    case '!': ShellOut(FALSE); return KEY_REFRESH;
-    case CTRL('r'): endwin(); refresh(); return KEY_REFRESH;
-    case CTRL('l'): return KEY_REFRESH;
-    case 'U': return(KEY_UP);
-    case 'D': return(KEY_DOWN);
-    case 'R': return(KEY_RIGHT);
-    case 'L': return(KEY_LEFT);
-    case '+': return(KEY_IL);
-    case '-': return(KEY_DL);
-    case '>': return(KEY_IC);
-    case '<': return(KEY_DC);
-    case ERR: /* FALLTHRU */
-    case 'q': return(KEY_EXIT);
-    default: return(c);
+    switch (c = wGetchar(win)) {
+    case '!':
+	ShellOut(FALSE);
+	return KEY_REFRESH;
+    case CTRL('r'):
+	endwin();
+	refresh();
+	return KEY_REFRESH;
+    case CTRL('l'):
+	return KEY_REFRESH;
+    case 'U':
+	return (KEY_UP);
+    case 'D':
+	return (KEY_DOWN);
+    case 'R':
+	return (KEY_RIGHT);
+    case 'L':
+	return (KEY_LEFT);
+    case '+':
+	return (KEY_IL);
+    case '-':
+	return (KEY_DL);
+    case '>':
+	return (KEY_IC);
+    case '<':
+	return (KEY_DC);
+    case ERR:			/* FALLTHRU */
+    case 'q':
+	return (KEY_EXIT);
+    default:
+	return (c);
     }
 }
 
-static void demo_pad(void)
+#define PAD_HIGH 200
+#define PAD_WIDE 200
+
+static void
+demo_pad(void)
 /* Demonstrate pads. */
 {
     int i, j;
     unsigned gridcount = 0;
-    WINDOW *panpad = newpad(200, 200);
+    WINDOW *panpad = newpad(PAD_HIGH, PAD_WIDE);
 
-    for (i = 0; i < 200; i++)
-    {
-	for (j = 0; j < 200; j++)
-	    if (i % GRIDSIZE == 0 && j % GRIDSIZE == 0)
-	    {
+    if (panpad == 0) {
+	Cannot("cannot create requested pad");
+	return;
+    }
+
+    for (i = 0; i < PAD_HIGH; i++) {
+	for (j = 0; j < PAD_WIDE; j++)
+	    if (i % GRIDSIZE == 0 && j % GRIDSIZE == 0) {
 		if (i == 0 || j == 0)
 		    waddch(panpad, '+');
 		else
-		    waddch(panpad, (chtype)('A' + (gridcount++ % 26)));
-	    }
-	    else if (i % GRIDSIZE == 0)
+		    waddch(panpad, (chtype) ('A' + (gridcount++ % 26)));
+	    } else if (i % GRIDSIZE == 0)
 		waddch(panpad, '-');
 	    else if (j % GRIDSIZE == 0)
 		waddch(panpad, '|');
@@ -2172,7 +2316,7 @@ static void demo_pad(void)
      * We'll still be able to widen it during a test, since that's required
      * for testing boundaries.
      */
-    panner(panpad, 2, 2, LINES - 5, COLS-15, padgetch);
+    panner(panpad, 2, 2, LINES - 5, COLS - 15, padgetch);
 
     delwin(panpad);
     endwin();
@@ -2186,7 +2330,8 @@ static void demo_pad(void)
  *
  ****************************************************************************/
 
-static void Continue (WINDOW *win)
+static void
+Continue(WINDOW *win)
 {
     noecho();
     wmove(win, 10, 1);
@@ -2195,32 +2340,29 @@ static void Continue (WINDOW *win)
     wGetchar(win);
 }
 
-static void flushinp_test(WINDOW *win)
+static void
+flushinp_test(WINDOW *win)
 /* Input test, adapted from John Burnell's PDCurses tester */
 {
     int w, h, bx, by, sw, sh, i;
 
     WINDOW *subWin;
-    wclear (win);
+    wclear(win);
 
-    getmaxyx(win, h,  w);
+    getmaxyx(win, h, w);
     getbegyx(win, by, bx);
     sw = w / 3;
     sh = h / 3;
-    if((subWin = subwin(win, sh, sw, by + h - sh - 2, bx + w - sw - 2)) == 0)
-        return;
+    if ((subWin = subwin(win, sh, sw, by + h - sh - 2, bx + w - sw - 2)) == 0)
+	return;
 
 #ifdef A_COLOR
-    if (has_colors())
-    {
-	init_pair(2,COLOR_CYAN,COLOR_BLUE);
-	wattrset(subWin, COLOR_PAIR(2) | A_BOLD);
+    if (has_colors()) {
+	init_pair(2, COLOR_CYAN, COLOR_BLUE);
+	wbkgd(subWin, COLOR_PAIR(2) | ' ');
     }
-    else
-	wattrset(subWin, A_BOLD);
-#else
-    wattrset(subWin, A_BOLD);
 #endif
+    wattrset(subWin, A_BOLD);
     box(subWin, ACS_VLINE, ACS_HLINE);
     mvwaddstr(subWin, 2, 1, "This is a subwindow");
     wrefresh(win);
@@ -2237,29 +2379,28 @@ static void flushinp_test(WINDOW *win)
 
     mvwaddstr(win, 2, 1, "Type random keys for 5 seconds.");
     mvwaddstr(win, 3, 1,
-      "These should be discarded (not echoed) after the subwindow goes away.");
+	"These should be discarded (not echoed) after the subwindow goes away.");
     wrefresh(win);
 
-    for (i = 0; i < 5; i++)
-    {
-	mvwprintw (subWin, 1, 1, "Time = %d", i);
+    for (i = 0; i < 5; i++) {
+	mvwprintw(subWin, 1, 1, "Time = %d", i);
 	wrefresh(subWin);
 	napms(1000);
 	flushinp();
     }
 
-    delwin (subWin);
+    delwin(subWin);
     werase(win);
     flash();
     wrefresh(win);
     napms(1000);
 
     mvwaddstr(win, 2, 1,
-	      "If you were still typing when the window timer expired,");
+	"If you were still typing when the window timer expired,");
     mvwaddstr(win, 3, 1,
-	      "or else you typed nothing at all while it was running,");
+	"or else you typed nothing at all while it was running,");
     mvwaddstr(win, 4, 1,
-	      "test was invalid.  You'll see garbage or nothing at all. ");
+	"test was invalid.  You'll see garbage or nothing at all. ");
     mvwaddstr(win, 6, 1, "Press a key");
     wmove(win, 9, 10);
     wrefresh(win);
@@ -2267,7 +2408,7 @@ static void flushinp_test(WINDOW *win)
     wGetchar(win);
     flushinp();
     mvwaddstr(win, 12, 0,
-	      "If you see any key other than what you typed, flushinp() is broken.");
+	"If you see any key other than what you typed, flushinp() is broken.");
     Continue(win);
 
     wmove(win, 9, 10);
@@ -2276,7 +2417,7 @@ static void flushinp_test(WINDOW *win)
     wmove(win, 12, 0);
     clrtoeol();
     waddstr(win,
-	    "What you typed should now have been deleted; if not, wdelch() failed.");
+	"What you typed should now have been deleted; if not, wdelch() failed.");
     Continue(win);
 
     cbreak();
@@ -2293,66 +2434,69 @@ static void flushinp_test(WINDOW *win)
 #define MENU_Y	8
 #define MENU_X	8
 
-static int menu_virtualize(int c)
+static int
+menu_virtualize(int c)
 {
     if (c == '\n' || c == KEY_EXIT)
-	return(MAX_COMMAND + 1);
+	return (MAX_COMMAND + 1);
     else if (c == 'u')
-	return(REQ_SCR_ULINE);
+	return (REQ_SCR_ULINE);
     else if (c == 'd')
-	return(REQ_SCR_DLINE);
+	return (REQ_SCR_DLINE);
     else if (c == 'b' || c == KEY_NPAGE)
-	return(REQ_SCR_UPAGE);
+	return (REQ_SCR_UPAGE);
     else if (c == 'f' || c == KEY_PPAGE)
-	return(REQ_SCR_DPAGE);
+	return (REQ_SCR_DPAGE);
     else if (c == 'n' || c == KEY_DOWN)
-	return(REQ_NEXT_ITEM);
+	return (REQ_NEXT_ITEM);
     else if (c == 'p' || c == KEY_UP)
-	return(REQ_PREV_ITEM);
+	return (REQ_PREV_ITEM);
     else if (c == ' ')
-	return(REQ_TOGGLE_ITEM);
+	return (REQ_TOGGLE_ITEM);
     else {
 	if (c != KEY_MOUSE)
 	    beep();
-	return(c);
+	return (c);
     }
 }
 
 static const char *animals[] =
 {
     "Lions", "Tigers", "Bears", "(Oh my!)", "Newts", "Platypi", "Lemurs",
-    (char *)0
+    (char *) 0
 };
 
-static void menu_test(void)
+static void
+menu_test(void)
 {
-    MENU	*m;
-    ITEM	*items[SIZEOF(animals)];
-    ITEM	**ip = items;
-    const char	**ap;
-    int		mrows, mcols, c;
-    WINDOW	*menuwin;
+    MENU *m;
+    ITEM *items[SIZEOF(animals)];
+    ITEM **ip = items;
+    const char **ap;
+    int mrows, mcols, c;
+    WINDOW *menuwin;
 
 #ifdef NCURSES_MOUSE_VERSION
-    mousemask(ALL_MOUSE_EVENTS, (mmask_t *)0);
+    mousemask(ALL_MOUSE_EVENTS, (mmask_t *) 0);
 #endif
     mvaddstr(0, 0, "This is the menu test:");
     mvaddstr(2, 0, "  Use up and down arrow to move the select bar.");
     mvaddstr(3, 0, "  'n' and 'p' act like arrows.");
-    mvaddstr(4, 0, "  'b' and 'f' scroll up/down (page), 'u' and 'd' (line).");
+    mvaddstr(4, 0,
+	"  'b' and 'f' scroll up/down (page), 'u' and 'd' (line).");
     mvaddstr(5, 0, "  Press return to exit.");
     refresh();
 
     for (ap = animals; *ap; ap++)
 	*ip++ = new_item(*ap, "");
-    *ip = (ITEM *)0;
+    *ip = (ITEM *) 0;
 
     m = new_menu(items);
 
-    set_menu_format(m, (SIZEOF(animals)+1)/2, 1);
+    set_menu_format(m, (SIZEOF(animals) + 1) / 2, 1);
     scale_menu(m, &mrows, &mcols);
 
-    menuwin = newwin(mrows + 2, mcols +  2, MENU_Y, MENU_X);
+    menuwin = newwin(mrows + 2, mcols + 2, MENU_Y, MENU_X);
     set_menu_win(m, menuwin);
     keypad(menuwin, TRUE);
     box(menuwin, 0, 0);
@@ -2368,7 +2512,7 @@ static void menu_test(void)
     }
 
     (void) mvprintw(LINES - 2, 0,
-		     "You chose: %s\n", item_name(current_item(m)));
+	"You chose: %s\n", item_name(current_item(m)));
     (void) addstr("Press any key to continue...");
     wGetchar(stdscr);
 
@@ -2379,17 +2523,18 @@ static void menu_test(void)
     for (ip = items; *ip; ip++)
 	free_item(*ip);
 #ifdef NCURSES_MOUSE_VERSION
-    mousemask(0, (mmask_t *)0);
+    mousemask(0, (mmask_t *) 0);
 #endif
 }
 
 #ifdef TRACE
 #define T_TBL(name) { #name, name }
 static struct {
-	const char *name;
-	int mask;
+    const char *name;
+    int mask;
 } t_tbl[] = {
-	T_TBL(TRACE_DISABLE),
+
+    T_TBL(TRACE_DISABLE),
 	T_TBL(TRACE_TIMES),
 	T_TBL(TRACE_TPUTS),
 	T_TBL(TRACE_UPDATE),
@@ -2402,41 +2547,45 @@ static struct {
 	T_TBL(TRACE_BITS),
 	T_TBL(TRACE_ICALLS),
 	T_TBL(TRACE_CCALLS),
+	T_TBL(TRACE_DATABASE),
 	T_TBL(TRACE_MAXIMUM),
-	{ (char *)0, 0 }
+    {
+	(char *) 0, 0
+    }
 };
 
-static char *tracetrace(int tlevel)
+static char *
+tracetrace(int tlevel)
 {
-    static char	*buf;
-    int		n;
+    static char *buf;
+    int n;
 
     if (buf == 0) {
 	size_t need = 12;
 	for (n = 0; t_tbl[n].name != 0; n++)
 	    need += strlen(t_tbl[n].name) + 2;
-	buf = (char *)malloc(need);
+	buf = (char *) malloc(need);
     }
     sprintf(buf, "0x%02x = {", tlevel);
     if (tlevel == 0) {
 	sprintf(buf + strlen(buf), "%s, ", t_tbl[0].name);
     } else {
 	for (n = 1; t_tbl[n].name != 0; n++)
-	    if ((tlevel & t_tbl[n].mask) == t_tbl[n].mask)
-	    {
+	    if ((tlevel & t_tbl[n].mask) == t_tbl[n].mask) {
 		strcat(buf, t_tbl[n].name);
 		strcat(buf, ", ");
 	    }
     }
     if (buf[strlen(buf) - 2] == ',')
 	buf[strlen(buf) - 2] = '\0';
-    return(strcat(buf,"}"));
+    return (strcat(buf, "}"));
 }
 
 /* fake a dynamically reconfigurable menu using the 0th entry to deselect
  * the others
  */
-static int run_trace_menu(MENU *m)
+static int
+run_trace_menu(MENU * m)
 {
     ITEM **items;
     ITEM *i, **p;
@@ -2451,14 +2600,14 @@ static int run_trace_menu(MENU *m)
 	    i = current_item(m);
 	    if (i == items[0]) {
 		if (item_value(i)) {
-		    for (p = items+1; *p != 0; p++)
+		    for (p = items + 1; *p != 0; p++)
 			if (item_value(*p)) {
 			    set_item_value(*p, FALSE);
 			    changed = TRUE;
 			}
 		}
 	    } else {
-		for (p = items+1; *p != 0; p++)
+		for (p = items + 1; *p != 0; p++)
 		    if (item_value(*p)) {
 			set_item_value(items[0], FALSE);
 			changed = TRUE;
@@ -2471,15 +2620,16 @@ static int run_trace_menu(MENU *m)
     }
 }
 
-static void trace_set(void)
+static void
+trace_set(void)
 /* interactively set the trace level */
 {
-    MENU	*m;
-    ITEM	*items[SIZEOF(t_tbl)];
-    ITEM	**ip = items;
-    int		mrows, mcols, newtrace;
-    int		n;
-    WINDOW	*menuwin;
+    MENU *m;
+    ITEM *items[SIZEOF(t_tbl)];
+    ITEM **ip = items;
+    int mrows, mcols, newtrace;
+    int n;
+    WINDOW *menuwin;
 
     mvaddstr(0, 0, "Interactively set trace level:");
     mvaddstr(2, 0, "  Press space bar to toggle a selection.");
@@ -2491,7 +2641,7 @@ static void trace_set(void)
 
     for (n = 0; t_tbl[n].name != 0; n++)
 	*ip++ = new_item(t_tbl[n].name, "");
-    *ip = (ITEM *)0;
+    *ip = (ITEM *) 0;
 
     m = new_menu(items);
 
@@ -2499,7 +2649,7 @@ static void trace_set(void)
     scale_menu(m, &mrows, &mcols);
 
     menu_opts_off(m, O_ONEVALUE);
-    menuwin = newwin(mrows + 2, mcols +  2, MENU_Y, MENU_X);
+    menuwin = newwin(mrows + 2, mcols + 2, MENU_Y, MENU_X);
     set_menu_win(m, menuwin);
     keypad(menuwin, TRUE);
     box(menuwin, 0, 0);
@@ -2527,7 +2677,7 @@ static void trace_set(void)
     _tracef("trace level interactively set to %s", tracetrace(_nc_tracing));
 
     (void) mvprintw(LINES - 2, 0,
-		     "Trace level is %s\n", tracetrace(_nc_tracing));
+	"Trace level is %s\n", tracetrace(_nc_tracing));
     (void) addstr("Press any key to continue...");
     wGetchar(stdscr);
 
@@ -2547,38 +2697,39 @@ static void trace_set(void)
  *
  ****************************************************************************/
 #if USE_LIBFORM
-static FIELD *make_label(int frow, int fcol, NCURSES_CONST char *label)
+static FIELD *
+make_label(int frow, int fcol, NCURSES_CONST char *label)
 {
-    FIELD	*f = new_field(1, strlen(label), frow, fcol, 0, 0);
+    FIELD *f = new_field(1, strlen(label), frow, fcol, 0, 0);
 
-    if (f)
-    {
+    if (f) {
 	set_field_buffer(f, 0, label);
 	set_field_opts(f, field_opts(f) & ~O_ACTIVE);
     }
-    return(f);
+    return (f);
 }
 
-static FIELD *make_field(int frow, int fcol, int rows, int cols, bool secure)
+static FIELD *
+make_field(int frow, int fcol, int rows, int cols, bool secure)
 {
-    FIELD	*f = new_field(rows, cols, frow, fcol, 0, secure ? 1 : 0);
+    FIELD *f = new_field(rows, cols, frow, fcol, 0, secure ? 1 : 0);
 
     if (f) {
 	set_field_back(f, A_UNDERLINE);
-	set_field_userptr(f, (void *)0);
+	set_field_userptr(f, (void *) 0);
     }
-    return(f);
+    return (f);
 }
 
-static void display_form(FORM *f)
+static void
+display_form(FORM * f)
 {
-    WINDOW	*w;
+    WINDOW *w;
     int rows, cols;
 
     scale_form(f, &rows, &cols);
 
-    if ((w =newwin(rows+2, cols+4, 0, 0)) != (WINDOW *)0)
-    {
+    if ((w = newwin(rows + 2, cols + 4, 0, 0)) != (WINDOW *) 0) {
 	set_form_win(f, w);
 	set_form_sub(f, derwin(w, rows, cols, 1, 2));
 	box(w, 0, 0);
@@ -2589,10 +2740,11 @@ static void display_form(FORM *f)
 	wrefresh(w);
 }
 
-static void erase_form(FORM *f)
+static void
+erase_form(FORM * f)
 {
-    WINDOW	*w = form_win(f);
-    WINDOW	*s = form_sub(f);
+    WINDOW *w = form_win(f);
+    WINDOW *s = form_sub(f);
 
     unpost_form(f);
     werase(w);
@@ -2601,17 +2753,18 @@ static void erase_form(FORM *f)
     delwin(w);
 }
 
-static int edit_secure(FIELD *me, int c)
+static int
+edit_secure(FIELD * me, int c)
 {
-    int rows, cols, frow, fcol, nbuf;
+    int rows, cols, frow, fcol, nrow, nbuf;
 
-    if (field_info(me, &rows, &cols, &frow, &fcol, (int *)0, &nbuf) == E_OK
-     && nbuf > 0) {
+    if (field_info(me, &rows, &cols, &frow, &fcol, &nrow, &nbuf) == E_OK
+	&& nbuf > 0) {
 	char temp[80];
 	long len;
 
 	strcpy(temp, field_buffer(me, 1));
-	len = (long)(char *) field_userptr(me);
+	len = (long) (char *) field_userptr(me);
 	if (c <= KEY_MAX) {
 	    if (isgraph(c)) {
 		temp[len++] = c;
@@ -2652,62 +2805,137 @@ static int edit_secure(FIELD *me, int c)
 		    temp[--len] = 0;
 		    set_field_buffer(me, 1, temp);
 		}
-	    	break;
+		break;
 	    }
 	}
-	set_field_userptr(me, (void *)len);
-     }
-     return c;
+	set_field_userptr(me, (void *) len);
+    }
+    return c;
 }
 
-static int form_virtualize(FORM *f, WINDOW *w)
+static int
+form_virtualize(FORM * f, WINDOW *w)
 {
     static const struct {
 	int code;
 	int result;
     } lookup[] = {
-	{ CTRL('A'),     REQ_NEXT_CHOICE },
-	{ CTRL('B'),     REQ_PREV_WORD },
-	{ CTRL('C'),     REQ_CLR_EOL },
-	{ CTRL('D'),     REQ_DOWN_FIELD },
-	{ CTRL('E'),     REQ_END_FIELD },
-	{ CTRL('F'),     REQ_NEXT_PAGE },
-	{ CTRL('G'),     REQ_DEL_WORD },
-	{ CTRL('H'),     REQ_DEL_PREV },
-	{ CTRL('I'),     REQ_INS_CHAR },
-	{ CTRL('K'),     REQ_CLR_EOF },
-	{ CTRL('L'),     REQ_LEFT_FIELD },
-	{ CTRL('M'),     REQ_NEW_LINE },
-	{ CTRL('N'),     REQ_NEXT_FIELD },
-	{ CTRL('O'),     REQ_INS_LINE },
-	{ CTRL('P'),     REQ_PREV_FIELD },
-	{ CTRL('R'),     REQ_RIGHT_FIELD },
-	{ CTRL('S'),     REQ_BEG_FIELD },
-	{ CTRL('U'),     REQ_UP_FIELD },
-	{ CTRL('V'),     REQ_DEL_CHAR },
-	{ CTRL('W'),     REQ_NEXT_WORD },
-	{ CTRL('X'),     REQ_CLR_FIELD },
-	{ CTRL('Y'),     REQ_DEL_LINE },
-	{ CTRL('Z'),     REQ_PREV_CHOICE },
-	{ ESCAPE,        MAX_FORM_COMMAND + 1 },
-	{ KEY_BACKSPACE, REQ_DEL_PREV },
-	{ KEY_DOWN,      REQ_DOWN_CHAR },
-	{ KEY_END,       REQ_LAST_FIELD },
-	{ KEY_HOME,      REQ_FIRST_FIELD },
-	{ KEY_LEFT,      REQ_LEFT_CHAR },
-	{ KEY_LL,        REQ_LAST_FIELD },
-	{ KEY_NEXT,      REQ_NEXT_FIELD },
-	{ KEY_NPAGE,     REQ_NEXT_PAGE },
-	{ KEY_PPAGE,     REQ_PREV_PAGE },
-	{ KEY_PREVIOUS,  REQ_PREV_FIELD },
-	{ KEY_RIGHT,     REQ_RIGHT_CHAR },
-	{ KEY_UP,        REQ_UP_CHAR },
-	{ QUIT,          MAX_FORM_COMMAND + 1 }
+	{
+	    CTRL('A'), REQ_NEXT_CHOICE
+	},
+	{
+	    CTRL('B'), REQ_PREV_WORD
+	},
+	{
+	    CTRL('C'), REQ_CLR_EOL
+	},
+	{
+	    CTRL('D'), REQ_DOWN_FIELD
+	},
+	{
+	    CTRL('E'), REQ_END_FIELD
+	},
+	{
+	    CTRL('F'), REQ_NEXT_PAGE
+	},
+	{
+	    CTRL('G'), REQ_DEL_WORD
+	},
+	{
+	    CTRL('H'), REQ_DEL_PREV
+	},
+	{
+	    CTRL('I'), REQ_INS_CHAR
+	},
+	{
+	    CTRL('K'), REQ_CLR_EOF
+	},
+	{
+	    CTRL('L'), REQ_LEFT_FIELD
+	},
+	{
+	    CTRL('M'), REQ_NEW_LINE
+	},
+	{
+	    CTRL('N'), REQ_NEXT_FIELD
+	},
+	{
+	    CTRL('O'), REQ_INS_LINE
+	},
+	{
+	    CTRL('P'), REQ_PREV_FIELD
+	},
+	{
+	    CTRL('R'), REQ_RIGHT_FIELD
+	},
+	{
+	    CTRL('S'), REQ_BEG_FIELD
+	},
+	{
+	    CTRL('U'), REQ_UP_FIELD
+	},
+	{
+	    CTRL('V'), REQ_DEL_CHAR
+	},
+	{
+	    CTRL('W'), REQ_NEXT_WORD
+	},
+	{
+	    CTRL('X'), REQ_CLR_FIELD
+	},
+	{
+	    CTRL('Y'), REQ_DEL_LINE
+	},
+	{
+	    CTRL('Z'), REQ_PREV_CHOICE
+	},
+	{
+	    ESCAPE, MAX_FORM_COMMAND + 1
+	},
+	{
+	    KEY_BACKSPACE, REQ_DEL_PREV
+	},
+	{
+	    KEY_DOWN, REQ_DOWN_CHAR
+	},
+	{
+	    KEY_END, REQ_LAST_FIELD
+	},
+	{
+	    KEY_HOME, REQ_FIRST_FIELD
+	},
+	{
+	    KEY_LEFT, REQ_LEFT_CHAR
+	},
+	{
+	    KEY_LL, REQ_LAST_FIELD
+	},
+	{
+	    KEY_NEXT, REQ_NEXT_FIELD
+	},
+	{
+	    KEY_NPAGE, REQ_NEXT_PAGE
+	},
+	{
+	    KEY_PPAGE, REQ_PREV_PAGE
+	},
+	{
+	    KEY_PREVIOUS, REQ_PREV_FIELD
+	},
+	{
+	    KEY_RIGHT, REQ_RIGHT_CHAR
+	},
+	{
+	    KEY_UP, REQ_UP_CHAR
+	},
+	{
+	    QUIT, MAX_FORM_COMMAND + 1
+	}
     };
 
-    static int	mode = REQ_INS_MODE;
-    int		c = wGetchar(w);
-    unsigned	n;
+    static int mode = REQ_INS_MODE;
+    int c = wGetchar(w);
+    unsigned n;
     FIELD *me = current_field(f);
 
     if (c == CTRL(']')) {
@@ -2717,7 +2945,7 @@ static int form_virtualize(FORM *f, WINDOW *w)
 	    mode = REQ_INS_MODE;
 	c = mode;
     } else {
-	for (n = 0; n < sizeof(lookup)/sizeof(lookup[0]); n++) {
+	for (n = 0; n < sizeof(lookup) / sizeof(lookup[0]); n++) {
 	    if (lookup[n].code == c) {
 		c = lookup[n].result;
 		break;
@@ -2739,25 +2967,26 @@ static int form_virtualize(FORM *f, WINDOW *w)
     return c;
 }
 
-static int my_form_driver(FORM *form, int c)
+static int
+my_form_driver(FORM * form, int c)
 {
     if (c == (MAX_FORM_COMMAND + 1)
-		&& form_driver(form, REQ_VALIDATION) == E_OK)
-	return(TRUE);
-    else
-    {
+	&& form_driver(form, REQ_VALIDATION) == E_OK)
+	return (TRUE);
+    else {
 	beep();
-	return(FALSE);
+	return (FALSE);
     }
 }
 
-static void demo_forms(void)
+static void
+demo_forms(void)
 {
-    WINDOW	*w;
-    FORM	*form;
-    FIELD	*f[12], *secure;
-    int		finished = 0, c;
-    unsigned	n = 0;
+    WINDOW *w;
+    FORM *form;
+    FIELD *f[12], *secure;
+    int finished = 0, c;
+    unsigned n = 0;
 
     move(18, 0);
     addstr("Defined form-traversal keys:   ^Q/ESC- exit form\n");
@@ -2788,8 +3017,8 @@ static void demo_forms(void)
     f[n++] = make_field(6, 0, 4, 46, FALSE);
     f[n++] = make_label(5, 20, "Password:");
     secure =
-    f[n++] = make_field(5, 30, 1, 9, TRUE);
-    f[n++] = (FIELD *)0;
+	f[n++] = make_field(5, 30, 1, 9, TRUE);
+    f[n++] = (FIELD *) 0;
 
     form = new_form(f);
 
@@ -2797,10 +3026,9 @@ static void demo_forms(void)
 
     w = form_win(form);
     raw();
-    while (!finished)
-    {
-	switch(form_driver(form, c = form_virtualize(form, w)))
-	{
+    nonl();			/* lets us read ^M's */
+    while (!finished) {
+	switch (form_driver(form, c = form_virtualize(form, w))) {
 	case E_OK:
 	    mvaddstr(5, 57, field_buffer(secure, 1));
 	    clrtoeol();
@@ -2819,10 +3047,11 @@ static void demo_forms(void)
 
     free_form(form);
     for (c = 0; f[c] != 0; c++)
-    	free_field(f[c]);
+	free_field(f[c]);
     noraw();
+    nl();
 }
-#endif	/* USE_LIBFORM */
+#endif /* USE_LIBFORM */
 
 /****************************************************************************
  *
@@ -2830,42 +3059,42 @@ static void demo_forms(void)
  *
  ****************************************************************************/
 
-static void fillwin(WINDOW *win, char ch)
+static void
+fillwin(WINDOW *win, char ch)
 {
     int y, x;
     int y1, x1;
 
     getmaxyx(win, y1, x1);
-    for (y = 0; y < y1; y++)
-    {
+    for (y = 0; y < y1; y++) {
 	wmove(win, y, 0);
 	for (x = 0; x < x1; x++)
 	    waddch(win, ch);
     }
 }
 
-static void crosswin(WINDOW *win, char ch)
+static void
+crosswin(WINDOW *win, char ch)
 {
     int y, x;
     int y1, x1;
 
     getmaxyx(win, y1, x1);
-    for (y = 0; y < y1; y++)
-    {
+    for (y = 0; y < y1; y++) {
 	for (x = 0; x < x1; x++)
 	    if (((x > (x1 - 1) / 3) && (x <= (2 * (x1 - 1)) / 3))
-	    || (((y > (y1 - 1) / 3) && (y <= (2 * (y1 - 1)) / 3))))
-	    {
+		|| (((y > (y1 - 1) / 3) && (y <= (2 * (y1 - 1)) / 3)))) {
 		wmove(win, y, x);
 		waddch(win, ch);
 	    }
     }
 }
 
-static void overlap_test(void)
+static void
+overlap_test(void)
 /* test effects of overlapping windows */
 {
-    int	ch;
+    int ch;
 
     WINDOW *win1 = newwin(9, 20, 3, 3);
     WINDOW *win2 = newwin(9, 20, 9, 16);
@@ -2877,7 +3106,6 @@ static void overlap_test(void)
     printw("the shared region of two overlapping windows A and B.  The cross\n");
     printw("pattern in each window does not overlap the other.\n");
 
-
     move(18, 0);
     printw("a = refresh A, then B, then doupdate. b = refresh B, then A, then doupdaute\n");
     printw("c = fill window A with letter A.      d = fill window B with letter B.\n");
@@ -2887,8 +3115,7 @@ static void overlap_test(void)
     printw("^Q/ESC = terminate test.");
 
     while ((ch = Getchar()) != QUIT && ch != ESCAPE)
-	switch (ch)
-	{
+	switch (ch) {
 	case 'a':		/* refresh window A first, then B */
 	    wnoutrefresh(win1);
 	    wnoutrefresh(win2);
@@ -2952,8 +3179,7 @@ static bool
 do_single_test(const char c)
 /* perform a single specified test */
 {
-    switch (c)
-    {
+    switch (c) {
     case 'a':
 	getch_test();
 	break;
@@ -3023,12 +3249,12 @@ do_single_test(const char c)
 #endif
 
     case 's':
-        overlap_test();
+	overlap_test();
 	break;
 
 #if USE_LIBMENU && defined(TRACE)
     case 't':
-        trace_set();
+	trace_set();
 	break;
 #endif
 
@@ -3045,10 +3271,14 @@ do_single_test(const char c)
 static void
 usage(void)
 {
-    static const char *const tbl[] = {
-	 "Usage: ncurses [options]"
+    static const char *const tbl[] =
+    {
+	"Usage: ncurses [options]"
 	,""
 	,"Options:"
+#ifdef NCURSES_VERSION
+	,"  -d       use default-colors if terminal supports them"
+#endif
 	,"  -e fmt   specify format for soft-keys test (e)"
 	,"  -f       rip-off footer line (can repeat)"
 	,"  -h       rip-off header line (can repeat)"
@@ -3058,7 +3288,7 @@ usage(void)
 #endif
     };
     size_t n;
-    for (n = 0; n < sizeof(tbl)/sizeof(tbl[0]); n++)
+    for (n = 0; n < sizeof(tbl) / sizeof(tbl[0]); n++)
 	fprintf(stderr, "%s\n", tbl[n]);
     exit(EXIT_FAILURE);
 }
@@ -3075,30 +3305,33 @@ set_terminal_modes(void)
 }
 
 #ifdef SIGUSR1
-static RETSIGTYPE announce_sig(int sig)
+static RETSIGTYPE
+announce_sig(int sig)
 {
     (void) fprintf(stderr, "Handled signal %d\r\n", sig);
 }
 #endif
 
-static int rip_footer(WINDOW *win, int columns)
+static int
+rip_footer(WINDOW *win, int columns)
 {
-	wbkgd(win, A_REVERSE);
-	werase(win);
-	wmove(win, 0, 0);
-	wprintw(win, "footer: %d columns", columns);
-	wnoutrefresh(win);
-	return OK;
+    wbkgd(win, A_REVERSE);
+    werase(win);
+    wmove(win, 0, 0);
+    wprintw(win, "footer: %d columns", columns);
+    wnoutrefresh(win);
+    return OK;
 }
 
-static int rip_header(WINDOW *win, int columns)
+static int
+rip_header(WINDOW *win, int columns)
 {
-	wbkgd(win, A_REVERSE);
-	werase(win);
-	wmove(win, 0, 0);
-	wprintw(win, "header: %d columns", columns);
-	wnoutrefresh(win);
-	return OK;
+    wbkgd(win, A_REVERSE);
+    werase(win);
+    wmove(win, 0, 0);
+    wprintw(win, "header: %d columns", columns);
+    wnoutrefresh(win);
+    return OK;
 }
 
 /*+-------------------------------------------------------------------------
@@ -3108,23 +3341,31 @@ static int rip_header(WINDOW *win, int columns)
 int
 main(int argc, char *argv[])
 {
-    int		command, c;
-    int		my_e_param = 1;
+    int command, c;
+    int my_e_param = 1;
+#ifdef NCURSES_VERSION
+    bool default_colors = FALSE;
+#endif
 
 #if HAVE_LOCALE_H
     setlocale(LC_CTYPE, "");
 #endif
 
-    while ((c = getopt(argc, argv, "e:fhs:t:")) != EOF) {
+    while ((c = getopt(argc, argv, "de:fhs:t:")) != EOF) {
 	switch (c) {
+#ifdef NCURSES_VERSION
+	case 'd':
+	    default_colors = TRUE;
+	    break;
+#endif
 	case 'e':
 	    my_e_param = atoi(optarg);
 #ifdef NCURSES_VERSION
 	    if (my_e_param > 3)	/* allow extended layouts */
-	    	usage();
+		usage();
 #else
 	    if (my_e_param > 1)
-	    	usage();
+		usage();
 #endif
 	    break;
 	case 'f':
@@ -3159,7 +3400,7 @@ main(int argc, char *argv[])
     trace(save_trace);
 #else
     if (!isatty(fileno(stdin)))
-    	trace(save_trace);
+	trace(save_trace);
 #endif /* USE_LIBMENU */
 #endif /* TRACE */
 
@@ -3176,7 +3417,13 @@ main(int argc, char *argv[])
     bkgdset(BLANK);
 
     /* tests, in general, will want these modes */
-    start_color();
+    if (has_colors()) {
+	start_color();
+#ifdef NCURSES_VERSION
+	if (default_colors)
+	    use_default_colors();
+#endif
+    }
     set_terminal_modes();
     def_prog_mode();
 
@@ -3190,9 +3437,9 @@ main(int argc, char *argv[])
     (void) printf("Welcome to %s.  Press ? for help.\n", curses_version());
 #elif defined(NCURSES_VERSION_MAJOR) && defined(NCURSES_VERSION_MINOR) && defined(NCURSES_VERSION_PATCH)
     (void) printf("Welcome to ncurses %d.%d.%d.  Press ? for help.\n",
-		NCURSES_VERSION_MAJOR,
-		NCURSES_VERSION_MINOR,
-		NCURSES_VERSION_PATCH);
+	NCURSES_VERSION_MAJOR,
+	NCURSES_VERSION_MINOR,
+	NCURSES_VERSION_PATCH);
 #else
     (void) puts("Welcome to ncurses.  Press ? for help.");
 #endif
@@ -3226,7 +3473,7 @@ main(int argc, char *argv[])
 	(void) puts("? = repeat this command summary");
 
 	(void) fputs("> ", stdout);
-	(void) fflush(stdout);		/* necessary under SVr4 curses */
+	(void) fflush(stdout);	/* necessary under SVr4 curses */
 
 	/*
 	 * This used to be an 'fgets()' call.  However (on Linux, at least)
@@ -3234,41 +3481,44 @@ main(int argc, char *argv[])
 	 * input stream to be flushed when switching between the two.
 	 */
 	command = 0;
-	for(;;) {
-		char ch;
-		if (read(fileno(stdin), &ch, 1) <= 0) {
-			if (command == 0)
-				command = 'q';
-			break;
-		} else if (command == 0 && !isspace(ch)) {
-			command = ch;
-		} else if (ch == '\n' || ch == '\r') {
-			if (command != 0)
-				break;
-			(void) fputs("> ", stdout);
-			(void) fflush(stdout);
-		}
+	for (;;) {
+	    char ch;
+	    if (read(fileno(stdin), &ch, 1) <= 0) {
+		if (command == 0)
+		    command = 'q';
+		break;
+	    } else if (command == 0 && !isspace(ch)) {
+		command = ch;
+	    } else if (ch == '\n' || ch == '\r') {
+		if (command != 0)
+		    break;
+		(void) fputs("> ", stdout);
+		(void) fflush(stdout);
+	    }
 	}
 
 	if (do_single_test(command)) {
-		/*
-		 * This may be overkill; it's intended to reset everything back
-		 * to the initial terminal modes so that tests don't get in
-		 * each other's way.
-		 */
-		flushinp();
-		set_terminal_modes();
-    		reset_prog_mode();
-		clear();
-		refresh();
-		endwin();
-		if (command == '?') {
-			(void) puts("This is the ncurses capability tester.");
-			(void) puts("You may select a test from the main menu by typing the");
-			(void) puts("key letter of the choice (the letter to left of the =)");
-			(void) puts("at the > prompt.  The commands `x' or `q' will exit.");
-		}
-		continue;
+	    /*
+	     * This may be overkill; it's intended to reset everything back
+	     * to the initial terminal modes so that tests don't get in
+	     * each other's way.
+	     */
+	    flushinp();
+	    set_terminal_modes();
+	    reset_prog_mode();
+	    clear();
+	    refresh();
+	    endwin();
+	    if (command == '?') {
+		(void) puts("This is the ncurses capability tester.");
+		(void)
+		    puts("You may select a test from the main menu by typing the");
+		(void)
+		    puts("key letter of the choice (the letter to left of the =)");
+		(void)
+		    puts("at the > prompt.  The commands `x' or `q' will exit.");
+	    }
+	    continue;
 	}
     } while
 	(command != 'q');

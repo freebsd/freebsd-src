@@ -29,7 +29,7 @@
 /*
  * Author:  Thomas E. Dickey <dickey@clark.net> 1998
  *
- * $Id: filter.c,v 1.2 1998/05/10 00:39:27 tom Exp $
+ * $Id: filter.c,v 1.3 1999/11/13 23:39:19 tom Exp $
  */
 #include <test.priv.h>
 
@@ -81,7 +81,7 @@ int main(
 	if (has_colors()) {
 		int background = COLOR_BLACK;
 		start_color();
-#ifdef NCURSES_VERSION
+#ifdef HAVE_USE_DEFAULT_COLORS
 		if (use_default_colors () != ERR)
 			background = -1;
 #endif

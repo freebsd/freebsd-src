@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.25 1998/04/04 00:49:55 tom Exp $
+# $Id: Makefile.in,v 1.28 2000/05/28 01:40:18 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998-2000 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -64,6 +64,7 @@ LD		= @LD@
 LN_S		= @LN_S@
 
 CC		= @CC@
+CPP		= @CPP@
 CFLAGS		= @CFLAGS@
 
 CPPFLAGS	= @CPPFLAGS@ \
@@ -82,7 +83,7 @@ LINK		= $(CC)
 LDFLAGS		= @LDFLAGS@ @LD_MODEL@ @LIBS@
 
 SHLIB_DIRS	= -L../lib -L$(libdir)
-SHLIB_LIST	= $(SHLIB_DIRS) -lncurses @SHLIB_LIST@
+SHLIB_LIST	= $(SHLIB_DIRS) -lncurses@LIB_SUFFIX@ @SHLIB_LIST@
 
 MK_SHARED_LIB	= @MK_SHARED_LIB@
 
@@ -102,6 +103,7 @@ AUTO_SRC	= \
 
 ################################################################################
 all \
+libs \
 install ::	$(AUTO_SRC) $(LIBRARIES)
 
 sources :	$(AUTO_SRC)
