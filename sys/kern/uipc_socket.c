@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.56 1999/04/24 18:22:34 ache Exp $
+ *	$Id: uipc_socket.c,v 1.57 1999/05/03 23:57:23 billf Exp $
  */
 
 #include <sys/param.h>
@@ -955,7 +955,7 @@ sosetopt(so, sopt)
 	int	error, optval;
 	struct	linger l;
 	struct	timeval tv;
-	short	val;
+	u_long  val;
 
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
@@ -1049,11 +1049,19 @@ sosetopt(so, sopt)
 			if (error)
 				goto bad;
 
-			if (tv.tv_sec * hz + tv.tv_usec / tick > SHRT_MAX) {
+			/* assert(hz > 0); */
+			if (tv.tv_sec < 0 || tv.tv_sec > SHRT_MAX / hz ||
+			    tv.tv_usec < 0 || tv.tv_usec >= 1000000) {
 				error = EDOM;
 				goto bad;
 			}
-			val = tv.tv_sec * hz + tv.tv_usec / tick;
+			/* assert(tick > 0); */
+			/* assert(ULONG_MAX - SHRT_MAX >= 1000000); */
+			val = (u_long)(tv.tv_sec * hz) + tv.tv_usec / tick;
+			if (val > SHRT_MAX) {
+				error = EDOM;
+				goto bad;
+			}
 
 			switch (sopt->sopt_name) {
 			case SO_SNDTIMEO:
