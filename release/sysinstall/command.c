@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.10 1995/05/29 11:01:05 jkh Exp $
+ * $Id: command.c,v 1.11.2.1 1995/07/11 10:00:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,47 +72,8 @@ command_clear(void)
     numCommands = 0;
 }
 
-/* Add a shell command under a given key */
-void
-command_shell_add(char *key, char *fmt, ...)
-{
-    va_list args;
-    char *cmd;
-    int i;
-
-    cmd = (char *)safe_malloc(1024);
-    va_start(args, fmt);
-    vsnprintf(cmd, 1024, fmt, args);
-    va_end(args);
-
-    /* First, look for the key already present and add a command to it */
-    for (i = 0; i < numCommands; i++) {
-	if (!strcmp(commandStack[i]->key, key)) {
-	    if (commandStack[i]->ncmds == MAX_NUM_COMMANDS)
-		msgFatal("More than %d commands stacked up behind %s??",
-			 MAX_NUM_COMMANDS, key);
-	    commandStack[i]->cmds[commandStack[i]->ncmds].type = CMD_SHELL;
-	    commandStack[i]->cmds[commandStack[i]->ncmds].ptr = (void *)cmd;
-	    commandStack[i]->cmds[commandStack[i]->ncmds].data = NULL;
-	    ++(commandStack[i]->ncmds);
-	    return;
-	}
-    }
-    if (numCommands == MAX_CMDS)
-	msgFatal("More than %d commands accumulated??", MAX_CMDS);
-
-    /* If we fell to here, it's a new key */
-    commandStack[numCommands] = safe_malloc(sizeof(Command));
-    strcpy(commandStack[numCommands]->key, key);
-    commandStack[numCommands]->ncmds = 1;
-    commandStack[numCommands]->cmds[0].type = CMD_SHELL;
-    commandStack[numCommands]->cmds[0].ptr = (void *)cmd;
-    commandStack[numCommands++]->cmds[0].data = NULL;
-}
-
-/* Add a shell command under a given key */
-void
-command_func_add(char *key, commandFunc func, void *data)
+static void
+addit(char *key, int type, void *cmd, void *data)
 {
     int i;
 
@@ -122,8 +83,8 @@ command_func_add(char *key, commandFunc func, void *data)
 	    if (commandStack[i]->ncmds == MAX_NUM_COMMANDS)
 		msgFatal("More than %d commands stacked up behind %s??",
 			 MAX_NUM_COMMANDS, key);
-	    commandStack[i]->cmds[commandStack[i]->ncmds].type = CMD_FUNCTION;
-	    commandStack[i]->cmds[commandStack[i]->ncmds].ptr = (void *)func;
+	    commandStack[i]->cmds[commandStack[i]->ncmds].type = type;
+	    commandStack[i]->cmds[commandStack[i]->ncmds].ptr = cmd;
 	    commandStack[i]->cmds[commandStack[i]->ncmds].data = data;
 	    ++(commandStack[i]->ncmds);
 	    return;
@@ -136,9 +97,31 @@ command_func_add(char *key, commandFunc func, void *data)
     commandStack[numCommands] = safe_malloc(sizeof(Command));
     strcpy(commandStack[numCommands]->key, key);
     commandStack[numCommands]->ncmds = 1;
-    commandStack[numCommands]->cmds[0].type = CMD_FUNCTION;
-    commandStack[numCommands]->cmds[0].ptr = (void *)func;
+    commandStack[numCommands]->cmds[0].type = type;
+    commandStack[numCommands]->cmds[0].ptr = cmd;
     commandStack[numCommands++]->cmds[0].data = data;
+}
+
+/* Add a shell command under a given key */
+void
+command_shell_add(char *key, char *fmt, ...)
+{
+    va_list args;
+    char *cmd;
+
+    cmd = (char *)safe_malloc(1024);
+    va_start(args, fmt);
+    vsnprintf(cmd, 1024, fmt, args);
+    va_end(args);
+
+    addit(key, CMD_SHELL, cmd, NULL);
+}
+
+/* Add a shell command under a given key */
+void
+command_func_add(char *key, commandFunc func, void *data)
+{
+    addit(key, CMD_FUNCTION, func, data);
 }
 
 /* arg to sort */
