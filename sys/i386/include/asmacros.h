@@ -30,13 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.6 1995/12/29 15:28:53 bde Exp $
+ *	$Id: asmacros.h,v 1.7 1996/03/31 04:17:25 bde Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_
 #define _MACHINE_ASMACROS_H_
 
 #ifdef KERNEL
+#include <sys/cdefs.h>
 
 /* XXX too much duplication in various asm*.h's and gprof.h's */
 
@@ -44,7 +45,7 @@
 #define ALIGN_TEXT	.align	2,0x90	/* 4-byte alignment, nop filled */
 #define SUPERALIGN_TEXT	.align	4,0x90	/* 16-byte alignment (better for 486), nop filled */
 
-#define GEN_ENTRY(name)		ALIGN_TEXT; .globl _/**/name; _/**/name:
+#define GEN_ENTRY(name)		ALIGN_TEXT; .globl __CONCAT(_,name); __CONCAT(_,name):
 #define NON_GPROF_ENTRY(name)	GEN_ENTRY(name)
 
 #ifdef GPROF
