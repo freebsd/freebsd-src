@@ -58,6 +58,9 @@
  * Bridge-specific data.
  */
 struct apb_softc {
+	device_t	dev;
+	u_int8_t	secbus;		/* secondary bus number */
+	u_int8_t	subbus;		/* subordinate bus number */
 	u_int8_t	iomap;
 	u_int8_t	memmap;
 };
@@ -66,6 +69,15 @@ static int apb_probe(device_t dev);
 static int apb_attach(device_t dev);
 static struct resource *apb_alloc_resource(device_t dev, device_t child,
     int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+static int apb_read_ivar(device_t dev, device_t child, int which,
+    uintptr_t *result);
+static int apb_write_ivar(device_t dev, device_t child, int which,
+    uintptr_t value);
+static int apb_maxslots(device_t dev);
+static u_int32_t apb_read_config(device_t dev, int b, int s, int f, int reg,
+    int width);
+static void apb_write_config(device_t dev, int b, int s, int f, int reg,
+    u_int32_t val, int width);
 static int apb_route_interrupt(device_t pcib, device_t dev, int pin);
 
 static device_method_t apb_methods[] = {
@@ -78,8 +90,8 @@ static device_method_t apb_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar,	pcib_read_ivar),
-	DEVMETHOD(bus_write_ivar,	pcib_write_ivar),
+	DEVMETHOD(bus_read_ivar,	apb_read_ivar),
+	DEVMETHOD(bus_write_ivar,	apb_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	apb_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -88,9 +100,9 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,	pcib_maxslots),
-	DEVMETHOD(pcib_read_config,	pcib_read_config),
-	DEVMETHOD(pcib_write_config,	pcib_write_config),
+	DEVMETHOD(pcib_maxslots,	apb_maxslots),
+	DEVMETHOD(pcib_read_config,	apb_read_config),
+	DEVMETHOD(pcib_write_config,	apb_write_config),
 	DEVMETHOD(pcib_route_interrupt,	apb_route_interrupt),
 
 	{ 0, 0 }
@@ -105,8 +117,6 @@ static driver_t apb_driver = {
 static devclass_t apb_devclass;
 
 DRIVER_MODULE(apb, pci, apb_driver, apb_devclass, 0, 0);
-
-#define	APB_SOFTC(sc)	((struct apb_softc *)((sc)->extptr))
 
 /* APB specific registers */
 #define	APBR_IOMAP	0xde
@@ -163,41 +173,28 @@ apb_map_checkrange(u_int8_t map, u_long scale, u_long start, u_long end)
 static int
 apb_attach(device_t dev)
 {
-	struct pcib_softc *sc;
-	struct apb_softc *asc;
+	struct apb_softc *sc;
 	device_t child;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->extptr = malloc(sizeof(struct apb_softc), M_DEVBUF, M_NOWAIT);
-	asc = APB_SOFTC(sc);
 
 	/*
 	 * Get current bridge configuration.
 	 */
-	sc->command = pci_read_config(dev, PCIR_COMMAND, 1);
 	sc->secbus = pci_read_config(dev, PCIR_SECBUS_1, 1);
 	sc->subbus = pci_read_config(dev, PCIR_SUBBUS_1, 1);
-	sc->secstat = pci_read_config(dev, PCIR_SECSTAT_1, 2);
-	sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
-	sc->seclat = pci_read_config(dev, PCIR_SECLAT_1, 1);
-
-	/* The APB does not implement base/limit registers. */
-	sc->iobase = sc->iolimit = 0;
-	sc->membase = sc->memlimit = 0;
-	sc->pmembase = sc->pmemlimit = 0;
-
-	asc->iomap = pci_read_config(dev, APBR_IOMAP, 1);
-	asc->memmap = pci_read_config(dev, APBR_MEMMAP, 1);
+	sc->iomap = pci_read_config(dev, APBR_IOMAP, 1);
+	sc->memmap = pci_read_config(dev, APBR_MEMMAP, 1);
 
 	if (bootverbose) {
 		device_printf(dev, "  secondary bus     %d\n", sc->secbus);
 		device_printf(dev, "  subordinate bus   %d\n", sc->subbus);
 		device_printf(dev, "  I/O decode        ");
-		apb_map_print(asc->iomap, APB_IO_SCALE);
+		apb_map_print(sc->iomap, APB_IO_SCALE);
 		printf("\n");
 		device_printf(dev, "  memory decode     ");
-		apb_map_print(asc->memmap, APB_MEM_SCALE);
+		apb_map_print(sc->memmap, APB_MEM_SCALE);
 		printf("\n");
 	}
 
@@ -226,11 +223,9 @@ static struct resource *
 apb_alloc_resource(device_t dev, device_t child, int type, int *rid, 
     u_long start, u_long end, u_long count, u_int flags)
 {
-	struct pcib_softc *sc;
-	struct apb_softc *asc;
+	struct apb_softc *sc;
 
 	sc = device_get_softc(dev);
-	asc = APB_SOFTC(sc);
 	/*
 	 * If this is a "default" allocation against this rid, we can't work
 	 * out where it's coming from (we should actually never see these) so we
@@ -248,7 +243,7 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 */
 		switch (type) {
 		case SYS_RES_IOPORT:
-			if (!apb_map_checkrange(asc->iomap, APB_IO_SCALE, start,
+			if (!apb_map_checkrange(sc->iomap, APB_IO_SCALE, start,
 			    end)) {
 				device_printf(dev, "device %s%d requested "
 				    "unsupported I/O range 0x%lx-0x%lx\n",
@@ -264,7 +259,7 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			break;
 
 		case SYS_RES_MEMORY:
-			if (!apb_map_checkrange(asc->memmap, APB_MEM_SCALE,
+			if (!apb_map_checkrange(sc->memmap, APB_MEM_SCALE,
 			    start, end)) {
 				device_printf(dev, "device %s%d requested "
 				    "unsupported memory range 0x%lx-0x%lx\n",
@@ -289,6 +284,63 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags));
+}
+
+static int
+apb_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+	struct apb_softc *sc = device_get_softc(dev);
+
+	switch (which) {
+	case PCIB_IVAR_BUS:
+		*result = sc->secbus;
+		return (0);
+	}
+	return (ENOENT);
+}
+
+static int
+apb_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+	struct apb_softc *sc = device_get_softc(dev);
+
+	switch (which) {
+	case PCIB_IVAR_BUS:
+		sc->secbus = value;
+		break;
+	}
+	return (ENOENT);
+}
+
+/*
+ * PCIB interface.
+ */
+static int
+apb_maxslots(device_t dev)
+{
+
+	return (PCI_SLOTMAX);
+}
+
+/*
+ * Since we are a child of a PCI bus, its parent must support the pcib
+ * interface.
+ */
+static u_int32_t
+apb_read_config(device_t dev, int b, int s, int f, int reg, int width)
+{
+
+	return (PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b,
+	    s, f,  reg, width));
+}
+
+static void
+apb_write_config(device_t dev, int b, int s, int f, int reg, u_int32_t val,
+    int width)
+{
+
+	PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg,
+	    val, width);
 }
 
 /*
