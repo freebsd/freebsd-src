@@ -96,8 +96,9 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, host_down_time, CTLFLAG_RW,
 struct llinfo_arp {
 	LIST_ENTRY(llinfo_arp) la_le;
 	struct	rtentry *la_rt;
-	struct	mbuf *la_hold;		/* last packet until resolved/timeout */
-	long	la_asked;		/* last time we QUERIED for this addr */
+	struct	mbuf *la_hold;	/* last packet until resolved/timeout */
+	u_short	la_preempt;	/* #times we QUERIED before entry expiration */
+	u_short	la_asked;	/* #times we QUERIED following expiration */
 #define la_timer la_rt->rt_rmx.rmx_expire /* deletion time in seconds */
 };
 
@@ -441,13 +442,13 @@ arpresolve(ifp, rt, m, dst, desten, rt0)
 		 * arpt_down interval.
 		 */
 		if ((rt->rt_expire != 0) &&
-		    (time_second + (arp_maxtries - la->la_asked) * arpt_down >
-		     rt->rt_expire)) {
+		    (time_second + (arp_maxtries - la->la_preempt) * arpt_down
+		     > rt->rt_expire)) {
 			arprequest(ifp,
 				   &SIN(rt->rt_ifa->ifa_addr)->sin_addr,
 				   &SIN(dst)->sin_addr,
 				   IF_LLADDR(ifp));
-			la->la_asked++;
+			la->la_preempt++;
 		} 
 
 		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
@@ -475,15 +476,15 @@ arpresolve(ifp, rt, m, dst, desten, rt0)
 		rt->rt_flags &= ~RTF_REJECT;
 		if (la->la_asked == 0 || rt->rt_expire != time_second) {
 			rt->rt_expire = time_second;
-			if (la->la_asked++ < arp_maxtries)
-			    arprequest(ifp,
-			        &SIN(rt->rt_ifa->ifa_addr)->sin_addr,
-				&SIN(dst)->sin_addr,
-				IF_LLADDR(ifp));
-			else {
+			if (la->la_asked++ < arp_maxtries) {
+				arprequest(ifp,
+					   &SIN(rt->rt_ifa->ifa_addr)->sin_addr,
+					   &SIN(dst)->sin_addr,
+					   IF_LLADDR(ifp));
+			} else {
 				rt->rt_flags |= RTF_REJECT;
 				rt->rt_expire += arpt_down;
-				la->la_asked = 0;
+				la->la_preempt = la->la_asked = 0;
 			}
 
 		}
@@ -744,7 +745,7 @@ match:
 		if (rt->rt_expire)
 			rt->rt_expire = time_second + arpt_keep;
 		rt->rt_flags &= ~RTF_REJECT;
-		la->la_asked = 0;
+		la->la_preempt = la->la_asked = 0;
 		if (la->la_hold) {
 			(*ifp->if_output)(ifp, la->la_hold,
 				rt_key(rt), rt);
@@ -894,7 +895,7 @@ arptfree(la)
 	if (rt->rt_refcnt > 0 && (sdl = SDL(rt->rt_gateway)) &&
 	    sdl->sdl_family == AF_LINK) {
 		sdl->sdl_alen = 0;
-		la->la_asked = 0;
+		la->la_preempt = la->la_asked = 0;
 		rt->rt_flags &= ~RTF_REJECT;
 		return;
 	}
