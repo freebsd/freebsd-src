@@ -1,0 +1,27 @@
+.\" Man page for apropos
+.\"
+.\" Copyright (c) 1990, 1991, John W. Eaton.
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the README file that comes with the man 1.0
+.\" distribution.  
+.\"
+.\" John W. Eaton
+.\" jwe@che.utexas.edu
+.\" Department of Chemical Engineering
+.\" The University of Texas at Austin
+.\" Austin, Texas  78712
+.\"
+.TH apropos 1 "Jan 15, 1991"
+.LO 1
+.SH NAME
+apropos \- search the whatis database for strings
+.SH SYNOPSIS
+.BI apropos
+keyword ...
+.SH DESCRIPTION
+apropos searches a set of database files containing short descriptions
+of system commands for keywords and displays the result on the
+standard output.
+.SH "SEE ALSO"
+whatis(1), man(1).
