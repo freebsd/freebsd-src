@@ -34,12 +34,12 @@
 .Nd
 PS/2 mouse style pointing device driver
 .Sh SYNOPSIS
-.Cd "options" \&"PSM_HOOKAPM\&"
-.Cd "options" \&"PSM_RESETAFTERSUSPEND\&"
-.Cd "options" \&"KBD_RESETDELAY=N\&"
-.Cd "options" \&"KBD_MAXWAIT=N\&"
-.Cd "options" \&"PSM_DEBUG=N\&"
-.Cd "options" \&"KBDIO_DEBUG=N\&"
+.Cd "options PSM_HOOKAPM"
+.Cd "options PSM_RESETAFTERSUSPEND"
+.Cd "options KBD_RESETDELAY=N"
+.Cd "options KBD_MAXWAIT=N"
+.Cd "options PSM_DEBUG=N"
+.Cd "options KBDIO_DEBUG=N"
 .Cd "device psm0 at atkbdc? irq 12"
 .Sh DESCRIPTION
 The
@@ -600,7 +600,7 @@ movement counts as described in
 .Em devfs .
 .El
 .Sh EXAMPLE
-.Dl "options" \&"PSM_HOOKAPM\&"
+.Dl "options PSM_HOOKAPM"
 .Dl "device psm0 at atkbdc? irq 12"
 .Pp
 Add the
