@@ -109,7 +109,7 @@ pcibios_get_version(void)
 {
 	struct bios_regs args;
 
-	if (PCIbios.entry == 0) {
+	if (PCIbios.ventry == 0) {
 		PRVERB(("pcibios: No call entry point\n"));
 		return (0);
 	}
@@ -552,7 +552,7 @@ pcibios_cfgopen(void)
 {
 	u_int16_t		v = 0;
     
-	if (PCIbios.entry != 0 && enable_pcibios) {
+	if (PCIbios.ventry != 0 && enable_pcibios) {
 		v = pcibios_get_version();
 		if (v > 0)
 			printf("pcibios: BIOS version %x.%02x\n",
