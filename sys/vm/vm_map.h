@@ -302,6 +302,8 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define MAP_DISABLE_SYNCER	0x0020
 #define MAP_DISABLE_COREDUMP	0x0100
 #define MAP_PREFAULT_MADVISE	0x0200	/* from (user) madvise request */
+#define	MAP_STACK_GROWS_DOWN	0x1000
+#define	MAP_STACK_GROWS_UP	0x2000
 
 /*
  * vm_fault option flags
