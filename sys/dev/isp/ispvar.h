@@ -73,7 +73,7 @@ struct ispmdvec {
 	void		(*dv_reset0) (struct ispsoftc *);
 	void		(*dv_reset1) (struct ispsoftc *);
 	void		(*dv_dregs) (struct ispsoftc *, const char *);
-	u_int16_t	*dv_ispfw;	/* ptr to f/w */
+	const u_int16_t	*dv_ispfw;	/* ptr to f/w */
 	u_int16_t	dv_conf1;
 	u_int16_t	dv_clock;	/* clock frequency */
 };
@@ -295,6 +295,9 @@ typedef struct {
 	 */
 	caddr_t			isp_scratch;
 	ISP_DMA_ADDR_T		isp_scdma;
+#ifdef	ISP_FW_CRASH_DUMP
+	u_int16_t		*isp_dump_data;
+#endif
 } fcparam;
 
 #define	FW_CONFIG_WAIT		0
@@ -434,12 +437,13 @@ typedef struct ispsoftc {
 #define	ISP_CFG_TWOGB		0x20	/* force 2GB connection (23XX only) */
 #define	ISP_CFG_ONEGB		0x10	/* force 1GB connection (23XX only) */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
-#define	ISP_CFG_OWNWWN		0x02	/* override NVRAM wwn */
 #define	ISP_CFG_PORT_PREF	0x0C	/* Mask for Port Prefs (2200 only) */
 #define	ISP_CFG_LPORT		0x00	/* prefer {N/F}L-Port connection */
 #define	ISP_CFG_NPORT		0x04	/* prefer {N/F}-Port connection */
 #define	ISP_CFG_NPORT_ONLY	0x08	/* insist on {N/F}-Port connection */
 #define	ISP_CFG_LPORT_ONLY	0x0C	/* insist on {N/F}L-Port connection */
+#define	ISP_CFG_OWNWWPN		0x100	/* override NVRAM wwpn */
+#define	ISP_CFG_OWNWWNN		0x200	/* override NVRAM wwnn */
 
 /*
  * Prior to calling isp_reset for the first time, the outer layer
@@ -566,6 +570,13 @@ void isp_init(struct ispsoftc *);
  * Reset the ISP and call completion for any orphaned commands.
  */
 void isp_reinit(struct ispsoftc *);
+
+#ifdef	ISP_FW_CRASH_DUMP
+/*
+ * Dump firmware entry point.
+ */
+void isp_fw_dump(struct ispsoftc *isp);
+#endif
 
 /*
  * Internal Interrupt Service Routine
