@@ -1,7 +1,8 @@
 .\"
-.\" 	@(#)snp.4	1.1 (FreeBSD) 2/17/95
+.\"  $Id$
+.\"  $Source$
 .\"
-.Dd February 17, 1995
+.Dd February 24, 1995
 .Dt SNP 4
 .Os FreeBSD
 .Sh NAME
@@ -11,11 +12,11 @@
 .Fd #include <sys/ioctl.h>
 .Fd #include <sys/snoop.h>
 .Ft int
-.Fn ioctl fd SNPSTTY &snptty
+.Fn ioctl fd SNPSTTY &dev
 .Ft int
-.Fn ioctl fd SNPGTTY &snptty
+.Fn ioctl fd SNPGTTY &dev
 .Ft int
-.Fn ioctl fd FIONREAD 0
+.Fn ioctl fd FIONREAD &result
 .Sh DESCRIPTION
 /dev/snp? are snoop devices which allow user to attach to any tty
 and watch activities on it.
@@ -25,21 +26,10 @@ To associate a given
 device with a tty to be observed,  open the
 .Nm snp
 device and then use the SNPSTTY ioctl.
-The argument passed to the IOCTL is the address of a structure of
-the following type:
-.Bd -literal -ffset indent
-struct snptty {
-	int	st_unit;		/* number of the tty unit */
-	int	st_type;		/* type of the tty to attach */
-#define	ST_PTY		0		/* regular pty */
-#define	ST_VTY		1		/* syscons vty */
-#define	ST_SIO		2		/* serial lines */
-}
-
-.Ed
-.Pp
-By setting st_type or st_unit to -1, the user may detach the snp device
-for a tty.
+The argument passed to the IOCTL is the address of a variable of type
+dev_t.
+By setting the value of the variable pointed to to -1, the user may detach
+the snp device from a tty.
 .Pp
 The SNPGTTY ioctl returns information about the current tty attached to
 the open
