@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.1 1996/11/11 23:40:45 phk Exp $
+ * $Id: ip_input.c,v 1.50.2.2 1997/02/02 18:55:33 joerg Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -317,10 +317,10 @@ tooshort:
 #ifdef IPDIVERT
 		action = (*ip_fw_chk_ptr)(&ip, hlen,
 				m->m_pkthdr.rcvif, ip_divert_ignore, &m);
+		ip_divert_ignore = 0;
 #else
 		action = (*ip_fw_chk_ptr)(&ip, hlen, m->m_pkthdr.rcvif, 0, &m);
 #endif
-		ip_divert_ignore = 0;
 		if (action == -1)
 			return;
 		if (action != 0) {
