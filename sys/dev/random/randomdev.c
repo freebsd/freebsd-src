@@ -30,6 +30,7 @@
 #include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
@@ -201,7 +202,14 @@ random_write(dev_t dev, struct uio *uio, int flag)
 static int
 random_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 {
-	return ENOTTY;
+	switch (cmd) {
+	/* Really handled in upper layer */
+	case FIOASYNC:
+	case FIONBIO:
+		return 0;
+	default:
+		return ENOTTY;
+	}
 }
 
 static int
