@@ -70,7 +70,7 @@ cons60-m|ansi80x60-mono:\
 # KOI8-R FreeBSD console with ACS support
 cons25r|pc3r|ibmpc3r|cons25-koi8-r:\
 	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^Xi^U0\215:\
-	:kD=\E[K:tc=cons25w:
+	:tc=cons25w:
 cons25r-m|pc3r-m|ibmpc3r-mono|cons25-koi8-r-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25r:
 cons30r|cons30-koi8-r:\
