@@ -56,7 +56,7 @@ Arithmetic operations are performed using signed integer math.
 If the
 .Fl e
 flag is specified, arithmetic uses the C
-.Ql intmax_t
+.Vt intmax_t
 data type (the largest integral type available), and
 .Nm
 will detect arithmetic overflow and return an error indication.
@@ -67,7 +67,7 @@ If
 is not specified, arithmetic operations and parsing of integer
 arguments will overflow silently according to the rules of the C
 standard, using the
-.Ql long
+.Vt long
 data type.
 .Pp
 Operators are listed below in order of increasing precedence; all
@@ -126,11 +126,11 @@ Unless the
 variable is defined in the process environment, this version of
 .Nm
 adheres to the
-.Tn POSIX
+\*[Px]
 Utility Syntax Guidelines, which require that a leading argument beginning
 with a minus sign be considered an option to the program.
 The standard
-.Ql \&--
+.Fl Fl
 syntax may be used to prevent this interpretation.
 However, many historic implementations of
 .Nm ,
@@ -168,7 +168,7 @@ command in general is historic and inconvenient.
 New applications are advised to use shell arithmetic rather than
 .Nm .
 .Sh ENVIRONMENT
-.Bl -tag -compact -width EXPR_COMPAT
+.Bl -tag -width ".Ev EXPR_COMPAT"
 .It Ev EXPR_COMPAT
 If set,
 .Nm
@@ -185,7 +185,7 @@ The following example (in
 .Xr sh 1
 syntax) adds one to the variable
 .Va a :
-.Dl a=$(expr $a + 1)
+.Dl "a=$(expr $a + 1)"
 .It
 This will fail if the value of
 .Va a
@@ -195,10 +195,10 @@ To protect negative values of
 from being interpreted as options to the
 .Nm
 command, one might rearrange the expression:
-.Dl a=$(expr 1 + $a)
+.Dl "a=$(expr 1 + $a)"
 .It
 More generally, parenthesize possibly-negative values:
-.Dl a=$(expr \e( $a \e) + 1)
+.Dl "a=$(expr \e( $a \e) + 1)"
 .It
 This example prints the filename portion of a pathname stored
 in variable
@@ -211,7 +211,7 @@ it is necessary to prevent it from being interpreted as the division operator.
 The
 .Li //
 characters resolve this ambiguity.
-.Dl expr \*q//$a\*q \&: '.*/\e(.*\e)'
+.Dl "expr \*q//$a\*q \&: '.*/\e(.*\e)'"
 .El
 .Pp
 The following examples output the number of characters in variable
@@ -228,11 +228,11 @@ If the
 command conforms to
 .St -p1003.1-2001 ,
 this is simple:
-.Dl expr -- \*q$a\*q \&: \*q.*\*q
+.Dl "expr -- \*q$a\*q \&: \*q.*\*q"
 .It
 For portability to older systems, however, a more complicated command
 is required:
-.Dl expr \e( \*qX$a\*q \&: \*q.*\*q \e) - 1
+.Dl "expr \e( \*qX$a\*q \&: \*q.*\*q \e) - 1"
 .El
 .Sh DIAGNOSTICS
 The
