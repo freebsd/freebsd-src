@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * $Id: if_epreg.h,v 1.2 1994/01/10 19:13:50 ats Exp $ Modified by:
+ * $Id: if_epreg.h,v 1.4 1994/11/13 10:12:37 gibbs Exp $ Modified by:
  * 
  October 2, 1994
  
@@ -55,6 +55,7 @@ struct ep_softc {
 #define         F_RX_FIRST   0x1
 #define         F_WAIT_TRAIL 0x2
 #define         F_RX_TRAILER 0x4
+#define		F_PROMISC    0x8
 
 #define         F_ACCESS_32_BITS 0x100
 
