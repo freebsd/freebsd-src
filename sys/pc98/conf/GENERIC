@@ -272,7 +272,7 @@ device		sn
 #device		xe0	at isa?
 
 #device	snd
-#device	sb0	at isa? port 0x20d2 irq 10 conflicts drq 3
+#device	sb0	at isa? port 0x20d2 irq 10 drq 3
 #device	sbxvi0 	at isa? drq 3
 #device	sbmidi0	at isa? port 0x80d2
 #device	opl0	at isa? port 0x28d2
