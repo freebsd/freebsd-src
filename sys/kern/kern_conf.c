@@ -62,9 +62,6 @@ static LIST_HEAD(, cdev) dev_hash[DEVT_HASH];
 
 static LIST_HEAD(, cdev) dev_free;
 
-devfs_create_t *devfs_create_hook;
-devfs_destroy_t *devfs_destroy_hook;
-
 static int ready_for_devs;
 
 static int free_devt;
@@ -332,8 +329,7 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	dev->si_mode = perms;
 	dev->si_flags |= SI_NAMED;
 
-	if (devfs_create_hook)
-		devfs_create_hook(dev);
+	devfs_create(dev);
 	return (dev);
 }
 
@@ -378,8 +374,7 @@ make_dev_alias(dev_t pdev, const char *fmt, ...)
 	}
 	va_end(ap);
 
-	if (devfs_create_hook)
-		devfs_create_hook(dev);
+	devfs_create(dev);
 	return (dev);
 }
 
@@ -407,8 +402,7 @@ destroy_dev(dev_t dev)
 		return;
 	}
 		
-	if (devfs_destroy_hook)
-		devfs_destroy_hook(dev);
+	devfs_destroy(dev);
 	if (dev->si_flags & SI_CHILD) {
 		LIST_REMOVE(dev, si_siblings);
 		dev->si_flags &= ~SI_CHILD;
