@@ -994,10 +994,7 @@ sioprobe(dev)
 	intrmask_t	irqs;
 	u_char		mcr_image;
 	int		result;
-#ifdef COM_MULTIPORT
-	Port_t		xiobase;
-#endif
-	int		xirq;
+	u_long		xirq;
 	u_int		flags = device_get_flags(dev);
 	int		rid;
 	struct resource *port;
@@ -1060,8 +1057,9 @@ sioprobe(dev)
 #else
 		for (i = 0; i < count; i++) {
 			xdev = devs[i];
-			xioport = bus_get_resource_start(xdev, SYS_RES_IOPORT, 0);
-			if (device_is_enabled(xdev) && xioport > 0)
+			if (device_is_enabled(xdev) &&
+			    bus_get_resource(xdev, SYS_RES_IOPORT, 0, &xioport,
+					     NULL) == 0)
 				outb(xioport + com_mcr, 0);
 		}
 #endif
@@ -1136,6 +1134,9 @@ sioprobe(dev)
 	mcr_image = MCR_IENABLE;
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(flags) && !COM_NOTAST4(flags)) {
+		Port_t xiobase;
+		u_long io;
+
 		idev = devclass_get_device(sio_devclass, COM_MPMASTER(flags));
 		if (idev == NULL) {
 			printf("sio%d: master device %d not configured\n",
@@ -1143,16 +1144,18 @@ sioprobe(dev)
 			idev = dev;
 		}
 #ifndef PC98
-		xiobase = bus_get_resource_start(idev, SYS_RES_IOPORT, 0);
-		if (xiobase > 0) {
-			xirq = bus_get_resource_start(idev, SYS_RES_IRQ, 0);
-			outb(xiobase + com_scr, xirq >= 0 ? 0x80 : 0);
+		if (bus_get_resource(idev, SYS_RES_IOPORT, 0, &io, NULL) == 0) {
+			xiobase = io;
+			if (bus_get_resource(idev, SYS_RES_IRQ, 0, NULL, NULL))
+				outb(xiobase + com_scr, 0x80);	/* no irq */
+			else
+				outb(xiobase + com_scr, 0);
 		}
 		mcr_image = 0;
 #endif
 	}
 #endif /* COM_MULTIPORT */
-	if (bus_get_resource_start(idev, SYS_RES_IRQ, 0) <= 0)
+	if (bus_get_resource(idev, SYS_RES_IRQ, 0, NULL, NULL) != 0)
 		mcr_image = 0;
 
 	bzero(failures, sizeof failures);
@@ -1424,10 +1427,10 @@ sioprobe(dev)
 	enable_intr();
 
 	irqs = irqmap[1] & ~irqmap[0];
-	xirq = bus_get_resource_start(idev, SYS_RES_IRQ, 0);
-	if (xirq >= 0 && ((1 << xirq) & irqs) == 0)
+	if (bus_get_resource(idev, SYS_RES_IRQ, 0, &xirq, NULL) == 0 &&
+	    ((1 << xirq) & irqs) == 0)
 		printf(
-		"sio%d: configured irq %d not in bitmap of probed irqs %#x\n",
+		"sio%d: configured irq %ld not in bitmap of probed irqs %#x\n",
 		    device_get_unit(dev), xirq, irqs);
 	if (bootverbose)
 		printf("sio%d: irq maps: %#x %#x %#x %#x\n",
@@ -1553,7 +1556,6 @@ sioattach(dev)
 	Port_t		*espp;
 #endif
 	Port_t		iobase;
-	int		irq;
 	int		unit;
 	void		*ih;
 	u_int		flags;
@@ -1578,7 +1580,6 @@ sioattach(dev)
 		return ENXIO;
 
 	iobase = rman_get_start(port);
-	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
 	unit = device_get_unit(dev);
 	com = device_get_softc(dev);
 	flags = device_get_flags(dev);
@@ -1620,7 +1621,7 @@ sioattach(dev)
 	com->cfcr_image = CFCR_8BITS;
 	com->dtr_wait = 3 * hz;
 	com->loses_outints = COM_LOSESOUTINTS(flags) != 0;
-	com->no_irq = irq < 0;
+	com->no_irq = bus_get_resource(dev, SYS_RES_IRQ, 0, NULL, NULL);
 	com->tx_fifo_size = 1;
 	com->obufs[0].l_head = com->obuf1;
 	com->obufs[1].l_head = com->obuf2;
@@ -1870,14 +1871,13 @@ determined_type: ;
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(flags)) {
 		device_t masterdev;
-		int irq;
 
 		com->multiport = TRUE;
 		printf(" (multiport");
 		masterdev = devclass_get_device(sio_devclass,
 		    COM_MPMASTER(flags));
-		irq = bus_get_resource_start(masterdev, SYS_RES_IRQ, 0);
-		com->no_irq = irq < 0;
+		com->no_irq = bus_get_resource(masterdev, SYS_RES_IRQ, 0, NULL,
+		    NULL);
 		if (unit == COM_MPMASTER(flags))
 			printf(" master");
 		printf(")");
@@ -1917,8 +1917,15 @@ determined_type: ;
 	    RF_ACTIVE);
 	if (com->irqres) {
 		ret = BUS_SETUP_INTR(device_get_parent(dev), dev, com->irqres,
-			       INTR_TYPE_TTY | INTR_TYPE_FAST,
-			       siointr, com, &ih);
+				     INTR_TYPE_TTY | INTR_TYPE_FAST,
+				     siointr, com, &ih);
+		if (ret) {
+			ret = BUS_SETUP_INTR(device_get_parent(dev), dev,
+					     com->irqres, INTR_TYPE_TTY,
+					     siointr, com, &ih);
+			if (ret == 0)
+				device_printf(dev, "unable to activate interrupt in fast mode - using normal mode");
+		}
 		if (ret)
 			device_printf(dev, "could not activate interrupt\n");
 	}
