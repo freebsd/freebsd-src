@@ -1544,8 +1544,16 @@ main(argc, argv)
 			   * last error is valid
 			   */
 #if defined(BOEDER)
-			  time_offset.tv_sec  = utc_time - tt.tv_sec;
-			  time_offset.tv_usec = 0;
+			  if (abs(utc_time - tt.tv_sec) > 10)
+			    {
+			      time_offset.tv_sec  = utc_time - tt.tv_sec;
+			      time_offset.tv_usec = 0;
+			    }
+			  else
+			    {
+			      time_offset.tv_sec  = lasterror / 1000000;
+			      time_offset.tv_usec = lasterror % 1000000;
+			    }
 #else
 			  time_offset.tv_sec  = lasterror / 1000000;
 			  time_offset.tv_usec = lasterror % 1000000;
