@@ -56,9 +56,6 @@ static const char rcsid[] =
 
 #include "pw_scan.h"
 
-static int big_uids = 0;		/* Used for legacy max uid_t warning */
-static int big_gids = 0;		/* Used for legacy max gid_t warning */
-
 int
 pw_scan(bp, pw)
 	char *bp;
@@ -87,9 +84,9 @@ pw_scan(bp, pw)
 		warnx("root uid should be 0");
 		return (0);
 	}
-	if (id > USHRT_MAX && !(big_uids++)) {
-		warnx("%s > legacy max uid value (%d): "
-		    "no more such warnings", p, USHRT_MAX);
+	if (id > USHRT_MAX) {
+		warnx("%s > max uid value (%d)", p, USHRT_MAX);
+		/*return (0);*/ /* THIS SHOULD NOT BE FATAL! */
 	}
 	pw->pw_uid = id;
 
@@ -97,9 +94,9 @@ pw_scan(bp, pw)
 		goto fmt;
 	if(p[0]) pw->pw_fields |= _PWF_GID;
 	id = atol(p);
-	if (id > USHRT_MAX && !(big_gids++)) {
-		warnx("%s > max gid value (%d): "
-		    "no more such warnings", p, USHRT_MAX);
+	if (id > USHRT_MAX) {
+		warnx("%s > max gid value (%d)", p, USHRT_MAX);
+		/* return (0); This should not be fatal! */
 	}
 	pw->pw_gid = id;
 
