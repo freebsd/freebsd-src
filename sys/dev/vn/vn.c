@@ -77,6 +77,7 @@
 #include <sys/uio.h>
 #include <sys/disklabel.h>		/* YF - needed anyway for disksort() */
 #ifdef TEST_LABELLING
+#error "labeling temporarily disabled (slice numbers have changed)"
 #include <sys/diskslice.h>
 #include <sys/stat.h>
 #endif
