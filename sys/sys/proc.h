@@ -126,7 +126,9 @@ struct	pargs {
  * associated comment.
  *      * - not yet protected
  *      a - only touched by curproc or parent during fork/wait
- *      b - created at fork, never chagnes 
+ *      b - created at fork, never changes
+ *      	(exception aiods switch vmspaces, but they are also
+ *      	marked 'P_SYSTEM' so hopefully it will be left alone)
  *      c - locked by proc mtx
  *      d - locked by allproc_lock lock
  *      e - locked by proctree_lock lock
