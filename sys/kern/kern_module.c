@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.14 1999/01/09 16:50:04 dfr Exp $
+ *	$Id: kern_module.c,v 1.15 1999/01/27 21:49:56 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -77,9 +77,9 @@ module_shutdown(int arg1, void* arg2)
 }
 
 void
-module_register_init(void *arg)
+module_register_init(const void *arg)
 {
-    moduledata_t* data = (moduledata_t*) arg;
+    const moduledata_t* data = (const moduledata_t*) arg;
     int error;
 
     error = module_register(data->name, data->evhand, data->priv, data->_file);
