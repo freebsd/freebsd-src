@@ -11,6 +11,7 @@
  *	$NetBSD: ohci.c,v 1.133 2002/12/07 07:14:28 toshii Exp $
  *	$NetBSD: ohci.c,v 1.134 2002/12/07 07:33:20 toshii Exp $
  *	$NetBSD: ohci.c,v 1.135 2002/12/10 14:07:37 toshii Exp $
+ *	$NetBSD: ohci.c,v 1.136 2003/01/20 05:30:09 simonb Exp $
  *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  */
@@ -1481,7 +1482,7 @@ ohci_softintr(void *v)
 			    bEndpointAddress);
 			xfer->status = USBD_NORMAL_COMPLETION;
 			actlen = 0;
-			for (i = 0, sitd = xfer->hcpriv;;
+			for (i = 0, sitd = xfer->hcpriv;
 			    sitd = next) {
 				next = sitd->nextitd;
 				if (OHCI_ITD_GET_CC(le32toh(sitd->
