@@ -213,12 +213,10 @@
 
 #define	CATCH_SETUP(label) \
 	SET(label, %g2, %g1) ; \
-	ldx	[PCPU(CURTHREAD)], %g6 ; \
-	ldx	[%g6 + TD_PCB], %g6 ; \
-	stx	%g1, [%g6 + PCB_ONFAULT]
+	stx	%g1, [PCB_REG + PCB_ONFAULT]
 
 #define	CATCH_END() \
-	stx	%g0, [%g6 + PCB_ONFAULT]
+	stx	%g0, [PCB_REG + PCB_ONFAULT]
 
 #define	FU_ALIGNED(loader, label) \
 	CATCH_SETUP(label) ; \
