@@ -1041,7 +1041,6 @@ int	mlockall __P((struct proc *, struct mlockall_args *));
 int	munlockall __P((struct proc *, struct munlockall_args *));
 int	__getcwd __P((struct proc *, struct __getcwd_args *));
 
-#include "opt_compat.h"
 #ifdef COMPAT_43
 
 struct	ocreat_args {
