@@ -134,12 +134,12 @@ do { \
 		m_freem(mrep); \
 		mrep = NULL; \
 	} \
+	mreq = nfs_rephead((s), nfsd, error, &mb, &bpos); \
+	*mrq = mreq; \
 	if (error == EBADRPC) { \
 		error = 0; \
 		goto nfsmout; \
 	} \
-	mreq = nfs_rephead((s), nfsd, error, &mb, &bpos); \
-	*mrq = mreq; \
 } while (0)
 
 #define	nfsm_writereply(s) \
