@@ -1621,9 +1621,9 @@ mlx_startio(struct mlx_softc *sc)
 	driveno = mlxd->mlxd_drive - &sc->mlx_sysdrive[0];
 	blkcount = bp->b_bcount / MLX_BLKSIZE;
 
-	if ((bp->b_blkno + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
+	if ((bp->b_pblkno + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
 	    device_printf(sc->mlx_dev, "I/O beyond end of unit (%u,%d > %u)\n", 
-			  bp->b_blkno, blkcount, sc->mlx_sysdrive[driveno].ms_size);
+			  bp->b_pblkno, blkcount, sc->mlx_sysdrive[driveno].ms_size);
 
 	/*
 	 * Build the I/O command.  Note that the SG list type bits are set to zero,
@@ -1632,7 +1632,7 @@ mlx_startio(struct mlx_softc *sc)
 	mlx_make_type5(mc, cmd, 
 		       blkcount & 0xff, 				/* xfer length low byte */
 		       (driveno << 3) | ((blkcount >> 8) & 0x07),	/* target and length high 3 bits */
-		       bp->b_blkno,					/* physical block number */
+		       bp->b_pblkno,					/* physical block number */
 		       mc->mc_sgphys,					/* location of SG list */
 		       mc->mc_nsgent & 0x3f);				/* size of SG list (top 2 bits clear) */
 	
@@ -1670,8 +1670,8 @@ mlx_completeio(struct mlx_command *mc)
 	default:				/* other I/O error */
 	    device_printf(sc->mlx_dev, "I/O error - %s\n", mlx_diagnose_command(mc));
 #if 0
-	    device_printf(sc->mlx_dev, "  b_bcount %ld  blkcount %ld  b_blkno %d\n", 
-			  bp->b_bcount, bp->b_bcount / MLX_BLKSIZE, bp->b_blkno);
+	    device_printf(sc->mlx_dev, "  b_bcount %ld  blkcount %ld  b_pblkno %d\n", 
+			  bp->b_bcount, bp->b_bcount / MLX_BLKSIZE, bp->b_pblkno);
 	    device_printf(sc->mlx_dev, "  %13D\n", mc->mc_mailbox, " ");
 #endif
 	    break;
