@@ -245,6 +245,8 @@ _thread_init(void)
 		len = sizeof (int);
 		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
 			_usrstack = (void *)USRSTACK;
+		_next_stack = _usrstack - PTHREAD_STACK_INITIAL -
+		    PTHREAD_STACK_DEFAULT - (2 * PTHREAD_STACK_GUARD);
 		/*
 		 * Create a red zone below the main stack.  All other stacks are
 		 * constrained to a maximum size by the paramters passed to
