@@ -299,7 +299,6 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				    kp->ki_mtxname, MTXNAMELEN);
 			kp->ki_mtxname[MTXNAMELEN] = 0;
 		}
-		kp->ki_rtprio = proc.p_rtprio;
 		kp->ki_runtime = proc.p_runtime;
 		kp->ki_pid = proc.p_pid;
 		kp->ki_siglist = proc.p_siglist;
@@ -314,10 +313,8 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 		kp->ki_sflag = proc.p_sflag;
 		kp->ki_wchan = proc.p_wchan;
 		kp->ki_traceflag = proc.p_traceflag;
-		kp->ki_priority = proc.p_priority;
-		kp->ki_usrpri = proc.p_usrpri;
-		kp->ki_nativepri = proc.p_nativepri;
 		kp->ki_stat = proc.p_stat;
+		kp->ki_pri = proc.p_pri;
 		kp->ki_nice = proc.p_nice;
 		kp->ki_lock = proc.p_lock;
 		kp->ki_rqindex = proc.p_rqindex;
