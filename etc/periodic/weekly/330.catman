@@ -13,34 +13,46 @@ fi
 
 case "$weekly_catman_enable" in
     [Yy][Ee][Ss])
-	if [ -x /usr/libexec/catman.local -a -d /usr/share/man/cat1 -a \
-	     -x /usr/bin/manpath ]
+	if [ ! -d /usr/share/man/cat1 ]
 	then
+	    echo '$weekly_catman_enable is set but /usr/share/man/cat1' \
+		"doesn't exist"
+	    rc=2
+	else
 	    echo ""
 	    echo "Reformatting manual pages:"
 
 	    MANPATH=`/usr/bin/manpath -q`
 	    if [ $? = 0 ]
 	    then
-		if [ "x${MANPATH}" = "x" ]
+		if [ -z "${MANPATH}" ]
 		then
 		    echo "manpath failed to find any manpath directories" 
+		    rc=3
 		else
 		    man_locales=`/usr/bin/manpath -qL`
+		    rc=0
          
 		    # Preformat original, non-localized manpages  
-		    echo /usr/libexec/catman.local "$MANPATH" | su -fm man
+		    echo /usr/libexec/catman.local "$MANPATH" |
+			su -fm man || rc=3
 
 		    # Preformat localized manpages.
-		    if [ X"$man_locales" != X ]
+		    if [ -n "$man_locales" ]
 		    then
 			for i in $man_locales
 			do
 			    LC_CTYPE=$i echo /usr/libexec/catman.local -L \
-				"$MANPATH" | su -fm man
+				"$MANPATH" | su -fm man || rc=3
 			done
 		    fi
 		fi
+	    else
+		rc=3
 	    fi
 	fi;;
+
+    *)  rc=0;;
 esac
+
+exit $rc

@@ -48,13 +48,84 @@ file.
 is actually sourced as a shell script from each of the periodic scripts
 and is intended to simply provide default configuration variables.
 .Pp
-The following list provides a name and short description for each
-variable you can set in the
-.Nm
-file.
+The following variables are used by
+.Xr periodic 8
+itself:
 .Bl -tag -offset 4n -width 2n
 .It Ar local_periodic
 (str) List of directories to search for periodic scripts.
+This list is always prefixed with
+.Pa /etc/periodic ,
+and is only used when an argument to
+.Xr periodic 8
+is not an absolute directory name.
+.It Ar dir Ns No _output
+(path or list) What to do with the output of the scripts envoked from
+the directory
+.Ar dir .
+If this variable is set to an absolute path name, output is logged to
+that file, otherwise it is taken as one or more space seperated email
+addresses and mailed to those users.
+If this variable is not set, it defaults to
+.Dq root .
+.Pp
+For an unattended machine, suitable values for
+.Ar $daily_output ,
+.Ar $weekly_output ,
+and
+.Ar $monthly_output
+might be
+.Dq /var/log/daily.log ,
+.Dq /var/log/weekly.log ,
+and
+.Dq /var/log/monthly.log
+respectively, as
+.Xr newsyslog 8
+will rotate these files (if they exists) at the appropriate times.
+.It Ar dir Ns No _show_success
+.It Ar dir Ns No _show_info
+.It Ar dir Ns No _show_badconfig
+(bool) These variables control whether
+.Xr periodic 8
+will mask the output of the envoked scripts based on their return code
+(where
+.Ar dir
+is the base directory name in which each script resides).
+If the return code of a script is
+.Sq 0
+and
+.Ar dir Ns No _show_success is set to
+.Dq NO ,
+.Xr periodic 8
+will mask the script's output.
+If the return code of a script is
+.Sq 1
+and
+.Ar dir Ns No _show_info is set to
+.Dq NO ,
+.Xr periodic 8
+will mask the script's output.
+If the return code of a script is
+.Sq 2
+and
+.Ar dir Ns No _show_badconfig is set to
+.Dq NO ,
+.Xr periodic 8
+will mask the script's output.
+If these variables are set to neither
+.Dq YES
+nor
+.Dq NO ,
+the default to
+.Dq YES ,
+.Dq YES
+and
+.Dq NO
+respectively.
+.Pp
+Refer to the
+.Xr periodic 8
+man page for how script return codes are interpreted.
 .El
 .B Daily variables
 .Pp
@@ -433,11 +504,12 @@ is shared or distributed.
 .Xr chkgrp 8 ,
 .Xr dump 8 ,
 .Xr mfs 8 .
+.Xr newsyslog 8 .
 .Xr periodic 8 .
 .Sh HISTORY
 The
 .Nm
 file appeared in
-.Fx 5.0 .
+.Fx 4.1 .
 .Sh AUTHORS
 .An Brian Somers Aq brian@Awfulhak.org .
