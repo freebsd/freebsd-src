@@ -68,11 +68,6 @@ __RCSID_SOURCE("$NetBSD: fetch.c,v 1.16.2.1 1997/11/18 01:00:22 mellon Exp $");
 
 #include "ftp_var.h"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 static int	url_get __P((const char *, const char *));
 void    	aborthttp __P((int));
 
@@ -250,7 +245,7 @@ url_get(origline, proxyenv)
 		}
 		getnameinfo(bindres->ai_addr, bindres->ai_addrlen,
 			    nameinfo, sizeof(nameinfo), NULL, 0,
-			    NI_NUMERICHOST|NI_WITHSCOPEID);
+			    NI_NUMERICHOST);
 		/* XXX check error? */
 		warn("Can't bind to %s", nameinfo);
 		goto cleanup_url_get;
