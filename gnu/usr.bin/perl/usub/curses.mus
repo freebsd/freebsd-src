@@ -1,6 +1,11 @@
-/* $RCSfile: curses.mus,v $$Revision: 4.0.1.2 $$Date: 92/06/08 16:06:12 $
+/* $RCSfile: curses.mus,v $$Revision: 1.1 $$Date: 1995/03/24 04:33:49 $
  *
- * $Log:	curses.mus,v $
+ * $Log: curses.mus,v $
+# Revision 1.1  1995/03/24  04:33:49  jkh
+# Bring back perl/usub as usub/, this time containing an updated curseperl
+# which is also installed by default (the reason for which should also be
+# plain shortly).
+#
  * Revision 4.0.1.2  92/06/08  16:06:12  lwall
  * patch20: function key support added to curses.mus
  * 
@@ -43,7 +48,7 @@ static char *tcbuf = NULL;
 static unsigned curattr = NORMAL;
 #endif
 
-static enum uservars {
+enum uservars {
     UV_curscr,
     UV_stdscr,
     UV_LINES,
@@ -59,7 +64,7 @@ static enum uservars {
     UV_A_NORMAL,
 };
 
-static enum usersubs {
+enum usersubs {
     US_addch,
     US_waddch,
     US_addstr,
