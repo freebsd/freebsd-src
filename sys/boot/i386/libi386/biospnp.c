@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biospnp.c,v 1.1 1998/10/22 20:25:06 msmith Exp $
+ *	$Id: biospnp.c,v 1.2 1998/10/23 22:29:08 msmith Exp $
  */
 
 /*
@@ -178,7 +178,6 @@ biospnp_enumerate(void)
 	}
     }
 }
-#define   offsetof(type, member)  ((size_t)(&((type *)0)->member))
 
 /*
  * Scan the resource data in the node's data area for compatible device IDs
