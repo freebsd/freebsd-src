@@ -440,7 +440,6 @@ bdginit(void *dummy)
 static void
 bdgtakeifaces(void)
 {
-    int i ;
     struct ifnet *ifp;
     struct arpcom *ac ;
     bdg_addr *p = bdg_addresses ;
@@ -453,8 +452,7 @@ bdgtakeifaces(void)
     *bridge_cfg = '\0';
 
     printf("BRIDGE 011004, have %d interfaces\n", if_index);
-    for (i = 0 , ifp = TAILQ_FIRST(&ifnet) ; i < if_index ;
-		i++, ifp = TAILQ_NEXT(ifp, if_link))
+    TAILQ_FOREACH(ifp, &ifnet, if_link)
 	if (ifp->if_type == IFT_ETHER) { /* ethernet ? */
 	    bp = &ifp2sc[ifp->if_index] ;
 	    ac = (struct arpcom *)ifp;
