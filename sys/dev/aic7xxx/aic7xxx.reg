@@ -112,6 +112,8 @@ register SCSISIGI {
 	mask	PHASE_MASK	CDI|IOI|MSGI
 	mask	P_DATAOUT	0x00
 	mask	P_DATAIN	IOI
+	mask	P_DATAOUT_DT	P_DATAOUT|MSGI
+	mask	P_DATAIN_DT	P_DATAIN|MSGI
 	mask	P_COMMAND	CDI
 	mask	P_MESGOUT	CDI|MSGI
 	mask	P_STATUS	CDI|IOI
@@ -311,6 +313,10 @@ register SSTAT2 {
 	bit	OVERRUN		0x80
 	bit	SHVALID		0x40	/* Shaddow Layer non-zero */
 	bit	EXP_ACTIVE	0x10	/* SCSI Expander Active */
+	bit	CRCVALERR	0x08	/* CRC doesn't match (U3 only) */
+	bit	CRCENDERR	0x04	/* No terminal CRC packet (U3 only) */
+	bit	CRCREQERR	0x02	/* Illegal CRC packet req (U3 only) */
+	bit	DUAL_EDGE_ERR	0x01	/* Incorrect data phase (U3 only) */
 	mask	SFCNT		0x1f
 }
 
@@ -959,30 +965,6 @@ register SFUNCT {
  */
 scb {
 	address			0x0a0
-	SCB_CONTROL {
-		size	1
-		bit	TARGET_SCB			0x80
-		bit	DISCENB				0x40
-		bit	TAG_ENB				0x20
-		bit	MK_MESSAGE			0x10
-		bit	ULTRAENB			0x08
-		bit	DISCONNECTED			0x04
-		mask	SCB_TAG_TYPE			0x03
-	}
-	SCB_SCSIID {
-		size	1
-		bit	TWIN_CHNLB			0x80
-		mask	TWIN_TID			0x70
-		mask	TID				0xf0
-		mask	OID				0x0f
-	}
-	SCB_LUN {
-		mask	LID				0xff
-		size	1
-	}
-	SCB_CDB_LEN {
-		size	1
-	}
 	SCB_CDB_PTR {
 		size	4
 		alias	SCB_RESIDUAL_DATACNT
@@ -1016,7 +998,31 @@ scb {
 		bit	SG_FULL_RESID	0x02	/* In the first byte */
 		bit	SG_LIST_NULL	0x01	/* In the first byte */
 	}
+	SCB_CONTROL {
+		size	1
+		bit	TARGET_SCB			0x80
+		bit	DISCENB				0x40
+		bit	TAG_ENB				0x20
+		bit	MK_MESSAGE			0x10
+		bit	ULTRAENB			0x08
+		bit	DISCONNECTED			0x04
+		mask	SCB_TAG_TYPE			0x03
+	}
+	SCB_SCSIID {
+		size	1
+		bit	TWIN_CHNLB			0x80
+		mask	TWIN_TID			0x70
+		mask	TID				0xf0
+		mask	OID				0x0f
+	}
+	SCB_LUN {
+		mask	LID				0xff
+		size	1
+	}
 	SCB_TAG {
+		size	1
+	}
+	SCB_CDB_LEN {
 		size	1
 	}
 	SCB_SCSIRATE {
@@ -1028,16 +1034,17 @@ scb {
 	SCB_NEXT {
 		size	1
 	}
-	SCB_64_BTT {
+	SCB_64_SPARE {
 		size	16
 	}
-	SCB_64_SPARE {
+	SCB_64_BTT {
 		size	16
 	}
 }
 
-const	SCB_32BYTE_SIZE	30	/* Cards supporting 32byte scbs */
-const	SCB_64BYTE_SIZE	32	/* Cards supporting 64byte scbs */
+const	SCB_UPLOAD_SIZE		32
+const	SCB_DOWNLOAD_SIZE	32
+const	SCB_DOWNLOAD_SIZE_64	48
 
 const	SG_SIZEOF	0x08		/* sizeof(struct ahc_dma) */
 
@@ -1210,13 +1217,22 @@ scratch_ram {
 		size		16
 	}
 	/*
-	 * Bit vector of targets that have ULTRA enabled.
+	 * Bit vector of targets that have ULTRA enabled as set by the BIOS.
+	 * The Sequencer relies in a per-SCB field to control the disconnect
+	 * priveldge.
 	 */
 	ULTRA_ENB {
 		size		2
+		/*
+		 * Partial transfer past cacheline end to be
+		 * transferred using an extra S/G.
+		 */
+		alias		MWI_RESIDUAL
 	}
 	/*
-	 * Bit vector of targets that have disconnection disabled.
+	 * Bit vector of targets that have disconnection disabled as set by
+	 * the BIOS.  The Sequencer relies in a per-SCB field to control the
+	 * disconnect priveldge.
 	 */
 	DISC_DSB {
 		size		2
@@ -1470,3 +1486,5 @@ const TARGET_DATA_IN		1
 /* Offsets into the SCBID array where different data is stored */
 const QOUTFIFO_OFFSET download
 const QINFIFO_OFFSET download
+const CACHESIZE_MASK download
+const INVERTED_CACHESIZE_MASK download
