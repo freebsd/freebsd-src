@@ -94,14 +94,15 @@ getpriority(curp, uap)
 
 	case PRIO_PROCESS:
 		if (uap->who == 0)
-			p = curp;
-		else
+			low = curp->p_nice;
+		else {
 			p = pfind(uap->who);
-		if (p == 0)
-			break;
-		if (p_can(curp, p, P_CAN_SEE, NULL))
-			break;
-		low = p->p_nice;
+			if (p == NULL)
+				break;
+			if (p_can(curp, p, P_CAN_SEE, NULL) == 0)
+				low = p->p_nice;
+			PROC_UNLOCK(p);
+		}
 		break;
 
 	case PRIO_PGRP: {
@@ -159,14 +160,15 @@ setpriority(curp, uap)
 
 	case PRIO_PROCESS:
 		if (uap->who == 0)
-			p = curp;
-		else
+			error = donice(curp, curp, uap->prio);
+		else {
 			p = pfind(uap->who);
-		if (p == 0)
-			break;
-		if (p_can(curp, p, P_CAN_SEE, NULL))
-			break;
-		error = donice(curp, p, uap->prio);
+			if (p == 0)
+				break;
+			if (p_can(curp, p, P_CAN_SEE, NULL) == 0)
+				error = donice(curp, p, uap->prio);
+			PROC_UNLOCK(p);
+		}
 		found++;
 		break;
 
@@ -254,9 +256,10 @@ rtprio(curp, uap)
 	if (error)
 		return (error);
 
-	if (uap->pid == 0)
+	if (uap->pid == 0) {
 		p = curp;
-	else
+		PROC_LOCK(p);
+	} else
 		p = pfind(uap->pid);
 
 	if (p == 0)
@@ -267,15 +270,18 @@ rtprio(curp, uap)
 		if ((error = p_can(curp, p, P_CAN_SEE, NULL)))
 			return (error);
 		pri_to_rtp(&p->p_pri, &rtp);
+		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
 		if ((error = p_can(curp, p, P_CAN_SCHED, NULL)))
-		        return (error);
+			goto out;
 		/* disallow setting rtprio in most cases if not superuser */
 		if (suser(curp) != 0) {
 			/* can't set someone else's */
-			if (uap->pid)
-				return (EPERM);
+			if (uap->pid) {
+				error = EPERM;
+				goto out;
+			}
 			/* can't set realtime priority */
 /*
  * Realtime priority has to be restricted for reasons which should be
@@ -287,15 +293,21 @@ rtprio(curp, uap)
 #if 0
  			if (RTP_PRIO_IS_REALTIME(rtp.type))
 #endif
-			if (rtp.type != RTP_PRIO_NORMAL)
-				return (EPERM);
+			if (rtp.type != RTP_PRIO_NORMAL) {
+				error = EPERM;
+				goto out;
+			}
 		}
 		if (rtp_to_pri(&rtp, &p->p_pri) == 0)
-			return (0);
-		return (EINVAL);
+			error = 0;
+		else
+			error = EINVAL;
 	default:
-		return (EINVAL);
+		error = EINVAL;
 	}
+out:
+	PROC_UNLOCK(p);
+	return (error);
 }
 
 int

@@ -1034,10 +1034,12 @@ selrecord(selector, sip)
 		mtx_lock_spin(&sched_lock);
 	    	if (p->p_wchan == (caddr_t)&selwait) {
 			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
 			sip->si_flags |= SI_COLL;
 			return;
 		}
 		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
 	}
 	sip->si_pid = mypid;
 }
@@ -1067,12 +1069,9 @@ selwakeup(sip)
 				setrunnable(p);
 			else
 				unsleep(p);
-			mtx_unlock_spin(&sched_lock);
-		} else {
-			mtx_unlock_spin(&sched_lock);
-			PROC_LOCK(p);
+		} else
 			p->p_flag &= ~P_SELECT;
-			PROC_UNLOCK(p);
-		}
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
 	}
 }

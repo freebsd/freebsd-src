@@ -328,6 +328,7 @@ ktrace(curp, uap)
 			error = ESRCH;
 			goto done;
 		}
+		PROC_UNLOCK(p);
 		if (descend)
 			ret |= ktrsetchildren(curp, p, ops, facs, vp);
 		else

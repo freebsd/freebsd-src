@@ -119,15 +119,16 @@ int
 inferior(p)
 	register struct proc *p;
 {
-	int rval = 1;
+	int rval;
 
-	sx_slock(&proctree_lock);
-	for (; p != curproc; p = p->p_pptr)
-		if (p->p_pid == 0) {
-			rval = 0;
-			break;
-		}
-	sx_sunlock(&proctree_lock);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if (p == curproc)
+		return (1);
+	if (p->p_pid == 0)
+		return (0);
+	PROC_LOCK(p->p_pptr);
+	rval = inferior(p->p_pptr);
+	PROC_UNLOCK(p->p_pptr);
 	return (rval);
 }
 
@@ -142,8 +143,10 @@ pfind(pid)
 
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
-		if (p->p_pid == pid)
+		if (p->p_pid == pid) {
+			PROC_LOCK(p);
 			break;
+		}
 	sx_sunlock(&allproc_lock);
 	return (p);
 }
@@ -188,8 +191,12 @@ enterpgrp(p, pgid, mksess)
 		 */
 		KASSERT(p->p_pid == pgid,
 		    ("enterpgrp: new pgrp and pid != pgid"));
-		if ((np = pfind(savepid)) == NULL || np != p)
+		if ((np = pfind(savepid)) == NULL || np != p) {
+			if (np != NULL)
+				PROC_UNLOCK(np);
 			return (ESRCH);
+		}
+		PROC_UNLOCK(np);
 		MALLOC(pgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
 		    M_WAITOK);
 		if (mksess) {
@@ -523,8 +530,10 @@ zpfind(pid_t pid)
 
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &zombproc, p_list)
-		if (p->p_pid == pid)
+		if (p->p_pid == pid) {
+			PROC_LOCK(p);
 			break;
+		}
 	sx_sunlock(&allproc_lock);
 	return (p);
 }
@@ -535,16 +544,27 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int doingzomb)
 {
 	struct kinfo_proc kinfo_proc;
 	int error;
+	struct proc *np;
 	pid_t pid = p->p_pid;
 
 	fill_kinfo_proc(p, &kinfo_proc);
 	error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc, sizeof(kinfo_proc));
 	if (error)
 		return (error);
-	if (!doingzomb && pid && (pfind(pid) != p))
+	if (doingzomb)
+		np = zpfind(pid);
+	else {
+		if (pid == 0)
+			return (0);
+		np = pfind(pid);
+	}
+	if (np == NULL)
 		return EAGAIN;
-	if (doingzomb && zpfind(pid) != p)
+	if (np != p) {
+		PROC_UNLOCK(np);
 		return EAGAIN;
+	}
+	PROC_UNLOCK(np);
 	return (0);
 }
 
@@ -563,8 +583,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		p = pfind((pid_t)name[0]);
 		if (!p)
 			return (0);
-		if (p_can(curproc, p, P_CAN_SEE, NULL))
+		if (p_can(curproc, p, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(p);
 			return (0);
+		}
+		PROC_UNLOCK(p);
 		error = sysctl_out_proc(p, req, 0);
 		return (error);
 	}
@@ -669,8 +692,11 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (!p)
 		return (0);
 
-	if ((!ps_argsopen) && p_can(curproc, p, P_CAN_SEE, NULL))
+	if ((!ps_argsopen) && p_can(curproc, p, P_CAN_SEE, NULL)) {
+		PROC_UNLOCK(p);
 		return (0);
+	}
+	PROC_UNLOCK(p);
 
 	if (req->newptr && curproc != p)
 		return (EPERM);
@@ -680,9 +706,9 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (req->newptr == NULL)
 		return (error);
 
+	PROC_LOCK(p);
 	if (p->p_args && --p->p_args->ar_ref == 0) 
 		FREE(p->p_args, M_PARGS);
-	PROC_LOCK(p);
 	p->p_args = NULL;
 	PROC_UNLOCK(p);
 

@@ -170,8 +170,10 @@ filt_procattach(struct knote *kn)
 	p = pfind(kn->kn_id);
 	if (p == NULL)
 		return (ESRCH);
-	if ((error = p_can(curproc, p, P_CAN_SEE, NULL)))
+	if ((error = p_can(curproc, p, P_CAN_SEE, NULL))) {
+		PROC_UNLOCK(p);
 		return (error);
+	}
 
 	kn->kn_ptr.p_proc = p;
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
@@ -185,7 +187,6 @@ filt_procattach(struct knote *kn)
 		kn->kn_flags &= ~EV_FLAG1;
 	}
 
-	PROC_LOCK(p);
 	SLIST_INSERT_HEAD(&p->p_klist, kn, kn_selnext);
 	PROC_UNLOCK(p);
 

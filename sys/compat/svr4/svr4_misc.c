@@ -1010,6 +1010,7 @@ svr4_sys_pgrpsys(p, uap)
 		 * the session leader.
 		 */
 		*retval = (register_t) p->p_session->s_leader->p_pid;
+		PROC_UNLOCK(p);
 		return 0;
 
 	case 3:			/* setsid() */
@@ -1022,6 +1023,7 @@ svr4_sys_pgrpsys(p, uap)
 			return ESRCH;
 
 		*retval = (int) p->p_pgrp->pg_id;
+		PROC_UNLOCK(p);
 		return 0;
 
 	case 5:			/* setpgid(pid, pgid); */
@@ -1264,11 +1266,10 @@ loop:
  					q->p_oppid = 0;
 					q->p_flag &= ~(P_TRACED | P_WAITED);
 					PROC_UNLOCK(q);
-					PROC_LOCK(t);
 					psignal(t, SIGCHLD);
+					wakeup(t);
 					PROC_UNLOCK(t);
 					sx_xunlock(&proctree_lock);
-					wakeup(t);
 					return 0;
 				}
 			}
