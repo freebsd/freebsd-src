@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic_osm_lib.c#4 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic_osm_lib.c#5 $
  */
 
 #include <sys/cdefs.h>
@@ -118,6 +118,39 @@ aic_terminate_recovery_thread(struct aic_softc *aic)
 	aic_unlock(aic, &s);
 }
 
+static void
+aic_recovery_thread(void *arg)
+{
+	struct aic_softc *aic;
+	u_long s;
+
+#if __FreeBSD_version >= 500000
+	mtx_lock(&Giant);
+#endif
+	aic = (struct aic_softc *)arg;
+	aic_lock(aic, &s);
+	for (;;) {
+		
+		if (LIST_EMPTY(&aic->timedout_scbs) != 0
+		 && (aic->flags & AIC_SHUTDOWN_RECOVERY) == 0)
+			tsleep(aic, PUSER, "idle", 0);
+
+		if ((aic->flags & AIC_SHUTDOWN_RECOVERY) != 0)
+			break;
+
+		aic_unlock(aic, &s);
+		aic_recover_commands(aic);
+		aic_lock(aic, &s);
+	}
+	aic->platform_data->recovery_thread = NULL;
+	wakeup(aic->platform_data);
+	aic_unlock(aic, &s);
+#if __FreeBSD_version >= 500000
+	mtx_unlock(&Giant);
+#endif
+	kthread_exit(0);
+}
+
 void
 aic_calc_geometry(struct ccb_calc_geometry *ccg, int extended)
 {
@@ -141,29 +174,3 @@ aic_calc_geometry(struct ccb_calc_geometry *ccg, int extended)
 #endif
 }
 
-static void
-aic_recovery_thread(void *arg)
-{
-	struct aic_softc *aic;
-	u_long s;
-
-#if __FreeBSD_version >= 500000
-	mtx_lock(&Giant);
-#endif
-	aic = (struct aic_softc *)arg;
-	aic_lock(aic, &s);
-	while ((aic->flags & AIC_SHUTDOWN_RECOVERY) == 0) {
-		
-		while (LIST_EMPTY(&aic->timedout_scbs) != 0)
-			tsleep(aic, PUSER, "idle", 0);
-		aic_unlock(aic, &s);
-		aic_recover_commands(aic);
-		aic_lock(aic, &s);
-	}
-	wakeup(aic->platform_data);
-	aic_unlock(aic, &s);
-#if __FreeBSD_version >= 500000
-	mtx_unlock(&Giant);
-#endif
-	kthread_exit(0);
-}
