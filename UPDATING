@@ -6,6 +6,12 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20000501:
+	At approximately this date, an incompatible kernel change
+	was made which means that if you update kernels accross
+	this boundary, you also have to update modules, and vice
+	versa.
+
 20000315:
 	FreeBSD 4.0 RELEASE.  The rest of this file is historical
 	and will be removed in the future.
@@ -49,41 +55,43 @@ COMMON ITEMS:
 
 	To update from 3.x to 4.0 stable
 	--------------------------------
-	<see notes below>				[***]
+	<see notes below>				[3]
 	cd /usr/src
-	<see notes below>				[**]
+	<see notes below>				[2]
 	make buildworld
 	cd sbin/mknod
 	make install
 	cd ../../sys/modules
 	make install
 	<follow directions to build/install a kernel>
-	<follow rebuild disk /dev entries above>	[*]
+	<follow rebuild disk /dev entries above>	[1]
 	reboot
 	<in single user>
 	cd /usr/src
 	cd gnu/usr.bin/texinfo/install-info
 	make install
 	cd ../../../..
-	make installworld
-	mergemaster [****]
+	make installworld				[5]
+	mergemaster					[4]
 	reboot
 	<multi-user>
 
-	[*] You may need to switch from wd to ad ala 19991210
-	[**] If you have any of the following in your /etc/make.conf,
+	[1] You may need to switch from wd to ad ala 19991210
+	[2] If you have any of the following in your /etc/make.conf,
 	please comment them out before following these instructions
 	and then do a make buildworld + make installworld after you
 	are back to <multi-user> above:
 		MAKE_KERBEROS4
-	[***] Update to 4.0-stable sources.  Make sure that you get all
+	[3] Update to 4.0-stable sources.  Make sure that you get all
 	the parts.  If you are using cvsup files that are older than a
 	couple of months, be sure they have all the components listed
 	in /usr/share/examples/cvsup.  Crypto and secure are now
 	required.
-	[****] This step is optional, but is generally a good idea.  If
+	[4] This step is optional, but is generally a good idea.  If
 	you wish to use many of the new features in 4.0, you must do
 	this anyway.
+	[5] If you get warnings from ld-elf.so that it cannot load
+	libc.so, run 'ldconfig -R' and repeat the installworld target.
 
 What follows are older entries for those people upgrading from earlier
 versions of -stable.
