@@ -77,6 +77,7 @@
 #include <sys/errno.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/malloc.h>
 
 #include <machine/bus.h>
 #include <machine/clock.h>
@@ -179,6 +180,7 @@ static int tlphy_attach(dev)
 				break;
 			}
 		}
+		free(devlist, M_TEMP);
 	}
 
 	mii->mii_instance++;
