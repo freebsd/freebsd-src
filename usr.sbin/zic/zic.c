@@ -505,7 +505,7 @@ _("more than one -l option specified"));
 				if (set == NULL)
 					errx(EXIT_FAILURE,
 _("invalid file mode"));
-				getmode(set, mflag);
+				mflag = getmode(set, mflag);
 				free(set);
 				break;
 			}
