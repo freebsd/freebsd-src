@@ -108,8 +108,11 @@ struct ip_fw {
 
 struct ip_fw_ext {             /* extended structure */
     struct ip_fw rule;      /* must be at offset 0 */
-    long    dont_match_prob;        /* 0x7fffffff means 1.0, always fail */
-    u_int   dyn_type;  /* type for dynamic rule */
+    long   dont_match_prob;        /* 0x7fffffff means 1.0, always fail */
+    u_char dyn_type;  /* type for dynamic rule */
+#define DYN_KEEP_STATE	0		/* type for keep-state rules */
+    u_char _pad1 ;			/* for future use */
+    u_short _pad2 ;			/* for future use */
 };
 
 #define IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
@@ -128,6 +131,18 @@ struct ip_fw_ext {             /* extended structure */
 #define fw_reject_code	fw_un.fu_reject_code
 #define fw_pipe_nr	fw_un.fu_pipe_nr
 #define fw_fwd_ip	fw_un.fu_fwd_ip
+
+/**
+ *
+ *   chain_ptr -------------+
+ *                          V
+ *     [ next.le_next ]---->[ next.le_next ]---- [ next.le_next ]--->
+ *     [ next.le_prev ]<----[ next.le_prev ]<----[ next.le_prev ]<---
+ *  +--[ rule         ]  +--[ rule         ]  +--[ rule         ]
+ *  |                    |                    |
+ *  +->[ <ip_fw>      ]  +->[ <ip_fw>      ]  +->[ <ip_fw>      ]
+ *
+ */
 
 struct ip_fw_chain {
 	LIST_ENTRY(ip_fw_chain) next;
@@ -150,15 +165,15 @@ struct ipfw_flow_id {
 struct ipfw_dyn_rule {
     struct ipfw_dyn_rule *next ;
 
-    struct ipfw_flow_id id ;
-    struct ipfw_flow_id mask ;
-    struct ip_fw_chain *chain ;		/* pointer to parent rule	*/
-    u_int32_t type ;			/* rule type			*/
+    struct ipfw_flow_id id ;		/* (masked) flow id		*/
+    struct ip_fw_chain *chain ;		/* pointer to chain		*/
     u_int32_t expire ;			/* expire time			*/
     u_int64_t pcnt, bcnt;		/* match counters		*/
     u_int32_t bucket ;			/* which bucket in hash table	*/
     u_int32_t state ;			/* state of this rule (typ. a   */
 					/* combination of TCP flags)	*/
+    u_int16_t dyn_type;			/* rule type			*/
+    u_int16_t count;			/* refcount			*/
 } ;
 
 /*
