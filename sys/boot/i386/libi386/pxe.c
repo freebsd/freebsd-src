@@ -191,8 +191,10 @@ pxe_init(void)
 	pxe_p = (pxe_t *)PTOV(pxenv_p->PXEPtr.segment * 16 +
 			      pxenv_p->PXEPtr.offset);
 
-	if (bcmp((void *)pxe_p->Signature, S_SIZE("!PXE")))
+	if (bcmp((void *)pxe_p->Signature, S_SIZE("!PXE"))) {
+		pxe_p = NULL;
 		return(0);
+	}
 
 	checksum = 0;
 	checkptr = (uint8_t *)pxe_p;
@@ -200,6 +202,7 @@ pxe_init(void)
 		checksum += *checkptr++;
 	if (checksum != 0) {
 		printf("!PXE structure failed checksum. %x\n", checksum);
+		pxe_p = NULL;
 		return(0);
 	}
 
@@ -215,7 +218,7 @@ pxe_init(void)
 	pxe_call(PXENV_GET_CACHED_INFO);
 	if (gci_p->Status != 0) {
 		pxe_perror(gci_p->Status);
-		pxenv_p = NULL;
+		pxe_p = NULL;
 		return (0);
 	}
 	bcopy(PTOV((gci_p->Buffer.segment << 4) + gci_p->Buffer.offset),
@@ -325,6 +328,9 @@ pxe_cleanup(void)
 	    (t_PXENV_UNLOAD_STACK *)scratch_buffer;
 	t_PXENV_UNDI_SHUTDOWN *undi_shutdown_p =
 	    (t_PXENV_UNDI_SHUTDOWN *)scratch_buffer;
+
+	if (pxe_p == NULL)
+		return;
 
 	pxe_call(PXENV_UNDI_SHUTDOWN);
 	if (undi_shutdown_p->Status != 0)
