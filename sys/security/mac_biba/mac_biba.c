@@ -1588,7 +1588,7 @@ mac_biba_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 			return (EACCES);
 	}
 
-	return (0);   
+	return (0);
 }
 
 static int
