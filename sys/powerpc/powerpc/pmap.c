@@ -1118,8 +1118,6 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 	    (VM_PROT_READ|VM_PROT_WRITE))
 		return;
 
-	critical_enter();
-
 	pvo_head = vm_page_to_pvoh(m);
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
@@ -1160,8 +1158,6 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 			pmap_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
 	}
-
-	critical_exit();
 }
 
 /*
@@ -1499,8 +1495,6 @@ pmap_pa_map(struct pvo_entry *pvo, vm_offset_t pa, struct pte *saved_pt,
 {
 	struct	pte *pt;
 
-	critical_enter();
-
 	/*
 	 * If this pvo already has a valid pte, we need to save it so it can
 	 * be restored later.  We then just reload the new PTE over the old
@@ -1527,16 +1521,12 @@ pmap_pa_map(struct pvo_entry *pvo, vm_offset_t pa, struct pte *saved_pt,
 
 	if (depth_p != NULL)
 		(*depth_p)++;
-
-	critical_exit();
 }
 
 static void
 pmap_pa_unmap(struct pvo_entry *pvo, struct pte *saved_pt, int *depth_p)
 {
 	struct	pte *pt;
-
-	critical_enter();
 
 	pt = pmap_pvo_to_pte(pvo, -1);
 
@@ -1560,8 +1550,6 @@ pmap_pa_unmap(struct pvo_entry *pvo, struct pte *saved_pt, int *depth_p)
 		if (!pmap_pte_spill(pvo->pvo_vaddr))
 			panic("pmap_pa_unmap: could not spill pvo %p", pvo);
 	}
-
-	critical_exit();
 }
 
 static void
@@ -1603,8 +1591,6 @@ pmap_pvo_enter(pmap_t pm, vm_zone_t zone, struct pvo_head *pvo_head,
 	sr = va_to_sr(pm->pm_sr, va);
 	ptegidx = va_to_pteg(sr, va);
 
-	critical_enter();
-
 	/*
 	 * Remove any existing mapping for this page.  Reuse the pvo entry if
 	 * there is a mapping.
@@ -1619,14 +1605,9 @@ pmap_pvo_enter(pmap_t pm, vm_zone_t zone, struct pvo_head *pvo_head,
 	/*
 	 * If we aren't overwriting a mapping, try to allocate.
 	 */
-	critical_exit();
-
 	pvo = zalloc(zone);
 
-	critical_enter();
-
 	if (pvo == NULL) {
-		critical_exit();
 		return (ENOMEM);
 	}
 
@@ -1664,8 +1645,6 @@ pmap_pvo_enter(pmap_t pm, vm_zone_t zone, struct pvo_head *pvo_head,
 		panic("pmap_pvo_enter: overflow");
 		pmap_pte_overflow++;
 	}
-
-	critical_exit();
 
 	return (first ? ENOENT : 0);
 }
@@ -1975,8 +1954,6 @@ pmap_query_bit(vm_page_t m, int ptebit)
 	if (pmap_attr_fetch(m) & ptebit)
 		return (TRUE);
 
-	critical_enter();
-
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
 
@@ -1987,7 +1964,6 @@ pmap_query_bit(vm_page_t m, int ptebit)
 		if (pvo->pvo_pte.pte_lo & ptebit) {
 			pmap_attr_save(m, ptebit);
 			PMAP_PVO_CHECK(pvo);	/* sanity check */
-			critical_exit();
 			return (TRUE);
 		}
 	}
@@ -2012,13 +1988,11 @@ pmap_query_bit(vm_page_t m, int ptebit)
 			if (pvo->pvo_pte.pte_lo & ptebit) {
 				pmap_attr_save(m, ptebit);
 				PMAP_PVO_CHECK(pvo);	/* sanity check */
-				critical_exit();
 				return (TRUE);
 			}
 		}
 	}
 
-	critical_exit();
 	return (TRUE);
 }
 
@@ -2028,8 +2002,6 @@ pmap_clear_bit(vm_page_t m, int ptebit)
 	struct	pvo_entry *pvo;
 	struct	pte *pt;
 	int	rv;
-
-	critical_enter();
 
 	/*
 	 * Clear the cached value.
@@ -2063,6 +2035,5 @@ pmap_clear_bit(vm_page_t m, int ptebit)
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
 	}
 
-	critical_exit();
 	return ((rv & ptebit) != 0);
 }
