@@ -18,7 +18,18 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
-20020713:	p3	Upgrade to BIND 8.3.3
+20020718:
+	"Hang in atprq" bugfix for ATAPI CDROMs.
+
+20020716:
+	OpenSSH 3.4p1 update.
+
+20020715:	p3
+	Upgrade to BIND 8.3.3.
+
+20020714:
+	pcic power bugfix.
+	sendmail DNS map bugfix.
 
 20020712:	p2	FreeBSD-SA-02:29.tcpdump
 	A buffer overflow in tcpdump has been corrected.
@@ -29,7 +40,7 @@ build and install as described in the COMMON ITEMS section.
 20020708:
 	A tags bug in the ata(4) subsystem has been corrected.
 
-20020626:	p1
+20020626:	p1	FreeBSD-SA-02:28.resolv
 	A fix for a buffer overflow in libc has been corrected.
 
 20020615:
