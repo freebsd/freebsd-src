@@ -41,6 +41,9 @@ ENTRY(PalProc, 0)
 	cmp.eq		p6,p0=14,r28		// PAL_FREQ_RATIOS
 (p6)	br.cond.dptk	pal_freq_ratios
 	;;
+	cmp.eq		p6,p0=29,r28		// PAL_HALT_LIGHT
+(p6)	br.cond.dptk	pal_halt_light
+	;;
 	mov		r15=66			// EXIT
 	break.i		0x80000			// SSC
 	;;
@@ -61,5 +64,11 @@ pal_freq_ratios:
 	movl		r9=0x0000000B00000002	// processor ratio 11/2
 	movl		r10=0x0000000100000001	// bus ratio 1/1
 	movl		r11=0x0000000B00000002	// ITC ratio 11/2
+	br.sptk		b0
+pal_halt_light:
+	mov		r8=0
+	mov		r9=0
+	mov		r10=0
+	mov		r11=0
 	br.sptk		b0
 END(PalProc)
