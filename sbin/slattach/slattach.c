@@ -440,8 +440,16 @@ again:
 		setup_line(CLOCAL);
 		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running %s",
 		       dev,unit,redial_cmd);
+		uu_unlock(dvname);      /* for redial */
+		locked = 0;
 		if (system(redial_cmd))
 			goto again;
+		if (uu_lock(dvname)) {
+			syslog(LOG_ERR, "can't relock %s after %s, aborting",
+				dev, redial_cmd);
+			exit_handler(1);
+		}
+		locked = 1;
 		/* Now check again for carrier (dial command is done): */
 		if (!(modem_control & CLOCAL)) {
 			tty.c_cflag &= ~CLOCAL;
