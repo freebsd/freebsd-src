@@ -136,8 +136,10 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	if (++pfs_vncache_entries > pfs_vncache_maxentries)
 		pfs_vncache_maxentries = pfs_vncache_entries;
 	error = getnewvnode("pseudofs", mp, pfs_vnodeop_p, vpp);
-	if (error)
+	if (error) {
+		FREE(pvd, M_PFSVNCACHE);
 		return (error);
+	}
 	pvd->pvd_pn = pn;
 	pvd->pvd_pid = pid;
 	(*vpp)->v_data = pvd;
