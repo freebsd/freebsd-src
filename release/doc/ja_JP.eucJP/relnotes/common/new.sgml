@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.294
+    Original revision: 1.22.2.300
 -->
 
 <articleinfo>
@@ -131,6 +131,12 @@
       <para arch="i386">AMD &Eacute;lan SC520 に対応しました。
 	利用するには、カーネルコンフィグファイルに
         <literal>CPU_ELAN</literal> オプションを追加する必要があります。</para>
+
+      <para arch="alpha">AlphaServer 8200/8400 TurboLaser
+	には対応していません。
+	インストール用のカーネルは、起動時に
+	マシンチェックを行なっています。</para>
+
     </sect3>
 
     <sect3>
@@ -225,6 +231,20 @@
 
       <para arch="i386">pst ドライバが新しく追加されました。
         これは Promise SuperTrak ATA RAID コントローラに対応しています。</para>
+
+      <para arch="alpha">AlphaStation / AlphaServer DS10
+	のフロッピーディスクドライブは &os; で動作しません。
+        原因は不明です。</para>
+
+      <para arch="alpha">QLogic Fibrechannel カードが取り付けられている
+	alpha マシンに FreeBSD をインストールする場合、このカードの認識を
+	ローダから無効にしてください。
+	これにより、カーネルの起動時に発生する非常に長い
+	&man.isp.4; のタイムアウト時間を回避することができます。
+	たとえば QLogic Fiberchannel カードが
+	isp1 として認識されるシステムの場合、
+	'ok ' プロンプトが表示されているところで
+	set isp_disable=0x2 と入力します。</para>
     </sect3>
 
     <sect3>
@@ -409,6 +429,11 @@
     <para>&man.inetd.8; に、同一の IP アドレスからの同時アクセス数の最大値を
       各サービスに対して設定する機能が追加されました。</para>
 
+    <para>&man.lock.1; に、
+      現在使用している端末がロックされている時に VTY の切替えを無効にする
+      <option>-v</option> フラグが追加されました。
+      これにより、ひとつの端末からコンソール全体をロックすることができるようになります。</para>
+
     <para>&man.ls.1; プログラムに、
       リストを一行で表示する <option>-m</option> フラグ、
       ディレクトリ名の後ろに <literal>/</literal> を付加する
@@ -482,6 +507,9 @@
     <para>&man.unexpand.1; に、&man.expand.1; と同様のタブ位置を指定する
       <option>-t</option> オプションが追加されました。</para>
 
+    <para>&man.vidcontrol.1; に、VTY の切替えを無効にする
+      <option>-S</option> フラグが追加されました。</para>
+
     <para>&man.who.1; に数多くのオプションが追加されました。
       <option>-H</option> はカラムヘッダを出力し、
       <option>-T</option> は &man.mesg.1; の設定を表示します。
@@ -513,8 +541,9 @@
         2.12.1 (具体的には 2002 年 7 月 20 日のスナップショット)
         に更新されました。</para>
 
-      <para><application>gcc</application> がバージョン
-        2.95.4 に更新されました。</para>
+      <para><application>gcc</application> が 2002 年 3 月 20 日時点の
+	2.95 ブランチに由来するスナップショットに更新されました。
+	バージョン番号は非公式の 2.95.4 になっています。</para>
 
       <para><application>Heimdal Kerberos</application> が
 	2002 年 8 月 29 日の pre-0.5 スナップショットに更新されました。</para>
@@ -634,15 +663,6 @@
 	4.2.1 に更新されました。このバージョンは、バージョン 4.2.0 から
         いくつかのバグとセキュリティ上の修正が加えられています。</para>
 
-      <!--
-      <para>Ports Collection から生成される package (および、FTP サイトに
-        置かれている package) は &man.gzip.1; ではなく、デフォルトで 
-        &man.bzip2.1; を使用するように更新されました
-        (このため、拡張子が <filename>.tgz</filename> ではなく、
-        <filename>.tbz</filename> になりました)。
-        package 関連ツールも、新しい形式のファイルを
-        操作できるように更新されています。</para>
-      -->
     </sect3>
   </sect2>
 
