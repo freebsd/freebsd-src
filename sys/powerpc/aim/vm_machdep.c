@@ -161,8 +161,8 @@ cpu_exit(p)
 {
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
-	mtx_unlock_flags(&Giant, MTX_NOSWITCH);
-	mtx_assert(&Giant, MA_NOTOWNED);
+	while (mtx_owned(&Giant))
+		mtx_unlock_flags(&Giant, MTX_NOSWITCH);
 
 	/*
 	 * We have to wait until after releasing all locks before
