@@ -22,11 +22,15 @@
  * These notices must be retained in any copies of any part of this
  * documentation and/or software.
  *
- * $FreeBSD$
- *
  * This code is the same as the code published by RSA Inc.  It has been
  * edited for clarity and style only.
  */
+
+/*
+ * This file should be kept in sync with src/lib/libmd/md5c.c
+ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -36,39 +40,35 @@
 #include <string.h>
 #endif
 
+#include <machine/endian.h>
+#include <sys/endian.h>
 #include <sys/md5.h>
 
+static void MD5Transform(u_int32_t [4], const unsigned char [64]);
 
 #ifdef _KERNEL
 #define memset(x,y,z)	bzero(x,z);
 #define memcpy(x,y,z)	bcopy(y, x, z)
 #endif
 
-#if defined(__i386__) || defined(__alpha__) || defined(__ia64__)
+#if (BYTE_ORDER == LITTLE_ENDIAN)
 #define Encode memcpy
 #define Decode memcpy
-#else /* __i386__ */
+#else 
 
 /*
  * Encodes input (u_int32_t) into output (unsigned char). Assumes len is
  * a multiple of 4.
  */
 
-/* XXX not prototyped, and not compatible with memcpy(). */
 static void
-Encode (output, input, len)
-	unsigned char *output;
-	u_int32_t *input;
-	unsigned int len;
+Encode (unsigned char *output, u_int32_t *input, unsigned int len)
 {
-	unsigned int i, j;
+	unsigned int i;
+	u_int32_t *op = (u_int32_t *)output;
 
-	for (i = 0, j = 0; j < len; i++, j += 4) {
-		output[j] = (unsigned char)(input[i] & 0xff);
-		output[j+1] = (unsigned char)((input[i] >> 8) & 0xff);
-		output[j+2] = (unsigned char)((input[i] >> 16) & 0xff);
-		output[j+3] = (unsigned char)((input[i] >> 24) & 0xff);
-	}
+	for (i = 0; i < len / 4; i++)
+		op[i] = htole32(input[i]);
 }
 
 /*
@@ -77,18 +77,15 @@ Encode (output, input, len)
  */
 
 static void
-Decode (output, input, len)
-	u_int32_t *output;
-	const unsigned char *input;
-	unsigned int len;
+Decode (u_int32_t *output, const unsigned char *input, unsigned int len)
 {
-	unsigned int i, j;
+	unsigned int i;
+	const u_int32_t *ip = (const u_int32_t *)input;
 
-	for (i = 0, j = 0; j < len; i++, j += 4)
-		output[i] = ((u_int32_t)input[j]) | (((u_int32_t)input[j+1]) << 8) |
-		    (((u_int32_t)input[j+2]) << 16) | (((u_int32_t)input[j+3]) << 24);
+	for (i = 0; i < len / 4; i++)
+		output[i] = le32toh(ip[i]);
 }
-#endif /* i386 */
+#endif
 
 static unsigned char PADDING[64] = {
   0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -235,7 +232,7 @@ MD5Final (digest, context)
 
 /* MD5 basic transformation. Transforms state based on block. */
 
-void
+static void
 MD5Transform (state, block)
 	u_int32_t state[4];
 	const unsigned char block[64];
