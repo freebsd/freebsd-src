@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.79 1998/09/21 16:46:13 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.80 1998/11/23 01:33:47 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -58,6 +58,7 @@
 
 reset:
 	clr	SCSISIGO;		/* De-assert BSY */
+	and	SXFRCTL1, ~BITBUCKET;
 	/* Always allow reselection */
 	if ((ahc->flags & AHC_TARGETMODE) != 0) {
 		mvi	SCSISEQ, ENSELI|ENRSELI|ENAUTOATNP;
@@ -185,7 +186,7 @@ initialize_scsiid:
 		and	SINDEX, TARGET_SCB, SCB_CONTROL;
 		or	SCSISEQ, ENSELO|ENAUTOATNO|ENSELI
 				|ENRSELI|ENAUTOATNP, SINDEX ret ;
-	} else {
+	} else if ((ahc->flags & AHC_INITIATORMODE) != 0) {
 		mvi	SCSISEQ, ENSELO|ENAUTOATNO|ENRSELI|ENAUTOATNP ret;
 	}
 
@@ -216,13 +217,17 @@ selection:
 	mvi	CLRSINT0, CLRSELDI;
 select_in:
 	if ((ahc->flags & AHC_TARGETMODE) != 0) {
-		test	SSTAT0, TARGET	jz initiator_reselect;
+		if ((ahc->flags & AHC_INITIATORMODE) != 0) {
+			test	SSTAT0, TARGET	jz initiator_reselect;
+		}
 		/*
 		 * We've just been selected.  Assert BSY and
 		 * setup the phase for receiving messages
 		 * from the target.
 		 */
+		
 		mvi	SCSISIGO, P_MESGOUT|BSYO;
+		mvi	CLRSINT1, CLRBUSFREE;
 
 		/*
 		 * LAST_MSG gives an indication to the host of what
@@ -284,7 +289,7 @@ select_in:
 		 * initiator.  We follow the guidlines from section 6.5
 		 * of the SCSI-2 spec for what messages are allowed when.
 		 */
-		call	targ_inb;
+		call	target_inb;
 
 		/*
 		 * Our first message must be one of IDENTIFY, ABORT, or
@@ -305,7 +310,7 @@ select_in:
 		or	SEQ_FLAGS, NO_DISCONNECT;
 
 		test	SCSISIGI, ATNI	jz	ident_messages_done;
-		call	targ_inb;
+		call	target_inb;
 		/*
 		 * If this is a tagged request, the tagged message must
 		 * immediately follow the identify.  We test for a valid
@@ -332,13 +337,29 @@ select_in:
 		/*
 		 * Store the tag for the host.
 		 */
-		call	targ_inb;
+		call	target_inb;
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
 			mov	CCSCBRAM, DINDEX;
 		} else {
 			mov	DFDAT, DINDEX;
 		}
 		jmp	ident_messages_done;
+
+		/*
+		 * Pushed message loop to allow the kernel to
+		 * run it's own message state engine.  To avoid an
+		 * extra nop instruction after signaling the kernel,
+		 * we perform the phase_lock before checking to see
+		 * if we should exit the loop and skip the phase_lock
+		 * in the ITloop.  Performing back to back phase_locks
+		 * shouldn't hurt, but why do it twice...
+		 */
+host_target_message_loop:
+		mvi	INTSTAT, HOST_MSG_LOOP;
+		nop;
+		cmp	RETURN_1, EXIT_MSG_LOOP	je target_ITloop;
+		test	SSTAT0, SPIORDY jz .;
+		jmp	host_target_message_loop;
 
 more_first_messages:
 		/*
@@ -361,6 +382,7 @@ ident_messages_done:
 			mvi	DFDAT, SCB_LIST_NULL;
 		}
 		or	SEQ_FLAGS, TARG_CMD_PENDING;
+		test	SCSISIGI, ATNI	jnz target_mesgout_pending_msg;
 		jmp	target_ITloop;
 		
 /*
@@ -368,16 +390,20 @@ ident_messages_done:
  * message byte we receive so it can be checked prior to
  * driving REQ on the bus for the next byte.
  */
-targ_inb:
-		/* Drive REQ on the bus by enabling SCSI PIO */
+target_inb:
+		/*
+		 * Drive REQ on the bus by enabling SCSI PIO.
+		 */
 		or	SXFRCTL0, SPIOEN;
 		/* Wait for the byte */
 		test	SSTAT0, SPIORDY jz .;
 		/* Prevent our read from triggering another REQ */
 		and	SXFRCTL0, ~SPIOEN;
+		/* Save latched contents */
 		mov	DINDEX, SCSIDATL ret;
 	}
 
+if ((ahc->flags & AHC_INITIATORMODE) != 0) {
 /*
  * Reselection has been initiated by a target. Make a note that we've been
  * reselected, but haven't seen an IDENTIFY message from the target yet.
@@ -389,7 +415,7 @@ initiator_reselect:
 		test	SBLKCTL, SELBUSB	jz . + 2;
 		or	SAVED_TCL, SELBUSB;
 	}
-	or	SXFRCTL0, SPIOEN|CLRCHN;
+	or	SXFRCTL0, SPIOEN|CLRSTCNT|CLRCHN;
 	mvi	CLRSINT1,CLRBUSFREE;
 	or	SIMODE1, ENBUSFREE;		/*
 						 * We aren't expecting a
@@ -399,6 +425,7 @@ initiator_reselect:
 						 */
 	mvi	MSG_OUT, MSG_NOOP;		/* No message to send */
 	jmp	ITloop;
+}
 
 /*
  * After the selection, remove this SCB from the "waiting SCB"
@@ -410,7 +437,7 @@ select_out:
 	/* Turn off the selection hardware */
 	if ((ahc->flags & AHC_TARGETMODE) != 0) {
 		mvi	SCSISEQ, ENSELI|ENRSELI|ENAUTOATNP;
-	} else {
+	} else if ((ahc->flags & AHC_INITIATORMODE) != 0) {
 		mvi	SCSISEQ, ENRSELI|ENAUTOATNP;
 	}
 	mvi	CLRSINT0, CLRSELDO;
@@ -425,7 +452,8 @@ select_out:
 		 * Assert BSY and setup the phase for
 		 * sending our identify messages.
 		 */
-		mvi	SCSISIGO, P_MESGIN|BSYO;
+		mvi	P_MESGIN|BSYO call change_phase;
+		mvi	CLRSINT1,CLRBUSFREE;
 
 		/*
 		 * Start out with a simple identify message.
@@ -449,9 +477,10 @@ target_synccmd:
 
 target_ITloop:
 		/*
-		 * XXX Start honoring ATN signals now that
-		 *     we properly identified ourself.
+		 * Start honoring ATN signals now that
+		 * we properly identified ourself.
 		 */
+		test	SCSISIGI, ATNI			jnz target_mesgout;
 		test	SEQ_FLAGS, CMDPHASE_PENDING	jnz target_cmdphase;
 		test	SEQ_FLAGS, DPHASE_PENDING	jnz target_dphase;
 		test	SEQ_FLAGS, SPHASE_PENDING	jnz target_sphase;
@@ -464,17 +493,25 @@ target_ITloop:
 		if ((ahc->flags & AHC_PAGESCBS) != 0) {
 			mov	ALLZEROS	call	get_free_or_disc_scb;
 		}
+		mov	RETURN_1, ALLZEROS;
 		call	complete_target_cmd;
+		cmp	RETURN_1, CONT_MSG_LOOP jne .;
 		mvi	DMAPARAMS, HDMAEN|DIRECTION|FIFORESET;
 		mov	SCB_TAG	 call dma_scb;
 		jmp	target_synccmd;
 
+target_mesgout:
+		mvi	SCSISIGO, P_MESGOUT|BSYO;
+		call	target_inb;
+		/* Local Processing goes here... */
+target_mesgout_pending_msg:
+		jmp	host_target_message_loop;
+		
 target_disconnect:
-		mvi	SCSISIGO, P_MESGIN|BSYO;
+		mvi	P_MESGIN|BSYO call change_phase;
 		mvi	MSG_DISCONNECT call target_outb;
 
 target_busfree:
-		and	SXFRCTL0, ~SPIOEN;
 		clr	SCSISIGO;
 		call	complete_target_cmd;
 		cmp	LAST_MSG, MSG_NOOP	je . + 2;
@@ -483,8 +520,8 @@ target_busfree:
 		jmp	poll_for_work;
 
 target_cmdphase:
-		mvi	SCSISIGO, P_COMMAND|BSYO;
-		call	targ_inb;
+		mvi	P_COMMAND|BSYO call change_phase;
+		call	target_inb;
 		mov	A, DINDEX;
 		/* Store for host */
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
@@ -528,20 +565,20 @@ target_dphase:
 		 * Data direction flags are from the
 		 * perspective of the initiator.
 		 */
-		and	SXFRCTL0, ~SPIOEN;
-		or	SXFRCTL0, CLRCHN;
+		mov	ALLZEROS call initialize_channel;
 		test	SCB_TARGET_PHASES[1], TARGET_DATA_IN jz . + 4;
-		mvi	SCSISIGO, P_DATAIN|BSYO;
 		mvi	LASTPHASE, P_DATAOUT;
+		mvi	P_DATAIN|BSYO call change_phase;
 		jmp	p_data;
-		mvi	SCSISIGO, P_DATAOUT|BSYO;
 		mvi	LASTPHASE, P_DATAIN;
+		mvi	P_DATAOUT|BSYO call change_phase;
 		jmp	p_data;
 
 target_sphase:
-		mvi	SCSISIGO, P_STATUS|BSYO;
+		mvi	P_STATUS|BSYO call change_phase;
+		mvi	LASTPHASE, P_STATUS;
 		mov	SCB_TARGET_STATUS call target_outb;
-		/* XXX Watch for ATN for parity errors??? */
+		/* XXX Watch for ATN or parity errors??? */
 		mvi	SCSISIGO, P_MESGIN|BSYO;
 		/* MSG_CMDCMPLT is 0, but we can't do an immediate of 0 */
 		mov	ALLZEROS call target_outb;
@@ -570,29 +607,33 @@ complete_target_cmd:
 			call	dma_finish;
 		}
 		inc	TQINPOS;
-		test	SEQ_FLAGS, NO_DISCONNECT jz . + 2;
-		mvi	INTSTAT,TARGET_SYNC_CMD|CMDCMPLT ret;
 		mvi	INTSTAT,CMDCMPLT ret;
 	}
+
+if ((ahc->flags & AHC_INITIATORMODE) != 0) {
 initiator_select:
 	mvi	SPIOEN call	initialize_channel;
-/*
- * We aren't expecting a bus free, so interrupt
- * the kernel driver if it happens.
- */
+
+	/*
+	 * We aren't expecting a bus free, so interrupt
+	 * the kernel driver if it happens.
+	 */
 	mvi	CLRSINT1,CLRBUSFREE;
 	or	SIMODE1, ENBUSFREE;
-/*
- * As soon as we get a successful selection, the target should go
- * into the message out phase since we have ATN asserted.
- */
+
+	/*
+	 * As soon as we get a successful selection, the target
+	 * should go into the message out phase since we have ATN
+	 * asserted.
+	 */
 	mvi	MSG_OUT, MSG_IDENTIFYFLAG;
 	or	SEQ_FLAGS, IDENTIFY_SEEN;
 
-/*
- * Main loop for information transfer phases.  Wait for the target
- * to assert REQ before checking MSG, C/D and I/O for the bus phase.
- */
+	/*
+	 * Main loop for information transfer phases.  Wait for the
+	 * target to assert REQ before checking MSG, C/D and I/O for
+	 * the bus phase.
+	 */
 ITloop:
 	call	phase_lock;
 
@@ -604,7 +645,7 @@ ITloop:
 	cmp	A,P_STATUS	je p_status;
 	cmp	A,P_MESGIN	je p_mesgin;
 
-	mvi	INTSTAT,BAD_PHASE;	/* unknown phase - signal driver */
+	mvi	INTSTAT,BAD_PHASE;
 	jmp	ITloop;			/* Try reading the bus again. */
 
 await_busfree:
@@ -615,20 +656,27 @@ await_busfree:
 	test	SSTAT1,REQINIT|BUSFREE	jz .;
 	test	SSTAT1, BUSFREE jnz poll_for_work;
 	mvi	INTSTAT, BAD_PHASE;
+}
 	
 clear_target_state:
-	clr	DFCNTRL;		/*
-					 * We assume that the kernel driver
-					 * may reset us at any time, even
-					 * in the middle of a DMA, so clear
-					 * DFCNTRL too.
-					 */
-	clr	SCSIRATE;		/*
-					 * We don't know the target we will
-					 * connect to, so default to narrow
-					 * transfers to avoid parity problems.
-					 */
-	and	SXFRCTL0, ~(FAST20);
+	/*
+	 * We assume that the kernel driver may reset us
+	 * at any time, even in the middle of a DMA, so
+	 * clear DFCNTRL too.
+	 */
+	clr	DFCNTRL;
+
+	/*
+	 * We don't know the target we will connect to,
+	 * so default to narrow transfers to avoid
+	 * parity problems.
+	 */
+	if ((ahc->features & AHC_ULTRA2) != 0) {
+		bmov	SCSIRATE, ALLZEROS, 2;
+	} else {
+		clr	SCSIRATE;
+		and	SXFRCTL0, ~(FAST20);
+	}
 	mvi	LASTPHASE, P_BUSFREE;
 	/* clear target specific flags */
 	clr	SEQ_FLAGS ret;
@@ -818,7 +866,12 @@ prefetched_segs_avail:
 	add	SG_NEXT[0],SG_SIZEOF;
 	adc	SG_NEXT[1],A;
 
+	if ((ahc->flags & AHC_TARGETMODE) != 0) {
+		test	SSTAT0, TARGET jnz data_phase_loop;
+	}
+	test	SSTAT1, REQINIT jz .;
 	test	SSTAT1,PHASEMIS	jz data_phase_loop;
+
 	/* Ensure the last seg is visable at the shaddow layer */
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		or	DFCNTRL, PRELOADEN;
@@ -847,7 +900,7 @@ data_phase_finish:
 	}
 
 	if ((ahc->flags & AHC_TARGETMODE) != 0) {
-		test	SEQ_FLAGS, DPHASE_PENDING jz . + 3;
+		test	SEQ_FLAGS, DPHASE_PENDING jz ITloop;
 		and	SEQ_FLAGS, ~DPHASE_PENDING;
 		jmp	target_ITloop;
 	}
@@ -878,6 +931,7 @@ ultra2_dmahalt:
 		ret;
 	}
 
+if ((ahc->flags & AHC_INITIATORMODE) != 0) {
 /*
  * Command phase.  Set up the DMA registers and let 'er rip.
  */
@@ -934,17 +988,22 @@ p_status:
 	jmp	ITloop;
 
 /*
- * Message out phase.  If MSG_OUT is 0x80, build I full indentify message
- * sequence and send it to the target.  In addition, if the MK_MESSAGE bit
- * is set in the SCB_CONTROL byte, interrupt the host and allow it to send
- * it's own message.
+ * Message out phase.  If MSG_OUT is MSG_IDENTIFYFLAG, build a full
+ * indentify message sequence and send it to the target.  The host may
+ * override this behavior by setting the MK_MESSAGE bit in the SCB
+ * control byte.  This will cause us to interrupt the host and allow
+ * it to handle the message phase completely on its own.  If the bit
+ * associated with this target is set, we will also interrupt the host,
+ * thereby allowing it to send a message on the next selection regardless
+ * of the transaction being sent.
  * 
  * If MSG_OUT is == HOST_MSG, also interrupt the host and take a message.
- * This is done to allow the hsot to send messages outside of an identify
+ * This is done to allow the host to send messages outside of an identify
  * sequence while protecting the seqencer from testing the MK_MESSAGE bit
  * on an SCB that might not be for the current nexus. (For example, a
  * BDR message in responce to a bad reselection would leave us pointed to
  * an SCB that doesn't have anything to do with the current target).
+ *
  * Otherwise, treat MSG_OUT as a 1 byte message to send (abort, abort tag,
  * bus device reset).
  *
@@ -952,18 +1011,29 @@ p_status:
  * in case the target decides to put us in this phase for some strange
  * reason.
  */
+p_mesgout_retry:
+	or	SCSISIGO,ATNO,LASTPHASE;/* turn on ATN for the retry */
 p_mesgout:
 	mov	SINDEX, MSG_OUT;
 	cmp	SINDEX, MSG_IDENTIFYFLAG jne p_mesgout_from_host;
+	test	SCB_CONTROL,MK_MESSAGE	jnz host_message_loop;
+	mov	FUNCTION1, SCB_TCL;
+	mov	A, FUNCTION1;
+	mov	SINDEX, TARGET_MSG_REQUEST[0];
+	if ((ahc->features & AHC_TWIN) != 0) {
+		/* Second Channel uses high byte bits */
+		test	SCB_TCL, SELBUSB	jz . + 2;
+		mov	SINDEX, TARGET_MSG_REQUEST[1];
+	} else if ((ahc->features & AHC_WIDE) != 0) {
+		test	SCB_TCL, 0x80		jz . + 2; /* target > 7 */
+		mov	SINDEX, TARGET_MSG_REQUEST[1];
+	}
+	test	SINDEX, A	jnz host_message_loop;
 p_mesgout_identify:
 	and	SINDEX,LID,SCB_TCL;	/* lun */
 	and	A,DISCENB,SCB_CONTROL;	/* mask off disconnect privledge */
 	or	SINDEX,A;		/* or in disconnect privledge */
 	or	SINDEX,MSG_IDENTIFYFLAG;
-p_mesgout_mk_message:
-	test	SCB_CONTROL,MK_MESSAGE  jz p_mesgout_tag;
-	mov	SCSIDATL, SINDEX;	/* Send the last byte */
-	jmp	p_mesgout_from_host + 1;/* Skip HOST_MSG test */
 /*
  * Send a tag message if TAG_ENB is set in the SCB control block.
  * Use SCB_TAG (the position in the kernel's SCB array) as the tag value.
@@ -978,38 +1048,44 @@ p_mesgout_tag:
 	cmp	LASTPHASE, P_MESGOUT	jne p_mesgout_done;
 	mov	SCB_TAG	jmp p_mesgout_onebyte;
 /*
- * Interrupt the driver, and allow it to send a message
- * if it asks.
+ * Interrupt the driver, and allow it to handle this message
+ * phase and any required retries.
  */
 p_mesgout_from_host:
 	cmp	SINDEX, HOST_MSG	jne p_mesgout_onebyte;
-	mvi     INTSTAT,AWAITING_MSG;
-	nop;
-	/*
-	 * Did the host detect a phase change?
-	 */
-	cmp	RETURN_1, MSGOUT_PHASEMIS je p_mesgout_done;
+	jmp	host_message_loop;
 
 p_mesgout_onebyte:
 	mvi	CLRSINT1, CLRATNO;
 	mov	SCSIDATL, SINDEX;
 
 /*
- * If the next bus phase after ATN drops is a message out, it means
+ * If the next bus phase after ATN drops is message out, it means
  * that the target is requesting that the last message(s) be resent.
  */
 	call	phase_lock;
-	cmp	LASTPHASE, P_MESGOUT	jne p_mesgout_done;
-	or	SCSISIGO,ATNO,LASTPHASE;/* turn on ATN for the retry */
-	jmp	p_mesgout;
+	cmp	LASTPHASE, P_MESGOUT	je p_mesgout_retry;
 
 p_mesgout_done:
 	mvi	CLRSINT1,CLRATNO;	/* Be sure to turn ATNO off */
 	mov	LAST_MSG, MSG_OUT;
-	cmp	MSG_OUT, MSG_IDENTIFYFLAG jne . + 2;
-	and	SCB_CONTROL, ~MK_MESSAGE;
 	mvi	MSG_OUT, MSG_NOOP;	/* No message left */
 	jmp	ITloop;
+
+/*
+ * Pushed message loop to allow the kernel to
+ * RUN IT's own message state engine.  To avoid an
+ * extra nop instruction after signaling the kernel,
+ * we perform the phase_lock before checking to see
+ * if we should exit the loop and skip the phase_lock
+ * in the ITloop.  Performing back to back phase_locks
+ * shouldn't hurt, but why do it twice...
+ */
+host_message_loop:
+	mvi	INTSTAT, HOST_MSG_LOOP;
+	call	phase_lock;
+	cmp	RETURN_1, EXIT_MSG_LOOP	je ITloop + 1;
+	jmp	host_message_loop;
 
 /*
  * Message in phase.  Bytes are read using Automatic PIO mode.
@@ -1022,7 +1098,7 @@ p_mesgin:
 	cmp	A,MSG_SAVEDATAPOINTER	je mesgin_sdptrs;
 	cmp	ALLZEROS,A		je mesgin_complete;
 	cmp	A,MSG_RESTOREPOINTERS	je mesgin_rdptrs;
-	cmp	A,MSG_EXTENDED		je mesgin_extended;
+	cmp	A,MSG_EXTENDED		je host_message_loop;
 	cmp	A,MSG_MESSAGE_REJECT	je mesgin_reject;
 	cmp	A,MSG_NOOP		je mesgin_done;
 
@@ -1099,6 +1175,7 @@ complete_queue:
 add_to_free_list:
 	call	add_scb_to_free_list;
 	jmp	await_busfree;
+}
 
 complete_post:
 	/* Post the SCBID in SINDEX and issue an interrupt */
@@ -1113,22 +1190,9 @@ complete_post:
 	if ((ahc->features & AHC_QUEUE_REGS) == 0) {
 		inc 	QOUTPOS;
 	}
-	if ((ahc->flags & AHC_TARGETMODE) != 0) {
-		test	SEQ_FLAGS, NO_DISCONNECT jz . + 2;
-		mvi	INTSTAT,TARGET_SYNC_CMD|CMDCMPLT ret;
-	}
 	mvi	INTSTAT,CMDCMPLT ret;
 
-/*
- * Is it an extended message?  Copy the message to our message buffer and
- * notify the host.  The host will tell us whether to reject this message,
- * respond to it with the message that the host placed in our message buffer,
- * or simply to do nothing.
- */
-mesgin_extended:
-	mvi	INTSTAT,EXTENDED_MSG;		/* let driver know */
-	jmp	ITloop;
-
+if ((ahc->flags & AHC_INITIATORMODE) != 0) {
 /*
  * Is it a disconnect message?  Set a flag in the SCB to remind us
  * and await the bus going free.
@@ -1311,18 +1375,35 @@ inb_first:
 	mov	DINDIR,SCSIBUSL	ret;		/*read byte directly from bus*/
 inb_last:
 	mov	NONE,SCSIDATL ret;		/*dummy read from latch to ACK*/
+}
 
 if ((ahc->flags & AHC_TARGETMODE) != 0) {
-	/*
-	 * Send a byte to an initiator in Automatic PIO mode.
-	 * SPIOEN must be on prior to calling this routine.
-	 */
+/*
+ * Change to a new phase.  If we are changing the state of the I/O signal,
+ * from out to in, wait an additional data release delay before continuing.
+ */
+change_phase:
+	and	DINDEX, IOI, SCSISIGI;
+	mov	SCSISIGO, SINDEX;
+	and	A, IOI, SINDEX;
+	cmp 	DINDEX, A je change_phase_wait;
+	test	SINDEX, IOI jz change_phase_wait;
+	call	change_phase_wait;
+change_phase_wait:
+	nop;
+	nop;
+	nop;
+	nop ret;
+
+/*
+ * Send a byte to an initiator in Automatic PIO mode.
+ */
 target_outb:
 	or	SXFRCTL0, SPIOEN;
 	test	SSTAT0, SPIORDY	jz .;
 	mov	SCSIDATL, SINDEX;
 	test	SSTAT0, SPIORDY	jz .;
-	ret;
+	and	SXFRCTL0, ~SPIOEN ret;
 }
 	
 mesgin_phasemis:
@@ -1541,8 +1622,8 @@ get_SCBID_from_host:
 phase_lock:     
 	test	SSTAT1, REQINIT jz phase_lock;
 	test	SSTAT1, SCSIPERR jnz phase_lock;
-	and	LASTPHASE, PHASE_MASK, SCSISIGI;
-	mov	SCSISIGO, LASTPHASE ret;
+	and	SCSISIGO, PHASE_MASK, SCSISIGI;
+	and	LASTPHASE, PHASE_MASK, SCSISIGI ret;
 
 if ((ahc->features & AHC_CMD_CHAN) == 0) {
 set_stcnt_from_hcnt:
