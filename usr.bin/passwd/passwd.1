@@ -78,7 +78,7 @@ characters (which may be overridden using the
 .if n "mixpasswordcase"
 setting for a user's login class).  Allowing lower case passwords may
 be useful where the password file will be used in situations where only
-lower case passwords are permissable, such as when using Samba to
+lower case passwords are permissible, such as when using Samba to
 authenticate Windows clients.  In all other situations, numbers, upper
 case letters and meta characters are encouraged.
 .Pp
@@ -186,7 +186,7 @@ domainname on the NIS master may not be set (it is not necessary for
 an NIS server to also be a client) in which case the
 .Nm passwd
 command needs to be told what domain to operate on.
-.It Fl s Ar host
+.It Fl h Ar host
 Specify the name of an NIS server.
 This option, in conjunction
 with the
@@ -202,8 +202,8 @@ the local domainname isn't set), the name of the NIS master is assumed to
 be 
 .if t ``localhost''.
 .if n "localhost".
-This can be overidden with the
-.Fl s
+This can be overridden with the
+.Fl h
 flag.
 The specified hostname need not be the name of an NIS master: the
 name of the NIS master for a given map can be determined by querying any
