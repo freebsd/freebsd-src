@@ -63,6 +63,16 @@ AlphaServer 4100 (Rawhide) does not want to allow installation using
 floppies. Workaround is to install using another Alpha machine and 
 move the disk to the AS4100. Once installed FreeBSD runs fine.
 
+AlphaServer 2100A (Lynx) is not supported in this release. Note that
+AlphaServer 2100 (Sable) works fine.
+
+Note that TGA consoles (either builtin or on TGA expansion cards) will
+not work. You will need to use a serial console or install a VGA card.
+
+If you are seeing "going nowhere without my init" crashes on install
+please make sure you have no other bootable disks (Tru64, VMS, whatever)
+connected to your system during install. This is an unfound bug.
+
 1.2. SECURITY FIXES
 -------------------
 
