@@ -382,7 +382,7 @@ ipatm_openpvc(pvp, sivp)
 	/*
 	 * Allocate IP VCC block
 	 */
-	ivp = (struct ipvcc *)atm_allocate(&ipatm_vcpool);
+	ivp = uma_zalloc(ipatm_vc_zone, M_WAITOK);
 	if (ivp == NULL) {
 		err = ENOMEM;
 		goto done;
@@ -423,7 +423,7 @@ ipatm_openpvc(pvp, sivp)
 	 */
 	err = atm_cm_connect(&ipatm_endpt, ivp, ap, &ivp->iv_conn);
 	if (err) {
-		atm_free((caddr_t)ivp);
+		uma_zfree(ipatm_vc_zone, ivp);
 		goto done;
 	}
 
@@ -585,7 +585,7 @@ ipatm_createsvc(ifp, daf, dst, sivp)
 	/*
 	 * Allocate IP VCC
 	 */
-	ivp = (struct ipvcc *)atm_allocate(&ipatm_vcpool);
+	ivp = uma_zalloc(ipatm_vc_zone, M_WAITOK);
 	if (ivp == NULL) {
 		err = ENOMEM;
 		goto done;
@@ -624,7 +624,7 @@ ipatm_createsvc(ifp, daf, dst, sivp)
 			err = ipatm_opensvc(ivp);
 			if (err) {
 				(*inp->inf_serv->is_arp_close)(ivp);
-				atm_free((caddr_t)ivp);
+				uma_zfree(ipatm_vc_zone, ivp);
 				goto done;
 			}
 			break;
@@ -633,7 +633,7 @@ ipatm_createsvc(ifp, daf, dst, sivp)
 			/*
 			 * So sorry...come again
 			 */
-			atm_free((caddr_t)ivp);
+			uma_zfree(ipatm_vc_zone, ivp);
 			err = ENETDOWN;
 			goto done;
 
@@ -655,7 +655,7 @@ ipatm_createsvc(ifp, daf, dst, sivp)
 		ivp->iv_arpent = &map;
 		err = ipatm_opensvc(ivp);
 		if (err) {
-			atm_free((caddr_t)ivp);
+			uma_zfree(ipatm_vc_zone, ivp);
 			goto done;
 		}
 		ivp->iv_arpent = NULL;
@@ -937,7 +937,7 @@ ipatm_incoming(tok, cop, ap, tokp)
 	/*
 	 * Allocate IP VCC
 	 */
-	ivp = (struct ipvcc *)atm_allocate(&ipatm_vcpool);
+	ivp = uma_zalloc(ipatm_vc_zone, M_WAITOK);
 	if (ivp == NULL) {
 		err = ENOMEM;
 		cause = T_ATM_CAUSE_UNSPECIFIED_RESOURCE_UNAVAILABLE;
@@ -1015,7 +1015,7 @@ reject:
 	 */
 	if (ivp) {
 		(*inp->inf_serv->is_arp_close)(ivp);
-		atm_free((caddr_t)ivp);
+		uma_zfree(ipatm_vc_zone, ivp);
 	}
 	ap->cause.tag = T_ATM_PRESENT;
 	ap->cause.v = ipatm_cause;
@@ -1128,7 +1128,7 @@ ipatm_closevc(ivp, code)
 	 * If ARP module is done with VCC too, then free it
 	 */
 	if (ivp->iv_arpconn == NULL)
-		atm_free((caddr_t)ivp);
+		uma_zfree(ipatm_vc_zone, ivp);
 	ipatm_vccnt--;
 	(void) splx(s);
 
