@@ -213,7 +213,7 @@ dump_variables(dialogMenuItem *unused)
     Variable *vp;
 
     if (isDebug())
-	msgDebug("Writing sysinstall variables to file..");
+	msgDebug("Writing sysinstall variables to file..\n");
 
     fp = fopen("/etc/sysinstall.vars", "w");
     if (!fp) {
