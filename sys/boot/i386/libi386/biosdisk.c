@@ -243,7 +243,31 @@ bd_print(int verbose)
 			    sprintf(line, "      disk%ds%d", i, j + 1);
 			    bd_printslice(od, dptr[j].dp_start, line);
 			    break;
+			case 0x00:		/* unused partition */
+			    break;
+			case 0x01:
+			    sprintf(line, "      disk%ds%d: FAT-12\n", i,
+				    j + 1);
+			    pager_output(line);
+			    break;
+			case 0x04:
+			case 0x06:
+			case 0x0e:
+			    sprintf(line, "      disk%ds%d: FAT-16\n", i,
+				    j + 1);
+			    pager_output(line);
+			    break;
+			case 0x0b:
+			case 0x0c:
+			    sprintf(line, "      disk%ds%d: FAT-32\n", i,
+				    j + 1);
+			    pager_output(line);
+			    break;
 			default:
+			    sprintf(line, "      disk%ds%d: Unknown fs: 0x%x\n",
+				    i, j + 1, dptr[j].dp_typ);
+			    pager_output(line);
+			    break;
 			}
 		    }
 		    
@@ -525,12 +549,12 @@ bd_bestslice(struct dos_partition *dptr)
 	    }
 	    break;
 	    
-	    case 0x04:				/* DOS/Windows */
-	    case 0x06:
-	    case 0x0b:
-	    case 0x0c:
-	    case 0x0e:
-	    case 0x63:
+	case 0x01:				/* DOS/Windows */
+	case 0x04:
+	case 0x06:
+	case 0x0b:
+	case 0x0c:
+	case 0x0e:
 	    if ((dptr[i].dp_flag & 0x80) && (preflevel > PREF_DOS_ACT)) {
 		pref = i;
 		preflevel = PREF_DOS_ACT;

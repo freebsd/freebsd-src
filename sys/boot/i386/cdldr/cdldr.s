@@ -28,19 +28,24 @@
 #
 # Memory locations.
 #
-		.set MEM_LOADER_ADDRESS,0x100000 # where the loader lives
-		.set MEM_LDR_ENTRY,0x7c00	# our entry point
+		.set MEM_PAGE_SIZE,0x1000	# memory page size, 4k
 		.set MEM_ARG,0x900		# Arguments at start
 		.set MEM_ARG_BTX,0xa100		# Where we move them to so the
 						#  BTX client can see them
 		.set MEM_ARG_SIZE,0x18		# Size of the arguments
 		.set MEM_BTX_ADDRESS,0x9000	# where BTX lives
 		.set MEM_BTX_ENTRY,0x9010	# where BTX starts to execute
-		.set MEM_AOUT_HEADER,0x1000	# size of the a.out header
-		.set MEM_BTX_OFFSET,0x1000	# offset of BTX in the loader
-		.set MEM_BTX_IMAGE,MEM_LOADER_ADDRESS+MEM_BTX_OFFSET # where
-						#  BTX is in the loader
+		.set MEM_BTX_OFFSET,MEM_PAGE_SIZE # offset of BTX in the loader
 		.set MEM_BTX_CLIENT,0xa000	# where BTX clients live
+#
+# a.out header fields
+#
+		.set AOUT_TEXT,0x04		# text segment size
+		.set AOUT_DATA,0x08		# data segment size
+		.set AOUT_BSS,0x0c		# zero'd BSS size
+		.set AOUT_SYMBOLS,0x10		# symbol table
+		.set AOUT_ENTRY,0x14		# entry point
+		.set AOUT_HEADER,MEM_PAGE_SIZE	# size of the a.out header
 #
 # Flags for kargs->bootflags
 #
@@ -58,7 +63,8 @@
 #
 		.set INT_SYS,0x30		# BTX syscall interrupt
 #
-# We expect to be loaded by the BIOS at 0x7c00 (standard boot loader entry point)
+# We expect to be loaded by the BIOS at 0x7c00 (standard boot loader entry
+# point)
 #
 		.code16
 		.globl start
@@ -66,40 +72,22 @@
 #
 # BTX program loader for CD booting
 #
-start:		jmp begin			# skip the boot info table
-		.org 0x8, 0x90			# fill with nops up to the table
-#
-# Boot information table that is filled in by mkisofs(8), see the man page for
-# details
-#
-boot_info_table:
-bi_pvd_LBA:	.long 0x0
-bi_file_LBA:	.long 0x0
-bi_file_length:	.long 0x0
-bi_checksum:	.long 0x0
-bi_reserved:	.byte 0x0
-		.org 0x40, 0x0
-#
-# Actual start of execution
-#
-begin:		cld				# string ops inc
+start:		cld				# string ops inc
 		xorw %ax, %ax			# zero %ax
 		movw %ax, %ss			# setup the
-		movw $MEM_LDR_ENTRY, %sp	#  stack
+		movw $start, %sp		#  stack
 		pushw %dx			# save the BIOS boot device in
 						#  %dl for later
-		movw $(MEM_LDR_ENTRY/0x10), %ax # setup the
-		movw %ax, %ds			#  data segment
-		movl $welcome_msg, %si		# %ds:(%si) -> welcome message
+		movw %ax, %ds			# setup the
+		movw %ax, %es			#  data segments
+		movw $welcome_msg, %si		# %ds:(%si) -> welcome message
 		call putstr			# display the welcome message
 #
 # Setup the arguments that the loader is expecting from boot[12]
 #
-		movl $bootinfo_msg, %si		# %ds:(%si) -> boot args message
+		movw $bootinfo_msg, %si		# %ds:(%si) -> boot args message
 		call putstr			# display the message
-		pushw %ss			# Copy %ss
-		popw %es			#  to %es
-		movl $MEM_ARG, %ebx		# %es:(%ebx) -> boot args
+		movl $MEM_ARG, %ebx		# %ds:(%ebx) -> boot args
 		movw %bx, %di			# %es:(%di) -> boot args
 		xorl %eax, %eax			# zero %eax
 		movw $(MEM_ARG_SIZE/4), %cx	# Size of arguments in 32-bit
@@ -107,8 +95,9 @@ begin:		cld				# string ops inc
 		rep				# Clear the arguments
 		stosl				#  to zero
 		popw %dx			# restore BIOS boot device
-		movb %dl, %es:0x4(%ebx)		# set kargs->bootdev
-		orb $KARGS_FLAGS_CD, %es:0x8(%ebx) # kargs->bootflags |= KARGS_FLAGS_CD
+		movb %dl, 0x4(%ebx)		# set kargs->bootdev
+		orb $KARGS_FLAGS_CD, 0x8(%ebx)	# kargs->bootflags |=
+						#  KARGS_FLAGS_CD
 #
 # Turn on the A20 address line
 #
@@ -118,49 +107,61 @@ begin:		cld				# string ops inc
 #
 		movw $relocate_msg, %si		# Display the
 		call putstr			#  relocation message
-		movl $MEM_LOADER_ADDRESS, %edi	# %edi is the destination
-		movl $(MEM_LDR_ENTRY+end-start+MEM_AOUT_HEADER), %esi # %esi is 
-						#  the start of the raw loader
-		movl bi_file_length, %ecx	# Set %ecx to the length
-		subl $(end-start+MEM_AOUT_HEADER), %ecx	# of the raw loader
+		movl end+AOUT_ENTRY, %edi	# %edi is the destination
+		movl $(end+AOUT_HEADER), %esi	# %esi is 
+						#  the start of the text
+						#  segment
+		movl end+AOUT_TEXT, %ecx	# %ecx = length of the text
+						#  segment
 		lgdt gdtdesc			# setup our own gdt
 		cli				# turn off interrupts
 		movl %cr0, %eax			# Turn on
-		orl $0x1, %eax			#  protected
+		orb $0x1, %al			#  protected
 		movl %eax, %cr0			#  mode
 		.byte 0xea			# long jump to
-		.word MEM_LDR_ENTRY+pm_start	#   clear the instruction
-		.word SEL_SCODE			#   pre-fetch
+		.word pm_start			#   clear the instruction
+		.word SEL_SCODE			#   pre-fetch queue
 		.code32
 pm_start:	movw $SEL_SDATA, %ax		# Initialize
 		movw %ax, %ds			#  %ds and
 		movw %ax, %es			#  %es to a flat selector
-		rep				# Relocate
-		movsb				#  the loader
-		movl $MEM_BTX_IMAGE, %esi	# %esi -> BTX in the loader
+		rep				# Relocate the
+		movsb				#  text segment
+		addl $(MEM_PAGE_SIZE - 1), %edi	# pad %edi out to a new page
+		andl $~(MEM_PAGE_SIZE - 1), %edi #  for the data segment
+		movl end+AOUT_DATA, %ecx	# size of the data segment
+		rep				# Relocate the
+		movsb				#  data segment
+		movl end+AOUT_BSS, %ecx		# size of the bss
+		xorl %eax, %eax			# zero %eax
+		addb $3, %cl			# round %ecx up to
+		shrl $2, %ecx			#  a multiple of 4
+		rep				# zero the
+		stosl				#  bss
+		movl end+AOUT_ENTRY, %esi	# %esi -> relocated loader
+		addl $MEM_BTX_OFFSET, %esi	# %esi -> BTX in the loader
 		movl $MEM_BTX_ADDRESS, %edi	# %edi -> where BTX needs to go
 		movzwl 0xa(%esi), %ecx		# %ecx -> length of BTX
 		rep				# Relocate
 		movsb				#  BTX
-		ljmp $SEL_SCODE16,$(MEM_LDR_ENTRY+pm_16) # Jump to 16-bit PM
+		ljmp $SEL_SCODE16,$pm_16	# Jump to 16-bit PM
 		.code16
 pm_16:		movw $SEL_RDATA, %ax		# Initialize
 		movw %ax, %ds			#  %ds and
 		movw %ax, %es			#  %es to a real mode selector
 		movl %cr0, %eax			# Turn off
-		andl $~0x1, %eax		#  protected
+		andb $~0x1, %al			#  protected
 		movl %eax, %cr0			#  mode
 		.byte 0xea			# Long jump to
 		.word pm_end			#   clear the instruction
-		.word MEM_LDR_ENTRY/0x10	#   pre-fetch
+		.word 0x0			#   pre-fetch
 pm_end:		sti				# Turn interrupts back on now
 #
 # Copy the BTX client to MEM_BTX_CLIENT
 #
-		movw $(MEM_LDR_ENTRY/0x10), %ax # Initialize
-		movw %ax, %ds			#   %ds to local data segment
-		xorw %ax, %ax			# zero %ax and initialize
-		movw %ax, %es			#  %es to segment 0
+		xorw %ax, %ax			# zero %ax and set
+		movw %ax, %ds			#  %ds and %es
+		movw %ax, %es			#  to segment 0
 		movw $MEM_BTX_CLIENT, %di	# Prepare to relocate
 		movw $btx_client, %si		#  the simple btx client
 		movw $(btx_client_end-btx_client), %cx # length of btx client
@@ -170,17 +171,20 @@ pm_end:		sti				# Turn interrupts back on now
 # Copy the boot[12] args to where the BTX client can see them
 #
 		movw $MEM_ARG, %si		# where the args are at now
-		movw %ax, %ds			# need segment 0 in %ds
 		movw $MEM_ARG_BTX, %di		# where the args are moving to
 		movw $(MEM_ARG_SIZE/4), %cx	# size of the arguments in longs
 		rep				# Relocate
 		movsl				#  the words
 #
+# Save the entry point so the client can get to it later on
+#
+		movl end+AOUT_ENTRY, %eax	# load the entry point
+		stosl				# add it to the end of the
+						#  arguments
+#
 # Now we just start up BTX and let it do the rest
 #
-		movw $(MEM_LDR_ENTRY/0x10), %ax	# Initialize
-		movw %ax, %ds			#  %ds to the local data segment
-		movl $jump_message, %si		# Display the
+		movw $jump_message, %si		# Display the
 		call putstr			#  jump message
 		.byte 0xea			# Jump to
 		.word MEM_BTX_ENTRY 		# BTX entry
@@ -216,7 +220,7 @@ seta20.2:	inb $0x64,%al			# Get status
 		ret				# To caller
 
 #
-# BTX client to start btxld
+# BTX client to start btxldr
 #
 		.code32
 btx_client:	movl $(MEM_ARG_BTX-MEM_BTX_CLIENT+MEM_ARG_SIZE-4), %esi
@@ -228,7 +232,8 @@ push_arg:	lodsl				# Read argument
 		pushl %eax			# Push it onto the stack
 		loop push_arg			# Push all of the arguments
 		cld				# In case anyone depends on this
-		pushl $(MEM_LOADER_ADDRESS)	# Address to jump to
+		pushl MEM_ARG_BTX-MEM_BTX_CLIENT+MEM_ARG_SIZE # Entry point of
+						#  the loader
 		pushl %eax			# Emulate a near call
 		movl $0x1, %eax			# 'exec' system call
 		int $INT_SYS			# BTX system call
@@ -249,7 +254,7 @@ gdt.1:
 # Pseudo-descriptors.
 #
 gdtdesc:	.word gdt.1-gdt-1		# Limit
-		.long gdt+MEM_LDR_ENTRY		# Base
+		.long gdt			# Base
 		
 welcome_msg:	.asciz	"CD Loader 1.00\r\n\n"
 bootinfo_msg:	.asciz	"Building the boot loader arguments\r\n"

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  * @(#) Header: net.c,v 1.9 93/08/06 19:32:15 leres Exp  (LBL)
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

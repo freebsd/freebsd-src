@@ -41,10 +41,16 @@
  * XXX as libi386 and biosboot merge, some of these can become linker sets.
  */
 
+#if defined(LOADER_NFS_SUPPORT) && defined(LOADER_TFTP_SUPPORT)
+#error "Cannot have both tftp and nfs support yet."
+#endif
+
 /* Exported for libstand */
 struct devsw *devsw[] = {
     &biosdisk,
-    /* XXX network devices? */
+#if defined(LOADER_NFS_SUPPORT) || defined(LOADER_TFTP_SUPPORT)
+    &pxedisk,
+#endif
     NULL
 };
 
@@ -52,6 +58,12 @@ struct fs_ops *file_system[] = {
     &ufs_fsops,
     &dosfs_fsops,
     &zipfs_fsops,
+#ifdef LOADER_NFS_SUPPORT 
+    &nfs_fsops,
+#endif
+#ifdef LOADER_TFTP_SUPPORT
+    &tftp_fsops,
+#endif
     NULL
 };
 
