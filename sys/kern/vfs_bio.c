@@ -2573,6 +2573,7 @@ loop:
 		if (vp->v_bsize != bsize) {
 			printf("WARNING: Wrong block size on vnode: %d should be %d\n", vp->v_bsize, bsize);
 			vprint("Please email phk@FreeBSD.org this info\n", vp);
+			vp->v_bsize = bsize;
 		}
 
 		offset = blkno * bsize;
