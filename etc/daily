@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: daily,v 1.21.2.4 1998/09/13 23:10:08 brian Exp $
+#	$Id: daily,v 1.21.2.5 1999/01/01 17:44:15 billf Exp $
 #	@(#)daily	5.12 (Berkeley) 5/24/91
 #
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
@@ -128,7 +128,7 @@ fi
 if [ -d /var/spool/uucp -a -f /etc/uuclean.daily ]; then
 	echo ""
 	echo "Cleaning up UUCP:"
-	echo /etc/uuclean.daily | su daemon
+	echo /etc/uuclean.daily | su -m uucp
 fi
 
 echo ""
