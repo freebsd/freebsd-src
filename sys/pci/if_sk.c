@@ -899,10 +899,6 @@ sk_ioctl(ifp, command, data)
 	SK_IF_LOCK(sc_if);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > SK_JUMBO_MTU)
 			error = EINVAL;
@@ -945,7 +941,7 @@ sk_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
@@ -1174,7 +1170,7 @@ sk_attach_xmac(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc_if->arpcom.ac_enaddr);
 	callout_handle_init(&sc_if->sk_tick_ch);
 
 	/*
@@ -1186,7 +1182,7 @@ sk_attach_xmac(dev)
 		printf("skc%d: no PHY found!\n", sc_if->sk_unit);
 		contigfree(sc_if->sk_rdata,
 		    sizeof(struct sk_ring_data), M_DEVBUF);
-		ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+		ether_ifdetach(ifp);
 		SK_UNLOCK(sc);
 		return(ENXIO);
 	}
@@ -1398,7 +1394,7 @@ sk_detach_xmac(dev)
 
 	ifp = &sc_if->arpcom.ac_if;
 	sk_stop(sc_if);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	bus_generic_detach(dev);
 	if (sc_if->sk_miibus != NULL)
 		device_delete_child(dev, sc_if->sk_miibus);
@@ -1520,8 +1516,7 @@ sk_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 	}
 
 	/* Transmit */
@@ -1576,7 +1571,6 @@ static void
 sk_rxeof(sc_if)
 	struct sk_if_softc	*sc_if;
 {
-	struct ether_header	*eh;
 	struct mbuf		*m;
 	struct ifnet		*ifp;
 	struct sk_chain		*cur_rx;
@@ -1629,11 +1623,7 @@ sk_rxeof(sc_if)
 		}
 
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	sc_if->sk_cdata.sk_rx_prod = i;

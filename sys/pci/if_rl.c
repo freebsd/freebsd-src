@@ -1072,7 +1072,7 @@ rl_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, eaddr);
 
 	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET,
 	    rl_intr, sc, &sc->rl_intrhand);
@@ -1105,7 +1105,7 @@ rl_detach(dev)
 	RL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	rl_stop(sc);
 
 	bus_generic_detach(dev);
@@ -1175,7 +1175,6 @@ static void
 rl_rxeof(sc)
 	struct rl_softc		*sc;
 {
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	int			total_len = 0;
@@ -1285,12 +1284,8 @@ rl_rxeof(sc)
 		if (m == NULL)
 			continue;
 
-		eh = mtod(m, struct ether_header *);
 		ifp->if_ipackets++;
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	return;
@@ -1564,8 +1559,7 @@ rl_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, RL_CUR_TXMBUF(sc));
+		BPF_MTAP(ifp, RL_CUR_TXMBUF(sc));
 
 		/*
 		 * Transmit the frame.
@@ -1759,11 +1753,6 @@ rl_ioctl(ifp, command, data)
 	RL_LOCK(sc);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			rl_init(sc);
@@ -1784,7 +1773,7 @@ rl_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

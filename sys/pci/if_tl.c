@@ -1348,7 +1348,7 @@ tl_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	TL_UNLOCK(sc);
 	return(0);
 
@@ -1370,7 +1370,7 @@ tl_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	tl_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->tl_miibus);
@@ -1543,15 +1543,13 @@ tl_intvec_rxeof(xsc, type)
 		sc->tl_cdata.tl_rx_tail->tl_next = cur_rx;
 		sc->tl_cdata.tl_rx_tail = cur_rx;
 
-		eh = mtod(m, struct ether_header *);
-		m->m_pkthdr.rcvif = ifp;
-
 		/*
 		 * Note: when the ThunderLAN chip is in 'capture all
 		 * frames' mode, it will receive its own transmissions.
 		 * We drop don't need to process our own transmissions,
 		 * so we drop them here and continue.
 		 */
+		eh = mtod(m, struct ether_header *);
 		/*if (ifp->if_flags & IFF_PROMISC && */
 		if (!bcmp(eh->ether_shost, sc->arpcom.ac_enaddr,
 		 					ETHER_ADDR_LEN)) {
@@ -1559,11 +1557,10 @@ tl_intvec_rxeof(xsc, type)
 				continue;
 		}
 
-		/* Remove header from mbuf and pass it on. */
-		m->m_pkthdr.len = m->m_len =
-				total_len - sizeof(struct ether_header);
-		m->m_data += sizeof(struct ether_header);
-		ether_input(ifp, eh, m);
+		m->m_pkthdr.rcvif = ifp;
+		m->m_pkthdr.len = m->m_len = total_len;
+
+		(*ifp->if_input)(ifp, m);
 	}
 
 	return(r);
@@ -2015,8 +2012,7 @@ tl_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, cur_tx->tl_mbuf);
+		BPF_MTAP(ifp, cur_tx->tl_mbuf);
 	}
 
 	/*
@@ -2217,11 +2213,6 @@ tl_ioctl(ifp, command, data)
 	s = splimp();
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -2261,7 +2252,7 @@ tl_ioctl(ifp, command, data)
 		}
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

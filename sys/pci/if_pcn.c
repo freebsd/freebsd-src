@@ -665,7 +665,7 @@ pcn_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, (u_int8_t *) eaddr);
 	callout_handle_init(&sc->pcn_stat_ch);
 	PCN_UNLOCK(sc);
 	return(0);
@@ -691,7 +691,7 @@ pcn_detach(dev)
 
 	pcn_reset(sc);
 	pcn_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	if (sc->pcn_miibus != NULL) {
 		bus_generic_detach(dev);
@@ -855,9 +855,7 @@ pcn_rxeof(sc)
 		    cur_rx->pcn_rxlen - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
 
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	sc->pcn_cdata.pcn_rx_prod = i;
@@ -1101,8 +1099,7 @@ pcn_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 
 	}
 
@@ -1312,11 +1309,6 @@ pcn_ioctl(ifp, command, data)
 	PCN_LOCK(sc);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
                         if (ifp->if_flags & IFF_RUNNING &&
@@ -1359,7 +1351,7 @@ pcn_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

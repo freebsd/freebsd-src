@@ -691,7 +691,6 @@ static void
 ste_rxeof(sc)
 	struct ste_softc		*sc;
 {
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct ste_chain_onefrag	*cur_rx;
@@ -751,14 +750,11 @@ ste_rxeof(sc)
 			continue;
 		}
 
-		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		ifp->if_ipackets++;
+		(*ifp->if_input)(ifp, m);
 
 		cur_rx->ste_ptr->ste_status = 0;
 		count++;
@@ -1091,12 +1087,13 @@ ste_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	STE_UNLOCK(sc);
 	return(0);
@@ -1119,7 +1116,7 @@ ste_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	ste_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->ste_miibus);
@@ -1165,7 +1162,7 @@ ste_newbuf(sc, c, m)
 	c->ste_mbuf = m_new;
 	c->ste_ptr->ste_status = 0;
 	c->ste_ptr->ste_frag.ste_addr = vtophys(mtod(m_new, caddr_t));
-	c->ste_ptr->ste_frag.ste_len = (1536 + EVL_ENCAPLEN) | STE_FRAG_LAST;
+	c->ste_ptr->ste_frag.ste_len = (1536 + ETHER_VLAN_ENCAP_LEN) | STE_FRAG_LAST;
 
 	return(0);
 }
@@ -1338,7 +1335,7 @@ ste_init(xsc)
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 
 	/* Accept VLAN length packets */
-	CSR_WRITE_2(sc, STE_MAX_FRAMELEN, ETHER_MAX_LEN + EVL_ENCAPLEN);
+	CSR_WRITE_2(sc, STE_MAX_FRAMELEN, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN);
 
 	ste_ifmedia_upd(ifp);
 
@@ -1442,11 +1439,6 @@ ste_ioctl(ifp, command, data)
 	ifr = (struct ifreq *)data;
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -1482,7 +1474,7 @@ ste_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
@@ -1624,8 +1616,7 @@ ste_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 	 	 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, cur_tx->ste_mbuf);
+		BPF_MTAP(ifp, cur_tx->ste_mbuf);
 
 		STE_INC(idx, STE_TX_LIST_CNT);
 		sc->ste_cdata.ste_tx_cnt++;
