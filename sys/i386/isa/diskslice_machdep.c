@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.24 1997/02/22 09:36:06 peter Exp $
+ *	$Id: diskslice_machdep.c,v 1.25 1997/04/19 14:14:17 bde Exp $
  */
 
 #include <stddef.h>
@@ -211,8 +211,9 @@ reread_mbr:
 	sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 		       partname);
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
-		printf("%s: invalid primary partition table: no magic\n",
-		       sname);
+		if (bootverbose)
+			printf("%s: invalid primary partition table: no magic\n",
+			       sname);
 		error = EINVAL;
 		goto done;
 	}
@@ -401,8 +402,9 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
 		sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 			       partname);
-		printf("%s: invalid extended partition table: no magic\n",
-		       sname);
+		if (bootverbose)
+			printf("%s: invalid extended partition table: no magic\n",
+			       sname);
 		goto done;
 	}
 
