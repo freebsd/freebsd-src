@@ -1,4 +1,4 @@
-# @(#)asia	7.57
+# @(#)asia	7.63
 
 # $FreeBSD$
 
@@ -94,7 +94,7 @@ Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
 			3:00	1:00	YERST	1991 Sep 23 # independence
 			3:00 RussiaAsia	AM%sT	1995 Sep 24 2:00s
 			4:00	-	AMT	1997
-			4:00 RussiaAsia	AM%sT			
+			4:00 RussiaAsia	AM%sT
 
 # Azerbaijan
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -118,7 +118,7 @@ Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Al Manamah
 
 # Bangladesh
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Dacca	6:01:40 -	LMT	1890
+Zone	Asia/Dhaka	6:01:40 -	LMT	1890
 			5:53:20	-	HMT	1941 Oct    # Howrah Mean Time?
 			6:30	-	BURT	1942 May 15 # Burma Time
 			5:30	-	IST	1942 Sep
@@ -332,12 +332,35 @@ Zone	Asia/Tbilisi	2:59:16 -	LMT	1880
 			4:00 E-EurAsia	GE%sT
 
 # East Timor
+
+# From Joao Carrascalao, brother of the former governor of East Timor, in
+# <a href="http://etan.org/et99c/december/26-31/30ETMAY.htm">
+# East Timor may be late for its millennium
+# </a> (1999-12-26/31):
+# Portugal tried to change the time forward in 1974 because the sun
+# rises too early but the suggestion raised a lot of problems with the
+# Timorese and I still don't think it would work today because it
+# conflicts with their way of life.
+
+# From Paul Eggert (2000-12-04):
+# We don't have any record of the above attempt.
+# Most likely our records are incomplete, but we have no better data.
+
+# <a href="http://www.hri.org/news/world/undh/last/00-08-16.undh.html">
+# From Manoel de Almeida e Silva, Deputy Spokesman for the UN Secretary-General
+# (2000-08-16)</a>:
+# The Cabinet of the East Timor Transition Administration decided
+# today to advance East Timor's time by one hour.  The time change,
+# which will be permanent, with no seasonal adjustment, will happen at
+# midnight on Saturday, September 16.
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dili	8:22:20 -	LMT	1912
-			8:00	-	TPT	1942 Feb 21 23:00
+			8:00	-	TPT	1942 Feb 21 23:00 # E Timor Time
 			9:00	-	JST	1945 Aug
 			9:00	-	TPT	1976 May  3
-			8:00	-	TPT	# East Timor Time
+			8:00	-	TPT	2000 Sep 17 00:00
+			9:00	-	TPT
 
 # India
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -467,7 +490,7 @@ Zone	Asia/Tehran	3:25:44	-	LMT	1916
 #
 # From Jonathan Lennox <lennox@cs.columbia.edu> (2000-06-12):
 # An article in this week's Economist ("Inside the Saddam-free zone", p. 50 in
-# the U.S. edition) on the Iraqi Kurds contains a paragraph: 
+# the U.S. edition) on the Iraqi Kurds contains a paragraph:
 # "The three northern provinces ... switched their clocks this spring and
 # are an hour ahead of Baghdad."
 #
@@ -501,9 +524,25 @@ Zone	Asia/Baghdad	2:57:40	-	LMT	1890
 
 # Israel
 
-# From U. S. Naval Observatory (1989-01-19):
-# ISRAEL              2 H  AHEAD OF UTC
-# ISRAEL              3 H  AHEAD OF UTC  APR 10 - SEP 3
+# From Ephraim Silverberg (2001-01-11):
+#
+# I coined "IST/IDT" circa 1988.  Until then there were three
+# different abbreviations in use:
+#
+# JST  Jerusalem Standard Time [Danny Braniss, Hebrew University]
+# IZT  Israel Zonal (sic) Time [Prof. Haim Papo, Technion]
+# EEST Eastern Europe Standard Time [used by almost everyone else]
+#
+# Since timezones should be called by country and not capital cities,
+# I ruled out JST.  As Israel is in Asia Minor and not Eastern Europe,
+# EEST was equally unacceptable.  Since "zonal" was not compatible with
+# any other timezone abbreviation, I felt that 'IST' was the way to go
+# and, indeed, it has received almost universal acceptance in timezone
+# settings in Israeli computers.
+#
+# In any case, I am happy to share timezone abbreviations with India,
+# high on my favorite-country list (and not only because my wife's
+# family is from India).
 
 # From Shanks:
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -590,7 +629,7 @@ Rule	Zion	1993	only	-	Sep	 5	0:00	0	S
 # Ministry of Interior, Jerusalem, Israel.  The spokeswoman can be reached by
 # calling the office directly at 972-2-6701447 or 972-2-6701448.
 
-# Rule  NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
+# Rule	NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
 Rule	Zion	1994	only	-	Apr	 1	0:00	1:00	D
 Rule	Zion	1994	only	-	Aug	28	0:00	0	S
 Rule	Zion	1995	only	-	Mar	31	0:00	1:00	D
@@ -648,7 +687,7 @@ Rule	Zion	2004	only	-	Sep	22	1:00	0	S
 # From Paul Eggert (2000-07-25):
 # Here are guesses for rules after 2004.
 # They are probably wrong, but they are more likely than no DST at all.
-# Rule  NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
+# Rule	NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
 Rule	Zion	2005	max	-	Apr	 1	1:00	1:00	D
 Rule	Zion	2005	max	-	Oct	 1	1:00	0	S
 
@@ -724,26 +763,26 @@ Zone	Asia/Tokyo	9:18:59	-	LMT	1887 Dec 31 15:00u
 # government's departments from six to seven hours.
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule    Jordan	1973	only	-	Jun	6	0:00	1:00	S
-Rule    Jordan	1973	1975	-	Oct	1	0:00	0	-
-Rule    Jordan	1974	1977	-	May	1	0:00	1:00	S
-Rule    Jordan	1976	only	-	Nov	1	0:00	0	-
-Rule    Jordan	1977	only	-	Oct	1	0:00	0	-
-Rule    Jordan	1978	only	-	Apr	30	0:00	1:00	S
-Rule    Jordan	1978	only	-	Sep	30	0:00	0	-
-Rule    Jordan	1985	only	-	Apr	1	0:00	1:00	S
-Rule    Jordan	1985	only	-	Oct	1	0:00	0	-
-Rule    Jordan	1986	1988	-	Apr	Fri>=1	0:00	1:00	S
-Rule    Jordan	1986	1990	-	Oct	Fri>=1	0:00	0	-
-Rule    Jordan	1989	only	-	May	8	0:00	1:00	S
-Rule    Jordan	1990	only	-	Apr	27	0:00	1:00	S
-Rule    Jordan	1991	only	-	Apr	17	0:00	1:00	S
-Rule    Jordan	1991	only	-	Sep	27	0:00	0	-
-Rule    Jordan	1992	only	-	Apr	10	0:00	1:00	S
-Rule    Jordan	1992	1993	-	Oct	Fri>=1	0:00	0	-
-Rule    Jordan	1993	1998	-	Apr	Fri>=1	0:00	1:00	S
-Rule    Jordan	1994	only	-	Sep	Fri>=15	0:00	0	-
-Rule    Jordan	1995	1998	-	Sep	Fri>=15	0:00s	0	-
+Rule	Jordan	1973	only	-	Jun	6	0:00	1:00	S
+Rule	Jordan	1973	1975	-	Oct	1	0:00	0	-
+Rule	Jordan	1974	1977	-	May	1	0:00	1:00	S
+Rule	Jordan	1976	only	-	Nov	1	0:00	0	-
+Rule	Jordan	1977	only	-	Oct	1	0:00	0	-
+Rule	Jordan	1978	only	-	Apr	30	0:00	1:00	S
+Rule	Jordan	1978	only	-	Sep	30	0:00	0	-
+Rule	Jordan	1985	only	-	Apr	1	0:00	1:00	S
+Rule	Jordan	1985	only	-	Oct	1	0:00	0	-
+Rule	Jordan	1986	1988	-	Apr	Fri>=1	0:00	1:00	S
+Rule	Jordan	1986	1990	-	Oct	Fri>=1	0:00	0	-
+Rule	Jordan	1989	only	-	May	8	0:00	1:00	S
+Rule	Jordan	1990	only	-	Apr	27	0:00	1:00	S
+Rule	Jordan	1991	only	-	Apr	17	0:00	1:00	S
+Rule	Jordan	1991	only	-	Sep	27	0:00	0	-
+Rule	Jordan	1992	only	-	Apr	10	0:00	1:00	S
+Rule	Jordan	1992	1993	-	Oct	Fri>=1	0:00	0	-
+Rule	Jordan	1993	1998	-	Apr	Fri>=1	0:00	1:00	S
+Rule	Jordan	1994	only	-	Sep	Fri>=15	0:00	0	-
+Rule	Jordan	1995	1998	-	Sep	Fri>=15	0:00s	0	-
 Rule	Jordan	1999	only	-	Jul	 1	0:00s	1:00	S
 Rule	Jordan	1999	max	-	Sep	lastThu	0:00s	0	-
 Rule	Jordan	2000	max	-	Mar	lastThu	0:00s	1:00	S
@@ -1074,7 +1113,10 @@ Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
 # no information
 
 # Philippines
-# Howse writes (p 153) that until 1844 the Philippines kept American date.
+# On 1844-08-16, Narciso Claveria, governor-general of the
+# Philippines, issued a proclamation announcing that 1844-12-30 was to
+# be immediately followed by 1845-01-01.  Robert H. van Gent has a
+# transcript of the decree in <http://www.phys.uu.nl/~vgent/idl/idl.htm>.
 # The rest of this data is from Shanks.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Phil	1936	only	-	Nov	1	0:00	1:00	S
@@ -1084,7 +1126,7 @@ Rule	Phil	1954	only	-	Jul	1	0:00	0	-
 Rule	Phil	1978	only	-	Mar	22	0:00	1:00	S
 Rule	Phil	1978	only	-	Sep	21	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Manila	-15:56:00 -	LMT	1844
+Zone	Asia/Manila	-15:56:00 -	LMT	1844 Dec 31
 			8:04:00 -	LMT	1899 May 11
 			8:00	Phil	PH%sT	1942 May
 			9:00	-	JST	1944 Nov

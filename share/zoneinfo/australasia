@@ -1,4 +1,4 @@
-# @(#)australasia	7.60
+# @(#)australasia	7.64
 # This file also includes Pacific islands.
 # $FreeBSD$
 # Notes are at the end of this file
@@ -151,16 +151,16 @@ Zone Australia/Broken_Hill 9:25:48 -	LMT	1895 Feb
 
 # Lord Howe Island
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	LH	1981	1984	-	Oct	lastSun	2:00s	1:00	-
-Rule	LH	1982	1985	-	Mar	Sun>=1	2:00s	0	-
-Rule	LH	1985	only	-	Oct	lastSun	2:30s	0:30	-
-Rule	LH	1986	1989	-	Mar	Sun>=15	2:30s	0	-
-Rule	LH	1986	only	-	Oct	19	2:30s	0:30	-
-Rule	LH	1987	1999	-	Oct	lastSun	2:30s	0:30	-
-Rule	LH	1990	1995	-	Mar	Sun>=1	2:30s	0	-
-Rule	LH	1996	max	-	Mar	lastSun	2:30s	0	-
-Rule	LH	2000	only	-	Aug	lastSun	2:30s	0:30	-
-Rule	LH	2001	max	-	Oct	lastSun	2:30s	0:30	-
+Rule	LH	1981	1984	-	Oct	lastSun	2:00	1:00	-
+Rule	LH	1982	1985	-	Mar	Sun>=1	2:00	0	-
+Rule	LH	1985	only	-	Oct	lastSun	2:00	0:30	-
+Rule	LH	1986	1989	-	Mar	Sun>=15	2:00	0	-
+Rule	LH	1986	only	-	Oct	19	2:00	0:30	-
+Rule	LH	1987	1999	-	Oct	lastSun	2:00	0:30	-
+Rule	LH	1990	1995	-	Mar	Sun>=1	2:00	0	-
+Rule	LH	1996	max	-	Mar	lastSun	2:00	0	-
+Rule	LH	2000	only	-	Aug	lastSun	2:00	0:30	-
+Rule	LH	2001	max	-	Oct	lastSun	2:00	0:30	-
 Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 			10:00	-	EST	1981 Mar
 			10:30	LH	LHST
@@ -203,8 +203,8 @@ Zone	Indian/Cocos	6:30	-	CCT	# Cocos Islands Time
 
 # Fiji
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Fiji	1998	max	-	Nov	Sun>=1	2:00	1:00	S
-Rule	Fiji	1999	max	-	Feb	lastSun	3:00	0	-
+Rule	Fiji	1998	1999	-	Nov	Sun>=1	2:00	1:00	S
+Rule	Fiji	1999	2000	-	Feb	lastSun	3:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Fiji	11:53:40 -	LMT	1915 Oct 26	# Suva
 			12:00	Fiji	FJ%sT	# Fiji Time
@@ -222,8 +222,10 @@ Zone	Pacific/Tahiti	 -9:58:16 -	LMT	1912 Oct	# Papeete
 
 # Guam
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Pacific/Guam	 9:39:00 -	LMT	1901		# Agana
-			10:00	-	GST
+Zone	Pacific/Guam	-14:21:00 -	LMT	1844 Dec 31
+			 9:39:00 -	LMT	1901		# Agana
+			10:00	-	GST	2000 Dec 23	# Guam
+			10:00	-	ChST	# Chamorro Standard Time
 
 # Kiribati
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -240,9 +242,11 @@ Zone Pacific/Kiritimati	-10:29:20 -	LMT	1901
 
 # N Mariana Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Pacific/Saipan	 9:43:00 -	LMT	1901
+Zone Pacific/Saipan	-14:17:00 -	LMT	1844 Dec 31
+			 9:43:00 -	LMT	1901
 			 9:00	-	MPT	1969 Oct # N Mariana Is Time
-			10:00	-	MPT
+			10:00	-	MPT	2000 Dec 23
+			10:00	-	ChST	# Chamorro Standard Time
 
 # Marshall Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -391,8 +395,10 @@ Zone	Pacific/Fakaofo	-11:24:56 -	LMT	1901
 
 # Tonga
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Tonga	1999	max	-	Oct	Sat>=1	2:00s	1:00	S
-Rule	Tonga	2000	max	-	Apr	Sun>=16	2:00s	0	-
+Rule	Tonga	1999	only	-	Oct	 7	2:00s	1:00	S
+Rule	Tonga	2000	only	-	Mar	19	2:00s	0	-
+Rule	Tonga	2000	only	-	Nov	 4	2:00s	1:00	S
+Rule	Tonga	2001	only	-	Jan	27	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Tongatapu	12:19:20 -	LMT	1901
 			12:20	-	TOT	1941 # Tonga Time
@@ -492,7 +498,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #	  9:00	JST	Japan
 #	  9:30	CST CST	Central Australia
 #	 10:00	EST EST	Eastern Australia
-#	 10:00	GST	Guam
+#	 10:00	ChST	Chamorro
 #	 10:30	LHST LHST Lord Howe*
 #	 12:00	NZST NZDT New Zealand
 #	 12:45	CHAST CHADT Chatham*
@@ -544,11 +550,11 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # For now we'll continue to assume 2:00s for changes since 1960.
 
 # From Eric Ulevik <eau@zip.com.au> (1998-01-05):
-# 
+#
 # Here are some URLs to Australian time legislation. These URLs are stable,
 # and should probably be included in the data file. There are probably more
 # relevant entries in this database.
-# 
+#
 # NSW (including LHI and Broken Hill):
 # <a href="http://www.austlii.edu.au/au/legis/nsw/consol_act/sta1987137/index.html">
 # Standard Time Act 1987 (updated 1995-04-04)
@@ -811,7 +817,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # ``Look you've got to remember in my family when this came up last time
 # I voted for it, my wife voted against it and she said to me it's all very
 # well for you, you don't have to worry about getting the children out of
-# bed, getting them to school, getting them to sleep at night. 
+# bed, getting them to school, getting them to sleep at night.
 # I've been through all this argument domestically...my wife rules.''
 #
 # Broken Hill will stick with South Australian time in 2000.  See:
@@ -824,9 +830,8 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Hill, and Victoria will be August 27, presumably due to the Sydney Olympics.
 
 # From Eric Ulevik, referring to Sydney's Sun Herald (2000-08-13), page 29:
-# Twin Towns Services Club (in Tweed Heads, near the Queensland border)
-# will maintain Queensland time. The Queensland Premier Peter Beattie
-# is encouraging northern NSW towns to use Queensland time.
+# The Queensland Premier Peter Beattie is encouraging northern NSW
+# towns to use Queensland time.
 
 # Yancowinna
 
@@ -868,17 +873,16 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # arrangements.  The starting date for summer time on the Island will
 # however always coincide with the rest of NSW.
 
-# From Jesper Norgaard <jnorgard@Prodigy.net.mx> (2000-09-04):
-# James Lonergan said that the island always tries to stay in sync
-# with the rest of NSW at all time except for the fact that they stay
-# ahead half an hour when DST is not observed. If this is interpreted
-# literally, they should change clocks at the exact moment that
-# e.g. Canberra changes from normal to daylight saving and vice versa.
+# From James Lonergan, Secretary, Lord Howe Island Board (2000-10-25):
+# Lord Howe Island advances clocks by 30 minutes during DST in NSW and retards
+# clocks by 30 minutes when DST finishes. Since DST was most recently
+# introduced in NSW, the "changeover" time on the Island has been 02:00 as
+# shown on clocks on LHI. I guess this means that for 30 minutes at the start
+# of DST, LHI is actually 1 hour ahead of the rest of NSW.
 
-# From Paul Eggert (2000-10-02):
-# For Lord Howe we use Shanks through 1989, and Lonergan thereafter,
-# However, as per Norgaard we modify Shanks by assuming 02:30s switchover
-# for half-hour DST.
+# From Paul Eggert (2001-02-09):
+# For Lord Howe dates we use Shanks through 1989, and Lonergan thereafter.
+# For times we use Lonergan.
 
 ###############################################################################
 
@@ -932,7 +936,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # From Rives McDow (1998-10-08):
 # Fiji will introduce DST effective 0200 local time, 1998-11-01
-# until 0300 local time 1999-02-28.  Each year the DST period will 
+# until 0300 local time 1999-02-28.  Each year the DST period will
 # be from the first Sunday in November until the last Sunday in February.
 
 # From Paul Eggert (2000-01-08):
@@ -945,6 +949,8 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # islands in the effort to attract tourists to witness the dawning of the new
 # millenium.
 
+# http://www.fiji.gov.fj/press/2000_09/2000_09_13-05.shtml (2000-09-13)
+# reports that Fiji has discontinued DST.
 
 # Johnston
 
@@ -973,7 +979,13 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Howse writes (p 153) ``The Spaniards, on the other hand, reached the
 # Philippines and the Ladrones from America,'' and implies that the Ladrones
 # (now called the Marianas) kept American date for quite some time.
-# Ignore this for now, as we have no hard data.  See also Asia/Manila.
+# For now, we assume the Ladrones switched at the same time as the Philippines;
+# see Asia/Manila.
+
+# US Public Law 106-564 (2000-12-23) made UTC+10 the official standard time,
+# under the name "Chamorro Standard Time".  There is no official abbreviation,
+# but Congressman Robert A. Underwood, author of the bill that became law,
+# wrote in a press release (2000-12-27) that he will seek the use of "ChST".
 
 
 # Micronesia
@@ -1071,12 +1083,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # From Steffen Thorsen [straen@thorsen.priv.no] (1999-09-09):
 # * Tonga will introduce DST in November
-# 
+#
 # I was given this link by John Letts <johnletts@earthlink.net>:
 # <a hef="http://news.bbc.co.uk/hi/english/world/asia-pacific/newsid_424000/424764.stm">
 # http://news.bbc.co.uk/hi/english/world/asia-pacific/newsid_424000/424764.stm
 # </a>
-# 
+#
 # I have not been able to find exact dates for the transition in November
 # yet. By reading this article it seems like Fiji will be 14 hours ahead
 # of UTC as well, but as far as I know Fiji will only be 13 hours ahead
@@ -1086,10 +1098,10 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # According to <a href="http://www.tongaonline.com/news/sept1799.html>
 # http://www.tongaonline.com/news/sept1799.html
 # </a>:
-# "Daylight Savings Time will take effect on Oct. 2 through April 15, 2000 
-# and annually thereafter from the first Saturday in October through the 
-# third Saturday of April.  Under the system approved by Privy Council on 
-# Sept. 10, clocks must be turned ahead one hour on the opening day and 
+# "Daylight Savings Time will take effect on Oct. 2 through April 15, 2000
+# and annually thereafter from the first Saturday in October through the
+# third Saturday of April.  Under the system approved by Privy Council on
+# Sept. 10, clocks must be turned ahead one hour on the opening day and
 # set back an hour on the closing date."
 # Alas, no indication of the time of day.
 
@@ -1097,13 +1109,23 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Tonga started its Daylight Saving on Saturday morning October 2nd at 0200am.
 # Daylight Saving ends on April 16 at 0300am which is Sunday morning.
 
+# From Steffen Thorsen (2000-10-31):
+# Back in March I found a notice on the website http://www.tongaonline.com
+# that Tonga changed back to standard time one month early, on March 19
+# instead of the original reported date April 16. Unfortunately, the article
+# is no longer available on the site, and I did not make a copy of the
+# text, and I have forgotten to report it here.
+# (Original URL was: http://www.tongaonline.com/news/march162000.htm )
+
+# From Rives McDow (2000-12-01):
+# Tonga is observing DST as of 2000-11-04 and will stop on 2001-01-27.
 
 ###############################################################################
 
 # The International Date Line
 
 # From Gwillim Law (2000-01-03):
-# 
+#
 # The International Date Line is not defined by any international standard,
 # convention, or treaty.  Mapmakers are free to draw it as they please.
 # Reputable mapmakers will simply ensure that every point of land appears on
