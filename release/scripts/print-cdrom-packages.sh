@@ -43,6 +43,7 @@ export PKG_DBDIR=/nonexistentdb
 if [ "X${PKG_ARCH}" = "X" ]; then
 export PKG_ARCH=`uname -m`
 fi
+export ARCH=${PKG_ARCH}
 
 # usage: extract-names cd# [portsdir]
 extract-names()
