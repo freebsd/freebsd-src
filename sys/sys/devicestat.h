@@ -206,8 +206,8 @@ struct devstat {
 };
 
 #ifdef _KERNEL
-struct buf;
 struct bio;
+
 void devstat_add_entry(struct devstat *ds, const char *dev_name, 
 		       int unit_number, u_int32_t block_size,
 		       devstat_support_flags flags,
@@ -218,7 +218,7 @@ void devstat_start_transaction(struct devstat *ds);
 void devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
 			     devstat_tag_type tag_type,
 			     devstat_trans_flags flags);
-void devstat_end_transaction_bio(struct devstat *ds, struct bio *);
+void devstat_end_transaction_bio(struct devstat *ds, struct bio *bp);
 #endif
 
 #endif /* _DEVICESTAT_H */
