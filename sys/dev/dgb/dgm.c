@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.11 1999/05/02 21:39:52 peter Exp $
+ *	$Id: dgm.c,v 1.12 1999/05/03 09:32:31 brian Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -1757,9 +1757,8 @@ dgmparam(tp, t)
 	struct tty	*tp;
 	struct termios	*t;
 {
-	int dev=tp->t_dev;
-	int unit=MINOR_TO_UNIT(dev);
-	int pnum=MINOR_TO_PORT(dev);
+	int unit=MINOR_TO_UNIT(minor(tp->t_dev));
+	int pnum=MINOR_TO_PORT(minor(tp->t_dev));
 	struct dgm_softc *sc=&dgm_softc[unit];
 	struct dgm_p *port=&sc->ports[pnum];
 	volatile struct board_chan *bc=port->brdchan;

@@ -72,7 +72,7 @@ timeout_t cxtimeout;
 
 #define DMABUFSZ        (6*256)         /* buffer size */
 #define BYTE            *(unsigned char*)&
-#define UNIT(u)         ((u) & 077)
+#define UNIT(u)         (minor(u) & 077)
 #define UNIT_CTL        077
 
 extern cx_board_t cxboard [NCX];        /* adapter state structures */
