@@ -1,4 +1,3 @@
-.\" $Id: cvscheck.man,v 1.1.1.3 1995/08/28 16:20:24 jimb Exp $
 .\" Contributed by Lowell Skoog <fluke!lowell@uunet.uu.net>
 .TH CVSCHECK LOCAL "4 March 1991" FLUKE
 .SH NAME

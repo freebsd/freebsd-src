@@ -1,5 +1,4 @@
 #! /bin/sh
-# $Id: cvscheck.sh,v 1.1 1995/07/10 02:26:29 kfogel Exp $
 #
 # cvscheck - identify files added, changed, or removed 
 #            in CVS working directory

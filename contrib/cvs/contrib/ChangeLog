@@ -1,3 +1,121 @@
+Mon May 12 11:59:23 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* listener.c: Removed; see ../ChangeLog for rationale.
+
+10 May 1997  Jim Kingdon
+
+	* listen2.c, listen2.mak: New files.
+	* Makefile.in (DISTFILES): Add them.
+	* .cvsignore: Add Debug.
+
+Thu Feb 20 22:43:45 1997  David J MacKenzie  <djm@va.pubnix.com>
+
+	* rcs-to-cvs.sh: Put temporary files in /var/tmp or /usr/tmp
+	whichever one exists.  Just call "vi" not "/usr/ucb/vi".
+
+Mon Feb 17 08:51:37 1997  Greg A. Woods  <woods@most.weird.com>
+
+	* .cvsignore: added 'cvs2vendor' target from Feb. 12 changes.
+
+	* log_accum.pl (build_header): added "Repository:" to the report
+	header to show the first argument supplied to the script by CVS.
+	[[this value seems spuriously to be wrong when client is used]]
+	($hostdomain): correct order of initialization from the Feb. 12
+	changes.
+	($modulename): add more commentary about using '-M' to to get a
+	meaningful string here.
+	Tweak a few other comments from the Feb. 12 changes.
+
+Wed Feb 12 10:27:48 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cln_hist.pl, commit_prep.pl, cvs2vendor.sh, cvs_acls.pl,
+	cvscheck.man, cvscheck.sh, cvshelp.man, descend.man, descend.sh,
+	log_accum.pl, mfpipe.pl, rcs-to-cvs.sh, rcs2log.sh, rcs2sccs.sh,
+	sccs2rcs.csh: Remove $Id; we decided to get rid of these some
+	time ago.
+
+Wed Feb 12 00:24:33 1997  Greg A. Woods  <woods@most.weird.com>
+
+	* cvs2vendor.sh: new script.
+	* README: noted new cvs2vendor script.
+	* Makefile.in (DISTFILES): added cvs2vendor.sh.
+	(CONTRIB_PROGS): added cvs2vendor.
+
+	* log_accum.pl (show_wd): new variable, initialized to 0.
+	- set $show_wd if '-w' option found while parsing @ARGV.
+	- don't add 'In directory' line to report header unless $show_wd
+	is set.
+	(domainname): prepend a leading '.' if none there so that
+	concatenation with $hostname works (those with a FQDN hostname
+	*and* a domainname still lose).
+	(mail_notification): don't set a "From:" header -- the mailer will.
+
+Wed Jan  8 14:48:58 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in, README, log.pl: Remove CVSid; we decided to get rid
+	of these some time ago.
+
+Thu Jan  2 13:30:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in: Remove "675" paragraph; see ../ChangeLog for rationale.
+
+Thu Oct 17 18:28:25 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* patch-2.1-.new-fix: Removed; it was not in DISTFILES so it never
+	made it into distributions.  It also isn't clear what it has to do
+	with CVS.  It is available from
+	    ftp://ftp.weird.com/pub/patch-2.1-.new-fix
+	* README: Remove entry for patch-2.1-.new-fix.
+
+Wed Oct 16 10:22:44 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* rcs2log.sh: Change date output format to something CVS 1.9
+ 	accepts.  I think this breaks the Sep 29 change, but I don't have
+ 	a copy of CVS 1.5 handy, so I can't find a format that works with
+ 	both, and I think it's more important that it work with the
+ 	version it's distributed with.
+
+Sat Oct 12 21:18:19 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Don't mention pcl-cvs; it isn't here any more.
+
+Sun Sep 29 19:45:19 1996  Greg A. Woods  <woods@most.weird.com>
+
+	* README: add entry for patch-2.1-.new-fix.
+	
+	* README: re-write the top section a bit.
+
+	* patch-2.1-.new-fix: re-generated using fixed "cvs patch" command.
+
+	* patch-2.1-.new-fix: new file.
+
+Sun Sep 29 14:25:28 1996  Dave Love  <d.love@dl.ac.uk>
+
+	* rcs2log.sh (month_data):  Make default date format acceptable to
+ 	CVS post v1.8 as well as earlier CVSs and RCS.
+	Message-Id: <199609291546.QAA25531@mserv1.dl.ac.uk>
+	To: bug-gnu-emacs@prep.ai.mit.edu
+
+Thu Aug 29 11:58:03 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* rcs2log: Update FSF address.
+
+	* rcs2log: Be more aggressive about finding the author's full
+	name; try nismatch and ypmatch.
+
+	* rcs2log: If the hostname appears not to be fully qualified, see
+ 	if domainname provides any useful information.
+
+Fri Aug 16 16:02:36 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* Makefile.in (installdirs): support this target
+
+Mon May  6 13:04:57 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (install): Don't tell user to run cvsinit.  It isn't
+	called cvsinit anymore, and it isn't necessary (repositories are,
+	and need to be, compatible between cvs versions).
+
 Sun Apr 14 11:30:36 1996  Karl Fogel  <kfogel@floss.red-bean.com>
 
         * Removed pcl-cvs/ subdir; see tools/ subdir in the top-level from
