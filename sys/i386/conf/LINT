@@ -577,9 +577,6 @@ options 	NSWAPDEV=20
 # Disk quotas are supported when this option is enabled.
 options 	QUOTA			#enable disk quotas
 
-# Add more checking code to various filesystems
-options 	NULLFS_DIAGNOSTIC
-
 # In particular multi-session CD-Rs might require a huge amount of
 # time in order to "settle".  If we are about mounting them as the
 # root f/s, we gotta wait a little.
