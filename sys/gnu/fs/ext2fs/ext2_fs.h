@@ -1,4 +1,4 @@
-/*
+/*-
  *  modified for EXT2FS support in Lites 1.1
  *
  *  Aug 1995, Godmar Back (gback@cs.utah.edu)
@@ -6,7 +6,7 @@
  *
  * $FreeBSD$
  */
-/*
+/*-
  *  linux/include/linux/ext2_fs.h
  *
  * Copyright (C) 1992, 1993, 1994, 1995
