@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: ufs_vfsops.c,v 1.2 1994/08/02 07:55:01 davidg Exp $
+ * $Id: ufs_vfsops.c,v 1.3 1994/10/08 06:57:28 phk Exp $
  */
 
 #include <sys/param.h>
@@ -113,8 +113,9 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 	cmd = cmds >> SUBCMDSHIFT;
 
 	switch (cmd) {
-	case Q_GETQUOTA:
 	case Q_SYNC:
+		break;
+	case Q_GETQUOTA:
 		if (uid == p->p_cred->p_ruid)
 			break;
 		/* fall through */
@@ -123,7 +124,7 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 			return (error);
 	}
 
-	type = cmd & SUBCMDMASK;
+	type = cmds & SUBCMDMASK;
 	if ((u_int)type >= MAXQUOTAS)
 		return (EINVAL);
 
