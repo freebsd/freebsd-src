@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.42 1997/04/14 15:54:26 bde Exp $
+ *	$Id: mem.c,v 1.43 1997/05/07 20:02:37 peter Exp $
  */
 
 /*
@@ -239,7 +239,12 @@ mmrw(dev, uio, flags)
 			 */
 			addr = trunc_page(uio->uio_offset);
 			eaddr = round_page(uio->uio_offset + c);
-			for (; addr < eaddr; addr += PAGE_SIZE)
+
+			if (addr < (vm_offset_t)VADDR(PTDPTDI, 0))
+				return EFAULT;
+			if (eaddr >= (vm_offset_t)VADDR(APTDPTDI, 0))
+				return EFAULT;
+			for (; addr < eaddr; addr += PAGE_SIZE) 
 				if (pmap_extract(kernel_pmap, addr) == 0)
 					return EFAULT;
 			
