@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.6 1997/08/29 18:45:23 fsmp Exp $
+ *	$Id: ipl_funcs.c,v 1.14 1997/09/05 20:22:10 smp Exp smp $
  */
 
 #include <sys/types.h>
@@ -97,26 +97,24 @@ splx(unsigned ipl)
 #else /* !SMP */
 
 #include <machine/smp.h>
-extern int bspEarly; /* XXX */
+#include <machine/smptests.h>
 
-#ifdef REAL_IFCPL
+#ifndef SPL_DEBUG_POSTCODE
+#undef POSTCODE
+#undef POSTCODE_LO
+#undef POSTCODE_HI
+#define POSTCODE(X)
+#define POSTCODE_LO(X)
+#define POSTCODE_HI(X)
+#endif /* SPL_DEBUG_POSTCODE */
 
-#define IFCPL_LOCK()		SCPL_LOCK()
-#define IFCPL_UNLOCK()		SCPL_UNLOCK()
-
-#else /* REAL_IFCPL */
-
-#define IFCPL_LOCK()
-#define IFCPL_UNLOCK()
-
-#endif /* REAL_IFCPL */
 
 /*
  * The volatile bitmap variables must be set atomically.  This normally
  * involves using a machine-dependent bit-set or `or' instruction.
  */
 
-#define DO_SETBITS(name, var, bits) \
+#define DO_SETBITS(name, var, bits)		\
 void name(void)					\
 {						\
 	IFCPL_LOCK();				\
@@ -142,90 +140,185 @@ softclockpending(void)
 	x = ipending & SWI_CLOCK_PENDING;
 	IFCPL_UNLOCK();
 
-	return x;
+	return (x);
 }
 
-
-#ifdef notneeded
-#define	GENSPL(name, set_cpl)			\
-unsigned name(void)				\
-{						\
-	unsigned x;				\
-						\
-	IFCPL_LOCK();				\
-	x = cpl;				\
-	/* XXX test cil */			\
-	set_cpl;				\
-	IFCPL_UNLOCK();				\
-						\
-	return (x);				\
-}
-#endif /* notneeded */
 
 /*
  * This version has to check for bsp_apic_ready,
  * as calling simple_lock() (ie ss_lock) before then deadlocks the system.
- * A sample count of GENSPLR calls before bsp_apic_ready was set: 2193
+ * A sample count of GENSPL calls before bsp_apic_ready was set: 2193
  */
-#define	GENSPLR(name, set_cpl)			\
-unsigned name(void)				\
+
+#ifdef INTR_SPL
+
+#ifdef SPL_DEBUG
+#define MAXZ		100000000
+#define SPIN_COUNT	 unsigned z = 0;
+#define SPIN_SPL							\
+			if (++z >= MAXZ) {				\
+				bsp_apic_ready = 0;			\
+				panic("\ncil: 0x%08x", cil);		\
+			}
+#else /* SPL_DEBUG */
+#define SPIN_COUNT
+#define SPIN_SPL
+#endif /* SPL_DEBUG */
+
+#endif
+
+#ifdef INTR_SPL
+
+#define	GENSPL(NAME, OP, MODIFIER, PC)					\
+unsigned NAME(void)							\
+{									\
+	unsigned x, y;							\
+	SPIN_COUNT;							\
+									\
+	if (!bsp_apic_ready) {						\
+		x = cpl;						\
+		cpl OP MODIFIER;					\
+		return (x);						\
+	}								\
+									\
+	for (;;) {							\
+		IFCPL_LOCK();		/* MP-safe */			\
+		x = y = cpl;		/* current value */		\
+		POSTCODE(0x20 | PC);					\
+		if (inside_intr)					\
+			break;		/* XXX only 1 INT allowed */	\
+		y OP MODIFIER;		/* desired value */		\
+		if (cil & y) {		/* not now */			\
+			IFCPL_UNLOCK();	/* allow cil to change */	\
+			while (cil & y)					\
+				SPIN_SPL				\
+			continue;	/* try again */			\
+		}							\
+		break;							\
+	}								\
+	cpl OP MODIFIER;		/* make the change */		\
+	IFCPL_UNLOCK();							\
+									\
+	return (x);							\
+}
+
+/*    NAME:            OP:     MODIFIER:               PC: */
+GENSPL(splbio,		|=,	bio_imask,		2)
+GENSPL(splclock,	 =,	HWI_MASK | SWI_MASK,	3)
+GENSPL(splhigh,		 =,	HWI_MASK | SWI_MASK,	4)
+GENSPL(splimp,		|=,	net_imask,		5)
+GENSPL(splnet,		|=,	SWI_NET_MASK,		6)
+GENSPL(splsoftclock,	 =,	SWI_CLOCK_MASK,		7)
+GENSPL(splsofttty,	|=,	SWI_TTY_MASK,		8)
+GENSPL(splstatclock,	|=,	stat_imask,		9)
+GENSPL(spltty,		|=,	tty_imask,		10)
+GENSPL(splvm,		|=,	net_imask | bio_imask,	11)
+
+#else /* INTR_SPL */
+
+#define	GENSPL(NAME, set_cpl)			\
+unsigned NAME(void)				\
 {						\
 	unsigned x;				\
 						\
-	if (bsp_apic_ready)			\
+	if (!bsp_apic_ready) {			\
+		x = cpl;			\
+		set_cpl;			\
+	}					\
+	else {					\
 		IFCPL_LOCK();			\
-	x = cpl;				\
-	/* XXX test cil */			\
-	set_cpl;				\
-	if (bsp_apic_ready)			\
+		x = cpl;			\
+		set_cpl;			\
 		IFCPL_UNLOCK();			\
+	}					\
 						\
 	return (x);				\
 }
 
-GENSPLR(splbio, cpl |= bio_imask)
-GENSPLR(splclock, cpl = HWI_MASK | SWI_MASK)
-GENSPLR(splhigh, cpl = HWI_MASK | SWI_MASK)
-GENSPLR(splimp, cpl |= net_imask)
-GENSPLR(splnet, cpl |= SWI_NET_MASK)
-GENSPLR(splsoftclock, cpl = SWI_CLOCK_MASK)
-GENSPLR(splsofttty, cpl |= SWI_TTY_MASK)
-GENSPLR(splstatclock, cpl |= stat_imask)
-GENSPLR(spltty, cpl |= tty_imask)
-GENSPLR(splvm, cpl |= net_imask | bio_imask)
+GENSPL(splbio, cpl |= bio_imask)
+GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
+GENSPL(splhigh, cpl = HWI_MASK | SWI_MASK)
+GENSPL(splimp, cpl |= net_imask)
+GENSPL(splnet, cpl |= SWI_NET_MASK)
+GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
+GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
+GENSPL(splstatclock, cpl |= stat_imask)
+GENSPL(spltty, cpl |= tty_imask)
+GENSPL(splvm, cpl |= net_imask | bio_imask)
+
+#endif /* INTR_SPL */
 
 
 void
 spl0(void)
 {
-	IFCPL_LOCK();
+	int unpend;
+#ifdef INTR_SPL
+	SPIN_COUNT;
 
-	/* XXX test cil */
-	cpl = SWI_AST_MASK;
-	if (ipending & ~SWI_AST_MASK) {
-		IFCPL_UNLOCK();
-		splz();
+	for (;;) {
+		IFCPL_LOCK();
+		POSTCODE_HI(0xc);
+		if (cil & SWI_AST_MASK) {	/* not now */
+			IFCPL_UNLOCK();		/* allow cil to change */
+			while (cil & SWI_AST_MASK)
+				SPIN_SPL
+			continue;		/* try again */
+		}
+		break;
 	}
-	else
-		IFCPL_UNLOCK();
+#else /* INTR_SPL */
+	IFCPL_LOCK();
+#endif /* INTR_SPL */
+
+	cpl = SWI_AST_MASK;
+	unpend = ipending & ~SWI_AST_MASK;
+	IFCPL_UNLOCK();
+
+	if (unpend && !inside_intr)
+		splz();
 }
 
 void
 splx(unsigned ipl)
 {
-	if (bsp_apic_ready)
-		IFCPL_LOCK();
+	int unpend;
+#ifdef INTR_SPL
+	SPIN_COUNT;
+#endif
 
-	/* XXX test cil */
-	cpl = ipl;
-	if (ipending & ~ipl) {
-		if (bsp_apic_ready)
-			IFCPL_UNLOCK();
-		splz();
+	if (!bsp_apic_ready) {
+		cpl = ipl;
+		if (ipending & ~ipl)
+			splz();
+		return;
 	}
-	else
-		if (bsp_apic_ready)
-			IFCPL_UNLOCK();
+
+#ifdef INTR_SPL
+	for (;;) {
+		IFCPL_LOCK();
+		POSTCODE_HI(0xe);
+		if (inside_intr)
+			break;			/* XXX only 1 INT allowed */
+		POSTCODE_HI(0xf);
+		if (cil & ipl) {		/* not now */
+			IFCPL_UNLOCK();		/* allow cil to change */
+			while (cil & ipl)
+				SPIN_SPL
+			continue;		/* try again */
+		}
+		break;
+	}
+#else /* INTR_SPL */
+	IFCPL_LOCK();
+#endif /* INTR_SPL */
+
+	cpl = ipl;
+	unpend = ipending & ~ipl;
+	IFCPL_UNLOCK();
+
+	if (unpend && !inside_intr)
+		splz();
 }
 
 
@@ -243,15 +336,29 @@ splx(unsigned ipl)
 intrmask_t
 splq(intrmask_t mask)
 {
-	intrmask_t tmp;
+	intrmask_t tmp, tmp2;
 
+#ifdef INTR_SPL
+	for (;;) {
+		IFCPL_LOCK();
+		tmp = tmp2 = cpl;
+		tmp2 |= mask;
+		if (cil & tmp2) {		/* not now */
+			IFCPL_UNLOCK();		/* allow cil to change */
+			while (cil & tmp2)
+				/* spin */ ;
+			continue;		/* try again */
+		}
+		break;
+	}
+	cpl = tmp2;
+#else /* INTR_SPL */
 	IFCPL_LOCK();
-
 	tmp = cpl;
 	cpl |= mask;
+#endif /* INTR_SPL */
 
 	IFCPL_UNLOCK();
-
 	return (tmp);
 }
 
