@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.6 1997/05/06 07:10:06 fsmp Exp $
+ * $Id: init_smp.c,v 1.1 1997/06/27 18:32:57 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -172,6 +172,9 @@ secondary_main()
 	 */
 	cpu_starting = cpuid;
 	smp_cpus++;
+
+	/* build our map of 'other' CPUs */
+	other_cpus = all_cpus & ~(1 << cpuid);
 
 	printf("SMP: AP CPU #%d LAUNCHED!!  Starting Scheduling...\n",
 		cpuid);
