@@ -1,25 +1,34 @@
 /* $FreeBSD$ */
-/* BT848 Driver for Brooktree's Bt848, Bt848A, Bt849A, Bt878, Bt879 based cards.
-   The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
+
+/*
+ * This is part of the Driver for Video Capture Cards (Frame grabbers)
+ * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
+ * chipset.
+ * Copyright Roger Hardiman and Amancio Hasty.
+ *
+ * bktr_core : This deals with the Bt848/849/878/879 PCI Frame Grabber,
+ *               Handles all the open, close, ioctl and read userland calls.
+ *               Sets the Bt848 registers and generates RISC pograms.
+ *               Controls the i2c bus and GPIO interface.
+ *               Contains the interface to the kernel.
+ *               (eg probe/attach and open/close/ioctl)
+ *
+ */
+
+ /*
+   The Brooktree BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
-   the BT848. For starters, the BT848 is a one chipset solution and
-   it incorporates a RISC engine to control the DMA transfers --
-   that is it the actual dma process is control by a program which
-   resides in the hosts memory also the register definitions between
-   the Philips chipsets and the Bt848 are very different.
+   the BT848.
 
    The original copyright notice by Mark and Jim is included mostly
    to honor their fantastic work in the Matrox Meteor driver!
-
-      Enjoy,
-      Amancio
 
  */
 
 /*
  * 1. Redistributions of source code must retain the 
- * Copyright (c) 1997 Amancio Hasty
+ * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +41,8 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by Amancio Hasty
+ *	This product includes software developed by Amancio Hasty and
+ *      Roger Hardiman
  * 4. The name of the author may not be used to endorse or promote products 
  *    derived from this software without specific prior written permission.
  *
@@ -84,391 +94,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*		Change History:
-Note: These version numbers represent the authors own numbering.
-They are unrelated to Revision Control numbering of FreeBSD or any other system.
-1.0		1/24/97	   First Alpha release
-
-1.1		2/20/97	   Added video ioctl so we can do PCI To PCI
-			   data transfers. This is for capturing data
-			   directly to a vga frame buffer which has
-			   a linear frame buffer. Minor code clean-up.
-
-1.3		2/23/97	   Fixed system lock-up reported by 
-			   Randall Hopper <rhh@ct.picker.com>. This
-			   problem seems somehow to be exhibited only
-			   in his system. I changed the setting of
-			   INT_MASK for CAP_CONTINUOUS to be exactly
-			   the same as CAP_SINGLE apparently setting
-			   bit 23 cleared the system lock up. 
-			   version 1.1 of the driver has been reported
-			   to work with STB's WinTv, Hauppage's Wincast/Tv
-			   and last but not least with the Intel Smart
-			   Video Recorder.
-
-1.4		3/9/97	   fsmp@freefall.org
-			   Merged code to support tuners on STB and WinCast
-			   cards.
-			   Modifications to the contrast and chroma ioctls.
-			   Textual cleanup.
-
-1.5             3/15/97    fsmp@freefall.org
-                	   new bt848 specific versions of hue/bright/
-                           contrast/satu/satv.
-                           Amancio's patch to fix "screen freeze" problem.
-
-1.6             3/19/97    fsmp@freefall.org
-			   new table-driven frequency lookup.
-			   removed disable_intr()/enable_intr() calls from i2c.
-			   misc. cleanup.
-
-1.7             3/19/97    fsmp@freefall.org
-			   added audio support submitted by:
-				Michael Petry <petry@netwolf.NetMasters.com>
-
-1.8             3/20/97    fsmp@freefall.org
-			   extended audio support.
-			   card auto-detection.
-			   major cleanup, order of routines, declarations, etc.
-
-1.9             3/22/97    fsmp@freefall.org
-			   merged in Amancio's minor unit for tuner control
-			   mods.
-			   misc. cleanup, especially in the _intr routine.
-			   made AUDIO_SUPPORT mainline code.
-
-1.10            3/23/97    fsmp@freefall.org
-			   added polled hardware i2c routines,
-			   removed all existing software i2c routines.
-			   created software i2cProbe() routine.
-			   Randall Hopper's fixes of BT848_GHUE & BT848_GBRIG.
-			   eeprom support.
-
-1.11            3/24/97    fsmp@freefall.org
-			   Louis Mamakos's new bt848 struct.
-
-1.12		3/25/97    fsmp@freefall.org
-			   japanese freq table from Naohiro Shichijo.
-			   new table structs for tuner lookups.
-			   major scrub for "magic numbers".
-
-1.13		3/28/97    fsmp@freefall.org
-			   1st PAL support.
-			   MAGIC_[1-4] demarcates magic #s needing PAL work.
-			   AFC code submitted by Richard Tobin
-			    <richard@cogsci.ed.ac.uk>.
-
-1.14		3/29/97    richard@cogsci.ed.ac.uk
-			   PAL support: magic numbers moved into
-			   format_params structure.
-			   Revised AFC interface.
-			   fixed DMA_PROG_ALLOC size misdefinition.
-
-1.15		4/18/97	   John-Mark Gurney <gurney_j@resnet.uoregon.edu>
-                           Added [SR]RGBMASKs ioctl for byte swapping.
-
-1.16		4/20/97	   Randall Hopper <rhh@ct.picker.com>
-                           Generalized RGBMASK ioctls for general pixel
-			   format setting [SG]ACTPIXFMT, and added query API
-			   to return driver-supported pix fmts GSUPPIXFMT.
-
-1.17		4/21/97	   hasty@rah.star-gate.com
-                           Clipping support added.
-
-1.18		4/23/97	   Clean up after failed CAP_SINGLEs where bt 
-                           interrupt isn't delivered, and fixed fixing 
-			   CAP_SINGLEs that for ODD_ONLY fields.
-1.19            9/8/97     improved yuv support , cleaned up weurope
-                           channel table, incorporated cleanup work from
-                           Luigi, fixed pci interface bug due to a
-                           change in the pci interface which disables
-                           interrupts from a PCI device by default,
-                           Added Luigi's, ioctl's BT848_SLNOTCH, 
-                           BT848_GLNOTCH (set luma notch and get luma not)
-1.20            10/5/97    Keith Sklower <sklower@CS.Berkeley.EDU> submitted
-                           a patch to fix compilation of the BSDI's PCI
-                           interface. 
-                           Hideyuki Suzuki <hideyuki@sat.t.u-tokyo.ac.jp>
-                           Submitted a patch for Japanese cable channels
-                           Joao Carlos Mendes Luis jonny@gta.ufrj.br
-                           Submitted general ioctl to set video broadcast
-                           formats (PAL, NTSC, etc..) previously we depended
-                           on the Bt848 auto video detect feature.
-1.21            10/24/97   Randall Hopper <rhh@ct.picker.com>
-                           Fix temporal decimation, disable it when
-                           doing CAP_SINGLEs, and in dual-field capture, don't
-                           capture fields for different frames
-1.22            11/08/97   Randall Hopper <rhh@ct.picker.com>
-                           Fixes for packed 24bpp - FIFO alignment
-1.23            11/17/97   Amancio <hasty@star-gate.com>
-                           Added yuv support mpeg encoding 
-1.24            12/27/97   Jonathan Hanna <pangolin@rogers.wave.ca>
-                           Patch to support Philips FR1236MK2 tuner
-1.25            02/02/98   Takeshi Ohashi 
-                           <ohashi@atohasi.mickey.ai.kyutech.ac.jp> submitted
-                           code to support bktr_read .
-                           Flemming Jacobsen <fj@schizo.dk.tfs.com>
-                           submitted code to support  radio available with in
-                           some bt848 based cards;additionally, wrote code to
-                           correctly recognized his bt848 card.
-                           Roger Hardiman <roger@cs.strath.ac.uk> submitted 
-                           various fixes to smooth out the microcode and made 
-                           all modes consistent.
-1.26                       Moved Luigi's I2CWR ioctl from the video_ioctl
-                           section to the tuner_ioctl section
-                           Changed Major device from 79 to 92 and reserved
-                           our Major device number -- hasty@star-gate.com
-1.27                       Last batch of patches for radio support from
-                           Flemming Jacobsen <fj@trw.nl>.
-                           Added B849 PCI ID submitted by: 
-                           Tomi Vainio <tomppa@fidata.fi>
-1.28                       Frank Nobis <fn@Radio-do.de> added tuner support
-                           for the  German Phillips PAL tuner and
-                           additional channels for german cable tv.
-1.29                       Roger Hardiman <roger@cs.strath.ac.uk>
-                           Revised autodetection code to correctly handle both
-                           old and new VideoLogic Captivator PCI cards.
-                           Added tsleep of 2 seconds to initialistion code
-                           for PAL users.Corrected clock selection code on
-                           format change.
-1.30                       Bring back Frank Nobis <fn@Radio-do.de>'s opt_bktr.h
-
-1.31                       Randall Hopper <rhh@ct.picker.com>
-                           submitted ioctl to clear the video buffer
-                           prior to starting video capture
-			   Amancio : clean up yuv12 so that it does not
-                           affect rgb capture. Basically, fxtv after
-                           capturing in yuv12 mode , switching to rgb
-                           would cause the video capture to be too bright.
-1.32                       disable inverse gamma function for rgb and yuv
-                           capture. fixed meteor brightness ioctl it now
-                           converts the brightness value from unsigned to 
-                           signed.
-1.33                       added sysctl: hw.bt848.tuner, hw.bt848.reverse_mute,
-                           hw.bt848.card
-			   card takes a value from 0 to bt848_max_card
-                           tuner takes a value from 0 to bt848_max_tuner
-                           reverse_mute : 0 no effect, 1 reverse tuner
-                           mute function some tuners are wired reversed :(
-1.34                       reverse mute function for ims turbo card
-
-1.35                       Roger Hardiman <roger@cs.strath.ac.uk>
-                           options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
-                           in the kernel config file makes the driver's
-                           video_open() function select PAL rather than NTSC.
-                           This fixed all the hangs on my Dual Crystal card
-                           when using a PAL video signal. As a result, you
-                           can loose the tsleep (of 2 seconds - now 0.25!!)
-                           which I previously added. (Unless someone else
-                           wanted the 0.25 second tsleep).
-
-1.36                       added bt848.format sysctl variable. 
-                           1 denotes NTSC , 0 denotes PAL
-
-1.37                       added support for Bt878 and improved Hauppauge's
-                           bt848 tuner recognition
-1.38                       Further improvements on Hauppauge's rely on
-                           eeprom[9] to determine the tuner type 8)
-
-                           AVerMedia card type added <sos@freebsd.org>
-
-1.39            08/05/98   Roger Hardiman <roger@cs.strath.ac.uk>
-                           Updated Hauppauge detection code for Tuner ID 0x0a 
-                           for newer NTSC WinCastTV 404 with Bt878 chipset.
-                           Tidied up PAL default in video_open()
-
-1.49       10 August 1998  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Added Capture Area ioctl - BT848[SG]CAPAREA.
-                           Normally the full 640x480 (768x576 PAL) image
-                           is grabbed. This ioctl allows a smaller area
-                           from anywhere within the video image to be
-                           grabbed, eg a 400x300 image from (50,10).
-                           See restrictions in BT848SCAPAREA.
-
-1.50       31 August 1998  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Renamed BT848[SG]CAPAREA to BT848_[SG]CAPAREA.
-                           Added PR kern/7177 for SECAM Video Highway Xtreme
-                           with single crystal PLL configuration
-                           submitted by Vsevolod Lobko <seva@alex-ua.com>.
-                           In kernel configuration file add
-                             options OVERRIDE_CARD=2
-                             options OVERRIDE_TUNER=11
-                             options BKTR_USE_PLL
-
-1.51       31 August 1998  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Fixed bug in Miro Tuner detection. Missing Goto.
-                           Removed Hauppauge EEPROM 0x10 detection as I think
-			   0x10 should be a PAL tuner, not NTSC.
-			   Reinstated some Tuner Guesswork code from 1.27
-
-1.52           3 Sep 1998  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Submitted patch by Vsevolod Lobko <seva@alex-ua.com>
-                           to correct SECAM B-Delay and add XUSSR channel set.
-
-1.53           9 Sep 1998  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Changed METEORSINPUT for Hauppauge cards with bt878.
-                           Submitted by Fred Templin <templin@erg.sri.com>
-                           Also fixed video_open defines and 878 support.
-
-1.54          18 Sep 1998  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Changed tuner code to autodetect tuner i2c address.
-                           Addresses were incorrectly hardcoded.
-
-1.55          21 Sep 1998  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Hauppauge Tech Support confirmed all Hauppauge 878
-                           PAL/SECAM boards will use PLL mode.
-			   Added to card probe. Thanks to Ken and Fred.
-
-1.56    21 Jan 1999 Roger Hardiman <roger@cs.strath.ac.uk>
-                    Added detection of Hauppauge IR remote control.
-                    and MSP34xx Audio chip. Fixed i2c read error.
-                    Hauppauge supplied details of new Tuner Types.
-                    Danny Braniss <danny@cs.huji.ac.il> submitted Bt878
-                    AverMedia detection with PCI subsystem vendor id.
-
-1.57    26 Jan 1999 Roger Hardiman <roger@cs.strath.ac.uk>
-                    Support for MSP3410D / MSP3415D Stereo/Mono audio
-                    using the audio format Auto Detection Mode.
-                    Nicolas Souchu <nsouch@freebsd.org> ported the
-                    msp_read/write/reset functions to smbus/iicbus.
-                    METEOR_INPUT_DEV2 now selects a composite camera on
-                    the SVIDEO port for Johan Larsson<gozer@ludd.luth.se>
-                    For true SVIDEO, use METEOR_INPUT_DEV_SVIDEO
-
-1.58     8 Feb 1999 Roger Hardiman <roger@cs.strath.ac.uk>
-                    Added check to bktr_mmap from OpenBSD driver.
-                    Improved MSP34xx reset for bt848 Hauppauge boards.
-                    Added detection for Bt848a.
-                    Vsevolod Lobko<seva@sevasoft.alex-ua.com> added
-                    more XUSSR channels.
-
-1.59     9 Feb 1999 Added ioctl REMOTE_GETKEY for Hauppauge Infra-Red
-                    Remote Control. Submitted by Roger Hardiman.
-                    Added ioctl TVTUNER_GETCHANSET and
-                    BT848_GPIO_SET_EN,BT848_GPIO_SET_DATA (and GETs)
-                    Submitted by Vsevolod Lobko <seva@alex-ua.com>
-
-1.60    23 Feb 1999 Roger Hardiman <roger@freebsd.org>
-                    Corrected Mute on Hauppauge Radio cards.
-                    Autodetect MMAC Osprey by looking for "MMAC" in the EEPROM.
-                    Added for Jan Schmidt <mmedia@rz.uni-greifswald.de>
-                    Added ALPS Tuner Type from Hiroki Mori <mori@infocity.co.jp>
-
-1.61    29 Apr 1999 Roger Hardiman <roger@freebsd.org>
-                    Fix row=0/columns=0 bug. From Randal Hopper<aa8vb@ipass.net>
-                    Add option to block the reset of the MSP34xx audio chip by
-                    adding options BKTR_NO_MSP_RESET to the kernel config file.
-                    This is usefull if you run another operating system
-                    first to initialise the audio chip, then do a soft reboot.
-                    Added for Yuri Gindin <yuri@xpert.com>
-
-1.62    29 Apr 1999 Added new cards: NEC PK-UG-X017 and I/O DATA GV-BCTV2/PCI
-                    Added new tuner: ALPS_TSBH1 (plus FM Radio for ALPS_TSCH5)
-                    Added support for BCTV audio mux.
-                    All submitted by Hiroki Mori <mori@infocity.co.jp> 
-
-1.63    29 Apr 1999 Roger Hardiman <roger@freebsd.org>
-                    Added initial code for VBI capture based on work by
-                    Hiroki Mori <mori@infocity.co.jp> and reworked by myself.
-                    This allows software decoding of teletext, intercast and
-                    subtitles via /dev/vbi.
-
-1.64     7 May 1999 Roger Hardiman <roger@freebsd.org>
-                    Support LifeView FlyVideo 98 cards. Use EEPROM for card
-                    autodetection. Use bttv's audio mux values.
-                      Thanks to Paul Reece <paul@fastlane.net.au>,
-                              Ivan Brawley <brawley@internode.com.au> and
-                              Gilad Rom <rom_glsa@ein-hashofet.co.il>
-		    Automatically locate the EEPROM i2c address and read the
-		    subsystem_vendor_id from EEPROM and not the PCI registers.
-                    Add NSMBUS checks around smbus/iicbus i2c bus code
-                    making it easier to compile the driver under 2.2.x.
-                    Add GPIO mask for the audio mux to each card type.
-                    Add CARD_ZOLTRIX and CARD_KISS from mailing list searches.
-
-1.65    18 May 1999 Roger Hardiman <roger@freebsd.org>
-                    Change Intel GPIO mask to stop turning the Intel Camera off
-                    Fixed tuner selection on Hauppauge card with tuner 0x0a
-                    Replaced none tuner with no tuner for Theo de Raadt.
-                    Ivan Brawley <brawley@internode.com.au> added
-                    the Australian channel frequencies.
-
-1.66    19 May 1999 Ivan Brawley <brawley@internode.com.au> added better
-                    Australian channel frequencies.
-                    
-1.67    23 May 1999 Roger Hardiman <roger@freebsd.org>
-                    Added rgb_vbi_prog() to capture VBI data and video at the
-                    same time. To capture VBI data, /dev/vbi must be opened
-                    before starting video capture.
-
-1.68    25 May 1999 Roger Hardiman <roger@freebsd.org>
-                    Due to differences in PCI bus implementations from various
-                    motherboard chipset manufactuers, the Bt878/Bt879 has 3
-                    PCI bus compatibility modes. These are
-                      NORMAL PCI 2.1  for proper PCI 2.1 compatible chipsets.
-                      INTEL 430 FX    for the Intel 430 FX chipset.
-                      SIS VIA CHIPSET for certain SiS and VIA chipsets.
-                    Older Intel and non-Intel chipsets may also benefit from
-                    either 430_FX or SIS/VIA mode.
-                    
-                    NORMAL PCI mode is enabled by default.
-                    For INTEL 430 FX mode, add this to your kenel config:
-                           options "BKTR_430_FX_MODE"
-                    For SiS / VIA mode, add this to your kernel config:
-                           options "BKTR_SIS_VIA_MODE"
-                    
-                    Using quotes in these options is not needed in FreeBSD 4.x.
-
-                    Note. Newer VIA chipsets should be fully PCI 2.1 compatible
-                    and should work fine in the Default mode.
-
-                    Also rename 849 to 849A, the correct name for the chip.
-
-1.69   12 June 1999 Roger Hardiman <roger@freebsd.org>
-                    Updates for FreeBSD 4.x device driver interface.
-                    BSDI code removed. Will be restored later.
-
-1.70   12 July 1999 Roger Hardiman <roger@freebsd.org>
-                    Reorganise OS device dependant parts (based on a port to
-                    linux by Brad Parker).
-                    Make the driver compile on FreeBSD 2.2.x systems again.
-                    Change number of VBI lines from 16 to 12 for NTSC formats.
-                    Changes to probeCard() for better eeprom identification.
-                    Added STB Bt878 card identification.
-                    Add Hauppauge model identification to probeCard().
-                    Added TDA9850 initialisation code taken from Linux bttv.
-                    Juha.Nurmela@quicknet.inet.fi found/fixed bug in VBI_SLEEP.
-                    Matt Brown <matt@dqc.org> added MSP3430G DBX initialisation.
-
-1.71    30 Aug 1999 Roger Hardiman <roger@freebsd.org>
-                    Small cleanup of OS dependant code. Remove NPCI usage.
-                    Fix bug in AVerMedia detection.
-		    Update VBI support for the AleVT Teletext package. Parts
-                    from Juha Nurmela's driver <Juha.Nurmela@quicknet.inet.fi>
-		    Add support for Hauppauge 627 and Temic 4006 submitted
-		    by Maurice Castro <maurice@atum.castro.aus.net>
-		    Tom Jansen <tom@unhooked.net> added BSDi support again.
-
-1.72    31 Aug 1999 Juha Nurmela <Juha.Nurmela@quicknet.inet.fi>
-                    Clear cap_ctl register when restarting the RISC program.
-                    This fixes the freezes experienced when changing changes.
-
-1.73    10 Sep 1999 Roger Hardiman <roger@freebsd.org>
-                    Add Hauppauge tuner #6 for Brian Somers <brian@freebsd.org>
-		    Add card type for Aimslabs Video Highway Xtreme for
-		    Ladislav Kostal <kostal@pefstud.uniag.sk>
-                    Added select() code (for VBI) for the 2.2.x driver
-                    tested by Steve Richards <steve@richsoft.demon.co.uk>
-
-1.74    17 Sep 1999 Roger Hardiman <roger@freebsd.org>
-		    Fix bug where FM radio stations were offset after using FXTV
-                    AVerMedia tuner type autodetection added for cards with
-		    a configuration EEPROM (currently their Bt878 range)
-                    Thanks to Frank at AVerMedia for providing the information.
-		    Tested by David La Croix <dlacroix@cowpie.acm.vt.edu>
-		    Tidy up some tuner code and Hauppauge detection code.
-                    New NetBSD code from Bernd Ernesti<bernd@arresum.inka.de>
-*/
 
 #ifdef __FreeBSD__
 #include "bktr.h"
@@ -491,11 +116,8 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/signalvar.h>
-#include <sys/mman.h>
-#include <sys/select.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -508,45 +130,21 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 /*******************/
 #ifdef __FreeBSD__
 
-/* __FreeBSD_version is not defined on 2.2.x systems */
-#ifndef __FreeBSD_version
-#define __FreeBSD_version 228000
-#endif
-
-#if (__FreeBSD_version >= 300000)
-#include <sys/poll.h>
-#endif
-
-/* Read NSMBUS on FreeBSD 3.1 or later */
-#if (__FreeBSD_version >= 310000)
-#include "smbus.h"
-#else
-#define NSMBUS 0
-#endif
-
-#if (__FreeBSD_version < 400000)
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
-#endif
-
 #if (__FreeBSD_version >=400000) || (NSMBUS > 0)
 #include <sys/bus.h>		/* used by smbus and newbus */
 #endif
 
-#if (__FreeBSD_version >=400000)
-#include <machine/bus.h>	/* used by newbus */
-#include <sys/rman.h>		/* used by newbus */
-#include <machine/resource.h>	/* used by newbus */
-#endif
-
 #include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
-#include <pci/pcireg.h>
 
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 #include <dev/bktr/bktr_reg.h>
+#include <dev/bktr/bktr_tuner.h>
+#include <dev/bktr/bktr_card.h>
+#include <dev/bktr/bktr_audio.h>
+#include <dev/bktr/bktr_core.h>
+#include <dev/bktr/bktr_os.h>
 
 #if (NSMBUS > 0)
 #include <dev/bktr/bktr_i2c.h>
@@ -556,26 +154,9 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 #include "iicbus_if.h"
 #endif
 
-#include <sys/sysctl.h>
-static int bt848_card = -1;
-static int bt848_tuner = -1;
-static int bt848_reverse_mute = -1;
-static int bt848_format = -1;
-
-SYSCTL_NODE(_hw, OID_AUTO, bt848, CTLFLAG_RW, 0, "Bt848 Driver mgmt");
-SYSCTL_INT(_hw_bt848, OID_AUTO, card, CTLFLAG_RW, &bt848_card, -1, "");
-SYSCTL_INT(_hw_bt848, OID_AUTO, tuner, CTLFLAG_RW, &bt848_tuner, -1, "");
-SYSCTL_INT(_hw_bt848, OID_AUTO, reverse_mute, CTLFLAG_RW, &bt848_reverse_mute, -1, "");
-SYSCTL_INT(_hw_bt848, OID_AUTO, format, CTLFLAG_RW, &bt848_format, -1, "");
-
-#if (__FreeBSD_version >= 300000)
-typedef u_long ioctl_cmd_t;
-#endif
 
 #if (__FreeBSD__ == 2)
-typedef int ioctl_cmd_t;
 typedef unsigned int uintptr_t;
-#define PCIR_REVID     PCI_CLASS_REG
 #endif
 #endif  /* __FreeBSD__ */
 
@@ -644,21 +225,6 @@ typedef u_char bool_t;
 #define ODD_F  0x01
 #define EVEN_F 0x02
 
-/*
- * Defines for userland processes blocked in this driver
- *   For /dev/bktr[n] use memory address of bktr structure
- *   For /dev/vbi[n] use memory address of bktr structure + 1
- *                   this is ok as the bktr structure is > 1 byte
- */
-#define BKTR_SLEEP  ((caddr_t)bktr    )
-#define VBI_SLEEP   ((caddr_t)bktr + 1)
-
-/*
- * This is for start-up convenience only, NOT mandatory.
- */
-#if !defined( DEFAULT_CHNLSET )
-#define DEFAULT_CHNLSET	CHNLSET_WEUROPE
-#endif
 
 /*
  * Parameters describing size of transmitted image.
@@ -755,98 +321,6 @@ static struct {
 #define WSWAP (BT848_COLOR_CTL_WSWAP_ODD | BT848_COLOR_CTL_WSWAP_EVEN)
 
 
-/* experimental code for Automatic Frequency Control */
-#define TUNER_AFC
-#define TEST_TUNER_AFC_NOT
-
-#if defined( TUNER_AFC )
-#define AFC_DELAY		10000	/* 10 millisend delay */
-#define AFC_BITS		0x07
-#define AFC_FREQ_MINUS_125	0x00
-#define AFC_FREQ_MINUS_62	0x01
-#define AFC_FREQ_CENTERED	0x02
-#define AFC_FREQ_PLUS_62	0x03
-#define AFC_FREQ_PLUS_125	0x04
-#define AFC_MAX_STEP		(5 * FREQFACTOR) /* no more than 5 MHz */
-#endif /* TUNER_AFC */
-
-/*
- * i2c things:
- */
-
-#define TSA552x_CB_MSB		(0x80)
-#define TSA552x_CB_CP		(1<<6)
-#define TSA552x_CB_T2		(1<<5)
-#define TSA552x_CB_T1		(1<<4)
-#define TSA552x_CB_T0		(1<<3)
-#define TSA552x_CB_RSA		(1<<2)
-#define TSA552x_CB_RSB		(1<<1)
-#define TSA552x_CB_OS		(1<<0)
-#define TSA552x_RADIO		(TSA552x_CB_MSB |       \
-				 TSA552x_CB_T0)
-
-/* Add RADIO_OFFSET to the "frequency" to indicate that we want to tune	*/
-/* the radio (if present) not the TV tuner.				*/
-/* 20000 is equivalent to 20000MHz/16 = 1.25GHz - this area is unused.	*/
-#define RADIO_OFFSET		20000
-
-/* address(s) of the Hauppauge Infra-Red Remote Control adapter */
-#define HAUP_REMOTE_INT_WADDR   0x30
-#define HAUP_REMOTE_INT_RADDR   0x31
- 
-#define HAUP_REMOTE_EXT_WADDR   0x34
-#define HAUP_REMOTE_EXT_RADDR   0x35
-
-/* address of BTSC/SAP decoder chip */
-#define TDA9850_WADDR		0xb6
-#define TDA9850_RADDR		0xb7
-
-/* address of MSP3400C chip */
-#define MSP3400C_WADDR		0x80
-#define MSP3400C_RADDR		0x81
-
-
-/* EEProm (128 * 8) on an STB card */
-#define X24C01_WADDR		0xae
-#define X24C01_RADDR		0xaf
-
-
-/* EEProm (256 * 8) on a Hauppauge card */
-/* and on most BT878s cards to store the sub-system vendor id */
-#define PFC8582_WADDR		0xa0
-#define PFC8582_RADDR		0xa1
-
-
-/* registers in the TDA9850 BTSC/dbx chip */
-#define CON1ADDR		0x04
-#define CON2ADDR		0x05
-#define CON3ADDR		0x06
-#define CON4ADDR		0x07
-#define ALI1ADDR		0x08
-#define ALI2ADDR		0x09
-#define ALI3ADDR		0x0a
-
-
-/* raise the charge pump voltage for fast tuning */
-#define TSA552x_FCONTROL	(TSA552x_CB_MSB |	\
-				 TSA552x_CB_CP  |	\
-				 TSA552x_CB_T0  |	\
-				 TSA552x_CB_RSA |	\
-				 TSA552x_CB_RSB)
-
-/* lower the charge pump voltage for better residual oscillator FM */
-#define TSA552x_SCONTROL	(TSA552x_CB_MSB |	\
-				 TSA552x_CB_T0  |	\
-				 TSA552x_CB_RSA |	\
-				 TSA552x_CB_RSB)
-
-/* The control value for the ALPS TSCH5 Tuner */
-#define TSCH5_FCONTROL          0x82
-#define TSCH5_RADIO		0x86
-
-/* The control value for the ALPS TSBH1 Tuner */
-#define TSBH1_FCONTROL		0xce
-
 
 /* sync detect threshold */
 #if 0
@@ -858,407 +332,6 @@ static struct {
 #endif
 
 
-/*
- * the data for each type of tuner
- *
- * if probeCard() fails to detect the proper tuner on boot you can
- * override it by setting the following define to the tuner present:
- *
-#define OVERRIDE_TUNER	<tuner type>
- *
- * where <tuner type> is one of the following tuner defines.
- */
-
-/* indexes into tuners[] */
-#define NO_TUNER		0
-#define TEMIC_NTSC		1
-#define TEMIC_PAL		2
-#define TEMIC_SECAM		3
-#define PHILIPS_NTSC		4
-#define PHILIPS_PAL		5
-#define PHILIPS_SECAM		6
-#define TEMIC_PALI		7
-#define PHILIPS_PALI		8
-#define PHILIPS_FR1236_NTSC     9	/* These have FM Radio support */
-#define PHILIPS_FR1216_PAL	10	/* These have FM Radio support */
-#define PHILIPS_FR1236_SECAM    11	/* These have FM Radio support */
-#define	ALPS_TSCH5		12
-#define	ALPS_TSBH1		13
-#define Bt848_MAX_TUNER         14
-
-/* If we do not know the tuner type, make a guess based on the
-   video format
-*/
-#if BROOKTREE_SYSTEM_DEFAULT == BROOKTREE_PAL
-#define DEFAULT_TUNER	PHILIPS_PALI
-#else
-#define DEFAULT_TUNER	PHILIPS_NTSC
-#endif
-
-/* XXX FIXME: this list is incomplete */
-
-/* input types */
-#define TTYPE_XXX		0
-#define TTYPE_NTSC		1
-#define TTYPE_NTSC_J		2
-#define TTYPE_PAL		3
-#define TTYPE_PAL_M		4
-#define TTYPE_PAL_N		5
-#define TTYPE_SECAM		6
-
-/**
-struct TUNER {
-	char*		name;
-	u_char		type;
-	u_char		pllControl;
-	u_char		bandLimits[ 2 ];
-	u_char		bandAddrs[ 3 ];
-};
- */
-static const struct TUNER tuners[] = {
-/* XXX FIXME: fill in the band-switch crosspoints */
-	/* NO_TUNER */
-	{ "<no>",				/* the 'name' */
-	   TTYPE_XXX,				/* input type */
- 	   { 0x00,				/* control byte for Tuner PLL */
- 	     0x00,
- 	     0x00,
- 	     0x00 },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x00, 0x00, 0x00,0x00} },		/* the band-switch values */
-
-	/* TEMIC_NTSC */
-	{ "Temic NTSC",				/* the 'name' */
-	   TTYPE_NTSC,				/* input type */
-	   { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_SCONTROL,
-	     TSA552x_SCONTROL,
-	     0x00 },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x02, 0x04, 0x01, 0x00 } },	/* the band-switch values */
-
-	/* TEMIC_PAL */
-	{ "Temic PAL",				/* the 'name' */
-	   TTYPE_PAL,				/* input type */
-	   { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_SCONTROL,
-	     TSA552x_SCONTROL,
-	     0x00 },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x02, 0x04, 0x01, 0x00 } },	/* the band-switch values */
-
-	/* TEMIC_SECAM */
-	{ "Temic SECAM",			/* the 'name' */
-	   TTYPE_SECAM,				/* input type */
-	   { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_SCONTROL,
-	     TSA552x_SCONTROL,
-	     0x00 },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x02, 0x04, 0x01,0x00 } },		/* the band-switch values */
-
-	/* PHILIPS_NTSC */
-	{ "Philips NTSC",			/* the 'name' */
-	   TTYPE_NTSC,				/* input type */
-	   { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_SCONTROL,
-	     TSA552x_SCONTROL,
-	     0x00 },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30, 0x00 } },	/* the band-switch values */
-
-	/* PHILIPS_PAL */
-	{ "Philips PAL",			/* the 'name' */
-	   TTYPE_PAL,				/* input type */
-	   { TSA552x_FCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_FCONTROL,
-	     TSA552x_FCONTROL,
-	     TSA552x_RADIO },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30, 0xa4 } },	/* the band-switch values */
-
-	/* PHILIPS_SECAM */
-	{ "Philips SECAM",			/* the 'name' */
-	   TTYPE_SECAM,				/* input type */
-	   { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_SCONTROL,
-	     TSA552x_SCONTROL,
-	    TSA552x_RADIO },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30,0xa4 } },		/* the band-switch values */
-
-	/* TEMIC_PAL I */
-	{ "Temic PAL I",			/* the 'name' */
-	   TTYPE_PAL,				/* input type */
-	   { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_SCONTROL,
-	     TSA552x_SCONTROL,
-	     0x00 },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x02, 0x04, 0x01,0x00 } },		/* the band-switch values */
-
-	/* PHILIPS_PALI */
-	{ "Philips PAL I",			/* the 'name' */
-	   TTYPE_PAL,				/* input type */
-	   { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_SCONTROL,
-	     TSA552x_SCONTROL,
-	     0x00 },
-          { 0x00, 0x00 },                      /* band-switch crosspoints */
-          { 0xa0, 0x90, 0x30,0x00 } },         /* the band-switch values */
-
-       /* PHILIPS_FR1236_NTSC */
-       { "Philips FR1236 NTSC FM",             /* the 'name' */
-          TTYPE_NTSC,                          /* input type */
-	  { TSA552x_SCONTROL,			/* control byte for Tuner PLL */
-	    TSA552x_SCONTROL,
-	    TSA552x_SCONTROL,
-	    TSA552x_RADIO  },
-          { 0x00, 0x00 },			/* band-switch crosspoints */
-	  { 0xa0, 0x90, 0x30, 0xa4 } },		/* the band-switch values */
-
-	/* PHILIPS_FR1216_PAL */
-	{ "Philips FR1216 PAL FM" ,		/* the 'name' */
-	   TTYPE_PAL,				/* input type */
-	   { TSA552x_FCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_FCONTROL,
-	     TSA552x_FCONTROL,
-	     TSA552x_RADIO },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30, 0xa4 } },	/* the band-switch values */
-
-	/* PHILIPS_FR1236_SECAM */
-	{ "Philips FR1236 SECAM FM",		/* the 'name' */
-	   TTYPE_SECAM,				/* input type */
-	   { TSA552x_FCONTROL,			/* control byte for Tuner PLL */
-	     TSA552x_FCONTROL,
-	     TSA552x_FCONTROL,
-	     TSA552x_RADIO },
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30, 0xa4 } },	/* the band-switch values */
-
-        /* ALPS TSCH5 NTSC */
-        { "ALPS TSCH5 NTSC FM",                 /* the 'name' */
-           TTYPE_NTSC,                          /* input type */
-           { TSCH5_FCONTROL,                    /* control byte for Tuner PLL */
-             TSCH5_FCONTROL,
-             TSCH5_FCONTROL,
-             TSCH5_RADIO },
-           { 0x00, 0x00 },                      /* band-switch crosspoints */
-           { 0x14, 0x12, 0x11, 0x04 } },        /* the band-switch values */
-
-        /* ALPS TSBH1 NTSC */
-        { "ALPS TSBH1 NTSC",                    /* the 'name' */
-           TTYPE_NTSC,                          /* input type */
-           { TSBH1_FCONTROL,                    /* control byte for Tuner PLL */
-             TSBH1_FCONTROL,
-             TSBH1_FCONTROL,
-             0x00 },
-           { 0x00, 0x00 },                      /* band-switch crosspoints */
-           { 0x01, 0x02, 0x08, 0x00 } }         /* the band-switch values */
-};
-
-/******************************************************************************
- * card probe
- */
-
-
-/*
- * the recognized cards, used as indexes of several tables.
- *
- * if probeCard() fails to detect the proper card on boot you can
- * override it by setting the following define to the card you are using:
- *
-#define OVERRIDE_CARD	<card type>
- *
- * where <card type> is one of the following card defines.
- */
-#define	CARD_UNKNOWN		0
-#define	CARD_MIRO		1
-#define	CARD_HAUPPAUGE		2
-#define	CARD_STB		3
-#define	CARD_INTEL		4
-#define	CARD_IMS_TURBO		5
-#define	CARD_AVER_MEDIA		6
-#define	CARD_OSPREY		7
-#define CARD_NEC_PK		8
-#define CARD_IO_GV		9
-#define CARD_FLYVIDEO		10
-#define CARD_ZOLTRIX            11
-#define CARD_KISS               12
-#define CARD_VIDEO_HIGHWAY_XTREME	13
-#define Bt848_MAX_CARD		14 
-
-/*
- * the data for each type of card
- *
- * Note:
- *   these entried MUST be kept in the order defined by the CARD_XXX defines!
- */
-static const struct CARDTYPE cards[] = {
-
-	{  CARD_UNKNOWN,			/* the card id */
-	  "Unknown",				/* the 'name' */
-	   NULL,				/* the tuner */
-	   0,					/* the tuner i2c address */
-	   0,					/* dbx unknown */
-	   0,
-	   0,					/* EEProm unknown */
-	   0,					/* EEProm unknown */
-	   { 0, 0, 0, 0, 0 },
-	   0 },					/* GPIO mask */
-
-	{  CARD_MIRO,				/* the card id */
-	  "Miro TV",				/* the 'name' */
-	   NULL,				/* the tuner */
-	   0,					/* the tuner i2c address */
-	   0,					/* dbx unknown */
-	   0,
-	   0,					/* EEProm unknown */
-	   0,					/* size unknown */
-	   { 0x02, 0x01, 0x00, 0x0a, 1 },	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
-
-	{  CARD_HAUPPAUGE,			/* the card id */
-	  "Hauppauge WinCast/TV",		/* the 'name' */
-	   NULL,				/* the tuner */
-	   0,					/* the tuner i2c address */
-	   0,					/* dbx is optional */
-	   0,
-	   PFC8582_WADDR,			/* EEProm type */
-	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-	   { 0x00, 0x02, 0x01, 0x04, 1 },	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
-
-	{  CARD_STB,				/* the card id */
-	  "STB TV/PCI",				/* the 'name' */
-	   NULL,				/* the tuner */
-	   0,					/* the tuner i2c address */
-	   0,					/* dbx is optional */
-	   0,
-	   X24C01_WADDR,			/* EEProm type */
-	   (u_char)(128 / EEPROMBLOCKSIZE),	/* 128 bytes */
-	   { 0x00, 0x01, 0x02, 0x02, 1 }, 	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
-
-	{  CARD_INTEL,				/* the card id */
-	  "Intel Smart Video III/VideoLogic Captivator PCI", /* the 'name' */
-	   NULL,				/* the tuner */
-	   0,					/* the tuner i2c address */
-	   0,
-	   0,
-	   0,
-	   0,
-	   { 0, 0, 0, 0, 0 }, 			/* audio MUX values */
-	   0x00 },				/* GPIO mask */
-
-	{  CARD_IMS_TURBO,			/* the card id */
-	  "IMS TV Turbo",			/* the 'name' */
-	   NULL,				/* the tuner */
-	   0,					/* the tuner i2c address */
-	   0,					/* dbx is optional */
-	   0,
-	   PFC8582_WADDR,			/* EEProm type */
-	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-	   { 0x01, 0x02, 0x01, 0x00, 1 },	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
-
-        {  CARD_AVER_MEDIA,			/* the card id */
-          "AVer Media TV/FM",                   /* the 'name' */
-           NULL,                                /* the tuner */
-	   0,					/* the tuner i2c address */
-           0,                                   /* dbx is optional */
-           0,
-           0,                                   /* EEProm type */
-           0,                                   /* EEProm size */
-           { 0x0c, 0x00, 0x0b, 0x0b, 1 },	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
-
-        {  CARD_OSPREY,				/* the card id */
-          "MMAC Osprey",                   	/* the 'name' */
-           NULL,                                /* the tuner */
-	   0,					/* the tuner i2c address */
-           0,                                   /* dbx is optional */
-           0,
-	   PFC8582_WADDR,			/* EEProm type */
-	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-           { 0x00, 0x00, 0x00, 0x00, 0 },	/* audio MUX values */
-	   0 },					/* GPIO mask */
-
-        {  CARD_NEC_PK,                         /* the card id */
-          "NEC PK-UG-X017",                     /* the 'name' */
-           NULL,                                /* the tuner */
-           0,                                   /* the tuner i2c address */
-           0,                                   /* dbx is optional */
-           0,
-           0,                                   /* EEProm type */
-           0,                                   /* EEProm size */
-           { 0x01, 0x02, 0x01, 0x00, 1 },	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
-
-        {  CARD_IO_GV,                          /* the card id */
-          "I/O DATA GV-BCTV2/PCI",              /* the 'name' */
-           NULL,                                /* the tuner */
-           0,                                   /* the tuner i2c address */
-           0,                                   /* dbx is optional */
-           0,
-           0,                                   /* EEProm type */
-           0,                                   /* EEProm size */
-           { 0x00, 0x00, 0x00, 0x00, 1 },	/* Has special MUX handler */
-	   0x0f },				/* GPIO mask */
-
-        {  CARD_FLYVIDEO,			/* the card id */
-          "FlyVideo",				/* the 'name' */
-           NULL,				/* the tuner */
-           0,					/* the tuner i2c address */
-           0,					/* dbx is optional */
-           0,					/* msp34xx is optional */
-	   0xac,				/* EEProm type */
-	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-           { 0x000, 0x800, 0x400, 0x8dff00, 1 },/* audio MUX values */
-	   0x8dff00 },				/* GPIO mask */
-
-	{  CARD_ZOLTRIX,			/* the card id */
-	  "Zoltrix",				/* the 'name' */
-           NULL,				/* the tuner */
-           0,					/* the tuner i2c address */
-           0,					/* dbx is optional */
-           0,					/* msp34xx is optional */
-	   0,					/* EEProm type */
-	   0,					/* EEProm size */
-	   { 0x04, 0x01, 0x00, 0x0a, 1 },	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
-
-	{  CARD_KISS,				/* the card id */
-	  "KISS TV/FM PCI",			/* the 'name' */
-           NULL,				/* the tuner */
-           0,					/* the tuner i2c address */
-           0,					/* dbx is optional */
-           0,					/* msp34xx is optional */
-	   0,					/* EEProm type */
-	   0,					/* EEProm size */
-	   { 0x0c, 0x00, 0x0b, 0x0b, 1 },	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
-
-	{  CARD_VIDEO_HIGHWAY_XTREME,		/* the card id */
-	  "Video Highway Xtreme",		/* the 'name' */
-	   NULL,				/* the tuner */
-	   0,					/* the tuner i2c address */
-	   0,					/* dbx is optional */
-	   0,
-	   0,					/* EEProm type */
-	   0,					/* EEProm size */
-	   { 0x00, 0x02, 0x01, 0x04, 1 },	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
-
-};
-
-struct bt848_card_sig bt848_card_signature[1]= {
-  /* IMS TURBO TV : card 5 */
-    {  5,9, {00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 02, 00, 00, 00}}
-
-
-};
 
 
 /* debug utility for holding previous INT_STAT contents */
@@ -1283,28 +356,6 @@ static u_long	status_sum = 0;
 #define I2C_BITS		(BT848_INT_RACK | BT848_INT_I2CDONE)
 #define TDEC_BITS               (BT848_INT_FDSR | BT848_INT_FBUS)
 
-
-/*
- * misc. support routines.
- */
-static int		signCard( bktr_ptr_t bktr, int offset,
-					  int count, u_char* sig );
-static void		probeCard( bktr_ptr_t bktr, int verbose, int unit);
-
-static void		common_bktr_attach( bktr_ptr_t bktr, int unit,
-			u_long pci_id, u_int rev );
-
-/**************************************************/
-/* *** Memory Allocation is still OS specific *** */
-/**************************************************/
-#if (defined(__FreeBSD__) || defined(__bsdi__))
-static vm_offset_t	get_bktr_mem( int unit, unsigned size );
-#endif
-
-#if (defined(__NetBSD__) || defined(__OpenBSD__))
-static vm_offset_t	get_bktr_mem(bktr_ptr_t, bus_dmamap_t *, unsigned size);
-static void		free_bktr_mem(bktr_ptr_t, bus_dmamap_t, vm_offset_t);
-#endif
 
 
 static int		oformat_meteor_to_bt( u_long format );
@@ -1335,57 +386,10 @@ static bool_t   notclipped(bktr_reg_t * , int , int);
 static bool_t   split(bktr_reg_t *, volatile u_long **, int, u_long, int, 
 		      volatile u_char ** , int  );
 
-/*
- * video & video capture specific routines.
- */
-static int	video_open( bktr_ptr_t bktr );
-static int	video_close( bktr_ptr_t bktr );
-static int      video_read( bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio );
-static int	video_ioctl( bktr_ptr_t bktr, int unit,
-			     int cmd, caddr_t arg, struct proc* pr );
-
 static void	start_capture( bktr_ptr_t bktr, unsigned type );
 static void	set_fps( bktr_ptr_t bktr, u_short fps );
 
 
-/*
- * tuner specific functions.
- */
-static int	tuner_open( bktr_ptr_t bktr );
-static int	tuner_close( bktr_ptr_t bktr );
-static int	tuner_ioctl( bktr_ptr_t bktr, int unit,
-			     int cmd, caddr_t arg, struct proc* pr );
-static int	tuner_getchnlset( struct bktr_chnlset *chnlset );
-
-static int	tv_channel( bktr_ptr_t bktr, int channel );
-static int	tv_freq( bktr_ptr_t bktr, int frequency );
-#if defined( TUNER_AFC )
-static int	do_afc( bktr_ptr_t bktr, int addr, int frequency );
-#endif /* TUNER_AFC */
-
-/*
- * vbi specific functions.
- */
-static int      vbi_open( bktr_ptr_t bktr );
-static int      vbi_close( bktr_ptr_t bktr );
-static int      vbi_read( bktr_ptr_t bktr, struct uio *uio, int ioflag );
-
-/*
- * audio specific functions.
- */
-static int	set_audio( bktr_ptr_t bktr, int mode );
-static void	temp_mute( bktr_ptr_t bktr, int flag );
-
-static void	init_BTSC( bktr_ptr_t bktr );
-static int	set_BTSC( bktr_ptr_t bktr, int control );
-
-static void	msp_autodetect( bktr_ptr_t bktr );
-static void	msp_read_id( bktr_ptr_t bktr, int unit );
-static void	msp_reset( bktr_ptr_t bktr );
-static unsigned int	msp_read(bktr_ptr_t bktr, unsigned char dev,
-                        unsigned int addr);
-static void 	msp_write( bktr_ptr_t bktr, unsigned char dev,
-                unsigned int addr, unsigned int data);
 
 /*
  * Remote Control Functions
@@ -1400,16 +404,6 @@ static int	common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848,
 			      int cmd, caddr_t arg );
 
 
-/*
- * i2c primitives
- */
-static int	i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 );
-static int	i2cRead( bktr_ptr_t bktr, int addr );
-static int	writeEEProm( bktr_ptr_t bktr, int offset, int count,
-			     u_char* data );
-static int	readEEProm( bktr_ptr_t bktr, int offset, int count,
-			    u_char* data );
-
 #if ((!defined(__FreeBSD__)) || (NSMBUS == 0) )
 /*
  * i2c primatives for low level control of i2c bus. Added for MSP34xx control
@@ -1420,18 +414,12 @@ static int      i2c_write_byte( bktr_ptr_t bktr, unsigned char data);
 static int      i2c_read_byte( bktr_ptr_t bktr, unsigned char *data, int last );
 #endif
 
-/*
- * CARD_GV_BCTV specific functions.
- */
-static void set_bctv_audio( bktr_ptr_t bktr );
-static void bctv_gpio_write( bktr_ptr_t bktr, int port, int val );
-/*static int bctv_gpio_read( bktr_ptr_t bktr, int port );*/ /* Not used */
 
 
 /*
  * the common attach code, used by all OS versions.
  */
-static void 
+void 
 common_bktr_attach( bktr_ptr_t bktr, int unit, u_long pci_id, u_int rev )
 {
 	bt848_ptr_t	bt848;
@@ -1531,7 +519,7 @@ common_bktr_attach( bktr_ptr_t bktr, int unit, u_long pci_id, u_int rev )
 	bktr->tuner.channel = 0;
 	bktr->tuner.chnlset = DEFAULT_CHNLSET;
 	bktr->tuner.afc = 0;
-        bktr->tuner.radio_mode = 0;
+	bktr->tuner.radio_mode = 0;
 	bktr->audio_mux_select = 0;
 	bktr->audio_mute_state = FALSE;
 	bktr->bt848_card = -1;
@@ -1540,9 +528,8 @@ common_bktr_attach( bktr_ptr_t bktr, int unit, u_long pci_id, u_int rev )
 
 	probeCard( bktr, TRUE, unit );
 
-	/* If there is an MSP Audio device, reset it and display the model */
-	if (bktr->card.msp3400c)msp_reset(bktr);
-	if (bktr->card.msp3400c)msp_read_id(bktr, unit);
+	/* Initialise any MSP34xx or TDA98xx audio chips */
+	init_audio_devices( bktr );
 
 }
 
@@ -1567,7 +554,8 @@ static void vbidecode(bktr_ptr_t bktr) {
 
 	/* Write the VBI sequence number to the end of the vbi data */
 	/* This is used by the AleVT teletext program */
-	seq_dest = (unsigned int *)((unsigned char *)bktr->vbibuffer + bktr->vbiinsert
+	seq_dest = (unsigned int *)((unsigned char *)bktr->vbibuffer
+			+ bktr->vbiinsert
 			+ (VBI_DATA_SIZE - sizeof(bktr->vbi_sequence_number)));
 	*seq_dest = bktr->vbi_sequence_number;
 
@@ -1593,7 +581,7 @@ static void vbidecode(bktr_ptr_t bktr) {
  * In the OS specific section, bktr_intr() is defined which calls this
  * common interrupt handler.
  */
-static int 
+int 
 common_bktr_intr( void *arg )
 { 
 	bktr_ptr_t		bktr;
@@ -1867,7 +855,8 @@ common_bktr_intr( void *arg )
 /*
  * 
  */
-static int
+extern int bt848_format; /* used to set the default format, PAL or NTSC */
+int
 video_open( bktr_ptr_t bktr )
 {
 	bt848_ptr_t bt848;
@@ -1977,7 +966,7 @@ video_open( bktr_ptr_t bktr )
 	return( 0 );
 }
 
-static int
+int
 vbi_open( bktr_ptr_t bktr )
 {
 	if (bktr->vbiflags & VBI_OPEN)		/* device is busy */
@@ -2001,7 +990,7 @@ vbi_open( bktr_ptr_t bktr )
 /*
  * 
  */
-static int
+int
 tuner_open( bktr_ptr_t bktr )
 {
 	if ( !(bktr->tflags & TUNER_INITALIZED) )	/* device not found */
@@ -2015,7 +1004,7 @@ tuner_open( bktr_ptr_t bktr )
 	bktr->tuner.channel = 0;
 	bktr->tuner.chnlset = DEFAULT_CHNLSET;
 	bktr->tuner.afc = 0;
-        bktr->tuner.radio_mode = 0;
+	bktr->tuner.radio_mode = 0;
 
 	/* enable drivers on the GPIO port that control the MUXes */
 	bktr->base->gpio_out_en |= bktr->card.gpio_mux_bits;
@@ -2023,13 +1012,8 @@ tuner_open( bktr_ptr_t bktr )
 	/* unmute the audio stream */
 	set_audio( bktr, AUDIO_UNMUTE );
 
-	/* enable stereo if appropriate on TDA audio chip */
-	if ( bktr->card.dbx )
-		init_BTSC( bktr );
-
-	/* reset the MSP34xx stereo audio chip */
-	if ( bktr->card.msp3400c )
-		msp_reset( bktr );
+	/* Initialise any audio chips, eg MSP34xx or TDA98xx */
+	init_audio_devices( bktr );
 	
 	return( 0 );
 }
@@ -2040,7 +1024,7 @@ tuner_open( bktr_ptr_t bktr )
 /*
  * 
  */
-static int
+int
 video_close( bktr_ptr_t bktr )
 {
 	bt848_ptr_t	bt848;
@@ -2070,7 +1054,7 @@ video_close( bktr_ptr_t bktr )
  * tuner close handle,
  *  place holder for tuner specific operations on a close.
  */
-static int
+int
 tuner_close( bktr_ptr_t bktr )
 {
 	bktr->tflags &= ~TUNER_OPEN;
@@ -2084,7 +1068,7 @@ tuner_close( bktr_ptr_t bktr )
 	return( 0 );
 }
 
-static int
+int
 vbi_close( bktr_ptr_t bktr )
 {
 
@@ -2096,7 +1080,7 @@ vbi_close( bktr_ptr_t bktr )
 /*
  *
  */
-static int
+int
 video_read(bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio)
 {
         bt848_ptr_t     bt848;
@@ -2153,7 +1137,7 @@ video_read(bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio)
  * vbistart is the actual position in the buffer we want to read from
  * vbisize is the exact number of bytes in the buffer left to read 
  */
-static int
+int
 vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
 {
 	int             readsize, readsize2;
@@ -2200,7 +1184,7 @@ vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
 	bktr->vbistart += readsize;
 	bktr->vbistart = bktr->vbistart % VBI_BUFFER_SIZE; /* wrap around if needed */
 
-return( status );
+	return( status );
 
 }
 
@@ -2209,7 +1193,7 @@ return( status );
 /*
  * video ioctls
  */
-static int
+int
 video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 {
 	bt848_ptr_t		bt848;
@@ -2813,7 +1797,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 /*
  * tuner ioctls
  */
-static int
+int
 tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 {
 	bt848_ptr_t	bt848;
@@ -2852,15 +1836,18 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	case TVTUNER_SETCHNL:
 		temp_mute( bktr, TRUE );
 		temp = tv_channel( bktr, (int)*(unsigned long *)arg );
-		temp_mute( bktr, FALSE );
-		if ( temp < 0 )
+		if ( temp < 0 ) {
+			temp_mute( bktr, FALSE );
 			return( EINVAL );
+		}
 		*(unsigned long *)arg = temp;
 
 		/* after every channel change, we must restart the MSP34xx */
 		/* audio chip to reselect NICAM STEREO or MONO audio */
 		if ( bktr->card.msp3400c )
 		  msp_autodetect( bktr );
+
+		temp_mute( bktr, FALSE );
 		break;
 
 	case TVTUNER_GETCHNL:
@@ -2879,22 +1866,26 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 
 	case TVTUNER_GETSTATUS:
-		temp = i2cRead( bktr, bktr->card.tuner_pllAddr + 1 );
+		temp = get_tuner_status( bktr );
 		*(unsigned long *)arg = temp & 0xff;
 		break;
 
 	case TVTUNER_SETFREQ:
 		temp_mute( bktr, TRUE );
-		temp = tv_freq( bktr, (int)*(unsigned long *)arg );
+		temp = tv_freq( bktr, (int)*(unsigned long *)arg, TV_FREQUENCY);
 		temp_mute( bktr, FALSE );
-		if ( temp < 0 )
+		if ( temp < 0 ) {
+			temp_mute( bktr, FALSE );
 			return( EINVAL );
+		}
 		*(unsigned long *)arg = temp;
 
 		/* after every channel change, we must restart the MSP34xx */
 		/* audio chip to reselect NICAM STEREO or MONO audio */
 		if ( bktr->card.msp3400c )
 		  msp_autodetect( bktr );
+
+		temp_mute( bktr, FALSE );
 		break;
 
 	case TVTUNER_GETFREQ:
@@ -3133,7 +2124,7 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
             break;
 
  	case RADIO_GETFREQ:
-            *(unsigned long *)arg = (bktr->tuner.frequency+407)*5;
+            *(unsigned long *)arg = bktr->tuner.frequency;
             break;
 
 	case RADIO_SETFREQ:
@@ -3141,20 +2132,7 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	    ** freq*100.
 	    */
 
-	    /* The radio in my stereo and the linear regression function
-	    ** in my HP48 have reached the conclusion that in order to
-	    ** set the radio tuner of the FM1216 to f MHz, the value to
-	    ** enter into the Tuner PLL is: f*20-407
-	    ** If anyone has the exact values from the spec. sheet
-	    ** please forward them  -- fj@login.dknet.dk
-	    */
-
-            if(bktr->bt848_tuner == ALPS_TSCH5) {
-              temp=((int)*(unsigned long *)arg + 4125) * 32;
-              temp=temp/100 + (temp%100 >= 50 ? 1 : 0) +RADIO_OFFSET;
-            } else {
-              temp=(int)*(unsigned long *)arg/5-407  +RADIO_OFFSET;
-            }
+            temp=(int)*(unsigned long *)arg;
 
 #ifdef BKTR_RADIO_DEBUG
   printf("bktr%d: arg=%d temp=%d\n",unit,(int)*(unsigned long *)arg,temp);
@@ -3163,13 +2141,13 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 #ifndef BKTR_RADIO_NOFREQCHECK
 	    /* According to the spec. sheet the band: 87.5MHz-108MHz	*/
 	    /* is supported.						*/
-	    if(temp<1343+RADIO_OFFSET || temp>1753+RADIO_OFFSET) {
+	    if(temp<8750 || temp>10800) {
 	      printf("bktr%d: Radio frequency out of range\n",unit);
 	      return(EINVAL);
 	      }
 #endif
 	    temp_mute( bktr, TRUE );
-	    temp = tv_freq( bktr, temp );
+	    temp = tv_freq( bktr, temp, FM_RADIO_FREQUENCY );
 	    temp_mute( bktr, FALSE );
 #ifdef BKTR_RADIO_DEBUG
   if(temp)
@@ -3179,7 +2157,8 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		    return( EINVAL );
 	    *(unsigned long *)arg = temp;
 	    break;
-	    /* Luigi's I2CWR ioctl */ 
+
+	/* Luigi's I2CWR ioctl */ 
 	case BT848_I2CWR:
 		par = *(u_long *)arg;
 		write = (par >> 24) & 0xff ;
@@ -3609,7 +2588,7 @@ rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 	bt848_ptr_t		bt848;
 	volatile u_long		target_buffer, buffer, target,width;
 	volatile u_long		pitch;
-	volatile u_long		*dma_prog;	/* DMA prog is an array of
+	volatile u_long		*dma_prog;	/* DMA prog is an array of 
 						32 bit RISC instructions */
 	volatile u_long		*loop_point;
         struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
@@ -4710,7 +3689,7 @@ static int oformat_meteor_to_bt( u_long format )
 /*
  * The hardware interface is actually SMB commands
  */
-static int
+int
 i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 {
 	char cmd;
@@ -4736,7 +3715,7 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 	return( 0 );
 }
 
-static int
+int
 i2cRead( bktr_ptr_t bktr, int addr )
 {
 	char result;
@@ -4762,7 +3741,7 @@ i2cRead( bktr_ptr_t bktr, int addr )
 /* Therefore we need low level control of the i2c bus hardware */
 
 /* Write to the MSP registers */
-static void
+void
 msp_write(bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int data)
 {
 	unsigned char addr_l, addr_h, data_h, data_l ;
@@ -4772,7 +3751,7 @@ msp_write(bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int da
 	data_h = (data >>8) & 0xff;
 	data_l = data & 0xff;
 
-	iicbus_start(IICBUS(bktr), MSP3400C_WADDR, 0 /* no timeout? */);
+	iicbus_start(IICBUS(bktr), bktr->msp_addr, 0 /* no timeout? */);
 
 	iicbus_write_byte(IICBUS(bktr), dev, 0);
 	iicbus_write_byte(IICBUS(bktr), addr_h, 0);
@@ -4786,7 +3765,7 @@ msp_write(bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int da
 }
 
 /* Write to the MSP registers */
-static unsigned int
+unsigned int
 msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr)
 {
 	unsigned int data;
@@ -4799,13 +3778,13 @@ msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr)
 	dev_r = dev+1;
 
 	/* XXX errors ignored */
-	iicbus_start(IICBUS(bktr), MSP3400C_WADDR, 0 /* no timeout? */);
+	iicbus_start(IICBUS(bktr), bktr->msp_addr, 0 /* no timeout? */);
 
 	iicbus_write_byte(IICBUS(bktr), dev_r, 0);
 	iicbus_write_byte(IICBUS(bktr), addr_h, 0);
 	iicbus_write_byte(IICBUS(bktr), addr_l, 0);
 
-	iicbus_repeated_start(IICBUS(bktr), MSP3400C_RADDR, 0 /* no timeout? */);
+	iicbus_repeated_start(IICBUS(bktr), bktr->msp_addr +1, 0 /* no timeout? */);
 	iicbus_read(IICBUS(bktr), data_read, 2, &read, IIC_LAST_READ, 0);
 	iicbus_stop(IICBUS(bktr));
 
@@ -4818,20 +3797,20 @@ msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr)
 /* The user can block the reset (which is handy if you initialise the
  * MSP audio in another operating system first (eg in Windows)
  */
-static void
+void
 msp_reset( bktr_ptr_t bktr )
 {
 
 #ifndef BKTR_NO_MSP_RESET
 	/* put into reset mode */
-	iicbus_start(IICBUS(bktr), MSP3400C_WADDR, 0 /* no timeout? */);
+	iicbus_start(IICBUS(bktr), bktr->msp_addr, 0 /* no timeout? */);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_write_byte(IICBUS(bktr), 0x80, 0);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_stop(IICBUS(bktr));
 
 	/* put back to operational mode */
-	iicbus_start(IICBUS(bktr), MSP3400C_WADDR, 0 /* no timeout? */);
+	iicbus_start(IICBUS(bktr), bktr->msp_addr, 0 /* no timeout? */);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
@@ -4856,7 +3835,7 @@ static void remote_read(bktr_ptr_t bktr, struct bktr_remote *remote) {
 /*
  * Program the i2c bus directly
  */
-static int
+int
 i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 {
 	u_long		x;
@@ -4902,7 +3881,7 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 /*
  * 
  */
-static int
+int
 i2cRead( bktr_ptr_t bktr, int addr )
 {
 	u_long		x;
@@ -5041,8 +4020,8 @@ static int i2c_read_byte( bktr_ptr_t bktr, unsigned char *data, int last ) {
 #undef BITD
 
 /* Write to the MSP registers */
-static void msp_write( bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int data){
-	unsigned int msp_w_addr = MSP3400C_WADDR;
+void msp_write( bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int data){
+	unsigned int msp_w_addr = bktr->msp_addr;
 	unsigned char addr_l, addr_h, data_h, data_l ;
 	addr_h = (addr >>8) & 0xff;
 	addr_l = addr & 0xff;
@@ -5060,7 +4039,7 @@ static void msp_write( bktr_ptr_t bktr, unsigned char dev, unsigned int addr, un
 }
 
 /* Write to the MSP registers */
-static unsigned int msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr){
+unsigned int msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr){
 	unsigned int data;
 	unsigned char addr_l, addr_h, data_1, data_2, dev_r ;
 	addr_h = (addr >>8) & 0xff;
@@ -5068,13 +4047,13 @@ static unsigned int msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int ad
 	dev_r = dev+1;
 
 	i2c_start(bktr);
-	i2c_write_byte(bktr,MSP3400C_WADDR);
+	i2c_write_byte(bktr,bktr->msp_addr);
 	i2c_write_byte(bktr,dev_r);
 	i2c_write_byte(bktr,addr_h);
 	i2c_write_byte(bktr,addr_l);
 
 	i2c_start(bktr);
-	i2c_write_byte(bktr,MSP3400C_RADDR);
+	i2c_write_byte(bktr,bktr->msp_addr+1);
 	i2c_read_byte(bktr,&data_1, 0);
 	i2c_read_byte(bktr,&data_2, 1);
 	i2c_stop(bktr);
@@ -5086,12 +4065,12 @@ static unsigned int msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int ad
 /* The user can block the reset (which is handy if you initialise the
  * MSP audio in another operating system first (eg in Windows)
  */
-static void msp_reset( bktr_ptr_t bktr ) {
+void msp_reset( bktr_ptr_t bktr ) {
 
 #ifndef BKTR_NO_MSP_RESET
 	/* put into reset mode */
 	i2c_start(bktr);
-	i2c_write_byte(bktr, MSP3400C_WADDR);
+	i2c_write_byte(bktr, bktr->msp_addr);
 	i2c_write_byte(bktr, 0x00);
 	i2c_write_byte(bktr, 0x80);
 	i2c_write_byte(bktr, 0x00);
@@ -5099,7 +4078,7 @@ static void msp_reset( bktr_ptr_t bktr ) {
 
 	/* put back to operational mode */
 	i2c_start(bktr);
-	i2c_write_byte(bktr, MSP3400C_WADDR);
+	i2c_write_byte(bktr, bktr->msp_addr);
 	i2c_write_byte(bktr, 0x00);
 	i2c_write_byte(bktr, 0x00);
 	i2c_write_byte(bktr, 0x00);
@@ -5197,2321 +4176,7 @@ i2cProbe( bktr_ptr_t bktr, int addr )
 #endif /* I2C_SOFTWARE_PROBE */
 
 
-/*
- * 
- */
-static int
-writeEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
-{
-	return( -1 );
-}
-
-
-/*
- * 
- */
-static int
-readEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
-{
-	int	x;
-	int	addr;
-	int	max;
-	int	byte;
-
-	/* get the address of the EEProm */
-	addr = (int)(bktr->card.eepromAddr & 0xff);
-	if ( addr == 0 )
-		return( -1 );
-
-	max = (int)(bktr->card.eepromSize * EEPROMBLOCKSIZE);
-	if ( (offset + count) > max )
-		return( -1 );
-
-	/* set the start address */
-	if ( i2cWrite( bktr, addr, offset, -1 ) == -1 )
-		return( -1 );
-
-	/* the read cycle */
-	for ( x = 0; x < count; ++x ) {
-		if ( (byte = i2cRead( bktr, (addr | 1) )) == -1 )
-			return( -1 );
-		data[ x ] = byte;
-	}
-
-	return( 0 );
-}
-
 #define ABSENT		(-1)
-
-/*
- * get a signature of the card
- * read all 128 possible i2c read addresses from 0x01 thru 0xff
- * build a bit array with a 1 bit for each i2c device that responds
- *
- * XXX FIXME: use offset & count args
- */
-static int
-signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig )
-{
-	int	x;
-
-	for ( x = 0; x < 16; ++x )
-		sig[ x ] = 0;
-
-	for ( x = 0; x < count; ++x ) {
-		if ( i2cRead( bktr, (2 * x) + 1 ) != ABSENT ) {
-			sig[ x / 8 ] |= (1 << (x % 8) );
-		}
-	}
-
-	return( 0 );
-}
-
-/*
- * any_i2c_devices.
- * Some BT848/BT848A cards have no tuner and no additional i2c devices
- * eg stereo decoder. These are used for video conferencing or capture from
- * a video camera. (VideoLogic Captivator PCI, Intel SmartCapture card).
- *
- * Determine if there are any i2c devices present. There are none present if
- *  a) reading from all 128 devices returns ABSENT (-1) for each one
- *     (eg VideoLogic Captivator PCI with BT848)
- *  b) reading from all 128 devices returns 0 for each one
- *     (eg VideoLogic Captivator PCI rev. 2F with BT848A)
- */
-static int check_for_i2c_devices( bktr_ptr_t bktr ){
-  int x, temp_read;
-  int i2c_all_0 = 1;
-  int i2c_all_absent = 1;
-  for ( x = 0; x < 128; ++x ) {
-    temp_read = i2cRead( bktr, (2 * x) + 1 );
-    if (temp_read != 0)      i2c_all_0 = 0;
-    if (temp_read != ABSENT) i2c_all_absent = 0;
-  }
-
-  if ((i2c_all_0) || (i2c_all_absent)) return 0;
-  else return 1;
-}
-
-/*
- * Temic/Philips datasheets say tuners can be at i2c addresses 0xc0, 0xc2,
- * 0xc4 or 0xc6, settable by links on the tuner
- * Determine the actual address used on the TV card by probing read addresses
- */
-static int locate_tuner_address( bktr_ptr_t bktr) {
-  if (i2cRead( bktr, 0xc1) != ABSENT) return 0xc0;
-  if (i2cRead( bktr, 0xc3) != ABSENT) return 0xc2;
-  if (i2cRead( bktr, 0xc5) != ABSENT) return 0xc4;
-  if (i2cRead( bktr, 0xc7) != ABSENT) return 0xc6;
-  return -1; /* no tuner found */
-}
-  
-/*
- * Search for a configuration EEPROM on the i2c bus by looking at i2c addresses
- * where EEPROMs are usually found.
- */
-static int locate_eeprom_address( bktr_ptr_t bktr) {
-  if (i2cRead( bktr, 0xa0) != ABSENT) return 0xa0;
-  if (i2cRead( bktr, 0xac) != ABSENT) return 0xac;
-  if (i2cRead( bktr, 0xae) != ABSENT) return 0xae;
-  return -1; /* no eeprom found */
-}
-
-/*
- * determine the card brand/model
- * OVERRIDE_CARD, OVERRIDE_TUNER, OVERRIDE_DBX and OVERRIDE_MSP
- * can be used to select a specific device, regardless of the
- * autodetection and i2c device checks.
- *
- * The scheme used for probing cards has one major drawback:
- *  on bt848/849 based cards, it is impossible to work out which type
- *  of tuner is actually fitted, or if there is extra hardware on board
- *  connected to GPIO pins (eg radio chips or MSP34xx reset logic)
- *  The driver cannot tell if the Tuner is PAL,NTSC, Temic or Philips.
- *
- *  All Hauppauge cards have a configuration eeprom which tells us the
- *  tuner type and other features of the their cards.
- *  Also, Bt878 based cards (certainly Hauppauge and AverMedia) should support 
- *  sub-system vendor id, identifying the make and model of the card.
- *
- * The current probe code works as follows
- * 1) Check if it is a BT878. If so, read the sub-system vendor id.
- *    Select the required tuner and other onboard features.
- * 2) If it is a BT848, 848A or 849A, continue on:
- *   3) Some cards have no I2C devices. Check if the i2c bus is empty
- *      and if so, our detection job is nearly over.
- *   4) Check I2C address 0xa0. If present this will be a Hauppauge card
- *      or an Osprey card. The Hauppauge EEPROM can determine on board tuner
- *      type and other features. 
- *   4) Check I2C address 0xa8. If present this is a STB card.
- *      Still have to guess on the tuner type.
- *   5) Otherwise we are in the dark. Miro cards have the tuner type
- *      hard-coded on the GPIO pins, but we do not actually know if we have 
- *      a Miro card.
- *      Some older makes of card put Philips tuners and Temic tuners at
- *      different I2C addresses, so an i2c bus probe can help, but it is
- *      really just a guess.
- *              
- * 6) After determining the Tuner Type, we probe the i2c bus for other
- *    devices at known locations, eg IR-Remote Control, MSP34xx and TDA
- *    stereo chips.
- */
-
-#define VENDOR_AVER_MEDIA 0x1461
-#define VENDOR_HAUPPAUGE  0x0070
-#define VENDOR_FLYVIDEO   0x1851
-#define VENDOR_STB        0x10B4
-
-static void
-probeCard( bktr_ptr_t bktr, int verbose, int unit )
-{
-	int		card, i,j, card_found;
-	int		status;
-	bt848_ptr_t	bt848;
-	u_char 		probe_signature[128], *probe_temp;
-        int   		any_i2c_devices;
-	u_char 		eeprom[256];
-	int 		tuner_i2c_address = -1;
-	int 		eeprom_i2c_address = -1;
-
-	bt848 = bktr->base;
-
-	/* Select all GPIO bits as inputs */
-	bt848->gpio_out_en = 0;
-	if (bootverbose)
-	    printf("bktr: GPIO is 0x%08x\n", bt848->gpio_data);
-
-#ifdef HAUPPAUGE_MSP_RESET
-	/* Reset the MSP34xx audio chip. This resolves bootup card
-	 * detection problems with old Bt848 based Hauppauge cards with
-	 * MSP34xx stereo audio chips. This must be user enabled because
-	 * at this point the probe function does not know the card type. */
-        bt848->gpio_out_en = bt848->gpio_out_en | (1<<5);
-        bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
-        DELAY(2500); /* wait 2.5ms */
-        bt848->gpio_data   = bt848->gpio_data & ~(1<<5); /* write '0' */
-        DELAY(2500); /* wait 2.5ms */
-        bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
-        DELAY(2500); /* wait 2.5ms */
-#endif
-
-	/* Check for the presence of i2c devices */
-        any_i2c_devices = check_for_i2c_devices( bktr );
-
-
-	/* Check for a user specified override on the card selection */
-#if defined( OVERRIDE_CARD )
-	bktr->card = cards[ (card = OVERRIDE_CARD) ];
-	goto checkEEPROM;
-#endif
-	if (bktr->bt848_card != -1 ) {
-	  bktr->card = cards[ (card = bktr->bt848_card) ];
-	  goto checkEEPROM;
-	}
-
-
-	/* No override, so try and determine the make of the card */
-
-        /* On BT878/879 cards, read the sub-system vendor id */
-	/* This identifies the manufacturer of the card and the model */
-	/* In theory this can be read from PCI registers but this does not */
-	/* appear to work on the FlyVideo 98. Hauppauge also warned that */
-	/* the PCI registers are sometimes not loaded correctly. */
-	/* Therefore, I will read the sub-system vendor ID from the EEPROM */
-	/* (just like the Bt878 does during power up initialisation) */
-
-        if (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) {
-
-	    /* Try and locate the EEPROM */
-	    eeprom_i2c_address = locate_eeprom_address( bktr );
-	    if (eeprom_i2c_address != -1) {
-
-                unsigned int subsystem_vendor_id; /* vendors PCI-SIG ID */
-                unsigned int subsystem_id;        /* board model number */
-		unsigned int byte_252, byte_253, byte_254, byte_255;
-
-		bktr->card = cards[ (card = CARD_UNKNOWN) ];
-		bktr->card.eepromAddr = eeprom_i2c_address;
-		bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-
-	        readEEProm(bktr, 0, 256, (u_char *) &eeprom );
-                byte_252 = (unsigned int)eeprom[252];
-                byte_253 = (unsigned int)eeprom[253];
-                byte_254 = (unsigned int)eeprom[254];
-                byte_255 = (unsigned int)eeprom[255];
-                
-                subsystem_id        = (byte_252 << 8) | byte_253;
-                subsystem_vendor_id = (byte_254 << 8) | byte_255;
-
-	        if ( bootverbose ) 
-	            printf("subsytem 0x%04x 0x%04x\n",subsystem_vendor_id,
-		                                  subsystem_id);
-
-                if (subsystem_vendor_id == VENDOR_AVER_MEDIA) {
-                    bktr->card = cards[ (card = CARD_AVER_MEDIA) ];
-		    bktr->card.eepromAddr = eeprom_i2c_address;
-		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
-
-                if (subsystem_vendor_id == VENDOR_HAUPPAUGE) {
-                    bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
-		    bktr->card.eepromAddr = eeprom_i2c_address;
-		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
-
-                if (subsystem_vendor_id == VENDOR_FLYVIDEO) {
-                    bktr->card = cards[ (card = CARD_FLYVIDEO) ];
-		    bktr->card.eepromAddr = eeprom_i2c_address;
-		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
-
-                if (subsystem_vendor_id == VENDOR_STB) {
-                    bktr->card = cards[ (card = CARD_STB) ];
-		    bktr->card.eepromAddr = eeprom_i2c_address;
-		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
-
-                /* Vendor is unknown. We will use the standard probe code */
-		/* which may not give best results */
-                printf("Warning - card vendor 0x%04x (model 0x%04x) unknown. This may cause poor performance\n",subsystem_vendor_id,subsystem_id);
-            }
-	    else
-	    {
-                printf("Warning - card has no configuration EEPROM. Cannot determine card make. This may cause poor performance\n");
-	    }
-	} /* end of bt878/bt879 card detection code */
-
-	/* If we get to this point, we must have a Bt848/848A/849A card */
-	/* or a Bt878/879 with an unknown subsystem vendor id */
-        /* Try and determine the make of card by clever i2c probing */
-
-   	/* Check for i2c devices. If none, move on */
-	if (!any_i2c_devices) {
-		bktr->card = cards[ (card = CARD_INTEL) ];
-		bktr->card.eepromAddr = 0;
-		bktr->card.eepromSize = 0;
-		goto checkTuner;
-	}
-
-
-        /* Look for Hauppauge, STB and Osprey cards by the presence */
-	/* of an EEPROM */
-        /* Note: Bt878 based cards also use EEPROMs so we can only do this */
-        /* test on BT848/848A and 849A based cards. */
-	if ((bktr->id==BROOKTREE_848)  ||
-	    (bktr->id==BROOKTREE_848A) ||
-	    (bktr->id==BROOKTREE_849A)) {
-
-            /* At i2c address 0xa0, look for Hauppauge and Osprey cards */
-            if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
-
-		    /* Read the eeprom contents */
-		    bktr->card = cards[ (card = CARD_UNKNOWN) ];
-		    bktr->card.eepromAddr = PFC8582_WADDR;
-		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-	            readEEProm(bktr, 0, 128, (u_char *) &eeprom );
-
-		    /* For Hauppauge, check the EEPROM begins with 0x84 */
-		    if (eeprom[0] == 0x84) {
-                            bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
-			    bktr->card.eepromAddr = PFC8582_WADDR;
-			    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                            goto checkTuner;
-		    }
-
-		    /* For Osprey, check the EEPROM begins with "MMAC" */
-		    if (  (eeprom[0] == 'M') &&(eeprom[1] == 'M')
-			&&(eeprom[2] == 'A') &&(eeprom[3] == 'C')) {
-                            bktr->card = cards[ (card = CARD_OSPREY) ];
-			    bktr->card.eepromAddr = PFC8582_WADDR;
-			    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                            goto checkTuner;
-		    }
-		    printf("Warning: Unknown card type. EEPROM data not recognised\n");
-		    printf("%x %x %x %x\n",eeprom[0],eeprom[1],eeprom[2],eeprom[3]);
-            }
-
-            /* look for an STB card */
-            if ( (status = i2cRead( bktr, X24C01_RADDR )) != ABSENT ) {
-                    bktr->card = cards[ (card = CARD_STB) ];
-		    bktr->card.eepromAddr = X24C01_WADDR;
-		    bktr->card.eepromSize = (u_char)(128 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-            }
-
-	}
-
-	signCard( bktr, 1, 128, (u_char *)  &probe_signature );
-
-	if (bootverbose) {
-	  printf("card signature \n");
-	  for (j = 0; j < Bt848_MAX_SIGN; j++) {
-	    printf(" %02x ", probe_signature[j]);
-	  }
-	  printf("\n\n");
-	}
-	for (i = 0;
-	     i < (sizeof bt848_card_signature)/ sizeof (struct bt848_card_sig);
-	     i++ ) {
-
-	  card_found = 1;
-	  probe_temp = (u_char *) &bt848_card_signature[i].signature;
-
-	  for (j = 0; j < Bt848_MAX_SIGN; j++) {
-	    if ((probe_temp[j] & 0xf) != (probe_signature[j] & 0xf)) {
-	      card_found = 0;
-	      break;
-	    }
-
-	  }
-	  if (card_found) {
-	    bktr->card = cards[ card = bt848_card_signature[i].card];
-	    bktr->card.tuner = &tuners[ bt848_card_signature[i].tuner];
-	    eeprom_i2c_address = locate_eeprom_address( bktr );
-	    if (eeprom_i2c_address != -1) {
-		bktr->card.eepromAddr = eeprom_i2c_address;
-		bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-	    } else {
-		bktr->card.eepromAddr = 0;
-		bktr->card.eepromSize = 0;
-	    }
-	    goto checkDBX;
-	  }
-	}
-
-	/* We do not know the card type. Default to Miro */
-	bktr->card = cards[ (card = CARD_MIRO) ];
-
-
-checkEEPROM:
-	/* look for a configuration eeprom */
-	eeprom_i2c_address = locate_eeprom_address( bktr );
-	if (eeprom_i2c_address != -1) {
-	    bktr->card.eepromAddr = eeprom_i2c_address;
-	    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-	} else {
-	    bktr->card.eepromAddr = 0;
-	    bktr->card.eepromSize = 0;
-	}
-
-
-checkTuner:
-
-	/* look for a tuner */
-	tuner_i2c_address = locate_tuner_address( bktr );
-	if ( tuner_i2c_address == -1 ) {
-		bktr->card.tuner = &tuners[ NO_TUNER ];
-		goto checkDBX;
-	}
-
-#if defined( OVERRIDE_TUNER )
-	bktr->card.tuner = &tuners[ OVERRIDE_TUNER ];
-	goto checkDBX;
-#endif
-	if (bktr->bt848_tuner != -1 ) {
-	  bktr->card.tuner = &tuners[ bktr->bt848_tuner & 0xff ];
-	  goto checkDBX;
-	}
-
-	/* Check for i2c devices */
-	if (!any_i2c_devices) {
-		bktr->card.tuner = &tuners[ NO_TUNER ];
-		goto checkDBX;
-	}
-
-	/* differentiate type of tuner */
-
-	switch (card) {
-	case CARD_MIRO:
-	    switch (((bt848->gpio_data >> 10)-1)&7) {
-	    case 0: bktr->card.tuner = &tuners[ TEMIC_PAL ]; break;
-	    case 1: bktr->card.tuner = &tuners[ PHILIPS_PAL ]; break;
-	    case 2: bktr->card.tuner = &tuners[ PHILIPS_NTSC ]; break;
-	    case 3: bktr->card.tuner = &tuners[ PHILIPS_SECAM ]; break;
-	    case 4: bktr->card.tuner = &tuners[ NO_TUNER ]; break;
-	    case 5: bktr->card.tuner = &tuners[ PHILIPS_PALI ]; break;
-	    case 6: bktr->card.tuner = &tuners[ TEMIC_NTSC ]; break;
-	    case 7: bktr->card.tuner = &tuners[ TEMIC_PALI ]; break;
-	    }
-	    goto checkDBX;
-	    break;
-
-	case CARD_HAUPPAUGE:
-	    /* Hauppauge kindly supplied the following Tuner Table */
-	    /* FIXME: I think the tuners the driver selects for types */
-	    /* 0x08 and 0x15 may be incorrect but no one has complained. */
-	    /*
-   	    	ID Tuner Model          Format         	We select Format
-	   	 0 NONE               
-		 1 EXTERNAL             
-		 2 OTHER                
-		 3 Philips FI1216       BG 
-		 4 Philips FI1216MF     BGLL' 
-		 5 Philips FI1236       MN 		PHILIPS_NTSC
-		 6 Philips FI1246       I 		PHILIPS_PALI
-		 7 Philips FI1256       DK 
-		 8 Philips FI1216 MK2   BG 		PHILIPS_PALI
-		 9 Philips FI1216MF MK2 BGLL' 
-		 a Philips FI1236 MK2   MN 		PHILIPS_NTSC
-		 b Philips FI1246 MK2   I 		PHILIPS_PALI
-		 c Philips FI1256 MK2   DK 
-		 d Temic 4032FY5        NTSC		TEMIC_NTSC
-		 e Temic 4002FH5        BG		TEMIC_PAL
-		 f Temic 4062FY5        I 		TEMIC_PALI
-		10 Philips FR1216 MK2   BG 
-		11 Philips FR1216MF MK2 BGLL' 
-		12 Philips FR1236 MK2   MN 		PHILIPS_FR1236_NTSC
-		13 Philips FR1246 MK2   I 
-		14 Philips FR1256 MK2   DK 
-		15 Philips FM1216       BG 		PHILIPS_FR1216_PAL
-		16 Philips FM1216MF     BGLL' 
-		17 Philips FM1236       MN 		PHILIPS_FR1236_NTSC
-		18 Philips FM1246       I 
-		19 Philips FM1256       DK 
-		1a Temic 4036FY5        MN - FI1236 MK2 clone
-		1b Samsung TCPN9082D    MN 
-		1c Samsung TCPM9092P    Pal BG/I/DK 
-		1d Temic 4006FH5        BG 		PHILIPS_PALI clone
-		1e Samsung TCPN9085D    MN/Radio 
-		1f Samsung TCPB9085P    Pal BG/I/DK / Radio 
-		20 Samsung TCPL9091P    Pal BG & Secam L/L' 
-		21 Temic 4039FY5        NTSC Radio
-
-	    */
-
-	    if (bktr->card.eepromAddr != 0) {
-		u_char tuner_code;
-		u_int model;
-		u_int revision;
-
-		readEEProm(bktr, 0, 128, (u_char *) &eeprom );
-
-
-		/* Determine the model number from the eeprom */
-		model    = (eeprom[12] << 8  | eeprom[11]);
-		revision = (eeprom[15] << 16 | eeprom[14] << 8 | eeprom[13]);
-		if (verbose)
-		printf("bktr%d: Hauppauge Model %d %c%c%c%c\n",
-			unit,
-			model,
-			((revision >> 18) & 0x3f) + 32,
-			((revision >> 12) & 0x3f) + 32,
-			((revision >>  6) & 0x3f) + 32,
-			((revision >>  0) & 0x3f) + 32 );
-
-		/* Determine the tuner type from the eeprom */
-		tuner_code = eeprom[9];
-		switch (tuner_code) {
-
-		case 0x5:
-                case 0x0a:
-	        case 0x1a:
-		  bktr->card.tuner = &tuners[ PHILIPS_NTSC  ];
-		  goto checkDBX;
-
-                case 0x12:
-	        case 0x17:
-		  bktr->card.tuner = &tuners[ PHILIPS_FR1236_NTSC  ];
-		  goto checkDBX;
-
-	        case 0x6:
-	        case 0x8:
-	        case 0xb:
-	        case 0x1d:
-		  bktr->card.tuner = &tuners[ PHILIPS_PALI ];
-		  goto checkDBX;
-
-	        case 0xd:
-		  bktr->card.tuner = &tuners[ TEMIC_NTSC ];
-		  goto checkDBX;
-
-                case 0xe:
-		  bktr->card.tuner = &tuners[ TEMIC_PAL];
-		  goto checkDBX;
-
-	        case 0xf:
-		  bktr->card.tuner = &tuners[ TEMIC_PALI ];
-		  goto checkDBX;
-
-                case 0x15:
-		  bktr->card.tuner = &tuners[ PHILIPS_FR1216_PAL];
-		  goto checkDBX;
-
-	        default :
-		  printf("Warning - Unknown Hauppauge Tuner 0x%x\n",tuner_code);
-	        }
-	    }
-	    break;
-
-	case CARD_AVER_MEDIA:
-	    /* AVerMedia kindly supplied some details of their EEPROM contents
-	     * which allow us to auto select the Tuner Type.
-	     * Only the newer AVerMedia cards actually have an EEPROM.
-	     */
-	    if (bktr->card.eepromAddr != 0) {
-
-		u_char tuner_make;   /* Eg Philips, Temic */
-		u_char tuner_tv_fm;  /* TV or TV with FM Radio */
-		u_char tuner_format; /* Eg NTSC, PAL, SECAM */
-		int    tuner;
-
-		int tuner_0_table[] = {
-			PHILIPS_NTSC,  PHILIPS_PAL,
-			PHILIPS_PAL,   PHILIPS_PAL,
-			PHILIPS_PAL,   PHILIPS_PAL,
-			PHILIPS_SECAM, PHILIPS_SECAM,
-			PHILIPS_SECAM, PHILIPS_PAL};
-
-		int tuner_0_fm_table[] = {
-			PHILIPS_FR1236_NTSC,  PHILIPS_FR1216_PAL,
-			PHILIPS_FR1216_PAL,   PHILIPS_FR1216_PAL,
-			PHILIPS_FR1216_PAL,   PHILIPS_FR1216_PAL,
-			PHILIPS_FR1236_SECAM, PHILIPS_FR1236_SECAM,
-			PHILIPS_FR1236_SECAM, PHILIPS_FR1216_PAL};
-
-		int tuner_1_table[] = {
-			TEMIC_NTSC,  TEMIC_PAL,   TEMIC_PAL,
-			TEMIC_PAL,   TEMIC_PAL,   TEMIC_PAL,
-			TEMIC_SECAM, TEMIC_SECAM, TEMIC_SECAM,
-			TEMIC_PAL};
-
-
-		/* Extract information from the EEPROM data */
-	    	readEEProm(bktr, 0, 128, (u_char *) &eeprom );
-		tuner_make   = (eeprom[0x41] & 0x7);
-		tuner_tv_fm  = (eeprom[0x41] & 0x18) >> 3;
-		tuner_format = (eeprom[0x42] & 0xf0) >> 4;
-
-		/* Treat tuner makes 0 (Philips) and 2 (LG) the same */
-		if ( ((tuner_make == 0) || (tuner_make == 2))
-		    && (tuner_format <= 9) && (tuner_tv_fm == 0) ) {
-			tuner = tuner_0_table[tuner_format];
-			bktr->card.tuner = &tuners[ tuner ];
-			goto checkDBX;
-		}
-
-		if ( ((tuner_make == 0) || (tuner_make == 2))
-		    && (tuner_format <= 9) && (tuner_tv_fm == 1) ) {
-			tuner = tuner_0_fm_table[tuner_format];
-			bktr->card.tuner = &tuners[ tuner ];
-			goto checkDBX;
-		}
-
-		if ( (tuner_make == 1) && (tuner_format <= 9) ) {
-			tuner = tuner_1_table[tuner_format];
-			bktr->card.tuner = &tuners[ tuner ];
-			goto checkDBX;
-		}
-
-	    	printf("Warning - Unknown AVerMedia Tuner Make %d Format %d\n",
-			tuner_make, tuner_format);
-	    }
-	    break;
-
-	} /* end switch(card) */
-
-        /* At this point, a goto checkDBX has not occured */
-        /* We have not been able to select a Tuner */
-        /* Some cards make use of the tuner address to */
-        /* identify the make/model of tuner */
-
-        /* At address 0xc0/0xc1 we often find a TEMIC NTSC */
-        if ( i2cRead( bktr, 0xc1 ) != ABSENT ) {
-            bktr->card.tuner = &tuners[ TEMIC_NTSC ];
-            goto checkDBX;
-        }
-  
-        /* At address 0xc6/0xc7 we often find a PHILIPS NTSC Tuner */
-        if ( i2cRead( bktr, 0xc7 ) != ABSENT ) {
-            bktr->card.tuner = &tuners[ PHILIPS_NTSC ];
-            goto checkDBX;
-        }
-
-        /* Address 0xc2/0xc3 is default (or common address) for several */
-	/* tuners and we cannot tell which is which. */
-	/* And for all other tuner i2c addresses, select the default */
-	bktr->card.tuner = &tuners[ DEFAULT_TUNER ];
-
-
-checkDBX:
-#if defined( OVERRIDE_DBX )
-	bktr->card.dbx = OVERRIDE_DBX;
-	goto checkMSP;
-#endif
-   /* Check for i2c devices */
-	if (!any_i2c_devices) {
-		goto checkMSP;
-	}
-
-	/* probe for BTSC (dbx) chip */
-	if ( i2cRead( bktr, TDA9850_RADDR ) != ABSENT )
-		bktr->card.dbx = 1;
-
-checkMSP:
-	/* If this is a Hauppauge Bt878 card, we need to enable the
-	 * MSP 34xx audio chip. 
-	 * If this is a Hauppauge Bt848 card, reset the MSP device.
-	 * The MSP reset line is wired to GPIO pin 5. On Bt878 cards a pulldown
-	 * resistor holds the device in reset until we set GPIO pin 5.
-         */
-
-	/* Optionally skip the MSP reset. This is handy if you initialise the
-	 * MSP audio in another operating system (eg Windows) first and then
-	 * do a soft reboot.
-	 */
-
-#ifndef BKTR_NO_MSP_RESET
-	if (card == CARD_HAUPPAUGE) {
-            bt848->gpio_out_en = bt848->gpio_out_en | (1<<5);
-            bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
-            DELAY(2500); /* wait 2.5ms */
-            bt848->gpio_data   = bt848->gpio_data & ~(1<<5); /* write '0' */
-            DELAY(2500); /* wait 2.5ms */
-            bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
-            DELAY(2500); /* wait 2.5ms */
-        }
-#endif
-
-#if defined( OVERRIDE_MSP )
-	bktr->card.msp3400c = OVERRIDE_MSP;
-	goto checkMSPEnd;
-#endif
-
-	/* Check for i2c devices */
-	if (!any_i2c_devices) {
-		goto checkMSPEnd;
-	}
-
-	if ( i2cRead( bktr, MSP3400C_RADDR ) != ABSENT )
-		bktr->card.msp3400c = 1;
-
-checkMSPEnd:
-
-/* Start of Check Remote */
-        /* Check for the Hauppauge IR Remote Control */
-        /* If there is an external unit, the internal will be ignored */
-
-        bktr->remote_control = 0; /* initial value */
-
-        if (any_i2c_devices) {
-            if (i2cRead( bktr, HAUP_REMOTE_EXT_RADDR ) != ABSENT )
-                {
-                bktr->remote_control      = 1;
-                bktr->remote_control_addr = HAUP_REMOTE_EXT_RADDR;
-                }
-            else if (i2cRead( bktr, HAUP_REMOTE_INT_RADDR ) != ABSENT )
-                {
-                bktr->remote_control      = 1;
-                bktr->remote_control_addr = HAUP_REMOTE_INT_RADDR;
-                }
-
-        }
-        /* If a remote control is found, poll it 5 times to turn off the LED */
-        if (bktr->remote_control) {
-                int i;
-                for (i=0; i<5; i++)
-                        i2cRead( bktr, bktr->remote_control_addr );
-        }
-/* End of Check Remote */
-
-#if defined( BKTR_USE_PLL )
-	bktr->xtal_pll_mode = BT848_USE_PLL;
-	goto checkPLLEnd;
-#endif
-	/* Default is to use XTALS and not PLL mode */
-	bktr->xtal_pll_mode = BT848_USE_XTALS;
-
-	/* Enable PLL mode for PAL/SECAM users on Hauppauge 878 cards */
-	if ((card == CARD_HAUPPAUGE) &&
-	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
-		bktr->xtal_pll_mode = BT848_USE_PLL;
-
-
-	/* Enable PLL mode for OSPREY users */
-	if (card == CARD_OSPREY)
-		bktr->xtal_pll_mode = BT848_USE_PLL;
-
-	/* Enable PLL mode for PAL/SECAM users on FlyVideo 878 cards */
-	if ((card == CARD_FLYVIDEO) &&
-	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
-		bktr->xtal_pll_mode = BT848_USE_PLL;
-
-	/* Enable PLL mode for Video Highway Xtreme users */
-	if (card == CARD_VIDEO_HIGHWAY_XTREME)
-		bktr->xtal_pll_mode = BT848_USE_PLL;
-
-#if defined( BKTR_USE_PLL )
-checkPLLEnd:
-#endif
-
-
-	bktr->card.tuner_pllAddr = tuner_i2c_address;
-
-	if ( verbose ) {
-		printf( "%s", bktr->card.name );
-		if ( bktr->card.tuner )
-			printf( ", %s tuner", bktr->card.tuner->name );
-		if ( bktr->card.dbx )
-			printf( ", dbx stereo" );
-		if ( bktr->card.msp3400c )
-			printf( ", msp3400c stereo" );
-                if ( bktr->remote_control )
-                        printf( ", remote control" );
-		printf( ".\n" );
-	}
-}
-#undef ABSENT
-
-
-/******************************************************************************
- * tuner specific routines:
- */
-
-
-/* scaling factor for frequencies expressed as ints */
-#define FREQFACTOR		16
-
-/*
- * Format:
- *	entry 0:         MAX legal channel
- *	entry 1:         IF frequency
- *			 expressed as fi{mHz} * 16,
- *			 eg 45.75mHz == 45.75 * 16 = 732
- *	entry 2:         [place holder/future]
- *	entry 3:         base of channel record 0
- *	entry 3 + (x*3): base of channel record 'x'
- *	entry LAST:      NULL channel entry marking end of records
- *
- * Record:
- *	int 0:		base channel
- *	int 1:		frequency of base channel,
- *			 expressed as fb{mHz} * 16,
- *	int 2:		offset frequency between channels,
- *			 expressed as fo{mHz} * 16,
- */
-
-/*
- * North American Broadcast Channels:
- *
- *  2:  55.25 mHz -  4:  67.25 mHz
- *  5:  77.25 mHz -  6:	 83.25 mHz
- *  7: 175.25 mHz - 13:	211.25 mHz
- * 14: 471.25 mHz - 83:	885.25 mHz
- *
- * IF freq: 45.75 mHz
- */
-#define OFFSET	6.00
-static int nabcst[] = {
-	83,	(int)( 45.75 * FREQFACTOR),	0,
-	14,	(int)(471.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 7,	(int)(175.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 5,	(int)( 77.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 2,	(int)( 55.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 0
-};
-#undef OFFSET
-
-/*
- * North American Cable Channels, IRC:
- *
- *  2:  55.25 mHz -  4:  67.25 mHz
- *  5:  77.25 mHz -  6:  83.25 mHz
- *  7: 175.25 mHz - 13: 211.25 mHz
- * 14: 121.25 mHz - 22: 169.25 mHz
- * 23: 217.25 mHz - 94: 643.25 mHz
- * 95:  91.25 mHz - 99: 115.25 mHz
- *
- * IF freq: 45.75 mHz
- */
-#define OFFSET	6.00
-static int irccable[] = {
-	99,	(int)( 45.75 * FREQFACTOR),	0,
-	95,	(int)( 91.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	23,	(int)(217.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	14,	(int)(121.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 7,	(int)(175.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 5,	(int)( 77.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 2,	(int)( 55.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 0
-};
-#undef OFFSET
-
-/*
- * North American Cable Channels, HRC:
- *
- * 2:   54 mHz  - 4:    66 mHz
- * 5:   78 mHz  - 6:    84 mHz
- * 7:  174 mHz  - 13:  210 mHz
- * 14: 120 mHz  - 22:  168 mHz
- * 23: 216 mHz  - 94:  642 mHz
- * 95:  90 mHz  - 99:  114 mHz
- *
- * IF freq: 45.75 mHz
- */
-#define OFFSET  6.00
-static int hrccable[] = {
-	99,	(int)( 45.75 * FREQFACTOR),     0,
-	95,	(int)( 90.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	23,	(int)(216.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	14,	(int)(120.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	7,	(int)(174.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	5,	(int)( 78.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	2,	(int)( 54.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	0
-};
-#undef OFFSET
-
-/*
- * Western European broadcast channels:
- *
- * (there are others that appear to vary between countries - rmt)
- *
- * here's the table Philips provides:
- * caution, some of the offsets don't compute...
- *
- *  1	 4525	700	N21
- * 
- *  2	 4825	700	E2
- *  3	 5525	700	E3
- *  4	 6225	700	E4
- * 
- *  5	17525	700	E5
- *  6	18225	700	E6
- *  7	18925	700	E7
- *  8	19625	700	E8
- *  9	20325	700	E9
- * 10	21025	700	E10
- * 11	21725	700	E11
- * 12	22425	700	E12
- * 
- * 13	 5375	700	ITA
- * 14	 6225	700	ITB
- * 
- * 15	 8225	700	ITC
- * 
- * 16	17525	700	ITD
- * 17	18325	700	ITE
- * 
- * 18	19225	700	ITF
- * 19	20125	700	ITG
- * 20	21025	700	ITH
- * 
- * 21	47125	800	E21
- * 22	47925	800	E22
- * 23	48725	800	E23
- * 24	49525	800	E24
- * 25	50325	800	E25
- * 26	51125	800	E26
- * 27	51925	800	E27
- * 28	52725	800	E28
- * 29	53525	800	E29
- * 30	54325	800	E30
- * 31	55125	800	E31
- * 32	55925	800	E32
- * 33	56725	800	E33
- * 34	57525	800	E34
- * 35	58325	800	E35
- * 36	59125	800	E36
- * 37	59925	800	E37
- * 38	60725	800	E38
- * 39	61525	800	E39
- * 40	62325	800	E40
- * 41	63125	800	E41
- * 42	63925	800	E42
- * 43	64725	800	E43
- * 44	65525	800	E44
- * 45	66325	800	E45
- * 46	67125	800	E46
- * 47	67925	800	E47
- * 48	68725	800	E48
- * 49	69525	800	E49
- * 50	70325	800	E50
- * 51	71125	800	E51
- * 52	71925	800	E52
- * 53	72725	800	E53
- * 54	73525	800	E54
- * 55	74325	800	E55
- * 56	75125	800	E56
- * 57	75925	800	E57
- * 58	76725	800	E58
- * 59	77525	800	E59
- * 60	78325	800	E60
- * 61	79125	800	E61
- * 62	79925	800	E62
- * 63	80725	800	E63
- * 64	81525	800	E64
- * 65	82325	800	E65
- * 66	83125	800	E66
- * 67	83925	800	E67
- * 68	84725	800	E68
- * 69	85525	800	E69
- * 
- * 70	 4575	800	IA
- * 71	 5375	800	IB
- * 72	 6175	800	IC
- * 
- * 74	 6925	700	S01
- * 75	 7625	700	S02
- * 76	 8325	700	S03
- * 
- * 80	10525	700	S1
- * 81	11225	700	S2
- * 82	11925	700	S3
- * 83	12625	700	S4
- * 84	13325	700	S5
- * 85	14025	700	S6
- * 86	14725	700	S7
- * 87	15425	700	S8
- * 88	16125	700	S9
- * 89	16825	700	S10
- * 90	23125	700	S11
- * 91	23825	700	S12
- * 92	24525	700	S13
- * 93	25225	700	S14
- * 94	25925	700	S15
- * 95	26625	700	S16
- * 96	27325	700	S17
- * 97	28025	700	S18
- * 98	28725	700	S19
- * 99	29425	700	S20
- *
- *
- * Channels S21 - S41 are taken from
- * http://gemma.apple.com:80/dev/technotes/tn/tn1012.html
- *
- * 100	30325	800	S21
- * 101	31125	800	S22
- * 102	31925	800	S23
- * 103	32725	800	S24
- * 104	33525	800	S25
- * 105	34325	800	S26         
- * 106	35125	800	S27         
- * 107	35925	800	S28         
- * 108	36725	800	S29         
- * 109	37525	800	S30         
- * 110	38325	800	S31         
- * 111	39125	800	S32         
- * 112	39925	800	S33         
- * 113	40725	800	S34         
- * 114	41525	800	S35         
- * 115	42325	800	S36         
- * 116	43125	800	S37         
- * 117	43925	800	S38         
- * 118	44725	800	S39         
- * 119	45525	800	S40         
- * 120	46325	800	S41
- * 
- * 121	 3890	000	IFFREQ
- * 
- */
-static int weurope[] = {
-       121,     (int)( 38.90 * FREQFACTOR),     0, 
-       100,     (int)(303.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR), 
-        90,     (int)(231.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),
-        80,     (int)(105.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),  
-        74,     (int)( 69.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),  
-        21,     (int)(471.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),
-        17,     (int)(183.25 * FREQFACTOR),     (int)(9.00 * FREQFACTOR),
-        16,     (int)(175.25 * FREQFACTOR),     (int)(9.00 * FREQFACTOR),
-        15,     (int)(82.25 * FREQFACTOR),      (int)(8.50 * FREQFACTOR),
-        13,     (int)(53.75 * FREQFACTOR),      (int)(8.50 * FREQFACTOR),
-         5,     (int)(175.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),
-         2,     (int)(48.25 * FREQFACTOR),      (int)(7.00 * FREQFACTOR),
-	 0
-};
-
-/*
- * Japanese Broadcast Channels:
- *
- *  1:  91.25MHz -  3: 103.25MHz
- *  4: 171.25MHz -  7: 189.25MHz
- *  8: 193.25MHz - 12: 217.25MHz  (VHF)
- * 13: 471.25MHz - 62: 765.25MHz  (UHF)
- *
- * IF freq: 45.75 mHz
- *  OR
- * IF freq: 58.75 mHz
- */
-#define OFFSET  6.00
-#define IF_FREQ 45.75
-static int jpnbcst[] = {
-	62,     (int)(IF_FREQ * FREQFACTOR),    0,
-	13,     (int)(471.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	 8,     (int)(193.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	 4,     (int)(171.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	 1,     (int)( 91.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	 0
-};
-#undef IF_FREQ
-#undef OFFSET
-
-/*
- * Japanese Cable Channels:
- *
- *  1:  91.25MHz -  3: 103.25MHz
- *  4: 171.25MHz -  7: 189.25MHz
- *  8: 193.25MHz - 12: 217.25MHz
- * 13: 109.25MHz - 21: 157.25MHz
- * 22: 165.25MHz
- * 23: 223.25MHz - 63: 463.25MHz
- *
- * IF freq: 45.75 mHz
- */
-#define OFFSET  6.00
-#define IF_FREQ 45.75
-static int jpncable[] = {
-	63,     (int)(IF_FREQ * FREQFACTOR),    0,
-	23,     (int)(223.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	22,     (int)(165.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	13,     (int)(109.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	 8,     (int)(193.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	 4,     (int)(171.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	 1,     (int)( 91.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
-	 0
-};
-#undef IF_FREQ
-#undef OFFSET
-
-/*
- * xUSSR Broadcast Channels:
- *
- *  1:  49.75MHz -  2:  59.25MHz
- *  3:  77.25MHz -  5:  93.25MHz
- *  6: 175.25MHz - 12: 223.25MHz
- * 13-20 - not exist
- * 21: 471.25MHz - 34: 575.25MHz
- * 35: 583.25MHz - 69: 855.25MHz
- *
- * Cable channels
- *
- * 70: 111.25MHz - 77: 167.25MHz
- * 78: 231.25MHz -107: 463.25MHz
- *
- * IF freq: 38.90 MHz
- */
-#define IF_FREQ 38.90
-static int xussr[] = {
-      107,     (int)(IF_FREQ * FREQFACTOR),    0,
-       78,     (int)(231.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR), 
-       70,     (int)(111.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),
-       35,     (int)(583.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR), 
-       21,     (int)(471.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),
-        6,     (int)(175.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),  
-        3,     (int)( 77.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),  
-        1,     (int)( 49.75 * FREQFACTOR),     (int)(9.50 * FREQFACTOR),
-        0
-};
-#undef IF_FREQ
-
-/*
- * Australian broadcast channels
- */
-#define OFFSET	7.00
-static int australia[] = {
-	83,	(int)( 45.00 * FREQFACTOR),	0,
-	28,	(int)(520.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	14,	(int)(471.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	11,	(int)(214.50 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	10,	(int)(201.50 * FREQFACTOR),	(int)( 13.00 * FREQFACTOR),
-	 7,	(int)(174.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 3,	(int)( 85.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 2,	(int)( 56.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 0
-};
-#undef OFFSET
-
-static struct {
-        int     *ptr;
-        char    name[BT848_MAX_CHNLSET_NAME_LEN];
-} freqTable[] = {
-        {NULL,          ""},
-        {nabcst,        "nabcst"},
-        {irccable,      "cableirc"},
-        {hrccable,      "cablehrc"},
-        {weurope,       "weurope"},
-        {jpnbcst,       "jpnbcst"},
-        {jpncable,      "jpncable"},
-        {xussr,         "xussr"},
-        {australia,     "australia"},
- 
-};
-
-#define TBL_CHNL	freqTable[ bktr->tuner.chnlset ].ptr[ x ]
-#define TBL_BASE_FREQ	freqTable[ bktr->tuner.chnlset ].ptr[ x + 1 ]
-#define TBL_OFFSET	freqTable[ bktr->tuner.chnlset ].ptr[ x + 2 ]
-static int
-frequency_lookup( bktr_ptr_t bktr, int channel )
-{
-	int	x;
-
-	/* check for "> MAX channel" */
-	x = 0;
-	if ( channel > TBL_CHNL )
-		return( -1 );
-
-	/* search the table for data */
-	for ( x = 3; TBL_CHNL; x += 3 ) {
-		if ( channel >= TBL_CHNL ) {
-			return( TBL_BASE_FREQ +
-				 ((channel - TBL_CHNL) * TBL_OFFSET) );
-		}
-	}
-
-	/* not found, must be below the MIN channel */
-	return( -1 );
-}
-#undef TBL_OFFSET
-#undef TBL_BASE_FREQ
-#undef TBL_CHNL
-
-
-#define TBL_IF	freqTable[ bktr->tuner.chnlset ].ptr[ 1 ]
-/*
- * set the frequency of the tuner
- */
-static int
-tv_freq( bktr_ptr_t bktr, int frequency )
-{
-	const struct TUNER*	tuner;
-	u_char			addr;
-	u_char			control;
-	u_char			band;
-	int			N;
-
-	tuner = bktr->card.tuner;
-	if ( tuner == NULL )
-		return( -1 );
-
-	/*
-	 * select the band based on frequency
-	 * XXX FIXME: get the cross-over points from the tuner struct
-	 */
-	if ( frequency < (160 * FREQFACTOR) )
-	  N = 0;
-	else if ( frequency < (454 * FREQFACTOR) )
-	  N = 1;
-	else
-	  N = 2;
-
-	if(frequency > RADIO_OFFSET) {
-	  N=3;
-	  frequency -= RADIO_OFFSET;
-	}
-  
-	/* set the address of the PLL */
-	addr    = bktr->card.tuner_pllAddr;
-	control = tuner->pllControl[ N ];
-	band    = tuner->bandAddrs[ N ];
-	if(!(band && control))			/* Don't try to set un-	*/
-	  return(-1);				/* supported modes.	*/
-
-         if(N==3) 
-	  band |= bktr->tuner.radio_mode;
-
-	/*
-	 * N = 16 * { fRF(pc) + fIF(pc) }
-	 * where:
-	 *  pc is picture carrier, fRF & fIF are in mHz
-	 *
-	 * frequency was passed in as mHz * 16
-	 */
-#if defined( TEST_TUNER_AFC )
-	if ( bktr->tuner.afc )
-		frequency -= 4;
-#endif
-
-        if(bktr->bt848_tuner == ALPS_TSCH5 && N == 3)   /* for FM frequency */
-                N = frequency;
-        else
-                N = frequency + TBL_IF;
-
-	if ( frequency > bktr->tuner.frequency ) {
-		i2cWrite( bktr, addr, (N>>8) & 0x7f, N & 0xff );
-		i2cWrite( bktr, addr, control, band );
-	}
-	else {
-		i2cWrite( bktr, addr, control, band );
-		i2cWrite( bktr, addr, (N>>8) & 0x7f, N & 0xff );
-	}
-
-#if defined( TUNER_AFC )
-	if ( bktr->tuner.afc == TRUE ) {
-		if ( (N = do_afc( bktr, addr, N )) < 0 ) {
-		    /* AFC failed, restore requested frequency */
-		    N = frequency + TBL_IF;
-		    i2cWrite( bktr, addr, (N>>8) & 0x7f, N & 0xff );
-		}
-		else
-		    frequency = N - TBL_IF;
-	}
-#endif /* TUNER_AFC */
-
-	/* update frequency */
-	bktr->tuner.frequency = frequency;
-
-	return( 0 );
-}
-
-#if defined( TUNER_AFC )
-/*
- * 
- */
-static int
-do_afc( bktr_ptr_t bktr, int addr, int frequency )
-{
-	int step;
-	int status;
-	int origFrequency;
-
-	origFrequency = frequency;
-
-	/* wait for first setting to take effect */
-	tsleep( BKTR_SLEEP, PZERO, "tuning", hz/8 );
-
-	if ( (status = i2cRead( bktr, addr + 1 )) < 0 )
-		return( -1 );
-
-#if defined( TEST_TUNER_AFC )
- printf( "\nOriginal freq: %d, status: 0x%02x\n", frequency, status );
-#endif
-	for ( step = 0; step < AFC_MAX_STEP; ++step ) {
-		if ( (status = i2cRead( bktr, addr + 1 )) < 0 )
-			goto fubar;
-		if ( !(status & 0x40) ) {
-#if defined( TEST_TUNER_AFC )
- printf( "no lock!\n" );
-#endif
-			goto fubar;
-		}
-
-		switch( status & AFC_BITS ) {
-		case AFC_FREQ_CENTERED:
-#if defined( TEST_TUNER_AFC )
- printf( "Centered, freq: %d, status: 0x%02x\n", frequency, status );
-#endif
-			return( frequency );
-
-		case AFC_FREQ_MINUS_125:
-		case AFC_FREQ_MINUS_62:
-#if defined( TEST_TUNER_AFC )
- printf( "Low, freq: %d, status: 0x%02x\n", frequency, status );
-#endif
-			--frequency;
-			break;
-
-		case AFC_FREQ_PLUS_62:
-		case AFC_FREQ_PLUS_125:
-#if defined( TEST_TUNER_AFC )
- printf( "Hi, freq: %d, status: 0x%02x\n", frequency, status );
-#endif
-			++frequency;
-			break;
-		}
-
-		i2cWrite( bktr, addr,
-			  (frequency>>8) & 0x7f, frequency & 0xff );
-		DELAY( AFC_DELAY );
-	}
-
- fubar:
-	i2cWrite( bktr, addr,
-		  (origFrequency>>8) & 0x7f, origFrequency & 0xff );
-
-	return( -1 );
-}
-#endif /* TUNER_AFC */
-#undef TBL_IF
-
-
-/*
- * set the channel of the tuner
- */
-static int
-tv_channel( bktr_ptr_t bktr, int channel )
-{
-	int frequency;
-
-	/* calculate the frequency according to tuner type */
-	if ( (frequency = frequency_lookup( bktr, channel )) < 0 )
-		return( -1 );
-
-	/* set the new frequency */
-	if ( tv_freq( bktr, frequency ) < 0 )
-		return( -1 );
-
-	/* OK to update records */
-	return( (bktr->tuner.channel = channel) );
-}
-
-/*
- * get channelset name
- */
-static int
-tuner_getchnlset(struct bktr_chnlset *chnlset)
-{
-       if (( chnlset->index < CHNLSET_MIN ) ||
-               ( chnlset->index > CHNLSET_MAX ))
-                       return( EINVAL );
-
-       memcpy(&chnlset->name, &freqTable[chnlset->index].name,
-               BT848_MAX_CHNLSET_NAME_LEN);
-
-       chnlset->max_channel=freqTable[chnlset->index].ptr[0];
-       return( 0 );
-}
-/******************************************************************************
- * audio specific routines:
- */
-
-
-/*
- * 
- */
-#define AUDIOMUX_DISCOVER_NOT
-static int
-set_audio( bktr_ptr_t bktr, int cmd )
-{
-	bt848_ptr_t	bt848;
-	u_long		temp;
-	volatile u_char	idx;
-
-#if defined( AUDIOMUX_DISCOVER )
-	if ( cmd >= 200 )
-		cmd -= 200;
-	else
-#endif /* AUDIOMUX_DISCOVER */
-
-	/* check for existance of audio MUXes */
-	if ( !bktr->card.audiomuxs[ 4 ] )
-		return( -1 );
-
-	switch (cmd) {
-	case AUDIO_TUNER:
-#ifdef BKTR_REVERSEMUTE
-		bktr->audio_mux_select = 3;
-#else
-		bktr->audio_mux_select = 0;
-#endif
-
-		if (bktr->reverse_mute ) 
-		      bktr->audio_mux_select = 0;
-		else	
-		    bktr->audio_mux_select = 3;
-
-		break;
-	case AUDIO_EXTERN:
-		bktr->audio_mux_select = 1;
-		break;
-	case AUDIO_INTERN:
-		bktr->audio_mux_select = 2;
-		break;
-	case AUDIO_MUTE:
-		bktr->audio_mute_state = TRUE;	/* set mute */
-		break;
-	case AUDIO_UNMUTE:
-		bktr->audio_mute_state = FALSE;	/* clear mute */
-		break;
-	default:
-		printf("bktr: audio cmd error %02x\n", cmd);
-		return( -1 );
-	}
-
-
-	/* Most cards have a simple audio multiplexer to select the
-	 * audio source. The I/O_GV card has a more advanced multiplexer
-	 * and requires special handling.
-	 */
-        if ( bktr->bt848_card == CARD_IO_GV ) {
-                set_bctv_audio( bktr );
-                return( 0 );
-	}
-
-	/* Proceed with the simpler audio multiplexer code for the majority
-	 * of Bt848 cards.
-	 */
-
-	bt848 =	bktr->base;
-
-	/*
-	 * Leave the upper bits of the GPIO port alone in case they control
-	 * something like the dbx or teletext chips.  This doesn't guarantee
-	 * success, but follows the rule of least astonishment.
-	 */
-
-	if ( bktr->audio_mute_state == TRUE ) {
-#ifdef BKTR_REVERSEMUTE
-		idx = 0;
-#else
-		idx = 3;
-#endif
-
-		if (bktr->reverse_mute )
-		  idx  = 3;
-		else	
-		  idx  = 0;
-
-	}
-	else
-		idx = bktr->audio_mux_select;
-
-	temp = bt848->gpio_data & ~bktr->card.gpio_mux_bits;
-	bt848->gpio_data =
-#if defined( AUDIOMUX_DISCOVER )
-		bt848->gpio_data = temp | (cmd & 0xff);
-		printf("cmd: %d audio mux %x temp %x \n", cmd,bktr->card.audiomuxs[ idx ], temp );
-#else
-		temp | bktr->card.audiomuxs[ idx ];
-#endif /* AUDIOMUX_DISCOVER */
-
-	return( 0 );
-}
-
-
-/*
- * 
- */
-static void
-temp_mute( bktr_ptr_t bktr, int flag )
-{
-	static int	muteState = FALSE;
-
-	if ( flag == TRUE ) {
-		muteState = bktr->audio_mute_state;
-		set_audio( bktr, AUDIO_MUTE );		/* prevent 'click' */
-	}
-	else {
-		tsleep( BKTR_SLEEP, PZERO, "tuning", hz/8 );
-		if ( muteState == FALSE )
-			set_audio( bktr, AUDIO_UNMUTE );
-	}
-}
-
-
-/*
- * initialise the dbx chip
- * taken from the Linux bttv driver TDA9850 initialisation code
- */
-static void 
-init_BTSC( bktr_ptr_t bktr )
-{
-    i2cWrite(bktr, TDA9850_WADDR, CON1ADDR, 0x08); /* noise threshold st */
-    i2cWrite(bktr, TDA9850_WADDR, CON2ADDR, 0x08); /* noise threshold sap */
-    i2cWrite(bktr, TDA9850_WADDR, CON3ADDR, 0x40); /* stereo mode */
-    i2cWrite(bktr, TDA9850_WADDR, CON4ADDR, 0x07); /* 0 dB input gain? */
-    i2cWrite(bktr, TDA9850_WADDR, ALI1ADDR, 0x10); /* wideband alignment? */
-    i2cWrite(bktr, TDA9850_WADDR, ALI2ADDR, 0x10); /* spectral alignment? */
-    i2cWrite(bktr, TDA9850_WADDR, ALI3ADDR, 0x03);
-}
-
-/*
- * setup the dbx chip
- * XXX FIXME: alot of work to be done here, this merely unmutes it.
- */
-static int
-set_BTSC( bktr_ptr_t bktr, int control )
-{
-	return( i2cWrite( bktr, TDA9850_WADDR, CON3ADDR, control ) );
-}
-
-/*
- * CARD_GV_BCTV specific functions.
- */
-
-#define BCTV_AUDIO_MAIN              0x10    /* main audio program */
-#define BCTV_AUDIO_SUB               0x20    /* sub audio program */
-#define BCTV_AUDIO_BOTH              0x30    /* main(L) + sub(R) program */
-
-#define BCTV_GPIO_REG0          1
-#define BCTV_GPIO_REG1          3
-
-#define BCTV_GR0_AUDIO_MODE     3
-#define BCTV_GR0_AUDIO_MAIN     0       /* main program */
-#define BCTV_GR0_AUDIO_SUB      3       /* sub program */
-#define BCTV_GR0_AUDIO_BOTH     1       /* main(L) + sub(R) */
-#define BCTV_GR0_AUDIO_MUTE     4       /* audio mute */
-#define BCTV_GR0_AUDIO_MONO     8       /* force mono */
-
-static void
-set_bctv_audio( bktr_ptr_t bktr )
-{
-        int data;
-
-        switch (bktr->audio_mux_select) {
-        case 1:         /* external */
-        case 2:         /* internal */
-                bctv_gpio_write(bktr, BCTV_GPIO_REG1, 0);
-                break;
-        default:        /* tuner */
-                bctv_gpio_write(bktr, BCTV_GPIO_REG1, 1);
-                break;
-        }
-/*      switch (bktr->audio_sap_select) { */
-        switch (BCTV_AUDIO_BOTH) {
-        case BCTV_AUDIO_SUB:
-                data = BCTV_GR0_AUDIO_SUB;
-                break;
-        case BCTV_AUDIO_BOTH:
-                data = BCTV_GR0_AUDIO_BOTH;
-                break;
-        case BCTV_AUDIO_MAIN:
-        default:
-                data = BCTV_GR0_AUDIO_MAIN;
-                break;
-        }
-        if (bktr->audio_mute_state == TRUE)
-                data |= BCTV_GR0_AUDIO_MUTE;
-
-        bctv_gpio_write(bktr, BCTV_GPIO_REG0, data);
-
-        return;
-}
-
-/* gpio_data bit assignment */
-#define BCTV_GPIO_ADDR_MASK     0x000300
-#define BCTV_GPIO_WE            0x000400
-#define BCTV_GPIO_OE            0x000800
-#define BCTV_GPIO_VAL_MASK      0x00f000
-
-#define BCTV_GPIO_PORT_MASK     3
-#define BCTV_GPIO_ADDR_SHIFT    8
-#define BCTV_GPIO_VAL_SHIFT     12
-
-/* gpio_out_en value for read/write */
-#define BCTV_GPIO_OUT_RMASK     0x000f00
-#define BCTV_GPIO_OUT_WMASK     0x00ff00
-
-#define BCTV_BITS       100
-
-static void
-bctv_gpio_write( bktr_ptr_t bktr, int port, int val )
-{
-        bt848_ptr_t bt848 = bktr->base;
-        u_long data, outbits;
-
-        port &= BCTV_GPIO_PORT_MASK;
-        switch (port) {
-        case 1:
-        case 3:
-                data = ((val << BCTV_GPIO_VAL_SHIFT) & BCTV_GPIO_VAL_MASK) |
-                       ((port << BCTV_GPIO_ADDR_SHIFT) & BCTV_GPIO_ADDR_MASK) |
-                       BCTV_GPIO_WE | BCTV_GPIO_OE;
-                outbits = BCTV_GPIO_OUT_WMASK;
-                break;
-        default:
-                return;
-        }
-        bt848->gpio_out_en = 0;
-        bt848->gpio_data = data;
-        bt848->gpio_out_en = outbits;
-        DELAY(BCTV_BITS);
-        bt848->gpio_data = data & ~BCTV_GPIO_WE;
-        DELAY(BCTV_BITS);
-        bt848->gpio_data = data;
-        DELAY(BCTV_BITS);
-        bt848->gpio_data = ~0;
-        bt848->gpio_out_en = 0;
-}
-
-/* Not yet used
-static int
-bctv_gpio_read( bktr_ptr_t bktr, int port )
-{
-        bt848_ptr_t bt848 = bktr->base;
-        u_long data, outbits, ret;
-
-        port &= BCTV_GPIO_PORT_MASK;
-        switch (port) {
-        case 1:
-        case 3:
-                data = ((port << BCTV_GPIO_ADDR_SHIFT) & BCTV_GPIO_ADDR_MASK) |
-                       BCTV_GPIO_WE | BCTV_GPIO_OE;
-                outbits = BCTV_GPIO_OUT_RMASK;
-                break;
-        default:
-                return( -1 );
-        }
-        bt848->gpio_out_en = 0;
-        bt848->gpio_data = data;
-        bt848->gpio_out_en = outbits;
-        DELAY(BCTV_BITS);
-        bt848->gpio_data = data & ~BCTV_GPIO_OE;
-        DELAY(BCTV_BITS);
-        ret = bt848->gpio_data;
-        DELAY(BCTV_BITS);
-        bt848->gpio_data = data;
-        DELAY(BCTV_BITS);
-        bt848->gpio_data = ~0;
-        bt848->gpio_out_en = 0;
-        return( (ret & BCTV_GPIO_VAL_MASK) >> BCTV_GPIO_VAL_SHIFT );
-}
-*/
-
-/*
- * setup the MSP34xx Stereo Audio Chip
- * This uses the Auto Configuration Option on MSP3410D and MSP3415D chips
- * and DBX mode selection for MSP3430G chips.
- * For MSP3400C support, the full programming sequence is required and is
- * not yet supported.
- */
-
-/* Read the MSP version string */
-static void msp_read_id( bktr_ptr_t bktr, int unit ){
-    int rev1=0, rev2=0;
-    rev1 = msp_read(bktr, 0x12, 0x001e);
-    rev2 = msp_read(bktr, 0x12, 0x001f);
-
-    sprintf(bktr->msp_version_string, "34%02d%c-%c%d",
-      (rev2>>8)&0xff, (rev1&0xff)+'@', ((rev1>>8)&0xff)+'@', rev2&0x1f);
-
-    printf("bktr%d: Detected a MSP%s\n",unit,bktr->msp_version_string); 
-}
-
-
-/* Configure the MSP chip to Auto-detect the audio format */
-static void msp_autodetect( bktr_ptr_t bktr ) {
-
-  if (strncmp("3430G", bktr->msp_version_string, 5) == 0){
-
-    /* For MSP3430G - countries with mono and DBX stereo */
-    msp_write(bktr, 0x10, 0x0030,0x2003);/* Enable Auto format detection */
-    msp_write(bktr, 0x10, 0x0020,0x0020);/* Standard Select Reg. = BTSC-Stereo*/
-    msp_write(bktr, 0x12, 0x000E,0x2403);/* darned if I know */
-    msp_write(bktr, 0x12, 0x0008,0x0320);/* Source select = (St or A) */
-					 /*   & Ch. Matrix = St */
-    msp_write(bktr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
-
-  } else {
-
-    /* For MSP3410 / 3415 - countries with mono, FM stereo and NICAM */
-    msp_write(bktr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
-    msp_write(bktr, 0x10, 0x0020,0x0001);/* Enable Auto format detection */
-    msp_write(bktr, 0x10, 0x0021,0x0001);/* Auto selection of NICAM/MONO mode */
-  }
-
-  /* uncomment the following line to enable the MSP34xx 1Khz Tone Generator */
-  /* turn your speaker volume down low before trying this */
-  /* msp_write(bktr, 0x12, 0x0014, 0x7f40); */
-}
-
-
-
-/*
- *
- * Operating System Dependant Parts
- * This section contains OS Dependant code like
- * probe and attach and the cdev open/close/read/mmap interface
- *
- */
-
-/****************************/
-/* *** FreeBSD 4.x code *** */
-/****************************/
-#if (__FreeBSD_version >= 400000)
-
-static int	bktr_probe( device_t dev );
-static int	bktr_attach( device_t dev );
-static int	bktr_detach( device_t dev );
-static int	bktr_shutdown( device_t dev );
-static void	bktr_intr(void *arg) { common_bktr_intr(arg); }
-
-static device_method_t bktr_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,         bktr_probe),
-	DEVMETHOD(device_attach,        bktr_attach),
-	DEVMETHOD(device_detach,        bktr_detach),
-	DEVMETHOD(device_shutdown,      bktr_shutdown),
-
-	{ 0, 0 }
-};
-
-static driver_t bktr_driver = {
-	"bktr",
-	bktr_methods,
-	sizeof(struct bktr_softc),
-};
-
-static devclass_t bktr_devclass;
-
-static	d_open_t	bktr_open;
-static	d_close_t	bktr_close;
-static	d_read_t	bktr_read;
-static	d_write_t	bktr_write;
-static	d_ioctl_t	bktr_ioctl;
-static	d_mmap_t	bktr_mmap;
-static	d_poll_t	bktr_poll;
-
-#define CDEV_MAJOR 92 
-static struct cdevsw bktr_cdevsw = {
-	/* open */	bktr_open,
-	/* close */	bktr_close,
-	/* read */	bktr_read,
-	/* write */	bktr_write,
-	/* ioctl */	bktr_ioctl,
-	/* poll */	bktr_poll,
-	/* mmap */	bktr_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"bktr",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* bmaj */	-1
-};
-
-DEV_DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, bktr_cdevsw, 0, 0);
-
-
-/*
- * the boot time probe routine.
- */
-static int
-bktr_probe( device_t dev )
-{
-	unsigned int type = pci_get_devid(dev);
-        unsigned int rev  = pci_get_revid(dev);
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&bktr_cdevsw);
-
-	switch (type) {
-	case BROOKTREE_848_PCI_ID:
-		if (rev == 0x12) device_set_desc(dev, "BrookTree 848A");
-		else             device_set_desc(dev, "BrookTree 848");
-                return 0;
-        case BROOKTREE_849_PCI_ID:
-                device_set_desc(dev, "BrookTree 849A");
-                return 0;
-        case BROOKTREE_878_PCI_ID:
-                device_set_desc(dev, "BrookTree 878");
-                return 0;
-        case BROOKTREE_879_PCI_ID:
-                device_set_desc(dev, "BrookTree 879");
-                return 0;
-	};
-
-        return ENXIO;
-}
-
-
-/*
- * the attach routine.
- */
-static int
-bktr_attach( device_t dev )
-{
-	bt848_ptr_t	bt848;
-	u_long		latency;
-	u_long		fun;
-	u_long		val;
-	unsigned int	rev;
-	unsigned int	unit;
-	int		error = 0;
-	int		rid;
-#ifdef BROOKTREE_IRQ
-	u_long		old_irq, new_irq;
-#endif 
-
-        struct bktr_softc *bktr = device_get_softc(dev);
-
-	unit = device_get_unit(dev);
-
-	/*
-	 * Enable bus mastering and Memory Mapped device
-	 */
-	val = pci_read_config(dev, PCIR_COMMAND, 4);
-	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, val, 4);
-
-	/*
-	 * Map control/status registers.
-	 */
-	rid = PCI_MAP_REG_START;
-	bktr->res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-                                  0, ~0, 1, RF_ACTIVE);
-
-	if (!bktr->res_mem) {
-		device_printf(dev, "could not map memory\n");
-		error = ENXIO;
-		goto fail;
-	}
-	bktr->base = rman_get_virtual(bktr->res_mem); /* XXX use bus_space */
-
-	/*
-	 * Disable the brooktree device
-	 */
-	bt848 = bktr->base;
-	bt848->int_mask = ALL_INTS_DISABLED;
-	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-
-
-#ifdef BROOKTREE_IRQ		/* from the configuration file */
-	old_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
-	pci_conf_write(tag, PCI_INTERRUPT_REG, BROOKTREE_IRQ);
-	new_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
-	printf("bktr%d: attach: irq changed from %d to %d\n",
-		unit, (old_irq & 0xff), (new_irq & 0xff));
-#endif 
-
-	/*
-	 * Allocate our interrupt.
-	 */
-	rid = 0;
-	bktr->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-                                 RF_SHAREABLE | RF_ACTIVE);
-	if (bktr->res_irq == NULL) {
-		device_printf(dev, "could not map interrupt\n");
-		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, bktr->res_irq, INTR_TYPE_NET,
-                               bktr_intr, bktr, &bktr->res_ih);
-	if (error) {
-		device_printf(dev, "could not setup irq\n");
-		goto fail;
-
-	}
-
-
-	/* Update the Device Control Register */
-	/* on Bt878 and Bt879 cards           */
-	fun = pci_read_config( dev, 0x40, 2);
-        fun = fun | 1;	/* Enable writes to the sub-system vendor ID */
-
-#if defined( BKTR_430_FX_MODE )
-	if (bootverbose) printf("Using 430 FX chipset compatibilty mode\n");
-        fun = fun | 2;	/* Enable Intel 430 FX compatibility mode */
-#endif
-
-#if defined( BKTR_SIS_VIA_MODE )
-	if (bootverbose) printf("Using SiS/VIA chipset compatibilty mode\n");
-        fun = fun | 4;	/* Enable SiS/VIA compatibility mode (usefull for
-                           OPTi chipset motherboards too */
-#endif
-	pci_write_config(dev, 0x40, fun, 2);
-
-
-	/* XXX call bt848_i2c dependent attach() routine */
-#if (NSMBUS > 0)
-	if (bt848_i2c_attach(unit, bktr->base, &bktr->i2c_sc))
-		printf("bktr%d: i2c_attach: can't attach\n", unit);
-#endif
-
-
-/*
- * PCI latency timer.  32 is a good value for 4 bus mastering slots, if
- * you have more than four, then 16 would probably be a better value.
- */
-#ifndef BROOKTREE_DEF_LATENCY_VALUE
-#define BROOKTREE_DEF_LATENCY_VALUE	10
-#endif
-	latency = pci_read_config(dev, PCI_LATENCY_TIMER, 4);
-	latency = (latency >> 8) & 0xff;
-	if ( bootverbose ) {
-		if (latency)
-			printf("brooktree%d: PCI bus latency is", unit);
-		else
-			printf("brooktree%d: PCI bus latency was 0 changing to",
-				unit);
-	}
-	if ( !latency ) {
-		latency = BROOKTREE_DEF_LATENCY_VALUE;
-		pci_write_config(dev, PCI_LATENCY_TIMER, latency<<8, 4);
-	}
-	if ( bootverbose ) {
-		printf(" %d.\n", (int) latency);
-	}
-
-	/* read the pci device id and revision id */
-	fun = pci_get_devid(dev);
-        rev = pci_get_revid(dev);
-
-	/* call the common attach code */
-	common_bktr_attach( bktr, unit, fun, rev );
-
-	make_dev(&bktr_cdevsw, unit,    0, 0, 0444, "bktr%d",  unit);
-	make_dev(&bktr_cdevsw, unit+16, 0, 0, 0444, "tuner%d", unit);
-	make_dev(&bktr_cdevsw, unit+32, 0, 0, 0444, "vbi%d", unit);
-
-	return 0;
-
-fail:
-	return error;
-
-}
-
-/*
- * the detach routine.
- */
-static int
-bktr_detach( device_t dev )
-{
-	struct bktr_softc *bktr = device_get_softc(dev);
-	bt848_ptr_t bt848;
-
-	/* Disable the brooktree device */
-	bt848 = bktr->base;
-	bt848->int_mask = ALL_INTS_DISABLED;
-	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-
-	/* FIXME - Free memory for RISC programs, grab buffer, vbi buffers */
-
-	/*
-	 * Deallocate resources.
-	 */
-	bus_teardown_intr(dev, bktr->res_irq, bktr->res_ih);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, bktr->res_irq);
-	bus_release_resource(dev, SYS_RES_MEMORY, PCI_MAP_REG_START, bktr->res_mem);
-
-	return 0;
-}
-
-/*
- * the shutdown routine.
- */
-static int
-bktr_shutdown( device_t dev )
-{
-	struct bktr_softc *bktr = device_get_softc(dev);
-	bt848_ptr_t bt848;
-
-	/* Disable the brooktree device */
-	bt848 = bktr->base;
-	bt848->int_mask = ALL_INTS_DISABLED;
-	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-
-	return 0;
-}
-
-
-/*
- * Special Memory Allocation
- */
-static vm_offset_t
-get_bktr_mem( int unit, unsigned size )
-{
-	vm_offset_t	addr = 0;
-
-	addr = vm_page_alloc_contig(size, 0, 0xffffffff, 1<<24);
-	if (addr == 0)
-		addr = vm_page_alloc_contig(size, 0, 0xffffffff, PAGE_SIZE);
-	if (addr == 0) {
-		printf("bktr%d: Unable to allocate %d bytes of memory.\n",
-			unit, size);
-	}
-
-	return( addr );
-}
-
-
-/*---------------------------------------------------------
-**
-**	BrookTree 848 character device driver routines
-**
-**---------------------------------------------------------
-*/
-
-#define VIDEO_DEV	0x00
-#define TUNER_DEV	0x01
-#define VBI_DEV		0x02
-
-#define UNIT(x)		((x) & 0x0f)
-#define FUNCTION(x)	(x >> 4)
-
-/*
- * 
- */
-int
-bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
-{
-	bktr_ptr_t	bktr;
-	int		unit;
-	int		result;
-
-	unit = UNIT( minor(dev) );
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	if (!(bktr->flags & METEOR_INITALIZED)) /* device not found */
-		return( ENXIO );	
-
-	/* Record that the device is now busy */
-	device_busy(devclass_get_device(bktr_devclass, unit)); 
-
-
-	if (bt848_card != -1) {
-	  if ((bt848_card >> 8   == unit ) &&
-	     ( (bt848_card & 0xff) < Bt848_MAX_CARD )) {
-	    if ( bktr->bt848_card != (bt848_card & 0xff) ) {
-	      bktr->bt848_card = (bt848_card & 0xff);
-	      probeCard(bktr, FALSE, unit);
-	    }
-	  }
-	}
-
-	if (bt848_tuner != -1) {
-	  if ((bt848_tuner >> 8   == unit ) &&
-	     ( (bt848_tuner & 0xff) < Bt848_MAX_TUNER )) {
-	    if ( bktr->bt848_tuner != (bt848_tuner & 0xff) ) {
-	      bktr->bt848_tuner = (bt848_tuner & 0xff);
-	      probeCard(bktr, FALSE, unit);
-	    }
-	  }
-	}
-
-	if (bt848_reverse_mute != -1) {
-	  if (((bt848_reverse_mute >> 8)   == unit ) &&
-	      ((bt848_reverse_mute & 0xff) < Bt848_MAX_TUNER) ) {
-	    bktr->reverse_mute = bt848_reverse_mute & 0xff;
-	    bt848_reverse_mute = -1;
-	  }
-	}
-
-	switch ( FUNCTION( minor(dev) ) ) {
-	case VIDEO_DEV:
-		result = video_open( bktr );
-		break;
-	case TUNER_DEV:
-		result = tuner_open( bktr );
-		break;
-	case VBI_DEV:
-		result = vbi_open( bktr );
-		break;
-	default:
-		result = ENXIO;
-		break;
-	}
-
-	/* If there was an error opening the device, undo the busy status */
-	if (result != 0)
-		device_unbusy(devclass_get_device(bktr_devclass, unit)); 
-	return( result );
-}
-
-
-/*
- * 
- */
-int
-bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
-{
-	bktr_ptr_t	bktr;
-	int		unit;
-	int		result;
-
-	unit = UNIT( minor(dev) );
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	switch ( FUNCTION( minor(dev) ) ) {
-	case VIDEO_DEV:
-		result = video_close( bktr );
-		break;
-	case TUNER_DEV:
-		result = tuner_close( bktr );
-		break;
-	case VBI_DEV:
-		result = vbi_close( bktr );
-		break;
-	default:
-		return (ENXIO);
-		break;
-	}
-
-	device_unbusy(devclass_get_device(bktr_devclass, unit)); 
-	return( result );
-}
-
-
-/*
- * 
- */
-int
-bktr_read( dev_t dev, struct uio *uio, int ioflag )
-{
-	bktr_ptr_t	bktr;
-	int		unit;
-	
-	unit = UNIT(minor(dev));
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	switch ( FUNCTION( minor(dev) ) ) {
-	case VIDEO_DEV:
-		return( video_read( bktr, unit, dev, uio ) );
-	case VBI_DEV:
-		return( vbi_read( bktr, uio, ioflag ) );
-	}
-        return( ENXIO );
-}
-
-
-/*
- * 
- */
-int
-bktr_write( dev_t dev, struct uio *uio, int ioflag )
-{
-	return( EINVAL ); /* XXX or ENXIO ? */
-}
-
-
-/*
- * 
- */
-int
-bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
-{
-	bktr_ptr_t	bktr;
-	int		unit;
-
-	unit = UNIT(minor(dev));
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
-		return( ENOMEM );
-
-	switch ( FUNCTION( minor(dev) ) ) {
-	case VIDEO_DEV:
-		return( video_ioctl( bktr, unit, cmd, arg, pr ) );
-	case TUNER_DEV:
-		return( tuner_ioctl( bktr, unit, cmd, arg, pr ) );
-	}
-
-	return( ENXIO );
-}
-
-
-/*
- * 
- */
-int
-bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
-{
-	int		unit;
-	bktr_ptr_t	bktr;
-
-	unit = UNIT(minor(dev));
-
-	if (FUNCTION(minor(dev)) > 0)	/* only allow mmap on /dev/bktr[n] */
-		return( -1 );
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	if (nprot & PROT_EXEC)
-		return( -1 );
-
-	if (offset < 0)
-		return( -1 );
-
-	if (offset >= bktr->alloc_pages * PAGE_SIZE)
-		return( -1 );
-
-	return( i386_btop(vtophys(bktr->bigbuf) + offset) );
-}
-
-int bktr_poll( dev_t dev, int events, struct proc *p)
-{
-	int		unit;
-	bktr_ptr_t	bktr;
-	int revents = 0; 
-
-	unit = UNIT(minor(dev));
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	disable_intr();
-
-	if (events & (POLLIN | POLLRDNORM)) {
-
-		switch ( FUNCTION( minor(dev) ) ) {
-		case VBI_DEV:
-			if(bktr->vbisize == 0)
-				selrecord(p, &bktr->vbi_select);
-			else
-				revents |= events & (POLLIN | POLLRDNORM);
-			break;
-		}
-	}
-
-	enable_intr();
-
-	return (revents);
-}
-
-#endif		/* FreeBSD 4.x specific kernel interface routines */
-
-
-/**********************************/
-/* *** FreeBSD 2.2.x and 3.x  *** */
-/**********************************/
-
-#if ((__FreeBSD__ == 2) || (__FreeBSD__ == 3))
-#endif		/* FreeBSD 2.2.x and 3.x specific kernel interface routines */
-
-
-/*****************/
-/* *** BSDI  *** */
-/*****************/
-
-#if defined(__bsdi__)
-#endif		/* __bsdi__ BSDI specific kernel interface routines */
-
-
-/*****************************/
-/* *** OpenBSD / NetBSD  *** */
-/*****************************/
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#endif /* __NetBSD__ || __OpenBSD__ */
-
-
 
 #endif /* FreeBSD, BSDI, NetBSD, OpenBSD */
 
-
-/* Local Variables: */
-/* mode: C */
-/* c-indent-level: 8 */
-/* c-brace-offset: -8 */
-/* c-argdecl-indent: 8 */
-/* c-label-offset: -8 */
-/* c-continued-statement-offset: 8 */
-/* c-tab-always-indent: nil */
-/* tab-width: 8 */
-/* End: */
