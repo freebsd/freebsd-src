@@ -562,19 +562,13 @@ in_pcbdetach(inp)
 		 * route deletion requires reference count to be <= zero 
 		 */
 		if ((rt->rt_flags & RTF_DELCLONE) &&
-		    (rt->rt_flags & RTF_WASCLONED)) {
-			if (--rt->rt_refcnt <= 0) {
-				rt->rt_flags &= ~RTF_UP;
-				rtrequest(RTM_DELETE, rt_key(rt),
-					  rt->rt_gateway, rt_mask(rt),
-					  rt->rt_flags, (struct rtentry **)0);
-			}
-			else
-				/* 
-				 * more than one reference, bump it up 
-				 * again.
-				 */
-				rt->rt_refcnt++;
+		    (rt->rt_flags & RTF_WASCLONED) &&
+		    (rt->rt_refcnt <= 1)) {
+			rt->rt_refcnt--;
+			rt->rt_flags &= ~RTF_UP;
+			rtrequest(RTM_DELETE, rt_key(rt),
+				  rt->rt_gateway, rt_mask(rt),
+				  rt->rt_flags, (struct rtentry **)0);
 		}
 		else
 			rtfree(rt);
