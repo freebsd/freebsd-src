@@ -279,6 +279,7 @@ gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
 gusxvi: Gravis Ultrasound 16-bit PCM
 hea:    Efficient ENI-155p ATM PCI adapter
 hfa:    FORE PCA-200E ATM PCI adapter
+isic:	isdn4bsd Siemens ISDN Chipset driver
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
 meteor: Matrox Meteor frame-grabber card
@@ -286,7 +287,6 @@ bktr:   Brooktree Bt848 based frame-grabber cards.
 mpu:    Roland MPU-401 stand-alone card
 mse:    Microsoft, Logitech, ATI bus mouse ports
 mss:    Microsoft Sound System
-nic:    Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
 opl:    Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
 pas:    ProAudioSpectrum PCM and MIDI
 pca:    PCM audio ("/dev/audio") through your PC speaker
@@ -542,7 +542,47 @@ Generic USB printer, and USB to parallel printer conversion cables.
 Iomega USB Zip drive.
 
 
-4.4.    Misc
+4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
+----    -------------------------------------------
+
+Asuscom I-IN100-ST-DV (experimental, may work)
+
+AVM A1
+AVM Fritz!Card classic ISA non-PnP
+AVM Fritz!Card PCI
+AVM Fritz!Card PCMCIA
+
+Creatix ISDN-S0/8
+Creatix ISDN-S0/16
+Creatix ISDN-S0 PnP
+
+Dr.Neuhaus Niccy 1008
+Dr.Neuhaus Niccy 1016
+Dr.Neuhaus Niccy GO@ (ISA PnP)
+
+Dynalink IS64PH
+
+ELSA 1000pro ISA
+ELSA 1000pro PCI
+ELSA PCC-16
+
+ITK ix1 micro
+
+Sagem Cybermod (ISA PnP, may work)
+
+Sedlbauer Win Speed
+
+Stollmann Tina-pp
+
+Teles S0/8
+Teles S0/16
+Teles S0/16.3 (the "c" Versions - like 16.3c - are unsupported !)
+Teles S0 PnP (experimental, may work)
+
+3Com/USRobotics Sportster ISDN TA intern (non-PnP version)
+
+
+4.5.    Misc
 ----    ----
 
 AST 4 port serial card using shared IRQ.
