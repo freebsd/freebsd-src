@@ -263,9 +263,10 @@ main(int argc, char **argv)
 	if (argc > 2 && strcmp(argv[1], "create")) {
 		int chan;
 
-		if (!strcmp(argv[1], "delete") ||
-		    !strcmp(argv[1], "status") ||
-		    !strcmp(argv[1], "rebuild")) {
+		if (!strcmp(argv[1], "addspare") ||
+		    !strcmp(argv[1], "delete") ||
+		    !strcmp(argv[1], "rebuild") ||
+		    !strcmp(argv[1], "status")) {
 			if (!(sscanf(argv[2], "%d", &chan) == 1 ||
 			      sscanf(argv[2], "ar%d", &chan) == 1))
 				usage();
@@ -360,6 +361,17 @@ main(int argc, char **argv)
 		iocmd.cmd = ATARAIDDELETE;
 		if (ioctl(fd, IOCATA, &iocmd) < 0)
 			warn("ioctl(ATARAIDDELETE)");
+	}
+	else if (!strcmp(argv[1], "addspare") && argc == 4) {
+		int dev;
+
+		iocmd.cmd = ATARAIDADDSPARE;
+		if (!(sscanf(argv[3], "%d", &dev) == 1 ||
+		      sscanf(argv[3], "ad%d", &dev) == 1))
+			usage();
+		iocmd.u.raid_spare.disk = dev;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			warn("ioctl(ATARAIDADDSPARE)");
 	}
 	else if (!strcmp(argv[1], "rebuild") && argc == 3) {
 		iocmd.cmd = ATARAIDREBUILD;
