@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -40,8 +42,7 @@ static char sccsid[] = "@(#)ctermid.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 
 char *
-ctermid(s)
-	char *s;
+ctermid(char *s)
 {
 	static char def[] = _PATH_TTY;
 
@@ -50,4 +51,11 @@ ctermid(s)
 		return(s);
 	}
 	return(def);
+}
+
+
+char *
+ctermid_r(char *s)
+{
+	return (s) ? ctermid(s) : NULL;
 }
