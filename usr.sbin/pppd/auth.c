@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.14 1997/04/15 07:00:32 danny Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.15 1997/04/16 02:07:06 danny Exp $";
 #endif
 
 #include <stdio.h>
@@ -1036,7 +1036,7 @@ scan_authfile(f, client, server, secret, addrs, filename)
     else if (addr_list != NULL)
 	free_wordlist(addr_list);
 
-    non_wildclient = (best_flag & NONWILD_CLIENT) && *client != '\0';
+    non_wildclient = (best_flag & NONWILD_CLIENT) && client && *client != '\0';
     return best_flag;
 }
 
