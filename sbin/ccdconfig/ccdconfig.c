@@ -66,10 +66,8 @@ struct	flagval {
 	char	*fv_flag;
 	int	fv_val;
 } flagvaltab[] = {
-	{ "CCDF_SWAP",		CCDF_SWAP },
 	{ "CCDF_UNIFORM",	CCDF_UNIFORM },
 	{ "CCDF_MIRROR",	CCDF_MIRROR },
-	{ "CCDF_PARITY",	CCDF_PARITY },
 	{ NULL,			0 },
 };
 
