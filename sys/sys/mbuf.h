@@ -666,6 +666,7 @@ extern	struct mclfree_lst	mclfree;
 extern	struct mcntfree_lst	mcntfree;
 extern	struct mbffree_lst	mmbfree;
 extern	int		 nmbclusters;
+extern	int		 nmbcnt;
 extern	int		 nmbufs;
 extern	int		 nsfbufs;
 
