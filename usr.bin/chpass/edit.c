@@ -140,33 +140,33 @@ display(fd, pw)
 	bp = pw->pw_gecos;
 
 	p = strsep(&bp, ",");
-	if (p)
-	  list[E_NAME].save = strdup(p);
+	p = strdup(p ? p : "");
+	list[E_NAME].save = p;
 	if (!list[E_NAME].restricted || !uid)
-	  (void)fprintf(fp, "Full Name: %s\n", p ? p : "");
+	  (void)fprintf(fp, "Full Name: %s\n", p);
 
         p = strsep(&bp, ",");
-	if (p)
-	  list[E_LOCATE].save = strdup(p);
+	p = strdup(p ? p : "");
+	list[E_LOCATE].save = p;
 	if (!list[E_LOCATE].restricted || !uid)
-	  (void)fprintf(fp, "Office Location: %s\n", p ? p : "");
+	  (void)fprintf(fp, "Office Location: %s\n", p);
 
         p = strsep(&bp, ",");
-	if (p)
-	  list[E_BPHONE].save = strdup(p);
+	p = strdup(p ? p : "");
+	list[E_BPHONE].save = p;
 	if (!list[E_BPHONE].restricted || !uid)
-	  (void)fprintf(fp, "Office Phone: %s\n", p ? p : "");
+	  (void)fprintf(fp, "Office Phone: %s\n", p);
 
         p = strsep(&bp, ",");
-	if (p)
-	  list[E_HPHONE].save = strdup(p);
+	p = strdup(p ? p : "");
+	list[E_HPHONE].save = p;
 	if (!list[E_HPHONE].restricted || !uid)
-	  (void)fprintf(fp, "Home Phone: %s\n", p ? p : "");
+	  (void)fprintf(fp, "Home Phone: %s\n", p);
 
-	if (bp!=NULL)
-	  list[E_OTHER].save = strdup(bp);
+	bp = strdup(bp ? bp : "");
+	list[E_OTHER].save = bp;
 	if (!list[E_OTHER].restricted || !uid)
-	  (void)fprintf(fp, "Other information: %s\n", bp ? bp : "");
+	  (void)fprintf(fp, "Other information: %s\n", bp);
 
 	(void)fchown(fd, getuid(), getgid());
 	(void)fclose(fp);
@@ -237,7 +237,7 @@ bad:					(void)fclose(fp);
 	/* Build the gecos field. */
 	len = strlen(list[E_NAME].save) + strlen(list[E_BPHONE].save) +
 	    strlen(list[E_HPHONE].save) + strlen(list[E_LOCATE].save) +
-	    strlen(list[E_OTHER].save) + 4;
+	    strlen(list[E_OTHER].save) + 5;
 	if (!(p = malloc(len)))
 		err(1, NULL);
 	(void)sprintf(pw->pw_gecos = p, "%s,%s,%s,%s,%s", list[E_NAME].save,
