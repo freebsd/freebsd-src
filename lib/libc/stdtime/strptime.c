@@ -53,7 +53,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strptime.c,v 1.5 1999/04/25 01:42:18 wes Exp $";
+	"$Id: strptime.c,v 1.6 1999/04/25 07:28:39 wes Exp $";
 #endif
 
 #ifndef lint
@@ -70,6 +70,8 @@ static char sccsid[] = "@(#)strptime.c	0.1 (Powerdog) 94/03/27";
 #include "timelocal.h"
 
 #define asizeof(a)	(sizeof (a) / sizeof ((a)[0]))
+
+static int got_GMT = 0;
 
 char *
 strptime(const char *buf, const char *fmt, struct tm *tm)
@@ -344,8 +346,37 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 				while (*ptr != 0 && !isspace((unsigned char)*ptr))
 					ptr++;
 			break;
+
+		case 'Z':
+			{
+			const char *cp;
+			char *zonestr;
+
+			for (cp = buf; *cp && isupper(*cp); ++cp) {/*empty*/}
+			if (cp - buf) {
+				zonestr = alloca(cp - buf + 1);
+				strncpy(zonestr, buf, cp - buf);
+				zonestr[cp - buf] = '\0';
+				tzset();
+				if (0 == strcmp(zonestr, "GMT")) {
+					got_GMT = 1;
+				} else if (0 == strcmp(zonestr, tzname[0])) {
+					tm->tm_isdst = 0;
+				} else if (0 == strcmp(zonestr, tzname[1])) {
+					tm->tm_isdst = 1;
+				} else {
+					return 0;
+				}
+				buf += cp - buf;
+			}
+			}
+			break;
 		}
 	}
 
+	if (got_GMT) {
+		time_t t = timegm(tm);
+		localtime_r(&t, tm);
+	}
 	return (char *)buf;
 }
