@@ -57,6 +57,7 @@
 .Fl n Ar number
 .Op Fl x
 .Oc
+.Op Fl P Ar maxjobs
 .Op Fl s Ar size
 .Op Ar utility Op Ar argument ...
 .Sh DESCRIPTION
@@ -191,6 +192,12 @@ arguments remaining for the last invocation of
 The current default value for
 .Ar number
 is 5000.
+.It Fl P Ar maxprocs
+Parallel mode: run at most
+.Ar maxprocs
+invocations of
+.Ar utility
+at once.
 .It Fl p
 Echo each command to be executed and ask the user whether it should be
 executed.
@@ -273,7 +280,8 @@ utility is expected to be
 .St -p1003.2
 compliant.
 The
-.Fl J
+.Fl J ,
+.Fl P
 and
 .Fl R
 options are non-standard
