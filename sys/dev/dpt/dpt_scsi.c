@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.18 1998/10/09 21:42:19 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.19 1998/10/15 23:17:56 gibbs Exp $"
 
 #define _DPT_C_
 
@@ -378,8 +378,7 @@ dpt_get_conf(dpt_softc_t *dpt, dpt_ccb_t *dccb, u_int32_t dccb_busaddr,
 {
 	eata_ccb_t *cp;
 
-	u_int16_t *ip;
-	u_int8_t   status, sig1, sig2, sig3;
+	u_int8_t   status;
 
 	int	   ndx;
 	int	   ospl;
@@ -479,7 +478,6 @@ dpt_detect_cache(dpt_softc_t *dpt, dpt_ccb_t *dccb, u_int32_t dccb_busaddr,
 {
 	eata_ccb_t *cp;
 	u_int8_t   *param;
-	int	    size;
 	int	    bytes;
 	int	    result;
 	int	    ospl;
@@ -611,7 +609,7 @@ dptexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct	 dpt_ccb *dccb;
 	union	 ccb *ccb;
 	struct	 dpt_softc *dpt;
-	int	 s, i;
+	int	 s;
 
 	dccb = (struct dpt_ccb *)arg;
 	ccb = dccb->ccb;
@@ -706,7 +704,6 @@ static void
 dpt_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct	  dpt_softc *dpt;
-	int	  s;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("dpt_action\n"));
 	
@@ -1003,8 +1000,6 @@ dpt_send_eata_command(dpt_softc_t *dpt, eata_ccb_t *cmd_block,
 		      u_int ifc, u_int code, u_int code2)
 {
 	u_int	loop;
-	u_int   result;
-	u_int   test;
 	
 	if (!retries)
 		retries = 20000;
@@ -1151,7 +1146,6 @@ dpt_init(struct dpt_softc *dpt)
 	int	    index;
 	int	    i;
 	int	    retval;
-	u_int8_t    byte;
 
 #ifdef DPT_RESET_BOARD
 	printf("dpt%d: resetting HBA\n", dpt->unit);
