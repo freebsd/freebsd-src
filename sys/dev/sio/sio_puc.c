@@ -83,6 +83,9 @@ sio_puc_probe(dev)
 	if (BUS_READ_IVAR(device_get_parent(dev), dev, PUC_IVAR_FREQ,
 	    &rclk) != 0)
 		rclk = DEFAULT_RCLK;
+#ifdef PC98
+	SET_FLAG(dev, SET_IFTYPE(COM_IF_NS16550));
+#endif
 	return (sioprobe(dev, 0, (u_long)rclk, 0));
 }
 
