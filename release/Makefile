@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.460.2.4 1999/02/01 18:08:44 jkh Exp $
+#	$Id: Makefile,v 1.460.2.5 1999/02/05 17:09:22 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -64,7 +64,7 @@ KERNELS?=	GENERIC
 # (another "s" for "source" will be prepended).
 EXTRA_SRC+=	usr.sbin/sendmail/cf smailcf
 
-BOOT1=	etc/protocols etc/rc.conf
+BOOT1=	etc/protocols etc/defaults/rc.conf
 
 # mountpoint for filesystems.
 MNT=			/mnt
