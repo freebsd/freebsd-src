@@ -1162,7 +1162,7 @@ int dst;
 		m->m_len = 0;
 		avail = M_TRAILINGSPACE(m);
 # else
-		avail = (m->m_flags & M_EXT) ? MCLBYTES : MHLEN;
+		avail = MCLBYTES;
 # endif
 		xtra = MIN(ntohs(oip6->ip6_plen) + sizeof(ip6_t),
 			   avail - hlen - sizeof(*icmp) - max_linkhdr);
@@ -1382,11 +1382,7 @@ frdest_t *fdp;
 # if	BSD >= 199306
 		int i = 0;
 
-#  ifdef	MCLISREFERENCED
-		if ((m->m_flags & M_EXT) && MCLISREFERENCED(m))
-#  else
-		if (m->m_flags & M_EXT)
-#  endif
+		if ((m->m_flags & M_EXT) && MEXT_IS_REF(m))
 			i = 1;
 # endif
 # ifndef sparc
