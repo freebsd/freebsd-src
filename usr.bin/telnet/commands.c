@@ -2100,7 +2100,7 @@ tn(argc, argv)
     char *argv[];
 {
     register struct hostent *host = 0;
-    struct sockaddr_in sin;
+    struct sockaddr_in sin, src_sin;
     struct servent *sp = 0;
     unsigned long temp;
 #if	defined(IP_OPTIONS) && defined(IPPROTO_IP)
@@ -2108,6 +2108,7 @@ tn(argc, argv)
     unsigned long sourceroute(), srlen;
 #endif
     char *cmd, *hostp = 0, *portp = 0, *user = 0;
+    char *src_addr = NULL;
 
     /* clear the socket address prior to use */
     bzero((char *)&sin, sizeof(sin));
@@ -2143,6 +2144,14 @@ tn(argc, argv)
 	    autologin = 1;
 	    continue;
 	}
+	if (strcmp(*argv, "-s") == 0) {
+	    --argc; ++argv;
+	    if (argc == 0)
+		goto usage;
+	    src_addr = *argv++;
+	    --argc;
+	    continue;
+	}
 	if (hostp == 0) {
 	    hostp = *argv++;
 	    --argc;
@@ -2154,12 +2163,30 @@ tn(argc, argv)
 	    continue;
 	}
     usage:
-	printf("usage: telnet [-l user] [-a] host-name [port]\n");
+	printf("usage: telnet [-l user] [-a] [-s src_addr] host-name [port]\n");
 	setuid(getuid());
 	return 0;
     }
     if (hostp == 0)
 	goto usage;
+
+    if (src_addr != NULL) {
+	bzero((char *)&src_sin, sizeof(src_sin));
+	src_sin.sin_family = AF_INET;
+	if (!inet_aton(src_addr, &src_sin.sin_addr)) {
+	    host = gethostbyname2(src_addr, AF_INET);
+	    if (host == NULL) {
+		herror(src_addr);
+		return 0;
+	    }
+	    if (host->h_length != sizeof(src_sin.sin_addr)) {
+		fprintf(stderr, "telnet: gethostbyname2: invalid address\n");
+		return 0;
+	    }
+	    memcpy((void *)&src_sin.sin_addr, (void *)host->h_addr_list[0],
+			sizeof(src_sin.sin_addr));
+	}
+    }
 
 #if	defined(IP_OPTIONS) && defined(IPPROTO_IP)
     if (hostp[0] == '@' || hostp[0] == '!') {
@@ -2283,6 +2310,13 @@ tn(argc, argv)
 
 	if (debug && SetSockOpt(net, SOL_SOCKET, SO_DEBUG, 1) < 0) {
 		perror("setsockopt (SO_DEBUG)");
+	}
+
+	if (src_addr != NULL) {
+	    if (bind(net, (struct sockaddr *)&src_sin, sizeof(src_sin)) == -1) {
+		perror("bind");
+		return 0;
+	    }
 	}
 
 	if (connect(net, (struct sockaddr *)&sin, sizeof (sin)) < 0) {
