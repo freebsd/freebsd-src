@@ -40,7 +40,7 @@
 #	cd*	"scsi cdrom disks"
 #	mcd*	"mitsumi cdrom disks"
 #	scd*	"sony cdrom disks"
-#	pcd*	"panasonic cdrom disks"
+#	matcd*	"Matsushita (panasonic) cdrom disks"
 #	vn*	"vnode disks"
 #
 # Console ports:
@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.73 1995/02/24 19:26:59 joerg Exp $
+#	$Id: MAKEDEV,v 1.74 1995/02/27 18:54:27 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -142,7 +142,7 @@ case $i in
 all)
 	sh MAKEDEV std						# standard
 	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3 	# bdev, disk
-	sh MAKEDEV cd0 mcd0 scd0 pcd0				# bdev, cdrom
+	sh MAKEDEV cd0 mcd0 scd0 matcd0				# bdev, cdrom
 	sh MAKEDEV ft0 wt0 st0 					# bdev, tape
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3			# cdev, serial
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial
@@ -500,17 +500,38 @@ ch*)
 	umask 77
 	;;
 
-cd*|mcd*|scd*|pcd*)
+cd*|mcd*|scd*)
 	umask 2 ;
 	case $i in
 	cd*) unit=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
 	mcd*) unit=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
 	scd*) unit=`expr $i : '...\(.*\)'`; name=scd; blk=16; chr=45;;
-	pcd*) unit=`expr $i : '...\(.*\)'`; name=pcd; blk=17; chr=46;;
 	esac
 	rm -f $name$unit? r$name$unit?
 	case $unit in
 	0|1|2|3|4|5|6)
+		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
+		mknod ${name}${unit}c   b $blk `expr $unit '*' 8 + 2`
+		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
+		mknod r${name}${unit}c  c $chr `expr $unit '*' 8 + 2`
+		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
+		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+matcd*)
+	umask 2 ;
+	case $i in
+	matcd*) unit=`expr $i : '.....\(.*\)'`; name=matcd; blk=17; chr=46;;
+	esac
+	rm -f $name$unit? r$name$unit?
+	case $unit in
+	0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15)
 		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
 		mknod ${name}${unit}c   b $blk `expr $unit '*' 8 + 2`
 		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
