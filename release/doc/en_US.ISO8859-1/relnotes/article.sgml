@@ -218,12 +218,23 @@
       feature was sponsored by DARPA and NAI Labs.</para>
 
     <para>&os; now supports an extensible Mandatory Access Control
-      framework.  It permits loadable kernel modules to link to the
-      kernel at compile-time, boot-time, or run-time, and augment the
-      system security policy.
+      framework, the TrustedBSD MAC Framework.  It permits loadable
+      kernel modules to link to the kernel at compile-time, boot-time,
+      or run-time, and augment the system security policy.  The
+      framework permits modules to express interest in a variety
+      of events, and also provides common security policy services
+      such as label storage.  A variety of sample policy modules are
+      shipped in this release, including implementations of fixed
+      and floating label Biba integrity models, Multi-Level Security
+      (MLS) with compartments, and a number of augmented UNIX security
+      models including a file system firewall.  This feature will
+      permit easier development and maintenance of local and vendor
+      security extensions.  The extensibility service is enabled
+      by compiling your kernel with <literal>options MAC</literal>.
 
       <note>
-        <para>The MAC framework implementation is a work in progress.</para>
+        <para>The MAC framework is considered an experimental
+	  feature in this release, and is not enabled by default</para>
       </note>
       </para>
 
@@ -1449,8 +1460,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  </listitem>
 
 	  <listitem>
-	    <para>Space has been provided for extended attributes, up
-	      to twice the filesystem block size.</para>
+	    <para>A native extended attributes implementation has been
+	      added, permitting total attribute size stored on an inode
+	      to be up to twice the filesystem block size.  This storage
+	      is used for Access Control Lists and MAC labels, but may
+	      also be used by other system extensions and user
+	      applications.</para>
 	  </listitem>
 	</itemizedlist>
 
