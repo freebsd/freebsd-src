@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.269
+    Original revision: 1.22.2.272
 -->
 
 <articleinfo>
@@ -154,6 +154,10 @@
       <para>&man.ata.4; のタグ付きキューイング機能で
         時々発生していた動作不良が修正されました。</para>
 
+      <para>&man.ata.4; ドライバが最大転送データサイズを正しく計算するようになりました。
+        この修正により、特定の ATA デバイスにアクセスした時に数多く生じていた
+        <literal>READ_BIG</literal>
+        エラーやその他のエラーが発生しなくなっています。</para>
     </sect3>
 
     <sect3>
@@ -207,6 +211,11 @@
       セキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
       をご覧ください。</para>
+
+    <para>任意のファイルの許可属性を変更するのに使用可能な、
+      &man.pppd.8; にあった競合状態が修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink> をご覧ください。</para>
   </sect2>
 
   <sect2 id="userland">
@@ -222,6 +231,9 @@
       情報の表示をユーザのフルネームのみに制限する
       <option>-g</option> フラグが追加されました。</para>
 
+    <para>&man.finger.1; に、リモートの問い合わせに使うアドレスファミリを指定する
+      <option>-4</option> フラグと <option>-6</option> フラグが追加されました。</para>
+
     <para>&man.fold.1; に、指定バイト位置で改行する
       <option>-b</option> オプションと、
       単語境界で改行する <option>-s</option> オプションが追加されました。</para>
@@ -230,6 +242,12 @@
       ビットを自動的に設定する <option>eui64</option>
       コマンドが追加されました。この変更にともない、
       &man.prefix.8; は廃止されました。</para>
+
+    <para>&man.ls.1; プログラムに、
+      リストを一行で表示する <option>-m</option> フラグ、
+      ディレクトリ名の後ろに <literal>/</literal> を付加する
+      <option>-p</option> フラグ、ファイル名を行方向にソートして表示する
+      <option>-x</option> フラグが追加されました。</para>
 
     <para>&man.nice.1; に、実行するユーティリティの <quote>nice
         値</quote>を指定する <option>-n</option>
@@ -252,6 +270,32 @@
 
     <para>&man.sed.1; に、指定ファイルそのものを編集する
       <option>-i</option> オプションが追加されました。</para>
+    
+    <para>&man.sh.1; に、出力のリダイレクトで
+      既存の通常ファイルを上書きする操作を禁止する
+      <option>-C</option> オプションと、
+      未定義の変数を展開しようとした時にエラーを発生させる
+      <option>-u</option> オプションが追加されました。</para>
+
+    <para>&man.sh.1; 内蔵の <command>cd</command> コマンドに、
+      論理モードと物理モードを指定する
+      <option>-L</option> フラグと <option>-P</option>
+      フラグがそれぞれ追加されました。
+      デフォルトは論理モードです。このデフォルトは、
+      <varname>physical</varname> という &man.sh.1; オプションで
+      変更できます。</para>
+
+    <para>&man.sh.1; 内蔵の <command>jobs</command> コマンドに、
+      PID のみを表示する <option>-s</option> フラグと、
+      出力に PID を含める <option>-l</option> フラグが追加されました。</para>
+
+    <para>&man.sh.1; 内蔵の <command>export</command> および
+      <command>readonly</command> コマンドに、
+      <quote>portable</quote> フォーマットで出力する
+      <option>-p</option> フラグが追加されました。</para>
+
+    <para>&man.split.1; に、分割ファイルの接尾子に使用する文字数を指定する
+      <option>-a</option> オプションが追加されました。</para>
 
     <para>&man.su.1; が、Kerberos V 認証に対応しました。</para>
 
@@ -360,6 +404,9 @@
           </listitem>
         </itemizedlist>
       </para>
+
+      <para><application>OpenSSL</application> がバージョン
+	0.9.6e に更新されました。</para>
 
       <para><application>sendmail</application> がバージョン
         8.12.3 からバージョン 8.12.5 に更新されました。</para>
