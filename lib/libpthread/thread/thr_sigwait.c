@@ -113,11 +113,12 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 			if (SIGISMEMBER(waitset, i) &&
 			    SIGISMEMBER(curthread->sigpend, i)) {
 				SIGDELSET(curthread->sigpend, i);
-				*info = curthread->siginfo[i - 1];
+				siginfo = curthread->siginfo[i - 1];
 				KSE_SCHED_UNLOCK(curthread->kse,
 					curthread->kseg);
 				_kse_critical_leave(crit);
-				return (i);
+				ret = i;
+				goto OUT;
 			}
 		}
 		curthread->timeout = 0;
@@ -137,8 +138,6 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 		 * status.
 		 */
 		if (siginfo.si_signo > 0) {
-			if (info)
-				*info = siginfo;
 			ret = siginfo.si_signo;
 		} else {
 			if (curthread->timeout)
@@ -158,6 +157,7 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_signal_lock);
 	}
 
+OUT:
 	/* Restore the sigactions: */
 	act.sa_handler = SIG_DFL;
 	for (i = 1; i <= _SIG_MAXSIG; i++) {
@@ -173,6 +173,9 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 	/* Done accessing _thread_dfl_count. */
 	KSE_LOCK_RELEASE(curthread->kse, &_thread_signal_lock);
 	_kse_critical_leave(crit);
+
+	if (ret > 0 && info != NULL)
+		*info = siginfo;
 
 	return (ret);
 }
