@@ -73,6 +73,10 @@ struct usbd_pipe_methods {
 	void		      (*done)(usbd_xfer_handle xfer);
 };
 
+struct usbd_tt {
+	struct usbd_hub		*hub;
+};
+
 struct usbd_port {
 	usb_port_status_t	status;
 	u_int16_t		power;	/* mA of current on port */
@@ -81,6 +85,7 @@ struct usbd_port {
 #define USBD_RESTART_MAX 5
 	struct usbd_device     *device;	/* Connected device */
 	struct usbd_device     *parent;	/* The ports hub */
+	struct usbd_tt	       *tt; /* Transaction translator (if any) */
 };
 
 struct usbd_hub {
@@ -141,7 +146,7 @@ struct usbd_device {
 	usb_event_cookie_t	cookie;	       /* unique connection id */
 	struct usbd_port       *powersrc;      /* upstream hub port, or 0 */
 	struct usbd_device     *myhub;	       /* upstream hub */
-	struct usbd_device     *myhighhub;     /* closest high speed hub */
+	struct usbd_port       *myhsport;      /* closest high speed port */
 	struct usbd_endpoint	def_ep;	       /* for pipe 0 */
 	usb_endpoint_descriptor_t def_ep_desc; /* for pipe 0 */
 	struct usbd_interface  *ifaces;        /* array of all interfaces */
