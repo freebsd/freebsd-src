@@ -583,8 +583,6 @@ start_init(void *dummy)
 		freeenv(var);
 	}
 	
-	printf("Be nice to each other, mmmkay?\n");
-
 	for (path = init_path; *path != '\0'; path = next) {
 		while (*path == ':')
 			path++;
