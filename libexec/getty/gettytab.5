@@ -158,9 +158,10 @@ hangup line on last close
 .It "pe	bool	false	use printer (hard copy) erase algorithm"
 .It "pf	num	0	delay"
 between first prompt and following flush (seconds)
-.It "pp	str	unused	PPP authentication program"
-.It "pl	bool	false	do not detect PPP sequence, but start PPP login"
-program referenced by pp automatically
+.It "pl	bool	false	start PPP login program automatically if"
+.Em \&pp
+is specified
+.It "pp	str	unused	PPP login program"
 .It "ps	bool	false	line connected to a"
 .Tn MICOM
 port selector
@@ -374,11 +375,21 @@ utility does not check parity of input characters in
 .Dv RAW
 mode.
 .Pp
-If
+If a
 .Em \&pp
-string is specified and a PPP link bring up sequence is recognized,
-getty will invoke the program referenced by the pp option.  This
-can be used to handle incoming PPP calls.
+string is specified and a PPP link bring-up sequence is recognized,
+getty will invoke the program referenced by the
+.Em \&pp
+option.
+This can be used to handle incoming PPP calls.
+If the
+.Em \&pl
+option is true as well,
+.Xr getty 8
+will skip the user name prompt and the PPP detection phase, and will
+invoke the program specified by
+.Em \&pp
+instantly.
 .Pp
 .Nm Getty
 provides some basic intelligent modem handling by providing a chat
