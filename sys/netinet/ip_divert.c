@@ -533,7 +533,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
  * the pcbinfo for in_setpeeraddr to lock.
  */
 static int
-dip_sockaddr(struct socket *so, struct sockaddr **nam)
+div_sockaddr(struct socket *so, struct sockaddr **nam)
 {
 	return (in_setsockaddr(so, nam, &divcbinfo));
 }
@@ -543,7 +543,7 @@ dip_sockaddr(struct socket *so, struct sockaddr **nam)
  * the pcbinfo for in_setpeeraddr to lock.
  */
 static int
-dip_peeraddr(struct socket *so, struct sockaddr **nam)
+div_peeraddr(struct socket *so, struct sockaddr **nam)
 {
 	return (in_setpeeraddr(so, nam, &divcbinfo));
 }
