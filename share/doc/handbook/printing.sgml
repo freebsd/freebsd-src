@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.1 1995/10/01 04:43:13 jfieber Exp $
+     $Id: printing.sgml,v 1.2 1995/10/01 22:16:19 jfieber Exp $
 
      The FreeBSD Documentation Project
 
@@ -1114,7 +1114,6 @@ exit 2
 !"#$%&ero;'()*+,-./01234
                         "#$%&ero;'()*+,-./012345
                                                 #$%&ero;'()*+,-./0123456
-                                                                        $%&ero;'()*+,-./01234567
 </verb></tscreen>
 		  You've become another victim of the <em/staircase
 		  effect/, caused by conflicting interpretations of
@@ -3208,7 +3207,7 @@ lpr -P bamboo -d sushi-review.dvi
 	    lets you send data to it as if you were using a serial or
 	    parallel port (the cheaper version).  This section tells
 	    how to use the cheaper version.  For the more expensive
-	    version, see the previous section <ref name="Printers
+	    one, see the previous section <ref name="Printers
 	    Installed on Remote Hosts" id="printing:advanced:network:rm">.
 
 	    The format of the <tt>/etc/printcap</tt> file lets you
@@ -3815,7 +3814,7 @@ pac -p1.50
 	there (and work with FreeBSD)?''
 
 	Unfortunately, I've located only <em/two/ alternatives---and
-	they're almost identical to each other!  They are
+	they're almost identical to each other!  They are:
 	<descrip>
 	  <tag/PLP, the Portable Line Printer Spooler System/
 

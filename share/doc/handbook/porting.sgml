@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.8 1995/11/14 23:58:43 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.9 1995/12/04 08:11:58 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Porting applications<label id="porting"></heading>
@@ -16,7 +16,7 @@
 	that file for more details.
 
     <sect1>
-      <heading>Before Starting the Port</heading>
+      <heading>Before Starting the Port<label id="porting:starting"></heading>
 
       <p>Note: Only a fraction of the overridable variables are
 	mentioned in this document. Most (if not all) are documented
@@ -125,7 +125,7 @@
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.8 1995/11/14 23:58:43 asami Exp $
+ # $Id: porting.sgml,v 1.9 1995/12/04 08:11:58 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -411,7 +411,7 @@ ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
 	  the directory your port's tarball unpacks itself into, that
 	  being where the make is done).  To make fixes and upgrades
 	  easier you should avoid having more than one patch fix the
-	  same file (e.g., patch-ab and patch-ab both changing
+	  same file (e.g., patch-aa and patch-ab both changing
 	  <tt>&dollar;{WRKSRC}</tt>/foobar.c).
 
       <sect2>
@@ -880,7 +880,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.8 1995/11/14 23:58:43 asami Exp $
+ # $Id: porting.sgml,v 1.9 1995/12/04 08:11:58 asami Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #

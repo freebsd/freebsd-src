@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.18 1995/11/27 01:46:51 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.19 1995/11/29 09:45:13 tg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -349,7 +349,7 @@ Boot:
 	  boot into the CD installation directly from DOS using Walnut Creek's
 	  supplied ``install.bat'' batch file or you can make a boot floppy with
 	  the ``makeflp.bat'' command [NOTE: If you're using an IDE CDROM, use
-	  the inst_ide.bat or atapiflp.bat batch files instead].
+	  the inst&lowbar;ide.bat or atapiflp.bat batch files instead].
 
 	  For the easiest interface of all (from DOS), type
 	  ``view''.  This will bring up a DOS menu utility that
