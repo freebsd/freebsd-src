@@ -1,0 +1,54 @@
+This directory contains the virgin CVS source on the vendor branch.  Do
+not under any circumstances commit new versions onto the mainline, new
+versions or official-patch versions must be imported.
+
+To prepare a new cvs dist for import, extract it into a fresh directory;
+
+The following generated files were deleted:
+doc/*.ps
+doc/*.info*
+doc/*.aux*
+doc/CVSvn.texi
+lib/getdate.c
+tools/pcl-cvs/*.ps
+tools/pcl-cvs/*.aux
+tools/pcl-cvs/texinfo.tex
+cvsnt.mak
+cvs.spec
+build.com
+src/build_src.com
+lib/build_lib.com
+README.VMS
+
+The following non-freebsd-specific directories were deleted:
+macintosh
+os2
+emx
+windows-NT
+vms
+contrib/elib	(this has a .tar.Z in it)
+zlib
+
+CVS has RCS Id, Name and Header tags. It needs to be imported with -ko.
+
+It is imported from it's top level directory something like this:
+  cvs -n import -ko src/contrib/cvs CYCLIC v<version>
+
+The -n option is "dont do anything" so you can see what is about to happen
+first.  Remove it when it looks ok.
+
+The initial import was done with:
+  cvs import -ko src/contrib/cvs CYCLIC v1_8_1
+
+When new versions are imported, cvs will give instructions on how to merge
+the local and vendor changes when/if conflicts arise..
+
+The developers can be reached at:  <devel-cvs@cyclic.com>.  Local changes
+that are suitable for public consumption should be submitted for inclusion
+in future releases.
+
+peter@freebsd.org - 20 Aug 1996
+
+Current local changes:
+  - CVS_LOCAL_BRANCH_NUM environment variable support for choosing the
+    magic branch number.  (for CVSup local-commit support)
