@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.8 1999/07/05 20:19:41 wpaul Exp $
+ *	$Id: if_ti.c,v 1.114 1999/07/05 19:20:31 wpaul Exp $
  */
 
 /*
@@ -114,6 +114,9 @@
 #include <machine/clock.h>      /* for DELAY */
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -128,7 +131,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.8 1999/07/05 20:19:41 wpaul Exp $";
+	"$Id: if_ti.c,v 1.114 1999/07/05 19:20:31 wpaul Exp $";
 #endif
 
 /*
@@ -147,10 +150,9 @@ static struct ti_type ti_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static unsigned long		ti_count;
-
-static const char *ti_probe	__P((pcici_t, pcidi_t));
-static void ti_attach		__P((pcici_t, int));
+static int ti_probe		__P((device_t));
+static int ti_attach		__P((device_t));
+static int ti_detach		__P((device_t));
 static void ti_txeof		__P((struct ti_softc *));
 static void ti_rxeof		__P((struct ti_softc *));
 
@@ -165,7 +167,7 @@ static void ti_init		__P((void *));
 static void ti_init2		__P((struct ti_softc *));
 static void ti_stop		__P((struct ti_softc *));
 static void ti_watchdog		__P((struct ifnet *));
-static void ti_shutdown		__P((int, void *));
+static void ti_shutdown		__P((device_t));
 static int ti_ifmedia_upd	__P((struct ifnet *));
 static void ti_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -204,6 +206,25 @@ static int ti_init_tx_ring	__P((struct ti_softc *));
 static int ti_64bitslot_war	__P((struct ti_softc *));
 static int ti_chipinit		__P((struct ti_softc *));
 static int ti_gibinit		__P((struct ti_softc *));
+
+static device_method_t ti_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ti_probe),
+	DEVMETHOD(device_attach,	ti_attach),
+	DEVMETHOD(device_detach,	ti_detach),
+	DEVMETHOD(device_shutdown,	ti_shutdown),
+	{ 0, 0 }
+};
+
+static driver_t ti_driver = {
+	"ti",
+	ti_methods,
+	sizeof(struct ti_softc)
+};
+
+static devclass_t ti_devclass;
+
+DRIVER_MODULE(ti, pci, ti_driver, ti_devclass, 0, 0);
 
 /*
  * Send an instruction or address to the EEPROM, check for ACK.
@@ -1496,89 +1517,83 @@ static int ti_gibinit(sc)
  * Probe for a Tigon chip. Check the PCI vendor and device IDs
  * against our list and return its name if we find a match.
  */
-static const char *
-ti_probe(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+static int ti_probe(dev)
+	device_t		dev;
 {
 	struct ti_type		*t;
 
 	t = ti_devs;
 
 	while(t->ti_name != NULL) {
-		if ((device_id & 0xFFFF) == t->ti_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->ti_did)
-			return(t->ti_name);
+		if ((pci_get_vendor(dev) == t->ti_vid) &&
+		    (pci_get_device(dev) == t->ti_did)) {
+			device_set_desc(dev, t->ti_name);
+			return(0);
+		}
 		t++;
 	}
 
-	return(NULL);
+	return(ENXIO);
 }
 
-
-static void
-ti_attach(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
+static int ti_attach(dev)
+	device_t		dev;
 {
-	vm_offset_t		pbase, vbase;
 	int			s;
 	u_int32_t		command;
 	struct ifnet		*ifp;
 	struct ti_softc		*sc;
+	int			unit, error = 0, rid;
 
 	s = splimp();
 
-	/* First, allocate memory for the softc struct. */
-	sc = malloc(sizeof(struct ti_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("ti%d: no memory for softc struct!\n", unit);
-		goto fail;
-	}
-
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct ti_softc));
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 	command |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("ti%d: failed to enable memory mapping!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
 
-#ifdef __i386__
-	if (!pci_map_mem(config_id, TI_PCI_LOMEM, &vbase, &pbase)) {
+	rid = TI_PCI_LOMEM;
+	sc->ti_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+
+	if (sc->ti_res == NULL) {
 		printf ("ti%d: couldn't map memory\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
 
-	sc->ti_bhandle = vbase;
-	sc->ti_btag = I386_BUS_SPACE_MEM;
-#endif
-
-#ifdef __alpha__
-	if (!(pci_map_bwx(config_id, TI_PCI_LOMEM, &vbase, &pbase) ||
-	      pci_map_dense(config_id, TI_PCI_LOMEM, &vbase, &pbase))){
-		printf ("ti%d: couldn't map memory\n", unit);
-		free(sc, M_DEVBUF);
-		goto fail;
-	}
-
-	sc->ti_bhandle = pbase;
-	sc->ti_vhandle = vbase;
-	sc->ti_btag = ALPHA_BUS_SPACE_MEM;
-#endif
 	/* Allocate interrupt */
-	if (!pci_map_int(config_id, ti_intr, sc, &net_imask)) {
+	rid = 0;
+	sc->ti_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->ti_irq == NULL) {
 		printf("ti%d: couldn't map interrupt\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, sc->ti_irq, INTR_TYPE_NET,
+	   ti_intr, sc, &sc->ti_intrhand);
+
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    TI_PCI_LOMEM, sc->ti_res);
+		printf("ti%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -1586,7 +1601,11 @@ ti_attach(config_id, unit)
 
 	if (ti_chipinit(sc)) {
 		printf("ti%d: chip initialization failed\n", sc->ti_unit);
-		free(sc, M_DEVBUF);
+		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    TI_PCI_LOMEM, sc->ti_res);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1596,7 +1615,11 @@ ti_attach(config_id, unit)
 	/* Init again -- zeroing memory may have clobbered some registers. */
 	if (ti_chipinit(sc)) {
 		printf("ti%d: chip initialization failed\n", sc->ti_unit);
-		free(sc, M_DEVBUF);
+		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    TI_PCI_LOMEM, sc->ti_res);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1610,7 +1633,11 @@ ti_attach(config_id, unit)
 	if (ti_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
 				TI_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
 		printf("ti%d: failed to read station address\n", unit);
-		free(sc, M_DEVBUF);
+		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    TI_PCI_LOMEM, sc->ti_res);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1621,23 +1648,30 @@ ti_attach(config_id, unit)
 				sc->arpcom.ac_enaddr, ":");
 
 	/* Allocate the general information block and ring buffers. */
-	sc->ti_rdata_ptr = contigmalloc(sizeof(struct ti_ring_data), M_DEVBUF,
+	sc->ti_rdata = contigmalloc(sizeof(struct ti_ring_data), M_DEVBUF,
 	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
 
-	if (sc->ti_rdata_ptr == NULL) {
-		free(sc, M_DEVBUF);
+	if (sc->ti_rdata == NULL) {
+		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    TI_PCI_LOMEM, sc->ti_res);
+		error = ENXIO;
 		printf("ti%d: no memory for list buffers!\n", sc->ti_unit);
 		goto fail;
 	}
 
-	sc->ti_rdata = (struct ti_ring_data *)sc->ti_rdata_ptr;
 	bzero(sc->ti_rdata, sizeof(struct ti_ring_data));
 
 	/* Try to allocate memory for jumbo buffers. */
 	if (ti_alloc_jumbo_mem(sc)) {
 		printf("ti%d: jumbo buffer allocation failed\n", sc->ti_unit);
-		free(sc->ti_rdata_ptr, M_DEVBUF);
-		free(sc, M_DEVBUF);
+		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    TI_PCI_LOMEM, sc->ti_res);
+		free(sc->ti_rdata, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1684,12 +1718,38 @@ ti_attach(config_id, unit)
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
-	at_shutdown(ti_shutdown, sc, SHUTDOWN_POST_SYNC);
-
 fail:
 	splx(s);
 
-	return;
+	return(error);
+}
+
+static int ti_detach(dev)
+	device_t		dev;
+{
+	struct ti_softc		*sc;
+	struct ifnet		*ifp;
+	int			s;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	if_detach(ifp);
+	ti_stop(sc);
+
+	bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
+	bus_release_resource(dev, SYS_RES_MEMORY, TI_PCI_LOMEM, sc->ti_res);
+
+	free(sc->ti_cdata.ti_jumbo_buf, M_DEVBUF);
+	free(sc->ti_rdata, M_DEVBUF);
+	ifmedia_removeall(&sc->ifmedia);
+
+	splx(s);
+
+	return(0);
 }
 
 /*
@@ -2430,24 +2490,14 @@ static void ti_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void ti_shutdown(howto, xsc)
-	int			howto;
-	void			*xsc;
+static void ti_shutdown(dev)
+	device_t		dev;
 {
 	struct ti_softc		*sc;
 
-	sc = xsc;
+	sc = device_get_softc(dev);
 
 	ti_chipinit(sc);
 
 	return;
 }
-
-static struct pci_device ti_device = {
-	"ti",
-	ti_probe,
-	ti_attach,
-	&ti_count,
-	NULL
-};
-COMPAT_PCI_DRIVER(ti, ti_device);

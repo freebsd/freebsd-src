@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tireg.h,v 1.46 1999/07/05 19:20:31 wpaul Exp $
+ *	$Id: if_tireg.h,v 1.46 1999/07/05 19:20:31 wpaul Exp wpaul $
  */
 
 /*
@@ -128,7 +128,7 @@
  */
 #define TI_FIRMWARE_MAJOR		0xc
 #define TI_FIRMWARE_MINOR		0x3
-#define TI_FIRMWARE_FIX			0xa
+#define TI_FIRMWARE_FIX			0xc
 
 /*
  * Miscelaneous Local Control register.
@@ -1114,15 +1114,14 @@ struct ti_jpool_entry {
 struct ti_softc {
 	struct arpcom		arpcom;		/* interface info */
 	bus_space_handle_t	ti_bhandle;
-#ifdef __alpha__
-	vm_offset_t		ti_vhandle;     /* alpha dense space vaddr */
-#endif
 	bus_space_tag_t		ti_btag;
+	void			*ti_intrhand;
+	struct resource		*ti_irq;
+	struct resource		*ti_res;
 	struct ifmedia		ifmedia;	/* media info */
 	u_int8_t		ti_unit;	/* interface number */
 	u_int8_t		ti_hwrev;	/* Tigon rev (1 or 2) */
 	u_int8_t		ti_linkstat;	/* Link state */
-	caddr_t			ti_rdata_ptr;	/* Raw ring data */
 	struct ti_ring_data	*ti_rdata;	/* rings */
 	struct ti_chain_data	ti_cdata;	/* mbufs */
 #define ti_ev_prodidx		ti_rdata->ti_ev_prodidx_r
