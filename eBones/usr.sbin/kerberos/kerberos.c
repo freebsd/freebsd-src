@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: kerberos.c,v 4.19 89/11/01 17:18:07 qjb Exp $
- *	$Id: kerberos.c,v 1.4 1995/07/18 16:37:51 mark Exp $
+ *	$Id: kerberos.c,v 1.4 1995/09/07 21:37:27 markm Exp $
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: kerberos.c,v 1.4 1995/07/18 16:37:51 mark Exp $";
+"$Id: kerberos.c,v 1.4 1995/09/07 21:37:27 markm Exp $";
 #endif  lint
 #endif
 
@@ -341,7 +341,6 @@ kerberos(client, pkt)
 
     static struct in_addr client_host;
     static int msg_byte_order;
-    static int swap_bytes;
     static u_char k_flags;
     u_long  lifetime;
     int     i;
@@ -350,6 +349,8 @@ kerberos(client, pkt)
     char   *ptr;
 
 
+
+    lifetime = DEFAULT_TKT_LIFE;
 
     ciph->length = 0;
 
@@ -370,11 +371,17 @@ kerberos(client, pkt)
 	kerb_err_reply(client, pkt, KERB_ERR_PKT_VER, lt);
 	return;
     }
+
+    /* set up and correct for byte order and alignment */
+    req_name_ptr = (char *) pkt_a_name(pkt);
+    req_inst_ptr = (char *) pkt_a_inst(pkt);
+    req_realm_ptr = (char *) pkt_a_realm(pkt);
+    bcopy(pkt_time_ws(pkt), &req_time_ws, sizeof(req_time_ws));
+
     msg_byte_order = req_msg_type & 1;
 
-    swap_bytes = 0;
     if (msg_byte_order != HOST_BYTE_ORDER) {
-	swap_bytes++;
+	swap_u_long(req_time_ws)
     }
     klog(L_KRB_PINFO,
 	"Prot version: %d, Byte order: %d, Message type: %d",
@@ -392,15 +399,6 @@ kerberos(client, pkt)
 	    k_flags = 0;	/* various kerberos flags */
 
 
-	    /* set up and correct for byte order and alignment */
-	    req_name_ptr = (char *) pkt_a_name(pkt);
-	    req_inst_ptr = (char *) pkt_a_inst(pkt);
-	    req_realm_ptr = (char *) pkt_a_realm(pkt);
-	    bcopy(pkt_time_ws(pkt), &req_time_ws, sizeof(req_time_ws));
-	    /* time has to be diddled */
-	    if (swap_bytes) {
-		swap_u_long(req_time_ws);
-	    }
 	    ptr = (char *) pkt_time_ws(pkt) + 4;
 
 	    req_life = (u_long) (*ptr++);
@@ -497,6 +495,7 @@ kerberos(client, pkt)
 	    n_appl_req++;
 	    tk->length = 0;
 	    k_flags = 0;	/* various kerberos flags */
+	    kerno = KSUCCESS;
 
 	    auth->length = 4 + strlen(pkt->dat + 3);
 	    auth->length += (int) *(pkt->dat + auth->length) +
