@@ -328,7 +328,7 @@ check_kmem()
 void
 clear_dump()
 {
-	int newdumpmag;
+	u_long newdumpmag;
 
 	newdumpmag = 0;
 	DumpWrite(dumpfd, &newdumpmag, sizeof(newdumpmag),
@@ -343,7 +343,7 @@ clear_dump()
 int
 dump_exists()
 {
-	int newdumpmag;
+	u_long newdumpmag;
 
 	DumpRead(dumpfd, &newdumpmag, sizeof(newdumpmag),
 	    (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
