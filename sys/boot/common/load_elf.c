@@ -563,7 +563,8 @@ elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef) {
     Elf_Sym sym;
     void **p, *v;
     char *s;
-    int entries, modcnt;
+    long entries;
+    int modcnt;
 
     if (elf_lookup_symbol(fp, ef, "modmetadata_set", &sym) != 0)
 	return ENOENT;
