@@ -123,7 +123,7 @@ Try to resolve addresses and service names in output.
 .El
 .Pp
 .Ar action :
-.Bl -hang -offset flag -width 1234567890123456
+.Bl -hang -offset flag -width 16n
 .It Ar allow
 Allow packets that match rule.
 The search terminates.
@@ -191,7 +191,7 @@ through the
 interface.
 .Pp
 .Ar proto :
-.Bl -hang -offset flag -width 1234567890123456
+.Bl -hang -offset flag -width 16n
 .It Ar ipv6
 All packets match.
 The alias
@@ -220,7 +220,7 @@ and
 The
 .Em <address/prefixlen>
 may be specified as:
-.Bl -hang -offset flag -width 1234567890123456
+.Bl -hang -offset flag -width 16n
 .It Ar ipv6no
 An ipv6number of the form
 .Li fec0::1:2:3:4.
@@ -270,7 +270,7 @@ keyword indicates the rule should only match outgoing packets.
 To match packets going through a certain interface, specify
 the interface using
 .Ar via :
-.Bl -hang -offset flag -width 1234567890123456
+.Bl -hang -offset flag -width 16n
 .It Ar via ifX
 Packet must be going through interface
 .Ar ifX.
@@ -328,7 +328,7 @@ the local host have no transmit interface.
 .Pp
 Additional
 .Ar options :
-.Bl -hang -offset flag -width 1234567890123456
+.Bl -hang -offset flag -width 16n
 .It frag
 Matches if the packet is a fragment and this is not the first fragment
 of the datagram.
@@ -361,7 +361,7 @@ The supported IPv6 options are:
 (destination options header).
 The absence of a particular option may be denoted
 with a
-.Dq !
+.Dq \&!
 .Em (not working yet).
 .It established
 Matches packets that have the RST or ACK bits set.
@@ -383,7 +383,7 @@ and
 .Ar urg .
 The absence of a particular flag may be denoted
 with a
-.Dq ! .
+.Dq \&! .
 A rule which contains a
 .Ar tcpflags
 specification can never match a fragmented packet which has
@@ -399,7 +399,7 @@ or individual types separated by commas.
 .Sh CHECKLIST
 Here are some important points to consider when designing your
 rules:
-.Bl -bullet -hang -offset flag
+.Bl -bullet -offset flag
 .It
 Remember that you filter both packets going in and out.
 Most connections need packets going in both directions.

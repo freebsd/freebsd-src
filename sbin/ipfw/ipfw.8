@@ -662,7 +662,7 @@ The supported IP types of service are:
 .Pq Dv IPTOS_CE .
 The absence of a particular type may be denoted
 with a
-.Ql ! .
+.Ql \&! .
 .It Cm iplen Ar len
 Match if the total length of a packet, including header and data, is
 .Ar len
@@ -696,7 +696,7 @@ The supported IP options are:
 (timestamp).
 The absence of a particular option may be denoted
 with a
-.Ql ! .
+.Ql \&! .
 .It Cm tcpseq Ar seq
 TCP packets only.
 Match if the TCP header sequence number field is set to
@@ -721,7 +721,7 @@ and
 .Cm urg .
 The absence of a particular flag may be denoted
 with a
-.Ql ! .
+.Ql \&! .
 A rule which contains a
 .Cm tcpflags
 specification can never match a fragmented packet which has
@@ -760,7 +760,7 @@ The supported TCP options are:
 (rfc1644 t/tcp connection count).
 The absence of a particular option may be denoted
 with a
-.Ql ! .
+.Ql \&! .
 .It Cm icmptypes Ar types
 ICMP packets only.
 Match if the ICMP type is in the list
