@@ -68,6 +68,13 @@ typedef struct {
 	long rem;		/* remainder */
 } ldiv_t;
 
+#ifdef __LONG_LONG_SUPPORTED
+typedef struct {
+	long long quot;
+	long long rem;
+} lldiv_t;
+#endif
+
 #ifndef NULL
 #define	NULL	0
 #endif
@@ -117,6 +124,12 @@ size_t	 mbstowcs __P((wchar_t *, const char *, size_t));
 int	 wctomb __P((char *, wchar_t));
 int	 mbtowc __P((wchar_t *, const char *, size_t));
 size_t	 wcstombs __P((char *, const wchar_t *, size_t));
+
+#ifdef __LONG_LONG_SUPPORTED
+long long
+	 llabs __P((long long)) __pure2;
+lldiv_t	 lldiv __P((long long, long long)) __pure2;
+#endif
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 extern char *_malloc_options;
