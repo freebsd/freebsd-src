@@ -223,7 +223,8 @@ usage:		fprintf(stderr, "usage: rwhod [ -m [ ttl ] ]\n");
 	}
 	if ((cp = index(myname, '.')) != NULL)
 		*cp = '\0';
-	strncpy(mywd.wd_hostname, myname, sizeof(myname) - 1);
+	strncpy(mywd.wd_hostname, myname, sizeof(mywd.wd_hostname) - 1);
+	mywd.wd_hostname[sizeof(mywd.wd_hostname) - 1] = '\0';
 	utmpf = open(_PATH_UTMP, O_RDONLY|O_CREAT, 0644);
 	if (utmpf < 0) {
 		syslog(LOG_ERR, "%s: %m", _PATH_UTMP);
@@ -351,7 +352,7 @@ verify(name, maxlen)
 {
 	register int size = 0;
 
-	while (*name && size < maxlen) {
+	while (*name && size < maxlen - 1) {
 		if (!isascii(*name) || !(isalnum(*name) || ispunct(*name)))
 			return (0);
 		name++, size++;
