@@ -1,6 +1,6 @@
 <!--
 
-  $Id: docbook-html.ts,v 1.2 1996/12/17 01:48:30 jfieber Exp $
+  $Id: docbook-html.ts,v 1.8 1997/01/19 21:21:18 jfieber Exp $
 
   Copyright (C) 1997
        John R. Fieber.  All rights reserved.
@@ -187,7 +187,7 @@ ${_action &r.blkpe;t}</end>'>
 <gi>ACRONYM
 <content>^[^a-z]*$</content>
 <action>
-<replace>&lt;SMALL>${_! echo "${+content}" | tr "[:lower:]" "[:upper:]"}&lt;/SMALL></replace>
+<replace>&lt;SMALL>${_! echo -n "${+content}" | tr "[:lower:]" "[:upper:]"}&lt;/SMALL></replace>
 </rule>
 
 <rule> <!-- Pronounceable contraction of initials -->
