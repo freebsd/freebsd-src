@@ -35,13 +35,14 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1984, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)arp.c	8.2 (Berkeley) 1/2/94";
+static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
+static char const freebsdid[] = "$Id$";
 #endif /* not lint */
 
 /*
@@ -52,7 +53,9 @@ static char sccsid[] = "@(#)arp.c	8.2 (Berkeley) 1/2/94";
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/ioctl.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -68,14 +71,30 @@ static char sccsid[] = "@(#)arp.c	8.2 (Berkeley) 1/2/94";
 #include <errno.h>
 #include <nlist.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <strings.h>
 #include <paths.h>
+
+void dump(u_long addr);
+int delete(char *host, char *info);
+void ether_print(u_char *cp);
+void usage(void);
+int set(int argc, char **argv);
+void get(char *host);
+int file(char *name);
+void getsocket(void);
+int ether_aton(char *a, u_char *n);
+int rtmsg(int cmd);
+void quit(char *msg);
+int get_ether_addr(u_long ipaddr, u_char *hwaddr);
 
 extern int errno;
 static int pid;
-static int kflag;
 static int nflag;
 static int s = -1;
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -83,7 +102,7 @@ main(argc, argv)
 	int ch;
 
 	pid = getpid();
-	while ((ch = getopt(argc, argv, "andfs")) != EOF)
+	while ((ch = getopt(argc, argv, "andfsS")) != EOF)
 		switch((char)ch) {
 		case 'a':
 			dump(0);
@@ -96,6 +115,9 @@ main(argc, argv)
 		case 'n':
 			nflag = 1;
 			continue;
+		case 'S':
+			delete(argv[2], NULL);
+			/* FALL THROUGH */
 		case 's':
 			if (argc < 4 || argc > 7)
 				usage();
@@ -103,8 +125,7 @@ main(argc, argv)
 		case 'f' :
 			if (argc != 3)
 				usage();
-			file(argv[2]);
-			exit(0);
+			return (file(argv[2]));
 		case '?':
 		default:
 			usage();
@@ -118,8 +139,8 @@ main(argc, argv)
 /*
  * Process a file to set standard arp entries
  */
-file(name)
-	char *name;
+int
+file(char *name)
 {
 	FILE *fp;
 	int i, retval;
@@ -150,7 +171,9 @@ file(name)
 	return (retval);
 }
 
-getsocket() {
+void
+getsocket(void)
+{
 	if (s < 0) {
 		s = socket(PF_ROUTE, SOCK_RAW, 0);
 		if (s < 0) {
@@ -172,9 +195,8 @@ struct	{
 /*
  * Set an individual arp entry
  */
-set(argc, argv)
-	int argc;
-	char **argv;
+int
+set(int argc, char **argv)
 {
 	struct hostent *hp;
 	register struct sockaddr_inarp *sin = &sin_m;
@@ -198,9 +220,6 @@ set(argc, argv)
 		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
 		    sizeof sin->sin_addr);
 	}
-	ea = (u_char *)LLADDR(&sdl_m);
-	if (ether_aton(eaddr, ea) == 0)
-		sdl_m.sdl_alen = 6;
 	doing_proxy = flags = export_only = expire_time = 0;
 	while (argc-- > 0) {
 		if (strncmp(argv[0], "temp", 4) == 0) {
@@ -216,6 +235,16 @@ set(argc, argv)
 				host);
 		}
 		argv++;
+	}
+	ea = (u_char *)LLADDR(&sdl_m);
+	if (doing_proxy && !strcmp(eaddr, "auto")) {
+		if (!get_ether_addr(sin->sin_addr.s_addr, ea)) {
+			return (1);
+		}
+		sdl_m.sdl_alen = 6;
+	} else {
+		if (ether_aton(eaddr, ea) == 0)
+			sdl_m.sdl_alen = 6;
 	}
 tryagain:
 	if (rtmsg(RTM_GET) < 0) {
@@ -257,12 +286,11 @@ overwrite:
 /*
  * Display an individual arp entry
  */
-get(host)
-	char *host;
+void
+get(char *host)
 {
 	struct hostent *hp;
 	struct sockaddr_inarp *sin = &sin_m;
-	u_char *ea;
 
 	sin_m = blank_sin;
 	sin->sin_addr.s_addr = inet_addr(host);
@@ -286,16 +314,13 @@ get(host)
 /*
  * Delete an arp entry
  */
-delete(host, info)
-	char *host;
-	char *info;
+int
+delete(char *host, char *info)
 {
 	struct hostent *hp;
 	register struct sockaddr_inarp *sin = &sin_m;
 	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
 	struct sockaddr_dl *sdl;
-	u_char *ea;
-	char *eaddr;
 
 	if (info && strncmp(info, "pro", 3) )
 		export_only = 1;
@@ -339,15 +364,18 @@ delete:
 		printf("cannot locate %s\n", host);
 		return (1);
 	}
-	if (rtmsg(RTM_DELETE) == 0)
+	if (rtmsg(RTM_DELETE) == 0) {
 		printf("%s (%s) deleted\n", host, inet_ntoa(sin->sin_addr));
+		return (0);
+	}
+	return (1);
 }
 
 /*
  * Dump the entire arp table
  */
-dump(addr)
-u_long addr;
+void
+dump(u_long addr)
 {
 	int mib[6];
 	size_t needed;
@@ -413,15 +441,14 @@ u_long addr;
 	}
 }
 
-ether_print(cp)
-	u_char *cp;
+void
+ether_print(u_char *cp)
 {
 	printf("%x:%x:%x:%x:%x:%x", cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
 }
 
-ether_aton(a, n)
-	char *a;
-	u_char *n;
+int
+ether_aton(char *a, u_char *n)
 {
 	int i, o[6];
 
@@ -436,17 +463,20 @@ ether_aton(a, n)
 	return (0);
 }
 
-usage()
+void
+usage(void)
 {
 	printf("usage: arp hostname\n");
 	printf("       arp -a [kernel] [kernel_memory]\n");
 	printf("       arp -d hostname\n");
 	printf("       arp -s hostname ether_addr [temp] [pub]\n");
+	printf("       arp -S hostname ether_addr [temp] [pub]\n");
 	printf("       arp -f filename\n");
 	exit(1);
 }
 
-rtmsg(cmd)
+int
+rtmsg(int cmd)
 {
 	static int seq;
 	int rlen;
@@ -511,9 +541,110 @@ doit:
 	return (0);
 }
 
-quit(msg)
-char *msg;
+void
+quit(char *msg)
 {
 	fprintf(stderr, "%s\n", msg);
 	exit(1);
+}
+
+/*
+ * get_ether_addr - get the hardware address of an interface on the
+ * the same subnet as ipaddr.
+ */
+#define MAX_IFS		32
+
+int
+get_ether_addr(u_long ipaddr, u_char *hwaddr)
+{
+	struct ifreq *ifr, *ifend, *ifp;
+	u_long ina, mask;
+	struct sockaddr_dl *dla;
+	struct ifreq ifreq;
+	struct ifconf ifc;
+	struct ifreq ifs[MAX_IFS];
+	int s;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		perror("socket");
+		exit(1); 
+	}
+
+	ifc.ifc_len = sizeof(ifs);
+	ifc.ifc_req = ifs;
+	if (ioctl(s, SIOCGIFCONF, &ifc) < 0) {
+		fprintf(stderr, "ioctl(SIOCGIFCONF): \n");
+		close(s);
+		return 0;
+	}
+
+	/*
+	* Scan through looking for an interface with an Internet
+	* address on the same subnet as `ipaddr'.
+	*/
+	ifend = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
+	for (ifr = ifc.ifc_req; ifr < ifend; ) {
+		if (ifr->ifr_addr.sa_family == AF_INET) {
+			ina = ((struct sockaddr_in *) 
+				&ifr->ifr_addr)->sin_addr.s_addr;
+			strncpy(ifreq.ifr_name, ifr->ifr_name, 
+				sizeof(ifreq.ifr_name));
+			/*
+			 * Check that the interface is up,
+			 * and not point-to-point or loopback.
+			 */
+			if (ioctl(s, SIOCGIFFLAGS, &ifreq) < 0)
+				continue;
+			if ((ifreq.ifr_flags &
+			     (IFF_UP|IFF_BROADCAST|IFF_POINTOPOINT|
+					IFF_LOOPBACK|IFF_NOARP))
+			     != (IFF_UP|IFF_BROADCAST))
+				goto nextif;
+			/*
+			 * Get its netmask and check that it's on 
+			 * the right subnet.
+			 */
+			if (ioctl(s, SIOCGIFNETMASK, &ifreq) < 0)
+				continue;
+			mask = ((struct sockaddr_in *)
+				&ifreq.ifr_addr)->sin_addr.s_addr;
+			if ((ipaddr & mask) != (ina & mask))
+				goto nextif;
+			break;
+		}
+nextif:
+		ifr = (struct ifreq *) 
+		    ((char *)&ifr->ifr_addr + ifr->ifr_addr.sa_len);
+	}
+
+	if (ifr >= ifend) {
+		close(s);
+		return 0;
+	}
+
+	/*
+	* Now scan through again looking for a link-level address
+	* for this interface.
+	*/
+	ifp = ifr;
+	for (ifr = ifc.ifc_req; ifr < ifend; ) {
+		if (strcmp(ifp->ifr_name, ifr->ifr_name) == 0
+		    && ifr->ifr_addr.sa_family == AF_LINK) {
+			/*
+			 * Found the link-level address - copy it out
+			 */
+		 	dla = (struct sockaddr_dl *) &ifr->ifr_addr;
+			memcpy(hwaddr,  LLADDR(dla), dla->sdl_alen);
+			close (s);
+			printf("using interface %s for proxy with address ",
+				ifp->ifr_name);
+			ether_print(hwaddr);
+			printf("\n");
+			return dla->sdl_alen;
+		}
+		ifr = (struct ifreq *) 
+			((char *)&ifr->ifr_addr + ifr->ifr_addr.sa_len);
+	}
+	return 0;
 }
