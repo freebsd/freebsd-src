@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.5 1997/08/14 06:47:39 charnier Exp $";
 #endif /* not lint */
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/file.h>
+#include <sys/param.h>
 
 #include <netinet/in.h>
 
@@ -204,8 +205,9 @@ setpeer(argc, argv)
 	host = gethostbyname(argv[1]);
 	if (host) {
 		peeraddr.sin_family = host->h_addrtype;
-		bcopy(host->h_addr, &peeraddr.sin_addr, host->h_length);
-		strcpy(hostname, host->h_name);
+		bcopy(host->h_addr, &peeraddr.sin_addr, 
+			MIN(sizeof(peeraddr.sin_addr), host->h_length));
+		strncpy(hostname, host->h_name, sizeof(hostname));
 	} else {
 		peeraddr.sin_family = AF_INET;
 		peeraddr.sin_addr.s_addr = inet_addr(argv[1]);
@@ -214,8 +216,9 @@ setpeer(argc, argv)
 			printf("%s: unknown host\n", argv[1]);
 			return;
 		}
-		strcpy(hostname, argv[1]);
+		strncpy(hostname, argv[1], sizeof(hostname));
 	}
+	hostname[sizeof(hostname) - 1] = '\0';
 	port = sp->s_port;
 	if (argc == 3) {
 		port = atoi(argv[2]);
@@ -348,10 +351,12 @@ put(argc, argv)
 			herror((char *)NULL);
 			return;
 		}
-		bcopy(hp->h_addr, (caddr_t)&peeraddr.sin_addr, hp->h_length);
+		bcopy(hp->h_addr, (caddr_t)&peeraddr.sin_addr, 
+			MIN(sizeof(peeraddr.sin_addr), hp->h_length));
 		peeraddr.sin_family = hp->h_addrtype;
 		connected = 1;
-		strcpy(hostname, hp->h_name);
+		strncpy(hostname, hp->h_name, sizeof(hostname));
+		hostname[sizeof(hostname) - 1] = '\0';
 	}
 	if (!connected) {
 		printf("No target machine specified.\n");
@@ -445,10 +450,11 @@ get(argc, argv)
 				continue;
 			}
 			bcopy(hp->h_addr, (caddr_t)&peeraddr.sin_addr,
-			    hp->h_length);
+			    MIN(sizeof(peeraddr.sin_addr), hp->h_length));
 			peeraddr.sin_family = hp->h_addrtype;
 			connected = 1;
-			strcpy(hostname, hp->h_name);
+			strncpy(hostname, hp->h_name, sizeof(hostname));
+			hostname[sizeof(hostname) - 1] = '\0';
 		}
 		if (argc < 4) {
 			cp = argc == 3 ? argv[2] : tail(src);
