@@ -63,6 +63,8 @@ sigsuspender (void *arg)
 
 	/* Allow these signals to wake us up during a sigsuspend. */
 	sigfillset (&suspender_mask);		/* Default action	*/
+	sigdelset (&suspender_mask, SIGKILL);	/* Cannot catch		*/
+	sigdelset (&suspender_mask, SIGSTOP);	/* Cannot catch		*/
 	sigdelset (&suspender_mask, SIGINT);	/* terminate		*/
 	sigdelset (&suspender_mask, SIGHUP);	/* terminate		*/
 	sigdelset (&suspender_mask, SIGQUIT);	/* create core image	*/

@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/signalvar.h>
 #include "thr_private.h"
 
 __weak_reference(__sigsuspend, sigsuspend);
@@ -46,12 +47,14 @@ _sigsuspend(const sigset_t *set)
 	sigset_t	oldmask, newmask;
 	int             ret = -1;
 
-	if (!_kse_isthreaded())
-		return __sys_sigsuspend(set);
+	if (!_kse_isthreaded() ||
+	    (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM))
+		return (__sys_sigsuspend(set));
 
 	/* Check if a new signal set was provided by the caller: */
 	if (set != NULL) {
 		newmask = *set;
+		SIG_CANTMASK(newmask);
 
 		THR_LOCK_SWITCH(curthread);
 

@@ -89,7 +89,7 @@ _thr_setconcurrency(int new_level)
 	/* Race condition, but so what. */
 	kse_count = _kse_initial->k_kseg->kg_ksecount;
 	for (i = kse_count; i < new_level; i++) {
-		newkse = _kse_alloc(curthread);
+		newkse = _kse_alloc(curthread, 0);
 		if (newkse == NULL) {
 			DBG_MSG("Can't alloc new KSE.\n");
 			ret = EAGAIN;

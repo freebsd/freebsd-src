@@ -259,12 +259,19 @@ _libpthread_init(struct pthread *curthread)
 	_kse_init();
 
 	/* Initialize the initial kse and kseg. */
-	_kse_initial = _kse_alloc(NULL);
+#ifdef SYSTEM_SCOPE_ONLY
+	_kse_initial = _kse_alloc(NULL, 1);
+#else
+	_kse_initial = _kse_alloc(NULL, 0);
+#endif
 	if (_kse_initial == NULL)
 		PANIC("Can't allocate initial kse.");
 	_kse_initial->k_kseg = _kseg_alloc(NULL);
 	if (_kse_initial->k_kseg == NULL)
 		PANIC("Can't allocate initial kseg.");
+#ifdef SYSTEM_SCOPE_ONLY
+	_kse_initial->k_kseg->kg_flags |= KGF_SINGLE_THREAD;
+#endif
 	_kse_initial->k_schedq = &_kse_initial->k_kseg->kg_schedq;
 
 	TAILQ_INSERT_TAIL(&_kse_initial->k_kseg->kg_kseq, _kse_initial, k_kgqe);
@@ -326,7 +333,9 @@ init_main_thread(struct pthread *thread)
 
 	/* Setup the thread attributes. */
 	thread->attr = _pthread_attr_default;
-
+#ifdef SYSTEM_SCOPE_ONLY
+	thread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
+#endif
 	/*
 	 * Set up the thread stack.
 	 *
@@ -462,9 +471,6 @@ init_private(void)
 	/* Initialize everything else. */
 	TAILQ_INIT(&_thread_list);
 	TAILQ_INIT(&_thread_gc_list);
-
-	/* Initialize the SIG_DFL dummy handler count. */
-	bzero(_thread_dfl_count, sizeof(_thread_dfl_count));
 
 	/*
 	 * Initialize the lock for temporary installation of signal
