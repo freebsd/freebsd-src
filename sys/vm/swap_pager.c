@@ -1135,8 +1135,8 @@ swap_pager_getpages(object, m, count, reqpage)
 
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = swp_pager_async_iodone;
-	bp->b_rcred = crhold(proc0.p_ucred);
-	bp->b_wcred = crhold(proc0.p_ucred);
+	bp->b_rcred = crhold(thread0.td_ucred);
+	bp->b_wcred = crhold(thread0.td_ucred);
 	bp->b_data = (caddr_t) kva;
 	bp->b_blkno = blk - (reqpage - i);
 	bp->b_bcount = PAGE_SIZE * (j - i);
@@ -1386,8 +1386,8 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		pmap_qenter((vm_offset_t)bp->b_data, &m[i], n);
 
-		bp->b_rcred = crhold(proc0.p_ucred);
-		bp->b_wcred = crhold(proc0.p_ucred);
+		bp->b_rcred = crhold(thread0.td_ucred);
+		bp->b_wcred = crhold(thread0.td_ucred);
 		bp->b_bcount = PAGE_SIZE * n;
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;
@@ -2080,8 +2080,8 @@ getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 	nbp->b_iocmd = bp->bio_cmd;
 	nbp->b_ioflags = 0;
 	nbp->b_flags = flags;
-	nbp->b_rcred = crhold(proc0.p_ucred);
-	nbp->b_wcred = crhold(proc0.p_ucred);
+	nbp->b_rcred = crhold(thread0.td_ucred);
+	nbp->b_wcred = crhold(thread0.td_ucred);
 	nbp->b_iodone = vm_pager_chain_iodone;
 
 	if (vp)
