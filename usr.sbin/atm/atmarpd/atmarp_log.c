@@ -57,6 +57,7 @@
 #endif
 #include <stdio.h>
 #include <syslog.h>
+#include <stdlib.h>
 
 #include "../scspd/scsp_msg.h"
 #include "../scspd/scsp_if.h"
