@@ -568,6 +568,7 @@ static driver_t acpi_sysresource_driver = {
 static devclass_t acpi_sysresource_devclass;
 DRIVER_MODULE(acpi_sysresource, acpi, acpi_sysresource_driver,
 	      acpi_sysresource_devclass, 0, 0);
+MODULE_DEPEND(acpi_sysresource, acpi, 1, 1, 1);
 
 static int
 acpi_sysresource_probe(device_t dev)
