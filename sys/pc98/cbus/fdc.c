@@ -952,8 +952,9 @@ fdc_pccard_probe(device_t dev)
 	fdc = device_get_softc(dev);
 	bzero(fdc, sizeof *fdc);
 	fdc->fdc_dev = dev;
+#ifndef PC98
 	fdc->fdctl_wr = fdctl_wr_pcmcia;
-
+#endif
 	fdc->flags |= FDC_ISPCMCIA | FDC_NODMA;
 
 	/* Attempt to allocate our resources for the duration of the probe */
@@ -961,10 +962,12 @@ fdc_pccard_probe(device_t dev)
 	if (error)
 		goto out;
 
+#ifndef PC98
 	/* First - lets reset the floppy controller */
 	fdout_wr(fdc, 0);
 	DELAY(100);
 	fdout_wr(fdc, FDO_FRST);
+#endif
 
 	/* see if it can handle a command */
 	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(3, 240), 
