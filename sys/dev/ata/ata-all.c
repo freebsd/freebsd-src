@@ -652,6 +652,7 @@ ata_attach(void *dummy)
 		atadevices[ctlr]->devices &= ~ATA_ATAPI_MASTER;
     }
 
+#if NATADISK > 0
     /* now we know whats there, do the real attach, first the ATA disks */
     for (ctlr=0; ctlr<MAXATA; ctlr++) {
 	if (!atadevices[ctlr]) continue;
@@ -660,6 +661,8 @@ ata_attach(void *dummy)
 	if (atadevices[ctlr]->devices & ATA_ATA_SLAVE)
 	    ad_attach(atadevices[ctlr], ATA_SLAVE);
     }
+#endif
+#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
     /* then the atapi devices */
     for (ctlr=0; ctlr<MAXATA; ctlr++) {
 	if (!atadevices[ctlr]) continue;
@@ -668,6 +671,7 @@ ata_attach(void *dummy)
 	if (atadevices[ctlr]->devices & ATA_ATAPI_SLAVE)
 	    atapi_attach(atadevices[ctlr], ATA_SLAVE);
     }
+#endif
     if (ata_attach_hook) {
 	config_intrhook_disestablish(ata_attach_hook);
 	free(ata_attach_hook, M_ATA);
