@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.152 1998/09/05 04:27:35 jdp Exp $
+#	$Id: rc,v 1.153 1998/09/07 17:18:36 cracauer Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -343,7 +343,7 @@ fi
 
 # Raise kernel security level.  This should be done only after `fsck' has
 # repaired local file systems if you want the securelevel to be greater than 1.
-if [ "X${kern_securelevel_enable}" != X"NO" -a "${kern_securelevel}" -ge 0 ]; 
+if [ "X${kern_securelevel_enable}" = X"YES" -a "${kern_securelevel}" -ge 0 ]; 
 then
 	echo 'Raising kernel security level'
 	sysctl -w kern.securelevel=${kern_securelevel}
