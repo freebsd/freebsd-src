@@ -74,6 +74,12 @@ The ahc(4) driver has been updated.
 rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 /etc/inetd.conf.  This only affects new installations.
 
+Many string-handling library calls were fixed to reduce the
+possibility of buffer overflow-related exploits.
+
+TCP now uses stronger randomness in choosing its initial sequence 
+numbers (see security advisory FreeBSD-SA-00:52).
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -720,3 +726,5 @@ Special mention to:
 We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Project
+
+$FreeBSD$
