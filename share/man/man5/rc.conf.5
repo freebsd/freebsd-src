@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2000
+.Dd February 4, 2001
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -575,6 +575,12 @@ By default, the files specified are
 .Pa /etc/rc.conf
 and
 .Pa /etc/rc.conf.local
+.It Ar fsck_y_enable
+(bool) if set to
+.Ar YES ,
+.Xr fsck 8
+will be run with the -y flag if the initial preen
+of the filesystems fails.
 .It Ar syslogd_enable
 (bool) If set to
 .Ar YES ,
