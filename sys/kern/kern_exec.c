@@ -415,7 +415,7 @@ interpret:
 	 * let it do the stack setup.
 	 * Else stuff argument count as first item on stack
 	 */
-	if (p->p_sysent->sv_fixup)
+	if (p->p_sysent->sv_fixup != NULL)
 		(*p->p_sysent->sv_fixup)(&stack_base, imgp);
 	else
 		suword(--stack_base, imgp->argc);
@@ -673,10 +673,10 @@ exec_fail_dealloc:
 	/*
 	 * free various allocated resources
 	 */
-	if (imgp->firstpage)
+	if (imgp->firstpage != NULL)
 		exec_unmap_first_page(imgp);
 
-	if (imgp->vp) {
+	if (imgp->vp != NULL) {
 		NDFREE(ndp, NDF_ONLY_PNBUF);
 		vput(imgp->vp);
 	}
@@ -685,7 +685,7 @@ exec_fail_dealloc:
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
 		    ARG_MAX + PAGE_SIZE);
 
-	if (imgp->object)
+	if (imgp->object != NULL)
 		vm_object_deallocate(imgp->object);
 
 	if (error == 0) {
@@ -735,9 +735,8 @@ exec_map_first_page(imgp)
 
 	GIANT_REQUIRED;
 
-	if (imgp->firstpage) {
+	if (imgp->firstpage != NULL)
 		exec_unmap_first_page(imgp);
-	}
 
 	VOP_GETVOBJECT(imgp->vp, &object);
 	VM_OBJECT_LOCK(object);
@@ -796,7 +795,7 @@ exec_unmap_first_page(imgp)
 	struct image_params *imgp;
 {
 
-	if (imgp->firstpage) {
+	if (imgp->firstpage != NULL) {
 		pmap_qremove((vm_offset_t)imgp->image_header, 1);
 		vm_page_lock_queues();
 		vm_page_unwire(imgp->firstpage, 1);
@@ -833,7 +832,7 @@ exec_new_vmspace(imgp, sv)
 	 * data size limit may need to be changed to a value that makes
 	 * sense for the 32 bit binary.
 	 */
-	if (sv->sv_fixlimits)
+	if (sv->sv_fixlimits != NULL)
 		sv->sv_fixlimits(imgp);
 
 	/*
