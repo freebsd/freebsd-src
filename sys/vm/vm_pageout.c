@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.87 1996/11/28 23:15:06 dyson Exp $
+ * $Id: vm_pageout.c,v 1.88 1997/01/01 04:45:05 dyson Exp $
  */
 
 /*
@@ -215,14 +215,12 @@ vm_pageout_clean(m, sync)
 	    ((m->busy != 0) || (m->flags & PG_BUSY)))
 		return 0;
 
-#if defined(OLD_COLLAPSE_CODE)
 	/*
 	 * Try collapsing before it's too late.
 	 */
 	if (!sync && object->backing_object) {
 		vm_object_collapse(object);
 	}
-#endif
 
 	mc[vm_pageout_page_count] = m;
 	pageout_count = 1;
