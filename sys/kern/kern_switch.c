@@ -69,6 +69,31 @@ setrunqueue(struct thread *td)
 	runq_add(&runq, td->td_kse);
 }
 
+/* Critical sections that prevent preemption. */
+void
+critical_enter(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_critnest == 0)
+		td->td_savecrit = cpu_critical_enter();
+	td->td_critnest++;
+}
+
+void
+critical_exit(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_critnest == 1) {
+		td->td_critnest = 0;
+		cpu_critical_exit(td->td_savecrit);
+	} else
+		td->td_critnest--;
+}
+
 /*
  * Clear the status bit of the queue corresponding to priority level pri,
  * indicating that it is empty.

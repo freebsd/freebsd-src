@@ -29,11 +29,4 @@
 #ifndef	_MACHINE_MUTEX_H_
 #define	_MACHINE_MUTEX_H_
 
-static __inline void
-mtx_intr_enable(struct mtx *mtx)
-{
-
-	mtx->mtx_savecrit = 0;
-}
-
 #endif /* !_MACHINE_MUTEX_H_ */

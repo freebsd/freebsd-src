@@ -156,6 +156,8 @@ STNC_GEN(u_long, stxa);
 	    : : "r" (val), "rI" (xor));					\
 } while (0)
 
+#define	CRITICAL_FORK	(0)
+
 static __inline void
 breakpoint(void)
 {
@@ -163,7 +165,7 @@ breakpoint(void)
 }
 
 static __inline critical_t
-critical_enter(void)
+cpu_critical_enter(void)
 {
 	critical_t pil;
 
@@ -173,7 +175,7 @@ critical_enter(void)
 }
 
 static __inline void
-critical_exit(critical_t pil)
+cpu_critical_exit(critical_t pil)
 {
 	wrpr(pil, pil, 0);
 }

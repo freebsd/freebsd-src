@@ -35,6 +35,8 @@
 #include <machine/chipset.h>
 #include <machine/alpha_cpu.h>
 
+#define	CRITICAL_FORK	(ALPHA_PSL_IPL_0)
+
 #ifdef __GNUC__
 
 static __inline void
@@ -46,13 +48,13 @@ breakpoint(void)
 #endif
 
 static __inline critical_t
-critical_enter(void)
+cpu_critical_enter(void)
 {
 	return (alpha_pal_swpipl(ALPHA_PSL_IPL_MCES));
 }
 
 static __inline void
-critical_exit(critical_t ipl)
+cpu_critical_exit(critical_t ipl)
 {
 	alpha_pal_swpipl(ipl);
 }

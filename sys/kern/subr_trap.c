@@ -141,9 +141,9 @@ ast(framep)
 		panic("Returning to user mode with mutex(s) held");
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
-	s = critical_enter();
+	s = cpu_critical_enter();
 	while ((ke->ke_flags & (KEF_ASTPENDING | KEF_NEEDRESCHED)) != 0) {
-		critical_exit(s);
+		cpu_critical_exit(s);
 		td->td_frame = framep;
 		/*
 		 * This updates the p_sflag's for the checks below in one
@@ -195,13 +195,13 @@ ast(framep)
 		crfree(td->td_ucred);
 		mtx_unlock(&Giant);
 		td->td_ucred = NULL;
-		s = critical_enter();
+		s = cpu_critical_enter();
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
 	/*
 	 * We need to keep interrupts disabled so that if any further AST's
 	 * come in, the interrupt they come in on will be delayed until we
 	 * finish returning to userland.  We assume that the return to userland
-	 * will perform the equivalent of critical_exit().
+	 * will perform the equivalent of cpu_critical_exit().
 	 */
 }
