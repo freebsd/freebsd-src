@@ -204,7 +204,7 @@ DOS using files copied from the CDROM, you might do something like
 this:
 
         C> MD C:\FREEBSD
-        C> XCOPY /S E:\DISTS\BIN C:\FREEBSD\BIN
+        C> XCOPY /S E:\BIN C:\FREEBSD\BIN
 
 Asssuming that `C:' was where you had free space and `E:' was where
 your CD was mounted. 
