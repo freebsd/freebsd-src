@@ -48,8 +48,10 @@
 #	psm*	PS/2 mouse
 #
 # Terminal ports:
-#	sio*	fast interrupt PC COM ports (really makes tty* entries for sio)
-#	tty*	alias for sio ports, this is what the system really wants
+#       sio*    fast interrupt PC COM ports (really makes ttyd* entries for sio)
+#       ttyd*   the same (dialin ports)
+#       cua*    the same (dialout ports)
+#       tty*    hardwired terminals
 #	com*	standard PC COM ports (really makes tty* entries for com)
 #		Note that the `com' driver is not configured in the 
 #		supplied kernels and is usually not what you want.  In
@@ -73,7 +75,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.22 1994/01/10 18:11:30 ache Exp $
+#	$Id: MAKEDEV,v 1.25 1994/02/07 04:25:07 alm Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -85,9 +87,9 @@ case $i in
 all)
 	sh MAKEDEV std						# standard
 	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0	# bdev
-	sh MAKEDEV pty0 tty0 tty1 tty2 tty3 pc0 lpt0 lpt1 lpt2	# cdev
+	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
-	sh MAKEDEV speaker mse0 sio0 sio1 sio2 sio3		# cdev
+	sh MAKEDEV speaker mse0 sio2 sio3                       # cdev
 	# NOTE: co0 and vty04 are not done by a "sh MAKEDEV all"
 	# these are for codrv and interfere with other devices! - rgrimes
 	;;
@@ -466,12 +468,20 @@ speaker)
 	chown root.wheel speaker
 	;;
 
-sio*|tty*|cua*)
-	unit=`expr $i : '...\(.*\)'`
-	rm -f tty0$unit cua0$unit
-	mknod tty0$unit c 28 $unit
+sio*|cua*|ttyd*)
+	unit=`expr $i : '\(.\)$'`
+	rm -f tty0$unit cua0$unit ttyd$unit
+	mknod ttyd$unit c 28 $unit
 	mknod cua0$unit c 28 `expr $unit + 128`
-	chown uucp.wheel tty0$unit cua0$unit
+	chown uucp.wheel ttyd$unit cua0$unit
+	;;
+
+tty*)
+	unit=`expr $i : '\(.\)$'`
+	rm -f tty0$unit cua0$unit ttyd$unit
+	umask 0
+	mknod tty0$unit c 28 $unit
+	umask 77
 	;;
 
 mse*)
