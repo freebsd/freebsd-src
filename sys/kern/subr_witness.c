@@ -483,9 +483,9 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	if ((lock->lo_flags & LO_RECURSED) != 0) {
 		if ((lock->lo_flags & LO_RECURSABLE) == 0)
 			panic(
-			"%s: recursed on non-recursive lock (%s) %s @ %s:%d",
+			"%s: recursed on non-recursive lock (%s) %s @ %s:%d first aquired @ %s:%d",
 			    __func__, class->lc_name, lock->lo_name, file,
-			    line);
+			    line, lock->lo_file, lock->lo_line);
 		return;
 	}
 	
