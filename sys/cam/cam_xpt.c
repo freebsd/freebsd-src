@@ -551,6 +551,11 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
+		/* COMPAQ/HP Smart Array RAID controllers */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "COMPAQ", "RAID*", "*" },
+		CAM_QUIRK_NOSERIAL, /*mintags*/0, /*maxtags*/0
+	},
+	{
 		/* Default tagged queuing parameters for all devices */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
