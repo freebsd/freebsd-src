@@ -146,6 +146,33 @@ fddi_output(ifp, m, dst, rt0)
 		type = htons(ETHERTYPE_IP);
 		break;
 	}
+	case AF_ARP:
+	{
+		struct arphdr *ah;
+		ah = mtod(m, struct arphdr *);
+		ah->ar_hrd = htons(ARPHRD_ETHER);
+
+		loop_copy = -1; /* if this is for us, don't do it */
+
+		switch (ntohs(ah->ar_op)) {
+		case ARPOP_REVREQUEST:
+		case ARPOP_REVREPLY:
+			type = htons(ETHERTYPE_REVARP);
+			break;
+		case ARPOP_REQUEST:
+		case ARPOP_REPLY:
+		default:
+			type = htons(ETHERTYPE_ARP);
+			break;
+		}
+
+		if (m->m_flags & M_BCAST)
+			bcopy(ifp->if_broadcastaddr, edst, FDDI_ADDR_LEN);
+                else
+			bcopy(ar_tha(ah), edst, FDDI_ADDR_LEN);
+
+	}
+	break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
