@@ -138,11 +138,6 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
-	if (nosync) {
-		(void)fprintf(stderr,
-		    "shutdown: incompatible switches -f and -n.\n");
-		usage();
-	}
 	if (doreboot && dohalt) {
 		(void)fprintf(stderr,
 		    "shutdown: incompatible switches -h and -r.\n");
