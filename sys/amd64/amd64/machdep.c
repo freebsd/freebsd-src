@@ -119,8 +119,8 @@
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
 
-extern void init386 __P((int first));
-extern void dblfault_handler __P((void));
+extern void init386(int first);
+extern void dblfault_handler(void);
 
 extern void printcpuinfo(void);	/* XXX header file */
 extern void earlysetcpuclass(void);	/* same header file */
@@ -131,10 +131,10 @@ extern void initializecpu(void);
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
-static void cpu_startup __P((void *));
+static void cpu_startup(void *);
 #ifdef CPU_ENABLE_SSE
-static void set_fpregs_xmm __P((struct save87 *, struct savexmm *));
-static void fill_fpregs_xmm __P((struct savexmm *, struct save87 *));
+static void set_fpregs_xmm(struct save87 *, struct savexmm *);
+static void fill_fpregs_xmm(struct savexmm *, struct save87 *);
 #endif /* CPU_ENABLE_SSE */
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
@@ -160,7 +160,7 @@ int physmem = 0;
 int cold = 1;
 
 #ifdef COMPAT_43
-static void osendsig __P((sig_t catcher, int sig, sigset_t *mask, u_long code));
+static void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 #endif
 
 static int
