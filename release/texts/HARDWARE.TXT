@@ -371,7 +371,7 @@ Adaptec 152x series ISA SCSI controllers
 Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
 and SoundBlaster SCSI cards.
 
-Adaptec 1400, 2100S, 3200S, and 3400S SCSI RAID controllers.
+Adaptec 2100S, 2400A, 3200S, and 3400S SCSI RAID controllers.
 
 Adaptec FSA family RAID controllers:
     Adaptec AAC-2622
@@ -407,9 +407,8 @@ supported.
 DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
 SmartRAID IV SCSI/RAID controllers are supported.
 
-DPT SmartRAID V and VI SCSI RAID, and Adaptec SCSI RAID  controllers:
-    PM1554, PM2554, PM2654, PM2865, PM2754, PM3755, PM3757,
-    2100S, 3200S, 3400S
+DPT SmartRAID V and VI SCSI RAID controllers:
+    PM1554, PM2554, PM2654, PM2865, PM2754, PM3755, PM3757
 
 AMI MegaRAID Express and Enterprise family RAID controllers:
     MegaRAID Series 418
@@ -957,6 +956,7 @@ Crystal Semiconductor CS461x/462x/428x
 ENSONIQ AudioPCI ES1370/1371
 ESS ES1868, ES1869, ES1879 and ES1888
 ESS Maestro-1, Maestro-2, and Maestro-2E
+ESS Maestro-3
 ForteMedia fm801
 Gravis UltraSound MAX/PnP
 MSS/WSS Compatible DSPs
