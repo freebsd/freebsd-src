@@ -1542,7 +1542,7 @@ mlx_enquire(struct mlx_softc *sc, int command, size_t bufsize, void (* complete)
 
  out:
     /* we got a command, but nobody else will free it */
-    if ((mc->mc_complete == NULL) && (mc != NULL))
+    if ((mc != NULL) && (mc->mc_complete == NULL))
 	mlx_releasecmd(mc);
     /* we got an error, and we allocated a result */
     if ((error != 0) && (result != NULL)) {
