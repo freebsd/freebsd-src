@@ -50,8 +50,6 @@
 #define	cpu_swapout(p)
 #define	cpu_number()		0
 
-#define	DELAY(n)		delay(n)
-
 #if defined(_KERNEL) || defined(_STANDALONE)
 #define	CACHELINESIZE	32
 #endif
