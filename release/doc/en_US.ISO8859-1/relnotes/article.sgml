@@ -274,7 +274,7 @@
 	commands to USB and Firewire devices.  The quirks for these
 	devices (which hopefully are now unnecessary) have been
 	disabled; to restore the old behavior, add <literal>options
-	DA_OLD_QUIRKS</literal> to the kernel configuration.</para>
+	DA_OLD_QUIRKS</literal> to the kernel configuration. &merged;</para>
 
       <para>Various &man.geom.4; modules can now be loaded as kernel
 	modules, namely:
@@ -295,6 +295,8 @@
       <para arch="i386">The &man.matcd.4; driver, which supports the
         Matsushita CR-562 and CR-563 CD drives, has returned.</para>
 
+      <para>The &man.twe.4; driver now supports the 3ware generic
+	API. &merged;</para>
     </sect3>
 
     <sect3 id="fs">
