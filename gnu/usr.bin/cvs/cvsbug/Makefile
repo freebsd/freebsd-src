@@ -7,7 +7,7 @@ MAINTAINER=	peter@FreeBSD.org
 .PATH:	${CVSDIR}/src
 .PATH:	${CVSDIR}/man
 
-MAN8=	cvsbug.8
+MAN=	cvsbug.8
 
 CLEANFILES+= cvsbug ver
 

@@ -9,8 +9,7 @@ MAINTAINER=	peter@FreeBSD.org
 .PATH:	${CVSDIR}/man
 
 PROG=	cvs
-MAN1=	cvs.1
-MAN5=	cvs.5
+MAN=	cvs.1 cvs.5
 
 SRCS=	add.c admin.c buffer.c checkin.c checkout.c classify.c client.c \
 	commit.c create_adm.c cvsrc.c diff.c edit.c entries.c error.c \

@@ -4,7 +4,7 @@
 BINDIR=		$(bindir)
 CLEANFILES+=	$(ONESHPROG)
 ONESHPROG=	uusched
-MAN8=		uusched.8
+MAN=		uusched.8
 
 all: $(ONESHPROG)
 

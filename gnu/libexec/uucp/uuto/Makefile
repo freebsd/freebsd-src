@@ -4,7 +4,7 @@
 BINDIR=		$(bindir)
 CLEANFILES+=	$(ONESHPROG)
 ONESHPROG=	uuto
-MAN1=		uuto.1
+MAN=		uuto.1
 
 all: $(ONESHPROG)
 
