@@ -49,7 +49,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command imprisons a process and all future decendants.
+command imprisons a process and all future descendants.
 .Pp
 Please see the
 .Xr jail 2
@@ -89,7 +89,9 @@ and to the jailed virtual machine as the
 .Dq jail environment.
 Because jail is implemented using IP aliases, one of the first things to do
 is to disable IP services on the host system that listen on all local
-IP addresses for a service.  This means changing inetd to only listen on the
+IP addresses for a service.  This means changing
+.Xr inetd 8
+to only listen on the
 appropriate IP address, and so forth.  Add the following to
 .Pa /etc/rc.conf
 in the host environment:
@@ -224,7 +226,7 @@ with the
 .Dq J
 flag appearing beside jailed processes.  You should also be able to
 telnet to the hostname or IP address of the jailed environment, and log
-in using the acounts you created previously.
+in using the accounts you created previously.
 .Ss Managing the jail
 Normal machine shutdown commands, such as
 .Xr halt 8 ,
@@ -302,8 +304,9 @@ The
 function call appeared in
 .Fx 4.0 .
 .Sh AUTHORS
-The jail feature was written by Poul-Henning Kamp for
-R&D Associates
+The jail feature was written by
+.An Poul-Henning Kamp
+for R&D Associates
 .Dq Li http://www.rndassociates.com/
 who contributed it to FreeBSD.
 .Pp
@@ -321,5 +324,6 @@ address alias flag such that daemons listening on all IPs (INADDR_ANY)
 will not bind on that address, which would facilitate building a safe
 host environment such that host daemons do not impose on services offered
 from within jails.  Currently, the simplist answer is to minimize services
-offered on the host, possibly limiting it to services offered from inetd
+offered on the host, possibly limiting it to services offered from
+.Xr inetd 8
 which is easily configurable.
