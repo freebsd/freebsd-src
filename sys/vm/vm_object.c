@@ -261,7 +261,8 @@ vm_object_set_flag(vm_object_t object, u_short bits)
 void
 vm_object_clear_flag(vm_object_t object, u_short bits)
 {
-	GIANT_REQUIRED;
+
+	mtx_assert(object == kmem_object ? &object->mtx : &Giant, MA_OWNED);
 	object->flags &= ~bits;
 }
 
