@@ -323,7 +323,7 @@ linux_sigreturn(p, args)
 	struct proc *p;
 	struct linux_sigreturn_args *args;
 {
-	struct linux_sigcontext *scp, context;
+	struct linux_sigcontext context;
 	register struct trapframe *regs;
 	int eflags;
 
@@ -338,8 +338,7 @@ linux_sigreturn(p, args)
 	 * It is unsafe to keep track of it ourselves, in the event that a
 	 * program jumps out of a signal handler.
 	 */
-	scp = SCARG(args,scp);
-	if (copyin((caddr_t)scp, &context, sizeof(*scp)) != 0)
+	if (copyin((caddr_t)args->scp, &context, sizeof(context)) != 0)
 		return (EFAULT);
 
 	/*
