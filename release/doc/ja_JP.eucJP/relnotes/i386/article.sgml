@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.4
+    Original revision: 1.5
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -15,6 +15,8 @@
 %authors;
 <!ENTITY % ja-mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
 %ja-mlists;
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 <!ENTITY % sections SYSTEM "../common/relnotes.ent"> %sections;
