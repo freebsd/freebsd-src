@@ -13,7 +13,8 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/krb \
 		-I${KADMOBJDIR} \
 		-I${KRBOBJDIR} \
-		-I${.CURDIR}/../include
+		-I${.CURDIR}/../include \
+		-I${.OBJDIR}
 LDADD=		-L${ROKENOBJDIR} -lroken \
 		-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes -lcrypt \
 		-lcom_err
