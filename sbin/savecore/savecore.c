@@ -60,6 +60,7 @@ static char sccsid[] = "@(#)savecore.c	8.3 (Berkeley) 1/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "zopen.h"
 
 #define ok(number) ((number) - KERNBASE)
 

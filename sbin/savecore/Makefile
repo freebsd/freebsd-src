@@ -3,6 +3,9 @@
 PROG=	savecore
 SRCS=	savecore.c zopen.c
 MAN8=	savecore.8
-.PATH:	${.CURDIR}/../../usr.bin/compress
+
+ZOPENPATH= ${.CURDIR}/../../usr.bin/compress
+.PATH:	${ZOPENPATH}
+CFLAGS+= -I${ZOPENPATH}
 
 .include <bsd.prog.mk>
