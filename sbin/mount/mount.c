@@ -437,8 +437,11 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	if (strcmp(vfstype, "msdos") == 0)
 		vfstype = "msdosfs";
 
+	/* Construct the name of the appropriate mount command */
+	(void)snprintf(execname, sizeof(execname), "mount_%s", vfstype);
+
 	argc = 0;
-	argv[argc++] = vfstype;
+	argv[argc++] = execname;
 	mangle(optbuf, &argc, argv);
 	argv[argc++] = spec;
 	argv[argc++] = name;
@@ -462,7 +465,6 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 			exit(mount_ufs(argc, (char * const *) argv));
 
 		/* Go find an executable. */
-		(void)snprintf(execname, sizeof(execname), "mount_%s", vfstype);
 		execvP(execname, _PATH_SYSPATH, (char * const *)argv);
 		if (errno == ENOENT) {
 			warn("exec mount_%s not found in %s", vfstype,
