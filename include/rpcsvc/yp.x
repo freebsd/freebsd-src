@@ -34,7 +34,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)yp.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id$";
+%static char rcsid[] = "$Id: yp.x,v 1.2 1995/12/08 17:58:50 wpaul Exp $";
 %#endif /* not lint */
 #endif
 
@@ -242,8 +242,11 @@ program YPPROG {
 		YPPROC_MATCH(ypreq_key) = 3;
 
 		ypresp_key_val 
+#ifdef STUPID_SUN_BUG /* should be ypreq_nokey */
 		YPPROC_FIRST(ypreq_key) = 4;
-
+#else
+		YPPROC_FIRST(ypreq_nokey) = 4;
+#endif
 		ypresp_key_val 
 		YPPROC_NEXT(ypreq_key) = 5;
 
