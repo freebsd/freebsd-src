@@ -22,15 +22,18 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id$
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -59,8 +62,6 @@ main(int argc, char *argv[])
 	struct slot *sp;
 	int     count, debug = 0;
 	int     verbose = 0;
-	extern char *optarg;
-	extern int optind, optopt;
 
 	while ((count = getopt(argc, argv, ":dvf:")) != -1) {
 		switch (count) {
@@ -76,10 +77,10 @@ main(int argc, char *argv[])
 			config_file = optarg;
 			break;
 		case ':':
-			die("No config file argument");
+			die("no config file argument");
 			break;
 		case '?':
-			die("Illegal option");
+			die("illegal option");
 			break;
 		}
 	}
@@ -99,7 +100,7 @@ main(int argc, char *argv[])
 			die("fork failed");
 	readslots();
 	if (slots == 0)
-		die("No PC-CARD slots");
+		die("no PC-CARD slots");
 	log_1s("pccardd started", NULL);
 	for (;;) {
 		fd_set  mask;
@@ -108,7 +109,7 @@ main(int argc, char *argv[])
 			FD_SET(sp->fd, &mask);
 		count = select(32, 0, 0, &mask, 0);
 		if (count == -1) {
-			logerr("Select");
+			logerr("select");
 			continue;
 		}
 		if (count)
@@ -187,7 +188,7 @@ readslots(void)
 			if (mem == 0) {
 				mem = alloc_memory(4 * 1024);
 				if (mem == 0)
-					die("Can't allocate memory for controller access");
+					die("can't allocate memory for controller access");
 				if (ioctl(fd, PIOCRWMEM, &mem))
 					logerr("ioctl (PIOCRWMEM)");
 			}

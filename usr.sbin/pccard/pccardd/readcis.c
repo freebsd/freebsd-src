@@ -22,13 +22,18 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 
 #include <pccard/card.h>
@@ -478,7 +483,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 	lseek(fd, offs, SEEK_SET);
 	do {
 		if (read_attr(fd, &code, 1) != 1) {
-			perror("CIS code read");
+			warn("CIS code read");
 			break;
 		}
 		total++;
@@ -487,7 +492,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 		tp = xmalloc(sizeof(*tp));
 		tp->code = code;
 		if (read_attr(fd, &length, 1) != 1) {
-			perror("CIS len read");
+			warn("CIS len read");
 			break;
 		}
 		total++;
@@ -503,7 +508,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 			total += length;
 			tp->data = xmalloc(length);
 			if (read_attr(fd, tp->data, length) != length) {
-				perror("CIS read");
+				warn("CIS read");
 				break;
 			}
 		}
