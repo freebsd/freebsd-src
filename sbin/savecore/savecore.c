@@ -146,7 +146,7 @@ main(argc, argv)
 
 	openlog("savecore", LOG_PERROR, LOG_DAEMON);
 
-	while ((ch = getopt(argc, argv, "dfkN:vz")) != -1)
+	while ((ch = getopt(argc, argv, "cdfkN:vz")) != -1)
 		switch(ch) {
 		case 'c':
 			clear = 1;
