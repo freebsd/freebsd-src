@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.23 1997/07/08 11:51:11 ache Exp $
+ *		$Id: init.c,v 1.24 1997/08/02 00:22:49 davidn Exp $
  */
 
 #ifndef lint
@@ -1394,7 +1394,6 @@ state_func_t
 death()
 {
 	register session_t *sp;
-	register int rcdown;
 	register int i;
 	pid_t pid;
 	static const int death_sigs[2] = { SIGTERM, SIGKILL };
@@ -1404,11 +1403,11 @@ death()
 
 	for (sp = sessions; sp; sp = sp->se_next) {
 		sp->se_flags |= SE_SHUTDOWN;
-		(void) revoke(sp->se_device);
+		kill(sp->se_process, SIGHUP);
 	}
 
 	/* Try to run the rc.shutdown script within a period of time */
-	rcdown = runshutdown();
+	(void) runshutdown();
     
 	for (i = 0; i < 2; ++i) {
 		if (kill(-1, death_sigs[i]) == -1 && errno == ESRCH)
@@ -1452,27 +1451,25 @@ runshutdown()
 	if ((pid = fork()) == 0) {
 		int	fd;
 
-		setsid();
+		/* Assume that init already grab console as ctty before */
+
 		sigemptyset(&sa.sa_mask);
 		sa.sa_flags = 0;
 		sa.sa_handler = SIG_IGN;
 		(void) sigaction(SIGTSTP, &sa, (struct sigaction *)0);
 		(void) sigaction(SIGHUP, &sa, (struct sigaction *)0);
 
-		/*
-		 * Clean our descriptor table to be sure of
-		 * getting /dev/console as control terminal.
-		 */
-		for (fd = getdtablesize(); fd-- > 0; )
+		for (fd = getdtablesize(); fd-- > 2; )
 		    (void)close(fd);
 
 		if ((fd = open(_PATH_CONSOLE, O_RDWR)) == -1)
 		    warning("can't open %s: %m", _PATH_CONSOLE);
 		else {
-		    if (ioctl(fd, TIOCSCTTY, (char *)NULL) == -1)
-			warning("can't get %s for controlling terminal: %m", _PATH_CONSOLE);
+		    (void) dup2(fd, 0);
 		    (void) dup2(fd, 1);
 		    (void) dup2(fd, 2);
+		    if (fd > 2)
+			close(fd);
 		}
 
 		/*
@@ -1484,6 +1481,9 @@ runshutdown()
 
 		sigprocmask(SIG_SETMASK, &sa.sa_mask, (sigset_t *) 0);
 
+#ifdef LOGIN_CAP
+		setprocresources(RESOURCE_RC);
+#endif
 		execv(_PATH_BSHELL, argv);
 		warning("can't exec %s for %s: %m", _PATH_BSHELL, _PATH_RUNDOWN);
 		_exit(1);	/* force single user mode */
