@@ -13,7 +13,7 @@ fi
 
 case "$daily_backup_aliases_enable" in
     [Yy][Ee][Ss])
-	if [ -f /etc/aliases ]
+	if [ -f /etc/mail/aliases ]
 	then
 	    bak=/var/backups
 
@@ -23,15 +23,15 @@ case "$daily_backup_aliases_enable" in
 	    if [ ! -f $bak/aliases.bak ]
 	    then
 		echo "no $bak/aliases.bak"
-		cp -p /etc/aliases $bak/aliases.bak
+		cp -p /etc/mail/aliases $bak/aliases.bak
 	    fi
 
-	    if ! cmp -s $bak/aliases.bak /etc/aliases
+	    if ! cmp -s $bak/aliases.bak /etc/mail/aliases
 	    then
 		echo "$host aliases diffs:"
-		diff -u $bak/aliases.bak /etc/aliases
+		diff -u $bak/aliases.bak /etc/mail/aliases
 		mv $bak/aliases.bak $bak/aliases.bak2
-		cp -p /etc/aliases $bak/aliases.bak
+		cp -p /etc/mail/aliases $bak/aliases.bak
 	    fi
 	fi;;
 esac
