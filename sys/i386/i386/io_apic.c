@@ -406,9 +406,12 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 		if (bootverbose) {
 			printf("ioapic%u: intpin %d -> ",  io->io_id, i);
 			if (intpin->io_vector == VECTOR_EXTINT)
-				printf("ExtINT\n");
+				printf("ExtINT");
 			else
-				printf("irq %u\n", intpin->io_vector);
+				printf("irq %u", intpin->io_vector);
+			printf(" (%s, active%s)\n", intpin->io_edgetrigger ?
+			    "edge" : "level", intpin->io_activehi ? "hi" :
+			    "lo");
 		}
 		value = ioapic_read(apic, IOAPIC_REDTBL_LO(i));
 		ioapic_write(apic, IOAPIC_REDTBL_LO(i), value | IOART_INTMSET);
