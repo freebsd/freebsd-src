@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)slip.h	8.1 (Berkeley) 2/12/94
- * $Id$
+ * $Id: slip.h,v 1.2 1994/08/02 07:46:50 davidg Exp $
  */
+
+#ifndef _NET_SLIP_H_
+#define _NET_SLIP_H_
 
 /* Ioctls operating on SLIP ttys. */
 #define	SLIOCGUNIT	_IOR('t', 88, int)	/* get slip unit number */
@@ -49,4 +52,6 @@
 #define	CHDR_LEN	15		/* length of compressed header data */
 
 #define	SLIPDIR_IN	0		/* incoming */
+
+#endif
 #define	SLIPDIR_OUT	1		/* outgoing */

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id$
+ * $Id: route.h,v 1.3 1994/08/02 07:46:42 davidg Exp $
  */
+
+#ifndef _NET_ROUTE_H_
+#define _NET_ROUTE_H_
 
 /*
  * Kernel resident routing tables.
@@ -259,4 +262,6 @@ void	 rtredirect __P((struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, struct rtentry **));
 int	 rtrequest __P((int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **));
+#endif
+
 #endif

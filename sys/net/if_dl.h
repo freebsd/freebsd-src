@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_dl.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_dl.h,v 1.2 1994/08/02 07:46:12 davidg Exp $
  */
+
+#ifndef _NET_IF_DL_H_
+#define _NET_IF_DL_H_
 
 /* 
  * A Link-Level Sockaddr may specify the interface in one of two
@@ -79,3 +82,5 @@ char	*link_ntoa __P((const struct sockaddr_dl *));
 __END_DECLS
 
 #endif /* !KERNEL */
+
+#endif
