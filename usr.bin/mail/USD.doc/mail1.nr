@@ -74,7 +74,7 @@ waiting in your system mailbox.  If you are a
 .i csh
 user, you will be notified when new mail arrives if you inform
 the shell of the location of your mailbox.  On version 7 systems,
-your system mailbox is located in the directory /usr/spool/mail
+your system mailbox is located in the directory /var/mail
 in a file with your login name.  If your login name is
 .q sam,
 then you can make
@@ -82,7 +82,7 @@ then you can make
 notify you of new mail by including the following line in your .cshrc
 file:
 .(l
-set mail=/usr/spool/mail/sam
+set mail=/var/mail/sam
 .)l
 When you read your mail using
 .i Mail ,
