@@ -1,5 +1,387 @@
-<!-- $Id: dialout.sgml,v 1.1 1996/12/02 07:23:46 max Exp $ -->
+<!-- $Id$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 0 -->
+<!-- Original revision: 1.2 -->
 
-<sect><heading>* CVSup<label id="cvsup"></heading>
+<sect><heading>CVSup<label id="cvsup"></heading>
+
+<p><em>原作: &a.jdp;</em>.
+<p><em>訳: &a.iwasaki;.<newline>28 December 1996.</em>
+
+<sect1><heading>CVSup の紹介<label id="cvsup:intro"></heading>
+
+<p>CVSup は, リモートのサーバホストにあるマスタ CVS リポジトリから
+ソースツリーを配布し更新するためのソフトウェアパッケージです. FreeBSD 
+のソースは, カリフォルニアにある中心的な開発マシンの CVS リポジトリの
+中でメンテナンスしています. CVSup を使用することで, FreeBSD ユーザは
+簡単に自分のソースツリーを最新の状態にしておくことができます. 
+
+<p>CVSup は "pull" モデルとよばれる更新のモデルを採用しています. 
+pull モデルでは, 各クライアントが更新したい場合に更新したい時点で, 
+サーバに更新の問い合わせをおこないます. サーバはクライアントからの
+更新の要求を受け身の状態で待ちます. したがって, すべての更新は
+クライアント主導でおこなわれます. サーバは頼まれもしない更新情報を
+送るようなことはしません. ユーザは CVSup クライアントを手動で実行して
+更新をおこなうか, cron ジョブを設定して定期的に自動実行する必要があります. 
+
+<p>用語 "CVSup" のように大文字で表記しているものは, ソフトウェアパッケージ
+全体を指します. 主な構成物は, 各ユーザマシンで実行するクライアントである 
+"cvsup", FreeBSD の各ミラーサイトで実行するサーバ "cvsupd" です. 
+
+<p>FreeBSD の文書やメーリングリストを読んだ際に, sup についての言及を
+見かけたかもしれません. sup は CVSup の前に存在していたもので, 同様の
+目的で使われていました. CVSup は sup と同じように使用されており, 実際, 
+sup と互換性のあるコンフィグレーションファイルを使用します. しかし, 
+CVSup の方がより高速で柔軟性もあるので, もはや sup は FreeBSD 
+プロジェクトでは使用されていません. 
+
+<sect1><heading>CVSup のインストール<label id="cvsup:install"></heading>
+
+<p>FreeBSD 2.2 以降を使用している場合, CVSup をインストールするもっとも
+簡単な方法は, FreeBSD <ref id="ports" name="ports コレクション"> の 
+<url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/net/cvsup/"
+name="port"> または対応する <url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-2.2/net/cvsup-14.0.tgz"
+name="バイナリ package"> を使うことです. どちらを使うかは, 
+CVSupを自分で作りたいかどうかによります. 
+
+<p>FreeBSD-2.1.6 を使用している場合は, 残念ながら FreeBSD-2.1.6 には
+存在しないバージョンの C ライブラリが必要となるため バイナリ package 
+は使用できません. しかし, <url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup/"
+name="port"> は FreeBSD 2.2 とまったく同じように簡単に使うことができます. 
+単に tar ファイルを展開し, cvsup ディレクトリへ cd して "make install" 
+とタイプするだけです. 
+
+<p>CVSup は <url
+url="http://www.research.digital.com/SRC/modula-3/html/home.html"
+name="Modula-3"> で書かれているため, package と port 両方とも Modula-3 
+ランタイムライブラリがインストールされていることが必要です. これらは 
+port の <url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/lang/modula-3-lib"
+name="lang/modula-3-lib"> および package の <url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/lang/modula-3-lib-3.6.tgz"
+name="lang/modula-3-lib-3.6"> にあります. これらのライブラリの port 
+や package に対して cvsup と同じ管理方法を取っていれば, CVSup の 
+port や package をインストールする際に, これらのライブラリも自動的に
+コンパイルそして/またはインストールされます. 
+
+<p>Modula-3 ライブラリはかなり大きく, これらの転送やコンパイルはすぐに
+終わるものではありません. この理由から, 三つめの選択肢が提供されています. 
+以下のところから, <em>スタティックリンクされた</em> CVSup の 
+FreeBSD 用の実行形式が入手可能です:
+
+<itemize>
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz">
+  (client).
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz">
+  (server).
+</itemize>
+
+<p>ほとんどのユーザはクライアントのみが必要になるでしょう. これらの
+実行形式は完全に自己完結しており, FreeBSD-2.1.0 から FreeBSD-current 
+までの, どのバージョンでも動作します. 
+
+<p>まとめると, CVSup をインストールするための選択肢は以下の通りです:
+
+<itemize>
+  <item>FreeBSD-2.2以降:    スタティックバイナリ, port, package 
+  <item>FreeBSD-2.1.6:      スタティックバイナリ, port
+  <item>FreeBSD-2.1.5 以前: スタティックバイナリ
+</itemize>
+
+<sect1><heading>CVSup のコンフィグレーション<label id="cvsup:config"></heading>
+
+<p>CVSup の動作は, "supfile" と呼ばれるコンフィグレーションファイルで
+制御します. FreeBSD-2.2 からは, supfile のサンプルがディレクトリ <url
+url="file:/usr/share/examples/cvsup" name="/usr/share/examples/cvsup"> 
+の下にあります. 2.2 以前のシステムを使用している場合は, これらの
+サンプルを <url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/examples/cvsup/"
+name="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/examples/cvsup/"> 
+から入手することができます. 
+
+<p>supfile には以下の cvsup に関する質問への答えを記述します:
+
+<itemize>
+ <item><ref id="cvsup:config:files" name="どのファイルを受け取りたいのか?">
+ <item><ref id="cvsup:config:vers" name="どのバージョンのものが欲しいのか?">
+ <item><ref id="cvsup:config:where" name="どこから入手したいのか?">
+ <item><ref id="cvsup:config:dest" name="自分のマシンのどこに置きたいのか?">
+ <item><ref id="cvsup:config:status" name="どこに status ファイルを置きたいのか?">
+</itemize>
+
+<p>次のセクションで, これらの質問に順番に答えながら典型的な supfile 
+を組み立てていきます. 最初に supfile の全体構造を説明します. 
+
+<p>supfile はテキストファイルです. コメントは "#" から行末までです. 
+空行とコメントだけの行は無視します. 
+
+<p>残りの各行には, ユーザが受け取りたいファイル群について記述します. 
+行の始めは, サーバ側で定義した論理的なファイルのグループである
+「コレクション」の名称です. コレクションの名称を指定して, 欲しいファイル群を
+サーバに伝えます. コレクション名の後には, ホワイトスペースで区切られた 
+0個以上のフィールドが続きます. これらのフィールドが上記の質問に対する
+答えになります. フィールドには 2種類あります: flag フィールドと value 
+フィールドです. flag フィールドは "delete" や "compress" のような
+単独のキーワードから成ります. また, value フィールドもキーワードで
+始まりますが, キーワードの後にはホワイトスペースは入らず, "=" と
+二つめの単語が続きます. 例えば, "release=cvs" は value フィールドです. 
+
+<p>通常, supfile には受け取りたいコレクションを一つ以上指定します. 
+supfile を組み立てる一つの方法として, コレクション毎にすべての関係の
+あるフィールドを明示的に指定する方法があります. しかし, これでは supfile 
+のすべてのコレクションに対してほとんどのフィールドが同じになるため, 
+行が非常に長くなってしまい不便になります. これらの問題を避けるため, 
+CVSup ではデフォルトを指定することのできるメカニズムが提供されています. 
+特殊な擬似コレクション名 "*default" で始まる行は, supfile 中の後続の
+コレクションに対して使用する flag フィールドと value フィールドの
+デフォルトを設定するために利用できます. 個々のコレクションで固有の値を
+指定すると, デフォルト値を無効にできます. また "*default" 行を追加すると, 
+supfile の途中からデフォルト値の変更や追加が可能になります. 
+
+<p>これまでの予備知識を基に, <ref id="current" name="FreeBSD-current"> 
+のメインのソースツリーを受け取って更新するための supfile を
+組み立ててみましょう. 
+
+<itemize>
+<item>どのファイルを受け取りたいのか?<label id="cvsup:config:files">
+
+<p>sup の場合と同様に, CVSup を通して入手できるファイルは
+「コレクション」と呼ばれる名前の付けられたグループにまとめられています. 
+FreeBSD のソースツリーを構成しているコレクションについては <ref id="sup:dists"
+name="SUP 配布ファイル"> の節で説明しています. ここでは, 
+FreeBSD システムのメインのソースツリー全体を受け取るための設定例を紹介します. 
+輸出規制されている暗号化サポートのコード以外のすべてを含む "src-all" という
+単一の大きなコレクションがあります. この例では私たちがアメリカ合衆国か
+カナダにいるものと仮定します. その場合, "src-eBones" および "src-secure" 
+の二つの付化的なコレクションで暗号化コードを入手することができます. supfile 
+を組み立てる最初のステップとして, これらのコレクションを一行に一つづつ
+記述します:
+
+<verb>
+  src-all
+  src-eBones
+  src-secure
+</verb>
+
+<p><item>どのバージョンのものが欲しいのか?<label id="cvsup:config:vers">
+
+<p>CVSup を使用すると, かつて存在していたことのある, 事実上どのバージョンの
+ソースでも受け取ることができます. これは cvsupd サーバがすべてのバージョンを含む 
+CVS リポジトリに基づいて動作することにより, 実現されています. 
+"tag=" および "date=" の value フィールドを使用して, 欲しいバージョンの
+一つを指定します. 
+
+<p>"tag=" フィールドはリポジトリ中のシンボリックタグを指定します. 
+tag には revision tag と branch tag の二種類があります. revision tag 
+は特定のリビジョンを指します. これは, 毎日同じ状態に保つことになります. 
+一方 branch tag は, ある時点での開発分流の最新のリビジョンを指します. 
+branch tag は特定のリビジョンを指定している訳ではないので, 今日と明日では
+異なるリビジョンを参照することになるかもしれません. 
+
+<p>以下はユーザが興味を持っていると思われる branch tag です:
+
+<descrip>
+  <tag/tag=./
+    メインの開発分流であり, FreeBSD-current として知られています. 
+    注意: "." は句読点ではありません. tag の名称です. 
+  <tag/tag=RELENG_2_2/
+    FreeBSD-2.2 の先頭の開発分流です. 
+  <tag/tag=RELENG_2_1_0/
+    FreeBSD-2.1.x 用の開発分流であり, FreeBSD-stable として知られています. 
+</descrip>
+
+<p>以下はユーザが興味を持っていると思われる revision tag です:
+
+<descrip>
+  <tag/tag=RELENG_2_1_6_1_RELEASE/
+  FreeBSD-2.1.6.1.
+  <tag/tag=RELENG_2_1_6_RELEASE/
+  FreeBSD-2.1.6.
+  <tag/tag=RELENG_2_1_5_RELEASE/
+  FreeBSD-2.1.5.
+  <tag/tag=RELENG_2_1_0_RELEASE/
+  FreeBSD-2.1.0.
+</descrip>
+
+<p>tag 名を示した通りにタイプされているか十分注意してください. CVSup 
+は tag 名が正しいかどうかを見分けることはできません. 
+tag が間違っていた場合, たまたまファイルがまったく存在しない正しい tag 
+が指定されたものとしてCVSup は動作します. その場合は, 現在あるソースが
+削除されるでしょう. 
+
+<p>branch tag を指定した際には, 通常はその開発分流の最新バージョンの
+ファイルを受け取ります. いくらか前のバージョンを受け取りたい場合は, 
+"date=" の value フィールドを使って日付を指定することで, これを実現することが
+できます. cvsup(1) のマニュアルページで, その方法を説明しています. 
+
+<p>例として, FreeBSD-current を受け取りたいとします. 次の行を supfile 
+の始めに追加します:
+
+<verb>
+  *default tag=.
+</verb>
+
+<p>"tag=" フィールドも "date=" フィールドも指定しなかった場合に
+動き出す重要な特殊なケースがあります. そのケースでは, 特定のバージョンの
+ファイルを受け取るのではなく, サーバの CVS リポジトリから実際の RCS 
+ファイルを直接受け取ります. 一般的に開発者はこの処理のモードが
+好きなようです. 彼らのシステム上にリポジトリそのもののコピーを維持することで, 
+リビジョン履歴を閲覧し過去のバージョンのファイルを検査できるようになります. 
+しかし, これには大きなディスクスペースが必要になります. 
+
+<p><item>どこから入手したいのか?<label id="cvsup:config:where">
+
+<p>これは簡単なことです. cvsup に第一の FreeBSD 配布サイト 
+"cvsup.FreeBSD.org" から最新情報を持ってくるように伝える "host=" 
+フィールドを使います:
+
+<verb>
+  *default host=cvsup.FreeBSD.org
+</verb>
+
+<p>どのように cvsup を実行しても, この設定は "-h hostname" を
+使用してコマンドラインで変更することができます. 
+
+<p><item>自分のマシンのどこに置きたいのか?<label id="cvsup:config:dest">
+
+<p>"prefix=" フィールドは, cvsup に受け取ったファイルをどこに置くかを
+伝えます. この例では, ソースファイルを直接メインのソースツリー 
+"/usr/src" に置きます. "src" ディレクトリはすでにファイルを受け取るために
+選択したコレクションで暗黙に指定しているので, これは正しい仕様となります:
+
+<verb>
+  *default prefix=/usr
+</verb>
+
+<p><item>どこに status ファイルを置きたいのか?<label id="cvsup:config:status">
+
+<p>cvsup クライアントは "base" ディレクトリと呼ばれる場所に, ある 
+status ファイルを維持しています. すでに受け取った更新情報を追従し続け
+ることで, これらのファイルは CVSup がより効果的に動作することを支援し
+ます. 標準の base ディレクトリ "/usr/local/etc/cvsup" を使用します:
+
+<verb>
+  *default base=/usr/local/etc/cvsup
+</verb>
+
+<p>supfile に指定がない場合は, この設定をデフォルトで使用しますので, 
+実際には上の行は必要ありません. 
+
+<p>base ディレクトリが存在しない場合は作成しておきましょう. base 
+ディレクトリが存在しない場合, cvsup クライアントは実行を拒否します. 
+
+<p><item>その他もろもろの supfileの設定:
+
+<p>通常 supfile に入れておくべき行がもう一つあります:
+
+<verb>
+  *default release=cvs delete use-rel-suffix compress
+</verb>
+
+<p>"release=cvs" は, サーバがメインの FreeBSD CVS リポジトリから
+その情報を取得するように指示します. ほとんどの場合はこのようにしておきますが, 
+ここでの説明の範疇をこえるような状況では他の指定をすることも可能です. 
+
+<p>"delete" は CVSup にファイルを削除することを許可します. CVSup が
+ソースツリーを完全に最新の状態に保てるようにするためには, これは常に
+指定しておくべきでしょう. CVSup は, これらの責任範囲のファイルだけを
+慎重に削除します. たまたま存在する他の余分なファイルについては, 
+まったく手をつけずに残しておきます. 
+
+<p>"use-rel-suffix" は ... 神秘的なものです. これについて本当に
+知りたい人は, cvsup(1) のマニュアルページをご覧ください. でなければ, 
+何も考えずに指定してみてください. 
+
+<p>"compress" は通信チャネルで gzip 形式の圧縮の使用を有効にします. 
+ご使用のネットワーク接続が T1 speed 以上である場合, この圧縮を
+使用しない方がよいかもしれません. そうでない場合は十分に役に立ちます. 
+
+<p><item>supfile の例のまとめ:
+
+<p>以下は supfile の例の全体です:
+
+<verb>
+  *default tag=.
+  *default host=cvsup.FreeBSD.org
+  *default prefix=/usr
+  *default base=/usr/local/etc/cvsup
+  *default release=cvs delete use-rel-suffix compress
+  src-all
+  src-eBones
+  src-secure
+</verb>
+</itemize>
+
+<sect1><heading>CVSup の実行</heading>
+
+<p>さて, 更新の準備ができました. これを実行するコマンドラインは
+実に簡単です:
+
+<verb>
+  cvsup supfile
+</verb>
+
+<p>もちろん, ここでの "supfile" は作成したばかりの supfile 
+のファイル名です. X11 環境で実行するものと仮定して, cvsup は
+通常の操作に必要なボタンを持つ GUI ウィンドウを表示します. 
+"go" ボタンを押して, 実行を監視してください. 
+
+<p>この例では実際の "/usr/src" ツリーを更新しているので, cvsup 
+にファイルを更新するのに必要なパーミッションを与えるために, ユーザ root 
+で実行する必要があります. コンフィグレーションファイルを作ったばかりで, 
+しかも以前にこのプログラムを実行したことがないので, 神経質になるのは
+無理もない話だと思います. 大切なファイルに触らずに試しに実行する簡単な
+方法があります. どこか適当な場所に空のディレクトリを作成して, 
+コマンドラインの引数で指定するだけです:
+
+<verb>
+  mkdir /var/tmp/dest
+  cvsup supfile /var/tmp/dest
+</verb>
+
+<p>指定したディレクトリは, すべての更新されるファイルの
+更新先ディレクトリとして使用します. CVSup は "/usr/src" の下の
+ファイルを検査しますが, 変更や削除はまったくおこないません. 
+かわりに "/var/tmp/dest/usr/src" に更新されたすべてのファイルが
+置かれるようになります. この方法で実行した場合は, CVSup は base 
+ディレクトリの status ファイルを更新せずにそのままにします. 
+これらのファイルの新しいバージョンは指定されたディレクトリ
+に書き込まれます. "/usr/src" の読み取り許可がある限り, このような
+試し実行のためにユーザ root になる必要はありません. 
+
+<p>X11 を利用していないとか単に GUI が気に入らない場合は, cvsup 
+起動時にコマンドラインに二つほどオプションを追加する必要があります:
+
+<verb>
+  cvsup -g -L 2 supfile
+</verb>
+
+<p>"-g" オプションは cvsup に GUI を使用しないように伝えます. X11 
+を利用していない場合には自動的に指定されますが, そうでない場合は
+明示的に指定します. 
+
+<p>"-L 2" オプションは cvsup にファイル更新中の詳細情報をプリントアウト
+するように伝えます. 冗長性には "-L 0" から "-L 2" までの三つのレベル
+があります. デフォルトは 0 であり, エラーメッセージ以外はまったく出力
+しません. 
+
+<p>たくさんの他のオプション変数があります. それらの簡単な一覧は 
+"cvsup -H" で表示されます. より詳しい説明はマニュアルページをご覧ください. 
+
+<p>動作している更新の方法に満足したら, cron(8) を使って cvsup を定期的に
+実行させる準備をすることができます. cron から起動する際には, 明示的に 
+cvsup が GUI を使わないようにする必要があります. 
+
+<sect1><heading>CVSup のアナウンス, 質問およびバグ報告</heading>
+
+<p>CVSup のほとんどの FreeBSD 関連の議論は &a.hackers; で
+おこなわれています. ソフトウェアの新しいバージョンは &a.announce; で
+アナウンスされます. 
+
+<p>質問とバグ報告はプログラムの作者, <url
+url="mailto:cvsup-bugs@polstra.com" name="cvsup-bugs@polstra.com"> へ
+送ってください. 
