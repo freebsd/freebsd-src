@@ -242,26 +242,30 @@ static void *
 viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct via_info *via = devinfo;
-	struct via_chinfo *ch = (dir == PCMDIR_PLAY)? &via->pch : &via->rch;
+	struct via_chinfo *ch;
+
+	if (dir == PCMDIR_PLAY) {
+		ch = &via->pch;
+		ch->base = VIA_PLAY_DMAOPS_BASE;
+		ch->count = VIA_PLAY_DMAOPS_COUNT;
+		ch->ctrl = VIA_PLAY_CONTROL;
+		ch->mode = VIA_PLAY_MODE;
+		ch->sgd_addr = via->sgd_addr;
+		ch->sgd_table = &via->sgd_table[0];
+	} else {
+		ch = &via->rch;
+		ch->base = VIA_RECORD_DMAOPS_BASE;
+		ch->count = VIA_RECORD_DMAOPS_COUNT;
+		ch->ctrl = VIA_RECORD_CONTROL;
+		ch->mode = VIA_RECORD_MODE;
+		ch->sgd_addr = via->sgd_addr + sizeof(struct via_dma_op) * SEGS_PER_CHAN;
+		ch->sgd_table = &via->sgd_table[SEGS_PER_CHAN];
+	}
 
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	ch->sgd_table = &via->sgd_table[(dir == PCMDIR_PLAY)? 0 : SEGS_PER_CHAN];
-	ch->sgd_addr = dir == PCMDIR_PLAY ? via->sgd_addr : via->sgd_addr +
-	    sizeof(struct via_dma_op) * SEGS_PER_CHAN;
-	if (ch->dir == PCMDIR_PLAY) {
-		ch->base = VIA_PLAY_DMAOPS_BASE;
-		ch->count = VIA_PLAY_DMAOPS_COUNT;
-		ch->ctrl = VIA_PLAY_CONTROL;
-		ch->mode = VIA_PLAY_MODE;
-	} else {
-		ch->base = VIA_RECORD_DMAOPS_BASE;
-		ch->count = VIA_RECORD_DMAOPS_COUNT;
-		ch->ctrl = VIA_RECORD_CONTROL;
-		ch->mode = VIA_RECORD_MODE;
-	}
 
 	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
 		return NULL;
