@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2000 Takanori Watanabe <wnabe@par.odn.ne.jp>
  * Copyright (c) 2000 KIYOHARA Takashi <kiyohara@kk.iij4u.ne.jp>
+ * Copyright (c) 2000 Takanori Watanabe <takawata@jp.FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
