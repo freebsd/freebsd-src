@@ -200,7 +200,7 @@ static int collates[UCHAR_LIM];
 
 #define COLLDIFF(A, B) (collates[UCHAR (A)] - collates[UCHAR (B)])
 
-/* static */ int
+static int
 collate_range_cmp (a, b)
 	int a, b;
 {
