@@ -397,6 +397,22 @@ label:
 						pt, ptlim);
 				} else  pt = _add("?", pt, ptlim);
 				continue;
+			case 'z':
+				{
+					long absoff;
+					if (t->tm_gmtoff >= 0) {
+						absoff = t->tm_gmtoff;
+						pt = _add("+", pt, ptlim);
+					} else {
+						absoff = -t->tm_gmtoff;
+						pt = _add("-", pt, ptlim);
+					}
+					pt = _conv(absoff / 3600, "%02d",
+						pt, ptlim);
+					pt = _conv((absoff % 3600) / 60, "%02d",
+						pt, ptlim);
+				};
+				continue;
 			case '+':
 				pt = _fmt(Locale->date_fmt, t, pt, ptlim);
 				continue;
