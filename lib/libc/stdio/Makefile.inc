@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # stdio sources
-.PATH: ${.CURDIR}/../libc/stdio
+.PATH: ${.CURDIR}/stdio
 
 SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c \
 	fflush.c fgetc.c fgetln.c fgetpos.c fgets.c fgetwc.c fgetws.c \
@@ -21,7 +21,6 @@ SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c \
 	vswprintf.c vswscanf.c vwprintf.c vwscanf.c wbuf.c wprintf.c wscanf.c \
 	wsetup.c
 
-.if ${LIB} == "c"
 MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fgetws.3 fopen.3 fputs.3 \
 	fputws.3 fread.3 fseek.3 funopen.3 fwide.3 getc.3 getwc.3 mktemp.3 \
 	printf.3 putc.3 putwc.3 remove.3 scanf.3 setbuf.3 stdio.3 tmpnam.3 \
@@ -54,4 +53,3 @@ MLINKS+=wprintf.3 fwprintf.3 wprintf.3 swprintf.3 \
 	wprintf.3 vwprintf.3 wprintf.3 vfwprintf.3 wprintf.3 vswprintf.3
 MLINKS+=wscanf.3 fwscanf.3 wscanf.3 swscanf.3 wscanf.3 vwscanf.3 \
 	wscanf.3 vswscanf.3 wscanf.3 vfwscanf.3
-.endif

@@ -2,15 +2,13 @@
 # $FreeBSD$
 
 # gmon sources
-.PATH: ${.CURDIR}/../libc/gmon
+.PATH: ${.CURDIR}/gmon
 
 SRCS+=	gmon.c mcount.c
 
-.if ${LIB} == "c"
 MAN+=	moncontrol.3
 
 MLINKS+=moncontrol.3 monstartup.3
-.endif
 
 # mcount cannot be compiled with profiling
 mcount.po: mcount.o

@@ -16,10 +16,65 @@ CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=	yes
 PRECIOUSLIB=	yes
 
+# Define (empty) variables so that make doesn't give substitution
+# errors if the included makefiles don't change these:
+MDSRCS=
+MISRCS=
+MDASM=
+MIASM=
+NOASM=
+
 #
-# Include make rules that are shared with libc_r.
+# If there is a machine dependent makefile, use it:
 #
-.include "${.CURDIR}/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_ARCH}/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_ARCH}/Makefile.inc"
+.endif
+
+.include "${.CURDIR}/db/Makefile.inc"
+.include "${.CURDIR}/compat-43/Makefile.inc"
+.include "${.CURDIR}/gen/Makefile.inc"
+.if ${MACHINE_ARCH} != "powerpc"
+.include "${.CURDIR}/gmon/Makefile.inc"
+.endif
+.include "${.CURDIR}/locale/Makefile.inc"
+.include "${.CURDIR}/net/Makefile.inc"
+.include "${.CURDIR}/nls/Makefile.inc"
+.include "${.CURDIR}/posix1e/Makefile.inc"
+.if !defined(NO_QUAD)
+.include "${.CURDIR}/quad/Makefile.inc"
+.endif
+.include "${.CURDIR}/regex/Makefile.inc"
+.include "${.CURDIR}/stdio/Makefile.inc"
+.include "${.CURDIR}/stdlib/Makefile.inc"
+.include "${.CURDIR}/stdtime/Makefile.inc"
+.include "${.CURDIR}/string/Makefile.inc"
+.include "${.CURDIR}/sys/Makefile.inc"
+.include "${.CURDIR}/rpc/Makefile.inc"
+.include "${.CURDIR}/uuid/Makefile.inc"
+.include "${.CURDIR}/xdr/Makefile.inc"
+.if !defined(NO_YP_LIBC)
+CFLAGS+= -DYP
+.include "${.CURDIR}/yp/Makefile.inc"
+.endif
+.if !defined(NO_HESIOD_LIBC)
+CFLAGS+= -DHESIOD
+.endif
+
+# If there are no machine dependent sources, append all the
+# machine-independent sources:
+.if empty(MDSRCS)
+SRCS+=	${MISRCS}
+.else
+# Append machine-dependent sources, then append machine-independent sources
+# for which there is no machine-dependent variant.
+SRCS+=	${MDSRCS}
+.for _src in ${MISRCS}
+.if ${MDSRCS:R:M${_src:R}} == ""
+SRCS+=	${_src}
+.endif
+.endfor
+.endif
 
 KQSRCS=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c iordi3.c \
 	lshldi3.c lshrdi3.c moddi3.c muldi3.c negdi2.c notdi2.c qdivrem.c \

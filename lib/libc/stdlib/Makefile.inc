@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent stdlib sources
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib ${.CURDIR}/../libc/stdlib
+.PATH: ${.CURDIR}/${MACHINE_ARCH}/stdlib ${.CURDIR}/stdlib
 
 MISRCS+=_Exit.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	bsearch.c calloc.c div.c exit.c getenv.c getopt.c getopt_long.c \
@@ -14,11 +14,10 @@ MISRCS+=_Exit.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	system.c tdelete.c tfind.c tsearch.c twalk.c
 
 # machine-dependent stdlib sources
-.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib/Makefile.inc)
-.include "${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_ARCH}/stdlib/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_ARCH}/stdlib/Makefile.inc"
 .endif
 
-.if ${LIB} == "c"
 MAN+=	abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
 	div.3 exit.3 getenv.3 getopt.3 getopt_long.3 getsubopt.3 hcreate.3 \
 	imaxabs.3 imaxdiv.3 insque.3 labs.3 ldiv.3 llabs.3 lldiv.3 \
@@ -39,4 +38,3 @@ MLINKS+=strtol.3 strtoll.3 strtol.3 strtoq.3 strtol.3 strtoimax.3
 MLINKS+=strtoul.3 strtoull.3 strtoul.3 strtouq.3 strtoul.3 strtoumax.3
 MLINKS+=malloc.3 calloc.3 malloc.3 free.3 malloc.3 realloc.3 malloc.3 reallocf.3
 MLINKS+=tsearch.3 tdelete.3 tsearch.3 tfind.3 tsearch.3 twalk.3
-.endif
