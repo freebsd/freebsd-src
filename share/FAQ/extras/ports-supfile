@@ -16,6 +16,7 @@ ports-mail release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=
 ports-math release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-net release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-news release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
+ports-plan9 release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-print release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-russian release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-security release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
