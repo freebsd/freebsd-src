@@ -68,11 +68,15 @@ SC_DFLT_FONT		opt_syscons.h
 SC_DISABLE_DDBKEY	opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
+SC_KERNEL_CONS_ATTR	opt_syscons.h
+SC_KERNEL_CONS_REV_ATTR	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
 SC_NO_CUTPASTE		opt_syscons.h
 SC_NO_FONT_LOADING	opt_syscons.h
 SC_NO_HISTORY		opt_syscons.h
 SC_NO_SYSMOUSE		opt_syscons.h
+SC_NORM_ATTR		opt_syscons.h
+SC_NORM_REV_ATTR	opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
