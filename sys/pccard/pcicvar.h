@@ -41,7 +41,7 @@ struct pcic_slot {
 	void *argp;
 };
 
-enum pcic_irq_type { isa_parallel = 1, isa_serial, pci_parallel, pci_serial };
+enum pcic_intr_way { pcic_iw_isa = 1, pcic_iw_pci = 2 };
 
 struct pcic_softc 
 {
@@ -53,8 +53,8 @@ struct pcic_softc
 #define	PCIC_VG_POWER	0x00000008	/* Uses VG power regs */
 #define PCIC_KING_POWER	0x00000010	/* Uses IBM KING regs  */
 #define PCIC_RICOH_POWER 0x0000020	/* Uses the ricoh power regs */
-	enum pcic_irq_type	csc_route; /* How to route csc interrupts */
-	enum pcic_irq_type	func_route; /* How to route function ints */
+	enum pcic_intr_way	csc_route; /* How to route csc interrupts */
+	enum pcic_intr_way	func_route; /* How to route function ints */
 	int			iorid;	/* Rid of I/O region */
 	struct resource 	*iores;	/* resource for I/O region */
 	int			memrid;	/* Memory rid */
