@@ -38,31 +38,69 @@ struct lmp {
 	TAILQ_ENTRY(lmp) lmp_link;
 };
 
+static int	lm_count;
+
+static void		lmc_parse	(FILE *);
 static void		lm_add		(const char *, const char *, const char *);
 static void		lm_free		(struct lm_list *);
 static char *		lml_find	(struct lm_list *, const char *);
 static struct lm_list *	lmp_find	(const char *);
 static struct lm_list *	lmp_init	(char *);
 static const char * quickbasename	(const char *);
+static int	readstrfn	(void * cookie, char *buf, int len);
+static int	closestrfn	(void * cookie);
 
 #define	iseol(c)	(((c) == '#') || ((c) == '\0') || \
 			 ((c) == '\n') || ((c) == '\r'))
 
 int
-lm_init (void)
+lm_init (char *libmap_override)
 {
 	FILE	*fp;
-	char	*cp;
-	char	*f, *t, *p, *c;
-	char	prog[MAXPATHLEN];
-	char	line[MAXPATHLEN + 2];
 
-	dbg("%s()", __func__);
+	dbg("%s(\"%s\")", __func__, libmap_override);
 
 	TAILQ_INIT(&lmp_head);
 
-	if ((fp = fopen(_PATH_LIBMAP_CONF, "r")) == NULL)
-		return (1);
+	fp = fopen(_PATH_LIBMAP_CONF, "r");
+	if (fp) {
+		lmc_parse(fp);
+		fclose(fp);
+	}
+
+	if (libmap_override) {
+		char	*p;
+		/* do some character replacement to make $LIBMAP look like a
+		   text file, then "open" it with funopen */
+		libmap_override = xstrdup(libmap_override);
+
+		for (p = libmap_override; *p; p++) {
+			switch (*p) {
+				case '=':
+					*p = ' '; break;
+				case ',':
+					*p = '\n'; break;
+			}
+		}
+		fp = funopen(libmap_override, readstrfn, NULL, NULL, closestrfn);
+		if (fp) {
+			lmc_parse(fp);
+			fclose(fp);
+		}
+	}
+
+	return (lm_count == 0);
+}
+
+static void
+lmc_parse (FILE *fp)
+{
+	char	*cp;
+	char	*f, *t, *c, *p;
+	char	prog[MAXPATHLEN];
+	char	line[MAXPATHLEN + 2];
+
+	dbg("%s(%p)", __func__, fp);
 
 	p = NULL;
 	while ((cp = fgets(line, MAXPATHLEN + 1, fp)) != NULL) {
@@ -134,8 +172,6 @@ lm_init (void)
 		*cp = '\0';
 		lm_add(p, f, t);
 	}
-	fclose(fp);
-	return (0);
 }
 
 static void
@@ -190,6 +226,7 @@ lm_add (const char *p, const char *f, const char *t)
 	lm->f = xstrdup(f);
 	lm->t = xstrdup(t);
 	TAILQ_INSERT_HEAD(lml, lm, lm_link);
+	lm_count++;
 }
 
 char *
@@ -251,7 +288,7 @@ lml_find (struct lm_list *lmh, const char *f)
 	TAILQ_FOREACH(lm, lmh, lm_link)
 		if (strcmp(f, lm->f) == 0)
 			return (lm->t);
-	return NULL;
+	return (NULL);
 }
 
 /* Given an executable name, return a pointer to the translation list or
@@ -298,10 +335,37 @@ static const char *
 quickbasename (const char *path)
 {
 	const char *p = path;
-	for (; *path; path++)
-	{
+	for (; *path; path++) {
 		if (*path == '/')
 			p = path+1;
 	}
-	return p;
+	return (p);
+}
+
+static int
+readstrfn(void * cookie, char *buf, int len)
+{
+	static char	*current;
+	static int	left;
+	int 	copied;
+	
+	copied = 0;
+	if (!current) {
+		current = cookie;
+		left = strlen(cookie);
+	}
+	while (*current && left && len) {
+		*buf++ = *current++;
+		left--;
+		len--;
+		copied++;
+	}
+	return copied;
+}
+
+static int
+closestrfn(void * cookie)
+{
+	free(cookie);
+	return 0;
 }
