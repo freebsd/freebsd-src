@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1994/11/05 23:05:53 jkh Exp $
+#	$Id: Makefile,v 1.14 1994/11/06 00:10:00 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -44,7 +44,7 @@ boot.flp:
 	disklabel -w -B \
 		-b ${DESTDIR}/usr/mdec/fdboot -s ${DESTDIR}/usr/mdec/bootfd \
 		/dev/r${FLOPPY} ${FDLABEL}
-	newfs -c 80 -b 4096 -f 512 /dev/r${FLOPPY}
+	newfs -c 80 -b 4096 -f 512 -i 4096 -m 0 -o space /dev/r${FLOPPY}
 	mount -o async /dev/${FLOPPY} ${MNT}
 	mkdir ${MNT}/dev ${MNT}/stand ${MNT}/mnt
 	strip -x ${.CURDIR}/../sys/compile/GENERIC/kernel
