@@ -674,13 +674,18 @@ ENTRY(generic_copyout)
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
 
-1:	/* check PTE for each page */
-	movb	_PTmap(%edx),%al
-	andb	$0x07,%al			/* Pages must be VALID + USERACC + WRITABLE */
-	cmpb	$0x07,%al
-	je	2f
-
-	/* simulate a trap */
+ 1:	/* check PTE for each page */
+	leal	_PTmap(%edx),%eax
+	shrl	$IDXSHIFT,%eax
+	andb	$0xfc,%al
+	testb	$0x01,_PTmap(%eax)	/* PTE Page must be VALID */
+	je	4f
+ 	movb	_PTmap(%edx),%al
+ 	andb	$0x07,%al	/* Pages must be VALID + USERACC + WRITABLE */
+ 	cmpb	$0x07,%al
+ 	je	2f
+ 
+4:	/* simulate a trap */
 	pushl	%edx
 	pushl	%ecx
 	shll	$IDXSHIFT,%edx
@@ -1146,16 +1151,21 @@ ENTRY(suword)
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
+
+	leal	_PTmap(%edx),%ecx
+	shrl	$IDXSHIFT,%ecx
+	andb	$0xfc,%cl
+	testb	$0x01,_PTmap(%ecx)	/* PTE Page must be VALID */
+	je	4f
 	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
+	andb	$0x7,%dl		/* must be VALID + USERACC + WRITE */
 	cmpb	$0x7,%dl
 	je	1f
 
 	/* simulate a trap */
-	pushl	%eax
+4:	pushl	%eax
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
-	movl	_curpcb,%ecx			/* restore trashed register */
 	testl	%eax,%eax
 	jnz	fusufault
 1:
@@ -1169,6 +1179,7 @@ ENTRY(suword)
 	movl	8(%esp),%eax
 	movl	%eax,(%edx)
 	xorl	%eax,%eax
+	movl	_curpcb,%ecx
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
@@ -1188,16 +1199,21 @@ ENTRY(susword)
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
+
+	leal	_PTmap(%edx),%ecx
+	shrl	$IDXSHIFT,%ecx
+	andb	$0xfc,%cl
+	testb	$0x01,_PTmap(%ecx)	/* PTE Page must be VALID */
+	je	4f
 	movb	_PTmap(%edx),%dl
 	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
 	cmpb	$0x7,%dl
 	je	1f
 
-	/* simulate a trap */
+4:	/* simulate a trap */
 	pushl	%eax
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
-	movl	_curpcb,%ecx			/* restore trashed register */
 	testl	%eax,%eax
 	jnz	fusufault
 1:
@@ -1211,6 +1227,7 @@ ENTRY(susword)
 	movw	8(%esp),%ax
 	movw	%ax,(%edx)
 	xorl	%eax,%eax
+	movl	_curpcb,%ecx			/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
@@ -1230,16 +1247,22 @@ ENTRY(subyte)
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
+
+	leal	_PTmap(%edx),%ecx
+	shrl	$IDXSHIFT,%ecx
+	andb	$0xfc,%cl
+	testb	$0x01,_PTmap(%ecx)	/* PTE Page must be VALID */
+	je	4f
+
 	movb	_PTmap(%edx),%dl
 	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
 	cmpb	$0x7,%dl
 	je	1f
 
-	/* simulate a trap */
+4:	/* simulate a trap */
 	pushl	%eax
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
-	movl	_curpcb,%ecx			/* restore trashed register */
 	testl	%eax,%eax
 	jnz	fusufault
 1:
@@ -1253,6 +1276,7 @@ ENTRY(subyte)
 	movb	8(%esp),%al
 	movb	%al,(%edx)
 	xorl	%eax,%eax
+	movl	_curpcb,%ecx			/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
