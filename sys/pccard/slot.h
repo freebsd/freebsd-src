@@ -91,6 +91,8 @@ struct pccard_devinfo {
 	uint8_t		misc[DEV_MISC_LEN]; /* For any random info */
 	uint8_t		manufstr[DEV_MAX_CIS_LEN];
 	uint8_t		versstr[DEV_MAX_CIS_LEN];
+	uint8_t		cis3str[DEV_MAX_CIS_LEN];
+	uint8_t		cis4str[DEV_MAX_CIS_LEN];
 	uint32_t	manufacturer;	/* Manufacturer ID */
 	uint32_t	product;	/* Product ID */
 	uint32_t	prodext;	/* Product ID (extended) */
