@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 #include "mblocal.h"
 
@@ -54,7 +55,11 @@ int	_none_init(_RuneLocale *);
 size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
 int	_none_mbsinit(const mbstate_t *);
+size_t	_none_mbsrtowcs(wchar_t * __restrict, const char ** __restrict,
+	    size_t, mbstate_t * __restrict);
 size_t	_none_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+size_t	_none_wcsrtombs(char * __restrict, const wchar_t ** __restrict,
+	    size_t, mbstate_t * __restrict);
 
 int
 _none_init(_RuneLocale *rl)
@@ -62,7 +67,9 @@ _none_init(_RuneLocale *rl)
 
 	__mbrtowc = _none_mbrtowc;
 	__mbsinit = _none_mbsinit;
+	__mbsrtowcs = _none_mbsrtowcs;
 	__wcrtomb = _none_wcrtomb;
+	__wcsrtombs = _none_wcsrtombs;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 1;
 	return(0);
@@ -109,4 +116,54 @@ _none_wcrtomb(char * __restrict s, wchar_t wc,
 	}
 	*s = (unsigned char)wc;
 	return (1);
+}
+
+size_t
+_none_mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
+    size_t len, mbstate_t * __restrict ps __unused)
+{
+	const char *s;
+	size_t nchr;
+
+	if (dst == NULL)
+		return (strlen(*src));
+
+	s = *src;
+	nchr = 0;
+	while (len-- > 0) {
+		if ((*dst++ = (unsigned char)*s++) == L'\0') {
+			*src = NULL;
+			return (nchr);
+		}
+		nchr++;
+	}
+	*src = s;
+	return (nchr);
+}
+
+size_t
+_none_wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src,
+    size_t len, mbstate_t * __restrict ps __unused)
+{
+	const wchar_t *s;
+	size_t nchr;
+
+	if (dst == NULL)
+		return (wcslen(*src));
+
+	s = *src;
+	nchr = 0;
+	while (len-- > 0) {
+		if (*s < 0 || *s > UCHAR_MAX) {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+		if ((*dst++ = *s++) == '\0') {
+			*src = NULL;
+			return (nchr);
+		}
+		nchr++;
+	}
+	*src = s;
+	return (nchr);
 }

@@ -38,6 +38,16 @@ wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
     mbstate_t * __restrict ps)
 {
 	static mbstate_t mbs;
+
+	if (ps == NULL)
+		ps = &mbs;
+	return (__wcsrtombs(dst, src, len, ps));
+}
+
+size_t
+__wcsrtombs_std(char * __restrict dst, const wchar_t ** __restrict src,
+    size_t len, mbstate_t * __restrict ps)
+{
 	mbstate_t mbsbak;
 	char buf[MB_LEN_MAX];
 	const wchar_t *s;
@@ -47,8 +57,6 @@ wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
 	s = *src;
 	nbytes = 0;
 
-	if (ps == NULL)
-		ps = &mbs;
 	if (dst == NULL) {
 		for (;;) {
 			if ((nb = (int)__wcrtomb(buf, *s, ps)) < 0)

@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <wchar.h>
+#include "mblocal.h"
 
 size_t
 wcstombs(char * __restrict s, const wchar_t * __restrict pwcs, size_t n)
@@ -37,5 +38,5 @@ wcstombs(char * __restrict s, const wchar_t * __restrict pwcs, size_t n)
 	mbstate_t mbs;
 
 	mbs = initial;
-	return (wcsrtombs(s, &pwcs, n, &mbs));
+	return (__wcsrtombs(s, &pwcs, n, &mbs));
 }
