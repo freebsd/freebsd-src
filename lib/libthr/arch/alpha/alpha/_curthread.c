@@ -35,13 +35,18 @@ __FBSDID("$FreeBSD$");
 void *
 _set_curthread(ucontext_t *uc, struct pthread *thread, int *err)
 {
+	*err = 0;
+	if (uc != NULL)
+		uc->uc_mcontext.mc_thrptr = (uint64_t)thread;
+	else
+		__builtin_set_thread_pointer(thread);
 	return (NULL);
 }
 
 struct pthread *
 _get_curthread(void)
 {
-	return (NULL);
+	return (__builtin_thread_pointer());
 }
 
 void
