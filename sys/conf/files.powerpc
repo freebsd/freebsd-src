@@ -8,7 +8,6 @@
 # dependency lines other than the first are silently ignored.
 #
 #
-kern/subr_disklabel.c		standard
 
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
