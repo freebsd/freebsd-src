@@ -53,10 +53,10 @@ CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
 
 # Debugging support
 .if ACPI_DEBUG
-CFLAGS+=-DACPI_DEBUG
+CFLAGS+=-DACPI_DEBUG -DACPI_DISASSEMBLER
 SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
 SRCS+=	dbinput.c dbstats.c dbutils.c dbxface.c
-SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmresrc.c dmresrcl.c
+SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
 SRCS+=	dmresrcs.c dmutils.c dmwalk.c
 opt_ddb.h: Makefile
 	echo '#define DDB 1' > ${.TARGET}
