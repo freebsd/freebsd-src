@@ -157,7 +157,7 @@ _thr_setmaxconcurrency(void)
 	int ret;
 
 	len = sizeof(vcpu);
-	ret = sysctlbyname("kern.threads.virtual_cpu", &vcpu, &len, NULL, NULL);
+	ret = sysctlbyname("kern.threads.virtual_cpu", &vcpu, &len, NULL, 0);
 	if (ret == 0 && vcpu > 0)
 		ret = _thr_setconcurrency(vcpu);
 	return (ret);
