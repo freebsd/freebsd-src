@@ -78,7 +78,7 @@ Next,
 .Tn FICL
 is initialized, the builtin words are added to its vocabulary, and
 .Pa /boot/boot.4th
-will be processed if it exists.
+is processed if it exists.
 No disk switching is possible while that file is being read.
 The inner interpreter
 .Nm
@@ -93,7 +93,7 @@ After that,
 .Pa /boot/loader.rc
 is processed if available, and, failing that,
 .Pa /boot/boot.conf
-will be read for historical reasons.
+is read for historical reasons.
 These files are processed through the
 .Ic include
 command, which reads all of them into memory before processing them,
