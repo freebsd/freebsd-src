@@ -506,17 +506,15 @@ wait1(td, uap, compat)
 	struct pargs *pa;
 	int status, error;
 
-	mtx_lock(&Giant);
 	q = td->td_proc;
 	if (uap->pid == 0) {
 		PROC_LOCK(q);
 		uap->pid = -q->p_pgid;
 		PROC_UNLOCK(q);
 	}
-	if (uap->options &~ (WUNTRACED|WNOHANG|WLINUXCLONE)) {
-		error = EINVAL;
-		goto done2;
-	}
+	if (uap->options &~ (WUNTRACED|WNOHANG|WLINUXCLONE))
+		return (EINVAL);
+	mtx_lock(&Giant);
 loop:
 	nfound = 0;
 	sx_slock(&proctree_lock);
