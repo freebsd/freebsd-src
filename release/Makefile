@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.431 1998/11/24 00:17:50 jkh Exp $
+#	$Id: Makefile,v 1.432 1998/12/06 00:05:42 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -471,12 +471,16 @@ release.8: write_mfs_in_kernel dumpnlist
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
 		${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
-	mv fs-image fs-image.std
-	mv fs-image.size fs-image.std.size
-	gzip -c fs-image.std > ${RD}/floppies/mfsroot.gz
-	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
+	@cp fs-image fs-image.std
+	@mv fs-image.size fs-image.std.size
+	@gzip fs-image
+	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
+		fs-image.gz ${BOOTINODE} ${BOOTLABEL}
+	mv fs-image ${RD}/floppies/mfsroot.flp
+	@rm -f fs-image.gz fs-image.size
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
 	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/kern.flp
-	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std _MFSKERN=YES
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std _MFSKERN=YES
 	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/boot.flp
 	@echo "Regular and MFS boot floppies made."
 	touch release.8
