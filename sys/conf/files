@@ -1402,6 +1402,7 @@ contrib/ngatm/netnatm/sig/sig_unimsgcpy.c	optional ngatm_uni
 contrib/ngatm/netnatm/sig/sig_verify.c		optional ngatm_uni
 netgraph/ng_UI.c	optional netgraph_UI
 netgraph/ng_async.c	optional netgraph_async
+netgraph/ng_atmllc.c	optional netgraph_atmllc
 netgraph/ng_base.c	optional netgraph
 netgraph/ng_bpf.c	optional netgraph_bpf
 net/bpf_filter.c	optional netgraph_bpf
