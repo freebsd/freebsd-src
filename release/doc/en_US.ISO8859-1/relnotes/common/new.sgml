@@ -177,7 +177,8 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <para><application>tcsh</application> has been updated to version
+      6.11.</para>
     </sect3>
   </sect2>
   <sect2 id="security">
