@@ -37,9 +37,11 @@
 #ifndef _SYS_MBUF_H_
 #define	_SYS_MBUF_H_
 
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
+#ifdef _KERNEL
+#include <sys/condvar.h>	/* XXX */
+#include <sys/lock.h>		/* XXX */
+#include <sys/mutex.h>		/* XXX */
+#endif /* _KERNEL */
 
 /*
  * Mbufs are of a single size, MSIZE (machine/param.h), which
@@ -71,13 +73,15 @@
  */
 #define EXT_COUNTERS (nmbclusters + nsfbufs)
 
+#ifdef _KERNEL
 /*
  * Macros for type conversion
- * mtod(m, t) -	convert mbuf pointer to data pointer of correct type
- * dtom(x) -	convert data pointer within mbuf to mbuf pointer (XXX)
+ * mtod(m, t)	- convert mbuf pointer to data pointer of correct type
+ * dtom(x)	- convert data pointer within mbuf to mbuf pointer (XXX)
  */
 #define	mtod(m, t)	((t)((m)->m_data))
 #define	dtom(x)		((struct mbuf *)((intptr_t)(x) & ~(MSIZE-1)))
+#endif /* _KERNEL */
 
 /* header at beginning of each mbuf: */
 struct m_hdr {
@@ -202,7 +206,6 @@ struct mbuf {
 #endif
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data  */
-
 #define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
 
 /*
@@ -250,21 +253,26 @@ union mext_refcnt {
 	u_int	refcnt;
 };
 
+#ifdef _KERNEL
 /*
- * free list header definitions: mbffree_lst, mclfree_lst, mcntfree_lst
+ * The freelists for mbufs and mbuf clusters include condition variables
+ * that are used in cases of depletion/starvation.
+ * The counter freelist does not require a condition variable as we never
+ * expect to consume more than the reserved address space for counters.
+ * All are presently protected by the mbuf_mtx lock.
  */
 struct mbffree_lst {
-	struct mbuf *m_head;
-	struct cv m_starved;
+	struct	mbuf *m_head;
+	struct	cv m_starved;
 };
 
 struct mclfree_lst {
-        union mcluster *m_head;
-	struct cv m_starved;
+	union	mcluster *m_head;
+	struct	cv m_starved;
 };
   
 struct mcntfree_lst {
-        union mext_refcnt *m_head;
+	union	mext_refcnt *m_head;
 };
 
 /*
@@ -643,21 +651,20 @@ struct mauxtag {
 	int	type;
 };
 
-#ifdef _KERNEL
 extern	u_long		 m_clalloc_wid;	/* mbuf cluster wait count */
 extern	u_long		 m_mballoc_wid;	/* mbuf wait count */
+extern	int		 max_datalen;	/* MHLEN - max_hdr */
+extern	int		 max_hdr;	/* largest link+protocol header */
 extern	int		 max_linkhdr;	/* largest link-level header */
 extern	int		 max_protohdr;	/* largest protocol header */
-extern	int		 max_hdr;	/* largest link+protocol header */
-extern	int		 max_datalen;	/* MHLEN - max_hdr */
 extern	struct mbstat	 mbstat;
 extern	u_long		 mbtypes[MT_NTYPES]; /* per-type mbuf allocations */
 extern	int		 mbuf_wait;	/* mbuf sleep time */
+extern	struct mtx	 mbuf_mtx;
 extern	struct mbuf	*mbutl;		/* virtual address of mclusters */
 extern	struct mclfree_lst	mclfree;
-extern	struct mbffree_lst	mmbfree;
 extern	struct mcntfree_lst	mcntfree;
-extern	struct mtx	 mbuf_mtx;
+extern	struct mbffree_lst	mmbfree;
 extern	int		 nmbclusters;
 extern	int		 nmbufs;
 extern	int		 nsfbufs;
@@ -667,11 +674,11 @@ int	m_alloc_ref(u_int, int);
 struct	mbuf *m_aux_add(struct mbuf *, int, int);
 void	m_aux_delete(struct mbuf *, struct mbuf *);
 struct	mbuf *m_aux_find(struct mbuf *, int, int);
-void	m_cat(struct mbuf *,struct mbuf *);
+void	m_cat(struct mbuf *, struct mbuf *);
 int	m_clalloc(int, int);
 caddr_t	m_clalloc_wait(void);
 void	m_copyback(struct mbuf *, int, int, caddr_t);
-void	m_copydata(struct mbuf *,int,int,caddr_t);
+void	m_copydata(struct mbuf *, int, int, caddr_t);
 struct	mbuf *m_copym(struct mbuf *, int, int, int);
 struct	mbuf *m_copypacket(struct mbuf *, int);
 struct	mbuf *m_devget(char *, int, int, struct ifnet *,
@@ -685,11 +692,11 @@ struct	mbuf *m_gethdr(int, int);
 struct	mbuf *m_getm(struct mbuf *, int, int, int);
 int	m_mballoc(int, int);
 struct	mbuf *m_mballoc_wait(void);
-struct	mbuf *m_prepend(struct mbuf *,int,int);
+struct	mbuf *m_prepend(struct mbuf *, int, int);
 void	m_print(const struct mbuf *m);
 struct	mbuf *m_pulldown(struct mbuf *, int, int, int *);
 struct	mbuf *m_pullup(struct mbuf *, int);
-struct	mbuf *m_split(struct mbuf *,int,int);
+struct	mbuf *m_split(struct mbuf *, int, int);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */
