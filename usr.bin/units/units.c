@@ -379,7 +379,7 @@ addunit(struct unittype * theunit, char *toadd, int flip)
 int 
 compare(const void *item1, const void *item2)
 {
-	return strcmp(*(const char **) item1, *(const char **) item2);
+	return strcmp(*(const char * const *)item1, *(const char * const *)item2);
 }
 
 
