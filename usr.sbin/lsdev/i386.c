@@ -145,11 +145,15 @@ print_isa(struct devconf *dc)
 static void
 print_eisa(struct devconf *dc)
 {
-	int *slotp = (int *)&dc->dc_data[ISA_EXTERNALLEN];
-	print_isa(dc);
-	if(vflag) {
-		printf(" (slot %d)", *slotp);
-	}
+	struct eisa_device *e_dev = (struct eisa_device *)dc->dc_data;
+	printf("%s%ld\tat eisa0 slot %d # %#x-%#x",
+		dc->dc_name,              
+		dc->dc_unit,              
+		e_dev->ioconf.slot,
+		e_dev->ioconf.iobase,
+		e_dev->ioconf.iobase + e_dev->ioconf.iosize - 1);
+	if(e_dev->ioconf.irq)
+		printf(" irq %d", ffs(e_dev->ioconf.irq) - 1);
 }
 
 static void
