@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.40 1999/03/11 16:17:24 jfitz Exp $
+#	$Id: rc.network,v 1.41 1999/03/24 10:28:49 brian Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -100,10 +100,21 @@ network_pass1() {
 
     # Load the filters if required
     if [ $firewall_in_kernel = 1 ]; then
-	if [ -n "$firewall_enable" -a -f /etc/rc.firewall -a \
-		"x$firewall_enable" = "xYES" ] ; then
+	if [ -f /etc/rc.firewall -a X"$firewall_enable" = X"YES" ]; then
 	    . /etc/rc.firewall
-	    echo "Firewall rules loaded."
+	    echo -n 'Firewall rules loaded, starting divert daemons: '
+
+	    # Network Address Translation daemon
+	    if [ X"${natd_enable}" = X"YES" -a -n "${natd_interface}" ]; then
+		if echo ${natd_interface} | \
+		    grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+		    natd_ifarg="-a ${natd_interface}"
+		else
+		    natd_ifarg="-n ${natd_interface}"
+		fi
+		echo -n ' natd'; ${natd_program} ${natd_flags} ${natd_ifarg}
+	    fi
+	    echo '.'
 	else
 	    IPFW_DEFAULT=`ipfw l 65535`
 	    if [ "$IPFW_DEFAULT" = "65535 deny ip from any to any" ]; then
@@ -311,18 +322,6 @@ network_pass3() {
 	    unset stash_flag
     fi
     
-    # Network Address Translation daemon
-       if [ "X${natd_enable}" = X"YES" -a X"${natd_interface}" != X"" \
-               -a X"${firewall_enable}" = X"YES" ]; then
-               if echo ${natd_interface} | \
-                       grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
-                       natd_ifarg="-a ${natd_interface}"
-               else
-                       natd_ifarg="-n ${natd_interface}"
-               fi
-               echo -n ' natd'; natd ${natd_flags} ${natd_ifarg}
-       fi
-
     echo '.'
     network_pass3_done=YES
 }
