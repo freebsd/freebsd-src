@@ -237,7 +237,7 @@ file(char *name)
 	char line[100], arg[5][50], *args[5], *p;
 
 	if ((fp = fopen(name, "r")) == NULL)
-		errx(1, "cannot open %s", name);
+		err(1, "cannot open %s", name);
 	args[0] = &arg[0][0];
 	args[1] = &arg[1][0];
 	args[2] = &arg[2][0];
@@ -281,9 +281,9 @@ int
 set(int argc, char **argv)
 {
 	struct hostent *hp;
-	register struct sockaddr_inarp *addr = &sin_m;
-	register struct sockaddr_dl *sdl;
-	register struct rt_msghdr *rtm = &(m_rtmsg.m_rtm);
+	struct sockaddr_inarp *addr = &sin_m;
+	struct sockaddr_dl *sdl;
+	struct rt_msghdr *rtm = &(m_rtmsg.m_rtm);
 	struct ether_addr *ea;
 	char *host = argv[0], *eaddr = argv[1];
 
@@ -407,8 +407,8 @@ int
 delete(char *host, char *info)
 {
 	struct hostent *hp;
-	register struct sockaddr_inarp *addr = &sin_m;
-	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
+	struct sockaddr_inarp *addr = &sin_m;
+	struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
 	struct sockaddr_dl *sdl;
 
 	getsocket();
@@ -485,11 +485,13 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	mib[4] = NET_RT_FLAGS;
 	mib[5] = RTF_LLINFO;
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
-		errx(1, "route-sysctl-estimate");
+		err(1, "route-sysctl-estimate");
+	if (needed == 0)
+		return;
 	if ((buf = malloc(needed)) == NULL)
-		errx(1, "malloc");
+		err(1, "malloc");
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
-		errx(1, "actual retrieval of routing table");
+		err(1, "actual retrieval of routing table");
 	lim = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
@@ -629,9 +631,9 @@ rtmsg(int cmd)
 {
 	static int seq;
 	int rlen;
-	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
-	register char *cp = m_rtmsg.m_space;
-	register int l;
+	struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
+	char *cp = m_rtmsg.m_space;
+	int l;
 
 	errno = 0;
 	if (cmd == RTM_DELETE)
