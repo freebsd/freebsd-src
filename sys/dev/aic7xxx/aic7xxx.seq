@@ -6,7 +6,7 @@
  *  All rights reserved.
  *
  *Modifications/enhancements:
- *  Copyright (c) 1994, 1995 Justin Gibbs. All rights reserved.
+ *  Copyright (c) 1994, 1995, 1996 Justin Gibbs. All rights reserved.
  *
  *Redistribution and use in source and binary forms, with or without
  *modification, are permitted provided that the following conditions
@@ -41,28 +41,27 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.28 1996/01/09 16:14:03 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.29 1996/01/11 06:17:46 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
 /*
  * We can't just use ACCUM in the sequencer code because it
  * must be treated specially by the assembler, and it currently
- * looks for the symbol 'A'.  This is the only register defined
+ * looks for the symbol 'A'.  This is the only register defined in
  * the assembler's symbol space.
  */
 A = ACCUM
 
-/* After starting the selection hardware, we return to the "poll_for_work"
- * loop so that we can check for reconnecting targets as well as for our
- * selection to complete just in case the reselection wins bus arbitration.
- * The problem with this is that we must keep track of the SCB that we've
- * already pulled from the QINFIFO and started the selection on just in case
- * the reselection wins so that we can retry the selection at a later time.
- * This problem cannot be resolved by holding a single entry in scratch
- * ram since a reconnecting target can request sense and this will create
- * yet another SCB waiting for selection.  The solution used here is to 
- * use byte 31 of the SCB as a psuedo-next pointer and to thread a list
+/* After starting the selection hardware, we check for reconnecting targets
+ * as well as for our selection to complete just in case the reselection wins
+ * bus arbitration.  The problem with this is that we must keep track of the
+ * SCB that we've already pulled from the QINFIFO and started the selection
+ * on just in case the reselection wins so that we can retry the selection at
+ * a later time.  This problem cannot be resolved by holding a single entry
+ * in scratch ram since a reconnecting target can request sense and this will
+ * create yet another SCB waiting for selection.  The solution used here is to 
+ * use byte 27 of the SCB as a psuedo-next pointer and to thread a list
  * of SCBs that are awaiting selection.  Since 0-0xfe are valid SCB offsets, 
  * SCB_LIST_NULL is 0xff which is out of range.  The kernel driver must
  * add an entry to this list everytime a request sense occurs.  The sequencer
@@ -70,8 +69,8 @@ A = ACCUM
  */
 
 /*
- * Initialize any state idle loop state here.  This code is executed on
- * startup and after every bus free.
+ * Initialize any state valid during the idle loop here.  This code is
+ * executed on startup and after every bus free.
  */
 start:
 	mvi	SCSISEQ,ENRSELI		/* Always allow reselection */
@@ -91,41 +90,13 @@ start2:
 	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting
 	test	QINCNT,0xff	jz poll_for_work
 
-/* We have at least one queued SCB now and we don't have any 
+/*
+ * We have at least one queued SCB now and we don't have any 
  * SCBs in the list of SCBs awaiting selection.  Set the SCB
  * pointer from the FIFO so we see the right bank of SCB 
  * registers.
  */
 	mov	SCBPTR,QINFIFO
-
-/*
- * If the control byte of this SCB has the NEEDDMA flag set, we have
- * yet to DMA it from host memory
- */
-
-test    SCB_CONTROL,NEEDDMA	jz test_busy    
-	clr	HCNT2
-	clr	HCNT1
-	mvi	HCNT0,SCB_SIZEOF
-
-	mvi	DINDEX,HADDR      
-	mvi	SCB_PHYSADDR	call bcopy_4
-        
-	mvi	DFCNTRL,0xd	/* HDMAEN|DIRECTION|FIFORESET */
-
-/*
- * Wait for DMA from host memory to data FIFO to complete, then disable
- * DMA and wait for it to acknowledge that it's off.
- */
-	call	dma_finish
-
-/* Copy the SCB from the FIFO to  the SCBARRAY */
-
-	mvi	DINDEX, SCBARRAY
-	call	bcopy_5_dfdat 
-	call	bcopy_7_dfdat
-	call	bcopy_7_dfdat
-	call	bcopy_7_dfdat   
 
 /*
  * See if there is not already an active SCB for this target.  This code
@@ -136,11 +107,10 @@ test    SCB_CONTROL,NEEDDMA	jz test_busy
  * to see if the added cost of the search is negligible.  This code also 
  * assumes that the kernel driver will clear the active flags on board 
  * initialization, board reset, and a target SELTO.  Tagged commands
- * don't set the active bits since you can have more than queue more
- * than one command at a time.  We do, however, look to see if there
- * are any non-tagged I/Os in progress, and requeue the command if
- * there are.  Tagged and non-tagged commands cannot be mixed to a 
- * single target.
+ * don't set the active bits since you can queue more than one command
+ * at a time.  We do, however, look to see if there are any non-tagged
+ * I/Os in progress, and requeue the command if there are.  Tagged and
+ * non-tagged commands cannot be mixed to a single target.
  */
 
 test_busy:
@@ -215,9 +185,10 @@ start_selection:
 mk_identify:
 	and	A,DISCENB,SCB_CONTROL	/* mask off disconnect privledge */
 
-	and	SINDEX,0x7,SCB_TCL	/* lun */
-	or	SINDEX,A		/* or in disconnect privledge */
-	or	SINDEX,MSG_IDENTIFY call mk_mesg /* IDENTIFY message */
+	and	MSG0,0x7,SCB_TCL	/* lun */
+	or	MSG0,A			/* or in disconnect privledge */
+	or	MSG0,MSG_IDENTIFY
+	mvi	MSG_LEN, 1
 
 	test	SCB_CONTROL,0xb0 jz  !message	/* WDTR, SDTR or TAG?? */
 /*
@@ -236,6 +207,7 @@ mk_tag:
 
 mk_tag_done:
 
+	test	SCB_CONTROL,0x90 jz !message	/* NEEDWDTR|NEEDSDTR */
 	mov	DINDEX	call mk_dtr	/* build DTR message if needed */
 
 !message:
@@ -251,11 +223,6 @@ wait_for_selection:
 reselect:
 	clr	MSG_LEN		/* Don't have anything in the mesg buffer */
 	mov	SELID		call initialize_scsiid
-	mvi	SAVED_TCL, 0xff	/*
-				 * Fill with an imposible value so we
-				 * don't get false hits for a tag
-				 * without an identify.
-				 */
 	and	FLAGS,0x03	/* clear target specific flags */
 	or	FLAGS,RESELECTED
 	jmp	select2
@@ -268,16 +235,6 @@ reselect:
  */
 select:
 	and	FLAGS,0x03		/* Clear target flags */
-	or	SCB_CONTROL,NEEDDMA
-
-	/*
-	 * Some drives will issue a simple tag message during
-	 * a tagged selection if they are immediately ready
-	 * to handle the command without a disconnect.  Ensure
-	 * that SAVED_TCL (used in get_tag) is inialized correctly
-	 * during a selection for this reason.
-	 */
-	mov	SAVED_TCL, SCB_TCL
 	mov	WAITING_SCBH,SCB_NEXT_WAITING
 select2:
 /*
@@ -285,8 +242,6 @@ select2:
  * with synchronous SCSI, if you do it later, you blow away some
  * data in the SCSI FIFO that the target has already sent to you.
  */
-	clr	SIGSTATE 
-
 	or	SXFRCTL0,CLRCHN
 /*
  * Initialize SCSIRATE with the appropriate value for this target.
@@ -312,9 +267,19 @@ ITloop:
 	test	SSTAT1,BUSFREE	jnz p_busfree
 	test	SSTAT1,REQINIT	jz ITloop
 
-	and	A,PHASE_MASK,SCSISIGI
+/*
+ * If we've had a parity error, let the driver know before
+ * we overwrite LASTPHASE.
+ */
+	test	SSTAT1, SCSIPERR jz parity_okay
+	or	CLRSINT1, CLRSCSIPERR
+	mvi	INTSTAT, PARITY_ERROR
 
-	mov	A		call scsisig
+parity_okay:
+	and	A,PHASE_MASK,SCSISIGI
+	mov	LASTPHASE,A
+	mov	SCSISIGO,A
+
 	cmp	ALLZEROS,A	je p_dataout
 	cmp	A,P_DATAIN	je p_datain
 	cmp	A,P_COMMAND	je p_command
@@ -336,8 +301,9 @@ p_dataout:
  * STCNT may have been cleared, so restore it from the residual field.
  */
 data_phase_reinit:
-	mvi	DINDEX, STCNT
-	mvi	SCB_RESID_DCNT	call bcopy_3
+	mov	STCNT0,SCB_RESID_DCNT0
+	mov	STCNT1,SCB_RESID_DCNT1
+	mov	STCNT2,SCB_RESID_DCNT2
 	jmp	data_phase_loop
 
 p_datain:
@@ -373,8 +339,6 @@ sg_advance:
 	clr	A			/* add sizeof(struct scatter) */
 	add	SG_NEXT0,SG_SIZEOF,SG_NEXT0
 	adc	SG_NEXT1,A,SG_NEXT1
-	adc	SG_NEXT2,A,SG_NEXT2
-	adc	SG_NEXT3,A,SG_NEXT3
 
 /*
  * Load a struct scatter and set up the data address and length.
@@ -388,16 +352,23 @@ sg_load:
 	clr	HCNT1
 	mvi	HCNT0,SG_SIZEOF
 
-	mvi	DINDEX,HADDR
-	mvi	SG_NEXT		call bcopy_4
+	mov	HADDR0,SG_NEXT0
+	mov	HADDR1,SG_NEXT1
+	mov	HADDR2,SG_NEXT2
+	mov	HADDR3,SG_NEXT3
 
-	mvi	DFCNTRL,0xd			/* HDMAEN|DIRECTION|FIFORESET */
+	or	DFCNTRL,0xd			/* HDMAEN|DIRECTION|FIFORESET */
 
 /*
  * Wait for DMA from host memory to data FIFO to complete, then disable
  * DMA and wait for it to acknowledge that it's off.
  */
-	call	dma_finish
+dma_finish:
+	test	DFSTATUS,HDONE	jz dma_finish
+	/* Turn off DMA preserving WIDEODD */
+	and	DFCNTRL,WIDEODD
+dma_finish2:
+	test	DFCNTRL,HDMAENACK jnz dma_finish2
 
 /*
  * Copy data from FIFO into SCB data pointer and data count.  This assumes
@@ -419,28 +390,39 @@ sg_load:
  * };
  */
 
-	mvi	DINDEX,HADDR
 /*
  * For Linux, we must throw away four bytes since there is a 32bit gap
  * in the middle of a struct scatterlist
  */
 #ifdef linux
-	call	bcopy_4_dfdat
+	mov	HADDR0,DFDAT
+	mov	HADDR1,DFDAT
+	mov	HADDR2,DFDAT
+	mov	HADDR3,DFDAT
 	mov	NONE,DFDAT
 	mov	NONE,DFDAT
 	mov	NONE,DFDAT
 	mov	NONE,DFDAT
-	call	bcopy_3_dfdat		/* Only support 24 bit length. */
+	mov	HCNT0,DFDAT
+	mov	HCNT1,DFDAT
+	mov	HCNT2,DFDAT
 #else
 /*
  * For FreeBSD, just copy it wholesale
  */
-	call	bcopy_7_dfdat
+	mov	HADDR0,DFDAT
+	mov	HADDR1,DFDAT
+	mov	HADDR2,DFDAT
+	mov	HADDR3,DFDAT
+	mov	HCNT0,DFDAT
+	mov	HCNT1,DFDAT
+	mov	HCNT2,DFDAT
 #endif
 
 /* Load STCNT as well.  It is a mirror of HCNT */
-	mvi	DINDEX,STCNT
-	mvi	HCNT	call bcopy_3
+	mov	STCNT0,HCNT0
+	mov	STCNT1,HCNT1
+	mov	STCNT2,HCNT2
         test    SSTAT1,PHASEMIS  jz data_phase_loop
 
 data_phase_finish:
@@ -449,8 +431,9 @@ data_phase_finish:
  * We use STCNT instead of HCNT, since it's a reflection of how many bytes 
  * were transferred on the SCSI (as opposed to the host) bus.
  */
-	mvi	DINDEX,SCB_RESID_DCNT
-	mvi	STCNT	call bcopy_3
+	mov	SCB_RESID_DCNT0,STCNT0
+	mov	SCB_RESID_DCNT1,STCNT1
+	mov	SCB_RESID_DCNT2,STCNT2
 	mov	SCB_RESID_SGCNT, SG_COUNT
 	jmp	ITloop
 
@@ -465,11 +448,17 @@ p_command:
 /*
  * Load HADDR and HCNT.  We can do this in one bcopy since they are neighbors
  */
-	mvi	DINDEX,HADDR
-	mvi	SCB_CMDPTR	call bcopy_7
+	mov	HADDR0, SCB_CMDPTR0
+	mov	HADDR1, SCB_CMDPTR1
+	mov	HADDR2, SCB_CMDPTR2
+	mov	HADDR3, SCB_CMDPTR3
+	mov	HCNT0, SCB_CMDLEN
+	clr	HCNT1
+	clr	HCNT2
 
-	mvi	DINDEX,STCNT
-	mvi	SCB_CMDLEN	call bcopy_3
+	mov	STCNT0, HCNT0
+	mov	STCNT1, HCNT1
+	mov	STCNT2, HCNT2
 
 	mvi	0x3d		call dma	# SCSIEN|SDMAEN|HDMAEN|
 						#   DIRECTION|FIFORESET
@@ -529,8 +518,7 @@ p_mesgout_snoop:
 
 	test	SSTAT1,PHASEMIS	jnz p_mesgout_done
 
-	or	SINDEX,0x10,SIGSTATE		/* turn on ATNO */
-	call	scsisig				/* ATNO - re-assert ATN */
+	or	SCSISIGO,ATNO			/* turn on ATNO */
 
 	jmp	ITloop
 
@@ -564,8 +552,7 @@ rej_mesgin:
  * present when we assert ATN.  In any case, rejection should be a
  * rare occurrence - signal the driver when it happens.
  */
-	or	SINDEX,0x10,SIGSTATE		/* turn on ATNO */
-	call	scsisig
+	or	SCSISIGO,ATNO			/* turn on ATNO */
 	mvi	INTSTAT,SEND_REJECT		/* let driver know */
 
 	mvi	MSG_REJECT	call mk_mesg
@@ -578,7 +565,7 @@ mesgin_done:
 mesgin_complete:
 /*
  * We got a "command complete" message, so put the SCB pointer
- * into the Queue Out, and trigger a completion interrupt.
+ * into QUEUEOUT, and trigger a completion interrupt.
  * Check status for non zero return and interrupt driver if needed
  * This allows the driver to interpret errors only when they occur
  * instead of always uploading the scb.  If the status is SCSI_CHECK,
@@ -672,8 +659,7 @@ p_mesginWDTR:
 	and	RETURN_1,0x7f			/* Clear the SEND_WDTR Flag */
 	mvi	DINDEX,MSG0
 	mvi	MSG0	call mk_wdtr		/* build WDTR message */
-	or	SINDEX,0x10,SIGSTATE		/* turn on ATNO */
-	call	scsisig
+	or	SCSISIGO,ATNO			/* turn on ATNO */
 	jmp	mesgin_done
 
 p_mesginSDTR:
@@ -689,8 +675,7 @@ p_mesginSDTR:
 						 */
 	mvi	DINDEX, MSG0
 	mvi     MSG0     call mk_sdtr
-	or	SINDEX,0x10,SIGSTATE		/* turn on ATNO */
-	call	scsisig
+	or	SCSISIGO,ATNO			/* turn on ATNO */
 	jmp	mesgin_done
 
 /*
@@ -766,7 +751,7 @@ get_tag:
 	jc	abort_tag
 
 /*
- * Ensure that the SCB the tag points to is for an SCB transaction
+ * Ensure that the SCB the tag points to is for a SCB transaction
  * to the reconnecting target.
  */
 	mov	SCBPTR,ARG_1
@@ -776,8 +761,7 @@ get_tag:
 	call	inb_last			/* Ack Successful tag */
 	jmp	setup_SCB
 abort_tag:
-	or	SINDEX,0x10,SIGSTATE		/* turn on ATNO */
-	call	scsisig
+	or	SCSISIGO,ATNO			/* turn on ATNO */
 	mvi	INTSTAT,ABORT_TAG 		/* let driver know */
 	mvi	0xd		call mk_mesg	/* ABORT TAG message */
 	jmp	mesgin_done
@@ -811,6 +795,7 @@ p_busfree:
 	test	SCB_CMDLEN,0xff	jz status_ok
 	jmp	start
 
+#if 0
 /*
  * Instead of a generic bcopy routine that requires an argument, we unroll
  * the cases that are actually used, and call them explicitly.  This
@@ -830,19 +815,8 @@ bcopy_3:
 	mov	DINDIR,SINDIR
 	mov	DINDIR,SINDIR
 	mov	DINDIR,SINDIR	ret
+#endif
 	
-bcopy_7_dfdat:
-	mov	DINDIR,DFDAT
-	mov	DINDIR,DFDAT
-bcopy_5_dfdat:
-	mov	DINDIR,DFDAT
-bcopy_4_dfdat:
-	mov	DINDIR,DFDAT
-bcopy_3_dfdat:
-	mov	DINDIR,DFDAT
-	mov	DINDIR,DFDAT
-	mov	DINDIR,DFDAT	ret
-
 /*
  * Locking the driver out, build a one-byte message passed in SINDEX
  * if there is no active message already.  SINDEX is returned intact.
@@ -858,7 +832,7 @@ mk_mesg:
 	 * the conflict.
 	 */
 	mvi	SEQCTL,0x10			/* !PAUSEDIS|FASTMODE */
-	mvi	INTSTAT,MSG_BUFFER_BUSY ret
+	mvi	INTSTAT,MSG_BUFFER_BUSY
 
 mk_mesg1:
 	mvi	MSG_LEN,1		/* length = 1 */
@@ -931,19 +905,10 @@ dma4:
  */
 dma5:
 	/* disable DMA, but maintain WIDEODD */
-	and	A, WIDEODD, SINDEX	
-	mov	DFCNTRL, A
+	and	DFCNTRL,WIDEODD
 dma6:
 	test	DFCNTRL,0x38	jnz dma6  /* SCSIENACK|SDMAENACK|HDMAENACK */
 
-	ret
-
-dma_finish:
-	test	DFSTATUS,HDONE	jz dma_finish
-
-	clr	DFCNTRL				/* disable DMA */
-dma_finish2:
-	test	DFCNTRL,HDMAENACK jnz dma_finish2
 	ret
 
 /*
@@ -988,24 +953,30 @@ findSCB1:
 	mvi	INTSTAT,NO_MATCH		/* not found - signal kernel */
 	mvi	MSG_ABORT	call mk_mesg	/* ABORT message */
 
-	or	SINDEX,0x10,SIGSTATE		/* assert ATNO */
-	call	scsisig
-	ret
+	or	SCSISIGO,ATNO	ret		/* assert ATNO */
+
 /*
  * Make a working copy of the scatter-gather parameters from the SCB.
  */
 sg_scb2ram:
-	mvi	DINDEX,HADDR
-	mvi	SCB_DATAPTR	call bcopy_7
+	mov	HADDR0, SCB_DATAPTR0
+	mov	HADDR1, SCB_DATAPTR1
+	mov	HADDR2, SCB_DATAPTR2
+	mov	HADDR3, SCB_DATAPTR3
+	mov	HCNT0, SCB_DATACNT0
+	mov	HCNT1, SCB_DATACNT1
+	mov	HCNT2, SCB_DATACNT2
 
-	mvi	DINDEX,STCNT
-	mvi	SCB_DATACNT	call bcopy_3
+	mov	STCNT0, HCNT0
+	mov	STCNT1, HCNT1
+	mov	STCNT2, HCNT2
 
 	mov	SG_COUNT,SCB_SGCOUNT
 
-	mvi	DINDEX,SG_NEXT
-	mvi	SCB_SGPTR	call bcopy_4
-	ret
+	mov	SG_NEXT0, SCB_SGPTR0
+	mov	SG_NEXT1, SCB_SGPTR1
+	mov	SG_NEXT2, SCB_SGPTR2
+	mov	SG_NEXT3, SCB_SGPTR3 ret
 
 /*
  * Copying RAM values back to SCB, for Save Data Pointers message, but
@@ -1017,17 +988,22 @@ sg_ram2scb:
 	test	FLAGS, DPHASE	jz return
 	mov	SCB_SGCOUNT,SG_COUNT
 
-	mvi	DINDEX,SCB_SGPTR
-	mvi	SG_NEXT		call bcopy_4
+	mov	SCB_SGPTR0,SG_NEXT0
+	mov	SCB_SGPTR1,SG_NEXT1
+	mov	SCB_SGPTR2,SG_NEXT2
+	mov	SCB_SGPTR3,SG_NEXT3
 	
-	mvi	DINDEX,SCB_DATAPTR
-	mvi	SHADDR	call bcopy_4
+	mov	SCB_DATAPTR0,SHADDR0
+	mov	SCB_DATAPTR1,SHADDR1
+	mov	SCB_DATAPTR2,SHADDR2
+	mov	SCB_DATAPTR3,SHADDR3
 
 /*
  * Use the residual number since STCNT is corrupted by any message transfer
  */
-	mvi	SCB_RESID_DCNT	call bcopy_3
-	ret
+	mov	SCB_DATACNT0,SCB_RESID_DCNT0
+	mov	SCB_DATACNT1,SCB_RESID_DCNT1
+	mov	SCB_DATACNT2,SCB_RESID_DCNT2 ret
 
 /*
  * Add the array base TARG_SCRATCH to the target offset (the target address
@@ -1039,10 +1015,7 @@ ndx_dtr:
 	test	SBLKCTL,SELBUSB	jz ndx_dtr_2
 	or	A,0x08		/* Channel B entries add 8 */
 ndx_dtr_2:
-	add	SINDEX,TARG_SCRATCH,A
-
-	mov	FUNCTION1,SCSIID	/* 3-bit target address decode */
-	mov	A,FUNCTION1	ret
+	add	SINDEX,TARG_SCRATCH,A ret
 
 /*
  * If we need to negotiate transfer parameters, build the WDTR or SDTR message
@@ -1052,7 +1025,6 @@ ndx_dtr_2:
  * reject, you wouldn't be able to tell which message was the culpret.
  */
 mk_dtr:
-	test	SCB_CONTROL,0x90 jz return	/* NEEDWDTR|NEEDSDTR */
 	test	SCB_CONTROL,NEEDWDTR jnz  mk_wdtr_16bit
 	or	FLAGS, MAXOFFSET	/* Force an offset of 15 or 8 if WIDE */
 
@@ -1093,18 +1065,6 @@ mk_wdtr:
 
 	add	MSG_LEN,COMP_MSG0,DINDEX ret	/* update message length */
 	
-/*
- * Set SCSI bus control signal state.  This also saves the last-written
- * value into a location where the higher-level driver can read it - if
- * it has to send an ABORT or RESET message, then it needs to know this
- * so it can assert ATN without upsetting SCSISIGO.  The new value is
- * expected in SINDEX.  Change the actual state last to avoid contention
- * from the driver.
- */
-scsisig:
-	mov	SIGSTATE,SINDEX
-	mov	SCSISIGO,SINDEX	ret
-
 sdtr_to_rate:
 	call	ndx_dtr			/* index scratch space for target */
 	shr	A,SINDIR,0x4
