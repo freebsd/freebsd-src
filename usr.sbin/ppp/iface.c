@@ -118,18 +118,20 @@ iface_Create(const char *name)
   mib[5] = 0;
 
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    fprintf(stderr, "clean: sysctl: estimate: %s\n",
+    fprintf(stderr, "iface_Create: sysctl: estimate: %s\n",
               strerror(errno));
     close(s);
     return NULL;
   }
 
   if ((buf = (char *)malloc(needed)) == NULL) {
+    fprintf(stderr, "iface_Create: malloc failed: %s\n", strerror(errno));
     close(s);
     return NULL;
   }
 
   if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+    fprintf(stderr, "iface_Create: sysctl: %s\n", strerror(errno));
     free(buf);
     close(s);
     return NULL;

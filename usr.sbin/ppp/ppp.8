@@ -8,9 +8,10 @@
 .Nd Point to Point Protocol (a.k.a. user-ppp) 
 .Sh SYNOPSIS
 .Nm
+.Op Fl Va mode
 .Op Fl nat
 .Op Fl quiet
-.Op Fl Va mode
+.Op Fl unit Ns Ar N
 .Op Ar system Ns
 .No ...
 .Sh DESCRIPTION
@@ -47,6 +48,21 @@ flag tells
 .Nm
 to be silent at startup rather than displaying the mode and interface
 to standard output.
+.Pp
+The
+.Fl unit
+flag tells
+.Nm
+to only attempt to open
+.Pa /dev/tun Ns Ar N .
+Normally,
+.Nm
+will start with a value of 0 for
+.Ar N ,
+and keep trying to open a tunnel device by incrementing the value of
+.Ar N
+by one each time until it succeeds.  If it fails three times in a row
+because the device file is missing, it gives up.
 .Pp
 The following
 .Va mode Ns No s
