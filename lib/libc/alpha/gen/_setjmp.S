@@ -55,6 +55,7 @@ LEAF(_setjmp, 1)
 	stq	s5, ((14 + 4) * 8)(a0)
 	stq	s6, ((15 + 4) * 8)(a0)
 	stq	ra, ((26 + 4) * 8)(a0)
+	stq	t12,((27 + 4) * 8)(a0)
 	stq	sp, ((30 + 4) * 8)(a0)
 	ldiq	t0, 0xacedbadd			/* sigcontext magic number */
 	stq	t0, ((31 + 4) * 8)(a0)		/* magic in sc_regs[31] */
@@ -108,6 +109,7 @@ LEAF(_longjmp, 2)
 	ldq	s5, ((14 + 4) * 8)(a0)
 	ldq	s6, ((15 + 4) * 8)(a0)
 	/* ldq	ra, ((26 + 4) * 8)(a0)		set above */
+	ldq	t12,((27 + 4) * 8)(a0)
 	ldq	sp, ((30 + 4) * 8)(a0)
 	ldt	fs0, ((2 + 37) * 8)(a0)		/* saved bits of sc_fpregs */
 	ldt	fs1, ((3 + 37) * 8)(a0)
