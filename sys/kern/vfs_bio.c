@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.176 1998/09/15 10:05:18 gibbs Exp $
+ * $Id: vfs_bio.c,v 1.177 1998/09/25 17:34:49 peter Exp $
  */
 
 /*
@@ -593,6 +593,19 @@ brelse(struct buf * bp)
 				brelvp(bp);
 		}
 	}
+
+	/*
+	 * We must clear B_RELBUF if B_DELWRI is set.  If vfs_vmio_release() 
+	 * is called with B_DELWRI set, the underlying pages may wind up
+	 * getting freed causing a previous write (bdwrite()) to get 'lost'
+	 * because pages associated with a B_DELWRI bp are marked clean.
+	 * 
+	 * We still allow the B_INVAL case to call vfs_vmio_release(), even
+	 * if B_DELWRI is set.
+	 */
+
+	if (bp->b_flags & B_DELWRI)
+		bp->b_flags &= ~B_RELBUF;
 
 	/*
 	 * VMIO buffer rundown.  It is not very necessary to keep a VMIO buffer
