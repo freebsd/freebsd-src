@@ -179,6 +179,8 @@ struct fd_data {
 	struct	callout_handle toffhandle;
 	struct	callout_handle tohandle;
 	struct	devstat device_stats;
+	eventhandler_tag clonetag;
+	dev_t	masterdev;
 	device_t dev;
 	fdu_t	fdu;
 };
@@ -506,7 +508,7 @@ static int
 fdc_alloc_resources(struct fdc_data *fdc)
 {
 	device_t dev;
-	int ispnp, ispcmcia;
+	int ispnp, ispcmcia, nports;
 
 	dev = fdc->fdc_dev;
 	ispnp = (fdc->flags & FDC_ISPNP) != 0;
@@ -525,12 +527,13 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	 * uses the register with offset 6 for pseudo-DMA, and the
 	 * one with offset 7 as control register.
 	 */
+	nports = ispcmcia ? 8 : (ispnp ? 1 : 6);
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 					     &fdc->rid_ioport, 0ul, ~0ul, 
-					     ispcmcia ? 8 : (ispnp ? 1 : 6),
-					     RF_ACTIVE);
+					     nports, RF_ACTIVE);
 	if (fdc->res_ioport == 0) {
-		device_printf(dev, "cannot reserve I/O port range\n");
+		device_printf(dev, "cannot reserve I/O port range (%d ports)\n",
+			      nports);
 		return ENXIO;
 	}
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
@@ -578,7 +581,7 @@ fdc_alloc_resources(struct fdc_data *fdc)
 						  0ul, ~0ul, 1, RF_ACTIVE);
 		if (fdc->res_ctl == 0) {
 			device_printf(dev,
-				      "cannot reserve control I/O port range\n");
+		"cannot reserve control I/O port range (control port)\n");
 			return ENXIO;
 		}
 		fdc->ctlt = rman_get_bustag(fdc->res_ctl);
@@ -769,8 +772,10 @@ out:
 	return (error);
 }
 
+#endif /* NCARD > 0 */
+
 static int
-fdc_pccard_detach(device_t dev)
+fdc_detach(device_t dev)
 {
 	struct	fdc_data *fdc;
 	int	error;
@@ -780,6 +785,12 @@ fdc_pccard_detach(device_t dev)
 	/* have our children detached first */
 	if ((error = bus_generic_detach(dev)))
 		return (error);
+
+	/* reset controller, turn motor off */
+	fdout_wr(fdc, 0);
+
+	if ((fdc->flags & FDC_NODMA) == 0)
+		isa_dma_release(fdc->dmachan);
 
 	if ((fdc->flags & FDC_ATTACHED) == 0) {
 		device_printf(dev, "already unloaded\n");
@@ -793,8 +804,6 @@ fdc_pccard_detach(device_t dev)
 	device_printf(dev, "unload\n");
 	return (0);
 }
-
-#endif /* NCARD > 0 */
 
 /*
  * Add a child device to the fdc controller.  It will then be probed etc.
@@ -886,7 +895,7 @@ static device_method_t fdc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fdc_probe),
 	DEVMETHOD(device_attach,	fdc_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	fdc_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -913,7 +922,7 @@ static device_method_t fdc_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fdc_pccard_probe),
 	DEVMETHOD(device_attach,	fdc_attach),
-	DEVMETHOD(device_detach,	fdc_pccard_detach),
+	DEVMETHOD(device_detach,	fdc_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -1162,6 +1171,11 @@ fd_detach(device_t dev)
 	struct	fd_data *fd;
 
 	fd = device_get_softc(dev);
+	devstat_remove_entry(&fd->device_stats);
+	destroy_dev(fd->masterdev);
+	cdevsw_remove(&fd_cdevsw);
+	/* XXX need to destroy cloned devs as well */
+	EVENTHANDLER_DEREGISTER(dev_clone, fd->clonetag);
 	untimeout(fd_turnoff, fd, fd->toffhandle);
 
 	return (0);
