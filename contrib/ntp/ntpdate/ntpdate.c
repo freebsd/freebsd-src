@@ -1339,7 +1339,10 @@ addserver(
         hints.ai_family = ai_fam_templ;
         hints.ai_socktype = SOCK_DGRAM;
 
-        printf("Looking for host %s and service %s\n", serv, service);
+#ifdef DEBUG
+        if (debug)
+        	printf("Looking for host %s and service %s\n", serv, service);
+#endif
 
         error = getaddrinfo(serv, service, &hints, &addrResult);
         if (error != 0) {
@@ -1347,9 +1350,11 @@ addserver(
 		msyslog(LOG_ERR, "can't find host %s\n", serv);
 		return;
 	}
-        else {
+#ifdef DEBUG
+        else if (debug) {
                 fprintf(stderr, "host found : %s\n", stohost((struct sockaddr_storage*)addrResult->ai_addr));
         }
+#endif
 
 	server = (struct server *)emalloc(sizeof(struct server));
 	memset((char *)server, 0, sizeof(struct server));
