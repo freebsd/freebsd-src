@@ -1705,7 +1705,7 @@ retry_lookup:
 		MGETHDR(m, M_WAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
-			sf_buf_free((void *)sf->kva, PAGE_SIZE);
+			sf_buf_free((void *)sf->kva, NULL);
 			goto done;
 		}
 		/*
