@@ -91,6 +91,15 @@ In the event that an IP
 address is specified, the whois server will default to the American
 Registry for Internet Numbers
 .Pq Tn ARIN .
+If a query to
+.Tn ARIN
+references
+.Tn APNIC
+or
+.Tn RIPE ,
+that server will be queried also, provided that the
+.Fl Q
+option is not specified.
 .Pp
 If no required
 .Pa whois-servers.net

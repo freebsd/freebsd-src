@@ -77,6 +77,8 @@ static const char rcsid[] =
 #define WHOIS_INIC_FALLBACK	0x02
 #define WHOIS_QUICK		0x04
 
+const char *ip_whois[] = { RNICHOST, PNICHOST, NULL };
+
 static void usage(void);
 static void whois(char *, struct addrinfo *, int);
 
@@ -208,7 +210,7 @@ whois(char *name, struct addrinfo *res, int flags)
 	FILE *sfi, *sfo;
 	struct addrinfo hints, *res2;
 	char *buf, *nhost, *p;
-	int nomatch, error, s;
+	int i, nomatch, error, s;
 	size_t len;
 
 	for (; res; res = res->ai_next) {
@@ -234,13 +236,23 @@ whois(char *name, struct addrinfo *res, int flags)
 		while (len && isspace(buf[len - 1]))
 			buf[--len] = '\0';
 
-		if ((flags & WHOIS_RECURSE) && nhost == NULL &&
-		    (p = strstr(buf, WHOIS_SERVER_ID)) != NULL) {
-			p += sizeof(WHOIS_SERVER_ID) - 1;
-			if ((len = strcspn(p, " \t\n\r")) != 0) {
-				asprintf(&nhost, "%s", p);
-				if (nhost == NULL)
-					err(1, "asprintf()");
+		if ((flags & WHOIS_RECURSE) && nhost == NULL) {
+			p = strstr(buf, WHOIS_SERVER_ID);
+			if (p != NULL) {
+				p += sizeof(WHOIS_SERVER_ID) - 1;
+				if ((len = strcspn(p, " \t\n\r")) != 0) {
+					asprintf(&nhost, "%s", p);
+					if (nhost == NULL)
+						err(1, "asprintf()");
+				}
+			} else {
+				for (i = 0; ip_whois[i] != NULL; i++) {
+					if (strstr(buf, ip_whois[i]) == NULL)
+						continue;
+					nhost = strdup(ip_whois[i]);
+					if (nhost == NULL)
+						err(1, "strdup()");
+				}
 			}
 		}
 
