@@ -123,7 +123,6 @@ dev/fdc/fdc_pccard.c		optional	fdc pccard
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
-dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/mem/memutil.c		optional	mem
