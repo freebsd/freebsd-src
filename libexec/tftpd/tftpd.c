@@ -371,8 +371,14 @@ again:
 	while (++cp < buf + size) {
 		for (i = 2, ccp = cp; i > 0; ccp++) {
 			if (ccp >= buf + size) {
-				nak(EBADOP);
-				exit(1);
+				/*
+				 * Don't reject the request, just stop trying
+				 * to parse the option and get on with it.
+				 * Some Apple OpenFirmware versions have
+				 * trailing garbage on the end of otherwise
+				 * valid requests.
+				 */
+				goto option_fail;
 			} else if (*ccp == '\0')
 				i--;
 		}
@@ -387,6 +393,7 @@ again:
 		cp = ccp-1;
 	}
 
+option_fail:
 	if (options[OPT_TIMEOUT].o_request) {
 		int to = atoi(options[OPT_TIMEOUT].o_request);
 		if (to < 1 || to > 255) {
