@@ -60,6 +60,7 @@
 #include <net/bpf.h>
 #endif
 
+#include <net/if_tunvar.h>
 #include <net/if_tun.h>
 
 static void tunattach __P((void *));
