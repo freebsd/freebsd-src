@@ -68,7 +68,7 @@ typedef struct device *device_ptr_t;
 
 #define logprintf printf
 
-#define USB_DECLARE_DRIVER_NAME_INIT(_1, dname, _2)  \
+#define USB_DECLARE_DRIVER(dname)  \
 int __CONCAT(dname,_match) __P((struct device *, struct cfdata *, void *)); \
 void __CONCAT(dname,_attach) __P((struct device *, struct device *, void *)); \
 int __CONCAT(dname,_detach) __P((struct device *, int)); \
@@ -166,7 +166,7 @@ typedef struct device device_ptr_t;
 #define usb_timeout(f, d, t, h) timeout((f), (d), (t))
 #define usb_untimeout(f, d, h) untimeout((f), (d))
 
-#define USB_DECLARE_DRIVER_NAME_INIT(_1, dname, _2)  \
+#define USB_DECLARE_DRIVER(dname)  \
 int __CONCAT(dname,_match) __P((struct device *, void *, void *)); \
 void __CONCAT(dname,_attach) __P((struct device *, struct device *, void *)); \
 int __CONCAT(dname,_detach) __P((struct device *, int)); \
@@ -265,7 +265,7 @@ __CONCAT(dname,_detach)(self, flags) \
 #define usb_timeout(f, d, t, h) ((h) = timeout((f), (d), (t)))
 #define usb_untimeout(f, d, h) untimeout((f), (d), (h))
 
-#define USB_DECLARE_DRIVER_NAME_INIT(name, dname, init...) \
+#define USB_DECLARE_DRIVER_INIT(dname, init...) \
 static device_probe_t __CONCAT(dname,_match); \
 static device_attach_t __CONCAT(dname,_attach); \
 static device_detach_t __CONCAT(dname,_detach); \
@@ -281,10 +281,12 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
 }; \
 \
 static driver_t __CONCAT(dname,_driver) = { \
-        name, \
+        #dname, \
         __CONCAT(dname,_methods), \
         sizeof(struct __CONCAT(dname,_softc)) \
 }
+#define METHODS_NONE			{0,0}
+#define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, METHODS_NONE)
 
 #define USB_MATCH(dname) \
 static int \
@@ -353,15 +355,6 @@ __CONCAT(dname,_detach)(device_t self)
 #define logprintf		printf
 
 #endif /* __FreeBSD__ */
-
-#define NONE {0,0}
-
-#define USB_DECLARE_DRIVER_NAME(name, dname) \
-	USB_DECLARE_DRIVER_NAME_INIT(#name, dname, NONE )
-#define USB_DECLARE_DRIVER_INIT(dname, init...) \
-	USB_DECLARE_DRIVER_NAME_INIT(#dname, dname, init)
-#define USB_DECLARE_DRIVER(dname) \
-	USB_DECLARE_DRIVER_NAME_INIT(#dname, dname, NONE )
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #elif defined(__FreeBSD__)
