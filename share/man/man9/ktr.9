@@ -97,17 +97,6 @@ The
 .Va ktr_mask
 variable contains the run time mask of events to log.
 .Pp
-The kernel can be configured to compile with several extensions to the base
-functionality.
-These extensions can be checked for at runtime via the
-.Va ktr_extend
-variable.
-It will be set to zero if the extensions are not compiled in and non-zero
-if they are compiled in.
-This is useful for post-mortem debugging tools such as
-.Xr gdb 1
-that are used to analyze kernel crash dumps.
-.Pp
 The CPU event mask is stored in the
 .Va ktr_cpumask
 variable.
@@ -140,7 +129,8 @@ mi_switch()
 }
 .Ed
 .Sh SEE ALSO
-.Xr ktr 4
+.Xr ktr 4 ,
+.Xr ktrdump 8
 .Sh HISTORY
 The KTR kernel tracing facility first appeared in
 .Bsx 3.0
