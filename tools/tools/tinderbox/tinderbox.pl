@@ -501,7 +501,7 @@ MAIN:{
 	    spawn('/usr/bin/patch', "-f", "-s", "-i$patch")
 		or error("failed to apply patch to source tree");
 	} else {
-	    warning("specified patch file does not exist");
+	    warning("$patch does not exist");
 	}
     }
 
