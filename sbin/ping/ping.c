@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.22 1997/07/09 19:40:43 julian Exp $";
+	"$Id: ping.c,v 1.23 1997/07/09 20:33:58 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -423,16 +423,25 @@ main(argc, argv)
 	else
 		(void)printf("PING %s: %d data bytes\n", hostname, datalen);
 
-	(void)signal(SIGINT, stopit);
-	(void)signal(SIGALRM, catcher);
-
 	/*
-	 * Use sigaction instead of signal() to get unambiguous semantics
-	 * for SIGINFO, in particular with SA_RESTART not set.
+	 * Use sigaction() instead of signal() to get unambiguous semantics,
+	 * in particular with SA_RESTART not set.
 	 */
-	si_sa.sa_handler = status;
+
 	sigemptyset(&si_sa.sa_mask);
 	si_sa.sa_flags = 0;
+
+	si_sa.sa_handler = stopit;
+	if (sigaction(SIGINT, &si_sa, 0) == -1) {
+		err(EX_OSERR, "sigaction SIGINT");
+	}
+
+	si_sa.sa_handler = catcher;
+	if (sigaction(SIGALRM, &si_sa, 0) == -1) {
+		err(EX_OSERR, "sigaction SIGALRM");
+	}
+
+	si_sa.sa_handler = status;
 	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
 		err(EX_OSERR, "sigaction");
 	}
@@ -508,11 +517,12 @@ static void
 catcher(int sig)
 {
 	int waittime;
+	struct sigaction si_sa;
 
 	pinger();
-	(void)signal(SIGALRM, catcher);
+
 	if (!npackets || ntransmitted < npackets)
-		alarm((u_int)interval);
+		(void)alarm((u_int)interval);
 	else {
 		if (nreceived) {
 			waittime = 2 * tmax / 1000;
@@ -520,7 +530,14 @@ catcher(int sig)
 				waittime = 1;
 		} else
 			waittime = MAXWAIT;
-		(void)signal(SIGALRM, stopit);
+
+		si_sa.sa_handler = stopit;
+		sigemptyset(&si_sa.sa_mask);
+		si_sa.sa_flags = 0;
+		if (sigaction(SIGALRM, &si_sa, 0) == -1) {
+			finish_up = 1;
+			return;
+		}
 		(void)alarm((u_int)waittime);
 	}
 }
@@ -889,6 +906,7 @@ finish(int sig)
 	struct termios ts;
 
 	(void)signal(SIGINT, SIG_IGN);
+	(void)signal(SIGALRM, SIG_IGN);
 	(void)putchar('\n');
 	(void)fflush(stdout);
 	(void)printf("--- %s ping statistics ---\n", hostname);
