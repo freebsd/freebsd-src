@@ -16,7 +16,7 @@ CFLAGS +=	-DKERNELSIM
 NOPIC =		static
 NOPROFILE =	bingo
 NOOBJ =		youbet
-WARNS =		2
+WARNS =		0
 
 .PATH:	/sys/geom .. /sys/kern
 
