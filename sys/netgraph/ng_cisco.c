@@ -472,7 +472,7 @@ cisco_input(sc_p sc, item_p item)
 			default:
 				log(LOG_WARNING,
 				    "cisco: unknown cisco packet type: 0x%lx\n",
-				       ntohl(p->type));
+				       (long)ntohl(p->type));
 				break;
 			case CISCO_ADDR_REPLY:
 				/* Reply on address request, ignore */
