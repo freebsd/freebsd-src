@@ -220,7 +220,7 @@ extern float __kernel_cosf __P((float,float));
 extern float __kernel_tanf __P((float,float,int));
 extern int   __kernel_rem_pio2f __P((float*,float*,int,int,int,const int*));
 
-#ifdef	__alpha__
+#if defined(__alpha__) || defined(__ia64__)
 #define __generic___ieee754_acos	__ieee754_acos
 #define __generic___ieee754_asin	__ieee754_asin
 #define __generic___ieee754_atan2	__ieee754_atan2
