@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: coff.c,v 1.2 1995/05/30 06:06:00 rgrimes Exp $
+ *	$Id: coff.c,v 1.3 1995/10/28 12:34:58 peter Exp $
  */
 
 #include <sys/param.h>
@@ -54,5 +54,6 @@ ibcs2_coff_unload(struct lkm_table *lkmtp, int cmd)
 
 ibcs2_coff_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, ibcs2_coff_load, ibcs2_coff_unload, nosys);
+	DISPATCH(lkmtp, cmd, ver, ibcs2_coff_load, ibcs2_coff_unload,
+		 lkm_nullcmd);
 }

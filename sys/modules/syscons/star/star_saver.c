@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.3 1995/05/30 06:06:20 rgrimes Exp $
+ *	$Id: star_saver.c,v 1.4 1995/10/28 12:35:14 peter Exp $
  */
 
 #include <sys/param.h>
@@ -108,5 +108,6 @@ star_saver_unload(struct lkm_table *lkmtp, int cmd)
 
 star_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, star_saver_load, star_saver_unload, nosys);
+	DISPATCH(lkmtp, cmd, ver, star_saver_load, star_saver_unload,
+		 lkm_nullcmd);
 }

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: green_saver.c,v 1.2 1995/05/30 06:06:17 rgrimes Exp $
+ *	$Id: green_saver.c,v 1.3 1995/10/28 12:35:11 peter Exp $
  */
 
 #include <sys/param.h>
@@ -81,5 +81,6 @@ green_saver_unload(struct lkm_table *lkmtp, int cmd)
 
 green_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, green_saver_load, green_saver_unload, nosys);
+	DISPATCH(lkmtp, cmd, ver, green_saver_load, green_saver_unload,
+		 lkm_nullcmd);
 }
