@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.49 2002/12/07 21:07:59 ue Exp $
-	basiert auf: 1.119
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.54 2003/01/09 12:42:54 ue Exp $
+	basiert auf: 1.124
 -->
 
 <sect1>
@@ -154,7 +154,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Adaptec SCSI Controller
+    <para arch="i386,pc98,alpha,sparc64">Adaptec SCSI Controller
       <itemizedlist>
         <listitem arch="i386">
           <para>Adaptec 1535 ISA SCSI Controller</para>
@@ -186,7 +186,7 @@
             als auch die Wide Version (&man.ahc.4;  Treiber)</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Adaptec
             19160/291x/2920/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
             PCI SCSI Controller, einschlie&szlig;lich der
@@ -229,7 +229,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Ultra-320 SCSI Controller auf Basis der Adaptec
+    <para arch="i386,sparc64">Ultra-320 SCSI Controller auf Basis der Adaptec
       AIC7901, AIC7901A und 7902 Ultra320 Controller (ahd Treiber)
       <itemizedlist>
         <listitem>
@@ -840,50 +840,50 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,ia64">Qlogic(-&auml;hnlich) Controller
+    <para arch="i386,pc98,alpha,ia64,sparc64">Qlogic(-&auml;hnlich) Controller
       (&man.isp.4; Treiber)
       <itemizedlist>
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Qlogic 1020, 1040 SCSI und Ultra SCSI
             Hostadapter</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Qlogic 1240 dual Ultra SCSI Controller</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Qlogic 1080 Ultra2 LVD und 1280 Dual Ultra2 LVD
             Controller</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Qlogic 12160 Ultra3 LVD Controller</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Qlogic 2100 und Qlogic 2200 Fibre Channel SCSI
             Controller</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Qlogic 2300 und Qlogic 2312 2-Gigabit Fibre Channel
             SCSI Controller</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Performance Technology SBS440 ISP1000</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Performance Technology SBS450 ISP1040</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Performance Technology SBS470 ISP2100</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
           <para>Antares Microsystems P-0033 ISP2100</para>
         </listitem>
 
@@ -938,8 +938,34 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Compaq Intelligent Drive Array Kontroller
+      (&man.ida.4; driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Compaq SMART Array 221</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq Integrated SMART Array Controller</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq SMART Array 4200, 4250ES Controller</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq SMART Array 3200, 3100ES Controller</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq SMART-2/DH, SMART-2/SL, SMART-2/P, SMART-2E,
+	    und SMART Controller</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">SCSI Hostadapter, die das <quote>Command
-      Interface for SCSI-3 Support</quote> nutzen (ciss Treiber)
+      Interface for SCSI-3 Support</quote> nutzen (&man.ciss.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Compaq Smart Array 5* series (5300, 5i, 532)</para>
@@ -947,7 +973,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Intel Integrated RAID Controller (iir Treiber)
+    <para arch="i386">Intel Integrated RAID Controller (&man.iir.4; Treiber)
 
       <itemizedlist>
         <listitem>
@@ -984,7 +1010,7 @@
     </para>
 
     <para arch="i386">PCI SCSI Host Adapter auf Basis des Tekram
-      TRM-S1040 SCSI Chipsatzes (trm Treiber)
+      TRM-S1040 SCSI Chipsatzes (&man.trm.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Tekram DC395U/UW/F</para>
@@ -1561,7 +1587,7 @@
     <para arch="i386">RealTek RTL 8002 Pocket Ethernet (&man.rdp.4;
       Treiber)</para>
 
-    <para arch="i386,pc98,alpha">RealTek 8129/8139 Fast Ethernet
+    <para arch="i386,pc98,alpha,sparc64">RealTek 8129/8139 Fast Ethernet
       Netzwerkkarten (&man.rl.4; Treiber)
       <itemizedlist>
         <listitem>
@@ -1569,47 +1595,47 @@
             RealTek 8139 Nachbau)</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Allied Telesyn AT2550</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Allied Telesyn AT2500TX</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>D-Link DFE-530TX+, DFE-538TX</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Farallon NetLINE 10/100 PCI</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Genius GF100TXR (RTL8139)</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>KTX-9130TX 10/100 Fast Ethernet</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>NDC Communications NE100TX-E</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Netronix Inc. EA-1210 NetEther 10/100</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>OvisLink LEF-8129TX</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>OvisLink LEF-8139TX</para>
         </listitem>
 
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>SMC EZ Card 10/100 PCI 1211-TX</para>
         </listitem>
 
@@ -2572,7 +2598,7 @@
       </note>
     </para>
 
-    <para arch="sparc64">Sun HME Ethernet und Fast Ethernet Karten
+    <para arch="sparc64">Sun HME und QFE Ethernet Karten
       (hme Treiber)</para>
 
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) und ERI (Fast
@@ -2943,6 +2969,29 @@
         </listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386">LAN Media Corp WAN Adapter auf Basis des DEC
+      <quote>Tulip</quote> Fast Ethernet Controller (&man.lmc.4;
+      Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>LMC1000 Synchronous Serial Interface Adapter</para>
+	</listitem>
+
+	<listitem>
+	  <para>LMC1200 T1/E1 WAN Adapter</para>
+	</listitem>
+
+	<listitem>
+	  <para>LMC5200 High Speed Synchronous Interface (HSSI)
+	    Adapter</para>
+	</listitem>
+
+	<listitem>
+	  <para>LMC5245 DS3 WAN Adapter</para>
+	</listitem>
+      </itemizedlist>
+    </para>
   </sect2>
 
   <sect2>
@@ -3079,12 +3128,15 @@
   <sect2>
     <title>Serielle Schnittstellen</title>
 
-    <para arch="i386,alpha,ia64,sparc64">Serielle Schnittstellen nach
+    <para arch="i386,alpha,ia64">Serielle Schnittstellen nach
       <quote>PC standard</quote> auf Basis der 8250, 16450 und 16550
       Chips (&man.sio.4; Treiber)</para>
 
     <para arch="sparc64">Serielle Schnittstellen auf Basis des SAB82532
-      Chips (sab Treiber)</para>
+      Chips, nur im Konsolen-Modus (sab Treiber)</para>
+
+    <para arch="sparc64">Serielle Schnittstellen auf Basis des Zilog
+      8530 Doppel-UART, nur im Konsolen-Modus (zs Treiber)</para>
 
     <para arch="i386,alpha">AST 4 Port Karte (bei Benutzung eines
       gemeinsamen IRQs)</para>
@@ -4095,5 +4147,7 @@
 
     <para arch="pc98">Power Management Controller im NEC PC-98 Note
       (pmc Treiber)</para>
+
+    <para arch="sparc64">OpenFirmware Console (ofwcons Treiber)</para>
   </sect2>
 </sect1>

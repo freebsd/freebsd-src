@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.166 2002/12/22 12:40:22 ue Exp $
-  basiert auf: 1.467
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.171 2003/01/11 09:02:10 ue Exp $
+  basiert auf: 1.473
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -16,12 +16,16 @@
 
     <year>2002</year>
 
+    <year>2003</year>
+
     <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation
       Project</holder>
   </copyright>
 
   <copyright>
     <year>2002</year>
+
+    <year>2003</year>
 
     <holder role="mailto:doc@FreeBSD.org">The FreeBSD German
       Documentation Project</holder>
@@ -213,7 +217,7 @@
 
     <para arch="i386,pc98,powerpc">Es gibt jetzt minimale
       Unterst&uuml;tzung f&uuml;r Ger&auml;te mit
-      Firewire-Schnittstellen (siehe &man.firewire.4;).  &merged;</para>
+      FireWire-Schnittstellen (siehe &man.firewire.4;).  &merged;</para>
 
     <para arch="i386" role="historic">Der Treiber &man.ichsmb.4; f&uuml;r den Intel
       82801AA (ICH) SMBus Controller und baugleiche Ger&auml;te wurde
@@ -806,6 +810,10 @@
         gleichzeitige &Auml;nderungen an beiden Komponenten einfacher
         zu machen.  Der Boot Loader wurde aktualisiert, um Probleme
         durch die &Auml;nderung zu vermeiden.</para>
+
+      <para arch="alpha,i386,pc98,sparc64">Der Boot Loader ist jetzt
+	in der Lage, Kernel sowohl von UFS1 als auch von UFS2
+	Dateisystemen zu laden.</para>
     </sect3>
 
     <sect3>
@@ -934,6 +942,10 @@
       <para arch="sparc64">Der neue Treiber hme unterst&uuml;tzt die
         Sun HME Fast Ethernet Karten, die in vielen Sun Ultra Modellen
         eingebaut sind.</para>
+
+      <para>Der neue Treiber &man.lmc.4; unterst&uuml;tzt LAN Media
+	Corp WAN Netzwerkkarten auf Basis des DEC <quote>Tulip</quote>
+	PCI Fast Ethernet Controller.</para>
 
       <para role="historic">Der neue Treiber &man.lge.4; unterst&uuml;tzt den Level 1
         LXT1001 NetCellerator Gigabit Ethernet Chipsatz, der auf
@@ -1505,10 +1517,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	einen neuen Modus erweitert, in dem ein <quote>direct
 	access</quote> Ger&auml;t emuliert wird.</para>
 
-      <para arch="i386" role="historic">Der neue Treiber ciss unterst&uuml;tzt
-        Ger&auml;te, die das Common Interface for SCSI-3 Support
-        benutzen; speziell die RAID Controller aus der Modellreihe
-        Compaq SmartRAID 5* (5300, 532, 5i). &merged;</para>
+      <para arch="i386" role="historic">Der neue Treiber &man.ciss.4;
+	unterst&uuml;tzt Ger&auml;te, die das Common Interface for
+	SCSI-3 Support benutzen; speziell die RAID Controller aus der
+	Modellreihe Compaq SmartRAID 5* (5300, 532, 5i).
+	&merged;</para>
       <!-- XXX -->
 
       <para>Der Treiber f&uuml;r die Diskettenlaufwerke (&man.fdc.4;)
@@ -1558,10 +1571,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	</note>
       </para>
 
-      <para role="historic">Der Festplattentreiber ida unterst&uuml;tzt jetzt
+      <para role="historic">Der Festplattentreiber &man.ida.4; unterst&uuml;tzt jetzt
         Crashdumps.  &merged;</para>
 
-      <para arch="i386" role="historic">Der neue Treiber iir unterst&uuml;tzt die
+      <para arch="i386" role="historic">Der neue Treiber &man.iir.4; unterst&uuml;tzt die
         Intel Integrated RAID Controllers und die &auml;lteren ICP
         Vortex Controller.</para>
 
@@ -1582,8 +1595,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         &merged;</para>
 
       <para arch="i386,pc98">Der Treiber &man.matcd.4; mu&szlig;te
-        entfernt werden, weil er nicht funktionierte und es
-        lizenzrechtliche Probleme gibt.  &merged;</para>
+	entfernt werden, weil er nicht mehr funktionierte und es
+	Bedenken wegen seiner Lizenzbestimmungen gab.  An diesen
+	Problemen wird zur Zeit gearbeitet und es ist denkbar,
+	da&szlig; dieser Treiber in einer sp&auml;teren Version von
+	&os; wieder zur Verf&uuml;gung steht.  &merged;</para>
 
       <para>Die Funktionalit&auml;t von &man.vn.4; wurde in &man.md.4;
         (memory disk) aufgenommen.  &man.md.4; Ger&auml;te k&ouml;nnen
@@ -1636,7 +1652,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <varname>kern.cam.scsi_delay</varname> ge&auml;ndert
         werden.</para>
 
-      <para>Der neue Treiber trm unterst&uuml;tzt SCSI-Kontroller auf
+      <para>Der neue Treiber &man.trm.4; unterst&uuml;tzt SCSI-Kontroller auf
 	Basis des Tekram TRM-S1040 SCSI Chipsatzes.  &merged;</para>
 
       <para arch="i386" role="historic">Der neue Treiber &man.twe.4; unterst&uuml;tzt
@@ -2517,6 +2533,14 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       wurden korrigiert, weitere Informationen finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.
       &merged;</para>
+
+    <para>In der Systemfunktion &man.fpathconf.2; wurde ein Fehler
+      (Verlust von Datei-Handles) beseitigt, durch den ein lokaler
+      Benutzer das System zum Absturz bringen oder h&ouml;here
+      Privilegien erhalten konnte.  Weitere Informationen finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink>.
+      &merged;</para>
   </sect2>
 
   <sect2 id="userland">
@@ -2699,7 +2723,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       verwendeten Bibliotheken. &merged;</para>
 
     <para>Die neue Distribution <filename>compat4x</filename> bietet
-      Kompatibilit&auml;t mit &os; 4-STABLE.</para>
+      Kompatibilit&auml;t mit &os; 4-STABLE.  Sie enth&auml;lt einen
+      Teil der in &os; 4.7-RELEASE enthaltenen Bibliotheken.</para>
 
     <para role="historic">&man.config.8; gibt jetzt bei vielen Fehlern statt einer
       Warnmeldung eine Fehlermeldung aus und beendet sich mit einen
@@ -2986,6 +3011,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>Wird &man.ftpd.8; mit der neuen Option <option>-W</option>
       aufgerufen, werden FTP-Logins nicht mehr in &man.wtmp.5;
       vermerkt.  &merged;</para>
+
+    <para>Das neue Programm &man.fwcontrol.8; ist ein Hilfsmittel zum
+      Zugriff auf und die Kontrolle des FireWire-Subsystems.
+      &merged;</para>
 
     <para arch="i386,pc98" role="historic">&man.gdb.1; unterst&uuml;tzt jetzt Hardware
       Watchpoints, dazu werd das Debug-Register des Kernel und schon
@@ -3943,6 +3972,17 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>&man.su.1; nutzt jetzt <application>PAM</application> zur
       Authentifizierung von Benutzern.</para>
 
+    <para>Mit dem neuen Programm &man.swapoff.8; ist m&ouml;glich,
+      Swapping und Paging auf einem Ger&auml;ten abzuschalten.  Das
+      ebenfalls neue Kommando &man.swapctl.8; stellt die von den
+      anderen BSDs bekannte Benutzer-Interface f&uuml;r &man.swapon.8;
+      und &man.swapoff.8; zur Verf&uuml;gung.
+      <note>
+	<para>Das Programm &man.swapoff.8; ist noch im
+	  Versuchsstadium.</para>
+      </note>
+    </para>
+
     <para role="historic">Die beim Systemstart genutzte Konfiguration von
       &man.syscons.4; steht jetzt in der Plattform-unabh&auml;ngigen
       Datei <filename>/etc/rc.syscons</filename>. &merged;</para>
@@ -4038,6 +4078,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para role="historic">Mit der neuen Option <option>-c</option> kann bei
       &man.syslogd.8; jetzt die Zusammenfassung gleicher Zeilen
       deaktiviert werden.  &merged;</para>
+
+    <para>Wird &man.systat.1; mit der neuen Option
+      <option>-ifstat</option> aufgerufen, zeigt es den
+      Datenflu&szlig;  auf den aktiven Netzwerk-Interfaces des
+      Systems.</para>
 
     <para>Mit dem neuen Programm &man.tabs.1; k&ouml;nnen die
       Positionen der Tabulatorspr&uuml;nge eines Terminals definiert
@@ -4265,6 +4310,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <option>-L</option>, um den Start des aufzurufenden Programmes
       nach einer Anzahl Zeilen zu erzwingen.  &merged;</para>
 
+    <para>&man.xargs.1; unterst&uuml;tzt jetzt die neue Option
+      <option>-P</option>, um mehrere Versionen des gleichen
+      Programmes parallel ausf&uuml;hren zu lassen.</para>
+
     <para role="historic">Die Compiler nutzen jetzt den von der FSF bereitgestellten
       Code zur Initialisierung.  Dadurch wird die Kompatibilit&auml;t
       mit dem von den diversen egcs und gcc Ports erzeugten Code und
@@ -4341,7 +4390,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para><application>am-utils</application> wurde auf Version
         6.0.7. aktualisiert.</para>
 
-      <para>Ein vom 10. Februar 2002 stammender Snapshot der
+      <para>Ein vom 13. Dezember 2002 stammender Snapshot der
 	<application>awk</application>-Variante von Bell Labs (unter
 	den Bezeichnungen <quote>BWK awk</quote> und <quote>Der Einzig
 	Wahre AWK</quote> bekannt) wurde in das Basissystem
@@ -4373,6 +4422,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         dadurch stehen im Standardsystem das Programm &man.bzip2.1;
         und die Bibliothek <filename>libbz2</filename> zur
         Verf&uuml;gung.  &merged;</para>
+
+      <para>Alle Anwendungen aus dem <application>bzip2</application>
+	Paket sind jetzt im Basissystem verf&uuml;gbar (dies betrifft
+	speziell <command>bzip2recover</command>, das jetzt erzeugt
+	und installiert wird).</para>
 
       <para role="historic">Der <application>Easy Editor</application> &man.ee.1;
         wurde auf Version 1.4.2 aktualisiert.  &merged;</para>
@@ -4479,7 +4533,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       wurden auf Version 4.1.1b aktualisiert.</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Citronella</quote> Release) wird jetzt statt
+        (<quote>Daffodil</quote> Release) wird jetzt statt
         <application>Linux-PAM</application> verwendet.</para>
 
       <para>Die Programmsammlung <application>OPIE</application>
@@ -4585,7 +4639,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
 	<para><application>cvs</application> ist jetzt in der
 	  Zwischenversion 1.11.2.1 mit Stand 1. Dezember 2002
-	  verf&uuml;gbar.</para>
+	  verf&uuml;gbar.  &merged;</para>
 
         <para role="historic">Der Standardwert der von &man.cvs.1; genutzten Variable
           <envar>CVS_RSH</envar> ist jetzt <literal>ssh</literal> und
