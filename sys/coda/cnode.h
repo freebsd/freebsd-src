@@ -102,7 +102,6 @@ struct cnode {
     struct vnode	*c_vnode;
     u_short		 c_flags;	/* flags (see below) */
     CodaFid		 c_fid;		/* file handle */
-    struct lock		 c_lock;	/* new lock protocol */
     struct vnode	*c_ovp;		/* open vnode pointer */
     u_short		 c_ocount;	/* count of openers */
     u_short		 c_owrite;	/* count of open for write */
