@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.48 1995/09/11 00:46:19 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.49 1995/09/12 14:42:43 dyson Exp $
  */
 
 /*
@@ -188,11 +188,8 @@ vnode_pager_haspage(object, offset, before, after)
 {
 	struct vnode *vp = object->handle;
 	daddr_t bn;
-	int err, run;
 	daddr_t reqblock;
-	int poff;
-	int bsize = vp->v_mount->mnt_stat.f_iosize;
-	int pagesperblock;
+	int err, run, poff, bsize, pagesperblock;
 
 	/*
 	 * If filesystem no longer mounted or offset beyond end of file we do
@@ -201,6 +198,7 @@ vnode_pager_haspage(object, offset, before, after)
 	if ((vp->v_mount == NULL) || (offset >= object->un_pager.vnp.vnp_size))
 		return FALSE;
 
+	bsize = vp->v_mount->mnt_stat.f_iosize;
 	pagesperblock = bsize / PAGE_SIZE;
 	reqblock = offset / bsize;
 	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn,
