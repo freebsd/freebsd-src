@@ -436,7 +436,7 @@ pseudo-device	ssc		#super scsi
 # HARDWARE DEVICE CONFIGURATION
 
 # ISA and EISA devices:
-# Currently there is no separate support for EISA.  There should be.
+# EISA support is available for some device, so they can be auto-probed.
 # Micro Channel is not supported at all.
 
 #
@@ -687,7 +687,6 @@ options		BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to
 # el: 3Com 3C501 (slow!)
 # ep: 3Com 3C509 (buggy)
 # fe: Fujitsu MB86960A/MB86965A Ethernet
-# fea: DEC DEFEA EISA FDDI adapter
 # ie: AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210
 # le: Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
 #     DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
@@ -707,7 +706,6 @@ device el0 at isa? port 0x300 net irq 9 vector elintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
 device ex0 at isa? port? net irq? vector exintr
 device fe0 at isa? port 0x300 net irq ? vector feintr
-device fea0 at isa? net irq ? vector feaintr
 device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
 device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
@@ -896,9 +894,12 @@ device		stli0	at isa? port 0x2a0 tty iomem 0xcc000 flags 23 iosiz 0x1000
 # The `ahc' device provides support for the Adaptec 274X and 284X
 # adapters.  The 284X, although a VLB card responds to EISA probes.
 #
+# fea: DEC DEFEA EISA FDDI adapter
+#
 controller	eisa0
 controller	ahb0
 controller	ahc0
+device		fea0
 
 # enable tagged command queueing, which is a major performance win on
 # devices that support it (and controllers with enough SCB's)
