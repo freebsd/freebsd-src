@@ -1,4 +1,4 @@
-/*	$KAME: if.c,v 1.15 2001/05/22 06:04:17 jinmei Exp $	*/
+/*	$KAME: if.c,v 1.26 2003/05/15 14:38:56 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -63,9 +63,8 @@
 extern int rssock;
 static int ifsock;
 
-static int get_llflag __P((const char *name));
-static void get_rtaddrs __P((int addrs, struct sockaddr *sa,
-			     struct sockaddr **rti_info));
+static int get_llflag __P((const char *));
+static void get_rtaddrs __P((int, struct sockaddr *, struct sockaddr **));
 
 int
 ifinit()
@@ -168,6 +167,7 @@ interface_status(struct ifinfo *ifinfo)
 	if (ifmr.ifm_status & IFM_AVALID) {
 		switch (ifmr.ifm_active & IFM_NMASK) {
 		case IFM_ETHER:
+		case IFM_IEEE80211:
 			if (ifmr.ifm_status & IFM_ACTIVE)
 				goto active;
 			else
@@ -333,7 +333,7 @@ get_llflag(const char *name)
 			continue;
 
 		memset(&ifr6, 0, sizeof(ifr6));
-		strcpy(ifr6.ifr_name, name);
+		strncpy(ifr6.ifr_name, name, sizeof(ifr6.ifr_name));
 		memcpy(&ifr6.ifr_ifru.ifru_addr, sin6, sin6->sin6_len);
 		if (ioctl(s, SIOCGIFAFLAG_IN6, &ifr6) < 0) {
 			warnmsg(LOG_ERR, __func__,
