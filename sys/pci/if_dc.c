@@ -211,7 +211,9 @@ static int dc_attach		(device_t);
 static int dc_detach		(device_t);
 static int dc_suspend		(device_t);
 static int dc_resume		(device_t);
+#ifndef BURN_BRIDGES
 static void dc_acpi		(device_t);
+#endif
 static struct dc_type *dc_devtype	(device_t);
 static int dc_newbuf		(struct dc_softc *, int, struct mbuf *);
 static int dc_encap		(struct dc_softc *, struct mbuf *, u_int32_t *);
@@ -1613,6 +1615,7 @@ dc_probe(device_t dev)
 	return (ENXIO);
 }
 
+#ifndef BURN_BRIDGES
 static void
 dc_acpi(device_t dev)
 {
@@ -1639,6 +1642,7 @@ dc_acpi(device_t dev)
 		pci_write_config(dev, DC_PCI_CFIT, irq, 4);
 	}
 }
+#endif
 
 static void
 dc_apply_fixup(struct dc_softc *sc, int media)
@@ -1829,12 +1833,12 @@ dc_attach(device_t dev)
 
 	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-
+#ifndef BURN_BRIDGES
 	/*
 	 * Handle power management nonsense.
 	 */
 	dc_acpi(dev);
-
+#endif
 	/*
 	 * Map control/status registers.
 	 */
@@ -3586,9 +3590,9 @@ dc_resume(device_t dev)
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
-
+#ifndef BURN_BRIDGES
 	dc_acpi(dev);
-
+#endif
 	/* better way to do this? */
 	for (i = 0; i < 5; i++)
 		pci_write_config(dev, PCIR_MAPS + i * 4, sc->saved_maps[i], 4);

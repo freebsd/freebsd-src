@@ -1354,7 +1354,7 @@ xl_attach(dev)
 		    XL_FLAG_INVERT_LED_PWR;
 	if (pci_get_device(dev) == TC_DEVICEID_TORNADO_10_100BT_920B)
 		sc->xl_flags |= XL_FLAG_PHYOK;
-
+#ifndef BURN_BRIDGES
 	/*
 	 * If this is a 3c905B, we have to check one extra thing.
 	 * The 905B supports power management and may be placed in
@@ -1393,7 +1393,7 @@ xl_attach(dev)
 		pci_write_config(dev, XL_PCI_LOMEM, membase, 4);
 		pci_write_config(dev, XL_PCI_INTLINE, irq, 4);
 	}
-
+#endif
 	/*
 	 * Map control/status registers.
 	 */
