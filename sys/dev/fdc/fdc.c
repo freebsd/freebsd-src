@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.30 1994/09/17 16:56:06 davidg Exp $
+ *	$Id: fd.c,v 1.31 1994/09/17 18:08:36 joerg Exp $
  *
  */
 
@@ -71,6 +71,10 @@
 #include <i386/isa/fdreg.h>
 #include <i386/isa/fdc.h>
 #include <i386/isa/rtc.h>
+#if NFT > 0
+#include <sys/ftape.h>
+#include <i386/isa/ftreg.h>
+#endif
 
 #define RAW_PART 2
 #define b_cylin b_resid
