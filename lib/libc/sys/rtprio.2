@@ -82,11 +82,7 @@ Higher real/idle priority processes
 preempt lower real/idle priority processes.
 Processes of equal real/idle priority are run round-robin.
 .Sh RETURN VALUES
-.Fn rtprio
-will return 0 for success and -1 for all errors.
-The global variable
-.Va errno
-will be set to indicate the error.
+.Rv -std rtprio
 .Sh ERRORS
 .Fn rtprio
 will fail if

@@ -61,11 +61,7 @@ If the invoker is not the super-user, then the affected process
 must have the same effective user-id as the invoker or be a descendant
 of the invoking process.
 .Sh RETURN VALUES
-.Fn Setpgid
-returns 0 when the operation was successful.
-If the request failed, -1 is returned and the global variable
-.Va errno
-indicates the reason.
+.Rv -std setpgid
 .Sh ERRORS
 .Fn Setpgid
 will fail and the process group will not be altered if:

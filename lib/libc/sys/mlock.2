@@ -106,13 +106,10 @@ resource limit.
 .Pp
 These calls are only available to the super-user.
 .Sh RETURN VALUES
-A return value of 0 indicates that the call
-succeeded and all pages in the range have either been locked or unlocked.
-A return value of -1 indicates an error occurred and the locked
-status of all pages in the range remains unchanged.
-In this case, the global location
-.Va errno
-is set to indicate the error.
+.Rv -std
+.Pp
+If the call succeeds, all pages in the range become locked (unlocked);
+otherwise the locked status of all pages in the range remains unchanged.
 .Sh ERRORS
 .Fn Mlock
 will fail if:
