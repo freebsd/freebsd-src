@@ -131,6 +131,10 @@ SUBDIR+=pmc \
 SUBDIR+=osf1
 .endif
 
+.if defined(WANT_EXT2FS_MODULE)
+SUBDIR+=ext2fs
+.endif
+
 .if defined(MODULES_OVERRIDE)
 SUBDIR=${MODULES_OVERRIDE}
 .endif
