@@ -112,6 +112,7 @@ static driver_t gbus_driver = {
 static int
 gbus_probe(device_t dev)
 {
+	device_t child;
 	struct gbus_device *gdev;
 
 	/*
@@ -122,8 +123,10 @@ gbus_probe(device_t dev)
 	if (!TLDEV_ISCPU(tlsb_get_dtype(dev)))
 		return ENXIO;
 
-	for (gdev = gbus_children; gdev->gd_name; gdev++)
-		device_add_child(dev, gdev->gd_name, -1, gdev);
+	for (gdev = gbus_children; gdev->gd_name; gdev++) {
+		child = device_add_child(dev, gdev->gd_name, -1);
+		device_set_ivars(child, gdev);
+	}
 
 	return 0;
 }

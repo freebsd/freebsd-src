@@ -137,7 +137,8 @@ atkbdc_add_device(device_t dev, const char *name, int unit)
 	else
 		kdev->flags = 0;
 
-	child = device_add_child(dev, name, unit, kdev);
+	child = device_add_child(dev, name, unit);
+	device_set_ivars(child, kdev);
 }
 
 static int

@@ -164,7 +164,7 @@ pcfprobe_isa(struct isa_device *dvp)
 	pcfdata[npcf++] = pcf;
 
 	/* XXX add the pcf device to the root_bus until isa bus exists */
-	pcfdev = device_add_child(root_bus, "pcf", pcf->pcf_unit, NULL);
+	pcfdev = device_add_child(root_bus, "pcf", pcf->pcf_unit);
 
 	if (!pcfdev)
 		goto error;

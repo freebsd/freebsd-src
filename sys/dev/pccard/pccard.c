@@ -839,7 +839,7 @@ pccard_card_intrdebug(arg)
 static int
 pccard_add_children(device_t dev, int busno)
 {
-	device_add_child(dev, NULL, -1, NULL);
+	device_add_child(dev, NULL, -1);
 	return 0;
 }
 

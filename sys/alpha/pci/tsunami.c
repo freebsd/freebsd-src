@@ -538,6 +538,7 @@ tsunami_init()
 static int
 tsunami_probe(device_t dev)
 {
+	device_t child;
 	int *hose;
 	int i;
 	if (tsunami0)
@@ -555,7 +556,8 @@ tsunami_probe(device_t dev)
 	for(i = 0; i < num_pchips; i++) {
 		hose = malloc(sizeof(int), M_DEVBUF, M_NOWAIT);
 		*hose = i;
-		device_add_child(dev, "pcib", i, hose);
+		child = device_add_child(dev, "pcib", i);
+		device_set_ivars(child, hose);
 		pchip_init(pchip[i], i);		
 	}
 

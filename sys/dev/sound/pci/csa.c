@@ -91,6 +91,7 @@ static devclass_t csa_devclass;
 static int
 csa_probe(device_t dev)
 {
+	device_t child;
 	char *s;
 	struct sndcard_func *func;
 
@@ -119,7 +120,8 @@ csa_probe(device_t dev)
 			return (ENOMEM);
 		bzero(func, sizeof(*func));
 		func->func = SCF_PCM;
-		device_add_child(dev, "pcm", -1, func);
+		child = device_add_child(dev, "pcm", -1);
+		device_set_ivars(child, func);
 
 #if notyet
 		/* Midi Interface */
@@ -128,7 +130,8 @@ csa_probe(device_t dev)
 			return (ENOMEM);
 		bzero(func, sizeof(*func));
 		func->func = SCF_MIDI;
-		device_add_child(dev, "midi", -1, func);
+		child = device_add_child(dev, "midi", -1);
+		device_set_ivars(child, func);
 #endif /* notyet */
 
 		return (0);

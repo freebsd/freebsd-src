@@ -63,7 +63,7 @@ iicbus_alloc_bus(device_t parent)
 	device_t child;
 
 	/* add the bus to the parent */
-	child = device_add_child(parent, "iicbus", -1, NULL);
+	child = device_add_child(parent, "iicbus", -1);
 
 	return (child);
 }

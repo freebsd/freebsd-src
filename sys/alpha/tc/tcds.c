@@ -150,6 +150,7 @@ tcds_attach(device_t dev)
 	struct tcds_softc* sc = TCDS_SOFTC(dev);
 	struct tc_attach_args *ta = device_get_ivars(dev);
 	device_t parent = device_get_parent(dev);
+	device_t child;
 	vm_offset_t regs,va;
 	u_long i;
 	struct tcds_slotconfig *slotc;
@@ -229,7 +230,9 @@ tcds_attach(device_t dev)
 	    tcdsdev->tcdsda_freq = 25000000;                 /* XXX */
 
 	    tcds_scsi_reset(tcdsdev->tcdsda_sc);
-	    device_probe_and_attach(device_add_child(dev, "esp", -1, tcdsdev));
+	    child = device_add_child(dev, "esp", -1);
+	    device_set_ivars(child, tcdsdev);
+	    device_probe_and_attach(child);
 	}
 
         /* the second SCSI chip isn't present on the 3000/300 series. */
@@ -248,7 +251,9 @@ tcds_attach(device_t dev)
 			tcdsdev->tcdsda_id = 7;                  /* XXX */
 			tcdsdev->tcdsda_freq = 25000000;         /* XXX */
 			tcds_scsi_reset(tcdsdev->tcdsda_sc);
-			device_probe_and_attach(device_add_child(dev, "esp", -1, tcdsdev));
+			child = device_add_child(dev, "esp", -1);
+			device_set_ivars(child, tcdsdev);
+			device_probe_and_attach(child);
 		}
         }
 	return 0;

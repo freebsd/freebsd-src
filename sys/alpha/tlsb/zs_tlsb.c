@@ -430,8 +430,8 @@ zsc_tlsb_probe(device_t dev)
 	/*
 	 * Add channel A and channel B
 	 */
-	device_add_child(dev, "zs", 0, (void*) 0);
-	device_add_child(dev, "zs", 1, (void*) 0);
+	device_add_child(dev, "zs", 0);
+	device_add_child(dev, "zs", 1);
 
 	return 0;
 }

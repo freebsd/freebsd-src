@@ -136,7 +136,7 @@ configure(dummy)
 #endif /* APIC_IO */
 
 	/* nexus0 is the top of the i386 device tree */
-	device_add_child(root_bus, "nexus", 0, 0);
+	device_add_child(root_bus, "nexus", 0);
 
 	/* initialize new bus architecture */
 	root_bus_configure();
