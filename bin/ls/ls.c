@@ -53,6 +53,9 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
+#ifdef COLORLS
+#include <curses.h>
+#endif
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
@@ -62,6 +65,9 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef COLORLS
+#include <term.h>
+#endif
 #include <unistd.h>
 
 #include "ls.h"
@@ -111,7 +117,9 @@ int f_statustime;		/* use time of last mode change */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
 int f_whiteout;			/* show whiteout entries */
+#ifdef COLORLS
 int f_color;			/* add type in color for non-regular files */
+#endif
 
 int rval;
 
@@ -189,7 +197,12 @@ main(argc, argv)
 			break;
 		case 'G':
 			if (isatty(STDOUT_FILENO))
-				f_color = 1;
+#ifdef COLORLS
+				if (tgetent(NULL, getenv("TERM")) == 1)
+					f_color = 1;
+#else
+				(void)fprintf(stderr, "Color support not compiled in.\n");
+#endif
 			break;
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
@@ -264,8 +277,10 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
+#ifdef COLORLS
 	if (f_color)
 		parsecolors(getenv("LSCOLORS"));
+#endif
 
 	/*
 	 * If not -F, -i, -l, -s or -t options, don't require stat
@@ -273,7 +288,10 @@ main(argc, argv)
 	 * need this to determine which colors to display.
 	 */
 	if (!f_inode && !f_longform && !f_size && !f_timesort && !f_type
-	    && !f_color)
+#ifdef COLORLS
+	    && !f_color
+#endif
+	   )
 		fts_options |= FTS_NOSTAT;
 
 	/*
