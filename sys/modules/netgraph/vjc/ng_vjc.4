@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Nm vjc
-node type performs Van Jacobsen compresion, which is used
+node type performs Van Jacobsen compression, which is used
 over PPP, SLIP, and other point-to-point IP connections to
 compress TCP packet headers.  The
 .Dv ip
@@ -134,7 +134,7 @@ outgoing compressed TCP packets. This value should be zero unless
 either (a) it not possible for an incoming frame to be lost, or
 (b) lost frames can be reliably detected and a
 .Dv NGM_VJC_RECV_ERROR
-mesages is immediately sent whenever this occurs.
+message is immediately sent whenever this occurs.
 .It Dv NGM_VJC_GET_STATE
 This command returns the node's current state described by the
 .Dv "struct slcompress"
@@ -150,7 +150,7 @@ control message.
 When the
 .Dv compressCID
 is set to one, this message must be sent to the node immediately
-after detecting that a recieved frame has been lost, due to a bad
+after detecting that a received frame has been lost, due to a bad
 checksum or for any other reason. Failing to do this can result
 in corrupted TCP stream data.
 .Sh SHUTDOWN
