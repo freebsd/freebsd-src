@@ -1,6 +1,6 @@
 # /var/cron/tabs/root - root's crontab for FreeBSD
 #
-# $Id$
+# $Id: crontab,v 1.2 1993/07/19 19:08:04 rgrimes Exp $
 # From: Id: crontab,v 1.6 1993/05/31 02:03:57 cgd Exp
 #
 SHELL=/bin/sh
@@ -18,3 +18,8 @@ HOME=/var/log
 0	2	*	*	*	/etc/daily
 30	3	*	*	6	/etc/weekly
 30	5	1	*	*	/etc/monthly
+#
+# time zone change adjustment for wall cmos clock,
+# does nothing, if you have UTC cmos clock.
+# See adjkerntz(8) for details.
+0       3       *       *       *       /sbin/adjkerntz -a
