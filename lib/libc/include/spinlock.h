@@ -52,7 +52,7 @@ typedef struct {
 
 #define	_SPINLOCK_INITIALIZER	{ 0, 0, 0, 0 }
 
-#define _SPINUNLOCK(_lck)	(_lck)->access_lock = 0
+#define _SPINUNLOCK(_lck)	_spinunlock(_lck);
 #ifdef	_LOCK_DEBUG
 #define	_SPINLOCK(_lck)		_spinlock_debug(_lck, __FILE__, __LINE__)
 #else
@@ -65,6 +65,7 @@ typedef struct {
 __BEGIN_DECLS
 long	_atomic_lock(volatile long *);
 void	_spinlock(spinlock_t *);
+void	_spinunlock(spinlock_t *);
 void	_spinlock_debug(spinlock_t *, char *, int);
 __END_DECLS
 
