@@ -5,7 +5,7 @@
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
   001   esc    esc    esc    esc    esc    esc    debug  esc     O
   002   '1'    '!'    nop    nop    nop    nop    nop    nop     O
-  003   '2'    '"'    nop    nop    '@'    nop    nop    nop     O
+  003   '2'    '"'    nul    nul    '@'    '@'    nul    nul     O
   004   '3'    '#'    nop    nop    163    nop    nop    nop     O
   005   '4'    '$'    nop    nop    164    nop    nop    nop     O
   006   '5'    '%'    nop    nop    nop    nop    nop    nop     O
@@ -16,7 +16,7 @@
   011   '0'    '='    nop    nop    '}'    nop    nop    nop     O
   012   '+'    '?'    nop    nop    '\'    nop    fs     nop     O
   013   128    '`'    nop    nop    nop    nop    nop    nop     O
-  014   bs     bs     del    del    bs     bs     del    del     O
+  014   del    del    bs     bs     del    del    bs     bs      O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
   017   'w'    'W'    etb    etb    'w'    'W'    etb    etb     C
@@ -59,7 +59,7 @@
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    nscr   nscr   '*'    '*'    nscr   nscr    O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
-  057   ' '    ' '    ' '    ' '    ' '    ' '    ' '    ' '     O
+  057   ' '    ' '    nul    ' '    ' '    ' '    ' '    ' '     O
   058   clock  clock  clock  clock  clock  clock  clock  clock   O
   059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
   060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O
@@ -105,8 +105,8 @@
   100   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
   101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
-  103   del    del    del    del    del    del    boot   del     O
+  103	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
   104   slock  slock  slock  slock  slock  slock  slock  slock   O
-  105	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 fkey61  O
-  106	fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
-  107	fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  105	fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  106	fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  107	fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
