@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris Costello
@@ -35,9 +35,9 @@
 .Dt MAC_NONE 4
 .Sh NAME
 .Nm mac_none
-.Nd "sample MAC policy module"
+.Nd "null MAC policy module"
 .Sh SYNOPSIS
-To compile the sample policy
+To compile the null policy
 into your kernel, place the following lines in your kernel
 configuration file:
 .Bd -ragged -offset indent
@@ -61,8 +61,9 @@ The
 .Nm
 policy module implements a sample MAC policy that has no effect on
 access control in the system.
-Each MAC entry point is a
-.Dq no-op .
+Unlinke
+.Xr 4 mac_stub ,
+none of the MAC entry points are defined.
 .Ss Label Format
 No labels are defined for
 .Nm .
@@ -76,6 +77,7 @@ No labels are defined for
 .Xr mac_partition 4 ,
 .Xr mac_portacl 4 ,
 .Xr mac_seeotheruids 4 ,
+.Xr mac_stub 4 ,
 .Xr mac_test 4 ,
 .Xr mac 9
 .Sh HISTORY
