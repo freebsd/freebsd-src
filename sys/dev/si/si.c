@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.40 1996/05/08 04:48:25 peter Exp $
+ *	$Id: si.c,v 1.41 1996/05/30 23:41:35 peter Exp $
  */
 
 #ifndef lint
@@ -267,7 +267,7 @@ si_registerdev(id)
 	struct isa_device *id;
 {
 	if (id->id_unit != 0) {
-		si_kdc[id->id_unit] = si_kdc[0];	/* struct copy */
+		bcopy(&si_kdc[0], &si_kdc[id->id_unit], sizeof(si_kdc[0]));
 	}
 	si_kdc[id->id_unit].kdc_unit = id->id_unit;
 	si_kdc[id->id_unit].kdc_isa = id;
