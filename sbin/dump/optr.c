@@ -328,7 +328,7 @@ msg(fmt, va_alist)
 	(void) vfprintf(stderr, fmt, ap);
 	(void) fflush(stdout);
 	(void) fflush(stderr);
-	(void) vsprintf(lastmsg, fmt, ap);
+	(void) vsnprintf(lastmsg, sizeof(lastmsg), fmt, ap);
 	va_end(ap);
 }
 
