@@ -30,11 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stat_flags.c,v 1.5 1997/02/22 14:04:02 peter Exp $
+ *	from: @(#)stat_flags.c	8.1 (Berkeley) 5/31/93
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)stat_flags.c	8.1 (Berkeley) 5/31/93";
+static const char rcsid[] =
+	"$Id: stat_flags.c,v 1.6 1997/06/02 06:24:50 julian Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
