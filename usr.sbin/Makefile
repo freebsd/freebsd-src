@@ -73,6 +73,7 @@ SUBDIR=	IPXrouted \
 	rmt \
 	rpc.lockd \
 	rpc.statd \
+	rpc.umntall \
 	rpc.yppasswdd \
 	rpc.ypupdated \
 	rpc.ypxfrd \
