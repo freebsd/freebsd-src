@@ -1,3 +1,6 @@
+v1.9.3 - March 5, 1995.  Support for NetBSD and DELL added.  Linger works
+  with passive mode now.
+
 v1.9.2 - January 20, 1995.  Another passive mode fix with the SOCKS library.
   Trying to avoid going into the interactive shell if colon-mode fails.
 

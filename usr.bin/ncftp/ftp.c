@@ -1737,6 +1737,19 @@ int initconn(void)
 			rval = 1;
 			goto Return;
 		}
+#ifdef LINGER	/* If puts don't complete, you could try this. */
+		{
+			struct linger li;
+			li.l_onoff = 1;
+			li.l_linger = 900;
+
+			if (setsockopt(data, SOL_SOCKET, SO_LINGER,
+				(char *)&li, sizeof(struct linger)) < 0)
+			{
+				PERROR("initconn", "setsockopt(SO_LINGER)");
+			}
+		}
+#endif	/* LINGER */
 		if (options & SO_DEBUG &&
 			setsockopt(data, SOL_SOCKET, SO_DEBUG, (char *)&on, sizeof(on)) < 0 ) {
 				PERROR("initconn", "setscokopt (ignored)");
