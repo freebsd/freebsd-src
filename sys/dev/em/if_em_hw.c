@@ -844,18 +844,16 @@ em_setup_fiber_serdes_link(struct em_hw *hw)
         if(i == (LINK_UP_TIMEOUT / 10)) {
             DEBUGOUT("Never got a valid link from auto-neg!!!\n");
             hw->autoneg_failed = 1;
-            if(hw->media_type == em_media_type_fiber) {
-                /* AutoNeg failed to achieve a link, so we'll call
-                 * em_check_for_link. This routine will force the link up if
-                 * we detect a signal. This will allow us to communicate with
-                 * non-autonegotiating link partners.
-                 */
-                if((ret_val = em_check_for_link(hw))) {
-                    DEBUGOUT("Error while checking for link\n");
-                    return ret_val;
-                }
-                hw->autoneg_failed = 0;
+            /* AutoNeg failed to achieve a link, so we'll call
+             * em_check_for_link. This routine will force the link up if
+             * we detect a signal. This will allow us to communicate with
+             * non-autonegotiating link partners.
+             */
+            if((ret_val = em_check_for_link(hw))) {
+                DEBUGOUT("Error while checking for link\n");
+                return ret_val;
             }
+            hw->autoneg_failed = 0;
         } else {
             hw->autoneg_failed = 0;
             DEBUGOUT("Valid Link Found\n");
@@ -1873,11 +1871,12 @@ em_config_fc_after_link_up(struct em_hw *hw)
              * be asked to delay transmission of packets than asking
              * our link partner to pause transmission of frames.
              */
-            else if(hw->original_fc == em_fc_none ||
-                    hw->original_fc == em_fc_tx_pause) {
+            else if((hw->original_fc == em_fc_none ||
+                     hw->original_fc == em_fc_tx_pause) ||
+                    hw->fc_strict_ieee) {
                 hw->fc = em_fc_none;
                 DEBUGOUT("Flow Control = NONE.\r\n");
-            } else if(!hw->fc_strict_ieee) {
+            } else {
                 hw->fc = em_fc_rx_pause;
                 DEBUGOUT("Flow Control = RX PAUSE frames only.\r\n");
             }
@@ -2053,9 +2052,10 @@ em_check_for_link(struct em_hw *hw)
      * auto-negotiation time to complete, in case the cable was just plugged
      * in. The autoneg_failed flag does this.
      */
-    else if((hw->media_type == em_media_type_fiber) &&
+    else if((((hw->media_type == em_media_type_fiber) &&
+            ((ctrl & E1000_CTRL_SWDPIN1) == signal)) ||
+            (hw->media_type == em_media_type_internal_serdes)) &&
             (!(status & E1000_STATUS_LU)) &&
-            ((ctrl & E1000_CTRL_SWDPIN1) == signal) &&
             (!(rxcw & E1000_RXCW_C))) {
         if(hw->autoneg_failed == 0) {
             hw->autoneg_failed = 1;
@@ -2082,7 +2082,8 @@ em_check_for_link(struct em_hw *hw)
      * Device Control register in an attempt to auto-negotiate with our link
      * partner.
      */
-    else if((hw->media_type == em_media_type_fiber) &&
+    else if(((hw->media_type == em_media_type_fiber) ||
+             (hw->media_type == em_media_type_internal_serdes)) &&
               (ctrl & E1000_CTRL_SLU) &&
               (rxcw & E1000_RXCW_C)) {
         DEBUGOUT("RXing /C/, enable AutoNeg and stop forcing link.\r\n");
@@ -4898,77 +4899,6 @@ em_config_dsp_after_link_change(struct em_hw *hw,
         hw->ffe_config_state = em_ffe_config_enabled;
         }
     }
-    return E1000_SUCCESS;
-}
-
-/***************************************************************************
- *
- * Workaround for the 82547 long TTL on noisy 100HD hubs.
- *
- * This function, specific to 82547 hardware only, needs to be called every
- * second.  It checks if a parallel detect fault has occurred.  If a fault
- * occurred, disable/enable the DSP reset mechanism up to 5 times (once per
- * second).  If link is established, stop the workaround and ensure the DSP
- * reset is enabled.
- *
- * hw: Struct containing variables accessed by shared code
- *
- * returns: - E1000_ERR_PHY if fail to read/write the PHY
- *            E1000_SUCCESS in any other case
- *
- ****************************************************************************/
-int32_t
-em_igp_ttl_workaround(struct em_hw *hw)
-{
-    int32_t ret_val;
-    uint16_t phy_data = 0;
-    uint16_t dsp_value = DSP_RESET_ENABLE;
-
-    if(((hw->mac_type != em_82541) && (hw->mac_type != em_82547)) ||
-       (!hw->ttl_wa_activation)) {
-        return E1000_SUCCESS;
-    }
-
-    /* Check for link first */
-    if((ret_val = em_read_phy_reg(hw, PHY_STATUS, &phy_data)))
-        return ret_val;
-
-    if(phy_data & MII_SR_LINK_STATUS) {
-        /* If link is established during the workaround, the DSP mechanism must
-         * be enabled. */
-        if(hw->dsp_reset_counter) {
-            hw->dsp_reset_counter = 0;
-            dsp_value = DSP_RESET_ENABLE;
-        } else
-            return E1000_SUCCESS;
-    } else {
-        if(hw->dsp_reset_counter == 0) {
-            /* Workaround not activated, check if it needs activation */
-            if((ret_val = em_read_phy_reg(hw, PHY_AUTONEG_EXP, &phy_data)))
-                return ret_val;
-            /* Activate the workaround if there was a parallel detect fault */
-            if(phy_data & NWAY_ER_PAR_DETECT_FAULT)
-                hw->dsp_reset_counter++;
-            else
-                return E1000_SUCCESS;
-        }
-
-        if(hw->dsp_reset_counter) {
-            /* After 5 times, stop the workaround */
-            if(hw->dsp_reset_counter > E1000_MAX_DSP_RESETS) {
-                hw->dsp_reset_counter = 0;
-                dsp_value = DSP_RESET_ENABLE;
-            } else {
-                dsp_value = (hw->dsp_reset_counter & 1) ? DSP_RESET_DISABLE :
-                            DSP_RESET_ENABLE;
-                hw->dsp_reset_counter++;
-            }
-        }
-    }
-
-    if((ret_val = em_write_phy_reg(hw, IGP01E1000_PHY_DSP_RESET, dsp_value)))
-        return ret_val;
-
     return E1000_SUCCESS;
 }
 

@@ -329,7 +329,6 @@ void em_io_write(struct em_hw *hw, uint32_t port, uint32_t value);
 void em_write_reg_io(struct em_hw *hw, uint32_t offset, uint32_t value);
 int32_t em_config_dsp_after_link_change(struct em_hw *hw, boolean_t link_up);
 int32_t em_set_d3_lplu_state(struct em_hw *hw, boolean_t active);
-int32_t em_igp_ttl_workaround(struct em_hw *hw);
 
 #define E1000_READ_REG_IO(a, reg) \
     em_read_reg_io((a), E1000_##reg)
@@ -1002,7 +1001,6 @@ struct em_hw {
     uint32_t ledctl_mode1;
     uint32_t ledctl_mode2;
     uint16_t phy_spd_default;
-    uint16_t dsp_reset_counter;
     uint16_t autoneg_advertised;
     uint16_t pci_cmd_word;
     uint16_t fc_high_water;
@@ -1027,7 +1025,6 @@ struct em_hw {
     uint8_t perm_mac_addr[NODE_ADDRESS_SIZE];
     boolean_t disable_polarity_correction;
     boolean_t speed_downgraded;
-    boolean_t ttl_wa_activation;
     em_dsp_config dsp_config_state;
     boolean_t get_link_status;
     boolean_t tbi_compatibility_en;
@@ -2116,12 +2113,5 @@ struct em_hw {
 #define AUTONEG_ADVERTISE_SPEED_DEFAULT 0x002F  /* Everything but 1000-Half */
 #define AUTONEG_ADVERTISE_10_100_ALL    0x000F /* All 10/100 speeds*/
 #define AUTONEG_ADVERTISE_10_ALL        0x0003 /* 10Mbps Full & Half speeds*/
-
-#define TANAX_TTL_WA_RESET(hw) {                                       \
-    if((hw)->dsp_reset_counter) {                                      \
-        em_write_phy_reg((hw), IGP01E1000_PHY_DSP_RESET, 0x0000);   \
-        (hw)->dsp_reset_counter = 0;                                   \
-    }                                                                  \
-}
 
 #endif /* _EM_HW_H_ */
