@@ -215,3 +215,10 @@ ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
 ASSYM(MTX_SAVECRIT, offsetof(struct mtx, mtx_savecrit));
+
+#ifdef PC98
+#include <machine/bus.h>
+
+ASSYM(BUS_SPACE_HANDLE_BASE, offsetof(struct bus_space_handle, bsh_base));
+ASSYM(BUS_SPACE_HANDLE_IAT, offsetof(struct bus_space_handle, bsh_iat));
+#endif
