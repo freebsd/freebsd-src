@@ -1,17 +1,21 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-# For more information read the handbook part System Administration -> 
-# Configuring the FreeBSD Kernel -> The Configuration File. 
-# The handbook is available in /usr/share/doc/handbook or online as
-# latest version from the FreeBSD World Wide Web server 
-# <URL:http://www.FreeBSD.ORG/>
+# For more information on this file, please read the handbook section on
+# Kernel Configuration Files:
 #
-# An exhaustive list of options and more detailed explanations of the 
-# device lines is present in the ./LINT configuration file. If you are 
+#    http://www.freebsd.org/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (http://www.FreeBSD.ORG/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ./LINT configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.172 1999/05/21 04:37:35 wpaul Exp $
+#	$Id: GENERIC,v 1.173 1999/06/15 13:14:39 des Exp $
 
 machine		i386
 cpu		I386_CPU
