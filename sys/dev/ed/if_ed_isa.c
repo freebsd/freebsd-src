@@ -58,6 +58,7 @@ static struct isa_pnp_id ed_ids[] = {
 	{ 0x19808c4a,	NULL },		/* RTL8019 */
 	{ 0x0090252a,	NULL },		/* JQE9000 */
 	{ 0x0020832e,	NULL },		/* KTC2000 */
+	{ 0x4cf48906,	NULL },		/* ATIf44c */
 	{ 0,		NULL }
 };
 
