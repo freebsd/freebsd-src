@@ -900,7 +900,7 @@ ray_init_download_v4(struct ray_softc *sc, struct ray_comq_entry *com)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
 
-#define MIB4(m)		ray_mib_4_default.##m
+#define MIB4(m)		ray_mib_4_default.m
 
 	MIB4(mib_net_type)		= com->c_desired.np_net_type;
 	MIB4(mib_ap_status)		= com->c_desired.np_ap_status;
@@ -964,7 +964,7 @@ ray_init_download_v5(struct ray_softc *sc, struct ray_comq_entry *com)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
 
-#define MIB5(m)		ray_mib_5_default.##m
+#define MIB5(m)		ray_mib_5_default.m
 	MIB5(mib_net_type)		= com->c_desired.np_net_type;
 	MIB5(mib_ap_status)		= com->c_desired.np_ap_status;
 	bcopy(com->c_desired.np_ssid, MIB5(mib_ssid), IEEE80211_NWID_LEN);
@@ -2287,7 +2287,7 @@ ray_rx_mgt_info(struct ray_softc *sc, struct mbuf *m0, struct ieee80211_informat
 					RAY_DPRINTF(sc, RAY_DBG_MGT,
 					    "tim pvt[%03d]\t0x%02x", i-5, bp[i]);
 			}
-#endif (RAY_DEBUG & RAY_DBG_MGT)
+#endif /* (RAY_DEBUG & RAY_DBG_MGT) */
 			break;
 		    	
 		case IEEE80211_ELEMID_IBSSPARMS:
