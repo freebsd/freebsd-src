@@ -42,7 +42,7 @@
 .Nm
 .Op Fl s
 .Op Fl c Ar core
-.Op Ar exec
+.Op Ar executable
 .Ar pid
 .Sh DESCRIPTION
 The
@@ -61,7 +61,7 @@ specified,
 will use
 .Dq Pa /proc/<pid>/file .
 .Pp
-The options are:
+The following options are available:
 .Bl -tag -width indent
 .It Fl c
 Write the core file to the specified file instead of
@@ -77,9 +77,9 @@ The same effect can be achieved manually with
 .Sh FILES
 .Bl -tag -width /var/log/messages -compact
 .It Pa core.<pid>
-The core image.
+the core image
 .It Pa /proc/<pid>/file
-The executable image.
+the executable image
 .El
 .Sh HISTORY
 A
