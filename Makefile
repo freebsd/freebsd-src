@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.27 1998/04/26 08:40:48 jkh Exp $
+#	$Id: Makefile,v 1.109.2.28 1998/05/15 10:16:20 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -620,7 +620,6 @@ build-tools:
 		bin/mkdir		\
 		bin/mv			\
 		bin/rm			\
-		bin/sh			\
 		bin/test		\
 		gnu/usr.bin/awk		\
 		gnu/usr.bin/bc		\
@@ -628,6 +627,8 @@ build-tools:
 		gnu/usr.bin/groff	\
 		gnu/usr.bin/gzip	\
 		gnu/usr.bin/man/makewhatis	\
+		gnu/usr.bin/patch	\
+		gnu/usr.bin/perl/perl	\
 		gnu/usr.bin/sort	\
 		gnu/usr.bin/texinfo     \
 		usr.bin/basename	\
@@ -640,6 +641,7 @@ build-tools:
 		usr.bin/file2c		\
 		usr.bin/find		\
 		usr.bin/gencat		\
+		usr.bin/id		\
 		usr.bin/lorder		\
 		usr.bin/m4		\
 		usr.bin/mkdep		\
@@ -660,7 +662,8 @@ build-tools:
 		usr.bin/yacc		\
 		usr.sbin/chown		\
 		usr.sbin/mtree		\
-		usr.sbin/zic
+		usr.sbin/zic		\
+		bin/sh
 	cd ${.CURDIR}/$d && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
