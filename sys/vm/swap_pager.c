@@ -184,6 +184,9 @@ static int dmmax_mask;
 int nswap_lowat = 128;		/* in pages, swap_pager_almost_full warn */
 int nswap_hiwat = 512;		/* in pages, swap_pager_almost_full warn */
 
+SYSCTL_INT(_vm, OID_AUTO, dmmax,
+	CTLFLAG_RD, &dmmax, 0, "Maximum size of a swap block");
+
 static __inline void	swp_sizecheck __P((void));
 static void	swp_pager_sync_iodone __P((struct buf *bp));
 static void	swp_pager_async_iodone __P((struct buf *bp));
