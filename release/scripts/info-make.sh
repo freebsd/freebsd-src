@@ -1,6 +1,7 @@
 #!/bin/sh
-
+#
 # $FreeBSD$
+#
 
 # Move the info files out to their own dist
 if [ -d ${RD}/trees/bin/usr/share/info ]; then

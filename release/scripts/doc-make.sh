@@ -1,4 +1,7 @@
 #!/bin/sh
+#
+# $FreeBSD$
+#
 
 # Create the doc dist.
 if [ -d ${RD}/trees/bin/usr/share/doc ]; then

@@ -1,4 +1,7 @@
 #!/bin/sh
+#
+# $FreeBSD$
+#
 
 # Create the catpages dist - must follow manpages dist script, for obvious
 # reasons.
