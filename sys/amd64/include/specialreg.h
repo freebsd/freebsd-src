@@ -31,16 +31,15 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.4 1994/09/04 19:59:24 pst Exp $
+ *	$Id: specialreg.h,v 1.5 1994/09/04 23:10:27 davidg Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
-#define _MACHINE_SPECIALREG_H_ 1
+#define	_MACHINE_SPECIALREG_H_
 
 /*
  * Bits in 386 special registers:
  */
-
 #define	CR0_PE	0x00000001	/* Protected mode Enable */
 #define	CR0_MP	0x00000002	/* "Math" Present (NPX or NPX emulator) */
 #ifdef notused
@@ -55,12 +54,9 @@
 /*
  * Bits in 486 special registers:
  */
-
 #define CR0_NE	0x00000020	/* Numeric Error enable (EX16 vs IRQ13) */
 #define CR0_WP	0x00010000	/* Write Protect (honor page protect in all modes) */
-#ifdef notyet
 #define CR0_AM	0x00040000	/* Alignment Mask (set to enable AC flag) */
-#endif
 
 /*
  * Cyrix 486 DLC special registers, accessable as IO ports.
@@ -114,4 +110,4 @@
 #define NCR_SIZE_32M	14
 #define NCR_SIZE_4G	15
 
-#endif /* _MACHINE_SPECIALREG_H_ */
+#endif /* !_MACHINE_SPECIALREG_H_ */
