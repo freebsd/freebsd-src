@@ -88,10 +88,10 @@ struct ibcs2_sigaction {
 	int		sa_flags;
 };
 
-#define IBCS2_SIG_DFL		(ibcs2_sig_t)(0)
-#define IBCS2_SIG_ERR		(ibcs2_sig_t)(-1)
-#define IBCS2_SIG_IGN		(ibcs2_sig_t)(1)
-#define IBCS2_SIG_HOLD		(ibcs2_sig_t)(2)
+#define IBCS2_SIG_DFL		((ibcs2_sig_t)0)
+#define IBCS2_SIG_ERR		((ibcs2_sig_t)-1)
+#define IBCS2_SIG_IGN		((ibcs2_sig_t)1)
+#define IBCS2_SIG_HOLD		((ibcs2_sig_t)2)
 
 #define IBCS2_SIG_SETMASK	0
 #define IBCS2_SIG_BLOCK		1
