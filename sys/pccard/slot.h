@@ -95,7 +95,6 @@ struct pccard_devinfo {
 	struct slot *slt;		/* Back pointer to slot */
 
 	struct resource_list resources;
-	struct pccard_devinfo *next;	/* List of drivers */
 };
 
 /*
@@ -106,8 +105,7 @@ struct slot {
 	int flags;			/* Slot flags (see below) */
 	int rwmem;			/* Read/write flags */
 	int irq;			/* IRQ allocated (0 = none) */
-	int irqref;			/* Reference count of driver IRQs */
-	struct pccard_devinfo *devices;	/* List of drivers attached */
+
 	/*
 	 *	flags.
 	 */
@@ -124,22 +122,11 @@ struct slot {
 	struct slot_ctrl *ctrl;		/* Per-controller data */
 	void		*cdata;		/* Controller specific data */
 	int		pwr_off_pending;/* Power status of slot */
-	struct slot *next;		/* Master list */
 };
 
 enum card_event { card_removed, card_inserted };
 
 struct slot	*pccard_alloc_slot(struct slot_ctrl *);
 void		 pccard_event(struct slot *, enum card_event);
-
-static __inline__ const char *
-pccard_get_name(device_t dev)
-{
-	struct pccard_devinfo *devi = (struct pccard_devinfo *) 
-	    device_get_ivars(dev);
-	if (!devi)
-		return ("anonymous");
-	return (devi->name);
-}
 
 #endif /* !_PCCARD_SLOT_H */
