@@ -470,7 +470,8 @@ getn(s)
 	r = strtol(s, &p, 10);
 
 	if (errno != 0)
-		error("%s: out of range", s);
+		error((errno == EINVAL) ? "%s: bad number" :
+					  "%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
 		p++;
@@ -493,7 +494,8 @@ getq(s)
 	r = strtoq(s, &p, 10);
 
 	if (errno != 0)
-		error("%s: out of range", s);
+		error((errno == EINVAL) ? "%s: bad number" :
+					  "%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
 		p++;
