@@ -40,6 +40,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include "tip.h"
+#include <errno.h>
 /*
  * tip
  *
@@ -122,7 +123,6 @@ tipout()
 	char buf[BUFSIZ];
 	register char *cp;
 	register int cnt;
-	extern int errno;
 	int omask;
 
 	signal(SIGINT, SIG_IGN);
