@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.50 1999/06/17 09:16:08 sheldonh Exp $";
+	"$Id: inetd.c,v 1.51 1999/06/21 11:17:34 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -128,12 +128,11 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <tcpd.h>
 #include <unistd.h>
 #include <libutil.h>
 #include <sysexits.h>
 
-#ifdef LIBWRAP
-# include <tcpd.h>
 #ifndef LIBWRAP_ALLOW_FACILITY
 # define LIBWRAP_ALLOW_FACILITY LOG_AUTH
 #endif
@@ -145,9 +144,6 @@ static const char rcsid[] =
 #endif
 #ifndef LIBWRAP_DENY_SEVERITY
 # define LIBWRAP_DENY_SEVERITY LOG_WARNING
-#endif
-int allow_severity;
-int deny_severity;
 #endif
 
 #ifdef LOGIN_CAP
@@ -178,6 +174,10 @@ int deny_severity;
 
 #define	SIGBLOCK	(sigmask(SIGCHLD)|sigmask(SIGHUP)|sigmask(SIGALRM))
 
+int	allow_severity;
+int	deny_severity;
+int	wrap = 0;
+int	wrap_bi = 0;
 int	debug = 0;
 int	log = 0;
 int	nsock, maxsock;
@@ -347,14 +347,11 @@ main(argc, argv, envp)
 #ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
 #endif
-#ifdef LIBWRAP
 	struct request_info req;
 	int denied;
 	char *service = NULL;
-#else
 	struct  sockaddr_in peer;
 	int i;
-#endif
 
 
 #ifdef OLD_SETPROCTITLE
@@ -369,7 +366,7 @@ main(argc, argv, envp)
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "dlR:a:c:C:p:")) != -1)
+	while ((ch = getopt(argc, argv, "dlwR:a:c:C:p:")) != -1)
 		switch(ch) {
 		case 'd':
 			debug = 1;
@@ -400,10 +397,14 @@ main(argc, argv, envp)
 		case 'p':
 			pid_file = optarg;
 			break;
+		case 'w':
+			if (wrap++)
+				wrap_bi++;
+			break;
 		case '?':
 		default:
 			syslog(LOG_ERR,
-				"usage: inetd [-dl] [-a address] [-R rate]"
+				"usage: inetd [-dlw] [-a address] [-R rate]"
 				" [-c maximum] [-C rate]"
 				" [-p pidfile] [conf-file]");
 			exit(EX_USAGE);
@@ -539,8 +540,7 @@ main(argc, argv, envp)
 				close(ctrl);
 				continue;
 			    }
-#ifndef LIBWRAP
-			    if (log) {
+			    if (!wrap || log) {
 				i = sizeof peer;
 				if (getpeername(ctrl, (struct sockaddr *)
 						&peer, &i)) {
@@ -554,20 +554,18 @@ main(argc, argv, envp)
 					sep->se_service,
 					inet_ntoa(peer.sin_addr));
 			    }
-#endif
 		    } else
 			    ctrl = sep->se_fd;
 		    (void) sigblock(SIGBLOCK);
 		    pid = 0;
-#ifdef LIBWRAP_INTERNAL
 		    /*
 		     * When builtins are wrapped, avoid a minor optimization
 		     * that breaks hosts_options(5) twist.
 		     */
-		    dofork = 1;
-#else
-		    dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
-#endif
+		    if (wrap_bi)
+			   dofork = 1;
+		    else
+			   dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
 				(void)gettimeofday(&sep->se_time, (struct timezone *)NULL);
@@ -625,11 +623,8 @@ main(argc, argv, envp)
 					    _exit(0);
 				    }
 			    }
-#ifdef LIBWRAP
-#ifndef LIBWRAP_INTERNAL
-			    if (sep->se_bi == 0)
-#endif
-			    if (sep->se_accept
+			    if ((wrap && (!sep->se_bi || wrap_bi))
+				&& sep->se_accept
 				&& sep->se_socktype == SOCK_STREAM) {
 				service = sep->se_server_name ?
 				    sep->se_server_name : sep->se_service;
@@ -650,7 +645,6 @@ main(argc, argv, envp)
 					eval_client(&req), service, sep->se_proto);
 				}
 			    }
-#endif /* LIBWRAP */
 			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
 				/* NOTREACHED */
@@ -740,9 +734,7 @@ main(argc, argv, envp)
 				execv(sep->se_server, sep->se_argv);
 				syslog(LOG_ERR,
 				    "cannot execute %s: %m", sep->se_server);
-#ifdef LIBWRAP
 			    reject:
-#endif
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
 			    }
