@@ -202,7 +202,7 @@ __CONCAT(dname,_attach)(device_t self)
 		((dev)->softc = device_get_softc(bdev)) : 0)
 
 /* conversion from one type of queue to the other */
-#define SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD_UNTIL
+#define SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD
 #define SIMPLEQ_INSERT_HEAD	STAILQ_INSERT_HEAD
 #define SIMPLEQ_INSERT_TAIL	STAILQ_INSERT_TAIL
 #define SIMPLEQ_NEXT		STAILQ_NEXT
