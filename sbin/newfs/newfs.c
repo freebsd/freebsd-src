@@ -119,6 +119,7 @@ int	Nflag;			/* run without writing file system */
 int	Oflag = 2;		/* file system format (1 => UFS1, 2 => UFS2) */
 int	Rflag;			/* regression test */
 int	Uflag;			/* enable soft updates for file system */
+int	Eflag = 0;		/* exit in middle of newfs for testing */
 quad_t	fssize;			/* file system size */
 int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
@@ -156,8 +157,11 @@ main(int argc, char *argv[])
 	off_t mediasize;
 
 	while ((ch = getopt(argc, argv,
-	    "L:NO:RS:T:Ua:b:c:d:e:f:g:h:i:m:o:s:")) != -1)
+	    "EL:NO:RS:T:Ua:b:c:d:e:f:g:h:i:m:o:s:")) != -1)
 		switch (ch) {
+		case 'E':
+			Eflag++;
+			break;
 		case 'L':
 			volumelabel = optarg;
 			i = -1;
