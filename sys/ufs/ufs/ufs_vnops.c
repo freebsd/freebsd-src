@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.82 1998/04/04 13:26:20 phk Exp $
+ * $Id: ufs_vnops.c,v 1.83 1998/04/17 22:37:19 des Exp $
  */
 
 #include "opt_quota.h"
@@ -695,11 +695,6 @@ ufs_remove(ap)
 	VN_POLLEVENT(vp, POLLNLINK);
 	VN_POLLEVENT(dvp, POLLWRITE);
 out:
-	if (dvp == vp)
-		vrele(vp);
-	else
-		vput(vp);
-	vput(dvp);
 	return (error);
 }
 
@@ -771,7 +766,6 @@ out1:
 out2:
 	VN_POLLEVENT(vp, POLLNLINK);
 	VN_POLLEVENT(tdvp, POLLWRITE);
-	vput(tdvp);
 	return (error);
 }
 
@@ -962,7 +956,14 @@ abortit:
 #endif
 			return (ENOENT);
 		}
-		return (VOP_REMOVE(fdvp, fvp, fcnp));
+		error = VOP_REMOVE(fdvp, fvp, fcnp);
+		/* XXX - temporarily simulate previous rele behavior */
+		if (fdvp == fvp)
+			vrele(fdvp);
+		else
+			vput(fdvp);
+		vput(fvp);
+		return (error);
 	}
 	if (error = vn_lock(fvp, LK_EXCLUSIVE, p))
 		goto abortit;
@@ -1330,7 +1331,6 @@ ufs_mkdir(ap)
 			zfree(namei_zone, cnp->cn_pnbuf);
 			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
-			vput(dvp);
 			return (error);
 		}
 #endif
@@ -1343,7 +1343,6 @@ ufs_mkdir(ap)
 		zfree(namei_zone, cnp->cn_pnbuf);
 		UFS_VFREE(tvp, ip->i_number, dmode);
 		vput(tvp);
-		vput(dvp);
 		return (error);
 	}
 #endif
@@ -1430,7 +1429,6 @@ bad:
 	}
 out:
 	zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
 	return (error);
 }
 
@@ -1508,9 +1506,7 @@ ufs_rmdir(ap)
 	}
 	cache_purge(vp);
 out:
-	vput(dvp);
 	VN_POLLEVENT(vp, POLLNLINK);
-	vput(vp);
 	return (error);
 }
 
@@ -2039,7 +2035,6 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
 	if (error) {
 		zfree(namei_zone, cnp->cn_pnbuf);
-		vput(dvp);
 		return (error);
 	}
 	ip = VTOI(tvp);
@@ -2085,7 +2080,6 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			zfree(namei_zone, cnp->cn_pnbuf);
 			UFS_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
-			vput(dvp);
 			return (error);
 		}
 #endif
@@ -2098,7 +2092,6 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 		zfree(namei_zone, cnp->cn_pnbuf);
 		UFS_VFREE(tvp, ip->i_number, mode);
 		vput(tvp);
-		vput(dvp);
 		return (error);
 	}
 #endif
@@ -2131,7 +2124,6 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 
 	if ((cnp->cn_flags & SAVESTART) == 0)
 		zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
 	*vpp = tvp;
 	return (0);
 
@@ -2141,7 +2133,6 @@ bad:
 	 * or the directory so must deallocate the inode.
 	 */
 	zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
 	ip->i_effnlink = 0;
 	ip->i_nlink = 0;
 	ip->i_flag |= IN_CHANGE;

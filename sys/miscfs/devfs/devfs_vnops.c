@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.53 1998/03/26 20:52:12 phk Exp $
+ *	$Id: devfs_vnops.c,v 1.54 1998/04/19 23:32:17 julian Exp $
  */
 
 
@@ -320,7 +320,6 @@ devfs_create(struct vop_mknod_args  *ap)
         } */
 {
 DBPRINT(("create\n"));
-	vput(ap->a_dvp);
         return EINVAL;
 }
 
@@ -773,18 +772,12 @@ DBPRINT(("remove\n"));
 	 * are the end of the path. Get pointers to all our
 	 * devfs structures.
 	 */
-	if ( error = devfs_vntodn(dvp,&tdp)) {
+	if (error = devfs_vntodn(dvp, &tdp)) {
 abortit:
 		VOP_ABORTOP(dvp, cnp); 
-		if (dvp == vp) /* eh? */
-			vrele(dvp);
-		else
-			vput(dvp);
-		if (vp)
-			vput(vp);
 		return (error);
 	}
-	if ( error = devfs_vntodn(vp,&tp)) goto abortit;
+	if (error = devfs_vntodn(vp, &tp)) goto abortit;
 	/*
 	 * Assuming we are atomic, dev_lookup left this for us
 	 */
@@ -846,8 +839,6 @@ abortit:
 	}
 	dev_free_name(tnp);
 	tp = NULL;
-	vput(vp);
-	vput(dvp);
 	return (error);
 }
 
@@ -915,7 +906,6 @@ abortit:
 			fp,
 			&tnp);
 out:
-	vput(tdvp);
 	return (error);
 
 }
@@ -1186,9 +1176,7 @@ devfs_rmdir(struct vop_rmdir_args *ap)
         } */ 
 {
 DBPRINT(("rmdir\n"));
-	vput(ap->a_dvp);
-	vput(ap->a_vp);
-	return 0;
+	return (0);
 }
 #endif
 
@@ -1202,30 +1190,27 @@ devfs_symlink(struct vop_symlink_args *ap)
                 char *a_target;
         } */
 {
-	int err;
+	struct vnode *vp;
+	int error;
 	dn_p dnp;
 	union typeinfo by;
 	devnm_p nm_p;
-	struct vnode *vp;
 
 DBPRINT(("symlink\n"));
-	if(err = devfs_vntodn(ap->a_dvp,&dnp)) {
-		vput(ap->a_dvp);
-		return err;
+	if(error = devfs_vntodn(ap->a_dvp, &dnp)) {
+		return (error);
 	}
 		
 	by.Slnk.name = ap->a_target;
 	by.Slnk.namelen = strlen(ap->a_target);
-	dev_add_entry(	ap->a_cnp->cn_nameptr, dnp, DEV_SLNK, &by,
+	dev_add_entry(ap->a_cnp->cn_nameptr, dnp, DEV_SLNK, &by,
 		NULL, NULL, &nm_p);
-	if(err = devfs_dntovn(nm_p->dnp,&vp) ) {
-		vput(ap->a_dvp);
-		return err;
+	if(error = devfs_dntovn(nm_p->dnp, &vp)) {
+		return (error);
 	}
 	VOP_SETATTR(vp, ap->a_vap, ap->a_cnp->cn_cred, ap->a_cnp->cn_proc);
 	*ap->a_vpp = NULL;
 	vput(vp);
-	vput(ap->a_dvp);
 	return 0;
 }
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.28 1998/02/10 03:32:05 kato Exp $
+ * $Id: union_subr.c,v 1.29 1998/02/26 03:23:54 kato Exp $
  */
 
 #include <sys/param.h>
@@ -830,6 +830,7 @@ union_mkshadow(um, dvp, cnp, vpp)
 	VOP_LEASE(dvp, p, cn.cn_cred, LEASE_WRITE);
 
 	error = VOP_MKDIR(dvp, vpp, &cn, &va);
+	vput(dvp);
 	return (error);
 }
 
@@ -955,7 +956,9 @@ union_vn_create(vpp, un, p)
 	vap->va_type = VREG;
 	vap->va_mode = cmode;
 	VOP_LEASE(un->un_dirvp, p, cred, LEASE_WRITE);
-	if (error = VOP_CREATE(un->un_dirvp, &vp, &cn, vap))
+	error = VOP_CREATE(un->un_dirvp, &vp, &cn, vap);
+	vput(un->un_dirvp);
+	if (error)
 		return (error);
 
 	error = VOP_OPEN(vp, fmode, cred, p);

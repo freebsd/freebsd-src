@@ -301,11 +301,6 @@ ext2_remove(ap)
 		ip->i_flag |= IN_CHANGE;
 	}
 out:
-	if (dvp == vp)
-		vrele(vp);
-	else
-		vput(vp);
-	vput(dvp);
 	return (error);
 }
 
@@ -367,7 +362,6 @@ out1:
 	if (tdvp != vp)
 		VOP_UNLOCK(vp, 0, p);
 out2:
-	vput(tdvp);
 	return (error);
 }
 
@@ -480,7 +474,15 @@ abortit:
 #endif
 			return (ENOENT);
 		}
-		return (VOP_REMOVE(fdvp, fvp, fcnp));
+		error = VOP_REMOVE(fdvp, fvp, fcnp);
+		/* XXX - temporarily preserve previous behavior */
+		if (fdvp == fvp)
+			vrele(fdvp);
+		else
+			vput(fdvp);
+		if (fvp != NULLVP)
+			vput(fvp);
+		return (error);
 	}
 	if (error = vn_lock(fvp, LK_EXCLUSIVE, p))
 		goto abortit;
@@ -873,7 +875,6 @@ ext2_mkdir(ap)
 			zfree(namei_zone, cnp->cn_pnbuf);
 			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
-			vput(dvp);
 			return (error);
 		}
 #endif
@@ -886,7 +887,6 @@ ext2_mkdir(ap)
 		zfree(namei_zone, cnp->cn_pnbuf);
 		UFS_VFREE(tvp, ip->i_number, dmode);
 		vput(tvp);
-		vput(dvp);
 		return (error);
 	}
 #endif
@@ -957,7 +957,6 @@ bad:
 		*ap->a_vpp = tvp;
 out:
 	zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
 	return (error);
 #undef  DIRBLKSIZ
 #define DIRBLKSIZ  DEV_BSIZE
@@ -977,6 +976,7 @@ ext2_rmdir(ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode *dvp = ap->a_dvp;
 	struct componentname *cnp = ap->a_cnp;
+	struct proc *p = cnp->cn_proc;
 	struct inode *ip, *dp;
 	int error;
 
@@ -1011,8 +1011,7 @@ ext2_rmdir(ap)
 	dp->i_nlink--;
 	dp->i_flag |= IN_CHANGE;
 	cache_purge(dvp);
-	vput(dvp);
-	dvp = NULL;
+	VOP_UNLOCK(dvp, 0, p);
 	/*
 	 * Truncate inode.  The only stuff left
 	 * in the directory is "." and "..".  The
@@ -1025,13 +1024,10 @@ ext2_rmdir(ap)
 	 * worry about them later.
 	 */
 	ip->i_nlink -= 2;
-	error = UFS_TRUNCATE(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
-	    cnp->cn_proc);
+	error = UFS_TRUNCATE(vp, (off_t)0, IO_SYNC, cnp->cn_cred, p);
 	cache_purge(ITOV(ip));
+	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, p);
 out:
-	if (dvp)
-		vput(dvp);
-	vput(vp);
 	return (error);
 }
 
@@ -1098,7 +1094,6 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
 	if (error) {
 		zfree(namei_zone, cnp->cn_pnbuf);
-		vput(dvp);
 		return (error);
 	}
 	ip = VTOI(tvp);
@@ -1146,7 +1141,6 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 			zfree(namei_zone, cnp->cn_pnbuf);
 			UFS_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
-			vput(dvp);
 			return (error);
 		}
 #endif
@@ -1159,7 +1153,6 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 		zfree(namei_zone, cnp->cn_pnbuf);
 		UFS_VFREE(tvp, ip->i_number, mode);
 		vput(tvp);
-		vput(dvp);
 		return (error);
 	}
 #endif
@@ -1188,7 +1181,6 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 
 	if ((cnp->cn_flags & SAVESTART) == 0)
 		zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
 	*vpp = tvp;
 	return (0);
 
@@ -1198,7 +1190,6 @@ bad:
 	 * or the directory so must deallocate the inode.
 	 */
 	zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
 	ip->i_nlink = 0;
 	ip->i_flag |= IN_CHANGE;
 	vput(tvp);

@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.15 1997/10/16 20:32:23 phk Exp $
+# $Id: vnode_if.src,v 1.16 1998/03/08 09:57:26 julian Exp $
 #
 
 #
@@ -77,11 +77,11 @@ vop_cachedlookup {
 };
 
 #
-#% create	dvp	L U U
+#% create	dvp	L L L
 #% create	vpp	- L -
 #
 vop_create {
-	IN WILLRELE struct vnode *dvp;
+	IN struct vnode *dvp;
 	OUT struct vnode **vpp;
 	IN struct componentname *cnp;
 	IN struct vattr *vap;
@@ -93,17 +93,17 @@ vop_create {
 #% whiteout	flag	- - -
 #
 vop_whiteout {
-	IN WILLRELE struct vnode *dvp;
+	IN struct vnode *dvp;
 	IN struct componentname *cnp;
 	IN int flags;
 };
 
 #
-#% mknod	dvp	L U U
+#% mknod	dvp	L L L
 #% mknod	vpp	- X -
 #
 vop_mknod {
-	IN WILLRELE struct vnode *dvp;
+	IN struct vnode *dvp;
 	OUT WILLRELE struct vnode **vpp;
 	IN struct componentname *cnp;
 	IN struct vattr *vap;
@@ -240,21 +240,21 @@ vop_fsync {
 };
 
 #
-#% remove	dvp	L U U
-#% remove	vp	L U U
+#% remove	dvp	L L L
+#% remove	vp	L L L
 #
 vop_remove {
-	IN WILLRELE struct vnode *dvp;
-	IN WILLRELE struct vnode *vp;
+	IN struct vnode *dvp;
+	IN struct vnode *vp;
 	IN struct componentname *cnp;
 };
 
 #
+#% link		tdvp	L L L
 #% link		vp	U U U
-#% link		tdvp	L U U
 #
 vop_link {
-	IN WILLRELE struct vnode *tdvp;
+	IN struct vnode *tdvp;
 	IN struct vnode *vp;
 	IN struct componentname *cnp;
 };
@@ -275,28 +275,28 @@ vop_rename {
 };
 
 #
-#% mkdir	dvp	L U U
+#% mkdir	dvp	L L L
 #% mkdir	vpp	- L -
 #
 vop_mkdir {
-	IN WILLRELE struct vnode *dvp;
+	IN struct vnode *dvp;
 	OUT struct vnode **vpp;
 	IN struct componentname *cnp;
 	IN struct vattr *vap;
 };
 
 #
-#% rmdir	dvp	L U U
-#% rmdir	vp	L U U
+#% rmdir	dvp	L L L
+#% rmdir	vp	L L L
 #
 vop_rmdir {
-	IN WILLRELE struct vnode *dvp;
-	IN WILLRELE struct vnode *vp;
+	IN struct vnode *dvp;
+	IN struct vnode *vp;
 	IN struct componentname *cnp;
 };
 
 #
-#% symlink	dvp	L U U
+#% symlink	dvp	L L L
 #% symlink	vpp	- U -
 #
 # XXX - note that the return vnode has already been VRELE'ed
@@ -304,7 +304,7 @@ vop_rmdir {
 #	possibly with a further namei.
 #
 vop_symlink {
-	IN WILLRELE struct vnode *dvp;
+	IN struct vnode *dvp;
 	OUT WILLRELE struct vnode **vpp;
 	IN struct componentname *cnp;
 	IN struct vattr *vap;

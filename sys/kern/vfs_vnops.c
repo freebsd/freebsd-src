@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.55 1998/04/08 18:31:58 wosch Exp $
+ * $Id: vfs_vnops.c,v 1.56 1998/04/10 00:09:04 alex Exp $
  */
 
 #include <sys/param.h>
@@ -95,8 +95,10 @@ vn_open(ndp, fmode, cmode)
 			if (fmode & O_EXCL)
 				vap->va_vaflags |= VA_EXCLUSIVE;
 			VOP_LEASE(ndp->ni_dvp, p, cred, LEASE_WRITE);
-			if (error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
-			    &ndp->ni_cnd, vap))
+			error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
+					   &ndp->ni_cnd, vap);
+			vput(ndp->ni_dvp);
+			if (error)
 				return (error);
 			ASSERT_VOP_UNLOCKED(ndp->ni_dvp, "create");
 			ASSERT_VOP_LOCKED(ndp->ni_vp, "create");
