@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.40 1994/12/02 21:15:19 jkh Exp $
+# $Id: instdist.sh,v 1.41 1994/12/04 03:41:18 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -101,12 +101,12 @@ binary set are only guaranteed to be available from the Primary site." \
    "U.S-2" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
    "U.S-3" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
    "U.S-4" "ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" \
-   "Holland" "ftp://ftp.nl.net:/pub/os/FreeBSD/${DISTNAME}" \
+   "Holland" "ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" \
    "Israel" "ftp://orgchem.weizmann.ac.il/pub/FreeBSD-${DISTNAME}" \
    "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
    "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
    "France" "ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" \
-   "Finland" "ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}" \
+   "Finland" "ftp://nic.funet.fi/pub/unix/FreeBSD/${DISTNAME}" \
    "Russia" "ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" \
    "Japan" "ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/${DISTNAME}" \
    "Japan-2" "ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/${DISTNAME}" \
@@ -124,12 +124,12 @@ binary set are only guaranteed to be available from the Primary site." \
    U.S-2) FTP_PATH="ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" ;;
    U.S-3) FTP_PATH="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" ;;
    U.S-4) FTP_PATH="ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" ;;
-   Holland) FTP_PATH="ftp://ftp.nl.net:/pub/os/FreeBSD/${DISTNAME}" ;;
+   Holland) FTP_PATH="ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" ;;
    Israel) FTP_PATH="ftp://orgchem.weizmann.ac.il/pub/FreeBSD-${DISTNAME}" ;;
    Taiwan) FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" ;;
    Australia) FTP_PATH="ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" ;;
    France) FTP_PATH="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" ;;
-   Finland) FTP_PATH="ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}" ;;
+   Finland) FTP_PATH="ftp://nic.funet.fi/pub/unix/FreeBSD/${DISTNAME}" ;;
    Japan) FTP_PATH="ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/${DISTNAME}" ;;
    Japan-2) FTP_PATH="ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/${DISTNAME}" ;;
    Japan-3) FTP_PATH="ftp://ftp.waseda.ac.jp/pub/FreeBSD/${DISTNAME}" ;;
