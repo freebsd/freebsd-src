@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.37 1996/04/28 01:07:24 jkh Exp $
+ * $Id: media.c,v 1.38 1996/04/28 03:27:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -85,10 +85,11 @@ mediaSetCDROM(dialogMenuItem *self)
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
     cnt = deviceCount(devs);
     if (!cnt) {
-	msgConfirm("No CDROM devices found!  Please check that your system's\n"
-		   "configuration is correct and that the CDROM drive is of a supported\n"
-		   "type.  For more information, consult the hardware guide\n"
-		   "in the Doc menu.");
+	if (self)	/* Interactive? */
+	    msgConfirm("No CDROM devices found!  Please check that your system's\n"
+		       "configuration is correct and that the CDROM drive is of a supported\n"
+		       "type.  For more information, consult the hardware guide\n"
+		       "in the Doc menu.");
 	return DITEM_FAILURE | DITEM_CONTINUE;
     }
     else if (cnt > 1) {
@@ -105,7 +106,7 @@ mediaSetCDROM(dialogMenuItem *self)
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_SUCCESS | DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 static int
