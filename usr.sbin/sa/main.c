@@ -81,9 +81,8 @@ cmpf_t   sa_cmp = cmp_usrsys;
 int
 main(int argc, char **argv)
 {
-	char ch;
 	char pathacct[] = _PATH_ACCT;
-	int error = 0;
+	int ch, error = 0;
 
 	dfltargv[0] = pathacct;
 

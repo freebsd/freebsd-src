@@ -80,9 +80,9 @@ int
 main(int argc, char **argv)
 {
 	register struct fstab *fs;
-	char ch, *qfnp, *whoami;
+	char *qfnp, *whoami;
 	long argnum, done = 0;
-	int i, offmode = 0, errs = 0;
+	int ch, i, offmode = 0, errs = 0;
 
 	whoami = rindex(*argv, '/') + 1;
 	if (whoami == (char *)1)

@@ -58,9 +58,9 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	char ch, *labellist, *string;
+	char *labellist, *string;
 	mac_t label;
-	int hflag;
+	int ch, hflag;
 	int error, i;
 
 	labellist = NULL;

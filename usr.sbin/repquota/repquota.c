@@ -110,9 +110,9 @@ main(int argc, char **argv)
 	register struct fstab *fs;
 	register struct passwd *pw;
 	register struct group *gr;
-	int gflag = 0, uflag = 0, errs = 0;
+	int ch, gflag = 0, uflag = 0, errs = 0;
 	long i, argnum, done = 0;
-	char ch, *qfnp;
+	char *qfnp;
 
 	while ((ch = getopt(argc, argv, "agnuv")) != -1) {
 		switch(ch) {
