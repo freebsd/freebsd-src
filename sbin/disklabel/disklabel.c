@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.18 1998/08/17 07:43:54 dfr Exp $";
+	"$Id: disklabel.c,v 1.19 1998/08/17 21:13:57 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -548,7 +548,6 @@ makebootarea(boot, dp, f)
 	register struct disklabel *dp;
 	int f;
 {
-	struct disklabel *lp;
 	register char *p;
 	int b;
 #if NUMBOOT > 0
@@ -560,6 +559,7 @@ makebootarea(boot, dp, f)
 	int n;
 #endif
 #ifdef __i386__
+	struct disklabel *lp;
 	char *tmpbuf;
 	int i, found;
 #endif
