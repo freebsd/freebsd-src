@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.171 1998/10/26 19:07:39 brian Exp $
+ * $Id: command.c,v 1.172 1998/10/26 19:07:42 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -134,7 +134,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/10/26 19:07:39 $";
+const char VersionDate[] = "$Date: 1998/10/26 19:07:42 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -384,8 +384,10 @@ static void
 expand(char **nargv, int argc, char const *const *oargv, struct bundle *bundle)
 {
   int arg;
+  char pid[12];
 
   nargv[0] = strdup(oargv[0]);
+  snprintf(pid, sizeof pid, "%d", getpid());
   for (arg = 1; arg < argc; arg++) {
     nargv[arg] = strdup(oargv[arg]);
     nargv[arg] = subst(nargv[arg], "HISADDR",
@@ -402,6 +404,7 @@ expand(char **nargv, int argc, char const *const *oargv, struct bundle *bundle)
                        mp_Enddisc(bundle->ncp.mp.cfg.enddisc.class,
                                   bundle->ncp.mp.cfg.enddisc.address,
                                   bundle->ncp.mp.cfg.enddisc.len));
+    nargv[arg] = subst(nargv[arg], "PROCESSID", pid);
     nargv[arg] = subst(nargv[arg], "LABEL", bundle_GetLabel(bundle));
   }
   nargv[arg] = NULL;
