@@ -645,7 +645,6 @@
             ..
         ..
         man
-/set uname=man
             cat1
             ..
             cat1aout
@@ -678,7 +677,7 @@
             ..
             catn
             ..
-            en.ISO8859-1    uname=root
+            en.ISO8859-1
                 cat1
                 ..
                 cat1aout
@@ -712,7 +711,7 @@
                 catn
                 ..
             ..
-            ja              uname=root
+            ja
                 cat1
                 ..
                 cat2
@@ -733,7 +732,6 @@
                 ..
                 catn
                 ..
-/set uname=root
                 man1
                 ..
                 man2
@@ -970,7 +968,7 @@
         ..
         perl
             man
-                cat3            uname=man
+                cat3
                 ..
                 man3
                 ..
