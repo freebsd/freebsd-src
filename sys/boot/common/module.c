@@ -37,11 +37,12 @@
 
 #include "bootstrap.h"
 
-static struct loaded_module	*mod_loadmodule(char *name, int argc, char *argv[]);
-static char			*mod_searchdep(struct loaded_module *mp);
+static int			mod_loadmodule(char *name, int argc, char *argv[], struct loaded_module **mpp);
+static int			file_load_dependancies(struct loaded_module *base_file);
 static char			*mod_searchfile(char *name);
 static char			*mod_searchmodule(char *name);
 static void			mod_append(struct loaded_module *mp);
+static struct module_metadata 	*metadata_next(struct module_metadata *md, int type);
 
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
@@ -68,7 +69,7 @@ static int
 command_load(int argc, char *argv[])
 {
     char	*typestr;
-    int		dofile, ch;
+    int		dofile, ch, error;
     
     dofile = 0;
     optind = 1;
@@ -107,7 +108,10 @@ command_load(int argc, char *argv[])
     /*
      * Looks like a request for a module.
      */
-    return(mod_load(argv[1], argc - 2, argv + 2));
+    error = mod_load(argv[1], argc - 2, argv + 2);
+    if (error == EEXIST)
+	sprintf(command_errbuf, "warning: module '%s' already loaded", argv[1]);
+    return (error == 0 ? CMD_OK : CMD_ERROR);
 }
 
 COMMAND_SET(unload, "unload", "unload all modules", command_unload);
@@ -185,7 +189,7 @@ int
 mod_load(char *name, int argc, char *argv[])
 {
     struct loaded_module	*last_mod, *base_mod, *mp;
-    char			*dep_name;
+    int				error;
 
     /* remember previous last module on chain */
     for (last_mod = loaded_modules; 
@@ -197,28 +201,23 @@ mod_load(char *name, int argc, char *argv[])
      * Load the first module; note that it's the only one that gets
      * arguments explicitly.
      */
-    if ((base_mod = mod_loadmodule(name, argc, argv)) == NULL)
-	return(CMD_ERROR);
+    error = mod_loadmodule(name, argc, argv, &base_mod);
+    if (error)
+	return (error);
 
-    /*
-     * Look for dependancies.
-     */
-    while ((dep_name = mod_searchdep(base_mod)) != NULL) {
-	printf("loading required module '%s'\n", dep_name);
-	if ((mp = mod_loadmodule(dep_name, 0, NULL)) == NULL) {
-	    /* Load failed; discard everything */
-	    while (base_mod != NULL) {
-		mp = base_mod;
-		base_mod = base_mod->m_next;
-		mod_discard(mp);
-	    }
-	    last_mod->m_next = NULL;
-	    loadaddr = last_mod->m_addr + last_mod->m_size;
-	    /* error message already set by mod_loadmodule */
-	    return(CMD_ERROR);
-	}
+    error = file_load_dependancies(base_mod);
+    if (!error)
+	return (0);
+
+    /* Load failed; discard everything */
+    last_mod->m_next = NULL;
+    loadaddr = last_mod->m_addr + last_mod->m_size;
+    while (base_mod != NULL) {
+        mp = base_mod;
+        base_mod = base_mod->m_next;
+        mod_discard(mp);
     }
-    return(CMD_OK);
+    return (error);
 }
 
 /*
@@ -291,8 +290,8 @@ mod_loadobj(char *type, char *name)
  * Load the module (name), pass it (argc),(argv).
  * Don't do any dependancy checking.
  */
-static struct loaded_module *
-mod_loadmodule(char *name, int argc, char *argv[])
+static int
+mod_loadmodule(char *name, int argc, char *argv[], struct loaded_module **mpp)
 {
     struct loaded_module	*mp;
     int				i, err;
@@ -302,9 +301,21 @@ mod_loadmodule(char *name, int argc, char *argv[])
     cp = mod_searchmodule(name);
     if (cp == NULL) {
 	sprintf(command_errbuf, "can't find '%s'", name);
-	return(NULL);
+	return (ENOENT);
     }
     name = cp;
+
+    cp = strrchr(name, '/');
+    if (cp)
+        cp++;
+    else
+        cp = name;
+    /* see if module is already loaded */
+    mp = mod_findmodule(cp, NULL);
+    if (mp) {
+	*mpp = mp;
+	return (EEXIST);
+    }
 
     err = 0;
     for (i = 0, mp = NULL; (module_formats[i] != NULL) && (mp == NULL); i++) {
@@ -317,7 +328,7 @@ mod_loadmodule(char *name, int argc, char *argv[])
 	    /* Fatal error */
 	    sprintf(command_errbuf, "can't load module '%s': %s", name, strerror(err));
 	    free(name);
-	    return(NULL);
+	    return (err);
 	} else {
 
 	    /* Load was OK, set args */
@@ -331,6 +342,7 @@ mod_loadmodule(char *name, int argc, char *argv[])
 
 	    /* Add to the list of loaded modules */
 	    mod_append(mp);
+	    *mpp = mp;
 
 	    break;
 	}
@@ -338,50 +350,31 @@ mod_loadmodule(char *name, int argc, char *argv[])
     if (err == EFTYPE)
 	sprintf(command_errbuf, "don't know how to load module '%s'", name);
     free(name);
-    return(mp);
+    return (err);
 }
 
-/*
- * Search the modules from (mp) onwards, and return the name of the
- * first unresolved dependancy, or NULL if none were found.
- */
-static char *
-mod_searchdep(struct loaded_module *mp)
+static int
+file_load_dependancies(struct loaded_module *base_file)
 {
-    char				*deps;
-    size_t				deplen;
-    struct module_metadata		*md;
-    struct loaded_module		*dmp;
-    int					dindex;
+    struct module_metadata	*md;
+    char 			*dmodname;
+    int				error;
 
-    for (; mp != NULL; mp = mp->m_next) {
-
-	/*
-	 * Get KLD module data
-	 */
-	deps = NULL;
-	deplen = 0;
-	if ((md = mod_findmetadata(mp, MODINFOMD_DEPLIST)) != NULL) {
-	    deps = (char *)md->md_data;
-	    deplen = md->md_size;
+    md = mod_findmetadata(base_file, MODINFOMD_DEPLIST);
+    if (md == NULL)
+	return (0);
+    error = 0;
+    do {
+	dmodname = (char *)md->md_data;
+	if (mod_findmodule(NULL, dmodname) == NULL) {
+	    printf("loading required module '%s'\n", dmodname);
+	    error = mod_load(dmodname, 0, NULL);
+	    if (error && error != EEXIST)
+		break;
 	}
-	
-	if (deps != NULL && deplen > 0) {
-	    
-	    /* Iterate over dependancies */
-	    dindex = 0;
-	    while (dindex < deplen) {
-		/* 
-		 * Look for a module matching the dependancy; if we don't have it,
-		 * we need it.
-		 */
-		if ((dmp = mod_findmodule(&deps[dindex], NULL)) == NULL)
-		    return(&deps[dindex]);
-		dindex += strlen(&deps[dindex]) + 1;
-	    }
-	}
-    }
-    return(NULL);
+	md = metadata_next(md, MODINFOMD_DEPLIST);
+    } while (md);
+    return (error);
 }
 
 /*
@@ -431,6 +424,17 @@ mod_findmetadata(struct loaded_module *mp, int type)
 	if (md->md_type == type)
 	    break;
     return(md);
+}
+
+struct module_metadata *
+metadata_next(struct module_metadata *md, int type)
+{
+    if (md == NULL)
+	return (NULL);
+    while((md = md->md_next) != NULL)
+	if (md->md_type == type)
+	    break;
+    return (md);
 }
 
 /*
