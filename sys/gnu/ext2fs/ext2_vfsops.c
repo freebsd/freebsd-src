@@ -106,64 +106,6 @@ static int	ext2_check_sb_compat(struct ext2_super_block *es, struct cdev *dev,
 static int	compute_sb_data(struct vnode * devvp,
 		    struct ext2_super_block * es, struct ext2_sb_info * fs);
 
-#ifdef notyet
-static int ext2_mountroot(void);
-
-/*
- * Called by main() when ext2fs is going to be mounted as root.
- *
- * Name is updated by mount(8) after booting.
- */
-#define ROOTNAME	"root_device"
-
-static int
-ext2_mountroot()
-{
-	struct ext2_sb_info *fs;
-	struct mount *mp;
-	struct vnode *rootvp;
-	struct thread *td = curthread;
-	struct ext2mount *ump;
-	u_int size;
-	int error;
-	
-	if ((error = bdevvp(rootdev, &rootvp))) {
-		printf("ext2_mountroot: can't find rootvp\n");
-		return (error);
-	}
-	mp = bsd_malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
-	bzero((char *)mp, (u_long)sizeof(struct mount));
-	TAILQ_INIT(&mp->mnt_nvnodelist);
-	mp->mnt_op = &ext2fs_vfsops;
-	mp->mnt_flag = MNT_RDONLY;
-	if (error = ext2_mountfs(rootvp, mp, td)) {
-		bsd_free(mp, M_MOUNT);
-		return (error);
-	}
-	if (error = vfs_lock(mp)) {
-		(void)ext2_unmount(mp, 0, td);
-		bsd_free(mp, M_MOUNT);
-		return (error);
-	}
-	TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
-	mp->mnt_flag |= MNT_ROOTFS;
-	mp->mnt_vnodecovered = NULLVP;
-	ump = VFSTOEXT2(mp);
-	fs = ump->um_e2fs;
-	bzero(fs->fs_fsmnt, sizeof(fs->fs_fsmnt));
-	fs->fs_fsmnt[0] = '/';
-	bcopy((caddr_t)fs->fs_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
-	    MNAMELEN);
-	(void) copystr(ROOTNAME, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)ext2_statfs(mp, &mp->mnt_stat, td);
-	vfs_unlock(mp);
-	inittodr(fs->s_es->s_wtime);		/* this helps to set the time */
-	return (0);
-}
-#endif
-
 /*
  * VFS Operations.
  *
