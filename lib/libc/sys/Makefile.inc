@@ -1,16 +1,12 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.53 1998/05/14 11:36:16 peter Exp $
+#	$Id: Makefile.inc,v 1.54 1998/07/28 03:33:25 jlemon Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
-.if defined(NETBSD_SYSCALLS)
-.include "${.CURDIR}/../../sys/sys/netbsd_syscall.mk"
-.else
 .include "${.CURDIR}/../../sys/sys/syscall.mk"
-.endif
 
 # Include machine dependent definitions.
 #
@@ -18,12 +14,6 @@
 # NOASM will prevent the default syscall code from being generated.
 #
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/sys/Makefile.inc"
-
-# If using the NetBSD syscall interface add sources that convert
-# the NetBSD interface to the one FreeBSD expects:
-.if defined(NETBSD_SYSCALLS)
-SRCS+=	netbsd_getdirentries.c netbsd_msync.c netbsd_stat.c netbsd_swapon.c
-.endif
 
 # Sources common to both syscall interfaces:
 SRCS+=	ftruncate.c lseek.c mmap.c truncate.c

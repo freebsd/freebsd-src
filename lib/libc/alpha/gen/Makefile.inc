@@ -1,10 +1,7 @@
-#	$Id: Makefile.inc,v 1.2 1998/05/15 12:01:05 jb Exp $
+#	$Id: Makefile.inc,v 1.3 1998/08/08 02:18:07 jb Exp $
 
 SRCS+=	_setjmp.S fabs.S frexp.c infinity.c isinf.c ldexp.c modf.c setjmp.S
 SRCS+=	flt_rounds.c
-.if defined(NETBSD_SYSCALLS)
-SRCS+=	netbsd_getdtablesize.c
-.endif
 
 #SRCS+=	flt_rounds.c fpgetmask.c fpgetround.c fpgetsticky.c fpsetmask.c \
 #	fpsetround.c fpsetsticky.c

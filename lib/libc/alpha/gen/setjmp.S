@@ -68,11 +68,7 @@ LEAF(setjmp, 1)
 	lda	sp, -24(sp)			/* sizeof struct sigaltstack */
 	mov	zero, a0
 	mov	sp, a1
-#ifdef __NETBSD_SYSCALLS
-	CALL(__sigaltstack14)
-#else
 	CALL(sigaltstack)
-#endif
 	ldl	t0, 16(sp)			/* offset of ss_flags */
 	lda	sp, 24(sp)			/* sizeof struct sigaltstack */
 	ldq	ra, ((26 + 4) * 8)(s0)		/* restore return address */
