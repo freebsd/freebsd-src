@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.17 1994/11/20 15:18:56 jkh Exp $
+# $Id: instdist.sh,v 1.18 1994/11/21 04:35:23 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -269,19 +269,20 @@ media_select_distribution()
 
 	dialog $clear --title "Please specify a distribution to load" \
 	--menu \
-"FreeBSD is separated into a number of distributions for ease \n\
-of installation.  With repeated passes through this screen,\n\
-you'll be given the chance to load one or all of them.  Mandatory \n\
-distributions MUST be loaded!  Please also note that the secrdist\n\
-is NOT FOR EXPORT from the U.S.  Please don't endanger U.S. ftp\n\
-sites by getting it illegally, thanks!  When finished, select Cancel" -1 -1 10 \
+"FreeBSD is separated into a number of distributions for ease of\n\
+installation.  With repeated passes through this screen, you'll be\n\
+given the chance to load one or all of them.  Mandatory distributions\n\
+MUST be loaded!  Please also note that the secrdist is NOT FOR EXPORT\n\
+from the U.S.  Please don't endanger U.S. ftp sites by getting it\n\
+illegally, thanks!  When finished, select <Cancel>." \
+-1 -1 10 \
   "?diskfree"  "How much disk space do I have free?" \
   "bindist" "Binary base files (mandatory - $BINSIZE)" \
   "games" "Games and other frivolities (optional - $GAMESIZE)" \
   "manpages" "Manual pages (optional - $MANSIZE)" \
   "proflibs" "Profiled libraries (optional - $PROFSIZE)" \
-  "dict" "Dictionary files for spelling checkers (optional - $DICTSIZE)" \
-  "srcdist" "Full sources for everything but DES (optional - $SRCSIZE)" \
+  "dict" "Spelling checker dictionary files (optional - $DICTSIZE)" \
+  "srcdist" "Sources for everything but DES (optional - $SRCSIZE)" \
   "secrdist" "DES encryption code (and sources) (optional - $SECRSIZE)" \
   "compat1xdist" "FreeBSD 1.x binary compatability (optional - $COMPATSIZE)" \
   "packages" "Optional binary software distributions (user choice)" \
