@@ -34,6 +34,11 @@
 export BATCH=t
 export PACKAGE_BUILDING=t
 
+# Don't pick up installed packages from the host
+export LOCALBASE=/nonexistentlocal
+export X11BASE=/nonexistentx
+export PKG_DBDIR=/nonexistentdb
+
 # usage: extract-names cd# [portsdir]
 extract-names()
 {
