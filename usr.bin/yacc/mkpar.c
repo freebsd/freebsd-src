@@ -251,9 +251,9 @@ unused_rules()
 
     if (nunused) {
 	if (nunused == 1)
-	    warnx("1 rule never reduced");
+	    warnx("%s: 1 rule never reduced", getprogname());
 	else
-	    warnx("%d rules never reduced", nunused);
+	    warnx("%s: %d rules never reduced", getprogname(), nunused);
     }
 }
 
@@ -341,15 +341,15 @@ total_conflicts()
     if ((SRtotal != SRexpect) || RRtotal)
     {
 	    if (SRtotal == 1)
-	    warnx("1 shift/reduce conflict");
+	    warnx("%s: 1 shift/reduce conflict", getprogname());
 	    else if (SRtotal > 1)
-	    warnx("%d shift/reduce conflicts", SRtotal);
+	    warnx("%s: %d shift/reduce conflicts", getprogname(), SRtotal);
     }
 
     if (RRtotal == 1)
-	warnx("1 reduce/reduce conflict");
+	warnx("%s: 1 reduce/reduce conflict", getprogname());
     else if (RRtotal > 1)
-	warnx("%d reduce/reduce conflicts", RRtotal);
+	warnx("%s: %d reduce/reduce conflicts", getprogname(), RRtotal);
 }
 
 
