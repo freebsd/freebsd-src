@@ -139,6 +139,13 @@ This is sometimes useful when changing network numbers, and
 one wishes to accept packets addressed to the old interface.
 If the address is on the same subnet as the first network address
 for this interface, a netmask of 0xffffffff has to be specified.
+.It Fl alias
+Remove the network address specified.
+This would be used if you incorrectly specified an alias, or it
+was no longer needed.
+If you have incorrectly set an NS address having the side effect
+of specifying the host portion, removing all NS addresses will
+allow you to respecify the host portion.
 .It Cm anycast
 (Inet6 only)
 Specify that the address configured is an anycast address.
@@ -166,12 +173,7 @@ extra console error logging.
 .It Fl debug
 Disable driver dependent debugging code.
 .It Cm delete
-Remove the network address specified.
-This would be used if you incorrectly specified an alias, or it
-was no longer needed.
-If you have incorrectly set an NS address having the side effect
-of specifying the host portion, removing all NS addresses will
-allow you to respecify the host portion.
+Another name for the ``-alias'' parameter.
 .It Cm down
 Mark an interface ``down''.  When an interface is
 marked ``down'', the system will not attempt to
@@ -343,7 +345,7 @@ netmasks though
 .Fx
 implements it internally as a set of netmasks.
 .It Cm remove
-Another name for the ``delete'' parameter.  Introduced for compatibility
+Another name for the ``-alias'' parameter.  Introduced for compatibility
 with BSD/OS.
 .It Cm phase
 The argument following this specifies the version (phase) of the 
