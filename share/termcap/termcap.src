@@ -890,6 +890,26 @@ sun-e|sun-nic|sune|Sun Microsystems Workstation without insert character:\
 	:ic@:im@:ei@:tc=sun:
 sun-c|sun-cmd|Sun Microsystems Workstation console with scrollable history:\
 	:te=\E[>4h:ti=\E[>4l:tc=sun:
+# The terminal mvterm is a full color terminal emulation that seems to be
+# specific to a terminal program on Sun workstations called SwitchTerm. It
+# seems to be vt100 compatible in some areas, but not in other. Please
+# note that the size of the current format of the terminal definition is
+# 1011 bytes which just scrapes below the 1023 limit that FreeBSD sets.
+# Daniel Rudy <dcrudy@pacbell.net>
+mvterm|vv100:\
+	:@8=\EOM:AB=\E[4%p1%dm:AF=\E[3%p1%dm:AL=\E[%p1%dL:Co#8:DC=\E[%p1%dP:sc=\E7:\
+	:DL=\E[%p1%dM:DO=\E[%p1%dB:IC=\E[%p1%d@:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:xn:\
+	:K5=\EOn:LE=\E[%p1%dD:RI=\E[%p1%dC:UP=\E[%p1%dA:al=\E[L:am:as=^N:bl=^G:us=\E[4m:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:cb=\E[1K$<3>:so=\E[7m:\
+	:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%p1%d;%p2%dH:co#80:cr=\r:ct=\E[3g:ue=\E[m:\
+	:cs=\E[%i%p1%d;%p2%dr:dc=\E[P:dl=\E[M:do=\n:ds=\E[?E:eA=\E(B\E)0:es:ti=\E7\E[?47h:\
+	:fs=\E[?F:ho=\E[H:hs:ic=\E[@:it#8:k0=\EOy:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:sf=\n:\
+	:k5=\EOt:k6=\EOu:k7=\EOv:k8=\EOl:k9=\EOw:k;=\EOx:kb=\b:kd=\EOB:kl=\EOD:st=\EH:\
+	:ke=\E[?1l\E>:km:kr=\EOC:ks=\E[?1h\E=:ku=\EOA:le=\b:li#24:mb=\E[5m$<2>:ta=\t:\
+	:md=\E[1m:me=\E[m:mi:mr=\E[7m:ms:nd=\E[C:op=\E[100m:pa#64:rc=\E8:sr=\EM:ae=^O:\
+	:r1=\E>\E[1;3;4;5;6l\E[?7h\E[100m\E[m\E[r\E[2J\E[H:te=\E[2J\E[?47l\E8:se=\E[m:\
+	:sa=\E[0%?%p1%p6%|%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5%;m%?%p9%t^N%e^O%;:\
+	:ts=\E[?E\E[?%i%p1%dT:up=\E[A:
 # For NeWS's psterm from Eric Messick & Hugh Daniel
 psterm|psterm-basic|psterm-80x34:\
 	:am:bs:al=\EA:cd=\EB:ce=\EC:cl=^L:cm=\E%d;%d;:cs=\EE%d;%d;:\
@@ -2246,6 +2266,17 @@ cons60|ansi80x60:\
 	:li#60:tc=cons25:
 cons60-m|ansi80x60-mono:\
 	:li#60:tc=cons25-m:
+# Syscons console with 132 characters (VESA modes)
+cons25-w|ansi132x25:\
+	:co#132:tc=cons25:
+cons30-w|ansi132x30:\
+	:co#132:tc=cons30:
+cons43-w|ansi132x43:\
+	:co#132:tc=cons43:
+cons50-w|ansil-w|ansi132x50:\
+	:co#132:tc=cons50:
+cons60-w|ansi132x60:\
+	:co#132:tc=cons60:
 # KOI8-R/KOI8-U FreeBSD console with ACS support
 cons25r|cons25u|pc3r|ibmpc3r|cons25-koi8:\
 	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\2210\215:\
@@ -2312,6 +2343,17 @@ cons60l1|cons60-iso8859-1:\
 	:li#60:tc=cons25l1:
 cons60l1-m|cons60-iso8859-1-mono:\
 	:li#60:tc=cons25l1-m:
+# 132x25 ISO 8859-1 FreeBSD console
+cons25l1-w|:cons25w-iso8859-1:\
+	:co#132:tc=cons25l1:
+cons30l1-w|cons30w-iso8859-1:\
+	:co#132:tc=cons30l1:
+cons43l1-w|cons43w-iso8859-1:\
+	:co#132:tc=cons43l1:
+cons50l1-w|cons50w-iso8859-1:\
+	:co#132:tc=cons50l1:
+cons60l1-w|cons60w-iso8859-1:\
+	:co#132:tc=cons60l1:
 # ISO 8859-7 FreeBSD console with ACS support
 cons25l7:cons25-iso8859-7:\
 	:ac=f\260g\261{\360}\243+\253,\273i\247:\
@@ -2797,7 +2839,8 @@ vs100t|tsim|vs100-tsim:\
 	:ic=\Ei:dc=\Ed:is=\ER:rs=\ER:am:cd=\EQ:pt:nd=\En:li#24:co#80:
 kterm|kterm kanji terminal emulator (X window system):\
 	:hs:es:ts=\E[?E\E[?%i%dT:fs=\E[?F:ds=\E[?H:\
-	:KJ:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:TY=ascii:tc=xterm:
+	:KJ:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:TY=ascii:\
+	:eA@:as=\E(0:ae=\E(B:tc=xterm-r6:
 kterm-color|kterm-co|kterm + ANSI colors:\
 	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:tc=kterm:
 # # --------------------------------
