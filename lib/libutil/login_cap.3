@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login_cap.3,v 1.10 1999/02/12 02:12:06 alex Exp $
+.\" $Id: login_cap.3,v 1.11 1999/07/14 22:36:07 nik Exp $
 .\"
 .Dd December 27, 1996
 .Os FreeBSD
@@ -80,19 +80,19 @@ Entries in
 consist of colon
 .Ql \&:
 separated fields, the first field in each record being one or more
-identifiers for the record which must be unique for the entire database
-each separated by a '|' and may optionally include a description as
+identifiers for the record (which must be unique for the entire database),
+each separated by a '|', and may optionally include a description as
 the last 'name'.
 Remaining fields in the record consist of keyword/data pairs.
-Long lines may be continued with a backslash within empty entries
+Long lines may be continued with a backslash within empty entries,
 with the second and subsequent lines optionally indented for readability.
 This is similar to the format used in
-.Xr termcap 5
+.Xr termcap 5,
 except that keywords are not limited to two significant characters,
 and are usually longer for improved readability.
 As with termcap entries, multiple records can be linked together
-(one record including another) using a field containing tc=<recordid>,
-the result is that the entire record referenced by <recordid> replaces
+(one record including another) using a field containing tc=<recordid>.
+The result is that the entire record referenced by <recordid> replaces
 the tc= field at the point at which it occurs.
 See
 .Xr getcap 3
@@ -110,7 +110,7 @@ or
 .Fn login_getclassbyname
 according to its requirements.
 Each of these functions returns a login capabilities structure,
-.Ft login_cap_t
+.Ft login_cap_t ,
 which may subsequently be used to interrogate the database for
 specific values using the rest of the API.
 Once the login_cap_t is of no further use, the
@@ -136,12 +136,12 @@ either directly via
 indirectly via a user's login record using
 .Fn login_getpwclass ,
 by class name using
-.Fn login_getclass
+.Fn login_getclass ,
 or
 .Fn login_getuserclass .
 If the referenced user has no login class specified in
 .Pa /etc/master.passwd ,
-the class name is NULL or an empty string, or if the class
+the class name is NULL or an empty string. If the class
 specified does not exist in the database, each of these
 functions will search for a record with an id of "default",
 with that name returned in the
@@ -166,7 +166,7 @@ The
 .Ar lc_style
 field is set by the
 .Fn login_getstyle
-function to the authorisation style according to the requirements
+function to the authorisation style, according to the requirements
 of the program handling a login itself.
 .Pp
 As noted above, the
@@ -175,7 +175,7 @@ functions return a login_cap_t object which is used to access
 the matching or default record in the capabilities database.
 .Fn getclassbyname
 accepts two arguments: the first one is the record identifier of the
-record to be retrieved, the second being an optional directory name.
+record to be retrieved, the second is an optional directory name.
 If the first
 .Ar name
 argument is NULL, an empty string, or a class that does not exist
@@ -211,7 +211,7 @@ merely provides a convenient way for a user to set up their preferred
 login environment before the shell is invoked on login.
 .Pp
 If the specified record is NULL, empty or does not exist, and the
-system has no "default" record available to fallback, there is a
+system has no "default" record available to fall back to, there is a
 memory allocation error or for some reason
 .Xr cgetent 3
 is unable to access the login capabilities database, this function
@@ -230,11 +230,11 @@ The difference between these functions is that
 .Fn login_getuserclass
 includes the user's overriding
 .Pa .login_conf
-that exists in the user's home directory, 
-.Fn login_getpwclass,
+that exists in the user's home directory, and
+.Fn login_getpwclass
 and
 .Fn login_getclass
-restricts loookup only to the system login class database in
+restrict lookup only to the system login class database in
 .Pa /etc/login.conf .
 As explained earlier,
 .Fn login_getpwclass
