@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$	
+.\"	$Id: kldfirstmod.2,v 1.1 1999/04/04 12:29:31 dfr Exp $	
 .\"
 .Dd March 3, 1999
 .Dt KLDFIRSTMOD 2
@@ -32,8 +32,8 @@
 .Nm kldfirstmod
 .Nd "return first module id from the kld file specified"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/linker.h>
-.br
 .Ft int
 .Fn kldfirstmod "int fileid"
 .Sh DESCRIPTION
@@ -53,7 +53,6 @@ or 0 if there are no references.
 The kld file referenced by
 .Va fileid
 was not found.
-.Ed
 .Sh HISTORY
 The
 .Nm kld
