@@ -5,7 +5,7 @@
 .PATH: ${SRCDIR}/bfd ${SRCDIR}/opcodes
 
 LIB=	bfd
-SRCS+=	archive.c archures.c bfd.c binary.c cache.c \
+SRCS+=	archive.c archive64.c archures.c bfd.c binary.c cache.c \
 	coffgen.c corefile.c elf.c elf-eh-frame.c elf-strtab.c format.c \
 	hash.c ihex.c init.c libbfd.c linker.c merge.c opncls.c reloc.c \
 	section.c srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
