@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_glob.h,v 1.1.1.1 1994/09/22 19:46:14 pst Exp $
+ *	$Id: ns_glob.h,v 1.2 1995/05/30 03:48:50 rgrimes Exp $
  */
 
 /*
@@ -77,13 +77,10 @@ DECL	struct qdatagram	*datagramq	INIT(QDATAGRAM_NULL);
 DECL	struct timeval		tt;
 
 	/* head of allocated queries */
-DECL	struct qinfo		*qhead		INIT(QINFO_NULL);
+DECL	struct qinfo		*nsqhead	INIT(QINFO_NULL);
 
 	/* list of forwarding hosts */
 DECL	struct fwdinfo		*fwdtab		INIT(NULL);
-
-	/* next forwarded query id */
-DECL	int			nsid		INIT(0);
 
 	/* datagram socket */
 DECL	int			ds		INIT(-1);
@@ -100,6 +97,16 @@ DECL	int			needmaint	INIT(0);
 	/* how often does ns_maint() need to be called, in seconds? */
 	/* (beware: this is also the upper bound on named_xfer real time) */
 DECL	int			maint_interval	INIT(15*60);
+
+#ifdef CLEANCACHE
+	/* What's the minimum interval between cache cleanings? */
+DECL	int			cache_interval	INIT(60*60);
+#endif
+
+#ifdef XSTATS
+	/* What's the minimum interval between stats output? */
+DECL	int			stats_interval	INIT(60*60);
+#endif
 
 	/* need to reload secondary zone(s) */
 DECL	int			needzoneload	INIT(0);
@@ -122,6 +129,13 @@ DECL	int			needStatsDump	INIT(0);
 	 */
 DECL	int			needToExit	INIT(0);
 #endif /* ALLOW_UPDATES */
+#ifdef XSTATS
+	/* need to exit
+	 * set by shutdown signal handler
+	 *  (onintr)
+	 */
+DECL	int			needToExit	INIT(0);
+#endif /* XSTATS */
 
 #ifdef QRYLOG
 	/* is query logging turned on? */
@@ -231,15 +245,23 @@ DECL	int			slave_retry	INIT(4);
 #endif
 
 #ifdef STATSFILE
-DECL	char			*statsfile	INIT(STATSFILE);
+DECL	const char		*statsfile	INIT(STATSFILE);
 #else
-DECL	char			*statsfile	INIT(_PATH_STATS);
+DECL	const char		*statsfile	INIT(_PATH_STATS);
 #endif
 
-DECL	char			sendtoStr[]	INIT("sendto");
+DECL	const char		sendtoStr[]	INIT("sendto");
 
 	/* defined in version.c, can't use DECL/INIT */
 extern	char			Version[];
 
 	/* max value of xfers_running */
-DECL	int			max_xfers_running	INIT(MAX_XFERS_RUNNING);
+DECL	int			max_xfers_running      INIT(MAX_XFERS_RUNNING);
+
+	/* max number of transfers to any given name server */
+DECL	int			max_xfers_per_ns	INIT(MAX_XFERS_PER_NS);
+
+#ifndef INVQ
+	/* should IQUERY be answered bogusly rather than with NOTIMPL? */
+DECL	int			fake_iquery	INIT(0);
+#endif

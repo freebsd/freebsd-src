@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_forw.c,v 1.1.1.1 1994/09/22 19:46:11 pst Exp $";
+static char rcsid[] = "$Id: ns_forw.c,v 1.2 1995/05/30 03:48:49 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -104,7 +104,7 @@ ns_forw(nsp, msg, msglen, fp, qsp, dfd, qpp, dname, np)
 	hp = (HEADER *) msg;
 	id = hp->id;
 	/* Look at them all */
-	for (qp = qhead; qp!=QINFO_NULL; qp = qp->q_link) {
+	for (qp = nsqhead; qp != QINFO_NULL; qp = qp->q_link) {
 		if (qp->q_id == id &&
 		    bcmp((char *)&qp->q_from, fp, sizeof(qp->q_from)) == 0 &&
 		    ((qp->q_cmsglen == 0 && qp->q_msglen == msglen &&
@@ -138,12 +138,12 @@ ns_forw(nsp, msg, msglen, fp, qsp, dfd, qpp, dname, np)
 	qp->q_dfd = dfd;
 	qp->q_id = id;
 	qp->q_expire = tt.tv_sec + RETRY_TIMEOUT*2;
-	hp->id = qp->q_nsid = htons((u_int16_t)++nsid);
+	hp->id = qp->q_nsid = htons(nsid_next());
 	hp->ancount = 0;
 	hp->nscount = 0;
 	hp->arcount = 0;
 	if ((qp->q_msg = (u_char *)malloc((unsigned)msglen)) == NULL) {
-		syslog(LOG_ERR, "forw: %m");
+		syslog(LOG_NOTICE, "forw: malloc: %m");
 		qfree(qp);
 		return (FW_SERVFAIL);
 	}
@@ -169,15 +169,15 @@ ns_forw(nsp, msg, msglen, fp, qsp, dfd, qpp, dname, np)
 			(qp->q_addr[0].nsdata != NULL)
 				? qp->q_addr[0].nsdata->d_nstime
 				: -1,
-			qp->q_time - tt.tv_sec));
+			(int)(qp->q_time - tt.tv_sec)));
 #ifdef DEBUG
 	if (debug >= 10)
-		fp_query(msg, ddt);
+		fp_nquery(msg, msglen, ddt);
 #endif
-	if (sendto(ds, msg, msglen, 0, (struct sockaddr *)nsa,
+	if (sendto(ds, (char *)msg, msglen, 0, (struct sockaddr *)nsa,
 		   sizeof(struct sockaddr_in)) < 0) {
 		if (!haveComplained((char*)nsa->sin_addr.s_addr, sendtoStr))
-			syslog(LOG_NOTICE, "ns_forw: sendto([%s].%d): %m",
+			syslog(LOG_INFO, "ns_forw: sendto([%s].%d): %m",
 			       inet_ntoa(nsa->sin_addr), ntohs(nsa->sin_port));
 		nameserIncr(nsa->sin_addr, nssSendtoErr);
 	}
@@ -225,10 +225,10 @@ aIsUs(addr)
  */
 int
 haveComplained(tag1, tag2)
-	char *tag1, *tag2;
+	const char *tag1, *tag2;
 {
 	struct complaint {
-		char *tag1, *tag2;
+		const char *tag1, *tag2;
 		time_t expire;
 		struct complaint *next;
 	};
@@ -274,20 +274,19 @@ haveComplained(tag1, tag2)
  */
 void
 nslookupComplain(sysloginfo, queryname, complaint, dname, a_rr)
-	char *sysloginfo, *queryname, *complaint, *dname;
-	register struct databuf *a_rr;
+	const char *sysloginfo, *queryname, *complaint, *dname;
+	const struct databuf *a_rr;
 {
 	dprintf(2, (ddt, "NS '%s' %s\n", dname, complaint));
 	if (sysloginfo && queryname && !haveComplained(queryname, complaint))
 	{
-		char buf[512];
+		char buf[999];
 
 		/* syslog only takes 5 params */
 		sprintf(buf, "%s: query(%s) %s (%s:%s)",
 			sysloginfo, queryname,
-			complaint, dname, inet_ntoa(
-			    *(struct in_addr*)a_rr->d_data
-			));
+			complaint, dname,
+			inet_ntoa(data_inaddr(a_rr->d_data)));
 		syslog(LOG_INFO, buf);
 	}
 }
@@ -306,14 +305,14 @@ nslookupComplain(sysloginfo, queryname, complaint, dname, a_rr)
  *	is detected.
  * side effects:
  *	if a dangerous situation is detected and (syslogdname && sysloginfo),
- *	calls syslog.
+ *		calls syslog.
  */
 int
 nslookup(nsp, qp, syslogdname, sysloginfo)
 	struct databuf *nsp[];
 	register struct qinfo *qp;
-	char *syslogdname;
-	char *sysloginfo;
+	const char *syslogdname;
+	const char *sysloginfo;
 {
 	register struct namebuf *np;
 	register struct databuf *dp, *nsdp;
@@ -321,20 +320,22 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 	register int n;
 	register unsigned int i;
 	struct hashbuf *tmphtp;
-	char *dname, *fname;
+	char *dname;
+	const char *fname;
 	int oldn, naddr, class, found_arr;
 	time_t curtime;
 
-	dprintf(3, (ddt, "nslookup(nsp=0x%x, qp=0x%x, \"%s\")\n",
-		    nsp, qp, syslogdname));
+	dprintf(3, (ddt, "nslookup(nsp=0x%lx, qp=0x%lx, \"%s\")\n",
+		    (u_long)nsp, (u_long)qp, syslogdname));
 
 	naddr = n = qp->q_naddr;
 	curtime = (u_long) tt.tv_sec;
 	while ((nsdp = *nsp++) != NULL) {
 		class = nsdp->d_class;
 		dname = (char *)nsdp->d_data;
-		dprintf(3, (ddt, "nslookup: NS \"%s\" c=%d t=%d (0x%x)\n",
-			    dname, class, nsdp->d_type, nsdp->d_flags));
+		dprintf(3, (ddt, "nslookup: NS \"%s\" c=%d t=%d (%#lx)\n",
+			    dname, class, nsdp->d_type,
+			    (u_long)nsdp->d_flags));
 
 		/* don't put in servers we have tried */
 		for (i = 0; i < qp->q_nusedns; i++) {
@@ -349,8 +350,8 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 		tmphtp = ((nsdp->d_flags & DB_F_HINT) ?fcachetab :hashtab);
 		np = nlookup(dname, &tmphtp, &fname, 1);
 		if (np == NULL || fname != dname) {
-			dprintf(3, (ddt, "%s: not found %s %x\n",
-				    dname, fname, np));
+			dprintf(3, (ddt, "%s: not found %s %lx\n",
+				    dname, fname, (u_long)np));
 			continue;
 		}
 		found_arr = 0;
@@ -360,42 +361,56 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 		for (dp = np->n_data;  dp != NULL;  dp = dp->d_next) {
 			struct in_addr nsa;
 
-			if (dp->d_type == T_CNAME && dp->d_class == class)
-				goto skipserver;
-			if (dp->d_type != T_A || dp->d_class != class)
-				continue;
 #ifdef NCACHE
 			if (dp->d_rcode)
 				continue;
 #endif
+			if (dp->d_type == T_CNAME && dp->d_class == class)
+				goto skipserver;
+			if (dp->d_type != T_A || dp->d_class != class)
+				continue;
+			if (data_inaddr(dp->d_data).s_addr == INADDR_ANY) {
+				syslog(LOG_INFO, "Bogus (0.0.0.0) A RR for %s",
+				       dname);
+				continue;
+			}
 			/*
 			 * Don't use records that may become invalid to
 			 * reference later when we do the rtt computation.
 			 * Never delete our safety-belt information!
 			 */
 			if ((dp->d_zone == 0) &&
+#ifdef DATUMREFCNT
+			    (dp->d_ttl < curtime) &&
+#else
 			    (dp->d_ttl < (curtime+900)) &&
+#endif
 			    !(dp->d_flags & DB_F_HINT) )
 		        {
 				dprintf(3, (ddt,
 					    "nslookup: stale entry '%s'\n",
 					    np->n_dname));
 				/* Cache invalidate the NS RR's */
+#ifndef DATUMREFCNT
 				if (dp->d_ttl < curtime)
+#endif
+				{
 					delete_all(np, class, T_A);
-				n = oldn;
-				break;
+					n = oldn;
+					found_arr = 0;
+					goto need_sysquery;
+				}
 			}
 #ifdef VALIDATE
 			/* anant@isi.edu validation procedure, maintains a
 			 * table of server names-addresses used recently
 			 */
-			store_name_addr(dname, (struct in_addr *)dp->d_data,
+			store_name_addr(dname, data_inaddr(dp->d_data),
 					syslogdname, sysloginfo);
 #endif /*VALIDATE*/
 
 			found_arr++;
-			nsa = *(struct in_addr *)dp->d_data;
+			nsa = data_inaddr(dp->d_data);
 			/* don't put in duplicates */
 			qs = qp->q_addr;
 			for (i = 0; i < n; i++, qs++)
@@ -440,6 +455,7 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 					     complaint, dname, dp);
 			    return (-1);
 			}
+#ifdef BOGUSNS
 			/*
 			 * Don't forward queries to bogus servers.  Note
 			 * that this is unlike the previous tests, which
@@ -454,16 +470,20 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 			 */
 			if (addr_on_netlist(nsa, boglist))
 				goto skipserver;
+#endif
 
 			n++;
 			if (n >= NSMAX)
 				goto out;
-	skipaddr:	;
+	skipaddr:
+			NULL;
 		}
 		dprintf(8, (ddt, "nslookup: %d ns addrs\n", n));
+ need_sysquery:
 		if (found_arr == 0 && !(qp->q_flags & Q_SYSTEM))
-			(void) sysquery(dname, class, T_A, NULL, 0);
-skipserver: ;
+			(void) sysquery(dname, class, T_A, NULL, 0, QUERY);
+ skipserver:
+		NULL;
 	}
 out:
 	dprintf(3, (ddt, "nslookup: %d ns addrs total\n", n));
@@ -585,11 +605,12 @@ schedretry(qp, t)
 
 #ifdef DEBUG
 	if (debug > 3) {
-		fprintf(ddt,"schedretry(0x%x, %ld sec)\n", qp, (long)t);
+		fprintf(ddt, "schedretry(0x%lx, %ld sec)\n",
+			(u_long)qp, (long)t);
 		if (qp->q_time)
 		    fprintf(ddt,
-			    "WARNING: schedretry(%#x, %d) q_time already %d\n",
-			    qp, t, qp->q_time);
+			 "WARNING: schedretry(%#lx, %ld) q_time already %ld\n",
+			    (u_long)qp, (long)t, (long)qp->q_time);
 	}
 #endif
 	t += (u_long) tt.tv_sec;
@@ -620,7 +641,7 @@ unsched(qp)
 {
 	register struct qinfo *np;
 
-	dprintf(3, (ddt, "unsched(%#x, %d )\n", qp, ntohs(qp->q_id)));
+	dprintf(3, (ddt, "unsched(%#lx, %d)\n", (u_long)qp, ntohs(qp->q_id)));
 	if (retryqp == qp) {
 		retryqp = qp->q_next;
 	} else {
@@ -646,7 +667,7 @@ retry(qp)
 	register HEADER *hp;
 	struct sockaddr_in *nsa;
 
-	dprintf(3, (ddt, "retry(x%x) id=%d\n", qp, ntohs(qp->q_id)));
+	dprintf(3, (ddt, "retry(x%lx) id=%d\n", (u_long)qp, ntohs(qp->q_id)));
 
 	if (qp->q_msg == NULL) {		/* XXX - why? */
 		qremove(qp);
@@ -655,9 +676,10 @@ retry(qp)
 
 	if (qp->q_expire && (qp->q_expire < tt.tv_sec)) {
 		dprintf(1, (ddt,
-		        "retry(x%x): expired @ %d (%d secs before now (%d))\n",
-				qp, qp->q_expire, tt.tv_sec - qp->q_expire,
-				tt.tv_sec));
+		     "retry(x%lx): expired @ %lu (%d secs before now (%lu))\n",
+			    (u_long)qp, (u_long)qp->q_expire,
+			    (int)(tt.tv_sec - qp->q_expire),
+			    (u_long)tt.tv_sec));
 		if (qp->q_stream) /* return failure code on stream */
 			goto fail;
 		qremove(qp);
@@ -701,16 +723,16 @@ fail:
 	n = ((HEADER *)qp->q_cmsg ? qp->q_cmsglen : qp->q_msglen);
 	hp->id = qp->q_id;
 	hp->qr = 1;
-	hp->ra = 1;
+	hp->ra = (NoRecurse == 0);
 	hp->rd = 1;
 	hp->rcode = SERVFAIL;
 #ifdef DEBUG
 	if (debug >= 10)
-		fp_query(qp->q_msg, ddt);
+		fp_nquery(qp->q_msg, n, ddt);
 #endif
 	if (send_msg((u_char *)hp, n, qp)) {
-		dprintf(1, (ddt,"gave up retry(x%x) nsid=%d id=%d\n",
-			    qp, ntohs(qp->q_nsid), ntohs(qp->q_id)));
+		dprintf(1, (ddt, "gave up retry(x%lx) nsid=%d id=%d\n",
+			    (u_long)qp, ntohs(qp->q_nsid), ntohs(qp->q_id)));
 	}
 	nameserIncr(qp->q_from.sin_addr, nssSentFail);
 	qremove(qp);
@@ -735,10 +757,10 @@ found:
 			: (-1)));
 #ifdef DEBUG
 	if (debug >= 10)
-		fp_query(qp->q_msg, ddt);
+		fp_nquery(qp->q_msg, qp->q_msglen, ddt);
 #endif
 	/* NOSTRICT */
-	if (sendto(ds, qp->q_msg, qp->q_msglen, 0,
+	if (sendto(ds, (char*)qp->q_msg, qp->q_msglen, 0,
 	    (struct sockaddr *)nsa,
 	    sizeof(struct sockaddr_in)) < 0) {
 		dprintf(3, (ddt, "error resending msg errno=%d\n", errno));
@@ -783,16 +805,16 @@ retrytime(qp)
 void
 qflush()
 {
-	while (qhead)
-		qremove(qhead);
-	qhead = QINFO_NULL;
+	while (nsqhead)
+		qremove(nsqhead);
+	nsqhead = QINFO_NULL;
 }
 
 void
 qremove(qp)
 	register struct qinfo *qp;
 {
-	dprintf(3, (ddt, "qremove(x%x)\n", qp));
+	dprintf(3, (ddt, "qremove(x%lx)\n", (u_long)qp));
 
 	if (qp->q_flags & Q_ZSERIAL)
 		qserial_answer(qp, 0);
@@ -812,7 +834,7 @@ qfindid(id)
 	register struct qinfo *qp;
 
 	dprintf(3, (ddt, "qfindid(%d)\n", ntohs(id)));
-	for (qp = qhead; qp!=QINFO_NULL; qp = qp->q_link) {
+	for (qp = nsqhead; qp!=QINFO_NULL; qp = qp->q_link) {
 		if (qp->q_nsid == id)
 			return(qp);
 	}
@@ -831,20 +853,23 @@ qnew()
 {
 	register struct qinfo *qp;
 
-	if ((qp = (struct qinfo *)
+	qp = (struct qinfo *)
 #ifdef DMALLOC
-				  dcalloc(file, line,
+	    dcalloc(file, line, 1, sizeof(struct qinfo));
 #else
-				  calloc(
+	    calloc(1, sizeof(struct qinfo));
 #endif
-					 1, sizeof(struct qinfo))) == NULL) {
+	if (qp == NULL) {
 		dprintf(5, (ddt, "qnew: calloc error\n"));
 		syslog(LOG_ERR, "forw: %m");
 		exit(12);
 	}
-	dprintf(5, (ddt, "qnew(x%x)\n", qp));
-	qp->q_link = qhead;
-	qhead = qp;
+	dprintf(5, (ddt, "qnew(x%lx)\n", (u_long)qp));
+#ifdef BIND_NOTIFY
+	qp->q_notifyzone = DB_Z_CACHE;
+#endif
+	qp->q_link = nsqhead;
+	nsqhead = qp;
 	return (qp);
 }
 
@@ -858,12 +883,10 @@ qfree(qp)
 	int i;
 #endif
 
-#ifdef DEBUG
-	if(debug > 3)
-		fprintf(ddt,"Qfree( x%x )\n", qp);
-	if(debug && qp->q_next)
-		fprintf(ddt,"WARNING:  qfree of linked ptr x%x\n", qp);
-#endif
+	dprintf(3, (ddt, "Qfree(x%lx)\n", (u_long)qp));
+	if (qp->q_next)
+		dprintf(1, (ddt, "WARNING: qfree of linked ptr x%lx\n",
+			    (u_long)qp));
 	if (qp->q_msg)
 	 	free(qp->q_msg);
  	if (qp->q_cmsg)
@@ -896,10 +919,10 @@ qfree(qp)
 			}
 	}
 #endif
-	if( qhead == qp )  {
-		qhead = qp->q_link;
+	if( nsqhead == qp )  {
+		nsqhead = qp->q_link;
 	} else {
-		for( np=qhead; np->q_link != QINFO_NULL; np = np->q_link )  {
+		for( np=nsqhead; np->q_link != QINFO_NULL; np = np->q_link )  {
 			if( np->q_link != qp )  continue;
 			np->q_link = qp->q_link;	/* dequeue */
 			break;
