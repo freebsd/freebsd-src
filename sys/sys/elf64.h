@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf64.h,v 1.2 1997/08/30 18:58:31 peter Exp $
+ *      $Id: elf64.h,v 1.1 1998/06/10 10:57:26 dfr Exp $
  */
 
 #ifndef _SYS_ELF64_H_
@@ -137,7 +137,7 @@ typedef struct {
 	Elf64_Size	sh_flags;	/* Section flags. */
 	Elf64_Addr	sh_addr;	/* Address in memory image. */
 	Elf64_Off	sh_offset;	/* Offset in file. */
-	Elf64_Word	sh_size;	/* Size in bytes. */
+	Elf64_Size	sh_size;	/* Size in bytes. */
 	Elf64_Word	sh_link;	/* Index of a related section. */
 	Elf64_Word	sh_info;	/* Depends on section type. */
 	Elf64_Size	sh_addralign;	/* Alignment in bytes. */
