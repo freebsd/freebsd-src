@@ -105,7 +105,6 @@ static struct mtx bounce_lock;
 static int total_bpages;
 static int busdma_zonecount;
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
-static bus_addr_t bounce_lowaddr = BUS_SPACE_MAXADDR;
 
 SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
@@ -290,14 +289,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			return (error);
 		bz = newtag->bounce_zone;
 
-		if (lowaddr > bounce_lowaddr) {
-			/*
-			 * Go through the pool and kill any pages
-			 * that don't reside below lowaddr.
-			 */
-			panic("bus_dma_tag_create: page reallocation "
-			      "not implemented");
-		}
 		if (ptoa(bz->total_bpages) < maxsize) {
 			int pages;
 
@@ -419,14 +410,6 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		 || (dmat->map_count > 0 && total_bpages < maxpages)) {
 			int pages;
 
-			if (dmat->lowaddr > bounce_lowaddr) {
-				/*
-				 * Go through the pool and kill any pages
-				 * that don't reside below lowaddr.
-				 */
-				panic("bus_dmamap_create: page reallocation "
-				      "not implemented");
-			}
 			pages = MAX(atop(dmat->maxsize), 1);
 			pages = MIN(maxpages - total_bpages, pages);
 			if (alloc_bounce_pages(dmat, pages) < pages)
