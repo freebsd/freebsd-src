@@ -93,6 +93,8 @@ char *argv[];
 	{
 		if (linestart && c == ' ') /* Convert first spaces to tab */
 		{
+			if (count++ % LINE == 0)
+				printf("\n\t");
 			printf("0x%02x,", ('\t' ^ random()) & 0xFF);
 			while ((c = getc(infile)) == ' ' && c != EOF);
 			/* Drop the non-whitespace character through */
@@ -107,7 +109,7 @@ char *argv[];
 			linestart = YES; /* Ready to convert spaces again */
 			break;
 		}
-		if (count++ % LINE == 0)   /* Finished a line? */
+		if (count++ % LINE == 0)
 			printf("\n\t");
 		printf("0x%02x,", (c ^ random()) & 0xFF);
 	}
