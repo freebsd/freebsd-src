@@ -920,7 +920,6 @@ installFilesystems(dialogMenuItem *self)
     Device **devs;
     PartInfo *root;
     char dname[80];
-    extern int MakeDevChunk(Chunk *c, char *n);
     Boolean upgrade = FALSE;
 
     /* If we've already done this, bail out */
