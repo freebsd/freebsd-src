@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.41 1998/01/19 02:59:33 brian Exp $
+ * $Id: route.c,v 1.42 1998/01/21 02:15:26 brian Exp $
  *
  */
 
@@ -100,7 +100,7 @@ OsSetRoute(int cmd,
   cp = rtmes.m_space;
   memcpy(cp, &rtdata, 16);
   cp += 16;
-  if (cmd == RTM_ADD)
+  if (cmd == RTM_ADD) {
     if (gateway.s_addr == INADDR_ANY) {
       /* Add a route through the interface */
       struct sockaddr_dl dl;
@@ -127,6 +127,7 @@ OsSetRoute(int cmd,
       cp += 16;
       rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
     }
+  }
 
   if (dst.s_addr == INADDR_ANY)
     mask.s_addr = INADDR_ANY;
@@ -149,7 +150,7 @@ OsSetRoute(int cmd,
     LogPrintf(LogTCPIP, "OsSetRoute:  Mask = %s\n", inet_ntoa(mask));
 failed:
     if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
-                           (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST)))
+                           (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST))) {
       if (!bang)
         LogPrintf(LogWARN, "Add route failed: %s already exists\n",
                   inet_ntoa(dst));
@@ -158,7 +159,7 @@ failed:
         if ((wb = ID0write(s, &rtmes, nb)) < 0)
           goto failed;
       }
-    else if (cmd == RTM_DELETE &&
+    } else if (cmd == RTM_DELETE &&
              (rtmes.m_rtm.rtm_errno == ESRCH ||
               (rtmes.m_rtm.rtm_errno == 0 && errno == ESRCH))) {
       if (!bang)
@@ -223,8 +224,8 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
   case AF_LINK:
     if (dl->sdl_nlen)
       snprintf(buf, sizeof buf, "%.*s", dl->sdl_nlen, dl->sdl_data);
-    else if (dl->sdl_alen)
-      if (dl->sdl_type == IFT_ETHER)
+    else if (dl->sdl_alen) {
+      if (dl->sdl_type == IFT_ETHER) {
         if (dl->sdl_alen < sizeof buf / 3) {
           int f;
           u_char *MAC;
@@ -235,9 +236,9 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
           buf[f*3-1] = '\0';
         } else
 	  strcpy(buf, "??:??:??:??:??:??");
-      else
+      } else
         sprintf(buf, "<IFT type %d>", dl->sdl_type);
-    else if (dl->sdl_slen)
+    } else if (dl->sdl_slen)
       sprintf(buf, "<slen %d?>", dl->sdl_slen);
     else
       sprintf(buf, "link#%d", dl->sdl_index);

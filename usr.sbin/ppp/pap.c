@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20 1997/12/24 09:29:11 brian Exp $
+ * $Id: pap.c,v 1.21 1998/02/19 02:10:13 brian Exp $
  *
  *	TODO:
  */
@@ -166,7 +166,7 @@ PapInput(struct mbuf * bp)
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!");
 	  lcp->auth_ineed = 0;
 	  if (lcp->auth_iwait == 0) {
-	    if ((mode & MODE_DIRECT) && isatty(modem) && Enabled(ConfUtmp))
+	    if ((mode & MODE_DIRECT) && isatty(modem) && Enabled(ConfUtmp)) {
 	      if (Utmp)
 		LogPrintf(LogERROR, "Oops, already logged in on %s\n",
 			  VarBaseDevice);
@@ -179,6 +179,7 @@ PapInput(struct mbuf * bp)
 	        ID0login(&ut);
 	        Utmp = 1;
 	      }
+            }
 	    NewPhase(PHASE_NETWORK);
 	  }
 	} else {
