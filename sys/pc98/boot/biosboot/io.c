@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.10 1997/05/28 09:22:59 kato Exp $
+ *	$Id: io.c,v 1.11 1997/06/09 13:44:04 kato Exp $
  */
 
 #include "boot.h"
@@ -257,6 +257,8 @@ gets(char *buf)
 	return 0;
 }
 
+#ifndef CDBOOT
+
 int
 strcmp(const char *s1, const char *s2)
 {
@@ -268,11 +270,36 @@ strcmp(const char *s1, const char *s2)
 	return 1;
 }
 
-void
-bcopy(const char *from, char *to, int len)
+#else /* CDBOOT */
+
+int
+strncasecmp(const char *s1, const char *s2, size_t s)
 {
+	/*
+	 * We only consider ASCII chars and don't anticipate
+	 * control characters (they are invalid in filenames
+	 * anyway).
+	 */
+	while (s > 0 && (*s1 & 0x5f) == (*s2 & 0x5f)) {
+		if (!*s1++)
+			return 0;
+		s2++;
+	}
+	if (s == 0)
+		return 0;
+	return 1;
+}
+
+#endif /* !CDBOOT */
+
+void
+bcopy(const void *from, void *to, size_t len)
+{
+	char *fp = (char *)from;
+	char *tp = (char *)to;
+
 	while (len-- > 0)
-		*to++ = *from++;
+		*tp++ = *fp++;
 }
 
 /* To quote Ken: "You are not expected to understand this." :) */
