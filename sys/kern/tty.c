@@ -2593,12 +2593,15 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 		xt.xt_cancc = tp->t_canq.c_cc;
 		xt.xt_outcc = tp->t_outq.c_cc;
 		XT_COPY(line);
-		xt.xt_dev = dev2udev(tp->t_dev);
+		if (tp->t_dev)
+			xt.xt_dev = dev2udev(tp->t_dev);
 		XT_COPY(state);
 		XT_COPY(flags);
 		XT_COPY(timeout);
-		xt.xt_pgid = tp->t_pgrp->pg_id;
-		xt.xt_sid = tp->t_session->s_sid;
+		if (tp->t_pgrp)
+			xt.xt_pgid = tp->t_pgrp->pg_id;
+		if (tp->t_session)
+			xt.xt_sid = tp->t_session->s_sid;
 		XT_COPY(termios);
 		XT_COPY(winsize);
 		XT_COPY(column);
