@@ -42,7 +42,6 @@ SUBDIR=	IPXrouted \
 	kernbb \
 	keyserv \
 	lpr \
-	mailwrapper \
 	manctl \
 	memcontrol \
 	mergemaster \
@@ -127,6 +126,10 @@ SUBDIR+=named \
 	ndc \
 	nslookup \
 	nsupdate
+.endif
+
+.if !defined(NO_MAILWRAPPER)
+SUBDIR+=mailwrapper
 .endif
 
 .if !defined(NO_SENDMAIL)
