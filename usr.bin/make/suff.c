@@ -950,6 +950,29 @@ Suff_AddLib(char *sname)
 	}
 }
 
+/*
+ * Create a new Src structure
+ */
+static Src *
+SuffSrcCreate(char *file, char *prefix, Suff *suff, Src *parent, GNode *node)
+{
+	Src	*s;
+
+	s = emalloc(sizeof(*s));
+	s->file = file;
+	s->pref = prefix;
+	s->suff = suff;
+	s->parent = parent;
+	s->node = node;
+	s->children = 0;
+
+#ifdef DEBUG_SRC
+	Lst_Init(&s->cp);
+#endif
+
+	return (s);
+}
+
  	  /********** Implicit Source Search Functions *********/
 
 /*-
@@ -985,18 +1008,12 @@ SuffAddSrc(void *sp, void *lsp)
 		 * create a Src structure for a file with no suffix attached.
 		 * Two birds, and all that...
 		 */
-		s2 = emalloc(sizeof(Src));
-		s2->file = estrdup(targ->pref);
-		s2->pref = targ->pref;
-		s2->parent = targ;
-		s2->node = NULL;
-		s2->suff = s;
+		s2 = SuffSrcCreate(estrdup(targ->pref), targ->pref,
+		    s, targ, NULL);
 		s->refCount++;
-		s2->children =	0;
 		targ->children += 1;
 		Lst_AtEnd(ls->l, s2);
 #ifdef DEBUG_SRC
-		Lst_Init(&s2->cp);
 		Lst_AtEnd(&targ->cp, s2);
 		printf("1 add %p %p to %p:", targ, s2, ls->l);
 		LST_FOREACH(ln, ls->l)
@@ -1004,18 +1021,12 @@ SuffAddSrc(void *sp, void *lsp)
 		printf("\n");
 #endif
 	}
-	s2 = emalloc(sizeof(Src));
-	s2->file = str_concat(targ->pref, s->name, 0);
-	s2->pref = targ->pref;
-	s2->parent = targ;
-	s2->node = NULL;
-	s2->suff = s;
+	s2 = SuffSrcCreate(str_concat(targ->pref, s->name, 0), targ->pref,
+	    s, targ, NULL);
 	s->refCount++;
-	s2->children = 0;
 	targ->children += 1;
 	Lst_AtEnd(ls->l, s2);
 #ifdef DEBUG_SRC
-	Lst_Init(&s2->cp);
 	Lst_AtEnd(&targ->cp, s2);
 	printf("2 add %p %p to %p:", targ, s2, ls->l);
 	LST_FOREACH(ln, ls->l)
@@ -1243,17 +1254,11 @@ SuffFindCmds(Src *targ, Lst *slst)
 					 * can free it again (ick)), and return
 					 * the new structure.
 					 */
-					ret = emalloc(sizeof(Src));
-					ret->file = estrdup(s->name);
-					ret->pref = targ->pref;
-					ret->suff = suff;
+					ret = SuffSrcCreate(estrdup(s->name),
+					    targ->pref, suff, targ, s);
 					suff->refCount++;
-					ret->parent = targ;
-					ret->node = s;
-					ret->children = 0;
 					targ->children += 1;
 #ifdef DEBUG_SRC
-					Lst_Init(&ret->cp);
 					printf("3 add %p %p\n", &targ, ret);
 					Lst_AtEnd(&targ->cp, ret);
 #endif
@@ -1817,16 +1822,9 @@ SuffFindNormalDeps(GNode *gn, Lst *slst)
 			 * Allocate a Src structure to which things can be
 			 * transformed
 			 */
-			target = emalloc(sizeof(Src));
-			target->file = estrdup(gn->name);
-			target->suff = Lst_Datum(ln);
+			target = SuffSrcCreate(estrdup(gn->name), NULL,
+			    Lst_Datum(ln), NULL, gn);
 			target->suff->refCount++;
-			target->node = gn;
-			target->parent = NULL;
-			target->children = 0;
-#ifdef DEBUG_SRC
-			Lst_Init(&target->cp);
-#endif
 
 			/*
 			 * Allocate room for the prefix, whose end is found
@@ -1862,17 +1860,9 @@ SuffFindNormalDeps(GNode *gn, Lst *slst)
 		DEBUGF(SUFF, ("\tNo known suffix on %s. Using .NULL suffix\n",
 		    gn->name));
 
-		targ = emalloc(sizeof(Src));
-		targ->file = estrdup(gn->name);
-		targ->suff = suffNull;
+		targ = SuffSrcCreate(estrdup(gn->name), estrdup(sopref),
+		    suffNull, NULL, gn);
 		targ->suff->refCount++;
-		targ->node = gn;
-		targ->parent = NULL;
-		targ->children = 0;
-		targ->pref = estrdup(sopref);
-#ifdef DEBUG_SRC
-		Lst_Init(&targ->cp);
-#endif
 
 		/*
 		 * Only use the default suffix rules if we don't have commands
