@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Robert N. M. Watson
+ * Copyright (c) 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Copyright (c) 1999 Ilmar S. Habibulin
@@ -36,7 +36,8 @@
 #ifndef _SYS_CAPABILITY_H
 #define	_SYS_CAPABILITY_H
 
-#define	POSIX1E_CAPABILITY_EXTATTR_NAME	"$posix1e.cap"
+#define	POSIX1E_CAPABILITY_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
+#define	POSIX1E_CAPABILITY_EXTATTR_NAME		"posix1e.cap"
 
 typedef int	cap_flag_t;
 typedef int	cap_flag_value_t;

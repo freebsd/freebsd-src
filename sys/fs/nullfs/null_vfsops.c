@@ -73,7 +73,9 @@ static int	nullfs_unmount(struct mount *mp, int mntflags, struct proc *p);
 static int	nullfs_vget(struct mount *mp, ino_t ino, struct vnode **vpp);
 static int	nullfs_vptofh(struct vnode *vp, struct fid *fhp);
 static int	nullfs_extattrctl(struct mount *mp, int cmd,
-			const char *attrname, caddr_t arg, struct proc *p);
+				       struct vnode *filename_vp,
+				       int namespace, const char *attrname,
+				       struct proc *p);
 
 /*
  * Mount null layer
@@ -408,15 +410,16 @@ nullfs_vptofh(vp, fhp)
 }
 
 static int                        
-nullfs_extattrctl(mp, cmd, attrname, arg, p)
+nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, p)
 	struct mount *mp;
 	int cmd;
+	struct vnode *filename_vp;
+	int namespace;
 	const char *attrname;
-	caddr_t arg;
 	struct proc *p;            
 {
-	return VFS_EXTATTRCTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, attrname,
-	    arg, p);
+	return VFS_EXTATTRCTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, filename_vp,
+	    namespace, attrname, p);
 }
 
 
