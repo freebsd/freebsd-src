@@ -126,8 +126,8 @@ static __inline struct mbuf *chain_mbufs(struct lnc_softc *sc,
 static __inline struct mbuf *mbuf_packet(struct lnc_softc *sc,
 					      int start_of_packet,
 					      int pkt_len);
-static __inline void lnc_rint(struct lnc_softc *sc);
-static __inline void lnc_tint(struct lnc_softc *sc);
+static void lnc_rint(struct lnc_softc *sc);
+static void lnc_tint(struct lnc_softc *sc);
 
 static void lnc_init(void *);
 static __inline int mbuf_to_buffer(struct mbuf *m, char *buffer);
@@ -443,7 +443,7 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 }
 
 
-static __inline void
+static void
 lnc_rint(struct lnc_softc *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
@@ -623,7 +623,7 @@ lnc_rint(struct lnc_softc *sc)
 	lnc_outw(sc->rdp, RINT | INEA);
 }
 
-static __inline void
+static void
 lnc_tint(struct lnc_softc *sc)
 {
 	struct host_ring_entry *next, *start;
