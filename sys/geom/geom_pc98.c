@@ -16,9 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -91,7 +88,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_consumer *cp;
 	struct g_provider *pp2;
 	int error, i, npart;
-	u_char *buf;
+	u_char *buf, *p;
 	struct g_pc98_softc *ms;
 	u_int sectorsize, u, v;
 	u_int fwsect, fwhead;
@@ -148,18 +145,21 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 #endif
 
 		for (i = 0; i < 16; i++) {
-			v = g_dec_le2(buf + 512 + 10 + i * 32);
-			u = g_dec_le2(buf + 512 + 14 + i * 32);
+			p = buf + 512 + i * 32;
+			/* If start and end are identical it's bogus */
+			if (!bcmp(p + 8, p + 12, 4))
+				continue;
+			v = g_dec_le2(p + 10);
+			u = g_dec_le2(p + 14);
 			if (u == 0)
 				continue;
-			g_hexdump(buf+512 + i * 32, 32);
+			g_hexdump(p, 32);
 			start = v * fwsect * fwhead * sectorsize;
 			length = (off_t)(1 + u - v) * fwsect *
 			     fwhead * sectorsize;
-			printf("S %d H %d L %d b %d/%d/%d e %d/%d/%d\n",
-				fwsect, fwhead, sectorsize,
-				buf[512+8], buf[512+9], v,
-				buf[512+12], buf[512+13], u);
+			printf("i %d S %d H %d L %d b %d/%d/%d e %d/%d/%d\n",
+				i, fwsect, fwhead, sectorsize,
+				p[8], p[9], v, p[12], p[13], u);
 			npart++;
 			g_topology_lock();
 			pp2 = g_slice_addslice(gp, i,
