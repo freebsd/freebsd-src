@@ -36,7 +36,7 @@ MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 PFILES=	mqueue.h sched.h semaphore.h # aio.h
 
 # Only for default SHARED=copies case
-SFILES=	soundcard.h
+SFILES=	soundcard.h joystick.h
 
 LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h \
 	termios.h ucontext.h
