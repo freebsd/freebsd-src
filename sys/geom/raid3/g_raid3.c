@@ -618,7 +618,7 @@ g_raid3_write_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	/*
 	 * Open consumer if it wasn't opened and remember to close it.
 	 */
-	if ((disk->d_flags & G_RAID3_DISK_FLAG_DIRTY) == 0) {
+	if (cp->acw == 0) {
 		error = g_access(cp, 0, 1, 1);
 		G_RAID3_DEBUG(2, "Access %s r%dw%de%d = %d", cp->provider->name,
 		    0, 1, 1, error);
