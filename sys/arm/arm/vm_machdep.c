@@ -340,9 +340,3 @@ void
 cpu_exit(struct thread *td)
 {
 }
-
-void
-cpu_sched_exit(td)
-	register struct thread *td;
-{
-}

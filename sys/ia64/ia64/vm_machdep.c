@@ -302,12 +302,6 @@ cpu_exit(struct thread *td)
 	ia64_highfp_drop(td);
 }
 
-void
-cpu_sched_exit(td)
-	register struct thread *td;
-{
-}
-
 /*
  * Allocate an sf_buf for the given vm_page.  On this machine, however, there
  * is no sf_buf object.  Instead, an opaque pointer to the given vm_page is

@@ -225,12 +225,6 @@ cpu_thread_swapout(struct thread *td)
 }
 
 void
-cpu_sched_exit(td)
-	register struct thread *td;
-{
-}
-
-void
 cpu_thread_setup(struct thread *td)
 {
 

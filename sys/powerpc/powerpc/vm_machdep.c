@@ -195,12 +195,6 @@ cpu_exit(td)
 {
 }
 
-void
-cpu_sched_exit(td)
-	register struct thread *td;
-{
-}
-
 /* Temporary helper */
 void
 cpu_throw(struct thread *old, struct thread *new)
