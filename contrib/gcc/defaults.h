@@ -1,7 +1,7 @@
 /* Definitions of various defaults for how to do assembler output
    (most of which are designed to be appropriate for GAS or for
    some BSD assembler).
-   Copyright (C) 1992, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com)
 
 This file is part of GNU CC.
@@ -121,8 +121,7 @@ do { fprintf (FILE, "\t%s\t", ASM_LONG);				\
 /* This is how to output a reference to a user-level label named NAME.  */
 
 #ifndef ASM_OUTPUT_LABELREF
-#define ASM_OUTPUT_LABELREF(FILE,NAME)  \
-  do { fputs (USER_LABEL_PREFIX, FILE); fputs (NAME, FILE); } while (0)
+#define ASM_OUTPUT_LABELREF(FILE,NAME)  asm_fprintf ((FILE), "%U%s", (NAME))
 #endif
 
 /* This determines whether or not we support weak symbols.  */
@@ -132,6 +131,22 @@ do { fprintf (FILE, "\t%s\t", ASM_LONG);				\
 #else
 #define SUPPORTS_WEAK 0
 #endif
+#endif
+
+/* If the target supports weak symbols, define TARGET_ATTRIBUTE_WEAK to
+   provide a weak attribute.  Else define it to nothing. 
+
+   This would normally belong in gansidecl.h, but SUPPORTS_WEAK is
+   not available at that time.
+
+   Note, this is only for use by target files which we know are to be
+   compiled by GCC.  */
+#ifndef TARGET_ATTRIBUTE_WEAK
+# if SUPPORTS_WEAK
+#  define TARGET_ATTRIBUTE_WEAK __attribute__ ((weak))
+# else
+#  define TARGET_ATTRIBUTE_WEAK
+# endif
 #endif
 
 /* If we have a definition of INCOMING_RETURN_ADDR_RTX, assume that
