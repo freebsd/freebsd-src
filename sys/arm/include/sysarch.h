@@ -50,6 +50,8 @@
 
 #define ARM_SYNC_ICACHE		0
 #define ARM_DRAIN_WRITEBUF	1
+#define ARM_SET_TP		2
+#define ARM_GET_TP		3
 
 struct arm_sync_icache_args {
 	uintptr_t	addr;		/* Virtual start address */
@@ -60,6 +62,7 @@ struct arm_sync_icache_args {
 __BEGIN_DECLS
 int	arm_sync_icache (u_int addr, int len);
 int	arm_drain_writebuf (void);
+int	sysarch(int, void *);
 __END_DECLS
 #endif
 
