@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.105 1999/03/27 02:39:01 eivind Exp $
+ *	$Id: vnode_pager.c,v 1.106 1999/04/05 19:38:29 julian Exp $
  */
 
 /*
@@ -398,7 +398,7 @@ vnode_pager_input_smlfs(object, m)
 
 	for (i = 0; i < PAGE_SIZE / bsize; i++) {
 
-		if ((vm_page_bits(IDX_TO_OFF(m->pindex) + i * bsize, bsize) & m->valid))
+		if (vm_page_bits(i * bsize, bsize) & m->valid)
 			continue;
 
 		fileaddr = vnode_pager_addr(vp,
