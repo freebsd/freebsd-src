@@ -119,6 +119,7 @@ pmap_akextract(vm_offset_t va)
 
 #endif
 
+#define pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 /*
  * Pmap sutff
  */
