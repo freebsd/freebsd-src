@@ -2798,6 +2798,7 @@ aac_get_bus_info(struct aac_softc *sc)
 		caminf->BusNumber = i;
 		caminf->InitiatorBusId = businfo.InitiatorBusId[i];
 		caminf->aac_sc = sc;
+		caminf->sim_dev = child;
 
 		device_set_ivars(child, caminf);
 		device_set_desc(child, "SCSI Passthrough Bus");

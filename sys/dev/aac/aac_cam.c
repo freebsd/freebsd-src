@@ -104,7 +104,6 @@ MALLOC_DEFINE(M_AACCAM, "aaccam", "AAC CAM info");
 static int
 aac_cam_probe(device_t dev)
 {
-
 	debug_called(2);
 
 	return (0);
@@ -113,9 +112,17 @@ aac_cam_probe(device_t dev)
 static int
 aac_cam_detach(device_t dev)
 {
+	struct aac_cam *camsc;
 	debug_called(2);
 
-	return (EBUSY);
+	camsc = (struct aac_cam *)device_get_softc(dev);
+
+	xpt_async(AC_LOST_DEVICE, camsc->path, NULL);
+	xpt_free_path(camsc->path);
+	xpt_bus_deregister(cam_sim_path(camsc->sim));
+	cam_sim_free(camsc->sim, /*free_devq*/TRUE);
+	
+	return (0);
 }
 
 /*
