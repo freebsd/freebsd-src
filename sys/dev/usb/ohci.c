@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.88 2000/04/25 14:28:13 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.90 2000/05/08 18:28:46 thorpej Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1860,6 +1860,9 @@ ohci_open(usbd_pipe_handle pipe)
 	DPRINTFN(1, ("ohci_open: pipe=%p, addr=%d, endpt=%d (%d)\n",
 		     pipe, addr, ed->bEndpointAddress, sc->sc_addr));
 
+	std = NULL;
+	sed = NULL;
+
 	if (addr == sc->sc_addr) {
 		switch (ed->bEndpointAddress) {
 		case USB_CONTROL_ENDPOINT:
@@ -1939,9 +1942,11 @@ ohci_open(usbd_pipe_handle pipe)
 	return (USBD_NORMAL_COMPLETION);
 
  bad:
-	ohci_free_std(sc, std);
+	if (std != NULL)
+		ohci_free_std(sc, std);
  bad1:
-	ohci_free_sed(sc, sed);
+	if (sed != NULL)
+		ohci_free_sed(sc, sed);
  bad0:
 	return (USBD_NOMEM);
 
