@@ -165,7 +165,7 @@ int	ttyprintf(struct tty *, const char *, ...) __printflike(2, 3);
 int	sscanf(const char *, char const *, ...) __nonnull(1) __nonnull(2);
 int	vsscanf(const char *, char const *, __va_list) __nonnull(1) __nonnull(2);
 long	strtol(const char *, char **, int) __nonnull(1) __nonnull(2);
-u_long	strtoul(const char *, char **, int) __nonnull(1), __nonnull(2);
+u_long	strtoul(const char *, char **, int) __nonnull(1) __nonnull(2);
 quad_t	strtoq(const char *, char **, int) __nonnull(1);
 u_quad_t strtouq(const char *, char **, int) __nonnull(1);
 void	tprintf(struct proc *p, int pri, const char *, ...) __printflike(3, 4);
