@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.7 1994/11/10 02:50:42 jkh Exp $
+# $Id: extract.sh,v 1.8 1994/11/10 03:22:27 phk Exp $
 
 DDIR=/
 
@@ -25,6 +25,6 @@ do
 			mv /sbin/init /sbin/nondes_init
 		fi
 		echo "Extracting $b"
-		cat $b.?? | zcat | ( cd $DDIR ; tar --unlink -xf - )
+		cat $b.?? | zcat | ( cd $DDIR ; cpio -H tar -idumV )
 	fi
 done
