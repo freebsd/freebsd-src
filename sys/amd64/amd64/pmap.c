@@ -206,7 +206,8 @@ static caddr_t crashdumpmap;
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
 static void	amd64_protection_init(void);
-static __inline void	pmap_changebit(vm_page_t m, int bit, boolean_t setem);
+static void	pmap_changebit(vm_page_t m, int bit, boolean_t setem)
+    __always_inline;
 
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
