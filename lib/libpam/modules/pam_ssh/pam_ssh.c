@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/wait.h>
 
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <pwd.h>
@@ -410,7 +411,7 @@ pam_sm_close_session(pam_handle_t *pamh, int flags __unused,
 	}
 	openpam_log(PAM_LOG_DEBUG, "killing ssh agent %d", (int)pid);
 	if (kill(pid, SIGTERM) == -1 ||
-	    waitpid(pid, &status, 0) == -1)
+	    (waitpid(pid, &status, 0) == -1 && errno != ECHILD))
 		return (PAM_SYSTEM_ERR);
 	return (PAM_SUCCESS);
 }
