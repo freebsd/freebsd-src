@@ -44,7 +44,6 @@ protocol server
 .Nm /usr/libexec/telnetd
 .Op Fl BUhlkns
 .Op Fl D Ar debugmode
-.Op Fl I Ns Ar initid
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
 .Op Fl a Ar authmode
@@ -197,18 +196,6 @@ understand the same command arguments as the standard login.
 .It Fl h
 Disable the printing of host-specific information before
 login has been completed.
-.It Fl I Ar initid
-This option is only applicable to
-.Tn UNICOS
-systems prior to 7.0.
-It specifies the
-.Dv ID
-from
-.Pa /etc/inittab
-to use when init starts login sessions.  The default
-.Dv ID
-is
-.Dv fe .
 .It Fl k
 This option is only useful if
 .Nm
