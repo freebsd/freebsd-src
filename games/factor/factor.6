@@ -52,12 +52,12 @@ factor, primes \- factor a number, generate primes
 .SH DESCRIPTION
 The
 .I factor
-utility will factor integers between 0 and 4294967295 inclusive.
-When a number is factored, it is printed, followed by a ``:'',
-and the list of factors on a single line.
-Factors are listed in ascending order, and are preceded by a space.
-If a factor divides a value more than once, it will be printed
-more than once.
+utility will factor integers between 0 and ULONG_MAX (4294967295 on 32
+bit architectures, 18446744073709551615 on 64 bit ones), inclusive.
+When a number is factored, it is printed, followed by a ``:'', and the
+list of factors on a single line.  Factors are listed in ascending
+order, and are preceded by a space.  If a factor divides a value more
+than once, it will be printed more than once.
 .PP
 When
 .I factor
