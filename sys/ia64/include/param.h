@@ -91,7 +91,11 @@
 #define OBJFORMAT_NAMES		"elf"
 #define OBJFORMAT_DEFAULT	"elf"
 
-#define NCPUS		1
+#ifdef SMP
+#define	MAXCPU		16
+#else
+#define MAXCPU		1
+#endif
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
