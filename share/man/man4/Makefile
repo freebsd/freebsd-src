@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
-MAN4=	aac.4 \
+MAN=	aac.4 \
 	adv.4 \
 	adw.4 \
 	aha.4 \
