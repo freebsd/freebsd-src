@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.39 1998/05/17 11:53:14 phk Exp $
+ * $Id: if_spppsubr.c,v 1.40 1998/06/21 14:53:25 bde Exp $
  */
 
 #include "opt_inet.h"
@@ -324,7 +324,7 @@ static const char *sppp_lcp_opt_name(u_char opt);
 static const char *sppp_phase_name(enum ppp_phase phase);
 static const char *sppp_proto_name(u_short proto);
 static const char *sppp_state_name(int state);
-static int sppp_params(struct sppp *sp, int cmd, void *data);
+static int sppp_params(struct sppp *sp, u_long cmd, void *data);
 static int sppp_strnlen(u_char *p, int max);
 static void sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst,
 			      u_long *srcmask);
@@ -847,7 +847,7 @@ sppp_pick(struct ifnet *ifp)
  * Process an ioctl request.  Called on low priority level.
  */
 int
-sppp_ioctl(struct ifnet *ifp, int cmd, void *data)
+sppp_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 {
 	struct ifreq *ifr = (struct ifreq*) data;
 	struct sppp *sp = (struct sppp*) ifp;
@@ -3765,9 +3765,9 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 }
 
 static int
-sppp_params(struct sppp *sp, int cmd, void *data)
+sppp_params(struct sppp *sp, u_long cmd, void *data)
 {
-	int subcmd;
+	u_long subcmd;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct spppreq spr;
 
