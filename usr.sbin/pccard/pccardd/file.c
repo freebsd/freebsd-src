@@ -123,10 +123,14 @@ delete_card(struct card *cp)
 	struct cmd	*cmdp, *cmd_next;
 
 	/* free characters */
-	if (cp->manuf[0] != NULL)
+	if (cp->manuf != NULL)
 		free(cp->manuf);
-	if (cp->version[0] != NULL)
+	if (cp->version != NULL)
 		free(cp->version);
+	if (cp->add_info1 != NULL) 
+		free(cp->add_info1);
+	if (cp->add_info2 != NULL)
+		free(cp->add_info2);
 
 	/* free structures */
 	for (etherp = cp->ether; etherp; etherp = ether_next) {
@@ -395,6 +399,7 @@ static void
 parse_card(int deftype)
 {
 	char   *man, *vers, *tmp;
+	char   *add_info;
 	unsigned char index_type;
 	struct card *cp;
 	int     i, iosize;
@@ -408,13 +413,30 @@ parse_card(int deftype)
 	case DT_VERS:
 		man = newstr(next_tok());
 		vers = newstr(next_tok());
+		add_info = newstr(next_tok());
+		if (keyword(add_info)) {
+			pusht = 1;
+			free(add_info);
+			cp->add_info1 = NULL;
+			cp->add_info2 = NULL;
+		} else {
+			cp->add_info1 = add_info;
+			add_info = newstr(next_tok());
+			if (keyword(add_info)) {
+				pusht = 1;
+				free(add_info);
+				cp->add_info2 = NULL;
+			} else {
+				cp->add_info2 = add_info;
+			}
+		}
 		cp->manuf = man;
 		cp->version = vers;
 		cp->func_id = 0;
 		break;
 	case DT_FUNC:
-		cp->manuf = "";
-		cp->version = "";
+		cp->manuf = NULL;
+		cp->version = NULL;
 		cp->func_id = (u_char) func_tok();
 		break;
 	default:
