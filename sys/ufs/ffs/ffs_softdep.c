@@ -4252,7 +4252,7 @@ request_cleanup(resource, islocked)
 		    tickdelay > 2 ? tickdelay : 2);
 	}
 	FREE_LOCK_INTERLOCKED(&lk);
-	(void) tsleep((caddr_t)&proc_waiting, PPAUSE | PCATCH, "softupdate", 0);
+	(void) tsleep((caddr_t)&proc_waiting, PPAUSE, "softupdate", 0);
 	ACQUIRE_LOCK_INTERLOCKED(&lk);
 	if (proc_waiting) {
 		untimeout(pause_timer, NULL, handle);
