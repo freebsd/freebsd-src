@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.203 1996/09/10 23:06:58 bde Exp $
+ *	$Id: machdep.c,v 1.204 1996/09/11 19:53:43 phk Exp $
  */
 
 #include "npx.h"
@@ -1333,6 +1333,9 @@ init386(first)
 	gdp->gd_dpl = SEL_UPL;
 	gdp->gd_p = 1;
 	gdp->gd_hioffset = ((int) &IDTVEC(syscall)) >>16;
+
+	/* XXX does this work? */
+	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];
 
 	/* transfer to user mode */
 
