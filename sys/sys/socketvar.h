@@ -285,7 +285,7 @@ struct accept_filter {
 	void	(*accf_destroy)
 		__P((struct socket *so));
 	SLIST_ENTRY(accept_filter) accf_next;	/* next on the list */
-};	
+};
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PCB);
