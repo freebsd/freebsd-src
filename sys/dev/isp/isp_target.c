@@ -325,10 +325,8 @@ isp_target_put_entry(isp, ap)
 	void *outp;
 	u_int16_t iptr, optr;
 	u_int8_t etype = ((isphdr_t *) ap)->rqs_entry_type;
-	int s = splcam();
 
 	if (isp_getrqentry(isp, &iptr, &optr, &outp)) {
-		splx(s);
 		PRINTF("%s: Request Queue Overflow in isp_target_put_entry "
 		    "for type 0x%x\n", isp->isp_name, etype);
 		return (-1);
@@ -347,7 +345,6 @@ isp_target_put_entry(isp, ap)
 		ISP_SWIZ_CTIO2(isp, outp, ap);
 		break;
 	default:
-		splx(s);
 		PRINTF("%s: Unknown type 0x%x in isp_put_entry\n",
 		    isp->isp_name, etype);
 		return (-1);
@@ -356,7 +353,6 @@ isp_target_put_entry(isp, ap)
 	ISP_TDQE(isp, "isp_target_put_entry", (int) optr, ap);;
 
 	ISP_ADD_REQUEST(isp, iptr);
-	splx(s);
 	return (0);
 }
 
@@ -438,7 +434,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int32_t hdl)
 		cto->ct_lun = aep->at_lun;
 #endif
 		cto->ct_rxid = aep->at_rxid;
-		cto->rsp.m1.ct_scsi_status = sts;
+		cto->rsp.m1.ct_scsi_status = sts & 0xff;
 		cto->ct_flags = CT2_SENDSTATUS | CT2_NO_DATA | CT2_FLAG_MODE1;
 		if (hdl == 0) {
 			cto->ct_flags |= CT2_CCINCR;
@@ -447,7 +443,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int32_t hdl)
 			cto->ct_resid = aep->at_datalen;
 			cto->ct_flags |= CT2_DATA_UNDER;
 		}
-		if (sts == SCSI_CHECK && (sts & 0x100)) {
+		if ((sts & 0xff) == SCSI_CHECK && (sts & ECMD_SVALID)) {
 			cto->rsp.m1.ct_resp[0] = 0xf0;
 			cto->rsp.m1.ct_resp[2] = (code >> 12) & 0xf;
 			cto->rsp.m1.ct_resp[7] = 8;
@@ -648,13 +644,13 @@ isp_notify_ack(isp, arg)
 		return;
 	}
 
-	MEMCPY(storage, arg, sizeof (isphdr_t));
-	MEMZERO(&storage[sizeof (isphdr_t)], QENTRY_LEN - sizeof (isphdr_t));
+	MEMZERO(storage, QENTRY_LEN);
 
 	if (IS_FC(isp)) {
 		na_fcentry_t *na = (na_fcentry_t *) storage;
 		if (arg) {
 			in_fcentry_t *inp = arg;
+			MEMCPY(storage, arg, sizeof (isphdr_t));
 			na->na_iid = inp->in_iid;
 #ifdef	ISP2100_SCCLUN
 			na->na_lun = inp->in_scclun;
@@ -675,6 +671,7 @@ isp_notify_ack(isp, arg)
 		na_entry_t *na = (na_entry_t *) storage;
 		if (arg) {
 			in_entry_t *inp = arg;
+			MEMCPY(storage, arg, sizeof (isphdr_t));
 			na->na_iid = inp->in_iid;
 			na->na_lun = inp->in_lun;
 			na->na_tgt = inp->in_tgt;
@@ -715,7 +712,7 @@ isp_handle_atio(isp, aep)
 		/*
 		 * ATIO rejected by the firmware due to disabled lun.
 		 */
-		printf("%s: rejected ATIO for disabled lun %d\n",
+		PRINTF("%s: rejected ATIO for disabled lun %d\n",
 		    isp->isp_name, lun);
 		break;
 	case AT_NOCAP:
@@ -738,7 +735,7 @@ isp_handle_atio(isp, aep)
 		 * not increment it. Therefore we should never get
 		 * this status here.
 		 */
-		printf("%s: ATIO returned for lun %d because it was in the "
+		PRINTF("%s: ATIO returned for lun %d because it was in the "
 		    " middle of coping with a Bus Device Reset\n",
 		    isp->isp_name, lun);
 		break;
@@ -803,7 +800,7 @@ isp_handle_atio2(isp, aep)
 		/*
 		 * ATIO rejected by the firmware due to disabled lun.
 		 */
-		printf("%s: rejected ATIO2 for disabled lun %d\n",
+		PRINTF("%s: rejected ATIO2 for disabled lun %d\n",
 		    isp->isp_name, lun);
 		break;
 	case AT_NOCAP:
@@ -826,7 +823,7 @@ isp_handle_atio2(isp, aep)
 		 * not increment it. Therefore we should never get
 		 * this status here.
 		 */
-		printf("%s: ATIO2 returned for lun %d because it was in the "
+		PRINTF("%s: ATIO2 returned for lun %d because it was in the "
 		    " middle of coping with a Bus Device Reset\n",
 		    isp->isp_name, lun);
 		break;
@@ -1098,11 +1095,9 @@ isp_handle_ctio2(isp, ct)
 
 	case CT_INVAL:
 		/*
-		 * CTIO rejected by the firmware due to disabled lun.
-		 * "Cannot Happen".
+		 * CTIO rejected by the firmware - invalid data direction.
 		 */
-		PRINTF("%s: Firmware rejected CTIO2 for disabled lun %d\n",
-		    isp->isp_name, ct->ct_lun);
+		PRINTF("%s: CTIO2 had wrong data directiond\n", isp->isp_name);
 		break;
 
 	case CT_NOPATH:
