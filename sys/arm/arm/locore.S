@@ -64,20 +64,20 @@ __FBSDID("$FreeBSD$");
 ENTRY_NP(btext)
 
 ASENTRY_NP(_start)
-	
+
 
 	/* Check if we are running on RAM, if not move ourself to RAM */
 #if 0
 	cmp	pc, #PHYSADDR
 	bhi	start_inram /* XXX: This is wrong */
 #endif
-	b	start_inram /* 
+	b	start_inram /*
 			     * XXX: this is even more wrong, but RedBoot
 			     * use 0x00000000-0x100000000 as virtual
 			     * addresses for the RAM.
 			     */
 
-		/* move me to RAM
+	/* move me to RAM
 	 * XXX: we can use memcpy if it is PIC
 	 */
 	ldr r1, Lcopy_size
@@ -103,9 +103,9 @@ start_inram:
 	adr	r7, Lunmapped
 	bic	r7, r7, #0xff000000
 	orr	r7, r7, #PHYSADDR
-	
+
 	/* Disable MMU for a while */
-        mrc     p15, 0, r2, c1, c0, 0
+	mrc     p15, 0, r2, c1, c0, 0
 	bic     r2, r2, #CPU_CONTROL_MMU_ENABLE
 	mcr     p15, 0, r2, c1, c0, 0
 
@@ -114,7 +114,7 @@ start_inram:
 	nop
 	mov	pc, r7
 Lunmapped:
-						
+
 #ifdef STARTUP_PAGETABLE_ADDR
 	/* build page table from scratch */
 	ldr	r0, Lstartup_pagetable
@@ -127,7 +127,7 @@ Lunmapped:
 	add	r3, r3, #(L1_S_SIZE)
 	adds	r1, r1, #-1
 	bhi	2b
-3:	
+3:
 	ldmia	r4!, {r1,r2,r3}   /* # of sections, PA|attr, VA */
 	cmp	r1, #0
 	adrne	r5, 2b
@@ -139,7 +139,7 @@ Lunmapped:
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
 	/* Set the Domain Access register.  Very important! */
-        mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
+	mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
 
 	/* Enable MMU */
@@ -196,7 +196,7 @@ virt_done:
 
 Lstartup_pagetable:
 	.word	STARTUP_PAGETABLE_ADDR
-mmu_init_table:	
+mmu_init_table:
 	/* fill all table VA==PA */
 	/* map SDRAM VA==PA, WT cacheable */
 	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
@@ -223,8 +223,8 @@ svcstk:
 
 #ifndef OFW
 	/* OFW based systems will used OF_boot() */
-	
-.Lcpufuncs:	
+
+.Lcpufuncs:
 	.word	_C_LABEL(cpufuncs)
 
 ENTRY_NP(cpu_halt)
@@ -348,7 +348,7 @@ ENTRY_NP(sigcode)
 	.align	0
 	.global _C_LABEL(esigcode)
 		_C_LABEL(esigcode):
-	
+
 	.data
 	.global szsigcode
 szsigcode:
