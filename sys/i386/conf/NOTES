@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.331 1997/05/06 18:24:17 fsmp Exp $
+#	$Id: LINT,v 1.332 1997/05/09 12:19:04 kjc Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -965,6 +965,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # apm: Laptop Advanced Power Management (experimental)
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # meteor: Matrox Meteor video capture board
+# bktr: Bt848 capture boards (http://www.freebsd.org/~fsmp/HomeAuto/Bt848.html)
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
