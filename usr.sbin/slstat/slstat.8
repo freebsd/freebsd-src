@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)slstat.8	6.8 (Berkeley) 6/20/91
-.\"	$Id$
+.\"	$Id: slstat.8,v 1.7 1996/11/04 17:13:46 bde Exp $
 .\"
 .Dd October 11, 1996
 .Dt SLSTAT 8
@@ -64,9 +64,11 @@ Verbose display of extra fields of information.
 .It Fl r
 Display all values in rate per second that amount per interval.
 .It Ar unit
-Is a single digit specifying the
+Is number specifying the
 .Tn SLIP
-interface, or an interface name. The default unit is
+interface, or a
+.Tn SLIP
+interface name. The default unit is
 .Sy 0
 for interface
 .Sy sl0 .

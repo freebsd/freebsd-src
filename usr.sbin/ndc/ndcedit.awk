@@ -1,5 +1,11 @@
-# $Id: awkedit,v 1.1.1.1 1996/08/29 19:42:59 peter Exp $
+# $Id: ndcedit.awk,v 1.2 1996/11/04 23:57:40 wosch Exp $
 NR == 3 {
+	print "#"
+	print "# This file is generated automatically, do not edit it here!"
+	print "# Please change src/usr.sbin/ndc/ndcedit.awk instead"
+	print "#"
+	print ""
+
 	print "# If there is a global system configuration file, suck it in."
 	print "if [ -f /etc/sysconfig ]; then"
 	print "\t. /etc/sysconfig"
@@ -18,7 +24,12 @@ NR == 3 {
 		printf "\t%s\n", $0
 		printf "\t\tfi\n"
 	} else {
+	        if (/PATH=/) {
 		gsub(":/usr/ucb:", ":", $0);
+		      	if (!/export/) {
+				$0=$0"\nexport PATH";
+			}
+		} 
 		print;
 	}
 }

@@ -22,19 +22,23 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: slstat.c,v 1.5 1996/05/30 02:19:55 pst Exp $";
+static const char rcsid[] =
+	"$Id: slstat.c,v 1.7 1996/11/04 17:14:43 bde Exp $";
 #endif
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define INET
 
@@ -44,7 +48,6 @@ static char rcsid[] = "$Id: slstat.c,v 1.5 1996/05/30 02:19:55 pst Exp $";
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
 #include <net/slcompress.h>
 #include <net/if_slvar.h>
 
@@ -69,7 +72,7 @@ main(argc, argv)
 	int c, i;
 	size_t len;
 	int maxifno;
-	int index;
+	int indx;
 	struct ifmibdata ifmd;
 
 	while ((c = getopt(argc, argv, "vri:")) != -1) {
@@ -89,6 +92,19 @@ main(argc, argv)
 			usage(argv[0]);
 		}
 	}
+	if (optind >= argc)
+		sprintf(interface, INTERFACE_PREFIX, unit);
+	else if (isdigit(argv[optind][0])) {
+		unit = atoi(argv[optind]);
+		if (unit < 0)
+			usage(argv[0]);
+		sprintf(interface, INTERFACE_PREFIX, unit);
+	} else if (strncmp(argv[optind], "sl", 2) == 0
+		  && isdigit(argv[optind][2])
+		  && sscanf(argv[optind], "sl%d", &unit) == 1) {
+		strncpy(interface, argv[optind], IFNAMSIZ);
+	} else
+		usage(argv[0]);
 
 	name[0] = CTL_NET;
 	name[1] = PF_LINK;
@@ -99,40 +115,24 @@ main(argc, argv)
 	if (sysctl(name, 5, &maxifno, &len, 0, 0) < 0)
 		err(1, "sysctl net.link.generic.system.ifcount");
 
-	if (isdigit(argv[optind][0])) {
-		int s;
-		struct ifmibdata ifmd;
-
-		unit = atoi(argv[optind]);
-		if (unit < 0)
-			usage(argv[0]);
-		sprintf(interface, INTERFACE_PREFIX, unit);
-	} else if(strncmp(argv[optind], "sl", 2) == 0
-		  && isdigit(argv[optind][2])
-		  && sscanf(argv[optind], "sl%d", &unit) == 1) {
-		strncpy(interface, argv[optind], IFNAMSIZ);
-	} else {
-		usage(argv[0]);
-	}
-
 	name[3] = IFMIB_IFDATA;
 	name[5] = IFDATA_GENERAL;
 	len = sizeof ifmd;
-	for (i = 1; i <= maxifno; i++) {
+	for (i = 1; ; i++) {
 		name[4] = i;
 
 		if (sysctl(name, 6, &ifmd, &len, 0, 0) < 0)
 			err(1, "sysctl");
 		if (strncmp(interface, ifmd.ifmd_name, IFNAMSIZ) == 0
 		    && ifmd.ifmd_data.ifi_type == IFT_SLIP) {
-			index = i;
+			indx = i;
 			break;
 		}
-	}
-	if (i > maxifno)
+		if (i >= maxifno)
 		errx(1, "interface %s does not exist", interface);
+	}
 
-	name[4] = index;
+	name[4] = indx;
 	name[5] = IFDATA_LINKSPECIFIC;
 	intpr();
 	exit(0);
@@ -146,8 +146,7 @@ static void
 usage(argv0)
 	const char *argv0;
 {
-	fprintf(stderr, "%s: usage:\n\t%s [-i interval] [-rv] [unit]\n",
-		argv0, argv0);
+	fprintf(stderr, "usage: %s [-i interval] [-vr] [unit]\n", argv0);
 	exit(1);
 }
 
@@ -165,7 +164,6 @@ intpr()
 	register int line = 0;
 	int oldmask;
 	struct sl_softc *sc, *osc;
-	off_t addr;
 	size_t len;
 
 	sc = (struct sl_softc *)malloc(AMT);
@@ -174,7 +172,8 @@ intpr()
 	len = AMT;
 
 	while (1) {
-		if (sysctl(name, 6, sc, &len, 0, 0) < 0)
+		if (sysctl(name, 6, sc, &len, 0, 0) < 0 &&
+		    (errno != ENOMEM || len != AMT))
 			err(1, "sysctl linkspecific");
 
 		(void)signal(SIGALRM, catchalarm);
@@ -194,28 +193,28 @@ intpr()
 				       "search", "miss", "err", "coll");
 			putchar('\n');
 		}
-		printf("%8u %6d %6u %6u %6u",
+		printf("%8lu %6ld %6u %6u %6u",
 		        V(sc_if.if_ibytes),
 			V(sc_if.if_ipackets),
 			V(sc_comp.sls_compressedin),
 			V(sc_comp.sls_uncompressedin),
 			V(sc_comp.sls_errorin));
 		if (vflag)
-			printf(" %6u %6u %6u",
+			printf(" %6u %6lu %6lu",
 				V(sc_comp.sls_tossed),
 				V(sc_if.if_ipackets) -
 				  V(sc_comp.sls_compressedin) -
 				  V(sc_comp.sls_uncompressedin) -
 				  V(sc_comp.sls_errorin),
 			       V(sc_if.if_ierrors));
-		printf(" | %8u %6d %6u %6u %6u",
+		printf(" | %8lu %6ld %6u %6u %6lu",
 			V(sc_if.if_obytes) / (rflag ? interval : 1),
 			V(sc_if.if_opackets),
 			V(sc_comp.sls_compressed),
 			V(sc_comp.sls_packets) - V(sc_comp.sls_compressed),
 			V(sc_if.if_opackets) - V(sc_comp.sls_packets));
 		if (vflag)
-			printf(" %6u %6u %6u %6u",
+			printf(" %6u %6u %6lu %6lu",
 				V(sc_comp.sls_searches),
 				V(sc_comp.sls_misses),
 				V(sc_if.if_oerrors),
@@ -244,4 +243,3 @@ catchalarm(sig)
 {
 	signalled = 1;
 }
-
