@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq.h,v 1.10 2003/07/10 12:07:47 kjc Exp $	*/
 
 /*
@@ -28,7 +29,7 @@
 #ifndef _ALTQ_ALTQ_H_
 #define	_ALTQ_ALTQ_H_
 
-#if 1
+#if 0
 /*
  * allow altq-3 (altqd(8) and /dev/altq) to coexist with the new pf-based altq.
  * altq3 is mainly for research experiments. pf-based altq is for daily use.
