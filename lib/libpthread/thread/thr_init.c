@@ -277,6 +277,9 @@ _thread_init(void)
 				 */
 				PANIC("Cannot read signal handler info");
 			}
+
+			/* Initialize the SIG_DFL dummy handler count. */
+			_thread_dfl_count[i] = 0;
 		}
 
 		/*
