@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/30 20:39:26 $
+<date>$Date: 1997/02/04 02:11:30 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -102,7 +102,7 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>What is the latest version of FreeBSD?</heading>
 	<p>
-	  Version 2.1.6 is the latest version; it was released in December, 1996.
+	  Version 2.1.7 is the latest version; it was released in February, 1997.
 
       <sect1>
 	<heading>What is FreeBSD-current?</heading>
@@ -154,34 +154,35 @@ Any entries with a &lt;XXX&gt; are under construction.
            towards 3.0-RELEASE since 2.0 was released. If a little ASCII art
            would help, this is how it looks:
 <verb>
-                       2.0
-                        |
-                        |
-                        |
-                      2.0.5 ---> 2.1 ---> 2.1.5 ---> 2.1.6  [2.1-stable ends]
-                        |                         (Dec 1996)
-                        |
-     [3.0-current]   2.2-SNAPs
-                        |
-                        |
-                     2.2-ALPHA ---> 2.2-BETA ---> 2.2-RELEASE ---> [2.2-stable]
-                        |                          (Q1 1997)
-                        |
-                     3.0-SNAPs  (Q1 1997)
-                        |
-                        |
-                       \|/
-                        +
+                      2.0
+                       |
+                       |
+                       |
+                     2.0.5 -> 2.1 -> 2.1.5 -> 2.1.6 -> 2.1.7  [2.1-stable ends]
+                       |                            (Feb 1997)
+                       |
+    [3.0-current]   2.2-SNAPs
+                       |
+                       |
+                    2.2-ALPHA -> -BETA -> -GAMMA -> 2.2-RELEASE -> [2.2-stable]
+                       |                             (Q1 1997)
+                       |
+                    3.0-SNAPs  (Q1 1997)
+                       |
+                       |
+                      \|/
+                       +
 
-                [future 3.x releases]
+               [future 3.x releases]
 </verb>
          <p>
            The -current branch is slowly progressing towards 3.0 and beyond, 
-           whereas the -stable branch will effectively end with 2.1.6,
-           resurrecting itself as 2.2-stable after the 2.2-RELEASE is out.
+           whereas the existing -stable branch will be terminated by the
+           release of 2.2, resurrecting itself as 2.2-stable after the
+           2.2-RELEASE is out.
 
       <sect1> 
-        <heading>Why is the -stable branch ending with 2.1.6? </heading>
+        <heading>Why is the -stable branch ending with 2.1.7? </heading>
         <p>
           While we'd certainly like to be able to continue both branches of
           development, we've found that the version control tools available to 
@@ -193,7 +194,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           Perhaps in the future we'll figure out another model which gives 
           everyone what they want, and we are working on such a model, but in 
           the meantime it's probably best to think of -stable coming to an end 
-          with 2.1.6-RELEASE.
+          with 2.1.7-RELEASE.
 
       <sect1>
         <heading> When are FreeBSD releases made?</heading>
@@ -239,9 +240,9 @@ Any entries with a &lt;XXX&gt; are under construction.
           <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/"
 		name="the FreeBSD FTP site">
 
-          For the current release, 2.1.6R, look in:
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.6-RELEASE/"
-		name="FreeBSD 2.1.6-RELEASE">
+          For the current release, 2.1.7R, look in:
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.7-RELEASE/"
+		name="FreeBSD 2.1.7-RELEASE">
 
           FreeBSD is also available via CDROM, from the following place(s):
  
@@ -315,9 +316,9 @@ Any entries with a &lt;XXX&gt; are under construction.
         <heading>Books on FreeBSD</heading>
         <p> 
           Greg Lehey's book ``Installing and Running FreeBSD'' is available
-          from Walnut Creek and ships with the 2.1.6 CDROM.  There is also
+          from Walnut Creek and ships with the 2.1.7 CDROM.  There is also
           a larger book entitled ``The Complete FreeBSD'', which comes with
-          additional printed manpages amd includes the 2.1.6 CDROM set.  It
+          additional printed manpages amd includes the 2.1.7 CDROM set.  It
           should be available in most good bookshops now.
  
           There is a FreeBSD Documentation Project which you may contact (or
@@ -375,7 +376,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           SLIP/PPP, sendmail, INN/NNTP, printing, etc..  It's expensive
           (approx. US&dollar;45-&dollar;55), but worth it.  It also
           includes a CDROM with the sources for various tools; most of
-          these, however, are also on the FreeBSD 2.1.6R CDROM (and the
+          these, however, are also on the FreeBSD 2.1.7R CDROM (and the
           FreeBSD CDROM often has newer versions).
 
       <sect1>
@@ -447,7 +448,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           of the FreeBSD installation (lucky you!), the simplest way to
           install FreeBSD is to download 
           <url 
-          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.6-RELEASE/floppies/boot.flp"
+          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.7-RELEASE/floppies/boot.flp"
           name="the boot image,"> make a boot floppy, boot with it and watch it 
           pull down all the necessary files. Depending on connection speed and 
           how much of FreeBSD you wish to install, this could take several hours
@@ -489,7 +490,7 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>I have only 4 MB of RAM. Can I install FreeBSD?</heading>
         <p>
-          FreeBSD 2.1.6 is the last version of FreeBSD that will install on
+          FreeBSD 2.1.7 is the last version of FreeBSD that will install on
 	  a 4MB system.  Newer versions of FreeBSD, like 2.2, need at least
 	  5MB to install on a new system. 
 
@@ -498,14 +499,14 @@ Any entries with a &lt;XXX&gt; are under construction.
           after the system is up and running, go back to 4MB.
 
 	Use <url 
-          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.6-RELEASE/floppies/boot4.flp"
-          name="special boot floppy for 4MB computers from FreeBSD 2.1.6">
+          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.7-RELEASE/floppies/boot4.flp"
+          name="special boot floppy for 4MB computers from FreeBSD 2.1.7">
 
-          There are also situations in which FreeBSD 2.1.6 will not install
+          There are also situations in which FreeBSD 2.1.7 will not install
 	  in 4 MB.  To be exact: it does not install with 640 kB base + 3 MB
 	  extended memory.  If your motherboard can remap some of the ``lost''
 	  memory out of the 640kB to 1MB region, then you may still be able
-	  to get FreeBSD 2.1.6 up.
+	  to get FreeBSD 2.1.7 up.
 
           Try to go into your BIOS setup and look for a ``remap'' option.
           Enable it.  You may also have to disable ROM shadowing.
@@ -514,8 +515,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           custom kernel with only the options you need and then get the 4
           MB out again.
 
-          You may also install 2.0.5 and then upgrade your system to 2.1.6
-          with the ``upgrade'' option of the 2.1.6 installation program.
+          You may also install 2.0.5 and then upgrade your system to 2.1.7
+          with the ``upgrade'' option of the 2.1.7 installation program.
 
           After the installation, if you build a custom kernel, it will run
           in 4 MB. Someone has even succeeded in booting with 2 MB (the
@@ -573,10 +574,10 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>Help! I can't install from tape!</heading>
         <p> 
-          If you are installing 2.1.6R from tape, you  must create the tape
+          If you are installing 2.1.7R from tape, you  must create the tape
           using a  tar blocksize  of  10  (5120  bytes).  The  default  tar
           blocksize is 20  (10240   bytes), and  tapes  created using  this
-          default size cannot be used to  install 2.1.6R; with these tapes,
+          default size cannot be used to  install 2.1.7R; with these tapes,
           you will get an error that complains about  the record size being
           too big.
  
@@ -739,14 +740,14 @@ Any entries with a &lt;XXX&gt; are under construction.
           for a nasty little gotcha that can cause no end of trouble.
         <p>
           <label id="2_1-disklabel-fix">
-          <bf>Using disklabel(8) manually with 2.1.6-RELEASE</bf>
+          <bf>Using disklabel(8) manually with 2.1.7-RELEASE</bf>
         <p>
           <em>WARNING: There is no substitute for reading carefully
           &amp; understanding what you are doing! Things described here may
           DESTROY your system. Proceed with caution! Remember, a BACKUP is your
           friend!</em>
         <p>
-          <tt /sysinstall/ is broken with 2.1.6-RELEASE and will
+          <tt /sysinstall/ is broken with 2.1.7-RELEASE and will
           insist on mounting something at / in the disklabel editor. You will
           have to manually run <tt /disklabel(8)/ before you can run
           <tt /newfs(8)/. This means doing the math for partitions
@@ -1822,9 +1823,9 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
         <heading>How can I use the NT loader to boot FreeBSD?</heading>
         <p>
           The general idea is that you copy the first sector of your
-          native root Linux or FreeBSD partition into a file in the DOS/NT
+          native root FreeBSD or Linux partition into a file in the DOS/NT
           partition.  Assuming you name that file something like
-          <tt>c:&bsol;bootsect.lnx</tt> or <tt>c:&bsol;bootsect.bsd</tt>
+          <tt>c:&bsol;bootsect.bsd</tt> or <tt>c:&bsol;bootsect.lnx</tt>
           (inspired by <tt>c:&bsol;bootsect.dos</tt>) you can then edit the
           <tt>c:&bsol;boot.ini</tt> file to come up with something like
           this:
@@ -1834,32 +1835,32 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
             default=multi(0)disk(0)rdisk(0)partition(1)\WINDOWS
             [operating systems]
             multi(0)disk(0)rdisk(0)partition(1)\WINDOWS="Windows NT" 
-            C:\BOOTSECT.LNX="Linux"
             C:\BOOTSECT.BSD="FreeBSD"
+            C:\BOOTSECT.LNX="Linux"
             C:\="DOS"
           </verb>
           This procedure assumes that DOS, NT, Linux, FreeBSD, or whatever
           have been installed into their respective fdisk partitions on the
           <bf/same/ disk.  In my case DOS &amp; NT are in the first fdisk
-          partition, Linux in the second, and FreeBSD in the third.  I also
-          installed Linux and FreeBSD to boot from their native partitions,
+          partition, FreeBSD in the second, and Linux in the third.  I also
+          installed FreeBSD and Linux to boot from their native partitions,
           not the disk MBR, and without delay.
 
           Mount a DOS-formatted floppy (if you've converted to NTFS) or the
           FAT partition, under, say, <tt>/mnt</tt>.
-
-          In Linux:
-          <verb>
-            dd if=/dev/sda2 of=/mnt/bootsect.lnx bs=512 count=1
-          </verb>
 
           In FreeBSD:  
           <verb>
             dd if=/dev/rsd0a of=/mnt/bootsect.bsd bs=512 count=1
           </verb>
 
-          Reboot into DOS or NT.  NTFS users copy the <tt/bootsect.lnx/
-          and/or the <tt/bootsect.bsd/ file from the floppy to
+          In Linux:
+          <verb>
+            dd if=/dev/sda2 of=/mnt/bootsect.lnx bs=512 count=1
+          </verb>
+
+          Reboot into DOS or NT.  NTFS users copy the <tt/bootsect.bsd/
+          and/or the <tt/bootsect.lnx/ file from the floppy to
           <tt/C:&bsol;/.  Modify the attributes (permissions) on
           <tt/boot.ini/ with:
  
@@ -1874,7 +1875,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
             attrib -r -s c:\boot.ini
           </verb>
 
-          If Linux or FreeBSD are booting from the MBR, restore it with the
+          If FreeBSD or Linux are booting from the MBR, restore it with the
           DOS ``<tt>fdisk /mbr</tt>'' command after you reconfigure them to
           boot from their native partitions.
 
@@ -3259,7 +3260,7 @@ domain foo.bar.edu
         <p>
           If you have compiled your kernel with the <tt/IPFIREWALL/ 
           option, you need to be aware that the default policy as of
-          2.1.6R (this actually changed during 2.1-STABLE development) 
+          2.1.7R (this actually changed during 2.1-STABLE development) 
           is to deny all packets that are not explicitly allowed.
 
         <p>
