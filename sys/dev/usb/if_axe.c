@@ -476,7 +476,8 @@ USB_ATTACH(axe)
 	ifp->if_softc = sc;
 	if_initname(ifp, "axe", sc->axe_unit);
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSGIANT;
 	ifp->if_ioctl = axe_ioctl;
 	ifp->if_start = axe_start;
 	ifp->if_watchdog = axe_watchdog;
