@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: inet.c,v 1.4 1995/06/28 17:58:33 wollman Exp $
+ * $Id: inet.c,v 1.6 1996/11/11 03:49:58 fenner Exp $
  */
 
 
@@ -41,6 +41,22 @@ inet_valid_host(naddr)
 	      (addr & 0xff000000) == 0));
 }
 
+/*
+ * Verify that a given netmask is plausible;
+ * make sure that it is a series of 1's followed by
+ * a series of 0's with no discontiguous 1's.
+ */
+int
+inet_valid_mask(mask)
+    u_int32 mask;
+{
+    if (~(((mask & -mask) - 1) | mask) != 0) {
+	/* Mask is not contiguous */
+	return (FALSE);
+    }
+
+    return (TRUE);
+}
 
 /*
  * Verify that a given subnet number and mask pair are credible.
@@ -62,19 +78,24 @@ inet_valid_subnet(nsubnet, nmask)
 
     if ((subnet & mask) != subnet) return (FALSE);
 
-    if (subnet == 0 && mask == 0)
-	return (TRUE);
+    if (subnet == 0)
+	return (mask == 0);
 
     if (IN_CLASSA(subnet)) {
 	if (mask < 0xff000000 ||
-	   (subnet & 0xff000000) == 0x7f000000) return (FALSE);
+	    (subnet & 0xff000000) == 0x7f000000 ||
+	    (subnet & 0xff000000) == 0x00000000) return (FALSE);
     }
     else if (IN_CLASSD(subnet) || IN_BADCLASS(subnet)) {
 	/* Above Class C address space */
 	return (FALSE);
     }
-    else if (subnet & ~mask) {
+    if (subnet & ~mask) {
 	/* Host bits are set in the subnet */
+	return (FALSE);
+    }
+    if (!inet_valid_mask(mask)) {
+	/* Netmask is not contiguous */
 	return (FALSE);
     }
 
@@ -134,15 +155,17 @@ inet_fmts(addr, mask, s)
  * with "255.255.255.255".)
  */
 u_int32
-inet_parse(s)
+inet_parse(s,n)
     char *s;
+    int n;
 {
     u_int32 a = 0;
-    u_int a0, a1, a2, a3;
+    u_int a0 = 0, a1 = 0, a2 = 0, a3 = 0;
+    int i;
     char c;
 
-    if (sscanf(s, "%u.%u.%u.%u%c", &a0, &a1, &a2, &a3, &c) != 4 ||
-	a0 > 255 || a1 > 255 || a2 > 255 || a3 > 255)
+    i = sscanf(s, "%u.%u.%u.%u%c", &a0, &a1, &a2, &a3, &c);
+    if (i < n || i > 4 || a0 > 255 || a1 > 255 || a2 > 255 || a3 > 255)
 	return (0xffffffff);
 
     ((u_char *)&a)[0] = a0;

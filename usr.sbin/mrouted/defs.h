@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: defs.h,v 1.5 1995/06/28 17:58:29 wollman Exp $
+ * $Id: defs.h,v 1.7 1996/11/11 03:49:57 fenner Exp $
  */
 
 
@@ -23,6 +23,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#ifdef SYSV
+#include <sys/sockio.h>
+#endif
 #include <sys/time.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -46,7 +49,7 @@ typedef u_int u_int32;
 #endif
 
 typedef void (*cfunc_t) __P((void *));
-typedef void (*ihfunc_t) __P((fd_set *));
+typedef void (*ihfunc_t) __P((int, fd_set *));
 
 #include "dvmrp.h"
 #include "vif.h"
@@ -68,13 +71,17 @@ typedef void (*ihfunc_t) __P((fd_set *));
 
 #define TIMER_INTERVAL	ROUTE_MAX_REPORT_DELAY
 
+#define VENDOR_CODE	1   /* Get a new vendor code if you make significant
+			     * changes to mrouted. */
+
 #define PROTOCOL_VERSION 3  /* increment when packet format/content changes */
 
-#define MROUTED_VERSION  6  /* increment on local changes or bug fixes, */
+#define MROUTED_VERSION  8  /* increment on local changes or bug fixes, */
 			    /* reset to 0 whever PROTOCOL_VERSION increments */
 
-#define MROUTED_LEVEL ( (MROUTED_VERSION << 8) | PROTOCOL_VERSION | \
-			((NF_PRUNE | NF_GENID | NF_MTRACE) << 16))
+#define MROUTED_LEVEL  ((MROUTED_VERSION << 8) | PROTOCOL_VERSION | \
+			((NF_PRUNE | NF_GENID | NF_MTRACE) << 16) | \
+			(VENDOR_CODE << 24))
 			    /* for IGMP 'group' field of DVMRP messages */
 
 #define LEAF_FLAGS	(( vifs_with_neighbors == 1 ) ? 0x010000 : 0)
@@ -98,10 +105,17 @@ typedef void (*ihfunc_t) __P((fd_set *));
 #define BIT_TST(X,n)     ((X) & 1 << (n))
 #endif /* RSRR */
 
+#ifdef SYSV
+#define bcopy(a, b, c)	memcpy(b, a, c)
+#define bzero(s, n) 	memset((s), 0, (n))
+#define setlinebuf(s)	setvbuf(s, NULL, _IOLBF, 0)
+#define signal(s,f)	sigset(s,f)
+#endif
+
 /*
  * External declarations for global variables and functions.
  */
-#define RECV_BUF_SIZE MAX_IP_PACKET_LEN
+#define RECV_BUF_SIZE 8192
 extern char		*recv_buf;
 extern char		*send_buf;
 extern int		igmp_socket;
@@ -139,6 +153,27 @@ extern int		sys_nerr;
 extern char *		sys_errlist[];
 #endif
 
+#ifdef OLD_KERNEL
+#define	MRT_INIT	DVMRP_INIT
+#define	MRT_DONE	DVMRP_DONE
+#define	MRT_ADD_VIF	DVMRP_ADD_VIF
+#define	MRT_DEL_VIF	DVMRP_DEL_VIF
+#define	MRT_ADD_MFC	DVMRP_ADD_MFC
+#define	MRT_DEL_MFC	DVMRP_DEL_MFC
+#endif
+
+#ifndef IGMP_PIM
+#define	IGMP_PIM	0x14
+#endif
+
+#ifndef IGMP_MEMBERSHIP_QUERY
+#define	IGMP_MEMBERSHIP_QUERY		IGMP_HOST_MEMBERSHIP_QUERY
+#define	IGMP_V1_MEMBERSHIP_REPORT	IGMP_HOST_MEMBERSHIP_REPORT
+#define	IGMP_V2_MEMBERSHIP_REPORT	IGMP_HOST_NEW_MEMBERSHIP_REPORT
+#define	IGMP_V2_LEAVE_GROUP		IGMP_HOST_LEAVE_MESSAGE
+#endif
+
+
 /* main.c */
 extern void		log __P((int, int, char *, ...));
 extern int		register_input_handler __P((int fd, ihfunc_t func));
@@ -161,7 +196,7 @@ extern void		timer_clearTimer __P((int timer_id));
 extern void		init_routes __P((void));
 extern void		start_route_updates __P((void));
 extern void		update_route __P((u_int32 origin, u_int32 mask,
-						int metric, u_int32 src,
+						u_int metric, u_int32 src,
 						vifi_t vifi));
 extern void		age_routes __P((void));
 extern void		expire_all_routes __P((void));
@@ -222,7 +257,7 @@ extern int		inet_valid_host __P((u_int32 naddr));
 extern int		inet_valid_subnet __P((u_int32 nsubnet, u_int32 nmask));
 extern char *		inet_fmt __P((u_int32 addr, char *s));
 extern char *		inet_fmts __P((u_int32 addr, u_int32 mask, char *s));
-extern u_int32		inet_parse __P((char *s));
+extern u_int32		inet_parse __P((char *s, int n));
 extern int		inet_cksum __P((u_short *addr, u_int len));
 
 /* prune.c */
@@ -285,7 +320,7 @@ extern int		find_src_grp __P((u_int32 src, u_int32 mask,
 
 /* rsrr.c */
 extern void		rsrr_init __P((void));
-extern void		rsrr_read __P((fd_set *rfd));
+extern void		rsrr_read __P((int f, fd_set *rfd));
 extern void		rsrr_clean __P((void));
 extern void		rsrr_cache_send __P((struct gtable *gt, int notify));
 extern void		rsrr_cache_clean __P((struct gtable *gt));

@@ -1,7 +1,7 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
  *
- * $Id: mapper.c,v 1.5 1995/06/28 17:58:35 wollman Exp $
+ * $Id: mapper.c,v 1.7 1996/10/01 23:14:34 fenner Exp $
  */
 
 /*
@@ -302,7 +302,7 @@ void accept_neighbors(src, dst, p, datalen, level)
     /* if node is running a recent mrouted, ask for additional info */
     if (level != 0) {
 	node->version = level;
-	node->tries = 0;
+	node->tries = 1;
 	ask2(src);
 	return;
     }
@@ -374,7 +374,7 @@ void accept_neighbors(src, dst, p, datalen, level)
 		    for (nb_n = old_neighbors; nb_n; nb_n = nb_n->next)
 			if (nb_i->addr == nb_n->addr) {
 			    if (nb_i->metric != nb_n->metric
-				|| nb_i->threshold != nb_i->threshold)
+				|| nb_i->threshold != nb_n->threshold)
 				log(LOG_WARNING, 0,
 				    "inconsistent %s for neighbor %s of %s",
 				    "metric/threshold",
@@ -451,6 +451,8 @@ void accept_neighbors2(src, dst, p, datalen, level)
     int datalen;
 {
     Node       *node = find_node(src, &routers);
+    u_int broken_cisco = ((level & 0xffff) == 0x020a); /* 10.2 */
+    /* well, only possibly_broken_cisco, but that's too long to type. */
 
     if (node->tries == 0)	/* Never heard of 'em; must have hit them at */
 	node->tries = 1;	/* least once, though...*/
@@ -477,6 +479,11 @@ void accept_neighbors2(src, dst, p, datalen, level)
 	flags = *p++;
 	ncount = *p++;
 	datalen -= 4 + 4;
+
+	if (broken_cisco && ncount == 0)	/* dumb Ciscos */
+		ncount = 1;
+	if (broken_cisco && ncount > 15)	/* dumb Ciscos */
+		ncount = ncount & 0xf;
 
 	/* Fix up any alias information */
 	ifc_node = find_node(ifc_addr, &routers);
@@ -837,16 +844,15 @@ int main(argc, argv)
 {
     int flood = FALSE, graph = FALSE;
     
-#ifdef SYSV
-    setvbuf(stderr, NULL, _IOLBF, 0);
-#else
-    setlinebuf(stderr);
-#endif
-
     if (geteuid() != 0) {
-	fprintf(stderr, "must be root\n");
+	fprintf(stderr, "map-mbone: must be root\n");
 	exit(1);
     }
+
+    init_igmp();
+    setuid(getuid());
+
+    setlinebuf(stderr);
 
     argv++, argc--;
     while (argc > 0 && argv[0][0] == '-') {
@@ -895,8 +901,6 @@ int main(argc, argv)
 
     if (debug)
 	fprintf(stderr, "Debug level %u\n", debug);
-
-    init_igmp();
 
     {				/* Find a good local address for us. */
 	int udp;
@@ -1015,5 +1019,17 @@ void accept_mtrace(src, dst, group, data, no, datalen)
 void accept_membership_query(src, dst, group, tmo)
 	u_int32 src, dst, group;
 	int tmo;
+{
+}
+void accept_info_request(src, dst, p, datalen)
+	u_int32 src, dst;
+	u_char *p;
+	int datalen;
+{
+}
+void accept_info_reply(src, dst, p, datalen)
+	u_int32 src, dst;
+	u_char *p;
+	int datalen;
 {
 }

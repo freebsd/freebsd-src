@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: config.c,v 1.6 1995/06/28 17:58:27 wollman Exp $
+ * $Id: config.c,v 1.8 1996/11/11 03:49:56 fenner Exp $
  */
 
 
@@ -116,6 +116,7 @@ config_vifs_from_kernel()
 	v  = &uvifs[numvifs];
 	v->uv_flags       = 0;
 	v->uv_metric      = DEFAULT_METRIC;
+	v->uv_admetric	  = 0;
 	v->uv_rate_limit  = DEFAULT_PHY_RATE_LIMIT;
 	v->uv_threshold   = DEFAULT_THRESHOLD;
 	v->uv_lcl_addr    = addr;

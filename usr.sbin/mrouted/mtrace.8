@@ -29,7 +29,7 @@
 .\" Copyright (c) 1988 The Regents of the University of California.
 .\" All rights reserved.
 .\"
-.\"	$Id: mtrace.8,v 3.6 1995/06/25 19:14:07 fenner Exp $
+.\"	$Id: mtrace.8,v 1.4 1996/11/11 03:50:03 fenner Exp $
 .\"
 .TH MTRACE 8 "May 8, 1995"
 .UC 6
@@ -48,6 +48,8 @@ mtrace \- print multicast path from a source to a receiver
 ] [
 .B \-M
 ] [
+.B \-T
+] [
 .B \-m
 .I max_hops
 ] [
@@ -63,8 +65,13 @@ mtrace \- print multicast path from a source to a receiver
 ] [
 .B \-s
 ] [
+.B \-S
+.I stat_int
+] [
 .B \-t
 .I ttl
+] [
+.B \-v
 ] [
 .B \-w
 .I waittime
@@ -105,6 +112,16 @@ detailed below.  The two parameters can be distinguished because the
 is a unicast address and the
 .I group
 is a multicast address.
+If the
+.B \-g
+flag is specified, the source address defaults to the host running
+mtrace, and the receiver defaults to the router being addressed with
+the
+.B \-g
+flag.  In this case, there are no required parameters.
+.PP
+NOTE: For Solaris 2.4/2.5, if the multicast interface is not the default
+interface, the -i option must be used to set the local address.
 .SH OPTIONS
 .TP 8 8
 .BI \-g\  gwy
@@ -118,7 +135,7 @@ to the
 .RS 8
 .TP 12 12
 .I CAUTION!!
-Version 3.3 of
+Versions 3.3 and 3.5 of
 .B mrouted
 will crash if a trace query is received via a
 unicast packet and
@@ -129,7 +146,7 @@ address.  Therefore, do not use the
 .B \-g
 option unless the target
 .B mrouted
-has been verified to be newer than 3.3.
+has been verified to be 3.4 or newer than 3.5.
 .RE
 .TP 8 8
 .BI \-i\  addr
@@ -142,7 +159,9 @@ and the response destination.
 .TP 8 8
 .B \-l
 Loop indefinitely printing packet rate and loss statistics for the
-multicast path every 10 seconds.
+multicast path every 10 seconds (see 
+.B \-S
+.IR stat_int ).
 .TP 8 8
 .B \-M
 Always send the response using multicast rather than attempting
@@ -169,7 +188,7 @@ The default is 3.
 .TP 8 8
 .B \-p
 Listen passively for multicast responses from traces initiated by
-others (not implemented yet).
+others.  This works best when run on a multicast router.
 .TP 8 8
 .BI \-r\  host
 Send the trace response to
@@ -183,12 +202,25 @@ for this purpose (224.0.1.32).
 Print a short form output including only the multicast path and not
 the packet rate and loss statistics.
 .TP 8 8
+.BI \-S\  n
+Change the interval between statistics gathering traces to
+.I n
+seconds (default 10 seconds).
+.TP 8 8
 .BI \-t\  ttl
 Set the
 .I ttl
 (time-to-live, or number of hops) for multicast trace queries and
-responses.  The default is 64, except for local queries to the "all
+responses.  The default is 127, except for local queries to the "all
 routers" multicast group which use ttl 1.
+.TP 8 8
+.B \-T
+"Tunnel statistics" mode; show loss rates for overall traffic.
+These statistics can be extremely misleading.
+.TP 8 8
+.B \-v
+Verbose mode; show hop times on the initial trace and statistics display.
+Also show the route that was used to forward the initial trace.
 .TP 8 8
 .BI \-w\  n
 Set the time to wait for a trace response to
@@ -255,7 +287,7 @@ trace query is multicast to the
 address since the last hop router will be a member of that group if
 the receiver is.  Therefore it is necessary to specify a group that
 the intended receiver has joined.  This multicast is sent with a
-default ttl of 64, which may not be sufficient for all cases (changed
+default ttl of 127, which may not be sufficient for all cases (changed
 with the
 .B \-t
 option).
@@ -298,7 +330,7 @@ multicast to mtrace.mcast.net (224.0.1.32) with the ttl set to 32 more
 than what's needed to pass the thresholds seen so far along the path
 to the receiver.  For the last quarter of the attempts (default is
 one), the ttl is increased by another 32 each time up to a maximum of
-192.  Alternatively, the ttl may be set explicity with the
+192.  Alternatively, the ttl may be set explicitly with the
 .B \-t
 option and/or the initial unicast attempts can be forced to use
 multicast instead with the
@@ -328,7 +360,8 @@ up-arrow character); and the cumulative delay for the query to reach
 that hop (valid only if the clocks are synchronized).  This first
 section ends with a line showing the round-trip time which measures
 the interval from when the query is issued until the response is
-received, both derived from the local system clock.  A sample use and
+received, both derived from the local system clock, and the total
+ttl required for a packet to travel along this path.  A sample use and
 output might be:
 .PP
 .nf
@@ -343,8 +376,17 @@ Querying full reverse path...
  -4  bbn.dart.net (140.173.32.1)  DVMRP  thresh^ 1  63 ms  
  -5  mit.dart.net (140.173.48.2)  DVMRP  thresh^ 1  71 ms  
  -6  caraway.lcs.mit.edu (18.26.0.170)
-Round trip time 124 ms
+Round trip time 124 ms; total ttl of 6 required.
 .fi
+.PP
+If a hop reports that it is using the default route to forward packets,
+the word
+.B [default]
+is printed after that hop.  If the
+.B \-v
+flag is supplied, the route being used to forward packets is printed
+in the form
+.B [18.26.0/24] .
 .PP
 The second section provides a pictorial view of the path in the
 forward direction with data flow indicated by arrows pointing downward
@@ -352,9 +394,11 @@ and the query path indicated by arrows pointing upward.  For each hop,
 both the entry and exit addresses of the router are shown if
 different, along with the initial ttl required on the packet in order
 to be forwarded at this hop and the propagation delay across the hop
-assuming that the routers at both ends have synchronized clocks.  The
-right half of this section is composed of several columns of
-statistics in two groups.  Within each group, the columns are the
+assuming that the routers at both ends have synchronized clocks.
+The right half of this section is composed of two sets of statistics.
+The first column contains the average packet rate for all traffic at
+each hop.
+The remaining columns are the
 number of packets lost, the number of packets sent, the percentage
 lost, and the average packet rate at each hop.  These statistics are
 calculated from differences between traces and from hop to hop as
@@ -365,6 +409,11 @@ from the specified
 .I source
 to the specified
 .IR group .
+The first group of statistics may be expanded to include loss rates
+using the
+.B \-T
+option.  However, these numbers can be extremely misleading and require
+detailed knowledge of the routers involved to be interpreted properly.
 .PP
 These statistics are shown on one or two lines for each hop.  Without
 any options, this second section of the output is printed only once,
@@ -379,7 +428,7 @@ statistics over the period since the initial trace, which is 101
 seconds in the example below.  The second section of the output is
 omitted if the
 .B \-s
-option is set.
+option is set or if no multicast group is specified.
 .ie t \{\
 .ft C
 .  ie \w'i'<>\w'm' \{\" looks like this is not proper Courier font
@@ -393,30 +442,30 @@ and try again.)
 .nf
 Waiting to accumulate statistics... Results after 101 seconds:
 
-  Source       Response Dest  Packet Statistics For  Only For Traffic
-18.26.0.170    128.9.160.100  All Multicast Traffic  From 18.26.0.170
-     |       __/ rtt  125 ms  Lost/Sent = Pct  Rate    To 224.2.0.3
-     v      /    hop   65 ms  ---------------------  ------------------
+  Source       Response Dest    Overall   Packet Statistics For Traffic From
+18.26.0.170    128.9.160.100    Packet    18.26.0.170 To 224.2.0.3
+     |       __/ rtt  125 ms     Rate     Lost/Sent = Pct  Rate
+     v      /    hop   65 ms    -------   ---------------------
 18.26.0.144    
 140.173.48.2   mit.dart.net          
-     |     ^     ttl    1      0/6    = --%   0 pps   0/2  = --%  0 pps
-     v     |     hop    8 ms   1/52   =  2%   0 pps   0/18 =  0%  0 pps
+     |     ^     ttl    1         0 pps      0/2  = --%  0 pps
+     v     |     hop    8 ms      0 pps      0/18 =  0%  0 pps
 140.173.48.1   
 140.173.32.1   bbn.dart.net
-     |     ^     ttl    2      0/6    = --%   0 pps   0/2  = --%  0 pps
-     v     |     hop   12 ms   1/52   =  2%   0 pps   0/18 =  0%  0 pps
+     |     ^     ttl    2         0 pps      0/2  = --%  0 pps
+     v     |     hop   12 ms      0 pps      0/18 =  0%  0 pps
 140.173.32.2   
 140.173.64.1   dc.dart.net 
-     |     ^     ttl    3      0/271  =  0%  27 pps   0/2  = --%  0 pps
-     v     |     hop   34 ms  -1/2652 =  0%  26 pps   0/18 =  0%  0 pps
+     |     ^     ttl    3        27 pps      0/2  = --%  0 pps
+     v     |     hop   34 ms     26 pps      0/18 =  0%  0 pps
 140.173.64.2   
 140.173.128.1  la.dart.net
-     |     ^     ttl    4     -2/831  =  0%  83 pps   0/2  = --%  0 pps
-     v     |     hop   11 ms  -3/8072 =  0%  79 pps   0/18 =  0%  0 pps
+     |     ^     ttl    4        83 pps      0/2  = --%  0 pps
+     v     |     hop   11 ms     79 pps      0/18 =  0%  0 pps
 140.173.128.2  
 128.9.160.153  cub.isi.edu
-     |      \\__  ttl    5        833         83 pps     2         0 pps
-     v         \\ hop   -8 ms     8075        79 pps     18        0 pps
+     |      \\__  ttl    5        83 pps      ?/2         0 pps
+     v         \\ hop   -8 ms     79 pps      ?/18        0 pps
 128.9.160.100  128.9.160.100
   Receiver     Query Source
 .fi
