@@ -175,7 +175,7 @@ void		Lst_ForEachFrom(Lst *, LstNode *, DoProc *, void *);
 /* Place an element at tail of queue */
 #define	Lst_EnQueue(LST, D)	(Lst_Valid(LST) \
 				    ? Lst_Append((LST), Lst_Last(LST), (D)) \
-				    : FAILURE)
+				    : (void)0)
 /* Remove an element from head of queue */
 void		*Lst_DeQueue(Lst *);
 
