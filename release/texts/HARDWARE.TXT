@@ -911,25 +911,19 @@ ep:	3Com 3C529 network adapter
 Soundcards supported by newpcm:
 
 Advance Asound 100, 110 and Logic ALS120
-
 Crystal Semiconductor CS461x/462x/428x
-
-ENSONIQ ES1370/1371 soundcards including the following:
-    ENSONIQ AudioPCI64 ES1370/1371
-
+ENSONIQ AudioPCI ES1370/1371
 ESS ES1868, ES1869, ES1879 and ES1888
-
+ESS Maestro-1, Maestro-2, and Maestro-2E
+ForteMedia fm801
 Gravis UltraSound MAX/PnP
-
 MSS/WSS Compatible DSPs
-
 NeoMagic 256AV/ZX
-
 OPTi 931/82C931
-
 SoundBlaster, Soundblaster Pro, Soundblaster AWE-32, Soundblaster AWE-64
-
 Trident 4DWave DX/NX
+VIA Technologies VT82C686A
+Yamaha DS1 and DS1e
 
 Matrox Meteor Video frame grabber
 Creative Labs Video Spigot frame grabber
