@@ -168,11 +168,8 @@ icmp_error(n, type, code, dest, destifp)
 	if (m == NULL)
 		goto freeit;
 	icmplen = min(oiplen + 8, oip->ip_len);
-	if (icmplen < sizeof(struct ip)) {
-		printf("icmp_error: bad length\n");
-		m_free(m);
-		goto freeit;
-	}
+	if (icmplen < sizeof(struct ip))
+		panic("icmp_error: bad length");
 	m->m_len = icmplen + ICMP_MINLEN;
 	MH_ALIGN(m, m->m_len);
 	icp = mtod(m, struct icmp *);
