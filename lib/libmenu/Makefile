@@ -25,7 +25,7 @@ ncurses_def.h:	MKncurses_def.sh ncurses_defs
 	AWK=${AWK} sh ${NCURSES}/include/MKncurses_def.sh \
 	    ${NCURSES}/include/ncurses_defs > ncurses_def.h
 
-MAN3x=	menu.3x menu_attribs.3x menu_attributes.3x menu_cursor.3x \
+MANx=	menu.3x menu_attribs.3x menu_attributes.3x menu_cursor.3x \
 	menu_driver.3x menu_format.3x menu_hook.3x menu_items.3x \
 	menu_mark.3x menu_new.3x menu_opts.3x menu_pattern.3x \
 	menu_post.3x menu_requestname.3x menu_spacing.3x \
@@ -33,12 +33,11 @@ MAN3x=	menu.3x menu_attribs.3x menu_attributes.3x menu_cursor.3x \
 	mitem_new.3x mitem_opts.3x mitem_userptr.3x mitem_value.3x \
 	mitem_visible.3x
 
-# Generate the MAN3 list from MAN3x
-.for page in ${MAN3x}
-CLEANFILES+=${page:T:S/3x$/3/g}
-MAN3+=${page:T:S/3x$/3/g}
-all-man: ${page:T:S/3x$/3/g}
-${page:T:S/3x$/3/g}: ${page}
+# Generate the MAN list from MANx
+.for page in ${MANx}
+CLEANFILES+=${page:T:S/x$//g}
+MAN+=${page:T:S/x$//g}
+${page:T:S/x$//g}: ${page}
 	ln -s ${.ALLSRC} ${.TARGET}
 .endfor
 
@@ -77,5 +76,3 @@ MLINKS+=mitem_value.3 item_value.3 mitem_value.3 set_item_value.3
 MLINKS+=mitem_visible.3 item_visible.3
 
 .include <bsd.lib.mk>
-
-.SUFFIXES: .3x .3

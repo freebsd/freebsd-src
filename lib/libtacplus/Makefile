@@ -32,7 +32,6 @@ DPADD+=		${LIBMD}
 LDADD+=		-lmd
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
-MAN3+=		libtacplus.3
-MAN5+=		tacplus.conf.5
+MAN=		libtacplus.3 tacplus.conf.5
 
 .include <bsd.lib.mk>

@@ -28,7 +28,7 @@ ncurses_def.h:	MKncurses_def.sh ncurses_defs
 	AWK=${AWK} sh ${NCURSES}/include/MKncurses_def.sh \
 	    ${NCURSES}/include/ncurses_defs > ncurses_def.h
 
-MAN3x=	form.3x form_cursor.3x form_data.3x form_driver.3x \
+MANx=	form.3x form_cursor.3x form_data.3x form_driver.3x \
 	form_field.3x form_field_attributes.3x form_field_buffer.3x \
 	form_field_info.3x form_field_just.3x form_field_new.3x \
 	form_field_opts.3x form_field_userptr.3x \
@@ -36,12 +36,11 @@ MAN3x=	form.3x form_cursor.3x form_data.3x form_driver.3x \
 	form_new.3x form_new_page.3x form_opts.3x form_page.3x \
 	form_post.3x form_requestname.3x form_userptr.3x form_win.3x
 
-# Generate the MAN3 list from MAN3x
-.for page in ${MAN3x}
-CLEANFILES+=${page:T:S/3x$/3/g}
-MAN3+=${page:T:S/3x$/3/g}
-all-man: ${page:T:S/3x$/3/g}
-${page:T:S/3x$/3/g}: ${page}
+# Generate the MAN list from MANx
+.for page in ${MANx}
+CLEANFILES+=${page:T:S/x$//g}
+MAN+=${page:T:S/x$//g}
+${page:T:S/x$//g}: ${page}
 	ln -s ${.ALLSRC} ${.TARGET}
 .endfor
 
@@ -92,5 +91,3 @@ MLINKS+=form_win.3 form_sub.3 form_win.3 scale_form.3 \
 	form_win.3 set_form_sub.3 form_win.3 set_form_win.3
 
 .include <bsd.lib.mk>
-
-.SUFFIXES: .3x .3

@@ -9,7 +9,7 @@ INCS=		camlib.h
 DPADD+=		${LIBSBUF}
 LDADD+=		-lsbuf
 
-MAN3=		cam.3 cam_cdbparse.3
+MAN=		cam.3 cam_cdbparse.3
 
 
 MLINKS+=	cam.3 cam_open_device.3 \
