@@ -34,10 +34,18 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
+#if defined(LIBC_SCCS) && !defined(lint)
+	.asciz "@(#)fabs.s	5.2 (Berkeley) 12/17/90"
+#endif /* LIBC_SCCS and not lint */
+#if !defined(lint) && !defined(STRIP_FBSDID)
+#ifdef __ELF__
+	.ident "$FreeBSD$"
+#else
+	.data
 	.asciz "$FreeBSD$"
-#endif /* LIBC_RCS and not lint */
+	.previous
+#endif
+#endif
 
 #include <machine/asm.h>
 

@@ -34,10 +34,11 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* LIBC_RCS and not lint */
+#if defined(LIBC_SCCS) && !defined(lint)
+	.asciz "@(#)modf.s	5.5 (Berkeley) 3/18/91"
+#endif /* LIBC_SCCS and not lint */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * modf(value, iptr): return fractional part of value, and stores the
@@ -48,8 +49,6 @@
  */
 
 /* With CHOP mode on, frndint behaves as TRUNC does.  Useful. */
-
-#include <machine/asm.h>
 
 ENTRY(modf)
 	pushl %ebp
