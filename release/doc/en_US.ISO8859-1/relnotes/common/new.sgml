@@ -234,7 +234,7 @@
       a kernel option <varname>NO_ADAPTIVE_MUTEXES</varname>.</para>
 
     <para>A kernel option <varname>ADAPTIVE_GIANT</varname>, which
-      causes a Giant lock to also be treated in
+      causes the Giant lock to also be treated in
       an adaptive fashion when adaptive mutexes are enabled,
       has been added.  This improves performance of SMP machines.</para>
 
@@ -311,7 +311,7 @@
       Since &man.hme.4; does not compensate the checksum
       for UDP datagram which can yield to 0x0, UDP transmit
       checksum offload is disabled by default.
-      This can be reactivated by setting special link
+      This can be reactivated by setting the special link
       option <option>link0</option> with &man.ifconfig.8;.</para>
 
     <para>&man.jail.2; now supports use of raw sockets from within a jail.
@@ -499,12 +499,12 @@
       not <devicename>stf0</devicename>, and does not print
       <devicename>stf0</devicename> to stdout.</para>
 
-    <para>&os; dynamic linker now supports Thread Local Storage (TLS),
-      a GCC feature which allows to add a __thread modifier
+    <para>The &os; dynamic linker now supports Thread Local Storage (TLS),
+      a GCC feature which allows to add a <literal>__thread</literal> modifier
       to the declaration of global and static variables.
       This extra modifier means that the variable's value is
       thread-local; one thread changing its value will not
-      affect any other thread.</para>
+      affect the value of the variable in any other thread.</para>
 
     <para>The kernel's file descriptor allocation code has been
       updated, and is now derived from similar code in OpenBSD.</para>
@@ -1028,7 +1028,7 @@
     <para>&man.df.1; now supports a <option>-c</option> option to display
       a grand total of statistics for file systems.</para>
 
-    <para>A bug in &man.df.1; which can print invalid information
+    <para>A bug in &man.df.1;, which can print invalid information
       when a <option>-t</option> option is specified and
       a mount point is not accessible by the calling user,
       has been fixed.</para>
@@ -1071,16 +1071,17 @@
 
     <para>&man.ftpd.8; now opens a socket for a data transfer
       in active mode using effective uid of the current user,
-      not root.  This is useful to match anonymous FTP data
+      not <username>root</username>.  This is useful for matching anonymous FTP data
       traffic with a single &man.ipfw.8; rule with <quote>uid</quote>.</para>
 
     <para>The &man.geom.8; utility for operating on GEOM classes
       from the userland has been added.</para>
 
-    <para>&man.gpt.8;, a GUID partition table maintenance utility
-      now supports remove command and a <option>-i</option> option
-      of the add command.  This option allows the user to specify
-      which partition number should be assigned to the new partition.</para>
+    <para>&man.gpt.8;, a GUID partition table maintenance utility,
+      now supports a <command>remove</command> command.  Its
+      <command>add</command> command now supports a <option>-i</option> option,
+      which allows the user to specify
+      the partition number of a new partition.</para>
 
     <para>The &man.id.1; now supports a <option>-M</option> option
       to print the MAC label of the current process.</para>
@@ -1129,8 +1130,8 @@
 
     <para>&man.join.1; now supports multibyte characters.</para>
 
-    <para>&man.kgdb.1;, a kernel debugging utility which uses libgdb
-      that understands kernel threads, kernel modules, and &man.kvm.3;,
+    <para>&man.kgdb.1;, a kernel debugging utility which uses <filename>libgdb</filename>
+      and understands kernel threads, kernel modules, and &man.kvm.3;,
       has been added.</para>
 
     <para>&man.killall.1; now supports a <option>-e</option> flag to
@@ -1183,11 +1184,11 @@
     </para>
 
     <para><filename>libpthread</filename> now supports
-      a <varname>LIBPTHREAD_SYSTEM_SCOPE</varname> environmental
+      a <varname>LIBPTHREAD_SYSTEM_SCOPE</varname> environment
       variable to force 1:1 mode.  Note that
       building <filename>libpthread</filename> with
       <option>-DSYSTEM_SCOPE_ONLY</option> flag also forces 1:1 mode,
-      and this is set by default for architectures that do not
+      and that this option is set by default for architectures that do not
       support M:N mode yet.</para>
 
     <para>A bug in the <option>-d</option> option of &man.look.1;
@@ -1202,11 +1203,11 @@
       directive.</para>
 
     <para>&man.make.1; now supports the POSIX-compatible
-      <literal>+</literal> flag in the command line,
+      <literal>+</literal> flag in <filename>Makefile</filename> command lines,
       which causes a line to be executed even when <option>-n</option>
       is specified.  This is useful for calls to submakes, for example.</para>
 
-    <para>&man.make.1; now put variable assignments from
+    <para>&man.make.1; now puts variable assignments from
       the command line into the <varname>MAKEFLAGS</varname>
       variable as required by POSIX.  This causes such variables
       to be pushed into all sub-makes called by the &man.make.1;
@@ -1215,18 +1216,18 @@
       This makes them also mostly un-overrideable
       in sub-makes except on the sub-make's command line.</para>
 
-    <para><function>nearbyint(3)</function> and
-      <function>nearbyintf(3)</function> C99 functions
+    <para>The &man.nearbyint.3; and
+      &man.nearbyintf.3; C99 functions
       have been implemented.</para>
 
-    <para><filename>tgmath.h</filename> C99 header has
+    <para>The <filename>tgmath.h</filename> C99 header has
       been implemented.  This provides
       type-generic macros for the <filename>math.h</filename>
       and <filename>complex.h</filename> functions that have
       float, double and long double implementations.</para>
 
-    <para>The GNU extensions of <function>mbsnrtowcs(3)</function>
-      and <function>wcsnrtombs(3)</function> have been implemented.</para>
+    <para>The GNU extensions of &man.mbsnrtowcs.3;
+      and &man.wcsnrtombs.3; have been implemented.</para>
 
     <para>&man.newsyslog.8; now allows the users to set
       a debugging option via the <filename>newsyslog.conf</filename>
@@ -1299,7 +1300,8 @@
 
     <para>&man.ppp.8; now supports a
       <quote>set pppoe [standard|3Com]</quote> command
-      to configure mode for &man.ng.pppoe.4; node under control.</para>
+      to configure the operating mode of an underlying
+      &man.ng.pppoe.4; NetGraph node.</para>
 
     <para>&man.ps.1; compatibility with POSIX/SUSv3 has been improved.
       The changes include <option>-p</option> for a list of process IDs,
@@ -1584,9 +1586,9 @@
     <title>Ports/Packages Collection Infrastructure</title>
 
     <para>Most of startup/shutdown scripts installed by
-      various ports now use the new rc.d framework
-      introduced in &os; 5.x, while some ports still use the
-      old style scripts.  On startup, the rc.d style scripts
+      various ports now use the new <filename>rc.d</filename> framework
+      introduced in &os; 5.<replaceable>X</replaceable>, while some ports still use the
+      old-style scripts.  On startup, the <filename>rc.d</filename> style scripts
       are executed first and then the old-style scripts.
       On shutdown, exactly the reverse happens.</para>
 
