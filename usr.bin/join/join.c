@@ -36,13 +36,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)join.c	8.3 (Berkeley) 4/16/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -576,8 +580,9 @@ jbad:				errx(1, "illegal option -- %s", ap);
 void
 usage()
 {
-	(void)fprintf(stderr, "%s%s\n",
-	    "usage: join [-a fileno | -v fileno ] [-e string] [-1 field] ",
-	    "[-2 field]\n            [-o list] [-t char] file1 file2");
+	(void)fprintf(stderr, "%s %s\n%s\n",
+		"usage: join [-a fileno | -v fileno ] [-e string] [-1 field]",
+		"[-2 field]",
+		"            [-o list] [-t char] file1 file2");
 	exit(1);
 }
