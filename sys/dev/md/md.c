@@ -167,7 +167,6 @@ struct md_s {
 	unsigned flags;
 
 	/* MD_MALLOC related fields */
-	unsigned nsecp;
 	u_char **secp;
 
 	/* MD_PRELOAD related fields */
@@ -243,81 +242,60 @@ mdstart_malloc(struct md_s *sc)
 		else
 			dop = DEVSTAT_WRITE;
 
-		nsec = bp->bio_bcount / DEV_BSIZE;
+		nsec = bp->bio_bcount / sc->secsize;
 		secno = bp->bio_pblkno;
 		dst = bp->bio_data;
 		while (nsec--) {
-			if (secno < sc->nsecp) {
-				secpp = &sc->secp[secno];
-				if ((uintptr_t)*secpp > 255) {
-					secp = *secpp;
-					secval = 0;
-				} else {
-					secp = 0;
-					secval = (uintptr_t) *secpp;
-				}
-			} else {
-				secpp = 0;
-				secp = 0;
+			secpp = &sc->secp[secno];
+			if ((uintptr_t)*secpp > 255) {
+				secp = *secpp;
 				secval = 0;
+			} else {
+				secp = NULL;
+				secval = (uintptr_t) *secpp;
 			}
+
 			if (md_debug > 2)
 				printf("%x %p %p %d\n", 
 				    bp->bio_flags, secpp, secp, secval);
 
 			if (bp->bio_cmd == BIO_DELETE) {
-				if (secpp && !(sc->flags & MD_RESERVE)) {
-					if (secp)
-						FREE(secp, M_MDSECT);
+				if (!(sc->flags & MD_RESERVE) && secp != NULL) {
+					FREE(secp, M_MDSECT);
 					*secpp = 0;
 				}
 			} else if (bp->bio_cmd == BIO_READ) {
-				if (secp) {
-					bcopy(secp, dst, DEV_BSIZE);
+				if (secp != NULL) {
+					bcopy(secp, dst, sc->secsize);
 				} else if (secval) {
-					for (i = 0; i < DEV_BSIZE; i++)
+					for (i = 0; i < sc->secsize; i++)
 						dst[i] = secval;
 				} else {
-					bzero(dst, DEV_BSIZE);
+					bzero(dst, sc->secsize);
 				}
 			} else {
 				if (sc->flags & MD_COMPRESS) {
 					uc = dst[0];
-					for (i = 1; i < DEV_BSIZE; i++) 
+					for (i = 1; i < sc->secsize; i++) 
 						if (dst[i] != uc)
 							break;
 				} else {
 					i = 0;
 					uc = 0;
 				}
-				if (i == DEV_BSIZE && !uc) {
+				if (i == sc->secsize) {
 					if (secp)
 						FREE(secp, M_MDSECT);
-					if (secpp)
-						*secpp = (u_char *)(uintptr_t)uc;
+					*secpp = (u_char *)(uintptr_t)uc;
 				} else {
-					if (!secpp) {
-						MALLOC(secpp, u_char **, (secno + nsec + 1) * sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
-						bcopy(sc->secp, secpp, sc->nsecp * sizeof(u_char *));
-						FREE(sc->secp, M_MD);
-						sc->secp = secpp;
-						sc->nsecp = secno + nsec + 1;
-						secpp = &sc->secp[secno];
-					}
-					if (i == DEV_BSIZE) {
-						if (secp)
-							FREE(secp, M_MDSECT);
-						*secpp = (u_char *)(uintptr_t)uc;
-					} else {
-						if (!secp) 
-							MALLOC(secp, u_char *, DEV_BSIZE, M_MDSECT, M_WAITOK);
-						bcopy(dst, secp, DEV_BSIZE);
-						*secpp = secp;
-					}
+					if (secp == NULL) 
+						MALLOC(secp, u_char *, sc->secsize, M_MDSECT, M_WAITOK);
+					bcopy(dst, secp, sc->secsize);
+					*secpp = secp;
 				}
 			}
 			secno++;
-			dst += DEV_BSIZE;
+			dst += sc->secsize;
 		}
 		bp->bio_resid = 0;
 		devstat_end_transaction_bio(&sc->stats, bp);
@@ -550,13 +528,18 @@ mdinit(struct md_s *sc)
 {
 
 	bioq_init(&sc->bio_queue);
-	devstat_add_entry(&sc->stats, "md", sc->unit, DEV_BSIZE,
+	devstat_add_entry(&sc->stats, "md", sc->unit, sc->secsize,
 		DEVSTAT_NO_ORDERED_TAGS, 
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
 		DEVSTAT_PRIORITY_OTHER);
 	sc->dev = disk_create(sc->unit, &sc->disk, 0, &md_cdevsw, &mddisk_cdevsw);
 	sc->dev->si_drv1 = sc;
 }
+
+/*
+ * XXX: we should check that the range they feed us is mapped.
+ * XXX: we should implement read-only.
+ */
 
 static int
 mdcreate_preload(struct md_ioctl *mdio)
@@ -580,7 +563,8 @@ mdcreate_preload(struct md_ioctl *mdio)
 	sc->type = MD_PRELOAD;
 	sc->secsize = DEV_BSIZE;
 	sc->nsect = mdio->md_size;
-	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;
+	/* Cast to pointer size, then to pointer to avoid warning */
+	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;	
 	sc->pl_len = (mdio->md_size << DEV_BSHIFT);
 	mdinit(sc);
 	return (0);
@@ -614,12 +598,8 @@ mdcreate_malloc(struct md_ioctl *mdio)
 	sc->secsize = DEV_BSIZE;
 	sc->nsect = mdio->md_size;
 	sc->flags = mdio->md_options & MD_COMPRESS;
-	if (!(mdio->md_options & MD_RESERVE)) {
-		MALLOC(sc->secp, u_char **, sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
-		sc->nsecp = 1;
-	} else {
-		MALLOC(sc->secp, u_char **, sc->nsect * sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
-		sc->nsecp = sc->nsect;
+	MALLOC(sc->secp, u_char **, sc->nsect * sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
+	if (mdio->md_options & MD_RESERVE) {
 		for (u = 0; u < sc->nsect; u++)
 			MALLOC(sc->secp[u], u_char *, DEV_BSIZE, M_MDSECT, M_WAITOK | M_ZERO);
 	}
@@ -743,7 +723,7 @@ mddestroy(struct md_s *sc, struct md_ioctl *mdio, struct proc *p)
 	if (sc->object != NULL)
 		vm_pager_deallocate(sc->object);
 	if (sc->secp != NULL) {
-		for (u = 0; u < sc->nsecp; u++) 
+		for (u = 0; u < sc->nsect; u++) 
 			if ((uintptr_t)sc->secp[u] > 255)
 				FREE(sc->secp[u], M_MDSECT);
 		FREE(sc->secp, M_MD);
