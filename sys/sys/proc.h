@@ -392,7 +392,8 @@ struct kse {
 /* flags kept in ke_flags */
 #define	KEF_OWEUPC	0x00002	/* Owe process an addupc() call at next ast. */
 #define	KEF_IDLEKSE	0x00004	/* A 'Per CPU idle process'.. has one thread */
-#define	KEF_LOANED	0x00004	/* On loan from the bound thread to another */
+#define	KEF_LOANED	0x00008	/* On loan from the bound thread to another */
+#define	KEF_USER	0x00200	/* Process is not officially in the kernel */
 #define	KEF_ASTPENDING	0x00400	/* KSE has a pending ast. */
 #define	KEF_NEEDRESCHED	0x00800	/* Process needs to yield. */
 
@@ -506,13 +507,14 @@ struct proc {
 	void		*p_aioinfo;	/* (c) ASYNC I/O info. */
 	int		p_numthreads;	/* (?) number of threads */
 	int		p_numksegrps;	/* (?) number of ksegrps */
-	struct thread	*p_singlethread;/* If single threading this is it */
-	int		p_suspcount;	/* # waiting threads in suspended mode*/
+	struct thread	*p_singlethread;/* (j) If single threading this is it */
+	int		p_suspcount;	/* (j) # threads in suspended mode */
+	int		p_userthreads;	/* (j) # threads in userland */
 /* End area that is zeroed on creation. */
-#define	p_startcopy	p_sigmask
+#define	p_endzero	p_sigmask
 
 /* The following fields are all copied upon creation in fork. */
-#define	p_endzero	p_startcopy
+#define	p_startcopy	p_endzero
 	sigset_t	p_sigmask;	/* (c) Current signal mask. */
 	stack_t		p_sigstk;	/* (c) Stack ptr and on-stack flag. */
 	int		p_magic;	/* (b) Magic number. */
