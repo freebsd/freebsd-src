@@ -43,6 +43,7 @@ static const char sccsid[] = "@(#)edit.c	8.3 (Berkeley) 4/2/94";
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <md5.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -65,17 +66,23 @@ edit(pw)
 	struct passwd *pw;
 {
 	struct stat begin, end;
+	char *begin_sum, *end_sum;
 
 	for (;;) {
 		if (stat(tempname, &begin))
 			pw_error(tempname, 1, 1);
+		begin_sum = MD5File(tempname, (char *)NULL);
 		pw_edit(1);
 		if (stat(tempname, &end))
 			pw_error(tempname, 1, 1);
-		if (begin.st_mtime == end.st_mtime) {
+		end_sum = MD5File(tempname, (char *)NULL);
+		if ((begin.st_mtime == end.st_mtime) &&
+		    (strcmp(begin_sum, end_sum) == 0)) {
 			warnx("no changes made");
 			pw_error(NULL, 0, 0);
 		}
+		free(begin_sum);
+		free(end_sum);
 		if (verify(pw))
 			break;
 		pw_prompt();
