@@ -38,10 +38,11 @@
 #ifndef _SCHED_H_
 #define _SCHED_H_
 
-#include <sys/types.h>	/* For pid_t */
+#include <sys/_types.h>
 
-#ifndef _KERNEL
-#include <time.h>		/* Per P1003.4 */
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
 #endif
 
 /*
@@ -57,6 +58,8 @@ struct sched_param {
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>
+
+struct timespec;
 
 __BEGIN_DECLS
 int	sched_get_priority_max(int);
