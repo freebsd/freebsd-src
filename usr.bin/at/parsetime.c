@@ -130,7 +130,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.3 1995/04/12 02:42:35 ache Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.4 1995/05/30 06:29:25 rgrimes Exp $";
 
 /* Local functions */
 
@@ -367,8 +367,13 @@ tod(struct tm *tm)
 	if (hour > 12)
 	    panic("garbled time");
 
-	if (sc_tokid == PM)
-	    hour += 12;
+	if (sc_tokid == PM) {
+	    if (hour != 12)	/* 12:xx PM is 12:xx, not 24:xx */
+		hour += 12;
+	} else {
+	    if (hour == 12)	/* 12:xx AM is 00:xx, not 12:xx */
+		hour -= 12;
+	}
 	token();
     }
     else if (hour > 23)
