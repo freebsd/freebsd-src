@@ -88,7 +88,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	 */
 #ifndef CAPABILITIES
 	if (suser_cred(cred, PRISON_ROOT) == 0)
-		cap_granted = (VEXEC | VREAD | VWRITE | VADMIN);
+		cap_granted = VALLPERM;
 	else
 		cap_granted = 0;
 #else
@@ -108,9 +108,9 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	    PRISON_ROOT))
 		cap_granted |= VREAD;
 
-	if ((acc_mode & VWRITE) && !cap_check(cred, NULL, CAP_DAC_WRITE,
-	    PRISON_ROOT))
-		cap_granted |= VWRITE;
+	if (((acc_mode & VWRITE) || (acc_mode & VAPPEND)) &&
+	    !cap_check(cred, NULL, CAP_DAC_WRITE, PRISON_ROOT))
+		cap_granted |= (VWRITE | VAPPEND);
 
 	if ((acc_mode & VADMIN) && !cap_check(cred, NULL, CAP_FOWNER,
 	    PRISON_ROOT))
@@ -136,7 +136,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 			if (acl->acl_entry[i].ae_perm & ACL_READ)
 				dac_granted |= VREAD;
 			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
-				dac_granted |= VWRITE;
+				dac_granted |= (VWRITE | VAPPEND);
 			if ((acc_mode & dac_granted) == acc_mode)
 				return (0);
 			if ((acc_mode & (dac_granted | cap_granted)) ==
@@ -188,9 +188,9 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		if (acl_mask->ae_perm & ACL_READ)
 			acl_mask_granted |= VREAD;
 		if (acl_mask->ae_perm & ACL_WRITE)
-			acl_mask_granted |= VWRITE;
+			acl_mask_granted |= (VWRITE | VAPPEND);
 	} else
-		acl_mask_granted = VEXEC | VREAD | VWRITE;
+		acl_mask_granted = VEXEC | VREAD | VWRITE | VAPPEND;
 
 	/*
 	 * Iterate through user ACL entries.  Do checks twice, first
@@ -212,7 +212,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 			if (acl->acl_entry[i].ae_perm & ACL_READ)
 				dac_granted |= VREAD;
 			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
-				dac_granted |= VWRITE;
+				dac_granted |= (VWRITE | VAPPEND);
 			dac_granted &= acl_mask_granted;
 			if ((acc_mode & dac_granted) == acc_mode)
 				return (0);
@@ -245,7 +245,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 			if (acl->acl_entry[i].ae_perm & ACL_READ)
 				dac_granted |= VREAD;
 			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
-				dac_granted |= VWRITE;
+				dac_granted |= (VWRITE | VAPPEND);
 			dac_granted  &= acl_mask_granted;
 
 			if ((acc_mode & dac_granted) == acc_mode)
@@ -263,7 +263,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 			if (acl->acl_entry[i].ae_perm & ACL_READ)
 				dac_granted |= VREAD;
 			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
-				dac_granted |= VWRITE;
+				dac_granted |= (VWRITE | VAPPEND);
 			dac_granted  &= acl_mask_granted;
 
 			if ((acc_mode & dac_granted) == acc_mode)
@@ -293,7 +293,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				if (acl->acl_entry[i].ae_perm & ACL_READ)
 					dac_granted |= VREAD;
 				if (acl->acl_entry[i].ae_perm & ACL_WRITE)
-					dac_granted |= VWRITE;
+					dac_granted |= (VWRITE | VAPPEND);
 				dac_granted &= acl_mask_granted;
 
 				if ((acc_mode & (dac_granted | cap_granted)) !=
@@ -314,7 +314,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				if (acl->acl_entry[i].ae_perm & ACL_READ)
 					dac_granted |= VREAD;
 				if (acl->acl_entry[i].ae_perm & ACL_WRITE)
-					dac_granted |= VWRITE;
+					dac_granted |= (VWRITE | VAPPEND);
 				dac_granted &= acl_mask_granted;
 
 				if ((acc_mode & (dac_granted | cap_granted)) !=
@@ -345,7 +345,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	if (acl_other->ae_perm & ACL_READ)
 		dac_granted |= VREAD;
 	if (acl_other->ae_perm & ACL_WRITE)
-		dac_granted |= VWRITE;
+		dac_granted |= (VWRITE | VAPPEND);
 
 	if ((acc_mode & dac_granted) == acc_mode)
 		return (0);
