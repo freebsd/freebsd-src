@@ -398,8 +398,7 @@
 
 2.00  25 Sep 1999 Roger Hardiman <roger@freebsd.org>
                   Split the driver into seperate tuner, card and audio sections.
-		  Update tuner code so Tuner FM radio support to use correct
-		  datasheet values.
+		  Update tuner code for FM radio to use datasheet equations.
 
 2.01  27 Sep 1999 Roger Hardiman <roger@freebsd.org>
                   Add Dynalink Magic TView for Craig <crh@outpost.co.nz>
@@ -408,3 +407,6 @@
                   Tidy up a few tables with tabs and PLL selection code.
                   Restore Video Highway Xtreme PLL code.
 
+2.01   4 Oct 1999 Peter Wemm <peter@netplex.com.au>
+		  Updated Australian Channel Set.
+		  Added Tuner and Mute values for LeadTek Winfast 2000 card
