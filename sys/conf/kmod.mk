@@ -1,5 +1,84 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.19 1996/04/03 12:08:52 phk Exp $
+#	$Id: bsd.kmod.mk,v 1.20 1996/04/29 15:37:30 wosch Exp $
+#
+# The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
+# <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
+# as well as the include file <bsd.obj.mk>, <bsd.dep.mk>, and
+# may be <bsd.man.mk>
+#
+#
+# +++ variables +++
+#
+# CLEANFILES	Additional files to remove for the clean and cleandir targets.
+#
+# DISTRIBUTION  Name of distribution. [bin]
+#
+# EXPORT_SYMS	???
+#
+# KERN		Main Kernel source directory. [${.CURDIR}/../../sys/kern]
+#
+# KMOD          The name of the loadable kernel module to build.
+#
+# KMODDIR	Base path for loadable kernel modules
+#		(see lkm(4)). [/lkm]
+#
+# KMODOWN	LKM owner. [${BINOWN}]
+#
+# KMODGRP	LKM group. [${BINGRP}]
+#
+# KMODMODE	LKM mode. [${BINMODE}]
+#
+# LINKS		The list of LKM links; should be full pathnames, the
+#               linked-to file coming first, followed by the linked
+#               file.  The files are hard-linked.  For example, to link
+#               /lkm/master and /lkm/meister, use:
+#
+#			LINKS=  /lkm/master /lkm/meister
+#
+# LN_FLAGS	Flags for ln(1) (see variable LINKS)
+#
+# NOMAN		LKM does not have a manual page if set.
+#
+# PROG          The name of the loadable kernel module to build. 
+#		If not supplied, ${KMOD} is used.
+#
+# PSEUDO_LKM	???
+#
+# SRCS          List of source files 
+#
+# SUBDIR        A list of subdirectories that should be built as well.
+#               Each of the targets will execute the same target in the
+#               subdirectories.
+#
+# DESTDIR, DISTDIR are set by other Makefiles (e.g. bsd.own.mk)
+#
+#
+# +++ targets +++
+#
+#       distribute:
+#               This is a variant of install, which will
+#               put the stuff into the right "distribution".
+#
+# 	install:
+#               install the program and its manual pages; if the Makefile
+#               does not itself define the target install, the targets
+#               beforeinstall and afterinstall may also be used to cause
+#               actions immediately before and after the install target
+#		is executed.
+#
+# 	load:	
+#		Load LKM.
+#
+# 	tags:
+#		Create a tags file for the source files.
+#
+# 	unload:
+#		Unload LKM.
+#
+# bsd.obj.mk: clean, cleandir and obj
+# bsd.dep.mk: depend
+# bsd.man.mk: maninstall
+#
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
