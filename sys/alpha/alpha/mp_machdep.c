@@ -532,7 +532,7 @@ smp_handle_ipi(struct trapframe *frame)
 static void
 release_aps(void *dummy __unused)
 {
-	if (bootverbose)
+	if (bootverbose && mp_ncpus > 1)
 		printf("%s: releasing secondary CPUs\n", __func__);
 	atomic_store_rel_int(&aps_ready, 1);
 
