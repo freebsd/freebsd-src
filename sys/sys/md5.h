@@ -1,5 +1,5 @@
 /* MD5.H - header file for MD5C.C
- * $Id: md5.h,v 1.8 1997/02/22 09:45:33 peter Exp $
+ * $Id: md5.h,v 1.9 1997/08/25 05:24:31 joerg Exp $
  */
 
 /* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
@@ -38,6 +38,7 @@ typedef struct MD5Context {
 __BEGIN_DECLS
 void   MD5Init (MD5_CTX *);
 void   MD5Update (MD5_CTX *, const unsigned char *, unsigned int);
+void   MD5Pad (MD5_CTX *);
 void   MD5Final (unsigned char [16], MD5_CTX *);
 char * MD5End(MD5_CTX *, char *);
 char * MD5File(const char *, char *);

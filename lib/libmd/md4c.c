@@ -1,5 +1,5 @@
 /* MD4C.C - RSA Data Security, Inc., MD4 message-digest algorithm
- * $Id$
+ * $Id: md4c.c,v 1.5 1997/02/22 15:07:19 peter Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
@@ -141,11 +141,8 @@ unsigned int inputLen;                     /* length of input block */
      inputLen-i);
 }
 
-/* MD4 finalization. Ends an MD4 message-digest operation, writing the
-     the message digest and zeroizing the context.
- */
-void MD4Final (digest, context)
-unsigned char digest[16];                         /* message digest */
+/* MD4 padding. */
+void MD4Pad (context)
 MD4_CTX *context;                                        /* context */
 {
   unsigned char bits[8];
@@ -162,6 +159,18 @@ MD4_CTX *context;                                        /* context */
 
   /* Append length (before padding) */
   MD4Update (context, bits, 8);
+}
+
+/* MD4 finalization. Ends an MD4 message-digest operation, writing the
+     the message digest and zeroizing the context.
+ */
+void MD4Final (digest, context)
+unsigned char digest[16];                         /* message digest */
+MD4_CTX *context;                                        /* context */
+{
+  /* Do padding */
+  MD4Pad (context);
+
   /* Store state in digest */
   Encode (digest, context->state, 16);
 
