@@ -46,6 +46,8 @@
 
 #include <machine/clock.h>
 #include <machine/resource.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
 #include <isa/isavar.h>
 
 #include "acpi.h"
@@ -755,7 +757,32 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid, struct re
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
 
-    return(resource_list_release(rl, bus, child, type, rid, r));
+    return (resource_list_release(rl, bus, child, type, rid, r));
+}
+
+/* Allocate an IO port or memory resource, given its GAS. */
+struct resource *
+acpi_bus_alloc_gas(device_t dev, int *rid, ACPI_GENERIC_ADDRESS *gas)
+{
+    int type;
+
+    if (gas == NULL || !ACPI_VALID_ADDRESS(gas->Address) ||
+	gas->RegisterBitWidth < 8)
+	return (NULL);
+
+    switch (gas->AddressSpaceId) {
+    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+	type = SYS_RES_MEMORY;
+	break;
+    case ACPI_ADR_SPACE_SYSTEM_IO:
+	type = SYS_RES_IOPORT;
+	break;
+    default:
+	return (NULL);
+    }
+
+    bus_set_resource(dev, type, *rid, gas->Address, gas->RegisterBitWidth / 8);
+    return (bus_alloc_resource(dev, type, rid, 0, ~0, 1, RF_ACTIVE));
 }
 
 /*
