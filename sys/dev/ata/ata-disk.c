@@ -265,7 +265,8 @@ adstrategy(struct bio *bp)
 }
 
 static int
-addump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+addump(void *arg, void *virtual, vm_offset_t physical,
+       off_t offset, size_t length)
 {
     struct ad_softc *adp;
     struct ad_request request;
@@ -528,7 +529,7 @@ ad_interrupt(struct ad_request *request)
     /* do we have a corrected soft error ? */
     if (adp->device->channel->status & ATA_S_CORR)
 	disk_err(request->bp, "soft error (ECC corrected)",
-		request->blockaddr + (request->donecount / DEV_BSIZE), 1);
+		 request->donecount / DEV_BSIZE, 1);
 
     /* did any real errors happen ? */
     if ((adp->device->channel->status & ATA_S_ERROR) ||
@@ -537,7 +538,7 @@ ad_interrupt(struct ad_request *request)
 	    ATA_IDX_INB(adp->device->channel, ATA_ERROR);
 	disk_err(request->bp, (adp->device->channel->error & ATA_E_ICRC) ?
 		"UDMA ICRC error" : "hard error",
-		request->blockaddr + (request->donecount / DEV_BSIZE), 1);
+		request->donecount / DEV_BSIZE, 0);
 
 	/* if this is a UDMA CRC error, reinject request */
 	if (request->flags & ADR_F_DMA_USED &&
