@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pat_rep.c,v 1.4 1995/05/30 00:06:59 rgrimes Exp $
+ *	$Id: pat_rep.c,v 1.5 1995/10/23 21:23:17 ache Exp $
  */
 
 #ifndef lint
@@ -776,6 +776,7 @@ tty_rename(arcn)
 	tty_prnt("Processing continues, name changed to: %s\n", tmpname);
 	res = add_name(arcn->name, arcn->nlen, tmpname);
 	arcn->nlen = l_strncpy(arcn->name, tmpname, PAXPATHLEN+1);
+	arcn->name[PAXPATHLEN] = '\0';
 	if (res < 0)
 		return(-1);
 	return(0);
@@ -1056,6 +1057,7 @@ rep_name(name, nlen, prnt)
 		if (*nname == '\0')
 			return(1);
 		*nlen = l_strncpy(name, nname, PAXPATHLEN + 1);
+		name[PAXPATHLEN] = '\0';
 	}
 	return(0);
 }
