@@ -6,28 +6,22 @@
 
 # File lists.
 
-# Diff mode tests written in C.
-CDTESTS := hello_d.c mutex_d.c sem_d.c sigsuspend_d.c sigwait_d.c
+# Tests written in C.
+CTESTS := hello_d.c hello_s.c join_leak_d.c mutex_d.c sem_d.c sigsuspend_d.c \
+	sigwait_d.c
 
-# Sequence mode tests written in C.
-CSTESTS := hello_s.c
-
-# C programs that are used internally by the perl-based tests.  The build
-# system merely compiles these.
+# C programs that are used internally by the tests.  The build system merely
+# compiles these.
 BTESTS := hello_b.c
 
-# Diff mode tests written in perl.
-PDTESTS :=
-
-# Sequence mode tests written in perl.
-PSTESTS := propagate_s.pl
+# Tests written in perl.
+PTESTS := propagate_s.pl
 
 # Munge the file lists to their final executable names (strip the .c).
-CDTESTS := $(CDTESTS:R)
-CSTESTS := $(CSTESTS:R)
+CTESTS := $(CTESTS:R)
 BTESTS := $(BTESTS:R)
 
-CPPFLAGS := -D_LIBC_R_
+CPPFLAGS := -D_LIBC_R_ -D_REENTRANT
 CFLAGS := -Wall -pipe -g3
 LDFLAGS_A := -static
 LDFLAGS_P := -pg
@@ -49,7 +43,7 @@ all : default
 .PATH : .
 
 # Build the C programs.
-.for bin in $(CDTESTS) $(CSTESTS) $(BTESTS)
+.for bin in $(CTESTS) $(BTESTS)
 $(bin)_a : $(bin:S/$/&.c/)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(bin:S/$/&.c/) -o $(@:S/$/&.o/)
 	$(CC) -o $@ $(@:S/$/&.o/) $(LDFLAGS_A) $(LIBS)
@@ -67,11 +61,9 @@ $(bin)_s : $(bin:S/$/&.c/)
 .endfor
 
 # Dependency file inclusion.
-.for depfile in $(CDTESTS:R:S/$/&_a.d/) $(CSTESTS:R:S/$/&_a.d/) \
-		$(BTESTS:R:S/$/&_a.d/) $(CDTESTS:R:S/$/&_p.d/) \
-		$(CSTESTS:R:S/$/&_p.d/) $(BTESTS:R:S/$/&_p.d/) \
-		$(CDTESTS:R:S/$/&_s.d/) $(CSTESTS:R:S/$/&_s.d/) \
-		$(BTESTS:R:S/$/&_s.d/)
+.for depfile in $(CTESTS:R:S/$/&_a.d/) $(BTESTS:R:S/$/&_a.d/) \
+		$(CTESTS:R:S/$/&_p.d/) $(BTESTS:R:S/$/&_p.d/) \
+		$(CTESTS:R:S/$/&_s.d/) $(BTESTS:R:S/$/&_s.d/)
 .if exists($(depfile))
 .include "$(depfile)"
 .endif
@@ -79,32 +71,32 @@ $(bin)_s : $(bin:S/$/&.c/)
 
 default : check
 
-tests_a : $(CDTESTS:S/$/&_a/) $(CSTESTS:S/$/&_a/) $(BTESTS:S/$/&_a/)
-tests_p : $(CDTESTS:S/$/&_p/) $(CSTESTS:S/$/&_p/) $(BTESTS:S/$/&_p/)
-tests_s : $(CDTESTS:S/$/&_s/) $(CSTESTS:S/$/&_s/) $(BTESTS:S/$/&_s/)
+tests_a : $(CTESTS:S/$/&_a/) $(BTESTS:S/$/&_a/)
+tests_p : $(CTESTS:S/$/&_p/) $(BTESTS:S/$/&_p/)
+tests_s : $(CTESTS:S/$/&_s/) $(BTESTS:S/$/&_s/)
 
 tests : tests_a tests_p tests_s
 
 check_a : tests_a
-.for bin in $(CDTESTS) $(CSTESTS) $(BTESTS)
+.for bin in $(CTESTS) $(BTESTS)
 	@cp $(bin)_a $(bin)
 .endfor
 	@echo "Test static library:"
-	@./verify $(VFLAGS) -- -d $(CDTESTS) $(PDTESTS) -s $(CSTESTS) $(PSTESTS)
+	@./verify $(VFLAGS) $(CTESTS) $(PTESTS)
 
 check_p : tests_p
-.for bin in $(CDTESTS) $(CSTESTS) $(BTESTS)
+.for bin in $(CTESTS) $(BTESTS)
 	@cp $(bin)_p $(bin)
 .endfor
 	@echo "Test profile library:"
-	@./verify $(VFLAGS) -- -d $(CDTESTS) $(PDTESTS) -s $(CSTESTS) $(PSTESTS)
+	@./verify $(VFLAGS) $(CTESTS) $(PTESTS)
 
 check_s : tests_s
-.for bin in $(CDTESTS) $(CSTESTS) $(BTESTS)
+.for bin in $(CTESTS) $(BTESTS)
 	@cp $(bin)_s $(bin)
 .endfor
 	@echo "Test shared library:"
-	@./verify $(VFLAGS) -- -d $(CDTESTS) $(PDTESTS) -s $(CSTESTS) $(PSTESTS)
+	@./verify $(VFLAGS) $(CTESTS) $(PTESTS)
 
 check : check_a check_p check_s
 
@@ -115,9 +107,9 @@ clean :
 	rm -f *.perf
 	rm -f *.diff
 	rm -f *.gmon
-	rm -f $(CDTESTS) $(CSTESTS) $(BTESTS)
-	rm -f $(CDTESTS:S/$/&_a/) $(CSTESTS:S/$/&_a/) $(BTESTS:S/$/&_a/)
-	rm -f $(CDTESTS:S/$/&_p/) $(CSTESTS:S/$/&_p/) $(BTESTS:S/$/&_p/)
-	rm -f $(CDTESTS:S/$/&_s/) $(CSTESTS:S/$/&_s/) $(BTESTS:S/$/&_s/)
+	rm -f $(CTESTS) $(BTESTS)
+	rm -f $(CTESTS:S/$/&_a/) $(BTESTS:S/$/&_a/)
+	rm -f $(CTESTS:S/$/&_p/) $(BTESTS:S/$/&_p/)
+	rm -f $(CTESTS:S/$/&_s/) $(BTESTS:S/$/&_s/)
 	rm -f *.d
 	rm -f *.o
