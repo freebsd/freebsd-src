@@ -54,16 +54,6 @@ struct	udpiphdr {
 #define	ui_ulen		ui_u.uh_ulen
 #define	ui_sum		ui_u.uh_sum
 
-struct	udpcb {
-	/* XXX - these should be by reference so we can do options quickly */
-	struct	ip udb_ip;
-	struct	udphdr udb_uh;
-	struct	sockaddr_in udb_conn;
-	struct	in_hostcache *udb_hc;
-	struct	mbuf *udb_queue;
-};
-#define	inptoudpcb(inp)	((struct udpdb *)(inp)->inp_ppcb)
-
 struct	udpstat {
 				/* input statistics: */
 	u_long	udps_ipackets;		/* total input packets */
