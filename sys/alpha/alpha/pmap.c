@@ -1070,9 +1070,11 @@ pmap_swapin_thread(td)
 			m = vm_page_lookup(ksobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
+		vm_page_lock_queues();
 		vm_page_wire(m);
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+		vm_page_unlock_queues();
 	}
 
 	/*
