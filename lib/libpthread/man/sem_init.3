@@ -54,19 +54,21 @@ Following a successful call to
 .Fn sem_init ,
 .Fa sem
 can be used as an argument in subsequent calls to
-.Fa sem_wait ,
-.Fa sem_trywait ,
-.Fa sem_post ,
+.Xr sem_wait 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_post 3 ,
 and
-.Fa sem_destroy .
+.Xr sem_destroy 3 .
+The
 .Fa sem
-is no longer valid after a successful call to
-.Fa sem_destroy .
+argument is no longer valid after a successful call to
+.Xr sem_destroy 3 .
 .Sh RETURN VALUES
 .Rv -std sem_init
 .Sh ERRORS
+The
 .Fn sem_init
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa value
@@ -80,10 +82,12 @@ Unable to initialize a shared semaphore.
 .Xr sem_destroy 3 ,
 .Xr sem_post 3 ,
 .Xr sem_trywait 3 ,
-.Xr sem_wait 3
+.Xr sem_wait 3 ,
+.Xr sem 4
 .Sh STANDARDS
+The
 .Fn sem_init
-conforms to
+function conforms to
 .St -p1003.1-96 .
 .Pp
 This implementation does not support shared semaphores, and reports this fact
