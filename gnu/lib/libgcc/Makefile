@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.8 1995/03/12 20:17:07 phk Exp $
+# $Id: Makefile,v 1.9 1996/05/07 23:15:14 wosch Exp $
 #
 
 LIB=	gcc
@@ -16,13 +16,13 @@ P2OBJS=${LIB2OBJS:.o=.po}
 
 ${LIB1OBJS}: libgcc1.c
 	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.CURDIR}/libgcc1.c
-	@${LD} -x -r ${.TARGET}
-	@mv -f a.out ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv -f ${.TARGET}.tmp ${.TARGET}
 
 ${LIB2OBJS}: libgcc2.c
 	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.CURDIR}/libgcc2.c
-	@${LD} -x -r ${.TARGET}
-	@mv -f a.out ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv -f ${.TARGET}.tmp ${.TARGET}
 
 .if !defined(NOPIC)
 ${LIB1SOBJS}: libgcc1.c
