@@ -1821,8 +1821,10 @@ if_addmulti(ifp, sa, retifma)
 			       M_IFMADDR, M_WAITOK);
 			bcopy(llsa, dupsa, llsa->sa_len);
 			ifma->ifma_addr = dupsa;
+			ifma->ifma_lladdr = NULL;
 			ifma->ifma_ifp = ifp;
 			ifma->ifma_refcount = 1;
+			ifma->ifma_protospec = 0;
 			s = splimp();
 			TAILQ_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
 			splx(s);
