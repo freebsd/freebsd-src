@@ -34,24 +34,33 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include <err.h>
 #include <errno.h>
+#include <netconfig.h>
+#include <netdb.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/yppasswd.h>
 
 #include "ypclnt.h"
+#include "yppasswd_private.h"
+
+static int yppasswd_remote(ypclnt_t *, const struct passwd *, const char *);
+static int yppasswd_local(ypclnt_t *, const struct passwd *, const char *);
 
 int
 ypclnt_passwd(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 {
-	struct yppasswd yppwd;
-	struct rpc_err rpcerr;
-	CLIENT *clnt = NULL;
-	int ret, *result;
+	struct addrinfo hints, *res;
+	int sd;
 
 	/* check that rpc.yppasswdd is running */
 	if (getrpcport(ypclnt->server, YPPASSWDPROG,
@@ -59,6 +68,135 @@ ypclnt_passwd(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 		ypclnt_error(ypclnt, __func__, "no rpc.yppasswdd on server");
 		return (-1);
 	}
+
+	/* if we're not root, use remote method */
+	if (getuid() != 0)
+		goto remote;
+
+	/* try to determine if we are the server */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = 0;
+	if (getaddrinfo(ypclnt->server, NULL, &hints, &res) != 0)
+		goto remote;
+	sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if (sd == -1) {
+		freeaddrinfo(res);
+		goto remote;
+	}
+	if (bind(sd, res->ai_addr, res->ai_addrlen) == -1) {
+		close(sd);
+		freeaddrinfo(res);
+		goto remote;
+	}
+	freeaddrinfo(res);
+	close(sd);
+	YPCLNT_DEBUG("using local update method");
+	return (yppasswd_local(ypclnt, pwd, passwd));
+ remote:
+	YPCLNT_DEBUG("using remote update method");
+	return (yppasswd_remote(ypclnt, pwd, passwd));
+}
+
+/*
+ * yppasswd_remote and yppasswd_local are quite similar but still
+ * sufficiently different that merging them into one makes the code
+ * significantly less readable, IMHO, so we keep them separate.
+ */
+
+static int
+yppasswd_local(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
+{
+	struct master_yppasswd yppwd;
+	struct rpc_err rpcerr;
+	struct netconfig *nc = NULL;
+	CLIENT *clnt = NULL;
+	int ret, *result;
+
+	/* fill the master_yppasswd structure */
+	memset(&yppwd, 0, sizeof yppwd);
+	yppwd.newpw.pw_uid = pwd->pw_uid;
+	yppwd.newpw.pw_gid = pwd->pw_gid;
+	yppwd.newpw.pw_change = pwd->pw_change;
+	yppwd.newpw.pw_expire = pwd->pw_expire;
+	yppwd.newpw.pw_fields = pwd->pw_fields;
+	if ((yppwd.newpw.pw_name = strdup(pwd->pw_name)) == NULL ||
+	    (yppwd.newpw.pw_passwd = strdup(pwd->pw_passwd)) == NULL ||
+	    (yppwd.newpw.pw_class = strdup(pwd->pw_class)) == NULL ||
+	    (yppwd.newpw.pw_gecos = strdup(pwd->pw_gecos)) == NULL ||
+	    (yppwd.newpw.pw_dir = strdup(pwd->pw_dir)) == NULL ||
+	    (yppwd.newpw.pw_shell = strdup(pwd->pw_shell)) == NULL ||
+	    (yppwd.oldpass = strdup(passwd)) == NULL) {
+		ypclnt_error(ypclnt, __func__, strerror(errno));
+		ret = -1;
+		goto done;
+	}
+
+	/* connect to rpc.yppasswdd */
+	nc = getnetconfigent("unix");
+	clnt = clnt_tp_create(ypclnt->server, YPPASSWDPROG, YPPASSWDVERS, nc);
+	if (clnt == NULL) {
+		ypclnt_error(ypclnt, __func__,
+		    "failed to connect to rpc.yppasswdd: %s",
+		    clnt_spcreateerror(ypclnt->server));
+		ret = -1;
+		goto done;
+	}
+	clnt->cl_auth = authunix_create_default();
+
+	/* request the update */
+	result = yppasswdproc_update_master_1(&yppwd, clnt);
+
+	/* check for RPC errors */
+	clnt_geterr(clnt, &rpcerr);
+	if (rpcerr.re_status != RPC_SUCCESS) {
+		ypclnt_error(ypclnt, __func__,
+		    "NIS password update failed: %s",
+		    clnt_sperror(clnt, ypclnt->server));
+		ret = -1;
+		goto done;
+	}
+
+	/* check the result of the update */
+	if (result == NULL || *result != 0) {
+		ypclnt_error(ypclnt, __func__,
+		    "NIS password update failed");
+		/* XXX how do we get more details? */
+		ret = -1;
+		goto done;
+	}
+
+	ypclnt_error(ypclnt, NULL, NULL);
+	ret = 0;
+
+ done:
+	if (clnt != NULL) {
+		auth_destroy(clnt->cl_auth);
+		clnt_destroy(clnt);
+	}
+	if (nc != NULL)
+		freenetconfigent(nc);
+	free(yppwd.newpw.pw_name);
+	free(yppwd.newpw.pw_passwd);
+	free(yppwd.newpw.pw_class);
+	free(yppwd.newpw.pw_gecos);
+	free(yppwd.newpw.pw_dir);
+	free(yppwd.newpw.pw_shell);
+	if (yppwd.oldpass != NULL) {
+		memset(yppwd.oldpass, 0, strlen(yppwd.oldpass));
+		free(yppwd.oldpass);
+	}
+	return (ret);
+}
+
+static int
+yppasswd_remote(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
+{
+	struct yppasswd yppwd;
+	struct rpc_err rpcerr;
+	CLIENT *clnt = NULL;
+	int ret, *result;
 
 	/* fill the yppasswd structure */
 	memset(&yppwd, 0, sizeof yppwd);
