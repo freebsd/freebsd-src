@@ -21,9 +21,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.6 1994/10/11 18:20:10 thomas Exp $
+ * $Id: if_de.c,v 1.3 1994/10/12 11:19:35 se Exp $
  *
  * $Log: if_de.c,v $
+ * Revision 1.3  1994/10/12  11:19:35  se
+ * Submitted by:	Matt Thomas <thomas@lkg.dec.com>
+ * Preliminary FAST Ethernet support added (DEC21140).
+ *
  * Revision 1.6  1994/10/11  18:20:10  thomas
  * new pci interface
  * new 100mb/s prelim support
@@ -176,7 +180,6 @@ typedef struct {
     struct arpcom tulip_ac;
     tulip_regfile_t tulip_csrs;
     vm_offset_t tulip_rxspace;
-    unsigned tulip_high_intrspins;
     unsigned tulip_flags;
 #define	TULIP_WANTSETUP		0x01
 #define	TULIP_WANTHASH		0x02
@@ -207,7 +210,6 @@ const char *tulip_chipdescs[] = {
 
 tulip_softc_t *tulips[NDE];
 tulip_chipid_t tulip_chipids[NDE];
-unsigned tulip_intrs[NDE];
 
 #define	tulip_if	tulip_ac.ac_if
 #define	tulip_unit	tulip_ac.ac_if.if_unit
@@ -350,16 +352,6 @@ tulip_init(
     }
 }
 
-static struct {
-    unsigned notwhole;
-    unsigned rxerror;
-    unsigned nombufs[2];
-    unsigned rcvs;
-#if TULIP_CHECK_RXCRC
-    unsigned badcrc;
-#endif
-    unsigned badsop;
-} tulip_rx;
 
 #if TULIP_CHECK_RXCRC
 static unsigned
@@ -400,8 +392,9 @@ tulip_rx_intr(
     tulip_softc_t *sc)
 {
     tulip_ringinfo_t *ri = &sc->tulip_rxinfo;
+    struct ifnet *ifp = &sc->tulip_if;
 
-    for (;; tulip_rx.rcvs++) {
+    for (;;) {
 	tulip_desc_t *eop;
 	int total_len, ndescs;
 	caddr_t bufaddr = (caddr_t) sc->tulip_rxspace;
@@ -410,9 +403,6 @@ tulip_rx_intr(
 	    if (((volatile tulip_desc_t *) eop)->d_status & TULIP_DSTS_OWNER)
 		return;
 	
-	    if ((eop->d_status & TULIP_DSTS_RxFIRSTDESC) && eop != ri->ri_nextin) {
-		tulip_rx.badsop++;
-	    }
 	    if (eop->d_status & TULIP_DSTS_RxLASTDESC)
 		break;
 	    if (++eop == ri->ri_last)
@@ -429,8 +419,7 @@ tulip_rx_intr(
 #if TULIP_CHECK_RXCRC
 	    unsigned crc = tulip_crc32(bufaddr, total_len);
 	    if (~crc != *((unsigned *) &bufaddr[total_len])) {
-		printf("de0: %d: bad rx crc: %08x [rx] != %08x\n",
-		       tulip_rx.rcvs,
+		printf("de0: bad rx crc: %08x [rx] != %08x\n",
 		       *((unsigned *) &bufaddr[total_len]), ~crc);
 		goto next;
 	    }
@@ -452,29 +441,27 @@ tulip_rx_intr(
 #endif
 	    MGETHDR(m, M_DONTWAIT, MT_DATA);
 	    if (m != NULL) {
+		m->m_pkthdr.rcvif = ifp;
 		total_len -= sizeof(eh);
 		if (total_len > MHLEN) {
 		    MCLGET(m, M_DONTWAIT);
 		    if ((m->m_flags & M_EXT) == 0) {
 			m_freem(m);
-			tulip_rx.nombufs[1]++;
-			sc->tulip_if.if_ierrors++;
+			ifp->if_ierrors++;
 			goto next;
 		    }
 		}
 		bcopy(bufaddr + sizeof(eh), mtod(m, caddr_t), total_len);
 		m->m_len = m->m_pkthdr.len = total_len;
-		ether_input(&sc->tulip_if, &eh, m);
+		ether_input(ifp, &eh, m);
 	    } else {
-		tulip_rx.nombufs[0]++;
-		sc->tulip_if.if_ierrors++;
+		ifp->if_ierrors++;
 	    }
 	} else {
-	    tulip_rx.rxerror++;
-	    sc->tulip_if.if_ierrors++;
+	    ifp->if_ierrors++;
 	}
 next:
-	sc->tulip_if.if_ipackets++;
+	ifp->if_ipackets++;
 	while (ndescs-- > 0) {
 	    ri->ri_nextin->d_status |= TULIP_DSTS_OWNER;
 	    if (++ri->ri_nextin == ri->ri_last)
@@ -649,10 +636,10 @@ tulip_start(
 	    }
 #endif
 	}
-	if (ri->ri_free - 2 <= (segcnt + 1) / 2)
+	if (ri->ri_free - 2 <= (segcnt + 1) >> 1)
 	    break;
 
-	ri->ri_free -= (segcnt + 1) / 2;
+	ri->ri_free -= (segcnt + 1) >> 1;
 	/*
 	 * Now we fill in our transmit descriptors.  This is
 	 * a bit reminiscent of going on the Ark two by two
@@ -702,13 +689,9 @@ tulip_intr(
     tulip_softc_t *sc)
 {
     tulip_uint32_t csr;
-    unsigned spins = 0;
-
-    tulip_intrs[sc->tulip_unit]++;
 
     while ((csr = *sc->tulip_csrs.csr_status) & (TULIP_STS_NORMALINTR|TULIP_STS_ABNRMLINTR)) {
 	*sc->tulip_csrs.csr_status = csr & sc->tulip_intrmask;
-	spins++;
 
 	if (csr & TULIP_STS_SYSERROR) {
 	    if ((csr & TULIP_STS_ERRORMASK) == TULIP_STS_ERR_PARITY) {
@@ -729,8 +712,6 @@ tulip_intr(
 	    *sc->tulip_csrs.csr_command = sc->tulip_cmdmode;
 	}
     }
-    if (spins > sc->tulip_high_intrspins)
-	sc->tulip_high_intrspins = spins;
     return 1;
 }
 
@@ -785,7 +766,6 @@ tulip_read_macaddr(
     return 0;
 }
 
-#ifdef MULTICAST
 static unsigned
 tulip_mchash(
     unsigned char *mca)
@@ -803,24 +783,20 @@ tulip_mchash(
 #endif
     return crc & 0x1FF;
 }
-#endif MULTICAST
 
 static void
 tulip_addr_filter(
     tulip_softc_t *sc)
 {
     tulip_uint32_t *sp = sc->tulip_setupdata;
-#ifdef MULTICAST
     struct ether_multistep step;
     struct ether_multi *enm;
-#endif
     int i;
 
     sc->tulip_flags &= ~TULIP_WANTHASH;
     sc->tulip_flags |= TULIP_WANTSETUP;
     sc->tulip_cmdmode &= ~TULIP_CMD_RXRUN;
     sc->tulip_intrmask &= ~TULIP_STS_RXSTOPPED;
-#ifdef MULTICAST
     if (sc->tulip_ac.ac_multicnt > 14) {
 	unsigned hash;
 	/*
@@ -843,12 +819,10 @@ tulip_addr_filter(
 	sp[41] = ((u_short *) sc->tulip_ac.ac_enaddr)[1]; 
 	sp[42] = ((u_short *) sc->tulip_ac.ac_enaddr)[2];
     } else {
-#endif
 	/*
 	 * Else can get perfect filtering for 16 addresses.
 	 */
 	i = 0;
-#ifdef MULTICAST
 	ETHER_FIRST_MULTI(step, &sc->tulip_ac, enm);
 	for (; enm != NULL; i++) {
 	    *sp++ = ((u_short *) enm->enm_addrlo)[0]; 
@@ -856,7 +830,6 @@ tulip_addr_filter(
 	    *sp++ = ((u_short *) enm->enm_addrlo)[2];
 	    ETHER_NEXT_MULTI(step, enm);
 	}
-#endif
 	/*
 	 * If an IP address is enabled, turn on broadcast
 	 */
@@ -874,9 +847,7 @@ tulip_addr_filter(
 	    *sp++ = ((u_short *) sc->tulip_ac.ac_enaddr)[1]; 
 	    *sp++ = ((u_short *) sc->tulip_ac.ac_enaddr)[2];
 	}
-#ifdef MULTICAST
     }
-#endif
 }
 
 static int
@@ -949,7 +920,6 @@ tulip_ioctl(
 	    break;
 	}
 
-#ifdef MULTICAST
 	case SIOCADDMULTI:
 	case SIOCDELMULTI: {
 	    /*
@@ -967,7 +937,6 @@ tulip_ioctl(
 	    }
 	    break;
 	}
-#endif /* MULTICAST */
 
 	default: {
 	    error = EINVAL;
@@ -987,10 +956,7 @@ tulip_attach(
     struct ifaddr *ifa = ifp->if_addrlist;
     int cnt;
 
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
-#ifdef MULTICAST
-    ifp->if_flags |= IFF_MULTICAST;
-#endif /* MULTICAST */
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS | IFF_MULTICAST;
 
     *sc->tulip_csrs.csr_sia_connectivity = 0;
     *sc->tulip_csrs.csr_sia_connectivity = TULIP_SIACONN_10BASET;
@@ -1011,10 +977,6 @@ tulip_attach(
     ifp->if_output = ether_output;
     ifp->if_reset = tulip_reset;
     ifp->if_start = tulip_start;
-    ifp->if_mtu = ETHERMTU;
-    ifp->if_type = IFT_ETHER;
-    ifp->if_addrlen = 6;
-    ifp->if_hdrlen = 14;
   
     printf("%s%d: %s pass %d.%d ethernet address %s\n", 
 	   sc->tulip_name, sc->tulip_unit,
@@ -1023,26 +985,11 @@ tulip_attach(
 	   sc->tulip_revinfo & 0x0F,
 	   ether_sprintf(sc->tulip_hwaddr));
 
+    if_attach(ifp);
+
 #if NBPFILTER > 0
     bpfattach(&sc->tulip_bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-
-    if_attach(ifp);
-
-    while (ifa && ifa->ifa_addr && ifa->ifa_addr->sa_family != AF_LINK)
-	ifa = ifa->ifa_next;
-
-    if (ifa != NULL && ifa->ifa_addr != NULL) {
-	struct sockaddr_dl *sdl;
-	/*
-	 * Provide our ether address to the higher layers
-	 */
-	sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-	sdl->sdl_type = IFT_ETHER;
-	sdl->sdl_alen = 6;
-	sdl->sdl_slen = 0;
-	bcopy(sc->tulip_ac.ac_enaddr, LLADDR(sdl), 6);
-    }
 }
 
 static void
