@@ -128,8 +128,12 @@ function call is expected to conform to
 .St -p1003.1-90 .
 .Sh CAVEAT
 .Fn Access
-is a potential security hole and
+is a potential security hole due to race conditions and
 should never be used.
+Setuid and setgid applications should restore the effective uid or gid
+and perform actions directly rather than use
+.Fn access
+to simulate access checks for the real user of group id.
 .Sh HISTORY
 An
 .Fn access
