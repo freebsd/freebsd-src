@@ -169,9 +169,6 @@ such as Linux
 .Xr sysinstall 8 )
 .It Pa games/
 useful and semi-frivolous programs
-.It Pa heimdal/
-kerberos server databases; see
-.Xr kdc 8
 .It Pa include/
 standard C include files
 .Pp
@@ -181,7 +178,7 @@ C include files for Internet service protocols
 .It Pa cam/
 C include files for the Common Access Methods Layer
 .Bl -tag -width "kerberosIV/" -compact
-.It scsi/
+.It Pa scsi/
 The SCSI device on top of CAM
 .El
 .It Pa dev/
@@ -275,14 +272,14 @@ see
 IPX/SPX protocol stacks
 .It Pa netkey/
 kernel key-management service
-.It Pa netns/
-Xerox NS protocols
-.It Pa netsmb/
-SMB/CIFS requester
 .It Pa netnatm/
 NATM include files;
 see
 .Xr natm 4
+.It Pa netns/
+Xerox NS protocols
+.It Pa netsmb/
+SMB/CIFS requester
 .It Pa nfs/
 C include files for NFS (Network File System)
 .It Pa objc/
@@ -697,6 +694,9 @@ empty directory used by
 for privilege separation
 .It Pa games/
 misc. game status and score files
+.It Pa heimdal/
+kerberos server databases; see
+.Xr kdc 8
 .It Pa log/
 misc. system log files
 .Pp
@@ -709,15 +709,15 @@ see
 .Pp
 .It Pa mail/
 user mailbox files
+.It Pa msgs/
+system messages database;
+see
+.Xr msgs 1
 .It Pa preserve/
 temporary home of files preserved after an accidental death
 of an editor;
 see
 .Xr \&ex 1
-.It Pa msgs/
-system messages database;
-see
-.Xr msgs 1
 .It Pa quotas/
 file system quota information files
 .It Pa run/
