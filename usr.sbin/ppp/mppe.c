@@ -47,7 +47,11 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "ccp.h"
+#include "throughput.h"
+#include "layer.h"
+#include "link.h"
 #include "chap_ms.h"
+#include "proto.h"
 #include "mppe.h"
 
 /*
@@ -223,6 +227,21 @@ MPPEDispOpts(struct lcp_opt *o)
   return buf;
 }
 
+static int
+MPPEUsable(struct fsm *fp)
+{
+  struct lcp *lcp;
+  int ok;
+
+  lcp = &fp->link->lcp;
+  ok = (lcp->want_auth == PROTO_CHAP && lcp->want_authtype == 0x81) ||
+       (lcp->his_auth == PROTO_CHAP && lcp->his_authtype == 0x81);
+  if (!ok)
+    log_Printf(LogCCP, "MPPE: Not usable without CHAP81\n");
+
+  return ok;
+}
+
 static void
 MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
@@ -234,7 +253,7 @@ MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 
   if (!MPPE_MasterKeyValid) {
     log_Printf(LogCCP, "MPPE: MasterKey is invalid,"
-               " MPPE is capable only with CHAP81 authentication\n");
+               " MPPE is available only with CHAP81 authentication\n");
     *(u_int32_t *)o->data = htonl(0x0);
     return;
   }
@@ -321,7 +340,7 @@ MPPEInitInput(struct lcp_opt *o)
   log_Printf(LogCCP, "MPPE: InitInput\n");
 
   if (!MPPE_MasterKeyValid) {
-    log_Printf(LogERROR, "MPPE: InitInput: MasterKey is invalid!!!!\n");
+    log_Printf(LogWARN, "MPPE: Cannot initialise without CHAP81\n");
     return NULL;
   }
 
@@ -363,7 +382,7 @@ MPPEInitOutput(struct lcp_opt *o)
   log_Printf(LogCCP, "MPPE: InitOutput\n");
 
   if (!MPPE_MasterKeyValid) {
-    log_Printf(LogERROR, "MPPE: InitOutput: MasterKey is invalid!!!!\n");
+    log_Printf(LogWARN, "MPPE: Cannot initialise without CHAP81\n");
     return NULL;
   }
 
@@ -414,6 +433,7 @@ const struct ccp_algorithm MPPEAlgorithm = {
   TY_MPPE,
   CCP_NEG_MPPE,
   MPPEDispOpts,
+  MPPEUsable,
   {
     MPPESetOptsInput,
     MPPEInitInput,

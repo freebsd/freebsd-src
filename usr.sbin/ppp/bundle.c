@@ -96,6 +96,8 @@
 #include "datalink.h"
 #include "ip.h"
 #include "iface.h"
+#include "server.h"
+#include "mppe.h"
 
 #define SCATTER_SEGMENTS 7  /* version, datalink, name, physical,
                                throughput, throughput, device       */
@@ -127,8 +129,11 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
 
   switch (new) {
   case PHASE_DEAD:
-    log_DisplayPrompts();
     bundle->phase = new;
+#ifdef HAVE_DES
+    MPPE_MasterKeyValid = 0;
+#endif
+    log_DisplayPrompts();
     break;
 
   case PHASE_ESTABLISH:
@@ -375,7 +380,7 @@ bundle_Close(struct bundle *bundle, const char *name, int how)
       switch (how) {
         case CLOSE_LCP:
           datalink_DontHangup(dl);
-          /* fall through */
+          break;
         case CLOSE_STAYDOWN:
           datalink_StayDown(dl);
           break;
