@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.19 1997/03/31 08:27:05 kato Exp $
+#	$Id: GENERIC98,v 1.20 1997/04/08 12:01:11 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -131,7 +131,7 @@ controller	matcd0	at isa? port? bio
 
 # syscons is the default console driver, resembling an SCO console
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
-#options		XSERVER			# include code for XFree86
+#options		XSERVER			# support for X server
 
 device		npx0	at isa? port "IO_NPX" irq 8 vector npxintr
 
