@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.120 1999/01/24 02:29:26 dillon Exp $
+ *	$Id: vm_page.c,v 1.121 1999/01/24 06:00:31 dillon Exp $
  */
 
 /*
@@ -1555,7 +1555,6 @@ vm_page_cache(m)
 	 */
 
 	vm_page_protect(m, VM_PROT_NONE);
-	vm_page_flag_clear(m, PG_WRITEABLE | PG_MAPPED);
 #if !defined(MAX_PERF)
 	if (m->dirty != 0) {
 		panic("vm_page_cache: caching a dirty page, pindex: %d", m->pindex);
