@@ -500,7 +500,7 @@ via_82c586:
 			   (error) ? "failed" : "success",
 			   (scp->chiptype == 0x74091022) ? "AMD" : "VIA");
 	    if (!error) {
-	        pci_write_config(parent, 0x53 - devno, 0x82, 1);
+	        pci_write_config(parent, 0x53 - devno, 0x0b, 1);
 	        pci_write_config(parent, 0x4b - devno, 0x31, 1);
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
 		return;
@@ -722,13 +722,14 @@ via_82c586:
     case 0x4d38105a:	/* Promise Ultra/FastTrak 66 controllers */
     case 0x4d30105a:	/* Promise Ultra/FastTrak 100 controllers */
     case 0x0d30105a:	/* Promise OEM ATA100 controllers */
+    case 0x4d68105a:	/* Promise TX2 ATA100 controllers */
 	/* the Promise can only do DMA on ATA disks not on ATAPI devices */
 	if ((device == ATA_MASTER && scp->devices & ATA_ATAPI_MASTER) ||
 	    (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))
 	    break;
 
-	if (udmamode >= 5 &&
-	    (scp->chiptype == 0x4d30105a || scp->chiptype == 0x0d30105a) &&
+	if (udmamode >= 5 && (scp->chiptype == 0x4d30105a || 
+	    scp->chiptype == 0x0d30105a || scp->chiptype == 0x4d68105a) &&
 	    !(pci_read_config(parent, 0x50, 2)&(scp->channel ? 1<<11 : 1<<10))){
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -742,8 +743,9 @@ via_82c586:
 		return;
 	    }
 	}
-	if (udmamode >= 4 && (scp->chiptype == 0x4d38105a || 
-	    scp->chiptype == 0x4d30105a || scp->chiptype == 0x0d30105a) &&
+	if (udmamode >= 4 &&
+	    (scp->chiptype == 0x4d38105a || scp->chiptype == 0x4d30105a ||
+	     scp->chiptype == 0x0d30105a || scp->chiptype == 0x4d68105a) &&
 	    !(pci_read_config(parent, 0x50, 2)&(scp->channel ? 1<<11 : 1<<10))){
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -1045,6 +1047,7 @@ promise_timing(struct ata_softc *scp, int devno, int mode)
     case 0x4d38105a:  /* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:  /* Promise OEM ATA 100 */
+    case 0x4d68105a:  /* Promise TX2 ATA 100 */
 	switch (mode) {
 	default:
 	case ATA_PIO0:  t->pa = 15; t->pb = 31; t->mb = 7; t->mc = 15; break;
