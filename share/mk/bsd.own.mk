@@ -65,7 +65,7 @@
 #
 #
 # KMODDIR	Base path for loadable kernel modules
-#		(see kld(4)). [/modules]
+#		(see kld(4)). [/boot/kernel]
 #
 # KMODOWN	KLD owner. [${BINOWN}]
 #
@@ -153,7 +153,7 @@ INCGRP?=	wheel
 INCMODE?=	444
 INCDIR?=	/usr/include
 
-KMODDIR?=	/modules
+KMODDIR?=	/boot/kernel
 KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
