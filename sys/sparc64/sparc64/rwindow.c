@@ -33,9 +33,9 @@
 #include <sys/systm.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 
 #include <machine/frame.h>
+#include <machine/pcb.h>
 
 CTASSERT((1 << RW_SHIFT) == sizeof(struct rwindow));
 

@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
 #include <sys/copyright.h>
 
 void mi_startup(void);				/* Should be elsewhere */

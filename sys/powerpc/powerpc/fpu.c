@@ -38,9 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/limits.h>
-#include <sys/user.h>
 
 #include <machine/fpu.h>
+#include <machine/pcb.h>
 #include <machine/psl.h>
 
 void

@@ -91,8 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 
-#include <sys/user.h>
-
 extern int maxslp;
 
 /*

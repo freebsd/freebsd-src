@@ -42,9 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/file.h>
-#include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <sys/ktrace.h>
 
 #include <stdio.h>
