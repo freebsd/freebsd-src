@@ -162,7 +162,7 @@ int _arcfour_crypt(buf, len, desp)
 	return(DESERR_NOHWDEVICE);
 }
 
-int (*_my_crypt)__P((char *, int, struct desparams *)) = NULL;
+int (*_my_crypt)(char *, int, struct desparams *) = NULL;
 
 static void *dlhandle;
 
@@ -172,9 +172,9 @@ static void *dlhandle;
 
 #ifndef LIBCRYPTO
 #ifdef OBJFORMAT_ELF
-#define LIBCRYPTO "libcrypto.so.1"
+#define LIBCRYPTO "libcrypto.so.2"
 #else
-#define LIBCRYPTO "libcrypto.so.1."
+#define LIBCRYPTO "libcrypto.so.2."
 #endif /* OBJFORMAT_ELF */
 #endif
 
