@@ -146,8 +146,8 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_attr.3 \
 		pthread_attr_get_np.3 \
 		pthread_attr_setcreatesuspend_np.3 \
-		pthread_barrier_destroy.3 \
 		pthread_barrierattr.3 \
+		pthread_barrier_destroy.3 \
 		pthread_cancel.3 \
 		pthread_cleanup_pop.3 \
 		pthread_cleanup_push.3 \
@@ -224,12 +224,12 @@ PTHREAD_MLINKS=	pthread_attr.3 pthread_attr_destroy.3 \
 		pthread_attr.3 pthread_attr_setstack.3 \
 		pthread_attr.3 pthread_attr_setstackaddr.3 \
 		pthread_attr.3 pthread_attr_setstacksize.3
-PTHREAD_MLINKS+=pthread_barrier_destroy.3 pthread_barrier_init.3 \
-		pthread_barrier_destroy.3 pthread_barrier_wait.3
 PTHREAD_MLINKS+=pthread_barrierattr.3 pthread_barrierattr_destroy.3 \
 		pthread_barrierattr.3 pthread_barrierattr_getpshared.3 \
 		pthread_barrierattr.3 pthread_barrierattr_init.3 \
 		pthread_barrierattr.3 pthread_barrierattr_setpshared.3
+PTHREAD_MLINKS+=pthread_barrier_destroy.3 pthread_barrier_init.3 \
+		pthread_barrier_destroy.3 pthread_barrier_wait.3
 PTHREAD_MLINKS+=pthread_condattr.3 pthread_condattr_destroy.3 \
 		pthread_condattr.3 pthread_condattr_init.3
 PTHREAD_MLINKS+=pthread_getconcurrency.3 pthread_setconcurrency.3

@@ -380,10 +380,10 @@ MLINKS+=gx.4 if_gx.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
 MLINKS+=idt.4 if_idt.4
+MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
 	ipfirewall.4 ipacct.4 \
 	ipfirewall.4 ipfw.4
-MLINKS+=ip.4 rawip.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lge.4 if_lge.4
 MLINKS+=lo.4 loop.4
