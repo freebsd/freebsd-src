@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.19 1997/08/18 05:25:14 peter Exp $
+# $Id: Makefile,v 1.20 1997/08/19 01:52:11 asami Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -47,13 +47,14 @@ MAN1=	${SRCDIR}/docs/USD.doc/vi.man/vi.1
 MLINKS+=vi.1 ex.1 vi.1 view.1
 MLINKS+=vi.1 nex.1 vi.1 nview.1 vi.1 nvi.1
 
-CATALOGS= dutch english french german ru_SU.KOI8-R spanish swedish
+CATALOGS= dutch english french german polish ru_SU.KOI8-R spanish swedish
 NLLINKS= nl_NL
 ENLINKS= en_AU en_CA en_GB en_US
 FRLINKS= fr_BE fr_CA fr_CH fr_FR
 DELINKS= de_AT de_CH de_DE
 ESLINKS= es_ES
 SVLINKS= sv_SE
+PLLINKS= pl_PL
 
 .PATH:	${SRCDIR}/common
 .PATH:	${SRCDIR}/ex
@@ -186,6 +187,9 @@ afterinstall:
 	done
 	for l in ${SVLINKS}; do \
 		ln -fs swedish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
+	done
+	for l in ${PLLINKS}; do \
+		ln -fs polish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-2; \
 	done
 	ln -fs ru_SU.KOI8-R ${DESTDIR}/usr/share/vi/catalog/ru_RU.KOI8-R
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
