@@ -243,10 +243,13 @@ dumpfs(const char *name)
 	ufs_disk_close(&disk);
 	return (0);
 
-err:	libufs_printerror(&disk);
+err:	if (errno || disk.d_error != NULL) {
+		if (disk.d_error != NULL)
+			warnx("%s: %s", name, disk.d_error);
+		else
+			warn("%s", name);
+	}
 	ufs_disk_close(&disk);
-	if (errno)
-		warn("%s", name);
 	return (1);
 }
 
