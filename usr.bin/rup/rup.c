@@ -90,7 +90,7 @@ remember_host(struct in_addr addr)
 	hosts = hp;
 }
 
-static int
+static bool_t
 rstat_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 {
 	struct tm *tmp_time;
@@ -182,7 +182,9 @@ onehost(char *host)
 	bzero((char *)&host_stat, sizeof(host_stat));
 	tv.tv_sec = 15;	/* XXX ??? */
 	tv.tv_usec = 0;
-	if (clnt_call(rstat_clnt, RSTATPROC_STATS, xdr_void, NULL, xdr_statstime, &host_stat, tv) != RPC_SUCCESS) {
+	if (clnt_call(rstat_clnt, RSTATPROC_STATS,
+	    (xdrproc_t)xdr_void, NULL,
+	    (xdrproc_t)xdr_statstime, &host_stat, tv) != RPC_SUCCESS) {
 		warnx("%s: %s", host, clnt_sperror(rstat_clnt, host));
 		clnt_destroy(rstat_clnt);
 		return(-1);
@@ -201,8 +203,9 @@ allhosts(void)
 	enum clnt_stat clnt_stat;
 
 	clnt_stat = clnt_broadcast(RSTATPROG, RSTATVERS_TIME, RSTATPROC_STATS,
-				   xdr_void, NULL,
-				   xdr_statstime, &host_stat, rstat_reply);
+				   (xdrproc_t)xdr_void, NULL,
+				   (xdrproc_t)xdr_statstime, &host_stat,
+				   (resultproc_t)rstat_reply);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
