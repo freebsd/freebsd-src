@@ -441,6 +441,7 @@ product TDK LAK_CD021BX		0x0200 TDK LAK-CD021BX Ethernet
 product TDK LAK_CF010		0x0900 TDK LAC-CF010
 product TDK DFL9610		0x0d0a TDK DFL9610 Ethernet & Digital Cellular
 product	TDK C6500012		0x410a TDK ELSA MicroLink MC all
+product TDK LAK_CD031		0xc1ab TDK LAK-CD031 Ethernet
 
 /* Telecom Device */
 product TELECOMDEVICE TCD_HPC100	0x0202 Telecom Device TCD-HPC100
