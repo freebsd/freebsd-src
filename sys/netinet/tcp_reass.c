@@ -1532,6 +1532,12 @@ trimthenstep6:
 	 *   echo of our outgoing acknowlegement numbers, but some hosts
 	 *   send a reset with the sequence number at the rightmost edge
 	 *   of our receive window, and we have to handle this case.
+	 * Note 2: Paul Watson's paper "Slipping in the Window" has shown
+	 *   that brute force RST attacks are possible.  To combat this,
+	 *   we use a much stricter check while in the ESTABLISHED state,
+	 *   only accepting RSTs where the sequence number is equal to
+	 *   last_ack_sent.  In all other states (the states in which a
+	 *   RST is more likely), the more permissive check is used. 
 	 * If we have multiple segments in flight, the intial reset
 	 * segment sequence numbers will be to the left of last_ack_sent,
 	 * but they will eventually catch up.
@@ -1570,6 +1576,10 @@ trimthenstep6:
 				goto close;
 
 			case TCPS_ESTABLISHED:
+				if (tp->last_ack_sent != th->th_seq) {
+					tcpstat.tcps_badrst++;
+					goto drop;
+				}
 			case TCPS_FIN_WAIT_1:
 			case TCPS_FIN_WAIT_2:
 			case TCPS_CLOSE_WAIT:
