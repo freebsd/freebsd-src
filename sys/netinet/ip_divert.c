@@ -284,7 +284,7 @@ div_output(struct socket *so, struct mbuf *m,
 		 * The name is user supplied data so don't trust its size
 		 * or that it is zero terminated.
 		 */
-		for (i = 0; sin->sin_zero[i] && i < sizeof(sin->sin_zero); i++)
+		for (i = 0; i < sizeof(sin->sin_zero) && sin->sin_zero[i]; i++)
 			;
 		if ( i > 0 && i < sizeof(sin->sin_zero))
 			m->m_pkthdr.rcvif = ifunit(sin->sin_zero);
