@@ -65,6 +65,17 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
+/* Let's be paranoid about block size */
+#if 10 > DEV_BSHIFT
+#define dbtokb(db) \
+	((off_t)(db) >> (10-DEV_BSHIFT))
+#elif 10 < DEV_BSHIFT
+#define dbtokb(db) \
+	((off_t)(db) << (DEV_BSHIFT-10))
+#else
+#define dbtokb(db)	(db)
+#endif
+
 #define max(a,b) ((a) >= (b) ? (a) : (b))
 
 char *qfname = QUOTAFILENAME;
@@ -238,9 +249,9 @@ repquota(fs, type, qfpathname)
 			fup->fu_dqblk.dqb_isoftlimit &&
 			    fup->fu_dqblk.dqb_curinodes >=
 			    fup->fu_dqblk.dqb_isoftlimit ? '+' : '-',
-			(u_long)(dbtob(fup->fu_dqblk.dqb_curblocks) / 1024),
-			(u_long)(dbtob(fup->fu_dqblk.dqb_bsoftlimit) / 1024),
-			(u_long)(dbtob(fup->fu_dqblk.dqb_bhardlimit) / 1024),
+			(u_long)(dbtokb(fup->fu_dqblk.dqb_curblocks)),
+			(u_long)(dbtokb(fup->fu_dqblk.dqb_bsoftlimit)),
+			(u_long)(dbtokb(fup->fu_dqblk.dqb_bhardlimit)),
 			fup->fu_dqblk.dqb_bsoftlimit &&
 			    fup->fu_dqblk.dqb_curblocks >=
 			    fup->fu_dqblk.dqb_bsoftlimit ?
