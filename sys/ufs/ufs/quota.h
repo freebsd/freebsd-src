@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quota.h	8.3 (Berkeley) 8/19/94
- * $Id$
+ * $Id: quota.h,v 1.10 1997/02/22 09:47:43 peter Exp $
  */
 
 #ifndef _UFS_UFS_QUOTA_H_
@@ -74,7 +74,7 @@
 	"user",		/* USRQUOTA */ \
 	"group",	/* GRPQUOTA */ \
 	"undefined", \
-};
+}
 #define	QUOTAFILENAME	"quota"
 #define	QUOTAGROUP	"operator"
 
