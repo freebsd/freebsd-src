@@ -509,6 +509,11 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	if (oldstate == state)
 		return (0);
 
+	if (bootverbose)
+		printf(
+		    "pci%d:%d:%d: Transition from D%d to D%d\n",
+		    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func,
+		    oldstate, state);
 	/*
 	 * The PCI power management specification states that after a state
 	 * transition between PCI power states, system software must
@@ -1873,11 +1878,6 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	 * state D0.
 	 */
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		if (bootverbose)
-			printf(
-			    "pci%d:%d:%d: Transition from D%d to D0\n",
-			    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func,
-			    pci_get_powerstate(dev));
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
@@ -1957,19 +1957,9 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 		 */
 		ps = pci_get_powerstate(dev);
 		if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3) {
-			if (bootverbose)
-				printf(
-				    "pci%d:%d:%d: Transition from D%d to D0\n",
-				    dinfo->cfg.bus, dinfo->cfg.slot,
-				    dinfo->cfg.func, ps);
 			pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 		}
 		if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3) {
-			if (bootverbose)
-				printf(
-				    "pci%d:%d:%d: Transition from D0 to D3\n",
-				    dinfo->cfg.bus, dinfo->cfg.slot,
-				    dinfo->cfg.func);
 			pci_set_powerstate(dev, PCI_POWERSTATE_D3);
 		}
 	}
