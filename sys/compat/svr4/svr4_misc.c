@@ -258,7 +258,7 @@ svr4_sys_getdents64(td, uap)
 	int ncookies;
 
 	DPRINTF(("svr4_sys_getdents64(%d, *, %d)\n",
-		td->td_proc->p_pid, SCARG(uap, fd), SCARG(uap, nbytes)));
+		SCARG(uap, fd), SCARG(uap, nbytes)));
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0) {
 		return (error);
 	}
