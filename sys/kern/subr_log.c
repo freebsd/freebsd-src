@@ -147,7 +147,7 @@ logread(dev_t dev, struct uio *uio, int flag)
 	logsoftc.sc_state &= ~LOG_RDWAIT;
 
 	while (uio->uio_resid > 0) {
-		l = mbp->msg_bufx - mbp->msg_bufr;
+		l = (long)mbp->msg_bufx - mbp->msg_bufr;
 		if (l < 0)
 			l = mbp->msg_size - mbp->msg_bufr;
 		l = min(l, uio->uio_resid);
@@ -218,7 +218,7 @@ logioctl(dev_t dev, u_long com, caddr_t data, int flag, struct thread *td)
 	/* return number of characters immediately available */
 	case FIONREAD:
 		s = splhigh();
-		l = msgbufp->msg_bufx - msgbufp->msg_bufr;
+		l = (long)msgbufp->msg_bufx - msgbufp->msg_bufr;
 		splx(s);
 		if (l < 0)
 			l += msgbufp->msg_size;
