@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.58 1996/08/04 15:21:53 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.59 1996/08/04 15:29:20 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -49,7 +49,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           FreeBSD is used by companies, Internet Service Providers, researchers,
           computer professionals, students and home users all over the world
           in their work, education and recreation.  See some of them in the 
-          <url url="http://www.freebsd.org/gallery.html" name="FreeBSd Gallery."> 
+          <url url="http://www.freebsd.org/gallery.html" name="FreeBSD Gallery."> 
 
           For a more detailed description of FreeBSD, see the Introduction to
           <url url="http://www.freebsd.org/handbook" name="FreeBSD Handbook.">
@@ -247,8 +247,8 @@ Any entries with a &lt;XXX&gt; are under construction.
 
           Advanced Multimedia Distributors<newline>
           Factory 1/1 Ovata Drive<newline>
-          Tullamarine, Victoria<newline>
-          Melbourne<newline>
+          Tullamarine, Melbourne<newline>
+          Victoria<newline>
           Australia<newline>
 
           Voice: +61 3 9338 67777<newline>
@@ -370,6 +370,11 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
         <heading>Books on FreeBSD</heading>
         <p> 
+          Greg Lehey's book ``Installing and Running FreeBSD'' is available
+          from Walnut Creek and will be shipped with the 2.1.5 CDROM.  He
+          also has another book due out soon, entitled ``The Complete
+          FreeBSD'', which will include the 2.1.5 CDROM set and should be
+          available from good bookshops in October.
  
           There is a FreeBSD Documentation Project which you may contact (or
           even better, join) on the <tt>doc</tt> mailing list:
@@ -508,6 +513,10 @@ Any entries with a &lt;XXX&gt; are under construction.
           can be installed from floppy disks, a DOS hard disk partition or
           tape or over a network via SLIP, PPP, NFS, PLIP and Ethernet.
 
+          For further information, please see 
+          <url	url="http://www.freebsd.org/handbook/install.html"
+          name="Handbook entry on installing FreeBSD.">
+
       <sect1>
         <heading>Where are the instructions for installing FreeBSD?</heading>
         <p>
@@ -590,36 +599,6 @@ Any entries with a &lt;XXX&gt; are under construction.
           you'd do well to try it first before simply giving up.
 
       <sect1>
-        <heading>Can I use compressed DOS filesystems from FreeBSD?</heading>
-
-        <p>
-          No.  If you are using a utility such as Stacker(tm) or
-          DoubleSpace(tm), FreeBSD will only be able to use whatever
-          portion of the filesystem you leave uncompressed.  The rest of
-          the filesystem will show up as one large file (the
-          stacked/dblspaced file!).  <bf/DO NOT REMOVE THAT FILE!/ You will
-          probably regret it greatly!
-
-          It is probably better to create another uncompressed DOS primary
-          partition and use this for communications between DOS and
-          FreeBSD.
-
-      <sect1>
-	<heading>Can I mount my DOS extended partitions?</heading>
-
-        <p>
-          Yes.  DOS extended partitions are mapped in at the end of
-          the other ``slices'' in FreeBSD, e.g. your D: drive might
-          be /dev/sd0s5, your E: drive /dev/sd0s6, and so on.  This
-          example assumes, of course, that your extended partition is
-          on SCSI drive 0.  For IDE drives, substitute ``wd'' for ``sd''
-          and so on.  You otherwise mount them exactly like you would
-          mount any other DOS drive, e.g.:
-
-        <p>
-              mount -t msdos /dev/sd0s5 /dos_d
-
-      <sect1>
 	<heading>Strange things happen when I boot the install floppy!</heading>
 	<p>
 	  If you're seeing things like the machine grinding to a halt or
@@ -627,7 +606,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 	  here are three questions to ask yourself:-
 	  <enum>
 	    <item>Did you use a new, freshly-formatted, error-free floppy
-		  (preferably a brand-new one striaght out of the box), as
+		  (preferably a brand-new one straight out of the box, as
 		  opposed to the magazine coverdisk that's been lying under
 		  the bed for the last three years)?
 	    <item>Did you download the floppy image in binary (or image) mode?
@@ -1594,11 +1573,11 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
       <sect1>
         <heading>How can I use the NT loader to boot FreeBSD?</heading>
         <p>
-          The general idea is that one copies the first sector of your
+          The general idea is that you copy the first sector of your
           native root Linux or FreeBSD partition into a file in the DOS/NT
-          partition.  Assuming one names that file something like
+          partition.  Assuming you name that file something like
           <tt>c:&bsol;bootsect.lnx</tt> or <tt>c:&bsol;bootsect.bsd</tt>
-          (inspired by <tt>c:&bsol;bootsect.dos</tt>) one can then edit the
+          (inspired by <tt>c:&bsol;bootsect.dos</tt>) you can then edit the
           <tt>c:&bsol;boot.ini</tt> file to come up with something like
           this:
           <verb>
@@ -3269,7 +3248,7 @@ domain foo.bar.edu
           </verb>
           with line being the serial port (e.g.<tt>/dev/cuaa0</tt>)
           and speed being the speed (e.g.<tt>57600</tt>).
-          When you done entering the AT commands hit <tt>~.</tt> to exit.
+          When you are done entering the AT commands hit <tt>~.</tt> to exit.
 
       <sect1>
         <heading>The <tt/@/ sign for the pn capability doesn't work!</heading>
