@@ -48,8 +48,11 @@ ioctl(fd, WDIOCPATPAT, &u);
 .Nm
 is a facility for controlling hardware and software watchdog facilities.
 .Pp
-The interface is through a device named "/dev/" _PATH_WATCHDOG which
-responds to a single ioctl call, WDIOCPATPAT.
+The interface is through a device named "/dev/"
+.Dv _PATH_WATCHDOG
+which
+responds to a single ioctl call,
+.Dv WDIOCPATPAT .
 .Pp
 The ioctl call takes an argument which consists of a timeout value
 specified as an integer power of two nanoseconds.
