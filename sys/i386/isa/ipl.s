@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.23 1998/08/11 15:08:12 bde Exp $
+ *	$Id: ipl.s,v 1.24 1998/08/11 17:01:32 bde Exp $
  */
 
 
@@ -53,13 +53,13 @@
 _cpl:	.long	HWI_MASK | SWI_MASK
 
 	.globl	_tty_imask
-_tty_imask:	.long	0
+_tty_imask:	.long	SWI_TTY_MASK
 	.globl	_bio_imask
-_bio_imask:	.long	SWI_CAMBIO_MASK
+_bio_imask:	.long	SWI_CLOCK_MASK | SWI_CAMBIO_MASK
+	.globl	_net_imask
+_net_imask:	.long	SWI_NET_MASK | SWI_CAMNET_MASK
 	.globl	_cam_imask
 _cam_imask:	.long	SWI_CAMBIO_MASK | SWI_CAMNET_MASK
-	.globl	_net_imask
-_net_imask:	.long	SWI_CAMNET_MASK
 	.globl	_soft_imask
 _soft_imask:	.long	SWI_MASK
 	.globl	_softnet_imask
