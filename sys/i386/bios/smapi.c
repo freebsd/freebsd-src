@@ -53,7 +53,7 @@
 #define	SMAPI_SIG	"$SMB"
 
 #define	RES2HDR(res)	((struct smapi_bios_header *)rman_get_virtual(res))
-#define	ADDR2HDR(res)	((struct smapi_bios_header *)BIOS_PADDRTOVADDR(addr))
+#define	ADDR2HDR(addr)	((struct smapi_bios_header *)BIOS_PADDRTOVADDR(addr))
 
 struct smapi_softc {
 	dev_t			cdev;
@@ -171,7 +171,7 @@ smapi_identify (driver_t *driver, device_t parent)
                               SMAPI_STEP, SMAPI_OFF);
 	if (addr != 0) {
 		rid = 0;
-		length = ADDR2HDR(res)->length;
+		length = ADDR2HDR(addr)->length;
 
 		child = BUS_ADD_CHILD(parent, 0, "smapi", -1);
 		device_set_driver(child, driver);
