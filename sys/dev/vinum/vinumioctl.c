@@ -206,15 +206,13 @@ vinumioctl(dev_t dev,
 	    return 0;
 
 	case VINUM_RESETCONFIG:
-	    if (vinum_inactive() && (vinum_conf.opencount < 2)) { /* if we're not active */
+	    if (vinum_inactive(0)) {			    /* if the volumes are not active */
 		/*
 		 * Note the open count.  We may be called from v, so we'll be open.
 		 * Keep the count so we don't underflow 
 		 */
-		int oc = vinum_conf.opencount;
 		free_vinum(1);				    /* clean up everything */
 		log(LOG_NOTICE, "vinum: CONFIGURATION OBLITERATED\n");
-		vinum_conf.opencount = oc;
 		ioctl_reply = (struct _ioctl_reply *) data; /* reinstate the address to reply to */
 		ioctl_reply->error = 0;
 		return 0;
