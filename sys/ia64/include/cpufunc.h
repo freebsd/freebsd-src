@@ -55,9 +55,9 @@ ia64_port_address(u_int port)
 }
 
 static __inline volatile void *
-ia64_memory_address(u_int addr)
+ia64_memory_address(u_int64_t addr)
 {
-    return (volatile void *) IA64_PHYS_TO_RR6(addr);;
+	return (volatile void *) IA64_PHYS_TO_RR6(addr);
 }
 
 static __inline u_int8_t
@@ -220,6 +220,54 @@ writel(u_int addr, u_int32_t data)
 	*p = data;
 	ia64_mf_a();
 	ia64_mf();
+}
+
+static __inline void
+memcpy_fromio(u_int8_t *addr, size_t ofs, size_t count)
+{
+	volatile u_int8_t *p = ia64_memory_address(ofs);
+	while (count--)
+		*addr++ = *p++;
+}
+
+static __inline void
+memcpy_io(size_t dst, size_t src, size_t count)
+{
+	volatile u_int8_t *dp = ia64_memory_address(dst);
+	volatile u_int8_t *sp = ia64_memory_address(src);
+	while (count--)
+		*dp++ = *sp++;
+}
+
+static __inline void
+memcpy_toio(size_t ofs, u_int8_t *addr, size_t count)
+{
+	volatile u_int8_t *p = ia64_memory_address(ofs);
+	while (count--)
+		*p++ = *addr++;
+}
+
+static __inline void
+memset_io(size_t ofs, u_int8_t value, size_t count)
+{
+	volatile u_int8_t *p = ia64_memory_address(ofs);
+	while (count--)
+		*p++ = value;
+}
+
+static __inline void
+memsetw(u_int16_t *addr, int val, size_t size)
+{
+	while (size--)
+		*addr++ = val;
+}
+
+static __inline void
+memsetw_io(size_t ofs, u_int16_t value, size_t count)
+{
+	volatile u_int16_t *p = ia64_memory_address(ofs);
+	while (count--)
+		*p++ = value;
 }
 
 static __inline void
