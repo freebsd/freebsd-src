@@ -435,6 +435,11 @@ ether_Create(struct physical *p)
        */
       log_Printf(LogWARN, "kldload: ng_ether: %s\n", strerror(errno));
 
+    if (modfind("ng_pppoe") == -1 && ID0kldload("ng_pppoe") == -1) {
+      log_Printf(LogWARN, "kldload: ng_pppoe: %s\n", strerror(errno));
+      return NULL;
+    }
+
     if (modfind("ng_socket") == -1 && ID0kldload("ng_socket") == -1) {
       log_Printf(LogWARN, "kldload: ng_socket: %s\n", strerror(errno));
       return NULL;
