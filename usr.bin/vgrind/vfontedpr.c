@@ -117,6 +117,7 @@ char	*l_combeg;		/* string introducing a comment */
 char	*l_comend;		/* string ending a comment */
 char	 l_escape;		/* character used to  escape characters */
 char	*l_keywds[BUFSIZ/2];	/* keyword table address */
+char	*l_nocom;		/* regexp for non-comments */
 char	*l_prcbeg;		/* regular expr for procedure begin */
 char    *l_strbeg;		/* delimiter for string constant */
 char    *l_strend;		/* delimiter for string constant */
@@ -274,6 +275,8 @@ main(argc, argv)
 	l_chrbeg = convexp(cp);
 	cgetustr(defs, "le", &cp);
 	l_chrend = convexp(cp);
+	cgetustr(defs, "nc", &cp);
+	l_nocom = convexp(cp);
 	l_escape = '\\';
 	l_onecase = (cgetcap(defs, "oc", ':') != NULL);
 	l_toplex = (cgetcap(defs, "tl", ':') != NULL);
@@ -358,6 +361,7 @@ putScp(os)
     char *chrptr;			/* end of a character const delimiter */
     char *blksptr;			/* end of a lexical block start */
     char *blkeptr;			/* end of a lexical block end */
+    char *nocomptr;			/* end of a non-comment delimiter */
 
     _start = os;			/* remember the start for expmatch */
     _escaped = FALSE;
@@ -385,6 +389,17 @@ skip:
 	    acmptr = expmatch (s, l_acmbeg, dummy);
 	    strptr = expmatch (s, l_strbeg, dummy);
 	    chrptr = expmatch (s, l_chrbeg, dummy);
+	    nocomptr = expmatch (s, l_nocom, dummy);
+
+	    /* start of non-comment? */
+	    if (nocomptr != NIL)
+		if ((nocomptr <= comptr || comptr == NIL)
+		  && (nocomptr <= acmptr || acmptr == NIL)) {
+		    /* continue after non-comment */
+		    putKcp (s, nocomptr-1, FALSE);
+		    s = nocomptr;
+		    continue;
+		}
 
 	    /* start of a comment? */
 	    if (comptr != NIL)
@@ -445,7 +460,8 @@ skip:
 		if (blkeptr < blksptr || blksptr == NIL) {
 		    putKcp (s, blkeptr - 1, FALSE);
 		    s = blkeptr;
-		    blklevel--;
+		    if (blklevel > 0 /* sanity */)
+			    blklevel--;
 		    if (psptr >= 0 && plstack[psptr] >= blklevel) {
 
 			/* end of current procedure */
@@ -617,6 +633,9 @@ putcp(c)
 		break;
 
 	case '\f':
+		break;
+
+	case '\r':
 		break;
 
 	case '{':

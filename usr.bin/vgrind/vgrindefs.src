@@ -150,7 +150,7 @@ C++|c++:\
 #   &packagename'function;
 #
 Perl|perl|pl:\
-	:pb=sub\d\p\d:bb={:be=}:cb=#:ce=$:tl:\
+	:pb=sub\d\p\d:bb={:be=}:cb=#:ce=$:nc=\$#:tl:\
 	:ab=&:ae=(;|\d|,):\
 	:sb=":se=(\e"|$):lb=':le=(\e'|$):\
 	:kw=do if unless while until else elsif for foreach continue\
