@@ -106,6 +106,8 @@ contrib/dev/hptmv/gui_lib.c	optional hptmv
 contrib/dev/hptmv/hptproc.c	optional hptmv
 contrib/dev/hptmv/ioctl.c	optional hptmv
 contrib/dev/oltr/if_oltr.c	optional oltr
+contrib/dev/oltr/if_oltr_isa.c	optional oltr isa
+contrib/dev/oltr/if_oltr_pci.c	optional oltr pci
 contrib/dev/oltr/trlldbm.c	optional oltr
 contrib/dev/oltr/trlldhm.c	optional oltr
 contrib/dev/oltr/trlldmac.c	optional oltr
