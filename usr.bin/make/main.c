@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.12 1996/10/08 04:06:00 steve Exp $
+ *	$Id: main.c,v 1.13 1996/10/11 03:55:29 steve Exp $
  */
 
 #ifndef lint
@@ -965,14 +965,8 @@ Cmd_Exec(cmd, err)
 	while(((pid = wait(&status)) != cpid) && (pid >= 0))
 	    continue;
 
-	if (cc == -1) {
-		/*
-		 * Couldn't read all of the child's output -- tell the user
-		 * but still use whatever we read.  Null output isn't an
-		 * error unless there was an error reading it.
-		 */
-		Parse_Error(PARSE_WARNING, "Couldn't read shell's output");
-	}
+	if (cc == -1)
+	    *err = "Error reading shell's output for \"%s\"";
 
 	res = (char *)Buf_GetAll (buf, &cc);
 	Buf_Destroy (buf, FALSE);
