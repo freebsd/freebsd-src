@@ -66,6 +66,7 @@ static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #include <unistd.h>
 #include <utmp.h>
 #include <pwd.h>
+#include <grp.h>
 
 /*
  * This version of Berkeley's rwhod has been modified to use IP multicast
@@ -246,6 +247,7 @@ usage:		fprintf(stderr, "usage: rwhod [ -m [ ttl ] ]\n");
 		exit(1);
 	}
 	setgid(unpriv_gid);
+	setgroups(1, &unpriv_gid);	/* XXX BOGUS groups[0] = egid */
 	setuid(unpriv_uid);
 	if (!configure(s))
 		exit(1);
@@ -320,6 +322,7 @@ run_as(uid, gid)
 	gid_t *gid;
 {
 	struct passwd *pw;
+	struct group *gr;
 
 	pw = getpwnam(UNPRIV_USER);
 	if (!pw) {
@@ -328,12 +331,12 @@ run_as(uid, gid)
 	}
 	*uid = pw->pw_uid;
 
-	pw = getpwnam(UNPRIV_GROUP);
-	if (!pw) {
-		syslog(LOG_ERR, "getpwnam(%s): %m", UNPRIV_GROUP);
+	gr = getgrnam(UNPRIV_GROUP);
+	if (!gr) {
+		syslog(LOG_ERR, "getgrnam(%s): %m", UNPRIV_GROUP);
 		exit(1);
 	}
-	*gid = pw->pw_gid;
+	*gid = gr->gr_gid;
 }
 
 /*
