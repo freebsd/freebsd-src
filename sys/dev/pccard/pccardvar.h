@@ -316,7 +316,8 @@ enum {
 	PCCARD_IVAR_VENDOR_STR,	/* CIS string for "Manufacturer" */
 	PCCARD_IVAR_PRODUCT_STR,/* CIS strnig for "Product" */
 	PCCARD_IVAR_CIS3_STR,
-	PCCARD_IVAR_CIS4_STR
+	PCCARD_IVAR_CIS4_STR,
+	PCCARD_IVAR_FUNCTION
 };
 
 #define PCCARD_ACCESSOR(A, B, T)					\
@@ -331,6 +332,7 @@ PCCARD_ACCESSOR(ether,		ETHADDR,		u_int8_t)
 PCCARD_ACCESSOR(vendor,		VENDOR,			u_int32_t)
 PCCARD_ACCESSOR(product,	PRODUCT,		u_int32_t)
 PCCARD_ACCESSOR(function_number,FUNCTION_NUMBER,	u_int32_t)
+PCCARD_ACCESSOR(function,	FUNCTION,		u_int32_t)
 PCCARD_ACCESSOR(vendor_str,	VENDOR_STR,		char *)
 PCCARD_ACCESSOR(product_str,	PRODUCT_STR,		char *)
 PCCARD_ACCESSOR(cis3_str,	CIS3_STR,		char *)

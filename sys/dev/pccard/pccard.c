@@ -867,6 +867,9 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	case PCCARD_IVAR_PRODUCT:
 		*(u_int32_t *) result = sc->card.product;
 		break;
+	case PCCARD_IVAR_FUNCTION:
+		*(u_int32_t *) result = func->function;
+		break;
 	case PCCARD_IVAR_FUNCTION_NUMBER:
 		if (!func) {
 			device_printf(bus, "No function number, bug!\n");
