@@ -728,7 +728,7 @@ pmap_pinit(struct pmap *pmap)
 
 	pmap->pm_flags = 0;
 	for (i = 0; i < 5; i++)
-		pmap->pm_rid[i] = 0;
+		pmap->pm_rid[i] = pmap_allocate_rid();
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
@@ -744,10 +744,6 @@ pmap_pinit(struct pmap *pmap)
 void
 pmap_pinit2(struct pmap *pmap)
 {
-	int i;
-
-	for (i = 0; i < 5; i++)
-		pmap->pm_rid[i] = pmap_allocate_rid();
 }
 
 /***************************************************
