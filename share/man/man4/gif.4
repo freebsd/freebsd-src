@@ -90,7 +90,6 @@ interface.
 can be configured to be ECN friendly.
 This can be configured by
 .Dv IFF_LINK1 .
-.Pp
 .Ss ECN friendly behavior
 .Nm
 can be configured to be ECN friendly, as described in
@@ -139,7 +138,6 @@ enable ECN CE bit on the inner.
 .Pp
 Note that the ECN friendly behavior violates RFC2893.
 This should be used in mutual agreement with the peer.
-.Pp
 .Ss Security
 Malicious party may try to circumvent security filters by using
 tunnelled packets.
@@ -153,9 +151,8 @@ Ingress filter can be turned off by
 .Dv IFF_LINK2
 bit.
 .\"
-.Pp
 .Ss Miscellaneous
-By default
+By default,
 .Nm
 tunnels may not be nested.
 This behavior may be modified at runtime by setting the
