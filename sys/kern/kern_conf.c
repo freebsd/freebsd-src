@@ -291,7 +291,6 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 			if (reserved_majors[i] != i)
 				break;
 		KASSERT(i > 0, ("Out of major numbers (%s)", devsw->d_name));
-		printf("Allocating major#%d to \"%s\"\n", i, devsw->d_name);
 		devsw->d_maj = i;
 		reserved_majors[i] = i;
 	} else {
