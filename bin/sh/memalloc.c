@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: memalloc.c,v 1.4 1996/09/03 14:15:53 peter Exp $
+ *	$Id: memalloc.c,v 1.4.2.1 1997/08/25 09:10:08 jkh Exp $
  */
 
 #ifndef lint
@@ -46,6 +46,7 @@ static char const sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #include "error.h"
 #include "machdep.h"
 #include "mystring.h"
+#include "expand.h"
 #include <stdlib.h>
 #include <unistd.h>
 
