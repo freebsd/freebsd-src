@@ -27,11 +27,7 @@
  *	$FreeBSD$
  */
 
-/*
- * The scheme for the driver version is:
- * <major change>.<external release>.<3ware internal release>.<development release>
- */
-#define TWE_DRIVER_VERSION_STRING	"1.50.01.000"
+#define TWE_DRIVER_VERSION_STRING	"1.50.01.001"
 
 #ifdef TWE_DEBUG
 #define debug(level, fmt, args...)							\
