@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 1999 Brian Somers <brian@Awfulhak.org>
+.\" Copyright (c) 1999-2001 Brian Somers <brian@Awfulhak.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 .\"
 .Dd November 8, 1999
 .Dt PPPOED 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm pppoed
 .Nd handle incoming PPP over Ethernet connections
@@ -36,7 +36,7 @@
 .Op Fl Fd\&
 .Op Fl P Ar pidfile
 .Op Fl a Ar name
-.Op Fl e Ar exec
+.Op Fl e Ar exec No \&| Fl l Ar label
 .Op Fl n Ar ngdebug
 .Op Fl p Ar provider
 .Ar interface
@@ -48,9 +48,11 @@ program listens to the given
 for PPP over Ethernet (PPPoE) service request packets, and actions them
 by negotiating a session then envoking a
 .Em PPP
-program.  The negotiation is implemented by the
+program.
+The negotiation is implemented by the
 .Dq pppoe
-netgraph node.  See
+netgraph node.
+See
 .Xr ng_pppoe 4
 for details.
 .Pp
@@ -64,30 +66,40 @@ is given, any PPPoE requests will be offered service.
 .Pp
 The supplied
 .Ar name
-will be given as the access concentrator name when establishing the
-connection.  If no
+will be given as the access concentrator name when establishing the connection.
+If no
 .Ar name
 is given, the current base hostname is used.
 .Pp
 After receiving a request (PADI) from the PPPoE netgraph node,
 .Nm
 .Xr fork 2 Ns No s
-a child process and returns to service further requests.  The child process
-offers service
+a child process and returns to service further requests.
+The child process offers service
 .Pq using Ar name
 and waits for a
 .Dv SUCCESS
-indication from the PPPoE node.  On receipt of the SUCCESS indication,
+indication from the PPPoE node.
+On receipt of the SUCCESS indication,
 .Nm
 will execute
 .Pp
-.D1 Ic exec /usr/sbin/ppp -direct Ar provider
+.D1 Ic exec /usr/sbin/ppp -direct Ar label
 .Pp
-as a shell sub-process.  It is possible to specify another command using the
+as a shell sub-process.
+If
+.Ar label
+has not been specified, it defaults to
+.Ar provider .
+It is possible to specify another command using the
 .Ar exec
-argument.  This is mandatory if
+argument.
+This is mandatory if
 .Ar provider
-is not given.  The child process will have standard input and standard output
+and
+.Ar label
+are not given.
+The child process will have standard input and standard output
 attached to the same
 .Xr netgraph 4
 data socket
@@ -106,12 +118,14 @@ as the node name, and then connect that
 .Dq pppoe
 node to a local
 .Dq socket
-node.  If the
+node.
+If the
 .Fl F
 flag has not been given,
 .Nm
 will then go into the background and disassociate itself from the controlling
-terminal.  When the
+terminal.
+When the
 .Fl F
 flag is given,
 .Nm
@@ -141,7 +155,8 @@ nodes as described above,
 .Nm
 uses
 .Xr syslogd 8
-to report all incoming connections.  If the
+to report all incoming connections.
+If the
 .Fl d
 flag is given,
 .Nm
@@ -176,9 +191,11 @@ and the following to
 .Sh BUGS
 If another netgraph node is using the given interface,
 .Nm
-will fail to start.  This is because
+will fail to start.
+This is because
 .Xr netgraph 4
-does not currently allow node chaining.  This may change in the future.
+does not currently allow node chaining.
+This may change in the future.
 .Sh HISTORY
 The
 .Nm
