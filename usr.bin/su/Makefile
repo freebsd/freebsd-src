@@ -3,17 +3,27 @@
 PROG=	su
 SRCS=	su.c
 
+LDADD=	-lmd
+DPADD=	${LIBMD} 
+
+#LC_AUTH=-DLOGIN_CAP_AUTH
+COPTS+= -DLOGIN_CAP $(LC_AUTH)
+LDADD+= -lutil
+DPADD+= ${LIBUTIL}
+
+.if !defined(LC_AUTH)
 COPTS+=	-DSKEY
+LDADD+= -lskey -lcrypt
+DPADD+= ${LIBSKEY} ${LIBCRYPT}
+.endif
+
 .if defined(WHEELSU)
 COPTS+=	-DWHEELSU
 .endif
 CFLAGS+= -Wall
 
-LDADD=	-lskey -lmd -lcrypt
-DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT}
-
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
-	|| defined(MAKE_EBONES))
+	|| defined(MAKE_EBONES)) && !defined(LC_AUTH)
 CFLAGS+=-DKERBEROS
 DPADD+=	${LIBKRB} ${LIBDES}
 LDADD+=	-lkrb -ldes
