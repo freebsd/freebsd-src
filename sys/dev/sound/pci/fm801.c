@@ -184,15 +184,17 @@ fm801_rd(struct fm801_info *fm801, int regno, int size)
 static void
 fm801_wr(struct fm801_info *fm801, int regno, u_int32_t data, int size)
 {
+
 	switch(size) {
 	case 1:
-		return bus_space_write_1(fm801->st, fm801->sh, regno, data);
+		bus_space_write_1(fm801->st, fm801->sh, regno, data);
+		break;
 	case 2:
-		return bus_space_write_2(fm801->st, fm801->sh, regno, data);
+		bus_space_write_2(fm801->st, fm801->sh, regno, data);
+		break;
 	case 4:
-		return bus_space_write_4(fm801->st, fm801->sh, regno, data);
-	default:
-		return;
+		bus_space_write_4(fm801->st, fm801->sh, regno, data);
+		break;
 	}
 }
 

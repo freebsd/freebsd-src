@@ -146,9 +146,9 @@ sb_rd(struct resource *io, int reg)
 static void
 sb_wr(struct resource *io, int reg, u_int8_t val)
 {
-	return bus_space_write_1(rman_get_bustag(io),
-				 rman_get_bushandle(io),
-				 reg, val);
+	bus_space_write_1(rman_get_bustag(io),
+			  rman_get_bushandle(io),
+			  reg, val);
 }
 
 static int
