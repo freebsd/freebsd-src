@@ -73,9 +73,12 @@ MINUSLPAM+=	-lkrb5 -lasn1 -lroken
 LIBPAM+=	${LIBCOM_ERR}
 MINUSLPAM+=	-lcom_err
 .endif
-LIBPAM+=	${LIBRADIUS} ${LIBRPCSVC} ${LIBTACPLUS} ${LIBCRYPT} \
-		${LIBUTIL} ${LIBOPIE} ${LIBMD}
-MINUSLPAM+=	-lradius -lrpcsvc -ltacplus -lcrypt -lutil -lopie -lmd
+LIBPAM+=	
+LIBPAM+=	${LIBRADIUS} ${LIBRPCSVC} ${LIBTACPLUS} \
+		${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT} \
+		${LIBUTIL} ${LIBOPIE} ${LIBMD} ${LIBZ}
+MINUSLPAM+=	-lradius -lrpcsvc -ltacplus -lssh -lcrypto -lcrypt \
+		-lutil -lopie -lmd -lz
 .endif
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
