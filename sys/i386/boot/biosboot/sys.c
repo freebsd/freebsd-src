@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
- * notice and this permission notice appear in all copies of the
+e* notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
  *
@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.12 1996/09/07 21:06:43 bde Exp $
+ *	$Id: sys.c,v 1.13 1996/09/10 21:18:40 phk Exp $
  */
 
 #include "boot.h"
@@ -47,6 +47,10 @@ char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
 char mapbuf[MAPBUFSIZE];
 int mapblock;
 
+#ifdef RAWBOOT
+#define STARTBYTE	8192	/* Where on the media the kernel starts */
+#endif
+
 void
 xread(char *addr, int size)
 {
@@ -61,6 +65,7 @@ xread(char *addr, int size)
 	}
 }
 
+#ifndef RAWBOOT
 void
 read(char *buffer, int count)
 {
@@ -72,12 +77,9 @@ read(char *buffer, int count)
 		logno = lblkno(fs, poff);
 		cnt2 = size = blksize(fs, &inode, logno);
 		bnum2 = fsbtodb(fs, block_map(logno)) + boff;
-		if (	(!off)  && (size <= count))
-		{
+		if (	(!off)  && (size <= count)) {
 			devread(buffer, bnum2, cnt2);
-		}
-		else
-		{
+		} else {
 			size -= off;
 			if (size > count)
 				size = count;
@@ -89,7 +91,41 @@ read(char *buffer, int count)
 		poff += size;
 	}
 }
+#else
+void
+read(char *buffer, int count)
+{
+	int cnt, bnum, off, size;
 
+	off = STARTBYTE + poff;
+	poff += count;
+
+	/* Read any unaligned bit at the front */
+	cnt = off & 511;
+	if (cnt) {
+		size = 512-cnt;
+		if (count < size)
+			size = count;
+		devread(iobuf, off >> 9, 512);
+		bcopy(iobuf+cnt, buffer, size);
+		count -= size;
+		off += size;
+		buffer += size;
+	}
+	size = count & (~511);
+	if (size && (off & (~511))) {
+		devread(buffer, off >> 9, size);
+		off += size;
+		count -= size;
+		buffer += size;
+	}
+	if (count) {
+		devread(iobuf, off >> 9, 512);
+		bcopy(iobuf, buffer, count);
+	}
+}
+
+#endif
 int
 find(char *path)
 {
@@ -245,6 +281,7 @@ openrd(void)
 	if (devopen())
 		return 1;
 
+#ifndef RAWBOOT
 	/***********************************************\
 	* Load Filesystem info (mount the device)	*
 	\***********************************************/
@@ -259,5 +296,6 @@ openrd(void)
 		return -1;
 	poff = 0;
 	name = cp;
+#endif /* RAWBOOT */
 	return 0;
 }

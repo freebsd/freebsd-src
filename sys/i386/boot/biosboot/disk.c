@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.17 1996/07/12 05:35:47 bde Exp $
+ *	$Id: disk.c,v 1.18 1996/09/10 21:18:39 phk Exp $
  */
 
 /*
@@ -83,9 +83,6 @@ devopen(void)
 	struct disklabel *dl;
 	char *p;
 	int i, sector = 0, di;
-#if 0   /* Save space, already have hard error for cyl > 1023 in Bread */
-	u_long bend;
-#endif
 
 	di = get_diskinfo(dosdev);
 	spt = SPT(di);
@@ -96,14 +93,7 @@ devopen(void)
 
 	spc = spt * HEADS(di);
 
-#if 0 /* save a little more space and avoid surprises when booting from fd2 */
-	if (dosdev == 2)
-	{
-		boff = 0;
-		part = (spt == 15 ? 3 : 1);
-	}
-	else
-#endif
+#ifndef RAWBOOT
 	{
 #ifdef	EMBEDDED_DISKLABEL
 		dl = &disklabel;
@@ -142,11 +132,6 @@ devopen(void)
 
 		/* This is a good idea for all disks */
 		bsize = dl->d_partitions[part].p_size;
-#if 0   /* Save space, already have hard error for cyl > 1023 in Bread */
-		bend = boff + bsize - 1 ;
-		if (bend / spc >= 1024) {
-			printf("boot partition end >= cyl 1024, BIOS can't load kernel stored beyond this limit\n");
-#endif
 #ifdef DO_BAD144
 		do_bad144 = 0;
 		if (dl->d_flags & D_BADSECT) {
@@ -194,12 +179,16 @@ devopen(void)
 		    else
 		      printf("Using bad sector table at %d\n", dkbbnum+i);
 		}
-#endif DO_BAD144
+#endif /* DO_BAD144 */
 	}
+#endif /* RAWBOOT */
 	return 0;
 }
 
 
+/*
+ * Be aware that cnt is rounded up to N*BPS
+ */
 void
 devread(char *iodest, int sector, int cnt)
 {
@@ -251,8 +240,8 @@ Bread(int dosdev, int sector)
 int
 badsect(int dosdev, int sector)
 {
+#if defined(DO_BAD144) && !defined(RAWBOOT)
 	int i;
-#ifdef DO_BAD144
 	if (do_bad144) {
 		u_short cyl;
 		u_short head;
@@ -301,7 +290,7 @@ badsect(int dosdev, int sector)
 		newsec -= dl->d_nsectors + i + 1;
 		return newsec;
 	}
-#endif DO_BAD144
   no_remap:
+#endif 
 	return sector;
 }
