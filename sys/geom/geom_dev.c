@@ -124,7 +124,7 @@ g_dev_register_cloner(void *foo __unused)
 SYSINIT(geomdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,g_dev_register_cloner,NULL);
 
 static struct g_geom *
-g_dev_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp __unused, int insist __unused)
+g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -146,14 +146,14 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp __unuse
 	g_topology_unlock();
 	if (!error) {
 		j = sizeof secsize;
-		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize, tp);
+		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize);
 		if (error) {
 			secsize = 512;
 			printf("g_bsd_taste: error %d Sectors are %d bytes\n",
 			    error, secsize);
 		}
 		j = sizeof mediasize;
-		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize, tp);
+		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize);
 		if (error) {
 			mediasize = 0;
 			printf("g_error %d Mediasize is %lld bytes\n",
@@ -251,19 +251,19 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	i = IOCPARM_LEN(cmd);
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
-		error = g_io_getattr("GEOM::sectorsize", cp, &i, data, td);
+		error = g_io_getattr("GEOM::sectorsize", cp, &i, data);
 		break;
 	case DIOCGMEDIASIZE:
-		error = g_io_getattr("GEOM::mediasize", cp, &i, data, td);
+		error = g_io_getattr("GEOM::mediasize", cp, &i, data);
 		break;
 	case DIOCGFWSECTORS:
-		error = g_io_getattr("GEOM::fwsectors", cp, &i, data, td);
+		error = g_io_getattr("GEOM::fwsectors", cp, &i, data);
 		break;
 	case DIOCGFWHEADS:
-		error = g_io_getattr("GEOM::fwheads", cp, &i, data, td);
+		error = g_io_getattr("GEOM::fwheads", cp, &i, data);
 		break;
 	case DIOCGFWCYLINDERS:
-		error = g_io_getattr("GEOM::fwcylinders", cp, &i, data, td);
+		error = g_io_getattr("GEOM::fwcylinders", cp, &i, data);
 		break;
 	default:
 		gio = g_malloc(sizeof *gio, M_WAITOK);
@@ -273,9 +273,9 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		gio->td = td;
 		i = sizeof *gio;
 		if (cmd & IOC_IN)
-			error = g_io_setattr("GEOM::ioctl", cp, i, gio, td);
+			error = g_io_setattr("GEOM::ioctl", cp, i, gio);
 		else
-			error = g_io_getattr("GEOM::ioctl", cp, &i, gio, td);
+			error = g_io_getattr("GEOM::ioctl", cp, &i, gio);
 		g_free(gio);
 		break;
 	}
@@ -315,7 +315,7 @@ g_dev_psize(dev_t dev)
 	cp = dev->si_drv2;
 
 	i = sizeof mediasize;
-	error = g_io_getattr("GEOM::mediasize", cp, &i, &mediasize, NULL);
+	error = g_io_getattr("GEOM::mediasize", cp, &i, &mediasize);
 	if (error)
 		return (-1);
 	return (mediasize >> DEV_BSHIFT);
@@ -367,7 +367,7 @@ g_dev_strategy(struct bio *bp)
 
 
 static void
-g_dev_orphan(struct g_consumer *cp, struct thread *tp)
+g_dev_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	dev_t dev;

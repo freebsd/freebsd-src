@@ -53,6 +53,7 @@
 
 #include <sys/errno.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
@@ -163,7 +164,7 @@ g_io_init()
 }
 
 int
-g_io_setattr(char *attr, struct g_consumer *cp, int len, void *ptr, struct thread *tp __unused)
+g_io_setattr(char *attr, struct g_consumer *cp, int len, void *ptr)
 {
 	struct bio *bp;
 	int error;
@@ -192,7 +193,7 @@ g_io_setattr(char *attr, struct g_consumer *cp, int len, void *ptr, struct threa
 
 
 int
-g_io_getattr(char *attr, struct g_consumer *cp, int *len, void *ptr, struct thread *tp __unused)
+g_io_getattr(char *attr, struct g_consumer *cp, int *len, void *ptr)
 {
 	struct bio *bp;
 	int error;

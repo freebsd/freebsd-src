@@ -58,6 +58,7 @@
 #include <sys/errno.h>
 #include <sys/sbuf.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <machine/stdarg.h>
 
 struct class_list_head g_classs = LIST_HEAD_INITIALIZER(g_classs);
@@ -590,7 +591,7 @@ g_create_geomf(char *class, struct g_provider *pp, char *fmt, ...)
 		s = NULL;
 	}
 	if (pp != NULL)
-		gp = mp->taste(mp, pp, NULL, G_TF_INSIST);
+		gp = mp->taste(mp, pp, G_TF_INSIST);
 	if (gp == NULL && mp->create_geom == NULL)
 		return (NULL);
 	if (gp == NULL)
@@ -618,7 +619,7 @@ g_insert_geom(char *class, struct g_consumer *cp)
 	if (mp->create_geom == NULL)
 		return (NULL);
 	pp = cp->provider;
-	gp = mp->taste(mp, pp, NULL, G_TF_TRANSPARENT);
+	gp = mp->taste(mp, pp, G_TF_TRANSPARENT);
 	if (gp == NULL)
 		return (NULL);
 	pp2 = LIST_FIRST(&gp->provider);
