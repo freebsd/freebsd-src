@@ -2976,10 +2976,10 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			desiredaddr = p[2] << 24 | p[3] << 16 |
 				p[4] << 8 | p[5];
 			if (desiredaddr == hisaddr ||
-			    (hisaddr == 1 && desiredaddr != 0)) {
+			    (hisaddr >= 1 && hisaddr <= 254 && desiredaddr != 0)) {
 				/*
 				 * Peer's address is same as our value,
-				 * or we have set it to 0.0.0.1 to
+				 * or we have set it to 0.0.0.* to
 				 * indicate that we do not really care,
 				 * this is agreeable.  Gonna conf-ack
 				 * it.
