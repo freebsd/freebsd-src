@@ -442,11 +442,7 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
-#if 1
 	setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
-#else
-	setlinebuf (stdout);
-#endif
 
 	(void) bzero((char *)dst, sizeof(Dst));
 	Dst.sin6_family = AF_INET6;
@@ -524,26 +520,6 @@ main(argc, argv)
 		errx(1, ipsec_strerror());
 	if (setpolicy(rcvsock, "out bypass") < 0)
 		errx(1, ipsec_strerror());
-#else
-    {
-	int level = IPSEC_LEVEL_NONE;
-
-	(void)setsockopt(rcvsock, IPPROTO_IPV6, IPV6_ESP_TRANS_LEVEL, &level,
-		sizeof(level));
-	(void)setsockopt(rcvsock, IPPROTO_IPV6, IPV6_ESP_NETWORK_LEVEL, &level,
-		sizeof(level));
-#ifdef IP_AUTH_TRANS_LEVEL
-	(void)setsockopt(rcvsock, IPPROTO_IPV6, IPV6_AUTH_TRANS_LEVEL, &level,
-		sizeof(level));
-#else
-	(void)setsockopt(rcvsock, IPPROTO_IPV6, IPV6_AUTH_LEVEL, &level,
-		sizeof(level));
-#endif
-#ifdef IP_AUTH_NETWORK_LEVEL
-	(void)setsockopt(rcvsock, IPPROTO_IPV6, IPV6_AUTH_NETWORK_LEVEL, &level,
-		sizeof(level));
-#endif
-    }
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif /*IPSEC*/
 
@@ -554,13 +530,11 @@ main(argc, argv)
 		perror("traceroute6: udp socket");
 		exit(5);
 	}
-#ifdef SO_SNDBUF
 	if (setsockopt(sndsock, SOL_SOCKET, SO_SNDBUF, (char *)&datalen,
 		       sizeof(datalen)) < 0) {
 		perror("traceroute6: SO_SNDBUF");
 		exit(6);
 	}
-#endif /* SO_SNDBUF */
 	if (options & SO_DEBUG)
 		(void) setsockopt(sndsock, SOL_SOCKET, SO_DEBUG,
 				  (char *)&on, sizeof(on));
@@ -582,26 +556,6 @@ main(argc, argv)
 		errx(1, ipsec_strerror());
 	if (setpolicy(sndsock, "out bypass") < 0)
 		errx(1, ipsec_strerror());
-#else
-    {
-	int level = IPSEC_LEVEL_BYPASS;
-
-	(void)setsockopt(sndsock, IPPROTO_IPV6, IPV6_ESP_TRANS_LEVEL, &level,
-		sizeof(level));
-	(void)setsockopt(sndsock, IPPROTO_IPV6, IPV6_ESP_NETWORK_LEVEL, &level,
-		sizeof(level));
-#ifdef IP_AUTH_TRANS_LEVEL
-	(void)setsockopt(sndsock, IPPROTO_IPV6, IPV6_AUTH_TRANS_LEVEL, &level,
-		sizeof(level));
-#else
-	(void)setsockopt(sndsock, IPPROTO_IPV6, IPV6_AUTH_LEVEL, &level,
-		sizeof(level));
-#endif
-#ifdef IP_AUTH_NETWORK_LEVEL
-	(void)setsockopt(sndsock, IPPROTO_IPV6, IPV6_AUTH_NETWORK_LEVEL, &level,
-		sizeof(level));
-#endif
-    }
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif /*IPSEC*/
 
@@ -896,24 +850,6 @@ packet_ok(mhdr, cc, seq)
 	struct cmsghdr *cm;
 	int *hlimp;
 
-#ifdef OLDRAWSOCKET
-	int hlen;
-	struct ip6_hdr *ip;
-#endif
-
-#ifdef OLDRAWSOCKET
-	ip = (struct ip6_hdr *) buf;
-	hlen = sizeof(struct ip6_hdr);
-	if (cc < hlen + sizeof(struct icmp6_hdr)) {
-		if (verbose)
-			Printf("packet too short (%d bytes) from %s\n", cc,
-				inet_ntop(AF_INET6, &from->sin6_addr,
-					   ntop_buf, sizeof(ntop_buf)));
-		return (0);
-	}
-	cc -= hlen;
-	icp = (struct icmp6_hdr *)(buf + hlen);
-#else
 	if (cc < sizeof(struct icmp6_hdr)) {
 		if (verbose)
 			Printf("data too short (%d bytes) from %s\n", cc,
@@ -922,7 +858,6 @@ packet_ok(mhdr, cc, seq)
 		return(0);
 	}
 	icp = (struct icmp6_hdr *)buf;
-#endif
 	/* get optional information via advanced API */
 	rcvpktinfo = NULL;
 	hlimp = NULL;
@@ -1046,15 +981,9 @@ print(mhdr, cc)
 	}
 
 	if (verbose) {
-#ifdef OLDRAWSOCKET
-		Printf(" %d bytes to %s", cc,
-		       inet_ntop(AF_INET6, &rcvpktinfo->ipi6_addr,
-				 ntop_buf, sizeof(ntop_buf)));
-#else
 		Printf(" %d bytes of data to %s", cc,
 		       inet_ntop(AF_INET6, &rcvpktinfo->ipi6_addr,
 				 ntop_buf, sizeof(ntop_buf)));
-#endif
 	}
 }
 

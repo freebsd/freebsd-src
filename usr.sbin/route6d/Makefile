@@ -4,6 +4,6 @@
 PROG=	route6d
 MAN8=	route6d.8
 
-CFLAGS+=	-Dss_len=__ss_len -Dss_family=__ss_family -DADVAPI -DINET6
+CFLAGS+=	-Dss_len=__ss_len -Dss_family=__ss_family -DINET6
 
 .include <bsd.prog.mk>
