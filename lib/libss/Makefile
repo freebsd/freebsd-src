@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1995/05/30 05:47:36 rgrimes Exp $
+#	$Id: Makefile,v 1.9 1995/08/06 12:24:05 bde Exp $
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -34,7 +34,7 @@ beforeinstall:
 	-cd ${.OBJDIR}; \
 	    if [ -f ss_err.h ]; then \
 		cmp -s ss_err.h ${DESTDIR}/usr/include/ss/ss_err.h || \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
+		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
 		${DESTDIR}/usr/include/ss; \
 	    else \
 		true; \
