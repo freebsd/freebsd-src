@@ -646,6 +646,7 @@ vidc_ischar(void)
 }
 
 #if KEYBOARD_PROBE
+
 #ifdef PC98
 static int
 probe_keyboard(void)

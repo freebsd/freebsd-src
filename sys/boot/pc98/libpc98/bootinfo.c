@@ -242,13 +242,10 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
     struct i386_devdesc		*rootdev;
     vm_offset_t			addr, bootinfo_addr;
     char			*rootdevname;
-    int				bootdevnr;
+    int				bootdevnr, i;
     u_int			pad;
     char			*kernelname;
     const char			*kernelpath;
-#ifdef PC98
-    int				i;
-#endif
 
     *howtop = bi_getboothowto(args);
 
@@ -289,10 +286,12 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
     bi.bi_kernelname = 0;		/* XXX char * -> kernel name */
     bi.bi_nfs_diskless = 0;		/* struct nfs_diskless * */
     bi.bi_n_bios_used = 0;		/* XXX would have to hook biosdisk driver for these */
-    /* bi.bi_bios_geom[] */
 #ifdef PC98
     for(i = 0; i < N_BIOS_GEOM; i++)
 	bi.bi_bios_geom[i] = initial_bootinfo->bi_bios_geom[i];
+#else
+    for (i = 0; i < N_BIOS_GEOM; i++)
+        bi.bi_bios_geom[i] = bd_getbigeom(i);
 #endif
     bi.bi_size = sizeof(bi);
     bi.bi_memsizes_valid = 1;
