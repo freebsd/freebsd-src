@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ipcs.c,v 1.3 1994/09/19 10:24:38 davidg Exp $
+ *	$Id: ipcs.c,v 1.4 1995/07/12 19:10:17 bde Exp $
  */
 
 #include <stdio.h>
@@ -185,6 +185,14 @@ main(argc, argv)
 		default:
 			usage();
 		}
+
+	/*
+	 * Discard setgid privileges if not the running kernel so that bad
+	 * guys can't print interesting stuff from kernel memory.
+	 */
+	if (namelist != NULL || core != NULL)
+		setgid(getgid());
+
 	if ((kd = kvm_open(namelist, core, NULL, O_RDONLY, "ipcs")) == NULL)
 		exit(1);
 
