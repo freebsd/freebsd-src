@@ -79,7 +79,7 @@ nomenclature:
 */
 
 #define PCMMINOR(x) (minor(x))
-#define PCMCHAN(x) ((PCMMINOR(x) & 0x0000ff00) >> 16)
+#define PCMCHAN(x) ((PCMMINOR(x) & 0x00ff0000) >> 16)
 #define PCMUNIT(x) ((PCMMINOR(x) & 0x000000f0) >> 4)
 #define PCMDEV(x)   (PCMMINOR(x) & 0x0000000f)
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
