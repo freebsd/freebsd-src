@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.80 1997/03/23 06:33:44 bde Exp $
+ *      $Id: cd.c,v 1.81 1997/03/24 11:24:54 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -636,6 +636,10 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			error = cd_set_mode(unit, &data);
 			if (error)
 				break;
+			if (sc_link->quirks & CD_Q_BCD_TRACKS) {
+				args->start_track = bin2bcd(args->start_track);
+				args->end_track = bin2bcd(args->end_track);
+			}
 			return (cd_play_tracks(unit
 				,args->start_track
 				,args->start_index
@@ -695,10 +699,15 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				error = EINVAL;
 				break;
 			}
+			if (sc_link->quirks & CD_Q_BCD_TRACKS)
+				args->track = bin2bcd(args->track);
 			error = cd_read_subchannel(unit, args->address_format,
 				args->data_format, args->track, &data, len);
 			if (error)
-				break;
+	 			break;
+			if (sc_link->quirks & CD_Q_BCD_TRACKS)
+				data.what.track_info.track_number =
+				    bcd2bin(data.what.track_info.track_number);
 			len = min(len, ((data.header.data_len[0] << 8) +
 				data.header.data_len[1] +
 				sizeof(struct cd_sub_channel_header)));
@@ -714,6 +723,13 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 					(struct cd_toc_entry *)&th, sizeof th);
 			if (error)
 				break;
+			if (sc_link->quirks & CD_Q_BCD_TRACKS) {
+				/* we are going to have to convert the BCD
+				 * encoding on the cd to what is expected
+				 */
+				th.starting_track = bcd2bin(th.starting_track);
+				th.ending_track = bcd2bin(th.ending_track);
+			}
 			NTOHS(th.len);
 			bcopy(&th, addr, sizeof th);
 		}
@@ -748,6 +764,15 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 					(struct cd_toc_entry *)th, sizeof (*th));
 			if (error)
 				break;
+
+			if (sc_link->quirks & CD_Q_BCD_TRACKS) {
+				/* we are going to have to convert the BCD
+				 * encoding on the cd to what is expected
+				 */
+				th->starting_track =
+				    bcd2bin(th->starting_track);
+				th->ending_track = bcd2bin(th->ending_track);
+			}
 
 			if (starting_track == 0)
 				starting_track = th->starting_track;
@@ -787,6 +812,8 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 
 			/* make leadout entry if needed */
 			idx = starting_track + num - 1;
+			if (sc_link->quirks & CD_Q_BCD_TRACKS)
+				th->ending_track = bcd2bin(th->ending_track);
 			if (idx == th->ending_track + 1) {
 				error = cd_read_toc(unit, te->address_format,
 					LEADOUT,
@@ -795,6 +822,13 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				if (error)
 					break;
 				data.entries[idx - starting_track] = lead.entry;
+			}
+
+			if (sc_link->quirks & CD_Q_BCD_TRACKS) {
+				for (idx = 0; idx < num - 1; idx++) {
+					data.entries[idx].track =
+					    bcd2bin(data.entries[idx].track);
+				}
 			}
 
 			error = copyout(data.entries, te->data, len);
