@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.7 1996/06/03 21:35:21 gpalmer Exp $
+ * $Id: os.c,v 1.8 1996/12/10 17:00:38 wollman Exp $
  *
  */
 #include "fsm.h"
@@ -33,6 +33,7 @@
 #include <errno.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_tun.h>
 #include <net/route.h>
 #include <arpa/inet.h>

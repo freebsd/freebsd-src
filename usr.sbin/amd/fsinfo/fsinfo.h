@@ -37,7 +37,7 @@
  *
  *	@(#)fsinfo.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: fsinfo.h,v 1.1.1.1 1994/05/26 05:22:18 rgrimes Exp $
+ * $Id: fsinfo.h,v 1.2 1996/12/10 17:00:31 wollman Exp $
  *
  */
 
@@ -83,7 +83,7 @@ typedef char *voidp;
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#include <netinet/if_ether.h>
+#include <net/ethernet.h>
 
 #include "fsi_data.h"
 
