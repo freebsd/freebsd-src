@@ -36,19 +36,19 @@
 #
 # Disks:
 #	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
-#	wfd*	"IDE floppy" disk drives (LS-120)
-#	fd*	"floppy" disk drives (3 1/2", 5 1/4")
-#	da*	"SCSI Direct Access Devices"
-#	cd*	"SCSI CD-ROM disks"
-#	sd*	"SCSI disk", antiquated, use da* instead
-#	mcd*	"Mitsumi CD-ROM disks"
-#	scd*	"Sony CD-ROM disks"
-#	matcd*	"Matsushita (Panasonic) CD-ROM disks"
-#	acd*	"ATAPI CD-ROM disks"
-#	vn*	"vnode disks"
-#	od*	"optical disks"
-#	fla*	"M-Systems DiskOnChip"
-#	ida*	"Compaq Smart-2 RAID"
+#	wfd*	IDE floppy disk drives (LS-120)
+#	fd*	floppy disk drives (3 1/2", 5 1/4")
+#	da*	SCSI Direct Access Devices
+#	cd*	SCSI CD-ROM disks
+#	sd*	SCSI disk, antiquated, use da* instead
+#	mcd*	Mitsumi CD-ROM disks
+#	scd*	Sony CD-ROM disks
+#	matcd*	Matsushita (Panasonic) CD-ROM disks
+#	acd*	ATAPI CD-ROM disks
+#	vn*	vnode disks
+#	od*	optical disks
+#	fla*	M-Systems DiskOnChip
+#	ida*	Compaq Smart-2 RAID
 #
 # Console ports:
 #	vty*	virtual console devices for syscons/pcvt/codrv
@@ -128,7 +128,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.200 1999/07/05 08:39:00 jkh Exp $
+#	$Id: MAKEDEV,v 1.201 1999/07/05 09:18:57 msmith Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
