@@ -32,19 +32,27 @@
 .Nd read and write disk pack label suitable for Sun's OpenBoot PROM
 .Sh SYNOPSIS
 .Nm
-.Ar R
+.Op Fl r
+.Ar disk
+.Nm
+.Fl B
+.Op Fl b Ar boot1
+.Op Fl n
+.Ar disk
+.Nm
+.Fl R
 .Op Fl B Op Fl b Ar boot1
 .Op Fl r
 .Op Fl n
 .Ar disk profile
 .Nm
-.Ar e
+.Fl e
 .Op Fl B Op Fl b Ar boot1
 .Op Fl r
 .Op Fl n
 .Ar disk
 .Nm
-.Ar w
+.Fl w
 .Op Fl B Op Fl b Ar boot1
 .Op Fl r
 .Op Fl n
