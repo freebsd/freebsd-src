@@ -324,8 +324,8 @@ password_entry_operation (operation, root, newpassword)
     fp = CVS_FOPEN (passfile, "r");
     if (fp == NULL)
     {
-	error (0, errno, "failed to open %s for reading", passfile);
-	goto error_exit;
+	error (0, errno, "warning: failed to open %s for reading", passfile);
+	goto process;
     }
 
     cvsroot_canonical = normalize_cvsroot (root);
@@ -362,6 +362,8 @@ password_entry_operation (operation, root, newpassword)
 	    *p = '\0';
 	password = xstrdup (password);
     }
+
+process:
 
     /* might as well return now */
     if (operation == password_entry_lookup)
@@ -552,6 +554,12 @@ login (argc, argv)
     {
 	char *tmp;
 	tmp = GETPASS ("CVS password: ");
+	/* Must deal with a NULL return value here.  I haven't managed to
+	 * disconnect the CVS process from the tty and force a NULL return
+	 * in sanity.sh, but the Linux version of getpass is documented
+	 * to return NULL when it can't open /dev/tty...
+	 */
+	if (!tmp) error (1, errno, "login: Failed to read password.");
 	typed_password = scramble (tmp);
 	memset (tmp, 0, strlen (tmp));
     }
@@ -562,7 +570,7 @@ login (argc, argv)
      * will get zeroed by connect_to_server().  */
     cvs_password = xstrdup (typed_password);
 
-    connect_to_pserver (NULL, NULL, 1, 0);
+    connect_to_pserver (current_parsed_root, NULL, NULL, 1, 0);
 
     password_entry_operation (password_entry_add, current_parsed_root, typed_password);
 

@@ -352,9 +352,10 @@ commit (argc, argv)
 	struct passwd *pw;
 
 	if ((pw = (struct passwd *) getpwnam (getcaller ())) == NULL)
-	    error (1, 0, "you are unknown to this system");
+	    error (1, 0, "your apparent username (%s) is unknown to this system",
+			 getcaller ());
 	if (pw->pw_uid == (uid_t) 0)
-	    error (1, 0, "cannot commit files as 'root'");
+	    error (1, 0, "'root' is not allowed to commit files");
     }
 #endif /* CVS_BADROOT */
 
@@ -495,11 +496,6 @@ commit (argc, argv)
 	 */
 	if (use_editor)
 	    do_editor (".", &saved_message, (char *)NULL, find_args.ulist);
-
-	/* Run the user-defined script to verify/check information in
-	 *the log message
-	 */
-	do_verify (&saved_message, (char *)NULL);  	
 
 	/* We always send some sort of message, even if empty.  */
 	/* FIXME: is that true?  There seems to be some code in do_editor
@@ -1576,7 +1572,7 @@ commit_dirleaveproc (callerdat, dir, err, update_dir, entries)
        this being a confusing feature!  */
     if (err == 0 && write_dirtag != NULL)
     {
-	char *repos = Name_Repository (dir, update_dir);
+	char *repos = Name_Repository (NULL, update_dir);
 	WriteTag (NULL, write_dirtag, NULL, write_dirnonbranch,
 		  update_dir, repos);
 	free (repos);
@@ -1810,7 +1806,7 @@ unlockrcs (rcs)
 {
     int retcode;
 
-    if ((retcode = RCS_unlock (rcs, NULL, 0)) != 0)
+    if ((retcode = RCS_unlock (rcs, NULL, 1)) != 0)
 	error (retcode == -1 ? 1 : 0, retcode == -1 ? errno : 0,
 	       "could not unlock %s", rcs->path);
     else
