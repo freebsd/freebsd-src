@@ -1376,10 +1376,11 @@ usb_disconnect_port(struct usbd_port *up, device_ptr_t parent)
 				printf(" port %d", up->portno);
 			printf(" (addr %d) disconnected\n", dev->address);
 			config_detach(dev->subdevs[i], DETACH_FORCE);
+			dev->subdevs[i] = NULL;
 		}
 	}
 
-	/*usbd_add_dev_event(USB_EVENT_DEVICE_DETACH, dev);*/
+	usbd_add_dev_event(USB_EVENT_DEVICE_DETACH, dev);
 	dev->bus->devices[dev->address] = NULL;
 	up->device = NULL;
 	usb_free_device(dev);
