@@ -37,6 +37,7 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
+#undef errno
 extern	int	errno;
 
 int *
