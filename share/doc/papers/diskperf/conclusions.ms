@@ -95,7 +95,7 @@ transfers are used.
 .ds RH Acknowledgements
 .nr H2 1
 .sp 1
-.SH
+.NH
 \s+2Acknowledgements\s0
 .PP
 We thank Paul Massigilia and Bill Grace
@@ -116,7 +116,7 @@ Contract No. N00039-82-C-0235.
 .ds RH References
 .nr H2 1
 .sp 1
-.SH
+.NH
 \s+2References\s0
 .LP
 .IP [McKusick83] 20
