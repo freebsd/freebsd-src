@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.2 1994/08/04 21:09:25 wollman Exp $
+#	$Id: bsd.prog.mk,v 1.3 1994/08/10 02:48:08 wollman Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -100,7 +100,7 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 .if defined(LDONLY)
 
 ${PROG}: ${LIBCRT0} ${LIBC} ${DPSRCS} ${OBJS} ${DPADD} 
-	${LD} ${LDFLAGS} -o ${.TARGET} ${LIBCRT0} ${OBJS} ${LIBC} ${LDDESTDR} \
+	${LD} ${LDFLAGS} -o ${.TARGET} ${LIBCRT0} ${OBJS} ${LIBC} ${LDDESTDIR} \
 		${LDADD}
 
 .else defined(LDONLY)
@@ -112,11 +112,22 @@ ${PROG}: ${DPSRCS} ${OBJS} ${LIBC} ${DPADD}
 
 .else defined(PROG)
 
-SRCS= ${PROG}.c
+SRCS=	${PROG}.c
 
+.if 0
 ${PROG}: ${DPSRCS} ${SRCS} ${LIBC} ${DPADD}
 	${CC} ${LDFLAGS} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${SRCS} \
 		${LDDESTDIR} ${LDADD}
+.else
+# Always make an intermediate object file because:
+# - it saves time rebuilding when only the library has changed
+# - the name of the object gets put into the executable symbol table instead of
+#   the name of a variable temporary object.
+# - it's useful to keep objects around for crunching.
+OBJS=	${PROG}.o
+${PROG}: ${DPSRCS} ${OBJS} ${LIBC} ${DPADD}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
+.endif
 
 MKDEP=	-p
 
@@ -132,7 +143,7 @@ MAN1=	${PROG}.1
 _PROGSUBDIR: .USE
 .if defined(SUBDIR) && !empty(SUBDIR)
 	@for entry in ${SUBDIR}; do \
-		(echo "===> $$entry"; \
+		(${ECHODIR} "===> $$entry"; \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
 			cd ${.CURDIR}/$${entry}.${MACHINE}; \
 		else \
@@ -181,7 +192,7 @@ realinstall: _PROGSUBDIR
 		shift; \
 		t=${DESTDIR}$$1; \
 		shift; \
-		echo $$t -\> $$l; \
+		${ECHO} $$t -\> $$l; \
 		rm -f $$t; \
 		ln $$l $$t; \
 	done; true
@@ -210,7 +221,7 @@ obj: _PROGSUBDIR
 obj: _PROGSUBDIR
 	@cd ${.CURDIR}; rm -rf obj; \
 	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	echo "$$here -> $$dest"; ln -s $$dest obj; \
+	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
 	if test -d /usr/obj -a ! -d $$dest; then \
 		mkdir -p $$dest; \
 	else \
