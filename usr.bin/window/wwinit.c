@@ -280,10 +280,10 @@ wwinit()
 	if (tt.tt_delchar)
 		wwaddcap1(WWT_DC, &kp);
 	wwaddcap("kb", &kp);
-	wwaddcap("ku", &kp);
-	wwaddcap("kd", &kp);
-	wwaddcap("kl", &kp);
-	wwaddcap("kr", &kp);
+	wwaddcap2("ku", &kp);
+	wwaddcap2("kd", &kp);
+	wwaddcap2("kl", &kp);
+	wwaddcap2("kr", &kp);
 	wwaddcap("kh", &kp);
 	if ((j = tgetnum("kn")) >= 0) {
 		char cap[32];
@@ -359,6 +359,31 @@ wwaddcap1(cap, kp)
 	while (*(*kp)++ = *cap++)
 		;
 	(*kp)--;
+}
+
+wwaddcap2(cap, kp)
+	register char *cap;
+	register char **kp;
+{
+	char tbuf[512];
+	char *tp = tbuf;
+	register char *str, *p;
+
+	if ((str = tgetstr(cap, &tp)) != 0) {
+		/* we don't support vt100's application key mode, remap */
+		if (str[0] == ctrl('[') && str[1] == 'O')
+			str[1] = '[';
+		while (*(*kp)++ = *cap++)
+			;
+		(*kp)[-1] = '=';
+		while (*str) {
+			for (p = unctrl(*str++); *(*kp)++ = *p++;)
+				;
+			(*kp)--;
+		}
+		*(*kp)++ = ':';
+		**kp = 0;
+	}
 }
 
 wwstart()

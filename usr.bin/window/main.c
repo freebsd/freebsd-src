@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 4/2/94";
 
 #include "defs.h"
 #include <paths.h>
+#include <locale.h>
 #include <stdio.h>
 #include "string.h"
 #include "char.h"
@@ -120,6 +121,7 @@ char **argv;
 	default_nline = NLINE;
 	default_smooth = 1;
 	(void) gettimeofday(&starttime, (struct timezone *)0);
+	(void) setlocale(LC_CTYPE, "");
 	if (wwinit() < 0) {
 		(void) fprintf(stderr, "%s.\n", wwerror());
 		exit(1);
