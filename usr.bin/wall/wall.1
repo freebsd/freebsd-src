@@ -71,6 +71,13 @@ A
 .Nm
 command appeared in PWB UNIX.
 .Sh BUGS
+The sender's
+.Ev LC_CTYPE
+setting is used to determine which characters are safe to write to a
+terminal, not the receiver's (which
+.Nm
+has no way of knowing).
+.Pp
 The
 .Nm
 utility does not recognize multibyte characters.
