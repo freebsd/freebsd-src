@@ -54,7 +54,7 @@ static struct aarptab	aarptab[AARPTAB_SIZE];
 
 # if !defined( __FreeBSD__ )
 extern u_char			etherbroadcastaddr[6];
-# endif __FreeBSD__
+# endif /* __FreeBSD__ */
 
 static u_char atmulticastaddr[ 6 ] = {
     0x09, 0x00, 0x07, 0xff, 0xff, 0xff,
