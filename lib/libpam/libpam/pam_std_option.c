@@ -42,6 +42,7 @@ struct opttab std_options[PAM_MAX_OPTIONS] = {
 	{ "use_first_pass",	PAM_OPT_USE_FIRST_PASS },
 	{ "try_first_pass",	PAM_OPT_TRY_FIRST_PASS },
 	{ "use_mapped_pass",	PAM_OPT_USE_MAPPED_PASS },
+	{ "try_mapped_pass",	PAM_OPT_TRY_MAPPED_PASS },
 	{ "expose_account",	PAM_OPT_EXPOSE_ACCOUNT },
 	{ NULL,			0 }
 };
