@@ -1221,7 +1221,20 @@ dbxout_type (type, full)
 	 write it as a subtype.  */
       else if (TREE_TYPE (type) != 0
 	       && TREE_CODE (TREE_TYPE (type)) == INTEGER_TYPE)
-	dbxout_range_type (type);
+        {
+	  /* If the size is non-standard, say what it is if we can use
+	     GDB extensions.  */
+
+	  if (use_gnu_debug_info_extensions
+	      && TYPE_PRECISION (type) != TYPE_PRECISION (integer_type_node))
+	    {
+	      have_used_extensions = 1;
+	      fprintf (asmfile, "@s%d;", TYPE_PRECISION (type));
+	      CHARS (5);
+	    }
+
+	  dbxout_range_type (type);
+        }
 
       else
   	{
@@ -2200,7 +2213,8 @@ dbxout_symbol_location (decl, type, suffix, home)
 		{
 		  rtx tmp = get_pool_constant (current_sym_addr);
 
-		  if (GET_CODE (tmp) == SYMBOL_REF)
+		  if (GET_CODE (tmp) == SYMBOL_REF
+		      || GET_CODE (tmp) == LABEL_REF)
 		    current_sym_addr = tmp;
 		}
   
@@ -2632,6 +2646,10 @@ dbxout_parms (parms)
 	      
 	    FORCE_TEXT;
 	    fprintf (asmfile, "%s\"%s:v", ASM_STABS_OP, decl_name);
+
+	    current_sym_value
+	      = DEBUGGER_ARG_OFFSET (current_sym_value,
+				     XEXP (XEXP (DECL_RTL (parms), 0), 0));
 	    dbxout_type (TREE_TYPE (parms), 0);
 	    dbxout_finish_symbol (parms);
 	  }
