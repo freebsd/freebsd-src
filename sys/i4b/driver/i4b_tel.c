@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Sun Mar 17 09:52:06 2002]
+ *	last edit-date: [Tue Aug 27 13:54:08 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -507,12 +507,15 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
 		{
 			sc->devstate |= ST_RDWAITDATA;
 	
+			NDBGL4(L4_TELDBG, "i4btel%d, wait for result!", unit);
+			
 			if((error = tsleep((caddr_t) &sc->result,
 						TTIPRI | PCATCH,
 						"rtel1", 0 )) != 0)
 			{
 				sc->devstate &= ~ST_RDWAITDATA;
 				splx(s);
+				NDBGL4(L4_TELDBG, "i4btel%d, wait for result: sleep error!", unit);
 				return(error);
 			}
 		}
@@ -520,16 +523,19 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
 		if(!(sc->devstate & ST_ISOPEN))
 		{
 			splx(s);
+			NDBGL4(L4_TELDBG, "i4btel%d, wait for result: device closed!", unit);
 			return(EIO);
 		}
 	
 		if(sc->result != 0)
 		{
+			NDBGL4(L4_TELDBG, "i4btel%d, wait for result: 0x%02x!", unit, sc->result);
 			error = uiomove(&sc->result, 1, uio);
 			sc->result = 0;
 		}
 		else
 		{
+			NDBGL4(L4_TELDBG, "i4btel%d, wait for result: result=0!", unit);
 			error = EIO;
 		}
 
@@ -800,8 +806,9 @@ tel_connect(int unit, void *cdp)
 	
 	sc = &tel_sc[unit][FUNCDIAL];
 
-	if(sc->devstate == ST_ISOPEN)
+	if(sc->devstate & ST_ISOPEN)
 	{
+		NDBGL4(L4_TELDBG, "i4btel%d, tel_connect!", unit);		
 		sc->result = RSP_CONN;
 
 		if(sc->devstate & ST_RDWAITDATA)
@@ -845,6 +852,7 @@ tel_disconnect(int unit, void *cdp)
 
 	if(sc->devstate & ST_ISOPEN)
 	{
+		NDBGL4(L4_TELDBG, "i4btel%d, tel_disconnect!", unit);
 		sc->result = RSP_HUP;
 
 		if(sc->devstate & ST_RDWAITDATA)
@@ -872,7 +880,8 @@ tel_dialresponse(int unit, int status, cause_t cause)
 	NDBGL4(L4_TELDBG, "i4btel%d,  status=%d, cause=0x%4x", unit, status, cause);
 
 	if((sc->devstate == ST_ISOPEN) && status)
-	{	
+	{
+		NDBGL4(L4_TELDBG, "i4btel%d, tel_dialresponse!", unit);		
 		sc->result = RSP_NOA;
 
 		if(sc->devstate & ST_RDWAITDATA)
