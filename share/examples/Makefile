@@ -21,8 +21,6 @@ all clean cleandir depend lint tags:
 
 beforeinstall: etc-examples ${SHARED}
 
-copies::
-
 .for dir in ${DIRS}
 FILES!=	find -L ${dir} \( -name CVS -prune \) -o -type f -print
 .for file in ${FILES}
@@ -30,8 +28,6 @@ copies::
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${file} ${DDIR}/${file}
 .endfor
 .endfor
-
-symlinks::
 
 .for dir in ${DIRS}
 symlinks::
