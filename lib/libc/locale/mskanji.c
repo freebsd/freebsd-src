@@ -118,6 +118,10 @@ _MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		if (n < 2)
 			/* Incomplete multibyte sequence */
 			return ((size_t)-2);
+		if (*s == '\0') {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
 		wc = (wc << 8) | (*s++ & 0xff);
 		len = 2;
 	}

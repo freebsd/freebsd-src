@@ -122,6 +122,10 @@ _BIG5_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	if (n == 0 || (size_t)(len = _big5_check(*s)) > n)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
+	if (n == 2 && s[1] == '\0') {
+		errno = EILSEQ;
+		return ((size_t)-1);
+	}
 	wc = 0;
 	i = len;
 	while (i-- > 0)
