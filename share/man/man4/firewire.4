@@ -43,7 +43,6 @@
 or
 .Pp
 .Cd "device firewire"
-.Cd "device fwohci"
 .Pp
 .In dev/firewire/firewire.h
 .Sh DESCRIPTION
@@ -78,17 +77,17 @@ On
 .Nm
 bus, every device is identified with EUI 64 address.
 .Sh FILES
-.Bl -tag -width indent -compact
+.Bl -tag -compact
 .It Pa /dev/fw0
 .It Pa /dev/fwmem0
 .El
 .Sh SEE ALSO
-.Xr fwcontrol 8 ,
 .Xr fwe 4 ,
 .Xr fwohci 4 ,
-.Xr kldload 8 ,
 .Xr pci 4 ,
 .Xr sbp 4 ,
+.Xr fwcontrol 8 ,
+.Xr kldload 8 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
@@ -106,6 +105,7 @@ and
 for the
 .Fx
 project.
-.Pp
 .Sh BUGS
-See fwohci(4) for security note.
+See
+.Xr fwohci 4
+for security note.
