@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.146 2001/11/18 04:25:43 mrg Exp $ */
+/* $NetBSD: pcmciadevs,v 1.150 2001/11/27 03:25:16 enami Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
 
 /*-
@@ -146,6 +146,7 @@ product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
 
 /* BUFFALO */
 product BUFFALO WLI_PCM_S11	0x0305	BUFFALO AirStation 11Mbps WLAN
+product BUFFALO WLI_CF_S11G	0x030b	BUFFALO AirStation 11Mbps CF WLAN
 
 /* Compaq Products */
 product COMPAQ NC5004		0x0002 Compaq Agency NC5004 Wireless Card
@@ -194,6 +195,7 @@ product IBM 3270		0x0001 IBM 3270 Emulation
 product IBM INFOMOVER		0x0002 IBM InfoMover
 product IBM 5250		0x000b IBM 5250 Emulation
 product IBM TROPIC		0x001e IBM Token Ring 4/16
+product IBM SCSI		0x0026 IBM SCSI PCMCIA
 product IBM PORTABLE_CDROM	0x002d IBM PCMCIA Portable CD-ROM Drive
 product IBM HOME_AND_AWAY	0x002e IBM Home and Away Modem
 product IBM WIRELESS_LAN_ENTRY	0x0032 IBM Wireless LAN Entry 
