@@ -272,7 +272,7 @@
       <para arch="i386,amd64">The acpi_fujitsu driver for handling
         &man.acpi.4;-controlled buttons Fujitsu laptops has been added.</para>
 
-      <para arch="i386,amd64">The acpi_snc driver,
+      <para arch="i386,amd64">The acpi_sony driver,
 	which supports the Sony Notebook Controller on various
 	Sony laptops has been added.</para>
 
@@ -570,9 +570,6 @@
 
     <sect3 id="fs">
       <title>File Systems</title>
-
-      <para>The autofs(9) file system and the userland library
-	&man.libautofs.3; have been added.</para>
 
       <para>Recomputing the summary information for
 	<quote>dirty</quote> UFS and UFS2 file systems is no longer
