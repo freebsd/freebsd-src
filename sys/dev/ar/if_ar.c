@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.9 1996/06/25 20:29:56 bde Exp $
+ * $Id: if_ar.c,v 1.10 1996/09/06 23:07:24 phk Exp $
  */
 
 /*
@@ -145,7 +145,6 @@ struct ar_softc {
 
 	int scano;
 	int scachan;
-
 };
 
 static int arprobe(struct isa_device *id);
@@ -397,13 +396,6 @@ arintr(int unit)
 		isr0 = sca->isr0;
 		isr1 = sca->isr1;
 		isr2 = sca->isr2;
-
-		/*
-		 * Acknoledge all the interrupts pending.
-		 */
-		sca->isr0 = isr0;
-		sca->isr1 = isr1;
-		sca->isr2 = isr2;
 
 		TRC(printf("arc%d: ARINTR isr0 %x, isr1 %x, isr2 %x\n",
 			unit,
@@ -1294,7 +1286,7 @@ ar_get_packets(struct ar_softc *sc)
 	u_char rxstat;
 
 	while(ar_packet_avail(sc, &len, &rxstat)) {
-		if((rxstat & SCA_DESC_ERRORS) == 0) {
+		if(((rxstat & SCA_DESC_ERRORS) == 0) && (len < MCLBYTES)) {
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if(m == NULL) {
 				/* eat packet if get mbuf fail!! */
@@ -1334,7 +1326,18 @@ ar_get_packets(struct ar_softc *sc)
 			sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda = 
 				(u_short)((u_int)rxdesc & 0xffff);
 		} else {
-			msci_channel *msci = &sc->hc->sca->msci[sc->scachan];
+			int tries = 5;
+
+			while((rxstat == 0xff) && --tries)
+				ar_packet_avail(sc, &len, &rxstat);
+
+			/*
+			 * It look like we get an interrupt early
+			 * sometimes and then the status is not
+			 * filled in yet.
+			 */
+			if(tries && (tries != 5))
+				continue;
 
 			ar_eat_packet(sc, 1);
 
@@ -1348,7 +1351,7 @@ ar_get_packets(struct ar_softc *sc)
 					sc->unit,
 					sc->scachan, 
 					rxstat,
-					msci->st3,
+					sc->hc->sca->msci[sc->scachan].st3,
 					sc->rxhind,
 					sc->hc->sca->dmac[
 						DMAC_RXCH(sc->scachan)].cda,
