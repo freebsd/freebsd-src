@@ -997,10 +997,7 @@
     <para arch="i386,pc98,sparc64">FORE Systems, Inc. PCA-200E ATM PCI
       Adapters (hfa and &man.fatm.4; drivers)</para>
 
-    <para arch="i386,pc98">IDT 77201/211 NICStAR ATM Adapters (idt
-    driver)</para>
-
-    <para arch="i386,pc98">FORE Systems, Inc. LE155 ATM Adapter (idt
+    <para arch="i386,pc98">IDT NICStAR 77201/211-based ATM Adapters (&man.idt.4;
     driver)</para>
 
     <para arch="i386,pc98,sparc64">FORE Systems, Inc. HE155 and HE622
