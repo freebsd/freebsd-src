@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: database.c,v 1.3 1996/09/10 03:38:20 peter Exp $";
+	"$Id: database.c,v 1.3.2.1 1997/09/16 07:01:40 charnier Exp $";
 #endif
 
 /* vix 26jan87 [RCS has the log]
@@ -113,8 +113,9 @@ load_database(old_db)
 		if (dp->d_name[0] == '.')
 			continue;
 
-		(void)snprintf(fname, sizeof fname, "%s", dp->d_name);
-		(void)snprintf(tabname, sizeof tabname, CRON_TAB(fname));
+		(void) strncpy(fname, dp->d_name, sizeof(fname));
+		fname[sizeof(fname)-1] = '\0';
+		(void) snprintf(tabname, sizeof tabname, CRON_TAB(fname));
 
 		process_crontab(fname, fname, tabname,
 				&statbuf, &new_db, old_db);

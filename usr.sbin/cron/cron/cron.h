@@ -17,7 +17,7 @@
 
 /* cron.h - header for vixie's cron
  *
- * $Id: cron.h,v 1.3 1996/08/05 00:31:24 pst Exp $
+ * $Id: cron.h,v 1.3.2.1 1997/09/16 07:01:37 charnier Exp $
  *
  * vix 14nov88 [rest of log is in RCS]
  * vix 14jan87 [0 or 7 can be sunday; thanks, mwm@berkeley]
@@ -33,6 +33,7 @@
 #include <bitstring.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -142,6 +143,11 @@
 #define	LAST_DOW	7
 #define	DOW_COUNT	(LAST_DOW - FIRST_DOW + 1)
 
+#ifdef LOGIN_CAP
+/* see init.c */
+#define RESOURCE_RC "daemon"
+#endif
+
 			/* each user's crontab will be held as a list of
 			 * the following structure.
 			 *
@@ -152,6 +158,9 @@ typedef	struct _entry {
 	struct _entry	*next;
 	uid_t		uid;
 	gid_t		gid;
+#ifdef LOGIN_CAP
+	char            *class;
+#endif
 	char		**envp;
 	char		*cmd;
 	bitstr_t	bit_decl(minute, MINUTE_COUNT);

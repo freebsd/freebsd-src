@@ -1,7 +1,8 @@
 LIB=	cron
 
 SRCS=	entry.c env.c misc.c
-CFLAGS+= -I${.CURDIR}/../cron
+CFLAGS+=-I${.CURDIR}/../cron
+CFLAGS+=-DLOGIN_CAP
 NOPIC=		yes
 NOPROFILE=	yes
 
