@@ -82,6 +82,7 @@
 
 struct kinfo_proc {
 	int	ki_structsize;		/* size of this structure */
+	int	ki_layout;		/* reserved: layout identifier */
 	struct	pargs *ki_args;		/* address of command arguments */
 	struct	proc *ki_paddr;		/* address of proc */
 	struct	user *ki_addr;		/* kernel virtual addr of u-area */
