@@ -125,7 +125,7 @@ an_probe_pci(device_t dev)
 		if (pci_get_vendor(dev) == t->an_vid &&
 		    pci_get_device(dev) == t->an_did) {
 			device_set_desc(dev, t->an_name);
-			return(0);
+			return(BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}
@@ -133,7 +133,7 @@ an_probe_pci(device_t dev)
 	if (pci_get_vendor(dev) == AIRONET_VENDORID &&
 	    pci_get_device(dev) == AIRONET_DEVICEID_MPI350) {
 		device_set_desc(dev, "Cisco Aironet MPI350");
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	return(ENXIO);

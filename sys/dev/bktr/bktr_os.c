@@ -285,16 +285,16 @@ bktr_probe( device_t dev )
 				device_set_desc(dev, "BrookTree 848A");
 			else
 				device_set_desc(dev, "BrookTree 848");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case PCI_PRODUCT_BROOKTREE_BT849:
 			device_set_desc(dev, "BrookTree 849A");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case PCI_PRODUCT_BROOKTREE_BT878:
 			device_set_desc(dev, "BrookTree 878");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case PCI_PRODUCT_BROOKTREE_BT879:
 			device_set_desc(dev, "BrookTree 879");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		}
 	};
 
