@@ -591,6 +591,7 @@ struct	in6_ifaddr *in6_ifawithscope __P((struct ifnet *, struct in6_addr *));
 struct	in6_ifaddr *in6_ifawithifp __P((struct ifnet *, struct in6_addr *));
 extern void in6_if_up __P((struct ifnet *));
 struct sockaddr;
+extern	u_char	ip6_protox[];
 
 void	in6_sin6_2_sin __P((struct sockaddr_in *sin,
 			    struct sockaddr_in6 *sin6));
