@@ -43,6 +43,8 @@
 
 #include <vm/uma.h>
 
+typedef void (*atm_init_fn)(void);
+
 /*
  * Global variable declarations
  */
