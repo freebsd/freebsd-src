@@ -67,8 +67,6 @@ static ufs_daddr_t
 #ifdef DIAGNOSTIC
 static int	ffs_checkblk __P((struct inode *, ufs_daddr_t, long));
 #endif
-static void	ffs_clusteracct	__P((struct fs *, struct cg *, ufs_daddr_t,
-				     int));
 static ufs_daddr_t ffs_clusteralloc __P((struct inode *, int, ufs_daddr_t,
 	    int));
 static ino_t	ffs_dirpref __P((struct inode *));
@@ -1717,7 +1715,7 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
  *
  * Cnt == 1 means free; cnt == -1 means allocating.
  */
-static void
+void
 ffs_clusteracct(fs, cgp, blkno, cnt)
 	struct fs *fs;
 	struct cg *cgp;
