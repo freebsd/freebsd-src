@@ -343,6 +343,10 @@ rerelease release:
 	if [ -f /etc/resolv.conf ]; then \
 		cp -p /etc/resolv.conf ${CHROOTDIR}/etc; \
 	fi
+.if defined(EXTLOCALDIR)
+	rm -rf ${CHROOTDIR}/usr/local
+	cd ${CHROOTDIR}/usr && cp -R ${EXTLOCALDIR} local
+.endif
 	rm -rf ${CHROOTDIR}/usr/src
 .if defined(EXTSRCDIR)
 	cd ${CHROOTDIR}/usr && \
