@@ -281,10 +281,8 @@ setsignal(int signo)
 	}
 	*t = action;
 	sig = signal(signo, sigact);
-#ifdef BSD
 	if (sig != SIG_ERR && action == S_CATCH)
 		siginterrupt(signo, 1);
-#endif
 }
 
 
@@ -340,9 +338,6 @@ void
 onsig(int signo)
 {
 
-#ifndef BSD
-	signal(signo, onsig);
-#endif
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
 		onint();
 		return;
