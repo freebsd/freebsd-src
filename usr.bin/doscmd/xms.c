@@ -89,10 +89,13 @@ static u_char xms_trampoline[] = {
 };
 
 /* Local prototypes */
-static void xms_entry(regcontext_t *REGS);
-static UMB_block *create_block(u_long addr, u_long size);
-static void add_block(UMB_block **listp, UMB_block *blk);
-static void merge_blocks(void);
+static void	add_block(UMB_block **listp, UMB_block *blk);
+static UMB_block	*create_block(u_long addr, u_long size);
+static void	disable_a20(void);
+static void	enable_a20(void);
+static int	get_free_handle(void);
+static void	merge_blocks(void);
+static void	xms_entry(regcontext_t *REGS);
 
 /* Init the entire module */
 void

@@ -35,7 +35,8 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
-void	_RegisterIO(int, void (*)(void *), void *, void (*)());
+void	_RegisterIO(int, void (*)(void *, regcontext_t *),
+		    void *, void (*)(void *));
 void	_AssociateIO(int, int);
 void	_DeAssociateIO(int, int);
 void	_LockIO(int);

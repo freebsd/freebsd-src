@@ -92,10 +92,8 @@ struct fcb {
 }/* __attribute__((__packed__))*/;
 
 /* exports */
-void 		encode_dos_file_time (time_t, u_short *, u_short *);
 int		diskdrive = 2;	/* C: */
 char		*InDOS;
-unsigned long	disk_transfer_addr;
 
 /* locals */
 static void	fcb_to_string(struct fcb *, u_char *);

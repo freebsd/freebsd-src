@@ -44,7 +44,7 @@ static void	OP_E(int), OP_indirE(int), OP_G(int);
 static void	OP_I(int), OP_sI(int), OP_REG(int), OP_J(int), OP_SEG(int);
 static void	OP_DIR(int), OP_OFF(int), OP_DSSI(int), OP_ESDI(int);
 static void	OP_C(int), OP_D(int), OP_T(int), OP_rm(int);
-static void	OP_ST(void), OP_STi(void);
+static void	OP_ST(int), OP_STi(int);
 static void	append_pc(unsigned long);
 static void	append_prefix(void);
 static void	dofloat(void);
@@ -177,11 +177,11 @@ static void	putop(char *);
 
 struct dis386 {
   char *name;
-  void (*op1)();
+  void (*op1)(int);
   int bytemode1;
-  void (*op2)();
+  void (*op2)(int);
   int bytemode2;
-  void (*op3)();
+  void (*op3)(int);
   int bytemode3;
 };
 
@@ -1335,13 +1335,13 @@ dofloat ()
 }
 
 static void
-OP_ST()
+OP_ST(int arg)
 {
   oappend ("%st");
 }
 
 static void
-OP_STi()
+OP_STi(int arg)
 {
   sprintf (scratchbuf, "%%st(%d)", rm);
   oappend (scratchbuf);

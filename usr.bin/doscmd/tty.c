@@ -81,7 +81,6 @@ static int show = 1;
 #endif
 static int blink = 1;
 int flipdelete = 0;		/* Flip meaning of delete and backspace */
-extern int capture_fd;
 static u_short break_code = 0x00;
 static u_short scan_code = 0x00;
 int height;
@@ -126,16 +125,16 @@ static struct termios tty_cook, tty_raw;
 #define	col (CursCol0)
 
 /* Local functions */
-void		_kbd_event(void *);
-static void	Failure(void);
+static void	_kbd_event(void *, regcontext_t *);
+static void	Failure(void *);
 static void	SetVREGCur(void);
-static void	debug_event(void *);
+static void	debug_event(void *, regcontext_t *);
 static unsigned char	inb_port60(int);
 static int	inrange(int, int, int);
 static void	kbd_event(int);
 static u_short	read_raw_kbd(int, u_short *);
 static void	setgc(u_short);
-static void	video_async_event(void *);
+static void	video_async_event(void *, regcontext_t *);
 
 #ifndef NO_X
 static void	dac2rgb(XColor *, int);
@@ -198,14 +197,8 @@ static void	vram2ximage(void);
 #define	K4_LED		0x40		/* LED update in progress */
 #define	K4_ERROR	0x80
 
-int KbdEmpty();
-void KbdWrite(u_short code);
-void KbdRepl(u_short code);
-u_short KbdRead();
-u_short KbdPeek();
-
 static void
-Failure()
+Failure(void *arg)
 {
         fprintf(stderr, "X Connection shutdown\n");
 	quit(1);
@@ -241,7 +234,7 @@ console_denit(void *arg)
 }
 
 void
-_kbd_event(void *pfd)
+_kbd_event(void *pfd, regcontext_t *REGS)
 {
     int fd = *(int *)pfd;
     
@@ -666,7 +659,7 @@ struct {
 };
 
 void
-debug_event(void *pfd)
+debug_event(void *pfd, regcontext_t *REGS)
 {
     static char ibuf[1024];
     static int icnt = 0;
@@ -747,10 +740,8 @@ debug_event(void *pfd)
 		    di += c;
 		    ap += c;
     	    	}
-#if 0				/* Huh?? */
     	    } else if (!strcasecmp(av[0], "regs")) {
 		dump_regs(REGS);
-#endif
     	    } else if (!strcasecmp(av[0], "force")) {
 		char *p = av[1];
 
@@ -991,7 +982,7 @@ printf("FORCED REDRAW\n");
 }
 
 void
-video_async_event(void *pfd)
+video_async_event(void *pfd, regcontext_t *REGS)
 {
 #ifndef NO_X
     	int int9 = 0;
@@ -1858,12 +1849,6 @@ KbdWrite(u_short code)
 	}
 	K_BUF(K_FREE) = code;
 	K_FREE = kf;
-}
-
-void
-KbdRepl(u_short code)
-{
-	K_BUF(K_NEXT) = code;
 }
 
 u_short

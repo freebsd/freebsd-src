@@ -192,7 +192,6 @@ int	squirrel_fd(int);
 /* ems.c */
 int	ems_init(void);
 void	ems_entry(regcontext_t *);
-u_long	ems_frame_addr;
 
 /* emuint.c */
 extern void	emuint(regcontext_t *REGS);
