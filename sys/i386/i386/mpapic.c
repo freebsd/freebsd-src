@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.4 1997/05/03 18:01:56 fsmp Exp $
+ *	$Id: mpapic.c,v 1.5 1997/05/29 05:58:41 fsmp Exp $
  */
 
 #include <sys/types.h>
@@ -225,7 +225,7 @@ io_apic_setup(int apic)
 #if defined(MULTIPLE_IOAPICS)
 #error MULTIPLE_IOAPICSXXX
 #else
-        	panic( "ioApicSetup: apic #%d\n", apic );
+        	panic("io_apic_setup: apic #%d", apic);
 #endif/* MULTIPLE_IOAPICS */
 	}
 
@@ -347,7 +347,7 @@ trigger(int apic, int pin, u_int32_t * flags)
 	}
 
 bad:
-	panic("bad APIC IO INT flags\n");
+	panic("bad APIC IO INT flags");
 }
 
 
@@ -419,7 +419,7 @@ polarity(int apic, int pin, u_int32_t * flags, int level)
 	}
 
 bad:
-	panic("bad APIC IO INT flags\n");
+	panic("bad APIC IO INT flags");
 }
 
 /*
@@ -427,6 +427,9 @@ bad:
  * clear INT mask bit for all others.
  * only consider lower 24 bits in mask.
  */
+#if defined(MULTIPLE_IOAPICS)
+#error MULTIPLE_IOAPICSXXX
+#else
 #define IO_MASK		(imen & 0x00ffffff)
 #define IO_FIELD	0x00ffffff
 
@@ -459,6 +462,23 @@ write_io_apic_mask24(int apic, u_int32_t mask)
 		io_apic_write(apic, select, low_reg);	/* new value */
 	}
 }
+#endif /* MULTIPLE_IOAPICS */
+
+
+#if defined(READY)
+/*
+ * read current IRQ0 -IRQ23 masks
+ */
+#if defined(MULTIPLE_IOAPICS)
+#error MULTIPLE_IOAPICSXXX
+#else
+static __inline u_int32_t
+read_io_apic_mask24(int apic)
+{
+	
+}
+#endif /* MULTIPLE_IOAPICS */
+#endif /* READY */
 
 
 #if defined(READY)
@@ -480,9 +500,9 @@ set_io_apic_mask24(apic, u_int32_t bits)
 	if (!diffs)
 		return;
 
-#error imen/IOApicMask NOT merged in setIOApicMask24()
+#error imen/io_apic_mask NOT merged in set_io_apic_mask24()
 
-	for (x = 0, y = REDIRCNT_IOAPIC(0); x < y; ++x) {
+	for (x = 0, y = REDIRCNT_IOAPIC(apic); x < y; ++x) {
 		if (!(diffs & (1 << x)))
 			continue;	/* no change, skip */
 
@@ -516,7 +536,7 @@ clr_io_apic_mask24(int apic, u_int32_t bits)
 	if (!diffs)
 		return;
 
-#error imen/IOApicMask NOT merged in clrIOApicMask24()
+#error imen/io_apic_mask NOT merged in clr_io_apic_mask24()
 
 	for (x = 0, y = REDIRCNT_IOAPIC(apic); x < y; ++x) {
 		if (!(diffs & (1 << x)))
@@ -564,10 +584,8 @@ apic_ipi(int dest_type, int vector, int delivery_mode)
 		if ((lapic__icr_lo & APIC_DELSTAT_MASK) == 0)
 			break;
 	}
-	if (x == 0) {
-		printf("apic_ipi was stuck\n");
-		panic("\n");
-	}
+	if (x == 0)
+		panic("apic_ipi was stuck");
 #endif  /* DETECT_DEADLOCK */
 
 	/* build IRC_LOW */
@@ -687,7 +705,7 @@ acquire_apic_timer(void)
 	return 0;
 #else
 	/** FIXME: make this really do something */
-	panic("APIC timer in use when attempting to aquire\n");
+	panic("APIC timer in use when attempting to aquire");
 #endif
 }
 
@@ -702,7 +720,7 @@ release_apic_timer(void)
 	return 0;
 #else
 	/** FIXME: make this really do something */
-	panic("APIC timer was already released\n");
+	panic("APIC timer was already released");
 #endif
 }
 #endif	/* READY */
