@@ -1464,9 +1464,11 @@ ndis_map_iospace(vaddr, adapter, paddr, len)
 	block = (ndis_miniport_block *)adapter;
 	sc = (struct ndis_softc *)(block->nmb_ifp);
 
-	if (paddr.np_quad == rman_get_start(sc->ndis_res_mem))
+	if (sc->ndis_res_mem != NULL &&
+	    paddr.np_quad == rman_get_start(sc->ndis_res_mem))
 		*vaddr = (void *)rman_get_virtual(sc->ndis_res_mem);
-	else if (paddr.np_quad == rman_get_start(sc->ndis_res_altmem))
+	else if (sc->ndis_res_altmem != NULL &&
+	     paddr.np_quad == rman_get_start(sc->ndis_res_altmem))
 		*vaddr = (void *)rman_get_virtual(sc->ndis_res_altmem);
 	else
 		return(NDIS_STATUS_FAILURE);
