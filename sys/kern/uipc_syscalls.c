@@ -253,7 +253,7 @@ accept1(td, uap, compat)
 {
 	struct filedesc *fdp;
 	struct file *nfp = NULL;
-	struct sockaddr *sa;
+	struct sockaddr *sa = NULL;
 	socklen_t namelen;
 	int error;
 	struct socket *head, *so;
@@ -285,7 +285,7 @@ accept1(td, uap, compat)
 	if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->so_comp)) {
 		ACCEPT_UNLOCK();
 		error = EWOULDBLOCK;
-		goto done;
+		goto noconnection;
 	}
 	while (TAILQ_EMPTY(&head->so_comp) && head->so_error == 0) {
 		if (head->so_state & SS_CANTRCVMORE) {
@@ -296,14 +296,14 @@ accept1(td, uap, compat)
 		    "accept", 0);
 		if (error) {
 			ACCEPT_UNLOCK();
-			goto done;
+			goto noconnection;
 		}
 	}
 	if (head->so_error) {
 		error = head->so_error;
 		head->so_error = 0;
 		ACCEPT_UNLOCK();
-		goto done;
+		goto noconnection;
 	}
 	so = TAILQ_FIRST(&head->so_comp);
 	KASSERT(!(so->so_qstate & SQ_INCOMP), ("accept1: so SQ_INCOMP"));
