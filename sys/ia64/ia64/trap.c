@@ -146,6 +146,98 @@ static const char *ia64_vector_names[] = {
 	"Reserved 67",				/* 67 */
 };
 
+struct bitname {
+	u_int64_t mask;
+	const char* name;
+};
+
+static void
+printbits(u_int64_t mask, struct bitname *bn, int count)
+{
+	int i, first = 1;
+	u_int64_t bit;
+
+	for (i = 0; i < count; i++) {
+		/*
+		 * Handle fields wider than one bit.
+		 */
+		bit = bn[i].mask & ~(bn[i].mask - 1);
+		if (bn[i].mask > bit) {
+			if (first)
+				first = 0;
+			else
+				printf(",");
+			printf("%s=%ld", bn[i].name,
+			       (mask & bn[i].mask) / bit);
+		} else if (mask & bit) {
+			if (first)
+				first = 0;
+			else
+				printf(",");
+			printf("%s", bn[i].name);
+		}
+	}
+}
+
+struct bitname psr_bits[] = {
+	{IA64_PSR_BE,	"be"},
+	{IA64_PSR_UP,	"up"},
+	{IA64_PSR_AC,	"ac"},
+	{IA64_PSR_MFL,	"mfl"},
+	{IA64_PSR_MFH,	"mfh"},
+	{IA64_PSR_IC,	"ic"},
+	{IA64_PSR_I,	"i"},
+	{IA64_PSR_PK,	"pk"},
+	{IA64_PSR_DT,	"dt"},
+	{IA64_PSR_DFL,	"dfl"},
+	{IA64_PSR_DFH,	"dfh"},
+	{IA64_PSR_SP,	"sp"},
+	{IA64_PSR_PP,	"pp"},
+	{IA64_PSR_DI,	"di"},
+	{IA64_PSR_SI,	"si"},
+	{IA64_PSR_DB,	"db"},
+	{IA64_PSR_LP,	"lp"},
+	{IA64_PSR_TB,	"tb"},
+	{IA64_PSR_RT,	"rt"},
+	{IA64_PSR_CPL,	"cpl"},
+	{IA64_PSR_IS,	"is"},
+	{IA64_PSR_MC,	"mc"},
+	{IA64_PSR_IT,	"it"},
+	{IA64_PSR_ID,	"id"},
+	{IA64_PSR_DA,	"da"},
+	{IA64_PSR_DD,	"dd"},
+	{IA64_PSR_SS,	"ss"},
+	{IA64_PSR_RI,	"ri"},
+	{IA64_PSR_ED,	"ed"},
+	{IA64_PSR_BN,	"bn"},
+	{IA64_PSR_IA,	"ia"},
+};
+
+static void
+printpsr(u_int64_t psr)
+{
+	printbits(psr, psr_bits, sizeof(psr_bits)/sizeof(psr_bits[0]));
+}
+
+struct bitname isr_bits[] = {
+	{IA64_ISR_X,	"x"},
+	{IA64_ISR_W,	"w"},
+	{IA64_ISR_R,	"r"},
+	{IA64_ISR_NA,	"na"},
+	{IA64_ISR_SP,	"sp"},
+	{IA64_ISR_RS,	"rs"},
+	{IA64_ISR_IR,	"ir"},
+	{IA64_ISR_NI,	"ni"},
+	{IA64_ISR_SO,	"so"},
+	{IA64_ISR_EI,	"ei"},
+	{IA64_ISR_ED,	"ed"},
+};
+
+static void printisr(u_int64_t isr)
+{
+	printbits(isr, isr_bits, sizeof(isr_bits)/sizeof(isr_bits[0]));
+}
+
 static void
 printtrap(int vector, int imm, struct trapframe *framep, int isfatal, int user)
 {
@@ -156,8 +248,12 @@ printtrap(int vector, int imm, struct trapframe *framep, int isfatal, int user)
 	printf("    trap vector = 0x%x (%s)\n",
 	       vector, ia64_vector_names[vector]);
 	printf("    cr.iip      = 0x%lx\n", framep->tf_cr_iip);
-	printf("    cr.ipsr     = 0x%lx\n", framep->tf_cr_ipsr);
-	printf("    cr.isr      = 0x%lx\n", framep->tf_cr_isr);
+	printf("    cr.ipsr     = 0x%lx (", framep->tf_cr_ipsr);
+	printpsr(framep->tf_cr_ipsr);
+	printf(")\n");
+	printf("    cr.isr      = 0x%lx (", framep->tf_cr_isr);
+	printisr(framep->tf_cr_isr);
+	printf(")\n");
 	printf("    cr.ifa      = 0x%lx\n", framep->tf_cr_ifa);
 	printf("    cr.iim      = 0x%x\n", imm);
 	printf("    curthread   = %p\n", curthread);
@@ -387,9 +483,6 @@ trap(int vector, int imm, struct trapframe *framep)
 
 		ucode = va;
 		i = SIGSEGV;
-#ifdef DEBUG
-		printtrap(vector, imm, framep, 1, user);
-#endif
 		break;
 
 	case IA64_VEC_SINGLE_STEP_TRAP:
