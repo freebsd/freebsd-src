@@ -1,4 +1,4 @@
-# $Id: cvs-supfile,v 1.6 1996/06/26 05:40:57 phk Exp $
+# $Id: cvs-supfile,v 1.1 1996/08/21 00:23:51 jkh Exp $
 #
 # This file contains all of the "CVSUP collections" that comprise the FreeBSD
 # cvs development tree.  CVSup (CVS Update Protocol) allows you to download
@@ -35,28 +35,28 @@
 #		successfully.
 
 ## Main Source Tree
-src-base release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-bin release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-contrib release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-base release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-bin release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-contrib release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 
 # Domestic users only please.  If you are outside of the U.S.A and Canada,
 # use the collections in secure-supfile.
-#src-eBones release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-etc release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-games release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-gnu release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-include release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-lib release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-libexec release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-sbin release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#src-eBones release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-etc release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-games release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-gnu release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-include release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-lib release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-libexec release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-sbin release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 
 # Domestic users only please.  If you are outside of the U.S.A and Canada,
 # use the collections in secure-supfile.
-#src-secure release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-share release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-sys release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-usrbin release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-src-usrsbin release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#src-secure release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-share release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-sys release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-usrbin release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+src-usrsbin release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 
 ## Ports Collection
 #
