@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.20 1999/01/16 20:46:24 wpaul Exp $
+ *	$Id: if_rl.c,v 1.20 1999/01/16 20:46:24 wpaul Exp wpaul $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.20 1999/01/16 20:46:24 wpaul Exp $";
+	"$Id: if_rl.c,v 1.20 1999/01/16 20:46:24 wpaul Exp wpaul $";
 #endif
 
 /*
@@ -587,7 +587,7 @@ static void rl_phy_writereg(sc, reg, data)
 }
 
 /*
- * Calculate CRC of a multicast group address, return the lower 6 bits.
+ * Calculate CRC of a multicast group address, return the upper 6 bits.
  */
 static u_int8_t rl_calchash(addr)
 	caddr_t			addr;
@@ -611,7 +611,7 @@ static u_int8_t rl_calchash(addr)
 	}
 
 	/* return the filter bit position */
-	return(crc & 0x0000003F);
+	return(crc >> 26);
 }
 
 /*
@@ -631,7 +631,7 @@ static void rl_setmulti(sc)
 
 	rxfilt = CSR_READ_4(sc, RL_RXCFG);
 
-	if (ifp->if_flags & IFF_ALLMULTI) {
+	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		rxfilt |= RL_RXCFG_RX_MULTI;
 		CSR_WRITE_4(sc, RL_RXCFG, rxfilt);
 		CSR_WRITE_4(sc, RL_MAR0, 0xFFFFFFFF);
