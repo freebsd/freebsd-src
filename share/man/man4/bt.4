@@ -168,11 +168,30 @@ AMI FastDisk Host Adapters that are true BusLogic MultiMaster clones
 are also supported by the
 .Nm
 driver.
+.Sh FILES
+.Bl -tag -width /usr/share/man0/template.doc -compact
+.It Pa sys/dev/buslogic/bt.c
+Core Driver Implementation
+.It Pa sys/dev/buslogic/btreg.h
+MultiMaster Register Set and Core Driver Data Structures
+.It Pa sys/pci/bt_pci.c
+PCI Bus Driver Attachment
+.It Pa sys/i386/eisa/bt_eisa.c
+EISA Bus Driver Attachment
+.It Pa sys/i386/isa/bt_isa.c
+ISA/VL Bus Driver Attachment
+.El
 .Sh SEE ALSO
 .Xr cd 4 ,
 .Xr da 4 ,
 .Xr sa 4 ,
 .Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in the
+.Bx 386
+patch kit.
 .Sh AUTHORS
 .An -nosplit
 .An Julian Elischer
@@ -191,22 +210,3 @@ driver for Linux.
 Support in this driver for the wide range of MultiMaster
 controllers and firmware revisions, with their otherwise undocumented quirks,
 would not have been possible without his efforts.
-.Sh FILES
-.Bl -tag -width /usr/share/man0/template.doc -compact
-.It Pa sys/dev/buslogic/bt.c
-Core Driver Implementation
-.It Pa sys/dev/buslogic/btreg.h
-MultiMaster Register Set and Core Driver Data Structures
-.It Pa sys/pci/bt_pci.c
-PCI Bus Driver Attachment
-.It Pa sys/i386/eisa/bt_eisa.c
-EISA Bus Driver Attachment
-.It Pa sys/i386/isa/bt_isa.c
-ISA/VL Bus Driver Attachment
-.El
-.Sh HISTORY
-The
-.Nm
-driver first appeared in the
-.Bx 386
-patch kit.

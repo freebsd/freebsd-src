@@ -155,6 +155,25 @@ calls are executed.
 The subset of STREAMS functionality which is provided is small, probably
 little more than what is required to enable programs on the Solaris CD
 sets to run.
+.Sh FILES
+.Bl -tag -width /sys/compat/svr4/syscalls.master -compact
+.It Pa /compat/svr4
+minimal SVR4 run-time environment
+.It Pa /sys/compat/svr4/syscalls.master
+mappings between SVR4 syscalls and
+.Nm
+module entrypoints.
+.El
+.Sh SEE ALSO
+.Xr brandelf 1 ,
+.Xr streams 4 ,
+.Xr elf 5
+.Sh HISTORY
+System V Release 4 ABI support first appeared in
+.Fx 4.0 .
+The ABI was ported from an equivalent facility present in
+.Nx 1.3
+written by Christos Zoulas.
 .Sh BUGS
 Emulation of signal handlers is buggy.
 .Pp
@@ -195,22 +214,3 @@ variables could set the
 .Dq personality
 the environment should present to
 client applications.
-.Sh FILES
-.Bl -tag -width /sys/compat/svr4/syscalls.master -compact
-.It Pa /compat/svr4
-minimal SVR4 run-time environment
-.It Pa /sys/compat/svr4/syscalls.master
-mappings between SVR4 syscalls and
-.Nm
-module entrypoints.
-.El
-.Sh SEE ALSO
-.Xr brandelf 1 ,
-.Xr streams 4 ,
-.Xr elf 5
-.Sh HISTORY
-System V Release 4 ABI support first appeared in
-.Fx 4.0 .
-The ABI was ported from an equivalent facility present in
-.Nx 1.3
-written by Christos Zoulas.

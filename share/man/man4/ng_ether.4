@@ -204,6 +204,16 @@ tracing packet flow, statistics, etc.:
 ngctl mkpeer fxp0: tee lower right
 ngctl connect fxp0: lower upper left
 .Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netgraph 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8 ,
+.Xr ngctl 8 ,
+.Xr nghook 8
+.Sh AUTHORS
+.An Julian Elischer Aq julian@FreeBSD.org
+.An Archie Cobbs Aq archie@FreeBSD.org
 .Sh BUGS
 The automatic KLD module loading mechanism that works for most
 other Netgraph node types does not work for the
@@ -217,13 +227,3 @@ Therefore, if the KLD is not statically compiled into the kernel,
 it is necessary to load the KLD manually in order to bring the
 .Nm ether
 nodes into existence.
-.Sh SEE ALSO
-.Xr arp 4 ,
-.Xr netgraph 4 ,
-.Xr netintro 4 ,
-.Xr ifconfig 8 ,
-.Xr ngctl 8 ,
-.Xr nghook 8
-.Sh AUTHORS
-.An Julian Elischer Aq julian@FreeBSD.org
-.An Archie Cobbs Aq archie@FreeBSD.org

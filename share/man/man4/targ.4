@@ -130,16 +130,6 @@ are the control devices.
 .%T "FreeBSD Target Information"
 .%O http://www.root.org/~nate/freebsd/
 .Re
-.Sh BUGS
-Currently, only the
-.Xr ahc 4
-and
-.Xr isp 4
-drivers fully support target mode.
-.Pp
-The
-.Xr ahc 4
-driver does not support tagged queuing in target mode.
 .Sh AUTHORS
 .An -nosplit
 The
@@ -153,3 +143,13 @@ for
 .Fx 5.0
 by
 .An Nate Lawson Aq nate@root.org .
+.Sh BUGS
+Currently, only the
+.Xr ahc 4
+and
+.Xr isp 4
+drivers fully support target mode.
+.Pp
+The
+.Xr ahc 4
+driver does not support tagged queuing in target mode.

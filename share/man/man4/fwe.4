@@ -61,16 +61,6 @@ This driver supports
 as well if it is compiled with the
 .Dv DEVICE_POLLING
 option.
-.Sh HISTORY
-The
-.Nm
-device driver first appeared in
-.Fx 5.0 .
-.Sh BUGS
-This driver emulates Ethernet in a very adhoc way and it does not reserve a
-stream channel using an isochronous manager.
-Note that this driver uses a protocol which is very different from RFC 2734
-(IPv4 over IEEE 1394).
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr firewire 4 ,
@@ -82,8 +72,18 @@ Note that this driver uses a protocol which is very different from RFC 2734
 .Xr ifconfig 8 ,
 .Xr kldload 8 ,
 .Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.0 .
 .Sh AUTHORS
 The
 .Nm
 driver and this manual page were written by
 .An Hidetoshi Shimokawa .
+.Sh BUGS
+This driver emulates Ethernet in a very adhoc way and it does not reserve a
+stream channel using an isochronous manager.
+Note that this driver uses a protocol which is very different from RFC 2734
+(IPv4 over IEEE 1394).

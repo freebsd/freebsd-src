@@ -49,13 +49,6 @@ If successful, the
 function will return zero.
 Otherwise an error number will be returned
 to indicate the error.
-.Sh SEE ALSO
-.Xr pthread_rwlock_init 3
-.Sh STANDARDS
-The
-.Fn pthread_rwlock_destroy
-function is expected to conform to
-.St -susv2 .
 .Sh ERRORS
 The
 .Fn pthread_rwlock_destroy
@@ -78,6 +71,13 @@ The value specified by
 .Fa lock
 is invalid.
 .El
+.Sh SEE ALSO
+.Xr pthread_rwlock_init 3
+.Sh STANDARDS
+The
+.Fn pthread_rwlock_destroy
+function is expected to conform to
+.St -susv2 .
 .Sh HISTORY
 The
 .Fn pthread_rwlock_destroy

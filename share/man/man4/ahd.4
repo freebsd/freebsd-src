@@ -153,16 +153,17 @@ Many motherboards with on-board
 .Tn SCSI
 support
 .El
-.Sh BUGS
-The current generation of 79xx chips do not support target mode in Ultra320
-mode.
-Target mode in general has not been well tested in this driver.
 .Sh SEE ALSO
 .Xr ahc 4 ,
 .Xr cd 4 ,
 .Xr da 4 ,
 .Xr sa 4 ,
 .Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.7 .
 .Sh AUTHORS
 The
 .Nm
@@ -174,8 +175,7 @@ and the firmware running on the aic79xx chips was written by
 This manual page is based on the
 .Xr ahc 4
 manual page.
-.Sh HISTORY
-The
-.Nm
-driver first appeared in
-.Fx 4.7 .
+.Sh BUGS
+The current generation of 79xx chips do not support target mode in Ultra320
+mode.
+Target mode in general has not been well tested in this driver.

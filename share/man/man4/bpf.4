@@ -605,6 +605,11 @@ array initializers:
 .Fn BPF_STMT opcode operand
 and
 .Fn BPF_JUMP opcode operand true_offset false_offset .
+.Sh FILES
+.Bl -tag -compact -width /dev/bpfXXX
+.It Pa /dev/bpf Ns Sy n
+the packet filter device
+.El
 .Sh EXAMPLES
 The following filter is taken from the Reverse ARP Daemon.
 It accepts only Reverse ARP requests.
@@ -673,33 +678,6 @@ struct bpf_insn insns[] = {
 .%A Jacobson V.
 .%T "An efficient, extensible, and portable network monitor"
 .Re
-.Sh FILES
-.Bl -tag -compact -width /dev/bpfXXX
-.It Pa /dev/bpf Ns Sy n
-the packet filter device
-.El
-.Sh BUGS
-The read buffer must be of a fixed size (returned by the
-.Dv BIOCGBLEN
-ioctl).
-.Pp
-A file that does not request promiscuous mode may receive promiscuously
-received packets as a side effect of another file requesting this
-mode on the same hardware interface.
-This could be fixed in the kernel with additional processing overhead.
-However, we favor the model where
-all files must assume that the interface is promiscuous, and if
-so desired, must utilize a filter to reject foreign packets.
-.Pp
-Data link protocols with variable length headers are not currently supported.
-.Pp
-The
-.Dv SEESENT
-flag has been observed to work incorrectly on some interface
-types, including those with hardware loopback rather than software loopback,
-and point-to-point interfaces.
-It appears to function correctly on a
-broad range of Ethernet-style interfaces.
 .Sh HISTORY
 The Enet packet filter was created in 1980 by Mike Accetta and
 Rick Rashid at Carnegie-Mellon University.
@@ -724,3 +702,25 @@ of Lawrence Berkeley Laboratory, implemented BPF in
 Summer 1990.
 Much of the design is due to
 .An Van Jacobson .
+.Sh BUGS
+The read buffer must be of a fixed size (returned by the
+.Dv BIOCGBLEN
+ioctl).
+.Pp
+A file that does not request promiscuous mode may receive promiscuously
+received packets as a side effect of another file requesting this
+mode on the same hardware interface.
+This could be fixed in the kernel with additional processing overhead.
+However, we favor the model where
+all files must assume that the interface is promiscuous, and if
+so desired, must utilize a filter to reject foreign packets.
+.Pp
+Data link protocols with variable length headers are not currently supported.
+.Pp
+The
+.Dv SEESENT
+flag has been observed to work incorrectly on some interface
+types, including those with hardware loopback rather than software loopback,
+and point-to-point interfaces.
+It appears to function correctly on a
+broad range of Ethernet-style interfaces.

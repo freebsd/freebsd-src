@@ -94,13 +94,6 @@ See
 .Pa http://www.soekris.com/ .
 Contains a 7955 and supports symmetric and random number operations.
 .El
-.Sh BUGS
-The 7751 chip starts out at initialization by only supporting compression.
-A proprietary algorithm, which has been reverse engineered, is required to
-unlock the cryptographic functionality of the chip.
-It is possible for vendors to make boards which have a lock ID not known
-to the driver, but all vendors currently just use the obvious ID which is
-13 bytes of 0.
 .Sh SEE ALSO
 .Xr crypt 3 ,
 .Xr crypto 4 ,
@@ -126,3 +119,10 @@ The
 .Nm
 device driver was imported to
 .Fx 5.0 .
+.Sh BUGS
+The 7751 chip starts out at initialization by only supporting compression.
+A proprietary algorithm, which has been reverse engineered, is required to
+unlock the cryptographic functionality of the chip.
+It is possible for vendors to make boards which have a lock ID not known
+to the driver, but all vendors currently just use the obvious ID which is
+13 bytes of 0.

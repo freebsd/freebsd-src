@@ -57,14 +57,6 @@ to indicate the error.
 The results are undefined if
 .Fa lock
 is not held by the calling thread.
-.Sh SEE ALSO
-.Xr pthread_rwlock_rdlock 3 ,
-.Xr pthread_rwlock_wrlock 3
-.Sh STANDARDS
-The
-.Fn pthread_rwlock_unlock
-function is expected to conform to
-.St -susv2 .
 .Sh ERRORS
 The
 .Fn pthread_rwlock_unlock
@@ -77,6 +69,14 @@ is invalid.
 .It Bq Er EPERM
 The current thread does not own the read/write lock.
 .El
+.Sh SEE ALSO
+.Xr pthread_rwlock_rdlock 3 ,
+.Xr pthread_rwlock_wrlock 3
+.Sh STANDARDS
+The
+.Fn pthread_rwlock_unlock
+function is expected to conform to
+.St -susv2 .
 .Sh HISTORY
 The
 .Fn pthread_rwlock_unlock

@@ -56,6 +56,8 @@ The second member of each pair is the name of the program to
 actually execute when the first name is invoked.
 The file may also
 contain comments, denoted by a # mark in the first column of any line.
+.Sh FILES
+/etc/mail/mailer.conf
 .Sh EXAMPLES
 The following is an example of how to set up an
 .Nm
@@ -77,8 +79,6 @@ send-mail	/usr/local/sbin/sendmail
 mailq		/usr/local/sbin/sendmail
 newaliases	/usr/local/sbin/sendmail
 .Ed
-.Sh FILES
-/etc/mail/mailer.conf
 .Sh SEE ALSO
 .Xr mail 1 ,
 .Xr mailq 1 ,

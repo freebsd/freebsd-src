@@ -75,6 +75,15 @@ any of them will be released is determined by the
 argument to
 .Fn pthread_barrier_init .
 Once the threads have been released the barrier will be reset.
+.Sh IMPLEMENTATION NOTES
+In both
+.Lb libpthread
+and
+.Lb libthr
+the
+.Dv PTHREAD_BARRIER_SERIAL_THREAD
+return value will
+always be returned by the last thread to reach the barrier.
 .Sh RETURN VALUES
 If successful,
 both
@@ -92,15 +101,6 @@ Otherwise, an error number will be returned to indicate the error.
 .Pp
 None of these functions will return
 .Er EINTR .
-.Sh IMPLEMENTATION NOTES
-In both
-.Lb libpthread
-and
-.Lb libthr
-the
-.Dv PTHREAD_BARRIER_SERIAL_THREAD
-return value will
-always be returned by the last thread to reach the barrier.
 .Sh ERRORS
 The
 .Fn pthread_barrier_destroy

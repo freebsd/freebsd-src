@@ -90,10 +90,6 @@ bootflags to force other modes.
 .Xr ppbus 4 ,
 .Xr ppc 4 ,
 .Xr scsi 4
-.Sh BUGS
-During boot, the driver first tries to detect a classic ZIP, then a ZIP+.
-The ZIP+ detection is intrusive and may send erroneous characters to your
-printer if the drive is not connected to your parallel port.
 .Sh HISTORY
 The
 .Nm
@@ -103,3 +99,7 @@ manual page first appeared in
 This
 manual page was written by
 .An Nicolas Souchu .
+.Sh BUGS
+During boot, the driver first tries to detect a classic ZIP, then a ZIP+.
+The ZIP+ detection is intrusive and may send erroneous characters to your
+printer if the drive is not connected to your parallel port.

@@ -293,26 +293,11 @@ It requires the PC card (PCMCIA) support package.
 .Xr ng_ether 4 ,
 .Xr ifconfig 8 ,
 .Xr pccardd 8
-.Sh BUGS
-Following are major known bugs:
-.Pp
-Statistics on the number of collisions maintained by the
+.Sh HISTORY
+The
 .Nm
-driver is not accurate;
-the
-.Fl i
-option of
-.Xr netstat 1
-shows slightly less value than true number of collisions.
-.Pp
-More mbuf clusters are used than expected.
-The packet receive routine has an intended violation
-against the mbuf cluster allocation policy.
-The unnecessarily allocated clusters are freed within short lifetime,
-and it will not affect long term kernel memory usage.
-.Pp
-Although XNS and IPX support is included in the driver,
-it has never been tested and it is expected to have a lot of bugs.
+driver appeared in
+.Fx 2.0.5 .
 .Sh AUTHORS, COPYRIGHT AND DISCLAIMER
 The
 .Nm
@@ -354,8 +339,23 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 DOCUMENT AND THE ASSOCIATED SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
-.Sh HISTORY
-The
+.Sh BUGS
+Following are major known bugs:
+.Pp
+Statistics on the number of collisions maintained by the
 .Nm
-driver appeared in
-.Fx 2.0.5 .
+driver is not accurate;
+the
+.Fl i
+option of
+.Xr netstat 1
+shows slightly less value than true number of collisions.
+.Pp
+More mbuf clusters are used than expected.
+The packet receive routine has an intended violation
+against the mbuf cluster allocation policy.
+The unnecessarily allocated clusters are freed within short lifetime,
+and it will not affect long term kernel memory usage.
+.Pp
+Although XNS and IPX support is included in the driver,
+it has never been tested and it is expected to have a lot of bugs.

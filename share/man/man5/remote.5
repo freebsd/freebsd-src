@@ -175,6 +175,14 @@ Indicates that the list of capabilities is continued in the named
 description.
 This is used primarily to share common capability information.
 .El
+.Sh FILES
+.Bl -tag -width /etc/remote -compact
+.It Pa /etc/remote
+The
+.Nm
+host description file resides in
+.Pa /etc .
+.El
 .Sh EXAMPLES
 Here is a short example showing the use of the capability continuation
 feature.
@@ -190,14 +198,6 @@ UNIX-57600:\e
 arpavax|ax:\e
 :pn=\e@:tc=UNIX-57600
 .Ed
-.Sh FILES
-.Bl -tag -width /etc/remote -compact
-.It Pa /etc/remote
-The
-.Nm
-host description file resides in
-.Pa /etc .
-.El
 .Sh SEE ALSO
 .Xr cu 1 ,
 .Xr tip 1 ,

@@ -57,16 +57,6 @@ This driver supports
 as well if it is compiled with the
 .Dv DEVICE_POLLING
 option.
-.Sh HISTORY
-The
-.Nm
-device driver first appeared in
-.Fx 5.3 .
-.Sh BUGS
-This driver currently does not support the MCAP protocol for multicast
-IP over FireWire.
-Multicast packets are treated as broadcast packets which is sufficient
-for most trivial uses of multicast.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr firewire 4 ,
@@ -77,6 +67,11 @@ for most trivial uses of multicast.
 .Xr ifconfig 8 ,
 .Xr kldload 8 ,
 .Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.3 .
 .Sh AUTHORS
 .An -nosplit
 The
@@ -85,3 +80,8 @@ driver and this manual page were written by
 .An Doug Rabson ,
 based on earlier work by
 .An Hidetoshi Shimokawa .
+.Sh BUGS
+This driver currently does not support the MCAP protocol for multicast
+IP over FireWire.
+Multicast packets are treated as broadcast packets which is sufficient
+for most trivial uses of multicast.

@@ -197,26 +197,6 @@ Eject on close (if capable)
 Control mode device (to examine state while another program is
 accessing the device, e.g.).
 .El
-.Sh BUGS
-This driver lacks many of the hacks required to deal with older devices.
-Many older
-.Tn SCSI-1
-devices may not work properly with this driver yet.
-.Pp
-Additionally, certain
-tapes (QIC tapes mostly) that were written under
-.Fx
-2.X
-aren't automatically read correctly with this driver: you may need to
-explicitly set variable block mode or set to the blocksize that works best
-for your device in order to read tapes written under
-.Fx
-2.X.
-.Pp
-Fine grained density and compression mode support that is bound to specific
-device names needs to be added.
-.Pp
-Support for fast indexing by use of partitions is missing.
 .Sh DIAGNOSTICS
 None.
 .Sh SEE ALSO
@@ -245,3 +225,23 @@ The current owner of record is
 .An Matthew Jacob
 who has suffered too many
 years of breaking tape drivers.
+.Sh BUGS
+This driver lacks many of the hacks required to deal with older devices.
+Many older
+.Tn SCSI-1
+devices may not work properly with this driver yet.
+.Pp
+Additionally, certain
+tapes (QIC tapes mostly) that were written under
+.Fx
+2.X
+aren't automatically read correctly with this driver: you may need to
+explicitly set variable block mode or set to the blocksize that works best
+for your device in order to read tapes written under
+.Fx
+2.X.
+.Pp
+Fine grained density and compression mode support that is bound to specific
+device names needs to be added.
+.Pp
+Support for fast indexing by use of partitions is missing.

@@ -130,6 +130,21 @@ and
 .Fn g_waitfor_event
 functions
 return 0 if successful; otherwise an error code is returned.
+.Sh EXAMPLES
+Example of a function called from the event queue.
+.Bd -literal -offset indent
+void
+example_event(void *arg, int flag)
+{
+
+	if (flag == EV_CANCEL) {
+		printf("Event with argument %p canceled.\\n", arg);
+		return;
+	}
+
+	printf("Event with argument %p called.\\n", arg);
+}
+.Ed
 .Sh ERRORS
 Possible errors for the
 .Fn g_post_event
@@ -156,21 +171,6 @@ argument was set to
 .Dv M_NOWAIT
 and there was insufficient memory.
 .El
-.Sh EXAMPLES
-Example of a function called from the event queue.
-.Bd -literal -offset indent
-void
-example_event(void *arg, int flag)
-{
-
-	if (flag == EV_CANCEL) {
-		printf("Event with argument %p canceled.\\n", arg);
-		return;
-	}
-
-	printf("Event with argument %p called.\\n", arg);
-}
-.Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr DECLARE_GEOM_CLASS 9 ,

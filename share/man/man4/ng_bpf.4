@@ -175,6 +175,17 @@ ngctl msg ${NODEPATH} setprogram { thisHook=\\"${INHOOK}\\" \\
   ifNotMatch=\\"${NOTMATCHHOOK}\\" \\
   ${BPFPROG} } }
 .Ed
+.Sh SEE ALSO
+.Xr bpf 4 ,
+.Xr netgraph 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq archie@FreeBSD.org
 .Sh BUGS
 When built as a loadable kernel module, this module includes the file
 .Pa net/bpf_filter.c .
@@ -183,14 +194,3 @@ Although loading the module should fail if
 already exists in the kernel, currently it does not, and the duplicate
 copies of the file do not interfere.
 However, this may change in the future.
-.Sh HISTORY
-The
-.Nm
-node type was implemented in
-.Fx 4.0 .
-.Sh SEE ALSO
-.Xr bpf 4 ,
-.Xr netgraph 4 ,
-.Xr ngctl 8
-.Sh AUTHORS
-.An Archie Cobbs Aq archie@FreeBSD.org

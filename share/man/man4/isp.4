@@ -172,6 +172,16 @@ This is a driver debug level- meaningful from 0 through 7.
 This is a driver target mode debug level- meaningful from 0 through
 5.
 .El
+.Sh SEE ALSO
+.Xr da 4 ,
+.Xr intro 4 ,
+.Xr ispfw 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh AUTHORS
+The
+.Nm
+driver was written by Matthew Jacob for NASA/Ames Research Center.
 .Sh BUGS
 The driver currently ignores some NVRAM settings.
 .Pp
@@ -192,13 +202,3 @@ To
 unwedge the system, unplug and replug the fibre channel connection,
 or otherwise cause a LIP (Loop Initialization Primitive sequence)-
 this will kick the f/w into getting unstuck.
-.Sh SEE ALSO
-.Xr da 4 ,
-.Xr intro 4 ,
-.Xr ispfw 4 ,
-.Xr sa 4 ,
-.Xr scsi 4
-.Sh AUTHORS
-The
-.Nm
-driver was written by Matthew Jacob for NASA/Ames Research Center.

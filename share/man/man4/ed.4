@@ -323,13 +323,6 @@ work in 8bit mode, much higher performance can be achieved by specifying
 In addition, you should also specify
 .Cd "iosiz 16384"
 to take advantage of the extra 8K of shared memory that 16bit mode provides.
-.Sh BUGS
-The
-.Nm
-driver is a bit too aggressive about resetting the card whenever any bad
-packets are received.
-As a result, it may throw out some good packets which
-have been received but not yet transferred from the card to main memory.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr miibus 4 ,
@@ -346,3 +339,10 @@ The
 .Nm
 device driver and this manual page were written by
 .An David Greenman .
+.Sh BUGS
+The
+.Nm
+driver is a bit too aggressive about resetting the card whenever any bad
+packets are received.
+As a result, it may throw out some good packets which
+have been received but not yet transferred from the card to main memory.
