@@ -133,7 +133,7 @@ static int ni6_addrs __P((struct icmp6_nodeinfo *, struct mbuf *,
 			  struct ifnet **, char *));
 static int ni6_store_addrs __P((struct icmp6_nodeinfo *, struct icmp6_nodeinfo *,
 				struct ifnet *, int));
-static int icmp6_notify_error __P((struct mbuf *, int, int, int));
+static int icmp6_notify_error __P((struct mbuf **, int, int, int));
 
 #ifdef COMPAT_RFC1885
 static struct route_in6 icmp6_reflect_rt;
@@ -819,7 +819,7 @@ icmp6_input(mp, offp, proto)
 			break;
 		}
 	deliver:
-		if (icmp6_notify_error(m, off, icmp6len, code)) {
+		if (icmp6_notify_error(&m, off, icmp6len, code)) {
 			/* In this case, m should've been freed. */
 			return (IPPROTO_DONE);
 		}
@@ -845,10 +845,11 @@ icmp6_input(mp, offp, proto)
 }
 
 static int
-icmp6_notify_error(m, off, icmp6len, code)
-	struct mbuf *m;
+icmp6_notify_error(mp, off, icmp6len, code)
+	struct mbuf **mp;
 	int off, icmp6len, code;
 {
+	struct mbuf *m = *mp;
 	struct icmp6_hdr *icmp6;
 	struct ip6_hdr *eip6;
 	u_int32_t notifymtu;
@@ -1039,7 +1040,7 @@ icmp6_notify_error(m, off, icmp6len, code)
 			goto freeit;
 		if (in6_embedscope(&icmp6dst.sin6_addr, &icmp6dst,
 				   NULL, NULL)) {
-			/* should be impossbile */
+			/* should be impossible */
 			nd6log((LOG_DEBUG,
 			    "icmp6_notify_error: in6_embedscope failed\n"));
 			goto freeit;
@@ -1059,7 +1060,7 @@ icmp6_notify_error(m, off, icmp6len, code)
 		}
 		if (in6_embedscope(&icmp6src.sin6_addr, &icmp6src,
 				   NULL, NULL)) {
-			/* should be impossbile */
+			/* should be impossible */
 			nd6log((LOG_DEBUG,
 			    "icmp6_notify_error: in6_embedscope failed\n"));
 			goto freeit;
@@ -1089,6 +1090,7 @@ icmp6_notify_error(m, off, icmp6len, code)
 			    &ip6cp);
 		}
 	}
+	*mp = m;
 	return (0);
 
   freeit:
