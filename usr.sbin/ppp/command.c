@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.49 1998/03/13 00:58:07 brian Exp $
+ * $Id: command.c,v 1.24.2.50 1998/04/25 09:17:39 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1264,13 +1264,14 @@ SetInterfaceAddr(struct cmdargs const *arg)
     DefMyAddress.width = 0;
   }
   IpcpInfo.want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
+
+  if (hisaddr && !UseHisaddr(hisaddr, mode & MODE_AUTO))
+    return 4;
+
   if (DefHisAddress.ipaddr.s_addr == 0) {
     DefHisAddress.mask.s_addr = 0;
     DefHisAddress.width = 0;
   }
-
-  if (hisaddr && !UseHisaddr(hisaddr, mode & MODE_AUTO))
-    return 4;
 
   return 0;
 }
