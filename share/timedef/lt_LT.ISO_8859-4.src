@@ -91,13 +91,9 @@ spalis
 lapkritis
 gruodis
 #
-# Ef_fmt
+# md_order
 #
-%b %e
-#
-# EF_fmt
-#
-%B %e
+md
 #
 # ampm_fmt
 #

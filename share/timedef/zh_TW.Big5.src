@@ -92,10 +92,11 @@
 11¤ë
 12¤ë
 #
-# Ef_fmt
+# md_order
 #
-%b/%e
+md
 #
-# EF_fmt
+# ampm_fmt
 #
-%B%e¤é
+%I:%M:%S %p
+# EOF
