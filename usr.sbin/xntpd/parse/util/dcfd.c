@@ -1389,6 +1389,21 @@ main(argc, argv)
 #else
       (void) alarm(1<<ADJINTERVAL);
 #endif
+#if defined(SYS_FREEBSD) && defined(CONRAD)
+      if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) & ~O_NONBLOCK) == -1)
+	perror("F_SETFL");
+
+      {
+      int i;
+
+      if (ioctl(fd, TIOCMGET, &i) == -1)
+	perror("TIOCMGET");
+      i |= TIOCM_DTR;
+      i &= ~TIOCM_RTS;
+      if (ioctl(fd, TIOCMSET, &i) == -1)
+	perror("TIOCMSET");
+      }
+#endif
 #if defined(SYS_FREEBSD) && defined(BOEDER)
       if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) & ~O_NONBLOCK) == -1)
 	perror("F_SETFL");
