@@ -3,12 +3,9 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= if_pn
-SRCS	= if_pn.c pn.h opt_bdg.h device_if.h bus_if.h pci_if.h
-CLEANFILES	+= pn.h opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_pn.c opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= opt_bdg.h device_if.h bus_if.h pci_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
-
-pn.h:
-	echo "#define NFXP 1" > pn.h
 
 opt_bdg.h:
 	touch opt_bdg.h
