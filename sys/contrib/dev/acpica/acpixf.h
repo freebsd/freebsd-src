@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -240,11 +240,11 @@ AcpiWalkNamespace (
     UINT32                  MaxDepth,
     ACPI_WALK_CALLBACK      UserFunction,
     void                    *Context,
-    void *                  *ReturnValue);
+    void                    **ReturnValue);
 
 ACPI_STATUS
 AcpiGetDevices (
-    NATIVE_CHAR             *HID,
+    char                    *HID,
     ACPI_WALK_CALLBACK      UserFunction,
     void                    *Context,
     void                    **ReturnValue);
@@ -411,6 +411,12 @@ AcpiGetEventStatus (
  * Resource interfaces
  */
 
+typedef
+ACPI_STATUS (*ACPI_WALK_RESOURCE_CALLBACK) (
+    ACPI_RESOURCE           *Resource,
+    void                    *Context);
+
+
 ACPI_STATUS
 AcpiGetCurrentResources(
     ACPI_HANDLE             DeviceHandle,
@@ -422,6 +428,13 @@ AcpiGetPossibleResources(
     ACPI_BUFFER             *RetBuffer);
 
 ACPI_STATUS
+AcpiWalkResources (
+    ACPI_HANDLE                     DeviceHandle,
+    char                            *Path,
+    ACPI_WALK_RESOURCE_CALLBACK     UserFunction,
+    void                            *Context);
+
+ACPI_STATUS
 AcpiSetCurrentResources (
     ACPI_HANDLE             DeviceHandle,
     ACPI_BUFFER             *InBuffer);
@@ -431,6 +444,10 @@ AcpiGetIrqRoutingTable  (
     ACPI_HANDLE             BusDeviceHandle,
     ACPI_BUFFER             *RetBuffer);
 
+ACPI_STATUS
+AcpiResourceToAddress64 (
+    ACPI_RESOURCE           *Resource,
+    ACPI_RESOURCE_ADDRESS64 *Out);
 
 /*
  * Hardware (ACPI device) interfaces
@@ -469,6 +486,10 @@ AcpiEnterSleepStatePrep (
 ACPI_STATUS
 AcpiEnterSleepState (
     UINT8                   SleepState);
+
+ACPI_STATUS
+AcpiEnterSleepStateS4bios (
+    void);
 
 ACPI_STATUS
 AcpiLeaveSleepState (
