@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.17 1996/03/25 09:35:25 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.18 1996/04/10 06:32:42 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.17 1996/03/25 09:35:25 asami Exp $
+ # $Id: porting.sgml,v 1.18 1996/04/10 06:32:42 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -265,9 +265,9 @@ lib/X11/oneko/mouse.xpm
 	  original source tarball or the `<tt>work</tt>' subdirectory)
 	  into a <tt>.tar.gz</tt> file, stick it in the directory
 <tscreen><verb>
-ftp://ftp.freebsd.org/pub/FreeBSD/incoming/
+ftp://ftp.FreeBSD.ORG/pub/FreeBSD/incoming/
 </verb></tscreen>
-	  and send mail to <tt>ports@freebsd.org</tt>.  We will take a
+	  and send mail to the &a.ports;.  We will take a
 	  look, get back to you if necessary, and put it in the tree.
 	  Your name will also appear in the list of `Additional
 	  FreeBSD contributors' on the FreeBSD Handbook and other
@@ -391,9 +391,9 @@ ftp://ftp.freebsd.org/pub/FreeBSD/incoming/
 	  non-standard formats, we can `house' it ourselves by putting
 	  it on
 <tscreen><verb>
-ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
+ftp://freefall.FreeBSD.ORG/pub/FreeBSD/LOCAL_PORTS/
 </verb></tscreen>
-	  as the last resort.  Send mail to <tt>ports@freebsd.org</tt>
+	  as the last resort.  Send mail to the &a.ports
 	  if you are not sure what to do.
 
 	<p>If your port requires some additional `patches' that are
@@ -698,8 +698,7 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	licensing terms of the software and make sure that the FreeBSD
 	project won't held accountable of violating them by
 	redistributing the source or compiled binaries either via ftp
-	or CD-ROM.  If in doubt, please contact
-	<tt>ports@freebsd.org</tt>.
+	or CD-ROM.  If in doubt, please contact the &a.ports;.
 
       <p>We usually get around this problem by setting
 	<tt>&dollar;{NO_PACKAGE}</tt> in the Makefile, and not putting
@@ -977,7 +976,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.17 1996/03/25 09:35:25 asami Exp $
+ # $Id: porting.sgml,v 1.18 1996/04/10 06:32:42 asami Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #

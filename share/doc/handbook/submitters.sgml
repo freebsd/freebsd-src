@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.23 1996/03/30 19:40:28 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.24 1996/03/30 19:46:37 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -52,7 +52,7 @@ appointed, maybe you'd like to volunteer?
 they represent something that is badly broken or sorely needed:
 <enum>
 <item>3-stage boot issues.  Overall coordination:
-<tt><htmlurl url="mailto:hackers@freebsd.org" name="Hackers"></tt>
+&a.hackers
 <p><itemize>
 <item>Autodetect memory over 64MB properly.
 <item>Move userconfig (-c) into 3rd stage boot.
@@ -60,22 +60,16 @@ they represent something that is badly broken or sorely needed:
 provide an accurate mapping of BIOS geometries for disks.
 </itemize>
 <item>Filesystem problems.  Overall coordination:
-<tt><htmlurl url="mailto:freebsd-fs@freebsd.org" name="File Systems Group"></tt>.
+&a.fs
 <itemize>
 <item>Fix the MSDOS file system.
-<item>Clean up and document the nullfs filesystem code.  Coordinator: <tt><htmlurl
-url="mailto:gibbs@freebsd.org" name="Justin Gibbs"></tt>
-<item>Fix the union file system.  Coordinator: <tt><htmlurl
-url="mailto:dyson@freebsd.org" name="John Dyson"></tt>
-<item>Fix the LFS file system.  Coordinator: <tt><htmlurl
-url="mailto:dyson@freebsd.org" name="John Dyson"></tt>
+<item>Clean up and document the nullfs filesystem code.  Coordinator: &a.gibbs
+<item>Fix the union file system.  Coordinator: &a.dyson
+<item>Fix the LFS file system.  Coordinator: &a.dyson
 </itemize>
-<item>Implement kernel and user vm86 support.  Coordinator: <tt><htmlurl
-url="mailto:hackers@freebsd.org" name="Hackers"></tt>.
-<item>Implement Int13 vm86 disk driver.  Coordinator: <tt><htmlurl
-url="mailto:hackers@freebsd.org" name="Hackers"></tt>.
-<item>SCSI driver issues.  Overall coordination:
-<tt><htmlurl url="mailto:freebsd-scsi@freebsd.org" name="SCSI Group"></tt>.
+<item>Implement kernel and user vm86 support.  Coordinator: &a.hackers
+<item>Implement Int13 vm86 disk driver.  Coordinator: &a.hackers
+<item>SCSI driver issues.  Overall coordination: &a.hackers
 <p><itemize>
 <item>Support tagged queuing generically.  Requires a rewrite of how we do
 our command queing, but we need this anyway to for prioritized I/O
@@ -84,25 +78,22 @@ our command queing, but we need this anyway to for prioritized I/O
 <item>Merged Scatter-Gather list creation code.
 </itemize>
 <item>Kernel issues.  Overall coordination:
-<tt><htmlurl url="mailto:freebsd-hackers@freebsd.org" name="Hackers"></tt>.
+&a.hackers
 <p><itemize>
 <item>Complete the eisaconf conversion of all existing drivers.
 <item>Change all interrupt routines to take a (void *) instead of
 using unit numbers.
 <item>Merge EISA/PCI/ISA interrupt registration code.
 <item>Split PCI/EISA/ISA probes out from drivers like bt742a.c (WIP)
-<item>Fix the syscons ALT-TAB/vt switching hangs.  Coordinator: <tt><htmlurl
-url="mailto:sos@freebsd.org" name="Soren Schmidt"></tt>.
+<item>Fix the syscons ALT-TAB/vt switching hangs.  Coordinator: &a.sos
 <item>Mouse support for syscons.
 <item>Merged keyboard code for all console drivers.
 <item>Rewrite the Intel Etherexpress 16 driver.
 <item>Merge the 3c509 and 3c590 drivers (essentially provide a PCI probe for
 ep.c).
 <item>Support Adaptec 3985 (first as a simple 3 channel SCSI card)
-Coordinator: <tt><htmlurl
-url="mailto:gibbs@freebsd.org" name="Justin Gibbs"></tt>.
-<item>Support Advansys SCSI controller products.  Coordinator: <tt><htmlurl
-url="mailto:gibbs@freebsd.org" name="Justin Gibbs"></tt>.
+Coordinator: &a.gibbs
+<item>Support Advansys SCSI controller products.  Coordinator: &a.gibbs
 </itemize>
 </enum>
 
@@ -124,8 +115,7 @@ some kind of symbol table in the kernel.
 your hardware in a sane manner, keeps only the LKMs required for
 your hardware, etc.
 </itemize>
-<item>PCMCIA/PCCARD.  Coordinator: <tt><htmlurl
-url="mailto:phk@freebsd.org" name="Poul-Henning Kamp"></tt>
+<item>PCMCIA/PCCARD.  Coordinator: &a.phk
 <itemize>
 <item>Reliable operation of the pcic driver.
 <item>Recognizer and handler for sio.c
@@ -133,8 +123,7 @@ url="mailto:phk@freebsd.org" name="Poul-Henning Kamp"></tt>
 <item>Recognizer and handler for ep.c
 <item>User-mode recognizer and handler.
 </itemize>
-<item>Advanced Power Management.  Coordinator: <tt><htmlurl
-url="mailto:phk@freebsd.org" name="Poul-Henning Kamp"></tt>
+<item>Advanced Power Management.  Coordinator: &a.phk
 <itemize>
 <item>APM sub-driver.
 <item>IDE/ATA disk sub-driver.
@@ -247,14 +236,13 @@ the following 6 categories:
 
 <itemize>
 	<item>An idea or suggestion of general technical interest should be
-	  mailed to <tt><htmlurl url="mailto:hackers@freebsd.org"
-	  name="&lt;hackers@freebsd.org&gt;"></tt>.
+	  mailed to the &a.hackers;.
           Likewise, people with an interest
 	  in such things (and a tolerance for a <em>high</em>
 	  volume of mail!) may
 	  subscribe to the hackers mailing list by sending mail to 
-          <tt><htmlurl url="mailto:majordomo@freebsd.org"
-	  name="&lt;majordomo@freebsd.org&gt;"></tt>.  
+          <tt><htmlurl url="mailto:majordomo@FreeBSD.ORG"
+	  name="&lt;majordomo@FreeBSD.ORG&gt;"></tt>.  
           See <ref id="eresources:mail" name="mailing lists">
 	  for more information about this and other mailing lists.
 
@@ -269,16 +257,13 @@ the following 6 categories:
           If you do not receive confirmation in a timely fashion (3 days to
           a week, depending on your email connection) or are, for some
           reason, unable to use the <tt>send-pr(1)</tt> command,
-	  then you may also file a bug report by sending mail to
-          <tt><htmlurl url="mailto:bugs@freebsd.org"
-	  name="&lt;bugs@freebsd.org&gt;"></tt>.
+	  then you may also file a bug report by sending mail to the &a.bugs;.
 </itemize>
 
 <sect1><heading>Changes to the documentation</heading>
 
-<p>Changes to the documentation are overseen by the FreeBSD Documentation
-Project, which can be reached at <tt><htmlurl url="mailto:doc@freebsd.org"
-name="&lt;doc@freebsd.org&gt;"></tt>.  This does not generally include
+<p>Changes to the documentation are overseen by the &a.doc;.
+This does not generally include
 changes to manual pages, which should be considered under the category
 of "changes to existing source code."
 
@@ -296,8 +281,7 @@ of "changes to existing source code."
    Working from older sources unfortunately means that your changes may
    sometimes be too obsolete or too divergent for easy re-integration into
    FreeBSD.  Chances of this can be minimized somewhat by subscribing to the
-   <tt>&lt;announce@freebsd.org&gt;</tt> and
-   <tt>&lt;current@freebsd.org&gt;</tt> mailing lists, where discussions
+   &a.announce and the &a.current lists, where discussions
    on the current state of the system take place.
 
    Assuming that you can manage to secure fairly up-to-date sources to base
@@ -318,9 +302,8 @@ diff -c -r olddir newdir
    Once you have a set of diffs (which you may test with the
    <tt>patch(1)</tt> command), you should bundle them up in an
    email message and send it, along with a brief description of
-   what the diffs are for, to
-   <tt><htmlurl url="mailto:hackers@freebsd.org"
-   name="&lt;hackers@freebsd.org&gt;"></tt>.  Someone will very
+   what the diffs are for, to the &a.hackers;.
+   Someone will very
    likely get back in touch with you in 24 hours or less,
    assuming of course that your diffs are interesting! :-)
 
@@ -329,17 +312,16 @@ diff -c -r olddir newdir
    then you may be better off bundling any new files, diffs and
    instructions for deleting/renaming others into a <tt>tar</tt>
    file and running the <tt>uuencode(1)</tt> program on it before
-   sending the output of that to <tt><htmlurl url="mailto:hackers@freebsd.org"
-   name="&lt;hackers@freebsd.org&gt;"></tt>.
+   sending the output of that to the &a.hackers;.
    See the man pages on <tt>tar(1)</tt> and <tt>uuencode(1)</tt> for more
    information on bundling files this way.
 
    If your change is of a potentially sensitive nature, e.g.
    you're unsure of copyright issues governing its further distribution
    or you're simply not ready to release it without a tighter review first,
-   then you should send it to <tt><htmlurl url="mailto:core@freebsd.org"
-   name="&lt;core@freebsd.org&gt;"></tt> rather than
-   <tt>&lt;hackers@freebsd.org&gt;</tt>.  The core mailing list
+   then you should send it to <tt><htmlurl url="mailto:core@FreeBSD.ORG"
+   name="&lt;core@FreeBSD.ORG&gt;"></tt> rather than the &a.hackers
+   The core mailing list
    reaches a much smaller group of people who do much of the
    day-to-day work on FreeBSD.  Note that this group is also
    <em>very busy</em> and so you should only send mail to them
@@ -351,7 +333,7 @@ diff -c -r olddir newdir
    work, or the addition of an important new feature to FreeBSD,
    it becomes almost always necessary to either send changes as
    uuencoded tar files or upload them to our ftp site <url
-   url="ftp://ftp.freebsd.org/pub/FreeBSD/incoming">.
+   url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/incoming">.
 
    When working with large amounts of code, the touchy subject of
    copyrights also invariably comes up.  Acceptable copyrights
@@ -418,7 +400,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.23 1996/03/30 19:40:28 jkh Exp $
+	$Id: submitters.sgml,v 1.24 1996/03/30 19:46:37 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
@@ -487,7 +469,7 @@ motherboards, etc) and if you'd like to make such a donation, please contact
 
 <item>Hardware currently unsupported by FreeBSD for which you'd like to
 see such support added.  Please contact the <htmlurl
-url="mailto:core@freebsd.org" name="FreeBSD Core Team"> before sending
+url="mailto:core@FreeBSD.ORG" name="FreeBSD Core Team"> before sending
 such items as we'll need to find a developer willing to take on the task
 before we can accept delivery of them.  
 </itemize>
@@ -496,7 +478,7 @@ before we can accept delivery of them.
 
 <p>We can always use new mirror sites for FTP, WWW or sup.
 If you'd like to be such a mirror, please contact
-<htmlurl url="mailto:admin@freebsd.org" name="the FreeBSD project
+<htmlurl url="mailto:admin@FreeBSD.ORG" name="the FreeBSD project
 administrators"> for more information.
 
 <sect><heading>Donors Gallery<label id="donors"></heading>
@@ -510,8 +492,8 @@ like to publically thank them here!
 	has donated almost more than we can say (see the
 	<ref id="history" name="history"> document for more details).
 	In particular, we'd like to thank them for the hardware used for
-	<em>freefall.freebsd.org</em>, our primary development machine,
-	and for <em>thud.freebsd.org</em>, our testing and build box.
+	<em>freefall.FreeBSD.ORG</em>, our primary development machine,
+	and for <em>thud.FreeBSD.ORG</em>, our testing and build box.
 	We are also indebted to them for funding various contributors over
 	the years and providing us with unrestricted use of their T1
 	connection to the Internet.

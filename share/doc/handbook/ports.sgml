@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.7 1995/09/27 00:46:26 jmz Exp $ -->
+<!-- $Id: ports.sgml,v 1.8 1995/12/04 17:58:45 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -141,7 +141,7 @@ going to the top of the tree and typing ``make fetch''.
 
 <p>Upload the fixed version to <tt>ftp://freefall.cdrom.com/pub/incoming</tt> or
 <tt>ftp://ftp.FreeBSD.org/pub/FreeBSD/incoming</tt> and send e-mail to
-ports@FreeBSD.org with the filename and details.  Someone on the
+the &a.ports with the filename and details.  Someone on the
 all-volunteer `ports committee' will (hopefully) look it over and
 commit it to the ports collection if they like the looks of it.
 
@@ -173,7 +173,7 @@ necessary due to the generic nature of these files). Also check that
 you have an up-to-date copy, as the file can change from minute to
 minute.  The most up-to-date copy can be found in:
 
-  <url url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/mk">
+  <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src/share/mk">
 
     If you find that you still need to go in there and alter things,
 by all means do so, and then send the diffs to ports@FreeBSD.org if
@@ -231,7 +231,7 @@ target. In that case, try the command
 (``check-md5'' was the pre-cursor to the ``checksum'' target). If neither
 work, get the latest copies of bsd.port.mk and bsd.port.subdir.mk from
 
-   <url url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/mk">
+   <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src/share/mk">
 
 and install them in /usr/share/mk. This will get you the latest version
 of the ports system.

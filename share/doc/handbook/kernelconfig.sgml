@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.8 1996/01/31 14:26:10 mpp Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.9 1996/03/31 18:01:55 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -1194,9 +1194,7 @@ config: line 17: syntax error
 	    kernel description, but not severe enough for
 	    <tt>config</tt> to catch it.  Again, look over your
 	    configuration, and if you still cannot resolve the
-	    problem, send mail to <tt><htmlurl
-	    url="mailto:questions@freebsd.org"
-	    name="questions@FreeBSD.ORG"></tt> with your kernel
+	    problem, send mail to the &a.questions with your kernel
 	    configuration, and it should be diagnosed very
 	    quickly.
 

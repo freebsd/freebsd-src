@@ -3,7 +3,7 @@
 #
 # Converted by Ollivier Robert <roberto@FreeBSD.ORG>
 #
-# $Id: ctm.sgml,v 1.6 1996/01/31 14:26:00 mpp Exp $
+# $Id: ctm.sgml,v 1.7 1996/02/02 05:27:24 wosch Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -52,7 +52,7 @@
         current <tt/CTM/ sources directly from:
 
         <url
-          url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/usr.sbin/ctm">
+          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src/usr.sbin/ctm">
 
         The ``deltas'' you feed <tt/CTM/ can be had two ways, FTP or e-mail.
         If you have general FTP access to the Internet then the following
@@ -66,7 +66,7 @@
         If you only have access to electronic mail or are otherwise blocked
         from using FTP then you may wish to get your deltas via email:
 
-        Send email to <tt/&lt;majordomo@freebsd.org&gt;/ to subscribe to
+        Send email to <tt/&lt;majordomo@FreeBSD.ORG&gt;/ to subscribe to
         the list ``ctm-src-cur''.  (If you do not know how to subscribe
         yourself using majordomo, send a message first containing the
         word ``help'' - it will send you back usage instructions.)
@@ -79,10 +79,10 @@
         details.
 
         <bf/NOTE/: No matter what method you use to get the <tt/CTM/
-        deltas, you should subscribe to the <tt/ctm-announce@freebsd.org/
+        deltas, you should subscribe to the <tt/ctm-announce@FreeBSD.ORG/
         mailing list.  In the future, this will be the only place where
         announcements concerning the operations of the <tt/CTM/ system will be
-        posted.  Send an email to <tt/majordomo@freebsd.org/ with a single
+        posted.  Send an email to <tt/majordomo@FreeBSD.ORG/ with a single
         line of ``<tt/subscribe ctm-announce/'' to get added to the list.
 
     <sect1><heading>Starting off with <tt/CTM/ for the first time</heading>

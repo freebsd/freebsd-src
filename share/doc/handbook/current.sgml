@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.8 1996/01/31 14:26:01 mpp Exp $ -->
+<!-- $Id: current.sgml,v 1.9 1996/02/11 00:16:12 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1996/01/31 14:26:01 $
+Last updated: $Date: 1996/02/11 00:16:12 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -85,7 +85,7 @@ ask!  It takes far too much time to do this as a general task.
 
 <p><enum> <item> Join the freebsd-current and cvs-all
     mailing lists.  This is not just a good idea, it's
-    <em>essential</em>.  If you aren't on freebsd-current, you
+    <em>essential</em>.  If you aren't on the &a.current, you
     won't see the comments that people are making about the
     current state of the system and thus will probably end up stumbling
     over a lot of problems that others have already found and
@@ -155,7 +155,7 @@ ask!  It takes far too much time to do this as a general task.
     <item>  Before compiling current, read the Makefile in /usr/src
 	carefully.  You should at least run a `make world' the first time
         through as part of the upgrading process.
-        Reading freebsd-hackers will keep you up-to-date on other
+        Reading the &a.hackers will keep you up-to-date on other
         bootstrapping procedures that sometimes become necessary as we move
         towards	the next release.
 
