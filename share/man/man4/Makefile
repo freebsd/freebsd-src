@@ -111,6 +111,7 @@ MAN=	aac.4 \
 	mac_mls.4 \
 	mac_none.4 \
 	mac_partition.4 \
+	mac_portacl.4 \
 	mac_seeotheruids.4 \
 	mac_test.4 \
 	mouse.4 \
