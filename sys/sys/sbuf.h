@@ -70,6 +70,7 @@ int		 sbuf_overflowed(struct sbuf *);
 void		 sbuf_finish(struct sbuf *);
 char		*sbuf_data(struct sbuf *);
 int		 sbuf_len(struct sbuf *);
+int		 sbuf_done(struct sbuf *);
 void		 sbuf_delete(struct sbuf *);
 
 #ifdef _KERNEL
