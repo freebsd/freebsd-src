@@ -79,7 +79,7 @@ intpr(interval, ifnetaddr)
 	} ifaddr;
 	u_long ifaddraddr;
 	struct sockaddr *sa;
-	char name[16];
+	char name[32], tname[16];
 
 	if (ifnetaddr == 0) {
 		printf("ifnet: symbol not defined\n");
@@ -112,15 +112,14 @@ intpr(interval, ifnetaddr)
 
 		if (ifaddraddr == 0) {
 			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) ||
-			    kread((u_long)ifnet.if_name, name, 16))
+			    kread((u_long)ifnet.if_name, tname, 16))
 				return;
-			name[15] = '\0';
+			tname[15] = '\0';
 			ifnetaddr = (u_long)ifnet.if_next;
-			if (interface != 0 && (strcmp(name, interface) != 0 ||
-			    unit != ifnet.if_unit))
+			snprintf(name, 32, "%s%d", tname, ifnet.if_unit);
+			if (interface != 0 && (strcmp(name, interface) != 0))
 				continue;
 			cp = index(name, '\0');
-			cp += sprintf(cp, "%d", ifnet.if_unit);
 			if ((ifnet.if_flags&IFF_UP) == 0)
 				*cp++ = '*';
 			*cp = '\0';
@@ -169,7 +168,7 @@ intpr(interval, ifnetaddr)
 				char netnum[8];
 
 				*(union ns_net *) &net = sns->sns_addr.x_net;
-		sprintf(netnum, "%lxH", ntohl(net));
+				sprintf(netnum, "%lxH", ntohl(net));
 				upHex(netnum);
 				printf("ns:%-8s ", netnum);
 				printf("%-15s ",
@@ -260,18 +259,17 @@ sidewaysintpr(interval, off)
 	interesting = iftot;
 	for (off = firstifnet, ip = iftot; off;) {
 		char *cp;
+		char name[16], tname[16];
 
 		if (kread(off, (char *)&ifnet, sizeof ifnet))
 			break;
-		ip->ift_name[0] = '(';
-		if (kread((u_long)ifnet.if_name, ip->ift_name + 1, 15))
+		if (kread((u_long)ifnet.if_name, tname, 16))
 			break;
-		if (interface && strcmp(ip->ift_name + 1, interface) == 0 &&
-		    unit == ifnet.if_unit)
+		tname[15] = '\0';
+		snprintf(name, 16, "%s%d", tname, ifnet.if_unit);
+		if (interface && strcmp(name, interface) == 0)
 			interesting = ip;
-		ip->ift_name[15] = '\0';
-		cp = index(ip->ift_name, '\0');
-		sprintf(cp, "%d)", ifnet.if_unit);
+		snprintf(ip->ift_name, 16, "(%s)", name);;
 		ip++;
 		if (ip >= iftot + MAXIF - 2)
 			break;
