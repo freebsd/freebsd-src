@@ -554,7 +554,7 @@ ugenclose(dev_t dev, int flag, int mode, struct proc *p)
 Static int
 ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 {
-	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][IN];
+	struct ugen_endpoint *sce;
 	u_int32_t n, tn;
 	char buf[UGEN_BBSIZE];
 	usbd_xfer_handle xfer;
@@ -571,16 +571,9 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 	if (endpt == USB_CONTROL_ENDPOINT)
 		return (ENODEV);
 
-#ifdef DIAGNOSTIC
-	if (sce->edesc == NULL) {
-		printf("ugenread: no edesc\n");
-		return (EIO);
-	}
-	if (sce->pipeh == NULL) {
-		printf("ugenread: no pipe\n");
-		return (EIO);
-	}
-#endif
+	sce = &sc->sc_endpoints[endpt][IN];
+	if (sce == NULL || sce->edesc == NULL || sce->pipeh == NULL)
+		return (EINVAL);
 
 	switch (sce->edesc->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
@@ -712,7 +705,7 @@ ugenread(dev_t dev, struct uio *uio, int flag)
 Static int
 ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 {
-	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][OUT];
+	struct ugen_endpoint *sce;
 	u_int32_t n;
 	int error = 0;
 	char buf[UGEN_BBSIZE];
@@ -727,16 +720,9 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 	if (endpt == USB_CONTROL_ENDPOINT)
 		return (ENODEV);
 
-#ifdef DIAGNOSTIC
-	if (sce->edesc == NULL) {
-		printf("ugen_do_write: no edesc\n");
-		return (EIO);
-	}
-	if (sce->pipeh == NULL) {
-		printf("ugen_do_write: no pipe\n");
-		return (EIO);
-	}
-#endif
+	sce = &sc->sc_endpoints[endpt][OUT];
+	if (sce == NULL || sce->edesc == NULL || sce->pipeh == NULL)
+		return (EINVAL);
 
 	switch (sce->edesc->bmAttributes & UE_XFERTYPE) {
 	case UE_BULK:
@@ -1353,18 +1339,9 @@ ugenpoll(dev_t dev, int events, struct proc *p)
 
 	/* XXX always IN */
 	sce = &sc->sc_endpoints[UGENENDPOINT(dev)][IN];
-	if (sce == NULL)
+	if (sce == NULL || sce->edesc == NULL || sce->pipeh == NULL)
 		return (EINVAL);
-#ifdef DIAGNOSTIC
-	if (!sce->edesc) {
-		printf("ugenpoll: no edesc\n");
-		return (EIO);
-	}
-	if (!sce->pipeh) {
-		printf("ugenpoll: no pipe\n");
-		return (EIO);
-	}
-#endif
+
 	s = splusb();
 	switch (sce->edesc->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
