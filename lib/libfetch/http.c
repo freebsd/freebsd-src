@@ -766,7 +766,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	conn_t *conn;
 	struct url *url, *new;
 	int chunked, direct, need_auth, noredirect, verbose;
-	int i, n;
+	int e, i, n;
 	off_t offset, clength, length, size;
 	time_t mtime;
 	const char *p;
@@ -793,6 +793,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	n = noredirect ? 1 : MAX_REDIRECT;
 	i = 0;
 
+	e = HTTP_PROTOCOL_ERROR;
 	need_auth = 0;
 	do {
 		new = NULL;
@@ -990,6 +991,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 		/* we need to provide authentication */
 		if (conn->err == HTTP_NEED_AUTH) {
+			e = conn->err;
 			need_auth = 1;
 			_fetch_close(conn);
 			conn = NULL;
@@ -997,6 +999,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		}
 
 		/* all other cases: we got a redirect */
+		e = conn->err;
 		need_auth = 0;
 		_fetch_close(conn);
 		conn = NULL;
@@ -1011,7 +1014,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 	/* we failed, or ran out of retries */
 	if (conn == NULL) {
-		_http_seterr(conn->err);
+		_http_seterr(e);
 		goto ouch;
 	}
 
