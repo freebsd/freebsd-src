@@ -1,3 +1,6 @@
+/* config.h.  Generated automatically by configure.  */
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+
 /* Define if on AIX 3.
    System headers sometimes define this.
    We just want to avoid a redefinition error message.  */
@@ -40,9 +43,9 @@
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at run-time.
-	STACK_DIRECTION > 0 => grows toward higher addresses
-	STACK_DIRECTION < 0 => grows toward lower addresses
-	STACK_DIRECTION = 0 => direction of growth unknown
+ STACK_DIRECTION > 0 => grows toward higher addresses
+ STACK_DIRECTION < 0 => grows toward lower addresses
+ STACK_DIRECTION = 0 => direction of growth unknown
  */
 /* #undef STACK_DIRECTION */
 
@@ -77,6 +80,15 @@
 
 /* The path to the mail spool, if we know it */
 #define PATH_MAIL "/var/mail"
+
+/* The path to the utmp file, if we know it */
+#define PATH_UTMP_AC "/var/run/utmp"
+
+/* The path to the wtmp file, if we know it */
+#define PATH_WTMP_AC "/var/log/wtmp"
+
+/* The path to the wtmpx file, if we know it */
+/* #undef PATH_WTMPX_AC */
 
 /* Defined if the system's profile (/etc/profile) displays
    the motd file */
@@ -138,6 +150,36 @@
 /* Define if there is a ut_host field in struct utmp */
 #define HAVE_UT_HOST 1
 
+/* Define if the system has getutline() */
+/* #undef HAVE_GETUTLINE */
+
+/* Defined if the system has SunOS C2 security shadow passwords */
+/* #undef HAVE_SUNOS_C2_SHADOW */
+
+/* Defined if you want to disable utmp support */
+/* #undef DISABLE_UTMP */
+
+/* Defined if you want to allow users to override the insecure checks */
+/* #undef INSECURE_OVERRIDE */
+
+/* Defined to the default hash value, always defined */
+#define MDX 5
+
+/* Defined if new-style prompts are to be used */
+#define NEW_PROMPTS 1
+
+/* Defined to the path of the OPIE lock directory */
+#define OPIE_LOCK_DIR "/etc/opielocks"
+
+/* Defined if users are to be asked to re-type secret pass phrases */
+/* #undef RETYPE */
+
+/* Defined if su should not switch to disabled accounts */
+/* #undef SU_STAR_CHECK */
+
+/* Defined if user locking is to be used */
+#define USER_LOCKING 1
+
 /* Define if you have the bcopy function.  */
 /* #undef HAVE_BCOPY */
 
@@ -159,14 +201,17 @@
 /* Define if you have the gethostname function.  */
 /* #undef HAVE_GETHOSTNAME */
 
-/* Define if you have the getspent function.  */
-/* #undef HAVE_GETSPENT */
+/* Define if you have the getspnam function.  */
+/* #undef HAVE_GETSPNAM */
 
 /* Define if you have the gettimeofday function.  */
 #define HAVE_GETTIMEOFDAY 1
 
 /* Define if you have the getttynam function.  */
 #define HAVE_GETTTYNAM 1
+
+/* Define if you have the getusershell function.  */
+#define HAVE_GETUSERSHELL 1
 
 /* Define if you have the getutxline function.  */
 /* #undef HAVE_GETUTXLINE */
@@ -180,17 +225,14 @@
 /* Define if you have the lstat function.  */
 #define HAVE_LSTAT 1
 
+/* Define if you have the on_exit function.  */
+/* #undef HAVE_ON_EXIT */
+
 /* Define if you have the pututxline function.  */
 /* #undef HAVE_PUTUTXLINE */
 
 /* Define if you have the rindex function.  */
 /* #undef HAVE_RINDEX */
-
-/* Define if you have the setegid function.  */
-#define HAVE_SETEGID 1
-
-/* Define if you have the seteuid function.  */
-#define HAVE_SETEUID 1
 
 /* Define if you have the setgroups function.  */
 #define HAVE_SETGROUPS 1
@@ -202,7 +244,7 @@
 #define HAVE_SETPRIORITY 1
 
 /* Define if you have the setregid function.  */
-#define HAVE_SETREGID 1
+/* #undef HAVE_SETREGID */
 
 /* Define if you have the setresgid function.  */
 /* #undef HAVE_SETRESGID */
@@ -211,13 +253,19 @@
 /* #undef HAVE_SETRESUID */
 
 /* Define if you have the setreuid function.  */
-#define HAVE_SETREUID 1
+/* #undef HAVE_SETREUID */
 
 /* Define if you have the setvbuf function.  */
 #define HAVE_SETVBUF 1
 
+/* Define if you have the sigaddset function.  */
+#define HAVE_SIGADDSET 1
+
 /* Define if you have the sigblock function.  */
 /* #undef HAVE_SIGBLOCK */
+
+/* Define if you have the sigemptyset function.  */
+#define HAVE_SIGEMPTYSET 1
 
 /* Define if you have the sigsetmask function.  */
 /* #undef HAVE_SIGSETMASK */
@@ -225,17 +273,23 @@
 /* Define if you have the socket function.  */
 #define HAVE_SOCKET 1
 
+/* Define if you have the strerror function.  */
+#define HAVE_STRERROR 1
+
 /* Define if you have the strftime function.  */
 #define HAVE_STRFTIME 1
+
+/* Define if you have the strncasecmp function.  */
+#define HAVE_STRNCASECMP 1
 
 /* Define if you have the strstr function.  */
 #define HAVE_STRSTR 1
 
-/* Define if you have the sysconf function.  */
-#define HAVE_SYSCONF 1
-
 /* Define if you have the ttyslot function.  */
 #define HAVE_TTYSLOT 1
+
+/* Define if you have the usleep function.  */
+#define HAVE_USLEEP 1
 
 /* Define if you have the <crypt.h> header file.  */
 /* #undef HAVE_CRYPT_H */
@@ -287,6 +341,9 @@
 
 /* Define if you have the <sys/param.h> header file.  */
 #define HAVE_SYS_PARAM_H 1
+
+/* Define if you have the <sys/select.h> header file.  */
+#define HAVE_SYS_SELECT_H 1
 
 /* Define if you have the <sys/signal.h> header file.  */
 #define HAVE_SYS_SIGNAL_H 1
