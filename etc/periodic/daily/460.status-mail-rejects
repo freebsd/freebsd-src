@@ -1,19 +1,17 @@
 #!/bin/sh
 #
-# $Id: 460.status-mail-rejects,v 1.1 1997/11/22 04:02:49 brian Exp $
+# $Id: 460.status-mail-rejects,v 1.2 1998/01/18 12:06:40 ache Exp $
 #
-
-#
-# Do not run by default. Can grow your root mailbox up to 2Mb per day
-# since SPAMmers like to retry often
-#
-
-exit 0
 
 if [ -d /etc/mail -a -f /var/log/maillog ]; then
-    echo
-    echo Checking for rejected mail:
+  echo
+  echo Checking for rejected mail hosts:
 
-    start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
-    grep "^$start.*reject=" /var/log/maillog
+  start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
+start=
+  zcat -fc /var/log/maillog.0* /var/log/maillog |
+   sed -n \
+   -e "s/^$start.*ruleset=check_mail, arg1=<.*@\\([^>]*\\)>.*reject=.*/	\\1/p" \
+   -e "s/^$start.*ruleset=check_relay, arg1=\\([^, ]*\\), .*reject=.*/	\\1/p" |
+   sort -u
 fi
