@@ -1,7 +1,7 @@
 #!/bin/sh -
 
 #
-#	$Id: build,v 1.12.2.1 1999/02/22 21:25:15 abial Exp $
+#	$Id: build,v 1.14 1999/08/22 21:42:30 dwhite Exp $
 #
 # You can set the SRC variable which points to your source tree. It's
 # /usr/src by default (most people shouldn't change it).
@@ -15,8 +15,6 @@ SRC=/usr/src
 EDITOR=${EDITOR:-vi}
 # LANGUAGE     language to be used (en or pl)
 LANGUAGE=en
-# TYPE         PicoBSD type (isp, router, net, custom)
-TYPE=${1:-dial}
 # SITE         site-specific files
 SITE=
 
@@ -33,11 +31,11 @@ RISU=.build.reply
 # abort in case of error...
 set -e
 
-# Build kernel with previously set parameters.
+. ../Version
 
 # assign default values to variables.
-
 set_defaults() {
+    TYPE=${TYPE:-dial} # PicoBSD type (isp, router, net, custom, ...
 
     while read name suff sz init mfs_in floppy_in ; do
 	if [ "$name" != "#" -a $name != "" ] ; then
@@ -94,7 +92,7 @@ main() {
     (cd ../${TYPE}; make -f ../build/Makefile.conf )
     echo ""
 
-    ./stage1
+    ./stage1 2>&1 | tee stage1.out
     if [ "X$?" != "X0" ] ; then
 	echo ""
 	echo "-> ERROR in \"${i}\" script. Aborting the build process."
@@ -161,16 +159,8 @@ set_type() {
 	
 }
 
-#-------------------------------------------------------------------
-# Main entry of the script
 
-set_defaults
-set_type
-
-# If $1="package", it creates a neat set of floppies
-
-if [ X"$1" = X"package" ] ; then
-    shift
+build_package() {
     touch build.status
     echo "##############################################" >>build.status
     echo "## `date` ">>build.status
@@ -195,121 +185,186 @@ if [ X"$1" = X"package" ] ; then
 	done
     done
     exit 0
-fi
+}
 
 # Set build parameters interactively
 
-while [ "X${ans}" != "Xn" ] ; do
+main_dialog() {
+  while [ true ] ; do
     set_msgs
-    dialog --menu "PicoBSD build menu -- ver 0.44 (20aug1999)" 19 70 12 \
-	1 "${MSG1}" \
-	a "init type: ${INIT}" \
-	e "edit kernel config file for ${TYPE}" \
-	c "edit crunch.conf file for ${TYPE}" \
-	2 "MFS size: ${SIZE}kB" \
-	3 "Language: ${LANGUAGE}" \
-	4 "Site-info: ${SITE}" \
-	5 "Floppy size: ${FLOPPY_SIZE}kB" \
-	6 "MFS bytes per inode: ${MFS_INODES}" \
-	7 "UFS bytes per inode: ${FLOPPY_INODES}" \
-	n "no change, build it" q "quit" 2> ${RISU}
+    dialog --menu "PicoBSD build menu -- ver ${VER} (22aug1999)" 19 70 12 \
+	N "No change, build it" \
+	T "${MSG1}" \
+	K "edit Kernel config file for ${TYPE}" \
+	E "Edit crunch.conf file for ${TYPE}" \
+	S "MFS Size: ${SIZE}kB" \
+	L "Language: ${LANGUAGE}" \
+	I "Init type: ${INIT}" \
+	F "Floppy size: ${FLOPPY_SIZE}kB" \
+	M "MFS bytes per inode: ${MFS_INODES}" \
+	U "UFS bytes per inode: ${FLOPPY_INODES}" \
+	$ "Site-info: ${SITE}" \
+	Q "Quit" \
+	2> ${RISU}
     ans=`cat ${RISU}`
+    rm ${RISU}
     case ${ans} in
-    1)
+    T)
 	dialog --menu "Setup the type of configuration" 12 70 5 \
 	    dial "dialin (ppp etc.)" \
 	    router "router/bridge/mrouter" \
 	    net "net admin tool" \
 	    isp "isp (ppp and terminal server)" \
-	    custom "custom config (need pathname)" 2> ${RISU}
-	if [ $? = 0 ]; then
+	    custom "custom config (need pathname)" 2> ${RISU} || rm ${RISU}
+	if [ -f ${RISU} ] ; then
 	    TYPE=`cat ${RISU}`
 	    set_type
 	fi
 	;;
-    a)
+    I)
 	dialog --menu "Choose your init(8) program" \
 	10 70 2 init "Standard init (requires getty)" \
-	oinit "small init from TinyWare" 2> ${RISU}
-	if [ "$?" = "0" ]; then
+	oinit "small init from TinyWare" 2> ${RISU} || rm ${RISU}
+	if [ -f ${RISU} ] ; then
 	    INIT=`cat ${RISU}`
 	fi
 	;;
 
-    e) ${EDITOR} ../${TYPE}/PICOBSD ;;
-    c) ${EDITOR} ../${TYPE}/crunch1/crunch.conf ;;
-    2) dialog --title "MFS Size setup" --inputbox \
+    K) ${EDITOR} ../${TYPE}/PICOBSD ;;
+
+    E) ${EDITOR} ../${TYPE}/crunch1/crunch.conf ;;
+
+    S)
+	dialog --title "MFS Size setup" --inputbox \
 "MFS size depends on what you need to put on the MFS image. Typically \
-ranges between 800kB (for very small bridge/router images) to \
+ranges between 820kB (for very small bridge/router images) to \
 as much as 2500kB kB for a densely packed image. \
 Keep in mind that this memory is \
 totally lost to other programs. Usually you want to keep \
-this as small as possible. " 10 70 2> ${RISU}
-	SIZE=`cat ${RISU}`
-	if [ "X${SIZE}" = "X" ] ; then
-	    eval SIZE=${TYPE}_DFLT_SIZE
+this as small as possible. " 10 70 2> ${RISU} || rm ${RISU}
+	if [ -f ${RISU} ] ; then
+	    SIZE=`cat ${RISU}`
+	    if [ "${SIZE}" = "" ] ; then
+		eval SIZE=$"${TYPE}_DFLT_SIZE"
+	    fi
 	fi
 	;;
-    3)      dialog --menu "Please choose language" \
-	10 40 2 en English pl Polish 2> ${RISU}
-	LANGUAGE=`cat ${RISU}`
+
+    L)
+	dialog --menu "Please choose language" \
+	10 40 2 en English pl Polish 2> ${RISU} || rm ${RISU}
+	if [ -f ${RISU} ] ; then
+	    LANGUAGE=`cat ${RISU}`
+	fi
 	;;
-    4) dialog --title "Site info setup" --inputbox \
+
+    \$)
+	dialog --title "Site info setup" --inputbox \
 	"Please enter the full path to the directory \
 	containing site-specific setup. \
 	This directory tree must contain files that replace \
 	standard ones in floppy.tree/ and mfs.tree/ . " \
-	10 70 2> ${RISU}
-	SITE=`cat ${RISU}`
+	10 70 2> ${RISU} || rm ${RISU}
+	if [ -f ${RISU} ] ; then
+	    SITE=`cat ${RISU}`
+	fi
 	;;
-    5) dialog --menu "Set floppy size" 15 70 4 \
+
+    F)
+	dialog --menu "Set floppy size" 15 70 4 \
 		1440 "1.44MB" 1720 "1.72MB" \
-		2880 "2.88MB" 4096 "4MB" 2> ${RISU}
-	FLOPPY_SIZE=`cat ${RISU}`
+		2880 "2.88MB" 4096 "4MB" 2> ${RISU} || rm ${RISU}
+	if [ -f ${RISU} ] ; then
+	    FLOPPY_SIZE=`cat ${RISU}`
+	fi
 	;;
-    6) dialog --title "MFS bytes per inode:" --inputbox \
+
+    M)
+	dialog --title "MFS bytes per inode:" --inputbox \
 	"Enter MFS bytes per inode (typically 4096..65536). \
 	A larger value means fewer inodes but more space on MFS" \
-	10 70 2> ${RISU}
-	MFS_INODES=`cat ${RISU}`
+	10 70 2> ${RISU} || rm ${RISU}
+	if [ -f ${RISU} ] ; then
+	    MFS_INODES=`cat ${RISU}`
+	    if [ "${MFS_INODES}" = "" ] ; then
+		eval MFS_INODES=$"${TYPE}_DFLT_MFS_INODES"
+	    fi
+	fi
 	;;
-    7) dialog --title "Floppy bytes per inode:" --inputbox \
+
+    U)
+	dialog --title "Floppy bytes per inode:" --inputbox \
 	"Enter floppy bytes per inode (typically 3072..65536). \
 	A larger value means fewer inodes but more space on the floppy." \
-	10 70 2> ${RISU}
-	FLOPPY_INODES=`cat ${RISU}`
+	10 70 2> ${RISU} || rm ${RISU}
+	if [ -f ${RISU} ] ; then
+	    FLOPPY_INODES=`cat ${RISU}`
+	    if [ "${FLOPPY_INODES}" = "" ] ; then
+		eval FLOPPY_INODES=$"${TYPE}_DFLT_FLOPPY_INODES"
+	    fi
+	fi
 	;;
-    n) ;;
-    q) exit 0 ;;
-    *) echo "Unknown option \"${ans}\". Try again."
+
+    N) break 2
+	;;
+
+    Q) exit 0 ;;
+
+    *) echo "Unknown option \"${ans}\". Try again."
 	sleep 2
 	clear
 	;;
     esac
-done
+  done
+}
 
 # Call the build procedure
-main
-# Install if it's ok.
-echo ""
-if [ "X$?" = "X0" ] ; then
-FILENAME=picobsd.bin
-    echo "The build process was completed successfuly."
-    echo ""
-    echo "Now we are going to install the image on the floppy."
-    echo "Please insert a blank floppy in /dev/fd0."
-    echo "WARNING: the contents of the floppy will be permanently erased!"
-    echo "Your options:"
-    echo "	* ^C to abort,"
-    echo "	* Enter to install \"${FILENAME}\","
-    echo "	* name of other file to install."
-    echo ""
-    read -p "Your choice: " junk
-    if [ "X${junk}" != "X" ] ; then
-	FILENAME=${junk}
+# Install image
+do_install() {
+    dialog --title "Build ${TYPE} completed" --inputbox \
+"\nThe build process was completed successfuly.\n\
+Now we are going to install the image on the floppy.\n\
+Please insert a blank floppy in /dev/fd0.\\n
+WARNING: the contents of the floppy will be permanently erased!\n\
+\n\
+Your options:\n\
+	* ^C or [Cancel] to abort,\n\
+	* Enter to install \"${FILENAME}\",\n\
+	* name of other file to install.\n\
+" 20 70 2> ${RISU}
+    if [ "$?" = "0" ]; then
+	FILENAME=`cat ${RISU}`
+	if [ "${FILENAME}" = "" ] ; then
+	    FILENAME=picobsd.bin
+	fi
+	echo "Writing ${FILENAME}..."
+	dd if=${FILENAME} of=/dev/rfd0
+    else
+	echo "Ok, the image is in picobsd.bin"
     fi
-    echo "Writing ${FILENAME}..."
-    dd if=${FILENAME} of=/dev/rfd0
     echo "Done."
+}
+
+#-------------------------------------------------------------------
+# Main entry of the script
+
+interactive="YES"
+if [ "$1" = "-n" ] ; then
+    interactive="NO"
+    shift
 fi
+TYPE=$1
+set_defaults
+set_type
+
+# If $1="package", it creates a neat set of floppies
+
+if [ "$1" = "package" ] ; then
+    build_package
+fi
+if [ "$interactive" = "YES" ] ; then
+    main_dialog
+fi
+main	# build ${TYPE}
+do_install
 exit 0
