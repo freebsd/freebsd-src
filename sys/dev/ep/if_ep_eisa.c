@@ -115,7 +115,7 @@ ep_eisa_probe(device_t dev)
 
 	/* We must be in EISA configuration mode */
 	if ((inw(iobase + EP_W0_ADDRESS_CFG) & 0x1f) != 0x1f)
-		return ENXIO;
+		return (ENXIO);
 
 	eisa_add_iospace(dev, iobase, EP_EISA_IOSIZE, RESVADDR_NONE);
 	eisa_add_iospace(dev, port, EP_IOSIZE, RESVADDR_NONE);
