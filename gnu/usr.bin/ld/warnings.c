@@ -1,5 +1,5 @@
 /*
- * $Id: warnings.c,v 1.2 1993/11/09 04:19:06 paul Exp $
+ * $Id: warnings.c,v 1.3 1993/12/11 11:58:30 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -63,6 +63,10 @@ get_file_name (entry)
      struct file_entry *entry;
 {
 	char *result, *supfile;
+
+	if (entry == NULL) {
+		return (xmalloc("NULL"));
+	}
 
 	if (entry->superfile) {
 		supfile = get_file_name (entry->superfile);

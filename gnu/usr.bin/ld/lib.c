@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.6 1993/12/04 00:52:59 jkh Exp $	- library routines
+ * $Id: lib.c,v 1.7 1993/12/11 11:58:27 jkh Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -670,7 +670,7 @@ read_shared_object (desc, entry)
 			else
 				entry->subfiles = subentry;
 			prev = subentry;
-			file_open(entry);
+			desc = file_open(entry);
 			if ((offset = (off_t)lobj.lo_next) == 0)
 				break;
 		}

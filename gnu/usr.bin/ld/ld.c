@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.15 1993/12/04 00:52:56 jkh Exp $
+ *	$Id: ld.c,v 1.16 1993/12/11 11:58:24 jkh Exp $
  */
    
 /* Define how to initialize system-dependent header fields.  */
@@ -1587,6 +1587,12 @@ digest_pass1()
 				/* Keep count and remember symbol */
 				sp->setv_count++;
 				set_vectors[setv_fill_count++] = (long)p;
+				if (building_shared_object) {
+					struct relocation_info reloc;
+					RELOC_ADDRESS(&reloc) =
+						setv_fill_count * sizeof(long);
+					alloc_rrs_segment_reloc(NULL, &reloc);
+				}
 
 			} else if ((type & N_EXT) && type != (N_UNDF | N_EXT)
 						&& (type & N_TYPE) != N_FN
@@ -1711,6 +1717,16 @@ digest_pass2()
 					set_vectors[1+i+length_word_index];
 
 				set_vectors[1+i+length_word_index] = p->n_value;
+				if (building_shared_object) {
+					struct relocation_info reloc;
+					RELOC_ADDRESS(&reloc) =
+						(1 + i + length_word_index) *
+								sizeof(long)
+						+ set_sect_start;
+					RELOC_TYPE(&reloc) =
+						(sp->defined & N_TYPE);
+					claim_rrs_segment_reloc(NULL, &reloc);
+				}
 			}
 
 			/*
@@ -2285,8 +2301,8 @@ write_data ()
 	 */
 
 	if (set_vector_count) {
-		swap_longs(set_vectors, 2 * set_symbol_count + set_vector_count);
-		mywrite (set_vectors, 2 * set_symbol_count + set_vector_count,
+		swap_longs(set_vectors, set_symbol_count + 2*set_vector_count);
+		mywrite (set_vectors, set_symbol_count + 2*set_vector_count,
 				sizeof (unsigned long), outdesc);
 	}
 
