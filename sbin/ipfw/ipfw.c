@@ -183,6 +183,7 @@ static struct _s_x limit_masks[] = {
 static void
 show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 {
+	static int twidth = 0;
 	char comma;
 	u_long adrt;
 	struct hostent *he;
@@ -200,14 +201,19 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		printf("%*qu %*qu ", pcwidth, chain->fw_pcnt, bcwidth, chain->fw_bcnt);
 
 	if (do_time) {
-		if (chain->timestamp) {
-			char timestr[30];
+		char timestr[30];
 
+		if (twidth == 0) {
+			strcpy(timestr, ctime((time_t *)&twidth));
+			*strchr(timestr, '\n') = '\0';
+			twidth = strlen(timestr);
+		}
+		if (chain->timestamp) {
 			strcpy(timestr, ctime((time_t *)&chain->timestamp));
 			*strchr(timestr, '\n') = '\0';
 			printf("%s ", timestr);
 		} else {
-			printf("			 ");
+			printf("%*s ", twidth, " ");
 		}
 	}
 	if (chain->fw_flg == IP_FW_F_CHECK_S) {
