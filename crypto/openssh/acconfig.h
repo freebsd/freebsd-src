@@ -149,7 +149,7 @@
 #undef DISABLE_PUTUTXLINE
 
 /* Define if you don't want to use lastlog */
-#define DISABLE_LASTLOG
+#undef DISABLE_LASTLOG
 
 /* Define if you don't want to use lastlog in session.c */
 #undef NO_SSH_LASTLOG
