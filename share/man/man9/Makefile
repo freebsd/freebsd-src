@@ -18,7 +18,7 @@ MAN9=	CONDSPLASSERT.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	posix4.9 psignal.9 random.9 resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9 \
-	microtime.9 microuptime.9 tvtohz.9
+	mbuf.9 microtime.9 microuptime.9 tvtohz.9
 
 MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	device_find_child.9 device_get_children.9 \
