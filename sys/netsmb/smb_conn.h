@@ -146,7 +146,7 @@ struct smb_vc_info {
 	int		flags;
 	enum smbiod_state iodstate;
 	struct smb_sopt	sopt;
-	char		srvname[SMB_MAXSRVNAMELEN];
+	char		srvname[SMB_MAXSRVNAMELEN + 1];
 	char		vcname[128];
 };
 
