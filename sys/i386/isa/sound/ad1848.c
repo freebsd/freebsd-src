@@ -1686,9 +1686,15 @@ attach_mss(struct address_info * hw_config)
 	/*
 	 * Set the IRQ and DMA addresses.
 	 */
+#ifdef PC98
+	static char		interrupt_bits[13] = {
+	    -1, -1, -1, 0x08, -1, 0x10, -1, -1, -1, -1, 0x18, -1, 0x20
+	};
+#else
 	static char     interrupt_bits[12] = {
 	    -1, -1, -1, -1, -1, -1, -1, 0x08, -1, 0x10, 0x18, 0x20
 	};
+#endif
 	static char     dma_bits[4] = {
 	    1, 2, 0, 3
 	};
