@@ -90,6 +90,7 @@
 #define FTP_NEED_ACCOUNT		332
 #define FTP_FILE_OK			350
 #define FTP_SYNTAX_ERROR		500
+#define FTP_PROTOCOL_ERROR		999
 
 static struct url cached_host;
 static int cached_socket;
@@ -149,7 +150,7 @@ _ftp_chkerr(int cd)
     last_reply[lr_length] = 0;
     
     if (!isftpreply(last_reply)) {
-	_ftp_seterr(999);
+	_ftp_seterr(FTP_PROTOCOL_ERROR);
 	return -1;
     }
 
@@ -277,7 +278,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 	    }
 	    break;
 	default:
-	    e = 999;		/* XXX: error code should be prepared */
+	    e = FTP_PROTOCOL_ERROR; /* XXX: error code should be prepared */
 	    goto ouch;
 	}
 
@@ -292,14 +293,14 @@ _ftp_transfer(int cd, char *oper, char *file,
 	    for (p = ln + 3; *p && !isdigit(*p); p++)
 		/* nothing */ ;
 	    if (!*p) {
-		e = 999;
+		e = FTP_PROTOCOL_ERROR;
 		goto ouch;
 	    }
 	    l = (e == FTP_PASSIVE_MODE ? 6 : 21);
 	    for (i = 0; *p && i < l; i++, p++)
 		addr[i] = strtol(p, &p, 10);
 	    if (i < l) {
-		e = 999;
+		e = FTP_PROTOCOL_ERROR;
 		goto ouch;
 	    }
 	    break;
@@ -307,7 +308,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 	    for (p = ln + 3; *p && *p != '('; p++)
 		/* nothing */ ;
 	    if (!*p) {
-		e = 999;
+		e = FTP_PROTOCOL_ERROR;
 		goto ouch;
 	    }
 	    ++p;
@@ -315,7 +316,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 		       &port, &addr[3]) != 5 ||
 		addr[0] != addr[1] ||
 		addr[0] != addr[2] || addr[0] != addr[3]) {
-		e = 999;
+		e = FTP_PROTOCOL_ERROR;
 		goto ouch;
 	    }
 	    break;
@@ -352,7 +353,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 	    }
 	    break;
 	default:
-	    e = 999;		/* XXX: error code should be prepared */
+	    e = FTP_PROTOCOL_ERROR; /* XXX: error code should be prepared */
 	    break;
 	}
 
@@ -441,7 +442,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 	    }
 	    break;
 	default:
-	    e = 999;		/* XXX: error code should be prepared */
+	    e = FTP_PROTOCOL_ERROR; /* XXX: error code should be prepared */
 	    goto ouch;
 	}
 	if (e != FTP_OK)
@@ -746,7 +747,7 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
     for (us->size = 0; *ln && isdigit(*ln); ln++)
 	us->size = us->size * 10 + *ln - '0';
     if (*ln && !isspace(*ln)) {
-	_ftp_seterr(999);
+	_ftp_seterr(FTP_PROTOCOL_ERROR);
 	return -1;
     }
     DEBUG(fprintf(stderr, "size: [\033[1m%lld\033[m]\n", us->size));
@@ -755,7 +756,7 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 	goto ouch;
     for (ln = last_reply + 4; *ln && isspace(*ln); ln++)
 	/* nothing */ ;
-    e = 999;
+    e = FTP_PROTOCOL_ERROR;
     switch (strspn(ln, "0123456789")) {
     case 14:
 	break;
