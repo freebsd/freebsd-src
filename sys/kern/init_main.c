@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.14 1994/10/20 00:08:26 phk Exp $
+ * $Id: init_main.c,v 1.15 1994/10/26 03:34:20 phk Exp $
  */
 
 #include <sys/param.h>
@@ -82,7 +82,7 @@ struct	filedesc0 filedesc0;
 struct	plimit limit0;
 struct	vmspace vmspace0;
 struct	proc *curproc = &proc0;
-struct	proc *initproc, *pageproc, *updateproc;
+struct	proc *initproc, *pageproc, *updateproc, *vmproc;
 
 int	cmask = CMASK;
 extern	struct user *proc0paddr;
@@ -319,8 +319,24 @@ main(framep)
 		/* NOTREACHED */
 	}
 
+#ifdef REL2_1
 	/*
-	 * Start update daemon (process 3).
+	 * Start high level vm daemon (process 3).
+	 */
+	if (fork(p, (void *) NULL, rval))
+		panic("failed fork vm daemon");
+	if (rval[1]) {
+		p = curproc;
+		vmproc = p;
+		p->p_flag |= P_INMEM | P_SYSTEM;
+		bcopy("vmdaemon", p->p_comm, sizeof("vmdaemon"));
+		vm_daemon();
+		/*NOTREACHED*/
+	}
+#endif
+
+	/*
+	 * Start update daemon (process 4).
 	 */
 	if (fork(p, (void *) NULL, rval))
 		panic("failed fork update daemon");
