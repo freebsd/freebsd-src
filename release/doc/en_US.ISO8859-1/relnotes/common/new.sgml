@@ -719,6 +719,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.pkg.info.1; can be used to examine/manipulate its
       components.</para>
 
+    <para>&new.461; A bug that caused <filename>/usr/share/examples</filename>
+      to be incompletely populated on fresh installs has been
+      fixed.</para>
+
   </sect2>
 </sect1>
 
