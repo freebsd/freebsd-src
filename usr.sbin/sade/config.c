@@ -353,7 +353,7 @@ configEnvironmentResolv(char *config)
     if (nlines == -1)
 	return;
     for (i = 0; i < nlines; i++) {
-	Boolean name_set = (Boolean)variable_get(VAR_NAMESERVER);
+	Boolean name_set = variable_get(VAR_NAMESERVER) ? 1 : 0;
 
 	if (!strncmp(lines[i], "domain", 6) && !variable_get(VAR_DOMAINNAME))
 	    variable_set2(VAR_DOMAINNAME, string_skipwhite(string_prune(lines[i] + 6)), 0);
