@@ -161,7 +161,7 @@ rsa_public_encrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 	xfree(inbuf);
 }
 
-void
+int
 rsa_private_decrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 {
 	unsigned char *inbuf, *outbuf;
@@ -175,15 +175,16 @@ rsa_private_decrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 	BN_bn2bin(in, inbuf);
 
 	if ((len = RSA_private_decrypt(ilen, inbuf, outbuf, key,
-	    RSA_PKCS1_PADDING)) <= 0)
-		fatal("rsa_private_decrypt() failed.");
-
-	BN_bin2bn(outbuf, len, out);
-
+	    RSA_PKCS1_PADDING)) <= 0) {
+		error("rsa_private_decrypt() failed");
+	} else {
+		BN_bin2bn(outbuf, len, out);
+	}
 	memset(outbuf, 0, olen);
 	memset(inbuf, 0, ilen);
 	xfree(outbuf);
 	xfree(inbuf);
+	return len;
 }
 
 /* Set whether to output verbose messages during key generation. */
