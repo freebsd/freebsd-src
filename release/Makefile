@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.34 1997/03/15 20:59:35 joerg Exp $
+#	$Id: Makefile,v 1.246.2.35 1997/04/09 09:22:02 jkh Exp $
 #
 # How to roll a release:
 #
@@ -17,7 +17,7 @@
 #BUILDNAME=2.2-RELEASE
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
-RELEASETAG=RELENG_2_2
+#RELEASETAG=RELENG_2_2
 
 # Things which without too much trouble can be considered variables
 

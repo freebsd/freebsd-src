@@ -81,24 +81,6 @@ out there now.  It's imperative that we know what you're running so
 that we tell if you're suffering from a bug which has already been
 fixed.
 
-The core of FreeBSD does not contain DES code which would inhibit its
-being exported outside the United States.  There is an add-on package
-to the core distribution, for use only in the United States, that
-contains the programs that normally use DES.  The auxiliary packages
-provided separately can be used by anyone.  A freely (from outside the
-U.S.) exportable distribution of DES for our non-U.S. users also
-exists at ftp://ftp.internat.freebsd.org/pub/FreeBSD.
-
-If password security for FreeBSD is all you need and you have no
-requirement for copying encrypted passwords from different hosts
-(Suns, DEC machines, etc) into FreeBSD password entries, then
-FreeBSD's MD5 based security may be all you require!  We feel that our
-default security model is more than a match for DES, and without any
-messy export issues to deal with.  If you're outside (or even inside)
-the U.S., give it a try!  This snapshot also includes support for
-mixed password files - either DES or MD5 passwords will be accepted,
-making it easier to transition from one scheme to the other.
-
 
 o WWW Resources:
 
@@ -111,8 +93,7 @@ type:
         # cd /usr/ports/www/netscape3
         # make all install
 
-If you have the Ports collection installed on your machine (usually on
-the 2nd CDROM of a CDROM release).
+If you have the Ports collection installed on your machine.
 
 
 Several other non-commercial browsers are also available in
@@ -211,11 +192,9 @@ ports collections.   Packages may be installed from the packages directory
 by running the /stand/sysinstall utility with the argument ``configPackages''
 or by feeding the individual filenames to the pkg_add(1) command.
 
-The ports tree should be copied or linked (with the ``lndir'' command)
-to a directory on your hard disk.  lndir comes with the XFree86 distribution
-and is recommended if you can live with mounting your CDROM whenever you wish
-to use the ports collection.  More information on the ports collection may be
-obtained from http://www.freebsd.org/ports or locally from
+The ports collection may be installed like any other distribution
+and requires about 15MB unpacked.  More information on the ports collection
+may be obtained from http://www.freebsd.org/ports or locally from
 file:/usr/share/doc/handbook if you've installed the doc distribution.
 
 Last of all, the tools directory contains various DOS tools for
