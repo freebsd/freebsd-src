@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_select.c,v 1.8 1999/06/23 15:01:22 dt Exp $
+ * $Id: uthread_select.c,v 1.9 1999/08/05 12:15:21 deischen Exp $
  */
 #include <unistd.h>
 #include <errno.h>
@@ -52,6 +52,10 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 	int             i, ret = 0, f_wait = 1;
 	int		pfd_index, got_one = 0, fd_count = 0;
 	struct pthread_poll_data data;
+
+	if (timeout->tv_sec < 0 ||
+		timeout->tv_usec < 0 || timeout->tv_usec >= 1000000)
+		return (EINVAL); 
 
 	if (numfds > _thread_dtablesize) {
 		numfds = _thread_dtablesize;

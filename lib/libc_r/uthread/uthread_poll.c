@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uthread_poll.c,v 1.1 1999/06/20 08:28:36 jb Exp $
  */
 #include <unistd.h>
 #include <errno.h>
@@ -58,13 +58,16 @@ poll(struct pollfd *fds, unsigned int nfds, int timeout)
 	if (timeout == INFTIM) {
 		/* Wait for ever: */
 		_thread_kern_set_timeout(NULL);
-	} else if (timeout != 0) {
+	} else if (timeout > 0) {
 		/* Convert the timeout in msec to a timespec: */
 		ts.tv_sec = timeout / 1000;
 		ts.tv_nsec = (timeout % 1000) * 1000;
 
 		/* Set the wake up time: */
 		_thread_kern_set_timeout(&ts);
+	} else if (timeout < 0) {
+		/* a timeout less than zero but not == INFTIM is invalid */
+		return (EINVAL);
 	}
 
 	if (((ret = _thread_sys_poll(fds, numfds, 0)) == 0) && (timeout != 0)) {
