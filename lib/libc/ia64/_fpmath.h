@@ -54,6 +54,9 @@ union IEEEl2bits {
 #define	mask_nbit_l(u)	((u).bits.manh &= 0xffffff7f)
 #endif
 
+#define	LDBL_MANH_SIZE	32
+#define	LDBL_MANL_SIZE	32
+
 #define	LDBL_TO_ARRAY32(u, a) do {			\
 	(a)[0] = (uint32_t)(u).bits.manl;		\
 	(a)[1] = (uint32_t)(u).bits.manh;		\
