@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.21 1995/04/22 14:55:07 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.22 1995/04/24 21:50:11 jkh Exp $";
 #endif
 
 /*
@@ -179,44 +179,48 @@ static void
 make_dist(char *home, char *pkg, char *suffix, Package *plist)
 {
     char tball[FILENAME_MAX];
-    char cmd[ARG_MAX];
-    int ret;
+    char *cmd;
+    int ret, max;
     PackingList p;
 
+    max = sysconf(_SC_ARG_MAX);
+    cmd = alloca(max);
+    if (!cmd)
+	barf("Couldn't allocate temporary storage for dist name!");
     strcpy(cmd, "tar ");
     if (*pkg == '/')
-	sprintf(tball, "%s.%s", pkg, suffix);
+	snprintf(tball, max, "%s.%s", pkg, suffix);
     else
-	sprintf(tball, "%s/%s.%s", home, pkg, suffix);
+	snprintf(tball, max, "%s/%s.%s", home, pkg, suffix);
     if (index(suffix, 'z'))	/* Compress/gzip? */
-	strcat(cmd, "-z");
+	stnrcat(cmd, "-z", max - strlen(cmd));
     if (Dereference)
-	strcat(cmd, "h");
+	strncat(cmd, "h", max - strlen(cmd));
     if (Verbose)
 	printf("Creating gzip'd tar ball in '%s'\n", tball);
-    strcat(cmd, "cf ");
-    strcat(cmd, tball);
+    strncat(cmd, "cf ", max - strlen(cmd));
+    strncat(cmd, tball, max - strlen(cmd));
     if (ExcludeFrom)
-	sprintf(&cmd[strlen(cmd)], " -X %s", ExcludeFrom);
-    sprintf(&cmd[strlen(cmd)], " %s %s %s", CONTENTS_FNAME,
+	snprintf(&cmd[strlen(cmd)], max, " -X %s", ExcludeFrom);
+    snprintf(&cmd[strlen(cmd)], max, " %s %s %s", CONTENTS_FNAME,
     	    COMMENT_FNAME, DESC_FNAME);
     if (Install)
-	sprintf(&cmd[strlen(cmd)], " %s", INSTALL_FNAME);
+	snprintf(&cmd[strlen(cmd)], max, " %s", INSTALL_FNAME);
     if (DeInstall)
-	sprintf(&cmd[strlen(cmd)], " %s", DEINSTALL_FNAME);
+	snprintf(&cmd[strlen(cmd)], max, " %s", DEINSTALL_FNAME);
     if (Require)
-	sprintf(&cmd[strlen(cmd)], " %s", REQUIRE_FNAME);
+	snprintf(&cmd[strlen(cmd)], max, " %s", REQUIRE_FNAME);
     if (Display)
-	sprintf(&cmd[strlen(cmd)], " %s", DISPLAY_FNAME);
+	snprintf(&cmd[strlen(cmd)], max, " %s", DISPLAY_FNAME);
     if (Mtree)
-	sprintf(&cmd[strlen(cmd)], " %s", MTREE_FNAME);
+	snprintf(&cmd[strlen(cmd)], max, " %s", MTREE_FNAME);
     for (p = plist->head; p; p = p->next) {
 	if (p->type == PLIST_FILE)
-	    sprintf(&cmd[strlen(cmd)], " %s", p->name);
+	    snprintf(&cmd[strlen(cmd)], max, " %s", p->name);
 	else if (p->type == PLIST_CWD)
-	    sprintf(&cmd[strlen(cmd)], " -C %s", p->name);
+	    snprintf(&cmd[strlen(cmd)], max, " -C %s", p->name);
 	else if (p->type == PLIST_SRC)
-	    sprintf(&cmd[strlen(cmd)], " -C %s", p->name);
+	    snprintf(&cmd[strlen(cmd)], max, " -C %s", p->name);
 	else if (p->type == PLIST_IGNORE)
 	     p = p->next;
     }
