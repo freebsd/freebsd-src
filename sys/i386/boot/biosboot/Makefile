@@ -20,7 +20,7 @@
 # the rights to redistribute these changes.
 #
 #	from: Mach, Revision 2.2	92/04/04  11:33:46  rpd
-#	$Id: Makefile,v 1.8 1994/06/15 18:15:16 adam Exp $
+#	$Id: Makefile,v 1.9 1994/06/16 03:53:24 adam Exp $
 #
 
 wd0:
@@ -33,7 +33,7 @@ NOPROG=	noprog
 NOMAN=	noman
 
 # tunable loopcount parameter, waiting for keypress
-BOOTWAIT=2400
+BOOTWAIT?=	2400
 
 CFLAGS  = -O2 -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -I${.CURDIR}
 LIBS= -lc
