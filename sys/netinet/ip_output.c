@@ -42,6 +42,7 @@
 #include "opt_ipfilter.h"
 #include "opt_ipsec.h"
 #include "opt_random_ip_id.h"
+#include "opt_mbuf_stress_test.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,6 +53,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -93,6 +95,12 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 				  (ntohl(a.s_addr))&0xFF, y);
 
 u_short ip_id;
+
+#ifdef MBUF_STRESS_TEST
+int mbuf_frag_size = 0;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
+	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
+#endif
 
 static struct mbuf *ip_insertoptions(struct mbuf *, struct mbuf *, int *);
 static struct ifnet *ip_multicast_if(struct in_addr *, int *);
@@ -992,6 +1000,26 @@ pass:
 		ipsec_delaux(m);
 #endif
 
+#ifdef MBUF_STRESS_TEST
+		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size) {
+			struct mbuf *m1, *m2;
+			int length, tmp;
+
+			tmp = length = m->m_pkthdr.len;
+
+			while ((length -= mbuf_frag_size) >= 1) {
+				m1 = m_split(m, length, M_DONTWAIT);
+				if (m1 == NULL)
+					break;
+				m1->m_flags &= ~M_PKTHDR;
+				m2 = m;
+				while (m2->m_next != NULL)
+					m2 = m2->m_next;
+				m2->m_next = m1;
+			}
+			m->m_pkthdr.len = tmp;
+		}
+#endif
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, ro->ro_rt);
 		goto done;
