@@ -161,6 +161,7 @@
 #	agpgart	AGP interface
 #	cfs*	Coda Distributed Filesystem
 #	nsmb*	SMB/CIFS protocol interface
+#	cp*	Control devices for Cronyx/Tau-PCI adapters
 #	ct*	Control devices for Cronyx/Tau adapters
 #	cx*	Control devices for Cronyx/Sigma adapters
 #
@@ -350,6 +351,7 @@ all)
 	sh MAKEDEV crypto				# cdev, crypto
 	sh MAKEDEV fw0					# cdev, firewire
 	sh MAKEDEV dcons				# cdev, dcons
+	sh MAKEDEV cp					# cdev, Cronyx/Tau-PCI
 	sh MAKEDEV ct					# cdev, Cronyx/Tau
 	sh MAKEDEV cx ttyx ttyy ttyz cuax cuay cuaz	# cdev, Cronyx/Sigma
 	;;
@@ -1645,6 +1647,22 @@ card*)
 	chmod 644 card$unit
 	;;
 
+cp*)
+	unit=`expr $i : 'c.\(.*\)'`
+	if [ ! $unit ]; then
+		unit=0
+		while [ $unit -lt 20 ]
+		do
+			mknod ${i}${unit} c 134 $unit
+			chmod 644 ${i}${unit}
+			unit=$(($unit + 1))
+		done
+	else 
+			mknod ${i} c 134 $unit
+			chmod 644 ${i}
+	fi
+	;;
+	
 ct*)
 	unit=`expr $i : 'c.\(.*\)'`
 	if [ ! $unit ]; then

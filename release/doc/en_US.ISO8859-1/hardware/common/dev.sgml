@@ -2125,6 +2125,27 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Cronyx Tau-PCI synchronous serial adapters for PCI bus
+      (&man.cp.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Cronyx Tau-PCI (dual RS-232/V.35) and Cronyx Tau-PCI/R (dual RS-530(RS-449)/X.21)</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Tau-PCI/E1 (dual fractional E1) and Cronyx Tau-PCI/G703 (dual unframed E1)</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Tau-PCI/2E1 (dual fractional/unframed E1)</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Tau-PCI/4E1 (four fractional/unframed E1)</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Tau-PCI/E3 (one E3)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">Cronyx Tau synchronous serial adapters for ISA bus
       (&man.ctau.4; driver)
       <itemizedlist>
