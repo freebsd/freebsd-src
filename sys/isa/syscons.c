@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.111 1995/04/04 20:06:26 sos Exp $
+ *  $Id: syscons.c,v 1.112 1995/04/12 20:48:07 wollman Exp $
  */
 
 #include "sc.h"
@@ -1145,8 +1145,9 @@ pccninit(struct consdev *cp)
 }
 
 void 
-pccnputc(dev_t dev, char c)
+pccnputc(dev_t dev, int c)
 {
+    u_char buf[1];
     scr_stat *scp = console[0];
     term_stat save = scp->term;
 
@@ -1156,8 +1157,10 @@ pccnputc(dev_t dev, char c)
 	draw_cursor(scp, FALSE);
     if (c == '\n')
 	ansi_put(scp, "\r\n", 2);
-    else
-	ansi_put(scp, &c, 1);
+    else {
+	buf[0] = c;
+	ansi_put(scp, buf, 1);
+    }
     kernel_console = scp->term;
     current_default = &user_default;
     scp->term = save;
