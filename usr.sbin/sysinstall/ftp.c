@@ -149,11 +149,11 @@ try:
     /*
      * Now that we've verified that the path we're given is ok, let's try to
      * be a bit intelligent in locating the release we are looking for.  First
-     * off, if the release is specified as "__RELEASE" or "none", then just
+     * off, if the release is specified as "__RELEASE" or "any", then just
      * assume that the current directory is the one we want and give up.
      */
     rel = variable_get(VAR_RELNAME);
-    if (strcmp(rel, "__RELEASE") && strcmp(rel, "none")) {
+    if (strcmp(rel, "__RELEASE") && strcmp(rel, "any")) {
 	/*
 	 * Ok, since we have a release variable, let's walk through the list
 	 * of directories looking for a release directory.  The first one to
@@ -182,7 +182,7 @@ try:
 		      "FTP server.  You may need to visit a different server for\n"
 		      "the release you are trying to fetch or go to the Options\n"
 		      "menu and to set the release name to explicitly match what's\n"
-		      "available on %s (or set to \"none\").\n\n"
+		      "available on %s (or set to \"any\").\n\n"
 		      "Would you like to select another FTP server?",
 		      rel, hostname)) {
 	    variable_unset(VAR_FTP_PATH);
