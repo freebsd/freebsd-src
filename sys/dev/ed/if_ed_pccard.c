@@ -90,12 +90,6 @@ static void	ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val,
 
 /*
  *      ed_pccard_detach - unload the driver and clear the table.
- *      XXX TODO:
- *      This is usually called when the card is ejected, but
- *      can be caused by a modunload of a controller driver.
- *      The idea is to reset the driver's view of the device
- *      and ensure that any driver entry points such as
- *      read and write do not hang.
  */
 static int
 ed_pccard_detach(device_t dev)
