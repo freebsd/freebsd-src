@@ -92,12 +92,14 @@ getpriority(td, uap)
 	struct thread *td;
 	register struct getpriority_args *uap;
 {
-	struct proc *p;
-	int low = PRIO_MAX + 1;
-	int error = 0;
 	struct ksegrp *kg;
+	struct proc *p;
+	int error, low;
 
+	error = 0;
+	low = PRIO_MAX + 1;
 	switch (uap->which) {
+
 	case PRIO_PROCESS:
 		if (uap->who == 0)
 			low = td->td_ksegrp->kg_nice;
@@ -188,10 +190,11 @@ setpriority(td, uap)
 	struct thread *td;
 	register struct setpriority_args *uap;
 {
-	struct proc *curp = td->td_proc;
+	struct proc *curp;
 	register struct proc *p;
 	int found = 0, error = 0;
 
+	curp = td->td_proc;
 	switch (uap->which) {
 	case PRIO_PROCESS:
 		if (uap->who == 0) {
@@ -262,8 +265,8 @@ setpriority(td, uap)
 }
 
 /* 
- * Set "nice" for a process. Doesn't really understand threaded processes well
- * but does try. Has the unfortunate side effect of making all the NICE
+ * Set "nice" for a process.  Doesn't really understand threaded processes
+ * well but does try.  Has the unfortunate side effect of making all the NICE
  * values for a process's ksegrps the same.. This suggests that
  * NICE valuse should be stored as a process nice and deltas for the ksegrps.
  * (but not yet).
@@ -271,10 +274,10 @@ setpriority(td, uap)
 static int
 donice(struct thread *td, struct proc *p, int n)
 {
-	int	error;
-	int low = PRIO_MAX + 1;
 	struct ksegrp *kg;
+	int error, low;
 
+	low = PRIO_MAX + 1;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if ((error = p_cansched(td, p)))
 		return (error);
@@ -284,13 +287,13 @@ donice(struct thread *td, struct proc *p, int n)
 		n = PRIO_MIN;
 	/* 
 	 * Only allow nicing if to more than the lowest nice.
-	 * e.g.  nices of 4,3,2  allow nice to 3 but not 1
+	 * E.g., for nices of 4,3,2  allow nice to 3 but not 1
 	 */
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
 		if (kg->kg_nice < low)
 			low = kg->kg_nice;
 	}
- 	if (n < low && suser(td))
+ 	if (n < low && suser(td) != 0)
 		return (EACCES);
 	mtx_lock_spin(&sched_lock);
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
@@ -311,9 +314,7 @@ struct rtprio_args {
 
 /*
  * Set realtime priority
- */
-
-/*
+ *
  * MPSAFE
  */
 /* ARGSUSED */
@@ -322,15 +323,18 @@ rtprio(td, uap)
 	struct thread *td;
 	register struct rtprio_args *uap;
 {
-	struct proc *curp = td->td_proc;
+	struct proc *curp;
 	register struct proc *p;
 	struct rtprio rtp;
-	int error, cierror = 0;
+	int cierror, error;
 
 	/* Perform copyin before acquiring locks if needed. */
 	if (uap->function == RTP_SET)
 		cierror = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
+	else
+		cierror = 0;
 
+	curp = td->td_proc;
 	if (uap->pid == 0) {
 		p = curp;
 		PROC_LOCK(p);
@@ -479,13 +483,14 @@ ogetrlimit(td, uap)
 	struct thread *td;
 	register struct ogetrlimit_args *uap;
 {
-	struct proc *p = td->td_proc;
 	struct orlimit olim;
-	struct rlimit  rl;
+	struct rlimit rl;
+	struct proc *p;
 	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
+	p = td->td_proc;
 	PROC_LOCK(p);
 	lim_rlimit(p, uap->which, &rl);
 	PROC_UNLOCK(p);
@@ -514,7 +519,7 @@ setrlimit(td, uap)
 	struct rlimit alim;
 	int error;
 
-	if ((error = copyin(uap->rlp, &alim, sizeof (struct rlimit))))
+	if ((error = copyin(uap->rlp, &alim, sizeof(struct rlimit))))
 		return (error);
 	error = kern_setrlimit(td, uap->which, &alim);
 	return (error);
@@ -526,8 +531,8 @@ kern_setrlimit(td, which, limp)
 	u_int which;
 	struct rlimit *limp;
 {
-	struct proc *p = td->td_proc;
 	struct plimit *newlim, *oldlim;
+	struct proc *p;
 	register struct rlimit *alimp;
 	rlim_t oldssiz;
 	int error;
@@ -544,6 +549,7 @@ kern_setrlimit(td, which, limp)
 		limp->rlim_max = RLIM_INFINITY;
 
 	oldssiz = 0;
+	p = td->td_proc;
 	newlim = lim_alloc();
 	PROC_LOCK(p);
 	oldlim = p->p_limit;
@@ -653,16 +659,17 @@ getrlimit(td, uap)
 	struct thread *td;
 	register struct __getrlimit_args *uap;
 {
-	int error;
-	struct proc *p = td->td_proc;
+	struct proc *p;
 	struct rlimit rlim;
+	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
+	p = td->td_proc;
 	PROC_LOCK(p);
 	lim_rlimit(p, uap->which, &rlim);
 	PROC_UNLOCK(p);
-	error = copyout(&rlim, uap->rlp, sizeof (struct rlimit));
+	error = copyout(&rlim, uap->rlp, sizeof(struct rlimit));
 	return(error);
 }
 
@@ -677,10 +684,10 @@ calcru(p, up, sp, ip)
 	struct timeval *sp;
 	struct timeval *ip;
 {
+	struct bintime bt;
+	struct timeval tv;
 	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
 	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
-	struct timeval tv;
-	struct bintime bt;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	/* XXX: why spl-protect ?  worst case is an off-by-one report */
@@ -694,7 +701,6 @@ calcru(p, up, sp, ip)
 		st = 1;
 		tt = 1;
 	}
-		
 	if (curthread->td_proc == p) {
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
@@ -703,20 +709,18 @@ calcru(p, up, sp, ip)
 		 * XXXKSE use a different test due to threads on other 
 		 * processors also being 'current'.
 		 */
-				
 		binuptime(&bt);
 		bintime_sub(&bt, PCPU_PTR(switchtime));
 		bintime_add(&bt, &p->p_runtime);
-	} else {
+	} else
 		bt = p->p_runtime;
-	}
 	bintime2timeval(&bt, &tv);
 	tu = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 	ptu = p->p_uu + p->p_su + p->p_iu;
 	if (tu < ptu || (int64_t)tu < 0) {
 		/* XXX no %qd in kernel.  Truncate. */
 		printf("calcru: negative time of %ld usec for pid %d (%s)\n",
-		       (long)tu, p->p_pid, p->p_comm);
+		   (long)tu, p->p_pid, p->p_comm);
 		tu = ptu;
 	}
 
@@ -741,10 +745,10 @@ calcru(p, up, sp, ip)
 				su = tu - uu - p->p_iu;
 		}
 		KASSERT(uu + su + p->p_iu <= tu,
-		    	("calcru: monotonisation botch 1"));
+		    ("calcru: monotonisation botch 1"));
 		iu = tu - uu - su;
 		KASSERT(iu >= p->p_iu,
-		    	("calcru: monotonisation botch 2"));
+		    ("calcru: monotonisation botch 2"));
 	}
 	p->p_uu = uu;
 	p->p_su = su;
@@ -823,11 +827,11 @@ ruadd(ru, ru2)
 }
 
 /*
- * Allocate a new resource limits structure, initialize it's
- * reference count and mutex.
+ * Allocate a new resource limits structure and initialize its
+ * reference count and mutex pointer.
  */
 struct plimit *
-lim_alloc(void)
+lim_alloc()
 {
 	struct plimit *limp;
 
@@ -838,9 +842,6 @@ lim_alloc(void)
 	return (limp);
 }
 
-/*
- * NOTE: The caller must own the proc lock this limit is associated with.
- */
 struct plimit *
 lim_hold(limp)
 	struct plimit *limp;
@@ -852,16 +853,13 @@ lim_hold(limp)
 	return (limp);
 }
 
-/* 
- * NOTE: The caller must own the proc lock this plimit belongs to.
- */
 void
 lim_free(limp)
 	struct plimit *limp;
 {
 
 	LIM_LOCK(limp);
-	KASSERT(limp->pl_refcnt > 0, ("bad plimit refcnt: %d", limp->pl_refcnt));
+	KASSERT(limp->pl_refcnt > 0, ("plimit refcnt underflow"));
 	if (--limp->pl_refcnt == 0) {
 		mtx_destroy(&limp->pl_mtx);
 		free((void *)limp, M_PLIMIT);
@@ -879,14 +877,13 @@ lim_copy(dst, src)
 	struct plimit *dst, *src;
 {
 
-	KASSERT(dst->pl_refcnt == 1, ("lim_copy of shared limit"));
+	KASSERT(dst->pl_refcnt == 1, ("lim_copy to shared limit"));
 	bcopy(src->pl_rlimit, dst->pl_rlimit, sizeof(src->pl_rlimit));
 }
 
 /*
- * Obtain the hard limit for a particular system resource.
- * 	which - index into the rlimit array
- * Note: callers must hold proc lock.
+ * Return the hard limit for a particular system resource.  The
+ * which parameter specifies the index into the rlimit array.
  */
 rlim_t
 lim_max(struct proc *p, int which)
@@ -898,9 +895,8 @@ lim_max(struct proc *p, int which)
 }
 
 /*
- * Obtain the current (soft) limit for a particular system resource.
- * 	which - index into the rlimit array
- * Note: callers must hold proc lock.
+ * Return the current (soft) limit for a particular system resource.
+ * The which parameter which specifies the index into the rlimit array
  */
 rlim_t
 lim_cur(struct proc *p, int which)
@@ -912,9 +908,8 @@ lim_cur(struct proc *p, int which)
 }
 
 /*
- * Obtain the entire rlimit structure for a particular system limit.
- *	which - index into the rlimit array
- *	rlp   - address into which the rlimit structure will be placed
+ * Return a copy of the entire rlimit structure for the system limit
+ * specified by 'which' in the rlimit structure pointed to by 'rlp'.
  */
 void
 lim_rlimit(struct proc *p, int which, struct rlimit *rlp)
@@ -940,15 +935,15 @@ uihashinit()
 }
 
 /*
- * lookup a uidinfo struct for the parameter uid.
+ * Look up a uidinfo struct for the parameter uid.
  * uihashtbl_mtx must be locked.
  */
 static struct uidinfo *
 uilookup(uid)
 	uid_t uid;
 {
-	struct	uihashhead *uipp;
-	struct	uidinfo *uip;
+	struct uihashhead *uipp;
+	struct uidinfo *uip;
 
 	mtx_assert(&uihashtbl_mtx, MA_OWNED);
 	uipp = UIHASH(uid);
@@ -968,23 +963,21 @@ struct uidinfo *
 uifind(uid)
 	uid_t uid;
 {
-	struct	uidinfo *uip;
+	struct uidinfo *old_uip, *uip;
 
 	mtx_lock(&uihashtbl_mtx);
 	uip = uilookup(uid);
 	if (uip == NULL) {
-		struct  uidinfo *old_uip;
-
 		mtx_unlock(&uihashtbl_mtx);
 		uip = malloc(sizeof(*uip), M_UIDINFO, M_WAITOK | M_ZERO);
 		mtx_lock(&uihashtbl_mtx);
 		/*
 		 * There's a chance someone created our uidinfo while we
 		 * were in malloc and not holding the lock, so we have to
-		 * make sure we don't insert a duplicate uidinfo
+		 * make sure we don't insert a duplicate uidinfo.
 		 */
 		if ((old_uip = uilookup(uid)) != NULL) {
-			/* someone else beat us to it */
+			/* Someone else beat us to it. */
 			free(uip, M_UIDINFO);
 			uip = old_uip;
 		} else {
@@ -1082,7 +1075,7 @@ chgproccnt(uip, diff, max)
 {
 
 	UIDINFO_LOCK(uip);
-	/* don't allow them to exceed max, but allow subtraction */
+	/* Don't allow them to exceed max, but allow subtraction. */
 	if (diff > 0 && uip->ui_proccnt + diff > max && max != 0) {
 		UIDINFO_UNLOCK(uip);
 		return (0);
