@@ -3,5 +3,6 @@
 PROG=	arp
 MAN8=	arp.8
 MAN4=	arp.4
+COPTS+=	-Wall
 
 .include <bsd.prog.mk>
