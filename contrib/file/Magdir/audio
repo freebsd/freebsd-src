@@ -102,8 +102,9 @@
 1080	string	8CHN		8-channel Fasttracker module sound data
 1080	string	CD81		8-channel Oktalyzer module sound data
 1080	string	OKTA		8-channel Oktalyzer module sound data
-1082	string	CH
->1080	string	>/0		%.2s-channel Fasttracker "oktalyzer" module sound data
+# Not good enough.
+#1082	string	CH
+#>1080	string	>/0		%.2s-channel Fasttracker "oktalyzer" module sound data
 1080	string	16CN		16-channel Taketracker module sound data
 1080	string	32CN		32-channel Taketracker module sound data
 
@@ -118,3 +119,22 @@
 >14	beshort		=1			single song,
 >14	beshort		>1			%d songs,
 >16	beshort		>0			default song: %d
+
+
+# IRCAM <mpruett@sgi.com>
+0	belong		0x64a30400		IRCAM file (NeXT)
+0	belong		0x64a30200		IRCAM file (Sun)
+0	belong		0x64a30300		IRCAM file (MIPS little-endian)
+0	belong		0x0001a364		IRCAM file
+
+# NIST SPHERE <mpruett@sgi.com>
+0	string		NIST_1A\n\ \ \ 1024\n	NIST SPHERE file
+
+# Sample Vision <mpruett@sgi.com>
+0	string		SOUND\ SAMPLE\ DATA\ 	Sample Vision file
+
+# Audio Visual Research <mpruett@sgi.com>
+0	string		2BIT			Audio Visual Research file
+
+# From Felix von Leitner <leitner@fefe.de>
+0	string		OggS	Ogg-Vorbis compressed sound file

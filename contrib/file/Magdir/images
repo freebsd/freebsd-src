@@ -24,12 +24,24 @@
 
 # PBMPLUS images
 # The next byte following the magic is always whitespace.
-0	string		P1		PBM image text
-0	string		P2		PGM image text
-0	string		P3		PPM image text
-0	string		P4		PBM "rawbits" image data
-0	string		P5		PGM "rawbits" image data
-0	string		P6		PPM "rawbits" image data
+0	string		P1		Netpbm PBM image text
+0	string		P2		Netpbm PGM image text
+0	string		P3		Netpbm PPM image text
+0	string		P4		Netpbm PBM "rawbits" image data
+0	string		P5		Netpbm PGM "rawbits" image data
+0	string		P6		Netpbm PPM "rawbits" image data
+0	string		P7		Netpbm PAM image file
+
+# From: bryanh@giraffe-data.com (Bryan Henderson)
+0	string		\117\072	Solitaire Image Recorder format
+>4	string		\013		MGI Type 11
+>4	string		\021		MGI Type 17
+0	string		.MDA		MicroDesign data
+>21	byte		48		version 2
+>21	byte		51		version 3
+0	string		.MDP		MicroDesign page data
+>21	byte		48		version 2
+>21	byte		51		version 3
 
 # NIFF (Navy Interchange File Format, a modification of TIFF) images
 0	string		IIN1		NIFF image data

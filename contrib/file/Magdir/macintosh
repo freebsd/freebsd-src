@@ -222,3 +222,21 @@
 # Just in case...
 
 102	string		mBIN		MacBinary III data with surprising version number
+
+# sas magic from Bruce Foster (bef@nwu.edu)
+#
+#0	string		SAS		SAS
+#>8	string		x		%s
+0	string		SAS		SAS
+>24	string		DATA		data file
+>24	string		CATALOG		catalog
+>24	string		INDEX		data file index
+>24	string		VIEW		data view
+# spss magic for SPSS system and portable files, 
+#	 from Bruce Foster (bef@nwu.edu).
+
+0	long		0xc1e2c3c9	SPSS Portable File
+>40	string 		x		%s
+
+0	string		$FL2		SPSS System File
+>24	string		x		%s

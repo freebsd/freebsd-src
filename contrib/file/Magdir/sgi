@@ -167,8 +167,11 @@
 #
 0	string	\#Inventor V	IRIS Inventor 1.0 file
 0	string	\#Inventor V2	Open Inventor 2.0 file
-# XXX - I don't know what next thing is!  It is likely to be an image
-# (or movie) format
+# GLF is OpenGL stream encoding
 0	string	glfHeadMagic();		GLF_TEXT
-4	belong	0x41010000		GLF_BINARY_LSB_FIRST
-4	belong	0x00000141		GLF_BINARY_MSB_FIRST
+4	belong	0x7d000000		GLF_BINARY_LSB_FIRST
+4	belong	0x0000007d		GLF_BINARY_MSB_FIRST
+# GLS is OpenGL stream encoding; GLS is the successor of GLF
+0	string	glsBeginGLS(		GLS_TEXT
+4	belong	0x10000000		GLS_BINARY_LSB_FIRST
+4	belong	0x00000010		GLS_BINARY_MSB_FIRST
