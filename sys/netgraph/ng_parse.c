@@ -1338,8 +1338,7 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 		if (sizeof(*hdr) + *off < workSize) {
 			int tempsize = workSize - sizeof(*hdr) - *off;
 
-			bcopy(hdr, workBuf, sizeof(*hdr));
-			bcopy(data + sizeof(*hdr), workBuf, *off);
+			bcopy(hdr, workBuf, sizeof(*hdr) + *off);
 			if (ng_get_composite_elem_default(type, index, workBuf
 			      + sizeof(*hdr), workBuf + sizeof(*hdr) + *off,
 			      &tempsize, ctype) == 0
