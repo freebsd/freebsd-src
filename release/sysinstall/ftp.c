@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.5 1995/05/24 17:49:14 jkh Exp $
+ * $Id: ftp.c,v 1.6 1995/05/24 18:21:48 jkh Exp $
  *
  */
 
@@ -146,6 +146,7 @@ FtpInit()
 	return ftp;
     memset(ftp, 0, sizeof *ftp);
     ftp->fd_ctrl = -1;
+    ftp->fd_extr = -1;
     ftp->fd_debug = -1;
     ftp->state = init;
     return ftp;
@@ -301,6 +302,7 @@ FtpGet(FTP_t ftp, char *file)
 	if (i > 299)
 	    return -1;
 	ftp->state = xfer;
+	ftp->fd_xfer = s;
 	return s;
     } else {
 	return -1;
@@ -312,6 +314,8 @@ FtpEOF(FTP_t ftp)
 {
     if (ftp->state != xfer) 
 	return botch(ftp,"FtpEOF","xfer");
+    close(ftp->fd_extr);
+    ftp->fd_extr = -1;
     ftp->state = isopen;
     return get_a_number(ftp,0);
 }
