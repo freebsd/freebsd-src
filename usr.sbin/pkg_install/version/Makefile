@@ -2,7 +2,7 @@
 
 MAINTAINER=	billf@FreeBSD.org
 MAINTAINER+=	bmah@CS.Sandia.GOV
-MAN8=		pkg_version.1
+MAN1=		pkg_version.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
