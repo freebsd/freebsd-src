@@ -305,7 +305,7 @@ SEND-PR: will all comments (text enclosed in `<' and `>').
 SEND-PR:
 SEND-PR: Please consult the following URL if you are not sure how to
 SEND-PR: fill out a problem report:
-SEND-PR: http://www.freebsd.org/doc/en/articles/problem-reports/article.html
+SEND-PR: http://www.freebsd.org/doc/en/articles/problem-reports/
 SEND-PR:
 SEND-PR: Note that the Synopsis field is mandatory.
 SEND-PR:
