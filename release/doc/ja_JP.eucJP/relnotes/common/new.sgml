@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.254
+    Original revision: 1.255
 -->
 
 <articleinfo>
@@ -395,7 +395,10 @@
 
     <para>&man.jail.2; 用の設定可能な sysctl 変数
       が <varname>jail.*</varname> から
-      <varname>kern.security.*</varname> へと移動しました.</para>
+      <varname>security.*</varname> へと移動しました.
+      他のセキュリティ関連の sysctl 変数は
+      <varname>kern.security.*</varname> から
+      <varname>security.*</varname> へと移動しました.</para>
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
