@@ -3,6 +3,5 @@
 
 KMOD=	ng_tee
 SRCS= 	ng_tee.c
-NOMAN=
 
 .include <bsd.kmod.mk>

@@ -10,7 +10,6 @@ CFLAGS+= -DPC98
 KMOD=	apm
 SRCS=	apm.c apm.h \
 	device_if.h bus_if.h
-NOMAN=
 
 EXPORT_SYMS=	apm_display	\
 		apm_softc

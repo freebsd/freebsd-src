@@ -4,7 +4,6 @@
 
 KMOD=	apm_saver
 SRCS= 	apm_saver.c
-NOMAN=
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98

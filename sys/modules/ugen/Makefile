@@ -6,6 +6,5 @@ MAINTAINER=	n_hibma@freebsd.org
 
 KMOD=	ugen
 SRCS=	bus_if.h device_if.h vnode_if.h opt_usb.h ugen.c
-NOMAN=
 
 .include <bsd.kmod.mk>

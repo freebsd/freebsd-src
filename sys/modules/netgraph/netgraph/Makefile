@@ -3,6 +3,5 @@
 
 KMOD=	netgraph
 SRCS= 	ng_base.c ng_parse.c
-NOMAN=
 
 .include <bsd.kmod.mk>

@@ -3,6 +3,5 @@
 
 KMOD=	ng_iface
 SRCS= 	ng_iface.c
-NOMAN=
 
 .include <bsd.kmod.mk>

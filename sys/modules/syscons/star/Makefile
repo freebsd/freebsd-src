@@ -4,7 +4,6 @@
 
 KMOD=	star_saver
 SRCS=	star_saver.c
-NOMAN=
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98

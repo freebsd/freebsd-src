@@ -18,8 +18,6 @@ SRCS=	vnode_if.h \
 	smbfs_vfsops.c smbfs_node.c smbfs_io.c smbfs_vnops.c \
 	smbfs_subr.c smbfs_smb.c
 
-NOMAN=true
-
 NETSMBCRYPTO=yes
 
 .if defined(NETSMBCRYPTO)

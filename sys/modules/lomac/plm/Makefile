@@ -2,7 +2,6 @@
 
 KMOD=	lomac_plm
 SRCS=	vnode_if.h kernel_plm.c
-NOMAN=	yes
 CFLAGS+=	-I${.CURDIR}/../../../security/lomac
 
 EXPORT_SYMS=	lomac_node_entry_root		\
