@@ -29,7 +29,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	from: lpt.4,v 1.1 1993/08/06 10:34:12 cgd Exp
-.\"	$Id: lpt.4,v 1.6 1997/03/07 02:49:49 jmg Exp $
+.\"	$Id: lpt.4,v 1.7 1998/10/15 20:27:26 wosch Exp $
 .\"
 .Dd August 28, 1993
 .Dt LPT 4 i386
@@ -40,12 +40,12 @@
 Parallel port driver
 .Sh SYNOPSIS
 For interrupt-driven ports:
-.Cd "device lpt0 at isa? port" \&"IO_LPT1\&" tty irq 7 vector lptintr
-.Cd "device lpt1 at isa? port" \&"IO_LPT2\&" tty irq 7 vector lptintr
-.Cd "device lpt2 at isa? port" \&"IO_LPT3\&" tty irq 7 vector lptintr
+.Cd "device lpt0 at isa? port" \&"IO_LPT1\&" tty irq 7
+.Cd "device lpt1 at isa? port" \&"IO_LPT2\&" tty irq 7
+.Cd "device lpt2 at isa? port" \&"IO_LPT3\&" tty irq 7
 .Pp
 For BIOS-probed ports:
-.Cd "device lpt0 at isa? port? tty irq 7 vector lptintr"
+.Cd "device lpt0 at isa? port? tty irq 7"
 .Pp
 For polled ports:
 .Cd "device lpt0 at isa? port? tty"
