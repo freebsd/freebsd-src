@@ -60,7 +60,6 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	P1003_1B		#Posix P1003_1B real-time extensions
 options 	_KPOSIX_PRIORITY_SCHEDULING
 #options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	RANDOMDEV		#entropy device
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
@@ -224,6 +223,7 @@ device		xe
 #device	sbc
 
 # Pseudo devices - the number indicates how many units to allocated.
+device		random		# Entropy device
 device		loop		# Network loopback
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP
