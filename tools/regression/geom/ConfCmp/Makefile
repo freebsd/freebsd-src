@@ -5,7 +5,7 @@ SRCS+=	ConfCmp.c
 SRCS+=	subr_sbuf.c
 VPATH+= /sys/kern
 NOOBJ=	youbet
-WARNS=	2
+WARNS=	5
 CFLAGS+=	 -g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -static
 # Uncomment for ElectricFence
 #LDADD += -lefence -L/usr/local/lib
@@ -21,14 +21,14 @@ CLEANFILES	+= _*
 
 test:	${PROG}
 	rm -f _* *.core
-	./${PROG} a1.conf a1a.conf
+	./${PROG} a1.conf a1.conf
+	./${PROG} a1.conf a1a.conf 
 	if ./${PROG} a1.conf a1b.conf > /dev/null 2>&1 ; then exit 1 ; fi
 	if ./${PROG} a1.conf a1c.conf > /dev/null 2>&1 ; then exit 1 ; fi
 	if ./${PROG} a1.conf a1d.conf > /dev/null 2>&1 ; then exit 1 ; fi
+	./${PROG} a2.conf a2.conf
+	./${PROG} a2.conf a2a.conf
+	if ./${PROG} a2.conf a2b.conf > /dev/null 2>&1 ; then exit 1 ; fi
+	if ./${PROG} a2.conf a2c.conf > /dev/null 2>&1 ; then exit 1 ; fi
+	if ./${PROG} a2.conf a2d.conf > /dev/null 2>&1 ; then exit 1 ; fi
 
-ttest:	${PROG}
-	rm -f _* *.core
-	./${PROG} a1.conf a1a.conf
-	./${PROG} a1.conf a1b.conf 
-	./${PROG} a1.conf a1c.conf 
-	./${PROG} a1.conf a1d.conf 
