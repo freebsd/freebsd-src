@@ -15,6 +15,12 @@ linux_genassym			optional	compat_linux		   \
 	no-obj no-implicit-rule						   \
 	clean		"linux_genassym"
 #
+svr4_genassym			optional	compat_svr4		   \
+	dependency 	"$S/i386/svr4/svr4_genassym.c $S/svr4/svr4.h"	   \
+	compile-with	"${CC} ${CFLAGS} ${PARAM} -UKERNEL -o $@ $<"	   \
+	no-obj no-implicit-rule						   \
+	clean		"svr4_genassym"
+#
 linux_assym.h			optional	compat_linux		   \
 	dependency 	"linux_genassym"				   \
 	compile-with	"./linux_genassym > $@"				   \
@@ -25,6 +31,12 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 	compile-with	"kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"				\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
+#
+svr4_assym.h			optional	compat_svr4		   \
+	dependency 	"svr4_genassym"				   	   \
+	compile-with	"./svr4_genassym > $@"				   \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"svr4_assym.h"
 #
 ukbdmap.h			optional	ukbd_dflt_keymap	\
 	compile-with	"kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"				\
@@ -339,6 +351,26 @@ i386/linux/linux_stats.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/linux/linux_util.c		optional	compat_linux
+svr4/imgact_svr4.c		optional	compat_svr4
+svr4/svr4_fcntl.c		optional	compat_svr4
+svr4/svr4_filio.c		optional	compat_svr4
+svr4/svr4_ioctl.c		optional	compat_svr4
+svr4/svr4_ipc.c			optional	compat_svr4
+svr4/svr4_misc.c		optional	compat_svr4
+svr4/svr4_resource.c		optional	compat_svr4
+svr4/svr4_signal.c		optional	compat_svr4
+svr4/svr4_socket.c		optional	compat_svr4
+svr4/svr4_sockio.c		optional	compat_svr4
+svr4/svr4_stat.c		optional	compat_svr4
+svr4/svr4_stream.c		optional	compat_svr4
+svr4/svr4_syscallnames.c	optional	compat_svr4
+svr4/svr4_sysent.c		optional	compat_svr4
+svr4/svr4_sysvec.c		optional	compat_svr4
+svr4/svr4_termios.c		optional	compat_svr4
+svr4/svr4_ttold.c		optional	compat_svr4
+i386/svr4/svr4_locore.s		optional	compat_svr4		   \
+	dependency	"svr4_assym.h"
+i386/svr4/svr4_machdep.c	optional	compat_svr4
 i4b/layer1/i4b_asuscom_ipac.c	optional	isic
 i4b/layer1/i4b_avm_a1.c		optional	isic
 i4b/layer1/i4b_avm_fritz_pci.c	optional	isic
