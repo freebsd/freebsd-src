@@ -300,6 +300,7 @@ main(argc, argv)
 #ifdef COLORLS
 	if (f_color) {
 		(void) signal(SIGINT, colorquit);
+		(void) signal(SIGQUIT, colorquit);
 		parsecolors(getenv("LSCOLORS"));
 	}
 #endif
