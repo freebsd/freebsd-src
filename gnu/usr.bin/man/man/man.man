@@ -163,7 +163,7 @@ Normally, to look at the relevant manpage information for getopt,
 one would use:
 .Dl man getopt
 .Pp
-However, when referred to a specific section of the manual,
+However, when referring to a specific section of the manual,
 such as
 .Xr getopt 3 ,
 one would use:
