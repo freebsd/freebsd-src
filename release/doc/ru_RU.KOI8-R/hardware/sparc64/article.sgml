@@ -2,7 +2,7 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/sparc64/article.sgml,v 1.5 2004/08/12 08:31:35 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/sparc64/article.sgml,v 1.6 2005/03/10 11:04:21 den Exp $
 
      Original revision: 1.5
 -->
@@ -13,6 +13,8 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+<!ENTITY % devauto-ru PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//RU">
+%devauto-ru;
 <!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
 %devauto;
 <!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
