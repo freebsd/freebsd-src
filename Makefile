@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.81 1996/06/19 21:19:56 nate Exp $
+#	$Id: Makefile,v 1.82 1996/06/20 13:38:15 adam Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -102,13 +102,21 @@ CLEANDIR=	cleandir
 
 MK_FLAGS=	-DNOMAN -DNOPROFILE
 
-world:	hierarchy mk $(WORLD_CLEANDIST) bootstrap include-tools includes lib-tools libraries build-tools
+.if !target(pre-world)
+pre-world:
+	@/usr/bin/true
+.endif
+
+world:	pre-world hierarchy mk $(WORLD_CLEANDIST) bootstrap include-tools includes lib-tools libraries build-tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
 	@echo
 	${MAKE} depend all install
 	cd ${.CURDIR}/share/man &&		${MAKE} makedb
+.if target(post-world)
+	cd ${.CURDIR} && ${MAKE} post-world
+.endif
 	@echo "make world completed on `date`"
 
 bootstrap:
