@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.47 1997/04/27 20:00:56 wollman Exp $
+ *	$Id: if.c,v 1.48 1997/05/03 21:07:13 peter Exp $
  */
 
 #include <sys/param.h>
@@ -835,16 +835,18 @@ if_addmulti(ifp, sa, retifma)
 	int error, s;
 	struct ifmultiaddr *ifma;
 
+	/*
+	 * If the matching multicast address already exists
+	 * then don't add a new one, just add a reference
+	 */
 	for (ifma = ifp->if_multiaddrs.lh_first; ifma; 
 	     ifma = ifma->ifma_link.le_next) {
-		if (equal(sa, ifma->ifma_addr))
-			break;
-	}
-
-	if (ifma) {
-		ifma->ifma_refcount++;
-		if (retifma) *retifma = ifma;
-		return 0;
+		if (equal(sa, ifma->ifma_addr)) {
+			ifma->ifma_refcount++;
+			if (retifma)
+				*retifma = ifma;
+			return 0;
+		}
 	}
 
 	/*
@@ -896,10 +898,10 @@ if_addmulti(ifp, sa, retifma)
 			ifma->ifma_addr = dupsa;
 			ifma->ifma_ifp = ifp;
 			ifma->ifma_refcount = 1;
+			s = splimp();
+			LIST_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
+			splx(s);
 		}
-		s = splimp();
-		LIST_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
-		splx(s);
 	}
 	/*
 	 * We are certain we have added something, so call down to the
