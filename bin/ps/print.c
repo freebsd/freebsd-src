@@ -31,13 +31,15 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -45,10 +47,8 @@ static const char rcsid[] =
 #include <sys/proc.h>
 #include <sys/stat.h>
 
-#include <sys/ucred.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
-#include <vm/vm.h>
 
 #include <err.h>
 #include <langinfo.h>
@@ -58,12 +58,14 @@ static const char rcsid[] =
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include <vis.h>
 
 #include "lomac.h"
 #include "ps.h"
+
+static void printval __P((char *, VAR *));
 
 void
 printheader(void)
@@ -424,26 +426,6 @@ vsize(KINFO *k, VARENT *ve)
 }
 
 void
-rssize(KINFO *k, VARENT *ve)
-{
-	VAR *v;
-
-	v = ve->var;
-	/* XXX don't have info about shared */
-	(void)printf("%*lu", v->width,
-	    (u_long)pgtok(k->ki_p->ki_rssize));
-}
-
-void
-p_rssize(KINFO *k, VARENT *ve)		/* doesn't account for text */
-{
-	VAR *v;
-
-	v = ve->var;
-	(void)printf("%*ld", v->width, (long)pgtok(k->ki_p->ki_rssize));
-}
-
-void
 cputime(KINFO *k, VARENT *ve)
 {
 	VAR *v;
@@ -483,7 +465,7 @@ cputime(KINFO *k, VARENT *ve)
 }
 
 double
-getpcpu(KINFO *k)
+getpcpu(const KINFO *k)
 {
 	static int failure;
 
@@ -512,7 +494,7 @@ pcpu(KINFO *k, VARENT *ve)
 	(void)printf("%*.1f", v->width, getpcpu(k));
 }
 
-double
+static double
 getpmem(KINFO *k)
 {
 	static int failure;
@@ -550,8 +532,9 @@ pagein(KINFO *k, VARENT *ve)
 	    k->ki_valid ? k->ki_p->ki_rusage.ru_majflt : 0);
 }
 
+/* ARGSUSED */
 void
-maxrss(KINFO *k, VARENT *ve)
+maxrss(KINFO *k __unused, VARENT *ve)
 {
 	VAR *v;
 
@@ -573,14 +556,14 @@ void
 priorityr(KINFO *k, VARENT *ve)
 {
 	VAR *v;
-	struct priority *pri;
+	struct priority *lpri;
 	char str[8];
 	unsigned class, level;
  
 	v = ve->var;
-	pri = (struct priority *) ((char *)k + v->off);
-	class = pri->pri_class;
-	level = pri->pri_level;
+	lpri = (struct priority *) ((char *)k + v->off);
+	class = lpri->pri_class;
+	level = lpri->pri_level;
 	switch (class) {
 	case PRI_REALTIME:
 		snprintf(str, sizeof(str), "real:%u", level);
