@@ -175,6 +175,7 @@ void atapi_attach(struct ata_device *);
 void atapi_cam_attach_bus(struct ata_channel *);
 void atapi_detach(struct ata_device *);
 void atapi_cam_detach_bus(struct ata_channel *);
+void atapi_cam_reinit_bus(struct ata_channel *);
 void atapi_reinit(struct ata_device *);
 void atapi_start(struct ata_device *);
 int atapi_transfer(struct atapi_request *);
