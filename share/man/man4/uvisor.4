@@ -60,6 +60,10 @@ device.
 The attach message describes the purpose of each port.
 .Pp
 The usual Pilot tools can be used to access the Visor on the HotSync port.
+.Sh BUGS
+The code to provide multiple ucom instances has not yet been ported
+from NetBSD. It's unclear whether this driver works in its
+current state.
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
