@@ -30,9 +30,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *      From: Id: netdb.h,v 8.8 1997/06/01 20:34:32 vixie Exp
- *	$Id: netdb.h,v 1.9 1997/06/27 08:32:37 peter Exp $
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  *
@@ -55,12 +52,20 @@
  * --Copyright--
  */
 
+/*
+ *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
+ *      From: Id: netdb.h,v 8.9 1996/11/19 08:39:29 vixie Exp $
+ *	$Id: netdb.h,v 1.10 1997/08/16 23:32:42 steve Exp $
+ */
+
 #ifndef _NETDB_H_
 #define _NETDB_H_
 
 #include <sys/cdefs.h>
 
-#define	_PATH_HEQUIV	"/etc/hosts.equiv"
+#ifndef _PATH_HEQUIV
+# define	_PATH_HEQUIV	"/etc/hosts.equiv"
+#endif
 #define	_PATH_HOSTS	"/etc/hosts"
 #define	_PATH_NETWORKS	"/etc/networks"
 #define	_PATH_PROTOCOLS	"/etc/protocols"
