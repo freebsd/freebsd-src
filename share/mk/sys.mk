@@ -104,6 +104,16 @@ YFLAGS		?=	-d
 # as an i386 architecture.
 MACHINE_ARCH	?=	i386
 
+# MACHINE_CPU contains a list of CPU generations for which
+# CPU-specific optimizations are desired.  This must be set here
+# to allow bootstrapping from old versions of make which do not
+# set MACHINE_CPU.
+.if ${MACHINE_ARCH} == "i386"
+MACHINE_CPU	?=	i386
+.elif ${MACHINE_ARCH} == "alpha"
+MACHINE_CPU	?=	ev4
+.endif
+
 # For tags rule.
 GTAGSFLAGS=	-o
 HTAGSFLAGS=
