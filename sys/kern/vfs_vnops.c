@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.64 1999/03/26 20:25:21 alc Exp $
+ * $Id: vfs_vnops.c,v 1.65 1999/04/04 21:41:17 dt Exp $
  */
 
 #include <sys/param.h>
@@ -280,22 +280,15 @@ vn_read(fp, uio, cred, flags)
 {
 	struct vnode *vp = (struct vnode *)fp->f_data;
 	struct proc *p = uio->uio_procp;
-	int count, error;
-	int flag;
+	int error, ioflag;
 
+	ioflag = 0;
+	if (fp->f_flag & FNONBLOCK)
+		ioflag |= IO_NDELAY;
 	VOP_LEASE(vp, p, cred, LEASE_READ);
 	vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);
-
-	flag = 0;
-	if (fp->f_flag & FNONBLOCK)
-		flag |= IO_NDELAY;
-
-	if (flags & FOF_OFFSET) {
-		error = VOP_READ(vp, uio, flag, cred);
-		goto out;
-	}
-	uio->uio_offset = fp->f_offset;
-	count = uio->uio_resid;
+	if ((flags & FOF_OFFSET) == 0)
+		uio->uio_offset = fp->f_offset;
 
 	/*
 	 * Sequential read heuristic.
@@ -303,8 +296,8 @@ vn_read(fp, uio, cred, flags)
 	 * a rewind operation doesn't turn off
 	 * sequential input mode.
 	 */
-	if (((fp->f_offset == 0) && (fp->f_seqcount > 0)) ||
-		(fp->f_offset == fp->f_nextread)) {
+	if ((uio->uio_offset == 0 && fp->f_seqcount > 0) ||
+	    uio->uio_offset == fp->f_nextread) {
 		int tmpseq = fp->f_seqcount;
 		/*
 		 * XXX we assume that the filesystem block size is
@@ -312,22 +305,21 @@ vn_read(fp, uio, cred, flags)
 		 * good indicator of how sequential the read operations
 		 * are.
 		 */
-		tmpseq += ((count + BKVASIZE - 1) / BKVASIZE);
+		tmpseq += (uio->uio_resid + BKVASIZE - 1) / BKVASIZE;
 		if (tmpseq >= 127)
 			tmpseq = 127;
 		fp->f_seqcount = tmpseq;
-		flag |= (fp->f_seqcount << 16);
+		ioflag |= fp->f_seqcount << 16;
 	} else {
 		if (fp->f_seqcount > 1)
 			fp->f_seqcount = 1;
 		else
 			fp->f_seqcount = 0;
 	}
-
-	error = VOP_READ(vp, uio, flag, cred);
-	fp->f_offset += count - uio->uio_resid;
-	fp->f_nextread = fp->f_offset;
-out:
+	error = VOP_READ(vp, uio, ioflag, cred);
+	if ((flags & FOF_OFFSET) == 0)
+		fp->f_offset = uio->uio_offset;
+	fp->f_nextread = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }
@@ -344,9 +336,10 @@ vn_write(fp, uio, cred, flags)
 {
 	struct vnode *vp = (struct vnode *)fp->f_data;
 	struct proc *p = uio->uio_procp;
-	int count, error, ioflag = IO_UNIT;
+	int error, ioflag;
 
-	if (uio->uio_offset == -1 && vp->v_type == VREG && (fp->f_flag & O_APPEND))
+	ioflag = IO_UNIT;
+	if (vp->v_type == VREG && (fp->f_flag & O_APPEND))
 		ioflag |= IO_APPEND;
 	if (fp->f_flag & FNONBLOCK)
 		ioflag |= IO_NDELAY;
@@ -355,18 +348,11 @@ vn_write(fp, uio, cred, flags)
 		ioflag |= IO_SYNC;
 	VOP_LEASE(vp, p, cred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	if (flags & FOF_OFFSET) {
-		error = VOP_WRITE(vp, uio, ioflag, cred);
-		goto out;
-	}
-	uio->uio_offset = fp->f_offset;
-	count = uio->uio_resid;
+	if ((flags & FOF_OFFSET) == 0)
+		uio->uio_offset = fp->f_offset;
 	error = VOP_WRITE(vp, uio, ioflag, cred);
-	if (ioflag & IO_APPEND)
+	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
-	else
-		fp->f_offset += count - uio->uio_resid;
-out:
 	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }
