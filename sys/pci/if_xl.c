@@ -249,6 +249,8 @@ static void xl_wait		(struct xl_softc *);
 static void xl_mediacheck	(struct xl_softc *);
 static void xl_choose_xcvr	(struct xl_softc *, int);
 static void xl_dma_map_addr	(void *, bus_dma_segment_t *, int, int);
+static void xl_dma_map_rxbuf	(void *, bus_dma_segment_t *, int, bus_size_t,
+						int);
 static void xl_dma_map_txbuf	(void *, bus_dma_segment_t *, int, bus_size_t,
 						int);
 #ifdef notdef
@@ -302,6 +304,23 @@ xl_dma_map_addr(arg, segs, nseg, error)
 {
 	u_int32_t *paddr;
 	
+	paddr = arg;
+	*paddr = segs->ds_addr;
+}
+
+static void
+xl_dma_map_rxbuf(arg, segs, nseg, mapsize, error)
+	void *arg;
+	bus_dma_segment_t *segs;
+	int nseg;
+	bus_size_t mapsize;
+	int error;
+{
+	u_int32_t *paddr;
+
+	if (error)
+		return;
+	KASSERT(nseg == 1, ("xl_dma_map_rxbuf: too many DMA segments"));
 	paddr = arg;
 	*paddr = segs->ds_addr;
 }
@@ -1942,8 +1961,8 @@ xl_newbuf(sc, c)
 	/* Force longword alignment for packet payload. */
 	m_adj(m_new, ETHER_ALIGN);
 
-	error = bus_dmamap_load(sc->xl_mtag, sc->xl_tmpmap, mtod(m_new, void *),
-	    MCLBYTES, xl_dma_map_addr, &baddr, 0);
+	error = bus_dmamap_load_mbuf(sc->xl_mtag, sc->xl_tmpmap, m_new,
+	    xl_dma_map_rxbuf, &baddr, 0);
 	if (error) {
 		m_freem(m_new);
 		printf("xl%d: can't map mbuf (error %d)\n", sc->xl_unit, error);
