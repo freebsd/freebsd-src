@@ -2,9 +2,9 @@
 
 RELN_ROOT?= ${.CURDIR}/../..
 .ifdef NO_LANGCODE_IN_DESTDIR
-DESTDIR?= ${DOCDIR}/readme
+DESTDIR?= ${DOCDIR}/early-adopter
 .else
-DESTDIR?= ${DOCDIR}/en_US.ISO8859-1/readme
+DESTDIR?= ${DOCDIR}/en_US.ISO8859-1/early-adopter
 .endif
 
 DOC?= article
