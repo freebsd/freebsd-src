@@ -64,7 +64,7 @@ run_rc_command "$1"
 
 case `${CMD_OSTYPE}` in
 FreeBSD)
-	case $SENDMAIL_ENABLE in
+	case $sendmail_enable in
 	NONE)
 		exit
 		;;
