@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.84 1998/09/30 01:46:27 danny Exp $
+ * $Id: devices.c,v 1.85 1998/10/18 16:24:20 wpaul Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,6 +73,8 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"rda%d",	"SCSI disk device",	13, 65538, 8, 16, 'c'			},
     { DEVICE_TYPE_DISK, 	"wd%d",		"IDE/ESDI/MFM/ST506 disk device",	0, 65538, 8, 16, 'b'	},
     { DEVICE_TYPE_DISK, 	"rwd%d",	"IDE/ESDI/MFM/ST506 disk device",	3, 65538, 8, 16, 'c'	},
+    { DEVICE_TYPE_DISK, 	"fla%d",	"DiskOnChip2000 Flash device", 28, 65538, 8, 16, 'b'	},
+    { DEVICE_TYPE_DISK, 	"rfla%d",	"DiskOnChip2000 Flash devicee",	101, 65538, 8, 16, 'c'	},
     { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI floppy device",	1, 65538, 8, 4, 'b'		},
     { DEVICE_TYPE_DISK, 	"rwfd%d",	"ATAPI floppy device",	87, 65538, 8, 4, 'c'		},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	2, 0, 64, 4, 'b'			},
