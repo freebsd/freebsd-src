@@ -216,7 +216,8 @@ static int	in_ietint = 0;
  * This tells the autoconf code how to set us up.
  */
 struct isa_driver iedriver = {
-	ieprobe, ieattach, "ie",
+	INTR_TYPE_NET,
+	ieprobe, ieattach, "ie"
 };
 
 enum ie_hardware {
