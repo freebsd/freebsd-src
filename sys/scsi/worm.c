@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.38 1997/05/10 12:12:47 joerg Exp $
+ *      $Id: worm.c,v 1.39 1997/05/19 17:30:40 jmz Exp $
  */
 
 #include "opt_bounce.h"
@@ -1137,11 +1137,11 @@ rf4100_prepare_track(struct scsi_link *sc_link, struct wormio_prepare_track *t)
 	    return EINVAL;
 	dat.page.pages.page_0x21.isrc_i6_7 = bin2bcd(year);
 	if (t->ISRC_serial[0]) {
-	    dat.page.pages.page_0x21.isrc_i8_9 = ((t->ISRC_serial[0]-'0') << 8) ||
+	    dat.page.pages.page_0x21.isrc_i8_9 = ((t->ISRC_serial[0]-'0') << 4) |
 		(t->ISRC_serial[1] - '0');
-	    dat.page.pages.page_0x21.isrc_i10_11 = ((t->ISRC_serial[2]-'0') << 8) ||
+	    dat.page.pages.page_0x21.isrc_i10_11 = ((t->ISRC_serial[2]-'0') << 4) |
 		(t->ISRC_serial[3] - '0');
-	    dat.page.pages.page_0x21.isrc_i12_0 =  (t->ISRC_serial[4] - '0' << 8);
+	    dat.page.pages.page_0x21.isrc_i12_0 =  (t->ISRC_serial[4] - '0' << 4);
 	}
 	scsi_uto3b(blk_len, dat.blk_desc.blklen);
 
@@ -1429,11 +1429,11 @@ hp4020i_prepare_track(struct scsi_link *sc_link, struct wormio_prepare_track *t)
 	    return EINVAL;
 	dat.page.pages.page_0x21.isrc_i6_7 = bin2bcd(year);
 	if (t->ISRC_serial[0]) {
-	    dat.page.pages.page_0x21.isrc_i8_9 = ((t->ISRC_serial[0]-'0') << 8) ||
+	    dat.page.pages.page_0x21.isrc_i8_9 = ((t->ISRC_serial[0]-'0') << 4) |
 		(t->ISRC_serial[1] - '0');
-	    dat.page.pages.page_0x21.isrc_i10_11 = ((t->ISRC_serial[2]-'0') << 8) ||
+	    dat.page.pages.page_0x21.isrc_i10_11 = ((t->ISRC_serial[2]-'0') << 4) |
 		(t->ISRC_serial[3] - '0');
-	    dat.page.pages.page_0x21.isrc_i12_0 =  (t->ISRC_serial[4] - '0' << 8);
+	    dat.page.pages.page_0x21.isrc_i12_0 =  (t->ISRC_serial[4] - '0' << 4);
 	}
 
 	scsi_uto3b(blk_len, dat.blk_desc.blklen);
