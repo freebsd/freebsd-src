@@ -51,26 +51,4 @@
 #define	SWI_TQ		5
 #define	SWI_CLOCK	6
 
-/*
- * Corresponding interrupt-pending bits for ipending.
- */
-#define	SWI_TTY_PENDING		(1 << SWI_TTY)
-#define	SWI_NET_PENDING		(1 << SWI_NET)
-#define	SWI_CAMNET_PENDING	(1 << SWI_CAMNET)
-#define	SWI_CAMBIO_PENDING	(1 << SWI_CAMBIO)
-#define	SWI_VM_PENDING		(1 << SWI_VM)
-#define	SWI_TQ_PENDING		(1 << SWI_TQ)
-#define	SWI_CLOCK_PENDING	(1 << SWI_CLOCK)
-
-#ifndef	LOCORE
-/*
- * spending and sdelayed are changed by interrupt handlers so they are
- * volatile.
- */
-
-extern	volatile u_int sdelayed;	/* interrupts to become pending */
-extern	volatile u_int spending;	/* pending software interrupts */
-
-#endif /* !LOCORE */
-
 #endif /* !_SYS_IPL_H_ */
