@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.23
+    Original revision: 1.25
 -->
 
 <!-- 
@@ -297,6 +297,23 @@
       (や、その他の問題) を引き起こす、
       タイミングに関連するバグが含まれています。
       この問題は、&release.current; で修正されました。</para>
+
+    <bridgehead renderas="sect3">ISC DHCP</bridgehead>
+
+    <para><application>ISC DHCP</application> がバージョン
+      3.0.1rc11 に更新されました。
+      実際に更新が行なわれたのは &os;
+      &release.prev; だったのですが、
+      リリースノートの記載忘れだったようです。</para>
+
+    <bridgehead renderas="sect3">&man.amd.8;
+      の相互運用性</bridgehead>
+
+    <para>&release.prev; における非ブロッキング RPC コードには、バグが含まれています。
+      このバグによる最も大きな影響に、&release.prev; が動作している
+      NFS サーバ上のマウントポイントを、&man.amd.8;
+      を使ってマウントすることができないというものがあります。
+      このバグは &release.current; で修正されました。</para>
 
   </sect1>
 </article>

@@ -3957,9 +3957,9 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.ping.8; に、応答を一回受け取った後に終了する
       <option>-o</option> フラグが追加されました。</para>
 
-    <para role="historic">Userland &man.ppp.8;
-      has received a number of updates and
-      bug fixes. &merged;</para>
+    <para role="historic">ユーザランド &man.ppp.8;
+      に、数多くの更新とバグ修正が行なわれました。
+      &merged;</para>
 
     <para role="historic">&man.ppp.8; に、新たに
       <literal>tcpmssfixup</literal> オプションが追加されました。
@@ -4281,8 +4281,7 @@ hw.pcic.irq="0"</programlisting>
       &man.sysinstall.8; が
       <filename>/usr/sbin</filename> に移動しました。
       &man.sysinstall.8; のマニュアルページも、
-      他のユーティリティと同様の方法でインストールされるようになっています。
-    </para>
+      他のユーティリティと同様の方法でインストールされるようになっています。</para>
 
     <para role="historic">&man.sysinstall.8; がインストール中に KLD を
       ロードできるようになりました。&merged;</para>
@@ -4564,15 +4563,12 @@ hw.pcic.irq="0"</programlisting>
       を送ることができるようになる <option>-c</option> オプション
       が追加されました。&merged;</para>
 
-    <para>&man.wicontrol.8; に
-      <literal>hostap</literal> モードのステーションの一覧を表示する
+    <para>&man.wicontrol.8; に、
+      <literal>hostap</literal>
+      モードの際に接続中のステーションの一覧を表示する
       <option>-l</option> フラグと
       利用可能なアクセスポイントの一覧を表示する
       <option>-L</option> フラグが追加されました。</para>
-
-    <para>&man.wicontrol.8; now supports a <option>-l</option> to list
-      the stations associated in <literal>hostap</literal> mode and a
-      <option>-L</option> to list available access points.</para>
 
     <para>&man.xargs.1; に新しいオプション <option>-I</option>
       <replaceable>replstr</replaceable> が追加されました。
