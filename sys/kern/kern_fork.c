@@ -234,16 +234,16 @@ fork1(td, flags, pages, procp)
 		 * Unshare file descriptors (from parent).
 		 */
 		if (flags & RFFDG) {
-			FILEDESC_LOCK(p1->p_fd);
+			FILEDESC_LOCK_FAST(p1->p_fd);
 			if (p1->p_fd->fd_refcnt > 1) {
 				struct filedesc *newfd;
 
-				FILEDESC_UNLOCK(p1->p_fd);
+				FILEDESC_UNLOCK_FAST(p1->p_fd);
 				newfd = fdcopy(p1->p_fd);
 				fdfree(td);
 				p1->p_fd = newfd;
 			} else
-				FILEDESC_UNLOCK(p1->p_fd);
+				FILEDESC_UNLOCK_FAST(p1->p_fd);
 		}
 		*procp = NULL;
 		return (0);
@@ -439,9 +439,9 @@ again:
 			 * shared process leaders.
 			 */
 			fdtol = p1->p_fdtol;
-			FILEDESC_LOCK(p1->p_fd);
+			FILEDESC_LOCK_FAST(p1->p_fd);
 			fdtol->fdl_refcount++;
-			FILEDESC_UNLOCK(p1->p_fd);
+			FILEDESC_UNLOCK_FAST(p1->p_fd);
 		} else {
 			/* 
 			 * Shared file descriptor table, and
