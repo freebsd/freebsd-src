@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.16 1996/05/16 11:47:28 jkh Exp $
+ * $Id: ftp_strat.c,v 1.17 1996/05/23 11:50:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -134,10 +134,8 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
 
-    rel = variable_get(VAR_RELNAME);
     if (isDebug())
 	msgDebug("Attempting to open connection for URL: %s\n", cp);
-    hostname = variable_get(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
 	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
 	return FALSE;
@@ -204,6 +202,7 @@ retry:
     }
 
     /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to __RELEASE which signifies that it's not set */
+    rel = variable_get(VAR_RELNAME);
     if (strcmp(rel, "__RELEASE"))
 	i = FtpChdir(ftp, rel);
     else
