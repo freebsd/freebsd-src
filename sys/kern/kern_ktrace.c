@@ -194,9 +194,9 @@ done:
 void
 ktrpsig(vp, sig, action, mask, code)
 	struct vnode *vp;
-	int sig, code;
+	int sig;
 	sig_t action;
-	sigset_t *mask;
+	int mask, code;
 {
 	struct ktr_header *kth;
 	struct ktr_psig	kp;
@@ -206,7 +206,7 @@ ktrpsig(vp, sig, action, mask, code)
 	kth = ktrgetheader(KTR_PSIG);
 	kp.signo = (char)sig;
 	kp.action = action;
-	kp.mask = *mask;
+	kp.mask = mask;
 	kp.code = code;
 	kth->ktr_buf = (caddr_t)&kp;
 	kth->ktr_len = sizeof (struct ktr_psig);
