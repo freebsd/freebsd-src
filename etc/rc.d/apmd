@@ -5,14 +5,35 @@
 #
 
 # PROVIDE: apmd
-# REQUIRE: DAEMON
+# REQUIRE: DAEMON apm
 # BEFORE:  LOGIN
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="apmd"
-rcvar=$name
+rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	start_precmd="apmd_prestart"
+	;;
+esac
+
+apmd_prestart()
+{
+        case `${SYSCTL_N} hw.machine_arch` in   
+        i386)
+		# Don't start if apm is already running
+		/etc/rc.d/apm forcestatus > /dev/null && return 1
+                ;;
+	*)
+		return 1
+		;;
+        esac
+	return 0
+}
 
 load_rc_config $name
 run_rc_command "$1"
