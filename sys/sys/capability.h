@@ -195,6 +195,7 @@ struct proc;
 struct ucred;
 struct vnode;
 int	cap_check(struct ucred *, struct proc *, cap_value_t, int);
+int	cap_check_td(struct ucred *, struct thread *, cap_value_t, int);
 int	cap_change_on_inherit(struct cap *cap_p);
 int	cap_inherit(struct vnode *vp, struct proc *p);
 void	cap_init_proc0(struct cap *);
@@ -241,8 +242,24 @@ char	*cap_to_text(cap_t, ssize_t *);
  */
 int	cap_equal_np(cap_t, cap_t);
 
+/* Interpret the text relative to an existing cap_t. */
+cap_t	cap_from_text2_np(const char *, cap_t);
+
 /* Is the first cap set a subset of the second? */
 int	cap_subset_np(cap_t, cap_t);
+
+/*
+ * Like cap_to_text, takes an additional flags argument.  Flags are defined
+ * below (CTT_*).
+ */
+char	*cap_to_text2_np(cap_t, ssize_t *, int);
+
+#define	CTT_NOE	1	/* Do not output caps with only E flag set */
+#define	CTT_NOI	2	/* Do not output caps with only I flag set */
+#define	CTT_NOP	4	/* Do not output caps with only P flag set */
+#define	CTT_ALL	8	/* Do output caps with no flags set */
+
+#define	CTT_NOMSK	(CTT_NOE | CTT_NOI | CTT_NOP)
 
 #define	CAP_MAX_BUF_LEN		1024	/* Maximum cap text buffer length */
 
