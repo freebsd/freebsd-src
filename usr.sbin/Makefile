@@ -1,8 +1,9 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.134 1998/11/09 23:39:02 dima Exp $
+#	$Id: Makefile,v 1.135 1998/11/10 06:38:40 dima Exp $
 
 # XXX MISSING:		mkproto
-SUBDIR= ac \
+SUBDIR=	IPXrouted \
+	ac \
 	accton \
 	adduser \
 	amd \
@@ -13,16 +14,23 @@ SUBDIR= ac \
 	chkgrp \
 	chown \
 	chroot \
-	crunch \
 	ckdist \
 	config \
 	cron \
+	crunch \
 	ctm \
 	dev_mkdb \
 	diskpart \
 	edquota \
 	inetd \
 	iostat \
+	ipfstat \
+	ipftest \
+	ipmon \
+	ipnat \
+	ipresend \
+	ipsend \
+	iptest \
 	kbdcontrol \
 	kbdmap \
 	kernbb \
@@ -64,8 +72,8 @@ SUBDIR= ac \
 	rpc.lockd \
 	rpc.statd \
 	rpc.yppasswdd \
-	rpc.ypxfrd \
 	rpc.ypupdated \
+	rpc.ypxfrd \
 	rtprio \
 	rwhod \
 	sa \
@@ -86,22 +94,13 @@ SUBDIR= ac \
 	wormcontrol \
 	xntpd \
 	xten \
-	ypbind \
 	yp_mkdb \
+	ypbind \
 	yppoll \
 	yppush \
-	ypset \
 	ypserv \
-	zic \
-	IPXrouted
-
-SUBDIR+=ipfstat \
-	ipftest \
-	ipmon \
-	ipnat \
-	ipresend \
-	ipsend \
-	iptest
+	ypset \
+	zic
 
 .if !defined(NO_SENDMAIL)
 SUBDIR+=mailstats \
@@ -111,26 +110,25 @@ SUBDIR+=mailstats \
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=btxld \
-	kgmon \
-	pcvt \
-	pnpinfo \
-	rndcontrol \
-	wlconfig \
-
 SUBDIR+=apm \
 	apmconf \
 	bad144 \
+	btxld \
+	fdcontrol \
 	fdformat \
 	fdwrite \
-	fdcontrol \
+	kgmon \
 	lptcontrol \
 	mixer \
 	mptable \
+	pcvt \
+	pnpinfo \
+	rndcontrol \
 	sgsc \
 	sicontrol \
 	spkrtest \
-	stallion
+	stallion \
+	wlconfig
 .endif
 
 .include <bsd.subdir.mk>
