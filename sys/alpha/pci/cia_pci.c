@@ -142,7 +142,7 @@ cia_pcib_cvt_dense(device_t dev, vm_offset_t addr)
 static void *
 cia_pcib_cvt_bwx(device_t dev, vm_offset_t addr)
 {
-	if ((uintptr_t) device_get_ivars(dev)) {
+	if (chipset_bwx) {
 		addr &= 0xffffffffUL;
 		return (void *) KV(addr | CIA_EV56_BWMEM);
 	} else {
@@ -371,7 +371,7 @@ static u_int32_t
 cia_pcib_read_config(device_t dev, int b, int s, int f,
 		     int reg, int width)
 {
-	if ((uintptr_t) device_get_ivars(dev))
+	if (chipset_bwx)
 		return cia_pcib_bwx_read_config(b, s, f, reg, width);
 	else
 		return cia_pcib_swiz_read_config(b, s, f, reg, width);
@@ -381,7 +381,7 @@ static void
 cia_pcib_write_config(device_t dev, int b, int s, int f,
 		      int reg, u_int32_t val, int width)
 {
-	if ((uintptr_t) device_get_ivars(dev))
+	if (chipset_bwx)
 		cia_pcib_bwx_write_config(b, s, f, reg, val, width);
 	else
 		cia_pcib_swiz_write_config(b, s, f, reg, val, width);
