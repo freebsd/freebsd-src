@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.26 1994/05/25 08:54:35 rgrimes Exp $
+ *	$Id: pmap.c,v 1.27 1994/08/03 02:45:28 davidg Exp $
  */
 
 /*
@@ -149,11 +149,17 @@ static inline void		*vm_get_pmap();
 static inline void		vm_put_pmap();
 inline void			pmap_use_pt();
 inline void			pmap_unuse_pt();
-inline pt_entry_t * const	pmap_pte();
+inline pt_entry_t * pmap_pte();
 static inline pv_entry_t	get_pv_entry();
 void				pmap_alloc_pv_entry();
 void				pmap_clear_modify();
-void				i386_protection_init();
+static void			i386_protection_init();
+
+void	pmap_kenter	__P((vm_offset_t, vm_offset_t));
+void	pmap_kremove	__P((vm_offset_t));
+void	pmap_qenter	__P((vm_offset_t, vm_page_t *, int));
+void	pmap_qremove	__P((vm_offset_t, int));
+
 extern vm_offset_t clean_sva, clean_eva;
 extern int cpu_class;
 
@@ -693,8 +699,7 @@ pmap_alloc_pv_entry()
 			/*
 			 * let the kernel see it
 			 */
-			pmap_enter(vm_map_pmap(kernel_map), pvva,
-				VM_PAGE_TO_PHYS(m), VM_PROT_DEFAULT,1);
+			pmap_kenter(pvva, VM_PAGE_TO_PHYS(m));
 
 			entry = (pv_entry_t) pvva;
 			/*
@@ -1335,6 +1340,8 @@ pmap_qremove(va, count)
 
 /*
  * add a wired page to the kva
+ * note that in order for the mapping to take effect -- you
+ * should do a tlbflush after doing the pmap_kenter...
  */
 void
 pmap_kenter(va, pa)
@@ -1342,73 +1349,23 @@ pmap_kenter(va, pa)
 	register vm_offset_t pa;
 {
 	register pt_entry_t *pte;
-	register pv_entry_t pv, npv;
-	vm_offset_t opa;
-	int s;
-
-	/*
-	 * Enter on the PV list if part of our managed memory
-	 * Note that we raise IPL while manipulating pv_table
-	 * since pmap_enter can be called at interrupt time.
-	 */
-
 	pte = vtopte(va);
 
-	opa = pmap_pte_pa(pte);
-	/*
-	 * Mapping has not changed, must be protection or wiring change.
-	 */
-	if (opa == pa) {
-		/*
-		 * Wiring change, just update stats.
-		 * We don't worry about wiring PT pages as they remain
-		 * resident as long as there are valid mappings in them.
-		 * Hence, if a user page is wired, the PT page will be also.
-		 */
-		if (!pmap_pte_w(pte)) {
-			kernel_pmap->pm_stats.wired_count++;
-		}
-		goto validate;
-	}
-
-	if (opa) {
-		pmap_remove(kernel_pmap, va, va + PAGE_SIZE);
-	}
-
-	pv = pa_to_pvh(pa);
-	s = splhigh();
-	/*
-	 * No entries yet, use header as the first entry
-	 */
-	if (pv->pv_pmap == NULL) {
-		pv->pv_va = va;
-		pv->pv_pmap = kernel_pmap;
-		pv->pv_next = NULL;
-	}
-	/*
-	 * There is at least one other VA mapping this page.
-	 * Place this entry after the header.
-	 */
-	else {
-		npv = get_pv_entry();
-		npv->pv_va = va;
-		npv->pv_pmap = kernel_pmap;
-		npv->pv_next = pv->pv_next;
-		pv->pv_next = npv;
-	}
-	splx(s); 
-
-	/*
-	 * Increment counters
-	 */
-	kernel_pmap->pm_stats.resident_count++;
-
-validate:
-
-	/*
-	 * Now validate mapping with desired protection/wiring.
-	 */
 	*pte = (pt_entry_t) ( (int) (pa | PG_RW | PG_V | PG_W));
+}
+
+/*
+ * remove a page from the kernel pagetables
+ */
+void
+pmap_kremove( va)
+	vm_offset_t va;
+{
+	register pt_entry_t *pte;
+	pte = vtopte(va);
+
+	*pte = (pt_entry_t) 0;
+	tlbflush();
 }
 
 /*
@@ -1799,6 +1756,10 @@ pmap_testbit(pa, bit)
 					}
 				}
 			}
+			if( !pv->pv_pmap) {
+				printf("Null pmap (tb) at va: 0x%lx\n", pv->pv_va);
+				continue;
+			}
 			pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 			if ((int) *pte & bit) {
 				splx(s);
@@ -1846,6 +1807,10 @@ pmap_changebit(pa, bit, setem)
 					continue;
 			}
 
+			if( !pv->pv_pmap) {
+				printf("Null pmap (cb) at va: 0x%lx\n", va);
+				continue;
+			}
 			pte = pmap_pte(pv->pv_pmap, va);
 			if (setem)
 				(int) npte = (int) *pte | bit;

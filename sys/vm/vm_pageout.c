@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.5 1994/08/02 07:55:33 davidg Exp $
+ * $Id: vm_pageout.c,v 1.6 1994/08/04 03:06:47 davidg Exp $
  */
 
 /*
@@ -617,10 +617,12 @@ rescan1:
 			if (written = vm_pageout_clean(m,0)) {
 				maxlaunder -= written;
 			}
+			if (!next)
+				break;
 			/*
 			 * if the next page has been re-activated, start scanning again
 			 */
-			if (!next || (next->flags & PG_INACTIVE) == 0)
+			if ((next->flags & PG_INACTIVE) == 0)
 				goto rescan1;
 		} else if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
@@ -706,7 +708,6 @@ rescan1:
 				TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
 			}
 		}
-
 		m = next;
 	}
 

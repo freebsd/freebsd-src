@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id$
+ * $Id: swap_pager.c,v 1.4 1994/08/02 07:55:13 davidg Exp $
  */
 
 /*
@@ -1030,19 +1030,8 @@ swap_pager_input(swp, m, count, reqpage)
 	 */
 	
 	spc = NULL;	/* we might not use an spc data structure */
-	kva = 0;
 
-	/*
-	 * we allocate a new kva for transfers > 1 page
-	 * but for transfers == 1 page, the swap_pager_free list contains
-	 * entries that have pre-allocated kva's (for efficiency).
-	 */
-	if (count > 1) {
-		kva = kmem_alloc_pageable(pager_map, count*PAGE_SIZE);
-	}
-
-
-	if (!kva) {
+	if (count == 1) {
 		/*
 		 * if a kva has not been allocated, we can only do a one page transfer,
 		 * so we free the other pages that might have been allocated by
@@ -1077,28 +1066,21 @@ swap_pager_input(swp, m, count, reqpage)
 		spc = swap_pager_free.tqh_first;
 		TAILQ_REMOVE(&swap_pager_free, spc, spc_list);
 		kva = spc->spc_kva;
-	}
-	
-
-	/*
-	 * map our page(s) into kva for input
-	 */
-	for (i = 0; i < count; i++) {
-		pmap_kenter( kva + PAGE_SIZE * i, VM_PAGE_TO_PHYS(m[i]));
-	}
-	pmap_update();
-
-
-	/*
-	 * Get a swap buffer header and perform the IO
-	 */
-	if( spc) {
 		bp = spc->spc_bp;
 		bzero(bp, sizeof *bp);
 		bp->b_spc = spc;
 	} else {
+	/*
+	 * Get a swap buffer header to perform the IO
+	 */
 		bp = getpbuf();
+		kva = (vm_offset_t) bp->b_data;
 	}
+
+	/*
+	 * map our page(s) into kva for input
+	 */
+	pmap_qenter( kva, m, count);
 
 	s = splbio();
 	bp->b_flags = B_BUSY | B_READ | B_CALL;
@@ -1112,12 +1094,6 @@ swap_pager_input(swp, m, count, reqpage)
 	bp->b_bcount = PAGE_SIZE*count;
 	bp->b_bufsize = PAGE_SIZE*count;
 
-/*
-	VHOLD(swapdev_vp);
-	bp->b_vp = swapdev_vp;
-	if (swapdev_vp->v_type == VBLK)
-		bp->b_dev = swapdev_vp->v_rdev;
-*/
 	bgetvp( swapdev_vp, bp);
 
 	swp->sw_piip++;
@@ -1153,7 +1129,7 @@ swap_pager_input(swp, m, count, reqpage)
 	/*
 	 * remove the mapping for kernel virtual
 	 */
-	pmap_remove(vm_map_pmap(pager_map), kva, kva + count * PAGE_SIZE);
+	pmap_qremove( kva, count);
 
 	if (spc) {
 		/*
@@ -1169,10 +1145,6 @@ swap_pager_input(swp, m, count, reqpage)
 			wakeup((caddr_t)&swap_pager_free);
 		}
 	} else {
-		/*
-		 * free the kernel virtual addresses
-		 */
-		kmem_free_wakeup(pager_map, kva, count * PAGE_SIZE);
 		/*
 		 * release the physical I/O buffer
 		 */
@@ -1372,6 +1344,11 @@ retrygetspace:
 	 * we allocate a new kva for transfers > 1 page
 	 * but for transfers == 1 page, the swap_pager_free list contains
 	 * entries that have pre-allocated kva's (for efficiency).
+	 * NOTE -- we do not use the physical buffer pool or the
+	 * preallocated associated kva's because of the potential for
+	 * deadlock.  This is very subtile -- but deadlocks or resource
+	 * contention must be avoided on pageouts -- or your system will
+	 * sleep (forever) !!!
 	 */
 	if ( count > 1) {
 		kva = kmem_alloc_pageable(pager_map, count*PAGE_SIZE);
@@ -1429,10 +1406,7 @@ retrygetspace:
 	/*
 	 * map our page(s) into kva for I/O
 	 */
-	for (i = 0; i < count; i++) {
-		pmap_kenter( kva + PAGE_SIZE * i, VM_PAGE_TO_PHYS(m[i]));
-	}
-	pmap_update();
+	pmap_qenter(kva, m, count);
 
 	/*
 	 * get the base I/O offset into the swap file
@@ -1473,12 +1447,7 @@ retrygetspace:
 	bp->b_un.b_addr = (caddr_t) kva;
 	bp->b_blkno = reqaddr[0];
 	bgetvp( swapdev_vp, bp);
-/*
-	VHOLD(swapdev_vp);
-	bp->b_vp = swapdev_vp;
-	if (swapdev_vp->v_type == VBLK)
-		bp->b_dev = swapdev_vp->v_rdev;
-*/
+
 	bp->b_bcount = PAGE_SIZE*count;
 	bp->b_bufsize = PAGE_SIZE*count;
 	swapdev_vp->v_numoutput++;
@@ -1543,7 +1512,7 @@ retrygetspace:
 	/*
 	 * remove the mapping for kernel virtual
 	 */
-	pmap_remove(vm_map_pmap(pager_map), kva, kva + count * PAGE_SIZE);
+	pmap_qremove( kva, count);
 
 	/*
 	 * if we have written the page, then indicate that the page
@@ -1604,11 +1573,11 @@ swap_pager_clean()
 		 */
 		while (spc = swap_pager_done.tqh_first) {
 			if( spc->spc_altkva) {
-				pmap_remove(vm_map_pmap(pager_map), spc->spc_altkva, spc->spc_altkva + spc->spc_count * PAGE_SIZE);
+				pmap_qremove( spc->spc_altkva, spc->spc_count);
 				kmem_free_wakeup(pager_map, spc->spc_altkva, spc->spc_count * PAGE_SIZE);
 				spc->spc_altkva = 0;
 			} else {
-				pmap_remove(vm_map_pmap(pager_map), spc->spc_kva, spc->spc_kva + PAGE_SIZE);
+				pmap_qremove( spc->spc_kva, 1);
 			}
 			swap_pager_finish(spc);
 			TAILQ_REMOVE(&swap_pager_done, spc, spc_list);
@@ -1738,86 +1707,6 @@ swap_pager_iodone(bp)
 	    (cnt.v_free_count < cnt.v_free_min &&
 	    nswiodone + cnt.v_free_count >= cnt.v_free_min) ) {
 		wakeup((caddr_t)&vm_pages_needed);
-	}
-	splx(s);
-}
-
-int bswneeded;
-/* TAILQ_HEAD(swqueue, buf) bswlist; */
-/*
- * allocate a physical buffer 
- */
-struct buf *
-getpbuf() {
-	int s;
-	struct buf *bp;
-
-	s = splbio();
-	/* get a bp from the swap buffer header pool */
-	while ((bp = bswlist.tqh_first) == NULL) {
-		bswneeded = 1;
-		tsleep((caddr_t)&bswneeded, PVM, "wswbuf", 0); 
-	}
-	TAILQ_REMOVE(&bswlist, bp, b_freelist);
-
-	splx(s);
-
-	bzero(bp, sizeof *bp);
-	bp->b_rcred = NOCRED;
-	bp->b_wcred = NOCRED;
-	return bp;
-}
-
-/*
- * allocate a physical buffer, if one is available
- */
-struct buf *
-trypbuf() {
-	int s;
-	struct buf *bp;
-
-	s = splbio();
-	if ((bp = bswlist.tqh_first) == NULL) {
-		splx(s);
-		return NULL;
-	}
-	TAILQ_REMOVE(&bswlist, bp, b_freelist);
-	splx(s);
-
-	bzero(bp, sizeof *bp);
-	bp->b_rcred = NOCRED;
-	bp->b_wcred = NOCRED;
-	return bp;
-}
-
-/*
- * release a physical buffer
- */
-void
-relpbuf(bp)
-	struct buf *bp;
-{
-	int s;
-
-	s = splbio();
-
-	if (bp->b_rcred != NOCRED) {
-		crfree(bp->b_rcred);
-		bp->b_rcred = NOCRED;
-	}
-	if (bp->b_wcred != NOCRED) {
-		crfree(bp->b_wcred);
-		bp->b_wcred = NOCRED;
-	}
-
-	if (bp->b_vp)
-		brelvp(bp);
-
-	TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
-
-	if (bswneeded) {
-		bswneeded = 0;
-		wakeup((caddr_t)&bswlist);
 	}
 	splx(s);
 }
