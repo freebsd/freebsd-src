@@ -178,7 +178,6 @@ dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
-dev/pcic/i82365_isasubr.c optional pcic pccard
 dev/pdq/pdq.c		optional fea
 dev/pdq/pdq_ifsubr.c	optional fea
 dev/pdq/pdq.c		optional fpa
