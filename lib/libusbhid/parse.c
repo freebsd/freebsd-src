@@ -1,7 +1,7 @@
 /*	$NetBSD: parse.c,v 1.11 2000/09/24 02:19:54 augustss Exp $	*/
 
 /*
- * Copyright (c) 1999 Lennart Augustsson <augustss@netbsd.org>
+ * Copyright (c) 1999, 2001 Lennart Augustsson <augustss@netbsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
 
-#include "libusbhid.h"
+#include "usbhid.h"
 #include "usbvar.h"
 
 #define MAXUSAGE 100
@@ -49,17 +49,29 @@ struct hid_data {
 	unsigned int usages[MAXUSAGE];
 	int nusage;
 	int minset;
+	int logminsize;
 	int multi;
 	int multimax;
 	int kindset;
+	int reportid;
 
-	/* Absolute data position (bits) for input/output/feature.
-           Assumes that hid_input, hid_output and hid_feature have
-           values 0, 1 and 2. */
-        unsigned int kindpos[3];
+	/*
+	 * The start of collection item has no report ID set, so save
+	 * it until we know the ID.
+	 */
+	hid_item_t savedcoll;
+	u_char hassavedcoll;
+	/*
+	 * Absolute data position (bits) for input/output/feature.
+	 *  Assumes that hid_input, hid_output and hid_feature have
+	 *  values 0, 1 and 2.
+	 */
+	unsigned int kindpos[3];
 };
 
 static int min(int x, int y) { return x < y ? x : y; }
+
+static int hid_get_item_raw(hid_data_t s, hid_item_t *h);
 
 static void
 hid_clear_local(hid_item_t *c)
@@ -78,7 +90,7 @@ hid_clear_local(hid_item_t *c)
 }
 
 hid_data_t
-hid_start_parse(report_desc_t d, int kindset)
+hid_start_parse(report_desc_t d, int kindset, int id)
 {
 	struct hid_data *s;
 
@@ -87,6 +99,8 @@ hid_start_parse(report_desc_t d, int kindset)
 	s->start = s->p = d->data;
 	s->end = d->data + d->size;
 	s->kindset = kindset;
+	s->reportid = id;
+	s->hassavedcoll = 0;
 	return (s);
 }
 
@@ -104,12 +118,38 @@ hid_end_parse(hid_data_t s)
 int
 hid_get_item(hid_data_t s, hid_item_t *h)
 {
+	int r;
+
+	for (;;) {
+		r = hid_get_item_raw(s, h);
+		if (r <= 0)
+			break;
+		if (h->report_ID == s->reportid || s->reportid == -1)
+			break;
+	}
+	return (r);
+}
+
+#define REPORT_SAVED_COLL \
+	do { \
+		if (s->hassavedcoll) { \
+			*h = s->savedcoll; \
+			h->report_ID = c->report_ID; \
+			s->hassavedcoll = 0; \
+			return (1); \
+		} \
+	} while(/*LINTED*/ 0)
+
+static int
+hid_get_item_raw(hid_data_t s, hid_item_t *h)
+{
 	hid_item_t *c;
 	unsigned int bTag = 0, bType = 0, bSize;
 	unsigned char *data;
 	int dval;
 	unsigned char *p;
 	hid_item_t *hi;
+	hid_item_t nc;
 	int i;
 	hid_kind_t retkind;
 
@@ -117,13 +157,21 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 
  top:
 	if (s->multimax) {
+		REPORT_SAVED_COLL;
+		if (c->logical_minimum >= c->logical_maximum) {
+			if (s->logminsize == 1)
+				c->logical_minimum =(int8_t)c->logical_minimum;
+			else if (s->logminsize == 2)
+				c->logical_minimum =(int16_t)c->logical_minimum;
+		}
 		if (s->multi < s->multimax) {
 			c->usage = s->usages[min(s->multi, s->nusage-1)];
 			s->multi++;
 			*h = *c;
-
-			/* 'multimax' is only non-zero if the current
-                           item kind is input/output/feature */
+			/*
+			 * 'multimax' is only non-zero if the current
+                         *  item kind is input/output/feature
+			 */
 			h->pos = s->kindpos[c->kind];
 			s->kindpos[c->kind] += c->report_size;
 			h->next = 0;
@@ -208,6 +256,8 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 							if (s->nusage < MAXUSAGE-1)
 								s->nusage++;
 						}
+						c->usage_minimum = 0;
+						c->usage_maximum = 0;
 						s->minset = 0;
 					}
 					goto top;
@@ -217,7 +267,8 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 					*h = *c;
 					h->next = 0;
 					h->pos = s->kindpos[c->kind];
-					s->kindpos[c->kind] += c->report_size * c->report_count;
+					s->kindpos[c->kind] +=
+					    c->report_size * c->report_count;
 					hid_clear_local(c);
 					s->minset = 0;
 					return (1);
@@ -229,15 +280,25 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 				c->kind = hid_collection;
 				c->collection = dval;
 				c->collevel++;
-				*h = *c;
+				nc = *c;
 				hid_clear_local(c);
-				c->report_ID = NO_REPORT_ID;
+				/*c->report_ID = NO_REPORT_ID;*/
 				s->nusage = 0;
-				return (1);
+				if (s->hassavedcoll) {
+					*h = s->savedcoll;
+					h->report_ID = nc.report_ID;
+					s->savedcoll = nc;
+					return (1);
+				} else {
+					s->hassavedcoll = 1;
+					s->savedcoll = nc;
+				}
+				break;
 			case 11:	/* Feature */
 				retkind = hid_feature;
 				goto ret;
 			case 12:	/* End collection */
+				REPORT_SAVED_COLL;
 				c->kind = hid_endcollection;
 				c->collevel--;
 				*h = *c;
@@ -247,6 +308,7 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 			default:
 				return (-2);
 			}
+			break;
 
 		case 1:		/* Global */
 			switch (bTag) {
@@ -255,6 +317,7 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 				break;
 			case 1:
 				c->logical_minimum = dval;
+				s->logminsize = bSize;
 				break;
 			case 2:
 				c->logical_maximum = dval;
@@ -276,6 +339,9 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 				break;
 			case 8:
 				c->report_ID = dval;
+				s->kindpos[hid_input] =
+				    s->kindpos[hid_output] =
+				    s->kindpos[hid_feature] = 0;
 				break;
 			case 9:
 				c->report_count = dval;
@@ -297,29 +363,17 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 		case 2:		/* Local */
 			switch (bTag) {
 			case 0:
-				if (bSize == 1)
-					dval = c->_usage_page | (dval&0xff);
-				else if (bSize == 2)
-					dval = c->_usage_page | (dval&0xffff);
-				c->usage = dval;
+				c->usage = c->_usage_page | dval;
 				if (s->nusage < MAXUSAGE)
-					s->usages[s->nusage++] = dval;
+					s->usages[s->nusage++] = c->usage;
 				/* else XXX */
 				break;
 			case 1:
 				s->minset = 1;
-				if (bSize == 1)
-					dval = c->_usage_page | (dval&0xff);
-				else if (bSize == 2)
-					dval = c->_usage_page | (dval&0xffff);
-				c->usage_minimum = dval;
+				c->usage_minimum = c->_usage_page | dval;
 				break;
 			case 2:
-				if (bSize == 1)
-					dval = c->_usage_page | (dval&0xff);
-				else if (bSize == 2)
-					dval = c->_usage_page | (dval&0xffff);
-				c->usage_maximum = dval;
+				c->usage_maximum = c->_usage_page | dval;
 				break;
 			case 3:
 				c->designator_index = dval;
@@ -353,35 +407,30 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 }
 
 int
-hid_report_size(report_desc_t r, unsigned int id, enum hid_kind k)
+hid_report_size(report_desc_t r, enum hid_kind k, int id)
 {
 	struct hid_data *d;
 	hid_item_t h;
-	unsigned int size = 0;
+	int size;
 
 	memset(&h, 0, sizeof h);
-	d = hid_start_parse(r, 1<<k);
-	while (hid_get_item(d, &h)) {
+	size = 0;
+	for (d = hid_start_parse(r, 1<<k, id); hid_get_item(d, &h); ) {
 		if (h.report_ID == id && h.kind == k) {
-			unsigned int newsize = h.pos + h.report_size;
-			if (newsize > size)
-			    size = newsize;
+			size = d->kindpos[k];
 		}
 	}
 	hid_end_parse(d);
-
-	if (id != NO_REPORT_ID)
-		size += 8;		/* add 8 bits for the report ID */
-
-	return ((size + 7) / 8);	/* return size in bytes */
+	return ((size + 7) / 8);
 }
 
 int
-hid_locate(report_desc_t desc, unsigned int u, enum hid_kind k, hid_item_t *h)
+hid_locate(report_desc_t desc, unsigned int u, enum hid_kind k,
+	   hid_item_t *h, int id)
 {
 	hid_data_t d;
 
-	for (d = hid_start_parse(desc, 1<<k); hid_get_item(d, h); ) {
+	for (d = hid_start_parse(desc, 1<<k, id); hid_get_item(d, h); ) {
 		if (h->kind == k && !(h->flags & HIO_CONST) && h->usage == u) {
 			hid_end_parse(d);
 			return (1);
