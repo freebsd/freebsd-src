@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: mail.sgml,v 1.2 1996/12/16 14:35:32 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.2 -->
+<!-- Original revision: 1.3 -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -23,7 +23,6 @@
 
 <p> 電子メール, というとその概念は簡単そうに聞こえますが, 電子メールは
 非常に複雑な仕組みになっています. 1台のマシン上で電子メールシステムを
-もしあなたが, あるマシン上で電子
 単純にセットアップする以上のことをしたい場合には, sendmail についての
 本を買って参照してください. 
 
@@ -97,7 +96,7 @@ myhost.smalliap.com	A	xxx.xxx.xxx.xxx		; Your ip
 </verb>
  
 自前で DNS サーバを走らせているのでなければ, この作業は, 自分では
-おこなえません.自分で DNS サーバを走らせたくなければ,
+おこなえません. 自分で DNS サーバを走らせたくなければ,
 インターネットプロバイダ等に依頼して, 作業をおこなってもらってください. 
 
 この作業により, あなたのホスト宛のメールは, 
@@ -115,7 +114,7 @@ smtp.amalliap.com に送りたいと思っています.
 しなければなりません:
 
 <verb> 
-myhost.smalliap.com	MX  10	smtp.smalliap.com	; your mailhost
+foo.bar 	MX  10	smtp.smalliap.com	; your mailhost
 </verb>
 
 そのドメインに対して電子メールを送りたいだけなら, 
@@ -125,7 +124,7 @@ A レコードは必要ありません.
 メールホスト上では, sendmail がどのホストに対してのメールを受け付けて
 いるかを知らせなければなりません.
 
-<p>そのためには, (FEATURE(use_cw_file) を使用している場合は)
+<p>そのためには, (FEATURE(use_cw_file) を使用している場合)
 /etc/sendmail.cw ファイルに myhost.smalliap.com を追加してください. 
 または, /etc/sendmail.cf ファイルに, "Cw myhost.smalliap.com" の行を
 追加してください. 
@@ -233,8 +232,8 @@ domain foo.bar.edu
 	  がおこなうことだと考えられています. sendmail のバージョン 8 
 	  では, <tt>m4</tt> プリプロセッサを使用して, 
 	  コンフィグレーションファイルを生成する方法が取られています.
-	  この場合, 実際に手動で作成したコンフィギュレーションは,
-	  実際のコンフィギュレーションより簡潔です. 
+	  この場合, 実際に手動で作成したコンフィグレーションは,
+	  実際のコンフィグレーションより簡潔です. 
 	  以下の場所にあるコンフィギュレーションファイルを使用してく
 	  ださい. 
 
@@ -264,7 +263,7 @@ domain foo.bar.edu
 	  使用するデータベースファイルです. 
 
 	<p>
-	  まずはじめに, <tt>.mc</tt> ファイルを作を作成します.
+	  まずはじめに, <tt>.mc</tt> ファイルを作成します.
 	  <tt>/usr/src/usr.sbin/snemdail/cf/cf</tt> ディレクトリに
 	  これらのファイルを置きます. ここには既にいくつかの例が
 	  置いてあるので, 見てください. 
