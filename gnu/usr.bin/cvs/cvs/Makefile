@@ -11,8 +11,8 @@ import.c lock.c log.c logmsg.c main.c rcs.c modules.c \
 no_diff.c parseinfo.c patch.c recurse.c release.c remove.c repos.c rtag.c \
 status.c tag.c update.c vers_ts.c version.c
 
-MAN1=	cvs.0
-MAN5=	cvs.0
+MAN1=	cvs.1
+MAN5=	cvs.5
 
 .include <bsd.prog.mk>
 .include "../../Makefile.inc"
