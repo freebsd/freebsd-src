@@ -81,11 +81,12 @@ mkfullname(const char *s1, const char *s2, const char *s3)
 	int f;
 
 	f = strlen(s1) + strlen(s2) + strlen(s3) + 1;
-	if (f > bufl)
+	if (f > bufl) {
 		if (buf)
 			buf = (char *)realloc(buf, f);
 		else
 			buf = (char *)malloc(f);
+	}
 	if (!buf) {
 		bufl = 0;
 		return(NULL);
