@@ -101,8 +101,7 @@
 
 #include <pci.h>
 #if NPCI > 0
-#include <i386/pci/pci.h>
-#include <i386/pci/pci_device.h>
+#include <i386/pci/pcireg.h>
 #endif
 #include <i386/isa/icu.h>
 #include <i386/pci/dc21040.h>
@@ -310,7 +309,7 @@ tulip_init(
     int unit)
 {
     tulip_softc_t *sc = tulips[unit];
-    unsigned new_cmdmode;
+    /* XXX unsigned new_cmdmode; */
 
     if (sc->tulip_if.if_flags & IFF_UP) {
 	sc->tulip_if.if_flags |= IFF_RUNNING;
@@ -332,7 +331,7 @@ tulip_init(
 	    sc->tulip_intrmask &= ~TULIP_STS_RXSTOPPED;
 	    tulip_start(&sc->tulip_if);
 	}
-	tulip_cmdnode |= TULIP_CMD_THRSHLD160;
+	sc->tulip_cmdmode |= TULIP_CMD_THRSHLD160;
 	*sc->tulip_csrs.csr_intr = sc->tulip_intrmask;
 	*sc->tulip_csrs.csr_command = sc->tulip_cmdmode;
     } else {
@@ -690,13 +689,12 @@ tulip_start(
 
 static int
 tulip_intr(
-    int unit)
+    tulip_softc_t *sc)
 {
-    tulip_softc_t *sc = tulips[unit];
     tulip_uint32_t csr;
     unsigned spins = 0;
 
-    tulip_intrs[unit]++;
+    /* XXX tulip_intrs[unit]++; */
 
     while ((csr = *sc->tulip_csrs.csr_status) & (TULIP_STS_NORMALINTR|TULIP_STS_ABNRMLINTR)) {
 	*sc->tulip_csrs.csr_status = csr & sc->tulip_intrmask;
@@ -706,7 +704,7 @@ tulip_intr(
 	    if ((csr & TULIP_STS_ERRORMASK) == TULIP_STS_ERR_PARITY) {
 		TULIP_RESET(sc);
 		tulip_init(sc->tulip_unit);
-		return unit;
+		return (1);
 	    }
 	}
 	if (csr & TULIP_STS_RXINTR)
@@ -723,7 +721,7 @@ tulip_intr(
     }
     if (spins > sc->tulip_high_intrspins)
 	sc->tulip_high_intrspins = spins;
-    return unit;
+    return (1);
 }
 
 /*
@@ -777,6 +775,7 @@ tulip_read_macaddr(
     return 0;
 }
 
+#ifdef MULTICAST
 static unsigned
 tulip_mchash(
     unsigned char *mca)
@@ -794,20 +793,24 @@ tulip_mchash(
 #endif
     return crc & 0x1FF;
 }
+#endif MULTICAST
 
 static void
 tulip_addr_filter(
     tulip_softc_t *sc)
 {
     tulip_uint32_t *sp = sc->tulip_setupdata;
+#ifdef MULTICAST
     struct ether_multistep step;
     struct ether_multi *enm;
+#endif
     int i;
 
     sc->tulip_flags &= ~TULIP_WANTHASH;
     sc->tulip_flags |= TULIP_WANTSETUP;
     sc->tulip_cmdmode &= ~TULIP_CMD_RXRUN;
     sc->tulip_intrmask &= ~TULIP_STS_RXSTOPPED;
+#ifdef MULTICAST
     if (sc->tulip_ac.ac_multicnt > 14) {
 	unsigned hash;
 	/*
@@ -830,10 +833,12 @@ tulip_addr_filter(
 	sp[41] = ((u_short *) sc->tulip_ac.ac_enaddr)[1]; 
 	sp[42] = ((u_short *) sc->tulip_ac.ac_enaddr)[2];
     } else {
+#endif
 	/*
 	 * Else can get perfect filtering for 16 addresses.
 	 */
 	i = 0;
+#ifdef MULTICAST
 	ETHER_FIRST_MULTI(step, &sc->tulip_ac, enm);
 	for (; enm != NULL; i++) {
 	    *sp++ = ((u_short *) enm->enm_addrlo)[0]; 
@@ -841,6 +846,7 @@ tulip_addr_filter(
 	    *sp++ = ((u_short *) enm->enm_addrlo)[2];
 	    ETHER_NEXT_MULTI(step, enm);
 	}
+#endif
 	/*
 	 * If an IP address is enabled, turn on broadcast
 	 */
@@ -858,7 +864,9 @@ tulip_addr_filter(
 	    *sp++ = ((u_short *) sc->tulip_ac.ac_enaddr)[1]; 
 	    *sp++ = ((u_short *) sc->tulip_ac.ac_enaddr)[2];
 	}
+#ifdef MULTICAST
     }
+#endif
 }
 
 static int
@@ -931,6 +939,7 @@ tulip_ioctl(
 	    break;
 	}
 
+#ifdef MULTICAST
 	case SIOCADDMULTI:
 	case SIOCDELMULTI: {
 	    /*
@@ -948,6 +957,7 @@ tulip_ioctl(
 	    }
 	    break;
 	}
+#endif /* MULTICAST */
 
 	default: {
 	    error = EINVAL;
@@ -968,7 +978,9 @@ tulip_attach(
     int cnt;
 
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
+#ifdef MULTICAST
     ifp->if_flags |= IFF_MULTICAST;
+#endif /* MULTICAST */
 
     *sc->tulip_csrs.csr_sia_connectivity = 0;
     *sc->tulip_csrs.csr_sia_connectivity = TULIP_SIACONN_10BASET;
@@ -1066,18 +1078,14 @@ tulip_initring(
  * on both EISA and PCI boards, one must be careful in how defines the
  * DC21040 in the config file.
  */
-static int tulip_pci_probe(pcici_t config_id);
-static int tulip_pci_attach(pcici_t config_id);
+static char* tulip_pci_probe (pcici_t config_id, pcidi_t device_id);
+static void  tulip_pci_attach(pcici_t config_id, int unit);
+static u_long tulip_count;
 
 struct pci_driver dedevice = {
     tulip_pci_probe,
     tulip_pci_attach,
-    0x00021011ul,
-#if __FreeBSD__ == 1
-    "de",
-#endif
-    "digital dc21040 ethernet",
-    tulip_intr
+   &tulip_count,
 };
 
 #define	PCI_CFID	0x00	/* Configuration ID */
@@ -1090,39 +1098,41 @@ struct pci_driver dedevice = {
 #define	PCI_CFDA	0x40	/* Configuration Driver Area */
 
 #define	TULIP_PCI_CSRSIZE	(8 / sizeof(tulip_uint32_t))
-static int
+static char*
 tulip_pci_probe(
-    pcici_t config_id)
+    pcici_t config_id,
+    pcidi_t device_id)
 {
     int idx;
+    if (device_id != 0x00021011ul)
+	return (NULL);
     for (idx = 0; idx < NDE; idx++)
 	if (tulips[idx] == NULL)
-	    return idx;
-    return -1;
+	    return ("digital dc21040 ethernet");
+    return (NULL);
 }
 
-static int
+static void
 tulip_pci_attach(
-    pcici_t config_id)
+    pcici_t config_id,
+    int unit)
 {
     tulip_softc_t *sc;
-    int retval, idx, revinfo, unit;
-    signed int csr;
+    int retval, idx /* XXX , revinfo, */;
+    /* XXX signed int csr; */
     vm_offset_t va_csrs, pa_csrs;
-    int result;
+    /* XXX int result;*/
     tulip_desc_t *rxdescs, *txdescs;
-
-    unit = tulip_pci_probe(config_id);
 
     sc = (tulip_softc_t *) malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
     if (sc == NULL)
-	return -1;
+	return;
 
     rxdescs = (tulip_desc_t *)
 	malloc(sizeof(tulip_desc_t) * TULIP_RXDESCS, M_DEVBUF, M_NOWAIT);
     if (rxdescs == NULL) {
 	free((caddr_t) sc, M_DEVBUF);
-	return -1;
+	return;
     }
 
     txdescs = (tulip_desc_t *)
@@ -1130,7 +1140,7 @@ tulip_pci_attach(
     if (txdescs == NULL) {
 	free((caddr_t) rxdescs, M_DEVBUF);
 	free((caddr_t) sc, M_DEVBUF);
-	return -1;
+	return;
     }
 
     bzero(sc, sizeof(sc));				/* Zero out the softc*/
@@ -1148,13 +1158,12 @@ tulip_pci_attach(
     sc->tulip_unit = unit;
     sc->tulip_name = "de";
     retval = pci_map_mem(config_id, PCI_CBMA, &va_csrs, &pa_csrs);
-    if (retval) {
-	printf("de%d: pci_map_mem failed.\n", unit);
+    if (!retval) {
 	kmem_free(kernel_map, sc->tulip_rxspace, TULIP_RXSPACE + NBPG);
 	free((caddr_t) txdescs, M_DEVBUF);
 	free((caddr_t) rxdescs, M_DEVBUF);
 	free((caddr_t) sc, M_DEVBUF);
-	return -1;
+	return;
     }
     tulips[unit] = sc;
     tulip_initcsrs(sc, (volatile tulip_uint32_t *) va_csrs, TULIP_PCI_CSRSIZE);
@@ -1171,10 +1180,10 @@ tulip_pci_attach(
 	       (sc->tulip_revinfo & 0xF0) >> 4, sc->tulip_revinfo & 0x0F,
 	       "unknown");
     } else {
+	pci_map_int (config_id, tulip_intr, (void*) sc, &net_imask);
 	TULIP_RESET(sc);
 	tulip_attach(sc);
     }
-    return 1;
 }
 #endif /* NPCI > 0 */
 #endif /* NDE > 0 */
