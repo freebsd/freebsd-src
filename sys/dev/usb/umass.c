@@ -394,25 +394,26 @@ struct umass_softc {
 	int			transfer_status;
 
 	int			transfer_state;
-#	define TSTATE_IDLE			0
-#	define TSTATE_BBB_COMMAND		1	/* CBW transfer */
-#	define TSTATE_BBB_DATA			2	/* Data transfer */
-#	define TSTATE_BBB_DCLEAR		3	/* clear endpt stall */
-#	define TSTATE_BBB_STATUS1		4	/* clear endpt stall */
-#	define TSTATE_BBB_SCLEAR		5	/* clear endpt stall */
-#	define TSTATE_BBB_STATUS2		6	/* CSW transfer */
-#	define TSTATE_BBB_RESET1		7	/* reset command */
-#	define TSTATE_BBB_RESET2		8	/* in clear stall */
-#	define TSTATE_BBB_RESET3		9	/* out clear stall */
-#	define TSTATE_CBI_COMMAND		10	/* command transfer */
-#	define TSTATE_CBI_DATA			11	/* data transfer */
-#	define TSTATE_CBI_STATUS		12	/* status transfer */
-#	define TSTATE_CBI_DCLEAR		13	/* clear ep stall */
-#	define TSTATE_CBI_SCLEAR		14	/* clear ep stall */
-#	define TSTATE_CBI_RESET1		15	/* reset command */
-#	define TSTATE_CBI_RESET2		16	/* in clear stall */
-#	define TSTATE_CBI_RESET3		17	/* out clear stall */
-#	define TSTATE_STATES			18	/* # of states above */
+#	define TSTATE_ATTACH			0	/* in attach */
+#	define TSTATE_IDLE			1
+#	define TSTATE_BBB_COMMAND		2	/* CBW transfer */
+#	define TSTATE_BBB_DATA			3	/* Data transfer */
+#	define TSTATE_BBB_DCLEAR		4	/* clear endpt stall */
+#	define TSTATE_BBB_STATUS1		5	/* clear endpt stall */
+#	define TSTATE_BBB_SCLEAR		6	/* clear endpt stall */
+#	define TSTATE_BBB_STATUS2		7	/* CSW transfer */
+#	define TSTATE_BBB_RESET1		8	/* reset command */
+#	define TSTATE_BBB_RESET2		9	/* in clear stall */
+#	define TSTATE_BBB_RESET3		10	/* out clear stall */
+#	define TSTATE_CBI_COMMAND		11	/* command transfer */
+#	define TSTATE_CBI_DATA			12	/* data transfer */
+#	define TSTATE_CBI_STATUS		13	/* status transfer */
+#	define TSTATE_CBI_DCLEAR		14	/* clear ep stall */
+#	define TSTATE_CBI_SCLEAR		15	/* clear ep stall */
+#	define TSTATE_CBI_RESET1		16	/* reset command */
+#	define TSTATE_CBI_RESET2		17	/* in clear stall */
+#	define TSTATE_CBI_RESET3		18	/* out clear stall */
+#	define TSTATE_STATES			19	/* # of states above */
 
 
 	/* SCSI/CAM specific variables */
@@ -428,6 +429,7 @@ struct umass_softc {
 #ifdef UMASS_DEBUG
 char *states[TSTATE_STATES+1] = {
 	/* should be kept in sync with the list at transfer_state */
+	"Attach",
 	"Idle",
 	"BBB CBW",
 	"BBB Data",
@@ -932,7 +934,7 @@ USB_ATTACH(umass)
 	}
 
 	/* initialisation of generic part */
-	sc->transfer_state = TSTATE_IDLE;
+	sc->transfer_state = TSTATE_ATTACH;
 
 	/* request a sufficient number of xfer handles */
 	for (i = 0; i < XFER_NR; i++) {
@@ -1015,7 +1017,7 @@ USB_ATTACH(umass)
 		      __FILE__, __LINE__, sc->proto);
 	}
 
-	
+	sc->transfer_state = TSTATE_IDLE;
 	DPRINTF(UDMASS_GEN, ("%s: Attach finished\n", USBDEVNAME(sc->sc_dev)));
 
 	USB_ATTACH_SUCCESS_RETURN;
