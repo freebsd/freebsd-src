@@ -30,11 +30,20 @@
 #define _MONETARY_H
 
 #include <sys/cdefs.h>
-#include <sys/types.h>
-#include <stddef.h>
+#include <machine/ansi.h>
+
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
+
+#ifdef	_BSD_SSIZE_T_
+typedef	_BSD_SSIZE_T_	ssize_t;
+#undef	_BSD_SSIZE_T_
+#endif
 
 __BEGIN_DECLS
-ssize_t strfmon(char *, size_t, const char *m, ...);
+ssize_t strfmon(char *, size_t, const char *, ...);
 __END_DECLS
 
 #endif /* _MONETARY_H */
