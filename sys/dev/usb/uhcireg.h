@@ -1,4 +1,4 @@
-/*	$NetBSD: usb/uhcireg.h,v 1.13 2000/08/13 18:20:15 augustss Exp $	*/
+/*	$NetBSD: uhcireg.h,v 1.14 2001/08/06 15:15:08 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
