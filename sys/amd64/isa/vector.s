@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.2 1997/05/24 17:05:26 smp Exp smp $
+ *	$Id: vector.s,v 1.30 1997/05/26 17:58:27 fsmp Exp $
  */
 
 /*
@@ -40,6 +40,24 @@
 _intr_nesting_level:
 	.byte	0
 	.space	3
+
+/*
+ * Interrupt counters and names for export to vmstat(8) and friends.
+ *
+ * XXX this doesn't really belong here; everything except the labels
+ * for the endpointers is almost machine-independent.
+ */
+#define	NR_INTRNAMES	(1 + ICU_LEN + 2 * ICU_LEN)
+
+	.globl	_intrcnt, _eintrcnt
+_intrcnt:
+	.space	NR_INTRNAMES * 4
+_eintrcnt:
+
+	.globl	_intrnames, _eintrnames
+_intrnames:
+	.space	NR_INTRNAMES * 16
+_eintrnames:
 
 	.text
 
