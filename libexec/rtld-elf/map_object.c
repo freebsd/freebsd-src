@@ -30,6 +30,7 @@
 
 #include <errno.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -226,7 +227,7 @@ map_object(int fd, const char *path)
 	}
     }
 
-    obj = CNEW(Obj_Entry);
+    obj = obj_new();
     obj->mapbase = mapbase;
     obj->mapsize = mapsize;
     obj->textsize = round_page(segs[0]->p_vaddr + segs[0]->p_memsz) -
@@ -243,6 +244,41 @@ map_object(int fd, const char *path)
 	obj->phsize = phphdr->p_memsz;
     }
 
+    return obj;
+}
+
+void
+obj_free(Obj_Entry *obj)
+{
+    Objlist_Entry *elm;
+
+    free(obj->path);
+    while (obj->needed != NULL) {
+	Needed_Entry *needed = obj->needed;
+	obj->needed = needed->next;
+	free(needed);
+    }
+    while (!STAILQ_EMPTY(&obj->dldags)) {
+	elm = STAILQ_FIRST(&obj->dldags);
+	STAILQ_REMOVE_HEAD(&obj->dldags, link);
+	free(elm);
+    }
+    while (!STAILQ_EMPTY(&obj->dagmembers)) {
+	elm = STAILQ_FIRST(&obj->dagmembers);
+	STAILQ_REMOVE_HEAD(&obj->dagmembers, link);
+	free(elm);
+    }
+    free(obj);
+}
+
+Obj_Entry *
+obj_new(void)
+{
+    Obj_Entry *obj;
+
+    obj = CNEW(Obj_Entry);
+    STAILQ_INIT(&obj->dldags);
+    STAILQ_INIT(&obj->dagmembers);
     return obj;
 }
 
