@@ -360,7 +360,9 @@ int
 distSetMinimum(dialogMenuItem *self)
 {
     distReset(NULL);
-    Dists = DIST_BIN;
+    Dists = DIST_BIN | DIST_CRYPTO;
+    CRYPTODists |= DIST_CRYPTO_BIN;
+    distVerifyFlags();
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
