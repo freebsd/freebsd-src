@@ -205,11 +205,6 @@ USB_ATTACH(ugen)
 
 	sc->sc_udev = udev = uaa->device;
 
-#if defined(__FreeBSD__)
-	/* the main device, ctrl endpoint */
-	make_dev(&ugen_cdevsw, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0),
-		UID_ROOT, GID_OPERATOR, 0644, "%s", USBDEVNAME(sc->sc_dev));
-#endif
 	memset(sc->sc_endpoints, 0, sizeof sc->sc_endpoints);
 
 	/* First set configuration index 0, the default one for ugen. */
@@ -230,6 +225,12 @@ USB_ATTACH(ugen)
 		sc->sc_dying = 1;
 		USB_ATTACH_ERROR_RETURN;
 	}
+
+#if defined(__FreeBSD__)
+	/* the main device, ctrl endpoint */
+	make_dev(&ugen_cdevsw, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0),
+		UID_ROOT, GID_OPERATOR, 0644, "%s", USBDEVNAME(sc->sc_dev));
+#endif
 
 	USB_ATTACH_SUCCESS_RETURN;
 }
