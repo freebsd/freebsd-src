@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.129 1998/01/20 22:47:35 brian Exp $
+ * $Id: command.c,v 1.130 1998/01/23 04:36:42 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -140,24 +140,25 @@ HelpCommand(struct cmdargs const *arg)
 int
 IsInteractive(int Display)
 {
-  const char *mes = NULL;
+  const char *m = NULL;
 
   if (mode & MODE_DDIAL)
-    mes = "Working in dedicated dial mode.";
+    m = "direct dial";
   else if (mode & MODE_BACKGROUND)
-    mes = "Working in background mode.";
+    m = "background";
   else if (mode & MODE_AUTO)
-    mes = "Working in auto mode.";
+    m = "auto";
   else if (mode & MODE_DIRECT)
-    mes = "Working in direct mode.";
+    m = "direct";
   else if (mode & MODE_DEDICATED)
-    mes = "Working in dedicated mode.";
-  if (mes) {
+    m = "dedicated";
+  else if (mode & MODE_INTER)
+    m = "interactive";
+  if (m) {
     if (Display && VarTerm)
-      fprintf(VarTerm, "%s\n", mes);
-    return 0;
+      fprintf(VarTerm, "Working in %s mode\n", m);
   }
-  return 1;
+  return mode & MODE_INTER;
 }
 
 static int
@@ -845,7 +846,7 @@ TerminalCommand(struct cmdargs const *arg)
     return (1);
   }
   if (VarTerm) {
-    fprintf(VarTerm, "Enter to terminal mode.\n");
+    fprintf(VarTerm, "Entering terminal mode.\n");
     fprintf(VarTerm, "Type `~?' for help.\n");
   }
   TtyTermMode();
