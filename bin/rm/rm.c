@@ -61,8 +61,6 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <unistd.h>
 
-extern char *flags_to_string __P((u_long, char *));
-
 int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 uid_t uid;
 
@@ -442,7 +440,7 @@ check(path, name, sp)
 		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid)))
 			return (1);
 		strmode(sp->st_mode, modep);
-		strcpy(flagsp, flags_to_string(sp->st_flags, NULL));
+		strcpy(flagsp, getflags(sp->st_flags, NULL));
 		if (*flagsp)
 			strcat(flagsp, " ");
 		(void)fprintf(stderr, "override %s%s%s/%s %sfor %s? ",

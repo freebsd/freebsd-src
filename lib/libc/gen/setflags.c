@@ -69,12 +69,12 @@ static struct {
 #define nmappings	(sizeof(mapping) / sizeof(mapping[0]))
 
 /*
- * flags_to_string --
+ * getflags --
  *	Convert stat flags to a comma-separated string.  If no flags
  *	are set, return the default string.
  */
 char *
-flags_to_string(flags, def)
+getflags(flags, def)
 	u_long flags;
 	char *def;
 {
@@ -99,13 +99,13 @@ flags_to_string(flags, def)
 }
 
 /*
- * string_to_flags --
+ * setflags --
  *	Take string of arguments and return stat flags.  Return 0 on
  *	success, 1 on failure.  On failure, stringp is set to point
  *	to the offending token.
  */
 int
-string_to_flags(stringp, setp, clrp)
+setflags(stringp, setp, clrp)
 	char **stringp;
 	u_long *setp, *clrp;
 {
