@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=koi2855
-NOMAN=	noman
+PROG=	koi2855
+NOMAN=	#true
 
 .include <bsd.prog.mk>
