@@ -395,7 +395,9 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 	case 0x00051166:
 		s = "Ross (?) host to PCI bridge";
 		/* just guessing the secondary bus register number ... */
+#if 0
 		*busnum = pci_cfgread(cfg, 0x45, 1);
+#endif
 		break;
 
 		/* Integrated Micro Solutions -- vendor 0x10e0 */
