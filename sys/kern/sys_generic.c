@@ -57,6 +57,7 @@
 #include <sys/poll.h>
 #include <sys/resourcevar.h>
 #include <sys/selinfo.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/bio.h>
@@ -713,6 +714,24 @@ select(td, uap)
 	register struct thread *td;
 	register struct select_args *uap;
 {
+	struct timeval tv, *tvp;
+	int error;
+
+	if (uap->tv != NULL) {
+		error = copyin(uap->tv, &tv, sizeof(tv));
+		if (error)
+			return (error);
+		tvp = &tv;
+	} else
+		tvp = NULL;
+
+	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp));
+}
+
+int
+kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
+    fd_set *fd_ex, struct timeval *tvp)
+{
 	struct filedesc *fdp;
 	/*
 	 * The magic 2048 here is chosen to be just enough for FD_SETSIZE
@@ -726,28 +745,28 @@ select(td, uap)
 	int error, timo;
 	u_int ncoll, nbufbytes, ncpbytes, nfdbits;
 
-	if (uap->nd < 0)
+	if (nd < 0)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
 	mtx_lock(&Giant);
 	FILEDESC_LOCK(fdp);
 
-	if (uap->nd > td->td_proc->p_fd->fd_nfiles)
-		uap->nd = td->td_proc->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
+	if (nd > td->td_proc->p_fd->fd_nfiles)
+		nd = td->td_proc->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
 	FILEDESC_UNLOCK(fdp);
 
 	/*
 	 * Allocate just enough bits for the non-null fd_sets.  Use the
 	 * preallocated auto buffer if possible.
 	 */
-	nfdbits = roundup(uap->nd, NFDBITS);
+	nfdbits = roundup(nd, NFDBITS);
 	ncpbytes = nfdbits / NBBY;
 	nbufbytes = 0;
-	if (uap->in != NULL)
+	if (fd_in != NULL)
 		nbufbytes += 2 * ncpbytes;
-	if (uap->ou != NULL)
+	if (fd_ou != NULL)
 		nbufbytes += 2 * ncpbytes;
-	if (uap->ex != NULL)
+	if (fd_ex != NULL)
 		nbufbytes += 2 * ncpbytes;
 	if (nbufbytes <= sizeof s_selbits)
 		selbits = &s_selbits[0];
@@ -762,28 +781,26 @@ select(td, uap)
 	sbp = selbits;
 #define	getbits(name, x) \
 	do {								\
-		if (uap->name == NULL)					\
+		if (name == NULL)					\
 			ibits[x] = NULL;				\
 		else {							\
 			ibits[x] = sbp + nbufbytes / 2 / sizeof *sbp;	\
 			obits[x] = sbp;					\
 			sbp += ncpbytes / sizeof *sbp;			\
-			error = copyin(uap->name, ibits[x], ncpbytes);	\
+			error = copyin(name, ibits[x], ncpbytes);	\
 			if (error != 0)					\
 				goto done_nosellock;			\
 		}							\
 	} while (0)
-	getbits(in, 0);
-	getbits(ou, 1);
-	getbits(ex, 2);
+	getbits(fd_in, 0);
+	getbits(fd_ou, 1);
+	getbits(fd_ex, 2);
 #undef	getbits
 	if (nbufbytes != 0)
 		bzero(selbits, nbufbytes / 2);
 
-	if (uap->tv) {
-		error = copyin(uap->tv, &atv, sizeof (atv));
-		if (error)
-			goto done_nosellock;
+	if (tvp != NULL) {
+		atv = *tvp;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
 			goto done_nosellock;
@@ -804,7 +821,7 @@ retry:
 	mtx_unlock_spin(&sched_lock);
 	mtx_unlock(&sellock);
 
-	error = selscan(td, ibits, obits, uap->nd);
+	error = selscan(td, ibits, obits, nd);
 	mtx_lock(&sellock);
 	if (error || td->td_retval[0])
 		goto done;
@@ -853,14 +870,14 @@ done_nosellock:
 	if (error == EWOULDBLOCK)
 		error = 0;
 #define	putbits(name, x) \
-	if (uap->name && (error2 = copyout(obits[x], uap->name, ncpbytes))) \
+	if (name && (error2 = copyout(obits[x], name, ncpbytes))) \
 		error = error2;
 	if (error == 0) {
 		int error2;
 
-		putbits(in, 0);
-		putbits(ou, 1);
-		putbits(ex, 2);
+		putbits(fd_in, 0);
+		putbits(fd_ou, 1);
+		putbits(fd_ex, 2);
 #undef putbits
 	}
 	if (selbits != &s_selbits[0])

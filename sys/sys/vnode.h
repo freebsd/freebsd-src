@@ -734,7 +734,6 @@ int	debug_vn_lock(struct vnode *vp, int flags, struct thread *p,
 	    const char *filename, int line);
 #define vn_lock(vp,flags,p) debug_vn_lock(vp,flags,p,__FILE__,__LINE__)
 #endif
-int	vn_mkdir(char *path, int mode, enum uio_seg segflg, struct thread *td);
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    struct ucred *cred);

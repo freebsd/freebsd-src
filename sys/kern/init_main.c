@@ -54,6 +54,7 @@
 #include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -529,7 +530,7 @@ start_init(void *dummy)
 		 * since the fs will be read-only.  But a NFS root
 		 * might be ok.  It is worth a shot.
 		 */
-		error = vn_mkdir("/dev", 0700, UIO_SYSSPACE, td);
+		error = kern_mkdir(td, "/dev", UIO_SYSSPACE, 0700);
 		if (error == EEXIST)
 			error = 0;
 		if (error == 0)
