@@ -2282,6 +2282,7 @@ sis_stop(struct sis_softc *sc)
 #endif
 	CSR_WRITE_4(sc, SIS_IER, 0);
 	CSR_WRITE_4(sc, SIS_IMR, 0);
+	CSR_READ_4(sc, SIS_ISR); /* clear any interrupts already pending */
 	SIS_SETBIT(sc, SIS_CSR, SIS_CSR_TX_DISABLE|SIS_CSR_RX_DISABLE);
 	DELAY(1000);
 	CSR_WRITE_4(sc, SIS_TX_LISTPTR, 0);
