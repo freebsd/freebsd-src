@@ -141,9 +141,11 @@ tipout()
 				sigblock(sigmask(SIGTERM));
 				intTERM();
 				/*NOTREACHED*/
-			} else {
-				printf("%d %d\r",cnt,errno);
-				fflush(stdout);
+			} else if (cnt < 0) {
+				kill(getppid(),SIGUSR1);
+				sigblock(sigmask(SIGTERM));
+				intTERM();
+				/*NOTREACHED*/
 			}
 			continue;
 		}
