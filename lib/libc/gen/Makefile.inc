@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.27 1997/03/03 13:08:32 bde Exp $
+#	$Id: Makefile.inc,v 1.28 1997/03/11 11:42:56 peter Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
@@ -45,8 +45,8 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
 	gen/getfsent.3 gen/getgrent.3 gen/getgrouplist.3 gen/gethostname.3 \
 	gen/getloadavg.3 \
 	gen/getmntinfo.3 gen/getnetgrent.3 gen/getpagesize.3 gen/getpass.3 \
-	gen/getpwent.3 gen/getttyent.3 gen/getvfsent.3 gen/getusershell.3 \
-	gen/glob.3 \
+	gen/getpwent.3 gen/getttyent.3 gen/getusershell.3 gen/getvfsbyname.3 \
+	gen/getvfsent.3 gen/glob.3 \
 	gen/initgroups.3 gen/isinf.3 gen/ldexp.3 \
 	gen/msgctl.3 gen/msgget.3 gen/msgrcv.3 gen/msgsnd.3 \
 	gen/modf.3 gen/nice.3 \
@@ -88,7 +88,7 @@ MLINKS+=getnetgrent.3 endnetgrent.3 getnetgrent.3 setnetgrent.3 \
 MLINKS+=getpwent.3 endpwent.3 getpwent.3 setpassent.3 getpwent.3 getpwnam.3 \
 	getpwent.3 getpwuid.3 getpwent.3 setpwent.3 getpwent.3 setpwfile.3
 MLINKS+=getttyent.3 endttyent.3 getttyent.3 getttynam.3 getttyent.3 setttyent.3
-MLINKS+=getvfsent.3 getvfsbyname.3 getvfsent.3 getvfsbytype.3 \
+MLINKS+=getvfsent.3 getvfsbytype.3 \
 	getvfsent.3 setvfsent.3 getvfsent.3 endvfsent.3 \
 	getvfsent.3 vfsisloadable.3 getvfsent.3 vfsload.3
 MLINKS+=getusershell.3 endusershell.3 getusershell.3 setusershell.3
