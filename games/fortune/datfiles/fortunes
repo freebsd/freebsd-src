@@ -7644,6 +7644,15 @@ having to accomplish anything.
 If Patrick Henry thought that taxation without representation was bad,
 he should see how bad it is with representation.
 %
+If preceded by a '-' , the timezone shall be east of the Prime
+Meridian; otherwise, it shall be west (which may be indicated by
+an optional preceding '+' ).
+		-- POSIX 2001
+
+The "+" or "-" indicates whether the time-of-day is ahead of
+(i.e., east of) or behind (i.e., west of) Universal Time.
+		-- RFC 2822
+%
 If scientific reasoning were limited to the logical processes of
 arithmetic, we should not get very far in our understanding of the
 physical world.  One might as well attempt to grasp the game of poker
