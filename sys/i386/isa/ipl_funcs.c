@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.26 1999/07/17 18:34:32 alc Exp $
+ *	$Id: ipl_funcs.c,v 1.27 1999/07/20 06:09:53 alc Exp $
  */
 
 #include <sys/types.h>
@@ -41,7 +41,7 @@
 #define DO_SETBITS(name, var, bits) \
 void name(void)					\
 {						\
-	setbits(var, bits);			\
+	atomic_set_int(var, bits);		\
 }
 
 DO_SETBITS(setdelayed,   &ipending, loadandclear(&idelayed))

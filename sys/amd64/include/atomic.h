@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: atomic.h,v 1.2 1999/07/13 03:32:17 alc Exp $
+ *	$Id: atomic.h,v 1.3 1999/07/13 06:35:25 alc Exp $
  */
 #ifndef _MACHINE_ATOMIC_H_
 #define _MACHINE_ATOMIC_H_
@@ -68,11 +68,11 @@
  */
 #define ATOMIC_ASM(NAME, TYPE, OP, V)			\
 static __inline void					\
-atomic_##NAME##_##TYPE(void *p, u_##TYPE v)		\
+atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(MPLOCKED OP			\
-			 : "=m" (*(u_##TYPE *)p)	\
-			 :  "0" (*(u_##TYPE *)p), "ir" (V)); \
+			 : "=m" (*p)			\
+			 :  "0" (*p), "ir" (V)); 	\
 }
 
 ATOMIC_ASM(set,	     char,  "orb %2,%0",   v)
