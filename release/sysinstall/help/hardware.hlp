@@ -276,6 +276,7 @@ rc:     RISCom/8 multiport card
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
 sbmidi: SoundBlaster 16 MIDI interface
 sbxvi:  SoundBlaster 16
+si:     Specialix SI/XIO/SX (old and enhanced ISA, PCI, EISA) serial
 spigot: Creative Labs Video Spigot video-acquisition board
 uart:   Stand-alone 6850 UART for MIDI
 wds:    Western Digital WD7000 IDE
@@ -445,6 +446,10 @@ STB 4 port card using shared IRQ.
 
 SDL Communications Riscom/8 Serial Board.
 SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
+
+Specialix SI/XIO/SX multiport serial cards, with both the older
+SIHOST2.x and the new "enhanced" (transputer based, aka JET) host cards.
+ISA, EISA and PCI are supported.
 
 Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
 ONboard 4/16 and Brumby.
