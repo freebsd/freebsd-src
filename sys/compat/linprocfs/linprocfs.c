@@ -413,18 +413,31 @@ linprocfs_domtab(PFS_FILL_ARGS)
 static int
 linprocfs_dostat(PFS_FILL_ARGS)
 {
+	int name[2], olen, plen;
+	int i, ncpu;
+
+	name[0] = CTL_HW;
+	name[1] = HW_NCPU;
+	if (kernel_sysctl(td, name, 2, &ncpu, &olen, NULL, 0, &plen) != 0)
+		ncpu = 0;
+	sbuf_printf(sb, "cpu %ld %ld %ld %ld\n",
+	    T2J(cp_time[CP_USER]),
+	    T2J(cp_time[CP_NICE]),
+	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
+	    T2J(cp_time[CP_IDLE]));
+	for (i = 0; i < ncpu; ++i)
+		sbuf_printf(sb, "cpu%d %ld %ld %ld %ld\n", i,
+		    T2J(cp_time[CP_USER]) / ncpu,
+		    T2J(cp_time[CP_NICE]) / ncpu,
+		    T2J(cp_time[CP_SYS]) / ncpu,
+		    T2J(cp_time[CP_IDLE]) / ncpu);
 	sbuf_printf(sb,
-	    "cpu %ld %ld %ld %ld\n"
 	    "disk 0 0 0 0\n"
 	    "page %u %u\n"
 	    "swap %u %u\n"
 	    "intr %u\n"
 	    "ctxt %u\n"
 	    "btime %lld\n",
-	    T2J(cp_time[CP_USER]),
-	    T2J(cp_time[CP_NICE]),
-	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
-	    T2J(cp_time[CP_IDLE]),
 	    cnt.v_vnodepgsin,
 	    cnt.v_vnodepgsout,
 	    cnt.v_swappgsin,
