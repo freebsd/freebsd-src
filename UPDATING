@@ -49,7 +49,7 @@ the common items quick how-tos, followed by entries for versions of
 	files hanging out, as are dump devices in /etc/rc.conf.
 
 20010521:
-	Minor repo damanged has happened.  This may cause problems
+	Minor repo damange has happened.  This may cause problems
 	with cvsup of ports.  If you get errors, please see
 	http://www.FreeBSD.org/cgi/query-pr.cgi?pr=27495
 	at the bottom for details on a workaround.  The error message
