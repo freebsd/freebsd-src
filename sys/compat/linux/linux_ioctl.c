@@ -1733,54 +1733,6 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 #define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
 
 /*
- * Construct the Linux name for an interface
- */
-
-int
-linux_ifname(struct ifnet *ifp, char *name, size_t size)
-{
-	if (IFP_IS_ETH(ifp))
-		return snprintf(name, LINUX_IFNAMSIZ,
-		    "eth%d", ifp->if_index);
-	return snprintf(name, LINUX_IFNAMSIZ,
-	    "%s%d", ifp->if_name, ifp->if_unit);
-}
-
-/*
- * Translate a FreeBSD interface name to a Linux interface name,
- * and return the associated ifnet structure.
- * bsdname and lxname need to be least IFNAMSIZ bytes long, but
- * can point to the same buffer.
- */
-#if 0
-static struct ifnet *
-ifname_bsd_to_linux(const char *bsdname, char *lxname)
-{
-	struct ifnet *ifp;
-	int len, unit;
-	char *ep;
-
-	for (len = 0; len < IFNAMSIZ; ++len)
-		if (!isalpha(bsdname[len]))
-			break;
-	if (len == 0 || len == IFNAMSIZ)
-		return (NULL);
-	unit = (int)strtoul(bsdname + len, &ep, 10);
-	if (ep == NULL || ep == bsdname + len || ep >= bsdname + IFNAMSIZ)
-		return (NULL);
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-		if (ifp->if_unit == unit && ifp->if_name[len] == '\0' &&
-		    strncmp(ifp->if_name, bsdname, len) == 0)
-			break;
-	}
-	if (ifp != NULL)
-		linux_ifname(ifp, lxname, LINUX_IFNAMSIZ);
-	
-	return (ifp);
-}
-#endif
-
-/*
  * Translate a Linux interface name to a FreeBSD interface name,
  * and return the associated ifnet structure
  * bsdname and lxname need to be least IFNAMSIZ bytes long, but
@@ -1834,8 +1786,8 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	struct ifnet *ifp;
 	struct iovec iov;
 	struct uio uio;
-	int error;
-	
+	int error, ethno;
+
 	error = copyin(uifc, &ifc, sizeof ifc);
 	if (error != 0)
 		return (error);
@@ -1851,12 +1803,20 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = td;
 
+	/* Keep track of eth interfaces */
+	ethno = 0;
+
 	/* return interface names but no addresses. */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (uio.uio_resid <= 0)
 			break;
 		bzero(&ifr, sizeof ifr);
-		linux_ifname(ifp, ifr.ifr_name, LINUX_IFNAMSIZ);
+		if (IFP_IS_ETH(ifp))
+			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "eth%d",
+			    ethno++);
+		else
+			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "%s%d",
+			    ifp->if_name, ifp->if_unit);
 		error = uiomove((caddr_t)&ifr, sizeof ifr, &uio);
 		if (error != 0)
 			return (error);
@@ -1864,7 +1824,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 
 	ifc.ifc_len -= uio.uio_resid;
 	error = copyout(&ifc, uifc, sizeof ifc);
-	
+
 	return (error);
 }
 
