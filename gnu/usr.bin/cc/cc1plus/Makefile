@@ -17,8 +17,8 @@ NOSHARED?=yes
 
 CFLAGS+= -I${GCCDIR}/cp -I.
 
-DPADD+=	${LIBCC_INT} 
-LDADD+=	${LIBCC_INT}
+DPADD=	${LIBCC_INT} 
+LDADD=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------
 # C++ parser

@@ -10,8 +10,8 @@ NOMAN=	1
 
 CFLAGS+= -DSTANDALONE_DEMANGLER -DIN_GCC -DVERSION=\"$(version)\"
 
-DPADD+=	${LIBCC_INT}
-LDADD+=	${LIBCC_INT}
+DPADD=	${LIBCC_INT}
+LDADD=	${LIBCC_INT}
 
 cplus-dem+%DIKED.c: cplus-dem.c
 	sed -e 's/^xmalloc[ 	]/_DONT_xmalloc /g' \

@@ -7,8 +7,8 @@ SRCS=	cgram.y scan.l mem1.c mem.c err.c main1.c decl.c tree.c func.c \
 MAN=	lint.7
 CLEANFILES= lint.7
 
-LDADD+=	-ll -lm
-DPADD+=	${LIBL} ${LIBM}
+LDADD=	-ll -lm
+DPADD=	${LIBL} ${LIBM}
 CFLAGS+= -I. -I${.CURDIR}
 LINTFLAGS=-aehpz
 

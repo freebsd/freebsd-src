@@ -11,8 +11,8 @@ BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED?=yes
 
-DPADD+=	${LIBCC_INT}
-LDADD+=	${LIBCC_INT}
+DPADD=	${LIBCC_INT}
+LDADD=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------
 # C parser

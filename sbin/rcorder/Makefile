@@ -5,8 +5,8 @@ PROG=   rcorder
 SRCS=   ealloc.c hash.c rcorder.c
 MAN=	rcorder.8
 
-LDADD+=	-lutil
-DPADD+=	${LIBUTIL}
+LDADD=	-lutil
+DPADD=	${LIBUTIL}
 
 WARNS=	0
 # XXX hack for make's hash.[ch]

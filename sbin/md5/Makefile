@@ -3,7 +3,7 @@
 
 PROG=	md5
 
-LDADD+=	-lmd
-DPADD+= ${LIBMD}
+LDADD=	-lmd
+DPADD=	${LIBMD}
 
 .include <bsd.prog.mk>
