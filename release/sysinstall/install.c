@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.32 1995/06/05 15:17:09 jkh Exp $
+ * $Id: install.c,v 1.70.2.33 1995/06/05 16:59:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -256,7 +256,8 @@ installInitial(void)
 int
 installCommit(char *str)
 {
-    Device *dev;
+    Device **devs;
+    int i;
 
     if (!Dists) {
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
@@ -274,6 +275,8 @@ installCommit(char *str)
 	msgConfirm("Failed to load the ROOT distribution.  Please correct\nthis problem and try again.");
 	return 0;
     }
+
+    /* Always extract dists, as a minimal thing to do */
     distExtractAll();
 
     if (!SystemWasInstalled && access("/kernel", R_OK)) {
@@ -289,7 +292,7 @@ installCommit(char *str)
 	msgConfirm("MAKEDEV returned non-zero status");
 
     msgNotify("Resurrecting /dev entries for slices..");
-    dev = deviceFind(NULL, DEVICE_TYPE_DISK);
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!dev)
 	msgFatal("Couldn't get a disk device list!");
     /* Resurrect the slices that the former clobbered */
