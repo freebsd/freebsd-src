@@ -34,13 +34,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)net.c	8.4 (Berkeley) 4/28/95";
+static const char sccsid[] = "@(#)net.c	8.4 (Berkeley) 4/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -114,10 +114,12 @@ static int
 do_protocol(const char *name, const struct addrinfo *ai)
 {
 	int cnt, line_len, s;
-	register FILE *fp;
-	register int c, lastc;
+	FILE *fp;
+	int c, lastc;
 	struct iovec iov[3];
 	struct msghdr msg;
+	static char slash_w[] = "/W ";
+	static char neteol[] = "\n\r";
 
 	s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 	if (s < 0) {
@@ -136,13 +138,13 @@ do_protocol(const char *name, const struct addrinfo *ai)
 
 	/* -l flag for remote fingerd  */
 	if (lflag) {
-		iov[msg.msg_iovlen].iov_base = "/W ";
+		iov[msg.msg_iovlen].iov_base = slash_w;
 		iov[msg.msg_iovlen++].iov_len = 3;
 	}
 	/* send the name followed by <CR><LF> */
-	iov[msg.msg_iovlen].iov_base = (char *)name;
+	iov[msg.msg_iovlen].iov_base = strdup(name);
 	iov[msg.msg_iovlen++].iov_len = strlen(name);
-	iov[msg.msg_iovlen].iov_base = "\r\n";
+	iov[msg.msg_iovlen].iov_base = neteol;
 	iov[msg.msg_iovlen++].iov_len = 2;
 
 	/*
@@ -238,7 +240,7 @@ trying(const struct addrinfo *ai)
 }
 
 void
-cleanup(int sig)
+cleanup(int sig __unused)
 {
 #define	ERRSTR	"Timed out.\n"
 	write(STDERR_FILENO, ERRSTR, sizeof ERRSTR);
