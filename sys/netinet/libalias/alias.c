@@ -357,7 +357,7 @@ fragment contained in ICMP data section */
             ip->ip_src = original_address;
             ud->uh_sport = original_port; 
         }
-        else if (pip->ip_p == IPPROTO_ICMP)
+        else if (ip->ip_p == IPPROTO_ICMP)
         {
             u_short *sptr;
             int accumulate;
@@ -556,7 +556,7 @@ fragment contained in ICMP data section */
             ip->ip_dst = alias_address;
             ud->uh_dport = alias_port; 
         }
-        else if (pip->ip_p == IPPROTO_ICMP)
+        else if (ip->ip_p == IPPROTO_ICMP)
         {
             u_short *sptr;
             int accumulate;
