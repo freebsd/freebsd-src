@@ -402,6 +402,9 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 {
 	int             ret = 0;
 
+	if (_thread_initial == NULL)
+		_thread_init();
+
 	if (mutex == NULL)
 		ret = EINVAL;
 
