@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getrusage.2	8.1 (Berkeley) 6/4/93
+.\"     $Id$
 .\"
 .Dd June 4, 1993
 .Dt GETRUSAGE 2
@@ -96,7 +97,8 @@ that was also shared among other processes.  This value is expressed
 in units of kilobytes * ticks-of-execution.
 Ticks are statistics clock ticks.
 The statistics clock has a frequency of
-sysconf(_SC_CLOCK_TCK) ticks per second.
+.Fn sysconf _SC_CLOCK_TCK
+ticks per second.
 .It Fa ru_idrss
 an integral value of the amount of unshared memory residing in the
 data segment of a process (expressed in units of
