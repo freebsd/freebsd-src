@@ -73,12 +73,12 @@ static const char rcsid[] =
 
 #define PF(f, func) do { \
 	char *b = NULL; \
-	if (fieldwidth) \
-		if (precision) \
+	if (havewidth) \
+		if (haveprec) \
 			(void)asprintf(&b, f, fieldwidth, precision, func); \
 		else \
 			(void)asprintf(&b, f, fieldwidth, func); \
-	else if (precision) \
+	else if (haveprec) \
 		(void)asprintf(&b, f, precision, func); \
 	else \
 		(void)asprintf(&b, f, func); \
@@ -111,7 +111,7 @@ main(argc, argv)
 	char *argv[];
 {
 	static const char *skip1, *skip2;
-	int ch, chopped, end, fieldwidth, precision, rval;
+	int ch, chopped, end, fieldwidth, haveprec, havewidth, precision, rval;
 	char convch, nextch, *format, *fmt, *start;
 
 #ifndef BUILTIN
@@ -184,9 +184,10 @@ next:		for (start = fmt;; ++fmt) {
 		if (*fmt == '*') {
 			if (getint(&fieldwidth))
 				return (1);
+			havewidth = 1;
 			++fmt;
 		} else {
-			fieldwidth = 0;
+			havewidth = 0;
 
 			/* skip to possible '.', get following precision */
 			for (; strchr(skip2, *fmt); ++fmt);
@@ -197,15 +198,16 @@ next:		for (start = fmt;; ++fmt) {
 			if (*fmt == '*') {
 				if (getint(&precision))
 					return (1);
+				haveprec = 1;
 				++fmt;
 			} else {
-				precision = 0;
+				haveprec = 0;
 
 				/* skip to conversion char */
 				for (; strchr(skip2, *fmt); ++fmt);
 			}
 		} else
-			precision = 0;
+			haveprec = 0;
 		if (!*fmt) {
 			warnx1("missing format character", NULL, NULL);
 			return (1);
