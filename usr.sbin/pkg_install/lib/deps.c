@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
@@ -23,6 +18,9 @@ static const char rcsid[] =
  * among installed packages.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>

@@ -19,14 +19,12 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "lib.h"
 #include "info.h"
 #include <err.h>
-
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 static char Options[] = "acdDe:fgGhiIkl:LmopqrRst:vVW:x";
 

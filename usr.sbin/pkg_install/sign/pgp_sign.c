@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $OpenBSD: pgp_sign.c,v 1.1 1999/10/04 21:46:29 espie Exp $ */
 /*-
  * Copyright (c) 1999 Marc Espie.
@@ -28,6 +27,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>

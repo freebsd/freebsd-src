@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $OpenBSD: check.c,v 1.2 1999/10/04 21:46:27 espie Exp $ */
 /*-
  * Copyright (c) 1999 Marc Espie.
@@ -28,6 +27,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* Simple code for a stand-alone package checker */
 #include <sys/types.h>
