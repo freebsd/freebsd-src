@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.141 1996/08/17 22:27:03 wosch Exp $
+#	$Id: Makefile,v 1.142 1996/08/18 11:05:05 wosch Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -24,8 +24,9 @@ BIN3=	daily weekly monthly pccard_ether
 
 MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	PROTO.localhost.rev named.boot named.root make-localhost
-PPPCNF= ppp.conf.filter.sample ppp.conf.iij ppp.conf.sample \
-	ppp.linkup.sample ppp.secret.sample
+PPPCNF= ppp.conf.filter.sample ppp.conf.iij.sample ppp.conf.sample \
+	ppp.conf.server.sample ppp.dialup.sample ppp.linkup.sample \
+	ppp.pap.dialup.sample ppp.secret.sample
 
 
 # Special top level files for FreeBSD
