@@ -269,7 +269,6 @@ again1:
 				OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
 			if ((flags & M_ZERO) && !(m->flags & PG_ZERO))
 				pmap_zero_page(m);
-			m->flags = 0;
 			tmp_addr += PAGE_SIZE;
 		}
 		VM_OBJECT_UNLOCK(kernel_object);
