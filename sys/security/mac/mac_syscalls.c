@@ -235,7 +235,6 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, devfsdirents, CTLFLAG_RD,
 #define	MAC_DEBUG_COUNTER_DEC(x)
 #endif
 
-static int	error_select(int error1, int error2);
 static int	mac_policy_register(struct mac_policy_conf *mpc);
 static int	mac_policy_unregister(struct mac_policy_conf *mpc);
 
@@ -360,14 +359,14 @@ mac_policy_list_unbusy(void)
 	error = 0;							\
 	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
 		if (mpc->mpc_ops->mpo_ ## check != NULL)		\
-			error = error_select(				\
+			error = mac_error_select(			\
 			    mpc->mpc_ops->mpo_ ## check (args),		\
 			    error);					\
 	}								\
 	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {	\
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
 			if (mpc->mpc_ops->mpo_ ## check != NULL)	\
-				error = error_select(			\
+				error = mac_error_select(		\
 				    mpc->mpc_ops->mpo_ ## check (args),	\
 				    error);				\
 		}							\
@@ -709,8 +708,8 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
  * Define an error value precedence, and given two arguments, selects the
  * value with the higher precedence.
  */
-static int
-error_select(int error1, int error2)
+int
+mac_error_select(int error1, int error2)
 {
 
 	/* Certain decision-making errors take top priority. */
