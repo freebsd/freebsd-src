@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.315 1997/03/12 17:41:33 joerg Exp $
+#	$Id: LINT,v 1.316 1997/03/12 19:11:59 se Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -506,12 +506,11 @@ options		SLOW_VGA		# do byte-wide i/o's to TS and GDC regs
 #       0x10    Old-style (XT) keyboard support, useful for older ThinkPads
 
 #
-# This device is mandatory.
-#
-# The Numeric Processing eXtension is used to either enable the
-# coprocessor or enable math emulation.  If your machine doesn't contain
-# a math co-processor, you must *also* add the option "MATH_EMULATE".
-# THIS IS NOT AN OPTIONAL ENTRY, DO NOT REMOVE IT
+# The Numeric Processing eXtension driver.  This should be configured if
+# your machine has a math co-processor, unless the coprocessor is very
+# buggy. If it is not configured then you *must* configure math emulation
+# (see above).  If both npx0 and emulation are configured, then only npx0
+# is used (provided it works).
 device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 
 #
@@ -1002,6 +1001,11 @@ controller	pcic1 at crd?
 
 options		POWERFAIL_NMI	# make it beep instead of panicing
 
+#
+# An obsolete option to test kern_opt.c.
+#
+options		GATEWAY
+
 # More undocumented options for linting.
 
 options		CLK_CALIBRATION_LOOP
@@ -1014,6 +1018,7 @@ options		"EXT2FS"
 options		"I586_CTR_GUPROF"
 options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
+options		LOCKF_DEBUG
 options		KBD_MAXRETRY=4
 options		KBD_MAXWAIT=6
 options		KBD_RESETDELAY=201
@@ -1050,4 +1055,5 @@ options		SHMMIN=2
 options		SHMMNI=33
 options		SHMSEG=9
 options		SI_DEBUG
+options		SIMPLELOCK_DEBUG
 options		SPX_HACK
