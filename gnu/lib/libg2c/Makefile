@@ -59,7 +59,7 @@ U77SRCS=	gerror_.c perror_.c ierrno_.c itime_.c time_.c \
 		etime_.c dtime_.c isatty_.c ltime_.c fstat_.c stat_.c \
 		lstat_.c access_.c link_.c getlog_.c ttynam_.c getcwd_.c \
 		symlnk_.c vxttime_.c vxtidate_.c gmtime_.c fdate_.c \
-		secnds_.c bes.c dbes.c chdir_.c chmod_.c lnblnk_.c \
+		secnds_.c chdir_.c chmod_.c lnblnk_.c \
 		hostnm_.c rename_.c fgetc_.c fputc_.c umask_.c \
 		sys_clock_.c date_.c second_.c flush1_.c mclock_.c \
 		alarm_.c datetime_.c

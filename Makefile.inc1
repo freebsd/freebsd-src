@@ -766,10 +766,6 @@ _aicasm= sys/modules/aic7xxx/aicasm
 _share=	share/syscons/scrnmaps
 .endif
 
-.if !defined(NO_FORTRAN)
-_fortran= gnu/usr.bin/cc/f771
-.endif
-
 .if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _kerberos5_tools= kerberos5/tools
 .endif
@@ -784,7 +780,6 @@ build-tools:
     bin/sh \
     ${_rescue} \
     gnu/usr.bin/cc/cc_tools \
-    ${_fortran} \
     lib/libncurses \
     ${_share} \
     ${_aicasm} \
