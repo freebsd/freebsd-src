@@ -671,6 +671,13 @@ sioprobe(dev, xrid, rclk, noprobe)
 	 */
 /* EXTRA DELAY? */
 	sio_setreg(com, com_mcr, mcr_image);
+ 
+	/*
+	 * It seems my Xircom CBEM56G Cardbus modem wants to be reset
+	 * to 8 bits *again*, or else probe test 0 will fail.
+	 * gwk@sgi.com, 4/19/2001
+	 */
+	sio_setreg(com, com_cfcr, CFCR_8BITS);
 
 	/*
 	 * Some pcmcia cards have the "TXRDY bug", so we check everyone
@@ -685,10 +692,10 @@ sioprobe(dev, xrid, rclk, noprobe)
 		/* Check IIR_TXRDY clear ? */
 		result = 0;
 		if (failures[6] & IIR_TXRDY) {
-			/* Nop, Double check with clearing IER */
+			/* No, Double check with clearing IER */
 			sio_setreg(com, com_ier, 0);
 			if (sio_getreg(com, com_iir) & IIR_NOPEND) {
-				/* Ok. we're familia this gang */
+				/* Ok. We discovered TXRDY bug! */
 				SET_FLAG(dev, COM_C_IIR_TXRDYBUG);
 			} else {
 				/* Unknown, Just omit this chip.. XXX */
