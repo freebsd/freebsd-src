@@ -87,9 +87,9 @@ a socket in the Internet domain of type
 .Dv SOCK_STREAM
 is returned to
 the caller, and given to the remote command as
-.Em stdin
+.Dv stdin
 and
-.Em stdout .
+.Dv stdout .
 If
 .Fa fd2p
 is non-zero, then an auxiliary channel to a control
@@ -108,10 +108,10 @@ verified.
 If
 .Fa fd2p
 is 0, then the
-.Em stderr
+.Dv stderr
 (unit 2 of the remote
 command) will be made the same as the
-.Em stdout
+.Dv stdout
 and no
 provision is made for sending arbitrary signals to the remote process,
 although you may be able to get its attention by using out-of-band data.

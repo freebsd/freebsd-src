@@ -83,7 +83,9 @@ issue since any code that manipulates processes is inherently
 machine dependent.
 .Pp
 Finally, the Sun kvm error reporting semantics are poorly defined.
-The library can be configured either to print errors to stderr automatically,
+The library can be configured either to print errors to
+.Dv stderr
+automatically,
 or to print no error messages at all.
 In the latter case, the nature of the error cannot be determined.
 To overcome this, the
