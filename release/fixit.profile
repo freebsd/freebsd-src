@@ -1,10 +1,11 @@
 :
-# $Id: fixit.profile,v 1.1.6.1 1996/11/09 16:33:53 joerg Exp $
+# $Id: fixit.profile,v 1.1.6.2 1996/11/28 08:58:25 joerg Exp $
 
 export BLOCKSIZE=K
 export PS1="Fixit# "
 export EDITOR="/mnt2/stand/vi"
 export PAGER="/mnt2/stand/more"
+export SCSI_MODES="/mnt2/usr/share/misc/scsi_modes"
 # the root MFS doesn't have /dev/nrst0, pick a better default for mt(1)
 export TAPE=/mnt2/dev/nrst0
 
