@@ -72,6 +72,7 @@ atapi_attach(struct ata_device *atadev)
 		   ata_pmode(atadev->param), ata_wmode(atadev->param),
 		   ata_umode(atadev->param), atadev->param->support_dma);
 
+    ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
     if (atapi_dma && !(atadev->param->drq_type == ATAPI_DRQT_INTR)) {
 	ata_dmainit(atadev->channel, atadev->unit,
 		    (ata_pmode(atadev->param) < 0) ? 
@@ -84,6 +85,7 @@ atapi_attach(struct ata_device *atadev)
 	ata_dmainit(atadev->channel, atadev->unit,
 		    ata_pmode(atadev->param) < 0 ? 0 : ata_pmode(atadev->param),
 		    -1, -1);
+    ATA_UNLOCK_CH(atadev->channel);
 
     if (!(atadev->result = malloc(sizeof(struct atapi_reqsense), M_ATAPI,
 				  M_NOWAIT | M_ZERO)))
@@ -190,28 +192,25 @@ atapi_queue_cmd(struct ata_device *atadev, int8_t *ccb, caddr_t data,
 	    atadev->mode = ATA_PIO;
     }
 
-    s = splbio();
-
-    /* append onto controller queue and try to start controller */
 #ifdef ATAPI_DEBUG
     ata_prtdev(atadev, "queueing %s ", atapi_cmd2str(request->ccb[0]));
     atapi_dump("ccb = ", &request->ccb[0], sizeof(request->ccb));
 #endif
+    /* append onto controller queue and try to start controller */
+    s = splbio();
     if (flags & ATPR_F_AT_HEAD)
 	TAILQ_INSERT_HEAD(&atadev->channel->atapi_queue, request, chain);
     else
 	TAILQ_INSERT_TAIL(&atadev->channel->atapi_queue, request, chain);
+    splx(s);
     ata_start(atadev->channel);
 
     /* if callback used, then just return, gets called from interrupt context */
-    if (callback) {
-	splx(s);
+    if (callback)
 	return 0;
-    }
 
     /* wait for request to complete */
     tsleep((caddr_t)request, PRIBIO, "atprq", 0);
-    splx(s);
     error = request->error;
     if (error)
 	 bcopy(&request->sense, atadev->result, sizeof(struct atapi_reqsense));
@@ -605,7 +604,6 @@ static void
 atapi_timeout(struct atapi_request *request)
 {
     struct ata_device *atadev = request->device;
-    int s = splbio();
 
     atadev->channel->running = NULL;
     ata_prtdev(atadev, "%s command timeout - resetting\n", 
@@ -623,15 +621,18 @@ atapi_timeout(struct atapi_request *request)
     }
 
     /* if retries still permit, reinject this request */
-    if (request->retries++ < ATAPI_MAX_RETRIES)
+    if (request->retries++ < ATAPI_MAX_RETRIES) {
+	int s = splbio();
+
 	TAILQ_INSERT_HEAD(&atadev->channel->atapi_queue, request, chain);
+	splx(s);
+    }
     else {
 	/* retries all used up, return error */
 	request->error = EIO;
 	wakeup((caddr_t)request);
     } 
     ata_reinit(atadev->channel);
-    splx(s);
 }
 
 static char *
