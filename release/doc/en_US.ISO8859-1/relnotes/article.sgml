@@ -280,6 +280,10 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
+      <para arch="i386">A new &man.axe.4; network driver has been
+	added.  It provides support for USB Ethernet adapters based on
+	the ASIX Electronics AX88172 USB 2.0 chipset.</para>
+
       <para>The cm driver now supports IPX. &merged;</para>
 
       <para arch="i386">The &man.sbsh.4; driver for the Granch SBNI16
@@ -583,6 +587,10 @@
       and <option>noinet6</option> mount options to prevent NFS mounts
       from using IPv4 or IPv6 respectively.</para>
 
+    <para>&man.newfs.8; will now create UFS2 file systems by default,
+      unless UFS1 is specifically requested with the
+      <option>-O1</option>.</para>
+
     <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
       to force previously-started compression jobs for an entry (or
       group of entries specified with the <literal>G</literal> flag)
@@ -640,6 +648,10 @@
     <para arch="sparc64">The sunlabel utility, a program analogous to
       &man.disklabel.8; that works on Sun disk labels, has been
       added.</para>
+
+    <para arch="i386,alpha,sparc64,ia64">&man.sysinstall.8; will now
+      select UFS2 as the default layout for new file systems unless
+      specifically requested in the disk labeler.</para>
 
     <para>The &man.swapoff.8; command has been added to disable paging
       and swapping on a device.  A related &man.swapctl.8; command has
