@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.66 1998/11/16 08:13:54 kato Exp $
+ *	$Id: wd.c,v 1.67 1998/12/17 08:42:10 kato Exp $
  */
 
 /* TODO:
@@ -339,19 +339,29 @@ wdprobe(struct isa_device *dvp)
 	interface = du->dk_ctrlr / 2;
 	du->dk_interface = interface;
 #if !defined(DISABLE_PCI_IDE) && (NPCI > 0)
-	if (wddma[interface].wdd_candma) {
-		du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase, du->dk_ctrlr);
+#ifdef ALI_V
+	if ((wddma[interface].wdd_candma) && 
+	   ((du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase,du->dk_ctrlr)) != NULL))
+	{
 		du->dk_port = dvp->id_iobase;
 		du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
 	} else {
 		du->dk_port = dvp->id_iobase;
 		du->dk_altport = du->dk_port + wd_ctlr;
 	}
+#endif
+        if (wddma[interface].wdd_candma) {
+           du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase,du->dk_ctrlr);
+           du->dk_port = dvp->id_iobase;
+           du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
+        } else {
+                du->dk_port = dvp->id_iobase;
+                du->dk_altport = du->dk_port + wd_ctlr;
+        }
 #else
 	du->dk_port = dvp->id_iobase;
 	du->dk_altport = du->dk_port + wd_ctlr;
 #endif
-
 	/* check if we have registers that work */
 #ifdef PC98
 	/* XXX ATAPI support isn't imported */
