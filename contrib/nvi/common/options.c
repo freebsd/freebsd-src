@@ -80,6 +80,10 @@ OPTLIST const optlist[] = {
 	{"filec",	NULL,		OPT_STR,	0},
 /* O_FLASH	    HPUX */
 	{"flash",	NULL,		OPT_1BOOL,	0},
+#ifdef GTAGS
+/* O_GTAGSMODE      FreeBSD2.2 */
+	{"gtagsmode",	NULL,		OPT_0BOOL,	0},
+#endif
 /* O_HARDTABS	    4BSD */
 	{"hardtabs",	NULL,		OPT_NUM,	0},
 /* O_ICLOWER	  4.4BSD */
@@ -244,6 +248,9 @@ static OABBREV const abbrev[] = {
 	{"eb",		O_ERRORBELLS},		/*     4BSD */
 	{"ed",		O_EDCOMPATIBLE},	/*     4BSD */
 	{"ex",		O_EXRC},		/* System V (undocumented) */
+#ifdef GTAGS
+	{"gt",		O_GTAGSMODE},		/* FreeBSD2.2 */
+#endif
 	{"ht",		O_HARDTABS},		/*     4BSD */
 	{"ic",		O_IGNORECASE},		/*     4BSD */
 	{"li",		O_LINES},		/*   4.4BSD */

@@ -3,7 +3,7 @@
 srcdir=	@srcdir@/..
 CC=	@CC@
 OPTFLAG=@OPTFLAG@
-CFLAGS=	-c $(OPTFLAG) @CFLAGS@ -I. -I$(srcdir)/include @CPPFLAGS@
+CFLAGS=	-c $(OPTFLAG) @CFLAGS@ -I. -I$(srcdir)/include @CPPFLAGS@ -DGTAGS
 LDFLAGS=@LDFLAGS@
 PERL=	@vi_cv_path_perl@
 PERLLIB=@vi_cv_perllib@

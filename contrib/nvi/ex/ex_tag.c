@@ -46,6 +46,10 @@ static char	*binary_search __P((char *, char *, char *));
 static int	 compare __P((char *, char *, char *));
 static void	 ctag_file __P((SCR *, TAGF *, char *, char **, size_t *));
 static int	 ctag_search __P((SCR *, char *, size_t, char *));
+#ifdef GTAGS
+static int	 getentry __P((char *, char *, char *, char *));
+static TAGQ	*gtag_slist __P((SCR *, char *, int));
+#endif
 static int	 ctag_sfile __P((SCR *, TAGF *, TAGQ *, char *));
 static TAGQ	*ctag_slist __P((SCR *, char *));
 static char	*linear_search __P((char *, char *, char *));
@@ -88,6 +92,25 @@ ex_tag_first(sp, tagarg)
 
 	return (0);
 }
+
+#ifdef GTAGS
+/*
+ * ex_rtag_push -- ^]
+ *		  :rtag[!] [string]
+ *
+ * Enter a new TAGQ context based on a ctag string.
+ *
+ * PUBLIC: int ex_rtag_push __P((SCR *, EXCMD *));
+ */
+int
+ex_rtag_push(sp, cmdp)
+	SCR *sp;
+	EXCMD *cmdp;
+{
+	F_SET(cmdp, E_REFERENCE);
+	return ex_tag_push(sp, cmdp);
+}
+#endif
 
 /*
  * ex_tag_push -- ^]
@@ -138,6 +161,12 @@ ex_tag_push(sp, cmdp)
 	}
 
 	/* Get the tag information. */
+#ifdef GTAGS
+	if (O_ISSET(sp, O_GTAGSMODE)) {
+		if ((tqp = gtag_slist(sp, exp->tag_last, F_ISSET(cmdp, E_REFERENCE))) == NULL)
+			return (1);
+	} else
+#endif
 	if ((tqp = ctag_slist(sp, exp->tag_last)) == NULL)
 		return (1);
 
@@ -969,6 +998,119 @@ notfound:			tag_msg(sp, TAG_SEARCH, tag);
 	return (0);
 }
 
+#ifdef GTAGS
+/*
+ * getentry --
+ *	get tag information from current line.
+ *
+ * gtags temporary file format.
+ * <tag>   <lineno>  <file>         <image>
+ *
+ * sample.
+ * +------------------------------------------------
+ * |main     30      main.c         main(argc, argv)
+ * |func     21      subr.c         func(arg)
+ */
+static int
+getentry(buf, tag, file, line)
+	char *buf, *tag, *file, *line;
+{
+	char *p;
+
+	p = tag;
+	while (*buf && !isspace(*buf))		/* tag name */
+		*p++ = *buf++;
+	*p = 0;
+	while (*buf && isspace(*buf))		/* skip blanks */
+		buf++;
+	p = line;
+	while (*buf && !isspace(*buf))		/* line no */
+		*p++ = *buf++;
+	*p = 0;
+	while (*buf && isspace(*buf))		/* skip blanks */
+		buf++;
+	p = file;
+	while (*buf && !isspace(*buf))		/* file name */
+		*p++ = *buf++;
+	*p = 0;
+
+	/* value check */
+	if (strlen(tag) && strlen(line) && strlen(file) && atoi(line) > 0)
+		return 1;	/* OK */
+	return 0;		/* ERROR */
+}
+
+/*
+ * gtag_slist --
+ *	Search the list of tags files for a tag, and return tag queue.
+ */
+static TAGQ *
+gtag_slist(sp, tag, ref)
+	SCR *sp;
+	char *tag;
+	int ref;
+{
+	EX_PRIVATE *exp;
+	TAGF *tfp;
+	TAGQ *tqp;
+	size_t len;
+	int echk;
+	TAG *tp;
+	static char name[80], file[200], line[10];
+	char command[200];
+	char buf[BUFSIZ+1];
+	FILE *fp;
+
+	/* Allocate and initialize the tag queue structure. */
+	len = strlen(tag);
+	CALLOC_GOTO(sp, tqp, TAGQ *, 1, sizeof(TAGQ) + len + 1);
+	CIRCLEQ_INIT(&tqp->tagq);
+	tqp->tag = tqp->buf;
+	memcpy(tqp->tag, tag, (tqp->tlen = len) + 1);
+
+	/*
+	 * Find the tag, only display missing file messages once, and
+	 * then only if we didn't find the tag.
+	 */
+	sprintf(command, "global -%s '%s'", ref ? "rx" : "x", tag);
+	if (fp = popen(command, "r")) {
+		while (fgets(buf, sizeof(buf), fp)) {
+			if (buf[strlen(buf)-1] == '\n')		/* chop(buf) */
+				buf[strlen(buf)-1] = 0;
+			else
+				while (fgetc(fp) != '\n')
+					;
+			if (getentry(buf, name, file, line) == 0) {
+				echk = 1;
+				F_SET(tfp, TAGF_ERR);
+				break;
+			}
+			CALLOC_GOTO(sp, tp,
+			    TAG *, 1, sizeof(TAG) + strlen(file) + 1 + strlen(line) + 1);
+			tp->fname = tp->buf;
+			strcpy(tp->fname, file);
+			tp->fnlen = strlen(file);
+			tp->search = tp->fname + tp->fnlen + 1;
+			strcpy(tp->search, line);
+			CIRCLEQ_INSERT_TAIL(&tqp->tagq, tp, q);
+		}
+		pclose(fp);
+	}
+
+	/* Check to see if we found anything. */
+	if (tqp->tagq.cqh_first == (void *)&tqp->tagq) {
+		msgq_str(sp, M_ERR, tag, "162|%s: tag not found");
+		free(tqp);
+		return (NULL);
+	}
+
+	tqp->current = tqp->tagq.cqh_first;
+	return (tqp);
+
+alloc_err:
+	return (NULL);
+}
+#endif
 /*
  * ctag_slist --
  *	Search the list of tags files for a tag, and return tag queue.
