@@ -765,7 +765,7 @@ found:
 	case TH_SYN | (TH_SYN << 8) | TH_FIN :
 	case TH_SYN | (TH_SYN << 8) | (TH_FIN << 8) :
 	    /* one side tries to close */
-	    q->expire = time_second + dyn_fin_lifetime ;
+	    q->expire = time_second + dyn_ack_lifetime ;
 	    break ;
 	case TH_SYN | (TH_SYN << 8) | TH_FIN | (TH_FIN << 8) :
 	    /* both sides closed */
