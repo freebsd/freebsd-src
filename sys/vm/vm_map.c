@@ -206,7 +206,7 @@ vm_map_zinit(void *mem, int size)
 	map->nentries = 0;
 	map->size = 0;
 	map->infork = 0;
-	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_CANRECURSE | LK_NOPAUSE);
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
 }
 
 #ifdef INVARIANTS
@@ -493,7 +493,7 @@ void
 vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 {
 	_vm_map_init(map, min, max);
-	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_CANRECURSE | LK_NOPAUSE);
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
 }
 
 /*
