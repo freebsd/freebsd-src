@@ -72,11 +72,6 @@ __RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 
 #include "ftp_var.h"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 int	data = -1;
 int	abrtflag = 0;
 jmp_buf	ptabort;
@@ -182,15 +177,15 @@ hookup(host0, port)
 		if (connect(s, res->ai_addr, res->ai_addrlen) == 0)
 			break;
 		if (res->ai_next) {
-			char hname[INET6_ADDRSTRLEN];
+			char hname[NI_MAXHOST];
 			getnameinfo(res->ai_addr, res->ai_addrlen,
 				    hname, sizeof(hname) - 1, NULL, 0,
-				    NI_NUMERICHOST|NI_WITHSCOPEID);
+				    NI_NUMERICHOST);
 			warn("connect to address %s", hname);
 			res = res->ai_next;
 			getnameinfo(res->ai_addr, res->ai_addrlen,
 				    hname, sizeof(hname) - 1, NULL, 0,
-				    NI_NUMERICHOST|NI_WITHSCOPEID);
+				    NI_NUMERICHOST);
 			printf("Trying %s...\n", hname);
 			(void)close(s);
 			continue;
@@ -1466,8 +1461,9 @@ noport:
 		switch (daddr->su_family) {
 #ifdef INET6
 		case AF_INET6:
-#endif
 			af = (daddr->su_family == AF_INET) ? 1 : 2;
+			if (daddr->su_family == AF_INET6)
+				daddr->su_sin6.sin6_scope_id = 0;
 			if (getnameinfo((struct sockaddr *)daddr,
 					daddr->su_len, hname,
 					sizeof(hname) - 1, NULL, 0,
@@ -1478,6 +1474,7 @@ noport:
 					af, hname, ntohs(daddr->su_port));
 			}
 			break;
+#endif
 		default:
 			result = COMPLETE + 1;
 			break;
