@@ -49,14 +49,18 @@ struct union_args {
 #define UNMNT_OPMASK	0x0003
 
 struct union_mount {
-	struct vnode	*um_uppervp;
-	struct vnode	*um_lowervp;
+	struct vnode	*um_uppervp;	/* UN_ULOCK holds locking state */
+	struct vnode	*um_lowervp;	/* Left unlocked */
 	struct ucred	*um_cred;	/* Credentials of user calling mount */
 	int		um_cmode;	/* cmask from mount process */
 	int		um_op;		/* Operation mode */
 };
 
 #ifdef KERNEL
+
+#ifndef DIAGNOSTIC
+#define DIAGNOSTIC
+#endif
 
 /*
  * DEFDIRMODE is the mode bits used to create a shadow directory.
@@ -67,9 +71,14 @@ struct union_mount {
 #define UN_FILEMODE ((VRWMODE)|(VRWMODE>>3)|(VRWMODE>>6))
 
 /*
- * A cache of vnode references
+ * A cache of vnode references	(hangs off v_data)
+ *
+ * Placing un_lock as the first elements theoretically allows us to
+ * use the vop_stdlock functions.  However, we need to make sure of
+ * certain side effects so we will still punch in our own code.
  */
 struct union_node {
+	struct lock		un_lock;
 	LIST_ENTRY(union_node)	un_cache;	/* Hash chain */
 	struct vnode		*un_vnode;	/* Back pointer */
 	struct vnode	        *un_uppervp;	/* overlaying object */
@@ -79,6 +88,7 @@ struct union_node {
 	char			*un_path;	/* saved component name */
 	int			un_hash;	/* saved un_path hash value */
 	int			un_openl;	/* # of opens on lowervp */
+	int			un_exclcnt;	/* exclusive count */
 	unsigned int		un_flags;
 	struct vnode		**un_dircache;	/* cached union stack */
 	off_t			un_uppersz;	/* size of upper object */
@@ -88,14 +98,25 @@ struct union_node {
 #endif
 };
 
-#define UN_WANT		0x01
-#define UN_LOCKED	0x02
-#define UN_ULOCK	0x04		/* Upper node is locked */
-#define UN_KLOCK	0x08		/* Keep upper node locked on vput */
-#define UN_CACHED	0x10		/* In union cache */
+/*
+ * XXX UN_ULOCK -	indicates that the uppervp is locked
+ *
+ * UN_CACHED -	node is in the union cache
+ */
+
+/*#define UN_ULOCK	0x04*/	/* Upper node is locked */
+#define UN_CACHED	0x10	/* In union cache */
+
+/*
+ * Hash table locking flags
+ */
+
+#define UNVP_WANT	0x01
+#define UNVP_LOCKED	0x02
 
 extern int union_allocvp __P((struct vnode **, struct mount *,
-				struct vnode *, struct vnode *,
+				struct vnode *, 
+				struct vnode *, 
 				struct componentname *, struct vnode *,
 				struct vnode *, int));
 extern int union_freevp __P((struct vnode *));
@@ -113,6 +134,7 @@ extern int union_cn_close __P((struct vnode *, int, struct ucred *,
 extern void union_removed_upper __P((struct union_node *un));
 extern struct vnode *union_lowervp __P((struct vnode *));
 extern void union_newsize __P((struct vnode *, off_t, off_t));
+extern void union_vm_coherency __P((struct vnode *, struct uio *, int));
 
 extern int (*union_dircheckp) __P((struct proc *, struct vnode **,
 				 struct file *));
@@ -124,6 +146,11 @@ extern int (*union_dircheckp) __P((struct proc *, struct vnode **,
 #define	UPPERVP(vp) (VTOUNION(vp)->un_uppervp)
 #define OTHERVP(vp) (UPPERVP(vp) ? UPPERVP(vp) : LOWERVP(vp))
 
+#define UDEBUG(x)	if (uniondebug) printf x
+#define UDEBUG_ENABLED	1
+
 extern vop_t **union_vnodeop_p;
 extern struct vfsops union_vfsops;
+extern int uniondebug;
+
 #endif /* KERNEL */
