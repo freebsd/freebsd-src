@@ -191,7 +191,13 @@ icmp_error(n, type, code, dest, destifp)
 	icp->icmp_code = code;
 	bcopy((caddr_t)oip, (caddr_t)&icp->icmp_ip, icmplen);
 	nip = &icp->icmp_ip;
-	nip->ip_len = htons((u_short)(nip->ip_len + oiplen));
+
+	/*
+	 * Convert fields to network representation.
+	 */
+	HTONS(nip->ip_len);
+	HTONS(nip->ip_id);
+	HTONS(nip->ip_off);
 
 	/*
 	 * Now, copy old ip header (without options)

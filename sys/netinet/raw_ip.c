@@ -221,7 +221,7 @@ rip_output(m, so, dst)
 			return EINVAL;
 		}
 		if (ip->ip_id == 0)
-			ip->ip_id = htons(ip_id++);
+			ip->ip_id = ip_id++;
 		/* XXX prevent ip_output from overwriting header fields */
 		flags |= IP_RAWOUTPUT;
 		ipstat.ips_rawout++;
