@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.12 1998/07/07 01:46:41 bde Exp $
+# $Id: Makefile,v 1.13 1998/08/20 21:45:46 jb Exp $
 #
 
 #
@@ -124,18 +124,18 @@ CLEANFILES+=	objc-parse.y		# insurance
 #-----------------------------------------------------------------------
 # the host/target compiler config.
 
-COMMONHDRS=	config.h hconfig.h tconfig.h tm.h options.h specs.h
-
-${COMMONHDRS}:
-	echo '#include "${MACHINE_ARCH}/freebsd.h"'     > tm.h
-	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > config.h
-	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > hconfig.h
-	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > tconfig.h
-	echo '#include "cp/lang-options.h"'             > options.h
-	echo '#include "cp/lang-specs.h"'               > specs.h
-	echo '#include "f2c-specs.h"'                   >> specs.h
-
+COMMONHDRS=	config.h hconfig.h options.h specs.h tconfig.h tm.h
 GENSRCS+=	${COMMONHDRS}
+
+config.h hconfig.h tconfig.h:
+	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"' > ${.TARGET}
+options.h:
+	echo '#include "cp/lang-options.h"' > ${.TARGET}
+specs.h:
+	echo '#include "cp/lang-specs.h"'> ${.TARGET}
+	echo '#include "f2c-specs.h"'    >> ${.TARGET}
+tm.h:
+	echo '#include "${MACHINE_ARCH}/freebsd.h"' > ${.TARGET}
 
 #-----------------------------------------------------------------------
 # General things.
