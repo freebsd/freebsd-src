@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.23 1995/12/05 20:40:10 bde Exp $
+**  $Id: pcisupport.c,v 1.24 1995/12/14 09:54:11 phk Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -369,6 +369,97 @@ static const struct condmsg conf82378[] =
     { 0 }
 };
 
+static const struct condmsg conf82437fx[] = 
+{
+    /* PCON -- PCI Control Register */
+    { 0x00, 0x00, 0x00, M_TR, "\tCPU Inactivity timer: " },
+    { 0x50, 0xe0, 0xe0, M_EQ, "8" },
+    { 0x50, 0xe0, 0xd0, M_EQ, "7" },
+    { 0x50, 0xe0, 0xc0, M_EQ, "6" },
+    { 0x50, 0xe0, 0xb0, M_EQ, "5" },
+    { 0x50, 0xe0, 0xa0, M_EQ, "4" },
+    { 0x50, 0xe0, 0x90, M_EQ, "3" },
+    { 0x50, 0xe0, 0x80, M_EQ, "2" },
+    { 0x50, 0xe0, 0x00, M_EQ, "1" },
+    { 0x00, 0x00, 0x00, M_TR, " clocks\n\tPeer Concurrency: " },
+    { 0x50, 0x08, 0x08, M_EQ, "enabled" },
+    { 0x50, 0x08, 0x00, M_EQ, "disabled" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tCPU-to-PCI Write Busting: " },
+    { 0x50, 0x04, 0x00, M_EQ, "enabled" },
+    { 0x50, 0x04, 0x04, M_EQ, "disabled" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tPCI Streaming: " },
+    { 0x50, 0x02, 0x00, M_EQ, "enabled" },
+    { 0x50, 0x02, 0x02, M_EQ, "disabled" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tBus Concurrency: " },
+    { 0x50, 0x01, 0x00, M_EQ, "enabled\n" },
+    { 0x50, 0x01, 0x01, M_EQ, "disabled\n" },
+
+    /* CC -- Cache Control Regsiter */
+    { 0x00, 0x00, 0x00, M_TR, "\tCache:" },
+    { 0x52, 0xc0, 0x80, M_EQ, " 512K" },
+    { 0x52, 0xc0, 0x40, M_EQ, " 256K" },
+    { 0x52, 0xc0, 0x00, M_EQ, " NO" },
+    { 0x52, 0x30, 0x00, M_EQ, " pipelined-burst" },
+    { 0x52, 0x30, 0x10, M_EQ, " burst" },
+    { 0x52, 0x30, 0x20, M_EQ, " asynchronous" },
+    { 0x52, 0x30, 0x30, M_EQ, " dual-bank pipelined-burst" },
+    { 0x00, 0x00, 0x00, M_TR, " secondary; L1 " },
+    { 0x52, 0x01, 0x01, M_EQ, "disabled" },
+    { 0x52, 0x01, 0x00, M_EQ, "enabled" },
+    { 0x00, 0x00, 0x00, M_TR, "\n" },
+
+    /* DRAMC -- DRAM Control Register */
+    { 0x57, 0x07, 0x00, M_EQ, "Warning: refresh OFF!\n" },
+    { 0x00, 0x00, 0x00, M_TR, "\tDRAM:" },
+    { 0x57, 0xc0, 0x00, M_EQ, " no memory hole" },
+    { 0x57, 0xc0, 0x40, M_EQ, " 512K-640K memory hole" },
+    { 0x57, 0xc0, 0x80, M_EQ, " 15M-16M memory hole" },
+    { 0x57, 0x07, 0x01, M_EQ, ", 50 MHz refresh" },
+    { 0x57, 0x07, 0x02, M_EQ, ", 60 MHz refresh" },
+    { 0x57, 0x07, 0x03, M_EQ, ", 66 MHz refresh" },
+
+    /* DRAMT = DRAM Timing Register */
+    { 0x00, 0x00, 0x00, M_TR, "\n\tRead burst timing: " },
+    { 0x58, 0x60, 0x00, M_EQ, "x-4-4-4/x-4-4-4" },
+    { 0x58, 0x60, 0x20, M_EQ, "x-3-3-3/x-4-4-4" },
+    { 0x58, 0x60, 0x40, M_EQ, "x-2-2-2/x-3-3-3" },
+    { 0x58, 0x60, 0x60, M_EQ, "???" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tWrite burst timing: " },
+    { 0x58, 0x18, 0x00, M_EQ, "x-4-4-4" },
+    { 0x58, 0x18, 0x08, M_EQ, "x-3-3-3" },
+    { 0x58, 0x18, 0x10, M_EQ, "x-2-2-2" },
+    { 0x58, 0x18, 0x18, M_EQ, "???" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tRAS-CAS delay: " },
+    { 0x58, 0x04, 0x00, M_EQ, "3" },
+    { 0x58, 0x04, 0x04, M_EQ, "2" },
+    { 0x00, 0x00, 0x00, M_TR, " clocks\n" },
+
+#ifdef notdef			/* XXX not very useful... */
+#define B(x) (1 << x)
+
+    /* PAMs -- Programmable Attribute Map Registers */
+    { 0x00, 0x00, 0x00, M_TR, "\tNon-cacheable regions:" },
+    { 0x00, 0x00, 0x00, M_TR, " A0000-BFFFF" },
+    { 0x5a, B(2), 0, M_EQ, " C0000" },
+    { 0x5a, B(6), 0, M_EQ, " C4000" },
+    { 0x5b, B(2), 0, M_EQ, " C8000" },
+    { 0x5b, B(6), 0, M_EQ, " CC000" },
+    { 0x5c, B(2), 0, M_EQ, " D0000" },
+    { 0x5c, B(6), 0, M_EQ, " D4000" },
+    { 0x5d, B(2), 0, M_EQ, " D8000" },
+    { 0x5d, B(6), 0, M_EQ, " DC000" },
+    { 0x5e, B(2), 0, M_EQ, " E0000" },
+    { 0x5e, B(6), 0, M_EQ, " E4000" },
+    { 0x5f, B(2), 0, M_EQ, " E8000" },
+    { 0x5f, B(6), 0, M_EQ, " EC000" },
+    { 0x59, B(6), 0, M_EQ, " F0000" },
+    /* don't bother with r-o, w-o, r-w, disabled */
+#endif
+
+    /* end marker */
+    { 0 }
+};
+
 static char confread (pcici_t config_id, int port)
 {
     unsigned long portw = port & ~3;
@@ -429,6 +520,9 @@ chipset_attach (pcici_t config_id, int unit)
 			pci_conf_read (config_id, 0x40),
 			pci_conf_read (config_id, 0x50),
 			pci_conf_read (config_id, 0x54));
+		break;
+	case 0x122d8086:
+		writeconfig (config_id, conf82437fx);
 		break;
 	};
 #endif /* PCI_QUIET */
