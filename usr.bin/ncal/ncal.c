@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ncal.c,v 1.2 1997/12/31 15:55:08 helbig Exp $	
+ *	$Id: ncal.c,v 1.3 1998/01/03 15:10:11 helbig Exp $	
  */
 #include <calendar.h>
 #include <err.h>
@@ -64,8 +64,9 @@ static struct djswitch {
 	char *efmt;	/* strftime format for printing date of easter */
 } switches[] = {
 	{"AL", "Albania",	{1912, 11, 30}, "%e %B %Y"},
-	{"AT", "Austria",	{1582, 10,  4}, "%e. %B %Y"},
+	{"AT", "Austria",	{1583, 10,  5}, "%e. %B %Y"},
 	{"AU", "Australia",	{1752,  9,  2}, "%B %e, %Y"},
+	{"BE", "Belgium",	{1582, 12, 14}, "%B %e, %Y"},
 	{"BG", "Bulgaria",	{1916,  3, 18}, "%e %B %Y"},
 	{"CA", "Canada",	{1752,  9,  2}, "%B %e, %Y"},
 	{"CH", "Switzerland",	{1655,  2, 28}, "%e. %B %Y"},
@@ -74,6 +75,7 @@ static struct djswitch {
 	{"DE", "Germany",	{1700,  2, 18}, "%e. %B %Y"},
 	{"DK", "Denmark",	{1700,  2, 18}, "%e. %B %Y"},
 	{"ES", "Spain",		{1582, 10,  4}, "%e de %B de %Y"},
+	{"FI", "Finland",	{1753,  2, 17}, "%e %B %Y"},
 	{"FR", "France",	{1582, 12,  9}, "%e. %B %Y"},
 	{"GB", "United Kingdom",{1752,  9,  2}, "%e %B %Y"},
 	{"GR", "Greece",	{1924,  3,  9}, "%e %B %Y"},
@@ -81,14 +83,16 @@ static struct djswitch {
 	{"IS", "Iceland",	{1700, 11, 16}, "%e %B %Y"},
 	{"IT", "Italy",		{1582, 10,  4}, "%e %B %Y"},
 	{"JP", "Japan",		{1918, 12, 18}, "%Y\x94N %B%e"},
-	{"LV", "Latvia",	{1918,  2,  1}, "%e %B %Y"},
 	{"LI", "Lithuania",	{1918,  2,  1}, "%e %B %Y"},
-	{"NL", "Netherlands",	{1701,  4, 30}, "%e %B %Y"},
+	{"LN", "Latin",		{9999, 31, 12}, "%e %B %Y"},
+	{"LU", "Luxembourg",	{1582, 12, 14}, "%e %B %Y"},
+	{"LV", "Latvia",	{1918,  2,  1}, "%e %B %Y"},
+	{"NL", "Netherlands",	{1582, 12, 14}, "%e %B %Y"},
 	{"NO", "Norway",	{1700,  2, 18}, "%e %B %Y"},
 	{"PL", "Poland",	{1582, 10,  4}, "%e %B %Y"},
 	{"PT", "Portugal",	{1582, 10,  4}, "%e %B %Y"},
-	{"RO", "Romania",	{1920,  3,  4}, "%e %B %Y"},
-	{"RU", "Russia",	{1920,  3,  4}, "%e %B %Y"},
+	{"RO", "Romania",	{1919,  3, 31}, "%e %B %Y"},
+	{"RU", "Russia",	{1918,  1, 31}, "%e %B %Y"},
 	{"SI", "Slovenia",	{1919,  3,  4}, "%e %B %Y"},
 	{"SU", "USSR",		{1920,  3,  4}, "%e %B %Y"},
 	{"SW", "Sweden",	{1753,  2, 17}, "%e %B %Y"},
@@ -161,6 +165,7 @@ void    printmonth(int year, int month, int jd_flag);
 void    printmonthb(int year, int month, int jd_flag);
 void    printyear(int year, int jd_flag);
 void    printyearb(int year, int jd_flag);
+int	firstday(int y, int m);
 date   *sdate(int ndays, struct date * d);
 date   *sdateb(int ndays, struct date * d);
 int     sndays(struct date * d);
@@ -577,29 +582,16 @@ mkmonth(int y, int m, int jd_flag, struct monthlines *mlines)
 	/*
 	 * Set first and last to the day number of the first day of this
 	 * month and the first day of next month respectively. Set jan1 to
-	 * the day number of Jan 1st of this year.
+	 * the day number of the first day of this year.
 	 */
-	dt.y = y;
-	dt.m = m + 1;
-	dt.d = 1;
-	first = sndays(&dt);
-	if (m == 11) {
-		dt.y = y + 1;
-		dt.m = 1;
-		dt.d = 1;
-	} else {
-		dt.y = y;
-		dt.m = m + 2;
-		dt.d = 1;
-	}
-	last = sndays(&dt);
+	first = firstday(y, m + 1);
+	if (m == 11)
+		last = firstday(y + 1, 1);
+	else
+		last = firstday(y, m + 2);
 
-	if (jd_flag) {
-		dt.y = y;
-		dt.m = 1;
-		dt.d = 1;
-		jan1 = sndays(&dt);
-	}
+	if (jd_flag)
+		jan1 = firstday(m, 1);
 
 	/*
 	 * Set firstm to the day number of monday of the first week of
@@ -749,6 +741,26 @@ mkweekdays(struct weekdays *wds)
 		strftime(wds->names[i], 4, "%a", &tm);
 		wds->names[i][2] = ' '; 
 	}
+}
+
+/*
+ * Compute the day number of the first day in month.
+ * The day y-m-1 might be dropped due to Gregorian Reformation,
+ * so the answer is the smallest day number nd with sdate(nd) in
+ * the month m.
+ */
+int
+firstday(int y, int m)
+{
+	date dt;
+	int nd;
+
+	dt.y = y;
+	dt.m = m;
+	dt.d = 1;
+	for (nd = sndays(&dt); sdate(nd, &dt)->m != m; nd++)
+		;
+	return (nd);
 }
 
 /*
