@@ -554,8 +554,7 @@ sloutput(ifp, m, dst, rtp)
 	 * the line protocol to support other address families.
 	 */
 	if (dst->sa_family != AF_INET) {
-		printf("sl%d: af%d not supported\n", sc->sc_if.if_unit,
-			dst->sa_family);
+		if_printf(ifp, "af%d not supported\n", dst->sa_family);
 		m_freem(m);
 		sc->sc_if.if_noproto++;
 		return (EAFNOSUPPORT);
