@@ -91,6 +91,9 @@ bi_getboothowto(char *kargs)
 		case 'd':
 		    howto |= RB_KDB;
 		    break;
+		case 'D':
+		    howto |= RB_MULTIPLE;
+		    break;
 		case 'm':
 		    howto |= RB_MUTE;
 		    break;
