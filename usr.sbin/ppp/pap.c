@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.27 1998/08/26 18:07:57 brian Exp $
+ * $Id: pap.c,v 1.27.2.1 1999/02/01 13:48:24 brian Exp $
  *
  *	TODO:
  */
@@ -132,14 +132,6 @@ PapValidate(struct bundle *bundle, u_char *name, u_char *key,
 	    name, nlen, key, klen);
 
   return auth_Validate(bundle, name, key, physical);
-}
-
-void
-pap_Failed(struct physical *p)
-{
-  auth_StopTimer(&p->dl->pap);
-  log_Printf(LogPHASE, "Pap: No response from server\n");
-  datalink_AuthNotOk(p->dl);
 }
 
 void
