@@ -102,26 +102,25 @@ boot some other partition, possibly on the second drive, as root.
 
 
 ##########################################################################
-In the case you have two drives the same type (both scsi or bith IDE/ESDI),
-wd(0,a)xxx
-	will boot xxx from drive 0, a partition.
-wd(1,a)xxx
-	will boot xxx from drive 1, a partition.
+In the case you have several drives the same type (all scsi or all IDE/ESDI),
+	wd(0,a)xxx
+will boot xxx from drive 0, a partition.
+	wd(1,a)xxx
+will boot xxx from drive 1, a partition.
 
-similarly for sd.
+similarly for sd and for higher drive numbers (if the BIOS supports them).
 
-if you have one wd drive and one scsi drive, then you MUST
-use device 'hd'
+if you have one or more wd drives and one or more scsi drives, then you
+MUST specify the BIOS drive number for booting the scsi drives:
+	2:sd(0,a)xxx
+will boot xxx from scsi drive 0, a partition, provided `2' is the correct
+BIOS drive number for sd0.
 
 otherwise the following will happen:
 
 with wd0 and sd0, you specify sd1 or wd1 to indicate the 2nd drive.
 it boots the kernel correctly, then tells the kernel to use sd1 as root.
 you however may not have an sd1, and problems arise.
-
-hd is special in that the kernel is always told to use unit 0,
-The correct TYPE of device will be specified too, so the kernel
-will be told either sd0 or wd0.
 
 Whether sd or wd is specified to the kernel is read from the disklabel,
 so ensure that all SCSI disks have type SCSI in their disklabel or the
@@ -149,4 +148,4 @@ Before you do this ensure you have a booting floppy with correct
 disktab and bootblock files on it so that if it doesn't work, you can
 re-disklabel from the floppy.
 
-$Id: README.386BSD,v 1.2 1993/10/16 19:11:25 rgrimes Exp $
+$Id: README.386BSD,v 1.3 1995/02/16 12:02:08 jkh Exp $

@@ -76,9 +76,9 @@ To boot FreeBSD in serial console mode, you must do the following:
   No keyboard found.
 
   >> FreeBSD BOOT @ 0x10000: 640/7168 k of memory
-  Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.
-  Usage: [[[fd(0,a)]/kernel][-s][-r][-a][-c][-d][-b][-v][-h]]
-  Use ? for file list or simply press Return for defaults
+  Usage: [[[0:][fd](0,a)]/kernel][-abcCdhrsv]
+  Use 1:sd(0,a)kernel to boot sd0 if it is BIOS drive 1
+  Use ? for file list or press Enter for defaults
   Boot:
 
   This is identical to the prompt that normally appears on the VGA console,
@@ -152,4 +152,4 @@ CAVEATS:
 	  from the new kernel.
 
 
-$Id: README.serial,v 1.2 1995/02/16 07:37:35 wpaul Exp $
+$Id: README.serial,v 1.3 1995/04/20 23:15:07 joerg Exp $
