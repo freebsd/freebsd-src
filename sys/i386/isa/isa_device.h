@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.19 1995/03/16 17:31:19 se Exp $
+ *	$Id: isa_device.h,v 1.20 1995/03/28 07:55:39 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -77,6 +77,15 @@ struct isa_device {
 	int	id_enabled;	/* is device enabled */
 	struct isa_device *id_next; /* used in isa_devlist in userconfig() */
 };
+
+/*
+ * Bits to specify the type and amount of conflict checking.
+ */
+#define CC_ATTACH       (1 << 0)
+#define CC_DRQ          (1 << 1)
+#define CC_IOADDR       (1 << 2)
+#define CC_IRQ          (1 << 3)
+#define CC_MEMADDR      (1 << 4)
 
 /*
  * Per-driver structure.
@@ -128,6 +137,7 @@ inthand_t
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
 
 void isa_configure __P((void));
+int haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
 void isa_defaultirq __P((void));
 void isa_dmacascade __P((unsigned chan));
 void isa_dmadone __P((int, caddr_t, int, int));
