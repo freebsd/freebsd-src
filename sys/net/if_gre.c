@@ -167,8 +167,7 @@ gre_clone_create(ifc, unit)
 {
 	struct gre_softc *sc;
 
-	sc = malloc(sizeof(struct gre_softc), M_GRE, M_WAITOK);
-	memset(sc, 0, sizeof(struct gre_softc));
+	sc = malloc(sizeof(struct gre_softc), M_GRE, M_WAITOK | M_ZERO);
 
 	if_initname(&sc->sc_if, ifc->ifc_name, unit);
 	sc->sc_if.if_softc = sc;
