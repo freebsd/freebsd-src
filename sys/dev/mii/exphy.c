@@ -215,6 +215,7 @@ static int exphy_detach(dev)
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(device_get_parent(dev));
+	mii_phy_auto_stop(sc);
 	sc->mii_dev = NULL;
 	LIST_REMOVE(sc, mii_list);
 

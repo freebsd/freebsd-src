@@ -167,6 +167,8 @@ static int xmphy_detach(dev)
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(device_get_parent(dev));
+	if (sc->mii_flags & MIIF_DOINGAUTO)
+		untimeout(mii_phy_auto_timeout, sc, sc->mii_auto_ch);
 	sc->mii_dev = NULL;
 	LIST_REMOVE(sc, mii_list);
 
@@ -386,7 +388,7 @@ xmphy_mii_phy_auto(mii, waitfor)
 	 */
 	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
 		mii->mii_flags |= MIIF_DOINGAUTO;
-		timeout(mii_phy_auto_timeout, mii, hz >> 1);
+		mii->mii_auto_ch = timeout(mii_phy_auto_timeout, mii, hz >> 1);
 	}
 	return (EJUSTRETURN);
 }
