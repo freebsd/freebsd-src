@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.4 1998/10/07 14:42:24 des Exp $
+ *	$Id: if_plip.c,v 1.5 1998/10/24 18:55:53 msmith Exp $
  */
 
 /*
@@ -129,7 +129,9 @@
 
 #define	LPIPTBLSIZE	256	/* Size of octet translation table */
 
+#ifndef DEBUG
 #define DEBUG
+#endif
 
 #ifndef DEBUG
 #define lprintf (void)
