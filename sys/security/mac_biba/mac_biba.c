@@ -811,7 +811,7 @@ mac_biba_create_devfs_directory(struct mount *mp, char *dirname,
 static void
 mac_biba_create_devfs_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
-    struct label *delabel, const char *fullpath)
+    struct label *delabel)
 {
 	struct mac_biba *source, *dest;
 
