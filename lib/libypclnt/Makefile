@@ -14,6 +14,7 @@ INCS		 = ypclnt.h
 CLEANFILES	+= ${GENSRCS}
 CFLAGS		+= -I.
 WARNS		?= 4
+NO_WERROR	 = yes
 DPADD		+= ${LIBRPCSVC}
 LDADD		+= -lrpcsvc
 
