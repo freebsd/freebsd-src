@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.25 1997/06/19 14:38:53 charnier Exp $
+ * $Id: startslip.c,v 1.26 1997/12/21 15:35:22 eivind Exp $
  */
 
 #ifndef lint
@@ -44,14 +44,13 @@ static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <paths.h>
-#include <netdb.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,12 +59,7 @@ static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
-#include <libutil.h>
-#include <err.h>
 
-#include <netinet/in.h>
-#include <net/if.h>
-#include <net/if_var.h>
 #include <net/slip.h>
 
 #define DEFAULT_BAUD    B9600
