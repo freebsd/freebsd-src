@@ -2,6 +2,8 @@
  * /src/NTP/REPOSITORY/v3/parse/util/dcfd.c,v 3.18 1994/05/12 12:49:23 kardel Exp
  *  
  * dcfd.c,v 3.18 1994/05/12 12:49:23 kardel Exp
+ * 
+ * Ported to FreeBSD 2.0 1995/03/20 by Vincenzo Capuano
  *
  * DCF77 100/200ms pulse synchronisation daemon program (via 50Baud serial line)
  *
@@ -38,8 +40,8 @@
  */
 #ifdef USE_PROTOTYPES
 #include "ntp_stdlib.h"
-extern int sigvec P((int, struct sigvec *, struct sigvec *));
-extern int fscanf P((FILE *, char *, ...));
+#include <signal.h>
+#include <stdio.h>
 #endif
 
 #ifdef SYS_LINUX
@@ -1098,7 +1100,7 @@ static void tick()
 }
 
 /*-----------------------------------------------------------------------
- * break association from terminal to avaoid catching terminal
+ * break association from terminal to avoid catching terminal
  * or process group related signals (-> daemon operation)
  */
 static void detach()
@@ -1264,7 +1266,11 @@ main(argc, argv)
   /*
    * get access to DCF77 tty port
    */
+#if defined(SYS_FREEBSD) && defined(BOEDER)
+  fd = open(file, O_RDONLY | O_NONBLOCK);
+#else
   fd = open(file, O_RDONLY);
+#endif
   if (fd == -1)
     {
       perror(file);
@@ -1309,11 +1315,20 @@ main(argc, argv)
 
       memset(term.c_cc, 0, sizeof(term.c_cc));
       term.c_cc[VMIN] = 1;
+#if defined(SYS_FREEBSD)
+      term.c_cflag = CS8|CREAD|CLOCAL|PARENB;
+      term.c_iflag = 0;
+#else
       term.c_cflag = B50|CS8|CREAD|CLOCAL|PARENB;
       term.c_iflag = IGNPAR;
+#endif
       term.c_oflag = 0;
       term.c_lflag = 0;
 
+#if defined(SYS_FREEBSD)
+      if (cfsetspeed(&term, B50) == -1)
+	perror("cfsetspeed");
+#endif
       if (TTY_SETATTR(fd, &term) == -1)
 	{
 	  perror("tcsetattr");
@@ -1374,8 +1389,16 @@ main(argc, argv)
 #else
       (void) alarm(1<<ADJINTERVAL);
 #endif
+#if defined(SYS_FREEBSD) && defined(BOEDER)
+      if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) & ~O_NONBLOCK) == -1)
+	perror("F_SETFL");
+      
+      if (ioctl(fd, TIOCCDTR, 0) == -1)
+	perror("TIOCCDTR");
+#endif
 
       PRINTF("  DCF77 monitor - Copyright 1993,1994, Frank Kardel\n\n");
+      syslog(LOG_NOTICE, "Starting on %s", file);
 
       pbuf[60] = '\0';
       for ( i = 0; i < 60; i++)
@@ -1520,8 +1543,13 @@ main(argc, argv)
 			   * we had at least one minute SYNC - thus
 			   * last error is valid
 			   */
+#if defined(BOEDER)
+			  time_offset.tv_sec  = utc_time - tt.tv_sec;
+			  time_offset.tv_usec = 0;
+#else
 			  time_offset.tv_sec  = lasterror / 1000000;
 			  time_offset.tv_usec = lasterror % 1000000;
+#endif
 			  adjust_clock(&time_offset, drift_file, utc_time);
 			}
 		      sync_state = SYNC;
