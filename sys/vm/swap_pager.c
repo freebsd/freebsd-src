@@ -236,7 +236,7 @@ static boolean_t
 		swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
 static void	swap_pager_init(void);
 static void	swap_pager_unswapped(vm_page_t);
-static void	swap_pager_swapoff(struct swdevt *sp, int *sw_used);
+static void	swap_pager_swapoff(struct swdevt *sp);
 
 struct pagerops swappagerops = {
 	.pgo_init =	swap_pager_init,	/* early system initialization of pager	*/
@@ -609,19 +609,11 @@ done:
 	return (blk);
 }
 
-static struct swdevt *
-swp_pager_find_dev(daddr_t blk)
+static int
+swp_pager_isondev(daddr_t blk, struct swdevt *sp)
 {
-	struct swdevt *sp;
 
-	mtx_lock(&sw_dev_mtx);
-	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (blk >= sp->sw_first && blk < sp->sw_end) {
-			mtx_unlock(&sw_dev_mtx);
-			return (sp);
-		}
-	}
-	panic("Swapdev not found");
+	return (blk >= sp->sw_first && blk < sp->sw_end);
 }
 	
 static void
@@ -1598,27 +1590,24 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 	if (object->type != OBJT_SWAP)
 		return (0);
 
+	mtx_lock(&swhash_mtx);
 	for (bcount = 0; bcount < object->un_pager.swp.swp_bcount; bcount++) {
 		struct swblock *swap;
 
-		mtx_lock(&swhash_mtx);
 		if ((swap = *swp_pager_hash(object, index)) != NULL) {
 			for (i = 0; i < SWAP_META_PAGES; ++i) {
-				daddr_t v = swap->swb_pages[i];
-				if (v == SWAPBLK_NONE)
-					continue;
-				if (swp_pager_find_dev(v) == sp) {
+				if (swp_pager_isondev(swap->swb_pages[i], sp)) {
 					mtx_unlock(&swhash_mtx);
-					return 1;
+					return (1);
 				}
 			}
 		}
-		mtx_unlock(&swhash_mtx);
 		index += SWAP_META_PAGES;
 		if (index > 0x20000000)
 			panic("swap_pager_isswapped: failed to locate all swap meta blocks");
 	}
-	return 0;
+	mtx_unlock(&swhash_mtx);
+	return (0);
 }
 
 /*
@@ -1636,19 +1625,12 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
  *	      revert to the one-by-one behavior for now.  Sigh.
  */
 static __inline void
-swp_pager_force_pagein(struct swblock *swap, int idx)
+swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 {
-	vm_object_t object;
 	vm_page_t m;
-	vm_pindex_t pindex;
 
-	object = swap->swb_object;
-	pindex = swap->swb_index;
-	mtx_unlock(&swhash_mtx);
-
-	VM_OBJECT_LOCK(object);
 	vm_object_pip_add(object, 1);
-	m = vm_page_grab(object, pindex + idx, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
 		vm_page_lock_queues();
@@ -1657,12 +1639,10 @@ swp_pager_force_pagein(struct swblock *swap, int idx)
 		vm_page_wakeup(m);
 		vm_page_unlock_queues();
 		vm_pager_page_unswapped(m);
-		VM_OBJECT_UNLOCK(object);
 		return;
 	}
 
-	if (swap_pager_getpages(object, &m, 1, 0) !=
-	    VM_PAGER_OK)
+	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_subtract(object, 1);
 	vm_page_lock_queues();
@@ -1671,9 +1651,7 @@ swp_pager_force_pagein(struct swblock *swap, int idx)
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
 	vm_pager_page_unswapped(m);
-	VM_OBJECT_UNLOCK(object);
 }
-
 
 /*
  *	swap_pager_swapoff:
@@ -1683,60 +1661,58 @@ swp_pager_force_pagein(struct swblock *swap, int idx)
  *	marked as allocated and the device must be flagged SW_CLOSING.
  *	There may be no processes swapped out to the device.
  *
- *	The sw_used parameter points to the field in the swdev structure
- *	that contains a count of the number of blocks still allocated
- *	on the device.  If we encounter objects with a nonzero pip count
- *	in our scan, we use this number to determine if we're really done.
- *
  *	This routine may block.
  */
 static void
-swap_pager_swapoff(struct swdevt *sp, int *sw_used)
+swap_pager_swapoff(struct swdevt *sp)
 {
-	struct swblock **pswap;
 	struct swblock *swap;
-	vm_object_t waitobj;
-	daddr_t v;
-	int i, j;
+	int i, j, retries;
 
 	GIANT_REQUIRED;
 
+	retries = 0;
 full_rescan:
-	waitobj = NULL;
+	mtx_lock(&swhash_mtx);
 	for (i = 0; i <= swhash_mask; i++) { /* '<=' is correct here */
 restart:
-		pswap = &swhash[i];
-		mtx_lock(&swhash_mtx);
-		while ((swap = *pswap) != NULL) {
+		for (swap = swhash[i]; swap != NULL; swap = swap->swb_hnext) {
+			vm_object_t object = swap->swb_object;
+			vm_pindex_t pindex = swap->swb_index;
                         for (j = 0; j < SWAP_META_PAGES; ++j) {
-                                v = swap->swb_pages[j];
-                                if (v != SWAPBLK_NONE &&
-				    swp_pager_find_dev(v) == sp)
-                                        break;
+                                if (swp_pager_isondev(swap->swb_pages[j], sp)) {
+					/* avoid deadlock */
+					if (!VM_OBJECT_TRYLOCK(object)) {
+						break;
+					} else {
+						mtx_unlock(&swhash_mtx);
+						swp_pager_force_pagein(object,
+						    pindex + j);
+						VM_OBJECT_UNLOCK(object);
+						mtx_lock(&swhash_mtx);
+						goto restart;
+					}
+				}
                         }
-			if (j < SWAP_META_PAGES) {
-				swp_pager_force_pagein(swap, j);
-				goto restart;
-			} else if (swap->swb_object->paging_in_progress) {
-				if (!waitobj)
-					waitobj = swap->swb_object;
-			}
-			pswap = &swap->swb_hnext;
 		}
-		mtx_unlock(&swhash_mtx);
 	}
-	if (waitobj && *sw_used) {
-	    /*
-	     * We wait on an arbitrary object to clock our rescans
-	     * to the rate of paging completion.
-	     */
-	    VM_OBJECT_LOCK(waitobj);
-	    vm_object_pip_wait(waitobj, "swpoff");
-	    VM_OBJECT_UNLOCK(waitobj);
-	    goto full_rescan;
+	mtx_unlock(&swhash_mtx);
+	if (sp->sw_used) {
+		int dummy;
+		/*
+		 * Objects may be locked or paging to the device being
+		 * removed, so we will miss their pages and need to
+		 * make another pass.  We have marked this device as
+		 * SW_CLOSING, so the activity should finish soon.
+		 */
+		retries++;
+		if (retries > 100) {
+			panic("swapoff: failed to locate %d swap blocks",
+			    sp->sw_used);
+		}
+		tsleep(&dummy, PVM, "swpoff", hz / 20);
+		goto full_rescan;
 	}
-	if (*sw_used)
-	    panic("swapoff: failed to locate %d swap blocks", *sw_used);
 }
 
 /************************************************************************
@@ -2238,7 +2214,7 @@ found:
 #ifndef NO_SWAPPING
        	vm_proc_swapin_all(sp);
 #endif /* !NO_SWAPPING */
-	swap_pager_swapoff(sp, &sp->sw_used);
+	swap_pager_swapoff(sp);
 
 	sp->sw_close(td, sp);
 	sp->sw_id = NULL;
