@@ -234,11 +234,11 @@ mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg)
     		case SOUND_MIXER_DEVMASK:
     		case SOUND_MIXER_CAPS:
     		case SOUND_MIXER_STEREODEVS:
-			v = m->devs;
+			v = mix_getdevs(m);
 			break;
 
     		case SOUND_MIXER_RECMASK:
-			v = m->recdevs;
+			v = mix_getrecdevs(m);
 			break;
 
     		case SOUND_MIXER_RECSRC:

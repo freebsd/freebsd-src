@@ -242,7 +242,7 @@ au_prepareoutput(struct au_chinfo *ch, u_int32_t format)
 {
 	struct au_info *au = ch->parent;
 	int i, stereo = (format & AFMT_STEREO)? 1 : 0;
-	u_int32_t baseaddr = vtophys(ch->buffer->buf);
+	u_int32_t baseaddr = vtophys(sndbuf_getbuf(ch->buffer));
 
 	au_wr(au, 0, 0x1061c, 0, 4);
 	au_wr(au, 0, 0x10620, 0, 4);
@@ -301,9 +301,8 @@ auchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = au;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = AU_BUFFSIZE;
 	ch->dir = dir;
-	if (chn_allocbuf(ch->buffer, au->parent_dmat) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, au->parent_dmat, AU_BUFFSIZE) == -1) return NULL;
 	return ch;
 }
 

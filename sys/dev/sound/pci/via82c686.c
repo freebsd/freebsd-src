@@ -217,9 +217,8 @@ viachan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = via;
 	ch->channel = c;
 	ch->buffer = b;
-	b->bufsize = VIA_BUFFSIZE;
 
-	if (chn_allocbuf(ch->buffer, via->parent_dmat) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, VIA_BUFFSIZE) == -1) return NULL;
 	return ch;
 }
 
@@ -240,14 +239,14 @@ viachan_setdir(kobj_t obj, void *data, int dir)
 	 *  is feeding.
 	 */
 	ado = via->sgd_table;
-	chunk_size = ch->buffer->bufsize / SEGS_PER_CHAN;
+	chunk_size = sndbuf_getsize(ch->buffer) / SEGS_PER_CHAN;
 
 	if (dir == PCMDIR_REC) {
 		ado += SEGS_PER_CHAN;
 	}
 
 DEB(printf("SGD table located at va %p\n", ado));
-	phys_addr = vtophys(ch->buffer->buf);
+	phys_addr = vtophys(sndbuf_getbuf(ch->buffer));
 	for (i = 0; i < SEGS_PER_CHAN; i++) {
 		ado->ptr = phys_addr;
 		flag = (i == SEGS_PER_CHAN-1) ?
@@ -339,7 +338,7 @@ viachan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct via_chinfo *ch = data;
 
-	return ch->buffer->bufsize / 2;
+	return sndbuf_getsize(ch->buffer) / 2;
 }
 
 static int
@@ -409,7 +408,7 @@ DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 		if (seg == 0) seg = SEGS_PER_CHAN;
 
 		/* Now work out offset: seg less count */
-		ptr = seg * ch->buffer->bufsize / SEGS_PER_CHAN - len;
+		ptr = seg * sndbuf_getsize(ch->buffer) / SEGS_PER_CHAN - len;
 DEB(printf("return ptr=%d\n", ptr));
 		return ptr;
 	}
@@ -430,7 +429,7 @@ DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 		if (seg == 0) seg = SEGS_PER_CHAN;
 
 		/* Now work out offset: seg less count */
-		ptr = seg * ch->buffer->bufsize / SEGS_PER_CHAN - len;
+		ptr = seg * sndbuf_getsize(ch->buffer) / SEGS_PER_CHAN - len;
 
 		/* DMA appears to operate on memory 'lines' of 32 bytes	*/
 		/* so don't return any part line - it isn't in RAM yet	*/
