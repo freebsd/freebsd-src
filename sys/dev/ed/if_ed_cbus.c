@@ -1101,7 +1101,7 @@ ed_probe_CNET98(dev, port_rid, flags)
 	if (((rman_get_start(sc->port_res) & 0x0fff) != 0x03d0)
 	||  ((rman_get_start(sc->port_res) & 0xf000) < (u_short) 0xa000)) {
 #ifdef DIAGNOSTIC
-		device_printf(dev, "Invalid i/o port configuration (0x%x) "
+		device_printf(dev, "Invalid i/o port configuration (0x%lx) "
 			"must be %s for %s\n", rman_get_start(sc->port_res),
 			"0x[a-f]3d0", "CNET98");
 #endif
@@ -1112,7 +1112,7 @@ ed_probe_CNET98(dev, port_rid, flags)
 	/* Check window area address */
 	tmp_s = kvtop(sc->mem_start) >> 12;
 	if (tmp_s < 0x80) {
-		device_printf(dev, "Please change window address(0x%x)\n",
+		device_printf(dev, "Please change window address(0x%lx)\n",
 			kvtop(sc->mem_start));
 		return (ENXIO);
 	}
@@ -1120,8 +1120,8 @@ ed_probe_CNET98(dev, port_rid, flags)
 	tmp_s &= 0x0f;
 	tmp    = rman_get_start(sc->port_res) >> 12;
 	if ((tmp_s <= tmp) && (tmp < (tmp_s + 4))) {
-		device_printf(dev, "Please change iobase address(0x%x) "
-			"or window address(0x%x)\n",
+		device_printf(dev, "Please change iobase address(0x%lx) "
+			"or window address(0x%lx)\n",
 	   		rman_get_start(sc->port_res), kvtop(sc->mem_start));
 		return (ENXIO);
 	}
@@ -1263,7 +1263,7 @@ ed_probe_CNET98EL(dev, port_rid, flags)
 	/* Check I/O address. 0x[0-f]3d0 are allowed. */
 	if ((rman_get_start(sc->port_res) & 0x0fff) != 0x03d0) {
 #ifdef DIAGNOSTIC
-		device_printf(dev, "Invalid i/o port configuration (0x%x) "
+		device_printf(dev, "Invalid i/o port configuration (0x%lx) "
 			"must be %s for %s\n", rman_get_start(sc->port_res),
 			"0x?3d0", "CNET98E/L");
 #endif
@@ -1556,7 +1556,7 @@ ed_probe_SB98(dev, port_rid, flags)
 	/* Check I/O address. 00d[02468ace] are allowed. */
 	if ((rman_get_start(sc->port_res) & ~0x000e) != 0x00d0) {
 #ifdef DIAGNOSTIC
-		device_printf(dev, "Invalid i/o port configuration (0x%x) "
+		device_printf(dev, "Invalid i/o port configuration (0x%lx) "
 			"must be %s for %s\n", rman_get_start(sc->port_res),
 			"0xd?", "SB9801");
 #endif
