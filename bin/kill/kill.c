@@ -41,9 +41,9 @@ static char const copyright[] =
 #if 0
 static char sccsid[] = "@(#)kill.c	8.4 (Berkeley) 4/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
@@ -53,16 +53,13 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 
-int main __P((int, char *[]));
-void nosig __P((char *));
-void printsignals __P((FILE *));
-int signame_to_signum __P((char *));
-void usage __P((void));
+void nosig(char *);
+void printsignals(FILE *);
+int signame_to_signum(char *);
+void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int errors, numsig, pid;
 	char *ep;
@@ -106,7 +103,7 @@ main(argc, argv)
 		} else
 			numsig = 0;
 		argc--, argv++;
-	} else if (**argv == '-') {
+	} else if (**argv == '-' && *(*argv + 1) != '-') {
 		++*argv;
 		if (isalpha(**argv)) {
 			if ((numsig = signame_to_signum(*argv)) < 0)
@@ -121,6 +118,9 @@ main(argc, argv)
 			nosig(*argv);
 		argc--, argv++;
 	}
+
+	if (argc > 0 && strncmp(*argv, "--", 2) == 0)
+		argc--, argv++;
 
 	if (argc == 0)
 		usage();
@@ -140,8 +140,7 @@ main(argc, argv)
 }
 
 int
-signame_to_signum(sig)
-	char *sig;
+signame_to_signum(char *sig)
 {
 	int n;
 
@@ -155,8 +154,7 @@ signame_to_signum(sig)
 }
 
 void
-nosig(name)
-	char *name;
+nosig(char *name)
 {
 
 	warnx("unknown signal %s; valid signals:", name);
@@ -165,8 +163,7 @@ nosig(name)
 }
 
 void
-printsignals(fp)
-	FILE *fp;
+printsignals(FILE *fp)
 {
 	int n;
 
@@ -180,7 +177,7 @@ printsignals(fp)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
