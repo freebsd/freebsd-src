@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_da.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -607,7 +607,7 @@ dadump(dev_t dev)
 			return (EIO);
 		}
 		
-		if ((unsigned)addr % (1024 * 1024) == 0) {
+		if ((intptr_t)addr % (1024 * 1024) == 0) {
 #ifdef	HW_WDOG
 			if (wdog_tickler)
 				(*wdog_tickler)();
