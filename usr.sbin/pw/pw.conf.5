@@ -35,10 +35,10 @@ The file
 .Aq Pa /etc/pw.conf
 contains configuration data for the
 .Xr pw 8
-program.
+utility.
 The
 .Xr pw 8
-program is used for maintenance of the system password and group
+utility is used for maintenance of the system password and group
 files, allowing users and groups to be added, deleted and changed.
 This file may be modified via the
 .Xr pw 8
@@ -49,7 +49,7 @@ command and the
 option, or by editing it directly with a text editor.
 .Pp
 Each line in
-.Aq Pa /etc/pw.conf
+.Pa /etc/pw.conf
 is treated either a comment or as configuration data;
 blank lines and lines commencing with a
 .Ql \&#
@@ -67,7 +67,9 @@ reuse gaps in uid sequences
 .It reusegids
 reuse gaps in gid sequences
 .It nispasswd
-path to the NIS passwd database
+path to the
+.Tn NIS
+passwd database
 .It skeleton
 where to obtain default home contents
 .It newmail
@@ -124,8 +126,9 @@ The final option causes
 .Xr pw 8
 to respond by printing a randomly generated password on stdout.
 This is the preferred and most secure option.
-.Xr Pw 8
-also provides a method of setting a specific password for the new
+The
+.Xr pw 8
+utility also provides a method of setting a specific password for the new
 user via a filehandle (command lines are not secure).
 .Pp
 Both
@@ -154,7 +157,9 @@ user's uid and gid the same.
 If the new user's uid is currently in use as a group id, then the next
 available group id is chosen instead.
 .Pp
-On NIS servers which maintain a separate passwd database to
+On
+.Tn NIS
+servers which maintain a separate passwd database to
 .Pa /etc/master.passwd ,
 this option allows the additional file to be concurrently updated
 as user records are added, modified or removed.
@@ -168,7 +173,8 @@ new home directory is constructed.
 This is
 .Pa /usr/share/skel
 by default.
-.Xr Pw 8 Ns 's
+The
+.Xr pw 8 Ns 's
 .Fl m
 option causes the user's home directory to be created and populated
 using the files contained in the
@@ -197,8 +203,9 @@ keyword is mandatory.
 This specifies the location of the directory in which all new user
 home directories are created.
 .Pp
+The
 .Ar shellpath
-specifies a list of directories - separated by colons
+keyword specifies a list of directories - separated by colons
 .Ql \&:
 - which contain the programs used by the login shells.
 .Pp
@@ -232,8 +239,9 @@ irrespective of the
 .Em umask
 normally used by the user.
 .Pp
+The
 .Ar extragroups
-provides an automatic means of placing new users into groups within
+keyword provides an automatic means of placing new users into groups within
 the
 .Pa /etc/groups
 file.
@@ -257,7 +265,7 @@ The
 .Ar maxuid ,
 .Ar mingid ,
 .Ar maxgid
-keywords determines the allowed ranges of automatically allocated user
+keywords determine the allowed ranges of automatically allocated user
 and group id numbers.
 The default values for both user and group ids are 1000 and 32000 as
 minimum and maximum respectively.
