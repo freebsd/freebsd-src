@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.94 1998/07/06 09:06:58 julian Exp $
+ * $Id: ip_input.c,v 1.95 1998/07/06 09:10:56 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -1029,16 +1029,27 @@ ip_dooptions(m)
 			}
 
 			if (!ip_dosourceroute) {
-				char buf[4*sizeof "123"];
-
+				if (ipforwarding) {
+					char buf[16]; /* aaa.bbb.ccc.ddd\0 */
+					/*
+					 * Acting as a router, so generate ICMP
+					 */
 nosourcerouting:
-				strcpy(buf, inet_ntoa(ip->ip_dst));
-				log(LOG_WARNING, 
-				    "attempted source route from %s to %s\n",
-				    inet_ntoa(ip->ip_src), buf);
-				type = ICMP_UNREACH;
-				code = ICMP_UNREACH_SRCFAIL;
-				goto bad;
+					strcpy(buf, inet_ntoa(ip->ip_dst));
+					log(LOG_WARNING, 
+					    "attempted source route from %s to %s\n",
+					    inet_ntoa(ip->ip_src), buf);
+					type = ICMP_UNREACH;
+					code = ICMP_UNREACH_SRCFAIL;
+					goto bad;
+				} else {
+					/*
+					 * Not acting as a router, so silently drop.
+					 */
+					ipstat.ips_cantforward++;
+					m_freem(m);
+					return (1);
+				}
 			}
 
 			/*
