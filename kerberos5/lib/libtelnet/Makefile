@@ -6,19 +6,20 @@ INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 NOPIC=		yes
 
-SRCS=		genget.c getent.c misc.c encrypt.c auth.c kerberos.c \
-		enc_des.c pk.c sra.c
+SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
+		enc_des.c sra.c pk.c
+#SRCS+=		kerberos5.c
 
-CFLAGS+=	-DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
-		-DKRB4 -DSRA -I${TELNETDIR} \
-		-I${KRB4DIR}/lib/krb
+CFLAGS=		-DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
+		-DSRA -I${TELNETDIR}
+#CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5
 
-INCS=		${TELNETDIR}/arpa/telnet.h 
+INCS=		${TELNETDIR}/arpa/telnet.h
 INCDIR=		/usr/include/arpa
 
 #
 # Remove obsolete shared libraries, if any.  We don't bother moving them
-# to/usr/lib/compat, since they were only used by telnet, telnetd and
+# to /usr/lib/compat, since they were only used by telnet, telnetd and
 # tn3270.
 #
 beforeinstall:
