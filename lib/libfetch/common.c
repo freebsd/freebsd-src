@@ -359,25 +359,18 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 	struct url_ent *tmp;
 
 	if (*p == NULL) {
-#define INITIAL_SIZE 8
-		if ((*p = malloc(INITIAL_SIZE * sizeof **p)) == NULL) {
-			errno = ENOMEM;
-			_fetch_syserr();
-			return (-1);
-		}
-		*size = INITIAL_SIZE;
+		*size = 0;
 		*len = 0;
-#undef INITIAL_SIZE
 	}
 
 	if (*len >= *size - 1) {
-		tmp = realloc(*p, *size * 2 * sizeof **p);
+		tmp = realloc(*p, (*size * 2 + 1) * sizeof **p);
 		if (tmp == NULL) {
 			errno = ENOMEM;
 			_fetch_syserr();
 			return (-1);
 		}
-		*size *= 2;
+		*size = (*size * 2 + 1);
 		*p = tmp;
 	}
 
