@@ -170,10 +170,10 @@ like this:
 This means that ata0-master is in DMA mode,
 ata0-slave is in PIO mode,
 and so forth.
-You can set the mode with sysctl -w and a string like the above,
+You can set the mode with sysctl and a string like the above,
 for example:
 .Pp
-.Dl sysctl -w hw.atamodes=pio,pio,---,dma,pio,---,dma,---,
+.Dl sysctl hw.atamodes=pio,pio,---,dma,pio,---,dma,---,
 .Pp
 The new modes are set as soon as the sysctl command returns.
 .Sh FILES
