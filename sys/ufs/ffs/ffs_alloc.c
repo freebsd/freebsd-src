@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.23 1996/01/05 18:31:45 wollman Exp $
+ * $Id: ffs_alloc.c,v 1.24 1996/05/08 04:29:07 gpalmer Exp $
  */
 
 #include "opt_quota.h"
@@ -654,7 +654,7 @@ ffs_blkpref(ip, lbn, indx, bap)
 				fs->fs_cgrotor = cg;
 				return (fs->fs_fpg * cg + fs->fs_frag);
 			}
-		return (NULL);
+		return (0);
 	}
 	/*
 	 * One or more previous blocks have been laid out. If less
@@ -756,30 +756,30 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 
 	fs = ip->i_fs;
 	if (fs->fs_cs(fs, cg).cs_nffree < numfrags(fs, nsize - osize))
-		return (NULL);
+		return (0);
 	frags = numfrags(fs, nsize);
 	bbase = fragnum(fs, bprev);
 	if (bbase > fragnum(fs, (bprev + frags - 1))) {
 		/* cannot extend across a block boundary */
-		return (NULL);
+		return (0);
 	}
 	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
-		return (NULL);
+		return (0);
 	}
 	cgp = (struct cg *)bp->b_data;
 	if (!cg_chkmagic(cgp)) {
 		brelse(bp);
-		return (NULL);
+		return (0);
 	}
 	cgp->cg_time = time.tv_sec;
 	bno = dtogd(fs, bprev);
 	for (i = numfrags(fs, osize); i < frags; i++)
 		if (isclr(cg_blksfree(cgp), bno + i)) {
 			brelse(bp);
-			return (NULL);
+			return (0);
 		}
 	/*
 	 * the current fragment can be extended
@@ -825,18 +825,18 @@ ffs_alloccg(ip, cg, bpref, size)
 
 	fs = ip->i_fs;
 	if (fs->fs_cs(fs, cg).cs_nbfree == 0 && size == fs->fs_bsize)
-		return (NULL);
+		return (0);
 	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
-		return (NULL);
+		return (0);
 	}
 	cgp = (struct cg *)bp->b_data;
 	if (!cg_chkmagic(cgp) ||
 	    (cgp->cg_cs.cs_nbfree == 0 && size == fs->fs_bsize)) {
 		brelse(bp);
-		return (NULL);
+		return (0);
 	}
 	cgp->cg_time = time.tv_sec;
 	if (size == fs->fs_bsize) {
@@ -860,7 +860,7 @@ ffs_alloccg(ip, cg, bpref, size)
 		 */
 		if (cgp->cg_cs.cs_nbfree == 0) {
 			brelse(bp);
-			return (NULL);
+			return (0);
 		}
 		bno = ffs_alloccgblk(fs, cgp, bpref);
 		bpref = dtogd(fs, bno);
@@ -878,7 +878,7 @@ ffs_alloccg(ip, cg, bpref, size)
 	bno = ffs_mapsearch(fs, cgp, bpref, allocsiz);
 	if (bno < 0) {
 		brelse(bp);
-		return (NULL);
+		return (0);
 	}
 	for (i = 0; i < frags; i++)
 		clrbit(cg_blksfree(cgp), bno + i);
@@ -992,7 +992,7 @@ norot:
 	 */
 	bno = ffs_mapsearch(fs, cgp, bpref, (int)fs->fs_frag);
 	if (bno < 0)
-		return (NULL);
+		return (0);
 	cgp->cg_rotor = bno;
 gotit:
 	blkno = fragstoblks(fs, bno);
@@ -1122,17 +1122,17 @@ ffs_nodealloccg(ip, cg, ipref, mode)
 
 	fs = ip->i_fs;
 	if (fs->fs_cs(fs, cg).cs_nifree == 0)
-		return (NULL);
+		return (0);
 	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
-		return (NULL);
+		return (0);
 	}
 	cgp = (struct cg *)bp->b_data;
 	if (!cg_chkmagic(cgp) || cgp->cg_cs.cs_nifree == 0) {
 		brelse(bp);
-		return (NULL);
+		return (0);
 	}
 	cgp->cg_time = time.tv_sec;
 	if (ipref) {

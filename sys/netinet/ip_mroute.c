@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.31 1996/03/26 19:16:44 fenner Exp $
+ * $Id: ip_mroute.c,v 1.32 1996/04/18 15:41:11 wollman Exp $
  */
 
 #include "opt_mrouting.h"
@@ -610,7 +610,7 @@ X_ip_mrouter_done()
     /*
      * Reset de-encapsulation cache
      */
-    last_encap_src = NULL;
+    last_encap_src = 0;
     last_encap_vif = NULL;
     have_encap_tunnel = 0;
  
