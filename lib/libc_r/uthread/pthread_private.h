@@ -1063,7 +1063,7 @@ void    _thread_kern_sched(ucontext_t *);
 void    _thread_kern_sched_state(enum pthread_state,char *fname,int lineno);
 void	_thread_kern_sched_state_unlock(enum pthread_state state,
 	    spinlock_t *lock, char *fname, int lineno);
-void    _thread_kern_set_timeout(struct timespec *);
+void    _thread_kern_set_timeout(const struct timespec *);
 void    _thread_kern_sig_defer(void);
 void    _thread_kern_sig_undefer(void);
 void    _thread_sig_handler(int, int, ucontext_t *);

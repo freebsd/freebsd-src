@@ -1008,7 +1008,7 @@ _thread_kern_poll(int wait_reqd)
 }
 
 void
-_thread_kern_set_timeout(struct timespec * timeout)
+_thread_kern_set_timeout(const struct timespec * timeout)
 {
 	struct timespec current_time;
 	struct timeval  tv;
