@@ -51,9 +51,6 @@ extern int		ifqmaxlen;
  * Local functions
  */
 static int	atm_physif_ioctl __P((int, caddr_t, caddr_t));
-#if (defined(BSD) && (BSD >= 199306))
-static int	atm_netif_rtdel __P((struct radix_node *, void *));
-#endif
 static int	atm_if_ioctl __P((struct ifnet *, u_long, caddr_t));
 static int	atm_ifparse __P((char *, char *, int, int *));
 
@@ -821,12 +818,8 @@ atm_nif_detach(nip)
 	struct atm_nif	*nip;
 {
 	struct atm_ncm	*ncp;
-	int		s, i;
+	int		s;
 	struct ifnet	*ifp = &nip->nif_if;
-	struct ifaddr	*ifa;
-	struct in_ifaddr	*ia;
-	struct radix_node_head	*rnh;
-
 
 	s = splimp();
 
@@ -842,47 +835,12 @@ atm_nif_detach(nip)
 	 */
 	bpfdetach(ifp);
 
-	/*
-	 * Mark interface down
-	 */
-	if_down(ifp);
-
-	/*
-	 * Free all interface routes and addresses
-	 */
-	while (1) {
-		IFP_TO_IA(ifp, ia);
-		if (ia == NULL)
-			break;
-
-		/* Delete interface route */
-		in_ifscrub(ifp, ia);
-
-		/* Remove interface address from queues */
-		ifa = &ia->ia_ifa;
-		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		TAILQ_REMOVE(&in_ifaddrhead, ia, ia_link);
-
-		/* Free interface address */
-		IFAFREE(ifa);
-	}
-
-	/*
-	 * Delete all remaining routes using this interface
-	 * Unfortuneatly the only way to do this is to slog through
-	 * the entire routing table looking for routes which point
-	 * to this interface...oh well...
-	 */
-	for (i = 1; i <= AF_MAX; i++) {
-		if ((rnh = rt_tables[i]) == NULL)
-			continue;
-		(void) rnh->rnh_walktree(rnh, atm_netif_rtdel, ifp);
-	}
-
-	/*
-	 * Remove from system interface list (ie. if_detach())
-	 */
-	TAILQ_REMOVE(&ifnet, ifp, if_link);
+  	/*
+ 	 * Free all interface routes and addresses,
+ 	 * delete all remaining routes using this interface,
+ 	 * then remove from the system interface list
+  	 */
+ 	if_detach(ifp);
 
 	/*
 	 * Remove from physical interface list
@@ -891,52 +849,6 @@ atm_nif_detach(nip)
 
 	(void) splx(s);
 }
-
-
-/*
- * Delete Routes for a Network Interface
- * 
- * Called for each routing entry via the rnh->rnh_walktree() call above
- * to delete all route entries referencing a detaching network interface.
- *
- * Arguments:
- *	rn	pointer to node in the routing table
- *	arg	argument passed to rnh->rnh_walktree() - detaching interface
- *
- * Returns:
- *	0	successful
- *	errno	failed - reason indicated
- *
- */
-static int
-atm_netif_rtdel(rn, arg)
-	struct radix_node	*rn;
-	void			*arg;
-{
-	struct rtentry	*rt = (struct rtentry *)rn;
-	struct ifnet	*ifp = arg;
-	int		err;
-
-	if (rt->rt_ifp == ifp) {
-
-		/*
-		 * Protect (sorta) against walktree recursion problems
-		 * with cloned routes
-		 */
-		if ((rt->rt_flags & RTF_UP) == 0)
-			return (0);
-
-		err = rtrequest(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-				rt_mask(rt), rt->rt_flags,
-				(struct rtentry **) NULL);
-		if (err) {
-			log(LOG_WARNING, "atm_netif_rtdel: error %d\n", err);
-		}
-	}
-
-	return (0);
-}
-
 
 /*
  * Set an ATM Network Interface address
