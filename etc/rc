@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.78 1995/11/04 05:03:16 pst Exp $
+#	$Id: rc,v 1.79 1995/12/09 19:40:12 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -210,7 +210,7 @@ fi
 
 if [ "X${nfs_server}" = X"YES" -a -r /etc/exports ]; then
 	echo -n ' mountd'
-	if [ "X${pcnfsd}" = X"YES" ]; then
+	if [ "X${weak_mountd_authentication}" = X"YES" ]; then
 		mountd -n
 	else
 		mountd
@@ -295,9 +295,12 @@ if [ -f /etc/rc.${arch} ]; then
 	. /etc/rc.${arch}
 fi
 
-if [ "X${local_startup}" != X"NO" -a -d ${local_startup} ]; then
-	for script in ${local_startup}/*.sh; do
-		[ -x ${script} ] && ${script} start
+# for each valid dir in $local_startup, search for init scripts matching *.sh
+if [ "X${local_startup}" != X"NO" ]; then
+	for dir in ${local_startup}; do
+		[ -d ${dir} ] && for script in ${dir}/*.sh; do
+			[ -x ${script} ] && ${script} start
+		done
 	done
 fi
 
