@@ -1952,7 +1952,7 @@ retry_lookup:
 		 * Get a sendfile buf. We usually wait as long as necessary,
 		 * but this wait can be interrupted.
 		 */
-		if ((sf = sf_buf_alloc(pg, PCATCH)) == NULL) {
+		if ((sf = sf_buf_alloc(pg, SFB_CATCH)) == NULL) {
 			mbstat.sf_allocfail++;
 			vm_page_lock_queues();
 			vm_page_unwire(pg, 0);

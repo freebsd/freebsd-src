@@ -369,17 +369,19 @@ sf_buf_init(void *arg)
  * Get an sf_buf from the freelist. Will block if none are available.
  */
 struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int pri)
+sf_buf_alloc(struct vm_page *m, int flags)
 {
 	struct sf_buf *sf;
 	int error;
 
 	mtx_lock(&sf_freelist.sf_lock);
 	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
+		if (flags & SFB_NOWAIT)
+			goto break;
 		sf_buf_alloc_want++;
 		mbstat.sf_allocwait++;
-		error = msleep(&sf_freelist, &sf_freelist.sf_lock, PVM | pri,
-		    "sfbufa", 0);
+		error = msleep(&sf_freelist, &sf_freelist.sf_lock,
+		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
 		sf_buf_alloc_want--;
 
 		/*

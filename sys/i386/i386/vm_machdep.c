@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/pcb_ext.h>
+#include <machine/smp.h>
 #include <machine/vm86.h>
 
 #ifdef CPU_ELAN
@@ -626,12 +627,18 @@ sf_buf_init(void *arg)
  * Get an sf_buf from the freelist. Will block if none are available.
  */
 struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int pri)
+sf_buf_alloc(struct vm_page *m, int flags)
 {
+	pt_entry_t opte, *ptep;
 	struct sf_head *hash_list;
 	struct sf_buf *sf;
+#ifdef SMP
+	cpumask_t cpumask, other_cpus;
+#endif
 	int error;
 
+	KASSERT(curthread->td_pinned > 0 || (flags & SFB_CPUPRIVATE) == 0,
+	    ("sf_buf_alloc(SFB_CPUPRIVATE): curthread not pinned"));
 	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
 	mtx_lock(&sf_buf_lock);
 	LIST_FOREACH(sf, hash_list, list_entry) {
@@ -642,14 +649,32 @@ sf_buf_alloc(struct vm_page *m, int pri)
 				nsfbufsused++;
 				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 			}
+#ifdef SMP
+			cpumask = PCPU_GET(cpumask);
+			if ((sf->cpumask & cpumask) == 0) {
+				sf->cpumask |= cpumask;
+				invlpg(sf->kva);
+			}
+			if ((flags & SFB_CPUPRIVATE) == 0) {
+				other_cpus = PCPU_GET(other_cpus) & ~sf->cpumask;
+				if (other_cpus != 0) {
+					sf->cpumask |= other_cpus;
+					mtx_lock_spin(&smp_ipi_mtx);
+					smp_masked_invlpg(other_cpus, sf->kva);
+					mtx_unlock_spin(&smp_ipi_mtx);
+				}
+			}
+#endif
 			goto done;
 		}
 	}
 	while ((sf = TAILQ_FIRST(&sf_buf_freelist)) == NULL) {
+		if (flags & SFB_NOWAIT)
+			goto done;
 		sf_buf_alloc_want++;
 		mbstat.sf_allocwait++;
-		error = msleep(&sf_buf_freelist, &sf_buf_lock, PVM | pri,
-		    "sfbufa", 0);
+		error = msleep(&sf_buf_freelist, &sf_buf_lock,
+		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
 		sf_buf_alloc_want--;
 
 		/*
@@ -666,7 +691,31 @@ sf_buf_alloc(struct vm_page *m, int pri)
 	sf->m = m;
 	nsfbufsused++;
 	nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-	pmap_qenter(sf->kva, &sf->m, 1);
+
+	/*
+	 * Update the sf_buf's virtual-to-physical mapping, flushing the
+	 * virtual address from the TLB only if the PTE implies that the old
+	 * mapping has been used.  Since the reference count for the sf_buf's
+	 * old mapping was zero, that mapping is not currently in use.
+	 * Consequently, there is no need to exchange the old and new PTEs
+	 * atomically, even under PAE.
+	 */
+	ptep = vtopte(sf->kva);
+	opte = *ptep;
+	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
+#ifdef SMP
+	if (flags & SFB_CPUPRIVATE) {
+		if ((opte & (PG_A | PG_V)) == (PG_A | PG_V)) {
+			sf->cpumask = PCPU_GET(cpumask);
+			invlpg(sf->kva);
+		} else
+			sf->cpumask = all_cpus;
+		goto done;
+	} else
+		sf->cpumask = all_cpus;
+#endif
+	if ((opte & (PG_A | PG_V)) == (PG_A | PG_V))
+		pmap_invalidate_page(kernel_pmap, sf->kva);
 done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
