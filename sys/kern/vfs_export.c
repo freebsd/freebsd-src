@@ -129,6 +129,10 @@ vfs_hang_addrlist(mp, nep, argp)
 	saddr = (struct sockaddr *) (np + 1);
 	if ((error = copyin(argp->ex_addr, saddr, argp->ex_addrlen)))
 		goto out;
+	if (saddr->sa_family > SA_MAX) {
+		error = EINVAL;
+		goto out;
+	}
 	if (saddr->sa_len > argp->ex_addrlen)
 		saddr->sa_len = argp->ex_addrlen;
 	if (argp->ex_masklen) {
