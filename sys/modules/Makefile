@@ -137,6 +137,7 @@ SUBDIR=	accf_data \
 	ucom \
 	udbp \
 	udf \
+	udf_iconv \
 	ufm \
 	uftdi \
 	ugen \
