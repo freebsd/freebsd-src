@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)jot.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -48,6 +52,7 @@ static char sccsid[] = "@(#)jot.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <ctype.h>
+#include <err.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,11 +81,11 @@ int	nofinalnl;
 char	*sepstring = "\n";
 char	format[BUFSIZ];
 
-void	error __P((char *, char *));
 void	getargs __P((int, char *[]));
 void	getformat __P((void));
-int	getprec __P((char *));
+int		getprec __P((char *));
 void	putdata __P((double, long));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -138,7 +143,7 @@ getargs(ac, av)
 			if ((*av)[2])
 				strcpy(format, *av + 2);
 			else if (!--ac)
-				error("Need context word after -w or -b", "");
+				errx(1, "need context word after -w or -b");
 			else
 				strcpy(format, *++av);
 			break;
@@ -146,7 +151,7 @@ getargs(ac, av)
 			if ((*av)[2])
 				sepstring = *av + 2;
 			else if (!--ac)
-				error("Need string after -s", "");
+				errx(1, "need string after -s");
 			else
 				sepstring = *++av;
 			break;
@@ -154,21 +159,21 @@ getargs(ac, av)
 			if ((*av)[2])
 				prec = atoi(*av + 2);
 			else if (!--ac)
-				error("Need number after -p", "");
+				errx(1, "need number after -p");
 			else
 				prec = atoi(*++av);
 			if (prec <= 0)
-				error("Bad precision value", "");
+				errx(1, "bad precision value");
 			break;
 		default:
-			error("Unknown option %s", *av);
+			usage();
 		}
 
 	switch (ac) {	/* examine args right to left, falling thru cases */
 	case 4:
 		if (!isdefault(av[3])) {
 			if (!sscanf(av[3], "%lf", &s))
-				error("Bad s value:  %s", av[3]);
+				errx(1, "bad s value: %s", av[3]);
 			mask |= 01;
 		}
 	case 3:
@@ -192,14 +197,14 @@ getargs(ac, av)
 	case 1:
 		if (!isdefault(av[0])) {
 			if (!sscanf(av[0], "%ld", &reps))
-				error("Bad reps value:  %s", av[0]);
+				errx(1, "bad reps value: %s", av[0]);
 			mask |= 010;
 		}
 		break;
 	case 0:
-		error("jot - print sequential or random data", "");
+		usage();
 	default:
-		error("Too many arguments.  What do you mean by %s?", av[4]);
+		errx(1, "too many arguments. What do you mean by %s?", av[4]);
 	}
 	getformat();
 	while (mask)	/* 4 bit mask has 1's where last 4 args were given */
@@ -241,7 +246,7 @@ getargs(ac, av)
 			}
 			reps = (ender - begin + s) / s;
 			if (reps <= 0)
-				error("Impossible stepsize", "");
+				errx(1, "impossible stepsize");
 			mask = 0;
 			break;
 		case 010:
@@ -260,7 +265,7 @@ getargs(ac, av)
 			if (randomize)
 				begin = BEGIN_DEF;
 			else if (reps == 0)
-				error("Must specify begin if reps == 0", "");
+				errx(1, "must specify begin if reps == 0");
 			else
 				begin = ender - reps * s + s;
 			mask = 0;
@@ -280,8 +285,7 @@ getargs(ac, av)
 			if (randomize)
 				s = -1.0;
 			else if (reps == 0)
-				error("Infinite sequences cannot be bounded",
-				    "");
+				errx(1, "infinite sequences cannot be bounded");
 			else if (reps == 1)
 				s = 0.0;
 			else
@@ -292,14 +296,14 @@ getargs(ac, av)
 			if (!randomize && s != 0.0) {
 				long t = (ender - begin + s) / s;
 				if (t <= 0)
-					error("Impossible stepsize", "");
+					errx(1, "impossible stepsize");
 				if (t < reps)		/* take lesser */
 					reps = t;
 			}
 			mask = 0;
 			break;
 		default:
-			error("Bad mask", "");
+			errx(1, "bad mask");
 		}
 	if (reps == 0)
 		infinity = 1;
@@ -323,23 +327,12 @@ putdata(x, notlast)
 		fputs(sepstring, stdout);
 }
 
-void
-error(msg, s)
-	char *msg, *s;
+static void
+usage()
 {
-	fprintf(stderr, "jot: ");
-	fprintf(stderr, msg, s);
-	fprintf(stderr,
-	    "\nusage:  jot [ options ] [ reps [ begin [ end [ s ] ] ] ]\n");
-	if (strncmp("jot - ", msg, 6) == 0)
-		fprintf(stderr, "Options:\n\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
-			"-r		random data\n",
-			"-c		character data\n",
-			"-n		no final newline\n",
-			"-b word		repeated word\n",
-			"-w word		context word\n",
-			"-s string	data separator\n",
-			"-p precision	number of characters\n");
+	fprintf(stderr, "%s\n%s\n",
+	    "usage: jot [-cnr] [-b word] [-w word] [-s string] [-p precision]",
+		"           [ reps [ begin [ end [ s ] ] ] ]");
 	exit(1);
 }
 
@@ -386,7 +379,7 @@ getformat()
 		case 'f': case 'e': case 'g': case '%':
 			break;
 		case 's':
-			error("Cannot convert numeric data to strings", "");
+			errx(1, "cannot convert numeric data to strings");
 			break;
 		/* case 'd': case 'o': case 'x': case 'D': case 'O': case 'X':
 		case 'c': case 'u': */
