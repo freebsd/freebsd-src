@@ -106,7 +106,7 @@ lomac_stop(void)
  */
 
 char *
-get_lattr(FTSENT *ent)
+get_lattr(const FTSENT *ent)
 {
 	char *lattr;
 
