@@ -95,7 +95,7 @@ If the
 .Fl c
 flag is specified,
 then the operation of
-.Nm unifdef
+.Nm
 is complemented,
 i.e. the lines that would have been removed or blanked
 are retained and vice versa.
@@ -114,7 +114,7 @@ If your C code uses ifdefs to delimit non-C lines,
 such as comments
 or code which is under construction,
 then you must tell
-.Nm unifdef
+.Nm
 which symbols are used for that purpose so that it won't try to parse
 for quotes and comments
 inside those ifdefs.
