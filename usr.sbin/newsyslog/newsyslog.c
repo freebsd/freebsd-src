@@ -751,7 +751,7 @@ bzcompress_log(char *log)
 	if (pid < 0)
 		err(1, "bzip2 fork");
 	else if (!pid) {
-		execl(_PATH_BZIP2, _PATH_BZIP2, "-f", tmp, 0);
+		execl(_PATH_BZIP2, _PATH_BZIP2, "-f", tmp, (char *)0);
 		err(1, _PATH_BZIP2);
 	}
 }
