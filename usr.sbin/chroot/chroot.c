@@ -32,26 +32,29 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)chroot.c	8.1 (Berkeley) 6/9/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 
 #include <err.h>
-#include <errno.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-void usage __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -88,7 +91,7 @@ main(argc, argv)
 	/* NOTREACHED */
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: chroot newroot [command]\n");
