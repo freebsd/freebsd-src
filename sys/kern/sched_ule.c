@@ -150,11 +150,11 @@ struct td_sched *thread0_sched = &td_sched;
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
  * INTERACT_THRESH:	Threshhold for placement on the current runq.
  */
-#define	SCHED_SLP_RUN_MAX	((hz * 2) << 10)
+#define	SCHED_SLP_RUN_MAX	((hz * 5) << 10)
 #define	SCHED_SLP_RUN_THROTTLE	(100)
 #define	SCHED_INTERACT_MAX	(100)
 #define	SCHED_INTERACT_HALF	(SCHED_INTERACT_MAX / 2)
-#define	SCHED_INTERACT_THRESH	(20)
+#define	SCHED_INTERACT_THRESH	(30)
 
 /*
  * These parameters and macros determine the size of the time slice that is
@@ -674,12 +674,10 @@ sched_slice(struct kse *ke)
 static void
 sched_interact_update(struct ksegrp *kg)
 {
-	int ratio;
-	if ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
-		ratio = (SCHED_SLP_RUN_MAX /
-		    (kg->kg_runtime + kg->kg_slptime)) * 4;
-		kg->kg_runtime = (kg->kg_runtime * ratio) / 5;
-		kg->kg_slptime = (kg->kg_slptime * ratio) / 5;
+	/* XXX Fixme, use a linear algorithm and not a while loop. */
+	while ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
+		kg->kg_runtime = (kg->kg_runtime / 5) * 4;
+		kg->kg_slptime = (kg->kg_slptime / 5) * 4;
 	}
 }
 
