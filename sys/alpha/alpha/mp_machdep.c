@@ -349,7 +349,6 @@ cpu_mp_start(void)
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
-		int dv;
 		struct pcs *pcsp;
 
 		if (i == boot_cpu_id)
@@ -380,8 +379,7 @@ cpu_mp_start(void)
 			}
 			continue;
 		}
-		dv = 0;
-		if (resource_int_value("cpu", i, "disable", &dv) == 0 && dv) {
+		if (resource_disabled("cpu", i))
 			printf("CPU %d disabled by loader.\n", i);
 			continue;
 		}

@@ -846,6 +846,9 @@ apm_identify(driver_t *driver, device_t parent)
 		return;
 	}
 
+	if (resource_disabled("apm", 0))
+		return;
+
 	child = BUS_ADD_CHILD(parent, 0, "apm", 0);
 	if (child == NULL)
 		panic("apm_identify");
@@ -860,18 +863,12 @@ apm_probe(device_t dev)
 #define APM_KERNBASE	KERNBASE
 	struct vm86frame	vmf;
 	struct apm_softc	*sc = &apm_softc;
-	int			disabled, flags;
+	int			flags;
 #ifdef PC98
 	int			rid;
 #endif
 
 	device_set_desc(dev, "APM BIOS");
-
-	if (resource_int_value("apm", 0, "disabled", &disabled) != 0)
-		disabled = 0;
-	if (disabled)
-		return ENXIO;
-
 	if (device_get_unit(dev) > 0) {
 		printf("apm: Only one APM driver supported.\n");
 		return ENXIO;
@@ -1544,10 +1541,8 @@ out:
 static void
 apm_pm_register(void *arg)
 {
-	int	disabled = 0;
 
-	resource_int_value("apm", 0, "disabled", &disabled);
-	if (disabled == 0)
+	if (!resource_disabled("apm", 0))
 		power_pm_register(POWER_PM_TYPE_APM, apm_pm_func, NULL);
 }
 

@@ -215,8 +215,7 @@ acpi_identify(driver_t *driver, device_t parent)
     /*
      * Check that we haven't been disabled with a hint.
      */
-    if (!resource_int_value("acpi", 0, "disabled", &error) &&
-	(error != 0))
+    if (resource_disabled("acpi", 0))
 	return_VOID;
 
     /*
@@ -2175,13 +2174,11 @@ out:
 static void
 acpi_pm_register(void *arg)
 {
-    int	error;
 
     if (!cold)
 	return;
 
-    if (!resource_int_value("acpi", 0, "disabled", &error) &&
-       (error != 0))
+    if (resource_disabled("acpi", 0))
 		return;
 
     power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL);
