@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1994/04/03 20:37:26 wollman Exp $
+# $Id: Makefile,v 1.6 1994/09/30 00:34:17 wollman Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
@@ -42,6 +42,6 @@ SRCS+=	refclock_acts.c refclock_as2201.c refclock_atom.c refclock_chu.c \
 beforedepend: version.c
 
 version.c: ${.CURDIR}/../VERSION
-	${.CURDIR}/../scripts/mkversion xntpd
+	sh -e ${.CURDIR}/../scripts/mkversion xntpd
 
 .include <bsd.prog.mk>
