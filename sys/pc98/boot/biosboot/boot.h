@@ -28,6 +28,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/time.h>
 
 #include <ufs/ffs/fs.h>
