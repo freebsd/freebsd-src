@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.80 1996/07/12 06:03:14 bde Exp $
+ *	$Id: trap.c,v 1.81 1996/08/11 17:41:25 davidg Exp $
  */
 
 /*
@@ -153,7 +153,7 @@ userret(p, frame, oticks)
 		 * mi_switch()'ed, we might not be on the queue indicated by
 		 * our priority.
 		 */
-		s = splclock();
+		s = splhigh();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
