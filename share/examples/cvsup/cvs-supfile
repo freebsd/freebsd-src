@@ -157,3 +157,11 @@ ports-all
 #ports-x11-servers
 #ports-x11-toolkits
 #ports-x11-wm
+
+## Documentation
+#
+# The easiest way to get the doc tree is to use the "doc-all"
+# mega-collection.  It includes all of the individual "doc-*"
+# collections,
+doc-all
+
