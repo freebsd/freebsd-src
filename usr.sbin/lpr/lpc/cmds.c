@@ -76,7 +76,7 @@ static int	doselect __P((struct dirent *));
 static void	putmsg __P((struct printer *, int, char **));
 static int	sortq __P((const void *, const void *));
 static void	startpr __P((struct printer *, int));
-static int	touch __P((struct queue *));
+static int	touch __P((struct jobqueue *));
 static void	unlinkf __P((char *));
 static void	upstat __P((struct printer *, char *));
 
@@ -711,7 +711,7 @@ stop(pp)
 	seteuid(uid);
 }
 
-struct	queue **queue;
+struct	jobqueue **queue;
 int	nitems;
 time_t	mtime;
 
@@ -761,7 +761,7 @@ topq(argc, argv)
 	if (nitems == 0)
 		return;
 	changed = 0;
-	mtime = queue[0]->q_time;
+	mtime = queue[0]->job_time;
 	for (i = argc; --i; ) {
 		if (doarg(argv[i]) == 0) {
 			printf("\tjob %s is not in the queue\n", argv[i]);
@@ -794,7 +794,7 @@ out:
  */
 static int
 touch(q)
-	struct queue *q;
+	struct jobqueue *q;
 {
 	struct timeval tvp[2];
 	int ret;
@@ -802,7 +802,7 @@ touch(q)
 	tvp[0].tv_sec = tvp[1].tv_sec = --mtime;
 	tvp[0].tv_usec = tvp[1].tv_usec = 0;
 	seteuid(euid);
-	ret = utimes(q->q_name, tvp);
+	ret = utimes(q->job_cfname, tvp);
 	seteuid(uid);
 	return (ret);
 }
@@ -815,7 +815,7 @@ static int
 doarg(job)
 	char *job;
 {
-	register struct queue **qq;
+	register struct jobqueue **qq;
 	register int jobnum, n;
 	register char *cp, *machine;
 	int cnt = 0;
@@ -842,7 +842,7 @@ doarg(job)
 		while (isdigit(*job));
 		for (qq = queue + nitems; --qq >= queue; ) {
 			n = 0;
-			for (cp = (*qq)->q_name+3; isdigit(*cp); )
+			for (cp = (*qq)->job_cfname+3; isdigit(*cp); )
 				n = n * 10 + (*cp++ - '0');
 			if (jobnum != n)
 				continue;
@@ -851,7 +851,7 @@ doarg(job)
 			if (machine != NULL && strcmp(machine, cp) != 0)
 				continue;
 			if (touch(*qq) == 0) {
-				printf("\tmoved %s\n", (*qq)->q_name);
+				printf("\tmoved %s\n", (*qq)->job_cfname);
 				cnt++;
 			}
 		}
@@ -862,7 +862,7 @@ doarg(job)
 	 */
 	for (qq = queue + nitems; --qq >= queue; ) {
 		seteuid(euid);
-		fp = fopen((*qq)->q_name, "r");
+		fp = fopen((*qq)->job_cfname, "r");
 		seteuid(uid);
 		if (fp == NULL)
 			continue;
@@ -873,7 +873,7 @@ doarg(job)
 		if (line[0] != 'P' || strcmp(job, line+1) != 0)
 			continue;
 		if (touch(*qq) == 0) {
-			printf("\tmoved %s\n", (*qq)->q_name);
+			printf("\tmoved %s\n", (*qq)->job_cfname);
 			cnt++;
 		}
 	}
