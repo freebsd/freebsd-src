@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
-#include <string.h>
 
 #include "ctags.h"
 
@@ -133,7 +132,7 @@ toss_yysec()
 	 * state == 0 : waiting
 	 * state == 1 : received a newline
 	 * state == 2 : received first %
-	 * state == 3 : recieved second %
+	 * state == 3 : received second %
 	 */
 	lineftell = ftell(inf);
 	for (state = 0; GETC(!=, EOF);)

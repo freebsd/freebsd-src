@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <limits.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "ctags.h"
@@ -188,7 +188,7 @@ usage()
 
 /*
  * init --
- *	this routine sets up the boolean psuedo-functions which work by
+ *	this routine sets up the boolean pseudo-functions which work by
  *	setting boolean flags dependent upon the corresponding character.
  *	Every char which is NOT in that string is false with respect to
  *	the pseudo-function.  Therefore, all of the array "_wht" is NO
