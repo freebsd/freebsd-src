@@ -114,8 +114,6 @@ struct	arpcom {
 	int	ac_multicnt;		/* length of ac_multiaddrs list */
 	void	*ac_netgraph;		/* ng_ether(4) netgraph node info */
 };
-
-extern u_char	etherbroadcastaddr[6];
 #endif
 
 #endif /* !_NET_IF_ARP_H_ */

@@ -537,7 +537,7 @@ le_multi_filter(
     }
     sc->le_flags &= ~IFF_MULTICAST;
     /* if (interface has had an address assigned) { */
-	le_multi_op(sc, etherbroadcastaddr, TRUE);
+	le_multi_op(sc, sc->le_if.if_broadcastaddr, TRUE);
 	sc->le_flags |= LE_BRDCSTONLY|IFF_MULTICAST;
     /* } */
 
