@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.4 1995/02/16 15:19:19 bde Exp $
+ *	$Id: diskslice_machdep.c,v 1.5 1995/02/21 08:37:09 bde Exp $
  */
 
 #include <stddef.h>
@@ -62,8 +62,10 @@ dsinit(dname, dev, strat, lp, sspp)
 	int	max_ncyls;
 	int	max_nsectors;
 	int	max_ntracks;
+	char	partname[2];
 	u_long	secpercyl;
 	int	slice;
+	char	*sname;
 	struct diskslice *sp;
 	struct diskslices *ssp;
 
@@ -111,7 +113,8 @@ dsinit(dname, dev, strat, lp, sspp)
 	max_nsectors = 0;
 	max_ntracks = 0;
 	dp0 = (struct dos_partition *)(cp + DOSPARTOFF);
-	for (dp = dp0, slice = 1; slice <= NDOSPART; dp++, slice++) {
+	for (dp = dp0, slice = BASE_SLICE; slice < BASE_SLICE + NDOSPART;
+	     dp++, slice++) {
 		int nsectors;
 		int ntracks;
 
@@ -135,7 +138,8 @@ dsinit(dname, dev, strat, lp, sspp)
 	 */
 	error = 0;
 	secpercyl = max_nsectors * max_ntracks;
-	for (dp = dp0, slice = 1; slice <= NDOSPART; dp++, slice++) {
+	for (dp = dp0, slice = BASE_SLICE; slice < BASE_SLICE + NDOSPART;
+	     dp++, slice++) {
 		u_long esector;
 		u_long esector1;
 		u_long ssector;
@@ -148,22 +152,19 @@ dsinit(dname, dev, strat, lp, sspp)
 		esector = DPSECT(dp->dp_esect) - 1 + dp->dp_ehd * max_nsectors
 			  + DPCYL(dp->dp_ecyl, dp->dp_esect) * secpercyl;
 		esector1 = dp->dp_start + dp->dp_size - 1;
+		sname = dsname(dname, dkunit(dev), slice, RAW_PART, partname);
 		if (ssector != dp->dp_start || esector != esector1)
 			error = EINVAL;
 #if 1
 		else
-			printf("%s%ds%d: start %lu, end = %lu, size %lu: OK\n",
-			       dname, dkunit(dev), slice, ssector, esector,
-			       dp->dp_size);
+			printf("%s: start %lu, end = %lu, size %lu: OK\n",
+			       sname, ssector, esector, dp->dp_size);
 		if (ssector != dp->dp_start)
-			printf(
-			"%s%ds%d: C/H/S start %lu != start %lu: invalid\n",
-			       dname, dkunit(dev), slice, ssector,
-			       dp->dp_start);
+			printf("%s: C/H/S start %lu != start %lu: invalid\n",
+			       sname, ssector, dp->dp_start);
 		if (esector != esector1)
-			printf(
-			"%s%ds%d: C/H/S end %lu != end %lu: invalid\n",
-			       dname, dkunit(dev), slice, esector, esector1);
+			printf("%s: C/H/S end %lu != end %lu: invalid\n",
+			       sname, esector, esector1);
 #endif
 	}
 	if (error != 0)
@@ -201,10 +202,11 @@ dsinit(dname, dev, strat, lp, sspp)
 
 	/* Initialize normal slices. */
 	sp += BASE_SLICE;
-	for (dp = dp0, slice = 1; slice <= NDOSPART; dp++, slice++, sp++) {
+	for (dp = dp0, slice = BASE_SLICE; slice < BASE_SLICE + NDOSPART;
+	     dp++, slice++, sp++) {
 		if (dp->dp_typ == DOSPTYP_386BSD
 		    && ssp->dss_first_bsd_slice == COMPATIBILITY_SLICE) {
-			ssp->dss_first_bsd_slice = BASE_SLICE + slice - 1;
+			ssp->dss_first_bsd_slice = slice;
 			ssp->dss_slices[COMPATIBILITY_SLICE].ds_offset
 			    = dp->dp_start;
 			ssp->dss_slices[COMPATIBILITY_SLICE].ds_size
@@ -213,7 +215,8 @@ dsinit(dname, dev, strat, lp, sspp)
 		sp->ds_offset = dp->dp_start;
 		sp->ds_size = dp->dp_size;
 #if 0
-	lp->d_subtype |= (lp->d_subtype & 3) + (slice - 1) | DSTYPE_INDOSPART;
+		lp->d_subtype |= (lp->d_subtype & 3)
+				 | (slice - BASE_SLICE) | DSTYPE_INDOSPART;
 #endif
 	}
 
