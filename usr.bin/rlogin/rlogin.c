@@ -44,15 +44,18 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
+#if 0
 #ifndef lint
 static const char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rlogin - remote login
  */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -314,7 +317,7 @@ main(int argc, char *argv[])
 
 			sp = getservbyname("login", "tcp");
 			if (sp == NULL)
-				errx(1, "unknown service login/tcp");
+				errx(1, "login/tcp: unknown service");
 			if (errno == ECONNREFUSED)
 				warn("remote host doesn't support Kerberos");
 			if (errno == ENOENT)
@@ -328,6 +331,7 @@ main(int argc, char *argv[])
 			newargv[i + 1] = argv[i];
 			newargv[argc + 1] = NULL;
 			execv(_PATH_RLOGIN, newargv);
+			err(1, "can't exec %s", _PATH_RLOGIN);
 		}
 	} else {
 #ifdef CRYPT
@@ -401,11 +405,11 @@ doit(long omask)
 	if (child == 0) {
 		mode(1);
 		if (reader(omask) == 0) {
-			msg("connection closed.");
+			msg("connection closed");
 			exit(0);
 		}
 		sleep(1);
-		msg("\007connection closed.");
+		msg("\007connection closed");
 		exit(1);
 	}
 
@@ -419,7 +423,7 @@ doit(long omask)
 	(void)sigsetmask(omask);
 	(void)signal(SIGCHLD, catch_child);
 	writer();
-	msg("closed connection.");
+	msg("closed connection");
 	done(0);
 }
 
@@ -835,7 +839,7 @@ void
 lostpeer(int signo __unused)
 {
 	(void)signal(SIGPIPE, SIG_IGN);
-	msg("\007connection closed.");
+	msg("\007connection closed");
 	done(1);
 }
 
