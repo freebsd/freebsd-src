@@ -52,6 +52,7 @@ static char sccsid[] = "@(#)process.c	8.2 (Berkeley) 11/16/93";
 #include <syslog.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <paths.h>
 
 CTL_MSG *find_request();
@@ -63,6 +64,7 @@ process_request(mp, rp)
 {
 	register CTL_MSG *ptr;
 	extern int debug;
+	char *s;
 
 	rp->vers = TALK_VERSION;
 	rp->type = mp->type;
@@ -87,11 +89,12 @@ process_request(mp, rp)
 		rp->answer = BADCTLADDR;
 		return;
 	}
-	if (strchr(mp->l_name, 27)) {
-		syslog(LOG_NOTICE, "Illegal user name. Aborting");
-		rp->answer = FAILED;
-		return;
-	}
+	for (s = mp->l_name; *s; s++)
+		if (!isprint(*s)) {
+			syslog(LOG_NOTICE, "Illegal user name. Aborting");
+			rp->answer = FAILED;
+			return;
+		}
 	mp->pid = ntohl(mp->pid);
 	if (debug)
 		print_request("process_request", mp);
