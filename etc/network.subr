@@ -197,7 +197,7 @@ network_start()
 		fi
 	done
 
-	# catch-all for interfaces that haven't been 'ifconfig'ed so far
+	# Display ifconfiged interfaces
 	for ifn in ${network_interfaces}; do
 		eval showstat=\$showstat_${ifn}
 		if [ ! -z ${showstat} ]; then
