@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.99 1998/09/28 23:58:10 rvb Exp $
+ *	$Id: vnode_pager.c,v 1.100 1998/10/13 08:24:44 dg Exp $
  */
 
 /*
@@ -489,7 +489,7 @@ vnode_pager_input_old(object, m)
 		auio.uio_segflg = UIO_SYSSPACE;
 		auio.uio_rw = UIO_READ;
 		auio.uio_resid = size;
-		auio.uio_procp = (struct proc *) 0;
+		auio.uio_procp = curproc;
 
 		error = VOP_READ(object->handle, &auio, 0, curproc->p_ucred);
 		if (!error) {
