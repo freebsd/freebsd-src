@@ -56,7 +56,7 @@ setenv(name, value, rewrite)
 	int rewrite;
 {
 	extern char **environ;
-	static int alloced;			/* if allocated space before */
+	static char **alloced;			/* if allocated space before */
 	register char *c;
 	int l_value, offset;
 
@@ -75,21 +75,20 @@ setenv(name, value, rewrite)
 		register char **p;
 
 		for (p = environ, cnt = 0; *p; ++p, ++cnt);
-		if (alloced) {			/* just increase size */
+		if (alloced == environ) {			/* just increase size */
 			p = (char **)realloc((char *)environ,
 			    (size_t)(sizeof(char *) * (cnt + 2)));
 			if (!p)
 				return (-1);
-			environ = p;
+			alloced = environ = p;
 		}
 		else {				/* get new space */
 						/* copy old entries into it */
 			p = malloc((size_t)(sizeof(char *) * (cnt + 2)));
 			if (!p)
 				return (-1);
-			alloced = 1;
 			bcopy(environ, p, cnt * sizeof(char *));
-			environ = p;
+			alloced = environ = p;
 		}
 		environ[cnt + 1] = NULL;
 		offset = cnt;
