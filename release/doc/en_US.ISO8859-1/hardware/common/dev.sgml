@@ -83,6 +83,9 @@
 		<para>Promise ATA100 OEM chip (pdc20265)</para>
 	   </listitem>
 	   <listitem>
+		<para>Promise ATA133 OEM chip (pdc20269)</para>
+	   </listitem>
+	   <listitem>
 		<para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4</para>
 	   </listitem>
 	   <listitem>
