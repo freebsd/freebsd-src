@@ -120,8 +120,8 @@ crypto/des/des_setkey.c			optional	crypto
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/ar/if_ar.c			optional	ar
-dev/ar/if_ar_pci.c		optional	ar pci
 dev/ar/if_ar_isa.c		optional	ar isa
+dev/ar/if_ar_pci.c		optional	ar pci
 dev/arl/if_arl.c		optional	arl
 dev/arl/if_arl_isa.c		optional	arl isa
 dev/cm/if_cm_isa.c		optional	cm isa
@@ -138,10 +138,10 @@ dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/fe/if_fe_isa.c		optional	fe isa
 dev/if_ndis/if_ndis.c		optional	ndis
-dev/if_ndis/if_ndis_pci.c	optional	ndis pci
-dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus
 dev/if_ndis/if_ndis_pccard.c	optional	ndis card
 dev/if_ndis/if_ndis_pccard.c	optional	ndis pccard
+dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus
+dev/if_ndis/if_ndis_pci.c	optional	ndis pci
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
@@ -176,8 +176,6 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
-libkern/ffsl.c			standard
-libkern/flsl.c			standard
 i386/acpica/OsdEnvironment.c	optional	acpi
 i386/acpica/acpi_asus.c		optional	acpi_asus acpi
 i386/acpica/acpi_machdep.c	optional	acpi
@@ -296,8 +294,8 @@ i386/linux/linux_machdep.c	optional	compat_linux
 i386/linux/linux_ptrace.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
-i386/pci/pci_cfgreg.c		optional	pci
 i386/pci/pci_bus.c		optional	pci
+i386/pci/pci_cfgreg.c		optional	pci
 i386/pci/pci_pir.c		optional	pci
 i386/svr4/svr4_locore.s		optional	compat_svr4		\
 	dependency	"svr4_assym.h"	\
@@ -401,15 +399,17 @@ isa/vga_isa.c			optional	vga
 kern/imgact_aout.c		optional	compat_aout
 kern/imgact_gzip.c		optional	gzip
 libkern/divdi3.c		standard
+libkern/ffsl.c			standard
+libkern/flsl.c			standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-pci/agp_intel.c			optional	agp
-pci/agp_via.c			optional	agp
-pci/agp_sis.c			optional	agp
 pci/agp_ali.c			optional	agp
 pci/agp_amd.c			optional	agp
 pci/agp_i810.c			optional	agp
+pci/agp_intel.c			optional	agp
 pci/agp_nvidia.c		optional	agp
+pci/agp_sis.c			optional	agp
+pci/agp_via.c			optional	agp
