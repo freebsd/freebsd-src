@@ -478,8 +478,6 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 		argp->a_imghdr[i].i_vaddr += wp->w_base;
 	}
 	imgp->proc->p_sysent = &pecoff_sysvec;
-	if (error)
-		goto fail;
 	imgp->auxargs = argp;
 	imgp->auxarg_size = sizeof(struct pecoff_args);
 	imgp->interpreted = 0;
