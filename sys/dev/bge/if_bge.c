@@ -2045,6 +2045,7 @@ bge_intr(xsc)
 	struct bge_softc *sc;
 	struct ifnet *ifp;
 	u_int32_t statusword;
+	u_int32_t status;
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
@@ -2073,7 +2074,6 @@ bge_intr(xsc)
 	 */
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
-		u_int32_t		status;
 
 		status = CSR_READ_4(sc, BGE_MAC_STS);
 		if (status & BGE_MACSTAT_MI_INTERRUPT) {
@@ -2089,9 +2089,24 @@ bge_intr(xsc)
 		}
 	} else {
 		if (statusword & BGE_STATFLAG_LINKSTATE_CHANGED) {
-			sc->bge_link = 0;
-			untimeout(bge_tick, sc, sc->bge_stat_ch);
-			bge_tick(sc);
+			/*
+			 * Sometimes PCS encoding errors are detected in
+			 * TBI mode (on fiber NICs), and for some reason
+			 * the chip will signal them as link changes.
+			 * If we get a link change event, but the 'PCS
+			 * encoding error' bit in the MAC status register
+			 * is set, don't bother doing a link check.
+			 * This avoids spurious "gigabit link up" messages
+			 * that sometimes appear on fiber NICs during
+			 * periods of heavy traffic. (There should be no
+			 * effect on copper NICs.)
+			 */
+			status = CSR_READ_4(sc, BGE_MAC_STS);
+			if (!(status & BGE_MACSTAT_PORT_DECODE_ERROR)) {
+				sc->bge_link = 0;
+				untimeout(bge_tick, sc, sc->bge_stat_ch);
+				bge_tick(sc);
+			}
 			/* Clear the interrupt */
 			CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
 			    BGE_MACSTAT_CFG_CHANGED);
