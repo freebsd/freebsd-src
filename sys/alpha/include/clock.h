@@ -15,7 +15,6 @@ extern	int	disable_rtc_set;
 extern	int	wall_cmos_clock;
 extern	int	adjkerntz;
 
-void	DELAY __P((int usec));
 int	sysbeep __P((int pitch, int period));
 int	acquire_timer2 __P((int mode));
 int	release_timer2 __P((void));
