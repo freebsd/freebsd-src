@@ -1,9 +1,7 @@
 # $FreeBSD$
 
 # Build the add-in FORTH interpreter
-.if ${MACHINE_ARCH} != "sparc64"
 SUBDIR+=		ficl
-.endif
 
 # Build OpenFirmware library
 .if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
