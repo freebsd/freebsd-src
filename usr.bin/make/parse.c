@@ -2041,8 +2041,6 @@ ParseSkipLine(skip)
         }
 
         lineno++;
-        if (c != '\n')
-            Buf_AddByte(buf, (Byte)'\0');
         Buf_AddByte(buf, (Byte)'\0');
         line = (char *)Buf_GetAll(buf, &lineLength);
     } while (skip == 1 && line[0] != '.');
