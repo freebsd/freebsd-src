@@ -394,8 +394,10 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		/*
 		 * Work around race with cv_timedwait_end similar to that
 		 * between msleep and endtsleep.
+		 * Go back to sleep.
 		 */
 		td->td_flags |= TDF_TIMEOUT;
+		td->td_state = TDS_SLP;
 		td->td_proc->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 	}
@@ -470,8 +472,10 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		/*
 		 * Work around race with cv_timedwait_end similar to that
 		 * between msleep and endtsleep.
+		 * Go back to sleep.
 		 */
 		td->td_flags |= TDF_TIMEOUT;
+		td->td_state = TDS_SLP;
 		td->td_proc->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 	}
