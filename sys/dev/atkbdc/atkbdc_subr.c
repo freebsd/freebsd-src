@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbdc_isa.c,v 1.7 1999/05/22 15:47:33 dfr Exp $
+ * $Id: atkbdc_isa.c,v 1.8 1999/05/30 11:12:27 dfr Exp $
  */
 
 #include "atkbdc.h"
@@ -119,17 +119,12 @@ atkbdc_add_device(device_t dev, const char *name, int unit)
 	atkbdc_device_t	*kdev;
 	device_t	child;
 	int		t;
-	int rid;
-	struct resource *port;
 
 	kdev = malloc(sizeof(struct atkbdc_device), M_ATKBDDEV, M_NOWAIT);
 	if (!kdev)
 		return;
 	bzero(kdev, sizeof *kdev);
 
-	/* XXX should track resource in softc */
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, IO_KBDSIZE, RF_ACTIVE);
 	kdev->port = sc->port;
 
 	if (resource_int_value(name, unit, "irq", &t) == 0)
@@ -149,8 +144,10 @@ static int
 atkbdc_attach(device_t dev)
 {
 	atkbdc_softc_t	*sc;
+	struct resource *port;
 	int		unit;
 	int		error;
+	int		rid;
 	int		i;
 
 	unit = device_get_unit(dev);
@@ -168,7 +165,13 @@ atkbdc_attach(device_t dev)
 			return ENOMEM;
 	}
 
-	error = atkbdc_attach_unit(unit, sc, isa_get_port(dev));
+	/* XXX should track resource in softc */
+	rid = 0;
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				  0, ~0, IO_KBDSIZE, RF_ACTIVE);
+	if (!port)
+		return ENXIO;
+	error = atkbdc_attach_unit(unit, sc, rman_get_start(port));
 	if (error)
 		return error;
 	*(atkbdc_softc_t **)device_get_softc(dev) = sc;
