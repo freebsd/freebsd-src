@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)shell.h	8.2 (Berkeley) 5/4/95
- *	$Id: shell.h,v 1.4 1996/09/01 10:21:41 peter Exp $
+ *	$Id: shell.h,v 1.5 1996/09/01 10:27:44 peter Exp $
  */
 
 /*
@@ -70,7 +70,7 @@ typedef char *pointer;
 #define NULL 0
 #endif
 #endif /*  not __STDC__ */
-#define STATIC	/* empty */
+#define STATIC  static
 #define MKINIT	/* empty */
 
 #include <sys/cdefs.h>
