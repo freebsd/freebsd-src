@@ -21,6 +21,14 @@ without initializing it.  If you want it initialized, use the (T)oggle
 command to flip the Newfs flag.  When Newfs is set to "Y", the
 filesystem in question will be ERASED and rebuilt from scratch!
 
+NOTE:  The (W)rite option is HIGHLY DANGEROUS and should NOT BE USED if
+you're installing a new system!  It's only for use in resurrecting
+or changing an existing system, and will cause unpredictable things to
+happen if you use it in any other circumstances.  Don't do it!  Wait
+for the final commit dialog if you're express/novice installing, or
+use the "Commit" menu item if you're custom installing, and do it there.
+
+
 You should use this editor to create at least the following
 filesystems:
 
@@ -149,3 +157,4 @@ Install menu or (W)rite directly from this one.  You're working with
 what is essentially a copy of the disk label(s), both here and in the
 FDISK Partition Editor, and the actual on-disk labels won't be
 affected by any changes you make until you explicitly say so.
+
