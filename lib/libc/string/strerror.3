@@ -48,8 +48,8 @@
 .Fd #include <stdio.h>
 .Ft void
 .Fn perror "const char *string"
-.Vt extern char *sys_errlist[];
-.Vt extern int sys_nerr;
+.Vt extern const char * const sys_errlist[];
+.Vt extern const int sys_nerr;
 .Fd #include <string.h>
 .Ft char *
 .Fn strerror "int errnum"
@@ -100,11 +100,11 @@ followed by the error number in decimal.
 .Pp
 The message strings can be accessed directly using the external
 array
-.Fa sys_errlist .
+.Va sys_errlist .
 The external value
-.Fa sys_nerr
+.Va sys_nerr
 contains a count of the messages in
-.Fa sys_errlist .
+.Va sys_errlist .
 The use of these variables is deprecated;
 .Fn strerror
 should be used instead.
@@ -122,3 +122,8 @@ For unknown error numbers, the
 .Fn strerror
 function will return its result in a static buffer which
 may be overwritten by subsequent calls.
+.Pp
+Programs that use the deprecated
+.Va sys_errlist
+variable often fail to compile because they declare it
+inconsistently.
