@@ -117,7 +117,7 @@ int elf32_offsets[] = {
 	offsetof(Elf32_Sym, st_name), offsetof(Elf32_Sym, st_value),
 	offsetof(Elf32_Sym, st_size), offsetof(Elf32_Sym, st_info),
 	offsetof(Elf32_Sym, st_shndx),
-	
+
 	offsetof(Elf32_Rel, r_offset), offsetof(Elf32_Rel, r_info),
 
 	offsetof(Elf32_Rela, r_offset), offsetof(Elf32_Rela, r_info),
@@ -129,7 +129,7 @@ int elf64_offsets[] = {
 
 	offsetof(Elf64_Dyn, d_tag), offsetof(Elf64_Dyn, d_un.d_ptr),
 	offsetof(Elf64_Dyn, d_un.d_val),
-	
+
 	offsetof(Elf32_Ehdr, e_ident[EI_CLASS]),
 	offsetof(Elf32_Ehdr, e_ident[EI_DATA]),
 	offsetof(Elf32_Ehdr, e_ident[EI_OSABI]),
@@ -158,7 +158,7 @@ int elf64_offsets[] = {
 	offsetof(Elf64_Sym, st_name), offsetof(Elf64_Sym, st_value),
 	offsetof(Elf64_Sym, st_size), offsetof(Elf64_Sym, st_info),
 	offsetof(Elf64_Sym, st_shndx),
-	
+
 	offsetof(Elf64_Rel, r_offset), offsetof(Elf64_Rel, r_info),
 
 	offsetof(Elf64_Rela, r_offset), offsetof(Elf64_Rela, r_info),
@@ -238,7 +238,7 @@ d_tags(u_int64_t tag) {
 	case 0x7fffffff: return "DT_SUNW_FILTER";
 	default: return "ERROR: TAG NOT DEFINED";
 	}
-};
+}
 
 static const char *
 e_machines(u_int mach)
@@ -256,7 +256,7 @@ e_machines(u_int mach)
 	case EM_IA_64:	return "EM_IA_64";
 	}
 	return "(unknown machine)";
-};
+}
 
 const char *e_types[] = {
 	"ET_NONE", "ET_REL", "ET_EXEC", "ET_DYN", "ET_CORE"
