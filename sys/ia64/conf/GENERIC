@@ -120,8 +120,8 @@ device		sc
 
 #device		agp		# support several AGP chipsets
 
-# Serial (COM) ports
-device		sio
+# Serial ports (UARTs).
+device		uart
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
