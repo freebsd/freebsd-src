@@ -70,13 +70,6 @@
 #endif
 
 /*
- * the addresses/ports of last pkt matched by the firewall are
- * in this structure. This is so that we can easily find them without
- * navigating through the mbuf.
- */
-struct dn_flow_id dn_last_pkt ;
-
-/*
  * we keep a private variable for the simulation time, but probably
  * it would be better to use the already existing one "softticks"
  * (in sys/kern/kern_timer.c)
@@ -87,6 +80,7 @@ static int dn_hash_size = 64 ;	/* default hash size */
 
 /* statistics on number of queue searches and search steps */
 static int searches, search_steps ;
+static int pipe_expire = 1 ;   /* expire queue if empty */
 
 static struct dn_heap ready_heap, extract_heap ;
 static int heap_init(struct dn_heap *h, int size) ;
@@ -101,7 +95,7 @@ static struct dn_pipe *all_pipes = NULL ;	/* list of all pipes */
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet,
 		CTLFLAG_RW, 0, "Dummynet");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, hash_size,
-	    CTLFLAG_RD, &dn_hash_size, 0, "Default hash table size");
+	    CTLFLAG_RW, &dn_hash_size, 0, "Default hash table size");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, curr_time,
 	    CTLFLAG_RD, &curr_time, 0, "Current tick");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, ready_heap,
@@ -112,6 +106,8 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, searches,
 	    CTLFLAG_RD, &searches, 0, "Number of queue searches");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, search_steps,
 	    CTLFLAG_RD, &search_steps, 0, "Number of queue search steps");
+SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
+	    CTLFLAG_RW, &pipe_expire, 0, "Expire queue if empty");
 #endif
 
 static int ip_dn_ctl(struct sockopt *sopt);
@@ -141,7 +137,7 @@ rt_unref(struct rtentry *rt)
  *
  * In the heap, first node is element 0. Children of i are 2i+1 and 2i+2.
  * Some macros help finding parent/children so we can optimize them.
- #
+ *
  * heap_init() is called to expand the heap when needed.
  * Increment size in blocks of 256 entries (which make one 4KB page)
  * XXX failure to allocate a new element is a pretty bad failure
@@ -449,7 +445,7 @@ dummynet(void * __unused unused)
 }
  
 /*
- * Given a pipe and a pkt in dn_last_pkt, find a matching queue
+ * Given a pipe and a pkt in last_pkt, find a matching queue
  * after appropriate masking. The queue is moved to front
  * so that further searches take less time.
  * XXX if the queue is longer than some threshold should consider
@@ -466,25 +462,39 @@ find_queue(struct dn_pipe *pipe)
 	q = pipe->rq[0] ;
     else {
 	/* first, do the masking */
-	dn_last_pkt.dst_ip &= pipe->flow_mask.dst_ip ;
-	dn_last_pkt.src_ip &= pipe->flow_mask.src_ip ;
-	dn_last_pkt.dst_port &= pipe->flow_mask.dst_port ;
-	dn_last_pkt.src_port &= pipe->flow_mask.src_port ;
-	dn_last_pkt.proto &= pipe->flow_mask.proto ;
+	last_pkt.dst_ip &= pipe->flow_mask.dst_ip ;
+	last_pkt.src_ip &= pipe->flow_mask.src_ip ;
+	last_pkt.dst_port &= pipe->flow_mask.dst_port ;
+	last_pkt.src_port &= pipe->flow_mask.src_port ;
+	last_pkt.proto &= pipe->flow_mask.proto ;
 	/* then, hash function */
-	i = ( (dn_last_pkt.dst_ip) & 0xffff ) ^
-	    ( (dn_last_pkt.dst_ip >> 15) & 0xffff ) ^
-	    ( (dn_last_pkt.src_ip << 1) & 0xffff ) ^
-	    ( (dn_last_pkt.src_ip >> 16 ) & 0xffff ) ^
-	    (dn_last_pkt.dst_port << 1) ^ (dn_last_pkt.src_port) ^
-	    (dn_last_pkt.proto );
+	i = ( (last_pkt.dst_ip) & 0xffff ) ^
+	    ( (last_pkt.dst_ip >> 15) & 0xffff ) ^
+	    ( (last_pkt.src_ip << 1) & 0xffff ) ^
+	    ( (last_pkt.src_ip >> 16 ) & 0xffff ) ^
+	    (last_pkt.dst_port << 1) ^ (last_pkt.src_port) ^
+	    (last_pkt.proto );
 	i = i % pipe->rq_size ;
 	/* finally, scan the current list for a match */
 	searches++ ;
-	for (prev=NULL, q = pipe->rq[i] ; q ; prev = q , q = q->next ) {
+	for (prev=NULL, q = pipe->rq[i] ; q ; ) {
 	    search_steps++;
-	    if (bcmp(&dn_last_pkt, &(q->id), sizeof(q->id) ) == 0)
+	    if (bcmp(&last_pkt, &(q->id), sizeof(q->id) ) == 0)
 		break ; /* found */
+	    else if (pipe_expire && q->r.head == NULL) {
+		/* entry is idle, expire it */
+		struct dn_flow_queue *old_q = q ;
+
+		if (prev != NULL)
+		    prev->next = q = q->next ;
+		else
+		    pipe->rq[i] = q = q->next ;
+		pipe->rq_elements-- ;
+		free(old_q, M_IPFW);
+		continue ;
+	    }
+	    prev = q ;
+	    q = q->next ;
 	}
 	if (q && prev != NULL) { /* found and not in front */
 	    prev->next = q->next ;
@@ -499,7 +509,7 @@ find_queue(struct dn_pipe *pipe)
 	    return NULL ;
 	}
 	bzero(q, sizeof(*q) );	/* needed */
-	q->id = dn_last_pkt ;
+	q->id = last_pkt ;
 	q->p = pipe ;
 	q->hash_slot = i ;
 	q->next = pipe->rq[i] ;
@@ -507,8 +517,8 @@ find_queue(struct dn_pipe *pipe)
 	pipe->rq_elements++ ;
 	DEB(printf("++ new queue (%d) for 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
 		pipe->rq_elements,
-		dn_last_pkt.src_ip, dn_last_pkt.src_port,
-		dn_last_pkt.dst_ip, dn_last_pkt.dst_port); )
+		last_pkt.src_ip, last_pkt.src_port,
+		last_pkt.dst_ip, last_pkt.dst_port); )
     }
     return q ;
 }
@@ -534,8 +544,8 @@ dummynet_io(int pipe_nr, int dir,
      */
 
     DEB(printf("-- last_pkt dst 0x%08x/0x%04x src 0x%08x/0x%04x\n",
-	dn_last_pkt.dst_ip, dn_last_pkt.dst_port,
-	dn_last_pkt.src_ip, dn_last_pkt.src_port);)
+	last_pkt.dst_ip, last_pkt.dst_port,
+	last_pkt.src_ip, last_pkt.src_port);)
 
     pipe_nr &= 0xffff ;
     /*
