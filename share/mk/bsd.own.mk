@@ -114,7 +114,7 @@
 #
 #
 # NLSDIR	Base path for National Language Support files
-#		installation (see mklocale(1)). [${SHAREDIR}/nls]
+#		installation. [${SHAREDIR}/nls]
 #
 # NLSOWN	National Language Support files owner. [${SHAREOWN}]
 #
