@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1996/11/01 08:16:18 peter Exp $
+# $Id: Makefile,v 1.3 1996/11/01 08:34:51 peter Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -50,12 +50,15 @@ LDADD+=	-lcurses -ltermcap
 .PATH:	${SRCDIR}/tcl_api
 DPADD+=	${LIBTCL} ${LIBM}
 LDADD+=	-ltcl -lm
+CFLAGS+= -DHAVE_TCL_INTERP
 .endif
 
 .if defined(PERLINTERP)
 .PATH:	${SRCDIR}/perl_api
 #DPADD+=	?
 #LDADD+=	?
+CFLAGS+= -DHAVE_PERL_INTERP
+#CFLAGS+= -DHAVE_PERL_5_003_01	# If perl >= 5.03.01
 .endif
 
 CLEANFILES+=${EX}
