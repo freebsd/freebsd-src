@@ -479,7 +479,7 @@ extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 	if (extract->pst != NULL) {
 		extract->pst = &extract->st;
 		if (S_ISDIR(extract->pst->st_mode))
-			goto success;
+			return (ARCHIVE_OK);
 		/* It exists but isn't a dir. */
 		if ((flags & ARCHIVE_EXTRACT_UNLINK))
 			unlink(path);
