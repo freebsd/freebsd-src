@@ -124,8 +124,8 @@ _thread_cleanupspecific(void)
 			}
 		}
 	}
-	_thread_run->specific_data = NULL;
 	free(_thread_run->specific_data);
+	_thread_run->specific_data = NULL;
 }
 
 static inline const void **
