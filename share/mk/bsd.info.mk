@@ -40,11 +40,13 @@
 #
 # INFOOWN	Info owner. [${SHAREOWN}]
 #
-# INFOSECTION	??? [Miscellaneous]
+# INFOSECTION	Default section (if one could not be found in
+#		the Info file). [Miscellaneous]
 #
-# INFOTMPL	??? [${INFODIR}/dir-tmpl]
+# INSTALLINFO	A program for installing directory entries from Info
+#		file in the ${INFODIR}/${INFODIRFILE}. [install-info]
 #
-# INSTALLINFO	??? [install-info]
+# INSTALLINFOFLAGS	Options for ${INSTALLINFO} command. [--quiet]
 #
 # INSTALLINFODIRS	???
 #
@@ -87,8 +89,8 @@ MAKEINFO?=	makeinfo
 MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
 SRCDIR?=	${.CURDIR}
 INFODIRFILE?=   dir
-INFOTMPL?=      ${INFODIR}/dir-tmpl
 INSTALLINFO?=   install-info
+INSTALLINFOFLAGS+=--quiet
 INFOSECTION?=   Miscellaneous
 ICOMPRESS_CMD?=	${COMPRESS_CMD}
 ICOMPRESS_EXT?=	${COMPRESS_EXT}
@@ -160,25 +162,12 @@ ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
 ${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
-	-__section=`${GREP} "^INFO-DIR-SECTION" ${x}.info`; \
-	__entry=`${GREP} "^START-INFO-DIR-ENTRY" ${x}.info`; \
-	if [ ! -z "$$__section" ]; then \
-		if [ ! -z "$$__entry" ]; then \
-			${INSTALLINFO}  ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
-		else \
-			${INSTALLINFO}  --entry=${INFOENTRY_${x}} \
-				${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
-		fi \
-	else \
-		if [ ! -z "$$__entry" ]; then \
-			${INSTALLINFO}  --section=${INFOSECTION} \
-				${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
-		else \
-			${INSTALLINFO}  --section=${INFOSECTION} \
-       				--entry=${INFOENTRY_${x}} \
-				${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
-		fi \
-	fi
+	sflag=`${GREP} -q ^INFO-DIR-SECTION ${x}.info || echo 1`; \
+	eflag=`${GREP} -q ^START-INFO-DIR-ENTRY ${x}.info || echo 1`; \
+	${INSTALLINFO} ${INSTALLINFOFLAGS} \
+	    $${sflag:+--section=${INFOSECTION}} \
+	    $${eflag:+--entry=${INFOENTRY_${x}}} \
+	    ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}
 .endfor
 
 .PHONY: ${INSTALLINFODIRS}
