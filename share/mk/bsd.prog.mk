@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.6 1994/09/16 14:30:24 jkh Exp $
+#	$Id: bsd.prog.mk,v 1.7 1994/10/07 03:10:05 ache Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -77,20 +77,6 @@ LIBUTIL?=	${DESTDIR}/usr/lib/libutil.a
 .endif
 .if defined(NOSHARED)
 LDFLAGS+= -static
-.endif
-
-.if defined(SHAREDSTRINGS)
-CLEANFILES+=strings
-.c.o:
-	${CC} -E ${CFLAGS} ${.IMPSRC} | xstr -c -
-	@${CC} ${CFLAGS} -c x.c -o ${.TARGET}
-	@rm -f x.c
-
-.cc.o .cxx.o .C.o:
-	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
-	@mv -f x.c x.cc
-	@${CXX} ${CXXFLAGS} -c x.cc -o ${.TARGET}
-
 .endif
 
 .if defined(DESTDIR)
