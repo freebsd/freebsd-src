@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.52 1998/09/05 14:13:12 phk Exp $
+ * $Id: ffs_alloc.c,v 1.53 1998/09/07 11:50:18 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -42,13 +42,13 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#ifdef notyet
+#include <sys/kernel.h>
 #include <sys/sysctl.h>
-#endif
 #include <sys/syslog.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufs_extern.h>
 #include <ufs/ufs/ufsmount.h>
 
 #include <ufs/ffs/fs.h>
@@ -65,10 +65,8 @@ static int	ffs_checkblk __P((struct inode *, ufs_daddr_t, long));
 #endif
 static void	ffs_clusteracct	__P((struct fs *, struct cg *, ufs_daddr_t,
 				     int));
-#ifdef notyet
 static ufs_daddr_t ffs_clusteralloc __P((struct inode *, int, ufs_daddr_t,
 	    int));
-#endif
 static ino_t	ffs_dirpref __P((struct fs *));
 static ufs_daddr_t ffs_fragextend __P((struct inode *, int, long, int, int));
 static void	ffs_fserr __P((struct fs *, u_int, char *));
@@ -323,7 +321,6 @@ nospace:
 	return (ENOSPC);
 }
 
-#ifdef notyet
 SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW, 0, "FFS filesystem");
 
 /*
@@ -347,7 +344,6 @@ static int doreallocblks = 1;
 SYSCTL_INT(_vfs_ffs, FFS_REALLOCBLKS, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 
 static int prtrealloc = 0;
-#endif
 
 int
 ffs_reallocblks(ap)
@@ -356,9 +352,6 @@ ffs_reallocblks(ap)
 		struct cluster_save *a_buflist;
 	} */ *ap;
 {
-#if !defined (not_yes)
-	return (ENOSPC);
-#else
 	struct fs *fs;
 	struct inode *ip;
 	struct vnode *vp;
@@ -509,7 +502,7 @@ ffs_reallocblks(ap)
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (!doasyncfree) {
-			gettime(&tv);
+			getmicrotime(&tv);
 			UFS_UPDATE(vp, &tv, &tv, 1);
 		}
 	}
@@ -553,7 +546,6 @@ fail:
 	if (sbap != &ip->i_db[0])
 		brelse(sbp);
 	return (ENOSPC);
-#endif
 }
 
 /*
@@ -1087,7 +1079,6 @@ gotit:
 	return (blkno);
 }
 
-#ifdef notyet
 /*
  * Determine whether a cluster can be allocated.
  *
@@ -1196,7 +1187,6 @@ fail:
 	brelse(bp);
 	return (0);
 }
-#endif
 
 /*
  * Determine whether an inode can be allocated.
