@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.96 1995/01/30 03:22:24 phk Exp $
+#	$Id: Makefile,v 1.97 1995/01/30 07:01:56 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -175,7 +175,7 @@ MTREEFILES=	${.CURDIR}/../etc/mtree
 
 jkhdist:
 	@echo "--> Making all"
-	( cd ${.CURDIR}/..; cvs update -P -d -q; ${MAKE} all )
+	( cd ${.CURDIR}/..; ${MAKE} all )
 	@echo "--> Making distribute"
 	( cd ${.CURDIR}/..; ${MAKE} distribute )
 	@echo "--> Making beforetarballs"
