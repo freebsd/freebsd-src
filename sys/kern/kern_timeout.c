@@ -36,45 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_timeout.c,v 1.50 1998/01/10 14:55:14 phk Exp $
+ * $Id: kern_timeout.c,v 1.51 1998/01/11 00:44:31 phk Exp $
  */
-
-/* Portions of this software are covered by the following: */
-/******************************************************************************
- *                                                                            *
- * Copyright (c) David L. Mills 1993, 1994                                    *
- *                                                                            *
- * Permission to use, copy, modify, and distribute this software and its      *
- * documentation for any purpose and without fee is hereby granted, provided  *
- * that the above copyright notice appears in all copies and that both the    *
- * copyright notice and this permission notice appear in supporting           *
- * documentation, and that the name University of Delaware not be used in     *
- * advertising or publicity pertaining to distribution of the software        *
- * without specific, written prior permission.  The University of Delaware    *
- * makes no representations about the suitability this software for any       *
- * purpose.  It is provided "as is" without express or implied warranty.      *
- *                                                                            *
- *****************************************************************************/
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/dkstat.h>
-#include <sys/callout.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
-#include <sys/timex.h>
-#include <vm/vm.h>
-#include <sys/lock.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <sys/sysctl.h>
-
-#include <machine/cpu.h>
-#define CLOCK_HAIR		/* XXX */
-#include <machine/clock.h>
-#include <machine/limits.h>
 
 /* Exported to machdep.c. */
 struct callout *callout;
@@ -82,7 +49,7 @@ struct callout_list callfree;
 int callwheelsize, callwheelbits, callwheelmask;
 struct callout_tailq *callwheel;
 
-int softticks;			/* Like ticks, but for softclock(). */
+static int softticks;			/* Like ticks, but for softclock(). */
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
 
 /*
