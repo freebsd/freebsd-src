@@ -207,11 +207,8 @@ vop_nolookup(ap)
 static int
 vop_nostrategy (struct vop_strategy_args *ap)
 {
-	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
-	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	printf("No strategy for buffer at %p\n", ap->a_bp);
 	vprint("vnode", ap->a_vp);
-	vprint("device vnode", ap->a_bp->b_vp);
 	ap->a_bp->b_ioflags |= BIO_ERROR;
 	ap->a_bp->b_error = EOPNOTSUPP;
 	bufdone(ap->a_bp);
