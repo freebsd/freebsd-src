@@ -433,7 +433,7 @@ linprocfs_getattr(ap)
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
-		if (procp->p_cred == NULL || procp->p_ucred == NULL) {
+		if (procp->p_ucred == NULL) {
 			PROC_UNLOCK(procp);
 			return (ENOENT);
 		}

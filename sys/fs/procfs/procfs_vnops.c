@@ -403,7 +403,7 @@ procfs_getattr(ap)
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
-		if (procp->p_cred == NULL || procp->p_ucred == NULL) {
+		if (procp->p_ucred == NULL) {
 			PROC_UNLOCK(procp);
 			return (ENOENT);
 		}
@@ -941,8 +941,7 @@ procfs_readlink(ap)
 	 */
 	case Pfile:
 		procp = PFIND(pfs->pfs_pid);
-		if (procp == NULL || procp->p_cred == NULL ||
-		    procp->p_ucred == NULL) {
+		if (procp == NULL || procp->p_ucred == NULL) {
 			if (procp != NULL)
 				PROC_UNLOCK(procp);
 			printf("procfs_readlink: pid %d disappeared\n",

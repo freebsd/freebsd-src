@@ -988,8 +988,8 @@ unp_internalize(control, p)
 	if (cm->cmsg_type == SCM_CREDS) {
 		cmcred = (struct cmsgcred *)(cm + 1);
 		cmcred->cmcred_pid = p->p_pid;
-		cmcred->cmcred_uid = p->p_cred->p_ruid;
-		cmcred->cmcred_gid = p->p_cred->p_rgid;
+		cmcred->cmcred_uid = p->p_ucred->cr_ruid;
+		cmcred->cmcred_gid = p->p_ucred->cr_rgid;
 		cmcred->cmcred_euid = p->p_ucred->cr_uid;
 		cmcred->cmcred_ngroups = MIN(p->p_ucred->cr_ngroups,
 							CMGROUP_MAX);

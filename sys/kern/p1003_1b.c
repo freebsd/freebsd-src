@@ -68,16 +68,17 @@ MALLOC_DEFINE(M_P31B, "p1003.1b", "Posix 1003.1B");
 /*
  * This is stolen from CANSIGNAL in kern_sig:
  *
- * Can process p, with pcred pc, do "write flavor" operations to process q?
+ * Can process with credential cr1 do "write flavor" operations to credential
+ * cr2.  This check needs to use generalized checks.
  */
-#define CAN_AFFECT(p, q) \
-	(!suser_xxx(NULL, p, PRISON_ROOT) || \
-	    (p)->p_cred->pc_ruid == (q)->p_cred->p_ruid || \
-	    (p)->p_ucred->cr_uid == (q)->p_cred->p_ruid || \
-	    (p)->p_cred->pc_ruid == (q)->p_ucred->cr_uid || \
-	    (p)->p_ucred->cr_uid == (q)->p_ucred->cr_uid)
+#define CAN_AFFECT(cr1, cr2) \
+	(!suser_xxx(cr1, NULL, PRISON_ROOT) || \
+	    (c1)->cr_ruid == (cr2)->cr_ruid || \
+	    (c1)->cr_uid == (cr2)->cr_ruid || \
+	    (c1)->cr_ruid == (cr2)->cr_uid || \
+	    (c1)->cr_uid == (cr2)->cr_uid)
 #else
-#define CAN_AFFECT(p, q) (!suser_xxx(NULL, p, PRISON_ROOT))
+#define CAN_AFFECT(cr1, cr2) (!suser_xxx(cr1, NULL, PRISON_ROOT))
 #endif
 
 /*
@@ -99,7 +100,7 @@ int p31b_proc(struct proc *p, pid_t pid, struct proc **pp)
 	{
 		/* Enforce permission policy.
 		 */
-		if (CAN_AFFECT(p, other_proc))
+		if (CAN_AFFECT(p->p_ucred, other_proc->p_ucred))
 			*pp = other_proc;
 		else
 			ret = EPERM;

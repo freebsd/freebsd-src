@@ -156,7 +156,7 @@ struct	proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 
 	/* substructures: */
-	struct	pcred *p_cred;		/* (c + k) Process owner's identity. */
+	struct	ucred *p_ucred;		/* (c + k) Process owner's identity. */
 	struct	filedesc *p_fd;		/* (b) Ptr to open files structure. */
 	struct	pstats *p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct	plimit *p_limit;	/* (m) Process limits. */
@@ -166,7 +166,6 @@ struct	proc {
 #define	p_sigignore	p_procsig->ps_sigignore
 #define	p_sigcatch	p_procsig->ps_sigcatch
 
-#define	p_ucred		p_cred->pc_ucred
 #define	p_rlimit	p_limit->pl_rlimit
 
 	int	p_flag;			/* (c) P_* flags. */
@@ -336,23 +335,6 @@ struct	proc {
 #define	P_CAN_SEE	1
 #define	P_CAN_SCHED	3
 #define	P_CAN_DEBUG	4
-
-/*
- * MOVE TO ucred.h?
- *
- * Shareable process credentials (always resident).  This includes a reference
- * to the current user credentials as well as real and saved ids that may be
- * used to change ids.
- */
-struct	pcred {
-	struct	ucred *pc_ucred;	/* Current credentials. */
-	uid_t	p_ruid;			/* Real user id. */
-	uid_t	p_svuid;		/* Saved effective user id. */
-	gid_t	p_rgid;			/* Real group id. */
-	gid_t	p_svgid;		/* Saved effective group id. */
-	int	p_refcnt;		/* Number of references. */
-	struct	uidinfo *p_uidinfo;	/* Per uid resource consumption. */
-};
 
 #ifdef _KERNEL
 
