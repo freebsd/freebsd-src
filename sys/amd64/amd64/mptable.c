@@ -47,10 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 
-/* EISA Edge/Level trigger control registers */
-#define ELCR0	0x4d0			/* eisa irq 0-7 */
-#define ELCR1	0x4d1			/* eisa irq 8-15 */
-
 /* string defined by the Intel MP Spec as identifying the MP table */
 #define	MP_SIG			0x5f504d5f	/* _MP_ */
 
@@ -147,10 +143,11 @@ static int pci0 = -1;
 
 MALLOC_DEFINE(M_MPTABLE, "MP Table", "MP Table Items");
 
-static u_char	conforming_polarity(u_char src_bus);
-static u_char	conforming_trigger(u_char src_bus, u_char src_bus_irq);
-static u_char	intentry_polarity(int_entry_ptr intr);
-static u_char	intentry_trigger(int_entry_ptr intr);
+static enum intr_polarity conforming_polarity(u_char src_bus,
+	    u_char src_bus_irq);
+static enum intr_trigger conforming_trigger(u_char src_bus, u_char src_bus_irq);
+static enum intr_polarity intentry_polarity(int_entry_ptr intr);
+static enum intr_trigger intentry_trigger(int_entry_ptr intr);
 static int	lookup_bus_type(char *name);
 static void	mptable_count_items(void);
 static void	mptable_count_items_handler(u_char *entry, void *arg);
@@ -340,6 +337,7 @@ mptable_setup_io(void)
 		busses[i].bus_type = NOBUS;
 
 	/* Second, we run through adding I/O APIC's and busses. */
+	ioapic_enable_mixed_mode();
 	mptable_parse_apics_and_busses();	
 
 	/* Third, we run through the table tweaking interrupt sources. */
@@ -539,19 +537,22 @@ mptable_parse_apics_and_busses(void)
 /*
  * Determine conforming polarity for a given bus type.
  */
-static u_char
-conforming_polarity(u_char src_bus)
+static enum intr_polarity
+conforming_polarity(u_char src_bus, u_char src_bus_irq)
 {
 
 	KASSERT(src_bus <= mptable_maxbusid, ("bus id %d too large", src_bus));
 	switch (busses[src_bus].bus_type) {
 	case ISA:
-	case EISA:
-		/* Active Hi */
-		return (1);
+		return (INTR_POLARITY_HIGH);
 	case PCI:
-		/* Active Lo */
-		return (0);
+		return (INTR_POLARITY_LOW);
+	case EISA:
+		KASSERT(src_bus_irq < 16, ("Invalid EISA IRQ %d", src_bus_irq));
+		if (elcr_read_trigger(src_bus_irq) == INTR_TRIGGER_LEVEL)
+			return (INTR_POLARITY_LOW);
+		else
+			return (INTR_POLARITY_HIGH);
 	default:
 		panic("%s: unknown bus type %d", __func__,
 		    busses[src_bus].bus_type);
@@ -561,52 +562,43 @@ conforming_polarity(u_char src_bus)
 /*
  * Determine conforming trigger for a given bus type.
  */
-static u_char
+static enum intr_trigger
 conforming_trigger(u_char src_bus, u_char src_bus_irq)
 {
-	static int eisa_int_control = -1;
 
 	KASSERT(src_bus <= mptable_maxbusid, ("bus id %d too large", src_bus));
 	switch (busses[src_bus].bus_type) {
 	case ISA:
-		/* Edge Triggered */
-		return (1);
+		return (INTR_TRIGGER_EDGE);
 	case PCI:
-		/* Level Triggered */
-		return (0);
+		return (INTR_TRIGGER_LEVEL);
 	case EISA:
 		KASSERT(src_bus_irq < 16, ("Invalid EISA IRQ %d", src_bus_irq));
-		if (eisa_int_control == -1)
-			eisa_int_control = inb(ELCR1) << 8 | inb(ELCR0);
-		if (eisa_int_control & (1 << src_bus_irq))
-			/* Level Triggered */
-			return (0);
-		else
-			/* Edge Triggered */
-			return (1);
+		return (elcr_read_trigger(src_bus_irq));
 	default:
 		panic("%s: unknown bus type %d", __func__,
 		    busses[src_bus].bus_type);
 	}
 }
 
-static u_char
+static enum intr_polarity
 intentry_polarity(int_entry_ptr intr)
 {
 
 	switch (intr->int_flags & INTENTRY_FLAGS_POLARITY) {
 	case INTENTRY_FLAGS_POLARITY_CONFORM:
-		return (conforming_polarity(intr->src_bus_id));
+		return (conforming_polarity(intr->src_bus_id,
+			    intr->src_bus_irq));
 	case INTENTRY_FLAGS_POLARITY_ACTIVEHI:
-		return (1);
+		return (INTR_POLARITY_HIGH);
 	case INTENTRY_FLAGS_POLARITY_ACTIVELO:
-		return (0);
+		return (INTR_POLARITY_LOW);
 	default:
 		panic("Bogus interrupt flags");
 	}
 }
 
-static u_char
+static enum intr_trigger
 intentry_trigger(int_entry_ptr intr)
 {
 
@@ -615,9 +607,9 @@ intentry_trigger(int_entry_ptr intr)
 		return (conforming_trigger(intr->src_bus_id,
 			    intr->src_bus_irq));
 	case INTENTRY_FLAGS_TRIGGER_EDGE:
-		return (1);
+		return (INTR_TRIGGER_EDGE);
 	case INTENTRY_FLAGS_TRIGGER_LEVEL:
-		return (0);
+		return (INTR_TRIGGER_LEVEL);
 	default:
 		panic("Bogus interrupt flags");
 	}

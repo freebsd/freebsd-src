@@ -51,10 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/apicvar.h>
 #include <machine/segments.h>
 
-#if defined(DEV_ISA) && defined(DEV_ATPIC) && !defined(NO_MIXED_MODE)
-#define	MIXED_MODE
-#endif
-
 #define IOAPIC_ISA_INTS		16
 #define	IOAPIC_MEM_REGION	32
 #define	IOAPIC_REDTBL_LO(i)	(IOAPIC_REDTBL + (i) * 2)
@@ -117,9 +113,6 @@ struct ioapic {
 	struct ioapic_intsrc io_pins[0];
 };
 
-static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
-static u_int next_id, program_logical_dest;
-
 static u_int	ioapic_read(volatile ioapic_t *apic, int reg);
 static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
 static void	ioapic_enable_source(struct intsrc *isrc);
@@ -128,19 +121,28 @@ static void	ioapic_eoi_source(struct intsrc *isrc);
 static void	ioapic_enable_intr(struct intsrc *isrc);
 static int	ioapic_vector(struct intsrc *isrc);
 static int	ioapic_source_pending(struct intsrc *isrc);
+static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+		    enum intr_polarity pol);
 static void	ioapic_suspend(struct intsrc *isrc);
 static void	ioapic_resume(struct intsrc *isrc);
 static void	ioapic_program_destination(struct ioapic_intsrc *intpin);
-#ifdef MIXED_MODE
 static void	ioapic_setup_mixed_mode(struct ioapic_intsrc *intpin);
-#endif
 
+static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
 struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 			       ioapic_eoi_source, ioapic_enable_intr,
 			       ioapic_vector, ioapic_source_pending,
-			       ioapic_suspend, ioapic_resume };
+			       ioapic_suspend, ioapic_resume,
+			       ioapic_config_intr };
 	
-static int next_ioapic_base, logical_clusters, current_cluster;
+static int current_cluster, logical_clusters, next_ioapic_base;
+static u_int mixed_mode_enabled, next_id, program_logical_dest;
+#if defined(NO_MIXED_MODE) || !defined(DEV_ATPIC)
+static int mixed_mode_active = 0;
+#else
+static int mixed_mode_active = 1;
+#endif
+TUNABLE_INT("hw.apic.mixed_mode", &mixed_mode_active);
 
 static u_int
 ioapic_read(volatile ioapic_t *apic, int reg)
@@ -291,6 +293,41 @@ ioapic_source_pending(struct intsrc *isrc)
 	return (lapic_intr_pending(intpin->io_vector));
 }
 
+static int
+ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
+	struct ioapic *io = (struct ioapic *)isrc->is_pic;
+
+	KASSERT(!(trig == INTR_TRIGGER_CONFORM || pol == INTR_POLARITY_CONFORM),
+	    ("%s: Conforming trigger or polarity\n", __func__));
+
+	/*
+	 * For now we ignore any requests but do output any changes that
+	 * would be made to the console it bootverbose is enabled.  The only
+	 * known causes of these messages so far is a bug in acpi(4) that
+	 * causes the ISA IRQs used for PCI interrupts in PIC mode to be
+	 * set to level/low when they aren't being used.  There are possibly
+	 * legitimate requests, so at some point when the acpi(4) driver is
+	 * fixed this code can be changed to actually change the intpin as
+	 * requested.
+	 */
+	if (!bootverbose)
+		return (0);
+	if (intpin->io_edgetrigger != (trig == INTR_TRIGGER_EDGE))
+		printf(
+	"ioapic%u: Request to change trigger for pin %u to %s ignored\n",
+		    io->io_id, intpin->io_intpin, trig == INTR_TRIGGER_EDGE ?
+		    "edge" : "level");
+	if (intpin->io_activehi != (pol == INTR_POLARITY_HIGH))
+		printf(
+	"ioapic%u: Request to change polarity for pin %u to %s ignored\n",
+		    io->io_id, intpin->io_intpin, pol == INTR_POLARITY_HIGH ?
+		    "high" : "low");
+	return (0);
+}
+
 static void
 ioapic_suspend(struct intsrc *isrc)
 {
@@ -303,6 +340,17 @@ ioapic_resume(struct intsrc *isrc)
 {
 
 	TODO;
+}
+
+/*
+ * APIC enumerators call this function to indicate that the 8259A AT PICs
+ * are available and that mixed mode can be used.
+ */
+void
+ioapic_enable_mixed_mode(void)
+{
+
+	mixed_mode_enabled = 1;
 }
 
 /*
@@ -380,14 +428,17 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 		 * Assume that pin 0 on the first IO APIC is an ExtINT pin by
 		 * default.  Assume that intpins 1-15 are ISA interrupts and
 		 * use suitable defaults for those.  Assume that all other
-		 * intpins are PCI interrupts.  Enable the ExtINT pin by
-		 * default but mask all other pins.
+		 * intpins are PCI interrupts.  Enable the ExtINT pin if
+		 * mixed mode is available and active but mask all other pins.
 		 */
 		if (intpin->io_vector == 0) {
 			intpin->io_activehi = 1;
 			intpin->io_edgetrigger = 1;
 			intpin->io_vector = VECTOR_EXTINT;
-			intpin->io_masked = 0;
+			if (mixed_mode_enabled && mixed_mode_active)
+				intpin->io_masked = 0;
+			else
+				intpin->io_masked = 1;
 		} else if (intpin->io_vector < IOAPIC_ISA_INTS) {
 			intpin->io_activehi = 1;
 			intpin->io_edgetrigger = 1;
@@ -526,36 +577,36 @@ ioapic_set_extint(void *cookie, u_int pin)
 }
 
 int
-ioapic_set_polarity(void *cookie, u_int pin, char activehi)
+ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
 {
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= io->io_numintr || pol == INTR_POLARITY_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
-	io->io_pins[pin].io_activehi = activehi;
+	io->io_pins[pin].io_activehi = (pol == INTR_POLARITY_HIGH);
 	if (bootverbose)
 		printf("ioapic%u: intpin %d polarity: %s\n", io->io_id, pin,
-		    activehi ? "active-hi" : "active-lo");
+		    pol == INTR_POLARITY_HIGH ? "high" : "low");
 	return (0);
 }
 
 int
-ioapic_set_triggermode(void *cookie, u_int pin, char edgetrigger)
+ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
 {
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= io->io_numintr || trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
-	io->io_pins[pin].io_edgetrigger = edgetrigger;
+	io->io_pins[pin].io_edgetrigger = (trigger == INTR_TRIGGER_EDGE);
 	if (bootverbose)
 		printf("ioapic%u: intpin %d trigger: %s\n", io->io_id, pin,
-		    edgetrigger ? "edge" : "level");
+		    trigger == INTR_TRIGGER_EDGE ? "edge" : "level");
 	return (0);
 }
 
@@ -632,12 +683,15 @@ ioapic_register(void *cookie)
 		ioapic_write(apic, IOAPIC_REDTBL_HI(i), flags);
 		mtx_unlock_spin(&icu_lock);
 		if (pin->io_vector < NUM_IO_INTS) {
-#ifdef MIXED_MODE
-			/* Route IRQ0 via the 8259A using mixed mode. */
-			if (pin->io_vector == 0)
+
+			/*
+			 * Route IRQ0 via the 8259A using mixed mode if
+			 * mixed mode is available and turned on.
+			 */
+			if (pin->io_vector == 0 && mixed_mode_active &&
+			    mixed_mode_enabled)
 				ioapic_setup_mixed_mode(pin);
 			else
-#endif
 				intr_register_source(&pin->io_intsrc);
 		}
 			
@@ -664,7 +718,6 @@ ioapic_set_logical_destinations(void *arg __unused)
 SYSINIT(ioapic_destinations, SI_SUB_SMP, SI_ORDER_SECOND,
     ioapic_set_logical_destinations, NULL)
 
-#ifdef MIXED_MODE
 /*
  * Support for mixed-mode interrupt sources.  These sources route an ISA
  * IRQ through the 8259A's via the ExtINT on pin 0 of the I/O APIC that
@@ -673,7 +726,7 @@ SYSINIT(ioapic_destinations, SI_SUB_SMP, SI_ORDER_SECOND,
  * that IRQ instead.
  */
 
-void
+static void
 ioapic_setup_mixed_mode(struct ioapic_intsrc *intpin)
 {
 	struct ioapic_intsrc *extint;
@@ -693,5 +746,3 @@ ioapic_setup_mixed_mode(struct ioapic_intsrc *intpin)
 		ioapic_assign_cluster(extint);
 #endif
 }
-
-#endif /* MIXED_MODE */
