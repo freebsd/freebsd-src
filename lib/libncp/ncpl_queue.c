@@ -40,8 +40,8 @@
 #include <netncp/ncp_lib.h>
 
 int
-ncp_create_queue_job_and_file(int connid, u_int32_t queue_id, 
-    struct queue_job *job)
+ncp_create_queue_job_and_file(NWCONN_HANDLE connid, u_int32_t queue_id, 
+	struct queue_job *job)
 {
 	int error;
 	DECLARE_RQ;
@@ -58,7 +58,8 @@ ncp_create_queue_job_and_file(int connid, u_int32_t queue_id,
 }
 
 int
-ncp_close_file_and_start_job(int connid, u_int32_t queue_id, struct queue_job *job)
+ncp_close_file_and_start_job(NWCONN_HANDLE connid, u_int32_t queue_id,
+	struct queue_job *job)
 {
 	int error;
 	DECLARE_RQ;
@@ -71,7 +72,7 @@ ncp_close_file_and_start_job(int connid, u_int32_t queue_id, struct queue_job *j
 }
 
 int
-ncp_attach_to_queue(int connid, u_int32_t queue_id) {
+ncp_attach_to_queue(NWCONN_HANDLE connid, u_int32_t queue_id) {
 	int error;
 	DECLARE_RQ;
 
@@ -82,7 +83,7 @@ ncp_attach_to_queue(int connid, u_int32_t queue_id) {
 }
 
 int
-ncp_detach_from_queue(int connid, u_int32_t queue_id) {
+ncp_detach_from_queue(NWCONN_HANDLE connid, u_int32_t queue_id) {
 	int error;
 	DECLARE_RQ;
 
@@ -93,8 +94,9 @@ ncp_detach_from_queue(int connid, u_int32_t queue_id) {
 }
 
 int
-ncp_service_queue_job(int connid, u_int32_t queue_id, u_int16_t job_type,
-		      struct queue_job *job) {
+ncp_service_queue_job(NWCONN_HANDLE connid, u_int32_t queue_id,
+	u_int16_t job_type, struct queue_job *job)
+{
 	int error;
 	DECLARE_RQ;
 
@@ -110,8 +112,9 @@ ncp_service_queue_job(int connid, u_int32_t queue_id, u_int16_t job_type,
 }
 
 int
-ncp_finish_servicing_job(int connid, u_int32_t queue_id, u_int32_t job_number,
-	u_int32_t charge_info) {
+ncp_finish_servicing_job(NWCONN_HANDLE connid, u_int32_t queue_id,
+	u_int32_t job_number, u_int32_t charge_info)
+{
 	int error;
 	DECLARE_RQ;
 
@@ -125,7 +128,9 @@ ncp_finish_servicing_job(int connid, u_int32_t queue_id, u_int32_t job_number,
 }
 
 int
-ncp_abort_servicing_job(int connid, u_int32_t queue_id, u_int32_t job_number) {
+ncp_abort_servicing_job(NWCONN_HANDLE connid, u_int32_t queue_id,
+	u_int32_t job_number)
+{
 	int error;
 	DECLARE_RQ;
 
@@ -137,7 +142,9 @@ ncp_abort_servicing_job(int connid, u_int32_t queue_id, u_int32_t job_number) {
 }
 
 int
-ncp_get_queue_length(int connid, u_int32_t queue_id, u_int32_t *queue_length) {
+ncp_get_queue_length(NWCONN_HANDLE connid, u_int32_t queue_id,
+	u_int32_t *queue_length)
+{
 	int error;
 	DECLARE_RQ;
 
@@ -159,8 +166,9 @@ ncp_get_queue_length(int connid, u_int32_t queue_id, u_int32_t *queue_length) {
 }
 
 int 
-ncp_get_queue_job_ids(int connid, u_int32_t queue_id, u_int32_t queue_section,
-                       u_int32_t *length1, u_int32_t *length2, u_int32_t ids[])
+ncp_get_queue_job_ids(NWCONN_HANDLE connid, u_int32_t queue_id,
+	u_int32_t queue_section, u_int32_t *length1, u_int32_t *length2,
+	u_int32_t ids[])
 {
 	int error;
 	DECLARE_RQ;
@@ -193,8 +201,9 @@ ncp_get_queue_job_ids(int connid, u_int32_t queue_id, u_int32_t queue_section,
 }
 
 int
-ncp_get_queue_job_info(int connid, u_int32_t queue_id, u_int32_t job_id,
-                        struct nw_queue_job_entry *jobdata) {
+ncp_get_queue_job_info(NWCONN_HANDLE connid, u_int32_t queue_id,
+	u_int32_t job_id, struct nw_queue_job_entry *jobdata)
+{
         int error;
 	DECLARE_RQ;
 

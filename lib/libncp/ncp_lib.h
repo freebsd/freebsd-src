@@ -32,8 +32,8 @@
  * $FreeBSD$
  */
 
-#ifndef _NCP_LIB_H_
-#define _NCP_LIB_H_
+#ifndef _NETNCP_NCP_LIB_H_
+#define _NETNCP_NCP_LIB_H_
 
 #define IPX
 #define INET
@@ -104,8 +104,10 @@ struct ncp_bitname {
 	char	*bn_name;
 };
 
-int ncp_args_parserc(struct ncp_args *na, char *sect, ncp_setopt_t *set_callback);
-int ncp_args_parseopt(struct ncp_args *na, int opt, char *optarg, ncp_setopt_t *set_callback);
+__BEGIN_DECLS
+
+int ncp_args_parserc(struct ncp_args *, char *, ncp_setopt_t *);
+int ncp_args_parseopt(struct ncp_args *, int, char *, ncp_setopt_t *);
 
 
 struct sockaddr_ipx;
@@ -115,144 +117,136 @@ struct ncp_buf;
 struct rcfile;
 
 int  ncp_initlib(void);
-int  ncp_connect(struct ncp_conn_args *li, int *connHandle);
-int  ncp_connect_addr(struct sockaddr *sa, NWCONN_HANDLE *chp);
-int  ncp_disconnect(int connHandle);
-int  ncp_request(int connHandle,int function, struct ncp_buf *ncpbuf);
-int  ncp_conn_request(int connHandle, struct ncp_buf *ncpbuf);
-int  ncp_login(int connHandle, const char *user, int objtype, const char *password);
-int  ncp_conn_scan(struct ncp_conn_loginfo *li, int *connHandle);
+int  ncp_connect(struct ncp_conn_args *, int *);
+int  ncp_connect_addr(struct sockaddr *, NWCONN_HANDLE *);
+int  ncp_disconnect(int);
+int  ncp_request(int, int, struct ncp_buf *);
+int  ncp_conn_request(int, struct ncp_buf *);
+int  ncp_login(int, const char *, int, const char *);
+int  ncp_conn_scan(struct ncp_conn_loginfo *, int *);
 int  ncp_conn_cnt(void);
 void *ncp_conn_list(void);
-int  ncp_conn_getinfo(int connHandle, struct ncp_conn_stat *ps);
-int  ncp_conn_getuser(int connHandle, char **user);
-int  ncp_conn2ref(int connHandle, int *connRef);
-int  ncp_conn_dup(NWCONN_HANDLE org, NWCONN_HANDLE *res);
-int  ncp_path2conn(char *path, int *connHandle);
-int  ncp_li_init(struct ncp_conn_loginfo *li, int argc, char *argv[]);
-void ncp_li_done(struct ncp_conn_loginfo *li);
-int  ncp_li_login(struct ncp_conn_loginfo *li, int *aconnHandle);
-int  ncp_li_readrc(struct ncp_conn_loginfo *li);
-int  ncp_li_check(struct ncp_conn_loginfo *li);
-int  ncp_li_arg(struct ncp_conn_loginfo *li, int opt, char *arg);
-int  ncp_li_setserver(struct ncp_conn_loginfo *li, const char *arg);
-int  ncp_li_setuser(struct ncp_conn_loginfo *li, char *arg);
-int  ncp_li_setpassword(struct ncp_conn_loginfo *li, const char *passwd);
-int  ncp_conn_setflags(int connHandle, u_int16_t mask, u_int16_t flags);
-int  ncp_conn_find(char *server, char *user);
-NWCCODE NWRequest(NWCONN_HANDLE cH, nuint16 fn,
-	nuint16 nrq, NW_FRAGMENT* rq, 
-	nuint16 nrp, NW_FRAGMENT* rp) ;
+int  ncp_conn_getinfo(int, struct ncp_conn_stat *);
+int  ncp_conn_getuser(int, char **);
+int  ncp_conn2ref(int, int *);
+int  ncp_conn_dup(NWCONN_HANDLE, NWCONN_HANDLE *);
+int  ncp_path2conn(char *, int *);
+int  ncp_li_init(struct ncp_conn_loginfo *, int, char *[]);
+void ncp_li_done(struct ncp_conn_loginfo *);
+int  ncp_li_login(struct ncp_conn_loginfo *, int *);
+int  ncp_li_readrc(struct ncp_conn_loginfo *);
+int  ncp_li_check(struct ncp_conn_loginfo *);
+int  ncp_li_arg(struct ncp_conn_loginfo *, int, char *);
+int  ncp_li_setserver(struct ncp_conn_loginfo *, const char *);
+int  ncp_li_setuser(struct ncp_conn_loginfo *, char *);
+int  ncp_li_setpassword(struct ncp_conn_loginfo *, const char *);
+int  ncp_conn_setflags(int, u_int16_t, u_int16_t);
+int  ncp_conn_find(char *, char *);
+NWCCODE NWRequest(NWCONN_HANDLE, nuint16, nuint16, NW_FRAGMENT *,
+    nuint16, NW_FRAGMENT *);
 
 #define ncp_setpermanent(connHandle,on)	ncp_conn_setflags(connHandle, NCPFL_PERMANENT, (on) ? NCPFL_PERMANENT : 0)
 #define ncp_setprimary(connHandle,on)	ncp_conn_setflags(connHandle, NCPFL_PRIMARY, (on) ? NCPFL_PRIMARY : 0)
 
-int  ncp_find_fileserver(struct ncp_conn_loginfo *li, int af,char *name);
-int  ncp_find_server(struct ncp_conn_loginfo *li, int type, int af,char *name);
+int  ncp_find_fileserver(struct ncp_conn_loginfo *, int, char *);
+int  ncp_find_server(struct ncp_conn_loginfo *, int, int, char *);
 
 /* misc rotines */
-char* ncp_str_upper(char *name);
+char* ncp_str_upper(char *);
 int  ncp_open_rcfile(void);
-int  ncp_getopt(int nargc, char * const *nargv, const char *ostr);
-void NWUnpackDateTime(nuint32 dateTime, NW_DATE *sDate, NW_TIME *sTime);
-void NWUnpackDate(nuint16 date, NW_DATE *sDate);
-void NWUnpackTime(nuint16 time, NW_TIME *sTime);
-time_t ncp_UnpackDateTime(nuint32 dateTime);
-int  ncp_GetFileServerDateAndTime(NWCONN_HANDLE cH, time_t *target);
-int  ncp_SetFileServerDateAndTime(NWCONN_HANDLE cH, time_t * source);
-NWCCODE NWDownFileServer(NWCONN_HANDLE cH, int force);
-NWCCODE NWCloseBindery(NWCONN_HANDLE cH);
-NWCCODE NWOpenBindery(NWCONN_HANDLE cH);
-NWCCODE NWDisableTTS(NWCONN_HANDLE cH);
-NWCCODE NWEnableTTS(NWCONN_HANDLE cH);
-NWCCODE NWDisableFileServerLogin(NWCONN_HANDLE cH);
-NWCCODE NWEnableFileServerLogin(NWCONN_HANDLE cH);
-void ncp_error(char *fmt, int error,...);
-char *ncp_printb(char *dest, int flags, const struct ncp_bitname *bnp);
-void nw_keyhash(const u_char *key, const u_char *buf, int buflen, u_char *target);
-void nw_encrypt(const u_char *fra, const u_char *buf, u_char *target);
-void ipx_print_addr(struct ipx_addr *ipx);
+int  ncp_getopt(int, char * const *, const char *);
+void NWUnpackDateTime(nuint32, NW_DATE *, NW_TIME *);
+void NWUnpackDate(nuint16, NW_DATE *);
+void NWUnpackTime(nuint16, NW_TIME *);
+time_t ncp_UnpackDateTime(nuint32);
+int  ncp_GetFileServerDateAndTime(NWCONN_HANDLE, time_t *);
+int  ncp_SetFileServerDateAndTime(NWCONN_HANDLE, time_t *);
+NWCCODE NWDownFileServer(NWCONN_HANDLE, int);
+NWCCODE NWCloseBindery(NWCONN_HANDLE);
+NWCCODE NWOpenBindery(NWCONN_HANDLE);
+NWCCODE NWDisableTTS(NWCONN_HANDLE);
+NWCCODE NWEnableTTS(NWCONN_HANDLE);
+NWCCODE NWDisableFileServerLogin(NWCONN_HANDLE);
+NWCCODE NWEnableFileServerLogin(NWCONN_HANDLE);
+void ncp_error(char *, int,...);
+char *ncp_printb(char *, int, const struct ncp_bitname *);
+void nw_keyhash(const u_char *, const u_char *, int, u_char *);
+void nw_encrypt(const u_char *, const u_char *, u_char *);
+void ipx_print_addr(struct ipx_addr *);
 
 /* bindery calls */
-int  ncp_get_bindery_object_id(int connHandle, u_int16_t object_type, const char *object_name,
-		struct ncp_bindery_object *target);
-int  ncp_get_bindery_object_name(int connHandle, u_int32_t object_id, 
-		struct ncp_bindery_object *target);
-int  ncp_scan_bindery_object(int connHandle, u_int32_t last_id, u_int16_t object_type, 
-		char *search_string, struct ncp_bindery_object *target);
-int  ncp_read_property_value(int connHandle,int object_type, const char *object_name,
-		int segment, const char *prop_name, struct nw_property *target);
-void shuffle(const u_char *lon, const u_char *buf, int buflen, u_char *target);
-int  ncp_get_encryption_key(NWCONN_HANDLE cH, char *target);
-int  ncp_change_obj_passwd(NWCONN_HANDLE connid, 
-	const struct ncp_bindery_object *object,
-	const u_char *key,
-	const u_char *oldpasswd, const u_char *newpasswd);
-int  ncp_keyed_verify_password(NWCONN_HANDLE cH, char *key, char *passwd,
-			    struct ncp_bindery_object *objinfo);
+int  ncp_get_bindery_object_id(NWCONN_HANDLE, u_int16_t, const char *,
+		struct ncp_bindery_object *);
+int  ncp_get_bindery_object_name(NWCONN_HANDLE, u_int32_t,
+		struct ncp_bindery_object *);
+int  ncp_scan_bindery_object(NWCONN_HANDLE, u_int32_t, u_int16_t, 
+		char *, struct ncp_bindery_object *);
+int  ncp_read_property_value(NWCONN_HANDLE, int object_type, const char *,
+		int, const char *, struct nw_property *);
+int  ncp_get_encryption_key(NWCONN_HANDLE, char *);
+int  ncp_change_obj_passwd(NWCONN_HANDLE, 
+	const struct ncp_bindery_object *, const u_char *,
+	const u_char *, const u_char *);
+int  ncp_keyed_verify_password(NWCONN_HANDLE, char *, char *,
+		struct ncp_bindery_object *);
 
 /* queue calls */
-int  ncp_create_queue_job_and_file(int connHandle, u_int32_t queue_id, struct queue_job *job);
-int  ncp_close_file_and_start_job(int connHandle, u_int32_t queue_id,  struct queue_job *job);
-int  ncp_attach_to_queue(int connHandle, u_int32_t queue_id);
-int  ncp_detach_from_queue(int connHandle, u_int32_t queue_id);
-int  ncp_service_queue_job(int connHandle, u_int32_t queue_id, u_int16_t job_type,
-		struct queue_job *job);
-int  ncp_finish_servicing_job(int connHandle, u_int32_t queue_id, u_int32_t job_number,
-	u_int32_t charge_info);
-int  ncp_abort_servicing_job(int connHandle, u_int32_t queue_id, u_int32_t job_number);
-int  ncp_get_queue_length(int connHandle, u_int32_t queue_id, u_int32_t *queue_length);
-int  ncp_get_queue_job_ids(int connHandle, u_int32_t queue_id, u_int32_t queue_section,
-                       u_int32_t *length1, u_int32_t *length2, u_int32_t ids[]);
-int  ncp_get_queue_job_info(int connHandle, u_int32_t queue_id, u_int32_t job_id,
-                        struct nw_queue_job_entry *jobdata);
+int  ncp_create_queue_job_and_file(NWCONN_HANDLE, u_int32_t, struct queue_job *);
+int  ncp_close_file_and_start_job(NWCONN_HANDLE, u_int32_t, struct queue_job *);
+int  ncp_attach_to_queue(NWCONN_HANDLE, u_int32_t);
+int  ncp_detach_from_queue(NWCONN_HANDLE, u_int32_t);
+int  ncp_service_queue_job(NWCONN_HANDLE, u_int32_t, u_int16_t,
+		struct queue_job *);
+int  ncp_finish_servicing_job(NWCONN_HANDLE, u_int32_t, u_int32_t, u_int32_t);
+int  ncp_abort_servicing_job(NWCONN_HANDLE, u_int32_t, u_int32_t);
+int  ncp_get_queue_length(NWCONN_HANDLE, u_int32_t, u_int32_t *);
+int  ncp_get_queue_job_ids(NWCONN_HANDLE, u_int32_t, u_int32_t,
+		u_int32_t *, u_int32_t *, u_int32_t []);
+int  ncp_get_queue_job_info(NWCONN_HANDLE, u_int32_t, u_int32_t,
+		struct nw_queue_job_entry *);
 /*
  * file system and volume calls 
  */
-int  ncp_read(int connHandle, ncp_fh *fh, off_t offset, size_t count, char *target);
-int  ncp_write(int connHandle, ncp_fh *fh, off_t offset, size_t count, char *source);
-int  ncp_geteinfo(char *path, struct nw_entry_info *fi);
-int  ncp_NSEntryInfo(NWCONN_HANDLE cH, nuint8 ns, nuint8 vol, nuint32 dirent,
-	    NW_ENTRY_INFO *entryInfo);
+int  ncp_read(NWCONN_HANDLE, ncp_fh *, off_t, size_t, char *);
+int  ncp_write(NWCONN_HANDLE, ncp_fh *, off_t, size_t, char *);
+int  ncp_geteinfo(char *, struct nw_entry_info *);
+int  ncp_NSEntryInfo(NWCONN_HANDLE, nuint8, nuint8, nuint32, NW_ENTRY_INFO *);
 
-NWCCODE NWGetVolumeName(NWCONN_HANDLE cH, u_char volume, char *name);
+NWCCODE NWGetVolumeName(NWCONN_HANDLE, u_char, char *);
 
 /* misc ncp calls */
-int  ncp_get_file_server_information(int connHandle, struct ncp_file_server_info *target);
-int  ncp_get_stations_logged_info(int connHandle, u_int32_t connection,
-		struct ncp_bindery_object *target, time_t *login_time);
-int  ncp_get_internet_address(int connHandle, u_int32_t connection, struct ipx_addr *target,
-			 u_int8_t * conn_type);
-NWCCODE NWGetObjectConnectionNumbers(NWCONN_HANDLE connHandle,
-		pnstr8 pObjName, nuint16 objType,
-		pnuint16 pNumConns, pnuint16 pConnHandleList,
-		nuint16 maxConns);
+int  ncp_get_file_server_information(NWCONN_HANDLE, struct ncp_file_server_info *);
+int  ncp_get_stations_logged_info(NWCONN_HANDLE, u_int32_t,
+		struct ncp_bindery_object *, time_t *);
+int  ncp_get_internet_address(NWCONN_HANDLE, u_int32_t, struct ipx_addr *,
+		u_int8_t *);
+NWCCODE NWGetObjectConnectionNumbers(NWCONN_HANDLE, pnstr8, nuint16,
+		pnuint16, pnuint16, nuint16);
 /*
  * Message broadcast
  */
-NWCCODE NWDisableBroadcasts(NWCONN_HANDLE connHandle);
-NWCCODE	NWEnableBroadcasts(NWCONN_HANDLE connHandle);
-NWCCODE	NWBroadcastToConsole(NWCONN_HANDLE  connHandle, pnstr8 message);
-NWCCODE NWSendBroadcastMessage(NWCONN_HANDLE  connHandle, pnstr8 message,
-	    nuint16 connCount, pnuint16 connList, pnuint8 resultList);
-NWCCODE NWGetBroadcastMessage(NWCONN_HANDLE connHandle, pnstr8 message);
+NWCCODE NWDisableBroadcasts(NWCONN_HANDLE);
+NWCCODE	NWEnableBroadcasts(NWCONN_HANDLE);
+NWCCODE	NWBroadcastToConsole(NWCONN_HANDLE, pnstr8);
+NWCCODE NWSendBroadcastMessage(NWCONN_HANDLE, pnstr8, nuint16, pnuint16, pnuint8);
+NWCCODE NWGetBroadcastMessage(NWCONN_HANDLE, pnstr8);
 
 /*
  * RPC calls
  */
-NWCCODE	NWSMExecuteNCFFile(NWCONN_HANDLE cH, pnstr8 NCFFileName);
-NWCCODE	NWSMLoadNLM(NWCONN_HANDLE cH, pnstr8 cmd);
-NWCCODE NWSMUnloadNLM(NWCONN_HANDLE cH, pnstr8 cmd);
-NWCCODE NWSMMountVolume(NWCONN_HANDLE cH, pnstr8 volName, nuint32* volnum);
-NWCCODE NWSMDismountVolumeByName(NWCONN_HANDLE cH, pnstr8 vol);
-NWCCODE NWSMSetDynamicCmdIntValue(NWCONN_HANDLE cH, pnstr8 setCommandName, nuint32 cmdValue);
-NWCCODE NWSMSetDynamicCmdStrValue(NWCONN_HANDLE cH, pnstr8 setCommandName, pnstr8 cmdValue);
+NWCCODE	NWSMExecuteNCFFile(NWCONN_HANDLE, pnstr8);
+NWCCODE	NWSMLoadNLM(NWCONN_HANDLE, pnstr8);
+NWCCODE NWSMUnloadNLM(NWCONN_HANDLE, pnstr8);
+NWCCODE NWSMMountVolume(NWCONN_HANDLE, pnstr8, nuint32 *);
+NWCCODE NWSMDismountVolumeByName(NWCONN_HANDLE, pnstr8);
+NWCCODE NWSMSetDynamicCmdIntValue(NWCONN_HANDLE, pnstr8, nuint32);
+NWCCODE NWSMSetDynamicCmdStrValue(NWCONN_HANDLE, pnstr8, pnstr8);
 
-int dostat(int modnum, char *modname, int *offset);
+__END_DECLS
 
-extern int  ncp_opterr, ncp_optind, ncp_optopt, ncp_optreset;
+extern int ncp_opterr, ncp_optind, ncp_optopt, ncp_optreset;
 extern char *ncp_optarg;
 
 extern struct rcfile *ncp_rc;
 extern int sysentoffset;
-#endif /* _NCP_LIB_H_ */
+#endif /* _NETNCP_NCP_LIB_H_ */

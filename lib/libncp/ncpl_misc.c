@@ -65,7 +65,8 @@ ncp_nw_to_ctime(struct nw_time_buffer *source) {
 }
 
 int
-ncp_get_file_server_information(int connid, struct ncp_file_server_info *target)
+ncp_get_file_server_information(NWCONN_HANDLE connid,
+	struct ncp_file_server_info *target)
 {
 	int error;
 	DECLARE_RQ;
@@ -86,9 +87,8 @@ ncp_get_file_server_information(int connid, struct ncp_file_server_info *target)
 }
 
 int
-ncp_get_stations_logged_info(int connid, u_int32_t connection,
-			     struct ncp_bindery_object *target,
-			     time_t *login_time)
+ncp_get_stations_logged_info(NWCONN_HANDLE connid, u_int32_t connection,
+	struct ncp_bindery_object *target, time_t *login_time)
 {
 	int error;
 	DECLARE_RQ;
@@ -108,8 +108,9 @@ ncp_get_stations_logged_info(int connid, u_int32_t connection,
 }
 
 int
-ncp_get_internet_address(int connid, u_int32_t connection, struct ipx_addr *target,
-			 u_int8_t * conn_type) {
+ncp_get_internet_address(NWCONN_HANDLE connid, u_int32_t connection,
+	struct ipx_addr *target, u_int8_t * conn_type)
+{
 	int error;
 	DECLARE_RQ;
 
