@@ -70,16 +70,20 @@ static int ready_for_devs;
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
+#ifdef NO_GEOM
 /* XXX: This is a hack */
 void disk_dev_synth(dev_t dev);
+#endif
 
 struct cdevsw *
 devsw(dev_t dev)
 {
 	if (dev->si_devsw)
 		return (dev->si_devsw);
+#ifdef NO_GEOM
 	/* XXX: Hack around our backwards disk code */
 	disk_dev_synth(dev);
+#endif
 	if (dev->si_devsw)
 		return (dev->si_devsw);
 #ifndef NODEVFS
