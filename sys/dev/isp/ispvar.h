@@ -1,4 +1,4 @@
-/* $Id: ispvar.h,v 1.8 1999/01/10 02:51:48 mjacob Exp $ */
+/* $Id: ispvar.h,v 1.8.2.1 1999/05/11 05:54:06 mjacob Exp $ */
 /* release_5_11_99 */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
@@ -181,7 +181,7 @@ typedef struct {
 	/*
 	 * Scratch DMA mapped in area to fetch Port Database stuff, etc.
 	 */
-	volatile caddr_t	isp_scratch;
+	caddr_t			isp_scratch;
 	u_int32_t		isp_scdma;
 } fcparam;
 
@@ -298,8 +298,8 @@ struct ispsoftc {
 	/*
 	 * request/result queues and dma handles for them.
 	 */
-	volatile caddr_t	isp_rquest;
-	volatile caddr_t	isp_result;
+	caddr_t			isp_rquest;
+	caddr_t			isp_result;
 	u_int32_t		isp_rquest_dma;
 	u_int32_t		isp_result_dma;
 
