@@ -224,7 +224,7 @@ int deep_opt;
         ipnt += 8;
     }
     else {
-#ifdef ultrix
+#if defined(__BSD__)
         set_733((char*)Rock + ipnt, (lstatbuf->st_rdev >> 16) >> 16);
 #else
         set_733((char*)Rock + ipnt, lstatbuf->st_rdev >> 32);
