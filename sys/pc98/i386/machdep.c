@@ -1715,12 +1715,17 @@ init386(first)
 #endif
 	struct pcpu *pc;
 
-	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
 	proc0.p_uarea = proc0uarea;
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
 	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	atdevbase = ISA_HOLE_START + KERNBASE;
+
+	/*
+ 	 * This may be done better later if it gets more high level
+ 	 * components in it. If so just link td->td_proc here.
+	 */
+	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
 
 #ifdef PC98
 	/*
