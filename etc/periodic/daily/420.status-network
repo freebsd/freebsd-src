@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# $Id: 420.status-network,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
+#
+
+if [ -x /usr/bin/netstat ] ; then
+    echo ""
+    echo "Network interface status:"
+    netstat -i
+fi
