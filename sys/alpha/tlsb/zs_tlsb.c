@@ -67,8 +67,6 @@ static	d_close_t	zsclose;
 static	d_read_t	zsread;
 static	d_write_t	zswrite;
 static	d_ioctl_t	zsioctl;
-static	d_stop_t	zsstop;
-static	d_devtotty_t	zsdevtotty;
 
 #define CDEV_MAJOR 98
 static struct cdevsw zs_cdevsw = {
@@ -77,10 +75,10 @@ static struct cdevsw zs_cdevsw = {
 	/* read */	zsread,
 	/* write */	zswrite,
 	/* ioctl */	zsioctl,
-	/* stop */	zsstop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	zsdevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"zs",
@@ -95,6 +93,7 @@ static struct cdevsw zs_cdevsw = {
 
 static void	zsstart __P((struct tty *));
 static int	zsparam __P((struct tty *, struct termios *));
+static void	zsstop __P((struct tty *tp, int flag));
 
 /*
  * Helpers for console support.
@@ -270,9 +269,11 @@ zsopen(dev_t dev, int flag, int mode, struct proc *p)
 	s = spltty();
 
 	tp = &sc->tty;
+	dev->si_tty = tp;
 
 	tp->t_oproc = zsstart;
 	tp->t_param = zsparam;
+	tp->t_stop = zsstop;
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_state |= TS_CARR_ON;
@@ -379,15 +380,6 @@ zsstop(struct tty *tp, int flag)
 		if ((tp->t_state & TS_TTSTOP) == 0)
 			tp->t_state |= TS_FLUSH;
 	splx(s);
-}
-
-static struct tty *
-zsdevtotty(dev_t dev)
-{
-	struct zs_softc* sc = ZS_SOFTC(minor(dev));
-	if (!sc)
-		return (NULL);
-	return (&sc->tty);
 }
 
 DEV_DRIVER_MODULE(zs, zsc, zs_driver, zs_devclass, zs_cdevsw, 0, 0);

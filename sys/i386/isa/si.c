@@ -113,6 +113,7 @@ static int si_modem __P((struct si_port *, enum si_mctl, int));
 static void si_write_enable __P((struct si_port *, int));
 static int si_Sioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
 static void si_start __P((struct tty *));
+static void si_stop __P((struct tty *, int));
 static timeout_t si_lstart;
 static void si_disc_optim __P((struct tty *tp, struct termios *t,
 					struct si_port *pp));
@@ -171,8 +172,6 @@ static	d_close_t	siclose;
 static	d_read_t	siread;
 static	d_write_t	siwrite;
 static	d_ioctl_t	siioctl;
-static	d_stop_t	sistop;
-static	d_devtotty_t	sidevtotty;
 
 #define	CDEV_MAJOR	68
 static struct cdevsw si_cdevsw = {
@@ -181,10 +180,10 @@ static struct cdevsw si_cdevsw = {
 	/* read */	siread,
 	/* write */	siwrite,
 	/* ioctl */	siioctl,
-	/* stop */	sistop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	sidevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"si",
@@ -1162,6 +1161,7 @@ siopen(dev, flag, mode, p)
 
 	pp = sc->sc_ports + port;
 	tp = pp->sp_tty;			/* the "real" tty */
+	dev->si_tty = tp;
 	ccbp = pp->sp_ccb;			/* Find control block */
 	DPRINT((pp, DBG_ENTRY|DBG_OPEN, "siopen(%s,%x,%x,%x)\n",
 		devtoname(dev), flag, mode, p));
@@ -1213,6 +1213,7 @@ open_top:
 		 */
 		DPRINT((pp, DBG_OPEN, "first open\n"));
 		tp->t_oproc = si_start;
+		tp->t_stop = si_stop;
 		tp->t_param = siparam;
 		tp->t_dev = dev;
 		tp->t_termios = mynor & SI_CALLOUT_MASK
@@ -1327,7 +1328,7 @@ siclose(dev, flag, mode, p)
 		pp->sp_state &= ~SS_LSTART;
 	}
 
-	sistop(tp, FREAD | FWRITE);
+	si_stop(tp, FREAD | FWRITE);
 
 	sihardclose(pp);
 	ttyclose(tp);
@@ -1457,21 +1458,6 @@ out:
 	return (error);
 }
 
-
-static	struct tty *
-sidevtotty(dev_t dev)
-{
-	struct si_port *pp;
-	int mynor = minor(dev);
-	struct si_softc *sc = &si_softc[SI_CARD(mynor)];
-
-	if (IS_SPECIAL(mynor))
-		return(NULL);
-	if (SI_PORT(mynor) >= sc->sc_nport)
-		return(NULL);
-	pp = MINOR2PP(mynor);
-	return (pp->sp_tty);
-}
 
 static	int
 siioctl(dev, cmd, data, flag, p)
@@ -2582,7 +2568,7 @@ si_lstart(void *arg)
  * Stop output on a line. called at spltty();
  */
 void
-sistop(tp, rw)
+si_stop(tp, rw)
 	register struct tty *tp;
 	int rw;
 {
@@ -2592,7 +2578,7 @@ sistop(tp, rw)
 	pp = TP2PP(tp);
 	ccbp = pp->sp_ccb;
 
-	DPRINT((TP2PP(tp), DBG_ENTRY|DBG_STOP, "sistop(%x,%x)\n", tp, rw));
+	DPRINT((TP2PP(tp), DBG_ENTRY|DBG_STOP, "si_stop(%x,%x)\n", tp, rw));
 
 	/* XXX: must check (rw & FWRITE | FREAD) etc flushing... */
 	if (rw & FWRITE) {

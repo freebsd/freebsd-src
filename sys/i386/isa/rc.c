@@ -23,6 +23,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
  */
 
 /*
@@ -87,8 +90,6 @@ static	d_close_t	rcclose;
 static	d_read_t	rcread;
 static	d_write_t	rcwrite;
 static	d_ioctl_t	rcioctl;
-static	d_stop_t	rcstop;
-static	d_devtotty_t	rcdevtotty;
 
 #define	CDEV_MAJOR	63
 static struct cdevsw rc_cdevsw = {
@@ -97,10 +98,10 @@ static struct cdevsw rc_cdevsw = {
 	/* read */	rcread,
 	/* write */	rcwrite,
 	/* ioctl */	rcioctl,
-	/* stop */	rcstop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	rcdevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"rc",
@@ -182,6 +183,7 @@ static void rc_discard_output   __P((struct rc_chans *));
 static void rc_hardclose        __P((struct rc_chans *));
 static int  rc_modctl           __P((struct rc_chans *, int, int));
 static void rc_start            __P((struct tty *));
+static void rc_stop              __P((struct tty *, int rw));
 static int  rc_param            __P((struct tty *, struct termios *));
 static swihand_t rcpoll;
 static void rc_reinit           __P((struct rc_softc *));
@@ -682,7 +684,7 @@ done1: ;
 }
 
 static	void
-rcstop(tp, rw)
+rc_stop(tp, rw)
 	register struct tty     *tp;
 	int                     rw;
 {
@@ -690,7 +692,7 @@ rcstop(tp, rw)
 	u_char *tptr, *eptr;
 
 #ifdef RCDEBUG
-	printf("rc%d/%d: rcstop %s%s\n", rc->rc_rcb->rcb_unit, rc->rc_chan,
+	printf("rc%d/%d: rc_stop %s%s\n", rc->rc_rcb->rcb_unit, rc->rc_chan,
 		(rw & FWRITE)?"FWRITE ":"", (rw & FREAD)?"FREAD":"");
 #endif
 	if (rw & FWRITE)
@@ -732,6 +734,7 @@ rcopen(dev, flag, mode, p)
 		return ENXIO;
 	rc  = &rc_chans[unit];
 	tp  = rc->rc_tp;
+	dev->si_tty = tp;
 	nec = rc->rc_rcb->rcb_addr;
 #ifdef RCDEBUG
 	printf("rc%d/%d: rcopen: dev %x\n", rc->rc_rcb->rcb_unit, unit, dev);
@@ -771,6 +774,7 @@ again:
 	} else {
 		tp->t_oproc   = rc_start;
 		tp->t_param   = rc_param;
+		tp->t_stop    = rc_stop;
 		tp->t_dev     = dev;
 
 		if (CALLOUT(dev))
@@ -828,7 +832,7 @@ rcclose(dev, flag, mode, p)
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	disc_optim(tp, &tp->t_termios, rc);
-	rcstop(tp, FREAD | FWRITE);
+	rc_stop(tp, FREAD | FWRITE);
 	rc_hardclose(rc);
 	ttyclose(tp);
 	splx(s);
@@ -1406,18 +1410,6 @@ char             *comment;
 		rcin(CD180_CCSR));
 }
 #endif /* RCDEBUG */
-
-static	struct tty *
-rcdevtotty(dev)
-	dev_t	dev;
-{
-	int	unit;
-
-	unit = GET_UNIT(dev);
-	if (unit >= NRC * CD180_NCHAN)
-		return NULL;
-	return (&rc_tty[unit]);
-}
 
 static void
 rc_dtrwakeup(chan)

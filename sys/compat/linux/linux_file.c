@@ -204,13 +204,12 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
     struct vnode *vp;
     long pgid;
     struct pgrp *pgrp;
-    struct tty *tp, *(*d_tty) __P((dev_t));
+    struct tty *tp;
     caddr_t sg;
     dev_t dev;
 
     sg = stackgap_init();
     bsd_flock = (struct flock *)stackgap_alloc(&sg, sizeof(struct flock));
-    d_tty = NULL;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): fcntl(%d, %08x, *)\n",
@@ -309,8 +308,10 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	dev = vn_todev(vp);
 	if (vp->v_type != VCHR || dev == NODEV)
 	    return EINVAL;
-	d_tty = devsw(dev)->d_devtotty;
-	if (!d_tty || (!(tp = (*d_tty)(dev))))
+	if (!(devsw(dev)->d_flags & D_TTY))
+	    return EINVAL;
+	tp = dev->si_tty;
+	if (!tp)
 	    return EINVAL;
 	if (args->cmd == LINUX_F_GETOWN) {
 	    p->p_retval[0] = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;

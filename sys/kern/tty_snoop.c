@@ -82,9 +82,9 @@ snpdevtotty (dev)
 	struct cdevsw	*cdp;
 
 	cdp = devsw(dev);
-	if (cdp == NULL)
-		return (NULL);
-	return ((*cdp->d_devtotty)(dev));
+	if (cdp && cdp->d_flags & D_TTY)
+		return (dev->si_tty);
+	return (NULL);
 }
 
 #define SNP_INPUT_BUF	5	/* This is even too  much,the maximal

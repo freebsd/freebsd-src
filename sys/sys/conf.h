@@ -169,9 +169,9 @@ struct cdevsw {
 	d_read_t	*d_read;
 	d_write_t	*d_write;
 	d_ioctl_t	*d_ioctl;
-	d_stop_t	*d_stop;
+	d_stop_t	*d_bogostop;
 	d_reset_t	*d_bogoreset;	/* XXX not used */
-	d_devtotty_t	*d_devtotty;
+	d_devtotty_t	*d_bogodevtotty; /* XXX not used */
 	d_poll_t	*d_poll;
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
