@@ -184,12 +184,10 @@
 #define	NBPW	sizeof(int)	/* number of bytes per word (integer) */
 
 #define	CMASK	022		/* default file mask: S_IWGRP|S_IWOTH */
-#ifdef _KERNEL
 #define	NODEV	(dev_t)(-1)	/* non-existent device */
+#ifdef _KERNEL
 #define	NOUDEV	(udev_t)(-1)	/* non-existent device */
 #define	NOMAJ	256		/* non-existent device */
-#else
-#define	NODEV	(dev_t)(-1)	/* non-existent device */
 #endif
 
 #define	CBLOCK	128		/* Clist block size, must be a power of 2. */
