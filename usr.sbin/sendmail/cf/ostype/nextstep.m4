@@ -34,8 +34,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)nextstep.m4	8.7 (Berkeley) 9/25/96')
+VERSIONID(`@(#)nextstep.m4	8.8 (Berkeley) 6/18/97')
 define(`ALIAS_FILE', /etc/sendmail/aliases)dnl
+define(`confCW_FILE', /etc/sendmail/sendmail.cw)dnl
 ifdef(`HELP_FILE',, `define(`HELP_FILE', /usr/lib/sendmail.hf)')dnl
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /etc/sendmail/sendmail.st)')dnl
 ifdef(`UUCP_MAILER_PATH',, `define(`UUCP_MAILER_PATH', /usr/bin/uux)')dnl

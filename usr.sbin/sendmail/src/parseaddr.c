@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parseaddr.c	8.128 (Berkeley) 6/14/97";
+static char sccsid[] = "@(#)parseaddr.c	8.130 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -2349,7 +2349,6 @@ rscheck(rwset, p1, p2, e)
 	auto ADDRESS a1;
 	bool saveQuickAbort = QuickAbort;
 	bool saveSuprErrs = SuprErrs;
-	bool saveOnlyOneError = OnlyOneError;
 	char buf0[MAXLINE];
 	char pvpbuf[PSBUFSIZE];
 	extern char MsgBuf[];
@@ -2387,7 +2386,7 @@ rscheck(rwset, p1, p2, e)
 		(void) snprintf(buf, bufsize, "%s", p1);
 	}
 	SuprErrs = TRUE;
-	OnlyOneError = QuickAbort = FALSE;
+	QuickAbort = FALSE;
 	pvp = prescan(buf, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL);
 	SuprErrs = saveSuprErrs;
 	if (pvp == NULL)
@@ -2413,25 +2412,38 @@ rscheck(rwset, p1, p2, e)
 
 	if (LogLevel >= 4)
 	{
-		if (p2 == NULL)
-			sm_syslog(LOG_NOTICE, e->e_id,
-				"Ruleset %s (%s) rejection: %s",
-				rwset, p1, MsgBuf);
-		else
-			sm_syslog(LOG_NOTICE, e->e_id,
-				"Ruleset %s (%s, %s) rejection: %s",
-				rwset, p1, p2, MsgBuf);
+		char *relay;
+		char *p;
+		char lbuf[MAXLINE];
+
+		p = lbuf;
+		if (p2 != NULL)
+		{
+			snprintf(p, SPACELEFT(lbuf, p),
+				", arg2=%s",
+				p2);
+			p += strlen(p);
+		}
+		if ((relay = macvalue('_', e)) != NULL)
+		{
+			snprintf(p, SPACELEFT(lbuf, p),
+				", relay=%s", relay);
+			p += strlen(p);
+		}
+		*p = '\0';
+		sm_syslog(LOG_NOTICE, e->e_id,
+			"ruleset=%s, arg1=%s%s, reject=%s",
+			rwset, p1, lbuf, MsgBuf);
 	}
 
  finis:
 	/* clean up */
 	QuickAbort = saveQuickAbort;
-	OnlyOneError = saveOnlyOneError;
 	setstat(rstat);
 	if (buf != buf0)
 		free(buf);
 
-	if (rstat != EX_OK && (QuickAbort || (OnlyOneError && !HoldErrs)))
+	if (rstat != EX_OK && QuickAbort)
 		longjmp(TopFrame, 2);
 	return rstat;
 }

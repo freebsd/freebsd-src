@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.168 (Berkeley) 6/14/97";
+static char sccsid[] = "@(#)map.c	8.181 (Berkeley) 7/9/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -111,14 +111,6 @@ extern bool	extract_canonname __P((char *, char *, char[], int));
 # define LOCK_ON_OPEN	1	/* we can open/create a locked file */
 #else
 # define LOCK_ON_OPEN	0	/* no such luck -- bend over backwards */
-#endif
-
-#ifndef O_LEAVELOCKED
-# if O_SHLOCK
-#  define O_LEAVELOCKED	O_SHLOCK
-# else
-#  define O_LEAVELOCKED	0x1000
-# endif
 #endif
 
 #ifndef O_ACCMODE
@@ -733,7 +725,7 @@ extract_canonname(name, line, cbuf, cbuflen)
 #ifdef NDBM
 
 /*
-**  DBM_MAP_OPEN -- DBM-style map open
+**  NDBM_MAP_OPEN -- DBM-style map open
 */
 
 bool
@@ -743,7 +735,8 @@ ndbm_map_open(map, mode)
 {
 	register DBM *dbm;
 	struct stat st;
-	int fd;
+	int dfd;
+	int pfd;
 	int sff;
 	int ret;
 	int smode = S_IREAD;
@@ -760,10 +753,10 @@ ndbm_map_open(map, mode)
 	/* do initial file and directory checks */
 	snprintf(dirfile, sizeof dirfile, "%s.dir", map->map_file);
 	snprintf(pagfile, sizeof pagfile, "%s.pag", map->map_file);
-	sff = SFF_ROOTOK|SFF_REGONLY|SFF_CREAT;
+	sff = SFF_ROOTOK|SFF_REGONLY;
 	if (mode == O_RDWR)
 	{
-		sff |= SFF_NOLINK;
+		sff |= SFF_NOLINK|SFF_CREAT;
 		smode = S_IWRITE;
 	}
 	else
@@ -786,13 +779,21 @@ ndbm_map_open(map, mode)
 		return FALSE;
 	}
 	if (std.st_mode == ST_MODE_NOFILE)
-		mode |= O_EXCL;
+		mode |= O_CREAT|O_EXCL;
+
+	/* heuristic: if files are linked, this is actually gdbm */
+	if (std.st_dev == stp.st_dev && std.st_ino == stp.st_ino)
+	{
+		syserr("dbm map \"%s\": cannot support GDBM",
+			map->map_mname);
+		return FALSE;
+	}
 
 #if LOCK_ON_OPEN
 	if (mode == O_RDONLY)
 		mode |= O_SHLOCK;
 	else
-		mode |= O_CREAT|O_TRUNC|O_EXLOCK;
+		mode |= O_TRUNC|O_EXLOCK;
 #else
 	if ((mode & O_ACCMODE) == O_RDWR)
 	{
@@ -804,7 +805,7 @@ ndbm_map_open(map, mode)
 		**	but there isn't anything we can do about it.
 		*/
 
-		mode |= O_CREAT|O_TRUNC;
+		mode |= O_TRUNC;
 # else
 		/*
 		**  This ugly code opens the map without truncating it,
@@ -815,29 +816,57 @@ ndbm_map_open(map, mode)
 		int dirfd;
 		int pagfd;
 
-		dirfd = safeopen(dirfile, mode|O_CREAT, DBMMODE,
+		dirfd = safeopen(dirfile, mode, DBMMODE,
 				 SFF_NOLINK|SFF_CREAT|SFF_OPENASROOT);
-		pagfd = safeopen(pagfile, mode|O_CREAT, DBMMODE,
+		pagfd = safeopen(pagfile, mode, DBMMODE,
 				 SFF_NOLINK|SFF_CREAT|SFF_OPENASROOT);
 
 		if (dirfd < 0 || pagfd < 0)
 		{
+			int save_errno = errno;
+
+			if (dirfd >= 0)
+				(void) close(dirfd);
+			if (pagfd >= 0)
+				(void) close(pagfd);
+			errno = save_errno;
 			syserr("ndbm_map_open: cannot create database %s",
 				map->map_file);
-			close(dirfd);
-			close(pagfd);
 			return FALSE;
 		}
-		if (ftruncate(dirfd, (off_t) 0) < 0)
-			syserr("ndbm_map_open: cannot truncate %s.dir",
+		if (ftruncate(dirfd, (off_t) 0) < 0 ||
+		    ftruncate(pagfd, (off_t) 0) < 0)
+		{
+			int save_errno = errno;
+
+			(void) close(dirfd);
+			(void) close(pagfd);
+			errno = save_errno;
+			syserr("ndbm_map_open: cannot truncate %s.{dir,pag}",
 				map->map_file);
-		if (ftruncate(pagfd, (off_t) 0) < 0)
-			syserr("ndbm_map_open: cannot truncate %s.pag",
+			return FALSE;
+		}
+
+		/* if new file, get "before" bits for later filechanged check */
+		if (std.st_mode == ST_MODE_NOFILE &&
+		    (fstat(dirfd, &std) < 0 || fstat(pagfd, &stp) < 0))
+		{
+			int save_errno = errno;
+
+			(void) close(dirfd);
+			(void) close(pagfd);
+			errno = save_errno;
+			syserr("ndbm_map_open(%s.{dir,pag}): cannot fstat pre-opened file",
 				map->map_file);
+			return FALSE;
+		}
 
 		/* have to save the lock for the duration (bletch) */
 		map->map_lockfd = dirfd;
 		close(pagfd);
+
+		/* twiddle bits for dbm_open */
+		mode &= ~(O_CREAT|O_EXCL);
 # endif
 	}
 #endif
@@ -846,37 +875,46 @@ ndbm_map_open(map, mode)
 	dbm = dbm_open(map->map_file, mode, DBMMODE);
 	if (dbm == NULL)
 	{
+		int save_errno = errno;
+
 		if (bitset(MF_ALIAS, map->map_mflags) &&
 		    aliaswait(map, ".pag", FALSE))
 			return TRUE;
-		if (!bitset(MF_OPTIONAL, map->map_mflags))
-			syserr("Cannot open DBM database %s", map->map_file);
 #if !LOCK_ON_OPEN && !NOFTRUNCATE
 		if (map->map_lockfd >= 0)
 			close(map->map_lockfd);
 #endif
+		errno = save_errno;
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+			syserr("Cannot open DBM database %s", map->map_file);
 		return FALSE;
 	}
-	if (filechanged(dirfile, dbm_dirfno(dbm), &std, sff) ||
-	    filechanged(pagfile, dbm_pagfno(dbm), &stp, sff))
+	dfd = dbm_dirfno(dbm);
+	pfd = dbm_pagfno(dbm);
+	if (filechanged(dirfile, dfd, &std, sff) ||
+	    filechanged(pagfile, pfd, &stp, sff))
 	{
-		syserr("ndbm_map_open(%s): file changed after open",
-			map->map_file);
+		int save_errno = errno;
+
 		dbm_close(dbm);
 #if !LOCK_ON_OPEN && !NOFTRUNCATE
 		if (map->map_lockfd >= 0)
 			close(map->map_lockfd);
 #endif
+		errno = save_errno;
+		syserr("ndbm_map_open(%s): file changed after open",
+			map->map_file);
 		return FALSE;
 	}
 
-	map->map_db1 = (void *) dbm;
-	fd = dbm_dirfno((DBM *) map->map_db1);
+	map->map_db1 = (ARBPTR_T) dbm;
 	if (mode == O_RDONLY)
 	{
 #if LOCK_ON_OPEN
-		if (fd >= 0)
-			(void) lockfile(fd, map->map_file, ".pag", LOCK_UN);
+		if (dfd >= 0)
+			(void) lockfile(dfd, map->map_file, ".dir", LOCK_UN);
+		if (pfd >= 0)
+			(void) lockfile(pfd, map->map_file, ".pag", LOCK_UN);
 #endif
 		if (bitset(MF_ALIAS, map->map_mflags) &&
 		    !aliaswait(map, ".pag", TRUE))
@@ -886,14 +924,14 @@ ndbm_map_open(map, mode)
 	{
 		map->map_mflags |= MF_LOCKED;
 	}
-	if (fstat(dbm_dirfno((DBM *) map->map_db1), &st) >= 0)
+	if (fstat(dfd, &st) >= 0)
 		map->map_mtime = st.st_mtime;
 	return TRUE;
 }
 
 
 /*
-**  DBM_MAP_LOOKUP -- look up a datum in a DBM-type map
+**  NDBM_MAP_LOOKUP -- look up a datum in a DBM-type map
 */
 
 char *
@@ -951,7 +989,7 @@ ndbm_map_lookup(map, name, av, statp)
 
 
 /*
-**  DBM_MAP_STORE -- store a datum in the database
+**  NDBM_MAP_STORE -- store a datum in the database
 */
 
 void
@@ -994,7 +1032,7 @@ ndbm_map_store(map, lhs, rhs)
 	if (stat > 0)
 	{
 		if (!bitset(MF_APPEND, map->map_mflags))
-			usrerr("050 Warning: duplicate alias name %s", lhs);
+			message("050 Warning: duplicate alias name %s", lhs);
 		else
 		{
 			static char *buf = NULL;
@@ -1157,7 +1195,6 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 	int fd;
 	int sff;
 	int saveerrno;
-	bool leavelocked = bitset(O_LEAVELOCKED, mode);
 	struct stat st;
 	char buf[MAXNAME + 1];
 
@@ -1170,10 +1207,10 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 	mode &= O_ACCMODE;
 	omode = mode;
 
-	sff = SFF_ROOTOK|SFF_REGONLY|SFF_CREAT;
+	sff = SFF_ROOTOK|SFF_REGONLY;
 	if (mode == O_RDWR)
 	{
-		sff |= SFF_NOLINK;
+		sff |= SFF_NOLINK|SFF_CREAT;
 		smode = S_IWRITE;
 	}
 	else
@@ -1187,28 +1224,26 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 	{
 		/* cannot open this map */
 		if (tTd(38, 2))
-			printf("\tunsafe map file: %d\n", i);
+			printf("\tunsafe map file: %s\n", errstring(i));
+		errno = i;
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
 			syserr("%s map \"%s\": unsafe map file %s",
 				mapclassname, map->map_mname, map->map_file);
 		return FALSE;
 	}
 	if (st.st_mode == ST_MODE_NOFILE)
-		omode |= O_EXCL;
+		omode |= O_CREAT|O_EXCL;
 
 	map->map_lockfd = -1;
 
 #if LOCK_ON_OPEN
 	if (mode == O_RDWR)
-		omode |= O_CREAT|O_TRUNC|O_EXLOCK;
+		omode |= O_TRUNC|O_EXLOCK;
 # if !OLD_NEWDB
 	else
 		omode |= O_SHLOCK;
 # endif
 #else
-	if (mode == O_RDWR)
-		omode |= O_CREAT;
-
 	/*
 	**  Pre-lock the file to avoid race conditions.  In particular,
 	**  since dbopen returns NULL if the file is zero length, we
@@ -1216,26 +1251,51 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 	*/
 
 	fd = open(buf, omode, DBMMODE);
-
 	if (fd < 0)
 	{
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
 			syserr("db_map_open: cannot pre-open database %s", buf);
-		close(fd);
 		return FALSE;
 	}
-	if (!lockfile(fd, map->map_file, ".db",
-		      mode == O_RDONLY ? LOCK_SH : LOCK_EX))
+
+	/* make sure no baddies slipped in just before the open... */
+	if (filechanged(buf, fd, &st, sff))
+	{
+		int save_errno = errno;
+
+		(void) close(fd);
+		errno = save_errno;
+		syserr("db_map_open(%s): file changed after pre-open", buf);
+		return FALSE;
+	}
+
+	/* if new file, get the "before" bits for later filechanged check */
+	if (st.st_mode == ST_MODE_NOFILE && fstat(fd, &st) < 0)
+	{
+		int save_errno = errno;
+
+		(void) close(fd);
+		errno = save_errno;
+		syserr("db_map_open(%s): cannot fstat pre-opened file",
+			buf);
+		return FALSE;
+	}
+
+	/* actually lock the pre-opened file */
+	if (!lockfile(fd, buf, NULL, mode == O_RDONLY ? LOCK_SH : LOCK_EX))
 		syserr("db_map_open: cannot lock %s", buf);
+
+	/* set up mode bits for dbopen */
 	if (mode == O_RDWR)
 		omode |= O_TRUNC;
+	omode &= ~(O_EXCL|O_CREAT);
 #endif
 
 	db = dbopen(buf, omode, DBMMODE, dbtype, openinfo);
 	saveerrno = errno;
 
 #if !LOCK_ON_OPEN
-	if (leavelocked || mode == O_RDWR)
+	if (mode == O_RDWR)
 		map->map_lockfd = fd;
 	else
 		(void) close(fd);
@@ -1246,25 +1306,28 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 		if (mode == O_RDONLY && bitset(MF_ALIAS, map->map_mflags) &&
 		    aliaswait(map, ".db", FALSE))
 			return TRUE;
-		errno = saveerrno;
-		if (!bitset(MF_OPTIONAL, map->map_mflags))
-			syserr("Cannot open %s database %s",
-				mapclassname, map->map_file);
 #if !LOCK_ON_OPEN
 		if (map->map_lockfd >= 0)
 			(void) close(map->map_lockfd);
 #endif
+		errno = saveerrno;
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+			syserr("Cannot open %s database %s",
+				mapclassname, map->map_file);
 		return FALSE;
 	}
 
 	if (filechanged(buf, db->fd(db), &st, sff))
 	{
-		syserr("db_map_open(%s): file changed after open", buf);
+		int save_errno = errno;
+
 		db->close(db);
 #if !LOCK_ON_OPEN
 		if (map->map_lockfd >= 0)
 			close(map->map_lockfd);
 #endif
+		errno = save_errno;
+		syserr("db_map_open(%s): file changed after open", buf);
 		return FALSE;
 	}
 
@@ -1273,9 +1336,9 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 #if !OLD_NEWDB
 	fd = db->fd(db);
 # if LOCK_ON_OPEN
-	if (fd >= 0 && mode == O_RDONLY && !leavelocked)
+	if (fd >= 0 && mode == O_RDONLY)
 	{
-		(void) lockfile(fd, map->map_file, ".db", LOCK_UN);
+		(void) lockfile(fd, buf, NULL, LOCK_UN);
 	}
 # endif
 #endif
@@ -1291,7 +1354,7 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 		map->map_mtime = st.st_mtime;
 #endif
 
-	map->map_db2 = (void *) db;
+	map->map_db2 = (ARBPTR_T) db;
 	if (mode == O_RDONLY && bitset(MF_ALIAS, map->map_mflags) &&
 	    !aliaswait(map, ".db", TRUE))
 		return FALSE;
@@ -1312,15 +1375,25 @@ db_map_lookup(map, name, av, statp)
 {
 	DBT key, val;
 	register DB *db = (DB *) map->map_db2;
+	int i;
 	int st;
 	int saveerrno;
 	int fd;
 	struct stat stbuf;
 	char keybuf[MAXNAME + 1];
+	char buf[MAXNAME + 1];
 
 	if (tTd(38, 20))
 		printf("db_map_lookup(%s, %s)\n",
 			map->map_mname, name);
+
+	i = strlen(map->map_file);
+	if (i > MAXNAME)
+		i = MAXNAME;
+	strncpy(buf, map->map_file, i);
+	buf[i] = '\0';
+	if (i > 3 && strcmp(&buf[i - 3], ".db") == 0)
+		buf[i - 3] = '\0';
 
 	key.size = strlen(name);
 	if (key.size > sizeof keybuf - 1)
@@ -1331,9 +1404,10 @@ db_map_lookup(map, name, av, statp)
 	if (!bitset(MF_NOFOLDCASE, map->map_mflags))
 		makelower(keybuf);
 #if !OLD_NEWDB
+  lockdb:
 	fd = db->fd(db);
 	if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
-		(void) lockfile(fd, map->map_file, ".db", LOCK_SH);
+		(void) lockfile(fd, buf, ".db", LOCK_SH);
 	if (fd < 0 || fstat(fd, &stbuf) < 0 || stbuf.st_mtime > map->map_mtime) 
 	{
 		/* Reopen the database to sync the cache */
@@ -1342,14 +1416,13 @@ db_map_lookup(map, name, av, statp)
 
 		map->map_class->map_close(map);
 		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
-		omode |= O_LEAVELOCKED;
 		if (map->map_class->map_open(map, omode)) 
 		{
 			map->map_mflags |= MF_OPEN;
 			if ((omode && O_ACCMODE) == O_RDWR)
 				map->map_mflags |= MF_WRITABLE;
 			db = (DB *) map->map_db2;
-			fd = db->fd(db);
+			goto lockdb;
 		}
 		else
 		{
@@ -1385,7 +1458,7 @@ db_map_lookup(map, name, av, statp)
 	saveerrno = errno;
 #if !OLD_NEWDB
 	if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
-		(void) lockfile(fd, map->map_file, ".db", LOCK_UN);
+		(void) lockfile(fd, buf, ".db", LOCK_UN);
 #endif
 	if (st != 0)
 	{
@@ -1446,7 +1519,7 @@ db_map_store(map, lhs, rhs)
 	if (stat > 0)
 	{
 		if (!bitset(MF_APPEND, map->map_mflags))
-			usrerr("050 Warning: duplicate alias name %s", lhs);
+			message("050 Warning: duplicate alias name %s", lhs);
 		else
 		{
 			static char *buf = NULL;
@@ -1500,13 +1573,19 @@ db_map_close(map)
 		db_map_store(map, "@", "@");
 	}
 
-	if (db->close(db) != 0)
-		syserr("readaliases: db close failure");
+#if OLD_NEWDB
+	(void) db->sync(db);
+#else
+	(void) db->sync(db, 0);
+#endif
 
 #if !LOCK_ON_OPEN
 	if (map->map_lockfd >= 0)
 		(void) close(map->map_lockfd);
 #endif
+
+	if (db->close(db) != 0)
+		syserr("readaliases: db close failure");
 }
 
 #endif
@@ -2734,6 +2813,123 @@ ldap_map_parseargs(map,args)
 }
 
 #endif /* LDAP Modules */
+/*
+** syslog map
+*/
+
+#if _FFR_SYSLOG_MAP
+
+#define map_prio	map_lockfd	/* overload field */
+
+/*
+** SYSLOG_MAP_PARSEARGS -- check for priority level to syslog messages.
+*/
+
+bool
+syslog_map_parseargs(map, args)
+	MAP *map;
+	char *args;
+{
+	char *p = args;
+	char *priority = NULL;
+
+	for (;;)
+	{
+		while (isascii(*p) && isspace(*p))
+			p++;
+		if (*p != '-')
+			break;
+		if (*++p == 'L')
+			priority = ++p;
+		while (*p != '\0' && !(isascii(*p) && isspace(*p)))
+			p++;
+		if (*p != '\0')
+			*p++ = '\0';
+	}
+
+	if (priority == NULL)
+		map->map_prio = LOG_INFO;
+	else
+	{
+		if (strncasecmp("LOG_", priority, 4) == 0)
+			priority += 4;
+		
+#ifdef LOG_EMERG
+		if (strcasecmp("EMERG", priority) == 0)
+			map->map_prio = LOG_EMERG;
+		else
+#endif
+#ifdef LOG_ALERT
+		if (strcasecmp("ALERT", priority) == 0)
+			map->map_prio = LOG_ALERT;
+		else
+#endif
+#ifdef LOG_CRIT
+		if (strcasecmp("CRIT", priority) == 0)
+			map->map_prio = LOG_CRIT;
+		else
+#endif
+#ifdef LOG_ERR
+		if (strcasecmp("ERR", priority) == 0)
+			map->map_prio = LOG_ERR;
+		else
+#endif
+#ifdef LOG_WARNING
+		if (strcasecmp("WARNING", priority) == 0)
+			map->map_prio = LOG_WARNING;
+		else
+#endif
+#ifdef LOG_NOTICE
+		if (strcasecmp("NOTICE", priority) == 0)
+			map->map_prio = LOG_NOTICE;
+		else
+#endif
+#ifdef LOG_INFO
+		if (strcasecmp("INFO", priority) == 0)
+			map->map_prio = LOG_INFO;
+		else
+#endif
+#ifdef LOG_DEBUG
+		if (strcasecmp("DEBUG", priority) == 0)
+			map->map_prio = LOG_DEBUG;
+		else
+#endif
+		{
+			syserr("syslog_map_parseargs: Unknown priority %s\n",
+			       priority);
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+/*
+** SYSLOG_MAP_LOOKUP -- rewrite and syslog message.  Always return empty string
+*/
+
+char *
+syslog_map_lookup(map, string, args, statp)
+	MAP *map;
+	char *string;
+	char **args;
+	int *statp;
+{
+	char *ptr = map_rewrite(map, string, strlen(string), args);
+
+	if (ptr != NULL)
+	{
+		if (tTd(38, 20))
+			printf("syslog_map_lookup(%s (priority %d): %s\n",
+			       map->map_mname, map->map_prio, ptr);
+
+		sm_syslog(map->map_prio, CurEnv->e_id, "%s", ptr);
+	}
+	
+	*statp = EX_OK;
+	return "";
+}
+
+#endif /* _FFR_SYSLOG_MAP */
 /*
 **  HESIOD Modules
 */

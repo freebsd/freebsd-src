@@ -37,9 +37,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.175 (Berkeley) 6/1/97 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.186 (Berkeley) 8/2/97 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.175 (Berkeley) 6/1/97 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.186 (Berkeley) 8/2/97 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -130,6 +130,7 @@ getrequests(e)
 	bool refusingconnections = TRUE;
 	FILE *pidf;
 	int socksize;
+	u_short port;
 #if XDEBUG
 	bool j_has_dot;
 #endif
@@ -140,11 +141,24 @@ getrequests(e)
 	**  Set up the address for the mailer.
 	*/
 
-	if (DaemonAddr.sin.sin_family == 0)
-		DaemonAddr.sin.sin_family = AF_INET;
-	if (DaemonAddr.sin.sin_addr.s_addr == 0)
-		DaemonAddr.sin.sin_addr.s_addr = INADDR_ANY;
-	if (DaemonAddr.sin.sin_port == 0)
+	switch (DaemonAddr.sa.sa_family)
+	{
+	  case AF_UNSPEC:
+		DaemonAddr.sa.sa_family = AF_INET;
+		/* fall through ... */
+
+	  case AF_INET:
+		if (DaemonAddr.sin.sin_addr.s_addr == 0)
+			DaemonAddr.sin.sin_addr.s_addr = INADDR_ANY;
+		port = DaemonAddr.sin.sin_port;
+		break;
+
+	  default:
+		/* unknown protocol */
+		port = 0;
+		break;
+	}
+	if (port == 0)
 	{
 		register struct servent *sp;
 
@@ -152,10 +166,21 @@ getrequests(e)
 		if (sp == NULL)
 		{
 			syserr("554 service \"smtp\" unknown");
-			DaemonAddr.sin.sin_port = htons(25);
+			port = htons(25);
 		}
 		else
-			DaemonAddr.sin.sin_port = sp->s_port;
+			port = sp->s_port;
+	}
+
+	switch (DaemonAddr.sa.sa_family)
+	{
+	  case AF_INET:
+		DaemonAddr.sin.sin_port = port;
+		break;
+
+	  default:
+		/* unknown protocol */
+		break;
 	}
 
 	/*
@@ -171,7 +196,7 @@ getrequests(e)
 	(void) setsignal(SIGCHLD, reapchild);
 
 	/* write the pid to the log file for posterity */
-	pidf = safefopen(PidFile, O_WRONLY|O_CREAT|O_TRUNC, 0644,
+	pidf = safefopen(PidFile, O_WRONLY|O_TRUNC, 0644,
 			 SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT);
 	if (pidf == NULL)
 	{
@@ -206,7 +231,7 @@ getrequests(e)
 	for (;;)
 	{
 		register pid_t pid;
-		auto int lotherend;
+		auto SOCKADDR_LEN_T lotherend;
 		int savederrno;
 		int pipefd[2];
 		extern bool refuseconnections();
@@ -281,7 +306,8 @@ getrequests(e)
 			timeout.tv_sec = 60;
 			timeout.tv_usec = 0;
 
-			t = select(DaemonSocket + 1, &readfds, NULL, NULL, &timeout);
+			t = select(DaemonSocket + 1, FDSET_CAST &readfds,
+				   NULL, NULL, &timeout);
 			if (DoQueueRun)
 				(void) runqueue(TRUE, FALSE);
 			if (t <= 0 || !FD_ISSET(DaemonSocket, &readfds))
@@ -972,7 +998,7 @@ gothostent:
 		}
 		else
 		{
-			s = socket(AF_INET, SOCK_STREAM, 0);
+			s = socket(addr.sa.sa_family, SOCK_STREAM, 0);
 		}
 		if (s < 0)
 		{
@@ -1176,6 +1202,35 @@ myhostname(hostbuf, size)
 	return (hp);
 }
 /*
+**  ADDRCMP -- compare two host addresses
+**
+**	Parameters:
+**		hp -- hostent structure for the first address
+**		ha -- actual first address
+**		sa -- second address
+**
+**	Returns:
+**		0 -- if ha and sa match
+**		else -- they don't match
+*/
+
+int
+addrcmp(hp, ha, sa)
+	struct hostent *hp;
+	char *ha;
+	SOCKADDR *sa;
+{
+	switch (sa->sa.sa_family)
+	{
+	  case AF_INET:
+		if (hp->h_addrtype == AF_INET)
+			return bcmp(ha, (char *) &sa->sin.sin_addr, hp->h_length);
+		break;
+
+	}
+	return -1;
+}
+/*
 **  GETAUTHINFO -- get the real host name asociated with a file descriptor
 **
 **	Uses RFC1413 protocol to try to get info from the other end.
@@ -1199,10 +1254,10 @@ char *
 getauthinfo(fd)
 	int fd;
 {
-	int falen;
+	SOCKADDR_LEN_T falen;
 	register char *volatile p = NULL;
 	SOCKADDR la;
-	int lalen;
+	SOCKADDR_LEN_T lalen;
 	register struct servent *sp;
 	volatile int s;
 	int i;
@@ -1239,19 +1294,22 @@ getauthinfo(fd)
 		/* address is not a socket */
 		may_be_forged = FALSE;
 	}
+	else if (RealHostName[0] == '[')
+	{
+		/* have IP address with no forward lookup */
+		may_be_forged = FALSE;
+	}
 	else
 	{
 		/* try to match the reverse against the forward lookup */
-		hp = gethostbyname(RealHostName);
+		hp = sm_gethostbyname(RealHostName);
 
 		if (hp == NULL)
 			may_be_forged = TRUE;
 		else
 		{
 			for (ha = hp->h_addr_list; *ha != NULL; ha++)
-				if (bcmp(*ha,
-					 (char *) &RealHostAddr.sin.sin_addr,
-					 hp->h_length) == 0)
+				if (addrcmp(hp, *ha, &RealHostAddr) == 0)
 					break;
 			may_be_forged = *ha == NULL;
 		}
@@ -1412,7 +1470,8 @@ postident:
 
 	if (RealHostAddr.sa.sa_family == AF_INET)
 	{
-		int ipoptlen, j;
+		SOCKOPT_LEN_T ipoptlen;
+		int j;
 		u_char *q;
 		u_char *o;
 		int l;
@@ -1573,6 +1632,14 @@ host_map_lookup(map, name, av, statp)
 		}
 		if (*statp != EX_OK)
 			return NULL;
+		if (s->s_namecanon.nc_cname == NULL)
+		{
+			syserr("host_map_lookup(%s): bogus NULL cache entry, errno = %d, h_errno = %d",
+				name,
+				s->s_namecanon.nc_errno,
+				s->s_namecanon.nc_herrno);
+			return NULL;
+		}
 		if (bitset(MF_MATCHONLY, map->map_mflags))
 			cp = map_rewrite(map, name, strlen(name), NULL);
 		else
@@ -1959,7 +2026,7 @@ hostnamebyanyaddr(sap)
 	_res.retry = saveretry;
 #endif /* NAMED_BIND */
 
-	if (hp != NULL)
+	if (hp != NULL && hp->h_name[0] != '[')
 		return (char *) hp->h_name;
 	else
 	{

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.129 (Berkeley) 6/11/97";
+static char sccsid[] = "@(#)util.c	8.133 (Berkeley) 8/1/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -536,13 +536,14 @@ putxline(l, len, mci, pxflags)
 	int pxflags;
 {
 	register char *p, *end;
-	register char svchar;
 	int slop = 0;
 
 	/* strip out 0200 bits -- these can look like TELNET protocol */
 	if (bitset(MCIF_7BIT, mci->mci_flags) ||
 	    bitset(PXLF_STRIP8BIT, pxflags))
 	{
+		register char svchar;
+
 		for (p = l; (svchar = *p) != '\0'; ++p)
 			if (bitset(0200, svchar))
 				*p = svchar &~ 0200;
@@ -563,10 +564,9 @@ putxline(l, len, mci, pxflags)
 		while (mci->mci_mailer->m_linelimit > 0 &&
 		       (p - l + slop) > mci->mci_mailer->m_linelimit)
 		{
+			char *l_base = l;
 			register char *q = &l[mci->mci_mailer->m_linelimit - slop - 1];
 
-			svchar = *q;
-			*q = '\0';
 			if (l[0] == '.' && slop == 0 &&
 			    bitnset(M_XDOT, mci->mci_mailer->m_flags))
 			{
@@ -583,19 +583,18 @@ putxline(l, len, mci, pxflags)
 				if (TrafficLogFile != NULL)
 					(void) putc('>', TrafficLogFile);
 			}
-			fputs(l, mci->mci_out);
+			while (l < q)
+				(void) putc(*l++, mci->mci_out);
 			(void) putc('!', mci->mci_out);
 			fputs(mci->mci_mailer->m_eol, mci->mci_out);
 			(void) putc(' ', mci->mci_out);
 			if (TrafficLogFile != NULL)
 			{
-				for ( ; l < q; ++l)	
+				for (l = l_base; l < q; l++)
 					(void) putc(*l, TrafficLogFile);
 				fprintf(TrafficLogFile, "!\n%05d >>>  ",
 					(int) getpid());
 			}
-			*q = svchar;
-			l = q;
 			slop = 1;
 		}
 
@@ -625,7 +624,7 @@ putxline(l, len, mci, pxflags)
 		if (TrafficLogFile != NULL)
 			(void) putc('\n', TrafficLogFile);
 		fputs(mci->mci_mailer->m_eol, mci->mci_out);
-		if (*l == '\n')
+		if (l < end && *l == '\n')
 		{
 			if (*++l != ' ' && *l != '\t' && *l != '\0')
 			{
@@ -1062,21 +1061,7 @@ checkfd012(where)
 	struct stat stbuf;
 
 	for (i = 0; i < 3; i++)
-	{
-		if (fstat(i, &stbuf) < 0 && errno == EBADF)
-		{
-			/* oops.... */
-			int fd;
-
-			syserr("%s: fd %d not open", where, i);
-			fd = open("/dev/null", i == 0 ? O_RDONLY : O_WRONLY, 0666);
-			if (fd != i)
-			{
-				(void) dup2(fd, i);
-				(void) close(fd);
-			}
-		}
-	}
+		fill_fd(i, where);
 #endif /* XDEBUG */
 }
 /*
@@ -1210,7 +1195,8 @@ dumpfd(fd, printclosed, logit)
 #ifdef S_IFSOCK
 	SOCKADDR sa;
 #endif
-	auto int slen;
+	auto SOCKADDR_LEN_T slen;
+	int i;
 	struct stat st;
 	char buf[200];
 	extern char *hostnamebyanyaddr();
@@ -1235,10 +1221,10 @@ dumpfd(fd, printclosed, logit)
 		return;
 	}
 
-	slen = fcntl(fd, F_GETFL, NULL);
-	if (slen != -1)
+	i = fcntl(fd, F_GETFL, NULL);
+	if (i != -1)
 	{
-		snprintf(p, SPACELEFT(buf, p), "fl=0x%x, ", slen);
+		snprintf(p, SPACELEFT(buf, p), "fl=0x%x, ", i);
 		p += strlen(p);
 	}
 
