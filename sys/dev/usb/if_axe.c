@@ -1095,8 +1095,6 @@ axe_stop(struct axe_softc *sc)
 
 	AXE_LOCK(sc);
 
-	axe_reset(sc);
-
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
@@ -1144,6 +1142,8 @@ axe_stop(struct axe_softc *sc)
 		}
 		sc->axe_ep[AXE_ENDPT_INTR] = NULL;
 	}
+
+	axe_reset(sc);
 
 	/* Free RX resources. */
 	for (i = 0; i < AXE_RX_LIST_CNT; i++) {
