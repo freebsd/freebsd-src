@@ -108,7 +108,7 @@ A driver for the ESS Maestro-3/Allegro has been added, however due to
 licensing restrictions, it cannot compiled into the kernel.  To use
 this driver, add the following line to /boot/loader.conf:
 
-	maestreo3_load="YES"
+	maestro3_load="YES"
 
 The isp(4) driver has been updated.
 
@@ -234,7 +234,8 @@ A security hole in FreeBSD's FFS and EXT2FS implementations, which
 allowed a race condition that could cause users to have unauthorized
 access to data, has been fixed (see security advisory FreeBSD-SA-01:30).
 
-A remotely-exploitable vulnerability in ntpd(8) has been closed.
+A remotely-exploitable vulnerability in ntpd(8) has been closed (see
+security advisory FreeBSD-SA-01:31).
 
 A security hole in IPFilter's fragment cache has been closed.
 
@@ -977,7 +978,9 @@ Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards. (snd driver)
 
 Advance Asound 100, 110 and Logic ALS120
+C-Media CMI-8x38
 Crystal Semiconductor CS461x/462x/428x
+Crystal Semiconductor CS4281
 ENSONIQ AudioPCI ES1370/1371
 ESS ES1868, ES1869, ES1879 and ES1888
 ESS Maestro-1, Maestro-2, and Maestro-2E
