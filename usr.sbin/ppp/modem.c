@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77 1998/01/29 00:42:05 brian Exp $
+ * $Id: modem.c,v 1.78 1998/02/19 02:10:11 brian Exp $
  *
  *  TODO:
  */
@@ -224,6 +224,14 @@ IntToSpeed(int nspeed)
     }
   }
   return B0;
+}
+
+static void
+ModemSetDevice(const char *name)
+{
+  strncpy(VarDevice, name, sizeof VarDevice - 1);
+  VarDevice[sizeof VarDevice - 1] = '\0';
+  VarBaseDevice = strncmp(VarDevice, "/dev/", 5) ? VarDevice : VarDevice + 5;
 }
 
 void
@@ -454,15 +462,9 @@ OpenModem()
     LogPrintf(LogDEBUG, "OpenModem: Modem is already open!\n");
     /* We're going back into "term" mode */
   else if (mode & MODE_DIRECT) {
-    struct cmdargs arg;
-    arg.cmd = NULL;
-    arg.data = (const void *)VAR_DEVICE;
     if (isatty(STDIN_FILENO)) {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is a tty\n");
-      cp = ttyname(STDIN_FILENO);
-      arg.argc = 1;
-      arg.argv = (char const *const *)&cp;
-      SetVariable(&arg);
+      ModemSetDevice(ttyname(STDIN_FILENO));
       if (LockModem() == -1) {
         close(STDIN_FILENO);
         return -1;
@@ -471,9 +473,7 @@ OpenModem()
       HaveModem();
     } else {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
-      arg.argc = 0;
-      arg.argv = NULL;
-      SetVariable(&arg);
+      ModemSetDevice("");
       /* We don't call ModemTimeout() with this type of connection */
       HaveModem();
       return modem = STDIN_FILENO;
@@ -484,11 +484,7 @@ OpenModem()
 
     for(tmpDevice=strtok(tmpDeviceList, ","); tmpDevice && (modem < 0);
 	tmpDevice=strtok(NULL,",")) {
-      strncpy(VarDevice, tmpDevice, sizeof VarDevice - 1);
-      VarDevice[sizeof VarDevice - 1]= '\0';
-      VarBaseDevice = strrchr(VarDevice, '/');
-      VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
-
+      ModemSetDevice(tmpDevice);
       if (strncmp(VarDevice, "/dev/", 5) == 0) {
 	if (LockModem() == -1) {
 	  modem = -1;
