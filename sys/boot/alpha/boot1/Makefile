@@ -10,10 +10,7 @@ PROG = boot1
 SRCS=		start.S boot1.c sys.c
 CFLAGS+=	-mno-fp-regs
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
-LIBSTANDDIR=	/home/dfr/FreeBSD/alpha/src/lib/libstand
-LIBSTAND=	-lstand
 CFLAGS+=	-I${LIBSTANDDIR}
-LIBALPHA=	${.OBJDIR}/../libalpha/libalpha.a
 CFLAGS+=	-I${.CURDIR}/..
 CFLAGS+=	-DSECONDARY_LOAD_ADDRESS=0x${SECONDARY_LOAD_ADDRESS} -DMINIMAL
 NOMAN=1
