@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdcontrol.c,v 1.3 1995/01/12 11:44:42 sos Exp $
+ *	$Id: kbdcontrol.c,v 1.4 1995/01/28 22:17:19 sos Exp $
  */
 
 #include <ctype.h>
@@ -77,7 +77,7 @@ const int	repeats[] = { 34,  38,  42,  46,  50,  55,  59,  63,
 const int	ndelays = (sizeof(delays) / sizeof(int));
 const int	nrepeats = (sizeof(repeats) / sizeof(int));
 int 		hex = 0;
-int 		number, verbose = 0;
+int 		number;
 char 		letter;
 
 
@@ -324,6 +324,9 @@ print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
 	case 2:
 		fprintf(fp, "  N\n");
 		break;
+	case 3:
+		fprintf(fp, "  B\n");
+		break;
 	}			
 }
 
@@ -420,9 +423,6 @@ set_functionkey(char *keynumstr, char *string)
 		return;
 	}
 	strcpy(fkey.keydef, string);
-	if (verbose)
-		fprintf(stderr, "setting function key %d to <%s>\n",
-			fkey.keynum, fkey.keydef);
 	fkey.keynum -= 1;
 	if (ioctl(0, SETFKEY, &fkey) < 0)
 		perror("setting function key");
@@ -456,12 +456,6 @@ badopt:
 		}
 	}
 
-	if (verbose)
-		if (bell)
-			fprintf(stderr, "setting visual bell\n");
-		else	
-			fprintf(stderr, "setting bell values to %d.%d\n",
-				duration, pitch);
 	ioctl(0, CONS_BELLTYPE, &bell);
 	if (!bell)
 		fprintf(stderr, "[=%d;%dB", pitch, duration);
@@ -509,11 +503,23 @@ badopt:
 		rate.rep = n;
 	}
 
-	if (verbose)
-		fprintf(stderr, "setting keyboard rate to %d.%d\n",
-			delays[rate.del], repeats[rate.rep]);
 	if (ioctl(0, KDSETRAD, rate) < 0)
 		perror("setting keyboard rate");
+}
+
+
+void
+set_history(char *opt)
+{
+	int size;
+
+	size = atoi(opt);
+	if ((*opt == '\0') || size < 0) {
+		fprintf(stderr, "argument must be a positive number\n");
+		return;
+	}
+	if (ioctl(0, CONS_HISTORY, &size) == -1)
+		perror("setting history buffer size");
 }
 
 
@@ -524,13 +530,13 @@ usage()
 "                  -b normal | visual  (set bell to visual type)\n"
 "                  -d                  (dump keyboard map to stdout)\n"
 "                  -l filename         (load keyboard map file)\n"
+"                  -h <N>              (set history buffer size (in lines))\n"
 "                  -f <N> string       (set function key N to send <string>)\n"
 "                  -F                  (set function keys back to default)\n"
 "                  -r delay.repeat     (set keyboard delay & repeat rate)\n"
 "                  -r slow             (set keyboard delay & repeat to slow)\n"
 "                  -r normal           (set keyboard delay & repeat to normal)\n"
 "                  -r fast             (set keyboard delay & repeat to fast)\n"
-"                  -v                  (verbose)\n"
 	);
 }
 
@@ -542,11 +548,7 @@ main(int argc, char **argv)
 	extern int	optind;
 	int		opt;
 
-	/*
-	if (!is_syscons(0))
-		exit(1);
-	*/
-	while((opt = getopt(argc, argv, "b:df:Fl:r:vx")) != -1)
+	while((opt = getopt(argc, argv, "b:df:h:Fl:r:x")) != -1)
 		switch(opt) {
 			case 'b':
 				set_bell_values(optarg);
@@ -564,11 +566,11 @@ main(int argc, char **argv)
 			case 'F':
 				load_default_functionkeys();
 				break;
+			case 'h':
+				set_history(optarg);
+				break;
 			case 'r':
 				set_keyrates(optarg);
-				break;
-			case 'v':
-				verbose = 1;
 				break;
 			case 'x':
 				hex = 1;
