@@ -1,7 +1,6 @@
-#	$Id: Makefile,v 1.10 1996/10/08 20:06:22 bde Exp $
+#	$Id: Makefile,v 1.2 1996/11/20 20:54:28 wollman Exp $
 
 LIB=		y
-INTERNALLIB=	yes		# Do not build or install ${LIB}*.a
 SHLIB_MAJOR=	2
 SHLIB_MINOR=	0
 
