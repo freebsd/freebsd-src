@@ -855,7 +855,7 @@ udav_init(void *xsc)
 
 	/* Initialize transmit ring */
 	if (usb_ether_tx_list_init(sc, &sc->sc_cdata,
-	    USBDEVNAME(sc->sc_dev), sc->sc_udev) == ENOBUFS) {
+	    sc->sc_udev) == ENOBUFS) {
 		printf("%s: tx list init failed\n", USBDEVNAME(sc->sc_dev));
 #if defined(__NetBSD__)
 		splx(s);
@@ -869,7 +869,7 @@ udav_init(void *xsc)
 
 	/* Initialize receive ring */
 	if (usb_ether_rx_list_init(sc, &sc->sc_cdata,
-	    USBDEVNAME(sc->sc_dev), sc->sc_udev) == ENOBUFS) {
+	    sc->sc_udev) == ENOBUFS) {
 		printf("%s: rx list init failed\n", USBDEVNAME(sc->sc_dev));
 #if defined(__NetBSD__)
 		splx(s);
@@ -1548,7 +1548,6 @@ udav_stop(struct ifnet *ifp, int disable)
 {
 	struct udav_softc *sc = ifp->if_softc;
 	usbd_status err;
-	int i;
 
 	DPRINTF(("%s: %s: enter\n", USBDEVNAME(sc->sc_dev), __func__));
 
