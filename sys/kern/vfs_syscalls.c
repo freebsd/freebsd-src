@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.49 1996/09/03 07:09:03 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.50 1996/09/03 14:21:53 bde Exp $
  */
 
 /*
@@ -1693,10 +1693,10 @@ utimes(p, uap, retval)
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
 	VOP_LOCK(vp);
-	vattr.va_atime.ts_sec = tv[0].tv_sec;
-	vattr.va_atime.ts_nsec = tv[0].tv_usec * 1000;
-	vattr.va_mtime.ts_sec = tv[1].tv_sec;
-	vattr.va_mtime.ts_nsec = tv[1].tv_usec * 1000;
+	vattr.va_atime.tv_sec = tv[0].tv_sec;
+	vattr.va_atime.tv_nsec = tv[0].tv_usec * 1000;
+	vattr.va_mtime.tv_sec = tv[1].tv_sec;
+	vattr.va_mtime.tv_nsec = tv[1].tv_usec * 1000;
 	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
 	vput(vp);
 	return (error);

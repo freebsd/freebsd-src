@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.1 (Berkeley) 6/16/93
- * $Id: nfsm_subs.h,v 1.7 1995/06/27 11:06:55 dfr Exp $
+ * $Id: nfsm_subs.h,v 1.8 1995/08/24 10:45:16 dfr Exp $
  */
 
 #ifndef _NFS_NFSM_SUBS_H_
@@ -426,8 +426,8 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 			fxdr_nfsv3time(tl, &(a)->va_atime); \
 			break; \
 		case NFSV3SATTRTIME_TOSERVER: \
-			(a)->va_atime.ts_sec = time.tv_sec; \
-			(a)->va_atime.ts_nsec = time.tv_usec * 1000; \
+			(a)->va_atime.tv_sec = time.tv_sec; \
+			(a)->va_atime.tv_nsec = time.tv_usec * 1000; \
 			break; \
 		}; \
 		nfsm_dissect(tl, u_long *, NFSX_UNSIGNED); \
@@ -437,8 +437,8 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 			fxdr_nfsv3time(tl, &(a)->va_mtime); \
 			break; \
 		case NFSV3SATTRTIME_TOSERVER: \
-			(a)->va_mtime.ts_sec = time.tv_sec; \
-			(a)->va_mtime.ts_nsec = time.tv_usec * 1000; \
+			(a)->va_mtime.tv_sec = time.tv_sec; \
+			(a)->va_mtime.tv_nsec = time.tv_usec * 1000; \
 			break; \
 		}; }
 
