@@ -587,9 +587,12 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	}
 
 	if ((arg = getarg(args, 'h')) != NULL) {
-		if (strcmp(arg->val, "-") == 0)
-			pwd->pw_passwd = "*";	/* No access */
-		else {
+		if (strcmp(arg->val, "-") == 0) {
+			if (!pwd->pw_passwd || *pwd->pw_passwd != '*') {
+				pwd->pw_passwd = "*";	/* No access */
+				edited = 1;
+			}
+		} else {
 			int             fd = atoi(arg->val);
 			int             b;
 			int             istty = isatty(fd);
