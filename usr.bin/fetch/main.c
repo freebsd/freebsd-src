@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.26.2.5 1997/07/02 06:25:28 charnier Exp $ */
+/* $Id: main.c,v 1.26.2.6 1997/08/03 18:53:18 peter Exp $ */
 
 #include <sys/types.h>
 
@@ -334,7 +334,7 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	    fprintf (stderr, "  (%.0f bytes/s)\n", d);
 	else {
 	    d /=1024;
-	    fprintf (stderr, "  (%.2f kB/s)\n", d);
+	    fprintf (stderr, "  (%.2f Kbytes/s)\n", d);
 	}
 	free(s);
 	init = 0;
@@ -352,7 +352,7 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	else if (size > 0) 
 	    fprintf (stderr, "\r%s: %2qd%%", s, (quad_t)100*bytes/size);
 	else
-	    fprintf (stderr, "\r%s: %qd kB", s, (quad_t)bytes/1024);
+	    fprintf (stderr, "\r%s: %qd Kbytes", s, (quad_t)bytes/1024);
     }
 }
 
