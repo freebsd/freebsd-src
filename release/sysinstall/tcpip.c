@@ -611,7 +611,7 @@ tcpDeviceSelect(void)
     Device **devs, *rval;
     int cnt;
 
-    devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
+    devs = deviceFind(variable_get(VAR_NETWORK_DEVICE), DEVICE_TYPE_NETWORK);
     cnt = deviceCount(devs);
     rval = NULL;
 
