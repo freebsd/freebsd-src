@@ -166,8 +166,6 @@ cpu_fork(p1, p2, flags)
 	 * is started, to resume here, returning nonzero from setjmp.
 	 */
 #ifdef DIAGNOSTIC
-	if (p1 != curproc)
-		panic("cpu_fork: curproc");
 	alpha_fpstate_check(p1);
 #endif
 
