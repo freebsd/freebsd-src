@@ -72,7 +72,7 @@ The
 flag causes
 .Nm
 to be verbose about its activity.
-.Sh NOTES
+.Sh IMPLEMENTATION NOTES
 Since a
 .Xr panic 9
 condition may occur in a situation
@@ -86,18 +86,23 @@ should be used as the dump device.
 .Pp
 The
 .Nm
-utility operates by setting the
-.Xr sysctl 3
-MIB variable
-.Dq kern.dumpdev
-to the device number of the designated
+utility operates by opening
 .Ar special_file
-or to
-.Dv NODEV
-(meaning that no dumps are to be taken) if
+and making a
+.Dv DIOCSKERNELDUMP
+.Xr ioctl 2
+request on it to save kernel crash dumps.
+If
 .Ar special_file
 is the text string:
-.Dq Li off .
+.Dq Li off ,
+.Nm
+performs a
+.Dv DIOCSKERNELDUMP
+.Xr ioctl 2
+on
+.Pa /dev/null
+and thus instructs the kernel not to save crash dumps.
 .Pp
 Since
 .Nm
@@ -108,7 +113,6 @@ variable of
 must be used to enable dumps for system panics which occur
 during kernel initialization.
 .Sh SEE ALSO
-.Xr sysctl 3 ,
 .Xr fstab 5 ,
 .Xr rc.conf 5 ,
 .Xr config 8 ,
