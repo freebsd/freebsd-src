@@ -179,6 +179,7 @@ NETGRAPH_INIT(tty, &typestruct);
 
 static int ngt_unit;
 static int ngt_nodeop_ok;	/* OK to create/remove node */
+static int ngt_ldisc;
 
 /******************************************************************
 		    LINE DISCIPLINE METHODS
@@ -655,7 +656,7 @@ done:
 static int
 ngt_mod_event(module_t mod, int event, void *data)
 {
-	struct ng_type *const type = data;
+	/* struct ng_type *const type = data;*/
 	int s, error = 0;
 
 	switch (event) {
