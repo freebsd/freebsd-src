@@ -526,7 +526,7 @@ fddi_ifattach(ifp)
 	ifp->if_flags |= IFF_NOTRAILERS;
 #endif
 #if defined(__FreeBSD__)
-	ifa = ifnet_addrs[ifp->if_index - 1];
+	ifa = ifaddr_byindex(ifp->if_index);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_FDDI;
 	sdl->sdl_alen = ifp->if_addrlen;

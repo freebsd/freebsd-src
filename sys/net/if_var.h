@@ -81,6 +81,7 @@ struct	ether_header;
 #endif /* _KERNEL */
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
+#include <sys/event.h>		/* XXX */
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
@@ -109,7 +110,8 @@ struct ifnet {
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
 	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
 	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
-        int	if_pcount;		/* number of promiscuous listeners */
+	struct	klist if_klist;		/* events attached to this if */
+	int	if_pcount;		/* number of promiscuous listeners */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
 	short	if_unit;		/* sub-unit for lower level driver */
@@ -371,12 +373,21 @@ struct ifmultiaddr {
 			(ifa)->ifa_refcnt--; \
 	} while (0)
 
+struct ifindex_entry {
+	struct 	ifnet *ife_ifnet;
+	struct	ifaddr *ife_ifnet_addr;
+	dev_t	ife_dev;
+};
+
+#define ifnet_byindex(idx)	ifindex_table[(idx)].ife_ifnet
+#define ifaddr_byindex(idx)	ifindex_table[(idx)].ife_ifnet_addr
+#define ifdev_byindex(idx)	ifindex_table[(idx)].ife_dev
+
 extern	struct ifnethead ifnet;
-extern struct	ifnet	**ifindex2ifnet;
+extern	struct ifindex_entry *ifindex_table;
 extern	int ifqmaxlen;
 extern	struct ifnet *loif;	/* first loopback interface */
 extern	int if_index;
-extern	struct ifaddr **ifnet_addrs;
 
 void	ether_ifattach __P((struct ifnet *, int));
 void	ether_ifdetach __P((struct ifnet *, int));

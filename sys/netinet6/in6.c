@@ -291,7 +291,7 @@ in6_ifindex2scopeid(idx)
 
 	if (idx < 0 || if_index < idx)
 		return -1;
-	ifp = ifindex2ifnet[idx];
+	ifp = ifnet_byindex(idx);
 
 	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{

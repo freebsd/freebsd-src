@@ -546,7 +546,7 @@ add_m6if(mifcp)
 		return EADDRINUSE; /* XXX: is it appropriate? */
 	if (mifcp->mif6c_pifi == 0 || mifcp->mif6c_pifi > if_index)
 		return ENXIO;
-	ifp = ifindex2ifnet[mifcp->mif6c_pifi];
+	ifp = ifnet_byindex(mifcp->mif6c_pifi);
 
 	if (mifcp->mif6c_flags & MIFF_REGISTER) {
 		if (reg_mif_num == (mifi_t)-1) {

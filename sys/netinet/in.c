@@ -410,7 +410,7 @@ in_control(so, cmd, data, ifp, p)
 		 * XXX horrible hack to detect that we are being called
 		 * from if_detach()
 		 */
-		if (!ifnet_addrs[ifp->if_index - 1]) {
+		if (ifaddr_byindex(ifp->if_index) != NULL) {
 			in_pcbpurgeif0(LIST_FIRST(ripcbinfo.listhead), ifp);
 			in_pcbpurgeif0(LIST_FIRST(udbinfo.listhead), ifp);
 		}

@@ -102,7 +102,7 @@ iso88025_ifattach(struct ifnet *ifp)
     if (ifp->if_mtu == 0)
         ifp->if_mtu = ISO88025_DEFAULT_MTU;
 
-        ifa = ifnet_addrs[ifp->if_index - 1];
+        ifa = ifaddr_byindex(ifp->if_index);
         if (ifa == 0) {
                 printf("iso88025_ifattach: no lladdr!\n");
                 return;
