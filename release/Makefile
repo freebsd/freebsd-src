@@ -257,6 +257,7 @@ rerelease release:
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 	echo "export VNDEVICE=${VNDEVICE}"	>> ${CHROOTDIR}/mk
 	echo "export OBJFORMAT=${OBJFORMAT}"	>> ${CHROOTDIR}/mk
+	echo "export MODULES_WITH_WORLD=YES"	>> ${CHROOTDIR}/mk
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
 .endif
@@ -361,7 +362,7 @@ release.3:
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=${kernel}
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
-	ln -f ${RD}/kernels/${kernel} ${RD}/trees/bin/kernel.${kernel}
+	cp ${RD}/kernels/${kernel} ${RD}/trees/bin/kernel.${kernel}
 .endfor
 	touch release.3
 
@@ -751,10 +752,9 @@ doKERNEL:
 	@rm -f ${RD}/kernels/${KERNEL}
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
-			make  depend && \
+			make kernel-depend && \
 			make  ${KERNEL} && \
-			strip --strip-debug ${KERNEL} && \
-			cp ${KERNEL} ${RD}/kernels/${KERNEL}
+			make kernel-reinstall DESTDIR=${RD}/kernels
 
 #
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
@@ -775,6 +775,7 @@ doMFSKERN:
 	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir  ${RD}/image.${FSIMAGE}
+	@chflags noschg ${RD}/kernels/BOOTMFS
 	@strip ${RD}/kernels/BOOTMFS
 	@cp ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
