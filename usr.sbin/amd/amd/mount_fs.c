@@ -37,7 +37,7 @@
  *
  *	@(#)mount_fs.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: mount_fs.c,v 5.2.2.2 1992/05/31 16:35:45 jsp Exp $
+ * $Id: mount_fs.c,v 1.1.1.1 1994/05/26 05:22:02 rgrimes Exp $
  *
  */
 
@@ -258,7 +258,8 @@ char *opt;
 	char *f;
 	char *o = t;
 	int l = strlen(opt);
-	strcpy(t, mnt->mnt_opts);
+	strncpy(t, mnt->mnt_opts, MNTMAXSTR - 1);
+	t[MNTMAXSTR - 1] = 0;
 
 	while (*(f = nextmntopt(&o)))
 		if (strncmp(opt, f, l) == 0)
