@@ -1,5 +1,5 @@
 /*-
- * Copyright 1999 John D. Polstra.
+ * Copyright 1999, 2000 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,11 +51,8 @@ void
 lockdflt_acquire(void *lock)
 {
     LockDflt *l = (LockDflt *)lock;
-    sigset_t old_mask;
-
-    sigprocmask(SIG_BLOCK, &l->lock_mask, &old_mask);
-    if (l->depth == 0)
-	l->old_mask = old_mask;
+    sigprocmask(SIG_BLOCK, &l->lock_mask, &l->old_mask);
+    assert(l->depth == 0);
     l->depth++;
 }
 
@@ -84,15 +81,7 @@ void
 lockdflt_release(void *lock)
 {
     LockDflt *l = (LockDflt *)lock;
+    assert(l->depth == 1);
     l->depth--;
-    assert(l->depth >= 0);
-    if (l->depth == 0)
-	sigprocmask(SIG_SETMASK, &l->old_mask, NULL);
-}
-
-void
-lockdflt_init(void)
-{
-    dllockinit(NULL, lockdflt_create, lockdflt_acquire, lockdflt_acquire,
-      lockdflt_release, lockdflt_destroy, NULL);
+    sigprocmask(SIG_SETMASK, &l->old_mask, NULL);
 }
