@@ -1,36 +1,62 @@
-2003-10-16  Release Manager
+2004-07-01  Release Manager
 
-	* GCC 3.3.2 Released.
+	* GCC 3.4.1 released.
 
-2003-09-09  Alan Modra  <amodra@bigpond.net.au>
+2004-05-06  Bud Davis  <bdavis9659@comcast.net>
+
+	PR libf2c/15151
+	* libI77/wrtfmt.c(wrt_L):  Make sizes and types consistent.
+
+2004-04-18  Release Manager
+
+	* GCC 3.4.0 released.
+
+Thu Feb  5 15:08:08 2004  Geoffrey Keating  <geoffk@apple.com>
+
+	PR 12179
+	* aclocal.m4 (GLIBCPP_EXPORT_INSTALL_INFO): Use 'gcc', not 'gcc-lib'.
+	Add comment about poorly-named variables.
+	* Makefile.in (libsubdir): Use 'gcc', not 'gcc-lib'.
+	* configure: Regenerate.
+
+2004-01-31  Bud Davis  <bdavis9659@comcast.net>
+
+	PR fortran/12884
+	* libI77/rsne.c: Enable reading a '/' when reading
+	a '$' delimited namelist.
+
+2004-01-14 Kelley Cook  <kcook@gcc.gnu.org>
+
+	* libF77/configure.in: Update to AC_PREREQ(2.13)
+	* libI77/configure.in: Update to AC_PREREQ(2.13)
+	* libU77/configure.in: Update to AC_PREREQ(2.13)
+	* libU77/configure: Regenerate. 
+
+2003-10-14  Nathanael Nerode  <neroden@gcc.gnu.org>
 
 	* configure: Regenerate.
 
-2003-08-04  Release Manager
+2003-09-21  Toon Moene  <toon@moene.indiv.nluug.nl>
 
-	* GCC 3.3.1 Released.
+	PR libf2c/11918
+	* fstat_.c: Call f_init().
+	* isatty_.c: Ditto.
+	* fnum_.c: Check file descriptor before handing it back.
 
-2003-08-04  Release Manager
+Tue Sep  9 15:22:57 2003  Alan Modra  <amodra@bigpond.net.au>
 
-	* GCC 3.3.1 Released.
+	* configure: Regenerate.
 
 2003-07-04  H.J. Lu <hongjiu.lu@intel.com>
 
 	* Makefile.in: Replace PWD with PWD_COMMAND.
 
-2003-05-13  Release Manager
+2003-06-15  Nathanael Nerode  <neroden@gcc.gnu.org>
 
-	* GCC 3.3 Released.
+	* libU77/bes.c, libU77/dbes.c: Remove.
+	* libU77/Makefile.in: Remove references to bes.c, dbes.c
 
-2003-05-13  Release Manager
-
-	* GCC 3.3 Released.
-
-2003-05-13  Release Manager
-
-	* GCC 3.3 Released.
-
-2003-04-23  Loren J. Rittle  <ljrittle@acm.org>
+2003-04-21  Loren J. Rittle  <ljrittle@acm.org>
 
 	* libI77/configure.in (_XOPEN_SOURCE): Bump to 600.
 	* libI77/configure: Regenerate. 
@@ -49,11 +75,23 @@
 	* libI77/open.c (f_open): A DIRECT ACCESS file is
 	UNFORMATTED by default.
 
+Wed Mar 12 22:27:14 2003  Andreas Schwab  <schwab@suse.de>
+
+	* aclocal.m4 (GLIBCPP_EXPORT_INSTALL_INFO): Avoid trailing /. in
+	glibcpp_toolexeclibdir.
+	* configure: Rebuilt.
+
 2003-02-20  Alexandre Oliva  <aoliva@redhat.com>
 
 	* configure.in: Propagate ORIGINAL_LD_FOR_MULTILIBS to
 	config.status.
 	* configure: Rebuilt.
+
+2003-02-03  Andreas Jaeger  <aj@suse.de>
+
+	* libU77/configure.in (AC_PROG_CC_WORKS): Define _GNU_SOURCE.
+	* libU77/config.hin: Regenerated.
+	* libU77/configure: Regenerated.
 
 2003-01-27  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -63,11 +101,21 @@
 	version_specific_libs is enabled.
 	* configure: Rebuilt.
 
-2003-01-26  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+2003-01-09  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
 
 	* Makefile.in (FLAGS_TO_PASS): Also pass DESTDIR.
 	(install, uninstall): Prepend $(DESTDIR) to destination
 	paths in all (un)installation commands.
+
+Wed Dec 18 11:33:35 2002  Jason Merrill  <jason@redhat.com>
+
+	* libU77/date_.c (G77_date_y2kbuggy_0): Declare G77_abort_0 noreturn.
+	* libU77/vxtidate_.c (G77_vxtidate_y2kbuggy_0): Likewise.
+
+2002-11-26  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.in: Remove skip-this-dir support.
+	* configure: Regenerate.
 
 2002-11-19  Toon Moene  <toon@moene.indiv.nluug.nl>
 
