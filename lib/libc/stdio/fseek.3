@@ -180,18 +180,12 @@ is not a seekable stream.
 .It Bq Er EINVAL
 The
 .Fa whence
-argument to
-.Fn fseek
-was not
-.Dv SEEK_SET ,
-.Dv SEEK_END ,
-or
-.Dv SEEK_CUR .
+argument is invalid.
+The resulting file-position
+indicator would be set to a negative value.
 .It Bq Er EOVERFLOW
-For
-.Fn ftell ,
-the resulting file offset would be a value which
-cannot be represented correctly in an object of type long.
+The resulting file offset would be a value which
+cannot be represented correctly in an object of type requested.
 .El
 .Pp
 The functions
