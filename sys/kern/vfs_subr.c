@@ -913,7 +913,6 @@ vwakeup(bp)
 {
 	register struct vnode *vp;
 
-	bp->b_flags &= ~B_WRITEINPROG;
 	if ((vp = bp->b_vp)) {
 		VI_LOCK(vp);
 		vp->v_numoutput--;

@@ -1271,7 +1271,6 @@ again:
 			if (bp->b_rcred == NOCRED && cred != NOCRED)
 				bp->b_rcred = crhold(cred);
 		} else {
-			bp->b_flags |= B_WRITEINPROG;
 			if (bp->b_wcred == NOCRED && cred != NOCRED)
 				bp->b_wcred = crhold(cred);
 		}
@@ -1405,11 +1404,9 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 		    off_t off;
 
 		    off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
-		    bp->b_flags |= B_WRITEINPROG;
 		    retv = (nmp->nm_rpcops->nr_commit)(
 				bp->b_vp, off, bp->b_dirtyend-bp->b_dirtyoff,
 				bp->b_wcred, td);
-		    bp->b_flags &= ~B_WRITEINPROG;
 		    if (retv == 0) {
 			    bp->b_dirtyoff = bp->b_dirtyend = 0;
 			    bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
@@ -1443,7 +1440,6 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 		else
 		    iomode = NFSV3WRITE_FILESYNC;
 
-		bp->b_flags |= B_WRITEINPROG;
 		error = (nmp->nm_rpcops->nr_writerpc)(vp, uiop, cr, &iomode, &must_commit);
 
 		/*
@@ -1467,7 +1463,6 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 		} else {
 		    bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
-		bp->b_flags &= ~B_WRITEINPROG;
 
 		/*
 		 * For an interrupted write, the buffer is still valid
