@@ -141,14 +141,14 @@
 /* Don't bother profiling this. */
 #ifdef PIC
 #define	ARCH_DISPATCH(x) \
-			START_ENTRY; \
+			_START_ENTRY; \
 			.globl CNAME(x); .type CNAME(x),@function; CNAME(x): ; \
 			PIC_PROLOGUE; \
 			movl PIC_GOT(AVECNAME(x)),%eax; \
 			PIC_EPILOGUE; \
 			jmpl *(%eax)
 
-#define	ARCH_SELECT(x)	START_ENTRY; \
+#define	ARCH_SELECT(x)	_START_ENTRY; \
 			.type ASELNAME(x),@function; \
 			ASELNAME(x): \
 			PIC_PROLOGUE; \
@@ -164,11 +164,11 @@
 			jmpl *%eax
 #else /* !PIC */
 #define	ARCH_DISPATCH(x) \
-			START_ENTRY; \
+			_START_ENTRY; \
 			.globl CNAME(x); .type CNAME(x),@function; CNAME(x): ; \
 			jmpl *AVECNAME(x)
 
-#define	ARCH_SELECT(x)	START_ENTRY; \
+#define	ARCH_SELECT(x)	_START_ENTRY; \
 			.type ASELNAME(x),@function; \
 			ASELNAME(x): \
 			call CNAME(__get_hw_float); \
@@ -191,7 +191,7 @@
 
 #define	ALTENTRY(x)	ENTRY(x); jmp 9f
 #define	ENTRY(x)	ARCH_VECTOR(x); ARCH_SELECT(x); ARCH_DISPATCH(x); \
-			START_ENTRY; \
+			_START_ENTRY; \
 			.globl ANAME(x); .type ANAME(x),@function; ANAME(x):; \
 			call HIDENAME(mcount); 9:
 
@@ -199,7 +199,7 @@
 
 #define	ALTENTRY(x)	ENTRY(x)
 #define	ENTRY(x)	ARCH_VECTOR(x); ARCH_SELECT(x); ARCH_DISPATCH(x); \
-			START_ENTRY; \
+			_START_ENTRY; \
 			.globl ANAME(x); .type ANAME(x),@function; ANAME(x):
 
 #endif /* PROF */
