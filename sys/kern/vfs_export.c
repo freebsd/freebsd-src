@@ -1319,6 +1319,8 @@ bdevvp(dev, vpp)
 		*vpp = NULLVP;
 		return (ENXIO);
 	}
+	if (vfinddev(dev, VCHR, vpp))
+		return (0);
 	error = getnewvnode(VT_NON, (struct mount *)0, spec_vnodeop_p, &nvp);
 	if (error) {
 		*vpp = NULLVP;
