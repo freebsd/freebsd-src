@@ -1351,11 +1351,10 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			}
 		}
 	}
-
 out:
+	vm_page_unlock_queues();
 	pmap_install(oldpmap);
 	PMAP_UNLOCK(pmap);
-	vm_page_unlock_queues();
 }
 
 /*
@@ -1468,9 +1467,9 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 		sva += PAGE_SIZE;
 	}
+	vm_page_unlock_queues();
 	pmap_install(oldpmap);
 	PMAP_UNLOCK(pmap);
-	vm_page_unlock_queues();
 }
 
 /*
