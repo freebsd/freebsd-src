@@ -163,6 +163,8 @@ static struct nlist nl[] = {
 	{ "_pagesize" },
 #define	N_MBPSTAT	46
 	{ "_mb_statpcpu" },
+#define	N_RTTRASH	47
+	{ "_rttrash" },
 	{ "" },
 };
 
@@ -532,7 +534,7 @@ main(argc, argv)
 	if (rflag) {
 		kread(0, 0, 0);
 		if (sflag)
-			rt_stats(nl[N_RTSTAT].n_value);
+			rt_stats(nl[N_RTSTAT].n_value, nl[N_RTTRASH].n_value);
 		else
 			routepr(nl[N_RTREE].n_value);
 		exit(0);
