@@ -113,6 +113,10 @@ add_back_pos(pos)
 	table[0] = pos;
 }
 
+/*
+ * Remove any NULL_POSITION markers from the top of the table, moving
+ * the bottom part up, if necessary.
+ */
 copytable()
 {
 	register int a, b;
@@ -148,6 +152,9 @@ pos_clear()
  * See if the byte at a specified position is currently on the screen.
  * Check the position table to see if the position falls within its range.
  * Return the position table entry if found, -1 if not.
+ *
+ * This function doesn't really work when horizontal scrolling is enabled.
+ * I suspect it may not work in a few other cases, too.
  */
 onscreen(pos)
 	off_t pos;

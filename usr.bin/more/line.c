@@ -36,6 +36,11 @@
 static char sccsid[] = "@(#)line.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+        "$Id: line.c,v 1.5 1999/05/30 18:06:55 hoek Exp $";
+#endif /* not lint */
+
 /*
  * Routines to manipulate the "line buffer".
  * The line buffer holds a line of output as it is being built
@@ -44,10 +49,12 @@ static char sccsid[] = "@(#)line.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <sys/types.h>
-#include <ctype.h>
-#include <less.h>
 
-static char linebuf[1024];	/* Buffer which holds the current output line */
+#include <ctype.h>
+
+#include "less.h"
+
+static char linebuf[8192];	/* Buffer to hold the current output line */
 static char *curr;		/* Pointer into linebuf */
 static int column;		/* Printable length, accounting for
 				   backspaces, etc. */
@@ -78,8 +85,8 @@ static int column;		/* Printable length, accounting for
  *		we expect one more 'X' which will put us back
  *		in LN_BOLDFACE).
  */
-static int ln_state;		/* Currently in normal/underline/bold/etc mode? */
-#define	LN_NORMAL	0	/* Not in underline, boldface or whatever mode */
+static int ln_state;		/* Current normal/underline/bold/etc mode */
+#define	LN_NORMAL	0	/* Not in underline/boldface/whatever mode */
 #define	LN_UNDERLINE	1	/* In underline, need next char */
 #define	LN_UL_X		2	/* In underline, got char, need \b */
 #define	LN_UL_XB	3	/* In underline, got char & \b, need one more */
@@ -95,6 +102,7 @@ extern int tabstop;
 extern int bo_width, be_width;
 extern int ul_width, ue_width;
 extern int sc_width, sc_height;
+extern int horiz_off;
 
 /*
  * Rewind the line buffer.
@@ -103,13 +111,16 @@ prewind()
 {
 	line = curr = linebuf;
 	ln_state = LN_NORMAL;
-	column = 0;
+	column = (horiz_off == NO_HORIZ_OFF) ? 0 : -horiz_off;
 }
 
 /*
  * Append a character to the line buffer.
  * Expand tabs into spaces, handle underlining, boldfacing, etc.
- * Returns 0 if ok, 1 if couldn't fit in buffer.
+ * Returns 0 if ok, 1 if couldn't fit in buffer.  Characters before horiz_off
+ * will be added to the buffer but will not count against the line size.
+ *
+ * XXX This function sucks.
  */
 #define	NEW_COLUMN(addon) \
 	if (column + addon + (ln_state ? ue_width : 0) > sc_width) \
@@ -156,7 +167,7 @@ pappend(c)
 		 * Don't take any chances.
 		 * {{ Linebuf is supposed to be big enough that this
 		 *    will never happen, but may need to be made
-		 *    bigger for wide screens or lots of backspaces. }}
+		 *    bigger for really long lines. }}
 		 */
 		return(1);
 
@@ -368,9 +379,14 @@ ln_bo_xb_case:
 		/*
 		 * Expand a tab into spaces.
 		 */
-		do {
-			NEW_COLUMN(1);
-		} while ((column % tabstop) != 0);
+		if (horiz_off != NO_HORIZ_OFF)
+			do {
+				NEW_COLUMN(1);
+			} while (((column + horiz_off) % tabstop) != 0);
+		else
+			do {
+				NEW_COLUMN(1);
+			} while ((column % tabstop) != 0);
 		*curr++ = '\t';
 		return (0);
 	}
@@ -438,7 +454,10 @@ forw_raw_line(curr_pos)
 			 * Overflowed the input buffer.
 			 * Pretend the line ended here.
 			 * {{ The line buffer is supposed to be big
-			 *    enough that this never happens. }}
+			 *    enough that this never happens, but it's
+			 *    statically allocated, so that's really just
+			 *    a pipe dream.  This causes no end of trouble.
+			 *    The line.c needs to be rewritten. }}
 			 */
 			new_pos = ch_tell() - 1;
 			break;

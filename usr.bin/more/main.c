@@ -43,30 +43,34 @@ char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/7/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id: main.c,v 1.12 1999/06/01 20:02:33 hoek Exp $";
+#endif /* not lint */
+
 /*
  * Entry point, initialization, miscellaneous routines.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
 #include <sys/file.h>
+#include <sys/param.h>
+#include <sys/types.h>
+
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <locale.h>
+#include <unistd.h>
+
 #include "less.h"
 
 int	ispipe;
-int	new_file;
-int	is_tty;
 char	*current_file, *previous_file, *current_name, *next_name;
-off_t	prev_pos;
 int	any_display;
 int	scroll;
 int	ac;
 char	**av;
 int	curr_ac;
-int	quitting;
 
 extern int	file;
 extern int	cbufs;
@@ -78,7 +82,8 @@ extern int	tagoption;
 /*
  * Edit a new file.
  * Filename "-" means standard input.
- * No filename means the "current" file, from the command line.
+ * No filename means the "current" file, from the command line.  If called
+ * with the same filename in succession, filename will be closed and reopened.
  */
 edit(filename)
 	register char *filename;
@@ -86,7 +91,7 @@ edit(filename)
 	extern int errno;
 	register int f;
 	register char *m;
-	off_t initial_pos, position();
+	off_t initial_pos, prev_pos, position();
 	static int didpipe;
 	char message[MAXPATHLEN + 50], *p;
 	char *rindex(), *strerror(), *save(), *bad_file();
@@ -112,7 +117,7 @@ edit(filename)
 	/* use standard input. */
 	if (!strcmp(filename, "-")) {
 		if (didpipe) {
-			error("Can view standard input only once");
+			error("can view standard input only once");
 			return(0);
 		}
 		f = 0;
@@ -150,7 +155,6 @@ edit(filename)
 	 */
 	if (file > 0)
 		(void)close(file);
-	new_file = 1;
 	if (previous_file != NULL)
 		free(previous_file);
 	previous_file = current_file;
@@ -171,7 +175,7 @@ edit(filename)
 	ch_init(cbufs, 0);
 	init_mark();
 
-	if (is_tty) {
+	if (isatty(STDOUT_FILENO)) {
 		int no_display = !any_display;
 		any_display = 1;
 		if (no_display && errmsgs > 0) {
@@ -283,8 +287,7 @@ main(argc, argv)
 	/*
 	 * Set up terminal, etc.
 	 */
-	is_tty = isatty(1);
-	if (!is_tty) {
+	if (!isatty(STDOUT_FILENO)) {
 		/*
 		 * Output is not a tty.
 		 * Just copy the input file(s) to output.
@@ -365,7 +368,6 @@ quit()
 	 * Put cursor at bottom left corner, clear the line,
 	 * reset the terminal modes, and exit.
 	 */
-	quitting = 1;
 	lower_left();
 	clear_eol();
 	deinit();
