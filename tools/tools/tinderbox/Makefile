@@ -3,6 +3,6 @@
 BINDIR		?= ${HOME}/bin
 BINOWN		?= ${USER}
 BINGRP		?= ${USER}
-SCRIPTS		 = tinderbox.pl
+SCRIPTS		 = tbmaster.pl tinderbox.pl
 
 .include <bsd.prog.mk>
