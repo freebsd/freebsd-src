@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char tcp_rcsid[] = "$FreeBSD$";
+const char tcp_rcsid[] = "$Id$";
 #endif
 
 #if HAVE_TCP

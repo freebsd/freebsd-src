@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_dnams_rcsid[] = "$FreeBSD$";
+const char _uuconf_dnams_rcsid[] = "$Id$";
 #endif
 
 /* Get all known dialer names.  */

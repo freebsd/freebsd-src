@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char serial_rcsid[] = "$FreeBSD$";
+const char serial_rcsid[] = "$Id$";
 #endif
 
 #include "uudefs.h"

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char time_rcsid[] = "$FreeBSD$";
+const char time_rcsid[] = "$Id$";
 #endif
 
 #include <ctype.h>

@@ -1,5 +1,5 @@
 # This is the Makefile for Taylor UUCP
-# $FreeBSD$
+# $Id$
 
 # subdir 'sample' called by /usr/src/etc/Makefile
 SUBDIR=		libunix libuucp libuuconf \

@@ -1,4 +1,4 @@
-''' $FreeBSD$
+''' $Id$
 .TH uurate 1
 .SH NAME
 uurate \- Report Taylor UUCP statistics
