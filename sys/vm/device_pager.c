@@ -52,7 +52,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 static void dev_pager_init(void);
 static vm_object_t dev_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
@@ -72,10 +72,7 @@ static struct sx dev_pager_sx;
 static struct mtx dev_pager_mtx;
 
 
-static vm_zone_t fakepg_zone;
-#if 0
-static struct vm_zone fakepg_zone_store;
-#endif
+static uma_zone_t fakepg_zone;
 
 static vm_page_t dev_pager_getfake(vm_offset_t);
 static void dev_pager_putfake(vm_page_t);
@@ -96,11 +93,8 @@ dev_pager_init()
 	TAILQ_INIT(&dev_pager_object_list);
 	sx_init(&dev_pager_sx, "dev_pager create");
 	mtx_init(&dev_pager_mtx, "dev_pager list", MTX_DEF);
-#if 0
-	fakepg_zone = &fakepg_zone_store;
-	zinitna(fakepg_zone, NULL, "DP fakepg", sizeof(struct vm_page), 0, 0, 2);
-#endif
-	fakepg_zone = zinit("DP fakepg", sizeof(struct vm_page), 0, 0, 0);
+	fakepg_zone = uma_zcreate("DP fakepg", sizeof(struct vm_page),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE); 
 }
 
 static vm_object_t
@@ -265,7 +259,7 @@ dev_pager_getfake(paddr)
 {
 	vm_page_t m;
 
-	m = zalloc(fakepg_zone);
+	m = uma_zalloc(fakepg_zone, M_WAITOK);
 
 	m->flags = PG_BUSY | PG_FICTITIOUS;
 	m->valid = VM_PAGE_BITS_ALL;
@@ -287,5 +281,5 @@ dev_pager_putfake(m)
 {
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_putfake: bad page");
-	zfree(fakepg_zone, m);
+	uma_zfree(fakepg_zone, m);
 }

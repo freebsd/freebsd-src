@@ -40,7 +40,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
 
 /* prevent concurrant creation races */
 static int phys_pager_alloc_lock;
