@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.112 1998/04/13 21:44:46 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.113 1998/05/26 20:12:46 sos Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -55,7 +55,7 @@
     ..
     mdec
     ..
-    obj
+    obj nochange
     ..
     sbin
     ..
@@ -600,6 +600,6 @@
             ..
         ..
     ..
-    src             mode=0755
+    src             mode=0755 nochange
     ..
 ..
