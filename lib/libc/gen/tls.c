@@ -239,6 +239,7 @@ _init_tls()
 	Elf_Phdr *phdr;
 	size_t phent, phnum;
 	int i;
+	void *tls;
 
 	sp = (Elf_Addr *) environ;
 	while (*sp++ != 0)
@@ -280,13 +281,9 @@ _init_tls()
 		}
 	}
 
-	if (tls_static_space > 0) {
-		void* tls;
+	tls = _rtld_allocate_tls(NULL, 2*sizeof(Elf_Addr),
+	    sizeof(Elf_Addr));
 
-		tls = _rtld_allocate_tls(NULL, 2*sizeof(Elf_Addr),
-		    sizeof(Elf_Addr));
-
-		_set_tp(tls);
-	}
+	_set_tp(tls);
 #endif
 }
