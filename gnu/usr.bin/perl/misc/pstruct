@@ -1,4 +1,4 @@
-#!/usr/gnu/bin/perl
+#!/usr/bin/perl
 #
 #
 #   c2ph (aka pstruct)
@@ -10,7 +10,7 @@
 #   See the usage message for more.  If this isn't enough, read the code.
 #
 
-$RCSID = '$RCSfile: pstruct,v $$Revision: 1.2 $$Date: 1994/03/05 01:28:22 $';
+$RCSID = '$RCSfile: pstruct,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:31 $';
 
 
 ######################################################################

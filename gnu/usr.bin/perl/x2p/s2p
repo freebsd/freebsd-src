@@ -1,13 +1,16 @@
-#!/usr/gnu/bin/perl
+#!/usr/bin/perl
 
-eval 'exec /usr/gnu/bin/perl -S $0 ${1+"$@"}'
+eval 'exec /usr/bin/perl -S $0 ${1+"$@"}'
 	if $running_under_some_shell;
 
-$bin = '/usr/gnu/bin';
+$bin = '/usr/bin';
 
-# $RCSfile: s2p,v $$Revision: 1.2 $$Date: 1994/03/05 01:28:48 $
+# $RCSfile: s2p,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:54 $
 #
 # $Log: s2p,v $
+# Revision 1.1.1.1  1994/09/10  06:27:54  gclarkii
+# Initial import of Perl 4.046 bmaked
+#
 # Revision 1.2  1994/03/05  01:28:48  ache
 # 1) Perl uses scrambler crypt() version from libc instead of proper one
 # from -lcrypt (if exist)

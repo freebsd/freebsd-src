@@ -1,10 +1,11 @@
-#!/usr/gnu/bin/perl
+#!/usr/bin/perl
 'di';
 'ig00';
 
-$perlincl = '/usr/gnu/lib/perl';
+$destdir = $ENV{'DESTDIR'};
+$perlincl = $destdir . '/usr/share/perl';
 
-chdir '/usr/include' || die "Can't cd /usr/include";
+chdir $destdir . '/usr/include' || die "Can't cd $destdir/usr/include";
 
 @isatype = split(' ',<<END);
 	char	uchar	u_char
