@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.31 1996/01/28 16:59:05 jfieber Exp $
+<date> $Id: freebsd-faq.sgml,v 1.32 1996/01/31 14:25:49 mpp Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -386,7 +386,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           <tt>tools/</tt> subdirectory on the FreeBSD CDROM or on the
           various FreeBSD ftp sites, to be quite useful.
 
-          FIPS allows you to split an existing DOS partition into two
+          <tt/FIPS/ allows you to split an existing DOS partition into two
           pieces, preserving the original partition and allowing you to
           install onto the second free piece.  You first ``defrag'' your
           DOS partition, using the DOS 6.xx <tt/DEFRAG/ utility or the
@@ -868,8 +868,9 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 	  where the presence of the psm0 driver will cause the keyboard to
 	  lock up (which is why this driver is not present by default in the
 	  GENERIC kernel).  This can sometimes be fixed by bouncing the
-	  NumLock key during the boot process.  The real
-	  fix is, of course, to merge the PS/2 mouse driver with syscons.
+	  NumLock key during the boot process. Also suggest going into CMOS
+	  setup and toggling any value for Numlock On/Off at boot time. The
+	  real fix is, of course, to merge the PS/2 mouse driver with syscons.
 	  Any volunteers? :)
 
       <sect1>
