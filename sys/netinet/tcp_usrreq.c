@@ -847,7 +847,7 @@ tcp_connect(tp, nam, td)
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
-	struct tcpcb *otp;
+	struct tcptw *otw;
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
 	struct in_addr laddr;
@@ -872,13 +872,13 @@ tcp_connect(tp, nam, td)
 	if (error && oinp == NULL)
 		return error;
 	if (oinp) {
-		if (oinp != inp && (otp = intotcpcb(oinp)) != NULL &&
-		otp->t_state == TCPS_TIME_WAIT &&
-		    (ticks - otp->t_starttime) < tcp_msl &&
-		    (otp->t_flags & TF_RCVD_CC)) {
+		if (oinp != inp &&
+		    (oinp->inp_vflag & INP_TIMEWAIT) &&
+		    (ticks - (otw = intotw(oinp))->t_starttime) < tcp_msl &&
+		    otw->cc_recv != 0) {
 			inp->inp_faddr = oinp->inp_faddr;
 			inp->inp_fport = oinp->inp_fport;
-			otp = tcp_close(otp);
+			(void) tcp_twclose(otw, 0);
 		} else
 			return EADDRINUSE;
 	}
@@ -928,7 +928,7 @@ tcp6_connect(tp, nam, td)
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
-	struct tcpcb *otp;
+	struct tcptw *otw;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	struct in6_addr *addr6;
 	struct rmxp_tao *taop;
@@ -956,12 +956,14 @@ tcp6_connect(tp, nam, td)
 				  : &inp->in6p_laddr,
 				  inp->inp_lport,  0, NULL);
 	if (oinp) {
-		if (oinp != inp && (otp = intotcpcb(oinp)) != NULL &&
-		    otp->t_state == TCPS_TIME_WAIT &&
-		    (ticks - otp->t_starttime) < tcp_msl &&
-		    (otp->t_flags & TF_RCVD_CC))
-			otp = tcp_close(otp);
-		else
+		if (oinp != inp &&
+		    (oinp->inp_vflag & INP_TIMEWAIT) &&
+		    (ticks - (otw = intotw(oinp))->t_starttime) < tcp_msl &&
+		    otw->cc_recv != 0) {
+			inp->inp_faddr = oinp->inp_faddr;
+			inp->inp_fport = oinp->inp_fport;
+			(void) tcp_twclose(otw, 0);
+		} else
 			return EADDRINUSE;
 	}
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
