@@ -35,6 +35,7 @@
 
 struct mbuf;
 struct msghdr;
+struct rlimit;
 struct rusage;
 struct sockaddr;
 
@@ -49,6 +50,8 @@ int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
 int	kern_chown(struct thread *td, char *path, enum uio_seg pathseg, int uid,
 	    int gid);
 int	kern_connect(struct thread *td, int fd, struct sockaddr *sa);
+int	kern_execve(struct thread *td, char *fname, char **argv, char **envv,
+	    struct mac *mac_p);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
@@ -80,6 +83,7 @@ int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control);
+int	kern_setrlimit(struct thread *, u_int, struct rlimit *);
 int	kern_setsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t valsize);
 int	kern_shmat(struct thread *td, int shmid, const void *shmaddr,
@@ -99,8 +103,8 @@ int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,
 int	kern_unlink(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
-int	kern_execve(struct thread *td, char *fname, char **argv, char **envv,
-	    struct mac *mac_p);
+int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
+	    struct rusage *rup);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */

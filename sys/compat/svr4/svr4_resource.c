@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/syscallsubr.h>
 
 #include <compat/svr4/svr4.h>
 #include <compat/svr4/svr4_types.h>
