@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1994 UKAI, Fumitoshi.
  * Copyright (c) 1994-1995 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ * Copyright (c) 1996 Nate Williams <nate@FreeBSD.org>
  *
  * This software may be used, modified, copied, and distributed, in
  * both source and binary form provided that the above copyright and
@@ -13,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.36 1996/03/19 16:56:56 nate Exp $
+ *	$Id: apm.c,v 1.37 1996/03/28 14:28:00 scrappy Exp $
  */
 
 #include "apm.h"
@@ -74,7 +75,7 @@ static struct kern_devconf kdc_apm = {
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
-	"APM BIOS",
+	"Advanced Power Management BIOS",
 	DC_CLS_MISC		/* class */
 };
 
@@ -104,7 +105,6 @@ apm_registerdev(struct isa_device *id)
 	if (kdc_apm.kdc_isa)
 		return;
 	kdc_apm.kdc_state = DC_UNCONFIGURED;
-	kdc_apm.kdc_description = "APM BIOS";
 	kdc_apm.kdc_unit = 0;
 	kdc_apm.kdc_isa = id;
 	dev_attach(&kdc_apm);
@@ -145,20 +145,19 @@ int
 apm_int(u_long *eax, u_long *ebx, u_long *ecx)
 {
 	u_long cf;
-	__asm ("pushl	%%ebp
-		pushl	%%edx
-		pushl	%%esi
-		xorl	%3,%3
-		movl	%3,%%esi
+	__asm __volatile("
+		pushfl
+		cli
 		lcall	_apm_addr
+		movl	$0, %3
 		jnc	1f
 		incl	%3
 	1:
-		popl	%%esi
-		popl	%%edx
-		popl	%%ebp"
+		popfl
+		"
 		: "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=D" (cf)
 		: "0" (*eax),  "1" (*ebx),  "2" (*ecx)
+		: "dx", "si", "memory"
 		);
 	apm_errno = ((*eax) >> 8) & 0xff;
 	return cf;
@@ -188,42 +187,23 @@ apm_driver_version(void)
 {
 	u_long eax, ebx, ecx;
 
-#ifdef APM_DEBUG
-	eax = (APM_BIOS<<8) | APM_INSTCHECK;
-	ebx  = 0x0;
-	ecx  = 0x0101;
-	i = apm_int(&eax, &ebx, &ecx);
-	printf("[%04lx %04lx %04lx %ld %02x]\n",
-		eax, ebx, ecx, i, apm_errno);
-#endif
-
 	eax = (APM_BIOS << 8) | APM_DRVVERSION;
 	ebx  = 0x0;
 	ecx  = 0x0101;
 	if(!apm_int(&eax, &ebx, &ecx))
 		apm_version = eax & 0xffff;
-
-#ifdef APM_DEBUG
-	eax = (APM_BIOS << 8) | APM_INSTCHECK;
-	ebx  = 0x0;
-	ecx  = 0x0101;
-	i = apm_int(&eax, &ebx, &ecx);
-	printf("[%04lx %04lx %04lx %ld %02x]\n",
-		eax, ebx, ecx, i, apm_errno);
-#endif
 }
 
 /* engage/disengage power management (APM 1.1 or later) */
 static int
 apm_engage_disengage_pm(struct apm_softc *sc, int engage)
 {
-	u_long eax, ebx, ecx, i;
+	u_long eax, ebx, ecx;
 
 	eax = (APM_BIOS << 8) | APM_ENGAGEDISENGAGEPM;
 	ebx = PMDV_ALLDEV;
 	ecx = engage;
-	i = apm_int(&eax, &ebx, &ecx);
-	return i;
+	return(apm_int(&eax, &ebx, &ecx));
 }
 
 /* get PM event */
@@ -252,14 +232,11 @@ apm_suspend_system(struct apm_softc *sc)
 	ebx = PMDV_ALLDEV;
 	ecx = PMST_SUSPEND;
 
-	__asm("cli");
 	if (apm_int(&eax, &ebx, &ecx)) {
-		__asm("sti");
 		printf("Entire system suspend failure: errcode = %ld\n",
 			0xff & (eax >> 8));
 		return 1;
 	}
-	__asm("sti");
 	return 0;
 }
 
@@ -300,7 +277,7 @@ apm_add_hook(struct apmhook **list, struct apmhook *ah)
 	int s;
 	struct apmhook *p, *prev;
 
-#if 0
+#ifdef APM_DEBUG
 	printf("Add hook \"%s\"\n", ah->ah_name);
 #endif
 
@@ -359,7 +336,7 @@ apm_execute_hook(struct apmhook *list)
 	struct apmhook *p;
 
 	for (p = list; p != NULL; p = p->ah_next) {
-#if 0
+#ifdef APM_DEBUG
 		printf("Execute APM hook \"%s.\"\n", p->ah_name);
 #endif
 		if ((*(p->ah_fun))(p->ah_arg)) {
@@ -653,14 +630,12 @@ apm_processevent(struct apm_softc *sc)
 
 #ifdef APM_DEBUG
 #  define OPMEV_DEBUGMESSAGE(symbol) case symbol: \
-	printf("Original APM Event: " #symbol "\n");
+	printf("Received APM Event: " #symbol "\n");
 #else
 #  define OPMEV_DEBUGMESSAGE(symbol) case symbol:
 #endif
-	while (1) {
+	do {
 		apm_event = apm_getevent(sc);
-		if (apm_event == PMEV_NOEVENT)
-			break;
 		switch (apm_event) {
 		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYREQ);
 			apm_suspend();
@@ -687,19 +662,18 @@ apm_processevent(struct apm_softc *sc)
 			apm_battery_low(sc);
 			apm_suspend();
 			break;
-
 		    OPMEV_DEBUGMESSAGE(PMEV_POWERSTATECHANGE);
 			break;
-
 		    OPMEV_DEBUGMESSAGE(PMEV_UPDATETIME);
 			inittodr(0);	/* adjust time to RTC */
 			break;
-
+		    OPMEV_DEBUGMESSAGE(PMEV_NOEVENT);
+			break;
 		    default:
 			printf("Unknown Original APM Event 0x%x\n", apm_event);
 			    break;
 		}
-	}
+	} while (apm_event != PMEV_NOEVENT);
 }
 
 /*
@@ -736,7 +710,7 @@ apmattach(struct isa_device *dvp)
 
 	/* print bootstrap messages */
 #ifdef APM_DEBUG
-	printf(" found APM BIOS version %04x\n",  apm_version);
+	printf("apm: APM BIOS version %04x\n",  apm_version);
 	printf("apm: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
 		sc->cs32_base, sc->cs16_base, sc->ds_base);
 	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
@@ -757,7 +731,7 @@ apmattach(struct isa_device *dvp)
 	apm_addr.segment = GSEL(GAPMCODE32_SEL, SEL_KPL);
 	apm_addr.offset  = sc->cs_entry;
 
-	/* Try to kick bios into 1.1 mode */
+	/* Try to kick bios into 1.1 or greater mode */
 	apm_driver_version();
 	sc->minorversion = ((apm_version & 0x00f0) >>  4) * 10 +
 			((apm_version & 0x000f) >> 0);
@@ -767,26 +741,35 @@ apmattach(struct isa_device *dvp)
 	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
 
 	if (sc->intversion >= INTVERSION(1, 1)) {
+#ifdef APM_DEBUG
 		printf("apm: Engaged control %s\n", is_enabled(!sc->disengaged));
+#endif
 	}
 
-	printf(" found APM BIOS version %d.%d\n",
+	printf("apm: found APM BIOS version %d.%d\n",
 		sc->majorversion, sc->minorversion);
+#ifdef APM_DEBUG
 	printf("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
+#endif
 
 	/* enable power management */
 	if (sc->disabled) {
 		if (apm_enable_disable_pm(sc, 1)) {
-			printf("Warning: APM enable function failed! [%x]\n",
+#ifdef APM_DEBUG
+			printf("apm: *Warning* enable function failed! [%x]\n",
 				apm_errno);
+#endif
 		}
 	}
 
 	/* engage power managment (APM 1.1 or later) */
 	if (sc->intversion >= INTVERSION(1, 1) && sc->disengaged) {
 		if (apm_engage_disengage_pm(sc, 1)) {
-			printf("Warning: APM engage function failed [%x]\n",
+#ifdef APM_DEBUG
+			printf("apm: *Warning* engage function failed err=[%x]",
 				apm_errno);
+			printf(" (Docked or using external power?).\n");
+#endif
 		}
 	}
 
