@@ -1290,15 +1290,12 @@ pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 }
 
 static int
-pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset,
-    u_int32_t *deltap)
+pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	struct mem_desc *mp = &devi->slt->mem[rid];
 
 	mp->card = offset;
-	if (deltap)
-		*deltap = 0;			/* XXX BAD XXX */
 	return (cinfo.mapmem(devi->slt, rid));
 }
 
