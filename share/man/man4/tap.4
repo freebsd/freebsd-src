@@ -185,35 +185,49 @@ On the last close of the data device, the interface is
 brought down
 (as if with
 .Dq ifconfig tap Ns Sy N No down )
-unless the devices is a VMnet device.
+unless the devices is a
+.EM VMnet
+device.
 All queued frames are thrown away. If the interface is up when the data
 device is not open, output frames are thrown away rather than
 letting them pile up.
 .Pp
 The
 .Nm
-device is also can be used with the VMware port as a replacement
-for the old VMnet device driver. The driver uses the minor number
+device is also can be used with the
+.Em VMware
+port as a replacement
+for the old
+.Em
+VMnet device driver. The driver uses the minor number
 to select between
 .Nm
 and
 .Nm vmnet
-devices. VMnet minor numbers begin at
+devices.
+.Em VMnet
+minor numbers begin at
 .Va 0x10000
 +
-.Va N .
-Where
+.Va N ;
+where
 .Va N
-is a VMnet unit number. In this case control device is expected to be
+is a
+.Em VMnet
+unit number. In this case control device is expected to be
 .Pa /dev/vmnet Ns Sy N ,
 and network interface will be
 .Sy vmnet Ns Ar N .
-Additionally, VMnet devices do not ifconfig themselves down when the
+Additionally,
+.Em VMnet
+devices do not
+.Xr ifconfig 8
+themselves down when the
 control device is closed. Everything else is the same.
 .Pp
-In addition to mentioned above
+In addition to the above mentioned,
 .Xr ioctl 2
-there is one additional one for the VMware port.
+calls, there is one additional one for the VMware port.
 .Bl -tag -width VMIO_SIOCSETMACADDR
 .It Dv VMIO_SIOCSIFFLAGS
 VMware
@@ -222,7 +236,3 @@ VMware
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr intro 4
-.\" .Sh BUGS
-.Sh AUTHORS
-This man page has been obtained from
-.Fx .
