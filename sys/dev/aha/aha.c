@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.19 1999/01/20 06:21:26 imp Exp $
+ *      $Id: aha.c,v 1.19.2.1 1999/05/07 00:43:24 ken Exp $
  */
 
 #include "pnp.h"
@@ -358,7 +358,9 @@ aha_probe(struct aha_softc* aha)
 	 * if those come up in the probe, we test the geometry register
 	 * of the board.  Adaptec boards that are this old will not have
 	 * this register, and return 0xff, while buslogic cards will return
-	 * something different.
+	 * something different.  Other aha cards return 0x00 or 0x7f, so
+	 * use them as well.  No buslogic cards seem to return these
+	 * values.
 	 *
 	 * It appears that for reasons unknow, for the for the
 	 * aha-1542B cards, we need to wait a little bit before trying
@@ -378,7 +380,7 @@ aha_probe(struct aha_softc* aha)
 		/* Wait 10ms before reading */
 		DELAY(10000);
 		status = aha_inb(aha, GEOMETRY_REG);
-		if (status != 0xff && status != 0x00) {
+		if (status != 0xff && status != 0x00 && status != 0x7f) {
 			PRVERB(("%s: Geometry Register test failed\n",
 				aha_name(aha)));
 			return (ENXIO);
