@@ -203,73 +203,6 @@ ieee80211_send_nulldata(struct ieee80211com *ic, struct ieee80211_node *ni)
 	return 0;
 }
 
-/*
- * Insure there is sufficient contiguous space to encapsulate the
- * 802.11 data frame.  If room isn't already there, arrange for it.
- * Drivers and cipher modules assume we have done the necessary work
- * and fail rudely if they don't find the space they need.
- */
-static struct mbuf *
-ieee80211_mbuf_adjust(struct ieee80211com *ic, int hdrsize,
-	struct ieee80211_key *key, struct mbuf *m)
-{
-#define	TO_BE_RECLAIMED	(sizeof(struct ether_header) - sizeof(struct llc))
-	int needed_space = hdrsize;
-
-	if (key != NULL) {
-		/* XXX belongs in crypto code? */
-		needed_space += key->wk_cipher->ic_header;
-		/* XXX frags */
-	}
-	/*
-	 * We know we are called just before stripping an Ethernet
-	 * header and prepending an LLC header.  This means we know
-	 * there will be
-	 *	sizeof(struct ether_header) - sizeof(struct llc)
-	 * bytes recovered to which we need additional space for the
-	 * 802.11 header and any crypto header.
-	 */
-	if (M_LEADINGSPACE(m) < needed_space - TO_BE_RECLAIMED) {
-		struct mbuf *n = m_gethdr(M_NOWAIT, m->m_type);
-		if (n == NULL) {
-			IEEE80211_DPRINTF(ic, IEEE80211_MSG_OUTPUT,
-			    "%s: cannot expand storage\n", __func__);
-			ic->ic_stats.is_tx_nobuf++;
-			m_freem(m);
-			return NULL;
-		}
-		KASSERT(needed_space <= MHLEN,
-		    ("not enough room, need %u got %zu\n", needed_space, MHLEN));
-		/*
-		 * Setup new mbuf to have leading space to prepend the
-		 * 802.11 header and any crypto header bits that are
-		 * required (the latter are added when the driver calls
-		 * back to ieee80211_crypto_encap to do crypto encapsulation).
-		 */
-		/* NB: must be first 'cuz it clobbers m_data */
-		m_move_pkthdr(n, m);
-		n->m_len = 0;			/* NB: m_gethdr does not set */
-		n->m_data += needed_space;
-		/*
-		 * Pull up Ethernet header to create the expected layout.
-		 * We could use m_pullup but that's overkill (i.e. we don't
-		 * need the actual data) and it cannot fail so do it inline
-		 * for speed.
-		 */
-		/* NB: struct ether_header is known to be contiguous */
-		n->m_len += sizeof(struct ether_header);
-		m->m_len -= sizeof(struct ether_header);
-		m->m_data += sizeof(struct ether_header);
-		/*
-		 * Replace the head of the chain.
-		 */
-		n->m_next = m;
-		m = n;
-	}
-	return m;
-#undef TO_BE_RECLAIMED
-}
-
 /* 
  * Assign priority to a frame based on any vlan tag assigned
  * to the station and/or any Diffserv setting in an IP header.
@@ -387,34 +320,104 @@ done:
 }
 
 /*
- * Return the transmit key to use in sending a frame to the specified
- * destination. Multicast traffic always uses the group key which is
- * installed the default tx key.  Otherwise if a unicast key is set
- * we use that.  When no unicast key is set we fall back to the default
- * transmit key unless WPA is enabled in which case there should be
- * a unicast frame so we don't want to use a default key (which in
- * this case is the group/multicast key).
+ * Insure there is sufficient contiguous space to encapsulate the
+ * 802.11 data frame.  If room isn't already there, arrange for it.
+ * Drivers and cipher modules assume we have done the necessary work
+ * and fail rudely if they don't find the space they need.
+ */
+static struct mbuf *
+ieee80211_mbuf_adjust(struct ieee80211com *ic, int hdrsize,
+	struct ieee80211_key *key, struct mbuf *m)
+{
+#define	TO_BE_RECLAIMED	(sizeof(struct ether_header) - sizeof(struct llc))
+	int needed_space = hdrsize;
+
+	if (key != NULL) {
+		/* XXX belongs in crypto code? */
+		needed_space += key->wk_cipher->ic_header;
+		/* XXX frags */
+	}
+	/*
+	 * We know we are called just before stripping an Ethernet
+	 * header and prepending an LLC header.  This means we know
+	 * there will be
+	 *	sizeof(struct ether_header) - sizeof(struct llc)
+	 * bytes recovered to which we need additional space for the
+	 * 802.11 header and any crypto header.
+	 */
+	/* XXX check trailing space and copy instead? */
+	if (M_LEADINGSPACE(m) < needed_space - TO_BE_RECLAIMED) {
+		struct mbuf *n = m_gethdr(M_NOWAIT, m->m_type);
+		if (n == NULL) {
+			IEEE80211_DPRINTF(ic, IEEE80211_MSG_OUTPUT,
+			    "%s: cannot expand storage\n", __func__);
+			ic->ic_stats.is_tx_nobuf++;
+			m_freem(m);
+			return NULL;
+		}
+		KASSERT(needed_space <= MHLEN,
+		    ("not enough room, need %u got %zu\n", needed_space, MHLEN));
+		/*
+		 * Setup new mbuf to have leading space to prepend the
+		 * 802.11 header and any crypto header bits that are
+		 * required (the latter are added when the driver calls
+		 * back to ieee80211_crypto_encap to do crypto encapsulation).
+		 */
+		/* NB: must be first 'cuz it clobbers m_data */
+		m_move_pkthdr(n, m);
+		n->m_len = 0;			/* NB: m_gethdr does not set */
+		n->m_data += needed_space;
+		/*
+		 * Pull up Ethernet header to create the expected layout.
+		 * We could use m_pullup but that's overkill (i.e. we don't
+		 * need the actual data) and it cannot fail so do it inline
+		 * for speed.
+		 */
+		/* NB: struct ether_header is known to be contiguous */
+		n->m_len += sizeof(struct ether_header);
+		m->m_len -= sizeof(struct ether_header);
+		m->m_data += sizeof(struct ether_header);
+		/*
+		 * Replace the head of the chain.
+		 */
+		n->m_next = m;
+		m = n;
+	}
+	return m;
+#undef TO_BE_RECLAIMED
+}
+
+#define	KEY_UNDEFINED(k)	((k).wk_cipher == &ieee80211_cipher_none)
+/*
+ * Return the transmit key to use in sending a unicast frame.
+ * If a unicast key is set we use that.  When no unicast key is set
+ * we fall back to the default transmit key.
  */ 
 static __inline struct ieee80211_key *
-ieee80211_crypto_getkey(struct ieee80211com *ic,
-	const u_int8_t mac[IEEE80211_ADDR_LEN], struct ieee80211_node *ni)
+ieee80211_crypto_getucastkey(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
-#define	KEY_UNDEFINED(k)	((k).wk_cipher == &ieee80211_cipher_none)
-	if (IEEE80211_IS_MULTICAST(mac)) {
+	if (KEY_UNDEFINED(ni->ni_ucastkey)) {
 		if (ic->ic_def_txkey == IEEE80211_KEYIX_NONE ||
-		    KEY_UNDEFINED(ic->ic_nw_keys[ic->ic_def_txkey]))
-			return NULL;
-		return &ic->ic_nw_keys[ic->ic_def_txkey];
-	} else if (KEY_UNDEFINED(ni->ni_ucastkey)) {
-		if ((ic->ic_flags & IEEE80211_F_WPA) ||
-		    ic->ic_def_txkey == IEEE80211_KEYIX_NONE ||
 		    KEY_UNDEFINED(ic->ic_nw_keys[ic->ic_def_txkey]))
 			return NULL;
 		return &ic->ic_nw_keys[ic->ic_def_txkey];
 	} else {
 		return &ni->ni_ucastkey;
 	}
-#undef KEY_UNDEFINED
+}
+
+/*
+ * Return the transmit key to use in sending a multicast frame.
+ * Multicast traffic always uses the group key which is installed as
+ * the default tx key.
+ */ 
+static __inline struct ieee80211_key *
+ieee80211_crypto_getmcastkey(struct ieee80211com *ic, struct ieee80211_node *ni)
+{
+	if (ic->ic_def_txkey == IEEE80211_KEYIX_NONE ||
+	    KEY_UNDEFINED(ic->ic_nw_keys[ic->ic_def_txkey]))
+		return NULL;
+	return &ic->ic_nw_keys[ic->ic_def_txkey];
 }
 
 /*
@@ -431,7 +434,7 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *key;
 	struct llc *llc;
-	int hdrsize, datalen;
+	int hdrsize, datalen, addqos;
 
 	KASSERT(m->m_len >= sizeof(eh), ("no ethernet header!"));
 	memcpy(&eh, mtod(m, caddr_t), sizeof(struct ether_header));
@@ -449,17 +452,31 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 	 * routines, but they will/should discard it.
 	 */
 	if (ic->ic_flags & IEEE80211_F_PRIVACY) {
-		key = ieee80211_crypto_getkey(ic, eh.ether_dhost, ni);
+		if (ic->ic_opmode == IEEE80211_M_STA ||
+		    !IEEE80211_IS_MULTICAST(eh.ether_dhost))
+			key = ieee80211_crypto_getucastkey(ic, ni);
+		else
+			key = ieee80211_crypto_getmcastkey(ic, ni);
 		if (key == NULL && eh.ether_type != htons(ETHERTYPE_PAE)) {
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-			    "[%s] no default transmit key\n",
-			    ether_sprintf(ni->ni_macaddr));
-			/* XXX statistic */
+			    "[%s] no default transmit key (%s) deftxkey %u\n",
+			    ether_sprintf(eh.ether_dhost), __func__,
+			    ic->ic_def_txkey);
+			ic->ic_stats.is_tx_nodefkey++;
 		}
 	} else
 		key = NULL;
 	/* XXX 4-address format */
-	if (ni->ni_flags & IEEE80211_NODE_QOS)
+	/*
+	 * XXX Some ap's don't handle QoS-encapsulated EAPOL
+	 * frames so suppress use.  This may be an issue if other
+	 * ap's require all data frames to be QoS-encapsulated
+	 * once negotiated in which case we'll need to make this
+	 * configurable.
+	 */
+	addqos = (ni->ni_flags & IEEE80211_NODE_QOS) &&
+		 eh.ether_type != htons(ETHERTYPE_PAE);
+	if (addqos)
 		hdrsize = sizeof(struct ieee80211_qosframe);
 	else
 		hdrsize = sizeof(struct ieee80211_frame);
@@ -513,26 +530,7 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 	case IEEE80211_M_MONITOR:
 		goto bad;
 	}
-	if (eh.ether_type != htons(ETHERTYPE_PAE) ||
-	    (key != NULL && (ic->ic_flags & IEEE80211_F_WPA))) {
-		/*
-		 * IEEE 802.1X: send EAPOL frames always in the clear.
-		 * WPA/WPA2: encrypt EAPOL keys when pairwise keys are set.
-		 */
-		if (key != NULL) {
-			wh->i_fc[1] |= IEEE80211_FC1_WEP;
-			/* XXX do fragmentation */
-			if (!ieee80211_crypto_enmic(ic, key, m)) {
-				IEEE80211_DPRINTF(ic, IEEE80211_MSG_OUTPUT,
-				    "[%s] enmic failed, discard frame\n",
-				    ether_sprintf(eh.ether_dhost));
-				/* XXX statistic */
-				goto bad;
-			}
-		}
-	}
-
-	if (ni->ni_flags & IEEE80211_NODE_QOS) {
+	if (addqos) {
 		struct ieee80211_qosframe *qwh =
 			(struct ieee80211_qosframe *) wh;
 		int ac, tid;
@@ -553,6 +551,25 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 		*(u_int16_t *)wh->i_seq =
 		    htole16(ni->ni_txseqs[0] << IEEE80211_SEQ_SEQ_SHIFT);
 		ni->ni_txseqs[0]++;
+	}
+	if (key != NULL) {
+		/*
+		 * IEEE 802.1X: send EAPOL frames always in the clear.
+		 * WPA/WPA2: encrypt EAPOL keys when pairwise keys are set.
+		 */
+		if (eh.ether_type != htons(ETHERTYPE_PAE) ||
+		    ((ic->ic_flags & IEEE80211_F_WPA) &&
+		     !KEY_UNDEFINED(ni->ni_ucastkey))) {
+			wh->i_fc[1] |= IEEE80211_FC1_WEP;
+			/* XXX do fragmentation */
+			if (!ieee80211_crypto_enmic(ic, key, m)) {
+				IEEE80211_DPRINTF(ic, IEEE80211_MSG_OUTPUT,
+				    "[%s] enmic failed, discard frame\n",
+				    ether_sprintf(eh.ether_dhost));
+				ic->ic_stats.is_crypto_enmicfail++;
+				goto bad;
+			}
+		}
 	}
 
 	IEEE80211_NODE_STAT(ni, tx_data);
