@@ -420,6 +420,10 @@ loop:
 		if (vn_lock(xvp, LK_EXCLUSIVE, td) != 0)
 			goto loop;
 		xp = VTOI(xvp);
+		if (ffs_checkfreefile(copy_fs, vp, xp->i_number)) {
+			VOP_UNLOCK(xvp, 0, td);
+			continue;
+		}
 		/*
 		 * If there is a fragment, clear it here.
 		 */

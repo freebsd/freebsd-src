@@ -1934,6 +1934,47 @@ ffs_freefile(fs, devvp, ino, mode)
 }
 
 /*
+ * Check to see if a file is free.
+ */
+int
+ffs_checkfreefile(fs, devvp, ino)
+	struct fs *fs;
+	struct vnode *devvp;
+	ino_t ino;
+{
+	struct cg *cgp;
+	struct buf *bp;
+	ufs2_daddr_t cgbno;
+	int error, ret, cg;
+	u_int8_t *inosused;
+
+	cg = ino_to_cg(fs, ino);
+	if (devvp->v_type != VCHR) {
+		/* devvp is a snapshot */
+		cgbno = fragstoblks(fs, cgtod(fs, cg));
+	} else {
+		/* devvp is a normal disk device */
+		cgbno = fsbtodb(fs, cgtod(fs, cg));
+	}
+	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
+		return (1);
+	if ((error = bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp))) {
+		brelse(bp);
+		return (1);
+	}
+	cgp = (struct cg *)bp->b_data;
+	if (!cg_chkmagic(cgp)) {
+		brelse(bp);
+		return (1);
+	}
+	inosused = cg_inosused(cgp);
+	ino %= fs->fs_ipg;
+	ret = isclr(inosused, ino);
+	brelse(bp);
+	return (ret);
+}
+
+/*
  * Find a block of the specified size in the specified cylinder group.
  *
  * It is a panic if a request is made to find a block if none are
