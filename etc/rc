@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.66.4.6 1995/10/19 08:07:09 jkh Exp $
+#	$Id: rc,v 1.66.4.7 1995/10/30 08:30:31 davidg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -243,6 +243,10 @@ if [ "X${kerberos_server}" = X"YES" ]; then
 		(sleep 20; /usr/sbin/kadmind -n >/dev/null 2>&1 &) &
 fi
 
+if [ "X${mrouted}" != X"NO" -a -x /usr/sbin/mrouted ]; then
+	echo -n ' mrouted'; mrouted ${mrouted}
+fi
+
 echo -n ' inetd';		inetd
 echo '.'
 
@@ -274,7 +278,9 @@ fi
 #
 echo -n standard daemons:
 echo -n ' cron';		cron
-echo -n ' printer';		lpd
+if [ "X${lpd}" != X"NO" -a -x /usr/sbin/lpd ]; then
+	echo -n ' printer';		lpd
+fi
 
 # $sendmail_flags is imported from /etc/sysconfig;
 # if $sendmail_flags is something other than NO, sendmail is run.
