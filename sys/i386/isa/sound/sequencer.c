@@ -67,9 +67,9 @@ static int      midi_opened[MAX_MIDI_DEV] =
 static int      midi_written[MAX_MIDI_DEV] =
 {0};
 
-unsigned long   prev_input_time = 0;
-int             prev_event_time;
-unsigned long   seq_time = 0;
+static unsigned long   prev_input_time = 0;
+static int             prev_event_time;
+static unsigned long   seq_time = 0;
 
 #include "tuning.h"
 

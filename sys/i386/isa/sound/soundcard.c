@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.38 1995/12/08 23:21:13 phk Exp $
+ * $Id: soundcard.c,v 1.39 1995/12/10 02:53:07 bde Exp $
  */
 
 #include "sound_config.h"
@@ -42,17 +42,6 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-
-
-u_int	snd1_imask;
-u_int	snd2_imask;
-u_int	snd3_imask;
-u_int	snd4_imask;
-u_int	snd5_imask;
-u_int	snd6_imask;
-u_int	snd7_imask;
-u_int	snd8_imask;
-u_int	snd9_imask;
 
 #define FIX_RETURN(ret) { \
 			  int tmp_ret = (ret); \
@@ -70,8 +59,8 @@ static void * snd_devfs_token[SND_NDEVS];
 static void * sndstat_devfs_token;
 struct selinfo selinfo[SND_NDEVS >> 4];
 
-int             sndprobe (struct isa_device *dev);
-int             sndattach (struct isa_device *dev);
+static int	sndprobe (struct isa_device *dev);
+static int	sndattach (struct isa_device *dev);
 static void	sound_mem_init(void);
 
 static d_open_t		sndopen;
@@ -161,8 +150,6 @@ sndwrite (dev_t dev, struct uio *buf, int ioflag)
 static int
 sndopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
-  int             retval;
-
   dev = minor (dev);
 
   if (!soundcard_configured && dev)
@@ -287,7 +274,7 @@ driver_to_voxunit(struct isa_driver *driver)
     return(0);
 }
 
-int
+static int
 sndprobe (struct isa_device *dev)
 {
   struct address_info hw_config;
@@ -305,13 +292,12 @@ sndprobe (struct isa_device *dev)
     return 0;
 }
 
-int
+static int
 sndattach (struct isa_device *dev)
 {
-  int             i, unit;
+  int             unit;
   static int      midi_initialized = 0;
   static int      seq_initialized = 0;
-  static int 	  generic_midi_initialized = 0; 
   unsigned long	  mem_start = 0xefffffffUL;
   struct address_info hw_config;
   char name[32];
@@ -477,7 +463,7 @@ sound_stop_timer (void)
 static void
 sound_mem_init (void)
 {
-  int             i, dev;
+  int             dev;
   unsigned long   dma_pagesize;
   struct dma_buffparms *dmap;
   static unsigned long dsp_init_mask = 0;
@@ -513,7 +499,7 @@ sound_mem_init (void)
 
 	      if (tmpbuf == NULL)
 		{
-		  printk ("snd: Unable to allocate %d bytes of buffer\n",
+		  printk ("snd: Unable to allocate %ld bytes of buffer\n",
 			  audio_devs[dev]->buffsize);
 		  return;
 		}
@@ -531,15 +517,6 @@ sound_mem_init (void)
 }
 
 #endif
-
-int
-snd_ioctl_return (int *addr, int value)
-{
-  if (value < 0)
-    return value;		/* Error */
-  suword (addr, value);
-  return 0;
-}
 
 int
 snd_set_irq_handler (int interrupt_level, INT_HANDLER_PROTO(), char *name)
