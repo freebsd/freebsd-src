@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.64 1998/07/07 04:36:23 bde Exp $
+ * $Id: vfs_cluster.c,v 1.65 1998/07/11 10:45:45 bde Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -245,8 +245,8 @@ single_block_read:
 	if (bp) {
 #if defined(CLUSTERDEBUG)
 		if (rcluster)
-			printf("S(%d,%d,%d) ",
-				bp->b_lblkno, bp->b_bcount, seqcount);
+			printf("S(%ld,%ld,%d) ",
+			    (long)bp->b_lblkno, bp->b_bcount, seqcount);
 #endif
 		if ((bp->b_flags & B_CLUSTER) == 0)
 			vfs_busy_pages(bp, 0);
@@ -268,15 +268,15 @@ single_block_read:
 #if defined(CLUSTERDEBUG)
 			if (rcluster) {
 				if (bp)
-					printf("A+(%d,%d,%d,%d) ",
-					rbp->b_lblkno, rbp->b_bcount,
-					rbp->b_lblkno - origblkno,
-					seqcount);
+					printf("A+(%ld,%ld,%ld,%d) ",
+					    (long)rbp->b_lblkno, rbp->b_bcount,
+					    (long)(rbp->b_lblkno - origblkno),
+					    seqcount);
 				else
-					printf("A(%d,%d,%d,%d) ",
-					rbp->b_lblkno, rbp->b_bcount,
-					rbp->b_lblkno - origblkno,
-					seqcount);
+					printf("A(%ld,%ld,%ld,%d) ",
+					    (long)rbp->b_lblkno, rbp->b_bcount,
+					    (long)(rbp->b_lblkno - origblkno),
+					    seqcount);
 			}
 #endif
 
@@ -313,7 +313,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 
 #ifdef DIAGNOSTIC
 	if (size != vp->v_mount->mnt_stat.f_iosize)
-		panic("cluster_rbuild: size %d != filesize %d\n",
+		panic("cluster_rbuild: size %ld != filesize %ld\n",
 		    size, vp->v_mount->mnt_stat.f_iosize);
 #endif
 	/*
