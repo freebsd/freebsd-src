@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.52 1996/03/03 22:07:57 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.53 1996/03/11 10:59:00 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -221,6 +221,7 @@
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Rob Shady &lt;rls@id.net&gt;
 	  <item>Rob Snow &lt;rsnow@txdirect.net&gt;
+	  <item>Robert Sanders &lt;rsanders@mindspring.com&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
