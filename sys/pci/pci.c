@@ -1594,9 +1594,9 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
-#ifdef	PCI_ENABLE_IRQ_ROUTING
-	pcicfgregs *cfg = &dinfo->cfg;
 
+#ifdef __i386__		/* Only supported on x86 in stable */
+	pcicfgregs *cfg = &dinfo->cfg;
 	/*
 	 * Perform lazy resource allocation
 	 *
@@ -1608,7 +1608,7 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 * deserving of an interrupt, try to assign it one.
 		 */
 		if ((type == SYS_RES_IRQ) && (cfg->intline == 255) &&
-		    (cfg->intpin != 0)) {
+		    (cfg->intpin != 0) && (start == 0) && (end == ~0UL)) {
 			device_printf(device_get_parent(dev), "intreq\n");
 			cfg->intline = pci_cfgintr(pci_get_bus(child),
 			    pci_get_slot(child), cfg->intpin);
@@ -1621,7 +1621,6 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 	}
 #endif
-
 	return resource_list_alloc(rl, dev, child, type, rid,
 				   start, end, count, flags);
 }
