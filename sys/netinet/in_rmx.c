@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.8 1995/01/23 02:02:50 wollman Exp $
+ * $Id: in_rmx.c,v 1.10 1995/02/14 23:11:26 wollman Exp $
  */
 
 /*
@@ -175,7 +175,7 @@ in_rtqkill(struct radix_node *rn, void *rock)
 					rt->rt_gateway, rt_mask(rt),
 					rt->rt_flags, 0);
 			if(err) {
-				log(LOG_WARNING, "in_rtqkill: error %d", err);
+				log(LOG_WARNING, "in_rtqkill: error %d\n", err);
 			} else {
 				ap->killed++;
 			}
@@ -231,7 +231,7 @@ in_rtqtimo(void *rock)
 		}
 
 		last_adjusted_timeout = time.tv_sec;
-		log(LOG_DEBUG, "in_rtqtimo: adjusted rtq_reallyold to %d",
+		log(LOG_DEBUG, "in_rtqtimo: adjusted rtq_reallyold to %d\n",
 		    rtq_reallyold);
 		arg.found = arg.killed = 0;
 		arg.updating = 1;
