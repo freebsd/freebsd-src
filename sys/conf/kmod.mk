@@ -333,6 +333,10 @@ vnode_if.${_ext}: @/tools/vnode_if.awk @/kern/vnode_if.src
 .for _i in mii pccard usb
 .if ${SRCS:M${_i}devs.h} != ""
 CLEANFILES+=	${_i}devs.h
+_i=		${_i:Musb}
+.if !empty(_i)
+CLEANFILES+=	${_i}devs_data.h
+.endif
 .if !exists(@)
 ${_i}devs.h: @
 .endif
