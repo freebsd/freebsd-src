@@ -208,7 +208,6 @@ int
 main(int argc, char *argv[])
 {
 	int ch;
-	extern int optind;
 
 	while ((ch = getopt(argc, argv, "?")) != -1)
 		switch (ch) {
