@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.49 1998/05/11 21:41:13 julian Exp $
+ * $Id: ffs_vnops.c,v 1.50 1998/06/10 19:27:56 julian Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,6 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
-#include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <machine/limits.h>
@@ -105,8 +104,6 @@ static struct vnodeopv_desc ffs_fifoop_opv_desc =
 VNODEOP_SET(ffs_vnodeop_opv_desc);
 VNODEOP_SET(ffs_specop_opv_desc);
 VNODEOP_SET(ffs_fifoop_opv_desc);
-
-SYSCTL_NODE(_vfs, MOUNT_UFS, ffs, CTLFLAG_RW, 0, "FFS filesystem");
 
 #include <ufs/ufs/ufs_readwrite.c>
 
