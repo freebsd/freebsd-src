@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.44 1999/04/27 11:16:13 phk Exp $
+ *	$Id: sys_process.c,v 1.45 1999/04/28 11:37:04 phk Exp $
  */
 
 #include <sys/param.h>
@@ -212,6 +212,7 @@ ptrace(curp, uap)
 	int write;
 	int s;
 
+	write = 0;
 	if (uap->req == PT_TRACE_ME)
 		p = curp;
 	else {
@@ -304,7 +305,6 @@ ptrace(curp, uap)
 	 * Actually do the requests
 	 */
 
-	write = 0;
 	curp->p_retval[0] = 0;
 
 	switch (uap->req) {
