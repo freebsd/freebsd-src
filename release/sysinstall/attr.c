@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.8.2.8 1997/03/28 23:07:09 jkh Exp $
+ * $Id: attr.c,v 1.8.2.9 1997/03/28 23:17:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,7 +60,7 @@ attr_parse(Attribs *attr, FILE *fp)
 {
     char hold_n[MAX_NAME+1];
     char hold_v[MAX_VALUE+1];
-    char buf[BUFSIZ];
+    char buf[BUFSIZ * 4];
     int bp, n, v, max;
     enum { LOOK, COMMENT, NAME, VALUE, MVALUE, COMMIT, FILL, STOP } state;
     int num_attribs;
@@ -98,7 +98,7 @@ attr_parse(Attribs *attr, FILE *fp)
 		state = COMMENT;
 		continue;
 	    }
-	    else if (isalpha(ch) || ch == '_') {
+	    else if (isalnum(ch) || ch == '_') {
 		if (n >= MAX_NAME) {
 		    msgDebug("Attribute name overflow at character %d, ignoring entry..\n", n);
 		    n = 0;
