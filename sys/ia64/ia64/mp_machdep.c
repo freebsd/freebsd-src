@@ -55,6 +55,7 @@
 void cpu_mp_add(uint, uint, uint);
 void ia64_ap_startup(void);
 void map_pal_code(void);
+int ia64_count_aps(void);
 
 extern vm_offset_t vhpt_base, vhpt_size;
 
@@ -115,7 +116,12 @@ cpu_mp_probe()
 	 * We've already discovered any APs when they're present.
 	 * Just return the result here.
 	 */
-	return (mp_hardware && mp_ncpus > 1);
+	if (mp_hardware) {
+		mp_maxid = ia64_count_aps();
+		return (mp_maxid > 0);
+	} else {
+		return (0);
+	}
 }
 
 void
@@ -232,8 +238,6 @@ cpu_mp_unleash(void *dummy)
 
 	if (!mp_hardware)
 		return;
-
-	breakpoint();
 
 	if (mp_ipi_test != 1)
 		printf("SMP: WARNING: sending of a test IPI failed\n");
