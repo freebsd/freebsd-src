@@ -64,16 +64,17 @@
  * Prototypes for Openfirmware Interface Routines
  */
 
+typedef unsigned long cell_t;
+
+typedef	unsigned int	ihandle_t;
+typedef unsigned int	phandle_t;
+
+#ifdef _KERNEL
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
 
 MALLOC_DECLARE(M_OFWPROP);
-
-typedef unsigned long cell_t;
-
-typedef	unsigned int	ihandle_t;
-typedef unsigned int	phandle_t;
 
 /*
  * Stuff that is used by the OpenFirmware code.
@@ -137,4 +138,5 @@ void		OF_set_symbol_lookup(void *, void *);
 /* Time function */
 int		OF_milliseconds(void);
 
+#endif /* _KERNEL */
 #endif /* _OPENFIRM_H_ */
