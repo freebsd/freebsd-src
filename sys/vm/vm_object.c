@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.52 1995/08/16 16:14:28 bde Exp $
+ * $Id: vm_object.c,v 1.53 1995/08/26 23:19:48 bde Exp $
  */
 
 /*
@@ -615,7 +615,6 @@ vm_object_pmap_copy(object, start, end)
 	for (p = object->memq.tqh_first; p != NULL; p = p->listq.tqe_next) {
 		if ((start <= p->offset) && (p->offset < end)) {
 			vm_page_protect(p, VM_PROT_READ);
-			p->flags |= PG_COPYONWRITE;
 		}
 	}
 }
@@ -708,14 +707,6 @@ vm_object_copy(src_object, src_offset, size,
 	 * Make another reference to the object
 	 */
 	src_object->ref_count++;
-
-	/*
-	 * Mark all of the pages copy-on-write.
-	 */
-	for (p = src_object->memq.tqh_first; p; p = p->listq.tqe_next)
-		if (src_offset <= p->offset &&
-		    p->offset < src_offset + size)
-			p->flags |= PG_COPYONWRITE;
 
 	*dst_object = src_object;
 	*dst_offset = src_offset;

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.26 1995/07/13 08:48:31 davidg Exp $
+ * $Id: vm_mmap.c,v 1.27 1995/10/21 17:42:28 dyson Exp $
  */
 
 /*
@@ -636,50 +636,31 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	if (object == NULL)
 		return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
 
-	/*
-	 * Anonymous memory, shared file, or character special file.
-	 */
-	if ((flags & (MAP_ANON|MAP_SHARED)) || (type == OBJT_DEVICE)) {
-		rv = vm_map_find(map, object, foff, addr, size, fitit);
-		if (rv != KERN_SUCCESS) {
-			/*
-			 * Lose the object reference. Will destroy the
-			 * object if it's an unnamed anonymous mapping
-			 * or named anonymous without other references.
-			 */
-			vm_object_deallocate(object);
-			goto out;
-		}
+	rv = vm_map_find(map, object, foff, addr, size, fitit);
+	if (rv != KERN_SUCCESS) {
+		/*
+		 * Lose the object reference. Will destroy the
+		 * object if it's an unnamed anonymous mapping
+		 * or named anonymous without other references.
+		 */
+		vm_object_deallocate(object);
+		goto out;
 	}
+
 	/*
 	 * mmap a COW regular file
 	 */
-	else {
+	if ((flags & (MAP_ANON|MAP_SHARED)) == 0 && (type != OBJT_DEVICE)) {
 		vm_map_entry_t entry;
-		vm_object_t private_object;
-
-		/*
-		 * Create a new object and make the original object
-		 * the backing object. NOTE: the object reference gained
-		 * above is now changed into the reference held by
-		 * private_object. Since we don't map 'object', we want
-		 * only this one reference.
-		 */
-		private_object = vm_object_allocate(OBJT_DEFAULT, object->size);
-		private_object->backing_object = object;
-		TAILQ_INSERT_TAIL(&object->shadow_head,
-			    private_object, shadow_list);
-
-		rv = vm_map_find(map, private_object, foff, addr, size, fitit);
-		if (rv != KERN_SUCCESS) {
-			vm_object_deallocate(private_object);
-			goto out;
-		}
-
 		if (!vm_map_lookup_entry(map, *addr, &entry)) {
 			panic("vm_mmap: missing map entry!!!");
 		}
 		entry->copy_on_write = TRUE;
+		/*
+		 * This will create the processes private object on
+		 * an as needed basis.
+		 */
+		entry->needs_copy = TRUE;
 
 		/*
 		 * set pages COW and protect for read access only
