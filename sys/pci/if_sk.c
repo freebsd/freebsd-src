@@ -152,6 +152,11 @@ static struct sk_type sk_devs[] = {
 		"SysKonnect Gigabit Ethernet (V2.0)"
 	},
 	{
+		VENDORID_MARVELL,
+		DEVICEID_SK_V2,
+		"Marvell Gigabit Ethernet"
+	},
+	{
 		VENDORID_3COM,
 		DEVICEID_3COM_3C940,
 		"3Com 3C940 Gigabit Ethernet"
