@@ -773,15 +773,6 @@ ath_start(struct ifnet *ifp)
 			}
 			sc->sc_stats.ast_tx_mgmt++;
 		}
-		if (ic->ic_rawbpf)
-			bpf_mtap(ic->ic_rawbpf, m);
-
-		if (sc->sc_drvbpf) {
-			sc->sc_tx_th.wt_rate =
-				ni->ni_rates.rs_rates[ni->ni_txrate];
-			bpf_mtap2(sc->sc_drvbpf,
-				&sc->sc_tx_th, sizeof(sc->sc_tx_th), m);
-		}
 
 		if (ath_tx_start(sc, ni, bf, m)) {
 	bad:
@@ -2038,6 +2029,22 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		antenna = an->an_tx_antenna;
 	else
 		antenna = an->an_rx_hist[an->an_rx_hist_next].arh_antenna;
+
+	if (ic->ic_rawbpf)
+		bpf_mtap(ic->ic_rawbpf, m0);
+	if (sc->sc_drvbpf) {
+		sc->sc_tx_th.wt_flags = 0;
+		if (shortPreamble)
+			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+		if (iswep)
+			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
+		sc->sc_tx_th.wt_rate = ni->ni_rates.rs_rates[ni->ni_txrate];
+		sc->sc_tx_th.wt_txpower = 60/2;		/* XXX */
+		sc->sc_tx_th.wt_antenna = antenna;
+
+		bpf_mtap2(sc->sc_drvbpf,
+			&sc->sc_tx_th, sizeof(sc->sc_tx_th), m0);
+	}
 
 	/*
 	 * Formulate first tx descriptor with tx controls.
