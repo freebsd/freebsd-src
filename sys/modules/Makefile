@@ -49,6 +49,7 @@ SUBDIR=	3dfx \
 	lge \
 	libmchain \
 	lnc \
+	lomac \
 	lpt \
 	md \
 	mii \
@@ -126,7 +127,6 @@ SUBDIR+=aac \
 	gnufpu \
 	ibcs2 \
 	linux \
-	lomac \
 	mly \
 	netgraph \
 	oltr \
