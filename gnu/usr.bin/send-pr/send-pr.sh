@@ -19,12 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU GNATS; see the file COPYING.  If not, write to
 # the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+# $Id$
 
 # The version of this send-pr.
 VERSION=3.2
 
 # The submitter-id for your site.
-SUBMITTER=unknown
+# "current-users" is the only allowable value for FreeBSD.
+SUBMITTER="current-users"
 
 # Where the GNATS directory lives, if at all.
 [ -z "$GNATS_ROOT" ] && 
@@ -81,7 +84,7 @@ if [ -z "$LOGNAME" -a -n "$USER" ]; then
 fi
 
 FROM="$LOGNAME"
-REPLY_TO="$LOGNAME"
+REPLY_TO="${REPLY_TO:-${REPLYTO:-$LOGNAME}}"
 
 # Find out the name of the originator of this PR.
 if [ -n "$NAME" ]; then
@@ -114,8 +117,6 @@ else
     ORGANIZATION="$DEFAULT_ORGANIZATION"
   elif [ -f $HOME/.organization ]; then
     ORGANIZATION="`cat $HOME/.organization`"
-  elif [ -f $HOME/.signature ]; then
-    ORGANIZATION="`cat $HOME/.signature`"
   fi
 fi
 
@@ -231,13 +232,18 @@ case "$FORMAT" in
         ;;
 esac
 
+CATEGORY_C=`echo "$CATEGORIES" | \
+	awk 'BEGIN	{ ORS=""; print "<[ " }
+	     FNR > 1	{ print " | " }
+	     		{ print }
+	     END	{ print " ]>" }`
+
 ORIGINATOR_C='<Name of the PR author (one line)>'
 ORGANIZATION_C='<Organization of PR author (multiple lines)>'
 CONFIDENTIAL_C='<[ yes | no ] (one line)>'
 SYNOPSIS_C='<Synopsis of the problem (one line)>'
 SEVERITY_C='<[ non-critical | serious | critical ] (one line)>'
 PRIORITY_C='<[ low | medium | high ] (one line)>'
-CATEGORY_C='<Problem category (as listed above)>'
 CLASS_C='<[ sw-bug | doc-bug | change-request | support ] (one line)>'
 RELEASE_C='<Release number or tag (one line)>'
 ENVIRONMENT_C='<Relevant environment information (multiple lines)>'
@@ -290,6 +296,10 @@ SEND-PR: will all comments (text enclosed in `<' and `>').
 SEND-PR: 
 SEND-PR: Please consult the send-pr man page `send-pr(1)' or the Texinfo
 SEND-PR: manual if you are not sure how to fill out a problem report.
+SEND-PR:
+SEND-PR: Note that the Synopsis field is mandatory.  The Subject (for
+SEND-PR: the mail) will be made the same as Synopsis unless explicitly
+SEND-PR: changed.
 SEND-PR:
 SEND-PR: Choose from the following categories:
 SEND-PR:
@@ -446,7 +456,17 @@ while [ -z "$REQUEST_ID" ]; do
     *)  echo "$COMMAND: \`$CLASS' is not a valid value for \`Class'."
   esac
 
-  [ $CNT -lt 5 -a -z "$BATCH" ] && 
+  #
+  # 6) Check that Synopsis is not empty
+  #
+  if grep "^>Synopsis:[ 	]*${SYNOPSIS_C}\$" $TEMP > /dev/null
+  then
+    echo "$COMMAND: Synopsis must not be empty."
+  else
+    CNT=`expr $CNT + 1`
+  fi
+
+  [ $CNT -lt 6 -a -z "$BATCH" ] && 
     echo "Errors were found with the problem report."
 
   while true; do
@@ -454,7 +474,7 @@ while [ -z "$REQUEST_ID" ]; do
       $ECHON1 "a)bort, e)dit or s)end? $ECHON2"
       read input
     else
-      if [ $CNT -eq 5 ]; then
+      if [ $CNT -eq 6 ]; then
         input=s
       else
         input=a
@@ -480,6 +500,22 @@ while [ -z "$REQUEST_ID" ]; do
     esac
   done
 done
+
+#
+# Make sure the mail has got a Subject.  If not, use the same as
+# in Synopsis.
+#
+
+if grep '^Subject:[ 	]*$' $TEMP > /dev/null
+then
+  SYNOPSIS=`grep '^>Synopsis:' $TEMP | sed -e 's/^>Synopsis:[ 	]*//'`
+  ed -s $TEMP << __EOF__
+/^Subject:/s/:.*\$/: $SYNOPSIS/
+w
+q
+__EOF__
+fi
+
 #
 #	Remove comments and send the problem report
 #	(we have to use patterns, where the comment contains regex chars)
