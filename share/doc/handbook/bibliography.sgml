@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.23 1997/03/19 04:23:12 obrien Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.24 1997/03/19 04:32:30 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -52,6 +52,12 @@
 	    O'Reilly &amp; Associates, Inc., 1990.
 	    <newline>ISBN 093717520X</item>
 
+	    <item>Mui, Linda.
+		<em>What You Need To Know When You Can't Find Your UNIX
+		System Administrator</em>.
+		O'Reilly &amp; Associates, Inc., 1995. 
+		<newline>ISBN 1-56592-104-6 </item>
+
           <item><htmlurl url="http://www-wks.acs.ohio-state.edu/"
 		name="Ohio State University"> has written
 		a <htmlurl
@@ -66,8 +72,9 @@
 	<p><itemize> 
 
 	    <item>Albitz, Paul and Liu, Cricket. <em>DNS and
-		BIND</em>.  O'Reilly &amp; Associates, Inc., 1993. 
-		<newline>ISBN 1-56592-010-4 </item>
+		BIND</em>, 2nd Ed.
+		O'Reilly &amp; Associates, Inc., 1997. 
+		<newline>ISBN 1-56592-236-0 </item>
 
 	    <item>Computer Systems Research Group, UC Berkeley.
 		<sl>4.4BSD System Manager's Manual</sl>.
@@ -75,12 +82,13 @@
 		<newline>ISBN 1-56592-080-5</item>
 
 	    <item>Costales, Brian, et al.
-		<em>Sendmail</em>. O'Reilly &amp;
-		Associates, Inc., 1993. <newline>ISBN 1-56592-056-2 </item>
+		<em>Sendmail</em>, 2nd Ed. O'Reilly &amp;
+		Associates, Inc., 1997.
+		<newline>ISBN 1-56592-222-0 </item>
 
 	    <item>Frisch, &AElig;leen. <em>Essential System
-	      Administration</em>.  O'Reilly &amp;
-	      Associates, Inc., 1993. <newline>ISBN 0-937175-80-3 </item>
+	      Administration</em>, 2nd Ed.  O'Reilly &amp;
+	      Associates, Inc., 1995. <newline>ISBN 1-56592-127-5 </item>
 
 	    <item>Hunt, Craig. <em>TCP/IP Network Administration</em>.
                 O'Reilly &amp; Associates, Inc., 1992.  
@@ -89,6 +97,10 @@
 	    <item>Nemeth, Evi. <em>UNIX System Administration
 		Handbook</em>. 2nd ed. Prentice Hall, 1995. 
 		<newline>ISBN 0131510517</item>
+
+	    <item>Stern, Hal <em>Managing NFS and NIS</em>
+		O'Reilly &amp; Associates, Inc., 1991. 
+		<newline>ISBN 1-937175-75-7 </item>
 
 	  </itemize>
 
@@ -156,7 +168,7 @@
 
 	<p><itemize>
 
-	    <item>Andleigh, Prabhat K. <em>UNIX System Architecture</em>
+	    <item>Andleigh, Prabhat K. <em>UNIX System Architecture</em>.
 		Prentice-Hall, Inc., 1990.
 		<newline>ISBN 0-13-949843-5</item>
 
@@ -221,6 +233,11 @@
 		<em>Practical UNIX Security</em>. 2nd Ed.
 		O'Reilly &amp; Associates, Inc., 1996. 
 		<newline>ISBN 1-56592-148-8 </item>
+
+	    <item>Garfinkel, Simson.
+		<em>PGP Pretty Good Privacy</em>
+		O'Reilly &amp; Associates, Inc., 1995. 
+		<newline>ISBN 1-56592-098-8 </item>
 
 	  </itemize>
 
