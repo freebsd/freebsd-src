@@ -75,6 +75,7 @@ static char *tag = NULL;
 static char *date = NULL;
 static char *join_rev1, *date_rev1;
 static char *join_rev2, *date_rev2;
+static char *K_flag;
 static int aflag = 0;
 static int force_tag_match = 1;
 static int update_build_dirs = 0;
@@ -99,6 +100,7 @@ static char *update_usage[] =
     "\t-D date\tSet date to update from.\n",
     "\t-j rev\tMerge in changes made between current revision and rev.\n",
     "\t-I ign\tMore files to ignore (! to reset).\n",
+    "\t-K key\tUse RCS key -K option on checkout.\n",
     NULL
 };
 
@@ -121,7 +123,7 @@ update (argc, argv)
 
     /* parse the args */
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "ApPflRQqdk:r:D:j:I:")) != -1)
+    while ((c = gnu_getopt (argc, argv, "ApPflRQqdk:r:D:j:I:K:")) != -1)
     {
 	switch (c)
 	{
@@ -175,6 +177,9 @@ update (argc, argv)
 		else
 		    join_rev1 = optarg;
 		break;
+	    case 'K':
+		K_flag = optarg;
+		break;
 	    case '?':
 	    default:
 		usage (update_usage);
@@ -209,7 +214,8 @@ update (argc, argv)
     /* call the command line interface */
     err = do_update (argc, argv, options, tag, date, force_tag_match,
 		     local, update_build_dirs, aflag, update_prune_dirs,
-		     pipeout, which, join_rev1, join_rev2, (char *) NULL);
+		     pipeout, which, join_rev1, join_rev2,
+		     K_flag, (char *) NULL);
 
     /* free the space Make_Date allocated if necessary */
     if (date != NULL)
@@ -223,7 +229,8 @@ update (argc, argv)
  */
 int
 do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
-	   xprune, xpipeout, which, xjoin_rev1, xjoin_rev2, preload_update_dir)
+	   xprune, xpipeout, which, xjoin_rev1, xjoin_rev2,
+	   xK_flag, preload_update_dir)
     int argc;
     char *argv[];
     char *xoptions;
@@ -238,6 +245,7 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
     int which;
     char *xjoin_rev1;
     char *xjoin_rev2;
+    char *xK_flag;
     char *preload_update_dir;
 {
     int err = 0;
@@ -252,6 +260,8 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
     aflag = xaflag;
     update_prune_dirs = xprune;
     pipeout = xpipeout;
+
+    K_flag = xK_flag;
 
     /* setup the join support */
     join_rev1 = xjoin_rev1;
@@ -650,8 +660,8 @@ checkout_file (file, repository, entries, srcfiles, vers_ts, update_dir)
 	    (void) unlink_file (backup);
     }
 
-    run_setup ("%s%s -q -r%s %s", Rcsbin, RCS_CO, vers_ts->vn_rcs,
-	       vers_ts->options);
+    run_setup ("%s%s -q -r%s %s %s%s", Rcsbin, RCS_CO, vers_ts->vn_rcs,
+	       vers_ts->options, K_flag ? "-K" : "", K_flag ? K_flag : "");
 
     /*
      * if we are checking out to stdout, print a nice message to stderr, and

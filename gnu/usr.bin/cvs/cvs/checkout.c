@@ -70,6 +70,7 @@ static char *checkout_usage[] =
     "\t-r rev\tCheck out revision or tag. (implies -P)\n",
     "\t-D date\tCheck out revisions as of date. (implies -P)\n",
     "\t-d dir\tCheck out into dir instead of module name.\n",
+    "\t-K key\tUse RCS key -K option on checkout.\n",
     "\t-k kopt\tUse RCS kopt -k option on checkout.\n",
     "\t-j rev\tMerge in changes made between current revision and rev.\n",
     NULL
@@ -100,6 +101,7 @@ static char *date = NULL;
 static char *join_rev1 = NULL;
 static char *join_rev2 = NULL;
 static char *preload_update_dir = NULL;
+static char *K_flag = NULL;
 
 int
 checkout (argc, argv)
@@ -129,7 +131,7 @@ checkout (argc, argv)
     }
     else
     {
-	valid_options = "ANnk:d:flRpQqcsr:D:j:P";
+	valid_options = "ANnk:d:flRpQqcsr:D:j:PK:";
 	valid_usage = checkout_usage;
     }
 
@@ -206,6 +208,9 @@ checkout (argc, argv)
 		    join_rev2 = optarg;
 		else
 		    join_rev1 = optarg;
+		break;
+	    case 'K':
+		K_flag = optarg;
 		break;
 	    case '?':
 	    default:
@@ -597,6 +602,7 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
 			  force_tag_match, 0 /* !local */ ,
 			  1 /* update -d */ , aflag, checkout_prune_dirs,
 			  pipeout, which, join_rev1, join_rev2,
+			  K_flag,
 			  preload_update_dir);
 	free (preload_update_dir);
 	preload_update_dir = oldupdate;
@@ -639,7 +645,7 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
     err += do_update (*pargc - 1, argv + 1, options, tag, date,
 		      force_tag_match, local_specified, 1 /* update -d */,
 		      aflag, checkout_prune_dirs, pipeout, which, join_rev1,
-		      join_rev2, preload_update_dir);
+		      join_rev2, K_flag, preload_update_dir);
     free (preload_update_dir);
     preload_update_dir = oldupdate;
     return (err);
