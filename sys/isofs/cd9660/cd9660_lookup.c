@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.5 1994/09/26 00:32:54 gpalmer Exp $
+ * $Id: cd9660_lookup.c,v 1.6 1995/01/16 17:03:23 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -126,7 +126,7 @@ cd9660_lookup(ap)
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	
+
 	bp = NULL;
 	*vpp = NULL;
 	vdp = ap->a_dvp;
@@ -134,7 +134,7 @@ cd9660_lookup(ap)
 	imp = dp->i_mnt;
 	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
-	
+
 	/*
 	 * Check accessiblity of directory.
 	 */
@@ -142,7 +142,7 @@ cd9660_lookup(ap)
 	    return (ENOTDIR);
 	if ((error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc)))
 		return (error);
-	
+
 	/*
 	 * We now have a segment name to search for, and a directory to search.
 	 *
@@ -197,7 +197,7 @@ cd9660_lookup(ap)
 		vdp = ITOV(dp);
 		*vpp = NULL;
 	}
-	
+
 	len = cnp->cn_namelen;
 	name = cnp->cn_nameptr;
 	/*
@@ -208,7 +208,7 @@ cd9660_lookup(ap)
 		len--;
 		name++;
 	}
-	
+
 	/*
 	 * If there is cached information on a previous search of
 	 * this directory, pick up where we last left off.
@@ -236,7 +236,7 @@ cd9660_lookup(ap)
 		iso_nchstats.ncs_2passes++;
 	}
 	endsearch = roundup(dp->i_size, imp->logical_block_size);
-	
+
 searchloop:
 	while (dp->i_offset < endsearch) {
 		/*
@@ -256,7 +256,7 @@ searchloop:
 		 */
 		ep = (struct iso_directory_record *)
 			(bp->b_un.b_addr + entryoffsetinblock);
-		
+
 		reclen = isonum_711 (ep->length);
 		if (reclen == 0) {
 			/* skip to next block, if any */
@@ -264,26 +264,26 @@ searchloop:
 				roundup(dp->i_offset, imp->logical_block_size);
 			continue;
 		}
-		
+
 		if (reclen < ISO_DIRECTORY_RECORD_SIZE)
 			/* illegal entry, stop */
 			break;
-		
+
 		if (entryoffsetinblock + reclen > imp->logical_block_size)
 			/* entries are not allowed to cross boundaries */
 			break;
-		
+
 		/*
 		 * Check for a name match.
 		 */
 		namelen = isonum_711(ep->name_len);
 		isoflags = isonum_711(imp->iso_ftype == ISO_FTYPE_HIGH_SIERRA?
 				      &ep->date[6]: ep->flags);
-		
+
 		if (reclen < ISO_DIRECTORY_RECORD_SIZE + namelen)
 			/* illegal entry, stop */
 			break;
-		
+
 		switch (imp->iso_ftype) {
 		default:
 			if (!(isoflags & 4) == !assoc) {
@@ -375,13 +375,13 @@ notfound:
 	if (nameiop == CREATE || nameiop == RENAME)
 		return (EJUSTRETURN);
 	return (ENOENT);
-	
+
 found:
 	if (numdirpasses == 2)
 		iso_nchstats.ncs_pass2++;
 	if (bp != NULL)
 		brelse(bp);
-	
+
 	/*
 	 * Found component in pathname.
 	 * If the final component of path name, save information
@@ -389,7 +389,7 @@ found:
 	 */
 	if ((flags & ISLASTCN) && nameiop == LOOKUP)
 		dp->i_diroff = dp->i_offset;
-	
+
 	/*
 	 * Step through the translation in the name.  We do not `iput' the
 	 * directory because we may need it again if a symbolic link
@@ -435,7 +435,7 @@ found:
 			ISO_IUNLOCK(pdp);
 		*vpp = ITOV(tdp);
 	}
-	
+
 	/*
 	 * Insert name into cache if appropriate.
 	 */
@@ -461,13 +461,13 @@ iso_blkatoff(ip, offset, bpp)
 	int bsize = iso_blksize(imp,ip,lbn);
 	struct buf *bp;
 	int error;
-	
+
 	if ((error = bread(ITOV(ip),lbn,bsize,NOCRED,&bp))) {
 		brelse(bp);
 		*bpp = 0;
 		return (error);
 	}
 	*bpp = bp;
-	
+
 	return (0);
 }

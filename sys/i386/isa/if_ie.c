@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.22 1995/03/28 07:55:31 bde Exp $
+ *	$Id: if_ie.c,v 1.23 1995/04/12 20:47:50 wollman Exp $
  */
 
 /*
@@ -60,7 +60,7 @@
 /*
  * The i82586 is a very versatile chip, found in many implementations.
  * Programming this chip is mostly the same, but certain details differ
- * from card to card.  This driver is written so that different cards 
+ * from card to card.  This driver is written so that different cards
  * can be automatically detected at run-time.  Currently, only the
  * AT&T EN100/StarLAN 10 series are supported.
  */
@@ -231,7 +231,7 @@ const char *ie_hardware_names[] = {
   "Unknown"
 };
 
-/* 
+/*
 sizeof(iscp) == 1+1+2+4 == 8
 sizeof(scb) == 2+2+2+2+2+2+2+2 == 16
 NFRAMES * sizeof(rfd) == NFRAMES*(2+2+2+2+6+6+2+2) == NFRAMES*24 == 384
@@ -274,7 +274,7 @@ struct ie_softc {
   caddr_t iomembot;
   unsigned iosize;
   int bus_use;		/* 0 means 16bit, 1 means 8 bit adapter */
-  
+
   int want_mcsetup;
   int promisc;
   volatile struct ie_int_sys_conf_ptr *iscp;
@@ -400,7 +400,7 @@ static int sl_probe(dvp)
     break;
 
   default:
-    printf("ie%d: unknown AT&T board type code %d\n", unit, 
+    printf("ie%d: unknown AT&T board type code %d\n", unit,
 	   ie_softc[unit].hard_type);
     return 0;
   }
@@ -417,22 +417,22 @@ static int el_probe(dvp)
   int i;
   u_char signature[] = "*3COM*";
   int unit = dvp->id_unit;
-  
+
   sc->port = dvp->id_iobase;
   sc->iomembot = dvp->id_maddr;
   sc->bus_use = 0;
-  
+
   /* Need this for part of the probe. */
   sc->ie_reset_586 = el_reset_586;
   sc->ie_chan_attn = el_chan_attn;
-  
+
   /* Reset and put card in CONFIG state without changing address. */
   elink_reset();
   outb(ELINK_ID_PORT, 0x00);
   elink_idseq(ELINK_507_POLY);
   elink_idseq(ELINK_507_POLY);
   outb(ELINK_ID_PORT, 0xff);
-  
+
   c = inb(PORT + IE507_MADDR);
   if(c & 0x20) {
 #ifdef DEBUG
@@ -440,50 +440,50 @@ static int el_probe(dvp)
 #endif
     return 0;
   }
-  
+
   /* go to RUN state */
   outb(ELINK_ID_PORT, 0x00);
   elink_idseq(ELINK_507_POLY);
   outb(ELINK_ID_PORT, 0x00);
-  
+
   outb(PORT + IE507_CTRL, EL_CTRL_NRST);
-  
+
   for (i = 0; i < 6; i++)
     if (inb(PORT + i) != signature[i])
       return 0;
-  
+
   c = inb(PORT + IE507_IRQ) & 0x0f;
-  
+
   if (dvp->id_irq != (1 << c)) {
     printf("ie%d: kernel configured irq %d doesn't match board configured irq %d\n",
 	   unit, ffs(dvp->id_irq) - 1, c);
     return 0;
   }
-  
+
   c = (inb(PORT + IE507_MADDR) & 0x1c) + 0xc0;
-  
+
   if (kvtop(dvp->id_maddr) != ((int)c << 12)) {
     printf("ie%d: kernel configured maddr %lx doesn't match board configured maddr %x\n",
 	   unit, kvtop(dvp->id_maddr),(int)c << 12);
     return 0;
   }
-  
+
   outb(PORT + IE507_CTRL, EL_CTRL_NORMAL);
-  
+
   sc->hard_type = IE_3C507;
   sc->hard_vers = 0;	/* 3C507 has no version number. */
-  
+
   /*
    * Divine memory size on-board the card.
    */
   find_ie_mem_size(unit);
-  
+
   if (!sc->iosize) {
     printf("ie%d: can't find shared memory\n", unit);
     outb(PORT + IE507_CTRL, EL_CTRL_NRST);
     return 0;
   }
-  
+
   if(!dvp->id_msize)
     dvp->id_msize = sc->iosize;
   else if (dvp->id_msize != sc->iosize) {
@@ -492,12 +492,12 @@ static int el_probe(dvp)
     outb(PORT + IE507_CTRL, EL_CTRL_NRST);
     return 0;
   }
-  
+
   sl_read_ether(unit, ie_softc[unit].arpcom.ac_enaddr);
-  
+
   /* Clear the interrupt latch just in case. */
   outb(PORT + IE507_ICTRL, 1);
-  
+
   return 16;
 }
 
@@ -538,7 +538,7 @@ static int ni_probe(dvp)
   find_ie_mem_size(unit);
 
   if(!ie_softc[unit].iosize) {
-    return 0; 
+    return 0;
   }
 
   if(!dvp->id_msize)
@@ -570,7 +570,7 @@ ieattach(dvp)
   ifp->if_unit = unit;
   ifp->if_name = iedriver.name;
   ifp->if_mtu = ETHERMTU;
-  printf(" <%s R%d> ethernet address %s\n", 
+  printf(" <%s R%d> ethernet address %s\n",
 	 ie_hardware_names[ie_softc[unit].hard_type],
 	 ie_softc[unit].hard_vers + 1,
 	 ether_sprintf(ie->arpcom.ac_enaddr));
@@ -586,7 +586,7 @@ ieattach(dvp)
   ifp->if_type = IFT_ETHER;
   ifp->if_addrlen = 6;
   ifp->if_hdrlen = 14;
-  
+
 #if NBPFILTER > 0
   bpfattach(&ie_softc[unit].ie_bpf, ifp, DLT_EN10MB,
 	    sizeof(struct ether_header));
@@ -840,7 +840,7 @@ static inline int ether_equal(u_char *one, u_char *two) {
  * only client which will fiddle with IFF_PROMISC is BPF.  This is
  * probably a good assumption, but we do not make it here.  (Yet.)
  */
-static inline int check_eh(struct ie_softc *ie, 
+static inline int check_eh(struct ie_softc *ie,
 			   struct ether_header *eh,
 			   int *to_bpf) {
   int i;
@@ -902,7 +902,7 @@ static inline int check_eh(struct ie_softc *ie,
 #endif
     /* We want to see multicasts. */
     if(eh->ether_dhost[0] & 1) return 1;
-    
+
     /* We want to see our own packets */
     if(ether_equal(eh->ether_dhost, ie->arpcom.ac_enaddr)) return 1;
 
@@ -1032,7 +1032,7 @@ static inline int ieget(unit, ie, mp, ehp, to_bpf)
    */
   do {				/* while(resid > 0) */
     /*
-     * Try to allocate an mbuf to hold the data that we have.  If we 
+     * Try to allocate an mbuf to hold the data that we have.  If we
      * already allocated one, just get another one and stick it on the
      * end (eventually).  If we don't already have one, try to allocate
      * an mbuf cluster big enough to hold the whole packet, if we think it's
@@ -1317,12 +1317,12 @@ iestart(ifp)
 
     ie->xmit_buffs[ie->xmit_count]->ie_xmit_flags = IE_XMIT_LAST | len;
     ie->xmit_buffs[ie->xmit_count]->ie_xmit_next = 0xffff;
-    ie->xmit_buffs[ie->xmit_count]->ie_xmit_buf = 
+    ie->xmit_buffs[ie->xmit_count]->ie_xmit_buf =
       MK_24(ie->iomem, ie->xmit_cbuffs[ie->xmit_count]);
 
     ie->xmit_cmds[ie->xmit_count]->com.ie_cmd_cmd = IE_CMD_XMIT;
     ie->xmit_cmds[ie->xmit_count]->ie_xmit_status = 0;
-    ie->xmit_cmds[ie->xmit_count]->ie_xmit_desc = 
+    ie->xmit_cmds[ie->xmit_count]->ie_xmit_desc =
       MK_16(ie->iomem, ie->xmit_buffs[ie->xmit_count]);
 
     *bptr = MK_16(ie->iomem, ie->xmit_cmds[ie->xmit_count]);
@@ -1334,7 +1334,7 @@ iestart(ifp)
    * If we queued up anything for transmission, send it.
    */
   if(ie->xmit_count) {
-    ie->xmit_cmds[ie->xmit_count - 1]->com.ie_cmd_cmd |= 
+    ie->xmit_cmds[ie->xmit_count - 1]->com.ie_cmd_cmd |=
       IE_CMD_LAST | IE_CMD_INTR;
 
     /*
@@ -1369,7 +1369,7 @@ int check_ie_present(unit, where, size)
 
   scp = (volatile struct ie_sys_conf_ptr *)(realbase + IE_SCP_ADDR);
   bzero((char *)scp, sizeof *scp); /* ignore cast-qual */
-  
+
   /*
    * First we put the ISCP at the bottom of memory; this tests to make
    * sure that our idea of the size of memory is the same as the controller's.
@@ -1402,7 +1402,7 @@ int check_ie_present(unit, where, size)
    * Now relocate the ISCP to its real home, and reset the controller
    * again.
    */
-  iscp = (void *)Align((caddr_t)(realbase + IE_SCP_ADDR - 
+  iscp = (void *)Align((caddr_t)(realbase + IE_SCP_ADDR -
 				 sizeof(struct ie_int_sys_conf_ptr)));
   bzero((char *)iscp, sizeof *iscp); /* ignore cast-qual */
 
@@ -1526,7 +1526,7 @@ iereset(unit)
 
   ie_softc[unit].arpcom.ac_if.if_flags |= IFF_UP;
   ieioctl(&ie_softc[unit].arpcom.ac_if, SIOCSIFFLAGS, 0);
-  
+
   splx(s);
   return;
 }
@@ -1561,7 +1561,7 @@ static int command_and_wait(unit, cmd, pcmd, mask)
   extern int hz;
 
   ie_softc[unit].scb->ie_command = (u_short)cmd;
-  
+
   if(IE_ACTION_COMMAND(cmd) && pcmd) {
     (*ie_softc[unit].ie_chan_attn)(unit);
 
@@ -1589,7 +1589,7 @@ static int command_and_wait(unit, cmd, pcmd, mask)
 
     return timedout;
   } else {
-    
+
     /*
      * Otherwise, just wait for the command to be accepted.
      */
@@ -1624,7 +1624,7 @@ static void run_tdr(unit, cmd)
   else
     result = cmd->ie_tdr_time;
 
-  ie_ack(ie_softc[unit].scb, IE_ST_WHENCE, unit, 
+  ie_ack(ie_softc[unit].scb, IE_ST_WHENCE, unit,
 	 ie_softc[unit].ie_chan_attn);
 
   if(result & IE_TDR_SUCCESS)
@@ -1633,7 +1633,7 @@ static void run_tdr(unit, cmd)
   if(result & IE_TDR_XCVR) {
     printf("ie%d: transceiver problem\n", unit);
   } else if(result & IE_TDR_OPEN) {
-    printf("ie%d: TDR detected an open %d clocks away\n", unit, 
+    printf("ie%d: TDR detected an open %d clocks away\n", unit,
 	   result & IE_TDR_TIME);
   } else if(result & IE_TDR_SHORT) {
     printf("ie%d: TDR detected a short %d clocks away\n", unit,
@@ -1674,13 +1674,13 @@ static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie) {
   }
 
   ptr = (caddr_t)Align((caddr_t)rfd); /* ignore cast-qual */
-  
+
   /* Now link them together */
   for(i = 0; i < NFRAMES; i++) {
     ie->rframes[i]->ie_fd_next =
       MK_16(MEM, ie->rframes[(i + 1) % NFRAMES]);
   }
-  
+
   /* Finally, set the EOL bit on the last one. */
   ie->rframes[NFRAMES - 1]->ie_fd_last |= IE_FD_LAST;
 
@@ -1701,12 +1701,12 @@ static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie) {
     ptr += IE_RBUF_SIZE;
     rbd = (void *)ptr;
   }
-  
+
   /* Now link them together */
   for(i = 0; i < NBUFFS; i++) {
     ie->rbuffs[i]->ie_rbd_next = MK_16(MEM, ie->rbuffs[(i + 1) % NBUFFS]);
   }
-  
+
   /* Tag EOF on the last one */
   ie->rbuffs[NBUFFS - 1]->ie_rbd_length |= IE_RBD_LAST;
 
@@ -1728,21 +1728,21 @@ static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie) {
  * Run the multicast setup command.
  * Call at splimp().
  */
-static int mc_setup(int unit, caddr_t ptr, 
+static int mc_setup(int unit, caddr_t ptr,
 		    volatile struct ie_sys_ctl_block *scb) {
   struct ie_softc *ie = &ie_softc[unit];
   volatile struct ie_mcast_cmd *cmd = (void *)ptr;
-  
+
   cmd->com.ie_cmd_status = 0;
   cmd->com.ie_cmd_cmd = IE_CMD_MCAST | IE_CMD_LAST;
   cmd->com.ie_cmd_link = 0xffff;
-  
+
 				/* ignore cast-qual */
   bcopy((caddr_t)ie->mcast_addrs, (caddr_t)cmd->ie_mcast_addrs,
 	ie->mcast_count * sizeof *ie->mcast_addrs);
 
   cmd->ie_mcast_bytes = ie->mcast_count * 6; /* grrr... */
-  
+
   scb->ie_command_list = MK_16(MEM, cmd);
   if(command_and_wait(unit, IE_CU_START, cmd, IE_STAT_COMPL)
      || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
@@ -1934,7 +1934,7 @@ ieioctl(ifp, command, data)
       ie_stop(ifp->if_unit);
     } else if((ifp->if_flags & IFF_UP) &&
 	      (ifp->if_flags & IFF_RUNNING) == 0) {
-      ie_softc[ifp->if_unit].promisc = 
+      ie_softc[ifp->if_unit].promisc =
 	ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI);
       ieinit(ifp->if_unit);
     } else if(ie_softc[ifp->if_unit].promisc ^

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs.h	8.3 (Berkeley) 9/23/93
- * $Id: lfs.h,v 1.4 1994/10/10 01:04:47 phk Exp $
+ * $Id: lfs.h,v 1.5 1994/11/17 01:30:47 gibbs Exp $
  */
 
 #ifndef _UFS_LFS_LFS_H_
@@ -286,7 +286,7 @@ struct segsum {
  */
 #endif
 
-/* 
+/*
  * Determine if there is enough room currently available to write db
  * disk blocks.  We need enough blocks for the new blocks, the current,
  * inode blocks, a summary block, plus potentially the ifile inode and

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.50 1995/03/21 07:02:51 davidg Exp $
+ *	$Id: trap.c,v 1.51 1995/03/21 07:16:12 davidg Exp $
  */
 
 /*
@@ -174,7 +174,7 @@ trap(frame)
 
 	type = frame.tf_trapno;
 	code = frame.tf_err;
-	
+
 	if (ISPL(frame.tf_cs) == SEL_UPL) {
 		/* user trap */
 
@@ -262,7 +262,7 @@ trap(frame)
 				return;
 #endif	/* NNPX > 0 */
 
-#if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE) 
+#if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE)
 			i = math_emulate(&frame);
 			if (i == 0) {
 				if (!(frame.tf_eflags & PSL_T))
@@ -352,7 +352,7 @@ trap(frame)
 			frame.tf_eflags &= ~PSL_T;
 			return;
 #endif
-	
+
 #if NISA > 0
 		case T_NMI:
 #ifdef DDB
@@ -376,7 +376,7 @@ trap(frame)
 #ifdef DEBUG
 	eva = rcr2();
 	if (type <= MAX_TRAP_MSG) {
-		uprintf("fatal process exception: %s", 
+		uprintf("fatal process exception: %s",
 			trap_msg[type]);
 		if ((type == T_PAGEFLT) || (type == T_PROTFLT))
 			uprintf(", fault VA = 0x%x", eva);
@@ -464,7 +464,7 @@ trap_pfault(frame, usermode)
 		v = (vm_offset_t) vtopte(va);
 
 		/* Fault the pte only if needed: */
-		*(volatile char *)v += 0;	
+		*(volatile char *)v += 0;
 
 		pmap_use_pt( vm_map_pmap(map), va);
 
@@ -580,7 +580,7 @@ trap_pfault(frame, usermode)
 		 */
 
 		/* Fault the pte only if needed: */
-		*(volatile char *)v += 0;	
+		*(volatile char *)v += 0;
 
 		pmap_use_pt( vm_map_pmap(map), va);
 
@@ -804,7 +804,7 @@ syscall(frame)
 
  	if (p->p_sysent->sv_mask)
  		code = code & p->p_sysent->sv_mask;
- 
+
  	if (code >= p->p_sysent->sv_size)
  		callp = &p->p_sysent->sv_table[0];
   	else
@@ -852,7 +852,7 @@ syscall(frame)
  		if (p->p_sysent->sv_errsize)
  			if (error >= p->p_sysent->sv_errsize)
   				error = -1;	/* XXX */
-   			else 
+   			else
   				error = p->p_sysent->sv_errtbl[error];
 		frame.tf_eax = error;
 		frame.tf_eflags |= PSL_C;	/* carry bit */
@@ -966,7 +966,7 @@ linux_syscall(frame)
  		if (p->p_sysent->sv_errsize)
  			if (error >= p->p_sysent->sv_errsize)
   				error = -1;	/* XXX */
-   			else 
+   			else
   				error = p->p_sysent->sv_errtbl[error];
 		frame.tf_eax = -error;
 		frame.tf_eflags |= PSL_C;	/* carry bit */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.6 1995/03/16 18:14:25 bde Exp $
+ * $Id: if_ethersubr.c,v 1.7 1995/05/09 13:35:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -115,7 +115,7 @@ ether_output(ifp, m0, dst, rt0)
 		if ((rt->rt_flags & RTF_UP) == 0) {
 			if (rt0 = rt = rtalloc1(dst, 1, 0UL))
 				rt->rt_refcnt--;
-			else 
+			else
 				senderr(EHOSTUNREACH);
 		}
 		if (rt->rt_flags & RTF_GATEWAY) {
@@ -123,7 +123,7 @@ ether_output(ifp, m0, dst, rt0)
 				goto lookup;
 			if (((rt = rt->rt_gwroute)->rt_flags & RTF_UP) == 0) {
 				rtfree(rt); rt = rt0;
-			lookup: rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1, 
+			lookup: rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1,
 							  0UL);
 				if ((rt = rt->rt_gwroute) == 0)
 					senderr(EHOSTUNREACH);
@@ -206,7 +206,7 @@ ether_output(ifp, m0, dst, rt0)
 #ifdef	LLC
 /*	case AF_NSAP: */
 	case AF_CCITT: {
-		register struct sockaddr_dl *sdl = 
+		register struct sockaddr_dl *sdl =
 			(struct sockaddr_dl *) rt -> rt_gateway;
 
 		if (sdl && sdl->sdl_family == AF_LINK
@@ -234,14 +234,14 @@ ether_output(ifp, m0, dst, rt0)
 			printf("ether_output: sending LLC2 pkt to: ");
 			for (i=0; i<6; i++)
 				printf("%x ", edst[i] & 0xff);
-			printf(" len 0x%x dsap 0x%x ssap 0x%x control 0x%x\n", 
+			printf(" len 0x%x dsap 0x%x ssap 0x%x control 0x%x\n",
 			       type & 0xff, l->llc_dsap & 0xff, l->llc_ssap &0xff,
 			       l->llc_control & 0xff);
 
 		}
 #endif /* LLC_DEBUG */
 		} break;
-#endif /* LLC */	
+#endif /* LLC */
 
 	case AF_UNSPEC:
 		eh = (struct ether_header *)dst->sa_data;
@@ -356,7 +356,7 @@ ether_input(ifp, eh, m)
 		l = mtod(m, struct llc *);
 		switch (l->llc_dsap) {
 #ifdef	ISO
-		case LLC_ISO_LSAP: 
+		case LLC_ISO_LSAP:
 			switch (l->llc_control) {
 			case LLC_UI:
 				/* LLC_UI_P forbidden in class 1 service */
@@ -380,7 +380,7 @@ ether_input(ifp, eh, m)
 					break;
 				}
 				goto dropanyway;
-				
+
 			case LLC_XID:
 			case LLC_XID_P:
 				if(m->m_len < 6)
@@ -408,7 +408,7 @@ ether_input(ifp, eh, m)
 				eh2 = (struct ether_header *)sa.sa_data;
 				for (i = 0; i < 6; i++) {
 					eh2->ether_shost[i] = c = eh->ether_dhost[i];
-					eh2->ether_dhost[i] = 
+					eh2->ether_dhost[i] =
 						eh->ether_dhost[i] = eh->ether_shost[i];
 					eh->ether_shost[i] = c;
 				}
@@ -430,7 +430,7 @@ ether_input(ifp, eh, m)
 			if (m == 0)
 				return;
 			if ( !sdl_sethdrif(ifp, eh->ether_shost, LLC_X25_LSAP,
-					    eh->ether_dhost, LLC_X25_LSAP, 6, 
+					    eh->ether_dhost, LLC_X25_LSAP, 6,
 					    mtod(m, struct sdl_hdr *)))
 				panic("ETHER cons addr failure");
 			mtod(m, struct sdl_hdr *)->sdlhdr_len = ether_type;

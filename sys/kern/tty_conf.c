@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $Id: tty_conf.c,v 1.4 1994/10/05 21:22:24 wollman Exp $
+ * $Id: tty_conf.c,v 1.5 1995/03/21 11:23:58 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -89,7 +89,7 @@ struct	linesw linesw[MAXLDISC] =
 
 int	nlinesw = sizeof (linesw) / sizeof (linesw[0]);
 
-static struct linesw nodisc = 
+static struct linesw nodisc =
 {
 	ttynodisc,
 	ttyerrclose,

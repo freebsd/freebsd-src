@@ -1,10 +1,10 @@
 /*
  * sound/sb_mixer.h
- * 
+ *
  * Definitions for the SB Pro and SB16 mixers
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -28,7 +28,7 @@
  * Modified:
  *	Hunyue Yau	Jan 6 1994
  *	Added defines for the Sound Galaxy NX Pro mixer.
- * 
+ *
  * sb_mixer.h,v 1.4 1994/10/01 02:17:08 swallace Exp
  */
 
@@ -57,11 +57,11 @@
 
 /*
  * Mixer registers
- * 
+ *
  * NOTE!	RECORD_SRC == IN_FILTER
  */
 
-/* 
+/*
  * Mixer registers of SB Pro
  */
 #define VOC_VOL		0x04
@@ -80,7 +80,7 @@
 #define OPSW		0x3c
 
 /*
- * Additional registers on the SG NX Pro 
+ * Additional registers on the SG NX Pro
  */
 #define COVOX_VOL	0x42
 #define TREBLE_LVL	0x44

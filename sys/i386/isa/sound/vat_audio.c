@@ -47,9 +47,9 @@
 #define	splaudio	splclock
 
 extern int sndopen  (dev_t dev, int flags);
-extern int sndclose (dev_t dev, int flags); 
+extern int sndclose (dev_t dev, int flags);
 extern int sndioctl (dev_t dev, int cmd, void *arg, int mode);
-extern int sndread  (int dev, struct uio *uio); 
+extern int sndread  (int dev, struct uio *uio);
 extern int sndwrite (int dev, struct uio *uio);
 
 struct va_softc	{
@@ -195,7 +195,7 @@ vaopen(dev_t dev, int flags)
 
 	if (flags & FREAD)		/* start the read process */
 		DMAbuf_start_input(va->rdev>>4);
-	
+
 	return(0);
 }
 

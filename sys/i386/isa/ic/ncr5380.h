@@ -14,8 +14,8 @@
  * Derived from "NCR 53C80 Family SCSI Protocol Controller Data Manual"
  */
 
-#ifndef  _IC_NCR_5380_H_ 
-#define  _IC_NCR_5380_H_ 
+#ifndef  _IC_NCR_5380_H_
+#define  _IC_NCR_5380_H_
 
 #define C80_CSDR                0       /* ro - Current SCSI Data Reg. */
 #define C80_ODR                 0       /* wo - Output Data Reg. */
@@ -33,7 +33,7 @@
 #define ICR_ASSERT_DATA_BUS             0x01
 #define ICR_BITS "\20\1dbus\2atn\3sel\4bsy\5ack\6arblost\7arb\10rst"
 
-/* 
+/*
  * The mask to use when doing read_modify_write on ICR.
  */
 #define ICR_MASK (~(ICR_DIFF_ENABLE | ICR_TRI_STATE_MODE))

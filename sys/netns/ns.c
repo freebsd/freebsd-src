@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.c	8.2 (Berkeley) 11/15/93
- * $Id: ns.c,v 1.2 1994/08/02 07:51:43 davidg Exp $
+ * $Id: ns.c,v 1.3 1994/11/15 14:26:31 bde Exp $
  */
 
 #include <sys/param.h>
@@ -217,7 +217,7 @@ ns_control(so, cmd, data, ifp)
 			ns_thishost = ns_zerohost;
 		}
 		return (0);
-	
+
 	case SIOCAIFADDR:
 		dstIsNew = 0; hostIsNew = 1;
 		if (ia->ia_addr.sns_family == AF_NS) {
@@ -252,7 +252,7 @@ ns_control(so, cmd, data, ifp)
 */
 ns_ifscrub(ifp, ia)
 	register struct ifnet *ifp;
-	register struct ns_ifaddr *ia; 
+	register struct ns_ifaddr *ia;
 {
 	if (ia->ia_flags & IFA_ROUTE) {
 		if (ifp->if_flags & IFF_POINTOPOINT) {

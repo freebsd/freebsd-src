@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_sysent.c,v 1.14 1994/10/13 23:10:58 sos Exp $
+ *	$Id: ibcs2_sysent.c,v 1.1 1994/10/14 08:53:10 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -275,7 +275,7 @@ struct sysent svr3_sysent[] =
 struct sysentvec ibcs2_svr3_sysvec = {
 	sizeof (svr3_sysent) / sizeof (svr3_sysent[0]),
 	svr3_sysent,
-	0x7F, 
+	0x7F,
 	NSIG,
 	bsd_to_ibcs2_signal,
 	NERR,

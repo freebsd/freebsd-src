@@ -12,13 +12,13 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.34 1995/04/23 21:58:35 gibbs Exp $
+ *      $Id: bt742a.c,v 1.35 1995/05/11 19:26:16 rgrimes Exp $
  */
 
 /*
  * Bulogic/Bustek 32 bit Addressing Mode SCSI driver.
  *
- * NOTE: 1. Some bt5xx card can NOT handle 32 bit addressing mode. 
+ * NOTE: 1. Some bt5xx card can NOT handle 32 bit addressing mode.
  *       2. OLD bt445s Revision A,B,C,D(nowired) + any firmware version
  *          has broken busmaster for handling 32 bit addressing on H/W bus
  *	    side.
@@ -599,7 +599,7 @@ bt_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
 	}
 	if (i == 0) {
 		if(!btprobing)
-			printf("bt%d: bt_cmd, host not finished(0x%x)\n", 
+			printf("bt%d: bt_cmd, host not finished(0x%x)\n",
 				unit, sts);
 		return (ENXIO);
 	}
@@ -693,7 +693,7 @@ btattach(dev)
 {
 	int	unit = dev->id_unit;
 	struct	bt_data *bt = btdata[unit];
-	
+
 	btprobing = 0;
 	/*
 	 * fill in the prototype scsi_link.
@@ -717,7 +717,7 @@ btattach(dev)
  * Return some information to the caller about the adapter and its
  * capabilities.
  */
-u_int32 
+u_int32
 bt_adapter_info(unit)
 	int	unit;
 {
@@ -745,7 +745,7 @@ btintr(unit)
 	/*
 	 * First acknowlege the interrupt, Then if it's
 	 * not telling about a completed operation
-	 * just return. 
+	 * just return.
 	 */
 	stat = inb(BT_INTR_PORT);
 
@@ -824,7 +824,7 @@ btintr(unit)
 				    ,wmbi->stat, wmbi);
 				printf("addr = 0x%x\n", ccb);
 			}
-#endif	
+#endif
 		}
 		wmbi->stat = BT_MBI_FREE;
 		if (ccb) {
@@ -885,7 +885,7 @@ bt_free_ccb(unit, ccb, flags)
 }
 
 /*
- * Get a free ccb 
+ * Get a free ccb
  *
  * If there are none, see if we can allocate a new one.  If so, put it in
  * the hash table too otherwise either return an error or sleep.
@@ -968,7 +968,7 @@ bt_ccb_phys_kv(bt, ccb_phys)
 }
 
 /*
- * Get a MBO and then Send it  
+ * Get a MBO and then Send it
  */
 BT_MBO *
 bt_send_mbo(int unit, int flags, int cmd, struct bt_ccb *ccb)
@@ -988,7 +988,7 @@ bt_send_mbo(int unit, int flags, int cmd, struct bt_ccb *ccb)
 	wmbx->tmbo = (wmbo == &(wmbx->mbo[BT_MBX_SIZE - 1]) ?
 	    &(wmbx->mbo[0]) : wmbo + 1);
 
-	/* 
+	/*
 	 * Check the outmail box is free or not.
 	 * Note: Under the normal operation, it shuld NOT happen to wait.
 	 */
@@ -1102,7 +1102,7 @@ bt_init(unit)
 	struct bt_board_info binfo;
 
 	/*
-	 * reset board, If it doesn't respond, assume 
+	 * reset board, If it doesn't respond, assume
 	 * that it's not there.. good for the probe
 	 */
 
@@ -1131,7 +1131,7 @@ bt_init(unit)
          */
 	i = bt_cmd(unit, 1, sizeof(binfo),0,
 		&binfo,BT_GET_BOARD_INFO,sizeof(binfo));
-	if(i) 
+	if(i)
 		return i;
 	printf("bt%d: Bt%c%c%c%c/%c%d-", unit,
 				binfo.id[0],
@@ -1152,10 +1152,10 @@ bt_init(unit)
 	switch (info.bus_type) {
 		case BT_BUS_TYPE_24bit:		/* PC/AT 24 bit address bus */
 			printf("ISA(24bit) bus\n");
-			break;	
+			break;
 		case BT_BUS_TYPE_32bit:		/* EISA/VLB/PCI 32 bit bus */
 			printf("PCI/EISA/VLB(32bit) bus\n");
-			break;	
+			break;
 		case BT_BUS_TYPE_MCA:           /* forget it right now */
 			printf("MCA bus architecture...");
 			printf("giving up\n");
@@ -1170,7 +1170,7 @@ bt_init(unit)
 	if ( binfo.id[0] == '5' ) {
 		printf("bt%d: This driver is designed for using 32 bit addressing\n",unit);
 		printf("bt%d: mode firmware and EISA/PCI/VLB bus architectures\n",unit);
-		printf("bt%d: Bounce-buffering will be used (and is necessary)\n", unit); 
+		printf("bt%d: Bounce-buffering will be used (and is necessary)\n", unit);
 		printf("bt%d: if you have more than 16MBytes memory.\n",unit);
 	} else if ( info.bus_type == BT_BUS_TYPE_24bit ) {
 		printf("bt%d: Your board should report a 32bit bus architecture type..\n",unit);
@@ -1247,7 +1247,7 @@ bt_init(unit)
 	/* who are we on the scsi bus */
 	bt->bt_scsi_dev = conf.scsi_dev;
 	/*
-	 * Initialize mail box 
+	 * Initialize mail box
 	 */
 	*((physaddr *) ad) = KVTOPHYS(&bt->bt_mbx);
 	bt_cmd(unit, 5, 0, 0, 0, BT_MBX_INIT_EXTENDED
@@ -1307,7 +1307,7 @@ bt_inquire_setup_information(
          * Get a SCSI Synchronous value
 	 */
 	if ( info->s.sync ) {
-        	bt_cmd(unit, 1, sizeof(sync), 100, 
+        	bt_cmd(unit, 1, sizeof(sync), 100,
 				&sync,BT_GET_SYNC_VALUE,sizeof(sync));
 	}
 
@@ -1359,7 +1359,7 @@ bt_inquire_setup_information(
 
 	/*
 	 * Displayi SCSI negotiation value by each target.
-         *   						amurai@spec.co.jp 
+         *   						amurai@spec.co.jp
          */
 	for (i = 0; i < 8; i++) {
 		if (!setup.sync[i].valid )
@@ -1377,9 +1377,9 @@ bt_inquire_setup_information(
 		}
 	}
 
-	/* 
+	/*
          * Enable round-robin scheme - appeared at firmware rev. 3.31
-	 *   Below rev 3.XX firmware has a problem for issuing 
+	 *   Below rev 3.XX firmware has a problem for issuing
          *    BT_ROUND_ROBIN command  amurai@spec.co.jp
 	 */
 	if ( bID.firm_revision >= '3' ) {
@@ -1395,7 +1395,7 @@ bt_inquire_setup_information(
 #define min(x,y) (x < y ? x : y)
 #endif	/* min */
 
-void 
+void
 btminphys(bp)
 	struct buf *bp;
 {
@@ -1408,7 +1408,7 @@ btminphys(bp)
  * start a scsi operation given the command and the data address.  Also needs
  * the unit, target and lu.
  */
-int32 
+int32
 bt_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
@@ -1512,8 +1512,8 @@ bt_scsi_cmd(xs)
 				nextphys = thisphys;
 				while ((datalen) && (thisphys == nextphys))
 					/*
-					 * This page is contiguous (physically) with 
-					 * the the last, just extend the length 
+					 * This page is contiguous (physically) with
+					 * the the last, just extend the length
 					 */
 				{
 					/* how far to the end of the page */
@@ -1589,7 +1589,7 @@ bt_scsi_cmd(xs)
 /*
  * Poll a particular unit, looking for a particular xs
  */
-int 
+int
 bt_poll(unit, xs, ccb)
 	int	unit;
 	struct	scsi_xfer *xs;
@@ -1700,7 +1700,7 @@ bt_timeout(void *arg1)
 		ccb->xfer->retries = 0;		/* I MEAN IT ! */
 		ccb->host_stat = BT_ABORTED;
 		bt_done(unit, ccb);
-	} else {	
+	} else {
 		/* abort the operation that has timed out */
 		printf("bt%d: Try to abort\n", unit);
 		bt_send_mbo(unit, ~SCSI_NOMASK,

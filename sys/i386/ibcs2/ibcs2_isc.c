@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_isc.c,v 1.2 1995/02/03 21:31:32 bde Exp $
+ *	$Id: ibcs2_isc.c,v 1.3 1995/04/30 11:30:12 ache Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -48,7 +48,7 @@ int
 ibcs2_cisc(struct proc *p, void *args, int *retval)
 {
 	struct trapframe *tf = (struct trapframe *)p->p_md.md_regs;
-	
+
 	switch ((tf->tf_eax & 0xffffff00) >> 8) {
 
 	case 0x00:
@@ -87,8 +87,8 @@ ibcs2_cisc(struct proc *p, void *args, int *retval)
 
 	case 0x08:	/* pathconf */
 	case 0x09:	/* fpathconf */
-		if (ibcs2_trace & IBCS2_TRACE_ISC) 
-			printf("IBCS2: 'cisc (f)pathconf'"); 
+		if (ibcs2_trace & IBCS2_TRACE_ISC)
+			printf("IBCS2: 'cisc (f)pathconf'");
 	      	return ibcs2_pathconf(p, args, retval);
 
 	case 0x10: {	/* sysconf */
@@ -96,14 +96,14 @@ ibcs2_cisc(struct proc *p, void *args, int *retval)
 	      		int num;
 	    	} *sysconf_args = args;
 
-		if (ibcs2_trace & IBCS2_TRACE_ISC) 
-			printf("IBCS2: 'cisc sysconf'"); 
+		if (ibcs2_trace & IBCS2_TRACE_ISC)
+			printf("IBCS2: 'cisc sysconf'");
 		switch (sysconf_args->num) {
 		case 0: 	/* _SC_ARG_MAX */
 			*retval = (ARG_MAX);
 			break;
 		case 1:		/* _SC_CHILD_MAX */
-			*retval = (CHILD_MAX); 
+			*retval = (CHILD_MAX);
 			break;
 		case 2:		/* _SC_CLK_TCK */
 			*retval = (_BSD_CLK_TCK_);
@@ -182,7 +182,7 @@ ibcs2_cisc(struct proc *p, void *args, int *retval)
 		printf("IBCS2: 'cisc getmajor'");
 		break;
 	default:
-		printf("IBCS2: 'cisc' function %d(0x%x)", 
+		printf("IBCS2: 'cisc' function %d(0x%x)",
 			tf->tf_eax>>8, tf->tf_eax>>8);
 		break;
 	}

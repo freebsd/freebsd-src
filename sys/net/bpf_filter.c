@@ -37,7 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf_filter.c,v 1.3 1994/08/02 07:45:58 davidg Exp $
+ * $Id: bpf_filter.c,v 1.4 1995/04/01 01:46:27 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -115,7 +115,7 @@ m_xword(m, k, err)
 		return (cp[0] << 24) | (np[0] << 16) | (np[1] << 8) | np[2];
 
 	case 2:
-		return (cp[0] << 24) | (cp[1] << 16) | (np[0] << 8) | 
+		return (cp[0] << 24) | (cp[1] << 16) | (np[0] << 8) |
 			np[1];
 
 	default:
@@ -193,7 +193,7 @@ bpf_filter(pc, p, wirelen, buflen)
 			return 0;
 #else
 			abort();
-#endif			
+#endif
 		case BPF_RET|BPF_K:
 			return (u_int)pc->k;
 
@@ -360,7 +360,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_MEM:
 			A = mem[pc->k];
 			continue;
-			
+
 		case BPF_LDX|BPF_MEM:
 			X = mem[pc->k];
 			continue;
@@ -412,25 +412,25 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_ALU|BPF_ADD|BPF_X:
 			A += X;
 			continue;
-			
+
 		case BPF_ALU|BPF_SUB|BPF_X:
 			A -= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_MUL|BPF_X:
 			A *= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_DIV|BPF_X:
 			if (X == 0)
 				return 0;
 			A /= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_AND|BPF_X:
 			A &= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_OR|BPF_X:
 			A |= X;
 			continue;
@@ -446,23 +446,23 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_ALU|BPF_ADD|BPF_K:
 			A += pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_SUB|BPF_K:
 			A -= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_MUL|BPF_K:
 			A *= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_DIV|BPF_K:
 			A /= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_AND|BPF_K:
 			A &= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_OR|BPF_K:
 			A |= pc->k;
 			continue;
@@ -494,9 +494,9 @@ bpf_filter(pc, p, wirelen, buflen)
 /*
  * Return true if the 'fcode' is a valid filter program.
  * The constraints are that each jump be forward and to a valid
- * code.  The code must terminate with either an accept or reject. 
+ * code.  The code must terminate with either an accept or reject.
  * 'valid' is an array for use by the routine (it must be at least
- * 'len' bytes long).  
+ * 'len' bytes long).
  *
  * The kernel needs to be able to verify an application's filter code.
  * Otherwise, a bogus program could easily crash the system.
@@ -511,7 +511,7 @@ bpf_validate(f, len)
 
 	for (i = 0; i < len; ++i) {
 		/*
-		 * Check that that jumps are forward, and within 
+		 * Check that that jumps are forward, and within
 		 * the code block.
 		 */
 		p = &f[i];
@@ -529,7 +529,7 @@ bpf_validate(f, len)
 		 * Check that memory operations use valid addresses.
 		 */
 		if ((BPF_CLASS(p->code) == BPF_ST ||
-		     (BPF_CLASS(p->code) == BPF_LD && 
+		     (BPF_CLASS(p->code) == BPF_LD &&
 		      (p->code & 0xe0) == BPF_MEM)) &&
 		    (p->k >= BPF_MEMWORDS || p->k < 0))
 			return 0;

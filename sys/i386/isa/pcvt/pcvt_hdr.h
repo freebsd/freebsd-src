@@ -111,7 +111,7 @@
 #include "i386/cpufunc.h"
 #elif PCVT_FREEBSD >= 200
 #include <i386/isa/isa_device.h>
-#else 
+#else
 #include "i386/isa/isa_device.h"
 #endif
 
@@ -225,7 +225,7 @@ in the config file"
 #endif
 
 #else /* XSERVER */
-  
+
 #if PCVT_USL_VT_COMPAT
 #warning "Option PCVT_USL_VT_COMPAT meaningless without XSERVER"
 #undef PCVT_USL_VT_COMPAT
@@ -563,11 +563,11 @@ in the config file"
 /*---------------------------------------------------------------------------*
  *	VGA palette handling (output DAC palette)
  *---------------------------------------------------------------------------*/
- 
+
 #define VGA_DAC		0x3C6		/* vga dac address */
 #define VGA_PMSK	0x3F		/* palette mask, 64 distinct values */
 #define NVGAPEL 	256		/* number of palette entries */
- 
+
 /*---------------------------------------------------------------------------*
  *	function key labels
  *---------------------------------------------------------------------------*/
@@ -815,7 +815,7 @@ typedef struct video_state {
 	u_char	sc_row;			/* saved row */
 	u_char	sc_col;			/* saved col */
 	u_short sc_cur_offset;		/* saved cursor addr offset */
-	u_short	sc_attr;		/* saved attributes */	
+	u_short	sc_attr;		/* saved attributes */
 	u_char	sc_vtsgr;		/* saved sgr configuration */
 	u_char	sc_awm;			/* saved auto wrap mode */
 	u_char	sc_om;			/* saved origin mode */
@@ -824,7 +824,7 @@ typedef struct video_state {
 	u_short	*sc_G2;			/* save G2 ptr */
 	u_short	*sc_G3;			/* save G3 ptr */
 	u_short	*sc_GL;			/* save GL ptr */
-	u_short	*sc_GR;			/* save GR ptr */	
+	u_short	*sc_GR;			/* save GR ptr */
 	u_char	sc_sel;			/* selective erase state */
 	u_char	ufkl[8][17];		/* user fkey-labels */
 	u_char	sfkl[8][17];		/* system fkey-labels */
@@ -837,7 +837,7 @@ typedef struct video_state {
 	u_char	attribute;		/* attribute normal, tx only, local */
 	u_char	key;			/* fkey label no */
 	u_char	l_len;			/* buffer length's */
-	u_char	s_len;	
+	u_char	s_len;
 	u_char	m_len;
 	u_char	i;			/* help (got short of names ...) */
 	u_char	l_buf[MAX_LABEL+1]; 	/* buffers */
@@ -1411,7 +1411,7 @@ static __inline void vt_selattr(struct video_state *svsp)
 	{ u_char x = inb(0x84); } \
 	{ u_char x = inb(0x84); } \
 	{ u_char x = inb(0x84); } \
-	{ u_char x = inb(0x84); }	
+	{ u_char x = inb(0x84); }
 
 #else /* PCVT_PORTIO_DELAY */
 				/* use system supplied delay function for */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.14 1995/05/15 22:27:48 davidg Exp $
+ * $Id: disklabel.h,v 1.15 1995/05/16 07:52:17 davidg Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -104,7 +104,7 @@ struct disklabel {
 	short	d_type;			/* drive type */
 	short	d_subtype;		/* controller/d_type specific */
 	char	d_typename[16];		/* type name, e.g. "eagle" */
-	/* 
+	/*
 	 * d_packname contains the pack identifier and is returned when
 	 * the disklabel is read off the disk or in-core copy.
 	 * d_boot0 and d_boot1 are the (optional) names of the
@@ -113,15 +113,15 @@ struct disklabel {
 	 * getdiskbyname(3) to retrieve the values from /etc/disktab.
 	 */
 #if defined(KERNEL) || defined(STANDALONE)
-	char	d_packname[16];			/* pack identifier */ 
+	char	d_packname[16];			/* pack identifier */
 #else
 	union {
-		char	un_d_packname[16];	/* pack identifier */ 
+		char	un_d_packname[16];	/* pack identifier */
 		struct {
 			char *un_d_boot0;	/* primary bootstrap name */
 			char *un_d_boot1;	/* secondary bootstrap name */
-		} un_b; 
-	} d_un; 
+		} un_b;
+	} d_un;
 #define d_packname	d_un.un_d_packname
 #define d_boot0		d_un.un_b.un_d_boot0
 #define d_boot1		d_un.un_b.un_d_boot1
@@ -389,7 +389,7 @@ extern struct dos_partition dos_partitions[NDOSPART];
  * See <sys/reboot.h> for a possibly better encoding.
  *
  * "cpio -H newc" can be used to back up device files with large minor
- * numbers (but not ones >= 2^31).  Old cpio formats and all tar formats 
+ * numbers (but not ones >= 2^31).  Old cpio formats and all tar formats
  * don't have enough bits, and cpio and tar don't notice the lossage.
  * There are also some sign extension bugs.
  */

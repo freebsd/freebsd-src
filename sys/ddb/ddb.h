@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.4 1994/09/27 12:15:56 davidg Exp $
+ *	$Id: ddb.h,v 1.5 1995/03/16 18:11:01 bde Exp $
  */
 
 /*
@@ -55,8 +55,8 @@ extern int db_tab_stop_width;
 /*
  * Functions...
  */
-extern void 
-db_read_bytes(vm_offset_t addr, register int size, register char *data); 
+extern void
+db_read_bytes(vm_offset_t addr, register int size, register char *data);
 				/* machine-dependent */
 
 extern void

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_eon.c	8.1 (Berkeley) 6/10/93
- * $Id: if_eon.c,v 1.2 1994/08/02 07:50:23 davidg Exp $
+ * $Id: if_eon.c,v 1.3 1995/04/26 18:10:57 pst Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -61,10 +61,10 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/if_eon.c,v 1.2 1994/08/02 07:50:23 davidg Exp $ 
- * $Source: /home/ncvs/src/sys/netiso/if_eon.c,v $ 
+ * $Header: /home/ncvs/src/sys/netiso/if_eon.c,v 1.3 1995/04/26 18:10:57 pst Exp $
+ * $Source: /home/ncvs/src/sys/netiso/if_eon.c,v $
  *
- *	EON rfc 
+ *	EON rfc
  *  Layer between IP and CLNL
  *
  * TODO:
@@ -144,7 +144,7 @@ eonattach()
 	ENDDEBUG
 	ifp->if_unit = 0;
 	ifp->if_name = "eon";
-	ifp->if_mtu = ETHERMTU; 
+	ifp->if_mtu = ETHERMTU;
 		/* since everything will go out over ether or token ring */
 
 	ifp->if_init = eoninit;
@@ -156,7 +156,7 @@ eonattach()
 	ifp->if_flags = IFF_BROADCAST;
 	if_attach(ifp);
 	eonioctl(ifp, SIOCSIFADDR, (caddr_t)ifp->if_addrlist);
-	eon_llinfo.el_qhdr.link = 
+	eon_llinfo.el_qhdr.link =
 		eon_llinfo.el_qhdr.rlink = &(eon_llinfo.el_qhdr);
 
 	IFDEBUG(D_EON)
@@ -169,7 +169,7 @@ eonattach()
  * FUNCTION:		eonioctl
  *
  * PURPOSE:			io controls - ifconfig
- *				need commands to 
+ *				need commands to
  *					link-UP (core addr) (flags: ES, IS)
  *					link-DOWN (core addr) (flags: ES, IS)
  *				must be callable from kernel or user
@@ -237,7 +237,7 @@ caddr_t loc;
 		ro->ro_rt->rt_use++;
 	hdr->ei_ip.ip_dst = sin->sin_addr;
 	hdr->ei_ip.ip_p = IPPROTO_EON;
-	hdr->ei_ip.ip_ttl = MAXTTL;	
+	hdr->ei_ip.ip_ttl = MAXTTL;
 	hdr->ei_eh.eonh_class = class;
 	hdr->ei_eh.eonh_vers = EON_VERSION;
 	hdr->ei_eh.eonh_csum = 0;
@@ -245,12 +245,12 @@ caddr_t loc;
 	mhead.m_len = sizeof(struct eon_hdr);
 	mhead.m_next = 0;
 	IFDEBUG(D_EON)
-		printf("eonoutput : gen csum (0x%x, offset %d, datalen %d)\n", 
+		printf("eonoutput : gen csum (0x%x, offset %d, datalen %d)\n",
 			&mhead,
-			_offsetof(struct eon_hdr, eonh_csum), sizeof(struct eon_hdr)); 
+			_offsetof(struct eon_hdr, eonh_csum), sizeof(struct eon_hdr));
 	ENDDEBUG
-	iso_gen_csum(&mhead, 
-		_offsetof(struct eon_hdr, eonh_csum), sizeof(struct eon_hdr)); 
+	iso_gen_csum(&mhead,
+		_offsetof(struct eon_hdr, eonh_csum), sizeof(struct eon_hdr));
 }
 /*
  * FUNCTION:		eonrtrequest
@@ -343,7 +343,7 @@ eoninit(unit)
  *
  * RETURNS:			unix error code
  *
- * NOTES:			
+ * NOTES:
  *
  */
 eonoutput(ifp, m, dst, rt)
@@ -494,7 +494,7 @@ drop:
 		goto drop;
 	}
 	m->m_data -= sizeof(struct ip);
-		
+
 	IFDEBUG(D_EON)
 		printf("eoninput csum ok class 0x%x\n", eonhdr->eonh_class );
 		printf("eoninput: eon header:\n");
@@ -546,9 +546,9 @@ drop:
 			return;
 		}
 		IF_ENQUEUE(ifq, m);
-		IFDEBUG(D_EON) 
+		IFDEBUG(D_EON)
 			printf(
-	"0x%x enqueued on clnp Q: m_len 0x%x m_type 0x%x m_data 0x%x\n", 
+	"0x%x enqueued on clnp Q: m_len 0x%x m_type 0x%x m_data 0x%x\n",
 				m, m->m_len, m->m_type, m->m_data);
 			dump_buf(mtod(m, caddr_t), m->m_len);
 		ENDDEBUG

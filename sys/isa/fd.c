@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.59 1995/05/06 19:34:25 joerg Exp $
+ *	$Id: fd.c,v 1.60 1995/05/09 12:25:52 rgrimes Exp $
  *
  */
 
@@ -370,7 +370,7 @@ fdc_err(fdcu_t fdcu, const char *s)
 	else if(fdc_data[fdcu].fdc_errs == FDC_ERRMAX)
 		printf("fdc%d: too many errors, not logging any more\n",
 		       fdcu);
-	
+
 	return FD_FAILED;
 }
 
@@ -378,7 +378,7 @@ fdc_err(fdcu_t fdcu, const char *s)
  * fd_cmd: Send a command to the chip.  Takes a varargs with this structure:
  * Unit number,
  * # of output bytes, output bytes as ints ...,
- * # of input bytes, input bytes as ints ... 
+ * # of input bytes, input bytes as ints ...
  */
 
 int
@@ -604,7 +604,7 @@ fdattach(struct isa_device *dev)
 				unithasfd = 1;
 			if (ftattach(dev, fdup, unithasfd))
 				continue;
-			if (fdsu < DRVS_PER_CTLR) 
+			if (fdsu < DRVS_PER_CTLR)
 				fd->type = NO_TYPE;
 #endif
 			continue;
@@ -683,9 +683,9 @@ fdattach(struct isa_device *dev)
 					break; /* already probed succesfully */
 			}
 		}
-		
+
 		set_motor(fdcu, fdsu, TURNOFF);
-		
+
 		if (st0 & NE7_ST0_EC) /* no track 0 -> no drive present */
 			continue;
 
@@ -694,13 +694,13 @@ fdattach(struct isa_device *dev)
 		fd->fdsu = fdsu;
 		fd->options = 0;
 		printf("fd%d: ", fdu);
-		
+
 		fd_registerdev(fdcu, fdu);
 		switch (fdt) {
 		case RTCFDT_12M:
 			printf("1.2MB 5.25in\n");
 			fd->type = FD_1200;
-			kdc_fd[fdu].kdc_description = 
+			kdc_fd[fdu].kdc_description =
 				"1.2MB (1200K) 5.25in floppy disk drive";
 #ifdef	DEVFS
 			sprintf(name,"fd%d.1200",fdu);
@@ -787,9 +787,9 @@ set_motor(fdcu_t fdcu, int fdsu, int turnon)
 {
 	int fdout = fdc_data[fdcu].fdout;
 	int needspecify = 0;
-	
+
 	if(turnon) {
-		fdout &= ~FDO_FDSEL;		
+		fdout &= ~FDO_FDSEL;
 		fdout |= (FDO_MOEN0 << fdsu) + fdsu;
 	} else
 		fdout &= ~(FDO_MOEN0 << fdsu);
@@ -856,7 +856,7 @@ fd_motor_on(void *arg1)
 }
 
 static void
-fd_turnon(fdu_t fdu) 
+fd_turnon(fdu_t fdu)
 {
 	fd_p fd = fd_data + fdu;
 	if(!(fd->flags & FD_MOTOR))
@@ -871,7 +871,7 @@ static void
 fdc_reset(fdc_p fdc)
 {
 	fdcu_t fdcu = fdc->fdcu;
-	
+
 	/* Try a reset, keep motor on */
 	outb(fdc->baseport + FDOUT, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
 	TRACE1("[0x%x->FDOUT]", fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
@@ -978,7 +978,7 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 		return(ftopen(dev, flags));
 #endif
 	/* check bounds */
-	if (fdu >= NFD) 
+	if (fdu >= NFD)
 		return(ENXIO);
 	fdc = fd_data[fdu].fdc;
 	if ((fdc == NULL) || (fd_data[fdu].type == NO_TYPE))
@@ -1093,7 +1093,7 @@ fdstrategy(struct buf *bp)
 	if (fdc->flags & FDC_TAPE_BUSY) {
 		bp->b_error = EBUSY;
 		bp->b_flags |= B_ERROR;
-		goto bad; 
+		goto bad;
 	}
 #endif
 	if (!(bp->b_flags & B_FORMAT)) {
@@ -1111,7 +1111,7 @@ fdstrategy(struct buf *bp)
 			goto bad;
 		}
 	}
-	
+
 	/*
 	 * Set up block calculations.
 	 */
@@ -1262,7 +1262,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 
 	dp = &(fdc->head);
 	bp = dp->b_actf;
-	if(!bp) 
+	if(!bp)
 	{
 		/***********************************************\
 		* nothing left for this controller to do	*
@@ -1469,7 +1469,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		if(format)
 		{
 			/* formatting */
-			if(fd_cmd(fdcu, 6, 
+			if(fd_cmd(fdcu, 6,
 				  NE7CMD_FORMAT,
 				  head << 2 | fdu,
 				  finfo->fd_formb_secshift,
@@ -1482,7 +1482,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 				fdc->retry = 6;
 				return(retrier(fdcu));
 			}
-		}			
+		}
 		else
 		{
 			if (fd_cmd(fdcu, 9,
@@ -1761,7 +1761,7 @@ fdformat(dev, finfo, p)
 
 	bp->b_bcount = sizeof(struct fd_idfield_data) * finfo->fd_formb_nsecs;
 	bp->b_un.b_addr = (caddr_t)finfo;
-	
+
 	/* now do the format */
 	fdstrategy(bp);
 
@@ -1774,7 +1774,7 @@ fdformat(dev, finfo, p)
 			break;
 	}
 	splx(s);
-	
+
 	if(rv == EWOULDBLOCK) {
 		/* timed out */
 		rv = EIO;
@@ -1890,7 +1890,7 @@ fdioctl(dev, cmd, addr, flag, p)
 	case FD_GOPTS:			/* get drive options */
 		*(int *)addr = fd_data[FDUNIT(minor(dev))].options;
 		break;
-		
+
 	case FD_SOPTS:			/* set drive options */
 		fd_data[FDUNIT(minor(dev))].options = *(int *)addr;
 		break;

@@ -46,22 +46,22 @@
 /*
  * device status FLAGS
  */
-#define B004_EXIST 		0x0001	/* Is a B004-Board with at least one 
+#define B004_EXIST 		0x0001	/* Is a B004-Board with at least one
 					   Transputer present ? */
 #define B004_BUSY  		0x0002	/* Is the B004-board in use ? */
 
 /*
  * IOCTL numbers
  */
-#define B004RESET		_IO  ('Q', 0)	   
+#define B004RESET		_IO  ('Q', 0)
 				/* Reset transputer(s) */
-#define B004WRITEABLE		_IOR ('Q', 1, int) 
+#define B004WRITEABLE		_IOR ('Q', 1, int)
 				/* Return C012 Output Ready */
-#define B004READABLE		_IOR ('Q', 2, int) 
+#define B004READABLE		_IOR ('Q', 2, int)
 				/* Return C012 Data Present */
-#define B004ANALYSE		_IO  ('Q', 3)	   
+#define B004ANALYSE		_IO  ('Q', 3)
 				/* Switch transputer(s) to ANALYSE mode */
-#define B004ERROR		_IOR ('Q', 4, int) 
+#define B004ERROR		_IOR ('Q', 4, int)
 				/* Return 1 on ERROR set */
 #define B004TIMEOUT		_IOW ('Q', 5, int)
 				/* Set TIMEOUT for subsequent writing or

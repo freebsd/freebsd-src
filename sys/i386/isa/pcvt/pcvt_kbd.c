@@ -100,7 +100,7 @@ static u_char	altkpflag = 0;
 static u_short	altkpval  = 0;
 
 #if PCVT_SHOWKEYS
-u_char rawkeybuf[80];	
+u_char rawkeybuf[80];
 #endif
 
 #include "pcvt_kbd.h"		/* tables etc */
@@ -112,7 +112,7 @@ u_char rawkeybuf[80];
 static void showkey (char delim, u_char val)
 {
 	int rki;
-	
+
 	for(rki = 3; rki < 80; rki++)		/* shift left buffer */
 		rawkeybuf[rki-3] = rawkeybuf[rki];
 
@@ -126,7 +126,7 @@ static void showkey (char delim, u_char val)
 		rki = rki - 10 + 'A';
 
 	rawkeybuf[78] = rki;
-		
+
 	rki = val & 0x0f;		/* ls nibble */
 
 	if(rki <= 9)
@@ -202,7 +202,7 @@ check_for_lost_intr (void *arg)
 #endif /* PCVT_UPDLED_LOSES_INTR */
 
 /*---------------------------------------------------------------------------*
- *	update keyboard led's	
+ *	update keyboard led's
  *---------------------------------------------------------------------------*/
 void
 update_led(void)
@@ -253,9 +253,9 @@ settpmrate(int rate)
 	if(kbd_cmd(KEYB_C_TYPEM) != 0)
 		printf("Keyboard TYPEMATIC command timeout\n");
 	else if(kbd_cmd(tpmrate) != 0)
-		printf("Keyboard TYPEMATIC data timeout\n");	
+		printf("Keyboard TYPEMATIC data timeout\n");
 }
- 
+
 /*---------------------------------------------------------------------------*
  *	Pass command to keyboard controller (8042)
  *---------------------------------------------------------------------------*/
@@ -326,7 +326,7 @@ void
 kbd_emulate_pc(int do_emulation)
 {
 	int cmd, timeo = 10000;
-	
+
 	cmd = COMMAND_SYSFLG|COMMAND_IRQEN; /* common base cmd */
 
 #if !PCVT_USEKBDSEC
@@ -359,7 +359,7 @@ void doreset(void)
 	int again = 0;
 	int once = 0;
 	int response, opri;
-					
+
 	/* Enable interrupts and keyboard, etc. */
 	if (kbc_8042cmd(CONTR_WRITE) != 0)
 		printf("pcvt: doreset() - timeout controller write command\n");
@@ -385,7 +385,7 @@ void doreset(void)
 
 	if (kbd_cmd(KBDINITCMD) != 0)
 		printf("pcvt: doreset() - timeout writing keyboard init command\n");
-	
+
 	/*
 	 * Discard any stale keyboard activity.  The 0.1 boot code isn't
 	 * very careful and sometimes leaves a KEYB_R_RESEND.
@@ -421,7 +421,7 @@ void doreset(void)
 				splx(opri);
 				return;
 			}
-			
+
 			if((kbd_cmd(KEYB_C_RESET) != 0) && (once == 0))
 			{
 				once++;		/* print message only once ! */
@@ -471,22 +471,22 @@ r_entry:
 			else if(response == KEYB_R_MF2ID2HP)
 			{
 				keyboard_type = KB_MFII;
-			}				
+			}
 			else
 			{
 				printf("\npcvt: doreset() - kbdid, response 2 = [%d]\n",
 				       response);
 				keyboard_type = KB_UNKNOWN;
 			}
-		}	
+		}
 		else if (response == KEYB_R_ACK)
 		{
 			goto r_entry;
 		}
-		else if (response == -1)		
+		else if (response == -1)
 		{
 			keyboard_type = KB_AT;
-		}			
+		}
 		else
 		{
 			printf("\npcvt: doreset() - kbdid, response 1 = [%d]\n", response);
@@ -527,13 +527,13 @@ kbd_code_init1(void)
 }
 
 /*---------------------------------------------------------------------------*
- *	init keyboard overlay table	
+ *	init keyboard overlay table
  *---------------------------------------------------------------------------*/
 static
-void ovlinit(int force) 
+void ovlinit(int force)
 {
 	register i;
-	
+
 	if(force || ovlinitflag==0)
 	{
 		if(ovlinitflag == 0 &&
@@ -543,10 +543,10 @@ void ovlinit(int force)
 
 		for(i=0; i<OVLTBL_SIZE; i++)
 		{
-			ovltbl[i].keynum = 
+			ovltbl[i].keynum =
 			ovltbl[i].type = 0;
 			ovltbl[i].unshift[0] =
-			ovltbl[i].shift[0] = 
+			ovltbl[i].shift[0] =
 			ovltbl[i].ctrl[0] =
 			ovltbl[i].altgr[0] = 0;
 			ovltbl[i].subu =
@@ -568,7 +568,7 @@ getokeydef(unsigned key, Ovl_tbl *thisdef)
 {
 	if(key == 0 || key > MAXKEYNUM)
 		return EINVAL;
-	
+
 	thisdef->keynum = key;
 	thisdef->type = key2ascii[key].type;
 
@@ -594,8 +594,8 @@ getokeydef(unsigned key, Ovl_tbl *thisdef)
 	{
 		bcopy("",thisdef->shift,CODE_SIZE);
 		thisdef->subs = KBD_SUBT_FNC;
-	}		
-	
+	}
+
 	if(key2ascii[key].ctrl.subtype == STR)
 	{
 		bcopy((u_char *)(key2ascii[key].ctrl.what.string),
@@ -604,11 +604,11 @@ getokeydef(unsigned key, Ovl_tbl *thisdef)
 	}
 	else
 	{
-		bcopy("",thisdef->ctrl,CODE_SIZE);	
+		bcopy("",thisdef->ctrl,CODE_SIZE);
 		thisdef->subc = KBD_SUBT_FNC;
 	}
-	
-	/* deliver at least anything for ALTGR settings ... */		
+
+	/* deliver at least anything for ALTGR settings ... */
 
 	if(key2ascii[key].unshift.subtype == STR)
 	{
@@ -628,11 +628,11 @@ getokeydef(unsigned key, Ovl_tbl *thisdef)
  *	get current key definition
  *---------------------------------------------------------------------------*/
 static int
-getckeydef(unsigned key, Ovl_tbl *thisdef) 
+getckeydef(unsigned key, Ovl_tbl *thisdef)
 {
 	u_short type = key2ascii[key].type;
 
-	if(key>MAXKEYNUM) 
+	if(key>MAXKEYNUM)
 		return EINVAL;
 
 	if(type & KBD_OVERLOAD)
@@ -659,10 +659,10 @@ xlatkey2ascii(U_short key)
 	static Ovl_tbl	thisdef;
 	int		n;
 	void		(*fnc)();
-	
+
 	if(key==0)			/* ignore the NON-KEY */
 		return 0;
-	
+
 	getckeydef(key&0x7F, &thisdef);	/* get the current ASCII value */
 
 	thisdef.type &= KBD_MASK;
@@ -690,7 +690,7 @@ xlatkey2ascii(U_short key)
 		case KBD_FUNC:
 			fnc = NULL;
 			more_chars = NULL;
-			
+
 			if(altgr_down)
 			{
 				more_chars = (u_char *)thisdef.altgr;
@@ -702,7 +702,7 @@ xlatkey2ascii(U_short key)
 				else
 					fnc = key2ascii[key].shift.what.func;
 			}
-				
+
 			else if(ctrl_down)
 			{
 				if(key2ascii[key].ctrl.subtype == STR)
@@ -710,7 +710,7 @@ xlatkey2ascii(U_short key)
 				else
 					fnc = key2ascii[key].ctrl.what.func;
 			}
-	
+
 			else
 			{
 				if(key2ascii[key].unshift.subtype == STR)
@@ -718,10 +718,10 @@ xlatkey2ascii(U_short key)
 				else
 					fnc = key2ascii[key].unshift.what.func;
 			}
-	
+
 			if(fnc)
 				(*fnc)();	/* execute function */
-					
+
 			if((more_chars != NULL) && (more_chars[1] == 0))
 			{
 				if(vsp->caps_lock && more_chars[0] >= 'a'
@@ -745,7 +745,7 @@ xlatkey2ascii(U_short key)
 		case KBD_KP:
 			fnc = NULL;
 			more_chars = NULL;
-	
+
 			if(meta_down)
 			{
 				switch(key)
@@ -755,13 +755,13 @@ xlatkey2ascii(U_short key)
 						more_chars =
 						 (u_char *)"\033OQ";
 						return(more_chars);
-						
+
 					case 100:	/* * */
 						altkpflag = 0;
 						more_chars =
 						 (u_char *)"\033OR";
 						return(more_chars);
-						
+
 					case 105:	/* - */
 						altkpflag = 0;
 						more_chars =
@@ -770,7 +770,7 @@ xlatkey2ascii(U_short key)
 				}
 			}
 
-			if(meta_down || altgr_down)				
+			if(meta_down || altgr_down)
 			{
 				if((n = keypad2num[key-91]) >= 0)
 				{
@@ -786,8 +786,8 @@ xlatkey2ascii(U_short key)
 				else
 					altkpflag = 0;
 				return 0;
-			} 
-	
+			}
+
 			if(!(vsp->num_lock))
 			{
 				if(key2ascii[key].shift.subtype == STR)
@@ -802,15 +802,15 @@ xlatkey2ascii(U_short key)
 				else
 					fnc = key2ascii[key].unshift.what.func;
 			}
-	
+
 			if(fnc)
 				(*fnc)();	/* execute function */
 			return(more_chars);
-	
+
 		case KBD_CURSOR:
 			fnc = NULL;
 			more_chars = NULL;
-	
+
 			if(vsp->ckm)
 			{
 				if(key2ascii[key].shift.subtype == STR)
@@ -825,14 +825,14 @@ xlatkey2ascii(U_short key)
 				else
 					fnc = key2ascii[key].unshift.what.func;
 			}
-	
+
 			if(fnc)
 				(*fnc)();	/* execute function */
 			return(more_chars);
 
 		case KBD_NUM:		/*  special kp-num handling */
 			more_chars = NULL;
-			
+
 			if(meta_down)
 			{
 				more_chars = (u_char *)"\033OP"; /* PF1 */
@@ -869,7 +869,7 @@ xlatkey2ascii(U_short key)
 				more_chars = metachar;
 			}
 			return(more_chars);
-			
+
 		case KBD_META:		/* these keys are	*/
 		case KBD_ALTGR:		/*  handled directly	*/
 		case KBD_SCROLL:	/*  by the keyboard	*/
@@ -905,7 +905,7 @@ sgetc(int noblock)
 #if PCVT_KBD_FIFO && PCVT_SLOW_INTERRUPT
 	int		s;
 #endif
-	
+
 	static u_char	kbd_lastkey = 0; /* last keystroke */
 
 	static struct
@@ -923,7 +923,7 @@ sgetc(int noblock)
 #endif /* XSERVER */
 
 loop:
-	
+
 #ifdef XSERVER
 
 #if PCVT_KBD_FIFO
@@ -952,7 +952,7 @@ loop:
 #else /* !PCVT_KB_FIFO */
 
 	/* see if there is data from the keyboard available from the 8042 */
-	
+
 	if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
 	{
 		PCVT_KBD_DELAY();		/* 7 us delay */
@@ -1088,7 +1088,7 @@ loop:
 					{0x87,   4,  -4,   0,   0}  /* SE */
 				}
 				};
-				
+
 				if(dt == 0xe0)
 				{
 					/* ignore extended scan codes */
@@ -1211,7 +1211,7 @@ loop:
 						 && now.tv_usec
 						 < mousedef.acceltime);
 					break;
-					
+
 				default: /* not a mouse-emulating key */
 					goto no_mouse_event;
 				}
@@ -1261,7 +1261,7 @@ no_mouse_event:
 #else /* !PCVT_KBD_FIFO */
 
 	/* see if there is data from the keyboard available from the 8042 */
-	
+
 	if(inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
 	{
 		PCVT_KBD_DELAY();		/* 7 us delay */
@@ -1305,12 +1305,12 @@ no_mouse_event:
 			kbd_status.ext1 = 1;
 			/* FALLTHROUGH */
 		case KEYB_R_EXT0:	/* keyboard extended scancode pfx 1 */
-			kbd_status.extended = 1; 
+			kbd_status.extended = 1;
 			break;
 
 #if PCVT_SCANSET == 2
 		case KEYB_R_BREAKPFX:	/* break code prefix for set 2 and 3 */
-			kbd_status.breakseen = 1; 
+			kbd_status.breakseen = 1;
 			break;
 #endif /* PCVT_SCANSET == 2 */
 
@@ -1347,7 +1347,7 @@ regular:
 	if((key == 76) && ctrl_down && (meta_down||altgr_down))
 		cpu_reset();
 #endif /* PCVT_CTRL_ALT_DEL */
-		
+
 #if !(PCVT_NETBSD || PCVT_FREEBSD >= 200)
 #include "ddb.h"
 #endif /* !(PCVT_NETBSD || PCVT_FREEBSD >= 200) */
@@ -1357,7 +1357,7 @@ regular:
   	if((key == 110) && ctrl_down && (meta_down || altgr_down))
  	{
  		static u_char in_Debugger;
- 
+
  		if(!in_Debugger)
  		{
  			in_Debugger = 1;
@@ -1441,7 +1441,7 @@ regular:
 		else
 			goto loop;
 	}
-	
+
 	type = key2ascii[key].type;
 
 	if(type & KBD_OVERLOAD)
@@ -1457,7 +1457,7 @@ regular:
 				vsp->shift_lock ^= 1;
 			}
 			break;
-			
+
 		case KBD_CAPS:
 			if(!kbd_status.breakseen && key != kbd_lastkey)
 			{
@@ -1465,7 +1465,7 @@ regular:
 				update_led();
 			}
 			break;
-			
+
 		case KBD_SCROLL:
 			if(!kbd_status.breakseen && key != kbd_lastkey)
 			{
@@ -1479,7 +1479,7 @@ regular:
 				}
 			}
 			break;
-			
+
 		case KBD_SHIFT:
 			shift_down = kbd_status.breakseen ? 0 : 1;
 			break;
@@ -1509,7 +1509,7 @@ regular:
 	}			 /* N-Key-Rollover, but I ignore that */
 	else			 /* because avoidance is too complicated */
 		kbd_lastkey = key;
-	
+
 	cp = xlatkey2ascii(key);	/* have a key */
 
 	if(cp == NULL && !noblock)
@@ -1537,13 +1537,13 @@ static int
 rmkeydef(int key)
 {
 	register Ovl_tbl *ref;
-	
+
 	if(key==0 || key > MAXKEYNUM)
 		return EINVAL;
 
 	if(key2ascii[key].type & KBD_OVERLOAD)
 	{
-		ref = &ovltbl[key2ascii[key].ovlindex];		
+		ref = &ovltbl[key2ascii[key].ovlindex];
 		ref->keynum = 0;
 		ref->type = 0;
 		ref->unshift[0] =
@@ -1553,7 +1553,7 @@ rmkeydef(int key)
 		key2ascii[key].type &= KBD_MASK;
 	}
 	return 0;
-}	
+}
 
 /*---------------------------------------------------------------------------*
  *	overlay a key
@@ -1577,7 +1577,7 @@ setkeydef(Ovl_tbl *data)
 	data->subs =
 	data->subc =
 	data->suba = KBD_SUBT_STR;		/* just strings .. */
-	
+
 	data->type |= KBD_OVERLOAD;		/* mark overloaded */
 
 	/* if key already overloaded, use that slot else find free slot */
@@ -1592,7 +1592,7 @@ setkeydef(Ovl_tbl *data)
 			if(ovltbl[i].keynum==0)
 				break;
 
-		if(i==OVLTBL_SIZE) 
+		if(i==OVLTBL_SIZE)
 			return ENOSPC;	/* no space, abuse of ENOSPC(!) */
 	}
 
@@ -1600,7 +1600,7 @@ setkeydef(Ovl_tbl *data)
 
 	key2ascii[data->keynum].type |= KBD_OVERLOAD; 	/* mark key */
 	key2ascii[data->keynum].ovlindex = i;
-	
+
 	return 0;
 }
 
@@ -1657,7 +1657,7 @@ kbdioctl(Dev_t dev, int cmd, caddr_t data, int flag)
 
 		case KBDGCKEY:
 			key = ((Ovl_tbl *)data)->keynum;
-			return getckeydef(key,(Ovl_tbl *)data);		
+			return getckeydef(key,(Ovl_tbl *)data);
 
 		case KBDSCKEY:
 			key = ((Ovl_tbl *)data)->keynum;
@@ -1673,7 +1673,7 @@ kbdioctl(Dev_t dev, int cmd, caddr_t data, int flag)
 
 		case KBDDEFAULT:
 			ovlinit(1);
-			break;	
+			break;
 
 		default:
 			/* proceed with vga ioctls */
@@ -1690,17 +1690,17 @@ int
 mouse_ioctl(Dev_t dev, int cmd, caddr_t data)
 {
 	struct mousedefs *def = (struct mousedefs *)data;
-	
+
 	switch(cmd)
 	{
 		case KBDMOUSEGET:
 			*def = mousedef;
 			break;
-			
+
 		case KBDMOUSESET:
 			mousedef = *def;
 			break;
-			
+
 		default:
 			return -1;
 	}
@@ -1731,14 +1731,14 @@ get_usl_keymap(keymap_t *map)
 	bzero((caddr_t)map, sizeof(keymap_t));
 
 	map->n_keys = 0x59;	/* that many keys we know about */
-	
+
 	for(i = 1; i < N_KEYNUMS; i++)
 	{
 		Ovl_tbl kdef;
 		u_char c;
 		int j;
 		int idx = key2scan1[i];
-		
+
 		if(idx == 0 || idx >= map->n_keys)
 			continue;
 
@@ -1765,7 +1765,7 @@ get_usl_keymap(keymap_t *map)
 			if((c & 0x7f) >= 0x40)
 				map->key[idx].map[5] = iso2ibm(c ^ 0x20);
 			break;
-			
+
 		case KBD_FUNC:
 			/* we are only interested in F1 thru F12 here */
 			if(i >= 112 && i <= 123) {
@@ -1796,12 +1796,12 @@ get_usl_keymap(keymap_t *map)
 				map->key[idx].map[j] = c;
 			map->key[idx].spcl = 0xff;
 			break;
-			
+
 		default:
 			break;
 		}
 	}
-}		
+}
 
 #endif /* PCVT_USL_VT_COMPAT */
 
@@ -1932,7 +1932,7 @@ fkey5(void)
 	if(!meta_down)
 	{
 		if((vsp->vt_pure_mode == M_HPVT)
-		   && (vsp->which_fkl == SYS_FKL))	
+		   && (vsp->which_fkl == SYS_FKL))
 			toggl_bell(vsp);
 		else
 			more_chars = (u_char *)"\033[21~";	/* F10 */
@@ -1954,7 +1954,7 @@ fkey6(void)
 	if(!meta_down)
 	{
 		if((vsp->vt_pure_mode == M_HPVT)
-		   && (vsp->which_fkl == SYS_FKL))	
+		   && (vsp->which_fkl == SYS_FKL))
 			toggl_sevenbit(vsp);
 		else
 			more_chars = (u_char *)"\033[23~";	/* F11 */
@@ -1998,7 +1998,7 @@ fkey8(void)
 	if(!meta_down)
 	{
 		if((vsp->vt_pure_mode == M_HPVT)
-		   && (vsp->which_fkl == SYS_FKL))	
+		   && (vsp->which_fkl == SYS_FKL))
 			toggl_awm(vsp);
 		else
 			more_chars = (u_char *)"\033[25~";	/* F13 */
@@ -2021,7 +2021,7 @@ fkey9(void)
 	{
 		if(vsp->vt_pure_mode == M_PUREVT)
 			return;
-	
+
 		if(vsp->labels_on)	/* toggle label display on/off */
 			fkl_off(vsp);
 		else
@@ -2477,7 +2477,7 @@ fkey5(void)
 static void
 fkey6(void)
 {
-	if(meta_down)	
+	if(meta_down)
 		more_chars = (u_char *)"\033[29~"; /* DO */
 	else
 		more_chars = (u_char *)"\033[17~"; /* F6 */
@@ -2855,7 +2855,7 @@ cfkey5(void)
 static void
 cfkey6(void)
 {
-	if(vsp->which_fkl == SYS_FKL)	
+	if(vsp->which_fkl == SYS_FKL)
 		toggl_sevenbit(vsp);
 }
 
@@ -2875,7 +2875,7 @@ cfkey7(void)
 static void
 cfkey8(void)
 {
-	if(vsp->which_fkl == SYS_FKL)	
+	if(vsp->which_fkl == SYS_FKL)
 		toggl_awm(vsp);
 }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.17 1995/04/20 03:18:17 julian Exp $
+ *	$Id: mount.h,v 1.18 1995/05/21 21:39:24 davidg Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -298,7 +298,7 @@ struct vfsops {
 	}; \
 	DATA_SET(vfs_set,_fs_vfsconf)
 #endif /* VFS_LKM */
-				
+
 #endif /* KERNEL */
 
 /*

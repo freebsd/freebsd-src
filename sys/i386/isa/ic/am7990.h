@@ -62,7 +62,7 @@ typedef struct {
     unsigned short d_status;
 #define	LN_DSTS_RxLENMASK	0x0FFF	/* (R )  Recieve Length */
 #define	LN_DSTS_TxTDRMASK	0x03FF	/* (R )  Transmit - Time Domain Reflectometer */
-#define	LN_DSTS_TxEXCCOLL	0x0400	/* (R )  Transmit - Excessive Collisions */ 
+#define	LN_DSTS_TxEXCCOLL	0x0400	/* (R )  Transmit - Excessive Collisions */
 #define	LN_DSTS_TxCARRLOSS	0x0800	/* (R )  Transmit - Carrier Loss */
 #define	LN_DSTS_TxLATECOLL	0x1000	/* (R )  Transmit - Late Collision */
 #define	LN_DSTS_TxUNDERFLOW	0x4000	/* (R )  Transmit - Underflow */

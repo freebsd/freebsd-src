@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_snpac.h	8.1 (Berkeley) 6/10/93
- * $Id: iso_snpac.h,v 1.3 1994/08/21 06:14:21 paul Exp $
+ * $Id: iso_snpac.h,v 1.4 1995/03/28 07:57:14 bde Exp $
  */
 
 #ifndef _NETISO_ISO_SNPAC_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -69,7 +69,7 @@ SOFTWARE.
 struct snpa_req {
 	struct iso_addr	sr_isoa;		/* nsap address */
 	u_char			sr_len;			/* length of snpa */
-	u_char			sr_snpa[MAX_SNPALEN];	/* snpa associated 
+	u_char			sr_snpa[MAX_SNPALEN];	/* snpa associated
 												with nsap address */
 	u_char			sr_flags;		/* true if entry is valid */
 	u_short			sr_ht;			/* holding time */

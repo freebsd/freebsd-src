@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.3 1995/03/16 18:14:26 bde Exp $
+ * $Id: if_fddisubr.c,v 1.4 1995/05/09 13:35:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -134,7 +134,7 @@ fddi_output(ifp, m0, dst, rt0)
 		if ((rt->rt_flags & RTF_UP) == 0) {
 			if (rt0 = rt = RTALLOC1(dst, 1))
 				rt->rt_refcnt--;
-			else 
+			else
 				senderr(EHOSTUNREACH);
 		}
 		if (rt->rt_flags & RTF_GATEWAY) {
@@ -222,7 +222,7 @@ fddi_output(ifp, m0, dst, rt0)
 #ifdef	LLC
 /*	case AF_NSAP: */
 	case AF_CCITT: {
-		register struct sockaddr_dl *sdl = 
+		register struct sockaddr_dl *sdl =
 			(struct sockaddr_dl *) rt -> rt_gateway;
 
 		if (sdl && sdl->sdl_family == AF_LINK
@@ -251,14 +251,14 @@ fddi_output(ifp, m0, dst, rt0)
 			printf("fddi_output: sending LLC2 pkt to: ");
 			for (i=0; i<6; i++)
 				printf("%x ", edst[i] & 0xff);
-			printf(" len 0x%x dsap 0x%x ssap 0x%x control 0x%x\n", 
+			printf(" len 0x%x dsap 0x%x ssap 0x%x control 0x%x\n",
 			       type & 0xff, l->llc_dsap & 0xff, l->llc_ssap &0xff,
 			       l->llc_control & 0xff);
 
 		}
 #endif /* LLC_DEBUG */
 		} break;
-#endif /* LLC */	
+#endif /* LLC */
 
 	case AF_UNSPEC:
 	{
@@ -440,7 +440,7 @@ fddi_input(ifp, fh, m)
 	}
 #endif /* INET || NS */
 #ifdef	ISO
-	case LLC_ISO_LSAP: 
+	case LLC_ISO_LSAP:
 		switch (l->llc_control) {
 		case LLC_UI:
 			/* LLC_UI_P forbidden in class 1 service */
@@ -462,7 +462,7 @@ fddi_input(ifp, fh, m)
 				break;
 			}
 			goto dropanyway;
-			
+
 		case LLC_XID:
 		case LLC_XID_P:
 			if(m->m_len < 6)
@@ -490,7 +490,7 @@ fddi_input(ifp, fh, m)
 			eh2 = (struct ether_header *)sa.sa_data;
 			for (i = 0; i < 6; i++) {
 				eh2->ether_shost[i] = c = eh->fddi_dhost[i];
-				eh2->ether_dhost[i] = 
+				eh2->ether_dhost[i] =
 					eh->ether_dhost[i] = eh->fddi_shost[i];
 				eh2->ether_shost[i] = c;
 			}
@@ -511,7 +511,7 @@ fddi_input(ifp, fh, m)
 		if (m == 0)
 			return;
 		if ( !sdl_sethdrif(ifp, fh->fddi_shost, LLC_X25_LSAP,
-				    fh->fddi_dhost, LLC_X25_LSAP, 6, 
+				    fh->fddi_dhost, LLC_X25_LSAP, 6,
 				    mtod(m, struct sdl_hdr *)))
 			panic("ETHER cons addr failure");
 		mtod(m, struct sdl_hdr *)->sdlhdr_len = m->m_pkthdr.len - sizeof(struct sdl_hdr);
@@ -523,7 +523,7 @@ fddi_input(ifp, fh, m)
 		break;
 	}
 #endif /* LLC */
-		
+
 	default:
 		printf("fddi_input: unknown dsap 0x%x\n", l->llc_dsap);
 		ifp->if_noproto++;

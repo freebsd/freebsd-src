@@ -1,10 +1,10 @@
-/* 
+/*
  * Copyright (c) Computing Centre, University of British Columbia, 1984
- * Copyright (C) Computer Science Department IV, 
+ * Copyright (C) Computer Science Department IV,
  * 		 University of Erlangen-Nuremberg, Germany, 1990, 1992
  * Copyright (c) 1990, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
- * 
+ *
  * This code is derived from software contributed to Berkeley by the
  * Laboratory for Computation Vision and the Computer Science Department
  * of the the University of British Columbia and the Computer Science
@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_timer.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: pk_timer.c,v 1.2 1994/08/02 07:47:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ pk_timer ()
 				if ((lcp = *pp) == 0)
 					continue;
 				switch (lcp -> lcd_state) {
-				case SENT_CALL: 
+				case SENT_CALL:
 					if (--lcp -> lcd_timer == 0) {
 					    if (lcp -> lcd_so)
 						lcp -> lcd_so -> so_error = ETIMEDOUT;
@@ -101,7 +101,7 @@ pk_timer ()
 					}
 					break;
 
-				case SENT_CLEAR: 
+				case SENT_CLEAR:
 					if (lcp -> lcd_retry >= 3)
 						lcns_jammed++;
 					else

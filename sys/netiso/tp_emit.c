@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_emit.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_emit.c,v 1.2 1994/08/02 07:51:02 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,10 +60,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_emit.c,v 1.1.1.1 1994/05/24 10:06:56 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_emit.c,v 1.2 1994/08/02 07:51:02 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_emit.c,v $
  *
  * This file contains tp_emit() and tp_error_emit(), which
@@ -133,19 +133,19 @@ char tp_delay = 0x00; /* delay to keep token ring from blowing it */
  * 	For DR and ER tpdus, the argument (eot) is
  * 	the reason for issuing the tpdu rather than an end-of-tsdu indicator.
  *
- * RETURNS:			
+ * RETURNS:
  * 	0  OK
- * 	ENOBUFS 
- * 	E* returned from net layer output rtn 
+ * 	ENOBUFS
+ * 	E* returned from net layer output rtn
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
- *  
- * 	WE ASSUME that the tp header + all options will fit in ONE mbuf.  
+ * NOTES:
+ *
+ * 	WE ASSUME that the tp header + all options will fit in ONE mbuf.
  *	If mbufs are 256 this will most likely be true, but if they are 128 it's
- *	possible that they won't. 
- *	If you used every option on the CR + max. user data you'd overrun 
+ *	possible that they won't.
+ *	If you used every option on the CR + max. user data you'd overrun
  *	112 but unless you used > 115 bytes for the security
  *	parameter, it would fit in a 256-byte mbuf (240 bytes for the header)
  *	We don't support the security parameter, so this isn't a problem.
@@ -171,7 +171,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 	u_int 	eot;
 	struct mbuf *data;
 {
-	register struct tpdu *hdr; 
+	register struct tpdu *hdr;
 	register struct mbuf *m;
 	int csum_offset=0;
 	int datalen = 0;
@@ -202,7 +202,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 			m->m_flags = M_PKTHDR;
 		}
 	} else {
-		MGETHDR(m, M_DONTWAIT, TPMT_TPHDR); 
+		MGETHDR(m, M_DONTWAIT, TPMT_TPHDR);
 	}
 	m->m_data += max_hdr;
 	if (m == NULL) {
@@ -221,13 +221,13 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 		int 	tp_headersize();
 
 		hdr->tpdu_type = dutype;
-		hdr->tpdu_li = tp_headersize(dutype, tpcb);  
+		hdr->tpdu_li = tp_headersize(dutype, tpcb);
 		/*
 		 * class 0 doesn't use this for DT
-		 * it'll just get overwritten below 
+		 * it'll just get overwritten below
 		 */
-		hdr->tpdu_dref = htons(tpcb->tp_fref); 
-		if( tpcb->tp_use_checksum || 
+		hdr->tpdu_dref = htons(tpcb->tp_fref);
+		if( tpcb->tp_use_checksum ||
 			(dutype == CR_TPDU_type && (tpcb->tp_class & TP_CLASS_4) )) {
 			csum_offset =  hdr->tpdu_li + 2; /* DOESN'T include csum */
 			ADDOPTION(TPP_checksum, hdr, 2, eot /* dummy arg */);
@@ -236,7 +236,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 					"tp_emit: csum_offset 0x%x, hdr->tpdu_li 0x%x\n",
 						csum_offset, hdr->tpdu_li);
 			ENDDEBUG
-		} 
+		}
 		/*
 		 * VARIABLE PARTS...
 		 */
@@ -244,7 +244,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 
 		case CR_TPDU_type:
 			hdr->tpdu_CRdref_0 = 0;	/* must be zero */
-		case CC_TPDU_type: 
+		case CC_TPDU_type:
 			if (!tpcb->tp_cebit_off) {
 				tpcb->tp_win_recv = tp_start_win << 8;
 				LOCAL_CREDIT(tpcb);
@@ -274,7 +274,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 					hdr->tpdu_cdt = 0;
 				}
 				hdr->tpdu_CCclass = tp_mask_to_num(tpcb->tp_class);
-				hdr->tpdu_CCoptions = 
+				hdr->tpdu_CCoptions =
 					(tpcb->tp_xtd_format? TPO_XTD_FMT:0) |
 					(tpcb->tp_use_efc? TPO_USE_EFC:0);
 
@@ -297,7 +297,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 					IncStat(ts_CC_sent);
 				}
 
-				ADDOPTION(TPP_tpdu_size, hdr, 
+				ADDOPTION(TPP_tpdu_size, hdr,
 					sizeof(tpcb->tp_tpdusize), tpcb->tp_tpdusize);
 
 				if (tpcb->tp_class != TP_CLASS_0) {
@@ -307,7 +307,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 					ADDOPTION(TPP_acktime, hdr, sizeof(short), millisec);
 
 					x = (tpcb->tp_use_nxpd? TPAO_USE_NXPD: 0)
-					 |	(tpcb->tp_use_rcc?  TPAO_USE_RCC : 0) 
+					 |	(tpcb->tp_use_rcc?  TPAO_USE_RCC : 0)
 					 |  (tpcb->tp_use_checksum?0: TPAO_NO_CSUM)
 					 |	(tpcb->tp_xpd_service? TPAO_USE_TXPD: 0);
 					ADDOPTION(TPP_addl_opt, hdr, 1, x);
@@ -326,7 +326,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 						}
 					}
 				}
-					
+
 				if( (dutype == CR_TPDU_type) && (tpcb->tp_class != TP_CLASS_0)){
 
 					ASSERT( 1 == sizeof(tpcb->tp_vers) );
@@ -346,7 +346,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 					ADDOPTION(TPP_alt_class, hdr, 1, x);
 				}
 
-				if( hdr->tpdu_li > MLEN) 
+				if( hdr->tpdu_li > MLEN)
 					panic("tp_emit CR/CC");
 			}
 			break;
@@ -430,7 +430,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 		case DT_TPDU_type:
 			hdr->tpdu_cdt = 0;
 			IFTRACE(D_DATA)
-				tptraceTPCB(TPPTmisc, "emit DT: eot seq tpdu_li", eot, seq, 
+				tptraceTPCB(TPPTmisc, "emit DT: eot seq tpdu_li", eot, seq,
 					hdr->tpdu_li, 0);
 			ENDTRACE
 			if (tpcb->tp_xtd_format) {
@@ -467,13 +467,13 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 			break;
 
 		case AK_TPDU_type:/* ak not used in class 0 */
-			ASSERT( tpcb->tp_class != TP_CLASS_0); 
+			ASSERT( tpcb->tp_class != TP_CLASS_0);
 			data = (struct mbuf *)0;
 			olduwe = tpcb->tp_sent_uwe;
 
 			if (seq != tpcb->tp_sent_rcvnxt || tpcb->tp_rsycnt == 0) {
-				LOCAL_CREDIT( tpcb ); 
-				tpcb->tp_sent_uwe = 
+				LOCAL_CREDIT( tpcb );
+				tpcb->tp_sent_uwe =
 					SEQ(tpcb,tpcb->tp_rcvnxt + tpcb->tp_lcredit -1);
 				tpcb->tp_sent_lcdt = tpcb->tp_lcredit;
 				acking_ooo = 0;
@@ -481,14 +481,14 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 				acking_ooo = 1;
 
 			IFDEBUG(D_RENEG)
-				/* occasionally fake a reneging so 
+				/* occasionally fake a reneging so
 					you can test subsequencing */
 				if( olduwe & 0x1 ) {
 					tpcb->tp_reneged = 1;
 					IncStat(ts_ldebug);
 				}
 			ENDDEBUG
-			/* Are we about to reneg on credit? 
+			/* Are we about to reneg on credit?
 			 * When might we do so?
 			 *	a) when using optimistic credit (which we no longer do).
 			 *  b) when drain() gets implemented (not in the plans).
@@ -501,7 +501,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 				tpcb->tp_reneged = 1;
 				IncStat(ts_lcdt_reduced);
 				IFTRACE(D_CREDIT)
-					tptraceTPCB(TPPTmisc, 
+					tptraceTPCB(TPPTmisc,
 						"RENEG: olduwe newuwe lcredit rcvnxt",
 						olduwe,
 						tpcb->tp_sent_uwe, tpcb->tp_lcredit,
@@ -514,7 +514,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 				 */
 				if( SEQ_LT( tpcb, tpcb->tp_rcvnxt, olduwe) ) {
 					/* tmp1 = number of pkts fewer than the full window */
-					register int tmp1 = 
+					register int tmp1 =
 						(int) SEQ_SUB( tpcb, olduwe, tpcb->tp_rcvnxt);
 
 					if(tmp1 > TP_PM_MAX)
@@ -526,7 +526,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 					if(tmp1 > TP_PM_MAX )
 						tmp1 = TP_PM_MAX;
 
-					IncPStat( tpcb, 
+					IncPStat( tpcb,
 							tps_cdt_acked [ tmp1 ]
 							[ ((tpcb->tp_lcredit > TP_PM_MAX)?
 								TP_PM_MAX:tpcb->tp_lcredit) ] );
@@ -535,7 +535,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 			ENDPERF
 
 			IFTRACE(D_ACKSEND)
-				tptraceTPCB(TPPTack, seq, tpcb->tp_lcredit, tpcb->tp_sent_uwe, 
+				tptraceTPCB(TPPTack, seq, tpcb->tp_lcredit, tpcb->tp_sent_uwe,
 					tpcb->tp_r_subseq, 0);
 			ENDTRACE
 			if (tpcb->tp_xtd_format) {
@@ -547,7 +547,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 				hdr->tpdu_seqeotX = htonl(seqeotX.s_seqeot);
 				hdr->tpdu_AKcdtX = htons(tpcb->tp_lcredit);
 #else
-				hdr->tpdu_cdt = 0; 
+				hdr->tpdu_cdt = 0;
 				hdr->tpdu_AKseqX = seq;
 				hdr->tpdu_AKcdtX = tpcb->tp_lcredit;
 #endif /* BYTE_ORDER */
@@ -557,8 +557,8 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 			}
 			if ((tpcb->tp_class == TP_CLASS_4) &&
 				(tpcb->tp_reneged || acking_ooo)) {
-				/* 
-				 * Ack subsequence parameter req'd if WE reneged on 
+				/*
+				 * Ack subsequence parameter req'd if WE reneged on
 				 * credit offered.  (ISO 8073, 12.2.3.8.2, p. 74)
 				 */
 				IFDEBUG(D_RENEG)
@@ -568,13 +568,13 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 				/*
 				 * add tmp subseq and do a htons on it.
 				 */
-				ADDOPTION(TPP_subseq, hdr, 
+				ADDOPTION(TPP_subseq, hdr,
 					sizeof(tpcb->tp_s_subseq), tpcb->tp_s_subseq);
 			} else
 				tpcb->tp_s_subseq = 0;
 
 			if ( tpcb->tp_sendfcc || eot ) /* overloaded to mean SEND FCC */ {
-				/* 
+				/*
 				 * Rules for sending FCC ("should" send when) :
 				 * %a) received an ack from peer with NO NEWS whatsoever,
 				 *  	and it did not contain an FCC
@@ -584,19 +584,19 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 				 *		and below UWE at time of reneging (reduction)
 				 * Now, ISO 8073 12.2.3.8.3 says
 				 * that a retransmitted AK shall not contain the FCC
-				 * parameter.  Now, how the hell you tell the difference 
-				 * between a retransmitted ack and an ack that's sent in 
+				 * parameter.  Now, how the hell you tell the difference
+				 * between a retransmitted ack and an ack that's sent in
 				 * response to a received ack, I don't know, because without
 				 * any local activity, and w/o any received DTs, they
 				 * will contain exactly the same credit/seq# information.
 				 * Anyway, given that the "retransmission of acks"
 				 * procedure (ISO 8073 12.2.3.8.3) is optional, and we
-				 * don't do it (although the peer can't tell that), we 
+				 * don't do it (although the peer can't tell that), we
 				 * ignore this last rule.
 				 *
-				 * We send FCC for reasons a) and b) only. 
+				 * We send FCC for reasons a) and b) only.
 				 * To add reason c) would require a ridiculous amount of state.
-				 * 
+				 *
 				 */
 				u_short 	bogus[4]; /* lwe(32), subseq(16), cdt(16) */
 				SeqNum		lwe;
@@ -613,15 +613,15 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 				bcopy((caddr_t) &fcredit, (caddr_t)&bogus[3], sizeof(u_short));
 
 				IFTRACE(D_ACKSEND)
-					tptraceTPCB(TPPTmisc, 
-						"emit w/FCC: snduna r_subseq fcredit", 
+					tptraceTPCB(TPPTmisc,
+						"emit w/FCC: snduna r_subseq fcredit",
 						tpcb->tp_snduna, tpcb->tp_r_subseq,
 						tpcb->tp_fcredit, 0);
 				ENDTRACE
 
 				IFDEBUG(D_ACKSEND)
 					printf("Calling ADDOPTION 0x%x, 0x%x, 0x%x,0x%x\n",
-						TPP_flow_cntl_conf, 
+						TPP_flow_cntl_conf,
 						hdr, sizeof(bogus), bogus[0]);
 				ENDDEBUG
 				ADDOPTION(TPP_flow_cntl_conf, hdr, sizeof(bogus), bogus[0]);
@@ -632,7 +632,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 					"after ADDOPTION csum_offset 0x%x, hdr->tpdu_li 0x%x\n",
 							csum_offset, hdr->tpdu_li);
 				ENDDEBUG
-					
+
 			}
 			tpcb->tp_reneged = 0;
 			tpcb->tp_sent_rcvnxt = seq;
@@ -654,7 +654,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 			break;
 
 		case ER_TPDU_type:
-			hdr->tpdu_ERreason = eot; 
+			hdr->tpdu_ERreason = eot;
 			hdr->tpdu_cdt = 0;
 			/* no user data */
 			data = (struct mbuf *)0;
@@ -670,7 +670,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 	ASSERT( hdr->tpdu_li < MLEN ); /* leave this in */
 	ASSERT( hdr->tpdu_li != 0 ); /* leave this in */
 
-	m->m_len = hdr->tpdu_li ; 
+	m->m_len = hdr->tpdu_li ;
 	hdr->tpdu_li --; /* doesn't include the li field */
 
 	datalen = m_datalen( m ); /* total len */
@@ -683,7 +683,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 					csum_offset, hdr->tpdu_li);
 		ENDDEBUG
 	if( datalen > tpcb->tp_l_tpdusize ) {
-		printf("data len 0x%x tpcb->tp_l_tpdusize 0x%x\n", 
+		printf("data len 0x%x tpcb->tp_l_tpdusize 0x%x\n",
 			datalen, tpcb->tp_l_tpdusize);
 	}
 	IFDEBUG(D_EMIT)
@@ -691,7 +691,7 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 		"tp_emit before gen_csum m_len 0x%x, csum_offset 0x%x, datalen 0x%x\n",
 		m->m_len, csum_offset, datalen);
 	ENDDEBUG
-	if( tpcb->tp_use_checksum || 
+	if( tpcb->tp_use_checksum ||
 		(dutype == CR_TPDU_type && (tpcb->tp_class & TP_CLASS_4)) ) {
 		iso_gen_csum(m, csum_offset, datalen);
 	}
@@ -734,9 +734,9 @@ tp_emit(dutype,	tpcb, seq, eot, data)
 		printf("OUTPUT: returned 0x%x\n", error);
 	ENDDEBUG
 	IFTRACE(D_EMIT)
-		tptraceTPCB(TPPTmisc, 
-			"tp_emit nlproto->output netservice returns datalen", 
-			tpcb->tp_nlproto->nlp_output, tpcb->tp_netservice, error, datalen); 
+		tptraceTPCB(TPPTmisc,
+			"tp_emit nlproto->output netservice returns datalen",
+			tpcb->tp_nlproto->nlp_output, tpcb->tp_netservice, error, datalen);
 	ENDTRACE
 done:
 	if (error) {
@@ -757,7 +757,7 @@ done:
  * 		The error type is the first argument.
  * 		The argument (sref) is the source reference on the bad incoming tpdu,
  * 		and is used for a destination reference on the outgoing packet.
- * 		(faddr) and (laddr) are the foreign and local addresses for this 
+ * 		(faddr) and (laddr) are the foreign and local addresses for this
  *		connection.
  * 		(erdata) is a ptr to the errant incoming tpdu, and is copied into the
  * 		outgoing ER, if an ER is to be issued.
@@ -769,9 +769,9 @@ done:
  * 		0 OK
  *  	ENOBUFS
  *  	E* from net layer datagram output routine
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 
 int
@@ -788,21 +788,21 @@ tp_error_emit(error, sref, faddr, laddr, erdata, erlen, tpcb, cons_channel,
 {
 	int						dutype;
 	int 					datalen = 0;
-	register struct tpdu	*hdr; 
+	register struct tpdu	*hdr;
 	register struct mbuf	*m;
 	int						csum_offset;
 
 	IFTRACE(D_ERROR_EMIT)
-		tptrace(TPPTmisc, "tp_error_emit error sref tpcb erlen", 
+		tptrace(TPPTmisc, "tp_error_emit error sref tpcb erlen",
 			error, sref, tpcb, erlen);
 	ENDTRACE
 	IFDEBUG(D_ERROR_EMIT)
 		printf(
-		"tp_error_emit error 0x%x sref 0x%x tpcb 0x%x erlen 0x%x chan 0x%x\n", 
+		"tp_error_emit error 0x%x sref 0x%x tpcb 0x%x erlen 0x%x chan 0x%x\n",
 			error, sref, tpcb, erlen, cons_channel);
 	ENDDEBUG
 
-	MGET(m, M_DONTWAIT, TPMT_TPHDR); 
+	MGET(m, M_DONTWAIT, TPMT_TPHDR);
 	if (m == NULL) {
 		return ENOBUFS;
 	}
@@ -858,7 +858,7 @@ tp_error_emit(error, sref, faddr, laddr, erdata, erlen, tpcb, cons_channel,
 
 	case ER_TPDU_type:
 		IncStat(ts_ER_sent);
-		hdr->tpdu_li = 5; 
+		hdr->tpdu_li = 5;
 		hdr->tpdu_ERreason = (char)error;
 		hdr->tpdu_ERdref = htons(sref);
 		break;
@@ -870,11 +870,11 @@ tp_error_emit(error, sref, faddr, laddr, erdata, erlen, tpcb, cons_channel,
 
 	if(tpcb)
 		if( tpcb->tp_use_checksum ) {
-			ADDOPTION(TPP_checksum, hdr, 2, csum_offset /* dummy argument */); 
+			ADDOPTION(TPP_checksum, hdr, 2, csum_offset /* dummy argument */);
 			csum_offset =  hdr->tpdu_li - 2;
 		}
 
-	ASSERT( hdr->tpdu_li < MLEN ); 
+	ASSERT( hdr->tpdu_li < MLEN );
 
 	if (dutype == ER_TPDU_type) {
 		/* copy the errant tpdu into another 'variable part' */
@@ -891,7 +891,7 @@ tp_error_emit(error, sref, faddr, laddr, erdata, erlen, tpcb, cons_channel,
 		/* copy at most as many octets for which you have room */
 		if (erlen + hdr->tpdu_li + 2 > TP_MAX_HEADER_LEN)
 			erlen = TP_MAX_HEADER_LEN - hdr->tpdu_li - 2;
-			
+
 		/* add the "invalid tpdu" parameter : required in class 0 */
 		P = (caddr_t)hdr + (int)(hdr->tpdu_li);
 		vbptr(P)->tpv_code =  TPP_invalid_tpdu; /* parameter code */
@@ -909,7 +909,7 @@ tp_error_emit(error, sref, faddr, laddr, erdata, erlen, tpcb, cons_channel,
 		 * (or max that will fit in a header
 		 */
 		m->m_next = m_copy(erdata, 0, erlen);
-		hdr->tpdu_li += erlen + 2; 
+		hdr->tpdu_li += erlen + 2;
 		m_freem(erdata);
 	} else {
 		IFDEBUG(D_ERROR_EMIT)
@@ -932,7 +932,7 @@ tp_error_emit(error, sref, faddr, laddr, erdata, erlen, tpcb, cons_channel,
 				tptrace(TPPTmisc, "before gen csum datalen", datalen,0,0,0);
 			ENDTRACE
 			IFDEBUG(D_ERROR_EMIT)
-				printf("before gen csum datalen 0x%x, csum_offset 0x%x\n", 
+				printf("before gen csum datalen 0x%x, csum_offset 0x%x\n",
 					datalen, csum_offset);
 			ENDDEBUG
 
@@ -972,10 +972,10 @@ tp_error_emit(error, sref, faddr, laddr, erdata, erlen, tpcb, cons_channel,
 			dump_addr((struct sockaddr *)faddr);
 		ENDDEBUG
 		return (tpcb->tp_nlproto->nlp_dgoutput)(
-			&laddr->siso_addr, 
-			&faddr->siso_addr, 
-			m, datalen, 
-					/* no route */	(caddr_t)0, !tpcb->tp_use_checksum); 
+			&laddr->siso_addr,
+			&faddr->siso_addr,
+			m, datalen,
+					/* no route */	(caddr_t)0, !tpcb->tp_use_checksum);
 	} else if (dgout_routine) {
 			IFDEBUG(D_ERROR_EMIT)
 				printf("tp_error_emit sending DG: Laddr\n");
@@ -983,8 +983,8 @@ tp_error_emit(error, sref, faddr, laddr, erdata, erlen, tpcb, cons_channel,
 				printf("Faddr\n");
 				dump_addr((struct sockaddr *)faddr);
 			ENDDEBUG
-				return (*dgout_routine)( &laddr->siso_addr, &faddr->siso_addr, 
-					m, datalen, /* no route */ 
+				return (*dgout_routine)( &laddr->siso_addr, &faddr->siso_addr,
+					m, datalen, /* no route */
 					(caddr_t)0, /* nochecksum==false */0);
 	} else {
 			IFDEBUG(D_ERROR_EMIT)

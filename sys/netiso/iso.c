@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.c	8.2 (Berkeley) 11/15/93
- * $Id: iso.c,v 1.2 1994/08/02 07:50:26 davidg Exp $
+ * $Id: iso.c,v 1.3 1995/04/26 18:10:58 pst Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -61,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/iso.c,v 1.2 1994/08/02 07:50:26 davidg Exp $ 
- * $Source: /home/ncvs/src/sys/netiso/iso.c,v $ 
+ * $Header: /home/ncvs/src/sys/netiso/iso.c,v 1.3 1995/04/26 18:10:58 pst Exp $
+ * $Source: /home/ncvs/src/sys/netiso/iso.c,v $
  *
  * iso.c: miscellaneous routines to support the iso address family
  */
@@ -103,9 +103,9 @@ void	llc_rtrequest();
  *
  * RETURNS:			true if the addrs match, false if they do not
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 iso_addrmatch1(isoaa, isoab)
 register struct iso_addr *isoaa, *isoab;		/* addresses to check */
@@ -127,14 +127,14 @@ register struct iso_addr *isoaa, *isoab;		/* addresses to check */
 		ENDDEBUG
 		return 0;
 	}
-	
+
 #ifdef notdef
 	/* TODO : generalize this to all afis with masks */
 	if(	isoaa->isoa_afi == AFI_37 ) {
 		/* must not compare 2 least significant digits, or for
 		 * that matter, the DSP
 		 */
-		compare_len = ADDR37_IDI_LEN - 1; 
+		compare_len = ADDR37_IDI_LEN - 1;
 	}
 #endif
 
@@ -166,9 +166,9 @@ register struct iso_addr *isoaa, *isoab;		/* addresses to check */
  *
  * RETURNS:			true if the addrs match, false if they do not
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 iso_addrmatch(sisoa, sisob)
 struct sockaddr_iso	*sisoa, *sisob;		/* addresses to check */
@@ -184,9 +184,9 @@ struct sockaddr_iso	*sisoa, *sisob;		/* addresses to check */
  *
  * RETURNS:			true if same net, false if not
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 iso_netmatch(sisoa, sisob)
 struct sockaddr_iso *sisoa, *sisob;
@@ -218,10 +218,10 @@ struct sockaddr_iso *sisoa, *sisob;
  *
  * RETURNS:			The hash value.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			The hash is achieved by exclusive ORing 4 byte
- *					quantities. 
+ *					quantities.
  */
 u_long
 iso_hashchar(buf, len)
@@ -257,7 +257,7 @@ register int		len;		/* length of buffer */
 
 		h ^= l;
 	}
-	
+
 	h ^= (u_long) (len % 4);
 
 	return(h);
@@ -270,9 +270,9 @@ register int		len;		/* length of buffer */
  *
  * RETURNS:			none
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 iso_hash(siso, hp)
 struct sockaddr_iso	*siso;		/* address to perform hash on */
@@ -291,12 +291,12 @@ struct afhash		*hp;		/* RETURN: hash info here */
 		printf("iso_hash: iso_netof: bufsize = %d\n", bufsize);
 	ENDDEBUG
 
-	hp->afh_hosthash = iso_hashchar((caddr_t)&siso->siso_addr, 
+	hp->afh_hosthash = iso_hashchar((caddr_t)&siso->siso_addr,
 		siso->siso_addr.isoa_len);
 
 	IFDEBUG(D_ROUTE)
 		printf("iso_hash: %s: nethash = x%x, hosthash = x%x\n",
-			clnp_iso_addrp(&siso->siso_addr), hp->afh_nethash, 
+			clnp_iso_addrp(&siso->siso_addr), hp->afh_nethash,
 			hp->afh_hosthash);
 	ENDDEBUG
 }
@@ -307,7 +307,7 @@ struct afhash		*hp;		/* RETURN: hash info here */
  *					The network portion of the iso address varies depending
  *					on the type of address. The network portion of the
  *					address will include the IDP. The network portion is:
- *			
+ *
  *						TYPE			DESC
  *					t37					The AFI and x.121 (IDI)
  *					osinet				The AFI, orgid, snetid
@@ -316,7 +316,7 @@ struct afhash		*hp;		/* RETURN: hash info here */
  *
  * RETURNS:			number of bytes placed into buf.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Buf is assumed to be big enough
  */
@@ -350,7 +350,7 @@ caddr_t			buf;		/* RESULT: network portion of address here */
  *	Network portion of OSINET address can only be the IDI. Clearly,
  *	with one x25 interface, one could get to several orgids, and
  *	several snetids.
-				len += (ADDROSINET_IDI_LEN + OVLOSINET_ORGID_LEN + 
+				len += (ADDROSINET_IDI_LEN + OVLOSINET_ORGID_LEN +
 						OVLOSINET_SNETID_LEN);
  */
 				len += ADDROSINET_IDI_LEN;
@@ -692,7 +692,7 @@ iso_ifwithidi(addr)
 				&(((struct sockaddr_iso *)addr)->siso_addr));
 			ENDDEBUG
 
-			if (iso_eqtype(&(IFA_SIS(ifa)->siso_addr), 
+			if (iso_eqtype(&(IFA_SIS(ifa)->siso_addr),
 				&(((struct sockaddr_iso *)addr)->siso_addr))) {
 				IFDEBUG(D_ROUTE)
 					printf("ifa_ifwithidi: ifa found\n");
@@ -711,12 +711,12 @@ iso_ifwithidi(addr)
 /*
  * FUNCTION:		iso_ck_addr
  *
- * PURPOSE:			return true if the iso_addr passed is 
+ * PURPOSE:			return true if the iso_addr passed is
  *					within the legal size limit for an iso address.
  *
  * RETURNS:			true or false
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  */
 iso_ck_addr(isoa)
@@ -737,7 +737,7 @@ struct iso_addr	*isoa;	/* address to check */
  *
  * RETURNS:			true if the addresses are the same type
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			By type, I mean rfc986, t37, or osinet
  *
@@ -751,7 +751,7 @@ struct iso_addr	*isoab;		/* other addr to check */
 	if (isoaa->isoa_afi == isoab->isoa_afi) {
 		if (isoaa->isoa_afi == AFI_37)
 			return(1);
-		else 
+		else
 			return (!bcmp(&isoaa->isoa_u, &isoab->isoa_u, 2));
 	}
 	return(0);
@@ -763,11 +763,11 @@ struct iso_addr	*isoab;		/* other addr to check */
  * PURPOSE:			Find an interface addresss having a given destination
  *					or at least matching the net.
  *
- * RETURNS:			ptr to an interface address 
+ * RETURNS:			ptr to an interface address
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 struct iso_ifaddr *
 iso_localifa(siso)
@@ -820,7 +820,7 @@ iso_localifa(siso)
  *
  * RETURNS:			E*
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			This could embody some of the functions of
  *					rclnp_ctloutput and cons_ctloutput.
@@ -891,7 +891,7 @@ struct mbuf	*m;			/* data for set, buffer for get */
  *
  * PURPOSE:			debugging
  *
- * RETURNS:			nada 
+ * RETURNS:			nada
  *
  */
 dump_isoaddr(s)
@@ -907,7 +907,7 @@ dump_isoaddr(s)
 		/* hack */
 		struct sockaddr_in *sin = (struct sockaddr_in *)s;
 
-		printf("%d.%d.%d.%d: %d", 
+		printf("%d.%d.%d.%d: %d",
 			(sin->sin_addr.s_addr>>24)&0xff,
 			(sin->sin_addr.s_addr>>16)&0xff,
 			(sin->sin_addr.s_addr>>8)&0xff,

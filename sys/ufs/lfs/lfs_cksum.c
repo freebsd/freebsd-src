@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_cksum.c	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: lfs_cksum.c,v 1.2 1994/08/02 07:54:32 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -49,7 +49,7 @@ cksum(str, len)
 	register size_t len;
 {
 	register u_long sum;
-	
+
 	len &= ~(sizeof(u_short) - 1);
 	for (sum = 0; len; len -= sizeof(u_short)) {
 		sum ^= *(u_short *)str;

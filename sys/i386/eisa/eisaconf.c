@@ -13,7 +13,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: eisaconf.c,v 1.1 1995/03/13 09:10:17 root Exp root $
+ * $Id: eisaconf.c,v 1.1 1995/04/23 08:55:41 julian Exp $
  */
 
 /*
@@ -61,7 +61,7 @@ eisa_configure()
     if (productID & 0x80) {
       printf("Warning: running EISA kernel on non-EISA system board\n");
       return;
-    } 
+    }
     printf("Probing for devices on EISA bus\n");
     productID = (productID<<8) | inb(eisaBase+1);
     productRevision = inb(eisaBase+2);

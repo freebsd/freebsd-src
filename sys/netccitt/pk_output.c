@@ -1,6 +1,6 @@
 /*
  * Copyright (c) University of British Columbia, 1984
- * Copyright (C) Computer Science Department IV, 
+ * Copyright (C) Computer Science Department IV,
  * 		 University of Erlangen-Nuremberg, Germany, 1992
  * Copyright (c) 1991, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_output.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: pk_output.c,v 1.2 1994/08/02 07:47:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -75,11 +75,11 @@ register struct pklcd *lcp;
 		xp = mtod (m, struct x25_packet *);
 
 		switch (pk_decode (xp) + lcp -> lcd_state) {
-		/* 
+		/*
 		 *  All the work is already done - just set the state and
 		 *  pass to peer.
 		 */
-		case CALL + READY: 
+		case CALL + READY:
 			lcp -> lcd_state = SENT_CALL;
 			lcp -> lcd_timer = pk_t21;
 			break;
@@ -88,17 +88,17 @@ register struct pklcd *lcp;
 		 *  Just set the state to allow packet to flow and send the
 		 *  confirmation.
 		 */
-		case CALL_ACCEPTED + RECEIVED_CALL: 
+		case CALL_ACCEPTED + RECEIVED_CALL:
 			lcp -> lcd_state = DATA_TRANSFER;
 			break;
 
-		/* 
+		/*
 		 *  Just set the state. Keep the LCD around till the clear
 		 *  confirmation is returned.
 		 */
-		case CLEAR + RECEIVED_CALL: 
-		case CLEAR + SENT_CALL: 
-		case CLEAR + DATA_TRANSFER: 
+		case CLEAR + RECEIVED_CALL:
+		case CLEAR + SENT_CALL:
+		case CLEAR + DATA_TRANSFER:
 			lcp -> lcd_state = SENT_CLEAR;
 			lcp -> lcd_retry = 0;
 			/* fall through */
@@ -108,13 +108,13 @@ register struct pklcd *lcp;
 			lcp -> lcd_retry++;
 			break;
 
-		case CLEAR_CONF + RECEIVED_CLEAR: 
-		case CLEAR_CONF + SENT_CLEAR: 
-		case CLEAR_CONF + READY: 
+		case CLEAR_CONF + RECEIVED_CLEAR:
+		case CLEAR_CONF + SENT_CLEAR:
+		case CLEAR_CONF + READY:
 			lcp -> lcd_state = READY;
 			break;
 
-		case DATA + DATA_TRANSFER: 
+		case DATA + DATA_TRANSFER:
 			SPS(xp, lcp -> lcd_ssn);
 			lcp -> lcd_input_window =
 				(lcp -> lcd_rsn + 1) % MODULUS;
@@ -125,49 +125,49 @@ register struct pklcd *lcp;
 				lcp -> lcd_window_condition = TRUE;
 			break;
 
-		case INTERRUPT + DATA_TRANSFER: 
+		case INTERRUPT + DATA_TRANSFER:
 #ifdef ancient_history
 			xp -> packet_data = 0;
 #endif
 			lcp -> lcd_intrconf_pending = TRUE;
 			break;
 
-		case INTERRUPT_CONF + DATA_TRANSFER: 
+		case INTERRUPT_CONF + DATA_TRANSFER:
 			break;
 
-		case RR + DATA_TRANSFER: 
-		case RNR + DATA_TRANSFER: 
+		case RR + DATA_TRANSFER:
+		case RNR + DATA_TRANSFER:
 			lcp -> lcd_input_window =
 				(lcp -> lcd_rsn + 1) % MODULUS;
 			SPR(xp, lcp -> lcd_input_window);
 			lcp -> lcd_last_transmitted_pr = lcp -> lcd_input_window;
 			break;
 
-		case RESET + DATA_TRANSFER: 
+		case RESET + DATA_TRANSFER:
 			lcp -> lcd_reset_condition = TRUE;
 			break;
 
-		case RESET_CONF + DATA_TRANSFER: 
+		case RESET_CONF + DATA_TRANSFER:
 			lcp -> lcd_reset_condition = FALSE;
 			break;
 
-		/* 
+		/*
 		 *  A restart should be only generated internally. Therefore
 		 *  all logic for restart is in the pk_restart routine.
 		 */
-		case RESTART + READY: 
+		case RESTART + READY:
 			lcp -> lcd_timer = pk_t20;
 			break;
 
-		/* 
+		/*
 		 *  Restarts are all  handled internally.  Therefore all the
 		 *  logic for the incoming restart packet is handled in  the
 		 *  pk_input routine.
 		 */
-		case RESTART_CONF + READY: 
+		case RESTART_CONF + READY:
 			break;
 
-		default: 
+		default:
 			m_freem (m);
 			return;
 		}
@@ -184,7 +184,7 @@ register struct pklcd *lcp;
 	}
 }
 
-/* 
+/*
  *  This procedure returns the next packet to send or null. A
  *  packet is composed of one or more mbufs.
  */

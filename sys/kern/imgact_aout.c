@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.11 1995/02/20 22:23:03 davidg Exp $
+ *	$Id: imgact_aout.c,v 1.12 1995/03/16 18:12:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,7 @@ exec_aout_imgact(iparams)
 #ifdef COMPAT_LINUX
 	/*
 	 * Linux and *BSD binaries look very much alike,
-	 * only the machine id is different: 
+	 * only the machine id is different:
 	 * 0x64 for Linux, 0x86 for *BSD.
 	 */
 	if (((a_out->a_magic >> 16) & 0xff) != 0x86)
@@ -190,7 +190,7 @@ exec_aout_imgact(iparams)
 	/* Fill in image_params */
 	iparams->interpreted = 0;
 	iparams->entry_addr = a_out->a_entry;
-	
+
 	iparams->proc->p_sysent = &aout_sysvec;
 	return (0);
 }

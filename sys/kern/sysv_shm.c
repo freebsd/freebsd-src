@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.3 1994/10/02 17:35:28 phk Exp $ */
+/*	$Id: sysv_shm.c,v 1.4 1995/02/20 22:23:13 davidg Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -64,7 +64,7 @@
 int	oshmctl();
 int	shmat(), shmctl(), shmdt(), shmget();
 int	(*shmcalls[])() = { shmat, oshmctl, shmdt, shmget, shmctl };
- 
+
 #define	SHMSEG_FREE     	0x0200
 #define	SHMSEG_REMOVED  	0x0400
 #define	SHMSEG_ALLOCATED	0x0800
@@ -143,7 +143,7 @@ shm_delete_mapping(p, shmmap_s)
 	struct shmid_ds *shmseg;
 	int segnum, result;
 	size_t size;
-	
+
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
 	shmseg = &shmsegs[segnum];
 	size = (shmseg->shm_segsz + CLOFSET) & ~CLOFSET;
@@ -230,7 +230,7 @@ shmat(p, uap, retval)
 	flags = MAP_ANON | MAP_SHARED;
 	if (uap->shmaddr) {
 		flags |= MAP_FIXED;
-		if (uap->shmflg & SHM_RND) 
+		if (uap->shmflg & SHM_RND)
 			attach_va = (vm_offset_t)uap->shmaddr & ~(SHMLBA-1);
 		else if (((vm_offset_t)uap->shmaddr & (SHMLBA-1)) == 0)
 			attach_va = (vm_offset_t)uap->shmaddr;
@@ -311,7 +311,7 @@ oshmctl(p, uap, retval)
 #else
 	return EINVAL;
 #endif
-}	
+}
 
 struct shmctl_args {
 	int shmid;
@@ -428,7 +428,7 @@ shmget_allocate_segment(p, uap, mode, retval)
 	struct ucred *cred = p->p_ucred;
 	struct shmid_ds *shmseg;
 	struct shm_handle *shm_handle;
-	
+
 	if (uap->size < shminfo.shmmin || uap->size > shminfo.shmmax)
 		return EINVAL;
 	if (shm_nused >= shminfo.shmmni) /* any shmids left? */
@@ -510,7 +510,7 @@ shmget(p, uap, retval)
 				goto again;
 			return error;
 		}
-		if ((uap->shmflg & IPC_CREAT) == 0) 
+		if ((uap->shmflg & IPC_CREAT) == 0)
 			return ENOENT;
 	}
 	return shmget_allocate_segment(p, uap, mode, retval);

@@ -92,7 +92,7 @@ struct scsi_device wds_dev =
 	{ 0, 0 }
 };
 
-/* 
+/*
   XXX   THIS SHOULD BE FIXED!
   I haven't got the KERNBASE-version to work, but on my system the kernel
   is at virtual address 0xFxxxxxxx, responding to physical address
@@ -235,7 +235,7 @@ int wds_init(struct isa_device *);
 int wds_cmd(int, u_char *, int);
 void wds_wait(int, int, int);
 
-struct isa_driver wdsdriver = 
+struct isa_driver wdsdriver =
 {
   wdsprobe,
   wdsattach,
@@ -291,13 +291,13 @@ wdsr_alloc(int unit)
   r = NULL;
   x = splbio();
   for(i=0; i<MAXSIMUL; i++)
-    if(!wds[unit].wdsr[i].busy) 
+    if(!wds[unit].wdsr[i].busy)
     {
       r = &wds[unit].wdsr[i];
       r->busy = 1;
       break;
     }
-  if(!r) 
+  if(!r)
   {
     splx(x);
     return NULL;
@@ -305,13 +305,13 @@ wdsr_alloc(int unit)
 
   r->ombn = -1;
   for(i=0; i<WDS_NOMB; i++)
-    if(!wds[unit].ombs[i].stat) 
+    if(!wds[unit].ombs[i].stat)
     {
       wds[unit].ombs[i].stat = 1;
       r->ombn = i;
       break;
     }
-  if(r->ombn == -1 ) 
+  if(r->ombn == -1 )
   {
     r->busy = 0;
     splx(x);
@@ -332,14 +332,14 @@ wds_scsi_cmd(struct scsi_xfer *sxp)
 
   base = wds[unit].addr;
 
-  if( sxp->flags & SCSI_RESET) 
+  if( sxp->flags & SCSI_RESET)
   {
     printf("reset!\n");
     return COMPLETE;
   }
 
   r = wdsr_alloc(unit);
-  if(r==NULL) 
+  if(r==NULL)
   {
     printf("no request slot available!\n");
     sxp->error = XS_DRIVER_STUFFUP;
@@ -348,7 +348,7 @@ wds_scsi_cmd(struct scsi_xfer *sxp)
   r->done = 0;
   r->sxp = sxp;
 
-  if(sxp->flags & SCSI_DATA_UIO) 
+  if(sxp->flags & SCSI_DATA_UIO)
   {
     printf("UIO!\n");
     sxp->error = XS_DRIVER_STUFFUP;
@@ -388,7 +388,7 @@ wds_scsi_cmd(struct scsi_xfer *sxp)
   scsi_uto3b(sizeof(sxp->sense), r->sense.len);
   r->sense.write = 0x80;
 
-  if(sxp->flags & SCSI_NOMASK) 
+  if(sxp->flags & SCSI_NOMASK)
   {
     outb(base+WDS_HCR, WDSH_DRQEN);
     r->polled = 1;
@@ -400,25 +400,25 @@ wds_scsi_cmd(struct scsi_xfer *sxp)
 
   c = WDSC_MSTART(r->ombn);
 
-  if( wds_cmd(base, &c, sizeof c) != 0) 
+  if( wds_cmd(base, &c, sizeof c) != 0)
   {
     printf("wds%d: unable to start outgoing mbox\n", unit);
     r->busy = 0;
     wds[unit].ombs[r->ombn].stat = 0;
-    
+
     return TRY_AGAIN_LATER;
   }
 
-  if(sxp->flags & SCSI_NOMASK) 
+  if(sxp->flags & SCSI_NOMASK)
   {
   repoll:
 
     i = 0;
-    while(!(inb(base+WDS_STAT) & WDS_IRQ)) 
+    while(!(inb(base+WDS_STAT) & WDS_IRQ))
     {
 
       DELAY(20000);
-      if(++i == 20) 
+      if(++i == 20)
       {
         outb(base + WDS_IRQACK, 0);
 	/*r->busy = 0;*/
@@ -427,7 +427,7 @@ wds_scsi_cmd(struct scsi_xfer *sxp)
       }
     }
     wdsintr(unit);
-    if(r->done) 
+    if(r->done)
     {
       r->sxp->flags |= ITSDONE;
       r->busy = 0;
@@ -460,7 +460,7 @@ wdsintr(int unit)
   }
 
   c = inb(wds[unit].addr + WDS_IRQSTAT);
-  if( (c&WDSI_MASK) == WDSI_MSVC) 
+  if( (c&WDSI_MASK) == WDSI_MSVC)
   {
     c = c & ~WDSI_MASK;
     in = &wds[unit].imbs[c];
@@ -487,12 +487,12 @@ wds_done(int unit, struct wds_cmd *c, u_char stat)
   r = (struct wds_req *)NULL;
 
   for(i=0; i<MAXSIMUL; i++)
-    if( c == &wds[unit].wdsr[i].cmd && !wds[unit].wdsr[i].done) 
+    if( c == &wds[unit].wdsr[i].cmd && !wds[unit].wdsr[i].done)
     {
       r = &wds[unit].wdsr[i];
       break;
     }
-  if(r == (struct wds_req *)NULL) 
+  if(r == (struct wds_req *)NULL)
   {
     /* failed to find request! */
     return 1;
@@ -501,7 +501,7 @@ wds_done(int unit, struct wds_cmd *c, u_char stat)
   r->done = 1;
   wds[unit].ombs[r->ombn].stat = 0;
   r->ret = HAD_ERROR;
-  switch(stat) 
+  switch(stat)
   {
   case ICMB_OK:
     r->ret = COMPLETE;
@@ -540,7 +540,7 @@ wds_done(int unit, struct wds_cmd *c, u_char stat)
 
   wds_data_in_use[unit] = 0;
 
-  if(!r->polled) 
+  if(!r->polled)
   {
     r->sxp->flags |= ITSDONE;
     scsi_done(r->sxp);
@@ -562,7 +562,7 @@ wds_getvers(int unit)
   base = wds[unit].addr;
 
   r = wdsr_alloc(unit);
-  if(!r) 
+  if(!r)
   {
     printf("wds%d: no request slot available!\n", unit);
     return -1;
@@ -580,7 +580,7 @@ wds_getvers(int unit)
   r->polled = 1;
 
   c = WDSC_MSTART(r->ombn);
-  if(wds_cmd(base, (u_char *)&c, sizeof c)) 
+  if(wds_cmd(base, (u_char *)&c, sizeof c))
   {
     printf("wds%d: version request failed\n", unit);
     r->busy = 0;
@@ -588,17 +588,17 @@ wds_getvers(int unit)
     return -1;
   }
 
-  while(1) 
+  while(1)
   {
     i = 0;
-    while( (inb(base+WDS_STAT) & WDS_IRQ) == 0) 
+    while( (inb(base+WDS_STAT) & WDS_IRQ) == 0)
     {
       DELAY(9000);
       if(++i == 20)
 	return -1;
     }
     wdsintr(unit);
-    if(r->done) 
+    if(r->done)
     {
       printf("wds%d: firmware version %d.%02d\n", unit,
 	     r->cmd.targ, r->cmd.scb[0]);
@@ -619,7 +619,7 @@ wdsattach(struct isa_device *dev)
 
   masunit = dev->id_unit;
 
-  if( !(versprobe & (1<<masunit))) 
+  if( !(versprobe & (1<<masunit)))
   {
     versprobe |= (1<<masunit);
     if(wds_getvers(masunit)==-1)
@@ -633,7 +633,7 @@ wdsattach(struct isa_device *dev)
   wds[unit].sc_link.adapter = &wds_switch;
   wds[unit].sc_link.device = &wds_dev;
   wds[unit].sc_link.flags = SDEV_BOUNCE;
-  
+
   kdc_wds[unit].kdc_state = DC_BUSY;
 
   scsi_attachdevs(&wds[unit].sc_link);
@@ -672,9 +672,9 @@ wds_init(struct isa_device *dev)
 
   isa_dmacascade(dev->id_drq);
 
-  if( (inb(base+WDS_STAT) & (WDS_RDY)) != WDS_RDY) 
+  if( (inb(base+WDS_STAT) & (WDS_RDY)) != WDS_RDY)
   {
-    for(i=0; i<10; i++) 
+    for(i=0; i<10; i++)
     {
       if( (inb(base+WDS_STAT) & (WDS_RDY)) == WDS_RDY)
 	break;
@@ -695,7 +695,7 @@ wds_init(struct isa_device *dev)
   init.nimb = WDS_NIMB;
 
   wds_wait(base+WDS_STAT, WDS_RDY, WDS_RDY);
-  if( wds_cmd(base, (u_char *)&init, sizeof init) != 0) 
+  if( wds_cmd(base, (u_char *)&init, sizeof init) != 0)
   {
     printf("wds%d: wds_cmd failed\n", unit);
     return 1;
@@ -707,7 +707,7 @@ wds_init(struct isa_device *dev)
 
   bzero(&wc,sizeof wc);
   wc.cmd = WDSC_DISUNSOL;
-  if( wds_cmd(base, (char *)&wc, sizeof wc) != 0) 
+  if( wds_cmd(base, (char *)&wc, sizeof wc) != 0)
   {
     printf("wds%d: wds_cmd failed\n", unit);
     return 1;

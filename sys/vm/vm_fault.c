@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.23 1995/04/16 14:12:12 davidg Exp $
+ * $Id: vm_fault.c,v 1.24 1995/05/18 02:59:22 davidg Exp $
  */
 
 /*
@@ -221,27 +221,27 @@ RetryFault:;
 
 	/*
 	 * INVARIANTS (through entire routine):
-	 * 
+	 *
 	 * 1)	At all times, we must either have the object lock or a busy
 	 * page in some object to prevent some other thread from trying to
 	 * bring in the same page.
-	 * 
+	 *
 	 * Note that we cannot hold any locks during the pager access or when
 	 * waiting for memory, so we use a busy page then.
-	 * 
+	 *
 	 * Note also that we aren't as concerned about more than one thead
 	 * attempting to pager_data_unlock the same page at once, so we don't
 	 * hold the page as busy then, but do record the highest unlock value
 	 * so far.  [Unlock requests may also be delivered out of order.]
-	 * 
+	 *
 	 * 2)	Once we have a busy page, we must remove it from the pageout
 	 * queues, so that the pageout daemon will not grab it away.
-	 * 
+	 *
 	 * 3)	To prevent another thread from racing us down the shadow chain
 	 * and entering a new page in the top object before we do, we must
 	 * keep a busy page in the top object while following the shadow
 	 * chain.
-	 * 
+	 *
 	 * 4)	We must increment paging_in_progress on any object for which
 	 * we have a busy page, to prevent vm_object_collapse from removing
 	 * the busy page without our noticing.
@@ -381,7 +381,7 @@ readrest:
 					UNLOCK_AND_DEALLOCATE;
 					goto RetryFault;
 				}
-					
+
 				pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 				m->valid = VM_PAGE_BITS_ALL;
 				hardfault++;
@@ -391,10 +391,10 @@ readrest:
 			 * Remove the bogus page (which does not exist at this
 			 * object/offset); before doing so, we must get back
 			 * our object lock to preserve our invariant.
-			 * 
+			 *
 			 * Also wake up any other thread that may want to bring
 			 * in this page.
-			 * 
+			 *
 			 * If this is the top-level object, we must leave the
 			 * busy page to prevent another thread from rushing
 			 * past us, and inserting the page in that object at
@@ -501,11 +501,11 @@ readrest:
 			 * object locked).  We can't unlock the bottom object,
 			 * because the page we found may move (by collapse) if
 			 * we do.
-			 * 
+			 *
 			 * Instead, we first copy the page.  Then, when we have
 			 * no more use for the bottom object, we unlock it and
 			 * try to collapse.
-			 * 
+			 *
 			 * Note that we copy the page even if we didn't need
 			 * to... that's the breaks.
 			 */
@@ -523,7 +523,7 @@ readrest:
 			 * we have to flush all uses of the original page,
 			 * since we can't distinguish those which want the
 			 * original from those which need the new copy.
-			 * 
+			 *
 			 * XXX If we know that only one map has access to this
 			 * page, then we could avoid the pmap_page_protect()
 			 * call.

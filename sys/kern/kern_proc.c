@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.8 1994/10/09 07:34:57 davidg Exp $
+ * $Id: kern_proc.c,v 1.9 1994/10/10 01:00:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -303,7 +303,7 @@ pgdelete(pgrp)
 {
 	register struct pgrp **pgp = &pgrphash[PIDHASH(pgrp->pg_id)];
 
-	if (pgrp->pg_session->s_ttyp != NULL && 
+	if (pgrp->pg_session->s_ttyp != NULL &&
 	    pgrp->pg_session->s_ttyp->t_pgrp == pgrp)
 		pgrp->pg_session->s_ttyp->t_pgrp = NULL;
 	for (; *pgp; pgp = &(*pgp)->pg_hforw) {
@@ -368,7 +368,7 @@ fixjobc(p, pgrp, entering)
 				orphanpg(hispgrp);
 }
 
-/* 
+/*
  * A process group has become orphaned;
  * if there are any stopped processes in the group,
  * hang-up all process in that group.
@@ -406,7 +406,7 @@ pgrpdump()
 			pgrp, pgrp->pg_id, pgrp->pg_session,
 			pgrp->pg_session->s_count, pgrp->pg_mem);
 		    for (p=pgrp->pg_mem; p; p=p->p_pgrpnxt) {
-			printf("\t\tpid %d addr %x pgrp %x\n", 
+			printf("\t\tpid %d addr %x pgrp %x\n",
 				p->p_pid, p, p->p_pgrp);
 		    }
 		  }

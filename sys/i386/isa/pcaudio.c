@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.11 1994/11/06 00:46:21 bde Exp $ 
+ *	$Id: pcaudio.c,v 1.12 1995/03/30 14:33:03 sos Exp $
  */
 
 #include "pca.h"
@@ -106,7 +106,7 @@ inline void conv(const void *table, void *buff, unsigned long n)
 }
 
 
-static void 
+static void
 pca_volume(int volume)
 {
 	int i, j;
@@ -142,7 +142,7 @@ pca_init()
 }
 
 
-static int 
+static int
 pca_start(void)
 {
 	/* use the first buffer */
@@ -164,7 +164,7 @@ pca_start(void)
 }
 
 
-static void 
+static void
 pca_stop(void)
 {
 	/* release the timers */
@@ -172,24 +172,24 @@ pca_stop(void)
 	release_timer2();
 	/* reset the buffer */
 	pca_status.in_use[0] = pca_status.in_use[1] = 0;
-	pca_status.index = 0; 
-	pca_status.counter = 0; 
+	pca_status.index = 0;
+	pca_status.counter = 0;
 	pca_status.current = 0;
 	pca_status.buffer = pca_status.buf[pca_status.current];
 	pca_status.timer_on = 0;
 }
 
 
-static void 
+static void
 pca_pause()
 {
 	release_timer0();
-	release_timer2(); 
+	release_timer2();
 	pca_status.timer_on = 0;
 }
 
 
-static void 
+static void
 pca_continue()
 {
         pca_status.oldval = inb(IO_PPI) | 0x03;
@@ -294,7 +294,7 @@ pcaclose(dev_t dev, int flag)
 		return ENXIO;
 	/* audio device close drains all output and restores timers */
 	pca_wait();
-	pca_stop(); 
+	pca_stop();
 	pca_status.open = 0;
 	return 0;
 }
@@ -336,10 +336,10 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 			}
 			pca_status.in_use[which] = count;
 			if (!pca_status.timer_on)
-				if (pca_start()) 
+				if (pca_start())
 					return EBUSY;
 		}
-	} 
+	}
 	return 0;
 }
 
@@ -375,7 +375,7 @@ pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		auptr = (audio_info_t *)data;
 		if (auptr->play.sample_rate != (unsigned int)~0) {
 			pca_status.sample_rate = auptr->play.sample_rate;
-			pca_status.scale = 
+			pca_status.scale =
 				(pca_status.sample_rate << 8) / INTERRUPT_RATE;
 		}
 		if (auptr->play.encoding != (unsigned int)~0) {
@@ -406,7 +406,7 @@ pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 }
 
 
-void 
+void
 pcaintr(struct clockframe *frame)
 {
 	if (pca_status.index < pca_status.in_use[pca_status.current]) {
@@ -463,7 +463,7 @@ pcaselect(dev_t dev, int rw, struct proc *p)
  		return 0;
 	default:
  		splx(s);
- 		return(0); 
+ 		return(0);
 	}
 }
 #endif

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_usrreq.c,v 1.2 1994/08/02 07:51:33 davidg Exp $
+ * $Id: tp_usrreq.c,v 1.3 1995/04/26 21:32:42 pst Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,10 +60,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_usrreq.c,v 1.2 1994/08/02 07:51:33 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_usrreq.c,v 1.3 1995/04/26 21:32:42 pst Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_usrreq.c,v $
  *
  * tp_usrreq(), the fellow that gets called from most of the socket code.
@@ -121,7 +121,7 @@ dump_mbuf(n, str)
 		printf("EMPTY:\n");
 		return;
 	}
-		
+
 	while (n) {
 		nextrecord = n->m_act;
 		printf("RECORD:\n");
@@ -199,7 +199,7 @@ restart:
 	}
 
 	/* Take the first mbuf off the chain.
-	 * Each XPD TPDU gives you a complete TSDU so the chains don't get 
+	 * Each XPD TPDU gives you a complete TSDU so the chains don't get
 	 * coalesced, but one TSDU may span several mbufs.
 	 * Nevertheless, since n should have a most 16 bytes, it
 	 * will fit into m.  (size was checked in tp_input() )
@@ -209,7 +209,7 @@ restart:
 	 * Code for excision of OOB data should be added to
 	 * uipc_socket2.c (like sbappend).
 	 */
-	
+
 	sblock(sb, M_WAITOK);
 	for (nn = &sb->sb_mb; n = *nn; nn = &n->m_act)
 		if (n->m_type == MT_OOBDATA)
@@ -247,7 +247,7 @@ restart:
 	if ((inflags & MSG_PEEK) == 0) {
 		n = *nn;
 		*nn = n->m_act;
-		for (; n; n = m_free(n)) 
+		for (; n; n = m_free(n))
 			sbfree(sb, n);
 	}
 
@@ -259,7 +259,7 @@ release:
 			tpcb->tp_Xrcv.sb_cc, m->m_len, 0, 0);
 	ENDTRACE
 	if (error == 0)
-		error = DoEvent(T_USR_Xrcvd); 
+		error = DoEvent(T_USR_Xrcvd);
 	return error;
 }
 
@@ -290,7 +290,7 @@ tp_sendoob(tpcb, so, xdata, outflags)
 	 * mbuf (mark) into the DATA queue, with its sequence number in m_next
 	 * to be assigned to this XPD tpdu, so data xfer can stop
 	 * when it reaches the zero-length mbuf if this XPD TPDU hasn't
-	 * yet been acknowledged.  
+	 * yet been acknowledged.
 	 */
 	register struct sockbuf *sb = &(tpcb->tp_Xsnd);
 	register struct mbuf 	*xmark;
@@ -302,7 +302,7 @@ tp_sendoob(tpcb, so, xdata, outflags)
 		if (xdata)
 			printf("xdata len 0x%x\n", xdata->m_len);
 	ENDDEBUG
-	/* DO NOT LOCK the Xsnd buffer!!!! You can have at MOST one 
+	/* DO NOT LOCK the Xsnd buffer!!!! You can have at MOST one
 	 * socket buf locked at any time!!! (otherwise you might
 	 * sleep() in sblock() w/ a signal pending and cause the
 	 * system call to be aborted w/ a locked socketbuf, which
@@ -353,14 +353,14 @@ tp_sendoob(tpcb, so, xdata, outflags)
 		tptraceTPCB(TPPTmisc, "XPD mark m_next ", xdata->m_next, 0, 0, 0);
 	ENDTRACE
 
-	sbappendrecord(sb, xdata);	
+	sbappendrecord(sb, xdata);
 
 	IFDEBUG(D_XPD)
 		printf("tp_sendoob len 0x%x\n", len);
 		dump_mbuf(so->so_snd.sb_mb, "XPD request Regular sndbuf:");
 		dump_mbuf(tpcb->tp_Xsnd.sb_mb, "XPD request Xsndbuf:");
 	ENDDEBUG
-	return DoEvent(T_XPD_req); 
+	return DoEvent(T_XPD_req);
 }
 
 /*
@@ -368,11 +368,11 @@ tp_sendoob(tpcb, so, xdata, outflags)
  *  the socket routines
  * FUNCTION and ARGUMENTS:
  * 	Handles all "user requests" except the [gs]ockopts() requests.
- * 	The argument (req) is the request type (PRU*), 
+ * 	The argument (req) is the request type (PRU*),
  * 	(m) is an mbuf chain, generally used for send and
  * 	receive type requests only.
  * 	(nam) is used for addresses usually, in particular for the bind request.
- * 
+ *
  */
 /*ARGSUSED*/
 ProtoHook
@@ -380,11 +380,11 @@ tp_usrreq(so, req, m, nam, controlp)
 	struct socket *so;
 	u_int req;
 	struct mbuf *m, *nam, *controlp;
-{	
+{
 	register struct tp_pcb *tpcb =  sototpcb(so);
 	int s = splnet();
 	int error = 0;
-	int flags, *outflags = &flags; 
+	int flags, *outflags = &flags;
 	u_long eotsdu = 0;
 	struct tp_event E;
 
@@ -394,7 +394,7 @@ tp_usrreq(so, req, m, nam, controlp)
 			printf("WARNING!!! so->so_error is 0x%x\n", so->so_error);
 	ENDDEBUG
 	IFTRACE(D_REQUEST)
-		tptraceTPCB(TPPTusrreq, "req so m state [", req, so, m, 
+		tptraceTPCB(TPPTusrreq, "req so m state [", req, so, m,
 			tpcb?tpcb->tp_state:0);
 	ENDTRACE
 
@@ -416,8 +416,8 @@ tp_usrreq(so, req, m, nam, controlp)
 		break;
 
 	case PRU_ABORT: 	/* called from close() */
-		/* called for each incoming connect queued on the 
-		 *	parent (accepting) socket 
+		/* called for each incoming connect queued on the
+		 *	parent (accepting) socket
 		 */
 		if (tpcb->tp_state == TP_OPEN || tpcb->tp_state == TP_CONFIRMING) {
 			E.ATTR(T_DISC_req).e_reason = E_TP_NO_SESSION;
@@ -474,7 +474,7 @@ tp_usrreq(so, req, m, nam, controlp)
 
 	case PRU_CONNECT:
 		IFTRACE(D_CONN)
-			tptraceTPCB(TPPTmisc, 
+			tptraceTPCB(TPPTmisc,
 			"PRU_CONNECT: so 0x%x *SHORT_LSUFXP(tpcb) 0x%x lsuflen 0x%x, class 0x%x",
 			tpcb->tp_sock, *SHORT_LSUFXP(tpcb), tpcb->tp_lsuffixlen,
 				tpcb->tp_class);
@@ -500,7 +500,7 @@ tp_usrreq(so, req, m, nam, controlp)
 			break;
 		IFDEBUG(D_CONN)
 			printf(
-				"PRU_CONNECT after tpcb 0x%x so 0x%x npcb 0x%x flags 0x%x\n", 
+				"PRU_CONNECT after tpcb 0x%x so 0x%x npcb 0x%x flags 0x%x\n",
 				tpcb, so, tpcb->tp_npcb, tpcb->tp_flags);
 			printf("isop 0x%x isop->isop_socket offset 12 :\n", tpcb->tp_npcb);
 			dump_buf(tpcb->tp_npcb, 16);
@@ -511,7 +511,7 @@ tp_usrreq(so, req, m, nam, controlp)
 				tpcb->tp_fsuffix, TP_FOREIGN);
 		}
 		if (tpcb->tp_state == TP_CLOSED) {
-			soisconnecting(so);  
+			soisconnecting(so);
 			error = DoEvent(T_CONN_req);
 		} else {
 			(tpcb->tp_nlproto->nlp_pcbdisc)(tpcb->tp_npcb);
@@ -522,13 +522,13 @@ tp_usrreq(so, req, m, nam, controlp)
 			lsufx = *(u_short *)(tpcb->tp_lsuffix);
 			fsufx = *(u_short *)(tpcb->tp_fsuffix);
 
-			tpmeas(tpcb->tp_lref, 
-				TPtime_open | (tpcb->tp_xtd_format << 4), 
+			tpmeas(tpcb->tp_lref,
+				TPtime_open | (tpcb->tp_xtd_format << 4),
 				&time, lsufx, fsufx, tpcb->tp_fref);
 		ENDPERF
 		break;
 
-	case PRU_ACCEPT: 
+	case PRU_ACCEPT:
 		(tpcb->tp_nlproto->nlp_getnetaddr)(tpcb->tp_npcb, nam, TP_FOREIGN);
 		IFDEBUG(D_REQUEST)
 			printf("ACCEPT PEERADDDR:");
@@ -539,7 +539,7 @@ tp_usrreq(so, req, m, nam, controlp)
 			lsufx = *(u_short *)(tpcb->tp_lsuffix);
 			fsufx = *(u_short *)(tpcb->tp_fsuffix);
 
-			tpmeas(tpcb->tp_lref, TPtime_open, 
+			tpmeas(tpcb->tp_lref, TPtime_open,
 				&time, lsufx, fsufx, tpcb->tp_fref);
 		ENDPERF
 		break;
@@ -556,7 +556,7 @@ tp_usrreq(so, req, m, nam, controlp)
 				tpcb->tp_lcredit, tpcb->tp_sent_lcdt,
 				so->so_rcv.sb_cc, so->so_rcv.sb_hiwat);
 			LOCAL_CREDIT(tpcb);
-			tptraceTPCB(TPPTmisc, 
+			tptraceTPCB(TPPTmisc,
 				"PRU_RCVD AF sbspace lcredit hiwat cc",
 				sbspace(&so->so_rcv), tpcb->tp_lcredit,
 				so->so_rcv.sb_cc, so->so_rcv.sb_hiwat);
@@ -567,9 +567,9 @@ tp_usrreq(so, req, m, nam, controlp)
 				so->so_rcv.sb_hiwat);
 		ENDDEBUG
 		if (((int)nam) & MSG_OOB)
-			error = DoEvent(T_USR_Xrcvd); 
-		else 
-			error = DoEvent(T_USR_rcvd); 
+			error = DoEvent(T_USR_Xrcvd);
+		else
+			error = DoEvent(T_USR_rcvd);
 		break;
 
 	case PRU_RCVOOB:
@@ -627,13 +627,13 @@ tp_usrreq(so, req, m, nam, controlp)
 		{
 			/*
 			 * Could have eotsdu and no data.(presently MUST have
-			 * an mbuf though, even if its length == 0) 
+			 * an mbuf though, even if its length == 0)
 			 */
 			int totlen = m->m_pkthdr.len;
 			struct sockbuf *sb = &so->so_snd;
 			IFPERF(tpcb)
 			   PStat(tpcb, Nb_from_sess) += totlen;
-			   tpmeas(tpcb->tp_lref, TPtime_from_session, 0, 0, 
+			   tpmeas(tpcb->tp_lref, TPtime_from_session, 0, 0,
 					PStat(tpcb, Nb_from_sess), totlen);
 			ENDPERF
 			IFDEBUG(D_SYSCALL)
@@ -649,7 +649,7 @@ tp_usrreq(so, req, m, nam, controlp)
 				dump_mbuf(sb->sb_mb, "so_snd.sb_mb");
 			ENDDEBUG
 			if (tpcb->tp_state == TP_OPEN)
-				error = DoEvent(T_DATA_req); 
+				error = DoEvent(T_DATA_req);
 			IFDEBUG(D_SYSCALL)
 				printf("PRU_SEND: after driver error 0x%x \n",error);
 				printf("so_snd 0x%x cc 0t%d mbcnt 0t%d\n",
@@ -692,7 +692,7 @@ tp_usrreq(so, req, m, nam, controlp)
 			tpcb ? tpcb->tp_state : 0);
 	ENDDEBUG
 	IFTRACE(D_REQUEST)
-		tptraceTPCB(TPPTusrreq, "END req so m state [", req, so, m, 
+		tptraceTPCB(TPPTusrreq, "END req so m state [", req, so, m,
 			tpcb ? tpcb->tp_state : 0);
 	ENDTRACE
 	if (controlp) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_subr2.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_subr2.c,v 1.2 1994/08/02 07:51:26 davidg Exp $
+ * $Id: tp_subr2.c,v 1.3 1995/04/26 21:32:41 pst Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,10 +60,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_subr2.c,v 1.2 1994/08/02 07:51:26 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_subr2.c,v 1.3 1995/04/26 21:32:41 pst Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_subr2.c,v $
  *
  * Some auxiliary routines:
@@ -134,7 +134,7 @@ void tp_rsyset();
  * SIDE EFFECTS:
  *
  * NOTES:
- *  This doesn't actually get called in a production system - 
+ *  This doesn't actually get called in a production system -
  *  the macro gets expanded instead in place of calls to this proc.
  *  But for debugging, we call this and that allows us to add
  *  debugging messages easily here.
@@ -146,10 +146,10 @@ tp_local_credit(tpcb)
 	LOCAL_CREDIT(tpcb);
 	IFDEBUG(D_CREDIT)
 		printf("ref 0x%x lcdt 0x%x l_tpdusize 0x%x decbit 0x%x\n",
-			tpcb->tp_lref, 
-			tpcb->tp_lcredit, 
-			tpcb->tp_l_tpdusize, 
-			tpcb->tp_decbit, 
+			tpcb->tp_lref,
+			tpcb->tp_lcredit,
+			tpcb->tp_l_tpdusize,
+			tpcb->tp_decbit,
 			tpcb->tp_cong_win
 			);
 	ENDDEBUG
@@ -168,7 +168,7 @@ tp_local_credit(tpcb)
  * 	a combo of event, state, predicate
  *
  * FUNCTION and ARGUMENTS:
- *  print error mesg 
+ *  print error mesg
  *
  * RETURN VALUE:
  *  EIO - always
@@ -215,30 +215,30 @@ tp_drain()
  * 	attached to the tpcb.
  *
  * RETURNS:  Rien
- * 
+ *
  * SIDE EFFECTS:
  *
  * NOTES:
  */
 void
 tp_indicate(ind, tpcb, error)
-	int				ind; 
+	int				ind;
 	u_short			error;
 	register struct tp_pcb	*tpcb;
 {
 	register struct socket *so = tpcb->tp_sock;
 	IFTRACE(D_INDICATION)
-		tptraceTPCB(TPPTindicate, ind, *(u_short *)(tpcb->tp_lsuffix), 
+		tptraceTPCB(TPPTindicate, ind, *(u_short *)(tpcb->tp_lsuffix),
 			*(u_short *)(tpcb->tp_fsuffix), error,so->so_pgid);
 	ENDTRACE
 	IFDEBUG(D_INDICATION)
 		char *ls, *fs;
-		ls = tpcb->tp_lsuffix, 
-		fs = tpcb->tp_fsuffix, 
+		ls = tpcb->tp_lsuffix,
+		fs = tpcb->tp_fsuffix,
 
 		printf(
 "indicate 0x%x lsuf 0x%02x%02x fsuf 0x%02x%02x err 0x%x  noind 0x%x ref 0x%x\n",
-		ind, 
+		ind,
 		*ls, *(ls+1), *fs, *(fs+1),
 		error, /*so->so_pgrp,*/
 		tpcb->tp_no_disc_indications,
@@ -280,15 +280,15 @@ tp_indicate(ind, tpcb, error)
  * NAME : tp_getoptions()
  *
  * CALLED FROM:
- * 	tp.trans whenever we go into OPEN state 
+ * 	tp.trans whenever we go into OPEN state
  *
  * FUNCTION and ARGUMENTS:
  *  sets the proper flags and values in the tpcb, to control
  *  the appropriate actions for the given class, options,
  *  sequence space, etc, etc.
- * 
+ *
  * RETURNS: Nada
- * 
+ *
  * SIDE EFFECTS:
  *
  * NOTES:
@@ -297,7 +297,7 @@ void
 tp_getoptions(tpcb)
 struct tp_pcb *tpcb;
 {
-	tpcb->tp_seqmask = 
+	tpcb->tp_seqmask =
 		tpcb->tp_xtd_format ?	TP_XTD_FMT_MASK :	TP_NML_FMT_MASK ;
 	tpcb->tp_seqbit =
 		tpcb->tp_xtd_format ?	TP_XTD_FMT_BIT :	TP_NML_FMT_BIT ;
@@ -305,7 +305,7 @@ struct tp_pcb *tpcb;
 	tpcb->tp_dt_ticks =
 		max(tpcb->tp_dt_ticks, (tpcb->tp_peer_acktime + 2));
 	tp_rsyset(tpcb);
-	
+
 }
 
 /*
@@ -315,7 +315,7 @@ struct tp_pcb *tpcb;
  *  Called when a ref is frozen.
  *
  * FUNCTION and ARGUMENTS:
- *  allows the suffix to be reused. 
+ *  allows the suffix to be reused.
  *
  * RETURNS: zilch
  *
@@ -345,20 +345,20 @@ tp_recycle_tsuffix(tpcb)
  *  Congestion window scheme:
  *  Initial value is 1.  ("slow start" as Nagle, et. al. call it)
  *  For each good ack that arrives, the congestion window is increased
- *  by 1 (up to max size of logical infinity, which is to say, 
+ *  by 1 (up to max size of logical infinity, which is to say,
  *	it doesn't wrap around).
  *  Source quench causes it to drop back to 1.
- *  tp_send() uses the smaller of (regular window, congestion window). 
- *  One retransmission strategy option is to have any retransmission 
+ *  tp_send() uses the smaller of (regular window, congestion window).
+ *  One retransmission strategy option is to have any retransmission
  *	cause reset the congestion window back  to 1.
  *
  *	(cmd) is either PRC_QUENCH: source quench, or
  *		PRC_QUENCH2: dest. quench (dec bit)
  *
  * RETURNS:
- * 
+ *
  * SIDE EFFECTS:
- * 
+ *
  * NOTES:
  */
 void
@@ -389,15 +389,15 @@ tp_quench( tpcb, cmd )
 /*
  * NAME:	tp_netcmd()
  *
- * CALLED FROM:			
+ * CALLED FROM:
  *
- * FUNCTION and ARGUMENTS:			
+ * FUNCTION and ARGUMENTS:
  *
- * RETURNS:			
+ * RETURNS:
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 tp_netcmd( tpcb, cmd )
 	struct tp_pcb *tpcb;
@@ -467,7 +467,7 @@ tp_mask_to_num(x)
 	return j;
 }
 
-static 
+static
 copyQOSparms(src, dst)
 	struct tp_conn_param *src, *dst;
 {
@@ -598,15 +598,15 @@ punt_route:
 /*
  * CALLED FROM:
  *  tp_usrreq on PRU_CONNECT and tp_input on receipt of CR
- *	
+ *
  * FUNCTION and ARGUMENTS:
  * 	-- An mbuf containing the peer's network address.
  *  -- Our control block, which will be modified
  *  -- In the case of cons, a control block for that layer.
  *
- *	
+ *
  * RETURNS:
- *	errno value	 : 
+ *	errno value	 :
  *	EAFNOSUPPORT if can't find an nl_protosw for x.25 (really could panic)
  *	ECONNREFUSED if trying to run TP0 with non-type 37 address
  *  possibly other E* returned from cons_netcmd()
@@ -629,13 +629,13 @@ tp_route_to( m, tpcb, channel)
 
 	siso = mtod(m, struct sockaddr_iso *);
 	IFTRACE(D_CONN)
-		tptraceTPCB(TPPTmisc, 
+		tptraceTPCB(TPPTmisc,
 		"route_to: so  afi netservice class",
 		tpcb->tp_sock, siso->siso_addr.isoa_genaddr[0], tpcb->tp_netservice,
 			tpcb->tp_class);
 	ENDTRACE
 	IFDEBUG(D_CONN)
-		printf("tp_route_to( m x%x, channel 0x%x, tpcb 0x%x netserv 0x%x)\n", 
+		printf("tp_route_to( m x%x, channel 0x%x, tpcb 0x%x netserv 0x%x)\n",
 			m, channel, tpcb, tpcb->tp_netservice);
 		printf("m->mlen x%x, m->m_data:\n", m->m_len);
 		dump_buf(mtod(m, caddr_t), m->m_len);
@@ -685,7 +685,7 @@ tp_route_to( m, tpcb, channel)
 		}
 		if (tpcb->tp_nlproto->nlp_afamily != siso->siso_family) {
 			IFDEBUG(D_CONN)
-				printf("tp_route_to( CHANGING nlproto old 0x%x new 0x%x)\n", 
+				printf("tp_route_to( CHANGING nlproto old 0x%x new 0x%x)\n",
 						save_netservice, tpcb->tp_netservice);
 			ENDDEBUG
 			if (error = tp_set_npcb(tpcb))
@@ -707,7 +707,7 @@ done:
 		printf("tp_route_to  returns 0x%x\n", error);
 	ENDDEBUG
 	IFTRACE(D_CONN)
-		tptraceTPCB(TPPTmisc, "route_to: returns: error netserv class", error, 
+		tptraceTPCB(TPPTmisc, "route_to: returns: error netserv class", error,
 			tpcb->tp_netservice, tpcb->tp_class, 0);
 	ENDTRACE
 	return error;
@@ -736,12 +736,12 @@ tp0_stash( tpcb, e )
 	ENDPERF
 
 	IFDEBUG(D_STASH)
-		printf("stash EQ: seq 0x%x datalen 0x%x eot 0x%x", 
+		printf("stash EQ: seq 0x%x datalen 0x%x eot 0x%x",
 		E.e_seq, E.e_datalen, E.e_eot);
 	ENDDEBUG
 
 	IFTRACE(D_STASH)
-		tptraceTPCB(TPPTmisc, "stash EQ: seq len eot", 
+		tptraceTPCB(TPPTmisc, "stash EQ: seq len eot",
 		E.e_seq, E.e_datalen, E.e_eot, 0);
 	ENDTRACE
 
@@ -760,7 +760,7 @@ tp0_stash( tpcb, e )
 		register struct pklcd *lcp = (struct pklcd *)isop->isop_chan;
 		pk_flowcontrol(lcp, sbspace(sb) <= 0, 1);
 	}
-} 
+}
 
 void
 tp0_openflow(tpcb)
@@ -784,7 +784,7 @@ pk_flowcontrol() {}
 /*
  * CALLED FROM:
  *  tp_ctloutput() when the user sets TPOPT_PERF_MEAS on
- *  and tp_newsocket() when a new connection is made from 
+ *  and tp_newsocket() when a new connection is made from
  *  a listening socket with tp_perf_on == true.
  * FUNCTION and ARGUMENTS:
  *  (tpcb) is the usual; this procedure gets a clear cluster mbuf for
@@ -793,7 +793,7 @@ pk_flowcontrol() {}
  *  ENOBUFS if it cannot get a cluster mbuf.
  */
 
-int 
+int
 tp_setup_perf(tpcb)
 	register struct tp_pcb *tpcb;
 {
@@ -814,8 +814,8 @@ tp_setup_perf(tpcb)
 		bzero( (caddr_t)tpcb->tp_p_meas, sizeof (struct tp_pmeas) );
 		IFDEBUG(D_PERF_MEAS)
 			printf(
-			"tpcb 0x%x so 0x%x ref 0x%x tp_p_meas 0x%x tp_perf_on 0x%x\n", 
-				tpcb, tpcb->tp_sock, tpcb->tp_lref, 
+			"tpcb 0x%x so 0x%x ref 0x%x tp_p_meas 0x%x tp_perf_on 0x%x\n",
+				tpcb, tpcb->tp_sock, tpcb->tp_lref,
 				tpcb->tp_p_meas, tpcb->tp_perf_on);
 		ENDDEBUG
 		tpcb->tp_perf_on = 1;

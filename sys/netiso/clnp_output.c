@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_output.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_output.c,v 1.2 1994/08/02 07:49:42 davidg Exp $
+ * $Id: clnp_output.c,v 1.3 1994/11/15 14:26:12 bde Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_output.c,v 1.2 1994/08/02 07:49:42 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_output.c,v 1.3 1994/11/15 14:26:12 bde Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_output.c,v $ */
 
 #include <sys/param.h>
@@ -124,7 +124,7 @@ static struct clnp_fixed echor_template = {
 };
 
 #ifdef	DECBIT
-u_char qos_option[] = {CLNPOVAL_QOS, 1, 
+u_char qos_option[] = {CLNPOVAL_QOS, 1,
 	CLNPOVAL_GLOBAL|CLNPOVAL_SEQUENCING|CLNPOVAL_LOWDELAY};
 #endif	/* DECBIT */
 
@@ -135,7 +135,7 @@ int				clnp_id = 0;		/* id for segmented dgrams */
  *
  * PURPOSE:			output the data in the mbuf as a clnp datagram
  *
- *					The data specified by m0 is sent as a clnp datagram. 
+ *					The data specified by m0 is sent as a clnp datagram.
  *					The mbuf chain m0 will be freed when this routine has
  *					returned.
  *
@@ -144,12 +144,12 @@ int				clnp_id = 0;		/* id for segmented dgrams */
  *					be formatted in the mbuf according to clnp rules. Options
  *					will not be freed.
  *
- *					Datalen specifies the length of the data in m0. 
+ *					Datalen specifies the length of the data in m0.
  *
- *					Src and dst are the addresses for the packet. 
+ *					Src and dst are the addresses for the packet.
  *
- *					If route is non-null, it is used as the route for 
- *					the packet. 
+ *					If route is non-null, it is used as the route for
+ *					the packet.
  *
  *					By default, a DT is sent. However, if flags & CNLP_SEND_ER
  *					then an ER will be sent. If flags & CLNP_SEND_RAW, then
@@ -160,7 +160,7 @@ int				clnp_id = 0;		/* id for segmented dgrams */
  *
  * SIDE EFFECTS:	none
  *
- * NOTES:			
+ * NOTES:
  *					Flags are interpretated as follows:
  *						CLNP_NO_SEG - do not allow this pkt to be segmented.
  *						CLNP_NO_ER  - have pkt request ER suppression.
@@ -207,14 +207,14 @@ int					flags;		/* flags */
 	IFDEBUG(D_OUTPUT)
 		printf("clnp_output: to %s", clnp_iso_addrp(dst));
 		printf(" from %s of %d bytes\n", clnp_iso_addrp(src), datalen);
-		printf("\toptions x%x, flags x%x, isop_clnpcache x%x\n", 
+		printf("\toptions x%x, flags x%x, isop_clnpcache x%x\n",
 			isop->isop_options, flags, isop->isop_clnpcache);
 	ENDDEBUG
 
 	if (isop->isop_clnpcache != NULL) {
 		clcp = mtod(isop->isop_clnpcache, struct clnp_cache *);
 	}
-	
+
 	/*
 	 *	Check if cache is valid ...
 	 */
@@ -354,7 +354,7 @@ int					flags;		/* flags */
 		 *	Don't allow funny lengths on dst; src may be zero in which
 		 *	case we insert the source address based upon the interface
 		 */
-		if ((src->isoa_len > sizeof(struct iso_addr)) || 
+		if ((src->isoa_len > sizeof(struct iso_addr)) ||
 			(dst->isoa_len == 0) ||
 			(dst->isoa_len > sizeof(struct iso_addr))) {
 			m_freem(m0);
@@ -405,7 +405,7 @@ int					flags;		/* flags */
 		} else {
 			IFDEBUG(D_OUTPUT)
 			ENDDEBUG
-			error = clnp_route(dst, &isop->isop_route, flags, 
+			error = clnp_route(dst, &isop->isop_route, flags,
 				&clcp->clc_firsthop, &clcp->clc_ifa);
 		}
 		if (error || (clcp->clc_ifa == 0)) {
@@ -420,13 +420,13 @@ int					flags;		/* flags */
 		clcp->clc_ifp = clcp->clc_ifa->ia_ifp;  /* XXX */
 
 		IFDEBUG(D_OUTPUT)
-			printf("clnp_output: packet routed to %s\n", 
+			printf("clnp_output: packet routed to %s\n",
 				clnp_iso_addrp(
 					&((struct sockaddr_iso *)clcp->clc_firsthop)->siso_addr));
 		ENDDEBUG
-		
+
 		/*
-		 *	If src address is not yet specified, use address of 
+		 *	If src address is not yet specified, use address of
 		 *	interface. NOTE: this will now update the laddr field in
 		 *	the isopcb. Is this desirable? RAH?
 		 */
@@ -514,7 +514,7 @@ int					flags;		/* flags */
 		seg_part.cng_id = htons(clnp_id++);
 		seg_part.cng_off = htons(0);
 		seg_part.cng_tot_len = htons(total_len);
-		(void) bcopy((caddr_t)&seg_part, (caddr_t) clnp + clcp->clc_segoff, 
+		(void) bcopy((caddr_t)&seg_part, (caddr_t) clnp + clcp->clc_segoff,
 			sizeof(seg_part));
 	}
 	if (total_len <= SN_MTU(clcp->clc_ifp, clcp->clc_rt)) {

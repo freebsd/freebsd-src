@@ -4,7 +4,7 @@
  * [2] parse tuples to find out where to map the shared memory buffer,
  *     and what to write into the configuration register
  * [3] move pcic-specific code into a separate module.
- * 
+ *
  * Device driver for IBM PCMCIA Credit Card Adapter for Ethernet,
  * if_ze.c
  *

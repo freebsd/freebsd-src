@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.20 1995/03/25 17:36:57 davidg Exp $
+ * $Id: vm_map.c,v 1.21 1995/04/16 12:56:17 davidg Exp $
  */
 
 /*
@@ -148,7 +148,7 @@ static int mapvmpgcnt;
 static void _vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void _vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 
-void 
+void
 vm_map_startup()
 {
 	register int i;
@@ -245,7 +245,7 @@ vmspace_free(vm)
  *	the given physical map structure, and having
  *	the given lower and upper address bounds.
  */
-vm_map_t 
+vm_map_t
 vm_map_create(pmap, min, max, pageable)
 	pmap_t pmap;
 	vm_offset_t min, max;
@@ -429,7 +429,7 @@ vm_map_entry_dispose(map, entry)
  *	Creates another valid reference to the given map.
  *
  */
-void 
+void
 vm_map_reference(map)
 	register vm_map_t map;
 {
@@ -448,7 +448,7 @@ vm_map_reference(map)
  *	destroying it if no references remain.
  *	The map should not be locked.
  */
-void 
+void
 vm_map_deallocate(map)
 	register vm_map_t map;
 {
@@ -626,7 +626,7 @@ vm_map_insert(map, object, offset, start, end)
  *	result indicates whether the address is
  *	actually contained in the map.
  */
-boolean_t 
+boolean_t
 vm_map_lookup_entry(map, address, entry)
 	register vm_map_t map;
 	register vm_offset_t address;
@@ -649,7 +649,7 @@ vm_map_lookup_entry(map, address, entry)
 	if (address >= cur->start) {
 		/*
 		 * Go from hint to end of list.
-		 * 
+		 *
 		 * But first, make a quick check to see if we are already looking
 		 * at the entry we want (which is usually the case). Note also
 		 * that we don't need to save the hint here... it is the same
@@ -804,7 +804,7 @@ vm_map_find(map, object, offset, addr, length, find_space)
  *		removing extra sharing maps
  *		[XXX maybe later] merging with a neighbor
  */
-void 
+void
 vm_map_simplify_entry(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
@@ -843,16 +843,16 @@ vm_map_simplify_entry(map, entry)
 	} else {
 		/*
 		 * Try to merge with our neighbors.
-		 * 
+		 *
 		 * Conditions for merge are:
-		 * 
+		 *
 		 * 1.  entries are adjacent. 2.  both entries point to objects
 		 * with null pagers.
-		 * 
+		 *
 		 * If a merge is possible, we replace the two entries with a
 		 * single entry, then merge the two objects into a single
 		 * object.
-		 * 
+		 *
 		 * Now, all that is left to do is write the code!
 		 */
 	}
@@ -875,7 +875,7 @@ vm_map_simplify_entry(map, entry)
  *	This routine is called only when it is known that
  *	the entry must be split.
  */
-static void 
+static void
 _vm_map_clip_start(map, entry, start)
 	register vm_map_t map;
 	register vm_map_entry_t entry;
@@ -928,7 +928,7 @@ _vm_map_clip_start(map, entry, start)
  *	This routine is called only when it is known that
  *	the entry must be split.
  */
-static void 
+static void
 _vm_map_clip_end(map, entry, end)
 	register vm_map_t map;
 	register vm_map_entry_t entry;
@@ -1279,17 +1279,17 @@ vm_map_pageable(map, start, end, new_pageable)
 	} else {
 		/*
 		 * Wiring.  We must do this in two passes:
-		 * 
+		 *
 		 * 1.  Holding the write lock, we create any shadow or zero-fill
 		 * objects that need to be created. Then we clip each map
 		 * entry to the region to be wired and increment its wiring
 		 * count.  We create objects before clipping the map entries
 		 * to avoid object proliferation.
-		 * 
+		 *
 		 * 2.  We downgrade to a read lock, and call vm_fault_wire to
 		 * fault in the pages for any newly wired area (wired_count is
 		 * 1).
-		 * 
+		 *
 		 * Downgrading to a read lock for vm_fault_wire avoids a possible
 		 * deadlock with another thread that may have faulted on one
 		 * of the pages to be wired (it would mark the page busy,
@@ -1313,7 +1313,7 @@ vm_map_pageable(map, start, end, new_pageable)
 				 * the write lock on the map: create a shadow
 				 * object for a copy-on-write region, or an
 				 * object for a zero-fill region.
-				 * 
+				 *
 				 * We don't have to do this for entries that
 				 * point to sharing maps, because we won't
 				 * hold the lock on the sharing map.
@@ -1366,14 +1366,14 @@ vm_map_pageable(map, start, end, new_pageable)
 
 		/*
 		 * HACK HACK HACK HACK
-		 * 
+		 *
 		 * If we are wiring in the kernel map or a submap of it, unlock
 		 * the map to avoid deadlocks.  We trust that the kernel
 		 * threads are well-behaved, and therefore will not do
 		 * anything destructive to this region of the map while we
 		 * have it unlocked.  We cannot trust user threads to do the
 		 * same.
-		 * 
+		 *
 		 * HACK HACK HACK HACK
 		 */
 		if (vm_map_pmap(map) == kernel_pmap) {
@@ -1391,7 +1391,7 @@ vm_map_pageable(map, start, end, new_pageable)
 			 * what has been done.  We decrement the wiring count
 			 * for those pages which have not yet been wired (now)
 			 * and unwire those that have (later).
-			 * 
+			 *
 			 * XXX this violates the locking protocol on the map,
 			 * needs to be fixed.
 			 */
@@ -1525,7 +1525,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
  *	The map in question should be locked.
  *	[This is the reason for this routine's existence.]
  */
-void 
+void
 vm_map_entry_unwire(map, entry)
 	vm_map_t map;
 	register vm_map_entry_t entry;
@@ -1539,7 +1539,7 @@ vm_map_entry_unwire(map, entry)
  *
  *	Deallocate the given entry from the target map.
  */
-void 
+void
 vm_map_entry_delete(map, entry)
 	register vm_map_t map;
 	register vm_map_entry_t entry;
@@ -1689,7 +1689,7 @@ vm_map_remove(map, start, end)
  *	privilege on the entire address region given.
  *	The entire region must be allocated.
  */
-boolean_t 
+boolean_t
 vm_map_check_protection(map, start, end, protection)
 	register vm_map_t map;
 	register vm_offset_t start;
@@ -1736,7 +1736,7 @@ vm_map_check_protection(map, start, end, protection)
  *	Copies the contents of the source entry to the destination
  *	entry.  The entries *must* be aligned properly.
  */
-void 
+void
 vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 	vm_map_t src_map, dst_map;
 	register vm_map_entry_t src_entry, dst_entry;
@@ -1958,9 +1958,9 @@ vm_map_copy(dst_map, src_map,
 	}
 	/*
 	 * Find the start entries and clip.
-	 * 
+	 *
 	 * Note that checking protection asserts that the lookup cannot fail.
-	 * 
+	 *
 	 * Also note that we wait to do the second lookup until we have done the
 	 * first clip, as the clip may affect which entry we get!
 	 */
@@ -2014,7 +2014,7 @@ vm_map_copy(dst_map, src_map,
 
 		/*
 		 * Both entries now match in size and relative endpoints.
-		 * 
+		 *
 		 * If both entries refer to a VM object, we can deal with them
 		 * now.
 		 */
@@ -2438,7 +2438,7 @@ RetryLookup:;
 		/*
 		 * If we want to write the page, we may as well handle that
 		 * now since we've got the sharing map locked.
-		 * 
+		 *
 		 * If we don't need to write the page, we just demote the
 		 * permissions allowed.
 		 */
@@ -2520,7 +2520,7 @@ RetryLookup:;
  *	(according to the handle returned by that lookup).
  */
 
-void 
+void
 vm_map_lookup_done(map, entry)
 	register vm_map_t map;
 	vm_map_entry_t entry;
@@ -2551,7 +2551,7 @@ vm_map_lookup_done(map, entry)
  *		at allocation time because the adjacent entry
  *		is often wired down.
  */
-void 
+void
 vm_map_simplify(map, start)
 	vm_map_t map;
 	vm_offset_t start;
@@ -2603,7 +2603,7 @@ vm_map_simplify(map, start)
 /*
  *	vm_map_print:	[ debug ]
  */
-void 
+void
 vm_map_print(map, full)
 	register vm_map_t map;
 	boolean_t full;

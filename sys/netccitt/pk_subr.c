@@ -1,6 +1,6 @@
 /*
  * Copyright (c) University of British Columbia, 1984
- * Copyright (C) Computer Science Department IV, 
+ * Copyright (C) Computer Science Department IV,
  * 		 University of Erlangen-Nuremberg, Germany, 1992
  * Copyright (c) 1991, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_subr.c,v 1.2 1994/08/02 07:47:41 davidg Exp $
+ * $Id: pk_subr.c,v 1.3 1994/12/13 22:32:17 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -80,10 +80,10 @@ struct x25bitslice x25_bitslice[] = {
 };
 
 
-/* 
+/*
  *  Attach X.25 protocol to socket, allocate logical channel descripter
  *  and buffer space, and enter LISTEN state if we are to accept
- *  IN-COMMING CALL packets.  
+ *  IN-COMMING CALL packets.
  *
  */
 
@@ -116,7 +116,7 @@ struct socket *so;
 	return (lcp);
 }
 
-/* 
+/*
  *  Disconnect X.25 protocol from socket.
  */
 
@@ -127,7 +127,7 @@ register struct pklcd *lcp;
 	register struct pklcd *l, *p;
 
 	switch (lcp -> lcd_state) {
-	case LISTEN: 
+	case LISTEN:
 		for (p = 0, l = pk_listenhead; l && l != lcp; p = l, l = l -> lcd_listen);
 		if (p == 0) {
 			if (l != 0)
@@ -139,16 +139,16 @@ register struct pklcd *lcp;
 		pk_close (lcp);
 		break;
 
-	case READY: 
+	case READY:
 		pk_acct (lcp);
 		pk_close (lcp);
 		break;
 
-	case SENT_CLEAR: 
-	case RECEIVED_CLEAR: 
+	case SENT_CLEAR:
+	case RECEIVED_CLEAR:
 		break;
 
-	default: 
+	default:
 		pk_acct (lcp);
 		if (so) {
 			soisdisconnecting (so);
@@ -159,7 +159,7 @@ register struct pklcd *lcp;
 	}
 }
 
-/* 
+/*
  *  Close an X.25 Logical Channel. Discard all space held by the
  *  connection and internal descriptors. Wake up any sleepers.
  */
@@ -176,10 +176,10 @@ struct pklcd *lcp;
 	 * send buffer is locked. An attempt to sbflush () that send
 	 * buffer will lead us into - no, not temptation but - panic!
 	 * So - we'll just check wether the send buffer is locked
-	 * and if that's the case we'll mark the lcp as zombie and 
+	 * and if that's the case we'll mark the lcp as zombie and
 	 * have the pk_timer () do the cleaning ...
 	 */
-	
+
 	if (so && so -> so_snd.sb_flags & SB_LOCK)
 		lcp -> lcd_state = LCN_ZOMBIE;
 	else
@@ -193,7 +193,7 @@ struct pklcd *lcp;
 	/* sofree (so);	/* gak!!! you can't do that here */
 }
 
-/* 
+/*
  *  Create a template to be used to send X.25 packets on a logical
  *  channel. It allocates an mbuf and fills in a skeletal packet
  *  depending on its type. This packet is passed to pk_output where
@@ -232,7 +232,7 @@ int lcn, type;
 	return (m);
 }
 
-/* 
+/*
  *  This routine restarts all the virtual circuits. Actually,
  *  the virtual circuits are not "restarted" as such. Instead,
  *  any active switched circuit is simply returned to READY
@@ -286,7 +286,7 @@ int restart_cause;
 }
 
 
-/* 
+/*
  *  This procedure frees up the Logical Channel Descripter.
  */
 
@@ -320,15 +320,15 @@ pk_ifwithaddr (sx)
 				if (bcmp (addr, ia -> ia_xc.xc_addr.x25_addr,
 					 16) == 0)
 					return (ia);
-				
+
 			}
 	return ((struct x25_ifaddr *)0);
 }
 
 
-/* 
+/*
  *  Bind a address and protocol value to a socket.  The important
- *  part is the protocol value - the first four characters of the 
+ *  part is the protocol value - the first four characters of the
  *  Call User Data field.
  */
 
@@ -490,7 +490,7 @@ register struct sockaddr_x25 *sa;
 		return (ENETUNREACH);
 
 	if (!(pkp = XTRACTPKP(rt)))
-		pkp = pk_newlink ((struct x25_ifaddr *) (rt -> rt_ifa), 
+		pkp = pk_newlink ((struct x25_ifaddr *) (rt -> rt_ifa),
 				 (caddr_t) 0);
 
 	/*
@@ -507,9 +507,9 @@ register struct sockaddr_x25 *sa;
 
 		ctlinfo.dlcti_rt = rt;
 		ctlinfo.dlcti_pcb = (caddr_t) pkp;
-		ctlinfo.dlcti_conf = 
+		ctlinfo.dlcti_conf =
 			(struct dllconfig *) (&((struct x25_ifaddr *)(rt -> rt_ifa)) -> ia_xc);
-		pkp -> pk_llnext = 
+		pkp -> pk_llnext =
 			(pkp -> pk_llctlinput) (PRC_CONNECT_REQUEST, 0, &ctlinfo);
 	}
 
@@ -552,43 +552,43 @@ pk_callcomplete (pkp)
 	register struct pklcd *lcp;
 	register int i;
 	register int ni;
-	
 
-	if (pkp -> pk_dxerole & DTE_CONNECTPENDING) 
+
+	if (pkp -> pk_dxerole & DTE_CONNECTPENDING)
 		pkp -> pk_dxerole &= ~DTE_CONNECTPENDING;
 	else return;
 
 	if (pkp -> pk_chan == 0)
 		return;
-	
+
 	/*
 	 * We pretended to be a DTE for allocating lcns, if
 	 * it turns out that we are in reality performing as a
 	 * DCE we need to reshuffle the lcps.
-	 *			        	  	      
-         *             /+---------------+--------     -	      
-	 *            / | a  (maxlcn-1) |              \      
-	 *           /  +---------------+              	\     
-	 *     +--- *   | b  (maxlcn-2) |         	 \    
-	 *     |     \  +---------------+         	  \   
-	 *   r |      \ | c  (maxlcn-3) |         	   \  
-	 *   e |       \+---------------+         	    | 
-	 *   s |        |	 .                	    |  
+	 *
+         *             /+---------------+--------     -
+	 *            / | a  (maxlcn-1) |              \
+	 *           /  +---------------+              	\
+	 *     +--- *   | b  (maxlcn-2) |         	 \
+	 *     |     \  +---------------+         	  \
+	 *   r |      \ | c  (maxlcn-3) |         	   \
+	 *   e |       \+---------------+         	    |
+	 *   s |        |	 .                	    |
 	 *   h |        |        .                	    | m
 	 *   u |        |	 .      	  	    | a
 	 *   f |        |	 .      	  	    | x
 	 *   f |        |	 .                	    | l
 	 *   l |       /+---------------+         	    | c
 	 *   e |      / | c' (   3    ) |         	    | n
-	 *     |     /  +---------------+         	    | 
+	 *     |     /  +---------------+         	    |
 	 *     +--> *   | b' (   2    ) |         	   /
-	 *           \  +---------------+         	  / 
-	 *            \ | a' (   1    ) |         	 /  
-    	 *             \+---------------+               /   
-         *              | 0             |              /    
-	 *              +---------------+--------     -     
-	 *	    
-	 */	    
+	 *           \  +---------------+         	  /
+	 *            \ | a' (   1    ) |         	 /
+    	 *             \+---------------+               /
+         *              | 0             |              /
+	 *              +---------------+--------     -
+	 *
+	 */
 	if (pkp -> pk_dxerole & DTE_PLAYDCE) {
 		/* Sigh, reshuffle it */
 		for (i = pkp -> pk_maxlcn; i > 0; --i)
@@ -614,7 +614,7 @@ struct bcdinfo {
 	octet *cp;
 	unsigned posn;
 };
-/* 
+/*
  *  Build the rest of the CALL REQUEST packet. Fill in calling
  *  address, facilities fields and the user data field.
  */
@@ -641,7 +641,7 @@ register struct x25config *xcp;
 	m -> m_pkthdr.len = m -> m_len += b.cp - (octet *) a;
 
 	if (lcp -> lcd_facilities) {
-		m -> m_pkthdr.len += 
+		m -> m_pkthdr.len +=
 			(m -> m_next = lcp -> lcd_facilities) -> m_pkthdr.len;
 		lcp -> lcd_facilities = 0;
 	} else
@@ -723,9 +723,9 @@ register struct x25config *xcp;
 	return ((b -> posn) - start);
 }
 
-/* 
+/*
  *  This routine gets the  first available logical channel number.  The
- *  search is 
+ *  search is
  *  		- from the highest number to lowest number if playing DTE, and
  *		- from lowest to highest number if playing DCE.
  */
@@ -741,7 +741,7 @@ register struct pkcb *pkp;
 		for (i = 1; i <= pkp -> pk_maxlcn; ++i)
 			if (pkp -> pk_chan[i] == NULL)
 				break;
-	} else { 
+	} else {
 		for (i = pkp -> pk_maxlcn; i > 0; --i)
 			if (pkp -> pk_chan[i] == NULL)
 				break;
@@ -750,9 +750,9 @@ register struct pkcb *pkp;
 	return (i);
 }
 
-/* 
+/*
  *  This procedure sends a CLEAR request packet. The lc state is
- *  set to "SENT_CLEAR". 
+ *  set to "SENT_CLEAR".
  */
 
 pk_clear (lcp, diagnostic, abortive)
@@ -783,7 +783,7 @@ register struct pklcd *lcp;
 /*
  * This procedure generates RNR's or RR's to inhibit or enable
  * inward data flow, if the current state changes (blocked ==> open or
- * vice versa), or if forced to generate one.  One forces RNR's to ack data.  
+ * vice versa), or if forced to generate one.  One forces RNR's to ack data.
  */
 pk_flowcontrol (lcp, inhibit, forced)
 register struct pklcd *lcp;
@@ -798,7 +798,7 @@ register struct pklcd *lcp;
 	pk_output (lcp);
 }
 
-/* 
+/*
  *  This procedure sends a RESET request packet. It re-intializes
  *  virtual circuit.
  */
@@ -854,13 +854,13 @@ register struct pklcd *lcp;
 		m_freem (lcp -> lcd_facilities);
 		lcp -> lcd_facilities = 0;
 	}
-	if (so = lcp -> lcd_so) 
+	if (so = lcp -> lcd_so)
 		sbflush (&so -> so_snd);
-	else 
+	else
 		sbflush (&lcp -> lcd_sb);
 }
 
-/* 
+/*
  *  This procedure handles all local protocol procedure errors.
  */
 
@@ -872,7 +872,7 @@ char *errstr;
 	pk_message (lcp -> lcd_lcn, lcp -> lcd_pkp -> pk_xcp, errstr);
 
 	switch (error) {
-	case CLEAR: 
+	case CLEAR:
 		if (lcp -> lcd_so) {
 			lcp -> lcd_so -> so_error = ECONNABORTED;
 			soisdisconnecting (lcp -> lcd_so);
@@ -880,13 +880,13 @@ char *errstr;
 		pk_clear (lcp, diagnostic, 1);
 		break;
 
-	case RESET: 
+	case RESET:
 		pk_reset (lcp, diagnostic);
 	}
 }
 
-/* 
- *  This procedure is called during the DATA TRANSFER state to check 
+/*
+ *  This procedure is called during the DATA TRANSFER state to check
  *  and  process  the P(R) values  received  in the DATA,  RR OR RNR
  *  packets.
  */
@@ -918,15 +918,15 @@ unsigned pr;
 	if (lcp -> lcd_window_condition == TRUE)
 		lcp -> lcd_window_condition = FALSE;
 
-	if (so && ((so -> so_snd.sb_flags & SB_WAIT) || 
+	if (so && ((so -> so_snd.sb_flags & SB_WAIT) ||
 		   (so -> so_snd.sb_flags & SB_NOTIFY)))
 		sowwakeup (so);
 
 	return (PACKET_OK);
 }
 
-/* 
- *  This procedure decodes the X.25 level 3 packet returning a 
+/*
+ *  This procedure decodes the X.25 level 3 packet returning a
  *  code to be used in switchs or arrays.
  */
 
@@ -938,20 +938,20 @@ register struct x25_packet *xp;
 	if (X25GBITS(xp -> bits, fmt_identifier) != 1)
 		return (INVALID_PACKET);
 #ifdef ancient_history
-	/* 
+	/*
 	 *  Make sure that the logical channel group number is 0.
 	 *  This restriction may be removed at some later date.
 	 */
 	if (xp -> lc_group_number != 0)
 		return (INVALID_PACKET);
 #endif
-	/* 
+	/*
 	 *  Test for data packet first.
 	 */
 	if (!(xp -> packet_type & DATA_PACKET_DESIGNATOR))
 		return (DATA);
 
-	/* 
+	/*
 	 *  Test if flow control packet (RR or RNR).
 	 */
 	if (!(xp -> packet_type & RR_OR_RNR_PACKET_DESIGNATOR))
@@ -964,47 +964,47 @@ register struct x25_packet *xp;
 			return (REJECT);
 		}
 
-	/* 
+	/*
 	 *  Determine the rest of the packet types.
 	 */
 	switch (xp -> packet_type) {
-	case X25_CALL: 
+	case X25_CALL:
 		type = CALL;
 		break;
 
-	case X25_CALL_ACCEPTED: 
+	case X25_CALL_ACCEPTED:
 		type = CALL_ACCEPTED;
 		break;
 
-	case X25_CLEAR: 
+	case X25_CLEAR:
 		type = CLEAR;
 		break;
 
-	case X25_CLEAR_CONFIRM: 
+	case X25_CLEAR_CONFIRM:
 		type = CLEAR_CONF;
 		break;
 
-	case X25_INTERRUPT: 
+	case X25_INTERRUPT:
 		type = INTERRUPT;
 		break;
 
-	case X25_INTERRUPT_CONFIRM: 
+	case X25_INTERRUPT_CONFIRM:
 		type = INTERRUPT_CONF;
 		break;
 
-	case X25_RESET: 
+	case X25_RESET:
 		type = RESET;
 		break;
 
-	case X25_RESET_CONFIRM: 
+	case X25_RESET_CONFIRM:
 		type = RESET_CONF;
 		break;
 
-	case X25_RESTART: 
+	case X25_RESTART:
 		type = RESTART;
 		break;
 
-	case X25_RESTART_CONFIRM: 
+	case X25_RESTART_CONFIRM:
 		type = RESTART_CONF;
 		break;
 
@@ -1012,13 +1012,13 @@ register struct x25_packet *xp;
 		type = DIAG_TYPE;
 		break;
 
-	default: 
+	default:
 		type = INVALID_PACKET;
 	}
 	return (type);
 }
 
-/* 
+/*
  *  A restart packet has been received. Print out the reason
  *  for the restart.
  */
@@ -1031,19 +1031,19 @@ register struct x25_packet *xp;
 	register int lcn = LCN(xp);
 
 	switch (xp -> packet_data) {
-	case X25_RESTART_LOCAL_PROCEDURE_ERROR: 
+	case X25_RESTART_LOCAL_PROCEDURE_ERROR:
 		pk_message (lcn, xcp, "restart: local procedure error");
 		break;
 
-	case X25_RESTART_NETWORK_CONGESTION: 
+	case X25_RESTART_NETWORK_CONGESTION:
 		pk_message (lcn, xcp, "restart: network congestion");
 		break;
 
-	case X25_RESTART_NETWORK_OPERATIONAL: 
+	case X25_RESTART_NETWORK_OPERATIONAL:
 		pk_message (lcn, xcp, "restart: network operational");
 		break;
 
-	default: 
+	default:
 		pk_message (lcn, xcp, "restart: unknown cause");
 	}
 }
@@ -1054,7 +1054,7 @@ int     Reset_cause[] = {
 	EXRESET, EXROUT, 0, EXRRPE, 0, EXRLPE, 0, EXRNCG
 };
 
-/* 
+/*
  *  A reset packet has arrived. Return the cause to the user.
  */
 
@@ -1071,7 +1071,7 @@ register struct x25_packet *xp;
 
 	pk_message (LCN(xp), lcp -> lcd_pkp, "reset code 0x%x, diagnostic 0x%x",
 			xp -> packet_data, 4[(u_char *)xp]);
-			
+
 	if (lcp -> lcd_so)
 		lcp -> lcd_so -> so_error = Reset_cause[code];
 }
@@ -1084,7 +1084,7 @@ int     Clear_cause[] = {
 	0, EXCLPE, 0, 0, 0, 0, 0, EXCRRC
 };
 
-/* 
+/*
  *  A clear packet has arrived. Return the cause to the user.
  */
 

@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.10 1994/09/15 10:58:35 davidg Exp $
+ *	$Id: math_emulate.c,v 1.11 1995/05/11 19:26:09 rgrimes Exp $
  */
 
 /*
@@ -270,7 +270,7 @@ for fcom , ??? ATS */
 		case 0x9b: /* same as above , ATS */
 			fcom(PST(code & 7),PST(0));
 			fpop();
-			return(0);			
+			return(0);
 		case 0x9c: /* fsubr */
 			ST(code & 7).exponent ^= 0x8000;
 			fadd(PST(0),PST(code & 7),&tmp);
@@ -1396,7 +1396,7 @@ void frndint(const temp_real * a, temp_real * b)
 		b->exponent = 0;
 }
 
-void Fscale(const temp_real *a, const temp_real *b, temp_real *c) 
+void Fscale(const temp_real *a, const temp_real *b, temp_real *c)
 {
 	temp_int ti;
 

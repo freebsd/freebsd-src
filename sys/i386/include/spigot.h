@@ -61,7 +61,7 @@ unsigned char		spigot_status(void);
  * spigot_open() returns a data address pointing to the spigot data.
  * Each read from this address returns the next word.  The ``dev'' passed
  * is usually "/dev/spigot".  Data is described in the phillips desktop
- * video data handbook under the 7191 chip.  Formats may be either 
+ * video data handbook under the 7191 chip.  Formats may be either
  * YUV 4:2:2 or YUV 4:1:1.  A sample device driver for ``nv'' is included
  * with this code.
  *

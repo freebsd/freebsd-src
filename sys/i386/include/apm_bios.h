@@ -5,14 +5,14 @@
  *
  * This software may be used, modified, copied, and distributed, in
  * both source and binary form provided that the above copyright and
- * these terms are retained. Under no circumstances is the author 
- * responsible for the proper functioning of this software, nor does 
- * the author assume any responsibility for damages incurred with its 
+ * these terms are retained. Under no circumstances is the author
+ * responsible for the proper functioning of this software, nor does
+ * the author assume any responsibility for damages incurred with its
  * use.
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.3 1994/10/02 17:31:27 phk Exp $
+ *	$Id: apm_bios.h,v 1.4 1995/02/17 02:22:45 phk Exp $
  */
 
 #ifndef _MACHINE_APM_BIOS_H_

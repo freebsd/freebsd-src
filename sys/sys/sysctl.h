@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.21 1995/03/16 18:16:26 bde Exp $
+ * $Id: sysctl.h,v 1.22 1995/05/12 19:17:25 wollman Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -63,7 +63,7 @@
 
 /*
  * Each subsystem defined by sysctl defines a list of variables
- * for that subsystem. Each name is either a node with further 
+ * for that subsystem. Each name is either a node with further
  * levels defined below it, or it is a leaf of some particular
  * type given below. Each sysctl level defines a set of name/type
  * pairs to be used by sysctl(1) in manipulating the subsystem.
@@ -181,7 +181,7 @@ struct ctlname {
 	{ "vfsconf", CTLTYPE_STRUCT }, \
 }
 
-/* 
+/*
  * KERN_PROC subtypes
  */
 #define KERN_PROC_ALL		0	/* everything */
@@ -192,7 +192,7 @@ struct ctlname {
 #define	KERN_PROC_UID		5	/* by effective uid */
 #define	KERN_PROC_RUID		6	/* by real uid */
 
-/* 
+/*
  * KERN_PROC subtype ops return arrays of augmented proc structures:
  */
 struct kinfo_proc {

@@ -156,7 +156,7 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 
 	if (unit >= NVN) {
 		if (vn_options & VN_FOLLOW)
-			printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n", 
+			printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n",
 				dev, flags, mode, p);
 		return(ENOENT);
 	}
@@ -184,14 +184,14 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 			label.d_ntracks = 64;
 			label.d_ncylinders = vn->sc_size / (32 * 64);
 			label.d_secpercyl = 32 * 64;
-			label.d_secperunit = 
+			label.d_secperunit =
 					label.d_partitions[RAW_PART].p_size =
 					vn->sc_size;
 
 			return (dsopen("vn", dev, mode, &vn->sc_slices, &label,
 				       vnstrategy, (ds_setgeom_t *)NULL));
 		}
-		if (dkslice(dev) != WHOLE_DISK_SLICE || 
+		if (dkslice(dev) != WHOLE_DISK_SLICE ||
 		    dkpart(dev) != RAW_PART ||
 		    mode != S_IFCHR)
 			return (ENXIO);
@@ -277,9 +277,9 @@ vnstrategy(struct buf *bp)
 		daddr_t bsize;
 		int flags, resid;
 		caddr_t addr;
-		
+
 		struct buf *nbp;
-		
+
 		nbp = getvnbuf();
 
 		bn = dbtob(bn);
@@ -359,7 +359,7 @@ vnstrategy(struct buf *bp)
 				putvnbuf(nbp);
 				return;
 			}
-				
+
 			bn += sz;
 			addr += sz;
 			resid -= sz;
@@ -409,7 +409,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			if (error != -1)
 				return (error);
 		}
-		if (dkslice(dev) != WHOLE_DISK_SLICE || 
+		if (dkslice(dev) != WHOLE_DISK_SLICE ||
 		    dkpart(dev) != RAW_PART)
 			return (ENOTTY);
 	}
@@ -456,8 +456,8 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		IFOPT(vn, VN_LABELS) {
 			/*
 			 * Reopen so that `ds' knows which devices are open.
-			 * If this is the first VNIOCSET, then we've 
-			 * guaranteed that the device is the cdev and that 
+			 * If this is the first VNIOCSET, then we've
+			 * guaranteed that the device is the cdev and that
 			 * no other slices or labels are open.  Otherwise,
 			 * we rely on VNIOCCLR not being abused.
 			 */
@@ -485,7 +485,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		IFOPT(vn, VN_FOLLOW)
 			printf("vnioctl: CLRed\n");
 		break;
-	
+
 	case VNIOCGSET:
 		vn_options |= *f;
 		*f = vn_options;
@@ -518,7 +518,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
  * to this "disk" is essentially as root.  Note that credentials may change
  * if some other uid can write directly to the mapped file (NFS).
  */
-int 
+int
 vnsetcred(struct vn_softc *vn, struct ucred *cred)
 {
 	struct uio auio;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_acct.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: pk_acct.c,v 1.2 1994/08/02 07:47:29 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@
 
 
 struct	vnode *pkacctp;
-/* 
+/*
  *  Turn on packet accounting
  */
 
@@ -90,7 +90,7 @@ pk_accton (path)
 	return (error);
 }
 
-/* 
+/*
  *  Write a record on the accounting file.
  */
 

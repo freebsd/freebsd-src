@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.31 1995/05/07 06:54:01 bde Exp $
+ *      $Id: ultra14f.c,v 1.32 1995/05/11 19:26:21 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -173,7 +173,7 @@ struct uha_bits
 #define U24_ABORT_ACK		0x18	/* same */
 #define U24_ICM_ACK		0x02	/* 24F acknowledge ICM and clear */
 
-/* 
+/*
  * UHA_CONF1 bits (read only)
  */
 
@@ -373,7 +373,7 @@ uha_send_mbox(int unit, struct mscp *mscp)
 		printf("uha%d: uha_send_mbox, board not responding\n", unit);
 		Debugger("ultra14f");
 	}
-	outl(ur->ogmptr, KVTOPHYS(mscp)); 
+	outl(ur->ogmptr, KVTOPHYS(mscp));
 	if (uha->flags & UHA_24F) outb(ur->ogmcmd, 1);
 	outb(ur->lint, ub->ogmint);
 	splx(s);
@@ -565,7 +565,7 @@ uha_attach(dev)
  * Return some information to the caller about
  * the adapter and it's capabilities
  */
-u_int32 
+u_int32
 uha_adapter_info(unit)
 	int     unit;
 {
@@ -925,7 +925,7 @@ uha_init(unit)
 	uha->flags |= UHA_INIT;
 	return (0);
 }
-  
+
 
 /*
  *  Initialize an Ultrastor 24F
@@ -975,7 +975,7 @@ int	unit;
 	ub->icm_ack	= U24_ICM_ACK;
 
 	/*
-	 * Make sure an EISA card is installed in this slot, 
+	 * Make sure an EISA card is installed in this slot,
 	 * and if it is make sure that the card is enabled.
 	 */
 	outb(ur->id, 0xff);
@@ -1060,7 +1060,7 @@ uhaminphys(bp)
  * start a scsi operation given the command and the data address.  Also
  * needs the unit, target and lu.
  */
-int32 
+int32
 uha_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
@@ -1208,8 +1208,8 @@ uha_scsi_cmd(xs)
 				nextphys = thisphys;
 				while ((datalen) && (thisphys == nextphys))
 					/*
-					 * This page is contiguous (physically) with 
-					 * the the last, just extend the length 
+					 * This page is contiguous (physically) with
+					 * the the last, just extend the length
 					 */
 				{
 					/* how far to the end of the page */

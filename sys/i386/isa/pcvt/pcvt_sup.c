@@ -214,11 +214,11 @@ vgaioctl(Dev_t dev, int cmd, caddr_t data, int flag)
 		case VGAPCVTID:
 			vgapcvtid((struct pcvtid *)data);
 			break;
-			
+
 		case VGAPCVTINFO:
 			vgapcvtinfo((struct pcvtinfo *)data);
 			break;
-			
+
 		case VGASETCOLMS:
 			if(is_dev_grafx)
 				return EAGAIN;
@@ -280,7 +280,7 @@ vgapcvtinfo(struct pcvtinfo *data)
 	data->updateslow= PCVT_UPDATESLOW;
 	data->sysbeepf	= PCVT_SYSBEEPF;
 
-#if PCVT_NETBSD || PCVT_FREEBSD >= 200	
+#if PCVT_NETBSD || PCVT_FREEBSD >= 200
 	data->pcburst	= PCVT_PCBURST;
 #else
 	data->pcburst	= 1;
@@ -291,7 +291,7 @@ vgapcvtinfo(struct pcvtinfo *data)
 #else
 	data->kbd_fifo_sz = 0;
 #endif
-	
+
 	data->compile_opts = (0
 
 #if PCVT_VT220KEYB
@@ -399,7 +399,7 @@ vid_cursor(struct cursorshape *data)
 
 	if(adaptor_type == VGA_ADAPTOR || adaptor_type == EGA_ADAPTOR)
 	{
-		character_set = vs[screen].vga_charset;		
+		character_set = vs[screen].vga_charset;
 		character_set = (character_set < 0) ? 0 :
 			((character_set < totalfonts) ?
 			 character_set :
@@ -421,7 +421,7 @@ vid_cursor(struct cursorshape *data)
 
 	if((vga_family == VGA_F_TRI) && (start == 0))
 		start = 1;
-		
+
 	end = (data->end < 0) ? 0 :
 		((data->end > line_height) ? line_height : data->end);
 
@@ -431,7 +431,7 @@ vid_cursor(struct cursorshape *data)
 	if(screen == current_video_screen)
 	{
 		outb(addr_6845,CRTC_CURSTART);	/* cursor start reg */
-		outb(addr_6845+1, start);	
+		outb(addr_6845+1, start);
 		outb(addr_6845,CRTC_CUREND);	/* cursor end reg */
 		outb(addr_6845+1, end);
 	}
@@ -448,14 +448,14 @@ vgasetfontattr(struct vgafontattr *data)
 	int lines_per_character;
 	int totscanlines;
 	int size;
-	
+
 	vga_character_set = data->character_set;
 	vga_character_set = (vga_character_set < 0) ? 0 :
 		((vga_character_set < totalfonts) ?
 		vga_character_set : totalfonts-1);
 
 	vgacs[vga_character_set].loaded = data->font_loaded;
-	
+
 	/* Limit Characters to 32 scanlines doubled */
 	vgacs[vga_character_set].char_scanlines =
 		(data->character_scanlines & 0x1F)
@@ -463,12 +463,12 @@ vgasetfontattr(struct vgafontattr *data)
 
 	if(adaptor_type == EGA_ADAPTOR)
 		/* ...and screen height to scan 350 lines */
-	        vgacs[vga_character_set].scr_scanlines = 
+	        vgacs[vga_character_set].scr_scanlines =
 		(data->screen_scanlines > 0x5d) ?
 		0x5d : data->screen_scanlines;
 	else
 		/* ...and screen height to scan 480 lines */
-	        vgacs[vga_character_set].scr_scanlines = 
+	        vgacs[vga_character_set].scr_scanlines =
 		(data->screen_scanlines > 0xdF) ?
 		0xdF : data->screen_scanlines;
 
@@ -517,7 +517,7 @@ vgasetfontattr(struct vgafontattr *data)
 		    		else
 		         		size = SIZ_25ROWS;
 				break;
-				
+
 			case SIZ_40ROWS:
 				if(totscanlines/lines_per_character >= 40)
 		         		size = SIZ_40ROWS;
@@ -540,9 +540,9 @@ vgasetfontattr(struct vgafontattr *data)
 		    	break;
 		}
 	}
-	
+
 	vgacs[vga_character_set].screen_size = size;
-	
+
 	for (i = 0;i < PCVT_NSCREENS;i++)
 	{
 		if(vga_character_set == vs[i].vga_charset)
@@ -564,7 +564,7 @@ static void
 vgagetfontattr(struct vgafontattr *data)
 {
 	int vga_character_set;
-	
+
 	vga_character_set = data->character_set;
 	vga_character_set = (vga_character_set < 0) ? 0 :
 		((vga_character_set < (int)totalfonts) ?
@@ -593,7 +593,7 @@ vgaloadchar(struct vgaloadchar *data)
 	int vga_character_set;
 	int character;
 	int lines_per_character;
-	
+
 	vga_character_set = data->character_set;
 	vga_character_set = (vga_character_set < 0) ? 0 :
 		((vga_character_set < (int)totalfonts) ?
@@ -630,7 +630,7 @@ vid_getscreen(struct screeninfo *data, Dev_t dev)
 	data->vga_family = vga_family;		/* manufacturer, family */
 	data->vga_type = vga_type;		/* detected chipset type */
 	data->vga_132 = can_do_132col;		/* 132 column support */
-	data->force_24lines = vs[device].force24; /* force 24 lines */	
+	data->force_24lines = vs[device].force24; /* force 24 lines */
 }
 
 /*---------------------------------------------------------------------------*
@@ -640,7 +640,7 @@ static void
 vid_setscreen(struct screeninfo *data, Dev_t dev)
 {
 	int screen;
-	
+
 	if(data->current_screen == -1)
 	{
 		screen = minor(dev);
@@ -673,7 +673,7 @@ vid_setscreen(struct screeninfo *data, Dev_t dev)
 		if(data->screen_size == -1)
 			data->screen_size =
 				vgacs[(vs[screen].vga_charset)].screen_size;
-			
+
 		if(data->force_24lines != -1)
 		{
 			vs[screen].force24 = data->force_24lines;
@@ -689,7 +689,7 @@ vid_setscreen(struct screeninfo *data, Dev_t dev)
 					  &vs[screen]);
 			}
 		}
-			
+
 		if((data->screen_size == SIZ_25ROWS) ||
 		   (data->screen_size == SIZ_28ROWS) ||
 		   (data->screen_size == SIZ_35ROWS) ||
@@ -697,7 +697,7 @@ vid_setscreen(struct screeninfo *data, Dev_t dev)
 		   (data->screen_size == SIZ_43ROWS) ||
 		   (data->screen_size == SIZ_50ROWS))
 		{
-			if(data->screen_no == -1)			
+			if(data->screen_no == -1)
 				set_screen_size(vsp, data->screen_size);
 			else
 				set_screen_size(&vs[minor(dev)],
@@ -710,7 +710,7 @@ vid_setscreen(struct screeninfo *data, Dev_t dev)
 		if((data->pure_vt_mode == M_HPVT) ||
 		   (data->pure_vt_mode == M_PUREVT))
 		{
-			if(data->screen_no == -1)			
+			if(data->screen_no == -1)
 				set_emulation_mode(vsp, data->pure_vt_mode);
 			else
 				set_emulation_mode(&vs[minor(dev)],
@@ -718,7 +718,7 @@ vid_setscreen(struct screeninfo *data, Dev_t dev)
 		}
 	}
 }
-    
+
 /*---------------------------------------------------------------------------*
  *	set screen size/resolution for a virtual screen
  *---------------------------------------------------------------------------*/
@@ -760,14 +760,14 @@ set_screen_size(struct video_state *svsp, int size)
 					sw_ufkl(svsp);
 			}
 
-			
+
 			svsp->scrr_len = svsp->screen_rows;
 			svsp->scrr_end = svsp->scrr_len - 1;
 
 #if PCVT_SIGWINCH
 			if (svsp->vs_tty && svsp->vs_tty->t_pgrp)
 				pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
-#endif /* PCVT_SIGWINCH */			
+#endif /* PCVT_SIGWINCH */
 
 			break;
 		}
@@ -870,7 +870,7 @@ vgapaletteio(unsigned idx, struct rgb *val, int writeit)
 		val->b = inb(VGA_DAC + 3) & VGA_PMSK;
 	}
 
-#if PCVT_PALFLICKER	
+#if PCVT_PALFLICKER
 	vga_screen_on();
 #endif /* PCVT_PALFLICKER */
 
@@ -914,7 +914,7 @@ async_update(int arg)
 	{
 		goto async_update_exit;	/* do not update anything */
 	}
-	
+
 #if PCVT_SCREENSAVER
 	if(reset_screen_saver && (counter == PCVT_UPDATESLOW))
 	{
@@ -947,7 +947,7 @@ async_update(int arg)
 	if(--counter)			/* below is possible update */
 		goto async_update_exit;	/*  just now and then ..... */
 	counter = PCVT_UPDATESLOW;	/* caution, see screensaver above !! */
-	
+
 	/*-------------------------------------------------------------------*/
 	/* this takes place ONLY on screen 0 if in HP mode, labels on, !X    */
 	/*-------------------------------------------------------------------*/
@@ -963,7 +963,7 @@ async_update(int arg)
 		extern u_char rawkeybuf[80];
 
 		if(keyboard_show)
-		{		
+		{
 			for(i = 0; i < 80; i++)
 			{
 				*((vs[0].Crtat+((vs[0].screen_rows+2)
@@ -980,9 +980,9 @@ async_update(int arg)
 #ifdef NEW_AVERUNNABLE
 	 		tmp = (averunnable.ldavg[0] * 100 + FSCALE / 2)
 				>> FSHIFT;
-#else	 		
+#else
 			tmp = (averunnable[0] * 100 + FSCALE / 2) >> FSHIFT;
-#endif			
+#endif
 
 			buffer[i++] =
 				((((tmp/100)/10) == 0) ?
@@ -996,9 +996,9 @@ async_update(int arg)
 #ifdef NEW_AVERUNNABLE
 	 		tmp = (averunnable.ldavg[1] * 100 + FSCALE / 2)
 				>> FSHIFT;
-#else	 		
+#else
 			tmp = (averunnable[1] * 100 + FSCALE / 2) >> FSHIFT;
-#endif			
+#endif
 			buffer[i++] = ((((tmp/100)/10) == 0) ?
 				       ' ' :
 				       ((tmp/100)/10) + '0');
@@ -1010,9 +1010,9 @@ async_update(int arg)
 #ifdef NEW_AVERUNNABLE
 	 		tmp = (averunnable.ldavg[2] * 100 + FSCALE / 2)
 				>> FSHIFT;
-#else	 		
+#else
 			tmp = (averunnable[2] * 100 + FSCALE / 2) >> FSHIFT;
-#endif			
+#endif
 			buffer[i++] = ((((tmp/100)/10) == 0) ?
 				       ' ' :
 				       ((tmp/100)/10) + '0');
@@ -1021,7 +1021,7 @@ async_update(int arg)
 			buffer[i++] = ((tmp%100)/10) + '0';
 			buffer[i++] = ((tmp%100)%10) + '0';
 			buffer[i] = '\0';
-		
+
 			for(i = 0; buffer[i]; i++)
 			{
 				*((vs[0].Crtat +
@@ -1029,7 +1029,7 @@ async_update(int arg)
 				   ) + i
 				  ) = user_attr | buffer[i];
 			}
-	
+
 #if PCVT_SHOWKEYS
 			for(; i < 77; i++)
 			{
@@ -1038,7 +1038,7 @@ async_update(int arg)
 				   ) + i
 				  ) = user_attr | ' ';
 			}
-	
+
 		}
 #endif	/* PCVT_SHOWKEYS */
 	}
@@ -1058,7 +1058,7 @@ async_update(int arg)
 		if(vsp->maxcol == SCR_COL132)
 		{
 			p += (SCR_COL132 - SCR_COL80)/2;
-			
+
 			if(col >= 100)
 			{
 				*(p + LABEL_COLU) = user_attr | '1';
@@ -1068,12 +1068,12 @@ async_update(int arg)
 			{
 				*(p + LABEL_COLU) = user_attr | '0';
 			}
-		}			
+		}
 		*(p + LABEL_COLH) = user_attr | ((col/10) + '0');
 		*(p + LABEL_COLL) = user_attr | ((col%10) + '0');
 
 		/* update row display between labels */
-	
+
 		*(p + LABEL_ROWH) = (user_attr | (((vsp->row+1)/10) + '0'));
 		*(p + LABEL_ROWL) = (user_attr | (((vsp->row+1)%10) + '0'));
 	}
@@ -1085,7 +1085,7 @@ async_update_exit:
 	   timeout((TIMEOUT_FUNC_T)async_update, UPDATE_START, PCVT_UPDATEFAST);
 	}
 }
-    
+
 /*---------------------------------------------------------------------------*
  *	set character set for virtual screen
  *---------------------------------------------------------------------------*/
@@ -1112,7 +1112,7 @@ set_charset(struct video_state *svsp, int curvgacs)
 		newrows = 24;
 	if (newrows < oldrows) {
 		int nscroll = svsp->row + 1 - newrows;
-		
+
 		if (svsp->row >= oldrows) /* Sanity check */
 			nscroll = oldrows - newrows;
 		if (nscroll > 0) {
@@ -1140,7 +1140,7 @@ set_charset(struct video_state *svsp, int curvgacs)
 		svsp->scrr_end = svsp->screen_rows - 1;
 	svsp->scrr_len = svsp->scrr_end - svsp->scrr_beg + 1;
 
-	/* Clip cursor pos */	
+	/* Clip cursor pos */
 
 	if(svsp->cur_offset > (svsp->scrr_len * svsp->maxcol))
 		svsp->cur_offset = (svsp->scrr_len * svsp->maxcol) + svsp->col;
@@ -1178,7 +1178,7 @@ select_vga_charset(int vga_charset)
 	   used for the upper 256 entries of a complete 512 entry ega/
 	   vga charset.
 	--------------------------------------------------------------*/
-	
+
 	for(first = 0; first < totalfonts; first++)
 	{
 		if(!vgacs[first].loaded)
@@ -1220,7 +1220,7 @@ select_vga_charset(int vga_charset)
 		cmap |= cmaptabb[second];
 		vgacs[first].secondloaded = second;
 	}
-	else		
+	else
 	{
 		vgacs[first].secondloaded = 0; /*cs 0 can never become a 2nd!*/
 	}
@@ -1230,7 +1230,7 @@ select_vga_charset(int vga_charset)
 		cmap = (vga_charset & 0x07);
 		cmap |= 0x10;
 	}
-	
+
 	outb(TS_INDEX, TS_FONTSEL);	/* character map select register */
 	outb(TS_DATA, cmap);		/* new char map */
 
@@ -1349,7 +1349,7 @@ resetchargen(void)
 	if(color)
 		outb(GDC_DATA, 0x0e);	/* map starts at 0xb800 */
 	else
-		outb(GDC_DATA, 0x0a);	/* map starts at 0xb000 */	
+		outb(GDC_DATA, 0x0a);	/* map starts at 0xb000 */
 
 	chargen_access = 0;	/* flag we are NOT accessing the chargen ram */
 }
@@ -1385,12 +1385,12 @@ vga_screen_off(void)
 {
 	unsigned char old;
 
-	outb(TS_INDEX, TS_SYNCRESET);		
+	outb(TS_INDEX, TS_SYNCRESET);
 	outb(TS_DATA, 0x01);		/* synchronous reset */
 
 	outb(TS_INDEX, TS_MODE);	/* clocking mode reg */
 	old = inb(TS_DATA);		/* get current value */
-	
+
 	outb(TS_INDEX, TS_MODE);	/* clocking mode reg */
 	outb(TS_DATA, (old | 0x20));	/* screen off bit on */
 
@@ -1406,12 +1406,12 @@ vga_screen_on(void)
 {
 	unsigned char old;
 
-	outb(TS_INDEX, TS_SYNCRESET);		
+	outb(TS_INDEX, TS_SYNCRESET);
 	outb(TS_DATA, 0x01);		/* synchronous reset */
 
 	outb(TS_INDEX, TS_MODE);	/* clocking mode reg */
 	old = inb(TS_DATA);		/* get current value */
-	
+
 	outb(TS_INDEX, TS_MODE);	/* clocking mode reg */
 	outb(TS_DATA, (old & ~0x20));	/* screen off bit off */
 
@@ -1438,20 +1438,20 @@ compute_charset_base(unsigned fontset)
 		case EGA_ADAPTOR:
 			fontset = (fontset > 3) ? 3 : fontset;
 			break;
-			
+
 		case VGA_ADAPTOR:
 			fontset = (fontset > 7) ? 7 : fontset;
 			break;
-			
+
 		default:
 			return 0;
 	}
-	
+
 	if(color)
 		d -= (0xB8000 - 0xA0000);	/* Point to 0xA0000 */
 	else
 		d -= (0xB0000 - 0xA0000);	/* Point to 0xA0000 */
-		
+
 	if(vsp->wd132col)
 		d += charsetw_offset[fontset];	/* Load into Character set n */
 	else
@@ -1521,7 +1521,7 @@ loadchar(int fontset, int character, int char_scanlines, u_char *char_table)
 }
 
 /*---------------------------------------------------------------------------*
- *	save/restore character set n to addr b 
+ *	save/restore character set n to addr b
  *---------------------------------------------------------------------------*/
 #if !PCVT_BACKUP_FONTS
 
@@ -1616,9 +1616,9 @@ vgapage(int n)
 #if !PCVT_KBD_FIFO
 	int x;
 #endif	/* !PCVT_KBD_FIFO */
-	
+
 	int cols = vsp->maxcol;		/* get current col val */
-	
+
 	if(n < 0 || n >= totalscreens)
 		return;
 
@@ -1660,12 +1660,12 @@ vgapage(int n)
 #if !PCVT_KBD_FIFO
 	splx(x);
 #endif	/* !PCVT_KBD_FIFO */
-	
+
 	select_vga_charset(vsp->vga_charset);
 
 	if(vsp->maxcol != cols)
 		vga_col(vsp, vsp->maxcol);	/* select 80/132 columns */
-	
+
  	outb(addr_6845, CRTC_CURSORH);	/* select high register */
 	outb(addr_6845+1, vsp->cur_offset >> 8);
 	outb(addr_6845, CRTC_CURSORL);	/* select low register */
@@ -1688,7 +1688,7 @@ vgapage(int n)
 		unsigned i;
 
 		/* switch VGA DAC palette entries */
-			
+
 		for(i = 0; i < NVGAPEL; i++)
 			vgapaletteio(i, &vsp->palette[i], 1);
 	}
@@ -1707,7 +1707,7 @@ int
 vga_test(void)
 {
 	u_char old, new, check;
-    
+
 	outb(addr_6845,CRTC_CURSTART);	/* cursor start reg */
 	old = inb(addr_6845+1);		/* get current value */
 
@@ -1743,7 +1743,7 @@ vga_test(void)
 
 	outb(addr_6845,CRTC_CURSTART);	/* cursor start reg */
 	outb(addr_6845+1,old);		/* failsafe */
-	
+
         return(1);	/* vga */
 }
 
@@ -1756,9 +1756,9 @@ sixel_vga(struct sixels *sixelp, u_char *vgachar)
 	register int i, j;
 	register int shift;
 	register u_char mask;
-	
+
 	for(j = 0; j < 16; j++)
-		vgachar[j] = 0;	
+		vgachar[j] = 0;
 
 	mask = 0x01;
 	for(j = 0; j < 6; j++)
@@ -1791,7 +1791,7 @@ vga10_vga16(u_char *invga, u_char *outvga)
 	 * Keep the top and bottom scanlines the same and double every scan
 	 * line in between.
 	 */
-	 
+
 	outvga[0] = invga[0];
 	outvga[1] = invga[1];
 	outvga[14] = invga[8];
@@ -1816,7 +1816,7 @@ vga10_vga14(u_char *invga, u_char *outvga)
 	 * Double the top two and bottom two scanlines and copy everything
 	 * in between.
 	 */
-	 
+
 	outvga[0] = invga[0];
 	outvga[1] = invga[0];
 	outvga[2] = invga[1];
@@ -1894,7 +1894,7 @@ set_2ndcharset(void)
 		inb(GN_INPSTAT1M);
 
 	/* select color plane enable reg, caution: set ATC access bit ! */
-	
+
 	outb(ATC_INDEX, (ATC_COLPLEN | ATC_ACCESS));
 	outb(ATC_DATAW, 0x07);		/* disable plane 3 */
 }
@@ -2046,7 +2046,7 @@ scrnsv_timedout(void *arg)
 		/* second call, now blank the screen */
 		/* fill screen with blanks */
 		fillw(/* (BLACK<<8) + */ ' ', vsp->Crtat, scrnsv_size / 2);
-		
+
 #if PCVT_PRETTYSCRNS
 		scrnsv_current = vsp->Crtat;
 		timeout((TIMEOUT_FUNC_T)scrnsv_blink, NULL, hz);
@@ -2112,7 +2112,7 @@ pcvt_scrnsv_reset(void)
 	}
 	splx(x);
 }
-	
+
 #endif /* PCVT_SCREENSAVER */
 
 /*---------------------------------------------------------------------------*
@@ -2132,15 +2132,15 @@ sw_cursor(int onoff)
 		else
 		{
 			int cs = vs[current_video_screen].vga_charset;
-			
+
 			cs = (cs < 0) ? 0 : ((cs < totalfonts) ?
 					     cs : totalfonts-1);
-	
+
 			start = (vgacs[cs].char_scanlines & 0x1F) + 1;
 			end = 0;
 		}
 		outb(addr_6845,CRTC_CURSTART);	/* cursor start reg */
-		outb(addr_6845+1, start);	
+		outb(addr_6845+1, start);
 		outb(addr_6845,CRTC_CUREND);	/* cursor end reg */
 		outb(addr_6845+1, end);
 	}

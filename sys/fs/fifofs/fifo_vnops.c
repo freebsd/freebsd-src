@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.7 1995/02/03 06:46:13 davidg Exp $
+ * $Id: fifo_vnops.c,v 1.8 1995/03/16 18:13:13 bde Exp $
  */
 
 #include <sys/param.h>
@@ -124,7 +124,7 @@ fifo_lookup(ap)
 		struct componentname * a_cnp;
 	} */ *ap;
 {
-	
+
 	*ap->a_vpp = NULL;
 	return (ENOTDIR);
 }
@@ -169,7 +169,7 @@ fifo_open(ap)
 			return (error);
 		}
 		fip->fi_writesock = wso;
-		error = unp_connect2(wso, rso); 
+		error = unp_connect2(wso, rso);
 		if (error) {
 			(void)soclose(wso);
 			(void)soclose(rso);
@@ -251,7 +251,7 @@ fifo_read(ap)
 		rso->so_state |= SS_NBIO;
 	startresid = uio->uio_resid;
 	VOP_UNLOCK(ap->a_vp);
-	error = soreceive(rso, (struct mbuf **)0, uio, 
+	error = soreceive(rso, (struct mbuf **)0, uio,
 		(struct mbuf **)0, (struct mbuf **)0, (int*)0);
 	VOP_LOCK(ap->a_vp);
 	/*

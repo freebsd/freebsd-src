@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tss.h	5.4 (Berkeley) 1/18/91
- *	$Id: tss.h,v 1.3 1993/11/07 17:43:16 wollman Exp $
+ *	$Id: tss.h,v 1.4 1993/11/17 23:25:04 wollman Exp $
  */
 
 #ifndef _MACHINE_TSS_H_
@@ -59,16 +59,16 @@ struct i386tss {
 #define	tss_pc	tss_eip
 	int	tss_eflags; 	/* program status longword */
 #define	tss_psl	tss_eflags
-	int	tss_eax; 
-	int	tss_ecx; 
-	int	tss_edx; 
-	int	tss_ebx; 
+	int	tss_eax;
+	int	tss_ecx;
+	int	tss_edx;
+	int	tss_ebx;
 	int	tss_esp; 	/* user stack pointer */
 #define	tss_usp	tss_esp
 	int	tss_ebp; 	/* user frame pointer */
 #define	tss_fp	tss_ebp
-	int	tss_esi; 
-	int	tss_edi; 
+	int	tss_esi;
+	int	tss_edi;
 	int	tss_es;		/* actually 16 bits: top 16 bits must be zero */
 	int	tss_cs;		/* actually 16 bits: top 16 bits must be zero */
 	int	tss_ss;		/* actually 16 bits: top 16 bits must be zero */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * This is the minimum driver code required to make a spigot work. 
+ * This is the minimum driver code required to make a spigot work.
  * Unfortunatly, I can't include a real driver since the information
  * on the spigot is under non-disclosure.  You can pick up a library
  * that will work with this driver from ftp://ftp.cs.uwm.edu/pub/FreeBSD.
@@ -73,7 +73,7 @@ struct spigot_softc {
 } spigot_softc[NSPIGOT];
 
 /* flags in softc */
-#define	OPEN		0x01	
+#define	OPEN		0x01
 
 #define	UNIT(dev) minor(dev)
 
@@ -115,7 +115,7 @@ spigot_registerdev(struct isa_device *id)
 }
 
 int
-spigot_probe(struct isa_device *devp) 
+spigot_probe(struct isa_device *devp)
 {
 int			status;
 

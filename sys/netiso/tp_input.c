@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_input.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_input.c,v 1.2 1994/08/02 07:51:11 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,10 +60,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_input.c,v 1.1.1.1 1994/05/24 10:06:54 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_input.c,v 1.2 1994/08/02 07:51:11 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_input.c,v $
  *
  * tp_input() gets an mbuf chain from ip.  Actually, not directly
@@ -81,7 +81,7 @@ SOFTWARE.
  * socket.  tp_input calls sonewconn() and tp_newsocket() to set up the
  * "child" socket.  Most tpcb values are copied from the parent tpcb into
  * the child.
- * 
+ *
  * Also in here is tp_headersize() (grot) which tells the expected size
  * of a tp header, to be used by other layers.  It's in here because it
  * uses the static structure tpdu_info.
@@ -128,7 +128,7 @@ int 	iso_check_csum(), tp_driver(), tp_headersize(), tp_error_emit();
 */
 
 struct mbuf *
-tp_inputprep(m) 
+tp_inputprep(m)
 	register struct mbuf *m;
 {
 	int hdrlen;
@@ -157,7 +157,7 @@ tp_inputprep(m)
 	if(((int)m->m_data) & 0x3) {
 		/* If we are not 4-byte aligned, we have to be
 		 * above the beginning of the mbuf, and it is ok just
-		 * to slide it back. 
+		 * to slide it back.
 		 */
 		caddr_t ocp = m->m_data;
 
@@ -172,7 +172,7 @@ tp_inputprep(m)
 	hdrlen = 1 + *mtod( m, u_char *);
 
 	/*
-	 * now pull up the whole tp header 
+	 * now pull up the whole tp header
 	 */
 	if ( m->m_len < hdrlen) {
 		if ((m = m_pullup(m, hdrlen)) == MNULL ) {
@@ -224,9 +224,9 @@ static u_char tpdu_info[][4] =
 	if (Phrase) {error = (Erval); errlen = (int)(Loc); IncStat(Stat);\
 	goto Whattodo; }
 
-/* 
+/*
  * WHENEVER YOU USE THE FOLLOWING MACRO,
- * BE SURE THE TPDUTYPE IS A LEGIT VALUE FIRST! 
+ * BE SURE THE TPDUTYPE IS A LEGIT VALUE FIRST!
  */
 
 #define WHILE_OPTIONS(P, hdr, format)\
@@ -273,7 +273,7 @@ tp_newsocket(so, fname, cons_channel, class_to_use, netservice)
 	register struct tp_pcb	*tpcb = sototpcb(so); /* old tpcb, needed below */
 	register struct tp_pcb	*newtpcb;
 
-	/* 
+	/*
 	 * sonewconn() gets a new socket structure,
 	 * a new lower layer pcb and a new tpcb,
 	 * but the pcbs are unnamed (not bound)
@@ -281,20 +281,20 @@ tp_newsocket(so, fname, cons_channel, class_to_use, netservice)
 	IFTRACE(D_NEWSOCK)
 		tptraceTPCB(TPPTmisc, "newsock: listg_so, _tpcb, so_head",
 			so, tpcb, so->so_head, 0);
-	ENDTRACE	
+	ENDTRACE
 
 	if ((so = sonewconn(so, SS_ISCONFIRMING)) == (struct socket *)0)
 		return so;
 	IFTRACE(D_NEWSOCK)
 		tptraceTPCB(TPPTmisc, "newsock: after newconn so, so_head",
 			so, so->so_head, 0, 0);
-	ENDTRACE	
+	ENDTRACE
 
 	IFDEBUG(D_NEWSOCK)
 		printf("tp_newsocket(channel 0x%x)  after sonewconn so 0x%x \n",
 				cons_channel, so);
 		dump_addr(fname);
-		{ 
+		{
 			struct socket *t, *head ;
 
 			head = so->so_head;
@@ -307,8 +307,8 @@ tp_newsocket(so, fname, cons_channel, class_to_use, netservice)
 		}
 	ENDDEBUG
 
-	/* 
-	 * before we clobber the old tpcb ptr, get these items from the parent pcb 
+	/*
+	 * before we clobber the old tpcb ptr, get these items from the parent pcb
 	 */
 	newtpcb = sototpcb(so);
 	newtpcb->_tp_param = tpcb->_tp_param;
@@ -319,7 +319,7 @@ tp_newsocket(so, fname, cons_channel, class_to_use, netservice)
 	bcopy( tpcb->tp_lsuffix, newtpcb->tp_lsuffix, newtpcb->tp_lsuffixlen);
 
 	if( /* old */ tpcb->tp_ucddata) {
-		/* 
+		/*
 		 * These data are the connect- , confirm- or disconnect- data.
 		 */
 		struct mbuf *conndata;
@@ -370,7 +370,7 @@ tp_newsocket(so, fname, cons_channel, class_to_use, netservice)
 			printf("tp_route_to FAILED! detaching tpcb 0x%x, so 0x%x\n",
 				tpcb, so);
 		ENDDEBUG
-		(void) tp_detach(tpcb); 
+		(void) tp_detach(tpcb);
 		return 0;
 	}
 ok:
@@ -388,7 +388,7 @@ tpcons_output()
 }
 #endif /* !CONS */
 
-/* 
+/*
  * NAME: 	tp_input()
  *
  * CALLED FROM:
@@ -398,12 +398,12 @@ tpcons_output()
  *  Process an incoming TPDU (m), finding the associated tpcb if there
  *  is one. Create the appropriate type of event and call the driver.
  *  (faddr) and (laddr) are the foreign and local addresses.
- * 
+ *
  * 	When tp_input() is called we KNOW that the ENTIRE TP HEADER
  * 	has been m_pullup-ed.
  *
  * RETURN VALUE: Nada
- *  
+ *
  * SIDE EFFECTS:
  *	When using COSNS it may affect the state of the net-level pcb
  *
@@ -439,7 +439,7 @@ tp_input(m, faddr, laddr, cons_channel, dgout_routine, ce_bit)
 	caddr_t					fsufxloc, lsufxloc;
 	int						tpdu_len;
 	u_int 					takes_data;
-	u_int					fcc_present; 
+	u_int					fcc_present;
 	int						errlen;
 	struct tp_conn_param 	tpp;
 	int						tpcons_output();
@@ -457,16 +457,16 @@ again:
 #ifdef TP_PERF_MEAS
 	GET_CUR_TIME( &e.e_time ); perf_meas = 0;
 #endif /* TP_PERF_MEAS */
-	
+
 	IFDEBUG(D_TPINPUT)
 		printf("tp_input(0x%x, ... 0x%x)\n", m, cons_channel);
 	ENDDEBUG
 
 
-	/* 
+	/*
 	 * get the actual tpdu length - necessary for monitoring
 	 * and for checksumming
-	 * 
+	 *
 	 * Also, maybe measure the mbuf chain lengths and sizes.
 	 */
 
@@ -497,7 +497,7 @@ again:
 		ENDDEBUG
 	}
 	IFTRACE(D_TPINPUT)
-		tptraceTPCB(TPPTtpduin, hdr->tpdu_type, hdr, hdr->tpdu_li+1, tpdu_len, 
+		tptraceTPCB(TPPTtpduin, hdr->tpdu_type, hdr, hdr->tpdu_li+1, tpdu_len,
 			0);
 	ENDTRACE
 
@@ -511,7 +511,7 @@ again:
 		printf("input: dref 0x%x sref 0x%x\n", dref, sref);
 	ENDDEBUG
 	IFTRACE(D_TPINPUT)
-		tptrace(TPPTmisc, "channel dutype dref ", 
+		tptrace(TPPTmisc, "channel dutype dref ",
 			cons_channel, dutype, dref, 0);
 	ENDTRACE
 
@@ -528,7 +528,7 @@ again:
 #endif /* ARGO_DEBUG */
 
 	CHECK( (dutype < TP_MIN_TPDUTYPE || dutype > TP_MAX_TPDUTYPE),
-		E_TP_INV_TPDU, ts_inv_dutype, respond, 
+		E_TP_INV_TPDU, ts_inv_dutype, respond,
 		2 );
 		/* unfortunately we can't take the address of the tpdu_type field,
 		 * since it's a bit field - so we just use the constant offset 2
@@ -548,7 +548,7 @@ again:
 
 			switch( vbptr(P)->tpv_code ) {
 
-			case	TPP_tpdu_size: 		
+			case	TPP_tpdu_size:
 				vb_getval(P, u_char, dusize);
 				IFDEBUG(D_TPINPUT)
 					printf("CR dusize 0x%x\n", dusize);
@@ -612,7 +612,7 @@ again:
 			case	TPP_vers:
 				/* not in class 0; 1 octet; in CR_TPDU only */
 				/* COS tests says if version wrong, use default version!?XXX */
-				CHECK( (vbval(P, u_char) != TP_VERSION ), 
+				CHECK( (vbval(P, u_char) != TP_VERSION ),
 					E_TP_INV_PVAL, ts_inv_pval, setversion,
 					(1 + (caddr_t)&vbptr(P)->tpv_val - (caddr_t)hdr) );
 			setversion:
@@ -636,7 +636,7 @@ again:
 					static u_char bad_alt_classes[5] =
 						{ ~0, ~3, ~5, ~0xf, ~0x1f};
 
-					aclass = 
+					aclass =
 						(u_char *) &(((struct tp_vbp *)P)->tpv_val);
 					for (i = ((struct tp_vbp *)P)->tpv_len; i>0; i--) {
 						alt_classes |= (1<<((*aclass++)>>4));
@@ -654,8 +654,8 @@ again:
 			case	TPP_residER:
 			case	TPP_priority:
 			case	TPP_transdelay:
-			case	TPP_throughput: 
-			case	TPP_addl_info: 
+			case	TPP_throughput:
+			case	TPP_addl_info:
 			case	TPP_subseq:
 			default:
 				IFDEBUG(D_TPINPUT)
@@ -665,12 +665,12 @@ again:
 				IncStat(ts_param_ignored);
 				break;
 
-			case	TPP_checksum:		
+			case	TPP_checksum:
 				IFDEBUG(D_TPINPUT)
 					printf("CR before cksum\n");
 				ENDDEBUG
 
-				CHECK( iso_check_csum(m, tpdu_len), 
+				CHECK( iso_check_csum(m, tpdu_len),
 					E_TP_INV_PVAL, ts_bad_csum, discard, 0)
 
 				IFDEBUG(D_TPINPUT)
@@ -711,8 +711,8 @@ again:
 
 			CHECK(t == 0, E_TP_NO_SESSION, ts_inv_sufx, respond,
 				(1 + 2 + (caddr_t)&hdr->_tpduf - (caddr_t)hdr))
-				/* _tpduf is the fixed part; add 2 to get the dref bits of 
-				 * the fixed part (can't take the address of a bit field) 
+				/* _tpduf is the fixed part; add 2 to get the dref bits of
+				 * the fixed part (can't take the address of a bit field)
 				 */
 			IFDEBUG(D_TPINPUT)
 				printf("checking if dup CR\n");
@@ -730,13 +730,13 @@ again:
 				}
 			}
 			IFTRACE(D_TPINPUT)
-				tptrace(TPPTmisc, "tp_input: tpcb *lsufxloc tpstate", 
+				tptrace(TPPTmisc, "tp_input: tpcb *lsufxloc tpstate",
 					tpcb, *lsufxloc, tpcb->tp_state, 0);
 			ENDTRACE
 		}
 
-		/* 
-		 * WE HAVE A TPCB 
+		/*
+		 * WE HAVE A TPCB
 		 * already know that the classes in the CR match at least
 		 * one class implemented, but we don't know yet if they
 		 * include any classes permitted by this server.
@@ -747,7 +747,7 @@ again:
 		ENDDEBUG
 		IFDEBUG(D_CONN)
 			printf(
-"CR: bef CHKS: flags 0x%x class_to_use 0x%x alt 0x%x opt 0x%x tp_class 0x%x\n", 
+"CR: bef CHKS: flags 0x%x class_to_use 0x%x alt 0x%x opt 0x%x tp_class 0x%x\n",
 				tpcb->tp_flags, class_to_use, alt_classes, opt, tpcb->tp_class);
 		ENDDEBUG
 		/* tpcb->tp_class doesn't include any classes not implemented  */
@@ -774,27 +774,27 @@ again:
 #endif /* notdef */
 
 		CHECK(
-			tp_consistency(tpcb, 0 /* not force or strict */, &tpp) != 0, 
+			tp_consistency(tpcb, 0 /* not force or strict */, &tpp) != 0,
 			E_TP_NEGOT_FAILED, ts_negotfailed, clear_parent_tcb,
-			(1 + 2 + (caddr_t)&hdr->_tpdufr.CRCC - (caddr_t)hdr) 
+			(1 + 2 + (caddr_t)&hdr->_tpdufr.CRCC - (caddr_t)hdr)
 				/* ^ more or less the location of class */
 			)
 		}
 		IFTRACE(D_CONN)
-			tptrace(TPPTmisc, 
+			tptrace(TPPTmisc,
 				"after 1 consist class_to_use class, out, tpconsout",
-				class_to_use, 
+				class_to_use,
 				tpcb->tp_class, dgout_routine, tpcons_output
 				);
 		ENDTRACE
 		CHECK(
 			((class_to_use == TP_CLASS_0)&&(dgout_routine != tpcons_output)),
 			E_TP_NEGOT_FAILED, ts_negotfailed, clear_parent_tcb,
-			(1 + 2 + (caddr_t)&hdr->_tpdufr.CRCC - (caddr_t)hdr) 
+			(1 + 2 + (caddr_t)&hdr->_tpdufr.CRCC - (caddr_t)hdr)
 				/* ^ more or less the location of class */
 			)
 		IFDEBUG(D_CONN)
-			printf("CR: after CRCCCHECKS: tpcb 0x%x, flags 0x%x\n", 
+			printf("CR: after CRCCCHECKS: tpcb 0x%x, flags 0x%x\n",
 				tpcb, tpcb->tp_flags);
 		ENDDEBUG
 		takes_data = TRUE;
@@ -804,17 +804,17 @@ again:
 		so = tpcb->tp_sock;
 		if (so->so_options & SO_ACCEPTCONN) {
 			struct tp_pcb *parent_tpcb = tpcb;
-			/* 
-			 * Create a socket, tpcb, ll pcb, etc. 
-			 * for this newborn connection, and fill in all the values. 
+			/*
+			 * Create a socket, tpcb, ll pcb, etc.
+			 * for this newborn connection, and fill in all the values.
 			 */
 			IFDEBUG(D_CONN)
 				printf("abt to call tp_newsocket(0x%x, 0x%x, 0x%x, 0x%x)\n",
 					so, laddr, faddr, cons_channel);
 			ENDDEBUG
-			if( (so = 
-				tp_newsocket(so, faddr, cons_channel, 
-					class_to_use, 
+			if( (so =
+				tp_newsocket(so, faddr, cons_channel,
+					class_to_use,
 					((tpcb->tp_netservice == IN_CLNS) ? IN_CLNS :
 					(dgout_routine == tpcons_output)?ISO_CONS:ISO_CLNS))
 					) == (struct socket *)0 ) {
@@ -834,7 +834,7 @@ again:
 			insque(tpcb, parent_tpcb);
 
 			/*
-			 * Stash the addresses in the net level pcb 
+			 * Stash the addresses in the net level pcb
 			 * kind of like a pcbconnect() but don't need
 			 * or want all those checks.
 			 */
@@ -855,15 +855,15 @@ again:
 #ifdef TP_PERF_MEAS
 			if( tpcb->tp_perf_on = perf_meas ) { /* assignment */
 				/* ok, let's create an mbuf for stashing the
-				 * statistics if one doesn't already exist 
+				 * statistics if one doesn't already exist
 				 */
 				(void) tp_setup_perf(tpcb);
 			}
 #endif /* TP_PERF_MEAS */
 			tpcb->tp_fref = sref;
 
-			/* We've already checked for consistency with the options 
-			 * set in tpp,  but we couldn't set them earlier because 
+			/* We've already checked for consistency with the options
+			 * set in tpp,  but we couldn't set them earlier because
 			 * we didn't want to change options in the LISTENING tpcb.
 			 * Now we set the options in the new socket's tpcb.
 			 */
@@ -878,8 +878,8 @@ again:
 
 			tpcb->tp_peer_acktime = acktime;
 
-			/* 
-			 * The following kludge is used to test retransmissions and 
+			/*
+			 * The following kludge is used to test retransmissions and
 			 * timeout during connection establishment.
 			 */
 			IFDEBUG(D_ZDREF)
@@ -896,12 +896,12 @@ again:
 			CONG_UPDATE_SAMPLE(tpcb, ce_bit);
 		}
 	} else if ( dutype == ER_TPDU_type ) {
-		/* 
+		/*
 		 * ER TPDUs have to be recognized separately
 		 * because they don't necessarily have a tpcb
 		 * with them and we don't want err out looking for such
 		 * a beast.
-		 * We could put a bunch of little kludges in the 
+		 * We could put a bunch of little kludges in the
 		 * next section of code so it would avoid references to tpcb
 		 * if dutype == ER_TPDU_type but we don't want code for ERs to
 		 * mess up code for data transfer.
@@ -909,7 +909,7 @@ again:
 		IncStat(ts_ER_rcvd);
 		e.ev_number = ER_TPDU;
 		e.ATTR(ER_TPDU).e_reason =  (u_char)hdr->tpdu_ERreason;
-		CHECK (((int)dref <= 0 || dref >= tp_refinfo.tpr_size || 
+		CHECK (((int)dref <= 0 || dref >= tp_refinfo.tpr_size ||
 			(tpcb = tp_ref[dref].tpr_pcb ) == (struct tp_pcb *) 0 ||
 			tpcb->tp_refstate == REF_FREE ||
 			tpcb->tp_refstate == REF_FROZEN),
@@ -919,8 +919,8 @@ again:
 		/* tpdu type is CC, XPD, XAK, GR, AK, DR, DC, or DT */
 
 		/* In the next 4 checks,
-		 * _tpduf is the fixed part; add 2 to get the dref bits of 
-		 * the fixed part (can't take the address of a bit field) 
+		 * _tpduf is the fixed part; add 2 to get the dref bits of
+		 * the fixed part (can't take the address of a bit field)
 		 */
 #ifdef TPCONS
 		if (cons_channel && dutype == DT_TPDU_type) {
@@ -934,7 +934,7 @@ again:
 				ENDDEBUG
 				dref = tpcb->tp_lref;
 				sref = tpcb->tp_fref;
-				CHECK( (tpcb->tp_refstate == REF_FREE), 
+				CHECK( (tpcb->tp_refstate == REF_FREE),
 					E_TP_MISM_REFS,ts_inv_dref, nonx_dref,
 					(1 + 2 + (caddr_t)&hdr->_tpduf - (caddr_t)hdr))
 				goto tp0_data;
@@ -947,10 +947,10 @@ again:
 			CHECK( ((int)dref <= 0 || dref >= tp_refinfo.tpr_size) ,
 				E_TP_MISM_REFS,ts_inv_dref, nonx_dref,
 				(1 + 2 + (caddr_t)&hdr->_tpduf - (caddr_t)hdr))
-			CHECK( ((tpcb = tp_ref[dref].tpr_pcb ) == (struct tp_pcb *) 0 ), 
+			CHECK( ((tpcb = tp_ref[dref].tpr_pcb ) == (struct tp_pcb *) 0 ),
 				E_TP_MISM_REFS,ts_inv_dref, nonx_dref,
 				(1 + 2 + (caddr_t)&hdr->_tpduf - (caddr_t)hdr))
-			CHECK( (tpcb->tp_refstate == REF_FREE), 
+			CHECK( (tpcb->tp_refstate == REF_FREE),
 				E_TP_MISM_REFS,ts_inv_dref, nonx_dref,
 				(1 + 2 + (caddr_t)&hdr->_tpduf - (caddr_t)hdr))
 		}
@@ -968,7 +968,7 @@ again:
 		IFDEBUG(D_TPINPUT)
 			printf("state of dref %d ok, tpcb 0x%x\n", dref,tpcb);
 		ENDDEBUG
-		/* 
+		/*
 		 * At this point the state of the dref could be
 		 * FROZEN: tpr_pcb == NULL,  has ( reference only) timers
 		 *		   for example, DC may arrive after the close() has detached
@@ -983,18 +983,18 @@ again:
 		dusize = tpcb->tp_tpdusize;
 		pdusize = tpcb->tp_ptpdusize;
 
-		dutype = hdr->tpdu_type << 8; /* for the switch below */ 
+		dutype = hdr->tpdu_type << 8; /* for the switch below */
 
 		WHILE_OPTIONS(P, hdr, tpcb->tp_xtd_format) /* { */
 
 #define caseof(x,y) case (((x)<<8)+(y))
 		switch( dutype | vbptr(P)->tpv_code ) {
 
-			caseof( CC_TPDU_type, TPP_addl_opt ): 
+			caseof( CC_TPDU_type, TPP_addl_opt ):
 					/* not in class 0; 1 octet */
 					vb_getval(P, u_char, addlopt);
 					break;
-			caseof( CC_TPDU_type, TPP_tpdu_size ): 
+			caseof( CC_TPDU_type, TPP_tpdu_size ):
 				{
 					u_char odusize = dusize;
 					vb_getval(P, u_char, dusize);
@@ -1007,7 +1007,7 @@ again:
 					ENDDEBUG
 				}
 					break;
-			caseof( CC_TPDU_type, TPP_ptpdu_size ): 
+			caseof( CC_TPDU_type, TPP_ptpdu_size ):
 				{
 					u_short opdusize = pdusize;
 					switch (vbptr(P)->tpv_len) {
@@ -1047,24 +1047,24 @@ again:
 					ENDDEBUG
 					break;
 
-			caseof( CC_TPDU_type,	TPP_checksum):		
-			caseof( DR_TPDU_type,	TPP_checksum):		
-			caseof( DT_TPDU_type,	TPP_checksum):		
-			caseof( XPD_TPDU_type,	TPP_checksum):		
+			caseof( CC_TPDU_type,	TPP_checksum):
+			caseof( DR_TPDU_type,	TPP_checksum):
+			caseof( DT_TPDU_type,	TPP_checksum):
+			caseof( XPD_TPDU_type,	TPP_checksum):
 					if( tpcb->tp_use_checksum )  {
-						CHECK( iso_check_csum(m, tpdu_len), 
+						CHECK( iso_check_csum(m, tpdu_len),
 							E_TP_INV_PVAL, ts_bad_csum, discard, 0)
 					}
 					break;
 
 			/*  this is different from the above because in the context
-			 *  of concat/ sep tpdu_len might not be the same as hdr len 
+			 *  of concat/ sep tpdu_len might not be the same as hdr len
 			 */
-			caseof( AK_TPDU_type,	TPP_checksum):		
-			caseof( XAK_TPDU_type,	TPP_checksum):		
-			caseof( DC_TPDU_type,	TPP_checksum):		
+			caseof( AK_TPDU_type,	TPP_checksum):
+			caseof( XAK_TPDU_type,	TPP_checksum):
+			caseof( DC_TPDU_type,	TPP_checksum):
 					if( tpcb->tp_use_checksum )  {
-						CHECK( iso_check_csum(m, (int)hdr->tpdu_li + 1), 
+						CHECK( iso_check_csum(m, (int)hdr->tpdu_li + 1),
 							E_TP_INV_PVAL, ts_bad_csum, discard, 0)
 					}
 					break;
@@ -1099,13 +1099,13 @@ again:
 					ysubseq = ntohs(ysubseq);
 					ycredit = ntohs(ycredit);
 					IFDEBUG(D_ACKRECV)
-						printf("%s%x, subseq 0x%x, cdt 0x%x dref 0x%x\n", 
+						printf("%s%x, subseq 0x%x, cdt 0x%x dref 0x%x\n",
 							"AK FCC lwe 0x", ylwe, ysubseq, ycredit, dref);
 					ENDDEBUG
 				}
 				break;
 
-			default: 
+			default:
 				IFDEBUG(D_TPINPUT)
 					printf("param ignored dutype 0x%x, code  0x%x\n",
 						dutype, vbptr(P)->tpv_code);
@@ -1123,7 +1123,7 @@ again:
 		/* NOTE: the variable dutype has been shifted left! */
 
 		switch( hdr->tpdu_type ) {
-		case CC_TPDU_type: 
+		case CC_TPDU_type:
 			/* If CC comes back with an unacceptable class
 			 * respond with a DR or ER
 			 */
@@ -1146,13 +1146,13 @@ again:
 #endif /* notdef */
 
 			CHECK(
-				tp_consistency(tpcb, TP_FORCE, &tpp) != 0, 
+				tp_consistency(tpcb, TP_FORCE, &tpp) != 0,
 				E_TP_NEGOT_FAILED, ts_negotfailed, respond,
-				(1 + 2 + (caddr_t)&hdr->_tpdufr.CRCC - (caddr_t)hdr) 
+				(1 + 2 + (caddr_t)&hdr->_tpdufr.CRCC - (caddr_t)hdr)
 					/* ^ more or less the location of class */
 				)
 			IFTRACE(D_CONN)
-				tptrace(TPPTmisc, 
+				tptrace(TPPTmisc,
 					"after 1 consist class, out, tpconsout",
 					tpcb->tp_class, dgout_routine, tpcons_output, 0
 					);
@@ -1161,7 +1161,7 @@ again:
 				((class_to_use == TP_CLASS_0)&&
 					(dgout_routine != tpcons_output)),
 				E_TP_NEGOT_FAILED, ts_negotfailed, respond,
-				(1 + 2 + (caddr_t)&hdr->_tpdufr.CRCC - (caddr_t)hdr) 
+				(1 + 2 + (caddr_t)&hdr->_tpdufr.CRCC - (caddr_t)hdr)
 					/* ^ more or less the location of class */
 				)
 #ifdef TPCONS
@@ -1182,23 +1182,23 @@ again:
 
 			IFTRACE(D_CONN)
 				tptrace(TPPTmisc, "after CC class flags dusize CCclass",
-					tpcb->tp_class, tpcb->tp_flags, tpcb->tp_tpdusize, 
+					tpcb->tp_class, tpcb->tp_flags, tpcb->tp_tpdusize,
 					hdr->tpdu_CCclass);
 			ENDTRACE
 
-			/* if called or calling suffices appeared on the CC, 
+			/* if called or calling suffices appeared on the CC,
 			 * they'd better jive with what's in the pcb
 			 */
 			if( fsufxlen ) {
 				CHECK( ((tpcb->tp_fsuffixlen != fsufxlen) ||
 					bcmp(fsufxloc, tpcb->tp_fsuffix, fsufxlen)),
-					E_TP_INV_PVAL,ts_inv_sufx, respond, 
+					E_TP_INV_PVAL,ts_inv_sufx, respond,
 					(1+fsufxloc - (caddr_t)hdr))
 			}
 			if( lsufxlen ) {
 				CHECK( ((tpcb->tp_lsuffixlen != lsufxlen) ||
 					bcmp(lsufxloc, tpcb->tp_lsuffix, lsufxlen)),
-					E_TP_INV_PVAL,ts_inv_sufx, respond, 
+					E_TP_INV_PVAL,ts_inv_sufx, respond,
 					(1+lsufxloc - (caddr_t)hdr))
 			}
 
@@ -1213,16 +1213,16 @@ again:
 			if (sref != tpcb->tp_fref)
 				printf("INPUT: inv sufx DCsref 0x%x, tp_fref 0x%x\n",
 					sref, tpcb->tp_fref);
-					
-			CHECK( (sref != tpcb->tp_fref), 
+
+			CHECK( (sref != tpcb->tp_fref),
 				E_TP_MISM_REFS, ts_inv_sufx, discard,
 				(1 + (caddr_t)&hdr->tpdu_DCsref - (caddr_t)hdr))
-		
+
 			e.ev_number = DC_TPDU;
 			IncStat(ts_DC_rcvd);
 			break;
 
-		case DR_TPDU_type: 
+		case DR_TPDU_type:
 			IFTRACE(D_TPINPUT)
 				tptrace(TPPTmisc, "DR recvd", hdr->tpdu_DRreason, 0, 0, 0);
 			ENDTRACE
@@ -1230,9 +1230,9 @@ again:
 				printf("INPUT: inv sufx DRsref 0x%x tp_fref 0x%x\n",
 					sref, tpcb->tp_fref);
 			}
-					
+
 			CHECK( (sref != 0 && sref != tpcb->tp_fref &&
-					tpcb->tp_state != TP_CRSENT), 
+					tpcb->tp_state != TP_CRSENT),
 				(TP_ERROR_SNDC | E_TP_MISM_REFS),ts_inv_sufx, respond,
 				(1 + (caddr_t)&hdr->tpdu_DRsref - (caddr_t)hdr))
 
@@ -1252,7 +1252,7 @@ again:
 			IncStat(ts_ER_rcvd);
 			break;
 
-		case AK_TPDU_type: 
+		case AK_TPDU_type:
 
 			e.ATTR(AK_TPDU).e_subseq = subseq;
 			e.ATTR(AK_TPDU).e_fcc_present = fcc_present;
@@ -1273,7 +1273,7 @@ again:
 				e.ATTR(AK_TPDU).e_seq = hdr->tpdu_AKseq;
 			}
 			IFTRACE(D_TPINPUT)
-				tptrace(TPPTmisc, "AK recvd seq cdt subseq fcc_pres", 
+				tptrace(TPPTmisc, "AK recvd seq cdt subseq fcc_pres",
 					e.ATTR(AK_TPDU).e_seq, e.ATTR(AK_TPDU).e_cdt,
 					subseq, fcc_present);
 			ENDTRACE
@@ -1283,7 +1283,7 @@ again:
 			IncPStat(tpcb, tps_AK_rcvd);
 			break;
 
-		case XAK_TPDU_type: 
+		case XAK_TPDU_type:
 			if (tpcb->tp_xtd_format) {
 #ifdef BYTE_ORDER
 				union seq_type seqeotX;
@@ -1301,7 +1301,7 @@ again:
 			IncPStat(tpcb, tps_XAK_rcvd);
 			break;
 
-		case XPD_TPDU_type: 
+		case XPD_TPDU_type:
 			if (tpcb->tp_xtd_format) {
 #ifdef BYTE_ORDER
 				union seq_type seqeotX;
@@ -1359,7 +1359,7 @@ again:
 			IncPStat(tpcb, tps_DT_rcvd);
 			break;
 
-		case GR_TPDU_type: 
+		case GR_TPDU_type:
 			tp_indicate(T_DISCONNECT, tpcb, ECONNABORTED);
 			/* drop through */
 		default:
@@ -1374,7 +1374,7 @@ again:
 			goto respond;
 		}
 	}
-	/* peel off the tp header; 
+	/* peel off the tp header;
 	 * remember that the du_li doesn't count itself.
 	 * This may leave us w/ an empty mbuf at the front of a chain.
 	 * We can't just throw away the empty mbuf because hdr still points
@@ -1436,7 +1436,7 @@ again:
 			/* FALLTHROUGH */
 
 		case DT_TPDU_type:
-			for (n = m; n; n = n->m_next) { 
+			for (n = m; n; n = n->m_next) {
 				MCHTYPE(n, mbtype);
 			}
 		invoke:
@@ -1481,14 +1481,14 @@ again:
 		case CR_TPDU:
 			m = e.ATTR(CC_TPDU).e_data; /* same field for all three dutypes */
 			IFDEBUG(D_TPINPUT)
-				printf("after driver, restoring m to 0x%x, takes_data 0x%x\n", 
+				printf("after driver, restoring m to 0x%x, takes_data 0x%x\n",
 				m, takes_data);
 			ENDDEBUG
 			break;
 		default:
 			break;
 	}
-	/* Concatenated sequences are terminated by any tpdu that 
+	/* Concatenated sequences are terminated by any tpdu that
 	 * carries data: CR, CC, DT, XPD, DR.
 	 * All other tpdu types may be concatenated: AK, XAK, DC, ER.
 	 */
@@ -1496,15 +1496,15 @@ again:
 separate:
 	if ( takes_data == 0 )  {
 		ASSERT( m != MNULL );
-		/* 
-		 * we already peeled off the prev. tp header so 
+		/*
+		 * we already peeled off the prev. tp header so
 		 * we can just pull up some more and repeat
 		 */
 
 		if( m = tp_inputprep(m) ) {
 		IFDEBUG(D_TPINPUT)
 			hdr = mtod(m, struct tpdu *);
-			printf("tp_input @ separate: hdr 0x%x size %d m 0x%x\n", 
+			printf("tp_input @ separate: hdr 0x%x size %d m 0x%x\n",
 			hdr, (int) hdr->tpdu_li + 1, m);
 			dump_mbuf(m, "tp_input after driver, at separate");
 		ENDDEBUG
@@ -1582,17 +1582,17 @@ respond:
  *  much data to put in each tpdu.
  *
  * FUNCTION, ARGUMENTS, and RETURN VALUE:
- *  For a given connection, represented by (tpcb), and 
+ *  For a given connection, represented by (tpcb), and
  *  tpdu type (dutype), return the size of a tp header.
  *
  * RETURNS:	  the expected size of the heade in bytesr
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:	 It would be nice if it got the network header size as well.
  */
 int
-tp_headersize(dutype, tpcb) 
+tp_headersize(dutype, tpcb)
 	int 			dutype;
 	struct tp_pcb 	*tpcb;
 {
@@ -1602,24 +1602,24 @@ tp_headersize(dutype, tpcb)
 		tptrace(TPPTmisc, "tp_headersize dutype class xtd_format",
 			dutype, tpcb->tp_class, tpcb->tp_xtd_format, 0);
 	ENDTRACE
-	if( !( (tpcb->tp_class == TP_CLASS_0) || 
-			(tpcb->tp_class == TP_CLASS_4) || 
-			(dutype == DR_TPDU_type) || 
+	if( !( (tpcb->tp_class == TP_CLASS_0) ||
+			(tpcb->tp_class == TP_CLASS_4) ||
+			(dutype == DR_TPDU_type) ||
 			(dutype == CR_TPDU_type) )) {
-				printf("tp_headersize:dutype 0x%x, class 0x%x", 
+				printf("tp_headersize:dutype 0x%x, class 0x%x",
 			dutype, tpcb->tp_class);
 	/* TODO: identify this and GET RID OF IT */
 	}
-	ASSERT( (tpcb->tp_class == TP_CLASS_0) || 
-			(tpcb->tp_class == TP_CLASS_4) || 
-			(dutype == DR_TPDU_type) || 
+	ASSERT( (tpcb->tp_class == TP_CLASS_0) ||
+			(tpcb->tp_class == TP_CLASS_4) ||
+			(dutype == DR_TPDU_type) ||
 			(dutype == CR_TPDU_type) );
 
 	if( tpcb->tp_class == TP_CLASS_0 ) {
 		size =  tpdu_info[ dutype ] [TP_LEN_CLASS_0_INDEX];
 	} else  {
 		size = tpdu_info[ dutype ] [tpcb->tp_xtd_format];
-	} 
+	}
 	return size;
 	/* caller must get network level header size separately */
 }

@@ -1,9 +1,9 @@
-/* 
- * Copyright (C) Dirk Husemann, Computer Science Department IV, 
+/*
+ * Copyright (C) Dirk Husemann, Computer Science Department IV,
  * 		 University of Erlangen-Nuremberg, Germany, 1990, 1991, 1992
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
- * 
+ *
  * This code is derived from software contributed to Berkeley by
  * Dirk Husemann and the Computer Science Department (IV) of
  * the University of Erlangen-Nuremberg, Germany.
@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_output.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_output.c,v 1.2 1994/08/02 07:47:18 davidg Exp $
+ * $Id: llc_output.c,v 1.3 1995/03/19 14:29:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -88,14 +88,14 @@ llc_start(struct llc_linkcb *linkp)
 	int action;
 
 	while ((LLC_STATEEQ(linkp, NORMAL) || LLC_STATEEQ(linkp, BUSY) ||
-		LLC_STATEEQ(linkp, REJECT)) && 
-	       (linkp->llcl_slotsfree > 0) && 
+		LLC_STATEEQ(linkp, REJECT)) &&
+	       (linkp->llcl_slotsfree > 0) &&
 	       (LLC_GETFLAG(linkp, REMOTE_BUSY) == 0)) {
 		LLC_DEQUEUE(linkp, m);
 		if (m == NULL)
 			break;
 		LLC_SETFRAME(linkp, m);
-		(void)llc_statehandler(linkp, (struct llc *) 0, NL_DATA_REQUEST, 
+		(void)llc_statehandler(linkp, (struct llc *) 0, NL_DATA_REQUEST,
 				       0, 0);
 	}
 }
@@ -125,7 +125,7 @@ llc_send(struct llc_linkcb *linkp, int frame_kind, int cmdrsp, int pollfinal)
 	return 0;
 }
 
-/* 
+/*
  * llc_resend() --- llc_resend() retransmits all unacknowledged INFO frames.
  */
 llc_resend(struct llc_linkcb *linkp, int cmdrsp, int pollfinal)
@@ -140,16 +140,16 @@ llc_resend(struct llc_linkcb *linkp, int cmdrsp, int pollfinal)
 			panic("llc: V(S) != N(R) received");
 
 		for (slot = llc_seq2slot(linkp, linkp->llcl_vs);
-		     slot != linkp->llcl_freeslot; 
-		     LLC_INC(linkp->llcl_vs), 
+		     slot != linkp->llcl_freeslot;
+		     LLC_INC(linkp->llcl_vs),
 		     slot = llc_seq2slot(linkp, linkp->llcl_vs)) {
 			m = linkp->llcl_output_buffers[slot];
 			LLC_GETHDR(frame, m);
-			llc_rawsend(linkp, m, frame, LLCFT_INFO, linkp->llcl_vs, 
+			llc_rawsend(linkp, m, frame, LLCFT_INFO, linkp->llcl_vs,
 				    cmdrsp, pollfinal);
 			pollfinal = 0;
 		}
-	
+
 	return 0;
 }
 
@@ -225,7 +225,7 @@ llc_rawsend(struct llc_linkcb *linkp, struct mbuf *m, struct llc *frame,
 		frame->llc_control = LLC_FRMR;
 		/* get more space --- FRMR frame are longer then usual */
 		LLC_SETLEN(m, LLC_FRMRLEN);
-		bcopy((caddr_t) &linkp->llcl_frmrinfo, 
+		bcopy((caddr_t) &linkp->llcl_frmrinfo,
 		      (caddr_t) &frame->llc_frmrinfo,
 		      sizeof(struct frmrinfo));
 		break;
@@ -237,8 +237,8 @@ llc_rawsend(struct llc_linkcb *linkp, struct mbuf *m, struct llc *frame,
 			m_freem(m);
 		return;
 	}
- 
-	/* 
+
+	/*
 	 * Fill in DSAP/SSAP
 	 */
 	frame->llc_dsap = frame->llc_ssap = LLSAPADDR(&linkp->llcl_addr);
@@ -275,7 +275,7 @@ llc_rawsend(struct llc_linkcb *linkp, struct mbuf *m, struct llc *frame,
 		}
 		break;
 	}
-	 
+
 	if (adjust == LLC_UFRAMELEN)
 		LLCSBITS(frame->llc_control, u_pf, pollfinal);
 	else LLCSBITS(frame->llc_control_ext, s_pf, pollfinal);
@@ -285,7 +285,7 @@ llc_rawsend(struct llc_linkcb *linkp, struct mbuf *m, struct llc *frame,
 	 */
 	ifp = linkp->llcl_if;
 	if (frame_kind == LLCFT_INFO) {
-		/* 
+		/*
 		 * send out a copy of the frame, retain the
 		 * original
 		 */
@@ -298,7 +298,7 @@ llc_rawsend(struct llc_linkcb *linkp, struct mbuf *m, struct llc *frame,
 		 * the output_buffers of the link.
 		 */
 		m_adj(m, LLC_ISFRAMELEN);
-	} else (*ifp->if_output)(ifp, m, 
+	} else (*ifp->if_output)(ifp, m,
 				 rt_key(linkp->llcl_nlrt),
 				 linkp->llcl_nlrt);
 }

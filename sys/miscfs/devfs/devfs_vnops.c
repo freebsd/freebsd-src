@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.3 1995/04/20 22:00:05 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.4 1995/05/03 23:04:26 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -187,7 +187,7 @@ DBPRINT(("errr, maybe not cached "));
 /* notfound: */
 /*XXX*/ /* possibly release some resources here */
 	/*
-	 * If creating, and at end of pathname 
+	 * If creating, and at end of pathname
 	 * then can consider
 	 * allowing file to be created.
 	 * XXX original code (ufs_lookup) checked for . being deleted
@@ -222,7 +222,7 @@ DBPRINT(("MKACCESS "));
 		if (!lockparent)
 			VOP_UNLOCK(dir_vnode);
 		/* DON't make a cache entry... status changing */
-		return (EJUSTRETURN); 
+		return (EJUSTRETURN);
 	}
 	/*
 	 * Insert name into cache (as non-existent) if appropriate.
@@ -345,7 +345,7 @@ found:
 	/*
 	 * Insert name into cache if appropriate.
 	 */
-	if (cnp->cn_flags & MAKEENTRY) 
+	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(dir_vnode, *result_vnode, cnp);
 DBPRINT(("GOT\n"));
 	return (0);
@@ -640,7 +640,7 @@ DBPRINT(("setattr\n"));
 		file_node->mode |= vap->va_mode & 07777;
 	}
 
-	if (vap->va_uid != (uid_t)VNOVAL) 
+	if (vap->va_uid != (uid_t)VNOVAL)
 	{
 		file_node->uid = vap->va_uid;
 	}
@@ -1038,7 +1038,7 @@ DBPRINT(("islocked\n"));
 	return 0;
 }
 
-int devfs_bmap(ap)                                                                  
+int devfs_bmap(ap)
         struct vop_bmap_args /* {
                 struct vnode *a_vp;
                 daddr_t  a_bn;
@@ -1080,7 +1080,7 @@ DBPRINT(("advlock\n"));
 }
 
 int	devfs_reclaim(ap)
-        struct vop_reclaim_args /* { 
+        struct vop_reclaim_args /* {
 		struct vnode *a_vp;
         } */ *ap;
 {
@@ -1094,7 +1094,7 @@ DBPRINT(("reclaim\n"));
 		return error;
 	}
 
-	file_node->vn = 0; 
+	file_node->vn = 0;
 	file_node->vn_id = 0;
 	return(0);
 }

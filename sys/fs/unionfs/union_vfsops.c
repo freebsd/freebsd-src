@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.7 (Berkeley) 3/5/94
- * $Id: union_vfsops.c,v 1.8 1995/03/16 18:14:02 bde Exp $
+ * $Id: union_vfsops.c,v 1.9 1995/03/16 20:23:44 wollman Exp $
  */
 
 /*
@@ -118,7 +118,7 @@ union_mount(mp, path, data, ndp, p)
 	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, cred, p);
 	if (error)
 		goto bad;
-	if ((va.va_uid != cred->cr_uid) && 
+	if ((va.va_uid != cred->cr_uid) &&
 	    (cred->cr_uid != 0)) {
 		error = EACCES;
 		goto bad;
@@ -163,7 +163,7 @@ union_mount(mp, path, data, ndp, p)
 		error = EINVAL;
 		goto bad;
 	}
-	
+
 	um = (struct union_mount *) malloc(sizeof(struct union_mount),
 				M_UFSMNT, M_WAITOK);	/* XXX */
 
@@ -338,7 +338,7 @@ union_unmount(mp, mntflags, p)
 
 #ifdef UNION_DIAGNOSTIC
 	vprint("alias root of lower", um_rootvp);
-#endif	 
+#endif
 	/*
 	 * Discard references to upper and lower target vnodes.
 	 */
@@ -517,7 +517,7 @@ union_vget(mp, ino, vpp)
 	ino_t ino;
 	struct vnode **vpp;
 {
-	
+
 	return (EOPNOTSUPP);
 }
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.7 1994/11/15 14:12:40 bde Exp $
+ *	$Id: segments.h,v 1.8 1995/02/14 19:21:15 sos Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -51,10 +51,10 @@
  */
 
 #define	ISPL(s)	((s)&3)		/* what is the priority level of a selector */
-#define	SEL_KPL	0		/* kernel priority level */	
-#define	SEL_UPL	3		/* user priority level */	
+#define	SEL_KPL	0		/* kernel priority level */
+#define	SEL_UPL	3		/* user priority level */
 #define	ISLDT(s)	((s)&SEL_LDT)	/* is it local or global */
-#define	SEL_LDT	4		/* local descriptor table */	
+#define	SEL_LDT	4		/* local descriptor table */
 #define	IDXSEL(s)	(((s)>>3) & 0x1fff)		/* index of selector */
 #define	LSEL(s,r)	(((s)<<3) | SEL_LDT | r)	/* a local selector */
 #define	GSEL(s,r)	(((s)<<3) | r)			/* a global selector */

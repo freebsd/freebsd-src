@@ -41,7 +41,7 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 
-/* The game port can manage 4 buttons and 4 variable resistors (usually 2 
+/* The game port can manage 4 buttons and 4 variable resistors (usually 2
  * joysticks, each with 2 buttons and 2 pots.) via the port at address 0x201.
  * Getting the state of the buttons is done by reading the game port:
  * buttons 1-4 correspond to bits 4-7 and resistors 1-4 (X1, Y1, X2, Y2)
@@ -52,7 +52,7 @@
  */
 
 
-/* the formulae below only work if u is  ``not too large''. See also 
+/* the formulae below only work if u is  ``not too large''. See also
  * the discussion in microtime.s */
 #define usec2ticks(u) 	(((u) * 19549)>>14)
 #define ticks2usec(u) 	(((u) * 3433)>>12)
@@ -114,7 +114,7 @@ joyopen (dev_t dev, int flag)
     joy[unit].timeout[i] = JOY_TIMEOUT;
     return 0;
 }
-int 
+int
 joyclose (dev_t dev, int flag)
 {
     int unit = UNIT (dev);
@@ -132,7 +132,7 @@ joyread (dev_t dev, struct uio *uio, int flag)
     int i, t0, t1;
     int state = 0, x = 0, y = 0;
     struct joystick c;
-    
+
     disable_intr ();
     outb (port, 0xff);
     t0 = get_tick ();
@@ -140,7 +140,7 @@ joyread (dev_t dev, struct uio *uio, int flag)
     i = usec2ticks(joy[unit].timeout[joypart(dev)]);
     while (t0-t1 < i) {
 	state = inb (port);
-	if (joypart(dev) == 1) 
+	if (joypart(dev) == 1)
 	    state >>= 2;
 	t1 = get_tick ();
 	if (t1 > t0)
@@ -149,7 +149,7 @@ joyread (dev_t dev, struct uio *uio, int flag)
 	    x = t1;
 	if (!y && !(state & 0x02))
 	    y =  t1;
-	if (x && y) 
+	if (x && y)
 	    break;
     }
     enable_intr ();

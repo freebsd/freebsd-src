@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.6 1995/02/14 06:33:53 phk Exp $
+ * $Id: kern_time.c,v 1.7 1995/03/16 18:12:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,7 @@
 
 #include <machine/cpu.h>
 
-/* 
+/*
  * Time of day and interval timer support.
  *
  * These routines provide the kernel entry points to get and set

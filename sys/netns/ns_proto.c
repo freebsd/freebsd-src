@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)ns_proto.c	8.1 (Berkeley) 6/10/93
- *	$Id: ns_proto.c,v 1.2 1994/08/02 07:51:54 davidg Exp $
+ *	$Id: ns_proto.c,v 1.3 1995/05/11 00:13:23 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -92,7 +92,7 @@ struct protosw nssw[] = {
 };
 
 struct domain nsdomain =
-    { AF_NS, "network systems", 0, 0, 0, 
+    { AF_NS, "network systems", 0, 0, 0,
       nssw, &nssw[sizeof(nssw)/sizeof(nssw[0])], 0,
       rn_inithead, 16, sizeof(struct sockaddr_ns)};
 

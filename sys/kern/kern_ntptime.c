@@ -53,7 +53,7 @@
 
 /*
  * The following variables are used by the hardclock() routine in the
- * kern_clock.c module and are described in that module. 
+ * kern_clock.c module and are described in that module.
  */
 extern int time_state;		/* clock state */
 extern int time_status;		/* clock status bits */
@@ -120,7 +120,7 @@ ntp_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 	ntv.maxerror = time_maxerror;
 	ntv.esterror = time_esterror;
 	splx(s);
-	
+
 	ntv.time_state = time_state;
 
 	/*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.3 1994/08/02 07:42:42 davidg Exp $
+ * $Id: sys_socket.c,v 1.4 1994/10/02 17:35:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -131,7 +131,7 @@ soo_ioctl(fp, cmd, data, p)
 		return (ifioctl(so, cmd, data, p));
 	if (IOCGROUP(cmd) == 'r')
 		return (rtioctl(cmd, data, p));
-	return ((*so->so_proto->pr_usrreq)(so, PRU_CONTROL, 
+	return ((*so->so_proto->pr_usrreq)(so, PRU_CONTROL,
 	    (struct mbuf *)cmd, (struct mbuf *)data, (struct mbuf *)0));
 }
 
@@ -186,7 +186,7 @@ soo_stat(so, ub)
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
 	return ((*so->so_proto->pr_usrreq)(so, PRU_SENSE,
-	    (struct mbuf *)ub, (struct mbuf *)0, 
+	    (struct mbuf *)ub, (struct mbuf *)0,
 	    (struct mbuf *)0));
 }
 

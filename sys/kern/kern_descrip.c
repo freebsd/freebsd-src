@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.8 1995/02/20 19:42:33 guido Exp $
+ * $Id: kern_descrip.c,v 1.9 1995/03/28 07:56:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -871,7 +871,7 @@ fdopen(dev, mode, type, p)
 
 	/*
 	 * XXX Kludge: set curproc->p_dupfd to contain the value of the
-	 * the file descriptor being sought for duplication. The error 
+	 * the file descriptor being sought for duplication. The error
 	 * return ensures that the vnode for this device will be released
 	 * by vn_open. Open will detect this special error and take the
 	 * actions in dupfdopen below. Other callers of vn_open or VOP_OPEN
@@ -893,7 +893,7 @@ dupfdopen(fdp, indx, dfd, mode, error)
 {
 	register struct file *wfp;
 	struct file *fp;
-	
+
 	/*
 	 * If the to-be-dup'd fd number is greater than the allowed number
 	 * of file descriptors, or the fd to be dup'd has already been

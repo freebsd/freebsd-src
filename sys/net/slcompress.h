@@ -35,7 +35,7 @@
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
- * $Id: slcompress.h,v 1.4 1994/08/21 19:06:48 paul Exp $
+ * $Id: slcompress.h,v 1.5 1994/08/22 14:16:36 bde Exp $
  */
 
 #ifndef _NET_SLCOMPRESS_H_
@@ -56,7 +56,7 @@
  * sequence number changes, one change per bit set in the header
  * (there may be no changes and there are two special cases where
  * the receiver implicitly knows what changed -- see below).
- * 
+ *
  * There are 5 numbers which can change (they are always inserted
  * in the following order): TCP urgent pointer, window,
  * acknowlegement, sequence number and IP ID.  (The urgent pointer

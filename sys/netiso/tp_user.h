@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_user.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_user.h,v 1.2 1994/08/02 07:51:32 davidg Exp $
+ * $Id: tp_user.h,v 1.3 1994/08/21 06:14:32 paul Exp $
  */
 
 #ifndef _NETISO_TP_USER_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,13 +63,13 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_user.h,v 1.2 1994/08/02 07:51:32 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_user.h,v 1.3 1994/08/21 06:14:32 paul Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_user.h,v $
  *
- * These are the values a real-live user ;-) needs. 
+ * These are the values a real-live user ;-) needs.
  */
 
 #ifndef _TYPES_
@@ -78,7 +78,7 @@ SOFTWARE.
 
 struct tp_conn_param {
 	/* PER CONNECTION parameters */
-	short	p_Nretrans; 
+	short	p_Nretrans;
 	short	p_dr_ticks;
 
 	short	p_cc_ticks;
@@ -129,12 +129,12 @@ struct tp_conn_param {
 
 #define TPOPT_INTERCEPT		0x200
 #define TPOPT_FLAGS			0x300
-#define TPOPT_CONN_DATA		0x400 
-#define TPOPT_DISC_DATA		0x500 
-#define TPOPT_CFRM_DATA		0x600 
-#define TPOPT_CDDATA_CLEAR	0x700 
-#define TPOPT_MY_TSEL		0x800 
-#define TPOPT_PEER_TSEL		0x900 
+#define TPOPT_CONN_DATA		0x400
+#define TPOPT_DISC_DATA		0x500
+#define TPOPT_CFRM_DATA		0x600
+#define TPOPT_CDDATA_CLEAR	0x700
+#define TPOPT_MY_TSEL		0x800
+#define TPOPT_PEER_TSEL		0x900
 #define TPOPT_PERF_MEAS		0xa00
 #define TPOPT_PSTATISTICS	0xb00
 #define TPOPT_PARAMS		0xc00 /* to replace a bunch of the others */
@@ -145,7 +145,7 @@ struct tp_disc_reason {
 	u_int	dr_reason;
 };
 
-/* 
+/*
  ***********************flags**********************************
  */
 
@@ -155,7 +155,7 @@ struct tp_disc_reason {
 #define TPFLAG_GENERAL_ADDR		(u_char)0x04 /* bound to wildcard addr */
 
 
-/* 
+/*
  ***********************end flags******************************
  */
 

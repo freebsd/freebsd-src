@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mcount.c,v 1.2 1994/08/02 07:44:09 davidg Exp $
+ * $Id: mcount.c,v 1.3 1994/09/15 15:41:48 paul Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@
  * _mcount updates data structures that represent traversals of the
  * program's call graph edges.  frompc and selfpc are the return
  * address and function address that represents the given call graph edge.
- * 
+ *
  * Note: the original BSD code used the same variable (frompcindex) for
  * both frompcindex and frompc.  Any reasonable, modern compiler will
  * perform this optimization.
@@ -156,7 +156,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 			*frompcindex = toindex;
 			goto done;
 		}
-		
+
 	}
 done:
 #ifdef KERNEL

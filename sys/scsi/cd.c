@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.39 1995/04/23 22:07:48 gibbs Exp $
+ *      $Id: cd.c,v 1.40 1995/05/03 18:09:06 dufault Exp $
  */
 
 #define SPLCD splbio
@@ -128,7 +128,7 @@ struct scsi_device cd_switch =
 #define CD_EJECT	-2
 
 static int
-cd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
+cd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
 	       size_t len)
 {
 	return scsi_externalize(SCSI_LINK(&cd_switch, kdc->kdc_unit),
@@ -170,7 +170,7 @@ cd_registerdev(int unit)
  * The routine called by the low level scsi routine when it discovers
  * A device suitable for this driver
  */
-int 
+int
 cdattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
@@ -211,7 +211,7 @@ cdattach(struct scsi_link *sc_link)
 /*
  * open the device. Make sure the partition info is a up-to-date as can be.
  */
-errval 
+errval
 cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link)
 {
@@ -268,7 +268,7 @@ struct scsi_link *sc_link)
 	scsi_prevent(sc_link, PR_PREVENT, SCSI_SILENT);
 	SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
 	/*
-	 * Load the physical device parameters 
+	 * Load the physical device parameters
 	 */
 	if (cd_get_parms(unit, 0)) {
 		errcode = ENXIO;
@@ -325,7 +325,7 @@ struct scsi_link *sc_link)
  * close the device.. only called if we are the LAST
  * occurence of an open device
  */
-errval 
+errval
 cd_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link)
 {
@@ -356,7 +356,7 @@ cd_close(dev_t dev, int flag, int fmt, struct proc *p,
  * understand.  The transfer is described by a buf and will include only one
  * physical transfer.
  */
-void 
+void
 cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf *dp;
@@ -447,7 +447,7 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
  * must be called at the correct (highish) spl level
  * cdstart() is called at SPLCD  from cdstrategy and scsi_done
  */
-void 
+void
 cdstart(unit, flags)
 	u_int32 unit;
 	u_int32 flags;
@@ -484,7 +484,7 @@ cdstart(unit, flags)
 		goto bad;	/* no I/O.. media changed or something */
 	}
 	/*
-	 * We have a buf, now we should make a command 
+	 * We have a buf, now we should make a command
 	 *
 	 * First, translate the block to absolute and put it in terms of the
 	 * logical blocksize of the device.  Really a bit silly until we have
@@ -544,7 +544,7 @@ cdstart(unit, flags)
  * Perform special action on behalf of the user.
  * Knows about the internals of this device
  */
-errval 
+errval
 cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 struct scsi_link *sc_link)
 {
@@ -582,7 +582,7 @@ struct scsi_link *sc_link)
 		break;
 
 		/*
-		 * a bit silly, but someone might want to test something on a 
+		 * a bit silly, but someone might want to test something on a
 		 * section of cdrom.
 		 */
 	case DIOCWDINFO:
@@ -675,7 +675,7 @@ struct scsi_link *sc_link)
 				args->data_format, args->track, &data, len);
 			if (error)
 				break;
-			len = min(len, ((data.header.data_len[0] << 8) + 
+			len = min(len, ((data.header.data_len[0] << 8) +
 				data.header.data_len[1] +
 				sizeof(struct cd_sub_channel_header)));
 			if (copyout(&data, args->data, len) != 0) {
@@ -686,7 +686,7 @@ struct scsi_link *sc_link)
 	case CDIOREADTOCHEADER:
 		{		/* ??? useless bcopy? XXX */
 			struct ioc_toc_header th;
-			error = cd_read_toc(unit, 0, 0, 
+			error = cd_read_toc(unit, 0, 0,
 					(struct cd_toc_entry *)&th, sizeof th);
 			if (error)
 				break;
@@ -887,11 +887,11 @@ struct scsi_link *sc_link)
 /*
  * Load the label information on the named device
  * Actually fabricate a disklabel
- * 
+ *
  * EVENTUALLY take information about different
  * data tracks from the TOC and put it in the disklabel
  */
-errval 
+errval
 cd_getdisklabel(unit)
 	u_int8  unit;
 {
@@ -940,7 +940,7 @@ cd_getdisklabel(unit)
 /*
  * Find out from the device what it's capacity is
  */
-u_int32 
+u_int32
 cd_size(unit, flags)
 	int unit;
 	int flags;
@@ -997,7 +997,7 @@ cd_size(unit, flags)
 /*
  * Get the requested page into the buffer given
  */
-static errval 
+static errval
 cd_get_mode(unit, data, page)
 	u_int32 unit;
 	struct cd_mode_data *data;
@@ -1026,7 +1026,7 @@ cd_get_mode(unit, data, page)
 /*
  * Get the requested page into the buffer given
  */
-errval 
+errval
 cd_set_mode(unit, data)
 	u_int32 unit;
 	struct cd_mode_data *data;
@@ -1052,7 +1052,7 @@ cd_set_mode(unit, data)
 /*
  * Get scsi driver to send a "start playing" command
  */
-errval 
+errval
 cd_play(unit, blk, len)
 	u_int32 unit, blk, len;
 {
@@ -1080,7 +1080,7 @@ cd_play(unit, blk, len)
 /*
  * Get scsi driver to send a "start playing" command
  */
-errval 
+errval
 cd_play_big(unit, blk, len)
 	u_int32 unit, blk, len;
 {
@@ -1110,7 +1110,7 @@ cd_play_big(unit, blk, len)
 /*
  * Get scsi driver to send a "start playing" command
  */
-errval 
+errval
 cd_play_tracks(unit, strack, sindex, etrack, eindex)
 	u_int32 unit, strack, sindex, etrack, eindex;
 {
@@ -1136,7 +1136,7 @@ cd_play_tracks(unit, strack, sindex, etrack, eindex)
 /*
  * Get scsi driver to send a "play msf" command
  */
-errval 
+errval
 cd_play_msf(unit, startm, starts, startf, endm, ends, endf)
 	u_int32 unit, startm, starts, startf, endm, ends, endf;
 {
@@ -1165,7 +1165,7 @@ cd_play_msf(unit, startm, starts, startf, endm, ends, endf)
 /*
  * Get scsi driver to send a "start up" command
  */
-errval 
+errval
 cd_pause(unit, go)
 	u_int32 unit, go;
 {
@@ -1189,7 +1189,7 @@ cd_pause(unit, go)
 /*
  * Get scsi driver to send a "RESET" command
  */
-errval 
+errval
 cd_reset(unit)
 	u_int32 unit;
 {
@@ -1199,7 +1199,7 @@ cd_reset(unit)
 /*
  * Read subchannel
  */
-errval 
+errval
 cd_read_subchannel(unit, mode, format, track, data, len)
 	u_int32 unit, mode, format;
 	int track;
@@ -1232,7 +1232,7 @@ cd_read_subchannel(unit, mode, format, track, data, len)
 /*
  * Read table of contents
  */
-static errval 
+static errval
 cd_read_toc(unit, mode, start, data, len)
 	u_int32 unit, mode, start;
 	struct cd_toc_entry *data;
@@ -1270,7 +1270,7 @@ cd_read_toc(unit, mode, start, data, len)
  * Get the scsi driver to send a full inquiry to the device and use the
  * results to fill out the disk parameter structure.
  */
-static errval 
+static errval
 cd_get_parms(unit, flags)
 	int unit;
 	int flags;
@@ -1284,7 +1284,7 @@ cd_get_parms(unit, flags)
 		return (0);
 	/*
 	 * give a number of sectors so that sec * trks * cyls
-	 * is <= disk_size 
+	 * is <= disk_size
 	 */
 	if (cd_size(unit, flags)) {
 		sc_link->flags |= SDEV_MEDIA_LOADED;

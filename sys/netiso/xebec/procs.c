@@ -1,5 +1,5 @@
-/* $Header: procs.c,v 2.3 88/09/19 12:55:22 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/procs.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/procs.c,v 1.1.1.1 1994/05/24 10:07:46 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/procs.c,v $ */
 /*
  * This code is such a kludge that I don't want to put my name on it.
  * It was a ridiculously fast hack and needs rewriting.
@@ -47,11 +47,11 @@ end_events() {
 			protocol);
 	ENDDEBUG
 	/* NOSTRICT */
-	Statelist = 
+	Statelist =
 	  (struct Stateent **) Malloc((Nstates+1) * sizeof(struct Statent *));
 	/* NOSTRICT */
-	Predlist =  
-	  (struct Predicate **) 
+	Predlist =
+	  (struct Predicate **)
 	  Malloc ( (((Nevents)<<Eventshift)+Nstates)*sizeof(struct Predicate *) );
 
 	size = (((Nevents)<<Eventshift)+Nstates)*sizeof(struct Predicate *) ;
@@ -141,7 +141,7 @@ static int Npred=0, Ndefpred=0, Ntrans=0, Ndefevent=0, Nnulla=0;
 statetable(string, oldstate, newstate, action, event)
 char *string;
 int action;
-struct Object *oldstate, *newstate, *event; 
+struct Object *oldstate, *newstate, *event;
 {
 	register int different;
 
@@ -168,7 +168,7 @@ struct Object *oldstate, *newstate, *event;
 
 stateentry(index, oldstate, newstate, action)
 int index, action;
-int oldstate, newstate; 
+int oldstate, newstate;
 {
 	extern FILE *statevalfile;
 
@@ -232,18 +232,18 @@ int action, newstate;
 					state, event, Index);
 					fflush(stdout);
 				ENDDEBUG
-			} else 
+			} else
 				Npred++;
 			/* put at END of list */
 #ifndef LINT
 			IFDEBUG(g)
-				fprintf(stdout, 
-				"predicate for event 0x%x, state 0x%x is 0x%x, %s\n", 
+				fprintf(stdout,
+				"predicate for event 0x%x, state 0x%x is 0x%x, %s\n",
 				event, state, Index, str);
 				fflush(stdout);
 			ENDDEBUG
 #endif LINT
-			for( ((q = &Predlist[(event<<Eventshift)+state]), 
+			for( ((q = &Predlist[(event<<Eventshift)+state]),
 					 (p = Predlist[(event<<Eventshift)+state]));
 							p ; p = p->p_next ) {
 				q = &p->p_next;
@@ -257,7 +257,7 @@ int action, newstate;
 			*q = p;
 
 			IFDEBUG(g)
-				fprintf(stdout, 
+				fprintf(stdout,
 			  	  "predtable index 0x%x, transno %d, E 0x%x, S 0x%x\n",
 					 Index, transno, e, s);
 			ENDDEBUG
@@ -274,7 +274,7 @@ printprotoerrs()
 	register int e,s;
 
 	fprintf(stderr, "[ Event, State ] without any transitions :\n");
-	for(e = 0; e < Nevents; e++) { 
+	for(e = 0; e < Nevents; e++) {
 		fprintf(stderr, "Event 0x%x: states ", e);
 		for(s = 0; s < Nstates; s++) {
 			if( Predlist[(e<<Eventshift)+s] == 0 )
@@ -297,10 +297,10 @@ FILE *f;
 
 #ifdef notdef
 	fprintf(stdout,
-		" Xebec used %8d bytes of storage, wasted %8d bytes\n", 
+		" Xebec used %8d bytes of storage, wasted %8d bytes\n",
 		bytesmalloced, byteswasted);
 #endif notdef
-	fprintf(stdout, 
+	fprintf(stdout,
 		" %8d states\n %8d events\n %8d transitions\n",
 		Nstates, Nevents, Ntrans);
 	fprintf(stdout,
@@ -325,11 +325,11 @@ FILE *f;
 					if(!hadapred)
 						fprintf(f, "case 0x%x:\n\t", (e<<Eventshift) + s);
 					hadapred = 1;
-					fprintf(f, "if %s return 0x%x;\n\t else ", 
+					fprintf(f, "if %s return 0x%x;\n\t else ",
 					p->p_str, p->p_index);
 				} else {
 					if(defaultindex) {
-						fprintf(stderr, 
+						fprintf(stderr,
 "\nConflict between transitions %d and %d: duplicate default \n",
 						p->p_transno, defaultItrans);
 						Exit(-1);
@@ -345,9 +345,9 @@ FILE *f;
 			IFDEBUG(d)
 				fflush(f);
 			ENDDEBUG
-		} 
+		}
 		IFDEBUG(g)
-		fprintf(stdout, 
+		fprintf(stdout,
 		"loop: e 0x%x s 0x%x hadapred 0x%x dindex 0x%x for trans 0x%x\n",
 			e, s, hadapred, defaultindex, defaultItrans);
 		ENDDEBUG
@@ -375,19 +375,19 @@ FILE *f;
 	for(s = 0; s< Nstates; s++) fprintf(f, "0,"); /* event 0 */
 	fprintf(f, "},\n");
 
-	for(e = 0; e < Nevents; e++) { 
-		fprintf(f, " {"); 
+	for(e = 0; e < Nevents; e++) {
+		fprintf(f, " {");
 		for(s = 0; s < Nstates; s++) {
 			register struct Predicate *xyz = Predlist[(e<<Eventshift)+s];
 			/* this kludge is to avoid a lint msg. concerning
-			 * loss of bits 
+			 * loss of bits
 			 */
 			if (xyz == (struct Predicate *)(-1))
 				fprintf(f, "-1,");
 			else
 				fprintf(f, "0x%x,", Predlist[(e<<Eventshift)+s]);
 		}
-		fprintf(f, " },\n"); 
+		fprintf(f, " },\n");
 	}
 	fprintf(f, "};");
 }
@@ -420,14 +420,14 @@ int event,state;
 {
 	register struct Predicate *p, **q;
 
-	for( 
-	((q = &Predlist[(event<<Eventshift) +state]), 
+	for(
+	((q = &Predlist[(event<<Eventshift) +state]),
 	 (p = Predlist[(event<<Eventshift) + state]));
 		p!= (struct Predicate *)0 ; p = p->p_next ) {
 #ifndef LINT
 		IFDEBUG(a)
-			fprintf(OUT, 
-			"dump_pentry for event 0x%x, state 0x%x is 0x%x\n", 
+			fprintf(OUT,
+			"dump_pentry for event 0x%x, state 0x%x is 0x%x\n",
 			 event, state, p);
 		ENDDEBUG
 #endif LINT

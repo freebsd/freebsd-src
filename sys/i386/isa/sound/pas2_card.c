@@ -380,7 +380,7 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
   if (detect_pas_hw (hw_config))
     {
 
- 	board_rev_id = pas_read (BOARD_REV_ID);	
+ 	board_rev_id = pas_read (BOARD_REV_ID);
 	if (pas_model = pas_read (CHIP_REV))
 	{
 #ifdef __FreeBSD__

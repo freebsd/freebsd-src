@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.21 1995/03/23 06:14:44 davidg Exp $
+**  $Id: pci.c,v 1.22 1995/05/04 06:57:11 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -113,7 +113,7 @@ struct pcicb {
 
 static int
 pci_externalize (struct proc *, struct kern_devconf *, void *, size_t);
- 
+
 static int
 pci_internalize (struct proc *, struct kern_devconf *, void *, size_t);
 
@@ -234,7 +234,7 @@ pci_register_io (struct pcicb * cb, u_int base, u_int limit)
 		cb->pcicb_pupto = limit;
 
 	/*
-	**	XXX should set bridge io mapping here 
+	**	XXX should set bridge io mapping here
 	**	but it can be mapped in 4k blocks only,
 	**	leading to conflicts with isa/eisa ..
 	*/
@@ -1097,8 +1097,8 @@ pci_externalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t l)
 
 	return copyout(&buffer, u, sizeof buffer);
 }
- 
- 
+
+
 static int
 pci_internalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t s)
 {
@@ -1476,7 +1476,7 @@ static struct vt VendorTable[] = {
 
 static const char *const majclasses[] = {
 	"old", "storage", "network", "display",
-	"multimedia", "memory", "bridge" 
+	"multimedia", "memory", "bridge"
 };
 
 void not_supported (pcici_t tag, u_long type)

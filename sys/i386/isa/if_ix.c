@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.5 1995/03/02 08:17:14 rgrimes Exp $
+ *	$Id: if_ix.c,v 1.6 1995/05/10 15:19:25 rgrimes Exp $
  */
 
 #include "ix.h"
@@ -431,7 +431,7 @@ ixprobe(struct isa_device *dvp) {
 			goto ixprobe_exit;
 		}
 	}
-	
+
 	if ((kvtop(dvp->id_maddr) < 0xC0000) ||
 	    (kvtop(dvp->id_maddr) + dvp->id_msize > 0xF0000)) {
 		printf("ixprobe mapped memory address out of range\n");
@@ -573,7 +573,7 @@ ixattach(struct isa_device *dvp) {
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_NOTRAILERS | IFF_BROADCAST;
 	/*
-	 * This is commented out to save memory and cpu time 
+	 * This is commented out to save memory and cpu time
 	 * ifp->if_timer = 0;
 	 * ifp->if_metric = 0;
 	 * ifp->if_addrlist = 0;
@@ -592,7 +592,7 @@ ixattach(struct isa_device *dvp) {
 	ifp->if_reset = ixreset;
 	ifp->if_watchdog = ixwatchdog;
 	/*
-	 * This is commented out to save memory and cpu time 
+	 * This is commented out to save memory and cpu time
 	 * ifp->if_ipackets = 0;
 	 * ifp->if_ierrors = 0;
 	 * ifp->if_opackets = 0;
@@ -605,7 +605,7 @@ ixattach(struct isa_device *dvp) {
 	ifp->if_addrlen = ETHER_ADDRESS_LENGTH;
 	ifp->if_hdrlen = ETHER_HEADER_LENGTH;
 	/*
-	 * This is commented out to save memory and cpu time 
+	 * This is commented out to save memory and cpu time
 	 * ifp->if_index = 0;
 	 * ifp->if_lastchange.tv_sec = 0;
 	 * ifp->if_lastchange.tv_usec = 0;
@@ -770,7 +770,7 @@ ixinit(int unit) {
 					   collision detect source external */
 	cb_conf->byte[10] = 60;		/* minimum number of bytes is a frame */
 	cb_conf->byte[11] = 0;		/* unused */
-				
+
 	scb->command = SCB_CUC_START;
 	ixchannel_attention(unit);
 	status |= ix_cb_wait((cb_t *)cb_conf, "Configure");
@@ -859,7 +859,7 @@ ixinit_rfa(int unit) {
 	rbd = (rbd_t *)(sc->maddr +
 	                RFA_START +
                         (how_many_frames * sizeof(rfd_t)));
-	rb = sc->maddr + RFA_START + 
+	rb = sc->maddr + RFA_START +
 	     (how_many_frames * (sizeof(rfd_t) + sizeof(rbd_t)));
 	sc->rfd_head = rfd;
 	sc->rbd_head = rbd;
@@ -906,7 +906,7 @@ ixinit_rfa(int unit) {
 		rbd = (rbd_t *)(sc->maddr +
 		               RFA_START +
 		               (how_many_frames * sizeof(rfd_t)));
-		rb = sc->maddr + RFA_START + 
+		rb = sc->maddr + RFA_START +
 		     (how_many_frames * (sizeof(rfd_t) + sizeof(rbd_t)));
 		printf("  complete_frame_size = %d\n", complete_frame_size);
 		printf("  how_many_frames = %d\n", how_many_frames);
@@ -976,7 +976,7 @@ ixinit_tfa(int unit) {
 	tbd = (tbd_t *)(sc->maddr +
 	                TFA_START +
                         (TB_COUNT * sizeof(cb_transmit_t)));
-	tb = sc->maddr + TFA_START + 
+	tb = sc->maddr + TFA_START +
 	     (TB_COUNT * (sizeof(cb_transmit_t) + sizeof(tbd_t)));
 	sc->cb_head = (cb_t *)cb;
 	sc->tbd_head = tbd;
@@ -1013,7 +1013,7 @@ ixinit_tfa(int unit) {
 		tbd = (tbd_t *)(sc->maddr +
 		               TFA_START +
 		               (TB_COUNT * sizeof(cb_transmit_t)));
-		tb = sc->maddr + TFA_START + 
+		tb = sc->maddr + TFA_START +
 		     (TB_COUNT * (sizeof(cb_transmit_t) + sizeof(tbd_t)));
 		printf("  TB_COUNT = %d\n", TB_COUNT);
 		printf("  cb_head = %lx\t\tcb_tail = %lx\n",
@@ -1109,7 +1109,7 @@ ixintr(int unit) {
 	if (check_queue && ifp->if_snd.ifq_head != 0) {
 		ixstart(ifp);	/* we have stuff on the queue */
 	}
-	
+
 ixintr_exit:
 	DEBUGBEGIN(DEBUGINTR)
 	DEBUGDO(printf(" ixintr exited\n");)
@@ -1415,7 +1415,7 @@ ixstart(struct ifnet *ifp) {
 		IF_DEQUEUE(&ifp->if_snd, m);
 		length = 0;
 		for (m_temp = m; m_temp != 0; m_temp = m_temp->m_next) {
-			bcopy(mtod(m_temp, caddr_t), tb, m_temp->m_len); 
+			bcopy(mtod(m_temp, caddr_t), tb, m_temp->m_len);
 			tb += m_temp->m_len;
 			length += m_temp->m_len;
 		}
@@ -1427,7 +1427,7 @@ ixstart(struct ifnet *ifp) {
  			 * This should never ever happen, if it does
 			 * we probable screwed up all sorts of board data
 			 * in the above bcopy's and should probably shut
-			 * down, but for now just issue a warning that 
+			 * down, but for now just issue a warning that
 			 * something is real wrong
 			 */
 			printf("ix%d: ixstart: Packet length=%d > MTU=%d\n",

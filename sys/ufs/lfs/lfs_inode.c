@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_inode.c,v 1.7 1995/03/19 14:29:17 davidg Exp $
+ * $Id: lfs_inode.c,v 1.8 1995/03/26 23:29:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -128,7 +128,7 @@ lfs_update(ap)
 	if(ap->a_waitfor &  LFS_SYNC && vp->v_dirtyblkhd.lh_first != NULL)
 	       panic("lfs_update: dirty bufs");
 	return( error );
-	
+
 }
 
 /* Update segment usage information when removing a block. */
@@ -229,7 +229,7 @@ lfs_truncate(ap)
 #ifdef QUOTA
 		if (e1 = getinoquota(ip))
 			return (e1);
-#endif	
+#endif
 		if (e1 = bread(vp, lbn, fs->lfs_bsize, NOCRED, &bp))
 			return (e1);
 		ip->i_size = length;
@@ -289,9 +289,9 @@ lfs_truncate(ap)
 					brelse (bp);
 				else {
 					bzero((daddr_t *)bp->b_data +
-					    inp->in_off, fs->lfs_bsize - 
+					    inp->in_off, fs->lfs_bsize -
 					    inp->in_off * sizeof(daddr_t));
-					if (e1 = VOP_BWRITE(bp)) 
+					if (e1 = VOP_BWRITE(bp))
 						return (e1);
 				}
 			}
@@ -370,7 +370,7 @@ lfs_truncate(ap)
 #endif
 	fs->lfs_avail += fsbtodb(fs, a_released);
 	e1 = vinvalbuf(vp, (length > 0) ? V_SAVE : 0, ap->a_cred, ap->a_p,
-	    0, 0); 
+	    0, 0);
 	e2 = VOP_UPDATE(vp, &tv, &tv, 0);
 	return (e1 ? e1 : e2 ? e2 : 0);
 }

@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.42 1995/05/09 11:39:40 rgrimes Exp $
+ *	$Id: mcd.c,v 1.43 1995/05/11 19:26:18 rgrimes Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -249,7 +249,7 @@ int mcd_attach(struct isa_device *dev)
 {
 	struct mcd_data *cd = mcd_data + dev->id_unit;
 	int i;
-	
+
 	cd->iobase = dev->id_iobase;
 	cd->flags |= MCDINIT;
 	mcd_soft_reset(dev->id_unit);
@@ -269,7 +269,7 @@ int mcdopen(dev_t dev)
 {
 	int unit,part,phys,r,retry;
 	struct mcd_data *cd;
-	
+
 	unit = mcd_unit(dev);
 	if (unit >= NMCD)
 		return ENXIO;
@@ -277,7 +277,7 @@ int mcdopen(dev_t dev)
 	cd = mcd_data + unit;
 	part = mcd_part(dev);
 	phys = mcd_phys(dev);
-	
+
 	/* not initialized*/
 	if (!(cd->flags & MCDINIT))
 		return ENXIO;
@@ -337,7 +337,7 @@ MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
 			return ENXIO;
 		return 0;
 	}
-	
+
 	return ENXIO;
 }
 
@@ -345,7 +345,7 @@ int mcdclose(dev_t dev)
 {
 	int unit,part,phys;
 	struct mcd_data *cd;
-	
+
 	unit = mcd_unit(dev);
 	if (unit >= NMCD)
 		return ENXIO;
@@ -353,7 +353,7 @@ int mcdclose(dev_t dev)
 	cd = mcd_data + unit;
 	part = mcd_part(dev);
 	phys = mcd_phys(dev);
-	
+
 	if (!(cd->flags & MCDINIT))
 		return ENXIO;
 
@@ -377,7 +377,7 @@ mcdstrategy(struct buf *bp)
 	struct mcd_data *cd;
 	struct buf *qp;
 	int s;
-	
+
 	int unit = mcd_unit(bp->b_dev);
 
 	cd = mcd_data + unit;
@@ -406,11 +406,11 @@ MCD_TRACE("strategy: drive not valid\n");
 		bp->b_error = EROFS;
 		goto bad;
 	}
-	
+
 	/* no data to read */
 	if (bp->b_bcount == 0)
 		goto done;
-	
+
 	/* for non raw access, check partition limits */
 	if (mcd_part(bp->b_dev) != RAW_PART) {
 		if (!(cd->flags & MCDLABEL)) {
@@ -425,13 +425,13 @@ MCD_TRACE("strategy: drive not valid\n");
 		bp->b_pblkno = bp->b_blkno;
 		bp->b_resid = 0;
 	}
-	
+
 	/* queue it */
 	qp = &cd->head;
 	s = splbio();
 	disksort(qp,bp);
 	splx(s);
-	
+
 	/* now check whether we can perform processing */
 	mcd_start(unit);
 	return;
@@ -451,7 +451,7 @@ static void mcd_start(int unit)
 	struct partition *p;
 	int part;
 	register s = splbio();
-	
+
 	if (cd->flags & MCDMBXBSY) {
 		splx(s);
 		return;
@@ -495,7 +495,7 @@ int mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 {
 	struct mcd_data *cd;
 	int unit,part;
-	
+
 	unit = mcd_unit(dev);
 	part = mcd_part(dev);
 	cd = mcd_data + unit;
@@ -523,7 +523,7 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 		return 0;
 
 		/*
-		 * a bit silly, but someone might want to test something on a 
+		 * a bit silly, but someone might want to test something on a
 		 * section of cdrom.
 		 */
 	case DIOCWDINFO:
@@ -614,10 +614,10 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 static int mcd_getdisklabel(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
-	
+
 	if (cd->flags & MCDLABEL)
 		return -1;
-	
+
 	bzero(&cd->dlabel,sizeof(struct disklabel));
 	/* filled with spaces first */
 	strncpy(cd->dlabel.d_typename,"               ",
@@ -642,7 +642,7 @@ static int mcd_getdisklabel(int unit)
 	cd->dlabel.d_magic	= DISKMAGIC;
 	cd->dlabel.d_magic2	= DISKMAGIC;
 	cd->dlabel.d_checksum	= dkcksum(&cd->dlabel);
-	
+
 	cd->flags |= MCDLABEL;
 	return 0;
 }
@@ -704,7 +704,7 @@ twiddle_thumbs(int port, int unit, int count, char *whine)
 int
 mcd_probe(struct isa_device *dev)
 {
-	int port = dev->id_iobase;	
+	int port = dev->id_iobase;
 	int unit = dev->id_unit;
 	int i, j;
 	int status;
@@ -856,7 +856,7 @@ mcd_get(int unit, char *buf, int nmax)
 {
 	int port = mcd_data[unit].iobase;
 	int i,k;
-	
+
 	for (i=0; i<nmax; i++) {
 		/* wait for data */
 		if ((k = mcd_getreply(unit,DELAY_GETREPLY)) < 0) {
@@ -873,7 +873,7 @@ mcd_send(int unit, int cmd,int nretrys)
 {
 	int i,k=0;
 	int port = mcd_data[unit].iobase;
-	
+
 /*MCD_TRACE("mcd_send: command = 0x%02x\n",cmd,0,0,0);*/
 	for (i=0; i<nretrys; i++) {
 		outb(port+mcd_command, cmd);
@@ -1406,7 +1406,7 @@ mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te)
 	i = te->starting_track;
 	if (i == MCD_LASTPLUS1)
 		i = bcd2bin(cd->volinfo.trk_high) + 1;
-	
+
 	/* verify starting track */
 	if (i < bcd2bin(cd->volinfo.trk_low) ||
 		i > bcd2bin(cd->volinfo.trk_high)+1) {

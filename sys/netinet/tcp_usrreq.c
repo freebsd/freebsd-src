@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.12 1995/03/16 18:15:06 bde Exp $
+ *	$Id: tcp_usrreq.c,v 1.13 1995/04/09 01:29:28 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -206,7 +206,7 @@ tcp_usrreq(so, req, m, nam, control)
 			error = EAFNOSUPPORT;
 			break;
 		}
-			
+
 		if ((error = tcp_connect(tp, nam)) != 0)
 			break;
 		error = tcp_output(tp);
@@ -402,7 +402,7 @@ tcp_connect(tp, nam)
 			return error;
 	}
 
-	/* 
+	/*
 	 * Cannot simply call in_pcbconnect, because there might be an
 	 * earlier incarnation of this same connection still in
 	 * TIME_WAIT state, creating an ADDRINUSE error.
@@ -697,7 +697,7 @@ tcp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	case TCPCTL_RTTDFLT:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &tcp_rttdflt));
 	case TCPCTL_KEEPIDLE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
 				   &tcp_keepidle));
 	case TCPCTL_KEEPINTVL:
 		return (sysctl_int(oldp, oldlenp, newp, newlen,

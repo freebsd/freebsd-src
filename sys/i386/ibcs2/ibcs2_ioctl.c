@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_ioctl.c,v 1.2 1994/10/17 22:13:07 sos Exp $
+ *	$Id: ibcs2_ioctl.c,v 1.3 1994/10/23 19:19:42 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -71,7 +71,7 @@ static struct speedtab sptab[] = {
 	{ 134, 4 }, { 135, 4 }, { 150, 5 }, { 200, 6 },
 	{ 300, 7 }, { 600, 8 }, { 1200, 9 }, { 1800, 10 },
 	{ 2400, 11 }, { 4800, 12 }, { 9600, 13 },
-	{ 19200, 14 }, { 38400, 15 }, 
+	{ 19200, 14 }, { 38400, 15 },
 	{ 57600, 15 }, { 115200, 15 }, {-1, -1 }
 };
 
@@ -94,7 +94,7 @@ bsd_to_ibcs2_speed(int speed, struct speedtab *table)
 }
 
 static void
-bsd_termios_to_ibcs2_termio(struct termios *bsd_termios, 
+bsd_termios_to_ibcs2_termio(struct termios *bsd_termios,
 			    struct ibcs2_termio *ibcs2_termio)
 {
 	int speed;
@@ -107,12 +107,12 @@ bsd_termios_to_ibcs2_termio(struct termios *bsd_termios,
 			bsd_termios->c_cflag, bsd_termios->c_lflag,
 			bsd_termios->c_ispeed, bsd_termios->c_ospeed);
 		printf("c_cc ");
-		for (i=0; i<NCCS; i++) 
+		for (i=0; i<NCCS; i++)
 			printf("%02x ", bsd_termios->c_cc[i]);
 		printf("\n");
 	}
 
-	ibcs2_termio->c_iflag = bsd_termios->c_iflag & 
+	ibcs2_termio->c_iflag = bsd_termios->c_iflag &
 		(IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK
 		 |ISTRIP|INLCR|IGNCR|ICRNL|IXANY);
 	if (bsd_termios->c_iflag & IXON)
@@ -219,7 +219,7 @@ ibcs2_termio_to_bsd_termios(struct ibcs2_termio *ibcs2_termio,
 		printf("\n");
 	}
 
-	bsd_termios->c_iflag = ibcs2_termio->c_iflag & 
+	bsd_termios->c_iflag = ibcs2_termio->c_iflag &
 		(IBCS2_IGNBRK|IBCS2_BRKINT|IBCS2_IGNPAR|IBCS2_PARMRK|IBCS2_INPCK
 	 	|IBCS2_ISTRIP|IBCS2_INLCR|IBCS2_IGNCR|IBCS2_ICRNL|IBCS2_IXANY);
 	if (ibcs2_termio->c_iflag & IBCS2_IXON)
@@ -303,7 +303,7 @@ ibcs2_termio_to_bsd_termios(struct ibcs2_termio *ibcs2_termio,
 }
 
 static void
-bsd_to_ibcs2_termios(struct termios *bsd_termios, 
+bsd_to_ibcs2_termios(struct termios *bsd_termios,
 			    struct ibcs2_termios *ibcs2_termios)
 {
 	int speed;
@@ -321,7 +321,7 @@ bsd_to_ibcs2_termios(struct termios *bsd_termios,
 		printf("\n");
 	}
 
-	ibcs2_termios->c_iflag = bsd_termios->c_iflag & 
+	ibcs2_termios->c_iflag = bsd_termios->c_iflag &
 		(IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK
 		 |ISTRIP|INLCR|IGNCR|ICRNL|IXANY);
 	if (bsd_termios->c_iflag & IXON)
@@ -401,15 +401,15 @@ bsd_to_ibcs2_termios(struct termios *bsd_termios,
 	if (ibcs2_trace & IBCS2_TRACE_IOCTLCNV) {
 		int i;
 		printf("IBCS2: IBCS2 termios structure (output):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d "  
+		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d "
 			"line=%d\n",
 			ibcs2_termios->c_iflag, ibcs2_termios->c_oflag,
 			ibcs2_termios->c_cflag, ibcs2_termios->c_lflag,
-			ibcs2_to_bsd_speed(ibcs2_termios->c_ispeed, sptab), 
+			ibcs2_to_bsd_speed(ibcs2_termios->c_ispeed, sptab),
 			ibcs2_to_bsd_speed(ibcs2_termios->c_ospeed, sptab),
 			ibcs2_termios->c_line);
 		printf("c_cc ");
-		for (i=0; i<IBCS2_NCCS; i++) 
+		for (i=0; i<IBCS2_NCCS; i++)
 			printf("%02x ", ibcs2_termios->c_cc[i]);
 		printf("\n");
 	}
@@ -428,16 +428,16 @@ ibcs2_to_bsd_termios(struct ibcs2_termios *ibcs2_termios,
 			"line=%d\n",
 			ibcs2_termios->c_iflag, ibcs2_termios->c_oflag,
 			ibcs2_termios->c_cflag, ibcs2_termios->c_lflag,
-			ibcs2_to_bsd_speed(ibcs2_termios->c_ispeed, sptab), 
+			ibcs2_to_bsd_speed(ibcs2_termios->c_ispeed, sptab),
 			ibcs2_to_bsd_speed(ibcs2_termios->c_ospeed, sptab),
 			ibcs2_termios->c_line);
 		printf("c_cc ");
-		for (i=0; i<IBCS2_NCCS; i++) 
+		for (i=0; i<IBCS2_NCCS; i++)
 			printf("%02x ", ibcs2_termios->c_cc[i]);
 		printf("\n");
 	}
 
-	bsd_termios->c_iflag = ibcs2_termios->c_iflag & 
+	bsd_termios->c_iflag = ibcs2_termios->c_iflag &
 		(IBCS2_IGNBRK|IBCS2_BRKINT|IBCS2_IGNPAR|IBCS2_PARMRK|IBCS2_INPCK
 	 	|IBCS2_ISTRIP|IBCS2_INLCR|IBCS2_IGNCR|IBCS2_ICRNL|IBCS2_IXANY);
 	if (ibcs2_termios->c_iflag & IBCS2_IXON)
@@ -521,7 +521,7 @@ ibcs2_to_bsd_termios(struct ibcs2_termios *ibcs2_termios,
 			bsd_termios->c_cflag, bsd_termios->c_lflag,
 			bsd_termios->c_ispeed, bsd_termios->c_ospeed);
 		printf("c_cc ");
-		for (i=0; i<NCCS; i++) 
+		for (i=0; i<NCCS; i++)
 			printf("%02x ", bsd_termios->c_cc[i]);
 		printf("\n");
 	}
@@ -545,15 +545,15 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	int (*func)();
-	int type = (args->cmd&0xffff00)>>8; 
+	int type = (args->cmd&0xffff00)>>8;
 	int num = args->cmd&0xff;
 	int error;
 
 	if (ibcs2_trace & IBCS2_TRACE_IOCTL)
-		printf("IBCS2: 'ioctl' fd=%d, typ=%d(%c), num=%d\n", 
+		printf("IBCS2: 'ioctl' fd=%d, typ=%d(%c), num=%d\n",
 			args->fd, type, type, num);
 
-	if ((unsigned)args->fd >= fdp->fd_nfiles 
+	if ((unsigned)args->fd >= fdp->fd_nfiles
 	    || (fp = fdp->fd_ofiles[args->fd]) == 0)
 		return EBADF;
 
@@ -572,7 +572,7 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 		case 2:
 			args->cmd = FIONCLEX;
 			return ioctl(p, args, retval);
-		case 3:  
+		case 3:
 			args->cmd = FIONREAD;
 			return ioctl(p, args, retval);
 		}
@@ -585,11 +585,11 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 			/* p->p_session->s_ttyp->t_winsize.ws_col; XXX */
 			ibcs2_winsize.bytey = 25;
 			/* p->p_session->s_ttyp->t_winsize.ws_row; XXX */
-			ibcs2_winsize.bitx = 
+			ibcs2_winsize.bitx =
 				p->p_session->s_ttyp->t_winsize.ws_xpixel;
 			ibcs2_winsize.bity =
 				p->p_session->s_ttyp->t_winsize.ws_ypixel;
-			return copyout((caddr_t)&ibcs2_winsize, 
+			return copyout((caddr_t)&ibcs2_winsize,
 					(caddr_t)args->arg,
 					sizeof(ibcs2_winsize));
 		}
@@ -635,11 +635,11 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 	case 'T':
 		switch (num) {
 		case 1:		/* TCGETA */
-			if ((error = (*func)(fp, TIOCGETA, 
+			if ((error = (*func)(fp, TIOCGETA,
 					     (caddr_t)&bsd_termios, p)) != 0)
 				return error;
 			bsd_termios_to_ibcs2_termio(&bsd_termios,&ibcs2_termio);
-			return copyout((caddr_t)&ibcs2_termio, 
+			return copyout((caddr_t)&ibcs2_termio,
 				       (caddr_t)args->arg,
 				       sizeof(ibcs2_termio));
 
@@ -681,26 +681,26 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 			return ioctl(p, args, retval);
 
 		case 103:	/* TIOCSWINSZ */
-			bsd_winsize.ws_row = 
+			bsd_winsize.ws_row =
 				((struct ibcs2_winsize *)(args->arg))->bytex;
-			bsd_winsize.ws_col = 
+			bsd_winsize.ws_col =
 				((struct ibcs2_winsize *)(args->arg))->bytey;
-			bsd_winsize.ws_xpixel = 
+			bsd_winsize.ws_xpixel =
 				((struct ibcs2_winsize *)(args->arg))->bitx;
-			bsd_winsize.ws_ypixel = 
+			bsd_winsize.ws_ypixel =
 				((struct ibcs2_winsize *)(args->arg))->bity;
-			return (*func)(fp, TIOCSWINSZ, 
+			return (*func)(fp, TIOCSWINSZ,
 				       (caddr_t)&bsd_winsize, p);
 
 		case 104:	/* TIOCGWINSZ */
-			if ((error = (*func)(fp, TIOCGWINSZ, 
+			if ((error = (*func)(fp, TIOCGWINSZ,
 					     (caddr_t)&bsd_winsize, p)) != 0)
 				return error;
 			ibcs2_winsize.bytex = bsd_winsize.ws_col;
 			ibcs2_winsize.bytey = bsd_winsize.ws_row;
 			ibcs2_winsize.bitx = bsd_winsize.ws_xpixel;
 			ibcs2_winsize.bity = bsd_winsize.ws_ypixel;
-			return copyout((caddr_t)&ibcs2_winsize, 
+			return copyout((caddr_t)&ibcs2_winsize,
 					(caddr_t)args->arg,
 					sizeof(ibcs2_winsize));
 
@@ -719,11 +719,11 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 	case ('x'):
 		switch (num) {
 		case 1:
-			if ((error = (*func)(fp, TIOCGETA, 
+			if ((error = (*func)(fp, TIOCGETA,
 					     (caddr_t)&bsd_termios, p)) != 0)
 				return error;
 			bsd_to_ibcs2_termios(&bsd_termios, &ibcs2_termios);
-			return copyout((caddr_t)&ibcs2_termios, 
+			return copyout((caddr_t)&ibcs2_termios,
 					(caddr_t)args->arg,
 					sizeof(ibcs2_termios));
 		case 2:
@@ -738,7 +738,7 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 			ibcs2_to_bsd_termios((struct ibcs2_termios *)args->arg,
 					     &bsd_termios);
 			return (*func)(fp, TIOCSETAF, (caddr_t)&bsd_termios, p);
-			
+
 		}
 		break;
 
@@ -922,21 +922,21 @@ struct ioctl_args {
 int
 ibcs2_gtty(struct proc *p, struct ibcs2_sgtty_args *args, int *retval)
 {
-	struct ioctl_args ioctl_arg; 
+	struct ioctl_args ioctl_arg;
 
 	if (ibcs2_trace & IBCS2_TRACE_IOCTL)
 		printf("IBCS2: 'gtty' fd=%d\n", args->fd);
 	ioctl_arg.fd = args->fd;
 	ioctl_arg.cmd = TIOCGETC;
 	ioctl_arg.arg = (caddr_t)args->buf;
-		
+
 	return ioctl(p, &ioctl_arg, retval);
 }
 
 int
 ibcs2_stty(struct proc *p, struct ibcs2_sgtty_args *args, int *retval)
 {
-	struct ioctl_args ioctl_arg; 
+	struct ioctl_args ioctl_arg;
 
 	if (ibcs2_trace & IBCS2_TRACE_IOCTL)
 		printf("IBCS2: 'stty' fd=%d\n", args->fd);

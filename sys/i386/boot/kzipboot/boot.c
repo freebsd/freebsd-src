@@ -1,4 +1,4 @@
-/* 
+/*
  * FreeBSD kernel unpacker.
  * 1993 by Serge Vakulenko
  * modified for FreeBSD 2.1 by Gary Jennejohn - 12FEB95

@@ -8,7 +8,7 @@
  *
  * Many additional changes by Bruce Evans
  *
- * This code is derived from software contributed by the 
+ * This code is derived from software contributed by the
  * University of California Berkeley, Jordan K. Hubbard,
  * David Greenman and Bruce Evans.
  *
@@ -40,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.26 1995/05/07 19:45:49 jkh Exp $
+ *      $Id: userconfig.c,v 1.27 1995/05/08 06:14:16 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -675,7 +675,7 @@ save_dev(idev)
 struct isa_device 	*idev;
 {
 	struct isa_device	*id_p,*id_pn;
-	
+
 	for (id_p=isa_devlist;
 	id_p;
 	id_p=id_p->id_next) {

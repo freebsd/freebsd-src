@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.8 1995/03/17 04:17:32 davidg Exp $
+ *	$Id: kern_devconf.c,v 1.9 1995/04/13 15:33:14 wollman Exp $
  */
 
 /*
@@ -172,7 +172,7 @@ dev_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 			return rv;
 
 		if(kdc->kdc_externalize)
-			rv = kdc->kdc_externalize(p, kdc, 
+			rv = kdc->kdc_externalize(p, kdc,
 				            &((struct devconf *)oldp)->dc_data,
 						  len - ((sizeof dc) - 1));
 		if(rv)
@@ -184,7 +184,7 @@ dev_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 		if(!kdc->kdc_internalize)
 			return EOPNOTSUPP;
 
-		rv = kdc->kdc_internalize(p, kdc, 
+		rv = kdc->kdc_internalize(p, kdc,
 				     &((struct devconf *)newp)->dc_data,
 				     newlen - ((sizeof dc) - 1));
 		return rv;

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.4 (Berkeley) 2/17/94
- * $Id: union_subr.c,v 1.4 1994/10/06 21:06:48 davidg Exp $
+ * $Id: union_subr.c,v 1.5 1994/10/10 07:55:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -130,7 +130,7 @@ union_updatevp(un, uppervp, lowervp)
 
 		LIST_REMOVE(un, un_cache);
 		union_list_unlock(ohash);
-	} else {	
+	} else {
 		while (union_list_lock(nhash))
 			continue;
 	}
@@ -372,7 +372,7 @@ loop:
 	/*
 	 * otherwise lock the vp list while we call getnewvnode
 	 * since that can block.
-	 */ 
+	 */
 	hash = UNION_HASH(uppervp, lowervp);
 
 	if (union_list_lock(hash))

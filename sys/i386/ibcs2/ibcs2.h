@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2.h,v 1.2 1994/10/14 08:53:16 sos Exp $
+ *	$Id: ibcs2.h,v 1.3 1994/10/17 22:13:06 sos Exp $
  */
 
 /* trace all iBCS2 system calls */
@@ -153,7 +153,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define IBCS2_POLLHUP 		0x0010
 #define IBCS2_POLLNVAL		0x0020
 #define IBCS2_POLLRDNORM	0x0040
-#define IBCS2_POLLWRNORM	0x0004	
+#define IBCS2_POLLWRNORM	0x0004
 #define IBCS2_POLLRDBAND	0x0080
 #define IBCS2_POLLWRBAND	0x0100
 #define IBCS2_READPOLL	(IBCS2_POLLIN|IBCS2_POLLRDNORM|IBCS2_POLLRDBAND)
@@ -244,7 +244,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define IBCS2_VKILL	3
 #define IBCS2_VEOF	4	/* ICANON */
 #define IBCS2_VEOL	5	/* ICANON */
-#define IBCS2_VEOL2	6	
+#define IBCS2_VEOL2	6
 #define IBCS2_VSWTCH	7
 #define IBCS2_VMIN	4	/* !ICANON */
 #define IBCS2_VTIME	5	/* !ICANON */

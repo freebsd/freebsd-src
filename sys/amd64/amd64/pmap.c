@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.56 1995/04/09 05:40:38 davidg Exp $
+ *	$Id: pmap.c,v 1.57 1995/05/11 19:26:11 rgrimes Exp $
  */
 
 /*
@@ -167,7 +167,7 @@ struct msgbuf *msgbufp;
 
 #endif
 
-void 
+void
 init_pv_entries(int);
 
 /*
@@ -178,7 +178,7 @@ init_pv_entries(int);
  * [ what about induced faults -wfj]
  */
 
-inline pt_entry_t * const 
+inline pt_entry_t * const
 pmap_pte(pmap, va)
 	register pmap_t pmap;
 	vm_offset_t va;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.17 1995/04/09 06:03:32 davidg Exp $
+ * $Id: buf.h,v 1.18 1995/04/19 10:31:56 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -156,7 +156,7 @@ struct cluster_save {
 	struct buf **bs_children;	/* List of associated buffers. */
 };
 
-/* 
+/*
  * number of buffer hash entries
  */
 #define BUFHSZ 512

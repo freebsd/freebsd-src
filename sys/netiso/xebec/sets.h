@@ -1,5 +1,5 @@
-/* $Header: sets.h,v 2.1 88/09/19 12:56:33 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/sets.h,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/sets.h,v 1.1.1.1 1994/05/24 10:07:44 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/sets.h,v $ */
 
 #define MAXEVENTS 200
 #define MAXSTATES 200
@@ -15,7 +15,7 @@ struct Object {
 	unsigned char obj_type; /* state or event */
 	char *obj_name;
 	char *obj_struc;
-	int obj_number; 
+	int obj_number;
 	struct Object *obj_members; /* must be null for kind==item */
 	/* for the tree */
 	struct Object *obj_left;

@@ -46,7 +46,7 @@
  *               delays, device flags, polling mode, generic cleanup
  * vak    950115 Added request-sense ops
  *
- * $Id: seagate.c,v 1.6 1995/03/28 07:55:50 bde Exp $
+ * $Id: seagate.c,v 1.7 1995/04/12 20:48:03 wollman Exp $
  */
 
 /*
@@ -530,7 +530,7 @@ int sea_attach (struct isa_device *dev)
 	z->sc_link.adapter_targ = z->scsi_addr;
 	z->sc_link.adapter = &sea_switch;
 	z->sc_link.device = &sea_dev;
-	
+
 	/* ask the adapter what subunits are present */
 	scsi_attachdevs (&(z->sc_link));
 

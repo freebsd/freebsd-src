@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.7 1994/10/06 21:06:42 davidg Exp $
+ * $Id: fdesc_vnops.c,v 1.8 1995/03/28 07:56:44 bde Exp $
  */
 
 /*
@@ -138,7 +138,7 @@ loop:
 	/*
 	 * otherwise lock the array while we call getnewvnode
 	 * since that can block.
-	 */ 
+	 */
 	if (fdcache_lock & FDL_LOCKED) {
 		fdcache_lock |= FDL_WANT;
 		(void) tsleep((caddr_t) &fdcache_lock, PINOD, "fdalvp", 0);
@@ -195,7 +195,7 @@ fdesc_lookup(ap)
 	pname = ap->a_cnp->cn_nameptr;
 	if (ap->a_cnp->cn_namelen == 1 && *pname == '.') {
 		*vpp = dvp;
-		VREF(dvp);	
+		VREF(dvp);
 		VOP_LOCK(dvp);
 		return (0);
 	}
@@ -325,7 +325,7 @@ fdesc_open(ap)
 	case Fdesc:
 		/*
 		 * XXX Kludge: set p->p_dupfd to contain the value of the
-		 * the file descriptor being sought for duplication. The error 
+		 * the file descriptor being sought for duplication. The error
 		 * return ensures that the vnode for this device will be
 		 * released by vn_open. Open will detect this special error and
 		 * take the actions in dupfdopen.  Other callers of vn_open or
@@ -467,7 +467,7 @@ fdesc_getattr(ap)
 
 	default:
 		panic("fdesc_getattr");
-		break;	
+		break;
 	}
 
 	if (error == 0)
@@ -586,7 +586,7 @@ fdesc_readdir(ap)
 				break;
 			}
 			i++;
-			
+
 			switch (dt->d_fileno) {
 			case FD_CTTY:
 				if (cttyvp(uio->uio_procp) == NULL)
@@ -690,7 +690,7 @@ fdesc_read(ap)
 		error = EOPNOTSUPP;
 		break;
 	}
-	
+
 	return (error);
 }
 
@@ -714,7 +714,7 @@ fdesc_write(ap)
 		error = EOPNOTSUPP;
 		break;
 	}
-	
+
 	return (error);
 }
 
@@ -741,7 +741,7 @@ fdesc_ioctl(ap)
 		error = EOPNOTSUPP;
 		break;
 	}
-	
+
 	return (error);
 }
 
@@ -766,7 +766,7 @@ fdesc_select(ap)
 		error = EOPNOTSUPP;
 		break;
 	}
-	
+
 	return (error);
 }
 

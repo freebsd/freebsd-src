@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.1 (Berkeley) 6/2/93
- * $Id: socketvar.h,v 1.4 1994/08/21 04:41:58 paul Exp $
+ * $Id: socketvar.h,v 1.5 1994/10/02 17:24:57 phk Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -231,7 +231,7 @@ int     sbreserve __P((struct sockbuf *,u_long));
 int     soreserve __P((struct socket *,u_long,u_long));
 int     sb_lock __P((struct sockbuf *));
 int     sbwait __P((struct sockbuf *));
-void    sbdrop __P((struct sockbuf *, int)); 
+void    sbdrop __P((struct sockbuf *, int));
 void    sofree __P((struct socket *));
 void    sorflush __P((struct socket *));
 int	soqremque __P((struct socket *,int));

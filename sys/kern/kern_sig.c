@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.9 1995/01/29 01:19:12 ats Exp $
+ * $Id: kern_sig.c,v 1.10 1995/03/16 18:12:35 bde Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -266,7 +266,7 @@ sigprocmask(p, uap, retval)
 	case SIG_SETMASK:
 		p->p_sigmask = uap->mask &~ sigcantmask;
 		break;
-	
+
 	default:
 		error = EINVAL;
 		break;
@@ -507,13 +507,13 @@ killpg1(cp, signum, pgid, all)
 	register struct pcred *pc = cp->p_cred;
 	struct pgrp *pgrp;
 	int nfound = 0;
-	
-	if (all)	
-		/* 
-		 * broadcast 
+
+	if (all)
+		/*
+		 * broadcast
 		 */
 		for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
-			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM || 
+			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
 			    p == cp || !CANSIGNAL(cp, pc, p, signum))
 				continue;
 			nfound++;
@@ -521,8 +521,8 @@ killpg1(cp, signum, pgid, all)
 				psignal(p, signum);
 		}
 	else {
-		if (pgid == 0)		
-			/* 
+		if (pgid == 0)
+			/*
 			 * zero pgid means send to my process group.
 			 */
 			pgrp = cp->p_pgrp;
@@ -650,7 +650,7 @@ trapsignal(p, signum, code)
 		p->p_stats->p_ru.ru_nsignals++;
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_PSIG))
-			ktrpsig(p->p_tracep, signum, ps->ps_sigact[signum], 
+			ktrpsig(p->p_tracep, signum, ps->ps_sigact[signum],
 				p->p_sigmask, code);
 #endif
 		sendsig(ps->ps_sigact[signum], signum, p->p_sigmask, code);
@@ -1134,7 +1134,7 @@ sigexit(p, signum)
 		p->p_sigacts->ps_sig = signum;
 		/*
 		 * Log signals which would cause core dumps
-		 * (Log as LOG_INFO to appease those who don't want 
+		 * (Log as LOG_INFO to appease those who don't want
 		 * these messages.)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 */

@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.4 1994/09/21 03:47:05 wollman Exp $
+ * $Id: portal_vnops.c,v 1.5 1995/03/28 07:57:02 bde Exp $
  */
 
 /*
@@ -272,7 +272,7 @@ portal_open(ap)
 		error = so->so_error;
 		goto bad;
 	}
-		
+
 	/*
 	 * Set miscellaneous flags
 	 */
@@ -377,7 +377,7 @@ portal_open(ap)
 	}
 
 	/*
-	 * Check that the mode the file is being opened for is a subset 
+	 * Check that the mode the file is being opened for is a subset
 	 * of the mode of the existing descriptor.
 	 */
  	fp = p->p_fd->fd_ofiles[fd];
@@ -399,7 +399,7 @@ bad:;
 	/*
 	 * And discard the control message.
 	 */
-	if (cm) { 
+	if (cm) {
 		m_freem(cm);
 	}
 

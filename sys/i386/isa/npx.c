@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.21 1995/03/05 04:06:44 wpaul Exp $
+ *	$Id: npx.c,v 1.22 1995/04/12 20:48:01 wollman Exp $
  */
 
 #include "npx.h"
@@ -280,7 +280,7 @@ npxprobe1(dvp)
 		/*
 		 * Good, now check for a proper control word.
 		 */
-		control = 0x5a5a;	
+		control = 0x5a5a;
 		fnstcw(&control);
 		if ((control & 0x1f3f) == 0x033f) {
 			hw_float = npx_exists = 1;
@@ -344,7 +344,7 @@ npxattach(dvp)
 		printf("npx%d: INT 16 interface\n", dvp->id_unit);
 	else if (npx_irq13)
 		;		/* higher level has printed "irq 13" */
-#if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE) 
+#if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE)
 	else if (npx_exists) {
 		printf("npx%d: error reporting broken; using 387 emulator\n",
 			dvp->id_unit);

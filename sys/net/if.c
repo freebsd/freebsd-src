@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.13 1995/02/24 11:47:31 davidg Exp $
+ * $Id: if.c,v 1.14 1995/05/27 04:37:24 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -203,7 +203,7 @@ ifa_ifwithdstaddr(addr)
 	register struct ifnet *ifp;
 	register struct ifaddr *ifa;
 
-	for (ifp = ifnet; ifp; ifp = ifp->if_next) 
+	for (ifp = ifnet; ifp; ifp = ifp->if_next)
 	    if (ifp->if_flags & IFF_POINTOPOINT)
 		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -559,7 +559,7 @@ ifioctl(so, cmd, data, p)
 			return (error);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
-		/* 
+		/*
 		 * 72 was chosen below because it is the size of a TCP/IP
 		 * header (40) + the minimum mss (32).
 		 */
@@ -659,7 +659,7 @@ ifconf(cmd, data)
 	for (; space > sizeof (ifr) && ifp; ifp = ifp->if_next) {
 		char workbuf[12], *unitname;
 		int unitlen, ifnlen;
-	       
+
 		unitname = sprint_d(ifp->if_unit, workbuf, sizeof workbuf);
 		unitlen = strlen(unitname);
 		ifnlen = strlen(ifp->if_name);
@@ -677,7 +677,7 @@ ifconf(cmd, data)
 			if (error)
 				break;
 			space -= sizeof (ifr), ifrp++;
-		} else 
+		} else
 		    for ( ; space > sizeof (ifr) && ifa; ifa = ifa->ifa_next) {
 			register struct sockaddr *sa = ifa->ifa_addr;
 #ifdef COMPAT_43

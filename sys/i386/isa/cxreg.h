@@ -29,7 +29,7 @@
 #define BCR1(p)	((p) | 0x2000)	/* board command register 1, write only */
 
 /*
- * Chip register address, B is chip base port, R is chip register number. 
+ * Chip register address, B is chip base port, R is chip register number.
  */
 #define R(b,r) ((b) | (((r)<<6 & 0x3c00) | ((r) & 0xf)))
 

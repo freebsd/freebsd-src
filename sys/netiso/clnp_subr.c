@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: clnp_subr.c,v 1.2 1994/08/02 07:49:50 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_subr.c,v 1.1.1.1 1994/05/24 10:07:20 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_subr.c,v 1.2 1994/08/02 07:49:50 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_subr.c,v $ */
 
 #ifdef ISO
@@ -97,9 +97,9 @@ SOFTWARE.
  * RETURNS:			success - ptr to mbuf chain
  *					failure - 0
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 struct mbuf *
 clnp_data_ck(m, length)
@@ -139,13 +139,13 @@ int						length;	/* length (in bytes) of packet */
  *					supplied buffer. Place them in the supplied address buffers.
  *					If insufficient data is supplied, then fail.
  *
- * RETURNS:			success - Address of first byte in the packet past 
+ * RETURNS:			success - Address of first byte in the packet past
  *						the address part.
  *					failure - 0
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 caddr_t
 clnp_extract_addr(bufp, buflen, srcp, destp)
@@ -156,7 +156,7 @@ register struct iso_addr	*destp;		/* ptr to destination address buffer */
  {
 	int	len;		/* argument to bcopy */
 
-	/* 
+	/*
 	 *	check that we have enough data. Plus1 is for length octet
 	 */
 	if ((u_char)*bufp + 1 > buflen) {
@@ -167,7 +167,7 @@ register struct iso_addr	*destp;		/* ptr to destination address buffer */
 	buflen -= len;
 	bufp += len;
 
-	/* 
+	/*
 	 *	check that we have enough data. Plus1 is for length octet
 	 */
 	if ((u_char)*bufp + 1 > buflen) {
@@ -196,9 +196,9 @@ register struct iso_addr	*destp;		/* ptr to destination address buffer */
  * RETURNS:			packet is for us - 1
  *					packet is not for us - 0
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 clnp_ours(dst)
 register struct iso_addr *dst;		/* ptr to destination address */
@@ -207,7 +207,7 @@ register struct iso_addr *dst;		/* ptr to destination address */
 
 	for (ia = iso_ifaddr; ia; ia = ia->ia_next) {
 		IFDEBUG(D_ROUTE)
-			printf("clnp_ours: ia_sis x%x, dst x%x\n", &ia->ia_addr, 
+			printf("clnp_ours: ia_sis x%x, dst x%x\n", &ia->ia_addr,
 				dst);
 		ENDDEBUG
 		/*
@@ -237,9 +237,9 @@ int congest_threshold = 0;
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 clnp_forward(m, len, dst, oidx, seg_off, inbound_shp)
 struct mbuf			*m;		/* pkt to forward */
@@ -313,7 +313,7 @@ struct snpa_hdr		*inbound_shp;	/* subnetwork header of inbound packet */
 	ifp = ia->ia_ifp;
 
 	IFDEBUG(D_FORWARD)
-		printf("clnp_forward: packet routed to %s\n", 
+		printf("clnp_forward: packet routed to %s\n",
 			clnp_iso_addrp(&((struct sockaddr_iso *)next_hop)->siso_addr));
 	ENDDEBUG
 
@@ -322,10 +322,10 @@ struct snpa_hdr		*inbound_shp;	/* subnetwork header of inbound packet */
 	/*
 	 *	If we are an intermediate system and
 	 *	we are routing outbound on the same ifp that the packet
-	 *	arrived upon, and we know the next hop snpa, 
+	 *	arrived upon, and we know the next hop snpa,
 	 *	then generate a redirect request
 	 */
-	if ((iso_systype & SNPA_IS) && (inbound_shp) && 
+	if ((iso_systype & SNPA_IS) && (inbound_shp) &&
 		(ifp == inbound_shp->snh_ifp))
 		    esis_rdoutput(inbound_shp, m, oidx, dst, route.ro_rt);
 	/*
@@ -365,7 +365,7 @@ struct snpa_hdr		*inbound_shp;	/* subnetwork header of inbound packet */
 		}
 	}
 #endif	/* DECBIT */
-	
+
 	/*
 	 *	Dispatch the datagram if it is small enough, otherwise fragment
 	 */
@@ -375,7 +375,7 @@ struct snpa_hdr		*inbound_shp;	/* subnetwork header of inbound packet */
 	} else {
 		(void) clnp_fragment(ifp, m, next_hop, len, seg_off, /* flags */0, route.ro_rt);
 	}
-	
+
 done:
 	/*
 	 *	Free route
@@ -393,7 +393,7 @@ done:
  *
  * RETURNS:			Address of first byte after address part in datagram.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Assume that there is enough space for the address part.
  */
@@ -419,7 +419,7 @@ register struct iso_addr	*dstp;	/* ptr to dst addr */
 /*
  * FUNCTION:		clnp_route
  *
- * PURPOSE:			Route a clnp datagram to the first hop toward its 
+ * PURPOSE:			Route a clnp datagram to the first hop toward its
  *					destination. In many cases, the first hop will be
  *					the destination. The address of a route
  *					is specified. If a routing entry is present in
@@ -430,7 +430,7 @@ register struct iso_addr	*dstp;	/* ptr to dst addr */
  * RETURNS:			route found - 0
  *					unix error code
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			It is up to the caller to free the routing entry
  *					allocated in route.
@@ -525,7 +525,7 @@ clnp_route(dst, ro, flags, first_hop, ifa)
  *
  * RETURNS:			0 or unix error code
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Remember that option index pointers are really
  *					offsets from the beginning of the mbuf.
@@ -542,7 +542,7 @@ struct iso_addr		*final_dst;		/* final destination */
 	int				error = 0;	/* return code */
 
 	/*
-	 *	Check if we have run out of routes 
+	 *	Check if we have run out of routes
 	 *	If so, then try to route on destination.
 	 */
 	if CLNPSRCRT_TERM(oidx, options) {
@@ -562,7 +562,7 @@ struct iso_addr		*final_dst;		/* final destination */
 	error = clnp_route(&dst, ro, 0, first_hop, ifa);
 	if (error != 0)
 		return error;
-	
+
 	/*
 	 *	If complete src rt, first hop must be equal to dst
 	 */
@@ -573,7 +573,7 @@ struct iso_addr		*final_dst;		/* final destination */
 		ENDDEBUG
 		return EHOSTUNREACH; /* RAH? would like ESRCRTFAILED */
 	}
-	
+
 	return error;
 }
 
@@ -584,7 +584,7 @@ struct iso_addr		*final_dst;		/* final destination */
  *
  * RETURNS:			result of clnp_output
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  */
 clnp_echoreply(ec_m, ec_len, ec_src, ec_dst, ec_oidxp)
 struct mbuf			*ec_m;		/* echo request */
@@ -644,7 +644,7 @@ char *file;			/* where the dirty deed occured */
  *
  * RETURNS:			none
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			No attempt has been made to make this efficient
  */

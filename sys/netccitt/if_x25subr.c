@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_x25subr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_x25subr.c,v 1.4 1995/02/15 06:29:47 jkh Exp $
+ * $Id: if_x25subr.c,v 1.5 1995/04/26 18:10:50 pst Exp $
  */
 
 #include <sys/param.h>
@@ -88,7 +88,7 @@ struct sockaddr_x25 x25_dgmask = {
  -1,								/* _udlen */
  {-1}								/* _udata */
 };
- 
+
 struct if_x25stats {
 	int	ifx_wrongplen;
 	int	ifx_nophdr;
@@ -161,7 +161,7 @@ register struct mbuf *m;
 	extern struct timeval time;
 	int s, len, isr;
 	void x25_connect_callback();
- 
+
 	if (m == 0 || lcp->lcd_state != DATA_TRANSFER) {
 		x25_connect_callback(lcp, 0);
 		return;
@@ -442,7 +442,7 @@ struct sockaddr *dst;
 	if (rt->rt_flags & RTF_GATEWAY) {
 		if (rt->rt_llinfo)
 			RTFREE((struct rtentry *)rt->rt_llinfo);
-		rt->rt_llinfo = (cmd == RTM_ADD) ? 
+		rt->rt_llinfo = (cmd == RTM_ADD) ?
 			(caddr_t)rtalloc1(rt->rt_gateway, 1, 0UL) : 0;
 		return;
 	}
@@ -665,7 +665,7 @@ register struct x25_ifaddr *ia;
 			rt->rt_refcnt--;
 		}
 	}
-	/* 
+	/*
 	 * Call to rtalloc1 will create rtentry for reverse path
 	 * to callee by virtue of cloning magic and will allocate
 	 * space for local control block.
@@ -706,7 +706,7 @@ register u_char *info;
 	register struct x25_dgproto *dp = x25_dgprototab
 		    + ((sizeof x25_dgprototab) / (sizeof *dp));
 	register struct pklcd *lcp;
-	
+
 	while (dp > x25_dgprototab)
 		if ((--dp)->spi == info[0])
 			goto gotspi;

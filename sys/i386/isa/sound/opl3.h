@@ -37,7 +37,7 @@
  *	The percussive mode is implemented in the left side only.
  *
  *	With the above exceptions the both sides can be operated independently.
- *	
+ *
  *	A 4 OP voice can be created by setting the corresponding
  *	bit at offset 4 of the right side.
  *
@@ -46,7 +46,7 @@
  *	voice is made inaccessible.
  *
  *	If a voice is set to the 2 OP mode, it works like 2 OP modes
- *	of the original YM3812 (AdLib). In addition the voice can 
+ *	of the original YM3812 (AdLib). In addition the voice can
  *	be connected the left, right or both stereo channels. It can
  *	even be left unconnected. This works with 4 OP voices also.
  *
@@ -179,13 +179,13 @@
  *	0		0		>+-1-+--2--3--4-->
  *
  *
- *					
+ *
  *					 +---+
  *					 |   |
  *	0		1		>+-1-+--2-+
  *						  |->
  *					>--3----4-+
- *					
+ *
  *					 +---+
  *					 |   |
  *	1		0		>+-1-+-----+

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_trace.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_trace.h,v 1.2 1994/08/02 07:51:31 davidg Exp $
+ * $Id: tp_trace.h,v 1.3 1994/08/21 06:14:32 paul Exp $
  */
 
 #ifndef _NETISO_TP_TRACE_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,13 +63,13 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_trace.h,v 1.2 1994/08/02 07:51:31 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_trace.h,v 1.3 1994/08/21 06:14:32 paul Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_trace.h,v $
  *
- * 
+ *
  * Definitions needed for the protocol trace mechanism.
  */
 
@@ -171,7 +171,7 @@ int tp_Tracen = 0;
 
 #define IFTRACE(ascii)\
 	if(tp_traceflags[ascii]) {
-/* 
+/*
  * for some reason lint complains about tp_param being undefined no
  * matter where or how many times I define it.
  */
@@ -193,4 +193,4 @@ int tp_Tracen = 0;
 
 #endif /* TPPT */
 
-#endif 
+#endif

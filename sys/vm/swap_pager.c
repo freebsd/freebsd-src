@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.39 1995/05/14 03:00:08 davidg Exp $
+ * $Id: swap_pager.c,v 1.40 1995/05/18 02:59:20 davidg Exp $
  */
 
 /*
@@ -135,7 +135,7 @@ int require_swap_init;
 void swap_pager_finish();
 int dmmin, dmmax;
 
-static inline void 
+static inline void
 swapsizecheck()
 {
 	if (vm_swap_size < 128 * btodb(PAGE_SIZE)) {
@@ -793,7 +793,7 @@ swap_pager_putpage(pager, m, sync)
 }
 
 static inline int
-const 
+const
 swap_pager_block_index(swp, offset)
 	sw_pager_t swp;
 	vm_offset_t offset;
@@ -802,7 +802,7 @@ swap_pager_block_index(swp, offset)
 }
 
 static inline int
-const 
+const
 swap_pager_block_offset(swp, offset)
 	sw_pager_t swp;
 	vm_offset_t offset;
