@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.9 1995/12/07 13:22:18 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.10 1995/12/10 09:09:49 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -76,7 +76,7 @@ anytime soon:
 <sect><heading>How to contribute</heading>
 
 <p>Contributions to the system generally fall into one or more of
-the following 5 categories:
+the following 6 categories:
 
 <sect1><heading>Bug reports and general commentary</heading>
 <p>If you have a bug to report or a suggestion to make:
@@ -254,7 +254,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.9 1995/12/07 13:22:18 jkh Exp $
+	$Id: submitters.sgml,v 1.10 1995/12/10 09:09:49 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
