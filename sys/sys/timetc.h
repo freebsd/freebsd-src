@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.29 1998/05/28 09:30:28 phk Exp $
+ * $Id: time.h,v 1.30 1998/06/07 08:40:53 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -135,7 +135,7 @@ struct timecounter {
 	unsigned 		counter_mask;
 	u_int32_t		frequency;
 	char			*name;
-	void			*private;
+	void			*priv;
 	/* These fields will be managed by the generic code. */
 	int			cost;
 	int32_t			adjustment;
