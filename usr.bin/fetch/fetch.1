@@ -35,14 +35,16 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm
-.Op Fl 146AFHMPRalmnpqrsv
+.Op Fl 146AFHMPRadlmnpqrsv
 .Op Fl B Ar bytes
 .Op Fl S Ar bytes
 .Op Fl T Ar seconds
 .Op Fl o Ar file
 .Op Fl w Ar seconds
-.Ar URL
-.Op Ar ...
+.Op Fl h Ar host
+.Op Fl c Ar dir
+.Op Fl f Ar file
+.Op Ar URL ...
 .Sh DESCRIPTION
 .Nm Fetch
 provides a command-line interface to the
@@ -82,6 +84,10 @@ flag).
 The file to retrieve is in directory
 .Ar dir
 on the remote host.
+This option is deprecated and is provided for backward compatibility
+only.
+.It Fl d
+Use a direct connection even if a proxy is configured.
 .It Fl F
 In combination with the
 .Fl r
@@ -91,6 +97,8 @@ different modification times.
 The file to retrieve is named
 .Ar file
 on the remote host.
+This option is deprecated and is provided for backward compatibility
+only.
 .It Fl H
 When using passive FTP, allocate a high port for the data connection.
 See
@@ -99,6 +107,8 @@ for details on how to specify which port range this corresponds to.
 .It Fl h Ar host
 The file to retrieve is located on the host
 .Ar host .
+This option is deprecated and is provided for backward compatibility
+only.
 .It Fl l
 If the target is a file-scheme URL, make a symbolic link to the target
 rather than trying to copy it.
@@ -226,13 +236,8 @@ options are no longer supported and will generate warnings.
 They were workarounds for bugs in other OSes which this implementation
 does not trigger.
 .Pp
-The
+One cannot both use the
+.Fl h ,
+.Fl c and
 .Fl f
-and
-.Fl h
-options (used for specifying an file to fetch and a host to fetch
-from) are no longer supported and will generate errors.
-Use URLs.
-RFC1738 is your friend.
-.Xr fetch 3
-library.
+options and specify URLs on the command line.
