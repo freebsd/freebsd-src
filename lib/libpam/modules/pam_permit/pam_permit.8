@@ -44,30 +44,31 @@ authentication,
 account management,
 session management and
 password management.
-In terms of the 
+In terms of the
 .Ar module-type
 parameter, these are the
-.Dv auth ,
-.Dv account ,
-.Dv session
+.Dq Li auth ,
+.Dq Li account ,
+.Dq Li session ,
 and
-.Dv password
+.Dq Li password
 features.
 .Pp
 The Promiscuous module
 will universally allow all requests.
 It is primarily of use during testing,
-and to silence 
+and to silence
 .Dq noisy
 PAM-enabled applications.
 .Pp
 The following options may be passed to the module:
-.Bl -tag -xwidth ".Cm use_first_pass"
+.Bl -tag -xwidth ".Cm debug"
 .It Cm debug
 .Xr syslog 3
 debugging information at
 .Dv LOG_DEBUG
 level.
+.El
 .Sh SEE ALSO
 .Xr syslog 3 ,
 .Xr pam.conf 5 ,
