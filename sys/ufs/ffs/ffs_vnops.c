@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.50 1998/06/10 19:27:56 julian Exp $
+ * $Id: ffs_vnops.c,v 1.51 1998/09/07 11:50:19 bde Exp $
  */
 
 #include <sys/param.h>
@@ -249,9 +249,5 @@ loop2:
 	}
 	splx(s);
 	getmicrotime(&tv);
-	if ((error = UFS_UPDATE(vp, &tv, &tv, ap->a_waitfor == MNT_WAIT)) != 0)
-		return (error);
-	if (DOINGSOFTDEP(vp) && ap->a_waitfor == MNT_WAIT)
-		error = softdep_fsync(vp);
-	return (error);
+	return (UFS_UPDATE(vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }
