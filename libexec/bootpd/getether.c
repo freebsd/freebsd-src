@@ -11,9 +11,14 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#ifndef	NO_UNISTD
+#include <unistd.h>
+#endif
+
 #include <ctype.h>
 #include <syslog.h>
 
+#include "getether.h"
 #include "report.h"
 #define EALEN 6
 
@@ -168,10 +173,12 @@ getether(ifname, eap)
 #include <sys/sockio.h>
 #include <sys/dlpi.h>
 #include <stropts.h>
+#include <string.h>
 #ifndef NULL
 #define NULL 0
 #endif
 
+int
 getether(ifname, eap)
 	char *ifname;				/* interface name from ifconfig structure */
 	char *eap;					/* Ether address (output) */
@@ -308,30 +315,31 @@ getether(ifname, eap)
 #endif /* SVR4 */
 
 
-#ifdef	linux
+#ifdef	__linux__
 /*
  * This is really easy on Linux!  This version (for linux)
- * written by Nigel Metheringham <nigelm@ohm.york.ac.uk>
+ * written by Nigel Metheringham <nigelm@ohm.york.ac.uk> and
+ * updated by Pauline Middelink <middelin@polyware.iaf.nl>
  *
  * The code is almost identical to the Ultrix code - however
  * the names are different to confuse the innocent :-)
  * Most of this code was stolen from the Ultrix bit above.
  */
 
+#include <memory.h>
 #include <sys/ioctl.h>
 #include <net/if.h>	       	/* struct ifreq */
+#include <sys/socketio.h>	/* Needed for IOCTL defs */
 
-/* In a properly configured system this should be either sys/socketio.h
-   or sys/sockios.h, but on my distribution these don't line up correctly */
-#include <linux/sockios.h>	/* Needed for IOCTL defs */
-
+int
 getether(ifname, eap)
 	char *ifname, *eap;
 {
 	int rc = -1;
 	int fd;
 	struct ifreq phys;
-	bzero(&phys, sizeof(phys));
+
+	memset(&phys, 0, sizeof(phys));
 	strcpy(phys.ifr_name, ifname);
 	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		report(LOG_ERR, "getether: socket(INET,DGRAM) failed");
@@ -340,7 +348,7 @@ getether(ifname, eap)
 	if (ioctl(fd, SIOCGIFHWADDR, &phys) < 0) {
 		report(LOG_ERR, "getether: ioctl SIOCGIFHWADDR failed");
 	} else {
-		bcopy(phys.ifr_hwaddr, eap, EALEN);
+		memcpy(eap, &phys.ifr_hwaddr.sa_data, EALEN);
 		rc = 0;
 	}
 	close(fd);
@@ -348,11 +356,12 @@ getether(ifname, eap)
 }
 
 #define	GETETHER
-#endif	/* linux */
+#endif	/* __linux__ */
 
 
 /* If we don't know how on this system, just return an error. */
 #ifndef	GETETHER
+int
 getether(ifname, eap)
 	char *ifname, *eap;
 {

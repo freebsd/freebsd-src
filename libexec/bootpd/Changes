@@ -2,6 +2,53 @@ Changes, most recent first
 Date, <email> Real Name
 	what...
 
+--> bootp-2.4.3
+
+03/27/96  gwr@mc.com (Gordon W. Ross)
+	Use LOG_NOTICE in place of LOG_INFO for messages related
+	to unsatisfied clients [at request of <otto@tukki.jyu.fi>]
+	Fix the irix Makefile targets, and other misc.
+
+03/25/95  gwr@mc.com (Gordon W. Ross)
+	Corrected a bug I introduced into SunOS setarp, where
+	bad IP address caused "network unreachable" errors.
+	[Thanks to andrew@ntplx.net (Andrew Lindh) for the fix!]
+
+--> bootp-2.4.2
+
+01/14/95  middelin@polyware.iaf.nl (Pauline Middelink)
+	Corrected support for the Linux networking code.
+	Fixed lots of warnings (gcc -Wall)
+	Added "linux" Makefile target.
+
+01/02/95  Jukka Ukkonen <ukkonen@csc.fi>
+	Allow bootptab syntax: ha="0:0:c0:80:e8:a7"
+
+11/30/94  Tonny van Lankveld <A.L.M.G.v.Lankveld@urc.tue.nl>
+	Fix reporting of duplicate Ethernet addresses.
+
+09/06/94  longyear@netcom.com (Al Longyear)
+	Better setarp for linux, allows non-ether types.
+
+09/02/94  Robert MacKinnon <rbm@montrouge.mis.slb.com>
+	Add support for IBM's AIX 3.2.5
+
+08/30/94  piercarl@ltd.c-d.com (Piercarlo Grandi)
+	Fix select calls on linux (modifies timeval arg).
+	Fix setarp (specify Ethernet type for now).
+
+08/27/94  drew@drewsun.FEITH.COM (Andrew B. Sudell)
+	Add support for Wollongong Win-TCP (SysVr4 variant).
+
+08/24/94  gwr@mc.com (Gordon W. Ross)
+	Use sigaction() on systems that define SA_NOCLDSTOP
+	(a symbol required by POSIX) for HP/UX and others.
+
+--> bootp-2.4.1
+
+08/24/94  gwr@mc.com (Gordon W. Ross)
+	Fix bug in boot file name generation (missing init)
+
 --> bootp-2.4.0
 
 08/20/94  gwr@mc.com (Gordon W. Ross)

@@ -15,7 +15,9 @@ extern char *inet_ntoa();
 int debug = 0;
 char *progname;
 
+void
 main(argc, argv)
+	int argc;
 	char **argv;
 {
 	int i;
@@ -38,12 +40,16 @@ main(argc, argv)
 		printf(" ipa=%s", a);
 
 		/* Ether addr */
+		printf(" hwa=");
 		hwa = lookup_hwa(argv[i], 1);
 		if (!hwa)
-			a = "?";
-		else
-			a = ether_ntoa(hwa);
-		printf(" hwa=%s\n", a);
+			printf("?\n");
+		else {
+			int i;
+			for (i = 0; i < 6; i++)
+				printf(":%x", hwa[i] & 0xFF);
+			putchar('\n');
+		}
 
 	}
 	exit(0);

@@ -9,6 +9,9 @@
 #include <sys/sockio.h>
 #endif
 
+#ifdef _AIX32
+#include <sys/time.h>	/* for struct timeval in net/if.h */
+#endif
 #include <net/if.h>				/* for struct ifreq */
 #include <netinet/in.h>
 #include <arpa/inet.h>			/* inet_ntoa */
@@ -18,10 +21,14 @@
 #include <ctype.h>
 #include <errno.h>
 
+#include "getether.h"
+
 int debug = 0;
 char *progname;
 
+void
 main(argc, argv)
+	int argc;
 	char **argv;
 {
 	u_char ea[16];				/* Ethernet address */
@@ -33,7 +40,7 @@ main(argc, argv)
 		printf("need interface name\n");
 		exit(1);
 	}
-	if ((i = getether(argv[1], ea)) < 0) {
+	if ((i = getether(argv[1], (char*)ea)) < 0) {
 		printf("Could not get Ethernet address (rc=%d)\n", i);
 		exit(1);
 	}
