@@ -32,10 +32,8 @@
  *	Date:	7/90
  */
 /*
- * Symbol table routines for a.out format files.
+ * Symbol table routines for kld maintained kernels.
  */
-
-#if defined(__ELF__)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -126,4 +124,3 @@ kdb_init()
 {
 	db_add_symbol_table(0, 0, "kernel", 0);
 }
-#endif
