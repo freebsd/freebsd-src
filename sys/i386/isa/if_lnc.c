@@ -97,6 +97,9 @@
 #include <net/bpfdesc.h>
 #endif
 
+#ifdef PC98
+#include <machine/clock.h>
+#endif
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
@@ -132,6 +135,7 @@ static char const * const nic_ident[] = {
 	"BICC",
 	"NE2100",
 	"DEPCA",
+	"CNET98S",	/* PC-98 */
 };
 
 static char const * const ic_ident[] = {
@@ -156,6 +160,9 @@ static struct mbuf *mbuf_packet __P((struct lnc_softc *sc, int start_of_packet, 
 static void lnc_rint __P((struct lnc_softc *sc));
 static void lnc_tint __P((struct lnc_softc *sc));
 static int lnc_probe __P((struct isa_device *isa_dev));
+#ifdef PC98
+static int cnet98s_probe __P((struct lnc_softc *sc, unsigned iobase));
+#endif
 static int ne2100_probe __P((struct lnc_softc *sc, unsigned iobase));
 static int bicc_probe __P((struct lnc_softc *sc, unsigned iobase));
 static int dec_macaddr_extract __P((u_char ring[], struct lnc_softc *sc));
@@ -899,8 +906,91 @@ lnc_probe(struct isa_device * isa_dev)
 		nports = ne2100_probe(sc, iobase);
 	if (nports == 0)
 		nports = depca_probe(sc, iobase);
+#ifdef PC98
+	if (nports == 0)
+		nports = cnet98s_probe(sc, iobase);
+#endif
 	return (nports);
 }
+
+#ifdef PC98
+/* ISA Bus Configuration Registers */
+/* XXX - Should be in ic/Am7990.h */
+#define	MSRDA	0x0000	/* ISACSR0: Master Mode Read Activity */
+#define	MSWRA	0x0001	/* ISACSR1: Master Mode Write Activity */
+#define	MC	0x0002	/* ISACSR2: Miscellaneous Configuration */
+
+#define	LED1	0x0005	/* ISACSR5: LED1 Status */
+#define	LED2	0x0006	/* ISACSR6: LED2 Status */
+#define	LED3	0x0007	/* ISACSR7: LED3 Status */
+
+#define	LED_PSE		0x0080	/* Pulse Stretcher */
+#define	LED_XMTE	0x0010	/* Transmit Status */
+#define	LED_RVPOLE	0x0008	/* Receive Polarity */
+#define	LED_RCVE	0x0004	/* Receive Status */
+#define	LED_JABE	0x0002	/* Jabber */
+#define	LED_COLE	0x0001	/* Collision */
+
+static int
+cnet98s_probe(struct lnc_softc *sc, unsigned iobase)
+{
+	int i;
+	ushort tmp;
+
+	sc->rap = iobase + CNET98S_RAP;
+	sc->rdp = iobase + CNET98S_RDP;
+
+	/* Reset */
+	tmp = inw(iobase + CNET98S_RESET);
+	outw(iobase + CNET98S_RESET, tmp);
+	DELAY(500);
+
+	if ((sc->nic.ic = pcnet_probe(sc)) == UNKNOWN) {
+		return (0);
+	}
+
+	sc->nic.ident = CNET98S;
+	sc->nic.mem_mode = DMA_FIXED;
+
+	/* XXX - For now just use the defines */
+	sc->nrdre = NRDRE;
+	sc->ntdre = NTDRE;
+
+	/* Extract MAC address from PROM */
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		sc->arpcom.ac_enaddr[i] = inb(iobase + (i * 2));
+	}
+
+	/*
+	 * ISA Configuration
+	 *
+	 * XXX - Following parameters are Contec C-NET(98)S only.
+	 *       So, check the Ethernet address here.
+	 *
+	 *       Contec uses 00 80 4c ?? ?? ??
+	 */ 
+	if (sc->arpcom.ac_enaddr[0] == (u_char)0x00
+	&&  sc->arpcom.ac_enaddr[1] == (u_char)0x80
+	&&  sc->arpcom.ac_enaddr[2] == (u_char)0x4c) {
+        	outw(sc->rap, MSRDA);
+        	outw(iobase + CNET98S_IDP, 0x0006);
+        	outw(sc->rap, MSWRA);
+        	outw(iobase + CNET98S_IDP, 0x0006);
+#ifdef DIAGNOSTIC
+        	outw(sc->rap, MC);
+		printf("ISACSR2 = %x\n", inw(iobase + CNET98S_IDP));
+#endif
+        	outw(sc->rap, LED1);
+        	outw(iobase + CNET98S_IDP, LED_PSE | LED_XMTE);
+        	outw(sc->rap, LED2);
+        	outw(iobase + CNET98S_IDP, LED_PSE | LED_RCVE);
+        	outw(sc->rap, LED3);
+        	outw(iobase + CNET98S_IDP, LED_PSE | LED_COLE);
+	}
+		
+	return (CNET98S_IOSIZE);
+}
+#endif
 
 static int
 ne2100_probe(struct lnc_softc *sc, unsigned iobase)
