@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.20 1996/05/16 23:18:08 mpp Exp $ -->
+<!-- $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.20 1996/05/16 23:18:08 mpp Exp $
+ # $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -976,7 +976,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.20 1996/05/16 23:18:08 mpp Exp $
+ # $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $
  [ ^^^^ do not worry about this...it will be automatically filled in by CVS 
   when it is committed to our repository]
  #
@@ -1046,11 +1046,22 @@ lib/libtcl.so.7.3
 	easy to scan, as there are already lots and lots of packages
 	and users are going to turn away if they hurt their eyes!
 
-      <p>If your <tt>&dollar;{DISTNAME}</tt> does not look like
-	`<tt>&lt;name&gt;-&lt;version.string.numbers&gt;</tt>', set
-	<tt>&dollar;{PKGNAME}</tt> to something in that format.
+      <p>The package name should look like
+
+<tscreen><verb>
+[<language>-]<name>[-<compiled.specifics>]-<version.string.numbers>;
+</verb></tscreen>
+
+	  If your <tt>&dollar;{DISTNAME}</tt> doesn't look like that,
+	  set <tt>&dollar;{PKGNAME}</tt> to something in that format.
 
       <enum>
+	<item>FreeBSD strives to support the native language of its
+	  users.  The `&lt;language&gt;' part should be a two letter
+	  abbreviation of the natural language if the port is specific
+	  to a certain language.  Examples are `jp' for Japanese and
+	  `ru' for Russian.
+
         <item>The `<tt>&lt;name&gt;</tt>' part should be all
 	  lowercases, except for a really large package (with lots of
 	  programs in it).  Things like XFree86 (yes there really is a
@@ -1059,6 +1070,13 @@ lib/libtcl.so.7.3
 	  first letter) to lowercase.  If the software in question
 	  really is called that way, you can have numbers, hyphens and
 	  underscores in the name too.
+
+	<item>If the port can be built with different hardcoded
+	  defaults (usually specified as environment variables or on
+	  the `<tt>make</tt>' command line), the
+	  `&lt;compiled.specifics&gt;' part should state the
+	  compiled-in defaults (the hyphen is optional).  Examples are
+	  papersize and font units.
 
         <item>The version string should be a period-separated list of
 	  integers and single lowercase alphabets.  The only exception
@@ -1072,18 +1090,21 @@ lib/libtcl.so.7.3
 	<tt>&dollar;{PKGNAME}</tt>:
 
 <tscreen><verb>
-DISTNAME	PKGNAME		Reason
-mule-2.2.2	mule-2.2.2	no prob at all
-XFree86-3.1.2	XFree86-3.1.2	ditto
-EmiClock-1.0.2	emiclock-1.0.2	no uppercase names for single programs
-gmod1.4		gmod-1.4	need hyphen after `<name>'
-xmris.4.02	xmris-4.02	ditto
-rdist-1.3alpha	rdist-1.3a	no strings like `alpha' allowed
-es-0.9-beta1	es-0.9b1	ditto
-v3.3beta021.src	jpeg-5a		what the heck was that anyway? ;)
-tvtwm		tvtwm-pl11	version string always required
-piewm		piewm-1.0	ditto
-xvgr-2.10pl1	xvgr-2.10.1	`pl' allowed only when no maj/minor numbers
+DISTNAME	PKGNAME			Reason
+mule-2.2.2	mule-2.2.2		no prob at all
+XFree86-3.1.2	XFree86-3.1.2		ditto
+EmiClock-1.0.2	emiclock-1.0.2		no uppercase names for single programs
+gmod1.4		gmod-1.4		need hyphen after `<name>'
+xmris.4.02	xmris-4.02		ditto
+rdist-1.3alpha	rdist-1.3a		no strings like `alpha' allowed
+es-0.9-beta1	es-0.9b1		ditto
+v3.3beta021.src	jpeg-5a			what the heck was that anyway? ;)
+tvtwm		tvtwm-pl11		version string always required
+piewm		piewm-1.0		ditto
+xvgr-2.10pl1	xvgr-2.10.1		`pl' allowed only when no maj/minor numbers
+gawk-2.15.6	jp-gawk-2.15.6		Japanese language version
+psutils-1.13	psutils-letter-1.13	papersize hardcoded at package build time
+pkfonts		pkfonts300-1.0		package for 300dpi fonts
 </verb></tscreen>
 
       <p>If there is absolutely no trace of version information in the
