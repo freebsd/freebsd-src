@@ -130,6 +130,7 @@ SUBDIR=	accf_data \
 	ulpt \
 	umapfs \
 	umass \
+	umct \
 	umodem \
 	ums \
 	unionfs \
