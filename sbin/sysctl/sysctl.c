@@ -45,11 +45,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
-#include <sys/resource.h>
-#include <sys/param.h>
 
 #include <ctype.h>
 #include <err.h>
