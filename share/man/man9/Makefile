@@ -590,6 +590,49 @@ MLINKS+=mbpool.9 mbp_alloc.9 \
 	mbpool.9 mbp_get.9 \
 	mbpool.9 mbp_get_keep.9 \
 	mbpool.9 mbp_sync.9
+MLINKS+=mbuf.9 MCHTYPE.9 \
+	mbuf.9 MCLGET.9 \
+	mbuf.9 MEXTADD.9 \
+	mbuf.9 MEXTFREE.9 \
+	mbuf.9 MEXT_ADD_REF.9 \
+	mbuf.9 MEXT_IS_REF.9 \
+	mbuf.9 MEXT_REM_REF.9 \
+	mbuf.9 MFREE.9 \
+	mbuf.9 MGET.9 \
+	mbuf.9 MGETHDR.9 \
+	mbuf.9 MH_ALIGN.9 \
+	mbuf.9 M_ALIGN.9 \
+	mbuf.9 M_LEADINGSPACE.9 \
+	mbuf.9 M_MOVE_PKTHDR.9 \
+	mbuf.9 M_PREPEND.9 \
+	mbuf.9 M_TRAILINGSPACE.9 \
+	mbuf.9 M_WRITABLE.9 \
+	mbuf.9 m_adj.9 \
+	mbuf.9 m_apply.9 \
+	mbuf.9 m_cat.9 \
+	mbuf.9 m_copyback.9 \
+	mbuf.9 m_copydata.9 \
+	mbuf.9 m_copym.9 \
+	mbuf.9 m_copypacket.9 \
+	mbuf.9 m_defrag.9 \
+	mbuf.9 m_devget.9 \
+	mbuf.9 m_dup.9 \
+	mbuf.9 m_dup_pkthdr.9 \
+	mbuf.9 m_fixhdr.9 \
+	mbuf.9 m_free.9 \
+	mbuf.9 m_freem.9 \
+	mbuf.9 m_get.9 \
+	mbuf.9 m_getcl.9 \
+	mbuf.9 m_getclr.9 \
+	mbuf.9 m_gethdr.9 \
+	mbuf.9 m_getm.9 \
+	mbuf.9 m_getptr.9 \
+	mbuf.9 m_length.9 \
+	mbuf.9 m_move_pkthdr.9 \
+	mbuf.9 m_prepend.9 \
+	mbuf.9 m_pullup.9 \
+	mbuf.9 m_split.9 \
+	mbuf.9 mtod.9
 MLINKS+=MD5.9 MD5Init.9 \
 	MD5.9 MD5Transform.9
 MLINKS+=mdchain.9 md_append_record.9 \
