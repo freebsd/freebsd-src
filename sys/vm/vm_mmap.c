@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.66 1997/08/25 22:15:25 bde Exp $
+ * $Id: vm_mmap.c,v 1.67 1997/08/30 18:50:06 peter Exp $
  */
 
 /*
@@ -51,7 +51,6 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
-#include <sys/resourcevar.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
@@ -73,7 +72,6 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 
 #ifndef _SYS_SYSPROTO_H_

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.87 1997/08/18 03:29:21 fsmp Exp $
+ * $Id: vm_map.c,v 1.88 1997/08/25 22:15:22 bde Exp $
  */
 
 /*
@@ -72,7 +72,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
-#include <sys/queue.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 
@@ -90,7 +89,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/default_pager.h>
 #include <vm/vm_zone.h>
