@@ -41,6 +41,7 @@
 .Nm SLIST_FIRST ,
 .Nm SLIST_FOREACH ,
 .Nm SLIST_HEAD ,
+.Nm SLIST_HEAD_INITIALIZER ,
 .Nm SLIST_INIT ,
 .Nm SLIST_INSERT_AFTER ,
 .Nm SLIST_INSERT_HEAD ,
@@ -52,6 +53,7 @@
 .Nm STAILQ_FIRST ,
 .Nm STAILQ_FOREACH ,
 .Nm STAILQ_HEAD ,
+.Nm STAILQ_HEAD_INITIALIZER ,
 .Nm STAILQ_INIT ,
 .Nm STAILQ_INSERT_AFTER ,
 .Nm STAILQ_INSERT_HEAD ,
@@ -65,6 +67,7 @@
 .Nm LIST_FIRST ,
 .Nm LIST_FOREACH ,
 .Nm LIST_HEAD ,
+.Nm LIST_HEAD_INITIALIZER ,
 .Nm LIST_INIT ,
 .Nm LIST_INSERT_AFTER ,
 .Nm LIST_INSERT_BEFORE ,
@@ -77,6 +80,7 @@
 .Nm TAILQ_FOREACH ,
 .Nm TAILQ_FOREACH_REVERSE ,
 .Nm TAILQ_HEAD ,
+.Nm TAILQ_HEAD_INITIALIZER ,
 .Nm TAILQ_INIT ,
 .Nm TAILQ_INSERT_AFTER ,
 .Nm TAILQ_INSERT_BEFORE ,
@@ -92,6 +96,7 @@
 .Nm CIRCLEQ_FOREACH ,
 .Nm CIRCLEQ_FOREACH_REVERSE ,
 .Nm CIRCLEQ_HEAD ,
+.Nm CIRCLEQ_HEAD_INITIALIZER ,
 .Nm CIRCLEQ_INIT ,
 .Nm CIRCLEQ_INSERT_AFTER ,
 .Nm CIRCLEQ_INSERT_BEFORE ,
@@ -111,6 +116,7 @@ lists, tail queues, and circular queues
 .Fn SLIST_FIRST "SLIST_HEAD *head"
 .Fn SLIST_FOREACH "TYPE *var" "SLIST_HEAD *head" "SLIST_ENTRY NAME"
 .Fn SLIST_HEAD "HEADNAME" "TYPE"
+.Fn SLIST_HEAD_INITIALIZER "SLIST_HEAD head"
 .Fn SLIST_INIT "SLIST_HEAD *head"
 .Fn SLIST_INSERT_AFTER "TYPE *listelm" "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_INSERT_HEAD "SLIST_HEAD *head" "TYPE *elm" "SLIST_ENTRY NAME"
@@ -123,6 +129,7 @@ lists, tail queues, and circular queues
 .Fn STAILQ_FIRST "STAILQ_HEAD *head"
 .Fn STAILQ_FOREACH "TYPE *var" "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
 .Fn STAILQ_HEAD "HEADNAME" "TYPE"
+.Fn STAILQ_HEAD_INITIALIZER "STAILQ_HEAD head"
 .Fn STAILQ_INIT "STAILQ_HEAD *head"
 .Fn STAILQ_INSERT_AFTER "STAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_INSERT_HEAD "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
@@ -137,6 +144,7 @@ lists, tail queues, and circular queues
 .Fn LIST_FIRST "LIST_HEAD *head"
 .Fn LIST_FOREACH "TYPE *var" "LIST_HEAD *head" "LIST_ENTRY NAME"
 .Fn LIST_HEAD "HEADNAME" "TYPE"
+.Fn LIST_HEAD_INITIALIZER "LIST_HEAD head"
 .Fn LIST_INIT "LIST_HEAD *head"
 .Fn LIST_INSERT_AFTER "TYPE *listelm" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_INSERT_BEFORE "TYPE *listelm" "TYPE *elm" "LIST_ENTRY NAME"
@@ -150,6 +158,7 @@ lists, tail queues, and circular queues
 .Fn TAILQ_FOREACH "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME"
 .Fn TAILQ_FOREACH_REVERSE "TYPE *var" "TAILQ_HEAD *head" "HEADNAME" "TAILQ_ENTRY NAME"
 .Fn TAILQ_HEAD "HEADNAME" "TYPE"
+.Fn TAILQ_HEAD_INITIALIZER "TAILQ_HEAD head"
 .Fn TAILQ_INIT "TAILQ_HEAD *head"
 .Fn TAILQ_INSERT_AFTER "TAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_BEFORE "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
@@ -166,6 +175,7 @@ lists, tail queues, and circular queues
 .Fn CIRCLEQ_FOREACH "TYPE *var" "CIRCLEQ_HEAD *head" "CIRCLEQ_ENTRY NAME"
 .Fn CIRCLEQ_FOREACH_REVERSE "TYPE *var" "CIRCLEQ_HEAD *head" "CIRCLEQ_ENTRY NAME"
 .Fn CIRCLEQ_HEAD "HEADNAME" "TYPE"
+.Fn CIRCLEQ_HEAD_INITIALIZER "CIRCLEQ_HEAD head"
 .Fn CIRCLEQ_INIT "CIRCLEQ_HEAD *head"
 .Fn CIRCLEQ_INSERT_AFTER "CIRCLEQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "CIRCLEQ_ENTRY NAME"
 .Fn CIRCLEQ_INSERT_BEFORE "CIRCLEQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "CIRCLEQ_ENTRY NAME"
@@ -335,6 +345,11 @@ and
 are user selectable.)
 .Pp
 The macro
+.Nm SLIST_HEAD_INITIALIZER
+evaluates to an initializer for the list
+.Fa head .
+.Pp
+The macro
 .Nm SLIST_EMPTY
 evaluates to true if there are no elements in the list.
 .Pp
@@ -395,7 +410,8 @@ removes the element
 from the list.
 .Sh SINGLY-LINKED LIST EXAMPLE
 .Bd -literal
-SLIST_HEAD(slisthead, entry) head;
+SLIST_HEAD(slisthead, entry) head =
+    SLIST_HEAD_INITIALIZER(head);
 struct slisthead *headp;		/* Singly-linked List head. */
 struct entry {
 	...
@@ -415,14 +431,13 @@ SLIST_REMOVE(&head, n2, entry, entries);/* Deletion. */
 free(n2);
 
 n3 = SLIST_FIRST(&head);
-SLIST_REMOVE_HEAD(&head, entries);	/* Deletion. */
+SLIST_REMOVE_HEAD(&head, entries);	/* Deletion from the head. */
 free(n3);
-
 					/* Forward traversal. */
 SLIST_FOREACH(np, &head, entries)
 	np-> ...
 
-while (!SLIST_EMPTY(&head)) { /* List Deletion. */
+while (!SLIST_EMPTY(&head)) {		/* List Deletion. */
 	n1 = SLIST_FIRST(&head);
 	SLIST_REMOVE_HEAD(&head, entries);
 	free(n1);
@@ -462,6 +477,11 @@ struct HEADNAME *headp;
 and
 .Li headp
 are user selectable.)
+.Pp
+The macro
+.Nm STAILQ_HEAD_INITIALIZER
+evaluates to an initializer for the tail queue
+.Fa head .
 .Pp
 The macro
 .Nm STAILQ_EMPTY
@@ -520,9 +540,7 @@ returns the next item on the tail queue, or NULL this item is the last.
 .Pp
 The macro
 .Nm STAILQ_REMOVE_HEAD
-removes the element
-.Fa elm
-from the head of the tail queue.
+removes the element at the head of the tail queue.
 For optimum efficiency,
 elements being removed from the head of the tail queue should
 use this macro explicitly rather than the generic
@@ -536,7 +554,8 @@ removes the element
 from the tail queue.
 .Sh SINGLY-LINKED TAIL QUEUE EXAMPLE
 .Bd -literal
-STAILQ_HEAD(stailhead, entry) head;
+STAILQ_HEAD(stailhead, entry) head =
+    STAILQ_HEAD_INITIALIZER(head);
 struct stailhead *headp;		/* Singly-linked tail queue head. */
 struct entry {
 	...
@@ -554,22 +573,19 @@ STAILQ_INSERT_TAIL(&head, n1, entries);
 
 n2 = malloc(sizeof(struct entry));	/* Insert after. */
 STAILQ_INSERT_AFTER(&head, n1, n2, entries);
-
 					/* Deletion. */
 STAILQ_REMOVE(&head, n2, entry, entries);
 free(n2);
-
-					/* Deletion from the head */
+					/* Deletion from the head. */
 n3 = STAILQ_FIRST(&head);
 STAILQ_REMOVE_HEAD(&head, entries);
 free(n3);
-
 					/* Forward traversal. */
 STAILQ_FOREACH(np, &head, entries)
 	np-> ...
 					/* TailQ Deletion. */
 while (!STAILQ_EMPTY(&head)) {
-	n1 = STAILQ_HEAD(&head);
+	n1 = STAILQ_FIRST(&head);
 	STAILQ_REMOVE_HEAD(&head, entries);
 	free(n1);
 }
@@ -614,6 +630,11 @@ struct HEADNAME *headp;
 and
 .Li headp
 are user selectable.)
+.Pp
+The macro
+.Nm LIST_HEAD_INITIALIZER
+evaluates to an initializer for the list
+.Fa head .
 .Pp
 The macro
 .Nm LIST_EMPTY
@@ -672,8 +693,9 @@ removes the element
 from the list.
 .Sh LIST EXAMPLE
 .Bd -literal
-LIST_HEAD(listhead, entry) head;
-struct listhead *headp;		/* List head. */
+LIST_HEAD(listhead, entry) head =
+    LIST_HEAD_INITIALIZER(head);
+struct listhead *headp;			/* List head. */
 struct entry {
 	...
 	LIST_ENTRY(entry) entries;	/* List. */
@@ -693,18 +715,17 @@ LIST_INSERT_BEFORE(n2, n3, entries);
 
 LIST_REMOVE(n2, entries);		/* Deletion. */
 free(n2);
-
 					/* Forward traversal. */
 LIST_FOREACH(np, &head, entries)
 	np-> ...
 
-while (!LIST_EMPTY(&head)) {          /* List Deletion. */
+while (!LIST_EMPTY(&head)) {		/* List Deletion. */
 	n1 = LIST_FIRST(&head);
 	LIST_REMOVE(n1, entries);
 	free(n1);
 }
 
-n1 = LIST_FIRST(&head);                       /* Faster List Delete. */
+n1 = LIST_FIRST(&head);			/* Faster List Deletion. */
 while (n1 != NULL) {
 	n2 = LIST_NEXT(n1, entries);
 	free(n1);
@@ -746,6 +767,11 @@ struct HEADNAME *headp;
 and
 .Li headp
 are user selectable.)
+.Pp
+The macro
+.Nm TAILQ_HEAD_INITIALIZER
+evaluates to an initializer for the tail queue
+.Fa head .
 .Pp
 The macro
 .Nm TAILQ_EMPTY
@@ -827,8 +853,9 @@ removes the element
 from the tail queue.
 .Sh TAIL QUEUE EXAMPLE
 .Bd -literal
-TAILQ_HEAD(tailhead, entry) head;
-struct tailhead *headp;		/* Tail queue head. */
+TAILQ_HEAD(tailhead, entry) head =
+    TAILQ_HEAD_INITIALIZER(head);
+struct tailhead *headp;			/* Tail queue head. */
 struct entry {
 	...
 	TAILQ_ENTRY(entry) entries;	/* Tail queue. */
@@ -858,13 +885,12 @@ TAILQ_FOREACH(np, &head, entries)
 TAILQ_FOREACH_REVERSE(np, &head, tailhead, entries)
 	np-> ...
 					/* TailQ Deletion. */
-while (!TAILQ_EMPTY(head)) {
+while (!TAILQ_EMPTY(&head)) {
 	n1 = TAILQ_FIRST(&head);
 	TAILQ_REMOVE(&head, n1, entries);
 	free(n1);
 }
 					/* Faster TailQ Deletion. */
-
 n1 = TAILQ_FIRST(&head);
 while (n1 != NULL) {
 	n2 = TAILQ_NEXT(n1, entries);
@@ -907,6 +933,11 @@ struct HEADNAME *headp;
 and
 .Li headp
 are user selectable.)
+.Pp
+The macro
+.Nm CIRCLEQ_HEAD_INITIALIZER
+evaluates to an initializer for the circle queue
+.Fa head .
 .Pp
 The macro
 .Nm CIRCLEQ_EMPTY
@@ -985,8 +1016,9 @@ removes the element
 from the circular queue.
 .Sh CIRCULAR QUEUE EXAMPLE
 .Bd -literal
-CIRCLEQ_HEAD(circleq, entry) head;
-struct circleq *headp;			/* Circular queue head. */
+CIRCLEQ_HEAD(circlehead, entry) head =
+    CIRCLEQ_HEAD_INITIALIZER(head);
+struct circlehead *headp;		/* Circular queue head. */
 struct entry {
 	...
 	CIRCLEQ_ENTRY(entry) entries;	/* Circular queue. */
