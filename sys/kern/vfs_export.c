@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.136 1998/03/01 23:07:45 dyson Exp $
+ * $Id: vfs_subr.c,v 1.137 1998/03/07 21:35:35 dyson Exp $
  */
 
 /*
@@ -123,6 +123,19 @@ static struct simplelock spechash_slock;
 struct nfs_public nfs_pub;	/* publicly exported FS */
 static vm_zone_t vnode_zone;
 
+/*
+ * The workitem queue.
+ */
+#define SYNCER_MAXDELAY		32
+int syncer_maxdelay =		SYNCER_MAXDELAY;	/* maximum delay time */
+time_t syncdelay =		30;
+int rushjob;				/* number of slots to run ASAP */
+
+static int syncer_delayno = 0;
+static long syncer_mask; 
+LIST_HEAD(synclist, vnode);
+static struct synclist *syncer_workitem_pending;
+
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, &desiredvnodes, 0, "");
 
@@ -147,6 +160,12 @@ vntblinit()
 	simple_lock_init(&vnode_free_list_slock);
 	CIRCLEQ_INIT(&mountlist);
 	vnode_zone = zinit("VNODE", sizeof (struct vnode), 0, 0, 5);
+	/*
+	 * Initialize the filesystem syncer.
+	 */     
+	syncer_workitem_pending = hashinit(syncer_maxdelay, M_VNODE, 
+		&syncer_mask);
+	syncer_maxdelay = syncer_mask + 1;
 }
 
 /*
@@ -554,7 +573,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	int s, error;
 	vm_object_t object;
 
-	if (flags & V_SAVE) {
+	if ((flags & V_SAVE) && vp->v_dirtyblkhd.lh_first != NULL) {
 		if ((error = VOP_FSYNC(vp, cred, MNT_WAIT, p)))
 			return (error);
 		if (vp->v_dirtyblkhd.lh_first != NULL)
@@ -688,14 +707,151 @@ brelvp(bp)
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
+	vp = bp->b_vp;
 	s = splbio();
 	if (bp->b_vnbufs.le_next != NOLIST)
 		bufremvn(bp);
+	if ((vp->v_flag & VONWORKLST) && (LIST_FIRST(&vp->v_dirtyblkhd) == NULL)) {
+		vp->v_flag &= ~VONWORKLST;
+		LIST_REMOVE(vp, v_synclist);
+	}
 	splx(s);
-
-	vp = bp->b_vp;
 	bp->b_vp = (struct vnode *) 0;
 	vdrop(vp);
+}
+
+/*
+ * The workitem queue.
+ * 
+ * It is useful to delay writes of file data and filesystem metadata
+ * for tens of seconds so that quickly created and deleted files need
+ * not waste disk bandwidth being created and removed. To realize this,
+ * we append vnodes to a "workitem" queue. When running with a soft
+ * updates implementation, most pending metadata dependencies should
+ * not wait for more than a few seconds. Thus, mounted on block devices
+ * are delayed only about a half the time that file data is delayed.
+ * Similarly, directory updates are more critical, so are only delayed
+ * about a third the time that file data is delayed. Thus, there are
+ * SYNCER_MAXDELAY queues that are processed round-robin at a rate of
+ * one each second (driven off the filesystem syner process). The
+ * syncer_delayno variable indicates the next queue that is to be processed.
+ * Items that need to be processed soon are placed in this queue:
+ *
+ *	syncer_workitem_pending[syncer_delayno]
+ *
+ * A delay of fifteen seconds is done by placing the request fifteen
+ * entries later in the queue:
+ *
+ *	syncer_workitem_pending[(syncer_delayno + 15) & syncer_mask]
+ *
+ */
+
+/*
+ * Add an item to the syncer work queue.
+ */
+void
+vn_syncer_add_to_worklist(vp, delay)
+	struct vnode *vp;
+	int delay;
+{
+	int s, slot;
+
+	s = splbio();
+
+	if (vp->v_flag & VONWORKLST) {
+		LIST_REMOVE(vp, v_synclist);
+	}
+
+	if (delay > syncer_maxdelay - 2)
+		delay = syncer_maxdelay - 2;
+	slot = (syncer_delayno + delay) & syncer_mask;
+
+	LIST_INSERT_HEAD(&syncer_workitem_pending[slot], vp, v_synclist);
+	vp->v_flag |= VONWORKLST;
+	splx(s);
+}
+
+static void sched_sync __P((void));
+static struct	proc *updateproc;
+static struct kproc_desc up_kp = {
+	"syncer",
+	sched_sync,
+	&updateproc
+};
+SYSINIT_KT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
+
+/*
+ * System filesystem synchronizer daemon.
+ */
+void 
+sched_sync(void)
+{
+	struct synclist *slp;
+	struct vnode *vp;
+	long starttime;
+	int s;
+	struct proc *p = updateproc;
+
+	for (;;) {
+		starttime = time.tv_sec;
+
+		/*
+		 * Push files whose dirty time has expired.
+		 */
+		s = splbio();
+		slp = &syncer_workitem_pending[syncer_delayno];
+		syncer_delayno += 1;
+		if (syncer_delayno == syncer_maxdelay)
+			syncer_delayno = 0;
+		splx(s);
+
+		while ((vp = LIST_FIRST(slp)) != NULL) {
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			(void) VOP_FSYNC(vp, p->p_ucred, MNT_LAZY, p);
+			VOP_UNLOCK(vp, 0, p);
+			if (LIST_FIRST(slp) == vp) {
+				if (LIST_FIRST(&vp->v_dirtyblkhd) == NULL &&
+				    vp->v_type != VBLK)
+					panic("sched_sync: fsync failed");
+				/*
+				 * Move ourselves to the back of the sync list.
+				 */
+				LIST_REMOVE(vp, v_synclist);
+				vn_syncer_add_to_worklist(vp, syncdelay);
+			}
+		}
+
+		/*
+		 * Do soft update processing.
+		 */
+		if (bioops.io_sync)
+			(*bioops.io_sync)(NULL);
+
+		/*
+		 * The variable rushjob allows the kernel to speed up the
+		 * processing of the filesystem syncer process. A rushjob
+		 * value of N tells the filesystem syncer to process the next
+		 * N seconds worth of work on its queue ASAP. Currently rushjob
+		 * is used by the soft update code to speed up the filesystem
+		 * syncer process when the incore state is getting so far
+		 * ahead of the disk that the kernel memory pool is being
+		 * threatened with exhaustion.
+		 */
+		if (rushjob > 0) {
+			rushjob -= 1;
+			continue;
+		}
+		/*
+		 * If it has taken us less than a second to process the
+		 * current work, then wait. Otherwise start right over
+		 * again. We can still lose time if any single round
+		 * takes more than two seconds, but it does not really
+		 * matter as we are just trying to generally pace the
+		 * filesystem activity.
+		 */
+		if (time.tv_sec == starttime)
+			tsleep(&lbolt, PPAUSE, "syncer", 0);
+	}
 }
 
 /*
@@ -743,6 +899,8 @@ reassignbuf(bp, newvp)
 	register struct buf *bp;
 	register struct vnode *newvp;
 {
+	struct buflists *listheadp;
+	int delay;
 	int s;
 
 	if (newvp == NULL) {
@@ -765,18 +923,40 @@ reassignbuf(bp, newvp)
 	if (bp->b_flags & B_DELWRI) {
 		struct buf *tbp;
 
-		tbp = newvp->v_dirtyblkhd.lh_first;
+		listheadp = &newvp->v_dirtyblkhd;
+		if ((newvp->v_flag & VONWORKLST) == 0) {
+			switch (newvp->v_type) {
+			case VDIR:
+				delay = syncdelay / 3;
+				break;
+			case VBLK:
+				if (newvp->v_specmountpoint != NULL) {
+					delay = syncdelay / 2;
+					break;
+				}
+				/* fall through */
+			default:
+				delay = syncdelay;
+			}
+			vn_syncer_add_to_worklist(newvp, delay);
+		}
+		tbp = listheadp->lh_first;
 		if (!tbp || (tbp->b_lblkno > bp->b_lblkno)) {
-			bufinsvn(bp, &newvp->v_dirtyblkhd);
+			bufinsvn(bp, listheadp);
 		} else {
 			while (tbp->b_vnbufs.le_next &&
-				(tbp->b_vnbufs.le_next->b_lblkno < bp->b_lblkno)) {
+			    (tbp->b_vnbufs.le_next->b_lblkno < bp->b_lblkno)) {
 				tbp = tbp->b_vnbufs.le_next;
 			}
 			LIST_INSERT_AFTER(tbp, bp, b_vnbufs);
 		}
 	} else {
 		bufinsvn(bp, &newvp->v_cleanblkhd);
+		if ((newvp->v_flag & VONWORKLST) &&
+			LIST_FIRST(&newvp->v_dirtyblkhd) == NULL) {
+			newvp->v_flag &= ~VONWORKLST;
+			LIST_REMOVE(newvp, v_synclist);
+		}
 	}
 	bp->b_vp = newvp;
 	vhold(bp->b_vp);
@@ -863,7 +1043,7 @@ loop:
 		nvp->v_rdev = nvp_rdev;
 		nvp->v_hashchain = vpp;
 		nvp->v_specnext = *vpp;
-		nvp->v_specflags = 0;
+		nvp->v_specmountpoint = NULL;
 		simple_unlock(&spechash_slock);
 		*vpp = nvp;
 		if (vp != NULLVP) {
@@ -920,7 +1100,6 @@ vget(vp, flags, p)
 
 	if (VSHOULDBUSY(vp))
 		vbusy(vp);
-
 	if (flags & LK_TYPE_MASK) {
 		if ((error = vn_lock(vp, flags | LK_INTERLOCK, p)) != 0) {
 			/*
@@ -1066,7 +1245,7 @@ vdrop(vp)
 
 	simple_lock(&vp->v_interlock);
 	if (vp->v_holdcnt <= 0)
-		panic("holdrele: holdcnt");
+		panic("vdrop: holdcnt");
 	vp->v_holdcnt--;
 	if (VSHOULDFREE(vp))
 		vfree(vp);
@@ -1790,7 +1969,7 @@ vfs_mountedon(vp)
 	struct vnode *vq;
 	int error = 0;
 
-	if (vp->v_specflags & SI_MOUNTEDON)
+	if (vp->v_specmountpoint != NULL)
 		return (EBUSY);
 	if (vp->v_flag & VALIASED) {
 		simple_lock(&spechash_slock);
@@ -1798,7 +1977,7 @@ vfs_mountedon(vp)
 			if (vq->v_rdev != vp->v_rdev ||
 			    vq->v_type != vp->v_type)
 				continue;
-			if (vq->v_specflags & SI_MOUNTEDON) {
+			if (vq->v_specmountpoint != NULL) {
 				error = EBUSY;
 				break;
 			}
@@ -2325,4 +2504,171 @@ vn_pollgone(vp)
 		selwakeup(&vp->v_pollinfo.vpi_selinfo);
 	}
 	simple_unlock(&vp->v_pollinfo.vpi_lock);
+}
+
+
+
+/*
+ * Routine to create and manage a filesystem syncer vnode.
+ */
+#define sync_close ((int (*) __P((struct  vop_close_args *)))nullop)
+int	sync_fsync __P((struct  vop_fsync_args *));
+int	sync_inactive __P((struct  vop_inactive_args *));
+int	sync_reclaim  __P((struct  vop_reclaim_args *));
+#define sync_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
+#define sync_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
+int	sync_print __P((struct vop_print_args *));
+#define sync_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
+
+vop_t **sync_vnodeop_p;
+struct vnodeopv_entry_desc sync_vnodeop_entries[] = {
+	{ &vop_default_desc,	(vop_t *) vop_eopnotsupp },
+	{ &vop_close_desc,	(vop_t *) sync_close },		/* close */
+	{ &vop_fsync_desc,	(vop_t *) sync_fsync },		/* fsync */
+	{ &vop_inactive_desc,	(vop_t *) sync_inactive },	/* inactive */
+	{ &vop_reclaim_desc,	(vop_t *) sync_reclaim },	/* reclaim */
+	{ &vop_lock_desc,	(vop_t *) sync_lock },		/* lock */
+	{ &vop_unlock_desc,	(vop_t *) sync_unlock },	/* unlock */
+	{ &vop_print_desc,	(vop_t *) sync_print },		/* print */
+	{ &vop_islocked_desc,	(vop_t *) sync_islocked },	/* islocked */
+	{ NULL, NULL }
+};
+struct vnodeopv_desc sync_vnodeop_opv_desc =
+	{ &sync_vnodeop_p, sync_vnodeop_entries };
+
+VNODEOP_SET(sync_vnodeop_opv_desc);
+
+/*
+ * Create a new filesystem syncer vnode for the specified mount point.
+ */
+int
+vfs_allocate_syncvnode(mp)
+	struct mount *mp;
+{
+	struct vnode *vp;
+	static long start, incr, next;
+	int error;
+
+	/* Allocate a new vnode */
+	if ((error = getnewvnode(VT_VFS, mp, sync_vnodeop_p, &vp)) != 0) {
+		mp->mnt_syncer = NULL;
+		return (error);
+	}
+	vp->v_type = VNON;
+	/*
+	 * Place the vnode onto the syncer worklist. We attempt to
+	 * scatter them about on the list so that they will go off
+	 * at evenly distributed times even if all the filesystems
+	 * are mounted at once.
+	 */
+	next += incr;
+	if (next == 0 || next > syncer_maxdelay) {
+		start /= 2;
+		incr /= 2;
+		if (start == 0) {
+			start = syncer_maxdelay / 2;
+			incr = syncer_maxdelay;
+		}
+		next = start;
+	}
+	vn_syncer_add_to_worklist(vp, syncdelay > 0 ? next % syncdelay : 0);
+	mp->mnt_syncer = vp;
+	return (0);
+}
+
+/*
+ * Do a lazy sync of the filesystem.
+ */
+int
+sync_fsync(ap)
+	struct vop_fsync_args /* {
+		struct vnode *a_vp;
+		struct ucred *a_cred;
+		int a_waitfor;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *syncvp = ap->a_vp;
+	struct mount *mp = syncvp->v_mount;
+	struct proc *p = ap->a_p;
+	int asyncflag;
+
+	/*
+	 * We only need to do something if this is a lazy evaluation.
+	 */
+	if (ap->a_waitfor != MNT_LAZY)
+		return (0);
+
+	/*
+	 * Move ourselves to the back of the sync list.
+	 */
+	vn_syncer_add_to_worklist(syncvp, syncdelay);
+
+	/*
+	 * Walk the list of vnodes pushing all that are dirty and
+	 * not already on the sync list.
+	 */
+	simple_lock(&mountlist_slock);
+	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_slock, p) != 0)
+		return (0);
+	asyncflag = mp->mnt_flag & MNT_ASYNC;
+	mp->mnt_flag &= ~MNT_ASYNC;
+	VFS_SYNC(mp, MNT_LAZY, ap->a_cred, p);
+	if (asyncflag)
+		mp->mnt_flag |= MNT_ASYNC;
+	vfs_unbusy(mp, p);
+	return (0);
+}
+
+/*
+ * The syncer vnode is no referenced.
+ */
+int
+sync_inactive(ap)
+	struct vop_inactive_args /* {
+		struct vnode *a_vp;
+		struct proc *a_p;
+	} */ *ap;
+{
+
+	vgone(ap->a_vp);
+	return (0);
+}
+
+/*
+ * The syncer vnode is no longer needed and is being decommissioned.
+ */
+int
+sync_reclaim(ap)
+	struct vop_reclaim_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+
+	vp->v_mount->mnt_syncer = NULL;
+	if (vp->v_flag & VONWORKLST) {
+		LIST_REMOVE(vp, v_synclist);
+		vp->v_flag &= ~VONWORKLST;
+	}
+
+	return (0);
+}
+
+/*
+ * Print out a syncer vnode.
+ */
+int
+sync_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+
+	printf("syncer vnode");
+	if (vp->v_vnlock != NULL)
+		lockmgr_printinfo(vp->v_vnlock);
+	printf("\n");
+	return (0);
 }

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.27 1997/11/25 07:07:43 julian Exp $
+ * $Id: kern_shutdown.c,v 1.28 1998/02/16 23:57:44 eivind Exp $
  */
 
 #include "opt_ddb.h"
@@ -217,17 +217,27 @@ boot(howto)
 
 		sync(&proc0, NULL);
 
+		/*
+		 * With soft updates, some buffers that are
+		 * written will be remarked as dirty until other
+		 * buffers are written.
+		 */
 		for (iter = 0; iter < 20; iter++) {
 			nbusy = 0;
 			for (bp = &buf[nbuf]; --bp >= buf; ) {
 				if ((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) {
+					nbusy++;
+				} else if ((bp->b_flags & (B_DELWRI | B_INVAL))
+						== B_DELWRI) {
+					/* bawrite(bp);*/
 					nbusy++;
 				}
 			}
 			if (nbusy == 0)
 				break;
 			printf("%d ", nbusy);
-			DELAY(40000 * iter);
+			sync(&proc0, NULL);
+			DELAY(50000 * iter);
 		}
 		if (nbusy) {
 			/*

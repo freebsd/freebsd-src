@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.28 1998/02/23 16:44:32 ache Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.29 1998/03/01 22:46:27 msmith Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -772,7 +772,7 @@ mountmsdosfs(devvp, mp, p, argp)
 	mp->mnt_stat.f_fsid.val[0] = (long)dev;
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_flag |= MNT_LOCAL;
-	devvp->v_specflags |= SI_MOUNTEDON;
+	devvp->v_specmountpoint = mp;
 
 	return 0;
 
@@ -818,7 +818,7 @@ msdosfs_unmount(mp, mntflags, p)
 	if (error)
 		return error;
 	pmp = VFSTOMSDOSFS(mp);
-	pmp->pm_devvp->v_specflags &= ~SI_MOUNTEDON;
+	pmp->pm_devvp->v_specmountpoint = NULL;
 #ifdef MSDOSFS_DEBUG
 	{
 		struct vnode *vp = pmp->pm_devvp;
@@ -841,8 +841,9 @@ msdosfs_unmount(mp, mntflags, p)
 		    ((u_int *)vp->v_data)[1]);
 	}
 #endif
-	error = VOP_CLOSE(pmp->pm_devvp, (pmp->pm_flags&MSDOSFSMNT_RONLY) ? FREAD : FREAD | FWRITE,
-	    NOCRED, p);
+	error = VOP_CLOSE(pmp->pm_devvp,
+		    (pmp->pm_flags&MSDOSFSMNT_RONLY) ? FREAD : FREAD | FWRITE,
+		    NOCRED, p);
 	vrele(pmp->pm_devvp);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	free(pmp, M_MSDOSFSMNT);
@@ -946,9 +947,11 @@ loop:
 		simple_lock(&vp->v_interlock);
 		nvp = vp->v_mntvnodes.le_next;
 		dep = VTODE(vp);
-		if (vp->v_type == VNON || ((dep->de_flag &
-		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0)
-		    && vp->v_dirtyblkhd.lh_first == NULL) {
+		if (vp->v_type == VNON
+		|| (waitfor == MNT_LAZY) /* can this happen with msdosfs? */
+		|| (((dep->de_flag &
+		     (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0)
+		  && (vp->v_dirtyblkhd.lh_first == NULL))) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}

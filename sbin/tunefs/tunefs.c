@@ -81,7 +81,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	char *cp, *special, *name;
+	char *cp, *special, *name, *action;
 	struct stat st;
 	int i;
 	int Aflag = 0;
@@ -182,6 +182,24 @@ again:
 					warnx(OPTWARN, "space", "<", MINFREE);
 				continue;
 
+			case 'n':
+ 				name = "soft updates";
+ 				if (argc < 1)
+ 					errx(10, "-s: missing %s", name);
+ 				argc--, argv++;
+ 				if (strcmp(*argv, "enable") == 0) {
+ 					sblock.fs_flags |= FS_DOSOFTDEP;
+ 					action = "set";
+ 				} else if (strcmp(*argv, "disable") == 0) {
+ 					sblock.fs_flags &= ~FS_DOSOFTDEP;
+ 					action = "cleared";
+ 				} else {
+ 					errx(10, "bad %s (options are %s)",
+ 					    name, "`enable' or `disable'");
+ 				}
+ 				warnx("%s %s", name, action);
+ 				continue;
+ 
 			case 'o':
 				name = "optimization preference";
 				if (argc < 1)
@@ -237,6 +255,7 @@ usage()
 	fprintf(stderr, "\t-d rotational delay between contiguous blocks\n");
 	fprintf(stderr, "\t-e maximum blocks per file in a cylinder group\n");
 	fprintf(stderr, "\t-m minimum percentage of free space\n");
+	fprintf(stderr, "\t-n soft updates (`enable' or `disable')\n");
 	fprintf(stderr, "\t-o optimization preference (`space' or `time')\n");
 	fprintf(stderr, "\t-p no change - just prints current tuneable settings\n");
 	exit(2);
@@ -261,6 +280,8 @@ getsb(fs, file)
 void
 printfs()
 {
+	warnx("soft updates:  (-n)                                %s", 
+		(sblock.fs_flags & FS_DOSOFTDEP)? "enabled" : "disabled");
 	warnx("maximum contiguous block count: (-a)               %d",
 	      sblock.fs_maxcontig);
 	warnx("rotational delay between contiguous blocks: (-d)   %d ms",

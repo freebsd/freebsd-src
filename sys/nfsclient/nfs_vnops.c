@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.79 1998/03/06 09:46:48 msmith Exp $
+ * $Id: nfs_vnops.c,v 1.80 1998/03/07 21:36:06 dyson Exp $
  */
 
 
@@ -2846,9 +2846,11 @@ again:
 					vfs_bio_need_satisfy();
 				}
 			    }
+			    s = splbio();	/* XXX check this positionning */
 			    bp->b_flags &= ~(B_READ|B_DONE|B_ERROR|B_DELWRI);
 			    bp->b_dirtyoff = bp->b_dirtyend = 0;
 			    reassignbuf(bp, vp);
+			    splx(s);
 			    biodone(bp);
 			}
 		}
@@ -2994,6 +2996,7 @@ nfs_writebp(bp, force)
 	register struct buf *bp;
 	int force;
 {
+	int s;
 	register int oldflags = bp->b_flags, retv = 1;
 	off_t off;
 
@@ -3008,6 +3011,7 @@ nfs_writebp(bp, force)
 		if (needsbuffer)
 			vfs_bio_need_satisfy();
 	}
+	s = splbio(); /* XXX check if needed */
 	bp->b_flags &= ~(B_READ|B_DONE|B_ERROR|B_DELWRI);
 
 	if ((oldflags & (B_ASYNC|B_DELWRI)) == (B_ASYNC|B_DELWRI)) {
@@ -3016,6 +3020,7 @@ nfs_writebp(bp, force)
 
 	bp->b_vp->v_numoutput++;
 	curproc->p_stats->p_ru.ru_oublock++;
+	splx(s);
 
 	/*
 	 * If B_NEEDCOMMIT is set, a commit rpc may do the trick. If not
@@ -3046,7 +3051,9 @@ nfs_writebp(bp, force)
 		int rtval = biowait(bp);
 
 		if (oldflags & B_DELWRI) {
+			s = splbio();
 			reassignbuf(bp, bp->b_vp);
+			splx(s);
 		}
 
 		brelse(bp);

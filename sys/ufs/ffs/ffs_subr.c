@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.18 1998/02/06 12:14:14 eivind Exp $
+ * $Id: ffs_subr.c,v 1.19 1998/02/13 00:20:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -187,6 +187,30 @@ ffs_isblock(fs, cp, h)
 		return ((cp[h >> 3] & mask) == mask);
 	default:
 		panic("ffs_isblock");
+	}
+}
+
+/*
+ * check if a block is free
+ */
+int
+ffs_isfreeblock(fs, cp, h)
+	struct fs *fs;
+	unsigned char *cp;
+	ufs_daddr_t h;
+{
+
+	switch ((int)fs->fs_frag) {
+	case 8:
+		return (cp[h] == 0);
+	case 4:
+		return ((cp[h >> 1] & (0x0f << ((h & 0x1) << 2))) == 0);
+	case 2:
+		return ((cp[h >> 2] & (0x03 << ((h & 0x3) << 1))) == 0);
+	case 1:
+		return ((cp[h >> 3] & (0x01 << (h & 0x7))) == 0);
+	default:
+		panic("ffs_isfreeblock");
 	}
 }
 

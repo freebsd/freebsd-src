@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.14 1997/10/16 10:48:00 phk Exp $
+# $Id: vnode_if.src,v 1.15 1997/10/16 20:32:23 phk Exp $
 #
 
 #
@@ -426,6 +426,18 @@ vop_advlock {
 	IN int op;
 	IN struct flock *fl;
 	IN int flags;
+};
+
+#
+#% balloc	vp	L L L
+#
+vop_balloc {
+	IN struct vnode *vp;
+	IN off_t startoffset;
+	IN int size;
+	IN struct ucred *cred;
+	IN int flags;
+	OUT struct buf **bpp;
 };
 
 #

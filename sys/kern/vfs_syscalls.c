@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.93 1998/02/15 04:17:09 dyson Exp $
+ * $Id: vfs_syscalls.c,v 1.94 1998/03/07 21:35:39 dyson Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -283,6 +283,14 @@ update:
 			mp->mnt_flag = flag;
 			mp->mnt_kern_flag = flag2;
 		}
+		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
+			if (mp->mnt_syncer == NULL)
+				error = vfs_allocate_syncvnode(mp);
+		} else {
+			if (mp->mnt_syncer != NULL)
+				vrele(mp->mnt_syncer);
+			mp->mnt_syncer = NULL;
+		}
 		vfs_unbusy(mp, p);
 		return (error);
 	}
@@ -296,6 +304,8 @@ update:
 		simple_unlock(&mountlist_slock);
 		checkdirs(vp);
 		VOP_UNLOCK(vp, 0, p);
+		if ((mp->mnt_flag & MNT_RDONLY) == 0)
+			error = vfs_allocate_syncvnode(mp);
 		vfs_unbusy(mp, p);
 		if (error = VFS_START(mp, 0, p))
 			vrele(vp);
@@ -431,12 +441,16 @@ dounmount(mp, flags, p)
 	vfs_msync(mp, MNT_WAIT);
 	mp->mnt_flag &=~ MNT_ASYNC;
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
+	if (mp->mnt_syncer != NULL)
+		vrele(mp->mnt_syncer);
 	if (((mp->mnt_flag & MNT_RDONLY) ||
 	     (error = VFS_SYNC(mp, MNT_WAIT, p->p_ucred, p)) == 0) ||
 	    (flags & MNT_FORCE))
 		error = VFS_UNMOUNT(mp, flags, p);
 	simple_lock(&mountlist_slock);
 	if (error) {
+		if ((mp->mnt_flag & MNT_RDONLY) == 0 && mp->mnt_syncer == NULL)
+			(void) vfs_allocate_syncvnode(mp);
 		mp->mnt_kern_flag &= ~MNTK_UNMOUNT;
 		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK | LK_REENABLE,
 		    &mountlist_slock, p);
@@ -490,9 +504,9 @@ sync(p, uap)
 			asyncflag = mp->mnt_flag & MNT_ASYNC;
 			mp->mnt_flag &= ~MNT_ASYNC;
 			vfs_msync(mp, MNT_NOWAIT);
-			VFS_SYNC(mp, MNT_NOWAIT, p != NULL ? p->p_ucred : NOCRED, p);
-			if (asyncflag)
-				mp->mnt_flag |= MNT_ASYNC;
+			VFS_SYNC(mp, MNT_NOWAIT,
+				((p != NULL) ? p->p_ucred : NOCRED), p);
+			mp->mnt_flag |= asyncflag;
 		}
 		simple_lock(&mountlist_slock);
 		nmp = mp->mnt_list.cqe_next;
@@ -665,10 +679,11 @@ getfsstat(p, uap)
 		if (sfsp && count < maxcount) {
 			sp = &mp->mnt_stat;
 			/*
-			 * If MNT_NOWAIT is specified, do not refresh the
-			 * fsstat cache. MNT_WAIT overrides MNT_NOWAIT.
+			 * If MNT_NOWAIT or MNT_LAZY is specified, do not
+			 * refresh the fsstat cache. MNT_NOWAIT or MNT_LAZY
+			 * overrides MNT_WAIT.
 			 */
-			if (((SCARG(uap, flags) & MNT_NOWAIT) == 0 ||
+			if (((SCARG(uap, flags) & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
 			    (SCARG(uap, flags) & MNT_WAIT)) &&
 			    (error = VFS_STATFS(mp, sp, p))) {
 				simple_lock(&mountlist_slock);

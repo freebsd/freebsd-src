@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.47 1998/02/25 06:04:46 bde Exp $
+ * $Id: kern_synch.c,v 1.48 1998/03/04 10:25:55 dufault Exp $
  */
 
 #include "opt_ktrace.h"
@@ -230,7 +230,6 @@ schedcpu(arg)
 	register int s;
 	register unsigned int newcpu;
 
-	wakeup((caddr_t)&lbolt);
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		/*
 		 * Increment time in/out of memory and sleep time
@@ -282,6 +281,7 @@ schedcpu(arg)
 		splx(s);
 	}
 	vmmeter();
+	wakeup((caddr_t)&lbolt);
 	timeout(schedcpu, (void *)0, hz);
 }
 
