@@ -44,7 +44,7 @@
 .In sys/ipc.h
 .In sys/msg.h
 .Ft int
-.Fn msgsnd "int msqid" "void *msgp" "size_t msgsz" "int msgflg"
+.Fn msgsnd "int msqid" "const void *msgp" "size_t msgsz" "int msgflg"
 .Sh DESCRIPTION
 The
 .Fn msgsnd
