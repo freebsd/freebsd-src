@@ -207,18 +207,37 @@ acpi_acad_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	int     val;
 	int     error;
-	device_t	dev;
+
+	if (acpi_acad_get_acline(&val)) {
+		return (ENXIO);
+	}
+
+	val = *(u_int *)oidp->oid_arg1;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	return (error);
+}
+
+/*
+ * Public interfaces.
+ */
+
+int
+acpi_acad_get_acline(int *status)
+{
+	device_t		 dev;
 	struct acpi_acad_softc	*sc;
 
 	if ((dev = devclass_get_device(acpi_acad_devclass, 0)) == NULL) {
 		return (ENXIO);
 	}
+
 	if ((sc = device_get_softc(dev)) == NULL) {
 		return (ENXIO);
 	}
+
 	acpi_acad_get_status(dev);
-	val = *(u_int *)oidp->oid_arg1;
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	return (error);
+	*status = sc->status;
+
+	return (0);
 }
 

@@ -65,14 +65,14 @@ static int			acpi_batteries_initted = 0;
 static int			acpi_batteries_units = 0;
 static struct acpi_battinfo	acpi_battery_battinfo;
 
-static int
+int
 acpi_battery_get_units(void)
 {
 
 	return (acpi_batteries_units);
 }
 
-static int
+int
 acpi_battery_get_battdesc(int logical_unit, struct acpi_battdesc *battdesc)
 {
 	int	 i;
@@ -95,7 +95,7 @@ acpi_battery_get_battdesc(int logical_unit, struct acpi_battdesc *battdesc)
 	return (ENXIO);
 }
 
-static int
+int
 acpi_battery_get_battinfo(int unit, struct acpi_battinfo *battinfo)
 {
 	int	 error;
