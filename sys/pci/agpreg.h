@@ -202,4 +202,17 @@
 #define AGP_I852_GME			0x2
 #define AGP_I852_GM			0x5
 
+/*
+ * NVIDIA nForce/nForce2 registers
+ */
+#define	AGP_NVIDIA_0_APBASE		0x10
+#define	AGP_NVIDIA_0_APSIZE		0x80
+#define	AGP_NVIDIA_1_WBC		0xf0
+#define	AGP_NVIDIA_2_GARTCTRL		0xd0
+#define	AGP_NVIDIA_2_APBASE		0xd8
+#define	AGP_NVIDIA_2_APLIMIT		0xdc
+#define	AGP_NVIDIA_2_ATTBASE(i)		(0xe0 + (i) * 4)
+#define	AGP_NVIDIA_3_APBASE		0x50
+#define	AGP_NVIDIA_3_APLIMIT		0x54
+
 #endif /* !_PCI_AGPREG_H_ */
