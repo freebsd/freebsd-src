@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.6 1995/04/09 01:19:25 davidg Exp $
+ * $Id: kern_subr.c,v 1.7 1995/04/30 05:11:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -207,7 +207,7 @@ hashinit(elements, type, hashmask)
 	int i;
 
 	if (elements <= 0)
-		panic("hashinit: bad cnt");
+		panic("hashinit: bad elements");
 	for (hashsize = 1; hashsize <= elements; hashsize <<= 1)
 		continue;
 	hashsize >>= 1;
@@ -236,7 +236,7 @@ phashinit(elements, type, nentries)
 	int i;
 
 	if (elements <= 0)
-		panic("hashinit: bad cnt");
+		panic("phashinit: bad elements");
 	for (i = 1, hashsize = primes[1]; hashsize <= elements;) {
 		i++;
 		if (i == NPRIMES)
