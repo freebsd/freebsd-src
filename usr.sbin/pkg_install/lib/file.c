@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.10 1995/05/30 03:50:05 rgrimes Exp $";
+static const char *rcsid = "$Id: file.c,v 1.11 1995/06/24 10:12:59 asami Exp $";
 #endif
 
 /*
@@ -68,6 +68,15 @@ isemptydir(char *fname)
 	(void)closedir(dirp);
 	return TRUE;
     }
+    return FALSE;
+}
+
+Boolean
+isfile(char *fname)
+{
+    struct stat sb;
+    if (stat(fname, &sb) != FAIL && S_ISREG(sb.st_mode))
+	return TRUE;
     return FALSE;
 }
 
@@ -256,7 +265,7 @@ fileFindByPath(char *fname)
     static char tmp[FILENAME_MAX];
     char *cp;
 
-    if (fexists(fname)) {
+    if (fexists(fname) && isfile(fname)) {
 	strcpy(tmp, fname);
 	return tmp;
     }
@@ -265,7 +274,7 @@ fileFindByPath(char *fname)
 	char *cp2 = strsep(&cp, ":");
 
 	snprintf(tmp, FILENAME_MAX, "%s/%s.tgz", cp2 ? cp2 : cp, fname);
-	if (fexists(tmp))
+	if (fexists(tmp) && isfile(fname))
 	    return tmp;
     }
     return NULL;
