@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.229 1999/02/15 00:49:33 jkh Exp $
+ * $Id: install.c,v 1.230 1999/03/11 09:38:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -628,21 +628,6 @@ nodisks:
 	restorescr(w);
     }
 
-    dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to register your FreeBSD system at this time?\n\n"
-		  "PLEASE, take just 5 minutes to do this.  If we're ever to get any\n"
-		  "significant base of commercial software for FreeBSD, we need to\n"
-		  "be able to provide more information about the size of our user community.\n"
-		  "This is where your registration can really help us, and you can also\n"
-		  "sign up for the new FreeBSD newsletter (its free!) at the same time.\n"))
-	configRegister(NULL);
-    else {
-	dialog_clear_norefresh();
-	msgConfirm("OK, but if you should change your mind then you always can register\n"
-		   "later by typing ``/stand/sysinstall register'' or by simply visiting our\n"
-		   "web site at http://www.freebsd.org/register.html");
-
-    }
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
     /* Give user the option of one last configuration spree */
