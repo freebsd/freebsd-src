@@ -28,6 +28,16 @@
  * $FreeBSD$
  */
 
+/* misc defines */
+#define MAX_ARRAYS	16
+#define MAX_DISKS	16
+#define AR_PROXIMITY	2048
+#define AR_READ		0x01
+#define AR_WRITE	0x02
+#define AR_WAIT		0x04
+#define AR_STRATEGY(x)  (x)->bio_dev->si_disk->d_devsw->d_strategy((x))
+#define AD_SOFTC(x)	((struct ad_softc *)(x.device->driver))
+
 struct ar_disk {
     struct ata_device	*device;
     u_int64_t		disk_sectors;	/* sectors on this disk */
@@ -38,10 +48,6 @@ struct ar_disk {
 #define AR_DF_SPARE		0x00000004
 #define AR_DF_ONLINE		0x00000008
 };
-
-#define MAX_ARRAYS	16
-#define MAX_DISKS	16
-#define AR_PROXIMITY	2048
 
 struct ar_softc {
     int			lun;
@@ -75,7 +81,7 @@ struct ar_softc {
 };
 
 struct ar_buf {
-    struct bio		bp;
+    struct bio		bp;		/* must be first element! */
     struct bio		*org;	
     struct ar_buf	*mirror;
     int			drive;
