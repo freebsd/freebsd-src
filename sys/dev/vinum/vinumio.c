@@ -58,6 +58,7 @@ open_drive(struct drive *drive, struct thread *td, int verbose)
     drive->dev = getdiskbyname(drive->devicename);
     if (drive->dev == NODEV)				    /* didn't find anything */
 	return ENOENT;
+    dev_ref(drive->dev);
 
     drive->dev->si_iosize_max = DFLTPHYS;
     dsw = devsw(drive->dev);
