@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tar.h>
 #include <unistd.h>
 #ifdef LINUX
 #include <ext2fs/ext2_fs.h>
@@ -53,6 +52,27 @@ __FBSDID("$FreeBSD$");
 #include "archive_string.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+
+struct fixup_entry {
+	struct fixup_entry	*next;
+	mode_t			 mode;
+	int64_t			 mtime;
+	int64_t			 atime;
+	unsigned long		 mtime_nanos;
+	unsigned long		 atime_nanos;
+	unsigned long		 fflags_set;
+	int			 fixup; /* bitmask of what needs fixing */
+	char			*name;
+};
+
+#define	FIXUP_MODE	1
+#define	FIXUP_TIMES	2
+#define	FIXUP_FFLAGS	4
+
+struct extract {
+	struct archive_string	 mkdirpath;
+	struct fixup_entry	*fixup_list;
+};
 
 static void	archive_extract_cleanup(struct archive *);
 static int	archive_read_extract_block_device(struct archive *,
@@ -93,81 +113,40 @@ static int	set_ownership(struct archive *, struct archive_entry *, int);
 static int	set_perm(struct archive *, struct archive_entry *, int mode,
 		    int flags);
 static int	set_time(struct archive *, struct archive_entry *, int);
-static struct archive_extract_fixup *
-		sort_dir_list(struct archive_extract_fixup *p);
+static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 
-
-struct archive_extract_fixup {
-	struct archive_extract_fixup	*next;
-	mode_t		 mode;
-	int64_t		 mtime;
-	int64_t		 atime;
-	unsigned long	 mtime_nanos;
-	unsigned long	 atime_nanos;
-	unsigned long	 fflags_set;
-	int		 fixup; /* bitmask of what needs fixing */
-	char		*name;
-};
-
-#define	FIXUP_MODE	1
-#define	FIXUP_TIMES	2
-#define	FIXUP_FFLAGS	4
 
 /*
  * Extract this entry to disk.
  *
- * TODO: Validate hardlinks.  Is there any way to validate hardlinks
- * without keeping a complete list of filenames from the entire archive?? Ugh.
+ * TODO: Validate hardlinks.  According to the standards, we're
+ * supposed to check each extracted hardlink and squawk if it refers
+ * to a file that we didn't restore.  I'm not entirely convinced this
+ * is a good idea, but more importantly: Is there any way to validate
+ * hardlinks without keeping a complete list of filenames from the
+ * entire archive?? Ugh.
  *
  */
 int
 archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 {
-	mode_t writable_mode;
-	struct archive_extract_fixup *le;
-	const struct stat *st;
+	mode_t mode;
+	struct extract *extract;
 	int ret;
 	int restore_pwd;
 
-	restore_pwd = -1;
-	st = archive_entry_stat(entry);
-	if (S_ISDIR(st->st_mode)) {
-		/*
-		 * TODO: Does this really work under all conditions?
-		 *
-		 * E.g., root restores a dir owned by someone else?
-		 */
-		writable_mode = st->st_mode | 0700;
-
-		/*
-		 * In order to correctly restore non-writable dirs or
-		 * dir timestamps, we need to maintain a fix-up list.
-		 */
-		if (st->st_mode != writable_mode ||
-		    flags & ARCHIVE_EXTRACT_TIME) {
-			le = malloc(sizeof(struct archive_extract_fixup));
-			le->fixup = 0;
-			le->next = a->archive_extract_fixup;
-			a->archive_extract_fixup = le;
-			le->name = strdup(archive_entry_pathname(entry));
-			a->cleanup_archive_extract = archive_extract_cleanup;
-
-			if (st->st_mode != writable_mode) {
-				le->mode = st->st_mode;
-				le->fixup |= FIXUP_MODE;
-				/* Make sure I can write to this directory. */
-				archive_entry_set_mode(entry, writable_mode);
-			}
-			if (flags & ARCHIVE_EXTRACT_TIME) {
-				le->mtime = st->st_mtime;
-				le->mtime_nanos = ARCHIVE_STAT_MTIME_NANOS(st);
-				le->atime = st->st_atime;
-				le->atime_nanos = ARCHIVE_STAT_ATIME_NANOS(st);
-				le->fixup |= FIXUP_TIMES;
-			}
-
+	if (a->extract == NULL) {
+		a->extract = malloc(sizeof(*a->extract));
+		if (a->extract == NULL) {
+			archive_set_error(a, ENOMEM, "Can't extract");
+			return (ARCHIVE_FATAL);
 		}
+		a->cleanup_archive_extract = archive_extract_cleanup;
+		memset(a->extract, 0, sizeof(*a->extract));
 	}
+	extract = a->extract;
+
+	restore_pwd = -1;
 
 	if (archive_entry_hardlink(entry) != NULL)
 		return (archive_read_extract_hard_link(a, entry, flags));
@@ -183,7 +162,8 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 		/* XXX Update pathname in 'entry' XXX */
 	}
 
-	switch (st->st_mode & S_IFMT) {
+	mode = archive_entry_mode(entry);
+	switch (mode & S_IFMT) {
 	default:
 		/* Fall through, as required by POSIX. */
 	case S_IFREG:
@@ -235,10 +215,13 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 static
 void archive_extract_cleanup(struct archive *a)
 {
-	struct archive_extract_fixup *next, *p;
+	struct fixup_entry *next, *p;
+	struct extract *extract;
+
 
 	/* Sort dir list so directories are fixed up in depth-first order. */
-	p = sort_dir_list(a->archive_extract_fixup);
+	extract = a->extract;
+	p = sort_dir_list(extract->fixup_list);
 
 	while (p != NULL) {
 		if (p->fixup & FIXUP_TIMES) {
@@ -260,17 +243,20 @@ void archive_extract_cleanup(struct archive *a)
 		free(p);
 		p = next;
 	}
-	a->archive_extract_fixup = NULL;
+	extract->fixup_list = NULL;
+	archive_string_free(&extract->mkdirpath);
+	free(a->extract);
+	a->extract = NULL;
 }
 
 /*
  * Simple O(n log n) merge sort to order the fixup list.  In
  * particular, we want to restore dir timestamps depth-first.
  */
-static struct archive_extract_fixup *
-sort_dir_list(struct archive_extract_fixup *p)
+static struct fixup_entry *
+sort_dir_list(struct fixup_entry *p)
 {
-	struct archive_extract_fixup *a, *b, *t;
+	struct fixup_entry *a, *b, *t;
 
 	if (p == NULL)
 		return (NULL);
@@ -397,9 +383,44 @@ static int
 archive_read_extract_dir(struct archive *a, struct archive_entry *entry,
     int flags)
 {
-	int mode, ret, ret2;
+	struct extract *extract;
+	struct fixup_entry *le;
+	const struct stat *st;
+	mode_t mode, writable_mode;
+	int ret, ret2;
 
-	mode = archive_entry_stat(entry)->st_mode;
+	extract = a->extract;
+	st = archive_entry_stat(entry);
+	mode = st->st_mode;
+
+	/*
+	 * XXX TODO: Does this really work under all conditions?
+	 * E.g., root restores a dir owned by someone else? XXX
+	 */
+	/* Ensure we can write to this directory. */
+	writable_mode = mode | 0700;
+
+	if (mode != writable_mode || flags & ARCHIVE_EXTRACT_TIME) {
+		/* Add this dir to the fixup list. */
+		le = malloc(sizeof(struct fixup_entry));
+		le->fixup = 0;
+		le->next = extract->fixup_list;
+		extract->fixup_list = le;
+		le->name = strdup(archive_entry_pathname(entry));
+
+		if (mode != writable_mode) {
+			le->mode = mode;
+			le->fixup |= FIXUP_MODE;
+			archive_entry_set_mode(entry, writable_mode);
+		}
+		if (flags & ARCHIVE_EXTRACT_TIME) {
+			le->mtime = st->st_mtime;
+			le->mtime_nanos = ARCHIVE_STAT_MTIME_NANOS(st);
+			le->atime = st->st_atime;
+			le->atime_nanos = ARCHIVE_STAT_ATIME_NANOS(st);
+			le->fixup |= FIXUP_TIMES;
+		}
+	}
 
 	if (archive_read_extract_dir_create(a, archive_entry_pathname(entry),
 		mode, flags)) {
@@ -502,14 +523,6 @@ archive_read_extract_hard_link(struct archive *a, struct archive_entry *entry,
 	pathname = archive_entry_pathname(entry);
 	linkname = archive_entry_hardlink(entry);
 
-	/*
-	 * XXX Should we suppress the unlink here unless
-	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
-	 * !ARCHIVE_EXTRACT_UNLINK case the same as the
-	 * ARCHIVE_EXTRACT_NO_OVERWRITE case (at least for hard
-	 * links.) XXX
-	 */
-
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
 		unlink(pathname);
@@ -549,14 +562,6 @@ archive_read_extract_symbolic_link(struct archive *a,
 	pathname = archive_entry_pathname(entry);
 	linkname = archive_entry_symlink(entry);
 
-	/*
-	 * XXX Should we suppress the unlink here unless
-	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
-	 * !ARCHIVE_EXTRACT_UNLINK case the same as the
-	 * ARCHIVE_EXTRACT_NO_OVERWRITE case (at least for hard
-	 * links.) XXX
-	 */
-
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
 		unlink(pathname);
@@ -590,14 +595,6 @@ archive_read_extract_device(struct archive *a, struct archive_entry *entry,
     int flags, mode_t mode)
 {
 	int r;
-
-	/*
-	 * XXX Should we suppress the unlink here unless
-	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
-	 * !ARCHIVE_EXTRACT_UNLINK case the same as the
-	 * ARCHIVE_EXTRACT_NO_OVERWRITE case (at least for device
-	 * nodes) XXX
-	 */
 
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
@@ -653,13 +650,6 @@ archive_read_extract_fifo(struct archive *a,
 {
 	int r;
 
-	/*
-	 * XXX Should we suppress the unlink here unless
-	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
-	 * !ARCHIVE_EXTRACT_UNLINK case the same as the
-	 * ARCHIVE_EXTRACT_NO_OVERWRITE case (at least for fifos.) XXX
-	 */
-
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
 		unlink(archive_entry_pathname(entry));
@@ -693,16 +683,18 @@ archive_read_extract_fifo(struct archive *a,
  * Returns 0 if it successfully created necessary directories.
  * Otherwise, returns ARCHIVE_WARN.
  */
-
 static int
 mkdirpath(struct archive *a, const char *path)
 {
 	char *p;
+	struct extract *extract;
+
+	extract = a->extract;
 
 	/* Copy path to mutable storage, then call mkdirpath_recursive. */
-	archive_strcpy(&(a->extract_mkdirpath), path);
+	archive_strcpy(&(extract->mkdirpath), path);
 	/* Prune a trailing '/' character. */
-	p = a->extract_mkdirpath.s;
+	p = extract->mkdirpath.s;
 	if (p[strlen(p)-1] == '/')
 		p[strlen(p)-1] = 0;
 	/* Recursively try to build the path. */
@@ -746,13 +738,6 @@ mksubdir(char *path)
 }
 
 /*
- * Note that I only inspect entry->ae_uid and entry->ae_gid here; if
- * the client wants POSIX compat, they'll need to do uname/gname
- * lookups themselves.  I don't do it here because of the potential
- * performance issues: if uname/gname lookup is expensive, then the
- * results should be aggressively cached; if they're cheap, then we
- * shouldn't waste memory on cache tables.
- *
  * Returns 0 if UID/GID successfully restored; ARCHIVE_WARN otherwise.
  */
 static int
@@ -824,6 +809,7 @@ set_time(struct archive *a, struct archive_entry *entry, int flags)
 
 	/*
 	 * Note: POSIX does not provide a portable way to restore ctime.
+	 * (Apart from resetting the system clock, which is distasteful.)
 	 * So, any restoration of ctime will necessarily be OS-specific.
 	 */
 
@@ -856,10 +842,13 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 static int
 set_extended_perm(struct archive *a, struct archive_entry *entry, int flags)
 {
-	struct archive_extract_fixup *le;
+	struct fixup_entry *le;
+	struct extract	*extract;
 	unsigned long	 set, clear;
 	int		 ret, ret2;
 	int		 critical_flags;
+
+	extract = a->extract;
 
 	/*
 	 * Make 'critical_flags' hold all file flags that can't be
@@ -906,12 +895,11 @@ set_extended_perm(struct archive *a, struct archive_entry *entry, int flags)
 	 * this if it's not necessary.
 	 */
 	if ((critical_flags != 0)  &&  (set & critical_flags)) {
-		le = malloc(sizeof(struct archive_extract_fixup));
+		le = malloc(sizeof(struct fixup_entry));
 		le->fixup = FIXUP_FFLAGS;
-		le->next = a->archive_extract_fixup;
-		a->archive_extract_fixup = le;
+		le->next = extract->fixup_list;
+		extract->fixup_list = le;
 		le->name = strdup(archive_entry_pathname(entry));
-		a->cleanup_archive_extract = archive_extract_cleanup;
 		le->mode = archive_entry_mode(entry);
 		le->fflags_set = set;
 		ret = ARCHIVE_OK;
