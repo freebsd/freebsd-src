@@ -160,20 +160,14 @@ mac_seeotheruids_check_socket_visible(struct ucred *cred, struct socket *socket,
 	return (mac_seeotheruids_check(cred, socket->so_cred));
 }
 
-static struct mac_policy_op_entry mac_seeotheruids_ops[] =
+static struct mac_policy_ops mac_seeotheruids_ops =
 {
-	{ MAC_CHECK_CRED_VISIBLE,
-	    (macop_t)mac_seeotheruids_check_cred_visible },
-	{ MAC_CHECK_PROC_DEBUG,
-	    (macop_t)mac_seeotheruids_check_proc_debug },
-	{ MAC_CHECK_PROC_SCHED,
-	    (macop_t)mac_seeotheruids_check_proc_sched },
-	{ MAC_CHECK_PROC_SIGNAL,
-	    (macop_t)mac_seeotheruids_check_proc_signal },
-	{ MAC_CHECK_SOCKET_VISIBLE,
-	    (macop_t)mac_seeotheruids_check_socket_visible },
-	{ MAC_OP_LAST, NULL }
+	.mpo_check_cred_visible = mac_seeotheruids_check_cred_visible,
+	.mpo_check_proc_debug = mac_seeotheruids_check_proc_debug,
+	.mpo_check_proc_sched = mac_seeotheruids_check_proc_sched,
+	.mpo_check_proc_signal = mac_seeotheruids_check_proc_signal,
+	.mpo_check_socket_visible = mac_seeotheruids_check_socket_visible,
 };
 
-MAC_POLICY_SET(mac_seeotheruids_ops, trustedbsd_mac_seeotheruids,
+MAC_POLICY_SET(&mac_seeotheruids_ops, trustedbsd_mac_seeotheruids,
     "TrustedBSD MAC/seeotheruids", MPC_LOADTIME_FLAG_UNLOADOK, NULL);
