@@ -174,7 +174,7 @@ struct fxp_softc {
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
 	u_int32_t stats_addr;		/* DMA address of the stats structure */
 	int rx_idle_secs;		/* # of seconds RX has been idle */
-	struct callout_handle stat_ch;	/* Handle for canceling our stat timeout */
+	struct callout stat_ch;		/* stat callout */
 	struct fxp_cb_mcs *mcsp;	/* Pointer to mcast setup descriptor */
 	u_int32_t mcs_addr;		/* DMA address of the multicast cmd */
 	struct ifmedia sc_media;	/* media information */
