@@ -3,9 +3,12 @@
 
 VOLUME=	psd/02.implement
 SRCS=	implement
+EXTRA=	ref.bib
 MACROS=	-ms
-USE_PIC=yes
-USE_TBL=yes
-# REFER=	refer -p /usr/old/dict/papers/Ind -e
+
+USE_PIC=	yes
+USE_REFER=	yes
+USE_SOELIM=	yes
+USE_TBL=	yes
 
 .include <bsd.doc.mk>
