@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.5 1999/01/09 18:08:23 nsouch Exp $
+ *	$Id: smb.c,v 1.6 1999/01/14 22:55:03 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -35,6 +35,7 @@
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
+#include <sys/fcntl.h>
 
 #include <machine/clock.h>
 
@@ -183,17 +184,20 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	if (!sc || !s)
 		return (EINVAL);
 
+	/* allocate the bus */
+	if ((error = smbus_request_bus(parent, smbdev,
+			(flags & O_NONBLOCK) ? SMB_DONTWAIT : (SMB_WAIT | SMB_INTR))))
+		return (error);
+
 	switch (cmd) {
 	case SMB_QUICK_WRITE:
 		error=smbus_quick(parent, s->slave, SMB_QWRITE);
-		goto end;
+		break;
 
 	case SMB_QUICK_READ:
 		error=smbus_quick(parent, s->slave, SMB_QREAD);
-		goto end;
-	};
+		break;
 
-	switch (cmd) {
 	case SMB_SENDB:
 		error=smbus_sendb(parent, s->slave, s->cmd);
 		break;
@@ -243,7 +247,9 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 		error = ENODEV;
 	}
 
-end:
+	/* release the bus */
+	smbus_release_bus(parent, smbdev);
+
 	return (error);
 }
 
