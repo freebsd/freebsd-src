@@ -2,9 +2,9 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.11 2004/09/23 06:22:38 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.12 2004/10/01 08:17:22 den Exp $
 
-     Original revision: 1.258
+     Original revision: 1.259
 -->
 
 <!--
@@ -914,9 +914,6 @@
 	  <para>Creative Technology Video Blaster WebCam Plus</para>
 	</listitem>
 	<listitem>
-	  <para>Diamond Rio 500, 600, и 800 MP3 плееры (драйвер &man.urio.4;)</para>
-	</listitem>
-	<listitem>
 	  <para>D-Link DSB-R100 USB Radio (драйвер &man.ufm.4;)</para>
 	</listitem>
 	<listitem>
@@ -925,39 +922,14 @@
       </itemizedlist>
     </para>
 
+    &hwlist.urio;
+
     &hwlist.umodem;
 
     <para arch="i386,pc98,alpha,amd64">Мышь (драйвер &man.ums.4;)
     </para>
-    <para arch="i386,pc98,alpha,amd64">Принтеры и переходные кабели к
-      параллельным принтерам (драйвер &man.ulpt.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>ATen адаптер параллельного принтера</para>
-	</listitem>
-	<listitem>
-	  <para>Belkin F5U002 адаптер параллельного принтера</para>
-	</listitem>
-	<listitem>
-	  <para>Canon BJ F850, S600</para>
-	</listitem>
-	<listitem>
-	  <para>Canon LBP-1310, 350</para>
-	</listitem>
-	<listitem>
-	  <para>Entrega адаптер USB к параллельному порту</para>
-	</listitem>
-	<listitem>
-	  <para>Hewlett-Packard HP Deskjet 3420 (P/N: C8947A #ABJ)</para>
-	</listitem>
-	<listitem>
-	  <para>Oki Data MICROLINE ML660PS</para>
-	</listitem>
-	<listitem>
-	  <para>Seiko Epson PM-900C, 880C, 820C, 730C</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+
+    &hwlist.ulpt;
 
     &hwlist.ubsa;
 
@@ -966,6 +938,8 @@
     &hwlist.uftdi;
 
     &hwlist.uplcom;
+
+    &hwlist.umct;
 
     &hwlist.uscanner;
 
