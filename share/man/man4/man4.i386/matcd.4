@@ -77,7 +77,7 @@
 .\"	Please note any documentation updates here including your name
 .\"	and the date.
 .\"
-.Dd April 5th, 1995
+.Dd April 24th, 1995
 .Dt MATCD 4 i386
 .\"Synchronized to Version 1(16) of matcd.c
 .Os FreeBSD 2.1
@@ -121,13 +121,13 @@ to support and delete the device entries that you don't want.
 
 In this file, you will find an entry like:
 
-	controller matcd0 at isa? port ?
+	controller  matcd0  at  isa?  port  ?  bio
 
 To support two host interfaces, change the file so it reads:
 
-	controller matcd0 at isa? port ?
+	controller  matcd0  at  isa?  port  ?  bio
 .br
-	controller matcd1 at isa? port ?
+	controller  matcd1  at  isa?  port  ?  bio
 .br
 
 (If you want to support up to three or four host interfaces, add
@@ -152,11 +152,12 @@ locations can cause the boot process to take longer than it could.
 If you are having these problems, you can solve them by explicitly specifying
 where the CD-ROM host interfaces are located.  For example, by default most
 SoundBlaster cards have the Matsushita CD-ROM host interface
-located at I/O port 0x230.  If this is the case for your system, you could
+located at I/O port 0x230.  (This is 0x10 above the I/O port for the
+audio section of the card.)  If this is the case for your system, you could
 change the entry in the kernel configuration file to specify that address
 like this:
 
-	controller  matcd0  at  isa?  port  0x230
+	controller  matcd0  at  isa?  port  0x230  bio
 
 With this change, the
 .Nm matcd
@@ -190,10 +191,10 @@ The Matsushita CR-523-x CD-ROM drive is not usable with
 The CR-523 can also be identified from the front as it requires a CD-caddy.
 Drives with IDE interfaces must use an IDE driver.
 
-There is a new TEAC 4X CD-ROM drive on the market that supposedly uses the
-Creative/Panasonic interface.  It is not known if the TEAC drive is
-command-set-compatible with the Matsushita drive so it may not work with
-this driver.
+The TEAC CD-55 4X CD-ROM drive uses the Creative/Panasonic interface
+but is \fInot\fR compatible with the Matsushita CR-56x drives.  
+The TEAC drive cannot be used with 
+.Nm matcd.
 .if t .sp
 .if n .bp
 The most common source of host interface adapters for these drives are in
@@ -229,6 +230,12 @@ solely based on model number.
 This is by no means a complete list as Creative Labs and other vendors
 that produce sound cards with an identical Creative/Panasonic drive
 interface release new versions of their adapters all the time.
+
+It is important to understand that some manufacturers have a different
+host interface implementation.  If you have a board that won't communicate
+with the drives under MS-DOS using the genuine Creative Labs drivers, then
+.Nm matcd
+probably will not work with that host adapter.
 .br
 .if t .bp
 .if n .sp
@@ -368,3 +375,4 @@ The
 .Nm matcd
 driver appeared in FreeBSD Release 2.1.
 
+504242
