@@ -343,13 +343,13 @@ struct format_params {
   int vtotal, vdelay, vactive;
   /* Total unscaled horizontal pixels, pixels before image, image pixels */
   int htotal, hdelay, hactive;
- /* visible active horizontal and vertical : 480 640 for NTSC */
-  int  horizontal, vertical;
-/* frame rate . for ntsc is 30 frames per second */
+  /* Scaled horizontal image pixels, Total Scaled horizontal pixels */
+  int  scaled_hactive, scaled_htotal;
+  /* frame rate . for ntsc is 30 frames per second */
   int frame_rate;
-/* A-delay and B-delay */
+  /* A-delay and B-delay */
   u_char adelay, bdelay;
-/* Iform XTSEL value */
+  /* Iform XTSEL value */
   int iform_xtsel;
 };
 
@@ -384,6 +384,11 @@ struct bktr_softc {
     short	current;	/* frame number in buffer (1-frames) */
     short	rows;		/* number of rows in a frame */
     short	cols;		/* number of columns in a frame */
+    int		capture_area_x_offset; /* Usually the full 640x480(NTSC) image is */
+    int		capture_area_y_offset; /* captured. The capture area allows for */
+    int		capture_area_x_size;   /* example 320x200 pixels from the centre */
+    int		capture_area_y_size;   /* of the video image to be captured. */
+    char	capture_area_enabled;  /* When TRUE use user's capture area. */
     int		pixfmt;         /* active pixel format (idx into fmt tbl) */
     int		pixfmt_compat;  /* Y/N - in meteor pix fmt compat mode */
     u_long	format;		/* frame format rgb, yuv, etc.. */

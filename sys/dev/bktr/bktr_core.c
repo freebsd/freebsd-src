@@ -1,4 +1,4 @@
-/* BT848 1.39 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.40 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -273,7 +273,14 @@
                            Updated Hauppauge detection code for Tuner ID 0x0a 
                            for newer NTSC WinCastTV 404 with Bt878 chipset.
                            Tidied up PAL default in video_open()
-			   
+
+1.40       10 August 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Added Capture Area ioctl - BT848[SG]CAPAREA.
+                           Normally the full 640x480 (768x576 PAL) image
+                           is grabbed. This ioctl allows a smaller area
+                           from anywhere within the video image to be
+                           grabbed, eg a 400x300 image from (50,10).
+                           See restrictions in BT848SCAPAREA.
 */
 
 #define DDB(x) x
@@ -1677,6 +1684,8 @@ video_open( bktr_ptr_t bktr )
 	bktr->format = METEOR_GEO_RGB16;
 	bktr->pixfmt = oformat_meteor_to_bt( bktr->format );
 
+	bktr->capture_area_enabled = FALSE;
+
 	bt848->int_mask = BT848_INT_MYSTERYBIT;	/* if you take this out triton
                                                    based motherboards will 
 						   operate unreliably */
@@ -1906,6 +1915,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	struct meteor_geomet	*geo;
 	struct meteor_counts	*cnt;
 	struct meteor_video	*video;
+	struct bktr_capture_area *cap_area;
 	vm_offset_t		buf;
 	struct format_params	*fp;
 	int                     i;
@@ -2408,6 +2418,55 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		}
 		break;
 	/* end of METEORSETGEO */
+
+	/* FIXME. The Capture Area currently has the following restrictions
+	GENERAL
+	 y_offset may need to be even in interlaced modes
+	RGB24 - Interlaced mode
+	 x_size must be greater than or equal to 1.666*METEORSETGEO width (cols)
+	 y_size must be greater than or equal to METEORSETGEO height (rows)
+	RGB24 - Even Only (or Odd Only) mode
+	 x_size must be greater than or equal to 1.666*METEORSETGEO width (cols)
+	 y_size must be greater than or equal to 2*METEORSETGEO height (rows)
+	YUV12 - Interlaced mode
+	 x_size must be greater than or equal to METEORSETGEO width (cols)
+	 y_size must be greater than or equal to METEORSETGEO height (rows)
+	YUV12 - Even Only (or Odd Only) mode
+	 x_size must be greater than or equal to METEORSETGEO width (cols)
+	 y_size must be greater than or equal to 2*METEORSETGEO height (rows)
+	*/
+
+	case BT848SCAPAREA: /* set capture area of each video frame */
+		/* can't change parameters while capturing */
+		if (bktr->flags & METEOR_CAP_MASK)
+			return( EBUSY );
+
+		cap_area = (struct bktr_capture_area *) arg;
+		bktr->capture_area_x_offset = cap_area->x_offset;
+		bktr->capture_area_y_offset = cap_area->y_offset;
+		bktr->capture_area_x_size   = cap_area->x_size;
+		bktr->capture_area_y_size   = cap_area->y_size;
+		bktr->capture_area_enabled  = TRUE;
+ 
+		bktr->dma_prog_loaded = FALSE;
+		break;
+   
+	case BT848GCAPAREA: /* get capture area of each video frame */
+		cap_area = (struct bktr_capture_area *) arg;
+		if (bktr->capture_area_enabled == FALSE) {
+			cap_area->x_offset = 0;
+			cap_area->y_offset = 0;
+			cap_area->x_size   = format_params[
+				bktr->format_params].scaled_hactive;
+			cap_area->y_size   = format_params[
+				bktr->format_params].vactive;
+		} else {
+			cap_area->x_offset = bktr->capture_area_x_offset;
+			cap_area->y_offset = bktr->capture_area_y_offset;
+			cap_area->x_size   = bktr->capture_area_x_size;
+			cap_area->y_size   = bktr->capture_area_y_size;
+		}
+		break;
 
 	default:
 		return common_ioctl( bktr, bt848, cmd, arg );
@@ -3664,63 +3723,103 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 	bt848->gpio_dma_ctl &= ~FIFO_RISC_ENABLED;
 
 	/* set video parameters */
-	temp = ((quad_t ) fp->htotal* (quad_t) fp->horizontal * 4096
-		  / fp->vertical / bktr->cols) -  4096;
+	if (bktr->capture_area_enabled)
+	  temp = ((quad_t ) fp->htotal* (quad_t) bktr->capture_area_x_size * 4096
+		  / fp->scaled_htotal / bktr->cols) -  4096;
+	else
+	  temp = ((quad_t ) fp->htotal* (quad_t) fp->scaled_hactive * 4096
+		  / fp->scaled_htotal / bktr->cols) -  4096;
+
+	 /* printf("HSCALE value is %d\n",temp); */
 	bt848->e_hscale_lo = temp & 0xff;
 	bt848->o_hscale_lo = temp & 0xff;
 	bt848->e_hscale_hi = (temp >> 8) & 0xff;
 	bt848->o_hscale_hi = (temp >> 8) & 0xff;
-  
+ 
 	/* horizontal active */
 	temp = bktr->cols;
+	/* printf("HACTIVE value is %d\n",temp); */
 	bt848->e_hactive_lo = temp & 0xff;
 	bt848->o_hactive_lo = temp & 0xff;
 	bt848->e_crop &= ~0x3;
 	bt848->o_crop  &= ~0x3;
 	bt848->e_crop |= (temp >> 8) & 0x3;
 	bt848->o_crop  |= (temp >> 8) & 0x3;
-  
+ 
 	/* horizontal delay */
-	temp = (fp->hdelay * bktr->cols) / fp->hactive;
+	if (bktr->capture_area_enabled)
+	  temp = ( (fp->hdelay* fp->scaled_hactive + bktr->capture_area_x_offset* fp->scaled_htotal)
+		 * bktr->cols) / (bktr->capture_area_x_size * fp->hactive);
+	else
+	  temp = (fp->hdelay * bktr->cols) / fp->hactive;
+
 	temp = temp & 0x3fe;
+
+	/* printf("HDELAY value is %d\n",temp); */
 	bt848->e_delay_lo = temp & 0xff;
 	bt848->o_delay_lo = temp & 0xff;
 	bt848->e_crop &= ~0xc;
 	bt848->o_crop &= ~0xc;
 	bt848->e_crop |= (temp >> 6) & 0xc;
 	bt848->o_crop |= (temp >> 6) & 0xc;
-  
+
 	/* vertical scale */
 
-	if (bktr->flags  & METEOR_ONLY_ODD_FIELDS ||
-	    bktr->flags & METEOR_ONLY_EVEN_FIELDS)
-	  tmp_int = 65536 -
+	if (bktr->capture_area_enabled) {
+	  if (bktr->flags  & METEOR_ONLY_ODD_FIELDS ||
+	      bktr->flags & METEOR_ONLY_EVEN_FIELDS)
+	    tmp_int = 65536 -
+	    (((bktr->capture_area_y_size  * 256 + (bktr->rows/2)) / bktr->rows) - 512);
+	  else {
+	    tmp_int = 65536 -
+	    (((bktr->capture_area_y_size * 512 + (bktr->rows / 2)) /  bktr->rows) - 512);
+	  }
+	} else {
+	  if (bktr->flags  & METEOR_ONLY_ODD_FIELDS ||
+	      bktr->flags & METEOR_ONLY_EVEN_FIELDS)
+	    tmp_int = 65536 -
 	    (((fp->vactive  * 256 + (bktr->rows/2)) / bktr->rows) - 512);
-	else {
-	  tmp_int = 65536  -
+	  else {
+	    tmp_int = 65536  -
 	    (((fp->vactive * 512 + (bktr->rows / 2)) /  bktr->rows) - 512);
+	  }
 	}
-  
+
 	tmp_int &= 0x1fff;
+	/* printf("VSCALE value is %d\n",tmp_int); */
 	bt848->e_vscale_lo = tmp_int & 0xff;
 	bt848->o_vscale_lo = tmp_int & 0xff;
 	bt848->e_vscale_hi &= ~0x1f;
 	bt848->o_vscale_hi &= ~0x1f;
 	bt848->e_vscale_hi |= (tmp_int >> 8) & 0x1f;
 	bt848->o_vscale_hi |= (tmp_int >> 8) & 0x1f;
-  
 
+ 
 	/* vertical active */
+	if (bktr->capture_area_enabled)
+	  temp = bktr->capture_area_y_size;
+	else
+	  temp = fp->vactive;
+	/* printf("VACTIVE is %d\n",temp); */
 	bt848->e_crop &= ~0x30;
-	bt848->e_crop |= (fp->vactive >> 4) & 0x30;
-	bt848->e_vactive_lo = fp->vactive & 0xff;
+	bt848->e_crop |= (temp >> 4) & 0x30;
+	bt848->e_vactive_lo = temp & 0xff;
 	bt848->o_crop &= ~0x30;
-	bt848->o_crop |= (fp->vactive >> 4) & 0x30;
-	bt848->o_vactive_lo = fp->vactive & 0xff;
-  
+	bt848->o_crop |= (temp >> 4) & 0x30;
+	bt848->o_vactive_lo = temp & 0xff;
+ 
 	/* vertical delay */
-	bt848->e_vdelay_lo = fp->vdelay;
-	bt848->o_vdelay_lo = fp->vdelay;
+	if (bktr->capture_area_enabled)
+	  temp = fp->vdelay + (bktr->capture_area_y_offset);
+	else
+	  temp = fp->vdelay;
+	/* printf("VDELAY is %d\n",temp); */
+	bt848->e_crop &= ~0xC0;
+	bt848->e_crop |= (temp >> 2) & 0xC0;
+	bt848->e_vdelay_lo = temp & 0xff;
+	bt848->o_crop &= ~0xC0;
+	bt848->o_crop |= (temp >> 2) & 0xC0;
+	bt848->o_vdelay_lo = temp & 0xff;
 
 	/* end of video params */
 
@@ -4394,6 +4493,35 @@ checkTuner:
 	    }
 
 	}
+
+   /* The Hauppauge Windows driver gives the following Tuner Table */
+   /* To the right of this is the tuner models we select */
+   /*
+    1 External
+    2 Unspecified
+    3 Phillips FI1216
+    4 Phillips FI1216MF
+    5 Phillips FI1236           PHILIPS_NTSC
+    6 Phillips FI1246
+    7 Phillips FI1256
+    8 Phillips FI1216 MK2       PHILIPS_PALI
+    9 Phillips FI1216MF MK2
+    a Phillips FI1236 MK2       PHILIPS_FR1236_NTSC
+    b Phillips FI1246 MK2       PHILIPS_PALI
+    c Phillips FI1256 MK2
+    d Temic 4032FY5
+    e Temic 4002FH5              TEMIC_PAL
+    f Temic 4062FY5              TEMIC_PALI
+    10 Phillips FR1216 MK2
+    11 Phillips FR1216MF MK2
+    12 Phillips FR1236 MK2       PHILIPS_FR1236_NTSC
+    13 Phillips FR1246 MK2
+    14 Phillips FR1256 MK2
+    15 Phillips FM1216           PHILIPS_FR1216_PAL
+    16 Phillips FM1216MF
+    17 Phillips FM1236           PHILIPS_FR1236_NTSC
+   */
+
 	if ( card == CARD_HAUPPAUGE ) {
 	  bktr->card.tuner = &tuners[ TEMIC_PAL ];
 	  readEEProm(bktr, 0, 128, (u_char *) &probe_eeprom );
