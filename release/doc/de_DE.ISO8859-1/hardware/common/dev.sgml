@@ -29,7 +29,7 @@
 	build.
 
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.49 2002/12/07 21:07:59 ue Exp $
-	basiert auf: 1.119
+	basiert auf: 1.119.2.2
 -->
 
 <sect1>
@@ -938,8 +938,34 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Compaq Intelligent Drive Array Kontroller
+      (&man.ida.4; Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>Compaq SMART Array 221</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq Integrated SMART Array Controller</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq SMART Array 4200, 4250ES Controller</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq SMART Array 3200, 3100ES Controller</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq SMART-2/DH, SMART-2/SL, SMART-2/P, SMART-2E,
+	    und SMART Controller</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">SCSI Hostadapter, die das <quote>Command
-      Interface for SCSI-3 Support</quote> nutzen (ciss Treiber)
+      Interface for SCSI-3 Support</quote> nutzen (&man.ciss.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Compaq Smart Array 5* series (5300, 5i, 532)</para>
@@ -947,7 +973,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Intel Integrated RAID Controller (iir Treiber)
+    <para arch="i386">Intel Integrated RAID Controller (&man.iir.4; Treiber)
 
       <itemizedlist>
         <listitem>
@@ -2941,6 +2967,28 @@
           <para>SMC 90c26, 90c56, und 90c66 (im 90c56-kompatiblen
             Modus)</para>
         </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">LAN Media Corp WAN Adapter auf Basis des DEC
+      <quote>Tulip</quote> Fast Ethernet Controller (lmc Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>LMC1000 Synchronous Serial Interface Adapter</para>
+	</listitem>
+
+	<listitem>
+	  <para>LMC1200 T1/E1 WAN Adapter</para>
+	</listitem>
+
+	<listitem>
+	  <para>LMC5200 High Speed Synchronous Interface (HSSI)
+	    Adapter</para>
+	</listitem>
+
+	<listitem>
+	  <para>LMC5245 DS3 WAN Adapter</para>
+	</listitem>
       </itemizedlist>
     </para>
   </sect2>

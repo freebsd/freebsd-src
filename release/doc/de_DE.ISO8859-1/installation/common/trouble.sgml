@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.8 2002/11/09 19:45:30 ue Exp $
-  basiert auf: 1.8
+  basiert auf: 1.10
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
@@ -38,6 +38,65 @@
       Systemen</title>
 
     <qandaset arch="i386">
+      <qandaentry>
+	<question>
+	  <para>Mein Rechner h&auml;ngt sich beim Start des Systems
+	    w&auml;hrend der Hardware-Erkennung auf, verh&auml;lt sich
+	    bei der Installation seltsam, oder findet das
+	    Diskettenlaufwerk nicht.</para>
+	</question>
+
+	<answer>
+	  <para>&os;  nutzt auf i386 Systemen ab Version 5.0 unter
+	    anderem die ACPI-Dienste, um das System zu konfigurieren.
+	    Leider existieren sowohl im ACPI-Triber als auch in der
+	    ACPI-Implementierung vieler Mainbaords Fehler.  Um ACPI
+	    abzuschalten, m&uuml;ssen Sie die
+	    <quote>hint</quote><quote>hw.acpi.0.disable</quote> in der
+	    dritten Phase des Startprogramm aktivieren:</para>
+
+	  <screen>set hw.acpi.0.disabled=1</screen>
+
+	  <para>Diese Variable wird bei jedem Start des System
+	    zur&uuml;ckgesetzt, daher sollten Sie diese Anweisung in
+	    die Datei <filename>/boot/loader.conf</filename>
+	    aufnehmen.  Weitere Informationen &uuml;ber das
+	    Startprogramm finden Sie im FreeBSD Handbuch.  </para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+	<question>
+	  <para>Meine alte ISA-Karte wurde nicht mehr erkannt, in
+	    &auml;lteren &os;-Versionen funktionierte sie.  Woran
+	    liegt das?</para>
+	</question>
+
+	<answer>
+	  <para>Einige Treiber wurden mittlerweile entfernt, weil es
+	    niemanden mehr gab, der sich um sie k&uuml;mmerte;  dazu
+	    geh&ouml;rt unter anderem matcd.  Andere Treiber
+	    existieren zwar noch, sind aber standardm&auml;&szlig;ig
+	    inaktiv, weil die Routinen zur Hardware-Erkennung zu viele
+	    Nebenwirkungen hatten.  Dies betrifft die folgenden ISA
+	    Treiber:  aha, ahv, aic, bt, ed, cs, sn, ie, fe, le und
+	    lnc.  Diese Treiber m&uuml;ssen Sie in der dritten Phase
+	    des Systemstarts manuell aktivieren.  Dazu m&uuml;ssen Sie
+	    w&auml;hrend des Startprogramm w&auml;hrend des 10
+	    Sekunden dauernden Countdowns unterbrechen und die
+	    folgende Anweisung eingeben:</para>
+
+	  <screen>unset hint.foo.0.disabled</screen>
+
+	  <para>Dabei steht <replaceable>foo</replaceable> f&uuml;r
+	    den Namen des Treibers, den Sie aktivieren wollen.  Um
+	    diese &Auml;nderung permanent zu machen, m&uuml;ssen Sie
+	    die Datei <filename>/boot/device.hints</filename>
+	    &auml;ndern und den betreffenden <quote>disabled</quote>
+	    Eintrag entfernen.</para>
+	</answer>
+      </qandaentry>
+
       <qandaentry>
         <question>
           <para>Wenn ich das System nach der &os;-Installation zum
