@@ -595,7 +595,9 @@ typedef int		pid_t;
 #  define setreuid	__setreuid
 # endif
 # if defined(__FreeBSD__)
-#  define SPT_TYPE	SPT_PSSTRINGS	/* use PS_STRINGS->... */
+#  undef SPT_TYPE
+#  define SPT_TYPE	SPT_REUSEARGV
+#  define SPT_PADCHAR	'\0'	/* pad process title with nulls */
 # endif
 #endif
 
