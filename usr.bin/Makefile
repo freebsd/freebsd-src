@@ -60,6 +60,7 @@ SUBDIR=	apply \
 	getopt \
 	gprof \
 	head \
+	help \
 	hesinfo \
 	hexdump \
 	id \
