@@ -1,4 +1,4 @@
-# $NetBSD: Makefile,v 1.2 1995/07/03 21:24:39 cgd Exp $
+#	$NetBSD: Makefile,v 1.2 1995/07/03 21:24:39 cgd Exp $
 # $FreeBSD$
 
 .PATH:	${.CURDIR}/../lint1

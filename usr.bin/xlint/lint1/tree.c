@@ -1,4 +1,4 @@
-/* $NetBSD: tree.c,v 1.12 1995/10/02 17:37:57 jpo Exp $	*/
+/*	$NetBSD: tree.c,v 1.12 1995/10/02 17:37:57 jpo Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
