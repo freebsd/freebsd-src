@@ -889,7 +889,6 @@ dqsync(vp, dq)
 	struct vnode *dqvp;
 	struct iovec aiov;
 	struct uio auio;
-	struct mount *mp;
 	int error;
 
 	if (dq == NODQUOT)
