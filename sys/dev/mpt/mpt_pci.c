@@ -65,6 +65,10 @@
 #define	PCI_PRODUCT_LSI_1030		0x0030
 #endif
 
+#ifndef	PCIM_CMD_SERRESPEN
+#define	PCIM_CMD_SERRESPEN	0x0100
+#endif
+
 
 
 #define	MEM_MAP_REG	0x14
@@ -166,7 +170,6 @@ mpt_set_options(mpt_softc_t *mpt)
 		}
 	}
 
-	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 }
 #else
 static void
@@ -186,6 +189,38 @@ mpt_set_options(mpt_softc_t *mpt)
 	}
 }
 #endif
+
+
+static void
+mpt_link_peer(mpt_softc_t *mpt)
+{
+	mpt_softc_t *mpt2;
+
+	if (mpt->unit == 0) {
+		return;
+	}
+
+	/*
+	 * XXX: depends on probe order
+	 */
+	mpt2 = (mpt_softc_t *) devclass_get_softc(mpt_devclass, mpt->unit-1);
+
+	if (mpt2 == NULL) {
+		return;
+	}
+	if (pci_get_vendor(mpt2->dev) != pci_get_vendor(mpt->dev)) {
+		return;
+	}
+	if (pci_get_device(mpt2->dev) != pci_get_device(mpt->dev)) {
+		return;
+	}
+	mpt->mpt2 = mpt2;
+	mpt2->mpt2 = mpt;
+	if (mpt->verbose) {
+		device_printf(mpt->dev, "linking with peer (mpt%d)\n",
+		    device_get_unit(mpt2->dev));
+	}
+}
 
 
 static int
@@ -238,26 +273,13 @@ mpt_attach(device_t dev)
 	pci_write_config(dev, PCIR_BIOS, data, 4);
 
 
-	/* Is this part a dual? */
-	if ((pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC929) {
-		/* Yes; is the previous device the counterpart? */
-		if (mpt->unit) {
-			mpt->mpt2 = (mpt_softc_t *)
-				devclass_get_softc(mpt_devclass, mpt->unit-1);
-
-			if ((mpt->mpt2->mpt2 == NULL)
-			  && (pci_get_vendor(mpt->mpt2->dev) == PCI_VENDOR_LSI)
-			  && ((pci_get_device(mpt->mpt2->dev) & ~1) == PCI_PRODUCT_LSI_FC929) ) {
-				/* Yes */
-				mpt->mpt2->mpt2 = mpt;
-				if (mpt->verbose) {
-					device_printf(dev, "Detected dual\n");
-				}
-			} else {
-				/* Nope */
-				mpt->mpt2 = NULL;
-			}
-		}
+	/*
+	 * Is this part a dual?
+	 * If so, link with our partner (around yet)
+	 */
+	if ((pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC929 ||
+	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_1030) {
+		mpt_link_peer(mpt);
 	}
 
 	/* Set up the memory regions */
