@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.23 1998/05/09 09:36:38 dt Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.24 1998/05/17 21:18:08 dt Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -981,7 +981,7 @@ uniqdosname(dep, cnp, cp)
 	struct buf *bp;
 	int error;
 	
-	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME != 0)
+	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 		return (unix2dosfn((const u_char *)cnp->cn_nameptr, cp,
 		    cnp->cn_namelen, 0,
 		    pmp->pm_flags & MSDOSFSMNT_U2WTABLE, pmp->pm_u2d,
