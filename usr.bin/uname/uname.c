@@ -191,6 +191,18 @@ native_##var(void)				\
 	   &buf, &len, NULL, 0) == -1)		\
 		err(1, "sysctl");
 
+#define	NATIVE_SYSCTLNAME_GET(var,name)		\
+void						\
+native_##var(void)				\
+{						\
+	size_t len;				\
+	static char buf[1024];			\
+	char **varp = &(var);			\
+						\
+	if (sysctlbyname(name, &buf, &len, NULL,\
+	    0) == -1)				\
+		err(1, "sysctlbyname");
+
 #define	NATIVE_SET				\
 	*varp = buf;				\
 	return;					\
@@ -225,7 +237,7 @@ NATIVE_SYSCTL2_GET(platform, CTL_HW, HW_MACHINE) {
 NATIVE_SYSCTL2_GET(arch, CTL_HW, HW_MACHINE_ARCH) {
 } NATIVE_SET;
 
-NATIVE_SYSCTL2_GET(ident, CTL_KERN, KERN_IDENT) {
+NATIVE_SYSCTLNAME_GET(ident, "kern.ident") {
 } NATIVE_SET;
 
 void
