@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.8 1997/04/03 05:14:41 davidg Exp $
+ *	$Id: ip_divert.c,v 1.9 1997/05/24 17:23:11 peter Exp $
  */
 
 #include <sys/param.h>
@@ -311,6 +311,7 @@ div_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 	int s;
 	int error;
 
+	imp = sotoinpcb(so);
 	s = splnet();
 	error = in_pcbbind(inp, nam, p);
 	splx(s);
