@@ -58,7 +58,7 @@ static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
  * it is displayed from the character closest to the beginning of the input to
  * the end.
  */
-void
+int
 bytes(fp, off)
 	register FILE *fp;
 	off_t off;
@@ -80,7 +80,7 @@ bytes(fp, off)
 	}
 	if (ferror(fp)) {
 		ierr();
-		return;
+		return 1;
 	}
 
 	if (rflag) {
@@ -125,7 +125,7 @@ bytes(fp, off)
  * it is displayed from the line closest to the beginning of the input to
  * the end.
  */
-void
+int
 lines(fp, off)
 	register FILE *fp;
 	off_t off;
@@ -171,7 +171,7 @@ lines(fp, off)
 	}
 	if (ferror(fp)) {
 		ierr();
-		return;
+		return 1;
 	}
 	if (cnt) {
 		lines[recno].l = sp;

@@ -42,8 +42,8 @@ enum STYLE { NOTSET = 0, FBYTES, FLINES, RBYTES, RLINES, REVERSE };
 void forward __P((FILE *, enum STYLE, long, struct stat *));
 void reverse __P((FILE *, enum STYLE, long, struct stat *));
 
-void bytes __P((FILE *, off_t));
-void lines __P((FILE *, off_t));
+int bytes __P((FILE *, off_t));
+int lines __P((FILE *, off_t));
 
 void err __P((int fatal, const char *fmt, ...));
 void ierr __P((void));
