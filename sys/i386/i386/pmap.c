@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.108 1996/06/26 05:05:52 dyson Exp $
+ *	$Id: pmap.c,v 1.110 1996/07/27 03:23:22 dyson Exp $
  */
 
 /*
@@ -548,7 +548,7 @@ pmap_qenter(va, m, count)
 		pte = (unsigned *)vtopte(tva);
 		opte = *pte;
 		*pte = npte;
-		if (opte & PG_V)
+		if (opte)
 			pmap_update_1pg(tva);
 	}
 }
@@ -589,7 +589,7 @@ pmap_kenter(va, pa)
 	pte = (unsigned *)vtopte(va);
 	opte = *pte;
 	*pte = npte;
-	if (opte & PG_V)
+	if (opte)
 		pmap_update_1pg(va);
 }
 
@@ -1243,11 +1243,9 @@ pmap_remove_page(pmap, va)
 	 * get a local va for mappings for this pmap.
 	 */
 	ptq = get_ptbase(pmap) + i386_btop(va);
-	if (*ptq & PG_V) {
+	if (*ptq) {
 		(void) pmap_remove_pte(pmap, ptq, va);
-		if ((((unsigned)pmap->pm_pdir[PTDPTDI]) & PG_FRAME) == (((unsigned) PTDpde) & PG_FRAME)) {
-			pmap_update_1pg(va);
-		}
+		pmap_update_1pg(va);
 	}
 	return;
 }
@@ -1322,7 +1320,7 @@ pmap_remove(pmap, sva, eva)
 
 		for ( ;sindex != pdnxt; sindex++) {
 			vm_offset_t va;
-			if ((ptbase[sindex] & PG_V) == 0) {
+			if (ptbase[sindex] == 0) {
 				continue;
 			}
 			va = i386_ptob(sindex);
@@ -1380,7 +1378,7 @@ pmap_remove_all(pa)
 		pv;
 		pv = npv) {
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-		if ((tpte = *pte) & PG_V) {
+		if (tpte = *pte) {
 			pv->pv_pmap->pm_stats.resident_count--;
 			*pte = 0;
 			if (tpte & PG_W)
@@ -1575,7 +1573,7 @@ pmap_enter(pmap, va, pa, prot, wired)
 	/*
 	 * Mapping has not changed, must be protection or wiring change.
 	 */
-	if ((origpte & PG_V) && (opa == pa)) {
+	if (origpte && (opa == pa)) {
 		/*
 		 * Wiring change, just update stats. We don't worry about
 		 * wiring PT pages as they remain resident as long as there
@@ -1615,7 +1613,7 @@ pmap_enter(pmap, va, pa, prot, wired)
 	 * Mapping has changed, invalidate old range and fall through to
 	 * handle validating new mapping.
 	 */
-	if (origpte & PG_V) {
+	if (origpte) {
 		int err;
 		err = pmap_remove_pte(pmap, pte, va);
 		if (err)
@@ -1729,7 +1727,7 @@ pmap_enter_quick(pmap, va, pa, mpte)
 	 * But that isn't as quick as vtopte.
 	 */
 	pte = (unsigned *)vtopte(va);
-	if (*pte & PG_V) {
+	if (*pte) {
 		if (mpte)
 			pmap_unwire_pte_hold(pmap, mpte);
 		return NULL;
@@ -2214,7 +2212,7 @@ pmap_remove_pages(pmap, sva, eva)
 
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist.pv_list, pv, pv_plist);
 
-		if (tpte & PG_V) {
+		if (tpte) {
 			pv->pv_pmap->pm_stats.resident_count--;
 			if (tpte & PG_W)
 				pv->pv_pmap->pm_stats.wired_count--;
