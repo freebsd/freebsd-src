@@ -189,7 +189,8 @@ vinum_ldi(int driveno, int recurse)
 		printf("\n");				    /* can't print percentages */
 	    else
 		printf(" (%d%%)\n",
-		    (int) ((drive.sectors_available * 100 * DEV_BSIZE) / drive.label.drive_size));
+		    (int) ((drive.sectors_available * 100 * DEV_BSIZE)
+			/ (drive.label.drive_size - DATASTART)));
 	}
 	if (stats) {
 	    if (verbose || Verbose) {
@@ -878,7 +879,7 @@ printconfig(FILE * of, char *comment)
 		plex_org(plex.organization));
 	    if ((plex.organization == plex_striped)
 		|| (plex.organization == plex_raid5)) {
-		fprintf(of, "%db ", (int) plex.stripesize);
+		fprintf(of, "%ds ", (int) plex.stripesize);
 	    }
 	    if (plex.volno >= 0) {			    /* we have a volume */
 		get_volume_info(&vol, plex.volno);
@@ -895,7 +896,7 @@ printconfig(FILE * of, char *comment)
 	    get_drive_info(&drive, sd.driveno);
 	    get_plex_info(&plex, sd.plexno);
 	    fprintf(of,
-		"%ssd name %s drive %s plex %s len %qdb driveoffset %qdb plexoffset %qdb\n",
+		"%ssd name %s drive %s plex %s len %qds driveoffset %qds plexoffset %qds\n",
 		comment,
 		sd.name,
 		drive.label.name,
