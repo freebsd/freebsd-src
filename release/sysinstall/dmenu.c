@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.12.2.10 1996/05/24 06:08:28 jkh Exp $
+ * $Id: dmenu.c,v 1.12.2.11 1996/06/14 18:35:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,7 +51,7 @@ dmenuDisplayFile(dialogMenuItem *tmp)
 int
 dmenuSubmenu(dialogMenuItem *tmp)
 {
-    return (dmenuOpenSimple((DMenu *)(tmp->data)) ? DITEM_SUCCESS : DITEM_FAILURE) |
+    return (dmenuOpenSimple((DMenu *)(tmp->data), FALSE) ? DITEM_SUCCESS : DITEM_FAILURE) |
 	DITEM_RESTORE | DITEM_RECREATE;
 }
 
@@ -121,12 +121,12 @@ dmenuSetValue(dialogMenuItem *tmp)
 
 /* Traverse menu but give user no control over positioning */
 Boolean
-dmenuOpenSimple(DMenu *menu)
+dmenuOpenSimple(DMenu *menu, Boolean buttons)
 {
     int choice, scroll, curr, max;
 
     choice = scroll = curr = max = 0;
-    return dmenuOpen(menu, &choice, &scroll, &curr, &max);
+    return dmenuOpen(menu, &choice, &scroll, &curr, &max, buttons);
 }
 
 /* Work functions for the state hook */
@@ -180,12 +180,16 @@ menu_height(DMenu *menu, int n)
 
 /* Traverse over an internal menu */
 Boolean
-dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
+dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max, Boolean buttons)
 {
     int n, rval = 0;
+    dialogMenuItem *items;
 
+    items = menu->items;
+    if (buttons)
+	items += 2;
     /* Count up all the items */
-    for (n = 0; menu->items[n].title; n++);
+    for (n = 0; items[n].title; n++);
 
     while (1) {
 	char buf[FILENAME_MAX];
@@ -198,15 +202,15 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	dialog_clear();
 	if (menu->type & DMENU_NORMAL_TYPE)
 	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-			       menu_height(menu, n), -n, menu->items, NULL, choice, scroll);
+			       menu_height(menu, n), -n, items, (char *)buttons, choice, scroll);
 
 	else if (menu->type & DMENU_RADIO_TYPE)
 	    rval = dialog_radiolist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    menu_height(menu, n), -n, menu->items, NULL);
+				    menu_height(menu, n), -n, items, (char *)buttons);
 
 	else if (menu->type & DMENU_CHECKLIST_TYPE)
 	    rval = dialog_checklist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    menu_height(menu, n), -n, menu->items, NULL);
+				    menu_height(menu, n), -n, items, (char *)buttons);
 	else
 	    msgFatal("Menu: `%s' is of an unknown type\n", menu->title);
 	clearok(stdscr, TRUE);
