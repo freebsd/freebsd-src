@@ -5,22 +5,22 @@
 #
 
 # auth
-gdm	auth	required	pam_nologin.so	no_warn
-#gdm	auth	sufficient	pam_kerberosIV.so	no_warn	try_first_pass
-#gdm	auth	sufficient	pam_krb5.so	no_warn	try_first_pass
-#gdm	auth	sufficient	pam_ssh.so	no_warn	try_first_pass
-gdm	auth	required	pam_unix.so	no_warn	try_first_pass
+auth		required	pam_nologin.so	no_warn
+#auth		sufficient	pam_kerberosIV.so	no_warn	try_first_pass
+#auth		sufficient	pam_krb5.so	no_warn	try_first_pass
+#auth		sufficient	pam_ssh.so	no_warn	try_first_pass
+auth		required	pam_unix.so	no_warn	try_first_pass
 
 # account
-#gdm	account	required	pam_kerberosIV.so
-#gdm	account	required	pam_krb5.so
-gdm	account	required	pam_unix.so
+#account	required	pam_kerberosIV.so
+#account	required	pam_krb5.so
+account		required	pam_unix.so
 
 # session
-#gdm	session	required	pam_kerberosIV.so
-#gdm	session	required	pam_krb5.so
-#gdm	session	required	pam_ssh.so
-gdm	session	required	pam_unix.so
+#session	required	pam_kerberosIV.so
+#session	required	pam_krb5.so
+#session	required	pam_ssh.so
+session		required	pam_unix.so
 
 # password
-gdm	password required	pam_deny.so
+password	required	pam_deny.so

@@ -14,12 +14,12 @@ is a summary of the format for the pam.conf and /etc/pam.d/* files.
 
 Configuration lines take the following form:
 
-service-name	module-type	control-flag	module-path	arguments
+module-type	control-flag	module-path	arguments
 
 Comments are introduced with a hash mark ('#').  Blank lines and lines
 consisting entirely of comments are ignored.
 
-The meanings of the various fields are as follows:
+The meanings of the different fields are as follows:
  
  module-type:
    auth:      prompt for a password to authenticate that the user is

@@ -40,6 +40,7 @@ use Fcntl;
 use vars qw(%SERVICES);
 
 MAIN:{
+    my $line;
     my $service;
     my $type;
     local *FILE;
@@ -47,8 +48,11 @@ MAIN:{
     while (<>) {
 	chomp();
 	s/\s*$//;
-	next unless m/^\#*(\w+)\s+(auth|account|session|password)\s+(\S.*)$/;
-	push(@{$SERVICES{$1}->{$2}}, $_);
+	next unless m/^(\#*)(\w+)\s+(auth|account|session|password)\s+(\S.*)$/;
+	$line = $1.$3;
+	$line .= "\t" x ((16 - length($line) + 7) / 8);
+	$line .= $4;
+	push(@{$SERVICES{$2}->{$3}}, $line);
     }
 
     foreach $service (keys(%SERVICES)) {
