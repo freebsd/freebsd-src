@@ -49,6 +49,10 @@ struct ed_softc {
 	int	irq_rid;	/* resource id for irq */
 	struct resource* irq_res; /* resource for irq */
 	void*	irq_handle;	/* handle for irq handler */
+	device_t miibus;	/* MII bus for cards with MII. */
+	void	(*mii_writebits)__P((struct ed_softc *, u_int, int));
+	u_int	(*mii_readbits)__P((struct ed_softc *, int));
+	struct callout_handle tick_ch; /* Callout handle for ed_tick */
 
 	int	nic_offset;	/* NIC (DS8390) I/O bus address offset */
 	int	asic_offset;	/* ASIC I/O bus address offset */
@@ -205,6 +209,11 @@ void	ed_pio_readmem		__P((struct ed_softc *, int, unsigned char *,
 				     unsigned short));
 void	ed_pio_writemem		__P((struct ed_softc *, char *,
 				     unsigned short, unsigned short));
+int	ed_miibus_readreg	__P((device_t, int, int));
+void	ed_miibus_writereg	__P((device_t, int, int, int));
+int	ed_ifmedia_upd		__P((struct ifnet *));
+void	ed_ifmedia_sts		__P((struct ifnet *, struct ifmediareq *));
+void	ed_child_detached	__P((device_t, device_t));
 
 driver_intr_t	edintr;
 
