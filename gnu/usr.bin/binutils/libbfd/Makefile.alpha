@@ -1,0 +1,30 @@
+#
+# $Id: Makefile.i386,v 1.1 1998/03/12 02:55:26 jdp Exp $
+#
+
+SRCS+=		coff-alpha.c cpu-alpha.c ecoff.c ecofflink.c elf64-alpha.c \
+		elf64.c elflink.c
+SRCS+=		aout32.c coff-i386.c cofflink.c cpu-i386.c \
+		elf32-i386.c elf32.c i386bsd.c i386freebsd.c
+CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf64_alpha_vec
+CFLAGS+=	-DSELECT_VECS="&bfd_elf64_alpha_vec,&ecoffalpha_little_vec,&bfd_elf32_i386_vec,&i386freebsd_vec,&i386bsd_vec,&i386coff_vec"
+CFLAGS+=	-DSELECT_ARCHITECTURES="&bfd_alpha_arch,&bfd_i386_arch"
+CFLAGS+=	-DHAVE_bfd_elf64_alpha_vec
+CFLAGS+=	-DHAVE_ecoffalpha_little_vec
+CFLAGS+=	-DHAVE_bfd_elf32_i386_vec
+CFLAGS+=	-DHAVE_i386freebsd_vec
+CFLAGS+=	-DHAVE_i386bsd_vec
+CFLAGS+=	-DHAVE_i386coff_vec
+CLEANFILES+=	elf64-target.h 	elf32-target.h
+
+beforedepend: elf64-target.h elf32-target.h
+
+elf64-alpha.o: elf64-target.h
+
+elf32-i386.o: elf32-target.h
+
+elf64-target.h: elfxx-target.h
+	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
+
+elf32-target.h: elfxx-target.h
+	sed -e s/NN/32/g ${.ALLSRC} > ${.TARGET}
