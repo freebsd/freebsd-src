@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.34 1998/12/07 21:58:32 archie Exp $
+ * $Id: portal_vnops.c,v 1.35 1999/01/12 11:49:30 eivind Exp $
  */
 
 /*
@@ -449,7 +449,6 @@ portal_getattr(ap)
 	vattr_null(vap);
 	vap->va_uid = 0;
 	vap->va_gid = 0;
-	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	vap->va_size = DEV_BSIZE;
 	vap->va_blocksize = DEV_BSIZE;
 	nanotime(&vap->va_atime);
