@@ -1,3 +1,0 @@
-/dev/wd0a	/		ufs	rw 1 1
-#/dev/wd0d	/var		ufs	rw 1 2
-#/dev/wd0h	/usr		ufs	rw 1 3
