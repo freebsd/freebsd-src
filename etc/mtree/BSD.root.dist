@@ -38,6 +38,8 @@
 #             s               uname=bind gname=bind mode=0750
 #             ..
         ..
+	pam.d
+	..
         periodic
             daily
             ..
