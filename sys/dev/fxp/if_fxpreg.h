@@ -291,18 +291,18 @@ struct fxp_cb_tx {
 	 * fetched along with the TxCB.
 	 */
 	union {
-		struct fxp_ipcb;
+		struct fxp_ipcb ipcb;
 		struct fxp_tbd tbd[FXP_NTXSEG];
 	} tx_cb_u;
 };
 
 #define tbd			tx_cb_u.tbd
-#define ipcb_schedule_low	tx_cb_u.ipcb_schedule_low
-#define ipcb_ip_schedule	tx_cb_u.ipcb_ip_schedule
-#define ipcb_ip_activation_high tx_cb_u.ipcb_ip_activation_high
-#define ipcb_vlan_id		tx_cb_u.ipcb_vlan_id
-#define ipcb_ip_header_offset	tx_cb_u.ipcb_ip_header_offset
-#define ipcb_tcp_header_offset	tx_cb_u.ipcb_tcp_header_offset
+#define ipcb_schedule_low	tx_cb_u.ipcb.ipcb_schedule_low
+#define ipcb_ip_schedule	tx_cb_u.ipcb.ipcb_ip_schedule
+#define ipcb_ip_activation_high tx_cb_u.ipcb.ipcb_ip_activation_high
+#define ipcb_vlan_id		tx_cb_u.ipcb.ipcb_vlan_id
+#define ipcb_ip_header_offset	tx_cb_u.ipcb.ipcb_ip_header_offset
+#define ipcb_tcp_header_offset	tx_cb_u.ipcb.ipcb_tcp_header_offset
 
 /*
  * IPCB field definitions
