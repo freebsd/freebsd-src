@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.9 1997/05/07 22:25:27 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.10 1997/05/22 22:35:42 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -174,10 +174,8 @@ mp_start(void)
 	/* look for MP capable motherboard */
 	if (mp_probe(base_memory))
 		mp_enable(boot_address);
-	else {
-		printf( "MP FPS not found, can't continue!\n" );
-		panic( "\n" );
-	}
+	else
+		panic( "MP FPS not found, can't continue!" );
 
 	/* finish pmap initialization - turn off V==P mapping at zero */
 	pmap_bootstrap2();
@@ -331,10 +329,8 @@ mp_enable(u_int boot_addr)
 
 	/* program each IO APIC in the system */
 	for (apic = 0; apic < mp_napics; ++apic)
-          if (io_apic_setup(apic) < 0) {
-		printf( "IO APIC setup failure\n" );
-		panic( "\n" );
-          }
+          if (io_apic_setup(apic) < 0)
+		panic( "IO APIC setup failure" );
 
 	/* install an inter-CPU IPI for TLB invalidation */
 	setidt(ICU_OFFSET + XINVLTLB_OFFSET, Xinvltlb,
@@ -598,10 +594,8 @@ parse_mp_table(void)
 	}
 #endif	/* TEST_DEFAULT_CONFIG */
 
-	if ((cth = fps->pap) == 0) {
-		printf( "MP Configuration Table Header MISSING!\n" );
-		panic( "\n" );
-        }
+	if ((cth = fps->pap) == 0)
+		panic( "MP Configuration Table Header MISSING!" );
 
 	cpu_apic_address = (vm_offset_t) cth->apic_address;
 
@@ -634,8 +628,7 @@ parse_mp_table(void)
 			/* int_entry(position); */
 			break;
 		default:
-			printf( "mpfps Base Table HOSED!\n" );
-			panic( "\n" );
+			panic( "mpfps Base Table HOSED!" );
 			/* NOTREACHED */
 		}
 
@@ -643,10 +636,8 @@ parse_mp_table(void)
 		(u_char *) position += basetable_entry_types[type].length;
 	}
 
-	if (boot_cpu_id == -1) {
-		printf( "NO BSP found!\n" );
-		panic( "\n" );
-	}
+	if (boot_cpu_id == -1)
+		panic( "NO BSP found!" );
 
 	/* record # of APs found */
 	mp_naps = (cpu - 1);
@@ -739,10 +730,8 @@ fix_mp_table(void)
 		for (x = 0; x < mp_nbusses; ++x) {
 			if (bus_data[x].bus_type != PCI)
 				continue;
-			if (bus_data[x].bus_id >= num_pci_bus ) {
-				printf( "bad PCI bus numbering\n" );
-				panic( "\n" );
-			}
+			if (bus_data[x].bus_id >= num_pci_bus )
+				panic( "bad PCI bus numbering" );
 		}
 	}
 }
@@ -784,10 +773,8 @@ bus_entry(bus_entry_ptr entry, int *bus)
 	char    name[8];
 	char    c;
 
-	if ((x = (*bus)++) == NBUS) {
-		printf( "too many busses, increase 'NBUS'\n" );
-		panic( "\n" );
-	}
+	if ((x = (*bus)++) == NBUS)
+		panic( "too many busses, increase 'NBUS'" );
 
 	/* encode the name into an index */
 	for (y = 0; y < 6; ++y) {
@@ -797,10 +784,8 @@ bus_entry(bus_entry_ptr entry, int *bus)
 	}
 	name[y] = '\0';
 
-	if ((y = lookup_bus_type(name)) == UNKNOWN_BUSTYPE) {
-		printf( "unknown bus type: '%s'\n", name );
-		panic( "\n" );
-	}
+	if ((y = lookup_bus_type(name)) == UNKNOWN_BUSTYPE)
+		panic( "unknown bus type: '%s'", name );
 
 	bus_data[x].bus_id = entry->bus_id;
 	bus_data[x].bus_type = y;
@@ -815,10 +800,8 @@ io_apic_entry(io_apic_entry_ptr entry, int *apic)
 	if (!(entry->apic_flags & IOAPICENTRY_FLAG_EN))
 		return;
 
-	if ((x = (*apic)++) == NAPIC) {
-		printf( "too many APICs, increase 'NAPIC'\n" );
-		panic( "\n" );
-	}
+	if ((x = (*apic)++) == NAPIC)
+		panic( "too many APICs, increase 'NAPIC'" );
 
 	IO_TO_ID(x) = entry->apic_id;
 	ID_TO_IO(entry->apic_id) = x;
@@ -845,10 +828,8 @@ int_entry(int_entry_ptr entry, int *intr)
 {
 	int     x;
 
-	if ((x = (*intr)++) == NINTR) {
-		printf( "too many INTs, increase 'NINTR'\n" );
-		panic( "\n" );
-	}
+	if ((x = (*intr)++) == NINTR)
+		panic( "too many INTs, increase 'NINTR'" );
 
 	io_apic_ints[x].int_type = entry->int_type;
 	io_apic_ints[x].int_flags = entry->int_flags;
@@ -1218,10 +1199,8 @@ default_mp_table(int type)
 		ux |= 0x02000000;	/* set it to '2' */
 		io_apic_write(0, IOAPIC_ID, ux);	/* write new value */
 		ux = io_apic_read(0, IOAPIC_ID);	/* re-read && test */
-		if ((ux & APIC_ID_MASK) != 0x02000000) {
-			printf( "can't control IO APIC ID, reg: 0x%08x\n", ux );
-			panic( "\n" );
-		}
+		if ((ux & APIC_ID_MASK) != 0x02000000)
+			panic( "can't control IO APIC ID, reg: 0x%08x", ux );
 		io_apic_id = 2;
 	}
 	IO_TO_ID(0) = io_apic_id;
@@ -1247,8 +1226,8 @@ default_mp_table(int type)
 
 	/* case 4: case 7:		   MCA NOT supported */
 	default:		/* illegal/reserved */
-		printf( "BAD default MP config: %d\n", type );
-		panic( "\n" );
+		panic( "BAD default MP config: %d", type );
+		/* NOTREACHED */
 	}
 
 #if defined(APIC_IO)
@@ -1268,8 +1247,7 @@ default_mp_table(int type)
 		io_apic_ints[13].int_type = 0xff;	/* N/C */
 #if !defined(APIC_MIXED_MODE)
 		/** FIXME: ??? */
-		printf( "sorry, can't support type 2 default yet\n" );
-		panic( "\n" );
+		panic( "sorry, can't support type 2 default yet" );
 #endif	/* APIC_MIXED_MODE */
 	}
 	else
@@ -1337,10 +1315,8 @@ start_all_aps(u_int boot_addr)
 			 * somewhere
 			 */
 			printf("panic y/n? [n] ");
-			if (cngetc() != 'n') {
-				printf( "bye-bye\n" );
-				panic( "\n" );
-			}
+			if (cngetc() != 'n')
+				panic( "bye-bye" );
 		}
 		CHECK_PRINT("trace");	/* show checkpoints */
 
