@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.16 1998/01/22 17:29:49 dyson Exp $
+ * $Id: kern_subr.c,v 1.17 1998/02/04 22:32:34 eivind Exp $
  */
 
 #include "opt_diagnostic.h"
@@ -193,8 +193,9 @@ uioread(n, uio, obj, nread)
 	int error;
 
 	*nread = 0;
-	if (vfs_ioopt > 1)
+	if (vfs_ioopt < 2)
 		return 0;
+
 	error = 0;
 
 	while (n > 0 && uio->uio_resid) {

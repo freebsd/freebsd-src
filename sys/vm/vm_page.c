@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.89 1998/01/31 20:30:18 dyson Exp $
+ *	$Id: vm_page.c,v 1.90 1998/02/04 22:33:52 eivind Exp $
  */
 
 /*
@@ -96,10 +96,10 @@ static vm_page_t vm_page_select_free __P((vm_object_t object,
  *	page structure.
  */
 
-static int vm_page_bucket_generation;	/* generation id for buckets */
 static struct pglist *vm_page_buckets;	/* Array of buckets */
 static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
+static volatile int vm_page_bucket_generation;
 
 struct pglist vm_page_queue_free[PQ_L2_SIZE] = {0};
 struct pglist vm_page_queue_zero[PQ_L2_SIZE] = {0};
@@ -355,7 +355,6 @@ vm_page_startup(starta, enda, vaddr)
 			pa += PAGE_SIZE;
 		}
 	}
-
 	return (mapped);
 }
 
@@ -391,8 +390,10 @@ vm_page_insert(m, object, pindex)
 {
 	register struct pglist *bucket;
 
+#if !defined(MAX_PERF)
 	if (m->flags & PG_TABLED)
 		panic("vm_page_insert: already inserted");
+#endif
 
 	/*
 	 * Record the object/offset pair in this page
@@ -446,13 +447,16 @@ vm_page_remove(m)
 	register vm_page_t m;
 {
 	register struct pglist *bucket;
+	vm_object_t object;
 
 	if (!(m->flags & PG_TABLED))
 		return;
 
+#if !defined(MAX_PERF)
 	if ((m->flags & PG_BUSY) == 0) {
 		panic("vm_page_remove: page not busy");
 	}
+#endif
 	
 	m->flags &= ~PG_BUSY;
 	if (m->flags & PG_WANTED) {
@@ -460,14 +464,15 @@ vm_page_remove(m)
 		wakeup(m);
 	}
 
-	if (m->object->page_hint == m)
-		m->object->page_hint = NULL;
+	object = m->object;
+	if (object->page_hint == m)
+		object->page_hint = NULL;
 
 	if (m->wire_count)
-		m->object->wire_count--;
+		object->wire_count--;
 
 	if ((m->queue - m->pc) == PQ_CACHE) 
-		m->object->cache_count--;
+		object->cache_count--;
 
 	/*
 	 * Remove from the object_object/offset hash table
@@ -481,14 +486,15 @@ vm_page_remove(m)
 	 * Now remove from the object's list of backed pages.
 	 */
 
-	TAILQ_REMOVE(&m->object->memq, m, listq);
+	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
 	 * And show that the object has one fewer resident page.
 	 */
 
-	m->object->resident_page_count--;
-	m->object->generation++;
+	object->resident_page_count--;
+	object->generation++;
+	m->object = NULL;
 
 	m->flags &= ~PG_TABLED;
 }
@@ -509,25 +515,30 @@ vm_page_lookup(object, pindex)
 {
 	register vm_page_t m;
 	register struct pglist *bucket;
-	int curgeneration;
+	int generation;
 	int s;
 
 	/*
 	 * Search the hash table for this object/offset pair
 	 */
 
-	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
+	if (object->page_hint && (object->page_hint->pindex == pindex) &&
+		(object->page_hint->object == object))
+		return object->page_hint;
 
-restart:
-	curgeneration = vm_page_bucket_generation;
+retry:
+	generation = vm_page_bucket_generation;
+	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
 	for (m = TAILQ_FIRST(bucket); m != NULL; m = TAILQ_NEXT(m,hashq)) {
-		if (curgeneration != vm_page_bucket_generation)
-			goto restart;
 		if ((m->object == object) && (m->pindex == pindex)) {
+			if (vm_page_bucket_generation != generation)
+				goto retry;
 			m->object->page_hint = m;
 			return (m);
 		}
 	}
+	if (vm_page_bucket_generation != generation)
+		goto retry;
 	return (NULL);
 }
 
@@ -569,7 +580,8 @@ vm_page_unqueue_nowakeup(m)
 		(*pq->cnt)--;
 		(*pq->lcnt)--;
 		if ((queue - m->pc) == PQ_CACHE) {
-			m->object->cache_count--;
+			if (m->object)
+				m->object->cache_count--;
 		}
 	}
 }
@@ -593,7 +605,8 @@ vm_page_unqueue(m)
 			if ((cnt.v_cache_count + cnt.v_free_count) <
 				(cnt.v_free_reserved + cnt.v_cache_min))
 				pagedaemon_wakeup();
-			m->object->cache_count--;
+			if (m->object)
+				m->object->cache_count--;
 		}
 	}
 }
@@ -890,7 +903,10 @@ vm_page_alloc(object, pindex, page_req)
 		break;
 
 	default:
+		m = NULL;
+#if !defined(MAX_PERF)
 		panic("vm_page_alloc: invalid allocation class");
+#endif
 	}
 
 	queue = m->queue;
@@ -1045,12 +1061,15 @@ vm_page_freechk_and_unqueue(m)
 	}
 
 	if (m->wire_count != 0) {
+#if !defined(MAX_PERF)
 		if (m->wire_count > 1) {
 			panic("vm_page_free: invalid wire count (%d), pindex: 0x%x",
 				m->wire_count, m->pindex);
 		}
+#endif
 		m->wire_count = 0;
-		m->object->wire_count--;
+		if (m->object)
+			m->object->wire_count--;
 		cnt.v_wire_count--;
 	}
 
@@ -1223,7 +1242,9 @@ vm_page_unwire(m)
 			cnt.v_active_count++;
 		}
 	} else {
+#if !defined(MAX_PERF)
 		panic("vm_page_unwire: invalid wire count: %d\n", m->wire_count);
+#endif
 	}
 	splx(s);
 }
@@ -1278,17 +1299,21 @@ vm_page_cache(m)
 {
 	int s;
 
+#if !defined(MAX_PERF)
 	if ((m->flags & PG_BUSY) || m->busy || m->wire_count) {
 		printf("vm_page_cache: attempting to cache busy page\n");
 		return;
 	}
+#endif
 	if ((m->queue - m->pc) == PQ_CACHE)
 		return;
 
 	vm_page_protect(m, VM_PROT_NONE);
+#if !defined(MAX_PERF)
 	if (m->dirty != 0) {
 		panic("vm_page_cache: caching a dirty page, pindex: %d", m->pindex);
 	}
+#endif
 	s = splvm();
 	vm_page_unqueue_nowakeup(m);
 	m->queue = PQ_CACHE + m->pc;
@@ -1300,6 +1325,54 @@ vm_page_cache(m)
 	splx(s);
 }
 
+/*
+ * Grab a page, waiting until we are waken up due to the page
+ * changing state.  We keep on waiting, if the page continues
+ * to be in the object.  If the page doesn't exist, allocate it.
+ */
+vm_page_t
+vm_page_grab(object, pindex, allocflags)
+	vm_object_t object;
+	vm_pindex_t pindex;
+	int allocflags;
+{
+
+	vm_page_t m;
+	int s, generation;
+
+retrylookup:
+	if ((m = vm_page_lookup(object, pindex)) != NULL) {
+		if (m->busy || (m->flags & PG_BUSY)) {
+			generation = object->generation;
+
+			s = splvm();
+			while ((object->generation == generation) &&
+					(m->busy || (m->flags & PG_BUSY))) {
+				m->flags |= PG_WANTED | PG_REFERENCED;
+				tsleep(m, PVM, "pgrbwt", 0);
+				if ((allocflags & VM_ALLOC_RETRY) == 0) {
+					splx(s);
+					return NULL;
+				}
+			}
+			splx(s);
+			goto retrylookup;
+		} else {
+			m->flags |= PG_BUSY;
+			return m;
+		}
+	}
+
+	m = vm_page_alloc(object, pindex, allocflags & ~VM_ALLOC_RETRY);
+	if (m == NULL) {
+		VM_WAIT;
+		if ((allocflags & VM_ALLOC_RETRY) == 0)
+			return NULL;
+		goto retrylookup;
+	}
+
+	return m;
+}
 
 /*
  * mapping function for valid bits or for dirty bits in
@@ -1400,12 +1473,14 @@ contigmalloc1(size, type, flags, low, high, alignment, boundary, map)
 	vm_page_t pga = vm_page_array;
 
 	size = round_page(size);
+#if !defined(MAX_PERF)
 	if (size == 0)
 		panic("contigmalloc1: size must not be 0");
 	if ((alignment & (alignment - 1)) != 0)
 		panic("contigmalloc1: alignment must be a power of 2");
 	if ((boundary & (boundary - 1)) != 0)
 		panic("contigmalloc1: boundary must be a power of 2");
+#endif
 
 	start = 0;
 	for (pass = 0; pass <= 1; pass++) {
