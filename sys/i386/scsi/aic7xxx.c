@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.39 1995/10/26 23:57:16 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.40 1995/10/28 17:27:21 gibbs Exp $
  */
 /*
  * TODO:
@@ -2081,7 +2081,9 @@ ahc_init(unit)
 		outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
 		outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIPERR);
 		if(ahc->type & AHC_ULTRA)
-			outb(SXFRCTL0 + iobase, ULTRAEN);
+			outb(SXFRCTL0 + iobase, DFON|SPIOEN|ULTRAEN);
+		else
+			outb(SXFRCTL0 + iobase, DFON|SPIOEN);
 
 		/* Reset the bus */
 		outb(SCSISEQ + iobase, SCSIRSTO);
@@ -2096,7 +2098,9 @@ ahc_init(unit)
 	outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
 	outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIPERR);
 	if(ahc->type & AHC_ULTRA)
-		outb(SXFRCTL0 + iobase, ULTRAEN);
+		outb(SXFRCTL0 + iobase, DFON|SPIOEN|ULTRAEN);
+	else
+		outb(SXFRCTL0 + iobase, DFON|SPIOEN);
 
 	/* Reset the bus */
 	outb(SCSISEQ + iobase, SCSIRSTO);
