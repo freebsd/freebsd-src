@@ -246,7 +246,7 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
 #ifdef HAVE_DES
   lcp->cfg.chap80nt = NEG_ACCEPTED;
   lcp->cfg.chap80lm = NEG_ACCEPTED;
-  lcp->cfg.chap81 = 0;
+  lcp->cfg.chap81 = NEG_ACCEPTED;
 #endif
   lcp->cfg.lqr = NEG_ACCEPTED;
   lcp->cfg.pap = NEG_ACCEPTED;
