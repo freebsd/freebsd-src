@@ -177,7 +177,7 @@ c_func  setip6vltime;
 c_func2	setip6lifetime;
 #endif
 c_func	setifipdst;
-c_func	setifflags, setifmetric, setifmtu, setiflladdr, setifcap;
+c_func	setifflags, setifmetric, setifmtu, setifcap;
 c_func	clone_destroy;
 
 
@@ -282,7 +282,6 @@ struct	cmd {
 	{ "compress",	IFF_LINK0,	setifflags },
 	{ "noicmp",	IFF_LINK1,	setifflags },
 	{ "mtu",	NEXTARG,	setifmtu },
-	{ "lladdr",	NEXTARG,	setiflladdr },
 	{ 0,		0,		setifaddr },
 	{ 0,		0,		setifdstaddr },
 };
@@ -295,8 +294,8 @@ typedef	void af_status __P((int, struct rt_addrinfo *));
 typedef	void af_getaddr __P((const char *, int));
 typedef void af_getprefix __P((const char *, int));
 
-af_status	in_status, at_status, ether_status;
-af_getaddr	in_getaddr, at_getaddr, ether_getaddr;
+af_status	in_status, at_status, link_status;
+af_getaddr	in_getaddr, at_getaddr, link_getaddr;
 
 #ifndef NO_IPX
 af_status	ipx_status;
@@ -344,7 +343,11 @@ struct	afswtch {
 	{ "ns", AF_NS, xns_status, xns_getaddr, NULL,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 #endif
-	{ "ether", AF_LINK, ether_status, ether_getaddr, NULL,
+	{ "link", AF_LINK, link_status, link_getaddr, NULL,
+	     0, SIOCSIFLLADDR, NULL, C(ridreq) },
+	{ "ether", AF_LINK, link_status, link_getaddr, NULL,
+	     0, SIOCSIFLLADDR, NULL, C(ridreq) },
+	{ "lladdr", AF_LINK, link_status, link_getaddr, NULL,
 	     0, SIOCSIFLLADDR, NULL, C(ridreq) },
 #if 0	/* XXX conflicts with the media command */
 #ifdef USE_IF_MEDIA
@@ -610,7 +613,7 @@ main(argc, argv)
 					continue; /* not down */
 			if (namesonly) {
 				if (afp == NULL ||
-					afp->af_status != ether_status ||
+					afp->af_status != link_status ||
 					sdl->sdl_type == IFT_ETHER) {
 					if (need_nl)
 						putchar(' ');
@@ -1073,30 +1076,6 @@ setifmtu(val, dummy, s, afp)
 		warn("ioctl (set mtu)");
 }
 
-void
-setiflladdr(val, dummy, s, afp)
-	const char *val;
-	int dummy __unused;
-	int s;
-	const struct afswtch *afp;
-{
-	struct ether_addr	*ea;
-
-	ea = ether_aton(val);
-	if (ea == NULL) {
-		warn("malformed link-level address");
-		return;
-	}
-	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
-	ifr.ifr_addr.sa_len = ETHER_ADDR_LEN;
-	ifr.ifr_addr.sa_family = AF_LINK;
-	bcopy(ea, ifr.ifr_addr.sa_data, ETHER_ADDR_LEN);
-	if (ioctl(s, SIOCSIFLLADDR, (caddr_t)&ifr) < 0)
-		warn("ioctl (set lladdr)");
-
-	return;
-}
-
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
@@ -1176,8 +1155,8 @@ status(afp, addrcount, sdl, ifm, ifam)
 		addrcount--;
 		ifam = (struct ifa_msghdr *)((char *)ifam + ifam->ifam_msglen);
 	}
-	if (allfamilies || afp->af_status == ether_status)
-		ether_status(s, (struct rt_addrinfo *)sdl);
+	if (allfamilies || afp->af_status == link_status)
+		link_status(s, (struct rt_addrinfo *)sdl);
 #ifdef USE_IF_MEDIA
 	if (allfamilies || afp->af_status == media_status)
 		media_status(s, NULL);
@@ -1195,7 +1174,7 @@ status(afp, addrcount, sdl, ifm, ifam)
 		printf("%s", ifs.ascii);
 
 	if (!allfamilies && !p && afp->af_status != media_status &&
-	    afp->af_status != ether_status
+	    afp->af_status != link_status
 #ifdef USE_VLANS
 	    && afp->af_status != vlan_status
 #endif
@@ -1541,23 +1520,20 @@ xns_status(s, info)
 
 
 void
-ether_status(s, info)
+link_status(s, info)
 	int s __unused;
 	struct rt_addrinfo *info;
 {
-	char *cp;
 	int n;
 	struct sockaddr_dl *sdl = (struct sockaddr_dl *)info;
 
-	cp = (char *)LLADDR(sdl);
 	if ((n = sdl->sdl_alen) > 0) {
-		if (sdl->sdl_type == IFT_ETHER)
-			printf ("\tether ");
+		if (sdl->sdl_type == IFT_ETHER &&
+		    sdl->sdl_alen == ETHER_ADDR_LEN)
+			printf("\tether %s\n",
+			    ether_ntoa((struct ether_addr *)LLADDR(sdl)));
 		else
-			printf ("\tlladdr ");
-             	while (--n >= 0)
-			printf("%02x%c",*cp++ & 0xff, n>0? ':' : ' ');
-		putchar('\n');
+			printf("\tlladdr %s\n", link_ntoa(sdl) + n + 1);
 	}
 }
 
@@ -1771,21 +1747,28 @@ at_getaddr(addr, which)
 }
 
 void
-ether_getaddr(addr, which)
+link_getaddr(addr, which)
 	const char *addr;
 	int which;
 {
-	struct ether_addr *ea;
-	struct sockaddr *sea = &ridreq.ifr_addr;
+	char *temp;
+	struct sockaddr_dl sdl;
+	struct sockaddr *sa = &ridreq.ifr_addr;
 
-	ea = ether_aton(addr);
-	if (ea == NULL)
-		errx(1, "malformed ether address");
-	if (which == MASK)
-		errx(1, "Ethernet does not use netmasks");
-	sea->sa_family = AF_LINK;
-	sea->sa_len = ETHER_ADDR_LEN;
-	bcopy(ea, sea->sa_data, ETHER_ADDR_LEN);
+	if (which != ADDR)
+		errx(1, "can't set link-level netmask or broadcast");
+	if ((temp = malloc(strlen(addr) + 1)) == NULL)
+		errx(1, "malloc failed");
+	temp[0] = ':';
+	strcpy(temp + 1, addr);
+	sdl.sdl_len = sizeof(sdl);
+	link_addr(temp, &sdl);
+	free(temp);
+	if (sdl.sdl_alen > sizeof(sa->sa_data))
+		errx(1, "malformed link-level address");
+	sa->sa_family = AF_LINK;
+	sa->sa_len = sdl.sdl_alen;
+	bcopy(LLADDR(&sdl), sa->sa_data, sdl.sdl_alen);
 }
 
 /* XXX  FIXME -- should use strtoul for better parsing. */
