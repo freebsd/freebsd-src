@@ -137,7 +137,6 @@ ddp_route( struct mbuf *m, struct route *ro)
 	    }
 	}
     } else {
-	printf( "ddp_route: still have no valid route\n");
 	m_freem( m );
 	return( EINVAL );
     }
