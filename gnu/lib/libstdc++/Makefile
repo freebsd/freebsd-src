@@ -31,7 +31,8 @@ SRCS+=	globals.cc limits.cc basic_file_stdio.cc complex_io.cc ios.cc \
 	collate_members.cc ctype_members.cc messages_members.cc \
 	monetary_members.cc numeric_members.cc time_members.cc concept-inst.cc \
 	locale-inst.cc misc-inst.cc stl-inst.cc string-inst.cc wstring-inst.cc \
-	valarray-inst.cc ext-inst.cc
+	valarray-inst.cc ext-inst.cc fstream.cc fstream-inst.cc io-inst.cc \
+	istream-inst.cc ostream-inst.cc streambuf-inst.cc sstream-inst.cc
 
 # C parts of math
 SRCS+=	nan.c signbit.c signbitf.c signbitl.c stubs.c
@@ -47,7 +48,7 @@ SRCS+=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc \
 SRCS+=	cp-demangle.c dyn-string.c
 
 strstream-fixed.cc:	${SRCDIR}/src/strstream.cc
-	sed -e 's,^#include <strstream.h>,#include <backward/strstream.h>,g' \
+	sed -e 's,^#include <strstream>,#include <backward/strstream>,g' \
 	    < ${SRCDIR}/src/strstream.cc > strstream-fixed.cc
 
 CLEANFILES+=	strstream-fixed.cc
