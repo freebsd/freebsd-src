@@ -203,6 +203,24 @@
 	$rootdev explicitly.
 
 ################################################################################
+# Tset Stunables DSet kernel tunable values
+
+	Various kernel tunable parameters can be overriden by specifying new 
+	values in the environment.
+
+	set kern.ipc.nmbclusters=<value>	NMBCLUSTERS
+
+		Set the number of mbuf clusters to be allocated.  The value
+		cannot be set below the default determined when the kernel
+		was compiled.
+
+	set kern.vm.kmem.size=<value>		VM_KMEM_SIZE
+
+		Sets the size of kernel memory (bytes).  This overrides
+		completely the value determined when the kernel was
+		compiled.
+
+################################################################################
 # Tshow DShow the values of variables
 
 	show [<variable>]
