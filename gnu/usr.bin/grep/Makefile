@@ -1,5 +1,6 @@
-#	$Id$
+#	$Id: Makefile,v 1.10 1997/12/20 18:46:06 wosch Exp $
 
+CFLAGS=-g
 GREP_LIBZ= YES
 GREP_FTS=  YES
 
@@ -20,6 +21,9 @@ LDADD+= -lgnuregex
 LDADD+= -lz
 DPADD+= ${LIBZ}
 CFLAGS+= -DHAVE_LIBZ=1
+LINKS+= ${BINDIR}/grep ${BINDIR}/zgrep \
+	${BINDIR}/grep ${BINDIR}/zegrep \
+	${BINDIR}/grep ${BINDIR}/zfgrep 
 .endif
 .if defined(GREP_FTS) && !empty(GREP_FTS)
 CFLAGS+= -DHAVE_FTS=1
