@@ -437,6 +437,7 @@ main(int argc, char **argv)
                 case EX_NORMAL:
 	          prompt_Printf(prompt, "PPP enabled\n");
 	          log_Printf(LogPHASE, "Parent: PPP enabled\n");
+	          break;
                 case EX_REDIAL:
                   if (!sw.quiet)
 	            prompt_Printf(prompt, "Attempting redial\n");
