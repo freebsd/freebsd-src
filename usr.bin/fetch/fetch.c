@@ -157,7 +157,7 @@ stat_bytes(size_t bytes)
 		bytes /= 1024;
 		prefix++;
 	}
-	snprintf(str, sizeof str, "%4ju %cB", (uintmax_t)bytes, *prefix);
+	snprintf(str, sizeof str, "%4zu %cB", bytes, *prefix);
 	return (str);
 }
 
