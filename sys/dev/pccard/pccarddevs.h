@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.27 2002/01/29 06:09:39 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.28 2002/03/17 05:05:42 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.159 2002/01/28 09:25:33 aymeric Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
@@ -89,6 +89,7 @@
 #define	PCMCIA_VENDOR_TELECOMDEVICE	0x021b	/* Telecom Device */
 #define	PCMCIA_VENDOR_NOKIA	0x023d	/* Nokia Communications */
 #define	PCMCIA_VENDOR_SAMSUNG	0x0250	/* Samsung */
+#define	PCMCIA_VENDOR_HWN	0x0261	/* Home Wireless Networks */
 #define	PCMCIA_VENDOR_SYMBOL	0x026c	/* Symbol */
 #define	PCMCIA_VENDOR_BUFFALO	0x026f	/* BUFFALO (Melco Corporation) */
 #define	PCMCIA_VENDOR_LINKSYS2	0x0274	/* The Linksys Group */
@@ -297,6 +298,11 @@
 #define	PCMCIA_CIS_FUJITSU_LA501	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_FUJITSU_LA501	0x2000
 #define	PCMCIA_STR_FUJITSU_LA501	"Fujitsu Towa LA501 Ethernet"
+
+/* Home Wireless Networks */
+#define	PCMCIA_CIS_HWN_AIRWAY80211	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_HWN_AIRWAY80211	0x0002
+#define	PCMCIA_STR_HWN_AIRWAY80211	"HWN Airway Wireless PCMCIA Card"
 
 /* IBM Products */
 #define	PCMCIA_CIS_IBM_MICRODRIVE	{ NULL, NULL, NULL, NULL }
