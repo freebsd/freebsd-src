@@ -41,18 +41,23 @@
 .Nm gbde
 .Nd Geom Based Disk Encryption.
 .Sh SYNOPSIS
-options GEOM_BDE
+.Cd options GEOM_BDE
 .Sh DESCRIPTION
 .Pp
 The objective of this facility is to provide a high degree of
-denial of access to the contents of a "cold" storage device.
+denial of access to the contents of a
+.Dq cold
+storage device.
 .Pp
 Be aware that if the computer is compromised while up and running
-AND the storage device is actively attached and opened with a valid
+.Em and
+the storage device is actively attached and opened with a valid
 pass-phrase, this facility offers no protection or denial of access
 to the contents of the storage device.
 .Pp
-If on the other hand, the device is "cold" it should present an formidable
+If on the other hand, the device is
+.Dq cold
+it should present an formidable
 challege for an attacker to gain access to the contents in the absense of
 a valid pass-phrase.
 .Pp
@@ -60,12 +65,14 @@ Four cryptographic barriers must be passed to gain access to the data,
 and only a valid pass-phrase will allow yield this access.
 .Pp
 When the pass-phrase is entered, it is used to seed an ARC4 based
-byte oriented PNRG which is used to produce what we call the "key-material".
+byte oriented PNRG which is used to produce what we call the
+.Dq key-material .
 This is a way to producing cryptographic usable keys from a typically
 all-ASCII pass-phrase of an unpredictable user-selected length.
-.Ss First barrier: the location of the "master-lock" sector.
+.Ss First barrier: the location of the \&"master-lock" sector.
 During initialization, up to four indepenent but mutually aware
-"master-key" sectors are written to the device in randomly chosen
+.Dq master-key
+sectors are written to the device in randomly chosen
 locations.
 These master-keys contain a 2048 random bit key and a number of parameters
 of the layout geometry (more on this later).
@@ -73,9 +80,10 @@ Since the entire device will contain isotropic data, there is no way
 short of trying, to determine which sequence of bytes contain 
 the encrypted master-key.
 .Pp
-To find one of these sectors, a small piece of data called the "lockdata"
+To find one of these sectors, a small piece of data called the
+.Dq lockdata
 and the key-material must be available.
-The keymaterial decrypts the
+The key-material decrypts the
 lockdata, which contains the byte offset on the device where the
 master-key is located.
 If the lockdata is lost or unavailable but the key-material is at
@@ -97,15 +105,18 @@ locate the corresponding encrypted sectors on the device, gaining access
 to the plaintext context of other sectors is a daunting task:
 First he will have to derive from the encrypted sector and the known plain
 text the sector key(s) used.
-(At the time of writing, it is speculcated that it could maybe be possible
+(At the time of writing, it is speculated that it could maybe be possible
 to do so in only 2^80 operations which is still a staggering number).
 .Pp
 Armed with one or more sector keys, our patient attacker will then go
 through essentially the same exercise, using the sector key and the
 encrypted sector key to find the key used to encrypt the sectorkey.
 .Pp
-Armed with one or more of these "key-keys" our attacker has to derive
-as much information about the 2048 bit master-key.  To do so, he
+Armed with one or more of these
+.Dq key-keys ,
+our attacker has to derive
+as much information about the 2048 bit master-key.
+To do so, he
 first has to reverse an MD5 hash, and then the PRNG-like algorithm
 which derives the MD5 input from the master-key.
 .Pp
@@ -120,7 +131,7 @@ applied to an individual to divulge the pass-phrase.
 .Pp
 A "Blackening" feature, given a moment of opportunity, provides a way
 for the user to destroy the master-key in such a way that the pass-phrase
-will still be acknowleded as good but access to the data will still be
+will still be acknowlegded as good but access to the data will still be
 denied.
 .Ss A practical analogy
 For persons who think cryptography is only slightly more interesting than
@@ -170,7 +181,7 @@ the vault.
 The final point to make here is that it is perfectly possible to
 make a detached copy of any one of these keys, including the master
 key, and deposit or hide it as one sees fit.
-.Ss steganography support
+.Ss Steganography support
 When the device is initialized, it is possible to restrict the encrypted
 data to a single contiguous area of the device.
 If configured with care, this area could masquerade as some sort of
@@ -188,7 +199,8 @@ some kind of structure or identifying byte sequences.
 Certain file formats like ELF contain multiple distinct sections, and it
 would be possible to locate things just right in such a way that a device
 contains a partition with a filesystem with a large executable,
-("a backup copy of my kernel") where a non-loaded ELF section is laid out
+.Dq ( "a backup copy of my kernel" )
+where a non-loaded ELF section is laid out
 consecutively on the device and thereby could be used to contain a
 .Nm
 encrypted device.
@@ -216,7 +228,8 @@ strength of
 .Nm .
 .Pp
 The payload is encrypted with AES in CBC mode using a 128 bit random 
-single-use key ("the skey").
+single-use key
+.Dq ( "the skey" ) .
 AES is well documented.
 .Pp
 The random key is produced with
@@ -226,7 +239,7 @@ which is belived to do a respectable job at producing unpredictable bytes.
 The skey is stored on the device in a location which can be derived from
 the location of the encrypted payload data.
 The stored copy is encrypted with AES in CBC mode using a 128 bit key
-("the kkey")
+.Dq ( "the kkey" )
 derived
 from the master key using a purpose built PRNG like algorithm seeded
 with the sector address of the data in question.
@@ -258,7 +271,7 @@ Each additional byte of pass-phrase after the first 255 adds significantly
 less entropy to the initial state of the ARC4 sbox due to aliasing in
 the ARC4 seeding algorithm.
 .Pp
-No weak is stronger than the weakest link which usually is poor pass-phrases.
+No chain is stronger than its weakest link, which usually is poor pass-phrases.
 .Sh SEE ALSO
 .Xr gbde 8 .
 .Rs
