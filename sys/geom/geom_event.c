@@ -242,6 +242,8 @@ g_cancel_event(void *ref)
 				} else {
 					g_free(ep);
 				}
+				if (--g_pending_events == 0)
+					wakeup(&g_pending_events);
 				break;
 			}
 		}
