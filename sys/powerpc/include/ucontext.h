@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/* $NetBSD: signal.h,v 1.4 1998/09/14 02:48:34 thorpej Exp $ */
-
 /*
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
@@ -30,7 +27,11 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $NetBSD: signal.h,v 1.4 1998/09/14 02:48:34 thorpej Exp $
+ * $FreeBSD$
  */
+
 #ifndef	_MACHINE_UCONTEXT_H_
 #define	_MACHINE_UCONTEXT_H_
 
