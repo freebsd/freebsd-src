@@ -42,18 +42,19 @@
 #include <fcntl.h>
 #include <sys/file.h>
 
-#if !defined(sgi) && !defined(__NetBSD__)
-char copyright[] =
-"@(#) Copyright (c) 1983, 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-static char sccsid[] __attribute__((unused)) = "@(#)main.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
+__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n"
+	    "The Regents of the University of California."
+	    "  All rights reserved.\n");
+#ifdef __NetBSD__
 __RCSID("$NetBSD$");
-__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n");
+#include <util.h>
+#elif defined(__FreeBSD__)
+__RCSID("$FreeBSD$");
+#else
+__RCSID("$Revision: 2.27 $");
+#ident "$Revision: 2.27 $"
 #endif
 #ident "$FreeBSD$"
-
 
 pid_t	mypid;
 
@@ -121,7 +122,7 @@ main(int argc,
 	 */
 	signal(SIGHUP, SIG_IGN);
 
-	openlog("routed", LOG_PID | LOG_ODELAY, LOG_DAEMON);
+	openlog("routed", LOG_PID, LOG_DAEMON);
 	ftrace = stdout;
 
 	gettimeofday(&clk, 0);
@@ -223,7 +224,7 @@ main(int argc,
 		case 'v':
 			/* display version */
 			verbose++;
-			msglog("version 2.22");
+			msglog("version 2.25");
 			break;
 
 		default:
@@ -296,6 +297,9 @@ usage:
 		BADERR(0,"daemon()");
 #endif
 
+#if defined(__NetBSD__)
+	pidfile(0);
+#endif
 	mypid = getpid();
 #ifdef __FreeBSD__
 	srandomdev();
@@ -644,7 +648,7 @@ static int				/* <0 or file descriptor */
 get_rip_sock(naddr addr,
 	     int serious)		/* 1=failure to bind is serious */
 {
-	struct sockaddr_in sin;
+	struct sockaddr_in rsin;
 	unsigned char ttl;
 	int s;
 
@@ -652,14 +656,14 @@ get_rip_sock(naddr addr,
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 		BADERR(1,"rip_sock = socket()");
 
-	memset(&sin, 0, sizeof(sin));
+	memset(&rsin, 0, sizeof(rsin));
 #ifdef _HAVE_SIN_LEN
-	sin.sin_len = sizeof(sin);
+	rsin.sin_len = sizeof(rsin);
 #endif
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(RIP_PORT);
-	sin.sin_addr.s_addr = addr;
-	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+	rsin.sin_family = AF_INET;
+	rsin.sin_port = htons(RIP_PORT);
+	rsin.sin_addr.s_addr = addr;
+	if (bind(s, (struct sockaddr *)&rsin, sizeof(rsin)) < 0) {
 		if (serious)
 			BADERR(errno != EADDRINUSE, "bind(rip_sock)");
 		return -1;
@@ -723,9 +727,13 @@ rip_mcast_on(struct interface *ifp)
 #endif
 	    && !(ifp->int_state & IS_ALIAS)) {
 		m.imr_multiaddr.s_addr = htonl(INADDR_RIP_GROUP);
+#ifdef MCAST_IFINDEX
+		m.imr_interface.s_addr = htonl(ifp->int_index);
+#else
 		m.imr_interface.s_addr = ((ifp->int_if_flags & IFF_POINTOPOINT)
 					  ? ifp->int_dstaddr
 					  : ifp->int_addr);
+#endif
 		if (setsockopt(rip_sock,IPPROTO_IP, IP_ADD_MEMBERSHIP,
 			       &m, sizeof(m)) < 0)
 			LOGERR("setsockopt(IP_ADD_MEMBERSHIP RIP)");
@@ -867,6 +875,7 @@ msglog(const char *p, ...)
 		(void)vfprintf(ftrace, p, args);
 		(void)fputc('\n', ftrace);
 	}
+	va_end(args);
 }
 
 
@@ -929,6 +938,7 @@ msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 		(void)vfprintf(ftrace, p, args);
 		(void)fputc('\n', ftrace);
 	}
+	va_end(args);
 }
 
 
@@ -946,6 +956,7 @@ logbad(int dump, const char *p, ...)
 	(void)vfprintf(stderr, p, args);
 	(void)fputs("; giving up\n",stderr);
 	(void)fflush(stderr);
+	va_end(args);
 
 	if (dump)
 		abort();
