@@ -69,6 +69,8 @@ struct cdev {
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
 	udev_t		si_udev;
+	int		si_refcount;
+	LIST_ENTRY(cdev)	si_list;
 	LIST_ENTRY(cdev)	si_clone;
 	LIST_ENTRY(cdev)	si_hash;
 	SLIST_HEAD(, vnode)	si_hlist;
@@ -195,10 +197,9 @@ typedef int dumper_t(
 #define	D_TYPEMASK	0xffff
 
 /*
- * Flags for d_flags.
+ * Flags for d_flags which the drivers can set.
  */
 #define	D_MEMDISK	0x00010000	/* memory type disk */
-#define	D_NAGGED	0x00020000	/* nagged about missing make_dev() */
 #define	D_TRACKCLOSE	0x00080000	/* track all closes */
 #define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
 #define D_PSEUDO	0x00200000	/* make_dev() can return NULL */
@@ -211,24 +212,35 @@ typedef int dumper_t(
 #define D_VERSION	D_VERSION_00
 
 /*
+ * Flags used for internal housekeeping
+ */
+#define D_INIT		0x80000000	/* cdevsw initialized */
+#define D_ALLOCMAJ	0x40000000	/* major# is allocated */
+
+/*
  * Character device switch table
  */
 struct cdevsw {
-	int		d_version;
-	int		d_maj;
-	u_int		d_flags;
-	const char	*d_name;
-	d_open_t	*d_open;
-	d_fdopen_t	*d_fdopen;
-	d_close_t	*d_close;
-	d_read_t	*d_read;
-	d_write_t	*d_write;
-	d_ioctl_t	*d_ioctl;
-	d_poll_t	*d_poll;
-	d_mmap_t	*d_mmap;
-	d_strategy_t	*d_strategy;
-	dumper_t	*d_dump;
-	d_kqfilter_t	*d_kqfilter;
+	int			d_version;
+	int			d_maj;
+	u_int			d_flags;
+	const char		*d_name;
+	d_open_t		*d_open;
+	d_fdopen_t		*d_fdopen;
+	d_close_t		*d_close;
+	d_read_t		*d_read;
+	d_write_t		*d_write;
+	d_ioctl_t		*d_ioctl;
+	d_poll_t		*d_poll;
+	d_mmap_t		*d_mmap;
+	d_strategy_t		*d_strategy;
+	dumper_t		*d_dump;
+	d_kqfilter_t		*d_kqfilter;
+
+	/* These fields should not be messed with by drivers */
+	LIST_ENTRY(cdevsw)	d_list;
+	LIST_HEAD(, cdev)	d_devs;
+	int			d_refcount;
 };
 
 /*
@@ -293,11 +305,14 @@ int clone_create(struct clonedevs **, struct cdevsw *, int *unit, dev_t *dev, u_
 int	count_dev(dev_t _dev);
 void	destroy_dev(dev_t _dev);
 struct cdevsw *devsw(dev_t _dev);
+void	cdevsw_ref(struct cdevsw *);
+void	cdevsw_rel(struct cdevsw *);
 const char *devtoname(dev_t _dev);
 int	dev_named(dev_t _pdev, const char *_name);
 void	dev_depends(dev_t _pdev, dev_t _cdev);
+void	dev_ref(dev_t dev);
+void	dev_rel(dev_t dev);
 void	dev_strategy(struct buf *bp);
-void	freedev(dev_t _dev);
 dev_t	makebdev(int _maj, int _min);
 dev_t	make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,
 		int _perms, const char *_fmt, ...) __printflike(6, 7);

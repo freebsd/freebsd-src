@@ -3069,12 +3069,19 @@ bufdonebio(struct bio *bp)
 void
 dev_strategy(struct buf *bp)
 {
+	struct cdevsw *csw;
 
 	if ((!bp->b_iocmd) || (bp->b_iocmd & (bp->b_iocmd - 1)))
 		panic("b_iocmd botch");
 	bp->b_io.bio_done = bufdonebio;
 	bp->b_io.bio_caller2 = bp;
+	csw = devsw(bp->b_io.bio_dev);
+	KASSERT(bp->b_io.bio_dev->si_refcount > 0,
+	    ("dev_strategy on un-referenced dev_t (%s)",
+	    devtoname(bp->b_io.bio_dev)));
+	cdevsw_ref(csw);
 	(*devsw(bp->b_io.bio_dev)->d_strategy)(&bp->b_io);
+	cdevsw_rel(csw);
 }
 
 /*
