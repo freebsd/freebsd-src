@@ -248,7 +248,7 @@ main(int ac, char **av)
 	miblen = 3;
 
 	if (user && mib[2] == KERN_PROC_ALL) {
-		mib[2] = KERN_PROC_UID;
+		mib[2] = KERN_PROC_RUID;
 		mib[3] = uid;
 		miblen = 4;
 	}
