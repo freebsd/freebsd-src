@@ -266,7 +266,7 @@ printbody(proc)
 			RESULT);
 
 		if (mtflag)
-			f_print(fout, "\n\t\tTIMEOUT));\n}\n");
+			f_print(fout, "\n\t\tTIMEOUT));\n");
 		else
 			f_print(fout, "\n\t\tTIMEOUT) != RPC_SUCCESS) {\n");
 

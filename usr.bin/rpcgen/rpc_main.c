@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)rpc_main.c 1.30 89/03/30 (C) 1987 SMI";
 #endif
 static const char rcsid[] =
-	"$Id: rpc_main.c,v 1.8 1998/01/15 08:46:58 jb Exp $";
+	"$Id: rpc_main.c,v 1.9 1998/03/07 05:43:59 jb Exp $";
 #endif
 
 /*
@@ -548,8 +548,12 @@ h_output(infile, define, extend, outfile)
 	f_print(fout, "#include <rpc/rpc.h>\n");
 
 	if (mtflag) {
+#if !defined(__FreeBSD__) && !defined(__NetBSD__)
 		f_print(fout, "#include <synch.h>\n");
 		f_print(fout, "#include <thread.h>\n");
+#else
+		f_print(fout, "#include <pthread.h>\n");
+#endif
 	};
 
 	/* put the C++ support */
