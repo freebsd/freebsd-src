@@ -150,7 +150,7 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 	case MOD_SHUTDOWN:
 		/* stop kthreads */
 		ndis_destroy_kthreads();
-		if (TAILQ_FIRST(&ndis_devhead) != NULL) {
+		if (TAILQ_FIRST(&ndis_devhead) == NULL) {
 			/* Shut down subsystems */
 			ndis_libfini();
 			ntoskrnl_libfini();
