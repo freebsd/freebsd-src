@@ -48,11 +48,11 @@
 #include <sys/malloc.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
+#include <sys/proc.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
 #endif
-#include <sys/proc.h>
 
 #include "bus_if.h"
 
@@ -87,20 +87,22 @@ void uhub_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
 static bus_child_detached_t uhub_child_detached;
 #endif
 
-USB_DECLARE_DRIVER_INIT(uhub, DEVMETHOD(bus_child_detached, uhub_child_detached));
-
 /* We need two attachment points:
  * hub to usb and hub to hub
  * Every other driver only connects to hubs
  */
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
+USB_DECLARE_DRIVER(uhub);
+
 /* Create the driver instance for the hub connected to hub case */
 struct cfattach uhub_uhub_ca = {
 	sizeof(struct uhub_softc), uhub_match, uhub_attach,
 	uhub_detach, uhub_activate
 };
 #elif defined(__FreeBSD__)
+USB_DECLARE_DRIVER_INIT(uhub, DEVMETHOD(bus_child_detached, uhub_child_detached));
+
 /* Create the driver instance for the hub connected to usb case. */
 devclass_t uhubroot_devclass;
 
@@ -539,7 +541,8 @@ uhub_child_detached(self, child)
 		/* should never happen; children are only created after init */
 		panic("hub not fully initialised, but child deleted?");
 
-	for (port = 0; port < dev->hub->hubdesc.bNbrPorts; port++) {
+	nports = dev->hub->hubdesc.bNbrPorts;
+	for (port = 0; port < nports; port++) {
 		up = &dev->hub->ports[port];
 		if (up->device && up->device->subdevs) {
 			for (i = 0; up->device->subdevs[i]; i++) {
