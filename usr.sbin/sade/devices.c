@@ -236,7 +236,7 @@ deviceReset(void)
     int i;
 
     for (i = 0; i < numDevs; i++) {
-	Devices[i]->shutdown(Devices[i]);
+	DEVICE_SHUTDOWN(Devices[i]);
 
 	/* XXX this potentially leaks Devices[i]->private if it's being
 	 * used to point to something dynamic, but you're not supposed
