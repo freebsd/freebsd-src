@@ -1434,17 +1434,24 @@ END(tl1_immu_miss_trap)
 
 	/*
 	 * Extract the context from the contents of the tag access register.
-	 * If its non-zero this is a fault on a user address, otherwise get
-	 * the virtual page number.
+	 * If its non-zero this is a fault on a user address.  Note that the
+	 * faulting address is passed in %g2.
 	 */
 	sllx	%g6, 64 - TAR_VPN_SHIFT, %g5
 	brnz,a,pn %g5, tl1_dmmu_miss_user
 	 mov	%g6, %g2
 
 	/*
+	 * Check for the direct mapped physical region.  These addresses have
+	 * the high bit set so they are negative.
+	 */
+	brlz,pn %g6, tl1_dmmu_miss_direct
+	 EMPTY
+
+	/*
 	 * Find the index into the kernel tsb.
 	 */
-	set	TSB_KERNEL_MASK, %g4
+	 set	TSB_KERNEL_MASK, %g4
 	srlx	%g6, TAR_VPN_SHIFT, %g6
 	and	%g6, %g4, %g3
 
@@ -1505,6 +1512,47 @@ ENTRY(tl1_dmmu_miss_trap)
 	b	%xcc, tl1_trap
 	 mov	T_DATA_MISS | T_KERNEL, %o0
 END(tl1_dmmu_miss_trap)
+
+ENTRY(tl1_dmmu_miss_direct)
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_dmmu_miss_direct: pc=%#lx sp=%#lx tar=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	rdpr	%tpc, %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	add	%sp, SPOFF, %g2
+	stx	%g2, [%g1 + KTR_PARM2]
+	stx	%g6, [%g1 + KTR_PARM3]
+9:
+#endif
+
+	/*
+	 * Check the cache bits in the virtual address to see if this mapping
+	 * is virtually cacheable.  We set this up so that the masks fit in
+	 * immediates...  Note that the arithmetic shift sign extends, keeping
+	 * all the top bits set.
+	 */
+	srax	%g6, TLB_DIRECT_SHIFT, %g6
+	andcc	%g6, TLB_DIRECT_UNCACHEABLE, %g0
+	mov	TD_CP | TD_CV | TD_W, %g1
+	movnz	%xcc, TD_CP | TD_W, %g1
+
+	/*
+	 * Mask off the high bits of the virtual address to get the physical
+	 * address, and or in the tte bits.  The high bit is left set in the
+	 * physical address, which corresponds to the tte valid bit, so that
+	 * we don't have to include it in the tte bits.  We ignore the cache
+	 * bits, since they get shifted into the soft tte bits anyway.
+	 */
+	setx	TLB_DIRECT_MASK & ~TD_V, %g3, %g2
+	andn	%g6, %g2, %g3
+	or	%g3, %g1, %g3
+
+	/*
+	 * Load the tte data into the TLB and retry the instruction.
+	 */
+	stxa	%g3, [%g0] ASI_DTLB_DATA_IN_REG
+	retry
+END(tl1_dmmu_miss_direct)
 
 ENTRY(tl1_dmmu_miss_user)
 	/*
