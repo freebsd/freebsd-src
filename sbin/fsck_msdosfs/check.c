@@ -84,9 +84,8 @@ checkfilesys(const char *fname)
 		return 8;
 	}
 
-	if (checkdirty(dosfs, &boot) && !force) {
-		if (preen)
-			printf("%s: ", fname);
+	if (skipclean && preen && checkdirty(dosfs, &boot)) {
+		printf("%s: ", fname);
 		printf("FILESYSTEM CLEAN; SKIPPING CHECKS\n");
 		ret = 0;
 		goto out;

@@ -46,9 +46,9 @@
  */
 extern int alwaysno;	/* assume "no" for all questions */
 extern int alwaysyes;	/* assume "yes" for all questions */
-extern int force;	/* force check even the fs is clean */
 extern int preen;	/* we are preening */
 extern int rdonly;	/* device is opened read only (supersedes above) */
+extern int skipclean;	/* skip clean file systems if preening */
 
 extern struct dosDirEntry *rootDir;
 
