@@ -437,11 +437,14 @@ ptrace(curp, uap)
 		}
 		error = 0;
 		PHOLD(p);	/* user had damn well better be incore! */
-		if (p->p_flag & P_INMEM) {
+		mtx_enter(&sched_lock, MTX_SPIN);
+		if (p->p_sflag & PS_INMEM) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			fill_kinfo_proc (p, &p->p_addr->u_kproc);
 			curp->p_retval[0] = *(int *)
 			    ((uintptr_t)p->p_addr + (uintptr_t)uap->addr);
 		} else {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			curp->p_retval[0] = 0;
 			error = EFAULT;
 		}
@@ -450,10 +453,13 @@ ptrace(curp, uap)
 
 	case PT_WRITE_U:
 		PHOLD(p);	/* user had damn well better be incore! */
-		if (p->p_flag & P_INMEM) {
+		mtx_enter(&sched_lock, MTX_SPIN);
+		if (p->p_sflag & PS_INMEM) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			fill_kinfo_proc (p, &p->p_addr->u_kproc);
 			error = ptrace_write_u(p, (vm_offset_t)uap->addr, uap->data);
 		} else {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			error = EFAULT;
 		}
 		PRELE(p);
@@ -560,16 +566,24 @@ trace_req(p)
  * Stop a process because of a procfs event;
  * stay stopped until p->p_step is cleared
  * (cleared by PIOCCONT in procfs).
+ *
+ * Must be called with the proc struct mutex held.
  */
 
 void
-stopevent(struct proc *p, unsigned int event, unsigned int val) {
+stopevent(p, event, val)
+	struct proc *p;
+	unsigned int event;
+	unsigned int val;
+{
+
+	mtx_assert(&p->p_mtx, MA_OWNED | MA_NOTRECURSED);
 	p->p_step = 1;
 
 	do {
 		p->p_xstat = val;
 		p->p_stype = event;	/* Which event caused the stop? */
 		wakeup(&p->p_stype);	/* Wake up any PIOCWAIT'ing procs */
-		tsleep(&p->p_step, PWAIT, "stopevent", 0);
+		msleep(&p->p_step, &p->p_mtx, PWAIT, "stopevent", 0);
 	} while (p->p_step);
 }
