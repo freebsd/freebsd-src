@@ -595,7 +595,18 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			if ((lock1->li_flags & LI_SLEPT) != 0 &&
 			    lock == &Giant.mtx_object)
 				continue;
-			if (!isitmydescendant(w, w1))
+			/*
+			 * If we are locking a sleepable lock and this lock
+			 * isn't sleepable and isn't Giant, we want to treat
+			 * it as a lock order violation to enfore a general
+			 * lock order of sleepable locks before non-sleepable
+			 * locks.  Thus, we only bother checking the lock
+			 * order hierarchy if we pass the initial test.
+			 */
+			if (!((lock->lo_flags & LO_SLEEPABLE) != 0 &&
+			    ((lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0 &&
+			    lock1->li_lock != &Giant.mtx_object)) &&
+			    !isitmydescendant(w, w1))
 				continue;
 			/*
 			 * We have a lock order violation, check to see if it
