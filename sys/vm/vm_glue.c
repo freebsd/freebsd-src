@@ -59,8 +59,10 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.32 1995/12/07 12:48:11 davidg Exp $
+ * $Id: vm_glue.c,v 1.33 1995/12/14 09:54:57 phk Exp $
  */
+
+#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
