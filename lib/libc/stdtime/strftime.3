@@ -36,7 +36,7 @@
 .\"     @(#)strftime.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 4, 1997
+.Dd January 4, 2003
 .Dt STRFTIME 3
 .Os
 .Sh NAME
@@ -47,7 +47,12 @@
 .Sh SYNOPSIS
 .In time.h
 .Ft size_t
-.Fn strftime "char *buf" "size_t maxsize" "const char *format" "const struct tm *timeptr"
+.Fo strftime
+.Fa "char * restrict buf"
+.Fa "size_t maxsize"
+.Fa "const char * restrict format"
+.Fa "const struct tm * restrict timeptr"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn strftime

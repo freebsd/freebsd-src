@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd May 8, 1997
+.Dd January 4, 2003
 .Dt STRPTIME 3
 .Os
 .Sh NAME
@@ -36,7 +36,11 @@
 .Sh SYNOPSIS
 .In time.h
 .Ft char *
-.Fn strptime "const char *buf" "const char *format" "struct tm *timeptr"
+.Fo strptime
+.Fa "const char * restrict buf"
+.Fa "const char * restrict format"
+.Fa "struct tm * restrict timeptr"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn strptime
@@ -160,3 +164,9 @@ This limitation is because of ambiguity due to of the over loading of time
 zone abbreviations.  One such example is
 .Fa EST
 which is both Eastern Standard Time and Eastern Australia Summer Time.
+.Pp
+The
+.Fn strptime
+function does not correctly handle multibyte characters in the
+.Fa format
+argument.
