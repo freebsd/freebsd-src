@@ -117,7 +117,10 @@ pkg_do(char *pkg)
 	    fclose(cfile);
 	}
 	else {
-	    strcpy(pkg_fullname, pkg);		/* copy for sanity's sake, could remove pkg_fullname */
+	    strcpy(pkg_fullname, pkg);		/*
+						 * Copy for sanity's sake,
+						 * could remove pkg_fullname
+						 */
 	    if (strcmp(pkg, "-")) {
 		if (stat(pkg_fullname, &sb) == FAIL) {
 		    warnx("can't stat package file '%s'", pkg_fullname);
@@ -324,7 +327,8 @@ pkg_do(char *pkg)
 	}
     }
 
-    /* Test whether to use the old method of passing tokens to installation
+    /*
+     * Test whether to use the old method of passing tokens to installation
      * scripts, and set appropriate variables..
      */
 

@@ -35,9 +35,10 @@
 #define CONTINUATION	0x02
 #define EXTRA_FIELD 	0x04
 
-/* meaningful fields in a gzip header, see gzip proper for details.
-   This structure should not be fiddled with outside of gzip_read_header
-   and gzip_write_header 
+/*
+ * Meaningful fields in a gzip header, see gzip proper for details.
+ * This structure should not be fiddled with outside of gzip_read_header
+ * and gzip_write_header 
  */
 struct mygzip_header {
 	char method;
@@ -72,8 +73,10 @@ extern int gzip_read_header __P((FILE *f, /*@out@*/struct mygzip_header *h, \
 /* gzip_write_header returns 1 for success */
 extern int gzip_write_header __P((FILE *f, const struct mygzip_header *h, \
 	/*@null@*/struct signature *sign));
-/* writing header to memory. Returns size needed, or 0 if buffer too small
-   buffer must be at least 14 characters */
+/*
+ * Writing header to memory. Returns size needed, or 0 if buffer too small
+ * buffer must be at least 14 characters
+ */
 extern int gzip_copy_header __P((const struct mygzip_header *h, \
 	/*@null@*/struct signature *sign, \
 	void (*add)(void *, const char *, size_t), void *data));
