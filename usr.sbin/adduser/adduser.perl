@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.6 1995/04/30 19:20:25 ache Exp $
+# $Id: adduser.perl,v 1.8 1995/10/19 06:26:49 jkh Exp $
 #
 
 # read variables
@@ -123,6 +123,16 @@ sub shells_read {
 	    }
 	}
     }
+
+# Allow /nonexistant and /bin/date as a valid shell for system utils
+    push(@list, "/nonexistant");
+    push(@shellpref, "no");
+    $shell{"no"} = "/nonexistant";
+
+    push(@list, "/bin/date");
+    push(@shellpref, "date");
+    $shell{"date"} = "/bin/date";
+
     return $err;
 }
 
@@ -928,6 +938,8 @@ sub home_create {
 	return 0;
     }
 
+    return mkdir("$homedir",0755) if $dotdir eq "no";
+
     # copy files from  $dotdir to $homedir
     # rename 'dot.foo' files to '.foo'
     print "Copy files from $dotdir to $homedir\n" if $verbose;
@@ -1378,7 +1390,7 @@ $home = &home_partition($home);	# find HOME partition
 $dotdir = &dotdir_default;	# check $dotdir
 $send_message = &message_default;   # send message to new user
 $defaultpasswd = &password_default; # maybe use password
-&config_write(0);		   # write variables in file
+&config_write(!$verbose);	# write variables in file
 
 # main loop for creating new users
 &new_users;	     # add new users
