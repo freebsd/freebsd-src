@@ -1,17 +1,15 @@
 # $FreeBSD$
 #
 
-LOGINSRC= ${.CURDIR}/../../../usr.bin/login
-
 PROG=	sshd
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	sshpty.c sshlogin.c servconf.c serverloop.c \
 	auth.c auth1.c auth2.c auth-options.c session.c \
 	auth-chall.c auth2-chall.c auth-skey.c auth-pam.c auth2-pam.c \
-	groupaccess.c login_access.c
+	groupaccess.c
 MAN=	sshd.8
 
-CFLAGS+= -DLIBWRAP -DHAVE_LOGIN_CAP -DLOGIN_ACCESS -I${LOGINSRC} -DUSE_PAM -DHAVE_PAM_GETENVLIST
+CFLAGS+= -DLIBWRAP -DHAVE_LOGIN_CAP -DUSE_PAM -DHAVE_PAM_GETENVLIST
 
 .if defined(MAKE_KERBEROS4) && \
 	((${MAKE_KERBEROS4} == "yes") || (${MAKE_KERBEROS4} == "YES"))
@@ -44,4 +42,4 @@ DPADD+=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPA
 
 .include <bsd.prog.mk>
 
-.PATH:	${SSHDIR} ${LOGINSRC}
+.PATH:	${SSHDIR}

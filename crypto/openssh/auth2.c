@@ -174,12 +174,12 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 #ifdef HAVE_LOGIN_CAP
 	login_cap_t *lc;
 #endif /* HAVE_LOGIN_CAP */
-#if defined(HAVE_LOGIN_CAP) || defined(LOGIN_ACCESS)
+#if defined(HAVE_LOGIN_CAP)
 	const char *from_host, *from_ip;
 
 	from_host = get_canonical_hostname(options.verify_reverse_mapping);
 	from_ip = get_remote_ipaddr();
-#endif /* HAVE_LOGIN_CAP || LOGIN_ACCESS */
+#endif /* HAVE_LOGIN_CAP */
 
 	if (authctxt == NULL)
 		fatal("input_userauth_request: no authctxt");
@@ -238,14 +238,6 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		lc = NULL;
 	}
 #endif  /* HAVE_LOGIN_CAP */
-#ifdef LOGIN_ACCESS
-	if (authctxt->pw != NULL &&
-	    !login_access(authctxt->pw->pw_name, from_host)) {
-		log("Denied connection for %.200s from %.200s [%.200s].",
-		    authctxt->pw->pw_name, from_host, from_ip);
-		packet_disconnect("Sorry, you are not allowed to connect.");
-	}
-#endif /* LOGIN_ACCESS */
 	/* reset state */
 	auth2_challenge_stop(authctxt);
 	authctxt->postponed = 0;
