@@ -31,7 +31,7 @@
       quit       Exit program
     +
 
-# Now let's create a ng_ksocket(8) node, in the family PF_INET,
+# Now let's create a ng_ksocket(4) node, in the family PF_INET,
 # of type SOCK_RAW, and protocol IPPROTO_DIVERT:
 
     + mkpeer ksocket foo inet/raw/divert
