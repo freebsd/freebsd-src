@@ -239,7 +239,7 @@ main(argc, argv)
 		extractdirs(0);
 		initsymtable((char *)0);
 		while (argc--) {
-			canon(*argv++, name);
+			canon(*argv++, name, sizeof(name));
 			ino = dirlookup(name);
 			if (ino == 0)
 				continue;
@@ -254,7 +254,7 @@ main(argc, argv)
 		extractdirs(1);
 		initsymtable((char *)0);
 		while (argc--) {
-			canon(*argv++, name);
+			canon(*argv++, name, sizeof(name));
 			ino = dirlookup(name);
 			if (ino == 0)
 				continue;
