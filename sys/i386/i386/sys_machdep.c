@@ -127,7 +127,6 @@ i386_extend_pcb(struct thread *td)
 		0,			/* default 32 size */
 		0			/* granularity */
 	};
-	struct proc *p = td->td_proc;
 
 	if (td->td_proc->p_flag & P_KSES)
 		return (EINVAL);		/* XXXKSE */
@@ -159,7 +158,7 @@ i386_extend_pcb(struct thread *td)
 	ssd.ssd_limit -= ((unsigned)&ext->ext_tss - (unsigned)ext);
 	ssdtosd(&ssd, &ext->ext_tssd);
 
-	KASSERT(p == curthread->td_proc, ("giving a TSS to non-curproc"));
+	KASSERT(td->td_proc == curthread->td_proc, ("giving TSS to !curproc"));
 	KASSERT(td->td_pcb->pcb_ext == 0, ("already have a TSS!"));
 	mtx_lock_spin(&sched_lock);
 	td->td_pcb->pcb_ext = ext;
