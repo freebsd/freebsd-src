@@ -49,6 +49,8 @@ static char sccsid[] = "@(#)env.c	8.3 (Berkeley) 4/2/94";
 
 extern char **environ;
 
+static void usage __P((void));
+
 int
 main(argc, argv)
 	int argc;
@@ -66,9 +68,7 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr,
-			    "usage: env [-] [name=value ...] [command]\n");
-			exit(1);
+			usage();
 		}
 	for (argv += optind; *argv && (p = strchr(*argv, '=')); ++argv)
 		(void)setenv(*argv, ++p, 1);
@@ -79,4 +79,12 @@ main(argc, argv)
 	for (ep = environ; *ep; ep++)
 		(void)printf("%s\n", *ep);
 	exit(0);
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr,
+	    "usage: env [-] [name=value ...] [command]\n");
+	exit(1);
 }
