@@ -39,6 +39,17 @@
 
 #define	__CHAR_BIT	8		/* number of bits in a char */
 
+/*
+ * According to ANSI (section 2.2.4.2), the values below must be usable by
+ * #if preprocessing directives.  Additionally, the expression must have the
+ * same type as would an expression that is an object of the corresponding
+ * type converted according to the integral promotions.  The subtraction for
+ * INT_MIN, etc., is so the value is not unsigned; e.g., 0x80000000 is an
+ * unsigned int for 32-bit two's complement ANSI compilers (section 3.1.3.2).
+ * These numbers are for the default configuration of gcc.  They work for
+ * some other compilers as well, but this should not be depended on.
+ */
+
 #define	__SCHAR_MAX	0x7f		/* max value for a signed char */
 #define	__SCHAR_MIN	(-0x7f - 1)	/* min value for a signed char */
 
@@ -85,13 +96,5 @@
 #define	__LONG_BIT	32
 #endif
 #define	__WORD_BIT	32
-
-#define	__DBL_DIG	15
-#define	__DBL_MAX	1.7976931348623157E+308
-#define	__DBL_MIN	2.2250738585072014E-308
-
-#define	__FLT_DIG	6
-#define	__FLT_MAX	3.40282347E+38F
-#define	__FLT_MIN	1.17549435E-38F
 
 #endif /* !_MACHINE__LIMITS_H_ */
