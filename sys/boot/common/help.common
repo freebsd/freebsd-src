@@ -249,7 +249,7 @@
 	Variable substitution is performed on the prompt.  The default 
 	prompt can be set with:
 
-		set prompt=\$currdev>
+		set prompt=\${interpret}
 
 ################################################################################
 # Tset Srootdev DSet the root filesystem
