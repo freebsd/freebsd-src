@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.16 1995/05/09 12:25:55 rgrimes Exp $
+ * $Id: if_le.c,v 1.17 1995/05/30 08:02:22 rgrimes Exp $
  */
 
 /*
@@ -1193,6 +1193,12 @@ lemac_start(
 	m_copydata(m, 0, m->m_pkthdr.len, sc->le_membase + txoff);
 
 	LE_OUTB(sc, LEMAC_REG_TQ, tx_pg);	/* tell chip to transmit this packet */
+
+#if NBPFILTER > 0
+	if (sc->le_bpf)
+		bpf_mtap(sc->le_bpf, m);
+#endif
+
 	m_freem(m);			/* free the mbuf */
     }
     LEMAC_INTR_ENABLE(sc);
