@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 23 $
+ *              $Revision: 24 $
  *
  *****************************************************************************/
 
@@ -203,7 +203,7 @@ AcpiTbConvertToXsdt (
 
     /* Allocate an XSDT */
 
-    NewTable = AcpiUtCallocate (TableSize);
+    NewTable = ACPI_MEM_CALLOCATE (TableSize);
     if (!NewTable)
     {
         return (AE_NO_MEMORY);
@@ -295,7 +295,7 @@ AcpiTbConvertTableFadt (void)
     /* AcpiGbl_FADT is valid */
     /* Allocate and zero the 2.0 buffer */
 
-    FADT2 = AcpiUtCallocate (sizeof (FADT_DESCRIPTOR_REV2));
+    FADT2 = ACPI_MEM_CALLOCATE (sizeof (FADT_DESCRIPTOR_REV2));
     if (FADT2 == NULL)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -614,7 +614,7 @@ AcpiTbBuildCommonFacs (
 
     /* Allocate a common FACS */
 
-    CommonFacs = AcpiUtCallocate (sizeof (ACPI_COMMON_FACS));
+    CommonFacs = ACPI_MEM_CALLOCATE (sizeof (ACPI_COMMON_FACS));
     if (!CommonFacs)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);

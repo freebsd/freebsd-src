@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 71 $
+ *              $Revision: 72 $
  *
  ******************************************************************************/
 
@@ -285,7 +285,7 @@ AcpiUtDeleteInternalObj (
         {
             DEBUG_PRINTP (ACPI_INFO, ("Deleting Obj Ptr %p \n", ObjPointer));
 
-            AcpiUtFree (ObjPointer);
+            ACPI_MEM_FREE (ObjPointer);
         }
     }
 
@@ -358,7 +358,7 @@ AcpiUtDeleteInternalObjectList (
 
     /* Free the combined parameter pointer list and object array */
 
-    AcpiUtFree (ObjList);
+    ACPI_MEM_FREE (ObjList);
 
     return_ACPI_STATUS (AE_OK);
 }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 26 $
+ *              $Revision: 27 $
  *
  ******************************************************************************/
 
@@ -322,7 +322,7 @@ AcpiDbExecute (
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("Execution of %s failed with status %s\n", 
-            Info.Pathname, AcpiUtFormatException (Status));
+            Info.Pathname, AcpiFormatException (Status));
     }
 
     else
@@ -429,7 +429,7 @@ AcpiDbCreateExecutionThreads (
     Status = AcpiOsCreateSemaphore (1, 0, &ThreadGate);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not create semaphore, %s\n", AcpiUtFormatException (Status));
+        AcpiOsPrintf ("Could not create semaphore, %s\n", AcpiFormatException (Status));
         return;
     }
 

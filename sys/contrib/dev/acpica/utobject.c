@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
- *              $Revision: 46 $
+ *              $Revision: 49 $
  *
  *****************************************************************************/
 
@@ -182,7 +182,6 @@ _UtCreateInternalObject (
 
     /* Any per-type initialization should go here */
 
-
     return_PTR (Object);
 }
 
@@ -312,8 +311,7 @@ _UtAllocateObjectDesc (
 
         /* Attempt to allocate new descriptor */
 
-        Object = _UtCallocate (sizeof (ACPI_OPERAND_OBJECT), ComponentId,
-                                    ModuleName, LineNumber);
+        Object = ACPI_MEM_CALLOCATE (sizeof (ACPI_OPERAND_OBJECT));
         if (!Object)
         {
             /* Allocation failed */
@@ -389,7 +387,7 @@ AcpiUtDeleteObjectDesc (
          */
         DECREMENT_OBJECT_METRICS (sizeof (ACPI_OPERAND_OBJECT));
 
-        AcpiUtFree (Object);
+        ACPI_MEM_FREE (Object);
         return_VOID;
     }
 
@@ -450,7 +448,7 @@ AcpiUtDeleteObjectCache (
          */
         DECREMENT_OBJECT_METRICS (sizeof (ACPI_OPERAND_OBJECT));
 
-        AcpiUtFree (AcpiGbl_ObjectCache);
+        ACPI_MEM_FREE (AcpiGbl_ObjectCache);
         AcpiGbl_ObjectCache = Next;
         AcpiGbl_ObjectCacheDepth--;
     }

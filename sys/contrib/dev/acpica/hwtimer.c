@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwtimer.c - ACPI Power Management Timer Interface
- *              $Revision: 10 $
+ *              $Revision: 11 $
  *
  *****************************************************************************/
 
@@ -161,6 +161,7 @@ AcpiGetTimerResolution (
     {
         *Resolution = 24;
     }
+
     else
     {
         *Resolution = 32;
@@ -205,7 +206,8 @@ AcpiGetTimer (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    *Ticks = AcpiOsIn32 ((ACPI_IO_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XPmTmrBlk.Address));
+    AcpiOsReadPort ((ACPI_IO_ADDRESS) 
+        ACPI_GET_ADDRESS (AcpiGbl_FADT->XPmTmrBlk.Address), Ticks, 32);
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -252,6 +254,7 @@ AcpiGetTimerDuration (
 
     FUNCTION_TRACE ("AcpiGetTimerDuration");
 
+
     if (!TimeElapsed)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -266,19 +269,24 @@ AcpiGetTimerDuration (
     {
         DeltaTicks = EndTicks - StartTicks;
     }
+
     else if (StartTicks > EndTicks)
     {
         /* 24-bit Timer */
+
         if (0 == AcpiGbl_FADT->TmrValExt)
         {
             DeltaTicks = (((0x00FFFFFF - StartTicks) + EndTicks) & 0x00FFFFFF);
         }
+
         /* 32-bit Timer */
+
         else
         {
             DeltaTicks = (0xFFFFFFFF - StartTicks) + EndTicks;
         }
     }
+
     else
     {
         *TimeElapsed = 0;
@@ -311,17 +319,21 @@ AcpiGetTimerDuration (
      */
 
     /* Step #1 */
+
     Seconds = DeltaTicks / PM_TIMER_FREQUENCY;
     Remainder = DeltaTicks % PM_TIMER_FREQUENCY;
 
     /* Step #2 */
+
     Milliseconds = (Remainder * 1000) / PM_TIMER_FREQUENCY;
     Remainder = (Remainder * 1000) % PM_TIMER_FREQUENCY;
 
     /* Step #3 */
+
     Microseconds = (Remainder * 1000) / PM_TIMER_FREQUENCY;
 
     /* Step #4 */
+
     *TimeElapsed = Seconds * 1000000;
     *TimeElapsed += Milliseconds * 1000;
     *TimeElapsed += Microseconds;

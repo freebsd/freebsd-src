@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 83 $
+ *              $Revision: 85 $
  *
  *****************************************************************************/
 
@@ -493,7 +493,7 @@ AcpiNsInternalizeName (
 
     /* We need a segment to store the internal  name */
 
-    InternalName = AcpiUtCallocate (Info.Length);
+    InternalName = ACPI_MEM_CALLOCATE (Info.Length);
     if (!InternalName)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -505,7 +505,7 @@ AcpiNsInternalizeName (
     Status = AcpiNsBuildInternalName (&Info);
     if (ACPI_FAILURE (Status))
     {
-        AcpiUtFree (InternalName);
+        ACPI_MEM_FREE (InternalName);
         return_ACPI_STATUS (Status);
     }
 
@@ -645,7 +645,7 @@ AcpiNsExternalizeName (
      * Build ConvertedName...
      */
 
-    (*ConvertedName) = AcpiUtCallocate (*ConvertedNameLength);
+    (*ConvertedName) = ACPI_MEM_CALLOCATE (*ConvertedNameLength);
     if (!(*ConvertedName))
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -923,7 +923,7 @@ AcpiNsGetNode (
     if (ACPI_FAILURE (Status))
     {
         DEBUG_PRINTP (ACPI_INFO, ("%s, %s\n",
-                InternalPath, AcpiUtFormatException (Status)));
+                InternalPath, AcpiFormatException (Status)));
     }
 
 
@@ -931,7 +931,7 @@ AcpiNsGetNode (
 
     /* Cleanup */
 
-    AcpiUtFree (InternalPath);
+    ACPI_MEM_FREE (InternalPath);
     return_ACPI_STATUS (Status);
 }
 

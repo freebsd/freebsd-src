@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 61 $
+ *              $Revision: 63 $
  *
  *****************************************************************************/
 
@@ -164,7 +164,7 @@ AcpiDsGetPredicateValue (
         {
             DEBUG_PRINTP (ACPI_ERROR,
                 ("Could not get result from predicate evaluation, %s\n",
-                AcpiUtFormatException (Status)));
+                AcpiFormatException (Status)));
 
             return_ACPI_STATUS (Status);
         }
@@ -394,9 +394,9 @@ AcpiDsExecBeginOp (
     case OPTYPE_DYADIC2R:
     case OPTYPE_DYADIC2S:
     case OPTYPE_RECONFIGURATION:
-    case OPTYPE_INDEX:
-    case OPTYPE_MATCH:
-    case OPTYPE_FATAL:
+    case OPTYPE_TRIADIC:
+    case OPTYPE_QUADRADIC:
+    case OPTYPE_HEXADIC:
     case OPTYPE_CREATE_FIELD:
 
         /* Start a new result/operand state */
@@ -509,9 +509,9 @@ AcpiDsExecEndOp (
     case OPTYPE_DYADIC2R:
     case OPTYPE_DYADIC2S:
     case OPTYPE_RECONFIGURATION:
-    case OPTYPE_INDEX:
-    case OPTYPE_MATCH:
-    case OPTYPE_FATAL:
+    case OPTYPE_TRIADIC:
+    case OPTYPE_QUADRADIC:
+    case OPTYPE_HEXADIC:
 
 
         /* Build resolved operand stack */
@@ -588,19 +588,21 @@ AcpiDsExecEndOp (
             break;
 
 
-        case OPTYPE_INDEX:  /* Type 2 opcode with 3 operands */
+        case OPTYPE_TRIADIC:    /* Opcode with 3 operands */
 
             /* 3 Operands, 1 ExternalResult, 1 InternalResult */
 
-            Status = AcpiExIndex (WalkState, &ResultObj);
+            Status = AcpiExTriadic (Opcode, WalkState, &ResultObj);
             break;
 
+        case OPTYPE_QUADRADIC:  /* Opcode with 4 operands */
+            break;
 
-        case OPTYPE_MATCH:  /* Type 2 opcode with 6 operands */
+        case OPTYPE_HEXADIC:    /* Opcode with 6 operands */
 
             /* 6 Operands, 0 ExternalResult, 1 InternalResult */
 
-            Status = AcpiExMatch (WalkState, &ResultObj);
+            Status = AcpiExHexadic (Opcode, WalkState, &ResultObj);
             break;
 
 
@@ -609,14 +611,6 @@ AcpiDsExecEndOp (
             /* 1 or 2 operands, 0 Internal Result */
 
             Status = AcpiExReconfiguration (Opcode, WalkState);
-            break;
-
-
-        case OPTYPE_FATAL:
-
-            /* 3 Operands, 0 ExternalResult, 0 InternalResult */
-
-            Status = AcpiExFatal (WalkState);
             break;
         }
 

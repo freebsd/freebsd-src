@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 65 $
+ *              $Revision: 67 $
  *
  *****************************************************************************/
 
@@ -225,7 +225,7 @@ AcpiDsInitOneObject (
         {
             DEBUG_PRINTP (ACPI_ERROR, ("Method %p [%4.4s] parse failed! %s\n",
                 ObjHandle, &((ACPI_NAMESPACE_NODE *)ObjHandle)->Name,
-                AcpiUtFormatException (Status)));
+                AcpiFormatException (Status)));
             break;
         }
 
@@ -395,8 +395,8 @@ AcpiDsInitObjectFromOp (
 
         else
         {
-            (*ObjDesc)->Buffer.Pointer =
-                            AcpiUtCallocate ((*ObjDesc)->Buffer.Length);
+            (*ObjDesc)->Buffer.Pointer = ACPI_MEM_CALLOCATE (
+                                            (*ObjDesc)->Buffer.Length);
 
             if (!(*ObjDesc)->Buffer.Pointer)
             {
@@ -565,13 +565,15 @@ AcpiDsBuildInternalSimpleObj (
                     {
                         REPORT_WARNING (("Reference %s at AML %X not found\n",
                                     Name, Op->AmlOffset));
-                        AcpiUtFree (Name);
+                        ACPI_MEM_FREE (Name);
                     }
+
                     else
                     {
                         REPORT_WARNING (("Reference %s at AML %X not found\n",
                                    Op->Value.String, Op->AmlOffset));
                     }
+
                     *ObjDescPtr = NULL;
                 }
 
@@ -662,8 +664,8 @@ AcpiDsBuildInternalPackageObj (
      * that the list is always null terminated.
      */
 
-    ObjDesc->Package.Elements =
-        AcpiUtCallocate ((ObjDesc->Package.Count + 1) * sizeof (void *));
+    ObjDesc->Package.Elements = ACPI_MEM_CALLOCATE (
+                            (ObjDesc->Package.Count + 1) * sizeof (void *));
 
     if (!ObjDesc->Package.Elements)
     {

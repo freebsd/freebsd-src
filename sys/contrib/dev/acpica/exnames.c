@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exnames - interpreter/scanner name load/execute
- *              $Revision: 79 $
+ *              $Revision: 80 $
  *
  *****************************************************************************/
 
@@ -184,7 +184,7 @@ AcpiExAllocateNameString (
      * This buffer must be deleted by the caller!
      */
 
-    NameString = AcpiUtAllocate (SizeNeeded);
+    NameString = ACPI_MEM_ALLOCATE (SizeNeeded);
     if (!NameString)
     {
         REPORT_ERROR (("ExAllocateNameString: name allocation failure\n"));

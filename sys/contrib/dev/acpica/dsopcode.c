@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 44 $
+ *              $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -802,8 +802,9 @@ AcpiDsEvalRegionOperands (
     AcpiUtRemoveReference (OperandDesc);
 
 
-    DEBUG_PRINTP (TRACE_EXEC, ("RgnObj %p Addr %X Len %X\n",
-        ObjDesc, ObjDesc->Region.Address, ObjDesc->Region.Length));
+    DEBUG_PRINTP (TRACE_EXEC, ("RgnObj %p Addr %8.8lX%8.8lX Len %X\n",
+        ObjDesc, HIDWORD(ObjDesc->Region.Address), LODWORD(ObjDesc->Region.Address),
+        ObjDesc->Region.Length));
 
     /* Now the address and length are valid for this opregion */
 
@@ -936,7 +937,6 @@ AcpiDsExecEndControlOp (
          * Save the result of the predicate in case there is an
          * ELSE to come
          */
-
         WalkState->LastPredicate = 
             (BOOLEAN) WalkState->ControlState->Common.Value;
 
@@ -944,7 +944,6 @@ AcpiDsExecEndControlOp (
          * Pop the control state that was created at the start
          * of the IF and free it
          */
-
         ControlState = AcpiUtPopGenericState (&WalkState->ControlState);
         AcpiUtDeleteGenericState (ControlState);
         break;
@@ -1014,7 +1013,6 @@ AcpiDsExecEndControlOp (
              * value.  This is the only place where WalkState->ReturnDesc
              * is set to anything other than zero!
              */
-
             WalkState->ReturnDesc = WalkState->Operands[0];
         }
 
@@ -1065,6 +1063,7 @@ AcpiDsExecEndControlOp (
             WalkState, WalkState->ReturnDesc));
 
         /* End the control method execution right now */
+
         Status = AE_CTRL_TERMINATE;
         break;
 
@@ -1077,11 +1076,11 @@ AcpiDsExecEndControlOp (
 
     case AML_BREAK_POINT_OP:
 
-        /* Call up to the OS dependent layer to handle this */
+        /* Call up to the OS service layer to handle this */
 
-        AcpiOsBreakpoint (NULL);
+        AcpiOsSignal (ACPI_SIGNAL_BREAKPOINT, "Executed AML Breakpoint opcode");
 
-        /* If it returns, we are done! */
+        /* If and when it returns, all done. */
 
         break;
 
@@ -1090,6 +1089,8 @@ AcpiDsExecEndControlOp (
 
         DEBUG_PRINTP (ACPI_INFO, 
             ("Break to end of current package, Op=%p\n", Op));
+
+        /* TBD: update behavior for ACPI 2.0 */
 
         /*
          * As per the ACPI specification:
@@ -1102,8 +1103,13 @@ AcpiDsExecEndControlOp (
          * the current package, and execution will continue one
          * level up, starting with the completion of the parent Op.
          */
-
         Status = AE_CTRL_FALSE;
+        break;
+
+
+    case AML_CONTINUE_OP: /* ACPI 2.0 */
+
+        Status = AE_NOT_IMPLEMENTED;
         break;
 
 

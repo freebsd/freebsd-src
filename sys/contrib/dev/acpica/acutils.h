@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 100 $
+ *       $Revision: 104 $
  *
  *****************************************************************************/
 
@@ -524,15 +524,6 @@ AcpiUtExecute_UID (
 
 
 /*
- * UtError - exception interfaces
- */
-
-NATIVE_CHAR *
-AcpiUtFormatException (
-    ACPI_STATUS             Status);
-
-
-/*
  * UtMutex - mutual exclusion interfaces
  */
 
@@ -709,21 +700,21 @@ AcpiUtDisplayInitPathname (
  */
 
 void *
-_UtAllocate (
+AcpiUtAllocate (
     UINT32                  Size,
     UINT32                  Component,
     NATIVE_CHAR             *Module,
     UINT32                  Line);
 
 void *
-_UtCallocate (
+AcpiUtCallocate (
     UINT32                  Size,
     UINT32                  Component,
     NATIVE_CHAR             *Module,
     UINT32                  Line);
 
 void
-_UtFree (
+AcpiUtFree (
     void                    *Address,
     UINT32                  Component,
     NATIVE_CHAR             *Module,
@@ -734,7 +725,7 @@ AcpiUtInitStaticObject (
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
 
-#ifdef ACPI_DEBUG_TRACK_ALLOCATIONS
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
 void
 AcpiUtDumpAllocationInfo (
     void);
@@ -745,10 +736,6 @@ AcpiUtDumpCurrentAllocations (
     NATIVE_CHAR             *Module);
 #endif
 
-
-#define AcpiUtAllocate(a)   _UtAllocate(a,_COMPONENT,_THIS_MODULE,__LINE__)
-#define AcpiUtCallocate(a)  _UtCallocate(a, _COMPONENT,_THIS_MODULE,__LINE__)
-#define AcpiUtFree(a)       _UtFree(a,_COMPONENT,_THIS_MODULE,__LINE__)
 
 
 #endif /* _ACUTILS_H */

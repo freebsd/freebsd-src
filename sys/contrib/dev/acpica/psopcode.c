@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psopcode - Parser opcode information table
- *              $Revision: 32 $
+ *              $Revision: 33 $
  *
  *****************************************************************************/
 
@@ -477,8 +477,8 @@ static ACPI_OPCODE_INFO    AmlOpInfo[] =
 /*  2E */   /* AML_DEREF_OF_OP */           OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2|        AML_HAS_ARGS, "DerefOf",            ARGP_DEREF_OF_OP,          ARGI_DEREF_OF_OP),
 /*  2F */   /* AML_NOTIFY_OP */             OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_DYADIC1|         AML_HAS_ARGS, "Notify",             ARGP_NOTIFY_OP,            ARGI_NOTIFY_OP),
 /*  30 */   /* AML_SIZE_OF_OP */            OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2|        AML_HAS_ARGS, "SizeOf",             ARGP_SIZE_OF_OP,           ARGI_SIZE_OF_OP),
-/*  31 */   /* AML_INDEX_OP */              OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_INDEX|           AML_HAS_ARGS, "Index",              ARGP_INDEX_OP,             ARGI_INDEX_OP),
-/*  32 */   /* AML_MATCH_OP */              OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MATCH|           AML_HAS_ARGS, "Match",              ARGP_MATCH_OP,             ARGI_MATCH_OP),
+/*  31 */   /* AML_INDEX_OP */              OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_TRIADIC|         AML_HAS_ARGS, "Index",              ARGP_INDEX_OP,             ARGI_INDEX_OP),
+/*  32 */   /* AML_MATCH_OP */              OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_HEXADIC|         AML_HAS_ARGS, "Match",              ARGP_MATCH_OP,             ARGI_MATCH_OP),
 /*  33 */   /* AML_CREATE_DWORD_FIELD_OP */ OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_CREATE_FIELD|    AML_HAS_ARGS, "CreateDWordField",   ARGP_CREATE_DWORD_FIELD_OP,ARGI_CREATE_DWORD_FIELD_OP),
 /*  34 */   /* AML_CREATE_WORD_FIELD_OP */  OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_CREATE_FIELD|    AML_HAS_ARGS, "CreateWordField",    ARGP_CREATE_WORD_FIELD_OP, ARGI_CREATE_WORD_FIELD_OP),
 /*  35 */   /* AML_CREATE_BYTE_FIELD_OP */  OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_CREATE_FIELD|    AML_HAS_ARGS, "CreateByteField",    ARGP_CREATE_BYTE_FIELD_OP, ARGI_CREATE_BYTE_FIELD_OP),
@@ -518,7 +518,7 @@ static ACPI_OPCODE_INFO    AmlOpInfo[] =
 /*  54 */   /* AML_UNLOAD_OP */             OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_RECONFIGURATION| AML_HAS_ARGS, "Unload",             ARGP_UNLOAD_OP,            ARGI_UNLOAD_OP),
 /*  55 */   /* AML_REVISION_OP */           OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_CONSTANT|        AML_NO_ARGS,  "Revision",           ARGP_REVISION_OP,          ARGI_REVISION_OP),
 /*  56 */   /* AML_DEBUG_OP */              OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_CONSTANT|        AML_NO_ARGS,  "Debug",              ARGP_DEBUG_OP,             ARGI_DEBUG_OP),
-/*  57 */   /* AML_FATAL_OP */              OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_FATAL|           AML_HAS_ARGS, "Fatal",              ARGP_FATAL_OP,             ARGI_FATAL_OP),
+/*  57 */   /* AML_FATAL_OP */              OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_TRIADIC|         AML_HAS_ARGS, "Fatal",              ARGP_FATAL_OP,             ARGI_FATAL_OP),
 /*  58 */   /* AML_REGION_OP */             OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_NAMED_OBJECT|    AML_HAS_ARGS, "OpRegion",           ARGP_REGION_OP,            ARGI_REGION_OP),
 /*  59 */   /* AML_FIELD_OP */              OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_NAMED_OBJECT|    AML_HAS_ARGS, "Field",              ARGP_FIELD_OP,             ARGI_FIELD_OP),
 /*  5A */   /* AML_DEVICE_OP */             OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_NAMED_OBJECT|    AML_HAS_ARGS, "Device",             ARGP_DEVICE_OP,            ARGI_DEVICE_OP),
@@ -554,10 +554,10 @@ static ACPI_OPCODE_INFO    AmlOpInfo[] =
 /*  71 */   /* AML_MOD_OP */                OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_DYADIC2R|        AML_HAS_ARGS, "Mod",                ARGP_MOD_OP,               ARGI_MOD_OP),
 /*  72 */   /* AML_CREATE_QWORD_FIELD_OP */ OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_CREATE_FIELD|    AML_HAS_ARGS, "CreateQWordField",   ARGP_CREATE_QWORD_FIELD_OP,ARGI_CREATE_QWORD_FIELD_OP),
 /*  73 */   /* AML_TO_BUFFER_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToBuffer",           ARGP_TO_BUFFER_OP,         ARGI_TO_BUFFER_OP),
-/*  74 */   /* AML_TO_DEC_STR_OP */         OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToDecString",        ARGP_TO_DEC_STR_OP,        ARGI_TO_DEC_STR_OP),
-/*  75 */   /* AML_TO_HEX_STR_OP */         OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToHexString",        ARGP_TO_HEX_STR_OP,        ARGI_TO_HEX_STR_OP),
+/*  74 */   /* AML_TO_DECSTR_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToDecString",        ARGP_TO_DEC_STR_OP,        ARGI_TO_DEC_STR_OP),
+/*  75 */   /* AML_TO_HEXSTR_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToHexString",        ARGP_TO_HEX_STR_OP,        ARGI_TO_HEX_STR_OP),
 /*  76 */   /* AML_TO_INTEGER_OP */         OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToInteger",          ARGP_TO_INTEGER_OP,        ARGI_TO_INTEGER_OP),
-/*  77 */   /* AML_TO_STRING_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "ToString",           ARGP_TO_STRING_OP,         ARGI_TO_STRING_OP),
+/*  77 */   /* AML_TO_STRING_OP */          OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_DYADIC2R|        AML_HAS_ARGS, "ToString",           ARGP_TO_STRING_OP,         ARGI_TO_STRING_OP),
 /*  78 */   /* AML_COPY_OP */               OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "CopyObject",         ARGP_COPY_OP,              ARGI_COPY_OP),
 /*  79 */   /* AML_MID_OP */                OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_MONADIC2R|       AML_HAS_ARGS, "Mid",                ARGP_MID_OP,               ARGI_MID_OP),
 /*  7A */   /* AML_CONTINUE_OP */           OP_INFO_ENTRY (ACPI_OP_TYPE_OPCODE | OPTYPE_CONTROL|         AML_NO_ARGS,  "Continue",           ARGP_CONTINUE_OP,          ARGI_CONTINUE_OP),

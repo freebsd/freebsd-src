@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 90 $
+ *              $Revision: 91 $
  *
  *****************************************************************************/
 
@@ -144,12 +144,15 @@
 static UINT32
 AcpiExDecodeFieldAccessType (
     UINT32                  Access,
-    UINT16                  Length)
+    UINT16                  Length,
+    UINT32                  *Alignment)
 {
 
     switch (Access)
     {
     case ACCESS_ANY_ACC:
+
+        *Alignment = 8;
 
         /* Use the length to set the access type */
 
@@ -176,18 +179,22 @@ AcpiExDecodeFieldAccessType (
         break;
 
     case ACCESS_BYTE_ACC:
+        *Alignment = 8;
         return (8);
         break;
 
     case ACCESS_WORD_ACC:
+        *Alignment = 16;
         return (16);
         break;
 
     case ACCESS_DWORD_ACC:
+        *Alignment = 32;
         return (32);
         break;
 
     case ACCESS_QWORD_ACC:  /* ACPI 2.0 */
+        *Alignment = 64;
         return (64);
         break;
 
@@ -228,6 +235,7 @@ AcpiExPrepCommonFieldObject (
     UINT32                  FieldBitLength)
 {
     UINT32                  AccessBitWidth;
+    UINT32                  Alignment;
     UINT32                  NearestByteAddress;
 
 
@@ -250,11 +258,18 @@ AcpiExPrepCommonFieldObject (
 
     ObjDesc->CommonField.BitLength  = (UINT16) FieldBitLength;
 
-    /* Decode the access type so we can compute offsets */
-
+    /* 
+     * Decode the access type so we can compute offsets.  The access type gives
+     * two pieces of information - the width of each field access and the
+     * necessary alignment of the access.  For AnyAcc, the width used is the
+     * largest necessary/possible in an attempt to access the whole field in one
+     * I/O operation.  However, for AnyAcc, the alignment is 8.  For all other
+     * access types (Byte, Word, Dword, Qword), the width is the same as the
+     * alignment.
+     */
     AccessBitWidth = AcpiExDecodeFieldAccessType (
                         ((FieldFlags & ACCESS_TYPE_MASK) >> ACCESS_TYPE_SHIFT),
-                        ObjDesc->Field.BitLength);
+                        ObjDesc->Field.BitLength, &Alignment);
     if (!AccessBitWidth)
     {
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
@@ -269,9 +284,10 @@ AcpiExPrepCommonFieldObject (
     {
         /*
          * BufferField access can be on any byte boundary, so the
-         * granularity is always 8
+         * alignment is always 8 (regardless of any alignment implied by the
+         * field access type.)
          */
-        AccessBitWidth = 8;
+        Alignment = 8;
     }
 
 
@@ -282,7 +298,7 @@ AcpiExPrepCommonFieldObject (
      */
     NearestByteAddress                        = ROUND_BITS_DOWN_TO_BYTES (FieldBitPosition);
     ObjDesc->CommonField.BaseByteOffset       = ROUND_DOWN (NearestByteAddress, 
-                                                            DIV_8 (AccessBitWidth));
+                                                            DIV_8 (Alignment));
 
     /*
      * StartFieldBitOffset is the offset of the first bit of the field within a field datum.

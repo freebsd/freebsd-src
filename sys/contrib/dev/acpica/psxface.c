@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 44 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -128,7 +128,7 @@
         MODULE_NAME         ("psxface")
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiPsxExecute
  *
@@ -144,7 +144,7 @@
  *
  * DESCRIPTION: Execute a control method
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiPsxExecute (
@@ -199,7 +199,6 @@ AcpiPsxExecute (
      * Perform the first pass parse of the method to enter any
      * named objects that it creates into the namespace
      */
-
     DEBUG_PRINTP (ACPI_INFO,
         ("**** Begin Method Execution **** Entry=%p obj=%p\n",
         MethodNode, ObjDesc));
@@ -255,11 +254,9 @@ AcpiPsxExecute (
 
 
     /*
-     * Normal exit is with Status == AE_RETURN_VALUE when a ReturnOp has been
-     * executed, or with Status == AE_PENDING at end of AML block (end of
-     * Method code)
+     * If the method has returned an object, signal this to the caller with
+     * a control exception code
      */
-
     if (*ReturnObjDesc)
     {
         DEBUG_PRINTP (ACPI_INFO, ("Method returned ObjDesc=%X\n",

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utinit - Common ACPI subsystem initialization
- *              $Revision: 96 $
+ *              $Revision: 98 $
  *
  *****************************************************************************/
 
@@ -278,12 +278,12 @@ AcpiUtTerminate (void)
 
     if (AcpiGbl_Gpe0EnableRegisterSave)
     {
-        AcpiUtFree (AcpiGbl_Gpe0EnableRegisterSave);
+        ACPI_MEM_FREE (AcpiGbl_Gpe0EnableRegisterSave);
     }
 
     if (AcpiGbl_Gpe1EnableRegisterSave)
     {
-        AcpiUtFree (AcpiGbl_Gpe1EnableRegisterSave);
+        ACPI_MEM_FREE (AcpiGbl_Gpe1EnableRegisterSave);
     }
 
 
@@ -349,7 +349,8 @@ AcpiUtSubsystemShutdown (void)
     AcpiPsDeleteParseCache ();
 
     /* Debug only - display leftover memory allocation, if any */
-#ifdef ENABLE_DEBUGGER
+
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
     AcpiUtDumpCurrentAllocations (ACPI_UINT32_MAX, NULL);
 #endif
 
