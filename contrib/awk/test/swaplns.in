@@ -1,0 +1,9 @@
+This directory contains some examples/test-cases for different
+features of gawk - mostly not present in an old awk.  Some are from
+"The GAWK Manual", some are original, and some are mixture of the two.
+Read header comments before attempting to use.  Have fun and remember
+that program which consists only of BEGIN block does not need an input
+file.
+
+   --mj
+
