@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.111 2001/11/20 21:12:46 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.112 2001/11/21 02:38:35 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1879,7 +1879,7 @@ ohci_dump_td(ohci_soft_td_t *std)
 {
 	char sbuf[128];
 
-	bitmask_snprintf((int)le32toh(std->td.td_flags),
+	bitmask_snprintf((u_int32_t)le32toh(std->td.td_flags),
 			 "\20\23R\24OUT\25IN\31TOG1\32SETTOGGLE",
 			 sbuf, sizeof(sbuf));
 
@@ -1927,10 +1927,10 @@ ohci_dump_ed(ohci_soft_ed_t *sed)
 {
 	char sbuf[128], sbuf2[128];
 
-	bitmask_snprintf((int)le32toh(sed->ed.ed_flags),
+	bitmask_snprintf((u_int32_t)le32toh(sed->ed.ed_flags),
 			 "\20\14OUT\15IN\16LOWSPEED\17SKIP\20ISO",
 			 sbuf, sizeof(sbuf));
-	bitmask_snprintf((int)le32toh(sed->ed.ed_headp),
+	bitmask_snprintf((u_int32_t)le32toh(sed->ed.ed_headp),
 			 "\20\1HALT\2CARRY", sbuf2, sizeof(sbuf2));
 
 	printf("ED(%p) at 0x%08lx: addr=%d endpt=%d maxp=%d flags=%s\ntailp=0x%08lx "
