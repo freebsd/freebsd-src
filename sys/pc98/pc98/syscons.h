@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.28 1999/01/18 08:38:08 kato Exp $
+ *	$Id: syscons.h,v 1.28.2.1 1999/04/18 15:01:28 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -285,6 +285,12 @@ int sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		 struct proc *p);
 
 #ifdef PC98
+/*
+ * Screen savers use these two variables.
+ */
+extern u_short	*Crtat;
+extern u_short	*Atrat;
+
 unsigned int at2pc98(unsigned int attr);
 #endif
 
