@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_sign.c,v 8.8 1999/10/13 16:39:36 vixie Exp $";
+static const char rcsid[] = "$Id: ns_sign.c,v 8.9 2000/12/23 08:14:57 vixie Exp $";
 #endif
 
 /* Import. */
@@ -37,6 +37,7 @@ static const char rcsid[] = "$Id: ns_sign.c,v 8.8 1999/10/13 16:39:36 vixie Exp 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <isc/dst.h>

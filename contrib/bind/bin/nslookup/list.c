@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)list.c	5.23 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: list.c,v 8.23 2000/03/30 23:25:34 vixie Exp $";
+static const char rcsid[] = "$Id: list.c,v 8.25 2000/12/23 08:14:46 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -72,6 +72,8 @@ static const char rcsid[] = "$Id: list.c,v 8.23 2000/03/30 23:25:34 vixie Exp $"
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/uio.h>
 
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -258,7 +260,7 @@ ListSubr(int qtype, char *domain, char *cmd) {
 	querybuf buf;
 	struct sockaddr_in sin;
 	HEADER *headerPtr;
-	int msglen, amtToRead, numRead, n, count, soacnt;
+	int msglen, amtToRead, numRead, soacnt;
 	u_int len;
 	int numAnswers = 0;
 	int numRecords = 0;
@@ -266,6 +268,7 @@ ListSubr(int qtype, char *domain, char *cmd) {
 	char soaname[2][NAME_LEN], file[PATH_MAX];
 	enum { NO_ERRORS, ERR_READING_LEN, ERR_READING_MSG, ERR_PRINTING }
 		error = NO_ERRORS;
+	struct iovec iov[2];
 
 	/*
 	 * Create a query packet for the requested domain name.
@@ -321,8 +324,11 @@ ListSubr(int qtype, char *domain, char *cmd) {
 	 * Send length & message for zone transfer
 	 */
 	ns_put16(msglen, tmp);
-        if (write(sockFD, (char *)tmp, INT16SZ) != INT16SZ ||
-            write(sockFD, (char *)buf.qb2, msglen) != msglen) {
+	iov[0].iov_base = (char *)tmp;
+	iov[0].iov_len = INT16SZ;
+	iov[1].iov_base = (char *)buf.qb2;
+	iov[1].iov_len = msglen;
+	if (writev(sockFD, iov, 2) != INT16SZ + msglen) {
 		perror("ls: write");
 		(void) close(sockFD);
 		sockFD = -1;
@@ -518,6 +524,7 @@ ListSubr(int qtype, char *domain, char *cmd) {
  *******************************************************************************
  */
 
+int
 Finger(string, putToFile)
     char *string;
     int  putToFile;
@@ -641,8 +648,7 @@ Finger(string, putToFile)
 }
 
 void
-ListHost_close()
-{
+ListHost_close(void) {
     if (sockFD != -1) {
 	(void) close(sockFD);
 	sockFD = -1;

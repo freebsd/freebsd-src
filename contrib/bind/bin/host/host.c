@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: host.c,v 8.37 2000/07/11 07:06:14 vixie Exp $";
+static const char rcsid[] = "$Id: host.c,v 8.42 2000/12/23 08:14:32 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -126,6 +126,9 @@ static const char copyright[] =
 #define SUCCESS		0
 #define TIME_OUT	-1
 #define NO_INFO 	-2
+#ifdef ERROR
+#undef ERROR
+#endif
 #define ERROR 		-3
 #define NONAUTH 	-4
 
@@ -166,12 +169,13 @@ static u_char		hostbuf[NS_MAXDNAME];
 static int		sockFD;
 static FILE		*filePtr;
 
-static struct __res_state  res, orig;
+static struct __res_state  res;
 static char		*cname = NULL;
 static const char	*progname = "amnesia";
 static int		getclass = ns_c_in, verbose = 0, list = 0;
 static int		server_specified = 0;
 static int		gettype = 0;
+static int		querytype = 0;
 static char		getdomain[NS_MAXDNAME];
 
 /* Forward. */
@@ -221,9 +225,9 @@ main(int argc, char **argv) {
 	struct in_addr addr;
 	struct hostent *hp;
 	char *s;
-	int inverse = 0, waitmode = 0;
+	int waitmode = 0;
 	int ncnames, ch;
-	int nkeychains, i;
+	int nkeychains;
 
 	dst_init();
 
@@ -237,7 +241,7 @@ main(int argc, char **argv) {
 		switch (ch) {
 		case 'a':
 			verbose = 1;
-			gettype = ns_t_any;
+			querytype = ns_t_any;
 			break;
 		case 'c':
 			getclass = parseclass(optarg);
@@ -255,7 +259,7 @@ main(int argc, char **argv) {
 			sigchase = 1;
 			break;
 		case 't':
-			gettype = parsetype(optarg);
+			querytype = parsetype(optarg);
 			break;
 		case 'v':
 			verbose = 1;
@@ -270,10 +274,10 @@ main(int argc, char **argv) {
 			/*NOTREACHED*/
 		}
 	}
-	if ((gettype == 0) && (sigchase)) {
+	if ((querytype == 0) && (sigchase)) {
 		if (verbose)
 			printf ("Forcing `-t a' for signature trace.\n");
-		gettype = ns_t_a;
+		querytype = ns_t_a;
 	}
 	argc -= optind;
 	argv += optind;
@@ -320,7 +324,7 @@ main(int argc, char **argv) {
 	res.options &= ~RES_DEFNAMES;
 
         if (list)
-		exit(ListHosts(getdomain, gettype ? gettype : ns_t_a));
+		exit(ListHosts(getdomain, querytype ? querytype : ns_t_a));
 	ncnames = 5; nkeychains = 18;
 	while (hp == NULL && res.res_h_errno == TRY_AGAIN) {
 		if (addr.s_addr == INADDR_NONE) {
@@ -336,18 +340,17 @@ main(int argc, char **argv) {
 					/* start new query, for KEY */
 					strcpy (getdomain, chase_signer);
 					strcat (getdomain, ".");
-					gettype = ns_t_key;
+					querytype = ns_t_key;
 				} else if (!(chase_step & SD_BADSIG)) { 
 					/* start new query, for SIG */
 					strcpy (getdomain, chase_domain);
 					strcat (getdomain, ".");
-					gettype = ns_t_sig;
+					querytype = ns_t_sig;
 				} else if (hp && !(chase_step & SD_SIG) && 
 					   (chase_step & SD_BADSIG)) {
 					printf ("%s for %s not found, last verified key %s\n",
 						chase_step & SD_SIG ? "Key" : "Signature",
 						chase_step & SD_SIG ? chase_signer : chase_domain, 
-						chase_domain, 
 						chase_lastgoodkey ? chase_lastgoodkey : "None");
 				}
 			}
@@ -536,7 +539,7 @@ gethostinfo(char *name) {
 	char *cp, **domain;
 	char tmp[NS_MAXDNAME];
 	const char *tp;
-	int hp, nDomain;
+	int hp;
 	int asis = 0;
 	u_int n;
 
@@ -587,8 +590,8 @@ static int
 getdomaininfo(const char *name, const char *domain) {
 	int val1, val2;
 
-	if (gettype)
-		return (getinfo(name, domain, gettype));
+	if (querytype)
+		return (getinfo(name, domain, gettype=querytype));
 	else {
 		val1 = getinfo(name, domain, gettype=ns_t_a);
 		if (cname || verbose)
@@ -600,11 +603,9 @@ getdomaininfo(const char *name, const char *domain) {
 
 static int
 getinfo(const char *name, const char *domain, int type) {
-	HEADER *hp;
-	u_char *eom, *bp, *cp;
+	u_char *eom;
 	querybuf buf, answer;
-	int n, n1, i, j, nmx, ancount, nscount, arcount, qdcount, buflen;
-	u_short pref, class;
+	int n;
 	char host[NS_MAXDNAME];
 
 	if (domain == NULL)
@@ -634,8 +635,7 @@ getinfo(const char *name, const char *domain, int type) {
 
 static int
 printinfo(const querybuf *answer, const u_char *eom, int filter, int isls) {
-	int n, n1, i, j, nmx, ancount, nscount, arcount, qdcount, buflen, savesigchase;
-	u_short pref, class;
+	int n, nmx, ancount, nscount, arcount, qdcount, buflen, savesigchase;
 	const u_char *bp, *cp;
 	const HEADER *hp;
 
@@ -696,8 +696,18 @@ printinfo(const querybuf *answer, const u_char *eom, int filter, int isls) {
 		if (!hp->ad)
 		    if (verbose && isls == 0)
 			printf("The following answer is not verified as authentic by the server:\n");
-		while (--ancount >= 0 && cp && cp < eom)
+		while (--ancount >= 0 && cp && cp < eom) {
 			cp = pr_rr(cp, answer->qb2, stdout, filter);
+			/*
+			 * When we ask for address and there is a CNAME, it
+			 * seems to return both the CNAME and the address.
+			 * Since we trace down the CNAME chain ourselves, we
+			 * don't really want to print the address at this
+			 * point.
+			 */
+                        if (cname && ! verbose)
+                                return (1);
+                }
 	}
 	if (!verbose)
 		return (1);
@@ -967,24 +977,24 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		}
 
 		if (doprint)
-			fprintf(file, "(\n\t\t\t%ld\t;serial (version)",
+			fprintf(file, "(\n\t\t\t%lu\t;serial (version)",
 				ns_get32(cp));
 		cp += INT32SZ;
 		if (doprint)
-			fprintf(file, "\n\t\t\t%ld\t;refresh period",
+			fprintf(file, "\n\t\t\t%lu\t;refresh period",
 				ns_get32(cp));
 		cp += INT32SZ;
 		if (doprint)
 			fprintf(file,
-				"\n\t\t\t%ld\t;retry refresh this often",
+				"\n\t\t\t%lu\t;retry refresh this often",
 				ns_get32(cp));
 		cp += INT32SZ;
 		if (doprint)
-			fprintf(file, "\n\t\t\t%ld\t;expiration period",
+			fprintf(file, "\n\t\t\t%lu\t;expiration period",
 				ns_get32(cp));
 		cp += INT32SZ;
 		if (doprint)
-			fprintf(file, "\n\t\t\t%ld\t;minimum TTL\n\t\t\t)",
+			fprintf(file, "\n\t\t\t%lu\t;minimum TTL\n\t\t\t)",
 				ns_get32(cp));
 		cp += INT32SZ;
 		break;
@@ -1235,15 +1245,15 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		/* original ttl */
 		origttl = cp;
 		if (doprint && verbose)
-			fprintf(file, " %d", ns_get32(cp));
+			fprintf(file, " %ld", ns_get32(cp));
 		cp += INT32SZ;
 		/* signature expiration */
 		if (doprint && verbose)
-			fprintf(file, " %d", ns_get32(cp));
+			fprintf(file, " %ld", ns_get32(cp));
 		cp += INT32SZ;
 		/* time signed */
 		if (doprint && verbose)
-			fprintf(file, " %d", ns_get32(cp));
+			fprintf(file, " %ld", ns_get32(cp));
 		cp += INT32SZ;
 		/* key footprint */
 		if (doprint && verbose)
@@ -1265,7 +1275,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 
 			if (sigchase && !(chase_step & SD_SIG) && 
 			    strcmp (chase_domain, thisdomain) == 0 && 
-			    chase_class == class & chase_type == tc)
+			    chase_class == class && chase_type == tc)
 			{
 				u_char cdname[NS_MAXCDNAME];
 
@@ -1336,7 +1346,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		
 		if (sigchase && (chase_step & (SD_SIG|SD_RR)) && 
 		    strcmp (getdomain, name) == 0 && 
-		    getclass == class & gettype == type)
+		    getclass == class && gettype == type)
 		{
 			DST_KEY *dstkey;
 			int rc, len, i, j;
@@ -1452,7 +1462,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		u_char cdname[NS_MAXCDNAME];
 
 		if (doprint && !verbose)
-			fprintf (file, " (chasing signature)", sigchase-1);
+			fprintf(file, " (chasing signature)");
 
 		/* unpack rr */
 
@@ -1566,6 +1576,7 @@ ListHosts(char *namePtr, int queryType) {
 	int nshaveaddr[NUMNS];
 	struct in_addr nsipaddr[NUMNSADDR];
 	int numns, numnsaddr, thisns;
+	int qdcount, ancount;
 
 	/*
 	 * Normalize to not have trailing dot.  We do string compares below
@@ -1638,7 +1649,8 @@ ListHosts(char *namePtr, int queryType) {
 
 		cp = answer.qb2 + HFIXEDSZ;
 		eom = answer.qb2 + msglen;
-		if (ntohs(answer.qb1.qdcount) > 0) {
+		qdcount = ntohs(answer.qb1.qdcount);
+		while (qdcount-- > 0) {
 			n = dn_skipname(cp, eom);
 			if (n < 0) {
 				printf("Form error.\n");
@@ -1876,35 +1888,60 @@ ListHosts(char *namePtr, int queryType) {
 		}
 		numAnswers++;
 		cp = buf.qb2 + HFIXEDSZ;
-		if (ntohs(buf.qb1.qdcount) > 0) {
+		qdcount = ntohs(buf.qb1.qdcount);
+		while (qdcount-- > 0) {
 			n = dn_skipname(cp, buf.qb2 + len);
-			if (n < 0) {
+			if (n <= 0) {
+				error = ERR_PRINTING;
+				break;
+			}
+			if (cp + n + QFIXEDSZ > buf.qb2 + len) {
 				error = ERR_PRINTING;
 				break;
 			}
 			cp += n + QFIXEDSZ;
 		}
-		nmp = cp;
-		n = dn_skipname(cp, buf.qb2 + len);
-		if (n < 0) {
-			error = ERR_PRINTING;
+		ancount = ntohs(buf.qb1.ancount);
+		while (ancount-- > 0) {
+			nmp = cp;
+			n = dn_skipname(cp, buf.qb2 + len);
+			if (n <= 0) {
+				error = ERR_PRINTING;
+				break;
+			}
+			cp += n;
+			if (cp + INT16SZ > buf.qb2 + len) {
+				error = ERR_PRINTING;
+				break;
+			}
+			type = ns_get16(cp);
+			cp += INT16SZ;
+			if (type == ns_t_soa) {
+				(void) dn_expand(buf.qb2, buf.qb2 + len, nmp,
+						 dname[soacnt], sizeof dname[0]);
+				if (soacnt) {
+					if (ns_samename(dname[0], dname[1]) == 1)
+						goto done;
+				} else
+					soacnt++;
+			}
+			if (cp + INT16SZ*2 + INT32SZ > buf.qb2 + len) {
+				error = ERR_PRINTING;
+				break;
+			}
+			cp += INT32SZ + INT16SZ;
+			dlen = ns_get16(cp);
+			cp += INT16SZ;
+			if (cp + dlen > buf.qb2 + len) {
+				error = ERR_PRINTING;
+				break;
+			}
+			cp += dlen;
+		}
+		if (error != NO_ERRORS)
 			break;
-		}
-		cp += n;
-		if (cp + INT16SZ > buf.qb2 + len) {
-			error = ERR_PRINTING;
-			break;
-		}
-		if ((ns_get16(cp) == ns_t_soa)) {
-			(void) dn_expand(buf.qb2, buf.qb2 + len, nmp,
-					 dname[soacnt], sizeof dname[0]);
-			if (soacnt) {
-				if (ns_samename(dname[0], dname[1]) == 1)
-					break;
-			} else
-				soacnt++;
-		}
         }
+ done:
 
 	(void) close(sockFD);
 	sockFD = -1;

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_init.c	4.38 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: ns_init.c,v 8.68 2000/04/21 06:54:07 vixie Exp $";
+static const char rcsid[] = "$Id: ns_init.c,v 8.70 2000/12/23 08:14:38 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -132,10 +132,11 @@ ns_retrytime(struct zoneinfo *zp, time_t timebase) {
 /*
  * Read configuration file and save it as internal state.
  */
-void
+time_t
 ns_init(const char *conffile) {
 	struct zoneinfo *zp;
 	static int loads = 0;			/* number of times loaded */
+	time_t mtime;
 
 	ns_debug(ns_log_config, 1, "ns_init(%s)", conffile);
 	gettime(&tt);
@@ -181,7 +182,7 @@ ns_init(const char *conffile) {
 	}
 #endif
 
-	load_configuration(conffile);
+	mtime = load_configuration(conffile);
 
 	/* Erase all old zones that were not found. */
 	for (zp = &zones[0]; zp < &zones[nzones]; zp++) {
@@ -210,6 +211,7 @@ ns_init(const char *conffile) {
 
 	ns_debug(ns_log_config, 1, "exit ns_init()");
 	loads++;
+	return (mtime);
 }
 
 void
@@ -277,9 +279,9 @@ do_reload(const char *domain, int type, int class, int mark) {
 	 */
 	zp = find_zone(domain, class);
 	if (zp != NULL &&
-	    (type != z_master && zp->z_type == z_master) ||
-	    (type != z_slave && zp->z_type == z_slave && zp->z_serial != 0) ||
-	    (type != z_stub && zp->z_type == z_stub && zp->z_serial != 0))
+	    ((type != z_master && zp->z_type == z_master) ||
+	     (type != z_slave && zp->z_type == z_slave && zp->z_serial != 0) ||
+	     (type != z_stub && zp->z_type == z_stub && zp->z_serial != 0)))
 		return;
 
 	/*
@@ -466,7 +468,7 @@ ns_nameok(const struct qinfo *qry, const char *name, int class,
 		else {
 			s = newstr(strlen(transport_strings[transport]) +
 				   sizeof " from [000.000.000.000] for [000.000.000.000]", 0);
-			if (s)
+			if (s != NULL) {
 				if ( (transport == response_trans) &&
 					(qry != NULL) ) {
 
@@ -496,6 +498,7 @@ ns_nameok(const struct qinfo *qry, const char *name, int class,
 						transport_strings[transport],
 						inet_ntoa(source));
 				}
+			}
 		}
 		if (ns_samename(owner, name) == 1)
 			o = savestr("", 0);

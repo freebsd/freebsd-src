@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.6 1999/01/08 19:23:42 vixie Exp $";
+static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.7 2001/01/25 19:55:59 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -108,7 +108,7 @@ inet_net_ntop_ipv4(src, bits, dst, size)
 
 	/* Format whole octets. */
 	for (b = bits / 8; b > 0; b--) {
-		if (size < sizeof "255.")
+		if (size <= sizeof "255.")
 			goto emsgsize;
 		t = dst;
 		dst += SPRINTF((dst, "%u", *src++));
@@ -122,7 +122,7 @@ inet_net_ntop_ipv4(src, bits, dst, size)
 	/* Format partial octet. */
 	b = bits % 8;
 	if (b > 0) {
-		if (size < sizeof ".255")
+		if (size <= sizeof ".255")
 			goto emsgsize;
 		t = dst;
 		if (dst != odst)
@@ -133,7 +133,7 @@ inet_net_ntop_ipv4(src, bits, dst, size)
 	}
 
 	/* Format CIDR /width. */
-	if (size < sizeof "/32")
+	if (size <= sizeof "/32")
 		goto emsgsize;
 	dst += SPRINTF((dst, "/%u", bits));
 	return (odst);

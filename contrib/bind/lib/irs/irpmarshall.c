@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: irpmarshall.c,v 8.5 1999/10/13 17:11:19 vixie Exp $";
+static const char rcsid[] = "$Id: irpmarshall.c,v 8.6 2000/11/13 05:08:08 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #if 0
@@ -90,7 +90,10 @@ Double check memory allocations on unmarhsalling
 #include "port_after.h"
 
 
+#ifndef HAVE_STRNDUP
 static char    *strndup(const char *str, size_t len);
+#endif
+
 static char   **splitarray(const char *buffer, const char *buffend, char delim);
 static int	joinarray(char * const * argv, char *buffer, char delim);
 static char    *getfield(char **res, size_t reslen, char **buffer, char delim);
@@ -1862,6 +1865,7 @@ getfield(char **res, size_t reslen, char **ptr, char delim) {
 
 
 
+#ifndef HAVE_STRNDUP
 /*
  * static char * strndup(const char *str, size_t len)
  *
@@ -1886,6 +1890,7 @@ strndup(const char *str, size_t len) {
 	p[len] = 0x0;
 	return (p);
 }
+#endif
 
 #if WANT_MAIN
 
