@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.29 1996/02/23 15:47:55 phk Exp $
+ *	$Id: ip_output.c,v 1.30 1996/02/24 00:17:35 phk Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -42,7 +43,6 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>

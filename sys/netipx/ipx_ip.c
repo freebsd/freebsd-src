@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.5 1995/11/24 12:07:33 bde Exp $
+ * $Id: ipx_ip.c,v 1.6 1995/12/16 02:14:34 bde Exp $
  */
 
 /*
@@ -42,6 +42,7 @@
 
 #ifdef IPXIP
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>

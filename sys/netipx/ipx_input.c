@@ -33,10 +33,11 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.6 1995/12/16 02:14:33 bde Exp $
+ * $Id: ipx_input.c,v 1.7 1996/01/05 20:47:04 wollman Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>

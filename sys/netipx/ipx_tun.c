@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_tun.c
  *
- * $Id: ipx_tun.c,v 1.2 1995/10/31 23:36:38 julian Exp $
+ * $Id: ipx_tun.c,v 1.3 1995/11/04 09:03:21 julian Exp $
  */
 
 /*
@@ -42,6 +42,7 @@
 
 #ifdef IPTUNNEL
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
