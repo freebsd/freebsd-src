@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.13 1998/09/24 01:11:45 luoqi Exp $
+# $Id: Makefile,v 1.14 1999/01/22 12:45:27 jdp Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
@@ -71,6 +71,6 @@ NEED_LIBNAMES=	yes
 # This must be after bsd.prog.mk is included so that ${OBJS} in the
 # dependency gets expanded.
 doscmd.kernel: crt0.o ${OBJS} ${DPADD}
-	ld -N -Bstatic -T 110000 -o doscmd.kernel ${LDFLAGS} \
+	ld -N -Bstatic -T 110000 -o doscmd.kernel ${LDFLAGS:N-static} \
 	    crt0.o ${OBJS} ${LDADD}
 .endif
