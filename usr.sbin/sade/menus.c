@@ -1469,7 +1469,7 @@ DMenu MenuNetworking = {
 	dmenuVarCheck,	configRouter, NULL, "router_enable=YES" },
       { " Rwhod",	"This machine wants to run the rwho daemon",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "rwhod_enable=YES" },
-      { " SSHd",	"This machine wants to run the SSH daemon",
+      { " sshd",	"This machine wants to run the SSH daemon",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "sshd_enable=YES" },
       { " TCP Extensions", "Allow RFC1323 and RFC1644 TCP extensions?",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "tcp_extensions=YES" },
