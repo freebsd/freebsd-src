@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* Native-dependent definitions for Intel 386 running BSD Unix, for GDB.
    Copyright 1986, 1987, 1989, 1992, 1996 Free Software Foundation, Inc.
 
@@ -131,5 +132,37 @@ extern int kernel_writablecore;
 #define START_PROGRESS(STR,N) \
   if (!strcmp(STR, "kgdb")) \
      kernel_debugging = 1;
+
+#include <sys/types.h>
+#include <sys/ptrace.h>
+
+#ifdef PT_GETDBREGS
+#define TARGET_HAS_HARDWARE_WATCHPOINTS
+
+extern int can_watch PARAMS((int type, int cnt, int othertype));
+extern int stopped_by_watchpoint PARAMS((void));
+extern int insert_watchpoint PARAMS((int addr, int len, int type));
+extern int remove_watchpoint PARAMS((int addr, int len, int type));
+
+#define TARGET_CAN_USE_HARDWARE_WATCHPOINT(type, cnt, ot) \
+	can_watch(type, cnt, ot)
+
+/* After a watchpoint trap, the PC points to the instruction after
+   the one that caused the trap.  Therefore we don't need to step over it.
+   But we do need to reset the status register to avoid another trap.  */
+#define HAVE_CONTINUABLE_WATCHPOINT
+
+#define STOPPED_BY_WATCHPOINT(W)  \
+	stopped_by_watchpoint()
+
+/* Use these macros for watchpoint insertion/removal.  */
+
+#define target_insert_watchpoint(addr, len, type)  \
+	insert_watchpoint(addr, len, type)
+
+#define target_remove_watchpoint(addr, len, type)  \
+	remove_watchpoint(addr, len, type)
+
+#endif /* PT_GETDBREGS */
 
 #endif /* NM_FREEBSD_H */
