@@ -492,6 +492,9 @@
       or a plain <devicename>vga</devicename> card is suggested as
       an alternative.</para>
 
+    <para arch="alpha">Support for TurboLaser class machines has been
+      removed.</para>
+
     <para arch="alpha,amd64,i386">For the &man.uart.4; device,
       the <varname>hw.uart.console</varname> and
       <varname>hw.uart.dbgport</varname> kernel environment variables
