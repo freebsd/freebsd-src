@@ -107,7 +107,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.127.2.15 1998/02/13 22:50:00 pst Exp $
+#	$Id$
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -1091,8 +1091,8 @@ meteor?)
 
 bktr?)
 	unit=`expr $i : 'bktr\(.*\)'`
-	mknod bktr$unit c 79 $unit
-	mknod tuner$unit c 79 $((16 + $unit ))
+	mknod bktr$unit c 92 $unit
+	mknod tuner$unit c 92 $((16 + $unit ))
 	chmod 444 bktr$unit tuner$unit
 	;;
 
