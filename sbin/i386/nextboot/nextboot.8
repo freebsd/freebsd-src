@@ -1,4 +1,4 @@
-.\"	$Id: nextboot.8,v 1.7 1997/04/23 04:46:38 danny Exp $
+.\"	$Id: nextboot.8,v 1.9 1999/02/05 09:58:39 rnordier Exp $
 .Dd July 9, 1996
 .Dt NEXTBOOT 8
 .\".Os BSD 4
@@ -92,6 +92,8 @@ per boot.
 .Xr disklabel 8 ,
 .Xr fdisk 8
 .Sh BUGS
+This program works only in conjunction with the legacy boot code.
+.Pp
 The entire program should be made more user-friendly.
 The option of whether to write back or not should be stored on the
 disk and not a compile time option. I want to rethink this at some 
