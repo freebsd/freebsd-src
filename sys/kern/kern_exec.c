@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.61 1997/04/13 03:05:31 dyson Exp $
+ *	$Id: kern_exec.c,v 1.62 1997/04/18 02:43:05 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -118,6 +118,7 @@ execve(p, uap, retval)
 	imgp->attr = &attr;
 	imgp->image_header = NULL;
 	imgp->argc = imgp->envc = 0;
+	imgp->argv0 = NULL;
 	imgp->entry_addr = 0;
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
@@ -435,20 +436,29 @@ exec_extract_strings(imgp)
 	argv = imgp->uap->argv;
 
 	if (argv) {
-		while ((argp = (caddr_t) fuword(argv++))) {
-			if (argp == (caddr_t) -1)
-				return (EFAULT);
-			if ((error = copyinstr(argp, imgp->stringp,
-			    imgp->stringspace, &length))) {
-				if (error == ENAMETOOLONG)
-					return(E2BIG);
-				return (error);
-			}
-			imgp->stringspace -= length;
-			imgp->stringp += length;
-			imgp->argc++;
+		argp = (caddr_t) fuword(argv);
+		if (argp == (caddr_t) -1)
+			return (EFAULT);
+		if (argp)
+			argv++;
+		if (imgp->argv0)
+			argp = imgp->argv0;
+		if (argp) {
+			do {
+				if (argp == (caddr_t) -1)
+					return (EFAULT);
+				if ((error = copyinstr(argp, imgp->stringp,
+				    imgp->stringspace, &length))) {
+					if (error == ENAMETOOLONG)
+						return(E2BIG);
+					return (error);
+				}
+				imgp->stringspace -= length;
+				imgp->stringp += length;
+				imgp->argc++;
+			} while ((argp = (caddr_t) fuword(argv++)));
 		}
-	}
+	}	
 
 	/*
 	 * extract environment strings
