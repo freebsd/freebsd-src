@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.5 1994/10/08 22:33:40 phk Exp $
+ * $Id: tty_compat.c,v 1.6 1994/10/11 20:04:49 ache Exp $
  */
 
 /* 
@@ -290,8 +290,8 @@ ttcompatgetflags(tp)
 	if ((iflag&IXANY) == 0)
 		flags |= DECCTQ;
 	flags |= lflag&(ECHO|TOSTOP|FLUSHO|PENDIN|NOFLSH);
-if (ttydebug)
-	printf("getflags: %x\n", flags);
+	if (ttydebug)
+		printf("getflags: %x\n", flags);
 	return (flags);
 }
 
@@ -307,7 +307,7 @@ ttcompatsetflags(tp, t)
 	register long cflag = t->c_cflag;
 
 	if (flags & RAW) {
-		iflag &= IXOFF|IXANY;
+		iflag = 0;
 		lflag &= ~(ECHOCTL|ISIG|ICANON|IEXTEN);
 	} else {
 		iflag |= BRKINT|IXON|IMAXBEL;
@@ -333,7 +333,7 @@ ttcompatsetflags(tp, t)
 	else
 		lflag &= ~ECHO;
 		
-		cflag &= ~(CSIZE|PARENB);
+	cflag &= ~(CSIZE|PARENB);
 	if (flags&(RAW|LITOUT|PASS8)) {
 		cflag |= CS8;
 		if (!(flags&(RAW|PASS8))
@@ -362,6 +362,10 @@ ttcompatsetflags(tp, t)
 		iflag |= IXOFF;
 	else
 		iflag &= ~IXOFF;
+	if ((flags&DECCTQ) == 0)
+		iflag |= IXANY;
+	else
+		iflag &= ~IXANY;
 	t->c_iflag = iflag;
 	t->c_oflag = oflag;
 	t->c_lflag = lflag;
@@ -395,6 +399,10 @@ ttcompatsetlflags(tp, t)
 		lflag |= ECHOCTL;
 	else
 		lflag &= ~ECHOCTL;
+	if (flags&TANDEM)
+		iflag |= IXOFF;
+	else
+		iflag &= ~IXOFF;
 	if ((flags&DECCTQ) == 0)
 		iflag |= IXANY;
 	else
@@ -418,7 +426,7 @@ ttcompatsetlflags(tp, t)
 	 * the change is not available here and skipping the RAW case would
 	 * make the code different from above.
 	 */
-		cflag &= ~(CSIZE|PARENB);
+	cflag &= ~(CSIZE|PARENB);
 	if (flags&(RAW|LITOUT|PASS8)) {
 		cflag |= CS8;
 		if (!(flags&(RAW|PASS8))
