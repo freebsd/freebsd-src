@@ -41,4 +41,4 @@
 
 #include <paths.h>
 
-#define	_PATH_TMPPORTAL	 "/tmp/portalXXXXXX"	/* Scratch socket name */
+#define	_PATH_TMPPORTAL	 "/tmp/portalXXXXXXXXXX"	/* Scratch socket name */
