@@ -32,7 +32,20 @@ typedef struct sigaction sigaction_t;
 #define FG(n)	((n) & 0x0f)
 #define BG(n)	(((n) & 0xf0) >> 4)
 
+#define TextOf(c)    ((c) & (chtype)A_CHARTEXT)
+#define AttrOf(c)    ((c) & (chtype)A_ATTRIBUTES)
+
+#define BLANK        (' '|A_NORMAL)
+
 #define CHANGED     -1
+
+#define ALL_BUT_COLOR ((chtype)~(A_COLOR))
+
+/* Macro to put together character and attribute info and return it.
+   If colors are in the attribute, they have precedence. */
+#define ch_or_attr(ch,at) \
+    ((PAIR_NUMBER(at) > 0) ? \
+     ((((chtype)ch) & ALL_BUT_COLOR) | (at)) : ((((chtype)ch) | (at))))
 
 extern WINDOW	*newscr;
 
@@ -51,6 +64,8 @@ extern void init_acs(void);
 extern void tstp(int);
 extern WINDOW *makenew(int, int, int, int);
 extern int timed_wait(int fd, int wait, int *timeleft);
+extern chtype _nc_background(WINDOW *);
+extern chtype _nc_render(WINDOW *, chtype);
 
 struct try {
         struct try      *child;     /* ptr to child.  NULL if none          */

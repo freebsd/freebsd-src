@@ -32,14 +32,14 @@ int endx, endy;
 	if (bl == 0) bl = ACS_LLCORNER;
 	if (br == 0) br = ACS_LRCORNER;
 
-	ls |= win->_attrs;
-	rs |= win->_attrs;
-	ts |= win->_attrs;
-	bs |= win->_attrs;
-	tl |= win->_attrs;
-	tr |= win->_attrs;
-	bl |= win->_attrs;
-	br |= win->_attrs;
+	ls = _nc_render(win, ls);
+	rs = _nc_render(win, rs);
+	ts = _nc_render(win, ts);
+	bs = _nc_render(win, bs);
+	tl = _nc_render(win, tl);
+	tr = _nc_render(win, tr);
+	bl = _nc_render(win, bl);
+	br = _nc_render(win, br);
 
 	T(("using %x, %x, %x, %x, %x, %x, %x, %x", ls, rs, ts, bs, tl, tr, bl, br));
 

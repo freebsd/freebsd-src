@@ -73,20 +73,34 @@ int vidputs(chtype newmode, int  (*outc)(int))
 {
 chtype	turn_off = (~newmode & previous_attr) & ~A_COLOR;
 chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
+int pair, current_pair;
 
 	T(("vidputs(%x) called %s", newmode, _traceattr(newmode)));
 	T(("previous attribute was %s", _traceattr(previous_attr)));
 
 	if (newmode == previous_attr)
 		return OK;
+
+	pair = PAIR_NUMBER(newmode);
+	current_pair = PAIR_NUMBER(previous_attr);
+
+	if ((!SP || SP->_coloron) && pair == 0) {
+   		T(("old pair = %d -- new pair = %d", current_pair, pair));
+		if (pair != current_pair) {
+			do_color(pair, outc);
+			previous_attr &= ~A_COLOR;
+		}
+   	}
+
 	if (newmode == A_NORMAL && exit_attribute_mode) {
 		if((previous_attr & A_ALTCHARSET) && exit_alt_charset_mode) {
  			tputs(exit_alt_charset_mode, 1, outc);
  			previous_attr &= ~A_ALTCHARSET;
  		}
- 		if (previous_attr)
+		if (previous_attr) {
  			tputs(exit_attribute_mode, 1, outc);
-
+			previous_attr &= ~A_COLOR;
+		}
 	} else if (set_attributes) {
 		if (turn_on || turn_off) {
 	    		tputs(tparm(set_attributes,
@@ -99,6 +113,7 @@ chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
 				(newmode & A_INVIS) != 0,
 				(newmode & A_PROTECT) != 0,
 				(newmode & A_ALTCHARSET) != 0), 1, outc);
+			previous_attr &= ~A_COLOR;
 		}
 	} else {
 
@@ -122,6 +137,7 @@ chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
 		if (turn_off && exit_attribute_mode) {
 			tputs(exit_attribute_mode, 1, outc);
 			turn_on |= newmode & (A_UNDERLINE|A_REVERSE|A_BLINK|A_DIM|A_BOLD|A_INVIS|A_PROTECT);
+			previous_attr &= ~A_COLOR;
 		}
 
 		T(("turning %x on", _traceattr(turn_on)));
@@ -155,12 +171,10 @@ chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
 
 	}
 
-	if (SP->_coloron) {
-	int pair = PAIR_NUMBER(newmode);
-	int current_pair = PAIR_NUMBER(previous_attr);
-
+	if ((!SP || SP->_coloron) && pair != 0) {
+		current_pair = PAIR_NUMBER(previous_attr);
    		T(("old pair = %d -- new pair = %d", current_pair, pair));
-   		if (pair != current_pair || turn_off) {
+		if (pair != current_pair) {
 			do_color(pair, outc);
 		}
    	}

@@ -17,6 +17,7 @@ int wdelch(WINDOW *win)
 {
 chtype	*temp1, *temp2;
 chtype	*end;
+chtype	blank = _nc_background(win);
 
 	T(("wdelch(%x) called", win));
 
@@ -27,7 +28,7 @@ chtype	*end;
 	while (temp1 < end)
 	    *temp1++ = *temp2++;
 
-	*temp1 = ' ' | win->_attrs;
+	*temp1 = blank;
 
 	win->_lastchar[win->_cury] = win->_maxx;
 
