@@ -79,6 +79,7 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 	ucp->uc_link = sig_uc;
 	sigdelset(&ucp->uc_sigmask, sig);
 
+	ucp->uc_mcontext.mc_len = sizeof(mcontext_t);
 	ucp->uc_mcontext.mc_rdi = (register_t)ucp;
 	ucp->uc_mcontext.mc_rsi = (register_t)func;
 	ucp->uc_mcontext.mc_rdx = (register_t)args;
