@@ -62,7 +62,7 @@ struct _Unwind_Context
 };
 
 /* Byte size of every register managed by these routines.  */
-static unsigned char dwarf_reg_size_table[DWARF_FRAME_REGISTERS];
+static unsigned char dwarf_reg_size_table[DWARF_FRAME_REGISTERS+1];
 
 
 /* The result of interpreting the frame unwind info for a frame.
@@ -171,7 +171,7 @@ _Unwind_GetGR (struct _Unwind_Context *context, int index)
 _Unwind_Word
 _Unwind_GetCFA (struct _Unwind_Context *context)
 {
-  return (_Unwind_Ptr) context->cfa;
+  return (_Unwind_Word) context->cfa;
 }
 
 /* Overwrite the saved value for register REG in CONTEXT with VAL.  */
@@ -928,6 +928,9 @@ uw_frame_state_for (struct _Unwind_Context *context, _Unwind_FrameState *fs)
   memset (fs, 0, sizeof (*fs));
   context->args_size = 0;
   context->lsda = 0;
+
+  if (context->ra == 0)
+    return _URC_END_OF_STACK;
 
   fde = _Unwind_Find_FDE (context->ra - 1, &context->bases);
   if (fde == NULL)

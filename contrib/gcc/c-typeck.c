@@ -4247,6 +4247,11 @@ convert_for_assignment (type, rhs, errtype, fundecl, funname, parmnum)
 			     errtype, funname, parmnum);
       return convert (type, rhs);
     }
+  else if (codel == POINTER_TYPE && coder == ARRAY_TYPE)
+    {
+      error ("invalid use of non-lvalue array");
+      return error_mark_node;
+    }
   else if (codel == POINTER_TYPE && coder == INTEGER_TYPE)
     {
       /* An explicit constant 0 can convert to a pointer,
@@ -4765,8 +4770,14 @@ digest_init (type, init, require_constant)
   if (code == VECTOR_TYPE
       && comptypes (TREE_TYPE (inside_init), type)
       && TREE_CONSTANT (inside_init))
-    return build_vector (type, TREE_OPERAND (inside_init, 1));
-
+    {
+      if (TREE_CODE (inside_init) == VECTOR_CST
+	  && comptypes (TYPE_MAIN_VARIANT (TREE_TYPE (inside_init)),
+			TYPE_MAIN_VARIANT (type)))
+	return inside_init;
+      else
+	return build_vector (type, CONSTRUCTOR_ELTS (inside_init));
+    }
 
   /* Any type can be initialized
      from an expression of the same type, optionally with braces.  */
@@ -4785,8 +4796,16 @@ digest_init (type, init, require_constant)
 			    TREE_TYPE (type)))))
     {
       if (code == POINTER_TYPE)
-	inside_init = default_function_array_conversion (inside_init);
+	{
+	  inside_init = default_function_array_conversion (inside_init);
 
+	  if (TREE_CODE (TREE_TYPE (inside_init)) == ARRAY_TYPE)
+	    {
+	      error_init ("invalid use of non-lvalue array");
+	      return error_mark_node;
+	    }
+	 }
+    
       if (require_constant && !flag_isoc99
 	  && TREE_CODE (inside_init) == COMPOUND_LITERAL_EXPR)
 	{
@@ -5742,6 +5761,8 @@ set_init_index (first, last)
     error_init ("nonconstant array index in initializer");
   else if (TREE_CODE (constructor_type) != ARRAY_TYPE)
     error_init ("array index in non-array initializer");
+  else if (tree_int_cst_sgn (first) == -1)
+    error_init ("array index in initializer exceeds array bounds");
   else if (constructor_max_index
 	   && tree_int_cst_lt (constructor_max_index, first))
     error_init ("array index in initializer exceeds array bounds");

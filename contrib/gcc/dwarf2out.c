@@ -432,6 +432,15 @@ expand_builtin_init_dwarf_reg_sizes (address)
 
 	emit_move_insn (adjust_address (mem, mode, offset), GEN_INT (size));
       }
+
+#ifdef DWARF_ALT_FRAME_RETURN_COLUMN
+  {
+    enum machine_mode save_mode = Pmode;
+    HOST_WIDE_INT offset = DWARF_ALT_FRAME_RETURN_COLUMN * GET_MODE_SIZE (mode);
+    HOST_WIDE_INT size = GET_MODE_SIZE (save_mode);
+    emit_move_insn (adjust_address (mem, mode, offset), GEN_INT (size));
+  }
+#endif
 }
 
 /* Convert a DWARF call frame info. operation to its string name */
@@ -11051,15 +11060,19 @@ gen_inlined_subroutine_die (stmt, context_die, depth)
      dw_die_ref context_die;
      int depth;
 {
+  tree decl = block_ultimate_origin (stmt);
+
+  /* Emit info for the abstract instance first, if we haven't yet.  We
+     must emit this even if the block is abstract, otherwise when we
+     emit the block below (or elsewhere), we may end up trying to emit
+     a die whose origin die hasn't been emitted, and crashing.  */
+  dwarf2out_abstract_function (decl);
+
   if (! BLOCK_ABSTRACT (stmt))
     {
       dw_die_ref subr_die
 	= new_die (DW_TAG_inlined_subroutine, context_die, stmt);
-      tree decl = block_ultimate_origin (stmt);
       char label[MAX_ARTIFICIAL_LABEL_BYTES];
-
-      /* Emit info for the abstract instance first, if we haven't yet.  */
-      dwarf2out_abstract_function (decl);
 
       add_abstract_origin_attribute (subr_die, decl);
       ASM_GENERATE_INTERNAL_LABEL (label, BLOCK_BEGIN_LABEL,
