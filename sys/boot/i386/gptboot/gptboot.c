@@ -139,12 +139,15 @@ static int xputc(int);
 static int xgetc(int);
 static int getc(int);
 
-static void memcpy(char *, const char *, int);
+static void memcpy(void *, const void *, int);
 static void
-memcpy(char *dst, const char *src, int len)
+memcpy(void *dst, const void *src, int len)
 {
+    const char *s = src;
+    char *d = dst;
+
     while (len--)
-        *dst++ = *src++;
+        *d++ = *s++;
 }
 
 static inline int
