@@ -1219,12 +1219,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	ksi.si_sc.sc_regs[R_SP] = alpha_pal_rdusp();
 
 	/* save the floating-point state, if necessary, then copy it. */
-	if (p == fpcurproc) {
-		alpha_pal_wrfen(1);
-		savefpstate(&p->p_addr->u_pcb.pcb_fp);
-		alpha_pal_wrfen(0);
-		fpcurproc = NULL;
-	}
+	alpha_fpstate_save(p, 1);		/* XXX maybe write=0 */
 	ksi.si_sc.sc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
 	bcopy(&p->p_addr->u_pcb.pcb_fp, (struct fpreg *)ksi.si_sc.sc_fpregs,
 	    sizeof(struct fpreg));
@@ -1338,12 +1333,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	/* save the floating-point state, if necessary, then copy it. */
-	if (p == fpcurproc) {
-		alpha_pal_wrfen(1);
-		savefpstate(&p->p_addr->u_pcb.pcb_fp);
-		alpha_pal_wrfen(0);
-		fpcurproc = NULL;
-	}
+	alpha_fpstate_save(p, 1);
 	sf.sf_uc.uc_mcontext.mc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
 	bcopy(&p->p_addr->u_pcb.pcb_fp,
 	      (struct fpreg *)sf.sf_uc.uc_mcontext.mc_fpregs,
@@ -1451,8 +1441,7 @@ osigreturn(struct proc *p,
 	alpha_pal_wrusp(ksc.sc_regs[R_SP]);
 
 	/* XXX ksc.sc_ownedfp ? */
-	if (p == fpcurproc)
-		fpcurproc = NULL;
+	alpha_fpstate_drop(p);
 	bcopy((struct fpreg *)ksc.sc_fpregs, &p->p_addr->u_pcb.pcb_fp,
 	    sizeof(struct fpreg));
 	p->p_addr->u_pcb.pcb_fp_control = ksc.sc_fp_control;
@@ -1505,8 +1494,7 @@ sigreturn(struct proc *p,
 	SIG_CANTMASK(p->p_sigmask);
 
 	/* XXX ksc.sc_ownedfp ? */
-	if (p == fpcurproc)
-		fpcurproc = NULL;
+	alpha_fpstate_drop(p);
 	bcopy((struct fpreg *)uc.uc_mcontext.mc_fpregs,
 	      &p->p_addr->u_pcb.pcb_fp, sizeof(struct fpreg));
 	p->p_addr->u_pcb.pcb_fp_control = uc.uc_mcontext.mc_fp_control;
@@ -1566,8 +1554,7 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	tfp->tf_regs[FRAME_T12] = tfp->tf_regs[FRAME_PC];	/* a.k.a. PV */
 
 	p->p_md.md_flags &= ~MDP_FPUSED;
-	if (fpcurproc == p)
-		fpcurproc = NULL;
+	alpha_fpstate_drop(p);
 }
 
 int
@@ -1893,11 +1880,7 @@ fill_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
-	if (p == fpcurproc) {
-		alpha_pal_wrfen(1);
-		savefpstate(&p->p_addr->u_pcb.pcb_fp);
-		alpha_pal_wrfen(0);
-	}
+	alpha_fpstate_save(p, 0);
 
 	bcopy(&p->p_addr->u_pcb.pcb_fp, fpregs, sizeof *fpregs);
 	return (0);
@@ -1908,8 +1891,7 @@ set_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
-	if (p == fpcurproc)
-		fpcurproc = NULL;
+	alpha_fpstate_drop(p);
 
 	bcopy(fpregs, &p->p_addr->u_pcb.pcb_fp, sizeof *fpregs);
 	return (0);
@@ -2004,3 +1986,126 @@ SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
 
 SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
+
+void
+alpha_fpstate_check(struct proc *p)
+{
+	if (p->p_addr->u_pcb.pcb_hw.apcb_flags & ALPHA_PCB_FLAGS_FEN)
+		if (p != fpcurproc)
+			panic("alpha_check_fpcurproc: bogus");
+}
+
+#define SET_FEN(p) \
+	(p)->p_addr->u_pcb.pcb_hw.apcb_flags |= ALPHA_PCB_FLAGS_FEN
+
+#define CLEAR_FEN(p) \
+	(p)->p_addr->u_pcb.pcb_hw.apcb_flags &= ~ALPHA_PCB_FLAGS_FEN
+
+/*
+ * Save the floating point state in the pcb. Use this to get read-only
+ * access to the floating point state. If write is true, the current
+ * fp process is cleared so that fp state can safely be modified. The
+ * process will automatically reload the changed state by generating a 
+ * FEN trap.
+ */
+void
+alpha_fpstate_save(struct proc *p, int write)
+{
+	if (p == fpcurproc) {
+		/*
+		 * If curproc != fpcurproc, then we need to enable FEN 
+		 * so that we can dump the fp state.
+		 */
+		alpha_pal_wrfen(1);
+
+		/*
+		 * Save the state in the pcb.
+		 */
+		savefpstate(&p->p_addr->u_pcb.pcb_fp);
+
+		if (write) {
+			/*
+			 * If fpcurproc == curproc, just ask the
+			 * PALcode to disable FEN, otherwise we must
+			 * clear the FEN bit in fpcurproc's pcb.
+			 */
+			if (fpcurproc == curproc)
+				alpha_pal_wrfen(0);
+			else
+				CLEAR_FEN(fpcurproc);
+			fpcurproc = NULL;
+		} else {
+			/*
+			 * Make sure that we leave FEN enabled if
+			 * curproc == fpcurproc. We must have at most
+			 * one process with FEN enabled. Note that FEN 
+			 * must already be set in fpcurproc's pcb.
+			 */
+			if (curproc != fpcurproc)
+				alpha_pal_wrfen(0);
+		}
+	}
+}
+
+/*
+ * Relinquish ownership of the FP state. This is called instead of
+ * alpha_save_fpstate() if the entire FP state is being changed
+ * (e.g. on sigreturn).
+ */
+void
+alpha_fpstate_drop(struct proc *p)
+{
+	if (p == fpcurproc) {
+		if (p == curproc) {
+			/*
+			 * Disable FEN via the PALcode. This will
+			 * clear the bit in the pcb as well.
+			 */
+			alpha_pal_wrfen(0);
+		} else {
+			/*
+			 * Clear the FEN bit of the pcb.
+			 */
+			CLEAR_FEN(p);
+		}
+		fpcurproc = NULL;
+	}
+}
+
+/*
+ * Switch the current owner of the fp state to p, reloading the state
+ * from the pcb.
+ */
+void
+alpha_fpstate_switch(struct proc *p)
+{
+	/*
+	 * Enable FEN so that we can access the fp registers.
+	 */
+	alpha_pal_wrfen(1);
+	if (fpcurproc) {
+		/*
+		 * Dump the old fp state if its valid.
+		 */
+		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
+		CLEAR_FEN(fpcurproc);
+	}
+
+	/*
+	 * Remember the new FP owner and reload its state.
+	 */
+	fpcurproc = p;
+	restorefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
+
+	/*
+	 * If the new owner is curproc, leave FEN enabled, otherwise
+	 * mark its PCB so that it gets FEN when we context switch to
+	 * it later.
+	 */
+	if (p != curproc) {
+		alpha_pal_wrfen(0);
+		SET_FEN(p);
+	}
+
+	p->p_md.md_flags |= MDP_FPUSED;
+}

@@ -148,6 +148,10 @@ void	XentSys __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
 void	XentUna __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
 void	alpha_init __P((u_long, u_long, u_long, u_long, u_long));
 int	alpha_pa_access __P((u_long));
+void	alpha_fpstate_check __P((struct proc *p));
+void	alpha_fpstate_save __P((struct proc *p, int write));
+void	alpha_fpstate_drop __P((struct proc *p));
+void	alpha_fpstate_switch __P((struct proc *p));
 void	ast __P((struct trapframe *));
 int	badaddr	__P((void *, size_t));
 int	badaddr_read __P((void *, size_t, void *));
