@@ -1,5 +1,5 @@
 <!-- $FreeBSD$ -->
-<!-- Original revision: 1.2 -->
+<!-- Original revision: 1.4 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY release.dsl PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Language Neutral Stylesheet//EN" CDATA DSSSL>
@@ -70,8 +70,15 @@
         <!-- Specify how to generate the man page link HREF -->
         (define ($create-refentry-xref-link$ refentrytitle manvolnum)
 	  (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
-			 refentrytitle "&" "sektion=" manvolnum))
+			 refentrytitle "&" "sektion=" manvolnum
+			 "&" "manpath=FreeBSD+5.0-current"))
       ]]>
+
+      (define (toc-depth nd)
+        (if (string=? (gi nd) (normalize "book"))
+            3
+            3))
+
     </style-specification-body>
   </style-specification>
 
