@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.43 1999/05/08 21:21:50 dfr Exp $
+ * $Id: disk.c,v 1.44 1999/05/09 11:34:56 dfr Exp $
  *
  */
 
@@ -375,7 +375,7 @@ Collapse_Disk(struct disk *d)
 }
 #endif
 
-static char * device_list[] = {"wd", "ad", "sd", "da", "wfd", "fla", 0};
+static char * device_list[] = {"wd", "ad", "sd", "da", "wfd", "fla", "ida", 0};
 
 char **
 Disk_Names()
