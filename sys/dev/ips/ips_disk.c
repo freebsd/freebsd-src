@@ -102,9 +102,9 @@ static void ipsd_strategy(struct bio *iobuf)
 	DEVICE_PRINTF(8,dsc->dev,"in strategy\n");
 	iobuf->bio_driver1 = (void *)(uintptr_t)dsc->sc->drives[dsc->disk_number].drivenum;
 	mtx_lock(&dsc->sc->queue_mtx);
-	bioq_disksort(&dsc->sc->queue, iobuf);
-	mtx_unlock(&dsc->sc->queue_mtx);
+	bioq_insert_tail(&dsc->sc->queue, iobuf);
 	ips_start_io_request(dsc->sc);
+	mtx_unlock(&dsc->sc->queue_mtx);
 }
 
 static int ipsd_probe(device_t dev)
@@ -149,7 +149,7 @@ static int ipsd_attach(device_t dev)
 	dsc->ipsd_disk->d_sectorsize = IPS_BLKSIZE;
 	dsc->ipsd_disk->d_mediasize = (off_t)totalsectors * IPS_BLKSIZE;
 	dsc->ipsd_disk->d_unit = dsc->unit;
-	dsc->ipsd_disk->d_flags = DISKFLAG_NEEDSGIANT;
+	dsc->ipsd_disk->d_flags = 0;
 	disk_create(dsc->ipsd_disk, DISK_VERSION);
 
 	device_printf(dev, "Logical Drive  (%dMB)\n",
