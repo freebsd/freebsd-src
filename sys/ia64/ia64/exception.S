@@ -1274,6 +1274,7 @@ ENTRY(do_syscall, 0)
 	;;
 	st8	[r30]=r20,16		// save cr.isr
 	add	r31=16,r31		// skip cr.ifa
+	mov	r16=pr
 	mov	r18=ar.rsc
 	mov	r19=ar.pfs
 	;;
@@ -1429,7 +1430,7 @@ ENTRY(do_syscall, 0)
 	ld8	r18=[r31],-16		// restore cr.ipsr
 	ld8	r19=[r30],-16		// restore cr.iip
 	mov	ar.rsc=r16
-	mov	pr=r16,0x1ffff
+	mov	pr=r17,0x1ffff
 	;;
 	mov	cr.ipsr=r18
 	mov	cr.iip=r19
