@@ -55,6 +55,7 @@
 #define	_BSD_VA_LIST_		__builtin_va_list /* va_list */
 #define	_BSD_CLOCKID_T_		int		/* clockid_t */
 #define	_BSD_TIMER_T_		int		/* timer_t */
+#define	_BSD_SOCKLEN_T_		__uint32_t	/* socklen_t */
 
 /*
  * Types which are fundamental to the implementation and must be used

@@ -55,6 +55,7 @@
 #define	_BSD_TIME_T_	long			/* time()... */
 #define	_BSD_TIMER_T_	int			/* timer_gettime()... */
 #define	_BSD_WCHAR_T_	_BSD_CT_RUNE_T_		/* wchar_t (see below) */
+#define	_BSD_SOCKLEN_T_	__uint32_t		/* socklen_t */
 
 /*
  * Types which are fundamental to the implementation and must be used
