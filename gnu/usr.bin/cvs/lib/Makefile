@@ -11,7 +11,10 @@ MAINTAINER=	peter@FreeBSD.org
 LIB=		cvs
 INTERNALLIB=	YES
 
-CFLAGS+= -I. -I${CVSDIR}/src -I${CVSDIR}/lib
+# gnu must be before lib to pick correct regex.h
+CFLAGS+= -I. -I${CVSDIR}/src \
+	 -I${.CURDIR}/../../../../../include/gnu \
+	 -I${CVSDIR}/lib
 CFLAGS+= -DHAVE_CONFIG_H
 YFLAGS=
 CLEANFILES+=	config.h
