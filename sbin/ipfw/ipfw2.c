@@ -445,7 +445,7 @@ strtoport(char *s, char **end, int base, int proto)
 	*end = s;		/* default - not found */
 	if ( *s == '\0')
 		return 0;	/* not found */
- 
+
 	if (isdigit(*s))
 		return strtol(s, end, base);
 
@@ -1026,7 +1026,7 @@ show_ipfw(struct ip_fw *rule)
 			}
 			flags |= HAVE_PROTO;
 			break;
-		
+
 		default: /*options ... */
 			show_prerequisites(&flags, HAVE_IP | HAVE_OPTIONS, 0);
 			if ((cmd->len & F_OR) && !or_block)
@@ -1158,7 +1158,7 @@ show_ipfw(struct ip_fw *rule)
 				char *comma = " ";
 
 				printf(" limit");
-				for ( ; p->x != 0 ; p++) 
+				for ( ; p->x != 0 ; p++)
 					if ((x & p->x) == p->x) {
 						x &= ~p->x;
 						printf("%s%s", comma, p->s);
@@ -1207,7 +1207,7 @@ show_dyn_ipfw(ipfw_dyn_rule *d)
 		printf(" LIMIT");
 		break;
 	case O_KEEP_STATE: /* bidir, no mask */
-		printf(" STATE"); 
+		printf(" STATE");
 		break;
 	}
 
@@ -1383,7 +1383,7 @@ list_pipes(void *data, int nbytes, int ac, char *av[])
 		print_flowset_parms(&(p->fs), prefix);
 		if (verbose)
 			printf("   V %20qd\n", p->V >> MY_M);
-		
+
 		q = (struct dn_flow_queue *)(p+1);
 		list_queues(&(p->fs), q);
 	}
@@ -1655,7 +1655,7 @@ show_usage(void)
 static void
 help(void)
 {
-	
+
 	fprintf(stderr, "ipfw syntax summary:\n"
 "ipfw add [N] [prob {0..1}] ACTION [log [logamount N]] ADDR OPTIONS\n"
 "ipfw {pipe|queue} N config BODY\n"
@@ -2049,7 +2049,7 @@ config_pipe(int ac, char **av)
 			    if (*av[0] == '/') {
 				    a = strtoul(av[0]+1, &end, 0);
 				    a = (a == 32) ? ~0 : (1 << a) - 1;
-			    } else 
+			    } else
 				    a = strtoul(av[0], &end, 0);
 			    if (p32 != NULL)
 				    *p32 = a;
@@ -2108,7 +2108,7 @@ end_mask:
 		case TOK_DROPTAIL:
 			pipe.fs.flags_fs &= ~(DN_IS_RED|DN_IS_GENTLE_RED);
 			break;
-		    
+
 		case TOK_BW:
 			NEED1("bw needs bandwidth or interface\n");
 			if (do_pipe != 1)
@@ -2423,7 +2423,7 @@ add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode)
  * In the assembled microcode, the first opcode must be a O_PROBE_STATE
  * (generated if the rule includes a keep-state option), then the
  * various match patterns, the "log" action, and the actual action.
- * 
+ *
  */
 static void
 add(int ac, char *av[])
@@ -2655,7 +2655,7 @@ add(int ac, char *av[])
 		} else						\
 			errx(EX_USAGE, "missing \")\"\n");	\
 	}
-		
+
 #define NOT_BLOCK						\
 	if (ac && !strncmp(*av, "not", strlen(*av))) {		\
 		if (cmd->len & F_NOT)				\
@@ -2953,7 +2953,6 @@ read_options:
 			grp = (*end == '\0') ? getgrgid(gid) : getgrnam(*av);
 			if (grp == NULL)
 				errx(EX_DATAERR, "gid \"%s\" nonexistent", *av);
-			
 			cmd32->d[0] = grp->gr_gid;
 			cmd->len = F_INSN_SIZE(ipfw_insn_u32);
 			ac--; av++;
@@ -3051,7 +3050,7 @@ read_options:
 			} else
 				errx(EX_DATAERR, "invalid protocol ``%s''", av);
 			break;
-				
+
 		case TOK_SRCIP:
 			NEED1("missing source IP");
 			if (add_srcip(cmd, *av)) {
@@ -3398,7 +3397,7 @@ ipfw_main(int ac, char **av)
 
 
 static void
-ipfw_readfile(int ac, char *av[]) 
+ipfw_readfile(int ac, char *av[])
 {
 #define MAX_ARGS	32
 #define WHITESP		" \t\f\v\n\r"
