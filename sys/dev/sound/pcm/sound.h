@@ -108,8 +108,7 @@ struct snddev_channel {
 struct snddev_info {
 	SLIST_HEAD(, snddev_channel) channels;
 	struct pcm_channel *fakechan;
-	unsigned chancount, defaultchan;
-	/* struct snd_mixer *mixer; */
+	unsigned chancount;
 	unsigned flags;
 	int inprog;
 	void *devinfo;
