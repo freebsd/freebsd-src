@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.67 1999/01/31 17:44:06 kato Exp $
+ **      $Id: userconfig.c,v 1.68 1999/02/04 13:58:44 kato Exp $
  **/
 
 /**
@@ -135,7 +135,7 @@
 
 static MALLOC_DEFINE(M_DEVL, "isa_devlist", "isa_device lists in userconfig()");
 
-static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
+static struct isa_device *isa_devlist;	/* list read by kget to extract changes */
 
 static int userconfig_boot_parsing;	/* set if we are reading from the boot instructions */
 
@@ -2525,7 +2525,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.67 1999/01/31 17:44:06 kato Exp $
+ *      $Id: userconfig.c,v 1.68 1999/02/04 13:58:44 kato Exp $
  */
 
 #include "scbus.h"
@@ -2908,6 +2908,30 @@ set_device_disable(CmdParm *parms)
 }
 
 #if NPNP > 0
+
+static int
+sysctl_machdep_uc_pnplist SYSCTL_HANDLER_ARGS
+{
+	int error=0;
+
+	if(!req->oldptr) {
+		/* Only sizing */
+		return(SYSCTL_OUT(req,0,sizeof(struct pnp_cinfo)*MAX_PNP_LDN));
+	} else {
+		/*
+		 * Output the pnp_ldn_overrides[] table.
+		 */
+		error=sysctl_handle_opaque(oidp,&pnp_ldn_overrides,
+			sizeof(struct pnp_cinfo)*MAX_PNP_LDN,req);
+		if(error) return(error);
+		return(0);
+	}
+}
+
+SYSCTL_PROC( _machdep, OID_AUTO, uc_pnplist, CTLFLAG_RD,
+	0, 0, sysctl_machdep_uc_pnplist, "A",
+	"List of PnP overrides changed in UserConfig");
+
 /*
  * this function sets the kernel table to override bios PnP
  * configuration.
