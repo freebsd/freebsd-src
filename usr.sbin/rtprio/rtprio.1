@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: rtprio.1,v 1.9 1997/02/22 16:13:06 peter Exp $
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 1
@@ -39,7 +39,6 @@
 .Nd execute, examine or modify a utilitys or process realtime 
 or idletime scheduling priority
 .Sh SYNOPSIS
-
 .Nm [id|rt]prio
 .Nm [id|rt]prio 
 .Ar pid
@@ -51,63 +50,63 @@ or idletime scheduling priority
 .Ar priority
 .Ar -pid
 .Nm [id|rt]prio 
-.Ar -t
+.Fl t
 .Ar command
 .Op args
 .Nm [id|rt]prio 
-.Ar -t
+.Fl t
 .Ar -pid
 .Sh DESCRIPTION
 .Nm Rtprio
 is used for controlling realtime process scheduling. 
-
+.Pp
 .Nm Idprio
 is used for controlling idletime process scheduling, and can be called
 with the same options as 
 .Nm Rtprio .
-
+.Pp
 A process with a realtime priority is not subject to priority
 degradation, and will only be preempted by another process of equal or
 higher realtime priority.
-
+.Pp
 A process with an idle priority will run only when no other
 process is runnable and then only if it's idle priority is equal or
 greater than all other runnable idle priority processes.
-
+.Pp
 .Nm Rtprio 
 or
 .Nm Idprio 
 when called without arguments will return the realtime priority
 of the current process.
-
+.Pp
 If
 .Nm rtprio
 is called with 1 argument, it will return the realtime priority
 of the process with the specified
 .Ar pid .
-
+.Pp
 If 
 .Ar priority
 is specified, the process or program is run at that realtime priority.
 If 
-.Ar -t
+.Fl t
 is specified, the process or program is run as a normal (non-realtime)
 process. 
-
+.Pp
 If
 .Ar -pid
 is specified, the process with the process identifier "pid" will be
 modified, else if
 .Ar command 
 is specified, that program is run with its arguments.
-
+.Pp
 .Ar Priority
 is an integer between 0 and RTP_PRIO_MAX (usually 31). 0 is the
 highest priority
-
+.Pp
 .Ar Pid
 of 0 means "the current process".
-
+.Pp
 Only root is allowed to set realtime priorities. Non-root processes may
 set idle priority levels for the current process only.
 .Sh RETURN VALUE
@@ -118,48 +117,51 @@ In all other cases,
 .Nm
 exits with 0 for success and 1 for all other errors.
 .Sh EXAMPLES
-.\LP
-
 To see which realtime priority the current process is at:
 .Bd -literal -offset indent -compact
-\fBrtprio\fP
+.Sy "rtprio"
 .Ed
-
-.\.LP
-To see which realtime priority of process \fI1423\fP:
+.Pp
+To see which realtime priority of process
+.Em 1423 :
 .Bd -literal -offset indent -compact
-\fBrtprio 1423\fP
+.Sy "rtprio 1423"
 .Ed
-
-.\.LP
-To run \fIcron\fP at the lowest realtime priority:
+.Pp
+To run
+.Xr cron 8
+at the lowest realtime priority:
 .Bd -literal -offset indent -compact
-\fBrtprio 31 cron\fP
+.Sy "rtprio 31 cron"
 .Ed
-
-.\.LP
-To change the realtime priority of process \fI1423\fP to \fI16\fP:
+.Pp
+To change the realtime priority of process
+.Em 1423
+to
+.Em 16 :
 .Bd -literal -offset indent -compact
-\fBrtprio 16 -1423\fP
+.Sy "rtprio 16 -1423"
 .Ed
-
-.\.LP
-To run \fItcpdump\fP without realtime priority:
+.Pp
+To run
+.Xr tcpdump 8
+without realtime priority:
 .Bd -literal -offset indent -compact
-\fBrtprio -t tcpdump\fP
+.Sy "rtprio -t tcpdump"
 .Ed
-
-.\.LP
-To change the realtime priority of process \fI1423\fP to RTP_PRIO_NORMAL
+.Pp
+To change the realtime priority of process
+.Em 1423
+to
+.Dv RTP_PRIO_NORMAL
 (non-realtime/"normal" priority):
 .Bd -literal -offset indent -compact
-\fBrtprio -t -1423\fP
+.Sy "rtprio -t -1423"
 .Ed
-
-.\.LP
+.Pp
 To make depend while not disturbing other machine usage:
 .Bd -literal -offset indent -compact
-\fBidprio 31 make depend\fP
+.Sy "idprio 31 make depend"
 .Ed
 .Sh SEE ALSO
 .Xr nice 1 ,
@@ -179,20 +181,21 @@ You can lock yourself out of the system by placing a cpu-heavy
 process in a realtime priority.
 .Sh BUGS
 There is no way to set/view the realtime priority of process 0
-(swapper) (see ps(1)).
-
+(swapper) (see
+.Xr ps 1 ) ) .
+.Pp
 There is in
 .Tn FreeBSD
 no way to ensure that a process page is present in memory therefore
-the process may be stopped for pagein. (See mprotect(2), madvise(2)).
-
+the process may be stopped for pagein. (See
+.Xr mprotect 2 ,
+.Xr madvise 2 ) ) .
+.Pp
 Under
 .Tn FreeBSD
 system calls are currently never preempted, therefore non-realtime
 processes can starve realtime processes, or idletime processes can
 starve normal priority processes.
-
-Others ...
 .Sh AUTHOR
 Henrik Vestergaard Draboel - hvd@terry.ping.dk is the original author. This
 implementation in
