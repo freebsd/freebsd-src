@@ -1103,8 +1103,8 @@ static void sis_rxeof(sc)
 #ifdef DEVICE_POLLING
 		if (ifp->if_ipending & IFF_POLLING) {
 			if (sc->rxcycles <= 0)
-				break ;
-			sc->rxcycles -- ;
+				break;
+			sc->rxcycles--;
 		}
 #endif /* DEVICE_POLLING */
 		cur_rx = &sc->sis_ldata->sis_rx_list[i];
@@ -1280,7 +1280,7 @@ static poll_handler_t sis_poll;
 static void
 sis_poll(struct ifnet *ifp, int cmd, int count)
 {
-	struct  sis_softc *sc = ifp->if_softc ;
+	struct  sis_softc *sc = ifp->if_softc;
 
 	if (cmd == 2) {         /* final call, enable interrupts */
 		CSR_WRITE_4(sc, SIS_IER, 1);
@@ -1294,7 +1294,7 @@ sis_poll(struct ifnet *ifp, int cmd, int count)
 	 * In practice this means run to completion the *eof routines,
 	 * and then call the interrupt routine
 	 */
-	sc->rxcycles = count ;
+	sc->rxcycles = count;
 	sis_rxeof(sc);
 	sis_txeof(sc);
 	if (ifp->if_snd.ifq_head != NULL)
@@ -1332,11 +1332,11 @@ static void sis_intr(arg)
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_ipending & IFF_POLLING)
-		return ;
+		return;
 	if (ether_poll_register(sis_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, SIS_IER, 0);
 		sis_poll(ifp, 0, poll_burst);
-		return ;
+		return;
 	}
 #endif /* DEVICE_POLLING */
 
