@@ -24,11 +24,14 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+<!ENTITY release.4x "4.<replaceable>X</replaceable>">
+<!ENTITY release.5x "5.<replaceable>X</replaceable>">
+
 ]>
 
 <article>
   <articleinfo>
-    <title>Guide pour les testeurs des nouvelles fonctions &agrave; &os; 5.0-RELEASE</title>
+    <title>Guide pour les testeurs des nouvelles fonctions &agrave; &release.current;</title>
 
     <authorgroup>
       <corpauthor>L'&eacute;quipe de confection des versions de &os;</corpauthor>
@@ -44,30 +47,31 @@
     </copyright>
   </articleinfo>
 
-  <sect1>
+  <sect1 id="intro">
     <title>Introduction</title>
 
-    <para>&os; 5.0 annonce une nouvelle version majeur de &os; depuis
+    <para>&os; &release.5x; annonce une nouvelle version majeur de &os; depuis
     deux ans. En plus d'un nombre important de nouvelles
     fonctionnalit&eacute;s, elle contient un grand nombre de d&eacute;veloppements
     majeur dans l'architecture du syst&egrave;me. Parmi toutes ces avanc&eacute;es,
     ce syst&egrave;me inclu un nombre importants de code non test&eacute; sur des
     grands environnements. Compar&eacute; &agrave; la branche des versions
-    4.<replaceable>X</replaceable>, 5.0 peut comporter des regressions
+    &release.4x;, les premières versions de la branche &release.5x;
+    peuvent  comporter des regressions
     dans la stabilit&eacute;, performance et occasionnellement dans les
     fonctionnalit&eacute;s.</para>
 
 
     <para>C'est pour ces raisons que &a.re; n'encourage
     <emphasis>pas</emphasis> les utilisateurs &agrave; mettre &agrave; jour
-    aveugl&eacute;ment leur ancienne version de &os; en 5.0. Sp&eacute;cifiquement,
+    aveugl&eacute;ment leur ancienne version de &os; en &release.current;. Sp&eacute;cifiquement,
     pour les utilisateurs les plus conservateurs, nous recommandons
-    de fonctionner en version 4.<replaceable>X</replaceable>(comme la
-    4.7-RELEAS ou la future 4.8-RELEASE) dans un futur proche. Nous
+    de fonctionner en version &release.4x; (comme la
+    4.7-RELEASE ou la future 4.8-RELEASE) dans un futur proche. Nous
     pensons que de tels utilisateurs seront mieux servis d&egrave;s
     l'apparition d'une branche de d&eacute;veloppement  5-STABLE pour une
-    mise &agrave; jour en 5.<replaceable>X</replaceable>; cela devrait
-    arriver au moment d'une version 5.1-RELEASE ou 5.2-RELEASE.</para>
+    mise &agrave; jour en &release.5x;  cela devrait
+    arriver au moment d'une version 5.2-RELEASE.</para>
 
     <para>(&os; 5.0 souffre du probl&egrave;me que nous appelons
     <quote>l'oeuf et la poule</quote>. L'ensemble du projet a comme
@@ -105,7 +109,7 @@
     lorsque ces nouvelles fonctionnalit&eacute;s sont ajout&eacute;es et
     d&eacute;bogu&eacute;es.</para>
 
-    <para>La plupart des version de &os; sont confectionn&eacute;es depuis
+    <para>La plupart des versions de &os; sont confectionn&eacute;es depuis
     les diff&eacute;rentes branches <quote>STABLE</quote>. Les
     fonctionnalit&eacute;s ne sont ajout&eacute;es &agrave; ces branches qu'apr&egrave;s un nombre
     important de test dans la branche CURRENT. Actuellement, il
@@ -120,10 +124,10 @@
     derni&egrave;re fut  &os; 4.0, en mars 2000).</para>
 
     <para>Quelque temps apr&egrave;s la version  &os; 5.0, une branche
-    <quote>5-STABLE</quote> sera cr&eacute;er dans l'arbre CVS de &os; avec
+    <quote>5-STABLE</quote> sera cr&eacute;e dans l'arbre CVS de &os; avec
     le tag de branche <literal>RELENG_5</literal>. Les anciennes deux
-    derni&egrave;res branches stable (3-STABLE et 4-STABLE) furent cr&eacute;er
-    imm&eacute;diatement apr&egrave;s la publications de leur version respective
+    derni&egrave;res branches stable (3-STABLE et 4-STABLE) furent cr&eacute;e
+    imm&eacute;diatement apr&egrave;s la publication de leur version respective
     (3.0 et 4.0). Cette pratique ne laisse pas assez de temps entre la
     branche CURRENT et STABLE pour obtenir une nouvelle branche
     suffisement stabilis&eacute;e.</para>
@@ -131,8 +135,8 @@
     <para>Quoi qu'il en soit, &a.re; ne cr&eacute;era une branche 5-STABLE
     dans l'arbre CVS que lorsqu'ils auront trouv&eacute; la version CURRENT
     suffisement stable pour &ecirc;tre utilis&eacute;e. La plupart du temps,
-    plusieurs version de 5.<replaceable>X</replaceable> apparaîtrons;
-    nous estimons que la branche  5-STABLE sera cr&eacute;e un peut apr&egrave;s la
+    plusieurs versions de 5.<replaceable>X</replaceable> apparaîtrons;
+    nous estimons que la branche  5-STABLE sera cr&eacute;e un peu apr&egrave;s la
     version 5.1-RELEASE ou 5.2-RELEASE.</para>
 
     <para>Plus d'informations sur le procesuss de version de &os; se
