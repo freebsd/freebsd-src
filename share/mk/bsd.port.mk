@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.115 1995/03/03 06:53:27 jkh Exp $
+# $Id: bsd.port.mk,v 1.116 1995/03/03 07:42:10 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -27,7 +27,7 @@
 # PACKAGES		- A top level directory where all packages go (rather than
 #				  going locally to each port). (default: ${PORTSDIR}/packages).
 # GMAKE			- Set to path of GNU make if not in $PATH (default: gmake).
-# XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf).
+# XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf -a ).
 #
 # Variables that typically apply to an individual port.  Non-Boolean
 # variables without defaults are *mandatory*.
@@ -170,7 +170,7 @@ DO_NADA?=		echo -n
 
 # Miscellaneous overridable commands:
 GMAKE?=			gmake
-XMKMF?=			xmkmf
+XMKMF?=			xmkmf -a
 MD5?=			/sbin/md5
 MD5_FILE?=		${FILESDIR}/md5
 MAKE_FLAGS?=	-f
