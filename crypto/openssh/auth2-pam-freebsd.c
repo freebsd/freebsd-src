@@ -294,6 +294,8 @@ pam_init_ctx(Authctxt *authctxt)
 		xfree(ctxt);
 		return (NULL);
 	}
+	ctxt->pam_psock = socks[0];
+	ctxt->pam_csock = socks[1];
 	if (pthread_create(&ctxt->pam_thread, NULL, pam_thread, ctxt) == -1) {
 		error("PAM: failed to start authentication thread: %s",
 		    strerror(errno));
@@ -302,8 +304,6 @@ pam_init_ctx(Authctxt *authctxt)
 		xfree(ctxt);
 		return (NULL);
 	}
-	ctxt->pam_psock = socks[0];
-	ctxt->pam_csock = socks[1];
 	fatal_add_cleanup(pam_thread_cleanup, ctxt);
 	return (ctxt);
 }
