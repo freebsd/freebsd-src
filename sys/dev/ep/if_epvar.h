@@ -22,29 +22,48 @@
  * $FreeBSD$
  */
 
+struct ep_board {
+	u_short		prod_id;	/* product ID */
+	int		cmd_off;	/* command offset (bit shift) */
+	int		mii_trans;	/* activate MII transiever */
+	u_short		res_cfg;	/* resource configuration */
+};
+
 /*
  * Ethernet software status per interface.
  */
 struct ep_softc {
-	struct arpcom	arpcom;		/* Ethernet common part		 */
-	int		ep_io_addr;	/* i/o bus address		 */
-	struct mbuf *	top;
-	struct mbuf *	mcur;
-	short		cur_len;
-	u_short		ep_connectors;	/* Connectors on this card.	 */
-	u_char		ep_connector;	/* Configured connector.	 */
-	int		stat;		/* some flags */
-	int		gone;		/* adapter is not present (for PCCARD) */
-	struct resource *irq;		/* IRQ resource */
-	void		*ih;		/* Interrupt handle cookie */
-#define	F_RX_FIRST		0x1
-#define	F_PROMISC		0x8
+	struct arpcom		arpcom;		/* Ethernet common part	*/
+	struct ifmedia		ifmedia;	/* media info		*/
 
+	device_t		dev;
+
+	struct resource *	iobase;
+	struct resource *	irq;
+
+	bus_space_handle_t	ep_bhandle;
+	bus_space_tag_t		ep_btag;
+	void *			ep_intrhand;
+
+	int			ep_io_addr;	/* i/o bus address	*/
+
+	u_short			ep_connectors;	/* Connectors on this card. */
+	u_char			ep_connector;	/* Configured connector.*/
+
+	struct mbuf *		top;
+	struct mbuf *		mcur;
+	short			cur_len;
+
+	int			stat;		/* some flags */
+#define	F_RX_FIRST		0x001
+#define	F_PROMISC		0x008
 #define	F_ACCESS_32_BITS	0x100
 
-	struct ep_board *epb;
+	int			gone;		/* adapter is not present (for PCCARD) */
 
-	int		unit;
+	struct ep_board		epb;
+
+	int			unit;
 
 #ifdef  EP_LOCAL_STATS
 	short		tx_underrun;
@@ -56,25 +75,9 @@ struct ep_softc {
 #endif
 };
 
-struct ep_board {
-	int		epb_addr;	/* address of this board */
-	char		epb_used;	/* was this entry already used for configuring ? */
-					/* data from EEPROM for later use */
-	u_short		eth_addr[3];	/* Ethernet address */
-	u_short		prod_id;	/* product ID */
-	int		cmd_off;	/* command offset (bit shift) */
-	int		mii_trans;	/* activate MII transiever */
-	u_short		res_cfg;	/* resource configuration */
-};
-
-extern struct ep_softc*	ep_softc[];
-extern struct ep_board	ep_board[];
-extern int		ep_boards;
-extern u_long		ep_unit;
-
-extern struct ep_softc*	ep_alloc	(int, struct ep_board *);
-extern int		ep_attach	(struct ep_softc *);
-extern void		ep_free		(struct ep_softc *);
-extern void		ep_intr		(void *);
-
-extern u_int16_t	get_e		(struct ep_softc *, int);
+int		ep_alloc	(device_t);
+void		ep_free		(device_t);
+void		ep_get_media	(struct ep_softc *);
+int		ep_attach	(struct ep_softc *);
+void		ep_intr		(void *);
+u_int16_t	get_e		(struct ep_softc *, int);

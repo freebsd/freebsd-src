@@ -37,21 +37,20 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
+#include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
 
-#include <net/ethernet.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
+ 
+#include <net/if.h> 
+#include <net/if_arp.h>
+#include <net/if_media.h>
 
 #include <machine/clock.h>
 
@@ -72,30 +71,25 @@ static const char *ep_pccard_identify(u_short id);
 static int
 ep_pccard_probe(device_t dev)
 {
-	struct ep_board ep;
-	struct ep_board *epb;
-	u_long	port_start, port_count;
-	struct ep_softc fake_softc;
-	struct ep_softc *sc = &fake_softc;
-	const char *desc;
-	int error;
-	const char *name;
+	struct ep_softc *	sc = device_get_softc(dev);
+	struct ep_board *	epb = &sc->epb;
+	u_int32_t		port_start;
+	u_int32_t		port_count;
+	const char *		desc;
+	const char *		name;
+	int			error;
 
 	name = pccard_get_name(dev);
 	printf("ep_pccard_probe: Does %s match?\n", name);
 	if (strcmp(name, "ep"))
 		return ENXIO;
 	  
-	epb = &ep;
-	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &port_start,
-	    &port_count);
+	error = bus_get_resource(dev, SYS_RES_IOPORT, 0,
+				 &port_start, &port_count);
 	if (error != 0)
 		return error;
-	/* get_e() requires these. */
-	bzero(sc, sizeof(*sc));
+
 	sc->ep_io_addr = port_start;
-	sc->unit = device_get_unit(dev);
-	sc->epb = epb;
 
 	/*
 	 * XXX - Certain (newer?) 3Com cards need epb->cmd_off ==
@@ -165,73 +159,36 @@ ep_pccard_card_attach(struct ep_board *epb)
 static int
 ep_pccard_attach(device_t dev)
 {
-	struct ep_softc *sc = 0;
-	struct ep_board *epb;
-	struct resource *io = 0;
-	struct resource *irq = 0;
-	int unit = device_get_unit(dev);
-	int i, rid;
-	u_short config;
+	struct ep_softc *	sc = device_get_softc(dev);
+	int			error = 0;
 
-	rid = 0;
-	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				0, ~0, 1, RF_ACTIVE);
-	if (!io) {
-		device_printf(dev, "No I/O space?!\n");
+	if (error = ep_alloc(dev)) {
+		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
 		goto bad;
 	}
 
-	epb = &ep_board[ep_boards];
-
-	epb->epb_addr = rman_get_start(io);
-	epb->epb_used = 1;
-
-	if ((sc = ep_alloc(unit, epb)) == 0)
-		goto bad;
-	ep_boards++;
-
-	epb->cmd_off = 0;
-	epb->prod_id = get_e(sc, EEPROM_PROD_ID);
-	if (!ep_pccard_card_attach(epb)) {
-		epb->cmd_off = 2;
-		epb->prod_id = get_e(sc, EEPROM_PROD_ID);
-		if (!ep_pccard_card_attach(epb)) {
+	if (!ep_pccard_card_attach(&sc->epb)) {
+		sc->epb.cmd_off = 2;
+		sc->epb.prod_id = get_e(sc, EEPROM_PROD_ID);
+		sc->epb.res_cfg = get_e(sc, EEPROM_RESOURCE_CFG);
+		if (!ep_pccard_card_attach(&sc->epb)) {
 			device_printf(dev,
 			    "Probe found ID, attach failed so ignore card!\n");
-			ep_free(sc);
-			return (ENXIO);
+			error = ENXIO;
+			goto bad;
 		}
 	}
-
-	sc->ep_connectors = 0;
-	epb->res_cfg = get_e(sc, EEPROM_RESOURCE_CFG);
-	for (i = 0; i < 3; i++)
-		sc->epb->eth_addr[i] = get_e(sc, EEPROM_NODE_ADDR_0 + i);
-
-	config = inw(rman_get_start(io) + EP_W0_CONFIG_CTRL);
-	if (config & IS_BNC) {
-		sc->ep_connectors |= BNC;
-	}
-	if (config & IS_UTP) {
-		sc->ep_connectors |= UTP;
-	}
-	if (!(sc->ep_connectors & 7))
-		/* (Apparently) non-fatal */
-		if (bootverbose) 
-			device_printf(dev, "No connectors or MII.\n");
-
-	sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
 
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
 	outw(BASE + EP_W0_ADDRESS_CFG, get_e(sc, EEPROM_ADDR_CFG) & 0xc000);
 
 	/* Fake IRQ must be 3 */
-	outw(BASE + EP_W0_RESOURCE_CFG, (sc->epb->res_cfg & 0x0fff) | 0x3000);
+	outw(BASE + EP_W0_RESOURCE_CFG, (sc->epb.res_cfg & 0x0fff) | 0x3000);
 
-	outw(BASE + EP_W0_PRODUCT_ID, sc->epb->prod_id);
+	outw(BASE + EP_W0_PRODUCT_ID, sc->epb.prod_id);
 
-	if (sc->epb->mii_trans) {
+	if (sc->epb.mii_trans) {
 		/*
 		 * turn on the MII transciever
 		 */
@@ -244,31 +201,25 @@ ep_pccard_attach(device_t dev)
 		while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 		DELAY(1000);
 		outw(BASE + EP_W3_OPTIONS, 0x8040);
+	} else {
+		ep_get_media(sc);
 	}
 
-	sc->irq = irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0, ~0, 1, RF_ACTIVE);
-	if (!irq) {
-		device_printf(dev, "No irq?!\n");
+	if ((error = ep_attach(sc))) {
+		device_printf(dev, "ep_attach() failed! (%d)\n", error);
 		goto bad;
 	}
 
-	ep_attach(sc);
-	if (bus_setup_intr(dev, irq, INTR_TYPE_NET, ep_intr, sc, &sc->ih)) {
-		device_printf(dev, "cannot setup intr\n");
+	if (error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
+				   sc, &sc->ep_intrhand)) {
+		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		goto bad;
 	}
-	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
 
-	return 0;
+	return (0);
 bad:
-	if (io)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
-	if (irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
-	if (sc)
-		ep_free(sc);
-	return ENXIO;
+	ep_free(sc);
+	return (error);
 }
 
 static void
@@ -285,7 +236,8 @@ ep_pccard_detach(device_t dev)
 	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
 	if_down(&sc->arpcom.ac_if);
 	sc->gone = 1;
-	bus_teardown_intr(dev, sc->irq, sc->ih);
+	bus_teardown_intr(dev, sc->irq, sc->ep_intrhand);
+	ep_free(dev);
 	device_printf(dev, "unload\n");
 }
 
@@ -301,7 +253,7 @@ static device_method_t ep_pccard_methods[] = {
 static driver_t ep_pccard_driver = {
 	"ep",
 	ep_pccard_methods,
-	1,			/* unused */
+	sizeof(struct ep_softc),
 };
 
 extern devclass_t ep_devclass;

@@ -26,31 +26,21 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h> 
-#include <vm/pmap.h>
-
-#include <machine/clock.h>
-#include <machine/cpufunc.h>
-#include <machine/md_var.h>
-
 #include <sys/module.h>
 #include <sys/bus.h>
+
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
  
 #include <net/if.h> 
-#include <net/if_mib.h>
-
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
+#include <net/if_arp.h>
+#include <net/if_media.h>
 
 #include <dev/mca/mca_busreg.h>
 #include <dev/mca/mca_busvar.h>
@@ -85,7 +75,7 @@ static struct mca_ident ep_mca_devs[] = {
 
 #define EP_MCA_IOPORT_POS	MCA_ADP_POS(MCA_POS2)
 #define EP_MCA_IOPORT_MASK	0xfc
-#define EP_MCA_IOPORT_SIZE	0x0f
+#define EP_MCA_IOPORT_SIZE	EP_IOSIZE
 #define EP_MCA_IOPORT(pos)	((((u_int32_t)pos & EP_MCA_IOPORT_MASK) \
 					| 0x02) << 8)
 
@@ -125,79 +115,35 @@ ep_mca_probe (device_t dev)
 static int
 ep_mca_attach (device_t dev)
 {
-	struct ep_softc *	sc;
-	struct ep_board *	epb;
-	struct resource *	io = 0;
-	struct resource *	irq = 0;
-	u_int8_t		pos;
-	int			unit = device_get_unit(dev);
-	int			i, rid;
-	void *			ih;
+	struct ep_softc *	sc = device_get_softc(dev);
+	int			error = 0;
 
-	rid = 0;
-	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				0, ~0, 1, RF_ACTIVE);
-	if (!io) {
-		device_printf(dev, "No I/O space?!\n");
+	if ((error = ep_alloc(dev))) {
+		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
 		goto bad;
 	}
-
-	rid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0, ~0, 1, RF_ACTIVE);
-	if (!irq) {
-		device_printf(dev, "No irq?!\n");
-		goto bad;
-	}
-
-	epb = &ep_board[ep_boards];
-
-	epb->epb_addr = rman_get_start(io);
-	epb->epb_used = 1;
-
-	if(!(sc = ep_alloc(unit, epb)))
-		goto bad;
-
-	ep_boards++;
-
 	sc->stat = F_ACCESS_32_BITS;
 
-	switch(mca_get_id(dev)) {
-		case EP_MCA_627C:
-			sc->ep_connectors = BNC|AUI;
-			break;
-		case EP_MCA_627D:
-			sc->ep_connectors = UTP|AUI;
-			break;
-		default:
-			break;
+	ep_get_media(sc);
+
+	GO_WINDOW(0);
+	SET_IRQ(BASE, rman_get_start(sc->irq));
+
+	if ((error = ep_attach(sc))) {
+		device_printf(dev, "ep_attach() failed! (%d)\n", error);
+		goto bad;
 	}
-	pos = mca_pos_read(dev, EP_MCA_MEDIA_POS);
-	sc->ep_connector = EP_MCA_MEDIA(pos);
 
-	/*
-	 * Retrieve our ethernet address
-	 */
-	GO_WINDOW(0);
-	for(i = 0; i < 3; i++)
-		sc->epb->eth_addr[i] = get_e(sc, i);
-
-	GO_WINDOW(0);
-	SET_IRQ(BASE, rman_get_start(irq));
-
-	ep_attach(sc);
-
-	bus_setup_intr(dev, irq, INTR_TYPE_NET, ep_intr, sc, &ih);
+	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
+				   sc, &sc->ep_intrhand))) {
+		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
+		goto bad;
+	}
 
 	return (0);
-
 bad:
-	if (io)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
-	if (irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
-
-	return (-1);
+	ep_free(dev);
+	return (error);
 }
 
 static device_method_t ep_mca_methods[] = {
@@ -211,7 +157,7 @@ static device_method_t ep_mca_methods[] = {
 static driver_t ep_mca_driver = {
 	"ep",
 	ep_mca_methods,
-	1,			      /* unusep */
+	sizeof(struct ep_softc),
 };
 
 static devclass_t ep_devclass;

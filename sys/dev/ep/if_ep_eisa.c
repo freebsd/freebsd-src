@@ -22,25 +22,23 @@
  * $FreeBSD$
  */
 
-#include "eisa.h"
-#if NEISA > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <machine/clock.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
+#include <sys/rman.h> 
 
 #include <net/if.h>
+#include <net/if_arp.h>
+#include <net/if_media.h> 
 
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
+#include <machine/clock.h>
 
 #include <i386/eisa/eisaconf.h>
 
@@ -111,6 +109,7 @@ ep_eisa_probe(device_t dev)
 	u_short conf;
 	u_long port;
 	int irq;
+	int int_trig;
 
 	desc = ep_match(eisa_get_id(dev));
 	if (!desc)
@@ -162,7 +161,18 @@ ep_eisa_probe(device_t dev)
 		   eisa_get_slot(dev));
 	    return ENXIO;
 	}
-	eisa_add_intr(dev, irq, EISA_TRIGGER_EDGE);
+
+	switch(eisa_get_id(dev)) {
+		case EISA_DEVICE_ID_3COM_3C579_BNC:
+		case EISA_DEVICE_ID_3COM_3C579_TP:
+			int_trig = EISA_TRIGGER_LEVEL;
+			break;
+		default:
+			int_trig = EISA_TRIGGER_EDGE;
+			break;
+	}
+			
+	eisa_add_intr(dev, irq, int_trig);
 
 	return 0;
 }
@@ -170,124 +180,71 @@ ep_eisa_probe(device_t dev)
 static int
 ep_eisa_attach(device_t dev)
 {
-	struct ep_softc *sc;
-	struct ep_board *epb;
-	struct resource *io = 0;
-	struct resource *eisa_io = 0;
-	struct resource *irq = 0;
-	int unit = device_get_unit(dev);
-	u_char level_intr;
-	int i, rid, shared;
-	void *ih;
-
-	/*
-	 * The addresses are sorted in increasing order
-	 * so we know the port to pass to the core ep
-	 * driver comes first.
-	 */
-	rid = 0;
-	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				0, ~0, 1, RF_ACTIVE);
-	if (!io) {
-		device_printf(dev, "No I/O space?!\n");
-		goto bad;
-	}
+	struct ep_softc *	sc = device_get_softc(dev);
+	struct resource *	eisa_io = NULL;
+	u_int32_t		eisa_iobase;
+	int			irq;
+	int			error = 0;
+	int			rid;
 
 	rid = 1;
 	eisa_io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				     0, ~0, 1, RF_ACTIVE);
 	if (!eisa_io) {
 		device_printf(dev, "No I/O space?!\n");
+		error = ENXIO;
+		goto bad;
+	}
+	eisa_iobase = rman_get_start(eisa_io);
+
+	/* Reset and Enable the card */
+	outb(eisa_iobase + EP_W0_CONFIG_CTRL, W0_P4_CMD_RESET_ADAPTER);
+	DELAY(1000); /* we must wait at least 1 ms */
+	outb(eisa_iobase + EP_W0_CONFIG_CTRL, W0_P4_CMD_ENABLE_ADAPTER);
+	/* Now the registers are availible through the lower ioport */
+
+	if ((error = ep_alloc(dev))) {
+		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
 		goto bad;
 	}
 
-	epb = &ep_board[ep_boards];
-
-	epb->epb_addr = rman_get_start(io);
-	epb->epb_used = 1;
-
-	if(!(sc = ep_alloc(unit, epb)))
-		goto bad;
-
-	ep_boards++;
-
-	sc->stat = 0;
-	level_intr = FALSE;
 	switch(eisa_get_id(dev)) {
-		case EISA_DEVICE_ID_3COM_3C509_TP:
-			sc->ep_connectors = UTP|AUI;
-			break;
-		case EISA_DEVICE_ID_3COM_3C509_BNC:
-			sc->ep_connectors = BNC|AUI;
-			break;
-		case EISA_DEVICE_ID_3COM_3C579_TP:
-			sc->ep_connectors = UTP|AUI;
-			sc->stat = F_ACCESS_32_BITS;
-			level_intr = TRUE;
-			break;
 		case EISA_DEVICE_ID_3COM_3C579_BNC:
-			sc->ep_connectors = BNC|AUI;
+		case EISA_DEVICE_ID_3COM_3C579_TP:
 			sc->stat = F_ACCESS_32_BITS;
-			level_intr = TRUE;
-			break;
-		case EISA_DEVICE_ID_3COM_3C509_COMBO:
-			sc->ep_connectors = UTP|BNC|AUI;
-			break;
-		case EISA_DEVICE_ID_3COM_3C509_TPO:
-			sc->ep_connectors = UTP;
 			break;
 		default:
 			break;
-        }
-	/*
-	 * Set the eisa config selected media type
-	 */
-	sc->ep_connector = inw(rman_get_start(eisa_io) + EISA_BPROM_MEDIA_CONF)
-			   >> ACF_CONNECTOR_BITS;
+	}
 
-	shared = level_intr ? RF_SHAREABLE : 0;
-	rid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0, ~0, 1, shared | RF_ACTIVE);
-	if (!irq) {
-		device_printf(dev, "No irq?!\n");
+	ep_get_media(sc);
+
+	irq = rman_get_start(sc->irq);
+	if (irq == 9)
+		irq = 2;
+
+	GO_WINDOW(0);
+	SET_IRQ(BASE, irq);
+
+	if ((error = ep_attach(sc))) {
+		device_printf(dev, "ep_attach() failed! (%d)\n", error);
 		goto bad;
 	}
 
-	/* Reset and Enable the card */
-	outb(rman_get_start(eisa_io) + EP_W0_CONFIG_CTRL, W0_P4_CMD_RESET_ADAPTER);
-	DELAY(1000); /* we must wait at least 1 ms */
-	outb(rman_get_start(eisa_io) + EP_W0_CONFIG_CTRL, W0_P4_CMD_ENABLE_ADAPTER);
+	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
+				   sc, &sc->ep_intrhand))) {
+		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
+		goto bad;
+	}
 
-	/* Now the registers are availible through the lower ioport */
-
-	/*
-	 * Retrieve our ethernet address
-	 */
-	GO_WINDOW(0);
-	for(i = 0; i < 3; i++)
-		sc->epb->eth_addr[i] = get_e(sc, i);
-
-        /* Even we get irq number from board, we should tell him..
-            Otherwise we never get a H/W interrupt anymore...*/
-        if ( rman_get_start(irq) == 9 )
-               rman_get_start(irq) = 2;
-        SET_IRQ(rman_get_start(eisa_io), rman_get_start(irq));
-
-	ep_attach(sc);
-
-	bus_setup_intr(dev, irq, INTR_TYPE_NET, ep_intr, sc, &ih);
-
-	return 0;
+	return (0);
 
  bad:
-	if (io)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
 	if (eisa_io)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, eisa_io);
-	if (irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
-	return -1;
+
+	ep_free(dev);
+	return (error);
 }
 
 static device_method_t ep_eisa_methods[] = {
@@ -301,11 +258,9 @@ static device_method_t ep_eisa_methods[] = {
 static driver_t ep_eisa_driver = {
 	"ep",
 	ep_eisa_methods,
-	1,			/* unused */
+	sizeof(struct ep_softc),
 };
 
 extern devclass_t ep_devclass;
 
 DRIVER_MODULE(ep, eisa, ep_eisa_driver, ep_devclass, 0, 0);
-
-#endif /* NEISA > 0 */
