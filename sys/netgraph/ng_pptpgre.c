@@ -619,7 +619,7 @@ bad:
 
 	/* Sanity check packet length and GRE header bits */
 	extralen = m->m_pkthdr.len
-	    - (iphlen + grelen + (u_int16_t)ntohs(gre->length));
+	    - (iphlen + grelen + gre->hasSeq * (u_int16_t)ntohs(gre->length));
 	if (extralen < 0) {
 		priv->stats.recvBadGRE++;
 		goto bad;
