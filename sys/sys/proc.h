@@ -355,7 +355,6 @@ struct thread {
 #define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
 #define	TDF_UMTXWAKEUP	0x080000 /* Libthr thread must not sleep on a umtx. */
 #define	TDF_THRWAKEUP	0x100000 /* Libthr thread must not suspend itself. */
-#define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
 /* "Private" flags kept in td_pflags: */
 #define	TDP_OLDMASK	0x0001 /* Need to restore mask after suspend. */
@@ -364,6 +363,7 @@ struct thread {
 #define	TDP_UPCALLING	0x0008 /* This thread is doing an upcall. */
 #define	TDP_COWINPROGRESS 0x0010 /* Snapshot copy-on-write in progress. */
 #define	TDP_ALTSTACK	0x0020 /* Have alternate signal stack. */
+#define	TDP_DEADLKTREAT	0x0040 /* Lock aquisition - deadlock treatment. */
 #define	TDP_SA		0x0080 /* A scheduler activation based thread. */
 
 #define	TDI_SUSPENDED	0x0001	/* On suspension queue. */

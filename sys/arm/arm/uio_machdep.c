@@ -75,10 +75,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
 	    ("uiomove_fromphys proc"));
 	if (td != NULL) {
-		mtx_lock_spin(&sched_lock);
-		save = td->td_flags & TDF_DEADLKTREAT;
-		td->td_flags |= TDF_DEADLKTREAT;
-		mtx_unlock_spin(&sched_lock);
+		save = td->td_pflags & TDP_DEADLKTREAT;
+		td->td_pflags |= TDP_DEADLKTREAT;
 	}
 	while (n > 0 && uio->uio_resid) {
 		iov = uio->uio_iov;
@@ -122,10 +120,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		n -= cnt;
 	}
 out:
-	if (td != NULL && save == 0) {
-		mtx_lock_spin(&sched_lock);
-		td->td_flags &= ~TDF_DEADLKTREAT;
-		mtx_unlock_spin(&sched_lock);
-	}
+	if (td != NULL && save == 0)
+		td->td_pflags &= ~TDP_DEADLKTREAT;
 	return (error);
 }
