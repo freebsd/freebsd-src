@@ -73,84 +73,133 @@ and
 .Ft "long double"
 .Fn acosl "long double x" ,
 respectively.
-.Pp
-The programs are accurate to within the numbers
-of
-.Em ulp Ns s
-tabulated below; an
-.Em ulp
-is one
-.Em U Ns nit
-in the
-.Em L Ns ast
-.Em P Ns lace .
-.Bl -column "nexttoward" "remainder with partial quotient"
-.Em "Name	Description	Error Bound (ULPs)"
-.\" XXX Many of these error bounds are wrong for the current implementation!
-acos	inverse trigonometric function	???
-acosh	inverse hyperbolic function	???
-asin	inverse trigonometric function	???
-asinh	inverse hyperbolic function	???
-atan	inverse trigonometric function	???
-atanh	inverse hyperbolic function	???
-atan2	inverse trigonometric function	???
-cbrt	cube root	1
-ceil	integer no less than	0
-copysign	copy sign bit	0
-cos	trigonometric function	1
-cosh	hyperbolic function	???
-erf	error function	1
-erfc	complementary error function	1
-exp	exponential base e	1
-.\" exp2	exponential base 2	???
-expm1	exp(x)\-1	1
-fabs	absolute value	0
-fdim	positive difference	1
-floor	integer no greater than	0
-fma	multiply-add	1
-fmax	maximum function	0
-fmin	minimum function	0
-fmod	remainder function	???
-frexp	extract mantissa and exponent	0
-hypot	Euclidean distance	1
-ilogb	exponent extraction	0
-j0	bessel function	???
-j1	bessel function	???
-jn	bessel function	???
-ldexp	multiply by power of 2	0
-lgamma	log gamma function	1
-llrint	round to integer	0
-llround	round to nearest integer	0
-log	natural logarithm	1
-log10	logarithm to base 10	1
-log1p	log(1+x)	1
-.\" log2	base 2 logarithm	0
-logb	exponent extraction	0
-lrint	round to integer	0
-lround	round to nearest integer	0
-modf	extract fractional part	0
-.\" nan	return quiet \*(Na)	0
-nearbyint	round to integer	0
-nextafter	next representable value	0
-.\" nexttoward	next representable value	0
-pow	exponential x**y	60-500
-remainder	remainder	0
-.\" remquo	remainder with partial quotient	???
-rint	round to nearest integer	0
-round	round to nearest integer	0
-scalbln	exponent adjustment	0
-scalbn	exponent adjustment	0
-sin	trigonometric function	1
-sinh	hyperbolic function	???
-sqrt	square root	1
-tan	trigonometric function	1
-tanh	hyperbolic function	???
-tgamma	gamma function	1
-trunc	round towards zero	0
-y0	bessel function	???
-y1	bessel function	???
-yn	bessel function	???
+.de Cl
+.  Bl -column "isgreaterequal" "bessel function of the second kind of the order 0"
+.Em "Name	Description"
+..
+.Ss Algebraic Functions
+.Cl
+cbrt	cube root
+fma	fused multiply-add
+hypot	Euclidean distance
+sqrt	square root
 .El
+.Ss Classification Functions
+.Cl
+fpclassify	classify a floating-point value
+isfinite	determine whether a value is finite
+isinf	determine whether a value is infinite
+isnan	determine whether a value is \*(Na
+isnormal	determine whether a value is normalized
+.El
+.Ss Exponent Manipulation Functions
+.Cl
+frexp	extract exponent and mantissa
+ilogb	extract exponent
+ldexp	multiply by power of 2
+scalbln	adjust exponent
+scalbn	adjust exponent
+.El
+.Ss Extremum- and Sign-Related Functions
+.Cl
+copysign	copy sign bit
+fabs	absolute value
+fdim	positive difference
+fmax	maximum function
+fmin	minimum function
+signbit	extract sign bit
+.El
+.\" .Ss Not a Number
+.\" .Cl
+.\" nan	return quiet \*(Na)	0
+.\" .El
+.Ss Residue and Rounding Functions
+.Cl
+ceil	integer no less than
+floor	integer no greater than
+fmod	positive remainder
+llrint	round to integer in fixed-point format
+llround	round to nearest integer in fixed-point format
+lrint	round to integer in fixed-point format
+lround	round to nearest integer in fixed-point format
+modf	extract integer and fractional parts
+nearbyint	round to integer (silent)
+nextafter	next representable value
+.\" nexttoward	next representable value (silent)
+remainder	remainder
+.\" remquo	remainder with partial quotient
+rint	round to integer
+round	round to nearest integer
+trunc	integer no greater in magnitude than
+.El
+.Pp
+The
+.Fn ceil ,
+.Fn floor ,
+.Fn llround ,
+.Fn lround ,
+.Fn round ,
+and
+.Fn trunc
+functions round in predetermined directions, whereas
+.Fn llrint ,
+.Fn lrint ,
+and
+.Fn rint
+round according to the current (dynamic) rounding mode.
+For more information on controlling the dynamic rounding mode, see
+.Xr fenv 3
+and
+.Xr fesetround 3 .
+.Ss Silent Order Predicates
+.Cl
+isgreater	greater than relation
+isgreaterequal	greater than or equal to relation
+isless	less than relation
+islessequal	less than or equal to relation
+islessgreater	less than or greater than relation
+isunordered	unordered relation
+.El
+.Ss Transcendental Functions
+.Cl
+acos	inverse cosine
+acosh	inverse hyperbolic cosine
+asin	inverse sine
+asinh	inverse hyperbolic sine
+atan	inverse tangent
+atanh	inverse hyperbolic tangent
+atan2	atan(y/x); complex argument
+cos	cosine
+cosh	hyperbolic cosine
+erf	error function
+erfc	complementary error function
+exp	exponential base e
+.\" exp2	exponential base 2
+expm1	exp(x)\-1
+j0	Bessel function of the first kind of the order 0
+j1	Bessel function of the first kind of the order 1
+jn	Bessel function of the first kind of the order n
+lgamma	log gamma function
+log	natural logarithm
+log10	logarithm to base 10
+log1p	log(1+x)
+.\" log2	base 2 logarithm
+pow	exponential x**y
+sin	trigonometric function
+sinh	hyperbolic function
+tan	trigonometric function
+tanh	hyperbolic function
+tgamma	gamma function
+y0	Bessel function of the second kind of the order 0
+y1	Bessel function of the second kind of the order 1
+yn	Bessel function of the second kind of the order n
+.El
+.Pp
+Unlike the algebraic functions listed earlier, the routines
+in this section may not produce a result that is correctly rounded.
+In general, an unbounded number of digits of a value taken by a
+transcendental function may be needed to determine the correctly rounded
+result.
 .Sh NOTES
 Virtually all modern floating-point units attempt to support
 IEEE Standard 754 for Binary Floating-Point Arithmetic.
@@ -162,34 +211,15 @@ properties of arithmetic operations relating to precision, rounding,
 and exceptional cases, as described below.
 .Ss IEEE STANDARD 754 Floating-Point Arithmetic
 .\" XXX mention single- and extended-/quad- precisions
-Properties of IEEE 754 Double-Precision:
-.Bd -ragged -offset indent -compact
-Wordsize: 64 bits, 8 bytes.
-.Pp
 Radix: Binary.
 .Pp
-Precision: 53 significant bits,
-roughly like 16 significant decimals.
-.Bd -ragged -offset indent -compact
-If x and x' are consecutive positive Double-Precision
-numbers (they differ by 1
-.Em ulp ) ,
-then
-.Bd -ragged -compact
-1.1e\-16 < 0.5**53 < (x'\-x)/x \(<= 0.5**52 < 2.3e\-16.
-.Ed
-.Ed
-.Pp
-.Bl -column "XXX" -compact
-Range:	Overflow threshold  = 2.0**1024 = 1.8e308
-	Underflow threshold = 0.5**1022 = 2.2e\-308
+.Bl -column "" -compact
+Overflow and underflow:
 .El
 .Bd -ragged -offset indent -compact
 Overflow goes by default to a signed \*(If.
 Underflow is
-.Em Gradual ,
-rounding to the nearest
-integer multiple of 0.5**1074 = 4.9e\-324.
+.Em gradual .
 .Ed
 .Pp
 Zero is represented ambiguously as +0 or \-0.
@@ -206,7 +236,7 @@ cannot be affected by the sign of zero; but if
 finite x = y then \*(If = 1/(x\-y) \(!= \-1/(y\-x) = \-\*(If.
 .Ed
 .Pp
-\*(If is signed.
+Infinity is signed.
 .Bd -ragged -offset indent -compact
 It persists when added to itself
 or to any finite number.
@@ -220,12 +250,11 @@ are, like 0/0 and sqrt(\-3),
 invalid operations that produce \*(Na. ...
 .Ed
 .Pp
-Reserved operands:
+Reserved operands (\*(Nas):
 .Bd -ragged -offset indent -compact
-there are 2**53\-2 of them, all
-called \*(Na
+An \*(Na is
 .Em ( N Ns ot Em a N Ns umber ) .
-Some, called Signaling \*(Nas, trap any floating-point operation
+Some \*(Nas, called Signaling \*(Nas, trap any floating-point operation
 performed upon them; they are used to mark missing
 or uninitialized values, or nonexistent elements
 of arrays.
@@ -234,11 +263,6 @@ the default results of Invalid Operations, and
 propagate through subsequent arithmetic operations.
 If x \(!= x then x is \*(Na; every other predicate
 (x > y, x = y, x < y, ...) is FALSE if \*(Na is involved.
-.Pp
-NOTE: Trichotomy is violated by \*(Na.
-Besides being FALSE, predicates that entail ordered
-comparison, rather than mere (in)equality,
-signal Invalid Operation when \*(Na is involved.
 .Ed
 .Pp
 Rounding:
@@ -251,6 +275,13 @@ and when the rounding error is exactly half an
 .Em ulp
 then
 the rounded value's least significant bit is zero.
+(An
+.Em ulp
+is one
+.Em U Ns nit
+in the
+.Em L Ns ast
+.Em P Ns lace . )
 This kind of rounding is usually the best kind,
 sometimes provably so; for instance, for every
 x = 1.0, 2.0, 3.0, 4.0, ..., 2.0**52, we find
@@ -263,10 +294,6 @@ proved best for every circumstance, so IEEE 754
 provides rounding towards zero or towards
 +\*(If or towards \-\*(If
 at the programmer's option.
-And the
-same kinds of rounding are specified for
-Binary-Decimal Conversions, at least for magnitudes
-between roughly 1.0e\-10 and 1.0e37.
 .Ed
 .Pp
 Exceptions:
@@ -292,6 +319,131 @@ response will serve most instances satisfactorily,
 the unsatisfactory instances cannot justify aborting
 computation every time the exception occurs.
 .Ed
+.Ss Data Formats
+Single-precision:
+.Bd -ragged -offset indent -compact
+Type name:
+.Vt float
+.Pp
+Wordsize: 32 bits.
+.Pp
+Precision: 24 significant bits,
+roughly like 7 significant decimals.
+.Bd -ragged -offset indent -compact
+If x and x' are consecutive positive single-precision
+numbers (they differ by 1
+.Em ulp ) ,
+then
+.Bd -ragged -compact
+5.9e\-08 < 0.5**24 < (x'\-x)/x \(<= 0.5**23 < 1.2e\-07.
+.Ed
+.Ed
+.Pp
+.Bl -column "XXX" -compact
+Range:	Overflow threshold  = 2.0**128 = 3.4e38
+	Underflow threshold = 0.5**126 = 1.2e\-38
+.El
+.Bd -ragged -offset indent -compact
+Underflowed results round to the nearest
+integer multiple of 0.5**149 = 1.4e\-45.
+.Ed
+.Ed
+.Pp
+Double-precision:
+.Bd -ragged -offset indent -compact
+Type name:
+.Vt double
+.Bd -ragged -offset indent -compact
+On some architectures,
+.Vt long double
+is the the same as
+.Vt double .
+.Ed
+.Pp
+Wordsize: 64 bits.
+.Pp
+Precision: 53 significant bits,
+roughly like 16 significant decimals.
+.Bd -ragged -offset indent -compact
+If x and x' are consecutive positive double-precision
+numbers (they differ by 1
+.Em ulp ) ,
+then
+.Bd -ragged -compact
+1.1e\-16 < 0.5**53 < (x'\-x)/x \(<= 0.5**52 < 2.3e\-16.
+.Ed
+.Ed
+.Pp
+.Bl -column "XXX" -compact
+Range:	Overflow threshold  = 2.0**1024 = 1.8e308
+	Underflow threshold = 0.5**1022 = 2.2e\-308
+.El
+.Bd -ragged -offset indent -compact
+Underflowed results round to the nearest
+integer multiple of 0.5**1074 = 4.9e\-324.
+.Ed
+.Ed
+.Pp
+Extended-precision:
+.Bd -ragged -offset indent -compact
+Type name:
+.Vt long double
+(when supported by the hardware)
+.Pp
+Wordsize: 96 bits.
+.Pp
+Precision: 64 significant bits,
+roughly like 19 significant decimals.
+.Bd -ragged -offset indent -compact
+If x and x' are consecutive positive double-precision
+numbers (they differ by 1
+.Em ulp ) ,
+then
+.Bd -ragged -compact
+1.0e\-19 < 0.5**63 < (x'\-x)/x \(<= 0.5**62 < 2.2e\-19.
+.Ed
+.Ed
+.Pp
+.Bl -column "XXX" -compact
+Range:	Overflow threshold  = 2.0**16384 = 1.2e4932
+	Underflow threshold = 0.5**16382 = 3.4e\-4932
+.El
+.Bd -ragged -offset indent -compact
+Underflowed results round to the nearest
+integer multiple of 0.5**16451 = 5.7e\-4953.
+.Ed
+.Ed
+.Pp
+Quad-extended-precision:
+.Bd -ragged -offset indent -compact
+Type name:
+.Vt long double
+(when supported by the hardware)
+.Pp
+Wordsize: 128 bits.
+.Pp
+Precision: 113 significant bits,
+roughly like 34 significant decimals.
+.Bd -ragged -offset indent -compact
+If x and x' are consecutive positive double-precision
+numbers (they differ by 1
+.Em ulp ) ,
+then
+.Bd -ragged -compact
+9.6e\-35 < 0.5**113 < (x'\-x)/x \(<= 0.5**112 < 2.0e\-34.
+.Ed
+.Ed
+.Pp
+.Bl -column "XXX" -compact
+Range:	Overflow threshold  = 2.0**16384 = 1.2e4932
+	Underflow threshold = 0.5**16382 = 3.4e\-4932
+.El
+.Bd -ragged -offset indent -compact
+Underflowed results round to the nearest
+integer multiple of 0.5**16494 = 6.5e\-4966.
+.Ed
+.Ed
+.Ss Additional Information Regarding Exceptions
 .Pp
 For each kind of floating-point exception, IEEE 754
 provides a Flag that is raised each time its exception
@@ -381,7 +533,6 @@ execution had not been stopped.
 .It
 \&... Other ways lie beyond the scope of this document.
 .El
-.Ed
 .Pp
 Ideally, each
 elementary function should act as if it were indivisible, or
@@ -472,6 +623,11 @@ or IEEE 754 floating-point.
 Most of this library was replaced with FDLIBM, developed at Sun
 Microsystems, in
 .Fx 1.1.5 .
+Additional routines, including ones for
+.Vt float
+and
+.Vt long double
+values, were written for or imported into subsequent versions of FreeBSD.
 .Sh BUGS
 Several functions required by
 .St -isoC-99
