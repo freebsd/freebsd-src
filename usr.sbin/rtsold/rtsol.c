@@ -1,4 +1,4 @@
-/*	$KAME: rtsol.c,v 1.12 2001/11/12 11:47:11 jinmei Exp $	*/
+/*	$KAME: rtsol.c,v 1.26 2003/05/27 06:48:27 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -35,7 +35,6 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/time.h>
-#include <fcntl.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -52,6 +51,7 @@
 #include <arpa/inet.h>
 
 #include <time.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <err.h>
@@ -68,6 +68,7 @@ static struct msghdr sndmhdr;
 static struct iovec rcviov[2];
 static struct iovec sndiov[2];
 static struct sockaddr_in6 from;
+static int rcvcmsglen;
 
 int rssock;
 
@@ -80,11 +81,10 @@ static int safefile __P((const char *));
 int
 sockopen()
 {
-	int on;
-	struct icmp6_filter filt;
-	static u_char answer[1500];
-	int rcvcmsglen, sndcmsglen;
 	static u_char *rcvcmsgbuf = NULL, *sndcmsgbuf = NULL;
+	int sndcmsglen, on;
+	static u_char answer[1500];
+	struct icmp6_filter filt;
 
 	sndcmsglen = rcvcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
 	    CMSG_SPACE(sizeof(int));
@@ -163,11 +163,9 @@ sockopen()
 	rcviov[0].iov_base = (caddr_t)answer;
 	rcviov[0].iov_len = sizeof(answer);
 	rcvmhdr.msg_name = (caddr_t)&from;
-	rcvmhdr.msg_namelen = sizeof(from);
 	rcvmhdr.msg_iov = rcviov;
 	rcvmhdr.msg_iovlen = 1;
 	rcvmhdr.msg_control = (caddr_t) rcvcmsgbuf;
-	rcvmhdr.msg_controllen = rcvcmsglen;
 
 	/* initialize msghdr for sending packets */
 	sndmhdr.msg_namelen = sizeof(struct sockaddr_in6);
@@ -186,8 +184,12 @@ sendpacket(struct ifinfo *ifinfo)
 	struct cmsghdr *cm;
 	int hoplimit = 255;
 	int i;
+	struct sockaddr_in6 dst;
 
-	sndmhdr.msg_name = (caddr_t)&sin6_allrouters;
+	dst = sin6_allrouters;
+	dst.sin6_scope_id = ifinfo->linkid;
+
+	sndmhdr.msg_name = (caddr_t)&dst;
 	sndmhdr.msg_iov[0].iov_base = (caddr_t)ifinfo->rs_data;
 	sndmhdr.msg_iov[0].iov_len = ifinfo->rs_datalen;
 
@@ -228,17 +230,17 @@ sendpacket(struct ifinfo *ifinfo)
 void
 rtsol_input(int s)
 {
-	int i;
-	int *hlimp = NULL;
-	struct icmp6_hdr *icp;
-	int ifindex = 0;
-	struct cmsghdr *cm;
+	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
+	int ifindex = 0, i, *hlimp = NULL;
 	struct in6_pktinfo *pi = NULL;
 	struct ifinfo *ifi = NULL;
+	struct icmp6_hdr *icp;
 	struct nd_router_advert *nd_ra;
-	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
+	struct cmsghdr *cm;
 
-	/* get message */
+	/* get message.  namelen and controllen must always be initialized. */
+	rcvmhdr.msg_namelen = sizeof(from);
+	rcvmhdr.msg_controllen = rcvcmsglen;
 	if ((i = recvmsg(s, &rcvmhdr, 0)) < 0) {
 		warnmsg(LOG_ERR, __func__, "recvmsg: %s", strerror(errno));
 		return;

@@ -1,4 +1,4 @@
-/*	$KAME: rtsold.h,v 1.11 2000/10/10 06:18:04 itojun Exp $	*/
+/*	$KAME: rtsold.h,v 1.19 2003/04/16 09:48:15 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -36,6 +36,7 @@ struct ifinfo {
 
 	struct sockaddr_dl *sdl; /* link-layer address */
 	char ifname[IF_NAMESIZE]; /* interface name */
+	u_int32_t linkid;	/* link ID of this interface */
 	int active;		/* interface status */
 	int probeinterval;	/* interval of probe timer (if necessary) */
 	int probetimer;		/* rest of probe timer */
@@ -65,11 +66,15 @@ struct ifinfo {
 /* rtsold.c */
 extern struct timeval tm_max;
 extern int dflag;
+extern int aflag;
 extern char *otherconf_script;
+extern int ifconfig __P((char *));
+extern void iflist_init __P((void));
 struct ifinfo *find_ifinfo __P((int));
 void rtsol_timer_update __P((struct ifinfo *));
 extern void warnmsg __P((int, const char *, const char *, ...))
      __attribute__((__format__(__printf__, 3, 4)));
+extern char **autoifprobe __P((void));
 
 /* if.c */
 extern int ifinit __P((void));
@@ -87,7 +92,7 @@ extern void rtsol_input __P((int));
 
 /* probe.c */
 extern int probe_init __P((void));
-extern void defrouter_probe __P((int));
+extern void defrouter_probe __P((struct ifinfo *));
 
 /* dump.c */
 extern void rtsold_dump_file __P((char *));
