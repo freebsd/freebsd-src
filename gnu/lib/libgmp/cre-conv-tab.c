@@ -1,5 +1,7 @@
 /* cre-conv-tab.c -- Create conversion table in a wordsize-dependent way.
 
+ $Id$
+
 Copyright (C) 1991 Free Software Foundation, Inc.
 
 This file is part of the GNU MP Library.
@@ -18,17 +20,14 @@ You should have received a copy of the GNU General Public License
 along with the GNU MP Library; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#include <stdio.h>
+#include <math.h>
 #include "gmp.h"
 #include "gmp-impl.h"
 #include "longlong.h"
 
-extern double floor ();
-extern double log ();
-
 static unsigned long int
-upow (b, e)
-    unsigned long int b;
-    unsigned int e;
+upow (unsigned long int b, unsigned int e)
 {
   unsigned long int y = 1;
 
@@ -47,8 +46,7 @@ upow (b, e)
 }
 
 unsigned int
-ulog2 (x)
-     unsigned long int x;
+ulog2 (unsigned long int x)
 {
   unsigned int i;
   for (i = 0;  x != 0;  i++)
@@ -56,7 +54,8 @@ ulog2 (x)
   return i;
 }
 
-main ()
+void
+main (void)
 {
   int i;
   unsigned long idig;
