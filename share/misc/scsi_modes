@@ -204,3 +204,28 @@
 	{Reserved} *i1
 	{Verify Recovery Time Limit} i2
 }
+
+# CD-ROM Audio Control Parameters Page
+0x0E	{
+	{Reserved} *t5
+	{Immed} t1
+	{SOTC} t1
+	{Reserved} *t1
+	{Reserved} *i2
+	{APRVal} t1
+	{Reserved} *t3
+	{Format of LBAs / sec.} t4
+	{Logical Blocks per Second of Audio Playback} i2
+	{Reserved} *t4
+	{Output Port 0 Channel Selection} t4
+	{Output Port 0 Volume} i1
+	{Reserved} *t4
+	{Output Port 1 Channel Selection} t4
+	{Output Port 1 Volume} i1
+	{Reserved} *t4
+	{Output Port 2 Channel Selection} t4
+	{Output Port 2 Volume} i1
+	{Reserved} *t4
+	{Output Port 3 Channel Selection} t4
+	{Output Port 3 Volume} i1
+}
