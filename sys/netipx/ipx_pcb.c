@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.c
  *
- * $Id: ipx_pcb.c,v 1.2 1995/10/31 23:36:34 julian Exp $
+ * $Id: ipx_pcb.c,v 1.3 1995/11/04 09:03:10 julian Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>
