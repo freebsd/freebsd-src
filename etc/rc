@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.9 1997/04/27 11:13:38 jkh Exp $
+#	$Id: rc,v 1.104.2.10 1997/05/01 04:41:04 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -148,6 +148,7 @@ fi
 echo 'recording kernel -c changes'
 dset -q
 
+echo -n 'additional daemons:'
 # start system logging and name service (named needs to start before syslogd
 # if you don't have a /etc/resolv.conf)
 #
@@ -160,12 +161,13 @@ if [ "X${syslogd_enable}" = X"YES" ]; then
 	fi
 
 	rm -f /var/run/log
-	echo 'Starting syslogd.';		syslogd ${syslogd_flags}
+	echo -n ' syslogd';		syslogd ${syslogd_flags}
 fi
 
 if [ "X${tickadj_enable}" = X"YES" ]; then
-    echo -n ' tickadj';	tickadj ${tickadj_flags--Aq}
+	echo -n ' tickadj';	tickadj ${tickadj_flags--Aq}
 fi
+echo '.'
 
 if [ -n "$network_pass1_done" ]; then
     network_pass2
