@@ -1,13 +1,11 @@
-#
-# $Id: Makefile,v 1.7 1999/08/08 07:30:02 bde Exp $
-#
+#	$Id: Makefile,v 1.8 1999/08/08 07:31:47 bde Exp $
 
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR}
 
-PROG =	c++filt
-SRCS =	cplus-dem.c getopt.c getopt1.c underscore.c
+PROG=	c++filt
+SRCS=	cplus-dem.c getopt.c getopt1.c underscore.c
 BINDIR=	/usr/libexec/${OBJFORMAT}
 NOMAN=	1
 CFLAGS+= -DMAIN -DIN_GCC -DVERSION=\"$(version)\"
