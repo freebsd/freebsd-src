@@ -1135,6 +1135,10 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	int err;
 
+	if (dev != device_get_parent(device_get_parent(child)) || devi == NULL)
+		return (bus_generic_activate_resource(dev, child, type,
+		    rid, r));
+
 	switch (type) {
 	case SYS_RES_IOPORT: {
 		struct io_desc *ip;
@@ -1186,6 +1190,10 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	int err;
+
+	if (dev != device_get_parent(device_get_parent(child)) || devi == NULL)
+		return (bus_generic_deactivate_resource(dev, child, type,
+		    rid, r));
 
 	switch (type) {
 	case SYS_RES_IOPORT: {
