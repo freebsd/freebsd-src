@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.168 1995/06/26 00:30:48 asami Exp $
+# $Id: bsd.port.mk,v 1.169 1995/06/26 07:01:20 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -18,10 +18,10 @@
 # PREFIX		- Where to install things in general (default: /usr/local).
 # MASTER_SITES	- Primary location(s) for distribution files if not found
 #				  locally (default:
-#				   ftp://ftp.freebsd.org/pub/FreeBSD/ports/distfiles)
+#				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles)
 # PATCH_SITES	- Primary location(s) for distributed patch files
 #				  (see PATCHFILES below) if not found locally (default:
-#				   ftp://ftp.freebsd.org/pub/FreeBSD/ports/distfiles)
+#				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles)
 #
 # MASTER_SITE_OVERRIDE - If set, override the MASTER_SITES setting with this
 #				  value.
@@ -292,14 +292,14 @@ INSTALL_TARGET?=	install
 
 # If the user has this set, go to the FreeBSD respository for everything.
 .if defined(MASTER_SITE_FREEBSD)
-MASTER_SITE_OVERRIDE=  ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports/distfiles/ 
+MASTER_SITE_OVERRIDE=  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/ 
 .endif
 
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
 .if !defined(MASTER_SITE_OVERRIDE)
-MASTER_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/distfiles/
-PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/distfiles/${PATCH_PRFX}
+MASTER_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/
+PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${PATCH_PRFX}
 .else
 MASTER_SITES=	${MASTER_SITE_OVERRIDE}
 PATCH_SITES=	${MASTER_SITE_OVERRIDE}${PATCH_PRFX}
