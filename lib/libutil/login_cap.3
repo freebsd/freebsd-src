@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login_cap.3,v 1.6 1997/03/19 02:01:27 bde Exp $
+.\" $Id: login_cap.3,v 1.7 1997/05/18 09:14:11 davidn Exp $
 .\"
 .Dd December 27, 1996
 .Os FreeBSD
@@ -42,7 +42,7 @@
 .Ft void
 .Fn login_close "login_cap_t * lc"
 .Ft login_cap_t *
-.Fn login_getclassbyname "const char *nam" "const char *dir"
+.Fn login_getclassbyname "const char *nam" "const struct passwd *pwd"
 .Ft login_cap_t *
 .Fn login_getclass "const char *nam"
 .Ft login_cap_t *
