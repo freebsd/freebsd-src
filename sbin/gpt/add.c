@@ -43,13 +43,15 @@
 
 static uuid_t type;
 static off_t block, size;
+static unsigned int entry;
 
 static void
 usage_add(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-b lba] [-s lba] [-t uuid] device\n", getprogname());
+	    "usage: %s [-b lba] [-i index] [-s lba] [-t uuid] device\n",
+	    getprogname());
 	exit(1);
 }
 
@@ -84,27 +86,39 @@ add(int fd)
 		return;
 	}
 
-	/* Create UFS partitions by default. */
-	if (uuid_is_nil(&type, NULL)) {
-		uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
-		type = ufs;
+	hdr = gpt->map_data;
+	if (entry > hdr->hdr_entries) {
+		warnx("%s: error: index %u out of range (%u max)", device_name,
+		    entry, hdr->hdr_entries);
+		return;
+	}
+
+	if (entry > 0) {
+		i = entry - 1;
+		ent = (void*)((char*)tbl->map_data + i * hdr->hdr_entsz);
+		if (!uuid_is_nil(&ent->ent_type, NULL)) {
+			warnx("%s: error: entry at index %u is not free",
+			    device_name, entry);
+			return;
+		}
+	} else {
+		/* Find empty slot in GPT table. */
+		for (i = 0; i < hdr->hdr_entries; i++) {
+			ent = (void*)((char*)tbl->map_data + i *
+			    hdr->hdr_entsz);
+			if (uuid_is_nil(&ent->ent_type, NULL))
+				break;
+		}
+		if (i == hdr->hdr_entries) {
+			warnx("%s: error: no available table entries",
+			    device_name);
+			return;
+		}
 	}
 
 	map = map_alloc(block, size);
 	if (map == NULL) {
 		warnx("%s: error: no space available on device", device_name);
-		return;
-	}
-
-	/* Find empty slot in GPT table. */
-	hdr = gpt->map_data;
-	for (i = 0; i < hdr->hdr_entries; i++) {
-		ent = (void*)((char*)tbl->map_data + i * hdr->hdr_entsz);
-		if (uuid_is_nil(&ent->ent_type, NULL))
-			break;
-	}
-	if (i == hdr->hdr_entries) {
-		warnx("%s: error: no available table entries", device_name);
 		return;
 	}
 
@@ -144,13 +158,20 @@ cmd_add(int argc, char *argv[])
 	uint32_t status;
 
 	/* Get the migrate options */
-	while ((ch = getopt(argc, argv, "b:s:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "b:i:s:t:")) != -1) {
 		switch(ch) {
 		case 'b':
 			if (block > 0)
 				usage_add();
 			block = strtol(optarg, &p, 10);
 			if (*p != 0 || block < 1)
+				usage_add();
+			break;
+		case 'i':
+			if (entry > 0)
+				usage_add();
+			entry = strtol(optarg, &p, 10);
+			if (*p != 0 || entry < 1)
 				usage_add();
 			break;
 		case 's':
@@ -174,10 +195,10 @@ cmd_add(int argc, char *argv[])
 				} else if (strcmp(optarg, "ufs") == 0) {
 					uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 					type = ufs;
-				} else if ((strcmp(optarg, "linux") == 0)
-					  || (strcmp(optarg, "windows") == 0)) {
-					uuid_t ext = GPT_ENT_TYPE_MS_BASIC_DATA;
-					type = ext ;
+				} else if (strcmp(optarg, "linux") == 0 ||
+				    strcmp(optarg, "windows") == 0) {
+					uuid_t m = GPT_ENT_TYPE_MS_BASIC_DATA;
+					type = m;
 				} else
 					usage_add();
 			}
@@ -189,6 +210,12 @@ cmd_add(int argc, char *argv[])
 
 	if (argc == optind)
 		usage_add();
+
+	/* Create UFS partitions by default. */
+	if (uuid_is_nil(&type, NULL)) {
+		uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+		type = ufs;
+	}
 
 	while (optind < argc) {
 		fd = gpt_open(argv[optind++]);
