@@ -15,7 +15,6 @@ CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_ARCH}
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 CFLAGS+=	-I${.CURDIR}/../../efi/include
 CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_ARCH}
-CFLAGS+=	-ffreestanding
 
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
