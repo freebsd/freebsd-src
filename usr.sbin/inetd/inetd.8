@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id$
+.\"	$Id: inetd.8,v 1.13 1997/02/22 16:05:51 peter Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -49,7 +49,7 @@
 .Op Ar configuration file
 .Sh DESCRIPTION
 The
-.Nm inetd
+.Nm
 program
 should be run at boot time by
 .Pa /etc/rc
@@ -63,22 +63,21 @@ The server program is invoked with the service socket
 as its standard input, output and error descriptors.
 After the program is
 finished,
-.Nm inetd
+.Nm
 continues to listen on the socket (except in some cases which
 will be described below).  Essentially,
-.Nm inetd
+.Nm
 allows running one daemon to invoke several others,
 reducing load on the system.
 .Pp
-The options available for
-.Nm inetd:
-.Bl -tag -compact -width Rratexxx
+The following options are available:
+.Bl -tag -width indent
 .It Fl d
-Turns on debugging.
+Turn on debugging.
 .It Fl l
-Turns on logging.
+Turn on logging.
 .It Fl R Ar rate
-Specifies the maximum number of times a service can be invoked
+Specify the maximum number of times a service can be invoked
 in one minute; the default is 256.
 .It Fl a
 Specify a specific IP address to bind to.
@@ -87,7 +86,7 @@ Specify an alternate file in which to store the process ID.
 .El
 .Pp
 Upon execution,
-.Nm inetd
+.Nm
 reads its configuration information from a configuration
 file which, by default, is
 .Pa /etc/inetd.conf .
@@ -121,7 +120,7 @@ server program arguments
 .Ed
 .Pp
 There are two types of services that 
-.Nm inetd
+.Nm
 can start: standard and TCPMUX.
 A standard service has a well-known port assigned to it;
 it may be a service that implements an official Internet standard or is a
@@ -131,7 +130,7 @@ As described in
 TCPMUX services are nonstandard services that do not have a 
 well-known port assigned to them.
 They are invoked from
-.Nm inetd 
+.Nm
 when a program connects to the
 .Dq tcpmux
 well-known port and specifies
@@ -207,9 +206,11 @@ TCPMUX services must use
 .Pp
 The
 .Em wait/nowait
-entry specifies whether the server that is invoked by inetd will take over
+entry specifies whether the server that is invoked by
+.Nm
+will take over
 the socket associated with the service access point, and thus whether
-.Nm inetd
+.Nm
 should wait for the server to exit before listening for new service
 requests.
 Datagram servers must use
@@ -220,7 +221,7 @@ These servers must read at least one datagram from the socket
 before exiting.
 If a datagram server connects
 to its peer, freeing the socket so
-.Nm inetd
+.Nm
 can received further messages on the socket, it is said to be
 a
 .Dq multi-threaded
@@ -229,7 +230,7 @@ it should read one datagram from the socket and create a new socket
 connected to the peer.
 It should fork, and the parent should then exit
 to allow
-.Nm inetd
+.Nm
 to check for new service requests to spawn new servers.
 Datagram servers which process all incoming datagrams
 on a socket and eventually time out are said to be
@@ -280,9 +281,9 @@ The
 .Em server-program
 entry should contain the pathname of the program which is to be
 executed by
-.Nm inetd
+.Nm
 when a request is found on its socket.  If
-.Nm inetd
+.Nm
 provides this service internally, this entry should
 be
 .Dq internal .
@@ -297,7 +298,7 @@ word
 should take the place of this entry.
 .Pp
 The
-.Nm inetd
+.Nm
 program
 provides several
 .Dq trivial
@@ -324,14 +325,14 @@ document.
 When given the
 .Fl l
 option
-.Nm Inetd
+.Nm
 will log an entry to syslog each time an 
 .Xr accept 2 
 is made, which notes the
 service selected and the IP-number of the remote requestor.
 .Pp
 The
-.Nm inetd
+.Nm
 program
 rereads its configuration file when it receives a hangup signal,
 .Dv SIGHUP .
@@ -356,7 +357,7 @@ the selected protocol begins; otherwise the connection is closed.''
 The program is passed the TCP connection as file descriptors 0 and 1.
 .Pp
 If the TCPMUX service name begins with a ``+'',
-.Nm inetd
+.Nm
 returns the positive reply for the program.
 This allows you to invoke programs that use stdin/stdout
 without putting any special server code in them.
@@ -364,7 +365,7 @@ without putting any special server code in them.
 The special service name
 .Dq help
 causes
-.Nm inetd
+.Nm
 to list TCPMUX services in
 .Pa inetd.conf .
 .Sh "FILES"
@@ -391,7 +392,7 @@ rstatd/1-3   dgram   rpc/udp wait root  /usr/libexec/rpc.rstatd  rpc.rstatd
 .Ed
 .Sh "ERROR MESSAGES"
 The
-.Nm inetd
+.Nm
 server
 logs error messages using
 .Xr syslog 3 .
@@ -444,7 +445,7 @@ exists in the
 .Xr passwd 5
 database. The first message
 occurs when
-.Nm inetd
+.Nm
 (re)reads the configuration file. The second message occurs when the
 service is invoked.
 .Pp
