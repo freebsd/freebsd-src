@@ -78,7 +78,8 @@ pass3()
 		 * them in DSTATE which will cause them to be pitched
 		 * in pass 4.
 		 */
-		if (preen && resolved && usedsoftdep && state == DSTATE) {
+		if ((preen || bkgrdflag) &&
+		    resolved && usedsoftdep && state == DSTATE) {
 			if (inp->i_dotdot >= ROOTINO)
 				inoinfo(inp->i_dotdot)->ino_linkcnt++;
 			continue;

@@ -43,6 +43,7 @@ static const char rcsid[] =
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
+#include <ufs/ffs/fs.h>
 
 #include <err.h>
 #include <string.h>
@@ -444,6 +445,8 @@ again:
 				pwarn("%s %s %s\n", pathbuf,
 				    "IS AN EXTRANEOUS HARD LINK TO DIRECTORY",
 				    namebuf);
+				if (cursnapshot != 0)
+					break;
 				if (preen) {
 					printf(" (REMOVED)\n");
 					n = 1;

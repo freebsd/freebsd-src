@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -53,7 +54,10 @@ static const char rcsid[] =
 
 char	*lfname = "lost+found";
 int	lfmode = 01777;
-struct	dirtemplate emptydir = { 0, DIRBLKSIZ };
+struct	dirtemplate emptydir = {
+	0, DIRBLKSIZ, DT_UNKNOWN, 0, "",
+	0, 0, DT_UNKNOWN, 0, ""
+};
 struct	dirtemplate dirhead = {
 	0, 12, DT_DIR, 1, ".",
 	0, DIRBLKSIZ - 12, DT_DIR, 2, ".."
@@ -107,7 +111,7 @@ dirscan(idesc)
 {
 	register struct direct *dp;
 	register struct bufarea *bp;
-	int dsize, n;
+	u_int dsize, n;
 	long blksiz;
 	char dbuf[DIRBLKSIZ];
 
@@ -324,7 +328,7 @@ adjust(idesc, lcnt)
 		 * in preen mode, and are on a filesystem using soft updates,
 		 * then just toss any partially allocated files.
 		 */
-		if (resolved && preen && usedsoftdep) {
+		if (resolved && (preen || bkgrdflag) && usedsoftdep) {
 			clri(idesc, "UNREF", 1);
 			return;
 		} else {
@@ -362,8 +366,19 @@ adjust(idesc, lcnt)
 				printf(" (ADJUSTED)\n");
 		}
 		if (preen || reply("ADJUST") == 1) {
-			dp->di_nlink -= lcnt;
-			inodirty();
+			if (bkgrdflag == 0) {
+				dp->di_nlink -= lcnt;
+				inodirty();
+			} else {
+				cmd.value = idesc->id_number;
+				cmd.size = -lcnt;
+				if (debug)
+					printf("adjrefcnt ino %d amt %d\n",
+					    (long)cmd.value, cmd.size);
+				if (sysctl(adjrefcnt, MIBSIZE, 0, 0,
+				    &cmd, sizeof cmd) == -1)
+					rwerror("ADJUST INODE", cmd.value);
+			}
 		}
 	}
 }
@@ -448,6 +463,10 @@ linkup(orphan, parentdir, name)
 	pinode(orphan);
 	if (preen && dp->di_size == 0)
 		return (0);
+	if (cursnapshot != 0) {
+		pfatal("FILE LINKUP IN SNAPSHOT");
+		return (0);
+	}
 	if (preen)
 		printf(" (RECONNECTED)\n");
 	else

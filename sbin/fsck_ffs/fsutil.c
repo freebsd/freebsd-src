@@ -60,8 +60,6 @@ static const char rcsid[] =
 
 long	diskreads, totalreads;	/* Disk cache statistics */
 
-static void rwerror __P((char *mesg, ufs_daddr_t blk));
-
 int
 ftypeok(dp)
 	struct dinode *dp;
@@ -95,7 +93,7 @@ reply(question)
 		pfatal("INTERNAL ERROR: GOT TO reply()");
 	persevere = !strcmp(question, "CONTINUE");
 	printf("\n");
-	if (!persevere && (nflag || fswritefd < 0)) {
+	if (!persevere && (nflag || (fswritefd < 0 && bkgrdflag == 0))) {
 		printf("%s? no\n\n", question);
 		resolved = 0;
 		return (0);
@@ -239,11 +237,15 @@ flush(fd, bp)
 
 	if (!bp->b_dirty)
 		return;
+	bp->b_dirty = 0;
+	if (fswritefd < 0) {
+		pfatal("WRITING IN READ_ONLY MODE.\n");
+		return;
+	}
 	if (bp->b_errs != 0)
 		pfatal("WRITING %sZERO'ED BLOCK %d TO DISK\n",
 		    (bp->b_errs == bp->b_size / dev_bsize) ? "" : "PARTIALLY ",
 		    bp->b_bno);
-	bp->b_dirty = 0;
 	bp->b_errs = 0;
 	bwrite(fd, bp->b_un.b_buf, bp->b_bno, (long)bp->b_size);
 	if (bp != &sblk)
@@ -256,7 +258,7 @@ flush(fd, bp)
 	}
 }
 
-static void
+void
 rwerror(mesg, blk)
 	char *mesg;
 	ufs_daddr_t blk;
@@ -264,7 +266,7 @@ rwerror(mesg, blk)
 
 	if (preen == 0)
 		printf("\n");
-	pfatal("CANNOT %s: BLK %ld", mesg, blk);
+	pfatal("CANNOT %s: %ld", mesg, blk);
 	if (reply("CONTINUE") == 0)
 		exit(EEXIT);
 }
@@ -276,12 +278,31 @@ ckfini(markclean)
 	register struct bufarea *bp, *nbp;
 	int ofsmodified, cnt = 0;
 
+	if (bkgrdflag) {
+		unlink(snapname);
+		if ((!(sblock.fs_flags & FS_UNCLEAN)) != markclean) {
+			cmd.value = FS_UNCLEAN;
+			cmd.size = markclean ? -1 : 1;
+			if (sysctlbyname("vfs.ffs.setflags", 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("SET FILESYSTEM FLAGS", FS_UNCLEAN);
+			if (!preen) {
+				printf("\n***** FILE SYSTEM MARKED %s *****\n",
+				    markclean ? "CLEAN" : "DIRTY");
+				if (!markclean)
+					rerun = 1;
+			}
+		} else if (!preen && !markclean) {
+			printf("\n***** FILE SYSTEM STILL DIRTY *****\n");
+			rerun = 1;
+		}
+	}
 	if (fswritefd < 0) {
 		(void)close(fsreadfd);
 		return;
 	}
 	flush(fswritefd, &sblk);
-	if (havesb && sblk.b_bno != SBOFF / dev_bsize &&
+	if (havesb && sblk.b_bno != SBOFF / dev_bsize && cursnapshot == 0 &&
 	    !preen && reply("UPDATE STANDARD SUPERBLOCK")) {
 		sblk.b_bno = SBOFF / dev_bsize;
 		sbdirty();
@@ -299,7 +320,7 @@ ckfini(markclean)
 	if (bufhead.b_size != cnt)
 		errx(EEXIT, "panic: lost %d buffers", bufhead.b_size - cnt);
 	pbp = pdirbp = (struct bufarea *)0;
-	if (sblock.fs_clean != markclean) {
+	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
 		sblock.fs_clean = markclean;
 		sbdirty();
 		ofsmodified = fsmodified;
@@ -336,12 +357,12 @@ bread(fd, buf, blk, size)
 	offset = blk;
 	offset *= dev_bsize;
 	if (lseek(fd, offset, 0) < 0)
-		rwerror("SEEK", blk);
+		rwerror("SEEK BLK", blk);
 	else if (read(fd, buf, (int)size) == size)
 		return (0);
-	rwerror("READ", blk);
+	rwerror("READ BLK", blk);
 	if (lseek(fd, offset, 0) < 0)
-		rwerror("SEEK", blk);
+		rwerror("SEEK BLK", blk);
 	errs = 0;
 	memset(buf, 0, (size_t)size);
 	printf("THE FOLLOWING DISK SECTORS COULD NOT BE READ:");
@@ -379,15 +400,15 @@ bwrite(fd, buf, blk, size)
 	offset = blk;
 	offset *= dev_bsize;
 	if (lseek(fd, offset, 0) < 0)
-		rwerror("SEEK", blk);
+		rwerror("SEEK BLK", blk);
 	else if (write(fd, buf, (int)size) == size) {
 		fsmodified = 1;
 		return;
 	}
 	resolved = 0;
-	rwerror("WRITE", blk);
+	rwerror("WRITE BLK", blk);
 	if (lseek(fd, offset, 0) < 0)
-		rwerror("SEEK", blk);
+		rwerror("SEEK BLK", blk);
 	printf("THE FOLLOWING SECTORS COULD NOT BE WRITTEN:");
 	for (cp = buf, i = 0; i < size; i += dev_bsize, cp += dev_bsize)
 		if (write(fd, cp, (int)dev_bsize) != dev_bsize) {

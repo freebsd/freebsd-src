@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -187,7 +188,9 @@ iblock(idesc, ilevel, isize)
 				continue;
 			(void)sprintf(buf, "PARTIALLY TRUNCATED INODE I=%lu",
 			    (u_long)idesc->id_number);
-			if (dofix(idesc, buf)) {
+			if (usedsoftdep) {
+				pfatal(buf);
+			} else if (dofix(idesc, buf)) {
 				*ap = 0;
 				dirty(bp);
 			}
@@ -481,10 +484,21 @@ clri(idesc, type, flag)
 		if (preen)
 			printf(" (CLEARED)\n");
 		n_files--;
-		(void)ckinode(dp, idesc);
-		clearinode(dp);
-		inoinfo(idesc->id_number)->ino_state = USTATE;
-		inodirty();
+		if (bkgrdflag == 0) {
+			(void)ckinode(dp, idesc);
+			inoinfo(idesc->id_number)->ino_state = USTATE;
+			clearinode(dp);
+			inodirty();
+		} else {
+			cmd.value = idesc->id_number;
+			cmd.size = -dp->di_nlink;
+			if (debug)
+				printf("adjrefcnt ino %d amt %d\n",
+				    (long)cmd.value, cmd.size);
+			if (sysctl(adjrefcnt, MIBSIZE, 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("ADJUST INODE", cmd.value);
+		}
 	}
 }
 
