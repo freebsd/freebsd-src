@@ -21,6 +21,7 @@ sed	-e '/	pty	/d' \
 	-e '/	random	/d' \
 	-e '/	splash$/d' \
 	-e '/PROCFS/d' \
+	-e '/PSEUDOFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
@@ -83,6 +84,7 @@ sed	-e '/	pty	/d' \
 	-e '/	random	/d' \
 	-e '/	splash$/d' \
 	-e '/PROCFS/d' \
+	-e '/PSEUDOFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
@@ -109,6 +111,7 @@ sed	-e '/	pty	/d' \
 	-e '/	ulpt	/d' \
 	-e '/	urio	/d' \
 	-e '/	uscanner	/d' \
+	-e '/	ses	/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
