@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.182 1995/05/18 09:16:53 davidg Exp $
+#	$Id: LINT,v 1.183 1995/05/27 04:32:12 davidg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -264,7 +264,7 @@ options		QUOTA			#enable disk quotas
 # device drivers.  The host adapters are listed in the ISA and PCI
 # device configuration sections below.
 #
-# Beginning with FreeBSD 2.1 you can wire down your SCSI devices so
+# Beginning with FreeBSD 2.0.5 you can wire down your SCSI devices so
 # that a given bus, target, and LUN always come on line as the same
 # device unit.  In earlier versions the unit numbers were assigned
 # in the order that the devices were probed on the SCSI bus.  This
@@ -291,7 +291,7 @@ options		QUOTA			#enable disk quotas
 
 # All SCSI devices allocate as many units as are required.
 
-# The "unknown" device (uk? in pre-2.1) is now part of the base SCSI
+# The "unknown" device (uk? in pre-2.0.5) is now part of the base SCSI
 # configuration and doesn't have to be explicitly configured.
 
 controller	scbus0	#base SCSI code
@@ -299,6 +299,11 @@ device		ch0	#SCSI media changers
 device		sd0	#SCSI disks
 device		st0	#SCSI tapes
 device		cd0	#SCSI CD-ROMs
+
+# The previous devices (ch, sd, st, cd) are recognized by config.
+# config doesn't (and shouldn't) know about these newer ones,
+# so we have to specify that they are on a SCSI bus with the "at scbus?"
+# clause.
 
 device worm0 at scbus?	# SCSI worm
 device pt0 at scbus?	# SCSI processor type
@@ -309,7 +314,7 @@ device sctarg0 at scbus? # SCSI target
 # SCSIDEBUG: When defined enables debugging macros
 # NO_SCSI_SENSE: When defined disables sense descriptions (about 4k)
 # SCSI_REPORT_GEOMETRY: Always report disk geometry at boot up instead
-#                       only when booting verbosely.
+#                       of only when booting verbosely.
 options		SCSIDEBUG
 #options	NO_SCSI_SENSE
 options		SCSI_REPORT_GEOMETRY
@@ -388,7 +393,7 @@ options		BOUNCE_BUFFERS
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-#options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.1
+#options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.0.5
 #options		XSERVER			# include code for XFree86
 #options		FAT_CURSOR		# start with block cursor
 
