@@ -19,9 +19,10 @@ CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 CFLAGS+=	-DLOADER
 
-CLEANFILES+=	vers.c vers.o gensetdefs.o gensetdefs setdef0.o setdef1.o \
-		setdefs.h start.o
-CLEANFILES+=	${BASE} ${BASE}.sym ${BASE}.list
+CLEANFILES+=	setdef0.c setdef0.o setdef1.c setdef1.o setdefs.h start.o \
+		vers.c vers.o ${BASE} ${BASE}.exe ${BASE}.sym ${BASE}.list
+CLEANFILES+=	loader.help
+CLEANFILES+=	machine
 
 CFLAGS+=	-Wall
 
@@ -41,15 +42,10 @@ vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 ${BASE}.exe: ${BASE} ${BASE}.help
 	elf2exe ${BASE}.sym ${BASE}.exe
 
-#${BASE}: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o setdef0.o setdef1.o
-#	${LD} -o ${BASE}.sym -M -e __start -N -Ttext ${LOAD_ADDRESS} \
-#	${CRT} setdef0.o ${OBJS} setdef1.o \
-#	vers.o ${LIBSTAND} ${LIBARC} ${LIBSTAND} >${.OBJDIR}/${BASE}.list
-
 ${BASE}: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o setdef0.o setdef1.o
 	${LD} -o ${BASE}.sym -M -N -Ttext ${LOAD_ADDRESS} \
-	${CRT} setdef0.o ${OBJS} setdef1.o \
-	vers.o ${LIBSTAND} ${LIBARC} ${LIBSTAND} >${.OBJDIR}/${BASE}.list
+	${CRT} setdef0.o ${OBJS} setdef1.o vers.o -L${DESTDIR}${LIBDIR} \
+	${LIBSTAND} ${LIBARC} ${LIBSTAND} >${.OBJDIR}/${BASE}.list
 
 ${BASE}.help: help.common help.alpha
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
@@ -74,18 +70,11 @@ setdef1.o: setdefs.h
 machine:
 	ln -sf ${.CURDIR}/../../../alpha/include machine
 
-CLEANFILES+=	machine setdefs.h gensetdefs ${BASE} ${BASE}.exe loader.help
-
 .include <bsd.prog.mk>
 
-setdefs.h: gensetdefs ${OBJS}
+.ORDER: setdefs.h setdef0.c setdef1.c
+setdefs.h setdef0.c setdef1.c: ${OBJS}
 	@echo Generating linker sets
-	@./gensetdefs ${OBJS} >setdefs.h
-
-gensetdefs: gensetdefs.o
-	${CC} -static gensetdefs.o -o $@
-
-gensetdefs.o: gensetdefs.c
-	${CC} -c $<
+	@gensetdefs ${OBJS}
 
 beforedepend ${OBJS}: machine
