@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.106 1998/08/19 04:01:00 bde Exp $
+ * $Id: tty.c,v 1.107 1998/11/11 10:03:56 truckman Exp $
  */
 
 /*-
@@ -58,8 +58,8 @@
  *	  than TTYDISC.  Cancel their effects before switch disciplines
  *	  and ignore them if they are set while we are in another
  *	  discipline.
- *	o Handle c_ispeed = 0 to c_ispeed = c_ospeed conversion here instead
- *	  of in drivers and fix drivers that write to tp->t_termios.
+ *	o Now that historical speed conversions are handled here, don't
+ *	  do them in drivers.
  *	o Check for TS_CARR_ON being set while everything is closed and not
  *	  waiting for carrier.  TS_CARR_ON isn't cleared if nothing is open,
  *	  so it would live until the next open even if carrier drops.
@@ -706,16 +706,28 @@ ttioctl(tp, cmd, data, flag)
 
 	/* If the ioctl involves modification, hang if in the background. */
 	switch (cmd) {
+	case  FIOASYNC:
+	case  TIOCCBRK:
+	case  TIOCCONS:
+	case  TIOCDRAIN:
+	case  TIOCEXCL:
 	case  TIOCFLUSH:
+#ifdef TIOCHPCL
+	case  TIOCHPCL:
+#endif
+	case  TIOCNXCL:
+	case  TIOCSBRK:
+	case  TIOCSCTTY:
+	case  TIOCSDRAINWAIT:
 	case  TIOCSETA:
-	case  TIOCSETD:
 	case  TIOCSETAF:
 	case  TIOCSETAW:
-#ifdef notdef
+	case  TIOCSETD:
 	case  TIOCSPGRP:
-#endif
+	case  TIOCSTART:
 	case  TIOCSTAT:
 	case  TIOCSTI:
+	case  TIOCSTOP:
 	case  TIOCSWINSZ:
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	case  TIOCLBIC:
@@ -847,7 +859,11 @@ ttioctl(tp, cmd, data, flag)
 	case TIOCSETAF: {		/* drn out, fls in, set */
 		register struct termios *t = (struct termios *)data;
 
-		if (t->c_ispeed < 0 || t->c_ospeed < 0)
+		if (t->c_ispeed == 0)
+			t->c_ispeed = t->c_ospeed;
+		if (t->c_ispeed == 0)
+			t->c_ispeed = tp->t_ospeed;
+		if (t->c_ispeed == 0)
 			return (EINVAL);
 		s = spltty();
 		if (cmd == TIOCSETAW || cmd == TIOCSETAF) {
@@ -889,7 +905,8 @@ ttioctl(tp, cmd, data, flag)
 				CLR(tp->t_state, TS_CONNECTED);
 			tp->t_cflag = t->c_cflag;
 			tp->t_ispeed = t->c_ispeed;
-			tp->t_ospeed = t->c_ospeed;
+			if (t->c_ospeed != 0)
+				tp->t_ospeed = t->c_ospeed;
 			ttsetwater(tp);
 		}
 		if (ISSET(t->c_lflag, ICANON) != ISSET(tp->t_lflag, ICANON) &&
