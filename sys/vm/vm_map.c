@@ -2510,10 +2510,11 @@ RetryLookup:;
 			RETURN(KERN_PROTECTION_FAILURE);
 	}
 
-	if (entry->wired_count && (fault_type & VM_PROT_WRITE) &&
-			(entry->eflags & MAP_ENTRY_COW) &&
-			(fault_typea & VM_PROT_OVERRIDE_WRITE) == 0) {
-			RETURN(KERN_PROTECTION_FAILURE);
+	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
+	    (entry->eflags & MAP_ENTRY_COW) &&
+	    (fault_type & VM_PROT_WRITE) &&
+	    (fault_typea & VM_PROT_OVERRIDE_WRITE) == 0) {
+		RETURN(KERN_PROTECTION_FAILURE);
 	}
 
 	/*
