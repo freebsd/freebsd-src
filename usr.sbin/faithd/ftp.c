@@ -410,8 +410,7 @@ ftp_copyresult(int src, int dst, enum state state)
 					"425 Cannot open data connetion\r\n");
 			}
 		}
-		write(dst, rbuf, n);
-		return n;
+		return n > 0 ? write(dst, rbuf, n) : n;
 	case LPRT:
 	case EPRT:
 		/* expecting "200 PORT command successful." */
@@ -505,8 +504,7 @@ passivefail0:
 passivefail:
 			n = snprintf(sbuf, sizeof(sbuf),
 				"500 could not translate from PASV\r\n");
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 #ifdef IPV6_FAITH
 	    {
@@ -566,14 +564,16 @@ passivefail:
 				UC(a[8]), UC(a[9]), UC(a[10]), UC(a[11]),
 				UC(a[12]), UC(a[13]), UC(a[14]), UC(a[15]),
 				2, UC(p[0]), UC(p[1]));
-			write(dst, sbuf, n);
+			if (n > 0)
+				n = write(dst, sbuf, n);
 			passivemode = 1;
 			return n;
 		} else {
 			n = snprintf(sbuf, sizeof(sbuf),
 "229 Entering Extended Passive Mode (|||%d|)\r\n",
 				ntohs(sin6->sin6_port));
-			write(dst, sbuf, n);
+			if (n > 0)
+				n = write(dst, sbuf, n);
 			passivemode = 1;
 			return n;
 		}
@@ -626,8 +626,7 @@ passivefail1:
 passivefail2:
 			n = snprintf(sbuf, sizeof(sbuf),
 				"500 could not translate from EPSV\r\n");
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 #ifdef IP_FAITH
 	    {
@@ -684,7 +683,8 @@ passivefail2:
 "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d)\r\n",
 				UC(a[0]), UC(a[1]), UC(a[2]), UC(a[3]),
 				UC(p[0]), UC(p[1]));
-			write(dst, sbuf, n);
+			if (n > 0)
+				n = write(dst, sbuf, n);
 			passivemode = 1;
 			return n;
 		}
@@ -786,8 +786,7 @@ ftp_copycommand(int src, int dst, enum state *state)
 		if (epsvall) {
 			n = snprintf(sbuf, sizeof(sbuf), "501 %s disallowed in EPSV ALL\r\n",
 				cmd);
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 
 		n = sscanf(param,
@@ -800,8 +799,7 @@ ftp_copycommand(int src, int dst, enum state *state)
 		if (n != 21 || af != 6 || hal != 16|| pal != 2) {
 			n = snprintf(sbuf, sizeof(sbuf),
 				"501 illegal parameter to LPRT\r\n");
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 
 		/* keep LPRT parameter */
@@ -821,8 +819,7 @@ sendport:
 lprtfail:
 			n = snprintf(sbuf, sizeof(sbuf),
 				"500 could not translate to PORT\r\n");
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 		if (((struct sockaddr *)&data4)->sa_family != AF_INET)
 			goto lprtfail;
@@ -863,7 +860,8 @@ lprtfail:
 		n = snprintf(sbuf, sizeof(sbuf), "PORT %d,%d,%d,%d,%d,%d\r\n",
 				  UC(a[0]), UC(a[1]), UC(a[2]), UC(a[3]),
 				  UC(p[0]), UC(p[1]));
-		write(dst, sbuf, n);
+		if (n > 0)
+			n = write(dst, sbuf, n);
 		*state = nstate;
 		passivemode = 0;
 		return n;
@@ -885,8 +883,7 @@ lprtfail:
 		if (epsvall) {
 			n = snprintf(sbuf, sizeof(sbuf), "501 %s disallowed in EPSV ALL\r\n",
 				cmd);
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 
 		p = param;
@@ -898,8 +895,7 @@ lprtfail:
 eprtparamfail:
 			n = snprintf(sbuf, sizeof(sbuf),
 				"501 illegal parameter to EPRT\r\n");
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 		*p++ = '\0';
 		hostp = p;
@@ -919,8 +915,7 @@ eprtparamfail:
 		if (n != 1 || af != 2) {
 			n = snprintf(sbuf, sizeof(sbuf),
 				"501 unsupported address family to EPRT\r\n");
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_UNSPEC;
@@ -929,14 +924,12 @@ eprtparamfail:
 		if (error) {
 			n = snprintf(sbuf, sizeof(sbuf),
 				"501 EPRT: %s\r\n", gai_strerror(error));
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 		if (res->ai_next) {
 			n = snprintf(sbuf, sizeof(sbuf),
 				"501 EPRT: %s resolved to multiple addresses\r\n", hostp);
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 
 		memcpy(&data6, res->ai_addr, res->ai_addrlen);
@@ -957,13 +950,13 @@ eprtparamfail:
 		if (epsvall) {
 			n = snprintf(sbuf, sizeof(sbuf), "501 %s disallowed in EPSV ALL\r\n",
 				cmd);
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 
 		/* transmit PASV */
 		n = snprintf(sbuf, sizeof(sbuf), "PASV\r\n");
-		write(dst, sbuf, n);
+		if (n > 0)
+			n = write(dst, sbuf, n);
 		*state = LPSV;
 		passivemode = 0;	/* to be set to 1 later */
 		return n;
@@ -978,7 +971,8 @@ eprtparamfail:
 		wport4 = wport6 = port4 = port6 = -1;
 
 		n = snprintf(sbuf, sizeof(sbuf), "PASV\r\n");
-		write(dst, sbuf, n);
+		if (n > 0)
+			n = write(dst, sbuf, n);
 		*state = EPSV;
 		passivemode = 0;	/* to be set to 1 later */
 		return n;
@@ -989,8 +983,7 @@ eprtparamfail:
 		 */
 		epsvall = 1;
 		n = snprintf(sbuf, sizeof(sbuf), "200 EPSV ALL command successful.\r\n");
-		write(src, sbuf, n);
-		return n;
+		return n > 0 ? write(src, sbuf, n) : n;
 #ifdef FAITH4
 	} else if (strcmp(cmd, "PORT") == 0 && param) {
 		/*
@@ -1012,8 +1005,7 @@ eprtparamfail:
 		if (n != 6) {
 			n = snprintf(sbuf, sizeof(sbuf),
 				"501 illegal parameter to PORT\r\n");
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 
 		memset(&data6, 0, sizeof(data6));
@@ -1032,8 +1024,7 @@ eprtparamfail:
 portfail:
 			n = snprintf(sbuf, sizeof(sbuf),
 				"500 could not translate to EPRT\r\n");
-			write(src, sbuf, n);
-			return n;
+			return n > 0 ? write(src, sbuf, n) : n;
 		}
 		if (((struct sockaddr *)&data4)->sa_family != AF_INET6)
 			goto portfail;
@@ -1073,7 +1064,8 @@ portfail:
 			goto portfail;
 		}
 		n = snprintf(sbuf, sizeof(sbuf), "EPRT |%d|%s|%s|\r\n", af, host, serv);
-		write(dst, sbuf, n);
+		if (n > 0)
+			n = write(dst, sbuf, n);
 		*state = nstate;
 		passivemode = 0;
 		return n;
@@ -1092,7 +1084,8 @@ portfail:
 
 		/* transmit EPSV */
 		n = snprintf(sbuf, sizeof(sbuf), "EPSV\r\n");
-		write(dst, sbuf, n);
+		if (n > 0)
+			n = write(dst, sbuf, n);
 		*state = PASV;
 		passivemode = 0;	/* to be set to 1 later */
 		return n;
@@ -1102,8 +1095,7 @@ portfail:
 		 * reject PORT/PASV
 		 */
 		n = snprintf(sbuf, sizeof(sbuf), "502 %s not implemented.\r\n", cmd);
-		write(src, sbuf, n);
-		return n;
+		return n > 0 ? write(src, sbuf, n) : n;
 #endif /* FAITH4 */
 	} else if (passivemode
 		&& (strcmp(cmd, "STOR") == 0
@@ -1119,7 +1111,8 @@ portfail:
 
 		if (ftp_passiveconn() < 0) {
 			n = snprintf(sbuf, sizeof(sbuf), "425 Cannot open data connetion\r\n");
-			write(src, sbuf, n);
+			if (n > 0)
+				n = write(src, sbuf, n);
 		} else {
 			/* simply relay the command */
 			write(dst, rbuf, n);
@@ -1130,8 +1123,7 @@ portfail:
 	} else {
 		/* simply relay it */
 		*state = NONE;
-		write(dst, rbuf, n);
-		return n;
+		return write(dst, rbuf, n);
 	}
 
  bad:

@@ -901,7 +901,8 @@ fprintlog(f, flags, msg)
 		v->iov_len = snprintf(greetings, sizeof greetings,
 		    "\r\n\7Message from syslogd@%s at %.24s ...\r\n",
 		    f->f_prevhost, ctime(&now));
-		v++;
+		if (v->iov_len > 0)
+			v++;
 		v->iov_base = "";
 		v->iov_len = 0;
 		v++;
@@ -995,7 +996,9 @@ fprintlog(f, flags, msg)
 		else
 			l = snprintf(line, sizeof line - 1, "<%d>%.15s %s",
 			     f->f_prevpri, iov[0].iov_base, iov[5].iov_base);
-		if (l > MAXLINE)
+		if (l < 0)
+			l = 0;
+		else if (l > MAXLINE)
 			l = MAXLINE;
 
 		if (finet) {
