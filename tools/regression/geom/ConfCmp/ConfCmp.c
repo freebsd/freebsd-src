@@ -303,10 +303,20 @@ compare_node(struct node *n1, struct node *n2, int in)
 	for (;;) {
 		if (n1a == NULL && n2a == NULL)
 			return (0);
-		if (n1a != NULL && n2a == NULL)
+		if (n1a != NULL && n2a == NULL) {
+			printf("1>");
+			indent(in);
+			print_node(n1a);
+			printf("2>\n");
 			return (1);
-		if (n1a == NULL && n2a != NULL)
+		}
+		if (n1a == NULL && n2a != NULL) {
+			printf("1>\n");
+			printf("2>");
+			indent(in);
+			print_node(n2a);
 			return (1);
+		}
 		i = compare_node2(n1a, n2a, in + 2);
 		if (i)
 			return (1);
