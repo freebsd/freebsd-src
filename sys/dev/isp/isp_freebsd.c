@@ -687,6 +687,7 @@ static cam_status
 isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 {
 	void *qe;
+	struct ccb_scsiio *cso = &ccb->csio;
 	u_int32_t *hp, save_handle;
 	u_int16_t iptr, optr;
 
@@ -703,64 +704,87 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 
 	if (IS_FC(isp)) {
 		ct2_entry_t *cto = qe;
+		u_int16_t *ssptr = NULL;
+
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		cto->ct_header.rqs_entry_count = 1;
-		cto->ct_iid = ccb->csio.init_id;
+		cto->ct_iid = cso->init_id;
 #ifndef	ISP2100_SCCLUN
 		cto->ct_lun = ccb->ccb_h.target_lun;
 #endif
-		cto->ct_rxid = ccb->csio.tag_id;
-		cto->ct_flags = CT2_FLAG_MODE0 | CT2_CCINCR;
-		if (ccb->csio.dxfer_len == 0) {
-			cto->ct_flags |= CT2_NO_DATA;
-		}
-		if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
+		cto->ct_rxid = cso->tag_id;
+		cto->ct_flags = CT2_CCINCR;
+		if (cso->dxfer_len == 0) {
+			cto->ct_flags |= CT2_FLAG_MODE1 | CT2_NO_DATA;
+			KASSERT(ccb->ccb_h.flags & CAM_SEND_STATUS,
+			    ("a CTIO with no data and no status?"));
 			cto->ct_flags |= CT2_SENDSTATUS;
-			cto->rsp.m0.ct_scsi_status = ccb->csio.scsi_status;
-			if (ccb->csio.resid) {
-				cto->ct_resid = ccb->csio.resid;
-				if (ccb->csio.resid < 0)
-					cto->ct_flags |= CT2_DATA_OVER;
-				else
-					cto->ct_flags |= CT2_DATA_UNDER;
+			ssptr = &cto->rsp.m1.ct_scsi_status;
+			*ssptr = cso->scsi_status;
+			if ((ccb->ccb_h.flags & CAM_SEND_SENSE) != 0) {
+				int m = min(cso->sense_len, MAXRESPLEN);
+				bcopy(&cso->sense_data, cto->rsp.m1.ct_resp, m);
+				cto->rsp.m1.ct_senselen = m;
+				cto->rsp.m1.ct_scsi_status |= CT2_SNSLEN_VALID;
 			}
-			if (isp_tdebug && (ccb->csio.scsi_status !=
-			    SCSI_STATUS_OK || ccb->csio.resid)) {
-				printf("%s:CTIO2 RX_ID 0x%x SCSI STATUS 0x%x "
-				    "resid %d\n", isp->isp_name, cto->ct_rxid,
-				    ccb->csio.scsi_status, ccb->csio.resid);
+		} else {
+			cto->ct_flags |= CT2_FLAG_MODE0;
+			if ((cso->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+				cto->ct_flags |= CT2_DATA_IN;
+			} else {
+				cto->ct_flags |= CT2_DATA_OUT;
 			}
-			/*
-			 * If we had Sense Data already,
-			 * here's where we'd set it up.
-			 */
+			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
+				ssptr = &cto->rsp.m0.ct_scsi_status;
+				cto->ct_flags |= CT2_SENDSTATUS;
+				cto->rsp.m0.ct_scsi_status = cso->scsi_status;
+			}
+			ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
+		}
+		if (ssptr && cso->resid) {
+			cto->ct_resid = cso->resid;
+			if (cso->resid < 0)
+				*ssptr |= CT2_DATA_OVER;
+			else
+				*ssptr |= CT2_DATA_UNDER;
+		}
+		if (isp_tdebug && ssptr &&
+		    (cso->scsi_status != SCSI_STATUS_OK || cso->resid)) {
+			printf("%s:CTIO2 RX_ID 0x%x SCSI STATUS 0x%x "
+			    "resid %d\n", isp->isp_name, cto->ct_rxid,
+			    cso->scsi_status, cso->resid);
 		}
 		hp = &cto->ct_reserved;
 	} else {
 		ct_entry_t *cto = qe;
+
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		cto->ct_header.rqs_entry_count = 1;
-		cto->ct_iid = ccb->csio.init_id;
+		cto->ct_iid = cso->init_id;
 		cto->ct_tgt = ccb->ccb_h.target_id;
 		cto->ct_lun = ccb->ccb_h.target_lun;
-		cto->ct_tag_type = ccb->csio.tag_action;
-		cto->ct_tag_val = ccb->csio.tag_id;
+		cto->ct_tag_type = cso->tag_action;
+		cto->ct_tag_val = cso->tag_id;
 		cto->ct_flags = CT_CCINCR;
-		if (ccb->csio.dxfer_len) {
+		if (cso->dxfer_len) {
 			cto->ct_flags |= CT_NO_DATA;
+		} else if ((cso->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+			cto->ct_flags |= CT_DATA_IN;
+		} else {
+			cto->ct_flags |= CT_DATA_OUT;
 		}
 		if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
 			cto->ct_flags |= CT_SENDSTATUS;
-			cto->ct_scsi_status = ccb->csio.scsi_status;
-			cto->ct_resid = ccb->csio.resid;
+			cto->ct_scsi_status = cso->scsi_status;
+			cto->ct_resid = cso->resid;
 		}
-		if (isp_tdebug && (ccb->csio.scsi_status !=
-		    SCSI_STATUS_OK || ccb->csio.resid)) {
+		if (isp_tdebug &&
+		    (cso->scsi_status != SCSI_STATUS_OK || cso->resid)) {
 			printf("%s:CTIO SCSI STATUS 0x%x resid %d\n",
-			    isp->isp_name, ccb->csio.scsi_status,
-			    ccb->csio.resid);
+			    isp->isp_name, cso->scsi_status, cso->resid);
 		}
 		hp = &cto->ct_reserved;
+		ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
 	}
 
 	if (isp_save_xs(isp, (ISP_SCSI_XFER_T *)ccb, hp)) {
@@ -780,7 +804,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 	 */
 
 	save_handle = *hp;
-	switch (ISP_DMASETUP(isp, &ccb->csio, qe, &iptr, optr)) {
+	switch (ISP_DMASETUP(isp, cso, qe, &iptr, optr)) {
 	case CMD_QUEUED:
 		MemoryBarrier();
 		ISP_ADD_REQUEST(isp, iptr);
@@ -939,7 +963,7 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 	if (tptr == NULL) {
 #if	0
 		/* XXX WE REALLY NEED A HARDWIRED SENSE/INQ CTIO TO USE XXX */
-		u_int32_t ccode = SCSI_STATUS_CHECK_COND | 0x100;
+		u_int32_t ccode = SCSI_STATUS_CHECK_COND | ECMD_SVALID;
 #if	NTARGBH > 0
 		/* Not Ready, Unit Not Self-Configured yet.... */
 		ccode |= (SSD_KEY_NOT_READY << 8) | (0x3E << 24);
@@ -1042,17 +1066,21 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 		ct2_entry_t *ct = arg;
 		sentstatus = ct->ct_flags & CT2_SENDSTATUS;
 		ok = (ct->ct_status & ~QLTM_SVALID) == CT_OK;
+		if (ok && ccb->ccb_h.flags & CAM_SEND_SENSE) {
+			ccb->ccb_h.status |= CAM_SENT_SENSE;
+		}
 		if (isp_tdebug) {
-			printf("%s:CTIO2 RX_ID 0x%x sts 0x%x flg 0x%x FIN\n\n",
-			    isp->isp_name, ct->ct_rxid, ct->ct_status,
-			    ct->ct_flags);
+			printf("%s:CTIO2 RX_ID 0x%x sts 0x%x flg 0x%x sns "
+			    "%d FIN\n", isp->isp_name, ct->ct_rxid,
+			    ct->ct_status, ct->ct_flags,
+			    (ccb->ccb_h.status & CAM_SENT_SENSE) != 0);
 		}
 	} else {
 		ct_entry_t *ct = arg;
 		sentstatus = ct->ct_flags & CT_SENDSTATUS;
 		ok = (ct->ct_status  & ~QLTM_SVALID) == CT_OK;
 		if (isp_tdebug) {
-			printf("%s:CTIO tag 0x%x sts 0x%x flg 0x%x FIN\n\n",
+			printf("%s:CTIO tag 0x%x sts 0x%x flg 0x%x FIN\n",
 			    isp->isp_name, ct->ct_tag_val, ct->ct_status,
 			    ct->ct_flags);
 		}
@@ -1884,9 +1912,9 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 	{
 		tmd_msg_t *mp = arg;
 		ITDEBUG(1, ("%s: bus %d iid %d tgt %d lun %d ttype %x tval %x"
-		    " msg[0]=0x%x\n", isp->isp_name, mp->nt_bus, mp->nt_iid,
-		    mp->nt_tgt, mp->nt_lun, mp->nt_tagtype, mp->nt_tagval,
-		    mp->nt_msg[0]));
+		    " msg[0]=0x%x\n", isp->isp_name, mp->nt_bus,
+		    (int) mp->nt_iid, (int) mp->nt_tgt, (int) mp->nt_lun,
+		    mp->nt_tagtype, mp->nt_tagval, mp->nt_msg[0]));
 		break;
 	}
 	case ISPASYNC_TARGET_EVENT:
