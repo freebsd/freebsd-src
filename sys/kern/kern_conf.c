@@ -87,7 +87,7 @@ devsw(dev_t dev)
 	if (dev->si_devsw)
 		return (dev->si_devsw);
 	if (devfs_present)
-		printf("WARNING: devsw() called on %s %u/%u\n", dev->si_name, major(dev), minor(dev));
+		return (NULL);
         return(cdevsw[major(dev)]);
 }
 
