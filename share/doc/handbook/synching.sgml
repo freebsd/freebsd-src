@@ -1,4 +1,4 @@
-<!-- $Id: synching.sgml,v 1.5 1996/12/19 20:24:37 jkh Exp $ -->
+<!-- $Id: synching.sgml,v 1.6 1996/12/19 23:49:14 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Synchronizing source trees over the Internet<label id="synching"></heading>
@@ -7,7 +7,7 @@
 
 <!--
 
-Last updated: $Date: 1996/12/19 20:24:37 $
+Last updated: $Date: 1996/12/19 23:49:14 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.
@@ -33,7 +33,7 @@ stamped with a sequence-number and encoded for transmission over email
 handed to the ctm_rmail(1) utility which will automatically decode, verify
 and apply the changes to the user's copy of the sources.  This process is
 far more efficient than CVSup, and places less strain on our server resources
-since it's a <em>push</em> rather than a <em>pull</em> model.
+since it is a <em>push</em> rather than a <em>pull</em> model.
 
 <p>There are other trade-offs, of course.  With CVSup, you can also
 inadvertently wipe out portions of your archive and CVSup will detect

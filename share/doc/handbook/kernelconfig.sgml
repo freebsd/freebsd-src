@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.22 1996/12/16 22:33:35 mpp Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.23 1996/12/23 12:20:03 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -86,7 +86,7 @@
 	``permission denied'' errors.</quote>
 
 	Now, edit MYKERNEL with your favorite text editor.  If
-	you're just starting out, the only editor available will
+	you are just starting out, the only editor available will
 	probably be <tt>vi</tt>, which is too complex to explain
 	here, but is covered well in many books in the <ref
 	id="bibliography" name="bibliography">.  Feel free to change the

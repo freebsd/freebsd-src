@@ -3,7 +3,7 @@
 #
 # Converted by Ollivier Robert <roberto@FreeBSD.ORG>
 #
-# $Id: ctm.sgml,v 1.11 1996/08/17 23:51:44 wosch Exp $
+# $Id: ctm.sgml,v 1.12 1996/09/22 15:40:08 wosch Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -171,7 +171,7 @@
         If you are a frequent or valuable contributor to FreeBSD, I will be
         willing to arrange special services, one option is delivery via
         <tt/ftp/ or <tt/rcp/ to a machine closer to you.  You need to have
-        earned this, since it takes time to do, but I'll be all the more
+        earned this, since it takes time to do, but I will be all the more
         happy to do it for you then.
 
         There is a sequence of deltas for the <tt/ports/ collection too,

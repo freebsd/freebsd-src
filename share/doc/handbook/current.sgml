@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.15 1996/08/15 01:21:57 asami Exp $ -->
+<!-- $Id: current.sgml,v 1.16 1996/09/09 23:21:27 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1996/08/15 01:21:57 $
+Last updated: $Date: 1996/09/09 23:21:27 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -60,7 +60,7 @@ ask!  It takes far too much time to do this as a general task.
 <sect><heading>What is FreeBSD-current <em>NOT</em>?</heading>
 
 <p><enum>
-    <item>  A fast-track to getting pre-release bits because you heard there's
+    <item>  A fast-track to getting pre-release bits because you heard there is
         some cool new feature in there and you want to be the first on
         your block to have it.
 

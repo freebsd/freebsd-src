@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.18 1996/08/18 17:04:41 jkh Exp $ -->
+<!-- $Id: scsi.sgml,v 1.19 1996/10/04 22:54:14 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -188,7 +188,7 @@
 	    on a 8 bit bus, 40 Mbytes/second on a 16 bit bus etc.
 	    For F20 the max bus length is 1.5 meters, for F40 it
 	    becomes 0.75 meters. Be aware that F20 is pushing 
-	    the limits quite a bit, so you'll quickly find out if your
+	    the limits quite a bit, so you will quickly find out if your
 	    SCSI bus is electrically sound.
 
 	    Please note that this means that
@@ -212,7 +212,7 @@
 	    The reduction of the number of ground wires they used
 	    is a bad idea, you better stick to 50 pins cabling 
 	    in accordance with the SCSI standard. For Fast-20 and 40
-	    don't even think about buses like this..
+	    do not even think about buses like this.
 
         <sect3><heading>Differential buses</heading>
           <p>
@@ -224,7 +224,7 @@
             difference between these two wires determines whether the
             signal is asserted or de-asserted. To a certain extent the
             voltage difference between ground and the signal wire pair is
-            not relevant (do not try 10 kVolts though..).
+            not relevant (do not try 10 kVolts though).
             
             It is beyond the scope of this document to explain why this
             differential idea is so much better. Just accept that
@@ -280,7 +280,7 @@
 
             OK, and now where should you install your terminators?  This is
             by far the most misunderstood part of SCSI. And it is by far
-            the simplest..  The rule is: <bf>every SCSI bus has 2 (two)
+            the simplest.  The rule is: <bf>every SCSI bus has 2 (two)
             terminators, one at each end of the bus.</bf> So, two and not
             one or three or whatever. Do yourself a favor and stick to
             this rule. It will save you endless grief, because wrong
@@ -382,7 +382,7 @@
             invent.
 
             You might notice that the terminator issue discussed earlier
-            becomes rather hairy if your bus is not linear..
+            becomes rather hairy if your bus is not linear.
 
             The electrical characteristics, its noise margins and
             ultimately the reliability of it all are tightly related to
@@ -429,7 +429,7 @@
           megabytes. The division by 2 is to get from disk blocks that are
           normally 512 bytes in size to Kbytes.
 
-          Right.. All is well now?! No, it is not. The system BIOS has
+          Right. All is well now?! No, it is not. The system BIOS has
           another quirk you might run into. The number of cylinders of a
           bootable hard disk cannot be greater than 1024. Using the
           translation above, this is a show-stopper for disks greater than
@@ -462,7 +462,7 @@
 	aha0 targ 0 lun 0: <MICROP  1588-15MB1057404HSP4>
 	sd0: 636MB (1303250 total sec), 1632 cyl, 15 head, 53 sec, bytes/sec 512
           </verb>
-          Newer kernels usually do not report this information.. e.g.
+          Newer kernels usually do not report this information. e.g.
 	  <verb>
 	 (bt0:0:0): "SEAGATE ST41651 7574" type 0 fixed SCSI 2
 	 sd0(bt0:0:0): Direct-Access 1350MB (2766300 512 byte sectors)
@@ -739,8 +739,8 @@ Mar 29 21:16:37 yedi /kernel: st1: Archive  Viper 150 is a known rogue
 
 	  In a nutshell, TCQ allows the device to have multiple I/O
 	  requests outstanding at the same time. Because the device
-	  is intelligent, it can optimise it's operations (like
-  	  head positioning) based on it's own request queue. On 
+	  is intelligent, it can optimise its operations (like
+  	  head positioning) based on its own request queue. On 
 	  SCSI devices like RAID (Redundant Array of Independent
 	  Disks) arrays the TCQ function is indispensable to take
 	  advantage of the device's inherent parallelism.
