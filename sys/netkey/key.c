@@ -570,6 +570,32 @@ key_gettunnel(osrc, odst, isrc, idst)
 	struct sockaddr *os, *od, *is, *id;
 	struct secpolicyindex spidx;
 
+	if (isrc->sa_family != idst->sa_family) {
+		printf("protocol family mismatched %d != %d\n.",
+		       isrc->sa_family, idst->sa_family);
+		return NULL;
+	}
+
+	/* if no SP found, use default policy. */
+	if (LIST_FIRST(&sptree[dir]) == NULL) {
+		switch (isrc->sa_family) {
+		case PF_INET:
+			if (ip4_def_policy.policy == IPSEC_POLICY_DISCARD)
+				return NULL;
+			ip4_def_policy.refcnt++;
+			return &ip4_def_policy;
+		case PF_INET6:
+			if (ip6_def_policy.policy == IPSEC_POLICY_DISCARD)
+				return NULL;
+			ip6_def_policy.refcnt++;
+			return &ip6_def_policy;
+		default:
+			printf("invalid protocol family %d\n.",
+			       isrc->sa_family);
+			return NULL;
+		}
+	}
+
 	s = splnet();	/*called from softclock()*/
 	LIST_FOREACH(sp, &sptree[dir], chain) {
 		if (sp->state == IPSEC_SPSTATE_DEAD)
