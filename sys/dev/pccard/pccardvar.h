@@ -358,6 +358,7 @@ PCCARD_ACCESSOR(function,	FUNCTION,		uint32_t)
 PCCARD_ACCESSOR(vendor_str,	VENDOR_STR,		char *)
 PCCARD_ACCESSOR(product_str,	PRODUCT_STR,		char *)
 PCCARD_ACCESSOR(cis3_str,	CIS3_STR,		char *)
+PCCARD_ACCESSOR(cis4_str,	CIS4_STR,		char *)
 
 /* shared memory flags */
 enum {
