@@ -29,6 +29,7 @@
 
 #include "bootstrap.h"
 #include "libofw.h"
+#include "dev_net.h"
 
 enum {
 	HEAPVA		= 0x800000,
@@ -41,12 +42,14 @@ struct memory_slice {
 	vm_offset_t size;
 };
 
-extern int ofw_gate(void *);
+typedef void kernel_entry_t(vm_offset_t mdp, u_long o1, u_long o2, u_long o3,
+			    void *openfirmware);
+
 extern void itlb_enter(int, vm_offset_t, vm_offset_t, unsigned long);
 extern void dtlb_enter(int, vm_offset_t, vm_offset_t, unsigned long);
 extern vm_offset_t itlb_va_to_pa(vm_offset_t);
 extern vm_offset_t dtlb_va_to_pa(vm_offset_t);
-extern void jmpkern(vm_offset_t, struct bootinfo *);
+extern vm_offset_t md_load(char *, vm_offset_t *);
 static int elf_exec(struct preloaded_file *);
 static int sparc64_autoload(void);
 static int mmu_mapin(vm_offset_t, vm_size_t);
@@ -57,7 +60,7 @@ vm_offset_t kernelpa;	/* Begin of kernel and mod memory. */
 vm_offset_t curkpg;	/* (PA) used for on-demand map-in. */
 vm_offset_t curkva = 0;
 vm_offset_t heapva;
-int tlbslot = 60;	/* Insert first entry at this TLB slot. */
+int tlbslot = 63;	/* Insert first entry at this TLB slot. XXX */
 phandle_t pmemh;	/* OFW memory handle */
 
 struct memory_slice memslices[18];
@@ -68,7 +71,12 @@ struct ofw_devdesc bootdev;
  * loader part uses.
  */
 struct devsw *devsw[] = {
+#ifdef LOADER_DISK_SUPPORT
 	&ofwdisk,
+#endif
+#ifdef LOADER_NET_SUPPORT
+	&netdev,
+#endif
 	0
 };
 struct arch_switch archsw;
@@ -82,7 +90,18 @@ struct file_format *file_formats[] = {
 	0
 };
 struct fs_ops *file_system[] = {
+#ifdef LOAD_DISK_SUPPORT
 	&ufs_fsops,
+#endif
+#ifdef LOADER_NET_SUPPORT
+	&nfs_fsops,
+#endif
+	0
+};
+struct netif_driver *netif_drivers[] = {
+#ifdef LOADER_NET_SUPPORT
+	&ofwnet,
+#endif
 	0
 };
 
@@ -124,9 +143,10 @@ static int
 elf_exec(struct preloaded_file *fp)
 {
 	struct file_metadata *fmp;
-	struct bootinfo bi, *bip;
-	Elf_Ehdr *Ehdr;
 	vm_offset_t entry;
+	vm_offset_t mdp;
+	Elf_Ehdr *Ehdr;
+	int error;
 
 	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == 0) {
 		return EFTYPE;
@@ -134,48 +154,40 @@ elf_exec(struct preloaded_file *fp)
 	Ehdr = (Elf_Ehdr *)&fmp->md_data;
 	entry = Ehdr->e_entry;
 
-	/* align the bootinfo structure on an eight byte boundary */
-	bip = (struct bootinfo *)((curkva + 8) & 0x7);
-
-	bi.bi_version = BOOTINFO_VERSION;
-	bi.bi_kpa = kernelpa;
-	bi.bi_end = (vm_offset_t)(bip + 1);
-	bi.bi_metadata = 0;
-	sparc64_copyin(&bi, (vm_offset_t)bip, sizeof(struct bootinfo));
+	if ((error = md_load(fp->f_args, &mdp)) != 0)
+		return error;
 
 	printf("jumping to kernel entry at 0x%lx.\n", entry);
 #if 0
 	pmap_print_tlb('i');
 	pmap_print_tlb('d');
 #endif
-	jmpkern(entry, bip);
-	return 1;
+	((kernel_entry_t *)entry)(mdp, 0, 0, 0, openfirmware);
+
+	panic("exec returned");
 }
 
 static int
 mmu_mapin(vm_offset_t va, vm_size_t len)
 {
-	printf("mmu_mapin(): access to 0x%lx-0x%lx requested\n", va, va + len);
 
 	if (va + len > curkva)
 		curkva = va + len;
 
-	len += va & 0x3fffff;
-	va &= ~0x3fffff;
+	len += va & PAGE_MASK_4M;
+	va &= ~PAGE_MASK_4M;
 	while (len) {
 		if (dtlb_va_to_pa(va) == (vm_offset_t)-1 ||
 		    itlb_va_to_pa(va) == (vm_offset_t)-1) {
-			printf("mmu_mapin(): map pa 0x%lx as va 0x%lx.\n",
-			    curkpg, va);
 			dtlb_enter(tlbslot, curkpg, va,
 			    TD_V | TD_4M | TD_L | TD_CP | TD_CV | TD_P | TD_W);
 			itlb_enter(tlbslot, curkpg, va,
 			    TD_V | TD_4M | TD_L | TD_CP | TD_CV | TD_P | TD_W);
 			tlbslot--;
-			curkpg += 0x400000;
+			curkpg += PAGE_SIZE_4M;
 		}
-		len -= len > 0x400000 ? 0x400000 : len;
-		va += 0x400000;
+		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
+		va += PAGE_SIZE_4M;
 	}
 	return 0;
 }
@@ -185,7 +197,7 @@ init_heap(void)
 {
 	if ((pmemh = OF_finddevice("/memory")) == (phandle_t)-1)
 		OF_exit();
-	if (OF_getprop(pmemh, "reg", memslices, sizeof(memslices)) <= 0)
+	if (OF_getprop(pmemh, "available", memslices, sizeof(memslices)) <= 0)
 		OF_exit();
 
 	/* Reserve 16 MB continuous for kernel and modules. */
@@ -196,7 +208,8 @@ init_heap(void)
 	return heapva;
 }
 
-int main(int (*openfirm)(void *))
+int
+main(int (*openfirm)(void *))
 {
 	char bootpath[64];
 	struct devsw **dp;
@@ -205,7 +218,7 @@ int main(int (*openfirm)(void *))
 	/*
 	 * Tell the OpenFirmware functions where they find the ofw gate.
 	 */
-	OF_init(&ofw_gate);
+	OF_init(openfirm);
 
 	archsw.arch_getdev = ofw_getdev;
 	archsw.arch_copyin = sparc64_copyin;
@@ -245,7 +258,7 @@ int main(int (*openfirm)(void *))
 		ofw_parseofwdev(&bootdev, bootpath);
 		break;
 	case DEVT_NET:
-		//bootdev.d_dev = &netdev;
+		bootdev.d_dev = &netdev;
 		strncpy(bootdev.d_kind.netif.path, bootpath, 64);
 		bootdev.d_kind.netif.unit = 0;
 		break;
