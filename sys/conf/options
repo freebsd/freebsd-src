@@ -88,6 +88,7 @@ GDB_REMOTE_CHAT	opt_ddb.h
 GDBSPEED	opt_ddb.h
 NO_GEOM		opt_geom.h
 GEOM_AES	opt_geom.h
+GEOM_BDE	opt_geom.h
 GEOM_BSD	opt_geom.h
 GEOM_GPT	opt_geom.h
 GEOM_MBR	opt_geom.h
