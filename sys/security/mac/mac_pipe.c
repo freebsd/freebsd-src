@@ -1257,6 +1257,9 @@ mac_execve_transition(struct ucred *old, struct ucred *new, struct vnode *vp)
 
 	ASSERT_VOP_LOCKED(vp, "mac_execve_transition");
 
+	if (!mac_enforce_process && !mac_enforce_fs)
+		return;
+
 	MAC_PERFORM(execve_transition, old, new, vp, &vp->v_label);
 }
 
@@ -1264,6 +1267,11 @@ int
 mac_execve_will_transition(struct ucred *old, struct vnode *vp)
 {
 	int result;
+
+	ASSERT_VOP_LOCKED(vp, "mac_execve_will_transition");
+
+	if (!mac_enforce_process && !mac_enforce_fs)
+		return (0);
 
 	result = 0;
 	MAC_BOOLEAN(execve_will_transition, ||, old, vp, &vp->v_label);
