@@ -653,36 +653,24 @@ done:
 }
 
 /*
- * Detatch mapped page and release resources back to the system.
+ * Remove a reference from the given sf_buf, adding it to the free
+ * list when its reference count reaches zero.  A freed sf_buf still,
+ * however, retains its virtual-to-physical mapping until it is
+ * recycled or reactivated by sf_buf_alloc(9).
  */
 void
-sf_buf_free(void *addr, void *args)
+sf_buf_free(struct sf_buf *sf)
 {
-	struct sf_buf *sf;
-	struct vm_page *m;
 
-	sf = args;
 	mtx_lock(&sf_buf_lock);
-	m = sf->m;
 	sf->ref_count--;
 	if (sf->ref_count == 0) {
-		nsfbufsused--;
 		TAILQ_INSERT_TAIL(&sf_buf_freelist, sf, free_entry);
+		nsfbufsused--;
 		if (sf_buf_alloc_want > 0)
 			wakeup_one(&sf_buf_freelist);
 	}
 	mtx_unlock(&sf_buf_lock);
-
-	vm_page_lock_queues();
-	vm_page_unwire(m, 0);
-	/*
-	 * Check for the object going away on us. This can
-	 * happen since we don't hold a reference to it.
-	 * If so, we're responsible for freeing the page.
-	 */
-	if (m->wire_count == 0 && m->object == NULL)
-		vm_page_free(m);
-	vm_page_unlock_queues();
 }
 
 /*

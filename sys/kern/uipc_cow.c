@@ -85,7 +85,7 @@ socow_iodone(void *addr, void *args)
 	vm_page_unlock_queues();
 	splx(s);
 	/* note that sf_buf_free() unwires the page for us*/
-	sf_buf_free(addr, args);
+	sf_buf_mext(addr, args);
 	socow_stats.iodone++;
 }
 
