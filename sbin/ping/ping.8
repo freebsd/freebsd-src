@@ -32,7 +32,7 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd September 25, 2001
+.Dd October 2, 2002
 .Dt PING 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl AQRadfnqrv
+.Op Fl AQRadfnoqrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
@@ -160,6 +160,8 @@ This flag only applies if the ping destination is a multicast address.
 .It Fl n
 Numeric output only.
 No attempt will be made to lookup symbolic names for host addresses.
+.It Fl o
+Exit successfully after receiving one reply packet.
 .It Fl p Ar pattern
 You may specify up to 16
 .Dq pad
