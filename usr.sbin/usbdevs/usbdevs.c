@@ -54,6 +54,7 @@
 
 int verbose = 0;
 int showdevs = 0;
+int oneline = 0;
 
 void usage(void);
 void usbdev(int f, int a, int rec);
@@ -109,13 +110,22 @@ usbdev(int f, int a, int rec)
 		       di.udi_vendor, di.udi_vendorNo, di.udi_release);
 	} else
 		printf("%s, %s", di.udi_product, di.udi_vendor);
-	printf("\n");
+	if (!oneline)
+		printf("\n");
 	if (showdevs) {
-		for (i = 0; i < USB_MAX_DEVNAMES; i++)
-			if (di.udi_devnames[i][0])
-				printf("%*s  %s\n", indent, "",
-				       di.udi_devnames[i]);
+		for (i = 0; i < USB_MAX_DEVNAMES; i++) {
+			if (di.udi_devnames[i][0]) {
+				if (oneline)
+					printf(", device %s",
+					    di.udi_devnames[i]);
+				else
+					printf("%*s  %s\n", indent, "",
+					    di.udi_devnames[i]);
+			}
+		}
 	}
+	if (oneline)
+		printf("\n");
 	if (!rec)
 		return;
 	for (p = 0; p < di.udi_nports; p++) {
@@ -177,7 +187,7 @@ main(int argc, char **argv)
 	int addr = 0;
 	int ncont;
 
-	while ((ch = getopt(argc, argv, "a:df:v?")) != -1) {
+	while ((ch = getopt(argc, argv, "a:df:ov?")) != -1) {
 		switch(ch) {
 		case 'a':
 			addr = atoi(optarg);
@@ -187,6 +197,9 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			dev = optarg;
+			break;
+		case 'o':
+			oneline++;
 			break;
 		case 'v':
 			verbose = 1;
