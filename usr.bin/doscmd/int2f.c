@@ -52,6 +52,7 @@ int2f_printer(regcontext_t *REGS)
 {
     debug (D_FILE_OPS, "Called printer function 0x%02x", R_AH);
     R_AL = FUNC_NUM_IVALID;
+	return(0);
 }
 
 /*
@@ -155,13 +156,13 @@ static struct intfunc_table int2f_table[] = {
 void
 int2f(regcontext_t *REGS)
 {
-    int		index;
+    int		idx;
    
     /* look up the handler for the current function */
-    index = intfunc_search(int2f_table, R_AH, R_AL);
+    idx = intfunc_search(int2f_table, R_AH, R_AL);
 
-    if (index >= 0) {		/* respond on multiplex chain */
-	int2f_table[index].handler(REGS);
+    if (idx >= 0) {		/* respond on multiplex chain */
+	int2f_table[idx].handler(REGS);
     } else {
 	unknown_int2(0x2f, R_AH, REGS);
     }

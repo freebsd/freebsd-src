@@ -1,17 +1,17 @@
 /* BSDI README,v 2.2 1996/04/08 19:32:16 bostic Exp*/
+/* $FreeBSD$ */
 
 This is the merged doscmd/rundos project.  Please read the man
 page for help on configuring doscmd.
 
 Things known not to work:
     *	No mouse support (yet)
-    *	No ems support (yet)
     *	No raw VGA support (yet)
     *	Printer support (yet)
     *	COM ports (being worked on)
     *	redirected file system only supported for DOS 4.0 and above
 	(3.3 will be supported in a future version)
-    *	Graphics in an X window (not planned to work)
+    *	Graphics in an X window (only 16 colors, very few programs)
 
 Even with this, I think it is actually a much better product.  There have 
 been problems reported with the ibmpc font and the distributed X server.

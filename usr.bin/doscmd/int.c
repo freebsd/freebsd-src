@@ -39,7 +39,7 @@ softint(int intnum)
     }
 #endif
 
-    debug(D_TRAPS|intnum, "Int%x [%04x:%04x]\n", 
+    debug(D_TRAPS|intnum, "INT%x [%04x:%04x]\n", 
 	  intnum, vec >> 16, vec & 0xffff);
 
     PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
@@ -87,7 +87,7 @@ hardint(int intnum)
          return;
      }
 	
-	debug(D_TRAPS|intnum, "Int%x [%04x:%04x]\n",
+	debug(D_TRAPS|intnum, "INT%x [%04x:%04x]\n",
 	      intnum, vec >> 16, vec & 0xffff);
 
         PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);

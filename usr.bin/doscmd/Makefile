@@ -14,11 +14,11 @@ CLEANFILES=	cp437-8x16.pcf.gz emsdriv.sys redir.com
 
 .if ${OBJFORMAT} == "aout"
 CLEANFILES+=	doscmd.kernel crt0.o doscmd_loader.o
-XLIBDIR=	${X11BASE}/lib/aout
+XLIBDIR=	${DESTDIR}${X11BASE}/lib/aout
 LDADD=		-L${DESTDIR}${LIBDIR} -lgcc -lc
 DPADD=		${LIBGCC} ${LIBC}
 .else
-XLIBDIR=	${X11BASE}/lib
+XLIBDIR=	${DESTDIR}${X11BASE}/lib
 .endif
 
 BINGRP=		kmem

@@ -77,7 +77,6 @@ sleep_poll(void)
 void
 int16(regcontext_t *REGS)
 {               
-    int c;
 
     if (!xmode && !raw_kbd) {
 	if (vflag) dump_regs(REGS);

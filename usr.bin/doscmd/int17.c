@@ -52,9 +52,7 @@ static void open_printer(int printer);
 void
 int17(regcontext_t *REGS)
 {
-    char	printer_name[20];
     int	fd;
-    int p;
     u_char c;
 
     switch (R_AH) {
@@ -133,7 +131,7 @@ open_printer(int printer)
      * if printer is direct then open output device.
      */
     if (direct[printer]) {
-	if (p = queue[printer]) {
+	if ((p = queue[printer]) != 0) {
 	    if ((fd = open(p, O_WRONLY|O_APPEND|O_CREAT, 0666)) < 0) {
 		perror(p);
 		return;
