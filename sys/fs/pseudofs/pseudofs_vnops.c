@@ -158,16 +158,20 @@ pfs_lookup(struct vop_lookup_args *va)
 			p = pid ? pfind(pid) : &proc0;
 			if (p == NULL)
 				return (ENOENT);
-			if (p_can(cnp->cn_proc, p, P_CAN_SEE, NULL))
+			if (p_can(cnp->cn_proc, p, P_CAN_SEE, NULL)) {
 				/* pretend it doesn't exist */
+				PROC_UNLOCK(p);
 				return (ENOENT);
+			}
 #if 0
 			if (!pn->pn_shadow)
 				pfs_create_shadow(pn, p);
 			pn = pn->pn_shadow;
+			PROC_UNLOCK(p);
 			goto got_pnode;
 #else
 			/* not yet implemented */
+			PROC_UNLOCK(p);
 			return (EIO);
 #endif
 		}
