@@ -57,7 +57,7 @@ struct private_data {
 
 static int	archive_compressor_bzip2_finish(struct archive *);
 static int	archive_compressor_bzip2_init(struct archive *);
-static ssize_t	archive_compressor_bzip2_write(struct archive *, const void *,
+static int	archive_compressor_bzip2_write(struct archive *, const void *,
 		    size_t);
 static int	drive_compressor(struct archive *, struct private_data *,
 		    int finishing);
