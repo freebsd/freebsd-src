@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.54 1999/01/25 16:53:53 fenner Exp $
+ * $Id: uipc_syscalls.c,v 1.55 1999/01/27 21:49:57 dillon Exp $
  */
 
 #include "opt_compat.h"
@@ -118,15 +118,15 @@ socket(p, uap)
 	error = falloc(p, &fp, &fd);
 	if (error)
 		return (error);
-	fp->f_flag = FREAD|FWRITE;
-	fp->f_type = DTYPE_SOCKET;
-	fp->f_ops = &socketops;
 	error = socreate(uap->domain, &so, uap->type, uap->protocol, p);
 	if (error) {
 		fdp->fd_ofiles[fd] = 0;
 		ffree(fp);
 	} else {
 		fp->f_data = (caddr_t)so;
+		fp->f_flag = FREAD|FWRITE;
+		fp->f_ops = &socketops;
+		fp->f_type = DTYPE_SOCKET;
 		p->p_retval[0] = fd;
 	}
 	return (error);
@@ -263,10 +263,10 @@ accept1(p, uap, compat)
 	if (head->so_sigio != NULL)
 		fsetown(fgetown(head->so_sigio), &so->so_sigio);
 
-	fp->f_type = DTYPE_SOCKET;
+	fp->f_data = (caddr_t)so;
 	fp->f_flag = fflag;
 	fp->f_ops = &socketops;
-	fp->f_data = (caddr_t)so;
+	fp->f_type = DTYPE_SOCKET;
 	sa = 0;
 	(void) soaccept(so, &sa);
 	if (sa == 0) {
@@ -392,16 +392,10 @@ socketpair(p, uap)
 	if (error)
 		goto free2;
 	sv[0] = fd;
-	fp1->f_flag = FREAD|FWRITE;
-	fp1->f_type = DTYPE_SOCKET;
-	fp1->f_ops = &socketops;
 	fp1->f_data = (caddr_t)so1;
 	error = falloc(p, &fp2, &fd);
 	if (error)
 		goto free3;
-	fp2->f_flag = FREAD|FWRITE;
-	fp2->f_type = DTYPE_SOCKET;
-	fp2->f_ops = &socketops;
 	fp2->f_data = (caddr_t)so2;
 	sv[1] = fd;
 	error = soconnect2(so1, so2);
@@ -415,14 +409,17 @@ socketpair(p, uap)
 		 if (error)
 			goto free4;
 	}
+	fp1->f_flag = fp2->f_flag = FREAD|FWRITE;
+	fp1->f_ops = fp2->f_ops = &socketops;
+	fp1->f_type = fp2->f_type = DTYPE_SOCKET;
 	error = copyout((caddr_t)sv, (caddr_t)uap->rsv, 2 * sizeof (int));
 	return (error);
 free4:
-	ffree(fp2);
 	fdp->fd_ofiles[sv[1]] = 0;
+	ffree(fp2);
 free3:
-	ffree(fp1);
 	fdp->fd_ofiles[sv[0]] = 0;
+	ffree(fp1);
 free2:
 	(void)soclose(so2);
 free1:

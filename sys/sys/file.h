@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id: file.h,v 1.16 1998/06/07 17:12:58 dfr Exp $
+ * $Id: file.h,v 1.17 1999/04/04 21:41:25 dt Exp $
  */
 
 #ifndef _SYS_FILE_H_
@@ -93,6 +93,7 @@ MALLOC_DECLARE(M_FILE);
 LIST_HEAD(filelist, file);
 extern struct filelist filehead; /* head of list of open files */
 extern struct fileops vnops;
+extern struct fileops badfileops;
 extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
 extern int nfiles;		/* actual number of open files */
