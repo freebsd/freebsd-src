@@ -270,8 +270,8 @@ _thread_init(void)
 		/* Initialise the state of the initial thread: */
 		_thread_initial->state = PS_RUNNING;
 
-		/* Initialise the queue: */
-		TAILQ_INIT(&(_thread_initial->join_queue));
+		/* Initialize joiner to NULL (no joiner): */
+		_thread_initial->joiner = NULL;
 
 		/* Initialize the owned mutex queue and count: */
 		TAILQ_INIT(&(_thread_initial->mutexq));
