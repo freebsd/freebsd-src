@@ -127,6 +127,7 @@ int	metric;
 int	mtu;
 int	setaddr;
 int	setipdst;
+int	setmask;
 int	doalias;
 int	clearaddr;
 int	newaddr = 1;
@@ -742,7 +743,7 @@ ifconfig(argc, argv, afp)
 			newaddr = 0;
 		}
 	}
-	if (newaddr && setaddr) {
+	if (newaddr && (setaddr || setmask)) {
 		strncpy(afp->af_addreq, name, sizeof ifr.ifr_name);
 		if (ioctl(s, afp->af_aifaddr, afp->af_addreq) < 0)
 			Perror("ioctl (SIOCAIFADDR)");
@@ -861,6 +862,7 @@ setifnetmask(addr, dummy, s, afp)
 {
 	if (*afp->af_getaddr == NULL)
 		return;
+	setmask++;
 	(*afp->af_getaddr)(addr, MASK);
 }
 
