@@ -213,6 +213,7 @@ struct usb_attach_arg {
 	int			vendor;
 	int			product;
 	int			release;
+	int			matchlvl;
 	usbd_device_handle	device;	/* current device */
 	usbd_interface_handle	iface; /* current interface */
 	int			usegeneric;
