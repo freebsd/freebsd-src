@@ -1907,19 +1907,6 @@ md_assemble (line)
 	  }
       }
 
-    if (i.reg_operands && flag_code < CODE_64BIT)
-      {
-	int op;
-	for (op = i.operands; --op >= 0;)
-	  if ((i.types[op] & Reg)
-	      && (i.op[op].regs->reg_flags & (RegRex64|RegRex)))
-	    {
-	      as_bad (_("Extended register `%%%s' available only in 64bit mode."),
-		      i.op[op].regs->reg_name);
-	      return;
-	    }
-      }
-
     /* If matched instruction specifies an explicit instruction mnemonic
        suffix, use it.  */
     if (i.tm.opcode_modifier & (Size16 | Size32 | Size64))
@@ -4483,6 +4470,13 @@ parse_register (reg_string, end_op)
 	  /* We have "%st(" then garbage.  */
 	  return (const reg_entry *) NULL;
 	}
+    }
+
+  if (r != NULL
+      && r->reg_flags & (RegRex64|RegRex)
+      && flag_code != CODE_64BIT)
+    {
+      return (const reg_entry *) NULL;
     }
 
   return r;
