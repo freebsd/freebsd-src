@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../kern
+.PATH: ${.CURDIR}/../../dev/snp
 
 KMOD=	snp
-SRCS=	tty_snoop.c vnode_if.h
+SRCS=	snp.c vnode_if.h
 NOMAN=
 
 .include <bsd.kmod.mk>
