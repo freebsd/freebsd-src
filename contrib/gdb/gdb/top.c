@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "defs.h"
 #include "gdbcmd.h"
 #include "call-cmds.h"
@@ -1536,8 +1538,6 @@ filename_completer (text, word)
      char *text;
      char *word;
 {
-  /* From readline.  */
-  extern char *filename_completion_function PARAMS ((char *, int));
   int subsequent_name;
   char **return_val;
   int return_val_used;
