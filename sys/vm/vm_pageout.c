@@ -755,8 +755,6 @@ scanloop:
  		 * Dont mess with pages that are busy.
 		 */
 		if ((m->flags & PG_BUSY) || (m->hold_count != 0)) {
-			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 			m = next;
 			continue;
 		}
