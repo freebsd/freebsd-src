@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.196 1996/08/11 17:41:24 davidg Exp $
+ *	$Id: machdep.c,v 1.198 1996/08/12 20:03:16 wollman Exp $
  */
 
 #include "npx.h"
@@ -130,10 +130,6 @@ static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 
-#ifndef PANIC_REBOOT_WAIT_TIME
-#define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
-#endif
-
 #ifdef BOUNCE_BUFFERS
 extern char *bouncememory;
 extern int maxbkva;
@@ -184,7 +180,6 @@ vm_offset_t phys_avail[10];
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
-static void dumpsys __P((void));
 static void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
 
 static vm_offset_t buffer_sva, buffer_eva;
@@ -682,164 +677,15 @@ sigreturn(p, uap, retval)
 	return(EJUSTRETURN);
 }
 
-static int	waittime = -1;
-static struct pcb dumppcb;
-
-__dead void
-boot(howto)
-	int howto;
-{
-	if (!cold && (howto & RB_NOSYNC) == 0 && waittime < 0) {
-		register struct buf *bp;
-		int iter, nbusy;
-
-		waittime = 0;
-		printf("\nsyncing disks... ");
-
-		sync(&proc0, NULL, NULL);
-
-		for (iter = 0; iter < 20; iter++) {
-			nbusy = 0;
-			for (bp = &buf[nbuf]; --bp >= buf; ) {
-				if ((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) {
-					nbusy++;
-				}
-			}
-			if (nbusy == 0)
-				break;
-			printf("%d ", nbusy);
-			DELAY(40000 * iter);
-		}
-		if (nbusy) {
-			/*
-			 * Failed to sync all blocks. Indicate this and don't
-			 * unmount filesystems (thus forcing an fsck on reboot).
-			 */
-			printf("giving up\n");
-#ifdef SHOW_BUSYBUFS
-			nbusy = 0;
-			for (bp = &buf[nbuf]; --bp >= buf; ) {
-				if ((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) {
-					nbusy++;
-					printf("%d: dev:%08x, flags:%08x, blkno:%d, lblkno:%d\n", nbusy, bp->b_dev, bp->b_flags, bp->b_blkno, bp->b_lblkno);
-				}
-			}
-			DELAY(5000000);	/* 5 seconds */
-#endif
-		} else {
-			printf("done\n");
-			/*
-			 * Unmount filesystems
-			 */
-			if (panicstr == 0)
-				vfs_unmountall();
-		}
-		DELAY(100000);			/* wait for console output to finish */
-		dev_shutdownall(FALSE);
-	}
-	splhigh();
-	if (howto & RB_HALT) {
-		printf("\n");
-		printf("The operating system has halted.\n");
-		printf("Please press any key to reboot.\n\n");
-		cngetc();
-	} else {
-		if (howto & RB_DUMP) {
-			if (!cold) {
-				savectx(&dumppcb);
-				dumppcb.pcb_cr3 = rcr3();
-				dumpsys();
-			}
-
-			if (PANIC_REBOOT_WAIT_TIME != 0) {
-				if (PANIC_REBOOT_WAIT_TIME != -1) {
-					int loop;
-					printf("Automatic reboot in %d seconds - press a key on the console to abort\n",
-						PANIC_REBOOT_WAIT_TIME);
-					for (loop = PANIC_REBOOT_WAIT_TIME * 10; loop > 0; --loop) {
-						DELAY(1000 * 100); /* 1/10th second */
-						if (cncheckc()) /* Did user type a key? */
-							break;
-					}
-					if (!loop)
-						goto die;
-				}
-			} else { /* zero time specified - reboot NOW */
-				goto die;
-			}
-			printf("--> Press a key on the console to reboot <--\n");
-			cngetc();
-		}
-	}
-die:
-	printf("Rebooting...\n");
-	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
-	cpu_reset();
-	for(;;) ;
-	/* NOTREACHED */
-}
-
 /*
- * Magic number for savecore
+ * Machine depdnetnt boot() routine
  *
- * exported (symorder) and used at least by savecore(8)
- *
+ * I haven't seen anything too put here yet
+ * Possibly some stuff might be grafted back here from boot()
  */
-static u_long const	dumpmag = 0x8fca0101UL;	
-
-static int	dumpsize = 0;		/* also for savecore */
-
-static int	dodump = 1;
-SYSCTL_INT(_machdep, OID_AUTO, do_dump, CTLFLAG_RW, &dodump, 0, "");
-
-/*
- * Doadump comes here after turning off memory management and
- * getting on the dump stack, either when called above, or by
- * the auto-restart code.
- */
-static void
-dumpsys()
+void
+cpu_boot(int howto)
 {
-
-	if (!dodump)
-		return;
-	if (dumpdev == NODEV)
-		return;
-	if ((minor(dumpdev)&07) != 1)
-		return;
-	if (!(bdevsw[major(dumpdev)]))
-		return;
-	if (!(bdevsw[major(dumpdev)]->d_dump))
-		return;
-	dumpsize = Maxmem;
-	printf("\ndumping to dev %lx, offset %ld\n", dumpdev, dumplo);
-	printf("dump ");
-	switch ((*bdevsw[major(dumpdev)]->d_dump)(dumpdev)) {
-
-	case ENXIO:
-		printf("device bad\n");
-		break;
-
-	case EFAULT:
-		printf("device not ready\n");
-		break;
-
-	case EINVAL:
-		printf("area improper\n");
-		break;
-
-	case EIO:
-		printf("i/o error\n");
-		break;
-
-	case EINTR:
-		printf("aborted from console\n");
-		break;
-
-	default:
-		printf("succeeded\n");
-		break;
-	}
 }
 
 /*
