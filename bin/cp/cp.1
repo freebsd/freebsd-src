@@ -47,7 +47,7 @@
 .Fl R
 .Op Fl H | Fl L | Fl P
 .Oc
-.Op Fl f | i
+.Op Fl f | i | n
 .Op Fl pv
 .Ar source_file target_file
 .Nm
@@ -55,7 +55,7 @@
 .Fl R
 .Op Fl H | Fl L | Fl P
 .Oc
-.Op Fl f | i
+.Op Fl f | i | n
 .Op Fl pv
 .Ar source_file ... target_directory
 .Sh DESCRIPTION
@@ -121,6 +121,8 @@ regardless of its permissions.
 .Fl f
 option overrides any previous
 .Fl i
+or
+.Fl n
 options.)
 .It Fl i
 Cause
@@ -136,6 +138,17 @@ the file copy is attempted.
 .Fl i
 option overrides any previous
 .Fl f
+or
+.Fl n
+options.)
+.It Fl n
+Do not overwriting an existing file.
+(The
+.Fl n
+option overrides any previous
+.Fl f
+or
+.Fl i
 options.)
 .It Fl p
 Cause
@@ -226,7 +239,9 @@ or fifo's.
 .Pp
 The
 .Fl v
-option is non-standard and its use in scripts is not recommended.
+and
+.Fl n
+options are non-standard and their use in scripts is not recommended.
 .Sh SEE ALSO
 .Xr mv 1 ,
 .Xr rcp 1 ,
