@@ -336,7 +336,7 @@ vlan_start(struct ifnet *ifp)
 			evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
 			evl->evl_tag = htons(ifv->ifv_tag);
 #ifdef DEBUG
-			printf("vlan_start: %*D\n", sizeof *evl,
+			printf("vlan_start: %*D\n", (int)sizeof *evl,
 			    (unsigned char *)evl, ":");
 #endif
 		}
