@@ -241,7 +241,9 @@ _posix1e_acl_check(acl_t acl)
 
 
 /*
- * Given a uid/gid, return a username/groupname for the text form of an ACL
+ * Given a uid/gid, return a username/groupname for the text form of an ACL.
+ * Note that we truncate user and group names, rather than error out, as
+ * this is consistent with other tools manipulating user and group names.
  * XXX NOT THREAD SAFE, RELIES ON GETPWUID, GETGRGID
  * XXX USES *PW* AND *GR* WHICH ARE STATEFUL AND THEREFORE THIS ROUTINE
  * MAY HAVE SIDE-EFFECTS
@@ -261,7 +263,7 @@ _posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
 		else
 			i = snprintf(buf, buf_len, "%s", p->pw_name);
 
-		if (i < 0 || i >= buf_len) {
+		if (i < 0) {
 			errno = ENOMEM;
 			return (-1);
 		}
@@ -274,7 +276,7 @@ _posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
 		else
 			i = snprintf(buf, buf_len, "%s", g->gr_name);
 
-		if (i < 0 || i >= buf_len) {
+		if (i < 0) {
 			errno = ENOMEM;
 			return (-1);
 		}
