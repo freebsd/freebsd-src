@@ -670,12 +670,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		splx(oldspl);
 
-		devstat_end_transaction(&softc->device_stats,
-					bp->b_bcount - bp->b_resid,
-					done_ccb->csio.tag_action & 0xf, 
-					(bp->b_flags & B_READ) ? DEVSTAT_READ
-							       : DEVSTAT_WRITE);
-
+		devstat_end_transaction_buf(&softc->device_stats, bp);
 		biodone(bp);
 		break;
 	}
