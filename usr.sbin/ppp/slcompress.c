@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.2 1995/02/26 12:17:57 amurai Exp $
+ * $Id: slcompress.c,v 1.3 1995/05/30 03:50:57 rgrimes Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
 #ifndef lint
-static char rcsid[] = "$Header";
+static char const rcsid[] = "$Id$";
 #endif
 
 #include "defs.h"

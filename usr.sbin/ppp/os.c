@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.2 1995/02/26 12:17:48 amurai Exp $
+ * $Id: os.c,v 1.3 1995/05/30 03:50:52 rgrimes Exp $
  *
  */
 #include "fsm.h"
@@ -31,10 +31,14 @@
 #include <fcntl.h>
 #include <net/if.h>
 #include <net/if_tun.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include "ipcp.h"
 #include "os.h"
 #include "vars.h"
+#include "arp.h"
+#include "systems.h"
+#include "route.h"
 
 static struct ifaliasreq ifra;
 static struct ifreq ifrq;

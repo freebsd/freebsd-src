@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.3 1995/04/17 04:21:35 amurai Exp $
+ * $Id: lqr.c,v 1.4 1995/05/30 03:50:44 rgrimes Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -31,6 +31,7 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "vars.h"
+#include "main.h"
 
 struct pppTimer LqrTimer;
 

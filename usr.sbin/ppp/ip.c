@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.5 1995/09/17 16:14:46 amurai Exp $
+ * $Id: ip.c,v 1.6 1996/01/10 21:27:50 phk Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -31,11 +31,11 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include "vars.h"
 #include "filter.h"
 
 extern void SendPppFrame();
-extern int PacketCheck();
 extern void LcpClose();
 
 static struct pppTimer IdleTimer;
@@ -341,7 +341,7 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
    */
   nw = write(tun_out, tunbuff, nb);
   if (nw != nb)
-    fprintf(stderr, "wrote %d, got %d\r\n");
+    fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
   pfree(bp);
 
   RestartIdleTimer();
