@@ -1004,11 +1004,21 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	}
 }
 
+/*
+ * Extract the physical page address associated with the given kernel virtual
+ * address.
+ */
 vm_offset_t
 pmap_kextract(vm_offset_t va)
 {
-	TODO;
-	return (0);
+	struct		pvo_entry *pvo;
+
+	pvo = pmap_pvo_find_va(kernel_pmap, va & ~ADDR_POFF, NULL);
+	if (pvo == NULL) {
+		return (0);
+	}
+
+	return ((pvo->pvo_pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF));
 }
 
 /*
@@ -1106,10 +1116,13 @@ pmap_new_proc(struct proc *p)
 }
 
 void
-pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
+pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
 		    vm_pindex_t pindex, vm_size_t size, int limit)
 {
-	TODO;
+
+	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
+	    ("pmap_remove_pages: non current pmap"));
+	/* XXX */
 }
 
 /*
@@ -1273,10 +1286,53 @@ pmap_prefault(pmap_t pm, vm_offset_t va, vm_map_entry_t entry)
 	/* XXX */
 }
 
+/*
+ * Set the physical protection on the specified range of this map as requested.
+ */
 void
-pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
+pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	TODO;
+	struct	pvo_entry *pvo;
+	struct	pte *pt;
+	int	pteidx;
+
+	CTR4(KTR_PMAP, "pmap_protect: pm=%p sva=%#x eva=%#x prot=%#x", pm, sva,
+	    eva, prot);
+
+
+	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
+	    ("pmap_protect: non current pmap"));
+
+	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
+		pmap_remove(pm, sva, eva);
+		return;
+	}
+
+	for (; sva < eva; sva += PAGE_SIZE) {
+		pvo = pmap_pvo_find_va(pm, sva, &pteidx);
+		if (pvo == NULL)
+			continue;
+
+		if ((prot & VM_PROT_EXECUTE) == 0)
+			pvo->pvo_vaddr &= ~PVO_EXECUTABLE;
+
+		/*
+		 * Grab the PTE pointer before we diddle with the cached PTE
+		 * copy.
+		 */
+		pt = pmap_pvo_to_pte(pvo, pteidx);
+		/*
+		 * Change the protection of the page.
+		 */
+		pvo->pvo_pte.pte_lo &= ~PTE_PP;
+		pvo->pvo_pte.pte_lo |= PTE_BR;
+
+		/*
+		 * If the PVO is in the page table, update that pte as well.
+		 */
+		if (pt != NULL)
+			pmap_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+	}
 }
 
 vm_offset_t
@@ -1347,10 +1403,18 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	}
 }
 
+/*
+ * Remove all pages from specified address space, this aids process exit
+ * speeds.  This is much faster than pmap_remove in the case of running down
+ * an entire address space.  Only works for the current pmap.
+ */
 void
-pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-	TODO;
+
+	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
+	    ("pmap_remove_pages: non current pmap"));
+	pmap_remove(pm, sva, eva);
 }
 
 void
