@@ -155,7 +155,7 @@ void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));
 
 #ifdef __i386__
-extern void	(*bzero) __P((volatile void *buf, size_t len));
+extern void	(*bzero) __P((void *buf, size_t len));
 #else
 void	bzero __P((void *buf, size_t len));
 #endif
