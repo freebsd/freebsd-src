@@ -163,14 +163,6 @@ extern int	*semu;		/* undo structure pool */
  * Process sem_undo vectors at proc exit.
  */
 void	semexit __P((struct proc *p));
-
-/*
- * Parameters to the semconfig system call
- */
-typedef enum {
-	SEM_CONFIG_FREEZE,	/* Freeze the semaphore facility. */
-	SEM_CONFIG_THAW		/* Thaw the semaphore facility. */
-} semconfig_ctl_t;
 #endif /* _KERNEL */
 
 #ifndef _KERNEL
