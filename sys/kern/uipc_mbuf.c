@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.16 1995/12/07 12:46:59 davidg Exp $
+ * $Id: uipc_mbuf.c,v 1.17 1995/12/14 08:32:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -71,8 +71,8 @@ mbinit(dummy)
 {
 	int s;
 
-#if CLBYTES < 4096
-#define NCL_INIT	(4096/CLBYTES)
+#if PAGE_SIZE < 4096
+#define NCL_INIT	(4096/PAGE_SIZE)
 #else
 #define NCL_INIT	1
 #endif
@@ -108,7 +108,7 @@ m_clalloc(ncl, nowait)
 	if (mb_map_full)
 		return (0);
 
-	npg = ncl * CLSIZE;
+	npg = ncl;
 	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
 				 nowait ? M_NOWAIT : M_WAITOK);
 	/*
@@ -118,7 +118,7 @@ m_clalloc(ncl, nowait)
 	if (p == NULL)
 		return (0);
 
-	ncl = ncl * CLBYTES / MCLBYTES;
+	ncl = ncl * PAGE_SIZE / MCLBYTES;
 	for (i = 0; i < ncl; i++) {
 		((union mcluster *)p)->mcl_next = mclfree;
 		mclfree = (union mcluster *)p;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.18 1995/02/19 10:36:17 gpalmer Exp $
+ *	$Id: param.h,v 1.19 1995/05/25 07:41:27 davidg Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -55,14 +55,11 @@
 #define ALIGNBYTES	(sizeof(int) - 1)
 #define ALIGN(p)	(((unsigned)(p) + ALIGNBYTES) & ~ALIGNBYTES)
 
-/* XXX PGSHIFT and PG_SHIFT are two names for the same thing */
-#define PGSHIFT		12		/* LOG2(NBPG) */
-#define PAGE_SHIFT	12
-#define NBPG		(1 << PAGE_SHIFT)	/* bytes/page */
-#define PAGE_SIZE	(1 << PAGE_SHIFT)
+#define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
+#define PAGE_SIZE	(1 << PAGE_SHIFT)	/* bytes/page */
 #define PAGE_MASK	(PAGE_SIZE-1)
-#define PGOFSET		(NBPG-1)	/* byte offset into page */
-#define NPTEPG		(NBPG/(sizeof (pt_entry_t)))
+#define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
 
 /* XXX PDRSHIFT and PD_SHIFT are two names for the same thing */
 #define PDRSHIFT	22		/* LOG2(NBPDR) */
@@ -74,7 +71,7 @@
  * defined in pmap.h which is included after this we can't do that
  * (YET!)
  */
-#define BTOPKERNBASE	(KERNBASE >> PGSHIFT)
+#define BTOPKERNBASE	(KERNBASE >> PAGE_SHIFT)
 
 #define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
 #define DEV_BSIZE	(1 << DEV_BSHIFT)
@@ -82,12 +79,9 @@
 #define BLKDEV_IOSIZE	2048
 #define MAXPHYS		(64 * 1024)	/* max raw I/O transfer size */
 
-#define CLSIZELOG2	0
-#define CLSIZE		(1 << CLSIZELOG2)
-
 /* NOTE: SSIZE, SINCR and UPAGES must be multiples of CLSIZE */
-#define SSIZE	1		/* initial stack size/NBPG */
-#define SINCR	1		/* increment of stack/NBPG */
+#define SSIZE	1		/* initial stack size/PAGE_SIZE */
+#define SINCR	1		/* increment of stack/PAGE_SIZE */
 
 #define UPAGES	2		/* pages of u-area */
 
@@ -116,15 +110,15 @@
 #define stoc(x)	(x)
 
 /* Core clicks (4096 bytes) to disk blocks */
-#define ctod(x)	((x)<<(PGSHIFT-DEV_BSHIFT))
-#define dtoc(x)	((x)>>(PGSHIFT-DEV_BSHIFT))
+#define ctod(x)	((x)<<(PAGE_SHIFT-DEV_BSHIFT))
+#define dtoc(x)	((x)>>(PAGE_SHIFT-DEV_BSHIFT))
 #define dtob(x)	((x)<<DEV_BSHIFT)
 
 /* clicks to bytes */
-#define ctob(x)	((x)<<PGSHIFT)
+#define ctob(x)	((x)<<PAGE_SHIFT)
 
 /* bytes to clicks */
-#define btoc(x)	(((unsigned)(x)+(NBPG-1))>>PGSHIFT)
+#define btoc(x)	(((unsigned)(x)+PAGE_MASK)>>PAGE_SHIFT)
 
 /*
  * This is messy and perhaps slow because `bytes' may be an off_t.  We
@@ -142,19 +136,19 @@
 /*
  * Mach derived conversion macros
  */
-#define trunc_page(x)		((unsigned)(x) & ~(NBPG-1))
-#define round_page(x)		((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
+#define trunc_page(x)		((unsigned)(x) & ~PAGE_MASK)
+#define round_page(x)		((((unsigned)(x)) + PAGE_MASK) & ~PAGE_MASK)
 
-#define atop(x)			((unsigned)(x) >> PG_SHIFT)
-#define ptoa(x)			((unsigned)(x) << PG_SHIFT)
+#define atop(x)			((unsigned)(x) >> PAGE_SHIFT)
+#define ptoa(x)			((unsigned)(x) << PAGE_SHIFT)
 
 #define i386_round_pdr(x)	((((unsigned)(x)) + NBPDR - 1) & ~(NBPDR-1))
 #define i386_trunc_pdr(x)	((unsigned)(x) & ~(NBPDR-1))
-#define i386_round_page(x)	((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
-#define i386_trunc_page(x)	((unsigned)(x) & ~(NBPG-1))
+#define i386_round_page(x)	((((unsigned)(x)) + PAGE_MASK) & ~PAGE_MASK)
+#define i386_trunc_page(x)	((unsigned)(x) & ~PAGE_MASK)
 #define i386_btod(x)		((unsigned)(x) >> PDRSHIFT)
 #define i386_dtob(x)		((unsigned)(x) << PDRSHIFT)
-#define i386_btop(x)		((unsigned)(x) >> PGSHIFT)
-#define i386_ptob(x)		((unsigned)(x) << PGSHIFT)
+#define i386_btop(x)		((unsigned)(x) >> PAGE_SHIFT)
+#define i386_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
 
 #endif /* !_MACHINE_PARAM_H_ */

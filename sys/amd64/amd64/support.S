@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.32 1996/03/31 04:05:03 bde Exp $
+ *	$Id: support.s,v 1.33 1996/04/06 01:06:06 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -414,7 +414,7 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
  */
 	/* compute number of pages */
 	movl	%edi,%ecx
-	andl	$NBPG-1,%ecx
+	andl	$PAGE_SIZE-1,%ecx
 	addl	%ebx,%ecx
 	decl	%ecx
 	shrl	$IDXSHIFT+2,%ecx

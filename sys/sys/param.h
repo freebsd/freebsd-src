@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.14 1996/02/24 06:39:21 hsu Exp $
+ * $Id: param.h,v 1.14 1996/03/11 02:09:24 hsu Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -124,22 +124,10 @@
 /*
  * Clustering of hardware pages on machines with ridiculously small
  * page sizes is done here.  The paging subsystem deals with units of
- * CLSIZE pte's describing NBPG (from machine/machparam.h) pages each.
+ * CLSIZE pte's describing PAGE_SIZE (from machine/machparam.h) pages each.
  */
-#define	CLBYTES		(CLSIZE*NBPG)
-#define	CLOFSET		(CLSIZE*NBPG-1)	/* for clusters, like PGOFSET */
-#define	claligned(x)	((((int)(x))&CLOFSET)==0)
-#define	CLOFF		CLOFSET
-#define	CLSHIFT		(PGSHIFT+CLSIZELOG2)
-
-#if CLSIZE==1
-#define	clbase(i)	(i)
-#define	clrnd(i)	(i)
-#else
-/* Give the base virtual address (first of CLSIZE). */
-#define	clbase(i)	((i) &~ (CLSIZE-1))
-/* Round a number of clicks up to a whole cluster. */
-#define	clrnd(i)	(((i) + (CLSIZE-1)) &~ (CLSIZE-1))
+#if 0
+#define	CLBYTES		(CLSIZE*PAGE_SIZE)
 #endif
 
 #define	CBLOCK	128		/* Clist block size, must be a power of 2. */
@@ -206,11 +194,11 @@
  * always allocate and free physical memory; requests for these
  * size allocations should be done infrequently as they will be slow.
  *
- * Constraints: CLBYTES <= MAXALLOCSAVE <= 2 ** (MINBUCKET + 14), and
+ * Constraints: PAGE_SIZE <= MAXALLOCSAVE <= 2 ** (MINBUCKET + 14), and
  * MAXALLOCSIZE must be a power of two.
  */
 #define MINBUCKET	4		/* 4 => min allocation of 16 bytes */
-#define MAXALLOCSAVE	(2 * CLBYTES)
+#define MAXALLOCSAVE	(2 * PAGE_SIZE)
 
 /*
  * Scale factor for scaled integers used to count %cpu time and load avgs.

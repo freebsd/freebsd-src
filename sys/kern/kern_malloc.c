@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.19 1996/01/29 11:12:37 davidg Exp $
+ * $Id: kern_malloc.c,v 1.20 1996/05/02 10:43:17 phk Exp $
  */
 
 #include <sys/param.h>
@@ -141,7 +141,7 @@ malloc(size, type, flags)
 			allocsize = roundup(size, PAGE_SIZE);
 		else
 			allocsize = 1 << indx;
-		npg = clrnd(btoc(allocsize));
+		npg = btoc(allocsize);
 		va = (caddr_t) kmem_malloc(kmem_map, (vm_size_t)ctob(npg), flags);
 		if (va == NULL) {
 			splx(s);
@@ -171,7 +171,7 @@ malloc(size, type, flags)
 		 * bucket, don't assume the list is still empty.
 		 */
 		savedlist = kbp->kb_next;
-		kbp->kb_next = cp = va + (npg * NBPG) - allocsize;
+		kbp->kb_next = cp = va + (npg * PAGE_SIZE) - allocsize;
 		for (;;) {
 			freep = (struct freelist *)cp;
 #ifdef DIAGNOSTIC
@@ -298,7 +298,7 @@ free(addr, type)
 	if (size > MAXALLOCSAVE) {
 		kmem_free(kmem_map, (vm_offset_t)addr, ctob(kup->ku_pagecnt));
 #ifdef KMEMSTATS
-		size = kup->ku_pagecnt << PGSHIFT;
+		size = kup->ku_pagecnt << PAGE_SHIFT;
 		ksp->ks_memuse -= size;
 		kup->ku_indx = 0;
 		kup->ku_pagecnt = 0;

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.86 1996/03/10 07:13:12 gibbs Exp $
+ *      $Id: sd.c,v 1.87 1996/03/27 18:50:09 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -932,7 +932,7 @@ sddump(dev_t dev)
 		return (ENXIO);
 
 	/* Convert to disk sectors */
-	num = (u_int32_t) num * NBPG / sd->params.secsiz;	/* XXX it must be 512 */
+	num = (u_int32_t) num * PAGE_SIZE / sd->params.secsiz;	/* XXX it must be 512 */
 
 	/* check if controller active */
 	if (sddoingadump)
