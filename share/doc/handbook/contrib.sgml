@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.12 1995/08/30 09:51:38 davidg Exp $ -->
+<!-- $Id: contrib.sgml,v 1.13 1995/08/31 15:12:20 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -166,6 +166,7 @@
 	  <item>Ollivier Robert &lt;roberto@FreeBSD.org&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
+	  <item>Paul Richards &lt;paul@FreeBSD.org&gt;
 	  <item>Paul Traina &lt;pst@cisco.com&gt;
 	  <item>Peter Dufault &lt;dufault@hda.com&gt;
 	  <item>Peter Wemm &lt;peter@haywire.DIALix.COM&gt;
