@@ -35,7 +35,7 @@
 .Nm isdnd
 .Nd isdn4bsd ISDN connection management daemon
 .Sh SYNOPSIS
-.Nm isdnd
+.Nm
 .Op Fl c Ar configfile
 .Op Fl d Ar debuglevel
 .Op Fl f
@@ -59,12 +59,12 @@ The options are as follows:
 Use 
 .Ar configfile
 as the name of the runtime configuration filename for 
-.Nm isdnd
+.Nm
 instead of the default file
 .Li /etc/isdn/isdnd.rc .
 .It Fl d
 If debugging support is compiled into
-.Nm isdnd
+.Nm
 this option is used to specify the debugging level, or better which kind 
 of debugging messages are displayed. The debugging level is the sum of the
 following values:
@@ -103,7 +103,7 @@ disable displaying debug messages on the full-screen display.
 .Pp
 .It Fl f
 Specifying this option causes
-.Nm isdnd
+.Nm
 to enter the full-screen mode of operation. When operating in this mode,
 entering the control character
 .Em Control-L
@@ -151,7 +151,7 @@ The
 exits after the printout is done.
 .It Fl F
 This option prevents
-.Nm isdnd
+.Nm
 to detach from the controlling tty and become a daemon.
 .It Fl r
 In conjunction with the 
@@ -159,7 +159,7 @@ In conjunction with the
 option,
 .Ar device
 specifies a terminal device which becomes the controlling tty for
-.Nm isdnd
+.Nm
 and on which the full-screen mode output is displayed.
 .It Fl s
 This option may be used to specify the logging facility in case
@@ -176,7 +176,7 @@ options,
 .Ar terminaltype
 specifies a terminal type or termcap entry name (such as vt220) for the device
 used for
-.Nm isdnd
+.Nm
 full-screen output. This is useful if an unused (no getty running) tty line is
 used for full-screen output for which no 
 .Li TERM
@@ -337,7 +337,7 @@ facility) to be closed and reopened to make logfile rotation possible.
 
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
-.Nm isdnd :
+.Nm :
 .Bl -tag -width Ds
 .It Ev TERM
 The terminal type when running in full-screen display mode.
@@ -397,7 +397,7 @@ isdnd -d0xf9 -f -r /dev/ttyv3 -t vt100
 .Ed
 .Pp
 will start
-.Nm isdnd
+.Nm
 with reasonable debugging messages enabled, full-screen mode of operation, 
 full-screen display redirected to /dev/ttyv03 and using a termcap entry
 for vt100 on this display.

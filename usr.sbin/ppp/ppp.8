@@ -70,7 +70,7 @@ because the device file is missing, it gives up.
 The following
 .Va mode Ns No s
 are understood by
-.Nm ppp :
+.Nm :
 .Bl -tag -width XXX -offset XXX
 .It Fl auto
 .Nm
@@ -382,7 +382,7 @@ switches to user id 0 in order to alter the system routing table, set up
 system lock files and read the ppp configuration files.
 All external commands (executed via the "shell" or "!bg" commands) are executed
 as the user id that invoked
-.Nm ppp .
+.Nm .
 Refer to the
 .Sq ID0
 logging facility if you're interested in what exactly is done as user id
@@ -423,7 +423,7 @@ Make sure that your system has a group named
 in the
 .Pa /etc/group
 file and that the group contains the names of all users expected to use
-.Nm ppp .
+.Nm .
 Refer to the
 .Xr group 5
 manual page for details.
@@ -750,7 +750,7 @@ It must have one argument - the file to include.
 You may wish to
 .Dq !include ~/.ppp.conf
 for compatibility with older versions of
-.Nm ppp .
+.Nm .
 .It
 A label name starts in the first column and is followed by
 a colon
@@ -774,7 +774,7 @@ would represent an incoming
 .Nm
 configuration.
 You can now specify the destination label name when you invoke
-.Nm ppp .
+.Nm .
 Commands associated with the
 .Dq default
 label are executed, followed by those associated with the destination
@@ -860,7 +860,7 @@ Both of these files have the same format as
 .Pa /etc/ppp/ppp.conf .
 .Pp
 In previous versions of
-.Nm ppp ,
+.Nm ,
 it was necessary to re-add routes such as the default route in the
 .Pa ppp.linkup
 file.
@@ -1177,7 +1177,7 @@ You can also use
 .Xr pppctl 8
 to connect to a configured diagnostic port, in the same manner as with
 client-side
-.Nm ppp .
+.Nm .
 .Pp
 Here, the
 .Ar incoming
@@ -1801,7 +1801,7 @@ will attempt to use (or be willing to accept) both compression protocols
 when the peer agrees
 .Pq or requests them .
 The deflate protocol is preferred by
-.Nm ppp .
+.Nm .
 Refer to the
 .Dq disable
 and
@@ -3156,7 +3156,7 @@ User id 0 is immune to these commands.
 .Ar logname Ns No ...
 .Xc
 By default, only user id 0 is allowed access to
-.Nm ppp .
+.Nm .
 If this command is used, all of the listed users are allowed access to
 the section in which the
 .Dq allow users
@@ -3212,7 +3212,7 @@ of the currently existing line modes.
 .It nat Ar command Op Ar args
 This command allows the control of the network address translation (also
 known as masquerading or IP aliasing) facilities that are built into
-.Nm ppp .
+.Nm .
 NAT is done on the external interface only, and is unlikely to make sense
 if used with the
 .Fl direct
@@ -3395,7 +3395,7 @@ This is replaced with the value of the peers endpoint discriminator.
 This is replaced with the current process id.
 .It Li VERSION
 This is replaced with the current version number of
-.Nm ppp .
+.Nm .
 .It Li USER
 This is replaced with the username that has been authenticated with PAP or
 CHAP.
@@ -3466,7 +3466,7 @@ further CCP negotiation.
 In any event, this command does not disconnect the user from
 .Nm
 or exit
-.Nm ppp .
+.Nm .
 See the
 .Dq quit
 command below.
@@ -3543,7 +3543,7 @@ command for details of when
 identifies itself to the peer.
 .It iface Ar command Op args
 This command is used to control the interface used by
-.Nm ppp .
+.Nm .
 .Ar Command
 may be one of the following:
 .Bl -tag -width 2n
@@ -4740,7 +4740,7 @@ will read from the tunnel interface while data cannot be sent to any of
 the available links.
 This queue limit is necessary to flow control outgoing data as the tunnel
 interface is likely to be far faster than the combined links available to
-.Nm ppp .
+.Nm .
 .Pp
 If
 .Ar packets
@@ -5379,7 +5379,7 @@ Show the current stopped timeouts.
 Show the active alarm timers.
 .It show version
 Show the current version number of
-.Nm ppp .
+.Nm .
 .El
 .Pp
 .It term
@@ -5482,7 +5482,7 @@ As the endpoint discriminator value may be a binary value, it is turned
 to HEX to determine the actual file name.
 .Pp
 This socket is used to pass links between different instances of
-.Nm ppp .
+.Nm .
 .El
 .Pp
 .Sh SEE ALSO

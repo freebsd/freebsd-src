@@ -9,7 +9,7 @@
 .Nm mrouted
 .Nd IP multicast routing daemon
 .Sh SYNOPSIS
-.Nm mrouted 
+.Nm
 .Op Fl c Ar config_file
 .Op Fl d Op Ar debug_level
 .Op Fl p
@@ -67,7 +67,7 @@ routing protocol, and does not (yet) support hierarchical multicast routing.
 .Nm Mrouted 
 handles multicast routing only; there may or may not be unicast routing
 software running on the same machine as 
-.Nm mrouted .
+.Nm .
 With the use of tunnels, it
 is not necessary for 
 .Nm 
@@ -145,7 +145,7 @@ option).
 The file format is free-form; whitespace (including newlines) is not
 significant.
 The file begins with commands that apply to
-.Nm mrouted Ns 's
+.Nm Ns 's
 overall operation or set defaults.
 .Bl -tag -width indent
 .It cache_lifetime Ar secs
@@ -186,7 +186,7 @@ Turning on noflood can cause black holes on restart, which will generally
 last approximately one full route report interval.
 The noflood keyword can also be specified on individual interfaces.
 .It rexmit_prunes Ar [on|off]
-.Nm Mrouted 's
+.Nm Mrouted Ns 's
 default is to retransmit prunes on all point-to-point interfaces
 (including tunnels) but no multi-access interfaces.  This option
 may be used to make the default on (or off) for all interfaces.
@@ -259,7 +259,7 @@ interface specified by the
 .Ar "local-addr|ifname"
 argument.  Some UNIX
 kernels rewrite the source address of
-.Nm mrouted 's
+.Nm Ns 's
 packets on their way out to contain the address of the transmission
 interface.  This is best assured via a static host route.
 .El
@@ -427,7 +427,7 @@ responds to the following signals:
 .Bl -tag -width indent
 .It HUP
 Restarts
-.Nm mrouted .
+.Nm .
 The configuration file is reread every time this signal is evoked.
 .It INT
 Terminate execution gracefully (i.e., by sending
@@ -515,7 +515,7 @@ outgoing vif only if there are members of the destination group on that leaf.
 also maintains a copy of the kernel forwarding cache table.
 Entries
 are created and deleted by 
-.Nm mrouted .
+.Nm .
 .Pp
 The cache tables look like this:
 .Pp

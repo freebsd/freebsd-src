@@ -45,7 +45,7 @@
 This is a kernel driver for Stallion Technologies multiport serial boards.
 There are two drivers, each supporting a different class of boards.
 The
-.Nm stl
+.Nm
 driver supports the EasyIO and EasyConnection 8/32
 boards, while the
 .Nm stli
@@ -57,11 +57,11 @@ kernel configuration file.
 Slightly different options and parameters are required for each of the
 different board types.
 Depending on the type of board one of the
-.Nm stl
+.Nm
 or
 .Nm stli
 drivers will be used.  The
-.Nm stl
+.Nm
 and
 .Nm stli
 drivers can support up to 8 boards.
@@ -74,10 +74,10 @@ Alternatively the board documentation is available on Stallion
 Technologies WWW site at http://www.stallion.com.
 .Pp
 The EasyIO and EasyConnection 8/32 families of boards use the
-.Nm stl
+.Nm
 driver.
 ISA board configuration entries for the
-.Nm stl
+.Nm
 driver take the general form of:
 .Pp
 .Cd "stlX at isa? port <io-addr> tty irq <irq>"
@@ -107,13 +107,13 @@ system on boot up.
 No configuration information is required in advance for these
 board types.
 During boot up the
-.Nm stl
+.Nm
 driver will issue messages to indicate that a EasyConnection 8/32
 PCI board was found, and some information about it.
 .Pp
 Following are some examples of configuration entries for each of the ISA
 boards supported by the
-.Nm stl
+.Nm
 driver.
 Each example also describes some important details about each of the
 board types.
@@ -262,9 +262,9 @@ region at address 0xc8000.
 .Sh NOTES
 When building the device nodes for the ports be sure to use the correct
 driver name,
-.Nm stl
+.Nm
 or
-.Nm stli.
+.Nm stli .
 Each driver has a separate major number allocated,
 so even though the port device names are the same for each driver,
 the major number of the device node is different.
@@ -272,7 +272,7 @@ Use the
 .Xr MAKEDEV 8
 script to create the devices.
 Use the ttyE and cue tag for the
-.Nm stl
+.Nm
 driver, and
 the ttyEi and cuei tags for the
 .Nm stli
@@ -309,7 +309,7 @@ Use the
 .Xr MAKEDEV 8
 script to create the devices.
 Use the ttyE and cue tag for the
-.Nm stl
+.Nm
 driver, and
 the ttyEi and cuei tags for the
 .Nm stli

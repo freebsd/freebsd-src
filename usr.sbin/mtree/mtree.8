@@ -39,7 +39,7 @@
 .Nm mtree
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
-.Nm mtree
+.Nm
 .Op Fl LPUcdeinqrux
 .Bk -words
 .Op Fl f Ar spec
@@ -273,7 +273,7 @@ Specifying a directory will cause subsequent files to be searched
 for in that directory hierarchy.
 Which brings us to the last type of line in a specification: a line
 containing only the string
-.Dq Nm \&..
+.Dq Pa \&..
 causes the current directory
 path to ascend one level.
 .Pp
