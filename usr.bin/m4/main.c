@@ -139,12 +139,8 @@ struct keyblk keywrds[] = {	/* m4 keywords to be installed */
 
 #define MAXKEYS	(sizeof(keywrds)/sizeof(struct keyblk))
 
-extern int optind;
-extern char *optarg;
-
 void macro();
 void initkwds();
-extern int getopt();
 
 int
 main(argc,argv)

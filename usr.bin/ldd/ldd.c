@@ -65,7 +65,7 @@ char	*argv[];
 	int		c;
 	int		vflag = 0;
 
-	while ((c = getopt(argc, argv, "vf:")) != EOF) {
+	while ((c = getopt(argc, argv, "vf:")) != -1) {
 		switch (c) {
 		case 'v':
 			vflag++;
