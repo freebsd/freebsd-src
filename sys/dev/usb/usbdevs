@@ -196,6 +196,7 @@ vendor ANDREA		0x08a8	Andrea Electronics
 vendor BURRBROWN	0x08bb	Burr-Brown Japan, Ltd.
 vendor 2WIRE		0x08c8	2Wire, Inc
 vendor AIPTEK		0x08ca	AIPTEK International, Inc.
+vendor SMARTBRIDGES	0x08d1	SmartBridges Pte Ltd.
 vendor BILLIONTON	0x08dd	Billionton Systems, Inc.
 vendor AUTHENTEC	0x08ff	AuthenTec, Inc.
 vendor ALATION		0x0910	Alation Systems, Inc.
@@ -547,6 +548,9 @@ product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
 
 /* Sirius Technologies products */
 product SIRIUS ROADSTER		0x0001	NetComm Roadster II 56 USB
+
+/* SmartBridges products */
+product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet adapter
 
 /* SMC products */
 product SMC 2102USB		0x0100	10Mbps ethernet adapter
