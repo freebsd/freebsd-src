@@ -55,7 +55,6 @@ static char sccsid[] = "@(#)calendar.c	8.3 (Berkeley) 3/25/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tzfile.h>
 #include <unistd.h>
 
 #include "pathnames.h"
@@ -72,6 +71,7 @@ int	 isnow __P((char *));
 FILE	*opencal __P((void));
 void	 settime __P((void));
 void	 usage __P((void));
+#define isleap(y) (((y) % 4) == 0 && ((y) % 100) != 0 || ((y) % 400) == 0)
 
 int
 main(argc, argv)
@@ -172,10 +172,10 @@ settime()
 	(void)time(&now);
 	tp = localtime(&now);
 	if (isleap(tp->tm_year + 1900)) {
-		yrdays = DAYSPERLYEAR;
+		yrdays = 366;
 		cumdays = daytab[1];
 	} else {
-		yrdays = DAYSPERNYEAR;
+		yrdays = 365;
 		cumdays = daytab[0];
 	}
 	/* Friday displays Monday's events */

@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)lprint.c	8.1 (Berkeley) 6/6/93";
 #include <sys/time.h>
 #include <fcntl.h>
 #include <time.h>
-#include <tzfile.h>
 #include <db.h>
 #include <pwd.h>
 #include <utmp.h>
@@ -207,7 +206,7 @@ lprint(pn)
 			tp = localtime(&w->loginat);
 			t = asctime(tp);
 			tzn = tp->tm_zone;
-			if (now - w->loginat > SECSPERDAY * DAYSPERNYEAR / 2)
+			if (now - w->loginat > 86400 * 365 / 2)
 				cpr =
 				    printf("Last login %.16s %.4s (%s) on %s",
 				    t, t + 20, tzn, w->tty);

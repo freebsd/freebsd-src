@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: gen_subs.c,v 1.3 1995/03/19 13:28:49 joerg Exp $
+ *	$Id: gen_subs.c,v 1.4 1995/05/30 00:06:58 rgrimes Exp $
  */
 
 #ifndef lint
@@ -47,7 +47,6 @@ static char sccsid[] = "@(#)gen_subs.c	8.1 (Berkeley) 5/31/93";
 #include <sys/param.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <tzfile.h>
 #include <utmp.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -64,7 +63,7 @@ static char sccsid[] = "@(#)gen_subs.c	8.1 (Berkeley) 5/31/93";
  */
 #define MODELEN 20
 #define DATELEN 64
-#define SIXMONTHS	 ((DAYSPERNYEAR / 2) * SECSPERDAY)
+#define SIXMONTHS	 ((365 / 2) * 86400)
 #define CURFRMT		"%b %e %H:%M"
 #define OLDFRMT		"%b %e  %Y"
 #ifndef UT_NAMESIZE

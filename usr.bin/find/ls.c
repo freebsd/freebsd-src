@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)ls.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <tzfile.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -90,7 +89,7 @@ printtime(ftime)
 	for (i = 4; i < 11; ++i)
 		(void)putchar(longstring[i]);
 
-#define	SIXMONTHS	((DAYSPERNYEAR / 2) * SECSPERDAY)
+#define	SIXMONTHS	((365 / 2) * 86400)
 	if (ftime + SIXMONTHS > time((time_t *)NULL))
 		for (i = 11; i < 16; ++i)
 			(void)putchar(longstring[i]);
