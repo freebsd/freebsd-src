@@ -30,20 +30,20 @@
 
 #include "mixer_if.h"
 
-
 SND_DECLARE_FILE("$FreeBSD$");
 
 MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 
 struct ac97mixtable_entry {
-	int		reg:8;
-	unsigned	bits:4;
-	unsigned	ofs:4;
-	unsigned	stereo:1;
-	unsigned	mute:1;
-	unsigned	recidx:4;
-	unsigned        mask:1;
-	unsigned	enable:1;
+	int	 reg:8;		/* register index		*/
+				/* reg < 0 if inverted polarity	*/
+	unsigned bits:4;	/* width of control field	*/
+	unsigned ofs:4;		/* offset (only if stereo=0)	*/
+	unsigned stereo:1;	/* set for stereo controls	*/
+	unsigned mute:1;	/* bit15 is MUTE		*/
+	unsigned recidx:4;	/* index in rec mux		*/
+	unsigned mask:1;	/* use only masked bits		*/
+	unsigned enable:1;	/* entry is enabled		*/
 };
 
 #define AC97_NAMELEN	16
@@ -51,8 +51,7 @@ struct ac97_info {
 	kobj_t methods;
 	device_t dev;
 	void *devinfo;
-	char *id;
-	char rev;
+	u_int32_t id;
 	unsigned count, caps, se, extcaps, extid, extstat, noext:1;
 	u_int32_t flags;
 	struct ac97mixtable_entry mix[32];
@@ -60,13 +59,21 @@ struct ac97_info {
 	void *lock;
 };
 
+struct ac97_vendorid {
+	u_int32_t   id;
+	const char *name;
+};
+
 struct ac97_codecid {
-	u_int32_t id, noext:1;
-	char *name;
+	u_int32_t  id;
+	u_int8_t   stepmask;
+	u_int8_t   noext:1;
+	char 	  *name;
 	ac97_patch patch;
 };
 
 static const struct ac97mixtable_entry ac97mixtable_default[32] = {
+    /*	[offset]			reg	     bits of st mu re mk en */
 	[SOUND_MIXER_VOLUME]	= { AC97_MIX_MASTER, 	5, 0, 1, 1, 6, 0, 1 },
 	[SOUND_MIXER_MONITOR]	= { AC97_MIX_AUXOUT, 	5, 0, 1, 1, 0, 0, 0 },
 	[SOUND_MIXER_PHONEOUT]	= { AC97_MIX_MONO, 	5, 0, 0, 1, 7, 0, 0 },
@@ -76,59 +83,112 @@ static const struct ac97mixtable_entry ac97mixtable_default[32] = {
 	[SOUND_MIXER_SPEAKER]	= { AC97_MIX_BEEP, 	4, 1, 0, 1, 0, 0, 0 },
 	[SOUND_MIXER_LINE]	= { AC97_MIX_LINE, 	5, 0, 1, 1, 5, 0, 1 },
 	[SOUND_MIXER_PHONEIN]	= { AC97_MIX_PHONE, 	5, 0, 0, 1, 8, 0, 0 },
-	[SOUND_MIXER_MIC] 	= { AC97_MIX_MIC, 	5, 0, 0, 1, 1, 0, 1 },
+	[SOUND_MIXER_MIC] 	= { AC97_MIX_MIC, 	5, 0, 0, 1, 1, 1, 1 },
+#if 0
+	/* use igain for the mic 20dB boost */
+	[SOUND_MIXER_IGAIN] 	= { -AC97_MIX_MIC, 	1, 6, 0, 0, 0, 1, 1 },
+#endif
 	[SOUND_MIXER_CD]	= { AC97_MIX_CD, 	5, 0, 1, 1, 2, 0, 1 },
 	[SOUND_MIXER_LINE1]	= { AC97_MIX_AUX, 	5, 0, 1, 1, 4, 0, 0 },
 	[SOUND_MIXER_VIDEO]	= { AC97_MIX_VIDEO, 	5, 0, 1, 1, 3, 0, 0 },
 	[SOUND_MIXER_RECLEV]	= { -AC97_MIX_RGAIN, 	4, 0, 1, 1, 0, 0, 1 }
 };
 
+static const struct ac97_vendorid ac97vendorid[] = {
+	{ 0x41445300, "Analog Devices" },
+	{ 0x414b4d00, "Asahi Kasei" },
+	{ 0x414c4300, "Realtek" },
+	{ 0x414c4700, "Avance Logic" },
+	{ 0x43525900, "Cirrus Logic" },
+	{ 0x434d4900, "C-Media Electronics" },
+	{ 0x43585400, "Conexant" },
+	{ 0x454d4300, "eMicro" },
+	{ 0x45838300, "ESS Technology" },
+	{ 0x49434500, "ICEnsemble" },
+	{ 0x4e534300, "National Semiconductor" },
+	{ 0x50534300, "Philips Semiconductor" },
+	{ 0x83847600, "SigmaTel" },
+	{ 0x53494c00, "Silicon Laboratory" },
+	{ 0x54524100, "TriTech" },
+	{ 0x56494100, "VIA Technologies" },
+	{ 0x574d4c00, "Wolfson" },
+	{ 0x594d4800, "Yamaha" },
+	{ 0x00000000, NULL }
+};
+
 static struct ac97_codecid ac97codecid[] = {
-	{ 0x41445303, 0, "Analog Devices AD1819",	0 },
-	{ 0x41445340, 0, "Analog Devices AD1881",	0 },
-	{ 0x41445348, 0, "Analog Devices AD1881A",	0 },
-	{ 0x41445360, 0, "Analog Devices AD1885",	0 },
-	{ 0x41445361, 0, "Analog Devices AD1886", 	ad1886_patch },
-	{ 0x414b4d00, 1, "Asahi Kasei AK4540", 		0 },
-	{ 0x414b4d01, 1, "Asahi Kasei AK4542", 		0 },
-	{ 0x414b4d02, 1, "Asahi Kasei AK4543", 		0 },
-	{ 0x414c4710, 0, "Avance Logic ALC200/200P", 	0 },
-	{ 0x414c4720, 0, "Realtek ALC650", 		0 },
-	{ 0x43525900, 0, "Cirrus Logic CS4297", 	0 },
-	{ 0x43525903, 0, "Cirrus Logic CS4297", 	0 },
-	{ 0x43525913, 0, "Cirrus Logic CS4297A", 	0 },
-	{ 0x43525914, 0, "Cirrus Logic CS4297B",	0 },
-	{ 0x43525923, 0, "Cirrus Logic CS4294C",	0 },
-	{ 0x4352592b, 0, "Cirrus Logic CS4298C",	0 },
-	{ 0x43525931, 0, "Cirrus Logic CS4299A",	0 },
-	{ 0x43525933, 0, "Cirrus Logic CS4299C",	0 },
-	{ 0x43525934, 0, "Cirrus Logic CS4299D/E/F/G/H", 0 },
-	{ 0x43525935, 0, "Cirrus Logic CS4299K",	0 },
-	{ 0x43525936, 0, "Cirrus Logic CS4299L",	0 },
-	{ 0x43525941, 0, "Cirrus Logic CS4201A",	0 },
-	{ 0x43525951, 0, "Cirrus Logic CS4205A",	0 },
-	{ 0x43525961, 0, "Cirrus Logic CS4291A",	0 },
-	{ 0x43585429, 0, "Conexant CX20468",		0 },
-	{ 0x45838308, 0, "ESS Technology ES1921",	0 },
-	{ 0x49434511, 0, "ICEnsemble ICE1232",		0 },
-	{ 0x4e534331, 0, "National Semiconductor LM4549", 0 },
-	{ 0x83847600, 0, "SigmaTel STAC9700/9783/9784",	0 },
-	{ 0x83847604, 0, "SigmaTel STAC9701/9703/9704/9705", 0 },
-	{ 0x83847605, 0, "SigmaTel STAC9704",		0 },
-	{ 0x83847608, 0, "SigmaTel STAC9708/9711",	0 },
-	{ 0x83847609, 0, "SigmaTel STAC9721/9723",	0 },
-	{ 0x83847644, 0, "SigmaTel STAC9744",		0 },
-	{ 0x83847656, 0, "SigmaTel STAC9756/9757",	0 },
-	{ 0x53494c22, 0, "Silicon Laboratory Si3036",	0 },
-	{ 0x53494c23, 0, "Silicon Laboratory Si3038",	0 },
-	{ 0x54524103, 0, "TriTech TR28023",		0 },
-	{ 0x54524106, 0, "TriTech TR28026",		0 },
-	{ 0x54524108, 0, "TriTech TR28028",		0 },
-	{ 0x54524123, 0, "TriTech TR28602",		0 },
-	{ 0x574d4c00, 0, "Wolfson WM9701A",		0 },
-	{ 0x574d4c03, 0, "Wolfson WM9703/9704",		0 },
-	{ 0x574d4c04, 0, "Wolfson WM9704 (quad)",	0 },
-	{ 0, 0, NULL, 0 }
+	{ 0x41445303, 0x00, 0, "AD1819",	0 },
+	{ 0x41445340, 0x00, 0, "AD1881",	0 },
+	{ 0x41445348, 0x00, 0, "AD1881A",	0 },
+	{ 0x41445360, 0x00, 0, "AD1885",	0 },
+	{ 0x41445361, 0x00, 0, "AD1886", 	ad1886_patch },
+	{ 0x41445362, 0x00, 0, "AD1887", 	0 },
+	{ 0x41445363, 0x00, 0, "AD1886A", 	0 },
+	{ 0x41445370, 0x00, 0, "AD1980",	0 },
+	{ 0x41445372, 0x00, 0, "AD1981A",	0 },
+	{ 0x41445374, 0x00, 0, "AD1981B",	0 },
+	{ 0x41445375, 0x00, 0, "AD1985",	0 },
+	{ 0x414b4d00, 0x00, 1, "AK4540", 	0 },
+	{ 0x414b4d01, 0x00, 1, "AK4542", 	0 },
+	{ 0x414b4d02, 0x00, 1, "AK4543", 	0 },
+	{ 0x414c4320, 0x0f, 0, "ALC100",	0 },
+	{ 0x414c4730, 0x0f, 0, "ALC101",	0 },
+	{ 0x414c4710, 0x0f, 0, "ALC200", 	0 },
+	{ 0x414c4740, 0x0f, 0, "ALC202", 	0 },
+	{ 0x414c4720, 0x0f, 0, "ALC650", 	0 },
+	{ 0x43525900, 0x07, 0, "CS4297", 	0 },
+	{ 0x43525910, 0x07, 0, "CS4297A", 	0 },
+	{ 0x43525920, 0x07, 0, "CS4294/98",	0 },
+	{ 0x43525930, 0x07, 0, "CS4299",	0 },
+	{ 0x43525940, 0x07, 0, "CS4201",	0 },
+	{ 0x43525958, 0x07, 0, "CS4205",	0 },
+	{ 0x43525960, 0x07, 0, "CS4291A",	0 },
+	{ 0x434d4961, 0x00, 0, "CMI9739",	0 },
+	{ 0x434d4941, 0x00, 0, "CMI9738",	0 },
+	{ 0x43585429, 0x00, 0, "CX20468",	0 },
+	{ 0x454d4323, 0x00, 0, "EM28023",	0 },
+	{ 0x454d4328, 0x00, 0, "EM28028",	0 },
+	{ 0x45838308, 0x00, 0, "ES1988",	0 }, /* Formerly ES1921(?) */
+	{ 0x49434501, 0x00, 0, "ICE1230",	0 },
+	{ 0x49434511, 0x00, 0, "ICE1232",	0 },
+	{ 0x49434514, 0x00, 0, "ICE1232A",	0 },
+	{ 0x49434551, 0x00, 0, "VT1616",	0 }, /* Via badged ICE */
+	{ 0x4e534340, 0x00, 0, "LM4540",	0 }, /* Spec blank on revid */
+	{ 0x4e534343, 0x00, 0, "LM4543",	0 }, /* Ditto */
+	{ 0x4e534346, 0x00, 0, "LM4546A",	0 },
+	{ 0x4e534348, 0x00, 0, "LM4548A",	0 },
+	{ 0x4e534331, 0x00, 0, "LM4549",	0 }, /* (?) */
+	{ 0x4e534349, 0x00, 0, "LM4549A",	0 },
+	{ 0x4e534350, 0x00, 0, "LM4550",	0 },
+	{ 0x50534301, 0x00, 0, "UCB1510",	0 },
+	{ 0x50534304, 0x00, 0, "UCB1400",	0 },
+	{ 0x83847600, 0x00, 0, "STAC9700/83/84",	0 },
+	{ 0x83847604, 0x00, 0, "STAC9701/03/04/05", 0 },
+	{ 0x83847605, 0x00, 0, "STAC9704",	0 },
+	{ 0x83847608, 0x00, 0, "STAC9708/11",	0 },
+	{ 0x83847609, 0x00, 0, "STAC9721/23",	0 },
+	{ 0x83847644, 0x00, 0, "STAC9744/45",	0 },
+	{ 0x83847650, 0x00, 0, "STAC9750/51",	0 },
+	{ 0x83847652, 0x00, 0, "STAC9752/53",	0 },
+	{ 0x83847656, 0x00, 0, "STAC9756/57",	0 },
+	{ 0x83847658, 0x00, 0, "STAC9758/59",	0 },
+	{ 0x83847660, 0x00, 0, "STAC9760/61",	0 }, /* Extrapolated */
+	{ 0x83847662, 0x00, 0, "STAC9762/63",	0 }, /* Extrapolated */
+	{ 0x53494c22, 0x00, 0, "Si3036",	0 },
+	{ 0x53494c23, 0x00, 0, "Si3038",	0 },
+	{ 0x54524103, 0x00, 0, "TR28023",	0 }, /* Extrapolated */
+	{ 0x54524106, 0x00, 0, "TR28026",	0 },
+	{ 0x54524108, 0x00, 0, "TR28028",	0 },
+	{ 0x54524123, 0x00, 0, "TR28602",	0 },
+	{ 0x56494161, 0x00, 0, "VIA1612A",      0 },
+	{ 0x574d4c00, 0x00, 0, "WM9701A",	0 },
+	{ 0x574d4c03, 0x00, 0, "WM9703/4/7/8",	0 },
+	{ 0x574d4c04, 0x00, 0, "WM9704Q",	0 },
+	{ 0x574d4c05, 0x00, 0, "WM9705/10",	0 },
+	{ 0x594d4800, 0x00, 0, "YMF743",	0 },
+	{ 0x594d4802, 0x00, 0, "YMF752",	0 },
+	{ 0x594d4803, 0x00, 0, "YMF753",	0 },
+	{ 0, 0, 0, NULL, 0 }
 };
 
 static char *ac97enhancement[] = {
@@ -228,10 +288,10 @@ ac97_setrate(struct ac97_info *codec, int which, int rate)
 	u_int16_t v;
 
 	switch(which) {
-	case AC97_REGEXT_FDACRATE: 
+	case AC97_REGEXT_FDACRATE:
 	case AC97_REGEXT_SDACRATE:
 	case AC97_REGEXT_LDACRATE:
-	case AC97_REGEXT_LADCRATE: 
+	case AC97_REGEXT_LADCRATE:
 	case AC97_REGEXT_MADCRATE:
 		break;
 
@@ -258,7 +318,7 @@ ac97_setextmode(struct ac97_info *codec, u_int16_t mode)
 {
 	mode &= AC97_EXTCAPS;
 	if ((mode & ~codec->extcaps) != 0) {
-		device_printf(codec->dev, "ac97 invalid mode set 0x%04x\n", 
+		device_printf(codec->dev, "ac97 invalid mode set 0x%04x\n",
 			      mode);
 		return -1;
 	}
@@ -309,16 +369,26 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 	struct ac97mixtable_entry *e = &codec->mix[channel];
 
 	if (e->reg && e->enable && e->bits) {
-		int max, val, reg = (e->reg >= 0)? e->reg : -e->reg;
+		int mask, max, val, reg;
+
+		reg = (e->reg >= 0) ? e->reg : -e->reg;	/* AC97 register    */
+		max = (1 << e->bits) - 1;		/* actual range	    */
+		mask = (max << 8) | max;		/* bits of interest */
 
 		if (!e->stereo)
 			right = left;
+
+		/*
+		 * Invert the range if the polarity requires so,
+		 * then scale to 0..max-1 to compute the value to
+		 * write into the codec, and scale back to 0..100
+		 * for the return value.
+		 */
 		if (e->reg > 0) {
 			left = 100 - left;
 			right = 100 - right;
 		}
 
-		max = (1 << e->bits) - 1;
 		left = (left * max) / 100;
 		right = (right * max) / 100;
 
@@ -332,17 +402,35 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 			right = 100 - right;
 		}
 
-		if (!e->stereo) {
+		/*
+		 * For mono controls, trim val and mask, also taking
+		 * care of e->ofs (offset of control field).  
+		 */
+		if (e->ofs) {
 			val &= max;
 			val <<= e->ofs;
-			if (e->mask) {
-				int cur = ac97_rdcd(codec, e->reg);
-				val |= cur & ~(max << e->ofs);
-			}
+			mask = (max << e->ofs);
 		}
-		if (left == 0 && right == 0 && e->mute == 1)
-			val = AC97_MUTE;
+
+		/*
+		 * If we have a mute bit, add it to the mask and
+		 * update val and set mute if both channels require a
+		 * zero volume.
+		 */
+		if (e->mute == 1) {
+			mask |= AC97_MUTE;
+			if (left == 0 && right == 0)
+				val = AC97_MUTE;
+		}
+
+		/*
+		 * If the mask bit is set, do not alter the other bits.
+		 */
 		snd_mtxlock(codec->lock);
+		if (e->mask) {
+			int cur = ac97_rdcd(codec, e->reg);
+			val |= cur & ~(mask);
+		}
 		ac97_wrcd(codec, reg, val);
 		snd_mtxunlock(codec->lock);
 		return left | (right << 8);
@@ -379,7 +467,7 @@ ac97_getmixer(struct ac97_info *codec, int channel)
 static void
 ac97_fix_auxout(struct ac97_info *codec)
 {
-	/* Determine what AUXOUT really means, it can be: 
+	/* Determine what AUXOUT really means, it can be:
 	 *
 	 * 1. Headphone out.
 	 * 2. 4-Channel Out
@@ -388,7 +476,7 @@ ac97_fix_auxout(struct ac97_info *codec)
 	 * See Sections 5.2.1 and 5.27 for AUX_OUT Options in AC97r2.{2,3}.
 	 */
 	if (codec->caps & AC97_CAP_HEADPHONE) {
-		/* XXX We should probably check the AUX_OUT initial value. 
+		/* XXX We should probably check the AUX_OUT initial value.
 		 * Leave AC97_MIX_AUXOUT - SOUND_MIXER_MONITOR relationship */
 		return;
 	} else if (codec->extcaps & AC97_EXTCAP_SDAC &&
@@ -396,19 +484,40 @@ ac97_fix_auxout(struct ac97_info *codec)
 		/* 4-Channel Out, add an additional gain setting. */
 		codec->mix[SOUND_MIXER_OGAIN] = codec->mix[SOUND_MIXER_MONITOR];
 	} else {
-		/* Master volume is/maybe fixed in h/w, not sufficiently 
+		/* Master volume is/maybe fixed in h/w, not sufficiently
 		 * clear in spec to blat SOUND_MIXER_MASTER. */
 		codec->mix[SOUND_MIXER_OGAIN] = codec->mix[SOUND_MIXER_MONITOR];
 	}
 	/* Blat monitor, inappropriate label if we get here */
-	bzero(&codec->mix[SOUND_MIXER_MONITOR], 
+	bzero(&codec->mix[SOUND_MIXER_MONITOR],
 	      sizeof(codec->mix[SOUND_MIXER_MONITOR]));
+}
+
+static const char*
+ac97_hw_desc(u_int32_t id, const char* vname, const char* cname, char* buf)
+{
+	if (cname == NULL) {
+		sprintf(buf, "Unknown AC97 Codec (id = 0x%08x)", id);
+		return buf;
+	}
+
+	if (vname == NULL) vname = "Unknown";
+	
+	if (bootverbose) {
+		sprintf(buf, "%s %s AC97 Codec (id = 0x%08x)", vname, cname, id);
+	} else {
+		sprintf(buf, "%s %s AC97 Codec", vname, cname);
+	}
+	return buf;
 }
 
 static unsigned
 ac97_initmixer(struct ac97_info *codec)
 {
 	ac97_patch codec_patch;
+	const char *cname, *vname;
+	char desc[80];
+	u_int8_t model, step;
 	unsigned i, j, k, old;
 	u_int32_t id;
 
@@ -429,21 +538,35 @@ ac97_initmixer(struct ac97_info *codec)
 	codec->se =  (i & 0x7c00) >> 10;
 
 	id = (ac97_rdcd(codec, AC97_REG_ID1) << 16) | ac97_rdcd(codec, AC97_REG_ID2);
-	codec->rev = id & 0x000000ff;
 	if (id == 0 || id == 0xffffffff) {
 		device_printf(codec->dev, "ac97 codec invalid or not present (id == %x)\n", id);
 		snd_mtxunlock(codec->lock);
 		return ENODEV;
 	}
 
+	codec->id = id;
 	codec->noext = 0;
-	codec->id = NULL;
 	codec_patch = NULL;
+
+	cname = NULL;
+	model = step = 0;
 	for (i = 0; ac97codecid[i].id; i++) {
-		if (ac97codecid[i].id == id) {
-			codec->id = ac97codecid[i].name;
+		u_int32_t modelmask = 0xffffffff ^ ac97codecid[i].stepmask;
+		if ((ac97codecid[i].id & modelmask) == (id & modelmask)) {
 			codec->noext = ac97codecid[i].noext;
 			codec_patch = ac97codecid[i].patch;
+			cname = ac97codecid[i].name;
+			model = (id & modelmask) & 0xff;
+			step = (id & ~modelmask) & 0xff;
+			break;
+		}
+	}
+
+	vname = NULL;
+	for (i = 0; ac97vendorid[i].id; i++) {
+		if (ac97vendorid[i].id == (id & 0xffffff00)) {
+			vname = ac97vendorid[i].name;
+			break;
 		}
 	}
 
@@ -480,15 +603,11 @@ ac97_initmixer(struct ac97_info *codec)
 		/* printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits); */
 	}
 
-	if (codec->id) {
-		device_printf(codec->dev, "<%s ac97 codec>\n", codec->id);
-	} else {
-		device_printf(codec->dev, 
-			      "<unknown ac97 codec> (id=0x%08x)\n", id);
-	}
+	device_printf(codec->dev, "<%s>\n",
+		      ac97_hw_desc(codec->id, vname, cname, desc));
 
 	if (bootverbose) {
-		device_printf(codec->dev, "ac97 codec features ");
+		device_printf(codec->dev, "Codec features ");
 		for (i = j = 0; i < 10; i++)
 			if (codec->caps & (1 << i))
 				printf("%s%s", j++? ", " : "", ac97feature[i]);
@@ -496,8 +615,8 @@ ac97_initmixer(struct ac97_info *codec)
 		printf("%s%s\n", j? ", " : "", ac97enhancement[codec->se]);
 
 		if (codec->extcaps != 0 || codec->extid) {
-			device_printf(codec->dev, "ac97 %s codec",
-				      codec->extid? "secondary" : "primary");
+			device_printf(codec->dev, "%s codec",
+				      codec->extid? "Secondary" : "Primary");
 			if (codec->extcaps)
 				printf(" extended features ");
 			for (i = j = 0; i < 14; i++)
