@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.44 1998/02/06 12:14:23 eivind Exp $
+ * $Id: vm_kern.c,v 1.45 1998/02/23 08:22:29 dyson Exp $
  */
 
 /*
@@ -182,7 +182,7 @@ kmem_alloc(map, size)
 				VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		if ((mem->flags & PG_ZERO) == 0)
 			vm_page_zero_fill(mem);
-		mem->flags &= ~(PG_BUSY|PG_ZERO);
+		mem->flags &= ~(PG_BUSY | PG_ZERO);
 		mem->valid = VM_PAGE_BITS_ALL;
 	}
 

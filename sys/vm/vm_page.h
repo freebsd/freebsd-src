@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.35 1997/02/22 09:48:32 peter Exp $
+ * $Id: vm_page.h,v 1.36 1998/02/05 03:32:47 dyson Exp $
  */
 
 /*
@@ -264,17 +264,17 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
  */
 
 #define PAGE_ASSERT_WAIT(m, interruptible)	{ \
-				(m)->flags |= PG_WANTED; \
-				assert_wait((int) (m), (interruptible)); \
-			}
+	(m)->flags |= PG_WANTED; \
+	assert_wait((int) (m), (interruptible)); \
+}
 
 #define PAGE_WAKEUP(m)	{ \
-				(m)->flags &= ~PG_BUSY; \
-				if ((m)->flags & PG_WANTED) { \
-					(m)->flags &= ~PG_WANTED; \
-					wakeup((caddr_t) (m)); \
-				} \
-			}
+	(m)->flags &= ~PG_BUSY; \
+	if (((m)->flags & PG_WANTED) && ((m)->busy == 0)) { \
+		(m)->flags &= ~PG_WANTED; \
+		wakeup((m)); \
+	} \
+}
 
 #if PAGE_SIZE == 4096
 #define VM_PAGE_BITS_ALL 0xff
@@ -316,6 +316,7 @@ int vm_page_bits __P((int, int));
 vm_page_t vm_page_list_find __P((int, int));
 int vm_page_queue_index __P((vm_offset_t, int));
 vm_page_t vm_page_select __P((vm_object_t, vm_pindex_t, int));
+int vm_page_sleep(vm_page_t m, char *msg, char *busy);
 
 /*
  * Keep page from being freed by the page daemon

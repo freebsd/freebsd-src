@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.89 1998/02/23 08:22:24 dyson Exp $
+ * $Id: swap_pager.c,v 1.90 1998/02/25 03:55:47 dyson Exp $
  */
 
 /*
@@ -60,7 +60,7 @@
 #include <sys/rlist.h>
 
 #ifndef MAX_PAGEOUT_CLUSTER
-#define MAX_PAGEOUT_CLUSTER 8
+#define MAX_PAGEOUT_CLUSTER 16
 #endif
 
 #ifndef NPENDINGIO
@@ -165,7 +165,6 @@ static int	swap_pager_block_offset __P((vm_pindex_t pindex));
 static daddr_t *swap_pager_diskaddr __P((vm_object_t object,
 					  vm_pindex_t pindex, int *valid));
 static void	swap_pager_finish __P((swp_clean_t spc));
-static void	swap_pager_freepage __P((vm_page_t m));
 static void	swap_pager_free_swap __P((vm_object_t object));
 static void	swap_pager_freeswapspace __P((vm_object_t object,
 					      unsigned int from,
@@ -860,17 +859,6 @@ swap_pager_haspage(object, pindex, before, after)
 }
 
 /*
- * swap_pager_freepage is a convienience routine that clears the busy
- * bit and deallocates a page.
- */
-static void
-swap_pager_freepage(m)
-	vm_page_t m;
-{
-	vm_page_free(m);
-}
-
-/*
  * Wakeup based upon spc state
  */
 static void
@@ -914,9 +902,11 @@ swap_pager_ridpages(m, count, reqpage)
 {
 	int i;
 
-	for (i = 0; i < count; i++)
-		if (i != reqpage)
-			swap_pager_freepage(m[i]);
+	for (i = 0; i < count; i++) {
+		if (i != reqpage) {
+			vm_page_free(m[i]);
+		}
+	}
 }
 
 /*
@@ -967,7 +957,7 @@ swap_pager_getpages(object, m, count, reqpage)
 				return (VM_PAGER_FAIL);
 			}
 			for (j = i; j < count; j++) {
-				swap_pager_freepage(m[j]);
+				vm_page_free(m[j]);
 			}
 			count = i;
 			break;
@@ -997,7 +987,7 @@ swap_pager_getpages(object, m, count, reqpage)
 		    (reqaddr[i] != (reqaddr[reqpage] + (i - reqpage) * btodb(PAGE_SIZE))) ||
 		    ((reqaddr[i] / dmmax) != reqdskregion)) {
 			failed = 1;
-			swap_pager_freepage(m[i]);
+			vm_page_free(m[i]);
 			if (first == 0)
 				first = i + 1;
 		}
@@ -1013,7 +1003,7 @@ swap_pager_getpages(object, m, count, reqpage)
 		    (reqaddr[i] != (reqaddr[reqpage] + (i - reqpage) * btodb(PAGE_SIZE))) ||
 		    ((reqaddr[i] / dmmax) != reqdskregion)) {
 			failed = 1;
-			swap_pager_freepage(m[i]);
+			vm_page_free(m[i]);
 			if (last == count)
 				last = i;
 		}
@@ -1427,7 +1417,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	bp->b_bcount = PAGE_SIZE * ix;
 	bp->b_bufsize = PAGE_SIZE * ix;
 
-
 	s = splvm();
 	swapdev_vp->v_numoutput++;
 
@@ -1560,7 +1549,7 @@ swap_pager_sync()
 	return;
 }
 
-static void
+void
 swap_pager_finish(spc)
 	register swp_clean_t spc;
 {
@@ -1569,7 +1558,7 @@ swap_pager_finish(spc)
 	vm_page_t *ma;
 
 	ma = spc->spc_m;
-	object = ma[spc->spc_first]->object;
+	object = spc->spc_object;
 	lastidx = spc->spc_first + spc->spc_count;
 
 	s = splvm();
@@ -1589,6 +1578,8 @@ swap_pager_finish(spc)
 			printf("swap_pager_finish: I/O error, clean of page %lx failed\n",
 			    (u_long) VM_PAGE_TO_PHYS(ma[i]));
 			ma[i]->dirty = VM_PAGE_BITS_ALL;
+			ma[i]->flags |= PG_BUSY;
+			ma[i]->busy--;
 			PAGE_WAKEUP(ma[i]);
 		}
 
@@ -1603,8 +1594,9 @@ swap_pager_finish(spc)
 		for (i = spc->spc_first; i < lastidx; i++) {
 			if ((ma[i]->queue != PQ_ACTIVE) &&
 			   ((ma[i]->flags & PG_WANTED) ||
-				 pmap_ts_referenced(VM_PAGE_TO_PHYS(ma[i]))))
+				 pmap_ts_referenced(VM_PAGE_TO_PHYS(ma[i])))) {
 				vm_page_activate(ma[i]);
+			}
 		}
 	}
 
@@ -1622,16 +1614,18 @@ static void
 swap_pager_iodone(bp)
 	register struct buf *bp;
 {
-	int i, s;
+	int i, s, lastidx;
 	register swp_clean_t spc;
 	vm_object_t object;
+	vm_page_t *ma;
+
 
 	s = splvm();
 	spc = (swp_clean_t) bp->b_spc;
 	TAILQ_REMOVE(&swap_pager_inuse, spc, spc_list);
 	TAILQ_INSERT_TAIL(&swap_pager_done, spc, spc_list);
 
-	object = bp->b_pages[0]->object;
+	object = spc->spc_object;
 
 #if defined(DIAGNOSTIC)
 	if (object->paging_in_progress < spc->spc_count)
@@ -1645,18 +1639,21 @@ swap_pager_iodone(bp)
 		    (bp->b_flags & B_READ) ? "pagein" : "pageout",
 		    (u_long) bp->b_blkno, bp->b_bcount, bp->b_error);
 	} else {
-		for (i = 0; i < bp->b_npages; i++) {
-			/*
-			 * we wakeup any processes that are waiting on these pages.
-			 */
-			PAGE_WAKEUP(bp->b_pages[i]);
-		}
-
 		object->paging_in_progress -= spc->spc_count;
 		if ((object->paging_in_progress == 0) &&
 			(object->flags & OBJ_PIPWNT)) {
 			object->flags &= ~OBJ_PIPWNT;
 			wakeup(object);
+		}
+		ma = spc->spc_m;
+		lastidx = spc->spc_first + spc->spc_count;
+		for (i = spc->spc_first; i < lastidx; i++) {
+			/*
+			 * we wakeup any processes that are waiting on these pages.
+			 */
+			ma[i]->flags |= PG_BUSY;
+			ma[i]->busy--;
+			PAGE_WAKEUP(ma[i]);
 		}
 	}
 
