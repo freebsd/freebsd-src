@@ -36,6 +36,7 @@
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/pci_cfgreg.h>
+#include <dev/pci/pcireg.h>
 
 /*
  * ACPICA's rather gung-ho approach to hardware resource ownership is a little
@@ -154,4 +155,99 @@ AcpiOsWritePciConfiguration (
     pci_cfgregwrite(PciId->Bus, PciId->Device, PciId->Function, Register, Value, byte_width);
 
     return(AE_OK);
+}
+
+/* XXX should use acpivar.h but too many include dependencies */
+extern ACPI_STATUS acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int
+    *number);
+
+/*
+ * Depth-first recursive case for finding the bus, given the slot/function.
+ */
+static int
+acpi_bus_number(ACPI_HANDLE root, ACPI_HANDLE curr, ACPI_PCI_ID *PciId)
+{
+    ACPI_HANDLE parent;
+    ACPI_OBJECT_TYPE type;
+    UINT32 adr;
+    int bus, slot, func, class, subclass, header;
+
+    /* Try to get the _BBN object of the root, otherwise assume it is 0 */
+    bus = 0;
+    if (root == curr) {
+        if (ACPI_FAILURE(acpi_EvaluateInteger(root, "_BBN", &bus)))
+            printf("acpi_bus_number: root bus has no _BBN, assuming 0\n");
+	return (bus);
+    }
+    if (ACPI_FAILURE(AcpiGetParent(curr, &parent)))
+        return (bus);
+    
+    /* First, recurse up the tree until we find the host bus */
+    bus = acpi_bus_number(root, parent, PciId);
+
+    /* Validate parent bus device type */
+    if (ACPI_FAILURE(AcpiGetType(parent, &type)) || type != ACPI_TYPE_DEVICE) {
+        printf("acpi_bus_number: not a device, type %d\n", type);
+        return (bus);
+    }
+    /* Get the parent's slot and function */
+    if (ACPI_FAILURE(acpi_EvaluateInteger(parent, "_ADR", &adr))) {
+        printf("acpi_bus_number: can't get _ADR\n");
+        return (bus);
+    }
+    slot = ACPI_HIWORD(adr);
+    func = ACPI_LOWORD(adr);
+
+    /* Is this a PCI-PCI or Cardbus-PCI bridge? */
+    class = pci_cfgregread(bus, slot, func, PCIR_CLASS, 1);
+    if (class != PCIC_BRIDGE)
+        return (bus);
+    subclass = pci_cfgregread(bus, slot, func, PCIR_SUBCLASS, 1);
+    /* Find the header type, masking off the multifunction bit */
+    header = pci_cfgregread(bus, slot, func, PCIR_HEADERTYPE, 1) & 0x7f;
+    if (header == 1 && subclass == PCIS_BRIDGE_PCI)
+        bus = pci_cfgregread(bus, slot, func, PCIR_SECBUS_1, 1);
+    if (header == 2 && subclass == PCIS_BRIDGE_CARDBUS)
+        bus = pci_cfgregread(bus, slot, func, PCIR_SECBUS_2, 1);
+    return (bus);
+}
+
+/*
+ * Find the bus number for a device
+ *
+ * rhandle: handle for the root bus
+ * chandle: handle for the device
+ * PciId: pointer to device slot and function, we fill out bus
+ */
+void
+AcpiOsDerivePciId (
+    ACPI_HANDLE		rhandle,
+    ACPI_HANDLE		chandle,
+    ACPI_PCI_ID		**PciId)
+{
+    ACPI_HANDLE parent;
+    int bus;
+
+    if (pci_cfgregopen() == 0)
+        panic("AcpiOsDerivePciId unable to initialize pci bus");
+
+    /* Try to read _BBN for bus number if we're at the root */
+    bus = 0;
+    if (rhandle == chandle) {
+        if (ACPI_FAILURE(acpi_EvaluateInteger(rhandle, "_BBN", &bus)))
+            printf("AcpiOsDerivePciId: root bus has no _BBN, assuming 0\n");
+    }
+    /*
+     * Get the parent handle and call the recursive case.  It is not
+     * clear why we seem to be getting a chandle that points to a child
+     * of the desired slot/function but passing in the parent handle
+     * here works.
+     */
+    if (ACPI_SUCCESS(AcpiGetParent(chandle, &parent)))
+        bus = acpi_bus_number(rhandle, parent, *PciId);
+    (*PciId)->Bus = bus;
+    if (bootverbose) {
+        printf("AcpiOsDerivePciId: bus %d dev %d func %d\n",
+            (*PciId)->Bus, (*PciId)->Device, (*PciId)->Function);
+    }
 }

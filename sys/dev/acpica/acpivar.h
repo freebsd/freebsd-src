@@ -141,6 +141,8 @@ extern struct mtx	acpi_mutex;
 #define	ACPI_INTR_APIC		1
 #define	ACPI_INTR_SAPIC		2
 
+/* XXX this is no longer referenced anywhere, remove? */
+#if 0
 /*
  * This is a cheap and nasty way to get around the horrid counted list
  * argument format that AcpiEvalateObject uses.
@@ -168,6 +170,7 @@ acpi_AllocObjectList(int nobj)
     l->count = nobj;
     return(l);
 }
+#endif /* unused */
 
 /*
  * Note that the low ivar values are reserved to provide
