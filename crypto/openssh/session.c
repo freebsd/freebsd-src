@@ -619,9 +619,6 @@ do_login(Session *s, const char *command)
 #ifndef USE_PAM
 	pid_t pid = getpid();
 #endif
-#ifdef HAVE_LOGIN_CAP
-	const char *fname;
-#endif /* HAVE_LOGIN_CAP */
 #ifdef __FreeBSD__
 #define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 	struct timeval tv;
@@ -671,10 +668,6 @@ do_login(Session *s, const char *command)
 		do_pam_chauthtok();
 	}
 #endif
-#ifdef USE_PAM
-	if (!check_quietlogin(s, command) && !pam_password_change_required())
-		print_pam_messages();
-#endif /* USE_PAM */
 #ifdef __FreeBSD__
 	if (pw->pw_change || pw->pw_expire)
 		(void)gettimeofday(&tv, NULL);
@@ -736,7 +729,12 @@ do_login(Session *s, const char *command)
 	}
 #endif /* HAVE_LOGIN_CAP */
 
-#ifndef USE_PAM
+#ifdef USE_PAM
+	if (command == NULL && options.print_lastlog &&
+	    !check_quietlogin(s, command) &&
+	    !options.use_login && !pam_password_change_required())
+		print_pam_messages();
+#else /* !USE_PAM */
 	/*
 	 * If the user has logged in before, display the time of last
 	 * login. However, don't display anything extra if a command
@@ -759,30 +757,29 @@ do_login(Session *s, const char *command)
 	}
 #endif /* !USE_PAM */
 
-#ifdef HAVE_LOGIN_CAP
 	if (command == NULL && !check_quietlogin(s, command) &&
 	    !options.use_login) {
-		fname = login_getcapstr(lc, "copyright", NULL, NULL);
+#ifdef HAVE_LOGIN_CAP
+		const char *fname = login_getcapstr(lc, "copyright", NULL, NULL);
 		if (fname != NULL && (f = fopen(fname, "r")) != NULL) {
 			while (fgets(buf, sizeof(buf), f) != NULL)
 				fputs(buf, stdout);
 				fclose(f);
 		} else
+#endif /* HAVE_LOGIN_CAP */
 			(void)printf("%s\n\t%s %s\n",
 		"Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
 		"The Regents of the University of California. ",
 		"All rights reserved.");
-	}
-#endif /* HAVE_LOGIN_CAP */
-
+		(void)printf("\n");
 	/*
 	 * Print /etc/motd unless a command was specified or printing
 	 * it was disabled in server options or login(1) will be
 	 * used.  Note that some machines appear to print it in
 	 * /etc/profile or similar.
 	 */
-	if (command == NULL && !check_quietlogin(s, command) && !options.use_login)
 		do_motd();
+	}
 }
 
 /*
