@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.32 1996/01/28 08:08:37 gpalmer Exp $
+#	$Id: sysconfig,v 1.33 1996/01/29 08:46:14 gpalmer Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -46,7 +46,7 @@ blanktime=NO
 # Set to screen saver desired: blank, green, snake, star (or NO for none)
 saver=NO
 
-# General russian setup for example:
+# General Russian setup for example:
 # (koi8-r keyboard with cp866 screen font mapped to koi8-r)
 #
 # keymap=ru.koi8-r
@@ -125,7 +125,7 @@ xntpdflags="NO"
 # this is inoperative unless xntpd is enabled; NO to disable
 tickadjflags="-Aq"
 
-# Set to the site you'd like to syncronize your clock from (gatekeeper.dec.com,
+# Set to the site you'd like to synchronize your clock from (gatekeeper.dec.com,
 # for example) or NO for no such site.
 ntpdate="NO"
 
@@ -205,7 +205,7 @@ linux=NO
 # Set to a string representing the interrupts you are going to use
 #  for generating entropy in the kernel (or NO to ignore).
 #  The keyboard (IRQ 1) is good if it used a lot.
-#  If the machine is networked, the ethernet card is good.
+#  If the machine is networked, the Ethernet card is good.
 #  The IRQ on an intelligent hard disk controller is good.
 #  The IRQ's on most sound devices are good.
 #
@@ -217,7 +217,7 @@ linux=NO
 #  happen fairly irregularly, and never occur in very high-speed bursts.
 #
 # You'll have it right when you have a good supply of numbers from
-#  /dev/random, and no problems on your system, like slowdowns,
+#  /dev/random, and no problems on your system, like slow downs,
 #  Sluggish net/disk activity, perhaps even errors.
 
 rand_irqs="-s 1"

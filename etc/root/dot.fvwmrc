@@ -1,7 +1,7 @@
 # Unfortunately, order does matter in this file
 # The correct order for inserting configurations is:
 # 1. Colors
-# 2. Assorted configuration paramters such as ClickToFocus, or MWMBorders
+# 2. Assorted configuration parameters such as ClickToFocus, or MWMBorders
 # 3. Path setup (ModulePath, PixmapPath, IconPath)
 # 4. Style settings, including the default style Style "*" ...
 # 5. InitFunction and ResetFunction definitions.
@@ -17,7 +17,7 @@
 # If you get it wrong, the most common problem is that color or font settings
 # are ignored
 
-# for m4 processing we have to undefine the include macro or pathts to
+# for m4 processing we have to undefine the include macro or paths to
 # /usr/.../include/... will be mangled
 undefine(`include')
 
@@ -97,7 +97,7 @@ MWMFunctionHints
 MWMHintOverride
 
 # MWMDecor hints parses the decoration information in the MOTIF_WM_HINTS
-# property, and removes these decoratons from the window. This does not affect
+# property, and removes these decorations from the window. This does not affect
 # the functions that can be performed via the menus.
 MWMDecorHints
 

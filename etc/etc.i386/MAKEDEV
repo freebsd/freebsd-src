@@ -36,14 +36,14 @@
 #		via the floppy disk controller)
 #
 # Disks:
-#	wd*	"winchester" disk drives (ST506,IDE,ESDI,RLL,...)
+#	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
-#	sd*	"scsi disks"
-#	cd*	"scsi cdrom disks"
-#	mcd*	"mitsumi cdrom disks"
-#	scd*	"sony cdrom disks"
-#	matcd*	"Matsushita (panasonic) cdrom disks"
-#	wcd*	"IDE cdrom disks"
+#	sd*	"SCSI disks"
+#	cd*	"SCSI CD-ROM disks"
+#	mcd*	"Mitsumi CD-ROM disks"
+#	scd*	"Sony CD-ROM disks"
+#	matcd*	"Matsushita (Panasonic) CD-ROM disks"
+#	wcd*	"IDE CD-ROM disks"
 #	vn*	"vnode disks"
 #	od*	"optical disks"
 #
@@ -88,12 +88,12 @@
 #	gsc	Genius GS-4500 hand scanner
 #	joy	pc joystick
 #	tun	Tunneling IP device
-#	spigot	Video Spigot video aquisition card
-#	meteor*	Matrox Meteor video aquisition card (pci)
+#	spigot	Video Spigot video acquisition card
+#	meteor*	Matrox Meteor video acquisition card (pci)
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.110 1995/12/31 09:30:30 joerg Exp $
+#	$Id: MAKEDEV,v 1.111 1996/01/28 19:10:37 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -880,7 +880,7 @@ socksys)
 snd*)
 #
 # changes from Linux voxware
-# minor		linux			freebsd
+# minor		Linux			FreeBSD
 # 8		sequencer2 (aka music0)	music0
 # 17		patmgr0			sequencer1
 # 33		patmgr1			sequencer2
