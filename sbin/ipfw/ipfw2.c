@@ -2083,7 +2083,6 @@ help(void)
 "	ipttl LIST | ipversion VER | keep-state | layer2 | limit ... |\n"
 "	mac ... | mac-type LIST | proto LIST | {recv|xmit|via} {IF|IPADDR} |\n"
 "	setup | {tcpack|tcpseq|tcpwin} NN | tcpflags SPEC | tcpoptions SPEC |\n"
-"	verrevpath | versrcreach | antispoof\n"
 "	tcpdatalen LIST | verrevpath | versrcreach | antispoof\n"
 );
 exit(0);
