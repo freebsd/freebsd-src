@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#ifdef GPROF
+#include <sys/gmon.h>
+#endif
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
@@ -44,9 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 
 #include <machine/elf.h>
-#ifdef GPROF
-#include <machine/profile.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
