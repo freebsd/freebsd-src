@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.38 1998/05/17 11:52:51 phk Exp $
+ * $Id: sys_generic.c,v 1.39 1998/06/10 10:29:31 dfr Exp $
  */
 
 #include "opt_ktrace.h"
@@ -60,6 +60,8 @@
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+
+#include <machine/limits.h>
 
 static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
@@ -102,11 +104,9 @@ read(p, uap)
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_offset = -1;
-
-	auio.uio_resid = uap->nbyte;
-	if (auio.uio_resid < 0)
+	if (uap->nbyte > INT_MAX)
 		return (EINVAL);
-
+	auio.uio_resid = uap->nbyte;
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_procp = p;
@@ -183,11 +183,11 @@ readv(p, uap)
 		goto done;
 	auio.uio_resid = 0;
 	for (i = 0; i < uap->iovcnt; i++) {
-		auio.uio_resid += iov->iov_len;
-		if (auio.uio_resid < 0) {
+		if (iov->iov_len > INT_MAX - auio.uio_resid) {
 			error = EINVAL;
 			goto done;
 		}
+		auio.uio_resid += iov->iov_len;
 		iov++;
 	}
 #ifdef KTRACE
@@ -253,6 +253,8 @@ write(p, uap)
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_offset = -1;
+	if (uap->nbyte > INT_MAX)
+		return (EINVAL);
 	auio.uio_resid = uap->nbyte;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_USERSPACE;
@@ -334,11 +336,11 @@ writev(p, uap)
 		goto done;
 	auio.uio_resid = 0;
 	for (i = 0; i < uap->iovcnt; i++) {
-		auio.uio_resid += iov->iov_len;
-		if (auio.uio_resid < 0) {
+		if (iov->iov_len > INT_MAX - auio.uio_resid) {
 			error = EINVAL;
 			goto done;
 		}
+		auio.uio_resid += iov->iov_len;
 		iov++;
 	}
 #ifdef KTRACE
@@ -380,7 +382,7 @@ done:
 #ifndef _SYS_SYSPROTO_H_
 struct ioctl_args {
 	int	fd;
-	int	com;
+	u_long	com;
 	caddr_t	data;
 };
 #endif

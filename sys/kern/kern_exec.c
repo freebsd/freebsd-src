@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.83 1998/06/07 17:11:33 dfr Exp $
+ *	$Id: kern_exec.c,v 1.84 1998/07/15 06:19:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -65,16 +65,11 @@
 
 static long *exec_copyout_strings __P((struct image_params *));
 
-/*
- * XXX trouble here if sizeof(caddr_t) != sizeof(int), other parts
- * of the sysctl code also assumes this, and sizeof(int) == sizeof(long).
- */
 static struct ps_strings *ps_strings = PS_STRINGS;
-SYSCTL_INT(_kern, KERN_PS_STRINGS, ps_strings, 0, &ps_strings, 0, "");
+SYSCTL_INTPTR(_kern, KERN_PS_STRINGS, ps_strings, 0, &ps_strings, 0, "");
 
 static caddr_t usrstack = (caddr_t)USRSTACK;
-SYSCTL_INT(_kern, KERN_USRSTACK, usrstack, 0, &usrstack, 0, "");
-
+SYSCTL_INTPTR(_kern, KERN_USRSTACK, usrstack, 0, &usrstack, 0, "");
 /*
  * execsw_set is constructed for us by the linker.  Each of the items
  * is a pointer to a `const struct execsw', hence the double pointer here.
@@ -375,7 +370,7 @@ exec_map_first_page(imgp)
 					break;
 				if (ma[i]->valid)
 					break;
-				ma[i]->flags |= PG_BUSY;
+				PAGE_SET_FLAG(ma[i], PG_BUSY);
 			} else {
 				ma[i] = vm_page_alloc(object, i, VM_ALLOC_NORMAL);
 				if (ma[i] == NULL)
