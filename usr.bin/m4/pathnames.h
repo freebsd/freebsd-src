@@ -50,7 +50,8 @@
 #define	UNIQUE		3			/* unique char location */
 #endif
 
-#if defined(unix) || defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(unix) || defined(__FreeBSD__) || defined(__NetBSD__) || \
+	defined(__OpenBSD__)
 #define _PATH_DIVNAME	"/tmp/m4.0XXXXXXXXXX"	/* unix diversion files */
 #define UNIQUE		8			/* unique char location */
 #endif
