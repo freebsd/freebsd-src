@@ -1425,10 +1425,7 @@ bad:
 
 /* Helper routine for getsockopt */
 int
-sooptcopyout(sopt, buf, len)
-	struct	sockopt *sopt;
-	void	*buf;
-	size_t	len;
+sooptcopyout(struct sockopt *sopt, const void *buf, size_t len)
 {
 	int	error;
 	size_t	valsize;
