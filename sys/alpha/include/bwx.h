@@ -23,11 +23,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bwx.h,v 1.1 1998/07/05 12:14:15 dfr Exp $
  */
 
 #ifndef _MACHINE_BWX_H_
 #define	_MACHINE_BWX_H_
+
+/*
+ * Byte/word accesses must be made with particular values for addr<37,38>
+ */
+#define BWX_EV56_INT8	(0L << 37)
+#define BWX_EV56_INT4	(1L << 37)
+#define BWX_EV56_INT2	(2L << 37)
+#define BWX_EV56_INT1	(3L << 37)
 
 static __inline u_int8_t
 ldbu(vm_offset_t va)
