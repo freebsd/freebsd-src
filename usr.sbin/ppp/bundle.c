@@ -1076,13 +1076,12 @@ bundle_Open(struct bundle *bundle, const char *name, int mask, int force)
       if ((mask & dl->physical->type) &&
           (dl->state == DATALINK_CLOSED ||
            (force && dl->state == DATALINK_OPENING &&
-            dl->dial.timer.state == TIMER_RUNNING))) {
-        if (force)	/* Ignore redial timeout ? */
-          timer_Stop(&dl->dial.timer);
+            dl->dial.timer.state == TIMER_RUNNING) ||
+           dl->state == DATALINK_READY)) {
+        timer_Stop(&dl->dial.timer);	/* We're finished with this */
         datalink_Up(dl, 1, 1);
         if (mask & PHYS_AUTO)
-          /* Only one AUTO link at a time */
-          break;
+          break;			/* Only one AUTO link at a time */
       }
       if (name != NULL)
         break;
@@ -1968,12 +1967,12 @@ bundle_AutoAdjust(struct bundle *bundle, int percent, int what)
       log_Printf(LogPHASE, "%d%% saturation -> Opening link ``%s''\n",
                  percent, choice->name);
       datalink_Up(choice, 1, 1);
-      mp_StopAutoloadTimer(&bundle->ncp.mp);
+      mp_CheckAutoloadTimer(&bundle->ncp.mp);
     } else if (otherlinkup) {	/* Only bring the second-last link down */
       log_Printf(LogPHASE, "%d%% saturation -> Closing link ``%s''\n",
                  percent, choice->name);
       datalink_Close(choice, CLOSE_STAYDOWN);
-      mp_StopAutoloadTimer(&bundle->ncp.mp);
+      mp_CheckAutoloadTimer(&bundle->ncp.mp);
     }
   }
 }
