@@ -1,4 +1,4 @@
-/*/F
+/*
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
  *
@@ -97,7 +97,7 @@ pkg_do(char *pkg)
     }
     /* Nope - do it now */
     else {
-	/* Is it an ftp://foo.bar.baz/file.tgz specification? */
+	/* Is it an ftp://foo.bar.baz/file.t[bg]z specification? */
 	if (isURL(pkg)) {
 	    if (!(Home = fileGetURL(NULL, pkg))) {
 		warnx("unable to fetch `%s' by URL", pkg);
@@ -267,7 +267,8 @@ pkg_do(char *pkg)
 
 	    if (!Fake) {
 		if (!isURL(pkg) && !getenv("PKG_ADD_BASE")) {
-		    snprintf(path, FILENAME_MAX, "%s/%s.tgz", getenv("_TOP"), p->name);
+		    /* XXX: need to handle .tgz also */
+		    snprintf(path, FILENAME_MAX, "%s/%s.tbz", getenv("_TOP"), p->name);
 		    if (fexists(path))
 			cp = path;
 		    else
