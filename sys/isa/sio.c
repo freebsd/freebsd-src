@@ -564,8 +564,8 @@ card_intr(struct pccard_devinfo *devi)
 }
 #endif /* NCARD > 0 */
 
-#define SET_FLAG(dev, bit)	isa_set_flags(dev, isa_get_flags(dev) | (bit))
-#define CLR_FLAG(dev, bit)	isa_set_flags(dev, isa_get_flags(dev) & ~(bit))
+#define SET_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) | (bit))
+#define CLR_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) & ~(bit))
 
 static struct isa_pnp_id sio_ids[] = {
 	{0x0005d041, "Standard PC COM port"},	/* PNP0500 */
@@ -591,7 +591,7 @@ sioprobe(dev)
 	u_char		mcr_image;
 	int		result;
 	device_t	xdev;
-	u_int		flags = isa_get_flags(dev);
+	u_int		flags = device_get_flags(dev);
 	int		rid;
 	struct resource *port;
 
@@ -912,7 +912,7 @@ sioattach(dev)
 	Port_t		iobase;
 	int		unit;
 	void		*ih;
-	u_int		flags = isa_get_flags(dev);
+	u_int		flags = device_get_flags(dev);
 	int		rid;
 	struct resource *port;
 
