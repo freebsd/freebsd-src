@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.6 1999/04/10 18:53:35 sos Exp $
+ *	$Id: ata-disk.c,v 1.7 1999/04/16 21:21:53 peter Exp $
  */
 
 #include "ata.h"
@@ -59,8 +59,8 @@
 
 static d_open_t		adopen;
 static d_close_t	adclose;
-static d_read_t		adread;
-static d_write_t	adwrite;
+static d_read_t		physread;
+static d_write_t	physwrite;
 static d_ioctl_t	adioctl;
 static d_strategy_t	adstrategy;
 static d_psize_t	adpsize;
@@ -68,7 +68,7 @@ static d_psize_t	adpsize;
 #define BDEV_MAJOR 30
 #define CDEV_MAJOR 116
 static struct cdevsw ad_cdevsw = {
-    adopen,	adclose,	adread,		adwrite,	
+    adopen,	adclose,	physread,	physwrite,	
     adioctl,	nostop,		nullreset,	nodevtotty,
 #ifdef NOTYET	/* the boot code needs to be fixed to boot arbitrary devices */
     seltrue,	nommap,		adstrategy,	"ad",
@@ -323,18 +323,6 @@ printf("adclose: lun=%d adnlun=%d\n", lun, adnlun);
 
     dsclose(dev, fmt, adp->slices);
     return 0;
-}
-
-static int
-adread(dev_t dev, struct uio *uio, int32_t ioflag)
-{
-    return physio(adstrategy, NULL, dev, 1, minphys, uio);
-}
-
-static int
-adwrite(dev_t dev, struct uio *uio, int32_t ioflag)
-{
-    return physio(adstrategy, NULL, dev, 0, minphys, uio);
 }
 
 static int 

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.6 1999/02/10 00:03:15 ken Exp $
+ *      $Id: scsi_pass.c,v 1.7 1999/05/06 20:16:05 ken Exp $
  */
 
 #include <sys/param.h>
@@ -95,8 +95,6 @@ struct pass_softc {
 #define PASS_CDEV_MAJOR 31
 
 static	d_open_t	passopen;
-static	d_read_t	passread;
-static	d_write_t	passwrite;
 static	d_close_t	passclose;
 static	d_ioctl_t	passioctl;
 static	d_strategy_t	passstrategy;
@@ -127,8 +125,8 @@ static struct cdevsw pass_cdevsw =
 {
 	/*d_open*/	passopen,
 	/*d_close*/	passclose,
-	/*d_read*/	passread,
-	/*d_write*/	passwrite,
+	/*d_read*/	physread,
+	/*d_write*/	physwrite,
 	/*d_ioctl*/	passioctl,
 	/*d_stop*/	nostop,
 	/*d_reset*/	noreset,
@@ -471,18 +469,6 @@ passclose(dev_t dev, int flag, int fmt, struct proc *p)
 	cam_periph_release(periph);
 
 	return (0);
-}
-
-static int
-passread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return(physio(passstrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-passwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return(physio(passstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*

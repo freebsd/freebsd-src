@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.56 1999/05/05 03:43:00 kato Exp $
+ *	$Id: fd.c,v 1.57 1999/05/06 20:00:31 phk Exp $
  *
  */
 
@@ -468,14 +468,12 @@ static int yeintr(struct pccard_devinfo *devi)
 #endif /* FDC_YE */
 
 static	d_open_t	Fdopen;	/* NOTE, not fdopen */
-static	d_read_t	fdread;
-static	d_write_t	fdwrite;
 static	d_close_t	fdclose;
 static	d_ioctl_t	fdioctl;
 static	d_strategy_t	fdstrategy;
 
 static struct cdevsw fd_cdevsw = {
-	  Fdopen,	fdclose,	fdread,	fdwrite,
+	  Fdopen,	fdclose,	physread,	physwrite,
 	  fdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		fdstrategy,	"fd",
 	  NULL,		-1,		nodump,		nopsize,
@@ -1707,19 +1705,6 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 
 	return (0);
 }
-
-static int
-fdread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(fdstrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-fdwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(fdstrategy, NULL, dev, 0, minphys, uio));
-}
-
 
 /****************************************************************************/
 /*                               fdstrategy                                 */

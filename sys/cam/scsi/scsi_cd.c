@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.17 1999/04/19 21:26:17 gibbs Exp $
+ *      $Id: scsi_cd.c,v 1.18 1999/05/06 20:16:03 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -177,7 +177,6 @@ static struct cd_quirk_entry cd_quirk_table[] =
 #define CD_BDEV_MAJOR 6
 
 static	d_open_t	cdopen;
-static	d_read_t	cdread;
 static	d_close_t	cdclose;
 static	d_ioctl_t	cdioctl;
 static	d_strategy_t	cdstrategy;
@@ -248,7 +247,7 @@ static struct cdevsw cd_cdevsw =
 {
 	/*d_open*/	cdopen,
 	/*d_close*/	cdclose,
-	/*d_read*/	cdread,
+	/*d_read*/	physread,
 	/*d_write*/	nowrite,
 	/*d_ioctl*/	cdioctl,
 	/*d_stop*/	nostop,
@@ -1029,12 +1028,6 @@ cdclose(dev_t dev, int flag, int fmt, struct proc *p)
 	cam_periph_release(periph);
 
 	return (0);
-}
-
-static int
-cdread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return(physio(cdstrategy, NULL, dev, 1, minphys, uio));
 }
 
 static void
