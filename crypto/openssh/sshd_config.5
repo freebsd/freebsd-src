@@ -132,6 +132,11 @@ Specifically, in
 this controls the use of PAM (see
 .Xr pam 3 )
 for authentication.
+Note that this affects the effectiveness of the
+.Cm PasswordAuthentication
+and
+.Cm PermitRootLogin
+variables.
 The default is
 .Dq yes .
 .It Cm Ciphers
@@ -426,6 +431,17 @@ are refused if the number of unauthenticated connections reaches
 Specifies whether password authentication is allowed.
 The default is
 .Dq yes .
+Note that
+.Cm ChallengeResponseAuthentication
+is
+.Dq yes ,
+and the PAM authentication policy for
+.Nm sshd
+includes
+.Xr pam_unix 8 ,
+password authentication will be allowed through the challenge-response
+mechanism regardless of the value of
+.Cm PasswordAuthentication .
 .It Cm PermitEmptyPasswords
 When password authentication is allowed, it specifies whether the
 server allows login to accounts with empty password strings.
@@ -442,6 +458,13 @@ or
 .Dq no .
 The default is
 .Dq no .
+Note that if
+.Cm ChallengeResponseAuthentication
+is
+.Dq yes ,
+the root user may be allowed in with its password even if
+.Cm PermitRootLogin is set to
+.Dq without-password .
 .Pp
 If this option is set to
 .Dq without-password
