@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2000,2001 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -33,19 +33,17 @@
 
 #include "acpi.h"
 
-#ifdef __i386__
 #include <machine/pc/bios.h>
-#endif
 
 ACPI_STATUS
 AcpiOsInitialize(void)
 {
-#ifdef __i386__
     /*
-     * Prevent the PnP BIOS code from interfering with our own scan of ISA devices.
+     * Prevent the PnP BIOS code from interfering with our own scan of
+     * ISA devices.
      */
     PnPBIOStable = NULL;
-#endif
+
     return(NULL);
 }
 
@@ -60,5 +58,10 @@ AcpiOsGetRootPointer(
     UINT32			Flags,
     ACPI_PHYSICAL_ADDRESS	*RsdpPhysicalAddress)
 {
+    /*
+     * The loader passes the physical address at which it found the
+     * RSDP in a hint.  We could recover this rather than searching
+     * manually here.
+     */
     return(AcpiFindRootPointer(Flags, RsdpPhysicalAddress));
 }
