@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.2 1997/09/11 14:31:55 jkh Exp $
+.\"     $Id: rc.conf.5,v 1.3 1997/09/29 10:10:38 wosch Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -97,12 +97,30 @@ you've no network connected.
 (str) The NIS domainname of your host, or
 .Ar NO
 if you're not running NIS.
-.It Ar firewall
-(str) Set to
+.It Ar firewall_enable
+(bool) Set to
 .Ar NO
-if you don't want to use one of the firewall definitions in
+if you don't want have firewall rules loaded at startup, or 
+.Ar YES 
+if you do.
+If set to
+.Ar YES ,
+and the kernel was not built with IPFIREWALL, the ipfw
+kernel module will be loaded.
+.It Ar firewall_type
+(str) Names the firewall type from the selection in 
 .Pa /etc/rc.firewall ,
-otherwise it should name of one of the firewalls defined there.
+or the file which contains the local firewall ruleset.  Valid selections
+from 
+.Pa /etc/rc.firewall ,
+are ``open'' - unrestricted IP access; ``closed'' - all IP services disabled,
+except via lo0; ``client'' - basic protection for a workstation; ``simple'' -
+basic protection for a LAN.  If a filename is specified, the full path 
+must be given.
+.It Ar firewall_quiet
+(bool) Set to 
+.Ar YES
+to disable the display of ipfw rules on the console during boot.
 .It Ar tcp_extensions
 (bool) Set to
 .Ar YES
