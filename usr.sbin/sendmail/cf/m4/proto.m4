@@ -34,7 +34,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)proto.m4	8.99 (Berkeley) 11/18/95')
+VERSIONID(`@(#)proto.m4	8.100 (Berkeley) 12/3/95')
 
 MAILER(local)dnl
 
@@ -366,6 +366,9 @@ _OPTION(DefaultCharSet, `confDEF_CHAR_SET', iso-8859-1)
 
 # service switch file (ignored on Solaris, Ultrix, OSF/1, others)
 _OPTION(ServiceSwitchFile, `confSERVICE_SWITCH_FILE', /etc/service.switch)
+
+# hosts file (normally /etc/hosts)
+_OPTION(HostsFile, `confHOSTS_FILE', /etc/hosts)
 
 # dialup line delay on connection failure
 _OPTION(DialDelay, `confDIAL_DELAY', 10s)
