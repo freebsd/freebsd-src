@@ -40,7 +40,7 @@ mount_md() {
 	if [ -n "$4" ]; then
 		bpi="-i $4"
 	fi
-	/sbin/mount_mfs -s $1 -T qp120at -b 4096 -f 1024 $bpi dummy $2
+	/sbin/mount_mfs -s $1 -T qp120at -b 8192 -f 1024 $bpi dummy $2
 }
 
 # If there is a global system configuration file, suck it in.
