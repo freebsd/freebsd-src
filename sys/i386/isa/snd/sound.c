@@ -57,10 +57,10 @@
 #include <sys/devfsext.h>
 #endif /* DEVFS */
 
+
 #if NPCM > 0	/* from "pcm.h" via disgusting #include in snd/sound.h */
 
-extern struct isa_driver pcmdriver;
-
+extern struct isa_driver pcmdriver ;
 #define SNDSTAT_BUF_SIZE        4000
 static char status_buf[SNDSTAT_BUF_SIZE] ;
 static int status_len = 0 ;
@@ -92,6 +92,75 @@ snddev_info synth_info[NPCM_MAX] ;
 u_long nsnd = NPCM ;	/* total number of sound devices */
 
 /*
+ * Hooks for APM support, but code not operational yet.
+ */
+
+#include "apm.h"
+#include <i386/include/apm_bios.h>
+#if NAPM > 0
+
+static int
+sound_suspend(void *arg)
+{
+	/*
+	 * I think i can safely do nothing here and
+	 * reserve all the work for wakeup time
+	 */
+	printf("Called APM sound suspend hook for unit %d\n", (int)arg);
+	return 0 ;
+}
+
+static int
+sound_resume(void *arg)
+{
+    snddev_info *d = NULL ;
+
+    d = &pcm_info[(int)arg] ;
+	/*
+	 * reinitialize card registers.
+	 * Flush buffers and reinitialize DMA channels.
+	 * If a write was pending, pretend it is done
+	 * (and issue any wakeup we need).
+	 * If a read is pending, restart it.
+	 */
+    if (d->bd_id == MD_YM0020) {
+	DDB(printf("setting up yamaha registers\n"));
+	outb(0x370, 6 /* dma config */ ) ;
+	if (FULL_DUPLEX(d))
+	    outb(0x371, 0xa9 ); /* use both dma chans */
+	else
+	    outb(0x371, 0x8b ); /* use low dma chan */
+    }
+	printf("Called APM sound resume hook for unit %d\n", (int)arg);
+	return 0 ;
+}
+
+static void
+init_sound_apm(int unit)
+{
+	struct apmhook *ap;
+
+        ap = malloc(sizeof *ap, M_DEVBUF, M_NOWAIT);
+        bzero(ap, sizeof *ap);
+
+	ap->ah_fun = sound_resume;
+	ap->ah_arg = (void *)unit;
+	ap->ah_name = "pcm resume handler";
+	ap->ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_RESUME, ap);
+
+        ap = malloc(sizeof *ap, M_DEVBUF, M_NOWAIT);
+        bzero(ap, sizeof *ap);
+
+	ap->ah_fun = sound_suspend;
+	ap->ah_arg = (void *)unit;
+	ap->ah_name = "pcm suspend handler";
+	ap->ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_SUSPEND, ap);
+}
+#endif /* NAPM */
+
+/*
  * the probe routine can only return an int to the upper layer. Hence,
  * it leaves the pointer to the last successfully
  * probed device descriptor in snddev_last_probed
@@ -121,7 +190,7 @@ static snddev_info *sb_devs[] = {	/* all SB clones	 */
     NULL,
 } ;
 
-static snddev_info *mss_devs[] = {	/* all WSS clones	*/
+static snddev_info *mss_devs[] = {	/* all MSS clones	*/
     &mss_op_desc,
     NULL,
 } ;
@@ -194,7 +263,10 @@ pcmattach(struct isa_device * dev)
 	d->dbuf_in.chan = dev->id_flags & DV_F_DRQ_MASK ;
     else
 	d->dbuf_in.chan = d->dbuf_out.chan ;
-    /* XXX should also set bd_id from flags ? */
+#if 1 /* does this cause trouble with PnP cards ? */
+    if (d->bd_id == 0)
+	d->bd_id = (dev->id_flags & DV_F_DEV_MASK) >> DV_F_DEV_SHIFT ;
+#endif
     d->status_ptr = 0;
 
     /*
@@ -224,7 +296,11 @@ pcmattach(struct isa_device * dev)
     cdevsw_add(&isadev, &snd_cdevsw, NULL);
 
 #ifdef DEVFS
-#define GID_SND GID_GAMES
+#ifndef GID_GAMES
+#define GID_SND UID_ROOT
+#else
+#define GID_SND GID_GAMES /* i am not really sure this is a good one. */
+#endif
 #define UID_SND UID_ROOT
 #define PERM_SND 0660
     /*
@@ -294,6 +370,9 @@ pcmattach(struct isa_device * dev)
 #endif
     snddev_last_probed = NULL ;
 
+#if NAPM > 0
+    init_sound_apm(dev->id_unit);
+#endif
     return stat ;
 }
 
@@ -738,7 +817,7 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	    snd_chan_param *p = (snd_chan_param *)arg;
 	    d->play_speed = p->play_rate;
 	    d->rec_speed = p->play_rate; /* XXX one speed allowed */
-	    if (p->play_format & SND_F_STEREO)
+	    if (p->play_format & AFMT_STEREO)
 		d->flags |= SND_F_STEREO ;
 	    else
 		d->flags &= ~SND_F_STEREO ;
@@ -805,7 +884,7 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	break;
 
     case FIOASYNC: /*set/clear async i/o */
-	printf("FIOASYNC\n");
+	DEB( printf("FIOASYNC\n") ; )
 	break;
 
     case SNDCTL_DSP_NONBLOCK :
@@ -1055,7 +1134,7 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
  * really sndpoll. Second arg for poll is not "rw" but "events"
  */
 int
-sndselect(dev_t i_dev, int rw, struct proc *p)
+sndselect(dev_t i_dev, int rw, struct proc * p)
 {
     int dev, unit, c = 1 /* default: success */ ;
     snddev_info *d ;
@@ -1220,7 +1299,7 @@ init_status(snddev_info *d)
     if (status_len != 0) /* only do init once */
 	return ;
     sprintf(status_buf,
-	"FreeBSD Audio Driver (980215) "  __DATE__ " " __TIME__ "\n"
+	"FreeBSD Audio Driver (981002) "  __DATE__ " " __TIME__ "\n"
 	"Installed devices:\n");
 
     for (i = 0; i < NPCM_MAX; i++) {

@@ -3,7 +3,7 @@
  * 
  * driver for the SoundBlaster and clones.
  * 
- * Copyright 1997 Luigi Rizzo.
+ * Copyright 1997,1998 Luigi Rizzo.
  *
  * Derived from files in the Voxware 3.5 distribution,
  * Copyright by Hannu Savolainen 1994, under the same copyright
@@ -74,6 +74,8 @@ static int dsp_speed(snddev_info *d);
 static void sb_mixer_reset(snddev_info *d);
 
 u_int sb_get_byte(int io_base);
+int ess_write(int io_base, u_char reg, int val);
+int ess_read(int io_base, u_char reg);
 
 /*
  * Then put here the descriptors for the various boards supported
@@ -151,6 +153,12 @@ sb_attach(struct isa_device *dev)
  * here are the main routines from the switches.
  */
 
+/*
+ * Unlike MSS, the sb only supports a single open (does not mean
+ * that only a single process is using it, since it can fork
+ * afterwards, or pass the descriptor to another process).
+ *
+ */
 static int
 sb_dsp_open(dev_t dev, int flags, int mode, struct proc * p)
 {
@@ -196,10 +204,21 @@ sb_dsp_open(dev_t dev, int flags, int mode, struct proc * p)
 	d->play_fmt = d->rec_fmt = AFMT_U8 ;
 	break ;
     }
-    if ( (flags & FREAD) == 0)
+    /*
+     * since the SB is not simmetric, I use the open mode to select
+     * which channel should be privileged, and disable I/O in the
+     * other direction.
+     * In case the board is opened RW, we don't have enough
+     * information on what to do. Temporarily, privilege the
+     * playback channel, which is used more often, and set the other
+     * one to U8.
+     */
+    if ( (flags & FREAD) == 0)		/* opened write only	*/
 	d->rec_fmt = 0 ;
-    if ( (flags & FWRITE) == 0)
+    else if ( (flags & FWRITE) == 0)	/* opened read only	*/
 	d->play_fmt = 0 ;
+    else				/* opened read/write	*/
+	d->rec_fmt = (d->play_fmt == AFMT_S16_LE) ? AFMT_U8 : AFMT_S16_LE ;
 
     d->flags |= SND_F_BUSY ;
     d->play_speed = d->rec_speed = DSP_DEFAULT_SPEED ;
@@ -275,7 +294,10 @@ sb_intr(int unit)
      * SB < 4.0 is half duplex and has only 1 bit for int source,
      * so we fake it. SB 4.x (SB16) has the int source in a separate
      * register.
+     * The Vibra16X has separate flags for 8 and 16 bit transfers, but
+     * I have no idea how to tell capture from playback interrupts...
      */
+#define PLAIN_SB16(x) ( ( (x) & (BD_F_SB16|BD_F_SB16X) ) == BD_F_SB16)
 again:
     if (d->bd_flags & BD_F_SB16) {
 	c = sb_getmixer(io_base, IRQ_STAT);
@@ -284,25 +306,26 @@ again:
 	 */
 	reason = 0 ;
 	if ( c & 1 ) { /* 8-bit dma */
-	    if (d->dbuf_out.chan < 4)
+	    if (d->play_fmt == AFMT_U8 || d->play_fmt == AFMT_MU_LAW )
 		reason |= 1;
-	    if (d->dbuf_in.chan < 4)
+	    if (d->rec_fmt == AFMT_U8 || d->rec_fmt == AFMT_MU_LAW )
 		reason |= 2;
 	}
 	if ( c & 2 ) { /* 16-bit dma */
-	    if (d->dbuf_out.chan >= 4)
+	    if (d->play_fmt == AFMT_S16_LE)
 		reason |= 1;
-	    if (d->dbuf_in.chan >= 4)
+	    if (d->rec_fmt == AFMT_S16_LE)
 		reason |= 2;
 	}
     }
     /* XXX previous location of ack... */
-    DEB(printf("sb_intr, flags 0x%08lx reason %d\n", d->flags, reason));
+    DEB(printf("sb_intr, flags 0x%08lx reason %d c 0x%x\n",
+	d->flags, reason, c));
     if ( reason & 1 ) { /* possibly a write interrupt */
 	if ( d->dbuf_out.dl )
 	    dsp_wrintr(d);
 	else {
-	    if (d->bd_flags & BD_F_SB16)
+	    if (PLAIN_SB16(d->bd_flags))
 	       printf("WARNING: wrintr but write DMA inactive!\n");
 	}
     }
@@ -310,7 +333,7 @@ again:
 	if ( d->dbuf_in.dl )
 	    dsp_rdintr(d);
 	else {
-	    if (d->bd_flags & BD_F_SB16)
+	    if (PLAIN_SB16(d->bd_flags))
 	       printf("WARNING: rdintr but read DMA inactive!\n");
 	}
     }
@@ -346,20 +369,37 @@ sb_callback(snddev_info *d, int reason)
 
     switch (reason & SND_CB_REASON_MASK) {
     case SND_CB_INIT : /* called with int enabled and no pending io */
+	/*
+	 * set the speed
+	 */
 	dsp_speed(d);
+	/*
+	 * set the desired DMA blocksize (influences select behaviour)
+	 */
 	snd_set_blocksize(d);
+	/*
+	 * since native mulaw is not present, emulate it.
+	 */
 	if ( (d->play_fmt & AFMT_MU_LAW) || (d->rec_fmt & AFMT_MU_LAW) )
 	    d->flags |= SND_F_XLAT8 ;
 	else
 	    d->flags &= ~SND_F_XLAT8 ;
 
-	if (d->bd_flags & BD_F_SB16) {
+	/*
+	 * there are too many flavours of SB for my taste... here i try to do
+	 * the proper initialization for each one.
+	 */
+	if (PLAIN_SB16(d->bd_flags)) {
 	    u_char c, c1 ;
 
-	    /* the SB16 can do full duplex using one 16-bit channel
+	    /* the original SB16 (non-PnP, or PnP, or Vibra16C)
+	     * can do full duplex using one 16-bit channel
 	     * and one 8-bit channel. It needs to be programmed to
 	     * use split format though.
-	     * We use the following algorithm:
+	     * I DON'T do this for the Vibra16X because I have no idea
+	     * of what needs to be done there...
+	     *
+	     * I use the following algorithm:
 	     * 1. check which direction(s) are active;
 	     * 2. check if we should swap dma channels
 	     * 3. check if we can do the swap.
@@ -379,7 +419,11 @@ sb_callback(snddev_info *d, int reason)
 		if ( d->play_fmt != AFMT_S16_LE && d->dbuf_out.chan < 4 )
 		    swap = 0;
 		if ( d->rec_fmt ) {
-		    /* check for possible config errors. */
+		    /* check for possible config errors.
+		     * This cannot happen at open time since even in
+		     * case of opening rw we privilege the play
+		     * channel.
+		     */
 		    if (d->rec_fmt == d->play_fmt) {
 			DDB(printf("sorry, read DMA channel unavailable\n"));
 		    }
@@ -392,6 +436,29 @@ sb_callback(snddev_info *d, int reason)
 		d->dbuf_in.chan = d->dbuf_out.chan;
 		d->dbuf_out.chan = c ;
 	    }
+	} else if (d->bd_flags & BD_F_ESS) {
+	    u_char c ;
+	    if (d->play_fmt == 0) {
+		/* initialize for record */
+		static u_char cmd[] = {
+		    0x51,0xd0,0x71,0xf4,0x51,0x98,0x71,0xbc
+		};
+		ess_write(d->io_base, 0xb8, 0x0e);
+		c = ( ess_read(d->io_base, 0xa8) & 0xfc ) | 1 ;
+		if (d->flags & SND_F_STEREO)
+		    c++ ;
+		ess_write(d->io_base, 0xa8, c);
+		ess_write(d->io_base, 0xb9, 2); /* 4bytes/transfer */
+		/*
+		 * set format in b6, b7
+		 */
+	    } else {
+		/* initialize for play */
+		static u_char cmd[] = {
+		    0x80,0x51,0xd0,0x00,0x71,0xf4,
+		    0x80,0x51,0x98,0x00,0x71,0xbc
+		};
+	    }
 	}
 	reset_dbuf(& (d->dbuf_in), SND_CHAN_RD );
 	reset_dbuf(& (d->dbuf_out), SND_CHAN_WR );
@@ -400,13 +467,45 @@ sb_callback(snddev_info *d, int reason)
     case SND_CB_START : /* called with int disabled */
 	if (d->bd_flags & BD_F_SB16) {
 	    u_char c, c1 ;
+
+            if (d->bd_flags & BD_F_SB16X) {
+                /* just a guess: on the Vibra16X, the first
+                 * op started takes the first dma channel,
+                 * the second one takes the next...
+                 * The default is to be ready for play.
+                 */
+                int swap = 0 ;
+		DEB(printf("start %s -- now dma %d:%d\n",
+			rd ? "rd" : "wr",
+			d->dbuf_out.chan, d->dbuf_in.chan););
+		/* swap only if both channels are idle
+		 *   play: dl=0, since there is no pause;
+		 *   rec: rl=0
+		 */
+                if ( rd && d->dbuf_out.dl == 0 && d->dbuf_in.rl == 0 ) {
+		    /* must swap channels, but also save dl */
+		    int c = d->dbuf_in.chan ;
+		    int dl = d->dbuf_in.dl ;
+		    d->dbuf_in.chan = d->dbuf_out.chan;
+		    d->dbuf_out.chan = c ;
+		    reset_dbuf(& (d->dbuf_in), SND_CHAN_RD );
+		    reset_dbuf(& (d->dbuf_out), SND_CHAN_WR );
+		    d->dbuf_in.dl = dl ;
+		    printf("swapped -- now dma %d:%d\n",
+			d->dbuf_out.chan, d->dbuf_in.chan);
+                }
+            }
+
 	    /*
 	     * XXX note: c1 and l should be set basing on d->rec_fmt,
 	     * but there is no choice once a 16 or 8-bit channel
 	     * is assigned. This means that if the application
 	     * tries to use a bad format, the sound will not be nice.
 	     */
-	    if ( b->chan > 4 ) {
+	    if ( b->chan > 4
+		 || (rd && d->rec_fmt == AFMT_S16_LE)
+		 || (!rd && d->play_fmt == AFMT_S16_LE)
+	       ) {
 		c = DSP_F16_AUTO | DSP_F16_FIFO_ON | DSP_DMA16 ;
 		c1 = DSP_F16_SIGNED ;
 		l /= 2 ;
@@ -455,7 +554,10 @@ sb_callback(snddev_info *d, int reason)
     case SND_CB_STOP :
 	{
 	    int cmd = DSP_CMD_DMAPAUSE_8 ; /* default: halt 8 bit chan */
-	    if ( d->bd_flags & BD_F_SB16 && b->chan > 4 )
+	    if ( b->chan > 4
+		 || (rd && d->rec_fmt == AFMT_S16_LE)
+		 || (!rd && d->play_fmt == AFMT_S16_LE)
+	       )
 		cmd = DSP_CMD_DMAPAUSE_16 ;
 	    if (d->bd_flags & BD_F_HISPEED) {
 		sb_reset_dsp(d->io_base);
@@ -474,6 +576,22 @@ sb_callback(snddev_info *d, int reason)
 		    sb_cmd(d->io_base, cmd == DSP_CMD_DMAPAUSE_8 ?
 			0xd6 : 0xd4); /* continue other dma */
 	    }
+            if (d->bd_flags & BD_F_SB16X) {
+                /* restore possible swapped channels.
+                 * The default is to be ready for play.
+		 * XXX right now, it kills all input on overflow
+                 */
+                if (  rd && d->dbuf_out.dl == 0 ) {
+                        /* must swap channels ? */
+                        int c = d->dbuf_in.chan ;
+                        d->dbuf_in.chan = d->dbuf_out.chan;
+                        d->dbuf_out.chan = c ;
+                        reset_dbuf(& (d->dbuf_in), SND_CHAN_RD );
+                        reset_dbuf(& (d->dbuf_out), SND_CHAN_WR );
+                    printf("restored -- now dma %d:%d\n",
+                        d->dbuf_out.chan, d->dbuf_in.chan);
+                }
+            }
 	}
 	DEB( sb_cmd(d->io_base, DSP_CMD_SPKOFF) ); /* speaker off */
 	break ;
@@ -618,6 +736,7 @@ sb_dsp_init(snddev_info *d, struct isa_device *dev)
 		    printf("ESS1868 (rev %d)\n", rev);
 		else
 		    printf("ESS688 (rev %d)\n", rev);
+		/* d->audio_fmt |= AFMT_S16_LE; */ /* not yet... */
 		break ; /* XXX */
 	    } else {
 		printf("Unknown card 0x%x 0x%x -- hope it is SBPRO\n",
@@ -660,6 +779,14 @@ sb_mix_init(snddev_info *d)
 
 /*
  * Common code for the midi and pcm functions
+ *
+ * sb_cmd write a single byte to the CMD port.
+ * sb_cmd2 write a CMD + 1 byte arg
+ * sb_cmd3 write a CMD + 2 byte arg
+ * sb_get_byte returns a single byte from the DSP data port
+ *
+ * ess_write is actually sb_cmd2
+ * ess_read access ext. regs via sb_cmd(0xc0, reg) followed by sb_get_byte
  */
 
 int
@@ -725,9 +852,9 @@ sb_getmixer(int io_base, u_int port)
     u_long   flags;
     
     flags = spltty();
-    outb(io_base + 4, (u_char) (port & 0xff));   /* Select register */
+    outb(io_base + SB_MIX_ADDR, (u_char) (port & 0xff));   /* Select register */
     DELAY(10);
-    val = inb(io_base + 5);
+    val = inb(io_base + SB_MIX_DATA);
     DELAY(10);
     splx(flags);
     
@@ -747,6 +874,19 @@ sb_get_byte(int io_base)
     return 0xffff;
 }
 
+int
+ess_write(int io_base, u_char reg, int val)
+{
+    return sb_cmd2(io_base, reg, val);
+}
+
+int
+ess_read(int io_base, u_char reg)
+{
+    if (!sb_cmd(io_base, 0xc0) || !sb_cmd(io_base, reg) )
+	return 0xffff ;
+    return sb_get_byte(io_base);
+}
 
 
 /*
@@ -785,17 +925,21 @@ dsp_speed(snddev_info *d)
      */
     if (d->bd_flags & BD_F_ESS) {
 	int t;
-	RANGE (speed, 4000, 48000);
+	RANGE (speed, 5000, 49000);
 	if (speed > 22000) {
 	    t = (795500 + speed / 2) / speed;
 	    speed = (795500 + t / 2) / t ;
-	    t = ( 256 - (795500 + speed / 2) / speed ) | 0x80 ;
+	    t = (256 - t ) | 0x80 ;
 	} else {
 	    t = (397700 + speed / 2) / speed;
 	    speed = (397700 + t / 2) / t ;
-	    t = 128 - (397700 + speed / 2) / speed ;
+	    t = 128 - t ;
 	}
-	sb_cmd2(d->io_base, 0xa1, t); /* set time constant */
+	ess_write(d->io_base, 0xa1, t); /* set time constant */
+	d->play_speed = d->rec_speed = speed ;
+	speed = (speed * 9 ) / 20 ;
+	t = 256-7160000/(speed*82);
+	ess_write(d->io_base,0xa2,t);
 	return speed ;
     }
 
@@ -1080,79 +1224,11 @@ ess1868_attach(u_long csn, u_long vend_id, char *name,
     pcmattach(dev); 
 }
 
-static char *opti925_probe(u_long csn, u_long vend_id);
-static void opti925_attach(u_long csn, u_long vend_id, char *name,
-        struct isa_device *dev);
-
-static struct pnp_device opti925 = {
-        "opti925",
-        opti925_probe,
-        opti925_attach,
-        &nsnd,  /* use this for all sound cards */
-        &tty_imask      /* imask */
-};
-DATA_SET (pnpdevice_set, opti925);
-    
-static char *
-opti925_probe(u_long csn, u_long vend_id)
-{   
-    if (vend_id == 0x2509143e) {
-	struct pnp_cinfo d ;
-	read_pnp_parms ( &d , 1 ) ;
-	if (d.enable == 0) {
-	    printf("This is an OPTi925, but LDN 1 is disabled\n");
-	    return NULL;
-	}
-        return "OPTi925" ;
-    }
-    return NULL ;
-}
-    
-static void
-opti925_attach(u_long csn, u_long vend_id, char *name,
-        struct isa_device *dev)
-{   
-    struct pnp_cinfo d ;
-    snddev_info tmp_d ; /* patched copy of the basic snddev_info */
-    int the_irq = 0 ; 
-    
-    tmp_d = sb_op_desc;
-    snddev_last_probed = &tmp_d;
-
-    read_pnp_parms ( &d , 3 );  /* disable LDN 3 */
-    the_irq = d.irq[0];
-    d.port[0] = 0 ;
-    d.enable = 0 ;
-    write_pnp_parms ( &d , 3 );
-    
-    read_pnp_parms ( &d , 2 ); /* disable LDN 2 */
-    d.port[0] = 0 ;
-    d.enable = 0 ;
-    write_pnp_parms ( &d , 2 );
- 
-    read_pnp_parms ( &d , 1 ) ;
-    d.irq[0] = the_irq ;
-    dev->id_iobase = d.port[0];
-    write_pnp_parms ( &d , 1 );
-    enable_pnp_card();
-
-    tmp_d.conf_base = d.port[3];
-
-    dev->id_drq = d.drq[0] ; /* primary dma */
-    dev->id_irq = (1 << d.irq[0] ) ;
-    dev->id_intr = pcmintr ; 
-    dev->id_flags = DV_F_DUAL_DMA | (d.drq[1] ) ;
-
-    snddev_last_probed->probe(dev); /* not really necessary but doesn't harm */
-    
-    pcmattach(dev); 
-
-}
-
 /*
  * A driver for some SB16pnp and compatibles...
  *
  * Avance Asound 100 -- 0x01009305
+ * Avance Logic ALS100+ -- 0x10019305
  * xxx               -- 0x2b008c0e
  *
  */
@@ -1181,11 +1257,16 @@ sb16pnp_probe(u_long csn, u_long vend_id)
      * Reported values are:
      * SB16 Value PnP:	0x2b008c0e
      * SB AWExx PnP:	0x39008c0e 0x9d008c0e 0xc3008c0e
+     * Vibra16X:        0xf0008c0e
      */
-    if ( (vend_id & 0xffffff)  == (0x9d008c0e & 0xffffff) )
+    if (vend_id == 0xf0008c0e)
+	s = "Vibra16X" ;
+    else if ( (vend_id & 0xffffff)  == (0x9d008c0e & 0xffffff) )
 	s = "SB16 PnP";
     else if (vend_id == 0x01009305)  
         s = "Avance Asound 100" ;
+    else if (vend_id == 0x10019305)
+        s = "Avance Logic 100+" ; /* Vibra16X-class */
     if (s) {
 	struct pnp_cinfo d; 
 	read_pnp_parms(&d, 0); 
@@ -1220,9 +1301,16 @@ sb16pnp_attach(u_long csn, u_long vend_id, char *name,
     dev->id_intr = pcmintr ; 
     dev->id_flags = DV_F_DUAL_DMA | (d.drq[1] ) ;
 
-    pcm_info[dev->id_unit] = tmp_d;
+    pcm_info[dev->id_unit] = tmp_d; /* pcm_info[] will be reinitialized after */
     snddev_last_probed->probe(dev); /* not really necessary but doesn't harm */
     
+    if (vend_id == 0x10019305 || vend_id == 0xf0008c0e) {
+	/*
+	 * XXX please add here the vend_id for other vibra16X cards...
+	 * And remember, must change tmp_d, not 
+	 */
+	tmp_d.bd_flags |= BD_F_SB16X ;
+    }
     pcmattach(dev); 
 }
 #endif /* NPNP */    
