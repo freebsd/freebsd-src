@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.65 1995/02/04 19:39:36 phk Exp $
+ *	$Id: wd.c,v 1.66 1995/02/26 01:15:30 bde Exp $
  */
 
 /* TODO:
@@ -1952,13 +1952,16 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 
 	wdc = du->dk_port;
 	timeout += POLLING;
+
+	/* dummy read for delay */
+	(void) inb(wdc + wd_status);
+
 	do {
 #ifdef WD_COUNT_RETRIES
 		if (min_retries[du->dk_ctrlr] > timeout
 		    || min_retries[du->dk_ctrlr] == 0)
 			min_retries[du->dk_ctrlr] = timeout;
 #endif
-		DELAY(5);	/* ATA spec XXX NOT */
 		du->dk_status = status = inb(wdc + wd_status);
 		if (!(status & WDCS_BUSY)) {
 			if (status & WDCS_ERR) {
@@ -1984,6 +1987,8 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 			 * an extra msec won't matter.
 			 */
 			DELAY(1000);
+		else
+			DELAY(1);
 	} while (--timeout != 0);
 	return (-1);
 }
