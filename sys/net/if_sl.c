@@ -241,8 +241,7 @@ slisunitfree(int unit)
 }
 
 static int
-slisstatic(unit)
-	int unit;
+slisstatic(int unit)
 {
 	size_t i;
 
@@ -253,8 +252,7 @@ slisstatic(unit)
 }
 
 static void
-slmarkstatic(unit)
-	int unit;
+slmarkstatic(int unit)
 {
 	int *t;
 
@@ -275,7 +273,7 @@ slmarkstatic(unit)
 }
 
 static struct sl_softc *
-slcreate()
+slcreate(void)
 {
 	struct sl_softc *sc;
 	int unit;
@@ -348,9 +346,7 @@ slcreate()
  */
 /* ARGSUSED */
 static int
-slopen(dev, tp)
-	struct cdev *dev;
-	register struct tty *tp;
+slopen(struct cdev *dev, register struct tty *tp)
 {
 	register struct sl_softc *sc;
 	int s, error;
@@ -408,9 +404,7 @@ sldestroy(struct sl_softc *sc)
  * Detach the tty from the sl unit.
  */
 static int
-slclose(tp,flag)
-	struct tty *tp;
-	int flag;
+slclose(struct tty *tp, int flag)
 {
 	register struct sl_softc *sc;
 	int s;
@@ -448,12 +442,8 @@ slclose(tp,flag)
  */
 /* ARGSUSED */
 static int
-sltioctl(tp, cmd, data, flag, td)
-	struct tty *tp;
-	u_long cmd;
-	caddr_t data;
-	int flag;
-	struct thread *td;
+sltioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
+    struct thread *td)
 {
 	struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
 	int s, unit, wasup;
@@ -546,11 +536,8 @@ sltioctl(tp, cmd, data, flag, td)
  * ordering gets trashed.  It can be done for all packets in slstart.
  */
 static int
-sloutput(ifp, m, dst, rtp)
-	struct ifnet *ifp;
-	register struct mbuf *m;
-	struct sockaddr *dst;
-	struct rtentry *rtp;
+sloutput(struct ifnet *ifp, register struct mbuf *m, struct sockaddr *dst,
+    struct rtentry *rtp)
 {
 	register struct sl_softc *sc = ifp->if_softc;
 	register struct ip *ip;
@@ -593,8 +580,7 @@ sloutput(ifp, m, dst, rtp)
 }
 
 static void
-slstart(ifp)
-	struct ifnet *ifp;
+slstart(struct ifnet *ifp)
 {
 	struct sl_softc *sc = ifp->if_softc;
 	int s;
@@ -611,8 +597,7 @@ slstart(ifp)
  * the interface before starting output.
  */
 static int
-sltstart(tp)
-	register struct tty *tp;
+sltstart(register struct tty *tp)
 {
 	register struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
 	register struct mbuf *m;
@@ -806,9 +791,7 @@ sltstart(tp)
  * Copy data buffer to mbuf chain; add ifnet pointer.
  */
 static struct mbuf *
-sl_btom(sc, len)
-	register struct sl_softc *sc;
-	register int len;
+sl_btom(struct sl_softc *sc, register int len)
 {
 	struct mbuf *m, *newm;
 
@@ -853,9 +836,7 @@ sl_btom(sc, len)
  * tty interface receiver interrupt.
  */
 static int
-slinput(c, tp)
-	register int c;
-	register struct tty *tp;
+slinput(int c, struct tty *tp)
 {
 	register struct sl_softc *sc;
 	register struct mbuf *m;
@@ -1016,10 +997,7 @@ newpack:
  * Process an ioctl request.
  */
 static int
-slioctl(ifp, cmd, data)
-	register struct ifnet *ifp;
-	u_long cmd;
-	caddr_t data;
+slioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;
 	register struct ifreq *ifr = (struct ifreq *)data;
@@ -1087,8 +1065,7 @@ slioctl(ifp, cmd, data)
 }
 
 static void
-sl_keepalive(chan)
-	void *chan;
+sl_keepalive(void *chan)
 {
 	struct sl_softc *sc = chan;
 
@@ -1108,8 +1085,7 @@ sl_keepalive(chan)
 }
 
 static void
-sl_outfill(chan)
-	void *chan;
+sl_outfill(void *chan)
 {
 	struct sl_softc *sc = chan;
 	register struct tty *tp = sc->sc_ttyp;
