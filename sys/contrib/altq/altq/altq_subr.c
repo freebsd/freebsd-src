@@ -254,6 +254,7 @@ altq_enable(ifq)
 #endif
 	IFQ_PURGE_NOLOCK(ifq);
 	ASSERT(ifq->ifq_len == 0);
+	ifq->ifq_drv_maxlen = 0;		/* disable bulk dequeue */
 	ifq->altq_flags |= ALTQF_ENABLED;
 	if (ifq->altq_clfier != NULL)
 		ifq->altq_flags |= ALTQF_CLASSIFY;
