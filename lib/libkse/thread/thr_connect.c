@@ -43,7 +43,7 @@ __connect(int fd, const struct sockaddr *name, socklen_t namelen)
 	curthread = _get_curthread();
 	_thr_cancel_enter(curthread);
 	ret = __sys_connect(fd, name, namelen);
-	_thr_cancel_leave(curthread, ret != 0);
+	_thr_cancel_leave(curthread, ret == -1);
 
  	return (ret);
 }

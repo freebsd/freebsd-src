@@ -43,7 +43,7 @@ __accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 	curthread = _get_curthread();
 	_thr_cancel_enter(curthread);
 	ret = __sys_accept(s, addr, addrlen);
-	_thr_cancel_leave(curthread, ret != 0);
+	_thr_cancel_leave(curthread, ret == -1);
 
  	return (ret);
 }
