@@ -11,6 +11,9 @@ prior to 4.0 Release.
 	requires kernels that include fxp to also include mii bus devices.
 	See GENERIC for details.
 
+20010421:
+	FreeBSD 4.3 RELEASE
+
 20010202:
 	The KERNEL variable for buildkernel and installkernel has been
 	deprecated in favor of KERNCONF.  make kernel now combines these
