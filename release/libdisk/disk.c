@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.11 1995/05/02 19:52:27 jkh Exp $
+ * $Id: disk.c,v 1.12 1995/05/02 20:16:16 jkh Exp $
  *
  */
 
@@ -65,7 +65,7 @@ Int_Open_Disk(char *name, u_long size)
 		return 0;
 	}
 
-#if 0
+#ifdef DEBUG
 	for(i=0;i<ds.dss_nslices;i++)
 		if(ds.dss_slices[i].ds_openmask)
 			printf("  open(%d)=0x%2x",
@@ -174,7 +174,7 @@ Int_Open_Disk(char *name, u_long size)
 				dl.d_partitions[j].p_size,
 				pname,part,
 				dl.d_partitions[j].p_fstype,
-				0) && j != 3)
+				j == 0 ? CHUNK_IS_ROOT : 0) && j != 3)
 				warn(
 			"Failed to add chunk for partition %c [%lu,%lu]",
 			j + 'a',dl.d_partitions[j].p_offset,
@@ -183,6 +183,7 @@ Int_Open_Disk(char *name, u_long size)
 		}
 	}
 	close(fd);
+	Fixup_Names(d);
 	return d;
 }
 

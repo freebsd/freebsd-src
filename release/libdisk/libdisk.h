@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.7 1995/04/30 11:04:14 phk Exp $
+ * $Id: libdisk.h,v 1.8 1995/05/01 21:30:24 jkh Exp $
  *
  */
 
@@ -53,6 +53,8 @@ struct chunk {
 #		define CHUNK_BAD144		4
 			/* this chunk has bad144 mapping */
 #		define CHUNK_ALIGN		8
+#		define CHUNK_IS_ROOT		16
+			/* This 'part' is a rootfs, allocate 'a' */
 };
 
 struct disk *

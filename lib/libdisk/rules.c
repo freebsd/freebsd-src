@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: rules.c,v 1.3 1995/04/29 07:21:12 phk Exp $
+ * $Id: rules.c,v 1.4 1995/04/30 06:09:27 phk Exp $
  *
  */
 
@@ -180,19 +180,31 @@ Rule_003(struct disk *d, struct chunk *c, char *msg)
 void
 Rule_004(struct disk *d, struct chunk *c, char *msg)
 {
-	int i;
+	int i=0,j=0,k=0;
 	struct chunk *c1;
 
 	if (c->type != freebsd)
 		return;
-	for (i=0, c1=c->part; c1; c1=c1->next) {
+	for (c1=c->part; c1; c1=c1->next) {
 		if (c1->type != part)
 			continue;
+		if (c1->subtype == FS_SWAP)
+			j++;
+		if (c1->flags & CHUNK_IS_ROOT)
+			k++;
 		i++;
 	}
 	if (i > 7) {
 		sprintf(msg+strlen(msg),
-		    "Max seven 'part' allowed as child of 'freebsd'\n");
+		    "Max seven 'part' per 'freebsd' chunk\n");
+	}
+	if (j > 1) {
+		sprintf(msg+strlen(msg),
+		    "Max one subtype=FS_SWAP child per 'freebsd' chunk\n");
+	}
+	if (k > 1) {
+		sprintf(msg+strlen(msg),
+		    "Max one CHUNK_IS_ROOT child per 'freebsd' chunk\n");
 	}
 }
 
