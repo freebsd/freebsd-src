@@ -133,7 +133,7 @@ struct vm_map {
 	vm_size_t size;			/* virtual size */
 	boolean_t is_main_map;		/* Am I a main map? */
 	int ref_count;			/* Reference count */
-	simple_lock_data_t ref_lock;	/* Lock for ref_count field */
+	struct simplelock ref_lock;	/* Lock for ref_count field */
 	vm_map_entry_t hint;		/* hint for quick lookups */
 	vm_map_entry_t first_free;	/* First free space hint */
 	boolean_t entries_pageable;	/* map entries pageable?? */
@@ -187,8 +187,6 @@ typedef struct {
  *	Function:
  *		Perform locking on the data portion of a map.
  */
-
-#include <sys/proc.h>	/* XXX for curproc and p_pid */
 
 #define	vm_map_lock_drain_interlock(map) { \
 	lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
