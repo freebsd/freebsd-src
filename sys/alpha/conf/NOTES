@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.21 1999/05/09 11:42:19 dfr Exp $
+#	$Id: GENERIC,v 1.22 1999/05/10 13:30:51 dfr Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -26,6 +26,7 @@ options		"DEC_EB64PLUS"		# EB64+, Aspen Alpine, etc
 options		"DEC_2100_A50"		# AlphaStation 200, 250, 255, 400
 options		"DEC_KN20AA"		# AlphaStation 500, 600
 options		"DEC_ST550"		# Personal Workstation 433, 500, 600
+options		"DEC_ST6600"		# xp1000, dp264, ds20, ds10, family
 options		"DEC_3000_300"		# DEC3000/300* Pelic* family
 options		"DEC_3000_500"		# DEC3000/[4-9]00 Flamingo/Sandpiper family
 
@@ -48,6 +49,7 @@ options		FAILSAFE		#Be conservative
 # Platform chipsets
 controller	cia0
 controller	apecs0
+controller	tsunami0
 controller	lca0
 
 # Standard busses

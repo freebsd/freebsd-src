@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.17 1999/03/10 10:36:50 yokota Exp $
+#	$Id: files.alpha,v 1.18 1999/04/16 21:21:34 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -27,6 +27,7 @@ alpha/alpha/dec_eb64plus.c	optional	dec_eb64plus
 alpha/alpha/dec_kn20aa.c	optional	dec_kn20aa
 alpha/alpha/dec_2100_a50.c	optional	dec_2100_a50
 alpha/alpha/dec_st550.c		optional	dec_st550
+alpha/alpha/dec_st6600.c	optional	dec_st6600
 alpha/alpha/dec_axppci_33.c	optional	dec_axppci_33
 alpha/alpha/dec_3000_300.c	optional	dec_3000_300
 alpha/alpha/dec_3000_500.c	optional	dec_3000_500
@@ -119,6 +120,8 @@ alpha/pci/apecs_pci.c		optional	apecs
 alpha/pci/pci_eb64plus_intr.s	optional	apecs
 alpha/pci/lca.c			optional	lca
 alpha/pci/lca_pci.c		optional	lca
+alpha/pci/tsunami.c		optional	tsunami
+alpha/pci/tsunami_pci.c		optional	tsunami
 alpha/pci/pcibus.c		optional	pci
 alpha/isa/isa.c			optional	isa
 alpha/isa/mcclock_isa.c		optional	isa
