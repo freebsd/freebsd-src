@@ -21,7 +21,7 @@ struct socket;
 
 extern void	aarp_clean	__P((void));
 extern int	at_control	__P(( struct socket *so,
-					int cmd,
+					u_long cmd,
 					caddr_t data,
 					struct ifnet *ifp,
 					struct proc *p ));

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_break.h,v 1.9 1997/02/22 09:28:20 peter Exp $
  */
 
 /*
@@ -53,5 +53,7 @@ typedef struct db_breakpoint *db_breakpoint_t;
 void		db_clear_breakpoints __P((void));
 db_breakpoint_t	db_find_breakpoint_here __P((db_addr_t addr));
 void		db_set_breakpoints __P((void));
+db_breakpoint_t	db_set_temp_breakpoint __P((db_addr_t));
+void		db_delete_temp_breakpoint __P((db_breakpoint_t));
 
 #endif /* !_DDB_DB_BREAK_H_ */

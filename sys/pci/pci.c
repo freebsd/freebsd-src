@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.81 1998/01/24 02:54:47 eivind Exp $
+ * $Id: pci.c,v 1.82 1998/04/01 21:07:36 tegge Exp $
  *
  */
 
@@ -31,6 +31,7 @@
 #if NPCI > 0
 
 #include "opt_devfs.h"
+#include "opt_simos.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -434,6 +435,11 @@ pci_probebus(int bus)
 	pcicfgregs probe;
 	int bushigh = bus;
 
+#ifdef SIMOS
+#undef PCI_SLOTMAX
+#define PCI_SLOTMAX 0
+#endif
+
 	bzero(&probe, sizeof probe);
 	probe.parent = pci_bridgeto(bus);
 	probe.bus = bus;
@@ -509,7 +515,7 @@ pci_close(dev_t dev, int flag, int devtype, struct proc *p)
 }
 
 static int
-pci_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct pci_io *io;
 	int error;

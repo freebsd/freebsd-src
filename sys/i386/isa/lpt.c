@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.67 1998/02/20 04:19:39 steve Exp $
+ *	$Id: lpt.c,v 1.68 1998/04/15 17:45:34 bde Exp $
  */
 
 /*
@@ -276,7 +276,7 @@ static u_char *ctxmith;
 /* Functions for the lp# interface */
 static void lpattach(struct lpt_softc *,int);
 static int lpinittables(void);
-static int lpioctl(struct ifnet *, int, caddr_t);
+static int lpioctl(struct ifnet *, u_long, caddr_t);
 static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *);
 static void lpintr(int);
@@ -808,7 +808,7 @@ lptintr(int unit)
 }
 
 static	int
-lptioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
+lptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	int	error = 0;
         struct	lpt_softc *sc;
@@ -918,7 +918,7 @@ lpinittables (void)
  */
 
 static int
-lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
+lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 {
     struct lpt_softc *sc = lpt_sc + ifp->if_unit;
     struct ifaddr *ifa = (struct ifaddr *)data;

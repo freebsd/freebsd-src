@@ -204,7 +204,7 @@ spigot_read(dev_t dev, struct uio *uio, int ioflag)
 
 
 static	int
-spigot_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+spigot_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 int			error;
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];

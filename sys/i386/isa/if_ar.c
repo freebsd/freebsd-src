@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.17 1998/01/08 23:40:37 eivind Exp $
+ * $Id: if_ar.c,v 1.18 1998/04/17 22:36:33 des Exp $
  */
 
 /*
@@ -181,7 +181,7 @@ struct isa_driver ardriver = {arprobe, arattach, "arc"};
 
 static void ar_xmit(struct ar_softc *sc);
 static void arstart(struct ifnet *ifp);
-static int arioctl(struct ifnet *ifp, int cmd, caddr_t data);
+static int arioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static void arwatchdog(struct ifnet *ifp);
 static int ar_packet_avail(struct ar_softc *sc, int *len, u_char *rxstat);
 static void ar_copy_rxbuf(struct mbuf *m, struct ar_softc *sc, int len);
@@ -597,7 +597,7 @@ top_arstart:
 }
 
 static int
-arioctl(struct ifnet *ifp, int cmd, caddr_t data)
+arioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int s, error;
 	int was_up, should_be_up;

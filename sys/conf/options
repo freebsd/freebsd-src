@@ -1,4 +1,4 @@
-#	$Id: options,v 1.75 1998/05/25 10:37:40 julian Exp $
+#	$Id: options,v 1.76 1998/06/05 22:39:49 julian Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -233,3 +233,6 @@ KEY_DEBUG		opt_key.h
 
 # Size of the kernel message buffer
 MSGBUF_SIZE		opt_msgbuf.h
+
+# Include tweaks for running under the SimOS machine simulator.
+SIMOS			opt_simos.h

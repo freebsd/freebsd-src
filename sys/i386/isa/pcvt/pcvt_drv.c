@@ -585,7 +585,7 @@ pcwrite(Dev_t dev, struct uio *uio, int flag)
 }
 
 int
-pcioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+pcioctl(Dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	register error;
 	register struct tty *tp;

@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.31 1997/12/02 21:06:37 phk Exp $ */
+/* $Id: matcd.c,v 1.32 1998/01/24 02:54:32 eivind Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -979,7 +979,7 @@ static void matcd_start(int controller)
 	things that don't fit into the block read scheme of things.
 ---------------------------------------------------------------------------*/
 
-int matcdioctl(dev_t dev, int command, caddr_t addr,
+int matcdioctl(dev_t dev, u_long command, caddr_t addr,
 	       int flags, struct proc *p)
 {
 	struct	matcd_data *cd;

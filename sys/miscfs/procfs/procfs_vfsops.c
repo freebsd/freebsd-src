@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.20 1998/03/01 22:46:22 msmith Exp $
+ *	$Id: procfs_vfsops.c,v 1.21 1998/05/06 05:29:36 msmith Exp $
  */
 
 /*
@@ -75,7 +75,7 @@ procfs_mount(mp, path, data, ndp, p)
 	struct nameidata *ndp;
 	struct proc *p;
 {
-	u_int size;
+	size_t size;
 
 	if (UIO_MX & (UIO_MX-1)) {
 		log(LOG_ERR, "procfs: invalid directory entry size\n");

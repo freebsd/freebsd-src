@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.39 1998/04/15 17:47:30 bde Exp $
+ * $Id: kernel.h,v 1.40 1998/05/09 12:14:18 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -83,10 +83,25 @@ extern long timedelta;
  */
 #if defined(__ELF__)
 
+/*
+ * Alpha GAS needs an align before the section change.  It seems to assume
+ * that after the .previous, it is aligned, so the following .align 3 is
+ * ignored.  Since the previous instructions often contain strings, this is
+ * a problem.
+ */
+
+#ifdef __alpha__
+#define MAKE_SET(set, sym)			\
+	__asm(".align 3");			\
+	__asm(".section .set." #set ",\"aw\"");	\
+	__asm(".quad " #sym);			\
+	__asm(".previous")
+#else
 #define MAKE_SET(set, sym)			\
 	__asm(".section .set." #set ",\"aw\"");	\
 	__asm(".long " #sym);			\
 	__asm(".previous")
+#endif
 #define TEXT_SET(set, sym) MAKE_SET(set, sym)
 #define DATA_SET(set, sym) MAKE_SET(set, sym)
 #define BSS_SET(set, sym)  MAKE_SET(set, sym)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.31 1998/05/12 17:34:02 bde Exp $
+ * $Id: kern_shutdown.c,v 1.32 1998/05/17 22:12:13 tegge Exp $
  */
 
 #include "opt_ddb.h"
@@ -278,7 +278,9 @@ boot(howto)
 		if (howto & RB_DUMP) {
 			if (!cold) {
 				savectx(&dumppcb);
+#ifdef __i386__
 				dumppcb.pcb_cr3 = rcr3();
+#endif
 				dumpsys();
 			}
 

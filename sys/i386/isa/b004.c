@@ -487,7 +487,7 @@ bqupoll(dev_t dev, int events, struct proc *p)
  */
 
 static int
-bquioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
+bquioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
     unsigned int dev_min = minor(dev) & 7;
     int result = 0;

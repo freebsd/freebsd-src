@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_systm.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: in_systm.h,v 1.5 1997/02/22 09:41:30 peter Exp $
  */
 
 #ifndef _NETINET_IN_SYSTM_H_
@@ -51,9 +51,20 @@
  * represent the types with the bytes in ``high-ender'' order.
  */
 typedef u_short n_short;		/* short as received from the net */
+
+#ifdef __alpha__
+
+typedef u_int	n_long;			/* long as received from the net */
+
+typedef	u_int	n_time;			/* ms since 00:00 GMT, byte rev */
+
+#else
+
 typedef u_long	n_long;			/* long as received from the net */
 
 typedef	u_long	n_time;			/* ms since 00:00 GMT, byte rev */
+
+#endif
 
 #ifdef KERNEL
 n_time	 iptime __P((void));

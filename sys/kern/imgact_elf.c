@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.23 1998/03/28 13:24:52 bde Exp $
+ *	$Id: imgact_elf.c,v 1.24 1998/04/28 18:15:07 eivind Exp $
  */
 
 #include "opt_rlimit.h"
@@ -60,10 +60,27 @@
 
 #define MAX_PHDR	32	/* XXX enough ? */
 
-static int elf_check_header __P((const Elf32_Ehdr *hdr, int type));
+#if ELF_TARG_CLASS == ELFCLASS32
+
+#define Elf_Ehdr	Elf32_Ehdr
+#define Elf_Phdr	Elf32_Phdr
+#define Elf_Auxargs	Elf32_Auxargs
+#define Elf_Brandinfo	Elf32_Brandinfo
+
+#else
+
+#define Elf_Ehdr	Elf64_Ehdr
+#define Elf_Phdr	Elf64_Phdr
+#define Elf_Auxargs	Elf64_Auxargs
+#define Elf_Brandinfo	Elf64_Brandinfo
+
+#endif
+
+
+static int elf_check_header __P((const Elf_Ehdr *hdr, int type));
 static int elf_load_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
 static int elf_load_file __P((struct proc *p, char *file, u_long *addr, u_long *entry));
-static int elf_freebsd_fixup __P((int **stack_base, struct image_params *imgp));
+static int elf_freebsd_fixup __P((long **stack_base, struct image_params *imgp));
 static int exec_elf_imgact __P((struct image_params *imgp));
 
 static int elf_trace = 0;
@@ -87,20 +104,20 @@ static struct sysentvec elf_freebsd_sysvec = {
 	"FreeBSD ELF"
 };
 
-static Elf32_Brandinfo freebsd_brand_info = {
+static Elf_Brandinfo freebsd_brand_info = {
 						"FreeBSD",
 						"",
 						"/usr/libexec/ld-elf.so.1",
 						&elf_freebsd_sysvec
 					  };
-static Elf32_Brandinfo *elf_brand_list[MAX_BRANDS] = {
+static Elf_Brandinfo *elf_brand_list[MAX_BRANDS] = {
 							&freebsd_brand_info,
 							NULL, NULL, NULL,
 							NULL, NULL, NULL, NULL
 						    };
 
 int
-elf_insert_brand_entry(Elf32_Brandinfo *entry)
+elf_insert_brand_entry(Elf_Brandinfo *entry)
 {
 	int i;
 
@@ -116,7 +133,7 @@ elf_insert_brand_entry(Elf32_Brandinfo *entry)
 }
 
 int
-elf_remove_brand_entry(Elf32_Brandinfo *entry)
+elf_remove_brand_entry(Elf_Brandinfo *entry)
 {
 	int i;
 
@@ -132,7 +149,7 @@ elf_remove_brand_entry(Elf32_Brandinfo *entry)
 }
 
 static int
-elf_check_header(const Elf32_Ehdr *hdr, int type)
+elf_check_header(const Elf_Ehdr *hdr, int type)
 {
 	if (!(hdr->e_ident[EI_MAG0] == ELFMAG0 &&
 	      hdr->e_ident[EI_MAG1] == ELFMAG1 &&
@@ -140,8 +157,14 @@ elf_check_header(const Elf32_Ehdr *hdr, int type)
 	      hdr->e_ident[EI_MAG3] == ELFMAG3))
 		return ENOEXEC;
 
+#ifdef __i396__
 	if (hdr->e_machine != EM_386 && hdr->e_machine != EM_486)
+#endif
+#ifdef __alpha__
+	if (hdr->e_machine != EM_ALPHA)
+#endif
 		return ENOEXEC;
+
 
 	if (hdr->e_type != type)
 		return ENOEXEC;
@@ -222,8 +245,8 @@ elf_load_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, 
 static int
 elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 {
-	Elf32_Ehdr *hdr = NULL;
-	Elf32_Phdr *phdr = NULL;
+	Elf_Ehdr *hdr = NULL;
+	Elf_Phdr *phdr = NULL;
 	struct nameidata nd;
 	struct vmspace *vmspace = p->p_vmspace;
 	struct vattr attr;
@@ -273,7 +296,7 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 	if (error)
                 goto fail;
 
-	hdr = (Elf32_Ehdr *)imgp->image_header;
+	hdr = (Elf_Ehdr *)imgp->image_header;
 	if (error = elf_check_header(hdr, ET_DYN))
 		goto fail;
 
@@ -294,7 +317,7 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 		goto fail;
 	}
 
-	phdr = (Elf32_Phdr *)(imgp->image_header + hdr->e_phoff);
+	phdr = (Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 
 	for (i = 0; i < hdr->e_phnum; i++) {
 		switch(phdr[i].p_type) {
@@ -380,9 +403,9 @@ fail:
 static int
 exec_elf_imgact(struct image_params *imgp)
 {
-	const Elf32_Ehdr *hdr = (const Elf32_Ehdr *) imgp->image_header;
-	const Elf32_Phdr *phdr, *mapped_phdr = NULL;
-	Elf32_Auxargs *elf_auxargs = NULL;
+	const Elf_Ehdr *hdr = (const Elf_Ehdr *) imgp->image_header;
+	const Elf_Phdr *phdr, *mapped_phdr = NULL;
+	Elf_Auxargs *elf_auxargs = NULL;
 	struct vmspace *vmspace;
 	vm_prot_t prot = 0;
 	u_long text_size = 0, data_size = 0;
@@ -419,7 +442,7 @@ exec_elf_imgact(struct image_params *imgp)
 		/* Only support headers in first page for now */
 		return ENOEXEC;
 	} else {
-		phdr = (const Elf32_Phdr*)
+		phdr = (const Elf_Phdr*)
 		       ((const char *)imgp->image_header + hdr->e_phoff);
 	}
 	
@@ -514,7 +537,7 @@ exec_elf_imgact(struct image_params *imgp)
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
 	vmspace->vm_daddr = (caddr_t)data_addr;
 
-	addr = 2*MAXDSIZ; /* May depend on OS type XXX */
+	addr = 2L*MAXDSIZ; /* May depend on OS type XXX */
 
 	imgp->entry_addr = entry;
 
@@ -564,8 +587,13 @@ exec_elf_imgact(struct image_params *imgp)
 	}
 	if (i == MAX_BRANDS) {
 		uprintf("ELF binary type not known\n");
+#ifdef __alpha__
+		uprintf("assuming FreeBSD\n");
+		i = 0;
+#else
 		error = ENOEXEC;
 		goto fail;
+#endif
 	}
 	if (interp) {
                 if (error = elf_load_file(imgp->proc,
@@ -582,7 +610,7 @@ exec_elf_imgact(struct image_params *imgp)
 	/*
 	 * Construct auxargs table (used by the fixup routine)
 	 */
-	elf_auxargs = malloc(sizeof(Elf32_Auxargs), M_TEMP, M_WAITOK);
+	elf_auxargs = malloc(sizeof(Elf_Auxargs), M_TEMP, M_WAITOK);
 	elf_auxargs->execfd = -1;
 	elf_auxargs->phdr = proghdr;
 	elf_auxargs->phent = hdr->e_phentsize;
@@ -604,10 +632,10 @@ fail:
 }
 
 static int
-elf_freebsd_fixup(int **stack_base, struct image_params *imgp)
+elf_freebsd_fixup(long **stack_base, struct image_params *imgp)
 {
-	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
-	int *pos;
+	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
+	long *pos;
 
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);
 
@@ -630,7 +658,7 @@ elf_freebsd_fixup(int **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	(*stack_base)--;
-	**stack_base = (int)imgp->argc;
+	**stack_base = (long)imgp->argc;
 	return 0;
 } 
 

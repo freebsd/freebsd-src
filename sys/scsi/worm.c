@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.54 1998/04/15 17:47:24 bde Exp $
+ *      $Id: worm.c,v 1.55 1998/04/16 12:28:31 peter Exp $
  */
 
 #include "opt_bounce.h"
@@ -134,7 +134,7 @@ static void wormstart(u_int32_t unit, u_int32_t flags);
 
 static errval worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 			struct scsi_link *sc_link);
-static errval worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval worm_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag,
 			 struct proc *p, struct scsi_link *sc_link);
 static errval worm_close(dev_t dev, int flag, int fmt, struct proc *p,
 			 struct scsi_link *sc_link);
@@ -631,7 +631,7 @@ worm_close(dev_t dev, int flags, int fmt, struct proc *p,
  * Knows about the internals of this device
  */
 errval
-worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
+worm_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	   struct scsi_link *sc_link)
 {
 	errval  error = 0;

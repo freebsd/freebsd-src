@@ -1283,7 +1283,7 @@ meteor_write(dev_t dev, struct uio *uio, int ioflag)
 }
 
 int
-meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
+meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 {
 	int	error;  
 	int	unit;   

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.41 1998/05/27 09:59:13 paul Exp $
+ * $Id: if_lnc.c,v 1.42 1998/05/27 11:05:17 paul Exp $
  */
 
 /*
@@ -175,7 +175,7 @@ static void lnc_init __P((struct lnc_softc *sc));
 static __inline int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
 static __inline struct mbuf *chain_to_cluster __P((struct mbuf *m));
 static void lnc_start __P((struct ifnet *ifp));
-static int lnc_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
+static int lnc_ioctl __P((struct ifnet *ifp, u_long command, caddr_t data));
 static void lnc_watchdog __P((struct ifnet *ifp));
 #ifdef DEBUG
 static void lnc_dump_state __P((struct lnc_softc *sc));
@@ -1749,7 +1749,7 @@ lnc_start(struct ifnet *ifp)
 }
 
 static int
-lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
+lnc_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 {
 
 	struct lnc_softc *sc = ifp->if_softc;

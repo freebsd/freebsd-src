@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.44 1998/04/16 12:28:30 peter Exp $
+ *      $Id: ch.c,v 1.45 1998/05/06 09:11:20 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -132,7 +132,7 @@ static	dev_t chsetunit __P((dev_t, int));
 /* So, like, why not "int"? */
 static	errval	ch_devopen __P((dev_t, int, int, struct proc *,
 				struct scsi_link *));
-static	errval	ch_devioctl __P((dev_t, int, caddr_t, int, struct proc *,
+static	errval	ch_devioctl __P((dev_t, u_long, caddr_t, int, struct proc *,
 				 struct scsi_link *));
 static	errval	ch_devclose __P((dev_t, int, int, struct proc *,
 				 struct scsi_link *));
@@ -293,7 +293,7 @@ ch_devclose(dev, flags, fmt, p, link)
 static	errval
 ch_devioctl(dev, cmd, data, flags, p, link)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	int flags;
 	struct proc *p;

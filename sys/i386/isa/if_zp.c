@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.46 1998/03/28 13:24:28 bde Exp $
+ *	$Id: if_zp.c,v 1.47 1998/05/26 02:28:18 jmb Exp $
  */
 /*-
  * TODO:
@@ -194,7 +194,7 @@ static int zpprobe __P((struct isa_device *));
 static int zpattach __P((struct isa_device *));
 static int zp_suspend __P((void *visa_dev));
 static int zp_resume __P((void *visa_dev));
-static int zpioctl __P((struct ifnet * ifp, int, caddr_t));
+static int zpioctl __P((struct ifnet * ifp, u_long, caddr_t));
 static u_short read_eeprom_data __P((int, int));
 
 static void zpinit __P((int));
@@ -1007,7 +1007,7 @@ out:	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
 static int
 zpioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
-	int     cmd;
+	u_long  cmd;
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *) data;

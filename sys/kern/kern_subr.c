@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.18 1998/02/05 03:32:07 dyson Exp $
+ * $Id: kern_subr.c,v 1.19 1998/02/06 12:13:25 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -143,9 +143,9 @@ uiomoveco(cp, n, uio, obj)
 		case UIO_USERISPACE:
 			if (uio->uio_rw == UIO_READ) {
 				if (vfs_ioopt && ((cnt & PAGE_MASK) == 0) &&
-					((((int) iov->iov_base) & PAGE_MASK) == 0) &&
+					((((long) iov->iov_base) & PAGE_MASK) == 0) &&
 					((uio->uio_offset & PAGE_MASK) == 0) &&
-					((((int) cp) & PAGE_MASK) == 0)) {
+					((((long) cp) & PAGE_MASK) == 0)) {
 						error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
 								uio->uio_offset, cnt,
 								(vm_offset_t) iov->iov_base, NULL);
@@ -208,7 +208,7 @@ uioread(n, uio, obj, nread)
 			cnt = n;
 
 		if ((uio->uio_segflg == UIO_USERSPACE) &&
-			((((int) iov->iov_base) & PAGE_MASK) == 0) &&
+			((((long) iov->iov_base) & PAGE_MASK) == 0) &&
 				 ((uio->uio_offset & PAGE_MASK) == 0) ) {
 
 			if (cnt < PAGE_SIZE)

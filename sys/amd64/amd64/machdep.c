@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.297 1998/05/28 09:29:57 phk Exp $
+ *	$Id: machdep.c,v 1.298 1998/06/03 07:56:59 bde Exp $
  */
 
 #include "apm.h"
@@ -1614,7 +1614,7 @@ f00f_hack(void *unused) {
 int
 ptrace_set_pc(p, addr)
 	struct proc *p;
-	unsigned int addr;
+	unsigned long addr;
 {
 	p->p_md.md_regs->tf_eip = addr;
 	return (0);
@@ -1653,7 +1653,7 @@ int ptrace_read_u_check(p, addr, len)
 int ptrace_write_u(p, off, data)
 	struct proc *p;
 	vm_offset_t off;
-	int data;
+	long data;
 {
 	struct trapframe frame_copy;
 	vm_offset_t min;

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.91 1998/04/17 22:37:06 des Exp $
+ *      $Id: cd.c,v 1.92 1998/04/27 11:36:04 des Exp $
  */
 
 #include "opt_bounce.h"
@@ -119,7 +119,7 @@ static dev_t cdsetunit(dev_t dev, int unit) { return CDSETUNIT(dev, unit); }
 
 static errval cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 		struct scsi_link *sc_link);
-static errval cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval cd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag,
 		struct proc *p, struct scsi_link *sc_link);
 static errval cd_close(dev_t dev, int flag, int fmt, struct proc *p,
 		struct scsi_link *sc_link);
@@ -581,7 +581,7 @@ cdstart(unit, flags)
  * Knows about the internals of this device
  */
 static errval
-cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
+cd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
 {
 	errval  error = 0;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if_var.h,v 1.6 1997/08/28 01:17:09 julian Exp $
+ *	$Id: if_var.h,v 1.7 1998/04/15 17:46:44 bde Exp $
  */
 
 #ifndef	_NET_IF_VAR_H_
@@ -121,7 +121,7 @@ struct ifnet {
 	int	(*if_done)		/* output complete routine */
 		__P((struct ifnet *));	/* (XXX not used; fake prototype) */
 	int	(*if_ioctl)		/* ioctl routine */
-		__P((struct ifnet *, int, caddr_t));
+		__P((struct ifnet *, u_long, caddr_t));
 	void	(*if_watchdog)		/* timer routine */
 		__P((struct ifnet *));
 	int	(*if_poll_recv)		/* polled receive routine */
@@ -305,7 +305,7 @@ void	if_up __P((struct ifnet *));
 void	ifubareset __P((int));
 #endif
 /*void	ifinit __P((void));*/ /* declared in systm.h for main() */
-int	ifioctl __P((struct socket *, int, caddr_t, struct proc *));
+int	ifioctl __P((struct socket *, u_long, caddr_t, struct proc *));
 int	ifpromisc __P((struct ifnet *, int));
 struct	ifnet *ifunit __P((char *));
 

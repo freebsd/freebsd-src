@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.51 1998/03/28 10:33:01 bde Exp $
+ * $Id: psm.c,v 1.52 1998/04/15 17:06:52 phk Exp $
  */
 
 /*
@@ -1366,7 +1366,7 @@ unblock_mouse_data(struct psm_softc *sc, int c)
 }
 
 static int
-psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
+psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
     struct psm_softc *sc = psm_softc[PSM_UNIT(dev)];
     mousemode_t mode;

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.10 1997/05/10 09:58:48 jhay Exp $
+ * $Id: ipx.c,v 1.11 1997/06/26 19:35:42 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,7 @@ static	int ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
 int
 ipx_control(so, cmd, data, ifp, p)
 	struct socket *so;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	register struct ifnet *ifp;
 	struct proc *p;

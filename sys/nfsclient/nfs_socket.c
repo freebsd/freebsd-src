@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.39 1998/05/31 19:49:30 peter Exp $
+ * $Id: nfs_socket.c,v 1.40 1998/05/31 20:08:54 peter Exp $
  */
 
 /*
@@ -1594,10 +1594,10 @@ nfs_realign(m, hsiz)
 	     * This never happens for UDP, rarely happens for TCP
 	     * but frequently happens for iso transport.
 	     */
-	    if ((m->m_len & 0x3) || (mtod(m, int) & 0x3)) {
+	    if ((m->m_len & 0x3) || (mtod(m, long) & 0x3)) {
 		olen = m->m_len;
 		fcp = mtod(m, caddr_t);
-		if ((int)fcp & 0x3) {
+		if ((long)fcp & 0x3) {
 			m->m_flags &= ~M_PKTHDR;
 			if (m->m_flags & M_EXT)
 				m->m_data = m->m_ext.ext_buf +

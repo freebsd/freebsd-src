@@ -387,7 +387,7 @@ gpwrite(dev, uio, ioflag)
    write to using a minor device = its GPIB address */
 
 static	int
-gpioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
+gpioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	struct gpibdata *gd = (struct gpibdata *)data;
 	int	error,result;

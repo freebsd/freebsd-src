@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.34 1998/03/28 13:23:58 bde Exp $
+ * $Id: if_el.c,v 1.35 1998/04/15 17:45:18 bde Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -75,7 +75,7 @@ static struct el_softc {
 /* Prototypes */
 static int el_attach(struct isa_device *);
 static void el_init(int);
-static int el_ioctl(struct ifnet *,int,caddr_t);
+static int el_ioctl(struct ifnet *,u_long,caddr_t);
 static int el_probe(struct isa_device *);
 static void el_start(struct ifnet *);
 static void el_reset(int);
@@ -645,7 +645,7 @@ elget(buf, totlen, off0, ifp)
 static int
 el_ioctl(ifp, command, data)
 	register struct ifnet *ifp;
-	int command;
+	u_long command;
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;

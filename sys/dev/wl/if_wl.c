@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.10 1998/01/08 23:41:04 eivind Exp $ */
+/* $Id: if_wl.c,v 1.11 1998/02/20 13:11:47 bde Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -301,7 +301,7 @@ SYSCTL_INT(_machdep, OID_AUTO, wl_gather_snr, CTLFLAG_RW, &gathersnr, 0, "");
 
 static void	wlstart(struct ifnet *ifp);
 static void	wlinit(void *xsc);
-static int	wlioctl(struct ifnet *ifp, int cmd, caddr_t data);
+static int	wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static timeout_t wlwatchdog;
 static void	wlxmt(int unt, struct mbuf *m);
 static int	wldiag(int unt); 
@@ -1169,7 +1169,7 @@ wlread(int unit, u_short fd_p)
  *
  */
 static int
-wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
+wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
     register struct ifaddr	*ifa = (struct ifaddr *)data;
     register struct ifreq	*ifr = (struct ifreq *)data;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.5 (Berkeley) 1/9/95
- * $Id: namei.h,v 1.19 1998/01/12 19:10:43 phk Exp $
+ * $Id: namei.h,v 1.20 1998/03/28 10:33:22 bde Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -66,7 +66,7 @@ struct nameidata {
 	/*
 	 * Shared between namei and lookup/commit routines.
 	 */
-	long	ni_pathlen;		/* remaining chars in path */
+	size_t	ni_pathlen;		/* remaining chars in path */
 	char	*ni_next;		/* next location in pathname */
 	u_long	ni_loopcnt;		/* count of symlinks encountered */
 	/*

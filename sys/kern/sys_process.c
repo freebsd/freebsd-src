@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.36 1998/02/06 12:13:27 eivind Exp $
+ *	$Id: sys_process.c,v 1.37 1998/05/19 00:00:12 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -338,7 +338,7 @@ ptrace(curp, uap)
 
 		if (uap->addr != (caddr_t)1) {
 			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-			if ((error = ptrace_set_pc (p, (u_int)uap->addr))) {
+			if ((error = ptrace_set_pc (p, (u_long)uap->addr))) {
 				PRELE(p);
 				return error;
 			}
@@ -406,11 +406,11 @@ ptrace(curp, uap)
 		return (error);
 
 	case PT_READ_U:
-		if ((u_int)uap->addr > (UPAGES * PAGE_SIZE - sizeof(int))) {
+		if ((u_long)uap->addr > (UPAGES * PAGE_SIZE - sizeof(long))) {
 			return EFAULT;
 		}
 		if (ptrace_read_u_check(p,(vm_offset_t) uap->addr,
-					sizeof(int)) &&
+					sizeof(long)) &&
 		    !procfs_kmemaccess(curp)) {
 			return EFAULT;
 		}
@@ -419,7 +419,7 @@ ptrace(curp, uap)
 		if (p->p_flag & P_INMEM) {
 			p->p_addr->u_kproc.kp_proc = *p;
 			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-			curp->p_retval[0] = *(int*)((u_int)p->p_addr + (u_int)uap->addr);
+			curp->p_retval[0] = *(long*)((u_long)p->p_addr + (u_long)uap->addr);
 		} else {
 			curp->p_retval[0] = 0;
 			error = EFAULT;
