@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.27 1996/04/30 21:22:29 jkh Exp $
+ * $Id: index.c,v 1.28 1996/05/01 09:31:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -331,12 +331,16 @@ index_sort(PkgNodePtr top)
     }
 }
 
-/* Delete an entry out of the index */
+/* Delete an entry out of the list it's in (only the plist, at present) */
 void
 index_delete(PkgNodePtr n)
 {
-    if (n->next)
+    if (n->next) {
+	PkgNodePtr p = n->next;
+
 	*n = *(n->next);
+	safe_free(p);
+    }
     else /* Kludgy end sentinal */
 	n->name = NULL;
 }

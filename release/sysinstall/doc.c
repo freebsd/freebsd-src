@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.14 1996/04/25 17:31:17 jkh Exp $
+ * $Id: doc.c,v 1.15 1996/04/28 03:26:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,17 +52,15 @@ docBrowser(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
 
-    /* Make sure we have media available */
-    if (!mediaVerify())
-	return DITEM_FAILURE;
-
     /* First, make sure we have whatever browser we've chosen is here */
-    ret = package_add(browser);
-    if (DITEM_STATUS(ret) != DITEM_SUCCESS) {
-	msgConfirm("Unable to install the %s HTML browser package.  You may\n"
-		   "wish to verify that your media is configured correctly and\n"
-		   "try again.", browser);
-	return ret;
+    if (!package_exists(browser)) {
+	ret = package_add(browser);
+    	if (DITEM_STATUS(ret) != DITEM_SUCCESS) {
+	    msgConfirm("Unable to install the %s HTML browser package.  You may\n"
+		       "wish to verify that your media is configured correctly and\n"
+		       "try again.", browser);
+	    return ret;
+	}
     }
 
     if (!file_executable(variable_get(VAR_BROWSER_BINARY))) {

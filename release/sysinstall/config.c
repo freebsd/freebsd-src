@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.29 1996/04/28 22:54:15 jkh Exp $
+ * $Id: config.c,v 1.30 1996/04/29 18:06:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -476,7 +476,7 @@ configPackages(dialogMenuItem *self)
 	    break;
 	}
     }
-    tmp = &plist;
+    tmp = plist.kids;
     while (tmp) {
         PkgNodePtr tmp2 = tmp->next;
            
@@ -484,7 +484,6 @@ configPackages(dialogMenuItem *self)
         tmp = tmp2;
     }
     index_init(NULL, &plist);
-    mediaDevice->shutdown(mediaDevice);
     return DITEM_SUCCESS;
 }
 
