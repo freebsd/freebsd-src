@@ -50,21 +50,8 @@ The
 system call
 allows a process that has knowledge of its memory behavior
 to describe it to the system.
-The known behaviors are given in
-.Aq Pa sys/mman.h :
-.Bd -literal
-#define	MADV_NORMAL	0 /* no further special treatment */
-#define	MADV_RANDOM	1 /* expect random page references */
-#define	MADV_SEQUENTIAL	2 /* expect sequential references */
-#define	MADV_WILLNEED	3 /* will need these pages */
-#define	MADV_DONTNEED	4 /* don't need these pages */
-#define	MADV_FREE	5 /* data is now unimportant */
-#define MADV_NOSYNC	6 /* no explicit commit to physical backing store */
-#define MADV_AUTOSYNC	7 /* default commit method to physical backing store */
-#define MADV_NOCORE	8 /* do not include these pages in a core file */
-#define MADV_CORE	9 /* revert to including pages in a core file */
-.Ed
 .Pp
+The known behaviors are:
 .Bl -tag -width MADV_SEQUENTIAL
 .It Dv MADV_NORMAL
 Tells the system to revert to the default paging
