@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.66 1999/07/22 15:57:37 sheldonh Exp $";
+	"$Id: inetd.c,v 1.67 1999/07/22 16:10:40 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -184,7 +184,6 @@ int	wrap_ex = 0;
 int	wrap_bi = 0;
 int	debug = 0;
 int	log = 0;
-int	nsock;
 int	maxsock;			/* highest-numbered descriptor */
 fd_set	allsock;
 int	options;
@@ -196,6 +195,9 @@ struct	servent *sp;
 struct	rpcent *rpc;
 struct	in_addr bind_address;
 int	signalpipe[2];
+#ifdef SANITY_CHECK
+int	nsock;
+#endif
 
 struct	servtab *servtab;
 
@@ -365,7 +367,9 @@ main(argc, argv, envp)
 		exit(EX_OSERR);
 	}
 	FD_SET(signalpipe[0], &allsock);
+#ifdef SANITY_CHECK
 	nsock++;
+#endif
 	if (signalpipe[0] > maxsock)
 	    maxsock = signalpipe[0];
 	if (signalpipe[1] > maxsock)
@@ -375,10 +379,12 @@ main(argc, argv, envp)
 	    int n, ctrl;
 	    fd_set readable;
 
+#ifdef SANITY_CHECK
 	    if (nsock == 0) {
 		syslog(LOG_ERR, "%s: nsock=0", __FUNCTION__);
 		exit(EX_SOFTWARE);
 	    }
+#endif
 	    readable = allsock;
 	    if ((n = select(maxsock + 1, &readable, (fd_set *)0,
 		(fd_set *)0, (struct timeval *)0)) <= 0) {
@@ -1083,9 +1089,9 @@ enable(struct servtab *sep)
 		    "%s: %s: not off", __FUNCTION__, sep->se_service);
 		exit(EX_SOFTWARE);
 	}
+	nsock++;
 #endif
 	FD_SET(sep->se_fd, &allsock);
-	nsock++;
 	if (sep->se_fd > maxsock)
 		maxsock = sep->se_fd;
 }
@@ -1116,9 +1122,9 @@ disable(struct servtab *sep)
 		syslog(LOG_ERR, "%s: nsock=0", __FUNCTION__);
 		exit(EX_SOFTWARE);
 	}
+	nsock--;
 #endif
 	FD_CLR(sep->se_fd, &allsock);
-	nsock--;
 	if (sep->se_fd == maxsock)
 		maxsock--;
 }
