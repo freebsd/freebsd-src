@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.132 1997/07/31 08:31:50 asami Exp $
+#	$Id: Makefile,v 1.133 1997/08/05 03:49:45 asami Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -468,7 +468,10 @@ includes:
 	cd ${.CURDIR}/lib/libpcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
+.if !defined(NOTCL) && exists (${.CURDIR}/contrib/tcl) && \
+	exists(${.CURDIR}/usr.bin/tclsh) && exists (${.CURDIR}/lib/libtcl)
 	cd ${.CURDIR}/lib/libtcl &&		${MAKE} beforeinstall
+.endif
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
