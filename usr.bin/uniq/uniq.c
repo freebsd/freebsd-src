@@ -208,16 +208,14 @@ char *
 skip(str)
 	register char *str;
 {
-	register int infield, nchars, nfields;
+	register int nchars, nfields;
 
-	for (nfields = numfields, infield = 0; nfields && *str; ++str)
-		if (isblank((unsigned char)*str)) {
-			if (infield) {
-				infield = 0;
-				--nfields;
-			}
-		} else if (!infield)
-			infield = 1;
+	for (nfields = 0; *str != '\0' && nfields++ != numfields; ) {
+		while (isblank((unsigned char)*str))
+			str++;
+		while (*str != '\0' && !isblank((unsigned char)*str))
+			str++;
+	}
 	for (nchars = numchars; nchars-- && *str; ++str);
 	return(str);
 }
