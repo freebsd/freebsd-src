@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.44 1998/11/11 10:56:07 truckman Exp $
+ * $Id: tty.h,v 1.45 1999/08/08 19:47:26 phk Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -268,7 +268,7 @@ void	 ttyregister __P((struct tty *tp));
 int	 ttysleep __P((struct tty *tp,
 	    void *chan, int pri, char *wmesg, int timeout));
 int	 ttywait __P((struct tty *tp));
-struct tty *ttymalloc __P((void));
+struct tty *ttymalloc __P((struct tty *tp));
 void     ttyfree __P((struct tty *));
 
 #endif /* KERNEL */

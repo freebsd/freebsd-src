@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.119 1999/05/22 20:10:31 dt Exp $
+ * $Id: tty.c,v 1.120 1999/08/08 19:47:31 phk Exp $
  */
 
 /*-
@@ -2407,25 +2407,22 @@ ttysleep(tp, chan, pri, wmesg, timo)
 	return (tp->t_gen == gen ? 0 : ERESTART);
 }
 
-#ifdef notyet
-/*
- * XXX this is usable not useful or used.  Most tty drivers have
- * ifdefs for using ttymalloc() but assume a different interface.
- */
 /*
  * Allocate a tty struct.  Clists in the struct will be allocated by
  * ttyopen().
  */
 struct tty *
-ttymalloc()
+ttymalloc(tp)
+	struct tty *tp;
 {
-        struct tty *tp;
 
+	if (tp)
+		return(tp);
         tp = malloc(sizeof *tp, M_TTYS, M_WAITOK);
         bzero(tp, sizeof *tp);
+	ttyregister(tp);
         return (tp);
 }
-#endif
 
 #if 0 /* XXX not yet usable: session leader holds a ref (see kern_exit.c). */
 /*
