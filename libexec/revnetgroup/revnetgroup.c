@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id$
+ *	$Id: revnetgroup.c,v 1.6 1997/02/22 14:22:03 peter Exp $
  */
 
 #include <stdio.h>
@@ -46,7 +46,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: revnetgroup.c,v 1.6 1997/02/22 14:22:03 peter Exp $";
 #endif
 
 /* Default location of netgroup file. */
@@ -87,7 +87,7 @@ main(argc, argv)
 	if (argc < 2)
 		usage(argv[0]);
 
-	while ((ch = getopt(argc, argv, "uhf:")) != EOF) {
+	while ((ch = getopt(argc, argv, "uhf:")) != -1) {
 		switch(ch) {
 		case 'u':
 			if (hosts != -1) {

@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)fingerd.c	8.1 (Berkeley) 6/4/93";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fingerd.c,v 1.7 1997/02/22 14:21:25 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -80,7 +80,7 @@ main(argc, argv)
 	logging = secure = 0;
 	openlog("fingerd", LOG_PID | LOG_CONS, LOG_DAEMON);
 	opterr = 0;
-	while ((ch = getopt(argc, argv, "slp:")) != EOF)
+	while ((ch = getopt(argc, argv, "slp:")) != -1)
 		switch (ch) {
 		case 'l':
 			logging = 1;
