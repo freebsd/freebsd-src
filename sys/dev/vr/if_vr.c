@@ -156,7 +156,7 @@ static void vr_mii_send		(struct vr_softc *, uint32_t, int);
 #endif
 static int vr_mii_readreg	(struct vr_softc *, struct vr_mii_frame *);
 static int vr_mii_writereg	(struct vr_softc *, struct vr_mii_frame *);
-static int vr_miibus_readreg	(device_t, int, int);
+static int vr_miibus_readreg	(device_t, uint16_t, uint16_t);
 static int vr_miibus_writereg	(device_t, uint16_t, uint16_t, uint16_t);
 static void vr_miibus_statchg	(device_t);
 
@@ -463,7 +463,7 @@ vr_mii_writereg(struct vr_softc *sc, struct vr_mii_frame *frame)
 #endif
 
 static int
-vr_miibus_readreg(device_t dev, int phy, int reg)
+vr_miibus_readreg(device_t dev, uint16_t phy, uint16_t reg)
 {
 	struct vr_mii_frame	frame;
 	struct vr_softc		*sc = device_get_softc(dev);
@@ -499,11 +499,9 @@ vr_miibus_writereg(device_t dev, uint16_t phy, uint16_t reg, uint16_t data)
 	}
 
 	bzero((char *)&frame, sizeof(frame));
-
 	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
 	frame.mii_data = data;
-
 	vr_mii_writereg(sc, &frame);
 
 	return (0);
@@ -581,7 +579,7 @@ vr_setmulti(struct vr_softc *sc)
 static void
 vr_setcfg(struct vr_softc *sc, int media)
 {
-	int			restart = 0;
+	int	restart = 0;
 
 	if (CSR_READ_2(sc, VR_COMMAND) & (VR_CMD_TX_ON|VR_CMD_RX_ON)) {
 		restart = 1;
@@ -600,7 +598,7 @@ vr_setcfg(struct vr_softc *sc, int media)
 static void
 vr_reset(struct vr_softc *sc)
 {
-	register int		i;
+	register int	i;
 
 	VR_SETBIT16(sc, VR_COMMAND, VR_CMD_RESET);
 
@@ -1121,6 +1119,7 @@ vr_tick(void *xsc)
 	struct mii_data		*mii;
 
 	VR_LOCK(sc);
+
 	if (sc->vr_flags & VR_F_RESTART) {
 		printf("vr%d: restarting\n", sc->vr_unit);
 		vr_stop(sc);
@@ -1131,7 +1130,6 @@ vr_tick(void *xsc)
 
 	mii = device_get_softc(sc->vr_miibus);
 	mii_tick(mii);
-
 	sc->vr_stat_ch = timeout(vr_tick, sc, hz);
 
 	VR_UNLOCK(sc);
@@ -1146,10 +1144,12 @@ vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct vr_softc *sc = ifp->if_softc;
 
 	VR_LOCK(sc);
+
 	if (!(ifp->if_capenable & IFCAP_POLLING)) {
 		ether_poll_deregister(ifp);
 		cmd = POLL_DEREGISTER;
 	}
+
 	if (cmd == POLL_DEREGISTER) {
 		/* Final call, enable interrupts. */
 		CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
@@ -1209,7 +1209,6 @@ vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			}
 		}
 	}
-
 done:
 	VR_UNLOCK(sc);
 }
@@ -1402,7 +1401,7 @@ vr_start(struct ifnet *ifp)
 		sc->vr_cdata.vr_tx_prod = cur_tx;
 
 		/* Tell the chip to start transmitting. */
-		VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/VR_CMD_TX_GO);
+		VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/ VR_CMD_TX_GO);
 
 		/* Set a timeout in case the chip goes out to lunch. */
 		ifp->if_timer = 5;
@@ -1650,7 +1649,7 @@ vr_stop(struct vr_softc *sc)
 		}
 	}
 	bzero((char *)&sc->vr_ldata->vr_rx_list,
-		sizeof(sc->vr_ldata->vr_rx_list));
+	    sizeof(sc->vr_ldata->vr_rx_list));
 
 	/*
 	 * Free the TX list buffers.
@@ -1661,9 +1660,8 @@ vr_stop(struct vr_softc *sc)
 			sc->vr_cdata.vr_tx_chain[i].vr_mbuf = NULL;
 		}
 	}
-
 	bzero((char *)&sc->vr_ldata->vr_tx_list,
-		sizeof(sc->vr_ldata->vr_tx_list));
+	    sizeof(sc->vr_ldata->vr_tx_list));
 
 	VR_UNLOCK(sc);
 }
