@@ -108,6 +108,7 @@ asn1_compile:					\
 
 parse.o:	parse.c roken.h
 
+.ORDER: parse.c parse.h
 parse.h parse.c:	parse.y
 	${YACC}	-d ${.OODATE}
 	cp y.tab.c parse.c
