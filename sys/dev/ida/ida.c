@@ -63,6 +63,7 @@ static void ida_construct_qcb(struct ida_softc *ida);
 static void ida_start(struct ida_softc *ida);
 static void ida_done(struct ida_softc *ida, struct ida_qcb *qcb);
 static int ida_wait(struct ida_softc *ida, struct ida_qcb *qcb);
+static void ida_timeout (void *arg);
 
 static d_ioctl_t ida_ioctl;
 static struct cdevsw ida_cdevsw = {
@@ -76,6 +77,8 @@ void
 ida_free(struct ida_softc *ida)
 {
 	int i;
+
+	callout_stop(&ida->ch);
 
 	for (i = 0; i < ida->num_qcbs; i++)
 		bus_dmamap_destroy(ida->buffer_dmat, ida->qcbs[i].dmamap);
@@ -207,25 +210,40 @@ ida_init(struct ida_softc *ida)
 	 */
 
 	/* DMA tag for our hardware QCB structures */
-	error = bus_dma_tag_create(ida->parent_dmat,
-	    /*alignment*/1, /*boundary*/0,
-	    /*lowaddr*/BUS_SPACE_MAXADDR, /*highaddr*/BUS_SPACE_MAXADDR,
-	    /*filter*/NULL, /*filterarg*/NULL,
-	    IDA_QCB_MAX * sizeof(struct ida_hardware_qcb),
-	    /*nsegments*/1, /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-	    /*flags*/0, /*lockfunc*/busdma_lock_mutex, /*lockarg*/&Giant,
+	error = bus_dma_tag_create(
+		/* parent	*/ ida->parent_dmat,
+		/* alignment	*/ 1,
+		/* boundary	*/ 0,
+		/* lowaddr	*/ BUS_SPACE_MAXADDR,
+		/* highaddr	*/ BUS_SPACE_MAXADDR,
+		/* filter	*/ NULL,
+		/* filterarg	*/ NULL,
+		/* maxsize	*/ IDA_QCB_MAX * sizeof(struct ida_hardware_qcb),
+		/* nsegments	*/ 1,
+		/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+		/* flags	*/ 0,
+		/* lockfunc	*/ busdma_lock_mutex,
+		/* lockarg	*/ &Giant,
 	    &ida->hwqcb_dmat);
 	if (error)
                 return (ENOMEM);
 
 	/* DMA tag for mapping buffers into device space */
-	error = bus_dma_tag_create(ida->parent_dmat,
-	    /*alignment*/1, /*boundary*/0,
-	    /*lowaddr*/BUS_SPACE_MAXADDR, /*highaddr*/BUS_SPACE_MAXADDR,
-	    /*filter*/NULL, /*filterarg*/NULL,
-	    /*maxsize*/MAXBSIZE, /*nsegments*/IDA_NSEG,
-	    /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT, /*flags*/0,
-	    /*lockfunc*/busdma_lock_mutex, /*lockarg*/&Giant, &ida->buffer_dmat);
+	error = bus_dma_tag_create(
+		/* parent 	*/ ida->parent_dmat,
+		/* alignment	*/ 1,
+		/* boundary	*/ 0,
+		/* lowaddr	*/ BUS_SPACE_MAXADDR,
+		/* highaddr	*/ BUS_SPACE_MAXADDR,
+		/* filter	*/ NULL,
+		/* filterarg	*/ NULL,
+		/* maxsize	*/ MAXBSIZE,
+		/* nsegments	*/ IDA_NSEG,
+		/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+		/* flags	*/ 0,
+		/* lockfunc	*/ busdma_lock_mutex,
+		/* lockarg	*/ &Giant,
+		&ida->buffer_dmat);
 	if (error)
                 return (ENOMEM);
 
@@ -244,6 +262,8 @@ ida_init(struct ida_softc *ida)
 	bzero(ida->hwqcbs, IDA_QCB_MAX * sizeof(struct ida_hardware_qcb));
 
 	ida_alloc_qcb(ida);		/* allocate an initial qcb */
+
+	callout_init(&ida->ch, CALLOUT_MPSAFE);
 
 	return (0);
 }
@@ -444,8 +464,14 @@ ida_start(struct ida_softc *ida)
 		STAILQ_REMOVE_HEAD(&ida->qcb_queue, link.stqe);
 		/*
 		 * XXX
-		 * place the qcb on an active list and set a timeout?
+		 * place the qcb on an active list?
 		 */
+
+		/* Set a timeout. */
+		if (!ida->qactive)
+			callout_reset(&ida->ch, hz * 5, ida_timeout, ida);
+		ida->qactive++;
+
 		qcb->state = QCB_ACTIVE;
 		ida->cmd.submit(ida, qcb);
 	}
@@ -558,10 +584,42 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 		idad_intr(qcb->buf);
 	}
 
+	ida->qactive--;
+	/* Reschedule or cancel timeout */
+	if (ida->qactive)
+		callout_reset(&ida->ch, hz * 5, ida_timeout, ida);
+	else
+		callout_stop(&ida->ch);
+
 	qcb->state = QCB_FREE;
 	qcb->buf = NULL;
 	SLIST_INSERT_HEAD(&ida->free_qcbs, qcb, link.sle);
 	ida_construct_qcb(ida);
+}
+
+static void
+ida_timeout (void *arg)
+{
+	struct ida_softc *ida;
+
+	ida = (struct ida_softc *)arg;
+	device_printf(ida->dev, "%s() qactive %d\n", __func__, ida->qactive);
+
+	if (ida->flags & IDA_INTERRUPTS)
+		device_printf(ida->dev, "IDA_INTERRUPTS\n");
+
+	device_printf(ida->dev,	"\t   R_CMD_FIFO: %08x\n"
+				"\t  R_DONE_FIFO: %08x\n"
+				"\t   R_INT_MASK: %08x\n"
+				"\t     R_STATUS: %08x\n"
+				"\tR_INT_PENDING: %08x\n",
+					ida_inl(ida, R_CMD_FIFO),
+					ida_inl(ida, R_DONE_FIFO),
+					ida_inl(ida, R_INT_MASK),
+					ida_inl(ida, R_STATUS),
+					ida_inl(ida, R_INT_PENDING));
+
+	return;
 }
 
 /*
