@@ -93,6 +93,14 @@ disable_intr(void)
 }
 
 static __inline void
+do_cpuid(u_int ax, u_int *p)
+{
+	__asm __volatile("cpuid"
+			 : "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
+			 :  "0" (ax));
+}
+
+static __inline void
 enable_intr(void)
 {
 	__asm __volatile("sti");
@@ -365,16 +373,6 @@ read_eflags(void)
 
 	__asm __volatile("pushfl; popl %0" : "=r" (ef));
 	return (ef);
-}
-
-static __inline void
-do_cpuid(u_int ax, u_int *p)
-{
-	__asm __volatile(
-	"cpuid"
-	: "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
-	:  "0" (ax)
-	);
 }
 
 static __inline u_int64_t
