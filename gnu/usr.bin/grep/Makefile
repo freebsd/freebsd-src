@@ -3,8 +3,7 @@
 GREP_LIBZ=YES
 
 PROG=	grep
-SRCS=	dfa.c getopt.c getopt1.c grep.c kwset.c obstack.c savedir.c search.c \
-	stpcpy.c
+SRCS=	dfa.c getopt.c getopt1.c grep.c kwset.c obstack.c savedir.c search.c
 
 CFLAGS+=-I${.CURDIR} -DHAVE_CONFIG_H
 
