@@ -78,9 +78,8 @@ from {alpha,i386}/INSTALL.TXT.
 <!-- i386/pc98 text starts here -->
 
     <para arch="i386,pc98">&os; for the &arch.print; requires a 486 or better
-    processor to install and run (although &os; can run on 386 processors with
-    a custom kernel) and at least 24&nbsp;MB of RAM to install and 12&nbsp;MB to
-    run. You will need at least 150MB of free hard drive space for the
+    processor and at least 24&nbsp;MB of RAM.
+    You will need at least 150MB of free hard drive space for the
     most minimal installation.  See below for ways of shrinking
     existing DOS partitions in order to install &os;.</para>
 
