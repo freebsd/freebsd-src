@@ -217,10 +217,10 @@ atkbdc_open(int unit)
  * I/O access to the controller/keyboard/mouse. The convention requires
  * close cooperation of the calling device driver.
  *
- * The device driver which utilizes the `kbdio' module are assumed to
+ * The device drivers which utilize the `kbdio' module are assumed to
  * have the following set of routines.
  *    a. An interrupt handler (the bottom half of the driver).
- *    b. Timeout routines which may briefly polls the keyboard controller.
+ *    b. Timeout routines which may briefly poll the keyboard controller.
  *    c. Routines outside interrupt context (the top half of the driver).
  * They should follow the rules below:
  *    1. The interrupt handler may assume that it always has full access 
@@ -239,12 +239,12 @@ atkbdc_open(int unit)
  *       Therefore, `spltty()' must be strategically placed in the device
  *       driver code. Also note that the timeout routine may interrupt
  *       `kbdc_lock()' called by the top half of the driver, but this
- *       interruption is OK so long as the timeout routine observes the
- *       the rule 4 below.
+ *       interruption is OK so long as the timeout routine observes
+ *       rule 4 below.
  *    4. The interrupt and timeout routines should not extend I/O operation
- *       across more than one interrupt or timeout; they must complete
- *       necessary I/O operation within one invokation of the routine.
- *       This measns that if the timeout routine acquires the lock flag,
+ *       across more than one interrupt or timeout; they must complete any
+ *       necessary I/O operation within one invocation of the routine.
+ *       This means that if the timeout routine acquires the lock flag,
  *       it must reset the flag to FALSE before it returns.
  */
 
