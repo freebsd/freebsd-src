@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.1 1997/01/30 21:43:40 wollman Exp $
+ *	$Id: ftp.c,v 1.2 1997/02/05 19:59:12 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -327,7 +327,7 @@ ftp_retrieve(struct fetch_state *fs)
 		}
 		if (fs->fs_restart) {
 			if (stab.st_size != 0 && stab.st_size < size)
-				seekloc = wehave = size;
+				seekloc = wehave = stab.st_size;
 		}
 	}
 

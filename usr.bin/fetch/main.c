@@ -73,7 +73,7 @@ main(int argc, char *const *argv)
     fs.fs_verbose = 1;
     change_to_dir = file_to_get = hostname = 0;
 
-    while ((c = getopt(argc, argv, "ac:D:f:h:HilLmMnNo:pPqrT:vV:")) != -1) {
+    while ((c = getopt(argc, argv, "ac:D:f:h:HilLmMnNo:pPqRrT:vV:")) != -1) {
 	    switch (c) {
 	    case 'D': case 'H': case 'I': case 'N': case 'L': case 'V': 
 		    break;	/* ncftp compatibility */
@@ -286,6 +286,7 @@ void
 display(struct fetch_state *fs, off_t size, ssize_t n)
 {
     static off_t bytes;
+    static off_t bytestart;
     static int pr, init = 0;
     static struct timeval t0, t_start;
     static char *s;
@@ -309,7 +310,7 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	    sprintf (s, "Receiving %s", fs->fs_outputfile);
 	printf ("%s", s);
 	fflush (stdout);
-	bytes = n;
+	bytestart = bytes = n;
 	return;
     }
     gettimeofday(&t, &tz);
@@ -318,6 +319,7 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	    printf ("\r%s: 100%%", s);
 	else
 	    printf ("\r%s: %qd Kbytes", s, (quad_t)bytes/1024);
+	bytes -= bytestart;
 	d = t.tv_sec + t.tv_usec/1.e6 - t_start.tv_sec - t_start.tv_usec/1.e6;
 	printf ("\n%qd bytes transfered in %.1f seconds", (quad_t)bytes, d); 
 	d = bytes/d;
