@@ -657,24 +657,30 @@ build-tools:
 #
 # cross-tools: Build cross-building tools
 #
-.if ${TARGET_ARCH} == "alpha" && ${MACHINE_ARCH} != "alpha"
+.if ${TARGET_ARCH} == "alpha" && ${TARGET_ARCH} != ${MACHINE_ARCH}
 _elf2exe=	usr.sbin/elf2exe
 .endif
 
-.if ${TARGET_ARCH} == "i386"
+.if ${TARGET_ARCH} == "i386" && ${TARGET_ARCH} != ${MACHINE_ARCH}
 _btxld=	usr.sbin/btxld
+.if defined(RELEASEDIR)
 _kgzip=	usr.sbin/kgzip
 .endif
+.endif
 
-.if ${TARGET_ARCH} == "sparc64"
+.if ${TARGET_ARCH} == "sparc64" && ${TARGET_ARCH} != ${MACHINE_ARCH}
 _elf2aout=	usr.bin/elf2aout
+.endif
+
+.if defined(RELEASEDIR)
+_crunchide=	usr.sbin/crunch/crunchide
 .endif
 
 _xlint=	usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint
 
 cross-tools:
 .for _tool in ${_btxld} ${_elf2aout} ${_elf2exe} \
-    gnu/usr.bin/binutils usr.sbin/crunch/crunchide \
+    gnu/usr.bin/binutils ${_crunchide} \
     gnu/usr.bin/cc ${_xlint} ${_kgzip}
 	${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
