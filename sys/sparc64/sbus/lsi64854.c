@@ -80,8 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/scsi/scsi_all.h>
 
-#include <dev/esp/lsi64854reg.h>
-#include <dev/esp/lsi64854var.h>
+#include <sparc64/sbus/lsi64854reg.h>
+#include <sparc64/sbus/lsi64854var.h>
 
 #include <dev/esp/ncr53c9xreg.h>
 #include <dev/esp/ncr53c9xvar.h>
