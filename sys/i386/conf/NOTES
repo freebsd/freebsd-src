@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.533 1999/01/11 17:44:06 eivind Exp $
+#	$Id: LINT,v 1.534 1999/01/13 09:55:19 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1398,6 +1398,7 @@ device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port IO_GAME
 device          alog0   at isa? port 0x260 tty irq 5
 device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000
+options		CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
 device		dgm0	at isa? port 0x104 iomem 0xd00000 iosiz ? tty
 device		labpc0	at isa? port 0x260 tty irq 5
