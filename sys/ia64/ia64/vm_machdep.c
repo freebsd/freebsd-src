@@ -120,24 +120,24 @@ cpu_thread_setup(struct thread *td)
 }
 
 void
-cpu_set_upcall(struct thread *td, void *pcb0)
+cpu_set_upcall(struct thread *td, struct thread *td0)
 {
 	struct pcb *pcb;
 	struct trapframe *tf;
 
-	pcb = td->td_pcb;
-	KASSERT(pcb != NULL, ("foo"));
-	bcopy(pcb0, pcb, sizeof(*pcb));
-
 	tf = td->td_frame;
 	KASSERT(tf != NULL, ("foo"));
+	bcopy(td0->td_frame, tf, sizeof(*tf));
+	tf->tf_length = sizeof(struct trapframe);
 	tf->tf_flags = FRAME_SYSCALL;
-
 	tf->tf_special.ndirty = 0;
 	tf->tf_scratch.gr8 = 0;
 	tf->tf_scratch.gr9 = 1;
 	tf->tf_scratch.gr10 = 0;
 
+	pcb = td->td_pcb;
+	KASSERT(pcb != NULL, ("foo"));
+	bcopy(td0->td_pcb, pcb, sizeof(*pcb));
 	pcb->pcb_special.bspstore = td->td_kstack;
 	pcb->pcb_special.pfs = 0;
 	pcb->pcb_current_pmap = vmspace_pmap(td->td_proc->p_vmspace);
