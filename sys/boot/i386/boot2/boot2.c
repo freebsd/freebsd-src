@@ -298,9 +298,9 @@ parse(char *arg)
     int drv, c, i;
 
     while ((c = *arg++)) {
-	if (c == ' ')
+	if (c == ' ' || c == '\t' || c == '\n')
 	    continue;
-	for (p = arg; *p && *p != '\n' && *p != ' '; p++);
+	for (p = arg; *p && *p != '\n' && *p != ' ' && *p != '\t'; p++);
 	if (*p)
 	    *p++ = 0;
 	if (c == '-') {
