@@ -40,6 +40,7 @@
  */
 
 #include "includes.h"
+RCSID("$FreeBSD$");
 RCSID("$OpenBSD: channels.c,v 1.72 2000/10/27 07:48:22 markus Exp $");
 
 #include "ssh.h"
@@ -191,6 +192,18 @@ channel_register_fds(Channel *c, int rfd, int wfd, int efd,
 	c->sock = (rfd == wfd) ? rfd : -1;
 	c->efd = efd;
 	c->extended_usage = extusage;
+
+	/* XXX ugly hack: nonblock is only set by the server */
+	if (nonblock && isatty(c->rfd)) {
+		debug("channel: %d: rfd %d isatty", c->self, c->rfd);
+		c->isatty = 1;
+		if (!isatty(c->wfd)) {
+			error("channel: %d: wfd %d is not a tty?",
+			    c->self, c->wfd);
+		}
+	} else {
+		c->isatty = 0;
+	}
 
 	/* enable nonblocking mode */
 	if (nonblock) {
@@ -721,6 +734,20 @@ channel_handle_wfd(Channel *c, fd_set * readset, fd_set * writeset)
 				chan_write_failed(c);
 			}
 			return -1;
+		}
+		if (compat20 && c->isatty) {
+			struct termios tio;
+			if (tcgetattr(c->wfd, &tio) == 0 &&
+			    !(tio.c_lflag & ECHO) && (tio.c_lflag & ICANON)) {
+				/*
+				 * Simulate echo to reduce the impact of
+				 * traffic analysis.
+				 */
+				packet_start(SSH2_MSG_IGNORE);
+				memset(buffer_ptr(&c->output), 0, len);
+				packet_put_string(buffer_ptr(&c->output), len);
+				packet_send();
+			}
 		}
 		buffer_consume(&c->output, len);
 		if (compat20 && len > 0) {

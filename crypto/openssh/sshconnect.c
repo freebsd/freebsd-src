@@ -900,3 +900,18 @@ ssh_login(int host_key_valid, RSA *own_host_key, const char *orighost,
 		ssh_userauth(local_user, server_user, host, host_key_valid, own_host_key);
 	}
 }
+
+void
+ssh_put_password(char *password)
+{
+	int size;
+	char *padded;
+
+	size = roundup(strlen(password) + 1, 32);
+	padded = xmalloc(size);
+	memset(padded, 0, size);
+	strlcpy(padded, password, size);
+	packet_put_string(padded, size);
+	memset(padded, 0, size);
+	xfree(padded);
+}
