@@ -508,6 +508,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		    (prev_entry->max_protection == max)) {
 			map->size += (end - prev_entry->end);
 			prev_entry->end = end;
+			vm_map_simplify_entry(map, prev_entry);
 			return (KERN_SUCCESS);
 		}
 
@@ -515,7 +516,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		 * If we can extend the object but cannot extend the
 		 * map entry, we have to create a new map entry.  We
 		 * must bump the ref count on the extended object to
-		 * account for it.
+		 * account for it.  object may be NULL.
 		 */
 		object = prev_entry->object.vm_object;
 		offset = prev_entry->offset +
@@ -561,6 +562,11 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    (prev_entry->end >= new_entry->start)) {
 		map->first_free = new_entry;
 	}
+
+	/*
+	 * It may be possible to simplify the entry
+	 */
+	vm_map_simplify_entry(map, new_entry);
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
 		pmap_object_init_pt(map->pmap, start,
@@ -681,7 +687,14 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 /*
  *	vm_map_simplify_entry:
  *
- *	Simplify the given map entry by merging with either neighbor.
+ *	Simplify the given map entry by merging with either neighbor.  This
+ *	routine also has the ability to merge with both neighbors.
+ *
+ *	The map must be locked.
+ *
+ *	This routine guarentees that the passed entry remains valid (though
+ *	possibly extended).  When merging, this routine may delete one or
+ *	both neighbors.
  */
 void
 vm_map_simplify_entry(map, entry)
@@ -784,7 +797,7 @@ _vm_map_clip_start(map, entry, start)
 	 * put this improvement.
 	 */
 
-	if (entry->object.vm_object == NULL) {
+	if (entry->object.vm_object == NULL && !map->system_map) {
 		vm_object_t object;
 		object = vm_object_allocate(OBJT_DEFAULT,
 				atop(entry->end - entry->start));
@@ -840,7 +853,7 @@ _vm_map_clip_end(map, entry, end)
 	 * put this improvement.
 	 */
 
-	if (entry->object.vm_object == NULL) {
+	if (entry->object.vm_object == NULL && !map->system_map) {
 		vm_object_t object;
 		object = vm_object_allocate(OBJT_DEFAULT,
 				atop(entry->end - entry->start));
@@ -1295,7 +1308,8 @@ vm_map_user_pageable(map, start, end, new_pageable)
 					    atop(entry->end - entry->start));
 					entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 
-				} else if (entry->object.vm_object == NULL) {
+				} else if (entry->object.vm_object == NULL &&
+					   !map->system_map) {
 
 					entry->object.vm_object =
 					    vm_object_allocate(OBJT_DEFAULT,
@@ -1485,7 +1499,8 @@ vm_map_pageable(map, start, end, new_pageable)
 						    &entry->offset,
 						    atop(entry->end - entry->start));
 						entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
-					} else if (entry->object.vm_object == NULL) {
+					} else if (entry->object.vm_object == NULL &&
+						   !map->system_map) {
 						entry->object.vm_object =
 						    vm_object_allocate(OBJT_DEFAULT,
 							atop(entry->end - entry->start));
@@ -2614,7 +2629,8 @@ RetryLookup:;
 	/*
 	 * Create an object if necessary.
 	 */
-	if (entry->object.vm_object == NULL) {
+	if (entry->object.vm_object == NULL &&
+	    !map->system_map) {
 		if (vm_map_lock_upgrade(map)) 
 			goto RetryLookup;
 

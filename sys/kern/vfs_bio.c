@@ -1235,9 +1235,8 @@ brelse(struct buf * bp)
 		bufcountwakeup();
 
 	/*
-	 * Something we can maybe free.
+	 * Something we can maybe free or reuse
 	 */
-
 	if (bp->b_bufsize || bp->b_kvasize)
 		bufspacewakeup();
 
@@ -1304,7 +1303,7 @@ bqrelse(struct buf * bp)
 	}
 
 	/*
-	 * Something we can maybe wakeup
+	 * Something we can maybe free or reuse.
 	 */
 	if (bp->b_bufsize && !(bp->b_flags & B_DELWRI))
 		bufspacewakeup();
@@ -1551,10 +1550,13 @@ restart:
 		}
 
 		/*
-		 * Nada.  If we are allowed to allocate an EMPTY 
-		 * buffer, go get one.
+		 * If we could not find or were not allowed to reuse a
+		 * CLEAN buffer, check to see if it is ok to use an EMPTY
+		 * buffer.  We can only use an EMPTY buffer if allocating
+		 * its KVA would not otherwise run us out of buffer space.
 		 */
-		if (nbp == NULL && defrag == 0 && bufspace < hibufspace) {
+		if (nbp == NULL && defrag == 0 &&
+		    bufspace + maxsize < hibufspace) {
 			nqindex = QUEUE_EMPTY;
 			nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
 		}
@@ -1686,6 +1688,11 @@ restart:
 			goto restart;
 		}
 
+		/*
+		 * If we are overcomitted then recover the buffer and its
+		 * KVM space.  This occurs in rare situations when multiple
+		 * processes are blocked in getnewbuf() or allocbuf().
+		 */
 		if (bufspace >= hibufspace)
 			flushingbufs = 1;
 		if (flushingbufs && bp->b_kvasize != 0) {
