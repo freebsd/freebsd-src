@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#3 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#5 $
  *
  * $FreeBSD$
  */
@@ -242,18 +242,16 @@ ahc_fetch_transinfo(struct ahc_softc *ahc, char channel, u_int our_id,
 static __inline struct scb *
 ahc_get_scb(struct ahc_softc *ahc)
 {
-	struct scb *scbp;
+	struct scb *scb;
 
-	if ((scbp = SLIST_FIRST(&ahc->scb_data->free_scbs))) {
-		SLIST_REMOVE_HEAD(&ahc->scb_data->free_scbs, links.sle);
-	} else {
+	if ((scb = SLIST_FIRST(&ahc->scb_data->free_scbs)) == NULL) {
 		ahc_alloc_scbs(ahc);
-		scbp = SLIST_FIRST(&ahc->scb_data->free_scbs);
-		if (scbp != NULL)
-			SLIST_REMOVE_HEAD(&ahc->scb_data->free_scbs, links.sle);
+		scb = SLIST_FIRST(&ahc->scb_data->free_scbs);
+		if (scb == NULL)
+			return (NULL);
 	}
-
-	return (scbp);
+	SLIST_REMOVE_HEAD(&ahc->scb_data->free_scbs, links.sle);
+	return (scb);
 }
 
 /*
@@ -265,19 +263,22 @@ ahc_free_scb(struct ahc_softc *ahc, struct scb *scb)
 	struct hardware_scb *hscb;
 
 	hscb = scb->hscb;
-#if 0
-	/* What do we do to generically handle driver resource shortages??? */
-	if ((ahc->flags & AHC_RESOURCE_SHORTAGE) != 0
-	 && (scb->ccb->ccb_h.status & CAM_RELEASE_SIMQ) == 0) {
-		scb->ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-		ahc->flags &= ~AHC_RESOURCE_SHORTAGE;
-	}
-#endif
 	/* Clean up for the next user */
+	ahc->scb_data->scbindex[hscb->tag] = NULL;
 	scb->flags = SCB_FREE;
 	hscb->control = 0;
 
 	SLIST_INSERT_HEAD(&ahc->scb_data->free_scbs, scb, links.sle);
+
+	/* Notify the OSM that a resource is now available. */
+	ahc_platform_scb_free(ahc, scb);
+}
+
+static __inline struct scb *
+ahc_lookup_scb(struct ahc_softc *ahc, u_int tag)
+{
+	return (ahc->scb_data->scbindex[tag]);
+
 }
 
 /*
@@ -286,6 +287,41 @@ ahc_free_scb(struct ahc_softc *ahc, struct scb *scb)
 static __inline void
 ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 {
+	struct hardware_scb *q_hscb;
+	u_int  saved_tag;
+
+	/*
+	 * Our queuing method is a bit tricky.  The card
+	 * knows in advance which HSCB to download, and we
+	 * can't disappoint it.  To achieve this, the next
+	 * SCB to download is saved off in ahc->next_queued_scb.
+	 * When we are called to queue "an arbitrary scb",
+	 * we copy the contents of the incoming HSCB to the one
+	 * the sequencer knows about, swap HSCB pointers and
+	 * finally assigne the SCB to the tag indexed location
+	 * in the scb_array.  This makes sure that we can still
+	 * locate the correct SCB by SCB_TAG.
+	 *
+	 * Start by copying the payload without perterbing
+	 * the tag number.  Also set the hscb id for the next
+	 * SCB to download.
+	 */
+	q_hscb = ahc->next_queued_scb->hscb;
+	saved_tag = q_hscb->tag;
+	memcpy(q_hscb, scb->hscb, 32);
+	q_hscb->tag = saved_tag;
+	q_hscb->next = scb->hscb->tag;
+
+	/* Now swap HSCB pointers. */
+	ahc->next_queued_scb->hscb = scb->hscb;
+	scb->hscb = q_hscb;
+
+	/* Now define the mapping from tag to SCB in the scbindex */
+	ahc->scb_data->scbindex[scb->hscb->tag] = scb;
+
+	/*
+	 * Keep a history of SCBs we've downloaded in the qinfifo.
+	 */
 	ahc->qinfifo[ahc->qinfifonext++] = scb->hscb->tag;
 	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
 		ahc_outb(ahc, HNSCB_QOFF, ahc->qinfifonext);

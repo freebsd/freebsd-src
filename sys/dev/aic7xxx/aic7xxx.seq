@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#4 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#7 $
  *
  * $FreeBSD$
  */
@@ -77,51 +77,58 @@ poll_for_work_loop:
 	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting;
 test_queue:
 	/* Has the driver posted any work for us? */
+BEGIN_CRITICAL
 	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
 		test	QOFF_CTLSTA, SCB_AVAIL jz poll_for_work_loop;
 		mov	NONE, SNSCB_QOFF;
-		inc	QINPOS;
 	} else {
 		cmp	KERNEL_QINPOS, A je poll_for_work_loop;
 		inc	QINPOS;
 	}
+	mov	ARG_1, NEXT_QUEUED_SCB;
+END_CRITICAL
 
 	/*
 	 * We have at least one queued SCB now and we don't have any 
-	 * SCBs in the list of SCBs awaiting selection.  Pull the tag
-	 * from the QINFIFO and get to work on it.
+	 * SCBs in the list of SCBs awaiting selection.  Allocate a
+	 * card SCB for the host's SCB and get to work on it.
 	 */
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
 		mov	ALLZEROS	call	get_free_or_disc_scb;
-	}
-
-dequeue_scb:
-	add	A, -1, QINPOS;
-	mvi	QINFIFO_OFFSET call fetch_byte;
-
-	if ((ahc->flags & AHC_PAGESCBS) == 0) {
+	} else {
 		/* In the non-paging case, the SCBID == hardware SCB index */
-		mov	SCBPTR, RETURN_2;
+		mov	SCBPTR, ARG_1;
 	}
 dma_queued_scb:
 	/*
 	 * DMA the SCB from host ram into the current SCB location.
 	 */
 	mvi	DMAPARAMS, HDMAEN|DIRECTION|FIFORESET;
-	mov	RETURN_2	 call dma_scb;
-start_scb:
+	mov	ARG_1	call dma_scb;
 	/*
-	 * Place us on the waiting list in case our selection
-	 * doesn't win during bus arbitration.
+	 * Check one last time to see if this SCB was canceled
+	 * before we completed the DMA operation.  If it was,
+	 * the QINFIFO next pointer will not match our saved
+	 * value.
 	 */
+	mov	A, ARG_1;
+BEGIN_CRITICAL
+	cmp	NEXT_QUEUED_SCB, A jne abort_qinscb;
+	mov	NEXT_QUEUED_SCB, SCB_NEXT;
 	mov	SCB_NEXT,WAITING_SCBH;
 	mov	WAITING_SCBH, SCBPTR;
+END_CRITICAL
 start_waiting:
 	/*
 	 * Start the first entry on the waiting SCB list.
 	 */
 	mov	SCBPTR, WAITING_SCBH;
 	call	start_selection;
+	jmp	poll_for_work_loop;
+
+abort_qinscb:
+	mvi	INTSTAT, TRACEPOINT;
+	call	add_scb_to_free_list;
 	jmp	poll_for_work_loop;
 
 start_selection:
@@ -650,7 +657,7 @@ idle_loop:
 		/*
 		 * Do we have any prefetch left???
 		 */
-		cmp	CCSGADDR, CCSGADDR_MAX jne idle_sg_avail;
+		cmp	CCSGADDR, SG_PREFETCH_CNT jne idle_sg_avail;
 
 		/*
 		 * Need to fetch segments, but we can only do that
@@ -660,19 +667,20 @@ idle_loop:
 		test	CCSCBCTL, CCSCBEN jnz return;
 
 		/*
-		 * The kernel allocates S/G space so that it is 128 byte
-		 * aligned and ends on a 128 byte boundary.  We fetch
-		 * up to the next 128 byte boundary so we don't attempt
-		 * to read a non-existent page.
+		 * We fetch a "cacheline aligned" and sized amount of data
+		 * so we don't end up referencing a non-existant page.
+		 * Cacheline aligned is in quotes because the kernel will
+		 * set the prefetch amount to a reasonable level if the
+		 * cacheline size is unknown.
 		 */
-		mvi	CCHCNT, CCSGADDR_MAX;
-		and	CCHADDR[0], ~(CCSGADDR_MAX - 1), SCB_RESIDUAL_SGPTR;
+		mvi	CCHCNT, SG_PREFETCH_CNT;
+		and	CCHADDR[0], SG_PREFETCH_ALIGN_MASK, SCB_RESIDUAL_SGPTR;
 		bmov	CCHADDR[1], SCB_RESIDUAL_SGPTR[1], 3;
 		mvi	CCSGCTL, CCSGEN|CCSGRESET ret;
 idle_sgfetch_complete:
 		clr	CCSGCTL;
 		test	CCSGCTL, CCSGEN jnz .;
-		and	CCSGADDR, (CCSGADDR_MAX - 1), SCB_RESIDUAL_SGPTR;
+		and	CCSGADDR, SG_PREFETCH_ADDR_MASK, SCB_RESIDUAL_SGPTR;
 idle_sg_avail:
 		if ((ahc->features & AHC_ULTRA2) != 0) {
 			/* Does the hardware have space for another SG entry? */
@@ -767,7 +775,7 @@ p_data:
 					 */
 	if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		/* We don't have any valid S/G elements */
-		mvi	CCSGADDR, CCSGADDR_MAX;
+		mvi	CCSGADDR, SG_PREFETCH_CNT;
 	}
 	test	SEQ_FLAGS, DPHASE	jnz data_phase_reinit;
 
@@ -1768,29 +1776,6 @@ rHead:
 	mov	DISCONNECTED_SCBH,SCB_NEXT ret;
 
 /*
- * Fetch a byte from host memory given an index of (A + (256 * SINDEX))
- * and a base address of SHARED_DATA_ADDR.  The byte is returned in RETURN_2.
- */
-fetch_byte:
-	mov	ARG_2, SINDEX;
-	if ((ahc->features & AHC_CMD_CHAN) != 0) {
-		mvi	DINDEX, CCHADDR;
-		mvi	SHARED_DATA_ADDR call set_1byte_addr;
-		mvi	CCHCNT, 1;
-		mvi	CCSGCTL, CCSGEN|CCSGRESET;
-		test	CCSGCTL, CCSGDONE jz .;
-		mvi	CCSGCTL, CCSGRESET;
-		bmov	RETURN_2, CCSGRAM, 1 ret;
-	} else {
-		mvi	DINDEX, HADDR;
-		mvi	SHARED_DATA_ADDR call set_1byte_addr;
-		mvi	1	call set_hcnt;
-		mvi	DFCNTRL, HDMAEN|DIRECTION|FIFORESET;
-		call	dma_finish;
-		mov	RETURN_2, DFDAT ret;
-	}
-
-/*
  * Prepare the hardware to post a byte to host memory given an
  * index of (A + (256 * SINDEX)) and a base address of SHARED_DATA_ADDR.
  */
@@ -1819,12 +1804,6 @@ post_byte:
 		or	DFCNTRL, HDMAEN|FIFOFLUSH;
 		jmp	dma_finish;
 	}
-
-get_SCBID_from_host:
-	mov	A, SAVED_LUN;
-	shr	SINDEX, 4, SAVED_SCSIID;
-	call	fetch_byte;
-	mov	RETURN_1,  RETURN_2 ret;
 
 phase_lock_perr:
 	mvi	INTSTAT, PERR_DETECTED;
@@ -2057,9 +2036,11 @@ dma_finish:
 
 add_scb_to_free_list:
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
+BEGIN_CRITICAL
 		mov	SCB_NEXT, FREE_SCBH;
 		mvi	SCB_TAG, SCB_LIST_NULL;
 		mov	FREE_SCBH, SCBPTR ret;
+END_CRITICAL
 	} else {
 		mvi	SCB_TAG, SCB_LIST_NULL ret;
 	}
