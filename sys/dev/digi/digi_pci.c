@@ -1,5 +1,8 @@
 /*-
  * Copyright (c) 2001 Brian Somers <brian@Awfulhak.org>
+ *   based on work by Slawa Olhovchenkov
+ *                    John Prince <johnp@knight-trosoft.com>
+ *                    Eric Hernes
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/tty.h>
-#include <sys/syslog.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -39,7 +41,6 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <pci/pcivar.h>
-#include <sys/mutex.h>
 
 #include <digi/digireg.h>
 #include <digi/digiio.h>
@@ -88,10 +89,10 @@ digi_pci_probe(device_t dev)
 	case PCI_DEVICE_920_4:
 	case PCI_DEVICE_920_8:
 	case PCI_DEVICE_920_2:
-		return 0;
+		return (0);
 	}
 
-	return ENXIO;
+	return (ENXIO);
 }
 
 static int
@@ -184,7 +185,7 @@ digi_pci_attach(device_t dev)
 	    0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
 	if (sc->res.irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 	retVal = bus_setup_intr(dev, sc->res.irq, INTR_TYPE_TTY,
 	    digiintr, sc, &sc->res.irqHandler);
