@@ -1556,16 +1556,17 @@ acpi_name(ACPI_HANDLE handle)
 int
 acpi_avoid(ACPI_HANDLE handle)
 {
-    char	*cp, *np;
+    char	*cp, *env, *np;
     int		len;
 
     np = acpi_name(handle);
     if (*np == '\\')
 	np++;
-    if ((cp = getenv("debug.acpi.avoid")) == NULL)
+    if ((env = getenv("debug.acpi.avoid")) == NULL)
 	return(0);
 
     /* scan the avoid list checking for a match */
+    cp = env;
     for (;;) {
 	while ((*cp != 0) && isspace(*cp))
 	    cp++;
@@ -1575,12 +1576,12 @@ acpi_avoid(ACPI_HANDLE handle)
 	while ((cp[len] != 0) && !isspace(cp[len]))
 	    len++;
 	if (!strncmp(cp, np, len)) {
-	    freeenv(cp);
+	    freeenv(env);
 	    return(1);
 	}
 	cp += len;
     }
-    freeenv(cp);
+    freeenv(env);
     return(0);
 }
 
