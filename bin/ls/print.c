@@ -306,8 +306,7 @@ printcol(DISPLAY *dp)
 	if (dp->list->fts_level != FTS_ROOTLEVEL && (f_longform || f_size))
 		(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
 
-	if (f_sortacross)
-		base = 0;
+	base = 0;
 	for (row = 0; row < numrows; ++row) {
 		endcol = colwidth;
 		if (!f_sortacross)
