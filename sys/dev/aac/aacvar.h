@@ -261,13 +261,6 @@ extern struct aac_interface	aac_fa_interface;
 #define AAC_GETREG1(sc, reg)		bus_space_read_1 (sc->aac_btag, \
 					sc->aac_bhandle, reg)
 
-/* Define the OS version specific locks */
-typedef struct mtx aac_lock_t;
-#define AAC_LOCK_INIT(l, s)	mtx_init(l, s, NULL, MTX_DEF)
-#define AAC_LOCK_ACQUIRE(l)	mtx_lock(l)
-#define AAC_LOCK_RELEASE(l)	mtx_unlock(l)
-
-
 /*
  * Per-controller structure.
  */
@@ -330,13 +323,13 @@ struct aac_softc
 
 	/* connected containters */
 	TAILQ_HEAD(,aac_container)	aac_container_tqh;
-	aac_lock_t		aac_container_lock;
+	struct mtx		aac_container_lock;
 
 	/*
 	 * The general I/O lock.  This protects the sync fib, the lists, the
 	 * queues, and the registers.
 	 */
-	aac_lock_t		aac_io_lock;
+	struct mtx		aac_io_lock;
 
 	/* delayed activity infrastructure */
 	struct task		aac_task_complete;	/* deferred-completion
@@ -345,7 +338,7 @@ struct aac_softc
 
 	/* management interface */
 	struct cdev *aac_dev_t;
-	aac_lock_t		aac_aifq_lock;
+	struct mtx		aac_aifq_lock;
 	struct aac_aif_command	aac_aifq[AAC_AIFQ_LENGTH];
 	int			aac_aifq_head;
 	int			aac_aifq_tail;
@@ -576,7 +569,7 @@ static __inline int
 aac_alloc_sync_fib(struct aac_softc *sc, struct aac_fib **fib)
 {
 
-	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+	mtx_lock(&sc->aac_io_lock);
 	*fib = &sc->aac_common->ac_sync_fib;
 	return (0);
 }
@@ -585,6 +578,6 @@ static __inline void
 aac_release_sync_fib(struct aac_softc *sc)
 {
 
-	AAC_LOCK_RELEASE(&sc->aac_io_lock);
+	mtx_unlock(&sc->aac_io_lock);
 }
 

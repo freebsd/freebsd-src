@@ -175,9 +175,9 @@ aac_disk_strategy(struct bio *bp)
 	/* perform accounting */
 
 	/* pass the bio to the controller - it can work out who we are */
-	AAC_LOCK_ACQUIRE(&sc->ad_controller->aac_io_lock);
+	mtx_lock(&sc->ad_controller->aac_io_lock);
 	aac_submit_bio(bp);
-	AAC_LOCK_RELEASE(&sc->ad_controller->aac_io_lock);
+	mtx_unlock(&sc->ad_controller->aac_io_lock);
 
 	return;
 }
