@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.82 1997/11/13 00:28:50 julian Exp $
+ * $Id: vfs_syscalls.c,v 1.83 1997/11/22 06:10:36 bde Exp $
  */
 
 /*
@@ -464,8 +464,8 @@ struct sync_args {
 #endif
 
 #ifdef DEBUG
-int syncprt = 0;
-SYSCTL_INT(_debug, 0, syncprt, CTLFLAG_RW, &syncprt, 0, "");
+static int syncprt = 0;
+SYSCTL_INT(_debug, OID_AUTO, syncprt, CTLFLAG_RW, &syncprt, 0, "");
 #endif
 
 /* ARGSUSED */
