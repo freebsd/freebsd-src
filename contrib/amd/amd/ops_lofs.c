@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_lofs.c,v 1.2 1999/01/10 21:53:49 ezk Exp $
+ * $Id: ops_lofs.c,v 1.3.2.2 2001/01/12 23:28:57 ro Exp $
  *
  */
 
@@ -53,7 +53,7 @@
 #include <amd.h>
 
 /* forward definitions */
-static char * lofs_match(am_opts *fo);
+static char *lofs_match(am_opts *fo);
 static int lofs_fmount(mntfs *mf);
 static int lofs_fumount(mntfs *mf);
 static int mount_lofs(char *dir, char *fs_name, char *opts);

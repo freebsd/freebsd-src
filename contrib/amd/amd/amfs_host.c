@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_host.c,v 1.3 1999/01/13 23:30:57 ezk Exp $
+ * $Id: amfs_host.c,v 1.4.2.4 2001/05/19 02:00:58 ib42 Exp $
  *
  */
 
@@ -204,7 +204,7 @@ sortfun(const voidp x, const voidp y)
  * Get filehandle
  */
 static int
-fetch_fhandle(CLIENT * client, char *dir, am_nfs_handle_t *fhp, u_long nfs_version)
+fetch_fhandle(CLIENT *client, char *dir, am_nfs_handle_t *fhp, u_long nfs_version)
 {
   struct timeval tv;
   enum clnt_stat clnt_stat;
@@ -256,8 +256,7 @@ fetch_fhandle(CLIENT * client, char *dir, am_nfs_handle_t *fhp, u_long nfs_versi
 			  (SVC_IN_ARG_TYPE) &fhp->v2,
 			  tv);
     if (clnt_stat != RPC_SUCCESS) {
-      const char *msg = clnt_sperrno(clnt_stat);
-      plog(XLOG_ERROR, "mountd rpc failed: %s", msg);
+      plog(XLOG_ERROR, "mountd rpc failed: %s", clnt_sperrno(clnt_stat));
       return EIO;
     }
     /* Check status of filehandle */
@@ -403,7 +402,6 @@ amfs_host_fmount(mntfs *mf)
    * Figure out how many exports were returned
    */
   for (n_export = 0, ex = exlist; ex; ex = ex->ex_next) {
-    /* printf("export %s\n", ex->ex_dir); */
     n_export++;
   }
 
@@ -415,7 +413,10 @@ amfs_host_fmount(mntfs *mf)
   ep = (exports *) xmalloc(n_export * sizeof(exports));
   for (j = 0, ex = exlist; ex; ex = ex->ex_next) {
     make_mntpt(mntpt, ex, mf);
-    if (!already_mounted(mlist, mntpt))
+    if (already_mounted(mlist, mntpt))
+      /* we have at least one mounted f/s, so don't fail the mount */
+      ok = TRUE;
+    else
       ep[j++] = ex;
   }
   n_export = j;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: map.c,v 1.5 1999/08/22 05:12:51 ezk Exp $
+ * $Id: map.c,v 1.6.2.3 2001/01/10 03:23:07 ezk Exp $
  *
  */
 
@@ -65,6 +65,7 @@
  * there is no way that 2^32 generation numbers could ever
  * be allocated by a single run of amd - there is simply
  * not enough cpu time available.
+ * Famous last words... -Ion
  */
 static u_int am_gen = 2;	/* Initial generation number */
 static int timeout_mp_id;	/* Id from last call to timeout */
@@ -307,7 +308,7 @@ init_map(am_node *mp, char *dir)
 {
   /*
    * mp->am_mapno is initialized by exported_ap_alloc
-   * other fields don't need to be set to zero.
+   * other fields don't need to be initialized.
    */
   mp->am_mnt = new_mntfs();
   mp->am_name = strdup(dir);
@@ -318,7 +319,7 @@ init_map(am_node *mp, char *dir)
   mp->am_attr.ns_status = NFS_OK;
   mp->am_fattr = gen_fattr;
   mp->am_fattr.na_fsid = 42;
-  mp->am_fattr.na_fileid = 0;
+  mp->am_fattr.na_fileid = mp->am_gen;
   mp->am_fattr.na_atime.nt_seconds = clocktime();
   mp->am_fattr.na_atime.nt_useconds = 0;
   mp->am_fattr.na_mtime = mp->am_fattr.na_ctime = mp->am_fattr.na_atime;
@@ -936,6 +937,21 @@ unmount_mp(am_node *mp)
 {
   int was_backgrounded = 0;
   mntfs *mf = mp->am_mnt;
+
+#ifndef MNT2_NFS_OPT_SYMTTL
+    /*
+     * This code is needed to defeat Solaris 2.4's (and newer) symlink
+     * values cache.  It forces the last-modified time of the symlink to be
+     * current.  It is not needed if the O/S has an nfs flag to turn off the
+     * symlink-cache at mount time (such as Irix 5.x and 6.x). -Erez.
+     */
+  if (mp->am_parent) {
+    /* defensive programming... can't we assert the above condition? */
+    nfsattrstat *attrp = &mp->am_parent->am_attr;
+    if (++attrp->ns_u.ns_attr_u.na_mtime.nt_useconds == 0)
+      ++attrp->ns_u.ns_attr_u.na_mtime.nt_seconds;
+  }
+#endif /* not MNT2_NFS_OPT_SYMTTL */
 
 #ifdef notdef
   plog(XLOG_INFO, "\"%s\" on %s timed out", mp->am_path, mp->am_mnt->mf_mount);

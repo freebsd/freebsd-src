@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-1999 Erez Zadok
+.\" Copyright (c) 1997-2001 Erez Zadok
 .\" Copyright (c) 1990 Jan-Simon Pendry
 .\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.conf.5,v 1.4 1999/09/30 21:01:43 ezk Exp $
+.\" $Id: amd.conf.5,v 1.7.2.3 2001/04/07 00:47:45 ib42 Exp $
 .\"
 .TH AMD.CONF 8 "7 August 1997"
 .SH NAME
@@ -208,12 +208,15 @@ meaning.  You can get the list of supported debugging options by running amd
 \fBdaemon\fR    enter daemon mode
 \fBfork\fR      fork server
 \fBfull\fR      program trace
+\fBhrtime\fR    print high resolution time stamps (only if syslog(3) is not used)
 \fBinfo\fR      info service specific debugging (hesiod, nis, etc.)
 \fBmem\fR       trace memory allocations
 \fBmtab\fR      use local "./mtab" file
+\fBreaddir\fR   show browsable_dirs progress
 \fBstr\fR       debug string munging
 \fBtest\fR      full debug but no daemon
-\fBtrace\fR     trace RPC protocol and NFS mount arguments
+\fBtrace\fR     trace protocol and NFS mount arguments
+\fBxdrtrace\fR  trace XDR routines
 .fi
 
 .TP
@@ -260,7 +263,8 @@ the machine.
 
 .TP
 .BR ldap_base " (string, default not set)"
-Specify the base name for LDAP.
+Specify the base name for LDAP.  This often includes LDAP-specific
+values such as country and organization.
 
 .TP
 .BR ldap_cache_maxmem " (numeric, default=131072)"
@@ -272,7 +276,7 @@ Specify the number of seconds to keep entries in the cache.
 
 .TP
 .BR ldap_hostports " (string, default not set)"
-Specify LDAP-specific values such as country and organization.
+Specify the LDAP host and port values.
 
 .TP
 .BR local_domain " (string, default no sub-domain)"
@@ -328,6 +332,15 @@ options by running amd \-H.  Possible values are:
 .fi
 
 .TP
+.BR nfs_proto " (numeric, default to trying version 3 then 2)"
+By default, amd tries version 3 and then version 2.  This option forces the
+overall NFS protocol used to version 3 or 2.  It overrides what is in the
+amd maps, and is useful when amd is compiled with NFSv3 support that may not
+be stable.  With this option you can turn off the complete usage of NFSv3
+dynamically (without having to recompile amd) until such time as NFSv3
+support is desired again.
+
+.TP
 .BR nfs_retransmit_counter " (numeric, default=11)"
 Same as the
 .I retransmit
@@ -356,6 +369,15 @@ and the
 .B nfs_retry_interval
 parameters change the overall retry interval.  Too long an interval gives
 poor interactive response; too short an interval causes excessive retries.
+
+.TP
+.BR nfs_vers " (string, default to trying version tcp then udp)"
+By default, amd tries TCP and then UDP.  This option forces the overall NFS
+protocol used to TCP or UDP.  It overrides what is in the amd maps, and is
+useful when amd is compiled with NFSv3 support that may not be stable.  With
+this option you can turn off the complete usage of NFSv3 dynamically
+(without having to recompile amd) until such time as NFSv3 support is
+desired again.
 
 .TP
 .BR nis_domain " (string, default to local NIS domain name)"
@@ -456,8 +478,8 @@ mounted.  Whenever one of these would have been auto-mounted,
 inherits it.
 
 .TP
-.BR selectors_on_default " (boolean, default=no)"
-If "yes", then the /default entry of maps will be look for and process any
+.BR selectors_in_defaults " (boolean, default=no)"
+If "yes", then the /defaults entry of maps will search for and process any
 selectors before setting defaults for all other keys in that map.  Useful
 when you want to set different options for a complete map based on some
 parameters.  For example, you may want to better the NFS performance over
@@ -468,6 +490,8 @@ slow slip-based networks as follows:
     wire==slip-net;opts:=intr,rsize=1024,wsize=1024 \\
     wire!=slip-net;opts:=intr,rsize=8192,wsize=8192
 .fi
+
+Deprecated form: selectors_on_default
 
 .TP
 .BR show_statfs_entries " (boolean), default=no)"
@@ -522,7 +546,7 @@ log_file =               /var/log/amd
 log_options =            all
 #debug_options =         all
 plock =                  no
-selectors_on_default =   yes
+selectors_in_defaults =  yes
 # config.guess picks up "sunos5" and I don't want to edit my maps yet
 os =                     sos5
 # if you print_version after setting up "os", it will show it.

@@ -95,10 +95,24 @@ amd.conf file (right now amd.conf overrides cmd-line options).
 - ALLOWED_MOUNT_TIME of 40 seconds is way too long!
 - need option to turn off pings of portmapper before trying a mount
 
-- type:=program should not require umount command. can use defult
+- type:=program should not require umount command. can use default
   umount(). it works for smbmount/umount.
 
 - document var[0-7] variables/selectors
 
 - need a way to export a nfs-mount point after it is being mounted (jukebox
   mounts).  can do this with type:=program.
+
+- support port=n, for machines that use NFS on a different port
+
+- support WebNFS (cf. Solaris mount_nfs(1M) -o public)
+
+- nfsl may be buggy when fs:= is specified explicitly (lockup?)
+
+- detecting down'ed hosts faster: use default portmap TTL variables?
+
+- entries w/ $key in /defaults, see "defaults" instead of the actual entry.
+
+- y2k: amq /home (mounted time uses YY instead of YYYY)
+
+- new amd.conf option to disable amq listener altogether (security)

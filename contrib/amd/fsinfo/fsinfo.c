@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.c,v 1.4 1999/02/04 07:24:44 ezk Exp $
+ * $Id: fsinfo.c,v 1.5.2.2 2001/01/10 03:23:34 ezk Exp $
  *
  */
 
@@ -196,7 +196,7 @@ Usage: %s [-v] [-a autodir] [-h hostname] [-b bootparams] [-d dumpsets]\n\
 static char *
 find_username(void)
 {
-  char *u = getlogin();
+  const char *u = getlogin();
 
   if (!u) {
     struct passwd *pw = getpwuid(getuid());
@@ -233,6 +233,7 @@ main(int argc, char *argv[])
     perror("gethostname");
     exit(1);
   }
+  hostname[sizeof(hostname) - 1] = '\0';
 
   /*
    * Get the username
