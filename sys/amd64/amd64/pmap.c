@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.228 1999/04/06 04:52:27 alc Exp $
+ *	$Id: pmap.c,v 1.229 1999/04/07 03:57:45 msmith Exp $
  */
 
 /*
@@ -1688,8 +1688,7 @@ pmap_remove_pte(pmap, ptq, va)
 	unsigned oldpte;
 	pv_table_t *ppv;
 
-	oldpte = *ptq;
-	*ptq = 0;
+	oldpte = loadandclear(ptq);
 	if (oldpte & PG_W)
 		pmap->pm_stats.wired_count -= 1;
 	/*
@@ -3061,14 +3060,12 @@ pmap_changebit(pa, bit, setem)
 	register pv_entry_t pv;
 	pv_table_t *ppv;
 	register unsigned *pte;
-	int changed;
 	int s;
 
 	if (!pmap_is_managed(pa))
 		return;
 
 	s = splvm();
-	changed = 0;
 	ppv = pa_to_pvh(pa);
 
 	/*
@@ -3098,11 +3095,10 @@ pmap_changebit(pa, bit, setem)
 
 		if (setem) {
 			*(int *)pte |= bit;
-			changed = 1;
+			pmap_TLB_invalidate(pv->pv_pmap, pv->pv_va);
 		} else {
 			vm_offset_t pbits = *(vm_offset_t *)pte;
 			if (pbits & bit) {
-				changed = 1;
 				if (bit == PG_RW) {
 					if (pbits & PG_M) {
 						vm_page_dirty(ppv->pv_vm_page);
@@ -3111,12 +3107,11 @@ pmap_changebit(pa, bit, setem)
 				} else {
 					*(int *)pte = pbits & ~bit;
 				}
+				pmap_TLB_invalidate(pv->pv_pmap, pv->pv_va);
 			}
 		}
 	}
 	splx(s);
-	if (changed)
-		invltlb();
 }
 
 /*
@@ -3147,7 +3142,6 @@ pmap_phys_address(ppn)
  *	pmap_ts_referenced:
  *
  *	Return the count of reference bits for a page, clearing all of them.
- *	
  */
 int
 pmap_ts_referenced(vm_offset_t pa)
@@ -3183,16 +3177,15 @@ pmap_ts_referenced(vm_offset_t pa)
 
 			if (pte && *pte & PG_A) {
 				*pte &= ~PG_A;
+
+				pmap_TLB_invalidate(pv->pv_pmap, pv->pv_va);
+
 				rtval++;
 				if (rtval > 4) {
 					break;
 				}
 			}
 		} while ((pv = pvn) != NULL && pv != pvf);
-
-		if (rtval) {
-			invltlb();
-		}
 	}
 	splx(s);
 
