@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 # Test for POSIX.2 options for grep
 #
 # grep [ -E| -F][ -c| -l| -q ][-insvx] -e pattern_list 

@@ -53,17 +53,15 @@ extern char *sys_errlist[];
 #endif
 
 /* Some operating systems treat text and binary files differently.  */
-#if O_BINARY
+#ifdef __BEOS__
+# undef O_BINARY /* BeOS 5 has O_BINARY and O_TEXT, but they have no effect. */
+#endif
+#ifdef HAVE_DOS_FILE_CONTENTS
 # include <io.h>
 # ifdef HAVE_SETMODE
 #  define SET_BINARY(fd)  setmode (fd, O_BINARY)
 # else
 #  define SET_BINARY(fd)  _setmode (fd, O_BINARY)
-# endif
-#else
-# ifndef O_BINARY
-#  define O_BINARY 0
-#  define SET_BINARY(fd)   (void)0
 # endif
 #endif
 
@@ -80,14 +78,15 @@ extern char *sys_errlist[];
 # define FILESYSTEM_PREFIX_LEN(f) 0
 #endif
 
-/* This assumes _WIN32, like DJGPP, has D_OK.  Does it?  In what header?  */
-#ifdef D_OK
+int isdir PARAMS ((char const *));
+
+#ifdef HAVE_DIR_EACCES_BUG
 # ifdef EISDIR
 #  define is_EISDIR(e, f) \
      ((e) == EISDIR \
-      || ((e) == EACCES && access (f, D_OK) == 0 && ((e) = EISDIR, 1)))
+      || ((e) == EACCES && isdir (f) && ((e) = EISDIR, 1)))
 # else
-#  define is_EISDIR(e, f) ((e) == EACCES && access (f, D_OK) == 0)
+#  define is_EISDIR(e, f) ((e) == EACCES && isdir (f))
 # endif
 #endif
 
