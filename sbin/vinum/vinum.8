@@ -109,7 +109,8 @@ List information about volumes
 .in
 .Cd makedev
 .in +1i
-Remake the device nodes in /dev/vinum.
+Remake the device nodes in 
+.Ar /dev/vinum .
 .in
 .Cd read
 .Ar disk-partition
@@ -123,12 +124,15 @@ configuration from the specified disk partition.
 .Ar newname
 .in +1i
 Change the name of the specified object.
+.ig
+XXX
 .in
 .Cd replace
 .Ar [ subdisk | plex ]
 .Ar newobject
 .in +1i
 Replace the object with an identical other object.  XXX not implemented yet.
+..
 .in
 .Cd resetconfig
 .in +1i
@@ -494,6 +498,9 @@ Enter text -> \f(BINO FUTURE\fP
 Vinum configuration obliterated
 .Ed
 .ft R
+.Pp
+As the message suggests, this is a last-ditch command.  Don't use it unless you
+have an existing configuration which you never want to see again.
 .It Nm resetstats
 .Op Fl r
 .Op volume | plex | subdisk
@@ -565,11 +572,11 @@ care: it can result in total loss of data on a volume.
 .Op volume | plex | subdisk
 .Pp
 .Nm start
-starts the
+starts one or more
 .Nm
-subsystem or one of its components.  To start a plex in a multi-plex volume, the
-data must be copied from another plex in the volume.  This frequently takes a
-long time and is done in the background.
+objects.  To start a plex in a multi-plex volume, the data must be copied from
+another plex in the volume.  This frequently takes a long time and is done in
+the background.
 .ig
 XXX When invoked without arguments, it checks all disks connected to the system
 for BSD partitions (type 165) and scans the partitions for a
@@ -636,7 +643,6 @@ Options are:
 tab(#) ;
 l lw50 .
 Option#Meaning
-.TH N
 T{
 .Nm plex
 .Ar plexname
@@ -701,7 +707,6 @@ Define a plex.  Unlike a volume, a plex does not need a name.
 tab(#) ;
 l lw50 .
 Option#Meaning
-.TH N
 T{
 .Nm name
 .Ar plexname
@@ -869,7 +874,7 @@ T}
 .TE
 .El
 .Sh EXAMPLE CONFIGURATION FILE
-.nf
+.Bd -literal
 # Sample vinum configuration file
 #
 # Our drives
@@ -916,7 +921,7 @@ volume vol5
   sd length 500m drive drive3
   sd length 500m drive drive4
   sd length 500m drive drive5
-.fi
+.Ed
 .Ss DRIVE LAYOUT CONSIDERATIONS
 .Nm
 drives are currently BSD disk partitions.  They must be of type
@@ -931,7 +936,7 @@ Use
 to edit a partition type definition.  The following display shows a typical
 partition layout as shown by
 .Nm disklabel:
-.nf
+.Bd -literal
 8 partitions:
 #        size   offset    fstype   [fsize bsize bps/cpg]
   a:    81920   344064    4.2BSD        0     0     0   # (Cyl.  240*- 297*)
@@ -940,7 +945,7 @@ partition layout as shown by
   e:    81920        0    4.2BSD        0     0     0   # (Cyl.    0 - 57*)
   f:  1900000   425984    4.2BSD        0     0     0   # (Cyl.  297*- 1626*)
   g:  1900741  2325984    unused        0     0     0   # (Cyl. 1626*- 2955*)
-.fi
+.Ed
 .sp
 In this example, partition 
 .Nm g
@@ -965,16 +970,73 @@ represents the whole disk and should not be used for any other purpose.
 uses the first 265 sectors on each partition for configuration information, so
 the maximum size of a subdisk is 265 sectors smaller than the drive.
 .Sh GOTCHAS
+The following points are not bugs, and they have good reasons for existing, but
+they have shown to cause confusion.  Each is discussed in the appropriate
+section above.
+.Bl -enum
+.It
 .Nm
 will not create a device on UFS partitions.  Instead, it will return an error
 message ``wrong partition type''.  The partition type must currently be
-``unused''.  See above for more details.
+``unused''.
+.It
+When you create a volume with multiple plexes,
+.Nm 
+does not automatically initialize the plexes.  This means that the contents are
+not known, but they are certainly not consistent.  As a result, by default 
+.Nm
+sets the state of all newly-created plexes except the first to
+.Ar stale .
+.Pp
+In practice, people aren't too interested in what was in the plex when it was
+created, and other volume managers cheat by setting them 
+.Ar up
+anyway.
+.Nm
+provides two ways to ensure that newly created plexes are
+.Ar up :
+.Bl -bullet
+.It
+Create the plexes and then initialize them with
+.Nm vinum init .
+.It
+Create the volume (not the plex) with the keyword
+.Ar setupstate ,
+which tells
+.Nm
+to ignore any possible inconsistency and set the plexes to be
+.Ar up .
+.El
+.It
+Some of the commands currently supported by
+.Nm
+are not really needed.  For reasons which I don't understand, however, I find
+that users frequently try the
+.Nm label
+and 
+.Nm resetconfig
+commands, though especially
+.Nm resetconfig
+outputs all sort of dire warnings.  Don't use these commands unless you have a
+good reason to do so.
+.El
 .Sh BUGS
 .Nm
 is currently in beta test.  Many bugs can be expected.  The configuration
 mechanism is not yet fully functional.  If you have difficulties, please look at
 http://www.lemis.com/vinum_beta.html and
 http://www.lemis.com/vinum_debugging.html before reporting problems.
+.Pp
+This man page tickles a bug in the
+.Ar doc
+man page macros: depending on your screen size, you may get the error message
+.Bd -literal -offset indent
+warning: page 6: table text block will not fit on one page
+.Ed
+.Pp
+This will be fixed in a later rewrite of the page, when the
+.Nm tbl
+macros will be removed.
 .Sh FILES
 .Ar /dev/vinum
 - directory with device nodes for
@@ -995,8 +1057,10 @@ plexes.
 .Nm
 subdisks.
 .Sh SEE ALSO
-.Xr vinum 4 
-.Xr disklabel 8
+.Xr vinum 4 ,
+.Xr disklabel 8 ,
+.Nm http://www.lemis.com/vinum.html ,
+.Nm http://www.lemis.com/vinum-debugging.html .
 .Sh AUTHOR
 Greg Lehey 
 .Pa <grog@lemis.com> .
