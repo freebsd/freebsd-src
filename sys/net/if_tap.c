@@ -140,6 +140,7 @@ tapmodevent(mod, type, data)
 
 		SLIST_INIT(&taphead);
 
+		clone_setup(&tapclones);
 		eh_tag = EVENTHANDLER_REGISTER(dev_clone, tapclone, 0, 1000);
 		if (eh_tag == NULL)
 			return (ENOMEM);

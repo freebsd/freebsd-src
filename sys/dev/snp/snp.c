@@ -631,6 +631,7 @@ snp_modevent(mod, type, data)
 	switch (type) {
 	case MOD_LOAD:
 		/* XXX error checking. */
+		clone_setup(&snpclones);
 		eh_tag = EVENTHANDLER_REGISTER(dev_clone, snp_clone, 0, 1000);
 		snooplinedisc = ldisc_register(LDISC_LOAD, &snpdisc);
 		break;

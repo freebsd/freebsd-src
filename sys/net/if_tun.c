@@ -150,6 +150,7 @@ tunmodevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		clone_setup(&tunclones);
 		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
 		if (tag == NULL)
 			return (ENOMEM);
