@@ -848,7 +848,7 @@
     </para>
 
     <para arch="i386">The following drivers were supported under the old SCSI
-    subsystem, but are not yet supported under the new CAM SCSI
+    subsystem, but are not yet supported under the &man.cam.4; SCSI
     subsystem:
       <itemizedlist>
         <listitem arch="i386">
@@ -1945,7 +1945,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT (sn
+    <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT (&man.sn.4;
     driver)</para>
 
     <para arch="i386">Xircom X3201 (Cardbus) based Ethernet cards, including the following:
@@ -2331,7 +2331,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">AMD Am79C930 and Harris (Intersil) based 802.11 cards (awi driver)
+    <para arch="i386,pc98">AMD Am79C930 and Harris (Intersil) based 802.11 cards (&man.awi.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>BayStack 650 and 660</para>
