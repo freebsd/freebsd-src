@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.25 1997/03/22 06:52:57 bde Exp $
+ * $Id: sys_pipe.c,v 1.26 1997/03/23 03:36:24 bde Exp $
  */
 
 #ifndef OLD_PIPE
@@ -60,7 +60,8 @@
 #include <sys/stat.h>
 #include <sys/filedesc.h>
 #include <sys/malloc.h>
-#include <sys/ioctl.h>
+#include <sys/filio.h>
+#include <sys/ttycom.h>
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <sys/signalvar.h>
