@@ -5,6 +5,7 @@
  * or UNIX System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  */
+
 /*
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -41,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.59 1995/02/09 11:13:09 jkh Exp $
+ *	$Id: conf.c,v 1.60 1995/02/09 11:59:40 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +57,38 @@
 d_rdwr_t rawread, rawwrite;
 d_strategy_t swstrategy;
 
+/* Lots of bogus defines for shorthand purposes */
+#define noopen		(d_open_t *)enodev
+#define noclose		(d_close_t *)enodev
+#define noread		(d_rdwr_t *)enodev
+#define nowrite		noread
+#define noioc		(d_ioctl_t *)enodev
+#define nostop		(d_stop_t *)enodev
+#define noreset		(d_reset_t *)enodev
+#define noselect	(d_select_t *)enodev
+#define nommap		(d_mmap_t *)enodev
+#define nostrat		(d_strategy_t *)enodev
+#define nodump		(d_dump_t *)enodev
+
+#define nxopen		(d_open_t *)enxio
+#define	nxclose		(d_close_t *)enxio
+#define	nxread		(d_rdwr_t *)enxio
+#define	nxwrite		nxread
+#define	nxstrategy	(d_strategy_t *)enxio
+#define	nxioctl		(d_ioctl_t *)enxio
+#define	nxdump		(d_dump_t *)enxio
+#define nxstop		(d_stop_t *)enxio
+#define nxreset		(d_reset_t *)enxio
+#define nxselect	(d_select_t *)enxio
+#define nxmmap		(d_mmap_t *)enxio
+
+#define nullopen	(d_open_t *)nullop
+#define nullclose	(d_close_t *)nullop
+#define nullstop	(d_stop_t *)nullop
+#define nullreset	(d_reset_t *)nullop
+
+#define zerosize	(d_psize_t *)0
+
 int lkmenodev();
 #define	lkmopen		(d_open_t *)lkmenodev
 #define	lkmclose	(d_close_t *)lkmenodev
@@ -64,7 +97,7 @@ int lkmenodev();
 #define	lkmstrategy	(d_strategy_t *)lkmenodev
 #define	lkmioctl	(d_ioctl_t *)lkmenodev
 #define	lkmdump		(d_dump_t *)lkmenodev
-#define	lkmsize		(d_psize_t *)0
+#define	lkmsize		zerosize
 #define lkmstop		(d_stop_t *)lkmenodev
 #define lkmreset	(d_reset_t *)lkmenodev
 #define lkmmmap		(d_mmap_t *)lkmenodev
@@ -72,190 +105,190 @@ int lkmenodev();
 
 #include "wd.h"
 #if (NWD > 0)
-d_open_t wdopen;
-d_close_t wdclose;
-d_strategy_t wdstrategy;
-d_ioctl_t wdioctl;
-d_dump_t wddump;
-d_psize_t wdsize;
+d_open_t	wdopen;
+d_close_t	wdclose;
+d_strategy_t	wdstrategy;
+d_ioctl_t	wdioctl;
+d_dump_t	wddump;
+d_psize_t	wdsize;
 #else
-#define	wdopen		(d_open_t *)enxio
-#define	wdclose		(d_close_t *)enxio
-#define	wdstrategy	(d_strategy_t *)enxio
-#define	wdioctl		(d_ioctl_t *)enxio
-#define	wddump		(d_dump_t *)enxio
-#define	wdsize		(d_psize_t *)0
+#define	wdopen		nxopen
+#define	wdclose		nxclose
+#define	wdstrategy	nxstrategy
+#define	wdioctl		nxioctl
+#define	wddump		nxdump
+#define	wdsize		zerosize
 #endif
 
 #include "sd.h"
 #if NSD > 0
-d_open_t sdopen;
-d_close_t sdclose;
-d_strategy_t sdstrategy;
-d_ioctl_t sdioctl;
-d_dump_t sddump;
-d_psize_t sdsize;
+d_open_t	sdopen;
+d_close_t	sdclose;
+d_strategy_t	sdstrategy;
+d_ioctl_t	sdioctl;
+d_dump_t	sddump;
+d_psize_t	sdsize;
 #else
-#define	sdopen		(d_open_t *)enxio
-#define	sdclose		(d_close_t *)enxio
-#define	sdstrategy	(d_strategy_t *)enxio
-#define	sdioctl		(d_ioctl_t *)enxio
-#define	sddump		(d_dump_t *)enxio
-#define	sdsize		(d_psize_t *)0
+#define	sdopen		nxopen
+#define	sdclose		nxclose
+#define	sdstrategy	nxstrategy
+#define	sdioctl		nxioctl
+#define	sddump		nxdump
+#define	sdsize		zerosize
 #endif
 
 #include "st.h"
 #if NST > 0
-d_open_t stopen;
-d_close_t stclose;
-d_strategy_t ststrategy;
-d_ioctl_t stioctl;
+d_open_t	stopen;
+d_close_t	stclose;
+d_strategy_t	ststrategy;
+d_ioctl_t	stioctl;
 /*int	stdump(),stsize();*/
-#define	stdump		(d_dump_t *)enxio
-#define	stsize		(d_psize_t *)0
+#define	stdump		nxdump
+#define	stsize		zerosize
 #else
-#define	stopen		(d_open_t *)enxio
-#define	stclose		(d_close_t *)enxio
-#define	ststrategy	(d_strategy_t *)enxio
-#define	stioctl		(d_ioctl_t *)enxio
-#define	stdump		(d_dump_t *)enxio
-#define	stsize		(d_psize_t *)0
+#define	stopen		nxopen
+#define	stclose		nxclose
+#define	ststrategy	nxstrategy
+#define	stioctl		nxioctl
+#define	stdump		nxdump
+#define	stsize		zerosize
 #endif
 
 #include "cd.h"
 #if NCD > 0
-d_open_t cdopen;
-d_close_t cdclose;
-d_strategy_t cdstrategy;
-d_ioctl_t cdioctl;
-d_psize_t cdsize;
-#define	cddump		(d_dump_t *)enxio
+d_open_t	cdopen;
+d_close_t	cdclose;
+d_strategy_t	cdstrategy;
+d_ioctl_t	cdioctl;
+d_psize_t	cdsize;
+#define	cddump		nxdump
 #else
-#define	cdopen		(d_open_t *)enxio
-#define	cdclose		(d_close_t *)enxio
-#define	cdstrategy	(d_strategy_t *)enxio
-#define	cdioctl		(d_ioctl_t *)enxio
-#define	cddump		(d_dump_t *)enxio
-#define	cdsize		(d_psize_t *)0
+#define	cdopen		nxopen
+#define	cdclose		nxclose
+#define	cdstrategy	nxstrategy
+#define	cdioctl		nxioctl
+#define	cddump		nxdump
+#define	cdsize		zerosize
 #endif
 
 #include "mcd.h"
 #if NMCD > 0
-d_open_t mcdopen;
-d_close_t mcdclose;
-d_strategy_t mcdstrategy;
-d_ioctl_t mcdioctl;
-d_psize_t mcdsize;
-#define	mcddump		(d_dump_t *)enxio
+d_open_t	mcdopen;
+d_close_t	mcdclose;
+d_strategy_t	mcdstrategy;
+d_ioctl_t	mcdioctl;
+d_psize_t	mcdsize;
+#define	mcddump		nxdump
 #else
-#define	mcdopen		(d_open_t *)enxio
-#define	mcdclose	(d_close_t *)enxio
-#define	mcdstrategy	(d_strategy_t *)enxio
-#define	mcdioctl	(d_ioctl_t *)enxio
-#define	mcddump		(d_dump_t *)enxio
-#define	mcdsize		(d_psize_t *)0
+#define	mcdopen		nxopen
+#define	mcdclose	nxclose
+#define	mcdstrategy	nxstrategy
+#define	mcdioctl	nxioctl
+#define	mcddump		nxdump
+#define	mcdsize		zerosize
 #endif
 
 #include "scd.h"
 #if NSCD > 0
-d_open_t scdopen;
-d_close_t scdclose;
-d_strategy_t scdstrategy;
-d_ioctl_t scdioctl;
-d_psize_t scdsize;
-#define	scddump		(d_dump_t *)enxio
+d_open_t	scdopen;
+d_close_t	scdclose;
+d_strategy_t	scdstrategy;
+d_ioctl_t	scdioctl;
+d_psize_t	scdsize;
+#define	scddump		nxdump
 #else
-#define	scdopen		(d_open_t *)enxio
-#define	scdclose	(d_close_t *)enxio
-#define	scdstrategy	(d_strategy_t *)enxio
-#define	scdioctl	(d_ioctl_t *)enxio
-#define	scddump		(d_dump_t *)enxio
-#define	scdsize		(d_psize_t *)0
+#define	scdopen		nxopen
+#define	scdclose	nxclose
+#define	scdstrategy	nxstrategy
+#define	scdioctl	nxioctl
+#define	scddump		nxdump
+#define	scdsize		zerosize
 #endif
 
 #include "pcd.h"
 #if NPCD > 0
-d_open_t pcdopen;
-d_close_t pcdclose;
-d_strategy_t pcdstrategy;
-d_ioctl_t pcdioctl;
-d_psize_t pcdsize;
-#define	pcddump		(d_dump_t *)enxio
+d_open_t	pcdopen;
+d_close_t	pcdclose;
+d_strategy_t	pcdstrategy;
+d_ioctl_t	pcdioctl;
+d_psize_t	pcdsize;
+#define	pcddump		nxdump
 #else
-#define	pcdopen		(d_open_t *)enxio
-#define	pcdclose	(d_close_t *)enxio
-#define	pcdstrategy	(d_strategy_t *)enxio
-#define	pcdioctl	(d_ioctl_t *)enxio
-#define	pcddump		(d_dump_t *)enxio
-#define	pcdsize		(d_psize_t *)0
+#define	pcdopen		nxopen
+#define	pcdclose	nxclose
+#define	pcdstrategy	nxstrategy
+#define	pcdioctl	nxioctl
+#define	pcddump		nxdump
+#define	pcdsize		zerosize
 #endif
 
 #include "ch.h"
 #if NCH > 0
-d_open_t chopen;
-d_close_t chclose;
-d_ioctl_t chioctl;
+d_open_t	chopen;
+d_close_t	chclose;
+d_ioctl_t	chioctl;
 #else
-#define	chopen		(d_open_t *)enxio
-#define	chclose		(d_close_t *)enxio
-#define	chioctl		(d_ioctl_t *)enxio
+#define	chopen		nxopen
+#define	chclose		nxclose
+#define	chioctl		nxioctl
 #endif
 
 #include "wt.h"
 #if NWT > 0
-d_open_t wtopen;
-d_close_t wtclose;
-d_strategy_t wtstrategy;
-d_ioctl_t wtioctl;
-d_dump_t wtdump;
-d_psize_t wtsize;
+d_open_t	wtopen;
+d_close_t	wtclose;
+d_strategy_t	wtstrategy;
+d_ioctl_t	wtioctl;
+d_dump_t	wtdump;
+d_psize_t	wtsize;
 #else
-#define	wtopen		(d_open_t *)enxio
-#define	wtclose		(d_close_t *)enxio
-#define	wtstrategy	(d_strategy_t *)enxio
-#define	wtioctl		(d_ioctl_t *)enxio
-#define	wtdump		(d_dump_t *)enxio
-#define	wtsize		(d_psize_t *)0
+#define	wtopen		nxopen
+#define	wtclose		nxclose
+#define	wtstrategy	nxstrategy
+#define	wtioctl		nxioctl
+#define	wtdump		nxdump
+#define	wtsize		zerosize
 #endif
 
 #include "fd.h"
 #if NFD > 0
-d_open_t Fdopen;
-d_close_t fdclose;
-d_strategy_t fdstrategy;
-d_ioctl_t fdioctl;
-#define	fddump		(d_dump_t *)enxio
-#define	fdsize		(d_psize_t *)0
+d_open_t	Fdopen;
+d_close_t	fdclose;
+d_strategy_t	fdstrategy;
+d_ioctl_t	fdioctl;
+#define	fddump		nxdump
+#define	fdsize		zerosize
 #else
-#define	Fdopen		(d_open_t *)enxio
-#define	fdclose		(d_close_t *)enxio
-#define	fdstrategy	(d_strategy_t *)enxio
-#define	fdioctl		(d_ioctl_t *)enxio
-#define	fddump		(d_dump_t *)enxio
-#define	fdsize		(d_psize_t *)0
+#define	Fdopen		nxopen
+#define	fdclose		nxclose
+#define	fdstrategy	nxstrategy
+#define	fdioctl		nxioctl
+#define	fddump		nxdump
+#define	fdsize		zerosize
 #endif
 
 #include "vn.h"
 #if NVN > 0
-d_open_t vnopen;
-d_close_t vnclose;
-d_strategy_t vnstrategy;
-d_ioctl_t vnioctl;
-d_dump_t vndump;
-d_psize_t vnsize;
+d_open_t	vnopen;
+d_close_t	vnclose;
+d_strategy_t	vnstrategy;
+d_ioctl_t	vnioctl;
+d_dump_t	vndump;
+d_psize_t	vnsize;
 #else
-#define	vnopen		(d_open_t *)enxio
-#define	vnclose		(d_close_t *)enxio
-#define	vnstrategy	(d_strategy_t *)enxio
-#define	vnioctl		(d_ioctl_t *)enxio
-#define	vndump		(d_dump_t *)enxio
-#define	vnsize		(d_psize_t *)0
+#define	vnopen		nxopen
+#define	vnclose		nxclose
+#define	vnstrategy	nxstrategy
+#define	vnioctl		nxioctl
+#define	vndump		nxdump
+#define	vnsize		zerosize
 #endif
 
-#define swopen		(d_open_t *)enodev
-#define swclose		(d_close_t *)enodev
-#define swioctl		(d_ioctl_t *)enodev
-#define swdump		(d_dump_t *)enodev
+#define swopen		noopen
+#define swclose		noclose
+#define swioctl		noioc
+#define swdump		nodump
 #define swsize		(d_psize_t *)enodev
 
 d_rdwr_t swread, swwrite;
@@ -291,9 +324,8 @@ struct bdevsw	bdevsw[] =
 	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*13*/
 	  lkmdump,	lkmsize,	NULL },
 	/* block device 14 is reserved for local use */
-	{ (d_open_t *)enxio,		(d_close_t *)enxio,
-	  (d_strategy_t *)enxio,	(d_ioctl_t *)enxio,		/*14*/
-	  (d_dump_t *)enxio,		(d_psize_t *)0,		NULL },
+	{ nxopen,	nxclose,	nxstrategy,	nxioctl,	/*14*/
+	  nxdump,	zerosize,	NULL },
 	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
 	  vndump,	vnsize,		0 },
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
@@ -317,172 +349,158 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #include "sc.h"
 #include "vt.h"
 #if NSC > 0
-d_open_t scopen;
-d_close_t scclose;
-d_rdwr_t scread, scwrite;
-d_ioctl_t scioctl;
-d_mmap_t scmmap;
+d_open_t	scopen;
+d_close_t	scclose;
+d_rdwr_t	scread, scwrite;
+d_ioctl_t	scioctl;
+d_mmap_t	scmmap;
 extern	struct tty sccons[];
 #else
-#define scopen		(d_open_t *)enxio
-#define scclose		(d_close_t *)enxio
-#define scread		(d_rdwr_t *)enxio
-#define scwrite		(d_rdwr_t *)enxio
-#define scioctl		(d_ioctl_t *)enxio
-#define scmmap		(d_mmap_t *)enxio
+#define scopen		nxopen
+#define scclose		nxclose
+#define scread		nxread
+#define scwrite		nxwrite
+#define scioctl		nxioctl
+#define scmmap		nxmmap
 #define sccons		NULL
 #endif
 
 /* controlling TTY */
-d_open_t cttyopen;
-d_rdwr_t cttyread, cttywrite;
-d_ioctl_t cttyioctl;
-d_select_t cttyselect;
+d_open_t	cttyopen;
+d_rdwr_t	cttyread;
+d_rdwr_t	cttywrite;
+d_ioctl_t	cttyioctl;
+d_select_t	cttyselect;
 
 /* /dev/mem */
-d_open_t mmopen;
-d_close_t mmclose;
-d_rdwr_t mmrw;
-d_mmap_t memmmap;
+d_open_t	mmopen;
+d_close_t	mmclose;
+d_rdwr_t	mmrw;
+d_mmap_t	memmmap;
 #define	mmselect	seltrue
 
 #include "pty.h"
 #if NPTY > 0
-d_open_t ptsopen;
-d_close_t ptsclose;
-d_rdwr_t ptsread, ptswrite;
-d_stop_t ptsstop;
-d_open_t ptcopen;
-d_close_t ptcclose;
-d_rdwr_t ptcread, ptcwrite;
-d_select_t ptcselect;
-d_ioctl_t ptyioctl;
+d_open_t	ptsopen;
+d_close_t	ptsclose;
+d_rdwr_t	ptsread, ptswrite;
+d_stop_t	ptsstop;
+d_open_t	ptcopen;
+d_close_t	ptcclose;
+d_rdwr_t	ptcread;
+d_rdwr_t	ptcwrite;
+d_select_t	ptcselect;
+d_ioctl_t	ptyioctl;
 extern struct	tty pt_tty[];
 #else
-#define ptsopen		(d_open_t *)enxio
-#define ptsclose	(d_close_t *)enxio
-#define ptsread		(d_rdwr_t *)enxio
-#define ptswrite	(d_rdwr_t *)enxio
-#define ptcopen		(d_open_t *)enxio
-#define ptcclose	(d_close_t *)enxio
-#define ptcread		(d_rdwr_t *)enxio
-#define ptcwrite	(d_rdwr_t *)enxio
-#define ptyioctl	(d_ioctl_t *)enxio
+#define ptsopen		nxopen
+#define ptsclose	nxclose
+#define ptsread		nxread
+#define ptswrite	nxwrite
+#define ptcopen		nxopen
+#define ptcclose	nxclose
+#define ptcread		nxread
+#define ptcwrite	nxwrite
+#define ptyioctl	nxioctl
 #define	pt_tty		NULL
-#define	ptcselect	(d_select_t *)enxio
-#define	ptsstop		(d_stop_t *)nullop
+#define	ptcselect	nxselect
+#define	ptsstop		nullstop
 #endif
 
 /* /dev/klog */
-d_open_t logopen;
-d_close_t logclose;
-d_rdwr_t logread;
-d_ioctl_t logioctl;
-d_select_t logselect;
+d_open_t	logopen;
+d_close_t	logclose;
+d_rdwr_t	logread;
+d_ioctl_t	logioctl;
+d_select_t	logselect;
 
 #include "bqu.h"
 #if NBQU > 0
-d_open_t bquopen;
-d_close_t bquclose;
-d_rdwr_t bquread, bquwrite;
-d_select_t bquselect; 
-d_ioctl_t bquioctl;
+d_open_t	bquopen;
+d_close_t	bquclose;
+d_rdwr_t	bquread, bquwrite;
+d_select_t	bquselect; 
+d_ioctl_t	bquioctl;
 #else 
-#define bquopen         (d_open_t *)enxio 
-#define bquclose        (d_close_t *)enxio
-#define bquread         (d_rdwr_t *)enxio
-#define bquwrite        (d_rdwr_t *)enxio
-#define bquselect       (d_select_t *)enxio
-#define bquioctl        (d_ioctl_t *)enxio 
+#define bquopen         nxopen 
+#define bquclose        nxclose
+#define bquread         nxread
+#define bquwrite        nxwrite
+#define bquselect       nxselect
+#define bquioctl        nxioctl 
 #endif
 
 #include "lpt.h"
 #if NLPT > 0
-d_open_t lptopen;
-d_close_t lptclose;
-d_rdwr_t lptwrite;
-d_ioctl_t lptioctl;
+d_open_t	lptopen;
+d_close_t	lptclose;
+d_rdwr_t	lptwrite;
+d_ioctl_t	lptioctl;
 #else
-#define	lptopen		(d_open_t *)enxio
-#define	lptclose	(d_close_t *)enxio
-#define	lptwrite	(d_rdwr_t *)enxio
-#define	lptioctl	(d_ioctl_t *)enxio
+#define	lptopen		nxopen
+#define	lptclose	nxclose
+#define	lptwrite	nxwrite
+#define	lptioctl	nxioctl
 #endif
 
 #include "tw.h"
 #if NTW > 0
-d_open_t twopen;
-d_close_t twclose;
-d_rdwr_t twread, twwrite;
-d_select_t twselect;
+d_open_t	twopen;
+d_close_t	twclose;
+d_rdwr_t	twread, twwrite;
+d_select_t	twselect;
 #else
-#define twopen		(d_open_t *)enxio
-#define twclose		(d_close_t *)enxio
-#define twread		(d_rdwr_t *)enxio
-#define twwrite		(d_rdwr_t *)enxio
-#define twselect	(d_select_t *)enxio
-#endif
-
-#include "sb.h"                 /* Sound Blaster */
-#if     NSB > 0
-d_open_t sbopen;
-d_close_t sbclose;
-d_ioctl_t sbioctl;
-d_rdwr_t sbread, sbwrite;
-d_select_t sbselect;
-#else
-#define sbopen         (d_open_t *)enxio
-#define sbclose        (d_close_t *)enxio
-#define sbioctl        (d_ioctl_t *)enxio
-#define sbread         (d_rdwr_t *)enxio
-#define sbwrite        (d_rdwr_t *)enxio
-#define sbselect       seltrue
+#define twopen		nxopen
+#define twclose		nxclose
+#define twread		nxread
+#define twwrite		nxwrite
+#define twselect	nxselect
 #endif
 
 #include "psm.h"
 #if NPSM > 0
-d_open_t psmopen;
-d_close_t psmclose;
-d_rdwr_t psmread;
-d_select_t psmselect;
-d_ioctl_t psmioctl;
+d_open_t	psmopen;
+d_close_t	psmclose;
+d_rdwr_t	psmread;
+d_select_t	psmselect;
+d_ioctl_t	psmioctl;
 #else
-#define psmopen		(d_open_t *)enxio
-#define psmclose	(d_close_t *)enxio
-#define psmread		(d_rdwr_t *)enxio
-#define psmselect	(d_select_t *)enxio
-#define psmioctl	(d_ioctl_t *)enxio
+#define psmopen		nxopen
+#define psmclose	nxclose
+#define psmread		nxread
+#define psmselect	nxselect
+#define psmioctl	nxioctl
 #endif
 
 #include "snd.h"                 /* General Sound Driver */
 #if     NSND > 0
-d_open_t sndopen;
-d_close_t sndclose;
-d_ioctl_t sndioctl;
-d_rdwr_t sndread, sndwrite;
-d_select_t sndselect;
+d_open_t	sndopen;
+d_close_t	sndclose;
+d_ioctl_t	sndioctl;
+d_rdwr_t	sndread, sndwrite;
+d_select_t	sndselect;
 #else
-#define sndopen         (d_open_t *)enxio
-#define sndclose        (d_close_t *)enxio
-#define sndioctl        (d_ioctl_t *)enxio
-#define sndread         (d_rdwr_t *)enxio
-#define sndwrite        (d_rdwr_t *)enxio
+#define sndopen         nxopen
+#define sndclose        nxclose
+#define sndioctl       	nxioctl
+#define sndread         nxread
+#define sndwrite        nxwrite
 #define sndselect       seltrue
 #endif
 
 #include "vat_audio.h"		/* BSD audio driver emulator for voxware */
 #if     NVAT_AUDIO > 0		/* not general purpose, just vat */
-d_open_t vaopen;
-d_close_t vaclose;
-d_ioctl_t vaioctl;
-d_rdwr_t varead, vawrite;
-d_select_t vaselect;
+d_open_t	vaopen;
+d_close_t	vaclose;
+d_ioctl_t	vaioctl;
+d_rdwr_t	varead, vawrite;
+d_select_t	vaselect;
 #else
-#define vaopen          (d_open_t *)enxio
-#define vaclose         (d_close_t *)enxio
-#define vaioctl         (d_ioctl_t *)enxio
-#define varead          (d_rdwr_t *)enxio
-#define vawrite         (d_rdwr_t *)enxio
+#define vaopen          nxopen
+#define vaclose         nxclose
+#define vaioctl         nxioctl
+#define varead          nxread
+#define vawrite         nxwrite
 #define vaselect        seltrue
 #endif
 
@@ -491,264 +509,247 @@ d_open_t fdopen;
 
 #include "bpfilter.h"
 #if NBPFILTER > 0
-d_open_t bpfopen;
-d_close_t bpfclose;
-d_rdwr_t bpfread, bpfwrite;
-d_select_t bpfselect;
-d_ioctl_t bpfioctl;
+d_open_t	bpfopen;
+d_close_t	bpfclose;
+d_rdwr_t	bpfread, bpfwrite;
+d_select_t	bpfselect;
+d_ioctl_t	bpfioctl;
 #else
-#define	bpfopen		(d_open_t *)enxio
-#define	bpfclose	(d_close_t *)enxio
-#define	bpfread		(d_rdwr_t *)enxio
-#define	bpfwrite	(d_rdwr_t *)enxio
-#define	bpfselect	(d_select_t *)enxio
-#define	bpfioctl	(d_ioctl_t *)enxio
+#define	bpfopen		nxopen
+#define	bpfclose	nxclose
+#define	bpfread		nxread
+#define	bpfwrite	nxwrite
+#define	bpfselect	nxselect
+#define	bpfioctl	nxioctl
 #endif
 
 #include "speaker.h"
 #if NSPEAKER > 0
-d_open_t spkropen;
-d_close_t spkrclose;
-d_rdwr_t spkrwrite;
-d_ioctl_t spkrioctl;
+d_open_t	spkropen;
+d_close_t	spkrclose;
+d_rdwr_t	spkrwrite;
+d_ioctl_t	spkrioctl;
 #else
-#define spkropen	(d_open_t *)enxio
-#define spkrclose	(d_close_t *)enxio
-#define spkrwrite	(d_rdwr_t *)enxio
-#define spkrioctl	(d_ioctl_t *)enxio
+#define spkropen	nxopen
+#define spkrclose	nxclose
+#define spkrwrite	nxwrite
+#define spkrioctl	nxioctl
 #endif
 
 #include "pca.h"
 #if NPCA > 0
-d_open_t pcaopen;
-d_close_t pcaclose;
-d_rdwr_t pcawrite;
-d_ioctl_t pcaioctl;
-d_select_t pcaselect;
+d_open_t	pcaopen;
+d_close_t	pcaclose;
+d_rdwr_t	pcawrite;
+d_ioctl_t	pcaioctl;
+d_select_t	pcaselect;
 #else
-#define pcaopen		(d_open_t *)enxio
-#define pcaclose	(d_close_t *)enxio
-#define pcawrite	(d_rdwr_t *)enxio
-#define pcaioctl	(d_ioctl_t *)enxio
-#define pcaselect	(d_select_t *)enxio
+#define pcaopen		nxopen
+#define pcaclose	nxclose
+#define pcawrite	nxwrite
+#define pcaioctl	nxioctl
+#define pcaselect	nxselect
 #endif
 
 #include "mse.h"
 #if NMSE > 0
-d_open_t mseopen;
-d_close_t mseclose;
-d_rdwr_t mseread;
-d_select_t mseselect;
+d_open_t	mseopen;
+d_close_t	mseclose;
+d_rdwr_t	mseread;
+d_select_t	mseselect;
 #else
-#define	mseopen		(d_open_t *)enxio
-#define	mseclose	(d_close_t *)enxio
-#define	mseread		(d_rdwr_t *)enxio
-#define	mseselect	(d_select_t *)enxio
+#define	mseopen		nxopen
+#define	mseclose	nxclose
+#define	mseread		nxread
+#define	mseselect	nxselect
 #endif
 
 #include "sio.h"
 #if NSIO > 0
-d_open_t sioopen;
-d_close_t sioclose;
-d_rdwr_t sioread, siowrite;
-d_ioctl_t sioioctl;
-d_select_t sioselect;
-d_stop_t siostop;
-#define sioreset	(d_reset_t *)enxio
+d_open_t	sioopen;
+d_close_t	sioclose;
+d_rdwr_t	sioread, siowrite;
+d_ioctl_t	sioioctl;
+d_select_t	sioselect;
+d_stop_t	siostop;
+#define sioreset	nxreset
 extern	struct tty sio_tty[];
 #else
-#define sioopen		(d_open_t *)enxio
-#define sioclose	(d_close_t *)enxio
-#define sioread		(d_rdwr_t *)enxio
-#define siowrite	(d_rdwr_t *)enxio
-#define sioioctl	(d_ioctl_t *)enxio
-#define siostop		(d_stop_t *)enxio
-#define sioreset	(d_reset_t *)enxio
-#define sioselect	(d_select_t *)enxio
-#define	sio_tty		NULL
+#define sioopen		nxopen
+#define sioclose	nxclose
+#define sioread		nxread
+#define siowrite	nxwrite
+#define sioioctl	nxioctl
+#define siostop		nxstop
+#define sioreset	nxreset
+#define sioselect	nxselect
+#define	sio_tty		(struct tty *)NULL
 #endif
 
 #include "su.h"
 #if NSU > 0
-d_open_t suopen;
-d_close_t suclose;
-d_ioctl_t suioctl;
-d_rdwr_t suread, suwrite;
-d_select_t suselect;
-#define	summap		(d_mmap_t *)enxio
-d_strategy_t sustrategy;
+d_open_t	suopen;
+d_close_t	suclose;
+d_ioctl_t	suioctl;
+d_rdwr_t	suread, suwrite;
+d_select_t	suselect;
+#define	summap		nxmmap
+d_strategy_t	sustrategy;
 #else
-#define	suopen		(d_open_t *)enxio
-#define	suclose		(d_close_t *)enxio
-#define	suioctl		(d_ioctl_t *)enxio
-#define	suread		(d_rdwr_t *)enxio
-#define	suwrite		(d_rdwr_t *)enxio
-#define	suselect	(d_select_t *)enxio
-#define	summap		(d_mmap_t *)enxio
-#define	sustrategy	(d_strategy_t *)enxio
+#define	suopen		nxopen
+#define	suclose		nxclose
+#define	suioctl		nxioctl
+#define	suread		nxread
+#define	suwrite		nxwrite
+#define	suselect	nxselect
+#define	summap		nxmmap
+#define	sustrategy	nxstrategy
 #endif
 
 #include "uk.h"
 #if NUK > 0
-d_open_t ukopen;
-d_close_t ukclose;
-d_ioctl_t ukioctl;
+d_open_t	ukopen;
+d_close_t	ukclose;
+d_ioctl_t	ukioctl;
 #else
-#define	ukopen		(d_open_t *)enxio
-#define	ukclose		(d_close_t *)enxio
-#define	ukioctl		(d_ioctl_t *)enxio
+#define	ukopen		nxopen
+#define	ukclose		nxclose
+#define	ukioctl		nxioctl
 #endif
 
-d_open_t lkmcopen;
-d_close_t lkmcclose;
-d_ioctl_t lkmcioctl;
+d_open_t	lkmcopen;
+d_close_t	lkmcclose;
+d_ioctl_t	lkmcioctl;
 
 #include "apm.h"
 #if NAPM > 0
-d_open_t apmopen;
-d_close_t apmclose;
-d_ioctl_t apmioctl;
+d_open_t	apmopen;
+d_close_t	apmclose;
+d_ioctl_t	apmioctl;
 #else
-#define	apmopen		(d_open_t *)enxio
-#define	apmclose	(d_close_t *)enxio
-#define	apmioctl	(d_ioctl_t *)enxio
+#define	apmopen		nxopen
+#define	apmclose	nxclose
+#define	apmioctl	nxioctl
 #endif
 
 #ifdef IBCS2
-d_open_t sockopen;
-d_close_t sockclose;
-d_ioctl_t sockioctl;
+d_open_t	sockopen;
+d_close_t	sockclose;
+d_ioctl_t	sockioctl;
 #else
-#define	sockopen	(d_open_t *)enxio
-#define	sockclose	(d_close_t *)enxio
-#define	sockioctl	(d_ioctl_t *)enxio
+#define	sockopen	nxopen
+#define	sockclose	nxclose
+#define	sockioctl	nxioctl
 #endif
 
 #include "ctx.h"
 #if NCTX > 0
-d_open_t ctxopen;
-d_close_t ctxclose;
-d_rdwr_t ctxread;
-d_rdwr_t ctxwrite;
-d_ioctl_t ctxioctl;
+d_open_t	ctxopen;
+d_close_t	ctxclose;
+d_rdwr_t	ctxread;
+d_rdwr_t	ctxwrite;
+d_ioctl_t	ctxioctl;
 #else
-#define ctxopen		(d_open_t *)enxio
-#define ctxclose	(d_close_t *)enxio
-#define ctxread		(d_rdwr_t *)enxio
-#define ctxwrite	(d_rdwr_t *)enxio
-#define ctxioctl	(d_ioctl_t *)enxio
+#define ctxopen		nxopen
+#define ctxclose	nxclose
+#define ctxread		nxread
+#define ctxwrite	nxwrite
+#define ctxioctl	nxioctl
 #endif
 
 #include "ssc.h"
 #if NSSC > 0
-d_open_t sscopen;
-d_close_t sscclose;
-d_ioctl_t sscioctl;
-d_rdwr_t sscread, sscwrite;
-d_select_t sscselect;
-#define	sscmmap		(d_mmap_t *)enxio
-d_strategy_t sscstrategy;
+d_open_t	sscopen;
+d_close_t	sscclose;
+d_ioctl_t	sscioctl;
+d_rdwr_t	sscread, sscwrite;
+d_select_t	sscselect;
+#define	sscmmap		nxmmap
+d_strategy_t	sscstrategy;
 #else
-#define	sscopen		(d_open_t *)enxio
-#define	sscclose		(d_close_t *)enxio
-#define	sscioctl		(d_ioctl_t *)enxio
-#define	sscread		(d_rdwr_t *)enxio
-#define	sscwrite		(d_rdwr_t *)enxio
-#define	sscselect	(d_select_t *)enxio
-#define	sscmmap		(d_mmap_t *)enxio
-#define	sscstrategy	(d_strategy_t *)enxio
+#define	sscopen		nxopen
+#define	sscclose	nxclose
+#define	sscioctl	nxioctl
+#define	sscread		nxread
+#define	sscwrite	nxwrite
+#define	sscselect	nxselect
+#define	sscmmap		nxmmap
+#define	sscstrategy	nxstrategy
 #endif
-
-
-#define noopen		(d_open_t *)enodev
-#define noclose		(d_close_t *)enodev
-#define noread		(d_rdwr_t *)enodev
-#define nowrite		noread
-#define noioc		(d_ioctl_t *)enodev
-#define nostop		(d_stop_t *)enodev
-#define noreset		(d_reset_t *)enodev
-#define noselect	(d_select_t *)enodev
-#define nommap		(d_mmap_t *)enodev
-#define nostrat		(d_strategy_t *)enodev
-
-#define nullopen	(d_open_t *)nullop
-#define nullclose	(d_close_t *)nullop
-#define nullstop	(d_stop_t *)nullop
-#define nullreset	(d_reset_t *)nullop
 
 #include "cx.h"
 #if NCX > 0
-d_open_t cxopen;
-d_close_t cxclose;
-d_rdwr_t cxread, cxwrite;
-d_ioctl_t cxioctl;
-d_select_t cxselect;
-d_stop_t cxstop;
-extern struct tty *cx_tty[];
+d_open_t	cxopen;
+d_close_t	cxclose;
+d_rdwr_t	cxread, cxwrite;
+d_ioctl_t	cxioctl;
+d_select_t	cxselect;
+d_stop_t	cxstop;
+extern	struct tty cx_tty[];
 #else
-#define cxopen		(d_open_t *)enxio
-#define cxclose		(d_close_t *)enxio
-#define cxread		(d_rdwr_t *)enxio
-#define cxwrite		(d_rdwr_t *)enxio
-#define cxioctl		(d_ioctl_t *)enxio
-#define cxstop		(d_stop_t *)enxio
-#define cxselect	(d_select_t *)enxio
-#define cx_tty		NULL
+#define cxopen		nxopen
+#define cxclose		nxclose
+#define cxread		nxread
+#define cxwrite		nxwrite
+#define cxioctl		nxioctl
+#define cxstop		nxstop
+#define cxselect	nxselect
+#define cx_tty		(struct tty *)NULL
 #endif
 
 #include "gp.h"
 #if NGP > 0
-d_open_t gpopen;
-d_close_t gpclose;
-d_rdwr_t gpwrite;
-d_ioctl_t gpioctl; 
+d_open_t	gpopen;
+d_close_t	gpclose;
+d_rdwr_t	gpwrite;
+d_ioctl_t	gpioctl; 
 #else   
-#define gpopen          (d_open_t *)enxio
-#define gpclose (d_close_t *)enxio
-#define gpwrite         (d_rdwr_t *)enxio
-#define gpioctl (d_ioctl_t *)enxio
+#define gpopen  	nxopen
+#define gpclose 	nxclose
+#define gpwrite 	nxwrite
+#define gpioctl 	nxioctl
 #endif
 
 #include "gsc.h"
 #if NGSC > 0
-d_open_t gscopen;
-d_close_t gscclose;
-d_rdwr_t gscread;
-d_ioctl_t gscioctl; 
+d_open_t	gscopen;
+d_close_t	gscclose;
+d_rdwr_t	gscread;
+d_ioctl_t	gscioctl; 
 #else   
-#define gscopen          (d_open_t *)enxio
-#define gscclose (d_close_t *)enxio
-#define gscread         (d_rdwr_t *)enxio
-#define gscioctl (d_ioctl_t *)enxio
+#define gscopen		nxopen
+#define gscclose	nxclose
+#define gscread		nxread
+#define gscioctl	nxioctl
 #endif
 
 #include "joy.h"
 #if NJOY > 0
-d_open_t joyopen;
-d_close_t joyclose;
-d_rdwr_t joyread;
-d_ioctl_t joyioctl;
+d_open_t	joyopen;
+d_close_t	joyclose;
+d_rdwr_t	joyread;
+d_ioctl_t	joyioctl;
 #else
-#define joyopen  (d_open_t *)enxio
-#define joyclose (d_close_t *)enxio
-#define joyread  (d_rdwr_t *)enxio
-#define	joyioctl (d_ioctl_t *)enxio
+#define joyopen		nxopen
+#define joyclose	nxclose
+#define joyread		nxread
+#define	joyioctl	nxioctl
 #endif
 
-#include "tun.h"                                                                
-#if NTUN > 0                                                                    
-d_open_t tunopen;
-d_close_t tunclose;
-d_rdwr_t tunread, tunwrite;
-d_ioctl_t tunioctl;
-d_select_t tunselect;
+#include "tun.h"
+#if NTUN > 0
+d_open_t	tunopen;
+d_close_t	tunclose;
+d_rdwr_t	tunread, tunwrite;
+d_ioctl_t	tunioctl;
+d_select_t	tunselect;
 #else
-#define tunopen         (d_open_t *)enxio
-#define tunclose        (d_close_t *)enxio
-#define tunread         (d_rdwr_t *)enxio
-#define tunwrite        (d_rdwr_t *)enxio
-#define tunioctl        (d_ioctl_t *)enxio
-#define tunselect       (d_select_t *)enxio
+#define tunopen         nxopen
+#define tunclose        nxclose
+#define tunread         nxread
+#define tunwrite        nxwrite
+#define tunioctl        nxioctl
+#define tunselect       nxselect
 #endif
 
 #include "spigot.h"     
@@ -760,56 +761,42 @@ d_rdwr_t        spigot_read, spigot_write;
 d_select_t      spigot_select;
 d_mmap_t        spigot_mmap;
 #else
-#define spigot_open     (d_open_t *)enxio     
-#define spigot_close    (d_close_t *)enxio     
-#define spigot_ioctl    (d_ioctl_t *)enxio     
-#define spigot_read     (d_rdwr_t *)enxio     
-#define spigot_write    (d_rdwr_t *)enxio     
+#define spigot_open     nxopen     
+#define spigot_close    nxclose     
+#define spigot_ioctl    nxioctl     
+#define spigot_read     nxread     
+#define spigot_write    nxwrite     
 #define spigot_select   seltrue     
 #define spigot_mmap     nommap
 #endif
 
-/*
- * This stuff from Heikki is kind of bizarre, and I'm not sure how I feel
- * about it yet (I think I like it about as much as I can like anything in
- * here). -jkh
- */
-#ifndef __CONCAT
-#define	__CONCAT(x,y)	x ## y
-#endif
-
-#ifndef dev_decl
-#define	dev_decl(n,t)	__CONCAT(__CONCAT(d_,t),_t)__CONCAT(n,t)
-#endif
-#ifndef dev_init
-#define	dev_init(c,n,t) \
-	((c) > 0 ? __CONCAT(n,t) : (__CONCAT(__CONCAT(d_,t),_t)((*))) enxio)
-#endif
-
-#ifndef cdev_decl
-#define	cdev_decl(n) \
-	dev_decl(n,open); dev_decl(n,close); dev_decl(n,read); \
-	dev_decl(n,write); dev_decl(n,ioctl); dev_decl(n,stop); \
-	dev_decl(n,reset); dev_decl(n,select); dev_decl(n,mmap); \
-	dev_decl(n,strategy); extern struct tty __CONCAT(n,_tty)[]
-#endif
-
-/* open, close, read, write, ioctl, stop, tty */
-#ifndef dev_tty_init
-#define	dev_tty_init(c,n)	(c > 0 ? __CONCAT(n,_tty) : 0)
-#endif
-#ifndef cdev_tty_init
-#define	cdev_tty_init(c,n) { \
-	dev_init(c,n,open), dev_init(c,n,close), dev_init(c,n,read), \
-	dev_init(c,n,write), dev_init(c,n,ioctl), dev_init(c,n,stop), \
-	(d_reset_t((*))) nullop, dev_tty_init(c,n), ttselect, \
-	(d_mmap_t((*))) enodev, 0 }
-#endif
-
-
 /* Cyclades serial driver */
 #include "cy.h"
-cdev_decl(cy);
+#if	NCY > 0
+d_open_t        cyopen;
+d_close_t       cyclose;
+d_read_t        cyread;
+d_write_t       cywrite;
+d_ioctl_t	cyioctl;
+d_stop_t        cystop;
+d_reset_t       cyreset;
+d_select_t      cyselect;
+d_mmap_t        cymmap;
+d_strategy_t    cystrategy;
+extern	struct tty cy_tty[];
+#else
+#define	cyopen		nxopen
+#define cyclose		nxclose
+#define cyread		nxread
+#define cywrite		nxwrite
+#define cyioctl		nxioctl
+#define cystop		nxstop
+#define cyreset		nxreset
+#define cyselect	nxselect
+#define cymmap		nxmmap
+#define cystrategy	nxstrategy
+#define cy_tty          (struct tty *)NULL
+#endif
 
 
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
@@ -883,10 +870,10 @@ struct cdevsw	cdevsw[] =
  * Otherwise, simply use the one reserved for local use.
  */
 	/* character device 20 is reserved for local use */
-	{ (d_open_t *)enxio, (d_close_t *)enxio, (d_rdwr_t *)enxio,	/*20*/
-	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio,
-	  (d_reset_t *)enxio, NULL, (d_select_t *)enxio,
-	  (d_mmap_t *)enxio, NULL },
+	{ nxopen, nxclose, nxread,	/*20*/
+	  nxwrite, nxioctl, nxstop,
+	  nxreset, NULL, nxselect,
+	  nxmmap, NULL },
 	{ psmopen,	psmclose,	psmread,	nowrite,	/*21*/
 	  psmioctl,	nostop,		nullreset,	NULL,	/* psm mice */
 	  psmselect,	nommap,		NULL },
@@ -900,7 +887,7 @@ struct cdevsw	cdevsw[] =
  	  pcaioctl,     nostop,         nullreset,      NULL,	/* pcaudio */
  	  pcaselect,	nommap,		NULL },
 	{ vaopen,	vaclose,	varead,		vawrite,	/*25*/
-  	  vaioctl,	nostop,		nullreset,	NULL,	/* vat driver */
+  	  vaioctl,	nostop,		nullreset,	NULL,	/* vat */
   	  vaselect,	nommap,		NULL },
 	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
 	  spkrioctl,    nostop,         nullreset,      NULL,	/* spkr */
@@ -912,7 +899,7 @@ struct cdevsw	cdevsw[] =
 	  sioioctl,	siostop,	sioreset,	sio_tty, /* sio */
 	  sioselect,	nommap,		NULL },
 	{ mcdopen,	mcdclose,	rawread,	nowrite,	/*29*/
-	  mcdioctl,	nostop,		nullreset,	NULL,	/* mitsumi cd */
+	  mcdioctl,	nostop,		nullreset,	NULL, /* mitsumi cd */
 	  seltrue,	nommap,		mcdstrategy },
 	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
   	  sndioctl,	nostop,		nullreset,	NULL,	/* sound */
@@ -942,16 +929,16 @@ struct cdevsw	cdevsw[] =
 	  lkmioctl,	lkmstop,	lkmreset,	NULL,
 	  lkmselect,	lkmmmap,	NULL },
 	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
-	  apmioctl,	nostop,		nullreset,	NULL,	/* laptop APM */
+	  apmioctl,	nostop,		nullreset,	NULL, /* laptop APM */
 	  seltrue,	nommap,		NULL },
 	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
 	  ctxioctl,	nostop,		nullreset,	NULL,	/* cortex */
-	  seltrue,	nommap,		NULL },			/*framegrabber*/
+	  seltrue,	nommap,		NULL },
 	{ sockopen,	sockclose,	noread,		nowrite,	/*41*/
 	  sockioctl,	nostop,		nullreset,	NULL,	/* socksys */
 	  seltrue,	nommap,		NULL },
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
-	  cxioctl,	cxstop,		noreset,	cx_tty,	/* cronyx-sigma */
+	  cxioctl,	cxstop,		nullreset,	cx_tty,	/* cronyx */
 	  cxselect,	nommap,		NULL },
 	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
 	  vnioctl,	nostop,		nullreset,	NULL,	/* vn */
@@ -963,19 +950,20 @@ struct cdevsw	cdevsw[] =
 	  scdioctl,	nostop,		nullreset,	NULL,	/* sony cd */
 	  seltrue,	nommap,		scdstrategy },
 	{ pcdopen,	pcdclose,	rawread,	nowrite,	/*46*/
-	  pcdioctl,	nostop,		nullreset,	NULL,	/* panasonic cd */
+	  pcdioctl,	nostop,		nullreset,	NULL,	/* pana cd */
 	  seltrue,	nommap,		pcdstrategy },
 	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
 	  gscioctl,     nostop,         nullreset,      NULL,	/* gsc */
 	  seltrue,      nommap,         NULL },
-	cdev_tty_init(NCY,cy),					/* cyclades */
+	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
+	  cyioctl,	cystop,		cyreset,	cy_tty,
+	  cyselect,	cymmap,		cystrategy },		/* cyclades */
 	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
-	  sscioctl,	nostop,		nullreset,	NULL,	/* scsi super */
-	  sscselect,	sscmmap,		sscstrategy },
-	{ (d_open_t *)enxio, (d_close_t *)enxio, (d_rdwr_t *)enxio,	/*50*/
-	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio,/* pcmcia */
-	  (d_reset_t *)enxio, NULL, (d_select_t *)enxio,
-	  (d_mmap_t *)enxio, NULL },
+	  sscioctl,	nostop,		nullreset,	NULL, /* scsi super */
+	  sscselect,	sscmmap,	sscstrategy },
+	{ nxopen,	nxclose,	nxread,		nxwrite,	/*50*/
+	  nxioctl,	nxstop,		nxreset,	NULL,	/* pcmcia */
+	  nxselect,	nxmmap,		NULL },
 	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
 	  joyioctl,	nostop,		nullreset,	NULL,	/*joystick */
 	  seltrue,	nommap,		NULL},
