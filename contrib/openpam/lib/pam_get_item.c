@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_item.c#14 $
+ * $P4: //depot/projects/openpam/lib/pam_get_item.c#15 $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,22 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+
+const char *_pam_item_name[PAM_NUM_ITEMS] = {
+	"(NO ITEM)",
+	"PAM_SERVICE",
+	"PAM_USER",
+	"PAM_TTY",
+	"PAM_RHOST",
+	"PAM_CONV",
+	"PAM_AUTHTOK",
+	"PAM_OLDAUTHTOK",
+	"PAM_RUSER",
+	"PAM_USER_PROMPT",
+	"PAM_REPOSITORY",
+	"PAM_AUTHTOK_PROMPT",
+	"PAM_OLDAUTHTOK_PROMPT"
+};
 
 /*
  * XSSO 4.2.1
@@ -53,7 +69,7 @@ pam_get_item(pam_handle_t *pamh,
 	const void **item)
 {
 
-	ENTER();
+	ENTERI(item_type);
 	if (pamh == NULL)
 		RETURNC(PAM_SYSTEM_ERR);
 	switch (item_type) {
