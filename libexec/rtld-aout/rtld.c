@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.35 1996/10/01 01:51:53 peter Exp $
+ *	$Id: rtld.c,v 1.36 1996/10/01 11:54:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -318,11 +318,6 @@ struct _dynamic		*dp;
 	gid = getgid(); egid = getegid();
 
 	careful = (uid != euid) || (gid != egid);
-
-	if (careful) {
-		unsetenv("LD_LIBRARY_PATH");
-		unsetenv("LD_PRELOAD");
-	}
 
 	rt_readenv();
 
