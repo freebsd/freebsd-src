@@ -41,7 +41,10 @@ sortdeps(char **pkgs)
     int i, j, loop_cnt;
     int err_cnt = 0;
 
-    for (i = 0; pkgs[i]; i++) {
+    if (pkgs[0] == NULL || pkgs[1] == NULL)
+	return (0);
+
+    for (i = 0; pkgs[i + 1]; i++) {
 	/*
 	 * Check to see if any other package in pkgs[i+1:] depends
 	 * on pkgs[i] and swap those two packages if so.
