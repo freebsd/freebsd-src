@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.16 1999/05/31 11:28:40 phk Exp $
+ *    $Id: spkr.c,v 1.17 1999/08/18 08:24:35 kato Exp $
  */
 
 /*
@@ -15,7 +15,6 @@
 
 #if NSPEAKER > 0
 
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -31,11 +30,6 @@
 #include <i386/isa/timerreg.h>
 #include <machine/clock.h>
 #include <machine/speaker.h>
-
-#ifdef	DEVFS
-#include <sys/devfsext.h>
-static void	*devfs_token;
-#endif
 
 static	d_open_t	spkropen;
 static	d_close_t	spkrclose;
@@ -644,11 +638,7 @@ spkr_drvinit(void *unused)
 	if( ! spkr_devsw_installed ) {
 		cdevsw_add(&spkr_cdevsw);
 		spkr_devsw_installed = 1;
-#ifdef DEVFS
-		devfs_token = devfs_add_devswf(&spkr_cdevsw, 0, DV_CHR,
-					       UID_ROOT, GID_WHEEL, 0600,
-					       "speaker");
-#endif
+		make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "speaker");
     	}
 }
 

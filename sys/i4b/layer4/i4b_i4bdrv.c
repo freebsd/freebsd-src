@@ -27,7 +27,7 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- *	$Id: i4b_i4bdrv.c,v 1.47 1999/06/08 17:49:44 hm Exp $ 
+ *	$Id: i4b_i4bdrv.c,v 1.7 1999/08/06 14:02:45 hm Exp $ 
  *
  *      last edit-date: [Tue Jun  8 19:48:16 1999]
  *
@@ -70,14 +70,6 @@
 #include <net/if.h>
 
 #ifdef __FreeBSD__
-#include "opt_devfs.h"
-#endif
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>
@@ -103,9 +95,6 @@ static struct ifqueue i4b_rdqueue;
 static int openflag = 0;
 static int selflag = 0;
 static int readflag = 0;
-#ifdef DEVFS
-static void *devfs_token;
-#endif
 
 #ifndef __FreeBSD__
 
@@ -247,11 +236,7 @@ i4battach()
 	printf("i4b: ISDN call control device attached\n");
 #endif
 	i4b_rdqueue.ifq_maxlen = IFQ_MAXLEN;
-#ifdef DEVFS
-	devfs_token = devfs_add_devswf(&i4b_cdevsw, 0, DV_CHR,
-				       UID_ROOT, GID_WHEEL, 0600,
-				       "i4b");
-#endif
+	make_dev(&i4b_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4b");
 }
 
 /*---------------------------------------------------------------------------*

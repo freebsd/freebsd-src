@@ -27,7 +27,7 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- *	$Id: i4b_trace.c,v 1.20 1999/06/01 10:23:58 hm Exp $
+ *	$Id: i4b_trace.c,v 1.5 1999/08/06 14:02:04 hm Exp $
  *
  *	last edit-date: [Tue Jun  1 12:15:40 1999]
  *
@@ -69,14 +69,6 @@
 #include <sys/tty.h>
 
 #ifdef __FreeBSD__
-#include "opt_devfs.h"
-#endif
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_trace.h>
 #include <machine/i4b_ioctl.h>
 #else
@@ -97,9 +89,6 @@ static int device_state[NI4BTRC];
 #define ST_IDLE		0x00
 #define ST_ISOPEN	0x01
 #define ST_WAITDATA	0x02
-#ifdef DEVFS
-static void *devfs_token[NI4BTRC];
-#endif
 
 static int analyzemode = 0;
 static int rxunit = -1;
@@ -237,12 +226,8 @@ i4btrcattach()
 	
 	for(i=0; i < NI4BTRC; i++)
 	{
-#ifdef DEVFS
-	  	devfs_token[i]
-		  = devfs_add_devswf(&i4btrc_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4btrc%d", i);
-#endif
+		make_dev(&i4btrc_cdevsw, i,
+				     UID_ROOT, GID_WHEEL, 0600, "i4btrc%d", i);
 		trace_queue[i].ifq_maxlen = IFQ_MAXLEN;
 		device_state[i] = ST_IDLE;
 	}

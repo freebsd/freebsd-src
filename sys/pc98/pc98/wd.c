@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.85 1999/08/09 10:35:04 phk Exp $
+ *	$Id: wd.c,v 1.86 1999/08/14 11:40:47 phk Exp $
  */
 
 /* TODO:
@@ -64,7 +64,6 @@
 
 #if     NWDC > 0
 
-#include "opt_devfs.h"
 #include "opt_hw_wdog.h"
 #include "opt_ide_delay.h"
 
@@ -79,9 +78,6 @@
 #include <sys/buf.h>
 #include <sys/devicestat.h>
 #include <sys/malloc.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <sys/cons.h>
@@ -176,10 +172,6 @@ struct disk {
 	u_char	dk_timeout;	/* countdown to next timeout */
 	u_int32_t	dk_port;	/* i/o port base */
 	u_int32_t	dk_altport;	/* altstatus port base */
-#ifdef	DEVFS
-	void	*dk_bdev;	/* devfs token for whole disk */
-	void	*dk_cdev;	/* devfs token for raw whole disk */
-#endif	/* DEVFS */
 	u_long	cfg_flags;	/* configured characteristics */
 	short	dk_flags;	/* drive characteristics found */
 #define	DKFL_SINGLE	0x00004	/* sector at a time mode */
@@ -485,9 +477,6 @@ nodevice:
 static int
 wdattach(struct isa_device *dvp)
 {
-#if defined(DEVFS)
-	int	mynor;
-#endif
 	int	unit, lunit, flags, i;
 	struct disk *du;
 	struct wdparams *wp;
@@ -609,17 +598,9 @@ wdattach(struct isa_device *dvp)
 			 */
 			wdtimeout(du);
 
-#ifdef DEVFS
-			mynor = dkmakeminor(lunit, WHOLE_DISK_SLICE, RAW_PART);
-			du->dk_bdev = devfs_add_devswf(&wd_cdevsw, mynor,
-						       DV_BLK, UID_ROOT,
-						       GID_OPERATOR, 0640,
-						       "wd%d", lunit);
-			du->dk_cdev = devfs_add_devswf(&wd_cdevsw, mynor,
-						       DV_CHR, UID_ROOT,
-						       GID_OPERATOR, 0640,
-						       "rwd%d", lunit);
-#endif
+			make_dev(&wd_cdevsw,
+			    dkmakeminor(lunit, WHOLE_DISK_SLICE, RAW_PART),
+			    UID_ROOT, GID_OPERATOR, 0640, "rwd%d", lunit);
 
 			/*
 			 * Export the drive to the devstat interface.

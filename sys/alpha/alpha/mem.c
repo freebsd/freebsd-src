@@ -38,22 +38,18 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.10 1999/05/31 11:23:40 phk Exp $
+ *	$Id: mem.c,v 1.11 1999/06/27 20:52:22 peter Exp $
  */
 
 /*
  * Memory special file
  */
 
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
@@ -104,48 +100,7 @@ static struct cdevsw mem_cdevsw = {
 	/* bmaj */	-1
 };
 
-#ifdef DEVFS
-static void *mem_devfs_token;
-static void *kmem_devfs_token;
-static void *null_devfs_token;
-static void *random_devfs_token;
-static void *urandom_devfs_token;
-static void *zero_devfs_token;
-static void *io_devfs_token;
-#ifdef PERFMON
-static void *perfmon_devfs_token;
-#endif
 
-static void memdevfs_init __P((void));
-
-static void 
-memdevfs_init()
-{
-    mem_devfs_token = 
-	devfs_add_devswf(&mem_cdevsw, 0, DV_CHR, 
-			 UID_ROOT, GID_KMEM, 0640, "mem");
-    kmem_devfs_token = 
-	devfs_add_devswf(&mem_cdevsw, 1, DV_CHR,
-			 UID_ROOT, GID_KMEM, 0640, "kmem");
-    null_devfs_token = 
-	devfs_add_devswf(&mem_cdevsw, 2, DV_CHR, 
-			 UID_ROOT, GID_WHEEL, 0666, "null");
-    random_devfs_token = 
-	devfs_add_devswf(&mem_cdevsw, 3, DV_CHR, 
-			 UID_ROOT, GID_WHEEL, 0644, "random");
-    urandom_devfs_token = 
-	devfs_add_devswf(&mem_cdevsw, 4, DV_CHR, 
-			 UID_ROOT, GID_WHEEL, 0644, "urandom");
-    zero_devfs_token = 
-	devfs_add_devswf(&mem_cdevsw, 12, DV_CHR, 
-			 UID_ROOT, GID_WHEEL, 0666, "zero");
-#ifdef PERFMON
-    perfmon_devfs_token = 
-	devfs_add_devswf(&mem_cdevsw, 32, DV_CHR, 
-			 UID_ROOT, GID_KMEM, 0640, "perfmon");
-#endif /* PERFMON */
-}
-#endif /* DEVFS */
 
 static int
 mmclose(dev, flags, fmt, p)
@@ -450,9 +405,15 @@ mem_drvinit(void *unused)
 {
 
 	cdevsw_add(&mem_cdevsw);
-#ifdef DEVFS
-	memdevfs_init();
-#endif
+	make_dev(&mem_cdevsw, 0, UID_ROOT, GID_KMEM, 0640, "mem");
+	make_dev(&mem_cdevsw, 1, UID_ROOT, GID_KMEM, 0640, "kmem");
+	make_dev(&mem_cdevsw, 2, UID_ROOT, GID_WHEEL, 0666, "null");
+	make_dev(&mem_cdevsw, 3, UID_ROOT, GID_WHEEL, 0644, "random");
+	make_dev(&mem_cdevsw, 4, UID_ROOT, GID_WHEEL, 0644, "urandom");
+	make_dev(&mem_cdevsw, 12, UID_ROOT, GID_WHEEL, 0666, "zero");
+#ifdef PERFMON
+	make_dev(&mem_cdevsw, 32, UID_ROOT, GID_KMEM, 0640, "perfmon");
+#endif /* PERFMON */
 }
 
 SYSINIT(memdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mem_drvinit,NULL)

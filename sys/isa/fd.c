@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.152 1999/08/14 11:40:41 phk Exp $
+ *	$Id: fd.c,v 1.153 1999/08/23 20:58:59 phk Exp $
  *
  */
 
@@ -906,8 +906,21 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
+#if 0
+	int	i;
+	int	mynor;
+	int	typemynor;
+	int	typesize;
+#endif
 
 	fd = device_get_softc(dev);
+
+	make_dev(&fd_cdevsw, (fd->fdu << 6),
+		UID_ROOT, GID_OPERATOR, 0640, "rfd%d", fd->fdu);
+
+#if 0
+	/* Other make_dev() go here. */
+#endif
 
 	/*
 	 * Export the drive to the devstat interface.

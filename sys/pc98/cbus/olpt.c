@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: olpt.c,v 1.1 1999/06/18 14:48:26 kato Exp $
+ *	$Id: olpt.c,v 1.2 1999/07/06 19:23:20 des Exp $
  */
 
 /*
@@ -102,7 +102,6 @@
  */
 
 #include "olpt.h"
-#include "opt_devfs.h"
 #include "opt_inet.h"
 #ifdef PC98
 #undef INET	/* PLIP is not supported for old PC-98 */
@@ -115,10 +114,6 @@
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-
 #include <machine/clock.h>
 #include <machine/lpt.h>
 
@@ -237,10 +232,6 @@ static struct lpt_softc {
 	struct  ifnet	sc_if;
 	u_char		*sc_ifbuf;
 	int		sc_iferrs;
-#endif
-#ifdef DEVFS
-	void	*devfs_token;
-	void	*devfs_token_ctl;
 #endif
 } lpt_sc[NOLPT] ;
 
@@ -509,15 +500,10 @@ lptattach(struct isa_device *isdp)
 	}
 	lprintf(("irq %x\n", sc->sc_irq));
 
-#ifdef DEVFS
 	/* XXX what to do about the flags in the minor number? */
-	sc->devfs_token = devfs_add_devswf(&lpt_cdevsw,
-		unit, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "lpt%d", unit);
-	sc->devfs_token_ctl = devfs_add_devswf(&lpt_cdevsw,
-		unit | LP_BYPASS, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "lpctl%d", unit);
-#endif
+	make_dev(&lpt_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600, "lpt%d", unit);
+	make_dev(&lpt_cdevsw, unit | LP_BYPASS,
+			UID_ROOT, GID_WHEEL, 0600, "lpctl%d", unit);
 	return (1);
 }
 
