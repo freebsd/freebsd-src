@@ -37,7 +37,9 @@ Suffix `c' is added to the device name if needed.
 .Pp
 The available commands are listed below.  Only as many
 characters as are required to uniquely identify a command
-need be specified.
+need be specified. Word
+.Nm play
+can be ommitted.
 .Bl -tag -width Cm
 
 .It Cm play Ar first_track Op Ar last_track
@@ -46,6 +48,7 @@ Play from track
 to track
 .Nm last_track. 
 The first track has number 1.
+can be ommited in all cases.
 
 .It Cm play Ar start_m:start_s.start_f Op Ar end_m:end_s.end_f
 Play from the absolute address
@@ -85,7 +88,7 @@ Stop the disc.
 .It Cm eject
 Eject the disc.
 
-.It Cm inject
+.It Cm close
 Inject the disc.
 
 .It Cm volume Ar left_channel Ar right_channel
