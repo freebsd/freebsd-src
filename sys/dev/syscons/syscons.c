@@ -1301,7 +1301,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		remove_mouse_image(cur_console);
 		
 		if (ISTEXTSC(cur_console) &&
-		   (cur_console->font_size != FONT_NONE)) {
+		   (cur_console->font_size != 0)) {
 		    if (scp->font_size < 14) {
 			if (fonts_loaded & FONT_8)
 			    font = font_8;
@@ -3681,7 +3681,7 @@ init_scp(scr_stat *scp)
 	scp->ypixel = info.vi_height;
 	scp->xsize = info.vi_width/8;
 	scp->ysize = info.vi_height/info.vi_cheight;
-	scp->font_size = FONT_NONE;
+	scp->font_size = 0;
     } else {
 	scp->xsize = info.vi_width;
 	scp->ysize = info.vi_height;
@@ -4302,8 +4302,11 @@ sc_move_mouse(scr_stat *scp, int x, int y)
 {
     scp->mouse_xpos = x;
     scp->mouse_ypos = y;
-    scp->mouse_pos = scp->mouse_oldpos = 
-	scp->scr_buf + (y / scp->font_size) * scp->xsize + x / 8;
+    if (!ISTEXTSC(scp))
+	scp->mouse_pos = scp->mouse_oldpos = scp->scr_buf;
+    else
+	scp->mouse_pos = scp->mouse_oldpos = 
+	    scp->scr_buf + (y / scp->font_size) * scp->xsize + x / 8;
 }
 
 static void

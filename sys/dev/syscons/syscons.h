@@ -100,7 +100,6 @@
 #define BELL_PITCH	800
 #define CONSOLE_BUFSIZE 1024
 #define PCBURST		128
-#define FONT_NONE	1
 #define FONT_8		2
 #define FONT_14		4
 #define FONT_16		8

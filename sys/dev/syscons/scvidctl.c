@@ -190,7 +190,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
      * Don't change xsize and ysize; preserve the previous vty
      * and history buffers.
      */
-    scp->font_size = FONT_NONE;
+    scp->font_size = 0;
     /* move the mouse cursor at the center of the screen */
     sc_move_mouse(scp, scp->xpixel / 2, scp->ypixel / 2);
     splx(s);
@@ -232,7 +232,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 #endif
 
     /* adjust argument values */
-    if ((fontsize <= 0) || (fontsize == FONT_NONE))
+    if (fontsize <= 0)
 	fontsize = info.vi_cheight;
     if (fontsize < 14) {
 	fontsize = 8;
