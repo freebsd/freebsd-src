@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.66 1999/02/25 13:41:54 kato Exp $
+#	$Id: GENERIC98,v 1.67 1999/02/25 13:53:13 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -211,8 +211,10 @@ device xl0
 # ed7: LA-98
 # ed8: C-NET(98)
 # ed9: C-NET(98)E/L
-# fe0: RE1000/1000Plus
+# fe0: RE1000/1000Plus/AccessPC N98C+/LAC-98
 # fe1: C-NET(98)P2/C-NET(9N)E
+#
+# FE_8BIT_SUPPORT is needed to support LAC-98
 #
 device ed0 at isa? port 0x00d0 net irq 6
 device ed5 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
@@ -224,12 +226,13 @@ device ed7 at isa? port 0x00d0 net irq 6 flags 0x900000
 device ed6 at isa? port 0x0770 net irq 6 flags 0x800000
 device ed9 at isa? port 0x03d0 net irq 6 flags 0xb00000
 device ed8 at isa? port 0xa3d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
-
 device ep0 at isa? port 0x40d0 net irq 3
 device fe0 at isa? port 0x00d0 net irq 3
 device fe1 at isa? port 0x73d0 net irq 5
 device lnc0 at isa? port 0x03d0 net irq 6
 device zp0 at isa? port 0x00d0 net irq 10 iomem 0xe0000
+
+options "FE_8BIT_SUPPORT"	# LAC-98 support
 
 #controller	snd0
 #device	sb0	at isa? port 0x20d2 irq 10 conflicts drq 3
