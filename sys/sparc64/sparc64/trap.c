@@ -253,6 +253,7 @@ trap(struct trapframe *tf)
 #endif
 	case T_DMMU_MISS | T_KERNEL:
 	case T_DMMU_PROT | T_KERNEL:
+	case T_IMMU_MISS | T_KERNEL:
 		error = trap_mmu_fault(td, tf);
 		if (error == 0)
 			goto out;
