@@ -170,7 +170,7 @@ pw_scan(bp, pw)
 		goto fmt;
 
 	p = pw->pw_shell;
-	if (root && *p)					/* empty == /bin/sh */
+	if (root && *p) {				/* empty == /bin/sh */
 		for (setusershell();;) {
 			if (!(sh = getusershell())) {
 				warnx("warning, unknown root shell");
@@ -179,6 +179,8 @@ pw_scan(bp, pw)
 			if (!strcmp(p, sh))
 				break;
 		}
+		endusershell();
+	}
 	if(p[0]) pw->pw_fields |= _PWF_SHELL;
 
 	if ((p = strsep(&bp, ":"))) {			/* too many */
