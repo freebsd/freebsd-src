@@ -182,7 +182,10 @@ glob(pattern, flags, errfunc, pglob)
 
 	bufnext = patbuf;
 	bufend = bufnext + MAXPATHLEN - 1;
-	if (flags & GLOB_QUOTE) {
+	if (flags & GLOB_NOESCAPE)
+	    while (bufnext < bufend && (c = *patnext++) != EOS)
+		    *bufnext++ = c;
+	else {
 		/* Protect the quoted characters. */
 		while (bufnext < bufend && (c = *patnext++) != EOS)
 			if (c == QUOTE) {
@@ -195,9 +198,6 @@ glob(pattern, flags, errfunc, pglob)
 			else
 				*bufnext++ = c;
 	}
-	else
-	    while (bufnext < bufend && (c = *patnext++) != EOS)
-		    *bufnext++ = c;
 	*bufnext = EOS;
 
 	if (flags & GLOB_BRACE)
@@ -415,8 +415,7 @@ globtilde(pattern, patbuf, patbuf_len, pglob)
  * The main glob() routine: compiles the pattern (optionally processing
  * quotes), calls glob1() to do the real pattern matching, and finally
  * sorts the list (unless unsorted operation is requested).  Returns 0
- * if things went well, nonzero if errors occurred.  It is not an error
- * to find no matches.
+ * if things went well, nonzero if errors occurred.
  */
 static int
 glob0(pattern, pglob, limit)
@@ -493,12 +492,15 @@ glob0(pattern, pglob, limit)
 	 * and the pattern did not contain any magic characters
 	 * GLOB_NOMAGIC is there just for compatibility with csh.
 	 */
-	if (pglob->gl_pathc == oldpathc &&
-	    ((pglob->gl_flags & GLOB_NOCHECK) ||
-	      ((pglob->gl_flags & GLOB_NOMAGIC) &&
-	       !(pglob->gl_flags & GLOB_MAGCHAR))))
-		return(globextend(pattern, pglob, limit));
-	else if (!(pglob->gl_flags & GLOB_NOSORT))
+	if (pglob->gl_pathc == oldpathc) {
+		if (((pglob->gl_flags & GLOB_NOCHECK) ||
+		    ((pglob->gl_flags & GLOB_NOMAGIC) &&
+			!(pglob->gl_flags & GLOB_MAGCHAR))))
+			return(globextend(pattern, pglob, limit));
+		else
+			return(GLOB_NOMATCH);
+	}
+	if (!(pglob->gl_flags & GLOB_NOSORT))
 		qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
 		    pglob->gl_pathc - oldpathc, sizeof(char *), compare);
 	return(0);
@@ -557,7 +559,7 @@ glob2(pathbuf, pathend, pathend_last, pattern, pglob, limit)
 			    (g_stat(pathbuf, &sb, pglob) == 0) &&
 			    S_ISDIR(sb.st_mode)))) {
 				if (pathend + 1 > pathend_last)
-					return (1);
+					return (GLOB_ABORTED);
 				*pathend++ = SEP;
 				*pathend = EOS;
 			}
@@ -572,7 +574,7 @@ glob2(pathbuf, pathend, pathend_last, pattern, pglob, limit)
 			if (ismeta(*p))
 				anymeta = 1;
 			if (q + 1 > pathend_last)
-				return (1);
+				return (GLOB_ABORTED);
 			*q++ = *p++;
 		}
 
@@ -581,7 +583,7 @@ glob2(pathbuf, pathend, pathend_last, pattern, pglob, limit)
 			pattern = p;
 			while (*pattern == SEP) {
 				if (pathend + 1 > pathend_last)
-					return (1);
+					return (GLOB_ABORTED);
 				*pathend++ = *pattern++;
 			}
 		} else			/* Need expansion, recurse. */
@@ -611,7 +613,7 @@ glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 	struct dirent *(*readdirfunc)();
 
 	if (pathend > pathend_last)
-		return (1);
+		return (GLOB_ABORTED);
 	*pathend = EOS;
 	errno = 0;
 
@@ -619,10 +621,10 @@ glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 		/* TODO: don't call for ENOENT or ENOTDIR? */
 		if (pglob->gl_errfunc) {
 			if (g_Ctoc(pathbuf, buf, sizeof(buf)))
-				return (GLOB_ABEND);
+				return (GLOB_ABORTED);
 			if (pglob->gl_errfunc(buf, errno) ||
 			    pglob->gl_flags & GLOB_ERR)
-				return (GLOB_ABEND);
+				return (GLOB_ABORTED);
 		}
 		return(0);
 	}
