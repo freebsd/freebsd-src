@@ -179,6 +179,7 @@ struct i386_frame {
 #define	TRAP		1
 #define	INTERRUPT	2
 #define	SYSCALL		3
+#define	DOUBLE_FAULT	4
 
 static void db_nextframe(struct i386_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct i386_frame *);
@@ -300,6 +301,8 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		else if (strcmp(name, "Xlcall_syscall") == 0 ||
 		    strcmp(name, "Xint0x80_syscall") == 0)
 			frame_type = SYSCALL;
+		else if (strcmp(name, "dblfault_handler") == 0)
+			frame_type = DOUBLE_FAULT;
 	}
 
 	/*
@@ -312,6 +315,23 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	}
 
 	db_print_stack_entry(name, 0, 0, 0, eip);
+
+	/*
+	 * For a double fault, we have to snag the values from the
+	 * previous TSS since a double fault uses a task gate to
+	 * switch to a known good state.
+	 */
+	if (frame_type == DOUBLE_FAULT) {
+		esp = PCPU_GET(common_tss.tss_esp);
+		eip = PCPU_GET(common_tss.tss_eip);
+		ebp = PCPU_GET(common_tss.tss_ebp);
+		db_printf(
+		    "--- trap 0x17, eip = %#r, esp = %#r, ebp = %#r ---\n",
+		    eip, esp, ebp);
+		*ip = (db_addr_t) eip;
+		*fp = (struct i386_frame *) ebp;
+		return;
+	}
 
 	/*
 	 * Point to base of trapframe which is just above the
