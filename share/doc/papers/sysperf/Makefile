@@ -1,16 +1,14 @@
 #	From: @(#)Makefile	1.6 (Berkeley) 6/8/93
 # $FreeBSD$
 
-VOLUME=	papers
-DOC=	sysperf
-MACROS= -ms
-SRCS=	0.t 1.t 2.t 3.t 4.t 5.t 6.t 7.t
-EXTRA=	a1.t a2.t
-SRCS+=	appendix.tmp
+VOLUME=		papers
+DOC=		sysperf
+SRCS=		0.t 1.t 2.t 3.t 4.t 5.t 6.t 7.t appendix.tmp
+EXTRA=		a1.t a2.t
+MACROS=		-ms
+USE_EQN=	YES
+USE_TBL=	YES
 CLEANFILES=	appendix.tmp
-SRCDIR=	${.OBJDIR}
-USE_EQN=	yes
-USE_TBL=	yes
 
 appendix.tmp: a1.t a2.t
 	${GRIND} ${.CURDIR}/a1.t |  awk '/\.\(\)/{ cnt = 2 } \

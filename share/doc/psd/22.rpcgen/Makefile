@@ -1,10 +1,9 @@
 # $FreeBSD$
 
-VOLUME=	psd/22.rpcgen
-SRCS=	rpcgen.ms
-MACROS=	-ms
-SRCDIR=	${.CURDIR}/../../../../lib/libc/rpc/PSD.doc
-
-USE_TBL=	yes
+VOLUME=		psd/22.rpcgen
+SRCS=		stubs rpcgen.ms
+MACROS=		-ms
+USE_TBL=	YES
+SRCDIR=		${.CURDIR}/../../../../lib/libc/rpc/PSD.doc
 
 .include <bsd.doc.mk>

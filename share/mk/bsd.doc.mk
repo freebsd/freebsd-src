@@ -26,16 +26,11 @@ INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
 .if ${PRINTERDEVICE} == "ascii"
-ROFF?=          groff -mtty-char ${TRFLAGS} ${MACROS} -o${PAGES}
+ROFF?=		groff -mtty-char ${TRFLAGS} ${MACROS} -o${PAGES}
 .else
 ROFF?=		groff ${TRFLAGS} ${MACROS} -o${PAGES}
 .endif
 SOELIM?=	soelim
-SOELIMPP=	sed ${SOELIMPPARGS}
-SOELIMPPARGS0=	${SRCS} ${EXTRA}
-SOELIMPPARGS1=	${SOELIMPPARGS0:S/^/-e\\ \'s:\(\.so[\\ \\	][\\ \\	]*\)\(/}
-SOELIMPPARGS2=	${SOELIMPPARGS1:S/$/\)\$:\1${SRCDIR}\/\2:\'/}
-SOELIMPPARGS=	${SOELIMPPARGS2:S/\\'/'/g}
 TBL?=		tbl
 
 DOC?=		paper
@@ -45,25 +40,24 @@ TRFLAGS+=	-T${PRINTERDEVICE}
 .if defined(USE_EQN)
 TRFLAGS+=	-e
 .endif
-.if defined(USE_TBL)
-TRFLAGS+=	-t
-.endif
 .if defined(USE_PIC)
 TRFLAGS+=	-p
-.endif
-.if defined(USE_SOELIM)
-TRFLAGS+=	-s
 .endif
 .if defined(USE_REFER)
 TRFLAGS+=	-R
 .endif
+.if defined(USE_SOELIM)
+TRFLAGS+=	-I${SRCDIR}
+.endif
+.if defined(USE_TBL)
+TRFLAGS+=	-t
+.endif
 
 DCOMPRESS_EXT?=	${COMPRESS_EXT}
 .if defined(NODOCCOMPRESS) || ${PRINTERDEVICE} == "html"
-DFILE=	${DOC}.${PRINTERDEVICE}
-DCOMPRESS_CMD=	cat
+DFILE=		${DOC}.${PRINTERDEVICE}
 .else
-DFILE=	${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT}
+DFILE=		${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT}
 DCOMPRESS_CMD?=	${COMPRESS_CMD}
 .endif
 
@@ -77,12 +71,12 @@ UNROFFFLAGS+=	split=1
 .endif
 
 # Compatibility mode flag for groff.  Use this when formatting documents with
-# Berkeley me macros.
+# Berkeley me macros (orig_me(7)).
 COMPAT?=	-C
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
-all:	${DFILE}
+all: ${DFILE}
 
 .if !target(print)
 print: ${DFILE}
@@ -103,36 +97,46 @@ CLEANFILES+=	${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
 realinstall:
 .if ${PRINTERDEVICE} == "html"
 	cd ${SRCDIR}; \
-		${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
 .else
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
+	    ${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
 .endif
 
 spell: ${SRCS}
-	(cd ${.CURDIR};  spell ${SRCS} ) | sort | \
+	(cd ${.CURDIR}; spell ${SRCS} ) | sort | \
 		comm -23 - ${.CURDIR}/spell.ok > ${DOC}.spell
 
 BINDIR?=	/usr/share/doc
-BINMODE=        444
+BINMODE=	444
 
 SRCDIR?=	${.CURDIR}
 
 .if !target(${DFILE})
-_stamp.extraobjs: ${EXTRA} ${OBJS}
+.if defined(EXTRA) && !empty(EXTRA)
+_stamp.extra: ${EXTRA}
 	touch ${.TARGET}
-CLEANFILES+=	_stamp.extraobjs
-${DFILE}: ${SRCS} _stamp.extraobjs
+CLEANFILES+=	_stamp.extra
+${DFILE}: _stamp.extra
+.endif
+${DFILE}: ${SRCS}
 .if ${PRINTERDEVICE} == "html"
 	cd ${SRCDIR}; ${UNROFF} ${MACROS} ${UNROFFFLAGS} \
 	    document=${DOC} ${SRCS}
-.elif defined(USE_SOELIMPP)
-	${SOELIMPP} ${.ALLSRC:N_stamp.extraobjs} | ${ROFF} | \
+.elif defined(NODOCCOMPRESS)
+.if defined(CD_HACK)
+	(cd ${CD_HACK}; ${ROFF} ${.ALLSRC:N_stamp.extra}) > ${.TARGET}
+.else
+	${ROFF} ${.ALLSRC:N_stamp.extra} > ${.TARGET}
+.endif
+.else
+.if defined(CD_HACK)
+	(cd ${CD_HACK}; ${ROFF} ${.ALLSRC:N_stamp.extra}) | \
 	    ${DCOMPRESS_CMD} > ${.TARGET}
 .else
-	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC:N_stamp.extraobjs}) | \
-	    ${DCOMPRESS_CMD} > ${.TARGET}
+	${ROFF} ${.ALLSRC:N_stamp.extra} | ${DCOMPRESS_CMD} > ${.TARGET}
+.endif
 .endif
 .endif
 

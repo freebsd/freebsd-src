@@ -4,7 +4,6 @@
 .\" @(#)rpc.prog.ms	2.3 88/08/11 4.0 RPCSRC
 .\" $FreeBSD$
 .\"
-.so stubs
 .de BT
 .if \\n%=1 .tl ''- % -''
 ..
