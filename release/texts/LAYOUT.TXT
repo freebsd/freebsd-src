@@ -7,7 +7,7 @@ A typical FreeBSD distribution directory looks something like this:
 ABOUT.TXT       bin             compat3x        games           proflibs
 HARDWARE.TXT    compat1x        info		src             tools
 INSTALL.TXT     compat20        dict            manpages        packages
-README.TXT      compat21        des             doc
+README.TXT      compat21        crypto          doc
 RELNOTES.TXT    compat22        floppies        ports
 XF86336
 
@@ -31,7 +31,7 @@ thorough description of each item in more detail:
    consists of a series of gzip'd tar files which contain each component
    of the XFree86 distribution.
 
-3. The bin, dict, des, doc, games, info, manpages, proflibs, and src
+3. The bin, dict, crypto, doc, games, info, manpages, proflibs, and src
    directories contain the primary distribution components of FreeBSD
    itself and are split into smaller files for easy packing onto floppies
    (should that be necessary).

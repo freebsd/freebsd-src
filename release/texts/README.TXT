@@ -4,7 +4,7 @@
                                                       \ \___   / |
 This is a binary snapshot of 4.0-current, the         /- _  `-/  '
 (HEAD) branch which is currently moving towards      (/\/ \ \   /\
-the follow-on release to 4.0.                        / /   | `    \
+the release of 4.0.                                  / /   | `    \
                                                      O O   ) /    |
                                                      `-^--'`<     '
                                                     (_.)  _  )   /
