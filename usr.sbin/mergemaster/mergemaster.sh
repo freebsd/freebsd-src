@@ -107,15 +107,14 @@ echo ''
 #
 case "${DONT_CHECK_PAGER}" in
 '')
-  if [ -n "${PAGER}" -a ! -x "${PAGER%% *}" ]; then
+  while ! type "${PAGER%% *}" >/dev/null && [ -n "${PAGER}" ]; do
     echo " *** Your PAGER environment variable specifies '${PAGER}', but"
-    echo "     I cannot execute it. In general it is good practice to"
-    echo "     specify the full path for environment variables like"
-    echo "     PAGER and EDITOR. Meanwhile, what would you like to do?"
+    echo "     due to the limited PATH that I use for security reasons,"
+    echo "     I cannot execute it. So, what would you like to do?"
     echo ''
     echo "  Use 'e' to exit mergemaster and fix your PAGER variable"
-    if [ -x /usr/local/bin/less ]; then
-    echo "  Use 'l' to set PAGER to /usr/local/bin/less for this run"
+    if [ -x /usr/bin/less -o -x /usr/local/bin/less ]; then
+    echo "  Use 'l' to set PAGER to 'less' for this run"
     fi
     echo "  Use 'm' to use plain old 'more' as your PAGER for this run"
     echo ''
@@ -123,18 +122,31 @@ case "${DONT_CHECK_PAGER}" in
     echo ''
     read -p "What should I do? [Use 'more'] " FIXPAGER
     case "${FIXPAGER}" in
-    [eE]*)
+    [eE])
        exit 0
        ;;
-    [lL]*)
-       PAGER=/usr/local/bin/less
+    [lL])
+       if [ -x /usr/bin/less ]; then
+         PAGER=/usr/bin/less
+       elif [ -x /usr/local/bin/less ]; then
+         PAGER=/usr/local/bin/less
+       else
+         echo ''
+         echo " *** Fatal Error:"
+         echo "     You asked to use 'less' as your pager, but I can't"
+         echo "     find it in /usr/bin or /usr/local/bin"
+         exit 1
+       fi
        ;;
-    *)
+    [mM]|'')
        PAGER=more
        ;;
+    *)
+       echo ''
+       echo "invalid choice: ${FIXPAGER}"
     esac
     echo ''
-  fi
+  done
   ;;
 esac
 
