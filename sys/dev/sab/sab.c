@@ -1268,12 +1268,15 @@ sabtty_console(device_t dev, char *mode, int len)
 	    OF_getprop(options, "input-device", input, sizeof(input)) == -1 ||
 	    OF_getprop(options, "output-device", output, sizeof(output)) == -1)
 		return (0);
-	if (ebus_get_node(parent) == OF_instance_to_package(stdin) &&
-	    ebus_get_node(parent) == OF_instance_to_package(stdout) &&
-	    strcmp(input, device_get_desc(dev)) == 0 &&
-	    strcmp(output, device_get_desc(dev)) == 0) {
+	if (ebus_get_node(parent) != OF_instance_to_package(stdin) ||
+	    ebus_get_node(parent) != OF_instance_to_package(stdout))
+		return (0);
+	if ((strcmp(input, device_get_desc(dev)) == 0 &&
+	     strcmp(output, device_get_desc(dev)) == 0) ||
+	    (strcmp(input, "keyboard") == 0 && strcmp(output, "screen") == 0 &&
+	     (device_get_unit(dev) & 1) == 0)) {
 		if (mode != NULL) {
-			sprintf(name, "%s-mode", input);
+			sprintf(name, "%s-mode", device_get_desc(dev));
 			return (OF_getprop(options, name, mode, len) != -1);
 		} else
 			return (1);
