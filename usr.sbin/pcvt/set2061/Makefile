@@ -5,7 +5,7 @@ NOMAN=
 
 all: $(PROG)
 
-install: ${DEMOS}
+install:
 	@${ECHO} "set2061 is not installed automatically ...."
 
 .include <bsd.prog.mk>
