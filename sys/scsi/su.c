@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.19 1998/06/07 17:12:54 dfr Exp $
+ *      $Id: su.c,v 1.20 1998/07/04 22:30:25 julian Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig
@@ -89,8 +89,20 @@ static struct cdevsw su_cdevsw =
  */
 #define OLD_DEV(NEWDEV, OLDDEV) ((OLDDEV) | ((NEWDEV) & 0x080000FF))
 
-/* bnxio, cnxio: non existent device entries
- */
+/* cnxio: non existent device entries. */
+
+static	d_open_t	nxopen;
+static	d_close_t	nxclose;
+static	d_read_t	nxread;
+static	d_write_t	nxwrite;
+static	d_ioctl_t	nxioctl;
+#define	nxstop	nostop		/* one void return is as good as another */
+#define	nxreset	noreset		/* one unused function is as good as another */
+#define	nxdevtotty nodevtotty	/* one NULL return is as good as another */
+#define	nxmmap	nommap		/* one -1 return is as good as another */
+#define	nxstrategy nostrategy	/* one NULL value is as good as another */
+static	d_dump_t	nxdump;
+#define	nxpsize	nopsize		/* one NULL value is as good as another */
 
 static struct cdevsw cnxio = {
 	nxopen,
@@ -261,6 +273,73 @@ supoll(dev_t dev, int events, struct proc *p)
 	(void)getsws(dev, S_IFCHR, &devswp, &base);
 
 	return (*devswp->d_poll)(base, events, p);
+}
+
+static int
+nxopen(dev, flags, fmt, p)
+	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
+{
+
+	return (ENXIO);
+}
+
+static int
+nxclose(dev, flags, fmt, p)
+	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
+{
+
+	printf("nxclose(0x%x) called\n", dev);
+	return (ENXIO);
+}
+
+static int
+nxread(dev, uio, ioflag)
+	dev_t dev;
+	struct uio *uio;
+	int ioflag;
+{
+
+	printf("nxread(0x%x) called\n", dev);
+	return (ENXIO);
+}
+
+static int
+nxwrite(dev, uio, ioflag)
+	dev_t dev;
+	struct uio *uio;
+	int ioflag;
+{
+
+	printf("nxwrite(0x%x) called\n", dev);
+	return (ENXIO);
+}
+
+static int
+nxioctl(dev, cmd, data, flags, p)
+	dev_t dev;
+	u_long cmd;
+	caddr_t data;
+	int flags;
+	struct proc *p;
+{
+
+	printf("nxioctl(0x%x) called\n", dev);
+	return (ENXIO);
+}
+
+static int
+nxdump(dev)
+	dev_t dev;
+{
+
+	printf("nxdump(0x%x) called\n", dev);
+	return (ENXIO);
 }
 
 static su_devsw_installed = 0;
