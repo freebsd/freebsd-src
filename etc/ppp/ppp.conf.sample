@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.30 1998/05/21 21:45:44 brian Exp $
+# $Id: ppp.conf.sample,v 1.31 1998/08/07 18:44:31 brian Exp $
 #
 #################################################################
 
@@ -299,6 +299,20 @@ direct-server:
  set ifaddr 10.0.4.1 10.0.4.2
  enable lqr
  accept lqr
+
+
+# Example to connect via compuserve (who insist on 7 bits even parity
+#  during the chat phase).  
+#
+compuserve:
+ set phone 1234567
+ set parity even
+ set login "TIMEOUT 10 \"\" \"\" Name: CIS ID: 99999,9999/go:pppconnect \
+            word: XXXXXXXX"
+ set timeout 300
+ set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
+ delete ALL
+ add default HISADDR
 
 
 # Example for PPP over TCP.
