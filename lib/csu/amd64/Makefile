@@ -5,10 +5,8 @@
 SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
-CFLAGS+=	-elf -Wall \
-		-I${.CURDIR}/../common \
+CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
-LDFLAGS+=	-elf
 
 all: ${OBJS}
 
