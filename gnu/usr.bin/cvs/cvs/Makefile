@@ -7,6 +7,7 @@ MAINTAINER=	peter@FreeBSD.org
 .PATH:	${CVSDIR}/src
 .PATH:	${CVSDIR}/lib
 .PATH:	${CVSDIR}/man
+.PATH:	${CVSDIR}
 
 PROG=	cvs
 MAN=	cvs.1 cvs.5
@@ -38,6 +39,17 @@ DISTRIBUTION=	krb4
 # feature anyway, the -x switch is needed to activate it.
 CFLAGS+= -DENCRYPTION
 .endif
+
+CLEANFILES+=	version.c ver
+
+ver:	configure
+	echo > ${.TARGET} `sed < ${.ALLSRC} \
+		-e '/^VERSION=/!d' \
+		-e 's/.*=\(.*\)/\1/' \
+		-e q`
+
+version.c: ver version.c.in
+	sed -e "s,@VERSION@,`cat ver`,g" ${CVSDIR}/src/version.c.in > ${.TARGET}
 
 #
 # Regression test support
