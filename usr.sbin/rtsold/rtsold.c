@@ -359,7 +359,7 @@ ifconfig(char *ifname)
 	memset(ifinfo, 0, sizeof(*ifinfo));
 	ifinfo->sdl = sdl;
 
-	strncpy(ifinfo->ifname, ifname, sizeof(ifinfo->ifname));
+	strlcpy(ifinfo->ifname, ifname, sizeof(ifinfo->ifname));
 
 	/* construct a router solicitation message */
 	if (make_packet(ifinfo))
