@@ -290,10 +290,10 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Allocate space for the signal handler context.
 	 */
-	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct l_rt_sigframe *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct l_rt_sigframe));
+		fp = (struct l_rt_sigframe *)(td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - sizeof(struct l_rt_sigframe));
 	} else
 		fp = (struct l_rt_sigframe *)regs->tf_esp - 1;
 	mtx_unlock(&psp->ps_mtx);
@@ -323,9 +323,9 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
 	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
 
-	frame.sf_sc.uc_stack.ss_sp = p->p_sigstk.ss_sp;
-	frame.sf_sc.uc_stack.ss_size = p->p_sigstk.ss_size;
-	frame.sf_sc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	frame.sf_sc.uc_stack.ss_sp = td->td_sigstk.ss_sp;
+	frame.sf_sc.uc_stack.ss_size = td->td_sigstk.ss_size;
+	frame.sf_sc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
 	PROC_UNLOCK(p);
 
@@ -431,10 +431,10 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Allocate space for the signal handler context.
 	 */
-	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct l_sigframe *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct l_sigframe));
+		fp = (struct l_sigframe *)(td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - sizeof(struct l_sigframe));
 	} else
 		fp = (struct l_sigframe *)regs->tf_esp - 1;
 	mtx_unlock(&psp->ps_mtx);

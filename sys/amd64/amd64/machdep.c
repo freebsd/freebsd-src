@@ -246,8 +246,8 @@ sendsig(catcher, sig, mask, code)
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack = p->p_sigstk;
-	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	sf.sf_uc.uc_stack = td->td_sigstk;
+	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_rdi, sizeof(*regs));
@@ -256,12 +256,12 @@ sendsig(catcher, sig, mask, code)
 	fpstate_drop(td);
 
 	/* Allocate space for the signal handler context. */
-	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct sigframe);
+		sp = td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - sizeof(struct sigframe);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
 		sp = (char *)regs->tf_rsp - sizeof(struct sigframe) - 128;
@@ -403,9 +403,9 @@ sigreturn(td, uap)
 	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (ucp->uc_mcontext.mc_onstack & 1)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
 	td->td_sigmask = ucp->uc_sigmask;
