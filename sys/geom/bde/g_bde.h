@@ -93,8 +93,9 @@ struct g_bde_key {
 	uint32_t		flags;
 				/* 1 = lockfile in sector 0 */
 	uint8_t			hash[16];
-	uint8_t			spare[48];
-	uint8_t			key[G_BDE_MKEYLEN];
+	uint8_t			salt[16];
+	uint8_t			spare[32];
+	uint8_t			mkey[G_BDE_MKEYLEN];
 	/* Non-stored help-fields */
 	uint64_t		zone_width;	/* On-disk width of zone */
 	uint64_t		zone_cont;	/* Payload width of zone */
