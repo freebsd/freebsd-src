@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.26 1998/10/10 08:21:18 jkh Exp $
+#	$Id: Makefile.inc1,v 1.27 1998/10/10 10:54:54 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -895,7 +895,7 @@ legacy-build:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/sys/boot && ${XMAKE} -DNOMAN -B obj depend; \
 		${XMAKE} -DNOMAN all
-	cd ${.CURDIR}/sys/${MACHINE_ARCH}/boot && \
+	cd ${.CURDIR}/sys/${MACHINE}/boot && \
 		${XMAKE} -DNOMAN -B obj depend; ${XMAKE} -DNOMAN OBJFORMAT=elf all;
 .endif
 
