@@ -1,5 +1,5 @@
 #!/bin/sh -
-# $Id: rc.network.en,v 1.2 1999/08/22 21:44:34 dwhite dead $
+# $Id: rc.network.en,v 1.1.1.1 1998/08/27 17:38:43 abial Exp $
 network_pass1() {
     echo -n 'Doing initial network setup:'
     # Set the host name if it is not already set
