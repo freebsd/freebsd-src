@@ -494,11 +494,11 @@ static int spkr_active = FALSE; /* exclusion flag */
 static char *spkr_inbuf;  /* incoming buf */
 
 int
-spkropen(dev, flags, fmt, p)
+spkropen(dev, flags, fmt, td)
 	dev_t		dev;
 	int		flags;
 	int		fmt;
-	struct proc	*p;
+	struct thread	*td;
 {
 #ifdef DEBUG
     (void) printf("spkropen: entering with dev = %s\n", devtoname(dev));
@@ -553,11 +553,11 @@ spkrwrite(dev, uio, ioflag)
 }
 
 int
-spkrclose(dev, flags, fmt, p)
+spkrclose(dev, flags, fmt, td)
 	dev_t		dev;
 	int		flags;
 	int		fmt;
-	struct proc	*p;
+	struct thread	*td;
 {
 #ifdef DEBUG
     (void) printf("spkrclose: entering with dev = %s\n", devtoname(dev));
@@ -576,12 +576,12 @@ spkrclose(dev, flags, fmt, p)
 }
 
 int
-spkrioctl(dev, cmd, cmdarg, flags, p)
+spkrioctl(dev, cmd, cmdarg, flags, td)
 	dev_t		dev;
 	unsigned long	cmd;
 	caddr_t		cmdarg;
 	int		flags;
-	struct proc	*p;
+	struct thread	*td;
 {
 #ifdef DEBUG
     (void) printf("spkrioctl: entering with dev = %s, cmd = %lx\n",
@@ -671,5 +671,6 @@ static driver_t atspeaker_driver = {
 static devclass_t atspeaker_devclass;
 
 DRIVER_MODULE(atspeaker, isa, atspeaker_driver, atspeaker_devclass, 0, 0);
+DRIVER_MODULE(atspeaker, acpi, atspeaker_driver, atspeaker_devclass, 0, 0);
 
 /* spkr.c ends here */
