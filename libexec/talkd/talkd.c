@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)talkd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: talkd.c,v 1.8 1997/12/02 12:33:42 charnier Exp $";
+	"$Id: talkd.c,v 1.9 1998/12/01 21:12:57 dillon Exp $";
 #endif /* not lint */
 
 /*
@@ -73,7 +73,7 @@ int	sockt;
 int	debug = 0;
 long	lastmsgtime;
 
-char    hostname[MAXHOSTNAMELEN + 1];
+char    hostname[MAXHOSTNAMELEN];
 
 #define TIMEOUT 30
 #define MAXIDLE 120
@@ -97,10 +97,11 @@ main(argc, argv)
 		errx(1, "getuid: not super-user");
 #endif
 	openlog("talkd", LOG_PID, LOG_DAEMON);
-	if (gethostname(hostname, sizeof (hostname) - 1) < 0) {
+	if (gethostname(hostname, sizeof(hostname) - 1) < 0) {
 		syslog(LOG_ERR, "gethostname: %m");
 		_exit(1);
 	}
+	hostname[sizeof(hostname) - 1] = '\0';
 	if (chdir(_PATH_DEV) < 0) {
 		syslog(LOG_ERR, "chdir: %s: %m", _PATH_DEV);
 		_exit(1);
