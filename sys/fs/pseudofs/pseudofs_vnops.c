@@ -227,7 +227,7 @@ pfs_ioctl(struct vop_ioctl_args *va)
 		PFS_RETURN (ENOTTY);
 
 	/*
-	 * This is necessary because either process' privileges may
+	 * This is necessary because process' privileges may
 	 * have changed since the open() call.
 	 */
 	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
