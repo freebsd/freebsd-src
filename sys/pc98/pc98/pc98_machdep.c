@@ -34,7 +34,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <scsi/scsiconf.h>
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
 
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
@@ -221,20 +222,9 @@ pc98_getmemsize(void)
 #endif
 }
 
-#include "sd.h"
+#include "da.h"
 
-#if NSD > 0
-/*
- * XXX copied from sd.c.
- */
-struct disk_parms {
-	u_char	heads;	/* Number of heads */
-	u_int16_t	cyls;	/* Number of cylinders */
-	u_char	sectors;	/*dubious *//* Number of sectors/track */
-	u_int16_t	secsiz;	/* Number of bytes/sector */
-	u_int32_t	disksize;	/* total number sectors */
-};
-
+#if NDA > 0
 /*
  * Read a geometry information of SCSI HDD from BIOS work area.
  *
@@ -242,16 +232,20 @@ struct disk_parms {
  * host adapter support it.
  */
 int
-sd_bios_parms(disk_parms, sc_link)
-	struct	disk_parms *disk_parms;
-	struct	scsi_link *sc_link;
+scsi_da_bios_params(struct ccb_calc_geometry *ccg)
 {
 	u_char *tmp;
+	int	target;
+	int	bus;
 
-	tmp = (u_char *)&PC98_SYSTEM_PARAMETER(0x460 + sc_link->target*4);
-	if ((PC98_SYSTEM_PARAMETER(0x482) & ((1 << sc_link->target)&0xff)) != 0) {
-		disk_parms->sectors = *tmp;
-		disk_parms->cyls = ((*(tmp+3)<<8)|*(tmp+2))&0xfff;
+	target = ccg->ccb_h.target_id;
+	bus    = 0;  /* If your really need to know, send a PathInq CCB */
+
+	tmp = (u_char *)&PC98_SYSTEM_PARAMETER(0x460 + target*4);
+	if ((PC98_SYSTEM_PARAMETER(0x482) & ((1 << target)&0xff)) != 0) {
+		ccg->secs_per_track = *tmp;
+		ccg->cylinders = ((*(tmp+3)<<8)|*(tmp+2))&0xfff;
+#if 0
 		switch (*(tmp + 3) & 0x30) {
 		case 0x00:
 			disk_parms->secsiz = 256;
@@ -268,14 +262,13 @@ sd_bios_parms(disk_parms, sc_link)
 			printf("Warning!: not supported. But force to 512\n");
 			break;
 		}
+#endif
 		if (*(tmp+3) & 0x40) {
-			disk_parms->cyls += (*(tmp+1)&0xf0)<<8;
-			disk_parms->heads = *(tmp+1)&0x0f;
+			ccg->cylinders += (*(tmp+1)&0xf0)<<8;
+			ccg->heads = *(tmp+1)&0x0f;
 		} else {
-			disk_parms->heads = *(tmp+1);
+			ccg->heads = *(tmp+1);
 		}
-		disk_parms->disksize = disk_parms->sectors * disk_parms->heads *
-									disk_parms->cyls;
 		return 1;
 	}
 	return 0;
