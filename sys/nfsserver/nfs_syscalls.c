@@ -103,7 +103,7 @@ SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay_v3, CTLFLAG_RW,
 static int	nfssvc_addsock(struct file *, struct sockaddr *,
 		    struct thread *);
 static void	nfsrv_zapsock(struct nfssvc_sock *slp);
-static int	nfssvc_nfsd(struct nfsd_srvargs *, caddr_t, struct thread *);
+static int	nfssvc_nfsd(caddr_t, struct thread *);
 
 /*
  * NFS server system calls
@@ -135,7 +135,6 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct sockaddr *nam;
 	struct nfsd_args nfsdarg;
-	struct nfsd_srvargs nfsd_srvargs, *nsd = &nfsd_srvargs;
 	int error;
 
 	mtx_lock(&Giant);
@@ -172,10 +171,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 		error = nfssvc_addsock(fp, nam, td);
 		fdrop(fp, td);
 	} else if (uap->flag & NFSSVC_NFSD) {
-		error = copyin(uap->argp, (caddr_t)nsd, sizeof (*nsd));
-		if (error)
-			return (error);
-		error = nfssvc_nfsd(nsd, uap->argp, td);
+		error = nfssvc_nfsd(uap->argp, td);
 	} else {
 		error = ENXIO;
 	}
@@ -282,11 +278,11 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
  * until it is killed by a signal.
  */
 static int
-nfssvc_nfsd(struct nfsd_srvargs *nsd, caddr_t argp, struct thread *td)
+nfssvc_nfsd(caddr_t argp, struct thread *td)
 {
 	int siz;
 	struct nfssvc_sock *slp;
-	struct nfsd *nfsd = nsd->nsd_nfsd;
+	struct nfsd *nfsd;
 	struct nfsrv_descript *nd = NULL;
 	struct mbuf *m, *mreq;
 	int error = 0, cacherep, s, sotype, writes_todo;
@@ -297,15 +293,12 @@ nfssvc_nfsd(struct nfsd_srvargs *nsd, caddr_t argp, struct thread *td)
 	cacherep = RC_DOIT;
 	writes_todo = 0;
 #endif
-	if (nfsd == NULL) {
-		nsd->nsd_nfsd = nfsd = (struct nfsd *)
-			malloc(sizeof (struct nfsd), M_NFSD, M_WAITOK | M_ZERO);
-		s = splnet();
-		nfsd->nfsd_td = td;
-		TAILQ_INSERT_TAIL(&nfsd_head, nfsd, nfsd_chain);
-		nfs_numnfsd++;
-	} else
-		s = splnet();
+	nfsd = (struct nfsd *)
+		malloc(sizeof (struct nfsd), M_NFSD, M_WAITOK | M_ZERO);
+	s = splnet();
+	nfsd->nfsd_td = td;
+	TAILQ_INSERT_TAIL(&nfsd_head, nfsd, nfsd_chain);
+	nfs_numnfsd++;
 
 	/*
 	 * Loop getting rpc requests until SIGKILL.
@@ -538,7 +531,6 @@ done:
 	TAILQ_REMOVE(&nfsd_head, nfsd, nfsd_chain);
 	splx(s);
 	free((caddr_t)nfsd, M_NFSD);
-	nsd->nsd_nfsd = NULL;
 	if (--nfs_numnfsd == 0)
 		nfsrv_init(TRUE);	/* Reinitialize everything */
 	return (error);
