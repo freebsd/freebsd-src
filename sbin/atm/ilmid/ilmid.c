@@ -358,13 +358,48 @@ char	hostname[80];
 #define	LOG_FILE	"/var/log/ilmid"
 FILE	*Log;			/* File descriptor for log messages */
 
-void	Increment_DL( int );
-void	Decrement_DL( int );
-
 static const char *Months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
 				"Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
-static void hexdump (FILE *, u_int8_t *, int, char *);
+/*
+ * function declarations
+ */
+static void	write_timestamp	(void);
+static void	hexdump		(FILE *, u_int8_t *, int, char *);
+static int	asn_get_pdu_len	(u_char **, int *);
+static int	asn_get_encoded	(u_char **, int *);
+static int	asn_get_int	(u_char **, int *);
+static void	asn_set_int	(u_char **, int);
+static void	print_objid	(Objid *);
+static void	asn_get_objid	(u_char **, Objid *, int *);
+static int	asn_put_objid	(u_char **, Objid *);
+static void	asn_get_octet	(u_char **, char *, int *);
+static void	print_header	(Snmp_Header *);
+static void	parse_oids	(Snmp_Header *, u_char **);
+static int	oid_cmp		(Objid *, Objid *);
+static int	oid_ncmp	(Objid *, Objid *, int);
+static int	find_var	(Variable *);
+static int	get_ticks	(void);
+static void	build_pdu	(Snmp_Header *, int);
+static void	free_pdu	(Snmp_Header *);
+static void	print_pdu	(int, int, Snmp_Header *, int, u_char *);
+static void	send_resp	(int, Snmp_Header *, u_char *);
+static void	init_ilmi	(void);
+static void	ilmi_open	(void);
+static void	get_local_ip	(int, long *);
+static void	set_prefix	(Objid *, Snmp_Header *, int);
+static void	set_address	(Snmp_Header *, int);
+static void	process_get	(Snmp_Header *, int);
+static int	lmi_object_find	(Variable *);
+static int	lmi_rcvcmd_getnext(Snmp_Header *, int);
+static int	lmi_rcvcmd_trap	(Snmp_Header *, int);
+static void	ilmi_do_state	(void);
+static void	Increment_DL	(int);
+static void	Decrement_DL	(int);
+
+static Snmp_Header *	asn_get_header		(u_char **);
+static Snmp_Header *	build_cold_start	(void);
+static Snmp_Header *	build_generic_header	(void);
 
 /*
  * Write a syslog() style timestamp
@@ -379,8 +414,8 @@ static void hexdump (FILE *, u_int8_t *, int, char *);
  *	none
  *
  */
-void
-write_timestamp()
+static void
+write_timestamp (void)
 {
 	time_t		clock;
 	struct tm 	*tm;
@@ -473,10 +508,8 @@ hexdump (out, ptr, len, desc)
  *	<len>	- decoded length
  *
  */
-int
-asn_get_pdu_len ( bufp, plen )
-	u_char	**bufp;
-	int	*plen;
+static int
+asn_get_pdu_len (u_char **bufp, int *plen)
 {
 	u_char	*bp = *bufp;
 	int	len = 0;
@@ -514,10 +547,8 @@ asn_get_pdu_len ( bufp, plen )
  *	<val>	- value encoding represented
  *
  */
-int
-asn_get_encoded ( bufp, len )
-	u_char	**bufp;
-	int	*len;
+static int
+asn_get_encoded (u_char **bufp, int *len)
 {
 	u_char	*bp = *bufp;
 	int	val = 0;
@@ -555,10 +586,8 @@ asn_get_encoded ( bufp, len )
  *	<val>	- value of encoded integer
  *
  */
-int
-asn_get_int ( bufp, plen )
-	u_char	**bufp;
-	int	*plen;
+static int
+asn_get_int (u_char **bufp, int *plen)
 {
 	int	i;
 	int	len;
@@ -589,10 +618,8 @@ asn_get_int ( bufp, plen )
  *	<bufp>	- updated buffer pointer
  *
  */
-void
-asn_set_int ( bufp, val )
-	u_char	**bufp;
-	int	val;
+static void
+asn_set_int (u_char **bufp, int val)
 {
 	union {
 		int	i;
@@ -638,9 +665,8 @@ asn_set_int ( bufp, val )
  *	none
  *
  */
-void
-print_objid ( objid )
-	Objid	*objid;
+static void
+print_objid (Objid *objid)
 {
 	int	i;
 
@@ -675,11 +701,8 @@ print_objid ( objid )
  *	plen	- (possibly) adjusted PDU length
  *
  */
-void
-asn_get_objid ( bufp, objid, plen )
-	u_char	**bufp;
-	Objid	*objid;
-	int	*plen;
+static void
+asn_get_objid (u_char **bufp, Objid *objid, int *plen)
 {
 	int	len;
 	u_char	*bp = *bufp;
@@ -705,10 +728,8 @@ asn_get_objid ( bufp, objid, plen )
  * Put OBJID - assumes elements <= 16383 for two byte coding
  *
  */
-int
-asn_put_objid ( bufp, objid )
-	u_char	**bufp;
-	Objid	*objid;
+static int
+asn_put_objid (u_char **bufp, Objid *objid)
 {
 	int	len = 0;
 	u_char	*bp = *bufp;
@@ -752,12 +773,9 @@ asn_put_objid ( bufp, objid )
  *	octet	- encoded Octet String
  *	plen	- (possibly) adjusted PDU length
  *
- */ 
-void
-asn_get_octet ( bufp, octet, plen )
-	u_char	**bufp;
-	char	*octet;
-	int	*plen;
+ */
+static void
+asn_get_octet (u_char **bufp, char *octet, int *plen)
 {
 	u_char	*bp = *bufp;
 	int	i = 0;
@@ -791,9 +809,8 @@ asn_get_octet ( bufp, octet, plen )
  *	none
  *
  */
-void
-print_header ( Hdr )
-	Snmp_Header *Hdr;
+static void
+print_header (Snmp_Header *Hdr)
 {
 	Variable	*var;
 
@@ -862,10 +879,8 @@ print_header ( Hdr )
  *	none
  *
  */
-void
-parse_oids ( h, bp )
-	Snmp_Header	*h;
-	u_char		**bp;
+static void
+parse_oids (Snmp_Header *h, u_char **bp)
 {
 	int		len = h->varlen;
 	int		sublen;
@@ -949,9 +964,8 @@ parse_oids ( h, bp )
  *		- generated SNMP header
  *
  */
-Snmp_Header *
-asn_get_header ( bufp )
-	u_char **bufp;
+static Snmp_Header *
+asn_get_header (u_char **bufp)
 {
 	Snmp_Header	*h;
 	u_char		*bp = *bufp;
@@ -1058,9 +1072,8 @@ asn_get_header ( bufp )
  *	1	- Objid's don't match
  *
  */
-int
-oid_cmp ( oid1, oid2 )
-	Objid *oid1, *oid2;
+static int
+oid_cmp (Objid *oid1, Objid *oid2)
 {
 	int	i;
 	int	len;
@@ -1100,10 +1113,8 @@ oid_cmp ( oid1, oid2 )
  *	1	- Objid's don't match
  *
  */
-int
-oid_ncmp ( oid1, oid2, len )
-	Objid *oid1, *oid2;
-	int	len;
+static int
+oid_ncmp (Objid *oid1, Objid *oid2, int len)
 {
 	int	i;
 
@@ -1131,9 +1142,8 @@ oid_ncmp ( oid1, oid2, len )
  *	-1	- no matching Variable found
  *
  */
-int
-find_var ( var )
-	Variable	*var;
+static int
+find_var (Variable *var)
 {
 	int	i;
 
@@ -1156,8 +1166,8 @@ find_var ( var )
  *	number of ticks
  *
  */
-int
-get_ticks()
+static int
+get_ticks (void)
 {
 	struct timeval	timenow;
 	struct timeval	timediff;
@@ -1200,10 +1210,8 @@ get_ticks()
  *	none
  *
  */
-void
-build_pdu ( hdr, type )
-	Snmp_Header 	*hdr;
-	int		type;
+static void
+build_pdu (Snmp_Header *hdr, int type)
 {
 	u_char		*bp = Resp_Buf;
 	u_char		*vpp;
@@ -1419,9 +1427,8 @@ build_pdu ( hdr, type )
 	return;
 }
 
-void
-free_pdu ( hdr )
-Snmp_Header *hdr;
+static void
+free_pdu (Snmp_Header *hdr)
 {
 	Variable	*var;
 
@@ -1435,12 +1442,7 @@ Snmp_Header *hdr;
 }
 
 static void
-print_pdu(dir, intf, Hdr, len, buf)
-	int		dir;
-	int		intf;
-	Snmp_Header *	Hdr;
-	int		len;
-	u_char *	buf;
+print_pdu (int dir, int intf, Snmp_Header *Hdr, int len, u_char *buf)
 {
 	char *		pdu_dir;
 	char *		pdu_type;
@@ -1498,11 +1500,8 @@ print_pdu(dir, intf, Hdr, len, buf)
  *	none	- response sent
  *
  */
-void
-send_resp ( intf, Hdr, resp )
-	int		intf;
-	Snmp_Header	*Hdr;
-	u_char		*resp;
+static void
+send_resp (int intf, Snmp_Header *Hdr, u_char *resp)
 {
 	int	n;
 
@@ -1521,8 +1520,8 @@ send_resp ( intf, Hdr, resp )
  * Build a COLD_START TRAP PDU
  *
  */
-Snmp_Header *
-build_cold_start()
+static Snmp_Header *
+build_cold_start (void)
 {
 	Snmp_Header	*hdr;
 	Variable	*var;
@@ -1563,8 +1562,8 @@ build_cold_start()
  * Build a Generic PDU Header
  *
  */
-Snmp_Header *
-build_generic_header()
+static Snmp_Header *
+build_generic_header (void)
 {
 	Snmp_Header	*hdr;
 
@@ -1596,8 +1595,8 @@ build_generic_header()
  *      none            Information from HARP available 
  *      
  */
-void    
-init_ilmi()  
+static void
+init_ilmi (void)
 {
         struct  air_cfg_rsp     *cfg_info = NULL;
         struct  air_int_rsp    *intf_info = NULL;
@@ -1667,8 +1666,8 @@ init_ilmi()
  *      none
  *
  */
-void
-ilmi_open ()
+static void
+ilmi_open (void)
 {
         struct sockaddr_atm     satm;
         struct t_atm_aal5       aal5;
@@ -1876,10 +1875,8 @@ ilmi_open ()
  *	none
  *
  */
-void
-get_local_ip ( s, aval )
-	int	s;
-	long	*aval;
+static void
+get_local_ip (int s, long *aval)
 {
 	char			intf_name[IFNAMSIZ];
 	int			namelen = IFNAMSIZ;
@@ -1930,11 +1927,8 @@ get_local_ip ( s, aval )
  *	none
  *
  */
-void
-set_prefix ( oid, hdr, intf )
-	Objid		*oid;
-	Snmp_Header	*hdr;
-	int		intf;
+static void
+set_prefix (Objid *oid, Snmp_Header *hdr, int intf)
 {
 	struct atmsetreq	asr;
 	Atm_addr		*aa;
@@ -1997,10 +1991,8 @@ set_prefix ( oid, hdr, intf )
 
 }
 
-void
-set_address ( hdr, intf )
-	Snmp_Header	*hdr;
-	int		intf;
+static void
+set_address (Snmp_Header *hdr, int intf)
 {
 	Variable	*var;
 	int		i, j;
@@ -2053,9 +2045,8 @@ set_address ( hdr, intf )
  *	none	- Debug_Level incremented
  *
  */
-void
-Increment_DL ( sig )
-	int	sig;
+static void
+Increment_DL (int sig)
 {
 	Debug_Level++;
 	if ( Debug_Level && Log == (FILE *)NULL ) {
@@ -2087,9 +2078,8 @@ Increment_DL ( sig )
  *	none	- Debug_Level decremented
  *
  */
-void
-Decrement_DL ( sig )
-	int	sig;
+static void
+Decrement_DL (int sig)
 {
 	Debug_Level--;
 	if ( Debug_Level <= 0 ) {
@@ -2110,10 +2100,8 @@ Decrement_DL ( sig )
  * Loop through GET variable list looking for matches
  *
  */
-void
-process_get ( hdr, intf )
-	Snmp_Header	*hdr;
-	int		intf;
+static void
+process_get (Snmp_Header *hdr, int intf)
 {
 	Variable	*var;
 	int		idx;
@@ -2190,8 +2178,7 @@ process_get ( hdr, intf )
 			break;
 		case IPNM_OBJID:
 			var->type = ASN_IPADDR;
-			get_local_ip ( ilmi_fd[intf],
-			    &var->var.ival );
+			get_local_ip( ilmi_fd[intf], &var->var.aval );
 			break;
 		case ADDRESS_OBJID:
 			break;
@@ -2224,7 +2211,7 @@ process_get ( hdr, intf )
  * out:  OID number (index), -1 = not found
  */
 static int
-lmi_object_find(Variable *var)
+lmi_object_find (Variable *var)
 {
 	Objid *	obj_var;
 	Objid *	obj_cur;
@@ -2256,7 +2243,7 @@ lmi_object_find(Variable *var)
  *
  */
 static int
-lmi_object_instance(Variable *var, int instnum)
+lmi_object_instance (Variable *var, int instnum)
 {
 	int *	oidptr;
 	int	curlen;
@@ -2281,7 +2268,7 @@ lmi_object_instance(Variable *var, int instnum)
  *
  */
 static int
-lmi_rcvcmd_getnext(Snmp_Header *header, int intf)
+lmi_rcvcmd_getnext (Snmp_Header *header, int intf)
 {
 	int *	oidptr;
 	int	oidlen;
@@ -2343,7 +2330,7 @@ lmi_rcvcmd_getnext(Snmp_Header *header, int intf)
  *
  */
 static int
-lmi_rcvcmd_trap(Snmp_Header *header, int intf)
+lmi_rcvcmd_trap (Snmp_Header *header, int intf)
 {
 
 	bzero((caddr_t)&addressEntry[intf], sizeof(Objid));
@@ -2355,8 +2342,8 @@ lmi_rcvcmd_trap(Snmp_Header *header, int intf)
  *
  *
  */
-void
-ilmi_do_state ()
+static void
+ilmi_do_state(void)
 {
 	struct timeval	tvp;
 	fd_set		rfd;
@@ -2623,9 +2610,7 @@ ilmi_do_state ()
 }
 
 int
-main ( argc, argv )
-	int	argc;
-	char	*argv[];
+main (int argc, char *argv[])
 {
 	int	c;
 	int	i;
