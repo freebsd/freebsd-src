@@ -103,7 +103,7 @@ ${fwcmd} -f flush
 #
 # For ``simple'' firewall type the divert rule should be put to a
 # different place to not interfere with address-checking rules.
-# 
+#
 case ${firewall_type} in
 [Oo][Pp][Ee][Nn]|[Cc][Ll][Ii][Ee][Nn][Tt])
 	case ${natd_enable} in
