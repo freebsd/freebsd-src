@@ -1,5 +1,7 @@
+# $FreeBSD$
+
 PROG= test1
-NOMAN= t
+NOMAN=
 NFSSERVER?= herring.nlsystems.com
 CLEANFILES= test1.zeros test1.good test1.data test1.scratch
 

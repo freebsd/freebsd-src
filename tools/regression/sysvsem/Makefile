@@ -3,7 +3,7 @@
 # Obtained from: $NetBSD: Makefile,v 1.3 2002/03/05 21:57:00 thorpej Exp $
 
 PROG=	semtest
-NOMAN=	yes
+NOMAN=
 
 regress:
 	@if ./semtest ./semtest; then \

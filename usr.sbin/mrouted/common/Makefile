@@ -4,7 +4,7 @@ S=	${.CURDIR}/..
 .PATH: $S
 
 LIB=	mrouted
-INTERNALLIB= YES
+INTERNALLIB=
 SRCS=	igmp.c inet.c kern.c
 
 CFLAGS+= -I$S

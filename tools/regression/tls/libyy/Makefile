@@ -5,6 +5,6 @@ SHLIB_MAJOR=	1
 
 SRCS=	yy.c
 CFLAGS+=-fpic
-NOMAN=	t
+NOMAN=
 
 .include <bsd.lib.mk>

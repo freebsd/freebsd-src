@@ -5,6 +5,6 @@ SHLIB_MAJOR=    3
 
 SRCS=	fakelib.c
 
-NOMAN= YES
+NOMAN=
 
 .include <bsd.lib.mk>

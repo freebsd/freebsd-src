@@ -12,12 +12,12 @@ SRCS+=	main.c cp-lang.c c-opts.c call.c class.c cvt.c cxx-pretty-print.c \
 	search.c semantics.c tree.c typeck.c typeck2.c optimize.c 
 
 BINDIR=	/usr/libexec
-NOMAN=	1
+NOMAN=
 NOSHARED?=yes
 
 CFLAGS+= -I${GCCDIR}/cp -I.
 
-PADD=	${LIBCC_INT}
+DPADD=	${LIBCC_INT}
 LDADD=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------

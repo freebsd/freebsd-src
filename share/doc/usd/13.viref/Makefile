@@ -7,8 +7,8 @@ EXTRA=		ex.cmd.roff ref.so set.opt.roff vi.cmd.roff
 MACROS=		-me
 CLEANFILES=	vi.ref-patched index
 TRFLAGS=	-U		# this is to hide warnings only
-USE_SOELIM=	YES
-USE_TBL=	YES
+USE_SOELIM=
+USE_TBL=
 SRCDIR=		${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/vi.ref
 
 vi.ref-patched: vi.ref

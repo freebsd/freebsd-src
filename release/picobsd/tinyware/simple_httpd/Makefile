@@ -2,6 +2,6 @@
 #
 PROG=simple_httpd
 SRCS= 	simple_httpd.c
-NOMAN=yes
+NOMAN=
 
 .include <bsd.prog.mk>

@@ -3,6 +3,6 @@
 #
 
 PROG=	ipsockopt
-NOMAN=	yes
+NOMAN=
 
 .include <bsd.prog.mk>

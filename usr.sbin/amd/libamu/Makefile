@@ -11,7 +11,7 @@
        ${.CURDIR}/../../../contrib/amd/conf/umount
 
 LIB=	amu
-INTERNALLIB= YES
+INTERNALLIB=
 SRCS=	hasmntopt.c misc_rpc.c mount_fs.c mtab.c nfs_prot_xdr.c \
 	util.c wire.c xutil.c
 

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	gdb
-INTERNALLIB= yes
+INTERNALLIB=
 SRCS=	annotate.c arch-utils.c auxv.c ax-gdb.c ax-general.c bcache.c	\
 	bfd-target.c block.c blockframe.c breakpoint.c buildsym.c	\
 	c-exp.y c-lang.c c-typeprint.c c-valprint.c charset.c		\

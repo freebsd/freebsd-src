@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		driver
-INTERNALLIB=	YES
+INTERNALLIB=
 SRCS=		input.cpp printer.cpp
 
 .include <bsd.lib.mk>

@@ -25,7 +25,7 @@ MLINKS=		rtld.1 ld-elf.so.1.1 \
 .if defined(LDSCRIPT)
 KERN_OSRELDATE!=	/sbin/sysctl -n kern.osreldate 2>/dev/null || echo 0
 .if ${KERN_OSRELDATE} >= 400001
-LDSO_IS_EXECUTABLE=	yes
+LDSO_IS_EXECUTABLE=
 .endif
 .endif
 
