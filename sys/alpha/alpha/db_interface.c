@@ -639,13 +639,13 @@ db_mach_vtrace(void)
 	if (d == NULL) 
 		d = "*** Empty ***";
 	else if (lastt.tv_sec == 0) {
-		db_printf("Newest entry at clock %ld.%06ld\n",
+		db_printf("Newest entry at clock %d.%06ld\n",
 			  kp->ktr_tv.tv_sec,
 			  kp->ktr_tv.tv_nsec / 1000);
 		lastt = kp->ktr_tv;
 	}
 	ts = lastt;
-	db_printf("%4ld.%06ld: ", ts.tv_sec, ts.tv_nsec / 1000);
+	db_printf("%4d.%06ld: ", ts.tv_sec, ts.tv_nsec / 1000);
 	lastt = kp->ktr_tv;
 #ifdef KTR_EXTEND
 	db_printf("cpu%d %s.%d\t%s", kp->ktr_cpu, kp->ktr_filename,
