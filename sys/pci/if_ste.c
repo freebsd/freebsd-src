@@ -91,6 +91,7 @@ static int ste_attach		(device_t);
 static int ste_detach		(device_t);
 static void ste_init		(void *);
 static void ste_intr		(void *);
+static void ste_rxeoc		(struct ste_softc *);
 static void ste_rxeof		(struct ste_softc *);
 static void ste_txeoc		(struct ste_softc *);
 static void ste_txeof		(struct ste_softc *);
@@ -643,6 +644,8 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 
 	sc->rxcycles = count;
+	if (cmd == POLL_AND_CHECK_STATUS)
+		ste_rxeoc(sc);
 	ste_rxeof(sc);
 	ste_txeof(sc);
 	if (ifp->if_snd.ifq_head != NULL)
@@ -708,8 +711,10 @@ ste_intr(xsc)
 		if (!(status & STE_INTRS))
 			break;
 
-		if (status & STE_ISR_RX_DMADONE)
+		if (status & STE_ISR_RX_DMADONE) {
+			ste_rxeoc(sc);
 			ste_rxeof(sc);
+		}
 
 		if (status & STE_ISR_TX_DMADONE)
 			ste_txeof(sc);
@@ -746,6 +751,29 @@ done:
 	return;
 }
 
+static void
+ste_rxeoc(struct ste_softc *sc)
+{
+	struct ste_chain_onefrag *cur_rx;
+
+	STE_LOCK_ASSERT(sc);
+
+	if (sc->ste_cdata.ste_rx_head->ste_ptr->ste_status == 0) {
+		cur_rx = sc->ste_cdata.ste_rx_head;
+		do {
+			cur_rx = cur_rx->ste_next;
+			/* If the ring is empty, just return. */
+			if (cur_rx == sc->ste_cdata.ste_rx_head)
+				return;
+		} while (cur_rx->ste_ptr->ste_status == 0);
+		if (sc->ste_cdata.ste_rx_head->ste_ptr->ste_status == 0) {
+			/* We've fallen behind the chip: catch it. */
+			sc->ste_cdata.ste_rx_head = cur_rx;
+			++ste_rxsyncs;
+		}
+	}
+}
+
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
@@ -763,19 +791,6 @@ ste_rxeof(sc)
 	STE_LOCK_ASSERT(sc);
 
 	ifp = &sc->arpcom.ac_if;
-
-	if (sc->ste_cdata.ste_rx_head->ste_ptr->ste_status == 0) {
-		cur_rx = sc->ste_cdata.ste_rx_head;
-		do {
-			cur_rx = cur_rx->ste_next;
-			/* If the ring is empty, just return. */
-			if (cur_rx == sc->ste_cdata.ste_rx_head)
-				return;
-		} while (cur_rx->ste_ptr->ste_status == 0);
-		/* We've fallen behind the chip: catch it. */
-		sc->ste_cdata.ste_rx_head = cur_rx;
-		++ste_rxsyncs;
-	};
 
 	while((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)
 	      & STE_RXSTAT_DMADONE) {
@@ -893,7 +908,7 @@ static void
 ste_txeof(sc)
 	struct ste_softc	*sc;
 {
-	struct ste_chain	*cur_tx = NULL;
+	struct ste_chain	*cur_tx;
 	struct ifnet		*ifp;
 	int			idx;
 
@@ -906,24 +921,21 @@ ste_txeof(sc)
 		if (!(cur_tx->ste_ptr->ste_ctl & STE_TXCTL_DMADONE))
 			break;
 
-		if (cur_tx->ste_mbuf != NULL) {
-			m_freem(cur_tx->ste_mbuf);
-			cur_tx->ste_mbuf = NULL;
-		}
+		m_freem(cur_tx->ste_mbuf);
+		cur_tx->ste_mbuf = NULL;
 
 		ifp->if_opackets++;
 
 		sc->ste_cdata.ste_tx_cnt--;
 		STE_INC(idx, STE_TX_LIST_CNT);
-		ifp->if_timer = 0;
 	}
 
-	sc->ste_cdata.ste_tx_cons = idx;
-
-	if (cur_tx != NULL)
+	if (idx != sc->ste_cdata.ste_tx_cons) {
+		sc->ste_cdata.ste_tx_cons = idx;
 		ifp->if_flags &= ~IFF_OACTIVE;
-
-	return;
+		if (idx == sc->ste_cdata.ste_tx_prod)
+			ifp->if_timer = 0;
+	}
 }
 
 static void
@@ -1284,12 +1296,6 @@ ste_init_tx_list(sc)
 		else
 			cd->ste_tx_chain[i].ste_next =
 			    &cd->ste_tx_chain[i + 1];
-		if (i == 0)
-			cd->ste_tx_chain[i].ste_prev =
-			     &cd->ste_tx_chain[STE_TX_LIST_CNT - 1];
-		else
-			cd->ste_tx_chain[i].ste_prev =
-			     &cd->ste_tx_chain[i - 1];
 	}
 
 	cd->ste_tx_prod = 0;
@@ -1379,7 +1385,7 @@ ste_init(xsc)
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	ste_wait(sc);
-	sc->ste_tx_prev_idx=-1;
+	sc->ste_tx_prev = NULL;
 
 	/* Enable receiver and transmitter */
 	CSR_WRITE_2(sc, STE_MACCTL0, 0);
@@ -1610,7 +1616,7 @@ ste_start(ifp)
 {
 	struct ste_softc	*sc;
 	struct mbuf		*m_head = NULL;
-	struct ste_chain	*cur_tx = NULL;
+	struct ste_chain	*cur_tx;
 	int			idx;
 
 	sc = ifp->if_softc;
@@ -1646,7 +1652,7 @@ ste_start(ifp)
 
 		cur_tx->ste_ptr->ste_next = 0;
 
-		if(sc->ste_tx_prev_idx < 0){
+		if (sc->ste_tx_prev == NULL) {
 			cur_tx->ste_ptr->ste_ctl = STE_TXCTL_DMAINTR | 1;
 			/* Load address of the TX list */
 			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_STALL);
@@ -1662,12 +1668,11 @@ ste_start(ifp)
 			ste_wait(sc);
 		}else{
 			cur_tx->ste_ptr->ste_ctl = STE_TXCTL_DMAINTR | 1;
-			sc->ste_cdata.ste_tx_chain[
-			    sc->ste_tx_prev_idx].ste_ptr->ste_next
+			sc->ste_tx_prev->ste_ptr->ste_next
 				= cur_tx->ste_phys;
 		}
 
-		sc->ste_tx_prev_idx=idx;
+		sc->ste_tx_prev = cur_tx;
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
@@ -1678,8 +1683,8 @@ ste_start(ifp)
 		STE_INC(idx, STE_TX_LIST_CNT);
 		sc->ste_cdata.ste_tx_cnt++;
 		ifp->if_timer = 5;
-		sc->ste_cdata.ste_tx_prod = idx;
 	}
+	sc->ste_cdata.ste_tx_prod = idx;
 
 	STE_UNLOCK(sc);
 
@@ -1700,6 +1705,7 @@ ste_watchdog(ifp)
 
 	ste_txeoc(sc);
 	ste_txeof(sc);
+	ste_rxeoc(sc);
 	ste_rxeof(sc);
 	ste_reset(sc);
 	ste_init(sc);
