@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_mroute.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_mroute.h,v 1.6 1995/03/16 18:14:59 bde Exp $
+ * $Id: ip_mroute.h,v 1.8 1995/06/13 17:51:13 wollman Exp $
  */
 
 #ifndef _NETINET_IP_MROUTE_H_
@@ -236,24 +236,16 @@ struct rtdetq {
 #define MAXQSIZE        10                /* max # of pkts in queue 	*/
 
 /*
- * queue structure at each vif
- */
-struct pkt_queue 
-{
-    u_long pkt_len;               /* length of packet in queue 	*/
-    struct mbuf *pkt_m;           /* pointer to packet mbuf	*/
-    struct ip  *pkt_ip;           /* pointer to ip header	*/
-    struct ip_moptions *pkt_imo; /* IP multicast options assoc. with pkt */
-};
-
-/*
  * the token bucket filter at each vif
  */
 struct tbf
 {
-    u_long last_pkt_t;	/* arr. time of last pkt 	*/
-    u_long n_tok;      	/* no of tokens in bucket 	*/
-    u_long q_len;    	/* length of queue at this vif	*/
+    struct timeval tbf_last_pkt_t; /* arr. time of last pkt 	*/
+    u_long tbf_n_tok;      	/* no of tokens in bucket 	*/
+    u_long tbf_q_len;    	/* length of queue at this vif	*/
+    u_long tbf_max_q_len;	/* max. queue length		*/
+    struct mbuf *tbf_q;		/* Packet queue			*/
+    struct mbuf *tbf_t;		/* tail-insertion pointer	*/
 };
 
 extern int	(*ip_mrouter_set) __P((int, struct socket *, struct mbuf *));
