@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.13 1998/12/30 00:37:42 hoek Exp $
+ *	$Id: ppc.c,v 1.14 1999/01/10 12:04:53 nsouch Exp $
  *
  */
 #include "ppc.h"
@@ -113,12 +113,12 @@ static void ppc_insw_epp(int unit, char *addr, int cnt) {
 static void ppc_insl_epp(int unit, char *addr, int cnt) {
 	insl(ppcdata[unit]->ppc_base + PPC_EPP_DATA, addr, cnt); }
 
-static char ppc_rdtr(int unit) { return r_dtr(ppcdata[unit]); }
-static char ppc_rstr(int unit) { return r_str(ppcdata[unit]); }
-static char ppc_rctr(int unit) { return r_ctr(ppcdata[unit]); }
-static char ppc_repp(int unit) { return r_epp(ppcdata[unit]); }
-static char ppc_recr(int unit) { return r_ecr(ppcdata[unit]); }
-static char ppc_rfifo(int unit) { return r_fifo(ppcdata[unit]); }
+static u_char ppc_rdtr(int unit) { return r_dtr(ppcdata[unit]); }
+static u_char ppc_rstr(int unit) { return r_str(ppcdata[unit]); }
+static u_char ppc_rctr(int unit) { return r_ctr(ppcdata[unit]); }
+static u_char ppc_repp(int unit) { return r_epp(ppcdata[unit]); }
+static u_char ppc_recr(int unit) { return r_ecr(ppcdata[unit]); }
+static u_char ppc_rfifo(int unit) { return r_fifo(ppcdata[unit]); }
 
 static void ppc_wdtr(int unit, char byte) { w_dtr(ppcdata[unit], byte); }
 static void ppc_wstr(int unit, char byte) { w_str(ppcdata[unit], byte); }
@@ -318,7 +318,7 @@ ppc_detect_port(struct ppc_data *ppc)
 
 	w_ctr(ppc, 0x0c);	/* To avoid missing PS2 ports */
 	w_dtr(ppc, 0xaa);
-	if (r_dtr(ppc) != (char) 0xaa)
+	if (r_dtr(ppc) != 0xaa)
 		return (0);
 
 	return (1);
@@ -1128,7 +1128,7 @@ ppc_exec_microseq(int unit, struct ppb_microseq **p_msq)
 	struct ppb_microseq *stack = 0;
 
 /* microsequence registers are equivalent to PC-like port registers */
-#define r_reg(register,ppc) ((char)inb((ppc)->ppc_base + register))
+#define r_reg(register,ppc) (inb((ppc)->ppc_base + register))
 #define w_reg(register,ppc,byte) outb((ppc)->ppc_base + register, byte)
 
 #define INCR_PC (mi ++)		/* increment program counter */

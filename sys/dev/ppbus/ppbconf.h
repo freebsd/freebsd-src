@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.9 1998/09/20 14:41:54 nsouch Exp $
+ *	$Id: ppbconf.h,v 1.10 1999/01/10 12:04:55 nsouch Exp $
  *
  */
 #ifndef __PPBCONF_H
@@ -201,12 +201,12 @@ struct ppb_adapter {
 	void (*insw_epp)(int, char *, int);
 	void (*insl_epp)(int, char *, int);
 
-	char (*r_dtr)(int);
-	char (*r_str)(int);
-	char (*r_ctr)(int);
-	char (*r_epp)(int);
-	char (*r_ecr)(int);
-	char (*r_fifo)(int);
+	u_char (*r_dtr)(int);
+	u_char (*r_str)(int);
+	u_char (*r_ctr)(int);
+	u_char (*r_epp)(int);
+	u_char (*r_ecr)(int);
+	u_char (*r_fifo)(int);
 
 	void (*w_dtr)(int, char);
 	void (*w_str)(int, char);
