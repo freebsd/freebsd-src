@@ -707,23 +707,21 @@ readrest:
 				 * We don't chase down the shadow chain
 				 */
 			    fs.object == fs.first_object->backing_object) {
+				vm_page_lock_queues();
 				/*
 				 * get rid of the unnecessary page
 				 */
-				vm_page_lock_queues();
 				pmap_remove_all(fs.first_m);
 				vm_page_free(fs.first_m);
-				fs.first_m = NULL;
-
 				/*
 				 * grab the page and put it into the 
 				 * process'es object.  The page is 
 				 * automatically made dirty.
 				 */
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
-				fs.first_m = fs.m;
-				vm_page_busy(fs.first_m);
+				vm_page_busy(fs.m);
 				vm_page_unlock_queues();
+				fs.first_m = fs.m;
 				fs.m = NULL;
 				cnt.v_cow_optim++;
 			} else {
@@ -740,7 +738,6 @@ readrest:
 				 */
 				release_page(&fs);
 			}
-
 			/*
 			 * fs.object != fs.first_object due to above 
 			 * conditional
@@ -748,15 +745,13 @@ readrest:
 			VM_OBJECT_LOCK(fs.object);
 			vm_object_pip_wakeup(fs.object);
 			VM_OBJECT_UNLOCK(fs.object);
-
 			/*
 			 * Only use the new page below...
 			 */
-			cnt.v_cow_faults++;
-			fs.m = fs.first_m;
 			fs.object = fs.first_object;
 			fs.pindex = fs.first_pindex;
-
+			fs.m = fs.first_m;
+			cnt.v_cow_faults++;
 		} else {
 			prot &= ~VM_PROT_WRITE;
 		}
