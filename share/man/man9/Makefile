@@ -3,13 +3,12 @@
 MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	BUF_TIMELOCK.9 BUF_UNLOCK.9 BUS_PRINT_CHILD.9 BUS_READ_IVAR.9 \
 	BUS_SETUP_INTR.9 \
-	CONDSPLASSERT.9 \
 	DECLARE_MODULE.9 DELAY.9 DEVICE_ATTACH.9 DEVICE_DETACH.9 \
 	DEVICE_IDENTIFY.9 DEVICE_PROBE.9 DEVICE_SHUTDOWN.9 \
 	DEV_MODULE.9 DRIVER_MODULE.9 \
 	KASSERT.9 \
 	MD5.9 MODULE_DEPEND.9 MODULE_VERSION.9 \
-	SPLASSERT.9 SYSCALL_MODULE.9 \
+	SYSCALL_MODULE.9 \
 	VFS.9 VFS_CHECKEXP.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 \
 	VFS_QUOTACTL.9 VFS_ROOT.9 VFS_START.9 VFS_STATFS.9 \
 	VFS_SYNC.9 VFS_UNMOUNT.9 VFS_VGET.9 VFS_VPTOFH.9 VOP_ACCESS.9 \
@@ -23,7 +22,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	accept_filter.9 accf_data.9 accf_http.9 acl.9 at_exit.9 \
 	at_fork.9 atomic.9 \
 	bios.9 boot.9 buf.9 bus_alloc_resource.9 bus_generic_attach.9 \
-	bus_generic_detach.9 bus_generic_map_intr.9 \
+	bus_generic_detach.9 \
 	bus_generic_print_child.9 bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 bus_release_resource.9 \
 	cd.9 cdevsw_add.9 cdevsw_remove.9 condvar.9 copy.9 \
