@@ -17,7 +17,6 @@
 #include <sys/uio.h>
 #include <sys/filio.h>
 #include <sys/sysctl.h>
-#include <sys/select.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/pmap.h>
