@@ -137,6 +137,7 @@ struct ifnet {
 	u_short	if_index;		/* numeric abbreviation for this if  */
 	short	if_unit;		/* sub-unit for lower level driver */
 	short	if_timer;		/* time 'til if_watchdog called */
+	u_short	if_nvlans;		/* number of active vlans */
 	int	if_flags;		/* up/down, broadcast, etc. */
 	int	if_capabilities;	/* interface capabilities */
 	int	if_capenable;		/* enabled features */
@@ -150,6 +151,8 @@ struct ifnet {
 	int	(*if_output)		/* output routine (enqueue) */
 		(struct ifnet *, struct mbuf *, struct sockaddr *,
 		     struct rtentry *);
+	void	(*if_input)		/* input routine (from h/w driver) */
+		(struct ifnet *, struct mbuf *);
 	void	(*if_start)		/* initiate output routine */
 		(struct ifnet *);
 	int	(*if_done)		/* output complete routine */
@@ -405,15 +408,6 @@ extern	struct ifindex_entry *ifindex_table;
 extern	int ifqmaxlen;
 extern	struct ifnet *loif;	/* first loopback interface */
 extern	int if_index;
-
-void	ether_ifattach(struct ifnet *, int);
-void	ether_ifdetach(struct ifnet *, int);
-void	ether_input(struct ifnet *, struct ether_header *, struct mbuf *);
-void	ether_demux(struct ifnet *, struct ether_header *, struct mbuf *);
-int	ether_output(struct ifnet *,
-	   struct mbuf *, struct sockaddr *, struct rtentry *);
-int	ether_output_frame(struct ifnet *, struct mbuf *);
-int	ether_ioctl(struct ifnet *, int, caddr_t);
 
 int	if_addmulti(struct ifnet *, struct sockaddr *, struct ifmultiaddr **);
 int	if_allmulti(struct ifnet *, int);
