@@ -40,7 +40,9 @@
 .Nd configure network interface parameters
 .Sh SYNOPSIS
 .Nm ifconfig
-.Ar interface address_family
+.Op Fl L
+.Ar interface
+.Op Ar address_family
 .Oo
 .Ar address
 .Op Ar dest_address
@@ -48,6 +50,7 @@
 .Op Ar parameters
 .Nm ifconfig
 .Fl a
+.Op Fl L
 .Op Fl d
 .Op Fl u
 .Op Ar address_family
@@ -56,6 +59,10 @@
 .Op Fl d
 .Op Fl u
 .Op Ar address_family 
+.Nm ifconfig
+.Op Fl L
+.Op Fl d
+.Op Fl u
 .Sh DESCRIPTION
 .Nm Ifconfig
 is used to assign an address
@@ -407,6 +414,9 @@ The
 flag limits this to interfaces that are down, and
 .Fl u
 limits this to interfaces that are up.
+When no arguments are given,
+.Fl a
+is implied.
 .Pp
 The
 .Fl l
