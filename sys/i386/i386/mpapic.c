@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.6 1997/05/31 03:29:57 fsmp Exp $
+ *	$Id: mpapic.c,v 1.5 1997/07/06 23:56:12 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -33,9 +33,11 @@
 
 #include <machine/smp.h>
 #include <machine/mpapic.h>
-#include <machine/smptests.h>	/** TEST_LOPRIO, TEST_IPI */
+#include <machine/smptests.h>	/** TEST_LOPRIO, TEST_IPI, TEST_CPUSTOP */
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
+
+#include <i386/isa/intr_machdep.h>	/* Xspuriousint() */
 
 /* EISA Edge/Level trigger control registers */
 #define ELCR0	0x4d0		/* eisa irq 0-7 */
@@ -87,6 +89,13 @@ apic_initialize(int is_bsp)
 	temp = lapic.svr;
 	temp |= APIC_SVR_SWEN;	/* software enable APIC */
 	temp &= ~APIC_SVR_FOCUS;/* enable 'focus processor' */
+#if defined(TEST_CPUSTOP)
+	if ((XSPURIOUSINT_OFFSET & 0xf) != 0xf)
+		panic("bad XSPURIOUSINT_OFFSET: 0x%08x", XSPURIOUSINT_OFFSET);
+	temp &= ~0xff;		/* clear vector field */
+	temp |= XSPURIOUSINT_OFFSET;
+	printf(">>> SVR: 0x%08x\n", temp);
+#endif  /* TEST_CPUSTOP */
 #if 0
 	temp |= 0x20;		/** FIXME: 2f == strayIRQ15 */
 #endif
@@ -632,9 +641,12 @@ selected_apic_ipi(u_int target, int vector, int delivery_mode)
 			icr_hi = lapic.icr_hi & ~APIC_ID_MASK;
 			icr_hi |= (CPU_TO_ID(x) << 24);
 			lapic.icr_hi = icr_hi;
-
+#if 1
+			db_printf( "icr_hi: 0x%08x\n", lapic.icr_hi );
+#endif
 			/* send the IPI */
-			if (apic_ipi(APIC_DEST_DESTFLD, vector, delivery_mode) == -1)
+			if (apic_ipi(APIC_DEST_DESTFLD, vector,
+				     delivery_mode) == -1)
 				status |= (1 << x);
 		}
 	return status;
