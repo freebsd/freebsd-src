@@ -146,6 +146,7 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 	sbuf_printf(sb, "\t  <name>%s</name>\n", pp->name);
 	sbuf_printf(sb, "\t  <mediasize>%jd</mediasize>\n",
 	    (intmax_t)pp->mediasize);
+	sbuf_printf(sb, "\t  <sectorsize>%u</sectorsize>\n", pp->sectorsize);
 	if (pp->geom->dumpconf) {
 		sbuf_printf(sb, "\t  <config>\n");
 		pp->geom->dumpconf(sb, "\t    ", pp->geom, NULL, pp);

@@ -254,6 +254,7 @@ g_bde_create(struct g_createargs *ga)
 		g_topology_lock();
 		pp = g_new_providerf(gp, gp->name);
 		pp->mediasize = sc->mediasize;
+		pp->sectorsize = sc->sectorsize;
 		g_error_provider(pp, 0);
 		g_topology_unlock();
 		break;

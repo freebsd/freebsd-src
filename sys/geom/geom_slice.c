@@ -118,7 +118,6 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	if ((cp->acr + dr) == 0 && (cp->acw + dw) == 0 && (cp->ace + de) == 1)
 		de--;
 	error = g_access_rel(cp, dr, dw, de);
-	pp->mediasize = gsp->slices[pp->index].length;
 	return (error);
 }
 
@@ -228,7 +227,7 @@ g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_cons
 }
 
 int
-g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length, char *fmt, ...)
+g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length, u_int sectorsize, char *fmt, ...)
 {
 	struct g_provider *pp;
 	struct g_slicer *gsp;
@@ -261,6 +260,7 @@ g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length
 		return (0);
 	gsl->length = length;
 	gsl->offset = offset;
+	gsl->sectorsize = sectorsize;
 	if (length != 0 && pp != NULL)
 		return (0);
 	if (length == 0 && pp == NULL)
@@ -277,6 +277,8 @@ g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length
 	sbuf_finish(sb);
 	pp = g_new_providerf(gp, sbuf_data(sb));
 	pp->index = index;
+	pp->mediasize = gsl->length;
+	pp->sectorsize = gsl->sectorsize;
 	gsl->provider = pp;
 	gsp->nprovider++;
 	g_error_provider(pp, 0);
@@ -285,7 +287,7 @@ g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length
 }
 
 struct g_provider *
-g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, char *fmt, ...)
+g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, u_int sectorsize, char *fmt, ...)
 {
 	struct g_provider *pp;
 	struct g_slicer *gsp;
@@ -305,6 +307,9 @@ g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, char 
 	gsp->slices[index].length = length;
 	gsp->slices[index].offset = offset;
 	gsp->slices[index].provider = pp;
+	gsp->slices[index].sectorsize = sectorsize;
+	pp->mediasize = gsp->slices[index].length;
+	pp->sectorsize = gsp->slices[index].sectorsize;
 	sbuf_delete(sb);
 	return(pp);
 }
