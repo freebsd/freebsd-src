@@ -795,31 +795,6 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 		isr = NETISR_IP;
 		break;
 #endif
-#ifdef INET6
-	case AF_INET6:
-		isr = NETISR_IPV6;
-		break;
-#endif
-#ifdef IPX
-	case AF_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
-		break;
-#endif
-#ifdef NATM
-	case AF_NATM:
-		isr = NETISR_NATM;
-		break;
-#endif
-#ifdef ATM_CORE
-	case AF_ATM:
-		isr = NETISR_ATM;
-		break;
-#endif
 	default:
 		m_freem(m);
 		return (EAFNOSUPPORT);
