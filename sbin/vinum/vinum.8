@@ -9,6 +9,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op command
+.Op Fl options
 .Sh COMMANDS
 .Cd create
 .Ar description-file
@@ -175,33 +176,28 @@ is designed either for interactive use, when started without a command, or to
 execute a single command if the command is supplied as arguments to
 .Nm vinum.
 .Ss OPTIONS
+.Nm
+commands may optionally be followed by an option.  Any of the following options
+may be specified with any command, but in some cases they do not make any
+difference: cases, the options are ignored.  For example, the
+.Nm stop
+command ignores the 
+.Fl v
+and
+.Fl V
+options.
 .Bl -hang
 .It Cd -v
 The
 .Nm -v
-option can be used with any command to request more detailed information.  In
-some cases, such as the
-.Cd stop
-command, it does not have any effect.
-.Pp
+option can be used with any command to request more detailed information.  
 .It Cd -V
 The
 .Nm -V
 option can be used with any command to request more detailed information than
 the
 .Nm -v
-option provides.  As with the 
-.Nm -v
-option, in some cases it does not have any effect.
-.Pp
-Other options are specific to the command.  When specified directly on the
-command line, they may be specified either before or after the command name.
-For example, the following two commands are equivalent:
-.Pp
-.Bd -unfilled -offset indent
-vinum -v stop -f sd0
-vinum -v -f stop sd0
-.Ed
+option provides.
 .It Cd -f
 The
 .Nm -f
@@ -213,8 +209,8 @@ rm -f myvolume
 .Pp
 removes
 .Nm myvolume
-even if it is open.  Any subsequent access to the volume will probably cause a
-panic.
+even if it is open.  Any subsequent access to the volume will almost certainly
+cause a panic.
 .It Cd -r
 The
 .Nm -r
@@ -292,9 +288,9 @@ attached.  If removing the object would impair the data integrity of the volume,
 the operation will fail unless the
 .Fl f
 option is specified.  If the object is named after the object above it (for
-example, subdisk vol1.plex7.sd0 attached to plex vol1.plex7), the name will be
-changed by prepending the text ``ex-'' (for example, ex-vol1.plex7.sd0).  If
-necessary, the name will be truncated in the process.
+example, subdisk vol1.p7.s0 attached to plex vol1.p7), the name will be changed
+by prepending the text ``ex-'' (for example, ex-vol1.p7.s0).  If necessary, the
+name will be truncated in the process.
 .It Nm info
 .Pp
 .Nm
@@ -406,6 +402,7 @@ call to access it.
 maintains a volume label separately from the volume data, so this command is not
 needed for
 .Ar newfs .
+This command is deprecated.
 .Pp
 .It Nm read
 .Ar disk-partition
@@ -433,7 +430,8 @@ subdisk names will be formed by appending .s\f(BInumber\fP to the plex name.
 .Ar [ subdisk | plex ]
 .Ar newobject
 .Pp
-Replace the object with an identical other object.  XXX not implemented yet.
+Replace the object with an identical other object.  This command has not yet
+been implemented.
 .It Nm resetconfig
 .Pp
 The
@@ -573,8 +571,6 @@ corruption.
 .Nm
 requires that all parameters to the
 .Nm create
-and
-.Nm modify
 commands must be in a configuration file.  Entries in the configuration file
 define volumes, plexes and subdisks, and may be in free format, except that each
 entry must be on a single line.
@@ -806,17 +802,38 @@ T}
 .fi
 .TE
 .El
+.Bl -hang
+.It Nm drive
+.Ar name
+.Op options
+.Pp
+Define a drive.
+.Pp
+.TS H
+tab(#) ;
+l lw50 .
+Option#Meaning
+.nf
+.sp
+T{
+.Nm device
+.Ar devicename
+T}#T{
+Specify the device on which the drive resides.
+T}
+.TE
+.El
 .Sh EXAMPLE CONFIGURATION FILE
 .nf
 # Sample vinum configuration file
 #
 # Our drives
-drive drive1 device /dev/sd1h
-drive drive2 device /dev/sd2h
-drive drive3 device /dev/sd3h
-drive drive4 device /dev/sd4h
-drive drive5 device /dev/sd5h
-drive drive6 device /dev/sd6h
+drive drive1 device /dev/da1h
+drive drive2 device /dev/da2h
+drive drive3 device /dev/da3h
+drive drive4 device /dev/da4h
+drive drive5 device /dev/da5h
+drive drive6 device /dev/da6h
 # A volume with one striped plex
 volume tinyvol
  plex org striped 32b
@@ -868,7 +885,7 @@ uses the first 265 sectors on each partition for configuration information, so
 the maximum size of a subdisk is 265 sectors smaller than the drive.
 .Sh BUGS
 .Nm
-is currently in alpha test.  Many bugs can be expected.  The configuration
+is currently in beta test.  Many bugs can be expected.  The configuration
 mechanism is not yet fully functional.
 .Sh FILES
 .Ar /dev/vinum
@@ -892,8 +909,9 @@ subdisks.
 .Sh SEE ALSO
 .Xr vinum 4 
 .Sh AUTHOR
-Greg Lehey
+Greg Lehey 
+.Pa <grog@lemis.com> .
 .Sh HISTORY
 The
 .Nm
-command first appeared in FreeBSD 2.2.6.
+command first appeared in FreeBSD 3.0.
