@@ -40,8 +40,10 @@
 #include <sys/ctype.h>
 #include <machine/stdarg.h>
 
+#ifdef NODEVFS
 static struct cdevsw 	*cdevsw[NUMCDEVSW];
 
+#endif
 static MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 
 /*
@@ -94,7 +96,7 @@ devsw(dev_t dev)
 int
 cdevsw_add(struct cdevsw *newentry)
 {
-
+#ifdef NODEVFS
 	if (newentry->d_maj < 0 || newentry->d_maj >= NUMCDEVSW) {
 		printf("%s: ERROR: driver has bogus cdevsw->d_maj = %d\n",
 		    newentry->d_name, newentry->d_maj);
@@ -107,6 +109,7 @@ cdevsw_add(struct cdevsw *newentry)
 	}
 
 	cdevsw[newentry->d_maj] = newentry;
+#endif
 
 	return (0);
 }
@@ -118,6 +121,7 @@ cdevsw_add(struct cdevsw *newentry)
 int
 cdevsw_remove(struct cdevsw *oldentry)
 {
+#ifdef NODEVFS
 	if (oldentry->d_maj < 0 || oldentry->d_maj >= NUMCDEVSW) {
 		printf("%s: ERROR: driver has bogus cdevsw->d_maj = %d\n",
 		    oldentry->d_name, oldentry->d_maj);
@@ -125,6 +129,7 @@ cdevsw_remove(struct cdevsw *oldentry)
 	}
 
 	cdevsw[oldentry->d_maj] = NULL;
+#endif
 
 	return 0;
 }
