@@ -451,11 +451,6 @@ Set the number of
 buffers to be allocated.
 Overrides
 .Dv NSFBUFS .
-.It Va kern.vm.kmem.size
-Sets the size of kernel memory (bytes).
-This overrides the value determined when the kernel was compiled.
-Modifies
-.Va VM_KMEM_SIZE .
 .It Va kern.maxswzone
 Limits the amount of KVM to be used to hold swap
 meta information, which directly governs the
@@ -499,6 +494,11 @@ Overrides the compile-time set value of
 or the preset default of 512.
 Must be a power of 2.
 .El
+.It Va vm.kmem_size
+Sets the size of kernel memory (bytes).
+This overrides the value determined when the kernel was compiled.
+Modifies
+.Va VM_KMEM_SIZE .
 .Ss BUILTIN PARSER
 When a builtin command is executed, the rest of the line is taken
 by it as arguments, and it is processed by a special parser which
