@@ -239,6 +239,9 @@ f_exec(plan, entry)
 	if (plan->flags == F_NEEDOK && !queryuser(plan->e_argv))
 		return (0);
 
+	/* make sure find output is interspersed correctly with subprocesses */
+	fflush(stdout);
+
 	switch (pid = vfork()) {
 	case -1:
 		err(1, "fork");
