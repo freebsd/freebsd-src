@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.18 1996/09/06 23:09:12 phk Exp $
+ *      $Id: pt.c,v 1.18.2.1 1997/05/21 19:38:01 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -104,7 +104,7 @@ ptattach(struct scsi_link *sc_link)
 {
 	struct scsi_data *pt = sc_link->sd;
 
-	TAILQ_INIT(&pt->buf_queue);
+	bufq_init(&pt->buf_queue);
 	return 0;
 }
 
@@ -155,11 +155,11 @@ ptstart(unit, flags)
 			return;
 		}
 
-		bp = pt->buf_queue.tqh_first;
+		bp = bufq_first(&pt->buf_queue);
 		if (bp == NULL) {	/* yes, an assign */
 			return;
 		}
-		TAILQ_REMOVE( &pt->buf_queue, bp, b_act);
+		bufq_remove(&pt->buf_queue, bp);
 
 		/*
 		 *  Fill out the scsi command
@@ -220,7 +220,7 @@ pt_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * at the end (a bit silly because we only have one user..
 	 * (but it could fork() ))
 	 */
-	TAILQ_INSERT_TAIL( &pt->buf_queue, bp, b_act);
+	bufq_insert_tail(&pt->buf_queue, bp);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
