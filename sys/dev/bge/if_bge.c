@@ -762,7 +762,7 @@ bge_newbuf_std(sc, i, m)
 		m_adj(m_new, ETHER_ALIGN);
 	sc->bge_cdata.bge_rx_std_chain[i] = m_new;
 	r = &sc->bge_rdata->bge_rx_std_ring[i];
-	BGE_HOSTADDR(r->bge_addr) = vtophys(mtod(m_new, caddr_t));
+	BGE_HOSTADDR(r->bge_addr, vtophys(mtod(m_new, caddr_t)));
 	r->bge_flags = BGE_RXBDFLAG_END;
 	r->bge_len = m_new->m_len;
 	r->bge_idx = i;
@@ -817,7 +817,7 @@ bge_newbuf_jumbo(sc, i, m)
 	/* Set up the descriptor. */
 	r = &sc->bge_rdata->bge_rx_jumbo_ring[i];
 	sc->bge_cdata.bge_rx_jumbo_chain[i] = m_new;
-	BGE_HOSTADDR(r->bge_addr) = vtophys(mtod(m_new, caddr_t));
+	BGE_HOSTADDR(r->bge_addr, vtophys(mtod(m_new, caddr_t)));
 	r->bge_flags = BGE_RXBDFLAG_END|BGE_RXBDFLAG_JUMBO_RING;
 	r->bge_len = m_new->m_len;
 	r->bge_idx = i;
@@ -1196,8 +1196,8 @@ bge_blockinit(sc)
 
 	/* Initialize the standard RX ring control block */
 	rcb = &sc->bge_rdata->bge_info.bge_std_rx_rcb;
-	BGE_HOSTADDR(rcb->bge_hostaddr) =
-	    vtophys(&sc->bge_rdata->bge_rx_std_ring);
+	BGE_HOSTADDR(rcb->bge_hostaddr,
+	    vtophys(&sc->bge_rdata->bge_rx_std_ring));
 	rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(BGE_MAX_FRAMELEN, 0);
 	if (sc->bge_extram)
 		rcb->bge_nicaddr = BGE_EXT_STD_RX_RINGS;
@@ -1216,8 +1216,8 @@ bge_blockinit(sc)
 	 * high enough to require it).
 	 */
 	rcb = &sc->bge_rdata->bge_info.bge_jumbo_rx_rcb;
-	BGE_HOSTADDR(rcb->bge_hostaddr) =
-	    vtophys(&sc->bge_rdata->bge_rx_jumbo_ring);
+	BGE_HOSTADDR(rcb->bge_hostaddr,
+	    vtophys(&sc->bge_rdata->bge_rx_jumbo_ring));
 	rcb->bge_maxlen_flags =
 	    BGE_RCB_MAXLEN_FLAGS(BGE_MAX_FRAMELEN, BGE_RCB_FLAG_RING_DISABLED);
 	if (sc->bge_extram)
@@ -1263,8 +1263,7 @@ bge_blockinit(sc)
 	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
 	    BGE_SEND_RING_RCB);
 	vrcb->bge_hostaddr.bge_addr_hi = 0;
-	BGE_HOSTADDR(vrcb->bge_hostaddr) =
-	    vtophys(&sc->bge_rdata->bge_tx_ring);
+	BGE_HOSTADDR(vrcb->bge_hostaddr, vtophys(&sc->bge_rdata->bge_tx_ring));
 	vrcb->bge_nicaddr = BGE_NIC_TXRING_ADDR(0, BGE_TX_RING_CNT);
 	vrcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0);
 
@@ -1297,8 +1296,8 @@ bge_blockinit(sc)
 	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
 	    BGE_RX_RETURN_RING_RCB);
 	vrcb->bge_hostaddr.bge_addr_hi = 0;
-	BGE_HOSTADDR(vrcb->bge_hostaddr) =
-	    vtophys(&sc->bge_rdata->bge_rx_return_ring);
+	BGE_HOSTADDR(vrcb->bge_hostaddr,
+	    vtophys(&sc->bge_rdata->bge_rx_return_ring));
 	vrcb->bge_nicaddr = 0x00000000;
 	vrcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(BGE_RETURN_RING_CNT, 0);
 
@@ -2047,9 +2046,12 @@ bge_intr(xsc)
 {
 	struct bge_softc *sc;
 	struct ifnet *ifp;
+	u_int32_t statusword;
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
+	statusword =
+	    atomic_readandclear_32(&sc->bge_rdata->bge_status_block.bge_status);
 
 #ifdef notdef
 	/* Avoid this for now -- checking this register is expensive. */
@@ -2088,11 +2090,7 @@ bge_intr(xsc)
 			    BRGPHY_INTRS);
 		}
 	} else {
-		if ((sc->bge_rdata->bge_status_block.bge_status &
-		    BGE_STATFLAG_UPDATED) &&
-		    (sc->bge_rdata->bge_status_block.bge_status &
-		    BGE_STATFLAG_LINKSTATE_CHANGED)) {
-			sc->bge_rdata->bge_status_block.bge_status &= ~(BGE_STATFLAG_UPDATED|BGE_STATFLAG_LINKSTATE_CHANGED);
+		if (statusword & BGE_STATFLAG_LINKSTATE_CHANGED) {
 			sc->bge_link = 0;
 			untimeout(bge_tick, sc, sc->bge_stat_ch);
 			bge_tick(sc);
@@ -2252,8 +2250,8 @@ bge_encap(sc, m_head, txidx)
 			f = &sc->bge_rdata->bge_tx_ring[frag];
 			if (sc->bge_cdata.bge_tx_chain[frag] != NULL)
 				break;
-			BGE_HOSTADDR(f->bge_addr) =
-			   vtophys(mtod(m, vm_offset_t));
+			BGE_HOSTADDR(f->bge_addr,
+			    vtophys(mtod(m, vm_offset_t)));
 			f->bge_len = m->m_len;
 			f->bge_flags = csum_flags;
 			if (mtag != NULL) {
