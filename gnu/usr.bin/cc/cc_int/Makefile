@@ -69,7 +69,7 @@ SRCS+=	cppdefault.c cpperror.c cppexp.c cppfiles.c cppinit.c cpphash.c \
 	cpplex.c cpplib.c cppmacro.c cppmain.c cpptrad.c mkdeps.c line-map.c
 
 #	stuff that makes libiberty now required (2.95) and shouldn't be...
-SRCS+=	splay-tree.c hashtab.c partition.c lbasename.c md5.c hex.c getopt.c getopt1.c xmemdup.c physmem.c
+SRCS+=  splay-tree.c hashtab.c partition.c lbasename.c md5.c hex.c xmemdup.c physmem.c
 CFLAGS+=	-DHAVE_CONFIG_H
 
 CFLAGS+=	-DTARGET_NAME=\"${target}\" -DIN_GCC
