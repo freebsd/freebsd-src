@@ -116,7 +116,8 @@ struct puc_device_description {
 enum puc_device_ivars {
 	PUC_IVAR_FREQ,
 	PUC_IVAR_SUBTYPE,
-	PUC_IVAR_REGSHFT
+	PUC_IVAR_REGSHFT,
+	PUC_IVAR_PORT
 };
 
 #ifdef PUC_ENTRAILS
