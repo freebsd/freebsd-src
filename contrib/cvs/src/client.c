@@ -10,6 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.  */
 
+/*
+ * $FreeBSD$
+ */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
@@ -264,7 +268,7 @@ arg_should_not_be_sent_to_server (arg)
 	}
 
 	/* Now check the value for root. */
-	if (this_root && current_root
+	if (CVSroot_cmdline == NULL && this_root && current_root
 	    && (strcmp (this_root, current_root) != 0))
 	{
 	    /* Don't send this, since the CVSROOTs don't match. */
