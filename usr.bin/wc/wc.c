@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
 #include <stdint.h>
@@ -60,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 uintmax_t tlinect, twordct, tcharct;
-int doline, doword, dochar;
+int doline, doword, dochar, domulti;
 
 static int	cnt(const char *);
 static void	usage(void);
@@ -74,7 +75,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "lwc")) != -1)
+	while ((ch = getopt(argc, argv, "clmw")) != -1)
 		switch((char)ch) {
 		case 'l':
 			doline = 1;
@@ -84,6 +85,11 @@ main(argc, argv)
 			break;
 		case 'c':
 			dochar = 1;
+			domulti = 0;
+			break;
+		case 'm':
+			domulti = 1;
+			dochar = 0;
 			break;
 		case '?':
 		default:
@@ -93,7 +99,7 @@ main(argc, argv)
 	argc -= optind;
 
 	/* Wc's flags are on by default. */
-	if (doline + doword + dochar == 0)
+	if (doline + doword + dochar + domulti == 0)
 		doline = doword = dochar = 1;
 
 	errors = 0;
@@ -117,7 +123,7 @@ main(argc, argv)
 			(void)printf(" %7ju", tlinect);
 		if (doword)
 			(void)printf(" %7ju", twordct);
-		if (dochar)
+		if (dochar || domulti)
 			(void)printf(" %7ju", tcharct);
 		(void)printf(" total\n");
 	}
@@ -130,10 +136,12 @@ cnt(file)
 {
 	struct stat sb;
 	uintmax_t linect, wordct, charct;
-	int fd, len;
+	ssize_t nread;
+	int clen, fd, len, warned;
 	short gotsp;
 	u_char *p;
 	u_char buf[MAXBSIZE], ch;
+	wchar_t wch;
 
 	linect = wordct = charct = 0;
 	if (file == NULL) {
@@ -144,7 +152,7 @@ cnt(file)
 			warn("%s: open", file);
 			return (1);
 		}
-		if (doword)
+		if (doword || (domulti && MB_CUR_MAX != 1))
 			goto word;
 		/*
 		 * Line counting is split out because it's a lot faster to get
@@ -176,7 +184,7 @@ cnt(file)
 		 * If all we need is the number of characters and it's a
 		 * regular or linked file, just stat the puppy.
 		 */
-		if (dochar) {
+		if (dochar || domulti) {
 			if (fstat(fd, &sb)) {
 				warn("%s: fstat", file);
 				(void)close(fd);
@@ -192,22 +200,41 @@ cnt(file)
 	}
 
 	/* Do it the hard way... */
-word:	for (gotsp = 1; (len = read(fd, buf, MAXBSIZE));) {
-		if (len == -1) {
+word:	gotsp = 1;
+	len = 0;
+	warned = 0;
+	while ((nread = read(fd, buf + len, MAXBSIZE - len)) != 0) {
+		if (nread == -1) {
 			warn("%s: read", file);
 			(void)close(fd);
 			return (1);
 		}
-		/*
-		 * This loses in the presence of multi-byte characters.
-		 * To do it right would require a function to return a
-		 * character while knowing how many bytes it consumed.
-		 */
-		charct += len;
-		for (p = buf; len--;) {
-			ch = *p++;
-			if (ch == '\n')
+		len += nread;
+		p = buf;
+		while (len > 0) {
+			if (!domulti || MB_CUR_MAX == 1) {
+				clen = 1;
+				wch = (unsigned char)*p;
+			} else if ((clen = mbtowc(&wch, p, len)) <= 0) {
+				if (len > MB_CUR_MAX) {
+					clen = 1;
+					wch = (unsigned char)*p;
+					if (!warned) {
+						errno = EILSEQ;
+						warn("%s", file);
+						warned = 1;
+					}
+				} else {
+					memmove(buf, p, len);
+					break;
+				}
+			}
+			charct++;
+			len -= clen;
+			p += clen;
+			if (wch == L'\n')
 				++linect;
+			/* XXX Non-portable; should use iswspace() */
 			if (isspace(ch))
 				gotsp = 1;
 			else if (gotsp) {
@@ -224,7 +251,7 @@ word:	for (gotsp = 1; (len = read(fd, buf, MAXBSIZE));) {
 		twordct += wordct;
 		(void)printf(" %7ju", wordct);
 	}
-	if (dochar) {
+	if (dochar || domulti) {
 		tcharct += charct;
 		(void)printf(" %7ju", charct);
 	}
@@ -235,6 +262,6 @@ word:	for (gotsp = 1; (len = read(fd, buf, MAXBSIZE));) {
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: wc [-clw] [file ...]\n");
+	(void)fprintf(stderr, "usage: wc [-clmw] [file ...]\n");
 	exit(1);
 }
