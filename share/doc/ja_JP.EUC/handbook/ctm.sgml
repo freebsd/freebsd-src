@@ -1,6 +1,6 @@
-<!-- $Id: ctm.sgml,v 1.6 1997/02/25 04:54:34 hanai Exp $ -->
+<!-- $Id: ctm.sgml,v 1.7 1997/04/25 07:24:02 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.16 -->
+<!-- Original revision: 1.17 -->
 <!--
 # This is the sgml version of the ctm.FAQ file.
 #
@@ -16,7 +16,7 @@
 #
 -->
 
-<sect><heading>CTM<label id="ctm"></heading>
+<sect1><heading>CTM<label id="ctm"></heading>
 
 <p><em>原作: &a.phk;.  更新: 16-Mar-1995.</em>
 
@@ -29,7 +29,7 @@
         ありません。従って, もしあなたが<tt/CTM/ を他のことに使いたいなら
         &a.phk;にさらなる情報を問い合わせてください.
 
-    <sect1><heading>なぜ<tt/CTM/を使うの?</heading>
+    <sect2><heading>なぜ<tt/CTM/を使うの?</heading>
       <p><tt/CTM/ を使うことにより``FreeBSD-current''のローカルコピーを得ることが
         できます. もしあなたがFreeBSDのアクティブな開発者であるにもかかわらず
         お粗末なTCP/IP接続しか持っていなかったり, またはTCP/IP接続が
@@ -46,7 +46,7 @@
         <ref id="current" name="最新のカレントを追いかける">を読むことを
         お勧めします.
 
-    <sect1><heading><tt/CTM/を使うには何が必要?</heading>
+    <sect2><heading><tt/CTM/を使うには何が必要?</heading>
 
       <p>二つのものが必要でしょう: ``<tt/CTM/'' プログラムとそれに与える
         (``current''レベルを得るための)最初のデルタです.
@@ -93,7 +93,7 @@
         メーリングリストに加わるためには``<tt/subscribe ctm-announce/''
         と書いた一行だけのメールを &a.majordomo へ送ってください.
 
-    <sect1><heading>はじめて<tt/CTM/を使い始める</heading>
+    <sect2><heading>はじめて<tt/CTM/を使い始める</heading>
       <p><tt/CTM/ デルタを使い始めるためには, 特別な「ベース」デルタを
         入手する必要があるでしょう. これは以降作られる全てのデルタの
         出発点となるものです. 
@@ -113,7 +113,7 @@
         一度スタートするためのベースデルタを得ると, それに続く多数の
         全てのデルタも必要になるでしょう.
 
-    <sect1><heading><tt/CTM/を日常で使う</heading>
+    <sect2><heading><tt/CTM/を日常で使う</heading>
       <p>デルタを適用するためには, 単に
         <verb>
           cd /where/ever/you/want/the/stuff??
@@ -147,7 +147,7 @@
         であってもコピーを取るのに<tt/fdwrite/を使うことを考えてください.
 
 
-    <sect1><heading><tt/CTM/の将来計画</heading>
+    <sect2><heading><tt/CTM/の将来計画</heading>
       <p>
         重要なもの
         <itemize>
@@ -175,7 +175,7 @@
         でも歓迎します. その際, 自分が何をやりたいかを私に
         言うのを忘れずに.
 
-    <sect1><heading>その他</heading>
+    <sect2><heading>その他</heading>
       <p>
         「DESに染まった」(例えば, 国外への持ち出しが規制された)ソースは
         まったく含まれません. 手に入るのは「国際」バージョンだけです.
@@ -198,7 +198,7 @@
         アクセスも同じ手段で得ることができます. 詳細は&a.phk;へ聞いてください.
 
 
-    <sect1><heading>ありがとう!</heading>
+    <sect2><heading>ありがとう!</heading>
       <p>
         <descrip>
           <tag/&a.bde;/
