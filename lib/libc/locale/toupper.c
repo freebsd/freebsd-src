@@ -41,18 +41,28 @@ _BSD_RUNE_T_
 ___toupper(c)
 	_BSD_RUNE_T_ c;
 {
+#ifdef XPG4
 	int x;
 	_RuneRange *rr = &_CurrentRuneLocale->mapupper_ext;
 	_RuneEntry *re = rr->ranges;
+#endif
 
 	if (c == EOF)
 		return(EOF);
+	if (c < 0) {
+		if (c >= -128) /* signed char */
+			return(_CurrentRuneLocale->mapupper[(unsigned char)c]);
+		else
+			return(c);
+	}
+#ifdef XPG4
 	for (x = 0; x < rr->nranges; ++x, ++re) {
 		if (c < re->min)
 			return(c);
 		if (c <= re->max)
 			return(re->map + c - re->min);
 	}
+#endif
 	return(c);
 }
 
