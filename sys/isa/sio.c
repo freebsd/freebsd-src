@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.225 1999/04/18 14:11:01 dfr Exp $
+ *	$Id: sio.c,v 1.226 1999/04/18 14:35:28 peter Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -109,8 +109,8 @@
 #endif
 
 #ifndef __i386__
-#define disable_intr()	0
-#define enable_intr()	0
+#define disable_intr()
+#define enable_intr()
 #endif
 
 #ifdef SMP
