@@ -82,8 +82,7 @@ realpath(path, resolved)
 	 *     if it is a directory, then change to that directory.
 	 * get the current directory name and append the basename.
 	 */
-	(void)strncpy(resolved, path, PATH_MAX - 1);
-	resolved[PATH_MAX - 1] = '\0';
+	(void)strlcpy(resolved, path, PATH_MAX);
 loop:
 	q = strrchr(resolved, '/');
 	if (q != NULL) {
