@@ -31,7 +31,7 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.6 1997/10/10 09:44:05 peter Exp $
+ *	$Id: mpboot.s,v 1.7 1998/09/06 22:41:40 tegge Exp $
  */
 
 #include "opt_vm86.h"
@@ -50,7 +50,7 @@
 #define CHECK_POINTS
  */
 
-#if defined(CHECK_POINTS)
+#if defined(CHECK_POINTS) && !defined(PC98)
 
 #define CMOS_REG	(0x70)
 #define CMOS_DATA	(0x71)
