@@ -158,7 +158,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	bzero(&so_mask, sizeof(so_mask));
-	so_mask.sin_family = 8;
+	so_mask.sin_len = 8;
 	so_mask.sin_addr.s_addr = 0xffffffff;
 	bzero(&blank_sin, sizeof(blank_sin));
 	blank_sin.sin_len = sizeof(blank_sin);
@@ -688,7 +688,7 @@ get_ether_addr(u_int32_t ipaddr, u_char *hwaddr)
 
 	ifc.ifc_len = sizeof(ifs);
 	ifc.ifc_req = ifs;
-	if (ioctl(s, SIOCGIFCONF, &ifc) < 0) {
+	if (ioctl(sock, SIOCGIFCONF, &ifc) < 0) {
 		warnx("ioctl(SIOCGIFCONF)");
 		close(sock);
 		return 0;
@@ -709,7 +709,7 @@ get_ether_addr(u_int32_t ipaddr, u_char *hwaddr)
 			 * Check that the interface is up,
 			 * and not point-to-point or loopback.
 			 */
-			if (ioctl(s, SIOCGIFFLAGS, &ifreq) < 0)
+			if (ioctl(sock, SIOCGIFFLAGS, &ifreq) < 0)
 				continue;
 			if ((ifreq.ifr_flags &
 			     (IFF_UP|IFF_BROADCAST|IFF_POINTOPOINT|
@@ -720,7 +720,7 @@ get_ether_addr(u_int32_t ipaddr, u_char *hwaddr)
 			 * Get its netmask and check that it's on 
 			 * the right subnet.
 			 */
-			if (ioctl(s, SIOCGIFNETMASK, &ifreq) < 0)
+			if (ioctl(sock, SIOCGIFNETMASK, &ifreq) < 0)
 				continue;
 			mask = ((struct sockaddr_in *)
 				&ifreq.ifr_addr)->sin_addr.s_addr;
@@ -751,7 +751,7 @@ nextif:
 			 */
 		 	dla = (struct sockaddr_dl *) &ifr->ifr_addr;
 			memcpy(hwaddr,  LLADDR(dla), dla->sdl_alen);
-			close (s);
+			close (sock);
 			printf("using interface %s for proxy with address ",
 				ifp->ifr_name);
 			ether_print(hwaddr);
