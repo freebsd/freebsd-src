@@ -209,8 +209,9 @@ sscstrategy(struct bio *bp)
 				t = len;
 			req.len = t;
 			req.addr = ia64_tpa(va);
-			printf("sscstrategy: reading %ld bytes from 0x%ld into 0x%lx\n",
-			       req.len, off, req.addr);
+			if (ssc_debug > 1)
+				printf("sscstrategy: reading %d bytes from 0x%ld into 0x%lx\n",
+				       req.len, off, req.addr);
 			ssc(sc->fd, 1, ia64_tpa((long) &req), off, sscop);
 			stat.fd = sc->fd;
 			ssc(ia64_tpa((long)&stat), 0, 0, 0,
