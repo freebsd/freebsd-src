@@ -12,14 +12,14 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.39 1996/06/13 17:35:28 gpalmer Exp $
+ *	$Id: ip_fw.c,v 1.40 1996/06/17 00:00:35 alex Exp $
  */
 
 /*
  * Implement IP packet firewall
  */
 
-#ifndef ACTUALLY_LKM_NOT_KERNEL
+#ifndef IPFIREWALL_MODULE
 #include "opt_ipfw.h"
 #endif
 
@@ -82,7 +82,7 @@ static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
 static void	ipfw_report __P((char *txt, int rule, struct ip *ip, int counter));
 
-#ifdef ACTUALLY_LKM_NOT_KERNEL
+#ifdef IPFIREWALL_MODULE
 static ip_fw_chk_t *old_chk_ptr;
 static ip_fw_ctl_t *old_ctl_ptr;
 #endif
@@ -728,7 +728,7 @@ ip_fw_init(void)
 #endif
 }
 
-#ifdef ACTUALLY_LKM_NOT_KERNEL
+#ifdef IPFIREWALL_MODULE
 
 #include <sys/exec.h>
 #include <sys/sysent.h>
