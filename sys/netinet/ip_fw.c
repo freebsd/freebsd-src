@@ -12,14 +12,14 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.104 1999/02/16 10:49:52 dfr Exp $
+ *	$Id: ip_fw.c,v 1.105 1999/03/30 23:45:34 nsayer Exp $
  */
 
 /*
  * Implement IP packet firewall
  */
 
-#if !defined(KLD_MODULE) && !defined(IPFIREWALL_MODULE)
+#if !defined(IPFIREWALL_MODULE)
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
@@ -1276,54 +1276,7 @@ ip_fw_init(void)
 static ip_fw_chk_t *old_chk_ptr;
 static ip_fw_ctl_t *old_ctl_ptr;
 
-#if defined(IPFIREWALL_MODULE) && !defined(KLD_MODULE)
-
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-MOD_MISC(ipfw);
-
-static int
-ipfw_load(struct lkm_table *lkmtp, int cmd)
-{
-	int s=splnet();
-
-	old_chk_ptr = ip_fw_chk_ptr;
-	old_ctl_ptr = ip_fw_ctl_ptr;
-
-	ip_fw_init();
-	splx(s);
-	return 0;
-}
-
-static int
-ipfw_unload(struct lkm_table *lkmtp, int cmd)
-{
-	int s=splnet();
-
-	ip_fw_chk_ptr =  old_chk_ptr;
-	ip_fw_ctl_ptr =  old_ctl_ptr;
-
-	while (LIST_FIRST(&ip_fw_chain) != NULL) {
-		struct ip_fw_chain *fcp = LIST_FIRST(&ip_fw_chain);
-		LIST_REMOVE(LIST_FIRST(&ip_fw_chain), chain);
-		free(fcp->rule, M_IPFW);
-		free(fcp, M_IPFW);
-	}
-	
-	splx(s);
-	printf("IP firewall unloaded\n");
-	return 0;
-}
-
-int
-ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(ipfw, lkmtp, cmd, ver,
-		ipfw_load, ipfw_unload, lkm_nullcmd);
-}
-#else
+#if defined(IPFIREWALL_MODULE)
 static int
 ipfw_modevent(module_t mod, int type, void *unused)
 {
