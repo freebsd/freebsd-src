@@ -35,12 +35,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -49,6 +47,7 @@ static const char rcsid[] =
 #include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #ifdef SETMODE_DEBUG
 #include <stdio.h>
@@ -69,10 +68,10 @@ typedef struct bitcmd {
 #define	CMD2_OBITS	0x08
 #define	CMD2_UBITS	0x10
 
-static BITCMD	*addcmd __P((BITCMD *, int, int, int, u_int));
-static void	 compress_mode __P((BITCMD *));
+static BITCMD	*addcmd(BITCMD *, int, int, int, u_int);
+static void	 compress_mode(BITCMD *);
 #ifdef SETMODE_DEBUG
-static void	 dumpmode __P((BITCMD *));
+static void	 dumpmode(BITCMD *);
 #endif
 
 /*
@@ -83,13 +82,13 @@ static void	 dumpmode __P((BITCMD *));
  */
 mode_t
 getmode(bbox, omode)
-	void *bbox;
+	const void *bbox;
 	mode_t omode;
 {
-	register BITCMD *set;
-	register mode_t clrval, newmode, value;
+	const BITCMD *set;
+	mode_t clrval, newmode, value;
 
-	set = (BITCMD *)bbox;
+	set = (const BITCMD *)bbox;
 	newmode = omode;
 	for (value = 0;; set++)
 		switch(set->cmd) {
@@ -153,11 +152,15 @@ common:			if (set->cmd2 & CMD2_CLR) {
 
 #define	ADDCMD(a, b, c, d)						\
 	if (set >= endset) {						\
-		register BITCMD *newset;				\
+		BITCMD *newset;						\
 		setlen += SET_LEN_INCR;					\
 		newset = realloc(saveset, sizeof(BITCMD) * setlen);	\
-		if (!saveset)						\
+		if (!newset) {						\
+			if (saveset)					\
+				free(saveset);				\
+			saveset = NULL;					\
 			return (NULL);					\
+		}							\
 		set = newset + (set - saveset);				\
 		saveset = newset;					\
 		endset = newset + (setlen - 2);				\
@@ -168,14 +171,15 @@ common:			if (set->cmd2 & CMD2_CLR) {
 
 void *
 setmode(p)
-	register char *p;
+	const char *p;
 {
-	register int perm, who;
-	register char op;
+	int perm, who;
+	char op, *ep;
 	BITCMD *set, *saveset, *endset;
 	sigset_t sigset, sigoset;
 	mode_t mask;
 	int equalopdone=0, permXbits, setlen;
+	long perml;
 
 	if (!*p)
 		return (NULL);
@@ -204,17 +208,14 @@ setmode(p)
 	 * or illegal bits.
 	 */
 	if (isdigit((unsigned char)*p)) {
-		perm = (mode_t)strtol(p, NULL, 8);
-		if (perm & ~(STANDARD_BITS|S_ISTXT)) {
+		perml = strtol(p, &ep, 8);
+		if (*ep || perml < 0 || perml & ~(STANDARD_BITS|S_ISTXT)) {
 			free(saveset);
 			return (NULL);
 		}
-		while (*++p)
-			if (*p < '0' || *p > '7') {
-				free(saveset);
-				return (NULL);
-			}
+		perm = (mode_t)perml;
 		ADDCMD('=', (STANDARD_BITS|S_ISTXT), perm, mask);
+		set->cmd = 0;
 		return (saveset);
 	}
 
@@ -339,8 +340,8 @@ apply:		if (!*p)
 static BITCMD *
 addcmd(set, op, who, oparg, mask)
 	BITCMD *set;
-	register int oparg, who;
-	register int op;
+	int oparg, who;
+	int op;
 	u_int mask;
 {
 	switch (op) {
@@ -366,7 +367,7 @@ addcmd(set, op, who, oparg, mask)
 			set->cmd2 = ((who & S_IRUSR) ? CMD2_UBITS : 0) |
 				    ((who & S_IRGRP) ? CMD2_GBITS : 0) |
 				    ((who & S_IROTH) ? CMD2_OBITS : 0);
-			set->bits = ~0;
+			set->bits = (mode_t)~0;
 		} else {
 			set->cmd2 = CMD2_UBITS | CMD2_GBITS | CMD2_OBITS;
 			set->bits = mask;
@@ -386,7 +387,7 @@ addcmd(set, op, who, oparg, mask)
 #ifdef SETMODE_DEBUG
 static void
 dumpmode(set)
-	register BITCMD *set;
+	BITCMD *set;
 {
 	for (; set->cmd; ++set)
 		(void)printf("cmd: '%c' bits %04o%s%s%s%s%s%s\n",
@@ -407,10 +408,10 @@ dumpmode(set)
  */
 static void
 compress_mode(set)
-	register BITCMD *set;
+	BITCMD *set;
 {
-	register BITCMD *nset;
-	register int setbits, clrbits, Xbits, op;
+	BITCMD *nset;
+	int setbits, clrbits, Xbits, op;
 
 	for (nset = set;;) {
 		/* Copy over any 'u', 'g' and 'o' commands. */
