@@ -66,8 +66,8 @@
 #include <dev/ichsmb/ichsmb_reg.h>
 
 /* PCI unique identifiers */
-#define ID_81801AA			0x24138086
-#define ID_81801AB			0x24238086
+#define ID_82801AA			0x24138086
+#define ID_82801AB			0x24238086
 #define ID_82801BA			0x24438086
 #define ID_82801CA			0x24838086
 #define ID_82801DC			0x24C38086
@@ -117,10 +117,10 @@ ichsmb_pci_probe(device_t dev)
 {
 	/* Check PCI identifier */
 	switch (pci_get_devid(dev)) {
-	case ID_81801AA:
+	case ID_82801AA:
 		device_set_desc(dev, "Intel 82801AA (ICH) SMBus controller");
 		break;
-	case ID_81801AB:
+	case ID_82801AB:
 		device_set_desc(dev, "Intel 82801AB (ICH0) SMBus controller");
 		break;
 	case ID_82801BA:
