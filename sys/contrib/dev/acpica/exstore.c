@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 175 $
+ *              $Revision: 176 $
  *
  *****************************************************************************/
 
@@ -270,8 +270,8 @@ AcpiExStore (
         case ACPI_TYPE_INTEGER:
 
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "%8.8X%8.8X\n",
-                    ACPI_HIWORD (SourceDesc->Integer.Value),
-                    ACPI_LOWORD (SourceDesc->Integer.Value)));
+                    ACPI_HIDWORD (SourceDesc->Integer.Value),
+                    ACPI_LODWORD (SourceDesc->Integer.Value)));
             break;
 
 

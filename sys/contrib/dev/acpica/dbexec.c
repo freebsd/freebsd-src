@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 53 $
+ *              $Revision: 54 $
  *
  ******************************************************************************/
 
@@ -466,16 +466,35 @@ AcpiDbMethodThread (
 
     for (i = 0; i < Info->NumLoops; i++)
     {
-        Status = AcpiDbExecuteMethod (Info, &ReturnObj);
-        if (ACPI_SUCCESS (Status))
+#if 0
+       if (i == 0xEFDC)
         {
-            if (ReturnObj.Length)
-            {
-                AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
-                    Info->Pathname, ReturnObj.Pointer, (UINT32) ReturnObj.Length);
-                AcpiDbDumpObject (ReturnObj.Pointer, 1);
-            }
+            AcpiDbgLevel = 0x00FFFFFF;
         }
+#endif
+
+        Status = AcpiDbExecuteMethod (Info, &ReturnObj);
+
+        if (ACPI_FAILURE (Status))
+        {
+            AcpiOsPrintf ("%s During execution of %s at iteration %X\n",
+                AcpiFormatException (Status), Info->Pathname, i);
+            break;
+        }
+
+        if ((i % 1000) == 0)
+        {
+            AcpiOsPrintf ("%d executions\n", i);
+        }
+
+#if 0
+        if (ReturnObj.Length)
+        {
+            AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
+                Info->Pathname, ReturnObj.Pointer, (UINT32) ReturnObj.Length);
+            AcpiDbDumpObject (ReturnObj.Pointer, 1);
+        }
+#endif
     }
 
     /* Signal our completion */

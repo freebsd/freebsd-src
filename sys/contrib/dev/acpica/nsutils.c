@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 122 $
+ *              $Revision: 129 $
  *
  *****************************************************************************/
 
@@ -150,34 +150,43 @@ AcpiNsReportError (
     ACPI_STATUS             LookupStatus)
 {
     ACPI_STATUS             Status;
-    char                    *Name;
+    char                    *Name = NULL;
 
-
-    /* Convert path to external format */
-
-    Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, InternalName, NULL, &Name);
 
     AcpiOsPrintf ("%8s-%04d: *** Error: Looking up ",
         ModuleName, LineNumber);
 
-    /* Print target name */
-
-    if (ACPI_SUCCESS (Status))
+    if (LookupStatus == AE_BAD_CHARACTER)
     {
-        AcpiOsPrintf ("[%s]", Name);
+        /* There is a non-ascii character in the name */
+
+        AcpiOsPrintf ("[0x%4.4X] (NON-ASCII)\n", *(ACPI_CAST_PTR (UINT32, InternalName)));
     }
     else
     {
-        AcpiOsPrintf ("[COULD NOT EXTERNALIZE NAME]");
+        /* Convert path to external format */
+
+        Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, InternalName, NULL, &Name);
+
+        /* Print target name */
+
+        if (ACPI_SUCCESS (Status))
+        {
+            AcpiOsPrintf ("[%s]", Name);
+        }
+        else
+        {
+            AcpiOsPrintf ("[COULD NOT EXTERNALIZE NAME]");
+        }
+
+        if (Name)
+        {
+            ACPI_MEM_FREE (Name);
+        }
     }
 
     AcpiOsPrintf (" in namespace, %s\n",
         AcpiFormatException (LookupStatus));
-
-    if (Name)
-    {
-        ACPI_MEM_FREE (Name);
-    }
 }
 
 
@@ -254,7 +263,12 @@ AcpiNsPrintNodePathname (
     Status = AcpiNsHandleToPathname (Node, &Buffer);
     if (ACPI_SUCCESS (Status))
     {
-        AcpiOsPrintf ("%s [%s] (Node %p)", Msg, (char *) Buffer.Pointer, Node);
+        if (Msg)
+        {
+            AcpiOsPrintf ("%s ", Msg);
+        }
+
+        AcpiOsPrintf ("[%s] (Node %p)", (char *) Buffer.Pointer, Node);
         ACPI_MEM_FREE (Buffer.Pointer);
     }
 }
@@ -725,7 +739,7 @@ AcpiNsExternalizeName (
             /* <count> 4-byte names */
 
             NamesIndex = PrefixLength + 2;
-            NumSegments = (UINT32) (UINT8) InternalName[(ACPI_NATIVE_UINT) (PrefixLength + 1)];
+            NumSegments = (ACPI_NATIVE_UINT) (UINT8) InternalName[(ACPI_NATIVE_UINT) (PrefixLength + 1)];
             break;
 
         case AML_DUAL_NAME_PREFIX:
@@ -918,39 +932,32 @@ void
 AcpiNsTerminate (void)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
-    ACPI_NAMESPACE_NODE     *ThisNode;
 
 
     ACPI_FUNCTION_TRACE ("NsTerminate");
 
 
-    ThisNode = AcpiGbl_RootNode;
-
     /*
-     * 1) Free the entire namespace -- all objects, tables, and stacks
+     * 1) Free the entire namespace -- all nodes and objects
      *
-     * Delete all objects linked to the root
-     * (additional table descriptors)
+     * Delete all object descriptors attached to namepsace nodes
      */
-    AcpiNsDeleteNamespaceSubtree (ThisNode);
+    AcpiNsDeleteNamespaceSubtree (AcpiGbl_RootNode);
 
-    /* Detach any object(s) attached to the root */
+    /* Detach any objects attached to the root */
 
-    ObjDesc = AcpiNsGetAttachedObject (ThisNode);
+    ObjDesc = AcpiNsGetAttachedObject (AcpiGbl_RootNode);
     if (ObjDesc)
     {
-        AcpiNsDetachObject (ThisNode);
-        AcpiUtRemoveReference (ObjDesc);
+        AcpiNsDetachObject (AcpiGbl_RootNode);
     }
 
-    AcpiNsDeleteChildren (ThisNode);
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Namespace freed\n"));
-
 
     /*
      * 2) Now we can delete the ACPI tables
      */
-    AcpiTbDeleteAcpiTables ();
+    AcpiTbDeleteAllTables ();
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ACPI Tables freed\n"));
 
     return_VOID;
