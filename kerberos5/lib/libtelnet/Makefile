@@ -10,7 +10,7 @@ SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
 		enc_des.c sra.c pk.c
 #SRCS+=		kerberos5.c
 
-CFLAGS=		-DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
+CFLAGS+=	-DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
 		-DSRA -I${TELNETDIR}
 #CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5
 
