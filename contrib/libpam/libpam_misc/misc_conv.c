@@ -194,9 +194,11 @@ static char *read_string(int echo, const char *prompt)
 
 		return input;                  /* return malloc()ed string */
 	    } else if (nc == 0) {                                /* Ctrl-D */
+		char *input;
+
 		D(("user did not want to type anything"));
-		fprintf(stderr, "\n");
-		break;
+		input = x_strdup("");
+		return input;                  /* return malloc()ed string */
 	    }
 	}
     }
