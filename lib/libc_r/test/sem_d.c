@@ -35,8 +35,6 @@
  *
  ****************************************************************************/
 
-#define _REENTRANT
-
 #include <assert.h>
 #include <stdio.h>
 #include <fcntl.h>
