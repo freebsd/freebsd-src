@@ -65,9 +65,11 @@ struct file {
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
 	struct	fileops {
 		int	(*fo_read)	__P((struct file *fp, struct uio *uio,
-					    struct ucred *cred, int flags));
+					    struct ucred *cred, int flags,
+					    struct proc *p));
 		int	(*fo_write)	__P((struct file *fp, struct uio *uio,
-					    struct ucred *cred, int flags));
+					    struct ucred *cred, int flags,
+					    struct proc *p));
 #define	FOF_OFFSET	1
 		int	(*fo_ioctl)	__P((struct file *fp, u_long com,
 					    caddr_t data, struct proc *p));
@@ -97,6 +99,98 @@ extern struct fileops badfileops;
 extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
 extern int nfiles;		/* actual number of open files */
+
+static __inline void fhold __P((struct file *fp));
+int fdrop __P((struct file *fp, struct proc *p));
+
+static __inline void
+fhold(fp)
+	struct file *fp;
+{
+
+	fp->f_count++;
+}
+
+static __inline int fo_read __P((struct file *fp, struct uio *uio,
+    struct ucred *cred, int flags, struct proc *p));
+static __inline int fo_write __P((struct file *fp, struct uio *uio,
+    struct ucred *cred, int flags, struct proc *p));
+static __inline int fo_ioctl __P((struct file *fp, u_long com, caddr_t data,
+    struct proc *p));
+static __inline int fo_poll __P((struct file *fp, int events,
+    struct ucred *cred, struct proc *p));
+static __inline int fo_close __P((struct file *fp, struct proc *p));
+
+static __inline int
+fo_read(fp, uio, cred, flags, p)
+	struct file *fp;
+	struct uio *uio;
+	struct ucred *cred;
+	struct proc *p;
+	int flags;
+{
+	int error;
+
+	fhold(fp);
+	error = (*fp->f_ops->fo_read)(fp, uio, cred, flags, p);
+	fdrop(fp, p);
+	return (error);
+}
+
+static __inline int
+fo_write(fp, uio, cred, flags, p)
+	struct file *fp;
+	struct uio *uio;
+	struct ucred *cred;
+	struct proc *p;
+	int flags;
+{
+	int error;
+
+	fhold(fp);
+	error = (*fp->f_ops->fo_write)(fp, uio, cred, flags, p);
+	fdrop(fp, p);
+	return (error);
+}
+
+static __inline int
+fo_ioctl(fp, com, data, p)
+	struct file *fp;
+	u_long com;
+	caddr_t data;
+	struct proc *p;
+{
+	int error;
+
+	fhold(fp);
+	error = (*fp->f_ops->fo_ioctl)(fp, com, data, p);
+	fdrop(fp, p);
+	return (error);
+}
+
+static __inline int
+fo_poll(fp, events, cred, p)
+	struct file *fp;
+	int events;
+	struct ucred *cred;
+	struct proc *p;
+{
+	int error;
+
+	fhold(fp);
+	error = (*fp->f_ops->fo_poll)(fp, events, cred, p);
+	fdrop(fp, p);
+	return (error);
+}
+
+static __inline int
+fo_close(fp, p)
+	struct file *fp;
+	struct proc *p;
+{
+
+	return ((*fp->f_ops->fo_close)(fp, p));
+}
 
 #endif /* KERNEL */
 

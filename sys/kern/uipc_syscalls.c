@@ -1420,6 +1420,7 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 	off_t off, xfsize, sbytes = 0;
 	int error = 0, s;
 
+	vp = NULL;
 	/*
 	 * Do argument checking. Must be a regular file in, stream
 	 * type and connected socket out, positive offset.
@@ -1435,6 +1436,7 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 		goto done;
 	}
 	vp = (struct vnode *)fp->f_data;
+	vref(vp);
 	obj = vp->v_object;
 	if (vp->v_type != VREG || obj == NULL) {
 		error = EINVAL;
@@ -1698,5 +1700,7 @@ done:
 	if (uap->sbytes != NULL) {
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 	}
+	if (vp)
+		vrele(vp);
 	return (error);
 }

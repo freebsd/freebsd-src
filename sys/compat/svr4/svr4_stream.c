@@ -1255,8 +1255,7 @@ i_nread(fp, p, retval, fd, cmd, dat)
 	 * for us, and if we do, then we assume that we have at least one
 	 * message waiting for us.
 	 */
-	if ((error = (*fp->f_ops->fo_ioctl)(fp, FIONREAD,
-	    (caddr_t) &nread, p)) != 0)
+	if ((error = fo_ioctl(fp, FIONREAD, (caddr_t) &nread, p)) != 0)
 		return error;
 
 	if (nread != 0)
