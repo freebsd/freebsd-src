@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.35 1996/09/19 18:21:01 nate Exp $
+ * $Id: nfs_vnops.c,v 1.36 1996/10/21 10:07:52 dfr Exp $
  */
 
 /*
@@ -337,6 +337,7 @@ extern u_long nfs_true, nfs_false;
 extern struct nfsstats nfsstats;
 extern nfstype nfsv3_type[9];
 struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
+struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int nfs_numasync = 0;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
