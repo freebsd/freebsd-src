@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.138 2002/10/19 18:32:07 ue Exp $
-  basiert auf: 1.437
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.139 2002/10/23 06:06:23 ue Exp $
+  basiert auf: 1.439
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -159,6 +159,11 @@
       watchpoints</literal> (im Gegensatz zu <literal>software
       watchpoints</literal>), wenn dies von der Architektur
       unterst&uuml;tzt wird.  &merged;</para>
+
+    <para>Das neue <filename>devctl</filename> Interface bietet
+      Benutzerprogrammen die M&ouml;glichkeit, Informationen &uuml;ber
+      neue und entfernte Ger&auml;te zu erhalten.  Zur Zeit wird diese
+      Option haupts&auml;chlich von &man.devd.8;  genutzt.</para>
 
     <para>&man.devfs.5;, mit dem Eintr&auml;ge im Verzeichnis
       <filename>/dev</filename> automatisch erstellt werden
@@ -1484,6 +1489,24 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	auf dem Weg vom Kernel zu den eigentlichen Treibern zu
 	manipulieren.</para>
 
+      <para>Das neue Modul <quote>GEOM Based Disk Encryption</quote>
+	erm&ouml;glicht die Verschl&uuml;sselung des
+	Festplatteninhaltes, um Zugriffe auf <quote>kalte</quote>
+	Festplatten zu verhindern.  Das Modul nutzt vier verschiedene
+	Verschl&uuml;sselungstechniken und erlaubt die Nutzung von bis
+	zu vier Kennw&ouml;rtern.  Weitere Informationen finden Sie in
+	der Onlinehilfe zu &man.gbde.4;.  Zur Verwaltung und Steuerung
+	des Moduls dient das neue Hilfsprogramm &man.gbde.8;.  Im
+	Standardsystem ist die Verschl&uuml;sselung der Festplatten
+	nicht aktiviert;  um dieses Feature nutzen zu k&ouml;nnen,
+	mu&szlig; in der Konfigurationsdatei f&uuml;r den
+	angepa&szlig;ten Kernel die Zeile <literal>options
+	GEOM_BDE</literal> stehen.
+	<note>
+	  <para>Das Modul ist noch im Experimentalstadium.</para>
+	</note>
+      </para>
+
       <para role="historic">Der Festplattentreiber ida unterst&uuml;tzt jetzt
         Crashdumps.  &merged;</para>
 
@@ -1536,6 +1559,21 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para arch="i386">Der neue Treiber &man.pst.4; unterst&uuml;tzt die
         Promise SuperTrak ATA RAID Controller.  &merged;</para>
+
+      <para>Der von NetBSD stammende Treiber RAIDframe wurde
+	importiert.  Er stellt u.a. Software-RAID Level 0, 1, 4 und 5
+	zur Verf&uuml;gung.  Weitere Informationen finden Sie in der
+	Onlinehilfe &man.raid.4;.  Zur Steuerung des Treiber und zur
+	Verwaltung der RAIDs dient das neue Hilfsprogramm
+	&man.raidctl.8;.  Der Treiber ist nicht im Standardkernel
+	enthalten; um ihn einzubinden, mu&szlig; in der
+	Konfigurationsdatei f&uuml;r den angepa&szlig;ten Kernel die
+	Zeile <literal>device raidframe</literal> stehen. 
+	<note>
+	  <para>Dieses Modul befindet sich noch im
+	    Experimentalstadium.</para>
+	</note>
+      </para>
 
       <para>Diverse Fehler in &man.sa.4; wurden behoben, u.a. der
         <quote>tape drive spinning indefinitely upon &man.mt.1;
@@ -2608,6 +2646,16 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       auf der Kommandozeile &uuml;bergebene Programm.  Dadurch
       k&ouml;nnen Sie beliebige Programme als Daemon-Proze&szlig; laufen
       lassen.  &merged;</para>
+
+    <para>Das neue Programm &man.devd.8; erlabut es, beliebige
+      Programme auszuf&uuml;hren, wenn Ger&auml;te hinzugef&uuml;gt
+      oder entfernt werden.  Das Programm ist eine allgemeinere
+      Version der Funktionalit&auml;t von &man.pccardd.8;.
+      <note>
+	<para>Die Arbeiten an &man.devd.8; sind noch nicht
+	  abgeschlossen.</para>
+      </note>
+    </para>
 
     <para>Mit dem neuen Programm &man.devinfo.8; k&ouml;nnen Sie die
       auf dem System vorhandenen Ger&auml;te und die von ihnen
@@ -4148,6 +4196,23 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Notes.  Die Onlinehilfe f&uuml;r ein Programm oder eine
       Bibliothek enth&auml;lt normalerweise Angaben, ob das Programm
       einem bestimmten Standard erf&uuml;llt.</para>
+
+    <para>Die meisten Spiele wurden aus dem Standardsystem entfernt,
+      betroffen sind:  adventure(6), arithmetic(6), atc(6),
+      backgammon(6), battlestar(6), bs(6), canfield(6), cribbage(6),
+      fish(6), hack(6), hangman(6), larn(6), mille(6), phantasia(6),
+      piano(6), pig(6), quiz(6), rain(6), robots(6), rogue(6),
+      sail(6), snake(6), trek(6), wargames(6), worm(6), worms(6),
+      wump(6).  dm(8) diente zur Steuerung des Zugriffes auf diese
+      Spiele und wurde ebenfalls entfernt.  Die
+      <quote>n&uuml;tzlichen</quote> Spiele und &man.fortune.6;,
+      verbleiben im System.
+      <note>
+	<para>Die Spiele werden in Zukunft Bestandteil der Ports
+	  Collection sein.  Wenn der entsprechende Port fertig ist,
+	  wird hier ein Verweis auf diesen Port stehen.</para>
+      </note>
+    </para>
 
     <sect3>
       <title>Zus&auml;tzliche Software</title>
