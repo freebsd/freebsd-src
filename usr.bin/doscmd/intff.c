@@ -29,7 +29,7 @@
  *
  *	BSDI intff.c,v 2.2 1996/04/08 19:32:56 bostic Exp
  *
- * $Id: intff.c,v 1.8 1996/09/23 09:59:25 miff Exp $
+ * $Id: intff.c,v 1.1 1997/08/09 01:42:51 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -787,17 +787,17 @@ init_drives(void)
     }	
 }
 
+
 void
 intff(regcontext_t *REGS)
 {
 
-    if (lol && sda) {					/* already been called? */
+    if (lol && sda) {				/* already been called? */
 	debug(D_REDIR, "redirector duplicate install ignored\n");
 	return;
     }
-    lol = (LOL *)N_GETPTR(R_ES, R_DI);	/* where DOS keeps its goodies */
-    sda = (SDA *)N_GETPTR(R_DS, R_SI);
-    
+    lol = (LOL *)N_GETPTR(R_BX, R_DX);	/* where DOS keeps its goodies */
+    sda = (SDA *)N_GETPTR(R_DI, R_SI);
     init_drives();
     
     /* initialise dispatcher */

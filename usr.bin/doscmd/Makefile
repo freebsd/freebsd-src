@@ -5,11 +5,12 @@
 PROG=	doscmd
 MAN1=   doscmd.1
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
-	cwd.c debug.c disktab.c doscmd.c exe.c i386-pinsn.c int.c int10.c \
-	int13.c int14.c int16.c int17.c int1a.c int2f.c intff.c mem.c mouse.c \
-	net.c port.c setver.c signal.c timer.c trace.c trap.c tty.c xms.c
+	cwd.c debug.c disktab.c doscmd.c ems.c emuint.c exe.c i386-pinsn.c \
+	int.c int10.c int13.c int14.c int16.c int17.c int1a.c int2f.c intff.c \
+	mem.c mouse.c net.c port.c setver.c signal.c timer.c trace.c trap.c \
+	tty.c xms.c
 
-CLEANFILES=     doscmd.kernel crt0.o doscmd_loader.o instbsdi.exe
+CLEANFILES=     doscmd.kernel crt0.o doscmd_loader.o redir.com emsdriv.sys
 
 BINGRP=	kmem
 EXEGRP=	bin
@@ -31,13 +32,18 @@ afterinstall:
 	install ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 		doscmd.kernel ${DESTDIR}/usr/libexec/doscmd.kernel
 	install -c -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
-		instbsdi.exe ${DESTDIR}/usr/libdata/doscmd/
+		redir.com ${DESTDIR}/usr/libdata/doscmd/
+	install -c -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
+		emsdriv.sys ${DESTDIR}/usr/libdata/doscmd/
 
-doscmd: doscmd.kernel ${LIBCRT0} doscmd_loader.o instbsdi.exe
+doscmd: doscmd.kernel ${LIBCRT0} doscmd_loader.o redir.com emsdriv.sys
 	ld -e start -dc -dp -o doscmd /usr/lib/crt0.o doscmd_loader.o -lgcc -lc
 
-instbsdi.exe:	instbsdi.exe.uu
-	uudecode        ${.CURDIR}/instbsdi.exe.uu
+redir.com: redir.com.uu
+	uudecode ${.CURDIR}/redir.com.uu
+
+emsdriv.sys: emsdriv.sys.uu
+	uudecode ${.CURDIR}/emsdriv.sys.uu
 
 .include <bsd.prog.mk>
 
