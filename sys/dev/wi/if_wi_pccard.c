@@ -135,7 +135,6 @@ static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(COREGA, WIRELESS_LAN_PCCA_11, 0),
 	PCMCIA_CARD(COREGA, WIRELESS_LAN_PCCB_11, 0),
 	PCMCIA_CARD(DLINK, DWL650H, 0),
-	PCMCIA_CARD2(ELSA, XI300_IEEE, YIS_YWL11B, 0),
 	PCMCIA_CARD(ELSA, XI300_IEEE, 0),
 	PCMCIA_CARD(ELSA, XI325_IEEE, 0),
 	PCMCIA_CARD(ELSA, XI800_IEEE, 0),
@@ -149,12 +148,6 @@ static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(LINKSYS2, IWN, 0),
 	PCMCIA_CARD(LINKSYS2, IWN3, 0),
 	PCMCIA_CARD(LINKSYS2, WCF11, 0),
-	/* Now that we do PRISM detection, I don't think we need these - imp */
-	PCMCIA_CARD2(LUCENT, WAVELAN_IEEE, NANOSPEED_PRISM2, 0),
-	PCMCIA_CARD2(LUCENT, WAVELAN_IEEE, NEC_CMZ_RT_WP, 0),
-	PCMCIA_CARD2(LUCENT, WAVELAN_IEEE, NTT_ME_WLAN, 0),
-	PCMCIA_CARD2(LUCENT, WAVELAN_IEEE, SMC_2632W, 0),
-	/* Must be after other LUCENT ones because it is less specific */
 	PCMCIA_CARD(LUCENT, WAVELAN_IEEE, 0),
 	PCMCIA_CARD(NETGEAR_2, MA401RA, 0),
 	PCMCIA_CARD(NOKIA, C110_WLAN, 0),
@@ -175,10 +168,8 @@ wi_pccard_match(dev)
 	const struct pccard_product *pp;
 
 	if ((pp = pccard_product_lookup(dev, wi_pccard_products,
-	    sizeof(wi_pccard_products[0]), NULL)) != NULL) {
-		device_set_desc(dev, pp->pp_name);
+	    sizeof(wi_pccard_products[0]), NULL)) != NULL)
 		return 0;
-	}
 	return ENXIO;
 }
 #endif
