@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
  * For RPC services
  *	service name/version		must be in /etc/rpc
  *	socket type			stream/dgram/raw/rdm/seqpacket
- *	protocol			rpc/tcp, rpc/udp
+ *	protocol			rpc/tcp[4][6], rpc/udp[4][6]
  *	wait/nowait			single-threaded/multi-threaded
  *	user				user to run daemon as
  *	server program			full path name
@@ -266,6 +266,8 @@ extern struct biltin biltins[];
 
 const char	*CONFIG = _PATH_INETDCONF;
 const char	*pid_file = _PATH_INETDPID;
+
+struct netconfig *udpconf, *tcpconf, *udp6conf, *tcp6conf;
 
 int
 getvalue(const char *arg, int *value, const char *whine)
@@ -451,6 +453,26 @@ main(int argc, char **argv)
 			syslog(LOG_WARNING, "%s: %m", pid_file);
 		}
 	}
+
+	if (!no_v4bind) {
+		udpconf = getnetconfigent("udp");
+		tcpconf = getnetconfigent("tcp");
+		if (udpconf == NULL || tcpconf == NULL) {	
+			syslog(LOG_ERR, "unknown rpc/udp or rpc/tpc");
+			exit(EX_USAGE);
+		}
+	}
+#ifdef INET6
+	if (!no_v6bind) {
+		udp6conf = getnetconfigent("udp6");
+		tcp6conf = getnetconfigent("tcp6");
+		if (udp6conf == NULL || tcp6conf == NULL) {	
+			syslog(LOG_ERR, "unknown rpc/udp6 or rpc/tpc6");
+			exit(EX_USAGE);
+		}
+	}
+#endif
+
 	sa.sa_flags = 0;
 	sigemptyset(&sa.sa_mask);
 	sigaddset(&sa.sa_mask, SIGALRM);
@@ -887,6 +909,7 @@ config(void)
 {
 	struct servtab *sep, *new, **sepp;
 	long omask;
+	int new_nomapped;
 
 	if (!setconfig()) {
 		syslog(LOG_ERR, "%s: %m", CONFIG);
@@ -916,9 +939,11 @@ config(void)
 			continue;
 		}
 #endif
+		new_nomapped = new->se_nomapped;
 		for (sep = servtab; sep; sep = sep->se_next)
 			if (strcmp(sep->se_service, new->se_service) == 0 &&
 			    strcmp(sep->se_proto, new->se_proto) == 0 &&
+			    sep->se_rpc == new->se_rpc &&
 			    sep->se_socktype == new->se_socktype &&
 			    sep->se_family == new->se_family)
 				break;
@@ -928,7 +953,9 @@ config(void)
 #define SWAP(t,a, b) { t c = a; a = b; b = c; }
 			omask = sigblock(SIGBLOCK);
 			if (sep->se_nomapped != new->se_nomapped) {
-				sep->se_nomapped = new->se_nomapped;
+				/* for rpc keep old nommaped till unregister */
+				if (!sep->se_rpc)
+					sep->se_nomapped = new->se_nomapped;
 				sep->se_reset = 1;
 			}
 			/* copy over outstanding child pids */
@@ -1040,7 +1067,8 @@ config(void)
 				sep->se_fd = -1;
 					continue;
 			}
-			if (rpc->r_number != sep->se_rpc_prog) {
+			if (sep->se_reset != 0 ||
+			    rpc->r_number != sep->se_rpc_prog) {
 				if (sep->se_rpc_prog)
 					unregisterrpc(sep);
 				sep->se_rpc_prog = rpc->r_number;
@@ -1048,7 +1076,9 @@ config(void)
 					(void) close(sep->se_fd);
 				sep->se_fd = -1;
 			}
+			sep->se_nomapped = new_nomapped;
 		}
+		sep->se_reset = 0;
 		if (sep->se_fd == -1)
 			setup(sep);
 	}
@@ -1082,21 +1112,49 @@ unregisterrpc(struct servtab *sep)
         u_int i;
         struct servtab *sepp;
 	long omask;
+	struct netconfig *netid4, *netid6;
 
 	omask = sigblock(SIGBLOCK);
+	netid4 = sep->se_socktype == SOCK_DGRAM ? udpconf : tcpconf;
+	netid6 = sep->se_socktype == SOCK_DGRAM ? udp6conf : tcp6conf;
+	if (sep->se_family == AF_INET)
+		netid6 = NULL;
+	else if (sep->se_nomapped)
+		netid4 = NULL;
+	/*
+	 * Conflict if same prog and protocol - In that case one should look
+	 * to versions, but it is not interesting: having separate servers for
+	 * different versions does not work well.
+	 * Therefore one do not unregister if there is a conflict.
+	 * There is also transport conflict if destroying INET when INET46
+	 * exists, or destroying INET46 when INET exists
+	 */
         for (sepp = servtab; sepp; sepp = sepp->se_next) {
                 if (sepp == sep)
                         continue;
-		if (sep->se_checked == 0 ||
+		if (sepp->se_checked == 0 ||
                     !sepp->se_rpc ||
+		    strcmp(sep->se_proto, sepp->se_proto) != 0 ||
                     sep->se_rpc_prog != sepp->se_rpc_prog)
 			continue;
-                return;
+		if (sepp->se_family == AF_INET)
+			netid4 = NULL;
+		if (sepp->se_family == AF_INET6) {
+			netid6 = NULL;
+			if (!sep->se_nomapped)
+				netid4 = NULL;
+		}
+		if (netid4 == NULL && netid6 == NULL)
+			return;
         }
         if (debug)
                 print_service("UNREG", sep);
-        for (i = sep->se_rpc_lowvers; i <= sep->se_rpc_highvers; i++)
-                pmap_unset(sep->se_rpc_prog, i);
+        for (i = sep->se_rpc_lowvers; i <= sep->se_rpc_highvers; i++) {
+		if (netid4)
+			rpcb_unset(sep->se_rpc_prog, i, netid4);
+		if (netid6)
+			rpcb_unset(sep->se_rpc_prog, i, netid6);
+	}
         if (sep->se_fd != -1)
                 (void) close(sep->se_fd);
         sep->se_fd = -1;
@@ -1207,15 +1265,10 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
         if (sep->se_rpc) {
 		u_int i;
 		socklen_t len = sep->se_ctrladdr_size;
+		struct netconfig *netid, *netid2 = NULL;
+		struct sockaddr_in sock;
+		struct netbuf nbuf, nbuf2;
 
-		if (sep->se_family != AF_INET) {
-                        syslog(LOG_ERR,
-			       "%s/%s: unsupported address family for rpc",
-                               sep->se_service, sep->se_proto);
-                        (void) close(sep->se_fd);
-                        sep->se_fd = -1;
-                        return;
-		}
                 if (getsockname(sep->se_fd,
 				(struct sockaddr*)&sep->se_ctrladdr, &len) < 0){
                         syslog(LOG_ERR, "%s/%s: getsockname: %m",
@@ -1224,14 +1277,30 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
                         sep->se_fd = -1;
                         return;
                 }
+		nbuf.buf = &sep->se_ctrladdr;
+		nbuf.len = sep->se_ctrladdr.sa_len;
+		if (sep->se_family == AF_INET)
+			netid = sep->se_socktype==SOCK_DGRAM? udpconf:tcpconf;
+		else  {
+			netid = sep->se_socktype==SOCK_DGRAM? udp6conf:tcp6conf;
+			if (!sep->se_nomapped) { /* INET and INET6 */
+				netid2 = netid==udp6conf? udpconf:tcpconf;
+				memset(&sock, 0, sizeof sock);	/* ADDR_ANY */
+				nbuf2.buf = &sock;
+				nbuf2.len = sock.sin_len = sizeof sock;
+				sock.sin_family = AF_INET;
+				sock.sin_port = sep->se_ctrladdr6.sin6_port;
+			}
+		}
                 if (debug)
                         print_service("REG ", sep);
                 for (i = sep->se_rpc_lowvers; i <= sep->se_rpc_highvers; i++) {
-                        pmap_unset(sep->se_rpc_prog, i);
-                        pmap_set(sep->se_rpc_prog, i,
-                                 (sep->se_socktype == SOCK_DGRAM)
-                                 ? IPPROTO_UDP : IPPROTO_TCP,
-				 ntohs(sep->se_ctrladdr4.sin_port));
+			rpcb_unset(sep->se_rpc_prog, i, netid);
+			rpcb_set(sep->se_rpc_prog, i, netid, &nbuf);
+			if (netid2) {
+				rpcb_unset(sep->se_rpc_prog, i, netid2);
+				rpcb_set(sep->se_rpc_prog, i, netid2, &nbuf2);
+			}
                 }
         }
 	if (sep->se_socktype == SOCK_STREAM)
@@ -1600,12 +1669,6 @@ more:
 		sep->se_proto = newstr(arg);
 	}
         if (strncmp(sep->se_proto, "rpc/", 4) == 0) {
-		if (no_v4bind != 0) {
-			syslog(LOG_NOTICE, "IPv4 bind is ignored for %s",
-			       sep->se_service);
-			freeconfig(sep);
-			goto more;
-		}
                 memmove(sep->se_proto, sep->se_proto + 4,
                     strlen(sep->se_proto) + 1 - 4);
                 sep->se_rpc = 1;
@@ -1641,12 +1704,6 @@ more:
 	while (isdigit(sep->se_proto[strlen(sep->se_proto) - 1])) {
 #ifdef INET6
 		if (sep->se_proto[strlen(sep->se_proto) - 1] == '6') {
-			if (no_v6bind != 0) {
-				syslog(LOG_NOTICE, "IPv6 bind is ignored for %s",
-				       sep->se_service);
-				freeconfig(sep);
-				goto more;
-			}
 			sep->se_proto[strlen(sep->se_proto) - 1] = '\0';
 			v6bind = 1;
 			continue;
@@ -1666,6 +1723,16 @@ more:
 	        sep->se_family = AF_UNIX;
 	} else
 #ifdef INET6
+	if (v6bind != 0 && no_v6bind != 0) {
+		syslog(LOG_INFO, "IPv6 bind is ignored for %s",
+		       sep->se_service);
+		if (v4bind && no_v4bind == 0)
+			v6bind = 0;
+		else {
+			freeconfig(sep);
+			goto more;
+		}
+	}
 	if (v6bind != 0) {
 		sep->se_family = AF_INET6;
 		if (v4bind == 0 || no_v4bind != 0)

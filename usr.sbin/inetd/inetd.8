@@ -294,12 +294,15 @@ via a wildcard
 .Dv AF_INET6
 socket.
 Rpc based services
-(for which only IPv4 is supported at this time)
 are specified with the
 .Dq rpc/tcp
 or
 .Dq rpc/udp
 service type.
+One can use specify IPv4 and/or IPv6 with the 4, 6 or 46 suffix, for example
+.Dq rpc/tcp6
+or
+.Dq rpc/udp46 .
 TCPMUX services must use
 .Dq tcp ,
 .Dq tcp4 ,
