@@ -24,10 +24,14 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: which.pl,v 1.10 1997/02/22 19:57:51 peter Exp $
+# $Id: which.pl,v 1.11 1997/08/26 11:13:39 charnier Exp $
 
 $all = $silent = $found = 0;
 @path = split(/:/, $ENV{'PATH'});
+if ($ENV{'PATH'} =~ /:$/) {
+	$#path = $#path + 1;
+	$path[$#path] = "";
+}
 
 if ($ARGV[0] eq "-a") {
     $all = 1; shift @ARGV;
@@ -43,6 +47,7 @@ foreach $prog (@ARGV) {
 	$found = 1;
     } else {
 	foreach $e (@path) {
+	    $e = "." if !$e;
 	    if (-x "$e/$prog") {
 		print "$e/$prog\n" unless $silent;
 		$found = 1;
