@@ -97,7 +97,7 @@ mediaSetFtpUserPass     Prompt for FTP username and password
 mediaSetCPIOVerbosity   Prompt for CPIO verbosity
 mediaGetType            Prompt for media type
 optionsEditor           Go to options editor
-register		Go to registration editor.
+register                Go to registration editor.
 
 Examples:
 
