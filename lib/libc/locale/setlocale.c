@@ -98,8 +98,6 @@ extern int __time_load_locale __P((const char *)); /* strftime.c */
 extern int _xpg4_setrunelocale __P((char *));
 #endif
 
-char	*_PathLocale;
-
 char *
 setlocale(category, locale)
 	int category;
