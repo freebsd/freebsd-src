@@ -636,6 +636,10 @@ static struct cmdtab const NatCommands[] =
    "nat proto proto localIP [publicIP [remoteIP]]"},
   {"proxy", NULL, nat_ProxyRule, LOCAL_AUTH,
    "proxy control", "nat proxy server host[:port] ..."},
+#ifndef NO_FW_PUNCH
+  {"punch_fw", NULL, nat_PunchFW, LOCAL_AUTH,
+   "firewall control", "nat punch_fw [base count]"},
+#endif
   {"same_ports", NULL, NatOption, LOCAL_AUTH,
    "try to leave port numbers unchanged", "nat same_ports yes|no",
    (const void *) PKT_ALIAS_SAME_PORTS},
