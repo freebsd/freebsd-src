@@ -269,11 +269,11 @@ exit1(p, rv)
 
 	LIST_REMOVE(p, p_hash);
 
-	q = p->p_children.lh_first;
+	q = LIST_FIRST(&p->p_children);
 	if (q)		/* only need this if any child is S_ZOMB */
 		wakeup((caddr_t) initproc);
 	for (; q != 0; q = nq) {
-		nq = q->p_sibling.le_next;
+		nq = LIST_NEXT(q, p_sibling);
 		LIST_REMOVE(q, p_sibling);
 		LIST_INSERT_HEAD(&initproc->p_children, q, p_sibling);
 		q->p_pptr = initproc;
@@ -410,7 +410,7 @@ wait1(q, uap, compat)
 		return (EINVAL);
 loop:
 	nfound = 0;
-	for (p = q->p_children.lh_first; p != 0; p = p->p_sibling.le_next) {
+	LIST_FOREACH(p, &q->p_children, p_sibling) {
 		if (uap->pid != WAIT_ANY &&
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
 			continue;
