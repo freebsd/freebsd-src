@@ -20,7 +20,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float logbf(float x)
+float
+logbf(float x)
 {
 	int32_t ix;
 	GET_FLOAT_WORD(ix,x);

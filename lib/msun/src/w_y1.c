@@ -21,7 +21,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double y1(double x)		/* wrapper y1 */
+double
+y1(double x)		/* wrapper y1 */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_y1(x);

@@ -21,7 +21,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double fabs(double x)
+double
+fabs(double x)
 {
 	u_int32_t high;
 	GET_HIGH_WORD(high,x);

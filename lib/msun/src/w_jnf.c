@@ -20,7 +20,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float jnf(int n, float x)	/* wrapper jnf */
+float
+jnf(int n, float x)	/* wrapper jnf */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_jnf(n,x);

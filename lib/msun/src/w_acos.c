@@ -22,7 +22,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-	double acos(double x)		/* wrapper acos */
+double
+acos(double x)		/* wrapper acos */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_acos(x);

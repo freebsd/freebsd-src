@@ -18,7 +18,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 #include <errno.h>
 
-	double ldexp(double value, int exp)
+double
+ldexp(double value, int exp)
 {
 	if(!finite(value)||value==0.0) return value;
 	value = scalbn(value,exp);

@@ -24,7 +24,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float fabsf(float x)
+float
+fabsf(float x)
 {
 	u_int32_t ix;
 	GET_FLOAT_WORD(ix,x);

@@ -22,7 +22,8 @@ static char rcsid[] = "$FreeBSD$";
 
 static const float one=1.0;
 
-	float cosf(float x)
+float
+cosf(float x)
 {
 	float y[2],z=0.0;
 	int32_t n,ix;

@@ -23,7 +23,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double __generic_copysign(double x, double y)
+double
+__generic_copysign(double x, double y)
 {
 	u_int32_t hx,hy;
 	GET_HIGH_WORD(hx,x);

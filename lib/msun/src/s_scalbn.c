@@ -30,7 +30,8 @@ twom54  =  5.55111512312578270212e-17, /* 0x3C900000, 0x00000000 */
 huge   = 1.0e+300,
 tiny   = 1.0e-300;
 
-	double __generic_scalbn (double x, int n)
+double
+__generic_scalbn (double x, int n)
 {
 	int32_t k,hx,lx;
 	EXTRACT_WORDS(hx,lx,x);

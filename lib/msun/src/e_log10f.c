@@ -28,7 +28,8 @@ log10_2lo  =  7.9034151668e-07; /* 0x355427db */
 
 static const float zero   =  0.0;
 
-	float __ieee754_log10f(float x)
+float
+__ieee754_log10f(float x)
 {
 	float y,z;
 	int32_t i,k,hx;

@@ -54,7 +54,8 @@ S4  =  2.75573137070700676789e-06, /* 0x3EC71DE3, 0x57B1FE7D */
 S5  = -2.50507602534068634195e-08, /* 0xBE5AE5E6, 0x8A2B9CEB */
 S6  =  1.58969099521155010221e-10; /* 0x3DE5D93A, 0x5ACFD57C */
 
-	double __kernel_sin(double x, double y, int iy)
+double
+__kernel_sin(double x, double y, int iy)
 {
 	double z,r,v;
 	int32_t ix;

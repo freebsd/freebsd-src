@@ -25,7 +25,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-	float logf(float x)		/* wrapper logf */
+float
+logf(float x)		/* wrapper logf */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_logf(x);

@@ -31,7 +31,8 @@ E =  1.41428571428571436819e+00, /* 99/70     = 0x3FF6A0EA, 0x0EA0EA0F */
 F =  1.60714285714285720630e+00, /* 45/28     = 0x3FF9B6DB, 0x6DB6DB6E */
 G =  3.57142857142857150787e-01; /* 5/14      = 0x3FD6DB6D, 0xB6DB6DB7 */
 
-	double cbrt(double x)
+double
+cbrt(double x)
 {
 	int32_t	hx;
 	double r,s,t=0.0,w;

@@ -24,7 +24,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float sinhf(float x)		/* wrapper sinhf */
+float
+sinhf(float x)		/* wrapper sinhf */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_sinhf(x);

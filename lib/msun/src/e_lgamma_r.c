@@ -199,7 +199,8 @@ static const double zero=  0.00000000000000000000e+00;
 }
 
 
-	double __ieee754_lgamma_r(double x, int *signgamp)
+double
+__ieee754_lgamma_r(double x, int *signgamp)
 {
 	double t,y,z,nadj,p,p1,p2,p3,q,r,w;
 	int i,hx,lx,ix;

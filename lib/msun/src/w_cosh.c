@@ -21,7 +21,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double cosh(double x)		/* wrapper cosh */
+double
+cosh(double x)		/* wrapper cosh */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_cosh(x);
