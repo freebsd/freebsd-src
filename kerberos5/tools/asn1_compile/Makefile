@@ -43,7 +43,6 @@ CLEANFILES= print_version.h roken.h
 
 .include <bsd.prog.mk>
 
-.PATH: ${KRB5DIR}/lib/roken ${KRB5DIR}/lib/asn1 ${KRB5DIR}/lib/vers
-
-# There are two print_version.c's, select the right one.
-print_version.o: ${KRB5DIR}/lib/vers/print_version.c
+# There are two print_version.c's, the one we need is in ${KRB5DIR}/lib/vers,
+# so the order of paths is important here.
+.PATH: ${KRB5DIR}/lib/vers ${KRB5DIR}/lib/roken ${KRB5DIR}/lib/asn1
