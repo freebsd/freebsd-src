@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: main.c,v 1.12 1996/10/08 04:06:00 steve Exp $
  */
 
 #ifndef lint
@@ -485,7 +485,7 @@ main(argc, argv)
 	 * Note that while MACHINE is decided at run-time,
 	 * MACHINE_ARCH is always known at compile time.
 	 */
-    	if (!machine) {
+	if (!machine) {
 #ifndef MACHINE
 	    struct utsname utsname;
 
@@ -965,11 +965,17 @@ Cmd_Exec(cmd, err)
 	while(((pid = wait(&status)) != cpid) && (pid >= 0))
 	    continue;
 
+	if (cc == -1) {
+		/*
+		 * Couldn't read all of the child's output -- tell the user
+		 * but still use whatever we read.  Null output isn't an
+		 * error unless there was an error reading it.
+		 */
+		Parse_Error(PARSE_WARNING, "Couldn't read shell's output");
+	}
+
 	res = (char *)Buf_GetAll (buf, &cc);
 	Buf_Destroy (buf, FALSE);
-
-	if (cc == 0)
-	    *err = "Couldn't read shell's output for \"%s\"";
 
 	if (status)
 	    *err = "\"%s\" returned non-zero status";
