@@ -818,9 +818,6 @@ bufwrite(struct buf *bp)
 	/* Mark the buffer clean */
 	bundirty(bp);
 
-	KASSERT(!(bp->b_xflags & BX_BKGRDWRITE),
-	    ("FFS background buffer should not get here %p", bp));
-
 	bp->b_flags &= ~B_DONE;
 	bp->b_ioflags &= ~BIO_ERROR;
 	bp->b_flags |= B_CACHE;
