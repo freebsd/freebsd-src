@@ -38,7 +38,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_kbd.h, 3.20, Last Edit-Date: [Sun Apr  2 18:59:08 1995]
+ * @(#)pcvt_kbd.h, 3.20, Last Edit-Date: [Mon Apr 19 17:14:46 1999]
  *
  */
 
@@ -106,7 +106,7 @@ typedef struct
 
 static Ovl_tbl *ovltbl;			/* the table itself */
 
-static ovlinitflag = 0;			/* the init flag for the table */
+static int ovlinitflag = 0;		/* the init flag for the table */
 
 /*
  * key codes >= 128 denote "virtual" shift/control
