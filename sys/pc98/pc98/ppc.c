@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppc.c,v 1.15.2.1 1999/02/14 22:05:29 nsouch Exp $
  *
  */
 #include "ppc.h"
@@ -43,7 +43,6 @@
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
-#include <pc98/pc98/pc98.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
@@ -117,16 +116,14 @@ static void ppc_insl_epp(int unit, char *addr, int cnt) {
 static u_char ppc_rdtr(int unit) { return r_dtr(ppcdata[unit]); }
 static u_char ppc_rstr(int unit) { return r_str(ppcdata[unit]); }
 static u_char ppc_rctr(int unit) { return r_ctr(ppcdata[unit]); }
-static u_char ppc_repp_A(int unit) { return r_epp_A(ppcdata[unit]); }
-static u_char ppc_repp_D(int unit) { return r_epp_D(ppcdata[unit]); }
+static u_char ppc_repp(int unit) { return r_epp(ppcdata[unit]); }
 static u_char ppc_recr(int unit) { return r_ecr(ppcdata[unit]); }
 static u_char ppc_rfifo(int unit) { return r_fifo(ppcdata[unit]); }
 
 static void ppc_wdtr(int unit, char byte) { w_dtr(ppcdata[unit], byte); }
 static void ppc_wstr(int unit, char byte) { w_str(ppcdata[unit], byte); }
 static void ppc_wctr(int unit, char byte) { w_ctr(ppcdata[unit], byte); }
-static void ppc_wepp_A(int unit, char byte) { w_epp_A(ppcdata[unit], byte); }
-static void ppc_wepp_D(int unit, char byte) { w_epp_D(ppcdata[unit], byte); }
+static void ppc_wepp(int unit, char byte) { w_epp(ppcdata[unit], byte); }
 static void ppc_wecr(int unit, char byte) { w_ecr(ppcdata[unit], byte); }
 static void ppc_wfifo(int unit, char byte) { w_fifo(ppcdata[unit], byte); }
 
@@ -154,8 +151,8 @@ static struct ppb_adapter ppc_smclike_adapter = {
 	ppc_outsb_epp, ppc_outsw_epp, ppc_outsl_epp,
 	ppc_insb_epp, ppc_insw_epp, ppc_insl_epp,
 
-	ppc_rdtr, ppc_rstr, ppc_rctr, ppc_repp_A, ppc_repp_D, ppc_recr, ppc_rfifo,
-	ppc_wdtr, ppc_wstr, ppc_wctr, ppc_wepp_A, ppc_wepp_D, ppc_wecr, ppc_wfifo
+	ppc_rdtr, ppc_rstr, ppc_rctr, ppc_repp, ppc_recr, ppc_rfifo,
+	ppc_wdtr, ppc_wstr, ppc_wctr, ppc_wepp, ppc_wecr, ppc_wfifo
 };
 
 static struct ppb_adapter ppc_generic_adapter = {
@@ -171,8 +168,8 @@ static struct ppb_adapter ppc_generic_adapter = {
 	ppc_outsb_epp, ppc_outsw_epp, ppc_outsl_epp,
 	ppc_insb_epp, ppc_insw_epp, ppc_insl_epp,
 
-	ppc_rdtr, ppc_rstr, ppc_rctr, ppc_repp_A, ppc_repp_D, ppc_recr, ppc_rfifo,
-	ppc_wdtr, ppc_wstr, ppc_wctr, ppc_wepp_A, ppc_wepp_D, ppc_wecr, ppc_wfifo
+	ppc_rdtr, ppc_rstr, ppc_rctr, ppc_repp, ppc_recr, ppc_rfifo,
+	ppc_wdtr, ppc_wstr, ppc_wctr, ppc_wepp, ppc_wecr, ppc_wfifo
 };
 
 /*
@@ -1231,21 +1228,24 @@ ppc_exec_microseq(int unit, struct ppb_microseq **p_msq)
                 case MS_OP_DBRA:
                         if (--ppc->ppc_accum > 0)
                                 mi += mi->arg[0].i;
-			INCR_PC;
+			else
+				INCR_PC;
                         break;                                        
 
                 case MS_OP_BRSET:
                         cc = r_str(ppc);
                         if ((cc & (char)mi->arg[0].i) == (char)mi->arg[0].i) 
                                 mi += mi->arg[1].i;                      
-			INCR_PC;
+			else
+				INCR_PC;
                         break;
 
                 case MS_OP_BRCLEAR:
                         cc = r_str(ppc);
                         if ((cc & (char)mi->arg[0].i) == 0)    
                                 mi += mi->arg[1].i;                             
-			INCR_PC;
+			else
+				INCR_PC;
                         break;                                
 
 		case MS_OP_BRSTAT:
@@ -1253,7 +1253,8 @@ ppc_exec_microseq(int unit, struct ppb_microseq **p_msq)
 			if ((cc & ((char)mi->arg[0].i | (char)mi->arg[1].i)) ==
 							(char)mi->arg[0].i)
 				mi += mi->arg[2].i;
-			INCR_PC;
+			else
+				INCR_PC;
 			break;
 
 		case MS_OP_C_CALL:
@@ -1329,7 +1330,7 @@ static void
 ppcintr(int unit)
 {
 	struct ppc_data *ppc = ppcdata[unit];
-	u_char ctr, ecr, str;
+	u_char str, ctr, ecr;
 
 	str = r_str(ppc);
 	ctr = r_ctr(ppc);
@@ -1788,7 +1789,7 @@ ppcprobe(struct isa_device *dvp)
 	if (ppc_detect(ppc, dvp->id_flags & 0xf))
 		goto error;
 
-	return (IO_LPTSIZE);
+	return (1);
 
 error:
 #ifdef PC98
