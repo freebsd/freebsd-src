@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
- *	$Id$
+ *	$Id: radix.h,v 1.11 1997/02/22 09:41:12 peter Exp $
  */
 
 #ifndef _RADIX_H_
@@ -80,7 +80,7 @@ struct radix_node {
  * Annotations to tree concerning potential routes applying to subtrees.
  */
 
-extern struct radix_mask {
+struct radix_mask {
 	short	rm_b;			/* bit offset; -1-index(netmask) */
 	char	rm_unused;		/* cf. rn_bmask */
 	u_char	rm_flags;		/* cf. rn_flags */
@@ -90,7 +90,7 @@ extern struct radix_mask {
 		struct	radix_node *rmu_leaf;	/* for normal routes */
 	}	rm_rmu;
 	int	rm_refs;		/* # of references to this struct */
-} *rn_mkfreelist;
+};
 
 #define rm_mask rm_rmu.rmu_mask
 #define rm_leaf rm_rmu.rmu_leaf		/* extra field would make 32 bytes */
@@ -149,8 +149,6 @@ struct radix_node_head {
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned long)(n), M_RTABLE, M_DONTWAIT))
 #define Free(p) free((caddr_t)p, M_RTABLE);
 #endif /*KERNEL*/
-
-extern struct radix_node_head *mask_rnhead;
 
 void	 rn_init __P((void));
 int	 rn_inithead __P((void **, int));
