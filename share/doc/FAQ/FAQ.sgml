@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.35 1997/03/12 19:04:07 joerg Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.36 1997/03/12 19:14:26 joerg Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/03/12 19:04:07 $
+<date>$Date: 1997/03/12 19:14:26 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -740,14 +740,14 @@ Any entries with a &lt;XXX&gt; are under construction.
           for a nasty little gotcha that can cause no end of trouble.
         <p>
           <label id="2_1-disklabel-fix">
-          <bf>Using disklabel(8) manually with 2.1.7-RELEASE</bf>
+          <bf>Using disklabel(8) manually</bf>
         <p>
           <em>WARNING: There is no substitute for reading carefully
           &amp; understanding what you are doing! Things described here may
           DESTROY your system. Proceed with caution! Remember, a BACKUP is your
           friend!</em>
         <p>
-          <tt /sysinstall/ is broken with 2.1.7-RELEASE and will
+          <tt /sysinstall/ used to be broken up to 2.1.5-RELEASE and will
           insist on mounting something at / in the disklabel editor. You will
           have to manually run <tt /disklabel(8)/ before you can run
           <tt /newfs(8)/. This means doing the math for partitions
@@ -824,6 +824,22 @@ drivedata: 0
         <p>
           <bf /Note:/ You can directly edit the disklabel with
           ''<tt>disklabel -e wd0s2</tt>''. See <tt /disklabel(8)/.
+	<p>
+	  If you have at least FreeBSD 2.1.5, and you want to dedicate
+	  an entire disk to FreeBSD without any care for other
+	  systems, you might shorten the steps above to something like:
+<verb>
+# dd if=/dev/zero of=/dev/rwd0 count=100
+# disklabel -Brw wd0 auto
+# disklabel -e wd0
+</verb>
+
+	  The first <tt/dd/ command ensures there is no old junk at
+	  the beginning of the disk that might confuse the disk code
+	  in the kernel.  Following is an automatic skeleton label
+	  generation using the defaults that have been probed from the
+	  disk at boot time.  Editing this label continues as described
+	  above.
         <p>
           You're done! Time to initialise the filesystems with something
           like:-
@@ -1433,6 +1449,32 @@ quit
 	  <tt/dset(8)/ now also understands to save this value.
 
 	  Hopefully, future version will have a proper fix for this problem.
+
+      <sect1>
+	<heading>What's up with this CMD640 IDE controller?</heading>
+
+	<p>It's broken.  It cannot handle commands on both channels
+	simultaneously.
+
+	<p>There's a workaround available now, but as of FreeBSD 2.2,
+	we felt it was still not long enough in the source tree to
+	shake out any potential bugs.  Hence it is disabled by default.
+	To enable it, you have to reconfigure and recompile your kernel
+	with
+<verb>
+options		"CMD640"
+</verb>
+
+	in the config file.
+
+	<p>In order to install the system, you must however ensure
+	that only one channel of this controller will be used.  Don't
+	forget about ATAPI CD-ROM drives here -- if you are using one,
+	it must be the slave on the primary channel.  Once your new
+	kernel is in place, you can rearrange the machine as you like.
+
+	<p>The workaround is likely to be enabled by default in future
+	versions.
 
     <sect>
       <heading>Commercial Applications</heading>
