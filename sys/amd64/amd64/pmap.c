@@ -997,9 +997,11 @@ pmap_new_thread(struct thread *td, int pages)
 		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
 
+		vm_page_lock_queues();
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_unlock_queues();
 	}
 	pmap_qenter(ks, ma, pages);
 }
@@ -1271,8 +1273,10 @@ pmap_pinit(pmap)
 	 */
 	ptdpg = vm_page_grab(pmap->pm_pteobj, PTDPTDI,
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	vm_page_lock_queues();
 	vm_page_flag_clear(ptdpg, PG_BUSY);
 	ptdpg->valid = VM_PAGE_BITS_ALL;
+	vm_page_unlock_queues();
 
 	pmap_qenter((vm_offset_t) pmap->pm_pdir, &ptdpg, 1);
 	if ((ptdpg->flags & PG_ZERO) == 0)
@@ -1412,10 +1416,11 @@ _pmap_allocpte(pmap, ptepindex)
 			pmap_zero_page(m);
 		}
 	}
-
+	vm_page_lock_queues();
 	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
+	vm_page_unlock_queues();
 
 	return m;
 }
@@ -2349,7 +2354,6 @@ retry:
 			vm_page_lock_queues();
 			if (vm_page_sleep_if_busy(p, FALSE, "init4p"))
 				goto retry;
-			vm_page_unlock_queues();
 		} else {
 			p = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
 			if (p == NULL)
@@ -2364,8 +2368,10 @@ retry:
 			}
 
 			p = vm_page_lookup(object, pindex);
+			vm_page_lock_queues();
 			vm_page_wakeup(p);
 		}
+		vm_page_unlock_queues();
 
 		ptepa = VM_PAGE_TO_PHYS(p);
 		if (ptepa & (NBPDR - 1)) {
