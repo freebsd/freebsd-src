@@ -29,9 +29,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/fcntl.h>
-/*#include <machine/ioctl_meteor.h>*/
-#include "/sys/i386/include/ioctl_meteor.h"
+#include <dev/bktr/ioctl_meteor.h>
 
 extern int errno;
 #define ROWS 300
