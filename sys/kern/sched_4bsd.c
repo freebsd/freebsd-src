@@ -162,6 +162,7 @@ SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof sched_quantum, sysctl_kern_quantum, "I",
     "Roundrobin scheduling quantum in microseconds");
 
+#ifdef SMP
 /* Enable forwarding of wakeups to all other cpus */
 SYSCTL_NODE(_kern_sched, OID_AUTO, ipiwakeup, CTLFLAG_RD, NULL, "Kernel SMP");
 
@@ -199,6 +200,7 @@ static int forward_wakeup_use_htt = 0;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, htt2, CTLFLAG_RW,
 	   &forward_wakeup_use_htt, 0,
 	   "account for htt");
+#endif
 
 /*
  * Arrange to reschedule if necessary, taking the priorities and
@@ -734,6 +736,7 @@ sched_wakeup(struct thread *td)
 	setrunqueue(td, SRQ_BORING);
 }
 
+#ifdef SMP
 /* enable HTT_2 if you have a 2-way HTT cpu.*/
 static int
 forward_wakeup(int  cpunum)
@@ -820,6 +823,7 @@ forward_wakeup(int  cpunum)
 		printf("forward_wakeup: Idle processor not found\n");
 	return (0);
 }
+#endif
 
 void
 sched_add(struct thread *td, int flags)
