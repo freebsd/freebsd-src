@@ -92,15 +92,19 @@ object is indeterminate (garbage) after a file is closed.
 .Pp
 A file may be subsequently reopened, by the same or another program
 execution, and its contents reclaimed or modified (if it can be repositioned
-at the start).  If the main function returns to its original caller, or
+at the start).
+If the main function returns to its original caller, or
 the
 .Xr exit 3
 function is called, all open files are closed (hence all output
-streams are flushed) before program termination.  Other methods
+streams are flushed) before program termination.
+Other methods
 of program termination may not close files properly and hence
-buffered output may be lost.  In particular,
+buffered output may be lost.
+In particular,
 .Xr _exit 2
-does not flush stdio files.  Neither does an exit due to a signal.
+does not flush stdio files.
+Neither does an exit due to a signal.
 Buffers are flushed by
 .Xr abort 3
 as required by POSIX, although previous implementations did not.

@@ -59,7 +59,8 @@ the calling process
 The argument
 .Fa oldd
 is a small non-negative integer index in
-the per-process descriptor table.  The value must be less
+the per-process descriptor table.
+The value must be less
 than the size of the table, which is returned by
 .Xr getdtablesize 2 .
 The new descriptor returned by the call
@@ -96,7 +97,8 @@ In
 .Fn dup2 ,
 the value of the new descriptor
 .Fa newd
-is specified.  If this descriptor is already in use and
+is specified.
+If this descriptor is already in use and
 .Fa oldd
 \*(Ne
 .Fa newd ,

@@ -43,7 +43,8 @@ function
 queries several sources to determine the preferred object file
 format, and copies its name into a buffer provided by the caller.
 .Pp
-The object file format is determined as follows.  If
+The object file format is determined as follows.
+If
 .Va argv
 is
 .No non- Ns Ev NULL
@@ -70,9 +71,11 @@ Otherwise, a built-in system default object file format is returned.
 points to a user-supplied buffer into which the name of the object
 file format is copied.
 .Va bufsize
-gives the size of the buffer in bytes.  The string placed in
+gives the size of the buffer in bytes.
+The string placed in
 .Va buf
-is always null-terminated.  It is an error if the buffer is too
+is always null-terminated.
+It is an error if the buffer is too
 small to hold the null-terminated name.
 .Pp
 .Va argv
@@ -104,7 +107,8 @@ null terminator.
 If the supplied buffer is too small to hold the object file format
 and its null terminator,
 .Fn getobjformat
-returns -1.  In that case, the contents of the buffer and argument
+returns -1.
+In that case, the contents of the buffer and argument
 vector supplied by the caller are indeterminate.
 .Sh ENVIRONMENT
 .Bl -tag -width OBJFORMAT
@@ -118,7 +122,8 @@ is set, it overrides the default object file format.
 .Sh FILES
 .Bl -tag -width /etc/objformat -compact
 .It Pa /etc/objformat
-If present, specifies the object file format to use.  Syntax is
+If present, specifies the object file format to use.
+Syntax is
 .Ql OBJFORMAT=xxx .
 .El
 .Sh SEE ALSO

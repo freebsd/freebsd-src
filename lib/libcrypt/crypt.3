@@ -51,7 +51,8 @@
 The
 .Fn crypt
 function performs password hashing with additional code added to
-deter key search attempts.  Different algorithms can be used to
+deter key search attempts.
+Different algorithms can be used to
 in the hash.
 .\"
 .\" NOTICE:
@@ -100,7 +101,8 @@ If neither of the above is true, it assumes the Traditional Format,
 using the entire string as the salt (or the first portion).
 .El
 .Pp
-All routines are designed to be time-consuming.  A brief test on a
+All routines are designed to be time-consuming.
+A brief test on a
 .Tn Pentium
 166/MMX shows the
 .Tn DES
@@ -139,7 +141,7 @@ The
 introduces disorder in the
 .Tn DES
 algorithm in one of 16777216 or 4096 possible ways
-(ie. with 24 or 12 bits: if bit
+(i.e., with 24 or 12 bits: if bit
 .Em i
 of the
 .Ar salt
@@ -166,13 +168,18 @@ followed by the encoded 64-bit encryption.
 .Pp
 If the salt begins with the string
 .Fa $digit$
-then the Modular Crypt Format is used.  The
+then the Modular Crypt Format is used.
+The
 .Fa digit
-represents which algorithm is used in encryption.  Following the token is
-the actual salt to use in the encryption.  The length of the salt is limited
+represents which algorithm is used in encryption.
+Following the token is
+the actual salt to use in the encryption.
+The length of the salt is limited
 to 8 characters--because the length of the returned output is also limited
-(_PASSWORD_LEN).  The salt must be terminated with the end of the string
-(NULL) or a dollar sign.  Any characters after the dollar sign are ignored.
+(_PASSWORD_LEN).
+The salt must be terminated with the end of the string
+(NULL) or a dollar sign.
+Any characters after the dollar sign are ignored.
 .Pp
 Currently supported algorithms are:
 .Pp
@@ -185,7 +192,8 @@ Blowfish
 NT-Hash
 .El
 .Pp
-Other crypt formats may be easily added.  An example salt would be:
+Other crypt formats may be easily added.
+An example salt would be:
 .Bl -tag -offset indent
 .It Cm "$4$thesalt$rest"
 .El
@@ -206,7 +214,8 @@ This is currently
 DES
 if it is available, or MD5 if not.
 .Pp
-How the salt is used will depend upon the algorithm for the hash.  For
+How the salt is used will depend upon the algorithm for the hash.
+For
 best results, specify at least two characters of salt.
 .Pp
 The
@@ -259,7 +268,8 @@ The
 .Fn crypt
 function returns a pointer to static data, and subsequent calls to
 .Fn crypt
-will modify the same data.  Likewise,
+will modify the same data.
+Likewise,
 .Fn crypt_set_format
 modifies static data.
 .Pp

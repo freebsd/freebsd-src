@@ -183,7 +183,8 @@ but may be caused by transient congestion.
 The remote host was unreachable.
 .It Bq Er ECONNREFUSED
 The socket received an ICMP destination unreachable message
-from the last message sent.  This typically means that the
+from the last message sent.
+This typically means that the
 receiver is not listening on the remote port.
 .It Bq Er EHOSTDOWN
 The remote host was down.
@@ -214,7 +215,8 @@ domain socket
 then
 .Fn close
 it before it has actually been sent, the result being that the receiver
-gets a closed file descriptor.  It is left to the application to
+gets a closed file descriptor.
+It is left to the application to
 implement an acknowledgment mechanism to prevent this from happening.
 .Sh SEE ALSO
 .Xr fcntl 2 ,

@@ -46,7 +46,8 @@ The
 function returns a pointer to a copy of the ACL pointed to by the argument
 .Va acl .
 .Pp
-This function may cause memory to be allocated.  The caller should free any
+This function may cause memory to be allocated.
+The caller should free any
 releasable memory, when the new ACL is no longer required, by calling
 .Xr acl_free 3
 with the
@@ -62,7 +63,8 @@ support for POSIX.1e interfaces and features is still under
 development at this time.
 .Sh RETURN VALUES
 Upon successful completion, this function shall return a pointer to the
-duplicate ACL.  Otherwise, a value of
+duplicate ACL.
+Otherwise, a value of
 .Va (acl_t)NULL
 shall be returned, and
 .Va errno
@@ -92,9 +94,11 @@ system-imposed memory management constraints.
 .Xr acl_get 3 ,
 .Xr posix1e 3
 .Sh STANDARDS
-POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion
 of the draft continues on the cross-platform POSIX.1e implementation
-mailing list.  To join this list, see the
+mailing list.
+To join this list, see the
 .Fx
 POSIX.1e implementation
 page for more information.

@@ -45,7 +45,8 @@ The
 .Fn acl_to_text
 function translates the ACL pointed to by argument
 .Va acl
-into a NULL terminated character string.  If the pointer
+into a NULL terminated character string.
+If the pointer
 .Va len_p
 is not NULL, then the function shall return the length of the string (not
 including the NULL terminator) in the location pointed to by
@@ -55,7 +56,8 @@ The format of the text string returned by
 shall be the POSIX.1e long ACL form.
 .Pp
 This function allocates any memory necessary to contain the string and
-returns a pointer to the string.  The caller should free any releasable
+returns a pointer to the string.
+The caller should free any releasable
 memory, when the new string is no longer required, by calling
 .Xr acl_free 3
 with the
@@ -67,7 +69,8 @@ support for POSIX.1e interfaces and features is still under
 development at this time.
 .Sh RETURN VALUES
 Upon successful completion, the function shall return a pointer to the
-long text form of an ACL.  Otherwise, a value of
+long text form of an ACL.
+Otherwise, a value of
 .Va (char*)NULL
 shall be returned and
 .Va errno
@@ -100,9 +103,11 @@ by the hardware or software-imposed memory management constraints.
 .Xr acl_from_text 3 ,
 .Xr posix1e 3
 .Sh STANDARDS
-POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion
 of the draft continues on the cross-platform POSIX.1e implementation
-mailing list.  To join this list, see the
+mailing list.
+To join this list, see the
 .Fx
 POSIX.1e implementation
 page for more information.
@@ -122,7 +127,8 @@ rely on the
 .Xr getpwent 3
 library calls to manage username and uid mapping, as well as the
 .Xr getgrent 3
-library calls to manage groupname and gid mapping.  These calls are not
+library calls to manage groupname and gid mapping.
+These calls are not
 thread safe, and so transitively, neither are
 .Fn acl_from_text
 and

@@ -29,10 +29,12 @@ information for each swap device, for up to
 \- 1 devices.
 The number of devices, up to
 .Fa maxswap
-\- 1, is returned.  A grand
+\- 1, is returned.
+A grand
 total of all swap devices (including any devices that go beyond
 .Fa maxswap
-\- 1) is returned in one additional array entry.  This
+\- 1) is returned in one additional array entry.
+This
 entry is not counted in the return value.
 Thus, if you specify a
 .Fa maxswap
@@ -40,7 +42,8 @@ value of 1, the function will typically return the
 value 0 and the single
 .Vt kvm_swap
 structure will be filled with
-the grand total over all swap devices.  The grand total is calculated
+the grand total over all swap devices.
+The grand total is calculated
 from all available swap devices whether or not you made room
 for them all in the array.
 The grand total is returned.
@@ -51,7 +54,8 @@ If an error occurs, -1 is returned.
 .Pp
 Each swap partition and the grand total is summarized in the
 .Vt kvm_swap
-structure.  This structure contains the following fields:
+structure.
+This structure contains the following fields:
 .Pp
 .Bl -item -offset indent -compact
 .It
@@ -84,6 +88,7 @@ If the load average was unobtainable, \-1 is returned; otherwise,
 the number of swap devices actually retrieved is returned.
 .Pp
 If the name of the swap device does not fit in the static char buffer
-in the structure, it is truncated.  The buffer is always zero terminated.
+in the structure, it is truncated.
+The buffer is always zero terminated.
 .Sh SEE ALSO
 .Xr kvm 3

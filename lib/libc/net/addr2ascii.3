@@ -52,7 +52,8 @@ The routines
 and
 .Fn ascii2addr
 are used to convert network addresses between binary form and a
-printable form appropriate to the address family.  Both functions take
+printable form appropriate to the address family.
+Both functions take
 an
 .Fa af
 argument, specifying the address family to be used in the conversion
@@ -67,14 +68,17 @@ The
 .Fn addr2ascii
 function
 is used to convert binary, network-format addresses into printable
-form.  In addition to
+form.
+In addition to
 .Fa af ,
-there are three other arguments.  The
+there are three other arguments.
+The
 .Fa addrp
 argument is a pointer to the network address to be converted.
 The
 .Fa len
-argument is the length of the address.  The
+argument is the length of the address.
+The
 .Fa buf
 argument is an optional pointer to a caller-allocated buffer to hold
 the result; if a null pointer is passed,
@@ -94,7 +98,8 @@ and
 The
 .Fa ascii
 argument is a pointer to the string which is to be converted into
-binary.  The
+binary.
+The
 .Fa result
 argument is a pointer to an appropriate network address structure for
 the specified family.
@@ -192,7 +197,8 @@ was improperly formatted for address family
 .Xr inet 4
 .Sh HISTORY
 An interface close to this one was originally suggested by Craig
-Partridge.  This particular interface originally appeared in the
+Partridge.
+This particular interface originally appeared in the
 .Tn INRIA
 .Tn IPv6
 implementation.
@@ -201,8 +207,10 @@ Code and documentation by
 .An Garrett A. Wollman ,
 MIT Laboratory for Computer Science.
 .Sh BUGS
-The original implementations supported IPv6.  This support should
-eventually be resurrected.  The
+The original implementations supported IPv6.
+This support should
+eventually be resurrected.
+The
 .Tn NRL
 implementation also included support for the
 .Dv AF_ISO
@@ -210,13 +218,16 @@ and
 .Dv AF_NS
 address families.
 .Pp
-The genericity of this interface is somewhat questionable.  A truly
+The genericity of this interface is somewhat questionable.
+A truly
 generic interface would provide a means for determining the length of
 the buffer to be used so that it could be dynamically allocated, and
 would always require a
 .Dq Li "struct sockaddr"
-to hold the binary address.  Unfortunately, this is incompatible with existing
-practice.  This limitation means that a routine for printing network
+to hold the binary address.
+Unfortunately, this is incompatible with existing
+practice.
+This limitation means that a routine for printing network
 addresses from arbitrary address families must still have internal
 knowledge of the maximum buffer length needed and the appropriate part
 of the address to use as the binary address.

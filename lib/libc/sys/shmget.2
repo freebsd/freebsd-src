@@ -54,13 +54,15 @@ memory segment.
 .\"
 The key
 is analogous to a filename: it provides a handle that names an
-IPC object.  There are three ways to specify a key:
+IPC object.
+There are three ways to specify a key:
 .Bl -bullet
 .It
 IPC_PRIVATE may be specified, in which case a new IPC object
 will be created.
 .It
-An integer constant may be specified.  If no IPC object corresponding
+An integer constant may be specified.
+If no IPC object corresponding
 to
 .Fa key
 is specified and the IPC_CREAT bit is set in
@@ -100,7 +102,8 @@ Write access for other.
 .Pp
 When creating a new shared memory segment,
 .Fa size
-indicates the desired size of the new segment in bytes.  The size
+indicates the desired size of the new segment in bytes.
+The size
 of the segment may be rounded up to a multiple convenient to the
 kernel (i.e., the page size).
 .Sh RETURN VALUES

@@ -68,10 +68,12 @@ setproctitle("talking to %s", inet_ntoa(addr));
 The
 .Fn setproctitle
 function
-is implicitly non-standard.  Other methods of causing the
+is implicitly non-standard.
+Other methods of causing the
 .Xr ps 1
 command line to change, including copying over the argv[0] string are
-also implicitly non-portable.  It is preferable to use an operating system
+also implicitly non-portable.
+It is preferable to use an operating system
 supplied
 .Fn setproctitle
 if present.
@@ -79,7 +81,8 @@ if present.
 Unfortunately, it is possible that there are other calling conventions
 to other versions of
 .Fn setproctitle ,
-although none have been found by the author as yet.  This is believed to be
+although none have been found by the author as yet.
+This is believed to be
 the predominant convention.
 .Pp
 It is thought that the implementation is compatible with other systems,

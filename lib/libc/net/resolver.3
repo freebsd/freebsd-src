@@ -191,7 +191,8 @@ This option is enabled by default.
 .It Dv RES_NOALIASES
 This option turns off the user level aliasing feature controlled by the
 .Dq Ev HOSTALIASES
-environment variable.  Network daemons should set this option.
+environment variable.
+Network daemons should set this option.
 .It Dv RES_USE_INET6
 Enables support for IPv6-only applications.
 This causes IPv4 addresses to be returned as an IPv4 mapped address.
@@ -227,7 +228,8 @@ it can be overridden by the environment variable
 This environment variable may contain several blank-separated
 tokens if you wish to override the
 .Em "search list"
-on a per-process basis.  This is similar to the
+on a per-process basis.
+This is similar to the
 .Ic search
 command in the configuration file.
 Another environment variable
@@ -238,7 +240,8 @@ set by changing fields in the
 .Va _res
 structure or are inherited from the configuration file's
 .Ic options
-command.  The syntax of the
+command.
+The syntax of the
 .Dq Ev RES_OPTIONS
 environment variable is explained in
 .Xr resolver 5 .

@@ -72,19 +72,22 @@ has one of the following meanings:
 The
 .Fa msgtyp
 argument
-is greater than 0. The first message of type
+is greater than 0.
+The first message of type
 .Fa msgtyp
 will be received.
 .It
 The
 .Fa msgtyp
 argument
-is equal to 0. The first message on the queue will be received.
+is equal to 0.
+The first message on the queue will be received.
 .It
 The
 .Fa msgtyp
 argument
-is less than 0. The first message of the lowest message type that is
+is less than 0.
+The first message of the lowest message type that is
 less than or equal to the absolute value of
 .Fa msgtyp
 will be received.
@@ -133,7 +136,8 @@ The message queue is removed, in which case -1 will be returned, and
 set to
 .Er EINVAL .
 .It
-A signal is received and caught. -1 is returned, and
+A signal is received and caught.
+-1 is returned, and
 .Va errno
 set to
 .Er EINTR .

@@ -112,7 +112,8 @@ Upon return from
 the pointer is incremented by the number of bytes actually read.
 .Pp
 Objects that are not capable of seeking always read from the current
-position.  The value of the pointer associated with such an
+position.
+The value of the pointer associated with such an
 object is undefined.
 .Pp
 Upon successful completion,
@@ -166,7 +167,7 @@ and no data were ready to be read.
 .It Bq Er EISDIR
 The file descriptor is associated with a directory residing
 on a file system that does not allow regular read operations on
-directories (e.g. NFS).
+directories (e.g.\& NFS).
 .It Bq Er EOPNOTSUPP
 The file descriptor is associated with a file system and file type that
 do not allow regular read operations on it.

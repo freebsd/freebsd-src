@@ -72,7 +72,8 @@
 .Sh DESCRIPTION
 RFC2292 IPv6 advanced API defines eight
 functions that the application calls to build and examine a Routing
-header.  Four functions build a Routing header:
+header.
+Four functions build a Routing header:
 .Bl -hang
 .It Fn inet6_rthdr_space
 return #bytes required for ancillary data
@@ -108,7 +109,8 @@ containing the specified number of
 .Fa segments
 (addresses).
 For an IPv6 Type 0 Routing header, the number
-of segments must be between 1 and 23, inclusive.  The return value
+of segments must be between 1 and 23, inclusive.
+The return value
 includes the size of the cmsghdr structure that precedes the Routing
 header, and any required padding.
 .Pp

@@ -81,7 +81,8 @@ PF_NETGRAPH	Netgraph sockets
 .Pp
 The socket has the indicated
 .Fa type ,
-which specifies the semantics of communication.  Currently
+which specifies the semantics of communication.
+Currently
 defined types are:
 .Pp
 .Bd -literal -offset indent -compact
@@ -123,9 +124,11 @@ The
 argument
 specifies a particular protocol to be used with the socket.
 Normally only a single protocol exists to support a particular
-socket type within a given protocol family.  However, it is possible
+socket type within a given protocol family.
+However, it is possible
 that many protocols may exist, in which case a particular protocol
-must be specified in this manner.  The protocol number to use is
+must be specified in this manner.
+The protocol number to use is
 particular to the
 .Dq "communication domain"
 in which communication
@@ -135,10 +138,12 @@ is to take place; see
 Sockets of type
 .Dv SOCK_STREAM
 are full-duplex byte streams, similar
-to pipes.  A stream socket must be in a
+to pipes.
+A stream socket must be in a
 .Em connected
 state before any data may be sent or received
-on it.  A connection to another socket is created with a
+on it.
+A connection to another socket is created with a
 .Xr connect 2
 system call.
 Once connected, data may be transferred using
@@ -168,7 +173,8 @@ and received as described in
 The communications protocols used to implement a
 .Dv SOCK_STREAM
 insure that data
-is not lost or duplicated.  If a piece of data for which the
+is not lost or duplicated.
+If a piece of data for which the
 peer protocol has buffer space cannot be successfully transmitted
 within a reasonable length of time, then
 the connection is considered broken and calls
@@ -184,7 +190,7 @@ by forcing transmissions
 roughly every minute in the absence of other activity.
 An error is then indicated if no response can be
 elicited on an otherwise
-idle connection for an extended period (e.g. 5 minutes).
+idle connection for an extended period (e.g.\& 5 minutes).
 A
 .Dv SIGPIPE
 signal is raised if a process sends
@@ -195,7 +201,8 @@ which do not handle the signal, to exit.
 sockets employ the same system calls
 as
 .Dv SOCK_STREAM
-sockets.  The only difference
+sockets.
+The only difference
 is that
 .Xr read 2
 calls will return only the amount of data requested,
@@ -207,7 +214,8 @@ and
 sockets allow sending of datagrams to correspondents
 named in
 .Xr send 2
-calls.  Datagrams are generally received with
+calls.
+Datagrams are generally received with
 .Xr recvfrom 2 ,
 which returns the next datagram with its return address.
 .Pp

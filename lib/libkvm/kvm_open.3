@@ -63,7 +63,8 @@ and
 return a descriptor used to access kernel virtual memory
 via the
 .Xr kvm 3
-library routines.  Both active kernels and crash dumps are accessible
+library routines.
+Both active kernels and crash dumps are accessible
 through this interface.
 .Pp
 The
@@ -121,9 +122,11 @@ other provides an improved error reporting framework.
 .Pp
 The
 .Fn kvm_open
-function is the Sun kvm compatible open call.  Here, the
+function is the Sun kvm compatible open call.
+Here, the
 .Fa errstr
-argument indicates how errors should be handled.  If it is
+argument indicates how errors should be handled.
+If it is
 .Dv NULL ,
 no errors are reported and the application cannot know the
 specific nature of the failed kvm call.
@@ -164,7 +167,8 @@ Thus,
 .Fn kvm_openfiles
 will place any error message in the
 .Fa errbuf
-argument.  This buffer should be _POSIX2_LINE_MAX characters large (from
+argument.
+This buffer should be _POSIX2_LINE_MAX characters large (from
 <limits.h>).
 .Sh RETURN VALUES
 The
@@ -185,7 +189,8 @@ The
 .Fn kvm_close
 function returns 0 on success and -1 on failure.
 .Sh BUGS
-There should not be two open calls.  The ill-defined error semantics
+There should not be two open calls.
+The ill-defined error semantics
 of the Sun library and the desire to have a backward-compatible library
 for
 .Bx
