@@ -452,7 +452,9 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			}
 		}
 
+		SOCKBUF_LOCK(&so->so_snd);
 		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+			SOCKBUF_UNLOCK(&so->so_snd);
 			error = EPIPE;
 			break;
 		}
@@ -478,6 +480,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		    (so2->so_rcv.sb_cc - unp->unp_conn->unp_cc);
 		(void)chgsbsize(so->so_cred->cr_uidinfo, &so->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
+		SOCKBUF_UNLOCK(&so->so_snd);
 		unp->unp_conn->unp_cc = so2->so_rcv.sb_cc;
 		sorwakeup_locked(so2);
 		m = NULL;
