@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.16 1995/03/16 18:14:30 bde Exp $
+ *	$Id: route.c,v 1.17 1995/03/20 21:30:18 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -403,15 +403,12 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		if (ret_nrt == 0 || (rt = *ret_nrt) == 0)
 			senderr(EINVAL);
 		ifa = rt->rt_ifa;
-		flags = rt->rt_flags & ~(RTF_CLONING | RTF_PRCLONING);
+		flags = rt->rt_flags &
+		    ~(RTF_CLONING | RTF_PRCLONING | RTF_STATIC);
 		flags |= RTF_WASCLONED;
 		gateway = rt->rt_gateway;
 		if ((netmask = rt->rt_genmask) == 0)
 			flags |= RTF_HOST;
-		if (flags & RTF_STATIC) {
-			flags &= ~RTF_STATIC;
-		}
-			
 		goto makeroute;
 
 	case RTM_ADD:
