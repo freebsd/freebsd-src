@@ -615,7 +615,7 @@ syscall(code, framep)
   	else
  		callp = &p->p_sysent->sv_table[code];
 
-	nargs = callp->sy_narg + hidden;
+	nargs = (callp->sy_narg & SYF_ARGMASK) + hidden;
 	switch (nargs) {
 	default:
 		if (nargs > 10)		/* XXX */
@@ -639,13 +639,13 @@ syscall(code, framep)
 	}
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, callp->sy_narg, args + hidden);
+		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args + hidden);
 #endif
 	if (error == 0) {
 		p->p_retval[0] = 0;
 		p->p_retval[1] = 0;
 
-		STOPEVENT(p, S_SCE, callp->sy_narg);
+		STOPEVENT(p, S_SCE, (callp->sy_narg & SYF_ARGMASK));
 
 		error = (*callp->sy_call)(p, args + hidden);
 	}
