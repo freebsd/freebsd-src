@@ -347,25 +347,32 @@ XENTRY(esigcode)
 	EXPORT(szsigcode)
 	.quad	esigcode-sigcode
 	.text
-	
-/* XXX: make systat/vmstat happy */
+
+/*
+ * Create a default interrupt name table. The first entry (vector 0) is
+ * hardwaired to the clock interrupt.
+ */
 	.data
+	.align 8
 EXPORT(intrnames)
-	.asciz	"clock"
+	.ascii "clock"
+	.fill INTRNAME_LEN - 5 - 1, 1, ' '
+	.byte 0
 intr_n = 0
-.rept INTRCNT_COUNT
+.rept INTRCNT_COUNT - 1
 	.ascii "intr "
 	.byte intr_n / 10 + '0, intr_n % 10 + '0
-	.asciz "     "		/* space for platform-specific rewrite */
+	.fill INTRNAME_LEN - 5 - 2 - 1, 1, ' '
+	.byte 0
 	intr_n = intr_n + 1
 .endr
 EXPORT(eintrnames)
 	.align 8
 EXPORT(intrcnt)
-	.fill INTRCNT_COUNT + 1, 8, 0
+	.fill INTRCNT_COUNT, 8, 0
 EXPORT(eintrcnt)
+
 	.text
-	
 	// in0:	image base
 STATIC_ENTRY(_reloc, 1)
 	alloc	loc0=ar.pfs,1,2,0,0
