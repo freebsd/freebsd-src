@@ -68,8 +68,11 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 	char *kv;
 	int kl;
 
-	if (p_candebug(td->td_proc, p))
+	PROC_LOCK(p);
+	if (p_candebug(td->td_proc, p) != 0) {
+		PROC_UNLOCK(p);
 		return (EPERM);
+	}
 	kl = sizeof(r);
 	kv = (char *) &r;
 
@@ -78,7 +81,7 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 	if (kl > uio->uio_resid)
 		kl = uio->uio_resid;
 
-	PHOLD(p);
+	_PHOLD(p);
 	if (kl < 0)
 		error = EINVAL;
 	else
@@ -93,7 +96,8 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 			/* XXXKSE: */
 			error = proc_write_dbregs(FIRST_THREAD_IN_PROC(p), &r);
 	}
-	PRELE(p);
+	_PRELE(p);
+	PROC_UNLOCK(p);
 
 	uio->uio_offset = 0;
 	return (error);

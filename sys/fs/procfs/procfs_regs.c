@@ -62,8 +62,11 @@ procfs_doprocregs(PFS_FILL_ARGS)
 	char *kv;
 	int kl;
 
-	if (p_candebug(td->td_proc, p))
+	PROC_LOCK(p);
+	if (p_candebug(td->td_proc, p)) {
+		PROC_UNLOCK(p);
 		return (EPERM);
+	}
 	kl = sizeof(r);
 	kv = (char *) &r;
 
@@ -72,7 +75,8 @@ procfs_doprocregs(PFS_FILL_ARGS)
 	if (kl > uio->uio_resid)
 		kl = uio->uio_resid;
 
-	PHOLD(p);
+	_PHOLD(p);
+	PROC_UNLOCK(p);
 	if (kl < 0)
 		error = EINVAL;
 	else
@@ -80,6 +84,7 @@ procfs_doprocregs(PFS_FILL_ARGS)
 		error = proc_read_regs(FIRST_THREAD_IN_PROC(p), &r);
 	if (error == 0)
 		error = uiomove(kv, kl, uio);
+	PROC_LOCK(p);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
 		if (p->p_stat != SSTOP)
 			error = EBUSY;
@@ -87,7 +92,8 @@ procfs_doprocregs(PFS_FILL_ARGS)
 			/* XXXKSE: */
 			error = proc_write_regs(FIRST_THREAD_IN_PROC(p), &r);
 	}
-	PRELE(p);
+	_PRELE(p);
+	PROC_UNLOCK(p);
 
 	uio->uio_offset = 0;
 	return (error);
