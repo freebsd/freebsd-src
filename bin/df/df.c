@@ -122,10 +122,10 @@ static unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 static char	 *getmntpt(const char *);
 static size_t	  longwidth(long);
 static char	 *makenetvfslist(void);
-static void	  prthuman(const struct statfs *, long);
+static void	  prthuman(const struct statfs *, size_t);
 static void	  prthumanval(double);
 static void	  prtstat(struct statfs *, struct maxwidths *);
-static long	  regetmntinfo(struct statfs **, long, const char **);
+static size_t	  regetmntinfo(struct statfs **, long, const char **);
 static unit_t	  unit_adjust(double *);
 static void	  update_maxwidths(struct maxwidths *, const struct statfs *);
 static void	  usage(void);
@@ -148,8 +148,8 @@ main(int argc, char *argv[])
 	const char *fstype;
 	char *mntpath, *mntpt;
 	const char **vfslist;
-	long mntsize;
-	int ch, i, rv;
+	size_t i, mntsize;
+	int ch, rv;
 
 	fstype = "ufs";
 
@@ -305,7 +305,7 @@ main(int argc, char *argv[])
 static char *
 getmntpt(const char *name)
 {
-	long mntsize, i;
+	size_t mntsize, i;
 	struct statfs *mntbuf;
 
 	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
@@ -321,7 +321,7 @@ getmntpt(const char *name)
  * file system types not in vfslist and possibly re-stating to get
  * current (not cached) info.  Returns the new count of valid statfs bufs.
  */
-static long
+static size_t
 regetmntinfo(struct statfs **mntbufp, long mntsize, const char **vfslist)
 {
 	int i, j;
@@ -371,7 +371,7 @@ unit_adjust(double *val)
 }
 
 static void
-prthuman(const struct statfs *sfsp, long used)
+prthuman(const struct statfs *sfsp, size_t used)
 {
 
 	prthumanval((double)sfsp->f_blocks * (double)sfsp->f_bsize);
@@ -411,7 +411,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	static long blocksize;
 	static int headerlen, timesthrough = 0;
 	static const char *header;
-	long used, availblks, inodes;
+	size_t used, availblks, inodes;
 
 	if (++timesthrough == 1) {
 		mwp->mntfrom = max(mwp->mntfrom, strlen("Filesystem"));
@@ -456,8 +456,8 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	if (iflag) {
 		inodes = sfsp->f_files;
 		used = inodes - sfsp->f_ffree;
-		(void)printf(" %*ld %*ld %4.0f%% ",
-		    (u_int)mwp->iused, used,
+		(void)printf(" %*lu %*lu %4.0f%% ",
+		    (u_int)mwp->iused, (u_long)used,
 		    (u_int)mwp->ifree, sfsp->f_ffree,
 		    inodes == 0 ? 100.0 : (double)used / (double)inodes * 100.0);
 	} else
