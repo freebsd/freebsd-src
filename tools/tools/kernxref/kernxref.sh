@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: kernxref.sh,v 1.10 1998/12/06 21:39:07 archie Exp $
+# $Id: kernxref.sh,v 1.11 1998/12/08 08:14:37 archie Exp $
 #
 # This shellscript will make a cross reference of the symbols of the LINT 
 # kernel.
@@ -22,7 +22,7 @@ else
 	OBJFORMAT=aout;
 fi
 
-OBJFORMAT=${OBJFORMAT} nm -gon `echo *.o /lkm/*.o	\
+OBJFORMAT=${OBJFORMAT} nm -gon `echo *.o /modules/*.ko	\
 	| tr ' ' '\012'					\
 	| egrep -v '(aicasm|genassym)'`			\
 	| tr : ' ' | awk '
