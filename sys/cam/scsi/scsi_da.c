@@ -283,6 +283,16 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "C-*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * Olympus E-100RS digital camera.
+		 * Reported by:	Bernd Walter <ticso@cicely8.cicely.de>
+		 * XXX See above; its likely all Olympus digital cameras
+		 *     have the same quirk, but I cannot confirm. - kbyanc
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "E-100RS", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
         {
 		/*
 		 * KingByte Pen Drives
