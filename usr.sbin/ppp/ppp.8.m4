@@ -3410,7 +3410,7 @@ to redirect packets of protocol type
 .Ar proto
 (see
 .Xr protocols 5 )
-to the internall address
+to the internal address
 .Ar localIP .
 .Pp
 If
