@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bioscall.s,v 1.2 1999/07/29 01:49:18 msmith Exp $
+ *      $Id: bioscall.s,v 1.3 1999/07/29 07:10:34 msmith Exp $
  */
 
 /*
@@ -123,11 +123,12 @@ ENTRY(bios16_call)
 	movl	20(%ebp),%edi
 
 	pushl	$BC32SEL
-	leal	bios_jmp,%ebp
+	leal	CNAME(bios_jmp),%ebp
 	andl	$PAGE_MASK,%ebp
 	pushl	%ebp			/* reload %cs and */
 	lret				/* ...continue below */
-bios_jmp:
+	.globl	CNAME(bios_jmp)
+CNAME(bios_jmp):
 	data16
 	lcall	_bioscall_vector	/* 16-bit call */
 
