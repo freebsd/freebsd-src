@@ -651,6 +651,11 @@ fork_exit(callout, arg, frame)
 {
 	struct proc *p;
 
+	/*
+	 * Setup the sched_lock state so that we can release it.
+	 */
+	sched_lock.mtx_lock = curproc;
+	sched_lock.mtx_recurse = 0;
 	mtx_unlock_spin(&sched_lock);
 	/*
 	 * XXX: We really shouldn't have to do this.
@@ -668,6 +673,7 @@ fork_exit(callout, arg, frame)
          * have this call a non-return function to stay in kernel mode.
          * initproc has its own fork handler, but it does return.
          */
+	KASSERT(callout != NULL, ("NULL callout in fork_exit"));
 	callout(arg, frame);
 
 	/*

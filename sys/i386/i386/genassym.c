@@ -88,9 +88,6 @@ ASSYM(P_WCHAN, offsetof(struct proc, p_wchan));
 ASSYM(PS_ASTPENDING, PS_ASTPENDING);
 ASSYM(PS_NEEDRESCHED, PS_NEEDRESCHED);
 
-ASSYM(P_ONCPU, offsetof(struct proc, p_oncpu));
-ASSYM(P_LASTCPU, offsetof(struct proc, p_lastcpu));
-
 ASSYM(SSLEEP, SSLEEP);
 ASSYM(SRUN, SRUN);
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
@@ -131,8 +128,6 @@ ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
-
-ASSYM(PCB_SCHEDNEST, offsetof(struct pcb, pcb_schednest));
 
 ASSYM(PCB_SPARE, offsetof(struct pcb, __pcb_spare));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
