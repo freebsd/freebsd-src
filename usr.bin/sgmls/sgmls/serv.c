@@ -72,7 +72,7 @@ UNCH *s;                      /* String to be hashed. */
 int hashsize;                 /* Size of hash table array. */
 {
      unsigned long h = 0, g;
-
+     
      while (*s != 0) {
 	  h <<= 4;
 	  h += *s++;

@@ -25,6 +25,12 @@ merging catalogues. */
 #define P(parms) ()
 #endif
 
+#ifdef USE_ISASCII
+#define ISASCII(c) isascii(c)
+#else
+#define ISASCII(c) (1)
+#endif
+
 /* Default message set. */
 #define NL_SETD 1
 
@@ -48,7 +54,7 @@ struct message {
      unsigned setnum;
      char *text;
 };
-
+     
 struct cat {
      char *name;
      int loaded;
@@ -117,7 +123,7 @@ int oflag;
 
      if (!name)
 	  return 0;
-
+     
      catp = (struct cat *)malloc(sizeof *catp);
      if (!catp)
 	  return 0;
@@ -476,7 +482,7 @@ int quote;
      p[i] = '\0';
      return p;
 }
-
+	  
 /* 0 success, -1 error */
 
 static
@@ -559,7 +565,7 @@ struct message **table;
 unsigned setnum, msgnum;
 {
      struct message **pp;
-
+     
      for (pp = &table[hash(setnum, msgnum)]; *pp; pp = &(*pp)->next)
 	  if ((*pp)->setnum == setnum && (*pp)->msgnum == msgnum) {
 	       struct message *p = *pp;
@@ -638,9 +644,9 @@ char **argv;
      struct message **list;
      unsigned setnum;
      struct message *table[HASH_TAB_SIZE];
-
+    
      program_name = argv[0];
-
+     
      if (argc < 3)
 	  usage();
 
@@ -666,7 +672,7 @@ char **argv;
 	       fclose(fp);
 	  }
      }
-
+     
      errno = 0;
      fp = fopen(argv[1], "w");
      if (!fp)
@@ -687,7 +693,7 @@ char **argv;
 	       list[j++] = p;
      }
      assert(j == nmessages);
-
+     
      qsort((UNIV)list, nmessages, sizeof(struct message *), message_compare);
 
      setnum = NL_SETD;
@@ -728,8 +734,8 @@ VOID fatal(char *message,...)
      message = va_arg(ap, char *);
 #else /* not VARARGS */
      va_start(ap, message);
-#endif /* not VARARGS */
-
+#endif /* not VARARGS */ 
+     
      fprintf(stderr, "%s: ", program_name);
      vfprintf(stderr, message, ap);
      putc('\n', stderr);
@@ -739,7 +745,8 @@ VOID fatal(char *message,...)
 
 static
 int message_compare(p1, p2)
-UNIV p1, UNIV p2;
+UNIV p1;
+UNIV p2;
 {
      struct message *m1 = *(struct message **)p1;
      struct message *m2 = *(struct message **)p2;
@@ -763,7 +770,7 @@ FILE *fp;
      for (; *s; s++) {
 	  if (*s == '\\')
 	       fputs("\\\\", fp);
-	  else if (ISASCII(*s) && isprint((UNCH)*s))
+	  else if (ISASCII(*s) && isprint((unsigned char)*s))
 	       putc(*s, fp);
 	  else {
 	       switch (*s) {
@@ -803,7 +810,7 @@ char **argv;
 {
      nl_catd catd;
      int msgnum, setnum;
-
+     
      if (argc != 2) {
 	  fprintf(stderr, "usage: %s catalogue\n", argv[0]);
 	  exit(1);

@@ -15,8 +15,6 @@ enum {
 VOID process_document P((int));
 VOID output_conforming P((void));
 
-UNIV xmalloc P((UNS));
-UNIV xrealloc P((UNIV, UNS));
 VOID appl_error VP((int, ...));
 
 #ifdef SUPPORT_SUBDOC

@@ -12,7 +12,28 @@ extern UNCH *lextabs[];
 extern UNCH lextran[];
 
 static char *lextabnames[] = {
-     "lexcnm", "lexcon", "lexgrp", "lexlms", "lexmark", "lexsd", "lextoke"
+     "lexcnm", "lexcon", "lexgrp", "lexlms", "lexmark", "lexsd", "lextoke",
+     "lexmin"
+};
+
+#define UNUSED -1
+
+extern int iso646charset[];
+extern int iso646G0charset[];
+extern int iso646C0charset[];
+extern int iso8859_1charset[];
+extern int iso6429C1charset[];
+
+static struct {
+  char *name;
+  int *map;
+} charsets[] = {
+  { "iso646charset", iso646charset },
+  { "iso646G0charset", iso646G0charset },
+  { "iso646G0charset", iso646G0charset },
+  { "iso8859_1charset", iso8859_1charset },
+  { "iso646C0charset", iso646C0charset },
+  { "iso6429C1charset", iso6429C1charset },
 };
 
 static VOID print_tab(s, t)
@@ -34,7 +55,7 @@ int main(argc, argv)
   UNCH tab[256];
   char special[256];
   /* Shunned character numbers in the reference concrete syntax. */
-  static UNCH refshun[] = {
+  static UNCH refshun[] = { 
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
     19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 127, 255
   };
@@ -89,7 +110,7 @@ int main(argc, argv)
 
     for (j = 0; j < 256; j++)
       if (!special[j]) {
-	if (shunned[j])
+	if (shunned[j]) 
 	  tab[j] = lextabs[i][CANON_ASCII_NONSGML];
 	else
 	  tab[j] = lextabs[i][CANON_ASCII_DATACHAR];
@@ -102,13 +123,18 @@ int main(argc, argv)
     tab[charset[i]] = charset[lextran[i]];
   print_tab("lextran", tab);
 
-  /* Generate asciicharset. */
-  fputs("int asciicharset[] = {\n", stdout);
-  for (i = 0; i < 128; i++)
-    printf("%3d,%c", charset[i], (i + 1) % 16 == 0 ? '\n' : ' ');
-  for (i = 128; i < 256; i++)
-    printf("UNUSED,%c", (i + 1) % 8 == 0 ? '\n' : ' ');
-  fputs("};\n", stdout);
+  /* Generate charsets. */
+  for (i = 0; i < sizeof(charsets)/sizeof(charsets[0]); i++) {
+    int j;
+    int *map = charsets[i].map;
+    printf("\nint %s[] = {\n", charsets[i].name);
+    for (j = 0; j < 256; j++)
+      if (map[j] == UNUSED)
+	printf("UNUSED,%c", (j + 1) % 8 == 0 ? '\n' : ' ');
+      else
+	printf("%3d,%c", charset[map[j]], (j + 1) % 16 == 0 ? '\n' : ' ');
+    fputs("};\n", stdout);
+  }
 
   exit(EXIT_SUCCESS);
 }

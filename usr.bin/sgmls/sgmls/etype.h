@@ -25,7 +25,7 @@
 struct thdr {                 /* Token header or model header. */
      UNCH ttype;              /* Token type attributes or model content. */
      union {
-          int tnum;           /* Group token: tokens in group.
+          int tnum;           /* Group token: tokens in group. 
 				 Model header: content tokens at any level. */
           struct etd *thetd;  /* GI token: ptr to etd. */
      } tu;
@@ -64,6 +64,8 @@ extern struct etd dumetd[];
 struct mpos {                 /* Position of current element in model. */
      UNCH g;                  /* Index of this group in the model. */
      UNCH t;                  /* Index of the current token in this group. */
+     UNCH tstart;	      /* Index of starting token for AND group
+				 testing. */
      unsigned long *h;	      /* Hit bits of this group's tokens. */
 };
 

@@ -12,6 +12,7 @@
 #include "std.h"
 #include "entity.h"
 #include "appl.h"
+#include "alloc.h"
 
 /* This code shows how you might use system() to implement run_process().
 ANSI C says very little about the behaviour of system(), and so this

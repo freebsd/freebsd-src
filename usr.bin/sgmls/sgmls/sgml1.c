@@ -195,8 +195,8 @@ static UNCH sgmltab[][11] = {
  {DA1 ,DA1 ,ST2 ,ST2 ,ST2 ,ST2 ,ST2 ,NR2 ,ST1 ,NR2 ,ST1 },/*nr2*/
  {CON_,ETG_,MD_ ,MDC_,MSS_,MSE_,PIS_,REF_,CON_,LOP_,EOD_},
 
- {DA1 ,DA1 ,ST2 ,ST2 ,ST2 ,ST2 ,ST2 ,NR1 ,ST1 ,NR2 ,ST1 },/*st2*/
- {CON_,ETG_,MD_ ,MDC_,MSS_,MSE_,PIS_,REF_,CON_,LOP_,EOD_},
+ {DA1 ,DA1 ,ST2 ,ST2 ,ST2 ,ST2 ,ST2 ,NR2 ,ST1 ,NR2 ,ST1 },/*st2*/
+ {CON_,ETG_,MD_ ,MDC_,MSS_,MSE_,PIS_,LOP_,CON_,LOP_,EOD_},
 };
 int scbsgmst = ST1;           /* SCBSGML: trailing stag or markup; ignore RE. */
 int scbsgmnr = NR1;           /* SCBSGML: new record; do not ignore RE. */
@@ -257,6 +257,7 @@ struct switches *swp;
      TRACEPRO();         /* Set trace switches for prolog. */
      msginit(swp);
      ioinit(swp);
+     entginit(swp);
      sdinit();
      return &lex.m;
 }
@@ -323,13 +324,15 @@ struct sgmlcap *p;
      p->limit = sd.capacity;
      p->name = captab;
 
-     for (i = 0; i < NCAPACITY; i++) {
-	  long excess = capnumber[i]*cappoints[i] - sd.capacity[i];
-	  if (excess > 0) {
-	       char buf[sizeof(long)*3 + 1];
-	       sprintf(buf, "%ld", excess);
-	       sgmlerr(162, (struct parse *)0,
-		       (UNCH *)captab[i], (UNCH *)buf);
+     if (sw.swcap) {
+	  for (i = 0; i < NCAPACITY; i++) {
+	       long excess = capnumber[i]*cappoints[i] - sd.capacity[i];
+	       if (excess > 0) {
+		    char buf[sizeof(long)*3 + 1];
+		    sprintf(buf, "%ld", excess);
+		    sgmlerr(162, (struct parse *)0,
+			    (UNCH *)captab[i], (UNCH *)buf);
+	       }
 	  }
      }
 }
@@ -370,7 +373,7 @@ PNE *np;
 UNCH **tp;
 {
      PECB ep;                 /* Pointer to an entity control block. */
-
+     
      ep = entfind(iname);
      if (!ep)
 	  return -1;
@@ -410,6 +413,11 @@ UNCH *iname;
 int sgmlgcnterr()
 {
      return msgcnterr();
+}
+
+char *getsubst()
+{
+     return (char *)lextran;
 }
 
 /* This is for error handling functions that want to print a gi backtrace. */

@@ -13,6 +13,7 @@ extern int contersw;          /* 1=element or #CHARS out of context; 0=valid. */
 extern int datarc;            /* Return code for data: DAF_ or REF_. */
 extern int delmscsw;          /* 1=DELMSC must be read on return to es==0. */
 extern int didreq;            /* 1=required implied tag processed; 0=no. */
+extern int docelsw;	      /* 1=had document element; 0=no */
 extern int dostag;            /* 1=retry newetd instead of parsing; 0=parse. */
 extern int dtdsw;             /* DOCTYPE declaration found: 1=yes; 0=no. */
 extern int entdatsw;          /* 2=CDATA entity; 4=SDATA; 8=NDATA; 0=none. */
@@ -32,6 +33,7 @@ extern int pss;               /* SGMLACT: scbsgml stack level. */
 extern int sgmlsw;            /* SGML declaration found: 1=yes; 0=no. */
 extern int stagmin;           /* Minimization: NONE, NULL tag, implied by STAG*/
 extern int tagctr;            /* Tag source chars read. */
+extern int tages;	      /* ES level at start of tag. */
 extern int ts;                /* Index of current tag in stack. */
 extern struct parse *propcb;  /* Current PCB for prolog parse. */
 extern int aentctr;           /* Number of ENTITY tokens in this att list. */
@@ -53,6 +55,7 @@ extern struct etd *docetd;    /* The etd for the document as a whole. */
 extern struct etd *etagreal;  /* Actual or dummy etd that implied this tag. */
 extern struct etd *newetd;    /* The etd for a start- or end-tag recognized. */
 extern struct etd *nextetd;   /* ETD that must come next (only one choice). */
+extern struct etd *lastetd;   /* Most recently ended ETD. */
 extern struct etd *stagreal;  /* Actual or dummy etd that implied this tag. */
 extern struct parse *conpcb;  /* Current PCB for content parse. */
 extern UNCH *data;            /* Pointer to returned data in buffer. */
@@ -61,7 +64,6 @@ extern UNCH *ptcon;           /* Current pointer into tbuf. */
 extern UNCH *ptpro;           /* Current pointer into tbuf. */
 extern UNCH *rbufs;           /* DOS file read area: start position for read. */
 extern UNCH *subdcl;          /* Subject of markup declaration (e.g., GI). */
-extern int Tstart;	      /* Save starting token for AND group testing. */
 extern UNS conradn;           /* 1=CONREF attribute in list (0=no). */
 extern UNS datalen;           /* Length of returned data in buffer. */
 extern UNS entlen;            /* Length of TAG or EXTERNAL entity text. */
