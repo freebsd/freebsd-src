@@ -144,6 +144,8 @@ static struct ti_type ti_devs[] = {
 		"Netgear GA620 Gigabit Ethernet" },
 	{ SGI_VENDORID, SGI_DEVICEID_TIGON,
 		"Silicon Graphics Gigabit Ethernet" },
+	{ DEC_VENDORID, DEC_DEVICEID_FARALLON_PN9000SX,
+		"Farallon PN9000SX Gigabit Ethernet" },
 	{ 0, 0, NULL }
 };
 
