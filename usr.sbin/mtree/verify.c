@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: verify.c,v 1.5 1997/10/01 06:30:02 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -117,9 +117,10 @@ vwalk()
 			    !fnmatch(ep->name, p->fts_name, FNM_PATHNAME)) ||
 			    !strcmp(ep->name, p->fts_name)) {
 				ep->flags |= F_VISIT;
-				if (compare(ep->name, ep, p))
+				if ((ep->flags & F_NOCHANGE) == 0 &&
+				    compare(ep->name, ep, p))
 					rval = MISMATCHEXIT;
-				if (ep->flags & F_IGN)
+				if (ep->flags & (F_IGN | F_NOCHANGE))
 					(void)fts_set(t, p, FTS_SKIP);
 				else if (ep->child && ep->type == F_DIR &&
 				    p->fts_info == FTS_D) {
@@ -174,13 +175,13 @@ miss(p, tail)
 		create = 0;
 		if (!(p->flags & F_VISIT) && uflag)
 			if (!(p->flags & (F_UID | F_UNAME)))
-			    (void)printf(" (not created: user not specified)");
+			    (void)printf(" (directory not created: user not specified)");
 			else if (!(p->flags & (F_GID | F_GNAME)))
-			    (void)printf(" (not created: group not specified)");
+			    (void)printf(" (directory not created: group not specified)");
 			else if (!(p->flags & F_MODE))
-			    (void)printf(" (not created: mode not specified)");
+			    (void)printf(" (directory not created: mode not specified)");
 			else if (mkdir(path, S_IRWXU))
-				(void)printf(" (not created: %s)",
+				(void)printf(" (directory not created: %s)",
 				    strerror(errno));
 			else {
 				create = 1;
