@@ -893,6 +893,9 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 
 	/* PowerResource manipulation */
 	acpi_powerres_set_sleeping_state(sc, state);
+	if (acpi_debug) {
+		acpi_powerres_debug(sc);
+	}
 
 	if (!sc->system_state_initialized) {
 		return;
@@ -923,6 +926,13 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 		break;
 	default:
 		break;
+	}
+
+	if (state < ACPI_S_STATE_S5) {
+		acpi_powerres_set_sleeping_state(sc, 0);
+		if (acpi_debug) {
+			acpi_powerres_debug(sc);
+		}
 	}
 }
 
@@ -1314,6 +1324,12 @@ acpi_attach(device_t dev)
 	acpi_enable_disable(sc, 1);
 	acpi_enable_events(sc);
 #endif
+
+	acpi_powerres_init(sc);
+	if (acpi_debug) {
+		acpi_powerres_debug(sc);
+	}
+
 	acpi_pmap_release();
 
 	make_dev(&acpi_cdevsw, 0, 0, 5, 0660, "acpi");
