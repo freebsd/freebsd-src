@@ -42,8 +42,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
+#include <sys/proc.h>
 #include <sys/device.h>
 #elif defined(__FreeBSD__)
 #include <sys/bus.h>
