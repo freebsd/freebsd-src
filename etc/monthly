@@ -3,6 +3,7 @@
 #	@(#)monthly	5.5 (Berkeley) 6/17/91
 #
 
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
 host=`hostname -s`
 echo "Subject: $host monthly run output"
 

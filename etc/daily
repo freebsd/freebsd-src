@@ -2,7 +2,7 @@
 #
 #	@(#)daily	5.12 (Berkeley) 5/24/91
 #
-PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/local
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
 host=`hostname -s`
 echo "Subject: $host daily run output"
 bak=/var/backups
@@ -130,4 +130,4 @@ if [ -f /etc/Distfile ]; then
 	rdist -f /etc/Distfile
 fi
 
-sh /etc/security 2>&1 | mail -s "daily insecurity output" root
+sh /etc/security 2>&1 | sendmail root
