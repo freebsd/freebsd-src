@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.18 1997/07/22 18:48:07 fsmp Exp $
+ *	$Id: mpapic.c,v 1.18 1997/07/22 18:37:49 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -113,9 +113,12 @@ apic_initialize(void)
 void
 apic_dump(char* str)
 {
-	printf("SMP: CPU%d %s:\n", cpuid, str);
-	printf("    lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
-		lapic.lvt_lint0, lapic.lvt_lint1, lapic.tpr, lapic.svr);
+	printf("SMP: CPU%02d %s lint0: 0x%08x\n",
+	       cpuid, str, lapic.lvt_lint0);
+	printf("                                lint1: 0x%08x\n",
+	       lapic.lvt_lint1);
+	printf("                                TPR:   0x%08x\n", lapic.tpr);
+	printf("                                SVR:   0x%08x\n", lapic.svr);
 }
 
 
@@ -432,137 +435,20 @@ bad:
 
 
 /*
- * Set INT mask bit for each bit set in 'mask'.
- * Clear INT mask bit for all others.
- * Only consider lower 24 bits in mask.
- */
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
-#define IO_MASK		(imen & 0x00ffffff)
-#define IO_FIELD	0x00ffffff
-
-void
-write_io_apic_mask24(int apic, u_int32_t mask)
-{
-	int     x, y;
-	u_char  select;			/* the select register is 8 bits */
-	u_int32_t low_reg;		/* the window register is 32 bits */
-	u_int32_t diffs;
-
-	mask &= IO_FIELD;		/* safety valve, only use 24 bits */
-	if (mask == IO_MASK)		/* check for same value as current */
-		return;
-
-	diffs = mask ^ IO_MASK;		/* record differences */
-
-	for (x = 0, y = REDIRCNT_IOAPIC(apic); x < y; ++x) {
-		if (!(diffs & (1 << x)))
-			continue;			/* no change, skip */
-
-		select = IOAPIC_REDTBL + (x * 2);	/* calculate addr */
-		low_reg = io_apic_read(apic, select);	/* read contents */
-
-		if (mask & (1 << x))
-			low_reg |= IOART_INTMASK;	/* set mask */
-		else
-			low_reg &= ~IOART_INTMASK;	/* clear mask */
-
-		io_apic_write(apic, select, low_reg);	/* new value */
-	}
-}
-#endif /* MULTIPLE_IOAPICS */
-
-
-#if defined(READY)
-/*
- * Read current IRQ0 -IRQ23 masks.
- */
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
-static __inline u_int32_t
-read_io_apic_mask24(int apic)
-{
-	
-}
-#endif /* MULTIPLE_IOAPICS */
-#endif /* READY */
-
-
-#if defined(READY)
-/*
- * Set INT mask bit for each bit set in 'mask'.
- * Ignore INT mask bit for all others.
- * Only consider lower 24 bits in mask.
+ * Print contents of imen, keeps imen 'opaque'.
  */
 void
-set_io_apic_mask24(apic, u_int32_t bits)
+imen_dump(void)
 {
-	int     x, y;
-	u_char  select;			/* the select register is 8 bits */
-	u_int32_t low_reg;		/* the window register is 32 bits */
-	u_int32_t diffs;
+	extern	unsigned imen;		/* interrupt mask enable */
+	int x;
 
-	bits &= IO_FIELD;		/* safety valve, only use 24 bits */
-	diffs = bits & ~IO_MASK;	/* clear AND needing 'set'ing */
-	if (!diffs)
-		return;
-
-#error imen/io_apic_mask NOT merged in set_io_apic_mask24()
-
-	for (x = 0, y = REDIRCNT_IOAPIC(apic); x < y; ++x) {
-		if (!(diffs & (1 << x)))
-			continue;			/* no change, skip */
-
-		select = IOAPIC_REDTBL + (x * 2);	/* calculate addr */
-		low_reg = io_apic_read(apic, select);	/* read contents */
-
-		lowReg |= IOART_INTMASK;		/* set mask */
-
-		io_apic_write(apic, select, low_reg);	/* new value */
-	}
+	printf("SMP: enabled INTs: ");
+	for (x = 0; x < 24; ++x)
+		if ((imen & (1 << x)) == 0)
+        		printf("%d, ", x);
+	printf("imen: 0x%08x\n", imen);
 }
-#endif	/* READY */
-
-
-#if defined(READY)
-/*
- * Clear INT mask bit for each bit set in 'mask'.
- * Ignore INT mask bit for all others.
- * Only consider lower 24 bits in mask.
- */
-void
-clr_io_apic_mask24(int apic, u_int32_t bits)
-{
-	int     x, y;
-	u_char  select;			/* the select register is 8 bits */
-	u_int32_t low_reg;		/* the window register is 32 bits */
-	u_int32_t diffs;
-
-	bits &= IO_FIELD;		/* safety valve, only use 24 bits */
-	diffs = bits & IO_MASK;		/* set AND needing 'clr'ing */
-	if (!diffs)
-		return;
-
-#error imen/io_apic_mask NOT merged in clr_io_apic_mask24()
-
-	for (x = 0, y = REDIRCNT_IOAPIC(apic); x < y; ++x) {
-		if (!(diffs & (1 << x)))
-			continue;			/* no change, skip */
-
-		select = IOAPIC_REDTBL + (x * 2);	/* calculate addr */
-		low_reg = io_apic_read(apic, select);	/* read contents */
-
-		low_reg &= ~IOART_INTMASK;		/* clear mask */
-
-		io_apic_write(apic, select, low_reg);	/* new value */
-	}
-}
-#endif	/* READY */
-
-#undef IO_FIELD
-#undef IO_MASK
 
 
 /*
@@ -685,7 +571,6 @@ selected_proc_ipi(int target, int vector)
 	return 0;	/** XXX FIXME: return result */
 }
 #endif /* READY */
-
 
 #endif	/* APIC_IO */
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.13 1997/05/29 04:58:04 peter Exp $
+ *	$Id: icu.h,v 1.4 1997/07/22 18:36:06 smp Exp smp $
  */
 
 /*
@@ -47,57 +47,26 @@
 
 #ifndef	LOCORE
 
+#ifdef APIC_IO
+
 /*
- * Interrupt "level" mechanism variables, masks, and macros
+#define MP_SAFE
+ * Note:
+ *	Most of the SMP equivilants of the icu macros are coded
+ *	elsewhere in an MP-safe fashion.
+ *	In particular note that the 'imen' variable is opaque.
+ *	DO NOT access imen directly, use INTREN()/INTRDIS().
  */
-extern	unsigned imen;		/* interrupt mask enable */
-
-#if defined(APIC_IO)
-
-# if !defined(_MACHINE_SMP_H_)
-/** XXX what a hack, its this or include <machine/smp.h>! */
-void write_io_apic_mask24 __P((int, u_int32_t)); /* i386/i386/mpapic.c */
-# endif /* _MACHINE_SMP_H_ */
-
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX: cannot assume apic #0 in the following functions.
-#endif /* MULTIPLE_IOAPICS */
-
-#ifdef nevermore
-/* see if we can get by without these, they're NOT MP_SAFE... */
-static __inline u_int32_t
-INTRGET(void)
-{
-	return (imen & 0x00ffffff);		/* return our global copy */
-}
-
-static __inline void
-INTRSET(unsigned s)
-{
-	write_io_apic_mask24(0, s);
-	imen = s;
-}
-#endif /** nevermore */
-
-static __inline void
-INTREN(unsigned s)
-{
-	write_io_apic_mask24(0, imen & ~s);
-	imen &= ~s;
-}
-
-static __inline void
-INTRDIS(unsigned s)
-{
-	write_io_apic_mask24(0, imen | s);
-	imen |= s;
-}
-
 
 #define	INTRMASK(msk,s)		(msk |= (s))
 #define INTRUNMASK(msk,s)	(msk &= ~(s))
 
 #else /* APIC_IO */
+
+/*
+ * Interrupt "level" mechanism variables, masks, and macros
+ */
+extern	unsigned imen;		/* interrupt mask enable */
 
 #define	INTREN(s)		(imen &= ~(s), SET_ICUS())
 #define	INTRDIS(s)		(imen |= (s), SET_ICUS())
@@ -131,6 +100,17 @@ INTRDIS(unsigned s)
 
 #endif /* LOCORE */
 
+
+#ifdef APIC_IO
+/*
+ * Note: The APIC uses different values for IRQxxx.
+ *	 Unfortunately many drivers use the 8259 values as indexes
+ *	 into tables, etc.  The APIC equivilants are kept as APIC_IRQxxx.
+ *	 The 8259 versions have to be used in SMP for legacy operation
+ *	 of the drivers.
+ */
+#endif /* APIC_IO */
+
 /*
  * Interrupt enable bits - in normal order of priority (which we change)
  */
@@ -159,12 +139,13 @@ INTRDIS(unsigned s)
 #define	IRQ_SLAVE	0x0080
 #endif
 
+
 /*
  * Interrupt Control offset into Interrupt descriptor table (IDT)
  */
 #define	ICU_OFFSET	32		/* 0-31 are processor exceptions */
 
-#if defined(APIC_IO)
+#ifdef APIC_IO
 
 /* 32-47: ISA IRQ0-IRQ15, 48-55: IO APIC IRQ16-IRQ23 */
 #define	ICU_LEN		24
