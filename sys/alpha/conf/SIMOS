@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SIMOS,v 1.2 1998/06/28 00:48:48 dfr Exp $
+#	$Id: SIMOS,v 1.3 1998/09/26 14:49:26 dfr Exp $
 
 machine		"alpha"
 cpu		"EV5"
@@ -32,7 +32,6 @@ options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=100		#Be pessimistic about Joe SCSI device
 options		UCONSOLE		#Allow users to grab the console
-options		FAILSAFE		#Be conservative
 
 config		kernel	root on da0
 
