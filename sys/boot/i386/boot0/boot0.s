@@ -86,7 +86,7 @@ start:		cld				# String ops inc
 # Check what flags were loaded with us, specifically, Use a predefined Drive.
 # If what the bios gives us is bad, use the '0' in the block instead, as well.
 #
-main:		testb $0x20,_FLAGS(%bp)	# Set number drive?
+main:		testb $0x20,_FLAGS(%bp)		# Set number drive?
 		jnz main.1			# Yes
 		testb %dl,%dl			# Drive number valid?
 		js main.2			# Possibly (0x80 set)
