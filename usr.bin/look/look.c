@@ -73,6 +73,8 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
+static char _path_words[] = _PATH_WORDS;
+
 /*
  * FOLD and DICT convert characters to a normal form for comparison,
  * according to the user specified flags.
@@ -110,7 +112,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_CTYPE, "");
 
-	file = _PATH_WORDS;
+	file = _path_words;
 	termchar = '\0';
 	while ((ch = getopt(argc, argv, "dft:")) != -1)
 		switch(ch) {
