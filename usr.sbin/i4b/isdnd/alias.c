@@ -30,9 +30,11 @@
  *	NOTE:	this has to stay in sync with isdntel/alias.c to be able
  *		to share a common aliasfile!
  *		
+ *      $Id: alias.c,v 1.8 1999/12/13 21:25:24 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Feb 14 10:10:03 1999]
+ *      last edit-date: [Mon Dec 13 21:45:19 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -51,10 +53,10 @@ void
 init_alias(char *filename)
 {
 	FILE *fp;
-	char buffer[MAXBUFSZ + 1];
-	char number[MAXBUFSZ + 1];
-	char name[MAXBUFSZ + 1];
-	char *s, *d;
+	unsigned char buffer[MAXBUFSZ + 1];
+	unsigned char number[MAXBUFSZ + 1];
+	unsigned char name[MAXBUFSZ + 1];
+	unsigned char *s, *d;
 	struct alias *newa = NULL;
 	struct alias *lasta = NULL;
 

@@ -30,9 +30,11 @@
  *	i4b daemon - runtime configuration parser
  *	-----------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: rc_parse.y,v 1.24 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Thu May 20 14:05:26 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:48:48 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -56,6 +58,7 @@
 #endif
 
 extern void 	cfg_setval(int keyword);
+extern void	cfg_set_controller_default();
 extern void	reset_scanner(FILE *infile);
 extern void 	yyerror(const char *msg);
 extern int	yylex();
@@ -66,6 +69,7 @@ extern int	nentries;
 
 int		saw_system = 0;
 int		entrycount = -1;
+int		controllercount = -1;
 
 %}
 
@@ -83,6 +87,7 @@ int		entrycount = -1;
 %token		CALLOUT
 %token		CHANNELSTATE
 %token		CONNECTPROG
+%token		CONTROLLER
 %token		DIALOUTTYPE
 %token		DIALRANDINCR
 %token		DIALRETRIES
@@ -104,6 +109,8 @@ int		entrycount = -1;
 %token		LOCAL_PHONE_DIALOUT
 %token		LOCAL_PHONE_INCOMING
 %token		LOGEVENTS
+%token		MAILER
+%token		MAILTO
 %token		MONITOR
 %token		MONITORACCESS
 %token		MONITORPORT
@@ -112,6 +119,7 @@ int		entrycount = -1;
 %token		NO
 %token		OFF
 %token		ON
+%token		PROTOCOL
 %token		RATESFILE
 %token		RATETYPE
 %token		REACTION
@@ -143,6 +151,7 @@ int		entrycount = -1;
 
 %type	<num>	sysfilekeyword sysnumkeyword sysstrkeyword sysboolkeyword
 %type	<num>	numkeyword strkeyword boolkeyword monrights monright
+%type	<num>	cstrkeyword
 %type	<str>	filename
 
 %union {
@@ -158,6 +167,7 @@ config:		sections
 
 sections:	possible_nullentries
 		syssect
+		optcontrollersects
 		entrysects
 		;
 
@@ -173,6 +183,22 @@ nullentry:	'\n'
 entrysects:	entrysect
 		| entrysects entrysect
 		;
+
+optcontrollersects:
+		controllersects
+		|
+			{
+				cfg_set_controller_default();
+			}
+		;
+
+controllersects:  controllersect
+		| controllersects controllersect
+		;
+
+/* ============== */
+/* system section */
+/* ============== */
 
 syssect:	SYSTEM sysentries
 		;
@@ -305,10 +331,16 @@ sysnumkeyword:	  MONITORPORT		{ $$ = MONITORPORT; }
 		| RTPRIO		{ $$ = RTPRIO; }
 		;
 
-sysstrkeyword:	  ROTATESUFFIX		{ $$ = ROTATESUFFIX; }
+sysstrkeyword:	  MAILER		{ $$ = MAILER; }
+		| MAILTO		{ $$ = MAILTO; }
+		| ROTATESUFFIX		{ $$ = ROTATESUFFIX; }
 		| REGEXPR		{ $$ = REGEXPR; }
 		| REGPROG		{ $$ = REGPROG; }
 		;
+
+/* ============= */
+/* entry section */
+/* ============= */
 
 entrysect:	ENTRY
 			{ 
@@ -393,5 +425,40 @@ numkeyword:	  ALERT			{ $$ = ALERT; }
 boolkeyword:	  DIALRANDINCR		{ $$ = DIALRANDINCR; }
 		| USEDOWN		{ $$ = USEDOWN; }
 		;
+
+
+/* ================== */
+/* controller section */
+/* ================== */
+
+controllersect:	CONTROLLER
+		{ 
+			controllercount++;
+		}
+		controllers
+		;
+
+controllers:	controller
+		| controllers controller
+		;
+
+controller:	strcontroller
+		| nullentry
+		| error '\n'
+		;
+
+strcontroller:	cstrkeyword '=' STRING '\n'
+			{ 
+			cfg_setval($1);
+			}
+		| cstrkeyword '=' NUMBERSTR '\n'
+			{ 
+			cfg_setval($1);
+			}
+		;
+
+cstrkeyword:	  PROTOCOL		{ $$ = PROTOCOL; }
+		;
+
 
 %%

@@ -628,14 +628,11 @@ Trust Ami Mouse (3 buttons).
 4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
 ----    -------------------------------------------
 
-Asuscom I-IN100-ST-DV (experimental, may work)
 Asuscom ISDNlink 128K PnP
 
 AVM A1
 AVM Fritz!Card classic
-AVM Fritz!Card PnP
 AVM Fritz!Card PCI
-AVM Fritz!Card PCMCIA
 
 Creatix ISDN-S0/8
 Creatix ISDN-S0/16
@@ -645,29 +642,20 @@ Dr.Neuhaus Niccy 1008
 Dr.Neuhaus Niccy 1016
 Dr.Neuhaus Niccy GO@ (ISA PnP)
 
-Dynalink IS64PH (no longer maintained)
-
-ELSA 1000pro ISA
-ELSA 1000pro PCI
+ELSA QuickStep 1000pro ISA
+ELSA MicroLink ISDN/PCI (same as ELSA QuickStep 1000pro PCI)
 ELSA PCC-16
 
-ITK ix1 micro
-ITK ix1 micro PnP
-
-Sagem Cybermod (ISA PnP, may work)
+Sagem Cybermod (ISA PnP)
 
 Sedlbauer Win Speed
 
 Siemens I-Surf 2.0
 
-Stollmann Tina-pp (under development)
-
 Teles S0/8
 Teles S0/16
 Teles S0/16.3 (the "c" Versions - like 16.3c - are unsupported !)
-Teles S0 PnP (experimental, may work)
-
-3Com/USRobotics Sportster ISDN TA intern (non-PnP version)
+Teles S0/16.3 PnP
 
 
 4.5.    Misc

@@ -27,9 +27,11 @@
  *	i4b daemon - location of files
  *	------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: pathnames.h,v 1.10 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Thu Apr 29 09:07:29 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:48:01 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,8 +45,6 @@
 #define RATES_FILE_DEF	"/etc/isdn/isdnd.rates"
 
 #define TINA_FILE_DEF	"/etc/isdn/tinainitprog"
-
-#define LIBDIR		"/usr/local/lib/isdn"
 
 #define LOG_FILE_DEF	"/var/log/isdnd.log"
 #ifdef __bsdi__

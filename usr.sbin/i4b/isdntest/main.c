@@ -27,9 +27,11 @@
  *	main.c - i4b selftest utility
  *	-----------------------------
  *
- * $FreeBSD$ 
+ *	$Id: main.c,v 1.15 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Fri Jul 30 08:16:37 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:55:19 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -85,6 +87,26 @@ int waitchar = 0;
 int usehdlc = 0;
 int controller = 0;
 int dotest = 0;
+
+/*---------------------------------------------------------------------------*
+ *	usage display and exit
+ *---------------------------------------------------------------------------*/
+static void
+usage(void)
+{
+	fprintf(stderr, "\n");
+	fprintf(stderr, "isdntest - i4b selftest, version %d.%d.%d, compiled %s %s\n",VERSION, REL, STEP, __DATE__, __TIME__);
+	fprintf(stderr, "usage: isdntest [-c ctrl] [-d level] [-h] [-i telno] [-o telno] [-t num] [-w]\n");
+	fprintf(stderr, "       -c <ctrl>     specify controller to use\n");
+	fprintf(stderr, "       -d <level>    set debug level\n");	
+	fprintf(stderr, "       -h            use HDLC as Bchannel protocol\n");
+	fprintf(stderr, "       -i <telno>    incoming telephone number\n");
+	fprintf(stderr, "       -o <telno>    outgoing telephone number\n");
+	fprintf(stderr, "       -t <num>      send test pattern num times\n");
+	fprintf(stderr, "       -w            wait for keyboard entry to disconnect\n");
+	fprintf(stderr, "\n");
+	exit(1);
+}
 
 /*---------------------------------------------------------------------------*
  *	program entry
@@ -298,25 +320,6 @@ isdnrdhdl(int isdnfd)
 	{
 		fprintf(stderr, "isdntest: read error, errno = %d, length = %d", errno, len);
 	}
-}
-
-/*---------------------------------------------------------------------------*
- *	usage display and exit
- *---------------------------------------------------------------------------*/
-static void
-usage(void)
-{
-	fprintf(stderr, "\n");
-	fprintf(stderr, "isdntest - i4b selftest, version %d.%d.%d, compiled %s %s\n",VERSION, REL, STEP, __DATE__, __TIME__);
-	fprintf(stderr, "usage: isdntest -c <ctrl> -h -i <telno> -o <telno>\n");
-	fprintf(stderr, "       -c <ctrl>     specify controller to use\n");		
-	fprintf(stderr, "       -h            use HDLC as Bchannel protocol\n");
-	fprintf(stderr, "       -i <telno>    incoming telephone number\n");		
-	fprintf(stderr, "       -o <telno>    outgoing telephone number\n");
-	fprintf(stderr, "       -w            wait for keyboard entry to disconnect\n");
-	fprintf(stderr, "       -t num        send test pattern num times\n");	
-	fprintf(stderr, "\n");
-	exit(1);
 }
 
 /*---------------------------------------------------------------------------*

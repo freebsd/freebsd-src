@@ -2,14 +2,20 @@
 #
 # $FreeBSD$
 #
-#	last edit-date: [Thu May 20 12:04:05 1999]
+#	last edit-date: [Tue Dec 14 21:17:46 1999]
 #
 #---------------------------------------------------------------------------
 
 PROG            =       dtmfdecode
 SRC             =       dtmfdecode.c
-#LDADD		+=	-lm
+
+# libm is only necessary if USE_COS is defined in the source
+#LDADD          +=      -lm
+
 CFLAGS          +=      -Wall -g -DDEBUG
 MAN1		=	dtmfdecode.1
+
+test:   ${PROG}
+        uudecode -p < dtmfsounds.al.uu | ./${PROG}
 
 .include <bsd.prog.mk>

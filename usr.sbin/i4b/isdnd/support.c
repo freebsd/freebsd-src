@@ -27,9 +27,11 @@
  *	i4b daemon - misc support routines
  *	----------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: support.c,v 1.63 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Mon Jul  5 15:29:22 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:49:05 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -58,12 +60,14 @@ find_active_entry_by_driver(int drivertype, int driverunit)
 		
 		if(cep->cdid == CDID_UNUSED)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_active_entry_by_driver: entry %d, cdid is CDID_UNUSED!", i)));
+			DBGL(DL_MSG, (log(LL_DBG, "find_active_entry_by_driver: entry %d [%s%d], cdid=CDID_UNUSED !",
+				i, bdrivername(drivertype), driverunit)));
 			return(NULL);
 		}
 		else if(cep->cdid == CDID_RESERVED)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_active_entry_by_driver: entry %d, cdid is CDID_RESERVED!", i)));
+			DBGL(DL_MSG, (log(LL_DBG, "find_active_entry_by_driver: entry %d [%s%d], cdid=CDID_RESERVED!",
+				i, bdrivername(drivertype), driverunit)));
 			return(NULL);
 		}
 		return(cep);
@@ -504,7 +508,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 			if((ioctl(isdnfd, I4B_UPDOWN_IND, &mui)) < 0)
 			{
 				log(LL_ERR, "find_matching_entry_incoming: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
-				do_exit(1);
+				error_exit(1, "find_matching_entry_incoming: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
 			}
 
 			cep->down_retry_count = 0;
@@ -572,108 +576,6 @@ get_cep_by_cdid(int cdid)
 			return(&cfg_entry_tab[i]);
 	}
 	return(NULL);
-}
-
-/*---------------------------------------------------------------------------*
- *	get name of a controller
- *---------------------------------------------------------------------------*/
-const char *
-name_of_controller(int ctrl_type, int card_type)
-{
-	static char *passive_card[] = {
-		"Teles S0/8",
-		"Teles S0/16",
-		"Teles S0/16.3",
-		"AVM A1 or Fritz!Card",
-		"Teles S0/16.3 PnP",
-		"Creatix S0 PnP",
-		"USRobotics Sportster ISDN TA",
-		"Dr. Neuhaus NICCY Go@",
-		"Sedlbauer win speed",
- 		"Dynalink IS64PH",
-		"ISDN Master, MasterII or Blaster",
-		"AVM PCMCIA Fritz!Card",
-		"ELSA QuickStep 1000pro/ISA",
-		"ELSA QuickStep 1000pro/PCI",
-		"Siemens I-Talk",
-		"ELSA MicroLink ISDN/MC",
-		"ELSA MicroLink MCall",
- 		"ITK ix1 micro",
-		"AVM Fritz!Card PCI",
-		"ELSA PCC-16",
-		"AVM Fritz!Card PnP",		
-		"Siemens I-Surf 2.0 PnP",		
- 		"Asuscom ISDNlink 128K PnP"
-	};
-
-	static char *daic_card[] = {
-		"EICON.Diehl S",
-		"EICON.Diehl SX/SXn",
-		"EICON.Diehl SCOM",
-		"EICON.Diehl QUADRO",
-	};
-
-	if(ctrl_type == CTRL_PASSIVE)
-	{
-		int index = card_type - CARD_TYPEP_8;
-		if (index >= 0 && index < (sizeof passive_card / sizeof passive_card[0]))
-			return passive_card[index];
-	}
-	else if(ctrl_type == CTRL_DAIC)
-	{
-		int index = card_type - CARD_TYPEA_DAIC_S;
-		if (index >= 0 && index < (sizeof daic_card / sizeof daic_card[0] ))
-			return daic_card[index];
-	}
-	else if(ctrl_type == CTRL_TINADD)
-	{
-		return "Stollmann tina-dd";
-	}
-
-	return "unknown card type";
-}
- 
-/*---------------------------------------------------------------------------*
- *	init controller state array
- *---------------------------------------------------------------------------*/
-void
-init_controller(void)
-{
-	int i;
-	int max = 1;
-	msg_ctrl_info_req_t mcir;
-	
-	for(i=0; i < max; i++)
-	{
-		mcir.controller = i;
-		
-		if((ioctl(isdnfd, I4B_CTRL_INFO_REQ, &mcir)) < 0)
-		{
-			log(LL_ERR, "init_controller: ioctl I4B_CTRL_INFO_REQ failed: %s", strerror(errno));
-			do_exit(1);
-		}
-
-		if((ncontroller = max = mcir.ncontroller) == 0)
-		{
-			log(LL_ERR, "init_controller: no ISDN controller found!");
-			do_exit(1);
-		}
-
-		if(mcir.ctrl_type == -1 || mcir.card_type == -1)
-		{
-			log(LL_ERR, "init_controller: ctrl/card is invalid!");
-			do_exit(1);
-		}
-
-		/* init controller tab */
-
-		if((init_controller_state(i, mcir.ctrl_type, mcir.card_type, mcir.tei)) == ERROR)
-		{
-			log(LL_ERR, "init_controller: init_controller_state for controller %d failed", i);
-			do_exit(1);
-		}
-	}
-	DBGL(DL_RCCF, (log(LL_DBG, "init_controller: found %d ISDN controller(s)", max)));
 }
 
 /*---------------------------------------------------------------------------*
@@ -785,7 +687,7 @@ unitlen_chkupd(cfg_entry_t *cep)
 	if((ioctl(isdnfd, I4B_TIMEOUT_UPD, &tupd)) < 0)
 	{
 		log(LL_ERR, "ioctl I4B_TIMEOUT_UPD failed: %s", strerror(errno));
-		do_exit(1);
+		error_exit(1, "ioctl I4B_TIMEOUT_UPD failed: %s", strerror(errno));
 	}
 }
 
@@ -865,7 +767,7 @@ if_up(cfg_entry_t *cep)
 	if((ioctl(isdnfd, I4B_UPDOWN_IND, &mui)) < 0)
 	{
 		log(LL_ERR, "if_up: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
-		do_exit(1);
+		error_exit(1, "if_up: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
 	}
 	cep->down_retry_count = 0;
 
@@ -898,7 +800,7 @@ if_down(cfg_entry_t *cep)
 	if((ioctl(isdnfd, I4B_UPDOWN_IND, &mui)) < 0)
 	{
 		log(LL_ERR, "if_down: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
-		do_exit(1);
+		error_exit(1, "if_down: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
 	}
 	cep->went_down_time = time(NULL);
 	cep->down_retry_count = 0;
@@ -942,7 +844,7 @@ dialresponse(cfg_entry_t *cep, int dstat)
 	if((ioctl(isdnfd, I4B_DIALOUT_RESP, &mdr)) < 0)
 	{
 		log(LL_ERR, "dialresponse: ioctl I4B_DIALOUT_RESP failed: %s", strerror(errno));
-		do_exit(1);
+		error_exit(1, "dialresponse: ioctl I4B_DIALOUT_RESP failed: %s", strerror(errno));
 	}
 
 	DBGL(DL_DRVR, (log(LL_DBG, "dialresponse: sent [%s]", stattab[dstat])));

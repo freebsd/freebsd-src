@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 1998 Martin Husemann. All rights reserved.
+ *   Copyright (c) 1998,1999 Martin Husemann. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -30,21 +30,19 @@
  *
  *---------------------------------------------------------------------------
  *
- *	i4b daemon - network monitor protocl definition
- *	-----------------------------------------------
+ *	i4b daemon - network monitor protocol definition
+ *	------------------------------------------------
+ *
+ *	$Id: monitor.h,v 1.16 1999/12/13 21:25:26 hm Exp $
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sun May 30 15:50:10 1999]
- *
- *	-mh	created
- *	-hm	checking in
- *	-hm	ported to HPUX 10.10
+ *      last edit-date: [Mon Dec 13 21:52:18 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#ifndef MONITOR_H
-#define MONITOR_H
+#ifndef _MONITOR_H_
+#define _MONITOR_H_
 
 #define DEF_MONPORT     451             /* default monitor TCP port     */
 
@@ -52,9 +50,9 @@
 #define	u_int8_t	ubit8
 #define	u_int32_t	ubit32
 #endif
-#ifdef _WIN32
+#ifdef WIN32
 #define	u_int8_t	BYTE
-#define	u_in32_t	DWORD
+#define	u_int32_t	DWORD
 #endif
 
 /*
@@ -71,8 +69,7 @@
  * All multi-byte values are in network byte order!
  */
 
-/* All data packets transfered are declared as arrays of BYTE */
-#define	BYTE	u_int8_t
+/* All data packets transfered are declared as arrays of u_int8_t */
 
 /* max stringlength used in this protocol */
 #define	I4B_MAX_MON_STRING		256
@@ -81,15 +78,8 @@
 #define	I4B_MAX_MON_CLIENT_CMD		16
 
 /* Version of the monitor protocol described here */
-#define	MPROT_VERSION		0	/* major version no */
-#define	MPROT_REL		1	/* release no */
-/*
- * We intend to keep different versions of monitor client and isdnd
- * interoperable as long as possible. We do not, however, even try
- * to do this during early alpha or beta release phases. If you run
- * developement versions at this stage, make sure all your clients
- * and servers run the same version!
- */
+#define	MPROT_VERSION			0	/* major version no */
+#define	MPROT_REL			5	/* release no */
 
 /*
  * Client access rights
@@ -120,12 +110,13 @@
 #define	I4B_MON_EVNT_HDR		4	/* size of header */
 
 /* Initial data send by daemon after connection is established */
-#define	I4B_MON_IDATA_SIZE		I4B_MON_EVNT_HDR+10
+#define	I4B_MON_IDATA_SIZE		I4B_MON_EVNT_HDR+12
 #define	I4B_MON_IDATA_CODE		0			/* event code */
 #define	I4B_MON_IDATA_VERSMAJOR		I4B_MON_EVNT_HDR+0	/* 2 byte: isdnd major version */
 #define	I4B_MON_IDATA_VERSMINOR		I4B_MON_EVNT_HDR+2	/* 2 byte: isdnd minor version */
 #define	I4B_MON_IDATA_NUMCTRL		I4B_MON_EVNT_HDR+4	/* 2 byte: number of controllers */
-#define	I4B_MON_IDATA_CLACCESS		I4B_MON_EVNT_HDR+6	/* 4 byte: client rights */
+#define	I4B_MON_IDATA_NUMENTR		I4B_MON_EVNT_HDR+6	/* 2 byte: number of controllers */
+#define	I4B_MON_IDATA_CLACCESS		I4B_MON_EVNT_HDR+8	/* 4 byte: client rights */
 
 /* followed by this for every controller */
 #define	I4B_MON_ICTRL_SIZE		I4B_MON_EVNT_HDR+I4B_MAX_MON_STRING+8
@@ -135,8 +126,16 @@
 #define	I4B_MON_ICTRL_FLAGS		I4B_MON_EVNT_HDR+I4B_MAX_MON_STRING+2	/* 4 byte: controller flags (not yet defined) */
 #define	I4B_MON_ICTRL_NCHAN		I4B_MON_EVNT_HDR+I4B_MAX_MON_STRING+6	/* 2 byte: number of b channels on this controller */
 
-/* The client sets it's protocol version and event mask (usualy once after
- * connection establishement) */
+/* followed by this for every entry */
+#define	I4B_MON_IDEV_SIZE		I4B_MON_EVNT_HDR+I4B_MAX_MON_STRING+2
+#define	I4B_MON_IDEV_CODE		2					/* event code */
+#define	I4B_MON_IDEV_NAME		I4B_MON_EVNT_HDR+0			/* string: name of device */
+#define	I4B_MON_IDEV_STATE		I4B_MON_EVNT_HDR+I4B_MAX_MON_STRING+0	/* 2 byte: state of device */
+
+/*
+ * The client sets it's protocol version and event mask (usually once after
+ * connection establishement)
+ */
 #define	I4B_MON_CCMD_SETMASK		0x7e			/* command code */
 #define	I4B_MON_ICLIENT_SIZE		I4B_MON_CMD_HDR+8
 #define	I4B_MON_ICLIENT_VERMAJOR	I4B_MON_CMD_HDR+0	/* 2 byte: protocol major version (always 0 for now) */
@@ -147,8 +146,10 @@
 #define	I4B_MON_DUMPRIGHTS_CODE		1
 #define	I4B_MON_DUMPRIGHTS_SIZE		I4B_MON_CMD_HDR		/* no parameters */
 
-/* in response to a I4B_MON_DUMPRIGHTS_CODE command, the daemon sends
- * this event: */
+/*
+ * in response to a I4B_MON_DUMPRIGHTS_CODE command, the daemon sends
+ * this event:
+ */
 #define	I4B_MON_DRINI_CODE		2	/* event code */
 #define	I4B_MON_DRINI_SIZE		I4B_MON_EVNT_HDR+2	/* size of packet */
 #define	I4B_MON_DRINI_COUNT		I4B_MON_EVNT_HDR+0	/* 2 byte: number of records */
@@ -165,8 +166,10 @@
 #define	I4B_MON_DUMPMCONS_CODE		2
 #define	I4B_MON_DUMPMCONS_SIZE		I4B_MON_CMD_HDR		/* no parameters */
 
-/* in response to a I4B_MON_DUMPMCONS_CODE command, the daemon sends
- * this event: */
+/*
+ * in response to a I4B_MON_DUMPMCONS_CODE command, the daemon sends
+ * this event:
+ */
 #define	I4B_MON_DCINI_CODE		4	/* event code */
 #define	I4B_MON_DCINI_SIZE		I4B_MON_EVNT_HDR+2	/* size of packet */
 #define	I4B_MON_DCINI_COUNT		I4B_MON_EVNT_HDR+0	/* 2 byte: number of records */
@@ -183,8 +186,9 @@
 
 /* The client requests to hangup a connection */
 #define	I4B_MON_HANGUP_CODE		4
-#define	I4B_MON_HANGUP_SIZE		I4B_MON_CMD_HDR+4
-#define	I4B_MON_HANGUP_CHANNEL		I4B_MON_CMD_HDR+0	/* channel to drop */
+#define	I4B_MON_HANGUP_SIZE		I4B_MON_CMD_HDR+8
+#define	I4B_MON_HANGUP_CTRL		I4B_MON_CMD_HDR+0	/* controller */
+#define	I4B_MON_HANGUP_CHANNEL		I4B_MON_CMD_HDR+4	/* channel */
 
 /* The daemon sends a logfile event */
 #define I4B_MON_LOGEVNT_CODE		6
@@ -196,35 +200,65 @@
 
 /* The daemon sends a charge event */
 #define I4B_MON_CHRG_CODE		7
-#define	I4B_MON_CHRG_SIZE		I4B_MON_EVNT_HDR+16
+#define	I4B_MON_CHRG_SIZE		I4B_MON_EVNT_HDR+20
 #define	I4B_MON_CHRG_TSTAMP		I4B_MON_EVNT_HDR+0	/* 4 byte: timestamp */
-#define	I4B_MON_CHRG_CHANNEL		I4B_MON_EVNT_HDR+4	/* 4 byte: channel charged */
-#define	I4B_MON_CHRG_UNITS		I4B_MON_EVNT_HDR+8	/* 4 byte: new charge value */
-#define	I4B_MON_CHRG_ESTIMATED		I4B_MON_EVNT_HDR+12	/* 4 byte: 0 = charge by network, 1 = calculated estimate */
+#define	I4B_MON_CHRG_CTRL		I4B_MON_EVNT_HDR+4	/* 4 byte: channel charged */
+#define	I4B_MON_CHRG_CHANNEL		I4B_MON_EVNT_HDR+8	/* 4 byte: channel charged */
+#define	I4B_MON_CHRG_UNITS		I4B_MON_EVNT_HDR+12	/* 4 byte: new charge value */
+#define	I4B_MON_CHRG_ESTIMATED		I4B_MON_EVNT_HDR+16	/* 4 byte: 0 = charge by network, 1 = calculated estimate */
 
 /* The daemon sends a connect event */
 #define	I4B_MON_CONNECT_CODE		8
-#define	I4B_MON_CONNECT_SIZE		I4B_MON_EVNT_HDR+12+4*I4B_MAX_MON_STRING
+#define	I4B_MON_CONNECT_SIZE		I4B_MON_EVNT_HDR+16+4*I4B_MAX_MON_STRING
 #define	I4B_MON_CONNECT_TSTAMP		I4B_MON_EVNT_HDR+0	/* 4 byte: time stamp */
 #define	I4B_MON_CONNECT_DIR		I4B_MON_EVNT_HDR+4	/* 4 byte: direction (0 = incoming, 1 = outgoing) */
-#define	I4B_MON_CONNECT_CHANNEL		I4B_MON_EVNT_HDR+8	/* 4 byte: channel connected */
-#define	I4B_MON_CONNECT_CFGNAME		I4B_MON_EVNT_HDR+12	/* name of config entry */
-#define	I4B_MON_CONNECT_DEVNAME		I4B_MON_EVNT_HDR+12+I4B_MAX_MON_STRING	/* name of device used for connection */
-#define	I4B_MON_CONNECT_REMPHONE	I4B_MON_EVNT_HDR+12+2*I4B_MAX_MON_STRING	/* remote phone no. */
-#define	I4B_MON_CONNECT_LOCPHONE	I4B_MON_EVNT_HDR+12+3*I4B_MAX_MON_STRING	/* local phone no. */
+#define	I4B_MON_CONNECT_CTRL		I4B_MON_EVNT_HDR+8	/* 4 byte: channel connected */
+#define	I4B_MON_CONNECT_CHANNEL		I4B_MON_EVNT_HDR+12	/* 4 byte: channel connected */
+#define	I4B_MON_CONNECT_CFGNAME		I4B_MON_EVNT_HDR+16	/* name of config entry */
+#define	I4B_MON_CONNECT_DEVNAME		I4B_MON_EVNT_HDR+16+I4B_MAX_MON_STRING	/* name of device used for connection */
+#define	I4B_MON_CONNECT_REMPHONE	I4B_MON_EVNT_HDR+16+2*I4B_MAX_MON_STRING	/* remote phone no. */
+#define	I4B_MON_CONNECT_LOCPHONE	I4B_MON_EVNT_HDR+16+3*I4B_MAX_MON_STRING	/* local phone no. */
 
 /* The daemon sends a disconnect event */
 #define	I4B_MON_DISCONNECT_CODE		9
-#define	I4B_MON_DISCONNECT_SIZE		I4B_MON_EVNT_HDR+8
+#define	I4B_MON_DISCONNECT_SIZE		I4B_MON_EVNT_HDR+12
 #define	I4B_MON_DISCONNECT_TSTAMP	I4B_MON_EVNT_HDR+0	/* 4 byte: time stamp */
-#define	I4B_MON_DISCONNECT_CHANNEL	I4B_MON_EVNT_HDR+4	/* 4 byte: channel disconnected */
+#define	I4B_MON_DISCONNECT_CTRL		I4B_MON_EVNT_HDR+4	/* 4 byte: channel disconnected */
+#define	I4B_MON_DISCONNECT_CHANNEL	I4B_MON_EVNT_HDR+8	/* 4 byte: channel disconnected */
 
 /* The daemon sends an up/down event */
 #define	I4B_MON_UPDOWN_CODE		10
-#define	I4B_MON_UPDOWN_SIZE		I4B_MON_EVNT_HDR+12
+#define	I4B_MON_UPDOWN_SIZE		I4B_MON_EVNT_HDR+16
 #define	I4B_MON_UPDOWN_TSTAMP		I4B_MON_EVNT_HDR+0	/* 4 byte: time stamp */
-#define	I4B_MON_UPDOWN_CHANNEL		I4B_MON_EVNT_HDR+4	/* 4 byte: channel disconnected */
-#define	I4B_MON_UPDOWN_ISUP		I4B_MON_EVNT_HDR+8	/* 4 byte: interface is up */
+#define	I4B_MON_UPDOWN_CTRL		I4B_MON_EVNT_HDR+4	/* 4 byte: channel disconnected */
+#define	I4B_MON_UPDOWN_CHANNEL		I4B_MON_EVNT_HDR+8	/* 4 byte: channel disconnected */
+#define	I4B_MON_UPDOWN_ISUP		I4B_MON_EVNT_HDR+12	/* 4 byte: interface is up */
+
+/* The daemon sends a L1/L2 status change event */
+#define	I4B_MON_L12STAT_CODE		11
+#define	I4B_MON_L12STAT_SIZE		I4B_MON_EVNT_HDR+16
+#define	I4B_MON_L12STAT_TSTAMP		I4B_MON_EVNT_HDR+0	/* 4 byte: time stamp */
+#define	I4B_MON_L12STAT_CTRL		I4B_MON_EVNT_HDR+4	/* 4 byte: controller */
+#define	I4B_MON_L12STAT_LAYER		I4B_MON_EVNT_HDR+8	/* 4 byte: layer */
+#define	I4B_MON_L12STAT_STATE		I4B_MON_EVNT_HDR+12	/* 4 byte: state */
+
+/* The daemon sends a TEI change event */
+#define	I4B_MON_TEI_CODE		12
+#define	I4B_MON_TEI_SIZE		I4B_MON_EVNT_HDR+12
+#define	I4B_MON_TEI_TSTAMP		I4B_MON_EVNT_HDR+0	/* 4 byte: time stamp */
+#define	I4B_MON_TEI_CTRL		I4B_MON_EVNT_HDR+4	/* 4 byte: controller */
+#define	I4B_MON_TEI_TEI			I4B_MON_EVNT_HDR+8	/* 4 byte: tei */
+
+/* The daemon sends an accounting message event */
+#define	I4B_MON_ACCT_CODE		13
+#define	I4B_MON_ACCT_SIZE		I4B_MON_EVNT_HDR+28
+#define	I4B_MON_ACCT_TSTAMP		I4B_MON_EVNT_HDR+0	/* 4 byte: time stamp */
+#define	I4B_MON_ACCT_CTRL		I4B_MON_EVNT_HDR+4	/* 4 byte: controller */
+#define	I4B_MON_ACCT_CHAN		I4B_MON_EVNT_HDR+8	/* 4 byte: channel */
+#define	I4B_MON_ACCT_OBYTES		I4B_MON_EVNT_HDR+12	/* 4 byte: outbytes */
+#define	I4B_MON_ACCT_OBPS		I4B_MON_EVNT_HDR+16	/* 4 byte: outbps */
+#define	I4B_MON_ACCT_IBYTES		I4B_MON_EVNT_HDR+20	/* 4 byte: inbytes */
+#define	I4B_MON_ACCT_IBPS		I4B_MON_EVNT_HDR+24	/* 4 byte: inbps */
 
 /* macros for setup/decoding of protocol packets */
 
@@ -244,20 +278,22 @@
 }
 
 /* put 1, 2 or 4 bytes in network byte order into a record at offset off */
-#define	I4B_PUT_1B(r, off, val)	{ ((BYTE*)(r))[off] = (val) & 0x00ff; }
+#define	I4B_PUT_1B(r, off, val)	{ ((u_int8_t*)(r))[off] = (val) & 0x00ff; }
 #define	I4B_PUT_2B(r, off, val) { I4B_PUT_1B(r, off, val >> 8); I4B_PUT_1B(r, off+1, val); }
 #define	I4B_PUT_4B(r, off, val) { I4B_PUT_1B(r, off, val >> 24); I4B_PUT_1B(r, off+1, val >> 16); I4B_PUT_1B(r, off+2, val >> 8); I4B_PUT_1B(r, off+3, val); }
 
 /* get 1, 2 or 4 bytes in network byte order from a record at offset off */
-#define	I4B_GET_1B(r, off)	(((BYTE*)(r))[off])
-#define	I4B_GET_2B(r, off)	((((BYTE*)(r))[off]) << 8) | (((BYTE*)(r))[off+1])
-#define	I4B_GET_4B(r, off)	((((BYTE*)(r))[off]) << 24) | ((((BYTE*)(r))[off+1]) << 16) | ((((BYTE*)(r))[off+2]) << 8) | (((BYTE*)(r))[off+3])
+#define	I4B_GET_1B(r, off)	(((u_int8_t*)(r))[off])
+#define	I4B_GET_2B(r, off)	((((u_int8_t*)(r))[off]) << 8) | (((u_int8_t*)(r))[off+1])
+#define	I4B_GET_4B(r, off)	((((u_int8_t*)(r))[off]) << 24) | ((((u_int8_t*)(r))[off+1]) << 16) | ((((u_int8_t*)(r))[off+2]) << 8) | (((u_int8_t*)(r))[off+3])
 
-/* put a string into recor r at offset off, make sure it's not to long
- * and proper terminate it */
+/*
+ * put a string into record r at offset off, make sure it's not to long
+ * and proper terminate it
+ */
 #define	I4B_PUT_STR(r, off, str)	{		\
 	strncpy((r)+(off), (str), I4B_MAX_MON_STRING);	\
-	(r)[(off)+I4B_MAX_MON_STRING-1] = (BYTE)0; 		}
+	(r)[(off)+I4B_MAX_MON_STRING-1] = (u_int8_t)0;     }
 
-#endif /* MONITOR_H */
+#endif /* _MONITOR_H_ */
 

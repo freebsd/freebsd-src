@@ -27,9 +27,11 @@
  *	i4b daemon - timer/timing support routines
  *	------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: timer.c,v 1.19 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:12:32 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:49:13 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,7 +48,7 @@ static void recover_illegal(cfg_entry_t *cep);
 static void
 recover_illegal(cfg_entry_t *cep)
 {
-	log(LL_ERR, "recover_illegal: ERROR, entry %s attempting disconnect!", cep->name);	
+	log(LL_ERR, "recover_illegal: ERROR, entry %s attempting disconnect!", cep->name);
 	sendm_disconnect_req(cep, (CAUSET_I4B << 8) | CAUSE_I4B_NORMAL);
 	log(LL_ERR, "recover_illegal: ERROR, entry %s - reset state/cdid!", cep->name);
 	cep->state = ST_IDLE;
