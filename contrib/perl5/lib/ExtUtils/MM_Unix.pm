@@ -1353,7 +1353,7 @@ sub htmlifypods {
     if (defined $self->{PERL_SRC}) {
 	$pod2html_exe = $self->catfile($self->{PERL_SRC},'pod','pod2html');
     } else {
-	$pod2html_exe = $self->catfile($Config{scriptdirexp},'pod2html');
+	$pod2html_exe = $self->catfile($Config{bin},'pod2html');
     }
     unless ($pod2html_exe = $self->perl_script($pod2html_exe)) {
 	# No pod2html but some HTMLxxxPODS to be installed
@@ -2608,7 +2608,7 @@ sub manifypods {
     if (defined $self->{PERL_SRC}) {
 	$pod2man_exe = $self->catfile($self->{PERL_SRC},'pod','pod2man');
     } else {
-	$pod2man_exe = $self->catfile($Config{scriptdirexp},'pod2man');
+	$pod2man_exe = $self->catfile($Config{bin},'pod2man');
     }
     unless ($pod2man_exe = $self->perl_script($pod2man_exe)) {
       # Maybe a build by uninstalled Perl?
