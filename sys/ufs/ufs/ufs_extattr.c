@@ -155,7 +155,7 @@ ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm)
 	if (!(uepm->uepm_flags & UFS_EXTATTR_UEPM_INITIALIZED))
 		panic("ufs_extattr_uepm_destroy: not initialized");
 
-	if (!(uepm->uepm_flags & UFS_EXTATTR_UEPM_STARTED))
+	if ((uepm->uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		panic("ufs_extattr_uepm_destroy: called while still started");
 
 	/*
