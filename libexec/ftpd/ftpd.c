@@ -51,11 +51,12 @@ static const char rcsid[] =
  * FTP server.
  */
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/wait.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
