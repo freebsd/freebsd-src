@@ -9137,6 +9137,14 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	snprintf(np->inst_name, sizeof(np->inst_name), "sym%d", np->unit);
 
 	/*
+	 *  Initialyze the CCB free and busy queues.
+	 */
+	sym_que_init(&np->free_ccbq);
+	sym_que_init(&np->busy_ccbq);
+	sym_que_init(&np->comp_ccbq);
+	sym_que_init(&np->cam_ccbq);
+
+	/*
 	 *  Allocate a tag for the DMA of user data.
 	 */
 #ifdef	FreeBSD_Bus_Dma_Abstraction
@@ -9371,19 +9379,10 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 		goto attach_failed;
 
 	/*
-	 *  Initialyze the CCB free and busy queues.
 	 *  Allocate some CCB. We need at least ONE.
 	 */
-	sym_que_init(&np->free_ccbq);
-	sym_que_init(&np->busy_ccbq);
-	sym_que_init(&np->comp_ccbq);
 	if (!sym_alloc_ccb(np))
 		goto attach_failed;
-
-	/*
-	 * Initialyze the CAM CCB pending queue.
-	 */
-	sym_que_init(&np->cam_ccbq);
 
 	/*
 	 *  Calculate BUS addresses where we are going 
