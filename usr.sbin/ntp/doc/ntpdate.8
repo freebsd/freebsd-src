@@ -22,21 +22,21 @@
 .Em Note :
 The functionality of this program is now available
 in the
-.Xr ntpd 8   
+.Xr ntpd 8
 program.
 See the
-.Fl q   
+.Fl q
 command line
 option in the
-.Xr ntpd 8   
+.Xr ntpd 8
 page.
 After a suitable period of
 mourning, the
-.Nm   
+.Nm
 program is to be retired from this
 distribution.
 .Pp
-.Nm   
+.Nm
 sets the local date and time by polling the
 Network Time Protocol (NTP) server(s) given as the
 .Ar server
@@ -48,7 +48,7 @@ servers specified and a subset of the NTP clock filter and
 selection algorithms are applied to select the best of these.
 Note
 that the accuracy and reliability of
-.Nm   
+.Nm
 depends on
 the number of servers, the number of polls each time it is run and
 the interval between runs.
@@ -58,7 +58,7 @@ The following options are available:
 .It Fl a Ar key
 Enable the authentication function and specify the key
 identifier to be used for authentication as the argument
-.Ar key
+.Ar key .
 The keys and key identifiers must match
 in both the client and server key files.
 The default is to disable
@@ -74,9 +74,9 @@ default is to step the time using
 if the offset is
 greater than +-128 ms.
 Note that, if the offset is much greater
-than +-128 ms in this case, that it can take a long time (hours) to
+than +-128 ms in this case, it can take a long time (hours) to
 slew the clock to the correct value.
-During this time. the host
+During this time, the host
 should not be used to synchronize clients.
 .It Fl b
 Force the time to be stepped using the
@@ -89,7 +89,7 @@ This option should be used when called from a startup file at boot
 time.
 .It Fl d
 Enable the debugging mode, in which
-.Nm   
+.Nm
 will go
 through all the steps, but not adjust the local clock.
 Information
@@ -100,7 +100,7 @@ function as the value
 .Ar authdelay ,
 in seconds and fraction
 (see
-.Xr ntpd 8   
+.Xr ntpd 8
 for details).
 This number is usually small
 enough to be negligible for most purposes, though specifying a
@@ -112,14 +112,14 @@ The default is
 .Pa /etc/ntp.keys .
 This file
 should be in the format described in
-.Xr ntpd 8  . 
+.Xr ntpd 8 .
 .It Fl o Ar version
 Specify the NTP version for outgoint packets as the integer
 .Ar version ,
 which can be 1 or 2.
 The default is 3.
 This allows
-.Nm   
+.Nm
 to be used with older NTP versions.
 .It Fl p Ar samples
 Specify the number of samples to be acquired from each server
@@ -132,31 +132,31 @@ Query only - don't set the clock.
 .It Fl s
 Divert logging output from the standard output (default) to the
 system
-.Xr syslog 3   
+.Xr syslog 3
 facility.
 This is designed primarily for
 convenience of
-.Xr cron 8   
+.Xr cron 8
 scripts.
 .It Fl t Ar timeout
 Specify the maximum time waiting for a server response as the
 value
 .Ar timeout ,
 in seconds and fraction.
-The value is is
+The value is
 rounded to a multiple of 0.2 seconds.
 The default is 1 second, a
 value suitable for polling across a LAN.
 .It Fl u
 Direct
-.Nm   
-to use an unprivileged port or outgoing
+.Nm
+to use an unprivileged port for outgoing
 packets.
 This is most useful when behind a firewall that blocks
 incoming traffic to privileged ports, and you want to synchronise
 with hosts beyond the firewall.
 Note that the
-.Fl d   
+.Fl d
 option
 always uses unprivileged ports.
 .It Fl v
@@ -167,43 +167,43 @@ version
 identification string to be logged.
 .El
 .Pp
-.Nm   
+.Nm
 can be run manually as necessary to set the
 host clock, or it can be run from the host startup script to set
 the clock at boot time.
 This is useful in some cases to set the
 clock initially before starting the NTP daemon
-.Xr ntpd 8  . 
+.Xr ntpd 8 .
 It is
 also possible to run
-.Nm   
+.Nm
 from a
-.Xr cron 8   
+.Xr cron 8
 script.
 However, it is important to note that
-.Nm   
+.Nm
 with
 contrived
-.Xr cron 8   
+.Xr cron 8
 scripts is no substitute for the NTP
 daemon, which uses sophisticated algorithms to maximize accuracy
 and reliability while minimizing resource use.
 Finally, since
-.Nm   
+.Nm
 does not discipline the host clock frequency as
 does
-.Xr ntpd 8  , 
+.Xr ntpd 8 ,
 the accuracy using
-.Nm   
+.Nm
 is
 limited.
 .Pp
 Time adjustments are made by
-.Nm   
+.Nm
 in one of two
 ways.
 If
-.Nm   
+.Nm
 determines the clock is in error more
 than 0.5 second it will simply step the time by calling the system
 .Xr settimeofday 2
@@ -215,22 +215,22 @@ routine.
 The latter technique is less disruptive
 and more accurate when the error is small, and works quite well
 when
-.Nm   
+.Nm
 is run by
-.Xr cron 8   
+.Xr cron 8
 every hour or
 two.
 .Pp
-.Nm   
+.Nm
 will decline to set the date if an NTP server
 daemon (e.g.,
-.Xr ntpd 8 )  
+.Xr ntpd 8 )
 is running on the same host.
 When
 running
-.Nm   
+.Nm
 on a regular basis from
-.Xr cron 8   
+.Xr cron 8
 as
 an alternative to running a daemon, doing so once every hour or two
 will result in precise enough timekeeping to avoid stepping the
@@ -239,12 +239,12 @@ clock.
 If NetInfo support is compiled into
 .Nm , 
 then the
-.Ic server   
+.Ic server
 argument is optional if
-.Nm   
+.Nm
 can find a
 time server in the NetInfo configuration for
-.Xr ntpd 8  . 
+.Xr ntpd 8 .
 .Sh FILES
 .Bl -tag -width /etc/ntp.keys -compact
 .It Pa /etc/ntp.keys
