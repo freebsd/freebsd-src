@@ -286,7 +286,6 @@ struct thread {
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
 	struct kse_thr_mailbox *td_mailbox; /* (*) Userland mailbox address */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
-	void		(*td_switchin)(void); /* (k) Switchin special func. */
 	struct thread	*td_standin;	/* (*) Use this for an upcall */
 	u_int		td_prticks;	/* (*) Profclock hits in sys for user */
 	struct kse_upcall *td_upcall;	/* (*) Upcall structure. */

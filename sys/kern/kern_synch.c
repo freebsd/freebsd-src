@@ -531,14 +531,6 @@ mi_switch(void)
 	if (PCPU_GET(switchtime.sec) == 0)
 		binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
-
-	/*
-	 * Call the switchin function while still holding the scheduler lock
-	 * (used by the idlezero code and the general page-zeroing code)
-	 */
-	if (td->td_switchin)
-		td->td_switchin();
-
 	/* 
 	 * If the last thread was exiting, finish cleaning it up.
 	 */
