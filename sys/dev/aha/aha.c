@@ -2,7 +2,32 @@
  * Generic register and struct definitions for the Adaptech 154x/164x
  * SCSI host adapters. Product specific probe and attach routines can
  * be found in:
- *      <fill in list here> XXX
+ *      aha 1540/1542B/1542C/1542CF/1542CP	aha_isa.c
+ *
+ * Copyright (c) 1998 M. Warner Losh.
+ * All Rights Reserved.
+ *
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
+ * 2. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  * Derived from bt.c written by:
  *
@@ -30,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.2 1998/09/16 03:27:12 gibbs Exp $
+ *      $Id: aha.c,v 1.3 1998/09/17 00:08:29 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +85,13 @@
 struct aha_softc *aha_softcs[NAHA];
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define	PRVERBOSE(x) if (bootverbose) printf x
+
+/* Macro to determine that a rev is potentially a new valid one
+ * so that the driver doesn't keep breaking on new revs as it
+ * did for the CF and CP.
+ */
+#define PROBABLY_NEW_BOARD(REV) (REV > 0x43 && REV < 0x56)
 
 /* MailBox Management functions */
 static __inline void	ahanextinbox(struct aha_softc *aha);
@@ -290,9 +322,10 @@ aha_probe(struct aha_softc* aha)
 	error = aha_cmd(aha, BOP_INQUIRE_ESETUP_INFO, &param, /*parmlen*/1,
 		       (u_int8_t*)&esetup_info, sizeof(esetup_info),
 		       DEFAULT_CMD_TIMEOUT);
-	if (error == 0)
+	if (error == 0) {
+		printf("%s: Almost: ESETUP failed\n", aha_name(aha));
 		return ENXIO;
-
+	}
 	return (0);
 }
 
@@ -307,15 +340,16 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 	config_data_t config_data;
 	u_int8_t length_param;
 	int	 error;
+	struct	aha_extbios extbios;
 	
 	/* First record the firmware version */
 	error = aha_cmd(aha, BOP_INQUIRE_BOARD_ID, NULL, /*parmlen*/0,
 		       (u_int8_t*)&board_id, sizeof(board_id),
 		       DEFAULT_CMD_TIMEOUT);
 	if (error != 0) {
-		printf("%s: aha_fetch_adapter_info - Failed Get Board Info\n",
-		       aha_name(aha));
-		return (error);
+		if (bootverbose)
+			printf("%s: INQUIRE failed %x\n", aha_name(aha), error);
+		return (ENXIO);
 	}
 	aha->firmware_ver[0] = board_id.firmware_rev_major;
 	aha->firmware_ver[1] = '.';
@@ -353,11 +387,34 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 		strcpy(aha->model, "Unknown");
 		break;
 	}
-	aha->max_sg = 16;
+	/*
+	 * If we are a new type of 1542 board (anything newer than a 1542C)
+	 * then disable the extended bios so that the
+	 * mailbox interface is unlocked.
+	 * This is also true for the 1542B Version 3.20. First Adaptec
+	 * board that supports >1Gb drives.
+	 * No need to check the extended bios flags as some of the
+	 * extensions that cause us problems are not flagged in that byte.
+	 */
+	if (PROBABLY_NEW_BOARD(aha->boardid) ||
+		(aha->boardid == 0x41
+		&& board_id.firmware_rev_major == 0x31 && 
+			board_id.firmware_rev_minor >= 0x34)) {
+		error = aha_cmd(aha, BOP_RETURN_EXT_BIOS_INFO, NULL,
+			/*paramlen*/0, (u_char *)&extbios, sizeof(extbios),
+			DEFAULT_CMD_TIMEOUT);
+		error = aha_cmd(aha, BOP_MBOX_IF_ENABLE, (u_int8_t *)&extbios,
+			/*paramlen*/2, NULL, 0, DEFAULT_CMD_TIMEOUT);
+	}
+	if (aha->boardid < 0x41)
+		printf("%s: Likely aha 1542A, which might not work properly\n",
+			aha_name(aha));
+
+	aha->max_sg = 17;
 	aha->diff_bus = 0;
 	aha->extended_lun = 0;
-	aha->extended_trans = 0;	/* XXX ???? XXX */
-	aha->max_ccbs = 16;		/* XXX ???? XXX */
+	aha->extended_trans = 0;
+	aha->max_ccbs = 17;		/* Need 17 to do 64k I/O */
 	/* Determine Sync/Wide/Disc settings */
 	length_param = sizeof(setup_info);
 	error = aha_cmd(aha, BOP_INQUIRE_SETUP_INFO, &length_param,
