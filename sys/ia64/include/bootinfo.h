@@ -46,7 +46,8 @@
 struct bootinfo {
 	u_int64_t	bi_magic;		/* BOOTINFO_MAGIC */
 	u_int64_t	bi_version;		/* version 1 */
-	u_int64_t	bi_spare[8];		/* was: name of booted kernel */
+	u_int64_t	bi_spare[7];		/* was: name of booted kernel */
+	u_int64_t	bi_fpswa;		/* FPSWA interface */
 	u_int64_t	bi_boothowto;		/* value for boothowto */
 	u_int64_t	bi_systab;		/* pa of EFI system table */
 	u_int64_t	bi_memmap;		/* pa of EFI memory map */
