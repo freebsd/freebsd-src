@@ -5,7 +5,7 @@
 
 # PROVIDE: kldxref
 # REQUIRE: root mountcritlocal
-# BEFORE:  network1
+# BEFORE:  netif
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr

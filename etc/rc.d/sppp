@@ -5,7 +5,7 @@
 
 # PROVIDE: sppp
 # REQUIRE: root
-# BEFORE: network1
+# BEFORE: netif
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
