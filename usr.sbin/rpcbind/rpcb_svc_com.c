@@ -170,10 +170,9 @@ map_set(RPCB *regp, char *owner)
 	/*
 	 * add to the end of the list
 	 */
-	rbl = (rpcblist_ptr) malloc((u_int)sizeof (RPCBLIST));
-	if (rbl == (rpcblist_ptr)NULL) {
+	rbl = malloc(sizeof (RPCBLIST));
+	if (rbl == NULL)
 		return (FALSE);
-	}
 	a = &(rbl->rpcb_map);
 	a->r_prog = reg.r_prog;
 	a->r_vers = reg.r_vers;
@@ -506,8 +505,7 @@ create_rmtcall_fd(struct netconfig *nconf)
 				"create_rmtcall_fd: svc_tli_create failed\n");
 		return (-1);
 	}
-	rmt = (struct rmtcallfd_list *)malloc((u_int)
-		sizeof (struct rmtcallfd_list));
+	rmt = malloc(sizeof (struct rmtcallfd_list));
 	if (rmt == NULL) {
 		syslog(LOG_ERR, "create_rmtcall_fd: no memory!");
 		return (-1);
@@ -1400,7 +1398,7 @@ add_pmaplist(RPCB *arg)
 	/*
 	 * add to END of list
 	 */
-	pml = (struct pmaplist *) malloc((u_int)sizeof (struct pmaplist));
+	pml = malloc(sizeof (struct pmaplist));
 	if (pml == NULL) {
 		(void) syslog(LOG_ERR, "rpcbind: no memory!\n");
 		return (1);

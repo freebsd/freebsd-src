@@ -342,8 +342,8 @@ init_transport(struct netconfig *nconf)
 					nconf->nc_netid);
 			goto error;
 		}
-		pml = (struct pmaplist *)malloc((u_int)sizeof (struct pmaplist));
-		if (pml == (struct pmaplist *)NULL) {
+		pml = malloc(sizeof (struct pmaplist));
+		if (pml == NULL) {
 			syslog(LOG_ERR, "no memory!");
 			exit(1);
 		}
@@ -380,8 +380,8 @@ init_transport(struct netconfig *nconf)
 		list_pml = pml;
 
 		/* Add version 3 information */
-		pml = (struct pmaplist *)malloc((u_int)sizeof (struct pmaplist));
-		if (pml == (struct pmaplist *)NULL) {
+		pml = malloc(sizeof (struct pmaplist));
+		if (pml == NULL) {
 			syslog(LOG_ERR, "no memory!");
 			exit(1);
 		}
@@ -391,8 +391,8 @@ init_transport(struct netconfig *nconf)
 		list_pml = pml;
 
 		/* Add version 4 information */
-		pml = (struct pmaplist *)malloc((u_int)sizeof (struct pmaplist));
-		if (pml == (struct pmaplist *)NULL) {
+		pml = malloc (sizeof (struct pmaplist));
+		if (pml == NULL) {
 			syslog(LOG_ERR, "no memory!");
 			exit(1);
 		}
@@ -469,8 +469,8 @@ rbllist_add(rpcprog_t prog, rpcvers_t vers, struct netconfig *nconf,
 {
 	rpcblist_ptr rbl;
 
-	rbl = (rpcblist_ptr)malloc((u_int)sizeof (rpcblist));
-	if (rbl == (rpcblist_ptr)NULL) {
+	rbl = malloc(sizeof (rpcblist));
+	if (rbl == NULL) {
 		syslog(LOG_ERR, "no memory!");
 		exit(1);
 	}
