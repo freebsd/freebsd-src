@@ -75,6 +75,7 @@ static int	ifconf(u_long, caddr_t);
 static void	if_grow(void);
 static void	if_init(void *);
 static void	if_check(void *);
+static int	if_findindex(struct ifnet *);
 static void	if_qflush(struct ifqueue *);
 static void	if_slowtimo(void *);
 static void	link_rtrequest(int, struct rtentry *, struct sockaddr *);
@@ -302,6 +303,56 @@ if_check(dummy)
 	if_slowtimo(0);
 }
 
+static int
+if_findindex(struct ifnet *ifp)
+{
+	int i, unit;
+	char eaddr[18], devname[32];
+	char *name, *p;
+
+	switch (ifp->if_type) {
+	case IFT_ETHER:			/* these types use struct arpcom */
+	case IFT_FDDI:
+	case IFT_XETHER:
+	case IFT_ISO88025:
+	case IFT_L2VLAN:
+		snprintf(eaddr, 18, "%6D", 
+		    ((struct arpcom *)ifp->if_softc)->ac_enaddr, ":");
+		break;
+	default:
+		eaddr[0] = '\0';
+		break;
+	}
+	snprintf(devname, 32, "%s%d", ifp->if_name, ifp->if_unit);
+	name = net_cdevsw.d_name;
+	i = 0;
+	while ((resource_find_dev(&i, name, &unit, NULL, NULL)) == 0) {
+		if (resource_string_value(name, unit, "ether", &p) == 0)
+			if (strcmp(p, eaddr) == 0)
+				goto found;
+		if (resource_string_value(name, unit, "dev", &p) == 0)
+			if (strcmp(p, devname) == 0)
+				goto found;
+	}
+	unit = 0;
+found:
+	if (unit != 0) {
+		if (ifaddr_byindex(unit) == NULL)
+			return (unit);
+		printf("%s%d in use, cannot hardwire it to %s.\n",
+		    name, unit, devname);
+	}
+	for (unit = 1; ; unit++) {
+		if (unit < if_index && ifaddr_byindex(i) != NULL)
+			continue;
+		if (resource_string_value(name, unit, "ether", &p) == 0 ||
+		    resource_string_value(name, unit, "dev", &p) == 0)
+			continue;
+		break;
+	}
+	return (unit);
+}
+
 /*
  * Attach an interface to the
  * list of "active" interfaces.
@@ -317,7 +368,6 @@ if_attach(ifp)
 	register struct ifaddr *ifa;
 
 	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
-	ifp->if_index = ++if_index;
 	/*
 	 * XXX -
 	 * The old code would work if the interface passed a pre-existing
@@ -330,15 +380,18 @@ if_attach(ifp)
 	TAILQ_INIT(&ifp->if_multiaddrs);
 	SLIST_INIT(&ifp->if_klist);
 	getmicrotime(&ifp->if_lastchange);
+	ifp->if_index = if_findindex(ifp);
+	if (ifp->if_index >= if_index)
+		if_index = ifp->if_index + 1;
 	if (if_index >= if_indexlim)
 		if_grow();
 
-	ifnet_byindex(if_index) = ifp;
-	ifdev_byindex(if_index) = make_dev(&net_cdevsw, if_index,
-	    UID_ROOT, GID_WHEEL, 0600, "%s%d", ifp->if_name, ifp->if_unit);
-#if 0
-	make_dev_alias(ifdev_byindex(if_index), "%s%d", "net", if_index - 1);
-#endif
+	ifnet_byindex(ifp->if_index) = ifp;
+	ifdev_byindex(ifp->if_index) = make_dev(&net_cdevsw, ifp->if_index,
+	    UID_ROOT, GID_WHEEL, 0600, "%s/%s%d",
+	    net_cdevsw.d_name, ifp->if_name, ifp->if_unit);
+	make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
+	    net_cdevsw.d_name, ifp->if_index);
 
 	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_name, MTX_DEF);
 
@@ -364,7 +417,7 @@ if_attach(ifp)
 		sdl->sdl_nlen = namelen;
 		sdl->sdl_index = ifp->if_index;
 		sdl->sdl_type = ifp->if_type;
-		ifaddr_byindex(if_index) = ifa;
+		ifaddr_byindex(ifp->if_index) = ifa;
 		ifa->ifa_ifp = ifp;
 		ifa->ifa_rtrequest = link_rtrequest;
 		ifa->ifa_addr = (struct sockaddr *)sdl;
