@@ -134,6 +134,7 @@ static int
 vop_nostrategy (struct vop_strategy_args *ap)
 {
 	printf("No strategy for buffer at %p\n", ap->a_bp);
+	vprint("", ap->a_vp);
 	vprint("", ap->a_bp->b_vp);
 	ap->a_bp->b_flags |= B_ERROR;
 	ap->a_bp->b_error = EOPNOTSUPP;

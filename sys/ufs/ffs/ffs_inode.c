@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.44 1998/07/03 18:46:47 bde Exp $
+ * $Id: ffs_inode.c,v 1.45 1998/07/03 22:16:57 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -459,7 +459,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 			panic("ffs_indirtrunc: bad buffer size");
 		bp->b_blkno = dbn;
 		vfs_busy_pages(bp, 0);
-		VOP_STRATEGY(bp);
+		VOP_STRATEGY(bp->b_vp, bp);
 		error = biowait(bp);
 	}
 	if (error) {

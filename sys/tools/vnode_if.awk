@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.13 1997/10/28 15:58:26 bde Exp $
+# $Id: vnode_if.sh,v 1.14 1997/12/19 23:25:16 bde Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -363,22 +363,6 @@ $AWK 'function kill_surrounding_ws (s) {
 
 cat << END_OF_SPECIAL_CASES >> $HEADER
 #include <sys/buf.h>
-struct vop_strategy_args {
-	struct vnodeop_desc *a_desc;
-	struct buf *a_bp;
-};
-extern struct vnodeop_desc vop_strategy_desc;
-static int VOP_STRATEGY __P((
-	struct buf *bp));
-static __inline int VOP_STRATEGY(bp)
-	struct buf *bp;
-{
-	struct vop_strategy_args a;
-
-	a.a_desc = VDESC(vop_strategy);
-	a.a_bp = bp;
-	return (VCALL((bp)->b_vp, VOFFSET(vop_strategy), &a));
-}
 
 struct vop_bwrite_args {
 	struct vnodeop_desc *a_desc;
@@ -401,20 +385,6 @@ extern int vfs_opv_numops;
 END_OF_SPECIAL_CASES
 
 cat << END_OF_SPECIAL_CASES >> $CFILE
-static int vop_strategy_vp_offsets[] = {
-	VDESC_NO_OFFSET
-};
-struct vnodeop_desc vop_strategy_desc = {
-	0,
-	"vop_strategy",
-	0,
-	vop_strategy_vp_offsets,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	NULL,
-};
 static int vop_bwrite_vp_offsets[] = {
 	VDESC_NO_OFFSET
 };

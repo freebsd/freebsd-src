@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.34 1998/01/01 12:40:25 bde Exp $
+ * $Id: mfs_vnops.c,v 1.35 1998/02/16 23:55:53 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -123,6 +123,7 @@ mfs_fsync(ap)
 static int
 mfs_strategy(ap)
 	struct vop_strategy_args /* {
+		struct vnode *a_vp;
 		struct buf *a_bp;
 	} */ *ap;
 {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.53 1998/02/23 08:22:44 dyson Exp $
+ * $Id: vm_swap.c,v 1.54 1998/06/25 11:28:07 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -149,7 +149,7 @@ swstrategy(bp)
 		pbrelvp(bp);
 	splx(s);
 	bp->b_vp = sp->sw_vp;
-	VOP_STRATEGY(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 }
 
 /*
