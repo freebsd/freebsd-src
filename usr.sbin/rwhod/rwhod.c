@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: rwhod.c,v 1.7 1997/10/13 11:27:55 charnier Exp $";
+	"$Id: rwhod.c,v 1.8 1998/12/17 11:05:57 des Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -116,6 +116,7 @@ static const char rcsid[] =
 					  /* (belongs in protocols/rwhod.h) */
 
 int			insecure_mode;
+int			quiet_mode;
 int			multicast_mode  = NO_MULTICAST;
 int			multicast_scope;
 struct sockaddr_in	multicast_addr  = { sizeof multicast_addr, AF_INET };
@@ -196,7 +197,9 @@ main(argc, argv)
 			else multicast_mode = PER_INTERFACE_MULTICAST;
 		}
 		else if (strcmp(*argv, "-i") == 0)
-		    insecure_mode = 1;
+			insecure_mode = 1;
+		else if (strcmp(*argv, "-l") == 0)
+			quiet_mode = 1;
 		else
 			usage();
 		argv++, argc--;
@@ -255,8 +258,10 @@ main(argc, argv)
 	setuid(unpriv_uid);
 	if (!configure(s))
 		exit(1);
-	signal(SIGALRM, onalrm);
-	onalrm(0);
+	if (!quiet_mode) {
+		signal(SIGALRM, onalrm);
+		onalrm(0);
+	}
 	for (;;) {
 		struct whod wd;
 		int cc, whod, len = sizeof(from);
