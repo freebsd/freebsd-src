@@ -275,6 +275,9 @@ mac_bsdextended_check(struct ucred *cred, uid_t object_uid, gid_t object_gid,
 {
 	int error, i;
 
+	if (suser_cred(cred, 0) == 0)
+		return (0);
+
 	for (i = 0; i < rule_slots; i++) {
 		if (rules[i] == NULL)
 			continue;
