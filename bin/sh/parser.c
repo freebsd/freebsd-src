@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: parser.c,v 1.22 1998/05/18 06:44:12 charnier Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -619,6 +619,7 @@ parsefname() {
 		if (quoteflag == 0)
 			n->type = NXHERE;
 		TRACE(("Here document %d\n", n->type));
+		rmquotes0(wordtext);
 		if (here->striptabs) {
 			while (*wordtext == '\t')
 				wordtext++;
@@ -942,14 +943,18 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 						USTPUTC('\\', out);
 					if (SQSYNTAX[c] == CCTL)
 						USTPUTC(CTLESC, out);
+					else
+						USTPUTC(CTLQUOTEMARK, out);
 					USTPUTC(c, out);
 					quotef++;
 				}
 				break;
 			case CSQUOTE:
+				USTPUTC(CTLQUOTEMARK, out);
 				syntax = SQSYNTAX;
 				break;
 			case CDQUOTE:
+				USTPUTC(CTLQUOTEMARK, out);
 				syntax = DQSYNTAX;
 				dblquote = 1;
 				break;
@@ -1401,6 +1406,10 @@ parsearith: {
 		prevsyntax = syntax;
 		syntax = ARISYNTAX;
 		USTPUTC(CTLARI, out);
+		if (dblquote)
+			USTPUTC('"',out);
+		else
+			USTPUTC(' ',out);
 	} else {
 		/*
 		 * we collapse embedded arithmetic expansion to

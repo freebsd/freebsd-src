@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)expand.h	8.2 (Berkeley) 5/4/95
- *	$Id$
+ *	$Id: expand.h,v 1.5 1997/02/22 13:58:26 peter Exp $
  */
 
 struct strlist {
@@ -64,4 +64,6 @@ void expandarg __P((union node *, struct arglist *, int));
 void expari __P((int));
 int patmatch __P((char *, char *));
 void rmescapes __P((char *));
+void rmquotes0 __P((char *));
+int  rmquotes __P((char *, int));
 int casematch __P((union node *, char *));

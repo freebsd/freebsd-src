@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mksyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mksyntax.c,v 1.11 1998/05/18 06:44:03 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -293,6 +293,7 @@ init()
 	syntax[base + CTLBACKQ + CTLQUOTE] = "CCTL";
 	syntax[base + CTLARI] = "CCTL";
 	syntax[base + CTLENDARI] = "CCTL";
+	syntax[base + CTLQUOTEMARK] = "CCTL";
 }
 
 
