@@ -109,7 +109,7 @@ extract()
 	#XXX ugly hack to eliminate busy files, copy them to /tmp and use them
 	#from there...
 	cp -p /bin/cat /usr/bin/gunzip /usr/bin/tar /tmp
-	/tmp/cat "$@"* | /tmp/gunzip | (cd / ; /tmp/tar --extract --file - --unlink --preserve-permissions ${tarverbose} )
+	/tmp/cat "$@"* | /tmp/gunzip | (cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
 	rm -f /bin/cat /tmp/gunzip /tmp/tar
 	sync
 }
