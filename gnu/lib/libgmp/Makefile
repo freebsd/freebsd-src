@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.19 1998/08/30 01:56:58 jb Exp $
+# $Id: Makefile,v 1.20 1998/12/16 04:59:53 imp Exp $
 #
 
 LIB=	gmp
@@ -142,19 +142,6 @@ CLEANDIRS+=	${.OBJDIR}/mpz \
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${GMPDIR}/gmp.h ${DESTDIR}/usr/include
-
-.S.o:
-	${CC} ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-
-.s.o:
-	${AS} ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-
-.S.po:
-	${CC} -DPROF ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-
-.S.so:
-	${CC} -fpic -DPIC ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .include "Makefile.inc"
 .include <bsd.lib.mk>
