@@ -263,7 +263,8 @@ i4battach()
 	i4b_rdqueue.ifq_maxlen = IFQ_MAXLEN;
 
 #if defined(__FreeBSD__) && __FreeBSD__ > 4	
-	mtx_init(&i4b_rdqueue.ifq_mtx, "i4b_rdqueue", MTX_DEF);
+	if(!mtx_initialized(&i4b_rdqueue.ifq_mtx))
+		mtx_init(&i4b_rdqueue.ifq_mtx, "i4b_rdqueue", MTX_DEF);
 #endif
 
 #if defined(__FreeBSD__)
