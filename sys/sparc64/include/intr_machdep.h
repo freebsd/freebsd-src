@@ -79,7 +79,8 @@ extern struct intr_vector intr_vectors[];
 
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
 		   void *iva);
-void	intr_init(void);
+void	intr_init1(void);
+void	intr_init2(void);
 int	inthand_add(const char *name, int vec, void (*handler)(void *),
     void *arg, int flags, void **cookiep);
 int	inthand_remove(int vec, void *cookie);
