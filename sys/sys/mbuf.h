@@ -652,6 +652,9 @@ extern	int		 nsfbufs;
 
 void	m_adj(struct mbuf *, int);
 int	m_alloc_ref(u_int, int);
+struct	mbuf *m_aux_add(struct mbuf *, int, int);
+void	m_aux_delete(struct mbuf *, struct mbuf *);
+struct	mbuf *m_aux_find(struct mbuf *, int, int);
 void	m_cat(struct mbuf *,struct mbuf *);
 int	m_clalloc(int, int);
 caddr_t	m_clalloc_wait(void);
@@ -665,19 +668,16 @@ struct	mbuf *m_dup(struct mbuf *, int);
 struct	mbuf *m_free(struct mbuf *);
 void	m_freem(struct mbuf *);
 struct	mbuf *m_get(int, int);
-struct	mbuf *m_getm(struct mbuf *, int, int, int);
 struct	mbuf *m_getclr(int, int);
 struct	mbuf *m_gethdr(int, int);
+struct	mbuf *m_getm(struct mbuf *, int, int, int);
 int	m_mballoc(int, int);
 struct	mbuf *m_mballoc_wait(void);
 struct	mbuf *m_prepend(struct mbuf *,int,int);
-struct	mbuf *m_pulldown(struct mbuf *, int, int, int *);
 void	m_print(const struct mbuf *m);
+struct	mbuf *m_pulldown(struct mbuf *, int, int, int *);
 struct	mbuf *m_pullup(struct mbuf *, int);
 struct	mbuf *m_split(struct mbuf *,int,int);
-struct	mbuf *m_aux_add(struct mbuf *, int, int);
-struct	mbuf *m_aux_find(struct mbuf *, int, int);
-void	m_aux_delete(struct mbuf *, struct mbuf *);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */
