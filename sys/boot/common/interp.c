@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.12.2.2 1999/02/22 13:19:56 dcs Exp $
+ *	$Id: interp.c,v 1.12.2.3 1999/03/02 16:19:21 dcs Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -111,7 +111,8 @@ interact(void)
      * Not autobooting, go manual
      */
     printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
-    setenv("prompt", "${currdev}>", 1);
+    if (getenv("prompt") == NULL)
+	setenv("prompt", "${currdev}>", 1);
     
 
     for (;;) {
