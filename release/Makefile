@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.61 1997/09/08 11:16:08 jkh Exp $
+#	$Id: Makefile,v 1.246.2.62 1997/09/20 15:41:46 joerg Exp $
 #
 # How to roll a release:
 #
@@ -322,8 +322,6 @@ release.5:
 		ln -s `basename $$i` $$c ; \
 	done
 
-	# Remove some files we can faster regen after installing.
-	cd ${RD}/trees/bin/usr/share/misc && rm -f termcap.db vgrindefs.db
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
 		find ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS} -depth -type d -print | xargs rmdir
