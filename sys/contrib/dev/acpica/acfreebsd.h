@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acfreebsd.h - OS specific defines, etc.
- *       $Revision: 4 $
+ *       $Revision: 6 $
  *
  *****************************************************************************/
 
@@ -128,7 +128,7 @@
 #include "acgcc.h"
 
 #ifdef _KERNEL
-#include "opt_acpi.h"		/* collect build-time options here */
+#include "opt_acpi.h"
 
 #include <sys/ctype.h>
 #include <sys/param.h>
@@ -144,7 +144,7 @@
 #ifdef DEBUGGER_THREADING
 #undef DEBUGGER_THREADING
 #endif /* DEBUGGER_THREADING */
-#define DEBUGGER_THREADING 0	/* integrated with DDB */
+#define DEBUGGER_THREADING 0    /* integrated with DDB */
 #include "opt_ddb.h"
 #ifdef DDB
 #define ENABLE_DEBUGGER
@@ -155,6 +155,9 @@
 
 /* Not building kernel code, so use libc */
 #define ACPI_USE_STANDARD_HEADERS
+
+#define __cli()
+#define __sti()
 
 #endif /* _KERNEL */
 
@@ -167,8 +170,8 @@ strupr(char *str)
 {
     char *c = str;
     while(*c) {
-	*c = toupper(*c);
-	c++;
+    *c = toupper(*c);
+    c++;
     }
     return(str);
 }
@@ -182,14 +185,14 @@ strstr(char *s, char *find)
     size_t len;
 
     if ((c = *find++) != 0) {
-	len = strlen(find);
-	do {
-	    do {
-		if ((sc = *s++) == 0)
-		    return (NULL);
-	    } while (sc != c);
-	} while (strncmp(s, find, len) != 0);
-	s--;
+    len = strlen(find);
+    do {
+        do {
+        if ((sc = *s++) == 0)
+            return (NULL);
+        } while (sc != c);
+    } while (strncmp(s, find, len) != 0);
+    s--;
     }
     return ((char *)s);
 }
