@@ -87,7 +87,7 @@ usbd_get_config_desc(usbd_device_handle dev, int confidx,
 	usbd_status err;
 
 	DPRINTFN(3,("usbd_get_config_desc: confidx=%d\n", confidx));
-	err = usbd_get_desc(dev, UDESC_CONFIG, confidx, 
+	err = usbd_get_desc(dev, UDESC_CONFIG, confidx,
 			    USB_CONFIG_DESCRIPTOR_SIZE, d);
 	if (err)
 		return (err);
@@ -111,7 +111,7 @@ usbd_status
 usbd_get_device_desc(usbd_device_handle dev, usb_device_descriptor_t *d)
 {
 	DPRINTFN(3,("usbd_get_device_desc:\n"));
-	return (usbd_get_desc(dev, UDESC_DEVICE, 
+	return (usbd_get_desc(dev, UDESC_DEVICE,
 			     0, USB_DEVICE_DESCRIPTOR_SIZE, d));
 }
 
@@ -126,7 +126,7 @@ usbd_get_device_status(usbd_device_handle dev, usb_status_t *st)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, sizeof(usb_status_t));
 	return (usbd_do_request(dev, &req, st));
-}	
+}
 
 usbd_status
 usbd_get_hub_status(usbd_device_handle dev, usb_hub_status_t *st)
@@ -139,7 +139,7 @@ usbd_get_hub_status(usbd_device_handle dev, usb_hub_status_t *st)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, sizeof(usb_hub_status_t));
 	return (usbd_do_request(dev, &req, st));
-}	
+}
 
 usbd_status
 usbd_set_address(usbd_device_handle dev, int addr)
@@ -390,7 +390,7 @@ usbd_read_report_desc(usbd_interface_handle ifc, void **descp, int *sizep,
 	return (USBD_NORMAL_COMPLETION);
 }
 
-usbd_status 
+usbd_status
 usbd_get_config(usbd_device_handle dev, u_int8_t *conf)
 {
 	usb_device_request_t req;
@@ -403,7 +403,7 @@ usbd_get_config(usbd_device_handle dev, u_int8_t *conf)
 	return (usbd_do_request(dev, &req, conf));
 }
 
-Static void usbd_bulk_transfer_cb(usbd_xfer_handle xfer, 
+Static void usbd_bulk_transfer_cb(usbd_xfer_handle xfer,
 				  usbd_private_handle priv, usbd_status status);
 Static void
 usbd_bulk_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
@@ -445,7 +445,7 @@ usbd_bulk_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 	return (err);
 }
 
-Static void usbd_intr_transfer_cb(usbd_xfer_handle xfer, 
+Static void usbd_intr_transfer_cb(usbd_xfer_handle xfer,
 				  usbd_private_handle priv, usbd_status status);
 Static void
 usbd_intr_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
@@ -495,11 +495,11 @@ usb_detach_wait(device_ptr_t dv)
 		printf("usb_detach_wait: %s didn't detach\n",
 		        USBDEVPTRNAME(dv));
 	DPRINTF(("usb_detach_wait: %s done\n", USBDEVPTRNAME(dv)));
-}       
+}
 
 void
 usb_detach_wakeup(device_ptr_t dv)
 {
 	DPRINTF(("usb_detach_wakeup: for %s\n", USBDEVPTRNAME(dv)));
 	wakeup(dv);
-}       
+}

@@ -41,8 +41,8 @@
 /*
  * To avoid having 1024 TDs for each isochronous transfer we introduce
  * a virtual frame list.  Every UHCI_VFRAMELIST_COUNT entries in the real
- * frame list points to a non-active TD.  These, in turn, form the 
- * starts of the virtual frame list.  This also has the advantage that it 
+ * frame list points to a non-active TD.  These, in turn, form the
+ * starts of the virtual frame list.  This also has the advantage that it
  * simplifies linking in/out of TDs/QHs in the schedule.
  * Furthermore, initially each of the inactive TDs point to an inactive
  * QH that forms the start of the interrupt traffic for that slot.
@@ -97,7 +97,7 @@ struct uhci_soft_td {
 	uhci_soft_td_qh_t link; 	/* soft version of the td_link field */
 	uhci_physaddr_t physaddr;	/* TD's physical address. */
 };
-/* 
+/*
  * Make the size such that it is a multiple of UHCI_TD_ALIGN.  This way
  * we can pack a number of soft TD together and have the real TD well
  * aligned.

@@ -270,7 +270,7 @@ Static struct {
 };
 
 #define NN 0			/* no translation */
-/* 
+/*
  * Translate USB keycodes to AT keyboard scancodes.
  */
 /*
@@ -427,7 +427,7 @@ Static keymap_t		default_keymap;
 Static accentmap_t	default_accentmap;
 Static fkeytab_t	default_fkeytab[NUM_FKEYS];
 
-/* 
+/*
  * The back door to the keyboard driver!
  * This function is called by the console driver, via the kbdio module,
  * to tickle keyboard drivers when the low-level console is being initialized.
@@ -568,7 +568,7 @@ ukbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		state->ks_uaa = uaa;
 		state->ks_ifstate = 0;
 		callout_handle_init(&state->ks_timeout_handle);
-		/* 
+		/*
 		 * FIXME: set the initial value for lock keys in ks_state
 		 * according to the BIOS data?
 		 */
@@ -603,12 +603,12 @@ ukbd_enable_intr(keyboard_t *kbd, int on, usbd_intr_t *func)
 		/* Set up interrupt pipe. */
 		if (state->ks_ifstate & INTRENABLED)
 			return EBUSY;
-		
+
 		state->ks_ifstate |= INTRENABLED;
-		err = usbd_open_pipe_intr(state->ks_iface, state->ks_ep_addr, 
+		err = usbd_open_pipe_intr(state->ks_iface, state->ks_ep_addr,
 					USBD_SHORT_XFER_OK,
 					&state->ks_intrpipe, kbd,
-					&state->ks_ndata, 
+					&state->ks_ndata,
 					sizeof(state->ks_ndata), func,
 					USBD_DEFAULT_INTERVAL);
 		if (err)
@@ -726,10 +726,10 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 	omod = state->ks_odata.modifiers;
 	if (mod != omod) {
 		for (i = 0; i < NMOD; i++)
-			if (( mod & ukbd_mods[i].mask) != 
+			if (( mod & ukbd_mods[i].mask) !=
 			    (omod & ukbd_mods[i].mask))
-				ADDKEY1(ukbd_mods[i].key | 
-				       (mod & ukbd_mods[i].mask 
+				ADDKEY1(ukbd_mods[i].key |
+				       (mod & ukbd_mods[i].mask
 					  ? KEY_PRESS : KEY_RELEASE));
 	}
 
@@ -748,7 +748,7 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 	rfound:
 		;
 	}
-		
+
 	/* Check for pressed keys. */
 	for (i = 0; i < NKEYCODE; i++) {
 		key = ud->keycode[i];
@@ -841,7 +841,7 @@ ukbd_test_if(keyboard_t *kbd)
 	return 0;
 }
 
-/* 
+/*
  * Enable the access to the device; until this function is called,
  * the client cannot read from the keyboard.
  */
@@ -908,13 +908,13 @@ ukbd_read(keyboard_t *kbd, int wait)
 				    usbcode & KEY_RELEASE);
 	if (scancode & SCAN_PREFIX) {
 		if (scancode & SCAN_PREFIX_CTL) {
-			state->ks_buffered_char[0] = 
+			state->ks_buffered_char[0] =
 				0x1d | (scancode & SCAN_RELEASE); /* Ctrl */
 			state->ks_buffered_char[1] = scancode & ~SCAN_PREFIX;
 		} else if (scancode & SCAN_PREFIX_SHIFT) {
-			state->ks_buffered_char[0] = 
+			state->ks_buffered_char[0] =
 				0x2a | (scancode & SCAN_RELEASE); /* Shift */
-			state->ks_buffered_char[1] = 
+			state->ks_buffered_char[1] =
 				scancode & ~SCAN_PREFIX_SHIFT;
 		} else {
 			state->ks_buffered_char[0] = scancode & ~SCAN_PREFIX;
@@ -1004,12 +1004,12 @@ next_code:
 					    usbcode & KEY_RELEASE);
 		if (scancode & SCAN_PREFIX) {
 			if (scancode & SCAN_PREFIX_CTL) {
-				state->ks_buffered_char[0] = 
+				state->ks_buffered_char[0] =
 					0x1d | (scancode & SCAN_RELEASE);
 				state->ks_buffered_char[1] =
 					scancode & ~SCAN_PREFIX;
 			} else if (scancode & SCAN_PREFIX_SHIFT) {
-				state->ks_buffered_char[0] = 
+				state->ks_buffered_char[0] =
 					0x2a | (scancode & SCAN_RELEASE);
 				state->ks_buffered_char[1] =
 					scancode & ~SCAN_PREFIX_SHIFT;
@@ -1344,7 +1344,7 @@ Static int
 probe_keyboard(struct usb_attach_arg *uaa, int flags)
 {
 	usb_interface_descriptor_t *id;
-	
+
 	if (!uaa->iface)	/* we attach to ifaces only */
 		return EINVAL;
 
@@ -1364,7 +1364,7 @@ init_keyboard(ukbd_state_t *state, int *type, int flags)
 {
 	usb_endpoint_descriptor_t *ed;
 	usbd_status err;
-	
+
 	*type = KB_OTHER;
 
 	state->ks_ifstate |= DISCONNECTED;
@@ -1437,10 +1437,10 @@ Static int
 keycode2scancode(int keycode, int shift, int up)
 {
 	static int scan[] = {
-		0x1c, 0x1d, 0x35, 
+		0x1c, 0x1d, 0x35,
 		0x37 | SCAN_PREFIX_SHIFT, /* PrintScreen */
-		0x38, 0x47, 0x48, 0x49, 0x4b, 0x4d, 0x4f, 
-		0x50, 0x51, 0x52, 0x53, 
+		0x38, 0x47, 0x48, 0x49, 0x4b, 0x4d, 0x4f,
+		0x50, 0x51, 0x52, 0x53,
 		0x46, 	/* XXX Pause/Break */
 		0x5b, 0x5c, 0x5d,
 	};

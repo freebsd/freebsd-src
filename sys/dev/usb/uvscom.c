@@ -690,7 +690,7 @@ uvscom_param(void *addr, int portno, struct termios *t)
 	default:
 		return (EIO);
 	}
-		
+
 	if (ISSET(t->c_cflag, CSTOPB))
 		SET(ls, UVSCOM_STOP_BIT_2);
 	else
@@ -740,7 +740,7 @@ uvscom_open(void *addr, int portno)
 	struct uvscom_softc *sc = addr;
 	int err;
 	int i;
-	
+
 	if (sc->sc_ucom.sc_dying)
 		return (ENXIO);
 

@@ -211,7 +211,7 @@ static const struct uvisor_type uvisor_devs[] = {
 USB_MATCH(uvisor)
 {
 	USB_MATCH_START(uvisor, uaa);
-	
+
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);
 
@@ -285,7 +285,7 @@ USB_ATTACH(uvisor)
 			       ": %s\n", devname, usbd_errstr(err));
 			goto bad;
 		}
-		
+
 		addr = ed->bEndpointAddress;
 		dir = UE_GET_DIR(ed->bEndpointAddress);
 		attr = ed->bmAttributes & UE_XFERTYPE;
@@ -308,7 +308,7 @@ USB_ATTACH(uvisor)
 		       USBDEVNAME(ucom->sc_dev));
 		goto bad;
 	}
-	
+
 	ucom->sc_parent = sc;
 	ucom->sc_portno = UCOM_UNK_PORTNO;
 	/* bulkin, bulkout set above */
@@ -423,7 +423,7 @@ uvisor_init(struct uvisor_softc *sc)
 				break;
 			default:
 				string = "unknown";
-				break;	
+				break;
 			}
 			printf("%s: port %d, is for %s\n",
 			    USBDEVNAME(sc->sc_ucom.sc_dev), coninfo.connections[i].port,
