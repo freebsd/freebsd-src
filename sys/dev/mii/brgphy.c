@@ -162,9 +162,7 @@ static int brgphy_attach(dev)
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-	if (sc->mii_capabilities & BMSR_MEDIAMASK)
-		mii_add_media(mii, (sc->mii_capabilities & ~BMSR_ANEG),
-		    sc->mii_inst);
+	mii_add_media(mii, (sc->mii_capabilities & ~BMSR_ANEG), sc->mii_inst);
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, 0, sc->mii_inst),
 	    BRGPHY_BMCR_FDX);
 	PRINT(", 1000baseTX");

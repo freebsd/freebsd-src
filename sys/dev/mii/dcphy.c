@@ -196,10 +196,7 @@ static int dcphy_attach(dev)
 
 	sc->mii_capabilities &= ma->mii_capmask;
 	device_printf(dev, " ");
-	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0)
-		printf("no media present");
-	else
-		mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
+	mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
 	printf("\n");
 #undef ADD
 
