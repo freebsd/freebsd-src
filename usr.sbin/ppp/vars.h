@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.32 1997/11/09 14:18:55 brian Exp $
+ * $Id: vars.h,v 1.33 1997/11/09 22:07:29 brian Exp $
  *
  *	TODO:
  */
@@ -43,7 +43,8 @@ struct confdesc {
 #define ConfMSExt	8
 #define ConfPasswdAuth	9
 #define ConfUtmp	10
-#define	MAXCONFS	11
+#define ConfThroughput	11
+#define	MAXCONFS	12
 
 #define	Enabled(x)	(pppConfs[x].myside & CONF_ENABLE)
 #define	Acceptable(x)	(pppConfs[x].hisside & CONF_ACCEPT)

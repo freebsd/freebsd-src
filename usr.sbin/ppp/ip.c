@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.29 1997/11/12 21:04:21 brian Exp $
+ * $Id: ip.c,v 1.30 1997/11/16 22:15:03 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -251,7 +251,7 @@ IcmpError(struct ip * pip, int code)
     memcpy(MBUF_CTOP(bp), ptr, cnt);
     SendPppFrame(bp);
     RestartIdleTimer();
-    ipOutOctets += cnt;
+    IpcpAddOutOctets(cnt);
   }
 #endif
 }
@@ -405,7 +405,7 @@ IpInput(struct mbuf * bp)
 	pfree(bp);
 	return;
       }
-      ipInOctets += nb;
+      IpcpAddInOctets(nb);
 
       nb = ntohs(((struct ip *) tun.data)->ip_len);
       nb += sizeof(tun)-sizeof(tun.data);
@@ -450,7 +450,7 @@ IpInput(struct mbuf * bp)
       pfree(bp);
       return;
     }
-    ipInOctets += nb;
+    IpcpAddInOctets(nb);
     nb += sizeof(tun)-sizeof(tun.data);
     nw = write(tun_out, &tun, nb);
     if (nw != nb)
@@ -509,7 +509,7 @@ IpStartOutput()
 	cnt = plength(bp);
 	SendPppFrame(bp);
 	RestartIdleTimer();
-	ipOutOctets += cnt;
+        IpcpAddOutOctets(cnt);
 	break;
       }
     }
