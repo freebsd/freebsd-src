@@ -49,5 +49,5 @@ _getsockname(int s, struct sockaddr * name, socklen_t *namelen)
 	return ret;
 }
 
-__weak_reference(_getsockname, getsockname);
+__strong_reference(_getsockname, getsockname);
 #endif

@@ -49,5 +49,5 @@ _getpeername(int fd, struct sockaddr * peer, socklen_t *paddrlen)
 	return ret;
 }
 
-__weak_reference(_getpeername, getpeername);
+__strong_reference(_getpeername, getpeername);
 #endif

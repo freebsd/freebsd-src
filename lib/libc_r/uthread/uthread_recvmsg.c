@@ -71,5 +71,5 @@ _recvmsg(int fd, struct msghdr *msg, int flags)
 	return (ret);
 }
 
-__weak_reference(_recvmsg, recvmsg);
+__strong_reference(_recvmsg, recvmsg);
 #endif

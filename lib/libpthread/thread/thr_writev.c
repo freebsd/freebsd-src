@@ -201,5 +201,5 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 	return (ret);
 }
 
-__weak_reference(_writev, writev);
+__strong_reference(_writev, writev);
 #endif

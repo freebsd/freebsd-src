@@ -111,5 +111,5 @@ _execve(const char *name, char *const * argv, char *const * envp)
 	return (ret);
 }
 
-__weak_reference(_execve, execve);
+__strong_reference(_execve, execve);
 #endif

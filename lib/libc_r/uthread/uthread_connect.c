@@ -76,5 +76,5 @@ _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 	return (ret);
 }
 
-__weak_reference(_connect, connect);
+__strong_reference(_connect, connect);
 #endif

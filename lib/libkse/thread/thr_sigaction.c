@@ -106,5 +106,5 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 	return (ret);
 }
 
-__weak_reference(_sigaction, sigaction);
+__strong_reference(_sigaction, sigaction);
 #endif

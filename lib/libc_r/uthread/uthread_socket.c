@@ -56,5 +56,5 @@ _socket(int af, int type, int protocol)
 	return (fd);
 }
 
-__weak_reference(_socket, socket);
+__strong_reference(_socket, socket);
 #endif

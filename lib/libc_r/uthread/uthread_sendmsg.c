@@ -70,5 +70,5 @@ _sendmsg(int fd, const struct msghdr *msg, int flags)
 	return (ret);
 }
 
-__weak_reference(_sendmsg, sendmsg);
+__strong_reference(_sendmsg, sendmsg);
 #endif

@@ -56,5 +56,5 @@ _fstat(int fd, struct stat * buf)
 	return (ret);
 }
 
-__weak_reference(_fstat, fstat);
+__strong_reference(_fstat, fstat);
 #endif

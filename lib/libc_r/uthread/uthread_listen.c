@@ -49,5 +49,5 @@ _listen(int fd, int backlog)
 	return (ret);
 }
 
-__weak_reference(_listen, listen);
+__strong_reference(_listen, listen);
 #endif

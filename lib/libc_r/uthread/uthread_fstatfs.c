@@ -56,5 +56,5 @@ _fstatfs(int fd, struct statfs * buf)
 	return (ret);
 }
 
-__weak_reference(_fstatfs, fstatfs);
+__strong_reference(_fstatfs, fstatfs);
 #endif
