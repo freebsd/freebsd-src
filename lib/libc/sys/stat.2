@@ -32,7 +32,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2002
+.Dd November 15, 2004
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -185,6 +185,32 @@ For a list of access modes, see
 .Xr access 2
 and
 .Xr chmod 2 .
+The following macros are available to test whether a
+.Va st_mode
+value passed in the
+.Ar m
+argument corresponds to a file of the specified type:
+.Bl -tag -width ".Fn S_ISFIFO m"
+.It Fn S_ISBLK m
+Test for a block special file.
+.It Fn S_ISCHR m
+Test for a character special file.
+.It Fn S_ISDIR m
+Test for a directory.
+.It Fn S_ISFIFO m
+Test for a pipe or FIFO special file.
+.It Fn S_ISLNK m
+Test for a symbolic link.
+.It Fn S_ISREG m
+Test for a regular file.
+.It Fn S_ISSOCK m
+Test for a socket.
+.It Fn S_ISWHT m
+Test for a whiteout.
+.El
+.Pp
+The macros evaluate to a non-zero value if the test is true
+or to the value 0 if the test is false.
 .Sh RETURN VALUES
 .Rv -std
 .Sh COMPATIBILITY
