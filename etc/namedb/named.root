@@ -12,8 +12,8 @@
 ;              submenu          InterNIC Registration Archives
 ;           file                named.root
 ;
-;       last update:    Jan 22, 1997
-;       related version of root zone:   1997012200
+;       last update:    May 19, 1997
+;       related version of root zone:   1997051700
 ;
 ;
 ; formerly NS.INTERNIC.NET
@@ -66,8 +66,18 @@ I.ROOT-SERVERS.NET.      3600000      A     192.36.148.17
 .                        3600000      NS    J.ROOT-SERVERS.NET.
 J.ROOT-SERVERS.NET.      3600000      A     198.41.0.10
 ;
-; temporarily housed at NSI (InterNIC)
+; housed in LINX, operated by RIPE NCC
 ;
 .                        3600000      NS    K.ROOT-SERVERS.NET.
-K.ROOT-SERVERS.NET.      3600000      A     198.41.0.11
+K.ROOT-SERVERS.NET.      3600000      A     193.0.14.129 
+;
+; temporarily housed at ISI (IANA)
+;
+.                        3600000      NS    L.ROOT-SERVERS.NET.
+L.ROOT-SERVERS.NET.      3600000      A     198.32.64.12
+;
+; temporarily housed at ISI (IANA)
+;
+.                        3600000      NS    M.ROOT-SERVERS.NET.
+M.ROOT-SERVERS.NET.      3600000      A     198.32.65.12
 ; End of File
