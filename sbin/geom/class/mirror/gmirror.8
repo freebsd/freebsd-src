@@ -94,7 +94,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used for mirrors (RAID1) configuration.
+utility is used for mirror (RAID1) configurations.
 After a mirror's creation, all components are detected and configured
 automatically.
 All operations like failure detection, stale component detection, rebuild
@@ -114,7 +114,7 @@ indicates an action to be performed:
 Create a mirror.
 The order of components is important, because a component's priority is based on its position
 (starting from 0).
-The component with the biggest priority is used by prefer balance algorithm
+The component with the biggest priority is used by the prefer balance algorithm
 and is also used as a master component when resynchronization is needed,
 e.g.\& after a power failure when the device was open for writing.
 .Pp
@@ -203,7 +203,7 @@ Additional options include:
 Stop the given mirror even if it is opened.
 .El
 .It Cm list
-List every currently configured devices; if a list of devices is passed as a
+List every currently configured device; if a list of devices is passed as a
 parameter then only those devices will be shown.
 .It Cm load
 Load
