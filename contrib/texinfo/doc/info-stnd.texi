@@ -1,5 +1,5 @@
 \input texinfo    @c -*-texinfo-*-
-@comment $Id: info-stnd.texi,v 1.4 2002/11/06 00:42:29 karl Exp $
+@comment $Id: info-stnd.texi,v 1.5 2003/02/19 13:32:54 karl Exp $
 @comment %**start of header
 @setfilename info-stnd.info
 @include version-stnd.texi
@@ -14,7 +14,7 @@ This manual is for GNU Info (version @value{VERSION}, @value{UPDATED}),
 a program for viewing documents in Info format (usually created from
 Texinfo source files).
 
-Copyright @copyright{} 1992, 1993, 1996, 1997, 1998, 1999, 2001, 2002
+Copyright @copyright{} 1992, 1993, 1996, 1997, 1998, 1999, 2001, 2002, 2003
 Free Software Foundation, Inc.
 
 @quotation
@@ -1047,7 +1047,7 @@ different node, perhaps in another Info file.  Such pointers are called
 * Selecting Xrefs::             Commands for selecting menu or note items.
 @end menu
 
-@node Parts of an Xref, Selecting Xrefs,  , Xref Commands
+@node Parts of an Xref
 @section Parts of an Xref
 
 Cross references have two major parts: the first part is called the
@@ -1095,7 +1095,7 @@ documentation:  @xref{xref, , Writing an Xref, texinfo, the Texinfo
 Manual}, for more information on creating your own texinfo cross
 references.
 
-@node Selecting Xrefs,  , Parts of an Xref, Xref Commands
+@node Selecting Xrefs
 @section Selecting Xrefs
 
 The following table lists the Info commands which operate on menu items.
@@ -1206,7 +1206,7 @@ windows.
 * The Echo Area::               Used for displaying errors and reading input.
 @end menu
 
-@node The Mode Line, Basic Windows,  , Window Commands
+@node The Mode Line
 @section The Mode Line
 
 A @dfn{mode line} is a line of inverse video which appears at the bottom
@@ -1256,7 +1256,7 @@ showing possible completions:
 -----Info: *Completions*, 7 lines --All---------------------------------
 @end example
 
-@node Basic Windows, The Echo Area, The Mode Line, Window Commands
+@node Basic Windows
 @section Window Commands
 
 It can be convenient to view more than one node at a time.  To allow
@@ -1331,7 +1331,7 @@ its contents.  The variable @code{automatic-tiling} can cause
 @xref{Variables, , @code{automatic-tiling}}.
 @end table
 
-@node The Echo Area,  , Basic Windows, Window Commands
+@node The Echo Area
 @section The Echo Area
 @cindex echo area
 
