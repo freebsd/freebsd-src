@@ -74,6 +74,10 @@ RealTek RTL 8002 chip.
 Added driver support for fast ethernet adapters based on the
 ASIX Electronics AX88140A chip.
 
+Integrated isdn4bsd from the isdn4bsd project group into the
+regular system.
+
+
 1.2. SECURITY FIXES
 -------------------
 
