@@ -41,7 +41,6 @@
 #define	ELF_ARCH	EM_SPARCV9
 
 #define	ELF_MACHINE_OK(x)	((x) == ELF_ARCH)
-#define	ELF_RTLD_ADDR(vm)	(0)
 
 /*
  * Auxiliary vector entries for passing information to the interpreter.
