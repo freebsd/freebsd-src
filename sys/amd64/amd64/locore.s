@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.70 1996/05/02 22:24:55 phk Exp $
+ *	$Id: locore.s,v 1.71 1996/05/09 07:16:00 phk Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -455,7 +455,7 @@ newboot:
 	cmpl	$0,%esi
 	je	2f			/* No kernelname */
 	movl	$MAXPATHLEN,%ecx	/* Brute force!!! */
-	lea	_kernelname-KERNBASE,%edi
+	movl	$R(_kernelname),%edi
 	cmpb	$'/',(%esi)		/* Make sure it starts with a slash */
 	je	1f
 	movb	$'/',(%edi)
@@ -483,7 +483,7 @@ got_bi_size:
 	 * Copy the common part of the bootinfo struct
 	 */
 	movl	%ebx,%esi
-	movl	$_bootinfo-KERNBASE,%edi
+	movl	$R(_bootinfo),%edi
 	cmpl	$BOOTINFO_SIZE,%ecx
 	jbe	got_common_bi_size
 	movl	$BOOTINFO_SIZE,%ecx
@@ -499,12 +499,12 @@ got_common_bi_size:
 	movl	BI_NFS_DISKLESS(%ebx),%esi
 	cmpl	$0,%esi
 	je	olddiskboot
-	lea	_nfs_diskless-KERNBASE,%edi
+	movl	$R(_nfs_diskless),%edi
 	movl	$NFSDISKLESS_SIZE,%ecx
 	cld
 	rep
 	movsb
-	lea	_nfs_diskless_valid-KERNBASE,%edi
+	movl	$R(_nfs_diskless_valid),%edi
 	movl	$1,(%edi)
 #endif
 
@@ -516,9 +516,9 @@ got_common_bi_size:
 	 */
 olddiskboot:
 	movl	8(%ebp),%eax
-	movl	%eax,_boothowto-KERNBASE
+	movl	%eax,R(_boothowto)
 	movl	12(%ebp),%eax
-	movl	%eax,_bootdev-KERNBASE
+	movl	%eax,R(_bootdev)
 
 	ret
 
@@ -546,7 +546,7 @@ identify_cpu:
 
 	testl	%eax,%eax
 	jnz	1f
-	movl	$CPU_386,_cpu-KERNBASE
+	movl	$CPU_386,R(_cpu)
 	jmp	3f
 
 1:	/* Try to toggle identification flag; does not exist on early 486s. */
@@ -565,7 +565,7 @@ identify_cpu:
 
 	testl	%eax,%eax
 	jnz	1f
-	movl	$CPU_486,_cpu-KERNBASE
+	movl	$CPU_486,R(_cpu)
 
 	/* check for Cyrix 486DLC -- based on check routine  */
 	/* documented in "Cx486SLC/e SMM Programmer's Guide" */
@@ -584,9 +584,9 @@ identify_cpu:
 
 	jnz	3f			# if flags changed, Intel chip
 
-	movl	$CPU_486DLC,_cpu-KERNBASE # set CPU value for Cyrix
-	movl	$0x69727943,_cpu_vendor-KERNBASE	# store vendor string
-	movw	$0x0078,_cpu_vendor-KERNBASE+4
+	movl	$CPU_486DLC,R(_cpu) # set CPU value for Cyrix
+	movl	$0x69727943,R(_cpu_vendor)	# store vendor string
+	movw	$0x0078,R(_cpu_vendor+4)
 
 #ifndef CYRIX_CACHE_WORKS
 	/* Disable caching of the ISA hole only. */
@@ -649,33 +649,33 @@ identify_cpu:
 1:	/* Use the `cpuid' instruction. */
 	xorl	%eax,%eax
 	.byte	0x0f,0xa2			# cpuid 0
-	movl	%eax,_cpu_high-KERNBASE		# highest capability
-	movl	%ebx,_cpu_vendor-KERNBASE	# store vendor string
-	movl	%edx,_cpu_vendor+4-KERNBASE
-	movl	%ecx,_cpu_vendor+8-KERNBASE
-	movb	$0,_cpu_vendor+12-KERNBASE
+	movl	%eax,R(_cpu_high)		# highest capability
+	movl	%ebx,R(_cpu_vendor)		# store vendor string
+	movl	%edx,R(_cpu_vendor+4)
+	movl	%ecx,R(_cpu_vendor+8)
+	movb	$0,R(_cpu_vendor+12)
 
 	movl	$1,%eax
 	.byte	0x0f,0xa2			# cpuid 1
-	movl	%eax,_cpu_id-KERNBASE		# store cpu_id
-	movl	%edx,_cpu_feature-KERNBASE	# store cpu_feature
+	movl	%eax,R(_cpu_id)			# store cpu_id
+	movl	%edx,R(_cpu_feature)		# store cpu_feature
 	rorl	$8,%eax				# extract family type
 	andl	$15,%eax
 	cmpl	$5,%eax
 	jae	1f
 
 	/* less than Pentium; must be 486 */
-	movl	$CPU_486,_cpu-KERNBASE
+	movl	$CPU_486,R(_cpu)
 	jmp	3f
 1:
 	/* a Pentium? */
 	cmpl	$5,%eax
 	jne	2f
-	movl	$CPU_586,_cpu-KERNBASE
+	movl	$CPU_586,R(_cpu)
 	jmp	3f
 2:
 	/* Greater than Pentium...call it a Pentium Pro */
-	movl	$CPU_686,_cpu-KERNBASE
+	movl	$CPU_686,R(_cpu)
 3:
 	ret
 
