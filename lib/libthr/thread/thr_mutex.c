@@ -905,7 +905,7 @@ get_mcontested(pthread_mutex_t mutexp, const struct timespec *abstime)
 			PANIC("Cannot suspend on mutex.");
 		_SPINLOCK(&mutexp->lock);
 		_thread_critical_enter(curthread);
-		if (error == EAGAIN) {
+		if (error == ETIMEDOUT) {
 			/*
 			 * Between the timeout and when the mutex was
 			 * locked the previous owner may have released
