@@ -142,7 +142,7 @@ static const struct morsetab mtab[] = {
 };
 
 
-static const struct morsetab iso8859tab[] = {
+static const struct morsetab iso8859_1tab[] = {
 	{'á', ".--.-"},
 	{'à', ".--.-"},
 	{'â', ".--.-"},
@@ -153,6 +153,67 @@ static const struct morsetab iso8859tab[] = {
 	{'ê', "-..-."},
 	{'ö', "---."},
 	{'ü', "..--"},
+
+	{'\0', ""}
+};
+
+static const struct morsetab iso8859_7tab[] = {
+	/*
+	 * The greek alphabet; you'll need an 8859-7 font in order
+	 * to see the actual characters.
+	 * This table does not implement:
+	 * - the special sequences for the seven diphthongs,
+	 * - the punctuation differences.
+	 * Implementing these features would introduce too many
+	 * special-cases in the program's main loop.
+	 * The diphtong sequences are:
+	 * alpha iota		.-.-
+	 * alpha upsilon	..--
+	 * epsilon upsilon	---.
+	 * eta upsilon		...-
+	 * omikron iota		---..
+	 * omikron upsilon	..-
+	 * upsilon iota		.---
+	 * The different punctuation symbols are:
+	 * ;	..-.-
+	 * !	--..--
+	 */
+	{'á', ".-"},	/* alpha */
+	{'Ü', ".-"},	/* alpha with acute */
+	{'â', "-..."},	/* beta */
+	{'ã', "--."},	/* gamma */
+	{'ä', "-.."},	/* delta */
+	{'å', "."},	/* epsilon */
+	{'Ý', "."},	/* epsilon with acute */
+	{'æ', "--.."},	/* zeta */
+	{'ç', "...."},	/* eta */
+	{'Þ', "...."},	/* eta with acute */
+	{'è', "-.-."},	/* theta */
+	{'é', ".."},	/* iota */
+	{'ß', ".."},	/* iota with acute */
+	{'ú', ".."},	/* iota with diairesis */
+	{'À', ".."},	/* iota with acute and diairesis */
+	{'ê', "-.-"},	/* kappa */
+	{'ë', ".-.."},	/* lamda */
+	{'ì', "--"},	/* mu */
+	{'í', "-."},	/* nu */
+	{'î', "-..-"},	/* xi */
+	{'ï', "---"},	/* omicron */
+	{'ü', "---"},	/* omicron with acute */
+	{'ð', ".--."},	/* pi */
+	{'ñ', ".-."},	/* rho */
+	{'ó', "..."},	/* sigma */
+	{'ò', "..."},	/* final sigma */
+	{'ô', "-"},	/* tau */
+	{'õ', "-.--"},	/* upsilon */
+	{'ý', "-.--"},	/* upsilon with acute */
+	{'û', "-.--"},	/* upsilon and diairesis */
+	{'à', "-.--"},	/* upsilon with acute and diairesis */
+	{'ö', "..-."},	/* phi */
+	{'÷', "----"},	/* chi */
+	{'ø', "--.-"},	/* psi */
+	{'ù', ".--"},	/* omega */
+	{'þ', ".--"},	/* omega with acute */
 
 	{'\0', ""}
 };
@@ -226,7 +287,7 @@ tone_t          sound;
 #define GETOPTOPTS "d:ef:psw:"
 #undef USAGE
 #define USAGE \
-"usage: morse [-s] [-p] [-e] [-d device] [-w speed] [-f frequency] [string ...]\n"
+"usage: morse [-elps] [-d device] [-w speed] [-f frequency] [string ...]\n"
 #endif
 
 static const struct morsetab *hightab;
@@ -325,7 +386,9 @@ main(int argc, char **argv)
 			hightab = koi8rtab;
 		else if (strcmp(codeset, "ISO8859-1") == 0 ||
 			 strcmp(codeset, "ISO8859-15") == 0)
-			hightab = iso8859tab;
+			hightab = iso8859_1tab;
+		else if (strcmp(codeset, "ISO8859-7") == 0)
+			hightab = iso8859_7tab;
 	}
 
 	if (*argv) {
