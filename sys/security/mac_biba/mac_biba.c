@@ -1159,6 +1159,7 @@ mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 	    !strvalid(trusted_interfaces, sizeof(trusted_interfaces)))
 		goto set;
 
+	bzero(tiflist, sizeof(tiflist));
 	for (p = trusted_interfaces, q = tiflist; *p != '\0'; p++, q++)
 		if(*p != ' ' && *p != '\t')
 			*q = *p;
@@ -1175,6 +1176,11 @@ mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 					grade = MAC_BIBA_TYPE_HIGH;
 					break;
 				}
+			} else {
+				*p = '\0';
+				printf("mac_biba warning: interface name "
+				    "\"%s\" is too long (must be < %d)\n",
+				    q, IFNAMSIZ);
 			}
 			if (*p == '\0')
 				break;
