@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.1 (Berkeley) 6/2/93
- * $Id: vmmeter.h,v 1.8 1995/02/22 18:06:49 davidg Exp $
+ * $Id: vmmeter.h,v 1.9 1995/03/25 06:09:28 davidg Exp $
  */
 
 #ifndef _SYS_VMMETER_H_
@@ -52,10 +52,9 @@ struct vmmeter {
 	/*
 	 * Virtual memory activity.
 	 */
-	unsigned v_lookups;	/* object cache lookups */
-	unsigned v_hits;	/* object cache hits */
 	unsigned v_vm_faults;	/* number of address memory faults */
 	unsigned v_cow_faults;	/* number of copy-on-writes */
+	unsigned v_zfod;	/* pages zero filled on demand */
 	unsigned v_swapin;	/* swap pager pageins */
 	unsigned v_swapout;	/* swap pager pageouts */
 	unsigned v_swappgsin;	/* swap pager pages paged in */
@@ -71,7 +70,6 @@ struct vmmeter {
 	unsigned v_dfree;	/* pages freed by daemon */
 	unsigned v_pfree;	/* pages freed by exiting processes */
 	unsigned v_tfree;	/* total pages freed */
-	unsigned v_zfod;	/* pages zero filled on demand */
 	/*
 	 * Distribution of page usages.
 	 */
