@@ -434,7 +434,7 @@ mp_announce(void)
 
 	POSTCODE(MP_ANNOUNCE_POST);
 
-	printf("FreeBSD/SMP: Multiprocessor motherboard\n");
+	printf("FreeBSD/SMP: Multiprocessor motherboard: %d CPUs\n", mp_ncpus);
 	printf(" cpu0 (BSP): apic id: %2d", CPU_TO_ID(0));
 	printf(", version: 0x%08x", cpu_apic_versions[0]);
 	printf(", at 0x%08x\n", cpu_apic_address);
