@@ -111,7 +111,7 @@ Unfortunately most systems do not provide constants that specify the
 maximum size of either a fully-qualified domain name or a service name.
 Therefore to aid the application in allocating buffers for these two
 returned strings the following constants are defined in
-.Aq Pa netdb.h :
+.In netdb.h :
 .Bd -literal -offset
 #define NI_MAXHOST  1025
 #define NI_MAXSERV    32
@@ -120,7 +120,7 @@ returned strings the following constants are defined in
 The first value is actually defined as the constant
 .Dv MAXDNAME
 in recent versions of BIND's
-.Aq Pa arpa/nameser.h
+.In arpa/nameser.h
 header
 (older versions of BIND define this constant to be 256)
 and the second is a guess based on the services listed in the current
@@ -176,7 +176,7 @@ that have different services for UDP and TCP.
 These
 .Dv NI_xxx
 flags are defined in
-.Aq Pa netdb.h .
+.In netdb.h .
 .\"
 .Sh EXTENSION
 The implementation allows experimental numeric IPv6 address notation with

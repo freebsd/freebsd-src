@@ -74,16 +74,16 @@ Any known file types appropriate to the system you are running on
 implement them)
 are intuited if they are defined in
 the system header file
-.Aq Pa sys/stat.h .
+.In sys/stat.h .
 .Pp
 The magic number tests are used to check for files with data in
 particular fixed formats.
 The canonical example of this is a binary executable (compiled program)
 .Pa a.out
 file, whose format is defined in
-.Aq Pa a.out.h
+.In a.out.h
 and possibly
-.Aq Pa exec.h
+.In exec.h
 in the standard include directory.
 These files have a
 .Sq "magic number"

@@ -45,7 +45,7 @@ on the local machine in the memory referenced by
 The list consists of
 .Nm ifaddrs
 structures, as defined in the include file
-.Aq Pa ifaddrs.h .
+.In ifaddrs.h .
 The
 .Nm ifaddrs
 structure contains at least the following entries:
@@ -115,12 +115,12 @@ field references address family specific data.  For
 addresses it contains a pointer to the
 .Fa struct if_data
 (as defined in include file
-.Aq Pa net/if.h )
+.In net/if.h )
 which contains various interface attributes and statistics.
 For all other address families, it contains a pointer to the
 .Fa struct ifa_data
 (as defined in include file
-.Aq Pa net/if.h )
+.In net/if.h )
 which contains per-address interface statistics.
 .Pp
 The data returned by
@@ -143,14 +143,14 @@ or
 .Xr sysctl 3 .
 .Sh BUGS
 If both
-.Aq Pa net/if.h
+.In net/if.h
 and
-.Aq Pa ifaddrs.h
+.In ifaddrs.h
 are being included,
-.Aq Pa net/if.h
+.In net/if.h
 .Em must
 be included before
-.Aq Pa ifaddrs.h .
+.In ifaddrs.h .
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr socket 2 ,

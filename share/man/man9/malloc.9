@@ -226,11 +226,11 @@ MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
 In order to use
 .Fn MALLOC_DEFINE ,
 one must include
-.Aq Pa sys/param.h
+.In sys/param.h
 (instead of
-.Aq Pa sys/types.h )
+.In sys/types.h )
 and
-.Aq Pa sys/kernel.h .
+.In sys/kernel.h .
 .Sh RETURN VALUES
 The
 .Fn malloc ,

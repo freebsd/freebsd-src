@@ -59,7 +59,7 @@ the special device file
 This device supports a number of
 .Xr ioctl 2
 requests, defined in
-.Aq Pa machine/perfmon.h
+.In machine/perfmon.h
 along with the definitions of the various counters for both
 .Tn Pentium
 and
@@ -87,7 +87,7 @@ the number of the counter in question; must be less than
 (currently 2).
 .It Li "u_char pmc_event"
 the particular event number to be monitored, as defined in
-.Aq Pa machine/perfmon.h .
+.In machine/perfmon.h .
 .It Li "u_char pmc_unit"
 the unit mask value, specific to the event type (see the
 .Tn Intel
