@@ -2312,13 +2312,8 @@ hatm_stop(struct hatm_softc *sc)
 	 * Give any waiters on closing a VCC a chance. They will stop
 	 * to wait if they see that IFF_RUNNING disappeared.
 	 */
-	while (!(cv_waitq_empty(&sc->vcc_cv))) {
-		cv_broadcast(&sc->vcc_cv);
-		DELAY(100);
-	}
-	while (!(cv_waitq_empty(&sc->cv_rcclose))) {
-		cv_broadcast(&sc->cv_rcclose);
-	}
+	cv_broadcast(&sc->vcc_cv);
+	cv_broadcast(&sc->cv_rcclose);
 
 	/*
 	 * Now free all resources.
