@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.16 1995/11/20 12:08:08 phk Exp $
+ * $Id: kernel.h,v 1.17 1995/11/29 10:49:14 julian Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -184,7 +184,7 @@ struct sysinit {
 	unsigned int	subsystem;		/* subsystem identifier*/
 	unsigned int	order;			/* init order within subsystem*/
 	void		(*func) __P((void *));	/* init function*/
-	void 		*udata;			/* multiplexer/argument*/
+	void		*udata;			/* multiplexer/argument */
 	si_elem_t	type;			/* sysinit_elem_type*/
 };
 
@@ -228,9 +228,7 @@ struct kproc_desc {
 	struct proc	**global_procpp;	/* ptr to proc ptr save area*/
 };
 
-/* init_proc.c*/
-extern void kproc_start __P((void *udata));
-
+void	kproc_start __P((void *udata));
 
 #ifdef PSEUDO_LKM
 #include <sys/conf.h>
@@ -267,4 +265,4 @@ struct linker_set {
 
 extern const struct linker_set execsw_set;
 
-#endif	/* _SYS_KERNEL_H_*/
+#endif /* !_SYS_KERNEL_H_*/
