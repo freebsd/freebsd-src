@@ -301,7 +301,7 @@ vfs_setpublicfs(mp, nep, argp)
 	bzero(&nfs_pub.np_handle, sizeof(nfs_pub.np_handle));
 	nfs_pub.np_handle.fh_fsid = mp->mnt_stat.f_fsid;
 
-	if ((error = VFS_ROOT(mp, &rvp, curthread /* XXX */)))
+	if ((error = VFS_ROOT(mp, LK_EXCLUSIVE, &rvp, curthread /* XXX */)))
 		return (error);
 
 	if ((error = VFS_VPTOFH(rvp, &nfs_pub.np_handle.fh_fid)))
