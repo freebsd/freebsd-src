@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.7 1994/10/17 17:47:33 phk Exp $
+ * $Id: nfs_node.c,v 1.8 1995/03/16 18:15:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -100,6 +100,8 @@ nfs_hash(fhp)
  * In all cases, a pointer to a
  * nfsnode structure is returned.
  */
+int nfs_node_hash_lock;
+
 int
 nfs_nget(mntp, fhp, npp)
 	struct mount *mntp;
@@ -124,8 +126,24 @@ loop:
 		*npp = np;
 		return(0);
 	}
+	/*
+	 * Obtain a lock to prevent a race condition if the getnewvnode()
+	 * or MALLOC() below happens to block.
+	 */
+	if (nfs_node_hash_lock) {
+		while (nfs_node_hash_lock) {
+			nfs_node_hash_lock = -1;
+			tsleep(&nfs_node_hash_lock, PVM, "nfsngt", 0);
+		}
+		goto loop;
+	}
+	nfs_node_hash_lock = 1;
+		
 	error = getnewvnode(VT_NFS, mntp, nfsv2_vnodeop_p, &nvp);
 	if (error) {
+		if (nfs_node_hash_lock < 0)
+			wakeup(&nfs_node_hash_lock);
+		nfs_node_hash_lock = 0;
 		*npp = 0;
 		return (error);
 	}
@@ -152,6 +170,11 @@ loop:
 		np->n_timer.cqe_next = (struct nfsnode *)0;
 	}
 	*npp = np;
+
+	if (nfs_node_hash_lock < 0)
+		wakeup(&nfs_node_hash_lock);
+	nfs_node_hash_lock = 0;
+
 	return (0);
 }
 
