@@ -150,6 +150,7 @@ main(int argc, char **argv)
 			}
 		}
 fail:
+		close(fd);
 		argc--;
 		argv++;
 	}
