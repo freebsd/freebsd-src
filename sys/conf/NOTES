@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.588 1999/04/24 16:07:51 peter Exp $
+#	$Id: LINT,v 1.589 1999/04/24 21:45:44 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1679,7 +1679,8 @@ device		wb0
 device		xl0
 device		fpa0
 device		meteor0
-device		oltr0
+#The oltr driver in the ISA section will also find PCI cards.
+#device		oltr0
 
 # Brooktree driver has been ported to the new I2C framework. Thus,
 # you'll need at least iicbus, iicbb and smbus. iic/smb are only needed if you
