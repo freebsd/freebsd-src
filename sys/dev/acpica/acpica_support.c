@@ -27,9 +27,10 @@
  */
 
 #include "acpi.h"
+#include <machine/cpufunc.h>
 #include <dev/acpica/acpica_support.h>
 
-MODULE_NAME("support")
+ACPI_MODULE_NAME("SUPPORT")
 
 /*
  * Implement support code temporary here until officially merged into
@@ -59,15 +60,15 @@ AcpiEnterSleepStateS4Bios (
     ACPI_OBJECT         Arg;
 
 
-    FUNCTION_TRACE ("AcpiEnterSleepStateS4Bios");
+    ACPI_FUNCTION_TRACE ("AcpiEnterSleepStateS4Bios");
 
     /* run the _PTS and _GTS methods */
 
-    MEMSET(&ArgList, 0, sizeof(ArgList));
+    ACPI_MEMSET(&ArgList, 0, sizeof(ArgList));
     ArgList.Count = 1;
     ArgList.Pointer = &Arg;
 
-    MEMSET(&Arg, 0, sizeof(Arg));
+    ACPI_MEMSET(&Arg, 0, sizeof(Arg));
     Arg.Type = ACPI_TYPE_INTEGER;
     Arg.Integer.Value = ACPI_STATE_S4;
 
@@ -76,9 +77,9 @@ AcpiEnterSleepStateS4Bios (
 
     /* clear wake status */
 
-    AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_LOCK, WAK_STS, 1);
+    AcpiHwBitRegisterWrite (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_LOCK);
 
-    disable ();
+    acpi_disable_irqs ();
 
     AcpiHwDisableNonWakeupGpes();
 
@@ -92,11 +93,11 @@ AcpiEnterSleepStateS4Bios (
         AcpiOsStall(1000000);
         AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->S4BiosReq, 8);
     }
-    while (!AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_LOCK, WAK_STS));
+    while (!AcpiHwBitRegisterRead (ACPI_BITREG_WAKE_STATUS, ACPI_MTX_LOCK));
 
     AcpiHwEnableNonWakeupGpes();
 
-    enable ();
+    acpi_enable_irqs ();
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -123,7 +124,7 @@ ACPI_STATUS
 AcpiSetDsdtTablePtr(
     ACPI_TABLE_HEADER   *TablePtr)
 {
-    FUNCTION_TRACE ("AcpiSetDsdtTablePtr");
+    ACPI_FUNCTION_TRACE ("AcpiSetDsdtTablePtr");
 
     if (!TablePtr)
     {
