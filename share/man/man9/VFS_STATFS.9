@@ -52,7 +52,7 @@ The arguments it expects are:
 The file system.
 .It Fa sbp
 A
-.Dt statfs
+.Vt statfs
 structure, as defined by
 .In sys/mount.h ,
 into which information is placed about the file system.
@@ -61,9 +61,9 @@ The thread which is querying the file system.
 .El
 .Pp
 The fields of
-.Ft "struct statfs"
+.Vt "struct statfs"
 related to the file system are as follows:
-.Bl -tag -width ".Fa f_mntfromname"
+.Bl -tag -width ".Va f_mntfromname"
 .It Va f_type
 Type of file system.
 .It Va f_flags
