@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)dir.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: dir.c,v 1.7 1997/08/07 21:42:05 steve Exp $";
+	"$Id: dir.c,v 1.8 1998/06/09 03:38:37 imp Exp $";
 #endif
 #endif /* not lint */
 
@@ -85,7 +85,7 @@ dinit(hp)
     static char *emsg = "csh: Trying to start from \"%s\"\n";
 
     /* Don't believe the login shell home, because it may be a symlink */
-    tcp = getwd(path);		/* see ngetwd.c for System V version */
+    tcp = getcwd(path, MAXPATHLEN);	/* see ngetwd.c for System V version */
     if (tcp == NULL || *tcp == '\0') {
 	(void) fprintf(csherr, "csh: %s: %s\n", path, strerror(errno));
 	if (hp && *hp) {
