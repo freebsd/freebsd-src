@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.2 1998/06/14 13:44:43 dfr Exp $
+ *	$Id: genassym.c,v 1.3 1998/07/12 16:08:15 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <machine/frame.h>
+#include <machine/chipset.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -95,7 +96,12 @@ main()
 	OFF(P_PID,		struct proc,	p_pid);
 	OFF(P_SWITCHTIME,	struct proc,	p_switchtime);
 	OFF(P_RUNTIME,		struct proc,	p_runtime);
+	OFF(P_MD_FLAGS,		struct proc,	p_md.md_flags);
 	OFF(P_MD_PCBPADDR,	struct proc,	p_md.md_pcbpaddr);
+	OFF(P_MD_HAE,		struct proc,	p_md.md_hae);
+	CONST1(MDP_HAEUSED);
+
+	OFF(CHIPSET_WRITE_HAE,	struct alpha_chipset, write_hae);
 
 	OFF(PH_LINK,		struct prochd,	ph_link);
 	OFF(PH_RLINK,		struct prochd,	ph_rlink);

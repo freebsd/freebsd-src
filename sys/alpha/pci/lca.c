@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.2 1998/09/23 21:23:51 msmith Exp $
+ *	$Id: lca.c,v 1.3 1998/10/06 14:18:40 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -34,6 +34,7 @@
 
 #include <alpha/pci/lcareg.h>
 #include <alpha/pci/lcavar.h>
+#include <alpha/pci/pcibus.h>
 #include <machine/swiz.h>
 #include <machine/intr.h>
 #include <machine/cpuconf.h>
@@ -70,6 +71,8 @@ static alpha_chipset_cfgwriteb_t lca_cfgwriteb;
 static alpha_chipset_cfgwritew_t lca_cfgwritew;
 static alpha_chipset_cfgwritel_t lca_cfgwritel;
 static alpha_chipset_addrcvt_t   lca_cvt_dense;
+static alpha_chipset_read_hae_t	lca_read_hae;
+static alpha_chipset_write_hae_t lca_write_hae;
 
 static alpha_chipset_t lca_chipset = {
 	lca_inb,
@@ -92,6 +95,9 @@ static alpha_chipset_t lca_chipset = {
 	lca_cfgwritew,
 	lca_cfgwritel,
 	lca_cvt_dense,
+	NULL,
+	lca_read_hae,
+	lca_write_hae,
 };
 
 static u_int8_t
@@ -312,6 +318,18 @@ lca_cvt_dense(vm_offset_t addr)
 	
 }
 
+static u_int64_t
+lca_read_hae(void)
+{
+	return lca_hae_mem & 0xf8000000;
+}
+
+static void
+lca_write_hae(u_int64_t hae)
+{
+	u_int32_t pa = hae;
+	lca_set_hae_mem(&pa);
+}
 
 static int lca_probe(device_t dev);
 static int lca_attach(device_t dev);
@@ -324,6 +342,10 @@ static device_method_t lca_methods[] = {
 	DEVMETHOD(device_attach,	lca_attach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_activate_resource, pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 
 	{ 0, 0 }
 };
@@ -374,6 +396,13 @@ lca_attach(device_t dev)
 	chipset.intrdev = isa0;
 
 	set_iointr(alpha_dispatch_intr);
+
+	strcpy(chipset_type, "lca");
+	chipset_bwx = 0;
+	chipset_ports = LCA_PCI_SIO;
+	chipset_memory = LCA_PCI_SPARSE;
+	chipset_dense = LCA_PCI_DENSE;
+	chipset_hae_mask = IOC_HAE_ADDREXT;
 
 	bus_generic_attach(dev);
 	return 0;

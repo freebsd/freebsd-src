@@ -1,4 +1,4 @@
-/* $Id: proc.h,v 1.2 1998/06/10 10:55:17 dfr Exp $ */
+/* $Id: proc.h,v 1.3 1998/07/15 20:16:27 dfr Exp $ */
 /* From: NetBSD: proc.h,v 1.3 1997/04/06 08:47:36 cgd Exp */
 
 /*
@@ -38,12 +38,14 @@ struct mdbpt {
 };
 
 struct mdproc {
-	u_long	md_flags;
+	u_long		md_flags;
 	struct	trapframe *md_tf;	/* trap/syscall registers */
-	struct pcb *md_pcbpaddr;	/* phys addr of the pcb */
-	struct mdbpt md_sstep[2];	/* two single step breakpoints */
+	struct pcb	*md_pcbpaddr;	/* phys addr of the pcb */
+	struct mdbpt	md_sstep[2];	/* two single step breakpoints */
+	u_int64_t	md_hae;		/* user HAE register value */
 };
 
 #define	MDP_FPUSED	0x0001		/* Process used the FPU */
 #define MDP_STEP1	0x0002		/* Single step normal instruction */
 #define MDP_STEP2	0x0004		/* Single step branch instruction */
+#define MDP_HAEUSED	0x0008		/* Process used the HAE */

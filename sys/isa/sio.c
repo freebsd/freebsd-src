@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.216 1998/09/26 13:59:26 peter Exp $
+ *	$Id: sio.c,v 1.217 1998/09/26 14:47:16 dfr Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.215
  */
@@ -68,6 +68,7 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -78,6 +79,7 @@
 
 #include <machine/clock.h>
 #include <machine/ipl.h>
+#include <machine/resource.h>
 
 #include <isa/sioreg.h>
 
@@ -921,6 +923,8 @@ sioattach(dev)
 	int		s;
 	int		unit;
 	void		*ih;
+	struct resource *res;
+	int		zero = 0;
 	u_int		flags = isa_get_flags(dev);
 
 #if 0
@@ -1136,13 +1140,10 @@ determined_type: ;
 #endif
 	com->flags = isa_get_flags(dev); /* Heritate id_flags for later */
 
-	ih = BUS_CREATE_INTR(device_get_parent(dev), dev,
-			     isa_get_irq(dev),
-			     siointr, com);
-	if (!ih)
-		return ENXIO;
-
-	BUS_CONNECT_INTR(device_get_parent(dev), ih);
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
+				 RF_SHAREABLE | RF_ACTIVE);
+	BUS_SETUP_INTR(device_get_parent(dev), dev, res, siointr, com,
+		       &ih);
 
 	return (0);
 }

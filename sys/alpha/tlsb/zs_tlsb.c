@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.4 1998/07/12 16:23:19 dfr Exp $
+ *	$Id: zs_tlsb.c,v 1.5 1998/07/31 09:20:01 dfr Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -385,6 +385,7 @@ struct zsc_softc {
 	caddr_t base;
 	struct zs_softc* sc_a;
 	struct zs_softc* sc_b;
+	void *intr;
 };
 
 static int zsc_tlsb_probe(device_t dev);
@@ -404,8 +405,8 @@ static device_method_t zsc_tlsb_methods[] = {
 	DEVMETHOD(bus_print_child,	zsc_tlsb_print_child),
 	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_create_intr,	bus_generic_create_intr),
-	DEVMETHOD(bus_connect_intr,	bus_generic_connect_intr),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	{ 0, 0 }
 };
@@ -455,6 +456,7 @@ zsc_tlsb_attach(device_t dev)
 {
 	struct zsc_softc* sc = device_get_softc(dev);
 	device_t parent = device_get_parent(dev);
+	void *ih;
 
 	bus_generic_attach(dev);
 	
@@ -462,9 +464,9 @@ zsc_tlsb_attach(device_t dev)
 	sc->sc_a = ZS_SOFTC(0);
 	sc->sc_b = ZS_SOFTC(1);
 
-	BUS_CONNECT_INTR(parent,
-			 BUS_CREATE_INTR(parent, dev,
-					 1, zsc_tlsb_intr, sc));
+	/* XXX should use resource argument to communicate vector */
+	return BUS_SETUP_INTR(parent, dev, NULL, zsc_tlsb_intr, sc,
+			      &sc->intr);
 
 	return 0;
 }
