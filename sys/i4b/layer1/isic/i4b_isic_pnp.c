@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jan 24 09:31:38 2001]
+ *      last edit-date: [Fri Jan 26 14:01:04 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -69,6 +69,8 @@
 #define VID_AVMPNP		0x0009cd06	/* AVM Fritz! PnP	*/
 #define VID_SIESURF2		0x2000254d	/* Siemens I-Surf 2.0 PnP*/
 #define VID_ASUSCOM_IPAC	0x90167506	/* Asuscom (with IPAC)	*/	
+#define VID_EICON_DIVA_20	0x7100891c	/* Eicon DIVA 2.0 ISAC/HSCX */
+#define VID_EICON_DIVA_202	0xa100891c      /* Eicon DIVA 2.02 IPAC	*/
 
 static struct isic_pnp_ids {
 	u_long vend_id;
@@ -97,10 +99,14 @@ static struct isic_pnp_ids {
 	{ VID_AVMPNP,		"AVM Fritz!Card PnP"		},	
 #endif
 #ifdef SIEMENS_ISURF2
-	{ VID_SIESURF2,		"Siemens I-Surf 2.0 PnP"	},	
+	{ VID_SIESURF2,		"Siemens I-Surf 2.0 PnP"	},
 #endif
 #ifdef ASUSCOM_IPAC
  	{ VID_ASUSCOM_IPAC,	"Asuscom ISDNLink 128 PnP"	},
+#endif
+#ifdef EICON_DIVA
+	{ VID_EICON_DIVA_20,	"Eicon.Diehl DIVA 2.0 ISA PnP"	},
+	{ VID_EICON_DIVA_202,	"Eicon.Diehl DIVA 2.02 ISA PnP"	},
 #endif
 	{ 0, 0 }
 };
@@ -268,6 +274,17 @@ isic_pnp_attach(device_t dev)
 		case VID_ASUSCOM_IPAC:
 			sc->sc_cardtyp = CARD_TYPEP_ASUSCOMIPAC;
 			ret = isic_attach_asi(dev);
+			break;
+#endif
+#ifdef EICON_DIVA
+		case VID_EICON_DIVA_20:
+			sc->sc_cardtyp = CARD_TYPEP_DIVA_ISA;
+			ret = isic_attach_diva(dev);
+			break;
+		
+		case VID_EICON_DIVA_202:
+			sc->sc_cardtyp = CARD_TYPEP_DIVA_ISA;
+			ret = isic_attach_diva_ipac(dev);
 			break;
 #endif
 		default:
