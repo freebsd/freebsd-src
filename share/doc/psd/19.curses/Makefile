@@ -1,14 +1,17 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id$
+#	$Id: Makefile,v 1.1 1995/01/11 01:52:02 wollman Exp $
 
 VOLUME=	psd/19.curses
 SRCS=	Master
 MACROS=	-me
 LSRCDIR=	${.CURDIR}/../../../../lib/libcurses/PSD.doc
 .PATH:	${LSRCDIR}
+SRCLINKS=appen.A c_macros ex1.gr ex2.gr fns.doc \
+	intro.0 intro.1 intro.2.tbl intro.3 intro.4 intro.5 intro.6 \
+	macros twinkle1.gr
 
-CLEANFILES+=win_st.gr twinkle1.gr twinkle2.gr life.gr intro.2.tbl appen.A.tbl \
-	ex1.gr ex2.gr ${DOC}.${PRINTER}+
+CLEANFILES+=win_st.gr twinkle2.gr life.gr appen.A.tbl ${DOC}.${PRINTER}+ \
+	Master ${SRCLINKS}
 
 .SUFFIXES:
 .SUFFIXES: .c .gr
@@ -26,8 +29,7 @@ VFONT=	/usr/libexec/vfontedpr
 
 .MAIN:	all
 
-Master: twinkle1.gr ex1.gr ex2.gr fns.doc intro.5 intro.2.tbl intro.0 intro.1 \
-	intro.3 intro.4 intro.6 macros c_macros appen.A
+Master: ${SRCLINKS}
 	for a in Master ${.ALLSRC}; do \
 		test -e $$a || ln -s ${LSRCDIR}/$$a .; \
 	done
@@ -39,8 +41,3 @@ intro.2.tbl: intro.2
 SRCDIR=	${.OBJDIR}
 
 .include <bsd.doc.mk>
-
-
-
-
-
