@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.76 1998/05/06 23:50:00 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.77 1998/05/08 01:15:04 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1272,8 +1272,6 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
     dl->next = bundle->links;
     bundle->links = dl;
     bundle_GenPhysType(bundle);
-    log_Printf(LogPHASE, "%s: Created in %s state\n",
-              dl->name, datalink_State(dl));
     datalink_AuthOk(dl);
   } else
     close(link_fd);

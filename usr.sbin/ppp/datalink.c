@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.56 1998/05/06 23:49:31 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.57 1998/05/08 01:15:05 brian Exp $
  */
 
 #include <sys/types.h>
@@ -71,6 +71,7 @@
 #include "datalink.h"
 
 static void datalink_LoginDone(struct datalink *);
+static void datalink_NewState(struct datalink *, int);
 
 static void
 datalink_OpenTimeout(void *v)
@@ -119,16 +120,14 @@ datalink_HangupDone(struct datalink *dl)
       (dl->physical->type == PHYS_DIRECT) ||
       ((!dl->dial_tries || (dl->dial_tries < 0 && !dl->reconnect_tries)) &&
        !(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)))) {
-    log_Printf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
-    dl->state = DATALINK_CLOSED;
+    datalink_NewState(dl, DATALINK_CLOSED);
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
     bundle_LinkClosed(dl->bundle, dl);
     if (!dl->bundle->CleaningUp)
       datalink_StartDialTimer(dl, dl->cfg.dial.timeout);
   } else {
-    log_Printf(LogPHASE, "%s: Re-entering OPENING state\n", dl->name);
-    dl->state = DATALINK_OPENING;
+    datalink_NewState(dl, DATALINK_OPENING);
     if (dl->dial_tries < 0) {
       datalink_StartDialTimer(dl, dl->cfg.reconnect.timeout);
       dl->dial_tries = dl->cfg.dial.max;
@@ -167,14 +166,12 @@ datalink_LoginDone(struct datalink *dl)
 {
   if (!dl->script.packetmode) { 
     dl->dial_tries = -1;
-    log_Printf(LogPHASE, "%s: Entering READY state\n", dl->name);
-    dl->state = DATALINK_READY;
+    datalink_NewState(dl, DATALINK_READY);
   } else if (modem_Raw(dl->physical, dl->bundle) < 0) {
     dl->dial_tries = 0;
     log_Printf(LogWARN, "datalink_LoginDone: Not connected.\n");
     if (dl->script.run) { 
-      log_Printf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
-      dl->state = DATALINK_HANGUP;
+      datalink_NewState(dl, DATALINK_HANGUP);
       modem_Offline(dl->physical);
       chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
     } else {
@@ -193,8 +190,7 @@ datalink_LoginDone(struct datalink *dl)
               0 : dl->physical->link.lcp.cfg.openmode);
     ccp_Setup(&dl->physical->link.ccp);
 
-    log_Printf(LogPHASE, "%s: Entering LCP state\n", dl->name);
-    dl->state = DATALINK_LCP;
+    datalink_NewState(dl, DATALINK_LCP);
     fsm_Up(&dl->physical->link.lcp.fsm);
     fsm_Open(&dl->physical->link.lcp.fsm);
   }
@@ -228,8 +224,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           dl->dial_tries = 0;
         if (modem_Open(dl->physical, dl->bundle) >= 0) {
           if (dl->script.run) {
-            log_Printf(LogPHASE, "%s: Entering DIAL state\n", dl->name);
-            dl->state = DATALINK_DIAL;
+            datalink_NewState(dl, DATALINK_DIAL);
             chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial, 1,
                       datalink_ChoosePhoneNumber(dl));
             if (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
@@ -251,8 +246,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           if (dl->bundle->CleaningUp ||
               (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
                dl->cfg.dial.max && dl->dial_tries == 0)) {
-            log_Printf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
-            dl->state = DATALINK_CLOSED;
+            datalink_NewState(dl, DATALINK_CLOSED);
             dl->reconnect_tries = 0;
             dl->dial_tries = -1;
             bundle_LinkClosed(dl->bundle, dl);
@@ -276,8 +270,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               datalink_HangupDone(dl);
               break;
             case DATALINK_DIAL:
-              log_Printf(LogPHASE, "%s: Entering LOGIN state\n", dl->name);
-              dl->state = DATALINK_LOGIN;
+              datalink_NewState(dl, DATALINK_LOGIN);
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
             case DATALINK_LOGIN:
@@ -295,8 +288,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               break;
             case DATALINK_DIAL:
             case DATALINK_LOGIN:
-              log_Printf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
-              dl->state = DATALINK_HANGUP;
+              datalink_NewState(dl, DATALINK_HANGUP);
               modem_Offline(dl->physical);
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
@@ -309,6 +301,9 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
     case DATALINK_LCP:
     case DATALINK_AUTH:
     case DATALINK_OPEN:
+      if (dl == dl->bundle->ncp.mp.server.send.dl)
+        /* Never read our descriptor if we're scheduled for transfer */
+        r = NULL;
       result = descriptor_UpdateSet(&dl->physical->desc, r, w, e, n);
       break;
   }
@@ -400,8 +395,7 @@ datalink_ComeDown(struct datalink *dl, int stay)
   if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
     modem_Offline(dl->physical);
     if (dl->script.run && dl->state != DATALINK_OPENING) {
-      log_Printf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
-      dl->state = DATALINK_HANGUP;
+      datalink_NewState(dl, DATALINK_HANGUP);
       chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
     } else
       datalink_HangupDone(dl);
@@ -483,7 +477,7 @@ datalink_AuthOk(struct datalink *dl)
 
   fsm_Up(&dl->physical->link.ccp.fsm);
   fsm_Open(&dl->physical->link.ccp.fsm);
-  dl->state = DATALINK_OPEN;
+  datalink_NewState(dl, DATALINK_OPEN);
   bundle_NewPhase(dl->bundle, PHASE_NETWORK);
   (*dl->parent->LayerUp)(dl->parent->object, &dl->physical->link.lcp.fsm);
 }
@@ -491,7 +485,7 @@ datalink_AuthOk(struct datalink *dl)
 void
 datalink_AuthNotOk(struct datalink *dl)
 {
-  dl->state = DATALINK_LCP;
+  datalink_NewState(dl, DATALINK_LCP);
   fsm_Close(&dl->physical->link.lcp.fsm);
 }
 
@@ -514,7 +508,7 @@ datalink_LayerDown(void *v, struct fsm *fp)
         timer_Stop(&dl->pap.authtimer);
         timer_Stop(&dl->chap.auth.authtimer);
     }
-    dl->state = DATALINK_LCP;
+    datalink_NewState(dl, DATALINK_LCP);
   }
 }
 
@@ -594,7 +588,8 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
   }
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
-  log_Printf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
+  log_Printf(LogPHASE, "%s: Created in %s state\n",
+             dl->name, datalink_State(dl));
 
   return dl;
 }
@@ -654,7 +649,8 @@ datalink_Clone(struct datalink *odl, const char *name)
 
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
-  log_Printf(LogPHASE, "%s: Cloned in CLOSED state\n", dl->name);
+  log_Printf(LogPHASE, "%s: Cloned in %s state\n",
+             dl->name, datalink_State(dl));
 
   return dl;
 }
@@ -693,11 +689,10 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
 
   switch (dl->state) {
     case DATALINK_CLOSED:
-      log_Printf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
       if (bundle_Phase(dl->bundle) == PHASE_DEAD ||
           bundle_Phase(dl->bundle) == PHASE_TERMINATE)
         bundle_NewPhase(dl->bundle, PHASE_ESTABLISH);
-      dl->state = DATALINK_OPENING;
+      datalink_NewState(dl, DATALINK_OPENING);
       dl->reconnect_tries =
         dl->physical->type == PHYS_DIRECT ? 0 : dl->cfg.reconnect.max;
       dl->dial_tries = dl->cfg.dial.max;
@@ -916,6 +911,19 @@ datalink_State(struct datalink *dl)
   return states[dl->state];
 }
 
+static void
+datalink_NewState(struct datalink *dl, int state)
+{
+  if (state != dl->state) {
+    if (state >= 0 && state < sizeof states / sizeof states[0]) {
+      log_Printf(LogPHASE, "%s: %s -> %s\n", dl->name, datalink_State(dl),
+                 states[state]);
+      dl->state = state;
+    } else
+      log_Printf(LogERROR, "%s: Can't enter state %d !\n", dl->name, state);
+  }
+}
+
 struct datalink *
 iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
              int fd)
@@ -994,8 +1002,12 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
     free(dl->name);
     free(dl);
     dl = NULL;
-  } else
+  } else {
     chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
+
+    log_Printf(LogPHASE, "%s: Transferred in %s state\n",
+              dl->name, datalink_State(dl));
+  }
 
   return dl;
 }
