@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: builtins.c,v 1.2 1999/07/22 21:11:40 green Exp $
+ * $Id: builtins.c,v 1.3 1999/07/22 21:42:49 green Exp $
  *
  */
 
@@ -375,7 +375,7 @@ ident_stream(s, sep)		/* Ident service */
 	if (len == -1)
 		iderror(0, 0, s, errno);
 	buf[len] = '\0';
-	if (sscanf(buf, "%hu,%hu", &lport, &fport) != 2)
+	if (sscanf(buf, "%hu , %hu", &lport, &fport) != 2)
 		iderror(0, 0, s, 0);
 	if (!rflag)
 		iderror(lport, fport, s, -1);
