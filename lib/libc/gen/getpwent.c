@@ -91,6 +91,8 @@ int	__pw_match_entry(const char *, size_t, enum nss_lookup_type,
 	    const char *, uid_t);
 int	__pw_parse_entry(char *, size_t, struct passwd *, int, int *errnop);
 
+static	int	 pwd_init(struct passwd *, char *, size_t);
+
 union key {
 	const char	*name;
 	uid_t		 uid;
@@ -266,8 +268,10 @@ getpwent_r(struct passwd *pwd, char *buffer, size_t bufsize,
 	};
 	int	rv, ret_errno;
 
-	ret_errno = 0;
 	*result = NULL;
+	ret_errno = pwd_init(pwd, buffer, bufsize);
+	if (ret_errno != 0)
+		return (ret_errno);
 	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwent_r", defaultsrc,
 	    pwd, buffer, bufsize, &ret_errno);
 	if (rv == NS_SUCCESS)
@@ -294,8 +298,10 @@ getpwnam_r(const char *name, struct passwd *pwd, char *buffer, size_t bufsize,
 	};
 	int	rv, ret_errno;
 
-	ret_errno = 0;
 	*result = NULL;
+	ret_errno = pwd_init(pwd, buffer, bufsize);
+	if (ret_errno != 0)
+		return (ret_errno);
 	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwnam_r", defaultsrc,
 	    name, pwd, buffer, bufsize, &ret_errno);
 	if (rv == NS_SUCCESS)
@@ -322,14 +328,36 @@ getpwuid_r(uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize,
 	};
 	int	rv, ret_errno;
 
-	ret_errno = 0;
 	*result = NULL;
+	ret_errno = pwd_init(pwd, buffer, bufsize);
+	if (ret_errno != 0)
+		return (ret_errno);
 	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwuid_r", defaultsrc,
 	    uid, pwd, buffer, bufsize, &ret_errno);
 	if (rv == NS_SUCCESS)
 		return (0);
 	else
 		return (ret_errno);
+}
+
+
+static int
+pwd_init(struct passwd *pwd, char *buffer, size_t bufsize)
+{
+
+	if (bufsize < 1)
+		return (ERANGE);
+	buffer[0] = '\0';
+	memset(pwd, 0, sizeof(*pwd));
+	pwd->pw_uid = (uid_t)-1;  /* Considered least likely to lead to */
+	pwd->pw_gid = (gid_t)-1;  /* a security issue.                  */
+	pwd->pw_name = buffer;
+	pwd->pw_passwd = buffer;
+	pwd->pw_class = buffer;
+	pwd->pw_gecos = buffer;
+	pwd->pw_dir = buffer;
+	pwd->pw_shell = buffer;
+	return (0);
 }
 
 
@@ -667,7 +695,6 @@ pwdb_parse_entry_v3(char *buffer, size_t bufsize, struct passwd *pwd,
 	char		*p, *eom;
 	int32_t		 pw_change, pw_expire;
 
-	memset(pwd, 0, sizeof(*pwd));
 	/* THIS CODE MUST MATCH THAT IN pwd_mkdb. */
 	p = buffer;
 	eom = &buffer[bufsize];
@@ -739,7 +766,6 @@ pwdb_parse_entry_v4(char *buffer, size_t bufsize, struct passwd *pwd,
 	char		*p, *eom;
 	uint32_t	 n;
 
-	memset(pwd, 0, sizeof(*pwd));
 	/* THIS CODE MUST MATCH THAT IN pwd_mkdb. */
 	p = buffer;
 	eom = &buffer[bufsize];
@@ -1652,7 +1678,6 @@ __pw_parse_entry(char *buffer, size_t bufsize __unused, struct passwd *pwd,
     int master, int *errnop __unused)
 {
 
-	memset(pwd, 0, sizeof(*pwd));
 	if (__pw_scan(buffer, pwd, master ? _PWSCAN_MASTER : 0) == 0)
 		return (NS_NOTFOUND);
 	else
