@@ -1367,7 +1367,9 @@ cpu_initclocks()
 
 	inthand_add("clk", apic_8254_intr, (driver_intr_t *)clkintr, NULL,
 	    INTR_TYPE_CLK | INTR_FAST, &clkdesc);
+	mtx_lock_spin(&icu_lock);
 	INTREN(1 << apic_8254_intr);
+	mtx_unlock_spin(&icu_lock);
 
 #else /* APIC_IO */
 
@@ -1378,7 +1380,9 @@ cpu_initclocks()
 	 */
 	inthand_add("clk", 0, (driver_intr_t *)clkintr, NULL,
 	    INTR_TYPE_CLK | INTR_FAST, NULL);
+	mtx_lock_spin(&icu_lock);
 	INTREN(IRQ0);
+	mtx_unlock_spin(&icu_lock);
 
 #endif /* APIC_IO */
 
@@ -1404,11 +1408,13 @@ cpu_initclocks()
 	inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL,
 	    INTR_TYPE_CLK | INTR_FAST, NULL);
 
+	mtx_lock_spin(&icu_lock);
 #ifdef APIC_IO
 	INTREN(APIC_IRQ8);
 #else
 	INTREN(IRQ8);
 #endif /* APIC_IO */
+	mtx_unlock_spin(&icu_lock);
 
 	writertc(RTC_STATUSB, rtc_statusb);
 #endif /* PC98 */
@@ -1426,7 +1432,9 @@ cpu_initclocks()
 			 * on the IO APIC.
 			 * Workaround: Limited variant of mixed mode.
 			 */
+			mtx_lock_spin(&icu_lock);
 			INTRDIS(1 << apic_8254_intr);
+			mtx_unlock_spin(&icu_lock);
 			inthand_remove(clkdesc);
 			printf("APIC_IO: Broken MP table detected: "
 			       "8254 is not connected to "
@@ -1449,7 +1457,9 @@ cpu_initclocks()
 			inthand_add("clk", apic_8254_intr,
 				    (driver_intr_t *)clkintr, NULL,
 				    INTR_TYPE_CLK | INTR_FAST, NULL);
+			mtx_lock_spin(&icu_lock);
 			INTREN(1 << apic_8254_intr);
+			mtx_unlock_spin(&icu_lock);
 		}
 		
 	}
