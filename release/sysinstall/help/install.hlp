@@ -58,10 +58,9 @@ important data first!  We really mean it!
 
 FreeBSD requires a 386 or better processor to run (sorry, there is no
 support for '286 processors), 5 megs of RAM to install and 4 megs of
-ram to run. You will need at least 80 megs of hard drive space free
-on either a dedicated disk or a "primary," (not extended partition,
-to use the DOS terminology). See below for ways to shrink existing
-DOS partitions to install FreeBSD.
+ram to run. You will need at least 80 megs of free hard drive space.
+See below for ways of shrinking existing DOS partitions in order to
+install FreeBSD.
 
 
 0.1     Installing FreeBSD from CDROM or the Internet
@@ -479,7 +478,7 @@ the filesystem you leave uncompressed.  The rest of the filesystem
 will show up as one large file (the stacked/dblspaced file!).  DO NOT
 REMOVE THAT FILE as you will probably regret it greatly!
 
-It is probably better to create another uncompressed DOS primary
+It is probably better to create another uncompressed DOS extended
 partition and use this for communications between DOS and FreeBSD if
 such is your desire.
 
