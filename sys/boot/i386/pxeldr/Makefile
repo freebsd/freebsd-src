@@ -8,7 +8,6 @@ LDR=		pxeldr
 BOOT=		pxeboot
 PROG=		${BOOT}
 MAN8=		${BOOT}.8
-# NOMAN=
 STRIP=
 BINDIR?=	/boot
 
