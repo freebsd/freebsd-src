@@ -153,7 +153,7 @@
       &merged;</para>
 
     <para>Several errors in the <application>OpenSSH</application> PAM
-      challenge/authentication subsystem have been fixed.  The impacts
+      challenge/response authentication subsystem have been fixed.  The impacts
       of these bugs vary; details can be found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>.
       &merged;</para>
@@ -353,6 +353,48 @@
 	a <varname>ip_id</varname> field set unless fragmentation is
 	being done.</para>
 
+      <para>The &os; Bluetooth protocol stack has been updated:</para>
+     
+      <itemizedlist>
+        <listitem>
+          <para><application>libsdp</application> has been re-implemented
+            under BSD style license.  This is because the Linux BlueZ's code is
+            distributed under GPL.</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.hccontrol.8; utility now supports four new commands:
+            Read/Write_Page_Scan_Mode and Read/Write_Page_Scan_Period_Mode.</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.hcsecd.8; daemon now stores link keys on a disk.
+            It is no longer required to pair devices every time.</para>
+        </listitem>
+
+        <listitem>
+          <para>A netgraph timeouts problem in &man.ng.hci.4; and
+            &man.ng.l2cap.4; kernel modules, which could cause
+            access to data structure that was already freed,
+            has been fixed.</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.ng.ubt.4; module, which cannot be build on
+            &os; &release.prev;, has been fixed.</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.rfcomm.sppd.1; and &man.rfcomm.pppd.8; now supports to
+            obtain a RFCOMM channel via SDP from the server.  Note that
+            it is still needed to specify a RFCOMM channel by hand.</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.sdpcontrol.8; utility, which is analogous to sdptool utility in
+            the Linux BlueZ SDP package, has been added.</para>
+        </listitem>
+      </itemizedlist>
     </sect3>
 
     <sect3 id="disks">
