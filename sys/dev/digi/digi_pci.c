@@ -43,9 +43,9 @@
 #include <pci/pcivar.h>
 
 #include <sys/digiio.h>
-#include <digi/digireg.h>
-#include <digi/digi.h>
-#include <digi/digi_pci.h>
+#include <dev/digi/digireg.h>
+#include <dev/digi/digi.h>
+#include <dev/digi/digi_pci.h>
 
 static u_char *
 digi_pci_setwin(struct digi_softc *sc, unsigned int addr)
