@@ -53,9 +53,10 @@
 #include <sys/sockio.h>
 
 #include <net/if.h>
-#include <net/if_llc.h>
 #include <net/if_dl.h>
+#include <net/if_llc.h>
 #include <net/if_types.h>
+
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/bpf.h>

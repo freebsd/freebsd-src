@@ -46,20 +46,21 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sockio.h> 
-#include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/netisr.h>
-#include <net/route.h>
-#include <net/if_llc.h>
 #include <net/if_dl.h>
+#include <net/if_llc.h>
 #include <net/if_types.h>
 
-#include <net/if_arp.h>
-
+#include <net/netisr.h>
+#include <net/route.h>
+#include <net/bpf.h>
 #include <net/iso88025.h>
 
 #if defined(INET) || defined(INET6)
@@ -75,16 +76,6 @@
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 #endif
-
-#include <net/bpf.h>
-
-#include <machine/md_var.h>
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-
-#include <net/iso88025.h>
 
 #define IFP2AC(IFP) ((struct arpcom *)IFP)
 
