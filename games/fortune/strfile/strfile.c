@@ -146,13 +146,12 @@ static void	usage(void);
  *	CHUNKSIZE blocks; if the latter, we just write each pointer,
  *	and then seek back to the beginning to write in the table.
  */
-int main(ac, av)
-int	ac;
-char	**av;
+int main(int ac, char *av[])
 {
 	char		*sp, dc;
 	FILE		*inf, *outf;
-	long           last_off, length, pos, *p;
+	long		last_off, pos, *p;
+	unsigned long	length;
 	int		first, cnt;
 	char		*nsp;
 	STR		*fp;
