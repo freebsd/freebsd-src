@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mk-amd-map.c,v 1.2 1998/08/23 22:52:09 obrien Exp $
+ * $Id: mk-amd-map.c,v 1.3 1998/08/27 02:56:47 obrien Exp $
  */
 
 /*
@@ -298,7 +298,7 @@ main(int argc, char *argv[])
     int error = read_file(mapf, map, mapd);
     (void) close(mapfd);
     (void) fclose(mapf);
-    dbm_close(mapd);
+	dbm_close(mapd);
     if (printit) {
       if (error) {
 	fprintf(stderr, "Error creating ndbm map for %s\n", map);
