@@ -983,7 +983,8 @@ agg_attach(device_t dev)
 		goto bad;
 	}
 	if (bootverbose)
-		device_printf(dev, "Maestro DMA base: %#x\n", ess->baseaddr);
+		device_printf(dev, "Maestro DMA base: %#llx\n",
+		    (long long)ess->baseaddr);
 
 	agg_power(ess, PPMI_D0);
 	DELAY(100000);
