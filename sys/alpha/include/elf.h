@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.1.1.1 1998/03/09 05:42:33 jb Exp $
+ *      $Id: elf.h,v 1.2 1998/06/10 10:54:57 dfr Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -34,6 +34,8 @@
  */
 
 #include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
+
+#define ELF_MACHINE_OK(x)	((x) == EM_ALPHA)
 
 /*
  * Auxiliary vector entries for passing information to the interpreter.
