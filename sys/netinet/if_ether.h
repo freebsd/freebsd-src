@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.3 (Berkeley) 5/2/95
- *	$Id: if_ether.h,v 1.11 1995/10/05 20:08:43 wollman Exp $
+ *	$Id: if_ether.h,v 1.12 1995/12/05 02:01:42 davidg Exp $
  */
 
 #ifndef _NETINET_IF_ETHER_H_
@@ -147,12 +147,9 @@ extern u_char	ether_ipmulticast_min[6];
 extern u_char	ether_ipmulticast_max[6];
 extern struct	ifqueue arpintrq;
 
-void	arpintr __P((void));
 int	arpresolve __P((struct arpcom *, struct rtentry *, struct mbuf *,
 			struct sockaddr *, u_char *, struct rtentry *));
-void	arpwhohas __P((struct arpcom *, struct in_addr *));
 void	arp_ifinit __P((struct arpcom *, struct ifaddr *));
-
 int	ether_addmulti __P((struct ifreq *, struct arpcom *));
 int	ether_delmulti __P((struct ifreq *, struct arpcom *));
 
