@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.20 1995/04/09 06:39:01 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.21 1995/04/15 21:37:32 gibbs Exp $
  */
 /*
  * TODO:
@@ -1081,6 +1081,7 @@ ahcintr(unit)
 
 					sg->addr = KVTOPHYS(&xs->sense);
 					sg->len = sizeof(struct scsi_sense_data);
+
 					scb->target_channel_lun = tcl;
 					scb->SG_segment_count = 1;
 					scb->SG_list_pointer = KVTOPHYS(sg);
@@ -1144,6 +1145,9 @@ ahcintr(unit)
 			    scb->xs->resid = (inb(iobase+SCBARRAY+17) << 16) |
 					     (inb(iobase+SCBARRAY+16) << 8) |
 					      inb(iobase+SCBARRAY+15);
+#ifdef AHC_DEBUG
+			printf("ahc: Handled Residual\n"); 
+#endif
 			break;
 		  }
 		  case ABORT_TAG:
@@ -1675,8 +1679,6 @@ ahc_scsi_cmd(xs)
          * then we can't allow it to sleep
          */
         flags = xs->flags;
-        if (xs->bp)
-                flags |= (SCSI_NOSLEEP);        /* just to be sure */
         if (flags & ITSDONE) {
                 printf("ahc%d: Already done?", unit);  
                 xs->flags &= ~ITSDONE;  
@@ -1844,15 +1846,17 @@ ahc_free_scb(unit, scb, flags)
         int     unit, flags;
         struct  scb *scb;
 {
-        unsigned int opri = 0;
+        unsigned int opri;
         struct ahc_data *ahc = ahcdata[unit];
 
-        if (!(flags & SCSI_NOMASK))
-                opri = splbio();
+	opri = splbio();
 
         scb->flags = SCB_FREE;
         scb->next = ahc->free_scb;
         ahc->free_scb = scb;
+#ifdef AHC_DEBUG
+	ahc->activescbs--; 
+#endif
         /*
          * If there were none, wake abybody waiting for
          * one to come free, starting with queued entries
@@ -1860,8 +1864,7 @@ ahc_free_scb(unit, scb, flags)
         if (!scb->next) {
                 wakeup((caddr_t)&ahc->free_scb);
         }
-        if (!(flags & SCSI_NOMASK))
-                splx(opri);
+	splx(opri);
 }
  
 /*
@@ -1874,12 +1877,10 @@ ahc_get_scb(unit, flags)
         int     unit, flags;
 {
         struct ahc_data *ahc = ahcdata[unit];
-        unsigned opri = 0;
+        unsigned opri;
         struct scb *scbp;
-	int position;
 
-        if (!(flags & SCSI_NOMASK))
-                opri = splbio();
+	opri = splbio();
         /*
          * If we can and have to, sleep waiting for one to come free
          * but only if we can't allocate a new one.
@@ -1925,24 +1926,32 @@ ahc_get_scb(unit, flags)
 
                         } else {
                                 printf("ahc%d: Can't malloc SCB\n", unit);
-                        } goto gottit;
+                        }
+			break;
                 } else {
                         if (!(flags & SCSI_NOSLEEP)) {
                                 tsleep((caddr_t)&ahc->free_scb, PRIBIO,
                                     "ahcscb", 0);
+				continue;
                         }
+			break;
                 }
-        } if (scbp) {
+        }
+
+	if (scbp) {
                 /* Get SCB from from free list */
                 ahc->free_scb = scbp->next;
-		/* preserve the position */
-		position = scbp->position;
-                bzero(scbp, sizeof(struct scb));
+                bzero(scbp, SCB_BZERO_SIZE);
                 scbp->flags = SCB_ACTIVE;
-		scbp->position = position;
+#ifdef AHC_DEBUG
+		ahc->activescbs++;
+		if( ahc->activescbs == ahc->maxscbs )
+			printf("ahc%d: Max SCBs active\n", unit); 
+#endif
         }
-gottit: if (!(flags & SCSI_NOMASK))
-                splx(opri);
+
+gottit:
+	splx(opri);
 
         return (scbp);
 }
