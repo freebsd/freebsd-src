@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.39 1998/07/22 06:15:19 phk Exp $";
+	"$Id: syslogd.c,v 1.40 1998/07/27 13:04:14 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -301,7 +301,7 @@ main(argc, argv)
 	FILE *fp;
 	char *p, *hname, line[MAXLINE + 1];
 	struct timeval tv, *tvp;
-	pid_t ppid;
+	pid_t ppid = 1;
 
 	while ((ch = getopt(argc, argv, "a:dl:f:m:p:suv")) != -1)
 		switch(ch) {
@@ -585,7 +585,7 @@ void
 printsys(msg)
 	char *msg;
 {
-	int c, pri, flags;
+	int pri, flags;
 	char *p, *q;
 
 	for (p = msg; *p != '\0'; ) {
