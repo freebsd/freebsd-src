@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lca.c,v 1.1 1998/08/10 07:53:59 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -219,7 +219,8 @@ lca_maxdevs(u_int b)
 }
 
 #define LCA_CFGOFF(b, s, f, r) \
-	(((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
+	((b) ? (((b) << 16) | ((s) << 11) | ((f) << 8) | (r)) \
+	 : ((1 << ((s) + 11)) | ((f) << 8) | (r)))
 
 #define LCA_TYPE1_SETUP(b,s) if ((b)) {		\
         do {					\
@@ -243,7 +244,7 @@ lca_maxdevs(u_int b)
 	type val = ~0;							 \
 	int ipl = 0;							 \
 	vm_offset_t off = LCA_CFGOFF(b, s, f, r);			 \
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(LCA_PCI_CONF, off);	 \
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(LCA_PCI_CONF), off); \
 	alpha_mb();							 \
 	LCA_TYPE1_SETUP(b,ipl);						 \
 	if (!badaddr((caddr_t)kv, sizeof(type))) {			 \
@@ -255,7 +256,7 @@ lca_maxdevs(u_int b)
 #define CFGWRITE(b, s, f, r, data, width, type)				\
 	int ipl = 0;							\
 	vm_offset_t off = LCA_CFGOFF(b, s, f, r);			\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(LCA_PCI_CONF, off);	\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(LCA_PCI_CONF), off); \
 	alpha_mb();							\
 	LCA_TYPE1_SETUP(b,ipl);						\
 	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
