@@ -49,8 +49,6 @@
 #include <sys/buf.h>
 #include <sys/sysent.h>
 #include <sys/malloc.h>
-#include <net/radix.h>
-#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>

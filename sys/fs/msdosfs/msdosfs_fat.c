@@ -55,8 +55,6 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <net/radix.h>
-#include <sys/socket.h>
 #include <sys/mount.h>		/* to define statfs structure */
 #include <sys/vnode.h>		/* to define vattr structure */
 

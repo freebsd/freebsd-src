@@ -54,8 +54,6 @@
 #include <sys/vnode.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
-#include <net/radix.h>
-#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
