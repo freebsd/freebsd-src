@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.426 1998/11/06 16:50:51 jkh Exp $
+#	$Id: Makefile,v 1.427 1998/11/06 17:29:08 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -466,7 +466,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
 	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
-	   cp ${.CURDIR}/texts/$${i} ${RD}/mfsfd/stand/help; done
+	   gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; done
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@echo "Making the regular boot floppy."
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
