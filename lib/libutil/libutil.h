@@ -18,13 +18,24 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.15 1998/06/01 08:46:52 amurai Exp $
+ * $Id: libutil.h,v 1.16 1998/06/05 08:21:33 ache Exp $
  */
 
 #ifndef _LIBUTIL_H_
 #define	_LIBUTIL_H_
 
+#include <stdio.h>
 #include <sys/cdefs.h>
+
+/* for properties.c */
+typedef struct _property {
+	struct _property *next;
+	char *name;
+	char *value;
+} *properties;
+
+/* for auth.c */
+#define _PATH_AUTHCONF	"/etc/auth.conf"
 
 /* Avoid pulling in all the include files for no need */
 struct termios;
@@ -47,6 +58,10 @@ int	uu_lock __P((const char *_ttyname));
 int	uu_unlock __P((const char *_ttyname));
 int	uu_lock_txfr __P((const char *_ttyname, pid_t _pid));
 int	_secure_path __P((const char *_path, uid_t _uid, gid_t _gid));
+properties properties_read __P((FILE *fp));
+void	properties_free __P((properties list));
+char	*property_find __P((properties list, const char *name));
+char	*auth_getval __P((const char *name));
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)
