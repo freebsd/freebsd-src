@@ -101,6 +101,7 @@ entrust		{ yylval.num = IPSEC_POLICY_ENTRUST; return(ACTION); }
 esp		{ yylval.num = IPPROTO_ESP; return(PROTOCOL); }
 ah		{ yylval.num = IPPROTO_AH; return(PROTOCOL); }
 ipcomp		{ yylval.num = IPPROTO_IPCOMP; return(PROTOCOL); }
+tcp		{ yylval.num = IPPROTO_TCP; return(PROTOCOL); }
 
 transport	{ yylval.num = IPSEC_MODE_TRANSPORT; return(MODE); }
 tunnel		{ yylval.num = IPSEC_MODE_TUNNEL; return(MODE); }

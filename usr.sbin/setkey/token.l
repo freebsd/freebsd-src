@@ -160,6 +160,7 @@ esp		{ PREPROC; yylval.num = 0; return(PR_ESP); }
 ah-old		{ PREPROC; yylval.num = 1; return(PR_AH); }
 esp-old		{ PREPROC; yylval.num = 1; return(PR_ESP); }
 ipcomp		{ PREPROC; yylval.num = 0; return(PR_IPCOMP); }
+tcp		{ PREPROC; yylval.num = 0; return(PR_TCP); }
 
 	/* authentication alogorithm */
 {hyphen}A	{ PREPROC; return(F_AUTH); }
@@ -170,6 +171,7 @@ keyed-sha1	{ PREPROC; yylval.num = SADB_X_AALG_SHA; return(ALG_AUTH); }
 hmac-sha2-256	{ PREPROC; yylval.num = SADB_X_AALG_SHA2_256; return(ALG_AUTH); }
 hmac-sha2-384	{ PREPROC; yylval.num = SADB_X_AALG_SHA2_384; return(ALG_AUTH); }
 hmac-sha2-512	{ PREPROC; yylval.num = SADB_X_AALG_SHA2_512; return(ALG_AUTH); }
+tcp-md5		{ PREPROC; yylval.num = SADB_X_AALG_TCP_MD5; return(ALG_AUTH); }
 null		{ PREPROC; yylval.num = SADB_X_AALG_NULL; return(ALG_AUTH); }
 
 	/* encryption alogorithm */

@@ -101,7 +101,7 @@ extern void yyerror __P((const char *));
 %token EOT
 %token ADD GET DELETE FLUSH DUMP
 %token ADDRESS PREFIX PORT PORTANY
-%token UP_PROTO PR_ESP PR_AH PR_IPCOMP
+%token UP_PROTO PR_ESP PR_AH PR_IPCOMP PR_TCP
 %token F_PROTOCOL F_AUTH F_ENC F_REPLAY F_COMP F_RAWCPI
 %token F_MODE MODE F_REQID
 %token F_EXT EXTENSION NOCYCLICSEQ
@@ -113,7 +113,7 @@ extern void yyerror __P((const char *));
 %token F_POLICY PL_REQUESTS
 
 %type <num> PORT PREFIX EXTENSION MODE
-%type <num> UP_PROTO PR_ESP PR_AH PR_IPCOMP
+%type <num> UP_PROTO PR_ESP PR_AH PR_IPCOMP PR_TCP
 %type <num> ALG_AUTH ALG_ENC ALG_ENC_DESDERIV ALG_ENC_DES32IV ALG_COMP
 %type <num> DECSTRING
 %type <val> ADDRESS PL_REQUESTS
@@ -229,8 +229,12 @@ protocol_spec
 		{
 			p_satype = SADB_X_SATYPE_IPCOMP;
 		}
+	|	PR_TCP
+		{
+			p_satype = SADB_X_SATYPE_TCPSIGNATURE;
+		}
 	;
-	
+
 spi
 	:	DECSTRING { p_spi = $1; }
 	|	HEXSTRING
@@ -348,7 +352,11 @@ auth_key
 			p_key_auth_len = $1.len;
 			p_key_auth = pp_key;
 
-			if (ipsec_check_keylen(SADB_EXT_SUPPORTED_AUTH,
+			if (p_alg_auth == SADB_X_AALG_TCP_MD5) {
+				if ((p_key_auth_len < 1) || (p_key_auth_len >
+				    80))
+				return -1;
+			} else if (ipsec_check_keylen(SADB_EXT_SUPPORTED_AUTH,
 					p_alg_auth,
 					PFKEY_UNUNIT64(p_key_auth_len)) < 0) {
 				yyerror(ipsec_strerror());
