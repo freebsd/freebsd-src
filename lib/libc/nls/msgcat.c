@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.14 1998/04/30 11:06:12 ache Exp $ */
+/*	$Id: msgcat.c,v 1.15 1998/04/30 11:39:08 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -257,6 +257,8 @@ __const char *dflt;
     MCCatT	*cat = (MCCatT *) catd;
     __const char *cptr;
 
+    if (catd == NULL || catd == NLERR)
+	return((char *)dflt);
     msg = MCGetMsg(MCGetSet(cat, setId), msgId);
     if (msg) cptr = msg->msg.str;
     else cptr = dflt;
