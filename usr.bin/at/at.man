@@ -66,18 +66,18 @@ or
 .Ar HH:MM
 to run a job at a specific time of day.
 (If that time is already past, the next day is assumed.)
-You may also specify
+As an alternative, the following keywords may be specified:
 .Em midnight ,
 .Em noon ,
 or
 .Em teatime
 (4pm)
-and you can have a time-of-day suffixed with
+and time-of-day may be suffixed with
 .Em AM
 or
 .Em PM
 for running in the morning or the evening.
-You can also say what day the job will be run,
+The day on which the job is to be run may also be specified
 by giving a date in the form
 .Ar \%month-name day
 with an optional
@@ -91,7 +91,7 @@ or giving a date of the forms
 .Ar MMDDYY .
 The specification of a date must follow the specification of
 the time of day.
-You can also give times like
+Time can also be specified as:
 .Op Em now
 .Em + Ar count \%time-units ,
 where the time-units can be
