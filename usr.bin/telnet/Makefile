@@ -1,12 +1,15 @@
 # $FreeBSD$
 
+TELNETDIR=	${.CURDIR}/../../contrib/telnet
+.PATH:		${TELNETDIR}/telnet
+
 PROG=		telnet
 
 SRCS=		commands.c main.c network.c ring.c sys_bsd.c \
 		telnet.c terminal.c utilities.c
 
 CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DOPIE \
-		-I${.CURDIR}/../../lib -I${.CURDIR}/../../lib/libtelnet/
+		-I${TELNETDIR} -I${TELNETDIR}/libtelnet/
 
 .if exists(${.OBJDIR}/../../lib/libtelnet)
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
@@ -22,19 +25,21 @@ CFLAGS+=	-DINET6 -DIPSEC
 DPADD+=		${LIBIPSEC}
 LDADD+=		-lipsec
 .else
-.PATH:		${.CURDIR}/../../lib/libtelnet
-# XXX This was copied from lib/libtelnet/Makefile.
+.PATH:         ${TELNETDIR}/libtelnet
 SRCS+=		genget.c getent.c misc.c
 CFLAGS+=	-DHAS_CGETENT
 .endif
 
-unifdef:
-	-cd ${.CURDIR} ; \
-	( for i in *.[ch] ; do \
-		unifdef -UAUTHENTICATION -UENCRYPTION \
-			${.CURDIR}/../../crypto/telnet/telnet/$$i \
-				> ${.CURDIR}/$$i ; \
-		echo $$i ; \
-	done )
+.if !defined(NO_CRYPTO)
+SRCS+=		authenc.c 
+CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DIPSEC
+DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBIPSEC} ${LIBPAM}
+LDADD+=		-lmp -lcrypto -lcrypt -lipsec ${MINUSLPAM}
+.if !defined(NO_KERBEROS)
+CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
+DPADD+=		${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
+LDADD+=		-lkrb5 -lasn1 -lcom_err -lroken
+.endif
+.endif
 
 .include <bsd.prog.mk>

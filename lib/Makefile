@@ -5,8 +5,8 @@
 # built are visible:
 #
 # csu must be built before all shared libaries for ELF.
-# libcom_err must be built before libkrb and libpam.
-# libcrypt must be built before libkrb and libpam.
+# libcom_err must be built before libkrb5 and libpam.
+# libcrypt must be built before libkrb5 and libpam.
 # libkvm must be built before libdevstat.
 # msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, and libtacplus.
@@ -29,7 +29,7 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libipx libisc libmenu ${_libmilter} ${_libmp} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap ${_libpthread} \
 	${_libsm} ${_libsmb} ${_libsmdb} ${_libsmutil} \
-	libstand ${_libtelnet} ${_libthr} libufs libugidfw libusbhid \
+	libstand libtelnet ${_libthr} libufs libugidfw libusbhid \
 	${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -87,12 +87,6 @@ _compat=	compat
 
 .if ${MACHINE_ARCH} != "powerpc"
 _libdisk=	libdisk
-.endif
-
-.if defined(RELEASEDIR) || \
-    (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberos5)) || \
-    defined(NOCRYPT) || defined(NO_OPENSSL) || defined(NO_KERBEROS)
-_libtelnet=	libtelnet
 .endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
