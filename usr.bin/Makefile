@@ -168,7 +168,6 @@ SUBDIR=	alias \
 	split \
 	stat \
 	su \
-	symorder \
 	systat \
 	tabs \
 	tail \
