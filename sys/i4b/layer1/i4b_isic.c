@@ -306,16 +306,17 @@ isic_attach_common(device_t dev)
 
 	if(sc->sc_ipac)
 	{
-		ret = IPAC_READ(IPAC_ID);
+		sc->sc_ipac_version = IPAC_READ(IPAC_ID);
 	
-		switch(ret)
+		switch(sc->sc_ipac_version)
 		{
-			case 0x01: 
+			case IPAC_V11:
+			case IPAC_V12: 
 				break;
 	
 			default:
 				printf("isic%d: Error, IPAC version %d unknown!\n",
-					unit, ret);
+					unit, sc->sc_ipac_version);
 				return ENXIO;
 				break;
 

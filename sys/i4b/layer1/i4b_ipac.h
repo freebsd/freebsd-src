@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,6 +49,7 @@
 /* chip version */
 
 #define	IPAC_V11	0x01	/* IPAC Version 1.1 */
+#define	IPAC_V12	0x02	/* IPAC Version 1.2 */
 
 /*
  * definitions of registers and bits for the IPAC ISDN chip.
