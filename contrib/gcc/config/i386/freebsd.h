@@ -25,9 +25,6 @@ Boston, MA 02111-1307, USA.  */
 
 /* $FreeBSD$ */
 
-#undef  TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (i386 FreeBSD/ELF)");
-
 #undef  CC1_SPEC
 #define CC1_SPEC "%(cc1_cpu) %{profile:-p} \
   %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
