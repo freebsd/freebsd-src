@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.46 1998/02/23 12:24:27 kato Exp $
+ *	$Id: clock.c,v 1.47 1998/03/01 05:22:25 kato Exp $
  */
 
 /*
@@ -97,6 +97,9 @@
 #ifdef SMP
 #define disable_intr()	CLOCK_DISABLE_INTR()
 #define enable_intr()	CLOCK_ENABLE_INTR()
+
+/* The interrupt triggered by the 8254 (timer) chip */
+int apic_8254_intr;
 #endif /* SMP */
 
 /*
@@ -1245,15 +1248,12 @@ cpu_initclocks()
 	else 
 		panic("neither pin 0 or pin 2 works for 8254");
 
-	/* setup the vectors */
-	vec[x] = (u_int)vec8254;
-	Xintr8254 = (u_int)ivectors[x];
-	mask8254 = (1 << x);
+	apic_8254_intr = x; 
 
 	register_intr(/* irq */ x, /* XXX id */ 0, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
 		      /* unit */ 0);
-	INTREN(mask8254);
+	INTREN(1 << x);
 
 #else /* APIC_IO */
 
