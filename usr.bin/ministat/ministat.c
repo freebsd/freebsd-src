@@ -279,12 +279,14 @@ struct plot {
 	double		x0, dx;
 	int		height;
 	char		*data;
+	char		**bar;
+	int		separate_bars;
 };
 
 static struct plot plot;
 
 static void
-SetupPlot(int width)
+SetupPlot(int width, int separate)
 {
 	struct plot *pl;
 
@@ -292,6 +294,8 @@ SetupPlot(int width)
 	pl->width = width;
 	pl->height = 0;
 	pl->data = NULL;
+	pl->bar = NULL;
+	pl->separate_bars = separate;
 	pl->min = 999e99;
 	pl->max = -999e99;
 }
@@ -326,10 +330,26 @@ PlotSet(struct dataset *ds, int val)
 	struct plot *pl;
 	struct point *pp;
 	int i, j, m, x;
+	int bar;
 
 	pl = &plot;
 	if (pl->span == 0)
 		return;
+
+	if (pl->separate_bars)
+		bar = val-1;
+	else
+		bar = 0;
+
+	if (pl->bar == NULL) {
+		pl->bar = malloc(sizeof(char *) * 2);
+		memset(pl->bar, 0, sizeof(char*) * 2);
+	}
+	if (pl->bar[bar] == NULL) {
+		pl->bar[bar] = malloc(pl->width);
+		memset(pl->bar[bar], 0, pl->width);
+	}
+	
 	m = 1;
 	i = -1;
 	j = 0;
@@ -364,15 +384,15 @@ PlotSet(struct dataset *ds, int val)
 	}
 	x = ((Avg(ds) - Stddev(ds)) - pl->x0) / pl->dx;
 	m = ((Avg(ds) + Stddev(ds)) - pl->x0) / pl->dx;
-	pl->data[m] = '|';
-	pl->data[x] = '|';
+	pl->bar[bar][m] = '|';
+	pl->bar[bar][x] = '|';
 	for (i = x + 1; i < m; i++)
-		if (pl->data[i] == 0)
-			pl->data[i] = '_';
+		if (pl->bar[bar][i] == 0)
+			pl->bar[bar][i] = '_';
 	x = (Median(ds) - pl->x0) / pl->dx;
-	pl->data[x] = 'M';
+	pl->bar[bar][x] = 'M';
 	x = (Avg(ds) - pl->x0) / pl->dx;
-	pl->data[x] = 'A';
+	pl->bar[bar][x] = 'A';
 }
 
 static void
@@ -408,15 +428,19 @@ DumpPlot(void)
 		putchar('|');
 		putchar('\n');
 	}
-	putchar('|');
-	for (j = 0; j < pl->width; j++) {
-		k = pl->data[j];
-		if (k == 0)
-			k = ' ';
-		putchar(k);
+	for (i = 0; i < 2; i++) {
+		if (pl->bar[i] == NULL)
+			continue;
+		putchar('|');
+		for (j = 0; j < pl->width; j++) {
+			k = pl->bar[i][j];
+			if (k == 0)
+				k = ' ';
+			putchar(k);
+		}
+		putchar('|');
+		putchar('\n');
 	}
-	putchar('|');
-	putchar('\n');
 	putchar('+');
 	for (i = 0; i < pl->width; i++)
 		putchar('-');
@@ -479,7 +503,7 @@ usage(char const *whine)
 
 	fprintf(stderr, "%s\n", whine);
 	fprintf(stderr,
-	    "Usage: ministat [ -c confidence ] [file 1 [file 2]]\n");
+	    "Usage: ministat [ -c confidence ] [-s] [file 1 [file 2]]\n");
 	fprintf(stderr, "\tconfidence = {");
 	for (i = 0; i < NCONF; i++) {
 		fprintf(stderr, "%s%g%%",
@@ -487,6 +511,7 @@ usage(char const *whine)
 		    studentpct[i]);
 	}
 	fprintf(stderr, "}\n");
+	fprintf(stderr, "\t-s : print avg/median/stddev bars on separate lines\n");
 	exit (2);
 }
 
@@ -497,9 +522,10 @@ main(int argc, char **argv)
 	double a;
 	char *p;
 	int c, i, ci;
+	int flag_s = 0;
 
 	ci = -1;
-	while ((c = getopt(argc, argv, "c:")) != -1)
+	while ((c = getopt(argc, argv, "c:s")) != -1)
 		switch (c) {
 		case 'c':
 			a = strtod(optarg, &p);
@@ -510,6 +536,9 @@ main(int argc, char **argv)
 					ci = i;
 			if (ci == -1)
 				usage("No support for confidence level");
+			break;
+		case 's':
+			flag_s = 1;
 			break;
 		default:
 			usage("Unknown option");
@@ -531,8 +560,7 @@ main(int argc, char **argv)
 		printf("+ %s\n", argv[1]);
 	}
 
-
-	SetupPlot(74);
+	SetupPlot(74, flag_s);
 	DimPlot(ds1);
 	if (argc > 1)
 		DimPlot(ds2);
