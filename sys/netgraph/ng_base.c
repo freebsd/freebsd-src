@@ -1073,9 +1073,10 @@ ng_destroy_hook(hook_p hook)
 		peer->hk_peer = &ng_deadhook;	/* They no longer know us */
 		hook->hk_peer = &ng_deadhook;	/* Nor us, them */
 		ng_rmhook_self(peer); 		/* Give it a surprise */
+		NG_HOOK_UNREF(peer);		/* account for peer link */
+		NG_HOOK_UNREF(hook);		/* account for peer link */
 	}
 	ng_disconnect_hook(hook);
-	NG_HOOK_UNREF(hook);			/* account for peer link */
 }
 
 /*
@@ -3055,6 +3056,7 @@ ng_dumphooks(void)
 	}
 }
 
+#if 0
 static int
 sysctl_debug_ng_dump_items(SYSCTL_HANDLER_ARGS)
 {
@@ -3076,6 +3078,7 @@ sysctl_debug_ng_dump_items(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_debug, OID_AUTO, ng_dump_items, CTLTYPE_INT | CTLFLAG_RD,
     0, 0, sysctl_debug_ng_dump_items, "I", "Number of allocated items");
+#endif
 #endif	/* NETGRAPH_DEBUG */
 
 
