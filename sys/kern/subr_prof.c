@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.27 1998/07/14 05:09:46 bde Exp $
+ * $Id: subr_prof.c,v 1.28 1998/09/05 14:30:11 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #ifdef GPROF
 #include <sys/malloc.h>
 #include <sys/gmon.h>
+#undef MCOUNT
 
 static MALLOC_DEFINE(M_GPROF, "gprof", "kernel profiling buffer");
 
@@ -56,6 +57,8 @@ SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_FIRST, kmstartup, NULL)
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
 #ifdef GUPROF
+#include <machine/asmacros.h>
+
 void
 nullfunc_loop_profiled()
 {
@@ -174,7 +177,7 @@ kmstartup(dummy)
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
 #if defined(__i386__) && __GNUC__ >= 2
-		    __asm("call mexitcount; 1:"
+		    __asm("call " __XSTRING(HIDENAME(mexitcount)) "; 1:"
 			  : : : "ax", "bx", "cx", "dx", "memory");
 	__asm("movl $1b,%0" : "=rm" (tmp_addr));
 #else

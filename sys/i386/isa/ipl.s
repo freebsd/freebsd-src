@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.25 1999/04/11 15:51:15 peter Exp $
+ *	$Id: ipl.s,v 1.26 1999/04/28 01:04:14 luoqi Exp $
  */
 
 
@@ -107,6 +107,7 @@ _netisrs:
  * Handle return from interrupts, traps and syscalls.
  */
 	SUPERALIGN_TEXT
+	.type	_doreti,@function
 _doreti:
 #ifdef SMP
 	TEST_CIL
@@ -417,6 +418,7 @@ dummynetisr:
  */
 	ALIGN_TEXT
 	.globl	_swi_generic
+	.type	_swi_generic,@function
 _swi_generic:
 	pushl	%ecx
 	FAKE_MCOUNT(4(%esp))
