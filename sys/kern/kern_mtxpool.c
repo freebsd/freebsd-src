@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 
-MALLOC_DEFINE(M_MTXPOOL, "mtx_pool", "mutex pool");
+static MALLOC_DEFINE(M_MTXPOOL, "mtx_pool", "mutex pool");
 
 /* Pool sizes must be a power of two */
 #ifndef MTX_POOL_LOCKBUILDER_SIZE

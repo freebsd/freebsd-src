@@ -88,7 +88,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 /*
  * Malloc-type for external ext_buf ref counts.
  */
-MALLOC_DEFINE(M_MBUF, "mbextcnt", "mbuf external ref counts");
+static MALLOC_DEFINE(M_MBUF, "mbextcnt", "mbuf external ref counts");
 
 /*
  * Allocate a given length worth of mbufs and/or clusters (whatever fits

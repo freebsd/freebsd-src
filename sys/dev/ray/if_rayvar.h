@@ -111,8 +111,6 @@ struct ray_softc {
  * Command queue definitions
  */
 typedef void (*ray_comqfn_t)(struct ray_softc *sc, struct ray_comq_entry *com);
-MALLOC_DECLARE(M_RAYCOM);
-MALLOC_DEFINE(M_RAYCOM, "raycom", "Raylink command queue entry");
 struct ray_comq_entry {
 	TAILQ_ENTRY(ray_comq_entry) c_chain;	/* Tail queue.		*/
 	ray_comqfn_t	c_function;		/* Function to call */

@@ -275,6 +275,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ray/if_raydbg.h>
 #include <dev/ray/if_rayvar.h>
 
+static MALLOC_DEFINE(M_RAYCOM, "raycom", "Raylink command queue entry");
 /*
  * Prototyping
  */
