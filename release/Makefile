@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.416 1998/10/13 21:36:13 jkh Exp $
+#	$Id: Makefile,v 1.417 1998/10/13 21:37:30 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -758,8 +758,13 @@ doMFSKERN:
 	@touch ${RD}/boot.${FSIMAGE}/boot.config
 	@touch ${RD}/boot.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
+.if defined(_MFSKERN)
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
+		${RD}/boot.${FSIMAGE} ${BOOTINODE} ${BOOTMFSLABEL}
+.else
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
 		${RD}/boot.${FSIMAGE} ${BOOTINODE} ${BOOTLABEL}
+.endif
 	mv fs-image ${RD}/floppies/boot${FSIMAGE}.flp
 
 .include <bsd.prog.mk>
