@@ -1,4 +1,3 @@
-/* @(#)rpc_scan.c	2.1 88/08/01 4.0 RPCSRC */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -6,40 +5,45 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- *
+ * 
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- *
+ * 
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- *
+ * 
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- *
+ * 
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- *
+ * 
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
+
+#ident	"@(#)rpc_scan.c	1.13	93/07/05 SMI"
+
 #ifndef lint
-/*static char sccsid[] = "from: @(#)rpc_scan.c 1.6 87/06/24 (C) 1987 SMI";*/
-static char rcsid[] = "$Id: rpc_scan.c,v 1.1 1994/08/07 18:01:34 wollman Exp $";
+static char sccsid[] = "@(#)rpc_scan.c 1.11 89/02/22 (C) 1987 SMI";
 #endif
 
 /*
- * rpc_scan.c, Scanner for the RPC protocol compiler
- * Copyright (C) 1987, Sun Microsystems, Inc.
+ * rpc_scan.c, Scanner for the RPC protocol compiler 
+ * Copyright (C) 1987, Sun Microsystems, Inc. 
  */
+
+#include <sys/wait.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <strings.h>
+#include <string.h>
 #include "rpc_scan.h"
+#include "rpc_parse.h"
 #include "rpc_util.h"
 
 #define startcomment(where) (where[0] == '/' && where[1] == '*')
@@ -48,10 +52,18 @@ static char rcsid[] = "$Id: rpc_scan.c,v 1.1 1994/08/07 18:01:34 wollman Exp $";
 static int pushed = 0;	/* is a token pushed */
 static token lasttok;	/* last token, if pushed */
 
-static int unget_token(), findstrconst(), findconst(), findkind(), cppline(),
-	   directive(), printdirective(), docppline();
+static int unget_token __P(( token * ));
+static int findstrconst __P(( char **, char **));
+static int findchrconst __P(( char **, char **));
+static int findconst __P(( char **, char **));
+static int findkind __P(( char **, token * ));
+static int cppline __P(( char * ));
+static int directive __P(( char * ));
+static int printdirective __P(( char * ));
+static int docppline __P(( char *, int *, char ** ));
+
 /*
- * scan expecting 1 given token
+ * scan expecting 1 given token 
  */
 void
 scan(expect, tokp)
@@ -65,7 +77,7 @@ scan(expect, tokp)
 }
 
 /*
- * scan expecting 2 given tokens
+ * scan expecting any of the 2 given tokens 
  */
 void
 scan2(expect1, expect2, tokp)
@@ -80,7 +92,7 @@ scan2(expect1, expect2, tokp)
 }
 
 /*
- * scan expecting 3 given token
+ * scan expecting any of the 3 given token 
  */
 void
 scan3(expect1, expect2, expect3, tokp)
@@ -96,9 +108,8 @@ scan3(expect1, expect2, expect3, tokp)
 	}
 }
 
-
 /*
- * scan expecting a constant, possibly symbolic
+ * scan expecting a constant, possibly symbolic 
  */
 void
 scan_num(tokp)
@@ -113,9 +124,8 @@ scan_num(tokp)
 	}
 }
 
-
 /*
- * Peek at the next token
+ * Peek at the next token 
  */
 void
 peek(tokp)
@@ -125,9 +135,8 @@ peek(tokp)
 	unget_token(tokp);
 }
 
-
 /*
- * Peek at the next token and scan it if it matches what you expect
+ * Peek at the next token and scan it if it matches what you expect 
  */
 int
 peekscan(expect, tokp)
@@ -142,17 +151,17 @@ peekscan(expect, tokp)
 	return (0);
 }
 
-
-
 /*
- * Get the next token, printing out any directive that are encountered.
+ * Get the next token, printing out any directive that are encountered. 
  */
 void
 get_token(tokp)
 	token *tokp;
 {
 	int commenting;
-
+	int stat = 0;
+	
+	
 	if (pushed) {
 		pushed = 0;
 		*tokp = lasttok;
@@ -164,6 +173,12 @@ get_token(tokp)
 			for (;;) {
 				if (!fgets(curline, MAXLINESIZE, fin)) {
 					tokp->kind = TOK_EOF;
+					/* now check if cpp returned non NULL value */
+					waitpid(childpid, &stat, WUNTRACED);
+					if (stat > 0) {
+					/* Set return value from rpcgen */
+						nonfatalerrors = stat >> 8;
+					}
 					*where = 0;
 					return;
 				}
@@ -171,7 +186,7 @@ get_token(tokp)
 				if (commenting) {
 					break;
 				} else if (cppline(curline)) {
-					docppline(curline, &linenum,
+					docppline(curline, &linenum, 
 						  &infilename);
 				} else if (directive(curline)) {
 					printdirective(curline);
@@ -185,10 +200,12 @@ get_token(tokp)
 				where++;	/* eat */
 			}
 		} else if (commenting) {
-			where++;
-			if (endcomment(where)) {
-				where++;
-				commenting--;
+			for (where++; *where; where++) {
+				if (endcomment(where)) {
+					where++;
+					commenting--;
+					break;
+				}
 			}
 		} else if (startcomment(where)) {
 			where += 2;
@@ -199,7 +216,7 @@ get_token(tokp)
 	}
 
 	/*
-	 * 'where' is not whitespace, comment or directive Must be a token!
+	 * 'where' is not whitespace, comment or directive Must be a token! 
 	 */
 	switch (*where) {
 	case ':':
@@ -259,6 +276,10 @@ get_token(tokp)
 		tokp->kind = TOK_STRCONST;
 		findstrconst(&where, &tokp->str);
 		break;
+	case '\'':
+		tokp->kind = TOK_CHARCONST;
+		findchrconst(&where, &tokp->str);
+		break;
 
 	case '-':
 	case '0':
@@ -274,7 +295,6 @@ get_token(tokp)
 		tokp->kind = TOK_IDENT;
 		findconst(&where, &tokp->str);
 		break;
-
 
 	default:
 		if (!(isalpha(*where) || *where == '_')) {
@@ -295,8 +315,6 @@ get_token(tokp)
 	}
 }
 
-
-
 static
 unget_token(tokp)
 	token *tokp;
@@ -304,7 +322,6 @@ unget_token(tokp)
 	lasttok = *tokp;
 	pushed = 1;
 }
-
 
 static
 findstrconst(str, val)
@@ -323,6 +340,32 @@ findstrconst(str, val)
 	}
 	p++;
 	size = p - *str;
+	*val = alloc(size + 1);
+	(void) strncpy(*val, *str, size);
+	(*val)[size] = 0;
+	*str = p;
+}
+
+static
+findchrconst(str, val)
+	char **str;
+	char **val;
+{
+	char *p;
+	int size;
+
+	p = *str;
+	do {
+		*p++;
+	} while (*p && *p != '\'');
+	if (*p == 0) {
+		error("unterminated string constant");
+	}
+	p++;
+	size = p - *str;
+	if (size != 3) {
+		error("empty char string");
+	}
 	*val = alloc(size + 1);
 	(void) strncpy(*val, *str, size);
 	(*val)[size] = 0;
@@ -355,8 +398,6 @@ findconst(str, val)
 	*str = p;
 }
 
-
-
 static token symbols[] = {
 			  {TOK_CONST, "const"},
 			  {TOK_UNION, "union"},
@@ -374,21 +415,21 @@ static token symbols[] = {
 			  {TOK_UNSIGNED, "unsigned"},
 			  {TOK_SHORT, "short"},
 			  {TOK_LONG, "long"},
+			  {TOK_HYPER, "hyper"},
 			  {TOK_FLOAT, "float"},
 			  {TOK_DOUBLE, "double"},
+			  {TOK_QUAD, "quadruple"},
 			  {TOK_STRING, "string"},
 			  {TOK_PROGRAM, "program"},
 			  {TOK_VERSION, "version"},
 			  {TOK_EOF, "??????"},
 };
 
-
 static
 findkind(mark, tokp)
 	char **mark;
 	token *tokp;
 {
-
 	int len;
 	token *s;
 	char *str;
