@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.34 1996/01/05 20:46:53 wollman Exp $
+ * $Id: ip_input.c,v 1.35 1996/02/05 20:36:02 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -104,6 +104,24 @@ static struct ipq ipq;
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 	&ip_mtu, 0, "");
 #endif
+
+/*
+ * The dummy IP-firewall function, and the pointer we access it through
+ */
+static int 
+dummy_ip_fw_chk(m, ip, rif, dir)
+	struct mbuf *m;
+	struct ip *ip;
+	struct ifnet *rif;
+	int dir;
+{
+	return 1;
+}
+
+int (*ip_fw_chk_ptr)(struct mbuf *, struct ip *, struct ifnet *, int dir) = 
+	dummy_ip_fw_chk;
+
+int (*ip_fw_ctl_ptr)(int, struct mbuf *);
 
 /*
  * We need to save the IP options in case a protocol wants to respond
@@ -248,10 +266,8 @@ ip_input(struct mbuf *m)
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
 
-        if (ip_fw_chk_ptr!=NULL)
-               if (!(*ip_fw_chk_ptr)(m,ip,m->m_pkthdr.rcvif,ip_fw_chain) ) {
-		       return;
-               }
+	if (!(*ip_fw_chk_ptr)(m,ip,m->m_pkthdr.rcvif,0)) 
+	       return;
 
 	/*
 	 * Process options and, if not destined for us,
@@ -363,16 +379,6 @@ ip_input(struct mbuf *m)
 	return;
 
 ours:
-
-		/*
-		 * If packet came to us we count it...
-		 * This way we count all incoming packets which has 
-		 * not been forwarded...
-		 * Do not convert ip_len to host byte order when 
-		 * counting,ppl already made it for us before..
-		 */
-	if (ip_acct_cnt_ptr!=NULL)
-		(*ip_acct_cnt_ptr)(ip,m->m_pkthdr.rcvif,ip_acct_chain,0);
 
 	/*
 	 * If offset or IP_MF are set, must reassemble.
