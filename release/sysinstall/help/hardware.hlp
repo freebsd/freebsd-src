@@ -1,6 +1,6 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.3 1996/04/27 01:34:44 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.13 1996/05/16 13:42:57 jkh Exp $
 
-Contents last changed:  April 26th, 1996
+Contents last changed:  July 4th, 1996
 
 Table of Contents
 -----------------
@@ -165,7 +165,6 @@ press [ENTER].  The help message looks something like this:
 
 Command                 Description
 -------                 -----------
-attach <devname>        Return results of device attach
 ls                      List currently configured devices
 port <devname> <addr>   Set device port (i/o address)
 irq <devname> <number>  Set device irq
@@ -174,7 +173,6 @@ iomem <devname> <addr>  Set device maddr (memory address)
 iosize <devname> <size> Set device memory size
 flags <devname> <mask>  Set device flags
 enable <devname>        Enable device
-probe <devname>         Return results of device probe
 disable <devname>       Disable device (will not be probed)
 visual                  Go to visual mode
 quit                    Exit this configuration utility
@@ -252,6 +250,14 @@ really needs (see section 6.0 of the FreeBSD.FAQ).  If your system has
 sufficient free disk space to store and compile the kernel sources,
 this is the option we most highly recommend.
 
+IMPORTANT NOTE:  Because dset only runs when the system has been fully
+installed onto the hard disk, any changes you make when initially booting
+off the floppy will NOT BE SAVED.  If you had to change your settings
+in order to install the system then you will have to make them again
+the first time you boot from the hard disk, after that you will not need
+to do so again as dset will have run and saved them to your installed kernel
+image.
+
 
 3.      LINT - other possible configurations
 --      ------------------------------------
@@ -284,6 +290,7 @@ gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
 gusxvi: Gravis Ultrasound 16-bit PCM
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
+meteor: Matrox Meteor frame-grabber card 
 mpu:    Roland MPU-401 stand-alone card
 mse:    Logitech & ATI InPort bus mouse ports
 mss:    Microsoft Sound System
