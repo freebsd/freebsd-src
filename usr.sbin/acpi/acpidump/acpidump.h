@@ -314,18 +314,19 @@ struct ACPIsdt  *sdt_load_devmem(void);
 struct ACPIsdt  *dsdt_load_file(char *);
 
 /* Save the DSDT to a file */
-void		 dsdt_save_file(char *, struct ACPIsdt *);
+void		 dsdt_save_file(char *, struct ACPIsdt *, struct ACPIsdt *);
 
 /* Print out as many fixed tables as possible, given the RSD PTR */
 void		 sdt_print_all(struct ACPIsdt *);
 
 /* Disassemble the AML in the DSDT */
-void		 aml_disassemble(struct ACPIsdt *);
+void		 aml_disassemble(struct ACPIsdt *, struct ACPIsdt *);
 
 /* Routines for accessing tables in physical memory */
 struct ACPIrsdp	*acpi_find_rsd_ptr(void);
 void		*acpi_map_physical(vm_offset_t, size_t);
-struct ACPIsdt	*sdt_from_rsdt(struct ACPIsdt *, const char *);
+struct ACPIsdt	*sdt_from_rsdt(struct ACPIsdt *, const char *,
+    struct ACPIsdt *);
 struct ACPIsdt	*dsdt_from_fadt(struct FADTbody *);
 int		 acpi_checksum(void *, size_t);
 
