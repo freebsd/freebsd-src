@@ -65,7 +65,8 @@ operations can be performed on
 .Pa /dev/agpgart ,
 which are defined in
 .Aq Pa sys/agpio.h :
-.Ss Dv AGPIOC_INFO
+.Bl -tag -width indent
+.It Dv AGPIOC_INFO
 Returns state of the
 .Nm
 system.
@@ -82,16 +83,16 @@ typedef struct _agp_info {
 	size_t pg_used;       /* current pages used           */
 } agp_info;
 .Ed
-.Ss Dv AGPIOC_ACQUIRE
+.It Dv AGPIOC_ACQUIRE
 Acquire control of the AGP chipset for use by this client.
 Returns
 .Er EBUSY
 if the AGP chipset is already acquired by another client.
-.Ss Dv AGPIOC_RELEASE
+.It Dv AGPIOC_RELEASE
 Release control of the AGP chipset.
 This does not unbind or free any allocated memory, which is the
 responsibility of the client to handle if necessary.
-.Ss Dv AGPIOC_SETUP
+.It Dv AGPIOC_SETUP
 Enable the AGP hardware with the relevant mode.
 This
 .Xr ioctl 2
@@ -104,7 +105,7 @@ typedef struct _agp_setup {
 .Pp
 The mode bits are defined in
 .Aq Pa sys/agpio.h .
-.Ss Dv AGPIOC_ALLOCATE
+.It Dv AGPIOC_ALLOCATE
 Allocate physical memory suitable for mapping into the AGP aperture.
 This
 .Xr ioctl 2
@@ -114,17 +115,17 @@ typedef struct _agp_allocate {
 	int key;              /* tag of allocation            */
 	size_t pg_count;      /* number of pages              */
 	u_int32_t type;       /* 0 == normal, other devspec   */
-	u_int32_t physical;   /* device specific (some devices  
-			       * need a phys address of the     
+	u_int32_t physical;   /* device specific (some devices
+			       * need a phys address of the
 			       * actual page behind the gatt
 			       * table)                       */
 } agp_allocate;
 .Ed
 .Pp
 Returns a handle to the allocated memory.
-.Ss Dv AGPIOC_DEALLOCATE
+.It Dv AGPIOC_DEALLOCATE
 Free the previously allocated memory associated with the handle passed.
-.Ss Dv AGPIOC_BIND
+.It Dv AGPIOC_BIND
 Bind the allocated memory at given offset with the AGP aperture.
 Returns
 .Er EINVAL
@@ -139,17 +140,15 @@ typedef struct _agp_bind {
 } agp_bind;
 .Ed
 .Pp
-The
-.Sq tag of allocation ,
-is the handle returned by
-.Dv AGPIOC_ALLOCATE.
-.Ss Dv AGPIOC_UNBIND
+The tag of allocation is the handle returned by
+.Dv AGPIOC_ALLOCATE .
+.It Dv AGPIOC_UNBIND
 Unbind memory from the AGP aperture.
 Returns
 .Er EINVAL
 if the memory is not bound.
 This
-.Xr ioctl
+.Xr ioctl 2
 takes the following structure:
 .Bd -literal
 typedef struct _agp_unbind {
@@ -157,6 +156,7 @@ typedef struct _agp_unbind {
 	u_int32_t priority;     /* priority for paging out   */
 } agp_unbind;
 .Ed
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/agpgart" -compact
 .It Pa /dev/agpgart
