@@ -521,7 +521,8 @@ buildkernel:
 #
 installkernel reinstallkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel$//}
+	    ${CROSSENV} PATH=${TMPPATH} \
+	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel$//}
 
 #
 # update
