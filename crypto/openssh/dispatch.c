@@ -22,10 +22,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: dispatch.c,v 1.5 2000/09/21 11:25:34 markus Exp $");
-#include "ssh.h"
+RCSID("$OpenBSD: dispatch.c,v 1.10 2001/02/18 18:33:53 markus Exp $");
+
+#include "ssh1.h"
+#include "ssh2.h"
+#include "log.h"
 #include "dispatch.h"
 #include "packet.h"
+#include "compat.h"
 
 #define DISPATCH_MIN	0
 #define DISPATCH_MAX	255
@@ -36,6 +40,8 @@ void
 dispatch_protocol_error(int type, int plen, void *ctxt)
 {
 	error("Hm, dispatch protocol error: type %d plen %d", type, plen);
+	if (compat20 && type == SSH2_MSG_KEXINIT)
+		fatal("dispatch_protocol_error: rekeying is not supported");
 }
 void
 dispatch_init(dispatch_fn *dflt)
@@ -66,7 +72,7 @@ dispatch_run(int mode, int *done, void *ctxt)
 		if (type > 0 && type < DISPATCH_MAX && dispatch[type] != NULL)
 			(*dispatch[type])(type, plen, ctxt);
 		else
-			packet_disconnect("protocol error: rcvd type %d", type);	
+			packet_disconnect("protocol error: rcvd type %d", type);
 		if (done != NULL && *done)
 			return;
 	}

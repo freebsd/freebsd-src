@@ -1,3 +1,5 @@
+/*	$OpenBSD: sshconnect.h,v 1.9 2001/04/12 19:15:25 markus Exp $	*/
+
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -24,16 +26,30 @@
 #ifndef SSHCONNECT_H
 #define SSHCONNECT_H
 
+int
+ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
+    u_short port, int connection_attempts,
+    int anonymous, struct passwd *pw,
+    const char *proxy_command);
+
+void
+ssh_login(Key **keys, int nkeys, const char *orighost,
+    struct sockaddr *hostaddr, struct passwd *pw);
+
 void
 check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
     const char *user_hostfile, const char *system_hostfile);
 
 void	ssh_kex(char *host, struct sockaddr *hostaddr);
-void
-ssh_userauth(const char* local_user, const char* server_user, char *host,
-    int host_key_valid, RSA *own_host_key);
-
 void	ssh_kex2(char *host, struct sockaddr *hostaddr);
-void	ssh_userauth2(const char *server_user, char *host);
+
+void
+ssh_userauth1(const char *local_user, const char *server_user, char *host,
+    Key **keys, int nkeys);
+void
+ssh_userauth2(const char *local_user, const char *server_user, char *host,
+    Key **keys, int nkeys);
+
+void	ssh_put_password(char *password);
 
 #endif

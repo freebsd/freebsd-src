@@ -12,11 +12,11 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: buffer.c,v 1.8 2000/09/07 20:27:50 deraadt Exp $");
+RCSID("$OpenBSD: buffer.c,v 1.13 2001/04/12 19:15:24 markus Exp $");
 
 #include "xmalloc.h"
 #include "buffer.h"
-#include "ssh.h"
+#include "log.h"
 
 /* Initializes the buffer structure. */
 
@@ -53,7 +53,7 @@ buffer_clear(Buffer *buffer)
 /* Appends data to the buffer, expanding it if necessary. */
 
 void
-buffer_append(Buffer *buffer, const char *data, unsigned int len)
+buffer_append(Buffer *buffer, const char *data, u_int len)
 {
 	char *cp;
 	buffer_append_space(buffer, &cp, len);
@@ -67,7 +67,7 @@ buffer_append(Buffer *buffer, const char *data, unsigned int len)
  */
 
 void
-buffer_append_space(Buffer *buffer, char **datap, unsigned int len)
+buffer_append_space(Buffer *buffer, char **datap, u_int len)
 {
 	/* If the buffer is empty, start using it from the beginning. */
 	if (buffer->offset == buffer->end) {
@@ -100,7 +100,7 @@ restart:
 
 /* Returns the number of bytes of data in the buffer. */
 
-unsigned int
+u_int
 buffer_len(Buffer *buffer)
 {
 	return buffer->end - buffer->offset;
@@ -109,10 +109,11 @@ buffer_len(Buffer *buffer)
 /* Gets data from the beginning of the buffer. */
 
 void
-buffer_get(Buffer *buffer, char *buf, unsigned int len)
+buffer_get(Buffer *buffer, char *buf, u_int len)
 {
 	if (len > buffer->end - buffer->offset)
-		fatal("buffer_get: trying to get more bytes than in buffer");
+		fatal("buffer_get: trying to get more bytes %d than in buffer %d",
+		    len, buffer->end - buffer->offset);
 	memcpy(buf, buffer->buf + buffer->offset, len);
 	buffer->offset += len;
 }
@@ -120,7 +121,7 @@ buffer_get(Buffer *buffer, char *buf, unsigned int len)
 /* Consumes the given number of bytes from the beginning of the buffer. */
 
 void
-buffer_consume(Buffer *buffer, unsigned int bytes)
+buffer_consume(Buffer *buffer, u_int bytes)
 {
 	if (bytes > buffer->end - buffer->offset)
 		fatal("buffer_consume: trying to get more bytes than in buffer");
@@ -130,7 +131,7 @@ buffer_consume(Buffer *buffer, unsigned int bytes)
 /* Consumes the given number of bytes from the end of the buffer. */
 
 void
-buffer_consume_end(Buffer *buffer, unsigned int bytes)
+buffer_consume_end(Buffer *buffer, u_int bytes)
 {
 	if (bytes > buffer->end - buffer->offset)
 		fatal("buffer_consume_end: trying to get more bytes than in buffer");
@@ -151,9 +152,14 @@ void
 buffer_dump(Buffer *buffer)
 {
 	int i;
-	unsigned char *ucp = (unsigned char *) buffer->buf;
+	u_char *ucp = (u_char *) buffer->buf;
 
-	for (i = buffer->offset; i < buffer->end; i++)
-		fprintf(stderr, " %02x", ucp[i]);
-	fprintf(stderr, "\n");
+	for (i = buffer->offset; i < buffer->end; i++) {
+		fprintf(stderr, "%02x", ucp[i]);
+		if ((i-buffer->offset)%16==15)
+			fprintf(stderr, "\r\n");
+		else if ((i-buffer->offset)%2==1)
+			fprintf(stderr, " ");
+	}
+	fprintf(stderr, "\r\n");
 }

@@ -2,7 +2,6 @@
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * Functions to interface with the SSH_AUTHENTICATION_FD socket.
  *
  * As far as I am concerned, the code I have written for this software
  * can be used freely for any purpose.  Any derived versions of this
@@ -11,41 +10,27 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* $OpenBSD: authfile.h,v 1.5 2000/10/16 09:38:44 djm Exp $ */
+/* $OpenBSD: authfile.h,v 1.6 2001/03/26 08:07:08 markus Exp $ */
 
 #ifndef AUTHFILE_H
 #define AUTHFILE_H
 
-
-/*
- * Saves the authentication (private) key in a file, encrypting it with
- * passphrase.
- * For RSA keys: The identification of the file (lowest 64 bits of n)
- * will precede the key to provide identification of the key without
- * needing a passphrase.
- */
 int
-save_private_key(const char *filename, const char *passphrase,
-    Key * private_key, const char *comment);
+key_save_private(Key *key, const char *filename, const char *passphrase,
+    const char *comment);
 
-/*
- * Loads the public part of the key file (public key and comment). Returns 0
- * if an error occurred; zero if the public key was successfully read.  The
- * comment of the key is returned in comment_return if it is non-NULL; the
- * caller must free the value with xfree.
- */
-int load_public_key(const char *filename, Key * pub, char **comment_return);
-int try_load_public_key(const char *filename, Key * pub, char **comment_return);
+Key *
+key_load_public(const char *filename, char **commentp);
 
-/*
- * Loads the private key from the file.  Returns 0 if an error is encountered
- * (file does not exist or is not readable, or passphrase is bad). This
- * initializes the private key.  The comment of the key is returned in
- * comment_return if it is non-NULL; the caller must free the value with
- * xfree.
- */
-int
-load_private_key(const char *filename, const char *passphrase,
-    Key * private_key, char **comment_return);
+Key *
+key_load_public_type(int type, const char *filename, char **commentp);
+
+Key *
+key_load_private(const char *filename, const char *passphrase,
+    char **commentp);
+
+Key *
+key_load_private_type(int type, const char *filename, const char *passphrase,
+    char **commentp);
 
 #endif

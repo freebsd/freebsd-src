@@ -11,7 +11,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$OpenBSD: rsa.h,v 1.8 2000/09/07 20:27:53 deraadt Exp $"); */
+/* RCSID("$OpenBSD: rsa.h,v 1.11 2001/03/26 23:23:24 markus Exp $"); */
 
 #ifndef RSA_H
 #define RSA_H
@@ -19,18 +19,9 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 
-/* Calls SSL RSA_generate_key, only copies to prv and pub */
-void    rsa_generate_key(RSA * prv, RSA * pub, unsigned int bits);
-
-/*
- * Indicates whether the rsa module is permitted to show messages on the
- * terminal.
- */
-void rsa_set_verbose __P((int verbose));
-
-int rsa_alive __P((void));
-
 void rsa_public_encrypt __P((BIGNUM * out, BIGNUM * in, RSA * prv));
-void rsa_private_decrypt __P((BIGNUM * out, BIGNUM * in, RSA * prv));
+int rsa_private_decrypt __P((BIGNUM * out, BIGNUM * in, RSA * prv));
+
+void generate_additional_parameters __P((RSA *rsa));
 
 #endif				/* RSA_H */
