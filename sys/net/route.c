@@ -1131,5 +1131,56 @@ bad:
 	return (error);
 }
 
+int
+rt_check(lrt, lrt0, dst)
+	struct rtentry **lrt;
+	struct rtentry **lrt0;
+	struct sockaddr *dst;
+{
+	struct rtentry *rt;
+	struct rtentry *rt0;
+	int error;
+
+	rt = *lrt;
+	rt0 = *lrt0;
+	error = 0;
+
+	rt = rt0;
+
+	if (rt != NULL) {
+		if ((rt->rt_flags & RTF_UP) == 0) {
+			rt0 = rt = rtalloc1(dst, 1, 0UL);
+			if (rt0 != NULL)
+				rt->rt_refcnt--;
+			else
+				senderr(EHOSTUNREACH);
+		}
+		if (rt->rt_flags & RTF_GATEWAY) {
+			if (rt->rt_gwroute == NULL)
+				goto lookup;
+
+			rt = rt->rt_gwroute;
+			if ((rt->rt_flags & RTF_UP) == 0) {
+				rtfree(rt);
+				rt = rt0;
+			lookup:
+				rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1, 0UL);
+				rt = rt->rt_gwroute;
+				if (rt == NULL)
+					senderr(EHOSTUNREACH);
+			}
+		}
+		if (rt->rt_flags & RTF_REJECT)
+			if (rt->rt_rmx.rmx_expire == 0 ||
+				time_second < rt->rt_rmx.rmx_expire)
+				senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
+	}
+
+bad:
+	*lrt = rt;
+	*lrt0 = rt0;
+	return (error);
+}
+
 /* This must be before ip6_init2(), which is now SI_ORDER_MIDDLE */
 SYSINIT(route, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);
