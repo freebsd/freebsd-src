@@ -244,10 +244,16 @@ static int
 tcpflg_match(struct tcphdr *tcp, struct ip_fw *f)
 {
 	u_char		flg_set, flg_clr;
-	
-	if ((f->fw_tcpf & IP_FW_TCPF_ESTAB) &&
-	    (tcp->th_flags & (IP_FW_TCPF_RST | IP_FW_TCPF_ACK)))
-		return 1;
+
+	/*
+	 * If an established connection is required, reject packets that
+	 * have only SYN of RST|ACK|SYN set.  Otherwise, fall through to
+	 * other flag requirements.
+	 */
+	if ((f->fw_ipflg & IP_FW_IF_TCPEST) &&
+	    ((tcp->th_flags & (IP_FW_TCPF_RST | IP_FW_TCPF_ACK |
+	    IP_FW_TCPF_SYN)) == IP_FW_TCPF_SYN))
+		return 0;
 
 	flg_set = tcp->th_flags & f->fw_tcpf;
 	flg_clr = tcp->th_flags & f->fw_tcpnf;
@@ -1243,7 +1249,9 @@ again:
 
 			if (f->fw_ipflg & IP_FW_IF_TCPOPT && !tcpopts_match(tcp, f))
 				continue;
-			if (f->fw_ipflg & IP_FW_IF_TCPFLG && !tcpflg_match(tcp, f))
+			if (((f->fw_ipflg & IP_FW_IF_TCPFLG) ||
+			    (f->fw_ipflg & IP_FW_IF_TCPEST)) &&
+			    !tcpflg_match(tcp, f))
 				continue;
 			if (f->fw_ipflg & IP_FW_IF_TCPSEQ && tcp->th_seq != f->fw_tcpseq)
 				continue;
