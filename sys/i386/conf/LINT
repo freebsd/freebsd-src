@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.123 1995/01/07 14:51:46 jkh Exp $
+#	$Id: LINT,v 1.124 1995/01/12 15:37:16 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -113,6 +113,10 @@ options		KTRACE			#kernel tracing
 # programming errors.
 #
 options		DIAGNOSTIC
+
+#
+# Allow ordinary users to take the console - this is useful for X.
+options		UCONSOLE
 
 
 #####################################################################
