@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.17 1996/01/25 06:05:38 peter Exp $
+ *	$Id: procfs_mem.c,v 1.18 1996/06/11 23:52:27 dyson Exp $
  */
 
 /*
@@ -74,6 +74,10 @@ procfs_rwmem(p, uio)
 	int error;
 	int writing;
 	struct vmspace *vm;
+	int fix_prot = 0;
+	vm_map_t map;
+	vm_object_t object = NULL;
+	vm_offset_t pageno = 0;		/* page number */
 
 	/*
 	 * if the vmspace is in the midst of being deallocated or the
@@ -84,6 +88,10 @@ procfs_rwmem(p, uio)
 	if ((p->p_flag & P_WEXIT) || (vm->vm_refcnt < 1))
 		return EFAULT;
 	++vm->vm_refcnt;
+	/*
+	 * The map we want...
+	 */
+	map = &vm->vm_map;
 
 	writing = uio->uio_rw == UIO_WRITE;
 
@@ -92,19 +100,18 @@ procfs_rwmem(p, uio)
 	 * makes things easier.  This way is trivial - right?
 	 */
 	do {
-		vm_map_t map, tmap;
-		vm_object_t object;
+		vm_map_t tmap;
 		vm_offset_t kva = 0;
 		vm_offset_t uva;
 		int page_offset;		/* offset into page */
-		vm_offset_t pageno;		/* page number */
 		vm_map_entry_t out_entry;
 		vm_prot_t out_prot;
-		vm_page_t m;
 		boolean_t wired, single_use;
 		vm_pindex_t pindex;
 		u_int len;
-		int fix_prot;
+
+		fix_prot = 0;
+		object = NULL;
 
 		uva = (vm_offset_t) uio->uio_offset;
 
@@ -131,6 +138,7 @@ procfs_rwmem(p, uio)
 			/* sanity check */
 			if (!(p->p_flag & P_INMEM)) {
 				/* aiee! */
+				PRELE(p);
 				error = EFAULT;
 				break;
 			}
@@ -151,33 +159,34 @@ procfs_rwmem(p, uio)
 			continue;
 		}
 
-
-		/*
-		 * The map we want...
-		 */
-		map = &vm->vm_map;
-
 		/*
 		 * Check the permissions for the area we're interested
 		 * in.
 		 */
-		fix_prot = 0;
-		if (writing)
+		if (writing) {
 			fix_prot = !vm_map_check_protection(map, pageno,
 					pageno + PAGE_SIZE, VM_PROT_WRITE);
 
-		if (fix_prot) {
-			/*
-			 * If the page is not writable, we make it so.
-			 * XXX It is possible that a page may *not* be
-			 * read/executable, if a process changes that!
-			 * We will assume, for now, that a page is either
-			 * VM_PROT_ALL, or VM_PROT_READ|VM_PROT_EXECUTE.
-			 */
-			error = vm_map_protect(map, pageno,
+			if (fix_prot) {
+				/*
+				 * If the page is not writable, we make it so.
+				 * XXX It is possible that a page may *not* be
+				 * read/executable, if a process changes that!
+				 * We will assume, for now, that a page is either
+				 * VM_PROT_ALL, or VM_PROT_READ|VM_PROT_EXECUTE.
+				 */
+				error = vm_map_protect(map, pageno,
 					pageno + PAGE_SIZE, VM_PROT_ALL, 0);
-			if (error)
-				break;
+				if (error) {
+					/*
+					 * We don't have to undo something
+					 * that didn't work, so we clear the
+					 * flag.
+					 */
+					fix_prot = 0;
+					break;
+				}
+			}
 		}
 
 		/*
@@ -188,58 +197,89 @@ procfs_rwmem(p, uio)
 		 */
 		tmap = map;
 		error = vm_map_lookup(&tmap, pageno,
-				      writing ? VM_PROT_WRITE : VM_PROT_READ,
-				      &out_entry, &object, &pindex, &out_prot,
-				      &wired, &single_use);
+			      writing ? VM_PROT_WRITE : VM_PROT_READ,
+			      &out_entry, &object, &pindex, &out_prot,
+			      &wired, &single_use);
+
+		if (error) {
+			/*
+			 * Make sure that there is no residue in 'object' from
+			 * an error return on vm_map_lookup.
+			 */
+			object = NULL;
+			break;
+		}
+
 		/*
 		 * We're done with tmap now.
+		 * But reference the object first, so that we won't loose
+		 * it.
 		 */
-		if (!error)
-			vm_map_lookup_done(tmap, out_entry);
+		vm_object_reference(object);
+		vm_map_lookup_done(tmap, out_entry);
 
 		/*
 		 * Fault the page in...
 		 */
-		if (!error && writing && object->backing_object) {
+		if (writing && object->backing_object) {
+			vm_page_t m;
 			m = vm_page_lookup(object, pindex);
-			if (m == 0)
+			if (m == 0) {
 				error = vm_fault(map, pageno,
-							VM_PROT_WRITE, FALSE);
+					VM_PROT_WRITE, FALSE);
+				break;
+			}
 		}
 
 		/* Find space in kernel_map for the page we're interested in */
-		if (!error)
-			error = vm_map_find(kernel_map, object,
+		error = vm_map_find(kernel_map, object,
 				IDX_TO_OFF(pindex), &kva, PAGE_SIZE, 1,
 				VM_PROT_ALL, VM_PROT_ALL, 0);
-
-		if (!error) {
-			/*
-			 * Neither vm_map_lookup() nor vm_map_find() appear
-			 * to add a reference count to the object, so we do
-			 * that here and now.
-			 */
-			vm_object_reference(object);
-
-			/*
-			 * Mark the page we just found as pageable.
-			 */
-			error = vm_map_pageable(kernel_map, kva,
-				kva + PAGE_SIZE, 0);
-
-			/*
-			 * Now do the i/o move.
-			 */
-			if (!error)
-				error = uiomove((caddr_t)(kva + page_offset),
-						len, uio);
-
-			vm_map_remove(kernel_map, kva, kva + PAGE_SIZE);
+		if (error) {
+			break;
 		}
-		if (fix_prot)
+
+		/*
+		 * Mark the page we just found as pageable.
+		 */
+		error = vm_map_pageable(kernel_map, kva,
+				kva + PAGE_SIZE, 0);
+		if (error) {
+			vm_map_remove(kernel_map, kva, kva + PAGE_SIZE);
+			object = NULL;
+			break;
+		}
+
+		/*
+		 * Now do the i/o move.
+		 */
+		error = uiomove((caddr_t)(kva + page_offset),
+				len, uio);
+
+		/*
+		 * vm_map_remove gets rid of the object reference, so
+		 * we need to get rid of our 'object' pointer if there
+		 * is subsequently an error.
+		 */
+		vm_map_remove(kernel_map, kva, kva + PAGE_SIZE);
+		object = NULL;
+
+		/*
+		 * Undo the protection 'damage'.
+		 */
+		if (fix_prot) {
 			vm_map_protect(map, pageno, pageno + PAGE_SIZE,
-					VM_PROT_READ|VM_PROT_EXECUTE, 0);
+				VM_PROT_READ|VM_PROT_EXECUTE, 0);
+			fix_prot = 0;
+		}
 	} while (error == 0 && uio->uio_resid > 0);
+
+	if (object)
+		vm_object_deallocate(object);
+
+	if (fix_prot)
+		vm_map_protect(map, pageno, pageno + PAGE_SIZE,
+				VM_PROT_READ|VM_PROT_EXECUTE, 0);
 
 	vmspace_free(vm);
 	return (error);
