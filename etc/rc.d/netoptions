@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 
-# PROVIDE: network3
+# PROVIDE: netoptions
 # REQUIRE: localdaemons
 # BEFORE:  securelevel
 # KEYWORD: FreeBSD
