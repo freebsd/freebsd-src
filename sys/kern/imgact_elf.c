@@ -87,6 +87,9 @@ SYSCTL_INT(_debug, OID_AUTO, elf32_trace, CTLFLAG_RW, &elf_trace, 0, "");
 #else
 SYSCTL_INT(_debug, OID_AUTO, elf64_trace, CTLFLAG_RW, &elf_trace, 0, "");
 #endif
+static int elf_legacy_coredump = 0;
+SYSCTL_INT(_debug, OID_AUTO, elf_legacy_coredump, CTLFLAG_RW, 
+    &elf_legacy_coredump, 0, "");
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 extern int fallback_elf_brand;
@@ -349,7 +352,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 {
 	size_t map_len;
 	vm_offset_t map_addr;
-	int error, rv;
+	int error, rv, cow;
 	size_t copy_len;
 	vm_offset_t file_addr;
 	vm_offset_t data_buf = 0;
@@ -392,6 +395,11 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 
 	if (map_len != 0) {
 		vm_object_reference(object);
+
+		/* cow flags: don't dump readonly sections in core */
+		cow = MAP_COPY_ON_WRITE | MAP_PREFAULT |
+		    (prot & VM_PROT_WRITE ? 0 : MAP_DISABLE_COREDUMP);
+
 		rv = __elfN(map_insert)(&vmspace->vm_map,
 				      object,
 				      file_addr,	/* file offset */
@@ -399,7 +407,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 				      map_addr + map_len,/* virtual end */
 				      prot,
 				      VM_PROT_ALL,
-				      MAP_COPY_ON_WRITE | MAP_PREFAULT);
+				      cow);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
 			return (EINVAL);
@@ -1042,17 +1050,29 @@ each_writable_segment(p, func, closure)
 	    entry = entry->next) {
 		vm_object_t obj;
 
-		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) ||
-		    (entry->protection & (VM_PROT_READ|VM_PROT_WRITE)) !=
-		    (VM_PROT_READ|VM_PROT_WRITE))
-			continue;
+		/*
+		 * Don't dump inaccessible mappings, deal with legacy
+		 * coredump mode.
+		 *
+		 * Note that read-only segments related to the elf binary
+		 * are marked MAP_ENTRY_NOCOREDUMP now so we no longer
+		 * need to arbitrarily ignore such segments.
+		 */
+		if (elf_legacy_coredump) {
+			if ((entry->protection & VM_PROT_RW) != VM_PROT_RW)
+				continue;
+		} else {
+			if ((entry->protection & VM_PROT_ALL) == 0)
+				continue;
+		}
 
 		/*
-		** Dont include memory segment in the coredump if
-		** MAP_NOCORE is set in mmap(2) or MADV_NOCORE in
-		** madvise(2).
-		*/
-		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
+		 * Dont include memory segment in the coredump if
+		 * MAP_NOCORE is set in mmap(2) or MADV_NOCORE in
+		 * madvise(2).  Do not dump submaps (i.e. parts of the
+		 * kernel map).
+		 */
+		if (entry->eflags & (MAP_ENTRY_NOCOREDUMP|MAP_ENTRY_IS_SUB_MAP))
 			continue;
 
 		if ((obj = entry->object.vm_object) == NULL)
