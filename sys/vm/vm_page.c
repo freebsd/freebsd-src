@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.13 1995/01/09 16:05:51 davidg Exp $
+ *	$Id: vm_page.c,v 1.14 1995/01/10 07:32:48 davidg Exp $
  */
 
 /*
@@ -635,6 +635,7 @@ vm_page_alloc(object, offset, inttime)
 					goto gotpage;
 				}
 			}
+			simple_unlock(&vm_page_queue_free_lock);
 			splx(s);
 			return NULL;
 		}
@@ -650,7 +651,6 @@ vm_page_alloc(object, offset, inttime)
 			}
 			simple_unlock(&vm_page_queue_free_lock);
 			splx(s);
-			/* wakeup((caddr_t) &vm_pages_needed); */
 			return (NULL);
 		}
 	}
@@ -661,7 +661,18 @@ vm_page_alloc(object, offset, inttime)
 gotpage:
 	simple_unlock(&vm_page_queue_free_lock);
 
-	VM_PAGE_INIT(mem, object, offset);
+	mem->flags = PG_BUSY | PG_CLEAN;
+	mem->wire_count = 0;
+	mem->hold_count = 0;
+	mem->act_count = 0;
+	mem->busy = 0;
+	mem->valid = 0;
+	mem->dirty = 0;
+	mem->bmapped = 0;
+
+	/* XXX before splx until vm_page_insert is safe */
+	vm_page_insert(mem, object, offset);
+
 	splx(s);
 
 /*
