@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.48.2.10 1997/06/13 17:54:47 jkh Exp $
+ * $Id: package.c,v 1.48.2.11 1997/09/16 10:12:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -64,7 +64,7 @@ packageAdd(dialogMenuItem *self)
 {
     char *cp;
 
-    cp = variable_get("package");
+    cp = variable_get(VAR_PACKAGE);
     if (!cp) {
 	msgDebug("packageAdd:  No package name passed in package variable\n");
 	return DITEM_FAILURE;

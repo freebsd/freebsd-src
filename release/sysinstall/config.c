@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.54 1997/06/21 15:47:32 jkh Exp $
+ * $Id: config.c,v 1.51.2.55 1997/08/18 21:48:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -469,7 +469,8 @@ configSaver(dialogMenuItem *self)
 int
 configSaverTimeout(dialogMenuItem *self)
 {
-    return (variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver") ?
+    return (variable_get_value(VAR_BLANKTIME,
+	    "Enter time-out period in seconds for screen saver") ?
 	    DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
@@ -484,11 +485,14 @@ configNTP(dialogMenuItem *self)
 {
     int status;
 
-    status = variable_get_value("ntpdate_flags", "Enter the name of an NTP server") ? DITEM_SUCCESS : DITEM_FAILURE;
+    status = variable_get_value(VAR_NTPDATE_FLAGS,
+				"Enter the name of an NTP server")
+	     ? DITEM_SUCCESS : DITEM_FAILURE;
     if (status == DITEM_SUCCESS) {
 	static char tmp[255];
 
-	snprintf(tmp, 255, "ntpdate_enable=YES,ntpdate_flags=%s", variable_get("ntpdate_flags"));
+	snprintf(tmp, sizeof(tmp), "ntpdate_enable=YES,ntpdate_flags=%s",
+		 variable_get(VAR_NTPDATE_FLAGS));
 	self->data = tmp;
 	dmenuSetVariables(self);
     }
@@ -818,7 +822,7 @@ configPCNFSD(dialogMenuItem *self)
 	ret = package_add(variable_get(VAR_PCNFSD_PKG));
 	if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
 	    variable_set2(VAR_PCNFSD, "YES");
-	    variable_set2("weak_mountd_authentication", "YES");
+	    variable_set2("mountd_flags", "-n");
 	}
     }
     return ret;

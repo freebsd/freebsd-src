@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.25.2.5 1997/01/19 10:27:56 jkh Exp $
+ * $Id: dmenu.c,v 1.25.2.6 1997/06/13 14:18:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -115,7 +115,7 @@ dmenuSetKmapVariable(dialogMenuItem *tmp)
     int err;
 
     variable_set((char *)tmp->data);
-    lang = variable_get("keymap");
+    lang = variable_get(VAR_KEYMAP);
     if (lang != NULL)
     {
 	err = loadKeymap(lang);
