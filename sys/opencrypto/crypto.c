@@ -655,7 +655,6 @@ int
 crypto_dispatch(struct cryptop *crp)
 {
 	u_int32_t hid = SESID2HID(crp->crp_sid);
-	struct cryptocap *cap;
 	int result;
 
 	cryptostats.cs_ops++;
@@ -665,29 +664,54 @@ crypto_dispatch(struct cryptop *crp)
 		binuptime(&crp->crp_tstamp);
 #endif
 
-	CRYPTO_Q_LOCK();
-	cap = crypto_checkdriver(hid);
-	if (cap && !cap->cc_qblocked) {
-		result = crypto_invoke(crp, 0);
-		if (result == ERESTART) {
+	if ((crp->crp_flags & CRYPTO_F_BATCH) == 0) {
+		struct cryptocap *cap;
+		/*
+		 * Caller marked the request to be processed
+		 * immediately; dispatch it directly to the
+		 * driver unless the driver is currently blocked.
+		 */
+		cap = crypto_checkdriver(hid);
+		if (cap && !cap->cc_qblocked) {
+			result = crypto_invoke(crp, 0);
+			if (result == ERESTART) {
+				/*
+				 * The driver ran out of resources, mark the
+				 * driver ``blocked'' for cryptop's and put
+				 * the request on the queue.
+				 */
+				CRYPTO_Q_LOCK();
+				crypto_drivers[hid].cc_qblocked = 1;
+				TAILQ_INSERT_HEAD(&crp_q, crp, crp_next);
+				CRYPTO_Q_UNLOCK();
+				cryptostats.cs_blocks++;
+			}
+		} else {
 			/*
-			 * The driver ran out of resources, mark the
-			 * driver ``blocked'' for cryptop's and put
-			 * the request on the queue.
+			 * The driver is blocked, just queue the op until
+			 * it unblocks and the kernel thread gets kicked.
 			 */
-			crypto_drivers[hid].cc_qblocked = 1;
-			TAILQ_INSERT_HEAD(&crp_q, crp, crp_next);
-			cryptostats.cs_blocks++;
+			CRYPTO_Q_LOCK();
+			TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
+			CRYPTO_Q_UNLOCK();
+			result = 0;
 		}
 	} else {
+		int wasempty;
 		/*
-		 * The driver is blocked, just queue the op until
-		 * it unblocks and the kernel thread gets kicked.
+		 * Caller marked the request as ``ok to delay'';
+		 * queue it for the dispatch thread.  This is desirable
+		 * when the operation is low priority and/or suitable
+		 * for batching.
 		 */
+		CRYPTO_Q_LOCK();
+		wasempty = TAILQ_EMPTY(&crp_q);
 		TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
+		if (wasempty)
+			wakeup_one(&crp_q);
+		CRYPTO_Q_UNLOCK();
 		result = 0;
 	}
-	CRYPTO_Q_UNLOCK();
 
 	return result;
 }
@@ -818,8 +842,6 @@ crypto_invoke(struct cryptop *crp, int hint)
 	if (crypto_timing)
 		crypto_tstat(&cryptostats.cs_invoke, &crp->crp_tstamp);
 #endif
-	mtx_assert(&crypto_q_mtx, MA_OWNED);
-
 	/* Sanity checks. */
 	if (crp == NULL)
 		return EINVAL;
@@ -917,21 +939,45 @@ crypto_getreq(int num)
 void
 crypto_done(struct cryptop *crp)
 {
-	int wasempty;
-
 	if (crp->crp_etype != 0)
 		cryptostats.cs_errs++;
 #ifdef CRYPTO_TIMING
 	if (crypto_timing)
 		crypto_tstat(&cryptostats.cs_done, &crp->crp_tstamp);
 #endif
-	CRYPTO_RETQ_LOCK();
-	wasempty = TAILQ_EMPTY(&crp_ret_q);
-	TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
+	if (crp->crp_flags & CRYPTO_F_CBIMM) {
+		/*
+		 * Do the callback directly.  This is ok when the
+		 * callback routine does very little (e.g. the
+		 * /dev/crypto callback method just does a wakeup).
+		 */
+#ifdef CRYPTO_TIMING
+		if (crypto_timing) {
+			/*
+			 * NB: We must copy the timestamp before
+			 * doing the callback as the cryptop is
+			 * likely to be reclaimed.
+			 */
+			struct bintime t = crp->crp_tstamp;
+			crypto_tstat(&cryptostats.cs_cb, &t);
+			crp->crp_callback(crp);
+			crypto_tstat(&cryptostats.cs_finis, &t);
+		} else
+#endif
+			crp->crp_callback(crp);
+	} else {
+		int wasempty;
+		/*
+		 * Normal case; queue the callback for the thread.
+		 */
+		CRYPTO_RETQ_LOCK();
+		wasempty = TAILQ_EMPTY(&crp_ret_q);
+		TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
 
-	if (wasempty)
-		wakeup_one(&crp_ret_q);		/* shared wait channel */
-	CRYPTO_RETQ_UNLOCK();
+		if (wasempty)
+			wakeup_one(&crp_ret_q);	/* shared wait channel */
+		CRYPTO_RETQ_UNLOCK();
+	}
 }
 
 /*
@@ -1043,7 +1089,7 @@ crypto_proc(void)
 					break;
 				} else {
 					submit = crp;
-					if (submit->crp_flags & CRYPTO_F_NODELAY)
+					if ((submit->crp_flags & CRYPTO_F_BATCH) == 0)
 						break;
 					/* keep scanning for more are q'd */
 				}
