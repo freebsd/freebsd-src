@@ -146,7 +146,10 @@ netisr_dispatch(int num, struct mbuf *m)
 	KASSERT(!(num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs))),
 	    ("bad isr %d", num));
 	ni = &netisrs[num];
-	KASSERT(ni->ni_queue != NULL, ("no queue for isr %d", num));
+	if (ni->ni_queue == NULL) {
+		m_freem(m);
+		return;
+	}
 	if (netisr_enable && mtx_trylock(&netisr_mtx)) {
 		isrstat.isrs_directed++;
 		/*
@@ -185,7 +188,10 @@ netisr_queue(int num, struct mbuf *m)
 	KASSERT(!(num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs))),
 	    ("bad isr %d", num));
 	ni = &netisrs[num];
-	KASSERT(ni->ni_queue != NULL, ("no queue for isr %d", num));
+	if (ni->ni_queue == NULL) {
+		m_freem(m);
+		return (1);
+	}
 	isrstat.isrs_queued++;
 	if (!IF_HANDOFF(ni->ni_queue, m, NULL))
 		return (0);
