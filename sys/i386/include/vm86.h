@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.h,v 1.1 1997/08/09 04:55:04 dyson Exp $
+ *	$Id: vm86.h,v 1.2 1997/08/20 19:57:24 jlemon Exp $
  */
 
 #ifndef _MACHINE_VM86_H_
@@ -106,7 +106,7 @@ struct vm86frame {
 };
 
 struct proc;
-extern	int (*vm86_emulate) __P((struct vm86frame *));
-extern	int (*vm86_sysarch) __P((struct proc *, char *, int *));
+extern	int vm86_emulate __P((struct vm86frame *));
+extern	int vm86_sysarch __P((struct proc *, char *, int *));
 
 #endif /* _MACHINE_VM86_H_ */

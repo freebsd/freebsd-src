@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.107 1997/08/21 06:32:39 charnier Exp $
+ *	$Id: trap.c,v 1.108 1997/08/26 18:10:33 peter Exp $
  */
 
 /*
@@ -85,7 +85,6 @@
 
 extern struct i386tss common_tss;
 
-int (*vm86_emulate) __P((struct vm86frame *));
 int (*pmath_emulate) __P((struct trapframe *));
 
 extern void trap __P((struct trapframe frame));
@@ -246,12 +245,14 @@ trap(frame)
 			 */
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
-			if (vm86_emulate && (frame.tf_eflags & PSL_VM)) {
-				i = (*vm86_emulate)((struct vm86frame *)&frame);
+#ifdef VM86
+			if (frame.tf_eflags & PSL_VM) {
+				i = vm86_emulate((struct vm86frame *)&frame);
 				if (i == 0)
 					goto out;
 				break;
 			}
+#endif /* VM86 */
 			/* FALL THROUGH */
 
 		case T_SEGNPFLT:	/* segment not present fault */
