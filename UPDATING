@@ -11,6 +11,11 @@ portupgrade.  Important recent entries: 20040724 (default X changes).
 20041024:
 	FreeBSD 5.3-RELEASE
 
+20041023:
+	GENERIC kernel config files for amd64 and i386 no longer have
+	"options SMP".  That has been moved to a new config file named
+	SMP for users who want an easy way to build an SMP kernel.
+
 20041010:
 	The FreeBSD keyword is no longer a requirement for a valid
 	rc.d script. The rc(8) and rc.shutdown(8) scripts no longer check
