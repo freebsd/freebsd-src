@@ -386,7 +386,7 @@ linux_connect(struct proc *p, struct linux_connect_args *args)
 	error = EISCONN;
 	if (fp->f_flag & FNONBLOCK) {
 		so = (struct socket *)fp->f_data;
-		if ((u_int)so->so_emuldata != 0)
+		if ((u_int)so->so_emuldata == 0)
 			error = so->so_error;
 		so->so_emuldata = (void *)1;
 	}
