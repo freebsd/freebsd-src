@@ -2411,10 +2411,15 @@ ttyinfo(struct tty *tp)
 				}
 			}
 			calcru(pick, &utime, &stime, NULL);
-			ltmp = ((pick->p_state == PRS_NEW)
-			    || (td && (td->td_state == TDS_IWAIT))
-			    || (pick->p_state == PRS_ZOMBIE ? 0 :
-		    	    pgtok(vmspace_resident_count(pick->p_vmspace))));
+			/* XXXKSE The TDS_IWAIT  line is Dubious */
+			if (pick->p_state == PRS_NEW ||
+			    (td && (td->td_state == TDS_IWAIT)) ||
+			    pick->p_state == PRS_ZOMBIE) {
+				ltmp = 0;
+			} else {
+				ltmp = pgtok(
+				    vmspace_resident_count(pick->p_vmspace));
+			}
 			mtx_unlock_spin(&sched_lock);
 
 			ttyprintf(tp, " cmd: %s %d [%s%s] ", pick->p_comm,
