@@ -56,6 +56,7 @@ load_rc_config 'XXX'
 /etc/rc.d/ipfw start
 /etc/rc.d/ip6fw start
 /etc/rc.d/network_ipv6 start
+/etc/rc.d/routing start
 /etc/rc.d/mroute6d start
 /etc/rc.d/route6d start
 /etc/rc.d/mrouted start
