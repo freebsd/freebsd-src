@@ -45,6 +45,7 @@
 #include <sys/queue.h>
 #include <sys/lock.h>
 
+struct bio;
 struct buf;
 struct mount;
 struct vnode;
@@ -71,7 +72,7 @@ extern struct bio_ops {
 
 struct iodone_chain {
 	long	ic_prev_flags;
-	void	(*ic_prev_iodone) __P((struct buf *));
+	void	(*ic_prev_iodone) __P((struct bio *));
 	void	*ic_prev_iodone_chain;
 	struct {
 		long	ia_long;
@@ -93,7 +94,7 @@ struct bio {
 	struct buf	*_bio_buf;	/* Parent buffer. */
 	int	bio_error;		/* Errno for BIO_ERROR. */
 	long	bio_resid;		/* Remaining I/0 in bytes. */
-	void	(*bio_done) __P((struct buf *));
+	void	(*bio_done) __P((struct bio *));
 	void	*bio_driver1;		/* Private use by the callee. */
 	void	*bio_driver2;		/* Private use by the callee. */
 	void	*bio_caller1;		/* Private use by the caller. */
@@ -104,6 +105,12 @@ struct bio {
 	daddr_t	bio_pblkno;               /* physical block number */
 	struct	iodone_chain *bio_done_chain;
 };
+
+static __inline__ void
+biodone(struct bio *bp)
+{
+	bp->bio_done(bp);
+}
 
 /*
  * The buffer header describes an I/O operation in the kernel.
@@ -127,18 +134,16 @@ struct buf {
 #define	b_bcount	b_io.bio_bcount
 #define	b_blkno		b_io.bio_blkno
 #define	b_caller1	b_io.bio_caller1
-#define	b_caller2	b_io.bio_caller2
 #define	b_data		b_io.bio_data
 #define	b_dev		b_io.bio_dev
 #define	b_driver1	b_io.bio_driver1
 #define	b_driver2	b_io.bio_driver2
 #define	b_error		b_io.bio_error
 #define	b_iocmd		b_io.bio_cmd
-#define	b_iodone	b_io.bio_done
-#define	b_iodone_chain	b_io.bio_done_chain
 #define	b_ioflags	b_io.bio_flags
 #define	b_pblkno	b_io.bio_pblkno
 #define	b_resid		b_io.bio_resid
+	void	(*b_iodone) __P((struct buf *));
 	off_t	b_offset;		/* Offset into file. */
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
 	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
@@ -581,7 +586,7 @@ struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
 int	bufwait __P((struct buf *));
 void	bufdone __P((struct buf *));
-void	biodone __P((struct bio *));
+void	bufdonebio __P((struct bio *));
 
 void	cluster_callback __P((struct buf *));
 int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
