@@ -2802,7 +2802,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->ypixel = info.vi_height;
 	scp->xsize = info.vi_width/8;
 	scp->ysize = info.vi_height/info.vi_cheight;
-	scp->font_size = FONT_NONE;
+	scp->font_size = 0;
 	scp->font = NULL;
     } else {
 	scp->xsize = info.vi_width;

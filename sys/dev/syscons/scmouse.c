@@ -879,7 +879,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		s = spltty();
 		sc_remove_all_mouse(scp->sc);
 #ifndef SC_NO_FONT_LOADING
-		if (ISTEXTSC(cur_scp) && (cur_scp->font_size != FONT_NONE))
+		if (ISTEXTSC(cur_scp) && (cur_scp->font != NULL))
 		    sc_load_font(cur_scp, 0, cur_scp->font_size, cur_scp->font,
 				 cur_scp->sc->mouse_char, 4);
 #endif
