@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.10 1997/02/22 16:10:01 peter Exp $
+ * $Id: auth.c,v 1.11 1997/05/07 23:01:21 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -112,8 +112,12 @@ char *fname, *system, *key;
         bzero(&DefHisAddress, sizeof(DefHisAddress));
         n -= 2;
         if (n > 0) {
-	  ParseAddr(n--, &vector[2],
-	    &DefHisAddress.ipaddr, &DefHisAddress.mask, &DefHisAddress.width);
+	  if (ParseAddr(n--, &vector[2],
+		  &DefHisAddress.ipaddr,
+		  &DefHisAddress.mask,
+                  &DefHisAddress.width) == 0) {
+	     return(0); /* Invalid */
+	  }
 	}
 	IpcpInit();
 	return(1);	/* Valid */
@@ -156,9 +160,11 @@ int len, setaddr;
 #ifdef DEBUG
 	LogPrintf(LOG_LCP_BIT, "*** n = %d, %s\n", n, vector[2]);
 #endif
-	ParseAddr(n--, &vector[2],
-	  &DefHisAddress.ipaddr, &DefHisAddress.mask, &DefHisAddress.width);
-	IpcpInit();
+	if (ParseAddr(n--, &vector[2],
+		      &DefHisAddress.ipaddr,
+		      &DefHisAddress.mask,
+		      &DefHisAddress.width) != 0)
+	   IpcpInit();
       }
       return(passwd);
     }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.33 1997/04/13 00:54:44 brian Exp $
+ * $Id: modem.c,v 1.34 1997/04/21 01:01:53 brian Exp $
  *
  *  TODO:
  */
@@ -238,7 +238,11 @@ ModemTimeout()
   StartTimer(&ModemTimer);
 
   if (dev_is_modem) {
-    ioctl(modem, TIOCMGET, &mbits);
+    if (ioctl(modem, TIOCMGET, &mbits) < 0) {
+      LogPrintf(LOG_PHASE_BIT, "ioctl error (%s)!\n", strerror(errno));
+      DownConnection();
+      return;
+    }
     change = ombits ^ mbits;
     if (change & TIOCM_CD) {
       if (Online) {
@@ -475,7 +479,10 @@ int mode;
        */
       rstio.c_cflag &= ~(CSIZE|PARODD|PARENB);
       rstio.c_cflag |= VarParity;
-      cfsetspeed(&rstio, IntToSpeed(VarSpeed));
+      if (cfsetspeed(&rstio, IntToSpeed(VarSpeed)) == -1) {
+	logprintf("Unable to set modem speed (modem %d to %d)\n",
+		  modem, VarSpeed);
+      }
     }
     tcsetattr(modem, TCSADRAIN, &rstio);
 #ifdef DEBUG
@@ -484,13 +491,16 @@ int mode;
 #endif
 
     if (!(mode & MODE_DIRECT))
-      ioctl(modem, TIOCMGET, &mbits);
+      if (ioctl(modem, TIOCMGET, &mbits))
+	return(-1);
 #ifdef DEBUG
     fprintf(stderr, "modem control = %o\n", mbits);
 #endif
 
     oldflag = fcntl(modem, F_GETFL, 0);
-    fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
+    if (oldflag < 0)
+       return(-1);
+    (void)fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
   }
   StartModemTimer();
 
@@ -537,7 +547,9 @@ int modem;
     rstio.c_cflag |= HUPCL;
   tcsetattr(modem, TCSADRAIN, &rstio);
   oldflag = fcntl(modem, F_GETFL, 0);
-  fcntl(modem, F_SETFL, oldflag | O_NONBLOCK);
+  if (oldflag < 0)
+    return(-1);
+  (void)fcntl(modem, F_SETFL, oldflag | O_NONBLOCK);
 #ifdef DEBUG
   oldflag = fcntl(modem, F_GETFL, 0);
   logprintf("modem (put2): iflag = %x, oflag = %x, cflag = %x\n",
@@ -556,7 +568,9 @@ int modem;
   if (isatty(modem) && !DEV_IS_SYNC) {
     tcsetattr(modem, TCSAFLUSH, &modemios);
     oldflag = fcntl(modem, F_GETFL, 0);
-    fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
+    if (oldflag < 0)
+       return;
+    (void)fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
   }
 }
 
@@ -579,7 +593,9 @@ int flag;
     ioctl(modem, TIOCMSET, &mbits);
 #else
     tcgetattr(modem, &tio);
-    cfsetspeed(&tio, B0);
+    if (cfsetspeed(&tio, B0) == -1) {
+      logprintf("Unable to set modem to speed 0\n");
+    }
     tcsetattr(modem, TCSANOW, &tio);
 #endif
     sleep(1);
@@ -685,12 +701,17 @@ ModemStartOutput(fd)
 int fd;
 {
   struct mqueue *queue;
-  int nb, nw, i;
+  int nb, nw;
+#ifdef QDEBUG
+  int i;
+#endif
 
     if (modemout == NULL && ModemQlen() == 0)
       IpStartOutput();
   if (modemout == NULL) {
+#ifdef QDEBUG
     i = PRI_LINK;
+#endif
     for (queue = &OutputQueues[PRI_LINK]; queue >= OutputQueues; queue--) {
       if (queue->top) {
 	modemout = Dequeue(queue);
@@ -705,7 +726,9 @@ int fd;
 #endif
 	break;
       }
+#ifdef QDEBUG
       i--;
+#endif
     }
   }
   if (modemout) {
@@ -764,7 +787,7 @@ DialModem()
     }
   }
   HangupModem(0);
-  return(0);
+  return(excode);
 }
 
 int
@@ -803,8 +826,10 @@ ShowModemStatus()
 #endif
   printf("connect count: %d\n", connect_count);
 #ifdef TIOCOUTQ
-  ioctl(modem, TIOCOUTQ, &nb);
-  printf("outq: %d\n", nb);
+  if (ioctl(modem, TIOCOUTQ, &nb) > 0)
+     printf("outq: %d\n", nb);
+  else
+     printf("outq: ioctl probe failed.\n");
 #endif
   printf("outqlen: %d\n", ModemQlen());
   printf("DialScript  = %s\n", VarDialScript);
