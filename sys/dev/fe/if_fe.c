@@ -112,11 +112,6 @@
 #endif
 
 /*
- * If you define this option, 8-bit cards are also supported.
- */
-/*#define FE_8BIT_SUPPORT*/
-
-/*
  * Device configuration flags.
  */
 
@@ -1331,7 +1326,6 @@ fe_droppacket (struct fe_softc * sc, int len)
 	 */
 	if (len > 12) {
 		/* Read 4 more bytes, and skip the rest of the packet.  */
-#ifdef FE_8BIT_SUPPORT
 		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			(void) fe_inb(sc, FE_BMPR8);
@@ -1340,7 +1334,6 @@ fe_droppacket (struct fe_softc * sc, int len)
 			(void) fe_inb(sc, FE_BMPR8);
 		}
 		else
-#endif
 		{
 			(void) fe_inw(sc, FE_BMPR8);
 			(void) fe_inw(sc, FE_BMPR8);
@@ -1348,14 +1341,12 @@ fe_droppacket (struct fe_softc * sc, int len)
 		fe_outb(sc, FE_BMPR14, FE_B14_SKIP);
 	} else {
 		/* We should not come here unless receiving RUNTs.  */
-#ifdef FE_8BIT_SUPPORT
 		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			for (i = 0; i < len; i++)
 				(void) fe_inb(sc, FE_BMPR8);
 		}
 		else
-#endif
 		{
 			for (i = 0; i < len; i += 2)
 				(void) fe_inw(sc, FE_BMPR8);
@@ -1389,7 +1380,6 @@ fe_emptybuffer (struct fe_softc * sc)
 	 * have been broken.  So, we cannot use skip operation.
 	 * Just discard everything in the buffer.
 	 */
-#ifdef FE_8BIT_SUPPORT
 	if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 	{
 		for (i = 0; i < 65536; i++) {
@@ -1399,7 +1389,6 @@ fe_emptybuffer (struct fe_softc * sc)
 		}
 	}
 	else
-#endif
 	{
 		for (i = 0; i < 65536; i += 2) {
 			if (fe_inb(sc, FE_DLCR5) & FE_D5_BUFEMP)
@@ -1611,14 +1600,12 @@ fe_rint (struct fe_softc * sc, u_char rstat)
 		 * use inw() to get the status byte.  The significant
 		 * value is returned in lower 8 bits.
 		 */
-#ifdef FE_8BIT_SUPPORT
 		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			status = fe_inb(sc, FE_BMPR8);
 			(void) fe_inb(sc, FE_BMPR8);
 		}
 		else
-#endif
 		{
 			status = (u_char) fe_inw(sc, FE_BMPR8);
 		}	
@@ -1628,14 +1615,12 @@ fe_rint (struct fe_softc * sc, u_char rstat)
 		 * It is a sum of a header (14 bytes) and a payload.
 		 * CRC has been stripped off by the 86960.
 		 */
-#ifdef FE_8BIT_SUPPORT
 		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			len  =  fe_inb(sc, FE_BMPR8);
 			len |= (fe_inb(sc, FE_BMPR8) << 8);
 		}
 		else
-#endif
 		{
 			len = fe_inw(sc, FE_BMPR8);
 		}
@@ -1896,13 +1881,11 @@ fe_get_packet (struct fe_softc * sc, u_short len)
 	eh = mtod(m, struct ether_header *);
 
 	/* Get a packet.  */
-#ifdef FE_8BIT_SUPPORT
 	if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 	{
 		fe_insb(sc, FE_BMPR8, (u_int8_t *)eh, len);
 	}
 	else
-#endif
 	{
 		fe_insw(sc, FE_BMPR8, (u_int16_t *)eh, (len + 1) >> 1);
 	}
@@ -1977,7 +1960,6 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 	 * packet in the transmission buffer, we can skip the
 	 * padding process.  It may gain performance slightly.  FIXME.
 	 */
-#ifdef FE_8BIT_SUPPORT
 	if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 	{
 		len = max(length, ETHER_MIN_LEN - ETHER_CRC_LEN);
@@ -1985,7 +1967,6 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 		fe_outb(sc, FE_BMPR8, (len & 0xff00) >> 8);
 	}
 	else
-#endif
 	{
 		fe_outw(sc, FE_BMPR8,
 			max(length, ETHER_MIN_LEN - ETHER_CRC_LEN));
@@ -1995,9 +1976,7 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 	 * Update buffer status now.
 	 * Truncate the length up to an even number, since we use outw().
 	 */
-#ifdef FE_8BIT_SUPPORT
 	if ((sc->proto_dlcr6 & FE_D6_SBW) != FE_D6_SBW_BYTE)
-#endif
 	{
 		length = (length + 1) & ~1;
 	}
@@ -2011,7 +1990,6 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 	 * only words.  So that we require some extra code to patch
 	 * over odd-length mbufs.
 	 */
-#ifdef FE_8BIT_SUPPORT
 	if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 	{
 		/* 8-bit cards are easy.  */
@@ -2022,7 +2000,6 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 		}
 	}
 	else
-#endif
 	{
 		/* 16-bit cards are a pain.  */
 		savebyte = NO_PENDING_BYTE;
@@ -2064,14 +2041,12 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 
 	/* Pad to the Ethernet minimum length, if the packet is too short.  */
 	if (length < ETHER_MIN_LEN - ETHER_CRC_LEN) {
-#ifdef FE_8BIT_SUPPORT
 		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			fe_outsb(sc, FE_BMPR8, padding,
 				 ETHER_MIN_LEN - ETHER_CRC_LEN - length);
 		}
 		else
-#endif
 		{
 			fe_outsw(sc, FE_BMPR8, (u_int16_t *)padding,
 				 (ETHER_MIN_LEN - ETHER_CRC_LEN - length) >> 1);
