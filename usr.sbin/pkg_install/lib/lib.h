@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.22 1996/07/30 10:48:19 jkh Exp $ */
+/* $Id: lib.h,v 1.22.2.1 1997/10/09 07:10:05 charnier Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -108,7 +108,7 @@ int		vsystem(const char *, ...);
 void		cleanup(int);
 char		*make_playpen(char *, size_t);
 char		*where_playpen(void);
-void		leave_playpen(char *);
+void		leave_playpen(void);
 off_t		min_free(char *);
 
 /* String */

@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.19.2.1 1997/10/09 07:09:42 charnier Exp $";
+	"$Id: perform.c,v 1.19.2.2 1997/10/13 15:06:13 jkh Exp $";
 #endif
 
 /*
@@ -192,7 +192,7 @@ pkg_do(char *pkg)
     }
     free_plist(&plist);
  bail:
-    leave_playpen(Home);
+    leave_playpen();
     if (isTMP)
 	unlink(fname);
     return code;
@@ -201,6 +201,11 @@ pkg_do(char *pkg)
 void
 cleanup(int sig)
 {
-    leave_playpen(Home);
+    static int in_cleanup = 0;
+
+    if (!in_cleanup) {
+	in_cleanup = 1;
+    	leave_playpen();
+    }
     exit(1);
 }
