@@ -22,9 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\"	$Id: isic.4,v 1.26 1999/12/13 22:11:55 hm Exp $
+.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Fri Jul 30 09:20:24 1999]
+.\"	last edit-date: [Mon Dec 13 23:16:08 1999]
 .\"
 .Dd July 30, 1999
 .Dt ISIC 4
@@ -33,6 +35,13 @@
 .Nm isic
 .Nd isdn4bsd Siemens ISDN Chipset device driver
 .Sh FreeBSD SYNOPSIS
+.Pp
+.Em Note:
+the keywords
+.Em net
+and
+.Em vector isicintr
+are no longer required for FreeBSD-current (FreeBSD 4.x)!
 .Pp
 For a Teles S0/8 or Niccy 1008 card:
 .Cd options \&"TEL_S0_8\&"
@@ -397,26 +406,22 @@ for their boards, it is likely that there are many, many bugs left.
 CCITT Recommendation I.430
 
 .Sh SEE ALSO
-.Xr i4bq921 4 ,
+.Xr i4bq921 4
 .Xr i4bq931 4
 
-.Sh AUTHORS
+.Sh AUTHOR
 The
 .Nm
-driver and this manpage were written by
-.An Hellmuth Michaelis .
-It is based
-on earlier work of
+driver and this manpage were written by 
+.An Hellmuth Michaelis Aq hm@kts.org .
+It is based on earlier work of 
 .An Arne Helme ,
 .An Andrew Gordon
-and
+and 
 .An Gary Jennejohn .
-The author can be contacted at hm@kts.org.
 .Pp
-The complete porting to and maintenance of 
-.Nx
-was done by
-.An Martin Husemann Aq martin@rumolt.teuto.de
+The complete porting to and maintenance of NetBSD was done by 
+.An Martin Husemann Aq martin@rumolt.teuto.de .
 .Pp
 The NetBSD/Amiga ISDN Blaster/Master/MasterII driver was written by
-.An Ignatios Souvatzis Aq is@netbsd.org
+.An Ignatios Souvatzis Aq is@netbsd.org .

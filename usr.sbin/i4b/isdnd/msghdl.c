@@ -27,13 +27,31 @@
  *	i4b daemon - message from kernel handling routines
  *	--------------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: msghdl.c,v 1.71 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Mon Jul 26 13:55:57 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:47:54 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #include "isdnd.h"
+
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_types.h>
+
+#if defined(__FreeBSD__)
+#include <net/if_var.h>
+#endif
+
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+#include <netinet/ip_icmp.h>
 
 /*---------------------------------------------------------------------------*
  *	handle incoming CONNECT_IND (=SETUP) message
@@ -309,13 +327,40 @@ msg_alert_ind(msg_alert_ind_t *mp)
 void
 msg_l12stat_ind(msg_l12stat_ind_t *ml)
 {
+	if((ml->controller < 0) || (ml->controller >= ncontroller))
+	{
+		log(LL_ERR, "msg_l12stat_ind: invalid controller number [%d]!", ml->controller);
+		return;
+	}
+
 #ifdef USE_CURSES
 	if(do_fullscreen)
 		display_l12stat(ml->controller, ml->layer, ml->state);
 #endif
+#ifdef I4B_EXTERNAL_MONITOR
+	if(do_monitor && accepted)
+		monitor_evnt_l12stat(ml->controller, ml->layer, ml->state);
+#endif
 
 	DBGL(DL_CNST, (log(LL_DBG, "msg_l12stat_ind: unit %d, layer %d, state %d",
 		ml->controller, ml->layer, ml->state)));
+
+	if(ml->layer == LAYER_ONE)
+	{
+		if(ml->state == LAYER_IDLE)
+			isdn_ctrl_tab[ml->controller].l2stat = ml->state;
+		isdn_ctrl_tab[ml->controller].l1stat = ml->state;
+	}
+	else if(ml->layer == LAYER_TWO)
+	{
+		if(ml->state == LAYER_ACTIVE)
+			isdn_ctrl_tab[ml->controller].l1stat = ml->state;
+		isdn_ctrl_tab[ml->controller].l2stat = ml->state;
+	}
+	else
+	{
+		log(LL_ERR, "msg_l12stat_ind: invalid layer number [%d]!", ml->layer);
+	}
 }
                                                                                 
 /*---------------------------------------------------------------------------*
@@ -324,17 +369,29 @@ msg_l12stat_ind(msg_l12stat_ind_t *ml)
 void
 msg_teiasg_ind(msg_teiasg_ind_t *mt)
 {
+	if((mt->controller < 0) || (mt->controller >= ncontroller))
+	{
+		log(LL_ERR, "msg_teiasg_ind: invalid controller number [%d]!", mt->controller);
+		return;
+	}
+
 #ifdef USE_CURSES
 	if(do_fullscreen)
 		display_tei(mt->controller, mt->tei);
 #endif
+#ifdef I4B_EXTERNAL_MONITOR
+	if(do_monitor && accepted)
+		monitor_evnt_tei(mt->controller, mt->tei);
+#endif
 
 	DBGL(DL_CNST, (log(LL_DBG, "msg_teiasg_ind: unit %d, tei = %d",
 		mt->controller, mt->tei)));
+
+	isdn_ctrl_tab[mt->controller].tei = mt->tei;
 }
 
 /*---------------------------------------------------------------------------*
- *	handle incoming L12STAT_IND message
+ *	handle incoming PDEACT_IND message
  *---------------------------------------------------------------------------*/
 void
 msg_pdeact_ind(msg_pdeact_ind_t *md)
@@ -351,9 +408,21 @@ msg_pdeact_ind(msg_pdeact_ind_t *md)
 		display_tei(ctrl, -1);
 	}
 #endif
+#ifdef I4B_EXTERNAL_MONITOR
+	if(do_monitor && accepted)
+	{
+		monitor_evnt_l12stat(ctrl, LAYER_ONE, LAYER_IDLE);
+		monitor_evnt_l12stat(ctrl, LAYER_TWO, LAYER_IDLE);		
+		monitor_evnt_tei(ctrl, -1);
+	}
+#endif
 
 	DBGL(DL_CNST, (log(LL_DBG, "msg_pdeact_ind: unit %d, persistent deactivation", ctrl)));
 
+	isdn_ctrl_tab[ctrl].l1stat = LAYER_IDLE;
+	isdn_ctrl_tab[ctrl].l2stat = LAYER_IDLE;
+	isdn_ctrl_tab[ctrl].tei = -1;		
+	
 	for(i=0; i < nentries; i++)
 	{
 		if((cfg_entry_tab[i].cdid != CDID_UNUSED)	&&
@@ -363,6 +432,7 @@ msg_pdeact_ind(msg_pdeact_ind_t *md)
 			
 			if(cep->cdid == CDID_RESERVED)
 			{
+				cep->state = ST_IDLE;
 				cep->cdid = CDID_UNUSED;
 				continue;
 			}
@@ -392,11 +462,11 @@ msg_pdeact_ind(msg_pdeact_ind_t *md)
 			if(do_fullscreen && (cep->connect_time > 0))
 				display_disconnect(cep);
 #endif
-		
 #ifdef I4B_EXTERNAL_MONITOR
 			if(do_monitor && accepted)
 				monitor_evnt_disconnect(cep);
 #endif
+
 			if(cep->disconnectprog)
 				exec_connect_prog(cep, cep->disconnectprog, 1);
 		
@@ -444,7 +514,7 @@ msg_pdeact_ind(msg_pdeact_ind_t *md)
 					
 				tp = localtime(&cep->connect_time);
 				
-		strftime(logdatetime,40,I4B_TIME_FORMAT,tp);
+				strftime(logdatetime,40,I4B_TIME_FORMAT,tp);
 		
 				if(cep->inbytes != INVALID && cep->outbytes != INVALID)
 				{
@@ -469,6 +539,8 @@ msg_pdeact_ind(msg_pdeact_ind_t *md)
 			incr_free_channels(cep->isdncontrollerused);
 			
 			cep->connect_time = 0;
+
+			cep->state = ST_IDLE;
 		}
 	}
 }
@@ -562,7 +634,6 @@ msg_disconnect_ind(msg_disconnect_ind_t *mp)
 	if(do_fullscreen && (cep->connect_time > 0))
 		display_disconnect(cep);
 #endif
-
 #ifdef I4B_EXTERNAL_MONITOR
 	if(do_monitor && accepted)
 		monitor_evnt_disconnect(cep);
@@ -756,14 +827,10 @@ msg_accounting(msg_accounting_ind_t *mp)
 		if(do_fullscreen)
 			display_acct(cep);
 #endif
-#ifdef NOTDEF
-		else
-			DBGL(DL_DRVR, (log(LL_DBG, "msg_accounting: %s%d, ioutb=%d, iinb=%d, outb=%d, inb=%d, outbps=%d, inbps=%d",
-				bdrivername(mp->driver), mp->driver_unit,
-				mp->ioutbytes, mp->iinbytes,
-				mp->outbytes, mp->inbytes,
-				mp->outbps, mp->inbps)));
-#endif				
+#ifdef I4B_EXTERNAL_MONITOR
+		if(do_monitor && accepted)
+			monitor_evnt_acct(cep);
+#endif
 	}
 }
 
@@ -790,17 +857,17 @@ msg_charging_ind(msg_charging_ind_t *mp)
 	if(mp->units_type < CHARGE_INVALID || mp->units_type > CHARGE_CALC)
 	{ 
 		log(LL_ERR, "msg_charging: units_type %d out of range!", mp->units_type);
-		do_exit(1);
+		error_exit(1, "msg_charging: units_type %d out of range!", mp->units_type);
 	}
 	
 	DBGL(DL_DRVR, (log(LL_DBG, "msg_charging: %d unit(s) (%s)",
 			mp->units, cttab[mp->units_type])));
 
+	cep->charge = mp->units;
+
 	switch(mp->units_type)
 	{
 		case CHARGE_AOCD:
-			cep->charge = mp->units;
-
 			if((cep->unitlengthsrc == ULSRC_DYN) &&
 			   (cep->charge != cep->last_charge))
 			{
@@ -808,13 +875,8 @@ msg_charging_ind(msg_charging_ind_t *mp)
 				handle_charge(cep);
 			}
 			break;
-
-		case CHARGE_AOCE:
-			cep->charge = mp->units;
-			break;
 			
 		case CHARGE_CALC:
-			cep->charge = mp->units;	
 #ifdef USE_CURSES
 		        if(do_fullscreen)
                 	        display_ccharge(cep, mp->units);
@@ -849,6 +911,106 @@ msg_idle_timeout_ind(msg_idle_timeout_ind_t *mp)
 }
 
 /*---------------------------------------------------------------------------*
+ *    handle incoming MSG_PACKET_IND message
+ *---------------------------------------------------------------------------*/
+static char *
+strapp(char *buf, const char *txt)
+{
+	while(*txt)
+		*buf++ = *txt++;
+	*buf = '\0';
+	return buf;
+}
+
+static char *
+ipapp(char *buf, unsigned long a )
+{
+	unsigned long ma = ntohl( a );
+
+	buf += sprintf(buf, "%lu.%lu.%lu.%lu",
+				(ma>>24)&0xFF,
+				(ma>>16)&0xFF,
+				(ma>>8)&0xFF,
+				(ma)&0xFF);
+	return buf;
+}
+
+void
+msg_packet_ind(msg_packet_ind_t *mp)
+{
+	cfg_entry_t *cep;
+	struct ip *ip;
+	u_char *proto_hdr;
+	char tmp[80];
+	char *cptr = tmp;
+	char *name = "???";
+	int i;
+
+	for(i=0; i < nentries; i++)
+	{
+		cep = &cfg_entry_tab[i];    /* ptr to config entry */
+
+		if(cep->usrdevicename == mp->driver &&
+			cep->usrdeviceunit == mp->driver_unit)
+		{
+			name = cep->name;
+			break;
+		}
+	}
+
+	ip = (struct ip*)mp->pktdata;
+	proto_hdr = mp->pktdata + ((ip->ip_hl)<<2);
+
+	if( ip->ip_p == IPPROTO_TCP )
+	{
+		struct tcphdr* tcp = (struct tcphdr*)proto_hdr;
+
+		cptr = strapp( cptr, "TCP " );
+		cptr = ipapp( cptr, ip->ip_src.s_addr );
+		cptr += sprintf( cptr, ":%u -> ", ntohs( tcp->th_sport ) );
+		cptr = ipapp( cptr, ip->ip_dst.s_addr );
+		cptr += sprintf( cptr, ":%u", ntohs( tcp->th_dport ) );
+
+		if(tcp->th_flags & TH_FIN)  cptr = strapp( cptr, " FIN" );
+		if(tcp->th_flags & TH_SYN)  cptr = strapp( cptr, " SYN" );
+		if(tcp->th_flags & TH_RST)  cptr = strapp( cptr, " RST" );
+		if(tcp->th_flags & TH_PUSH) cptr = strapp( cptr, " PUSH" );
+		if(tcp->th_flags & TH_ACK)  cptr = strapp( cptr, " ACK" );
+		if(tcp->th_flags & TH_URG)  cptr = strapp( cptr, " URG" );
+	}
+	else if( ip->ip_p == IPPROTO_UDP )
+	{
+		struct udphdr* udp = (struct udphdr*)proto_hdr;
+
+		cptr = strapp( cptr, "UDP " );
+		cptr = ipapp( cptr, ip->ip_src.s_addr );
+		cptr += sprintf( cptr, ":%u -> ", ntohs( udp->uh_sport ) );
+		cptr = ipapp( cptr, ip->ip_dst.s_addr );
+		cptr += sprintf( cptr, ":%u", ntohs( udp->uh_dport ) );
+	}
+	else if( ip->ip_p == IPPROTO_ICMP )
+	{
+		struct icmp* icmp = (struct icmp*)proto_hdr;
+
+		cptr += sprintf( cptr, "ICMP:%u.%u", icmp->icmp_type, icmp->icmp_code);
+		cptr = ipapp( cptr, ip->ip_src.s_addr );
+		cptr = strapp( cptr, " -> " );
+		cptr = ipapp( cptr, ip->ip_dst.s_addr );
+	}
+	else
+	{
+		cptr += sprintf( cptr, "PROTO=%u ", ip->ip_p);
+		cptr = ipapp( cptr, ip->ip_src.s_addr);
+		cptr = strapp( cptr, " -> " );
+		cptr = ipapp( cptr, ip->ip_dst.s_addr);
+	}
+
+	log(LL_PKT, "%s %s %u %s",
+		name, mp->direction ? "send" : "recv",
+		ntohs( ip->ip_len ), tmp );
+}
+
+/*---------------------------------------------------------------------------*
  *	get a cdid from kernel
  *---------------------------------------------------------------------------*/
 int
@@ -861,7 +1023,7 @@ get_cdid(void)
 	if((ioctl(isdnfd, I4B_CDID_REQ, &mcr)) < 0)
 	{
 		log(LL_ERR, "get_cdid: ioctl I4B_CDID_REQ failed: %s", strerror(errno));
-		do_exit(1);
+		error_exit(1, "get_cdid: ioctl I4B_CDID_REQ failed: %s", strerror(errno));
 	}
 
 	return(mcr.cdid);
@@ -913,7 +1075,7 @@ sendm_connect_req(cfg_entry_t *cep)
 	if((ret = ioctl(isdnfd, I4B_CONNECT_REQ, &mcr)) < 0)
 	{
 		log(LL_ERR, "sendm_connect_req: ioctl I4B_CONNECT_REQ failed: %s", strerror(errno));
-		do_exit(1);
+		error_exit(1, "sendm_connect_req: ioctl I4B_CONNECT_REQ failed: %s", strerror(errno));
 	}
 
 	decr_free_channels(cep->isdncontrollerused);
@@ -961,7 +1123,7 @@ sendm_connect_resp(cfg_entry_t *cep, int cdid, int response, int cause)
 	if((ret = ioctl(isdnfd, I4B_CONNECT_RESP, &mcr)) < 0)
 	{
 		log(LL_ERR, "sendm_connect_resp: ioctl I4B_CONNECT_RESP failed: %s", strerror(errno));
-		do_exit(1);
+		error_exit(1, "sendm_connect_resp: ioctl I4B_CONNECT_RESP failed: %s", strerror(errno));
 	}
 
 	DBGL(DL_DRVR, (log(LL_DBG, "sendm_connect_resp: sent CONNECT_RESP")));
@@ -976,7 +1138,7 @@ int
 sendm_disconnect_req(cfg_entry_t *cep, int cause)
 {
 	msg_discon_req_t mcr;
-	int ret;
+	int ret = 0;
 
 	mcr.cdid = cep->cdid;
 
@@ -987,7 +1149,6 @@ sendm_disconnect_req(cfg_entry_t *cep, int cause)
 	if((ret = ioctl(isdnfd, I4B_DISCONNECT_REQ, &mcr)) < 0)
 	{
 		log(LL_ERR, "sendm_disconnect_req: ioctl I4B_DISCONNECT_REQ failed: %s", strerror(errno));
-		do_exit(1);
 	}
 	else
 	{
@@ -1010,7 +1171,7 @@ sendm_alert_req(cfg_entry_t *cep)
 	if((ret = ioctl(isdnfd, I4B_ALERT_REQ, &mar)) < 0)
 	{
 		log(LL_ERR, "sendm_alert_req: ioctl I4B_ALERT_REQ failed: %s", strerror(errno));
-		do_exit(1);
+		error_exit(1, "sendm_alert_req: ioctl I4B_ALERT_REQ failed: %s", strerror(errno));
 	}
 	else
 	{

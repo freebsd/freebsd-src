@@ -27,9 +27,11 @@
  *	isdntel - isdn4bsd telephone answering machine support
  *      ======================================================
  *
- * $FreeBSD$ 
+ *      $Id: alias.c,v 1.9 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Mon Apr 26 13:53:13 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:53:37 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -47,10 +49,10 @@ void
 init_alias(char *filename)
 {
 	FILE *fp;
-	char buffer[MAXBUFSZ + 1];
-	char number[MAXBUFSZ + 1];
-	char name[MAXBUFSZ + 1];
-	char *s, *d;
+	unsigned char buffer[MAXBUFSZ + 1];
+	unsigned char number[MAXBUFSZ + 1];
+	unsigned char name[MAXBUFSZ + 1];
+	unsigned char *s, *d;
 	struct alias *newa = NULL;
 	struct alias *lasta = NULL;
 	

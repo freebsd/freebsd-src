@@ -27,9 +27,11 @@
  *	isdn4bsd common alias file handling header
  *      ==========================================
  *
+ *      $Id: alias.h,v 1.5 1999/12/13 21:25:26 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Feb 14 10:19:20 1999]
+ *      last edit-date: [Mon Dec 13 21:53:44 1999]
  *
  *----------------------------------------------------------------------------*/
 

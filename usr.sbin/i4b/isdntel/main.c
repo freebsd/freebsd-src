@@ -27,13 +27,16 @@
  *	isdntel - isdn4bsd telephone answering machine support
  *      ======================================================
  *
- * $FreeBSD$ 
+ *      $Id: main.c,v 1.12 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Fri Jul 30 08:16:03 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:54:26 1999]
  *
  *----------------------------------------------------------------------------*/
 
 #define MAIN
+#include <locale.h>
 #include "defs.h"
 #include "alias.h"
 
@@ -60,6 +63,8 @@ main(int argc, char **argv)
 	int rrtimeout = REREADTIMEOUT;
 	
 	extern char *optarg;	
+
+	setlocale( LC_ALL, "");
 	
 	while ((i = getopt(argc, argv, "a:d:p:t:")) != -1)
 	{

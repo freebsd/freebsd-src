@@ -27,9 +27,11 @@
  *	i4b daemon - config file processing
  *	-----------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: rc_config.c,v 1.49 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Thu May 20 14:11:26 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:48:38 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -42,9 +44,9 @@
 #include "y.tab.h"
 
 #include "monitor.h"
-#include "vararray.h"
 
 extern int entrycount;
+extern int controllercount;
 extern int lineno;
 extern char *yytext;
 
@@ -125,6 +127,9 @@ set_config_defaults(void)
 	nregprog = nregexpr = 0;
 
 	rt_prio = RTPRIO_NOTUSED;
+
+	mailer[0] = '\0';
+	mailto[0] = '\0';	
 	
 	/* clean regular expression table */
 	
@@ -143,6 +148,16 @@ set_config_defaults(void)
 
 	strcpy(rotatesuffix, "");
 	
+	/*
+	 * controller table cleanup, beware: has already
+	 * been setup in main, init_controller() !
+	 */
+	
+	for(i=0; i < ncontroller; i++)
+	{
+		isdn_ctrl_tab[i].protocol = PROTOCOL_DSS1;
+	}
+
 	/* entry section cleanup */
 	
 	for(i=0; i < CFG_ENTRY_MAX; i++, cep++)
@@ -195,6 +210,17 @@ set_config_defaults(void)
 
 		cep->aoc_valid = AOC_INVALID;
  	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	internaly set values for ommitted controler sectin
+ *---------------------------------------------------------------------------*/
+void
+cfg_set_controller_default()
+{
+	controllercount = 0;
+	DBGL(DL_RCCF, (log(LL_DBG, "[defaults, no controller section] controller %d: protocol = dss1", controllercount)));
+	isdn_ctrl_tab[controllercount].protocol = PROTOCOL_DSS1;
 }
 
 /*---------------------------------------------------------------------------*
@@ -458,6 +484,16 @@ cfg_setval(int keyword)
 			strcpy(cfg_entry_tab[entrycount].local_phone_incoming, yylval.str);
 			break;
 
+		case MAILER:
+			strcpy(mailer, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: mailer = %s", yylval.str)));
+			break;
+
+		case MAILTO:
+			strcpy(mailto, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: mailto = %s", yylval.str)));
+			break;
+
 		case MONITORPORT:
 			monitorport = yylval.num;
 			DBGL(DL_RCCF, (log(LL_DBG, "system: monitorport = %d", yylval.num)));
@@ -479,6 +515,19 @@ cfg_setval(int keyword)
 		case NAME:
 			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: name = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].name, yylval.str);
+			break;
+
+		case PROTOCOL:
+			DBGL(DL_RCCF, (log(LL_DBG, "controller %d: protocol = %s", controllercount, yylval.str)));
+			if(!(strcmp(yylval.str, "dss1")))
+				isdn_ctrl_tab[controllercount].protocol = PROTOCOL_DSS1;
+			else if(!(strcmp(yylval.str, "d64s")))
+				isdn_ctrl_tab[controllercount].protocol = PROTOCOL_D64S;
+			else
+			{
+				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"protocol\" at line %d!", lineno);
+				config_error_flag++;
+			}
 			break;
 
 		case REACTION:
@@ -690,8 +739,10 @@ cfg_setval(int keyword)
 				cfg_entry_tab[entrycount].usrdevicename = BDRV_IPR;
 			else if(!strcmp(yylval.str, "isp"))
 				cfg_entry_tab[entrycount].usrdevicename = BDRV_ISPPP;
+#ifdef __bsdi__
 			else if(!strcmp(yylval.str, "ibc"))
 				cfg_entry_tab[entrycount].usrdevicename = BDRV_IBC;
+#endif
 			else
 			{
 				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"usrdevicename\" at line %d!", lineno);
@@ -812,9 +863,12 @@ print_config(void)
 {
 #define PFILE stdout
 
+#ifdef I4B_EXTERNAL_MONITOR
+	extern struct monitor_rights * monitor_next_rights(const struct monitor_rights *r);
+	struct monitor_rights *m_rights;
+#endif
 	cfg_entry_t *cep = &cfg_entry_tab[0];	/* ptr to config entry */
 	int i, j;
-	extern VARA_DECL(struct monitor_rights) rights;
 	time_t clock;
 	char mytime[64];
 
@@ -857,23 +911,24 @@ print_config(void)
 	fprintf(PFILE, "monitor-allowed = %s\n", do_monitor ? "on\t\t\t\t# remote isdnd monitoring allowed" : "off\t\t\t\t# remote isdnd monitoring disabled");
 	fprintf(PFILE, "monitor-port    = %d\t\t\t\t# TCP/IP port number used for remote monitoring\n", monitorport);
 
-	if(VARA_NUM(rights))
+	m_rights = monitor_next_rights(NULL);
+	if(m_rights != NULL)
 	{
 		char *s = "error\n";
 		char b[512];
-		
-		VARA_FOREACH(rights, i)
+
+		for ( ; m_rights != NULL; m_rights = monitor_next_rights(m_rights))
 		{
-			if(VARA_AT(rights, i).local)
+			if(m_rights->local)
 			{
-				fprintf(PFILE, "monitor         = \"%s\"\t\t# local socket name for monitoring\n", VARA_AT(rights, i).name);
+				fprintf(PFILE, "monitor         = \"%s\"\t\t# local socket name for monitoring\n", m_rights->name);
 			}
 			else
 			{
 				struct in_addr ia;
-				ia.s_addr = ntohl(VARA_AT(rights, i).net);
+				ia.s_addr = ntohl(m_rights->net);
 
-				switch(VARA_AT(rights, i).mask)
+				switch(m_rights->mask)
 				{
 					case 0xffffffff:
 						s = "32";
@@ -979,17 +1034,17 @@ print_config(void)
 			}
 			b[0] = '\0';
 			
-			if((VARA_AT(rights, i).rights) & I4B_CA_COMMAND_FULL)
+			if((m_rights->rights) & I4B_CA_COMMAND_FULL)
 				strcat(b, "fullcmd,");
-			if((VARA_AT(rights, i).rights) & I4B_CA_COMMAND_RESTRICTED)
+			if((m_rights->rights) & I4B_CA_COMMAND_RESTRICTED)
 				strcat(b, "restrictedcmd,");
-			if((VARA_AT(rights, i).rights) & I4B_CA_EVNT_CHANSTATE)
+			if((m_rights->rights) & I4B_CA_EVNT_CHANSTATE)
 				strcat(b, "channelstate,");
-			if((VARA_AT(rights, i).rights) & I4B_CA_EVNT_CALLIN)
+			if((m_rights->rights) & I4B_CA_EVNT_CALLIN)
 				strcat(b, "callin,");
-			if((VARA_AT(rights, i).rights) & I4B_CA_EVNT_CALLOUT)
+			if((m_rights->rights) & I4B_CA_EVNT_CALLOUT)
 				strcat(b, "callout,");
-			if((VARA_AT(rights, i).rights) & I4B_CA_EVNT_I4B)
+			if((m_rights->rights) & I4B_CA_EVNT_I4B)
 				strcat(b, "logevents,");
 
 			if(b[strlen(b)-1] == ',')

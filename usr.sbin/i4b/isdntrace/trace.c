@@ -35,22 +35,11 @@
  *	trace.c - print traces of D (B) channel activity for isdn4bsd
  *	-------------------------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: trace.c,v 1.15 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Fri Jul 30 08:16:59 1999]
+ * $FreeBSD$
  *
- *	-hm	rewriting for isic and new trace format
- *	-hm	new option -f, use automatic name for -o
- *	-hm	changed default option setting
- *	-hm	multi unit support
- *	-hm	analyzer functionality
- *	-hm	binary record/playback
- *	-hm	-p option
- *	-hm	cleanup
- *	-hm	adding date to timestamp field
- *	-hm	reopen files on SIGUSR1 for rotation
- *	-hm	Joerg reported a bug with commandline options
- *	-hm	I.430 INFO signals from layer 1
+ *      last edit-date: [Mon Dec 13 21:57:48 1999]
  *
  *---------------------------------------------------------------------------*/
 

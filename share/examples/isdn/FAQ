@@ -1,10 +1,10 @@
---------------------------------------------------------------------------------
 $FreeBSD$
+--------------------------------------------------------------------------------
 
                    ISDN4BSD Frequently Asked Questions
                    ===================================
 
-                last edit-date: [Fri Jul 30 08:49:21 1999]
+                last edit-date: [Tue Dec 14 21:31:48 1999]
 
 --------------------------------------------------------------------------------
 
@@ -34,6 +34,9 @@ Contents:
 	21. Help, isdn4bsd 0.82 fails to probe my Elsa PCC-16!
 	22. How do i enable and configure userland PPP with i4b ?
 	23. What is the procedure to install a new i4b on FreeBSD 3.x ?
+	24. Why do i get "ifconfig: ioctl (SIOCAIFADDR): file exists" ?
+	25. How to properly operate isdnd's fullscreen output in a 132x60 vty
+	26. NetBSD: i see isic0 while booting but I cannot access my Fritz!Card
 
 
 1. How do I get started with synchronous PPP (sPPP) ?
@@ -935,3 +938,71 @@ shutdown -r now
 
 
 (From: Luke Roberts <luke@roberts.nl>)
+
+
+24. Why do i get "ifconfig: ioctl (SIOCAIFADDR): file exists" ?
+================================================================================
+
+Ich ?berlege gerade, aber ich glaube, ich bekomme sie auch.  Das
+Problem existiert schon seit geraumer Zeit immer beim Konfigurieren
+eines point-to-point Interfaces (SLIP, PPP).
+
+Das `file exists' ist ein Misnomer, es r?hrt daher, da? der
+Routingcode die errno's in einer leicht ver?nderten Weise benutzt, so
+da? nicht neue errno's daf?r erfunden werden mu?ten.  Lies es als
+`route exists'.  (Und falls Du im Zusammenhang mit Routing mal ein `no
+such process' siehst, lies es als `no such route'.)
+
+Die Meldung ist harmlos.  Sonst h?tte ich mir schon l?ngst mal die
+M?he gemacht, mich durch den ganzen Routing-Code zu hangeln und zu
+sehen, warum das passiert.
+
+(From Joerg Wunsch <j@uriah.heep.sax.de>)
+
+
+25. How to properly operate isdnd's fullscreen output in a 132x60 vty
+================================================================================
+
+Q: I'm using allscreens_flags="132x60" in /etc/rc.conf but the vty gets 
+   switched after isdnd is started, so isdnd didn't know about the new 
+   dimensions of the screen.
+
+A: This one's easy: 
+   In /etc/rc.isdn change
+        isdn_ttype=cons25
+   to
+        isdn_ttype=cons60l1wide
+        /usr/sbin/vidcontrol VESA_132x60 < ${isdn_fsdev}
+
+   The new VESA modes don't have termcap entries yet, so you'll
+   have to add one yourself to define 132x60:
+
+   cons60l1wide|cons60-iso8859-1:\
+        :co#132:tc=cons60l1:
+
+
+(From: "H. Eckert" <ripley@nostromo.in-berlin.de>)
+
+
+26. NetBSD: i see isic0 while booting but I cannot access my Fritz!Card
+================================================================================
+
+I got his:
+isic0 at pci0 dev 8 function 0: Fritz!Card
+isic0: ISAC 2085 Version A1/A2 or 2086/2186 Version 1.1 (IOM-2)
+isic0: interrupting at irq 11
+(...)
+i4b: ISDN call control device attached
+i4btrc: 2 ISDN trace device(s) attached
+i4bctl: ISDN system control port attached
+i4brbch: 4 raw B channel access device(s) attached
+i4btel: 2 ISDN telephony interface device(s) attached
+i4bipr: 2 IP over raw HDLC ISDN device(s) attached (VJ header compression)
+i4bisppp: 2 ISDN SyncPPP device(s) attached
+
+But I could not use the card, because I forgot
+"options __I4B_IS_INTEGRATED" in the kernal config file.
+[Jan Sparud helped me to find that]
+
+(From: David Wetzel <dave@turbocat.de>)
+

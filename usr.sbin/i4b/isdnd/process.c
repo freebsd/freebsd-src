@@ -27,11 +27,11 @@
  *	i4b daemon - process handling routines
  *	--------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: process.c,v 1.8 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:11:54 1999]
+ * $FreeBSD$
  *
- *	-hm	debugging processhandling
+ *      last edit-date: [Mon Dec 13 21:48:19 1999]
  *
  *---------------------------------------------------------------------------*/
 

@@ -22,9 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$ 
+.\"	$Id: isdnd.acct.5,v 1.11 1999/12/13 22:11:55 hm Exp $ 
 .\"
-.\"	last edit-date: [Mon Feb 15 16:54:23 1999]
+.\" $FreeBSD$
+.\"
+.\"	last edit-date: [Mon Dec 13 22:58:12 1999]
 .\"
 .Dd September 11, 1998
 .Dt ISDND.ACCT 5
@@ -84,6 +86,7 @@ is the number of seconds the connection lasted.
 and
 .Em OUTBYTES
 is the (optional) number of bytes that were transferred.
+
 .Sh FILES
 .Bl -tag -width /var/log/isdnd.acct -compact
 .It Pa /var/log/isdnd.acct
@@ -91,16 +94,19 @@ The default accounting information file for the
 .Nm isdnd
 ISDN daemon.
 .El
+
 .Sh EXAMPLES
 This is a typical accounting line:
 .Pp
 .Dl 12.06.97 10:41:37 - 12.06.97 10:45:18 GROGGY 2 (65) (4711/1147)
+
 .Sh SEE ALSO
-.Xr isdnd.rc 5 ,
-.Xr isdnd 8
-.Sh AUTHORS
+.Xr isdnd 8 ,
+.Xr isdnd.rc 5
+
+.Sh AUTHOR
 The 
 .Xr isdnd 8
-daemon and this manual page were written by
-.An Hellmuth Michaelis .
-He can be contacted at hm@kts.org or hm@hcs.de.
+daemon and this manual page were written by 
+.An Hellmuth Michaelis Aq hm@kts.org .
+
