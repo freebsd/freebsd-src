@@ -57,7 +57,7 @@ _CPUCFLAGS = -march=pentiumpro
 .  elif ${CPUTYPE} == "i686"
 _CPUCFLAGS = -march=pentiumpro
 .  elif ${CPUTYPE} == "i586/mmx"
-_CPUCFLAGS = -march=pentium
+_CPUCFLAGS = -march=pentium-mmx
 .  elif ${CPUTYPE} == "i586"
 _CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "i486"
