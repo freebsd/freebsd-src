@@ -1,5 +1,4 @@
-# $Id: Makefile,v 1.3 1998/09/17 23:52:15 msmith Exp $
-# from	$NetBSD: Makefile,v 1.12 1998/02/19 14:18:36 drochner Exp $
+# $Id: Makefile,v 1.4 1998/09/18 02:03:29 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -26,11 +25,14 @@ CLEANFILES+=	vers.c vers.o ${BASE}.list setdef0.o setdef1.o setdefs.h \
 
 CFLAGS+=	-Wall
 LDFLAGS=	-nostdlib -static -Ttext 0x1000
-LDADD=		-lstand ${LIBI386}
 
 # i386 standalone support library
 LIBI386=	${.OBJDIR}/../libi386/libi386.a
 CFLAGS+=	-I${.CURDIR}/..
+
+# where to get libstand from
+LIBSTAND=	-lstand
+#LIBSTAND=	${.CURDIR}/../../../lib/libstand/libstand.a
 
 # BTX components
 BTXDIR=		${.CURDIR}/../btx
@@ -51,8 +53,8 @@ ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN}
 		${BASE}.bin
 
 ${BASE}.bin: ${OBJS} ${LIBI386} vers.o setdef0.o setdef1.o
-	${LD} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} setdef0.o ${OBJS} vers.o \
-		setdef1.o -lstand ${LIBI386} -lstand
+	${LD} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} setdef0.o ${OBJS} vers.o setdef1.o \
+		${LIBSTAND} ${LIBI386} ${LIBSTAND}
 
 setdef0.o:	setdefs.h
 
