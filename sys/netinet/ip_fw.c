@@ -785,20 +785,18 @@ add_dyn_rule(struct ipfw_flow_id *id, struct ipfw_flow_id *mask,
            if (ipfw_dyn_v != NULL)
 		free(ipfw_dyn_v, M_IPFW);
            ipfw_dyn_v = malloc(curr_dyn_buckets * sizeof r,
-                   M_IPFW, M_DONTWAIT);
+                   M_IPFW, M_DONTWAIT | M_ZERO);
 	   if (ipfw_dyn_v == NULL)
 		return ; /* failed ! */
-           bzero(ipfw_dyn_v, curr_dyn_buckets * sizeof r);
        }
     }
     i = hash_packet(id);
 
-    r = malloc(sizeof *r, M_IPFW, M_DONTWAIT);
+    r = malloc(sizeof *r, M_IPFW, M_DONTWAIT | M_ZERO);
     if (r == NULL) {
        printf ("sorry cannot allocate state\n");
        return ;
     }
-    bzero (r, sizeof (*r) );
 
     if (mask)
 	r->mask = *mask ;
@@ -1445,7 +1443,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	int s;
 
 	fwc = malloc(sizeof *fwc, M_IPFW, M_DONTWAIT);
-	ftmp_ext = malloc(sizeof *ftmp_ext, M_IPFW, M_DONTWAIT);
+	ftmp_ext = malloc(sizeof *ftmp_ext, M_IPFW, M_DONTWAIT | M_ZERO);
 	ftmp = &ftmp_ext->rule ;
 	if (!fwc || !ftmp) {
 		dprintf(("%s malloc said no\n", err_prefix));
@@ -1454,7 +1452,6 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 		return (ENOSPC);
 	}
 
-	bzero(ftmp_ext, sizeof(*ftmp_ext)); /* play safe! */
 	bcopy(frwl, ftmp, sizeof(*ftmp));
 	if (ftmp->fw_flg & IP_FW_F_RND_MATCH)
 		ftmp_ext->dont_match_prob = (intptr_t)ftmp->pipe_ptr;

@@ -470,8 +470,7 @@ pass:
 	    (m->m_flags & (M_MCAST|M_BCAST)) == 0)
 		goto ours;
 
-	for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
-					ia = TAILQ_NEXT(ia, ia_link)) {
+	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 
 #ifdef BOOTP_COMPAT
