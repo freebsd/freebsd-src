@@ -47,17 +47,19 @@
 
 #define	BYTE_ORDER	BIG_ENDIAN
 
+#ifndef _KERNEL
 #include <sys/cdefs.h>
-#include <sys/types.h>
+#endif
+#include <machine/ansi.h>
 
 __BEGIN_DECLS
-in_addr_t	htonl __P((in_addr_t));
-in_port_t	htons __P((in_port_t));
-in_addr_t	ntohl __P((in_addr_t));
-in_port_t	ntohs __P((in_port_t));
-u_int16_t	bswap16 __P((u_int16_t));
-u_int32_t	bswap32 __P((u_int32_t));
-u_int64_t	bswap64 __P((u_int64_t));
+__uint32_t	htonl __P((__uint32_t));
+__uint16_t	htons __P((__uint16_t));
+__uint32_t	ntohl __P((__uint32_t));
+__uint16_t	ntohs __P((__uint16_t));
+__uint16_t	bswap16 __P((__uint16_t));
+__uint32_t	bswap32 __P((__uint32_t));
+__uint64_t	bswap64 __P((__uint64_t));
 __END_DECLS
 
 /*

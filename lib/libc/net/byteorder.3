@@ -44,15 +44,15 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Ft u_long
-.Fn htonl "u_long hostlong"
-.Ft u_short
-.Fn htons "u_short hostshort"
-.Ft u_long
-.Fn ntohl "u_long netlong"
-.Ft u_short
-.Fn ntohs "u_short netshort"
+.Fd #include <arpa/inet.h>
+.Ft uint32_t
+.Fn htonl "uint32_t hostlong"
+.Ft uint16_t
+.Fn htons "uint16_t hostshort"
+.Ft uint32_t
+.Fn ntohl "uint32_t netlong"
+.Ft uint16_t
+.Fn ntohs "uint16_t netshort"
 .Sh DESCRIPTION
 These routines convert 16 and 32 bit quantities between network
 byte order and host byte order.
@@ -67,6 +67,11 @@ and
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
 .Xr getservent 3
+.Sh STANDARDS
+The
+.Nm byteorder
+functions are expected to conform with IEEE Std POSIX.1-200x
+.Pq Dq POSIX.1 .
 .Sh HISTORY
 The
 .Nm byteorder
