@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.164 1998/04/16 13:55:11 ache Exp $
+ * $Id: menus.c,v 1.165 1998/05/06 12:01:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -215,6 +215,7 @@ DMenu MenuIndex = {
       { "Configure",		"The system configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { "Defaults, Load",	"Load default settings.",		NULL, dispatch_load_floppy },
       { "Device, Mouse",	"The mouse configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuMouse },
+      { "Disklabel",		"The disk Label editor",		NULL, diskLabelEditor },
       { "Dists, All",		"Root of the distribution tree.",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "Dists, Basic",		"Basic FreeBSD distribution menu.",	NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
       { "Dists, DES",		"DES distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuDESDistributions },
@@ -234,6 +235,7 @@ DMenu MenuIndex = {
       { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
+      { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
       { "Gateway",		"Set flag to route packets between interfaces.", dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
@@ -878,12 +880,10 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_MAN },
       { "prog",		"Programmer's header and library files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
-      { "ps",		"Postscript documentation",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PS },
       { "set",		"XFree86 Setup Utility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
-      { "9set",		"XFree86 Setup Utility (PC98)",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
+      { "9set",		"XFree86 Setup Utility for PC98 machines",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
       { "sources",	"XFree86 3.3.2 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
       { "csources",	"XFree86 3.3.2 contrib sources",
@@ -1337,7 +1337,7 @@ DMenu MenuSysconsKeymap = {
       { "Icelandic (accent)", "Icelandic ISO keymap (accent keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=icelandic.iso.acc" },
       { "Icelandic",	"Icelandic ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=icelandic.iso" },
       { "Italian",	"Italian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=it.iso" },
-      { "Latin American", "Latin American ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=lat-amer" },
+      { "Latin American", "Latin American ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=lat-amer.iso" },
       { "Japanese 106",	"Japanese 106 keymap",  dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=jp.106" },
       { "Norway ISO",	"Norwegian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=norwegian.iso" },
       { "Russia CP866",	"Russian CP866 keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=ru.cp866" },
