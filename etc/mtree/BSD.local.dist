@@ -27,7 +27,7 @@
                 5.6.0
                     auto
                     ..
-		    mach
+                    mach
                         auto
                         ..
                     ..
@@ -38,7 +38,7 @@
     libexec
     ..
     man
-/set type=dir uname=man gname=wheel mode=0755
+/set uname=man
         cat1
         ..
         cat2
@@ -61,7 +61,8 @@
         ..
         catn
         ..
-        de_DE.ISO_8859-1    uname=root
+        de_DE.ISO_8859-1 \
+                        uname=root
             cat1
             ..
             cat2
@@ -84,7 +85,7 @@
             ..
             catn
             ..
-/set type=dir uname=root gname=wheel mode=0755
+/set uname=root
             man1
             ..
             man2
@@ -109,7 +110,7 @@
             ..
         ..
         ja
-/set type=dir uname=man gname=wheel mode=0755
+/set uname=man
             cat1
             ..
             cat2
@@ -132,7 +133,7 @@
             ..
             catn
             ..
-/set type=dir uname=root gname=wheel mode=0755
+/set uname=root
             man1
             ..
             man2
@@ -213,7 +214,7 @@
             ..
             de_DE.ISO_8859-1
             ..
-	    el_GR.ISO_8859-7
+            el_GR.ISO_8859-7
             ..
             en_AU.ISO_8859-1
             ..
@@ -287,8 +288,8 @@
             ..
             sv_SE.ISO_8859-1
             ..
-	    tr_TR.ISO_8859-9
-	    ..
+            tr_TR.ISO_8859-9
+            ..
             uk_UA.KOI8-U
             ..
             zh_CN.EUC
