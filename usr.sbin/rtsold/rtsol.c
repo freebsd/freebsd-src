@@ -82,12 +82,12 @@ sockopen()
 	sndcmsglen = rcvcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
 		CMSG_SPACE(sizeof(int));
 	if (rcvcmsgbuf == NULL && (rcvcmsgbuf = malloc(rcvcmsglen)) == NULL) {
-		warnmsg(LOG_ERR, __FUNCTION__,
+		warnmsg(LOG_ERR, __func__,
 			"malloc for receive msghdr failed");
 		return(-1);
 	}
 	if (sndcmsgbuf == NULL && (sndcmsgbuf = malloc(sndcmsglen)) == NULL) { 
-		warnmsg(LOG_ERR, __FUNCTION__,
+		warnmsg(LOG_ERR, __func__,
 			"malloc for send msghdr failed");
 		return(-1);
 	}
@@ -96,13 +96,13 @@ sockopen()
 	sin6_allrouters.sin6_len = sizeof(sin6_allrouters);
 	if (inet_pton(AF_INET6, ALLROUTER,
 		      &sin6_allrouters.sin6_addr.s6_addr) != 1) {
-		warnmsg(LOG_ERR, __FUNCTION__, "inet_pton failed for %s",
+		warnmsg(LOG_ERR, __func__, "inet_pton failed for %s",
 		       ALLROUTER);
 		return(-1);
 	}
 
 	if ((rssock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0) {
-		warnmsg(LOG_ERR, __FUNCTION__, "socket: %s", strerror(errno));
+		warnmsg(LOG_ERR, __func__, "socket: %s", strerror(errno));
 		return(-1);
 	}
 
@@ -111,14 +111,14 @@ sockopen()
 #ifdef IPV6_RECVPKTINFO
 	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on,
 		       sizeof(on)) < 0) {
-		warnmsg(LOG_ERR, __FUNCTION__, "IPV6_RECVPKTINFO: %s",
+		warnmsg(LOG_ERR, __func__, "IPV6_RECVPKTINFO: %s",
 		       strerror(errno));
 		exit(1);
 	}
 #else  /* old adv. API */
 	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_PKTINFO, &on,
 		       sizeof(on)) < 0) {
-		warnmsg(LOG_ERR, __FUNCTION__, "IPV6_PKTINFO: %s",
+		warnmsg(LOG_ERR, __func__, "IPV6_PKTINFO: %s",
 		       strerror(errno));
 		exit(1);
 	}
@@ -129,14 +129,14 @@ sockopen()
 #ifdef IPV6_RECVHOPLIMIT
 	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on,
 		       sizeof(on)) < 0) {
-		warnmsg(LOG_ERR, __FUNCTION__, "IPV6_RECVHOPLIMIT: %s",
+		warnmsg(LOG_ERR, __func__, "IPV6_RECVHOPLIMIT: %s",
 		       strerror(errno));
 		exit(1);
 	}
 #else  /* old adv. API */
 	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_HOPLIMIT, &on,
 		       sizeof(on)) < 0) {
-		warnmsg(LOG_ERR, __FUNCTION__, "IPV6_HOPLIMIT: %s",
+		warnmsg(LOG_ERR, __func__, "IPV6_HOPLIMIT: %s",
 		       strerror(errno));
 		exit(1);
 	}
@@ -147,7 +147,7 @@ sockopen()
 	ICMP6_FILTER_SETPASS(ND_ROUTER_ADVERT, &filt);
 	if (setsockopt(rssock, IPPROTO_ICMPV6, ICMP6_FILTER, &filt,
 		       sizeof(filt)) == -1) {
-		warnmsg(LOG_ERR, __FUNCTION__, "setsockopt(ICMP6_FILTER): %s",
+		warnmsg(LOG_ERR, __func__, "setsockopt(ICMP6_FILTER): %s",
 		       strerror(errno));
 		return(-1);
 	}
@@ -204,7 +204,7 @@ sendpacket(struct ifinfo *ifinfo)
 	}
 
 	warnmsg(LOG_DEBUG,
-	       __FUNCTION__, "send RS on %s, whose state is %d",
+	       __func__, "send RS on %s, whose state is %d",
 	       ifinfo->ifname, ifinfo->state);
 
 	i = sendmsg(rssock, &sndmhdr, 0);
@@ -215,7 +215,7 @@ sendpacket(struct ifinfo *ifinfo)
 		 * network cards on a mobile node. We ignore it.
 		 */
 		if (errno != ENETDOWN || dflag > 0)
-			warnmsg(LOG_ERR, __FUNCTION__, "sendmsg on %s: %s",
+			warnmsg(LOG_ERR, __func__, "sendmsg on %s: %s",
 				ifinfo->ifname, strerror(errno));
 	}
 
@@ -237,7 +237,7 @@ rtsol_input(int s)
 
 	/* get message */
 	if ((i = recvmsg(s, &rcvmhdr, 0)) < 0) {
-		warnmsg(LOG_ERR, __FUNCTION__, "recvmsg: %s", strerror(errno));
+		warnmsg(LOG_ERR, __func__, "recvmsg: %s", strerror(errno));
 		return;
 	}
 
@@ -259,25 +259,25 @@ rtsol_input(int s)
 
 	if (ifindex == 0) {
 		warnmsg(LOG_ERR,
-		       __FUNCTION__, "failed to get receiving interface");
+		       __func__, "failed to get receiving interface");
 		return;
 	}
 	if (hlimp == NULL) {
 		warnmsg(LOG_ERR,
-		       __FUNCTION__, "failed to get receiving hop limit");
+		       __func__, "failed to get receiving hop limit");
 		return;
 	}
 
 	if (i < sizeof(struct nd_router_advert)) {
 		warnmsg(LOG_ERR,
-		       __FUNCTION__, "packet size(%d) is too short", i);
+		       __func__, "packet size(%d) is too short", i);
 		return;
 	}
 
 	icp = (struct icmp6_hdr *)rcvmhdr.msg_iov[0].iov_base;
 
 	if (icp->icmp6_type != ND_ROUTER_ADVERT) {
-		warnmsg(LOG_ERR, __FUNCTION__,
+		warnmsg(LOG_ERR, __func__,
 			"invalid icmp type(%d) from %s on %s", icp->icmp6_type,
 		       inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
 				 INET6_ADDRSTRLEN),
@@ -286,7 +286,7 @@ rtsol_input(int s)
 	}
 
 	if (icp->icmp6_code != 0) {
-		warnmsg(LOG_ERR, __FUNCTION__,
+		warnmsg(LOG_ERR, __func__,
 			"invalid icmp code(%d) from %s on %s", icp->icmp6_code,
 		       inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
 				 INET6_ADDRSTRLEN),
@@ -295,7 +295,7 @@ rtsol_input(int s)
 	}
 
 	if (*hlimp != 255) {
-		warnmsg(LOG_NOTICE, __FUNCTION__,
+		warnmsg(LOG_NOTICE, __func__,
 			"invalid RA with hop limit(%d) from %s on %s",
 		       *hlimp,
 		       inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
@@ -305,7 +305,7 @@ rtsol_input(int s)
 	}
 
 	if (pi && !IN6_IS_ADDR_LINKLOCAL(&from.sin6_addr)) {
-		warnmsg(LOG_NOTICE, __FUNCTION__,
+		warnmsg(LOG_NOTICE, __func__,
 			"invalid RA with non link-local source from %s on %s",
 		       inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
 				 INET6_ADDRSTRLEN),
@@ -316,7 +316,7 @@ rtsol_input(int s)
 	/* xxx: more validation? */
 
 	if ((ifi = find_ifinfo(pi->ipi6_ifindex)) == NULL) {
-		warnmsg(LOG_NOTICE, __FUNCTION__,
+		warnmsg(LOG_NOTICE, __func__,
 			"received RA from %s on an unexpeced IF(%s)",
 		       inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
 				 INET6_ADDRSTRLEN),
@@ -324,7 +324,7 @@ rtsol_input(int s)
 		return;
 	}
 
-	warnmsg(LOG_DEBUG, __FUNCTION__,
+	warnmsg(LOG_DEBUG, __func__,
 		"received RA from %s on %s, state is %d",
 	       inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
 			 INET6_ADDRSTRLEN),

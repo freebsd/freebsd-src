@@ -139,7 +139,7 @@ getent(bp, name, cp)
 	}
 	if (tf < 0) {
 		syslog(LOG_INFO,
-		       "<%s> open: %s", __FUNCTION__, strerror(errno));
+		       "<%s> open: %s", __func__, strerror(errno));
 		return (-2);
 	}
 	for (;;) {

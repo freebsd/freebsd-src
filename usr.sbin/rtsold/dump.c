@@ -100,7 +100,7 @@ rtsold_dump_file(dumpfile)
 	char *dumpfile;
 {
 	if ((fp = fopen(dumpfile, "w")) == NULL) {
-		warnmsg(LOG_WARNING, __FUNCTION__, "open a dump file(%s): %s",
+		warnmsg(LOG_WARNING, __func__, "open a dump file(%s): %s",
 			dumpfile, strerror(errno));
 		return;
 	}
