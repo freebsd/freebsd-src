@@ -163,6 +163,7 @@ WD1007 (any generic IDE/ESDI)
 IDE
 ATA
 
+Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
 Adaptec 152x series ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
@@ -509,4 +510,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.10 1996/07/05 01:24:40 jkh Exp $
+$Id: relnotes.hlp,v 1.11 1996/08/23 07:56:06 jkh Exp $
