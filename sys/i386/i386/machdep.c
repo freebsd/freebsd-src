@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/imgact.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/linker.h>
@@ -158,6 +159,10 @@ static void set_fpregs_xmm(struct save87 *, struct savexmm *);
 static void fill_fpregs_xmm(struct savexmm *, struct save87 *);
 #endif /* CPU_ENABLE_SSE */
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
+
+#ifdef DDB
+extern vm_offset_t ksym_start, ksym_end;
+#endif
 
 int	_udatasel, _ucodesel;
 u_int	basemem;
@@ -2080,9 +2085,15 @@ init386(first)
 #endif
 
 #ifdef DDB
+	ksym_start = bootinfo.bi_symtab;
+	ksym_end = bootinfo.bi_esymtab;
+#endif
+
 	kdb_init();
+
+#ifdef KDB
 	if (boothowto & RB_KDB)
-		Debugger("Boot flags requested debugger");
+		kdb_enter("Boot flags requested debugger");
 #endif
 
 	finishidentcpu();	/* Final stage of CPU initialization */
@@ -2744,14 +2755,6 @@ user_dbreg_trap(void)
         return 0;
 }
 
-#ifndef DDB
-void
-Debugger(const char *msg)
-{
-	printf("Debugger(\"%s\") called.\n", msg);
-}
-#endif /* no DDB */
-
 #ifndef DEV_APIC
 #include <machine/apicvar.h>
 
@@ -2853,12 +2856,12 @@ lapic_set_lvt_triggermode(u_int apic_id, u_int lvt, enum intr_trigger trigger)
 }
 #endif
 
-#ifdef DDB
+#ifdef KDB
 
 /*
  * Provide inb() and outb() as functions.  They are normally only
  * available as macros calling inlined functions, thus cannot be
- * called inside DDB.
+ * called from the debugger.
  *
  * The actual code is stolen from <machine/cpufunc.h>, and de-inlined.
  */
@@ -2897,4 +2900,4 @@ outb(u_int port, u_char data)
 	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
 }
 
-#endif /* DDB */
+#endif /* KDB */
