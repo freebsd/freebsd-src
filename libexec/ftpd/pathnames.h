@@ -35,6 +35,5 @@
 
 #include <paths.h>
 
-#define	_PATH_FTPUSERS		"/etc/ftpusers"
 #define	_PATH_FTPWELCOME	"/etc/ftpwelcome"
-#define	_PATH_FTPLOGINMESG	"/etc/motd"
+#define	_PATH_FTPLOGINMESG	"/etc/ftpmotd"
