@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.126 1997/03/14 05:17:11 jkh Exp $
+ * $Id: menus.c,v 1.127 1997/03/19 10:09:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -510,6 +510,8 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp.nl.freebsd.org/pub/FreeBSD/" },
       { "Hong Kong",	"ftp.hk.super.net", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.hk.super.net/pub/FreeBSD/" },
+      { "Iceland",	"ftp.is.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.is.freebsd.org/pub/FreeBSD/" },
       { "Ireland",	"ftp.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.ie.freebsd.org/pub/FreeBSD/" },
       { "Israel",	"ftp.il.freebsd.org", NULL, dmenuSetVariable, NULL,
