@@ -354,6 +354,12 @@ us.iso.kbd:fr:États Unis  d'Amérique ISO-8859-1
 us.iso.kbd:pt:Estados Unidos da América ISO-8859-1
 us.iso.kbd:es:Estadounidense ISO-8859-1
 
+us.iso.acc.kbd:en:United States of America ISO-8859-1 (accent keys)
+us.iso.acc.kbd:de:US-amerikanisch ISO-8859-1 (mit Akzenten)
+us.iso.acc.kbd:fr:États Unis  d'Amérique ISO-8859-1 (avec accents)
+us.iso.acc.kbd:pt:Estados Unidos da América ISO-8859-1 (com acentos)
+us.iso.acc.kbd:es:Estadounidense ISO-8859-1 (con acentos)
+
 us.dvorak.kbd:en:United States of America dvorak
 us.dvorak.kbd:de:US-amerikanisch dvorak
 us.dvorak.kbd:fr:États Unis  d'Amérique dvorak
