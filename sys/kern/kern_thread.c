@@ -317,11 +317,8 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	struct ksegrp *kg;
 
 	p = td->td_proc;
-	/* KSE-enabled processes only, please. */
-	if (!(p->p_flag & P_KSES))
-		return (EINVAL);
-	/* must be a bound thread */ 
-	if (td->td_flags & TDF_UNBOUND)
+	/* Only UTS can do the syscall */ 
+	if (!(p->p_flag & P_KSES) || (td->td_mailbox != NULL))
 		return (EINVAL);
 	kg = td->td_ksegrp;
 	/* serialize killing kse */
@@ -358,11 +355,11 @@ kse_release(struct thread * td, struct kse_release_args * uap)
 	p = td->td_proc;
 	kg = td->td_ksegrp;
 	/*
-	 * Must be a bound thread. And kse must have a mailbox ready,
-	 * if not, the kse can not generate an upcall.
+	 * kse must have a mailbox ready for upcall, and only UTS can
+	 * do the syscall.
 	 */
 	if (!(p->p_flag & P_KSES) ||
-	    (td->td_flags & TDF_UNBOUND) ||
+	    (td->td_mailbox != NULL) ||
 	    (td->td_kse->ke_mailbox == NULL))
 		return (EINVAL);
 
@@ -1310,9 +1307,10 @@ thread_user_enter(struct proc *p, struct thread *td)
 			 * has already done an upcall.
 			 */
 		    	if (p->p_numthreads > max_threads_per_proc) {
-				if (td->td_standin != NULL)
+				if (td->td_standin != NULL) {
 					thread_stash(td->td_standin);
-				td->td_standin = NULL;
+					td->td_standin = NULL;
+				}	
 			} else {
 				if (td->td_standin == NULL)
 					td->td_standin = thread_alloc();
