@@ -30,6 +30,7 @@
 #define	_PTHREAD_MD_H_
 
 #include <sys/kse.h>
+#include <stddef.h>
 #include <ucontext.h>
 
 #define	THR_GETCONTEXT(ucp)	_ia64_save_context(&(ucp)->uc_mcontext)
@@ -53,7 +54,7 @@ struct tdv;	/* We don't know what this is yet? */
  */
 struct ia64_tp {
 	struct tdv		*tp_tdv;	/* dynamic TLS */
-	struct tcb		*tp_self;
+	uint64_t		_reserved_;
 	long double		tp_tls[0];	/* static TLS */
 };
 
@@ -73,6 +74,8 @@ struct kcb {
 };
 
 register struct ia64_tp *_tp __asm("%r13");
+
+#define	_tcb	((struct tcb*)((char*)(_tp) - offsetof(struct tcb, tcb_tp)))
 
 /*
  * The kcb and tcb constructors.
@@ -99,7 +102,7 @@ _kcb_set(struct kcb *kcb)
 static __inline struct kcb *
 _kcb_get(void)
 {
-	return (_tp->tp_self->tcb_curkcb);
+	return (_tcb->tcb_curkcb);
 }
 
 /*
@@ -111,22 +114,20 @@ static __inline struct kse_thr_mailbox *
 _kcb_critical_enter(void)
 {
 	struct kse_thr_mailbox *crit;
-	struct tcb *tcb;
 	uint32_t flags;
 
-	tcb = _tp->tp_self;
-	if (tcb->tcb_isfake != 0) {
+	if (_tcb->tcb_isfake != 0) {
 		/*
 		 * We already are in a critical region since
 		 * there is no current thread.
 		 */
 		crit = NULL;
 	} else {
-		flags = tcb->tcb_tmbx.tm_flags;
-		tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
-		crit = tcb->tcb_curkcb->kcb_kmbx.km_curthread;
-		tcb->tcb_curkcb->kcb_kmbx.km_curthread = NULL;
-		tcb->tcb_tmbx.tm_flags = flags;
+		flags = _tcb->tcb_tmbx.tm_flags;
+		_tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
+		crit = _tcb->tcb_curkcb->kcb_kmbx.km_curthread;
+		_tcb->tcb_curkcb->kcb_kmbx.km_curthread = NULL;
+		_tcb->tcb_tmbx.tm_flags = flags;
 	}
 	return (crit);
 }
@@ -134,33 +135,28 @@ _kcb_critical_enter(void)
 static __inline void
 _kcb_critical_leave(struct kse_thr_mailbox *crit)
 {
-	struct tcb *tcb;
-
-	tcb = _tp->tp_self;
 	/* No need to do anything if this is a fake tcb. */
-	if (tcb->tcb_isfake == 0)
-		tcb->tcb_curkcb->kcb_kmbx.km_curthread = crit;
+	if (_tcb->tcb_isfake == 0)
+		_tcb->tcb_curkcb->kcb_kmbx.km_curthread = crit;
 }
 
 static __inline int
 _kcb_in_critical(void)
 {
-	struct tcb *tcb;
 	uint32_t flags;
 	int ret;
 
-	tcb = _tp->tp_self;
-	if (tcb->tcb_isfake != 0) {
+	if (_tcb->tcb_isfake != 0) {
 		/*
 		 * We are in a critical region since there is no
 		 * current thread.
 		 */
 		ret = 1;
 	} else {
-		flags = tcb->tcb_tmbx.tm_flags;
-		tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
-		ret = (tcb->tcb_curkcb->kcb_kmbx.km_curthread == NULL);
-		tcb->tcb_tmbx.tm_flags = flags;
+		flags = _tcb->tcb_tmbx.tm_flags;
+		_tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
+		ret = (_tcb->tcb_curkcb->kcb_kmbx.km_curthread == NULL);
+		_tcb->tcb_tmbx.tm_flags = flags;
 	}
 	return (ret);
 }
@@ -168,27 +164,23 @@ _kcb_in_critical(void)
 static __inline void
 _tcb_set(struct kcb *kcb, struct tcb *tcb)
 {
-	if (tcb == NULL) {
-		kcb->kcb_curtcb = &kcb->kcb_faketcb;
-		_tp = &kcb->kcb_faketcb.tcb_tp;
-	}
-	else {
-		kcb->kcb_curtcb = tcb;
-		tcb->tcb_curkcb = kcb;
-		_tp = &tcb->tcb_tp;
-	}
+	if (tcb == NULL)
+		tcb = &kcb->kcb_faketcb;
+	kcb->kcb_curtcb = tcb;
+	tcb->tcb_curkcb = kcb;
+	_tp = &tcb->tcb_tp;
 }
 
 static __inline struct tcb *
 _tcb_get(void)
 {
-	return (_tp->tp_self);
+	return (_tcb);
 }
 
 static __inline struct pthread *
 _get_curthread(void)
 {
-	return (_tp->tp_self->tcb_thread);
+	return (_tcb->tcb_thread);
 }
 
 /*
@@ -199,7 +191,7 @@ _get_curthread(void)
 static __inline struct kse *
 _get_curkse(void)
 {
-	return (_tp->tp_self->tcb_curkcb->kcb_kse);
+	return (_tcb->tcb_curkcb->kcb_kse);
 }
 
 void _ia64_enter_uts(kse_func_t uts, struct kse_mailbox *km, void *stack,
@@ -226,9 +218,7 @@ _thread_enter_uts(struct tcb *tcb, struct kcb *kcb)
 static __inline int
 _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 {
-	kcb->kcb_curtcb = tcb;
-	tcb->tcb_curkcb = kcb;
-	_tp = &tcb->tcb_tp;
+	_tcb_set(kcb, tcb);
 	if (setmbox != 0)
 		_ia64_restore_context(&tcb->tcb_tmbx.tm_context.uc_mcontext,
 		    (intptr_t)&tcb->tcb_tmbx,
