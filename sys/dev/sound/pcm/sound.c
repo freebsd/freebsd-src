@@ -27,6 +27,7 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/vchan.h>
+#include <dev/sound/pcm/dsp.h>
 #include <sys/sysctl.h>
 
 #include "feeder_if.h"
@@ -413,11 +414,20 @@ pcm_chn_destroy(struct pcm_channel *ch)
 }
 
 int
-pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
+pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 {
     	struct snddev_channel *sce, *tmp, *after;
-    	int unit = device_get_unit(d->dev);
-	int x = -1;
+    	int device = device_get_unit(d->dev);
+
+	/*
+	 * Note it's confusing nomenclature.
+	 * dev_t
+	 * device -> pcm_device
+         * unit -> pcm_channel
+	 * channel -> snddev_channel
+	 * device_t
+	 * unit -> pcm_device
+	 */
 
 	sce = malloc(sizeof(*sce), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (!sce) {
@@ -426,6 +436,7 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
 
 	snd_mtxlock(d->lock);
 	sce->channel = ch;
+	sce->chan_num= d->devcount++;
 	if (SLIST_EMPTY(&d->channels)) {
 		SLIST_INSERT_HEAD(&d->channels, sce, link);
 	} else {
@@ -435,24 +446,35 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
 		}
 		SLIST_INSERT_AFTER(after, sce, link);
 	}
-	if (mkdev)
-		x = d->devcount++;
 	snd_mtxunlock(d->lock);
+	sce->dsp_devt= make_dev(&dsp_cdevsw,
+			PCMMKMINOR(device, SND_DEV_DSP, sce->chan_num),
+			UID_ROOT, GID_WHEEL, 0666, "dsp%d.%d",
+			device, sce->chan_num);
 
-	if (mkdev) {
-		dsp_register(unit, x);
-		if (ch->direction == PCMDIR_REC)
-			dsp_registerrec(unit, ch->num);
-	}
+	sce->dspW_devt= make_dev(&dsp_cdevsw,
+			PCMMKMINOR(device, SND_DEV_DSP16, sce->chan_num),
+			UID_ROOT, GID_WHEEL, 0666, "dspW%d.%d",
+			device, sce->chan_num);
+
+	sce->audio_devt= make_dev(&dsp_cdevsw,
+			PCMMKMINOR(device, SND_DEV_AUDIO, sce->chan_num),
+			UID_ROOT, GID_WHEEL, 0666, "audio%d.%d",
+			device, sce->chan_num);
+
+	if (ch->direction == PCMDIR_REC)
+		sce->dspr_devt = make_dev(&dsp_cdevsw,
+				PCMMKMINOR(device, SND_DEV_DSPREC,
+					sce->chan_num), UID_ROOT, GID_WHEEL,
+				0666, "dspr%d.%d", device, sce->chan_num);
 
 	return 0;
 }
 
 int
-pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev)
+pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch)
 {
     	struct snddev_channel *sce;
-    	int unit = device_get_unit(d->dev);
 #if 0
 	int ourlock;
 
@@ -474,11 +496,6 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev)
 	return EINVAL;
 gotit:
 	SLIST_REMOVE(&d->channels, sce, snddev_channel, link);
-	if (rmdev) {
-		dsp_unregister(unit, --d->devcount);
-		if (ch->direction == PCMDIR_REC)
-			dsp_unregisterrec(unit, ch->num);
-	}
 
     	if (ch->direction == PCMDIR_REC)
 		d->reccount--;
@@ -509,7 +526,7 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 		return ENODEV;
 	}
 
-	err = pcm_chn_add(d, ch, 1);
+	err = pcm_chn_add(d, ch);
 	if (err) {
 		device_printf(d->dev, "pcm_chn_add(%s) failed, err=%d\n", ch->name, err);
 		snd_mtxunlock(d->lock);
@@ -541,7 +558,7 @@ pcm_killchan(device_t dev)
 	sce = SLIST_FIRST(&d->channels);
 	ch = sce->channel;
 
-	error = pcm_chn_remove(d, sce->channel, SLIST_EMPTY(&ch->children));
+	error = pcm_chn_remove(d, sce->channel);
 	if (error)
 		return (error);
 	return (pcm_chn_destroy(ch));
@@ -685,6 +702,8 @@ pcm_unregister(device_t dev)
 		snd_mtxunlock(d->lock);
 		return EBUSY;
 	}
+
+
 	SLIST_FOREACH(sce, &d->channels, link) {
 		ch = sce->channel;
 		if (ch->refcount > 0) {
@@ -693,6 +712,15 @@ pcm_unregister(device_t dev)
 			return EBUSY;
 		}
 	}
+
+	SLIST_FOREACH(sce, &d->channels, link) {
+		destroy_dev(sce->dsp_devt);
+		destroy_dev(sce->dspW_devt);
+		destroy_dev(sce->audio_devt);
+		if (sce->dspr_devt)
+			destroy_dev(sce->dspr_devt);
+	}
+
 	if (mixer_uninit(dev)) {
 		device_printf(dev, "unregister: mixer busy\n");
 		snd_mtxunlock(d->lock);
@@ -713,82 +741,6 @@ pcm_unregister(device_t dev)
 	snd_mtxunlock(d->lock);
 	snd_mtxfree(d->lock);
 	return 0;
-}
-
-int
-pcm_regdevt(dev_t dev, unsigned unit, unsigned type, unsigned channel)
-{
-    	struct snddev_info *d;
-	struct snddev_devt *dt;
-
-	d = devclass_get_softc(pcm_devclass, unit);
-	KASSERT((d != NULL), ("bad d"));
-	KASSERT((dev != NULL), ("bad dev"));
-
-	dt = malloc(sizeof(*dt), M_DEVBUF, M_ZERO | M_WAITOK);
-	if (dt == NULL)
-		return ENOMEM;
-	dt->dev = dev;
-	dt->type = type;
-	dt->channel = channel;
-
-	snd_mtxlock(d->lock);
-	SLIST_INSERT_HEAD(&d->devs, dt, link);
-	snd_mtxunlock(d->lock);
-
-	return 0;
-}
-
-dev_t
-pcm_getdevt(unsigned unit, unsigned type, unsigned channel)
-{
-    	struct snddev_info *d;
-	struct snddev_devt *dt;
-
-	d = devclass_get_softc(pcm_devclass, unit);
-	KASSERT((d != NULL), ("bad d"));
-
-#if 0
-	snd_mtxlock(d->lock);
-#endif
-	SLIST_FOREACH(dt, &d->devs, link) {
-		if ((dt->type == type) && (dt->channel == channel))
-			return dt->dev;
-	}
-#if 0
-	snd_mtxunlock(d->lock);
-#endif
-
-	return NULL;
-}
-
-int
-pcm_unregdevt(unsigned unit, unsigned type, unsigned channel)
-{
-    	struct snddev_info *d;
-	struct snddev_devt *dt;
-
-	d = devclass_get_softc(pcm_devclass, unit);
-	KASSERT((d != NULL), ("bad d"));
-
-#if 0
-       	snd_mtxlock(d->lock);
-#endif
-	SLIST_FOREACH(dt, &d->devs, link) {
-		if ((dt->type == type) && (dt->channel == channel)) {
-			SLIST_REMOVE(&d->devs, dt, snddev_devt, link);
-			free(dt, M_DEVBUF);
-#if 0
-			snd_mtxunlock(d->lock);
-#endif
-			return 0;
-		}
-	}
-#if 0
-	snd_mtxunlock(d->lock);
-#endif
-
-	return ENOENT;
 }
 
 /************************************************************************/
