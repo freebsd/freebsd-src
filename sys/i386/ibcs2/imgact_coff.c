@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.10 1995/11/06 12:52:14 davidg Exp $
+ *	$Id: imgact_coff.c,v 1.11 1995/12/07 12:45:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -126,11 +126,11 @@ load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
 	map_addr = trunc_page(vmaddr + filsz);
 	map_len = round_page(memsz) - trunc_page(filsz);
 
-	DPRINTF(("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx,0x%x, FALSE)\n", __FILE__, __LINE__, map_addr, map_len));
+	DPRINTF(("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx,0x%x, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0)\n", __FILE__, __LINE__, map_addr, map_len));
 
 	if (map_len != 0) {
 		error = vm_map_find(&vmspace->vm_map, NULL, 0, &map_addr,
-				    map_len, FALSE);
+				    map_len, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (error)
 			return error;
 	}
@@ -464,12 +464,13 @@ exec_coff_imgact(imgp)
 	hole = (caddr_t)trunc_page(vmspace->vm_daddr) + ctob(vmspace->vm_dsize);
 
 
-	DPRINTF(("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, PAGE_SIZE, FALSE)\n",
+	DPRINTF(("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, PAGE_SIZE, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0)\n",
 		__FILE__, __LINE__, hole));
         DPRINTF(("imgact: error = %d\n", error));
 
 	error = vm_map_find(&vmspace->vm_map, NULL, 0,
-			    (vm_offset_t *) &hole, PAGE_SIZE, FALSE);
+			    (vm_offset_t *) &hole, PAGE_SIZE, FALSE,
+				VM_PROT_ALL, VM_PROT_ALL, 0);
 
 	DPRINTF(("IBCS2: start vm_dsize = 0x%x, vm_daddr = 0x%x end = 0x%x\n",
 		ctob(vmspace->vm_dsize), vmspace->vm_daddr,
