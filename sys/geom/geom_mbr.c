@@ -169,33 +169,35 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_provider *pp2;
-	int error, i, j, npart;
+	int error, i, npart;
 	struct dos_partition dp[NDOSPART];
 	struct g_mbr_softc *ms;
+	struct g_slicer *gsp;
+	u_int fwsectors, sectorsize;
 	u_char *buf;
 
-	if (sizeof(struct dos_partition) != 16) {
-		printf("WARNING: struct dos_partition compiles to %d bytes, should be 16.\n",
-		    (int)sizeof(struct dos_partition));
-		return (NULL);
-	}
 	g_trace(G_T_TOPOLOGY, "mbr_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 	gp = g_slice_new(mp, NDOSPART, pp, &cp, &ms, sizeof *ms, g_mbr_start);
 	if (gp == NULL)
 		return (NULL);
+	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_mbr_dumpconf;
 	npart = 0;
 	while (1) {	/* a trick to allow us to use break */
 		if (gp->rank != 2 && insist == 0)
 			break;
-		j = sizeof i;
-		/* For now we only support 512 bytes sectors */
-		error = g_io_getattr("GEOM::sectorsize", cp, &j, &i);
-		if (!error && i != 512)
+		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
+		if (error)
+			fwsectors = 17;
+		error = g_getattr("GEOM::sectorsize", cp, &sectorsize);
+		if (error)
 			break;
-		buf = g_read_data(cp, 0, 512, &error);
+		if (!error && sectorsize != 512)
+			break;
+		gsp->frontstuff = sectorsize * fwsectors;
+		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
 		if (buf[0x1fe] != 0x55 && buf[0x1ff] != 0xaa) {
@@ -307,11 +309,13 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_provider *pp2;
-	int error, i, j, slice;
+	int error, i, slice;
 	struct g_mbrext_softc *ms;
 	off_t off;
 	u_char *buf;
 	struct dos_partition dp[4];
+	u_int fwsectors, sectorsize;
+	struct g_slicer *gsp;
 
 	g_trace(G_T_TOPOLOGY, "g_mbrext_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -320,17 +324,26 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	gp = g_slice_new(mp, NDOSEXTPART, pp, &cp, &ms, sizeof *ms, g_mbrext_start);
 	if (gp == NULL)
 		return (NULL);
+	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_mbrext_dumpconf;
 	off = 0;
 	slice = 0;
 	while (1) {	/* a trick to allow us to use break */
-		j = sizeof i;
-		error = g_io_getattr("MBR::type", cp, &j, &i);
+		error = g_getattr("MBR::type", cp, &i);
 		if (error || i != DOSPTYP_EXT)
 			break;
+		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
+		if (error)
+			fwsectors = 17;
+		error = g_getattr("GEOM::sectorsize", cp, &sectorsize);
+		if (error)
+			break;
+		if (!error && sectorsize != 512)
+			break;
+		gsp->frontstuff = sectorsize * fwsectors;
 		for (;;) {
-			buf = g_read_data(cp, off, DEV_BSIZE, &error);
+			buf = g_read_data(cp, off, sectorsize, &error);
 			if (buf == NULL || error != 0)
 				break;
 			if (buf[0x1fe] != 0x55 && buf[0x1ff] != 0xaa)
