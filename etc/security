@@ -51,6 +51,23 @@ if cmp ${LOG}/setuid.today ${TMP} >/dev/null; then :; else
 	mv ${TMP} ${LOG}/setuid.today
 fi
 
+# Show changes in the way filesystems are mounted
+#
+if mount -p > $TMP; then
+	if [ ! -f $LOG/mount.today ]; then
+		separator
+		echo "no $LOG/mount.today"
+		cp $TMP $LOG/mount.today
+	fi
+	if cmp $LOG/mount.today $TMP >/dev/null 2>&1; then :; else
+		separator
+		echo "$host changes in mounted filesystems:"
+		diff -b $LOG/mount.today $TMP
+		mv $LOG/mount.today $LOG/mount.yesterday
+		mv $TMP $LOG/mount.today
+	fi
+fi
+
 separator
 echo "checking for uids of 0:"
 awk -F: '$3==0 {print $1,$3}' /etc/master.passwd
