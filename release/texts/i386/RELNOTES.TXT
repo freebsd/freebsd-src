@@ -225,7 +225,7 @@ The umodem(4) driver for USB modems. Supported so far is only the
 
 The ncv, nsp, and stg drivers have been ported from NetBSD/pc98. 
 They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50 
-based PC-Card/ISA SCSI controllers.
+based PC-Card/ISA SCSI controllers. [MERGED]
 
 The cd(4) driver now has support for write operations.  This allows
 writing to DVD-RAM, PD and similar drives that probe as CD devices.
