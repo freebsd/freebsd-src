@@ -751,7 +751,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 */
 	if (newtd != td) {
 		mtx_lock_spin(&sched_lock);
-		setrunqueue(newtd);
+		setrunqueue(newtd, SRQ_BORING);
 		mtx_unlock_spin(&sched_lock);
 	}
 	return (0);
@@ -1113,7 +1113,7 @@ thread_switchout(struct thread *td)
 		td->td_upcall = NULL;
 		td->td_pflags &= ~TDP_CAN_UNBIND;
 		td2 = thread_schedule_upcall(td, ku);
-		setrunqueue(td2);
+		setrunqueue(td2, SRQ_YIELDING);
 	}
 }
 
