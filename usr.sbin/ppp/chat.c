@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.11.2.2 1996/12/23 18:13:28 jkh Exp $
+ * $Id: chat.c,v 1.11.2.3 1997/01/12 21:52:44 joerg Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -34,7 +34,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <signal.h>
+#include "sig.h"
 #include <sys/wait.h>
 #include "timeout.h"
 #include "vars.h"
@@ -402,16 +402,16 @@ char *command, *out;
   pipe(fids);
   pid = fork();
   if (pid == 0) {
-    signal(SIGINT, SIG_DFL);
-    signal(SIGQUIT, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
-    signal(SIGHUP, SIG_DFL);
+    pending_signal(SIGINT, SIG_DFL);
+    pending_signal(SIGQUIT, SIG_DFL);
+    pending_signal(SIGTERM, SIG_DFL);
+    pending_signal(SIGHUP, SIG_DFL);
     close(fids[0]);
     dup2(fids[1], 1);
     close(fids[1]);
     nb = open("/dev/tty", O_RDWR);
     dup2(nb, 0);
-LogPrintf(LOG_CHAT_BIT, "exec: %s\n", command);
+    LogPrintf(LOG_CHAT_BIT, "exec: %s\n", command);
     /* switch back to original privileges */
     if (setgid(getgid()) < 0) {
       LogPrintf(LOG_CHAT_BIT, "setgid: %s\n", strerror(errno));
