@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.32 1998/04/15 17:44:55 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.33 1998/04/21 02:39:48 brian Exp $
  *
  *  Digiboard driver.
  *
@@ -154,10 +154,10 @@ struct dgb_p {
 	u_char mustdrain; /* data must be waited to drain in dgbparam() */
 #ifdef	DEVFS
 	struct	{
-		void	*ttyd;
+		void	*tty;
 		void	*ttyi;
 		void	*ttyl;
-		void	*cuaa;
+		void	*cua;
 		void	*cuai;
 		void	*cual;
 	} devfs_token;
@@ -533,6 +533,9 @@ dgbattach(dev)
 	ushort *pstat;
 	int lowwater;
 	static int nports=0;
+#ifdef DEVFS
+	char suffix;
+#endif
 
 	if(sc->status!=ENABLED) {
 		DPRINT2(DB_EXCEPT,"dbg%d: try to attach a disabled card\n",unit);
@@ -933,35 +936,37 @@ load_fep:
 		port->it_in.c_ispeed = port->it_in.c_ospeed = dgbdefaultrate;
 		port->it_out = port->it_in;
 #ifdef	DEVFS
-		port->devfs_token.ttyd = 
+		/* MAX_DGB_PORTS is 32 => [0-9a-v] */
+		suffix = i < 10 ? '0' + i : 'a' + i - 10;
+		port->devfs_token.tty = 
 			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i,
 					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-					 "dgb%d.%d", unit, i);
+					 "ttyD%d%c", unit, suffix);
 
 		port->devfs_token.ttyi = 
 			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+32,
 					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-					 "idgb%d.%d", unit, i);
+					 "ttyiD%d%c", unit, suffix);
 
 		port->devfs_token.ttyl = 
 			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+64,
 					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-					 "ldgb%d.%d", unit, i);
+					 "ttylD%d%c", unit, suffix);
 
-		port->devfs_token.cuaa = 
+		port->devfs_token.cua = 
 			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+128,
 					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
-					 "dgbcua%d.%d", unit, i);
+					 "cuaD%d%c", unit, suffix);
 
 		port->devfs_token.cuai = 
 			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+160,
 					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
-					 "idgbcua%d.%d", unit, i);
+					 "cuaiD%d%c", unit, suffix);
 
 		port->devfs_token.cual = 
 			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+192,
 					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
-					 "ldgbcua%d.%d", unit, i);
+					 "cualD%d%c", unit, suffix);
 #endif
 	}
 
