@@ -94,7 +94,7 @@ eni_init ( eup )
 	for ( order = -1; words; order++ )
 		words >>= 1;
 	eup->eu_midway[MIDWAY_TXPLACE] =
-	    (order << TXSIZE_SHIFT) | ((int)eup->eu_txbuf >> ENI_LOC_PREDIV);
+	    (order << TXSIZE_SHIFT) | ((intptr_t)eup->eu_txbuf >> ENI_LOC_PREDIV);
 	eup->eu_txpos = eup->eu_midway[MIDWAY_DESCR] & 0x7FFF;
 	/*
 	 * Set first word of unack'ed data to start
