@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.19.2.4 1999/05/09 01:27:39 ken Exp $
+ *      $Id: scsi_da.c,v 1.19.2.5 1999/05/22 22:58:27 gibbs Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -1325,8 +1325,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			dasetgeom(periph, rdcap);
 			dp = &softc->params;
 			snprintf(announce_buf, sizeof(announce_buf),
-				"%ldMB (%d %d byte sectors: %dH %dS/T %dC)",
-				dp->sectors / ((1024L * 1024L) / dp->secsize),
+			        "%luMB (%u %u byte sectors: %dH %dS/T %dC)",
+				(((unsigned long) dp->secsize) *
+				 ((unsigned long) dp->sectors)) >> 20ul,
 				dp->sectors, dp->secsize, dp->heads,
 				dp->secs_per_track, dp->cylinders);
 		} else {
