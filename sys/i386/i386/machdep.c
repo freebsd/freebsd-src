@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.338 1999/06/01 18:25:26 jlemon Exp $
+ *	$Id: machdep.c,v 1.339 1999/06/01 23:45:46 jlemon Exp $
  */
 
 #include "apm.h"
@@ -1377,7 +1377,7 @@ physmap_done:
 	 * round up the start address and round down the end address.
 	 */
 	for (i = 0; i <= physmap_idx; i += 2) {
-		int end;
+		vm_offset_t end;
 
 		end = ptoa(Maxmem);
 		if (physmap[i + 1] < end)
