@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.49 1996/08/31 21:05:20 alex Exp $
+ *	$Id: ip_fw.c,v 1.50 1996/10/12 19:38:50 alex Exp $
  */
 
 /*
@@ -29,6 +29,7 @@
 #include <sys/mbuf.h>
 #include <sys/queue.h>
 #include <sys/kernel.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
