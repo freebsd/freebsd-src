@@ -165,7 +165,7 @@ found:
  * but documented historically for certain applications.  Bad applications.
  */
 __warn_references(f_prealloc, 
-	"warning: this program uses f_prealloc(), which is stupid.");
+	"warning: this program uses f_prealloc(), which is not recommended.");
 
 void
 f_prealloc()
