@@ -47,53 +47,53 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.10 1995/01/23 18:02:32 phk Exp $
+ * $Id: if_ze.c,v 1.11 1995/02/17 02:22:51 phk Exp $
  */
 
 #include "ze.h"
 #if	NZE > 0
 #include "bpfilter.h"
 
-#include "param.h"
-#include "systm.h"
-#include "errno.h"
-#include "ioctl.h"
-#include "mbuf.h"
-#include "socket.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
+#include <sys/ioctl.h>
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/syslog.h>
 
-#include "net/if.h"
-#include "net/if_dl.h"
-#include "net/if_types.h"
-#include "net/netisr.h"
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
+#include <net/netisr.h>
 
 #ifdef INET
-#include "netinet/in.h"
-#include "netinet/in_systm.h"
-#include "netinet/in_var.h"
-#include "netinet/ip.h"
-#include "netinet/if_ether.h"
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #endif
 
 #ifdef NS
-#include "netns/ns.h"
-#include "netns/ns_if.h"
+#include <netns/ns.h>
+#include <netns/ns_if.h>
 #endif
 
 #if NBPFILTER > 0
-#include "net/bpf.h"
-#include "net/bpfdesc.h"
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
 #endif
 
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/icu.h"
-#include "i386/isa/if_zereg.h"
-#include "i386/isa/pcic.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/icu.h>
+#include <i386/isa/if_zereg.h>
+#include <i386/isa/pcic.h>
 
 #include "apm.h"
 #if NAPM > 0
-#include "i386/include/apm_bios.h"
+#include <machine/apm_bios.h>
 #endif /* NAPM > 0 */
  
 
