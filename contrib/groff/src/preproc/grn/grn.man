@@ -1,0 +1,641 @@
+'\" t
+.ig
+Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.de TQ
+.br
+.ns
+.TP \\$1
+..
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.TH @G@GRN @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+@g@grn \- groff preprocessor for gremlin files
+.SH SYNOPSIS
+.BR @g@grn
+[
+.B \-Cv
+]
+[
+.BI \-T dev
+]
+[
+.BI \-M dir
+]
+[
+.BI \-F dir
+]
+[
+.IR file\.\.\.
+]
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
+.SH DESCRIPTION
+.I @g@grn
+is a preprocessor for including
+.I gremlin
+pictures in
+.I groff
+input.
+.I @g@grn
+writes to standard output, processing only input lines between two that
+start with
+.B .GS
+and
+.BR .GE.
+Those lines must contain
+.I @g@grn
+commands (see below).
+These commands request a
+.I gremlin
+file, and the picture in that file is
+converted and placed in the
+.I @g@troff
+input stream.
+The
+.B .GS
+request may be followed by a C, L, or R to center, left, or right
+justify the whole
+.I gremlin
+picture (default justification is center).
+If no
+.I file
+is mentioned, the standard input is read.
+At the end of the picture, the position on the page is the bottom of the
+.I gremlin
+picture.
+If the
+.I @g@grn
+entry is ended with
+.B .GF
+instead of
+.BR .GE ,
+the position is left at the top of the picture.
+.PP
+Please note that currently only the \-me macro package has support for
+.BR .GS ,
+.BR .GE ,
+and
+.BR .GF .
+.PP
+The following command-line options are understood:
+.TP
+.BI \-T dev
+Prepare output for printer
+.IR dev .
+The default device is
+.BR @DEVICE@ .
+See
+.BR groff (@MAN1EXT@)
+for acceptable devices.
+.TP
+.BI \-M dir
+Prepend
+.I dir
+to the default search path for
+.I gremlin
+files.
+The default path is (in that order) the current directory, the home
+directory,
+.BR @SYSTEMMACRODIR@ ,
+.BR @LOCALMACRODIR@ ,
+and
+.BR @MACRODIR@ .
+.TP
+.BI \-F dir
+Search
+.I dir
+for subdirectories
+.BI dev name
+.RI ( name
+is the name of the device) for the
+.B DESC
+file before the normal
+.BR @FONTDIR@ .
+.TP
+.B \-C
+Recognize
+.B .GS
+and
+.B .GE
+(resp.
+.BR .GF )
+even when followed by a character other than space or newline.
+.\".TP
+.\".B \-s
+.\"This switch causes the picture to be traversed twice:
+.\"The first time, only the interiors of filled polygons (as borderless
+.\"polygons) are printed.
+.\"The second time, the outline is printed as a series of line segments.
+.\"This way, postprocessors that overwrite rather than merge picture elements
+.\"(such as Postscript) can still have text and graphics on a shaded
+.\"background.
+.TP
+.B \-v
+Print the version number.
+.SH GRN COMMANDS
+Each input line between
+.B .GS
+and
+.B .GE
+may have one
+.I @g@grn
+command.
+Commands consist of one or two strings separated by white space, the first
+string being the command and the second its operand.
+Commands may be upper or lower case and abbreviated down to one character.
+.PP
+Commands that affect a picture's environment (those listed before
+.BR default ,
+see below) are only in effect for the current picture:
+The environment is reinitialized to the defaults at the start of the next
+picture.
+The commands are as follows:
+.TP
+.BI 1\  N
+.TQ
+.BI 2\  N
+.TQ
+.BI 3\  N
+.TQ
+.BI 4\  N
+Set
+.IR gremlin 's
+text size number 1 (2, 3, or 4) to
+.I N
+points.
+The default is 12 (resp. 16, 24, and 36).
+.TP
+.BI roman\  f
+.TQ
+.BI italics\  f
+.TQ
+.BI bold\  f
+.TQ
+.BI special\  f
+Set the roman (italics, bold, or special) font to
+.IR @g@troff 's
+font
+.I f
+(either a name or number).
+The default is R (resp. I, B, and S).
+.TP
+.BI l\  f
+.TQ
+.BI stipple\  f
+Set the stipple font to
+.IR @g@troff 's
+stipple font
+.I f
+(name or number).
+The command
+.B stipple
+may be abbreviated down as far as `st' (to avoid
+confusion with
+.BR special ).
+There is
+.I no
+default for stipples (unless one is set by the default command), and it is
+illegal to include a
+.I gremlin
+picture with polygons without specifying a
+stipple font.
+.TP
+.BI x\  N
+.TQ
+.BI scale\  N
+Magnify the picture (in addition to any default magnification) by
+.IR N ,
+a floating point number larger than zero.
+The command
+.B scale
+may be abbreviated down to `sc'.
+.TP
+.BI narrow\  N
+.TQ
+.BI medium\  N
+.TQ
+.BI thick\  N
+Set the thickness of
+.IR gremlin 's
+narrow (resp. medium and thick) lines to
+.I N
+times 0.15pt (this value can be changed at compile time).
+The default is 1.0 (resp. 3.0 and 5.0), which corresponds to 0.15pt
+(resp. 0.45pt and 0.75pt).
+A thickness value of zero selects the smallest available line thickness.
+Negative values cause the line thickness to be proportional to the current
+point size.
+.TP
+.BI pointscale\  <off/on>
+Scale text to match the picture.
+Gremlin text is usually printed in the point size specified with the
+commands
+.BR 1 ,\  2 ,\  3 ,\ or\  4
+regardless of any scaling factors in the picture.
+Setting
+.B pointscale
+will cause the point sizes to scale with the picture (within
+.IR @g@troff 's
+limitations, of course).
+An operand of anything but
+.I off
+will turn text scaling on.
+.TP
+.B default
+Reset the picture environment defaults to the settings in the current
+picture.
+This is meant to be used as a global parameter setting mechanism at the
+beginning of the
+.I @g@troff
+input file, but can be used at any time to reset the
+default settings.
+.TP
+.BI width\  N
+Forces the picture to be
+.I N
+inches wide.
+This overrides any scaling factors present in the same picture.
+.RB ` width
+.IR 0 '
+is ignored.
+.TP
+.BI height\  N
+Forces picture to be
+.I N
+inches high, overriding other scaling factors.
+If both `width' and `height' are specified the tighter constraint will
+determine the scale of the picture.
+.B Height
+and
+.B width
+commands are not saved with a
+.B default
+command.
+They will, however, affect point size scaling if that option is set.
+.TP
+.BI file\  name
+Get picture from
+.I gremlin
+file
+.I name
+located the current directory (or in the library directory; see the
+.B \-M
+option above).
+If two
+.B file
+commands are given, the second one overrides the first.
+If
+.I name
+doesn't exist, an error message is reported and processing continues from
+the
+.B .GE
+line.
+.SH NOTES ABOUT GROFF
+Since
+.I @g@grn
+is a preprocessor, it doesn't know about current indents, point sizes,
+margins, number registers, etc.
+Consequently, no
+.I @g@troff
+input can be placed between the
+.B .GS
+and
+.B .GE
+requests.
+However,
+.I gremlin
+text is now processed by
+.IR @g@troff ,
+so anything legal in a single line of
+.I @g@troff
+input is legal in a line of
+.I gremlin
+text (barring `.' directives at the beginning of a line).
+Thus, it is possible to have equations within a
+.I gremlin
+figure by including in the
+.I gremlin
+file
+.I eqn
+expressions enclosed by previously defined delimiters (e.g.
+.IR $$ ).
+.PP
+When using
+.I @g@grn
+along with other preprocessors, it is best to run
+.I tbl
+before
+.IR @g@grn ,
+.IR pic ,
+and/or
+.I ideal
+to avoid overworking
+.IR tbl .
+.I Eqn
+should always be run last.
+.PP
+A picture is considered an entity, but that doesn't stop
+.I @g@troff
+from trying to break it up if it falls off the end of a page.
+Placing the picture between `keeps' in \-me macros will ensure proper
+placement.
+.PP
+.I @g@grn
+uses
+.IR @g@troff 's 
+number registers
+.B g1
+through
+.B g9
+and sets registers
+.B g1
+and
+.B g2
+to the width and height of the
+.I gremlin
+figure (in device units) before entering the
+.B .GS
+request (this is for those who want to rewrite these macros).
+.SH GREMLIN FILE FORMAT
+There exist two distinct 
+.I gremlin
+file formats, the original format from the
+.I AED
+graphic terminal version, and the
+.I SUN
+or
+.I X11
+version.
+An extension to the
+.IR SUN / X11
+version allowing reference points with negative coordinates is
+.B not
+compatible with the
+.I AED
+version.
+As long as a 
+.I gremlin
+file does not contain negative coordinates, either format will be read
+correctly by either version of
+.I gremlin
+or
+.IR @g@grn .
+The other difference to the
+.IR SUN / X11
+format is the use of names for picture objects (e.g., POLYGON, CURVE)
+instead of numbers.
+Files representing the same picture are shown in Table 1 in each format.
+.sp
+.DS
+.TS
+center, tab(@);
+l lw(0.1i) l.
+sungremlinfile@@gremlinfile
+0 240.00 128.00@@0 240.00 128.00
+CENTCENT@@2
+240.00 128.00@@240.00 128.00
+185.00 120.00@@185.00 120.00
+240.00 120.00@@240.00 120.00
+296.00 120.00@@296.00 120.00
+*@@-1.00 -1.00
+2 3@@2 3
+10 A Triangle@@10 A Triangle
+POLYGON@@6
+224.00 416.00@@224.00 416.00
+96.00 160.00@@96.00 160.00
+384.00 160.00@@384.00 160.00
+*@@-1.00 -1.00
+5 1@@5 1
+0@@0
+-1@@-1
+.T&
+css.
+.sp
+Table 1. File examples
+.TE
+.DE
+.sp
+.IP \(bu
+The first line of each
+.I gremlin
+file contains either the string
+.B gremlinfile
+.RI ( AED
+version) or
+.B sungremlinfile
+.RI ( SUN / X11 )
+.IP \(bu
+The second line of the file contains an orientation, and
+.B x
+and
+.B y
+values for a positioning point, separated by spaces.
+The orientation, either
+.B 0
+or
+.BR 1 ,
+is ignored by the
+.IR SUN / X11
+version.
+.B 0
+means that
+.I gremlin
+will display things in horizontal format (drawing area wider than it is
+tall, with menu across top).
+.B 1
+means that
+.I gremlin
+will display things in vertical format (drawing area taller than it is wide,
+with menu on left side).
+.B x
+and
+.B y
+are floating point values giving a positioning point to be used when this
+file is read into another file.
+The stuff on this line really isn't all that important; a value of ``1 0.00
+0.00'' is suggested.
+.IP \(bu
+The rest of the file consists of zero or more element specifications.
+After the last element specification is a line containing the string ``-1''.
+.SH ELEMENT SPECIFICATIONS
+.IP \(bu
+The first line of each element contains a single decimal number giving the
+type of the element
+.RI ( AED
+version) or its ASCII name
+.RI ( SUN / X11
+version).
+See Table 2.
+.sp
+.DS
+.TS
+center, tab(@);
+css
+ccc
+nll.
+\fIgremlin\fP File Format \(mi Object Type Specification
+.sp
+\fIAED\fP Number@\fISUN\fP/\fIX11\fP Name@Description
+0@BOTLEFT@bottom-left-justified text
+1@BOTRIGHT@bottom-right-justified text
+2@CENTCENT@center-justified text
+3@VECTOR@vector
+4@ARC@arc
+5@CURVE@curve
+6@POLYGON@polygon
+10@TOPLEFT@top-left-justified text
+11@TOPCENT@top-center-justified text
+12@TOPRIGHT@top-right-justified text
+13@CENTLEFT@left-center-justified text
+14@CENTRIGHT@right-center-justified text
+15@BOTCENT@bottom-center-justified text
+.T&
+css.
+.sp
+Table 2.
+Type Specifications in \fIgremlin\fP Files
+.TE
+.DE
+.sp
+.IP \(bu
+After the object type comes a variable number of lines, each specifying a
+point used to display the element.
+Each line contains an x-coordinate and a y-coordinate in floating point
+format, separated by spaces.
+The list of points is terminated by a line containing the string ``-1.0
+-1.0''
+.RI ( AED
+version) or a single asterisk, ``*''
+.RI ( SUN / X11
+version).
+.IP \(bu
+After the points comes a line containing two decimal values, giving the
+brush and size for the element.
+The brush determines the style in which things are drawn.
+For vectors, arcs, and curves there are six legal brush values:
+.sp
+.DS
+.TS
+center, tab(@);
+ncw(0.1i)l.
+1 \(mi@@thin dotted lines
+2 \(mi@@thin dot-dashed lines
+3 \(mi@@thick solid lines
+4 \(mi@@thin dashed lines
+5 \(mi@@thin solid lines
+6 \(mi@@medium solid lines
+.TE
+.DE
+.sp
+For polygons, one more value, 0, is legal.
+It specifies a polygon with an invisible border.
+For text, the brush selects a font as follows:
+.sp
+.DS
+.TS
+center, tab(@);
+ncw(0.1i)l.
+1 \(mi@@roman (R font in groff)
+2 \(mi@@italics (I font in groff)
+3 \(mi@@bold (B font in groff)
+4 \(mi@@special (S font in groff)
+.TE
+.DE
+.sp
+If you're using
+.I @g@grn
+to run your pictures through
+.IR groff ,
+the font is really just a starting font:
+The text string can contain formatting sequences like
+``\\fI''
+or
+``\\d''
+which may change the font (as well as do many other things).
+For text, the size field is a decimal value between 1 and 4.
+It selects the size of the font in which the text will be drawn.
+For polygons, this size field is interpreted as a stipple number to fill the
+polygon with.
+The number is used to index into a stipple font at print time.
+.IP \(bu
+The last line of each element contains a decimal number and a string of
+characters, separated by a single space.
+The number is a count of the number of characters in the string.
+This information is only used for text elements, and contains the text
+string.
+There can be spaces inside the text.
+For arcs, curves, and vectors, this line of the element contains the string
+``0''.
+.SH NOTES ON COORDINATES
+.I gremlin
+was designed for
+.IR AED s,
+and its coordinates reflect the
+.I AED
+coordinate space.
+For vertical pictures, x-values range 116 to 511, and y-values from 0 to
+483.
+For horizontal pictures, x-values range from 0 to 511 and y-values range
+from 0 to 367.
+Although you needn't absolutely stick to this range, you'll get best results
+if you at least stay in this vicinity.
+Also, point lists are terminated by a point of (-1, -1), so you shouldn't
+ever use negative coordinates.
+.I gremlin
+writes out coordinates using format ``%f1.2''; it's probably a good idea to
+use the same format if you want to modify the
+.I @g@grn
+code.
+.SH NOTES ON SUN/X11 COORDINATES
+There is no longer a restriction on the range of coordinates used to create
+objects in the
+.IR SUN / X11
+version of
+.IR gremlin .
+However, files with negative coordinates
+.B will
+cause problems if displayed on the
+.IR AED .
+.SH FILES
+.Tp \w'@FONTDIR@/devname/DESC'u+3n
+.BI @FONTDIR@/dev name /DESC
+Device description file for device
+.IR name .
+.SH SEE ALSO
+.BR gremlin (1),
+.BR groff (@MAN1EXT@),
+.BR @g@pic (@MAN1EXT@),
+.BR ideal (1)
+.SH HISTORY
+.PP
+David Slattengren and Barry Roitblat wrote the original Berkeley
+.IR @g@grn .
+.PP
+Daniel Senderowicz and Werner Lemberg modified it for
+.IR groff .
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

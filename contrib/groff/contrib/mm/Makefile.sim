@@ -1,0 +1,66 @@
+#
+# $Id: Makefile.sim,v 2.1 2000/11/17 04:26:02 jhaegg Exp $
+#
+# To install mgm separately as gm.tmac:
+# make -f Makefile.sub tmacdir=/usr/local/lib/groff/tmac srcdir=. \
+#	INSTALL_DATA='install -m 644' tmac_m=gm install
+#
+# or as m.tmac:
+#
+# tmacdir is the destination for your groff/tmac-directory, srcdir is
+# this directory and INSTALL_DATA is the command to install a file with.
+# If you dont have 'install': use 'cp'.
+
+
+# change this to whatever you like
+tmacdir=/usr/local/lib/groff/tmac
+#tmac_m = gm
+tmac_m = m
+indexdir = xx
+install = install -m 644
+
+# Do not change anything below this line
+srcdir = .
+version = 1.32
+mdate = 1999-09-03
+
+.SUFFIXES: .n .man
+
+all:
+
+
+install: groff_mm.n groff_mmse.n
+	$(MAKE) -f Makefile.sub tmacdir=$(tmacdir) srcdir=$(srcdir) \
+		INSTALL_DATA='$(install)' tmac_m=$(tmac_m) install
+
+ uninstall: groff_mm.n groff_mmse.n
+      $(MAKE) -f Makefile.sub tmacdir=$(tmacdir) srcdir=$(srcdir) \
+              INSTALL_DATA='$(install)' tmac_m=$(tmac_m) uninstall_sub
+
+
+.man.n:
+	@echo Making $@ from $<
+	@-rm -f $@
+	@sed -e "s|@HYPHENFILE@|$(hyphenfile)|g" \
+	-e "s|@FONTDIR@|$(fontdir)|g" \
+	-e "s|@FONTPATH@|$(fontpath)|g" \
+	-e "s|@MACRODIR@|$(tmacdir)|g" \
+	-e "s|@MACROPATH@|$(tmacpath)|g" \
+	-e "s|@DEVICE@|$(DEVICE)|g" \
+	-e "s|@DEFAULT_INDEX@|$(indexdir)/$(indexname)|g" \
+	-e "s|@DEFAULT_INDEX_NAME@|$(indexname)|g" \
+	-e "s|@INDEX_SUFFIX@|$(indexext)|g" \
+	-e "s|@COMMON_WORDS_FILE@|$(common_words_file)|g" \
+	-e "s|@MAN1EXT@|$(man1ext)|g" \
+	-e "s|@MAN5EXT@|$(man5ext)|g" \
+	-e "s|@MAN7EXT@|$(man7ext)|g" \
+	-e "s|@TMAC_S@|$(tmac_s)|g" \
+	-e "s|@TMAC_M@|$(tmac_m)|g" \
+	-e "s|@TMAC_MDIR@|$(tmacdir)/mm|g" \
+	-e "s|@BROKEN_SPOOLER_FLAGS@|$(BROKEN_SPOOLER_FLAGS)|g" \
+	-e "s|@VERSION@|$(version)|g" \
+	-e "s|@MDATE@|$(mdate)|g" \
+	-e "s|@g@|$(g)|g" \
+	-e "s!@G@;`echo $(g) | tr [a-z] [A-Z]`!g" \
+	$< >$@
+

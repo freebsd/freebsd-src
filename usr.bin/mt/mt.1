@@ -1,0 +1,356 @@
+.\" Copyright (c) 1981, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mt.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 1993
+.Dt MT 1
+.Os
+.Sh NAME
+.Nm mt
+.Nd magnetic tape manipulating program
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar tapename
+.Ar command
+.Op Ar count
+.Sh DESCRIPTION
+.Nm \&Mt
+is used to give commands to a magnetic tape drive.
+By default
+.Nm
+performs the requested operation once.  Operations
+may be performed multiple times by specifying
+.Ar count  .
+Note
+that
+.Ar tapename
+must reference a raw (not block) tape device.
+.Pp
+The available commands are listed below.  Only as many
+characters as are required to uniquely identify a command
+need be specified.
+.Bl -tag -width "eof, weof"
+.It Cm weof
+Write
+.Ar count
+end-of-file marks at the current position on the tape.
+.It Cm smk
+Write
+.Ar count
+setmarks at the current position on the tape.
+.It Cm fsf
+Forward space
+.Ar count
+files.
+.It Cm fsr
+Forward space
+.Ar count
+records.
+.It Cm fss
+Forward space
+.Ar count
+setmarks.
+.It Cm bsf
+Backward space
+.Ar count
+files.
+.It Cm bsr
+Backward space
+.Ar count
+records.
+.It Cm bss
+Backward space
+.Ar count
+setmarks.
+.It Cm rdhpos
+Read Hardware block position.
+Some drives do not support this.
+The block
+number reported is specific for that hardware only.
+The count argument is
+ignored.
+.It Cm rdspos
+Read SCSI logical block position.
+Some drives do not support this.
+The
+count argument is ignored.
+.It Cm sethpos
+Set Hardware block position.
+Some drives do not support this.
+The count
+argument is interpreted as a hardware block to which to position the tape.
+.It Cm setspos
+Set SCSI logical block position.
+Some drives do not support this.
+The count
+argument is interpreted as a SCSI logical block to which to position the tape.
+.It Cm rewind
+Rewind the tape
+(Count is ignored).
+.It Cm offline , rewoffl
+Rewind the tape and place the tape unit off-line
+(Count is ignored).
+.It Cm erase
+Erase the tape.
+A count of 0 disables long erase, which is on by default.
+.It Cm retension
+Re-tension the tape
+(one full wind forth and back, Count is ignored).
+.It Cm status
+Print status information about the tape unit.
+For SCSI magnetic tape devices,
+the current operating modes of density, blocksize, and whether compression
+is enabled is reported.
+The current state of the driver (what it thinks that
+it is doing with the device) is reported.
+If the driver knows the relative
+position from BOT (in terms of filemarks and records), it prints that.
+Note
+that this information is not definitive (only BOT, End of Recorded Media, and
+hardware or SCSI logical block position (if the drive supports such) are
+considered definitive tape positions).
+.It Cm errstat
+Print (and clear) error status information about this device.
+For every normal
+operation (e.g., a read or a write) and every control operation (e.g,, a
+rewind), the driver stores up the last command executed and it's associated
+status and any residual counts (if any). This command retrieves and prints this
+information.
+If possible, this also clears any latched error information.
+.It Cm blocksize
+Set the block size for the tape unit.  Zero means variable-length
+blocks.
+.It Cm density
+Set the density for the tape unit.  For the density codes, see below.
+The density value could be given either numerically, or as a string,
+corresponding to the
+.Dq Reference
+field.  If the string is abbreviated, it will be resolved in the order
+shown in the table, and the first matching entry will be used.  If the
+given string and the resulting canonical density name do not match
+exactly, an informational message is printed about what the given
+string has been taken for.
+.It Cm geteotmodel
+Fetch and print out the current EOT filemark model.
+The model states how
+many filemarks will be written at close if a tape was being written.
+.It Cm seteotmodel
+Set (from the
+.Ar count
+argument)
+and print out the current and EOT filemark model.
+Typically this will be
+.Ar 2
+filemarks, but some devices (typically QIC cartridge drives) can
+only write
+.Ar 1
+filemark.
+Currently you can only choose a value of
+.Ar 1
+or
+.Ar 2 .
+.It Cm eom
+Forward space to end of recorded medium
+(Count is ignored).
+.It Cm eod
+Forward space to end of data, identical to
+.Cm eom .
+.It Cm comp
+Set compression mode.
+There are currently several possible values for the compression mode:
+.Pp
+.Bl -tag -width 9n -compact
+.It off
+Turn compression off.
+.It on
+Turn compression on.
+.It none
+Same as
+.Ar off .
+.It enable
+Same as
+.Ar on .
+.It IDRC
+IBM Improved Data Recording Capability compression (0x10).
+.It DCLZ
+DCLZ compression algorithm (0x20).
+.El
+.Pp
+In addition to the above recognized compression keywords, the user can
+supply a numeric compression algorithm for the tape drive to use.  In most
+cases, simply turning the compression
+.Sq on
+will have the desired effect of enabling the default compression algorithm
+supported by the drive.  If this is not the case (see the
+.Cm status
+display to see which compression algorithm is currently in use), the user
+can manually specify one of the supported compression keywords (above), or
+supply a numeric compression value.
+.El
+.Pp
+If a tape name is not specified, and the environment variable
+.Ev TAPE
+does not exist;
+.Nm
+uses the device
+.Pa /dev/nsa0 .
+.Pp
+.Nm \&Mt
+returns a 0 exit status when the operation(s) were successful,
+1 if the command was unrecognized, and 2 if an operation failed.
+.Pp
+The following density table was taken from the
+.Sq Historical sequential access density codes
+table (A-1) in Revision 11 of the SCSI-3 Stream Device Commands (SSC)
+working draft, dated November 11, 1997.
+.Pp
+The different density codes are as follows:
+.Pp
+.Dl "0x0	default for device
+.Dl "0xE	reserved for ECMA
+.Bd -literal -offset 3n
+Value  Width        Tracks    Density         Code Type Reference   Note
+        mm    in              bpmm       bpi
+0x01   12.7  (0.5)    9         32     (800)  NRZI  R   X3.22-1983   2
+0x02   12.7  (0.5)    9         63   (1,600)  PE    R   X3.39-1986   2
+0x03   12.7  (0.5)    9        246   (6,250)  GCR   R   X3.54-1986   2
+0x05    6.3  (0.25)  4/9       315   (8,000)  GCR   C   X3.136-1986  1
+0x06   12.7  (0.5)    9        126   (3,200)  PE    R   X3.157-1987  2
+0x07    6.3  (0.25)   4        252   (6,400)  IMFM  C   X3.116-1986  1
+0x08    3.81 (0.15)   4        315   (8,000)  GCR   CS  X3.158-1987  1
+0x09   12.7  (0.5)   18      1,491  (37,871)  GCR   C   X3.180       2
+0x0A   12.7  (0.5)   22        262   (6,667)  MFM   C   X3B5/86-199  1
+0x0B    6.3  (0.25)   4         63   (1,600)  PE    C   X3.56-1986   1
+0x0C   12.7  (0.5)   24        500  (12,690)  GCR   C   HI-TC1       1,6
+0x0D   12.7  (0.5)   24        999  (25,380)  GCR   C   HI-TC2       1,6
+0x0F    6.3  (0.25)  15        394  (10,000)  GCR   C   QIC-120      1,6
+0x10    6.3  (0.25)  18        394  (10,000)  GCR   C   QIC-150      1,6
+0x11    6.3  (0.25)  26        630  (16,000)  GCR   C   QIC-320      1,6
+0x12    6.3  (0.25)  30      2,034  (51,667)  RLL   C   QIC-1350     1,6
+0x13    3.81 (0.15)   1      2,400  (61,000)  DDS   CS  X3B5/88-185A 5
+0x14    8.0  (0.315)  1      1,703  (43,245)  RLL   CS  X3.202-1991  5
+0x15    8.0  (0.315)  1      1,789  (45,434)  RLL   CS  ECMA TC17    5
+0x16   12.7  (0.5)   48        394  (10,000)  MFM   C   X3.193-1990  1
+0x17   12.7  (0.5)   48      1,673  (42,500)  MFM   C   X3B5/91-174  1
+0x18   12.7  (0.5)  112      1,673  (42,500)  MFM   C   X3B5/92-50   1
+0x1C    6.3  (0.25)  34      1,654  (42,000)  MFM   C   QIC-385M     1,6
+0x1D    6.3  (0.25)  32      1,512  (38,400)  GCR   C   QIC-410M     1,6
+0x1E    6.3  (0.25)  30      1,385  (36,000)  GCR   C   QIC-1000C    1,6
+0x1F    6.3  (0.25)  30      2,666  (67,733)  RLL   C   QIC-2100C    1,6
+0x20    6.3  (0.25) 144      2,666  (67,733)  RLL   C   QIC-6GB(M)   1,6
+0x21    6.3  (0.25) 144      2,666  (67,733)  RLL   C   QIC-20GB(C)  1,6
+0x22    6.3  (0.25)  42      1,600  (40,640)  GCR   C   QIC-2GB(C)   ?
+0x23    6.3  (0.25)  38      2,666  (67,733)  RLL   C   QIC-875M     ?
+0x24    3.81 (0.15)   1      2,400  (61,000)        CS  DDS-2        5
+0x25    3.81 (0.15)   1      3,816  (97,000)        CS  DDS-3        5
+0x26    3.81 (0.15)   1      3,816  (97,000)        CS  DDS-4        5
+0x27    8.0  (0.315)  1      3,056  (77,611)  RLL   CS  Mammoth      5
+0x28   12.7  (0.5)   36      1,491  (37,871)  GCR   C   X3.224       1
+0x29   12.7  (0.5)
+0x2A
+0x2B   12.7  (0.5)    3          ?        ?     ?   C   X3.267       5
+.Ed
+.Bd -literal -offset 3n
+Code Description                                   Type Description
+----------------                                   ----------------
+NRZI    Non return to zero, change on ones         R Reel-to-reel
+GCR     Group code recording                       C Cartridge
+PE      Phase encoded                              CS Cassette
+IMFM    Inverted modified frequency modulation
+MFM     Modified frequency modulation
+DDS     DAT data storage
+RLL     Run length limited
+.Ed
+.Bd -literal -offset 3n
+NOTES
+1. Serial recorded.
+2. Parallel recorded.
+3. Old format known as QIC-11.
+5. Helical scan.
+6. This is not an American National Standard.  The reference is based on
+   an industry standard definition of the media format.
+.Ed
+.Sh ENVIRONMENT
+If the following environment variable exists, it is utilized by
+.Nm .
+.Bl -tag -width Fl
+.It Ev TAPE
+.Nm \&Mt
+checks the
+.Ev TAPE
+environment variable if the
+argument
+.Ar tapename
+is not given.
+.El
+.Sh FILES
+.Bl -tag -width /dev/*rst[0-9]*xx -compact
+.It Pa /dev/*rwt*
+QIC-02/QIC-36 magnetic tape interface
+.It Pa /dev/*rsa[0-9]*
+SCSI magnetic tape interface
+.El
+.Sh SEE ALSO
+.Xr dd 1 ,
+.Xr ioctl 2 ,
+.Xr mtio 4 ,
+.Xr sa 4 ,
+.Xr wt 4 ,
+.Xr environ 7
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .
+.Pp
+Extensions regarding the
+.Xr st 4
+driver appeared in
+.Bx 386 0.1
+as a separate
+.Xr st 1
+command, and have been merged into the
+.Nm
+command in
+.Fx 2.1 .
+.Pp
+The former
+.Cm eof
+command that used to be a synonym for
+.Cm weof
+has been abandoned in
+.Fx 2.1
+since it was often confused with
+.Cm eom ,
+which is fairly dangerous.

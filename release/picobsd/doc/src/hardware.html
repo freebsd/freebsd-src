@@ -1,0 +1,112 @@
+<html>
+<! $FreeBSD$ >
+<body>
+<h1><center>Lists of supported hardware configurations.</center></h1>
+
+<p>Below you will find supported configurations for each of the flavors of
+PicoBSD as of version @VER@, as well as the lists of programs included.</p>
+
+<h3>Dialup version:</h3>
+<ul>
+<li>minimum 386SX CPU (either Intel, AMD, Cyrix etc - doesn't matter),
+</li>
+<li>minimum 8MB of RAM (some people reported success
+stories with 4MB only, but I certainly don't recommend it)
+</li>
+<li>a modem (for Internet connection using PPP protocol), either internal or
+external, connected to COM1-COM4. NOTE: COM3 and COM4 are disabled by default
+- you have to explicitly enable them in UserConfig.
+</li>
+<li>an Ethernet card for LAN connection:
+<ul>
+<li>	ed - default settings: port 0x280, irq 10, iomem 0xd8000
+	<p>NE2000 compatible ISA and PCI cards, most SMC and 3C503</p>
+</li>
+<li>	ep - default settings: port 0x300, irq 10,
+	<p>3C509 ISA card</p>
+</li>
+<li>	ie - default settings: port 0x300, irq 10, iomem 0xd0000
+	<p>Intel EtherExpress ISA, StarLan, 3C507</p>
+</li>
+<li>	le - default settings: port 0x300, irq 5, iomem 0xd0000
+	<p>DEC EtherWorks 2 and 3</p>
+</li>
+<li>	lnc - default settings: port 0x280, irq 10, iomem 0xd0000
+	<p>Lance/PCNet</p>
+</li>
+<li>	de - DEC21040-based PCI cards,
+</li>
+<li>	fxp - Intel EtherExpress Pro/100B PCI card
+</li>
+</ul>
+</li>
+<li>10 virtual consoles plus console utilities (vidcontrol, kbdcontrol)
+</li>
+<li>basic networking tools: ifconfig, route, ping, ns (mini-netstat),
+traceroute
+</li>
+<li>basic remote access tools: telnet, ftp and SSH
+</li>
+<li>basic OS tools: shell, mount (FreeBSD, DOS, Linux), umount, ps, kill, vm
+(mini-vmstat), fsck, df, etc..
+</li>
+<li>editable configuration (/etc directory and kernel configuration)
+</li>
+<li>simple editor ee
+</li>
+<li>simple help system for people new to FreeBSD
+</li>
+</ul>
+<h3>Router-like version:</h3>
+<ul>
+<li>minimum 386SX CPU,
+</li>
+<li>minimum 10 MB of RAM (8MB for basic setup)
+</li>
+<li>support for PPP protocol on dialup/leased lines (using ijppp)
+</li>
+<li>support for several types of Ethernet cards (two of each kind) - see above
+for descriptions: ed, ie, ep, de, fxp, lnc
+</li>
+<li>network daemons: routing daemon (routed), inetd, telnetd.
+</li>
+<li>IP Firewall and NAT daemon (natd).
+</li>
+<li>more OS utilities, including: syslogd, mount_nfs, network logins via
+telnet
+</li>
+<li>this version doesn't include: ssh, ftp
+</li>
+</ul>
+<h3>Router version:</h3>
+<ul>
+<li>minimum 386SX CPU,
+</li>
+<li>minimum 4 MB of RAM (6MB for running some additional daemons)
+</li>
+<li>support for PPP protocol on dialup/leased lines (using kernel ppp)
+</li>
+<li>support for several types of Ethernet cards - see above
+for descriptions: ed, ie, ep, de, fxp, lnc
+</li>
+<li>custom init(8), which includes also a simple command-line interface,
+and its own way to configure the system on startup.
+</li>
+<li>IP Firewall and NAT daemon (natd - it requires additional portion of RAM).
+</li>
+<li>very few OS tools, except those absolutely necessary,
+</li>
+</ul>
+
+<p>There's also the fourth version, which can serve as a dialin server - I hope
+you'll find it as a cheap yet reliable alternative to commercial communication
+servers :-)) This work is still in progress, and
+<A HREF="beta.html">I need some people to test</a> the early
+dial-in server version.</p>
+
+<hr>
+<i>Last modified:
+@DATE@
+</i>
+</body>
+</html>

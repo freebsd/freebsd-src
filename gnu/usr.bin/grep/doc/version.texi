@@ -1,0 +1,3 @@
+@set UPDATED 27 January 2000
+@set EDITION 2.4d
+@set VERSION 2.4d

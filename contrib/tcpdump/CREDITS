@@ -1,0 +1,60 @@
+This file lists people who have contributed to tcpdump:
+
+The current maintainers:
+	Bill Fenner			<fenner@research.att.com>
+	Assar Westerlund 		<assar@sics.se>
+	Alexey Kuznetsov		<kuznet@ms2.inr.ac.ru>
+	Jun-ichiro itojun Hagino	<itojun@iijlab.net>
+	Guy Harris 			<guy@alum.mit.edu>
+	Torsten Landschoff 		<t.landschoff@gmx.net>
+	Michael Richardson 		<mcr@sandelman.ottawa.on.ca>
+	Ken Hornstein			<kenh@cmf.nrl.navy.mil>
+
+Additional people who have contributed patches:
+
+	Alfredo Andres			<aandres@s21sec.com>
+	Andrew Tridgell			<tridge@linuxcare.com>
+	Arkadiusz Miskiewicz 		<misiek@pld.org.pl>
+	Chris G. Demetriou		<cgd@netbsd.org>
+	Craig Rodrigues			<rodrigc@mediaone.net>
+	Daniel Hagerty 			<hag@ai.mit.edu>
+	Francisco Matias Cuenca-Acuna	<mcuenca@george.rutgers.edu>
+	Frank Volf			<volf@oasis.IAEhv.nl>
+	Gert Doering			<gert@greenie.muc.de>
+	Gilbert Ramirez Jr.		<gram@xiexie.org>
+	Gisle Vanem			<gvanem@eunet.no>
+	JINMEI Tatuya			<jinmei@kame.net>
+	Jefferson Ogata 		<jogata@nodc.noaa.gov>
+	Jeffrey Hutzelman		<jhutz@cmu.edu>
+	Jim Hutchins			<jim@ca.sandia.gov>
+	Juergen Schoenwaelder		<schoenw@ibr.cs.tu-bs.de>
+	Ken Hornstein			<kenh@cmf.nrl.navy.mil>
+	Kevin Steves			<stevesk@sweden.hp.com>
+	Larry Lile			<lile@stdio.com>
+	Lennert Buytenhek 		<buytenh@gnu.org>
+	Love Hörnquist-Åstrand		<lha@stacken.kth.se>
+	Marko Kiiskila			<carnil@cs.tut.fi>
+	Michael Shalayeff		<mickey@openbsd.org>
+	Michael T. Stolarchuk		<mts@off.to>
+	Monroe Williams 		<monroe@pobox.com>
+	Motonori Shindo			<mshindo@mshindo.net>
+	Olaf Kirch 			<okir@caldera.de>
+	Onno van der Linden		<onno@simplex.nl>
+	Pascal Hennequin 		<pascal.hennequin@int-evry.fr>
+	Pasvorn Boonmark		<boonmark@juniper.net>
+	Pekka Savola 			<pekkas@netcore.fi>	
+	Peter Jeremy			<peter.jeremy@alcatel.com.au>
+	Rafal Maszkowski		<rzm@icm.edu.pl>
+	Rick Jones			<raj@cup.hp.com>
+	Roderick Schertler		<roderick@argon.org>
+	Sebastian Krahmer		<krahmer@cs.uni-potsdam.de>
+	Timo Koskiahde
+	Tony Li				<tli@jnx.com>
+	Wilbert de Graaf		<wilbertdg@hetnet.nl>
+ 	Kris Kennaway			<kris@freebsd.org>
+        Ben Smithurst			<ben@scientia.demon.co.uk>
+
+The original LBL crew:
+	Steve McCanne
+	Craig Leres
+	Van Jacobson

@@ -1,0 +1,84 @@
+<html><head><title>
+Porting Hints
+</title></head><body><h3>
+Porting Hints
+</h3>
+
+<img align=left src=pic/wingdorothy.gif><a href=http://www.eecis.udel.edu/~mills/pictures.htm>from <i>The
+Wizard of Oz</i>, L. Frank Baum</a>
+
+<p>Porting Dorothy in Oz.
+<br clear=left><hr>
+
+<p>NOTE: The following procedures have been replaced by GNU automake and
+autoconfigure. This page is to be updated in the next release.
+
+<p>Porting to a new machine or operating system ordinarily requires
+updating the <code>./machines</code> directory and the
+<code>./compilers</code> directories in order to define the build
+environment and autoconfigure means. You will probably have to modify
+the <code>ntp_machines.h</code> file and <code>"l_stdlib.h"</code> files
+as well. The two most famous trouble spots are the I/O code in
+<code>./ntpd/ntp_io.c</code> and the clock adjustment code in
+<code>./ntpd/ntp_unixclock.c</code>.
+
+<p>These are the rules so that older bsd systems and the POSIX standard
+system can coexist together.
+
+<ol>
+
+<li>If you use <code>select</code> then include
+<code>"ntp_select.h"</code>. <code>select</code> is not standard, since
+it is very system dependent as to where it is defined. The logic to
+include the right system dependent include file is in
+<code>"ntp_select.h"</code>.
+
+<p><li>Always use POSIX definition of strings. Include
+<code>"ntp_string.h"</code> instead of <code>&lt;string.h&gt;</code>.
+
+<p><li>Always include <code>"ntp_malloc.h"</code> if you use
+<code>malloc</code>.
+
+<p><li>Always include <code>"ntp_io.h"</code> instead of
+<code>&lt;sys/file.h&gt;</code> or <code>&lt;fnctl.h&gt;</code> to get
+<code>O_*</code> flags.
+
+<p><li>Always include <code>"ntp_if.h"</code> instead of
+<code>&lt;net/if.h&gt;</code>.
+
+<p><li>Always include <code>"ntp_stdlib.h"</code> instead of
+<code>&lt;stdlib.h&gt;</code>.
+
+<p><li>Define any special defines needed for a system in
+<code>./include/ntp_machine.h</code> based on system identifier. This
+file is included by the <code>"ntp_types.h"</code> file and should
+always be placed first after the <code>&lt;&gt;</code> defines.
+
+<p><li>Define any special library prototypes left over from the system
+library and include files in the <code>"l_stdlib.h"</code> file. This
+file is included by the <code>"ntp_stdlib.h"</code> file and should
+ordinarily be placed last in the includes list.
+
+<p><li>Don't define a include file by the same name as a system include
+file.
+
+</ol>
+
+<p><code>"l_stdlib.h"</code> can contain any extra definitions that are
+needed so that <code>gcc</code> will shut up. They should be controlled
+by a system identifier and there should be a separate section for each
+system. Really this will make it easier to maintain.
+
+<p>See <code>include/ntp_machines.h</code> for the various compile time
+options.
+
+<p>When you are satisfied the port works and that other ports are not
+adversely affected, please send <a href="patches.htm">patches</a> for
+the system files you have changed, as well as any documentation that
+should be updated, including the advice herein.
+
+<p>Good luck.
+
+<hr><a href=index.htm><img align=left src=pic/home.gif></a><address><a
+href=mailto:mills@udel.edu> David L. Mills &lt;mills@udel.edu&gt;</a>
+</address></a></body></html>

@@ -1,0 +1,105 @@
+######################################################################
+$Id: NOTES,v 2.0 2000/09/14 03:40:24 jhaegg Exp $
+
+Beware!
+This may be old information. Trust only the source. :-)
+
+Implementation notes. (Or how to make your own national mm)
+
+Different commands:
+
+COVER [arg]
+MT [arg [addressee]]
+The arg is part of a filename in mm/*.MT or mm/*.cov.
+This file is read when the macro is executed. Therefore it must be
+put before any text output.
+In each file there are definitions of all extra macros needed for the
+cover sheet. MT files is only for compatibility reasons, and has several
+limits due to that it don't know when the cover starts, and cannot
+change sizes. Use COVER for new coversheet macros.
+
+But with MT it is possible to write all of the AT&T covers.
+An example can be found in mm/0.MT.
+
+When writing a new cover using COVER, have in mind that the cover
+should print the page with the COVEND macro. This macro
+should be defined by the new macrofile.
+
+Here is a part of ms.cov:
+> .\"-----------------
+> .de COVEND
+> .sp |4.2c
+> .cov@print-title
+> .cov@print-authors
+> .cov@print-firm
+> .cov@print-abstract
+> .cov@print-date
+This is important, since COVER disables the page header.
+> .pg@enable-top-trap
+Should begin with page one (normally).
+> .bp 1
+And enable the trap at the page footer.
+> .pg@enable-trap
+> ..
+
+#########################
+
+Variables for covers:
+I = integer
+S = string
+D = diversion
+M = macro
+
+Name			Type	Desc.
+cov*au			I	The number of authors.
+
+cov*title		M	Title collected with .TL.
+
+cov*au!x!y		S	Author(s) given to .AU
+cov*at!x!y		S	Author(s) title given to .AT
+				x is the author-index [1-cov*au],
+				y is the argument-index [1-9].
+				Look at the table with indexes.
+
+cov*firm		I	Author(s) firm.
+
+cov*abs-arg		I	Argument to abstract.
+
+cov*abs-ind		I	Indent for abstract.
+
+cov*abs-name		S	The string 'ABSTRACT', changed with .AST
+
+cov*abstract		M	The abstract.
+
+cov*new-date		S	The date (todays date if ND is not used)
+
+cov*mt-type		S	MT type
+cov*mt-addresse 	S	MT addressee
+
+
+##########################
+Argument-index for cov*au:
+
+Index		Desc.
+1		name
+2		initials
+3		location
+4		department
+5		extension
+6		room
+7		arg 7
+8		arg 8
+9		arg 9
+
+The location is set to the contents of string cov*location-xxxx
+if location is equal to xxxx and cov*location-xxxx is defined
+in the file locale.
+
+
+Argument-index for cov*at:
+
+Index		Desc.
+1		title 1
+.		.
+.		.
+9		title 9

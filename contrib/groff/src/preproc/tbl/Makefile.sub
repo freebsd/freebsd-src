@@ -1,0 +1,12 @@
+PROG=tbl
+MAN1=tbl.n
+XLIBS=$(LIBGROFF)
+OBJS=\
+  main.o \
+  table.o
+CCSRCS=\
+  $(srcdir)/main.cc \
+  $(srcdir)/table.cc
+HDRS=\
+  $(srcdir)/table.h
+NAMEPREFIX=$(g)

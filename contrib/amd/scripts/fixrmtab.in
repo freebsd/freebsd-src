@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# Invalidate /etc/rmtab entries for hosts named.
+# Restart mountd for changes to take effect.
+#
+# usage: fixrmtab host1 host2 ...
+#
+# Package:	am-utils-6.0
+# Author:	Andreas Stolcke <stolcke@icsi.berkeley.edu>
+
+#set -x
+
+RMTAB=/etc/rmtab
+TMP=/tmp/rmtab.$$
+
+if [ ! -f /etc/rmtab ]; then
+	exit 0
+fi
+
+for host in $*
+do
+	sed -e '/^'$host':/s/^./#/' $RMTAB > $TMP && cp $TMP $RMTAB
+done
+rm -f $TMP

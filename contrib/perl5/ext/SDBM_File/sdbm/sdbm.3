@@ -1,0 +1,290 @@
+.\" $Id: sdbm.3,v 1.2 90/12/13 13:00:57 oz Exp $
+.TH SDBM 3 "1 March 1990"
+.SH NAME
+sdbm, sdbm_open, sdbm_prep, sdbm_close, sdbm_fetch, sdbm_store, sdbm_delete, sdbm_firstkey, sdbm_nextkey, sdbm_hash, sdbm_rdonly, sdbm_error, sdbm_clearerr, sdbm_dirfno, sdbm_pagfno \- data base subroutines
+.SH SYNOPSIS
+.nf
+.ft B
+#include <sdbm.h>
+.sp
+typedef struct {
+	char *dptr;
+	int dsize;
+} datum;
+.sp
+datum nullitem = { NULL, 0 };
+.sp
+\s-1DBM\s0 *sdbm_open(char *file, int flags, int mode)
+.sp
+\s-1DBM\s0 *sdbm_prep(char *dirname, char *pagname, int flags, int mode)
+.sp
+void sdbm_close(\s-1DBM\s0 *db)
+.sp
+datum sdbm_fetch(\s-1DBM\s0 *db, key)
+.sp
+int sdbm_store(\s-1DBM\s0 *db, datum key, datum val, int flags)
+.sp
+int sdbm_delete(\s-1DBM\s0 *db, datum key)
+.sp
+datum sdbm_firstkey(\s-1DBM\s0 *db)
+.sp
+datum sdbm_nextkey(\s-1DBM\s0 *db)
+.sp
+long sdbm_hash(char *string, int len)
+.sp
+int sdbm_rdonly(\s-1DBM\s0 *db)
+int sdbm_error(\s-1DBM\s0 *db)
+sdbm_clearerr(\s-1DBM\s0 *db)
+int sdbm_dirfno(\s-1DBM\s0 *db)
+int sdbm_pagfno(\s-1DBM\s0 *db)
+.ft R
+.fi
+.SH DESCRIPTION
+.IX "database library" sdbm "" "\fLsdbm\fR"
+.IX sdbm_open "" "\fLsdbm_open\fR \(em open \fLsdbm\fR database"
+.IX sdbm_prep "" "\fLsdbm_prep\fR \(em prepare \fLsdbm\fR database"
+.IX sdbm_close "" "\fLsdbm_close\fR \(em close \fLsdbm\fR routine"
+.IX sdbm_fetch "" "\fLsdbm_fetch\fR \(em fetch \fLsdbm\fR database data"
+.IX sdbm_store "" "\fLsdbm_store\fR \(em add data to \fLsdbm\fR database"
+.IX sdbm_delete "" "\fLsdbm_delete\fR \(em remove data from \fLsdbm\fR database"
+.IX sdbm_firstkey "" "\fLsdbm_firstkey\fR \(em access \fLsdbm\fR database"
+.IX sdbm_nextkey "" "\fLsdbm_nextkey\fR \(em access \fLsdbm\fR database"
+.IX sdbm_hash "" "\fLsdbm_hash\fR \(em string hash for \fLsdbm\fR database"
+.IX sdbm_rdonly "" "\fLsdbm_rdonly\fR \(em return \fLsdbm\fR database read-only mode"
+.IX sdbm_error "" "\fLsdbm_error\fR \(em return \fLsdbm\fR database error condition"
+.IX sdbm_clearerr "" "\fLsdbm_clearerr\fR \(em clear \fLsdbm\fR database error condition"
+.IX sdbm_dirfno "" "\fLsdbm_dirfno\fR \(em return \fLsdbm\fR database bitmap file descriptor"
+.IX sdbm_pagfno "" "\fLsdbm_pagfno\fR \(em return \fLsdbm\fR database data file descriptor"
+.IX "database functions \(em \fLsdbm\fR"  sdbm_open  ""  \fLsdbm_open\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_prep  ""  \fLsdbm_prep\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_close  ""  \fLsdbm_close\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_fetch  ""  \fLsdbm_fetch\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_store  ""  \fLsdbm_store\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_delete  ""  \fLsdbm_delete\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_firstkey  ""  \fLsdbm_firstkey\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_nextkey  ""  \fLsdbm_nextkey\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_rdonly  ""  \fLsdbm_rdonly\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_error  ""  \fLsdbm_error\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_clearerr  ""  \fLsdbm_clearerr\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_dirfno  ""  \fLsdbm_dirfno\fP
+.IX "database functions \(em \fLsdbm\fR"  sdbm_pagfno  ""  \fLsdbm_pagfno\fP
+.LP
+This package allows an application to maintain a mapping of <key,value> pairs
+in disk files.  This is not to be considered a real database system, but is
+still useful in many simple applications built around fast retrieval of a data
+value from a key.  This implementation uses an external hashing scheme,
+called Dynamic Hashing, as described by Per-Aake Larson in BIT 18 (1978) pp.
+184-201.  Retrieval of any item usually requires a single disk access.
+The application interface is compatible with the
+.IR ndbm (3)
+library.
+.LP
+An
+.B sdbm
+database is kept in two files usually given the extensions
+.B \.dir
+and
+.BR \.pag .
+The
+.B \.dir
+file contains a bitmap representing a forest of binary hash trees, the leaves
+of which indicate data pages in the
+.B \.pag
+file.
+.LP
+The application interface uses the
+.B datum
+structure to describe both
+.I keys
+and
+.IR value s.
+A
+.B datum
+specifies a byte sequence of
+.I dsize
+size pointed to by
+.IR dptr .
+If you use
+.SM ASCII
+strings as
+.IR key s
+or
+.IR value s,
+then you must decide whether or not to include the terminating
+.SM NUL
+byte which sometimes defines strings.  Including it will require larger
+database files, but it will be possible to get sensible output from a
+.IR strings (1)
+command applied to the data file.
+.LP
+In order to allow a process using this package to manipulate multiple
+databases, the applications interface always requires a
+.IR handle ,
+a
+.BR "DBM *" ,
+to identify the database to be manipulated.  Such a handle can be obtained
+from the only routines that do not require it, namely
+.BR sdbm_open (\|)
+or
+.BR sdbm_prep (\|).
+Either of these will open or create the two necessary files.  The
+difference is that the latter allows explicitly naming the bitmap and data
+files whereas
+.BR sdbm_open (\|)
+will take a base file name and call
+.BR sdbm_prep (\|)
+with the default extensions.
+The
+.I flags
+and
+.I mode
+parameters are the same as for
+.BR open (2).
+.LP
+To free the resources occupied while a database handle is active, call
+.BR sdbm_close (\|).
+.LP
+Given a handle, one can retrieve data associated with a key by using the
+.BR sdbm_fetch (\|)
+routine, and associate data with a key by using the
+.BR sdbm_store (\|)
+routine.
+.LP
+The values of the
+.I flags
+parameter for
+.BR sdbm_store (\|)
+can be either
+.BR \s-1DBM_INSERT\s0 ,
+which will not change an existing entry with the same key, or
+.BR \s-1DBM_REPLACE\s0 ,
+which will replace an existing entry with the same key.
+Keys are unique within the database.
+.LP
+To delete a key and its associated value use the
+.BR sdbm_delete (\|)
+routine.
+.LP
+To retrieve every key in the database, use a loop like:
+.sp
+.nf
+.ft B
+for (key = sdbm_firstkey(db); key.dptr != NULL; key = sdbm_nextkey(db))
+        ;
+.ft R
+.fi
+.LP
+The order of retrieval is unspecified.
+.LP
+If you determine that the performance of the database is inadequate or
+you notice clustering or other effects that may be due to the hashing
+algorithm used by this package, you can override it by supplying your
+own
+.BR sdbm_hash (\|)
+routine.  Doing so will make the database unintelligable to any other
+applications that do not use your specialized hash function.
+.sp
+.LP
+The following macros are defined in the header file:
+.IP
+.BR sdbm_rdonly (\|)
+returns true if the database has been opened read\-only.
+.IP
+.BR sdbm_error (\|)
+returns true if an I/O error has occurred.
+.IP
+.BR sdbm_clearerr (\|)
+allows you to clear the error flag if you think you know what the error
+was and insist on ignoring it.
+.IP
+.BR sdbm_dirfno (\|)
+returns the file descriptor associated with the bitmap file.
+.IP
+.BR sdbm_pagfno (\|)
+returns the file descriptor associated with the data file.
+.SH SEE ALSO
+.IR open (2).
+.SH DIAGNOSTICS
+Functions that return a
+.B "DBM *"
+handle will use
+.SM NULL
+to indicate an error.
+Functions that return an
+.B int
+will use \-1 to indicate an error.  The normal return value in that case is 0.
+Functions that return a
+.B datum
+will return
+.B nullitem
+to indicate an error.
+.LP
+As a special case of
+.BR sdbm_store (\|),
+if it is called with the
+.B \s-1DBM_INSERT\s0
+flag and the key already exists in the database, the return value will be 1.
+.LP
+In general, if a function parameter is invalid,
+.B errno
+will be set to
+.BR \s-1EINVAL\s0 .
+If a write operation is requested on a read-only database,
+.B errno
+will be set to
+.BR \s-1ENOPERM\s0 .
+If a memory allocation (using
+.IR malloc (3))
+failed,
+.B errno
+will be set to
+.BR \s-1ENOMEM\s0 .
+For I/O operation failures
+.B errno
+will contain the value set by the relevant failed system call, either
+.IR read (2),
+.IR write (2),
+or
+.IR lseek (2).
+.SH AUTHOR
+.IP "Ozan S. Yigit" (oz@nexus.yorku.ca)
+.SH BUGS
+The sum of key and value data sizes must not exceed
+.B \s-1PAIRMAX\s0
+(1008 bytes).
+.LP
+The sum of the key and value data sizes where several keys hash to the
+same value must fit within one bitmap page.
+.LP
+The
+.B \.pag
+file will contain holes, so its apparent size is larger than its contents.
+When copied through the filesystem the holes will be filled.
+.LP
+The contents of
+.B datum
+values returned are in volatile storage.  If you want to retain the values
+pointed to, you must copy them immediately before another call to this package.
+.LP
+The only safe way for multiple processes to (read and) update a database at
+the same time, is to implement a private locking scheme outside this package
+and open and close the database between lock acquisitions.  It is safe for
+multiple processes to concurrently access a database read-only.
+.SH APPLICATIONS PORTABILITY
+For complete source code compatibility with the Berkeley Unix
+.IR ndbm (3)
+library, the 
+.B sdbm.h
+header file should be installed in
+.BR /usr/include/ndbm.h .
+.LP
+The
+.B nullitem
+data item, and the
+.BR sdbm_prep (\|),
+.BR sdbm_hash (\|),
+.BR sdbm_rdonly (\|),
+.BR sdbm_dirfno (\|),
+and
+.BR sdbm_pagfno (\|)
+functions are unique to this package.

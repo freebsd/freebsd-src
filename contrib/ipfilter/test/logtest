@@ -1,0 +1,48 @@
+#!/bin/sh
+if [ -f /usr/ucb/touch ] ; then
+	TOUCH=/usr/ucb/touch
+else
+	if [ -f /usr/bin/touch ] ; then
+		TOUCH=/usr/bin/touch
+	else
+		if [ -f /bin/touch ] ; then
+			TOUCH=/bin/touch
+		fi
+	fi
+fi
+echo "$1...";
+
+/bin/cp /dev/null results/$1
+/bin/cp /dev/null results/$1.b
+
+( while read rule; do
+	echo $rule >> results/$1 
+	echo $rule | ../ipftest -br - -Hi input/$1 -l logout > /dev/null
+	if [ $? -ne 0 ] ; then
+		/bin/rm -f logout
+		exit 1
+	fi
+	TZ=GMT ../ipmon -P /dev/null -f logout >> results/$1
+        echo "--------" >> results/$1
+	TZ=GMT ../ipmon -P /dev/null -bf logout >> results/$1.b
+        echo "--------" >> results/$1.b
+done ) < regress/$1
+../ipftest -br regress/$1 -Hi input/$1 -l logout > /dev/null
+TZ=GMT ../ipmon -P /dev/null -f logout >> results/$1
+echo "--------" >> results/$1
+TZ=GMT ../ipmon -P /dev/null -bf logout >> results/$1.b
+echo "--------" >> results/$1.b
+
+cmp expected/$1 results/$1
+status=$?
+if [ $status -ne 0 ] ; then
+	exit $status
+fi
+cmp expected/$1.b results/$1.b
+status=$?
+if [ $status -ne 0 ] ; then
+	exit $status
+fi
+/bin/rm -f logout
+$TOUCH $1
+exit 0

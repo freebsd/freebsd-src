@@ -1,0 +1,7 @@
+#	from: @(#)Makefile.hp300	6.1 (Berkeley) 3/3/91
+# $FreeBSD$
+
+CFLAGS+=	-Dm68851
+SRCS+=		tc-m68k.c atof-ieee.c
+
+gas_target=	m68k

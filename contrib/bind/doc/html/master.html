@@ -1,0 +1,166 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>Master File Format</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration Guide -- Master File Format</H2>
+
+<HR>
+
+<P>
+The Master File Format was initially defined in
+<A HREF=http://www.ietf.org/rfc/rfc1035.txt>RFC 1035</A>
+and has subsequently been extended. 
+<P>
+While the Master File Format is class independent all records in a 
+Master File must be of the same class.
+
+<H3>Master File Directives</H3>
+<H4>$ORIGIN</H4>
+Syntax: <CODE>$ORIGIN &lt;domain-name&gt; [&lt;comment&gt;]</CODE>
+<P>
+<CODE>$ORIGIN</CODE> set the domain name that will be appended to any
+unqualified records.
+When a zone is first read in there is an implict <CODE>$ORIGIN</CODE>
+&lt;zone-name&gt;.
+The current <CODE>$ORIGIN</CODE> is appended to the domain specified in the
+<CODE>$ORIGIN</CODE> argument if it is not absolute.
+
+<PRE>
+$ORIGIN EXAMPLE.
+$ORIGIN MYZONE
+WWW	CNAME	MAIN-SERVER
+</PRE>
+is equivlent to
+<PRE>
+WWW.MYZONE.EXAMPLE. CNAME MAIN-SERVER.MYZONE.EXAMPLE.
+</PRE>
+
+<H4>$INCLUDE</H4>
+Syntax: <CODE>$INCLUDE &lt;filename&gt; [&lt;origin&gt;] [&lt;comment&gt;]</CODE>
+<P>
+Read and process the file filename as if it was included into the file at this
+point.  If origin is specified the file is processed with <CODE>$ORIGIN</CODE>
+set to that value otherwise the current <CODE>$ORIGIN</CODE> is used.
+<I>NOTE: The  behaviour when &lt;origin&gt; is specified differs from that
+described in 
+<A HREF=http://www.ietf.org/rfc/rfc1035.txt>RFC 1035</A>.</I>
+<P>
+The origin and current domain revert to the values they were prior to the
+<CODE>$INCLUDE</CODE> once the file has been read.
+<H4>$TTL</H4>
+Syntax: <CODE>$TTL &lt;default-ttl&gt; [&lt;comment&gt;]</CODE>
+<P>
+Set the default Time To Live (TTL) for subsequent records with undefined
+TTL's. Valid TTL's are of the range 0-2147483647.
+<P>
+<CODE>$TTL</CODE> is defined in
+<A HREF=http://www.ietf.org/rfc/rfc2308.txt>RFC 2308</A>.
+<H3>BIND Master File Extentions</H3>
+<H4>$GENERATE</H4>
+Syntax: <CODE>$GENERATE &lt;range&gt; &lt;lhs&gt; &lt;type&gt; &lt;rhs&gt;
+[&lt;comment&gt;]</CODE>
+<P>
+<CODE>$GENERATE</CODE> is used to create a series of resource records
+that only differ from each other by an iterator.  <CODE>$GENERATE</CODE>
+can be used to easily generate the sets of records required to support
+sub /24 reverse delegations described in 
+<A HREF=http://www.ietf.org/rfc/rfc2317.txt>RFC 2317: Classless IN-ADDR.ARPA delegation</A>.
+
+<PRE>
+$ORIGIN 0.0.192.IN-ADDR.ARPA.
+$GENERATE 1-2 0 NS SERVER$.EXAMPLE.
+$GENERATE 1-127 $ CNAME $.0
+</PRE>
+is equivalent to
+<PRE>
+0.0.0.192.IN-ADDR.ARPA NS SERVER1.EXAMPLE.
+0.0.0.192.IN-ADDR.ARPA NS SERVER2.EXAMPLE.
+1.0.0.192.IN-ADDR.ARPA CNAME 1.0.0.0.192.IN-ADDR.ARPA.
+2.0.0.192.IN-ADDR.ARPA CNAME 2.0.0.0.192.IN-ADDR.ARPA.
+...
+127.0.0.192.IN-ADDR.ARPA CNAME 127.0.0.0.192.IN-ADDR.ARPA.
+</PRE>
+<DL>
+<DT>range</DT>
+<DD>
+This can be one of two forms:
+<I>start</I>-<I>stop</I>
+or
+<I>start</I>-<I>stop</I>/<I>step</I>.  If the first form is
+used then step is set to 1.  All of start, stop and step must be positive.
+<DT>lhs</DT>
+<DD>
+Lhs describes the owner name of the resource records to be created.
+Any single $ symbols within the LHS side are replaced by the iterator value.
+To get a $ in the output use \$.  If the lhs is not absolute
+the current $ORIGIN is appended to the name, when appropriate.
+You can also apply an offset to the iterator by using ${offset} where
+offset is a decimal value to add to the iterator.
+And you can also change the format of the iterator by using a printf
+like string.  The format is ${offset,width,radix} where offset is as before
+(use 0 for no change), width is the minimum field width (always zero padded)
+radix is one of d, o, x, or X to change the radix to decimal, octal, hex, or hex
+with capital letters.
+The default is ${0,1,d}.
+For example: ${16,3} will add 16 to the iterator and be replaced by
+a 3 digit decimal representation.  ${0,2,x} will be replaced by a 2 digit
+hex representation.  To get a { character inserted into the text
+immediately after the iterator, use $\{.
+<DT>type</DT>
+<DD>
+At present the only supported types are A, AAAA, PTR, CNAME and NS.
+<DT>rhs</DT>
+<DD>
+Rhs is the data. It is processed similarly to the lhs.
+<DD>
+</DL>
+<H2>Resource Records</H2>
+Syntax: <CODE>{&lt;domain&gt;|@|&lt;blank&gt;}
+[&lt;ttl&gt;] [&lt;class&gt;] &lt;type&gt; &lt;rdata&gt;
+[&lt;comment&gt;]</CODE>
+<P>
+All resource records have the same basic syntax.
+<DL>
+<DT><CODE>domain</CODE></DT>
+<DD>
+Specify the domain name for this record.  If it is not absolute the
+current <CODE>$ORIGIN</CODE> is appended.
+<DT><CODE>@</CODE></DT>
+<DD>
+Use the current <CODE>$ORIGIN</CODE> for the domain name for this record.
+<DT><CODE>blank</CODE></DT>
+<DD>
+Use the last specified domainname.
+<DT><CODE>ttl</CODE></DT>
+<DD>
+This specifies how long this record will be cached by caching servers.
+The valid range is 0-2147483647.
+<DT><CODE>class</CODE></DT>
+<DD>
+Specify the class of this record.  This is usually redundent as the
+class of a zone is specfied in the configuration file prior to reading
+the zone file.
+<DT><CODE>type</CODE></DT>
+<DD>
+Specify the type of this record. This describes the contents of the rdata
+section.
+<DT><CODE>rdata</CODE></DT>
+<DD>
+This is the value of the resource record.
+</DL>
+<H2>Time Values: Alternate Specification format (BIND Enhancement)</H2>
+<P>
+Many time values within the MASTER file may be specified in multiples
+of weeks, days, hours, minutes and seconds rather than just seconds.
+<P>
+The format for this is <CODE>#w#d#h#m#s</CODE>. To specify 1 week you would
+use <CODE>1w</CODE> or two weeks and 1 hour <CODE>2w1h</CODE>.
+<P>
+This format applies to TTL values, and SOA REFRESH, RETRY, EXPIRE and MINIMUM
+values.
+</P>
+</BODY>
+</HTML>

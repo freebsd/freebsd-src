@@ -1,0 +1,120 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 13, 2000
+.Dt NTP.KEYS 5
+.Os
+.Sh NAME
+.Nm ntp.keys
+.Nd NTP daemon key file format
+.Sh SYNOPSIS
+.Nm /etc/ntp.keys
+.Sh DESCRIPTION
+Following is a description of the format of NTP key files.
+For a description of the use of these files, see the
+.Qq Authentication Support
+section of the
+.Xr ntp.conf 5
+page.
+.Pp
+In the case of DES, the keys are 56 bits long with,
+depending on type, a parity check on each byte.
+In the case of MD5, the keys are 64 bits (8 bytes).
+.Xr ntpd 8
+reads its keys from a file specified using the
+.Fl k
+command line option or the
+.Ic keys
+statement in the configuration file.
+While key number 0 is fixed by the NTP standard
+(as 56 zero bits)
+and may not be changed,
+one or more of the keys numbered 1 through 15
+may be arbitrarily set in the keys file.
+.Pp
+The key file uses the same comment conventions
+as the configuration file.
+Key entries use a fixed format of the form
+.Pp
+.D1 Ar keyno type key
+.Pp
+where
+.Ar keyno
+is a positive integer,
+.Ar type
+is a single character which defines the key format,
+and
+.Ar key
+is the key itself.
+.Pp
+The
+.Ar key
+may be given in one of four different formats,
+controlled by the
+.Ar type
+character.
+The four key types, and corresponding formats,
+are listed following.
+.Bl -tag -width X
+.It Li S
+The key is a 64-bit hexadecimal number in the format
+specified in the DES specification;
+that is, the high order seven bits of each octet are used
+to form the 56-bit key
+while the low order bit of each octet is given a value
+such that odd parity is maintained for the octet.
+Leading zeroes must be specified
+(i.e., the key must be exactly 16 hex digits long)
+and odd parity must be maintained.
+Hence a zero key, in standard format, would be given as
+.Ql 0101010101010101 .
+.It Li N
+The key is a 64-bit hexadecimal number in the format
+specified in the NTP standard.
+This is the same as the DES format,
+except the bits in each octet have been rotated one bit right
+so that the parity bit is now the high order bit of the octet.
+Leading zeroes must be specified and odd parity must be maintained.
+A zero key in NTP format would be specified as
+.Ql 8080808080808080 .
+.It Li A
+The key is a 1-to-8 character ASCII string.
+A key is formed from this by using the low order 7 bits
+of each ASCII character in the string,
+with zeroes added on the right
+when necessary to form a full width 56-bit key,
+in the same way that encryption keys are formed from
+.Ux
+passwords.
+.It Li M
+The key is a 1-to-8 character ASCII string,
+using the MD5 authentication scheme.
+Note that both the keys and the authentication schemes (DES or MD5)
+must be identical between a set of peers sharing the same key number.
+.El
+.Pp
+Note that the keys used by the
+.Xr ntpq 8
+and
+.Xr ntpdc 8
+programs are checked against passwords
+requested by the programs and entered by hand,
+so it is generally appropriate to specify these keys in ASCII format.
+.Sh FILES
+.Bl -tag -width /etc/ntp.drift -compact
+.It Pa /etc/ntp.keys
+the default name of the configuration file
+.El
+.Sh SEE ALSO
+.Xr ntp.conf 5 ,
+.Xr ntpd 8 ,
+.Xr ntpdate 8 ,
+.Xr ntpdc 8
+.Sh BUGS
+.Xr ntpd 8
+has gotten rather fat.
+While not huge, it has gotten larger than might
+be desireable for an elevated-priority daemon running on a workstation,
+particularly since many of the fancy features which consume the space
+were designed more with a busy primary server, rather than a high
+stratum workstation, in mind.

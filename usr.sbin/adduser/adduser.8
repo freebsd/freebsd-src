@@ -1,0 +1,243 @@
+.\" Copyright (c) 1995-1996 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 9, 1995
+.Dt ADDUSER 8
+.Os
+.Sh NAME
+.Nm adduser
+.Nd command for adding new users
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl check_only
+.Op Fl class Ar login_class
+.Op Fl config_create
+.Op Fl dotdir Ar dotdir
+.Op Fl group Ar login_group
+.Op Fl h | help
+.Op Fl home Ar home
+.Op Fl message Ar message_file
+.Op Fl noconfig
+.Op Fl shell Ar shell
+.Op Fl s | silent | q | quiet
+.Op Fl uid Ar uid_start
+.Op Fl v | verbose
+.Ek
+.Sh DESCRIPTION
+.Nm Adduser
+is a simple program for adding new users.
+Adduser checks
+the passwd, group and shell databases.
+It creates passwd/group entries,
+.Ev HOME
+directory, dotfiles and sends the new user a welcome message.
+.Sh RESTRICTIONS
+.Bl -tag -width Ds -compact
+.It Sy username
+Login name.
+May contain only lowercase characters or digits.
+Maximum length
+is 16 characters (see
+.Xr setlogin 2
+BUGS section).
+The reasons for this limit are "Historical".
+Given that people have traditionally wanted to break this
+limit for aesthetic reasons, it's never been of great importance to break
+such a basic fundamental parameter in UNIX.
+You can change
+.Dv UT_NAMESIZE
+in
+.Pa /usr/include/utmp.h
+and recompile the
+world; people have done this and it works, but you will have problems
+with any precompiled programs, or source that assumes the 8-character
+name limit and NIS.
+The NIS protocol mandates an 8-character username.
+If you need a longer login name for e-mail addresses,
+you can define an alias in
+.Pa /etc/mail/aliases .
+.It Sy fullname
+Firstname and surname.
+The
+.Ql Pa \&:
+character is not allowed.
+.It Sy shell
+Only valid shells from the shell database or sliplogin and pppd
+.It Sy uid
+Automatically generated or your choice, must be less than 32000.
+.It Sy gid/login group
+Your choice or automatically generated.
+.It Sy password
+If not empty, password is encoded with
+.Xr crypt 3 .
+.El
+.Sh UNIQUE GROUPS
+Perhaps you're missing what
+.Em can
+be done with this scheme that falls apart
+with most other schemes.  With each user in his/her own group the user can
+safely run with a umask of 002 and have files created in their home directory
+and not worry about others being able to read them.
+.Pp
+For a shared area you create a separate uid/gid (like cvs or ncvs on freefall),
+you place each person that should be able to access this area into that new
+group.
+.Pp
+This model of uid/gid administration allows far greater flexibility than lumping
+users into groups and having to muck with the umask when working in a shared
+area.
+.Pp
+I have been using this model for almost 10 years and found that it works
+for most situations, and has never gotten in the way.  (Rod Grimes)
+.Sh CONFIGURATION
+.Bl -enum
+.It
+Read internal variables.
+.It
+Read configuration file (/etc/adduser.conf).
+.It
+Parse command line options.
+.El
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl check_only
+Check /etc/passwd, /etc/group, /etc/shells and exit.
+.It Fl class Ar login_class
+Set default login class.
+.It Fl config_create
+Create new configuration and message file and exit.
+.It Fl dotdir Ar directory
+Copy files from
+.Ar directory
+into the
+.Ev HOME
+directory of new users,
+.Ql Pa dot.foo
+will be renamed to
+.Ql Pa .foo .
+Don't copy files if
+.Ar directory
+specified is equal to
+.Ar no .
+For security make all files writable and readable for owner,
+don't allow group or world to write files and allow only owner
+to read/execute/write
+.Pa .rhost ,
+.Pa .Xauthority ,
+.Pa .kermrc ,
+.Pa .netrc ,
+.Pa Mail ,
+.Pa prv ,
+.Pa iscreen ,
+.Pa term .
+.It Fl group Ar login_group
+Login group.
+.Ar USER
+means that the username is to be used as login group.
+.It Fl help , h , \&?
+Print a summary of options and exit.
+.It Fl home Ar partition
+Default home partition where all users located.
+.It Fl message Ar file
+Send new users a welcome message from
+.Ar file .
+Specifying a value of
+.Ar no
+for
+.Ar file
+causes no message to be sent to new users.
+.It Fl noconfig
+Do not read the default configuration file.
+.It Fl shell Ar shell
+Default shell for new users.
+.It Fl silent , s , quiet , q
+Few warnings, questions, bug reports.
+.It Fl uid Ar uid
+Use uid's from
+.Ar uid
+on up.
+.It Fl verbose , v
+Many warnings, questions.
+Recommended for novice users.
+.El
+.Sh FORMATS
+.Bl -tag -width Ds -compact
+.Ql Pa #
+is a comment.
+.It Sy configuration file
+.Nm Adduser
+reads and writes this file.
+See
+.Pa /etc/adduser.conf
+for more details.
+.It Sy message file
+Eval variables in this file.
+See
+.Pa /etc/adduser.message
+for more
+details.
+.El
+.Sh FILES
+.Bl -tag -width /etc/master.passwdxx -compact
+.It Pa /etc/master.passwd
+user database
+.It Pa /etc/group
+group database
+.It Pa /etc/shells
+shell database
+.It Pa /etc/login.conf
+login classes database
+.It Pa /etc/adduser.conf
+configuration file for adduser
+.It Pa /etc/adduser.message
+message file for adduser
+.It Pa /usr/share/skel
+skeletal login directory
+.It Pa /var/log/adduser
+logfile for adduser
+.El
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr finger 1 ,
+.Xr passwd 1 ,
+.Xr setlogin 2 ,
+.Xr aliases 5 ,
+.Xr group 5 ,
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr shells 5 ,
+.Xr pw 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr rmuser 8 ,
+.Xr vipw 8 ,
+.Xr yp 8
+.\" .Sh BUGS
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 2.1 .

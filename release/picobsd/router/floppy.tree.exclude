@@ -1,0 +1,13 @@
+etc/inetd.conf
+etc/master.passwd
+etc/mfs.login.conf
+etc/mfs.rc
+etc/rc
+etc/rc.conf
+etc/rc.firewall
+etc/rc.network
+etc/rc.serial
+etc/remote
+etc/shells
+etc/snmpd.conf
+etc/ttys

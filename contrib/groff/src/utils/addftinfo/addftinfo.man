@@ -1,0 +1,111 @@
+.ig
+Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.TH ADDFTINFO @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+addftinfo \- add information to troff font files for use with groff
+.SH SYNOPSIS
+.B addftinfo
+[
+.B \-v
+]
+[
+.BI \- param\ value\fR.\|.\|.
+]
+.I res
+.I unitwidth
+.I font
+.SH DESCRIPTION
+.B addftinfo
+reads a troff font file
+and adds some additional font-metric information
+that is used by the groff system.
+The font file with the information added is written on the
+standard output.
+The information added is guessed using 
+some parametric information about the font
+and assumptions
+about the traditional troff names for characters.
+The main information added is the heights and depths of characters.
+The
+.I res
+and
+.I unitwidth
+arguments should be the same as the corresponding parameters
+in the DESC file;
+.I font
+is the name of the file describing the font;
+if
+.I font
+ends with
+.B I
+the font will be assumed to be italic.
+.SH OPTIONS
+.B \-v
+prints the version number.
+.LP
+All other options changes one of the parameters that is used
+to derive the heights and depths.
+Like the existing quantities in the font
+file, each
+.I value
+is in
+.RI inches/ res
+for a font whose point size is
+.IR unitwidth .
+.I param
+must be one of:
+.TP
+.B x-height
+The height of lowercase letters without ascenders such as x.
+.TP
+.B fig-height
+The height of figures (digits).
+.TP
+.B asc-height
+The height of characters with ascenders, such as b, d or l.
+.TP
+.B body-height
+The height of characters such as parentheses.
+.TP
+.B cap-height
+The height of uppercase letters such as A.
+.TP
+.B comma-depth
+The depth of a comma.
+.TP
+.B desc-depth
+The depth of characters with descenders, such as p,q, or y.
+.TP
+.B body-depth
+The depth of characters such as parentheses.
+.LP
+.B addftinfo
+makes no attempt to use the specified parameters to guess
+the unspecified parameters.
+If a parameter is not specified the default will be used.
+The defaults are chosen to have the reasonable values for
+a Times font.
+.SH "SEE ALSO"
+.BR groff_font (@MAN5EXT@),
+.BR groff (@MAN1EXT@),
+.BR groff_char (@MAN7EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

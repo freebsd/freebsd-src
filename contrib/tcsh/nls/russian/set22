@@ -1,0 +1,17 @@
+$ $Id: set22,v 1.1 2001/03/18 19:06:39 christos Exp $
+$ tc.func.c
+$set 22 
+1 %S: \t переопределен в
+2 \nIncorrect passwd for %s\n
+3 Faulty alias 'precmd' removed.\n
+4 Faulty alias 'cwdcmd' removed.\n
+5 Faulty alias 'beepcmd' removed.\n
+6 Faulty alias 'periodic' removed.\n
+7 разбор командной строки\n
+8 Вы действительно хотите удалить все файлы? [n/y] 
+9 пропуск удаления всех файлов!\n
+10 командная строка теперь:\n
+11 разбор командной строки\n
+12 in one of the lists\n
+13 командная строка теперь:\n
+14 yY

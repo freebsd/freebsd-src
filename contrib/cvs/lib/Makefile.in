@@ -1,0 +1,428 @@
+# Makefile.in generated automatically by automake 1.4e from Makefile.am.
+
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+# Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+@SET_MAKE@
+
+# Makefile for library files used by GNU CVS.
+# Copyright (C) 1986, 1988-1994, 2000 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# For now we need to include $(top_srcdir)/src because some systems
+# (at least 'AIX rioscpu2 3 4 000030498200',
+# 'HP-UX hp60 B.10.20 A 9000/770 hp60 two-user license', &
+# 'IRIX64 sgiop110 6.5 07151433 IP30') have trouble finding error.h
+# when compiling savecwd.c
+#
+# FIXME - the fact that compiling on my Linux 2.2.16 system finds
+# /usr/include/error.h instead of $(top_srcdir)/src/error.h but
+# everything compiles and tests anyhow implies that src/error.h may
+# be unecessary now.  Should look more deeply into this
+#
+# $(includeopt) is CVS specific and set by configure
+
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_HEADER = $(INSTALL_DATA)
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+AMTAR = @AMTAR@
+AWK = @AWK@
+CC = @CC@
+CSH = @CSH@
+DEPDIR = @DEPDIR@
+ETAGS = @ETAGS@
+ETAGS_INCLUDE_OPTION = @ETAGS_INCLUDE_OPTION@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
+KRB4 = @KRB4@
+LN_S = @LN_S@
+MAKEINFO = @MAKEINFO@
+PACKAGE = @PACKAGE@
+PERL = @PERL@
+PR = @PR@
+PS2PDF = @PS2PDF@
+RANLIB = @RANLIB@
+ROFF = @ROFF@
+STRIP = @STRIP@
+TEXI2DVI = @TEXI2DVI@
+VERSION = @VERSION@
+YACC = @YACC@
+_am_include = @_am_include@
+_am_quote = @_am_quote@
+includeopt = @includeopt@
+install_sh = @install_sh@
+
+INCLUDES = -I$(top_srcdir)/src $(includeopt)
+
+noinst_LIBRARIES = libcvs.a
+
+# Always use CVS's regular expression matcher regex.o, because of
+# variations in regular expression syntax - we want to be the same
+# across systems and (probably) compared with old versions of CVS too.
+#
+# On a more mundane/detail level, having regex.h match regex.c can be
+# an issue if we aren't careful.
+#
+# Also should look into unifying regular expression matching in CVS
+# with the diff library (perhaps to have the caller, CVS, do the
+# matching?)
+libcvs_a_SOURCES = \
+	argmatch.c \
+	ftruncate.c \
+	getdate.y \
+	getline.c \
+	getopt.c \
+	getopt1.c \
+	md5.c \
+	regex.c \
+	savecwd.c \
+	sighandle.c \
+	stripslash.c \
+	xgetwd.c \
+	yesno.c \
+	getline.h \
+	getopt.h \
+	fnmatch.h \
+	md5.h \
+	regex.h \
+	savecwd.h \
+	system.h \
+	wait.h \
+	xselect.h \
+	xtime.h
+
+libcvs_a_LIBADD = @LIBOBJS@
+
+EXTRA_DIST = \
+	.cvsignore \
+	ChangeLog.fsf \
+	build_lib.com \
+	xgssapi.h
+
+EXEEXT =
+OBJEXT = o
+subdir = lib
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = $(top_builddir)/config.h $(top_builddir)/src/options.h
+CONFIG_CLEAN_FILES =
+LIBRARIES = $(noinst_LIBRARIES)
+
+libcvs_a_AR = $(AR) cru
+libcvs_a_DEPENDENCIES = @LIBOBJS@
+am_libcvs_a_OBJECTS = argmatch.$(OBJEXT) ftruncate.$(OBJEXT) \
+	getdate.$(OBJEXT) getline.$(OBJEXT) getopt.$(OBJEXT) \
+	getopt1.$(OBJEXT) md5.$(OBJEXT) regex.$(OBJEXT) \
+	savecwd.$(OBJEXT) sighandle.$(OBJEXT) stripslash.$(OBJEXT) \
+	xgetwd.$(OBJEXT) yesno.$(OBJEXT)
+libcvs_a_OBJECTS = $(am_libcvs_a_OBJECTS)
+AR = ar
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CFLAGS = @CFLAGS@
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+
+DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir) -I$(top_builddir)/src
+DEFS = @DEFS@
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+DIST_SOURCES = $(libcvs_a_SOURCES)
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+@AMDEP_TRUE@DEP_FILES = $(DEPDIR)/argmatch.Po $(DEPDIR)/dup2.Po \
+@AMDEP_TRUE@	$(DEPDIR)/fncase.Po $(DEPDIR)/fnmatch.Po \
+@AMDEP_TRUE@	$(DEPDIR)/ftruncate.Po $(DEPDIR)/getdate.Po \
+@AMDEP_TRUE@	$(DEPDIR)/getline.Po $(DEPDIR)/getopt.Po \
+@AMDEP_TRUE@	$(DEPDIR)/getopt1.Po $(DEPDIR)/hostname.Po \
+@AMDEP_TRUE@	$(DEPDIR)/md5.Po $(DEPDIR)/memmove.Po \
+@AMDEP_TRUE@	$(DEPDIR)/mkdir.Po $(DEPDIR)/regex.Po \
+@AMDEP_TRUE@	$(DEPDIR)/rename.Po $(DEPDIR)/savecwd.Po \
+@AMDEP_TRUE@	$(DEPDIR)/sighandle.Po $(DEPDIR)/strerror.Po \
+@AMDEP_TRUE@	$(DEPDIR)/stripslash.Po $(DEPDIR)/strstr.Po \
+@AMDEP_TRUE@	$(DEPDIR)/strtoul.Po $(DEPDIR)/valloc.Po \
+@AMDEP_TRUE@	$(DEPDIR)/waitpid.Po $(DEPDIR)/xgetwd.Po \
+@AMDEP_TRUE@	$(DEPDIR)/yesno.Po
+DIST_COMMON = ChangeLog Makefile.am Makefile.in dup2.c fncase.c \
+	fnmatch.c getdate.c hostname.c memmove.c mkdir.c rename.c \
+	strerror.c strstr.c strtoul.c valloc.c waitpid.c
+SOURCES = $(libcvs_a_SOURCES)
+OBJECTS = $(am_libcvs_a_OBJECTS)
+
+all: all-am
+
+.SUFFIXES:
+.SUFFIXES: .c .o .obj .y
+
+$(srcdir)/Makefile.in:  Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --gnu  lib/Makefile
+
+Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+
+libcvs.a: $(libcvs_a_OBJECTS) $(libcvs_a_DEPENDENCIES)
+	-rm -f libcvs.a
+	$(libcvs_a_AR) libcvs.a $(libcvs_a_OBJECTS) $(libcvs_a_LIBADD)
+	$(RANLIB) libcvs.a
+
+.y.c:
+	$(YACC) $(AM_YFLAGS) $(YFLAGS) $< && mv y.tab.c $*.c
+	if test -f y.tab.h; then \
+	  if cmp -s y.tab.h $*.h; then \
+	    rm -f y.tab.h; \
+	  else \
+	    mv y.tab.h $*.h; \
+	  fi; \
+	fi
+
+
+mostlyclean-compile:
+	-rm -f *.$(OBJEXT) core *.core
+
+distclean-compile:
+	-rm -f *.tab.c
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	mkid -fID $$unique $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list @CONFIG@; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
+	  || $(ETAGS) $(ETAGS_ARGS) $$tags  $$unique $(LISP)
+
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
+
+distclean-tags:
+	-rm -f TAGS ID
+
+@_am_include@ @_am_quote@$(DEPDIR)/argmatch.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/dup2.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/fncase.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/fnmatch.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/ftruncate.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/getdate.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/getline.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/getopt.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/getopt1.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/hostname.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/md5.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/memmove.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/mkdir.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/regex.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/rename.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/savecwd.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/sighandle.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/strerror.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/stripslash.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/strstr.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/strtoul.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/valloc.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/waitpid.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/xgetwd.Po@_am_quote@
+@_am_include@ @_am_quote@$(DEPDIR)/yesno.Po@_am_quote@
+
+distclean-depend:
+	-rm -rf $(DEPDIR)
+
+CCDEPMODE = @CCDEPMODE@
+
+.c.o:
+	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
+
+.c.obj:
+	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ `cygpath -w $<`
+
+
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+top_distdir = ..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
+check-am: all-am
+check: check-am
+all-am: Makefile $(LIBRARIES)
+
+installdirs:
+
+install: install-am
+install-exec: install-exec-am
+install-data: install-data-am
+uninstall: uninstall-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+
+installcheck: installcheck-am
+
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
+
+mostlyclean-generic:
+
+clean-generic:
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
+	-rm -f Makefile.in
+	-test -z "getdate.c" || rm -f getdate.c
+clean: clean-am
+
+clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
+
+distclean: distclean-am
+
+distclean-am: clean-am distclean-compile distclean-depend \
+	distclean-generic distclean-tags
+
+dvi:
+
+dvi-am:
+
+info:
+
+info-am:
+
+install-data-am:
+
+install-exec-am:
+
+install-info:
+
+install-man:
+
+installcheck-am:
+
+maintainer-clean: maintainer-clean-am
+
+maintainer-clean-am: distclean-am maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-compile mostlyclean-generic
+
+.PHONY: all all-am check check-am clean clean-generic \
+	clean-noinstLIBRARIES distclean distclean-compile \
+	distclean-depend distclean-generic distclean-tags distdir dvi \
+	dvi-am info info-am install install-am install-data \
+	install-data-am install-exec install-exec-am install-info \
+	install-man install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic tags \
+	uninstall uninstall-am
+
+
+# for backwards compatibility with the old makefiles
+realclean: maintainer-clean
+.PHONY: realclean
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

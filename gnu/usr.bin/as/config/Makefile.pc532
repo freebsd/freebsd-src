@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+SRCS+=		tc-ns32k.c atof-ns32k.c
+
+CFLAGS+=	-DNS32532 -DNS32381
+
+gas_target=	ns32k

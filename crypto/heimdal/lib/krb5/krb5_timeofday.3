@@ -1,0 +1,23 @@
+.\" $Id: krb5_timeofday.3,v 1.1 2001/07/02 22:32:03 joda Exp $
+.Dd July  1, 2001
+.Dt KRB5_TIMEOFDAY 3
+.Sh NAME
+.Nm krb5_timeofday ,
+.Nm krb5_us_timeofday
+.Nd whatever these functions do
+.Sh SYNOPSIS
+.Fd #include <krb5.h>
+.Ft "krb5_error_code"
+.Fn krb5_timeofday "krb5_context context" "krb5_timestamp *timeret" 
+.Ft "krb5_error_code"
+.Fn krb5_us_timeofday "krb5_context context" "int32_t *sec" "int32_t *usec" 
+.Sh DESCRIPTION
+.Fn krb5_timeofday
+returns the current time, but adjusted with the time difference
+between the local host and the KDC.
+.Fn krb5_us_timeofday
+also returns microseconds.
+.Pp
+.\".Sh EXAMPLE
+.Sh SEE ALSO
+.Xr gettimeofday 2

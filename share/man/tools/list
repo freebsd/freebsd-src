@@ -1,0 +1,13 @@
+set x $*
+. ./.param
+
+date > $TMPDIR/list
+echo >> $TMPDIR/list
+
+for dir in $DIRLST
+do
+	cd $MANDIR/man$dir
+	echo "cat <<'EOF' >----------" >> $TMPDIR/list
+	echo "Section $dir" >> $TMPDIR/list
+	ls -ldas .* $FILLST >> $TMPDIR/list
+done

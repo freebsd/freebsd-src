@@ -1,0 +1,291 @@
+.TH GROFF_MWWW @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
+.\" Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+.\"      Written by Gaius Mulley (gaius@glam.ac.uk)
+.\"
+.\" This file is part of groff.
+.\"
+.\" groff is free software; you can redistribute it and/or modify it under
+.\" the terms of the GNU General Public License as published by the Free
+.\" Software Foundation; either version 2, or (at your option) any later
+.\" version.
+.\"
+.\" groff is distributed in the hope that it will be useful, but WITHOUT ANY
+.\" WARRANTY; without even the implied warranty of MERCHANTABILITY or
+.\" FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+.\" for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License along
+.\" with groff; see the file COPYING.  If not, write to the Free Software
+.\" Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+.\"
+.\" user level guide to using the -mwww macroset
+.\"
+.do mso www.tmac
+.\" we need the .LINKS here as we use it in the middle as an example
+.\" once the user requests .LINKS then the automatic generation of links
+.\" at the top of the document is suppresed.
+.LINKS
+.SH NAME
+groff_mwww \- groff macros for authoring web pages
+.LINE
+.SH SYNOPSIS
+.B "groff \-mwww"
+[ options ]
+file ...
+.SH DESCRIPTION
+This manual page describes the GNU \-mwww macros, which is part of the
+groff document formatting system.
+The manual page is very a basic guide, and the html device driver
+.RB ( grohtml )
+has been completely rewritten but still remains as in an alpha state.
+It has been included into the distribution so that a lot of people have a
+chance to test it.
+Note that this macro file will be automatically called (via the
+\fCtroffrc\fP file) if you use \fC-Thtml\fP.
+.PP
+To see the hyperlinks in action, please format this man page with the
+.B grohtml
+device.
+.PP
+Here is a summary of the functions found in this macro set.
+.SH SYNPOSIS
+.ta 2iL
+\&.HTMLINDEX	determine automatic link cut off
+.br
+	point for sections/headers
+.br
+\&.BODYCOLOR	specify colours on a web page
+.br
+\&.BACKGROUND	specify background image
+.br
+\&.URL	create a url using two parameters
+.br
+\&.MAILTO	create a html email address
+.br
+\&.FTP	create an ftp reference
+.br
+\&.IMAGE	include an image file
+.br
+\&.HTML	pass an html raw request to the
+.br
+	device driver
+.br
+\&.TAG	generate an html name tag from $1
+.br
+.\"\&.CDFTP	optionally create two different links
+.\".br
+.\"	depending on hostname
+.\".br
+\&.LINE	create a full width horizontal rule
+.br
+.PP
+Output of the
+.IR pic ,
+.IR eqn ,
+.IR refer ,
+and
+.I tbl
+preprocessors is acceptable as input.
+.SH REQUESTS
+.TP
+.B HTMLINDEX
+determines the cut off point for automatic link generation to headings.
+By default all headings found in a troff document have links created to them
+at the top of the html web page.
+It maybe that many of the lower heading levels do not require links.
+Alternatively some web pages may not need any heading links at all, in which
+case:
+.sp
+.nf
+\fC\&.HTMLINDEX 0\fP
+.fi
+.sp
+will tell
+.B grohtml
+not to generate links.
+An \fCHTMLINDEX\fP of 2 will mean that a heading
+.sp
+.B "1.1.1 Some Title"
+.sp
+will not be included in the links either as it is said to have a heading
+level of three.
+Another method for switching automatic headings is via the command line
+switch \fC-P-l\fP.
+.TP
+.B BODYCOLOR
+takes five parameters: foreground, background, active hypertext link,
+hypertext link not yet visited, and visited hypertext link colour.
+.TP
+.B BACKGROUND
+the only parameter to this macro is the background image file.
+.TP
+.B URL
+generates
+.TAG URL
+a URL using either two or three arguments.
+$1 is the name of the link, $2 is the actual URL, and $3 is optional stuff
+to be printed immediately after $2.
+Hyphenation is disabled while printing the actual URL; explicit breakpoints
+should be inserted with the
+.B \e:
+escape.
+Here is how to encode
+.URL "homepage for groff" http://\:groff.\:ffii.\:org/ :
+.sp
+.nf
+\s-2\fC\&.URL "homepage for groff" http://\e:groff.\e:ffii.\e:org/ :\fP\s+2
+.fi
+.sp
+If this is processed by a device other than \fC-Thtml\fP
+it appears as:
+homepage for groff \(lahttp://groff.\:ffii.\:org\(ra.
+The URL macro can be of any type; for example we can reference
+.URL "Eric Raymond's pic guide" pic.html
+by:
+.sp
+.nf
+\s-2\fC\&.URL "Eric Raymond's pic guide" pic.html\fP\s+2
+.fi
+.sp
+.TP
+.B MAILTO
+generates an email html reference.
+The first argument is mandatory as the email address.
+The optional second argument is the text you see in your browser, and
+an optional third argument is stuff printed immediately after the
+second argument.
+Hyphenation is disabled while printing the actual email address.
+For example, the groff maintainers are
+.MAILTO wl@gnu.org "Werner Lemberg"
+and
+.MAILTO Ted.Harding@nessie.mcc.ac.uk "Ted Harding" .
+This is achieved by the following macros:
+.sp
+.nf
+\s-2\fC\&.MAILTO wl@gnu.org "Werner Lemberg"
+\&.MAILTO Ted.Harding@nessie.mcc.ac.uk "Ted Harding" .\s+2\fP
+.fi
+.sp
+Note that all the urls actually are treated as consuming no textual space
+in groff.
+This could be considered as a bug since it causes some problems.
+To circumvent this, \fCwww.tmac\fP inserts a zero-width character which
+expands to a harmless space (only if run with -Thtml).
+.TP
+.B FTP
+indicates that data can be obtained via ftp.
+The first argument is the browser text and the second is the url.
+A third argument, similar to the macros above, is intended for stuff printed
+immediately after the second argument.
+The second and the third parameter are optional.
+Hyphenation is disabled while printing the actual URL.
+As an example, here the location of the
+.FTP "current groff development distribution" \
+ftp://ftp.ffii.org/\:pub/\:groff/\:devel/\:groff-current.tar.gz .
+The macro example above was specified by:
+.sp
+.nf
+\s-2\fC\&.FTP "current groff development distribution" \\
+ftp://ftp.ffii.org/\e:pub/\e:groff/\e:devel/\e:groff-current.tar.gz .\fP\s+2
+.fi
+.sp
+.TP
+.B IMAGE
+allows the document to include pictures.
+The first argument is the image file.
+The second optional argument gives the horizontal location;
+.B l
+puts the image to the left border,
+.B r
+to the right.
+Any other value centers the image.
+The next two arguments are optional also:
+Argument three is the width in pixels (default is 400 pixels if absent).
+The fourth argument is the height in pixels (default is the width value if
+absent).
+.sp
+.TP
+.B HTML
+all text after this macro is treated as raw html.
+If the document is processed \fIwithout\fP \fC-Thtml\fP then
+the macro is ignored.
+This macro is a building block for other higher level macros.
+.sp
+For example, the \fCBACKGROUND\fP macro is defined as:
+.nf
+\fC\&.de BACKGROUND
+\&.   HTML <body background=\\$1>
+\&..
+\fP
+.fi
+.TP
+.B TAG
+generates an html name tag from its argument.
+This can then be referenced using the
+.URL URL #URL
+macro.
+As you can see, you must precede the tag name with `\fC#\fP' since it is
+a local reference.
+This link was achieved via placing a TAG in the URL description above;
+the source looks like this:
+.sp
+.nf
+\s-2\fC\&.TP
+\&.B URL
+generates
+\&.TAG URL
+a URL using either two or three
+arguments.
+$1 is the name of the link, $2 is the actual URL.\fP\s+2
+.fi
+.sp
+.TP
+.B LINE
+generates a full width horizontal rule.
+Example:
+.sp
+.nf
+\fC\s-2\&.LINE\fP\s+2
+.fi
+.sp
+.TP
+.B LINKS
+.TAG LINK
+requests that grohtml place the automatically generated links at this position.
+For example:
+.LINKS
+.SH
+SECTION HEADING LINKS
+.LP
+By default
+.B grohtml
+generates links to all section headings and places these at the top of the
+html document. (See
+.URL LINKS #LINK
+for details of how to switch this off or alter the position.
+.SH
+LIMITATIONS OF GROHTML
+.LP
+Tbl information is currently rendered as a png image.
+.SH FILES
+@MACRODIR@/mwww.tmac (a wrapper for www.tmac)
+.br
+@MACRODIR@/www.tmac
+.SH "SEE ALSO"
+.BR groff (@MAN1EXT@),
+.BR @g@troff (@MAN1EXT@)
+.BR grohtml (@MAN1EXT@),
+.LP
+.SH AUTHOR
+.B Grohtml
+was written by
+.MAILTO gaius@glam.ac.uk "Gaius Mulley"
+.SH BUGS
+Report bugs to the
+.MAILTO bug-groff@gnu.org "Groff Bug Mailing List" .
+Include a complete, self-contained example that will allow the bug to be
+reproduced, and say which version of groff you are using.
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

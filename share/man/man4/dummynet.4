@@ -1,0 +1,178 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 28, 1998
+.Dt DUMMYNET 4
+.Os
+.Sh NAME
+.Nm dummynet
+.Nd flexible bandwidth manager and delay emulator
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/queue.h
+.In netinet/in.h
+.In netinet/ip_fw.h
+.Ft int
+.Fn setsockopt raw_socket IPPROTO_IP "ipfw option" "struct ipfw" size
+.Sh DESCRIPTION
+dummynet is a system facility that permits the control of traffic
+going through the various network interfaces, by applying bandwidth
+and queue size limitations, and simulating delays and losses.
+.Pp
+In its current implementation,
+packet selection is done with the
+.Nm ipfw
+program, by means of
+.Dq pipe
+rules.
+A dummynet
+.Em pipe
+is characterized by a bandwidth, delay, queue size, and loss
+rate, which can be configured with the
+.Nm ipfw
+program.
+Pipes are
+numbered from 1 to 65534, and packets can be passed through multiple
+pipes depending on the ipfw configuration.
+.Pp
+Dummynet operates at the ip level, but if bridging extensions are
+enabled, it is possible to pass bridged packets through pipes as well.
+.Sh USAGE
+Packets are sent to a pipe using the command
+.Bd -literal
+    ipfw add pipe NNN ....
+.Ed
+.Pp
+and pipes are configured as follows:
+.Bd -literal
+    ipfw pipe NNN config bw B delay D queue Q plr P
+.Ed
+.Pp
+where the bandwidth B can be expressed in bit/s, Kbit/s, Mbit/s,
+Bytes/s, KBytes/s, MBytes/s , delay in milliseconds, queue size in
+packets or Bytes, plr is the fraction of packets randomly dropped.
+.Pp
+Getting ipfw to work right is not very intuitive, especially when
+the system is acting as a router or a bridge.
+.Pp
+When acting as a router, the same ruleset is applied on both the
+input and the output path for routed packets, so you have to make
+sure that a packet does not go through the same pipe twice (unless
+this is what you really want).
+.Pp
+When acting as a bridge, the
+.Nm ipfw
+filter is invoked only once, in the input path,
+for bridged packets.
+.Pp
+Also, when simulating true full-duplex channels, be sure to pass
+traffic through two different pipes, depending on the direction.
+E.g. a suitable rule set for simulating an asymmetric bidirectional
+link would be the following:
+.Bd -literal
+   ipfw add pipe 1 ip from A to B out
+   ipfw add pipe 2 ip from B to A in
+   ipfw pipe 1 config bw 1Mbit/s delay 80ms
+   ipfw pipe 2 config bw 128Kbit/s delay 300ms
+.Ed
+.Sh OPERATION
+The
+.Nm ipfw
+code is used to select packets that must be subject to
+bandwidth/queue/delay/losses, and returns the identifier of
+the ``pipe'' describing such limitations.
+.Pp
+Selected packets are first queued in a bounded size queue, from which
+they are extracted at the programmed rate and passed to a second queue
+where delay is simulated.
+At the output from the second queue packets
+are reinjected into the protocol stack at the same point they came
+from (i.e. ip_input(), ip_output(), bdg_forward() ).
+Depending on the setting of the sysctl variable
+.Ql net.inet.ip.fw.one_pass ,
+packets coming from a pipe can be either forwarded to their
+destination, or passed again through the
+.Nm ipfw
+rules, starting from the one after the matching rule.
+.Pp
+.Nm
+performs its task once per timer tick.
+The granularity of operation is
+thus controlled by the kernel option
+.Bd -literal
+    options HZ
+.Ed
+.Pp
+whose default value (100) means a granularity of 10ms.
+For an accurate simulation of high data rates it might be necessary to
+reduce the timer granularity to 1ms or less.
+Consider, however,
+that some interfaces using programmed I/O may require a considerable
+time to output packets.
+So, reducing the granularity too much might
+actually cause ticks to be missed thus reducing the accuracy of
+operation.
+.Sh KERNEL OPTIONS
+The following options in the kernel configuration file are related
+to
+.Nm
+operation:
+.Bd -literal
+  IPFIREWALL               - enable ipfirewall (required for dummynet).
+  IPFIREWALL_VERBOSE       - enable firewall output.
+  IPFIREWALL_VERBOSE_LIMIT - limit firewall output.
+  DUMMYNET                 - enable dummynet operation.
+  NMBCLUSTERS              - set the amount of network packet buffers
+  HZ                       - sets the timer granularity
+.Ed
+.Pp
+Generally, the following options are required:
+.Bd -literal
+  options IPFIREWALL
+  options DUMMYNET
+.Ed
+.Pp
+additionally, one may want to increase the number
+of mbuf clusters (used to store network packets) according to the
+sum of the bandwidth-delay products and queue sizes of all configured
+pipes.
+.Sh SYSCTL VARIABLES
+.Ql net.inet.ip.fw.one_pass
+is set to 1 if we want packets to pass through the firewall code only
+once.
+.Pp
+.Ql net.link.ether.bridge_ipfw
+is set if we want bridged packets to pass through the firewall code.
+.Sh COMMANDS
+The following socket options are used to manage pipes:
+.Pp
+IP_DUMMYNET_CONFIGURE updates a pipe configuration (or creates a
+new one.
+.Pp
+IP_DUMMYNET_DEL deletes all pipes having the matching rule number.
+.Pp
+IP_DUMMYNET_GET returns the pipes matching the number.
+.Pp
+IP_FW_FLUSH flushes the pipes matching the number.
+.Pp
+When the kernel security level is greater than 2, only IP_DUMMYNET_GET
+is allowed.
+.Sh SEE ALSO
+.Xr setsockopt 2 ,
+.Xr bridge 4 ,
+.Xr ip 4 ,
+.Xr ipfw 8 ,
+.Xr sysctl 8
+.Sh BUGS
+This manpage is not illustrating all the possible ways to use
+dummynet.
+.Sh HISTORY
+.Nm
+was initially implemented as a testing tool for TCP congestion control
+by
+.An Luigi Rizzo Aq luigi@iet.unipi.it ,
+as described on ACM Computer
+Communication Review, Jan.97 issue.
+Later it has been then modified
+to work at the ip and bridging level, and integrated with the IPFW
+packet filter.

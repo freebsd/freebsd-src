@@ -1,0 +1,16 @@
+$ $Id: set17,v 1.1 2000/11/11 23:03:43 christos Exp $
+$ sh.proc.c
+$set 17 
+1 BUG: waiting for background job!\n
+2 Exit %d\n
+3 BUG: process flushed twice
+4 Running 
+5 Signal 
+6 Exit %-25d
+7 Done
+8 BUG: status=%-9o
+9 \040(записано core)
+10 \040(wd:
+11 wd тепер: 
+12 %S: Already suspended\n
+13 %S: Already stopped\n

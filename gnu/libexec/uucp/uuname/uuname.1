@@ -1,0 +1,45 @@
+''' $FreeBSD$
+.TH uuname 1 "Taylor UUCP 1.06"
+.SH NAME
+uuname \- list known remote UUCP sites
+.SH SYNOPSIS
+.B uuname 
+[-a] [-l] [standard UUCP options]
+.SH DESCRIPTION
+The 
+.B uuname
+program by default lists all the remote systems your
+system knows about.  You can also use it to get the name of your
+local system.  It is mostly useful for shell scripts.
+.SH OPTIONS
+The following options may be given to 
+.B uuname.
+.TP 5
+.B \-a, \-\-aliases
+List all aliases for remote systems, as well as their canonical
+names.  Aliases may be specified in the 
+.I sys
+file.
+.TP 5
+.B \-l, \-\-local
+Print the UUCP name of the local system, rather than listing the
+names of all the remote systems.
+.TP 5
+.B \-x type
+.TP 5
+.B \-\-debug type
+.TP 5
+.B \-I file
+.TP 5
+.B \-\-config file
+.TP 5
+.B \-v, \-\-version
+.TP 5
+.B \-\-help
+Standard UUCP options.
+.SH SEE ALSO
+uucp(1)
+.SH AUTHOR
+Ian Lance Taylor (ian@airs.com).
+This Manpage based on the Taylor UUCP 1.06 Texinfo documentation.
+

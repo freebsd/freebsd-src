@@ -1,0 +1,152 @@
+#! @PERL@
+
+# Merge conflicted ChangeLogs
+# tromey Mon Aug 15 1994
+
+# Usage is:
+#
+#	cl-merge [-i] file ...
+#
+# With -i, it works in place (backups put in a ~ file).  Otherwise the
+# merged ChangeLog is printed to stdout.
+
+# Please report any bugs to me.  I wrote this yesterday, so there are no
+# guarantees about its performance.  I recommend checking its output
+# carefully.  If you do send a bug report, please include the failing
+# ChangeLog, so I can include it in my test suite.
+#
+# Tom
+# ---
+# tromey@busco.lanl.gov             Member, League for Programming Freedom
+# Sadism and farce are always inexplicably linked.
+#	-- Alexander Theroux
+
+
+# Month->number mapping.  Used for sorting.
+%months = ('Jan', 0,
+	   'Feb', 1,
+	   'Mar', 2,
+	   'Apr', 3,
+	   'May', 4,
+	   'Jun', 5,
+	   'Jul', 6,
+	   'Aug', 7,
+	   'Sep', 8,
+	   'Oct', 9,
+	   'Nov', 10,
+	   'Dec', 11);
+
+# If '-i' is given, do it in-place.
+if ($ARGV[0] eq '-i') {
+    shift (@ARGV);
+    $^I = '~';
+}
+
+$lastkey = '';
+$lastval = '';
+$conf = 0;
+%conflist = ();
+
+$tjd = 0;
+
+# Simple state machine.  The states:
+#
+# 0	Not in conflict.  Just copy input to output.
+# 1	Beginning an entry.  Next non-blank line is key.
+# 2	In entry.  Entry beginner transitions to state 1.
+while (<>) {
+    if (/^<<<</ || /^====/) {
+	# Start of a conflict.
+
+	# Copy last key into array.
+	if ($lastkey ne '') {
+	    $conflist{$lastkey} = $lastval;
+
+	    $lastkey = '';
+	    $lastval = '';
+	}
+
+	$conf = 1;
+    } elsif (/^>>>>/) {
+	# End of conflict.  Output.
+
+	# Copy last key into array.
+	if ($lastkey ne '') {
+	    $conflist{$lastkey} = $lastval;
+
+	    $lastkey = '';
+	    $lastval = '';
+	}
+
+	foreach (reverse sort clcmp keys %conflist) {
+	    print STDERR "doing $_" if $tjd;
+	    print $_;
+	    print $conflist{$_};
+	}
+
+	$lastkey = '';
+	$lastval = '';
+	$conf = 0;
+	%conflist = ();
+    } elsif ($conf == 1) {
+	# Beginning an entry.  Skip empty lines.  Error if not a real
+	# beginner.
+	if (/^$/) {
+	    # Empty line; just skip at this point.
+	} elsif (/^[MTWFS]/) {
+	    # Looks like the name of a day; assume opener and move to
+	    # "in entry" state.
+	    $lastkey = $_;
+	    $conf = 2;
+	    print STDERR "found $_" if $tjd;
+	} else {
+	    die ("conflict crosses entry boundaries: $_");
+	}
+    } elsif ($conf == 2) {
+	# In entry.  Copy into variable until we see beginner line.
+	if (/^[MTWFS]/) {
+	    # Entry beginner line.
+
+	    # Copy last key into array.
+	    if ($lastkey ne '') {
+		$conflist{$lastkey} = $lastval;
+
+		$lastkey = '';
+		$lastval = '';
+	    }
+
+	    $lastkey = $_;
+	    print STDERR "found $_" if $tjd;
+	    $lastval = '';
+	} else {
+	    $lastval .= $_;
+	}
+    } else {
+	# Just copy.
+	print;
+    }
+}
+
+# Compare ChangeLog time strings like <=>.
+#
+# 0         1         2         3
+# Thu Aug 11 13:22:42 1994  Tom Tromey  (tromey@creche.colorado.edu)
+# 0123456789012345678901234567890
+#
+sub clcmp {
+    # First check year.
+    $r = substr ($a, 20, 4) <=> substr ($b, 20, 4);
+
+    # Now check month.
+    $r = $months{substr ($a, 4, 3)} <=> $months{substr ($b, 4, 3)} if !$r;
+
+    # Now check day.
+    $r = substr ($a, 8, 2) <=> substr ($b, 8, 2) if !$r;
+
+    # Now check time (3 parts).
+    $r = substr ($a, 11, 2) <=> substr ($b, 11, 2) if !$r;
+    $r = substr ($a, 14, 2) <=> substr ($b, 14, 2) if !$r;
+    $r = substr ($a, 17, 2) <=> substr ($b, 17, 2) if !$r;
+
+    $r;
+}

@@ -1,0 +1,10 @@
+#------------------------------------------------------------------------------
+# amigaos:  file(1) magic for AmigaOS binary formats:
+
+#
+# From ignatios@cs.uni-bonn.de (Ignatios Souvatzis)
+# Some formats are still missing: AmigaOS special IFF's, e.g.: FORM....CTLG
+# (the others should be seperate, anyway)
+#
+0	belong		0x000003f3	AmigaOS loadseg()ble executable/binary
+0	belong		0x000003e7	AmigaOS object/library data

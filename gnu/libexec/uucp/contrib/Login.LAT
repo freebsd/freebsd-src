@@ -1,0 +1,137 @@
+#!xchat
+# @(#) login.LAT V1.2 Tue Sep  1 13:25:28 1992
+#
+# xchat script for logging into a VMS system through a LAT
+# terminal server port. If no VMS password parameter supplied,
+# skips password phase of VMS login. If LAT-password supplied,
+# will log into LAT server using that password. NOTE: does not
+# handle the situation where a LAT password is needed but no
+# VMS password is needed.
+#
+# Usage:
+#	xchat login.LAT sysname username [ password [ LAT-password ] ]
+#
+# History:
+#  rbd Fri Aug 14 13:37:06 1992	
+#    Changes for Lantronix ETS-16. It says "type help at the Local> 
+#    prompt..." then it gives the prompt for real! Prompt may need
+#    to be something other than "Local>". We match the real Local> 
+#    prompt by matching	the leading newline!
+#
+#  rbd Tue Sep  1 13:04:32 1992 
+#    Remove absolute path name from log file. Now defaults per config.
+#
+start:
+	dbgfile	Login.Log
+	dbgset	15
+	sleep	2000			# Wait 2 seconds
+	flush				# Flush typeahead
+	ifnstr	svrstart	3	# Skip server password if not given
+#
+# Starting point if server password supplied. Handle situation
+# where the server line may have been left waiting for username
+# or at local> prompt.
+#
+getsvrpwp:
+	zero
+l0:
+	count				# Get server's password prompt
+	ifgtr	deadmux		5	# die if 5 cr's don't do it
+	send	\r
+	timeout	l0		1000	# Wait and try again
+	expect	dosvrpw		ssword>
+	expect	svrlogin	ername>
+	expect	connect		\nLocal>
+#
+# Send server's password. Fail if don't get Username
+# or Local> prompt.
+#
+dosvrpw:
+	zero
+l2:
+	sendstr	3
+	send \r
+	timeout	badsvrpw	5000	# Die if invalid
+	expect	svrlogin	ername>
+	expect	connect		\nLocal>
+#
+# Starting point if NO server password supplied. Handle situation
+# where the server line may have been left at local> prompt.
+#
+svrstart:
+	zero
+l1:
+	count				# Get username> or local> prompt
+	ifgtr	deadmux		5	# Die if 5 cr's don't do it
+	send	\r
+	timeout	l1		1000	# Wait and try again
+	expect	svrlogin	ername>
+	expect	connect		\nLocal>
+#
+# Server asked for a username. Just give 'uucp'.
+#
+svrlogin:
+	send	uucp\r
+	timeout deadmux		2000
+	expect	connect		\nLocal>
+#
+# At this point, we have the Local> prompt. Send the connect
+# command for the specified LAT host service name, and wait for
+# VMS "Username:" prompt. Die after 10 seconds.
+#
+connect:
+	send	c\s
+	sendstr	0
+	send	\r
+	timeout	nologin		10000
+	expect	gotlogin	ername:
+#
+# Got VMS "Username:" prompt. Send the username. If a password
+# was given, wait for the "Password:" prompt. Die after 10 seconds.
+# if no password was given, we're done!
+#
+gotlogin:
+	sendstr	1
+	send	\r
+	ifnstr	done		2
+	timeout	nopasswd	10000
+	expect	gotpasswd	ssword:
+#
+# Got VMS "Password:" prompt. Send the password and we're done!
+#
+gotpasswd:
+	sendstr	2
+	send	\r
+#
+# Success!
+#
+done:
+	success
+#
+# ERROR HANDLERS
+#
+#
+# LAT server appears dead. Fail.
+#
+deadmux:
+	logerr	No response from LAT server
+	failed
+#
+# The server password was bad. Fail.
+#
+badsvrpw:
+	logerr	Invalid LAT server password
+	failed
+#
+# VMS system appears to be dead. Fail.
+#
+nologin:
+	logerr	No VMS Username: prompt
+	failed
+#
+# Failed to get "Password:" prompt. Fail.
+#
+nopasswd:
+	logerr	No VMS Password: prompt. Invalid password?
+	failed
+

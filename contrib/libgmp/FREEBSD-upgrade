@@ -1,0 +1,26 @@
+This directory contains virgin copies of the original distribution files
+on a "vendor" branch.  Do not, under any circumstances, attempt to upgrade
+the files in this directory via patches and a cvs commit.
+
+To upgrade to a newer version of libgmp, when it is available:
+	1. Unpack the new version into an empty directory.
+	   [Do not make ANY changes to the files, except remove the
+            files/directories for architectures not supported by FreeBSD
+            in the mpn/ dir]
+
+	2. Use the command:
+		cvs import -m 'Virgin import of FSF libgmp v<versiOn>' \
+			src/contrib/libgmp FSF v<version>
+
+	3. Follow the instructions printed out in step 2 to resolve any
+	   conflicts between local FreeBSD changes and the newer version.
+
+Do not, under any circumstances, deviate from this procedure.
+
+To make local changes to libgmp, simply patch and commit to the main
+branch (aka HEAD).  Never make local changes on the FSF branch.
+
+All local changes should be submitted to "bug-gmp@prep.ai.mit.edu" for
+inclusion in the next vendor release of libgmp.
+
+markm@freebsd.org - 20 Oct 1996

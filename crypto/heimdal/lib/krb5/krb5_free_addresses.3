@@ -1,0 +1,20 @@
+.\" Copyright (c) 2001 Kungliga Tekniska Högskolan
+.\" $Id: krb5_free_addresses.3,v 1.1 2001/11/20 20:50:52 assar Exp $
+.Dd November 20, 2001
+.Dt KRB5_FREE_ADDRESSES 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_free_addresses
+.Nd free list of addresses
+.Sh SYNOPSIS
+.Fd #include <krb5.h>
+.Ft void
+.Fn krb5_free_addresses "krb5_context context" "krb5_addresses *addresses"
+.Sh DESCRIPTION
+The 
+.Fn krb5_free_addresses
+will free a list of addresses that has been created with
+.Fn krb5_get_all_client_addrs
+or with some other function. 
+.Sh SEE ALSO
+.Xr krb5_get_all_client_addrs 3

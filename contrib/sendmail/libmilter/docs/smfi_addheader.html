@@ -1,0 +1,94 @@
+<html>
+<head><title>smfi_addheader</title></head>
+<body>
+<h1>smfi_addheader</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_addheader(
+	SMFICTX *ctx,
+	char *headerf,
+	char *headerv
+);
+</pre>
+Add a header to the current message.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>Called only from <a href="xxfi_eom.html">xxfi_eom</a>.</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>Adds a header to the current message.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    <tr valign="top"><td>headerf</td>
+	<td>The header name, a non-NULL, null-terminated string.
+	</td></tr>
+    <tr valign="top"><td>headerv</td>
+	<td>The header value to be added, a non-NULL, null-terminated string.  This may be the empty string.  
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>smfi_addheader returns MI_FAILURE if:
+<ul><li>headerf or headerv is NULL.
+    <li>Adding headers in the current connection state is invalid.
+    <li>Memory allocation fails.
+    <li>A network error occurs.
+    <li>SMFIF_ADDHDRS was not set when <a href="smfi_register.html">smfi_register</a> was called.
+</ul>
+Otherwise, it returns MI_SUCCESS.
+</td>
+</tr>
+
+<!----------- Notes ---------->
+<tr align="left" valign=top>
+<th>NOTES</th> 
+<td>
+<ul><li>smfi_addheader does not change a message's existing headers.
+To change a header's current value, use <a
+href="smfi_chgheader.html">smfi_chgheader</a>.
+    <li>A filter which calls smfi_addheader must have set the SMFIF_ADDHDRS flag in the smfiDesc_str passed to <a href="smfi_register.html">smfi_register</a>.
+    <li>For smfi_chgheader, filter order is important.  <b>Later filters will see the header changes made by earlier ones.</b>
+    <li>Neither the name nor the value of the header is checked for
+    standards compliance.  However, each line of the header must be under
+    2048 characters and should be under 998 characters.  If longer headers
+    are needed, make them multiline.
+    <b>It is the filter writer's responsibility to ensure that no standards
+    are violated.</b>
+</ul>
+</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the <a href="LICENSE.txt">LICENSE</a>.
+</font>
+</body>
+</html>

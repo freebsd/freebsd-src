@@ -1,0 +1,19 @@
+$FreeBSD$
+This is the README for pam_ftp
+------------------------------
+
+This module is an authentication module that does simple ftp
+authentication.
+
+Recognized arguments:
+
+	"debug"		print debug messages
+	"users="	comma separated list of users which
+			could login only with email adress
+	"ignore"	allow invalid email adresses
+
+Options for:
+auth:	for authentication it provides pam_authenticate() and
+	pam_setcred() hooks.
+
+Thorsten Kukuk <kukuk@suse.de>, 17. June 1999

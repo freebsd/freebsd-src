@@ -1,0 +1,21 @@
+#!/bin/sh
+if [ -f /usr/ucb/touch ] ; then
+	TOUCH=/usr/ucb/touch
+else
+	if [ -f /usr/bin/touch ] ; then
+		TOUCH=/usr/bin/touch
+	else
+		if [ -f /bin/touch ] ; then
+			TOUCH=/bin/touch
+		fi
+	fi
+fi
+echo "$1...";
+/bin/cp /dev/null results/$1
+../ipf -nvf regress/$1 2>/dev/null > results/$1
+cmp expected/$1 results/$1
+status=$?
+if [ $status = 0 ] ; then
+	$TOUCH $1
+fi
+exit $status

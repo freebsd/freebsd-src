@@ -1,0 +1,15 @@
+#!/usr/bin/perl
+while (<>) {
+    next unless ($mode,$file) = /^begin\s*(\d*)\s*(\S*)/;
+    open(OUT,"> $file") || die "Can't create $file: $!\n";
+    while (<>) {
+	    last if /^end/;
+	    next if /[a-z]/;
+	    next unless int((((ord() - 32) & 077) + 2) / 3) ==
+		    int(length() / 4);
+	    print OUT unpack("u", $_);
+    }
+    chmod oct($mode), $file;
+    eof() && die "Missing end: $file may be truncated.\n";
+}
+

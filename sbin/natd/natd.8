@@ -1,0 +1,606 @@
+.\" $FreeBSD$
+.Dd June 27, 2000
+.Dt NATD 8
+.Os
+.Sh NAME
+.Nm natd
+.Nd Network Address Translation daemon
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl unregistered_only | u
+.Op Fl log | l
+.Op Fl proxy_only
+.Op Fl reverse
+.Op Fl deny_incoming | d
+.Op Fl use_sockets | s
+.Op Fl same_ports | m
+.Op Fl verbose | v
+.Op Fl dynamic
+.Op Fl in_port | i Ar port
+.Op Fl out_port | o Ar port
+.Op Fl port | p Ar port
+.Op Fl alias_address | a Ar address
+.Op Fl target_address | t Ar address
+.Op Fl interface | n Ar interface
+.Op Fl proxy_rule Ar proxyspec
+.Op Fl redirect_port Ar linkspec
+.Op Fl redirect_proto Ar linkspec
+.Op Fl redirect_address Ar linkspec
+.Op Fl config | f Ar configfile
+.Op Fl log_denied
+.Op Fl log_facility Ar facility_name
+.Op Fl punch_fw Ar firewall_range
+.Op Fl log_ipfw_denied
+.Ek
+.Sh DESCRIPTION
+This program provides a Network Address Translation facility for use
+with
+.Xr divert 4
+sockets under
+.Fx .
+It is intended for use with NICs - if you want to do NAT on a PPP link,
+use the
+.Fl nat
+switch to
+.Xr ppp 8 .
+.Pp
+The
+.Nm
+normally runs in the background as a daemon.
+It is passed raw IP packets as they travel into and out of the machine,
+and will possibly change these before re-injecting them back into the
+IP packet stream.
+.Pp
+It changes all packets destined for another host so that their source
+IP number is that of the current machine.
+For each packet changed in this manner, an internal table entry is
+created to record this fact.
+The source port number is also changed to indicate the table entry
+applying to the packet.
+Packets that are received with a target IP of the current host are
+checked against this internal table.
+If an entry is found, it is used to determine the correct target IP
+number and port to place in the packet.
+.Pp
+The following command line options are available:
+.Bl -tag -width Fl
+.It Fl log | l
+Log various aliasing statistics and information to the file
+.Pa /var/log/alias.log .
+This file is truncated each time
+.Nm
+is started.
+.It Fl deny_incoming | d
+Do not pass incoming packets that have no
+entry in the internal translation table.
+.Pp
+If this option is not used, then such a packet will be altered
+using the rules in
+.Fl target_address
+below, and the entry will be made in the internal translation table.
+.It Fl log_denied
+Log denied incoming packets via
+.Xr syslog 3
+(see also
+.Fl log_facility ) .
+.It Fl log_facility Ar facility_name
+Use specified log facility when logging information via
+.Xr syslog 3 .
+Argument
+.Ar facility_name
+is one of the keywords specified in
+.Xr syslog.conf 5 .
+.It Fl use_sockets | s
+Allocate a
+.Xr socket 2
+in order to establish an FTP data or IRC DCC send connection.
+This option uses more system resources, but guarantees successful
+connections when port numbers conflict.
+.It Fl same_ports | m
+Try to keep the same port number when altering outgoing packets.
+With this option, protocols such as RPC will have a better chance
+of working.
+If it is not possible to maintain the port number, it will be silently
+changed as per normal.
+.It Fl verbose | v
+Do not call
+.Xr daemon 3
+on startup.
+Instead, stay attached to the controlling terminal and display all packet
+alterations to the standard output.
+This option should only be used for debugging purposes.
+.It Fl unregistered_only | u
+Only alter outgoing packets with an
+.Em unregistered
+source address.
+According to RFC 1918, unregistered source addresses are 10.0.0.0/8,
+172.16.0.0/12 and 192.168.0.0/16.
+.It Fl redirect_port Ar proto Xo
+.Ar targetIP Ns : Ns Xo
+.Ar targetPORT Ns Op - Ns Ar targetPORT Xc
+.Op Ar aliasIP Ns : Ns Xo
+.Ar aliasPORT Ns Op - Ns Ar aliasPORT Xc
+.Oo Ar remoteIP Ns Oo : Ns
+.Ar remotePORT Ns Op - Ns Ar remotePORT
+.Oc Oc
+.Xc
+Redirect incoming connections arriving to given port(s) to another host
+and port(s).
+Argument
+.Ar proto
+is either
+.Ar tcp
+or
+.Ar udp ,
+.Ar targetIP
+is the desired target IP number,
+.Ar targetPORT
+is the desired target port number or range,
+.Ar aliasPORT
+is the requested port number or range, and
+.Ar aliasIP
+is the aliasing address.
+Arguments
+.Ar remoteIP
+and
+.Ar remotePORT
+can be used to specify the connection more accurately if necessary.
+The
+.Ar targetPORT
+range and
+.Ar aliasPORT
+range need not be the same numerically, but must have the same size.
+If
+.Ar remotePORT
+is not specified, it is assumed to be all ports.
+If
+.Ar remotePORT
+is specified, it must match the size of
+.Ar targetPORT ,
+or be 0 (all ports).
+For example, the argument
+.Pp
+.Dl Ar tcp inside1:telnet 6666
+.Pp
+means that incoming TCP packets destined for port 6666 on this machine
+will be sent to the telnet port on the inside1 machine.
+.Pp
+.Dl Ar tcp inside2:2300-2399 3300-3399
+.Pp
+will redirect incoming connections on ports 3300-3399 to host
+inside2, ports 2300-2399.
+The mapping is 1:1 meaning port 3300 maps to 2300, 3301 maps to 2301, etc.
+.It Fl redirect_proto Ar proto localIP Oo
+.Ar publicIP Op Ar remoteIP
+.Oc
+Redirect incoming IP packets of protocol
+.Ar proto
+(see
+.Xr protocols 5 )
+destined for
+.Ar publicIP
+address to a
+.Ar localIP
+address and vice versa.
+.Pp
+If
+.Ar publicIP
+is not specified, then the default aliasing address is used.
+If
+.Ar remoteIP
+is specified, then only packets coming from/to
+.Ar remoteIP
+will match the rule.
+.It Fl redirect_address Ar localIP publicIP
+Redirect traffic for public IP address to a machine on the local
+network.
+This function is known as
+.Em static NAT .
+Normally static NAT is useful if your ISP has allocated a small block
+of IP addresses to you, but it can even be used in the case of single
+address:
+.Pp
+.Dl Ar redirect_address 10.0.0.8 0.0.0.0
+.Pp
+The above command would redirect all incoming traffic
+to machine 10.0.0.8.
+.Pp
+If several address aliases specify the same public address
+as follows
+.Bd -literal -offset indent
+.Ar redirect_address 192.168.0.2 public_addr
+.Ar redirect_address 192.168.0.3 public_addr
+.Ar redirect_address 192.168.0.4 public_addr
+.Ed
+.Pp
+the incoming traffic will be directed to the last
+translated local address (192.168.0.4), but outgoing
+traffic from the first two addresses will still be aliased
+to appear from the specified
+.Ar public_addr .
+.It Fl redirect_port Ar proto Xo
+.Ar targetIP Ns : Ns Xo
+.Ar targetPORT Ns Oo , Ns
+.Ar targetIP Ns : Ns Xo
+.Ar targetPORT Ns Oo , Ns
+.Ar ...\&
+.Oc Oc
+.Xc
+.Xc
+.Op Ar aliasIP Ns : Ns Xo
+.Ar aliasPORT
+.Xc
+.Oo Ar remoteIP Ns
+.Op : Ns Ar remotePORT
+.Oc
+.Xc
+.It Fl redirect_address Xo
+.Ar localIP Ns Oo , Ns
+.Ar localIP Ns Oo , Ns
+.Ar ...\&
+.Oc Oc
+.Ar publicIP
+.Xc
+These forms of
+.Fl redirect_port
+and
+.Fl redirect_address
+are used to transparently offload network load on a single server and
+distribute the load across a pool of servers.
+This function is known as
+.Em LSNAT
+(RFC 2391).
+For example, the argument
+.Pp
+.Dl Ar tcp www1:http,www2:http,www3:http www:http
+.Pp
+means that incoming HTTP requests for host www will be transparently
+redirected to one of the www1, www2 or www3, where a host is selected
+simply on a round-robin basis, without regard to load on the net.
+.It Fl dynamic
+If the
+.Fl n
+or
+.Fl interface
+option is used,
+.Nm
+will monitor the routing socket for alterations to the
+.Ar interface
+passed.
+If the interface's IP number is changed,
+.Nm
+will dynamically alter its concept of the alias address.
+.It Fl in_port | i Ar port
+Read from and write to
+.Xr divert 4
+port
+.Ar port ,
+treating all packets as
+.Dq incoming .
+.It Fl out_port | o Ar port
+Read from and write to
+.Xr divert 4
+port
+.Ar port ,
+treating all packets as
+.Dq outgoing .
+.It Fl port | p Ar port
+Read from and write to
+.Xr divert 4
+port
+.Ar port ,
+distinguishing packets as
+.Dq incoming
+or
+.Dq outgoing
+using the rules specified in
+.Xr divert 4 .
+If
+.Ar port
+is not numeric, it is searched for in the
+.Xr services 5
+database.
+If this option is not specified, the divert port named
+.Ar natd
+will be used as a default.
+.It Fl alias_address | a Ar address
+Use
+.Ar address
+as the aliasing address.
+If this option is not specified, the
+.Fl interface
+option must be used.
+The specified address is usually the address assigned to the
+.Dq public
+network interface.
+.Pp
+All data passing
+.Em out
+will be rewritten with a source address equal to
+.Ar address .
+All data coming
+.Em in
+will be checked to see if it matches any already-aliased outgoing
+connection.
+If it does, the packet is altered accordingly.
+If not, all
+.Fl redirect_port ,
+.Fl redirect_proto
+and
+.Fl redirect_address
+assignments are checked and actioned.
+If no other action can be made and if
+.Fl deny_incoming
+is not specified, the packet is delivered to the local machine
+using the rules specified in
+.Fl target_address
+option below.
+.It Fl t | target_address Ar address
+Set the target address.
+When an incoming packet not associated with any pre-existing link
+arrives at the host machine, it will be sent to the specified
+.Ar address .
+.Pp
+The target address may be set to
+.Ar 255.255.255.255 ,
+in which case all new incoming packets go to the alias address set by
+.Fl alias_address
+or
+.Fl interface .
+.Pp
+If this option is not used, or called with the argument
+.Ar 0.0.0.0 ,
+then all new incoming packets go to the address specified in
+the packet.
+This allows external machines to talk directly to internal machines if
+they can route packets to the machine in question.
+.It Fl interface | n Ar interface
+Use
+.Ar interface
+to determine the aliasing address.
+If there is a possibility that the IP number associated with
+.Ar interface
+may change, the
+.Fl dynamic
+option should also be used.
+If this option is not specified, the
+.Fl alias_address
+option must be used.
+.Pp
+The specified
+.Ar interface
+is usually the
+.Dq public
+(or
+.Dq external )
+network interface.
+.It Fl config | f Ar file
+Read configuration from
+.Ar file .
+A
+.Ar file
+should contain a list of options, one per line, in the same form
+as the long form of the above command line options.
+For example, the line
+.Pp
+.Dl alias_address 158.152.17.1
+.Pp
+would specify an alias address of 158.152.17.1.
+Options that do not take an argument are specified with an argument of
+.Ar yes
+or
+.Ar no
+in the configuration file.
+For example, the line
+.Pp
+.Dl log yes
+.Pp
+is synonymous with
+.Fl log .
+.Pp
+Trailing spaces and empty lines are ignored.
+A
+.Ql \&#
+sign will mark the rest of the line as a comment.
+.It Fl reverse
+This option makes
+.Nm
+reverse the way it handles
+.Dq incoming
+and
+.Dq outgoing
+packets, allowing it to operate on the
+.Dq internal
+network interface rather than the
+.Dq external
+one.
+.Pp
+This can be useful in some transparent proxying situations
+when outgoing traffic is redirected to the local machine
+and
+.Nm
+is running on the internal interface (it usually runs on the
+external interface).
+.It Fl proxy_only
+Force
+.Nm
+to perform transparent proxying only.
+Normal address translation is not performed.
+.It Fl proxy_rule Xo
+.Op Ar type encode_ip_hdr | encode_tcp_stream
+.Ar port xxxx
+.Ar server a.b.c.d:yyyy
+.Xc
+Enable transparent proxying.
+Outgoing TCP packets with the given port going through this
+host to any other host are redirected to the given server and port.
+Optionally, the original target address can be encoded into the packet.
+Use
+.Ar encode_ip_hdr
+to put this information into the IP option field or
+.Ar encode_tcp_stream
+to inject the data into the beginning of the TCP stream.
+.It Fl punch_fw Xo
+.Ar basenumber Ns : Ns Ar count
+.Xc
+This option directs
+.Nm
+to
+.Dq punch holes
+in an
+.Xr ipfirewall 4
+based firewall for FTP/IRC DCC connections.
+This is done dynamically by installing temporary firewall rules which
+allow a particular connection (and only that connection) to go through
+the firewall.
+The rules are removed once the corresponding connection terminates.
+.Pp
+A maximum of
+.Ar count
+rules starting from the rule number
+.Ar basenumber
+will be used for punching firewall holes.
+The range will be cleared for all rules on startup.
+.It Fl log_ipfw_denied
+Log when a packet can not be re-injected because an
+.Xr ipfw 8
+rule blocks it.
+This is the default with
+.Fl verbose .
+.El
+.Sh RUNNING NATD
+The following steps are necessary before attempting to run
+.Nm :
+.Bl -enum
+.It
+Build a custom kernel with the following options:
+.Bd -literal -offset indent
+options IPFIREWALL
+options IPDIVERT
+.Ed
+.Pp
+Refer to the handbook for detailed instructions on building a custom
+kernel.
+.It
+Ensure that your machine is acting as a gateway.
+This can be done by specifying the line
+.Pp
+.Dl gateway_enable=YES
+.Pp
+in the
+.Pa /etc/rc.conf
+file or using the command
+.Pp
+.Dl "sysctl net.inet.ip.forwarding=1"
+.Pp
+.It
+If you use the
+.Fl interface
+option, make sure that your interface is already configured.
+If, for example, you wish to specify
+.Ql tun0
+as your
+.Ar interface ,
+and you are using
+.Xr ppp 8
+on that interface, you must make sure that you start
+.Nm ppp
+prior to starting
+.Nm .
+.El
+.Pp
+Running
+.Nm
+is fairly straight forward.
+The line
+.Pp
+.Dl natd -interface ed0
+.Pp
+should suffice in most cases (substituting the correct interface name).
+Please check
+.Xr rc.conf 5
+on how to configure it to be started automatically during boot.
+Once
+.Nm
+is running, you must ensure that traffic is diverted to
+.Nm :
+.Bl -enum
+.It
+You will need to adjust the
+.Pa /etc/rc.firewall
+script to taste.
+If you are not interested in having a firewall, the
+following lines will do:
+.Bd -literal -offset indent
+/sbin/ipfw -f flush
+/sbin/ipfw add divert natd all from any to any via ed0
+/sbin/ipfw add pass all from any to any
+.Ed
+.Pp
+The second line depends on your interface (change
+.Ql ed0
+as appropriate).
+.Pp
+You should be aware of the fact that, with these firewall settings,
+everyone on your local network can fake his source-address using your
+host as gateway.
+If there are other hosts on your local network, you are strongly
+encouraged to create firewall rules that only allow traffic to and
+from trusted hosts.
+.Pp
+If you specify real firewall rules, it is best to specify line 2 at
+the start of the script so that
+.Nm
+sees all packets before they are dropped by the firewall.
+.Pp
+After translation by
+.Nm ,
+packets re-enter the firewall at the rule number following the rule number
+that caused the diversion (not the next rule if there are several at the
+same number).
+.It
+Enable your firewall by setting
+.Pp
+.Dl firewall_enable=YES
+.Pp
+in
+.Pa /etc/rc.conf .
+This tells the system startup scripts to run the
+.Pa /etc/rc.firewall
+script.
+If you do not wish to reboot now, just run this by hand from the console.
+NEVER run this from a remote session unless you put it into the background.
+If you do, you will lock yourself out after the flush takes place, and
+execution of
+.Pa /etc/rc.firewall
+will stop at this point - blocking all accesses permanently.
+Running the script in the background should be enough to prevent this
+disaster.
+.El
+.Sh SEE ALSO
+.Xr divert 4 ,
+.Xr protocols 5 ,
+.Xr rc.conf 5 ,
+.Xr services 5 ,
+.Xr syslog.conf 5 ,
+.Xr ipfw 8 ,
+.Xr ppp 8
+.Sh AUTHORS
+This program is the result of the efforts of many people at different
+times:
+.Pp
+.An Archie Cobbs Aq archie@whistle.com
+(divert sockets)
+.An Charles Mott Aq cmott@scientech.com
+(packet aliasing)
+.An Eivind Eklund Aq perhaps@yes.no
+(IRC support & misc additions)
+.An Ari Suutari Aq suutari@iki.fi
+(natd)
+.An Dru Nelson Aq dnelson@redwoodsoft.com
+(early PPTP support)
+.An Brian Somers Aq brian@awfulhak.org
+(glue)
+.An Ruslan Ermilov Aq ru@FreeBSD.org
+(natd, packet aliasing, glue)

@@ -1,0 +1,204 @@
+How to write code for CVS
+
+* Compiler options
+
+If you are using GCC, you'll want to configure with -Wall, which can
+detect many programming errors.  This is not the default because it
+might cause spurious warnings, but at least on some machines, there
+should be no spurious warnings.  For example:
+
+	$ CFLAGS="-g -Wall" ./configure
+
+Configure is not very good at remembering this setting; it will get
+wiped out whenever you do a ./config.status --recheck, so you'll need
+to use:
+
+	$ CFLAGS="-g -Wall" ./config.status --recheck
+
+* Indentation style
+
+CVS mostly uses a consistent indentation style which looks like this:
+
+void
+foo (arg)
+    char *arg;
+{
+    if (arg != NULL)
+    {
+	bar (arg);
+	baz (arg);
+    }
+    switch (c)
+    {
+	case 'A':
+	    aflag = 1;
+	    break;
+    }
+}
+
+The file cvs-format.el contains settings for emacs and the NEWS file
+contains a set of options for the indent program which I haven't tried
+but which are correct as far as I know.  You will find some code which
+does not conform to this indentation style; the plan is to reindent it
+as those sections of the code are changed (one function at a time,
+perhaps).
+
+In a submitted patch it is acceptable to refrain from changing the
+indentation of large blocks of code to minimize the size of the patch;
+the person checking in such a patch should reindent it.
+
+* Portability
+
+The general rule for portability is that it is only worth including
+portability cruft for systems on which people are actually testing and
+using new CVS releases.  Without testing, CVS will fail to be portable
+for any number of unanticipated reasons.
+
+The current consequence of that general rule seems to be that if it
+is in ANSI C and it is in SunOS4 (using /bin/cc), generally it is OK
+to use it without ifdefs (for example, assert() and void * as long as
+you add more casts to and from void * than ANSI requires.  But not
+function prototypes).  Such constructs are generally portable enough,
+including to NT, OS/2, VMS, etc.
+
+* Run-time behaviors
+
+Use assert() to check "can't happen" conditions internal to CVS.  We
+realize that there are functions in CVS which instead return NULL or
+some such value (thus confusing the meaning of such a returned value),
+but we want to fix that code.  Of course, bad input data, a corrupt
+repository, bad options, etc., should always print a real error
+message instead.
+
+Do not use arbitrary limits (such as PATH_MAX) except perhaps when the
+operating system or some external interface requires it.  We spent a
+lot of time getting rid of them, and we don't want to put them back.
+If you find any that we missed, please report it as with other bugs.
+In most cases such code will create security holes (for example, for
+anonymous readonly access via the CVS protocol, or if a WWW cgi script
+passes client-supplied arguments to CVS).
+
+Although this is a long-term goal, it also would be nice to move CVS
+in the direction of reentrancy.  This reduces the size of the data
+segment and will allow a multi-threaded server if that is desirable.
+It is also useful to write the code so that it can be easily be made
+reentrant later.  For example, if you need to pass data from a
+Parse_Info caller to its callproc, you need a static variable.  But
+use a single pointer so that when Parse_Info is fixed to pass along a
+void * argument, then the code can easily use that argument.
+
+* Coding standards in general
+
+Generally speaking the GNU coding standards are mostly used by CVS
+(but see the exceptions mentioned above, such as indentation style,
+and perhaps an exception or two we haven't mentioned).  This is the
+file standards.text at the GNU FTP sites.
+
+Filenames for .c and .h files may contain _ but should not contain -
+(the latter causes Visual C++ 2.1 to create makefiles which Visual C++
+4.0 cannot use).
+
+* Writing patches (strategy)
+
+Only some kinds of changes are suitable for inclusion in the
+"official" CVS.  Bugfixes, where CVS's behavior contradicts the
+documentation and/or expectations that everyone agrees on, should be
+OK (strategically).  For features, the desirable attributes are that
+the need is clear and that they fit nicely into the architecture of
+CVS.  Is it worth the cost (in terms of complexity or any other
+tradeoffs involved)?  Are there better solutions?
+
+If the design is not yet clear (which is true of most features), then
+the design is likely to benefit from more work and community input.
+Make a list of issues, or write documentation including rationales for
+how one would use the feature.  Discuss it with coworkers, a
+newsgroup, or a mailing list, and see what other people think.
+Distribute some experimental patches and see what people think.  The
+intention is arrive at some kind of rough community consensus before
+changing the "official" CVS.  Features like zlib, encryption, and
+the RCS library have benefitted from this process in the past.
+
+If longstanding CVS behavior, that people may be relying on, is
+clearly deficient, it can be changed, but only slowly and carefully.
+For example, the global -q option was introduced in CVS 1.3 but the
+command -q options, which the global -q replaced, were not removed
+until CVS 1.6.
+
+* Writing patches (tactics)
+
+When you first distribute a patch it may be suitable to just put forth
+a rough patch, or even just an idea.  But before the end of the
+process the following should exist:
+
+  - ChangeLog entry (see the GNU coding standards for details).
+
+  - Changes to the NEWS file and cvs.texinfo, if the change is a
+    user-visible change worth mentioning.
+
+  - Somewhere, a description of what the patch fixes (often in
+    comments in the code, or maybe the ChangeLog or documentation).
+
+  - Most of the time, a test case (see TESTS).  It can be quite
+    frustrating to fix a bug only to see it reappear later, and adding
+    the case to the testsuite, where feasible, solves this and other
+    problems.
+
+If you solve several unrelated problems, it is generally easier to
+consider the desirability of the changes if there is a separate patch
+for each issue.  Use context diffs or unidiffs for patches.
+
+Include words like "I grant permission to distribute this patch under
+the terms of the GNU Public License" with your patch.  By sending a
+patch to bug-cvs@gnu.org, you implicitly grant this permission.
+
+Submitting a patch to bug-cvs is the way to reach the people who have
+signed up to receive such submissions (including CVS developers), but
+there may or may not be much (or any) response.  If you want to pursue
+the matter further, you are probably best off working with the larger
+CVS community.  Distribute your patch as widely as desired (mailing
+lists, newsgroups, web sites, whatever).  Write a web page or other
+information describing what the patch is for.  It is neither practical
+nor desirable for all/most contributions to be distributed through the
+"official" (whatever that means) mechanisms of CVS releases and CVS
+developers.  Now, the "official" mechanisms do try to incorporate
+those patches which seem most suitable for widespread usage, together
+with test cases and documentation.  So if a patch becomes sufficiently
+popular in the CVS community, it is likely that one of the CVS
+developers will eventually try to do something with it.  But dealing
+with the CVS developers may be the last step of the process rather
+than the first.
+
+* What is the schedule for the next release?
+
+There isn't one.  That is, upcoming releases are not announced (or
+even hinted at, really) until the feature freeze which is
+approximately 2 weeks before the final release (at this time test
+releases start appearing and are announced on info-cvs).  This is
+intentional, to avoid a last minute rush to get new features in.
+
+* Mailing lists
+
+Anyone can add themselves to the following mailing lists:
+
+    devel-cvs.  Unless you are accepted as a CVS developer as
+      described in the DEVEL-CVS file, you will only be able to
+      read this list, not send to it.  The charter of the list is
+      also in DEVEL-CVS.
+    commit-cvs.  The only messages sent to this list are sent
+      automatically, via the CVS `loginfo' mechanism, when someone
+      checks something in to the master CVS repository.
+    test-results.  The only messages sent to this list are sent
+      automatically, daily, by a script which runs "make check"
+      and "make remotecheck" on the master CVS sources.
+To subscribe to devel-cvs, commit-cvs, or test-results, send
+a message to "majordomo@cvshome.org" whose body consists of
+"subscribe <list>", where <list> is devel-cvs, commit-cvs or
+test-results.
+
+One other list related to CVS development is bug-cvs.  This is the
+list which users are requested to send bug reports to.  Anyone can
+subscribe; to do so send mail to bug-cvs-request@gnu.org.
+
+Other CVS discussions take place on the info-cvs mailing list
+(send mail to info-cvs-request@gnu.org to subscribe) or on
+the newsgroup comp.software.config-mgmt.

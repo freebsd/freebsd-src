@@ -1,0 +1,150 @@
+$FreeBSD$
+
+Message-ID: <3AF56886.7D92609A@cubical.fi>
+Date: Sun, 06 May 2001 18:06:47 +0300
+From: Juha-Matti Liukkonen <jml@cubical.fi>
+Organization: Cubical Solutions Ltd
+
+Please find the attached diff and tarball for our support software for
+CAPI 2.0 and AVM's active T1 and T1-B (primary rate) and B1 (basic rate)
+ISDN adapters for isdn4bsd. The implementation has been made from
+scratch by us, based on reverse engineering of the Linux driver provided
+by AVM GmbH and available in ftp.avm.de. Cubical Solutions Ltd offers
+this implementation for the BSD community free of charge and assuming
+absolutely no liabilities whatsoever. Feel free to modify the
+implementation any way you see fit, but please retain our one-liner
+copyright statement somewhere in the comment headers in the capi and
+iavc driver modules.
+
+That said, the attached tarball is i4b-00.96.00-beta with our
+modifications integrated, and the diff contains all modifications we
+have made to the original (including the new capi files). Our mods add
+pseudo-device i4bcapi, which attaches to i4b layer 4, and device iavc0,
+which implements a link layer driver for AVM's active B1 and T1 adapters
+for i4bcapi. There are also a couple of related improvements to isdnd,
+and a number of modifications to isdnd and layer 4 to implement support
+for up to 30 channels per adapter (for primary rate use).
+
+We have developed the software explicitly for our telephony application,
+to be used with AVM's T1 adapters, and the implementation has been
+tested primarily with this functionality in mind. There may be
+interesting side effects with eg. the ipr and isppp drivers; we do not
+use them and therefore their testing has been cursory at best. The
+i4btel driver works well with the T1 (our primary use), and the i4brbch
+driver has been verified to work with T1, T1-B and B1 adapters (ftp'd
+some files over a dialup PPP connection with each adapter). Only the PCI
+versions of the adapters (equipped with the AMCC DMA controller) are
+supported, although the basics (PIO mode communication) for the older
+ISA model support is in place, so only the bus attachment modules should
+be required to support the older hardware.
+
+All of the AVM active adapters use downloadable firmware, which is not
+included in the attached package. The firmware files (t1.t4, t1b.t4,
+b1.t4) can be found from ftp.avm.de in adapter specific subdirectories,
+or from the CDs provided with the adapters (in directory
+'cardware/firmware').
+
+Our primary development platform is our own embedded build (we call it
+'ebsd') based on FreeBSD 4.2-RELEASE. The implementation has also been
+tested on standard FreeBSD 4.2-RELEASE system. The implementation should
+not contain any FreeBSD (or even FreeBSD release) specific issues, but
+it has not been tested or even compiled on any other platforms;
+specifically, only the FreeBSD overinstall.sh script is modified to
+install the capi/iavc support in the kernel source tree.
+
+This code is not under active development here since the functionality
+we use (i4btel, T1) has been working since the beginning of March. We
+are also not planning on any further development (no need seen at this
+point), but I am naturally interested on whatever bugs and development
+ideas pop up on the community and will keep a keen eye on the isdn
+mailing list. I personally may be available for consultation, debugging
+and possibly development projects, but with notable reservations on my
+time (the current IT industry recession seems to be pushing even more
+work for us, which tends to keep us pretty busy these days).
+
+Here are some specific technical notes:
+
+* isdnd supports new keyword 'firmware=</path/to/file>' in section
+'controller'. This keyword is supported for all controller types, and
+causes I4B_CTRL_DOWNLOAD ioctl to be invoked with the specified file as
+an argument. In systems equipped with both active and passive adapters,
+and the passive cards being detected first, dummy 'controller' entries
+are required for the passive cards to get the correct firmwares to
+correct adapters. (I hope you did not have other uses for this ioctl in
+mind?)
+
+* isdnd supports new keyword 'clone=<entry name>' in section 'entry'.
+This causes the entry to be copied from the existing named entry. At
+least entry specific 'name' and 'usrdeviceunit' values should be
+specified after a 'clone'. (Makes configuring 30 or 60 entries way much
+easier.)
+
+* a bug in i4btel driver read routine corrected. The conditions in the
+while() clause caused the receive queue to be referenced before checking
+if a channel is connected, leading to kernel panic (do a 'dd
+if=/dev/i4btel0 of=/dev/null' on an unconnected tel device, panic will
+follow). Correction was to reorder the while clause conditions to check
+for connectedness first.
+
+* isdnd and i4b layer 4 support up to CHANNELS_MAX (=30) channels per
+adapter. The msg_ctrl_info_req_t message reports the number of channels
+provided by the adapter, the number is stored in the nbchan field of the
+controller state structure. The fixed stateb1 and stateb2 entries in
+controller state stuctures are replaced with an array, and all fixed
+references there are replaced with loops up to nbchan. Passive stack
+layer 1 and 2 are not modified, layer 3 sets this field to fixed value 2
+for all adapters (but it could be delegated to the layer 1 driver's
+attach request).
+
+* the i4bcapi driver maps i4b channels to logical channels identified
+with PLCI/NCCI values in the CAPI protocol using the sc_bchan[] array.
+The PLCI/NCCI handling is merged in the channel mapping and is greatly
+simplified from the reference state machine model, because in practice
+there can be only one PLCI/NCCI per channel active at any given time.
+
+* the i4bcapi driver does not provide any kind of user level interface
+(such as the /dev/capi20 interface provided by the linux driver), but
+could relatively easily be extended to do so (and if done, interface
+compatibility with the linux implementation would probably be a good
+goal).
+
+* there are some gritty details in the iavc driver, inherited from the
+linux code. Despite us being a legitimate company in the telecom
+business, AVM failed to produce any programming reference material for
+us (at least in a reasonable time frame), so some guesswork remains due
+to classic reverse engineering process (particularly there are a few
+magic numbers in the card initialization sequence whose meaning I do not
+know).
+
+* pseudo-devices i4bq931, i4bq921 and some passive stack layer 1 driver
+(such as iwic) are required to compile, as the required ctrl_desc[]
+array is in layer 3, which requires layer 2, which requires layer 1.
+Some architectural cleanup would come in handy here, but we did not want
+to start making any major changes (and we use iwic in test setups
+anyway, so we simply always compile it in).
+
+To summarize: unpack, overinstall, add the following lines (with the
+usual passive stack configuration including at least one L1 driver) to
+your kernel configuration file:
+
+pseudo-device	"i4bcapi"
+device		iavc0
+
+...and the following to your isdnd.rc:
+
+controller
+firmware = /usr/lib/isdn/b1.t4
+
+...compile your new kernel, make sure the firmware file is in
+/usr/lib/isdn, and your B1 adapter should boot up and Just Work (tm). If
+you have multiple adapters, you need a 'controller' section for each to
+have them loaded and booted on isdnd startup.
+
+Have fun -- and let me know if there are any complications, or if I can
+be of further assistance,
+
+	- Juha
+--
+Juha-Matti Liukkonen, Cubical Solutions Ltd
+Phone: +358(0)405280142
+Email: jml@cubical.fi

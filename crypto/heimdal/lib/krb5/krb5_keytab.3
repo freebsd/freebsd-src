@@ -1,0 +1,358 @@
+.\" Copyright (c) 2001 Kungliga Tekniska Högskolan
+.\" $Id: krb5_keytab.3,v 1.3 2001/11/09 09:35:45 joda Exp $
+.Dd February 5, 2001
+.Dt KRB5_KEYTAB 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_kt_ops ,
+.Nm krb5_keytab_entry ,
+.Nm krb5_kt_cursor ,
+.Nm krb5_kt_add_entry ,
+.Nm krb5_kt_close ,
+.Nm krb5_kt_compare ,
+.Nm krb5_kt_copy_entry_contents ,
+.Nm krb5_kt_default ,
+.Nm krb5_kt_default_name ,
+.Nm krb5_kt_end_seq_get ,
+.Nm krb5_kt_free_entry ,
+.Nm krb5_kt_get_entry ,
+.Nm krb5_kt_get_name ,
+.Nm krb5_kt_next_entry ,
+.Nm krb5_kt_read_service_key ,
+.Nm krb5_kt_register ,
+.Nm krb5_kt_remove_entry ,
+.Nm krb5_kt_resolve ,
+.Nm krb5_kt_start_seq_get
+.Nd manage keytab (key storage) files
+.Sh SYNOPSIS
+.Fd #include <krb5.h>
+.Pp
+.Ft krb5_error_code
+.Fo krb5_kt_add_entry
+.Fa "krb5_context context"
+.Fa "krb5_keytab id"
+.Fa "krb5_keytab_entry *entry"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_close
+.Fa "krb5_context context"
+.Fa "krb5_keytab id"
+.Fc
+.Ft krb5_boolean
+.Fo krb5_kt_compare
+.Fa "krb5_context context"
+.Fa "krb5_keytab_entry *entry"
+.Fa "krb5_const_principal principal"
+.Fa "krb5_kvno vno"
+.Fa "krb5_enctype enctype"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_copy_entry_contents
+.Fa "krb5_context context"
+.Fa "const krb5_keytab_entry *in"
+.Fa "krb5_keytab_entry *out"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_default
+.Fa "krb5_context context"
+.Fa "krb5_keytab *id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_default_name
+.Fa "krb5_context context"
+.Fa "char *name"
+.Fa "size_t namesize"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_end_seq_get
+.Fa "krb5_context context"
+.Fa "krb5_keytab id"
+.Fa "krb5_kt_cursor *cursor"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_free_entry
+.Fa "krb5_context context"
+.Fa "krb5_keytab_entry *entry"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_get_entry
+.Fa "krb5_context context"
+.Fa "krb5_keytab id"
+.Fa "krb5_const_principal principal"
+.Fa "krb5_kvno kvno"
+.Fa "krb5_enctype enctype"
+.Fa "krb5_keytab_entry *entry"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_get_name
+.Fa "krb5_context context"
+.Fa "krb5_keytab keytab"
+.Fa "char *name"
+.Fa "size_t namesize"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_next_entry
+.Fa "krb5_context context"
+.Fa "krb5_keytab id"
+.Fa "krb5_keytab_entry *entry"
+.Fa "krb5_kt_cursor *cursor"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_read_service_key
+.Fa "krb5_context context"
+.Fa "krb5_pointer keyprocarg"
+.Fa "krb5_principal principal"
+.Fa "krb5_kvno vno"
+.Fa "krb5_enctype enctype"
+.Fa "krb5_keyblock **key"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_register
+.Fa "krb5_context context"
+.Fa "const krb5_kt_ops *ops"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_remove_entry
+.Fa "krb5_context context"
+.Fa "krb5_keytab id"
+.Fa "krb5_keytab_entry *entry"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_resolve
+.Fa "krb5_context context"
+.Fa "const char *name"
+.Fa "krb5_keytab *id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_start_seq_get
+.Fa "krb5_context context"
+.Fa "krb5_keytab id"
+.Fa "krb5_kt_cursor *cursor"
+.Fc
+.Sh DESCRIPTION
+A keytab name is on the form
+.Li type:residual .
+The
+.Li residual
+part is specific to each keytab-type.
+.Pp
+When a keytab-name is resolved, the type is matched with an interal
+list of keytab types. If there is no matching keytab type,
+the default keytab is used. The current default type is
+.Nm file .
+The default value can be changed in the configuration file
+.Pa /etc/krb5.conf
+by setting the variable 
+.Li [defaults]default_keytab_name .
+.Pp
+The keytab types that are implemented in Heimdal
+are:
+.Bl -tag -width Ds
+.It Nm file
+store the keytab in a file, the type's name is
+.Li KEYFILE .
+The residual part is a filename.
+.It Nm keyfile
+store the keytab in a
+.Li AFS 
+keyfile (usually
+.Pa /usr/afs/etc/KeyFile ) ,
+the type's name is
+.Li AFSKEYFILE .
+The residual part is a filename.
+.It Nm krb4
+the keytab is a Kerberos 4
+.Pa srvtab
+that is on-the-fly converted to a keytab. The type's name is
+.Li krb4 .
+The residual part is a filename.
+.It Nm memory
+The keytab is stored in a memory segment. This allows sensitive and/or
+temporary data not to be stored on disk. The type's name is
+.Li MEMORY .
+There are no residual part, the only pointer back to the keytab is the
+.Fa id
+returned by
+.Fn krb5_kt_resolve .
+.El
+.Pp
+.Nm krb5_keytab_entry
+holds all data for an entry in a keytab file, like principal name,
+key-type, key, key-version number, etc.
+.Nm krb5_kt_cursor
+holds the current position that is used when iterating through a
+keytab entry with
+.Fn krb5_kt_start_seq_get , 
+.Fn krb5_kt_next_entry ,
+and
+.Fn krb5_kt_end_seq_get .
+.Pp
+.Nm krb5_kt_ops
+contains the different operations that can be done to a keytab. This
+structure is normally only used when doing a new keytab-type
+implementation.
+.Pp
+.Fn krb5_kt_resolve
+is the equvalent of an
+.Xr open 2
+on keytab. Resolve the keytab name in 
+.Fa name
+into a keytab in 
+.Fa id .
+Returns 0 or an error. The opposite of
+.Fn krb5_kt_resolve 
+is 
+.Fn krb5_kt_close .
+.Fn krb5_kt_close
+frees all resources allocated to the keytab.
+.Pp
+.Fn krb5_kt_default
+sets the argument 
+.Fa id
+to the default keytab.
+Returns 0 or an error.
+.Pp
+.Fn krb5_kt_default_name
+copy the name of the default keytab into
+.Fa name .
+Return 0 or KRB5_CONFIG_NOTENUFSPACE if 
+.Fa namesize
+is too short.
+.Pp
+.Fn krb5_kt_add_entry
+Add a new
+.Fa entry
+to the keytab 
+.Fa id .
+.Li KRB5_KT_NOWRITE
+is returned if the keytab is a readonly keytab.
+.Pp
+.Fn krb5_kt_compare
+compares the passed in 
+.Fa entry
+against
+.Fa principal ,
+.Fa vno ,
+and
+.Fa enctype .
+Any of 
+.Fa principal ,
+.Fa vno
+or
+.Fa enctype
+might be 0 which acts as a wildcard. Return TRUE if they compare the
+same, FALSE otherwise.
+.Pp
+.Fn krb5_kt_copy_entry_contents
+copies the contents of 
+.Fa in
+into 
+.Fa out .
+Returns 0 or an error.
+.Pp
+.Fn krb5_kt_get_name
+retrieves the name of the keytab 
+.Fa keytab
+into 
+.Fa name ,
+.Fa namesize .
+Returns 0 or an error.
+.Pp
+.Fn krb5_kt_free_entry
+frees the contents of 
+.Fa entry .
+.Pp
+.Fn krb5_kt_start_seq_get
+sets
+.Fa cursor
+to point at the beginning of 
+.Fa id .
+Returns 0 or an error.
+.Pp
+.Fn krb5_kt_next_entry
+gets the next entry from 
+.Fa id
+pointed to by 
+.Fa cursor
+and advance the
+.Fa cursor .
+Returns 0 or an error.
+.Pp
+.Fn krb5_kt_end_seq_get
+releases all resources associated with 
+.Fa cursor .
+.Pp
+.Fn krb5_kt_get_entry
+retrieves the keytab entry for 
+.Fa principal ,
+.Fa kvno, 
+.Fa enctype
+into 
+.Fa entry
+from the keytab 
+.Fa id .
+Returns 0 or an error.
+.Pp
+.Fn krb5_kt_read_service_key
+reads the key identified by
+.Ns ( Fa principal ,
+.Fa vno ,
+.Fa enctype )
+from the keytab in 
+.Fa keyprocarg
+(the default if == NULL) into 
+.Fa *key .
+Returns 0 or an error.
+.Pp
+.Fn krb5_kt_remove_entry
+removes the entry 
+.Fa entry
+from the keytab 
+.Fa id .
+Returns 0 or an error.
+.Pp
+.Fn krb5_kt_register
+registers a new keytab type
+.Fa ops .
+Returns 0 or an error.
+.Sh EXAMPLE
+This is a minimalistic version of
+.Nm ktutil .
+.Pp
+.Bd -literal
+int
+main (int argc, char **argv)
+{
+    krb5_context context;
+    krb5_keytab keytab;
+    krb5_kt_cursor cursor;
+    krb5_keytab_entry entry;
+    krb5_error_code ret;
+    char *principal;
+
+    if (krb5_init_context (&context) != 0)
+	errx(1, "krb5_context");
+    
+    ret = krb5_kt_default (context, &keytab);
+    if (ret)
+	krb5_err(context, 1, ret, "krb5_kt_default");
+
+    ret = krb5_kt_start_seq_get(context, keytab, &cursor);
+    if (ret)
+	krb5_err(context, 1, ret, "krb5_kt_start_seq_get");	
+    while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0){
+	krb5_unparse_name_short(context, entry.principal, &principal);
+	printf("principal: %s\\n", principal);
+	free(principal);
+	krb5_kt_free_entry(context, &entry);
+    }
+    ret = krb5_kt_end_seq_get(context, keytab, &cursor);
+    if (ret)
+	krb5_err(context, 1, ret, "krb5_kt_end_seq_get");	
+    krb5_free_context(context);
+    return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr krb5.conf 5 ,
+.Xr kerberos 8

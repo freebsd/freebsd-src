@@ -1,0 +1,106 @@
+@node  Acknowledgments, Index, Resolving frequent problems, Top
+@comment  node-name,  next,  previous,  up
+@appendix Acknowledgments
+
+People from the MIT Athena project wrote the original code that this is
+based on. @w{Kerberos 4} @w{patch-level 9} was stripped of both the
+encryption functions and the calls to them. This was exported from the
+US as the ``Bones'' release.  Eric Young put back the calls and hooked
+in his libdes, thereby creating the ``eBones'' release.
+@cindex Bones
+@cindex eBones
+
+The ``rcmd'' programs where initially developed at the University of
+California at Berkeley and then hacked on by the FreeBSD and NetBSD
+projects.
+
+Berkeley also wrote @code{ftp}, @code{ftpd}, @code{telnet}, and
+@code{telnetd}.  The authentication and encryption code of @code{telnet}
+and @code{telnetd} was added by David Borman (then of Cray Research,
+Inc).  The encryption code was removed when this was exported and then
+added back by Juha Eskelinen, @code{<esc@@magic.fi>}.
+
+The @code{popper} was also a Berkeley program initially.
+
+The @code{login} has the same origins but has received code written by
+Wietse Venema at Eindhoven University of Technology, The Netherlands.
+
+@code{movemail} was (at least partially) written by Jonathan Kamens,
+@code{<jik@@security.ov.com>}, and is Copyright @copyright{} 1986, 1991,
+1992, 1993, 1994 Free Software Foundation, Inc.
+
+@code{xnlock} was originally written by Dan Heller in 1985 for sunview.
+The X version was written by him in 1990.
+
+Some of the functions in @file{libroken} also come from Berkeley by the
+way of NetBSD/FreeBSD.
+
+The code to handle the dynamic loading of the AFS module for AIX is
+copyright @copyright{} 1992 HELIOS Software GmbH 30159 Hannover,
+Germany.
+
+@code{editline} was written by Simmule Turner and Rich Salz.
+
+Bugfixes and code has been contributed by:
+@table @asis
+@item Derrick J Brashear
+@code{<shadow@@dementia.org>}
+@item Anders Gertz
+@code{<gertz@@lysator.liu.se>}
+@item Dejan Ilic
+@code{<svedja@@lysator.liu.se>}
+@item Kent Engström
+@code{<kent@@lysator.liu.se>}
+@item Simon Josefsson
+@code{<jas@@pdc.kth.se>}
+@item Robert Malmgren
+@code{<rom@@incolumitas.se>}
+@item Fredrik Ljungberg
+@code{<flag@@astrogator.se>}
+@item Joakim Fallsjö
+@code{jfa@@pobox.se}
+@item Lars Malinowsky
+@code{<lama@@pdc.kth.se>}
+@item Fabien Coelho
+@code{<coelho@@cri.ensmp.fr>}
+@item Chris Chiappa
+@code{<griffon+@@cmu.edu>}
+@item Gregory S. Stark
+@code{<gsstark@@mit.edu>}
+@item Love Hörnquist-Åstrand
+@code{<lha@@stacken.kth.se>}
+@item Daniel Staaf
+@code{<d96-dst@@nada.kth.se>}
+@item Magnus Ahltorp
+@code{<map@@stacken.kth.se>}
+@item Robert Burgess
+@code{<rb@@stacken.kth.se>}
+@item Lars Arvestad
+@code{<arve@@nada.kth.se>}
+@item Jörgen Wahlsten
+@code{<wahlsten@@pathfinder.com>}
+@item Daniel Staaf
+@code{<d96-dst@@nada.kth.se>}
+@item R Lindsay Todd
+@code{<toddr@@rpi.edu>}
+@item Åke Sandgren
+@code{<ake@@cs.umu.se>}
+@item Thomas Nyström
+@code{<thn@@stacken.kth.se>}
+@item and we hope that those not mentioned here will forgive us.
+@end table
+
+Ian Marsh @code{<ianm@@sics.se>} removed the worst abuses of the English
+language from this text.
+
+Ilja Hallberg @code{<iha@@incolumitas.se>} is still promising to help us
+finish the documentation.
+
+This work was supported in part by SUNET and the Centre for Parallel
+Computers at KTH.
+
+The port to Windows 95/NT was supported by the Computer Council at KTH
+and done by Jörgen Karlsson @code{<d93-jka@@nada.kth.se>}.
+
+All the bugs were introduced by ourselves.
+

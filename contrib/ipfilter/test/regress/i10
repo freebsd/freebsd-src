@@ -1,0 +1,4 @@
+pass in from localhost to localhost with opt sec
+block in from any to any with not opt sec-class topsecret
+block in from any to any with not opt sec-class topsecret,secret
+pass in from any to any with opt sec-class topsecret,confid not opt sec-class unclass

@@ -1,0 +1,380 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.22.2.206
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; notes de version</title>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <corpauthor>Projet FreeBSD</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <holder role="mailto:doc@FreeBSD.org">Projet de Documentation de FreeBSD</holder>
+  </copyright>
+
+  <abstract>
+  <para>Les notes de version pour &os; &release.current;
+  contiennent un résumé des changements réalisés dans le
+  système &os; de base depuis &release.prev;. Les
+  changements concernant le noyau et les programmes
+  utilisateurs sont mentionnés ainsi que les avis de
+  sécurité applicables au système de base qui ont été
+  découverts depuis la dernière version. Ces notes
+  contiennent également quelques brèves remarques sur la
+  mise à jour.</para>
+  </abstract>
+</articleinfo>
+
+<sect1>
+  <title>Introduction</title>
+        <para>Ce document contient les notes de version pour &os;
+        &release.current; sur plate-forme &arch.print;. Il décrit les nouvelles
+        fonctions de &os; qui ont été ajoutées (ou modifiées)
+        depuis &release.prev;. Il contient également quelques notes
+        sur la mise à jour depuis la version précédente de
+        &os;.</para>
+<![ %release.type.snapshot [
+
+        <para>La distribution snapshot à laquelle s'applique ces notes
+        de version représente une étape sur la branche de
+        développement &release.branch; entre &release.prev; et la future
+        &release.next;. Quelques distributions binaires pré-compilées
+        de la version snapshot pour cette branche sont présentes
+        sur <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
+
+<![ %release.type.release [
+
+
+
+  <para>This distribution of &os; &release.current; is a &release.type;
+  distribution.  It can be found at <ulink
+  url="&release.url;"></ulink> or any of its mirrors.  More
+  information on obtaining this (or other) &release.type; distributions of
+  &os; can be found in the <ulink
+  url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
+  FreeBSD</quote></ulink> appendix in the <ulink
+  url="http://www.FreeBSD.org/handbook/">FreeBSD Handbook</ulink>.</para>
+
+]]>
+</sect1>
+
+<!--
+	The "What's New" section of the release notes. 
+
+	Guidelines for new entries:
+
+	1.  If there is some obvious "keyword" associated with an
+	entry (such as a manpage entry or an application name), try to
+	put it at the start of the sentence.
+
+	2.  Within each subsection (i.e. kernel, security, userland),
+	list items in alphabetical order by these keywords.
+
+	Some entries will have no obvious keywords to help with
+	ordering.  In sections containing these entries, put those
+	containing (e.g.) manpage references first, then some
+	suitable SGML comment line as a demarc, then the remaining
+	entries.
+
+-->
+
+<sect1>
+  <title>Les nouveautés</title>
+
+        <para>Cette section décrit les fonctions nouvelles ou les
+        modifications les plus visibles pour l'utilisateur sous
+        &os; depuis la version &release.prev;. Il s'agit
+        typiquement de nouveaux gestionnaires de périphériques ou
+        du support de matériels, de nouvelles commandes ou options,
+        de corrections de bugs majeurs, ou de mise à jour de
+        logiciels. Les avis de sécurité pour le système de base
+        découverts après la &release.prev; sont égalements
+        mentionnés.</para>
+
+        <para>De nombreux changements supplémentaires apportés à
+        &os; ne sont pas mentionnés ici par faute de place. Par
+        exemple, la documentation a été corrigée et améliorée, des
+        bugs mineurs ont été corrigés, du code potentiellement
+        dangereux pour la sécurité a été audité et corrigé et le
+        code source a été remis au propre.</para>
+
+  <sect2 id="kernel">
+    <title>Changements concernant le noyau</title>
+
+    <para></para>
+
+    <para arch="i386">Le gestionnaire de périphériques &man.puc.4; (PCI <quote>Universal</quote>
+      Communications) a été ajouté, il permet de connecter les ports série basés sur le bus
+      PCI au gestionnaire de périphériques &man.sio.4;.</para>
+
+    <para>Le gestionnaire de périphérique <varname>dumpdev</varname> peut
+    maintenant etre mis en place via le chargeur. Vous pouvez donc maintenant 
+    obtenir des informations sur les crashs au moment des derniers
+    stages d'initialisation du noyau(avant que le système ne passe en mode 
+    mono-utlisateur).</para>
+
+<!-- Above this line, kernel changes ordered by manpage/variable name -->
+
+    <sect3>
+      <title>Support des cartes mères et des processeurs</title>
+
+      <para></para>
+    </sect3>
+
+    <sect3>
+      <title>Gestionnaire de démarrage</title>
+
+      <para></para>
+
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+
+    </sect3>
+
+    <sect3>
+      <title>Support des interfaces réseau</title>
+
+      <para>Le gestionnaire &man.an.4; supporte maintenant Cisco LEAP, 
+      tout comme la clef <quote>Home</quote>WEP. Les utilitaires Linux
+      pour Aironet sont maintenant supportés via l'émulation Linux.</para>
+
+
+      <para arch="i386">Le support générique pour les réseaux a jetons
+      ARCNET a été ajouté.</para>
+
+      <para arch="i386">Le gestionnaire de périphérique cm supporte 
+      maintenant les cartes réseau ARCNET SMC COM90cx6.</para>
+
+      <para>Le gestionnaire de périphérique &man.dc.4; supporte maintenant
+      les VLAN.</para>
+
+      <para>Le gestionnaire de périphérique &man.wi.4; supporte maintenant 
+      les cartes basées sur les composants Prism II et
+	Prism 2.5.  Les clefs de 104/128-bits WEP fonctionnent maintenant 
+	avec les cartes Prism.</para>
+
+<!-- Above this line, order network driver changes by manpage/variable name-->
+
+<para> Certains gestionnaire de périphérique réseau implémentent maintenant un mode
+de semi-interrogation, permettant au système d'etre plus résistant face
+aux attaques et surcharges. Pour activer l'interrogation, les options suivantes
+sont nécessaires dans le fichier de configuration du noyau :
+
+	<programlisting>
+	options DEVICE_POLLING
+	options HZ=1000 # pas obligatoire mais véritablement recommandé</programlisting>
+
+	La variable  sysctl <varname>kern.polling.enable</varname> activera ensuite
+	le mode d'interrogation; la variable sysctl <varname>kern.polling.user_frac</varname>
+	indiquant le pourcentage de temps CPU à reserver dans le mode utilisateur. Les 
+	gestionnaires supportant cette fonctionnalité sont  &man.dc.4;, &man.fxp.4;, et
+	&man.sis.4;.  Plus de détails peuvent etre trouvé a la page de manuel de &man.polling.4;.</para>
+    </sect3>
+
+    <sect3>
+      <title>Protocoles réseau</title>
+
+      <para>&man.bridge.4; a maintenant un support amélioré pour les 
+      clusters multi-bridge indépendant et est maintenant plus stable 
+      lors de la présence d'attachements et de détachements dynamique. 
+      Les VLANs sont aussi supportés. </para>
+      
+      <para>Un bogue dans le traitement IPSec de IPv4, qui ne tenait pas
+      compte des vérifications SPD entrantes, a été corrigé..</para>
+
+      <para>L'implémentation de synchronisation du cache de &man.tcp.4; 
+      comportait un bogue causant des paniques noyaux; ceci a été fixé.</para>
+
+      <para>L'implémentation TCP ignore maintenant proprement les paquets
+      addressé aux adresses de broadcast IP.</para>
+
+      <para></para>
+    </sect3>
+
+    <sect3>
+      <title>Disques et Stockage</title>
+
+      <para></para>
+    </sect3>
+
+    <sect3>
+      <title>Systèmes de fichier</title>
+
+      <para>Un bogue a été fixé dans les "soft updates" qui causait des
+      corruptions ocasionnels de système de fichier si le système était arréter
+      immédiatement après avoir effectué de grosses activités de transferts, comme
+      lors de l'installation d'un noyau ou d'autres logiciels.</para>
+
+
+
+    </sect3>
+
+    <sect3>
+      <title>Support PCCARD</title>
+
+      <para></para>
+    
+    </sect3>
+
+    <sect3>
+      <title>support Multimédia</title>
+      
+      <para arch="i386">Le gestionnaires de périphérique ufm, supportant
+      les cartesD-Link DSB-R100 USB Radio, a été ajouté.</para>
+    </sect3>
+
+    <sect3>
+      <title>Logiciel externes</title>
+
+      <para></para>
+    </sect3>
+  </sect2>
+  <sect2 id="security">
+    <title>Changements liés a la sécurité</title>
+
+    <para>Un bogue dans le code de multiplexage de <application>OpenSSH</application> 
+    a été résolu. Ce bogue permet a un utilisateur distant authentifié de demander
+    au serveur &man.sshd.8; d'executer un programme avec les privilèges administrateur 
+    ou permet a un client SSH d'executer un programme avec les privilège de 
+    l'utilisateur client. (Voyes l'avis de sécurité
+    <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)</para>
+
+
+    <para></para>
+  </sect2>
+  <sect2 id="userland">
+    <title>Changements dans les programmes utilisateurs</title>
+
+    <para>&man.ctags.1; ne crée plus de fichiers corrompus si
+    le fichier source utilisent les commentaires de style C++ (<literal>//</literal> )
+    </para>
+
+    <para>&man.dump.8; fournit maintenant des informations de progression
+    dans le nom du processus, très util pour superviser les 
+    sauvegardes automatisées.</para>
+
+    <para><filename>/etc/rc.firewall</filename> et
+      <filename>/etc/rc.firewall6</filename> n'ajoutent plus leur
+      règles par défaut dans le cas ou le fichier de règles contenu
+      dans la variable <varname>firewall_type</varname> existe ou dans
+      le cas d'un type de firewall non existent. (Ce changement
+      est motivé par le fait de ne pas vouloir prédire la
+      politique d'un site.) De plus le type de firewall <literal>closed</literal>
+      fonctionne comme documenté dans la page de manuel de &man.rc.firewall.8;</para>
+
+
+    <para>Les fonctions de <filename>/etc/security</filename> ont été
+    déplacer dans une série de scripts dans le canevas de &man.periodic.8;
+    , permettant de les personnaliser et de maintenir plus facilement. Ces
+    scripts se trouvent dans le répertoire 
+    <filename>/etc/periodic/security/</filename>.</para>
+
+
+    <para>&man.ldd.1; peut maintenant etre utilisé sur les librairies 
+    partagées en plus des programmes.</para>
+      
+      
+      <para>&man.ngctl.8; supporte maintenant une commande d' <option>écriture</option> 
+      permettant d'envoyer un paquet de données directement a un hook.</para>
+      
+    
+    <para>L option <option>-W</option> de &man.ps.1; (permettant d'extraire des informations
+    depuis un gestionnaire de swap spécifique) étant inutile depuis quelque temps a été retiré.</para>
+
+    <!-- Above this line, order userland changes by manpage/variable name -->
+
+    <para> Les noms des localisations de la forme <literal>*.EUC</literal> 
+    ont été renommées en <literal>*.euc??</literal>. Par exemple, 
+    <literal>ja_JP.euc</literal> devient <literal>ja_JP.eucJP</literal>. Cela
+    permet d'augmenter la compatibilité avec &os; CURRENT, X11R6 et
+    d'autres versions d'Unix.</para>
+
+
+    <sect3>
+      <title>Logiciels externes</title>
+      <para><application>BIND</application> a été mise a jour en version
+        8.3.1-REL.</para>
+
+      <para><application>bzip2</application> a été mise a jour en version
+        1.0.2.</para>
+    </sect3>
+
+    <sect3>
+      <title>Collection des Ports/Packages</title>
+
+      <para></para>
+    </sect3>
+  </sect2>
+</sect1>
+
+<sect1>
+  <title>Mise a jour depuis une version précedente de  &os;</title>
+
+
+       <para>Si vous effectuez une mise à jour depuis une version
+        antérieure de &os;, vous avez généralement 3 options
+        :</para>
+
+    <itemizedlist>
+      <listitem>
+      <para>Utiliser l'option de mise à jour binaire de &man.sysinstall.8;.Cette
+            option est sans doute la plus rapide mais elle suppose
+            que votre installation de &os; n'utilise aucune
+            option spéciale de compilation.</para>
+          </listitem>
+          <listitem>
+            <para>Faire une réinstallation complète de &os;.
+            Techniquement, ce n'est pas une méthode de mis à jour
+            et, dans tous les cas, elle est moins pratique qu'une
+            mise à jour binaire dans le sens ou elle nécessite de
+            sauvegarder et de restaurer manuellement le contenu du
+            répertoire <filename>/etc</filename>. Cependant,
+            cela peut être utile si vous désirez (ou si vous devez)
+            modifier le partitionnement de vos disques.</para>
+          </listitem>
+          <listitem>
+            <para>A partir du code source du répertoire <filename>/usr/src</filename>.
+	    Cette option est plus souple mais demande plus d'espace disque, plus de temps et
+            plus de compétences techniques. Faire une mise à jour
+            depuis une très ancienne version de &os; peut être
+            problématique; dans de tels cas, il est généralement
+            plus efficace de réaliser une mise à jour binaire ou
+            une réinstallation complète.</para>
+          </listitem>
+    </itemizedlist>
+
+        <para>Veuillez lire le fichier <filename>INSTALL.TXT</filename>
+	 pour plus d'informations, de
+        préférence <emphasis>avant</emphasis> de commencer une mise à jour.
+        Si vous effectuez une mise à jour depuis les sources,
+        veuillez également consulter le fichier
+	 <filename>/usr/src/UPDATING</filename>.</para>
+
+        <para>Enfin, si vous désirez utiliser un des moyens de suivre
+        les branches -STABLE ou -CURRENT de &os;, veuillez
+        consulter la section 
+       <ulink url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+       vs. -STABLE</quote></ulink>  <ulink url="http://www.FreeBSD.org/handbook/">du manuel 
+       de référence de FreeBSD</ulink>.
+       </para>
+
+        <important>
+            <para><emphasis>Important:</emphasis> La mise à jour de &os; devrait,
+            bien évidemment, être réalisée uniquement après avoir
+            effectué une sauvegarde de <emphasis>toutes</emphasis> 
+	    les données et des fichiers de configuration.</para>
+        </important>
+
+</sect1>
+

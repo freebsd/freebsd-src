@@ -1,0 +1,22 @@
+s/@MDATE@/June 30, 1993/
+s/@VERSION@/1.08/
+s,@DEFAULT_INDEX@,/usr/share/dict/papers/Ind,
+s,@DEFAULT_INDEX_NAME@,/usr/share/dict/papers/Ind,
+s,@COMMON_WORDS_FILE@,/usr/share/dict/papers/words,
+s,@INDEX_SUFFIX@,.i,
+s,@DEVICE@,/usr/share/groff_font,
+s,@FONTDIR@,/usr/share/groff_font,
+s,@FONTPATH@,/usr/share/groff_font,
+s,@MACRODIR@,/usr/share/tmac,
+s,@TMAC_M@,/usr/share/tmac/tmac.m,
+s,@TMAC_MDIR@,/usr/share/tmac,
+s/@g@//
+s/@G@//
+s/@MAN1EXT@/1/
+s/@MAN2EXT@/2/
+s/@MAN3EXT@/3/
+s/@MAN4EXT@/4/
+s/@MAN5EXT@/5/
+s/@MAN6EXT@/6/
+s/@MAN7EXT@/7/
+s/@MAN8EXT@/8/

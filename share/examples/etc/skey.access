@@ -1,0 +1,30 @@
+# This file controls whether UNIX passwords are to be permitted.  Rules
+# are matched in order, and the search terminates when the first matching
+# rule has been found.
+#
+# Each rule has the form:
+#
+#       permit condition condition...
+#       deny condition condition...
+#
+# Where "permit" or "deny" may be followed by zero or more conditions.
+#
+# A rule is matched when all conditions are satisfied. A rule without
+# conditions is always satisfied.
+#
+# Examples of conditions are:
+#
+#       hostname wzv.win.tue.nl
+#       internet 131.155.210.0 255.255.255.0
+#       port     ttya
+#       user     root
+#       group    wheel
+#
+# The old S/Key form (permit/deny netnumber netmask) is still supported.
+#
+#permit user uugiga      # uucp login via modem or internet
+#permit port ttyb        # local
+#permit port console     # local
+#deny                    # anything else
+
+permit			 # permit plaintext passwords all the time
