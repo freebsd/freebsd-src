@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.53 1997/10/17 12:36:18 phk Exp $
+ * $Id: vnode.h,v 1.54 1997/10/26 20:26:14 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -478,7 +478,6 @@ int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
 void	vprint __P((char *label, struct vnode *vp));
 int	vrecycle __P((struct vnode *vp, struct simplelock *inter_lkp,
 	    struct proc *p));
-int	vn_bwrite __P((struct vop_bwrite_args *ap));
 int 	vn_close __P((struct vnode *vp,
 	    int flags, struct ucred *cred, struct proc *p));
 int	vn_lock __P((struct vnode *vp, int flags, struct proc *p));
@@ -491,6 +490,7 @@ int	vfs_cache_lookup __P((struct vop_lookup_args *ap));
 int	vfs_object_create __P((struct vnode *vp, struct proc *p,
                 struct ucred *cred, int waslocked));
 int 	vn_writechk __P((struct vnode *vp));
+int	vop_stdbwrite __P((struct vop_bwrite_args *ap));
 int	vop_stdislocked __P((struct vop_islocked_args *));
 int	vop_stdlock __P((struct vop_lock_args *));
 int	vop_stdunlock __P((struct vop_unlock_args *));
@@ -508,14 +508,13 @@ int	vop_enotty __P((struct vop_generic_args *ap));
 int	vop_defaultop __P((struct vop_generic_args *ap));
 int	vop_null __P((struct vop_generic_args *ap));
 
-/* XXX: compat until fixed all places*/
-#define vn_default_error vop_defaultop
-
 struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
 void 	vput __P((struct vnode *vp));
 void 	vref __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
+
+extern	vop_t	**default_vnodeop_p;
 #endif /* KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */

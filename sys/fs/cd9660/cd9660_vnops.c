@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.45 1997/10/16 20:32:21 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.46 1997/10/17 12:36:11 phk Exp $
  */
 
 #include <sys/param.h>
@@ -812,7 +812,7 @@ cd9660_pathconf(ap)
  */
 vop_t **cd9660_vnodeop_p;
 struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_abortop_desc,		(vop_t *) cd9660_abortop },
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_bmap_desc,		(vop_t *) cd9660_bmap },

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.19 1997/10/16 20:32:24 phk Exp $
+ * $Id: dead_vnops.c,v 1.20 1997/10/16 21:59:55 phk Exp $
  */
 
 #include <sys/param.h>
@@ -45,7 +45,6 @@ static int	chkvnlock __P((struct vnode *));
  * Prototypes for dead operations on vnodes.
  */
 static int	dead_badop __P((void));
-static int	dead_ebadf __P((void));
 static int	dead_lookup __P((struct vop_lookup_args *));
 static int	dead_open __P((struct vop_open_args *));
 static int	dead_read __P((struct vop_read_args *));
@@ -57,13 +56,13 @@ static int	dead_print __P((struct vop_print_args *));
 
 vop_t **dead_vnodeop_p;
 static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_access_desc,		(vop_t *) dead_ebadf },
-	{ &vop_advlock_desc,		(vop_t *) dead_ebadf },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
+	{ &vop_access_desc,		(vop_t *) vop_ebadf },
+	{ &vop_advlock_desc,		(vop_t *) vop_ebadf },
 	{ &vop_bmap_desc,		(vop_t *) dead_bmap },
 	{ &vop_create_desc,		(vop_t *) dead_badop },
-	{ &vop_getattr_desc,		(vop_t *) dead_ebadf },
-	{ &vop_inactive_desc,		(vop_t *) nullop },
+	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
+	{ &vop_inactive_desc,		(vop_t *) vop_null },
 	{ &vop_ioctl_desc,		(vop_t *) dead_ioctl },
 	{ &vop_link_desc,		(vop_t *) dead_badop },
 	{ &vop_lock_desc,		(vop_t *) dead_lock },
@@ -72,16 +71,16 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) dead_badop },
 	{ &vop_mmap_desc,		(vop_t *) dead_badop },
 	{ &vop_open_desc,		(vop_t *) dead_open },
-	{ &vop_pathconf_desc,		(vop_t *) dead_ebadf },	/* per pathconf(2) */
+	{ &vop_pathconf_desc,		(vop_t *) vop_ebadf },	/* per pathconf(2) */
 	{ &vop_print_desc,		(vop_t *) dead_print },
 	{ &vop_read_desc,		(vop_t *) dead_read },
-	{ &vop_readdir_desc,		(vop_t *) dead_ebadf },
-	{ &vop_readlink_desc,		(vop_t *) dead_ebadf },
-	{ &vop_reclaim_desc,		(vop_t *) nullop },
+	{ &vop_readdir_desc,		(vop_t *) vop_ebadf },
+	{ &vop_readlink_desc,		(vop_t *) vop_ebadf },
+	{ &vop_reclaim_desc,		(vop_t *) vop_null },
 	{ &vop_remove_desc,		(vop_t *) dead_badop },
 	{ &vop_rename_desc,		(vop_t *) dead_badop },
 	{ &vop_rmdir_desc,		(vop_t *) dead_badop },
-	{ &vop_setattr_desc,		(vop_t *) dead_ebadf },
+	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_symlink_desc,		(vop_t *) dead_badop },
 	{ &vop_write_desc,		(vop_t *) dead_write },
 	{ NULL, NULL }
@@ -258,16 +257,6 @@ dead_print(ap)
 
 	printf("tag VT_NON, dead vnode\n");
 	return (0);
-}
-
-/*
- * Empty vnode failed operation
- */
-static int
-dead_ebadf()
-{
-
-	return (EBADF);
 }
 
 /*

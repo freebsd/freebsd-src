@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.49 1997/10/16 20:32:31 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.50 1997/10/17 12:36:17 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1833,7 +1833,7 @@ msdosfs_pathconf(ap)
 /* Global vfs data structures for msdosfs */
 vop_t **msdosfs_vnodeop_p;
 static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_abortop_desc,		(vop_t *) msdosfs_abortop },
 	{ &vop_access_desc,		(vop_t *) msdosfs_access },
 	{ &vop_bmap_desc,		(vop_t *) msdosfs_bmap },

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.62 1997/10/16 20:32:39 phk Exp $
+ * $Id: ufs_vnops.c,v 1.63 1997/10/17 12:36:19 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -2081,7 +2081,7 @@ ufs_missingop(ap)
 /* Global vfs data structures for ufs. */
 vop_t **ufs_vnodeop_p;
 static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
 	{ &vop_getpages_desc,		(vop_t *) ufs_missingop },
 	{ &vop_read_desc,		(vop_t *) ufs_missingop },

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.129 1997/10/11 18:31:26 phk Exp $
+ * $Id: vfs_bio.c,v 1.130 1997/10/12 20:24:21 phk Exp $
  */
 
 /*
@@ -395,13 +395,6 @@ bwrite(struct buf * bp)
 		return (rtval);
 	}
 	return (0);
-}
-
-int
-vn_bwrite(ap)
-	struct vop_bwrite_args *ap;
-{
-	return (bwrite(ap->a_bp));
 }
 
 void

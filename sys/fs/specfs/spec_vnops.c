@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.48 1997/10/16 20:32:29 phk Exp $
+ * $Id: spec_vnops.c,v 1.49 1997/10/16 22:00:42 phk Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,6 @@
 
 #include <miscfs/specfs/specdev.h>
 
-static int	spec_ebadf __P((void));
 static int	spec_getattr __P((struct  vop_getattr_args *));
 static int	spec_badop __P((void));
 static int	spec_strategy __P((struct vop_strategy_args *));
@@ -79,8 +78,8 @@ static int	spec_getpages __P((struct vop_getpages_args *));
 struct vnode *speclisth[SPECHSZ];
 vop_t **spec_vnodeop_p;
 static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_access_desc,		(vop_t *) spec_ebadf },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
+	{ &vop_access_desc,		(vop_t *) vop_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) spec_advlock },
 	{ &vop_bmap_desc,		(vop_t *) spec_bmap },
 	{ &vop_close_desc,		(vop_t *) spec_close },
@@ -90,7 +89,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
 	{ &vop_inactive_desc,		(vop_t *) spec_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
-	{ &vop_lease_desc,		(vop_t *) nullop },
+	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) spec_badop },
 	{ &vop_lookup_desc,		(vop_t *) spec_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) spec_badop },
@@ -103,11 +102,11 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *) spec_badop },
 	{ &vop_readlink_desc,		(vop_t *) spec_badop },
 	{ &vop_reallocblks_desc,	(vop_t *) spec_badop },
-	{ &vop_reclaim_desc,		(vop_t *) nullop },
+	{ &vop_reclaim_desc,		(vop_t *) vop_null },
 	{ &vop_remove_desc,		(vop_t *) spec_badop },
 	{ &vop_rename_desc,		(vop_t *) spec_badop },
 	{ &vop_rmdir_desc,		(vop_t *) spec_badop },
-	{ &vop_setattr_desc,		(vop_t *) spec_ebadf },
+	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
 	{ &vop_symlink_desc,		(vop_t *) spec_badop },
 	{ &vop_write_desc,		(vop_t *) spec_write },
@@ -694,16 +693,6 @@ spec_advlock(ap)
 {
 
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
-}
-
-/*
- * Special device failed operation
- */
-static int
-spec_ebadf()
-{
-
-	return (EBADF);
 }
 
 /*

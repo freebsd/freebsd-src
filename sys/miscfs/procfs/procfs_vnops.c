@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.37 1997/10/16 20:32:28 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.38 1997/10/16 22:00:36 phk Exp $
  */
 
 /*
@@ -884,7 +884,7 @@ atopid(b, len)
  */
 vop_t **procfs_vnodeop_p;
 static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_abortop_desc,		(vop_t *) procfs_abortop },
 	{ &vop_access_desc,		(vop_t *) procfs_access },
 	{ &vop_advlock_desc,		(vop_t *) procfs_badop },
