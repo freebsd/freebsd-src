@@ -30,6 +30,7 @@
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/interrupt.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -99,6 +100,7 @@ static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
 static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
 static struct bus_dmamap nobounce_dmamap;
 
+static void init_bounce_pages(void *dummy);
 static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
 static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map);
 static vm_offset_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
@@ -489,9 +491,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	/* Reserve Necessary Bounce Pages */
 	if (map->pagesneeded != 0) {
-		int s;
-
-		s = splhigh();
+		mtx_lock(&bounce_lock);
 	 	if (reserve_bounce_pages(dmat, map) != 0) {
 
 			/* Queue us for resources */
@@ -502,11 +502,10 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			map->callback_arg = callback_arg;
 
 			STAILQ_INSERT_TAIL(&bounce_map_waitinglist, map, links);
-			splx(s);
-
+			mtx_unlock(&bounce_lock);
 			return (EINPROGRESS);
 		}
-		splx(s);
+		mtx_unlock(&bounce_lock);
 	}
 
 	vaddr = (vm_offset_t)buf;
@@ -826,19 +825,27 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	}
 }
 
+static void
+init_bounce_pages(void *dummy __unused)
+{
+
+	free_bpages = 0;
+	reserved_bpages = 0;
+	active_bpages = 0;
+	total_bpages = 0;
+	STAILQ_INIT(&bounce_page_list);
+	STAILQ_INIT(&bounce_map_waitinglist);
+	STAILQ_INIT(&bounce_map_callbacklist);
+	mtx_init(&bounce_lock, "bounce pages lock", NULL, MTX_DEF);
+}
+SYSINIT(bpages, SI_SUB_LOCK, SI_ORDER_ANY, init_bounce_pages, NULL);
+
 static int
 alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 {
 	int count;
 
 	count = 0;
-	if (total_bpages == 0) {
-		mtx_init(&bounce_lock, "BouncePage", NULL, MTX_DEF);
-		STAILQ_INIT(&bounce_page_list);
-		STAILQ_INIT(&bounce_map_waitinglist);
-		STAILQ_INIT(&bounce_map_callbacklist);
-	}
-	
 	while (numpages > 0) {
 		struct bounce_page *bpage;
 
@@ -875,6 +882,7 @@ reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	int pages;
 
+	mtx_assert(&bounce_lock, MA_OWNED);
 	pages = MIN(free_bpages, map->pagesneeded - map->pagesreserved);
 	free_bpages -= pages;
 	reserved_bpages += pages;
