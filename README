@@ -11,7 +11,9 @@ The Makefile in this directory supports a number of targets for
 building components (or all) of the FreeBSD source tree, the most
 commonly used one being ``world'', which rebuilds and installs
 everything in the FreeBSD system from the source tree except the
-kernel and the contents of /etc.  Please see the top of the Makefile
+kernel, the kernel-modules and the contents of /etc.  The
+``buildkernel'' and ``installkernel'' targets build and install
+the kernel and the modules.  Please see the top of the Makefile
 in this directory for more information on the standard build targets
 and compile-time flags.
 
@@ -23,10 +25,10 @@ And in the config(8) man page.
 The sample kernel configuration files reside in the sys/i386/conf
 sub-directory (assuming that you've installed the kernel sources), the
 file named GENERIC being the one used to build your initial installation
-kernel.  The file LINT contains entries for all possible devices, not
-just those commonly used, and is meant more as a general reference
-than an actual kernel configuration file (a kernel built from it
-wouldn't even run).
+kernel.  The file NOTES contains entries and documentation for all possible
+devices, not just those commonly used.  It is the successor of the ancient
+LINT file, but in contrast to LINT, it is not buildable as a kernel but a
+pure reference and documentation file.
 
 
 Source Roadmap:
@@ -35,7 +37,7 @@ bin		System/User commands.
 
 contrib		Packages contributed by 3rd parties.
 
-crypto		Export controlled stuff (see crypto/README).
+crypto		Cryptography stuff (see crypto/README).
 
 etc		Template files for /etc
 
