@@ -79,7 +79,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	gethostname(hostname, sizeof hostname);
 
-	if (rhost == NULL) {
+	if (rhost == NULL || *rhost == '\0') {
 		PAM_LOG("Checking login.access for user %s on tty %s",
 		    user, tty);
 		if (login_access(user, tty) != 0)

@@ -246,7 +246,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	 * PAM_NEW_AUTHTOK_REQD.
 	 */
 
-	if (rhost) {
+	if (rhost && *rhost) {
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_UNSPEC;
 		if (getaddrinfo(rhost, NULL, &hints, &res) == 0) {
