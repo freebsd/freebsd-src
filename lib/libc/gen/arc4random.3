@@ -62,9 +62,11 @@ The
 .Fn arc4random
 function returns pseudo-random numbers in the range of 0 to
 .if t 2\u\s731\s10\d\(mi1,
-.if n (2**31)\(mi1,
+.if n (2**32)\(mi1,
 and therefore has twice the range of
-.Dv RAND_MAX .
+.Xr rand 3
+and
+.Xr random 3 .
 .Pp
 The
 .Fn arc4random_stir
