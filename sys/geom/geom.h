@@ -89,18 +89,12 @@ struct g_class {
 	g_ctl_destroy_geom_t	*destroy_geom;
 	g_ctl_config_geom_t	*config_geom;
 	/*
-	 * The remaning elements are private and classes should use
-	 * the G_CLASS_INITIALIZER macro to initialize them.
-         */
+	 * The remaining elements are private
+	 */
 	LIST_ENTRY(g_class)	class;
 	LIST_HEAD(,g_geom)	geom;
 	u_int			protect;
 };
-
-#define G_CLASS_INITIALIZER 	\
-	.class = { 0, 0 },	\
-	.geom = { 0 },		\
-	.protect = 0	
 
 /*
  * The g_geom is an instance of a g_class.

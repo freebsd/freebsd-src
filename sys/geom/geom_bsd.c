@@ -754,7 +754,6 @@ static struct g_class g_bsd_class = {
 	.name = BSD_CLASS_NAME,
 	.taste = g_bsd_taste,
 	.config_geom = g_bsd_config,
-	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_bsd_class, g_bsd);
