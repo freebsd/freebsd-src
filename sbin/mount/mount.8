@@ -113,6 +113,12 @@ In case of conflicting options being specified, the rightmost option
 takes effect.
 The following options are available:
 .Bl -tag -width indent
+.It Cm acls
+Enable Access Control Lists, or ACLS, which can be customized via the
+.Xr setfacl 1
+and
+.Xr getfacl 1
+commands.
 .It Cm async
 All
 .Tn I/O
@@ -140,6 +146,15 @@ When used with the
 flag, this is the same as specifying all the options listed in the
 .Xr fstab 5
 file for the file system.
+.It Cm multilabel
+Enable Mandatory Access Control, or MAC.
+Must be used in conjunction with the
+.Em -l
+flag in
+.Xr tunefs 8 .
+See
+.Xr mac 4
+for more information.
 .It Cm noasync
 Metadata I/O should be done synchronously, while data I/O should be done
 asynchronously.
@@ -453,7 +468,11 @@ file system table
 .Xr mount_udf 8 ,
 .Xr mount_umapfs 8 ,
 .Xr mount_unionfs 8 ,
-.Xr umount 8
+.Xr umount 8 ,
+.Xr acl 3 ,
+.Xr getfacl 1 ,
+.Xr setfacl 1 ,
+.Xr mac 3
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
 .Sh CAVEATS
