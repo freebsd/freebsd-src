@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.3 1995/05/30 00:06:22 rgrimes Exp $
+ *	$Id: utils.c,v 1.5 1995/10/03 12:55:01 bde Exp $
  */
 
 #ifndef lint
@@ -241,7 +241,8 @@ setfile(fs, fd)
 	int rval;
 
 	rval = 0;
-	fs->st_mode &= S_ISUID | S_ISGID | S_IRWXU | S_IRWXG | S_IRWXO;
+	fs->st_mode &= S_ISUID | S_ISGID | S_ISVTX |
+		       S_IRWXU | S_IRWXG | S_IRWXO;
 
 	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atimespec);
 	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtimespec);
