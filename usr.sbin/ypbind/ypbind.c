@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.15 1995/05/30 03:55:13 rgrimes Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.15.4.1 1995/08/26 12:56:07 davidg Exp $";
 #endif
 
 #include <sys/param.h>
@@ -173,6 +173,12 @@ CLIENT *clnt;
 	res.ypbind_status = YPBIND_FAIL_VAL;
 	res.ypbind_respbody.ypbind_error = YPBIND_ERR_NOSERV;
 
+	if (strchr(argp, '/')) {
+		syslog(LOG_WARNING, "Domain name '%s' has embedded slash -- \
+rejecting.", argp);
+		return(&res);
+	}
+
 	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
 		if( strcmp(ypdb->dom_domain, argp) == 0)
 			break;
@@ -233,6 +239,12 @@ struct ypbind_setdom *argp;
 CLIENT *clnt;
 {
 	struct sockaddr_in *fromsin, bindsin;
+
+	if (strchr(argp->ypsetdom_domain, '/')) {
+		syslog(LOG_WARNING, "Domain name '%s' has embedded slash -- \
+rejecting.", argp->ypsetdom_domain);
+		return;
+	}
 
 	fromsin = svc_getcaller(transp);
 
