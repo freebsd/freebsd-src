@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.h,v 1.37 1999/10/13 18:52:54 augustss Exp $	*/
+/*	$NetBSD: usb.h,v 1.38 1999/10/20 21:02:39 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -479,6 +479,10 @@ struct usb_ctl_report_desc {
 struct usb_device_info {
 	u_int8_t	bus;				/* bus number */
 	u_int8_t	addr;				/* device address */
+#	define		MAXDEVNAMELEN	10		/* number of drivers */
+#	define		MAXDEVNAMES	4		/* attached drivers */
+	char		devnames[MAXDEVNAMES][MAXDEVNAMELEN];
+							/* device names */
 	char		product[USB_MAX_STRING_LEN];	/* iProduct */
 	char		vendor[USB_MAX_STRING_LEN];	/* iManufacturer */
 	char		release[8];			/* string of releaseNo*/
