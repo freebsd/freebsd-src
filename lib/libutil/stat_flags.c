@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)stat_flags.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: stat_flags.c,v 1.7 1997/08/07 15:33:49 steve Exp $";
+	"$Id: stat_flags.c,v 1.8 1997/08/07 22:28:25 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -72,8 +72,10 @@ flags_to_string(flags, def)
 		SAPPEND("uappnd");
 	if (flags & UF_IMMUTABLE)
 		SAPPEND("uchg");
+#ifdef UF_NOUNLINK
 	if (flags & UF_NOUNLINK)
 		SAPPEND("uunlnk");
+#endif
 	if (flags & UF_NODUMP)
 		SAPPEND("nodump");
 	if (flags & UF_OPAQUE)
@@ -84,8 +86,10 @@ flags_to_string(flags, def)
 		SAPPEND("arch");
 	if (flags & SF_IMMUTABLE)
 		SAPPEND("schg");
+#ifdef SF_NOUNLINK
 	if (flags & SF_NOUNLINK)
 		SAPPEND("sunlnk");
+#endif
 	return (prefix == NULL && def != NULL ? def : string);
 }
 
@@ -146,8 +150,10 @@ string_to_flags(stringp, setp, clrp)
 			TEST(p, "schg", SF_IMMUTABLE);
 			TEST(p, "schange", SF_IMMUTABLE);
 			TEST(p, "simmutable", SF_IMMUTABLE);
+#ifdef SF_NOUNLINK
 			TEST(p, "sunlnk", SF_NOUNLINK);
 			TEST(p, "sunlink", SF_NOUNLINK);
+#endif
 			return (1);
 		case 'u':
 			TEST(p, "uappnd", UF_APPEND);
@@ -155,8 +161,10 @@ string_to_flags(stringp, setp, clrp)
 			TEST(p, "uchg", UF_IMMUTABLE);
 			TEST(p, "uchange", UF_IMMUTABLE);
 			TEST(p, "uimmutable", UF_IMMUTABLE);
+#ifdef UF_NOUNLINK
 			TEST(p, "uunlnk", UF_NOUNLINK);
 			TEST(p, "uunlink", UF_NOUNLINK);
+#endif
 			/* FALLTHROUGH */
 		default:
 			return (1);
