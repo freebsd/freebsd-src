@@ -9,8 +9,6 @@ Syntax:
 
 Where "var" can be one or more of:
 
-addUser                 Add a new user to the system
-addGroup                Add a new group to the system
 blanktime               Screen blank time setting in seconds
 bootManager             Select boot manager: booteasy, standard or none
 browserBinary           Which doc browser to use (default: lynx)
@@ -58,6 +56,8 @@ varSize                 Size of the /var partition to create for Auto
 
 And "command" can be one or more of:
 
+addUser                 Add a new user to the system
+addGroup                Add a new group to the system
 configAnonFTP           Configure system for anonymous FTP
 configApache            Configure and install the Apache WEB server
 configGated             Configure and install gated
@@ -97,7 +97,7 @@ mediaSetFtpUserPass     Prompt for FTP username and password
 mediaSetCPIOVerbosity   Prompt for CPIO verbosity
 mediaGetType            Prompt for media type
 optionsEditor           Go to options editor
-
+register		Go to registration editor.
 
 Examples:
 
