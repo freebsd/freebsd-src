@@ -80,6 +80,7 @@
 static int fw_verbose;
 static int verbose_limit;
 
+static struct callout_handle ipfw_timeout_h;
 #define	IPFW_DEFAULT_RULE	65535
 
 /*
@@ -159,12 +160,7 @@ static u_int32_t dyn_rst_lifetime = 1;
 static u_int32_t dyn_udp_lifetime = 10;
 static u_int32_t dyn_short_lifetime = 5;
 
-/*
- * After reaching 0, dynamic rules are considered still valid for
- * an additional grace time, unless there is lack of resources.
- * XXX not implemented yet.
- */
-static u_int32_t dyn_grace_time = 10;
+static u_int32_t dyn_keepalive = 1;	/* do send keepalives */
 
 static u_int32_t static_count;	/* # of static rules */
 static u_int32_t static_len;	/* size in bytes of static rules */
@@ -193,8 +189,8 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime, CTLFLAG_RW,
     &dyn_udp_lifetime, 0, "Lifetime of dyn. rules for UDP");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime, CTLFLAG_RW,
     &dyn_short_lifetime, 0, "Lifetime of dyn. rules for other situations");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_grace_time, CTLFLAG_RD,
-    &dyn_grace_time, 0, "Grace time for dyn. rules");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive, CTLFLAG_RW,
+    &dyn_keepalive, 0, "Enable keepalives for dyn. rules");
 
 #endif /* SYSCTL_NODE */
 
@@ -382,6 +378,7 @@ static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
 
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 #define SNP(buf) buf, sizeof(buf)
+
 /*
  * We enter here when we have a rule with O_LOG.
  * XXX this function alone takes about 2Kbytes of code!
@@ -461,15 +458,13 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 			break;
 		case O_FORWARD_IP: {
 			ipfw_insn_sa *sa = (ipfw_insn_sa *)cmd;
+			int len;
 
+			len = snprintf(SNPARGS(action2, 0), "Forward to %s",
+				inet_ntoa(sa->sa.sin_addr));
 			if (sa->sa.sin_port)
-				snprintf(SNPARGS(action2, 0),
-				    "Forward to %s:%d",
-					inet_ntoa(sa->sa.sin_addr),
-					sa->sa.sin_port);
-			else
-				snprintf(SNPARGS(action2, 0), "Forward to %s",
-					inet_ntoa(sa->sa.sin_addr));
+				snprintf(SNPARGS(action2, len), ":%d",
+					ntohs(sa->sa.sin_port));
 			}
 			break;
 		default:	
@@ -504,30 +499,26 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 			len = snprintf(SNPARGS(proto, 0), "TCP %s",
 			    inet_ntoa(ip->ip_src));
 			if (offset == 0)
-				len += snprintf(SNPARGS(proto, len), ":%d ",
-				    ntohs(tcp->th_sport));
-			else
-				len += snprintf(SNPARGS(proto, len), " ");
-			len += snprintf(SNPARGS(proto, len), "%s",
-			    inet_ntoa(ip->ip_dst));
-			if (offset == 0)
-				snprintf(SNPARGS(proto, len), ":%d",
+				snprintf(SNPARGS(proto, len), ":%d %s:%d",
+				    ntohs(tcp->th_sport),
+				    inet_ntoa(ip->ip_dst),
 				    ntohs(tcp->th_dport));
+			else
+				snprintf(SNPARGS(proto, len), " %s",
+				    inet_ntoa(ip->ip_dst));
 			break;
 
 		case IPPROTO_UDP:
 			len = snprintf(SNPARGS(proto, 0), "UDP %s",
 				inet_ntoa(ip->ip_src));
 			if (offset == 0)
-				len += snprintf(SNPARGS(proto, len), ":%d ",
-				    ntohs(udp->uh_sport));
-			else
-				len += snprintf(SNPARGS(proto, len), " ");
-			len += snprintf(SNPARGS(proto, len), "%s",
-			    inet_ntoa(ip->ip_dst));
-			if (offset == 0)
-				snprintf(SNPARGS(proto, len), ":%d",
+				snprintf(SNPARGS(proto, len), ":%d %s:%d",
+				    ntohs(udp->uh_sport),
+				    inet_ntoa(ip->ip_dst),
 				    ntohs(udp->uh_dport));
+			else
+				snprintf(SNPARGS(proto, len), " %s",
+				    inet_ntoa(ip->ip_dst));
 			break;
 
 		case IPPROTO_ICMP:
@@ -693,7 +684,8 @@ next:
  * lookup a dynamic rule.
  */
 static ipfw_dyn_rule *
-lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction)
+lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
+	struct tcphdr *tcp)
 {
 	/*
 	 * stateful ipfw extensions.
@@ -755,10 +747,25 @@ next:
 			q->expire = time_second + dyn_syn_lifetime;
 			break;
 		case BOTH_SYN:			/* move to established */
-			q->expire = time_second + dyn_ack_lifetime;
-			break;
 		case BOTH_SYN | TH_FIN :	/* one side tries to close */
 		case BOTH_SYN | (TH_FIN << 8) :
+ 			if (tcp) {
+#define _SEQ_GE(a,b) ((int)(a) - (int)(b) >= 0)
+			    u_int32_t ack = ntohl(tcp->th_ack);
+			    if (dir == MATCH_FORWARD) {
+				if (q->ack_fwd == 0 || _SEQ_GE(ack, q->ack_fwd))
+				    q->ack_fwd = ack;
+				else { /* ignore out-of-sequence */
+				    break;
+				}
+			    } else {
+				if (q->ack_rev == 0 || _SEQ_GE(ack, q->ack_rev))
+				    q->ack_rev = ack;
+				else { /* ignore out-of-sequence */
+				    break;
+				}
+			    }
+			}
 			q->expire = time_second + dyn_ack_lifetime;
 			break;
 		case BOTH_SYN | BOTH_FIN:	/* both sides closed */
@@ -910,7 +917,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 	    (args->f_id.src_ip), (args->f_id.src_port),
 	    (args->f_id.dst_ip), (args->f_id.dst_port) );)
 
-	q = lookup_dyn_rule(&args->f_id, NULL);
+	q = lookup_dyn_rule(&args->f_id, NULL, NULL);
 
 	if (q != NULL) { /* should never occur */
 		if (last_log != time_second) {
@@ -985,16 +992,21 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		printf("unknown dynamic rule type %u\n", cmd->o.opcode);
 		return 1;
 	}
-	lookup_dyn_rule(&args->f_id, NULL); /* XXX just set the lifetime */
+	lookup_dyn_rule(&args->f_id, NULL, NULL); /* XXX just set lifetime */
 	return 0;
 }
 
-#if 0
+/*
+ * Transmit a TCP packet, containing either a RST or a keepalive.
+ * When flags & TH_RST, we are sending a RST packet, because of a
+ * "reset" action matched the packet.
+ * Otherwise we are sending a keepalive, and flags & TH_
+ */
 static void
-send_pkt(struct ip_fw_args *args, u_int32_t seq, u_int32_t ack, int flags)
+send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 {
 	struct mbuf *m;
-	struct ip *ip = mtod(args->m, struct ip *);
+	struct ip *ip;
 	struct tcphdr *tcp;
 	struct route sro;	/* fake route */
 
@@ -1005,43 +1017,61 @@ send_pkt(struct ip_fw_args *args, u_int32_t seq, u_int32_t ack, int flags)
 	m->m_pkthdr.len = m->m_len = sizeof(struct ip) + sizeof(struct tcphdr);
 	m->m_data += max_linkhdr;
 
-	ip->ip_v = 4;
-	ip->ip_hl = 5;
-	ip->ip_tos = 0;
-	ip->ip_len = 0;		/* set later */
-#ifdef RANDOM_IP_ID
-	ip->ip_id = ip_randomid();
-#else
-	ip->ip_id = htons(ip_id++);
-#endif
-	ip->ip_off = 0;
-	ip->ip_ttl = 0;		/* set later */
+	ip = mtod(m, struct ip *);
+	bzero(ip, m->m_len);
+	tcp = (struct tcphdr *)(ip + 1); /* no IP options */
 	ip->ip_p = IPPROTO_TCP;
-	ip->ip_sum = 0;
-	ip->ip_src.s_addr = args->f_id.dst_ip;
-	ip->ip_dst.s_addr = args->f_id.src_ip;
-
-	tcp = L3HDR(struct tcphdr, ip);
-	tcp->th_sport = htons(args->f_id.dst_port); /* swap ports */
-	tcp->th_dport = htons(args->f_id.src_port);
-	tcp->th_off = 4;
-	tcp->th_x2 = 0;
-	tcp->th_win = 0;
-	tcp->th_sum = 0;
-	tcp->th_urp = 0;
-	if (flags & TH_ACK) {
-		tcp->th_seq = htonl(ack);
-		tcp->th_ack = htonl(0);
-		tcp->th_flags = TH_RST;
+	tcp->th_off = 5;
+	/*
+	 * Assume we are sending a RST (or a keepalive in the reverse
+	 * direction), swap src and destination addresses and ports.
+	 */
+	ip->ip_src.s_addr = htonl(id->dst_ip);
+	ip->ip_dst.s_addr = htonl(id->src_ip);
+	tcp->th_sport = htons(id->dst_port);
+	tcp->th_dport = htons(id->src_port);
+	if (flags & TH_RST) {	/* we are sending a RST */
+		if (flags & TH_ACK) {
+			tcp->th_seq = htonl(ack);
+			tcp->th_ack = htonl(0);
+			tcp->th_flags = TH_RST;
+		} else {
+			if (flags & TH_SYN)
+				seq++;
+			tcp->th_seq = htonl(0);
+			tcp->th_ack = htonl(seq);
+			tcp->th_flags = TH_RST | TH_ACK;
+		}
 	} else {
-		if (flags & TH_SYN)
-			seq++;
-		tcp->th_seq = htonl(0);
-		tcp->th_ack = htonl(seq);
-		tcp->th_flags = TH_RST | TH_ACK;
+		/*
+		 * We are sending a keepalive. flags & TH_SYN determines
+		 * the direction, forward if set, reverse if clear.
+		 * NOTE: seq and ack are always assumed to be correct
+		 * as set by the caller. This may be confusing...
+		 */
+		if (flags & TH_SYN) {
+			/*
+			 * we have to rewrite the correct addresses!
+			 */
+			ip->ip_dst.s_addr = htonl(id->dst_ip);
+			ip->ip_src.s_addr = htonl(id->src_ip);
+			tcp->th_dport = htons(id->dst_port);
+			tcp->th_sport = htons(id->src_port);
+		}
+		tcp->th_seq = htonl(seq);
+		tcp->th_ack = htonl(ack);
+		tcp->th_flags = TH_ACK;
 	}
-	/* compute TCP checksum... */
+	/*
+	 * set ip_len to the payload size so we can compute
+	 * the tcp checksum on the pseudoheader
+	 * XXX check this, could save a couple of words ?
+	 */
+	ip->ip_len = htons(sizeof(struct tcphdr));
 	tcp->th_sum = in_cksum(m, m->m_pkthdr.len);
+	/*
+	 * now fill fields left out earlier
+	 */
 	ip->ip_ttl = ip_defttl;
 	ip->ip_len = m->m_pkthdr.len;
 	bzero (&sro, sizeof (sro));
@@ -1050,7 +1080,6 @@ send_pkt(struct ip_fw_args *args, u_int32_t seq, u_int32_t ack, int flags)
 	if (sro.ro_rt)
 		RTFREE(sro.ro_rt);
 }
-#endif
 
 /*
  * sends a reject message, consuming the mbuf passed as an argument.
@@ -1058,43 +1087,17 @@ send_pkt(struct ip_fw_args *args, u_int32_t seq, u_int32_t ack, int flags)
 static void
 send_reject(struct ip_fw_args *args, int code, int offset, int ip_len)
 {
+printf("+++ send reject\n");
 	if (code != ICMP_REJECT_RST) /* Send an ICMP unreach */
 		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
 	else if (offset == 0 && args->f_id.proto == IPPROTO_TCP) {
-#if 0
 		struct tcphdr *const tcp =
 		    L3HDR(struct tcphdr, mtod(args->m, struct ip *));
 		if ( (tcp->th_flags & TH_RST) == 0)
-			send_pkt(args, tcp->th_seq, tcp->th_ack, tcp->th_flags);
+			send_pkt(&(args->f_id), ntohl(tcp->th_seq),
+				ntohl(tcp->th_ack),
+				tcp->th_flags | TH_RST);
 		m_freem(args->m);
-#else
-		/* XXX warning, this code writes into the mbuf */
-		struct ip *ip = mtod(args->m, struct ip *);
-		struct tcphdr *const tcp = L3HDR(struct tcphdr, ip);
-		struct tcpiphdr ti, *const tip = (struct tcpiphdr *) ip;
-		int hlen = ip->ip_hl << 2;
-
-		if (tcp->th_flags & TH_RST) {
-			m_freem(args->m);	/* free the mbuf */
-			args->m = NULL;
-			return;
-		}
-		ti.ti_i = *((struct ipovly *) ip);
-		ti.ti_t = *tcp;
-		bcopy(&ti, ip, sizeof(ti));
-		tip->ti_seq = ntohl(tip->ti_seq);
-		tip->ti_ack = ntohl(tip->ti_ack);
-		tip->ti_len = ip_len - hlen - (tip->ti_off << 2);
-		if (tcp->th_flags & TH_ACK) {
-			tcp_respond(NULL, (void *)ip, tcp, args->m,
-			    0, tcp->th_ack, TH_RST);
-		} else {
-			if (tcp->th_flags & TH_SYN)
-				tip->ti_len++;
-			tcp_respond(NULL, (void *)ip, tcp, args->m, 
-			    tip->ti_seq + tip->ti_len, 0, TH_RST|TH_ACK);
-		}
-#endif
 	} else
 		m_freem(args->m);
 	args->m = NULL;
@@ -1752,7 +1755,9 @@ check_body:
 				 */
 				if (dyn_dir == MATCH_UNKNOWN &&
 				    (q = lookup_dyn_rule(&args->f_id,
-				     &dyn_dir)) != NULL) {
+				     &dyn_dir, proto == IPPROTO_TCP ?
+					L3HDR(struct tcphdr, ip) : NULL))
+					!= NULL) {
 					/*
 					 * Found dynamic entry, update stats
 					 * and jump to the 'action' part of
@@ -2483,6 +2488,39 @@ ipfw_ctl(struct sockopt *sopt)
 struct ip_fw *ip_fw_default_rule;
 
 static void
+ipfw_tick(void * __unused unused)
+{
+	int i;
+	int s;
+	ipfw_dyn_rule *q;
+
+	if (dyn_keepalive == 0 || ipfw_dyn_v == NULL || dyn_count == 0)
+		goto done;
+
+	s = splimp();
+	for (i = 0 ; i < curr_dyn_buckets ; i++) {
+		for (q = ipfw_dyn_v[i] ; q ; q = q->next ) {
+			if (q->dyn_type == O_LIMIT_PARENT)
+				continue;
+			if (q->id.proto != IPPROTO_TCP)
+				continue;
+			if ( (q->state & BOTH_SYN) != BOTH_SYN)
+				continue;
+			if (TIME_LEQ( time_second+20, q->expire))
+				continue;	/* too early */
+			if (TIME_LEQ(q->expire, time_second))
+				continue;	/* too late, rule expired */
+
+			send_pkt(&(q->id), q->ack_rev - 1, q->ack_fwd, TH_SYN);
+			send_pkt(&(q->id), q->ack_fwd - 1, q->ack_rev, 0);
+		}
+	}
+	splx(s);
+done:
+	ipfw_timeout_h = timeout(ipfw_tick, NULL, 5*hz);
+}
+
+static void
 ipfw_init(void)
 {
 	struct ip_fw default_rule;
@@ -2531,6 +2569,8 @@ ipfw_init(void)
 	else
 		printf("limited to %d packets/entry by default\n",
 		    verbose_limit);
+	bzero(&ipfw_timeout_h, sizeof(struct callout_handle));
+	ipfw_timeout_h = timeout(ipfw_tick, NULL, hz);
 }
 
 static int
@@ -2558,6 +2598,7 @@ ipfw_modevent(module_t mod, int type, void *unused)
 		err = EBUSY;
 #else
                 s = splimp();
+		untimeout(ipfw_tick, NULL, ipfw_timeout_h);
 		ip_fw_chk_ptr = NULL;
 		ip_fw_ctl_ptr = NULL;
 		free_chain(&layer3_chain, 1 /* kill default rule */);
