@@ -116,6 +116,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 
@@ -130,6 +131,8 @@
 
 #if (__FreeBSD_version < 500000)
 #include <machine/clock.h>              /* for DELAY */
+#define	PROC_LOCK(p)
+#define	PROC_UNLOCK(p)
 #endif
 
 #include <pci/pcivar.h>
@@ -177,6 +180,8 @@ typedef unsigned int uintptr_t;
 /* *** BSDI *** */
 /****************/
 #ifdef __bsdi__
+#define	PROC_LOCK(p)
+#define	PROC_UNLOCK(p)
 #endif /* __bsdi__ */
 
 
@@ -216,6 +221,9 @@ bktr_name(bktr_ptr_t bktr)
 {
         return (bktr->bktr_dev.dv_xname);
 }
+
+#define	PROC_LOCK(p)
+#define	PROC_UNLOCK(p)
 
 #endif /* __NetBSD__ || __OpenBSD__ */
 
@@ -895,9 +903,12 @@ common_bktr_intr( void *arg )
 		 * let them know the frame is complete.
 		 */
 
-		if (bktr->proc && !(bktr->signal & METEOR_SIG_MODE_MASK))
+		if (bktr->proc && !(bktr->signal & METEOR_SIG_MODE_MASK)) {
+			PROC_LOCK(bktr->proc);
 			psignal( bktr->proc,
 				 bktr->signal&(~METEOR_SIG_MODE_MASK) );
+			PROC_UNLOCK(bktr->proc);
+		}
 
 		/*
 		 * Reset the want flags if in continuous or
@@ -1023,7 +1034,7 @@ video_open( bktr_ptr_t bktr )
 	bktr->frames_captured = 0;
 	bktr->even_fields_captured = 0;
 	bktr->odd_fields_captured = 0;
-	bktr->proc = (struct proc *)0;
+	bktr->proc = NULL;
 	set_fps(bktr, frame_rate);
 	bktr->video.addr = 0;
 	bktr->video.width = 0;
