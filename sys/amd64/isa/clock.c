@@ -99,8 +99,8 @@
 #include <i386/isa/intr_machdep.h>
 /* The interrupt triggered by the 8254 (timer) chip */
 int apic_8254_intr;
-static u_long read_intr_count __P((int vec));
-static void setup_8254_mixed_mode __P((void));
+static u_long read_intr_count(int vec);
+static void setup_8254_mixed_mode(void);
 #endif
 
 /*
@@ -155,7 +155,7 @@ static	int	i8254_ticked;
  * timer0_state == 0 case.  We should use inthand_add()/inthand_remove()
  * to switch between clkintr() and a slightly different timerintr().
  */
-static	void	(*new_function) __P((struct clockframe *frame));
+static	void	(*new_function)(struct clockframe *frame);
 static	u_int	new_rate;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
@@ -169,10 +169,10 @@ static	u_int	timer0_prescaler_count;
 
 static	u_char	timer0_state;
 static	u_char	timer2_state;
-static	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
+static	void	(*timer_func)(struct clockframe *frame) = hardclock;
 
-static	unsigned i8254_get_timecount __P((struct timecounter *tc));
-static	unsigned tsc_get_timecount __P((struct timecounter *tc));
+static	unsigned i8254_get_timecount(struct timecounter *tc);
+static	unsigned tsc_get_timecount(struct timecounter *tc);
 static	void	set_timer_freq(u_int freq, int intr_freq);
 
 static struct timecounter tsc_timecounter = {
@@ -279,7 +279,7 @@ clkintr(struct clockframe frame)
  * The acquire and release functions must be called at ipl >= splclock().
  */
 int
-acquire_timer0(int rate, void (*function) __P((struct clockframe *frame)))
+acquire_timer0(int rate, void (*function)(struct clockframe *frame))
 {
 	static int old_rate;
 

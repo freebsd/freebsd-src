@@ -27,6 +27,8 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Naofumi HONDA.  All rights reserved.
@@ -53,54 +55,54 @@
 /*********************************************************
  * static inline declare.
  *********************************************************/
-static BS_INLINE void write_wd33c93 __P((struct bs_softc *, u_int, u_int8_t));
-static BS_INLINE u_int8_t read_wd33c93 __P((struct bs_softc *, u_int));
-static BS_INLINE u_int8_t bshw_get_auxstat __P((struct bs_softc *));
-static BS_INLINE u_int8_t bshw_get_busstat __P((struct bs_softc *));
-static BS_INLINE u_int8_t bshw_get_status_insat __P((struct bs_softc *));
-static BS_INLINE u_int8_t bshw_read_data __P((struct bs_softc *));
-static BS_INLINE void bshw_write_data __P((struct bs_softc *, u_int8_t));
-static BS_INLINE void bshw_set_count __P((struct bs_softc *, u_int));
-static BS_INLINE u_int bshw_get_count __P((struct bs_softc *));
-static BS_INLINE void bshw_set_dst_id __P((struct bs_softc *, u_int, u_int));
-static BS_INLINE void bshw_set_lun __P((struct bs_softc *, u_int));
-static BS_INLINE u_int bshw_get_src_id __P((struct bs_softc *));
-static BS_INLINE void bshw_negate_ack __P((struct bs_softc *));
-static BS_INLINE void bshw_assert_atn __P((struct bs_softc *));
-static BS_INLINE void bshw_assert_select __P((struct bs_softc *));
-static BS_INLINE void bshw_start_xfer __P((struct bs_softc *));
-static BS_INLINE void bshw_start_sxfer __P((struct bs_softc *));
-static BS_INLINE void bshw_cmd_pass __P((struct bs_softc *, u_int));
-static BS_INLINE void bshw_start_sat __P((struct bs_softc *, u_int));
-static BS_INLINE void bshw_abort_cmd __P((struct bs_softc *));
-static BS_INLINE void bshw_set_sync_reg __P((struct bs_softc *, u_int));
-static BS_INLINE void bshw_set_poll_trans __P((struct bs_softc *, u_int));
-static BS_INLINE void bshw_set_dma_trans __P((struct bs_softc *, u_int));
+static BS_INLINE void write_wd33c93(struct bs_softc *, u_int, u_int8_t);
+static BS_INLINE u_int8_t read_wd33c93(struct bs_softc *, u_int);
+static BS_INLINE u_int8_t bshw_get_auxstat(struct bs_softc *);
+static BS_INLINE u_int8_t bshw_get_busstat(struct bs_softc *);
+static BS_INLINE u_int8_t bshw_get_status_insat(struct bs_softc *);
+static BS_INLINE u_int8_t bshw_read_data(struct bs_softc *);
+static BS_INLINE void bshw_write_data(struct bs_softc *, u_int8_t);
+static BS_INLINE void bshw_set_count(struct bs_softc *, u_int);
+static BS_INLINE u_int bshw_get_count(struct bs_softc *);
+static BS_INLINE void bshw_set_dst_id(struct bs_softc *, u_int, u_int);
+static BS_INLINE void bshw_set_lun(struct bs_softc *, u_int);
+static BS_INLINE u_int bshw_get_src_id(struct bs_softc *);
+static BS_INLINE void bshw_negate_ack(struct bs_softc *);
+static BS_INLINE void bshw_assert_atn(struct bs_softc *);
+static BS_INLINE void bshw_assert_select(struct bs_softc *);
+static BS_INLINE void bshw_start_xfer(struct bs_softc *);
+static BS_INLINE void bshw_start_sxfer(struct bs_softc *);
+static BS_INLINE void bshw_cmd_pass(struct bs_softc *, u_int);
+static BS_INLINE void bshw_start_sat(struct bs_softc *, u_int);
+static BS_INLINE void bshw_abort_cmd(struct bs_softc *);
+static BS_INLINE void bshw_set_sync_reg(struct bs_softc *, u_int);
+static BS_INLINE void bshw_set_poll_trans(struct bs_softc *, u_int);
+static BS_INLINE void bshw_set_dma_trans(struct bs_softc *, u_int);
 
 /*********************************************************
  * global declare
  *********************************************************/
-void bs_dma_xfer __P((struct targ_info *, u_int));
-void bs_dma_xfer_end __P((struct targ_info *));
-void bshw_dmaabort __P((struct bs_softc *, struct targ_info *));
+void bs_dma_xfer(struct targ_info *, u_int);
+void bs_dma_xfer_end(struct targ_info *);
+void bshw_dmaabort(struct bs_softc *, struct targ_info *);
 
-void bshw_adj_syncdata __P((struct syncdata *));
-void bshw_set_synchronous __P((struct bs_softc *, struct targ_info *));
+void bshw_adj_syncdata(struct syncdata *);
+void bshw_set_synchronous(struct bs_softc *, struct targ_info *);
 
-void bs_smit_xfer_end __P((struct targ_info *));
-void bshw_smitabort __P((struct bs_softc *));
+void bs_smit_xfer_end(struct targ_info *);
+void bshw_smitabort(struct bs_softc *);
 
-void bshw_setup_ctrl_reg __P((struct bs_softc *, u_int));
-int bshw_chip_reset __P((struct bs_softc *));
-void bshw_bus_reset __P((struct bs_softc *));
-int bshw_board_probe __P((struct bs_softc *, u_int *, u_int *));
-void bshw_lock __P((struct bs_softc *));
-void bshw_unlock __P((struct bs_softc *));
-void bshw_get_syncreg __P((struct bs_softc *));
-void bshw_issue_satcmd __P((struct bs_softc *, struct bsccb *, int));
-void bshw_print_port __P((struct bs_softc *));
+void bshw_setup_ctrl_reg(struct bs_softc *, u_int);
+int bshw_chip_reset(struct bs_softc *);
+void bshw_bus_reset(struct bs_softc *);
+int bshw_board_probe(struct bs_softc *, u_int *, u_int *);
+void bshw_lock(struct bs_softc *);
+void bshw_unlock(struct bs_softc *);
+void bshw_get_syncreg(struct bs_softc *);
+void bshw_issue_satcmd(struct bs_softc *, struct bsccb *, int);
+void bshw_print_port(struct bs_softc *);
 
-void bs_lc_smit_xfer __P((struct targ_info *, u_int));
+void bs_lc_smit_xfer(struct targ_info *, u_int);
 
 extern struct dvcfg_hwsel bshw_hwsel;
 extern u_int8_t bshw_cmd[];
@@ -116,9 +118,9 @@ struct bshw {
 
 	u_int sregaddr;
 
-	int ((*dma_init) __P((struct bs_softc *)));
-	void ((*dma_start) __P((struct bs_softc *)));
-	void ((*dma_stop) __P((struct bs_softc *)));
+	int ((*dma_init)(struct bs_softc *));
+	void ((*dma_start)(struct bs_softc *));
+	void ((*dma_stop)(struct bs_softc *));
 };
 
 /*********************************************************

@@ -39,5 +39,5 @@
 #define	ELINK_507_POLY	0xe7
 #define	ELINK_509_POLY	0xcf
 
-void elink_reset __P((void));
-void elink_idseq __P((u_char p));
+void elink_reset(void);
+void elink_idseq(u_char p);

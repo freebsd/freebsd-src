@@ -502,12 +502,12 @@ extern int bs_debug_flag;
 /*************************************************
  * Function declare
  *************************************************/
-int bs_scsi_cmd_internal __P((struct bsccb *, u_int));
-struct bsccb *bscmddone __P((struct targ_info *));
-int bscmdstart __P((struct targ_info *, int));
-int bs_scsi_cmd_poll __P((struct targ_info *, struct bsccb *));
-int bs_sequencer __P((struct bs_softc *));
-void bs_poll_timeout __P((struct bs_softc *, char *));
+int bs_scsi_cmd_internal(struct bsccb *, u_int);
+struct bsccb *bscmddone(struct targ_info *);
+int bscmdstart(struct targ_info *, int);
+int bs_scsi_cmd_poll(struct targ_info *, struct bsccb *);
+int bs_sequencer(struct bs_softc *);
+void bs_poll_timeout(struct bs_softc *, char *);
 
 /*************************************************
  * XXX
