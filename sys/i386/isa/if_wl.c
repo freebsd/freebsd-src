@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.17 1998/11/15 19:30:48 eivind Exp $ */
+/* $Id: if_wl.c,v 1.18 1998/12/07 21:58:21 archie Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -494,7 +494,7 @@ wlattach(struct isa_device *id)
 #endif
 #if	MULTICAST
     ifp->if_flags |= IFF_MULTICAST;
-#endif	MULTICAST
+#endif	/* MULTICAST */
     ifp->if_name = "wl";
     ifp->if_unit = unit;
     ifp->if_init = wlinit;
@@ -736,7 +736,7 @@ wlhwrst(int unit)
 #ifdef	WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	wlmmcstat(unit);	/* Display MMC registers */
-#endif	WLDEBUG
+#endif	/* WLDEBUG */
     wlbldcu(unit);		/* set up command unit structures */
     
     if (wldiag(unit) == 0)
@@ -1284,7 +1284,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 #endif
 	break;
-#endif	MULTICAST
+#endif	/* MULTICAST */
 
     /* DEVICE SPECIFIC */
 
@@ -1563,7 +1563,7 @@ int unit;
 		if (ac_status & TC_CARRIER) {
 		    printf("wl%d: no carrier\n", unit);
 		}
-#endif	notdef
+#endif	/* notdef */
 		if (ac_status & TC_CLS) {
 		    printf("wl%d: no CTS\n", unit);
 		}
@@ -1725,7 +1725,7 @@ wlrequeue(int unit, u_short fd_p)
 
 #ifdef	WLDEBUG
 static int xmt_debug = 0;
-#endif	WLDEBUG
+#endif	/* WLDEBUG */
 
 /*
  * wlxmt:
@@ -1775,7 +1775,7 @@ wlxmt(int unit, struct mbuf *m)
 	    printf("ether type %x\n", eh_p->ether_type);
 	}
     }
-#endif	WLDEBUG
+#endif	/* WLDEBUG */
     outw(PIOR0(base), OFFSET_TBD);
     outw(PIOP0(base), 0);		/* act_count */
     outw(PIOR1(base), OFFSET_TBD + 4);
@@ -1830,13 +1830,13 @@ wlxmt(int unit, struct mbuf *m)
 	if (sc->wl_if.if_flags & IFF_DEBUG)
 	    if (xmt_debug)
 		printf("mbuf+ L%d @%p ", count, (void *)mb_p);
-#endif	WLDEBUG
+#endif	/* WLDEBUG */
     }
 #ifdef	WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	if (xmt_debug)
 	    printf("CLEN = %d\n", clen);
-#endif	WLDEBUG
+#endif	/* WLDEBUG */
     outw(PIOR0(base), tbd_p);
     if (clen < ETHERMIN) {
 	outw(PIOP0(base), inw(PIOP0(base)) + ETHERMIN - clen);
@@ -1854,7 +1854,7 @@ wlxmt(int unit, struct mbuf *m)
 	    printf("\n");
 	}
     }
-#endif	WLDEBUG
+#endif	/* WLDEBUG */
 
     outw(PIOR0(base), OFFSET_SCB + 2);	/* address of scb_command */
     /* 
@@ -2039,7 +2039,7 @@ wlconfig(int unit)
     struct ether_multistep step;
 #endif
     int cnt = 0;
-#endif	MULTICAST
+#endif	/* MULTICAST */
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -2151,7 +2151,7 @@ printf("mcast_addr[%d,%d,%d] %x %x %x %x %x %x\n", lo, hi, cnt,
     outw(PIOP1(base), cnt * WAVELAN_ADDR_SIZE);
     if(wlcmd(unit, "config()-mcaddress") == 0)
 	return 0;
-#endif	MULTICAST
+#endif	/* MULTICAST */
 
     outw(PIOR1(base), OFFSET_CU);
     outw(PIOP1(base), 0);				/* ac_status */
