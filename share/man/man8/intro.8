@@ -65,6 +65,17 @@ The section
 .Ql Xr crash
 should be consulted to understand how to interpret system
 crash dumps.
+.Pp
+All commands set an exit status.
+Its value may be tested
+to see if the command completed normally.
+Unless otherwise noted (rare), the value 0 signifies successful
+completion of the command, while a value >0 indicates an error.
+Some commands attempt to describe the nature of the failure by using
+error codes defined in
+.Xr sysexits 3 ,
+or set the status to arbitrary values >0 (typically 1), but many
+such values are not described in the manual.
 .Sh HISTORY
 The
 .Nm
