@@ -134,6 +134,24 @@ Fixup_Extended_Names(struct chunk *c)
 }
 #endif
 
+#ifdef __powerpc__
+static int
+Fixup_Apple_Names(struct chunk *c)
+{
+	struct chunk *c1;
+
+	for (c1 = c->part; c1; c1 = c1->next) {
+		if (c1->type == unused)
+			continue;
+		free(c1->name);
+		c1->name = strdup(c->name);
+		if (!c1->name)
+			return (-1);
+	}
+	return 0;
+}
+#endif
+
 int
 Fixup_Names(struct disk *d)
 {
@@ -185,6 +203,10 @@ Fixup_Names(struct disk *d)
 	for (c2 = c1->part; c2; c2 = c2->next) {
 		if (c2->type == freebsd)
 			Fixup_FreeBSD_Names(c2);
+#ifdef __powerpc__
+		else if (c2->type == apple)
+			Fixup_Apple_Names(c2);
+#endif
 #ifndef PC98
 		else if (c2->type == extended)
 			Fixup_Extended_Names(c2);
@@ -238,7 +260,8 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent, daddr_t size,
 	if (!parent)
 		parent = d->chunks;
 
-	if (parent->type == freebsd && type == part && parent->part == NULL) {
+	if ((parent->type == freebsd  && type == part && parent->part == NULL) 
+	    || (parent->type == apple && type == part && parent->part == NULL)) {
 		c1 = New_Chunk();
 		if (c1 == NULL)
 			return (NULL);
