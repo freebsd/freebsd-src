@@ -235,6 +235,20 @@ struct syncache_head {
 	TAILQ_HEAD(, syncache)	sch_bucket;
 	u_int		sch_length;
 };
+
+struct tcptw {
+	struct inpcb	*tw_inpcb;	/* XXX back pointer to internet pcb */
+	tcp_seq		snd_nxt;
+	tcp_seq		rcv_nxt;
+	tcp_cc		cc_recv;
+	tcp_cc		cc_send;
+	u_short		last_win;	/* cached window value */
+	u_short		tw_so_options;	/* copy of so_options */
+	struct ucred	*tw_cred;	/* user credentials */
+	u_long 		t_recent;
+	u_long		t_starttime;
+	struct callout	*tt_2msl;	/* 2*msl TIME_WAIT timer */
+};
  
 /*
  * The TAO cache entry which is stored in the protocol family specific
@@ -254,6 +268,7 @@ struct rmxp_tao {
 #define rmx_taop(r)	((struct rmxp_tao *)(r).rmx_filler)
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
+#define	intotw(ip)	((struct tcptw *)(ip)->inp_ppcb)
 #define	sototcpcb(so)	(intotcpcb(sotoinpcb(so)))
 
 /*
@@ -448,6 +463,8 @@ extern	int ss_fltsz_local;
 void	 tcp_canceltimers(struct tcpcb *);
 struct tcpcb *
 	 tcp_close(struct tcpcb *);
+void	 tcp_twstart(struct tcpcb *);
+void	 tcp_twclose(struct tcptw *);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *
@@ -471,6 +488,7 @@ struct inpcb *
 	 tcp_quench(struct inpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
+int	 tcp_twrespond(struct tcptw *, int);
 struct rtentry *
 	 tcp_rtlookup(struct in_conninfo *);
 void	 tcp_setpersist(struct tcpcb *);

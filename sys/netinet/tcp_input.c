@@ -137,6 +137,8 @@ static int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *,
 		     struct mbuf *);
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
+static int	 tcp_timewait(struct tcptw *, struct tcpopt *,
+		     struct tcphdr *, struct mbuf *, int);
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
 #ifdef INET6
@@ -636,6 +638,22 @@ findpcb:
 		goto dropwithreset;
 	}
 	INP_LOCK(inp);
+	if (inp->inp_vflag & INP_TIMEWAIT) {
+		/*
+		 * The only option of relevance is TOF_CC, and only if
+		 * present in a SYN segment.  See tcp_timewait().
+		 */
+		if (thflags & TH_SYN)
+			tcp_dooptions(&to, optp, optlen, 1);
+		if (tcp_timewait((struct tcptw *)inp->inp_ppcb,
+		    &to, th, m, tlen))
+			goto findpcb;
+		/*
+		 * tcp_timewait unlocks inp.
+		 */
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return;
+	}
 	tp = intotcpcb(inp);
 	if (tp == 0) {
 		INP_UNLOCK(inp);
@@ -1319,6 +1337,7 @@ trimthenstep6:
 	case TCPS_LAST_ACK:
 	case TCPS_CLOSING:
 	case TCPS_TIME_WAIT:
+		KASSERT(tp->t_state != TCPS_TIME_WAIT, ("timewait"));
 		if ((thflags & TH_SYN) &&
 		    (to.to_flags & TOF_CC) && tp->cc_recv != 0) {
 			if (tp->t_state == TCPS_TIME_WAIT &&
@@ -1418,6 +1437,8 @@ trimthenstep6:
 				break;
 
 			case TCPS_TIME_WAIT:
+				KASSERT(tp->t_state != TCPS_TIME_WAIT,
+				    ("timewait"));
 				break;
 			}
 		}
@@ -1550,6 +1571,7 @@ trimthenstep6:
 			 * and start over if the sequence numbers
 			 * are above the previous ones.
 			 */
+			KASSERT(tp->t_state != TCPS_TIME_WAIT, ("timewait"));
 			if (thflags & TH_SYN &&
 			    tp->t_state == TCPS_TIME_WAIT &&
 			    SEQ_GT(th->th_seq, tp->rcv_nxt)) {
@@ -1678,7 +1700,7 @@ trimthenstep6:
 	case TCPS_CLOSING:
 	case TCPS_LAST_ACK:
 	case TCPS_TIME_WAIT:
-
+		KASSERT(tp->t_state != TCPS_TIME_WAIT, ("timewait"));
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			if (tlen == 0 && tiwin == tp->snd_wnd) {
 				tcpstat.tcps_rcvdupack++;
@@ -1921,6 +1943,10 @@ process_ACK:
 				 * specification, but if we don't get a FIN
 				 * we'll hang forever.
 				 */
+		/* XXXjl
+		 * we should release the tp also, and use a
+		 * compressed state.
+		 */
 				if (so->so_state & SS_CANTRCVMORE) {
 					soisdisconnected(so);
 					callout_reset(tp->tt_2msl, tcp_maxidle,
@@ -1938,19 +1964,11 @@ process_ACK:
 		 */
 		case TCPS_CLOSING:
 			if (ourfinisacked) {
-				tp->t_state = TCPS_TIME_WAIT;
-				tcp_canceltimers(tp);
-				/* Shorten TIME_WAIT [RFC-1644, p.28] */
-				if (tp->cc_recv != 0 &&
-				    (ticks - tp->t_starttime) < tcp_msl)
-					callout_reset(tp->tt_2msl,
-						      tp->t_rxtcur *
-						      TCPTV_TWTRUNC,
-						      tcp_timer_2msl, tp);
-				else
-					callout_reset(tp->tt_2msl, 2 * tcp_msl,
-						      tcp_timer_2msl, tp);
-				soisdisconnected(so);
+				KASSERT(headlocked, ("headlocked"));
+				INP_INFO_WUNLOCK(&tcbinfo);
+				m_freem(m);
+				tcp_twstart(tp);
+				return;
 			}
 			break;
 
@@ -1973,6 +1991,7 @@ process_ACK:
 		 * it and restart the finack timer.
 		 */
 		case TCPS_TIME_WAIT:
+			KASSERT(tp->t_state != TCPS_TIME_WAIT, ("timewait"));
 			callout_reset(tp->tt_2msl, 2 * tcp_msl,
 				      tcp_timer_2msl, tp);
 			goto dropafterack;
@@ -2166,27 +2185,15 @@ dodata:							/* XXX */
 		 * standard timers.
 		 */
 		case TCPS_FIN_WAIT_2:
-			tp->t_state = TCPS_TIME_WAIT;
-			tcp_canceltimers(tp);
-			/* Shorten TIME_WAIT [RFC-1644, p.28] */
-			if (tp->cc_recv != 0 &&
-			    (ticks - tp->t_starttime) < tcp_msl) {
-				callout_reset(tp->tt_2msl,
-					      tp->t_rxtcur * TCPTV_TWTRUNC,
-					      tcp_timer_2msl, tp);
-				/* For transaction client, force ACK now. */
-				tp->t_flags |= TF_ACKNOW;
-			}
-			else
-				callout_reset(tp->tt_2msl, 2 * tcp_msl,
-					      tcp_timer_2msl, tp);
-			soisdisconnected(so);
-			break;
+			KASSERT(headlocked == 0, ("headlocked"));
+			tcp_twstart(tp);
+			return;
 
 		/*
 		 * In TIME_WAIT state restart the 2 MSL time_wait timer.
 		 */
 		case TCPS_TIME_WAIT:
+			KASSERT(tp->t_state != TCPS_TIME_WAIT, ("timewait"));
 			callout_reset(tp->tt_2msl, 2 * tcp_msl,
 				      tcp_timer_2msl, tp);
 			break;
@@ -2801,4 +2808,153 @@ tcp_newreno_partial_ack(tp, th)
 	 * not updated yet.
 	 */
 	tp->snd_cwnd -= (th->th_ack - tp->snd_una - tp->t_maxseg);
+}
+
+/*
+ * Returns 1 if the TIME_WAIT state was killed and we should start over,
+ * looking for a pcb in the listen state.  Returns 0 otherwise.
+ */
+static int 
+tcp_timewait(tw, to, th, m, tlen)
+	struct tcptw *tw;
+	struct tcpopt *to;
+	struct tcphdr *th;
+	struct mbuf *m;
+	int tlen;
+{
+	int thflags;
+	tcp_seq seq;
+#ifdef INET6
+	int isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
+#else
+	const int isipv6 = 0;
+#endif
+
+	thflags = th->th_flags;
+
+	/*
+	 * NOTE: for FIN_WAIT_2 (to be added later),
+	 * must validate sequence number before accepting RST
+	 */
+
+	/*
+	 * If the segment contains RST:
+	 *	Drop the segment - see Stevens, vol. 2, p. 964 and
+	 *      RFC 1337.
+	 */
+	if (thflags & TH_RST)
+		goto drop;
+
+	/*
+	 * If segment contains a SYN and CC [not CC.NEW] option:
+	 * 	if connection duration > MSL, drop packet and send RST;
+	 *
+	 *	if SEG.CC > CCrecv then is new SYN.
+	 *	    Complete close and delete TCPCB.  Then reprocess
+	 *	    segment, hoping to find new TCPCB in LISTEN state;
+	 *
+	 *	else must be old SYN; drop it.
+	 * else do normal processing.
+	 */
+	if ((thflags & TH_SYN) && (to->to_flags & TOF_CC) && tw->cc_recv != 0) {
+		if ((ticks - tw->t_starttime) > tcp_msl)
+			goto reset;
+		if (CC_GT(to->to_cc, tw->cc_recv)) {
+			tcp_twclose(tw);
+			return (1);
+		}
+		goto drop;
+	}
+
+#if 0
+/* PAWS not needed at the moment */
+	/*
+	 * RFC 1323 PAWS: If we have a timestamp reply on this segment
+	 * and it's less than ts_recent, drop it.
+	 */
+	if ((to.to_flags & TOF_TS) != 0 && tp->ts_recent &&
+	    TSTMP_LT(to.to_tsval, tp->ts_recent)) {
+		if ((thflags & TH_ACK) == 0)
+			goto drop;
+		goto ack;
+	}
+	/*
+	 * ts_recent is never updated because we never accept new segments.
+	 */
+#endif
+
+	/*
+	 * If a new connection request is received
+	 * while in TIME_WAIT, drop the old connection
+	 * and start over if the sequence numbers
+	 * are above the previous ones.
+	 */
+	if ((thflags & TH_SYN) && SEQ_GT(th->th_seq, tw->rcv_nxt)) {
+		tcp_twclose(tw);
+		return (1);
+	}
+
+	/*
+	 * Drop the the segment if it does not contain an ACK.
+	 */
+	if ((thflags & TH_ACK) == 0)
+		goto drop;
+
+	/*
+	 * Reset the 2MSL timer if this is a duplicate FIN.
+	 */
+	if (thflags & TH_FIN) {
+		seq = th->th_seq + tlen + (thflags & TH_SYN ? 1 : 0);
+		if (seq + 1 == tw->rcv_nxt)
+			callout_reset(tw->tt_2msl,
+			    2 * tcp_msl, tcp_timer_2msl, tw);
+	}
+
+	/*
+	 * Acknowlege the segment, then drop it.
+	 */
+	tcp_twrespond(tw, TH_ACK);
+	goto drop;
+
+reset:
+	/*
+	 * Generate a RST, dropping incoming segment.
+	 * Make ACK acceptable to originator of segment.
+	 * Don't bother to respond if destination was broadcast/multicast.
+	 */
+	if (m->m_flags & (M_BCAST|M_MCAST))
+		goto drop;
+	if (isipv6) {
+		struct ip6_hdr *ip6;
+
+		/* IPv6 anycast check is done at tcp6_input() */
+		ip6 = mtod(m, struct ip6_hdr *);
+		if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
+		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
+			goto drop;
+	} else {
+		struct ip *ip;
+
+		ip = mtod(m, struct ip *);
+		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
+		    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
+		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
+		    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
+			goto drop;
+	}
+	if (thflags & TH_ACK) {
+		tcp_respond(NULL,
+		    mtod(m, void *), th, m, 0, th->th_ack, TH_RST);
+	} else {
+		seq = th->th_seq + (thflags & TH_SYN ? 1 : 0);
+		tcp_respond(NULL,
+		    mtod(m, void *), th, m, seq, 0, TH_RST|TH_ACK);
+	}
+	INP_UNLOCK(tw->tw_inpcb);
+	return (0);
+
+drop:
+	INP_UNLOCK(tw->tw_inpcb);
+	m_freem(m);
+	return (0);
 }

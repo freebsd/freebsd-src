@@ -470,10 +470,10 @@ ip_output(m0, opt, ro, flags, imo, inp)
 sendit:
 #ifdef IPSEC
 	/* get SP for this packet */
-	if (so == NULL)
+	if (inp == NULL)
 		sp = ipsec4_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, flags, &error);
 	else
-		sp = ipsec4_getpolicybysock(m, IPSEC_DIR_OUTBOUND, so, &error);
+		sp = ipsec4_getpolicybypcb(m, IPSEC_DIR_OUTBOUND, inp, &error);
 
 	if (sp == NULL) {
 		ipsecstat.out_inval++;

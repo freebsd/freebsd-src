@@ -218,10 +218,10 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 
 #ifdef IPSEC
 	/* get a security policy for this packet */
-	if (so == NULL)
+	if (inp == NULL)
 		sp = ipsec6_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, 0, &error);
 	else
-		sp = ipsec6_getpolicybysock(m, IPSEC_DIR_OUTBOUND, so, &error);
+		sp = ipsec6_getpolicybypcb(m, IPSEC_DIR_OUTBOUND, inp, &error);
 
 	if (sp == NULL) {
 		ipsec6stat.out_inval++;
