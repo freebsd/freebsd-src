@@ -46,7 +46,6 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <resolv.h>
 
 static Boolean got_intr = FALSE;
 
@@ -83,28 +82,6 @@ static int
 cdromHook(dialogMenuItem *self)
 {
     return genericHook(self, DEVICE_TYPE_CDROM);
-}
-
-static void
-kickstart_dns(void)
-{
-    static Boolean initted = FALSE;
-    int time;
-    char *cp;
-
-    cp = variable_get(VAR_MEDIA_TIMEOUT);
-    if (!cp)
-	time = MEDIA_TIMEOUT;
-    else
-	time = atoi(cp);
-    if (!time)
-	time = 100;
-    if (!initted) {
-	res_init();
-	_res.retry = 2;	/* 2 times seems a reasonable number to me */
-	_res.retrans = time / 2; /* so spend half our alloted time on each try */
-	initted = TRUE;
-    }
 }
 
 char *
@@ -385,7 +362,6 @@ mediaSetFTP(dialogMenuItem *self)
 	msgDebug("port # = `%d'\n", FtpPort);
     }
     if (variable_get(VAR_NAMESERVER)) {
-	kickstart_dns();
 	if ((inet_addr(hostname) == INADDR_NONE) && (gethostbyname(hostname) == NULL)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", hostname);
@@ -480,7 +456,6 @@ mediaSetNFS(dialogMenuItem *self)
 	    msgDebug("mediaSetNFS: Net device init failed\n");
     }
     if (variable_get(VAR_NAMESERVER)) {
-	kickstart_dns();
 	if ((inet_addr(hostname) == INADDR_NONE) && (gethostbyname(hostname) == NULL)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", hostname);
