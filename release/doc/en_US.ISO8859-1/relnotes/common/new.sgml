@@ -172,6 +172,14 @@
     <para>The <literal>USER_LDT</literal> kernel option is now
     activated by default.</para>
 
+    <para>A new &man.ddb.4; command <command>show pcpu</command> lists
+    some of the per-CPU data.</para>
+
+    <para>A new digi driver has been added to support PCI Xr-based and ISA
+    Xem Digiboard cards.  A new digictl program is (mainly) used to
+    re-initialise cards that have external port modules attached such as
+    the PC/Xem.<para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -571,6 +579,10 @@
 
       <para><application>IPFilter</application> has been updated to
       3.4.16. &merged;</para>
+
+      <para>The Forth Inspired Command Language
+      (<application>FICL</application>) used in the boot loader has
+      been updated to 2.05.</para>
 
       <sect4 arch="i386">
         <title>isdn4bsd</title>
@@ -1240,6 +1252,19 @@
     bad media, and to obviate for a complex invocation of
     &man.dd.1;.</para>
 
+    <para>&man.xargs.1; now supports a <option>-J</option>
+    <replaceable>replstr</replaceable> option that allows the user to
+    tell &man.xargs.1; to insert the data read from standard input at
+    a specific point in the command line arguments rather than at the
+    end.</para>
+
+    <para>&man.apmd.8; now supports monitoring of the battery state via the
+    <literal>apm_battery</literal> configuration directive.</para>
+
+    <para>&man.telnet.1; now does autologin and encryption by default;
+    a new <option>-y</option> option turns off encryption.</para>
+
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1304,7 +1329,7 @@
       0.75.</para>
 
       <para><application>ncurses</application> has been updated to
-      5.1-20001009. &merged;</para>
+      5.2-20010512.</para>
 
       <para>The <application>OPIE</application> one-time-password suite
       has been updated to 2.32. &merged;</para>

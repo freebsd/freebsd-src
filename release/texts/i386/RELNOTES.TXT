@@ -444,6 +444,13 @@ Asante FriendlyNet GigaNIC 1000TA and 1000TPC and Addtron AEG320T.
 
 The USER_LDT kernel option is now activated by default.
 
+A new ddb command "show pcpu" lists some of the per-CPU data.
+
+A new digi(4) driver has been added to support PCI Xr-based and ISA
+Xem Digiboard cards.  A new digictl program is (mainly) used to
+re-initialise cards that have external port modules attached such as
+the PC/Xem.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -814,7 +821,7 @@ mount(8) and mount_*(8)).
 The behavior of fsck(8) when dealing with various passes (a la
 /etc/fstab) has been modified to accomodate multiple-disk filesystems.
 
-ncurses has been updated to ncurses-5.1-20001009. [MERGED]
+ncurses has been updated to ncurses-5.2-20010512.
 
 gperf has been updated to 2.7.2. [MERGED]
 
@@ -1208,6 +1215,19 @@ The performance of the ELF dynamic linker has been improved. [MERGED]
 fdread(1), a program to read data from floppy disks, has been added.
 It is designed to provide a means of recovering at least some data
 from bad media, and to obviate for a complex invocation of dd(1).
+
+xargs(1) now supports a -J replstr option that allows the user to tell
+xargs to insert the data read from standard input at a specific point
+in the command line arguments rather than at the end.
+
+apmd(8) now supports monitoring of the battery state via the
+apm_battery configuration directive.
+
+telnet(1) now does autologin and encryption by default; a new -y
+option turns off encryption.
+
+The Forth Inspired Command Language used in the boot loader has been
+updated to 2.05.
 
 
 2. Supported Configurations
