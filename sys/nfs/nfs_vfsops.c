@@ -973,6 +973,12 @@ nfs_unmount(mp, mntflags, p)
 	 * - Close the socket
 	 * - Free up the data structures
 	 */
+	/* In the forced case, cancel any outstanding requests. */
+	if (flags & FORCECLOSE) {
+		error = nfs_nmcancelreqs(nmp);
+		if (error)
+			return (error);
+	}
 	/*
 	 * Must handshake with nqnfs_clientd() if it is active.
 	 */
