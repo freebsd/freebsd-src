@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.8 1999/01/11 23:35:01 bde Exp $
+ *	$Id: cy_pci.c,v 1.9 1999/01/11 23:43:54 bde Exp $
  */
 
 /*
@@ -34,8 +34,11 @@
 #include "pci.h"
 #if NPCI > 0
 
+#include "opt_cy_pci_fastintr.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -112,10 +115,18 @@ cy_attach(config_id, unit)
 	 *	since the ISA driver must handle the interrupt anyway, we use
 	 *	the unit number as the token even for PCI.
 	 */
-	if (!pci_map_int(config_id, (pci_inthand_t *)cyintr, (void *)adapter, &tty_imask)) {
+	if (
+#ifdef CY_PCI_FASTINTR
+	    !pci_map_int_right(config_id, (pci_inthand_t *)cyintr,
+			       (void *)adapter, &tty_imask,
+			       INTR_EXCL | INTR_FAST) &&
+#endif
+	    !pci_map_int_right(config_id, (pci_inthand_t *)cyintr,
+			       (void *)adapter, &tty_imask, 0)) {
 		printf("cy%d: couldn't map interrupt\n", unit);
 		goto fail;
 	}
+
 	/*
 	 * Enable the "local" interrupt input to generate a
 	 * PCI interrupt.
