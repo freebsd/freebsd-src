@@ -18,7 +18,6 @@ mailnull:*:26:
 guest:*:31:
 bind:*:53:
 uucp:*:66:
-xten:*:67:
 dialer:*:68:
 network:*:69:
 www:*:80:
