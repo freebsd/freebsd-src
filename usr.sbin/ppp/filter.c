@@ -502,9 +502,11 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   }
 
   log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.f_src.ipaddr));
-  log_Printf(LogDEBUG, "Parse: Src mask: %s\n", inet_ntoa(filterdata.f_src.mask));
+  log_Printf(LogDEBUG, "Parse: Src mask: %s\n",
+             inet_ntoa(filterdata.f_src.mask));
   log_Printf(LogDEBUG, "Parse: Dst: %s\n", inet_ntoa(filterdata.f_dst.ipaddr));
-  log_Printf(LogDEBUG, "Parse: Dst mask: %s\n", inet_ntoa(filterdata.f_dst.mask));
+  log_Printf(LogDEBUG, "Parse: Dst mask: %s\n",
+             inet_ntoa(filterdata.f_dst.mask));
   log_Printf(LogDEBUG, "Parse: Proto = %d\n", proto);
 
   log_Printf(LogDEBUG, "Parse: src:  %s (%d)\n",

@@ -1076,7 +1076,8 @@ mpserver_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-mpserver_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+mpserver_Write(struct fdescriptor *d, struct bundle *bundle,
+               const fd_set *fdset)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "mpserver_Write: Internal error: Bad call !\n");

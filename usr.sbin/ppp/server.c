@@ -218,7 +218,8 @@ server_LocalOpen(struct bundle *bundle, const char *name, mode_t mask)
   if (mask != (mode_t)-1)
     umask(mask);
   if (listen(s, 5) != 0) {
-    log_Printf(LogERROR, "Local: Unable to listen to socket - BUNDLE overload?\n");
+    log_Printf(LogERROR, "Local: Unable to listen to socket -"
+               " BUNDLE overload?\n");
     close(s);
     ID0unlink(name);
     return 5;
