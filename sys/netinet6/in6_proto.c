@@ -292,7 +292,9 @@ int	ip6_maxfragpackets;	/* initialized in frag6.c:frag6_init() */
 int	ip6_log_interval = 5;
 int	ip6_hdrnestlimit = 50;	/* appropriate? */
 int	ip6_dad_count = 1;	/* DupAddrDetectionTransmits */
+#ifndef RANDOM_IP_ID
 u_int32_t ip6_flow_seq;
+#endif
 int	ip6_auto_flowlabel = 1;
 int	ip6_gif_hlim = 0;
 int	ip6_use_deprecated = 1;	/* allow deprecated addr (RFC2462 5.5.4) */
