@@ -1,4 +1,6 @@
-#	$Id: options.i386,v 1.39 1997/04/05 13:21:08 bde Exp $
+#	$Id: options.i386,v 1.40 1997/04/26 11:44:59 peter Exp $
+XXXCreateMe		opt_global.h
+
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
