@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.28 1995/03/01 23:29:57 davidg Exp $
+ * $Id: vm_object.c,v 1.29 1995/03/07 17:25:46 davidg Exp $
  */
 
 /*
@@ -904,27 +904,6 @@ vm_object_shadow(object, offset, length)
 
 	*offset = 0;
 	*object = result;
-}
-
-/*
- *	Set the specified object's pager to the specified pager.
- */
-
-void
-vm_object_setpager(object, pager, paging_offset,
-    read_only)
-	vm_object_t object;
-	vm_pager_t pager;
-	vm_offset_t paging_offset;
-	boolean_t read_only;
-{
-	vm_object_lock(object);	/* XXX ? */
-	if (object->pager && object->pager != pager) {
-		panic("!!!pager already allocated!!!\n");
-	}
-	object->pager = pager;
-	object->paging_offset = paging_offset;
-	vm_object_unlock(object);	/* XXX ? */
 }
 
 /*
