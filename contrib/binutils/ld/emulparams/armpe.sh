@@ -1,8 +1,12 @@
 ARCH=arm
 SCRIPT_NAME=pe
+
 OUTPUT_FORMAT="pei-arm-little"
 LITTLE_OUTPUT_FORMAT="pei-arm-little"
 BIG_OUTPUT_FORMAT="pei-arm-big"
+
+RELOCATEABLE_OUTPUT_FORMAT="pe-arm-little"
+
 TEMPLATE_NAME=pe
 ENTRY="_mainCRTStartup"
 SUBSYSTEM=PE_DEF_SUBSYSTEM

@@ -1,6 +1,6 @@
 \input texinfo       @c                    -*- Texinfo -*-
 @setfilename binutils.info
-@c Copyright 2001, 2002 Free Software Foundation, Inc.
+@c Copyright 2001, 2002, 2003 Free Software Foundation, Inc.
 
 @include config.texi
 
@@ -29,14 +29,15 @@ END-INFO-DIR-ENTRY
 
 @ifinfo
 @c man begin COPYRIGHT
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000,
+2001, 2002, 2003 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1
 or any later version published by the Free Software Foundation;
 with no Invariant Sections, with no Front-Cover Texts, and with no
 Back-Cover Texts.  A copy of the license is included in the
-section entitled "GNU Free Documentation License".
+section entitled ``GNU Free Documentation License''.
 
 @c man end
 @ignore
@@ -53,7 +54,8 @@ notice identical to this one except for the removal of this paragraph
 @c This file documents the GNU binary utilities "ar", "ld", "objcopy",
 @c  "objdump", "nm", "size", "strings", "strip", "readelf" and "ranlib".
 @c
-@c Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001, 2002 Free Software Foundation, Inc.
+@c Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001,
+@c 2002, 2003 Free Software Foundation, Inc.
 @c 
 @c This text may be freely distributed under the terms of the GNU
 @c Free Documentation License.
@@ -78,14 +80,15 @@ notice identical to this one except for the removal of this paragraph
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 1998, 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 1998, 2000, 2001,
+2002, 2003 Free Software Foundation, Inc.
 
       Permission is granted to copy, distribute and/or modify this document
       under the terms of the GNU Free Documentation License, Version 1.1
       or any later version published by the Free Software Foundation;
       with no Invariant Sections, with no Front-Cover Texts, and with no
       Back-Cover Texts.  A copy of the license is included in the
-      section entitled "GNU Free Documentation License".
+      section entitled ``GNU Free Documentation License''.
 
 @end titlepage
 
@@ -93,7 +96,7 @@ Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 1998, 2000, 2001, 2002 Free
 @top Introduction
 
 @cindex version
-This brief manual contains preliminary documentation for the @sc{gnu} binary
+This brief manual contains documentation for the @sc{gnu} binary
 utilities (collectively version @value{VERSION}): 
 
 @iftex
@@ -238,7 +241,7 @@ program.
 
 @page
 @node ar cmdline
-@section Controlling @command{ar} on the command line
+@section Controlling @command{ar} on the Command Line
 
 @smallexample
 @c man begin SYNOPSIS ar
@@ -314,7 +317,7 @@ index is not updated, even if it already existed; you can use @samp{ar s} or
 @command{ranlib} explicitly to update the symbol table index.
 
 However, too many different systems assume quick append rebuilds the
-index, so GNU ar implements @code{q} as a synonym for @code{r}.
+index, so @sc{gnu} @command{ar} implements @samp{q} as a synonym for @samp{r}.
 
 @item r
 @cindex replacement in archive
@@ -464,7 +467,7 @@ This modifier shows the version number of @command{ar}.
 
 @command{ar} ignores an initial option spelt @samp{-X32_64}, for
 compatibility with AIX.  The behaviour produced by this option is the
-default for GNU @command{ar}.  @command{ar} does not support any of the other
+default for @sc{gnu} @command{ar}.  @command{ar} does not support any of the other
 @samp{-X} options; in particular, it does not support @option{-X32}
 which is the default for AIX @command{ar}.
 
@@ -477,7 +480,7 @@ nm(1), ranlib(1), and the Info entries for @file{binutils}.
 @end ignore
 
 @node ar scripts
-@section Controlling @command{ar} with a script
+@section Controlling @command{ar} with a Script
 
 @smallexample
 ar -M [ <@var{script} ]
@@ -716,7 +719,7 @@ object file formats permit more efficient access to small data objects,
 such as a global int variable as opposed to a large global array.
 
 @item I
-The symbol is an indirect reference to another symbol.  This is a GNU
+The symbol is an indirect reference to another symbol.  This is a @sc{gnu}
 extension to the a.out object file format which is rarely used.
 
 @item N
@@ -854,7 +857,7 @@ Equivalent to @samp{-f posix}.
 
 @item -S
 @itemx --print-size
-Print size of defined symbols for the @code{bsd} output format.
+Print size, not the value, of defined symbols for the @code{bsd} output format.
 
 @item -s
 @itemx --print-armap
@@ -871,7 +874,9 @@ last come first.
 @item --size-sort
 Sort symbols by size.  The size is computed as the difference between
 the value of the symbol and the value of the symbol with the next higher
-value.  The size of the symbol is printed, rather than the value.
+value.  If the @code{bsd} output format is used the size of the symbol 
+is printed, rather than the value, and @samp{-S} must be used in order 
+both size and value to be printed.
 
 @item -t @var{radix}
 @itemx --radix=@var{radix}
@@ -927,21 +932,26 @@ objcopy [@option{-F} @var{bfdname}|@option{--target=}@var{bfdname}]
         [@option{-I} @var{bfdname}|@option{--input-target=}@var{bfdname}]
         [@option{-O} @var{bfdname}|@option{--output-target=}@var{bfdname}]
         [@option{-B} @var{bfdarch}|@option{--binary-architecture=}@var{bfdarch}]
-        [@option{-S}|@option{--strip-all}] [@option{-g}|@option{--strip-debug}]
+        [@option{-S}|@option{--strip-all}]
+        [@option{-g}|@option{--strip-debug}]
         [@option{-K} @var{symbolname}|@option{--keep-symbol=}@var{symbolname}]
         [@option{-N} @var{symbolname}|@option{--strip-symbol=}@var{symbolname}]
         [@option{-G} @var{symbolname}|@option{--keep-global-symbol=}@var{symbolname}]
         [@option{-L} @var{symbolname}|@option{--localize-symbol=}@var{symbolname}]
         [@option{-W} @var{symbolname}|@option{--weaken-symbol=}@var{symbolname}]
-        [@option{-x}|@option{--discard-all}] [@option{-X}|@option{--discard-locals}]
+        [@option{-w}|@option{--wildcard}]
+        [@option{-x}|@option{--discard-all}]
+        [@option{-X}|@option{--discard-locals}]
         [@option{-b} @var{byte}|@option{--byte=}@var{byte}]
         [@option{-i} @var{interleave}|@option{--interleave=}@var{interleave}]
         [@option{-j} @var{sectionname}|@option{--only-section=}@var{sectionname}]
         [@option{-R} @var{sectionname}|@option{--remove-section=}@var{sectionname}]
         [@option{-p}|@option{--preserve-dates}]
         [@option{--debugging}]
-        [@option{--gap-fill=}@var{val}] [@option{--pad-to=}@var{address}]
-        [@option{--set-start=}@var{val}] [@option{--adjust-start=}@var{incr}]
+        [@option{--gap-fill=}@var{val}]
+        [@option{--pad-to=}@var{address}]
+        [@option{--set-start=}@var{val}]
+        [@option{--adjust-start=}@var{incr}]
         [@option{--change-addresses=}@var{incr}]
         [@option{--change-section-address} @var{section}@{=,+,-@}@var{val}]
         [@option{--change-section-lma} @var{section}@{=,+,-@}@var{val}]
@@ -950,19 +960,29 @@ objcopy [@option{-F} @var{bfdname}|@option{--target=}@var{bfdname}]
         [@option{--set-section-flags} @var{section}=@var{flags}]
         [@option{--add-section} @var{sectionname}=@var{filename}]
         [@option{--rename-section} @var{oldname}=@var{newname}[,@var{flags}]]
-        [@option{--change-leading-char} ] [@option{--remove-leading-char}]
-        [@option{--srec-len=}@var{ival} ] [@option{--srec-forceS3}]
-        [@option{--redefine-sym} @var{old}=@var{new} ]
+        [@option{--change-leading-char}] [@option{--remove-leading-char}]
+        [@option{--srec-len=}@var{ival}] [@option{--srec-forceS3}]
+        [@option{--redefine-sym} @var{old}=@var{new}]
+        [@option{--redefine-syms=}@var{filename}]
         [@option{--weaken}]
         [@option{--keep-symbols=}@var{filename}]
         [@option{--strip-symbols=}@var{filename}]
         [@option{--keep-global-symbols=}@var{filename}]
         [@option{--localize-symbols=}@var{filename}]
         [@option{--weaken-symbols=}@var{filename}]
-        [@option{--alt-machine-code=@var{index}}]
+        [@option{--alt-machine-code=}@var{index}]
+        [@option{--prefix-symbols=}@var{string}]
+        [@option{--prefix-sections=}@var{string}]
+        [@option{--prefix-alloc-sections=}@var{string}]
+        [@option{--add-gnu-debuglink=}@var{path-to-file}]
+        [@option{--only-keep-debug}]
+        [@option{--writable-text}]
+        [@option{--readonly-text}]
+        [@option{--pure}]
+        [@option{--impure}]
         [@option{-v}|@option{--verbose}]
         [@option{-V}|@option{--version}]  
-        [@option{--help}]
+        [@option{--help}] [@option{--info}]
         @var{infile} [@var{outfile}]
 @c man end
 @end smallexample
@@ -998,10 +1018,10 @@ use @option{-S} to remove sections containing debugging information.  In
 some cases @option{-R} will be useful to remove sections which contain
 information that is not needed by the binary file.
 
-Note - @command{objcopy} is not able to change the endianness of its input
-files.  If the input format has an endianness, (some formats do not),
+Note---@command{objcopy} is not able to change the endianness of its input
+files.  If the input format has an endianness (some formats do not),
 @command{objcopy} can only copy the inputs into file formats that have the
-same endianness or which have no endianness (eg @samp{srec}).
+same endianness or which have no endianness (e.g., @samp{srec}).
 
 @c man end
 
@@ -1060,7 +1080,7 @@ Do not copy relocation and symbol information from the source file.
 
 @item -g
 @itemx --strip-debug
-Do not copy debugging symbols from the source file.
+Do not copy debugging symbols or sections from the source file.
 
 @item --strip-unneeded
 Strip all symbols that are not needed for relocation processing.
@@ -1089,6 +1109,22 @@ visible externally.  This option may be given more than once.
 @item -W @var{symbolname}
 @itemx --weaken-symbol=@var{symbolname}
 Make symbol @var{symbolname} weak. This option may be given more than once.
+
+@item -w
+@itemx --wildcard
+Permit regular expressions in @var{symbolname}s used in other command
+line options.  The question mark (?), asterisk (*), backslash (\) and
+square brackets ([]) operators can be used anywhere in the symbol
+name.  If the first character of the symbol name is the exclamation
+point (!) then the sense of the switch is reversed for that symbol.
+For example:
+
+@smallexample
+  -w -W !foo -W fo*
+@end smallexample
+
+would cause objcopy to weaken all symbols that start with ``fo''
+except for the symbol ``foo''.
 
 @item -x
 @itemx --discard-all
@@ -1276,6 +1312,12 @@ Change the name of a symbol @var{old}, to @var{new}.  This can be useful
 when one is trying link two things together for which you have no
 source, and there are name collisions.
 
+@item --redefine-syms=@var{filename}
+Apply @option{--redefine-sym} to each symbol pair "@var{old} @var{new}"
+listed in the file @var{filename}.  @var{filename} is simply a flat file,
+with one symbol pair per line.  Line comments may be introduced by the hash
+character.  This option may be given more than once.
+
 @item --weaken
 Change all global symbols in the file to be weak.  This can be useful
 when building an object which will be linked against other objects using
@@ -1319,6 +1361,73 @@ a machine is assigned an official code and the tool-chain adopts the
 new code, but other applications still depend on the original code
 being used.
 
+@item --writable-text
+Mark the output text as writable.  This option isn't meaningful for all
+object file formats.
+
+@item --readonly-text
+Make the output text write protected.  This option isn't meaningful for all
+object file formats.
+
+@item --pure
+Mark the output file as demand paged.  This option isn't meaningful for all
+object file formats.
+
+@item --impure
+Mark the output file as impure.  This option isn't meaningful for all
+object file formats.
+
+@item --prefix-symbols=@var{string}
+Prefix all symbols in the output file with @var{string}.
+
+@item --prefix-sections=@var{string}
+Prefix all section names in the output file with @var{string}.
+
+@item --prefix-alloc-sections=@var{string}
+Prefix all the names of all allocated sections in the output file with
+@var{string}.
+
+@item --add-gnu-debuglink=@var{path-to-file}
+Creates a .gnu_debuglink section which contains a reference to @var{path-to-file}
+and adds it to the output file.
+
+@item --only-keep-debug
+Strip a file, removing any sections that would be stripped by
+@option{--strip-debug} and leaving the debugging sections.
+
+The intention is that this option will be used in conjunction with
+@option{--add-gnu-debuglink} to create a two part executable.  One a
+stripped binary which will occupy less space in RAM and in a
+distribution and the second a debugging information file which is only
+needed if debugging abilities are required.  The suggested procedure
+to create these files is as follows:
+
+@enumerate
+@item Link the executable as normal.  Assuming that is is called
+@code{foo} then...
+@item Run @code{objcopy --only-keep-debug foo foo.dbg} to
+create a file containing the debugging info.
+@item Run @code{objcopy --strip-debug foo} to create a
+stripped executable.
+@item Run @code{objcopy --add-gnu-debuglink=foo.dbg foo}
+to add a link to the debugging info into the stripped executable.
+@end enumerate
+
+Note - the choice of @code{.dbg} as an extension for the debug info
+file is arbitrary.  Also the @code{--only-keep-debug} step is
+optional.  You could instead do this:
+
+@enumerate
+@item Link the executable as normal.
+@item Copy @code{foo} to  @code{foo.full}
+@item Run @code{objcopy --strip-debug foo}
+@item Run @code{objcopy --add-gnu-debuglink=foo.full foo}
+@end enumerate
+
+ie the file pointed to by the @option{--add-gnu-debuglink} can be the
+full executable.  It does not have to be a file created by the
+@option{--only-keep-debug} switch.
+
 @item -V
 @itemx --version
 Show the version number of @command{objcopy}.
@@ -1330,6 +1439,9 @@ archives, @samp{objcopy -V} lists all members of the archive.
 
 @item --help
 Show a summary of the options to @command{objcopy}.
+
+@item --info
+Display a list showing all architectures and object formats available.
 @end table
 
 @c man end
@@ -1360,6 +1472,7 @@ objdump [@option{-a}|@option{--archive-headers}]
         [@option{-f}|@option{--file-headers}]
         [@option{--file-start-context}]
         [@option{-g}|@option{--debugging}]
+        [@option{-e}|@option{--debugging-tags}]
         [@option{-h}|@option{--section-headers}|@option{--headers}]
         [@option{-i}|@option{--info}]
         [@option{-j} @var{section}|@option{--section=}@var{section}]
@@ -1405,7 +1518,7 @@ object files.
 
 The long and short forms of options, shown here as alternatives, are
 equivalent.  At least one option from the list
-@option{-a,-d,-D,-f,-g,-G,-h,-H,-p,-r,-R,-S,-t,-T,-V,-x} must be given. 
+@option{-a,-d,-D,-e,-f,-g,-G,-h,-H,-p,-r,-R,-s,-S,-t,-T,-V,-x} must be given.
 
 @table @env
 @item -a
@@ -1453,11 +1566,18 @@ mangling styles. The optional demangling style argument can be used to
 choose an appropriate demangling style for your compiler. @xref{c++filt}, 
 for more information on demangling.
 
-@item -G
-@item --debugging
+@item -g
+@itemx --debugging
 Display debugging information.  This attempts to parse debugging
 information stored in the file and print it out using a C like syntax.
 Only certain types of debugging information have been implemented.
+Some other types are supported by @command{readelf -w}.
+@xref{readelf}.
+
+@item -e
+@itemx --debugging-tags
+Like @option{-g}, but the information is generated in a format compatible
+with ctags tool.
 
 @item -d
 @itemx --disassemble
@@ -1476,11 +1596,6 @@ those expected to contain instructions.
 When disassembling, print the complete address on each line.  This is
 the older disassembly format.
 
-@item --disassemble-zeroes
-Normally the disassembly output will skip blocks of zeroes.  This
-option directs the disassembler to disassemble those blocks, just like
-any other data.
-
 @item -EB
 @itemx -EL
 @itemx --endian=@{big|little@}
@@ -1491,7 +1606,7 @@ disassembly.  This can be useful when disassembling a file format which
 does not describe endianness information, such as S-records.
 
 @item -f
-@itemx --file-header
+@itemx --file-headers
 @cindex object file header
 Display summary information from the overall header of
 each of the @var{objfile} files.
@@ -1503,8 +1618,8 @@ Specify that when displaying interlisted source code/disassembly
 context to the start of the file.
 
 @item -h
-@itemx --section-header
-@itemx --header
+@itemx --section-headers
+@itemx --headers
 @cindex section headers
 Display summary information from the section headers of the
 object file.
@@ -1518,7 +1633,8 @@ although @command{ld} relocates the sections correctly, using @samp{objdump
 Instead, it shows the usual addresses, which are implicit for the
 target.
 
-@item --help
+@item -H
+@itemx --help
 Print a summary of the options to @command{objdump} and exit.
 
 @item -i
@@ -1552,7 +1668,9 @@ architectures with the @option{-i} option.
 @item -M @var{options}
 @itemx --disassembler-options=@var{options}
 Pass target specific information to the disassembler.  Only supported on
-some targets.
+some targets.  If it is necessary to specify more than one
+disassembler option then multiple @option{-M} options can be used or
+can be placed together into a comma separated list.
 
 If the target is an ARM architecture then this switch can be used to
 select which register name set is used during disassembler.  Specifying
@@ -1566,7 +1684,7 @@ just use @samp{r} followed by the register number.
 There are also two variants on the APCS register naming scheme enabled
 by @option{-M reg-names-atpcs} and @option{-M reg-names-special-atpcs} which
 use the ARM/Thumb Procedure Call Standard naming conventions.  (Either
-with the normal register name or the special register names).
+with the normal register names or the special register names).
 
 This option can also be used for ARM architectures to force the
 disassembler to interpret all instructions as Thumb instructions by
@@ -1584,12 +1702,54 @@ intel syntax mode and AT&T syntax mode.  @option{addr32},
 address size and operand size.  These four options will be overridden if
 @option{x86-64}, @option{i386} or @option{i8086} appear later in the
 option string.  Lastly, @option{suffix}, when in AT&T mode,
-instructs the dissassembler to print a mnemonic suffix even when the
+instructs the disassembler to print a mnemonic suffix even when the
 suffix could be inferred by the operands.
 
 For PPC, @option{booke}, @option{booke32} and @option{booke64} select
 disassembly of BookE instructions.  @option{32} and @option{64} select
 PowerPC and PowerPC64 disassembly, respectively.
+
+For MIPS, this option controls the printing of register names in
+disassembled instructions.  Multiple selections from the
+following may be specified as a comma separated string, and invalid
+options are ignored:
+
+@table @code
+@item gpr-names=@var{ABI}
+Print GPR (general-purpose register) names as appropriate
+for the specified ABI.  By default, GPR names are selected according to
+the ABI of the binary being disassembled.
+
+@item fpr-names=@var{ABI}
+Print FPR (floating-point register) names as
+appropriate for the specified ABI.  By default, FPR numbers are printed
+rather than names.
+
+@item cp0-names=@var{ARCH}
+Print CP0 (system control coprocessor; coprocessor 0) register names
+as appropriate for the CPU or architecture specified by
+@var{ARCH}.  By default, CP0 register names are selected according to
+the architecture and CPU of the binary being disassembled.
+
+@item hwr-names=@var{ARCH}
+Print HWR (hardware register, used by the @code{rdhwr} instruction) names
+as appropriate for the CPU or architecture specified by
+@var{ARCH}.  By default, HWR names are selected according to
+the architecture and CPU of the binary being disassembled.
+
+@item reg-names=@var{ABI}
+Print GPR and FPR names as appropriate for the selected ABI.
+
+@item reg-names=@var{ARCH}
+Print CPU-specific register names (CP0 register and HWR names)
+as appropriate for the selected CPU or architecture.
+@end table
+
+For any of the options listed above, @var{ABI} or
+@var{ARCH} may be specified as @samp{numeric} to have numbers printed
+rather than names, for the selected types of registers.
+You can list the available values of @var{ABI} and @var{ARCH} using
+the @option{--help} option.
 
 @item -p
 @itemx --private-headers
@@ -1615,7 +1775,8 @@ libraries.
 @itemx --full-contents
 @cindex sections, full contents
 @cindex object file sections
-Display the full contents of any sections requested.
+Display the full contents of any sections requested.  By default all
+non-empty sections are displayed.
 
 @item -S
 @itemx --source
@@ -1634,7 +1795,7 @@ When disassembling instructions, do not print the instruction bytes.
 This is the default when @option{--prefix-addresses} is used.
 
 @item -G
-@item --stabs
+@itemx --stabs
 @cindex stab
 @cindex .stab
 @cindex debug symbols
@@ -1675,11 +1836,12 @@ meaningful for dynamic objects, such as certain types of shared
 libraries.  This is similar to the information provided by the @samp{nm}
 program when given the @option{-D} (@option{--dynamic}) option.
 
-@item --version
+@item -V
+@itemx --version
 Print the version number of @command{objdump} and exit.
 
 @item -x
-@itemx --all-header
+@itemx --all-headers
 @cindex all header information, object file
 @cindex header information, all
 Display all available header information, including the symbol table and
@@ -1691,6 +1853,12 @@ relocation entries.  Using @option{-x} is equivalent to specifying all of
 @cindex wide output, printing
 Format some lines for output devices that have more than 80 columns.
 Also do not truncate symbol names when they are displayed.
+
+@item -z
+@itemx --disassemble-zeroes
+Normally the disassembly output will skip blocks of zeroes.  This
+option directs the disassembler to disassemble those blocks, just like
+any other data.
 @end table
 
 @c man end
@@ -1942,11 +2110,11 @@ octal, @samp{x} for hexadecimal, or @samp{d} for decimal.
 @item -e @var{encoding}
 @itemx --encoding=@var{encoding}
 Select the character encoding of the strings that are to be found.
-Possible values for @var{encoding} are: @samp{s} = single-byte
-characters (ASCII, ISO 8859, etc., default), @samp{b} = 16-bit
-Bigendian, @samp{l} = 16-bit Littleendian, @samp{B} = 32-bit Bigendian,
-@samp{L} = 32-bit Littleendian. Useful for finding wide character
-strings.
+Possible values for @var{encoding} are: @samp{s} = single-7-bit-byte
+characters (ASCII, ISO 8859, etc., default), @samp{S} =
+single-8-bit-byte characters, @samp{b} = 16-bit bigendian, @samp{l} =
+16-bit littleendian, @samp{B} = 32-bit bigendian, @samp{L} = 32-bit
+littleendian. Useful for finding wide character strings.
 
 @item --target=@var{bfdname}
 @cindex object code format
@@ -1979,16 +2147,20 @@ and the Info entries for @file{binutils}.
 
 @smallexample
 @c man begin SYNOPSIS strip
-strip [@option{-F} @var{bfdname} |@option{--target=}@var{bfdname} ]
-      [@option{-I} @var{bfdname} |@option{--input-target=}@var{bfdname} ]
-      [@option{-O} @var{bfdname} |@option{--output-target=}@var{bfdname} ]
-      [@option{-s}|@option{--strip-all}] [@option{-S}|@option{-g}|@option{-d}|@option{--strip-debug}]
-      [@option{-K} @var{symbolname} |@option{--keep-symbol=}@var{symbolname} ]
-      [@option{-N} @var{symbolname} |@option{--strip-symbol=}@var{symbolname} ]
-      [@option{-x}|@option{--discard-all} ] [@option{-X} |@option{--discard-locals}]
-      [@option{-R} @var{sectionname} |@option{--remove-section=}@var{sectionname} ]
-      [@option{-o} @var{file} ] [@option{-p}|@option{--preserve-dates}]
-      [@option{-v} |@option{--verbose}]  [@option{-V}|@option{--version}] [@option{--help}]
+strip [@option{-F} @var{bfdname} |@option{--target=}@var{bfdname}]
+      [@option{-I} @var{bfdname} |@option{--input-target=}@var{bfdname}]
+      [@option{-O} @var{bfdname} |@option{--output-target=}@var{bfdname}]
+      [@option{-s}|@option{--strip-all}]
+      [@option{-S}|@option{-g}|@option{-d}|@option{--strip-debug}]
+      [@option{-K} @var{symbolname} |@option{--keep-symbol=}@var{symbolname}]
+      [@option{-N} @var{symbolname} |@option{--strip-symbol=}@var{symbolname}]
+      [@option{-w}|@option{--wildcard}]
+      [@option{-x}|@option{--discard-all}] [@option{-X} |@option{--discard-locals}]
+      [@option{-R} @var{sectionname} |@option{--remove-section=}@var{sectionname}]
+      [@option{-o} @var{file}] [@option{-p}|@option{--preserve-dates}]
+      [@option{--only-keep-debug}]
+      [@option{-v} |@option{--verbose}] [@option{-V}|@option{--version}]
+      [@option{--help}] [@option{--info}]
       @var{objfile}@dots{}
 @c man end
 @end smallexample
@@ -2016,7 +2188,10 @@ code format @var{bfdname}, and rewrite it in the same format.
 @item --help
 Show a summary of the options to @command{strip} and exit.
 
-@item -I @var{bfdname}	
+@item --info
+Display a list showing all architectures and object formats available.
+
+@item -I @var{bfdname}
 @itemx --input-target=@var{bfdname}
 Treat the original @var{objfile} as a file with the object
 code format @var{bfdname}.
@@ -2066,6 +2241,22 @@ argument may be specified.
 @itemx --preserve-dates
 Preserve the access and modification dates of the file.
 
+@item -w
+@itemx --wildcard
+Permit regular expressions in @var{symbolname}s used in other command
+line options.  The question mark (?), asterisk (*), backslash (\) and
+square brackets ([]) operators can be used anywhere in the symbol
+name.  If the first character of the symbol name is the exclamation
+point (!) then the sense of the switch is reversed for that symbol.
+For example:
+
+@smallexample
+  -w -K !foo -K fo*
+@end smallexample
+
+would cause strip to only keep symbols that start with the letters
+``fo'', but to discard the symbol ``foo''.
+
 @item -x
 @itemx --discard-all
 Remove non-global symbols.
@@ -2074,6 +2265,43 @@ Remove non-global symbols.
 @itemx --discard-locals
 Remove compiler-generated local symbols.
 (These usually start with @samp{L} or @samp{.}.)
+
+@item --only-keep-debug
+Strip a file, removing any sections that would be stripped by
+@option{--strip-debug} and leaving the debugging sections.
+
+The intention is that this option will be used in conjunction with
+@option{--add-gnu-debuglink} to create a two part executable.  One a
+stripped binary which will occupy less space in RAM and in a
+distribution and the second a debugging information file which is only
+needed if debugging abilities are required.  The suggested procedure
+to create these files is as follows:
+
+@enumerate
+@item Link the executable as normal.  Assuming that is is called
+@code{foo} then...
+@item Run @code{objcopy --only-keep-debug foo foo.dbg} to
+create a file containing the debugging info.
+@item Run @code{objcopy --strip-debug foo} to create a
+stripped executable.
+@item Run @code{objcopy --add-gnu-debuglink=foo.dbg foo}
+to add a link to the debugging info into the stripped executable.
+@end enumerate
+
+Note - the choice of @code{.dbg} as an extension for the debug info
+file is arbitrary.  Also the @code{--only-keep-debug} step is
+optional.  You could instead do this:
+
+@enumerate
+@item Link the executable as normal.
+@item Copy @code{foo} to  @code{foo.full}
+@item Run @code{strip --strip-debug foo}
+@item Run @code{objcopy --add-gnu-debuglink=foo.full foo}
+@end enumerate
+
+ie the file pointed to by the @option{--add-gnu-debuglink} can be the
+full executable.  It does not have to be a file created by the
+@option{--only-keep-debug} switch.
 
 @item -V
 @itemx --version
@@ -2106,6 +2334,7 @@ the Info entries for @file{binutils}.
 c++filt [@option{-_}|@option{--strip-underscores}]
         [@option{-j}|@option{--java}]
         [@option{-n}|@option{--no-strip-underscores}]
+        [@option{-p}|@option{--no-params}]
         [@option{-s} @var{format}|@option{--format=}@var{format}]
         [@option{--help}]  [@option{--version}]  [@var{symbol}@dots{}]
 @c man end
@@ -2161,25 +2390,36 @@ syntax.
 @itemx --no-strip-underscores
 Do not remove the initial underscore.
 
+@item -p
+@itemx --no-params
+When demangling the name of a function, do not display the types of
+the function's parameters.
+
 @item -s @var{format}
 @itemx --format=@var{format}
-@sc{gnu} @command{nm} can decode three different methods of mangling, used by
-different C++ compilers.  The argument to this option selects which
+@command{c++filt} can decode various methods of mangling, used by
+different compilers.  The argument to this option selects which
 method it uses:
 
 @table @code
+@item auto
+Automatic selection based on executable (the default method)
 @item gnu
-the one used by the @sc{gnu} compiler (the default method)
+the one used by the @sc{gnu} C++ compiler (g++)
 @item lucid
-the one used by the Lucid compiler
+the one used by the Lucid compiler (lcc)
 @item arm
 the one specified by the C++ Annotated Reference Manual
 @item hp
-the one used by the HP compiler
+the one used by the HP compiler (aCC)
 @item edg
 the one used by the EDG compiler
-@item gnu-new-abi
-the one used by the @sc{gnu} compiler with the new ABI.
+@item gnu-v3
+the one used by the @sc{gnu} C++ compiler (g++) with the V3 ABI.
+@item java
+the one used by the @sc{gnu} Java compiler (gcj)
+@item gnat
+the one used by the @sc{gnu} Ada compiler (GNAT).
 @end table
 
 @item --help
@@ -2497,9 +2737,11 @@ The name of the output file.  If this option is not used, then
 @command{windres} will use the first non-option argument, after any used
 for the input file name, as the output file name.  If there is no
 non-option argument, then @command{windres} will write to standard output.
-@command{windres} can not write a COFF file to standard output.
+@command{windres} can not write a COFF file to standard output.  Note,
+for compatability with @command{rc} the option @option{-fo} is also
+accepted, but its use is not recommended.
 
-@item -I @var{format}
+@item -J @var{format}
 @itemx --input-format @var{format}
 The input format to read.  @var{format} may be @samp{res}, @samp{rc}, or
 @samp{coff}.  If no input format is specified, @command{windres} will
@@ -2527,21 +2769,36 @@ preprocessor first.  This option may be used to specify the preprocessor
 to use, including any leading arguments.  The default preprocessor
 argument is @code{gcc -E -xc-header -DRC_INVOKED}.
 
-@item --include-dir @var{directory}
+@item -I @var{directory}
+@itemx --include-dir @var{directory}
 Specify an include directory to use when reading an @code{rc} file.
 @command{windres} will pass this to the preprocessor as an @option{-I}
 option.  @command{windres} will also search this directory when looking for
-files named in the @code{rc} file.
+files named in the @code{rc} file.  If the argument passed to this command
+matches any of the supported @var{formats} (as descrived in the @option{-J} 
+option), it will issue a deprecation warning, and behave just like the
+@option{-J} option.  New programs should not use this behaviour.  If a
+directory happens to match a @var{format}, simple prefix it with @samp{./}
+to disable the backward compatibility.
 
 @item -D @var{target}
 @itemx --define @var{sym}[=@var{val}]
 Specify a @option{-D} option to pass to the preprocessor when reading an
 @code{rc} file.
 
+@item -U @var{target}
+@itemx --undefine @var{sym}
+Specify a @option{-U} option to pass to the preprocessor when reading an
+@code{rc} file.
+
+@item -r
+Ignored for compatibility with rc.
+
 @item -v
 Enable verbose mode.  This tells you what the preprocessor is if you
 didn't specify one.
 
+@item -l @var{val}
 @item --language @var{val}
 Specify the default language to use when reading an @code{rc} file.
 @var{val} should be a hexadecimal language code.  The low eight bits are
@@ -2558,9 +2815,11 @@ go the console).
 Use popen, not a temporary file, to read the output of the preprocessor.
 This is the default behaviour.
 
+@item -h
 @item --help
 Prints a usage summary.
 
+@item -V
 @item --version
 Prints the version number for @command{windres}.
 
@@ -2607,7 +2866,8 @@ dlltool [@option{-d}|@option{--input-def} @var{def-file-name}]
         [@option{-a}|@option{--add-indirect}] [@option{-U}|@option{--add-underscore}] [@option{-k}|@option{--kill-at}]
         [@option{-A}|@option{--add-stdcall-alias}]
         [@option{-x}|@option{--no-idata4}] [@option{-c}|@option{--no-idata5}] [@option{-i}|@option{--interwork}]
-        [@option{-n}|@option{--nodelete}] [@option{-v}|@option{--verbose}] 
+        [@option{-n}|@option{--nodelete}] [@option{-t}|@option{--temp-prefix} @var{prefix}]
+        [@option{-v}|@option{--verbose}] 
         [@option{-h}|@option{--help}] [@option{-V}|@option{--version}]
         [object-file @dots{}]
 @c man end
@@ -2817,7 +3077,13 @@ between ARM and Thumb code.
 Makes @command{dlltool} preserve the temporary assembler files it used to
 create the exports file.  If this option is repeated then dlltool will
 also preserve the temporary object files it uses to create the library
-file. 
+file.
+
+@item -t @var{prefix}
+@itemx --temp-prefix @var{prefix}
+Makes @command{dlltool} use @var{prefix} when constructing the names of
+temporary assembler and object files.  By default, the temp file prefix
+is generated from the pid.  
 
 @item -v
 @itemx --verbose
@@ -2862,10 +3128,12 @@ readelf [@option{-a}|@option{--all}]
         [@option{-u}|@option{--unwind}]
         [@option{-d}|@option{--dynamic}]
         [@option{-V}|@option{--version-info}]
+        [@option{-A}|@option{--arch-specific}]
         [@option{-D}|@option{--use-dynamic}]
         [@option{-x} <number>|@option{--hex-dump=}<number>]
-        [@option{-w[liaprmfFso]}|@option{--debug-dump}[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]]
-        [@option{-histogram}]
+        [@option{-w[liaprmfFso]}|
+         @option{--debug-dump}[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=frames-interp,=str,=loc]]
+        [@option{-I}|@option{-histogram}]
         [@option{-v}|@option{--version}]
         [@option{-W}|@option{--wide}]
         [@option{-H}|@option{--help}]
@@ -2878,9 +3146,13 @@ readelf [@option{-a}|@option{--all}]
 @command{readelf} displays information about one or more ELF format object
 files.  The options control what particular information to display.
 
-@var{elffile}@dots{} are the object files to be examined.  At the
-moment, @command{readelf} does not support examining archives, nor does it
-support examing 64 bit ELF files.
+@var{elffile}@dots{} are the object files to be examined.  32-bit and
+64-bit ELF files are supported, as are archives containing ELF files.
+
+This program performs a similar function to @command{objdump} but it
+goes into more detail and it exists independently of the @sc{bfd}
+library, so if there is a bug in @sc{bfd} then readelf will not be
+affected.
 
 @c man end
 
@@ -2945,6 +3217,12 @@ Displays the contents of the file's relocation section, if it has one.
 Displays the contents of the file's unwind section, if it has one.  Only
 the unwind sections for IA64 ELF files are currently supported.
 
+@item -u
+@itemx --unwind
+@cindex unwind information
+Displays the contents of the file's unwind section, if it has one.  Only
+the unwind sections for IA64 ELF files are currently supported.
+
 @item -d
 @itemx --dynamic
 @cindex ELF dynamic section information
@@ -2955,6 +3233,11 @@ Displays the contents of the file's dynamic section, if it has one.
 @cindex ELF version sections informations
 Displays the contents of the version sections in the file, it they
 exist.
+
+@item -A
+@itemx --arch-specific
+Displays architecture-specific information in the file, if there
+is any.
 
 @item -D
 @itemx --use-dynamic
@@ -2967,12 +3250,13 @@ symbols section.
 Displays the contents of the indicated section as a hexadecimal dump.
 
 @item -w[liaprmfFso]
-@itemx --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]
+@itemx --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=frames-interp,=str,=loc]
 Displays the contents of the debug sections in the file, if any are
 present.  If one of the optional letters or words follows the switch
 then only data found in those specific sections will be dumped.
 
-@item --histogram
+@item -I
+@itemx --histogram
 Display a histogram of bucket list lengths when displaying the contents
 of the symbol tables.
 
@@ -3003,9 +3287,9 @@ objdump(1), and the Info entries for @file{binutils}.
 @end ignore
 
 @node Selecting The Target System
-@chapter Selecting the target system
+@chapter Selecting the Target System
 
-You can specify three aspects of the target system to the @sc{gnu}
+You can specify two aspects of the target system to the @sc{gnu}
 binary file utilities, each in several ways:
 
 @itemize @bullet
@@ -3014,9 +3298,6 @@ the target
 
 @item
 the architecture
-
-@item
-the linker emulation (which applies to the linker only)
 @end itemize
 
 In the following summaries, the lists of ways to specify values are in
@@ -3033,7 +3314,6 @@ with the same type as the target system).
 @menu
 * Target Selection::            
 * Architecture Selection::      
-* Linker Emulation Selection::  
 @end menu
 
 @node Target Selection
@@ -3123,47 +3403,8 @@ environment variable @code{GNUTARGET}
 deduced from the input file
 @end enumerate
 
-@subheading Linker Input Target
-
-Ways to specify:
-
-@enumerate
-@item
-command line option: @option{-b} or @option{--format}
-(@pxref{Options,,Options,ld.info,Using LD})
-
-@item
-script command @code{TARGET}
-(@pxref{Format Commands,,Format Commands,ld.info,Using LD})
-
-@item
-environment variable @code{GNUTARGET}
-(@pxref{Environment,,Environment,ld.info,Using LD})
-
-@item
-the default target of the selected linker emulation
-(@pxref{Linker Emulation Selection})
-@end enumerate
-
-@subheading Linker Output Target
-
-Ways to specify:
-
-@enumerate
-@item
-command line option: @option{-oformat}
-(@pxref{Options,,Options,ld.info,Using LD})
-
-@item
-script command @code{OUTPUT_FORMAT}
-(@pxref{Format Commands,,Format Commands,ld.info,Using LD})
-
-@item
-the linker input target (see ``Linker Input Target'' above)
-@end enumerate
-
 @node Architecture Selection
-@section Architecture selection
+@section Architecture Selection
 
 An @dfn{architecture} is a type of @sc{cpu} on which an object file is
 to run.  Its name may contain a colon, separating the name of the
@@ -3195,67 +3436,6 @@ Ways to specify:
 deduced from the input file
 @end enumerate
 
-@subheading Linker Input Architecture
-
-Ways to specify:
-
-@enumerate
-@item
-deduced from the input file
-@end enumerate
-
-@subheading Linker Output Architecture
-
-Ways to specify:
-
-@enumerate
-@item
-script command @code{OUTPUT_ARCH}
-(@pxref{Miscellaneous Commands,,Miscellaneous Commands,ld.info,Using LD})
-
-@item
-the default architecture from the linker output target
-(@pxref{Target Selection})
-@end enumerate
-
-@node Linker Emulation Selection
-@section Linker emulation selection
-
-A linker @dfn{emulation} is a ``personality'' of the linker, which gives
-the linker default values for the other aspects of the target system.
-In particular, it consists of
-
-@itemize @bullet
-@item
-the linker script
-
-@item
-the target
-
-@item
-several ``hook'' functions that are run at certain stages of the linking
-process to do special things that some targets require
-@end itemize
-
-The command to list valid linker emulation values is @samp{ld -V}.
-
-Sample values: @samp{hp300bsd}, @samp{mipslit}, @samp{sun4}.
-
-Ways to specify:
-
-@enumerate
-@item
-command line option: @option{-m}
-(@pxref{Options,,Options,ld.info,Using LD})
-
-@item
-environment variable @code{LDEMULATION}
-
-@item
-compiled-in @code{DEFAULT_EMULATION} from @file{Makefile},
-which comes from @code{EMUL} in @file{config/@var{target}.mt}
-@end enumerate
-
 @node Reporting Bugs
 @chapter Reporting Bugs
 @cindex bugs
@@ -3279,7 +3459,7 @@ information that enables us to fix the bug.
 @end menu
 
 @node Bug Criteria
-@section Have you found a bug?
+@section Have You Found a Bug?
 @cindex bug criteria
 
 If you are not sure whether you have found a bug, here are some guidelines:
@@ -3302,7 +3482,7 @@ improvement are welcome in any case.
 @end itemize
 
 @node Bug Reporting
-@section How to report bugs
+@section How to Report Bugs
 @cindex bug reports
 @cindex bugs, reporting
 
@@ -3337,9 +3517,9 @@ it is new to us.  Therefore, always write your bug reports on the assumption
 that the bug has not been reported previously.
 
 Sometimes people give a few sketchy facts and ask, ``Does this ring a
-bell?''  Those bug reports are useless, and we urge everyone to
-@emph{refuse to respond to them} except to chide the sender to report
-bugs properly.
+bell?''  This cannot help us fix a bug, so it is basically useless.  We
+respond by asking for enough details to enable us to investigate.
+You might as well expedite matters by sending them to begin with.
 
 To enable us to fix the bug, you should include all these things:
 
@@ -3464,369 +3644,7 @@ Such guesses are usually wrong.  Even we cannot guess right about such
 things without first using the debugger to find the facts.
 @end itemize
 
-@node GNU Free Documentation License
-@chapter GNU Free Documentation License
-@cindex GNU Free Documentation License
-
-                GNU Free Documentation License
-                
-                   Version 1.1, March 2000
-
- Copyright (C) 2000  Free Software Foundation, Inc.
-  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-     
- Everyone is permitted to copy and distribute verbatim copies
- of this license document, but changing it is not allowed.
-
-
-0. PREAMBLE
-
-The purpose of this License is to make a manual, textbook, or other
-written document "free" in the sense of freedom: to assure everyone
-the effective freedom to copy and redistribute it, with or without
-modifying it, either commercially or noncommercially.  Secondarily,
-this License preserves for the author and publisher a way to get
-credit for their work, while not being considered responsible for
-modifications made by others.
-
-This License is a kind of "copyleft", which means that derivative
-works of the document must themselves be free in the same sense.  It
-complements the GNU General Public License, which is a copyleft
-license designed for free software.
-
-We have designed this License in order to use it for manuals for free
-software, because free software needs free documentation: a free
-program should come with manuals providing the same freedoms that the
-software does.  But this License is not limited to software manuals;
-it can be used for any textual work, regardless of subject matter or
-whether it is published as a printed book.  We recommend this License
-principally for works whose purpose is instruction or reference.
-
-
-1. APPLICABILITY AND DEFINITIONS
-
-This License applies to any manual or other work that contains a
-notice placed by the copyright holder saying it can be distributed
-under the terms of this License.  The "Document", below, refers to any
-such manual or work.  Any member of the public is a licensee, and is
-addressed as "you".
-
-A "Modified Version" of the Document means any work containing the
-Document or a portion of it, either copied verbatim, or with
-modifications and/or translated into another language.
-
-A "Secondary Section" is a named appendix or a front-matter section of
-the Document that deals exclusively with the relationship of the
-publishers or authors of the Document to the Document's overall subject
-(or to related matters) and contains nothing that could fall directly
-within that overall subject.  (For example, if the Document is in part a
-textbook of mathematics, a Secondary Section may not explain any
-mathematics.)  The relationship could be a matter of historical
-connection with the subject or with related matters, or of legal,
-commercial, philosophical, ethical or political position regarding
-them.
-
-The "Invariant Sections" are certain Secondary Sections whose titles
-are designated, as being those of Invariant Sections, in the notice
-that says that the Document is released under this License.
-
-The "Cover Texts" are certain short passages of text that are listed,
-as Front-Cover Texts or Back-Cover Texts, in the notice that says that
-the Document is released under this License.
-
-A "Transparent" copy of the Document means a machine-readable copy,
-represented in a format whose specification is available to the
-general public, whose contents can be viewed and edited directly and
-straightforwardly with generic text editors or (for images composed of
-pixels) generic paint programs or (for drawings) some widely available
-drawing editor, and that is suitable for input to text formatters or
-for automatic translation to a variety of formats suitable for input
-to text formatters.  A copy made in an otherwise Transparent file
-format whose markup has been designed to thwart or discourage
-subsequent modification by readers is not Transparent.  A copy that is
-not "Transparent" is called "Opaque".
-
-Examples of suitable formats for Transparent copies include plain
-ASCII without markup, Texinfo input format, LaTeX input format, SGML
-or XML using a publicly available DTD, and standard-conforming simple
-HTML designed for human modification.  Opaque formats include
-PostScript, PDF, proprietary formats that can be read and edited only
-by proprietary word processors, SGML or XML for which the DTD and/or
-processing tools are not generally available, and the
-machine-generated HTML produced by some word processors for output
-purposes only.
-
-The "Title Page" means, for a printed book, the title page itself,
-plus such following pages as are needed to hold, legibly, the material
-this License requires to appear in the title page.  For works in
-formats which do not have any title page as such, "Title Page" means
-the text near the most prominent appearance of the work's title,
-preceding the beginning of the body of the text.
-
-
-2. VERBATIM COPYING
-
-You may copy and distribute the Document in any medium, either
-commercially or noncommercially, provided that this License, the
-copyright notices, and the license notice saying this License applies
-to the Document are reproduced in all copies, and that you add no other
-conditions whatsoever to those of this License.  You may not use
-technical measures to obstruct or control the reading or further
-copying of the copies you make or distribute.  However, you may accept
-compensation in exchange for copies.  If you distribute a large enough
-number of copies you must also follow the conditions in section 3.
-
-You may also lend copies, under the same conditions stated above, and
-you may publicly display copies.
-
-
-3. COPYING IN QUANTITY
-
-If you publish printed copies of the Document numbering more than 100,
-and the Document's license notice requires Cover Texts, you must enclose
-the copies in covers that carry, clearly and legibly, all these Cover
-Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on
-the back cover.  Both covers must also clearly and legibly identify
-you as the publisher of these copies.  The front cover must present
-the full title with all words of the title equally prominent and
-visible.  You may add other material on the covers in addition.
-Copying with changes limited to the covers, as long as they preserve
-the title of the Document and satisfy these conditions, can be treated
-as verbatim copying in other respects.
-
-If the required texts for either cover are too voluminous to fit
-legibly, you should put the first ones listed (as many as fit
-reasonably) on the actual cover, and continue the rest onto adjacent
-pages.
-
-If you publish or distribute Opaque copies of the Document numbering
-more than 100, you must either include a machine-readable Transparent
-copy along with each Opaque copy, or state in or with each Opaque copy
-a publicly-accessible computer-network location containing a complete
-Transparent copy of the Document, free of added material, which the
-general network-using public has access to download anonymously at no
-charge using public-standard network protocols.  If you use the latter
-option, you must take reasonably prudent steps, when you begin
-distribution of Opaque copies in quantity, to ensure that this
-Transparent copy will remain thus accessible at the stated location
-until at least one year after the last time you distribute an Opaque
-copy (directly or through your agents or retailers) of that edition to
-the public.
-
-It is requested, but not required, that you contact the authors of the
-Document well before redistributing any large number of copies, to give
-them a chance to provide you with an updated version of the Document.
-
-
-4. MODIFICATIONS
-
-You may copy and distribute a Modified Version of the Document under
-the conditions of sections 2 and 3 above, provided that you release
-the Modified Version under precisely this License, with the Modified
-Version filling the role of the Document, thus licensing distribution
-and modification of the Modified Version to whoever possesses a copy
-of it.  In addition, you must do these things in the Modified Version:
-
-A. Use in the Title Page (and on the covers, if any) a title distinct
-   from that of the Document, and from those of previous versions
-   (which should, if there were any, be listed in the History section
-   of the Document).  You may use the same title as a previous version
-   if the original publisher of that version gives permission.
-B. List on the Title Page, as authors, one or more persons or entities
-   responsible for authorship of the modifications in the Modified
-   Version, together with at least five of the principal authors of the
-   Document (all of its principal authors, if it has less than five).
-C. State on the Title page the name of the publisher of the
-   Modified Version, as the publisher.
-D. Preserve all the copyright notices of the Document.
-E. Add an appropriate copyright notice for your modifications
-   adjacent to the other copyright notices.
-F. Include, immediately after the copyright notices, a license notice
-   giving the public permission to use the Modified Version under the
-   terms of this License, in the form shown in the Addendum below.
-G. Preserve in that license notice the full lists of Invariant Sections
-   and required Cover Texts given in the Document's license notice.
-H. Include an unaltered copy of this License.
-I. Preserve the section entitled "History", and its title, and add to
-   it an item stating at least the title, year, new authors, and
-   publisher of the Modified Version as given on the Title Page.  If
-   there is no section entitled "History" in the Document, create one
-   stating the title, year, authors, and publisher of the Document as
-   given on its Title Page, then add an item describing the Modified
-   Version as stated in the previous sentence.
-J. Preserve the network location, if any, given in the Document for
-   public access to a Transparent copy of the Document, and likewise
-   the network locations given in the Document for previous versions
-   it was based on.  These may be placed in the "History" section.
-   You may omit a network location for a work that was published at
-   least four years before the Document itself, or if the original
-   publisher of the version it refers to gives permission.
-K. In any section entitled "Acknowledgements" or "Dedications",
-   preserve the section's title, and preserve in the section all the
-   substance and tone of each of the contributor acknowledgements
-   and/or dedications given therein.
-L. Preserve all the Invariant Sections of the Document,
-   unaltered in their text and in their titles.  Section numbers
-   or the equivalent are not considered part of the section titles.
-M. Delete any section entitled "Endorsements".  Such a section
-   may not be included in the Modified Version.
-N. Do not retitle any existing section as "Endorsements"
-   or to conflict in title with any Invariant Section.
-
-If the Modified Version includes new front-matter sections or
-appendices that qualify as Secondary Sections and contain no material
-copied from the Document, you may at your option designate some or all
-of these sections as invariant.  To do this, add their titles to the
-list of Invariant Sections in the Modified Version's license notice.
-These titles must be distinct from any other section titles.
-
-You may add a section entitled "Endorsements", provided it contains
-nothing but endorsements of your Modified Version by various
-parties--for example, statements of peer review or that the text has
-been approved by an organization as the authoritative definition of a
-standard.
-
-You may add a passage of up to five words as a Front-Cover Text, and a
-passage of up to 25 words as a Back-Cover Text, to the end of the list
-of Cover Texts in the Modified Version.  Only one passage of
-Front-Cover Text and one of Back-Cover Text may be added by (or
-through arrangements made by) any one entity.  If the Document already
-includes a cover text for the same cover, previously added by you or
-by arrangement made by the same entity you are acting on behalf of,
-you may not add another; but you may replace the old one, on explicit
-permission from the previous publisher that added the old one.
-
-The author(s) and publisher(s) of the Document do not by this License
-give permission to use their names for publicity for or to assert or
-imply endorsement of any Modified Version.
-
-
-5. COMBINING DOCUMENTS
-
-You may combine the Document with other documents released under this
-License, under the terms defined in section 4 above for modified
-versions, provided that you include in the combination all of the
-Invariant Sections of all of the original documents, unmodified, and
-list them all as Invariant Sections of your combined work in its
-license notice.
-
-The combined work need only contain one copy of this License, and
-multiple identical Invariant Sections may be replaced with a single
-copy.  If there are multiple Invariant Sections with the same name but
-different contents, make the title of each such section unique by
-adding at the end of it, in parentheses, the name of the original
-author or publisher of that section if known, or else a unique number.
-Make the same adjustment to the section titles in the list of
-Invariant Sections in the license notice of the combined work.
-
-In the combination, you must combine any sections entitled "History"
-in the various original documents, forming one section entitled
-"History"; likewise combine any sections entitled "Acknowledgements",
-and any sections entitled "Dedications".  You must delete all sections
-entitled "Endorsements."
-
-
-6. COLLECTIONS OF DOCUMENTS
-
-You may make a collection consisting of the Document and other documents
-released under this License, and replace the individual copies of this
-License in the various documents with a single copy that is included in
-the collection, provided that you follow the rules of this License for
-verbatim copying of each of the documents in all other respects.
-
-You may extract a single document from such a collection, and distribute
-it individually under this License, provided you insert a copy of this
-License into the extracted document, and follow this License in all
-other respects regarding verbatim copying of that document.
-
-
-7. AGGREGATION WITH INDEPENDENT WORKS
-
-A compilation of the Document or its derivatives with other separate
-and independent documents or works, in or on a volume of a storage or
-distribution medium, does not as a whole count as a Modified Version
-of the Document, provided no compilation copyright is claimed for the
-compilation.  Such a compilation is called an "aggregate", and this
-License does not apply to the other self-contained works thus compiled
-with the Document, on account of their being thus compiled, if they
-are not themselves derivative works of the Document.
-
-If the Cover Text requirement of section 3 is applicable to these
-copies of the Document, then if the Document is less than one quarter
-of the entire aggregate, the Document's Cover Texts may be placed on
-covers that surround only the Document within the aggregate.
-Otherwise they must appear on covers around the whole aggregate.
-
-
-8. TRANSLATION
-
-Translation is considered a kind of modification, so you may
-distribute translations of the Document under the terms of section 4.
-Replacing Invariant Sections with translations requires special
-permission from their copyright holders, but you may include
-translations of some or all Invariant Sections in addition to the
-original versions of these Invariant Sections.  You may include a
-translation of this License provided that you also include the
-original English version of this License.  In case of a disagreement
-between the translation and the original English version of this
-License, the original English version will prevail.
-
-
-9. TERMINATION
-
-You may not copy, modify, sublicense, or distribute the Document except
-as expressly provided for under this License.  Any other attempt to
-copy, modify, sublicense or distribute the Document is void, and will
-automatically terminate your rights under this License.  However,
-parties who have received copies, or rights, from you under this
-License will not have their licenses terminated so long as such
-parties remain in full compliance.
-
-
-10. FUTURE REVISIONS OF THIS LICENSE
-
-The Free Software Foundation may publish new, revised versions
-of the GNU Free Documentation License from time to time.  Such new
-versions will be similar in spirit to the present version, but may
-differ in detail to address new problems or concerns.  See
-http://www.gnu.org/copyleft/.
-
-Each version of the License is given a distinguishing version number.
-If the Document specifies that a particular numbered version of this
-License "or any later version" applies to it, you have the option of
-following the terms and conditions either of that specified version or
-of any later version that has been published (not as a draft) by the
-Free Software Foundation.  If the Document does not specify a version
-number of this License, you may choose any version ever published (not
-as a draft) by the Free Software Foundation.
-
-
-ADDENDUM: How to use this License for your documents
-
-To use this License in a document you have written, include a copy of
-the License in the document and put the following copyright and
-license notices just after the title page:
-
-@smallexample
-    Copyright (c)  YEAR  YOUR NAME.
-    Permission is granted to copy, distribute and/or modify this document
-    under the terms of the GNU Free Documentation License, Version 1.1
-    or any later version published by the Free Software Foundation;
-    with the Invariant Sections being LIST THEIR TITLES, with the
-    Front-Cover Texts being LIST, and with the Back-Cover Texts being LIST.
-    A copy of the license is included in the section entitled "GNU
-    Free Documentation License".
-@end smallexample
-
-If you have no Invariant Sections, write "with no Invariant Sections"
-instead of saying which ones are invariant.  If you have no
-Front-Cover Texts, write "no Front-Cover Texts" instead of
-"Front-Cover Texts being LIST"; likewise for Back-Cover Texts.
-
-If your document contains nontrivial examples of program code, we
-recommend releasing these examples in parallel under your choice of
-free software license, such as the GNU General Public License,
-to permit their use in free software.
+@include fdl.texi
 
 @node Index
 @unnumbered Index

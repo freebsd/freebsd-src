@@ -5,7 +5,7 @@ These are the functions that handle initializing a BFD.
 @subsubsection @code{bfd_init}
 @strong{Synopsis}
 @example
-void bfd_init(void);
+void bfd_init (void);
 @end example
 @strong{Description}@*
 This routine must be called before any other BFD function to

@@ -1,5 +1,5 @@
 /* MMIX support for BFD.
-   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2003 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "elf/reloc-macros.h"
 
-/* Relocations.  */
+/* Relocations.  See the reloc table in bfd/elf64-mmix.c for details.  */
 START_RELOC_NUMBERS (elf_mmix_reloc_type)
   RELOC_NUMBER (R_MMIX_NONE, 0)
 
@@ -90,6 +90,9 @@ START_RELOC_NUMBERS (elf_mmix_reloc_type)
 
   /* A LOCAL assertion.  */
   RELOC_NUMBER (R_MMIX_LOCAL, 35)
+
+  /* A PUSHJ instruction, generating a stub if it does not reach.  */
+  RELOC_NUMBER (R_MMIX_PUSHJ_STUBBABLE, 36)
 END_RELOC_NUMBERS (R_MMIX_max)
 
 
@@ -157,12 +160,12 @@ END_RELOC_NUMBERS (R_MMIX_max)
 #define MMO_SEC_DEBUGGING 0x10000
 
 #ifdef BFD_ARCH_SIZE
-extern boolean _bfd_mmix_prepare_linker_allocated_gregs
- PARAMS ((bfd *, struct bfd_link_info *));
-extern boolean _bfd_mmix_finalize_linker_allocated_gregs
- PARAMS ((bfd *, struct bfd_link_info *));
-extern boolean _bfd_mmix_check_all_relocs
- PARAMS ((bfd *, struct bfd_link_info *));
+extern bfd_boolean _bfd_mmix_before_linker_allocation
+  (bfd *, struct bfd_link_info *);
+extern bfd_boolean _bfd_mmix_after_linker_allocation
+  (bfd *, struct bfd_link_info *);
+extern bfd_boolean _bfd_mmix_check_all_relocs
+  (bfd *, struct bfd_link_info *);
 #endif
 
 #endif /* ELF_MMIX_H */

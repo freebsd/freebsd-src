@@ -264,7 +264,7 @@ do_relocs_for (idx)
 	  from = from->fx_next;
 	}
 
-      /* Attatch to the section.  */
+      /* Attach to the section.  */
       section->orelocation = reloc_ptr_vector;
       section->reloc_count = nrelocs;
       section->flags |= SEC_LOAD;
@@ -467,10 +467,6 @@ ok:
   input_line_pointer = p;
 }
 
-void cons ();
-void s_ignore ();
-
-void s_globl ();
 const pseudo_typeS obj_pseudo_table[] =
 {
   {"section", obj_ieee_section, 0},
@@ -496,7 +492,7 @@ obj_symbol_new_hook (symbolP)
 
 #ifndef SUB_SEGMENT_ALIGN
 #ifdef HANDLE_ALIGN
-/* The last subsegment gets an aligment corresponding to the alignment
+/* The last subsegment gets an alignment corresponding to the alignment
    of the section.  This allows proper nop-filling at the end of
    code-bearing sections.  */
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)					\

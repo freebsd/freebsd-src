@@ -1,5 +1,5 @@
 dnl GAS_CHECK_DECL_NEEDED(name, typedefname, typedef, headers)
-AC_DEFUN(GAS_CHECK_DECL_NEEDED,[
+AC_DEFUN([GAS_CHECK_DECL_NEEDED],[
 AC_MSG_CHECKING(whether declaration is required for $1)
 AC_CACHE_VAL(gas_cv_decl_needed_$1,
 AC_TRY_LINK([$4],
@@ -19,7 +19,7 @@ dnl Some non-ANSI preprocessors botch requoting inside strings.  That's bad
 dnl enough, but on some of those systems, the assert macro relies on requoting
 dnl working properly!
 dnl GAS_WORKING_ASSERT
-AC_DEFUN(GAS_WORKING_ASSERT,
+AC_DEFUN([GAS_WORKING_ASSERT],
 [AC_MSG_CHECKING([for working assert macro])
 AC_CACHE_VAL(gas_cv_assert_ok,
 AC_TRY_LINK([#include <assert.h>
@@ -39,7 +39,7 @@ dnl
 dnl Since many Bourne shell implementations lack subroutines, use this
 dnl hack to simplify the code in configure.in.
 dnl GAS_UNIQ(listvar)
-AC_DEFUN(GAS_UNIQ,
+AC_DEFUN([GAS_UNIQ],
 [_gas_uniq_list="[$]$1"
 _gas_uniq_newlist=""
 dnl Protect against empty input list.

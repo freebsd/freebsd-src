@@ -1,6 +1,6 @@
 /* ldexp.h -
-   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2002
-   Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2002,
+   2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -27,23 +27,25 @@ typedef struct {
   bfd_vma value;
   char *str;
   struct lang_output_section_statement_struct *section;
-  boolean valid_p;
+  bfd_boolean valid_p;
 } etree_value_type;
 
 typedef struct {
   int node_code;
-  enum { etree_binary,
-	   etree_trinary,
-	   etree_unary,
-	   etree_name,
-	   etree_assign,
-	   etree_provide,
-	   etree_provided,
-	   etree_undef,
-	   etree_unspec,
-	   etree_value,
-	   etree_assert,
-	   etree_rel } node_class;
+  enum {
+    etree_binary,
+    etree_trinary,
+    etree_unary,
+    etree_name,
+    etree_assign,
+    etree_provide,
+    etree_provided,
+    etree_undef,
+    etree_unspec,
+    etree_value,
+    etree_assert,
+    etree_rel
+  } node_class;
 } node_type;
 
 typedef union etree_union {
@@ -101,27 +103,40 @@ extern struct exp_data_seg {
 
 typedef struct _fill_type fill_type;
 
-etree_type *exp_intop PARAMS ((bfd_vma));
-etree_type *exp_bigintop PARAMS ((bfd_vma, char *));
-etree_type *exp_relop PARAMS ((asection *, bfd_vma));
-etree_value_type invalid PARAMS ((void));
-etree_value_type exp_fold_tree PARAMS ((etree_type *, struct
-					lang_output_section_statement_struct *,
-					lang_phase_type,
-					bfd_vma, bfd_vma *));
-etree_type *exp_binop PARAMS ((int, etree_type *, etree_type *));
-etree_type *exp_trinop PARAMS ((int,etree_type *, etree_type *, etree_type *));
-etree_type *exp_unop PARAMS ((int, etree_type *));
-etree_type *exp_nameop PARAMS ((int, const char *));
-etree_type *exp_assop PARAMS ((int, const char *, etree_type *));
-etree_type *exp_provide PARAMS ((const char *, etree_type *));
-etree_type *exp_assert PARAMS ((etree_type *, const char *));
-void exp_print_tree PARAMS ((etree_type *));
-bfd_vma exp_get_vma PARAMS ((etree_type *, bfd_vma, char *, lang_phase_type));
-int exp_get_value_int PARAMS ((etree_type *, int, char *, lang_phase_type));
-fill_type *exp_get_fill PARAMS ((etree_type *, fill_type *, char *,
-				 lang_phase_type));
-bfd_vma exp_get_abs_int PARAMS ((etree_type *, int, char *, lang_phase_type));
-bfd_vma align_n PARAMS ((bfd_vma, bfd_vma));
+etree_type *exp_intop
+  (bfd_vma);
+etree_type *exp_bigintop
+  (bfd_vma, char *);
+etree_type *exp_relop
+  (asection *, bfd_vma);
+etree_value_type invalid
+  (void);
+etree_value_type exp_fold_tree
+  (etree_type *, struct lang_output_section_statement_struct *,
+   lang_phase_type, bfd_vma, bfd_vma *);
+etree_type *exp_binop
+  (int, etree_type *, etree_type *);
+etree_type *exp_trinop
+  (int,etree_type *, etree_type *, etree_type *);
+etree_type *exp_unop
+  (int, etree_type *);
+etree_type *exp_nameop
+  (int, const char *);
+etree_type *exp_assop
+  (int, const char *, etree_type *);
+etree_type *exp_provide
+  (const char *, etree_type *);
+etree_type *exp_assert
+  (etree_type *, const char *);
+void exp_print_tree
+  (etree_type *);
+bfd_vma exp_get_vma
+  (etree_type *, bfd_vma, char *, lang_phase_type);
+int exp_get_value_int
+  (etree_type *, int, char *, lang_phase_type);
+fill_type *exp_get_fill
+  (etree_type *, fill_type *, char *, lang_phase_type);
+bfd_vma exp_get_abs_int
+  (etree_type *, int, char *, lang_phase_type);
 
 #endif

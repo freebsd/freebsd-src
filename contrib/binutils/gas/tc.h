@@ -1,6 +1,6 @@
 /* tc.h - target cpu dependent
 
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 2000
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 2000, 2001, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -45,66 +45,68 @@ typedef struct relax_type relax_typeS;
 
 extern const int md_reloc_size;	/* Size of a relocation record */
 
-char *md_atof PARAMS ((int what_statement_type, char *literalP, int *sizeP));
+char *md_atof (int what_statement_type, char *literalP, int *sizeP);
 #ifndef md_estimate_size_before_relax
-int md_estimate_size_before_relax PARAMS ((fragS * fragP, segT segment));
+int md_estimate_size_before_relax (fragS * fragP, segT segment);
 #endif
-int md_parse_option PARAMS ((int c, char *arg));
-void md_show_usage PARAMS ((FILE *));
-long md_pcrel_from PARAMS ((fixS * fixP));
-short tc_coff_fix2rtype PARAMS ((fixS * fixP));
-void md_assemble PARAMS ((char *str));
-void md_begin PARAMS ((void));
+int md_parse_option (int c, char *arg);
+void md_show_usage (FILE *);
+#ifndef md_pcrel_from
+long md_pcrel_from (fixS * fixP);
+#endif
+short tc_coff_fix2rtype (fixS * fixP);
+void md_assemble (char *str);
+void md_begin (void);
 #ifndef md_create_long_jump
-void md_create_long_jump PARAMS ((char *ptr, addressT from_addr,
-				  addressT to_addr, fragS * frag,
-				  symbolS * to_symbol));
+void md_create_long_jump (char *ptr, addressT from_addr,
+			  addressT to_addr, fragS * frag,
+			  symbolS * to_symbol);
 #endif
 #ifndef md_create_short_jump
-void md_create_short_jump PARAMS ((char *ptr, addressT from_addr,
-				   addressT to_addr, fragS * frag,
-				   symbolS * to_symbol));
+void md_create_short_jump (char *ptr, addressT from_addr,
+			   addressT to_addr, fragS * frag,
+			   symbolS * to_symbol);
 #endif
-void md_number_to_chars PARAMS ((char *buf, valueT val, int n));
+void md_number_to_chars (char *buf, valueT val, int n);
 
 #ifndef md_operand
-void md_operand PARAMS ((expressionS * expressionP));
+void md_operand (expressionS * expressionP);
 #endif
 
-void md_apply_fix3 PARAMS ((fixS *, valueT *, segT));
+void md_apply_fix3 (fixS *, valueT *, segT);
 
 #ifdef BFD_ASSEMBLER
 #ifndef md_convert_frag
-void md_convert_frag PARAMS ((bfd * headers, segT sec, fragS * fragP));
+void md_convert_frag (bfd * headers, segT sec, fragS * fragP);
 #endif
 #ifndef tc_headers_hook
-void tc_headers_hook PARAMS ((segT *, fixS *));
+void tc_headers_hook (segT *, fixS *);
 #endif
 #ifndef RELOC_EXPANSION_POSSIBLE
-extern arelent *tc_gen_reloc PARAMS ((asection *, fixS *));
+extern arelent *tc_gen_reloc (asection *, fixS *);
 #else
-extern arelent **tc_gen_reloc PARAMS ((asection *, fixS *));
+extern arelent **tc_gen_reloc (asection *, fixS *);
 #endif
 #else /* not BFD_ASSEMBLER */
 #ifndef md_convert_frag
-void md_convert_frag PARAMS ((object_headers * headers, segT, fragS * fragP));
+void md_convert_frag (object_headers * headers, segT, fragS * fragP);
 #endif
 
 #ifndef tc_crawl_symbol_chain
-void tc_crawl_symbol_chain PARAMS ((object_headers * headers));
+void tc_crawl_symbol_chain (object_headers * headers);
 #endif /* tc_crawl_symbol_chain */
 
 #ifndef tc_headers_hook
-void tc_headers_hook PARAMS ((object_headers * headers));
+void tc_headers_hook (object_headers * headers);
 #endif /* tc_headers_hook */
 #endif /* BFD_ASSEMBLER */
 
 #ifndef md_section_align
-valueT md_section_align PARAMS ((segT seg, valueT size));
+valueT md_section_align (segT seg, valueT size);
 #endif
 
 #ifndef md_undefined_symbol
-symbolS *md_undefined_symbol PARAMS ((char *name));
+symbolS *md_undefined_symbol (char *name);
 #endif
 
 /* end of tc.h */

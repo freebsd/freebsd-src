@@ -34,6 +34,7 @@
 #define EF_ARM_OLD_ABI     0x100
 #define EF_ARM_SOFT_FLOAT  0x200
 #define EF_ARM_VFP_FLOAT   0x400
+#define EF_ARM_MAVERICK_FLOAT 0x800
 
 /* Other constants defined in the ARM ELF spec. version B-01.  */
 #define EF_ARM_SYMSARESORTED 0x04	/* NB conflicts with EF_INTERWORK */
@@ -139,4 +140,7 @@ START_RELOC_NUMBERS (elf_arm_reloc_type)
   RELOC_NUMBER (R_ARM_RBASE,          255)
 END_RELOC_NUMBERS (R_ARM_max)
 
+/* The name of the note section used to identify arm variants.  */
+#define ARM_NOTE_SECTION ".note.gnu.arm.ident"
+     
 #endif /* _ELF_ARM_H */

@@ -1,5 +1,5 @@
 /* i370 ELF support for BFD.
-   Copyright 2000 Free Software Foundation, Inc.
+   Copyright 2000, 2002 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef _ELF_I370_H
 #define _ELF_I370_H
 
+#include "elf/reloc-macros.h"
+
 /* Processor specific section headers, sh_type field */
 
 #define SHT_ORDERED		SHT_HIPROC	/* Link editor is to sort the \
@@ -41,6 +43,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 						   builds when those objects \
 						   are not to be furhter \
 						   relocated.  */
+
+/* i370 relocations
+   Note that there is really just one relocation that we currently
+   support (and only one that we seem to need, at the moment), and
+   that is the 31-bit address relocation.  Note that the 370/390
+   only supports a 31-bit (2GB) address space.  */
+
+START_RELOC_NUMBERS (i370_reloc_type)
+  RELOC_NUMBER (R_I370_NONE,      0)
+  RELOC_NUMBER (R_I370_ADDR31,    1)
+  RELOC_NUMBER (R_I370_ADDR32,    2)
+  RELOC_NUMBER (R_I370_ADDR16,    3) 
+  RELOC_NUMBER (R_I370_REL31,     4)
+  RELOC_NUMBER (R_I370_REL32,     5)  
+  RELOC_NUMBER (R_I370_ADDR12,    6)
+  RELOC_NUMBER (R_I370_REL12,     7)
+  RELOC_NUMBER (R_I370_ADDR8,     8)
+  RELOC_NUMBER (R_I370_REL8,      9)
+  RELOC_NUMBER (R_I370_COPY,     10)
+  RELOC_NUMBER (R_I370_RELATIVE, 11)
+END_RELOC_NUMBERS (R_I370_max)
+
 #endif /* _ELF_I370_H */
-
-

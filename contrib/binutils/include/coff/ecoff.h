@@ -2,22 +2,22 @@
    This does not include symbol information, found in sym.h and
    symconst.h.
 
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
-   
+
 #ifndef ECOFF_H
 #define ECOFF_H
 
@@ -296,21 +296,21 @@ struct ecoff_debug_info
      fields are also used by the assembler to output ECOFF debugging
      information.  */
   unsigned char *line;
-  PTR external_dnr;	/* struct dnr_ext */
-  PTR external_pdr;	/* struct pdr_ext */
-  PTR external_sym;	/* struct sym_ext */
-  PTR external_opt;	/* struct opt_ext */
+  void *external_dnr;	/* struct dnr_ext */
+  void *external_pdr;	/* struct pdr_ext */
+  void *external_sym;	/* struct sym_ext */
+  void *external_opt;	/* struct opt_ext */
   union aux_ext *external_aux;
   char *ss;
   char *ssext;
-  PTR external_fdr;	/* struct fdr_ext */
-  PTR external_rfd;	/* struct rfd_ext */
-  PTR external_ext;	/* struct ext_ext */
+  void *external_fdr;	/* struct fdr_ext */
+  void *external_rfd;	/* struct rfd_ext */
+  void *external_ext;	/* struct ext_ext */
 
   /* These fields are used when linking.  They may disappear at some
      point.  */
   char *ssext_end;
-  PTR external_ext_end;
+  void *external_ext_end;
 
   /* When linking, this field holds a mapping from the input FDR
      numbers to the output numbers, and is used when writing out the
@@ -406,32 +406,31 @@ struct ecoff_debug_swap
   bfd_size_type external_rfd_size;
   bfd_size_type external_ext_size;
   /* Functions to swap in external symbolic data.  */
-  void (*swap_hdr_in) PARAMS ((bfd *, PTR, HDRR *));
-  void (*swap_dnr_in) PARAMS ((bfd *, PTR, DNR *));
-  void (*swap_pdr_in) PARAMS ((bfd *, PTR, PDR *));
-  void (*swap_sym_in) PARAMS ((bfd *, PTR, SYMR *));
-  void (*swap_opt_in) PARAMS ((bfd *, PTR, OPTR *));
-  void (*swap_fdr_in) PARAMS ((bfd *, PTR, FDR *));
-  void (*swap_rfd_in) PARAMS ((bfd *, PTR, RFDT *));
-  void (*swap_ext_in) PARAMS ((bfd *, PTR, EXTR *));
-  void (*swap_tir_in) PARAMS ((int, const struct tir_ext *, TIR *));
-  void (*swap_rndx_in) PARAMS ((int, const struct rndx_ext *, RNDXR *));
+  void (*swap_hdr_in) (bfd *, void *, HDRR *);
+  void (*swap_dnr_in) (bfd *, void *, DNR *);
+  void (*swap_pdr_in) (bfd *, void *, PDR *);
+  void (*swap_sym_in) (bfd *, void *, SYMR *);
+  void (*swap_opt_in) (bfd *, void *, OPTR *);
+  void (*swap_fdr_in) (bfd *, void *, FDR *);
+  void (*swap_rfd_in) (bfd *, void *, RFDT *);
+  void (*swap_ext_in) (bfd *, void *, EXTR *);
+  void (*swap_tir_in) (int, const struct tir_ext *, TIR *);
+  void (*swap_rndx_in) (int, const struct rndx_ext *, RNDXR *);
   /* Functions to swap out external symbolic data.  */
-  void (*swap_hdr_out) PARAMS ((bfd *, const HDRR *, PTR));
-  void (*swap_dnr_out) PARAMS ((bfd *, const DNR *, PTR));
-  void (*swap_pdr_out) PARAMS ((bfd *, const PDR *, PTR));
-  void (*swap_sym_out) PARAMS ((bfd *, const SYMR *, PTR));
-  void (*swap_opt_out) PARAMS ((bfd *, const OPTR *, PTR));
-  void (*swap_fdr_out) PARAMS ((bfd *, const FDR *, PTR));
-  void (*swap_rfd_out) PARAMS ((bfd *, const RFDT *, PTR));
-  void (*swap_ext_out) PARAMS ((bfd *, const EXTR *, PTR));
-  void (*swap_tir_out) PARAMS ((int, const TIR *, struct tir_ext *));
-  void (*swap_rndx_out) PARAMS ((int, const RNDXR *, struct rndx_ext *));
+  void (*swap_hdr_out) (bfd *, const HDRR *, void *);
+  void (*swap_dnr_out) (bfd *, const DNR *, void *);
+  void (*swap_pdr_out) (bfd *, const PDR *, void *);
+  void (*swap_sym_out) (bfd *, const SYMR *, void *);
+  void (*swap_opt_out) (bfd *, const OPTR *, void *);
+  void (*swap_fdr_out) (bfd *, const FDR *, void *);
+  void (*swap_rfd_out) (bfd *, const RFDT *, void *);
+  void (*swap_ext_out) (bfd *, const EXTR *, void *);
+  void (*swap_tir_out) (int, const TIR *, struct tir_ext *);
+  void (*swap_rndx_out) (int, const RNDXR *, struct rndx_ext *);
   /* Function to read symbol data and set up pointers in
      ecoff_debug_info structure.  The section argument is used for
      ELF, not straight ECOFF.  */
-  boolean (*read_debug_info) PARAMS ((bfd *, asection *,
-				      struct ecoff_debug_info *));
+  bfd_boolean (*read_debug_info) (bfd *, asection *, struct ecoff_debug_info *);
 };
 
 #endif /* ! defined (ECOFF_H) */

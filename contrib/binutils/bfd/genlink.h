@@ -1,5 +1,5 @@
 /* genlink.h -- interface to the BFD generic linker
-   Copyright 1993, 1994, 1996 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1996, 2002 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -42,7 +42,7 @@ struct generic_link_hash_entry
 {
   struct bfd_link_hash_entry root;
   /* Whether this symbol has been written out.  */
-  boolean written;
+  bfd_boolean written;
   /* Symbol from input BFD.  */
   asymbol *sym;
 };
@@ -54,18 +54,18 @@ struct generic_link_hash_table
   struct bfd_link_hash_table root;
 };
 
-/* Look up an entry in an generic link hash table.  */
+/* Look up an entry in a generic link hash table.  */
 
 #define _bfd_generic_link_hash_lookup(table, string, create, copy, follow) \
   ((struct generic_link_hash_entry *) \
    bfd_link_hash_lookup (&(table)->root, (string), (create), (copy), (follow)))
 
-/* Traverse an generic link hash table.  */
+/* Traverse a generic link hash table.  */
 
 #define _bfd_generic_link_hash_traverse(table, func, info)		\
   (bfd_link_hash_traverse						\
    (&(table)->root,							\
-    (boolean (*) PARAMS ((struct bfd_link_hash_entry *, PTR))) (func),	\
+    (bfd_boolean (*) PARAMS ((struct bfd_link_hash_entry *, PTR))) (func), \
     (info)))
 
 /* Get the generic link hash table from the info structure.  This is
@@ -82,7 +82,7 @@ struct generic_link_hash_table
 
 /* Add the symbols of input_bfd to the symbols being built for
    output_bfd.  */
-extern boolean _bfd_generic_link_output_symbols
+extern bfd_boolean _bfd_generic_link_output_symbols
   PARAMS ((bfd *output_bfd, bfd *input_bfd, struct bfd_link_info *,
 	   size_t *psymalloc));
 
@@ -100,7 +100,7 @@ struct generic_write_global_symbol_info
 /* Write out a single global symbol.  This is expected to be called
    via _bfd_generic_link_hash_traverse.  The second argument must
    actually be a struct generic_write_global_symbol_info *.  */
-extern boolean _bfd_generic_link_write_global_symbol
+extern bfd_boolean _bfd_generic_link_write_global_symbol
   PARAMS ((struct generic_link_hash_entry *, PTR));
 
 /* Generic link hash table entry creation routine.  */

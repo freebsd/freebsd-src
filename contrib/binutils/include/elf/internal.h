@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001
+   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -58,11 +58,6 @@ typedef struct elf_internal_ehdr {
   unsigned int		e_shstrndx;	/* Section header string table index */
 } Elf_Internal_Ehdr;
 
-#define elf32_internal_ehdr elf_internal_ehdr
-#define Elf32_Internal_Ehdr Elf_Internal_Ehdr
-#define elf64_internal_ehdr elf_internal_ehdr
-#define Elf64_Internal_Ehdr Elf_Internal_Ehdr
-
 /* Program header */
 
 struct elf_internal_phdr {
@@ -77,10 +72,6 @@ struct elf_internal_phdr {
 };
 
 typedef struct elf_internal_phdr Elf_Internal_Phdr;
-#define elf32_internal_phdr elf_internal_phdr
-#define Elf32_Internal_Phdr Elf_Internal_Phdr
-#define elf64_internal_phdr elf_internal_phdr
-#define Elf64_Internal_Phdr Elf_Internal_Phdr
 
 /* Section header */
 
@@ -101,11 +92,6 @@ typedef struct elf_internal_shdr {
   unsigned char *contents;		/* Section contents.  */
 } Elf_Internal_Shdr;
 
-#define elf32_internal_shdr elf_internal_shdr
-#define Elf32_Internal_Shdr Elf_Internal_Shdr
-#define elf64_internal_shdr elf_internal_shdr
-#define Elf64_Internal_Shdr Elf_Internal_Shdr
-
 /* Symbol table entry */
 
 struct elf_internal_sym {
@@ -119,11 +105,6 @@ struct elf_internal_sym {
 
 typedef struct elf_internal_sym Elf_Internal_Sym;
 
-#define elf32_internal_sym elf_internal_sym
-#define elf64_internal_sym elf_internal_sym
-#define Elf32_Internal_Sym Elf_Internal_Sym
-#define Elf64_Internal_Sym Elf_Internal_Sym
-
 /* Note segments */
 
 typedef struct elf_internal_note {
@@ -134,32 +115,14 @@ typedef struct elf_internal_note {
   char *	descdata;		/* Start of the desc data */
   bfd_vma	descpos;		/* File offset of the descdata */
 } Elf_Internal_Note;
-#define Elf32_Internal_Note	Elf_Internal_Note
-#define elf32_internal_note	elf_internal_note
 
 /* Relocation Entries */
-
-typedef struct elf_internal_rel {
-  bfd_vma	r_offset;	/* Location at which to apply the action */
-  /* This needs to support 64-bit values in elf64.  */
-  bfd_vma	r_info;		/* index and type of relocation */
-} Elf_Internal_Rel;
-
-#define elf32_internal_rel elf_internal_rel
-#define Elf32_Internal_Rel Elf_Internal_Rel
-#define elf64_internal_rel elf_internal_rel
-#define Elf64_Internal_Rel Elf_Internal_Rel
 
 typedef struct elf_internal_rela {
   bfd_vma	r_offset;	/* Location at which to apply the action */
   bfd_vma	r_info;		/* Index and Type of relocation */
   bfd_vma	r_addend;	/* Constant addend used to compute value */
 } Elf_Internal_Rela;
-
-#define elf32_internal_rela elf_internal_rela
-#define elf64_internal_rela elf_internal_rela
-#define Elf32_Internal_Rela Elf_Internal_Rela
-#define Elf64_Internal_Rela Elf_Internal_Rela
 
 /* dynamic section structure */
 
@@ -172,11 +135,6 @@ typedef struct elf_internal_dyn {
     bfd_vma	d_ptr;
   } d_un;
 } Elf_Internal_Dyn;
-
-#define elf32_internal_dyn elf_internal_dyn
-#define elf64_internal_dyn elf_internal_dyn
-#define Elf32_Internal_Dyn Elf_Internal_Dyn
-#define Elf64_Internal_Dyn Elf_Internal_Dyn
 
 /* This structure appears in a SHT_GNU_verdef section.  */
 
@@ -256,30 +214,13 @@ typedef struct
   unsigned short int	si_flags;
 } Elf_Internal_Syminfo;
 
+/* This structure appears on the stack and in NT_AUXV core file notes.  */
+typedef struct
+{
+  bfd_vma a_type;
+  bfd_vma a_val;
+} Elf_Internal_Auxv;
 
-#define elf32_internal_verdef elf_internal_verdef
-#define elf64_internal_verdef elf_internal_verdef
-#define elf32_internal_verdaux elf_internal_verdaux
-#define elf64_internal_verdaux elf_internal_verdaux
-#define elf32_internal_verneed elf_internal_verneed
-#define elf64_internal_verneed elf_internal_verneed
-#define elf32_internal_vernaux elf_internal_vernaux
-#define elf64_internal_vernaux elf_internal_vernaux
-#define elf32_internal_versym elf_internal_versym
-#define elf64_internal_versym elf_internal_versym
-
-#define Elf32_Internal_Verdef Elf_Internal_Verdef
-#define Elf64_Internal_Verdef Elf_Internal_Verdef
-#define Elf32_Internal_Verdaux Elf_Internal_Verdaux
-#define Elf64_Internal_Verdaux Elf_Internal_Verdaux
-#define Elf32_Internal_Verneed Elf_Internal_Verneed
-#define Elf64_Internal_Verneed Elf_Internal_Verneed
-#define Elf32_Internal_Vernaux Elf_Internal_Vernaux
-#define Elf64_Internal_Vernaux Elf_Internal_Vernaux
-#define Elf32_Internal_Versym Elf_Internal_Versym
-#define Elf64_Internal_Versym Elf_Internal_Versym
-#define Elf32_Internal_Syminfo Elf_Internal_Syminfo
-#define Elf64_Internal_Syminfo Elf_Internal_Syminfo
 
 /* This structure is used to describe how sections should be assigned
    to program segments.  */

@@ -1,5 +1,5 @@
 /* BFD back-end for a.out files encapsulated with COFF headers.
-   Copyright 1990, 1991, 1994, 1995, 2000, 2001
+   Copyright 1990, 1991, 1994, 1995, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -24,7 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define	TARGET_PAGE_SIZE	4096
 #define	SEGMENT_SIZE	TARGET_PAGE_SIZE
 #define TEXT_START_ADDR 0
-#define BYTES_IN_WORD 4
 #endif
 
 #include "bfd.h"
@@ -123,7 +122,7 @@ encap_real_callback (abfd)
    Section contents have already been written.  We write the
    file header, symbols, and relocation.  */
 
-boolean
+bfd_boolean
 encap_write_object_contents (abfd)
      bfd *abfd;
 {
@@ -230,7 +229,7 @@ encap_write_object_contents (abfd)
 
   text_size -= N_TXTOFF (outheader);
   WRITE_HEADERS(abfd, execp);
-  return true;
+  return TRUE;
 }
 
 #define MY_write_object_content encap_write_object_contents

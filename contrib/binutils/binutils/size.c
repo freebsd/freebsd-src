@@ -1,6 +1,6 @@
 /* size.c -- report size of various sections of an executable file.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
-   Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
+   2002, 2003 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -61,33 +61,31 @@ static char *target = NULL;
 
 /* Static declarations.  */
 
-static void usage                 PARAMS ((FILE *, int));
-static void display_file          PARAMS ((char *));
-static void display_bfd           PARAMS ((bfd *));
-static void display_archive       PARAMS ((bfd *));
-static int size_number            PARAMS ((bfd_size_type));
+static void usage (FILE *, int);
+static void display_file (char *);
+static void display_bfd (bfd *);
+static void display_archive (bfd *);
+static int size_number (bfd_size_type);
 #if 0
-static void lprint_number         PARAMS ((int, bfd_size_type));
+static void lprint_number (int, bfd_size_type);
 #endif
-static void rprint_number         PARAMS ((int, bfd_size_type));
-static void print_berkeley_format PARAMS ((bfd *));
-static void sysv_internal_sizer   PARAMS ((bfd *, asection *, PTR));
-static void sysv_internal_printer PARAMS ((bfd *, asection *, PTR));
-static void print_sysv_format     PARAMS ((bfd *));
-static void print_sizes           PARAMS ((bfd * file));
-static void berkeley_sum          PARAMS ((bfd *, sec_ptr, PTR));
+static void rprint_number (int, bfd_size_type);
+static void print_berkeley_format (bfd *);
+static void sysv_internal_sizer (bfd *, asection *, void *);
+static void sysv_internal_printer (bfd *, asection *, void *);
+static void print_sysv_format (bfd *);
+static void print_sizes (bfd * file);
+static void berkeley_sum (bfd *, sec_ptr, void *);
 
 static void
-usage (stream, status)
-     FILE *stream;
-     int status;
+usage (FILE *stream, int status)
 {
   fprintf (stream, _("Usage: %s [option(s)] [file(s)]\n"), program_name);
   fprintf (stream, _(" Displays the sizes of sections inside binary files\n"));
   fprintf (stream, _(" If no input file(s) are specified, a.out is assumed\n"));
   fprintf (stream, _(" The options are:\n\
   -A|-B     --format={sysv|berkeley}  Select output style (default is %s)\n\
-  -o|-d|-h  --radix={8|10|16}         Display numbers in octal, decimal or hex\n\
+  -o|-d|-x  --radix={8|10|16}         Display numbers in octal, decimal or hex\n\
   -t        --totals                  Display the total sizes (Berkeley only)\n\
             --target=<bfdname>        Set the binary file format\n\
   -h        --help                    Display this information\n\
@@ -116,12 +114,10 @@ struct option long_options[] =
   {0, no_argument, 0, 0}
 };
 
-int main PARAMS ((int, char **));
+int main (int, char **);
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   int temp;
   int c;
@@ -260,8 +256,7 @@ main (argc, argv)
 /* Display stats on file or archive member ABFD.  */
 
 static void
-display_bfd (abfd)
-     bfd *abfd;
+display_bfd (bfd *abfd)
 {
   char **matching;
 
@@ -312,8 +307,7 @@ display_bfd (abfd)
 }
 
 static void
-display_archive (file)
-     bfd *file;
+display_archive (bfd *file)
 {
   bfd *arfile = (bfd *) NULL;
   bfd *last_arfile = (bfd *) NULL;
@@ -345,11 +339,14 @@ display_archive (file)
 }
 
 static void
-display_file (filename)
-     char *filename;
+display_file (char *filename)
 {
-  bfd *file = bfd_openr (filename, target);
+  bfd *file;
 
+  if (get_file_size (filename) < 1)
+    return;
+
+  file = bfd_openr (filename, target);
   if (file == NULL)
     {
       bfd_nonfatal (filename);
@@ -357,12 +354,12 @@ display_file (filename)
       return;
     }
 
-  if (bfd_check_format (file, bfd_archive) == true)
+  if (bfd_check_format (file, bfd_archive))
     display_archive (file);
   else
     display_bfd (file);
 
-  if (bfd_close (file) == false)
+  if (!bfd_close (file))
     {
       bfd_nonfatal (filename);
       return_code = 1;
@@ -373,8 +370,7 @@ display_file (filename)
 /* This is what lexical functions are for.  */
 
 static int
-size_number (num)
-     bfd_size_type num;
+size_number (bfd_size_type num)
 {
   char buffer[40];
 
@@ -391,9 +387,7 @@ size_number (num)
 /* This is not used.  */
 
 static void
-lprint_number (width, num)
-     int width;
-     bfd_size_type num;
+lprint_number (int width, bfd_size_type num)
 {
   char buffer[40];
 
@@ -408,9 +402,7 @@ lprint_number (width, num)
 #endif
 
 static void
-rprint_number (width, num)
-     int width;
-     bfd_size_type num;
+rprint_number (int width, bfd_size_type num)
 {
   char buffer[40];
 
@@ -427,10 +419,8 @@ static bfd_size_type datasize;
 static bfd_size_type textsize;
 
 static void
-berkeley_sum (abfd, sec, ignore)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     sec_ptr sec;
-     PTR ignore ATTRIBUTE_UNUSED;
+berkeley_sum (bfd *abfd ATTRIBUTE_UNUSED, sec_ptr sec,
+	      void *ignore ATTRIBUTE_UNUSED)
 {
   flagword flags;
   bfd_size_type size;
@@ -449,8 +439,7 @@ berkeley_sum (abfd, sec, ignore)
 }
 
 static void
-print_berkeley_format (abfd)
-     bfd *abfd;
+print_berkeley_format (bfd *abfd)
 {
   static int files_seen = 0;
   bfd_size_type total;
@@ -459,7 +448,7 @@ print_berkeley_format (abfd)
   datasize = 0;
   textsize = 0;
 
-  bfd_map_over_sections (abfd, berkeley_sum, (PTR) NULL);
+  bfd_map_over_sections (abfd, berkeley_sum, NULL);
 
   if (files_seen++ == 0)
 #if 0
@@ -502,10 +491,8 @@ int svi_vmalen = 0;
 int svi_sizelen = 0;
 
 static void
-sysv_internal_sizer (file, sec, ignore)
-     bfd *file ATTRIBUTE_UNUSED;
-     sec_ptr sec;
-     PTR ignore ATTRIBUTE_UNUSED;
+sysv_internal_sizer (bfd *file ATTRIBUTE_UNUSED, sec_ptr sec,
+		     void *ignore ATTRIBUTE_UNUSED)
 {
   bfd_size_type size = bfd_section_size (file, sec);
 
@@ -526,10 +513,8 @@ sysv_internal_sizer (file, sec, ignore)
 }
 
 static void
-sysv_internal_printer (file, sec, ignore)
-     bfd *file ATTRIBUTE_UNUSED;
-     sec_ptr sec;
-     PTR ignore ATTRIBUTE_UNUSED;
+sysv_internal_printer (bfd *file ATTRIBUTE_UNUSED, sec_ptr sec,
+		       void *ignore ATTRIBUTE_UNUSED)
 {
   bfd_size_type size = bfd_section_size (file, sec);
 
@@ -548,14 +533,13 @@ sysv_internal_printer (file, sec, ignore)
 }
 
 static void
-print_sysv_format (file)
-     bfd *file;
+print_sysv_format (bfd *file)
 {
   /* Size all of the columns.  */
   svi_total = 0;
   svi_maxvma = 0;
   svi_namelen = 0;
-  bfd_map_over_sections (file, sysv_internal_sizer, (PTR) NULL);
+  bfd_map_over_sections (file, sysv_internal_sizer, NULL);
   svi_vmalen = size_number ((bfd_size_type)svi_maxvma);
 
   if ((size_t) svi_vmalen < sizeof ("addr") - 1)
@@ -574,7 +558,7 @@ print_sysv_format (file)
   printf (":\n%-*s   %*s   %*s\n", svi_namelen, "section",
 	  svi_sizelen, "size", svi_vmalen, "addr");
 
-  bfd_map_over_sections (file, sysv_internal_printer, (PTR) NULL);
+  bfd_map_over_sections (file, sysv_internal_printer, NULL);
 
   printf ("%-*s   ", svi_namelen, "Total");
   rprint_number (svi_sizelen, svi_total);
@@ -582,8 +566,7 @@ print_sysv_format (file)
 }
 
 static void
-print_sizes (file)
-     bfd *file;
+print_sizes (bfd *file)
 {
   if (berkeley_format)
     print_berkeley_format (file);

@@ -55,7 +55,7 @@ however, some additional information will be needed.
 
 For example, with each entry in the hash table the a.out
 linker keeps the index the symbol has in the final output file
-(this index number is used so that when doing a relocateable
+(this index number is used so that when doing a relocatable
 link the symbol index used in the output file can be quickly
 filled in when copying over a reloc).  The a.out linker code
 defines the required structures and functions for a hash table
@@ -158,7 +158,7 @@ If the @code{_bfd_final_link} routine is also going to need to
 read the symbol information, the @code{_bfd_link_add_symbols}
 routine should save it somewhere attached to the object file
 BFD.  However, the information should only be saved if the
-@code{keep_memory} field of the @code{info} argument is true, so
+@code{keep_memory} field of the @code{info} argument is TRUE, so
 that the @code{-no-keep-memory} linker switch is effective.
 
 The a.out function which adds symbols from an object file is
@@ -229,7 +229,7 @@ which has several aspects.  It must relocate the contents of
 the input sections and copy the data into the output sections.
 It must build an output symbol table including any local
 symbols from the input files and the global symbols from the
-hash table.  When producing relocateable output, it must
+hash table.  When producing relocatable output, it must
 modify the input relocs and write them into the output file.
 There may also be object format dependent work to be done.
 
@@ -266,7 +266,7 @@ various input sections, fill constants, and, eventually, other
 types of information.  They also describe relocs that must be
 created by the BFD backend, but do not correspond to any input
 file; this is used to support -Ur, which builds constructors
-while generating a relocateable object file.
+while generating a relocatable object file.
 
 @node Relocating the section contents, Writing the symbol table, Information provided by the linker, Performing the Final Link
 @subsubsection Relocating the section contents
@@ -285,7 +285,7 @@ output section in terms of a section belonging to one of the
 input files.  The @code{_bfd_final_link} function should read the
 contents of the section and any associated relocs, apply the
 relocs to the section contents, and write out the modified
-section contents.  If performing a relocateable link, the
+section contents.  If performing a relocatable link, the
 relocs themselves must also be modified and written out.
 
 @findex _bfd_relocate_contents
@@ -352,7 +352,7 @@ file at the end of @code{NAME(aout,final_link)}.
 @subsubsection @code{bfd_link_split_section}
 @strong{Synopsis}
 @example
-boolean bfd_link_split_section(bfd *abfd, asection *sec);
+bfd_boolean bfd_link_split_section (bfd *abfd, asection *sec);
 @end example
 @strong{Description}@*
 Return nonzero if @var{sec} should be split during a

@@ -144,6 +144,19 @@ case $host in
   # Find out which ABI we are using.
   echo '[#]line __oline__ "configure"' > conftest.$ac_ext
   if AC_TRY_EVAL(ac_compile); then
+   if test "$lt_cv_prog_gnu_ld" = yes; then
+    case `/usr/bin/file conftest.$ac_objext` in
+    *32-bit*)
+      LD="${LD-ld} -melf32bsmip"
+      ;;
+    *N32*)
+      LD="${LD-ld} -melf32bmipn32"
+      ;;
+    *64-bit*)
+      LD="${LD-ld} -melf64bmip"
+      ;;
+    esac
+   else
     case `/usr/bin/file conftest.$ac_objext` in
     *32-bit*)
       LD="${LD-ld} -32"
@@ -155,6 +168,7 @@ case $host in
       LD="${LD-ld} -64"
       ;;
     esac
+   fi
   fi
   rm -rf conftest*
   ;;
@@ -622,7 +636,7 @@ irix5* | irix6*)
 # This must be Linux ELF.
 linux-gnu*)
   case $host_cpu in
-  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* )
+  alpha* | mips* | hppa* | i*86 | powerpc* | sparc* | ia64* )
     lt_cv_deplibs_check_method=pass_all ;;
   *)
     # glibc up to 2.1.1 does not perform some relocations on ARM

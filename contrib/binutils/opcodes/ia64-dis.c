@@ -167,10 +167,10 @@ print_insn_ia64 (bfd_vma memaddr, struct disassemble_info *info)
         }
       else if (odesc - elf64_ia64_operands == IA64_OPND_TGT64)
 	{
-	  /* 60-bit immedate for long branches.  */
+	  /* 60-bit immediate for long branches. */
 	  value = (((insn >> 13) & 0xfffff)
 		   | (((insn >> 36) & 1) << 59)
-		   | (slot[1] << 20)) << 4;
+		   | (((slot[1] >> 2) & 0x7fffffffffLL) << 20)) << 4;
 	}
       else
 	{

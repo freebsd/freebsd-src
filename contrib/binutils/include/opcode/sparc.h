@@ -1,6 +1,6 @@
 /* Definitions for opcode table for the sparc.
-   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000, 2002
-   Free Software Foundation, Inc.
+   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000, 2002,
+   2003 Free Software Foundation, Inc.
 
 This file is part of GAS, the GNU Assembler, GDB, the GNU debugger, and
 the GNU Binutils.
@@ -74,8 +74,7 @@ struct sparc_opcode_arch {
 extern const struct sparc_opcode_arch sparc_opcode_archs[];
 
 /* Given architecture name, look up it's sparc_opcode_arch_val value.  */
-extern enum sparc_opcode_arch_val sparc_opcode_lookup_arch
-  PARAMS ((const char *));
+extern enum sparc_opcode_arch_val sparc_opcode_lookup_arch (const char *);
 
 /* Return the bitmask of supported architectures for ARCH.  */
 #define SPARC_OPCODE_SUPPORTED(ARCH) (sparc_opcode_archs[ARCH].supported)
@@ -223,14 +222,14 @@ The following chars are unused: (note: ,[] are used as punctuation)
 extern const struct sparc_opcode sparc_opcodes[];
 extern const int sparc_num_opcodes;
 
-extern int sparc_encode_asi PARAMS ((const char *));
-extern const char *sparc_decode_asi PARAMS ((int));
-extern int sparc_encode_membar PARAMS ((const char *));
-extern const char *sparc_decode_membar PARAMS ((int));
-extern int sparc_encode_prefetch PARAMS ((const char *));
-extern const char *sparc_decode_prefetch PARAMS ((int));
-extern int sparc_encode_sparclet_cpreg PARAMS ((const char *));
-extern const char *sparc_decode_sparclet_cpreg PARAMS ((int));
+extern int sparc_encode_asi (const char *);
+extern const char *sparc_decode_asi (int);
+extern int sparc_encode_membar (const char *);
+extern const char *sparc_decode_membar (int);
+extern int sparc_encode_prefetch (const char *);
+extern const char *sparc_decode_prefetch (int);
+extern int sparc_encode_sparclet_cpreg (const char *);
+extern const char *sparc_decode_sparclet_cpreg (int);
 
 /*
  * Local Variables:

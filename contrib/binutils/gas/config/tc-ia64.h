@@ -26,14 +26,33 @@
 
 /* Linux is little endian by default.  HPUX is big endian by default.  */
 #ifdef TE_HPUX
-#define md_number_to_chars		number_to_chars_bigendian
 #define TARGET_BYTES_BIG_ENDIAN		1
 #define MD_FLAGS_DEFAULT		EF_IA_64_BE
 #else
-#define md_number_to_chars		number_to_chars_littleendian
 #define TARGET_BYTES_BIG_ENDIAN		0
 #define MD_FLAGS_DEFAULT		EF_IA_64_ABI64
 #endif /* TE_HPUX */
+
+extern void (*ia64_number_to_chars) PARAMS ((char *, valueT, int));
+#define md_number_to_chars		(*ia64_number_to_chars)
+
+extern void ia64_elf_section_change_hook PARAMS ((void));
+#define md_elf_section_change_hook	ia64_elf_section_change_hook
+
+/* We record the endian for this section. 0 means default, 1 means
+   big endian and 2 means little endian.  */
+struct ia64_segment_info_type
+{
+  unsigned int endian : 2;
+};
+
+#define TC_SEGMENT_INFO_TYPE		struct ia64_segment_info_type
+
+extern void ia64_adjust_symtab PARAMS ((void));
+#define tc_adjust_symtab()	ia64_adjust_symtab ()
+
+extern void ia64_frob_file PARAMS ((void));
+#define tc_frob_file()		ia64_frob_file ()
 
 /* We need to set the default object file format in ia64_init and not in
    md_begin.  This is because parse_args is called before md_begin, and we
@@ -59,17 +78,21 @@ extern const char *ia64_target_format PARAMS ((void));
 #define LEX_QM		LEX_NAME	/* allow `?' inside name */
 #define LEX_HASH	LEX_END_NAME	/* allow `#' ending a name */
 
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
+
 struct ia64_fix
   {
     int bigendian;			/* byte order at fix location */
     enum ia64_opnd opnd;
   };
 
-extern void ia64_do_align PARAMS((int n));
 extern void ia64_end_of_source PARAMS((void));
 extern void ia64_start_line PARAMS((void));
 extern int ia64_unrecognized_line PARAMS((int ch));
 extern void ia64_frob_label PARAMS((struct symbol *sym));
+#ifdef TE_HPUX
+extern int ia64_frob_symbol PARAMS((struct symbol *sym));
+#endif
 extern void ia64_flush_pending_output PARAMS((void));
 extern int ia64_parse_name (char *name, expressionS *e);
 extern int ia64_optimize_expr PARAMS((expressionS *l, operatorT op,
@@ -89,24 +112,33 @@ extern long ia64_pcrel_from_section PARAMS ((struct fix *fix, segT sec));
 extern void ia64_md_do_align PARAMS ((int, const char *, int, int));
 extern void ia64_handle_align PARAMS ((fragS *f));
 extern void ia64_after_parse_args PARAMS ((void));
+extern void ia64_dwarf2_emit_offset PARAMS ((symbolS *, unsigned int));
+extern void ia64_check_label PARAMS ((symbolS *));
+extern int ia64_estimate_size_before_relax (fragS *, asection *);
+extern void ia64_convert_frag (fragS *);
 
 #define md_end()       			ia64_end_of_source ()
 #define md_start_line_hook()		ia64_start_line ()
 #define tc_unrecognized_line(ch)	ia64_unrecognized_line (ch)
 #define tc_frob_label(s)		ia64_frob_label (s)
+#ifdef TE_HPUX
+#define tc_frob_symbol(s,p)		p |= ia64_frob_symbol (s)
+#endif /* TE_HPUX */
 #define md_flush_pending_output()	ia64_flush_pending_output ()
 #define md_parse_name(s,e,c)		ia64_parse_name (s, e)
 #define tc_canonicalize_symbol_name(s)	ia64_canonicalize_symbol_name (s)
+#define tc_canonicalize_section_name(s)	ia64_canonicalize_symbol_name (s)
 #define md_optimize_expr(l,o,r)		ia64_optimize_expr (l, o, r)
 #define md_cons_align(n)		ia64_cons_align (n)
 #define TC_FORCE_RELOCATION(f)		ia64_force_relocation (f)
 #define tc_fix_adjustable(f)		ia64_fix_adjustable (f)
-#define md_convert_frag(b,s,f)		as_fatal ("ia64_convert_frag")
+#define MD_APPLY_SYM_VALUE(FIX)		0
+#define md_convert_frag(b,s,f)		ia64_convert_frag (f)
 #define md_create_long_jump(p,f,t,fr,s)	as_fatal ("ia64_create_long_jump")
 #define md_create_short_jump(p,f,t,fr,s) \
 					as_fatal ("ia64_create_short_jump")
 #define md_estimate_size_before_relax(f,s) \
-			(as_fatal ("ia64_estimate_size_before_relax"), 1)
+					ia64_estimate_size_before_relax(f,s)
 #define md_elf_section_letter		ia64_elf_section_letter
 #define md_elf_section_flags		ia64_elf_section_flags
 #define TC_FIX_TYPE			struct ia64_fix
@@ -114,18 +146,21 @@ extern void ia64_after_parse_args PARAMS ((void));
 #define TC_CONS_FIX_NEW(f,o,l,e)	ia64_cons_fix_new (f, o, l, e)
 #define TC_VALIDATE_FIX(fix,seg,skip)	ia64_validate_fix (fix)
 #define MD_PCREL_FROM_SECTION(fix,sec)	ia64_pcrel_from_section (fix, sec)
+#define md_section_align(seg,size)	(size)
 #define md_do_align(n,f,l,m,j)		ia64_md_do_align (n,f,l,m)
 #define HANDLE_ALIGN(f)			ia64_handle_align (f)
 #define md_elf_section_type(str,len)	ia64_elf_section_type (str, len)
 #define md_after_parse_args()		ia64_after_parse_args ()
+#define TC_DWARF2_EMIT_OFFSET		ia64_dwarf2_emit_offset
+#define tc_check_label(l)		ia64_check_label (l)
+
+/* Record if an alignment frag should end with a stop bit.  */
+#define TC_FRAG_TYPE			int
+#define TC_FRAG_INIT(FRAGP)		do {(FRAGP)->tc_frag_data = 0;}while (0)
 
 #define MAX_MEM_FOR_RS_ALIGN_CODE  (15 + 16)
 
 #define WORKING_DOT_WORD	/* don't do broken word processing for now */
-
-#define ELF_TC_SPECIAL_SECTIONS						   \
-{ ".sbss",	SHT_NOBITS,	SHF_ALLOC + SHF_WRITE + SHF_IA_64_SHORT }, \
-{ ".sdata",	SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE + SHF_IA_64_SHORT },
 
 #define DWARF2_LINE_MIN_INSN_LENGTH 1	/* so slot-multipliers can be 1 */
 
@@ -177,7 +212,7 @@ typedef enum
   bspstore_gr, bspstore_psprel, bspstore_sprel, rnat_when, rnat_gr,
   rnat_psprel, rnat_sprel, epilogue, label_state, copy_state,
   spill_psprel, spill_sprel, spill_reg, spill_psprel_p, spill_sprel_p,
-  spill_reg_p, unwabi
+  spill_reg_p, unwabi, endp
 } unw_record_type;
 
 /* These structures declare the fields that can be used in each of the
@@ -249,18 +284,16 @@ typedef struct unwind_record
   } record;
 } unwind_record;
 
-/* This expression evaluates to false if the relocation is for a local
+/* This expression evaluates to true if the relocation is for a local
    object for which we still want to do the relocation at runtime.
-   True if we are willing to perform this relocation while building
-   the .o file.  This is only used for pcrel relocations.  */
+   False if we are willing to perform this relocation while building
+   the .o file.  */
 
 /* If the reloc type is BFD_RELOC_UNUSED, then this is for a TAG13/TAG13b field
    which has no external reloc, so we must resolve the value now.  */
 
-#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)				\
-  ((FIX)->fx_addsy == NULL					\
-   || (FIX)->fx_r_type == BFD_RELOC_UNUSED			\
-   || (! S_IS_EXTERNAL ((FIX)->fx_addsy)			\
-       && ! S_IS_WEAK ((FIX)->fx_addsy)				\
-       && S_IS_DEFINED ((FIX)->fx_addsy)			\
-       && ! S_IS_COMMON ((FIX)->fx_addsy)))
+#define TC_FORCE_RELOCATION_LOCAL(FIX)			\
+  ((FIX)->fx_r_type != BFD_RELOC_UNUSED			\
+   && (!(FIX)->fx_pcrel					\
+       || (FIX)->fx_plt					\
+       || TC_FORCE_RELOCATION (FIX)))

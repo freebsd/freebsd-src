@@ -1,6 +1,6 @@
 \input texinfo @c                               -*-Texinfo-*-
 @c  Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-@c  2001, 2002
+@c  2001, 2002, 2003, 2004
 @c  Free Software Foundation, Inc.
 @c UPDATE!!  On future updates--
 @c   (1)   check for new machine-dep cmdline options in
@@ -19,48 +19,20 @@
 @c defaults, config file may override:
 @set have-stabs
 @c ---
+@c man begin NAME
+@c ---
 @include asconfig.texi
 @include gasver.texi
 @c ---
-@c man begin NAME
-@ifset man
-@c Configure for the generation of man pages
-@set AS as
-@set TARGET TARGET
-@set GENERIC
-@set A29K
-@set ALPHA
-@set ARC
-@set ARM
-@set CRIS
-@set D10V
-@set D30V
-@set H8/300
-@set H8/500
-@set HPPA
-@set I370
-@set I80386
-@set I860
-@set I960
-@set IA-64
-@set M32R
-@set M68HC11
-@set M680X0
-@set M880X0
-@set MCORE
-@set MIPS
-@set MMIX
-@set PDP11
-@set PJ
-@set PPC
-@set SH
-@set SPARC
-@set C54X
-@set V850
-@set VAX
-@end ifset
 @c man end
+@c ---
 @c common OR combinations of conditions
+@ifset COFF
+@set COFF-ELF
+@end ifset
+@ifset ELF
+@set COFF-ELF
+@end ifset
 @ifset AOUT
 @set aout-bout
 @end ifset
@@ -138,7 +110,7 @@ under the terms of the GNU Free Documentation License, Version 1.1
 or any later version published by the Free Software Foundation;
 with no Invariant Sections, with no Front-Cover Texts, and with no
 Back-Cover Texts.  A copy of the license is included in the
-section entitled "GNU Free Documentation License".
+section entitled ``GNU Free Documentation License''.
 
 @c man end
 
@@ -191,7 +163,7 @@ Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001, 2002 Fr
       or any later version published by the Free Software Foundation;
       with no Invariant Sections, with no Front-Cover Texts, and with no
       Back-Cover Texts.  A copy of the license is included in the
-      section entitled "GNU Free Documentation License".
+      section entitled ``GNU Free Documentation License''.
 
 @end titlepage
 
@@ -208,7 +180,7 @@ code for @value{TARGET} architectures.
 
 This document is distributed under the terms of the GNU Free
 Documentation License.  A copy of the license is included in the
-section entitled "GNU Free Documentation License".
+section entitled ``GNU Free Documentation License''.
 
 @menu
 * Overview::                    Overview
@@ -240,7 +212,7 @@ code for @value{TARGET} architectures.
 @cindex option summary
 @cindex summary of options
 Here is a brief summary of how to invoke @command{@value{AS}}.  For details,
-@pxref{Invoking,,Comand-Line Options}.
+@pxref{Invoking,,Command-Line Options}.
 
 @c man title AS the portable GNU assembler.
 
@@ -255,8 +227,8 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @smallexample
 @c man begin SYNOPSIS
 @value{AS} [@b{-a}[@b{cdhlns}][=@var{file}]] [@b{-D}] [@b{--defsym} @var{sym}=@var{val}]
- [@b{-f}] [@b{--gstabs}] [@b{--gdwarf2}] [@b{--help}] [@b{-I} @var{dir}] 
- [@b{-J}] [@b{-K}] [@b{-L}]
+ [@b{-f}] [@b{--gstabs}] [@b{--gstabs+}] [@b{--gdwarf2}] [@b{--help}]
+ [@b{-I} @var{dir}] [@b{-J}] [@b{-K}] [@b{-L}]
  [@b{--listing-lhs-width}=@var{NUM}] [@b{--listing-lhs-width2}=@var{NUM}]
  [@b{--listing-rhs-width}=@var{NUM}] [@b{--listing-cont-lines}=@var{NUM}]
  [@b{--keep-locals}] [@b{-o} @var{objfile}] [@b{-R}] [@b{--statistics}] [@b{-v}]
@@ -289,7 +261,8 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @c Don't document the deprecated options
    [@b{-mcpu}=@var{processor}[+@var{extension}@dots{}]]
    [@b{-march}=@var{architecture}[+@var{extension}@dots{}]]
-   [@b{-mfpu}=@var{floating-point-fromat}]
+   [@b{-mfpu}=@var{floating-point-format}]
+   [@b{-mfloat-abi}=@var{abi}]
    [@b{-mthumb}]
    [@b{-EB}|@b{-EL}]
    [@b{-mapcs-32}|@b{-mapcs-26}|@b{-mapcs-float}|
@@ -316,7 +289,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{-O}|@b{-n}|@b{-N}]
 @end ifset
 @ifset H8
-@c Hitachi family chips have no machine-dependent assembler options
+@c Renesas family chips have no machine-dependent assembler options
 @end ifset
 @ifset HPPA
 @c HPPA has no machine-dependent assembler options (yet).
@@ -324,7 +297,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @ifset I80386
 
 @emph{Target i386 options:}
-   [@b{--32}|@b{--64}]
+   [@b{--32}|@b{--64}] [@b{-n}]
 @end ifset
 @ifset I960
 
@@ -342,6 +315,11 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{-mle}|@b{mbe}]
    [@b{-x}|@b{-xexplicit}] [@b{-xauto}] [@b{-xdebug}]
 @end ifset
+@ifset IP2K
+
+@emph{Target IP2K options:}
+   [@b{-mip2022}|@b{-mip2022ext}]
+@end ifset
 @ifset M32R
 
 @emph{Target M32R options:}
@@ -356,7 +334,9 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @ifset M68HC11
 
 @emph{Target M68HC11 options:}
-   [@b{-m68hc11}|@b{-m68hc12}]
+   [@b{-m68hc11}|@b{-m68hc12}|@b{-m68hcs12}]
+   [@b{-mshort}|@b{-mlong}]
+   [@b{-mshort-double}|@b{-mlong-double}]
    [@b{--force-long-branchs}] [@b{--short-branchs}]
    [@b{--strict-direct-mode}] [@b{--print-insn-syntax}]
    [@b{--print-opcodes}] [@b{--generate-example}]
@@ -370,12 +350,13 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @ifset MIPS
 
 @emph{Target MIPS options:}
-   [@b{-nocpp}] [@b{-EL}] [@b{-EB}] [@b{-n}] [@b{-O}[@var{optimization level}]]
+   [@b{-nocpp}] [@b{-EL}] [@b{-EB}] [@b{-O}[@var{optimization level}]]
    [@b{-g}[@var{debug level}]] [@b{-G} @var{num}] [@b{-KPIC}] [@b{-call_shared}]
    [@b{-non_shared}] [@b{-xgot}] [@b{--membedded-pic}]
    [@b{-mabi}=@var{ABI}] [@b{-32}] [@b{-n32}] [@b{-64}] [@b{-mfp32}] [@b{-mgp32}]
    [@b{-march}=@var{CPU}] [@b{-mtune}=@var{CPU}] [@b{-mips1}] [@b{-mips2}]
-   [@b{-mips3}] [@b{-mips4}] [@b{-mips5}] [@b{-mips32}] [@b{-mips64}]
+   [@b{-mips3}] [@b{-mips4}] [@b{-mips5}] [@b{-mips32}] [@b{-mips32r2}]
+   [@b{-mips64}] [@b{-mips64r2}]
    [@b{-construct-floats}] [@b{-no-construct-floats}]
    [@b{-trap}] [@b{-no-break}] [@b{-break}] [@b{-no-trap}]
    [@b{-mfix7000}] [@b{-mno-fix7000}]
@@ -383,6 +364,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{-mips3d}] [@b{-no-mips3d}]
    [@b{-mdmx}] [@b{-no-mdmx}]
    [@b{-mdebug}] [@b{-no-mdebug}]
+   [@b{-mpdr}] [@b{-mno-pdr}]
 @end ifset
 @ifset MMIX
 
@@ -433,6 +415,13 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @end ifset
 @ifset Z8000
 @c Z8000 has no machine-dependent assembler options
+@end ifset
+@ifset XTENSA
+
+@emph{Target Xtensa options:}
+ [@b{--[no-]density}] [@b{--[no-]relax}] [@b{--[no-]generics}]
+ [@b{--[no-]text-section-literals}]
+ [@b{--[no-]target-align}] [@b{--[no-]longcalls}]
 @end ifset
 @c man end
 @end smallexample
@@ -490,9 +479,16 @@ compiler output).
 Generate stabs debugging information for each assembler line.  This
 may help debugging assembler code, if the debugger can handle it.
 
+@item --gstabs+
+Generate stabs debugging information for each assembler line, with GNU
+extensions that probably only gdb can handle, and that could make other
+debuggers crash or refuse to read your program.  This
+may help debugging assembler code.  Currently the only GNU extension is
+the location of the current working directory at assembling time.
+
 @item --gdwarf2
 Generate DWARF2 debugging information for each assembler line.  This
-may help debugging assembler code, if the debugger can handle it.  Note - this
+may help debugging assembler code, if the debugger can handle it.  Note---this
 option is only supported by some targets, not all of them.
 
 @item --help
@@ -604,6 +600,8 @@ Specify which ARM processor variant is the target.
 Specify which ARM architecture variant is used by the target.
 @item -mfpu=@var{floating-point-format}
 Select which Floating Point architecture is the target.
+@item -mfloat-abi=@var{abi}
+Select which floating point ABI is in use.
 @item -mthumb
 Enable Thumb only instruction decoding.
 @item -mapcs-32 | -mapcs-26 | -mapcs-float | -mapcs-reentrant | -moabi
@@ -670,9 +668,25 @@ error if necessary.
 @end table
 @end ifset
 
+@ifset IP2K
+The following options are available when @value{AS} is configured for the
+Ubicom IP2K series.
+
+@table @gcctabopt
+
+@item -mip2022ext
+Specifies that the extended IP2022 instructions are allowed.
+
+@item -mip2022
+Restores the default behaviour, which restricts the permitted instructions to
+just the basic IP2022 ones.
+
+@end table
+@end ifset
+
 @ifset M32R
 The following options are available when @value{AS} is configured for the
-Mitsubishi M32R series.
+Renesas M32R (formerly Mitsubishi M32R) series.
 
 @table @gcctabopt
 
@@ -776,9 +790,21 @@ Motorola 68HC11 or 68HC12 series.
 
 @table @gcctabopt
 
-@item -m68hc11 | -m68hc12
+@item -m68hc11 | -m68hc12 | -m68hcs12
 Specify what processor is the target.  The default is
 defined by the configuration option when building the assembler.
+
+@item -mshort
+Specify to use the 16-bit integer ABI.
+
+@item -mlong
+Specify to use the 32-bit integer ABI.  
+
+@item -mshort-double
+Specify to use the 32-bit double ABI.  
+
+@item -mlong-double
+Specify to use the 64-bit double ABI.  
 
 @item --force-long-branchs
 Relative branches are turned into absolute ones. This concerns
@@ -873,14 +899,19 @@ Generate ``little endian'' format output.
 @itemx -mips4
 @itemx -mips5
 @itemx -mips32
+@itemx -mips32r2
 @itemx -mips64
+@itemx -mips64r2
 Generate code for a particular @sc{mips} Instruction Set Architecture level.
 @samp{-mips1} is an alias for @samp{-march=r3000}, @samp{-mips2} is an
 alias for @samp{-march=r6000}, @samp{-mips3} is an alias for
 @samp{-march=r4000} and @samp{-mips4} is an alias for @samp{-march=r8000}.
-@samp{-mips5}, @samp{-mips32}, and @samp{-mips64} correspond to generic
-@samp{MIPS V}, @samp{MIPS32}, and @samp{MIPS64} ISA processors,
-respectively.
+@samp{-mips5}, @samp{-mips32}, @samp{-mips32r2}, @samp{-mips64}, and
+@samp{-mips64r2}
+correspond to generic
+@samp{MIPS V}, @samp{MIPS32}, @samp{MIPS32 Release 2}, @samp{MIPS64},
+and @samp{MIPS64 Release 2}
+ISA processors, respectively.
 
 @item -march=@var{CPU}
 Generate code for a particular @sc{mips} cpu.
@@ -897,6 +928,10 @@ of an mfhi or mflo instruction occurs in the following two instructions.
 @itemx -no-mdebug
 Cause stabs-style debugging output to go into an ECOFF-style .mdebug
 section instead of the standard ELF .stabs sections.
+
+@item -mpdr
+@itemx -mno-pdr
+Control generation of @code{.pdr} sections.
 
 @item -mgp32
 @itemx -mfp32
@@ -1011,6 +1046,45 @@ Assemble for a little endian target.
 See the info pages for documentation of the MMIX-specific options.
 @end ifset
 
+@ifset XTENSA
+The following options are available when @value{AS} is configured for
+an Xtensa processor.
+
+@table @gcctabopt
+@item --density | --no-density
+Enable or disable use of instructions from the Xtensa code density
+option.  This is enabled by default when the Xtensa processor supports
+the code density option.
+
+@item --relax | --no-relax
+Enable or disable instruction relaxation.  This is enabled by default.
+Note: In the current implementation, these options also control whether
+assembler optimizations are performed, making these options equivalent
+to @option{--generics} and @option{--no-generics}.
+
+@item --generics | --no-generics
+Enable or disable all assembler transformations of Xtensa instructions.
+The default is @option{--generics};
+@option{--no-generics} should be used only in the rare cases when the
+instructions must be exactly as specified in the assembly source.
+
+@item --text-section-literals | --no-text-section-literals
+With @option{--text-@-section-@-literals}, literal pools are interspersed
+in the text section.  The default is
+@option{--no-@-text-@-section-@-literals}, which places literals in a
+separate section in the output file.
+
+@item --target-align | --no-target-align
+Enable or disable automatic alignment to reduce branch penalties at the
+expense of some code density.  The default is @option{--target-@-align}.
+
+@item --longcalls | --no-longcalls
+Enable or disable transformation of call instructions to allow calls
+across a greater range of addresses.  The default is
+@option{--no-@-longcalls}.
+@end table
+@end ifset
+
 @c man end
 
 @menu
@@ -1055,16 +1129,18 @@ machine architecture manual for this information.
 @ifclear GENERIC
 @ifset H8/300
 For information on the H8/300 machine instruction set, see @cite{H8/300
-Series Programming Manual} (Hitachi ADE--602--025).  For the H8/300H,
-see @cite{H8/300H Series Programming Manual} (Hitachi).
+Series Programming Manual}.  For the H8/300H, see @cite{H8/300H Series
+Programming Manual} (Renesas).
 @end ifset
 @ifset H8/500
 For information on the H8/500 machine instruction set, see @cite{H8/500
-Series Programming Manual} (Hitachi M21T001).
+Series Programming Manual} (Renesas M21T001).
 @end ifset
 @ifset SH
-For information on the Hitachi SH machine instruction set, see
-@cite{SH-Microcomputer User's Manual} (Hitachi Micro Systems, Inc.).
+For information on the Renesas (formerly Hitachi) / SuperH SH machine instruction set,
+see @cite{SH-Microcomputer User's Manual} (Renesas) or
+@cite{SH-4 32-bit CPU Core Architecture} (SuperH) and
+@cite{SuperH (SH) 64-Bit RISC Series} (SuperH).
 @end ifset
 @ifset Z8000
 For information on the Z8000 machine instruction set, see @cite{Z8000 CPU Technical Manual}
@@ -1145,7 +1221,7 @@ are typically different in different file formats.  @xref{Symbol
 Attributes,,Symbol Attributes}.
 @ifclear GENERIC
 @ifclear MULTI-OBJ
-On the @value{TARGET}, @command{@value{AS}} is configured to produce
+For the @value{TARGET} target, @command{@value{AS}} is configured to produce
 @value{OBJ-NAME} format object files.
 @end ifclear
 @c The following should exhaust all configs that set MULTI-OBJ, ideally
@@ -1348,7 +1424,7 @@ because many of them aren't supposed to happen.
 This chapter describes command-line options available in @emph{all}
 versions of the @sc{gnu} assembler; @pxref{Machine Dependencies}, for options specific
 @ifclear GENERIC
-to the @value{TARGET}.
+to the @value{TARGET} target.
 @end ifclear
 @ifset GENERIC
 to particular machine architectures.
@@ -1356,7 +1432,7 @@ to particular machine architectures.
 
 @c man begin DESCRIPTION
 
-If you are invoking @command{@value{AS}} via the @sc{gnu} C compiler (version 2),
+If you are invoking @command{@value{AS}} via the @sc{gnu} C compiler,
 you can use the @samp{-Wa} option to pass arguments through to the assembler.
 The assembler arguments must be separated from each other (and the @samp{-Wa})
 by commas.  For example:
@@ -1367,7 +1443,7 @@ gcc -c -g -O -Wa,-alh,-L file.c
 
 @noindent
 This passes two options to the assembler: @samp{-alh} (emit a listing to
-standard output with with high-level and assembly source) and @samp{-L} (retain
+standard output with high-level and assembly source) and @samp{-L} (retain
 local symbols in the symbol table).
 
 Usually you do not need to use this @samp{-Wa} mechanism, since many compiler
@@ -1479,7 +1555,7 @@ not work correctly.
 @end quotation
 
 @node I
-@section @code{.include} search path: @option{-I} @var{path}
+@section @code{.include} Search Path: @option{-I} @var{path}
 
 @kindex -I @var{path}
 @cindex paths for @code{.include}
@@ -1558,7 +1634,7 @@ dump appears on the left hand side of the listing output.
 @kindex --listing-lhs-width2
 @cindex Width of continuation lines of disassembly output
 Sets the maximum width, in words, of any further lines of the hex byte dump for
-a given inut source line.  If this value is not specified, it defaults to being
+a given input source line.  If this value is not specified, it defaults to being
 the same as the value specified for @samp{--listing-lhs-width}.  If neither
 switch is used the default is to one.
 
@@ -1708,7 +1784,7 @@ The i960 @code{.setreal} pseudo-op is not supported.
 @end itemize
 
 @node MD
-@section Dependency tracking: @option{--MD}
+@section Dependency Tracking: @option{--MD}
 
 @kindex --MD
 @cindex dependency tracking
@@ -1772,8 +1848,8 @@ address displacements (because we do not have to cross between text and
 data section).  We refrain from doing this simply for compatibility with
 older versions of @command{@value{AS}}.  In future, @option{-R} may work this way.
 
-@ifset COFF
-When @command{@value{AS}} is configured for COFF output,
+@ifset COFF-ELF
+When @command{@value{AS}} is configured for COFF or ELF output,
 this option is only useful if you use sections named @samp{.text} and
 @samp{.data}.
 @end ifset
@@ -1796,7 +1872,7 @@ Use @samp{--statistics} to display two statistics about the resources used by
 seconds).
 
 @node traditional-format
-@section Compatible output: @option{--traditional-format}
+@section Compatible Output: @option{--traditional-format}
 
 @kindex --traditional-format
 For some targets, the output of @command{@value{AS}} is different in some ways
@@ -1825,8 +1901,8 @@ assembling compiler output.  But programs written by people often
 cause @command{@value{AS}} to give a warning that a particular assumption was
 made.  All such warnings are directed to the standard error file.
 
-@kindex @samp{-W}
-@kindex @samp{--no-warn}
+@kindex -W
+@kindex --no-warn
 @cindex suppressing warnings
 @cindex warnings, suppressing
 If you use the @option{-W} and @option{--no-warn} options, no warnings are issued.
@@ -1834,13 +1910,13 @@ This only affects the warning messages: it does not change any particular of
 how @command{@value{AS}} assembles your file.  Errors, which stop the assembly,
 are still reported.
 
-@kindex @samp{--fatal-warnings}
+@kindex --fatal-warnings
 @cindex errors, caused by warnings
 @cindex warnings, causing error
 If you use the @option{--fatal-warnings} option, @command{@value{AS}} considers
 files that generate warnings to be in error.
 
-@kindex @samp{--warn}
+@kindex --warn
 @cindex warnings, switching on
 You can switch these options off again by specifying @option{--warn}, which
 causes warnings to be output as usual.
@@ -1906,7 +1982,7 @@ It does not do macro processing, include file handling, or
 anything else you may get from your C compiler's preprocessor.  You can
 do include file processing with the @code{.include} directive
 (@pxref{Include,,@code{.include}}).  You can use the @sc{gnu} C compiler driver
-to get other ``CPP'' style preprocessing, by giving the input file a
+to get other ``CPP'' style preprocessing by giving the input file a
 @samp{.S} suffix.  @xref{Overall Options,, Options Controlling the Kind of
 Output, gcc.info, Using GNU CC}.
 
@@ -1990,13 +2066,16 @@ is considered a comment and is ignored.  The line comment character is
 @samp{;} for picoJava;
 @end ifset
 @ifset PPC
-@samp{;} for Motorola PowerPC;
+@samp{#} for Motorola PowerPC;
 @end ifset
 @ifset SH
-@samp{!} for the Hitachi SH;
+@samp{!} for the Renesas / SuperH SH;
 @end ifset
 @ifset SPARC
 @samp{!} on the SPARC;
+@end ifset
+@ifset IP2K
+@samp{#} on the ip2k;
 @end ifset
 @ifset M32R
 @samp{#} on the m32r;
@@ -2018,6 +2097,9 @@ is considered a comment and is ignored.  The line comment character is
 @end ifset
 @ifset V850
 @samp{#} on the V850;
+@end ifset
+@ifset XTENSA
+@samp{#} for Xtensa systems;
 @end ifset
 see @ref{Machine Dependencies}.  @refill
 @c FIXME What about i860?
@@ -2114,7 +2196,7 @@ constants are an exception: they do not end statements.
 @ifset H8
 A @dfn{statement} ends at a newline character (@samp{\n}); or (for the
 H8/300) a dollar sign (@samp{$}); or (for the
-Hitachi-SH or the
+Renesas-SH or the
 H8/500) a semicolon
 (@samp{;}).  The newline or separator character is considered part of
 the preceding statement.  Newlines and separators within character
@@ -2339,8 +2421,7 @@ grave accent.  A newline
 @end ifset
 @ifset H8
 (or dollar sign @samp{$}, for the H8/300; or semicolon @samp{;} for the
-Hitachi SH or
-H8/500)
+Renesas SH or H8/500)
 @end ifset
 @end ifset
 @end ifclear
@@ -2444,7 +2525,7 @@ A letter, to tell @command{@value{AS}} the rest of the number is a flonum.
 @end ignore
 
 On the H8/300, H8/500,
-Hitachi SH,
+Renesas / SuperH SH,
 and AMD 29K architectures, the letter must be
 one of the letters @samp{DFPRSX} (in upper or lower case).
 
@@ -2581,7 +2662,7 @@ the task of adjusting mentions of object-file addresses so they refer to
 the proper run-time addresses.
 @ifset H8
 For the H8/300 and H8/500,
-and for the Hitachi SH,
+and for the Renesas / SuperH SH,
 @command{@value{AS}} pads sections if needed to
 ensure they end on a word (sixteen bit) boundary.
 @end ifset
@@ -2591,9 +2672,9 @@ An object file written by @command{@value{AS}} has at least three sections, any
 of which may be empty.  These are named @dfn{text}, @dfn{data} and
 @dfn{bss} sections.
 
-@ifset COFF
+@ifset COFF-ELF
 @ifset GENERIC
-When it generates COFF output,
+When it generates COFF or ELF output,
 @end ifset
 @command{@value{AS}} can also generate whatever other named sections you specify
 using the @samp{.section} directive (@pxref{Section,,@code{.section}}).
@@ -2699,7 +2780,7 @@ use of @command{@value{AS}} and have no meaning except during assembly.
 
 @table @strong
 
-@ifset COFF
+@ifset COFF-ELF
 @cindex named sections
 @cindex sections, named
 @item named sections
@@ -2712,15 +2793,15 @@ use of @command{@value{AS}} and have no meaning except during assembly.
 @end ifset
 These sections hold your program.  @command{@value{AS}} and @code{@value{LD}} treat them as
 separate but equal sections.  Anything you can say of one section is
-true another.
-@ifset aout-bout
+true of another.
+@c @ifset aout-bout
 When the program is running, however, it is
 customary for the text section to be unalterable.  The
 text section is often shared among processes: it contains
 instructions, constants and the like.  The data section of a running
 program is usually alterable: for example, C variables would be stored
 in the data section.
-@end ifset
+@c @end ifset
 
 @cindex bss section
 @item bss section
@@ -2747,13 +2828,13 @@ the preceding sections.
 
 @cindex relocation example
 An idealized example of three relocatable sections follows.
-@ifset COFF
+@ifset COFF-ELF
 The example uses the traditional section names @samp{.text} and @samp{.data}.
 @end ifset
 Memory addresses are on the horizontal axis.
 
 @c TEXI2ROFF-KILL
-@ifinfo
+@ifnottex
 @c END TEXI2ROFF-KILL
 @smallexample
                       +-----+----+--+
@@ -2774,10 +2855,10 @@ linked program:       |  |TTT|ttttt|  |dddd|DDD|00000|
     addresses:        0 @dots{}
 @end smallexample
 @c TEXI2ROFF-KILL
-@end ifinfo
+@end ifnottex
 @need 5000
 @tex
-
+\bigskip
 \line{\it Partial program \#1: \hfil}
 \line{\ibox{2.5cm}{\tt text}\ibox{2cm}{\tt data}\ibox{1cm}{\tt bss}\hfil}
 \line{\boxit{2.5cm}{\tt ttttt}\boxit{2cm}{\tt dddd}\boxit{1cm}{\tt 00}\hfil}
@@ -2835,7 +2916,7 @@ it in the expr section.
 @cindex grouping data
 @ifset aout-bout
 Assembled bytes
-@ifset COFF
+@ifset COFF-ELF
 conventionally
 @end ifset
 fall into two sections: text and data.
@@ -2875,7 +2956,7 @@ of @command{@value{AS}}.)
 @ifset H8
 On the H8/300 and H8/500 platforms, each subsection is zero-padded to a word
 boundary (two bytes).
-The same is true on the Hitachi SH.
+The same is true on the Renesas SH.
 @end ifset
 @ifset I960
 @c FIXME section padding (alignment)?
@@ -2901,9 +2982,9 @@ data subsections as a data section.
 To specify which subsection you want subsequent statements assembled
 into, use a numeric argument to specify it, in a @samp{.text
 @var{expression}} or a @samp{.data @var{expression}} statement.
-@ifset COFF
+@ifset COFF-ELF
 @ifset GENERIC
-When generating COFF output, you
+When generating COFF or ELF output, you
 @end ifset
 @ifclear GENERIC
 You
@@ -3032,10 +3113,9 @@ body of a symbol name, though not at its beginning.
 @ifset SPECIAL-SYMS
 @ifset H8
 Symbol names begin with a letter or with one of @samp{._}.  On the
-Hitachi SH or the
-H8/500, you can also use @code{$} in symbol names.  That character may
-be followed by any string of digits, letters, dollar signs (save on the
-H8/300), and underscores.
+Renesas SH or the H8/500, you can also use @code{$} in symbol names.  That
+character may be followed by any string of digits, letters, dollar signs (save
+on the H8/300), and underscores.
 @end ifset
 @end ifset
 
@@ -3591,6 +3671,9 @@ Some machine configurations provide additional directives.
 * Balign::                      @code{.balign @var{abs-expr} , @var{abs-expr}}
 * Byte::                        @code{.byte @var{expressions}}
 * Comm::                        @code{.comm @var{symbol} , @var{length} }
+
+* CFI directives::		@code{.cfi_startproc}, @code{.cfi_endproc}, etc.
+
 * Data::                        @code{.data @var{subsection}}
 @ifset COFF
 * Def::                         @code{.def @var{name}}
@@ -3684,13 +3767,18 @@ Some machine configurations provide additional directives.
 * Sbttl::                       @code{.sbttl "@var{subheading}"}
 @ifset COFF
 * Scl::                         @code{.scl @var{class}}
-* Section::                     @code{.section @var{name}, @var{subsection}}
+@end ifset
+@ifset COFF-ELF
+* Section::                     @code{.section @var{name}}
 @end ifset
 
 * Set::                         @code{.set @var{symbol}, @var{expression}}
 * Short::                       @code{.short @var{expressions}}
 * Single::                      @code{.single @var{flonums}}
+@ifset COFF-ELF
 * Size::                        @code{.size [@var{name} , @var{expression}]}
+@end ifset
+
 * Skip::                        @code{.skip @var{size} , @var{fill}}
 * Sleb128::			@code{.sleb128 @var{expressions}}
 * Space::                       @code{.space @var{size} , @var{fill}}
@@ -3711,7 +3799,10 @@ Some machine configurations provide additional directives.
 
 * Text::                        @code{.text @var{subsection}}
 * Title::                       @code{.title "@var{heading}"}
+@ifset COFF-ELF
 * Type::                        @code{.type <@var{int} | @var{name} , @var{type description}>}
+@end ifset
+
 * Uleb128::                     @code{.uleb128 @var{expressions}}
 @ifset COFF
 * Val::                         @code{.val @var{addr}}
@@ -3777,12 +3868,12 @@ required alignment; this can be useful if you want the alignment to be filled
 with no-op instructions when appropriate.
 
 The way the required alignment is specified varies from system to system.
-For the a29k, hppa, m68k, m88k, w65, sparc, and Hitachi SH, and i386 using ELF
-format,
-the first expression is the
+For the a29k, arc, hppa, i386 using ELF, i860, iq2000, m68k, m88k, or32,
+s390, sparc, tic4x, tic80 and xtensa, the first expression is the
 alignment request in bytes.  For example @samp{.align 8} advances
 the location counter until it is a multiple of 8.  If the location counter
-is already a multiple of 8, no change is needed.
+is already a multiple of 8, no change is needed.  For the tic54x, the
+first expression is the alignment request in words.
 
 For other systems, including the i386 using a.out format, and the arm and
 strongarm, it is the
@@ -3889,6 +3980,59 @@ maximum of 16.
 The syntax for @code{.comm} differs slightly on the HPPA.  The syntax is
 @samp{@var{symbol} .comm, @var{length}}; @var{symbol} is optional.
 @end ifset
+
+@node CFI directives
+@section @code{.cfi_startproc}
+@cindex @code{cfi_startproc} directive
+@code{.cfi_startproc} is used at the beginning of each function that
+should have an entry in @code{.eh_frame}. It initializes some internal
+data structures and emits architecture dependent initial CFI instructions.
+Don't forget to close the function by 
+@code{.cfi_endproc}.
+
+@section @code{.cfi_endproc}
+@cindex @code{cfi_endproc} directive
+@code{.cfi_endproc} is used at the end of a function where it closes its
+unwind entry previously opened by
+@code{.cfi_startproc}. and emits it to @code{.eh_frame}.
+
+@section @code{.cfi_def_cfa @var{register}, @var{offset}}
+@code{.cfi_def_cfa} defines a rule for computing CFA as: @i{take 
+address from @var{register} and add @var{offset} to it}.
+
+@section @code{.cfi_def_cfa_register @var{register}}
+@code{.cfi_def_cfa_register} modifies a rule for computing CFA. From
+now on @var{register} will be used instead of the old one. Offset
+remains the same.
+
+@section @code{.cfi_def_cfa_offset @var{offset}}
+@code{.cfi_def_cfa_offset} modifies a rule for computing CFA. Register
+remains the same, but @var{offset} is new. Note that it is the
+absolute offset that will be added to a defined register to compute
+CFA address.
+
+@section @code{.cfi_adjust_cfa_offset @var{offset}}
+Same as @code{.cfi_def_cfa_offset} but @var{offset} is a relative
+value that is added/substracted from the previous offset.
+
+@section @code{.cfi_offset @var{register}, @var{offset}}
+Previous value of @var{register} is saved at offset @var{offset} from
+CFA. 
+
+@section @code{.cfi_rel_offset @var{register}, @var{offset}}
+Previous value of @var{register} is saved at offset @var{offset} from
+the current CFA register.  This is transformed to @code{.cfi_offset}
+using the known displacement of the CFA register from the CFA.
+This is often easier to use, because the number will match the
+code it's annotating.
+
+@section @code{.cfi_window_save}
+SPARC register window has been saved.
+
+@section @code{.cfi_escape} @var{expression}[, @dots{}]
+Allows the user to add arbitrary bytes to the unwind info.  One
+might use this to add OS-specific CFI opcodes, or generic CFI
+opcodes that GAS does not yet support.
 
 @node Data
 @section @code{.data @var{subsection}}
@@ -4049,7 +4193,9 @@ The syntax for @code{equ} on the HPPA is
 @section @code{.equiv @var{symbol}, @var{expression}}
 @cindex @code{equiv} directive
 The @code{.equiv} directive is like @code{.equ} and @code{.set}, except that
-the assembler will signal an error if @var{symbol} is already defined.
+the assembler will signal an error if @var{symbol} is already defined.  Note a
+symbol which has been referenced but not actually defined is considered to be
+undefined.
 
 Except for the contents of the error message, this is roughly equivalent to 
 @smallexample
@@ -4154,7 +4300,7 @@ in @sc{ieee} format.
 @cindex @code{func} directive
 @code{.func} emits debugging information to denote function @var{name}, and
 is ignored unless the file is assembled with debugging enabled.
-Only @samp{--gstabs} is currently supported.
+Only @samp{--gstabs[+]} is currently supported.
 @var{label} is the entry point of the function and if omitted @var{name}
 prepended with the @samp{leading char} is used.
 @samp{leading char} is usually @code{_} or nothing, depending on the target.
@@ -4185,8 +4331,8 @@ partial programs.  You may need the HPPA-only @code{.EXPORT} directive as well.
 @node Hidden
 @section @code{.hidden @var{names}}
 
-@cindex @code{.hidden} directive
-@cindex Visibility
+@cindex @code{hidden} directive
+@cindex visibility
 This one of the ELF visibility directives.  The other two are
 @code{.internal} (@pxref{Internal,,@code{.internal}}) and 
 @code{.protected} (@pxref{Protected,,@code{.protected}}).
@@ -4248,7 +4394,8 @@ The following variants of @code{.if} are also supported:
 @cindex @code{ifdef} directive
 @item .ifdef @var{symbol}
 Assembles the following section of code if the specified @var{symbol}
-has been defined.
+has been defined.  Note a symbol which has been referenced but not yet defined
+is considered to be undefined.
 
 @cindex @code{ifc} directive
 @item .ifc @var{string1},@var{string2}
@@ -4294,7 +4441,8 @@ following section of code if the two strings are not the same.
 @item .ifndef @var{symbol}
 @itemx .ifnotdef @var{symbol}
 Assembles the following section of code if the specified @var{symbol}
-has not been defined.  Both spelling variants are equivalent.
+has not been defined.  Both spelling variants are equivalent.  Note a symbol
+which has been referenced but not yet defined is considered to be undefined.
 
 @cindex @code{ifne} directive
 @item .ifne @var{absolute expression}
@@ -4350,7 +4498,7 @@ of target the assembly is for.
 @ifclear GENERIC
 @ifset H8
 On the H8/500 and most forms of the H8/300, @code{.int} emits 16-bit
-integers.  On the H8/300H and the Hitachi SH, however, @code{.int} emits
+integers.  On the H8/300H and the Renesas SH, however, @code{.int} emits
 32-bit integers.
 @end ifset
 @end ifclear
@@ -4359,8 +4507,8 @@ integers.  On the H8/300H and the Hitachi SH, however, @code{.int} emits
 @node Internal
 @section @code{.internal @var{names}}
 
-@cindex @code{.internal} directive
-@cindex Visibility
+@cindex @code{internal} directive
+@cindex visibility
 This one of the ELF visibility directives.  The other two are
 @code{.hidden} (@pxref{Hidden,,@code{.hidden}}) and 
 @code{.protected} (@pxref{Protected,,@code{.protected}}).
@@ -4368,7 +4516,7 @@ This one of the ELF visibility directives.  The other two are
 This directive overrides the named symbols default visibility (which is set by
 their binding: local, global or weak).  The directive sets the visibility to
 @code{internal} which means that the symbols are considered to be @code{hidden}
-(ie not visible to other components), and that some extra, processor specific
+(i.e., not visible to other components), and that some extra, processor specific
 processing must also be performed upon the  symbols as well.
 @end ifset
 
@@ -4803,7 +4951,7 @@ undefined.
 @node Previous
 @section @code{.previous}
 
-@cindex @code{.previous} directive
+@cindex @code{previous} directive
 @cindex Section Stack
 This is one of the ELF section stack manipulation directives.  The others are
 @code{.section} (@pxref{Section}), @code{.subsection} (@pxref{SubSection}),
@@ -4823,7 +4971,7 @@ the top section on the section stack.
 @node PopSection
 @section @code{.popsection}
 
-@cindex @code{.popsection} directive
+@cindex @code{popsection} directive
 @cindex Section Stack
 This is one of the ELF section stack manipulation directives.  The others are
 @code{.section} (@pxref{Section}), @code{.subsection} (@pxref{SubSection}), 
@@ -4846,8 +4994,8 @@ assembly.  You must put @var{string} in double quotes.
 @node Protected
 @section @code{.protected @var{names}}
 
-@cindex @code{.protected} directive
-@cindex Visibility
+@cindex @code{protected} directive
+@cindex visibility
 This one of the ELF visibility directives.  The other two are
 @code{.hidden} (@pxref{Hidden}) and @code{.internal} (@pxref{Internal}).
 
@@ -4890,7 +5038,7 @@ expanded.  @xref{Macro}.
 @node PushSection
 @section @code{.pushsection @var{name} , @var{subsection}}
 
-@cindex @code{.pushsection} directive
+@cindex @code{pushsection} directive
 @cindex Section Stack
 This is one of the ELF section stack manipulation directives.  The others are
 @code{.section} (@pxref{Section}), @code{.subsection} (@pxref{SubSection}), 
@@ -4978,10 +5126,10 @@ accepts this directive but ignores it.
 @end ifset
 @end ifset
 
+@ifset COFF-ELF
 @node Section
-@section @code{.section @var{name}} (COFF version)
+@section @code{.section @var{name}}
 
-@cindex @code{section} directive
 @cindex named section
 Use the @code{.section} directive to assemble the following code into a section
 named @var{name}.
@@ -4990,6 +5138,13 @@ This directive is only supported for targets that actually support arbitrarily
 named sections; on @code{a.out} targets, for example, it is not accepted, even
 with a standard @code{a.out} section name.
 
+@ifset COFF
+@ifset ELF
+@c only print the extra heading if both COFF and ELF are set
+@subheading COFF Version
+@end ifset
+
+@cindex @code{section} directive (COFF version)
 For COFF targets, the @code{.section} directive is used in one of the following
 ways:
 
@@ -5027,20 +5182,21 @@ will be as if no flags had been specified at all.
 
 If the optional argument to the @code{.section} directive is not quoted, it is
 taken as a subsegment number (@pxref{Sub-Sections}).
+@end ifset
 
-
-@section @code{.section @var{name}} (ELF version)
-
-@cindex @code{section} directive
-@cindex named section
 @ifset ELF
+@ifset COFF
+@c only print the extra heading if both COFF and ELF are set
+@subheading ELF Version
+@end ifset
+
 @cindex Section Stack
 This is one of the ELF section stack manipulation directives.  The others are
 @code{.subsection} (@pxref{SubSection}), @code{.pushsection} 
 (@pxref{PushSection}), @code{.popsection} (@pxref{PopSection}), and
 @code{.previous} (@pxref{Previous}).
-@end ifset
 
+@cindex @code{section} directive (ELF version)
 For ELF targets, the @code{.section} directive is used like this:
 
 @smallexample
@@ -5069,6 +5225,10 @@ section contains data
 @item @@nobits
 section does not contain data (i.e., section only occupies space)
 @end table
+
+Note on targets where the @code{@@} character is the start of a comment (eg
+ARM) then another character is used instead.  For example the ARM port uses the
+@code{%} character.
 
 If @var{flags} contains @code{M} flag, @var{type} argument must be specified
 as well as @var{entsize} argument. Sections with @code{M} flag but not
@@ -5104,6 +5264,8 @@ This directive replaces the current section and subsection.  The replaced
 section and subsection are pushed onto the section stack.  See the contents of
 the gas testsuite directory @code{gas/testsuite/gas/elf} for some examples of
 how this directive and the other section stack directives work.
+@end ifset
+@end ifset
 
 @node Set
 @section @code{.set @var{symbol}, @var{expression}}
@@ -5164,27 +5326,52 @@ numbers in @sc{ieee} format.
 @end ifset
 @end ifclear
 
+@ifset COFF-ELF
 @node Size
-@section @code{.size} (COFF version)
+@section @code{.size}
 
-@cindex @code{size} directive
-This directive is generated by compilers to include auxiliary debugging
-information in the symbol table.  It is only permitted inside
-@code{.def}/@code{.endef} pairs.
+This directive is used to set the size associated with a symbol.
+
+@ifset COFF
+@ifset ELF
+@c only print the extra heading if both COFF and ELF are set
+@subheading COFF Version
+@end ifset
+
+@cindex @code{size} directive (COFF version)
+For COFF targets, the @code{.size} directive is only permitted inside
+@code{.def}/@code{.endef} pairs.  It is used like this:
+
+@smallexample
+.size @var{expression}
+@end smallexample
 
 @ifset BOUT
 @samp{.size} is only meaningful when generating COFF format output; when
 @command{@value{AS}} is generating @code{b.out}, it accepts this directive but
 ignores it.
 @end ifset
+@end ifset
 
-@section @code{.size @var{name} , @var{expression}} (ELF version)
-@cindex @code{size} directive
+@ifset ELF
+@ifset COFF
+@c only print the extra heading if both COFF and ELF are set
+@subheading ELF Version
+@end ifset
 
-This directive is used to set the size associated with a symbol @var{name}.
+@cindex @code{size} directive (ELF version)
+For ELF targets, the @code{.size} directive is used like this:
+
+@smallexample
+.size @var{name} , @var{expression}
+@end smallexample
+
+This directive sets the size associated with a symbol @var{name}.
 The size in bytes is computed from @var{expression} which can make use of label
 arithmetic.  This directive is typically used to set the size of function
 symbols.
+@end ifset
+@end ifset
 
 @node Sleb128
 @section @code{.sleb128 @var{expressions}}
@@ -5342,7 +5529,7 @@ before further assembly.
 @node SubSection
 @section @code{.subsection @var{name}}
 
-@cindex @code{.subsection} directive
+@cindex @code{subsection} directive
 @cindex Section Stack
 This is one of the ELF section stack manipulation directives.  The others are
 @code{.section} (@pxref{Section}), @code{.pushsection} (@pxref{PushSection}), 
@@ -5449,27 +5636,54 @@ source file name and pagenumber) when generating assembly listings.
 This directive affects subsequent pages, as well as the current page if
 it appears within ten lines of the top of a page.
 
+@ifset COFF-ELF
 @node Type
-@section @code{.type @var{int}} (COFF version)
+@section @code{.type}
+
+This directive is used to set the type of a symbol.
+
+@ifset COFF
+@ifset ELF
+@c only print the extra heading if both COFF and ELF are set
+@subheading COFF Version
+@end ifset
 
 @cindex COFF symbol type
 @cindex symbol type, COFF
-@cindex @code{type} directive
-This directive, permitted only within @code{.def}/@code{.endef} pairs,
-records the integer @var{int} as the type attribute of a symbol table entry.
+@cindex @code{type} directive (COFF version)
+For COFF targets, this directive is permitted only within
+@code{.def}/@code{.endef} pairs.  It is used like this:
+
+@smallexample
+.type @var{int}
+@end smallexample
+
+This records the integer @var{int} as the type attribute of a symbol table
+entry.
 
 @ifset BOUT
 @samp{.type} is associated only with COFF format output; when
 @command{@value{AS}} is configured for @code{b.out} output, it accepts this
 directive but ignores it.
 @end ifset
+@end ifset
 
-@section @code{.type @var{name} , @var{type description}} (ELF version)
+@ifset ELF
+@ifset COFF
+@c only print the extra heading if both COFF and ELF are set
+@subheading ELF Version
+@end ifset
 
 @cindex ELF symbol type
 @cindex symbol type, ELF
-@cindex @code{type} directive
-This directive is used to set the type of symbol @var{name} to be either a
+@cindex @code{type} directive (ELF version)
+For ELF targets, the @code{.type} directive is used like this:
+
+@smallexample
+.type @var{name} , @var{type description}
+@end smallexample
+
+This sets the type of symbol @var{name} to be either a
 function symbol or an object symbol.  There are five different syntaxes
 supported for the @var{type description} field, in order to provide
 compatibility with various other assemblers.  The syntaxes supported are:
@@ -5490,6 +5704,8 @@ compatibility with various other assemblers.  The syntaxes supported are:
   .type <name> STT_FUNCTION
   .type <name> STT_OBJECT
 @end smallexample
+@end ifset
+@end ifset
 
 @node Uleb128
 @section @code{.uleb128 @var{expressions}}
@@ -5520,7 +5736,7 @@ configured for @code{b.out}, it accepts this directive but ignores it.
 @node Version
 @section @code{.version "@var{string}"}
 
-@cindex @code{.version}
+@cindex @code{version} directive
 This directive creates a @code{.note} section and places into it an ELF
 formatted note of type NT_VERSION.  The note's name is set to @code{string}.
 @end ifset
@@ -5529,14 +5745,14 @@ formatted note of type NT_VERSION.  The note's name is set to @code{string}.
 @node VTableEntry
 @section @code{.vtable_entry @var{table}, @var{offset}}
 
-@cindex @code{.vtable_entry}
+@cindex @code{vtable_entry}
 This directive finds or creates a symbol @code{table} and creates a
 @code{VTABLE_ENTRY} relocation for it with an addend of @code{offset}.
 
 @node VTableInherit
 @section @code{.vtable_inherit @var{child}, @var{parent}}
 
-@cindex @code{.vtable_inherit}
+@cindex @code{vtable_inherit}
 This directive finds the symbol @code{child} and finds or creates the symbol
 @code{parent} and then creates a @code{VTABLE_INHERIT} relocation for the
 parent whose addend is the value of the child symbol.  As a special case the
@@ -5547,7 +5763,7 @@ parent name of @code{0} is treated as refering the @code{*ABS*} section.
 @node Weak
 @section @code{.weak @var{names}}
 
-@cindex @code{.weak}
+@cindex @code{weak} directive
 This directive sets the weak attribute on the comma separated list of symbol
 @code{names}.  If the symbols do not already exist, they will be created.
 @end ifset
@@ -5670,10 +5886,10 @@ subject, see the hardware manufacturer's manual.
 * D30V-Dependent::              D30V Dependent Features
 @end ifset
 @ifset H8/300
-* H8/300-Dependent::            Hitachi H8/300 Dependent Features
+* H8/300-Dependent::            Renesas H8/300 Dependent Features
 @end ifset
 @ifset H8/500
-* H8/500-Dependent::            Hitachi H8/500 Dependent Features
+* H8/500-Dependent::            Renesas H8/500 Dependent Features
 @end ifset
 @ifset HPPA
 * HPPA-Dependent::              HPPA Dependent Features
@@ -5689,6 +5905,9 @@ subject, see the hardware manufacturer's manual.
 @end ifset
 @ifset I960
 * i960-Dependent::              Intel 80960 Dependent Features
+@end ifset
+@ifset IP2K
+* IP2K-Dependent::              IP2K Dependent Features
 @end ifset
 @ifset M32R
 * M32R-Dependent::              M32R Dependent Features
@@ -5708,9 +5927,12 @@ subject, see the hardware manufacturer's manual.
 @ifset MMIX
 * MMIX-Dependent::              MMIX Dependent Features
 @end ifset
+@ifset MSP430
+* MSP430-Dependent::		MSP430 Dependent Features
+@end ifset
 @ifset SH
-* SH-Dependent::                Hitachi SH Dependent Features
-* SH64-Dependent::              Hitachi SH64 Dependent Features
+* SH-Dependent::                Renesas / SuperH SH Dependent Features
+* SH64-Dependent::              SuperH SH64 Dependent Features
 @end ifset
 @ifset PDP11
 * PDP-11-Dependent::            PDP-11 Dependent Features
@@ -5729,6 +5951,9 @@ subject, see the hardware manufacturer's manual.
 @end ifset
 @ifset V850
 * V850-Dependent::              V850 Dependent Features
+@end ifset
+@ifset XTENSA
+* Xtensa-Dependent::            Xtensa Dependent Features
 @end ifset
 @ifset Z8000
 * Z8000-Dependent::             Z8000 Dependent Features
@@ -5769,20 +5994,20 @@ subject, see the hardware manufacturer's manual.
 @include c-cris.texi
 @end ifset
 
-@ifset Hitachi-all
+@ifset Renesas-all
 @ifclear GENERIC
 @node Machine Dependencies
 @chapter Machine Dependent Features
 
-The machine instruction sets are different on each Hitachi chip family,
+The machine instruction sets are different on each Renesas chip family,
 and there are also some syntax differences among the families.  This
 chapter describes the specific @command{@value{AS}} features for each
 family.
 
 @menu
-* H8/300-Dependent::            Hitachi H8/300 Dependent Features
-* H8/500-Dependent::            Hitachi H8/500 Dependent Features
-* SH-Dependent::                Hitachi SH Dependent Features
+* H8/300-Dependent::            Renesas H8/300 Dependent Features
+* H8/500-Dependent::            Renesas H8/500 Dependent Features
+* SH-Dependent::                Renesas SH Dependent Features
 @end menu
 @lowersections
 @end ifclear
@@ -5828,6 +6053,10 @@ family.
 @include c-ia64.texi
 @end ifset
 
+@ifset IP2K
+@include c-ip2k.texi
+@end ifset
+
 @ifset M32R
 @include c-m32r.texi
 @end ifset
@@ -5850,6 +6079,10 @@ family.
 
 @ifset MMIX
 @include c-mmix.texi
+@end ifset
+
+@ifset MSP430
+@include c-msp430.texi
 @end ifset
 
 @ifset NS32K
@@ -5893,6 +6126,10 @@ family.
 @include c-v850.texi
 @end ifset
 
+@ifset XTENSA
+@include c-xtensa.texi
+@end ifset
+
 @ifset GENERIC
 @c reverse effect of @down at top of generic Machine-Dep chapter
 @raisesections
@@ -5919,7 +6156,7 @@ information that enables us to fix the bug.
 @end menu
 
 @node Bug Criteria
-@section Have you found a bug?
+@section Have You Found a Bug?
 @cindex bug criteria
 
 If you are not sure whether you have found a bug, here are some guidelines:
@@ -5948,7 +6185,7 @@ of @command{@value{AS}} are welcome in any case.
 @end itemize
 
 @node Bug Reporting
-@section How to report bugs
+@section How to Report Bugs
 @cindex bug reports
 @cindex assembler bugs, reporting
 
@@ -5982,9 +6219,9 @@ it is new to us.  Therefore, always write your bug reports on the assumption
 that the bug has not been reported previously.
 
 Sometimes people give a few sketchy facts and ask, ``Does this ring a
-bell?''  Those bug reports are useless, and we urge everyone to
-@emph{refuse to respond to them} except to chide the sender to report
-bugs properly.
+bell?''  This cannot help us fix a bug, so it is basically useless.  We
+respond by asking for enough details to enable us to investigate.
+You might as well expedite matters by sending them to begin with.
 
 To enable us to fix the bug, you should include all these things:
 
@@ -6145,7 +6382,7 @@ Keith Knowles at the Open Software Foundation wrote the original MIPS back end
 (which hasn't been merged in yet).  Ralph Campbell worked with the MIPS code to
 support a.out format.
 
-Support for the Zilog Z8k and Hitachi H8/300 and H8/500 processors (tc-z8k,
+Support for the Zilog Z8k and Renesas H8/300 and H8/500 processors (tc-z8k,
 tc-h8300, tc-h8500), and IEEE 695 object file format (obj-ieee), was written by
 Steve Chamberlain of Cygnus Support.  Steve also modified the COFF back end to
 use BFD for some low-level operations, for use with the H8/300 and AMD 29k
@@ -6154,7 +6391,7 @@ targets.
 John Gilmore built the AMD 29000 support, added @code{.include} support, and
 simplified the configuration of which versions accept which directives.  He
 updated the 68k machine description so that Motorola's opcodes always produced
-fixed-size instructions (e.g. @code{jsr}), while synthetic instructions
+fixed-size instructions (e.g., @code{jsr}), while synthetic instructions
 remained shrinkable (@code{jbsr}).  John fixed many bugs, including true tested
 cross-compilation support, and one bug in relaxation that took a week and
 required the proverbial one-bit fix.
@@ -6179,13 +6416,16 @@ Jeff Law at the University of Utah (HPPA mainly), Michael Meissner of the Open
 Software Foundation (i386 mainly), and Ken Raeburn of Cygnus Support (sparc,
 and some initial 64-bit support).
 
-Linas Vepstas added GAS support for the ESA/390 "IBM 370" architecture.
+Linas Vepstas added GAS support for the ESA/390 ``IBM 370'' architecture.
 
 Richard Henderson rewrote the Alpha assembler. Klaus Kaempf wrote GAS and BFD
 support for openVMS/Alpha.
 
 Timothy Wall, Michael Hayes, and Greg Smart contributed to the various tic*
 flavors.
+
+David Heine, Sterling Augustine, Bob Wilson and John Ruttenberg from Tensilica,
+Inc. added support for Xtensa processors.
 
 Several engineers at Cygnus Support have also provided many small bug fixes and
 configuration enhancements.
@@ -6195,368 +6435,7 @@ you have contributed significant work and are not mentioned on this list, and
 want to be, let us know.  Some of the history has been lost; we are not
 intentionally leaving anyone out.
 
-@node GNU Free Documentation License
-@chapter GNU Free Documentation License
-
-                GNU Free Documentation License
-                
-                   Version 1.1, March 2000
-
- Copyright (C) 2000  Free Software Foundation, Inc.
-  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-     
- Everyone is permitted to copy and distribute verbatim copies
- of this license document, but changing it is not allowed.
-
-
-0. PREAMBLE
-
-The purpose of this License is to make a manual, textbook, or other
-written document "free" in the sense of freedom: to assure everyone
-the effective freedom to copy and redistribute it, with or without
-modifying it, either commercially or noncommercially.  Secondarily,
-this License preserves for the author and publisher a way to get
-credit for their work, while not being considered responsible for
-modifications made by others.
-
-This License is a kind of "copyleft", which means that derivative
-works of the document must themselves be free in the same sense.  It
-complements the GNU General Public License, which is a copyleft
-license designed for free software.
-
-We have designed this License in order to use it for manuals for free
-software, because free software needs free documentation: a free
-program should come with manuals providing the same freedoms that the
-software does.  But this License is not limited to software manuals;
-it can be used for any textual work, regardless of subject matter or
-whether it is published as a printed book.  We recommend this License
-principally for works whose purpose is instruction or reference.
-
-
-1. APPLICABILITY AND DEFINITIONS
-
-This License applies to any manual or other work that contains a
-notice placed by the copyright holder saying it can be distributed
-under the terms of this License.  The "Document", below, refers to any
-such manual or work.  Any member of the public is a licensee, and is
-addressed as "you".
-
-A "Modified Version" of the Document means any work containing the
-Document or a portion of it, either copied verbatim, or with
-modifications and/or translated into another language.
-
-A "Secondary Section" is a named appendix or a front-matter section of
-the Document that deals exclusively with the relationship of the
-publishers or authors of the Document to the Document's overall subject
-(or to related matters) and contains nothing that could fall directly
-within that overall subject.  (For example, if the Document is in part a
-textbook of mathematics, a Secondary Section may not explain any
-mathematics.)  The relationship could be a matter of historical
-connection with the subject or with related matters, or of legal,
-commercial, philosophical, ethical or political position regarding
-them.
-
-The "Invariant Sections" are certain Secondary Sections whose titles
-are designated, as being those of Invariant Sections, in the notice
-that says that the Document is released under this License.
-
-The "Cover Texts" are certain short passages of text that are listed,
-as Front-Cover Texts or Back-Cover Texts, in the notice that says that
-the Document is released under this License.
-
-A "Transparent" copy of the Document means a machine-readable copy,
-represented in a format whose specification is available to the
-general public, whose contents can be viewed and edited directly and
-straightforwardly with generic text editors or (for images composed of
-pixels) generic paint programs or (for drawings) some widely available
-drawing editor, and that is suitable for input to text formatters or
-for automatic translation to a variety of formats suitable for input
-to text formatters.  A copy made in an otherwise Transparent file
-format whose markup has been designed to thwart or discourage
-subsequent modification by readers is not Transparent.  A copy that is
-not "Transparent" is called "Opaque".
-
-Examples of suitable formats for Transparent copies include plain
-ASCII without markup, Texinfo input format, LaTeX input format, SGML
-or XML using a publicly available DTD, and standard-conforming simple
-HTML designed for human modification.  Opaque formats include
-PostScript, PDF, proprietary formats that can be read and edited only
-by proprietary word processors, SGML or XML for which the DTD and/or
-processing tools are not generally available, and the
-machine-generated HTML produced by some word processors for output
-purposes only.
-
-The "Title Page" means, for a printed book, the title page itself,
-plus such following pages as are needed to hold, legibly, the material
-this License requires to appear in the title page.  For works in
-formats which do not have any title page as such, "Title Page" means
-the text near the most prominent appearance of the work's title,
-preceding the beginning of the body of the text.
-
-
-2. VERBATIM COPYING
-
-You may copy and distribute the Document in any medium, either
-commercially or noncommercially, provided that this License, the
-copyright notices, and the license notice saying this License applies
-to the Document are reproduced in all copies, and that you add no other
-conditions whatsoever to those of this License.  You may not use
-technical measures to obstruct or control the reading or further
-copying of the copies you make or distribute.  However, you may accept
-compensation in exchange for copies.  If you distribute a large enough
-number of copies you must also follow the conditions in section 3.
-
-You may also lend copies, under the same conditions stated above, and
-you may publicly display copies.
-
-
-3. COPYING IN QUANTITY
-
-If you publish printed copies of the Document numbering more than 100,
-and the Document's license notice requires Cover Texts, you must enclose
-the copies in covers that carry, clearly and legibly, all these Cover
-Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on
-the back cover.  Both covers must also clearly and legibly identify
-you as the publisher of these copies.  The front cover must present
-the full title with all words of the title equally prominent and
-visible.  You may add other material on the covers in addition.
-Copying with changes limited to the covers, as long as they preserve
-the title of the Document and satisfy these conditions, can be treated
-as verbatim copying in other respects.
-
-If the required texts for either cover are too voluminous to fit
-legibly, you should put the first ones listed (as many as fit
-reasonably) on the actual cover, and continue the rest onto adjacent
-pages.
-
-If you publish or distribute Opaque copies of the Document numbering
-more than 100, you must either include a machine-readable Transparent
-copy along with each Opaque copy, or state in or with each Opaque copy
-a publicly-accessible computer-network location containing a complete
-Transparent copy of the Document, free of added material, which the
-general network-using public has access to download anonymously at no
-charge using public-standard network protocols.  If you use the latter
-option, you must take reasonably prudent steps, when you begin
-distribution of Opaque copies in quantity, to ensure that this
-Transparent copy will remain thus accessible at the stated location
-until at least one year after the last time you distribute an Opaque
-copy (directly or through your agents or retailers) of that edition to
-the public.
-
-It is requested, but not required, that you contact the authors of the
-Document well before redistributing any large number of copies, to give
-them a chance to provide you with an updated version of the Document.
-
-
-4. MODIFICATIONS
-
-You may copy and distribute a Modified Version of the Document under
-the conditions of sections 2 and 3 above, provided that you release
-the Modified Version under precisely this License, with the Modified
-Version filling the role of the Document, thus licensing distribution
-and modification of the Modified Version to whoever possesses a copy
-of it.  In addition, you must do these things in the Modified Version:
-
-A. Use in the Title Page (and on the covers, if any) a title distinct
-   from that of the Document, and from those of previous versions
-   (which should, if there were any, be listed in the History section
-   of the Document).  You may use the same title as a previous version
-   if the original publisher of that version gives permission.
-B. List on the Title Page, as authors, one or more persons or entities
-   responsible for authorship of the modifications in the Modified
-   Version, together with at least five of the principal authors of the
-   Document (all of its principal authors, if it has less than five).
-C. State on the Title page the name of the publisher of the
-   Modified Version, as the publisher.
-D. Preserve all the copyright notices of the Document.
-E. Add an appropriate copyright notice for your modifications
-   adjacent to the other copyright notices.
-F. Include, immediately after the copyright notices, a license notice
-   giving the public permission to use the Modified Version under the
-   terms of this License, in the form shown in the Addendum below.
-G. Preserve in that license notice the full lists of Invariant Sections
-   and required Cover Texts given in the Document's license notice.
-H. Include an unaltered copy of this License.
-I. Preserve the section entitled "History", and its title, and add to
-   it an item stating at least the title, year, new authors, and
-   publisher of the Modified Version as given on the Title Page.  If
-   there is no section entitled "History" in the Document, create one
-   stating the title, year, authors, and publisher of the Document as
-   given on its Title Page, then add an item describing the Modified
-   Version as stated in the previous sentence.
-J. Preserve the network location, if any, given in the Document for
-   public access to a Transparent copy of the Document, and likewise
-   the network locations given in the Document for previous versions
-   it was based on.  These may be placed in the "History" section.
-   You may omit a network location for a work that was published at
-   least four years before the Document itself, or if the original
-   publisher of the version it refers to gives permission.
-K. In any section entitled "Acknowledgements" or "Dedications",
-   preserve the section's title, and preserve in the section all the
-   substance and tone of each of the contributor acknowledgements
-   and/or dedications given therein.
-L. Preserve all the Invariant Sections of the Document,
-   unaltered in their text and in their titles.  Section numbers
-   or the equivalent are not considered part of the section titles.
-M. Delete any section entitled "Endorsements".  Such a section
-   may not be included in the Modified Version.
-N. Do not retitle any existing section as "Endorsements"
-   or to conflict in title with any Invariant Section.
-
-If the Modified Version includes new front-matter sections or
-appendices that qualify as Secondary Sections and contain no material
-copied from the Document, you may at your option designate some or all
-of these sections as invariant.  To do this, add their titles to the
-list of Invariant Sections in the Modified Version's license notice.
-These titles must be distinct from any other section titles.
-
-You may add a section entitled "Endorsements", provided it contains
-nothing but endorsements of your Modified Version by various
-parties--for example, statements of peer review or that the text has
-been approved by an organization as the authoritative definition of a
-standard.
-
-You may add a passage of up to five words as a Front-Cover Text, and a
-passage of up to 25 words as a Back-Cover Text, to the end of the list
-of Cover Texts in the Modified Version.  Only one passage of
-Front-Cover Text and one of Back-Cover Text may be added by (or
-through arrangements made by) any one entity.  If the Document already
-includes a cover text for the same cover, previously added by you or
-by arrangement made by the same entity you are acting on behalf of,
-you may not add another; but you may replace the old one, on explicit
-permission from the previous publisher that added the old one.
-
-The author(s) and publisher(s) of the Document do not by this License
-give permission to use their names for publicity for or to assert or
-imply endorsement of any Modified Version.
-
-
-5. COMBINING DOCUMENTS
-
-You may combine the Document with other documents released under this
-License, under the terms defined in section 4 above for modified
-versions, provided that you include in the combination all of the
-Invariant Sections of all of the original documents, unmodified, and
-list them all as Invariant Sections of your combined work in its
-license notice.
-
-The combined work need only contain one copy of this License, and
-multiple identical Invariant Sections may be replaced with a single
-copy.  If there are multiple Invariant Sections with the same name but
-different contents, make the title of each such section unique by
-adding at the end of it, in parentheses, the name of the original
-author or publisher of that section if known, or else a unique number.
-Make the same adjustment to the section titles in the list of
-Invariant Sections in the license notice of the combined work.
-
-In the combination, you must combine any sections entitled "History"
-in the various original documents, forming one section entitled
-"History"; likewise combine any sections entitled "Acknowledgements",
-and any sections entitled "Dedications".  You must delete all sections
-entitled "Endorsements."
-
-
-6. COLLECTIONS OF DOCUMENTS
-
-You may make a collection consisting of the Document and other documents
-released under this License, and replace the individual copies of this
-License in the various documents with a single copy that is included in
-the collection, provided that you follow the rules of this License for
-verbatim copying of each of the documents in all other respects.
-
-You may extract a single document from such a collection, and distribute
-it individually under this License, provided you insert a copy of this
-License into the extracted document, and follow this License in all
-other respects regarding verbatim copying of that document.
-
-
-7. AGGREGATION WITH INDEPENDENT WORKS
-
-A compilation of the Document or its derivatives with other separate
-and independent documents or works, in or on a volume of a storage or
-distribution medium, does not as a whole count as a Modified Version
-of the Document, provided no compilation copyright is claimed for the
-compilation.  Such a compilation is called an "aggregate", and this
-License does not apply to the other self-contained works thus compiled
-with the Document, on account of their being thus compiled, if they
-are not themselves derivative works of the Document.
-
-If the Cover Text requirement of section 3 is applicable to these
-copies of the Document, then if the Document is less than one quarter
-of the entire aggregate, the Document's Cover Texts may be placed on
-covers that surround only the Document within the aggregate.
-Otherwise they must appear on covers around the whole aggregate.
-
-
-8. TRANSLATION
-
-Translation is considered a kind of modification, so you may
-distribute translations of the Document under the terms of section 4.
-Replacing Invariant Sections with translations requires special
-permission from their copyright holders, but you may include
-translations of some or all Invariant Sections in addition to the
-original versions of these Invariant Sections.  You may include a
-translation of this License provided that you also include the
-original English version of this License.  In case of a disagreement
-between the translation and the original English version of this
-License, the original English version will prevail.
-
-
-9. TERMINATION
-
-You may not copy, modify, sublicense, or distribute the Document except
-as expressly provided for under this License.  Any other attempt to
-copy, modify, sublicense or distribute the Document is void, and will
-automatically terminate your rights under this License.  However,
-parties who have received copies, or rights, from you under this
-License will not have their licenses terminated so long as such
-parties remain in full compliance.
-
-
-10. FUTURE REVISIONS OF THIS LICENSE
-
-The Free Software Foundation may publish new, revised versions
-of the GNU Free Documentation License from time to time.  Such new
-versions will be similar in spirit to the present version, but may
-differ in detail to address new problems or concerns.  See
-http://www.gnu.org/copyleft/.
-
-Each version of the License is given a distinguishing version number.
-If the Document specifies that a particular numbered version of this
-License "or any later version" applies to it, you have the option of
-following the terms and conditions either of that specified version or
-of any later version that has been published (not as a draft) by the
-Free Software Foundation.  If the Document does not specify a version
-number of this License, you may choose any version ever published (not
-as a draft) by the Free Software Foundation.
-
-
-ADDENDUM: How to use this License for your documents
-
-To use this License in a document you have written, include a copy of
-the License in the document and put the following copyright and
-license notices just after the title page:
-
-@smallexample
-    Copyright (c)  YEAR  YOUR NAME.
-    Permission is granted to copy, distribute and/or modify this document
-    under the terms of the GNU Free Documentation License, Version 1.1
-    or any later version published by the Free Software Foundation;
-    with the Invariant Sections being LIST THEIR TITLES, with the
-    Front-Cover Texts being LIST, and with the Back-Cover Texts being LIST.
-    A copy of the license is included in the section entitled "GNU
-    Free Documentation License".
-@end smallexample
-
-If you have no Invariant Sections, write "with no Invariant Sections"
-instead of saying which ones are invariant.  If you have no
-Front-Cover Texts, write "no Front-Cover Texts" instead of
-"Front-Cover Texts being LIST"; likewise for Back-Cover Texts.
-
-If your document contains nontrivial examples of program code, we
-recommend releasing these examples in parallel under your choice of
-free software license, such as the GNU General Public License,
-to permit their use in free software.
+@include fdl.texi
 
 @node Index
 @unnumbered Index

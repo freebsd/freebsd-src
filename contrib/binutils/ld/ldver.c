@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include "bfd.h"
+#include "bfdver.h"
 #include "sysdep.h"
 
 #include "ld.h"
@@ -31,8 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldmain.h"
 
 void
-ldversion (noisy)
-     int noisy;
+ldversion (int noisy)
 {
   /* Output for noisy == 2 is intended to follow the GNU standards.  */
   fprintf (stdout, _("GNU ld version %s\n"), BFD_VERSION_STRING);

@@ -1,31 +1,29 @@
 /* Support for the generic parts of PE/PEI; common header information.
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Written by Cygnus Solutions.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
-
-/*
-Most of this hacked by  Steve Chamberlain,
+/* Most of this hacked by  Steve Chamberlain,
 			sac@cygnus.com
 
-PE/PEI rearrangement (and code added): Donn Terry
-				       Softway Systems, Inc.
-*/
+   PE/PEI rearrangement (and code added): Donn Terry
+				       Softway Systems, Inc.  */
 
 /* Hey look, some documentation [and in a place you expect to find it]!
 
@@ -53,8 +51,7 @@ PE/PEI rearrangement (and code added): Donn Terry
 
    FIXME: Please add more docs here so the next poor fool that has to hack
    on this code has a chance of getting something accomplished without
-   wasting too much time.
-*/
+   wasting too much time.  */
 
 #ifndef GET_FCN_LNNOPTR
 #define GET_FCN_LNNOPTR(abfd, ext) \
@@ -313,13 +310,13 @@ unsigned int _bfd_XXi_swap_aouthdr_out PARAMS ((bfd *, PTR, PTR));
 unsigned int _bfd_XXi_swap_scnhdr_out PARAMS ((bfd *, PTR, PTR));
 #define coff_swap_scnhdr_out _bfd_XXi_swap_scnhdr_out
 
-boolean _bfd_XX_print_private_bfd_data_common PARAMS ((bfd *, PTR));
+bfd_boolean _bfd_XX_print_private_bfd_data_common PARAMS ((bfd *, PTR));
 
-boolean _bfd_XX_bfd_copy_private_bfd_data_common PARAMS ((bfd *, bfd *));
+bfd_boolean _bfd_XX_bfd_copy_private_bfd_data_common PARAMS ((bfd *, bfd *));
 
 void _bfd_XX_get_symbol_info PARAMS ((bfd *, asymbol *, symbol_info *));
 
-boolean _bfd_XXi_final_link_postscript
+bfd_boolean _bfd_XXi_final_link_postscript
   PARAMS ((bfd *, struct coff_final_link_info *));
 
 #ifndef coff_final_link_postscript
@@ -331,5 +328,10 @@ boolean _bfd_XXi_final_link_postscript
 
 unsigned int _bfd_XX_only_swap_filehdr_out PARAMS ((bfd*, PTR, PTR));
 unsigned int _bfd_XXi_only_swap_filehdr_out PARAMS ((bfd*, PTR, PTR));
-boolean _bfd_XX_bfd_copy_private_section_data
+bfd_boolean _bfd_XX_bfd_copy_private_section_data
   PARAMS ((bfd *, asection *, bfd *, asection *));
+
+/* Macro: Returns true if the bfd is a PE executable as opposed to a PE object file.  */
+#define bfd_pe_executable_p(abfd) \
+  (strncmp ((abfd)->xvec->name, "pei-", 4) == 0		\
+   || strncmp ((abfd)->xvec->name, "efi-app-", 8) == 0)

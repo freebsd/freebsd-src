@@ -44,6 +44,7 @@
 
 #define AR_CCV	IA64_OPND_AR_CCV
 #define AR_PFS	IA64_OPND_AR_PFS
+#define AR_CSD	IA64_OPND_AR_CSD
 #define C1	IA64_OPND_C1
 #define C8	IA64_OPND_C8
 #define C16	IA64_OPND_C16

@@ -61,6 +61,11 @@ These options are only available with the ELF object file format, and
 require that the necessary BFD support has been included (on a 32-bit
 platform you have to add --enable-64-bit-bfd to configure enable 64-bit
 usage and use x86-64 as target platform).
+
+@item -n
+By default, x86 GAS replaces multiple nop instructions used for
+alignment within code sections with multi-byte nop instructions such
+as leal 0(%esi,1),%esi.  This switch disables the optimization.
 @end table
 
 @node i386-Syntax
