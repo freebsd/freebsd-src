@@ -32,6 +32,7 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/queue.h>
@@ -272,6 +273,7 @@ main(int argc, char *argv[])
 	FTS *ftsp;
 	FTSENT *p;
 	int opt, fts_options, ival;
+	struct stat sb;
 
 	fts_options = FTS_PHYSICAL;
 /*	SLIST_INIT(&kldlist);*/
@@ -299,6 +301,13 @@ main(int argc, char *argv[])
 		usage();
 	argc -= optind;
 	argv += optind;
+
+	if (stat(argv[0], &sb) != 0)
+		err(1, "%s", argv[0]);
+	if ((sb.st_mode & S_IFDIR) == 0) {
+		errno = ENOTDIR;
+		err(1, "%s", argv[0]);
+	}
 
 	ftsp = fts_open(argv, fts_options, 0);
 	if (ftsp == NULL)
