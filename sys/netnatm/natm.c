@@ -685,6 +685,8 @@ natmintr(struct mbuf *m)
 	struct socket *so;
 	struct natmpcb *npcb;
 
+	GIANT_REQUIRED;
+
 #ifdef DIAGNOSTIC
 	M_ASSERTPKTHDR(m);
 #endif

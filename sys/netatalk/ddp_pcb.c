@@ -553,9 +553,9 @@ ddp_init(void)
 	mtx_init(&atintrq1.ifq_mtx, "at1_inq", NULL, MTX_DEF);
 	mtx_init(&atintrq2.ifq_mtx, "at2_inq", NULL, MTX_DEF);
 	mtx_init(&aarpintrq.ifq_mtx, "aarp_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_ATALK1, at1intr, &atintrq1);
-	netisr_register(NETISR_ATALK2, at2intr, &atintrq2);
-	netisr_register(NETISR_AARP, aarpintr, &aarpintrq);
+	netisr_register(NETISR_ATALK1, at1intr, &atintrq1, 0);
+	netisr_register(NETISR_ATALK2, at2intr, &atintrq2, 0);
+	netisr_register(NETISR_AARP, aarpintr, &aarpintrq, 0);
 }
 
 #if 0
