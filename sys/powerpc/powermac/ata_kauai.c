@@ -169,6 +169,7 @@ ata_kauai_probe(device_t dev)
 	}
 
 	ch = device_get_softc(dev);
+	bzero(ch, sizeof(struct ata_channel));
 
         rid = PCIR_BARS;
 	mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -192,6 +193,7 @@ ata_kauai_probe(device_t dev)
         ch->locking = ata_kauai_locknoop;
         ch->device[MASTER].setmode = ata_kauai_setmode;
         ch->device[SLAVE].setmode = ata_kauai_setmode;
+	ata_generic_hw(ch);
 
         return (ata_probe(dev));
 }
