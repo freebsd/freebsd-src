@@ -117,7 +117,7 @@ blockest(dp)
 /* Auxiliary macro to pick up files changed since previous dump. */
 #ifdef FS_44INODEFMT
 #define	CHANGEDSINCE(dp, t) \
-	((dp)->di_mtime.ts_sec >= (t) || (dp)->di_ctime.ts_sec >= (t))
+	((dp)->di_mtime.tv_sec >= (t) || (dp)->di_ctime.tv_sec >= (t))
 #else
 #define	CHANGEDSINCE(dp, t) \
 	((dp)->di_mtime >= (t) || (dp)->di_ctime >= (t))
