@@ -54,6 +54,31 @@ sub success($) {
     return undef;
 }
 
+sub branch_sort($$) {
+    my ($a, $b) = @_;
+
+    my @a = split('_', $a);
+    my @b = split('_', $b);
+    while (@a || @b) {
+	($a, $b) = (shift(@a), shift(@b));
+	return 1 unless defined($a);
+	return -1 unless defined($b);
+	next if $a eq $b;
+	if ($a =~ m/^\d+$/ && $b =~ m/^\d+$/) {
+	    return $a <=> $b;
+	} else {
+	    return $a cmp $b;
+	}
+    }
+    return 0;
+}
+
+sub inverse_branch_sort($$) {
+    my ($a, $b) = @_;
+
+    return branch_sort($b, $a);
+}
+
 sub do_config($) {
     my $config = shift;
 
@@ -75,7 +100,7 @@ sub do_config($) {
 
     my $now = time();
 
-    foreach my $branch (sort(keys(%branches))) {
+    foreach my $branch (sort(inverse_branch_sort keys(%branches))) {
 	my $html =  "      <tr>
 	<th>$branch</th>
 ";
