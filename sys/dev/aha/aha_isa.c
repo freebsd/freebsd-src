@@ -83,8 +83,8 @@ aha_isa_probe(device_t dev)
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, aha_ids) == ENXIO)
 		return (ENXIO);
 
-	error = ISA_GET_RESOURCE(device_get_parent(dev), dev, SYS_RES_IOPORT,
-	    0, &port_start, &port_count);
+	error = bus_get_resource(dev, SYS_RES_IOPORT, 0,
+				 &port_start, &port_count);
 	if (error != 0)
 		port_start = 0;
 
@@ -111,8 +111,8 @@ aha_isa_probe(device_t dev)
 		 */
 		if (aha_check_probed_iop(ioport) != 0)
 			continue;
-		error = ISA_SET_RESOURCE(device_get_parent(dev), dev,
-		    SYS_RES_IOPORT, 0, ioport, AHA_NREGS);
+		error = bus_set_resource(dev, SYS_RES_IOPORT, 0,
+					 ioport, AHA_NREGS);
 		if (error)
 			return error;
 		
@@ -179,14 +179,12 @@ aha_isa_probe(device_t dev)
 			    "Failing probe\n", ioport);
 			return (ENXIO);
 		}
-		error = ISA_SET_RESOURCE(device_get_parent(dev), dev,
-		    SYS_RES_DRQ, 0, drq, 1);
+		error = bus_set_resource(dev, SYS_RES_DRQ, 0, drq, 1);
 		if (error)
 			return error;
 
 		irq = ffs(config_data.irq) + 8;
-		error = ISA_SET_RESOURCE(device_get_parent(dev), dev,
-		    SYS_RES_IRQ, 0, irq, 1);
+		error = bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);
 		if (error)
 			return error;
 

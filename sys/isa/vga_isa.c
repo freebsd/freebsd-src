@@ -124,9 +124,9 @@ isavga_probe(device_t dev)
 	error = vga_probe_unit(device_get_unit(dev), &adp, device_get_flags(dev));
 	if (error == 0) {
 		bus = device_get_parent(dev);
-		ISA_SET_RESOURCE(bus, dev, SYS_RES_IOPORT, 0,
+		bus_set_resource(dev, SYS_RES_IOPORT, 0,
 				 adp.va_io_base, adp.va_io_size);
-		ISA_SET_RESOURCE(bus, dev, SYS_RES_MEMORY, 0,
+		bus_set_resource(dev, SYS_RES_MEMORY, 0,
 				 adp.va_mem_base, adp.va_mem_size);
 #if 0
 		isa_set_port(dev, adp.va_io_base);

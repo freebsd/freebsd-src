@@ -906,24 +906,25 @@ device_get_flags(device_t dev)
 int
 device_print_prettyname(device_t dev)
 {
-	const char *name = device_get_name(dev);
+    const char *name = device_get_name(dev);
 
-	if (name == 0)
-		name = "(no driver assigned)";
-	return(printf("%s%d: ", name, device_get_unit(dev)));
+    if (name == 0)
+	return printf("unknown: ");
+    else
+	return printf("%s%d: ", name, device_get_unit(dev));
 }
 
 int
 device_printf(device_t dev, const char * fmt, ...)
 {
-	va_list ap;
-	int retval;
+    va_list ap;
+    int retval;
 
-	retval = device_print_prettyname(dev);
-	va_start(ap, fmt);
-	retval += vprintf(fmt, ap);
-	va_end(ap);
-	return retval;
+    retval = device_print_prettyname(dev);
+    va_start(ap, fmt);
+    retval += vprintf(fmt, ap);
+    va_end(ap);
+    return retval;
 }
 
 static void
@@ -1710,12 +1711,12 @@ resource_list_delete(struct resource_list *rl,
 }
 
 struct resource *
-resource_list_alloc(device_t bus, device_t child,
+resource_list_alloc(struct resource_list *rl,
+		    device_t bus, device_t child,
 		    int type, int *rid,
 		    u_long start, u_long end,
 		    u_long count, u_int flags)
 {
-    struct resource_list *rl;
     struct resource_list_entry *rle = 0;
     int passthrough = (device_get_parent(child) != bus);
     int isdefault = (start == 0UL && end == ~0UL);
@@ -1726,7 +1727,6 @@ resource_list_alloc(device_t bus, device_t child,
 				  start, end, count, flags);
     }
 
-    rl = device_get_ivars(child);
     rle = resource_list_find(rl, type, *rid);
 
     if (!rle)
@@ -1756,10 +1756,10 @@ resource_list_alloc(device_t bus, device_t child,
 }
 
 int
-resource_list_release(device_t bus, device_t child,
+resource_list_release(struct resource_list *rl,
+		      device_t bus, device_t child,
 		      int type, int rid, struct resource *res)
 {
-    struct resource_list *rl;
     struct resource_list_entry *rle = 0;
     int passthrough = (device_get_parent(child) != bus);
     int error;
@@ -1769,7 +1769,6 @@ resource_list_release(device_t bus, device_t child,
 				    type, rid, res);
     }
 
-    rl = device_get_ivars(child);
     rle = resource_list_find(rl, type, rid);
 
     if (!rle)
@@ -2063,6 +2062,54 @@ bus_teardown_intr(device_t dev, struct resource *r, void *cookie)
 	if (dev->parent == 0)
 		return (EINVAL);
 	return (BUS_TEARDOWN_INTR(dev->parent, dev, r, cookie));
+}
+
+int
+bus_set_resource(device_t dev, int type, int rid,
+		 u_long start, u_long count)
+{
+	return BUS_SET_RESOURCE(device_get_parent(dev), dev, type, rid,
+				start, count);
+}
+
+int
+bus_get_resource(device_t dev, int type, int rid,
+		 u_long *startp, u_long *countp)
+{
+	return BUS_GET_RESOURCE(device_get_parent(dev), dev, type, rid,
+				startp, countp);
+}
+
+u_long
+bus_get_resource_start(device_t dev, int type, int rid)
+{
+	u_long start, count;
+	int error;
+
+	error = BUS_GET_RESOURCE(device_get_parent(dev), dev, type, rid,
+				 &start, &count);
+	if (error)
+		return 0;
+	return start;
+}
+
+u_long
+bus_get_resource_count(device_t dev, int type, int rid)
+{
+	u_long start, count;
+	int error;
+
+	error = BUS_GET_RESOURCE(device_get_parent(dev), dev, type, rid,
+				 &start, &count);
+	if (error)
+		return 0;
+	return count;
+}
+
+void
+bus_delete_resource(device_t dev, int type, int rid)
+{
+	BUS_DELETE_RESOURCE(device_get_parent(dev), dev, type, rid);
 }
 
 static int

@@ -33,42 +33,6 @@ CODE {
 INTERFACE isa;
 
 #
-# Set the range used for a particular resource. Return EINVAL if
-# the type or rid are out of range.
-#
-METHOD int set_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int		rid;
-	u_long		start;
-	u_long		count;
-};
-
-#
-# Get the range for a resource. Return ENOENT if the type or rid are
-# out of range or have not been set.
-#
-METHOD int get_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int		rid;
-	u_long		*startp;
-	u_long		*countp;
-};
-
-#
-# Delete a resource.
-#
-METHOD void delete_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int		rid;
-};
-
-#
 # Add a Plug-and-play configuration to the device. Configurations with 
 # a lower priority are preferred.
 #
