@@ -387,10 +387,15 @@ get_kcore_registers (regno)
      int regno;
 {
   struct pcb *pcbaddr;
+  struct thread *mainthread;
 
   /* find the pcb for the current process */
-  if (cur_proc == NULL || kvread (&cur_proc->p_thread.td_pcb, &pcbaddr)) /* XXXKSE */
-    error ("cannot read u area ptr for proc at %#x", cur_proc);
+  if (cur_proc == NULL)
+    error ("get_kcore_registers no proc");
+  if (kvread (TAILQ_FIRST(&cur_proc->p_threads), &mainthread)) /* XXXKSE */
+    error ("cannot read main thread for proc at %#x", cur_proc);
+  if (kvread (&mainthread->td_pcb, &pcbaddr)) /* XXXKSE */
+    error ("cannot read pcb pointer for proc at %#x", cur_proc);
   if (read_pcb (core_kd, (CORE_ADDR)pcbaddr) < 0)
     error ("cannot read pcb at %#x", pcbaddr);
 }
