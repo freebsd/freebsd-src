@@ -2200,7 +2200,7 @@ options 	HW_WDOG
 options 	SW_WATCHDOG
 
 #
-# Disable swapping of upages and stack pages.  This option removes all
+# Disable swapping of stack pages.  This option removes all
 # code which actually performs swapping, so it's not possible to turn
 # it back on at run-time.
 #
