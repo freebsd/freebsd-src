@@ -163,6 +163,7 @@ struct radix_node_head {
 #define RADIX_NODE_HEAD_LOCK(rnh)	mtx_lock(&(rnh)->rnh_mtx)
 #define RADIX_NODE_HEAD_UNLOCK(rnh)	mtx_unlock(&(rnh)->rnh_mtx)
 #define RADIX_NODE_HEAD_DESTROY(rnh)	mtx_destroy(&(rnh)->rnh_mtx)
+#define	RADIX_NODE_HEAD_LOCK_ASSERT(rnh) mtx_assert(&(rnh)->rnh_mtx, MA_OWNED)
 #endif /* _KERNEL */
 
 void	 rn_init(void);
