@@ -400,7 +400,8 @@ fetch(char *URL, char *path)
 	fclose(f);
     if (of && of != stdout)
 	fclose(of);
-    fetchFreeURL(url);
+    if (url)
+	fetchFreeURL(url);
     return r;
 }
 
