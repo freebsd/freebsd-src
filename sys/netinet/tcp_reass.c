@@ -615,10 +615,6 @@ findpcb:
 				break;
 			}
 		}
-#ifdef ICMP_BANDLIM
-		if (badport_bandlim(1) < 0)
-			goto drop;
-#endif
 		if (blackhole) { 
 			switch (blackhole) {
 			case 1:
@@ -631,11 +627,11 @@ findpcb:
 				goto drop;
 			}
 		}
-		goto dropwithreset;
+		goto maybedropwithreset;
 	}
 	tp = intotcpcb(inp);
 	if (tp == 0)
-		goto dropwithreset;
+		goto maybedropwithreset;
 	if (tp->t_state == TCPS_CLOSED)
 		goto drop;
 
@@ -695,7 +691,7 @@ findpcb:
 				 */
 				if (thflags & TH_ACK) {
 					tcpstat.tcps_badsyn++;
-					goto dropwithreset;
+					goto maybedropwithreset;
 				}
 				goto drop;
 			}
@@ -772,7 +768,7 @@ findpcb:
 				 */
 				if (thflags & TH_ACK) {
 					tcpstat.tcps_badsyn++;
-					goto dropwithreset;
+					goto maybedropwithreset;
 				}
 				goto drop;
 			}
@@ -999,7 +995,7 @@ findpcb:
 		if (thflags & TH_RST)
 			goto drop;
 		if (thflags & TH_ACK)
-			goto dropwithreset;
+			goto maybedropwithreset;
 		if ((thflags & TH_SYN) == 0)
 			goto drop;
 		if (th->th_dport == th->th_sport) {
@@ -1017,16 +1013,22 @@ findpcb:
 		 * RFC1122 4.2.3.10, p. 104: discard bcast/mcast SYN
 		 * in_broadcast() should never return true on a received
 		 * packet with M_BCAST not set.
+ 		 *
+ 		 * Packets with a multicast source address should also
+ 		 * be discarded.
 		 */
 		if (m->m_flags & (M_BCAST|M_MCAST))
 			goto drop;
 #ifdef INET6
 		if (isipv6) {
-			if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst))
+			if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
+			    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
 				goto drop;
 		} else
 #endif
-		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
+		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
+		    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
+		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST))
 			goto drop;
 #ifdef INET6
 		if (isipv6) {
@@ -1187,7 +1189,7 @@ findpcb:
 		if ((thflags & TH_ACK) &&
 		    (SEQ_LEQ(th->th_ack, tp->snd_una) ||
 		     SEQ_GT(th->th_ack, tp->snd_max)))
-				goto dropwithreset;
+				goto maybedropwithreset;
 		break;
 
 	/*
@@ -1529,7 +1531,7 @@ trimthenstep6:
 	 * for the "LAND" DoS attack.
 	 */
 	if (tp->t_state == TCPS_SYN_RECEIVED && SEQ_LT(th->th_seq, tp->irs))
-		goto dropwithreset;
+		goto maybedropwithreset;
 
 	todrop = tp->rcv_nxt - th->th_seq;
 	if (todrop > 0) {
@@ -2192,7 +2194,7 @@ dropafterack:
 	if (tp->t_state == TCPS_SYN_RECEIVED && (thflags & TH_ACK) &&
 	    (SEQ_GT(tp->snd_una, th->th_ack) ||
 	     SEQ_GT(th->th_ack, tp->snd_max)) )
-		goto dropwithreset;
+		goto maybedropwithreset;
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
@@ -2203,6 +2205,17 @@ dropafterack:
 	(void) tcp_output(tp);
 	return;
 
+
+	/*
+	 * Conditionally drop with reset or just drop depending on whether
+	 * we think we are under attack or not.
+	 */
+maybedropwithreset:
+#ifdef ICMP_BANDLIM
+	if (badport_bandlim(1) < 0)
+		goto drop;
+#endif
+	/* fall through */
 dropwithreset:
 #ifdef TCP_RESTRICT_RST
 	if (restrict_rst)
@@ -2217,11 +2230,14 @@ dropwithreset:
 		goto drop;
 #ifdef INET6
 	if (isipv6) {
-		if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst))
+		if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
+		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
 			goto drop;
 	} else
 #endif /* INET6 */
-	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
+	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
+	    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
+	    ip->ip_src.s_addr == htonl(INADDR_BROADCAST))
 		goto drop;
 	/* IPv6 anycast check is done at tcp6_input() */
 #ifdef TCPDEBUG
