@@ -120,6 +120,7 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 		ERROR(disk, "could not read superblock to fill out disk");
 		return -1;
 	}
+	return 0;
 }
 
 int
