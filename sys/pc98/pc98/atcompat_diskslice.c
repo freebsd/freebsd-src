@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: atcompat_diskslice.c,v 1.10 1998/07/21 12:06:04 kato Exp $
+ *	$Id: atcompat_diskslice.c,v 1.11 1998/07/27 09:49:22 kato Exp $
  */
 
 /*
@@ -52,6 +52,7 @@
 #endif
 #include <sys/disklabel.h>
 #define	DOSPTYP_EXTENDED	5
+#define	DOSPTYP_EXTENDEDX	15
 #define	DOSPTYP_ONTRACK		84
 #define PC98
 #include <sys/diskslice.h>
@@ -343,7 +344,8 @@ reread_mbr:
 	/* Handle extended partitions. */
 	sp -= NDOSPART;
 	for (dospart = 0; dospart < NDOSPART; dospart++, sp++)
-		if (sp->ds_type == DOSPTYP_EXTENDED)
+		if (sp->ds_type == DOSPTYP_EXTENDED || 
+                    sp->ds_type == DOSPTYP_EXTENDEDX)
 			atcompat_extended(dname, bp->b_dev, strat, lp, ssp,
 				 sp->ds_offset, sp->ds_size, sp->ds_offset,
 				 max_nsectors, max_ntracks, mbr_offset);
@@ -415,7 +417,8 @@ atcompat_extended(dname, dev, strat, lp, ssp, ext_offset, ext_size,
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
 			continue;
-		if (dp->dp_typ == DOSPTYP_EXTENDED) {
+		if (dp->dp_typ == DOSPTYP_EXTENDED || 
+                    dp->dp_typ == DOSPTYP_EXTENDEDX) {
 			char buf[32];
 
 			sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE,
