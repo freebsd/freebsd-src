@@ -760,7 +760,7 @@ IoInitializeIrp(io, psize, ssize)
 	uint16_t		psize;
 	uint8_t			ssize;
 {
-	bzero((char *)io, sizeof(irp));
+	bzero((char *)io, IoSizeOfIrp(ssize));
 	io->irp_size = psize;
 	io->irp_stackcnt = ssize;
 	io->irp_currentstackloc = ssize;
