@@ -41,6 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
+#include <machine/tss.h>
 #include <machine/frame.h>
 
 static void kcore_files_info PARAMS ((struct target_ops *));
