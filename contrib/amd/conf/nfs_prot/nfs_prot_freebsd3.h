@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_freebsd3.h,v 1.4 1998/11/14 03:13:31 obrien Exp $
+ * $Id: nfs_prot_freebsd3.h,v 1.5 1999/01/13 20:03:57 obrien Exp $
  *
  */
 
@@ -185,6 +185,10 @@ struct nfs_fh3_freebsd3 {
   } fh3_u;
 };
 typedef struct nfs_fh3_freebsd3 nfs_fh3_freebsd3;
+
+/* since we don't use Am-utils's aux/macros/struct_nfs_fh3.m4, we don't get
+   their special searching.  So restore the standard name. */
+typedef struct nfs_fh3_freebsd3 nfs_fh3;
 
 #endif /* NFSMNT_NFSV3 */
 
