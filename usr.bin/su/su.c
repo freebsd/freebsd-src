@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: su.c,v 1.14.2.5 1997/09/28 17:00:06 markm Exp $";
+	"$Id: su.c,v 1.24 1997/10/27 22:05:12 guido Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,7 +74,7 @@ static const char rcsid[] =
 
 #ifdef KERBEROS
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 #include <netdb.h>
 
 #ifdef LOGIN_CAP
