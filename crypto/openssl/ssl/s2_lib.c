@@ -56,12 +56,12 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_RSA
+#include "ssl_locl.h"
+#ifndef NO_SSL2
 #include <stdio.h>
 #include <openssl/rsa.h>
 #include <openssl/objects.h>
 #include <openssl/md5.h>
-#include "ssl_locl.h"
 
 static long ssl2_default_timeout(void );
 const char *ssl2_version_str="SSLv2" OPENSSL_VERSION_PTEXT;
@@ -75,9 +75,12 @@ OPENSSL_GLOBAL SSL_CIPHER ssl2_ciphers[]={
 	1,
 	SSL2_TXT_NULL_WITH_MD5,
 	SSL2_CK_NULL_WITH_MD5,
-	SSL_kRSA|SSL_aRSA|SSL_eNULL|SSL_MD5|SSL_EXP40|SSL_SSLV2,
+	SSL_kRSA|SSL_aRSA|SSL_eNULL|SSL_MD5|SSL_SSLV2,
+	SSL_EXPORT|SSL_EXP40,
+	0,
 	0,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 #endif
 /* RC4_128_EXPORT40_WITH_MD5 */
@@ -85,63 +88,91 @@ OPENSSL_GLOBAL SSL_CIPHER ssl2_ciphers[]={
 	1,
 	SSL2_TXT_RC4_128_EXPORT40_WITH_MD5,
 	SSL2_CK_RC4_128_EXPORT40_WITH_MD5,
-	SSL_kRSA|SSL_aRSA|SSL_RC4|SSL_MD5|SSL_EXP40|SSL_SSLV2,
+	SSL_kRSA|SSL_aRSA|SSL_RC4|SSL_MD5|SSL_SSLV2,
+	SSL_EXPORT|SSL_EXP40,
 	SSL2_CF_5_BYTE_ENC,
+	40,
+	128,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 /* RC4_128_WITH_MD5 */
 	{
 	1,
 	SSL2_TXT_RC4_128_WITH_MD5,
 	SSL2_CK_RC4_128_WITH_MD5,
-	SSL_kRSA|SSL_aRSA|SSL_RC4|SSL_MD5|SSL_NOT_EXP|SSL_SSLV2|SSL_MEDIUM,
+	SSL_kRSA|SSL_aRSA|SSL_RC4|SSL_MD5|SSL_SSLV2,
+	SSL_NOT_EXP|SSL_MEDIUM,
 	0,
+	128,
+	128,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 /* RC2_128_CBC_EXPORT40_WITH_MD5 */
 	{
 	1,
 	SSL2_TXT_RC2_128_CBC_EXPORT40_WITH_MD5,
 	SSL2_CK_RC2_128_CBC_EXPORT40_WITH_MD5,
-	SSL_kRSA|SSL_aRSA|SSL_RC2|SSL_MD5|SSL_EXP40|SSL_SSLV2,
+	SSL_kRSA|SSL_aRSA|SSL_RC2|SSL_MD5|SSL_SSLV2,
+	SSL_EXPORT|SSL_EXP40,
 	SSL2_CF_5_BYTE_ENC,
+	40,
+	128,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 /* RC2_128_CBC_WITH_MD5 */
 	{
 	1,
 	SSL2_TXT_RC2_128_CBC_WITH_MD5,
 	SSL2_CK_RC2_128_CBC_WITH_MD5,
-	SSL_kRSA|SSL_aRSA|SSL_RC2|SSL_MD5|SSL_NOT_EXP|SSL_SSLV2|SSL_MEDIUM,
+	SSL_kRSA|SSL_aRSA|SSL_RC2|SSL_MD5|SSL_SSLV2,
+	SSL_NOT_EXP|SSL_MEDIUM,
 	0,
+	128,
+	128,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 /* IDEA_128_CBC_WITH_MD5 */
 	{
 	1,
 	SSL2_TXT_IDEA_128_CBC_WITH_MD5,
 	SSL2_CK_IDEA_128_CBC_WITH_MD5,
-	SSL_kRSA|SSL_aRSA|SSL_IDEA|SSL_MD5|SSL_NOT_EXP|SSL_SSLV2|SSL_MEDIUM,
+	SSL_kRSA|SSL_aRSA|SSL_IDEA|SSL_MD5|SSL_SSLV2,
+	SSL_NOT_EXP|SSL_MEDIUM,
 	0,
+	128,
+	128,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 /* DES_64_CBC_WITH_MD5 */
 	{
 	1,
 	SSL2_TXT_DES_64_CBC_WITH_MD5,
 	SSL2_CK_DES_64_CBC_WITH_MD5,
-	SSL_kRSA|SSL_aRSA|SSL_DES|SSL_MD5|SSL_NOT_EXP|SSL_SSLV2|SSL_LOW,
+	SSL_kRSA|SSL_aRSA|SSL_DES|SSL_MD5|SSL_SSLV2,
+	SSL_NOT_EXP|SSL_LOW,
 	0,
+	56,
+	56,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 /* DES_192_EDE3_CBC_WITH_MD5 */
 	{
 	1,
 	SSL2_TXT_DES_192_EDE3_CBC_WITH_MD5,
 	SSL2_CK_DES_192_EDE3_CBC_WITH_MD5,
-	SSL_kRSA|SSL_aRSA|SSL_3DES|SSL_MD5|SSL_NOT_EXP|SSL_SSLV2|SSL_HIGH,
+	SSL_kRSA|SSL_aRSA|SSL_3DES|SSL_MD5|SSL_SSLV2,
+	SSL_NOT_EXP|SSL_HIGH,
 	0,
+	168,
+	168,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 /* RC4_64_WITH_MD5 */
 #if 1
@@ -149,9 +180,13 @@ OPENSSL_GLOBAL SSL_CIPHER ssl2_ciphers[]={
 	1,
 	SSL2_TXT_RC4_64_WITH_MD5,
 	SSL2_CK_RC4_64_WITH_MD5,
-	SSL_kRSA|SSL_aRSA|SSL_RC4|SSL_MD5|SSL_SSLV2|SSL_LOW,
+	SSL_kRSA|SSL_aRSA|SSL_RC4|SSL_MD5|SSL_SSLV2,
+	SSL_NOT_EXP|SSL_LOW,
 	SSL2_CF_8_BYTE_ENC,
+	64,
+	64,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 #endif
 /* NULL SSLeay (testing) */
@@ -161,7 +196,11 @@ OPENSSL_GLOBAL SSL_CIPHER ssl2_ciphers[]={
 	SSL2_TXT_NULL,
 	SSL2_CK_NULL,
 	0,
+	0,
+	0,
+	0,
 	SSL_ALL_CIPHERS,
+	SSL_ALL_STRENGTHS,
 	},
 #endif
 
@@ -191,6 +230,9 @@ static SSL_METHOD SSLv2_data= {
 	ssl_bad_method,
 	ssl2_default_timeout,
 	&ssl3_undef_enc_method,
+	ssl_undefined_function,
+	ssl2_callback_ctrl,	/* local */
+	ssl2_ctx_callback_ctrl,	/* local */
 	};
 
 static long ssl2_default_timeout(void)
@@ -223,14 +265,14 @@ int ssl2_pending(SSL *s)
 
 int ssl2_new(SSL *s)
 	{
-	SSL2_CTX *s2;
+	SSL2_STATE *s2;
 
-	if ((s2=(SSL2_CTX *)Malloc(sizeof(SSL2_CTX))) == NULL) goto err;
-	memset(s2,0,sizeof(SSL2_CTX));
+	if ((s2=Malloc(sizeof *s2)) == NULL) goto err;
+	memset(s2,0,sizeof *s2);
 
-	if ((s2->rbuf=(unsigned char *)Malloc(
+	if ((s2->rbuf=Malloc(
 		SSL2_MAX_RECORD_LENGTH_2_BYTE_HEADER+2)) == NULL) goto err;
-	if ((s2->wbuf=(unsigned char *)Malloc(
+	if ((s2->wbuf=Malloc(
 		SSL2_MAX_RECORD_LENGTH_2_BYTE_HEADER+2)) == NULL) goto err;
 	s->s2=s2;
 
@@ -248,7 +290,7 @@ err:
 
 void ssl2_free(SSL *s)
 	{
-	SSL2_CTX *s2;
+	SSL2_STATE *s2;
 
 	if(s == NULL)
 	    return;
@@ -256,14 +298,14 @@ void ssl2_free(SSL *s)
 	s2=s->s2;
 	if (s2->rbuf != NULL) Free(s2->rbuf);
 	if (s2->wbuf != NULL) Free(s2->wbuf);
-	memset(s2,0,sizeof(SSL2_CTX));
+	memset(s2,0,sizeof *s2);
 	Free(s2);
 	s->s2=NULL;
 	}
 
 void ssl2_clear(SSL *s)
 	{
-	SSL2_CTX *s2;
+	SSL2_STATE *s2;
 	unsigned char *rbuf,*wbuf;
 
 	s2=s->s2;
@@ -271,7 +313,7 @@ void ssl2_clear(SSL *s)
 	rbuf=s2->rbuf;
 	wbuf=s2->wbuf;
 
-	memset(s2,0,sizeof(SSL2_CTX));
+	memset(s2,0,sizeof *s2);
 
 	s2->rbuf=rbuf;
 	s2->wbuf=wbuf;
@@ -296,7 +338,17 @@ long ssl2_ctrl(SSL *s, int cmd, long larg, char *parg)
 	return(ret);
 	}
 
+long ssl2_callback_ctrl(SSL *s, int cmd, void (*fp)())
+	{
+	return(0);
+	}
+
 long ssl2_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, char *parg)
+	{
+	return(0);
+	}
+
+long ssl2_ctx_callback_ctrl(SSL_CTX *ctx, int cmd, void (*fp)())
 	{
 	return(0);
 	}
@@ -372,7 +424,7 @@ void ssl2_generate_key_material(SSL *s)
 		MD5_Init(&ctx);
 
 		MD5_Update(&ctx,s->session->master_key,s->session->master_key_length);
-		MD5_Update(&ctx,(unsigned char *)&c,1);
+		MD5_Update(&ctx,&c,1);
 		c++;
 		MD5_Update(&ctx,s->s2->challenge,s->s2->challenge_length);
 		MD5_Update(&ctx,s->s2->conn_id,s->s2->conn_id_length);
@@ -421,4 +473,10 @@ int ssl2_shutdown(SSL *s)
 	s->shutdown=(SSL_SENT_SHUTDOWN|SSL_RECEIVED_SHUTDOWN);
 	return(1);
 	}
+#else /* !NO_SSL2 */
+
+# if PEDANTIC
+static void *dummy=&dummy;
+# endif
+
 #endif

@@ -67,10 +67,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(NO_RSA) && !defined(NO_SSL2)
-#define NO_SSL2
-#endif
-
 #ifdef NO_STDIO
 #define APPS_WIN16
 #endif
@@ -220,7 +216,7 @@ static void s_time_usage(void)
                 file if not specified by this option\n\
 -CApath arg   - PEM format directory of CA's\n\
 -CAfile arg   - PEM format file of CA's\n\
--cipher       - prefered cipher to use, play with 'openssl ciphers'\n\n";
+-cipher       - preferred cipher to use, play with 'openssl ciphers'\n\n";
 
 	printf( "usage: s_time <args>\n\n" );
 
@@ -229,7 +225,7 @@ static void s_time_usage(void)
 	printf("-nbio         - Run with non-blocking IO\n");
 	printf("-ssl2         - Just use SSLv2\n");
 	printf("-ssl3         - Just use SSLv3\n");
-	printf("-bugs         - Turn on SSL bug compatability\n");
+	printf("-bugs         - Turn on SSL bug compatibility\n");
 	printf("-new          - Just time new connections\n");
 	printf("-reuse        - Just time connection reuse\n");
 	printf("-www page     - Retrieve 'page' from the site\n");
@@ -248,15 +244,6 @@ static int parseArgs(int argc, char **argv)
 
     verify_depth=0;
     verify_error=X509_V_OK;
-#ifdef FIONBIO
-    t_nbio=0;
-#endif
-
-	apps_startup();
-	s_time_init();
-
-	if (bio_err == NULL)
-		bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 
     argc--;
     argv++;
@@ -401,6 +388,8 @@ static double tm_Time_F(int s)
  * MAIN - main processing area for client
  *			real name depends on MONOLITH
  */
+int MAIN(int, char **);
+
 int MAIN(int argc, char **argv)
 	{
 	double totalTime = 0.0;
@@ -410,6 +399,12 @@ int MAIN(int argc, char **argv)
 	int ret=1,i;
 	MS_STATIC char buf[1024*8];
 	int ver;
+
+	apps_startup();
+	s_time_init();
+
+	if (bio_err == NULL)
+		bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 
 #if !defined(NO_SSL2) && !defined(NO_SSL3)
 	s_time_meth=SSLv23_client_method();
@@ -423,7 +418,7 @@ int MAIN(int argc, char **argv)
 	if( parseArgs( argc, argv ) < 0 )
 		goto end;
 
-	SSLeay_add_ssl_algorithms();
+	OpenSSL_add_ssl_algorithms();
 	if ((tm_ctx=SSL_CTX_new(s_time_meth)) == NULL) return(1);
 
 	SSL_CTX_set_quiet_shutdown(tm_ctx,1);
@@ -438,7 +433,7 @@ int MAIN(int argc, char **argv)
 	if ((!SSL_CTX_load_verify_locations(tm_ctx,CAfile,CApath)) ||
 		(!SSL_CTX_set_default_verify_paths(tm_ctx)))
 		{
-		/* BIO_printf(bio_err,"error seting default verify locations\n"); */
+		/* BIO_printf(bio_err,"error setting default verify locations\n"); */
 		ERR_print_errors(bio_err);
 		/* goto end; */
 		}
@@ -639,7 +634,7 @@ static SSL *doConnection(SSL *scon)
 	BIO_set_conn_hostname(conn,host);
 
 	if (scon == NULL)
-		serverCon=(SSL *)SSL_new(tm_ctx);
+		serverCon=SSL_new(tm_ctx);
 	else
 		{
 		serverCon=scon;

@@ -58,6 +58,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #ifndef MSDOS
 #ifndef VMS
 #include <openssl/opensslconf.h>
@@ -69,7 +70,7 @@
 #include <math.h>
 #endif /* __DECC */
 #endif /* VMS */
-#else
+#else /* MSDOS */
 #include <io.h>
 #endif
 
@@ -87,10 +88,6 @@
 #endif
 #include <openssl/des.h>
 #include <openssl/rand.h>
-
-#if defined(__STDC__) || defined(VMS) || defined(M_XENIX) || defined(MSDOS)
-#include <string.h>
-#endif
 
 void usage(void);
 void doencryption(void);
@@ -325,25 +322,25 @@ void usage(void)
 "des <options> [input-file [output-file]]",
 "options:",
 "-v         : des(1) version number",
-"-e         : encrypt using sunOS compatible user key to DES key conversion.",
+"-e         : encrypt using SunOS compatible user key to DES key conversion.",
 "-E         : encrypt ",
-"-d         : decrypt using sunOS compatible user key to DES key conversion.",
+"-d         : decrypt using SunOS compatible user key to DES key conversion.",
 "-D         : decrypt ",
-"-c[ckname] : generate a cbc_cksum using sunOS compatible user key to",
+"-c[ckname] : generate a cbc_cksum using SunOS compatible user key to",
 "             DES key conversion and output to ckname (stdout default,",
 "             stderr if data being output on stdout).  The checksum is",
 "             generated before encryption and after decryption if used",
 "             in conjunction with -[eEdD].",
 "-C[ckname] : generate a cbc_cksum as for -c but compatible with -[ED].",
 "-k key     : use key 'key'",
-"-h         : the key that is entered will be a hexidecimal number",
+"-h         : the key that is entered will be a hexadecimal number",
 "             that is used directly as the des key",
 "-u[uuname] : input file is uudecoded if -[dD] or output uuencoded data if -[eE]",
 "             (uuname is the filename to put in the uuencode header).",
-"-b         : encrypt using DES in ecb encryption mode, the defaut is cbc mode.",
-"-3         : encrypt using tripple DES encryption.  This uses 2 keys",
+"-b         : encrypt using DES in ecb encryption mode, the default is cbc mode.",
+"-3         : encrypt using triple DES encryption.  This uses 2 keys",
 "             generated from the input key.  If the input key is less",
-"             than 8 characters long, this is equivelent to normal",
+"             than 8 characters long, this is equivalent to normal",
 "             encryption.  Default is triple cbc, -b makes it triple ecb.",
 NULL
 };
@@ -425,7 +422,7 @@ void doencryption(void)
 			else
 				k2[i-8]=k;
 			}
-		des_set_key(&k2,ks2);
+		des_set_key_unchecked(&k2,ks2);
 		memset(k2,0,sizeof(k2));
 		}
 	else if (longk || flag3)
@@ -433,7 +430,7 @@ void doencryption(void)
 		if (flag3)
 			{
 			des_string_to_2keys(key,&kk,&k2);
-			des_set_key(&k2,ks2);
+			des_set_key_unchecked(&k2,ks2);
 			memset(k2,0,sizeof(k2));
 			}
 		else
@@ -455,7 +452,7 @@ void doencryption(void)
 				kk[i]=key[i]|0x80;
 			}
 
-	des_set_key(&kk,ks);
+	des_set_key_unchecked(&kk,ks);
 	memset(key,0,sizeof(key));
 	memset(kk,0,sizeof(kk));
 	/* woops - A bug that does not showup under unix :-( */
@@ -484,7 +481,7 @@ void doencryption(void)
 			if (feof(DES_IN))
 				{
 				for (i=7-rem; i>0; i--)
-					RAND_bytes(buf + l++, 1);
+					RAND_pseudo_bytes(buf + l++, 1);
 				buf[l++]=rem;
 				ex=1;
 				len+=rem;

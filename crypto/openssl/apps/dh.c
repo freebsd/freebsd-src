@@ -1,4 +1,5 @@
 /* apps/dh.c */
+/* obsoleted by dhparam.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -72,7 +73,7 @@
 #undef PROG
 #define PROG	dh_main
 
-/* -inform arg	- input format - default PEM (one of DER, TXT or PEM)
+/* -inform arg	- input format - default PEM (DER or PEM)
  * -outform arg - output format - default PEM
  * -in arg	- input file - default stdin
  * -out arg	- output file - default stdout
@@ -81,6 +82,8 @@
  * -text
  * -C
  */
+
+int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
@@ -149,8 +152,8 @@ int MAIN(int argc, char **argv)
 bad:
 		BIO_printf(bio_err,"%s [options] <infile >outfile\n",prog);
 		BIO_printf(bio_err,"where options are\n");
-		BIO_printf(bio_err," -inform arg   input format - one of DER TXT PEM\n");
-		BIO_printf(bio_err," -outform arg  output format - one of DER TXT PEM\n");
+		BIO_printf(bio_err," -inform arg   input format - one of DER PEM\n");
+		BIO_printf(bio_err," -outform arg  output format - one of DER PEM\n");
 		BIO_printf(bio_err," -in arg       input file\n");
 		BIO_printf(bio_err," -out arg      output file\n");
 		BIO_printf(bio_err," -check        check the DH parameters\n");
@@ -219,7 +222,7 @@ bad:
 		BN_print(stdout,dh->g);
 		printf("\n");
 		if (dh->length != 0)
-			printf("recomented private length=%ld\n",dh->length);
+			printf("recommended private length=%ld\n",dh->length);
 #endif
 		}
 	
@@ -232,8 +235,8 @@ bad:
 			}
 		if (i & DH_CHECK_P_NOT_PRIME)
 			printf("p value is not prime\n");
-		if (i & DH_CHECK_P_NOT_STRONG_PRIME)
-			printf("p value is not a strong prime\n");
+		if (i & DH_CHECK_P_NOT_SAFE_PRIME)
+			printf("p value is not a safe prime\n");
 		if (i & DH_UNABLE_TO_CHECK_GENERATOR)
 			printf("unable to check the generator value\n");
 		if (i & DH_NOT_SUITABLE_GENERATOR)
@@ -282,6 +285,7 @@ bad:
 		printf("\tif ((dh->p == NULL) || (dh->g == NULL))\n");
 		printf("\t\treturn(NULL);\n");
 		printf("\treturn(dh);\n\t}\n");
+		Free(data);
 		}
 
 
@@ -297,7 +301,7 @@ bad:
 			}
 		if (!i)
 			{
-			BIO_printf(bio_err,"unable to write DH paramaters\n");
+			BIO_printf(bio_err,"unable to write DH parameters\n");
 			ERR_print_errors(bio_err);
 			goto end;
 			}

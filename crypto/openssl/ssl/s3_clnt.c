@@ -110,7 +110,7 @@ int ssl3_connect(SSL *s)
 	int ret= -1;
 	int new_state,state,skip=0;;
 
-	RAND_seed(&Time,sizeof(Time));
+	RAND_add(&Time,sizeof(Time),0);
 	ERR_clear_error();
 	clear_sys_error();
 
@@ -325,8 +325,8 @@ int ssl3_connect(SSL *s)
 		case SSL3_ST_CW_FINISHED_B:
 			ret=ssl3_send_finished(s,
 				SSL3_ST_CW_FINISHED_A,SSL3_ST_CW_FINISHED_B,
-				s->method->ssl3_enc->client_finished,
-				s->method->ssl3_enc->client_finished_len);
+				s->method->ssl3_enc->client_finished_label,
+				s->method->ssl3_enc->client_finished_label_len);
 			if (ret <= 0) goto end;
 			s->state=SSL3_ST_CW_FLUSH;
 
@@ -466,7 +466,7 @@ static int ssl3_client_hello(SSL *s)
 		p=s->s3->client_random;
 		Time=time(NULL);			/* Time */
 		l2n(Time,p);
-		RAND_bytes(p,SSL3_RANDOM_SIZE-sizeof(Time));
+		RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE-sizeof(Time));
 
 		/* Do the message type and length last */
 		d=p= &(buf[4]);
@@ -772,6 +772,8 @@ static int ssl3_get_server_certificate(SSL *s)
 	s->session->sess_cert=sc;
 
 	sc->cert_chain=sk;
+	/* Inconsistency alert: cert_chain does include the peer's
+	 * certificate, which we don't include in s3_srvr.c */
 	x=sk_X509_value(sk,0);
 	sk=NULL;
 
@@ -1053,15 +1055,15 @@ static int ssl3_get_key_exchange(SSL *s)
 				q+=i;
 				j+=i;
 				}
-			i=RSA_public_decrypt((int)n,p,p,pkey->pkey.rsa,
-				RSA_PKCS1_PADDING);
-			if (i <= 0)
+			i=RSA_verify(NID_md5_sha1, md_buf, j, p, n,
+								pkey->pkey.rsa);
+			if (i < 0)
 				{
 				al=SSL_AD_DECRYPT_ERROR;
 				SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE,SSL_R_BAD_RSA_DECRYPT);
 				goto f_err;
 				}
-			if ((j != i) || (memcmp(p,md_buf,i) != 0))
+			if (i == 0)
 				{
 				/* bad signature */
 				al=SSL_AD_DECRYPT_ERROR;
@@ -1225,7 +1227,7 @@ fclose(out);
 
 		if ((xn=d2i_X509_NAME(NULL,&q,l)) == NULL)
 			{
-			/* If netscape tollerance is on, ignore errors */
+			/* If netscape tolerance is on, ignore errors */
 			if (s->options & SSL_OP_NETSCAPE_CA_DN_BUG)
 				goto cont;
 			else
@@ -1258,7 +1260,7 @@ cont:
 		ERR_clear_error();
 		}
 
-	/* we should setup a certficate to return.... */
+	/* we should setup a certificate to return.... */
 	s->s3->tmp.cert_req=1;
 	s->s3->tmp.ctype_num=ctype_num;
 	if (s->s3->tmp.ca_names != NULL)
@@ -1341,7 +1343,8 @@ static int ssl3_send_client_key_exchange(SSL *s)
 				
 			tmp_buf[0]=s->client_version>>8;
 			tmp_buf[1]=s->client_version&0xff;
-			RAND_bytes(&(tmp_buf[2]),SSL_MAX_MASTER_KEY_LENGTH-2);
+			if (RAND_bytes(&(tmp_buf[2]),SSL_MAX_MASTER_KEY_LENGTH-2) <= 0)
+					goto err;
 
 			s->session->master_key_length=SSL_MAX_MASTER_KEY_LENGTH;
 
@@ -1460,7 +1463,7 @@ static int ssl3_send_client_verify(SSL *s)
 	unsigned char data[MD5_DIGEST_LENGTH+SHA_DIGEST_LENGTH];
 	EVP_PKEY *pkey;
 #ifndef NO_RSA
-	int i=0;
+	unsigned u=0;
 #endif
 	unsigned long n;
 #ifndef NO_DSA
@@ -1481,17 +1484,15 @@ static int ssl3_send_client_verify(SSL *s)
 			{
 			s->method->ssl3_enc->cert_verify_mac(s,
 				&(s->s3->finish_dgst1),&(data[0]));
-			i=RSA_private_encrypt(
-				MD5_DIGEST_LENGTH+SHA_DIGEST_LENGTH,
-				data,&(p[2]),pkey->pkey.rsa,
-				RSA_PKCS1_PADDING);
-			if (i <= 0)
+			if (RSA_sign(NID_md5_sha1, data,
+					 MD5_DIGEST_LENGTH+SHA_DIGEST_LENGTH,
+					&(p[2]), &u, pkey->pkey.rsa) <= 0 )
 				{
 				SSLerr(SSL_F_SSL3_SEND_CLIENT_VERIFY,ERR_R_RSA_LIB);
 				goto err;
 				}
-			s2n(i,p);
-			n=i+2;
+			s2n(u,p);
+			n=u+2;
 			}
 		else
 #endif
@@ -1689,13 +1690,13 @@ static int ssl3_check_cert_and_algorithm(SSL *s)
 #endif
 #endif
 
-	if (SSL_IS_EXPORT(algs) && !has_bits(i,EVP_PKT_EXP))
+	if (SSL_C_IS_EXPORT(s->s3->tmp.new_cipher) && !has_bits(i,EVP_PKT_EXP))
 		{
 #ifndef NO_RSA
 		if (algs & SSL_kRSA)
 			{
 			if (rsa == NULL
-			    || RSA_size(rsa) > SSL_EXPORT_PKEYLENGTH(algs))
+			    || RSA_size(rsa) > SSL_C_EXPORT_PKEYLENGTH(s->s3->tmp.new_cipher))
 				{
 				SSLerr(SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM,SSL_R_MISSING_EXPORT_TMP_RSA_KEY);
 				goto f_err;
@@ -1707,7 +1708,7 @@ static int ssl3_check_cert_and_algorithm(SSL *s)
 			if (algs & (SSL_kEDH|SSL_kDHr|SSL_kDHd))
 			    {
 			    if (dh == NULL
-				|| DH_size(dh) > SSL_EXPORT_PKEYLENGTH(algs))
+				|| DH_size(dh) > SSL_C_EXPORT_PKEYLENGTH(s->s3->tmp.new_cipher))
 				{
 				SSLerr(SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM,SSL_R_MISSING_EXPORT_TMP_DH_KEY);
 				goto f_err;

@@ -1,4 +1,5 @@
 /* apps/gendh.c */
+/* obsoleted by dhparam.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -75,15 +76,16 @@
 #define PROG gendh_main
 
 static void MS_CALLBACK dh_cb(int p, int n, void *arg);
-static long dh_load_rand(char *names);
+
+int MAIN(int, char **);
+
 int MAIN(int argc, char **argv)
 	{
-	char buffer[200];
 	DH *dh=NULL;
 	int ret=1,num=DEFBITS;
 	int g=2;
 	char *outfile=NULL;
-	char *inrand=NULL,*randfile;
+	char *inrand=NULL;
 	BIO *out=NULL;
 
 	apps_startup();
@@ -126,7 +128,7 @@ bad:
 		BIO_printf(bio_err," -2    use 2 as the generator value\n");
 	/*	BIO_printf(bio_err," -3    use 3 as the generator value\n"); */
 		BIO_printf(bio_err," -5    use 5 as the generator value\n");
-		BIO_printf(bio_err," -rand file:file:...\n");
+		BIO_printf(bio_err," -rand file%cfile%c...\n", LIST_SEPARATOR_CHAR, LIST_SEPARATOR_CHAR);
 		BIO_printf(bio_err,"           - load the file (or the files in the directory) into\n");
 		BIO_printf(bio_err,"             the random number generator\n");
 		goto end;
@@ -150,28 +152,21 @@ bad:
 			}
 		}
 
-	randfile=RAND_file_name(buffer,200);
-	if ((randfile == NULL)|| !RAND_load_file(randfile,1024L*1024L))
-		BIO_printf(bio_err,"unable to load 'random state'\n");
-
-	if (inrand == NULL)
-		BIO_printf(bio_err,"warning, not much extra random data, consider using the -rand option\n");
-	else
+	if (!app_RAND_load_file(NULL, bio_err, 1) && inrand == NULL)
 		{
-		BIO_printf(bio_err,"%ld semi-random bytes loaded\n",
-			dh_load_rand(inrand));
+		BIO_printf(bio_err,"warning, not much extra random data, consider using the -rand option\n");
 		}
+	if (inrand != NULL)
+		BIO_printf(bio_err,"%ld semi-random bytes loaded\n",
+			app_RAND_load_files(inrand));
 
-	BIO_printf(bio_err,"Generating DH parameters, %d bit long strong prime, generator of %d\n",num,g);
+	BIO_printf(bio_err,"Generating DH parameters, %d bit long safe prime, generator %d\n",num,g);
 	BIO_printf(bio_err,"This is going to take a long time\n");
 	dh=DH_generate_parameters(num,g,dh_cb,bio_err);
 		
 	if (dh == NULL) goto end;
 
-	if (randfile == NULL)
-		BIO_printf(bio_err,"unable to write 'random state'\n");
-	else
-		RAND_write_file(randfile);
+	app_RAND_write_file(NULL, bio_err);
 
 	if (!PEM_write_bio_DHparams(out,dh))
 		goto end;
@@ -197,27 +192,5 @@ static void MS_CALLBACK dh_cb(int p, int n, void *arg)
 #ifdef LINT
 	p=n;
 #endif
-	}
-
-static long dh_load_rand(char *name)
-	{
-	char *p,*n;
-	int last;
-	long tot=0;
-
-	for (;;)
-		{
-		last=0;
-		for (p=name; ((*p != '\0') && (*p != LIST_SEPARATOR_CHAR)); p++);
-		if (*p == '\0') last=1;
-		*p='\0';
-		n=name;
-		name=p+1;
-		if (*n == '\0') break;
-
-		tot+=RAND_load_file(n,1);
-		if (last) break;
-		}
-	return(tot);
 	}
 #endif
