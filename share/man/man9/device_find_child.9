@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 1998
+.Dd February 8, 2005
 .Dt DEVICE_FIND_CHILD 9
 .Os
 .Sh NAME
@@ -38,14 +38,21 @@
 .In sys/param.h
 .In sys/bus.h
 .Ft device_t
-.Fn device_find_child "device_t dev" "const char* name" "int unit"
+.Fn device_find_child "device_t dev" "const char *classname" "int unit"
 .Sh DESCRIPTION
 This function looks for a specific child of
 .Dv dev .
 with the given
-.Fa name
+.Fa classname
 and
 .Fa unit .
+If
+.Fa unit
+is -1, it returns the first child of
+.Dv dev
+with a matching
+.Fa classname
+(that is, the one with the lowest unit.)
 .Sh RETURN VALUES
 If it exists, the child device is returned, otherwise NULL.
 .Sh SEE ALSO
