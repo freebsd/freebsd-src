@@ -32,6 +32,7 @@
  */
 
 #include <sys/cdefs.h>
+
 __FBSDID("$FreeBSD$");
 
 #ifndef lint
@@ -77,15 +78,8 @@ static char sccsid[] = "@(#)rsaencpwd.c	8.3 (Berkeley) 5/30/95";
 #include <arpa/telnet.h>
 #include <pwd.h>
 #include <stdio.h>
-
-#ifdef	__STDC__
 #include <stdlib.h>
-#endif
-#ifdef	NO_STRING_H
-#include <strings.h>
-#else
 #include <string.h>
-#endif
 
 #include "encrypt.h"
 #include "auth.h"
@@ -478,18 +472,4 @@ char *name, *passwd;
   return(passwdok_status);
 }
 
-#endif
-
-#ifdef notdef
-
-prkey(msg, key)
-	char *msg;
-	unsigned char *key;
-{
-	register int i;
-	printf("%s:", msg);
-	for (i = 0; i < 8; i++)
-		printf(" %3d", key[i]);
-	printf("\r\n");
-}
 #endif

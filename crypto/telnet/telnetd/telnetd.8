@@ -243,26 +243,6 @@ have been idle for some period of time to determine
 if the client is still there, so that idle connections
 from machines that have crashed or can no longer
 be reached may be cleaned up.
-.It Fl s
-This option is only enabled if
-.Nm
-is compiled with support for
-.Tn SecurID
-cards.
-It causes the
-.Fl s
-option to be passed on to
-.Xr login 1 ,
-and thus is only useful if
-.Xr login 1
-supports the
-.Fl s
-flag to indicate that only
-.Tn SecurID
-validated logins are allowed, and is
-usually useful for controlling remote logins
-from outside of a firewall.
-.It Fl S Ar tos
 .It Fl u Ar len
 This option is used to specify the size of the field
 in the

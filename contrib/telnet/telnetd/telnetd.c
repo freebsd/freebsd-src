@@ -31,67 +31,39 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include "telnetd.h"
 #include "pathnames.h"
 
-#include <err.h>
-#include <arpa/inet.h>
-
 #include <sys/mman.h>
+#include <err.h>
 #include <libutil.h>
 #include <paths.h>
+#include <termcap.h>
 #include <utmp.h>
 
-#if	defined(AUTHENTICATION)
+#include <arpa/inet.h>
+
+#ifdef	AUTHENTICATION
 #include <libtelnet/auth.h>
 int	auth_level = 0;
 #endif
-#if	defined(ENCRYPTION)
+#ifdef	ENCRYPTION
 #include <libtelnet/encrypt.h>
 #endif
 #include <libtelnet/misc.h>
-#if	defined(SecurID)
-int	require_SecurID = 0;
-#endif
 
 char	remote_hostname[MAXHOSTNAMELEN];
-int	utmp_len = sizeof(remote_hostname) - 1;
+size_t	utmp_len = sizeof(remote_hostname) - 1;
 int	registerd_host_only = 0;
 
-#ifdef	STREAMSPTY
-# include <stropts.h>
-# include <termio.h>
-/* make sure we don't get the bsd version */
-# include "/usr/include/sys/tty.h"
-# include <sys/ptyvar.h>
-
-/*
- * Because of the way ptyibuf is used with streams messages, we need
- * ptyibuf+1 to be on a full-word boundary.  The following weirdness
- * is simply to make that happen.
- */
-long	ptyibufbuf[BUFSIZ/sizeof(long)+1];
-char	*ptyibuf = ((char *)&ptyibufbuf[1])-1;
-char	*ptyip = ((char *)&ptyibufbuf[1])-1;
-char	ptyibuf2[BUFSIZ];
-unsigned char ctlbuf[BUFSIZ];
-struct	strbuf strbufc, strbufd;
-
-#else	/* ! STREAMPTY */
 
 /*
  * I/O data buffers,
@@ -100,25 +72,21 @@ struct	strbuf strbufc, strbufd;
 char	ptyibuf[BUFSIZ], *ptyip = ptyibuf;
 char	ptyibuf2[BUFSIZ];
 
-# include <termcap.h>
-
-int readstream(int p, char *ibuf, int bufsize);
-void doit(struct sockaddr *who);
-int terminaltypeok(char *s);
-void startslave(char *host, int autologin, char *autoname);
-
-#endif /* ! STREAMPTY */
+int readstream(int, char *, int);
+void doit(struct sockaddr *);
+int terminaltypeok(char *);
 
 int	hostinfo = 1;			/* do we print login banner? */
 
 int debug = 0;
 int keepalive = 1;
-char *altlogin;
+const char *altlogin;
 
 void doit __P((struct sockaddr *));
 int terminaltypeok __P((char *));
 void startslave __P((char *, int, char *));
 extern void usage P((void));
+static void _gettermname __P((void));
 
 /*
  * The string to pass to getopt().  We do it this way so
@@ -143,21 +111,29 @@ char valid_opts[] = {
 #ifdef	LINEMODE
 	'l',
 #endif
-#ifdef	SecurID
-	's',
-#endif
 	'\0'
 };
 
 int family = AF_INET;
 
+#ifndef	MAXHOSTNAMELEN
+#define	MAXHOSTNAMELEN 256
+#endif	/* MAXHOSTNAMELEN */
+
+char *hostname;
+char host_name[MAXHOSTNAMELEN];
+
+extern void telnet P((int, int, char *));
+
+int level;
+char user_name[256];
+
 int
-main(argc, argv)
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct sockaddr_storage from;
 	int on = 1, fromlen;
-	register int ch;
+	int ch;
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 	int tos = -1;
 #endif
@@ -290,12 +266,6 @@ main(argc, argv)
 			altlogin = optarg;
 			break;
 
-#ifdef	SecurID
-		case 's':
-			/* SecurID required */
-			require_SecurID = 1;
-			break;
-#endif	/* SecurID */
 		case 'S':
 #ifdef	HAS_GETTOS
 			if ((tos = parsetos(optarg, "tcp")) < 0)
@@ -308,9 +278,7 @@ main(argc, argv)
 			break;
 
 		case 'u':
-			utmp_len = atoi(optarg);
-			if (utmp_len < 0)
-				utmp_len = -utmp_len;
+			utmp_len = (size_t)atoi(optarg);
 			if (utmp_len >= sizeof(remote_hostname))
 				utmp_len = sizeof(remote_hostname) - 1;
 			break;
@@ -352,7 +320,7 @@ main(argc, argv)
 
 	if (debug) {
 	    int s, ns, foo, error;
-	    char *service = "telnet";
+	    const char *service = "telnet";
 	    struct addrinfo hints, *res;
 
 	    if (argc > 1) {
@@ -460,9 +428,6 @@ usage()
 #endif
 	fprintf(stderr, " [-n]");
 	fprintf(stderr, "\n\t");
-#ifdef	SecurID
-	fprintf(stderr, " [-s]");
-#endif
 #ifdef	HAS_GETTOS
 	fprintf(stderr, " [-S tos]");
 #endif
@@ -484,15 +449,20 @@ static unsigned char ttytype_sbbuf[] = {
 	IAC, SB, TELOPT_TTYPE, TELQUAL_SEND, IAC, SE
 };
 
-    int
-getterminaltype(name)
-    char *name;
+
+#ifndef	AUTHENTICATION
+#define undef2 __unused
+#else
+#define undef2
+#endif
+
+static int
+getterminaltype(char *name undef2)
 {
     int retval = -1;
-    void _gettermname();
 
     settimer(baseline);
-#if	defined(AUTHENTICATION)
+#ifdef	AUTHENTICATION
     /*
      * Handle the Authentication option before we do anything else.
      */
@@ -630,8 +600,8 @@ getterminaltype(name)
     return(retval);
 }  /* end of getterminaltype */
 
-    void
-_gettermname()
+static void
+_gettermname(void)
 {
     /*
      * If the client turned off the option,
@@ -648,9 +618,8 @@ _gettermname()
 	ttloop();
 }
 
-    int
-terminaltypeok(s)
-    char *s;
+int
+terminaltypeok(char *s)
 {
     char buf[1024];
 
@@ -669,25 +638,13 @@ terminaltypeok(s)
     return(1);
 }
 
-#ifndef	MAXHOSTNAMELEN
-#define	MAXHOSTNAMELEN 256
-#endif	/* MAXHOSTNAMELEN */
-
-char *hostname;
-char host_name[MAXHOSTNAMELEN];
-
-extern void telnet P((int, int, char *));
-
-int level;
-char user_name[256];
 /*
  * Get a pty, scan input lines.
  */
-	void
-doit(who)
-	struct sockaddr *who;
+void
+doit(struct sockaddr *who)
 {
-	int err;
+	int err_; /* XXX */
 	int ptynum;
 
 	/*
@@ -721,17 +678,23 @@ doit(who)
 
 	trimdomain(remote_hostname, UT_HOSTSIZE);
 	if (!isdigit(remote_hostname[0]) && strlen(remote_hostname) > utmp_len)
-		err = getnameinfo(who, who->sa_len, remote_hostname,
+		err_ = getnameinfo(who, who->sa_len, remote_hostname,
 				  sizeof(remote_hostname), NULL, 0,
 				  NI_NUMERICHOST|NI_WITHSCOPEID);
-		/* XXX: do 'err' check */
+		/* XXX: do 'err_' check */
 
 	(void) gethostname(host_name, sizeof(host_name) - 1);
 	host_name[sizeof(host_name) - 1] = '\0';
 	hostname = host_name;
 
-#if	defined(AUTHENTICATION) || defined(ENCRYPTION)
+#ifdef	AUTHENTICATION
+#ifdef	ENCRYPTION
+/* The above #ifdefs should actually be "or"'ed, not "and"'ed.
+ * This is a byproduct of needing "#ifdef" and not "#if defined()"
+ * for unifdef. XXX MarkM
+ */
 	auth_encrypt_init(hostname, remote_hostname, "TELNETD", 1);
+#endif
 #endif
 
 	init_env();
@@ -751,10 +714,8 @@ doit(who)
  * Main loop.  Select from pty and network, and
  * hand data to telnet receiver finite state machine.
  */
-	void
-telnet(f, p, host)
-	int f, p;
-	char *host;
+void
+telnet(int f, int p, char *host)
 {
 	int on = 1;
 #define	TABBUFSIZ	512
@@ -861,12 +822,10 @@ telnet(f, p, host)
 	if (my_state_is_wont(TELOPT_ECHO))
 		send_will(TELOPT_ECHO, 1);
 
-#ifndef	STREAMSPTY
 	/*
 	 * Turn on packet mode
 	 */
 	(void) ioctl(p, TIOCPKT, (char *)&on);
-#endif
 
 #if	defined(LINEMODE) && defined(KLUDGELINEMODE)
 	/*
@@ -908,7 +867,7 @@ telnet(f, p, host)
 
 #ifdef  TIOCNOTTY
 	{
-		register int t;
+		int t;
 		t = open(_PATH_TTY, O_RDWR);
 		if (t >= 0) {
 			(void) ioctl(t, TIOCNOTTY, (char *)0);
@@ -926,7 +885,6 @@ telnet(f, p, host)
 	 */
 
 	if (getent(defent, "default") == 1) {
-		char *Getstr();
 		char *cp=defstrs;
 
 		HE = Getstr("he", &cp);
@@ -935,9 +893,9 @@ telnet(f, p, host)
 		if (HN && *HN)
 			(void) strlcpy(host_name, HN, sizeof(host_name));
 		if (IM == 0)
-			IM = "";
+			IM = strdup("");
 	} else {
-		IM = DEFAULT_IM;
+		IM = strdup(DEFAULT_IM);
 		HE = 0;
 	}
 	edithost(HE, host_name);
@@ -968,7 +926,7 @@ telnet(f, p, host)
 	nfd = ((f > p) ? f : p) + 1;
 	for (;;) {
 		fd_set ibits, obits, xbits;
-		register int c;
+		int c;
 
 		if (ncc < 0 && pcc < 0)
 			break;
@@ -1089,11 +1047,7 @@ telnet(f, p, host)
 		 * Something to read from the pty...
 		 */
 		if (FD_ISSET(p, &ibits)) {
-#ifndef	STREAMSPTY
 			pcc = read(p, ptyibuf, BUFSIZ);
-#else
-			pcc = readstream(p, ptyibuf, BUFSIZ);
-#endif
 			/*
 			 * On some systems, if we try to read something
 			 * off the master side before the slave side is
@@ -1188,114 +1142,16 @@ telnet(f, p, host)
 # endif
 #endif
 
-#ifdef	STREAMSPTY
-
-int flowison = -1;  /* current state of flow: -1 is unknown */
-
-int readstream(p, ibuf, bufsize)
-	int p;
-	char *ibuf;
-	int bufsize;
-{
-	int flags = 0;
-	int ret = 0;
-	struct termios *tsp;
-	struct termio *tp;
-	struct iocblk *ip;
-	char vstop, vstart;
-	int ixon;
-	int newflow;
-
-	strbufc.maxlen = BUFSIZ;
-	strbufc.buf = (char *)ctlbuf;
-	strbufd.maxlen = bufsize-1;
-	strbufd.len = 0;
-	strbufd.buf = ibuf+1;
-	ibuf[0] = 0;
-
-	ret = getmsg(p, &strbufc, &strbufd, &flags);
-	if (ret < 0)  /* error of some sort -- probably EAGAIN */
-		return(-1);
-
-	if (strbufc.len <= 0 || ctlbuf[0] == M_DATA) {
-		/* data message */
-		if (strbufd.len > 0) {			/* real data */
-			return(strbufd.len + 1);	/* count header char */
-		} else {
-			/* nothing there */
-			errno = EAGAIN;
-			return(-1);
-		}
-	}
-
-	/*
-	 * It's a control message.  Return 1, to look at the flag we set
-	 */
-
-	switch (ctlbuf[0]) {
-	case M_FLUSH:
-		if (ibuf[1] & FLUSHW)
-			ibuf[0] = TIOCPKT_FLUSHWRITE;
-		return(1);
-
-	case M_IOCTL:
-		ip = (struct iocblk *) (ibuf+1);
-
-		switch (ip->ioc_cmd) {
-		case TCSETS:
-		case TCSETSW:
-		case TCSETSF:
-			tsp = (struct termios *)
-					(ibuf+1 + sizeof(struct iocblk));
-			vstop = tsp->c_cc[VSTOP];
-			vstart = tsp->c_cc[VSTART];
-			ixon = tsp->c_iflag & IXON;
-			break;
-		case TCSETA:
-		case TCSETAW:
-		case TCSETAF:
-			tp = (struct termio *) (ibuf+1 + sizeof(struct iocblk));
-			vstop = tp->c_cc[VSTOP];
-			vstart = tp->c_cc[VSTART];
-			ixon = tp->c_iflag & IXON;
-			break;
-		default:
-			errno = EAGAIN;
-			return(-1);
-		}
-
-		newflow =  (ixon && (vstart == 021) && (vstop == 023)) ? 1 : 0;
-		if (newflow != flowison) {  /* it's a change */
-			flowison = newflow;
-			ibuf[0] = newflow ? TIOCPKT_DOSTOP : TIOCPKT_NOSTOP;
-			return(1);
-		}
-	}
-
-	/* nothing worth doing anything about */
-	errno = EAGAIN;
-	return(-1);
-}
-#endif /* STREAMSPTY */
-
 /*
  * Send interrupt to process on other side of pty.
  * If it is in raw mode, just write NULL;
  * otherwise, write intr char.
  */
-	void
-interrupt()
+void
+interrupt(void)
 {
 	ptyflush();	/* half-hearted */
 
-#if defined(STREAMSPTY) && defined(TIOCSIGNAL)
-	/* Streams PTY style ioctl to post a signal */
-	{
-		int sig = SIGINT;
-		(void) ioctl(pty, TIOCSIGNAL, &sig);
-		(void) ioctl(pty, I_FLUSH, FLUSHR);
-	}
-#else
 #ifdef	TCSIG
 	(void) ioctl(pty, TCSIG, (char *)SIGINT);
 #else	/* TCSIG */
@@ -1303,7 +1159,6 @@ interrupt()
 	*pfrontp++ = slctab[SLC_IP].sptr ?
 			(unsigned char)*slctab[SLC_IP].sptr : '\177';
 #endif	/* TCSIG */
-#endif
 }
 
 /*
@@ -1311,8 +1166,8 @@ interrupt()
  * If it is in raw mode, just write NULL;
  * otherwise, write quit char.
  */
-	void
-sendbrk()
+void
+sendbrk(void)
 {
 	ptyflush();	/* half-hearted */
 #ifdef	TCSIG
@@ -1324,8 +1179,8 @@ sendbrk()
 #endif	/* TCSIG */
 }
 
-	void
-sendsusp()
+void
+sendsusp(void)
 {
 #ifdef	SIGTSTP
 	ptyflush();	/* half-hearted */
@@ -1342,8 +1197,8 @@ sendsusp()
  * When we get an AYT, if ^T is enabled, use that.  Otherwise,
  * just send back "[Yes]".
  */
-	void
-recv_ayt()
+void
+recv_ayt(void)
 {
 #if	defined(SIGINFO) && defined(TCSIG)
 	if (slctab[SLC_AYT].sptr && *slctab[SLC_AYT].sptr != _POSIX_VDISABLE) {
@@ -1354,8 +1209,8 @@ recv_ayt()
 	output_data("\r\n[Yes]\r\n");
 }
 
-	void
-doeof()
+void
+doeof(void)
 {
 	init_termbuf();
 
