@@ -18,11 +18,11 @@
 # Set these, release builder!
 #
 # Fixed version:
-#BUILDNAME=5.2-RELEASE
+#BUILDNAME=6.0-CURRENT
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
-BASE = 5.2
+BASE = 6.0
 BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 #CHROOTDIR=/junk/release
