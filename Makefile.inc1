@@ -183,6 +183,8 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 #	This stage installs a previously built world.
 #
 
+BOOTSTRAPPING?=	0
+
 # Common environment for world related stages
 CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
@@ -638,11 +640,9 @@ legacy:
 _strfile=	games/fortune/strfile
 .endif
 
-.if defined(BOOTSTRAPPING)
 .if ( ${BOOTSTRAPPING} < 450005 || \
     ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500034 ))
 _uudecode=	usr.bin/uudecode
-.endif
 .endif
 
 bootstrap-tools:
@@ -704,7 +704,8 @@ _kgzip=	usr.sbin/kgzip
 .endif
 .endif
 
-.if ${TARGET_ARCH} == "sparc64" && ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ${TARGET_ARCH} == "sparc64" && ${TARGET_ARCH} != ${MACHINE_ARCH} && \
+    ${BOOTSTRAPPING} < 500037
 _elf2aout=	usr.bin/elf2aout
 .endif
 
