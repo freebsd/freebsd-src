@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mdXhl.c,v 1.7 1996/07/24 20:55:38 phk Exp $
+ * $Id: mdXhl.c,v 1.8 1996/10/25 06:48:12 bde Exp $
  *
  */
 
@@ -41,7 +41,7 @@ MDXEnd(MDX_CTX *ctx, char *buf)
 }
 
 char *
-MDXFile (char *filename, char *buf)
+MDXFile (const char *filename, char *buf)
 {
     unsigned char buffer[BUFSIZ];
     MDX_CTX ctx;
