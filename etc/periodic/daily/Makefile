@@ -5,6 +5,7 @@ BIN=    100.clean-disks \
 	120.clean-preserve \
 	130.clean-msgs \
 	140.clean-rwho \
+	150.clean-hoststat \
 	200.backup-passwd \
 	210.backup-aliases \
 	220.backup-distfile \
