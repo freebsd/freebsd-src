@@ -68,7 +68,7 @@ READ(ap)
 	struct uio *uio;
 	FS *fs;
 	struct buf *bp;
-	ufs_daddr_t lbn, nextlbn;
+	daddr_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	int error, orig_resid;
@@ -606,7 +606,7 @@ ffs_getpages(ap)
 	int pbackwards, pforwards;
 	int firstpage;
 	int reqlblkno;
-	daddr_t reqblkno;
+	ufs_daddr_t reqblkno;
 	int poff;
 	int pcount;
 	int rtval;
