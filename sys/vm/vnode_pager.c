@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.57 1995/12/17 23:29:56 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.58 1996/01/19 04:00:31 dyson Exp $
  */
 
 /*
@@ -143,7 +143,10 @@ vnode_pager_alloc(handle, size, prot, offset)
 		 * And an object of the appropriate size
 		 */
 		object = vm_object_allocate(OBJT_VNODE, size);
-		object->flags = OBJ_CANPERSIST;
+		if (vp->v_type == VREG)
+			object->flags = OBJ_CANPERSIST;
+		else
+			object->flags = 0;
 
 		/*
 		 * Hold a reference to the vnode and initialize object data.
