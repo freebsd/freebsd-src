@@ -8,6 +8,7 @@ define	tty
 
 # net device attributes - we have generic code for ether.
 # we should have imp but right now it is a pseudo-device.
+define	atm
 define	ether
 # define	imp
 pseudo-device imp
@@ -121,6 +122,7 @@ file	miscfs/union/union_vnops.c	union
 file	net/bpf.c		bpfilter needs-count
 file	net/bpf_filter.c	bpfilter needs-count
 file	net/if.c
+file	net/if_atmsubr.c	atm needs-flag
 file	net/if_ethersubr.c	ether needs-flag
 file	net/if_loop.c		loop needs-count
 file	net/if_sl.c		sl needs-count
@@ -152,6 +154,7 @@ file	netccitt/pk_usrreq.c	ccitt
 file	netimp/if_imp.c		imp needs-count
 file	netimp/if_imphost.c	imp needs-count
 file	netimp/raw_imp.c	imp
+file	netinet/if_atm.c	atm
 file	netinet/if_ether.c	ether
 file	netinet/igmp.c		inet
 file	netinet/in.c		inet
@@ -210,6 +213,9 @@ file	netiso/tp_usrreq.c	iso tpip
 file	netiso/tuba_subr.c	iso tuba
 file	netiso/tuba_table.c	iso tuba
 file	netiso/tuba_usrreq.c	iso tuba
+file	netnatm/natm.c		natm
+file	netnatm/natm_pcb.c	natm
+file	netnatm/natm_proto.c	natm
 file	netns/idp_usrreq.c	ns
 file	netns/ns.c		ns
 file	netns/ns_error.c	ns
