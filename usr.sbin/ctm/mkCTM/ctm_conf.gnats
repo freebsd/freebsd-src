@@ -4,5 +4,5 @@
 set CTMname	gnats
 set CTMref	/home/gnats
 set CTMdest	$CTMSW/../CTM-pub/$CTMname
-#set CTMdont	{}
+set CTMignore	{\.lock$}
 set CTMmail	ctm-gnats@freebsd.org
