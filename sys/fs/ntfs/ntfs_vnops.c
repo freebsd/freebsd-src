@@ -75,6 +75,7 @@ static int	ntfs_write(struct vop_write_args *ap);
 static int	ntfs_getattr(struct vop_getattr_args *ap);
 static int	ntfs_inactive(struct vop_inactive_args *ap);
 static int	ntfs_reclaim(struct vop_reclaim_args *ap);
+static int	ntfs_bmap(struct vop_bmap_args *ap);
 static int	ntfs_strategy(struct vop_strategy_args *ap);
 static int	ntfs_access(struct vop_access_args *ap);
 static int	ntfs_open(struct vop_open_args *ap);
@@ -85,6 +86,32 @@ static int	ntfs_fsync(struct vop_fsync_args *ap);
 static int	ntfs_pathconf(void *);
 
 int	ntfs_prtactive = 1;	/* 1 => print out reclaim of active vnodes */
+
+/*
+ * This is a noop, simply returning what one has been given.
+ */
+int
+ntfs_bmap(ap)
+	struct vop_bmap_args /* {
+		struct vnode *a_vp;
+		daddr_t  a_bn;
+		struct vnode **a_vpp;
+		daddr_t *a_bnp;
+		int *a_runp;
+		int *a_runb;
+	} */ *ap;
+{
+	dprintf(("ntfs_bmap: vn: %p, blk: %d\n", ap->a_vp,(u_int32_t)ap->a_bn));
+	if (ap->a_vpp != NULL)
+		*ap->a_vpp = ap->a_vp;
+	if (ap->a_bnp != NULL)
+		*ap->a_bnp = ap->a_bn;
+	if (ap->a_runp != NULL)
+		*ap->a_runp = 0;
+	if (ap->a_runb != NULL)
+		*ap->a_runb = 0;
+	return (0);
+}
 
 static int
 ntfs_read(ap)
@@ -178,7 +205,6 @@ ntfs_getattr(ap)
 	vap->va_filerev = 0;
 	return (0);
 }
-
 
 /*
  * Last reference to an ntnode.  If necessary, write or delete it.
@@ -750,6 +776,7 @@ struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 	{ &vop_readdir_desc, (vop_t *)ntfs_readdir },
 	{ &vop_fsync_desc, (vop_t *)ntfs_fsync },
 
+	{ &vop_bmap_desc, (vop_t *)ntfs_bmap },
 	{ &vop_strategy_desc, (vop_t *)ntfs_strategy },
 	{ &vop_read_desc, (vop_t *)ntfs_read },
 	{ &vop_write_desc, (vop_t *)ntfs_write },
