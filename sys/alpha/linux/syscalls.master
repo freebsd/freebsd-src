@@ -40,10 +40,10 @@
 0	UNIMPL	LINUX
 1	MNOPROTO LINUX	{ void sys_exit(int rval); } exit sys_exit_args void
 2	MSTD	LINUX	{ int linux_fork(void); }
-3	NOPROTO	LINUX	{ int read(int fd, char *buf, u_int nbyte); }
-4	NOPROTO	LINUX	{ int write(int fd, char *buf, u_int nbyte); }
+3	MNOPROTO LINUX	{ int read(int fd, char *buf, u_int nbyte); }
+4	MNOPROTO LINUX	{ int write(int fd, char *buf, u_int nbyte); }
 5	UNIMPL	LINUX
-6	NOPROTO	LINUX	{ int close(int fd); }
+6	MNOPROTO LINUX	{ int close(int fd); }
 7	STD	OSF1	{ int osf1_wait4(int pid, int *status, int options, \
 				struct osf1_rusage *rusage); }
 8	UNIMPL	LINUX
@@ -64,10 +64,10 @@
 20	NOPROTO	BSD	{ int getpid(void); } 
 21	UNIMPL	OSF1	osf1_mount
 22	STD	LINUX	{ int linux_umount(char *path, l_int flags); }
-23	NOPROTO	LINUX	{ int setuid(uid_t uid); }
-24	NOPROTO	BSD	{ int getuid(void); }
+23	MNOPROTO LINUX	{ int setuid(uid_t uid); }
+24	MNOPROTO BSD	{ int getuid(void); }
 25	UNIMPL	LINUX
-26	STD	LINUX	{ int linux_ptrace(void); }
+26	MSTD	LINUX	{ int linux_ptrace(void); }
 27	UNIMPL	LINUX
 28	UNIMPL	LINUX
 29	UNIMPL	LINUX
@@ -78,19 +78,19 @@
 34	UNIMPL	LINUX
 35	UNIMPL	LINUX
 36	NOPROTO	LINUX	{ int sync(void); }
-37	STD	LINUX	{ int linux_kill(l_int pid, l_int signum); }
+37	MSTD	LINUX	{ int linux_kill(l_int pid, l_int signum); }
 38	UNIMPL	LINUX
-39	NOPROTO	LINUX	{ int setpgid(int pid, int pgid); }
+39	MNOPROTO LINUX	{ int setpgid(int pid, int pgid); }
 40	UNIMPL	LINUX
-41	NOPROTO	LINUX	{ int dup(u_int fd); }
-42	NOPROTO	BSD	{ int pipe(void); }
+41	MNOPROTO LINUX	{ int dup(u_int fd); }
+42	MNOPROTO BSD	{ int pipe(void); }
 43	UNIMPL	OSF1	osf_set_program_attributes
 44	UNIMPL	LINUX
 45	STD	LINUX	{ int linux_open(char *path, l_int flags, \
 				l_int mode); }
 46	UNIMPL	LINUX
-47	NOPROTO	BSD	{ int getgid(void); }
-48	STD	OSF1	{ int osf1_sigprocmask(int how, u_long mask); }
+47	MNOPROTO BSD	{ int getgid(void); }
+48	MSTD	OSF1	{ int osf1_sigprocmask(int how, u_long mask); }
 49	UNIMPL	LINUX
 50	UNIMPL	LINUX
 51	NOPROTO	LINUX	{ int acct(char *path); }
@@ -105,10 +105,10 @@
 				l_int count); }
 59	STD	LINUX	{ int linux_execve(char *path, char **argp, \
 				char **envp); }
-60	NOPROTO	LINUX	{ int umask(int newmask); }
+60	MNOPROTO LINUX	{ int umask(int newmask); }
 61	NOPROTO	LINUX	{ int chroot(char *path); }
 62	UNIMPL	LINUX
-63	NOPROTO	LINUX	{ int getpgrp(void); }
+63	MNOPROTO LINUX	{ int getpgrp(void); }
 64	STD	LINUX	{ int linux_getpagesize(void); }
 65	UNIMPL	LINUX
 66	MSTD	LINUX	{ int linux_vfork(void); }
@@ -129,12 +129,12 @@
 76	STD	LINUX	{ int linux_vhangup(void); }
 77	UNIMPL	LINUX
 78	UNIMPL	LINUX
-79	STD	LINUX	{ int linux_setgroups(l_int gidsetsize, \
+79	MSTD	LINUX	{ int linux_setgroups(l_int gidsetsize, \
 				l_gid_t *grouplist); }
-80	STD	LINUX	{ int linux_getgroups(l_int gidsetsize, \
+80	MSTD	LINUX	{ int linux_getgroups(l_int gidsetsize, \
 				l_gid_t *grouplist); }
 81	UNIMPL	LINUX	
-82	NODEF	LINUX	setpgid setpgid setpgid_args int
+82	MNODEF	LINUX	setpgid setpgid setpgid_args int
 83	STD	OSF1	{ int osf1_setitimer(u_int which, \
 				struct itimerval *itv, \
 				struct itimerval *oitv); }
@@ -145,7 +145,7 @@
 88	MNOPROTO LINUX	{ int osethostname(char *hostname, u_int len); } \
 				osethostname sethostname_args int
 89	STD	LINUX	{ int linux_getdtablesize(void); }
-90	NOPROTO	LINUX	{ int dup2(u_int from, u_int to); }
+90	MNOPROTO LINUX	{ int dup2(u_int from, u_int to); }
 91	STD	LINUX	{ int linux_newfstat(l_uint fd, \
 				struct l_newstat *buf); }
 92	STD	LINUX	{ int linux_fcntl(l_uint fd, l_uint cmd, l_ulong arg); }
@@ -154,7 +154,7 @@
 94	NOPROTO	LINUX	{ int poll(struct pollfd*, unsigned int nfds, \
 				long timeout); }
 95	NOPROTO	LINUX	{ int fsync(int fd); }
-96	NOPROTO	LINUX	{ int setpriority(int which, int who, int prio); }
+96	MNOPROTO LINUX	{ int setpriority(int which, int who, int prio); }
 97	STD	LINUX	{ int osf1_socket(int domain, int type, \
 				int protocol); }
 98	STD	LINUX	{ int linux_connect(l_int s, struct l_sockaddr *name, \
@@ -164,7 +164,7 @@
 100	UNIMPL	OSF1	osf_getpriority
 101	NOPROTO	LINUX	{ int osend(int s, caddr_t buf, int len, int flags); }
 102     NOPROTO LINUX	{ int orecv(int s, caddr_t buf, int len, int flags); }
-103	STD	LINUX	{ int osf1_sigreturn(struct osigcontext *sigcntxp); }
+103	MSTD	LINUX	{ int osf1_sigreturn(struct osigcontext *sigcntxp); }
 104	NOPROTO	LINUX	{ int bind(int s, caddr_t name, int namelen); }
 105	NOPROTO	LINUX	{ int setsockopt(int s, int level, int name, \
 				caddr_t val, int valsize); }
@@ -173,12 +173,12 @@
 108	UNIMPL	LINUX
 109	UNIMPL	LINUX
 110	UNIMPL	LINUX
-111	STD	LINUX	{ int osf1_sigsuspend(unsigned long ss); }
+111	MSTD	LINUX	{ int osf1_sigsuspend(unsigned long ss); }
 112	UNIMPL	OSF1	osf_sigstack
 113	STD	LINUX	{ int linux_recvmsg(void); }
 114	STD	LINUX	{ int linux_sendmsg(void); }
 115	UNIMPL	LINUX
-116	STD	OSF1	{ int osf1_gettimeofday(struct timeval *tp, \
+116	MSTD	OSF1	{ int osf1_gettimeofday(struct timeval *tp, \
 				struct timezone *tzp); }
 117	STD	OSF1	{ int osf1_getrusage(long who, void *rusage); }
 118	NOPROTO	LINUX	{ int getsockopt(int s, int level, int name, \
@@ -194,13 +194,13 @@
 125	NOPROTO	LINUX	{ int orecvfrom(int s, caddr_t buf, size_t len, \
 				int flags, caddr_t from, int *fromlenaddr); } \
 				recvfrom recvfrom_args int
-126	NOPROTO	LINUX	{ int setreuid(int ruid, int euid); }
-127	NOPROTO	LINUX	{ int setregid(int rgid, int egid); }
+126	MNOPROTO LINUX	{ int setreuid(int ruid, int euid); }
+127	MNOPROTO LINUX	{ int setregid(int rgid, int egid); }
 128	STD	LINUX	{ int linux_rename(char *from, char *to); }
 129	STD	LINUX	{ int linux_truncate(char *path, l_ulong length); }
 130	NOPROTO	LINUX	{ int oftruncate(int fd, long length); }
 131	NOPROTO	LINUX	{ int flock(int fd, int how); }
-132	NOPROTO	LINUX	{ int setgid(gid_t gid); }
+132	MNOPROTO LINUX	{ int setgid(gid_t gid); }
 133     STD     LINUX	{ int osf1_sendto(int s, caddr_t buf, size_t len, \
 				int flags, struct sockaddr *to, int tolen); }
 134	NOPROTO	LINUX	{ int shutdown(int s, int how); }
@@ -218,7 +218,7 @@
 145	STD	LINUX	{ int linux_setrlimit(l_uint resource, \
 				struct l_rlimit *rlim); }
 146	UNIMPL	LINUX
-147	NOPROTO	LINUX	{ int setsid(void); }
+147	MNOPROTO LINUX	{ int setsid(void); }
 148	STD	LINUX	{ int linux_quotactl(void); }
 149	UNIMPL	LINUX
 150	NOPROTO	LINUX	{ int ogetsockname(int fdec, caddr_t asa, int *alen);} \
@@ -228,7 +228,7 @@
 153	UNIMPL	LINUX
 154	UNIMPL	LINUX
 155	UNIMPL	LINUX
-156	STD	OSF1	{ int osf1_sigaction(int sig, \
+156	MSTD	OSF1	{ int osf1_sigaction(int sig, \
 				struct osf1_sigaction *nsa, \
 				struct osf1_sigaction *osa); }
 157	UNIMPL	LINUX
@@ -318,15 +318,15 @@
 230	UNIMPL	LINUX
 231	UNIMPL	LINUX
 232	UNIMPL	LINUX
-233	NOPROTO	LINUX	{ int getpgid(int pid); }
-234	STD	LINUX	{ int linux_getsid(l_pid_t pid); }
+233	MNOPROTO LINUX	{ int getpgid(int pid); }
+234	MSTD	LINUX	{ int linux_getsid(l_pid_t pid); }
 235	STD	LINUX	{ int linux_sigaltstack(void); }
 236	UNIMPL	LINUX
 237	UNIMPL	LINUX
 238	UNIMPL	LINUX
 239	UNIMPL	LINUX
 240	UNIMPL	LINUX
-241	STD	OSF1	{ int osf1_sysinfo(int cmd, char *buf, long count); }
+241	MSTD	OSF1	{ int osf1_sysinfo(int cmd, char *buf, long count); }
 242	UNIMPL	LINUX
 243	UNIMPL	LINUX
 244	UNIMPL	OSF1	osf_proplist_syscall
@@ -404,12 +404,12 @@
 310	STD	LINUX	{ int linux_syslog(l_int type, char *buf, l_int len); }
 311	STD	LINUX	{ int linux_reboot(l_int magic1, l_int magic2, \
 				l_uint cmd, void *arg); }
-312	STD	LINUX	{ int linux_clone(l_int flags, void *stack); }
+312	MSTD	LINUX	{ int linux_clone(l_int flags, void *stack); }
 313	STD	LINUX	{ int linux_uselib(char *library); }	
-314	NOPROTO	BSD	{ int mlock(const void *addr, size_t len); }
-315	NOPROTO	BSD	{ int munlock(const void *addr, size_t len); }
-316	NOPROTO	BSD	{ int mlockall(int how); }
-317	NOPROTO	BSD	{ int munlockall(void); }
+314	MNOPROTO BSD	{ int mlock(const void *addr, size_t len); }
+315	MNOPROTO BSD	{ int munlock(const void *addr, size_t len); }
+316	MNOPROTO BSD	{ int mlockall(int how); }
+317	MNOPROTO BSD	{ int munlockall(void); }
 318	STD	LINUX	{ int linux_sysinfo(void); }
 319	STD	LINUX	{ int linux_sysctl(struct l___sysctl_args *args); }
 320	UNIMPL	LINUX	sys_idle
@@ -424,16 +424,16 @@
 				struct l_statfs_buf *buf); }
 329	STD	LINUX	{ int linux_fstatfs(l_uint fd, \
 				struct l_statfs_buf *buf); }
-330	NOPROTO	POSIX	{ int sched_setparam(pid_t pid, \
+330	MNOPROTO POSIX	{ int sched_setparam(pid_t pid, \
 				const struct sched_param *param); }
-331	NOPROTO	POSIX	{ int sched_getparam(pid_t pid, \
+331	MNOPROTO POSIX	{ int sched_getparam(pid_t pid, \
 				struct sched_param *param); }
-332	STD	POSIX	{ int linux_sched_setscheduler(l_pid_t pid, \
+332	MSTD	POSIX	{ int linux_sched_setscheduler(l_pid_t pid, \
 				l_int policy, struct l_sched_param *param); }
-333	STD	POSIX	{ int linux_sched_getscheduler(l_pid_t pid); }
+333	MSTD	POSIX	{ int linux_sched_getscheduler(l_pid_t pid); }
 334	MNOPROTO POSIX	{ int sched_yield(void); }
-335	STD	POSIX	{ int linux_sched_get_priority_max(l_int policy); }
-336	STD	POSIX	{ int linux_sched_get_priority_min (l_int policy); }
+335	MSTD	POSIX	{ int linux_sched_get_priority_max(l_int policy); }
+336	MSTD	POSIX	{ int linux_sched_get_priority_min (l_int policy); }
 337	NOPROTO	POSIX	{ int sched_rr_get_interval (pid_t pid, \
 				struct timespec *interval); }
 338	UNIMPL	LINUX	sys_afs_syscall
@@ -444,8 +444,8 @@
 				l_ulong new_len, l_ulong flags, \
 				l_ulong new_addr); }
 342	STD	LINUX	{ int linux_nfsservctl(void); }
-343	NOPROTO	LINUX	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
-344	NOPROTO	LINUX	{ int getresuid(uid_t *ruid, uid_t *euid, \
+343	MNOPROTO LINUX	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
+344	MNOPROTO LINUX	{ int getresuid(uid_t *ruid, uid_t *euid, \
 				uid_t *suid); }
 345	STD	LINUX	{ int linux_pciconfig_read(void); }
 346	STD	LINUX	{ int linux_pciconfig_write(void); }
@@ -456,32 +456,32 @@
 350	STD	LINUX	{ int linux_pwrite(l_uint fd, char *buf, \
 				l_size_t nbyte, l_loff_t offset); }
 351	STD	LINUX	{ int linux_rt_sigreturn(void); }
-352	STD	LINUX	{ int linux_rt_sigaction(l_int sig, \
+352	MSTD	LINUX	{ int linux_rt_sigaction(l_int sig, \
 				l_sigaction_t *act, l_sigaction_t *oact, \
 				l_size_t sigsetsize); }
-353	STD	LINUX	{ int linux_rt_sigprocmask(l_int how, \
+353	MSTD	LINUX	{ int linux_rt_sigprocmask(l_int how, \
 				l_sigset_t *mask, l_sigset_t *omask, \
 				l_size_t sigsetsize); }
 354	STD	LINUX	{ int linux_rt_sigpending(void); }
 355	STD	LINUX	{ int linux_rt_sigtimedwait(void); }
 356	STD	LINUX	{ int linux_rt_sigqueueinfo(void); }
-357	STD	LINUX	{ int linux_rt_sigsuspend(l_sigset_t *newset, \
+357	MSTD	LINUX	{ int linux_rt_sigsuspend(l_sigset_t *newset, \
 				l_size_t sigsetsize); }
 358	STD	LINUX	{ int linux_select(l_int nfds, l_fd_set *readfds, \
 				l_fd_set *writefds, l_fd_set *exceptfds, \
 				struct l_timeval *timeout); }
-359	NOPROTO	LINUX	{ int gettimeofday(struct timeval *tp, \
+359	MNOPROTO LINUX	{ int gettimeofday(struct timeval *tp, \
 				struct timezone *tzp); }
 360	MNOPROTO LINUX	{ int settimeofday(struct timeval *tp, \
 				struct timezone *tzp); }
-361	STD	LINUX	{ int linux_getitimer(l_int which, \
+361	MSTD	LINUX	{ int linux_getitimer(l_int which, \
 				struct l_itimerval *itv); }
-362	STD	LINUX	{ int linux_setitimer(l_int which, \
+362	MSTD	LINUX	{ int linux_setitimer(l_int which, \
 				struct l_itimerval *itv, \
 				struct l_itimerval *oitv); }
 363	STD	LINUX	{ int linux_utimes(char *fname, \
 				struct l_timeval *times); }
-364	NOPROTO	LINUX	{ int getrusage(int who, struct rusage *rusage); }
+364	MNOPROTO LINUX	{ int getrusage(int who, struct rusage *rusage); }
 365	STD	LINUX	{ int linux_wait4(l_pid_t pid, l_uint *status, \
 				l_int options, struct l_rusage *rusage); }		
 366	STD	LINUX	{ int linux_adjtimex(void); }
@@ -489,8 +489,8 @@
 368	STD	LINUX	{ int linux_capget(void); }
 369	STD	LINUX	{ int linux_capset(void); }
 370	STD	LINUX	{ int linux_sendfile(void); }
-371	NOPROTO	LINUX	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
-372	NOPROTO	LINUX	{ int getresgid(gid_t *rgid, gid_t *egid, \
+371	MNOPROTO LINUX	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
+372	MNOPROTO LINUX	{ int getresgid(gid_t *rgid, gid_t *egid, \
 				gid_t *sgid); }
 373	UNIMPL	LINUX	sys_dipc
 374	STD	LINUX	{ int linux_pivot_root(char *new_root, \
