@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.2 1995/05/31 23:53:09 jkh Exp $
+#	$Id: Makefile,v 1.192.2.3 1995/06/01 00:20:25 jkh Exp $
 #
 # How to roll a release:
 #
@@ -24,7 +24,7 @@ ALL_DISTS=	bin ${EXTRA_DISTS}
 
 BOOT1=	etc/protocols etc/sysconfig
 
-FAQS=	README MIRROR.SITES
+FAQS=	MIRROR.SITES
 
 # define this to use a vn device instead of the floppy drive
 VNDEVICE=		vn0
@@ -290,7 +290,7 @@ release.7:
 		fi ; \
 	done
 	( cd ${RD}/dists/src && \
-	if [ -f sdes.aa ] ; then mv sdes.* ../des ; fi && \
+	if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
 	@echo "src distribution is finished."
 	touch release.7
@@ -332,9 +332,6 @@ release.8: write_mfs_in_kernel
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/en_US.ISO8859-1/COPYRIGHT
-	cd ${RD}/trees/bin/usr/share/FAQ/Text && \
-		install -c RELNOTES.FreeBSD ${RD}/mfsfd/stand/help/en_US.ISO8859-1/RELNOTES && \
-		install -c README ${RD}/mfsfd/stand/help/en_US.ISO8859-1/README
 	(cd ${RD}/mfsfd/stand/help && tar cf - * | gzip -9 > ../help.tgz)
 	(cd ${RD}/mfsfd/stand && rm -rf help)
 	( 								\
