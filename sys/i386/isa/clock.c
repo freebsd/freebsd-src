@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.57 1996/04/22 19:40:28 nate Exp $
+ *	$Id: clock.c,v 1.58 1996/05/01 08:39:02 bde Exp $
  */
 
 /*
@@ -48,6 +48,7 @@
  * Primitive clock interrupt routines.
  */
 #include "opt_ddb.h"
+#include "opt_clock.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
