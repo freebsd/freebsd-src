@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: aic7xxx_osm.h,v 1.23 2003/07/01 15:51:52 scottl Exp $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.h#18 $
  *
  * $FreeBSD$
  */
@@ -57,7 +57,7 @@
 #endif
 
 #if NPCI > 0
-#define AHC_PCI_CONFIG 1
+#define AIC_PCI_CONFIG 1
 #include <machine/bus_memio.h>
 #endif
 #include <machine/bus_pio.h>
@@ -69,12 +69,12 @@
 #include <sys/rman.h>
 
 #if NPCI > 0
-#if __FreeBSD_version < 500000
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#else
+#if __FreeBSD_version >= 500000
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#else
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 #endif
 #endif
 
@@ -115,45 +115,6 @@ extern devclass_t ahc_devclass;
 #ifndef offsetof
 #define offsetof(type, member)  ((size_t)(&((type *)0)->member))
 #endif
-/************************* Forward Declarations *******************************/
-typedef device_t ahc_dev_softc_t;
-typedef union ccb *ahc_io_ctx_t;
-
-/***************************** Bus Space/DMA **********************************/
-#define ahc_dma_tag_create(ahc, parent_tag, alignment, boundary,	\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)					\
-	bus_dma_tag_create(parent_tag, alignment, boundary,		\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   busdma_lock_mutex, &Giant, dma_tagp)
-
-#define ahc_dma_tag_destroy(ahc, tag)					\
-	bus_dma_tag_destroy(tag)
-
-#define ahc_dmamem_alloc(ahc, dmat, vaddr, flags, mapp)			\
-	bus_dmamem_alloc(dmat, vaddr, flags, mapp)
-
-#define ahc_dmamem_free(ahc, dmat, vaddr, map)				\
-	bus_dmamem_free(dmat, vaddr, map)
-
-#define ahc_dmamap_create(ahc, tag, flags, mapp)			\
-	bus_dmamap_create(tag, flags, mapp)
-
-#define ahc_dmamap_destroy(ahc, tag, map)				\
-	bus_dmamap_destroy(tag, map)
-
-#define ahc_dmamap_load(ahc, dmat, map, addr, buflen, callback,		\
-			callback_arg, flags)				\
-	bus_dmamap_load(dmat, map, addr, buflen, callback, callback_arg, flags)
-
-#define ahc_dmamap_unload(ahc, tag, map)				\
-	bus_dmamap_unload(tag, map)
-
-/* XXX Need to update Bus DMA for partial map syncs */
-#define ahc_dmamap_sync(ahc, dma_tag, dmamap, offset, len, op)		\
-	bus_dmamap_sync(dma_tag, dmamap, op)
 
 /************************ Tunable Driver Parameters  **************************/
 /*
@@ -190,44 +151,11 @@ struct ahc_platform_data {
 	struct resource		*irq;
 	void			*ih;
 	eventhandler_tag	 eh;
+	struct proc		*recovery_thread;
 };
 
 struct scb_platform_data {
 };
-
-/********************************* Byte Order *********************************/
-#if __FreeBSD_version >= 500000
-#define ahc_htobe16(x) htobe16(x)
-#define ahc_htobe32(x) htobe32(x)
-#define ahc_htobe64(x) htobe64(x)
-#define ahc_htole16(x) htole16(x)
-#define ahc_htole32(x) htole32(x)
-#define ahc_htole64(x) htole64(x)
-
-#define ahc_be16toh(x) be16toh(x)
-#define ahc_be32toh(x) be32toh(x)
-#define ahc_be64toh(x) be64toh(x)
-#define ahc_le16toh(x) le16toh(x)
-#define ahc_le32toh(x) le32toh(x)
-#define ahc_le64toh(x) le64toh(x)
-#else
-#define ahc_htobe16(x) (x)
-#define ahc_htobe32(x) (x)
-#define ahc_htobe64(x) (x)
-#define ahc_htole16(x) (x)
-#define ahc_htole32(x) (x)
-#define ahc_htole64(x) (x)
-
-#define ahc_be16toh(x) (x)
-#define ahc_be32toh(x) (x)
-#define ahc_be64toh(x) (x)
-#define ahc_le16toh(x) (x)
-#define ahc_le32toh(x) (x)
-#define ahc_le64toh(x) (x)
-#endif
-
-/************************** Timer DataStructures ******************************/
-typedef struct callout ahc_timer_t;
 
 /***************************** Core Includes **********************************/
 #if AHC_REG_PRETTY_PRINT
@@ -235,31 +163,10 @@ typedef struct callout ahc_timer_t;
 #else
 #define AIC_DEBUG_REGISTERS 0
 #endif
-#include <dev/aic7xxx/aic7xxx.h>
-
-/***************************** Timer Facilities *******************************/
-timeout_t ahc_timeout;
-
-#if __FreeBSD_version >= 500000
-#define ahc_timer_init(timer) callout_init(timer, /*mpsafe*/0)
-#else
-#define ahc_timer_init callout_init
-#endif
-#define ahc_timer_stop callout_stop
-
-static __inline void
-ahc_timer_reset(ahc_timer_t *timer, u_int usec, ahc_callback_t *func, void *arg)
-{
-	callout_reset(timer, (usec * hz)/1000000, func, arg);
-}
-
-static __inline void
-ahc_scb_timer_reset(struct scb *scb, u_int usec)
-{
-	untimeout(ahc_timeout, (caddr_t)scb, scb->io_ctx->ccb_h.timeout_ch);
-	scb->io_ctx->ccb_h.timeout_ch =
-	    timeout(ahc_timeout, scb, (usec * hz)/1000000);
-}
+#define AIC_CORE_INCLUDE <dev/aic7xxx/aic7xxx.h>
+#define	AIC_LIB_PREFIX ahc
+#define	AIC_CONST_PREFIX AHC
+#include <dev/aic7xxx/aic_osm_lib.h>
 
 /*************************** Device Access ************************************/
 #define ahc_inb(ahc, port)				\
@@ -347,204 +254,13 @@ static __inline void
 ahc_list_unlock(unsigned long *flags)
 {
 }
-/****************************** OS Primitives *********************************/
-#define ahc_delay DELAY
-
-/************************** Transaction Operations ****************************/
-static __inline void ahc_set_transaction_status(struct scb *, uint32_t);
-static __inline void ahc_set_scsi_status(struct scb *, uint32_t);
-static __inline uint32_t ahc_get_transaction_status(struct scb *);
-static __inline uint32_t ahc_get_scsi_status(struct scb *);
-static __inline void ahc_set_transaction_tag(struct scb *, int, u_int);
-static __inline u_long ahc_get_transfer_length(struct scb *);
-static __inline int ahc_get_transfer_dir(struct scb *);
-static __inline void ahc_set_residual(struct scb *, u_long);
-static __inline void ahc_set_sense_residual(struct scb *, u_long);
-static __inline u_long ahc_get_residual(struct scb *);
-static __inline int ahc_perform_autosense(struct scb *);
-static __inline uint32_t ahc_get_sense_bufsize(struct ahc_softc*, struct scb*);
-static __inline void ahc_freeze_ccb(union ccb *ccb);
-static __inline void ahc_freeze_scb(struct scb *scb);
-static __inline void ahc_platform_freeze_devq(struct ahc_softc *, struct scb *);
-static __inline int  ahc_platform_abort_scbs(struct ahc_softc *ahc, int target,
-					     char channel, int lun, u_int tag,
-					     role_t role, uint32_t status);
-
-static __inline
-void ahc_set_transaction_status(struct scb *scb, uint32_t status)
-{
-	scb->io_ctx->ccb_h.status &= ~CAM_STATUS_MASK;
-	scb->io_ctx->ccb_h.status |= status;
-}
-
-static __inline
-void ahc_set_scsi_status(struct scb *scb, uint32_t status)
-{
-	scb->io_ctx->csio.scsi_status = status;
-}
-
-static __inline
-uint32_t ahc_get_transaction_status(struct scb *scb)
-{
-	return (scb->io_ctx->ccb_h.status & CAM_STATUS_MASK);
-}
-
-static __inline
-uint32_t ahc_get_scsi_status(struct scb *scb)
-{
-	return (scb->io_ctx->csio.scsi_status);
-}
-
-static __inline
-void ahc_set_transaction_tag(struct scb *scb, int enabled, u_int type)
-{
-	scb->io_ctx->csio.tag_action = type;
-	if (enabled)
-		scb->io_ctx->ccb_h.flags |= CAM_TAG_ACTION_VALID;
-	else
-		scb->io_ctx->ccb_h.flags &= ~CAM_TAG_ACTION_VALID;
-}
-
-static __inline
-u_long ahc_get_transfer_length(struct scb *scb)
-{
-	return (scb->io_ctx->csio.dxfer_len);
-}
-
-static __inline
-int ahc_get_transfer_dir(struct scb *scb)
-{
-	return (scb->io_ctx->ccb_h.flags & CAM_DIR_MASK);
-}
-
-static __inline
-void ahc_set_residual(struct scb *scb, u_long resid)
-{
-	scb->io_ctx->csio.resid = resid;
-}
-
-static __inline
-void ahc_set_sense_residual(struct scb *scb, u_long resid)
-{
-	scb->io_ctx->csio.sense_resid = resid;
-}
-
-static __inline
-u_long ahc_get_residual(struct scb *scb)
-{
-	return (scb->io_ctx->csio.resid);
-}
-
-static __inline
-int ahc_perform_autosense(struct scb *scb)
-{
-	return (!(scb->io_ctx->ccb_h.flags & CAM_DIS_AUTOSENSE));
-}
-
-static __inline uint32_t
-ahc_get_sense_bufsize(struct ahc_softc *ahc, struct scb *scb)
-{
-	return (sizeof(struct scsi_sense_data));
-}
-
-static __inline void
-ahc_freeze_ccb(union ccb *ccb)
-{
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-		ccb->ccb_h.status |= CAM_DEV_QFRZN;
-		xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
-	}
-}
-
-static __inline void
-ahc_freeze_scb(struct scb *scb)
-{
-	ahc_freeze_ccb(scb->io_ctx);
-}
-
-static __inline void
-ahc_platform_freeze_devq(struct ahc_softc *ahc, struct scb *scb)
-{
-	/* Nothing to do here for FreeBSD */
-}
-
-static __inline int
-ahc_platform_abort_scbs(struct ahc_softc *ahc, int target,
-			char channel, int lun, u_int tag,
-			role_t role, uint32_t status)
-{
-	/* Nothing to do here for FreeBSD */
-	return (0);
-}
-
-static __inline void
-ahc_platform_scb_free(struct ahc_softc *ahc, struct scb *scb)
-{
-	/* What do we do to generically handle driver resource shortages??? */
-	if ((ahc->flags & AHC_RESOURCE_SHORTAGE) != 0
-	 && scb->io_ctx != NULL
-	 && (scb->io_ctx->ccb_h.status & CAM_RELEASE_SIMQ) == 0) {
-		scb->io_ctx->ccb_h.status |= CAM_RELEASE_SIMQ;
-		ahc->flags &= ~AHC_RESOURCE_SHORTAGE;
-	}
-	scb->io_ctx = NULL;
-}
 
 /********************************** PCI ***************************************/
-#ifdef AHC_PCI_CONFIG
-static __inline uint32_t ahc_pci_read_config(ahc_dev_softc_t pci,
-					     int reg, int width);
-static __inline void	 ahc_pci_write_config(ahc_dev_softc_t pci,
-					      int reg, uint32_t value,
-					      int width);
-static __inline int	 ahc_get_pci_function(ahc_dev_softc_t);
-static __inline int	 ahc_get_pci_slot(ahc_dev_softc_t);
-static __inline int	 ahc_get_pci_bus(ahc_dev_softc_t);
+#ifdef AIC_PCI_CONFIG
+int ahc_pci_map_registers(struct ahc_softc *ahc);
+int ahc_pci_map_int(struct ahc_softc *ahc);
+#endif /*AIC_PCI_CONFIG*/
 
-int			 ahc_pci_map_registers(struct ahc_softc *ahc);
-int			 ahc_pci_map_int(struct ahc_softc *ahc);
-
-static __inline uint32_t
-ahc_pci_read_config(ahc_dev_softc_t pci, int reg, int width)
-{
-	return (pci_read_config(pci, reg, width));
-}
-
-static __inline void
-ahc_pci_write_config(ahc_dev_softc_t pci, int reg, uint32_t value, int width)
-{
-	pci_write_config(pci, reg, value, width);
-}
-
-static __inline int
-ahc_get_pci_function(ahc_dev_softc_t pci)
-{
-	return (pci_get_function(pci));
-}
-
-static __inline int
-ahc_get_pci_slot(ahc_dev_softc_t pci)
-{
-	return (pci_get_slot(pci));
-}
-
-static __inline int
-ahc_get_pci_bus(ahc_dev_softc_t pci)
-{
-	return (pci_get_bus(pci));
-}
-
-typedef enum
-{
-	AHC_POWER_STATE_D0,
-	AHC_POWER_STATE_D1,
-	AHC_POWER_STATE_D2,
-	AHC_POWER_STATE_D3
-} ahc_power_state;
-
-void ahc_power_state_change(struct ahc_softc *ahc,
-			    ahc_power_state new_state);
-#endif
 /******************************** VL/EISA *************************************/
 int aic7770_map_registers(struct ahc_softc *ahc, u_int port);
 int aic7770_map_int(struct ahc_softc *ahc, int irq);
