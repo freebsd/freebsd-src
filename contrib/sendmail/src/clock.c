@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)clock.c	8.34 (Berkeley) 6/4/1998";
+static char sccsid[] = "@(#)clock.c	8.35 (Berkeley) 2/2/1999";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -60,7 +60,7 @@ setevent(intvl, func, arg)
 	}
 
 	wasblocked = blocksignal(SIGALRM);
-	(void) time(&now);
+	now = curtime();
 
 	/* search event queue for correct position */
 	for (evp = &EventQueue; (ev = *evp) != NULL; evp = &ev->ev_link)

@@ -8,7 +8,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)control.c	8.17 (Berkeley) 12/1/1998";
+static char sccsid[] = "@(#)control.c	8.18 (Berkeley) 1/17/1999";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -70,8 +70,7 @@ opencontrolsocket()
 	{
 		int save_errno = errno;
 
-		(void) close(ControlSocket);
-		ControlSocket = -1;
+		clrcontrol();
 		errno = save_errno;
 		return -1;
 	}
@@ -88,6 +87,7 @@ opencontrolsocket()
 				  ControlSocketName, errstring(save_errno));
 			message("050 ownership change on %s failed: %s",
 				ControlSocketName, errstring(save_errno));
+			closecontrolsocket(TRUE);
 			errno = save_errno;
 			return -1;
 		}

@@ -9,8 +9,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)unixware7.m4	8.1 (Berkeley) 10/13/1998')
+VERSIONID(`@(#)unixware7.m4	8.2 (Berkeley) 1/25/1999')
 define(`ALIAS_FILE', `/etc/mail/aliases')dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/etc/mailer/sendmail.st'))')dnl
 define(`confEBINDIR', `/usr/lib')dnl
+define(`confTIME_ZONE', `USE_TZ')dnl

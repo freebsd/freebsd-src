@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)headers.c	8.134 (Berkeley) 11/29/1998";
+static char sccsid[] = "@(#)headers.c	8.136 (Berkeley) 1/26/1999";
 #endif /* not lint */
 
 # include <errno.h>
@@ -77,6 +77,7 @@ chompheader(line, def, hdrp, e)
 	bool headeronly;
 	STAB *s;
 	struct hdrinfo *hi;
+	bool nullheader = FALSE;
 	BITMAP mopts;
 
 	if (tTd(31, 6))
@@ -123,11 +124,17 @@ chompheader(line, def, hdrp, e)
 		return 0;
 	}
 	*fvalue = '\0';
-	fvalue = p;
 
 	/* strip field value on front */
-	if (*fvalue == ' ')
-		fvalue++;
+	if (*p == ' ')
+		p++;
+	fvalue = p;
+
+	/* if the field is null, go ahead and use the default */
+	while (isascii(*p) && isspace(*p))
+		p++;
+	if (*p == '\0')
+		nullheader = TRUE;
 
 	/* security scan: long field names are end-of-header */
 	if (strlen(fname) > 100)
@@ -236,6 +243,11 @@ chompheader(line, def, hdrp, e)
 		    bitset(H_DEFAULT, h->h_flags) &&
 		    !bitset(H_FORCE, h->h_flags))
 		{
+			if (nullheader)
+			{
+				/* user-supplied value was null */
+				return 0;
+			}
 			h->h_value = NULL;
 			if (!cond)
 			{
@@ -1149,6 +1161,7 @@ crackaddr(addr)
 **		mci -- the connection information.
 **		h -- the header to put.
 **		e -- envelope to use.
+**		flags -- MIME conversion flags.
 **
 **	Returns:
 **		none.
@@ -1165,10 +1178,11 @@ crackaddr(addr)
 #endif
 
 void
-putheader(mci, hdr, e)
+putheader(mci, hdr, e, flags)
 	register MCI *mci;
 	HDR *hdr;
 	register ENVELOPE *e;
+	int flags;
 {
 	register HDR *h;
 	char buf[MAX(MAXLINE,BUFSIZ)];
@@ -1251,9 +1265,16 @@ putheader(mci, hdr, e)
 		}
 #endif
 
-		/* suppress Content-Transfer-Encoding: if we are MIMEing */
+		/*
+		**  Suppress Content-Transfer-Encoding: if we are MIMEing
+		**  and we are potentially converting from 8 bit to 7 bit
+		**  MIME.  If converting, add a new CTE header in
+		**  mime8to7().
+		*/
 		if (bitset(H_CTE, h->h_flags) &&
-		    bitset(MCIF_CVT8TO7|MCIF_CVT7TO8|MCIF_INMIME, mci->mci_flags))
+		    bitset(MCIF_CVT8TO7|MCIF_CVT7TO8|MCIF_INMIME,
+			   mci->mci_flags) &&
+		    !bitset(M87F_NO8TO7, flags))
 		{
 			if (tTd(34, 11))
 				printf(" (skipped (content-transfer-encoding))\n");

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.167 (Berkeley) 12/1/1998";
+static char sccsid[] = "@(#)util.c	8.168 (Berkeley) 1/21/1999";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1026,6 +1026,7 @@ sfgets(buf, siz, fp, timeout, during)
 {
 	register EVENT *ev = NULL;
 	register char *p;
+	int save_errno;
 
 	if (fp == NULL)
 	{
@@ -1043,7 +1044,6 @@ sfgets(buf, siz, fp, timeout, during)
 				       "timeout waiting for input from %.100s during %s",
 				       CurHostName ? CurHostName : "local",
 				       during);
-			errno = 0;
 			buf[0] = '\0';
 #if XDEBUG
 			checkfd012(during);
@@ -1051,6 +1051,7 @@ sfgets(buf, siz, fp, timeout, during)
 			if (TrafficLogFile != NULL)
 				fprintf(TrafficLogFile, "%05d <<< [TIMEOUT]\n",
 					(int) getpid());
+			errno = 0;
 			return (NULL);
 		}
 		ev = setevent(timeout, readtimeout, 0);
@@ -1058,6 +1059,7 @@ sfgets(buf, siz, fp, timeout, during)
 
 	/* try to read */
 	p = NULL;
+	errno = 0;
 	while (!feof(fp) && !ferror(fp))
 	{
 		errno = 0;
@@ -1066,6 +1068,7 @@ sfgets(buf, siz, fp, timeout, during)
 			break;
 		clearerr(fp);
 	}
+	save_errno = errno;
 
 	/* clear the event if it has not sprung */
 	clrevent(ev);
@@ -1077,6 +1080,7 @@ sfgets(buf, siz, fp, timeout, during)
 		buf[0] = '\0';
 		if (TrafficLogFile != NULL)
 			fprintf(TrafficLogFile, "%05d <<< [EOF]\n", (int) getpid());
+		errno = save_errno;
 		return (NULL);
 	}
 	if (TrafficLogFile != NULL)

@@ -9,7 +9,7 @@
  * the sendmail distribution.
  *
  *
- *	@(#)conf.h	8.380 (Berkeley) 11/9/1998
+ *	@(#)conf.h	8.385 (Berkeley) 1/28/1999
  */
 
 /*
@@ -69,11 +69,8 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 # else
 #  define MAXMACNAMELEN	20		/* max macro name length */
 # endif
-# ifndef MAXHDRLINES
-#  define MAXHDRLINES	1000		/* max lines in a message header */
-# endif
-# ifndef MAXHDRLINELEN
-#  define MAXHDRLINELEN	SMTPLINELIM	/* max length of a header line */
+# ifndef MAXHDRSLEN
+#  define MAXHDRSLEN	(32 * 1024)	/* max size of message headers */
 # endif
 
 /**********************************************************************
@@ -1302,10 +1299,12 @@ extern void		*malloc();
 # endif
 # define SFS_TYPE	SFS_VFS		/* use <sys/vfs.h> statfs() impl */
 # define SPT_PADCHAR	'\0'		/* pad process title with nulls */
+# ifndef TZ_TYPE
+#  define TZ_TYPE	TZ_NONE		/* no standard for Linux */
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
 # endif
-# define TZ_TYPE	TZ_TZNAME
 # include <sys/sysmacros.h>
 # undef atol			/* wounded in <stdlib.h> */
 #endif

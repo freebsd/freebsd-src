@@ -1,9 +1,0 @@
-#	@(#)OSF1	8.7	(Berkeley)	3/14/1998
-define(`confCC', `cc -Olimit 1000')
-define(`confMAPDEF', `-DNDBM -DNIS -DMAP_REGEX')
-define(`confLIBS', `-ldbm')
-define(`confSTDIR', `/var/adm/sendmail')
-define(`confHFDIR', `/usr/share/lib')
-define(`confINSTALL', `installbsd')
-define(`confUBINDIR', `${BINDIR}')
-define(`confDEPEND_TYPE', `CC-M')

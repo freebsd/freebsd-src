@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.450 (Berkeley) 12/17/1998";
+static char sccsid[] = "@(#)conf.c	8.452 (Berkeley) 1/26/1999";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -284,8 +284,7 @@ setdefaults(e)
 	ColonOkInAddr = TRUE;
 	DontLockReadFiles = TRUE;
 	DoubleBounceAddr = "postmaster";
-	MaxHeaderLines = MAXHDRLINES;
-	MaxHeaderLineLength = MAXHDRLINELEN;
+	MaxHeadersLength = MAXHDRSLEN;
 	snprintf(buf, sizeof buf, "%s%sdead.letter",
 		_PATH_VARTMP,
 		_PATH_VARTMP[sizeof _PATH_VARTMP - 2] == '/' ? "" : "/");

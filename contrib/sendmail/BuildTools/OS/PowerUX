@@ -1,9 +1,0 @@
-#	@(#)PowerUX	8.5	(Berkeley)	2/12/1998
-define(`confENVDEF', `-D__svr4__ ')
-define(`confLIBS', `-Bstatic -lsocket -lnsl -lelf -lgen')
-define(`confMBINDIR', `/usr/local/etc')
-define(`confSBINDIR', `/usr/local/etc')
-define(`confUBINDIR', `/usr/local/bin')
-define(`confEBINDIR', `/usr/local/lib')
-define(`confSBINGRP', `mail')
-define(`confINSTALL', `/usr/ucb/install')

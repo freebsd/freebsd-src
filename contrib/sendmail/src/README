@@ -8,7 +8,7 @@
 # the sendmail distribution.
 #
 #
-#	@(#)README	8.209 (Berkeley) 10/6/1998
+#	@(#)README	8.211 (Berkeley) 2/2/1999
 #
 
 This directory contains the source files for sendmail(TM).
@@ -115,8 +115,8 @@ HESIOD		Support for Hesiod (from the DEC/Athena distribution).  You
 		work.  You may be able to get this to work with the MIT/Athena
 		version of Hesiod, but that's likely to be a lot of work.
 LDAPMAP		Lightweight Directory Lookup Protocol support.  You will
-		have to install the UMich ldap and lber libraries to use
-		this flag.
+		have to install the UMich or OpenLDAP ldap and lber
+		libraries to use this flag.
 MAP_REGEX	Regular Expression support.  You will need to use an
 		operating system which comes with the POSIX regex()
 		routines or install a regexp library such as libregex from
@@ -1078,6 +1078,12 @@ Linux
 	to LIBS.  Data structures may change and you'd be asking for a
 	core dump.
 
+	A number of problems have been reported regarding the Linux 2.2.0
+	kernel.  So far, these problems have been tracked down to syslog()
+	and DNS resolution.  We believe the problem is with the poll()
+	implementation in the Linux 2.2.0 kernel and poll()-aware versions
+	of glib (at least up to 2.0.111).
+
 AIX 4.2
 	The AIX m4 implements a different mechanism for ifdef which is
 	inconsistent with other versions of m4.  Therefore, it will not
@@ -1315,6 +1321,9 @@ LDAP
 	    The software has been in production on Solaris.2.5.1 at Stanford
 	    for over 2 years.
 
+	The LDAP map supports both the UMich LDAP 3.2 and 3.3 libraries as
+	well as the OpenLDAP (http://www.openldap.org/) libraries.
+
 TCP Wrappers
 	If you are using -DTCPWRAPPERS to get TCP Wrappers support you will
 	also need to install libwrap.a and modify your site.config.m4 file
@@ -1452,4 +1461,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.209, last update 10/6/1998 17:10:21)
+(Version 8.211, last update 2/2/1999 15:28:18)

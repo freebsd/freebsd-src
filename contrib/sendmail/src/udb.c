@@ -14,9 +14,9 @@
 
 #ifndef lint
 #if USERDB
-static char sccsid [] = "@(#)udb.c	8.70 (Berkeley) 12/21/1998 (with USERDB)";
+static char sccsid [] = "@(#)udb.c	8.71 (Berkeley) 1/17/1999 (with USERDB)";
 #else
-static char sccsid [] = "@(#)udb.c	8.70 (Berkeley) 12/21/1998 (without USERDB)";
+static char sccsid [] = "@(#)udb.c	8.71 (Berkeley) 1/17/1999 (without USERDB)";
 #endif
 #endif
 
@@ -1164,11 +1164,7 @@ badspec:
 #endif
 			if (tTd(28, 1))
 			{
-#if DB_VERSION_MAJOR < 2
 				printf("_udbx_init: db->close(%s)\n",
-#else
-				printf("_udbx_init: db->close(%s)\n",
-#endif
 					up->udb_dbname);
 			}
 		}
@@ -1242,11 +1238,7 @@ _udbx_close()
 		}
 		if (tTd(28, 1))
 		{
-#if DB_VERSION_MAJOR < 2
 			printf("_udbx_init: db->close(%s)\n",
-#else
-			printf("_udbx_init: db->close(%s)\n",
-#endif
 				up->udb_dbname);
 		}
 #endif

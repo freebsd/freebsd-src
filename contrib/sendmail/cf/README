@@ -4,7 +4,7 @@
 
 		Eric Allman <eric@Sendmail.ORG>
 
-		@(#)README	8.184 (Berkeley) 12/29/1998
+		@(#)README	8.186 (Berkeley) 2/3/1999
 
 
 This document describes the sendmail configuration files being used
@@ -293,14 +293,15 @@ POP_MAILER_FLAGS	[Penu] Flags added to POP mailer.  Flags "lsDFM"
 			are always added.
 POP_MAILER_ARGS		[pop $u] The arguments passed to the POP mailer.
 PROCMAIL_MAILER_PATH	[/usr/local/bin/procmail] The path to the procmail
-			program.  This is also used by FEATURE(local_procmail).
+			program.  This is also used by
+			FEATURE(`local_procmail').
 PROCMAIL_MAILER_FLAGS	[SPhnu9] Flags added to Procmail mailer.  Flags
 			``DFM'' are always set.  This is NOT used by
-			FEATURE(local_procmail); tweak LOCAL_MAILER_FLAGS
+			FEATURE(`local_procmail'); tweak LOCAL_MAILER_FLAGS
 			instead.
 PROCMAIL_MAILER_ARGS	[procmail -Y -m $h $f $u] The arguments passed to
 			the Procmail mailer.  This is NOT used by
-			FEATURE(local_procmail); tweak LOCAL_MAILER_ARGS
+			FEATURE(`local_procmail'); tweak LOCAL_MAILER_ARGS
 			instead.
 PROCMAIL_MAILER_MAX	[undefined] If set, the maximum size message that
 			will be accepted by the procmail mailer.
@@ -327,8 +328,8 @@ CYRUS_BB_MAILER_FLAGS	[undefined] The flags used by the cyrusbb
 CYRUS_BB_MAILER_ARGS	[deliver -e -m $u] The arguments passed
 			to deliver cyrusbb mail.
 confEBINDIR		[/usr/libexec] The directory for executables.
-			Currently used for FEATURE(local_lmtp) and
-			FEATURE(smrsh).
+			Currently used for FEATURE(`local_lmtp') and
+			FEATURE(`smrsh').
 
 
 
@@ -454,7 +455,7 @@ procmail	An interface to procmail (does not come with sendmail).
 		This would arrange for (anything)@host.com to be sent
 		to person@other.host.  Within the procmail script, $1 is
 		the name of the sender and $2 is the name of the recipient.
-		If you use this with FEATURE(local_procmail), the FEATURE
+		If you use this with FEATURE(`local_procmail'), the FEATURE
 		should be listed first.
 
 mail11		The DECnet mail11 mailer, useful only if you have the mail11
@@ -478,10 +479,10 @@ cyrus		The cyrus and cyrusbb mailers.  The cyrus mailer delivers to
 
 The local mailer accepts addresses of the form "user+detail", where
 the "+detail" is not used for mailbox matching but is available
-to certain local mail programs (in particular, see FEATURE(local_procmail)).
-For example, "eric", "eric+sendmail", and "eric+sww" all indicate
-the same user, but additional arguments <null>, "sendmail", and "sww"
-may be provided for use in sorting mail.
+to certain local mail programs (in particular, see
+FEATURE(`local_procmail')).  For example, "eric", "eric+sendmail", and
+"eric+sww" all indicate the same user, but additional arguments <null>,
+"sendmail", and "sww" may be provided for use in sorting mail.
 
 
 +----------+
@@ -491,13 +492,13 @@ may be provided for use in sorting mail.
 Special features can be requested using the "FEATURE" macro.  For
 example, the .mc line:
 
-	FEATURE(use_cw_file)
+	FEATURE(`use_cw_file')
 
 tells sendmail that you want to have it read an /etc/sendmail.cw
 file to get values for class $=w.  The FEATURE may contain a single
 optional parameter -- for example:
 
-	FEATURE(mailertable, dbm /usr/lib/mailertable)
+	FEATURE(`mailertable', `dbm /usr/lib/mailertable')
 
 The default database map type for the table features can be set with
  
@@ -554,7 +555,9 @@ mailertable	Include a "mailer table" which can be used to override
 		routing for particular domains.  The argument of the
 		FEATURE may be the key definition.  If none is specified,
 		the definition used is:
+
 			hash -o /etc/mailertable
+
 		Keys in this database are fully qualified domain names
 		or partial domains preceded by a dot -- for example,
 		"vangogh.CS.Berkeley.EDU" or ".CS.Berkeley.EDU".
@@ -580,7 +583,9 @@ domaintable	Include a "domain table" which can be used to provide
 		oldname.com to newname.com).  The argument of the
 		FEATURE may be the key definition.  If none is specified,
 		the definition used is:
+
 			hash -o /etc/domaintable
+
 		The key in this table is the domain name; the value is
 		the new (fully qualified) domain.  Anything in the
 		domaintable is reflected into headers; that is, this
@@ -591,13 +596,17 @@ bitdomain	Look up bitnet hosts in a table to try to turn them into
 		bitdomain program contributed by John Gardiner Myers.
 		The argument of the FEATURE may be the key definition; if
 		none is specified, the definition used is:
+
 			hash -o /etc/bitdomain.db
+
 		Keys are the bitnet hostname; values are the corresponding
 		internet hostname.
 
 uucpdomain	Similar feature for UUCP hosts.  The default map definition
 		is:
+
 			hash -o /etc/uudomain.db
+
 		At the moment there is no automagic tool to build this
 		database.
 
@@ -659,7 +668,7 @@ genericstable	This feature will cause certain addresses originating locally
 		(analogously to MASQUERADE_DOMAIN and MASQUERADE_DOMAIN_FILE,
 		see below).
 
-		The argument of FEATURE(genericstable) may be the map
+		The argument of FEATURE(`genericstable') may be the map
 		definition; the default map definition is:
 
 			hash -o /etc/genericstable
@@ -670,8 +679,8 @@ genericstable	This feature will cause certain addresses originating locally
 		not include a domain, it will be qualified in the standard
 		manner, i.e. using $j or the masquerade name.  Note that the
 		address being looked up must be fully qualified.  For local
-		mail, it is necessary to use FEATURE(always_add_domain) for
-		the addresses to be qualified.
+		mail, it is necessary to use FEATURE(`always_add_domain')
+		for the addresses to be qualified.
 
 virtusertable	A domain-specific form of aliasing, allowing multiple
 		virtual domains to be hosted on one machine.  For example,
@@ -699,7 +708,7 @@ virtusertable	A domain-specific form of aliasing, allowing multiple
 		A new definition can be specified as the second argument of
 		the FEATURE macro, such as
 
-			FEATURE(virtusertable, dbm -o /etc/mail/virtusers)
+			FEATURE(`virtusertable', `dbm -o /etc/mail/virtusers')
 
 nodns		We aren't running DNS at our site (for example,
 		we are UUCP-only connected).  It's hard to consider
@@ -793,11 +802,11 @@ relay_based_on_MX
 		feature.  Also, see the KNOWNBUGS entry regarding bestmx
 		map lookups.
 
-		FEATURE(relay_based_on_MX) does not necessarily allow
+		FEATURE(`relay_based_on_MX') does not necessarily allow
 		routing of these messages which you expect to be allowed,
 		if route address syntax (or %-hack syntax) is used.  If
 		this is a problem, add entries to the access-table or use
-		FEATURE(loose_relay_check).
+		FEATURE(`loose_relay_check').
 
 relay_local_from
 		Allows relaying if the domain portion of the mail sender
@@ -828,9 +837,11 @@ accept_unresolvable_domains
 access_db	Turns on the access database feature.  The access db gives
 		you the ability to allow or refuse to accept mail from
 		specified domains for administrative reasons.  By default,
-		the access database specification is
-		``hash -o /etc/mail/access''.  The format of the
-		database is described below.
+		the access database specification is:
+
+			hash -o /etc/mail/access
+
+		The format of the database is described below.
 
 blacklist_recipients
 		Turns on the ability to block incoming mail for certain
@@ -888,7 +899,7 @@ the $=w class.  This is a list of names by which you are known, and
 anything sent to an address using a host name in this list will be
 treated as local mail.  You can do this in two ways: either create
 the file /etc/sendmail.cw containing a list of your aliases (one per
-line), and use ``FEATURE(use_cw_file)'' in the .mc file, or add the
+line), and use ``FEATURE(`use_cw_file')'' in the .mc file, or add the
 line:
 
 	Cw alias.host.name
@@ -1114,7 +1125,7 @@ to read the list of names from the indicated file.
 Normally only header addresses are masqueraded.  If you want to
 masquerade the envelope as well, use
 
-	FEATURE(masquerade_envelope)
+	FEATURE(`masquerade_envelope')
 
 There are always users that need to be "exposed" -- that is, their
 internal site name should be displayed instead of the masquerade name.
@@ -1131,7 +1142,7 @@ without @host) to a relay host.  For example, if you have a central
 email server, you might relay to that host so that users don't have
 to have .forward files or aliases.  You can do this using
 
-	define(`LOCAL_RELAY', mailer:hostname)
+	define(`LOCAL_RELAY', `mailer:hostname')
 
 The ``mailer:'' can be omitted, in which case the mailer defaults to
 "relay".  There are some user names that you don't want relayed, perhaps
@@ -1147,16 +1158,16 @@ This adds users to class L; you could also use something like
 If you want all incoming mail sent to a centralized hub, as for a
 shared /var/spool/mail scheme, use
 
-	define(`MAIL_HUB', mailer:hostname)
+	define(`MAIL_HUB', `mailer:hostname')
 
 Again, ``mailer:'' defaults to "relay".  If you define both LOCAL_RELAY
-and MAIL_HUB _AND_ you have FEATURE(stickyhost), unqualified names will
+and MAIL_HUB _AND_ you have FEATURE(`stickyhost'), unqualified names will
 be sent to the LOCAL_RELAY and other local names will be sent to MAIL_HUB.
 Names in $=L will be delivered locally, so you MUST have aliases or
 .forward files for them.
 
 For example, if you are on machine mastodon.CS.Berkeley.EDU and you have
-FEATURE(stickyhost), the following combinations of settings will have the
+FEATURE(`stickyhost'), the following combinations of settings will have the
 indicated effects:
 
 email sent to....	eric			  eric@mastodon.CS.Berkeley.EDU
@@ -1170,7 +1181,7 @@ mammoth.CS.Berkeley.EDU	  (aliasing done)	    (aliasing done)
 Both LOCAL_RELAY and	mail.CS.Berkeley.EDU	  mammoth.CS.Berkeley.EDU
 MAIL_HUB set as above	  (no local aliasing)	    (aliasing done)
 
-If you do not have FEATURE(stickyhost) set, then LOCAL_RELAY and
+If you do not have FEATURE(`stickyhost') set, then LOCAL_RELAY and
 MAIL_HUB act identically, with MAIL_HUB taking precedence.
 
 If you want all outgoing mail to go to a central relay site, define
@@ -1209,14 +1220,14 @@ Relaying (transmission of messages from a site outside your domain to
 another site outside your domain) is denied by default.  Note that
 this changed in sendmail 8.9; previous versions allowed relaying by
 default.  If you want to revert to the old behaviour, you will need
-to use FEATURE(promiscuous_relay).  You can allow certain domains to
+to use FEATURE(`promiscuous_relay').  You can allow certain domains to
 relay through your server by adding their domain name or IP address to
 class 'R' ($=R) using RELAY_DOMAIN() and RELAY_DOMAIN_FILE() or via the
 access database (described below).
 
 If you use
 
-	FEATURE(relay_entire_domain)
+	FEATURE(`relay_entire_domain')
 
 then any host in any of your local domains (that is, the $=m class)
 will be relayed (that is, you will accept mail either to or from any
@@ -1225,7 +1236,7 @@ host in your domain).
 You can also allow relaying based on the MX records of the host
 portion of an incoming recipient address by using
 
-	FEATURE(relay_based_on_MX)
+	FEATURE(`relay_based_on_MX')
 
 For example, if your server receives a recipient of user@domain.com
 and domain.com lists your server in its MX records, the mail will be
@@ -1235,7 +1246,7 @@ using your server as a relay for their site (that is, they set up an
 MX record pointing to your mail server, and you will relay mail addressed
 to them without any prior arrangement).  Along the same lines,
 
-	FEATURE(relay_local_from)
+	FEATURE(`relay_local_from')
 
 will allow relaying if the sender specifies a return path (i.e.
 MAIL FROM: <user@domain>) domain which is a local domain.  This a
@@ -1246,11 +1257,11 @@ It should not be used unless absolutely necessary.
 If source routing is used in the recipient address (i.e.
 RCPT TO: <user%site.com@othersite.com>), sendmail will check
 user@site.com for relaying if othersite.com is an allowed relay host
-in either class 'R', class 'm' if FEATURE(relay_entire_domain) is used,
-or the access database if FEATURE(access_db) is used.  To prevent
+in either class 'R', class 'm' if FEATURE(`relay_entire_domain') is used,
+or the access database if FEATURE(`access_db') is used.  To prevent
 the address from being stripped down, use:
 
-	FEATURE(loose_relay_check)
+	FEATURE(`loose_relay_check')
 
 If you think you need to use this feature, you probably do not.  This
 should only be used for sites which have no control over the addresses
@@ -1265,30 +1276,30 @@ firewall that has only a limited view of the Internet host name space
 (note that you will not be able to return mail to them unless you have
 some "smart host" forwarder), use
 
-	FEATURE(accept_unresolvable_domains)
+	FEATURE(`accept_unresolvable_domains')
 
 sendmail will also refuse mail if the MAIL FROM: parameter is not
 fully qualified (i.e., contains a domain as well as a user).  If you
 want to continue to accept such senders, use
 
-	FEATURE(accept_unqualified_senders)
+	FEATURE(`accept_unqualified_senders')
 
 An ``access'' database can be created to accept or reject mail from
 selected domains.  For example, you may choose to reject all mail
 originating from known spammers.  To enable such a database, use
 
-	FEATURE(access_db)
+	FEATURE(`access_db')
 
 The FEATURE macro can accept a second parameter giving the key file
 definition for the database; for example
 
-	FEATURE(access_db, hash -o /etc/mail/access)
+	FEATURE(`access_db', `hash -o /etc/mail/access')
 
 Remember, since /etc/mail/access is a database, after creating the text
 file as described below, you must use makemap to create the database
 map.  For example:
 
-makemap hash /etc/mail/access < /etc/mail/access
+	makemap hash /etc/mail/access < /etc/mail/access
 
 The table itself uses e-mail addresses, domain names, and network
 numbers as keys.  For example,
@@ -1335,7 +1346,7 @@ and allow relaying for the 128.32.*.* network.  Note, UUCP users may
 need to add hostname.UUCP to the access database or class 'R' ($=R).
 If you also use:
 
-	FEATURE(relay_hosts_only)
+	FEATURE(`relay_hosts_only')
 
 then the above example will allow relaying for sendmail.org, but not
 hosts within the sendmail.org domain.  Note that this will also require
@@ -1352,7 +1363,7 @@ sender address.
 
 If you use:
 
-	FEATURE(blacklist_recipients)
+	FEATURE(`blacklist_recipients')
 
 then you can add entries to the map for local users, hosts in your
 domains, or addresses in your domain which should not receive mail:
@@ -1377,7 +1388,7 @@ There is also a ``Realtime Blackhole List'' run by the MAPS project
 at http://maps.vix.com/.  This is a database maintained in DNS of
 spammers.  To use this database, use
 
-	FEATURE(rbl)
+	FEATURE(`rbl')
 
 This will cause sendmail to reject mail from any site in the
 Realtime Blackhole List database.  You can specify an alternative
@@ -1420,8 +1431,8 @@ a Message-ID: header:
 	R< $+ @ $+ >		$@ OK
 	R$*			$#error $: 553 Header Error
 
-Users of FEATURE(nullclient) who desire to use the anti-spam and
-anti-relaying capabilities should replace FEATURE(nullclient, mailhub)
+Users of FEATURE(`nullclient') who desire to use the anti-spam and
+anti-relaying capabilities should replace FEATURE(`nullclient', `mailhub')
 with:
 
 	undefine(`ALIAS_FILE')
@@ -1430,6 +1441,14 @@ with:
 	define(`confFORWARD_PATH', `')
 
 where mailhub is the fully qualified hostname for their mail server.
+The above rules will provide the relaying to the mailhub without local
+alias and forward file expansion.  To match the other behavior of
+FEATURE(`nullclient'), you should also add these lines along with those
+listed above:
+
+	MASQUERADE_AS(`mailhub')
+	FEATURE(`allmasquerade')
+	FEATURE(`masquerade_envelope')
 
 
 +--------------------------------+
@@ -1462,7 +1481,7 @@ hook to handle some special cases.
 You can define a ``smart host'' that understands a richer address syntax
 using:
 
-	define(`SMART_HOST', mailer:hostname)
+	define(`SMART_HOST', `mailer:hostname')
 
 In this case, the ``mailer:'' defaults to "relay".  Any messages that
 can't be handled using the usual UUCP rules are passed to this host.
@@ -1471,18 +1490,18 @@ If you are on a local SMTP-based net that connects to the outside
 world via UUCP, you can use LOCAL_NET_CONFIG to add appropriate rules.
 For example:
 
-	define(`SMART_HOST', suucp:uunet)
+	define(`SMART_HOST', `suucp:uunet')
 	LOCAL_NET_CONFIG
 	R$* < @ $* .$m. > $*	$#smtp $@ $2.$m. $: $1 < @ $2.$m. > $3
 
 This will cause all names that end in your domain name ($m) via
 SMTP; anything else will be sent via suucp (smart UUCP) to uunet.
-If you have FEATURE(nocanonify), you may need to omit the dots after
+If you have FEATURE(`nocanonify'), you may need to omit the dots after
 the $m.  If you are running a local DNS inside your domain which is
 not otherwise connected to the outside world, you probably want to
 use:
 
-	define(`SMART_HOST', smtp:fire.wall.com)
+	define(`SMART_HOST', `smtp:fire.wall.com')
 	LOCAL_NET_CONFIG
 	R$* < @ $* . > $*	$#smtp $@ $2. $: $1 < @ $2. > $3
 
@@ -1490,8 +1509,8 @@ That is, send directly only to things you found in your DNS lookup;
 anything else goes through SMART_HOST.
 
 You may need to turn off the anti-spam rules in order to accept
-UUCP mail with FEATURE(promiscuous_relay) and
-FEATURE(accept_unresolvable_domains).
+UUCP mail with FEATURE(`promiscuous_relay') and
+FEATURE(`accept_unresolvable_domains').
 
 
 +-----------+
@@ -1516,7 +1535,7 @@ name.  This is usually done using:
 | USING MAILERTABLES |
 +--------------------+
 
-To use FEATURE(mailertable), you will have to create an external
+To use FEATURE(`mailertable'), you will have to create an external
 database containing the routing information for various domains.
 For example, a mailertable file in text format might be:
 
@@ -1575,7 +1594,7 @@ is fairly easy.)  The intent was to locate the default maildrop at
 a site, but allow you to override this by sending to a specific host.
 
 If you decide to set up the user database in this fashion, it is
-imperative that you not use FEATURE(stickyhost) -- otherwise,
+imperative that you not use FEATURE(`stickyhost') -- otherwise,
 e-mail sent to Full.Name@local.host.name will be rejected.
 
 To build the internal form of the user database, use:
@@ -1715,7 +1734,7 @@ confCR_FILE		FR class	[/etc/mail/relay-domains] Name of
 confTRUSTED_USERS	Ct class	[no default] Names of users to add to
 					the list of trusted users.  This list
 					always includes root, uucp, and daemon.
-					See also FEATURE(use_ct_file).
+					See also FEATURE(`use_ct_file').
 confSMTP_MAILER		-		[esmtp] The mailer name used when
 					SMTP connectivity is required.
 					One of "smtp", "smtp8", or "esmtp".

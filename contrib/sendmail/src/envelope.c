@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.121 (Berkeley) 12/18/1998";
+static char sccsid[] = "@(#)envelope.c	8.122 (Berkeley) 1/25/1999";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -800,7 +800,7 @@ setsender(from, e, delimptr, delimchar, internal)
 		if (FullName != NULL && !internal)
 			define('x', FullName, e);
 	}
-	else if (!internal && OpMode != MD_DAEMON)
+	else if (!internal && OpMode != MD_DAEMON && OpMode != MD_SMTP)
 	{
 		if (e->e_from.q_home == NULL)
 		{

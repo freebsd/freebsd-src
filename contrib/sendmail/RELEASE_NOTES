@@ -1,10 +1,96 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.9.2.4 (Berkeley) 12/29/1998
+	     @(#)RELEASE_NOTES	8.9.3.1 (Berkeley) 2/4/1999
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.9.3/8.9.3	99/02/04
+	SECURITY: Limit message headers to a maximum of 32K bytes (total
+		of all headers in a single message) to prevent a denial of
+		service attack.  This limit will be configurable in 8.10.
+		Problem noted by Michal Zalewski of the "Internet for
+		Schools" project (IdS).
+	Prevent segmentation fault on an LDAP lookup if the LDAP map
+		was closed due to an earlier failure.  Problem noted by
+		Jeff Wasilko of smoe.org.  Fix from Booker Bense of
+		Stanford University and Per Hedeland of Ericsson.
+	Preserve the order of the MIME headers in multipart messages
+		when performing the MIME header length check.  This
+		will allow PGP signatures to function properly.  Problem
+		noted by Lars Hecking of University College, Cork, Ireland.
+	If ruleset 5 rewrote the local address to an :include: directive,
+		the delivery would fail with an "aliasing/forwarding loop
+		broken" error.  Problem noted by Eric C Hagberg of Morgan
+		Stanley.  Fix from Per Hedeland of Ericsson.
+	Allow -T to work for bestmx maps.  Fix from Aaron Schrab of
+		ExecPC Internet Systems.
+	During the transfer of a message in an SMTP transaction, if a
+		TCP timeout occurs, the message would be properly queued
+		for later retry but the failure would be logged as
+		"Illegal Seek" instead of a timeout.  Problem noted by
+		Piotr Kucharski of the Warsaw School of Economics (SGH)
+		and Carles Xavier Munyoz Baldo of CTV Internet.
+	Prevent multiple deliveries on a self-referencing alias if the
+		F=w mailer flag is not set.  Problem noted by Murray S.
+		Kucherawy of Concentric Network Corporation and Per
+		Hedeland of Ericsson.
+	Do not strip empty headers but if there is no value and a
+		default is defined in sendmail.cf, use the default.
+		Problem noted by Philip Guenther of Gustavus Adolphus
+		College and Christopher McCrory of Netus, Inc.
+	Don't inherit information about the sender (notably the full name)
+		in SMTP (-bs) mode, since this might be called from inetd.
+	Accept any 3xx reply code in response to DATA command instead of
+		requiring 354.  This change will match the wording to be
+		published in the updated SMTP specification from the DRUMS
+		group of the IETF.
+	Portability:
+		AIX 4.2.0.2 ships with a /usr/lib/libbind.a which should
+			not be used.  It conflicts with the resolver
+			built into libc.a.  "bind" has been removed
+			from the confLIBSEARCH BuildTools variable.
+			Users who have installed BIND 8.X will have
+			to add it back in their site.config.m4 file.
+			Problem noted by Ole Holm Nielsen of the
+			Technical University of Denmark.
+		CRAY TS 10.0.x from Sven Nielsen of San Diego
+			Supercomputer Center.
+		Improved LDAP version 3 integration based on input
+			from Kurt D. Zeilenga of the OpenLDAP Foundation,
+			John Beck of Sun Microsystems, and Booker Bense
+			of Stanford University.
+		Linux doesn't have a standard way to get the timezone
+			between different releases.  Back out the
+			change in 8.9.2 and don't attempt to derive
+			a timezone.  Problem reported by Igor S. Livshits
+			of the University of Illinois at Urbana-Champaign
+			and Michael Dickens of Tetranet Communications.
+		Reliant UNIX, the new name for SINIX, from Gert-Jan Looy
+			of Siemens/SNI.
+		SunOS 5.8 from John Beck of Sun Microsystems.
+	CONFIG: SCO UnixWare 2.1 and 7.0 need TZ to get the proper
+		timezone.  Problem noted by Petr Lampa of Technical
+		University of Brno.
+	CONFIG: Handle <@bestmx-host:user@otherhost> addressing properly
+		when using FEATURE(bestmx_is_local).  Patch from Neil W.
+		Rickert of Northern Illinois University.
+	CONFIG: Properly handle source routed and %-hack addresses on
+		hosts which the mailertable remaps to local:.  Patch from
+		Neil W. Rickert of Northern Illinois University.
+	CONFIG: Internal fixup of mailertable local: map value.  Patch from
+		Larry Parmelee of Cornell University.
+	CONFIG: Only add back +detail from host portion of mailer triplet
+		on local mailer triplets if it was originally +detail.
+		Patch from Neil W. Rickert of Northern Illinois University.
+	CONFIG: The bestmx_is_local checking done in check_rcpt would
+		cause later checks to fail.  Patch from Paul J Murphy of
+		MIDS Europe.
+	New files:
+		BuildTools/OS/CRAYTS.10.0.x
+		BuildTools/OS/ReliantUNIX
+		BuildTools/OS/SunOS.5.8
 
 8.9.2/8.9.2	98/12/30
 	SECURITY: Remove five second sleep on accepting daemon connections
@@ -19,7 +105,7 @@ summary of the changes in that release.
 		Problem noted by Andreas Schott of the Max Planck Society.
 	Missing columns in a text map could cause a segmentation fault.
 		Fix from David Lee of the University of Durham.
-	Note that for 8.9.X, PrivacyFlags=goaway also includes the
+	Note that for 8.9.X, PrivacyOptions=goaway also includes the
 		noetrn flag.  This is scheduled to change in a future
 		version of sendmail.  Problem noted by Theo Van Dinter of
 		Chrysalis Symbolic Designa and Alan Brown of Manawatu
@@ -80,14 +166,14 @@ summary of the changes in that release.
 	Avoid bogus reporting of "LMTP tobuf overflow" when the buffer
 		has enough space for the additional address.  Problem
 		noted by Steve Cliffe of the University of Wollongong.
-	Fix DontBlameSendmail=FileDeliveryToSymlinks behavior.  Problem
+	Fix DontBlameSendmail=FileDeliveryToSymlink behavior.  Problem
 		noted by Alex Vorobiev of Swarthmore College.
 	If the check_compat ruleset resolves to the $#discard mailer,
 		discard the current recipient.  Unlike check_relay,
 		check_mail, and check_rcpt, the entire envelope is not
 		discarded.  Problem noted by RZ D. Rahlfs.  Fix from
 		Claus Assmann of Christian-Albrechts-University of Kiel.
-	Avoid segmentation fault when reading ServiceSwitch files with
+	Avoid segmentation fault when reading ServiceSwitchFile files with
 		bogus formatting.  Patch from Kari Hurtta of the Finnish
 		Meteorological Institute.
 	Support Berkeley DB 2.6.4 API change.
@@ -122,7 +208,7 @@ summary of the changes in that release.
 			Tom J. Moore of NCR.
 		NeXT 4.x correction to man page path.  From J. P. McCann
 			of E I A.
-		System V Rel 5.x (a.k.a Unixware7 w/o BSD-Compatibility Libs)
+		System V Rel 5.x (a.k.a UnixWare7 w/o BSD-Compatibility Libs)
 			from Paul Gampe of the Asia Pacific Network
 			Information Center.
 		ULTRIX now requires an optimization limit of 970 from
@@ -210,7 +296,7 @@ summary of the changes in that release.
 		and then back.  Problem noted by Michael Miller of the
 		University of Natal, Pietermaritzburg.
 	Do not advertise ETRN support in ESTMP EHLO reply if noetrn is
-		set in the PrivacyFlags option.  Fix from Ted Rule of
+		set in the PrivacyOptions option.  Fix from Ted Rule of
 		Flextech TV.
 	Log invalid persistent host status file lines instead of
 		bouncing the message.  Problem noted by David Lindes of
@@ -972,7 +1058,7 @@ summary of the changes in that release.
 	If the AllowBogusHELO option were set and an EHLO with a bad or
 		missing parameter were issued, the EHLO behaved like a HELO.
 	Load limiting never kicked in for incoming SMTP transactions if the
-		DeliverMode=background and any recipient was an alias or
+		DeliveryMode=background and any recipient was an alias or
 		had a .forward file.  From Nik Conwell of Boston University.
 	On some non-Posix systems, the decision of whether chown(2) permits
 		file giveaway was undefined.  From Tetsu Ushijima of the
@@ -1463,7 +1549,7 @@ summary of the changes in that release.
 		first" error message.  Problem pointed out by Chris Thomas
 		of UCLA; patch from John Beck of SunSoft.
 	Handle "sendmail -bp -qSfoobar" properly if restrictqrun is set
-		 in PrivacyFlags.  The -q shouldn't turn this command off.
+		 in PrivacyOptions.  The -q shouldn't turn this command off.
 		 Problem noted by Murray Kucherawy of Pacific Bell Internet;
 		 based on a patch from Gregory Neil Shapiro of WPI.
 	Don't consider SMTP reply codes 452 or 552 (exceeded storage allocation)
@@ -2113,7 +2199,7 @@ summary of the changes in that release.
 		on a suggestion by Motonori Nakamura.
 	Add new value "time" for QueueSortOrder option; this causes the queue
 		to be sorted strictly by the time of submission.  Note that
-		this can cause very bad behaviour over slow lines (because
+		this can cause very bad behavior over slow lines (because
 		large jobs will tend to delay small jobs) and on nodes with
 		heavy traffic (because old things in the queue for hosts that
 		are down delay processing of new jobs).  Also, this does not
@@ -2236,7 +2322,7 @@ summary of the changes in that release.
 	The Timeout.* options are not safe -- they can be used to create a
 		denial-of-service attack.  Problem noted by Christophe
 		Wolfhugel.
-	Don't send PostMasterCopy messages in the event of a "delayed"
+	Don't send PostmasterCopy messages in the event of a "delayed"
 		notification.  Suggested by Barry Bouwsma.
 	Don't advertise "VERB" ESMTP extension if the "noexpn" privacy
 		option is set, since this disables VERB mode.  Suggested
@@ -2244,7 +2330,7 @@ summary of the changes in that release.
 	Complain if the QueueDirectory (Q) option is not set.  Problem noted
 		by Motonori Nakamura of Kyoto University.
 	Only queue messages on transient .forward open failures if there
-		were no successful opens.  The previous behaviour caused it
+		were no successful opens.  The previous behavior caused it
 		to queue even if a "fall back" .forward was found.  Problem
 		noted by Ann-Kian Yeo of the Dept. of Information Systems
 		and Computer Science (DISCS), NUS, Singapore.
@@ -2497,7 +2583,7 @@ summary of the changes in that release.
 		valid recipient headers (To:, Cc: or Apparently-To:, the
 		last being a historic botch, of course).  If Bcc: is the
 		only recipient header in the message, its value is tossed,
-		but the header name is kept.  The old behaviour (always keep
+		but the header name is kept.  The old behavior (always keep
 		the header name and toss the value) allowed primary recipients
 		to see that a Bcc: went to _someone_.
 	Include queue id on ``Authentication-Warning: <host>: <user> set
@@ -2518,7 +2604,7 @@ summary of the changes in that release.
 		John Hawkinson of Panix.
 	An SMTP RCPT command referencing a host that gave a nameserver
 		timeout would return a 451 command (8.6 accepted it and
-		queued it locally).  Revert to the 8.6 behaviour in order
+		queued it locally).  Revert to the 8.6 behavior in order
 		to simplify queue management for clustered systems.  Suggested
 		by Gregory Neil Shapiro of WPI.  The same problem could break
 		MH, which assumes that the SMTP session will succeed (tsk, tsk
@@ -2531,7 +2617,7 @@ summary of the changes in that release.
 		Hawkinson and Sam Hartman of MIT.
 	``452 Out of disk space for temp file'' messages weren't being
 		printed.  Fix from David Perlin of Nanosoft.
-	Don't advertise the ESMTP DSN extension if the SendMIMEErrors option
+	Don't advertise the ESMTP DSN extension if the SendMimeErrors option
 		is not set, since this is required to get the actual DSNs
 		created.  Problem pointed out by John Gardiner Myers of CMU.
 	Log permission problems that cause .forward and :include: files to
@@ -2872,7 +2958,7 @@ summary of the changes in that release.
 			t	TimeZoneSpec
 			u	DefaultUser
 			U	UserDatabaseSpec
-			V	FallbackMXhost
+			V	FallbackMXHost
 			v	Verbose
 			w	TryNullMXList
 			x	QueueLA
@@ -3037,7 +3123,7 @@ summary of the changes in that release.
 		or the sequence "\t" or "\n" for tab or newline.
 		These are for use by NIS+ and similar access methods.
 	Change maps to always strip quotes before lookups; the -q flag
-		turns off this behaviour.  Suggested by Motonori Nakamura.
+		turns off this behavior.  Suggested by Motonori Nakamura.
 	Add "nisplus" map class.  Takes -k and -v flags to choose the
 		key and value field names respectively.  Code donated by
 		Sun Microsystems.
@@ -3581,9 +3667,9 @@ summary of the changes in that release.
 			deals with 32 bit or 16 bit fields, such as IP
 			addresses or nameserver fields.''
 		DG/UX 5.4.3 from Mark T. Robinson <mtr@ornl.gov>.  To
-			get the old behaviour, use -DDGUX_5_4_2.
+			get the old behavior, use -DDGUX_5_4_2.
 		DG/UX hack: add _FORCE_MAIL_LOCAL_=yes environment
-			variable to fix bogus /bin/mail behaviour.
+			variable to fix bogus /bin/mail behavior.
 		Tandem NonStop-UX from Rick McCarty <mccarty@mpd.tandem.com>.
 			This also cleans up some System V Release 4 compile
 			problems.
@@ -3727,7 +3813,7 @@ summary of the changes in that release.
 		Received: header inserted into all messages. Suggested by
 		Gary Mills of the University of Manitoba.
 	CONFIG: Make "notsticky" the default; use FEATURE(stickyhost)
-		to get the old behaviour.  I did this upon observing
+		to get the old behavior.  I did this upon observing
 		that almost everyone needed this feature, and that the
 		concept I was trying to make happen didn't work with
 		some user agents anyway.  FEATURE(notsticky) still works,
@@ -3801,7 +3887,7 @@ summary of the changes in that release.
 		would only work when locally addressed.  Fix from
 		Edvard Tuinder of Cistron Internet Services.
 	CONFIG: use ${opMode} to avoid error on .REDIRECT addresses if option
-		"n" (CheckAlaises) is set when rebuilding alias database.
+		"n" (CheckAliases) is set when rebuilding alias database.
 		Based on code contributed by Claude Marinier.
 	CONFIG: Allow mailertable to have values of the form
 		``error:code message''.  The ``code'' is a status code
@@ -4108,7 +4194,7 @@ summary of the changes in that release.
 		this could in turn cause the sendmail.pid file to be
 		incorrect.  A better approach might be to accept the
 		connection and give a 421 code, but that could break
-		other mailers in mysterious ways and have paging behaviour
+		other mailers in mysterious ways and have paging behavior
 		implications.
 	Fix a glitch in TCP-level debugging that caused flag 16.101 to
 		set debugging on the wrong socket.  From Eric Wassenaar.
@@ -4413,7 +4499,7 @@ summary of the changes in that release.
 		this by putting "*" in /etc/shells.  It also won't
 		permit world-writable :include: files to reference
 		programs or files (there's no way to disable this).
-		These behaviours are only one level deep -- for
+		These behaviors are only one level deep -- for
 		example, it is legal for a world-writable :include:
 		file to reference an alias that writes a file, on
 		the assumption that the alias file is well controlled.
@@ -4756,7 +4842,7 @@ summary of the changes in that release.
 	Non-root use of -C flag, dangerous -f flags, and use of -oQ
 		by non-root users were not put into
 		X-Authentication-Warning:s as intended because the
-		config file hadn't set the PrivacyFlags yet.  Fix
+		config file hadn't set the PrivacyOptions yet.  Fix
 		from Sven-Ove Westberg of the University of Lulea.
 	Under very odd circumstances, the alias file rebuild code
 		could get confused as to whether a database was
@@ -4834,7 +4920,7 @@ summary of the changes in that release.
 		term bug.
 	Fix a nasty bug causing core dumps when returning the "warning:
 		cannot deliver for N hours -- will keep trying" message;
-		it only occurred if you had PostMasterCopy set and
+		it only occurred if you had PostmasterCopy set and
 		only on some architectures.  Although sendmail would
 		keep trying, it would send error messages on each
 		queue interval.  This is an important fix.
@@ -4923,7 +5009,7 @@ summary of the changes in that release.
 	Fix a bug that can cause qf files to be left around even after
 		an SMTP RSET command.  Problem and fix from Michael
 		Corrigan.
-	Don't send a PostMasterCopy to errors when the Precedence: is
+	Don't send a PostmasterCopy to errors when the Precedence: is
 		negative.  Error reports still go to the envelope
 		sender address.
 	Add LA_SHORT for load averages.
@@ -5146,7 +5232,7 @@ summary of the changes in that release.
 		Support -M as equivalent to -oM on Ultrix -- apparently
 			DECnet calls sendmail with -MrDECnet -Ms<HOST> -bs
 			instead of using standard flags.  Oh joy.  This
-			behaviour reported by Jon Giltner of University
+			behavior reported by Jon Giltner of University
 			of Colorado.
 		SGI IRIX  -- this includes several changes that should
 			help other strict ANSI compilers.
@@ -5692,7 +5778,7 @@ summary of the changes in that release.
 	Fix compilation problem in getauthinfo() if IDENTPROTO is off.
 	Turn off DEFNAMES and DNSRCH when getting the hostsignature
 		(i.e., MX records) in level 1 configuration files; this
-		matches the old behaviour.  From Motonori Nakamura of
+		matches the old behavior.  From Motonori Nakamura of
 		Kyoto University.
 	Improve error message printing -- if sent through an alias,
 		error messages include the name of the alias in the
@@ -5736,7 +5822,7 @@ summary of the changes in that release.
 		IDENT port (113).  Thus, no email can be received from such
 		hosts.  There is some evidence that versions of Ultrix before
 		4.3 do not have this problem.  Thanks to Tom Ivar Helbekkmo
-		for pointing out this behaviour to me and to Michael Corrigan
+		for pointing out this behavior to me and to Michael Corrigan
 		of U.C. San Diego for informing me about the HPUX problem.
 	Allow IPC mailers to return a colon-separated list of hosts in the
 		$@ clause; these are searched in order as though they were
@@ -6293,7 +6379,7 @@ summary of the changes in that release.
 	Add the "c" mailer flag -- this suppresses all comment parts of
 		addresses (requested by John Curran of NEARnet).
 	Have -v print prompts in -bt mode even if stdin is not a terminal
-		(default behaviour is to be silent if not reading from
+		(default behavior is to be silent if not reading from
 		a terminal).  Suggested by Bryan Costales, ICSI.
 	Move the metacharacters from C0 space (\001-\037) into C1 space
 		(\201-\237).  This also fixes a bunch of potential bugs
@@ -6322,7 +6408,7 @@ summary of the changes in that release.
 		was suggested by Eric Wassenaar.
 	Use initgroups() in hpux, even though it's System-V based.  The
 		HASINITGROUPS compile flag can set this on other systems.
-		This HPUX behaviour was pointed out by Eric Wassenaar.
+		This HPUX behavior was pointed out by Eric Wassenaar.
 
 6.23/6.6	93/02/16
 	Clean up handling of LogLevel to make it easier to figure out
@@ -6343,7 +6429,7 @@ summary of the changes in that release.
 		definition lines.  Note that rulesets 1 and 2 are
 		still used for both addresses as before.  Bruce Lilly
 		gave a convincing argument that RFC976 insists on
-		this behaviour.
+		this behavior.
 	Added some time zones to arpatounix -- they may not be in the
 		standards, but they are in use.  However, I may delete
 		arpatounix entirely -- there appears to be no reason
@@ -6464,7 +6550,7 @@ summary of the changes in that release.
 6.9/6.1 	93/01/13
 	Environment handling simplification/bug fix -- child processes
 		get a minimal, fixed environment.  This avoids different
-		behaviour in queue runs.
+		behavior in queue runs.
 	Handle commas inside comments properly.
 	Properly limit large messages submitted in -obq mode.
 

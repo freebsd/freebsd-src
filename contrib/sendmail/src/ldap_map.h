@@ -14,7 +14,7 @@
 **	Please go to him for support -- since I (Eric) don't run LDAP, I
 **	can't help you at all.
 **
-**	@(#)ldap_map.h	8.10 (Berkeley) 9/14/1998
+**	@(#)ldap_map.h	8.12 (Berkeley) 2/2/1999
 */
 
 #ifndef _LDAP_MAP_H
@@ -67,5 +67,25 @@ typedef struct ldap_map_struct	LDAP_MAP_STRUCT;
 #else /* LDAP_REFERRALS */
 # define DEFAULT_LDAP_MAP_LDAP_OPTIONS	0
 #endif /* LDAP_REFERRALS */
+
+/*
+**  ldap_init(3) is broken in Umich 3.x and OpenLDAP 1.0/1.1.
+**  Use the lack of LDAP_OPT_SIZELIMIT to detect old API implementations
+**  and assume (falsely) that all old API implementations are broken.
+**  (OpenLDAP 1.2 and later have a working ldap_init(), add -DUSE_LDAP_INIT)
+*/
+
+#if defined(LDAP_OPT_SIZELIMIT) && !defined(USE_LDAP_INIT)
+# define USE_LDAP_INIT	1
+#endif
+
+/*
+**  LDAP_OPT_SIZELIMIT is not defined under Umich 3.x nor OpenLDAP 1.x,
+**  hence ldap_set_option() must not exist.
+*/
+
+#if defined(LDAP_OPT_SIZELIMIT) && !defined(USE_LDAP_SET_OPTION)
+# define USE_LDAP_SET_OPTION	1
+#endif
 
 #endif /* _LDAP_MAP_H */
