@@ -54,7 +54,7 @@
 
 static struct _pcsid
 {
-        pcidi_t type;
+        u_int32_t type;
 	char	*desc;
 } pci_ids[] =
 {
@@ -112,7 +112,6 @@ struct intpm_pci_softc{
         bus_space_handle_t smbsh;
 	bus_space_tag_t pmst;
 	bus_space_handle_t pmsh;
-        pcici_t cfg;
 	device_t  smbus;
 };
 
