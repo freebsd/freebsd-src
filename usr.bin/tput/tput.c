@@ -165,7 +165,7 @@ process(cap, str, argv)
 				/*
 				 * hpux has lot's of them, but we complain
 				 */
-				 errx(2, erresc, *cp, cap);
+				 warnx(erresc, *cp, cap);
 			    }
 
 	/* And print them. */
