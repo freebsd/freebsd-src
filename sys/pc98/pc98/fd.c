@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.7.2.9 1997/11/04 09:48:58 kato Exp $
+ *	$Id: fd.c,v 1.7.2.10 1998/05/06 20:12:30 gibbs Exp $
  *
  */
 
@@ -256,7 +256,7 @@ static nrd_t nrdaddr=0x0;
 #define	nrd_secsize()	((int)((nrd_info(A_NRD_INFO) >> 8) & 0xff))
 #define	nrd_addrset(p)	nrd_addr((nrd_t)((nrd_t)p+A_NRD_BASE))
 
-static inline void
+static __inline void
 nrd_addr(addr)
 	nrd_t	addr;
 {
@@ -265,7 +265,7 @@ nrd_addr(addr)
 	epson_outb(P_NRD_ADDRL, (u_char)(addr & 0xff));
 }
 
-static inline u_short
+static __inline u_short
 nrd_info(addr)
 	nrd_t	addr;
 {

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.6 1996/10/09 21:46:40 asami Exp $
+ *	$Id: pcaudio.c,v 1.7 1996/10/30 22:40:08 asami Exp $
  */
 
 #include "pca.h"
@@ -116,7 +116,7 @@ static void pca_continue __P((void));
 static void pca_init __P((void));
 static void pca_pause __P((void));
 
-static inline void
+static __inline void
 conv(const void *table, void *buff, unsigned long n)
 {
   __asm__("1:\tmovb (%2), %3\n"

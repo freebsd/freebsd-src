@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.29 1998/04/18 15:46:25 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.30 1998/05/31 17:32:32 kato Exp $
  */
 
 #include "sc.h"
@@ -294,7 +294,7 @@ static int wait_scrn_saver_stop(void);
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
-static inline void move_crsr(scr_stat *scp, int x, int y);
+static __inline void move_crsr(scr_stat *scp, int x, int y);
 static void scan_esc(scr_stat *scp, u_char c);
 static void draw_cursor_image(scr_stat *scp); 
 static void remove_cursor_image(scr_stat *scp); 
@@ -395,7 +395,7 @@ unsigned int at2pc98(unsigned int attr)
 /*
  * These functions need to be before calls to them so they can be inlined.
  */
-static inline void
+static __inline void
 draw_cursor_image(scr_stat *scp)
 {
 #ifndef PC98
@@ -455,7 +455,7 @@ draw_cursor_image(scr_stat *scp)
 #endif
 }
 
-static inline void
+static __inline void
 remove_cursor_image(scr_stat *scp)
 {
 #ifndef PC98
@@ -463,7 +463,7 @@ remove_cursor_image(scr_stat *scp)
 #endif
 }
 
-static inline void
+static __inline void
 move_crsr(scr_stat *scp, int x, int y)
 {
     if (x < 0)
