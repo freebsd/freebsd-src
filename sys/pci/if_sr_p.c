@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifndef COMPAT_OLDPCI
+#error "The sr device requires the old pci compatibility shims"
+#endif
+
 #include "sr.h"
 
 #include <sys/param.h>

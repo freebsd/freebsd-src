@@ -29,6 +29,10 @@
  * $FreeBSD$
  */
 
+#ifndef COMPAT_OLDPCI
+#error "The ar device requires the old pci compatibility shims"
+#endif
+
 #include "ar.h"
 
 #include <sys/param.h>
