@@ -30,7 +30,7 @@ CFLAGS+=	-DHAVE_PERL_5_003_01	# If perl >= 5.03.01
 CFLAGS+=	-DGTAGS
 
 #if using ncurses:
-#CFLAGS+=	-DSYSV_CURSES
+CFLAGS+=	-DSYSV_CURSES
 
 VI=	nvi
 EX=	nex
@@ -63,8 +63,8 @@ PLLINKS= pl_PL
 CFLAGS+=-I${.CURDIR} -I${SRCDIR} -I${SRCDIR}/include
 
 .if !defined(TKNVI)
-DPADD+=		${LIBCURSES} ${LIBTERMCAP}
-LDADD+=		-lcurses -ltermcap
+DPADD+=		${LIBNCURSES}
+LDADD+=		-lncurses
 .endif
 
 .if defined(TKNVI)
