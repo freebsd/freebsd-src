@@ -122,28 +122,6 @@ filesystem table
 .Xr unmount 2 ,
 .Xr fstab 5 ,
 .Xr mount 8
-.Sh BUGS
-When using union filesystems,
-.Xr umount 8
-cannot always determine the node which is the mountpoint.
-In this case,
-it is necessary to specify the relevant directory to be unmounted
-in the same form as that displayed by
-.Xr mount 8 .
-For example, given a mount entry like this:
-.Bd -literal -offset indent
-<above>/tmpdir on /cdrom (local, user mount)
-.Ed
-.Pp
-then the command:
-.Bd -literal -offset indent
-umount '<above>/tmpdir'
-.Ed
-.Pp
-would unmount 
-.Ar /tmpdir 
-from the mountpoint
-.Ar /cdrom .
 .Sh HISTORY
 A
 .Nm
