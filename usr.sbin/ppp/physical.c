@@ -916,7 +916,7 @@ physical_Login(struct physical *p, const char *name)
     char *colon;
 
     memset(&ut, 0, sizeof ut);
-    time(&ut.ut_time);
+    ut.ut_time = time(NULL);
     strncpy(ut.ut_name, name, sizeof ut.ut_name);
     if (p->handler && (p->handler->type == TCP_DEVICE ||
                        p->handler->type == UDP_DEVICE)) {
