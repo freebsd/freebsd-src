@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU Tar; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+/* $FreeBSD$ */
+
 /*
  * Diff files from a tar archive.
  *
@@ -493,6 +495,8 @@ verify_volume ()
   int er;
 #endif
 
+  current_file_name = NULL;
+  current_link_name = NULL;
   if (!diff_buf)
     diff_init ();
 #ifdef MTIOCTOP
