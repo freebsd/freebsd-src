@@ -95,7 +95,7 @@ void	 badlogin __P((char *));
 void	 checknologin __P((void));
 void	 dolastlog __P((int));
 void	 getloginname __P((void));
-void	 motd __P((char *));
+void	 motd __P((const char *));
 int	 rootterm __P((char *));
 void	 sigint __P((int));
 void	 sleepexit __P((int));
@@ -144,7 +144,8 @@ jmp_buf timeout_buf;
 
 struct	passwd *pwd;
 int	failures;
-char	*term, *envinit[1], *hostname, *passwd_prompt, *prompt, *tty, *username;
+char	*term, *envinit[1], *hostname, *tty, *username;
+const char *passwd_prompt, *prompt;
 char    full_hostname[MAXHOSTNAMELEN];
 
 int
@@ -166,7 +167,7 @@ main(argc, argv)
 	char *p, *ttyn;
 	char tbuf[MAXPATHLEN + 2];
 	char tname[sizeof(_PATH_TTY) + 10];
-	char *shell = NULL;
+	const char *shell = NULL;
 	login_cap_t *lc = NULL;
 #ifdef USE_PAM
 	pid_t pid;
@@ -676,7 +677,7 @@ main(argc, argv)
 	(void)setenv("PATH", rootlogin ? _PATH_STDPATH : _PATH_DEFPATH, 0);
 
 	if (!quietlog) {
-		char	*cw;
+		const char *cw;
 
 		cw = login_getcapstr(lc, "copyright", NULL, NULL);
 		if (cw != NULL && access(cw, F_OK) == 0)
@@ -960,7 +961,7 @@ sigint(signo)
 
 void
 motd(motdfile)
-	char *motdfile;
+	const char *motdfile;
 {
 	int fd, nchars;
 	sig_t oldint;
