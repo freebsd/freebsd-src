@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.36 1997/10/12 19:57:49 jkh Exp $
+ *	$Id: kbdtables.h,v 1.37 1998/01/07 08:40:32 yokota Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
@@ -962,15 +962,15 @@ static keymap_t keymap = { 0x69,	/* spanish iso8859 keymap */
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',   ' ',   ' ',   ' ',   ' ',   ' ',   ' ',  0x00, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
-/* sc=3b */ F( 1), F(13), F(25), F(37), S(01), S(11), S(01), S(11), 0xFF, 0x00,
-/* sc=3c */ F( 2), F(14), F(26), F(38), S(02), S(12), S(02), S(12), 0xFF, 0x00,
-/* sc=3d */ F( 3), F(15), F(27), F(39), S(03), S(13), S(03), S(13), 0xFF, 0x00,
-/* sc=3e */ F( 4), F(16), F(28), F(40), S(04), S(14), S(04), S(14), 0xFF, 0x00,
-/* sc=3f */ F( 5), F(17), F(29), F(41), S(05), S(15), S(05), S(15), 0xFF, 0x00,
-/* sc=40 */ F( 6), F(18), F(30), F(42), S(06), S(16), S(06), S(16), 0xFF, 0x00,
-/* sc=41 */ F( 7), F(19), F(31), F(43), S(07), S(07), S(07), S(07), 0xFF, 0x00,
-/* sc=42 */ F( 8), F(20), F(32), F(44), S(08), S(08), S(08), S(08), 0xFF, 0x00,
-/* sc=43 */ F( 9), F(21), F(33), F(45), S(09), S(09), S(09), S(09), 0xFF, 0x00,
+/* sc=3b */ F( 1), F(13), F(25), F(37), S( 1), S(11), S( 1), S(11), 0xFF, 0x00,
+/* sc=3c */ F( 2), F(14), F(26), F(38), S( 2), S(12), S( 2), S(12), 0xFF, 0x00,
+/* sc=3d */ F( 3), F(15), F(27), F(39), S( 3), S(13), S( 3), S(13), 0xFF, 0x00,
+/* sc=3e */ F( 4), F(16), F(28), F(40), S( 4), S(14), S( 4), S(14), 0xFF, 0x00,
+/* sc=3f */ F( 5), F(17), F(29), F(41), S( 5), S(15), S( 5), S(15), 0xFF, 0x00,
+/* sc=40 */ F( 6), F(18), F(30), F(42), S( 6), S(16), S( 6), S(16), 0xFF, 0x00,
+/* sc=41 */ F( 7), F(19), F(31), F(43), S( 7), S( 7), S( 7), S( 7), 0xFF, 0x00,
+/* sc=42 */ F( 8), F(20), F(32), F(44), S( 8), S( 8), S( 8), S( 8), 0xFF, 0x00,
+/* sc=43 */ F( 9), F(21), F(33), F(45), S( 9), S( 9), S( 9), S( 9), 0xFF, 0x00,
 /* sc=44 */ F(10), F(22), F(34), F(46), S(10), S(10), S(10), S(10), 0xFF, 0x00,
 /* sc=45 */  NLK,   NLK,  0x13,  0x13,   NLK,   NLK,  0x13,  0x13,  0xCC, 0x00,
 /* sc=46 */  SLK,   SLK,  0x7F,  0x7F,   SLK,   SLK,  0x7F,  0x7F,  0xCC, 0x00,
