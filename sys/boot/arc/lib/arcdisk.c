@@ -61,9 +61,9 @@
 #endif
 
 static int	bd_init(void);
-static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
-static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
-static int	bd_open(struct open_file *f, void *vdev);
+static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf, size_t *rsize);
+static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf, size_t *rsize);
+static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 static void	bd_print(int verbose);
 
@@ -139,9 +139,9 @@ bd_print(int verbose)
  *  slice before it?)
  */
 static int 
-bd_open(struct open_file *f, void *vdev)
+bd_open(struct open_file *f, ...)
 {
-    struct arc_devdesc		*dev = vdev;
+    struct arc_devdesc		*dev;
     struct dos_partition	*dptr;
     struct open_disk		*od;
     struct disklabel		*lp;
@@ -149,6 +149,11 @@ bd_open(struct open_file *f, void *vdev)
     int				error;
     int				unit;
     u_int32_t			fd;
+    va_list			ap;
+
+    va_start(ap, f);
+    dev = va_arg(ap, struct arc_devdesc *);
+    va_end(ap);
 
     unit = dev->d_kind.arcdisk.unit;
     if (unit >= nbdinfo) {
@@ -317,17 +322,19 @@ bd_close(struct open_file *f)
 }
 
 static int 
-bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
+bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
+    struct arc_devdesc	*dev = (struct arc_devdesc *)devdata;
     
     bcd.dv_strategy = bd_realstrategy;
     bcd.dv_devdata = devdata;
-    return(bcache_strategy(&bcd, rw, dblk, size, buf, rsize));
+    return(bcache_strategy(&bcd, dev->d_kind.arcdisk.unit, rw, dblk, size,
+			   buf, rsize));
 }
 
 static int 
-bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize)
+bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf, size_t *rsize)
 {
     struct open_disk	*od = (struct open_disk *)devdata;
     fpos_t		seek;
