@@ -1974,7 +1974,7 @@ mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
 
     /* get ourselves a command and copy in from user space */
     if ((mc = mlx_alloccmd(sc)) == NULL)
-	goto out;
+	return(error);
     bcopy(mu->mu_command, mc->mc_mailbox, sizeof(mc->mc_mailbox));
     debug(0, "got command buffer");
 
