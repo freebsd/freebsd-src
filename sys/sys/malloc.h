@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.40 1999/01/21 09:23:21 dillon Exp $
+ * $Id: malloc.h,v 1.41 1999/01/27 21:50:00 dillon Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -215,10 +215,13 @@ extern struct kmembuckets bucket[];
  */
 MALLOC_DECLARE(M_IOV);
 
+/* XXX struct malloc_type is unused for contig*(). */
 void	*contigmalloc __P((unsigned long size, struct malloc_type *type,
 			   int flags,
 			   unsigned long low, unsigned long high,
 			   unsigned long alignment, unsigned long boundary));
+void	contigfree __P((void *addr, unsigned long size,
+			   struct malloc_type *type));
 void	free __P((void *addr, struct malloc_type *type));
 void	*malloc __P((unsigned long size, struct malloc_type *type, int flags));
 #endif /* KERNEL */
