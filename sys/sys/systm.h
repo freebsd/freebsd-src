@@ -61,6 +61,7 @@ extern struct mtx sellock;	/* select lock variable */
 extern struct cv selwait;	/* select conditional variable */
 
 extern long physmem;		/* physical memory */
+extern long realmem;		/* 'real' memory */
 
 extern char *rootdevnames[2];	/* names of possible root devices */
 
