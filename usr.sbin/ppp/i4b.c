@@ -23,10 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty.c,v 1.9 1999/06/05 21:35:57 brian Exp $
+ *	$Id:$
  */
 
 #include <sys/param.h>
+
 #include <sys/un.h>
 #if defined(__OpenBSD__) || defined(__NetBSD__)
 #include <sys/ioctl.h>
@@ -34,6 +35,14 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#ifdef __FreeBSD__
+#include <machine/i4b_ioctl.h>
+#include <machine/i4b_rbch_ioctl.h>
+#else
+#include <i4b/i4b_ioctl.h>
+#include <i4b/i4b_rbch_ioctl.h>
+#endif
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -63,35 +72,34 @@
 #include "cbcp.h"
 #include "datalink.h"
 #include "main.h"
-#include "tty.h"
+#include "i4b.h"
 
 #define	Online(dev)	((dev)->mbits & TIOCM_CD)
 
-struct ttydevice {
+struct i4bdevice {
   struct device dev;		/* What struct physical knows about */
   struct pppTimer Timer;	/* CD checks */
   int mbits;			/* Current DCD status */
   int carrier_seconds;		/* seconds before CD is *required* */
-  struct termios ios;		/* To be able to reset from raw mode */
 };
 
-#define device2tty(d) ((d)->type == TTY_DEVICE ? (struct ttydevice *)d : NULL)
+#define device2i4b(d) ((d)->type == I4B_DEVICE ? (struct i4bdevice *)d : NULL)
 
 int
-tty_DeviceSize(void)
+i4b_DeviceSize(void)
 {
-  return sizeof(struct ttydevice);
+  return sizeof(struct i4bdevice);
 }
 
 /*
- * tty_Timeout() watches the DCD signal and mentions it if it's status
+ * i4b_Timeout() watches the DCD signal and mentions it if it's status
  * changes.
  */
 static void
-tty_Timeout(void *data)
+i4b_Timeout(void *data)
 {
   struct physical *p = data;
-  struct ttydevice *dev = device2tty(p->handler);
+  struct i4bdevice *dev = device2i4b(p->handler);
   int ombits, change;
 
   timer_Stop(&dev->Timer);
@@ -101,9 +109,9 @@ tty_Timeout(void *data)
 
   if (p->fd >= 0) {
     if (ioctl(p->fd, TIOCMGET, &dev->mbits) < 0) {
-      /* we must be a pty ? */
-      log_Printf(LogDEBUG, "%s: ioctl error (%s)!\n", p->link.name,
+      log_Printf(LogPHASE, "%s: ioctl error (%s)!\n", p->link.name,
                  strerror(errno));
+      datalink_Down(p->dl, CLOSE_NORMAL);
       timer_Stop(&dev->Timer);
       return;
     }
@@ -115,16 +123,11 @@ tty_Timeout(void *data)
     if (Online(dev))
       log_Printf(LogPHASE, "%s: %s: CD detected\n", p->link.name, p->name.full);
     else if (++dev->carrier_seconds >= p->cfg.cd.delay) {
-      if (p->cfg.cd.required)
-        log_Printf(LogPHASE, "%s: %s: Required CD not detected\n",
-                   p->link.name, p->name.full);
-      else {
-        log_Printf(LogPHASE, "%s: %s doesn't support CD\n",
-                   p->link.name, p->name.full);
-        dev->mbits = TIOCM_CD;		/* Dodgy null-modem cable ? */
-      }
+      log_Printf(LogPHASE, "%s: %s: No carrier"
+                 " (increase ``set cd'' from %d ?)\n",
+                 p->link.name, p->name.full, p->cfg.cd.delay);
       timer_Stop(&dev->Timer);
-      /* tty_AwaitCarrier() will notice */
+      /* i4b_AwaitCarrier() will notice */
     } else {
       /* Keep waiting */
       log_Printf(LogDEBUG, "%s: %s: Still no carrier (%d/%d)\n",
@@ -150,65 +153,42 @@ tty_Timeout(void *data)
 }
 
 static void
-tty_StartTimer(struct physical *p)
+i4b_StartTimer(struct physical *p)
 {
-  struct ttydevice *dev = device2tty(p->handler);
+  struct i4bdevice *dev = device2i4b(p->handler);
 
   timer_Stop(&dev->Timer);
   dev->Timer.load = SECTICKS;
-  dev->Timer.func = tty_Timeout;
-  dev->Timer.name = "tty CD";
+  dev->Timer.func = i4b_Timeout;
+  dev->Timer.name = "i4b CD";
   dev->Timer.arg = p;
-  log_Printf(LogDEBUG, "%s: Using tty_Timeout [%p]\n",
-             p->link.name, tty_Timeout);
+  log_Printf(LogDEBUG, "%s: Using i4b_Timeout [%p]\n",
+             p->link.name, i4b_Timeout);
   timer_Start(&dev->Timer);
 }
 
 static int
-tty_AwaitCarrier(struct physical *p)
+i4b_AwaitCarrier(struct physical *p)
 {
-  struct ttydevice *dev = device2tty(p->handler);
-
-  if (physical_IsSync(p))
-    return CARRIER_OK;
+  struct i4bdevice *dev = device2i4b(p->handler);
 
   if (dev->mbits == -1) {
     if (dev->Timer.state == TIMER_STOPPED) {
       dev->carrier_seconds = 0;
-      tty_StartTimer(p);
+      i4b_StartTimer(p);
     }
     return CARRIER_PENDING;			/* Not yet ! */
   }
 
-  return Online(dev) || !p->cfg.cd.required ? CARRIER_OK : CARRIER_LOST;
+  return Online(dev) ? CARRIER_OK : CARRIER_LOST;
 }
 
 static int
-tty_Raw(struct physical *p)
+i4b_Raw(struct physical *p)
 {
-  struct ttydevice *dev = device2tty(p->handler);
-  struct termios ios;
   int oldflag;
 
-  log_Printf(LogDEBUG, "%s: Entering tty_Raw\n", p->link.name);
-
-  if (p->type != PHYS_DIRECT && p->fd >= 0 && !Online(dev))
-    log_Printf(LogDEBUG, "%s: Raw: descriptor = %d, mbits = %x\n",
-              p->link.name, p->fd, dev->mbits);
-
-  if (!physical_IsSync(p)) {
-    tcgetattr(p->fd, &ios);
-    cfmakeraw(&ios);
-    if (p->cfg.rts_cts)
-      ios.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
-    else
-      ios.c_cflag |= CLOCAL;
-
-    if (p->type != PHYS_DEDICATED)
-      ios.c_cflag |= HUPCL;
-
-    tcsetattr(p->fd, TCSANOW, &ios);
-  }
+  log_Printf(LogDEBUG, "%s: Entering i4b_Raw\n", p->link.name);
 
   oldflag = fcntl(p->fd, F_GETFL, 0);
   if (oldflag < 0)
@@ -219,62 +199,51 @@ tty_Raw(struct physical *p)
 }
 
 static void
-tty_Offline(struct physical *p)
+i4b_Offline(struct physical *p)
 {
-  struct ttydevice *dev = device2tty(p->handler);
+  struct i4bdevice *dev = device2i4b(p->handler);
 
   if (p->fd >= 0) {
     timer_Stop(&dev->Timer);
-    dev->mbits &= ~TIOCM_DTR;	/* XXX: Hmm, what's this supposed to do ? */
     if (Online(dev)) {
-      struct termios tio;
+      int dummy;
 
-      tcgetattr(p->fd, &tio);
-      if (cfsetspeed(&tio, B0) == -1)
-        log_Printf(LogWARN, "%s: Unable to set physical to speed 0\n",
-                   p->link.name);
-      else
-        tcsetattr(p->fd, TCSANOW, &tio);
+      dummy = 1;
+      ioctl(p->fd, TIOCCDTR, &dummy);
     }
   }
 }
 
 static void
-tty_Cooked(struct physical *p)
+i4b_Cooked(struct physical *p)
 {
-  struct ttydevice *dev = device2tty(p->handler);
   int oldflag;
 
-  tty_Offline(p);	/* In case of emergency close()s */
-
-  tcflush(p->fd, TCIOFLUSH);
-
-  if (!physical_IsSync(p))
-    tcsetattr(p->fd, TCSAFLUSH, &dev->ios);
+  i4b_Offline(p);	/* In case of emergency close()s */
 
   if ((oldflag = fcntl(p->fd, F_GETFL, 0)) != -1)
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
 }
 
 static void
-tty_StopTimer(struct physical *p)
+i4b_StopTimer(struct physical *p)
 {
-  struct ttydevice *dev = device2tty(p->handler);
+  struct i4bdevice *dev = device2i4b(p->handler);
 
   timer_Stop(&dev->Timer);
 }
 
 static void
-tty_Free(struct physical *p)
+i4b_Free(struct physical *p)
 {
-  struct ttydevice *dev = device2tty(p->handler);
+  struct i4bdevice *dev = device2i4b(p->handler);
 
-  tty_Offline(p);	/* In case of emergency close()s */
+  i4b_Offline(p);	/* In case of emergency close()s */
   free(dev);
 }
 
 static int
-tty_Speed(struct physical *p)
+i4b_Speed(struct physical *p)
 {
   struct termios ios;
 
@@ -285,25 +254,24 @@ tty_Speed(struct physical *p)
 }
 
 static const char *
-tty_OpenInfo(struct physical *p)
+i4b_OpenInfo(struct physical *p)
 {
-  struct ttydevice *dev = device2tty(p->handler);
-  static char buf[13];
+  struct i4bdevice *dev = device2i4b(p->handler);
+  static char buf[26];
 
   if (Online(dev))
-    strcpy(buf, "with");
+    snprintf(buf, sizeof buf, "carrier took %ds", dev->carrier_seconds);
   else
-    strcpy(buf, "no");
-  strcat(buf, " carrier");
+    *buf = '\0';
 
   return buf;
 }
 
 static void
-tty_device2iov(struct device *d, struct iovec *iov, int *niov,
+i4b_device2iov(struct device *d, struct iovec *iov, int *niov,
                int maxiov, pid_t newpid)
 {
-  struct ttydevice *dev = device2tty(d);
+  struct i4bdevice *dev = device2i4b(d);
   int sz = physical_MaxDeviceSize();
 
   iov[*niov].iov_base = realloc(d, sz);
@@ -320,28 +288,28 @@ tty_device2iov(struct device *d, struct iovec *iov, int *niov,
   }
 }
 
-static struct device basettydevice = {
-  TTY_DEVICE,
-  "tty",
-  tty_AwaitCarrier,
-  tty_Raw,
-  tty_Offline,
-  tty_Cooked,
-  tty_StopTimer,
-  tty_Free,
+static struct device basei4bdevice = {
+  I4B_DEVICE,
+  "i4b",
+  i4b_AwaitCarrier,
+  i4b_Raw,
+  i4b_Offline,
+  i4b_Cooked,
+  i4b_StopTimer,
+  i4b_Free,
   NULL,
   NULL,
-  tty_device2iov,
-  tty_Speed,
-  tty_OpenInfo
+  i4b_device2iov,
+  i4b_Speed,
+  i4b_OpenInfo
 };
 
 struct device *
-tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
+i4b_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
                int maxiov)
 {
-  if (type == TTY_DEVICE) {
-    struct ttydevice *dev = (struct ttydevice *)iov[(*niov)++].iov_base;
+  if (type == I4B_DEVICE) {
+    struct i4bdevice *dev = (struct i4bdevice *)iov[(*niov)++].iov_base;
 
     dev = realloc(dev, sizeof *dev);	/* Reduce to the correct size */
     if (dev == NULL) {
@@ -351,13 +319,13 @@ tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
     }
 
     /* Refresh function pointers etc */
-    memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
+    memcpy(&dev->dev, &basei4bdevice, sizeof dev->dev);
 
     physical_SetupStack(p, dev->dev.name, PHYSICAL_NOFORCE);
     if (dev->Timer.state != TIMER_STOPPED) {
       dev->Timer.state = TIMER_STOPPED;
       p->handler = &dev->dev;		/* For the benefit of StartTimer */
-      tty_StartTimer(p);
+      i4b_StartTimer(p);
     }
     return &dev->dev;
   }
@@ -366,24 +334,32 @@ tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
 }
 
 struct device *
-tty_Create(struct physical *p)
+i4b_Create(struct physical *p)
 {
-  struct ttydevice *dev;
-  struct termios ios;
+  struct i4bdevice *dev;
   int oldflag;
+  msg_vr_req_t req;
+  telno_t number;
 
-  if (p->fd < 0 || !isatty(p->fd))
+  if (p->fd < 0 || ioctl(p->fd, I4B_RBCH_VR_REQ, &req))
     /* Don't want this */
     return NULL;
 
+  /*
+   * We don't bother validating the version.... all versions of i4b that
+   * support I4B_RBCH_VR_REQ are fair game :-)
+   */
+
   if (*p->name.full == '\0') {
     physical_SetDevice(p, ttyname(p->fd));
-    log_Printf(LogDEBUG, "%s: Input is a tty (%s)\n",
-               p->link.name, p->name.full);
+    log_Printf(LogDEBUG, "%s: Input is an i4b version %d.%d.%d isdn "
+               "device (%s)\n", p->link.name, req.version, req.release,
+               req.step, p->name.full);
   } else
-    log_Printf(LogDEBUG, "%s: Opened %s\n", p->link.name, p->name.full);
+    log_Printf(LogDEBUG, "%s: Opened %s (i4b version %d.%d.%d)\n",
+               p->link.name, p->name.full, req.version, req.release, req.step);
 
-  /* We're gonna return a ttydevice (unless something goes horribly wrong) */
+  /* We're gonna return an i4bdevice (unless something goes horribly wrong) */
 
   if ((dev = malloc(sizeof *dev)) == NULL) {
     /* Complete failure - parent doesn't continue trying to ``create'' */
@@ -392,39 +368,9 @@ tty_Create(struct physical *p)
     return NULL;
   }
 
-  memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
+  memcpy(&dev->dev, &basei4bdevice, sizeof dev->dev);
   memset(&dev->Timer, '\0', sizeof dev->Timer);
   dev->mbits = -1;
-  tcgetattr(p->fd, &ios);
-  dev->ios = ios;
-
-  log_Printf(LogDEBUG, "%s: tty_Create: physical (get): fd = %d,"
-             " iflag = %lx, oflag = %lx, cflag = %lx\n", p->link.name, p->fd,
-             (u_long)ios.c_iflag, (u_long)ios.c_oflag, (u_long)ios.c_cflag);
-
-  cfmakeraw(&ios);
-  if (p->cfg.rts_cts)
-    ios.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
-  else {
-    ios.c_cflag |= CLOCAL;
-    ios.c_iflag |= IXOFF;
-  }
-  ios.c_iflag |= IXON;
-  if (p->type != PHYS_DEDICATED)
-    ios.c_cflag |= HUPCL;
-
-  if (p->type != PHYS_DIRECT) {
-      /* Change tty speed when we're not in -direct mode */
-      ios.c_cflag &= ~(CSIZE | PARODD | PARENB);
-      ios.c_cflag |= p->cfg.parity;
-      if (cfsetspeed(&ios, IntToSpeed(p->cfg.speed)) == -1)
-	log_Printf(LogWARN, "%s: %s: Unable to set speed to %d\n",
-		  p->link.name, p->name.full, p->cfg.speed);
-  }
-  tcsetattr(p->fd, TCSADRAIN, &ios);
-  log_Printf(LogDEBUG, "%s: physical (put): iflag = %lx, oflag = %lx, "
-            "cflag = %lx\n", p->link.name, (u_long)ios.c_iflag,
-            (u_long)ios.c_oflag, (u_long)ios.c_cflag);
 
   oldflag = fcntl(p->fd, F_GETFL, 0);
   if (oldflag < 0) {
@@ -432,7 +378,7 @@ tty_Create(struct physical *p)
 
     log_Printf(LogWARN, "%s: Open: Cannot get physical flags: %s\n",
                p->link.name, strerror(errno));
-    tty_Cooked(p);
+    i4b_Cooked(p);
     close(p->fd);
     p->fd = -1;
     free(dev);
@@ -440,7 +386,21 @@ tty_Create(struct physical *p)
   } else
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
 
-  physical_SetupStack(p, dev->dev.name, PHYSICAL_NOFORCE);
+  strncpy(number, datalink_ChoosePhoneNumber(p->dl), sizeof number - 1);
+  number[sizeof number - 1] = '\0';
+  if (ioctl(p->fd, I4B_RBCH_DIALOUT, number) == -1) {
+    /* Complete failure - parent doesn't continue trying to ``create'' */
+
+    log_Printf(LogWARN, "%s: ioctl(I4B_RBCH_DIALOUT): %s\n",
+               p->link.name, strerror(errno));
+    i4b_Cooked(p);
+    close(p->fd);
+    p->fd = -1;
+    free(dev);
+    return NULL;
+  }
+
+  physical_SetupStack(p, dev->dev.name, PHYSICAL_FORCE_SYNC);
 
   return &dev->dev;
 }

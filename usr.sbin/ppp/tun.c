@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.14 1999/05/08 11:07:53 brian Exp $
+ *	$Id: tun.c,v 1.15 1999/08/05 10:32:16 brian Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,9 @@
 
 #include <errno.h>
 #include <string.h>
+#if defined(__OpenBSD__) || defined(__NetBSD__)
 #include <sys/ioctl.h>
+#endif
 #include <termios.h>
 #ifdef __NetBSD__
 #include <stdio.h>
