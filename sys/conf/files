@@ -1143,6 +1143,7 @@ net/if_faith.c		optional faith
 net/if_fddisubr.c	optional fddi
 net/if_gif.c		optional gif
 net/if_gre.c		optional gre
+net/if_ieee80211subr.c	optional wlan
 net/if_iso88025subr.c	optional token
 net/if_loop.c		optional loop
 net/if_media.c		standard
@@ -1286,6 +1287,7 @@ net/mppcc.c		optional netgraph_mppc_compression
 net/mppcd.c		optional netgraph_mppc_compression
 netgraph/ng_mppc.c	optional netgraph_mppc_encryption
 crypto/rc4/rc4.c	optional awi
+crypto/rc4/rc4.c	optional wlan
 crypto/rc4/rc4.c	optional netgraph_mppc_encryption
 crypto/sha1.c		optional netgraph_mppc_encryption
 netgraph/ng_one2many.c	optional netgraph_one2many
