@@ -38,7 +38,7 @@ PFILES=	mqueue.h sched.h semaphore.h # aio.h
 # Only for default SHARED=copies case
 SFILES=	soundcard.h joystick.h
 
-LFILES=	aio.h errno.h event.h fcntl.h inttypes.h linker_set.h \
+LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h \
 	poll.h syslog.h termios.h ucontext.h
 
 LDIRS=	cam msdosfs net netatalk netatm netgraph netinet netinet6 \
