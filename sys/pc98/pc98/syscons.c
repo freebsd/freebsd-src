@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.114 1999/03/10 14:51:53 kato Exp $
+ *  $Id: syscons.c,v 1.115 1999/04/04 02:53:08 kato Exp $
  */
 
 #include "sc.h"
@@ -33,7 +33,6 @@
 #include "apm.h"
 #include "opt_ddb.h"
 #include "opt_devfs.h"
-#include "opt_vesa.h"
 #include "opt_vm86.h"
 #include "opt_syscons.h"
 
@@ -42,6 +41,8 @@
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/conf.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/tty.h>
@@ -79,6 +80,7 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 #include <pc98/pc98/syscons.h>
+#include <isa/isavar.h>
 #else
 #include <dev/fb/vgareg.h>
 #include <dev/syscons/syscons.h>
@@ -282,10 +284,10 @@ static const int	nsccons = MAXCONS+2;
 		(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
 
 /* prototypes */
-static int scattach(struct isa_device *dev);
+static int scattach(device_t dev);
 static kbd_callback_func_t sckbdevent;
 static int scparam(struct tty *tp, struct termios *t);
-static int scprobe(struct isa_device *dev);
+static int scprobe(device_t dev);
 static int scvidprobe(int unit, int flags, int cons);
 static int sckbdprobe(int unit, int flags, int cons);
 static void scstart(struct tty *tp);
@@ -357,9 +359,22 @@ static cn_putc_t	sccnputc;
 
 CONS_DRIVER(sc, sccnprobe, sccninit, sccngetc, sccncheckc, sccnputc);
 
-struct  isa_driver scdriver = {
-    scprobe, scattach, "sc", 1
+devclass_t	sc_devclass;
+
+static device_method_t sc_methods[] = {
+	DEVMETHOD(device_probe,         scprobe),
+	DEVMETHOD(device_attach,        scattach),
+	{ 0, 0 }
 };
+
+static driver_t sc_driver = {
+	"sc",
+	sc_methods,
+	DRIVER_TYPE_TTY,
+	1,                          /* XXX */
+};
+
+DRIVER_MODULE(sc, isa, sc_driver, sc_devclass, 0, 0);
 
 static	d_open_t	scopen;
 static	d_close_t	scclose;
@@ -511,15 +526,20 @@ move_crsr(scr_stat *scp, int x, int y)
 }
 
 static int
-scprobe(struct isa_device *dev)
+scprobe(device_t dev)
 {
-    if (!scvidprobe(dev->id_unit, dev->id_flags, FALSE)) {
+    int unit = device_get_unit(dev);
+    int flags = isa_get_flags(dev);
+
+    device_set_desc(dev, "System console");
+
+    if (!scvidprobe(unit, flags, FALSE)) {
 	if (bootverbose)
-	    printf("sc%d: no video adapter is found.\n", dev->id_unit);
-	return (0);
+	    printf("sc%d: no video adapter is found.\n", unit);
+	return ENXIO;
     }
 
-    return ((sckbdprobe(dev->id_unit, dev->id_flags, FALSE)) ? -1 : 0);
+    return ((sckbdprobe(unit, flags, FALSE)) ? 0 : ENXIO);
 }
 
 /* probe video adapters, return TRUE if found */ 
@@ -583,7 +603,7 @@ scresume(void *dummy)
 #endif
 
 static int
-scattach(struct isa_device *dev)
+scattach(device_t dev)
 {
     scr_stat *scp;
 #if defined(VESA) && defined(VM86)
@@ -596,7 +616,7 @@ scattach(struct isa_device *dev)
 
     scinit();
     scp = console[0];
-    sc_flags = dev->id_flags;
+    sc_flags = isa_get_flags(dev);
     if (!ISFONTAVAIL(scp->adp->va_flags))
 	sc_flags &= ~CHAR_CURSOR;
 
@@ -646,14 +666,14 @@ scattach(struct isa_device *dev)
     update_kbd_state(scp->status, LOCK_MASK);
 
     if (bootverbose) {
-	printf("sc%d:", dev->id_unit);
+	printf("sc%d:", device_get_unit(dev));
     	if (adapter >= 0)
 	    printf(" fb%d", adapter);
 	if (keyboard >= 0)
 	    printf(" kbd%d", keyboard);
 	printf("\n");
     }
-    printf("sc%d: ", dev->id_unit);
+    printf("sc%d: ", device_get_unit(dev));
     switch(scp->adp->va_type) {
 #ifdef PC98
     case KD_PC98:
@@ -1923,6 +1943,7 @@ scmousestart(struct tty *tp)
 static void
 sccnprobe(struct consdev *cp)
 {
+#if 0
     struct isa_device *dvp;
 
     /*
@@ -1939,6 +1960,13 @@ sccnprobe(struct consdev *cp)
 	return;
     }
     sckbdprobe(dvp->id_unit, dvp->id_flags, TRUE);
+#else
+    if (!scvidprobe(0, 0, TRUE)) {
+	cp->cn_pri = CN_DEAD;
+	return;
+    }
+    sckbdprobe(0, 0, TRUE);
+#endif
 
     /* initialize required fields */
     cp->cn_dev = makedev(CDEV_MAJOR, SC_CONSOLE);
