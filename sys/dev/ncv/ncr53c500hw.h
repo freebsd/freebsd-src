@@ -44,16 +44,20 @@
 
 struct ncv_hw {
 	/* configuration images */
-	u_int8_t cfg1;
-	u_int8_t cfg2;
-	u_int8_t cfg3;
-	u_int8_t cfg4;
-	u_int8_t cfg5;
+	u_int8_t hw_cfg1;
+	u_int8_t hw_cfg2;
+	u_int8_t hw_cfg3;
+	u_int8_t hw_cfg4;
+	u_int8_t hw_cfg5;
 
 	/* synch */
-	u_int8_t clk;
-	u_int8_t mperiod;
-	u_int8_t moffset;
+	u_int8_t hw_clk;
+	u_int8_t hw_mperiod;
+	u_int8_t hw_moffset;
+
+	/* cfg3 quirks */
+	u_int8_t hw_cfg3_fscsi;
+	u_int8_t hw_cfg3_fclk;
 };
 
 /* dvcfg */
