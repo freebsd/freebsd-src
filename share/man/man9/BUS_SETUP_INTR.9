@@ -85,14 +85,16 @@ will be called with the value
 as its only argument.
 .Pp
 The
-.Fa cookiep 
-argument is a pointer to a void * that
+.Fa cookiep
+argument is a pointer to a
+.Vt "void *"
+that
 .Nm
 will write a cookie for the parent bus' use to if it is successful in
 establishing an interrupt.
 Driver writers may assume that this cookie will be non-zero.
 The nexus driver will write 0 on failure to
-.Fa cookiep.
+.Fa cookiep .
 .Pp
 The interrupt handler will be detached by
 .Fn BUS_TEARDOWN_INTR .

@@ -38,18 +38,17 @@
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/bus.h
-.Ft void *
+.Ft "void *"
 .Fn device_get_ivars "device_t dev"
 .Ft void
-.Fn device_get_ivars "device_t dev" "void *ivar"
+.Fn device_set_ivars "device_t dev" "void *ivar"
 .Sh DESCRIPTION
-.Pp
 The
-.Nm device_get_ivar
+.Fn device_get_ivars
 function returns the bus-specific instance variables of a device.
 .Pp
 The
-.Nm device_set_ivar
+.Fn device_set_ivars
 function sets the bus-specific instance variables of a device.
 .Pp
 Typically, only bus drivers will use these functions.
