@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.6 1998/09/29 18:01:18 jlemon Exp $
+ *	$Id: vm86bios.s,v 1.7 1998/10/01 20:45:28 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -95,18 +95,6 @@ ENTRY(vm86_bioscall)
 	rep
 	movsl				/* copy frame to new stack */
 
-	movl	TF_TRAPNO(%ebx),%ebx
-	cmpl	$256,%ebx
-	jb	1f			/* no page frame to map */
-
-	andl	$~PAGE_MASK,%ebx
-#if 0
-	orl	$PG_V|PG_RW|PG_U,%ebx	/* XXX assembler error?? */
-#endif
-	orl	$0x7,%ebx
-	movl	SCR_PGTABLE(%edx),%eax	/* va of vm86 page table */
-	movl	%ebx,4(%eax)		/* set vm86 PTE entry 1 */
-1:
 	movl	_curpcb,%eax
 	pushl	%eax			/* save curpcb */
 	movl	%edx,_curpcb		/* set curpcb to vm86pcb */
@@ -194,8 +182,6 @@ ENTRY(vm86_biosret)
 	movl	%eax,%cr3		/* install old page table */
 
 	movl	$0,_in_vm86call		/* reset trapflag */
-	movl	SCR_PGTABLE(%edx),%ebx	/* va of vm86 page table */
-	movl	$0,4(%ebx)		/* ...clear entry 1 */
 
 	movl	_my_tr,%esi
 	leal	_gdt(,%esi,8),%ebx	/* entry in GDT */

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.h,v 1.7 1998/07/14 17:13:23 msmith Exp $
+ *	$Id: vm86.h,v 1.8 1998/09/29 09:06:00 bde Exp $
  */
 
 #ifndef _MACHINE_VM86_H_
@@ -98,6 +98,19 @@ struct vm86frame {
 #define vmf_eflags	eflags.r_ex
 };
 
+#define VM86_PMAPSIZE	3
+#define VMAP_MALLOC	1	/* page was malloced by us */
+
+struct vm86context {
+	int	npages;
+	struct	vm86pmap {
+		int	flags;
+		int	pte_num;
+		vm_offset_t	kva;
+		u_int	old_pte;
+	} pmap[VM86_PMAPSIZE];
+};
+
 #define VM_USERCHANGE   (PSL_USERCHANGE | PSL_RF)
 #define VME_USERCHANGE  (VM_USERCHANGE | PSL_VIP | PSL_VIF)
 
@@ -142,8 +155,13 @@ extern	int vm86_emulate __P((struct vm86frame *));
 extern	int vm86_sysarch __P((struct proc *, char *));
 extern void vm86_trap __P((struct vm86frame *));
 extern 	int vm86_intcall __P((int, struct vm86frame *));
-extern 	int vm86_datacall __P((int, struct vm86frame *, char *, int,
-				 u_short *, u_short *));
+extern 	int vm86_datacall __P((int, struct vm86frame *, struct vm86context *));
 extern void initial_bioscalls __P((u_int *, u_int *));
+extern vm_offset_t vm86_getpage __P((struct vm86context *, int));
+extern vm_offset_t vm86_addpage __P((struct vm86context *, int, vm_offset_t));
+extern int vm86_getptr __P((struct vm86context *, vm_offset_t,
+				u_short *, u_short *));
+
+extern vm_offset_t vm86_getaddr __P((struct vm86context *, u_short, u_short));
 
 #endif /* _MACHINE_VM86_H_ */
