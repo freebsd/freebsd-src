@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.30.4.7 1996/02/15 10:57:26 phk Exp $
+ *	$Id: lpt.c,v 1.30.4.8 1996/03/04 16:03:15 phk Exp $
  */
 
 /*
@@ -149,7 +149,8 @@
 
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
-#define	LPTOUTTIME	4	/* wait up to 4 seconds for a ready */
+#define	LPTOUTINITIAL	10	/* initial timeout to wait for ready 1/10 s */
+#define	LPTOUTMAX	1	/* maximal timeout 1 s */
 #define	LPPRI		(PZERO+8)
 #define	BUFSIZE		1024
 
@@ -221,6 +222,7 @@ static struct lpt_softc {
 #define LP_HAS_IRQ	0x01	/* we have an irq available */
 #define LP_USE_IRQ	0x02	/* we are using our irq */
 #define LP_ENABLE_IRQ	0x04	/* enable IRQ on open */
+	u_char	sc_backoff ;	/* time to call lptout() again */
 
 #ifdef INET
 	struct  ifnet	sc_if;
@@ -590,7 +592,8 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 	lprintf("irq %x\n", sc->sc_irq);
 	if (sc->sc_irq & LP_USE_IRQ) {
 		sc->sc_state |= TOUT;
-		timeout ((timeout_func_t)lptout, (caddr_t)sc, hz/2);
+		timeout ((timeout_func_t)lptout, (caddr_t)sc,
+			 (sc->sc_backoff = hz/LPTOUTINITIAL));
 	}
 
 	lprintf("opened.\n");
@@ -602,9 +605,12 @@ lptout (struct lpt_softc * sc)
 {	int pl;
 
 	lprintf ("T %x ", inb(sc->sc_port+lpt_status));
-	if (sc->sc_state & OPEN)
-		timeout ((timeout_func_t)lptout, (caddr_t)sc, hz/2);
-	else
+	if (sc->sc_state & OPEN) {
+		sc->sc_backoff++;
+		if (sc->sc_backoff > hz/LPTOUTMAX)
+			sc->sc_backoff = sc->sc_backoff > hz/LPTOUTMAX;
+		timeout ((timeout_func_t)lptout, (caddr_t)sc, sc->sc_backoff);
+	} else
 		sc->sc_state &= ~TOUT;
 
 	if (sc->sc_state & ERROR)
@@ -785,6 +791,7 @@ lptintr(int unit)
 {
 	struct lpt_softc *sc = lpt_sc + unit;
 	int port = sc->sc_port, sts;
+	int i;
 
 #ifdef INET
 	if(sc->sc_if.if_flags & IFF_UP) {
@@ -793,9 +800,19 @@ lptintr(int unit)
 	}
 #endif /* INET */
 
-	/* is printer online and ready for output */
-	if (((sts=inb(port+lpt_status)) & RDY_MASK) == LP_READY) {
+	/*
+	 * Is printer online and ready for output?
+	 *
+	 * Avoid falling back to lptout() too quickly.  First spin-loop
+	 * to see if the printer will become ready ``really soon now''.
+	 */
+	for (i = 0;
+	     i < 100 &&
+	     ((sts=inb(port+lpt_status)) & RDY_MASK) != LP_READY;
+	     i++) ;
+	if ((sts & RDY_MASK) == LP_READY) {
 		sc->sc_state = (sc->sc_state | OBUSY) & ~ERROR;
+		sc->sc_backoff = hz/LPTOUTINITIAL;
 
 		if (sc->sc_xfercnt) {
 			/* send char */
@@ -822,6 +839,7 @@ lptintr(int unit)
 		if(((sts & (LPS_NERR | LPS_OUT) ) != LPS_NERR) &&
 				(sc->sc_state & OPEN))
 			sc->sc_state |= ERROR;
+		/* lptout() will jump in and try to restart. */
 	}
 	lprintf("sts %x ", sts);
 }
