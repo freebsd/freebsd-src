@@ -1249,7 +1249,7 @@ brelse(struct buf * bp)
 
 	/* unlock */
 	BUF_UNLOCK(bp);
-	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF | B_DIRECT);
 	bp->b_ioflags &= ~BIO_ORDERED;
 	if ((bp->b_flags & B_DELWRI) == 0 && (bp->b_xflags & BX_VNDIRTY))
 		panic("brelse: not dirty");
@@ -1264,6 +1264,8 @@ brelse(struct buf * bp)
  * biodone() to requeue an async I/O on completion.  It is also used when
  * known good buffers need to be requeued but we think we may need the data
  * again soon.
+ *
+ * XXX we should be able to leave the B_RELBUF hint set on completion.
  */
 void
 bqrelse(struct buf * bp)
@@ -1355,12 +1357,15 @@ vfs_vmio_release(bp)
 			vm_page_flag_clear(m, PG_ZERO);
 			/*
 			 * Might as well free the page if we can and it has
-			 * no valid data.
+			 * no valid data.  We also free the page if the
+			 * buffer was used for direct I/O
 			 */
 			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid && m->hold_count == 0) {
 				vm_page_busy(m);
 				vm_page_protect(m, VM_PROT_NONE);
 				vm_page_free(m);
+			} else if (bp->b_flags & B_DIRECT) {
+				vm_page_try_to_free(m);
 			} else if (vm_page_count_severe()) {
 				vm_page_try_to_cache(m);
 			}
