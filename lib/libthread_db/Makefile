@@ -1,5 +1,28 @@
 # $FreeBSD$
 
-SUBDIR=pthread src
+.PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
 
-.include <bsd.subdir.mk>
+LIB=	thread_db
+SHLIB_MAJOR= 1
+SRCS=	thread_db.c
+SRCS+=	libpthread_db.c libpthread_md.c
+SRCS+=	libc_r_db.c libc_r_md.c
+SRCS+=	libthr_db.c
+INCS=	thread_db.h
+WARNS?= 2
+
+CFLAGS+=-I. -I${.CURDIR}
+
+SRCS+=	libpthread.h
+CLEANFILES+= libpthread.h
+
+LIBPTHREAD= ${.CURDIR}/../libpthread
+LIBPTHREAD_ARCH= ${LIBPTHREAD}/arch/${MACHINE_ARCH}/include
+
+libpthread.h:
+	@echo '#define LIBTHREAD_DB 1' > ${.TARGET}
+	@echo '#include "${LIBPTHREAD}/sys/lock.h"' >> ${.TARGET}
+	@echo '#include "${LIBPTHREAD_ARCH}/pthread_md.h"' >> ${.TARGET}
+	@echo '#include "${LIBPTHREAD}/thread/thr_private.h"' >> ${.TARGET}
+
+.include <bsd.lib.mk>
