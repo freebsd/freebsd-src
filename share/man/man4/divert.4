@@ -134,11 +134,6 @@ Note that packets arriving on the divert socket by the
 action are delivered as-is and packet fragments do not get reassembled
 in this case.
 .Pp
-Note that packets arriving on the divert socket by the
-.Xr ipfw 8
-tee action are delivered as-is and packet fragments do not get reassembled
-in this case.
-.Pp
 Packets are received and sent unchanged, except that
 packets read as outgoing have invalid IP header checksums, and
 packets written as outgoing have their IP header checksums overwritten
