@@ -93,8 +93,8 @@
  * 300 ICR_LOW     Interrupt Command Reg. (0-31)   R/W
  * 310 ICR_HI      Interrupt Command Reg. (32-63)  R/W
  * 320             Local Vector Table (Timer)      R/W
- * 330             Reserved
- * 340             Reserved
+ * 330             Local Vector Table (Thermal)    R/W (PIV+)
+ * 340             Local Vector Table (Performance) R/W (P6+)
  * 350 LVT1        Local Vector Table (LINT0)      R/W
  * 360 LVT2        Local Vector Table (LINT1)      R/W
  * 370 LVT3        Local Vector Table (ERROR)      R/W
@@ -176,7 +176,7 @@ struct LAPIC {
 	u_int32_t icr_lo;	PAD3;
 	u_int32_t icr_hi;	PAD3;
 	u_int32_t lvt_timer;	PAD3;
-	/* reserved */		PAD4;
+	u_int32_t lvt_thermal;	PAD3;
 	u_int32_t lvt_pcint;	PAD3;
 	u_int32_t lvt_lint0;	PAD3;
 	u_int32_t lvt_lint1;	PAD3;
@@ -297,7 +297,9 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_LVT_VECTOR		0x000000ff
 #define APIC_LVT_DM		0x00000700
 # define APIC_LVT_DM_FIXED	0x00000000
+# define APIC_LVT_DM_SMI	0x00000200
 # define APIC_LVT_DM_NMI	0x00000400
+# define APIC_LVT_DM_INIT	0x00000500
 # define APIC_LVT_DM_EXTINT	0x00000700
 #define APIC_LVT_DS		0x00001000
 #define APIC_LVT_IIPP		0x00002000
