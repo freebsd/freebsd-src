@@ -90,17 +90,6 @@ uint32_t cpu_reset_address = 0;
 int cold = 1;
 vm_offset_t vector_page;
 
-static void *
-getframe(struct thread *td, int sig, int *onstack)
-{
-	struct trapframe *tf = td->td_frame;
-	
-	*onstack = sigonstack(tf->tf_usr_sp);
-	if (*onstack)
-		return (void*)(td->td_sigstk.ss_sp + td->td_sigstk.ss_size);
-	return (void*)(tf->tf_usr_sp);
-}
-
 void
 sendsig(catcher, sig, mask, code)
 	sig_t catcher;
@@ -115,7 +104,16 @@ sendsig(catcher, sig, mask, code)
 	struct sigacts *psp = td->td_proc->p_sigacts;
 	int onstack;
 
-	fp = getframe(td, sig, &onstack);
+	onstack = sigonstack(td->td_frame->tf_usr_sp);
+
+	if ((td->td_flags & TDP_ALTSTACK) &&
+	    !(onstack) &&
+	    SIGISMEMBER(td->td_proc->p_sigacts->ps_sigonstack, sig)) {
+		fp = (void*)(td->td_sigstk.ss_sp + td->td_sigstk.ss_size);
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
+	} else
+		fp = (void*)td->td_frame->tf_usr_sp;
+		 
 	/* make room on the stack */
 	fp--;
 	
@@ -126,12 +124,11 @@ sendsig(catcher, sig, mask, code)
 	frame.sf_si.si_code = code;
 	frame.sf_uc.uc_sigmask = *mask;
 	frame.sf_uc.uc_link = NULL;
-	frame.sf_uc.uc_flags |= td->td_sigstk.ss_flags & SS_ONSTACK ?
-	    _UC_SETSTACK : _UC_CLRSTACK;
+	frame.sf_uc.uc_flags = (td->td_pflags & TDP_ALTSTACK ) 
+	    ? ((onstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	frame.sf_uc.uc_stack = td->td_sigstk;
 	memset(&frame.sf_uc.uc_stack, 0, sizeof(frame.sf_uc.uc_stack));
-	get_mcontext(td, &frame.sf_uc.uc_mcontext, 
-	    (uint32_t)&frame.sf_uc.uc_flags);
+	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
 	PROC_UNLOCK(td->td_proc);
 	mtx_unlock(&psp->ps_mtx);
 	if (copyout(&frame, (void*)fp, sizeof(frame)) != 0)
@@ -152,8 +149,6 @@ sendsig(catcher, sig, mask, code)
 	tf->tf_pc = (int)catcher;
 	tf->tf_usr_sp = (int)fp;
 	tf->tf_usr_lr = (int)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
-	if (onstack)
-		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	PROC_LOCK(td->td_proc);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -221,6 +216,7 @@ static void
 cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
+
 	vm_ksubmap_init(&kmi);
 	bufinit();
 	vm_pager_bufferinit();
@@ -229,11 +225,11 @@ cpu_startup(void *dummy)
 	pcb->un_32.pcb32_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	vector_page_setprot(VM_PROT_READ);
-	pmap_update(pmap_kernel());
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
 	cpu_setup("");
 	identify_arm_cpu();
 	thread0.td_frame = (struct trapframe *)pcb->un_32.pcb32_sp - 1;
+	
 }
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
@@ -241,6 +237,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 void
 cpu_idle(void)
 {
+	cpu_sleep(0);
 }
 
 int
@@ -266,7 +263,7 @@ set_regs(struct thread *td, struct reg *regs)
 {
 	struct trapframe *tf = td->td_frame;
 	
-	bcopy(regs->r, &tf->tf_r0, sizeof(*regs->r));
+	bcopy(regs->r, &tf->tf_r0, sizeof(regs->r));
 	tf->tf_usr_sp = regs->r_sp;
 	tf->tf_usr_lr = regs->r_lr;
 	tf->tf_pc = regs->r_pc;
@@ -340,7 +337,9 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 void
 cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
 {
-	printf("cpu_thread_siginfo\n");
+	bzero(si, sizeof(*si));
+	si->si_signo = sig;
+	si->si_code = code;
 }
 
 /*
@@ -352,8 +351,10 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	struct trapframe *tf = td->td_frame;
 	__greg_t *gr = mcp->__gregs;
 
-	/* Save General Register context. */
-	gr[_REG_R0]   = tf->tf_r0;
+	if (clear_ret & GET_MC_CLEAR_RET)
+		gr[_REG_R0] = 0;
+	else
+		gr[_REG_R0]   = tf->tf_r0;
 	gr[_REG_R1]   = tf->tf_r1;
 	gr[_REG_R2]   = tf->tf_r2;
 	gr[_REG_R3]   = tf->tf_r3;
@@ -383,7 +384,27 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 int
 set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
-	panic("SET_MCONTEXT AHAHAH\n");
+	struct trapframe *tf = td->td_frame;
+	__greg_t *gr = mcp->__gregs;
+
+	tf->tf_r0 = gr[_REG_R0];
+	tf->tf_r1 = gr[_REG_R1];
+	tf->tf_r2 = gr[_REG_R2];
+	tf->tf_r3 = gr[_REG_R3];
+	tf->tf_r4 = gr[_REG_R4];
+	tf->tf_r5 = gr[_REG_R5];
+	tf->tf_r6 = gr[_REG_R6];
+	tf->tf_r7 = gr[_REG_R7];
+	tf->tf_r8 = gr[_REG_R8];
+	tf->tf_r9 = gr[_REG_R9];
+	tf->tf_r10 = gr[_REG_R10];
+	tf->tf_r11 = gr[_REG_R11];
+	tf->tf_r12 = gr[_REG_R12];
+	tf->tf_usr_sp = gr[_REG_SP];
+	tf->tf_usr_lr = gr[_REG_LR];
+	tf->tf_pc = gr[_REG_PC];
+	tf->tf_spsr = gr[_REG_CPSR];
+
 	return (0);
 }
 
@@ -416,35 +437,7 @@ sigreturn(td, uap)
 		return (EINVAL);
 		/* Restore register context. */
 	tf = td->td_frame;
-	memcpy((register_t *)tf + 1, &sf.sf_uc.uc_mcontext, sizeof(*tf) -
-	    4 * sizeof(register_t));
-#if 0
-	tf->tf_r0    = context.sc_r0;
-	tf->tf_r1    = context.sc_r1;
-	tf->tf_r2    = context.sc_r2;
-	tf->tf_r3    = context.sc_r3;
-	tf->tf_r4    = context.sc_r4;
-	tf->tf_r5    = context.sc_r5;
-	tf->tf_r6    = context.sc_r6;
-	tf->tf_r7    = context.sc_r7;
-	tf->tf_r8    = context.sc_r8;
-	tf->tf_r9    = context.sc_r9;
-	tf->tf_r10   = context.sc_r10;
-	tf->tf_r11   = context.sc_r11;
-	tf->tf_r12   = context.sc_r12;
-	tf->tf_usr_sp = context.sc_usr_sp;
-	tf->tf_usr_lr = context.sc_usr_lr;
-	tf->tf_svc_lr = context.sc_svc_lr;
-	tf->tf_pc    = context.sc_pc;
-#endif
-	tf->tf_pc = sf.sf_uc.uc_mcontext.__gregs[_REG_PC];
-	tf->tf_spsr = spsr;
-
-	/* Restore signal stack. */
-	if (sf.sf_uc.uc_flags & _UC_SETSTACK)
-		td->td_sigstk.ss_flags |= SS_ONSTACK;
-	else
-		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
+	set_mcontext(td, &sf.sf_uc.uc_mcontext);
 
 	/* Restore signal mask. */
 	PROC_LOCK(p);
