@@ -76,7 +76,6 @@ struct entry {
 	TAILQ_ENTRY(entry) entries;
 };
 
-static int maxrun = 0;
 static char *options = NULL;
 static int flags = 0;
 
@@ -132,7 +131,7 @@ main(argc, argv)
 			break;
 
 		case 'l':
-			maxrun = atoi(optarg);
+			warnx("Ignoring obsolete -l option\n");
 			break;
 
 		case 'T':
@@ -158,7 +157,7 @@ main(argc, argv)
 	argv += optind;
 
 	if (argc == 0)
-		return checkfstab(flags, maxrun, isok, checkfs);
+		return checkfstab(flags, isok, checkfs);
 
 #define	BADTYPE(type)							\
 	(strcmp(type, FSTAB_RO) &&					\
