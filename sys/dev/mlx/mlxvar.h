@@ -225,7 +225,6 @@ extern devclass_t	mlxd_devclass;
 struct mlxd_softc 
 {
     device_t		mlxd_dev;
-    dev_t		mlxd_dev_t;
     struct mlx_softc	*mlxd_controller;
     struct mlx_sysdrive	*mlxd_drive;
     struct disk		mlxd_disk;
