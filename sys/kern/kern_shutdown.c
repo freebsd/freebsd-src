@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.22 1997/08/31 23:08:38 bde Exp $
+ * $Id: kern_shutdown.c,v 1.23 1997/09/02 20:05:41 bde Exp $
  */
 
 #include "opt_ddb.h"
@@ -403,7 +403,10 @@ panic(const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 #ifdef SMP
-	printf(" cpuid %d\n", cpuid);
+	/* three seperate prints in case of an unmapped page and trap */
+	printf("mp_lock = %08x; ", mp_lock);
+	printf("cpuid = %d; ", cpuid);
+	printf("lapic.id = %08x\n", lapic.id);
 #endif
 
 #if defined(DDB)
