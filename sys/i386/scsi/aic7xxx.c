@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.35 1995/08/14 08:29:15 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.36 1995/08/15 08:54:21 gibbs Exp $
  */
 /*
  * TODO:
@@ -870,34 +870,54 @@ int
 ahc_attach(unit)
 	int unit;
 {
-        struct ahc_data *ahc = ahcdata[unit];
+	struct ahc_data *ahc = ahcdata[unit];
+	struct scsibus_data *scbus;
 
-        /*
-         * fill in the prototype scsi_link.
-         */
-        ahc->sc_link.adapter_unit = unit;
-        ahc->sc_link.adapter_targ = ahc->our_id;
-        ahc->sc_link.adapter = &ahc_switch;
+	/*
+	 * fill in the prototype scsi_link.
+	 */
+	ahc->sc_link.adapter_unit = unit;
+	ahc->sc_link.adapter_targ = ahc->our_id;
+	ahc->sc_link.adapter = &ahc_switch;
 	ahc->sc_link.opennings = 2;
-        ahc->sc_link.device = &ahc_dev;
+	ahc->sc_link.device = &ahc_dev;
 	ahc->sc_link.flags = DEBUGLEVEL;
 	ahc->sc_link.fordriver = 0;
 
-        /*
-         * ask the adapter what subunits are present
-         */
+	/*
+	 * Prepare the scsibus_data area for the upperlevel
+	 * scsi code.
+	 */
+	scbus = scsi_alloc_bus();
+	if(!scbus) 
+		return 0;
+	scbus->adapter_link = &ahc->sc_link;
+	if(ahc->type & AHC_WIDE)
+		scbus->maxtarg = 15;
+	
+	/*
+	 * ask the adapter what subunits are present
+	 */
 	printf("ahc%d: Probing channel A\n", unit);
-        scsi_attachdevs(&(ahc->sc_link));
+	scsi_attachdevs(scbus);
+	scbus = NULL;	/* Upper-level SCSI code owns this now */
 	if(ahc->type & AHC_TWIN) {
 		/* Configure the second scsi bus */
 		ahc->sc_link_b = ahc->sc_link;
-        	ahc->sc_link_b.adapter_targ = ahc->our_id_b;
-        	ahc->sc_link_b.adapter_bus = 1;
+		ahc->sc_link_b.adapter_targ = ahc->our_id_b;
+		ahc->sc_link_b.adapter_bus = 1;
 		ahc->sc_link_b.fordriver = (void *)SELBUSB;
+		scbus =  scsi_alloc_bus();
+		if(!scbus) 
+			return 0;
+		scbus->adapter_link = &ahc->sc_link_b;
+		if(ahc->type & AHC_WIDE)
+			scbus->maxtarg = 15;
 		printf("ahc%d: Probing Channel B\n", unit);
-		scsi_attachdevs(&(ahc->sc_link_b));
+		scsi_attachdevs(scbus);
+		scbus = NULL;	/* Upper-level SCSI code owns this now */
 	}
-        return 1;
+	return 1;
 }
 
 void
