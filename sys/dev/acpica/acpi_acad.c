@@ -59,9 +59,12 @@ static int acpi_acad_probe(device_t);
 static int acpi_acad_attach(device_t);
 static int acpi_acad_ioctl(u_long, caddr_t, void *);
 static int acpi_acad_sysctl(SYSCTL_HANDLER_ARGS);
+static void acpi_acad_init_acline(void *arg);
 
 struct  acpi_acad_softc {
 	int status;
+
+	int initializing;
 };
 
 static void
@@ -157,7 +160,9 @@ acpi_acad_attach(device_t dev)
 
 	/* Get initial status after whole system is up. */
 	sc->status = -1;
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_get_status, dev);
+	sc->initializing = 0;
+
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_init_acline, dev);
 
 	return(0);
 }
@@ -213,6 +218,37 @@ acpi_acad_sysctl(SYSCTL_HANDLER_ARGS)
 	val = *(u_int *)oidp->oid_arg1;
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	return (error);
+}
+
+static void
+acpi_acad_init_acline(void *arg)
+{
+	int		retry;
+	int		status;
+	device_t	dev = (device_t)arg;
+	struct acpi_acad_softc	*sc = device_get_softc(dev);
+#define ACPI_ACAD_RETRY_MAX	6
+
+	if (sc->initializing) {
+		return;
+	}
+
+	sc->initializing = 1;
+
+	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "acline initialization start\n");
+
+	status = 0;
+	for (retry = 0; retry < ACPI_ACAD_RETRY_MAX; retry++, AcpiOsSleep(10, 0)) {
+		acpi_acad_get_status(dev);
+		if (status != sc->status)
+			break;
+	}
+
+	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "acline initialization done, tried %d times\n", retry+1);
+
+	sc->initializing = 0;
 }
 
 /*
