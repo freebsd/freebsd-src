@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.7 1995/01/09 16:05:54 davidg Exp $
+ * $Id: vm_pageout.h,v 1.8 1995/01/10 07:32:50 davidg Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -91,9 +91,18 @@ extern int vm_pageout_pages_needed;
  *	Signal pageout-daemon and wait for it.
  */
 
+static inline void
+pagedaemon_wakeup()
+{
+	if (!vm_pages_needed && curproc != pageproc) {
+		vm_pages_needed++;
+		wakeup((caddr_t) &vm_pages_needed);
+	}
+}
+
 #define VM_WAIT vm_wait()
 
-inline static void 
+static inline void 
 vm_wait()
 {
 	int s;
@@ -104,7 +113,10 @@ vm_wait()
 		tsleep((caddr_t) &vm_pageout_pages_needed, PSWP, "vmwait", 0);
 		vm_pageout_pages_needed = 0;
 	} else {
-		wakeup((caddr_t) &vm_pages_needed);
+		if (!vm_pages_needed) {
+			vm_pages_needed++;
+			wakeup((caddr_t) &vm_pages_needed);
+		}
 		tsleep((caddr_t) &cnt.v_free_count, PVM, "vmwait", 0);
 	}
 	splx(s);

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.14 1995/02/14 04:00:17 davidg Exp $
+ * $Id: vm_map.c,v 1.15 1995/02/21 01:13:05 davidg Exp $
  */
 
 /*
@@ -331,6 +331,7 @@ vm_map_entry_create(map)
 				m->valid = VM_PAGE_BITS_ALL;
 				pmap_enter(vm_map_pmap(kmem_map), mapvm,
 				    VM_PAGE_TO_PHYS(m), VM_PROT_DEFAULT, 1);
+				m->flags |= PG_WRITEABLE|PG_MAPPED;
 
 				entry = (vm_map_entry_t) mapvm;
 				mapvm += NBPG;

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.38 1995/02/22 10:27:24 davidg Exp $
+ * $Id: vm_pageout.c,v 1.39 1995/02/25 18:39:04 bde Exp $
  */
 
 /*
@@ -205,14 +205,14 @@ vm_pageout_clean(m, sync)
 		 */
 		for (i = 0; i < pageout_count; i++) {
 			ms[i]->flags |= PG_BUSY;
-			pmap_page_protect(VM_PAGE_TO_PHYS(ms[i]), VM_PROT_READ);
+			vm_page_protect(ms[i], VM_PROT_READ);
 		}
 		object->paging_in_progress += pageout_count;
 	} else {
 
 		m->flags |= PG_BUSY;
 
-		pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_READ);
+		vm_page_protect(m, VM_PROT_READ);
 
 		object->paging_in_progress++;
 
@@ -290,11 +290,7 @@ vm_pageout_clean(m, sync)
 		 * collapse.
 		 */
 		if (pageout_status[i] != VM_PAGER_PEND) {
-			if ((--object->paging_in_progress == 0) &&
-			    (object->flags & OBJ_PIPWNT)) {
-				object->flags &= ~OBJ_PIPWNT;
-				wakeup((caddr_t) object);
-			}
+			vm_object_pip_wakeup(object);
 			if ((ms[i]->flags & (PG_REFERENCED|PG_WANTED)) ||
 			    pmap_is_referenced(VM_PAGE_TO_PHYS(ms[i]))) {
 				pmap_clear_reference(VM_PAGE_TO_PHYS(ms[i]));
@@ -377,8 +373,7 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 				if (!p->act_count) {
 					if (!map_remove_only)
 						vm_page_deactivate(p);
-					pmap_page_protect(VM_PAGE_TO_PHYS(p),
-					    VM_PROT_NONE);
+					vm_page_protect(p, VM_PROT_NONE);
 					/*
 					 * else if on the next go-around we
 					 * will deactivate the page we need to
@@ -420,8 +415,7 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 				TAILQ_INSERT_TAIL(&object->memq, p, listq);
 			}
 		} else if ((p->flags & (PG_INACTIVE | PG_BUSY)) == PG_INACTIVE) {
-			pmap_page_protect(VM_PAGE_TO_PHYS(p),
-			    VM_PROT_NONE);
+			vm_page_protect(p, VM_PROT_NONE);
 		}
 		vm_page_unlock_queues();
 		p = next;
@@ -797,7 +791,16 @@ vm_pageout()
 	 * The pageout daemon is never done, so loop forever.
 	 */
 	while (TRUE) {
-		tsleep((caddr_t) &vm_pages_needed, PVM, "psleep", 0);
+		int s = splhigh();
+
+		if (!vm_pages_needed ||
+			((cnt.v_free_count >= cnt.v_free_reserved) &&
+			 (cnt.v_free_count + cnt.v_cache_count >= cnt.v_free_min))) {
+			vm_pages_needed = 0;
+			tsleep((caddr_t) &vm_pages_needed, PVM, "psleep", 0);
+		}
+		vm_pages_needed = 0;
+		splx(s);
 		cnt.v_pdwakeups++;
 		vm_pager_sync();
 		vm_pageout_scan();
