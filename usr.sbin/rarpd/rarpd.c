@@ -26,16 +26,16 @@ char copyright[] =
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.2 1995/03/03 22:20:13 wpaul Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.3 1995/04/02 01:35:54 wpaul Exp $ (LBL)";
 #endif
 
 
-/* 
+/*
  * rarpd - Reverse ARP Daemon
  *
  * Usage:	rarpd -a [ -f ] [ hostname ]
  *		rarpd [ -f ] interface [ hostname ]
- * 
+ *
  * 'hostname' is optional solely for backwards compatibility with Sun's rarpd.
  * Currently, the argument is ignored.
  */
@@ -88,7 +88,7 @@ extern int errno;
 extern int ether_ntohost __P((char *, struct ether_addr *));
 
 /*
- * The structure for each interface.  
+ * The structure for each interface.
  */
 struct if_info {
 	int 	ii_fd;		/* BPF file descriptor */
@@ -135,7 +135,7 @@ main(argc, argv)
 	if (*name == '-')
 		++name;
 
-	/* 
+	/*
 	 * All error reporting is done through syslogs.
 	 */
 	openlog(name, LOG_PID, LOG_DAEMON);
@@ -165,7 +165,7 @@ main(argc, argv)
 		init_all();
 	else
 		init_one(ifname);
-		
+
 	if (!fflag) {
 		pid = fork();
 		if (pid > 0)
@@ -258,7 +258,7 @@ bpf_open()
 	char device[sizeof "/dev/bpf000"];
 
 	/*
-	 * Go through all the minors and find one that isn't in use. 
+	 * Go through all the minors and find one that isn't in use.
 	 */
 	do {
 		(void)sprintf(device, "/dev/bpf%d", n++);
@@ -294,13 +294,13 @@ rarp_open(device)
                 BPF_STMT(BPF_RET+BPF_K, 0),
         };
 
-        static struct bpf_program filter = { 
-                sizeof insns / sizeof(insns[0]), 
+        static struct bpf_program filter = {
+                sizeof insns / sizeof(insns[0]),
                 (struct bpf_insn *)&insns
         };
 
 	fd = bpf_open();
-	/* 
+	/*
 	 * Set immediate mode so packets are processed as they arrive.
 	 */
 	immediate = 1;
@@ -380,7 +380,7 @@ rarp_check(p, len)
 #endif
 
 /*
- * Loop indefinitely listening for RARP requests on the 
+ * Loop indefinitely listening for RARP requests on the
  * interfaces in 'iflist'.
  */
 void
@@ -415,7 +415,7 @@ rarp_loop()
 	}
 	while (1) {
 		listeners = fds;
-		if (select(maxfd + 1, &listeners, (struct fd_set *)0, 
+		if (select(maxfd + 1, &listeners, (struct fd_set *)0,
 			   (struct fd_set *)0, (struct timeval *)0) < 0) {
 			syslog(LOG_ERR, "select: %m");
 			exit(1);
@@ -426,8 +426,8 @@ rarp_loop()
 			again:
 				cc = read(fd, (char *)bhp, bufsize);
 				/*
-				 * Due to a SunOS bug, after 2^31 bytes, the 
-				 * file offset overflows and read fails with 
+				 * Due to a SunOS bug, after 2^31 bytes, the
+				 * file offset overflows and read fails with
 				 * EINVAL.  The lseek() to 0 will fix things.
 				 */
 				if (cc < 0) {
@@ -538,7 +538,7 @@ rarp_process(ii, pkt)
 
 	ep = (struct ether_header *)pkt;
 	/*
-	 * If the address in the one element cache, don't bother 
+	 * If the address in the one element cache, don't bother
 	 * looking up names.
 	 */
 	if (bcmp((char *)cache_eaddr, (char *)&ep->ether_shost, 6) == 0)
@@ -554,11 +554,11 @@ rarp_process(ii, pkt)
 			syslog(LOG_ERR, "cannot handle non IP addresses");
 			exit(1);
 		}
-		target_ipaddr = choose_ipaddr((u_long **)hp->h_addr_list, 
+		target_ipaddr = choose_ipaddr((u_long **)hp->h_addr_list,
 					      ii->ii_ipaddr & ii->ii_netmask,
 					      ii->ii_netmask);
 		if (target_ipaddr == 0) {
-			syslog(LOG_ERR, "cannot find %s on %08x", 
+			syslog(LOG_ERR, "cannot find %s on %08x",
 			       ename, ii->ii_ipaddr & ii->ii_netmask);
 			return;
 		}
@@ -660,7 +660,7 @@ update_arptab(ep, ipaddr)
 
 /*
  * Build a reverse ARP packet and sent it out on the interface.
- * 'ep' points to a valid ARPOP_REVREQUEST.  The ARPOP_REVREPLY is built 
+ * 'ep' points to a valid ARPOP_REVREQUEST.  The ARPOP_REVREPLY is built
  * on top of the request, then written to the network.
  *
  * RFC 903 defines the ether_arp fields as follows.  The following comments
@@ -684,11 +684,11 @@ update_arptab(ep, ipaddr)
  * arp_tha is the hardware address of the target, and should be the same as
  *   that which was given in the request.
  * arp_tpa is the protocol address of the target, that is, the desired address.
- * 
+ *
  * Note that the requirement that arp_spa be filled in with the responder's
- * protocol is purely for convenience.  For instance, if a system were to use 
- * both ARP and RARP, then the inclusion of the valid protocol-hardware 
- * address pair (arp_spa, arp_sha) may eliminate the need for a subsequent 
+ * protocol is purely for convenience.  For instance, if a system were to use
+ * both ARP and RARP, then the inclusion of the valid protocol-hardware
+ * address pair (arp_spa, arp_sha) may eliminate the need for a subsequent
  * ARP request.
  */
 rarp_reply(ii, ep, ipaddr)

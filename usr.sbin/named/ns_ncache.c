@@ -38,7 +38,7 @@ cache_n_resp(msg, msglen)
 
 	hp = (HEADER *)msg;
 	cp = msg+HFIXEDSZ;
-  
+
 	n = dn_expand(msg, msg + msglen, cp, dname, sizeof dname);
 	if (n < 0) {
 		dprintf(1, (ddt, "Query expand name failed:cache_n_resp\n"));

@@ -14,7 +14,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    This product includes software developed by Hellmuth Michaelis.
- * 4. The name of the developer may not be used to endorse or promote 
+ * 4. The name of the developer may not be used to endorse or promote
  *    products derived from this software without specific prior written
  *    permission.
  *
@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	edit.c, 3.00, last edit-date: [Sun Jan  2 20:08:27 1994]   
+ * 	edit.c, 3.00, last edit-date: [Sun Jan  2 20:08:27 1994]
  */
 
 /*---------------------------------------------------------------------------
@@ -57,13 +57,13 @@ static int pen;
 void edit_mode(void)
 {
 	mvwprintw(cmd_win,1,1,"(W)hite     ");
-	mvwprintw(cmd_win,2,1,"(Black      ");	
+	mvwprintw(cmd_win,2,1,"(Black      ");
 	mvwprintw(cmd_win,3,1,"(I)nvert    ");
 	mvwprintw(cmd_win,4,1,"(R)ow BLACK ");
 	mvwprintw(cmd_win,5,1,"(r)ow WHITE ");
 	mvwprintw(cmd_win,6,1,"(C)ol BLACK ");
-	mvwprintw(cmd_win,7,1,"(c)ol WHITE ");	
-	mvwprintw(cmd_win,8,1,"(Q)uit/Save ");	
+	mvwprintw(cmd_win,7,1,"(c)ol WHITE ");
+	mvwprintw(cmd_win,8,1,"(Q)uit/Save ");
 
 	mvwprintw(cmd_win,9 ,1,"e(X)it/undo ");
 	mvwprintw(cmd_win,10,1,"Pen (U)p    ");
@@ -73,7 +73,7 @@ void edit_mode(void)
 	mvwprintw(cmd_win,14,1,"(^N)ext Line");
 	mvwprintw(cmd_win,15,1,"(^F)orwd Col");
 	mvwprintw(cmd_win,16,1,"(^B)ack  Col");
-	wrefresh(cmd_win);	
+	wrefresh(cmd_win);
 }
 
 /*---------------------------------------------------------------------------*
@@ -88,23 +88,23 @@ int edit(void)
 	c = r = 0;
 
 	pen = UP;
-	
+
 	for(;;)
 	{
 		if(pen == DOWN)
 			dis_cmd("   Edit Mode, the Pen is DOWN");
 		else
-			dis_cmd("   Edit Mode, the Pen is UP");		
-		
+			dis_cmd("   Edit Mode, the Pen is UP");
+
 		l = ((mvwinch(ch_win,(r+1),(c+1))) & A_CHARTEXT);
 		wattron(ch_win,A_REVERSE);
 		mvwprintw(ch_win,(r+1),(c+1),"%c",l);
-		wattroff(ch_win,A_REVERSE);		
+		wattroff(ch_win,A_REVERSE);
 		wmove(ch_win,(r+1),(c+1));
 		wrefresh(ch_win);
 
 		k_ch = wgetch(ch_win);
-		
+
 		switch(k_ch)
 		{
 			case K_LEFT:
@@ -182,33 +182,33 @@ int edit(void)
 			case 'W':
 				setchr(WHITE);
 				break;
-				
+
 			case 'b':
 			case 'B':
 				setchr(BLACK);
 				break;
-				
+
 			case 'i':
 			case 'I':
 				invert();
 				break;
-				
+
 			case 'r':
 				setrow(WHITE);
 				break;
-				
+
 			case 'R':
 				setrow(BLACK);
 				break;
-				
+
 			case 'c':
 				setcol(WHITE);
 				break;
-				
+
 			case 'C':
 				setcol(BLACK);
 				break;
-						
+
 			case 'u':
 			case 'U':
 				pen = UP;
@@ -218,11 +218,11 @@ int edit(void)
 			case 'D':
 				pen = DOWN;
 				break;
-				
+
 			default:
 				beep();
 				break;
-				
+
 		}
 	}
 }
@@ -237,12 +237,12 @@ void normal_ch(int r, int c)
 	if(pen == DOWN)
 		mvwprintw(ch_win,(r+1),(c+1),"*");
 	else
-		mvwprintw(ch_win,(r+1),(c+1),"%c",l);	
+		mvwprintw(ch_win,(r+1),(c+1),"%c",l);
 	wmove(ch_win,(r+1),(c+1));
 }
 
 /*---------------------------------------------------------------------------*
- *	
+ *
  *---------------------------------------------------------------------------*/
 void chg_pt(int r, int c)
 {
@@ -262,7 +262,7 @@ void chg_pt(int r, int c)
 void invert(void)
 {
 	int r,c;
-	
+
 	r = 1;
 
 	while(r <= ch_height)
@@ -273,7 +273,7 @@ void invert(void)
 			if(WHITE == mvwinch(ch_win, r, c))
 				mvwaddch(ch_win, r, c, BLACK);
 			else
-				mvwaddch(ch_win, r, c, WHITE);			
+				mvwaddch(ch_win, r, c, WHITE);
 			c++;
 		}
 		r++;
@@ -286,15 +286,15 @@ void invert(void)
 void setchr(char type)
 {
 	int r,c;
-	
+
 	r = 1;
-	
+
 	while(r <= ch_height)
 	{
 		c = 1;
 		while(c <= ch_width)
 		{
-			mvwaddch(ch_win, r, c, type);			
+			mvwaddch(ch_win, r, c, type);
 			c++;
 		}
 		r++;
@@ -308,13 +308,13 @@ void setrow(char type)
 {
 	int r,c;
 
-	getyx(ch_win,r,c);	
+	getyx(ch_win,r,c);
 
 	c = 1;
-	
+
 	while(c <= ch_width)
 	{
-		mvwaddch(ch_win, r, c, type);			
+		mvwaddch(ch_win, r, c, type);
 		c++;
 	}
 }
@@ -326,13 +326,13 @@ void setcol(char type)
 {
 	int r,c;
 
-	getyx(ch_win,r,c);	
+	getyx(ch_win,r,c);
 
 	r = 1;
-	
+
 	while(r <= ch_height)
 	{
-		mvwaddch(ch_win, r, c, type);			
+		mvwaddch(ch_win, r, c, type);
 		r++;
 	}
 }

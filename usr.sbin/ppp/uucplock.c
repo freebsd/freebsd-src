@@ -29,9 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $Id: uucplock.c,v 1.2 1995/02/26 12:18:04 amurai Exp $
- * 
+ *
+ * $Id: uucplock.c,v 1.4 1995/03/11 15:18:53 amurai Exp $
+ *
  */
 
 #ifndef lint
@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)uucplock.c	5.5 (Berkeley) 6/1/90";
 #include <errno.h>
 #include "pathnames.h"
 
-/* 
+/*
  * uucp style locking routines
  * return: 0 - success
  * 	  -1 - failure

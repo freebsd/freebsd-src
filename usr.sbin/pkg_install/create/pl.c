@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pl.c,v 1.5 1994/11/17 10:35:04 jkh Exp $";
+static const char *rcsid = "$Id: pl.c,v 1.6 1994/12/06 00:51:38 jkh Exp $";
 #endif
 
 /*
@@ -58,7 +58,7 @@ check_list(char *home, Package *pkg)
 	}
 	p = p->next;
     }
-}   
+}
 
 static int
 trylink(const char *from, const char *to)
@@ -163,7 +163,7 @@ copy_plist(char *home, Package *plist)
 		} else {
 		    add_count = snprintf(&where_args[where_count],
 					 maxargs - where_count,
-					 " %s%s %s", 
+					 " %s%s %s",
 					 last_chdir == home ? "" : "-C ",
 					 last_chdir == home ? "" : home,
 					 p->name);

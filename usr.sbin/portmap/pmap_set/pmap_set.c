@@ -1,6 +1,6 @@
  /*
   * pmap_set - set portmapper table from data produced by pmap_dump
-  * 
+  *
   * Author: Wietse Venema (wietse@wzv.win.tue.nl), dept. of Mathematics and
   * Computing Science, Eindhoven University of Technology, The Netherlands.
   */

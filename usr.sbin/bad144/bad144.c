@@ -51,7 +51,7 @@ static const char sccsid[] = "@(#)bad144.c	8.1 (Berkeley) 6/6/93";
  *
  * It is preferable to write the bad information with a standard formatter,
  * but this program will do.
- * 
+ *
  * RP06 sectors are marked as bad by inverting the format bit in the
  * header; on other drives the valid-sector bit is cleared.
  */
@@ -131,7 +131,7 @@ bad_scan(argc, argv, dp, f, bstart, bend)
 	}
 
 	/* scan the entire disk a sector at a time.  Because of all the
-	 * clustering in the kernel, we cannot scan a track at a time, 
+	 * clustering in the kernel, we cannot scan a track at a time,
 	 * If we do, we may have to read twice over the block to find
 	 * exactly which one failed, and it may not fail second time.
 	 */
@@ -162,7 +162,7 @@ bad_scan(argc, argv, dp, f, bstart, bend)
 	*argv = &nargv[0];
 	i = 0;
 	n = ioctl(f,DIOCSBADSCAN,&i);
-	if (n < 0) 
+	if (n < 0)
 		perror("Couldn't reset disk from \"badscan\" mode");
 }
 
@@ -238,7 +238,7 @@ usage:
 	f = open(name, !sflag && argc == 1? O_RDONLY : O_RDWR);
 	if (f < 0)
 		Perror(name);
-	if (read(f, label, sizeof(label)) < 0) 
+	if (read(f, label, sizeof(label)) < 0)
 		Perror("read");
 	for (dp = (struct disklabel *)(label + LABELOFFSET);
 	    dp < (struct disklabel *)
@@ -408,7 +408,7 @@ usage:
 	if (nflag == 0 && (dp->d_flags & D_BADSECT) == 0) {
 		dp->d_flags |= D_BADSECT;
 		dp->d_checksum = 0;
-		dp->d_checksum = dkcksum(dp);  
+		dp->d_checksum = dkcksum(dp);
 		if (ioctl(f, DIOCWDINFO, dp) < 0) {
 			fprintf(stderr,
 		"Can't write disklabel to enable bad sector handling: %s\n",

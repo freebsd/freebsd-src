@@ -1,7 +1,7 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: /home/tony-o/src/ppp/RCS/slcompress.h,v 1.1 1993/09/11 05:30:49 tony-o Exp tony-o $
+ * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.2 1995/02/26 12:17:58 amurai Exp $
  *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
@@ -17,9 +17,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id:$
- * 
+ *
+ * $Id: slcompress.h,v 1.2 1995/02/26 12:17:58 amurai Exp $
+ *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
@@ -40,7 +40,7 @@
  * sequence number changes, one change per bit set in the header
  * (there may be no changes and there are two special cases where
  * the receiver implicitly knows what changed -- see below).
- * 
+ *
  * There are 5 numbers which can change (they are always inserted
  * in the following order): TCP urgent pointer, window,
  * acknowlegement, sequence number and IP ID.  (The urgent pointer

@@ -200,7 +200,7 @@ authhavekey(keyno)
 		authkeynotfound++;
 		return 0;
 	}
-	
+
 	cache_keyid = sk->keyid;
 	cache_flags = sk->flags;
 #ifdef	MD5
@@ -233,7 +233,7 @@ auth_moremem()
 	sk = (struct savekey *)malloc(MEMINC * sizeof(struct savekey));
 	if (sk == 0)
 		return 0;
-	
+
 	for (i = MEMINC; i > 0; i--) {
 		sk->next = authfreekeys;
 		authfreekeys = sk++;
@@ -262,7 +262,7 @@ authtrust(keyno, trust)
 
 	if (sk == 0 && !trust)
 		return;
-	
+
 	if (sk != 0) {
 		if (cache_keyid == keyno)
 			cache_flags = cache_keyid = 0;
@@ -405,7 +405,7 @@ MD5auth_setkey(keyno, key)
 	while (sk != 0) {
 		if (keyno == sk->keyid) {
 			strncpy(sk->k.MD5_key, (char *)key, sizeof(sk->k.MD5_key));
-			if ((sk->keylen = strlen((char *)key)) > 
+			if ((sk->keylen = strlen((char *)key)) >
 			                          sizeof(sk->k.MD5_key))
 			    sk->keylen = sizeof(sk->k.MD5_key);
 
@@ -441,7 +441,7 @@ MD5auth_setkey(keyno, key)
 	return;
 }
 #endif
-    
+
 /*
  * auth_delkeys - delete all known keys, in preparation for rereading
  *		  the keys file (presumably)

@@ -71,7 +71,7 @@ char	*host;		/* user's machine name */
 char	*acctfile;	/* accounting information file */
 
 int
-main(argc, argv) 
+main(argc, argv)
 	int argc;
 	char *argv[];
 {
@@ -117,7 +117,7 @@ main(argc, argv)
 
 	for (cp = buf[0], limit = buf[MAXREP]; cp < limit; *cp++ = ' ');
 	done = 0;
-	
+
 	while (!done) {
 		col = indent;
 		maxrep = -1;

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1992, 1995 Hellmuth Michaelis
  *
- * Copyright (c) 1992, 1994 Brian Dunford-Shore 
+ * Copyright (c) 1992, 1994 Brian Dunford-Shore
  *
  * All rights reserved.
  *
@@ -45,7 +45,7 @@ static char *id =
  *	-hm	add -d option
  *
  *---------------------------------------------------------------------------*/
- 
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -96,7 +96,7 @@ char *argv[];
 	int info = -1;
 	int dflag = 0;
 	char *device;
-	
+
 	while( (c = getopt(argc, argv, "c:d:f:i")) != EOF)
 	{
 		switch(c)
@@ -104,7 +104,7 @@ char *argv[];
 			case 'c':
 				chr_set = atoi(optarg);
 				break;
-				
+
 			case 'd':
 				device = optarg;
 				dflag = 1;
@@ -114,18 +114,18 @@ char *argv[];
 				filename = optarg;
 				fflag = 1;
 				break;
-				
+
 			case 'i':
 				info = 1;
 				break;
-				
+
 			case '?':
 			default:
 				usage();
 				break;
 		}
 	}
-	
+
 	if(chr_set == -1 || fflag == -1)
 		info = 1;
 
@@ -148,7 +148,7 @@ char *argv[];
 	if(info == 1)
 	{
 		int i;
-	
+
 		if(ioctl(fd, VGAGETSCREEN, &screeninfo) == -1)
 		{
 		    perror("ioctl VGAGETSCREEN failed");
@@ -170,7 +170,7 @@ char *argv[];
 		    }
 		    break;
 		  case VGA_ADAPTOR:
-		    printheader();		  
+		    printheader();
 		    for(i = 0;i < 8;i++)
 		    {
 			printvgafontattr(i);
@@ -184,7 +184,7 @@ char *argv[];
 		usage();
 
 	sbp = &sbuf;
-	
+
 	if((in = fopen(filename, "r")) == NULL)
 	{
 		char buffer[80];
@@ -200,7 +200,7 @@ char *argv[];
 		perror(buffer);
 		exit(1);
 	}
-		
+
 	switch(sbp->st_size)
 	{
 		case FONT8X8:
@@ -208,29 +208,29 @@ char *argv[];
 			scr_scan = SSCAN8X8;
 			scr_rows = SIZ_50ROWS;
 			break;
-			
+
 		case FONT8X10:
 			chr_height = HEIGHT8X10;
 			scr_scan = SSCAN8X10;
 			scr_rows = SIZ_40ROWS;
 			break;
-			
+
 		case FONT8X14:
 			chr_height = HEIGHT8X14;
 			scr_scan = SSCAN8X14;
 			scr_rows = SIZ_28ROWS;
 			break;
-			
+
 		case FONT8X16:
 			chr_height = HEIGHT8X16;
 			scr_scan = SSCAN8X16;
 			scr_rows = SIZ_25ROWS;
 			break;
-			
+
 		default:
 			fprintf(stderr,"error, file %s is no valid font file, size=%d\n",argv[1],sbp->st_size);
 			exit(1);
-	}			
+	}
 
 	if((fonttab = (unsigned char *)malloc((size_t)sbp->st_size)) == NULL)
 	{
@@ -242,7 +242,7 @@ char *argv[];
 	{
 		fprintf(stderr,"error reading file %s, size = %d, read =  is no valid font file, size=%d\n",argv[1],sbp->st_size, ret);
 		exit(1);
-	}		
+	}
 
 	loadfont(chr_set, chr_height, fonttab);
 	setfont(chr_set, 1, chr_height - 1, scr_scan, scr_rows);
@@ -300,7 +300,7 @@ int charset;
 {
 	struct vgafontattr vfattr;
 	static int sizetab[] = { 25, 28, 35, 40, 43, 50 };
-	
+
 	vfattr.character_set = charset;
 
 	if(ioctl(fd, VGAGETFONTATTR, &vfattr) == -1)
@@ -338,7 +338,7 @@ usage()
 	fprintf(stderr,"\nloadfont - load font into ega/vga font ram for pcvt video driver\n");
 	fprintf(stderr,"usage: loadfont -c <cset> -d <dev> -f <name> -i\n");
 	fprintf(stderr,"       -c <cset> characterset to load (ega 0..3, vga 0..7)\n");
-	fprintf(stderr,"       -d <dev>  specify device\n");	
+	fprintf(stderr,"       -d <dev>  specify device\n");
 	fprintf(stderr,"       -f <name> filename containing binary font data\n");
 	fprintf(stderr,"       -i        print status and types of loaded fonts (default)\n");
 	exit(1);

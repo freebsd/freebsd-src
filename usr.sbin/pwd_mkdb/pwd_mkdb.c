@@ -391,7 +391,7 @@ main(argc, argv)
 	if (makeold) {
 		(void)snprintf(buf2, sizeof(buf2), "%s/%s", prefix, _PASSWD);
 		(void)snprintf(buf, sizeof(buf), "%s.orig", pname);
-		mv(buf, buf2); 
+		mv(buf, buf2);
 	}
 	/*
 	 * Move the master password LAST -- chpass(1), passwd(1) and vipw(8)
@@ -400,7 +400,7 @@ main(argc, argv)
 	 * can no longer be accessed.
 	 */
 	(void)snprintf(buf, sizeof(buf), "%s/%s", prefix, _MASTERPASSWD);
-	mv(pname, buf); 
+	mv(pname, buf);
 	exit(0);
 }
 

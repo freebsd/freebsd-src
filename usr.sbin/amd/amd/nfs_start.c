@@ -37,7 +37,7 @@
  *
  *	@(#)nfs_start.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: nfs_start.c,v 5.2.2.1 1992/02/09 15:08:51 jsp beta $
+ * $Id: nfs_start.c,v 1.1.1.1 1994/05/26 05:22:00 rgrimes Exp $
  *
  */
 
@@ -282,7 +282,7 @@ static serv_state run_rpc(P_void)
 			if (readfds & (1 << fwd_sock)) {
 				readfds &= ~(1 << fwd_sock);
 #endif
-				--nsel;	
+				--nsel;
 				do {
 					fwd_reply();
 				} while (rpc_pending_now() > 0);
@@ -345,7 +345,7 @@ int ppid;
 		return 1;
 	}
 
-	if ((nfsxprt = svcudp_create(so)) == NULL || 
+	if ((nfsxprt = svcudp_create(so)) == NULL ||
 			(amqp = svcudp_create(so)) == NULL) {
 		plog(XLOG_FATAL, "cannot create rpc/udp service");
 		return 2;

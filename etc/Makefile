@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.115 1995/05/11 05:22:29 jkh Exp $
+#	$Id: Makefile,v 1.116 1995/05/13 16:58:37 ache Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -46,7 +46,7 @@ WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
 
 # Special top level files for FreeBSD
 COPYRIGHT=	COPYRIGHT
-FREEBSD=	
+FREEBSD=
 FREEBSD+=	${COPYRIGHT}
 #
 # Floppy drive name, mount point, type and parameters for building Floppies

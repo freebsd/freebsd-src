@@ -35,7 +35,7 @@ ENVDEF=
 #LIBDIRS=-L/usr/sww/lib
 
 # libraries required on your system
-LIBS=	
+LIBS=
 
 # location of sendmail binary (usually /usr/sbin or /usr/lib)
 BINDIR=	${DESTDIR}/usr/lib

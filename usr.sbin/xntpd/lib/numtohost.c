@@ -29,9 +29,9 @@ numtohost(netnum)
 	    || ((hp = gethostbyaddr((char *)&netnum, sizeof netnum, AF_INET))
 	      == 0))
 		return numtoa(netnum);
-	
+
 	LIB_GETBUF(bp);
-	
+
 	bp[LIB_BUFLENGTH-1] = '\0';
 	(void) strncpy(bp, hp->h_name, LIB_BUFLENGTH-1);
 	return bp;

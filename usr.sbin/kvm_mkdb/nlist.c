@@ -83,7 +83,7 @@ create_knlist(name, db)
 	kfile = name;
 	if ((fd = open(name, O_RDONLY, 0)) < 0)
 		err(1, "%s", name);
-	
+
 	fstat(fd,&sst);
 
 	filep = (u_char*)mmap(0, sst.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -101,7 +101,7 @@ create_knlist(name, db)
 
 	/* Seek to symbol table. */
 	cur_off = N_SYMOFF(*ebuf);
-	
+
 	/* Read each symbol and enter it into the database. */
 	nsyms = ebuf->a_syms / sizeof(struct nlist);
 	while (nsyms--) {
@@ -125,7 +125,7 @@ create_knlist(name, db)
  * XXX
  * The FreeBSD bootloader loads the kernel at the a_entry address, meaning
  * that this is where the kernel starts.  (not at KERNBASE)
- * 
+ *
  * This may be introducing an i386 dependency.
  */
 #if defined(__FreeBSD__)
@@ -147,7 +147,7 @@ create_knlist(name, db)
 				voff += N_DATOFF(*ebuf) - N_DATADDR(*ebuf);
 
 			vp = filep + voff;
-			
+
 			key.data = (u_char *)VRS_KEY;
 			key.size = sizeof(VRS_KEY) - 1;
 			data.data = vp;

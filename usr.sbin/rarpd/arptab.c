@@ -95,7 +95,7 @@ struct	{
 }	m_rtmsg;
 
 /*
- * Set an individual arp entry 
+ * Set an individual arp entry
  */
 arptab_set(eaddr, host)
 	u_char *eaddr;

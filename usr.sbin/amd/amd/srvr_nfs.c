@@ -37,7 +37,7 @@
  *
  *	@(#)srvr_nfs.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: srvr_nfs.c,v 5.2.2.1 1992/02/09 15:09:06 jsp beta $
+ * $Id: srvr_nfs.c,v 1.1.1.1 1994/05/26 05:22:02 rgrimes Exp $
  *
  */
 
@@ -245,7 +245,7 @@ static void nfs_keepalive P((fserver*));
 static void recompute_portmap P((fserver *fs));
 static void recompute_portmap(fs)
 fserver *fs;
-{				
+{
 	int error;
 
 	if (nfs_auth)
@@ -357,7 +357,7 @@ int done;
 			if (np->np_mountd_inval)
 				recompute_portmap(fs);
 
-#ifdef DEBUG	
+#ifdef DEBUG
 			found_map++;
 #endif /* DEBUG */
 			break;

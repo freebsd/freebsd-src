@@ -29,7 +29,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: usrdb.c,v 1.1 1994/03/24 18:42:01 cgd Exp $";
+static char rcsid[] = "$Id: usrdb.c,v 1.1.1.1 1994/09/26 21:22:57 davidg Exp $";
 #endif
 
 #include <sys/types.h>
@@ -84,7 +84,7 @@ usracct_init()
 				warn("initializing user accounting stats");
 				error = -1;
 				break;
-			} 
+			}
 
 			serr = DB_SEQ(saved_usracct_db, &key, &data, R_NEXT);
 			if (serr < 0) {
@@ -151,7 +151,7 @@ usracct_add(ci)
 	newui.ui_mem += ci->ci_mem;
 	newui.ui_io += ci->ci_io;
 
-	data.data = &newui; 
+	data.data = &newui;
 	data.size = sizeof newui;
 	rv = DB_PUT(usracct_db, &key, &data, 0);
 	if (rv < 0) {
@@ -272,7 +272,7 @@ uid_compare(k1, k2)
 
 	bcopy(k1->data, &d1, sizeof d1);
 	bcopy(k2->data, &d2, sizeof d2);
-	
+
 	if (d1 < d2)
 		return -1;
 	else if (d1 == d2)

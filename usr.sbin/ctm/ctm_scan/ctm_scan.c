@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_scan.c,v 1.9 1995/03/24 21:33:20 phk Exp $
+ * $Id: ctm_scan.c,v 1.10 1995/03/24 21:36:32 phk Exp $
  *
  */
 #include <stdio.h>
@@ -22,7 +22,7 @@
 int barf[256];
 int CheckMode = 0;
 
-int 
+int
 pstrcmp(const void *pp, const void *qq)
 {
     return strcmp(*(char **)pp,*(char **)qq);
@@ -41,7 +41,7 @@ Do(char *path)
     MD5_CTX ctx;
     int fd,i,j,k,l,npde,nde=0;
     char **pde;
- 
+
     npde = 1;
     pde = malloc(sizeof *pde * (npde+1));
     d = opendir(path);
@@ -82,9 +82,9 @@ Do(char *path)
 	switch(st.st_mode & S_IFMT) {
 	    case S_IFDIR:
 		if(!CheckMode) {
-		    i = printf("d %s %o %lu %lu - - -\n",	
+		    i = printf("d %s %o %lu %lu - - -\n",
 			buf,st.st_mode & (~S_IFMT),st.st_uid,st.st_gid);
-		    if(!i) 
+		    if(!i)
 			exit(-1);
 		}
 		ret |= Do(buf);
@@ -170,7 +170,7 @@ main(int argc, char **argv)
 	argv++;
     }
 
-    /* 
+    /*
      * Scan the directories recursively.
      */
     if (argc > 1) {
@@ -182,6 +182,6 @@ main(int argc, char **argv)
 			return i;
 	}
 	return i;
-    } else 
+    } else
 	    return Do(".");
 }

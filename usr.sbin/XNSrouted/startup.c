@@ -180,10 +180,10 @@ ifinit()
 			}
 			ifs.int_dstaddr = *brdaddr;
 		}
-		/* 
-		 * already known to us? 
+		/*
+		 * already known to us?
 		 * what makes a POINTOPOINT if unique is its dst addr,
-		 * NOT its source address 
+		 * NOT its source address
 		 */
 		if ( ((ifs.int_flags & IFF_POINTOPOINT) &&
 			if_ifwithdstaddr(&ifs.int_dstaddr)) ||
@@ -243,7 +243,7 @@ addrouteforif(ifp)
 		int (*match)();
 		register struct interface *ifp2 = ifnet;
 		register struct interface *ifprev = ifnet;
-		
+
 		dst = &ifp->int_dstaddr;
 
 		/* Search for interfaces with the same net */

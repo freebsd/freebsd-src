@@ -82,7 +82,7 @@ unsigned char PADDING[64] = {
  * inline assembly code, we can speed this up a bit.
  */
 inline UINT4 ROTATE_LEFT(UINT4 x, int n)
-{   
+{
     asm("roll %2,%0" : "=d" (x) : "0" (x), "Ir" (n));
     return x;
 }

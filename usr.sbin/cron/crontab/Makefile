@@ -1,7 +1,7 @@
 BINDIR?=	/usr/bin
 
 PROG=	crontab
-SRCS=	crontab.c 
+SRCS=	crontab.c
 CFLAGS+= -I${.CURDIR}/../cron
 MAN1=	crontab.1
 MAN5=	crontab.5

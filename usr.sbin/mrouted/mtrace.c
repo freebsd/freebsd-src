@@ -22,7 +22,7 @@ inet_name(addr)
 	return e ? e->h_name : "?";
 }
 
-u_long 
+u_long
 host_addr(name)
 	char   *name;
 {
@@ -75,7 +75,7 @@ flag_type(type)
       default:
 	return ("INVALID ERR");
     }
-}    
+}
 
 int
 t_diff(a, b)
@@ -245,7 +245,7 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 
     if (dst == NULL)
 	dst = qgrp;
-	
+
     /*
      * set timer to calculate delays & send query
      */
@@ -256,7 +256,7 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 	      qgrp, datalen);
 
     /*
-     * If the response is to be a multicast address, make sure we 
+     * If the response is to be a multicast address, make sure we
      * are listening on that multicast address.
      */
     if (IN_MULTICAST(ntohl(raddr)))
@@ -278,13 +278,13 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 
 	FD_ZERO(&fds);
 	FD_SET(igmp_socket, &fds);
-	
+
 	/* need to input timeout as optional argument */
 	tv.tv_sec = timeout;
 	tv.tv_usec = 0;
-	
+
 	count = select(igmp_socket + 1, &fds, 0, 0, &tv);
-	
+
 	if (count < 0) {
 	    if (errno != EINTR)
 		perror("select");
@@ -305,7 +305,7 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 		perror("recvfrom");
 	    continue;
 	}
-	
+
 	if (recvlen < sizeof(struct ip)) {
 	    log(LOG_WARNING, 0,
 		"packet too short (%u bytes) for IP header",
@@ -331,7 +331,7 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 	    continue;
 	}
 
-	if (igmp->igmp_type != IGMP_MTRACE && 
+	if (igmp->igmp_type != IGMP_MTRACE &&
 	    igmp->igmp_type != IGMP_MTRACE_RESP)
 	    continue;
 
@@ -348,13 +348,13 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 	/* If this is query with a different id, ignore! */
 	if (query->tr_qid != qid)
 	    continue;
-	
+
 	/*
 	 * Most of the sanity checking done at this point.
 	 * This is the packet we have been waiting for all this time
 	 */
 	resp = (struct tr_resp *)(query + 1);
-	
+
 	rno = (igmpdatalen - QLEN)/RLEN;
 
 	/*
@@ -381,7 +381,7 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 	    printf("hop: %d ms ", t_diff(resptime, r->tr_qarr));
 	    printf("%s ", proto_type(r->tr_rproto));
 	    printf("%s\n", flag_type(r->tr_rflags));
-	    
+
 	    printf("  %-15s  ", inet_fmt(r->tr_outaddr, s1));
 	    printf("v_in: %ld ", r->tr_vifin);
 	    printf("v_out: %ld ", r->tr_vifout);

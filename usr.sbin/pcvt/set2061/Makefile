@@ -10,4 +10,4 @@ install: ${DEMOS}
 
 .include <bsd.prog.mk>
 
-$(PROG):	compiler.h 
+$(PROG):	compiler.h

@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id: lcp.c,v 1.2 1995/02/26 12:17:35 amurai Exp $
- * 
+ *
+ * $Id: lcp.c,v 1.3 1995/03/11 15:18:45 amurai Exp $
+ *
  * TODO:
  *      o Validate magic number received from peer.
  *	o Limit data field length by MRU

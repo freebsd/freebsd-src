@@ -1,12 +1,12 @@
 /*
 
-This code is not copyright, and is placed in the public domain. Feel free to 
+This code is not copyright, and is placed in the public domain. Feel free to
 use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
 
-	$Id$
+	$Id: main.c,v 1.1.1.1 1995/02/26 23:40:52 wpaul Exp $
 
 */
 
@@ -73,7 +73,7 @@ char **argv;
 	    break;
 	  case 's':
 	    dolog = 1;
-#ifndef LOG_DAEMON 
+#ifndef LOG_DAEMON
 	    openlog(progname, 0 , 0);
 #else
 	    openlog(progname, 0 , LOG_DAEMON);
@@ -81,7 +81,7 @@ char **argv;
 #endif
 	    break;
 	  default:
-	    fprintf(stderr, 
+	    fprintf(stderr,
 		    "Usage: %s [-d ] [ -s ] [ -r router ] [ -f bootparmsfile ]\n");
 	    exit(1);
 	  }
@@ -117,7 +117,7 @@ char **argv;
 	    close(s);
 	  }
 	}
-	    
+
 
 	(void)pmap_unset(BOOTPARAMPROG, BOOTPARAMVERS);
 

@@ -186,7 +186,7 @@ struct sockaddr_in {
 #define	IP_MULTICAST_LOOP	4	/* set/get IP multicast loopback   */
 #define	IP_ADD_MEMBERSHIP	5	/* add  an IP group membership     */
 #define	IP_DROP_MEMBERSHIP	6	/* drop an IP group membership     */
-  
+
 #define	IP_DEFAULT_MULTICAST_TTL   1	/* normally limit m'casts to 1 hop  */
 #define	IP_DEFAULT_MULTICAST_LOOP  1	/* normally hear sends if a member  */
 #define	IP_MAX_MEMBERSHIPS         20	/* per socket; must fit in one mbuf */

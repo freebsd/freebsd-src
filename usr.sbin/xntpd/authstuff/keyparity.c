@@ -237,7 +237,7 @@ decodekey(keytype, str, key)
 				    | ((key[i] >> 7) & STD_PARITY_BITS);
 		}
 		break;
-	
+
 	case KEY_TYPE_ASCII:
 		/*
 		 * Make up key from ascii representation
@@ -250,7 +250,7 @@ decodekey(keytype, str, key)
 		key[1] = keybytes[4] << 24 | keybytes[5] << 16
 		    | keybytes[6] << 8 | keybytes[7];
 		break;
-	
+
 	default:
 		/* Oh, well */
 		return 0;

@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)candidate.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #ifdef sgi
-#ident "$Revision: 1.9 $"
+#ident "$Revision: 1.1.1.1 $"
 #endif
 
 #include "globals.h"
@@ -123,7 +123,7 @@ again:
 		case TSP_REFUSE:
 			/*
 			 * Collision: change value of election timer
-			 * using exponential backoff. 
+			 * using exponential backoff.
 			 *
 			 *  Fooey.
 			 * An exponential backoff on a delay starting at

@@ -74,7 +74,7 @@ char *argv[];
 	struct sockaddr from;
 	int fromlen = sizeof(from);
 	struct timeval notime;
-	
+
 	if (argc < 2) {
 		printf("usage: query hosts...\n");
 		exit(1);
@@ -96,7 +96,7 @@ char *argv[];
 	bzero(&notime, sizeof(notime));
 	signal(SIGALRM, timeout);
 	alarm(WTIME);
-	while (!timedout || 
+	while (!timedout ||
 	    select(20, &bits, 0, 0, &notime) > 0) {
 		struct nspacket {
 			struct idp hdr;
@@ -191,7 +191,7 @@ timeout()
 	timedout = 1;
 }
 getsocket(type, proto)
-	int type, proto; 
+	int type, proto;
 {
 	struct sockaddr_ns *sns = &myaddr;
 	int domain = sns->sns_family;

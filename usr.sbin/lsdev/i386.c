@@ -66,7 +66,7 @@ printit:
 			goto printit;
 		}
 		break;
-		
+
 	default:
 		if(dc->dc_devtype >= NDEVTYPES) {
 			printf("%s%d (#%d) at %s%d",
@@ -74,7 +74,7 @@ printit:
 			       dc->dc_pname, dc->dc_punit);
 		} else {
 			printf("%s%d (%s) at %s%d",
-			       dc->dc_name, dc->dc_unit, 
+			       dc->dc_name, dc->dc_unit,
 			       devtypes[dc->dc_devtype], dc->dc_pname,
 			       dc->dc_punit);
 		}
@@ -83,7 +83,7 @@ printit:
 	fputc('\n', stdout);
 }
 
-static void 
+static void
 print_isa(struct devconf *dc)
 {
 	struct isa_device *id = (struct isa_device *)dc->dc_data;
@@ -124,7 +124,7 @@ print_isa(struct devconf *dc)
 		if((unsigned long)id->id_maddr == ~0UL) {
 			printf(" iomem ?");
 		} else {
-			printf(" iomem 0x%lx", 
+			printf(" iomem 0x%lx",
 			       (unsigned long)id->id_maddr & ~KERNBASE);
 		}
 	}

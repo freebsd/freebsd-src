@@ -9,7 +9,7 @@
     Various options.
     They can defined with the DEFS directive in the Config file if they
     are not defined here.
- 
+
 WHICH NICE
 
   HAVE_ATT_NICE     - Use att nice(priority_change)
@@ -17,11 +17,11 @@ WHICH NICE
   HAVE_NO_NICE      - Don't have (or use) either
 
 KERNEL MUCKING - If you porting to a new system see xntpd/ntp_unixclock.c and
-		 util/tickadj.c to see what these do. This is very system 
+		 util/tickadj.c to see what these do. This is very system
 	         dependent stuff!!!
-		 
+
   HAVE_LIBKVM       - Use libkvm to read kernal memory
-  HAVE_READKMEM     - Use read to read kernal memory 
+  HAVE_READKMEM     - Use read to read kernal memory
   NOKMEM	    - Don't read kmem
   HAVE_N_UN         - Have u_nn nlist struct.
 
@@ -31,7 +31,7 @@ WHICH SETPGRP TO USE - Not needed if NTP_POSIX_SOURCE is defined since you
   HAVE_ATT_SETPGRP  - setpgrp(void) instead of setpgrp(int, int)
 
 
-Signaled IO -  Signled IO defines. 
+Signaled IO -  Signled IO defines.
 
   HAVE_SIGNALED_IO  - Enable signaled io. Assumes you are going to use SIGIO
 		      for tty and udp io.
@@ -39,10 +39,10 @@ Signaled IO -  Signled IO defines.
 		      sockets routines are defined on top of streams.
   USE_TTY_SIGPOLL   - Use SIGPOLL on tty io. This assumes streams.
   UDP_BACKWARDS_SETOWN - SunOS 3.5 or Ultirx 2.0 system.
-	      
 
-WHICH TERMINAL MODEL TO USE - I would assume HAVE_TERMIOS if 
-		      NTP_POSIX_SOURCE was set but can't.  The 
+
+WHICH TERMINAL MODEL TO USE - I would assume HAVE_TERMIOS if
+		      NTP_POSIX_SOURCE was set but can't.  The
 		      posix tty driver is too restrictive on most systems.
 		      It is defined if you define STREAMS.
 
@@ -65,8 +65,8 @@ THIS MAKES PORTS TO NEW SYSTEMS EASY - You only have to wory about
 
 STEP SLEW OR TWO STEP - The Default is to step.
 
-  SLEWALWAYS  	    - setttimeofday can not be used to set the time of day at 
-		      all. 
+  SLEWALWAYS  	    - setttimeofday can not be used to set the time of day at
+		      all.
   STEP_SLEW 	    - setttimeofday can not set the seconds part of time
 		      time use setttimeofday to set the seconds part of the
 		      time and the slew the seconds.
@@ -101,8 +101,8 @@ WHAT DOES IOCTL(SIOCGIFCONF) RETURN IN THE BUFFER
   When requesting the IP interface configuration with an ioctl(2) calll,
   an array of ifreq structures are placed in the provided buffer.  Some
   implementations also place the length of the buffer information in
-  the first integer position of the buffer.  
-  
+  the first integer position of the buffer.
+
   SIZE_RETURNED_IN_BUFFER - size integer is in the buffer
 
 WILL IOCTL(SIOCGIFCONF) WORK ON A SOCKET
@@ -113,7 +113,7 @@ WILL IOCTL(SIOCGIFCONF) WORK ON A SOCKET
 
   USE_STREAMS_DEVICE_FOR_IF_CONFIG - use the /dev/ip device for configuration
 
-MISC  
+MISC
 
   USE_PROTOTYPES    - Prototype functions
   DOSYNCTODR        - Resync TODR clock  every hour.
@@ -136,13 +136,13 @@ have, some that can do proto typing and others that cannot on the same system.
 I get a chance to twiddle some of the configuration parameters at compile
 time based on compiler/machine combinations by using this include file.
 See convex, aix and sun configurations see how complex it get.
-  
+
 Note that it _is_ considered reasonable to add some system-specific defines
 to the machine/<os> file if it would be too inconvenient to puzzle them out
 in this file.
-  
+
 */
-  
+
 
 /*
  * RS6000 running AIX.
@@ -175,7 +175,7 @@ in this file.
 #if defined(SYS_SUNOS4)
 #define NTP_NEED_BOPS
 #define NO_SIGNED_CHAR_DECL
-#define HAVE_LIBKVM 
+#define HAVE_LIBKVM
 #define HAVE_MALLOC_H
 #define HAVE_BSD_NICE
 #define	RETSIGTYPE	void
@@ -195,7 +195,7 @@ in this file.
 #undef USE_TTY_SIGPOLL
 #undef USE_UDP_SIGPOLL
 #define STREAMS_TLI
-#define NO_SIGNED_CHAR_DECL 
+#define NO_SIGNED_CHAR_DECL
 #define STEP_SLEW 		/* TWO step */
 #define	RETSIGTYPE void
 #define NTP_POSIX_SOURCE
@@ -213,7 +213,7 @@ in this file.
 #define HAVE_SIGNALED_IO
 #define USE_TTY_SIGPOLL
 #define USE_UDP_SIGPOLL
-#define NO_SIGNED_CHAR_DECL 
+#define NO_SIGNED_CHAR_DECL
 #define STEP_SLEW 		/* TWO step */
 #define	RETSIGTYPE void
 #define NTP_POSIX_SOURCE
@@ -232,9 +232,9 @@ in this file.
 #if defined(SYS_CONVEXOS10) || defined(SYS_CONVEXOS9)
 #define HAVE_SIGNALED_IO
 #define HAVE_N_UN
-#define HAVE_READKMEM 
+#define HAVE_READKMEM
 #define HAVE_BSD_NICE
-#if defined(convex) 
+#if defined(convex)
 #define	RETSIGTYPE int
 #define NO_SIGNED_CHAR_DECL
 #else
@@ -275,7 +275,7 @@ in this file.
  */
 #if defined(SYS_ULTRIX)
 #define S_CHAR_DEFINED
-#define HAVE_READKMEM 
+#define HAVE_READKMEM
 #define HAVE_BSD_NICE
 #define	RETSIGTYPE	void
 #define	NTP_SYSCALLS_STD
@@ -399,7 +399,7 @@ in this file.
 #define NTP_POSIX_SOURCE
 #define ADJTIME_IS_ACCURATE
 #define HAVE_SYS_TIMEX_H
-/* hope there will be a standard interface 
+/* hope there will be a standard interface
  * along with a standard name one day ! */
 #define ntp_adjtime __adjtimex
 #define HAVE_BSD_NICE
@@ -478,8 +478,8 @@ in this file.
  * XXX - what OS?
  */
 #if defined(SYS_I386)
-#define HAVE_READKMEM 
-#define S_CHAR_DEFINED 
+#define HAVE_READKMEM
+#define S_CHAR_DEFINED
 #define HAVE_BSD_NICE
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/I386"
@@ -490,7 +490,7 @@ in this file.
  * Mips
  */
 #if defined(SYS_MIPS)
-#define NOKMEM 
+#define NOKMEM
 #define HAVE_BSD_NICE
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/Mips"
@@ -513,7 +513,7 @@ in this file.
 #if defined(SYS_PTX)
 #define NO_SIGNED_CHAR_DECL
 #define STREAMS_TLI
-#define HAVE_ATT_SETPGRP 
+#define HAVE_ATT_SETPGRP
 #define HAVE_SIGNALED_IO
 #define USE_UDP_SIGPOLL
 #define USE_TTY_SIGPOLL
@@ -547,7 +547,7 @@ typedef unsigned long u_long;
  * Sony NEWS
  */
 #if defined(SYS_SONY)
-#define NO_SIGNED_CHAR_DECL 
+#define NO_SIGNED_CHAR_DECL
 #define HAVE_READKMEM
 #define HAVE_BSD_NICE
 #ifndef STR_SYSTEM
@@ -560,15 +560,15 @@ typedef unsigned long u_long;
  * XXX - VMS?
  */
 #if defined(SYS_VAX)
-#define NO_SIGNED_CHAR_DECL 
-#define HAVE_READKMEM 
+#define NO_SIGNED_CHAR_DECL
+#define HAVE_READKMEM
 #define HAVE_BSD_NICE
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/VAX"
 #endif
 #endif
 
-/* 
+/*
  * UNIX V.4 on and NCR 3000
  */
 #if defined(SYS_SVR4)
@@ -576,7 +576,7 @@ typedef unsigned long u_long;
 #define USE_PROTOTYPES
 #define NTP_POSIX_SOURCE
 #define HAVE_ATT_NICE
-#define HAVE_READKMEM 
+#define HAVE_READKMEM
 #define USE_TTY_SIGPOLL
 #define USE_UDP_SIGPOLL
 #define STREAM
@@ -598,7 +598,7 @@ typedef unsigned long u_long;
 #define USE_PROTOTYPES
 #define NTP_POSIX_SOURCE
 #define HAVE_ATT_NICE
-#define HAVE_READKMEM 
+#define HAVE_READKMEM
 #define USE_TTY_SIGPOLL
 #define USE_UDP_SIGPOLL
 #define UDP_WILDCARD_DELIVERY
@@ -611,7 +611,7 @@ typedef unsigned long u_long;
 /* #define USE_STREAMS_DEVICE_FOR_IF_CONFIG */
 #undef STEP_SLEW 		/* TWO step */
 #define LOCK_PROCESS
-#define NO_SIGNED_CHAR_DECL 
+#define NO_SIGNED_CHAR_DECL
 #undef SYSV_TIMEOFDAY
 #define SIZE_RETURNED_IN_BUFFER
 #define	RETSIGTYPE void

@@ -365,7 +365,7 @@ vnode_print(avnode, vp)
 	struct vnode *avnode;
 	struct vnode *vp;
 {
-	char *type, flags[16]; 
+	char *type, flags[16];
 	char *fp = flags;
 	register int flag;
 
@@ -391,7 +391,7 @@ vnode_print(avnode, vp)
 		type = "fif"; break;
 	case VBAD:
 		type = "bad"; break;
-	default: 
+	default:
 		type = "unk"; break;
 	}
 	/*
@@ -420,13 +420,13 @@ vnode_print(avnode, vp)
 }
 
 void
-ufs_header() 
+ufs_header()
 {
 	(void)printf(" FILEID IFLAG RDEV|SZ");
 }
 
 int
-ufs_print(vp) 
+ufs_print(vp)
 	struct vnode *vp;
 {
 	register int flag;
@@ -465,7 +465,7 @@ ufs_print(vp)
 	type = ip->i_mode & S_IFMT;
 	if (S_ISCHR(ip->i_mode) || S_ISBLK(ip->i_mode))
 		if (usenumflag || ((name = devname(ip->i_rdev, type)) == NULL))
-			(void)printf("   %2d,%-2d", 
+			(void)printf("   %2d,%-2d",
 			    major(ip->i_rdev), minor(ip->i_rdev));
 		else
 			(void)printf(" %7s", name);
@@ -475,13 +475,13 @@ ufs_print(vp)
 }
 
 void
-nfs_header() 
+nfs_header()
 {
 	(void)printf(" FILEID NFLAG RDEV|SZ");
 }
 
 int
-nfs_print(vp) 
+nfs_print(vp)
 	struct vnode *vp;
 {
 	struct nfsnode nfsnode, *np = &nfsnode;
@@ -515,7 +515,7 @@ nfs_print(vp)
 	type = VT.va_mode & S_IFMT;
 	if (S_ISCHR(VT.va_mode) || S_ISBLK(VT.va_mode))
 		if (usenumflag || ((name = devname(VT.va_rdev, type)) == NULL))
-			(void)printf("   %2d,%-2d", 
+			(void)printf("   %2d,%-2d",
 			    major(VT.va_rdev), minor(VT.va_rdev));
 		else
 			(void)printf(" %7s", name);
@@ -523,7 +523,7 @@ nfs_print(vp)
 		(void)printf(" %7qd", np->n_size);
 	return (0);
 }
-	
+
 /*
  * Given a pointer to a mount structure in kernel space,
  * read it in and return a usable pointer to it.
@@ -740,7 +740,7 @@ kinfo_vnodes(avnodes)
 	*avnodes = num;
 	return ((struct e_vnode *)vbuf);
 }
-	
+
 char hdr[]="  LINE RAW CAN OUT  HWT LWT     COL STATE  SESS  PGID DISC\n";
 int ttyspace = 128;
 
@@ -760,7 +760,7 @@ ttymode()
 	}
 #endif
 #ifdef vax
-	if (nl[SNQD].n_type != 0) 
+	if (nl[SNQD].n_type != 0)
 		qdss();
 	if (nl[SNDZ].n_type != 0)
 		ttytype(tty, "dz", SDZ, SNDZ);
@@ -867,11 +867,11 @@ ttyprt(tp, line)
 
 	if (usenumflag || tp->t_dev == 0 ||
 	   (name = devname(tp->t_dev, S_IFCHR)) == NULL)
-		(void)printf("%7d ", line); 
+		(void)printf("%7d ", line);
 	else
 		(void)printf("%7s ", name);
 	(void)printf("%2d %3d ", tp->t_rawq.c_cc, tp->t_canq.c_cc);
-	(void)printf("%3d %4d %3d %7d ", tp->t_outq.c_cc, 
+	(void)printf("%3d %4d %3d %7d ", tp->t_outq.c_cc,
 		tp->t_hiwat, tp->t_lowat, tp->t_column);
 	for (i = j = 0; ttystates[i].flag; i++)
 		if (tp->t_state&ttystates[i].flag)
@@ -931,7 +931,7 @@ filemode()
 	addr = *((struct file **)buf);
 	fp = (struct file *)(buf + sizeof(struct file *));
 	nfile = (len - sizeof(struct file *)) / sizeof(struct file);
-	
+
 	(void)printf("%d/%d open files\n", nfile, maxfile);
 	(void)printf("   LOC   TYPE    FLG     CNT  MSG    DATA    OFFSET\n");
 	for (; (char *)fp < buf + len; addr = fp->f_filef, fp++) {
@@ -1076,7 +1076,7 @@ swapmode()
 		 * Don't report statistics for partitions which have not
 		 * yet been activated via swapon(8).
 		 */
-		if (!(sw[i].sw_flags & SW_FREED)) 
+		if (!(sw[i].sw_flags & SW_FREED))
 			continue;
 
 		if (!totalflag)
@@ -1084,7 +1084,7 @@ swapmode()
 			    devname(sw[i].sw_dev, S_IFBLK),
 			    hlen, sw[i].sw_nblks / div);
 
-		/* The first dmmax is never allocated to avoid trashing of 
+		/* The first dmmax is never allocated to avoid trashing of
 		 * disklabels
 		 */
 		xsize = sw[i].sw_nblks - dmmax;
@@ -1094,14 +1094,14 @@ swapmode()
 		avail += xsize;
 		if (totalflag)
 			continue;
-		(void)printf("%8d %8d %5.0f%%    %s\n", 
+		(void)printf("%8d %8d %5.0f%%    %s\n",
 		    used / div, xfree / div,
 		    (double)used / (double)xsize * 100.0,
 		    (sw[i].sw_flags & SW_SEQUENTIAL) ?
 			     "Sequential" : "Interleaved");
 	}
 
-	/* 
+	/*
 	 * If only one partition has been set up via swapon(8), we don't
 	 * need to bother with totals.
 	 */

@@ -37,7 +37,7 @@
  *
  *	@(#)os-irix4.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-irix4.h,v 5.2 1992/05/31 16:40:22 jsp Exp $
+ * $Id: os-irix4.h,v 1.1.1.1 1994/05/26 05:22:10 rgrimes Exp $
  *
  * IRIX 4.0.X definitions for Amd (automounter)
  * Contributed by Scott R. Presnell <srp@cgl.ucsf.edu>
@@ -144,7 +144,7 @@
 /*
  * Under Irix, mount type "auto" is probed by statfs() in df.  A statfs() of
  * a direct mount causes that mount to fire.  So change the  mount type in
- * /etc/mtab to "ignore" to stop that (this is what SGI does for their 
+ * /etc/mtab to "ignore" to stop that (this is what SGI does for their
  * automounter.  Use the old FASCIST define for this.
  */
 #define FASCIST_DF_COMMAND MNTTYPE_IGNORE

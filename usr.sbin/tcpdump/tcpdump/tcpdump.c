@@ -22,7 +22,7 @@
 char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994\nThe Regents of the University of California.  All rights reserved.\n";
 static  char rcsid[] =
-    "@(#)$Header: tcpdump.c,v 1.93 94/06/10 17:01:44 mccanne Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/tcpdump.c,v 1.2 1995/03/08 12:52:48 olah Exp $ (LBL)";
 #endif
 
 /*
@@ -111,7 +111,7 @@ void
 abort_on_misalignment()
 {
 	int buf[2];
-	
+
 	buf[0] = SSIN_UACPROC;
 	buf[1] = UAC_SIGBUS;
 	if (setsysinfo(SSI_NVPAIRS, buf, 1, 0, 0) < 0) {

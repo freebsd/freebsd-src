@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-tcp.c,v 1.2 1995/03/08 12:52:44 olah Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-tcp.c,v 1.3 1995/03/08 13:13:01 olah Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -265,7 +265,7 @@ tcp_print(register const u_char *bp, register int length,
 				cp += l;
 				continue;
 			}
-				
+
 			/* print the option body */
 			switch (*cp) {
 			case TCPOPT_MAXSEG:

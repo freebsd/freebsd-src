@@ -29,7 +29,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: pdb.c,v 1.1 1994/03/24 18:41:54 cgd Exp $";
+static char rcsid[] = "$Id: pdb.c,v 1.1.1.1 1994/09/26 21:22:56 davidg Exp $";
 #endif
 
 #include <sys/types.h>
@@ -136,10 +136,10 @@ pacct_add(ci)
 		bzero(&newci, sizeof newci);
 		bcopy(key.data, newci.ci_comm, key.size);
 	}
-	
+
 	add_ci(ci, &newci);
 
-	data.data = &newci; 
+	data.data = &newci;
 	data.size = sizeof newci;
 	rv = DB_PUT(pacct_db, &key, &data, 0);
 	if (rv < 0) {

@@ -186,7 +186,7 @@ ntp_intres()
 	doconfigure(1);
 	if (confentries == NULL)
 		exit(0);		/* done that quick */
-	
+
 	/*
 	 * Here we've got some problem children.  Set up the timer
 	 * and wait for it.
@@ -379,7 +379,7 @@ openntp()
 
 	if (sockfd >= 0)
 		return;
-	
+
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockfd == -1) {
 		syslog(LOG_ERR, "socket() failed: %m");
@@ -435,7 +435,7 @@ request(conf)
 
 	if (sockfd < 0)
 		openntp();
-	
+
 	/*
 	 * Try to clear out any previously received traffic so it
 	 * doesn't fool us.  Note the socket is nonblocking.
@@ -589,17 +589,17 @@ request(conf)
 		case INFO_OKAY:
 			/* success */
 			return 1;
-		
+
 		case INFO_ERR_IMPL:
 			syslog(LOG_ERR,
 			    "server reports implementation mismatch!!");
 			return 0;
-		
+
 		case INFO_ERR_REQ:
 			syslog(LOG_ERR,
 			    "server claims configuration request is unknown");
 			return 0;
-		
+
 		case INFO_ERR_FMT:
 			syslog(LOG_ERR,
 			    "server indicates a format error occured(!!)");
@@ -609,7 +609,7 @@ request(conf)
 			syslog(LOG_ERR,
 		"server indicates no data available (shouldn't happen)");
 			return 0;
-		
+
 		case INFO_ERR_AUTH:
 			syslog(LOG_ERR,
 			    "server returns a permission denied error");
@@ -641,7 +641,7 @@ nexttoken(lptr)
 	 */
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
-	
+
 	/*
 	 * If this is the end of the line, return nothing.
 	 */
@@ -649,7 +649,7 @@ nexttoken(lptr)
 		*lptr = cp;
 		return NULL;
 	}
-	
+
 	/*
 	 * Must be the start of a token.  Record the pointer and look
 	 * for the end.
@@ -657,7 +657,7 @@ nexttoken(lptr)
 	tstart = cp++;
 	while (*cp != ' ' && *cp != '\t' && *cp != '\n' && *cp != '\0')
 		cp++;
-	
+
 	/*
 	 * Terminate the token with a \0.  If this isn't the end of the
 	 * line, space to the next character.
@@ -750,7 +750,7 @@ readconf(fp, name)
 			flags |= CONF_FLAG_AUTHENABLE;
 		if (intval[TOK_FLAGS] & FLAG_PREFER)
 			flags |= CONF_FLAG_PREFER;
-		
+
 		/*
 		 * This is as good as we can check it.  Add it in.
 		 */

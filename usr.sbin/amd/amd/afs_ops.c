@@ -37,7 +37,7 @@
  *
  *	@(#)afs_ops.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: afs_ops.c,v 5.2.2.4 1992/05/31 16:36:36 jsp Exp $
+ * $Id: afs_ops.c,v 1.1.1.1 1994/05/26 05:22:03 rgrimes Exp $
  *
  */
 
@@ -136,7 +136,7 @@ char *opts;
 	/*
 	 * get fhandle of remote path for automount point
 	 */
-	
+
 	fhp = root_fh(dir);
 	if (!fhp) {
 		plog(XLOG_FATAL, "Can't find root file handle for %s", dir);
@@ -420,7 +420,7 @@ static void union_mounted(mf)
 mntfs *mf;
 {
 	int i;
-	
+
 	afs_mkcacheref(mf);
 
 	/*

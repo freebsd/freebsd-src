@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ipcp.c,v 1.8 1994/05/26 06:37:34 paulus Exp $";
+static char rcsid[] = "$Id: ipcp.c,v 1.2 1994/09/25 02:31:59 wollman Exp $";
 #endif
 
 /*
@@ -734,7 +734,7 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
      * Reset all his options.
      */
     BZERO(ho, sizeof(*ho));
-    
+
     /*
      * Process all his options.
      */
@@ -837,11 +837,11 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
 		    PUTLONG(tl, p);
 		}
 	    }
-	
+
 	    ho->neg_addr = 1;
 	    ho->hisaddr = ciaddr1;
 	    break;
-	
+
 	case CI_COMPRESSTYPE:
 	    IPCPDEBUG((LOG_INFO, "ipcp: received COMPRESSTYPE "));
 	    if (!ao->neg_vj ||
@@ -862,7 +862,7 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
 	    ho->vj_protocol = cishort;
 	    if (cilen == CILEN_VJ) {
 		GETCHAR(maxslotindex, p);
-		if (maxslotindex > ao->maxslotindex) { 
+		if (maxslotindex > ao->maxslotindex) {
 		    orc = CONFNAK;
 		    if (!reject_if_disagree){
 			DECPTR(1, p);
@@ -1019,7 +1019,7 @@ ipcp_up(f)
     }
 
     /* assign a default route through the interface if required */
-    if (ipcp_wantoptions[f->unit].default_route) 
+    if (ipcp_wantoptions[f->unit].default_route)
 	if (sifdefaultroute(f->unit, ho->hisaddr))
 	    go->default_route = 1;
 
@@ -1055,7 +1055,7 @@ ipcp_down(f)
     hisaddr = ipcp_hisoptions[f->unit].hisaddr;
     if (ipcp_gotoptions[f->unit].proxy_arp)
 	cifproxyarp(f->unit, hisaddr);
-    if (ipcp_gotoptions[f->unit].default_route) 
+    if (ipcp_gotoptions[f->unit].default_route)
 	cifdefaultroute(f->unit, hisaddr);
     sifdown(f->unit);
     cifaddr(f->unit, ouraddr, hisaddr);

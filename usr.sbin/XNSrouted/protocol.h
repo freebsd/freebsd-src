@@ -50,7 +50,7 @@ struct rip {
 	u_short	rip_cmd;		/* request/response */
 	struct netinfo rip_nets[1];	/* variable length */
 };
- 
+
 /*
  * Packet types.
  */

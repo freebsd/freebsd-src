@@ -76,10 +76,10 @@ main(argc, argv)
 	FTSENT *p;
 	int Hflag, Lflag, Pflag, ch, fts_options, hflag, rval;
 	char *cp;
-	
+
 	myname = (cp = rindex(*argv, '/')) ? cp + 1 : *argv;
 	ischown = myname[2] == 'o';
-	
+
 	Hflag = Lflag = Pflag = hflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRfh")) != EOF)
 		switch (ch) {
@@ -145,9 +145,9 @@ main(argc, argv)
 		if ((cp = strchr(*argv, ':')) != NULL) {
 			*cp++ = '\0';
 			a_gid(cp);
-		} 
+		}
 		a_uid(*argv);
-	} else 
+	} else
 		a_gid(*argv);
 
 	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
@@ -259,7 +259,7 @@ chownerr(file)
 		}
 	}
 
-	if (!fflag) 
+	if (!fflag)
 		warn("%s", file);
 }
 

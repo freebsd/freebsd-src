@@ -37,7 +37,7 @@
  *
  *	@(#)wr_atab.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: wr_atab.c,v 5.2.2.1 1992/02/09 15:09:44 jsp beta $
+ * $Id: wr_atab.c,v 1.1.1.1 1994/05/26 05:22:18 rgrimes Exp $
  *
  */
 
@@ -261,7 +261,7 @@ char *def;
 			errors += pref_close(af);
 		}
 	}
-	
+
 	return errors;
 }
 

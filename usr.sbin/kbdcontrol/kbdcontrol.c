@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdcontrol.c,v 1.4 1995/01/28 22:17:19 sos Exp $
+ *	$Id: kbdcontrol.c,v 1.5 1995/01/30 21:41:10 sos Exp $
  */
 
 #include <ctype.h>
@@ -36,7 +36,7 @@
 #include "lex.h"
 
 char ctrl_names[32][4] = {
-	"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel", 
+	"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 	"bs ", "ht ", "nl ", "vt ", "ff ", "cr ", "so ", "si ",
 	"dle", "dc1", "dc2", "dc3", "dc4", "nak", "syn", "etb",
 	"can", "em ", "sub", "esc", "fs ", "gs ", "rs ", "ns "
@@ -177,7 +177,7 @@ get_entry()
 		return -1;
 	}
 }
-			 
+
 
 int
 get_key_definition_line(FILE* fd, keymap_t *map)
@@ -187,7 +187,7 @@ get_key_definition_line(FILE* fd, keymap_t *map)
 	yyin = fd;
 
 	/* get scancode number */
-	if (yylex() != TNUM) 
+	if (yylex() != TNUM)
 		return -1;
 	if (number < 0 || number >= NUM_KEYS)
 		return -1;
@@ -210,14 +210,14 @@ get_key_definition_line(FILE* fd, keymap_t *map)
 }
 
 
-int 
+int
 print_entry(FILE *fp, int value)
 {
 	int val = value & 0xFF;
 
 	switch (value) {
 	case NOP | 0x100:
-		fprintf(fp, " nop   "); 
+		fprintf(fp, " nop   ");
 		break;
 	case LSH | 0x100:
 		fprintf(fp, " lshift");
@@ -269,26 +269,26 @@ print_entry(FILE *fp, int value)
 		break;
 	default:
 		if (value & 0x100) {
-		 	if (val >= F_FN && val <= L_FN) 
+		 	if (val >= F_FN && val <= L_FN)
 				fprintf(fp, " fkey%02d", val - F_FN + 1);
-		 	else if (val >= F_SCR && val <= L_SCR) 
+		 	else if (val >= F_SCR && val <= L_SCR)
 				fprintf(fp, " scr%02d ", val - F_SCR + 1);
 			else if (hex)
-				fprintf(fp, " 0x%02x  ", val); 
+				fprintf(fp, " 0x%02x  ", val);
 			else
-				fprintf(fp, "  %3d  ", val); 
+				fprintf(fp, "  %3d  ", val);
 		}
 		else {
 			if (val < ' ')
-				fprintf(fp, " %s   ", ctrl_names[val]);  
+				fprintf(fp, " %s   ", ctrl_names[val]);
 			else if (val == 127)
-				fprintf(fp, " del   ");  
+				fprintf(fp, " del   ");
 			else if (isprint(val))
-				fprintf(fp, " '%c'   ", val);  
+				fprintf(fp, " '%c'   ", val);
 			else if (hex)
-				fprintf(fp, " 0x%02x  ", val); 
+				fprintf(fp, " 0x%02x  ", val);
 			else
-				fprintf(fp, " %3d   ", val); 
+				fprintf(fp, " %3d   ", val);
 		}
 	}
 }
@@ -310,7 +310,7 @@ print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
 		if (key->spcl & (0x80 >> i))
 			print_entry(fp, key->map[i] | 0x100);
 		else
-			print_entry(fp, key->map[i]); 
+			print_entry(fp, key->map[i]);
 	}
 
 	/* print lock state key def */
@@ -327,7 +327,7 @@ print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
 	case 3:
 		fprintf(fp, "  B\n");
 		break;
-	}			
+	}
 }
 
 
@@ -412,7 +412,7 @@ set_functionkey(char *keynumstr, char *string)
 	}
 	fkey.keynum = atoi(keynumstr);
 	if (fkey.keynum < 1 || fkey.keynum > NUM_FKEYS) {
-		fprintf(stderr, 
+		fprintf(stderr,
 			"function key number must be between 1 and %d\n",
 			NUM_FKEYS);
 		return;
@@ -434,14 +434,14 @@ set_bell_values(char *opt)
 {
 	int bell, duration, pitch;
 
-	if (!strcmp(opt, "visual")) 
+	if (!strcmp(opt, "visual"))
 		bell = 1, duration = 1, pitch = 800;
 	else if (!strcmp(opt, "normal"))
 		bell = 0, duration = 1, pitch = 800;
 	else {
 		int		n;
 		char		*v1;
-		
+
 		bell = 0;
 		duration = strtol(opt, &v1, 0);
 		if ((duration < 0) || (*v1 != '.'))
@@ -450,7 +450,7 @@ set_bell_values(char *opt)
 		pitch = strtol(opt, &v1, 0);
 		if ((pitch < 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
-			fprintf(stderr, 
+			fprintf(stderr,
 				"argument to -b must be DURATION.PITCH\n");
 			return;
 		}
@@ -489,7 +489,7 @@ struct	{
 		repeat = strtol(opt, &v1, 0);
 		if ((repeat < 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
-			fprintf(stderr, 
+			fprintf(stderr,
 				"argument to -r must be delay.repeat\n");
 			return;
 		}
@@ -560,7 +560,7 @@ main(int argc, char **argv)
 				load_keymap(optarg);
 				break;
 			case 'f':
-				set_functionkey(optarg, 
+				set_functionkey(optarg,
 					nextarg(argc, argv, &optind, 'f'));
 				break;
 			case 'F':

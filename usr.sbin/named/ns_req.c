@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_req.c,v 4.9.1.22 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: ns_req.c,v 1.1.1.1 1994/09/22 19:46:13 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -8,7 +8,7 @@ static char rcsid[] = "$Id: ns_req.c,v 4.9.1.22 1994/07/23 23:23:56 vixie Exp $"
  * -
  * Copyright (c) 1986, 1988, 1990
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id: ns_req.c,v 4.9.1.22 1994/07/23 23:23:56 vixie Exp $"
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@ static char rcsid[] = "$Id: ns_req.c,v 4.9.1.22 1994/07/23 23:23:56 vixie Exp $"
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -259,9 +259,9 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 	}
 
 	dprintf(1, (ddt, "ns_req: answer -> [%s].%d fd=%d id=%d %s\n",
-		    inet_ntoa(from->sin_addr), 
+		    inet_ntoa(from->sin_addr),
 		    ntohs(from->sin_port),
-		    (qsp == QSTREAM_NULL) ?dfd :qsp->s_rfd, 
+		    (qsp == QSTREAM_NULL) ?dfd :qsp->s_rfd,
 		    ntohs(hp->id), local(from) == NULL ? "Remote" : "Local"));
 #ifdef DEBUG
 	if (debug >= 10)
@@ -409,8 +409,8 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 #ifdef QRYLOG
 	if (qrylog) {
 		syslog(LOG_INFO, "XX /%s/%s/%s",
-		       inet_ntoa(from->sin_addr), 
-		       (dname[0] == '\0') ?"." :dname, 
+		       inet_ntoa(from->sin_addr),
+		       (dname[0] == '\0') ?"." :dname,
 		       p_type(type));
 	}
 #endif /*QRYLOG*/
@@ -442,10 +442,10 @@ try_again:
 #endif /*LOCALDOM*/
 
 #ifdef YPKLUDGE
-	/* Some braindamaged resolver software will not 
-	   recognize internet addresses in dot notation and 
-	   send out address  queries for "names" such as 
-	   128.93.8.1.  This kludge will prevent those 
+	/* Some braindamaged resolver software will not
+	   recognize internet addresses in dot notation and
+	   send out address  queries for "names" such as
+	   128.93.8.1.  This kludge will prevent those
 	   from flooding higher level servers.
 	   We simply claim to be authoritative and that
 	   the domain doesn't exist.
@@ -477,7 +477,7 @@ try_again:
 		if (zp->secure_nets
 		    && !addr_on_netlist(from->sin_addr, zp->secure_nets)) {
 			dprintf(1, (ddt,
-				    "REFUSED Unauthorized request from %s\n", 
+				    "REFUSED Unauthorized request from %s\n",
 				    inet_ntoa(from->sin_addr)));
 			syslog(LOG_INFO, "Unauthorized request %s from %s",
 			       dname, inet_ntoa(from->sin_addr));
@@ -510,7 +510,7 @@ try_again:
 			    *msglenp += n;
 			    hp->rcode = NXDOMAIN;
 			    hp->nscount = htons((u_int16_t)count);
-			    hp->aa = 1;	
+			    hp->aa = 1;
 			    return (Finish);
 			}
 			else
@@ -567,7 +567,7 @@ try_again:
 		    "req: foundname=%d, count=%d, founddata=%d, cname=%d\n",
 		    foundname, count, founddata, cname));
 
-	if ((lp = local(from)) != NULL) 
+	if ((lp = local(from)) != NULL)
 		sort_response(answers, count, lp, *cpp);
 	if (type == T_AXFR) {
 		hp->ancount = htons(hp->ancount);
@@ -634,7 +634,7 @@ fetchns:
 						}
 						*cpp += n;
 						*buflenp -= n;
-						hp->nscount = 
+						hp->nscount =
 							htons((u_int16_t)
 							      count);
 					}
@@ -719,8 +719,8 @@ fetchns:
 	case FW_DUP:
 		break;		/* Duplicate request dropped */
 	case FW_NOSERVER:
-		/* 
-		** Don't go into an infinite loop if 
+		/*
+		** Don't go into an infinite loop if
 		** the admin gave root NS records in the cache
 		** file without giving address records
 		** for the root servers.
@@ -730,7 +730,7 @@ fetchns:
 				dprintf(1, (ddt,
 					    "ns_req: no address for root NS\n"
 					    ));
-				syslog(LOG_ERR, 
+				syslog(LOG_ERR,
 				       "ns_req: no address for root server");
 				hp->rcode = SERVFAIL;
 #ifdef DATUMREFCNT
@@ -1124,7 +1124,7 @@ addname(name, class)
 	for (ap = addinfo, n = addcount; --n >= 0; ap++)
 		if (strcasecmp(ap->a_dname, name) == 0)
 			return;
-	
+
 
 	/* add domain name to additional section */
 	if (addcount < NADDRECS) {
@@ -1338,7 +1338,7 @@ doaxfr(np, rfp, top, class)
 #ifdef NO_GLUE
 		if ((np != top) || (top->n_dname[0] == '\0')) {
 #endif /*NO_GLUE*/
-		    /*  Glue the sub domains together by sending 
+		    /*  Glue the sub domains together by sending
 		     *  the address records for the sub domain
 		     *  name servers along if necessary.
 		     *  Glue is necessary if the server is in any zone

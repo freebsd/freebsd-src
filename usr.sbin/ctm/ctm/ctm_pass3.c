@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.8 1995/02/04 19:20:49 phk Exp $
+ * $Id: ctm_pass3.c,v 1.9 1995/03/25 20:46:51 joerg Exp $
  *
  */
 
@@ -28,7 +28,7 @@ Pass3(FILE *fd)
     FILE *ed=0;
     struct stat st;
 
-    if(Verbose>3) 
+    if(Verbose>3)
 	printf("Pass3 -- Applying the CTM-patch\n");
     MD5Init (&ctx);
 
@@ -74,9 +74,9 @@ Pass3(FILE *fd)
 		case CTM_F_Mode: GETFIELDCOPY(mode,sep); break;
 		case CTM_F_MD5:
 		    if(j & CTM_Q_MD5_Before)
-			GETFIELDCOPY(md5before,sep); 
+			GETFIELDCOPY(md5before,sep);
 		    else
-			GETFIELDCOPY(md5,sep); 
+			GETFIELDCOPY(md5,sep);
 		    break;
 		case CTM_F_Count: GETBYTECNT(cnt,sep); break;
 		case CTM_F_Bytes: GETDATA(trash,cnt); break;
@@ -105,7 +105,7 @@ Pass3(FILE *fd)
 		WRONG
 	    }
 	    continue;
-	} 
+	}
 	if(!strcmp(sp->Key,"FE")) {
 	    ed = popen("ed","w");
 	    if(!ed) {
@@ -156,7 +156,7 @@ Pass3(FILE *fd)
 		WRONG
 	    }
 	    continue;
-	} 
+	}
 	if(!strcmp(sp->Key,"FR")) {
 	    if (0 != unlink(name)) {
 		fprintf(stderr,"<%s> unlink failed\n",name);
@@ -164,8 +164,8 @@ Pass3(FILE *fd)
 		    WRONG
 	    }
 	    continue;
-	} 
-	if(!strcmp(sp->Key,"DR")) { 
+	}
+	if(!strcmp(sp->Key,"DR")) {
 	    /*
 	     * We cannot use rmdir() because we do not get the directories
 	     * in '-depth' order (cvs-cur.0018.gz for examples)
@@ -173,7 +173,7 @@ Pass3(FILE *fd)
 	    sprintf(buf,"rm -rf %s",name);
 	    system(buf);
 	    continue;
-	} 
+	}
 	WRONG
     }
     q = MD5End (&ctx);

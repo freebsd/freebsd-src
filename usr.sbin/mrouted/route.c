@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: route.c,v 1.8 1994/08/24 23:54:42 thyagara Exp $
+ * $Id: route.c,v 1.2 1994/09/08 02:51:25 wollman Exp $
  */
 
 
@@ -703,7 +703,7 @@ struct newrt {
 	u_long origin;
 	int metric;
 	int pad;
-}; 
+};
 
 int compare_rts(r1, r2)
     register struct newrt *r1;
@@ -763,7 +763,7 @@ void accept_report(src, dst, p, datalen, level)
 
 	if (datalen < 3) {
 	    log(LOG_WARNING, 0,
-		"received truncated route report from %s", 
+		"received truncated route report from %s",
 		inet_fmt(src, s1));
 	    return;
 	}
@@ -776,7 +776,7 @@ void accept_report(src, dst, p, datalen, level)
 	do {			/* Loop through (origin, metric) pairs */
 	    if (datalen < width + 1) {
 		log(LOG_WARNING, 0,
-		    "received truncated route report from %s", 
+		    "received truncated route report from %s",
 		    inet_fmt(src, s1));
 		return;
 	    }
@@ -794,7 +794,7 @@ void accept_report(src, dst, p, datalen, level)
     qsort((char*)rt, nrt, sizeof(rt[0]), compare_rts);
     start_route_updates();
     for (i = 0; i < nrt; ++i)
-	update_route(rt[i].origin, rt[i].mask, (rt[i].metric & 0x7f), 
+	update_route(rt[i].origin, rt[i].mask, (rt[i].metric & 0x7f),
 		     src, vifi);
 
     if (routes_changed && !delay_change_reports)
@@ -1068,7 +1068,7 @@ struct rtentry *determine_route(src)
     struct rtentry *rt;
 
     for (rt = routing_table; rt != NULL; rt = rt->rt_next) {
-	if (rt->rt_origin == (src & rt->rt_originmask)) 
+	if (rt->rt_origin == (src & rt->rt_originmask))
 	    break;
     }
     return rt;

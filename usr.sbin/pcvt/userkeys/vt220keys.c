@@ -7,23 +7,23 @@
  *      strings.
  *
  *      Author, Author: Barry Shein, Boston University
- * 
+ *
  * HISTORY
   {1}   30-Oct-85  Kenneth J. Lester (ken) at ektools
 
         Added the necessary code to read an initialization file.  This
         should make it easier to used this program.  Also added code
         that will set-up the terminal in vt200 (this saves the user the
-        trouble of checking if the set-up is in vt200). 
-        
+        trouble of checking if the set-up is in vt200).
+
         Restructed  the  main  function  to  use   getopt,  for  argument
-        processing.  
-        
+        processing.
+
         Alterated usage function  to include  new "i"  option (init file)
- 
+
 
  	-hm	minor modifications for pcvt 2.0 release
- 	
+
 */
 
 #include <stdio.h>
@@ -69,8 +69,8 @@ struct keynames {
 
 char prog[BUFSIZ];
 
-main(argc,argv) 
-        int argc; 
+main(argc,argv)
+        int argc;
         char *argv[];
 {
         /* these are defined in the getopt routine                       */
@@ -89,7 +89,7 @@ main(argc,argv)
 
         /* get options */
         while ((option = getopt(argc, argv, "cli")) != EOF)
-        switch(option) 
+        switch(option)
         {
                 case 'c' :
                         clearf++;
@@ -110,14 +110,14 @@ main(argc,argv)
                 printf("\033[62;2\"p");    /* vt200 8 bits */
 
         if(clearf) clearkeys();
-        
+
         if (initf) getinit();
 
         /* process {key, key string} pairs.  Note optind is index to argv
            for first pair.  By adding 1 to optind insures that a pair exists
            i.e. the last key has a key string.                             */
 
-        while(optind + 1 < argc) 
+        while(optind + 1 < argc)
         {
                 dokey(argv[optind], argv[optind+1]);
                 optind += 2;
@@ -205,8 +205,8 @@ usage()
                 <ws> keyname ws string
 
    Where ws is white space (spaces or tabs) and <ws> is optional white space.
-   The string may include spaces or tabs and need not be quoted.  If the 
-   string has the sequence of "\n" then a newline character is included in 
+   The string may include spaces or tabs and need not be quoted.  If the
+   string has the sequence of "\n" then a newline character is included in
    the string.
 
    examples:
@@ -289,7 +289,7 @@ getinit()
                 dokey(key, keystr);   /* load key with string */
             }
         }
-        else 
+        else
         {
             fprintf(stderr, "init file %s not found\n\n", path);
             usage();

@@ -364,7 +364,7 @@ dkstats()
 			itime = atime - xtime;		/* time not xfer'ing */
 			if (itime < 0)
 				msps = 0;
-			else 
+			else
 				msps = itime * 1000 / cur.dk_xfer[dn];
 		} else
 			msps = 0;

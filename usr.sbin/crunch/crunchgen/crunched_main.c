@@ -24,7 +24,7 @@
  *			   University of Maryland at College Park
  */
 /*
- * crunched_main.c - main program for crunched binaries, it branches to a 
+ * crunched_main.c - main program for crunched binaries, it branches to a
  * 	particular subprogram based on the value of argv[0].  Also included
  *	is a little program invoked when the crunched binary is called via
  *	its EXECNAME.  This one prints out the list of compiled-in binaries,
@@ -84,7 +84,7 @@ int crunched_main(int argc, char **argv)
     struct stub *ep;
     int columns, len;
 
-    if(argc <= 1) 
+    if(argc <= 1)
 	crunched_usage();
 
     return main(--argc, ++argv);

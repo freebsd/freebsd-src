@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: lptcontrol.c,v 1.1.1.1 1994/09/03 13:10:09 csgr Exp $
+ * $Id: lptcontrol.c,v 1.2 1994/09/03 22:46:50 csgr Exp $
  */
 
 #include <ctype.h>
@@ -91,18 +91,18 @@ int main (int argc, char * argv[])
 	int		opt;
 	int		irq_status = IRQ_INVALID;
 	char		* unit = DEFAULT_UNIT;
-	
+
 	while((opt = getopt(argc, argv, "ipu:")) != -1)
 		switch(opt) {
 		case 'i': irq_status = USE_IRQ; break;
 		case 'p': irq_status = DO_POLL; break;
-		case 'u': unit = optarg; 
+		case 'u': unit = optarg;
 			  if(!isdigit(*unit))
 				usage(argv[0]);
 			  break;
-		default : usage(argv[0]); 
+		default : usage(argv[0]);
 		}
-	if(irq_status == IRQ_INVALID) 
+	if(irq_status == IRQ_INVALID)
 		usage(argv[0]);
 
 	set_interrupt_status(irq_status, dev_file(*unit));

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: decode.c,v 1.1 1994/08/17 09:00:09 sos Exp $
+ *	$Id: decode.c,v 1.2 1995/01/28 22:18:02 sos Exp $
  */
 
 #include <stdio.h>
@@ -39,7 +39,7 @@ int decode(FILE *fd, char *buffer)
 #define	DEC(c)	(((c) - ' ') & 0x3f)
 
 	do {
-		if (!fgets(temp, sizeof(temp), fd)) 
+		if (!fgets(temp, sizeof(temp), fd))
 			return(0);
 	} while (strncmp(temp, "begin ", 6));
 	sscanf(temp, "begin %o %s", &n, temp);
@@ -60,7 +60,7 @@ int decode(FILE *fd, char *buffer)
 						DEC(p[0])<<2 | DEC(p[1])>>4;
 				}
 				if (n >= 2) {
-					buffer[pos++] = 
+					buffer[pos++] =
 						DEC(p[1])<<4 | DEC(p[2])>>2;
 				}
 				if (n >= 3) {

@@ -196,14 +196,14 @@ typeerr:		LABEL;
 			(void)close(fd);
 			if (s->cksum != val) {
 				LABEL;
-				(void)printf("%scksum (%lu, %lu)\n", 
+				(void)printf("%scksum (%lu, %lu)\n",
 				    tab, s->cksum, val);
 			}
 			tab = "\t";
 		}
 	if (s->flags & F_MD5) {
 		char *new_digest;
-		
+
 		new_digest = MD5File(p->fts_accpath);
 		if (!new_digest) {
 			LABEL;
@@ -212,7 +212,7 @@ typeerr:		LABEL;
 			tab = "\t";
 		} else if (strcmp(new_digest, s->md5digest)) {
 			LABEL;
-			printf("%sMD5 (%s, %s)\n", tab, s->md5digest, 
+			printf("%sMD5 (%s, %s)\n", tab, s->md5digest,
 			       new_digest);
 			tab = "\t";
 			free(new_digest);

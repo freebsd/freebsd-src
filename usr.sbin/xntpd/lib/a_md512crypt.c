@@ -25,7 +25,7 @@ extern U_LONG authnokey;
  *	a variable amount of encrypted data, multiple of 8 bytes, followed by:
  *	NOCRYPT_OCTETS worth of unencrypted data, followed by:
  *	BLOCK_OCTETS worth of ciphered checksum.
- */ 
+ */
 #define	NOCRYPT_OCTETS	4
 #define	BLOCK_OCTETS	16
 
@@ -80,7 +80,7 @@ MD5auth2crypt(keyno, pkt, length)
     MD5Final(&ctx);
 
     memmove((char *) &pkt[NOCRYPT_LONGS + length/sizeof(U_LONG)],
-	    (char *) ctx.digest,	    
+	    (char *) ctx.digest,
 	    BLOCK_OCTETS);
     return (4 + BLOCK_OCTETS);
 }

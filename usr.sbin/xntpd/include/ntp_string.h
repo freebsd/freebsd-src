@@ -1,5 +1,5 @@
 /*
- * Define string ops: strchr strrchr memcmp memmove memset 
+ * Define string ops: strchr strrchr memcmp memmove memset
  */
 
 #ifndef  _ntp_string_h

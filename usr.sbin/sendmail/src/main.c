@@ -208,10 +208,10 @@ main(argc, argv, envp)
 #ifdef LOG
 # ifdef LOG_MAIL
 	openlog("sendmail", LOG_PID, LOG_MAIL);
-# else 
+# else
 	openlog("sendmail", LOG_PID);
 # endif
-#endif 
+#endif
 
 	/* set up the blank envelope */
 	BlankEnvelope.e_puthdr = putheader;
@@ -511,7 +511,7 @@ main(argc, argv, envp)
 				break;
 			}
 			break;
-		
+
 		  case 'n':	/* don't alias */
 			NoAlias = TRUE;
 			break;
@@ -1051,7 +1051,7 @@ main(argc, argv, envp)
 
 #endif /* DAEMON */
 	}
-	
+
 # ifdef SMTP
 	/*
 	**  If running SMTP protocol, start collecting and executing

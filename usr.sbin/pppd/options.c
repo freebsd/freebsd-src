@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.2 1994/09/25 02:32:08 wollman Exp $";
+static char rcsid[] = "$Id: options.c,v 1.3 1995/05/24 01:56:52 davidg Exp $";
 #endif
 
 #include <stdio.h>
@@ -940,7 +940,7 @@ setconnector(argv)
     connector = strdup(*argv);
     if (connector == NULL)
 	novm("connector string");
-  
+
     return (1);
 }
 
@@ -954,13 +954,13 @@ setdisconnector(argv)
     disconnector = strdup(*argv);
     if (disconnector == NULL)
 	novm("disconnector string");
-  
+
     return (1);
 }
 
 
 /*
- * setdomain - Set domain name to append to hostname 
+ * setdomain - Set domain name to append to hostname
  */
 static int
 setdomain(argv)
@@ -1048,7 +1048,7 @@ setdevname(cp)
     struct stat statbuf;
     char *tty, *ttyname();
     char dev[MAXPATHLEN];
-  
+
     if (strncmp("/dev/", cp, 5) != 0) {
 	strcpy(dev, "/dev/");
 	strncat(dev, cp, MAXPATHLEN - 5);
@@ -1065,11 +1065,11 @@ setdevname(cp)
 	syslog(LOG_ERR, cp);
 	return -1;
     }
-  
+
     (void) strncpy(devname, cp, MAXPATHLEN);
     devname[MAXPATHLEN-1] = 0;
     default_device = FALSE;
-  
+
     return 1;
 }
 
@@ -1085,13 +1085,13 @@ setipaddr(arg)
     char *colon, *index();
     u_long local, remote;
     ipcp_options *wo = &ipcp_wantoptions[0];
-  
+
     /*
      * IP address pair separated by ":".
      */
     if ((colon = index(arg, ':')) == NULL)
 	return 0;
-  
+
     /*
      * If colon first character, then no local addr.
      */
@@ -1117,7 +1117,7 @@ setipaddr(arg)
 	    wo->ouraddr = local;
 	*colon = ':';
     }
-  
+
     /*
      * If colon last character, then no remote addr.
      */
@@ -1229,7 +1229,7 @@ setnetmask(argv)
 
 /*
  * Return user specified netmask. A value of zero means no netmask has
- * been set. 
+ * been set.
  */
 /* ARGSUSED */
 u_long

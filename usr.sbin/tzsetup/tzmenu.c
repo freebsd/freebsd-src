@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tzmenu.c,v 1.1 1995/04/24 21:04:34 wollman Exp $";
 
 #include <stdio.h>
 #include <ncurses.h>
@@ -71,7 +71,7 @@ tzmenu(void)
 	int item = 0;
 	int sc = 0;
 	const char *res;
-	
+
 	while(1) {
 		dialog_clear();
 		rv = dialog_menu("Timezone Selector",
@@ -92,7 +92,7 @@ tzmenu(void)
 
 		res = country_menu(regions[item],
 				   regmenu[2 * item + 1]);
-		
+
 		if (res)
 			return res;
 	}
@@ -109,7 +109,7 @@ country_menu(const struct region *reg, const char *name)
 	int item = 0;
 	int sc = 0;
 	const char *res;
-	
+
 	snprintf(title, sizeof title, "Timezone Selector - %s", name);
 
 	while(1) {
@@ -133,7 +133,7 @@ country_menu(const struct region *reg, const char *name)
 
 		res = location_menu(reg->r_ctrylist[rv - 1],
 				    reg->r_menu[2 * (rv - 1) + 1]);
-		
+
 		if (res)
 			return res;
 	}
@@ -148,7 +148,7 @@ location_menu(const struct country *ctry, const char *name)
 	int item = 0;
 	int sc = 0;
 	const char *res;
-	
+
 	snprintf(title, sizeof title, "Timezone Selector - %s", name);
 
 	while(1) {
@@ -170,7 +170,7 @@ location_menu(const struct country *ctry, const char *name)
 
 
 		rv = setzone(ctry->c_filelist[item]);
-		
+
 		if (rv == 0)
 			return ctry->c_filelist[item];
 	}

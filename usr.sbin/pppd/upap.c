@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: upap.c,v 1.2 1994/04/11 07:13:44 paulus Exp $";
+static char rcsid[] = "$Id: upap.c,v 1.2 1994/09/25 02:32:16 wollman Exp $";
 #endif
 
 /*
@@ -434,7 +434,7 @@ upap_sauthreq(u)
     outlen = UPAP_HEADERLEN + 2 * sizeof (u_char) +
 	u->us_userlen + u->us_passwdlen;
     outp = outpacket_buf;
-    
+
     MAKEHEADER(outp, UPAP);
 
     PUTCHAR(UPAP_AUTHREQ, outp);

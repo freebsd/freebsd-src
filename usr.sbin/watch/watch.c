@@ -345,7 +345,7 @@ main(ac, av)
 						set_dev(dev_name);
 					}
 				}
-					
+
 			}
 		}
 		if (!FD_ISSET(snp_io, &fd_s))

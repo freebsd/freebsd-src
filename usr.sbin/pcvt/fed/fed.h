@@ -14,7 +14,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    This product includes software developed by Hellmuth Michaelis.
- * 4. The name of the developer may not be used to endorse or promote 
+ * 4. The name of the developer may not be used to endorse or promote
  *    products derived from this software without specific prior written
  *    permission.
  *

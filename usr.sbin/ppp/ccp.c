@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id:$
- * 
+ *
+ * $Id: ccp.c,v 1.2 1995/02/26 12:17:14 amurai Exp $
+ *
  *	TODO:
  *		o Support other compression protocols
  */
@@ -29,7 +29,7 @@
 #include "phase.h"
 #include "vars.h"
 #include "cdefs.h"
- 
+
 extern void PutConfValue __P((void));
 
 struct ccpstate CcpInfo;

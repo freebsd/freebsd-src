@@ -52,7 +52,7 @@ calleapwhen(ntpdate, leaplast, leapnext)
 	for (i = 1; i < 9; i++)
 		if (dateincycle < (u_long)calleaptab[i])
 			break;
-	
+
 	/*
 	 * i points at the next leap.  Compute the last and the next.
 	 */

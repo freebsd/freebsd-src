@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: lcp.c,v 1.8 1994/05/30 02:38:49 paulus Exp $";
+static char rcsid[] = "$Id: lcp.c,v 1.2 1994/09/25 02:32:01 wollman Exp $";
 #endif
 
 /*
@@ -275,7 +275,7 @@ lcp_extcode(f, code, id, inp, len)
     case PROTREJ:
 	lcp_rprotrej(f, inp, len);
 	break;
-    
+
     case ECHOREQ:
 	if (f->state != OPENED)
 	    break;
@@ -286,7 +286,7 @@ lcp_extcode(f, code, id, inp, len)
 	    len = CILEN_LONG;
 	fsm_sdata(f, ECHOREP, id, inp, len);
 	break;
-    
+
     case ECHOREP:
 	lcp_received_echo_reply(f, id, inp, len);
 	break;
@@ -300,7 +300,7 @@ lcp_extcode(f, code, id, inp, len)
     return 1;
 }
 
-    
+
 /*
  * lcp_rprotrej - Receive an Protocol-Reject.
  *
@@ -1601,7 +1601,7 @@ LcpSendEchoRequest (f)
 	            : 0L;
 	pktp = pkt;
 	PUTLONG(lcp_magic, pktp);
-      
+
         fsm_sdata(f, ECHOREQ,
 		  lcp_echo_number++ & 0xFF, pkt, pktp - pkt);
     }
@@ -1621,7 +1621,7 @@ lcp_echo_lowerup (unit)
     lcp_echos_pending      = 0;
     lcp_echo_number        = 0;
     lcp_echo_timer_running = 0;
-  
+
     /* If a timeout interval is specified then start the timer */
     if (lcp_echo_interval != 0)
         LcpEchoCheck (f);

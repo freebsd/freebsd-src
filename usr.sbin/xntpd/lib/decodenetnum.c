@@ -50,7 +50,7 @@ decodenetnum(num, netnum)
 		*netnum <<= 8;
 		*netnum += temp;
 	}
-	
+
 	if (i < 4)
 		return 0;
 	*netnum = htonl(*netnum);
