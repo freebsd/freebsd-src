@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.35 1998/05/19 07:11:22 peter Exp $
+ * $Id: nfs.h,v 1.36 1998/05/24 14:41:47 peter Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -293,14 +293,6 @@ struct nfsstats {
 		       { "nfsprivport", CTLTYPE_INT }, \
 }
 
-/*
- * Network address hash list element
- */
-union nethostaddr {
-	u_long had_inetaddr;
-	struct sockaddr *had_nam;
-};
-
 #ifdef KERNEL
 
 #ifdef MALLOC_DECLARE
@@ -398,6 +390,14 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 	(&(nmp)->nm_uidhashtbl[(uid) % NFS_MUIDHASHSIZ])
 #define	NFSNOHASH(fhsum) \
 	(&nfsnodehashtbl[(fhsum) & nfsnodehash])
+
+/*
+ * Network address hash list element
+ */
+union nethostaddr {
+	u_long had_inetaddr;
+	struct sockaddr *had_nam;
+};
 
 struct nfsuid {
 	TAILQ_ENTRY(nfsuid) nu_lru;	/* LRU chain */

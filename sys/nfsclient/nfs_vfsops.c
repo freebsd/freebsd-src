@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.63 1998/05/24 14:41:56 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.64 1998/05/30 16:33:57 peter Exp $
  */
 
 #include <sys/param.h>
@@ -696,6 +696,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 		 * unsuspecting binaries).
 		 */
 		mp->mnt_maxsymlinklen = 1;
+
 	if ((argp->flags & NFSMNT_NFSV3) == 0)
 		/*
 		 * V2 can only handle 32 bit filesizes. For v3, nfs_fsinfo
