@@ -15,7 +15,7 @@ static char Buffer[LINELEN], Command[LINELEN];
 
 static int Usage()
 {
-    fprintf(stderr, "Usage: pppctl [-v] [ -t n ] [ -p passwd ] Port|LocalSock command[;command]...\n");
+    fprintf(stderr, "Usage: pppctl [-v] [ -t n ] [ -p passwd ] Port|LocalSock [command[;command]...]\n");
     fprintf(stderr, "              -v tells pppctl to output all conversation\n");
     fprintf(stderr, "              -t n specifies a timeout of n seconds (default 2)\n");
     fprintf(stderr, "              -p passwd specifies your password\n");
@@ -150,7 +150,7 @@ main(int argc, char **argv)
             break;
 
 
-    if (argc < arg + 2)
+    if (argc < arg + 1)
         return Usage();
 
     if (*argv[arg] == '/') {
@@ -261,28 +261,46 @@ main(int argc, char **argv)
             break;
 
         case 0:
-            start = Command;
-            do {
-                next = index(start, ';');
-                while (*start == ' ' || *start == '\t')
-                    start++;
-                if (next)
-                    *next = '\0';
-                strcpy(Buffer, start);
-                Buffer[sizeof(Buffer)-2] = '\0';
-                strcat(Buffer, "\n");
-                if (verbose)
-                    write(1, Buffer, strlen(Buffer));
-                write(fd, Buffer, strlen(Buffer));
-                if (Receive(fd, TimeoutVal, verbose | REC_SHOW) != 0) {
-                    fprintf(stderr, "No reply from ppp\n");
-                    break;
+            if (len == 0) {
+                if (!verbose) {
+                    /* Give a \n to ppp for a prompt */
+                    write(fd, "\n", 1);
+                    if (Receive(fd, TimeoutVal, REC_VERBOSE | REC_SHOW) != 0) {
+                        fprintf(stderr, "Connection closed\n");
+                        break;
+                    }
                 }
-                if (next)
-                    start = ++next;
-            } while (next && *next);
-            if (verbose)
-                puts("");
+                while (fgets(Buffer, sizeof(Buffer)-1, stdin)) {
+                    write(fd, Buffer, strlen(Buffer));
+                    if (Receive(fd, TimeoutVal, REC_VERBOSE | REC_SHOW) != 0) {
+                        fprintf(stderr, "Connection closed\n");
+                        break;
+                    }
+                }
+            } else {
+                start = Command;
+                do {
+                    next = index(start, ';');
+                    while (*start == ' ' || *start == '\t')
+                        start++;
+                    if (next)
+                        *next = '\0';
+                    strcpy(Buffer, start);
+                    Buffer[sizeof(Buffer)-2] = '\0';
+                    strcat(Buffer, "\n");
+                    if (verbose)
+                        write(1, Buffer, strlen(Buffer));
+                    write(fd, Buffer, strlen(Buffer));
+                    if (Receive(fd, TimeoutVal, verbose | REC_SHOW) != 0) {
+                        fprintf(stderr, "No reply from ppp\n");
+                        break;
+                    }
+                    if (next)
+                        start = ++next;
+                } while (next && *next);
+                if (verbose)
+                    puts("");
+            }
             break;
 
         default:
