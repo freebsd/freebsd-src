@@ -395,8 +395,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 		      prt->Source, devinfo.HardwareId);
 	goto out;
     }
-    if (!acpi_DeviceIsPresent(sc->ap_dev)) {
-	device_printf(sc->ap_dev, "PCI interrupt link device %s not present\n",
+    if (devinfo.Valid & ACPI_VALID_STA && (devinfo.CurrentStatus & 0x9) != 0x9) {
+	device_printf(pcib, "PCI interrupt link device %s not present\n",
 		      prt->Source);
 	goto out;
     }
