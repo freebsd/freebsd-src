@@ -125,6 +125,8 @@ share	type=dir uname=bin gname=bin mode=0755
 		..
 		keymaps	type=dir uname=bin gname=bin mode=0755
 		..
+		scrnmaps type=dir uname=bin gname=bin mode=0755
+		..
 	..
 	tabset	type=dir uname=bin gname=bin mode=0755
 	..
