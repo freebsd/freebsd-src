@@ -1,7 +1,7 @@
                      THE FREEBSD MAILING LIST FAQ 
 
-Last updated: $Date: 1994/09/14 09:50:56 $
-Id: $Id: mailing-list.FAQ,v 1.2 1994/09/14 09:50:56 jkh Exp $
+Last updated: $Date: 1994/10/03 03:48:40 $
+Id: $Id: mailing-list.FAQ,v 1.3 1994/10/03 03:48:40 gclarkii Exp $
 
 --
 Though many of the FreeBSD development members read USENET, we cannot
@@ -24,6 +24,13 @@ freebsd-announce                Important events / milestones
 freebsd-current                 Discussions about the use of FreeBSD-current
 freebsd-commit			Commit messages to source repository
 freebsd-core			FreeBSD core team (limited)
+freebsd-security                Security issues
+freebsd-fs                      Filesystems
+freebsd-ports                   Discussion of "ports"
+freebsd-platforms               Porting to Non-Intel platforms
+freebsd-hardware                General discussion of FreeBSD hardware
+freebsd-install                 Installation issues (limited)
+
 -----------------------------------------------------------------------------
 
 The following lists are for people seeing the log messages for source changes 
@@ -49,10 +56,9 @@ cvs-usrsbin	/usr/src/usr.sbin	System binaries
 cvs-ports	/usr/ports		Ported software
 -----------------------------------------------------------------------------
 
-Of all the lists, freebsd-arch, freebsd-admin and freebsd-core have closed
-memberships limited to a small subset of core team members and developers,
-though anyone is free to send suggestions and commentary to them.  The other
-lists may be freely joined by the general public.
+Even though the lists freebsd-core, freebsd-admin, freebsd-install and 
+freebsd-arch are closed, anyone is free to send suggestions and comments
+to them.  All other lists are open.
 
 All mailing lists live on `FreeBSD.ORG', so to post to a list you
 simply mail to `<listname>@FreeBSD.ORG'.  It will then be redistributed
