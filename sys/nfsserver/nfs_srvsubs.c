@@ -592,7 +592,8 @@ MODULE_VERSION(nfsserver, 1);
 int
 nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
     struct nfssvc_sock *slp, struct sockaddr *nam, struct mbuf **mdp,
-    caddr_t *dposp, struct vnode **retdirp, struct thread *td, int pubflag)
+    caddr_t *dposp, struct vnode **retdirp, int v3, struct vattr *retdirattrp,
+    int *retdirattr_retp, struct thread *td, int pubflag)
 {
 	int i, rem;
 	struct mbuf *md;
@@ -602,6 +603,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	struct vnode *dp;
 	int error, rdonly, linklen;
 	struct componentname *cnp = &ndp->ni_cnd;
+	int lockleaf = (cnp->cn_flags & LOCKLEAF) != 0;
 
 	*retdirp = NULL;
 	cnp->cn_flags |= NOMACCHECK;
@@ -664,6 +666,12 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	 * to the returned pointer
 	 */
 	*retdirp = dp;
+	if (v3) {
+		vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
+		*retdirattr_retp = VOP_GETATTR(dp, retdirattrp,
+			ndp->ni_cnd.cn_cred, td);
+		VOP_UNLOCK(dp, 0, td);
+	}
 
 	if (pubflag) {
 		/*
@@ -736,6 +744,8 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	VREF(dp);
 	ndp->ni_startdir = dp;
 
+	if (!lockleaf)
+		cnp->cn_flags |= LOCKLEAF;
 	for (;;) {
 		cnp->cn_nameptr = cnp->cn_pnbuf;
 		/*
@@ -761,6 +771,8 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 				cnp->cn_flags |= HASBUF;
 			else
 				uma_zfree(namei_zone, cnp->cn_pnbuf);
+			if (ndp->ni_vp && !lockleaf)
+				VOP_UNLOCK(ndp->ni_vp, 0, td);
 			break;
 		}
 
@@ -840,6 +852,8 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		ndp->ni_startdir = ndp->ni_dvp;
 		ndp->ni_dvp = NULL;
 	}
+	if (!lockleaf)
+		cnp->cn_flags &= ~LOCKLEAF;
 
 	/*
 	 * nfs_namei() guarentees that fields will not contain garbage
