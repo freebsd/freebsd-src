@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.19 1995/05/25 07:41:27 davidg Exp $
+ *	$Id: param.h,v 1.20 1996/05/02 14:20:02 phk Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -56,32 +56,19 @@
 #define ALIGN(p)	(((unsigned)(p) + ALIGNBYTES) & ~ALIGNBYTES)
 
 #define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
-#define PAGE_SIZE	(1 << PAGE_SHIFT)	/* bytes/page */
+#define PAGE_SIZE	(1<<PAGE_SHIFT)	/* bytes/page */
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+
 #define NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
-
-/* XXX PDRSHIFT and PD_SHIFT are two names for the same thing */
 #define PDRSHIFT	22		/* LOG2(NBPDR) */
-#define NBPDR		(1 << PDRSHIFT)	/* bytes/page dir */
-#define PDROFSET	(NBPDR-1)	/* byte offset into page dir */
-
-/*
- * XXX This should really be KPTDPTDI << PDRSHIFT, but since KPTDPTDI is
- * defined in pmap.h which is included after this we can't do that
- * (YET!)
- */
-#define BTOPKERNBASE	(KERNBASE >> PAGE_SHIFT)
+#define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
 
 #define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
-#define DEV_BSIZE	(1 << DEV_BSHIFT)
+#define DEV_BSIZE	(1<<DEV_BSHIFT)
 
 #define BLKDEV_IOSIZE	2048
 #define MAXPHYS		(64 * 1024)	/* max raw I/O transfer size */
-
-/* NOTE: SSIZE, SINCR and UPAGES must be multiples of CLSIZE */
-#define SSIZE	1		/* initial stack size/PAGE_SIZE */
-#define SINCR	1		/* increment of stack/PAGE_SIZE */
 
 #define UPAGES	2		/* pages of u-area */
 
