@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <machine/stdarg.h>
 
-static MALLOC_DEFINE(M_DEVT, "struct cdev *", "struct cdev *storage");
+static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 
 /* Built at compile time from sys/conf/majors */
 extern unsigned char reserved_majors[256];
@@ -77,7 +77,7 @@ static void
 devlock(void)
 {
 	if (!mtx_initialized(&devmtx))
-		mtx_init(&devmtx, "struct cdev *", NULL, MTX_DEF);
+		mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
 	mtx_lock(&devmtx);
 }
 
