@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.28 1998/06/18 15:32:07 bde Exp $
+ * $Id: random_machdep.c,v 1.29 1998/06/21 11:33:32 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -45,6 +45,7 @@
 #include <sys/select.h>
 #include <sys/poll.h>
 #include <sys/md5.h>
+#include <sys/bus.h>
 
 #include <machine/random.h>
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.128 1998/10/23 10:46:20 phk Exp $
+ *	$Id: clock.c,v 1.129 1998/12/14 13:30:29 mckay Exp $
  */
 
 /*
@@ -86,7 +86,7 @@
 #include <i386/isa/rtc.h>
 #include <i386/isa/timerreg.h>
 
-#include <sys/interrupt.h>
+#include <i386/isa/intr_machdep.h>
 
 #ifdef SMP
 #define disable_intr()	CLOCK_DISABLE_INTR()
@@ -948,6 +948,7 @@ cpu_initclocks()
 	int diag;
 #ifdef APIC_IO
 	int apic_8254_trial;
+	intrec *clkdesc;
 #endif /* APIC_IO */
 
 	if (statclock_disable) {
@@ -982,16 +983,14 @@ cpu_initclocks()
 			panic("APIC_IO: Cannot route 8254 interrupt to CPU");
 	}
 
-	register_intr(/* irq */ apic_8254_intr, /* XXX id */ 0, /* flags */ 0,
-		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
-		      /* unit */ 0);
+	clkdesc = inthand_add("clk", apic_8254_intr, (inthand2_t *)clkintr,
+			      NULL, &clk_imask, INTR_EXCL);
 	INTREN(1 << apic_8254_intr);
 	
 #else /* APIC_IO */
 
-	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
-		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
-		      /* unit */ 0);
+	inthand_add("clk", 0, (inthand2_t *)clkintr, NULL, &clk_imask,
+		    INTR_EXCL);
 	INTREN(IRQ0);
 
 #endif /* APIC_IO */
@@ -1012,9 +1011,8 @@ cpu_initclocks()
 		panic("APIC RTC != 8");
 #endif /* APIC_IO */
 
-	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
-		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
-		      /* unit */ 0);
+	inthand_add("rtc", 8, (inthand2_t *)rtcintr, NULL, &stat_imask,
+		    INTR_EXCL);
 
 #ifdef APIC_IO
 	INTREN(APIC_IRQ8);
@@ -1038,17 +1036,15 @@ cpu_initclocks()
 			 * Workaround: Limited variant of mixed mode.
 			 */
 			INTRDIS(1 << apic_8254_intr);
-			unregister_intr(apic_8254_intr, 
-					/* XXX */ (inthand2_t *) clkintr);
+			inthand_remove(clkdesc);
 			printf("APIC_IO: Broken MP table detected: "
 			       "8254 is not connected to IO APIC int pin %d\n",
 			       apic_8254_intr);
 			
 			apic_8254_intr = 0;
 			setup_8254_mixed_mode();
-			register_intr(/* irq */ apic_8254_intr, /* XXX id */ 0, /* flags */ 0,
-				      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
-				      /* unit */ 0);
+			inthand_add("clk", apic_8254_intr,(inthand2_t *)clkintr,
+				    NULL, &clk_imask, INTR_EXCL);
 			INTREN(1 << apic_8254_intr);
 		}
 		

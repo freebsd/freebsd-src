@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.3 1999/01/27 23:45:43 dillon Exp $
+ *	$Id: intpm.c,v 1.4 1999/01/28 00:57:53 dillon Exp $
  */
 
 #include "pci.h"
@@ -670,12 +670,10 @@ static int force_pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsign
 #endif
 	/* Spec sheet claims that it use IRQ 9*/
         int irq = 9;
-        void *dev_instance = (void *)-1; /* XXX use cfg->devdata        */
         void *idesc;
         
-        idesc = intr_create(dev_instance, irq, func, arg, maskptr, 0);
-        error = intr_connect(idesc);
-        if (error != 0)
+        idesc = inthand_add(NULL, irq, func, arg, maskptr, 0);
+        if (idesc == 0)
                 return 0;
 #ifdef APIC_IO
         nextpin = next_apic_irq(irq);
@@ -706,9 +704,7 @@ static int force_pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsign
         
         nextpin = next_apic_irq(irq);
         while (nextpin >= 0) {
-                idesc = intr_create(dev_instance, nextpin, func, arg,
-				    maskptr, 0);
-                error = intr_connect(idesc);
+                idesc = inthand_add(NULL, nextpin, func, arg, maskptr, 0);
                 if (error != 0)
                         return 0;
                 printf("Registered extra interrupt handler for int %d (in addition to int %d)\n", nextpin, irq);

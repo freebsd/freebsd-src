@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.58 1999/04/16 21:22:23 peter Exp $
+ *	$Id: isa_device.h,v 1.59 1999/04/19 20:16:22 peter Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -44,8 +44,6 @@
 /*
  * ISA Bus Autoconfiguration
  */
-
-typedef	void	ointhand2_t __P((int unit));
 
 /*
  * Per device structure.

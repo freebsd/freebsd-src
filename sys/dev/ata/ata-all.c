@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.7 1999/04/16 21:21:52 peter Exp $
+ *  $Id: ata-all.c,v 1.8 1999/04/18 20:48:15 sos Exp $
  */
 
 #include "ata.h"
@@ -52,6 +52,7 @@
 #include <machine/clock.h>
 #ifdef __i386__
 #include <machine/smp.h>
+#include <i386/isa/intr_machdep.h>
 #endif
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -70,10 +71,10 @@
 
 /* prototypes */
 #if NPCI > 0
-static void promise_intr(int32_t);
+static void promise_intr(void *);
 #endif
 static int32_t ata_probe(int32_t, int32_t, int32_t, device_t, int32_t *);
-static void ataintr(int32_t);
+static void ataintr(void *);
 
 /*
  * Ought to be handled by the devclass.
@@ -132,8 +133,9 @@ ata_isaattach(device_t dev)
 {
     struct resource *port;
     struct resource *irq;
-    int rid, unit;
     void *ih;
+    int rid;
+    struct ata_softc *softc;
 
     /* Allocate the port range and interrupt */
     rid = 0;
@@ -147,14 +149,8 @@ ata_isaattach(device_t dev)
 	bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
 	return (ENOMEM);
     }
-
-    /*
-     * The interrupt code could be changed to take the ata_softc as
-     * its argument directly.
-     */
-    unit = *(int *) device_get_softc(dev);
-    return bus_setup_intr(dev, irq, (driver_intr_t *) ataintr,
-			  (void*)(uintptr_t) unit, &ih);
+    softc = device_get_softc(dev);
+    return bus_setup_intr(dev, irq, ataintr, softc, &ih);
 }
 
 static device_method_t ata_isa_methods[] = {
@@ -232,6 +228,7 @@ static int
 ata_pciattach(device_t dev)
 {
     int unit = device_get_unit(dev);
+    struct ata_softc *softc;
     u_int32_t type;
     u_int8_t class, subclass;
     u_int32_t cmd;
@@ -310,12 +307,14 @@ ata_pciattach(device_t dev)
     /* now probe the addresse found for "real" ATA/ATAPI hardware */
     lun = 0;
     if (ata_probe(iobase_1, altiobase_1, bmaddr_1, dev, &lun)) {
+	softc = atadevices[lun];
 	if (iobase_1 == IO_WD1)
 #ifdef __i386__
-	    register_intr(irq1,(int)"",0,(inthand2_t *)ataintr,&bio_imask,lun);
+	    inthand_add(device_get_nameunit(dev), irq1, ataintr, softc,
+		        &bio_imask, INTR_EXCL);
 #endif
 #ifdef __alpha__
-	    alpha_platform_setup_ide_intr(0, ataintr, (void *)(intptr_t)lun);
+	    alpha_platform_setup_ide_intr(0, ataintr, softc);
 #endif
 	else {
 	    struct resource *irq;
@@ -324,23 +323,23 @@ ata_pciattach(device_t dev)
 
 	    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,1,RF_ACTIVE);
 	    if (sysctrl)
-		bus_setup_intr(dev, irq, (driver_intr_t *)promise_intr,
-			       (void *)lun, &ih);
+		bus_setup_intr(dev, irq, promise_intr, softc, &ih);
 	    else
-		bus_setup_intr(dev, irq, (driver_intr_t *)ataintr,
-			       (void *)lun, &ih);
+		bus_setup_intr(dev, irq, ataintr, softc, &ih);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_1, isa_apic_irq(irq1), unit);
     }
     lun = 1;
     if (ata_probe(iobase_2, altiobase_2, bmaddr_2, dev, &lun)) {
+	softc = atadevices[lun];
 	if (iobase_2 == IO_WD2)
 #ifdef __i386__
-	    register_intr(irq2,(int)"",0,(inthand2_t *)ataintr,&bio_imask,lun);
+	    inthand_add(device_get_nameunit(dev), irq2, ataintr, softc,
+		        &bio_imask, INTR_EXCL);
 #endif
 #ifdef __alpha__
-	    alpha_platform_setup_ide_intr(1, ataintr, (void *)(intptr_t)lun);
+	    alpha_platform_setup_ide_intr(1, ataintr, softc);
 #endif
 	else {
 	    struct resource *irq;
@@ -349,8 +348,7 @@ ata_pciattach(device_t dev)
 
 	    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,1,RF_ACTIVE);
 	    if (!sysctrl)
-		bus_setup_intr(dev, irq, (driver_intr_t *)ataintr,
-			       (void *)lun, &ih);
+		bus_setup_intr(dev, irq, ataintr, softc, &ih);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_2, isa_apic_irq(irq2), unit);
@@ -375,16 +373,16 @@ static driver_t ata_pci_driver = {
 DRIVER_MODULE(ata, pci, ata_pci_driver, ata_devclass, 0, 0);
 
 static void
-promise_intr(int32_t unit)
+promise_intr(void *data)
 {
-    struct ata_softc *scp = atadevices[unit];
+    struct ata_softc *scp = (struct ata_softc *)data;
     int32_t channel = inl((pci_read_config(scp->dev, 0x20, 4) & 0xfffc) + 0x1c);
 
     if (channel & 0x00000400)
-	ataintr(unit);
+	ataintr(data);
 
     if (channel & 0x00004000)
-	ataintr(unit+1);
+	ataintr(atadevices[scp->unit + 1]);
 }
 #endif
 
@@ -548,20 +546,17 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
 }
 
 static void
-ataintr(int32_t unit)
+ataintr(void *data)
 {
     struct ata_softc *scp;
     struct atapi_request *atapi_request;
     struct buf *ata_request; 
     u_int8_t status;
     static int32_t intr_count = 0;
+    int unit;
 
-    if (unit < 0 || unit > atanlun) {
-	printf("ataintr: unit %d unusable\n", unit);
-	return;
-    }
-
-    scp = atadevices[unit];
+    scp = (struct ata_softc *)data;
+    unit = scp->unit;
 
     /* find & call the responsible driver to process this interrupt */
     switch (scp->active) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.12 1998/05/31 10:53:54 bde Exp $
+ *	$Id: intr_machdep.h,v 1.13 1998/06/18 15:32:06 bde Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -190,14 +190,27 @@ inthand_t
 struct isa_device;
 
 void	isa_defaultirq __P((void));
-intrmask_t isa_irq_pending __P((void));
 int	isa_nmi __P((int cd));
-void	update_intrname __P((int intr, int device_id));
 int	icu_setup __P((int intr, inthand2_t *func, void *arg, 
 		       u_int *maskptr, int flags));
 int	icu_unset __P((int intr, inthand2_t *handler));
 int	update_intr_masks __P((void));
 void	register_imask __P((struct isa_device *dvp, u_int mask));
+
+intrmask_t splq __P((intrmask_t mask));
+
+/* XXX currently dev_instance must be set to the ISA device_id or -1 for PCI */
+#define	INTR_FAST		0x00000001 /* fast interrupt handler */
+#define INTR_EXCL		0x00010000 /* excl. intr, default is shared */
+
+struct intrec *inthand_add(const char *name, int irq, inthand2_t handler,
+			   void *arg, intrmask_t *maskptr, int flags);
+
+int inthand_remove(struct intrec *idesc);
+
+int register_intr __P((int intr, int device_id, u_int flags,
+		       ointhand2_t *handler, u_int *maskptr, int unit));
+int unregister_intr(int intr, ointhand2_t handler);
 
 #endif /* LOCORE */
 
