@@ -194,7 +194,7 @@
     libexec
     ..
     man
-/set type=dir uname=man gname=wheel mode=0755
+/set uname=man
         cat1
         ..
         cat2
@@ -240,7 +240,7 @@
             ..
             catn
             ..
-/set type=dir uname=root gname=wheel mode=0755
+/set uname=root
             man1
             ..
             man2

@@ -11,26 +11,12 @@
         defaults
         ..
     ..
-/set type=dir uname=root gname=wheel mode=0555
-    dev             mode=0755
-        fd
+    dev
+        fd              mode=0555
         ..
     ..
-/set type=dir uname=root gname=wheel mode=0755
     etc
         defaults
-        ..
-        periodic
-            daily
-            ..
-            weekly
-            ..
-            monthly
-            ..
-        ..
-	ssh
-	..
-        ssl
         ..
         gnats
         ..
@@ -48,9 +34,21 @@
 #             s               uname=bind gname=bind mode=0750
 #             ..
         ..
+        periodic
+            daily
+            ..
+            monthly
+            ..
+            weekly
+            ..
+        ..
         ppp
         ..
         skel
+        ..
+        ssh
+        ..
+        ssl
         ..
         uucp            uname=uucp gname=uucp mode=0770
         ..
