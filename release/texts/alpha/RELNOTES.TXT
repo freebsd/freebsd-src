@@ -65,6 +65,8 @@ modified by raycontrol(8).
 OpenSSH has been upgraded to 2.3.0.  This version adds support for the
 Rijndael encryption algorithm. [MERGED]
 
+The bug that made certain CDROM drives fail to attach when connected
+to a SCSI card driven by 'isp' has been fixed. 
 
 1.2. SECURITY FIXES
 -------------------
