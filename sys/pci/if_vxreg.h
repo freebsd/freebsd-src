@@ -342,6 +342,7 @@ struct vx_softc {
 #define ACF_CONNECTOR_BNC	3
 
 #define INTERNAL_CONNECTOR_BITS 20
+#define INTERNAL_CONNECTOR_MASK 0x00700000
 
 /* Resource configuration register.
  * Window 0/Port 08
