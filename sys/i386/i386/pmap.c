@@ -244,6 +244,7 @@ static int PMAP1unchanged;
 SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD, 
 	   &PMAP1unchanged, 0,
 	   "Number of times pmap_pte_quick didn't change PMAP1");
+static struct mtx PMAP2mutex;
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
@@ -260,6 +261,7 @@ static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
 static int _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m);
 static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
+static void pmap_pte_release(pt_entry_t *pte);
 static int pmap_unuse_pt(pmap_t, vm_offset_t);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 #ifdef PAE
@@ -377,6 +379,8 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 */
 	SYSMAP(pt_entry_t *, PMAP1, PADDR1, 1);
 	SYSMAP(pt_entry_t *, PMAP2, PADDR2, 1);
+
+	mtx_init(&PMAP2mutex, "PMAP2", NULL, MTX_DEF);
 
 	virtual_avail = va;
 
@@ -730,7 +734,8 @@ pmap_is_current(pmap_t pmap)
 }
 
 /*
- * If the given pmap is not the current pmap, Giant must be held.
+ * If the given pmap is not the current or kernel pmap, the returned pte must
+ * be released by passing it to pmap_pte_release().
  */
 pt_entry_t *
 pmap_pte(pmap_t pmap, vm_offset_t va)
@@ -745,7 +750,7 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 		/* are we current address space or kernel? */
 		if (pmap_is_current(pmap))
 			return (vtopte(va));
-		GIANT_REQUIRED;
+		mtx_lock(&PMAP2mutex);
 		newpf = *pde & PG_FRAME;
 		if ((*PMAP2 & PG_FRAME) != newpf) {
 			*PMAP2 = newpf | PG_RW | PG_V | PG_A | PG_M;
@@ -754,6 +759,18 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 		return (PADDR2 + (i386_btop(va) & (NPTEPG - 1)));
 	}
 	return (0);
+}
+
+/*
+ * Releases a pte that was obtained from pmap_pte().  Be prepared for the pte
+ * being NULL.
+ */
+static __inline void
+pmap_pte_release(pt_entry_t *pte)
+{
+
+	if ((pt_entry_t *)((vm_offset_t)pte & PAGE_MASK) == PADDR2)
+		mtx_unlock(&PMAP2mutex);
 }
 
 static __inline void
@@ -837,6 +854,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 		}
 		pte = pmap_pte(pmap, va);
 		rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
+		pmap_pte_release(pte);
 	}
 	PMAP_UNLOCK(pmap);
 	return (rtval);
@@ -2264,6 +2282,7 @@ pmap_change_wiring(pmap, va, wired)
 	 * invalidate TLB.
 	 */
 	pmap_pte_set_w(pte, wired);
+	pmap_pte_release(pte);
 	PMAP_UNLOCK(pmap);
 }
 
@@ -2898,6 +2917,7 @@ pmap_mincore(pmap, addr)
 	PMAP_LOCK(pmap);
 	ptep = pmap_pte(pmap, addr);
 	pte = (ptep != NULL) ? *ptep : 0;
+	pmap_pte_release(ptep);
 	PMAP_UNLOCK(pmap);
 
 	if (pte != 0) {
