@@ -89,19 +89,7 @@ flag is specified in
 The directory,
 .Fa dvp
 will be locked on entry and must remain locked on return.
-If the call is successful, the new object will be returned locked,
-unless the call is
-.Xr VOP_MKNOD 9
-or
-.Xr VOP_SYMLINK 9
-in which case the new object is not returned at all.
-It is not clear why
-.Xr VOP_MKNOD 9
-and
-.Xr VOP_SYMLINK 9
-need a
-.Fa *vpp
-argument at all.
+If the call is successful, the new object will be returned locked.
 .Sh RETURN VALUES
 If successful, the vnode for the new object is placed in
 .Fa *vpp
