@@ -24,7 +24,7 @@
 +=====================================================================+
 
 Author:         Jordan K. Hubbard
-Last updated:   Tue May 4 16:05:41 PST 1999
+Last updated:   Fri Mar 16 14:47:31 PST 2001
 
 0.0     Quick Start
 ---     -----------
@@ -401,33 +401,33 @@ installation can continue over NFS or FTP.
 
            o FTP:
 
-             For all FTP transfers, use the standard "Active" mode for
-             transfers.  This will not work through most firewalls but
-             will often work best with older ftp servers that do not
-             support passive mode.  If your connection hangs with
+             This method uses the standard "Active" mode for file
+             transfers which allows the server to initiate a connection
+             to the client.  This will not work through most firewalls
+             but will often work best with older FTP servers that do
+             not support passive mode.  If your connection hangs with
              passive mode, try this one!
 
            o FTP Passive:
 
-             For all FTP transfers, use "Passive" mode.  This allows
-             the user to pass through firewalls that do not allow
-             incoming connections on random port addresses.
+             This sets the FTP "Passive" mode which prevents the
+             server from opening connections to the client.  This
+             option is best for users to pass through firewalls that
+             do not allow incoming connections on random port
+             addresses.
 
            o FTP via an HTTP proxy:
-             This option instructs FreeBSD to use HTTP (like a web
-             browser) to connect to a proxy for all FTP operations.
-             The proxy will translate the requests and send them to
-             the FTP server.  This allows the user to pass through
-             firewalls that do not allow FTP at all, but offer an
-             HTTP proxy.  You must specify the hostname of the proxy
-             in addition to the FTP server.
 
-        NOTE: THERE IS ANOTHER TYPE OF FTP PROXY OTHER THAN HTTP PROXIES.
-        THIS TYPE IS VERY UNCOMMON, THOUGH.  IF YOU ARE NOT ABSOLUTELY
-        CERTAIN, YOU CAN ASSUME THAT YOU HAVE AN HTTP PROXY AS DESCRIBED
-        ABOVE.
+             This option instructs FreeBSD to use HTTP to connect to a
+             proxy for all FTP operations.  The proxy will translate
+             the requests and send them to the FTP server.  This
+             allows the user to pass through firewalls that do not
+             allow FTP at all, but offer an HTTP proxy.  You must
+             specify the hostname of the proxy in addition to the FTP
+             server.
 
-        In such instances, you should specify the URL as something like:
+        In the rare case that you have an FTP proxy that does not go
+        through HTTP, you can specify the URL as something like :
 
                 ftp://foo.bar.com:1234/pub/FreeBSD
 
