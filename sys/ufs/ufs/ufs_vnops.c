@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.11 1994/10/15 04:14:23 ache Exp $
+ * $Id: ufs_vnops.c,v 1.12 1994/10/21 01:19:25 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -477,7 +477,7 @@ ufs_chown(vp, uid, gid, cred, p)
 	 * the caller must be superuser or the call fails.
 	 */
 	if ((cred->cr_uid != ip->i_uid || uid != ip->i_uid ||
-	    !groupmember((gid_t)gid, cred)) &&
+	    (gid != ip->i_gid && !groupmember((gid_t)gid, cred))) &&
 	    (error = suser(cred, &p->p_acflag)))
 		return (error);
 	ogid = ip->i_gid;
