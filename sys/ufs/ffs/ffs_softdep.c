@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.46 (McKusick) 1/9/00
+ *	from: @(#)ffs_softdep.c	9.48 (McKusick) 1/10/00
  * $FreeBSD$
  */
 
@@ -1657,19 +1657,7 @@ softdep_setup_freeblocks(ip, length)
 	merge_inode_lists(inodedep);
 	while ((adp = TAILQ_FIRST(&inodedep->id_inoupdt)) != 0)
 		free_allocdirect(&inodedep->id_inoupdt, adp, 1);
-	/*
-	 * Add the freeblks structure to the list of operations that
-	 * must await the zero'ed inode being written to disk. If we
-	 * still have a bitmap dependency, then the inode has never been
-	 * written to disk, so we can process the freeblks immediately.
-	 */
-	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
-		FREE_LOCK(&lk);
-		handle_workitem_freeblocks(freeblks);
-	} else {
-		WORKLIST_INSERT(&inodedep->id_bufwait, &freeblks->fb_list);
-		FREE_LOCK(&lk);
-	}
+	FREE_LOCK(&lk);
 	bdwrite(bp);
 	/*
 	 * We must wait for any I/O in progress to finish so that
@@ -1690,11 +1678,22 @@ softdep_setup_freeblocks(ip, length)
 		ACQUIRE_LOCK(&lk);
 	}
 	/*
-	 * Try freeing the inodedep in case that was the last dependency.
+	 * Add the freeblks structure to the list of operations that
+	 * must await the zero'ed inode being written to disk. If we
+	 * still have a bitmap dependency, then the inode has never been
+	 * written to disk, so we can process the freeblks immediately.
+	 * If the inodedep does not exist, then the zero'ed inode has
+	 * been written and we can also proceed.
 	 */
-	if ((inodedep_lookup(fs, ip->i_number, 0, &inodedep)) != 0)
-		(void) free_inodedep(inodedep);
-	FREE_LOCK(&lk);
+	if (inodedep_lookup(fs, ip->i_number, 0, &inodedep) == 0 ||
+	    free_inodedep(inodedep) ||
+	    (inodedep->id_state & DEPCOMPLETE) == 0) {
+		FREE_LOCK(&lk);
+		handle_workitem_freeblocks(freeblks);
+	} else {
+		WORKLIST_INSERT(&inodedep->id_bufwait, &freeblks->fb_list);
+		FREE_LOCK(&lk);
+	}
 }
 
 /*
@@ -1877,7 +1876,7 @@ softdep_freefile(pvp, ino, mode)
 	 * written, it has been rolled back to its zero'ed state, so we
 	 * are ensured that a zero inode is what is on the disk. For short
 	 * lived files, this change will usually result in removing all the
-	 * depedencies from the inode so that it can be freed immediately.
+	 * dependencies from the inode so that it can be freed immediately.
 	 */
 	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
 		inodedep->id_state |= ALLCOMPLETE;
@@ -2568,6 +2567,7 @@ handle_workitem_remove(dirrem)
 	struct inodedep *inodedep;
 	struct vnode *vp;
 	struct inode *ip;
+	ino_t oldinum;
 	int error;
 
 	if ((error = VFS_VGET(dirrem->dm_mnt, dirrem->dm_oldinum, &vp)) != 0) {
@@ -2577,7 +2577,7 @@ handle_workitem_remove(dirrem)
 	ip = VTOI(vp);
 	ACQUIRE_LOCK(&lk);
 	if ((inodedep_lookup(ip->i_fs, dirrem->dm_oldinum, 0, &inodedep)) == 0)
-		panic("handle_workitem_remove: lost inodedep 1");
+		panic("handle_workitem_remove: lost inodedep");
 	/*
 	 * Normal file deletion.
 	 */
@@ -2620,6 +2620,7 @@ handle_workitem_remove(dirrem)
 		return;
 	}
 	/*
+	 * If there is no inode dependency then we can free immediately.
 	 * If we still have a bitmap dependency, then the inode has never
 	 * been written to disk. Drop the dependency as it is no longer
 	 * necessary since the inode is being deallocated. We set the
@@ -2628,28 +2629,30 @@ handle_workitem_remove(dirrem)
 	 * written, it has been rolled back to its zero'ed state, so we
 	 * are ensured that a zero inode is what is on the disk. For short
 	 * lived files, this change will usually result in removing all the
-	 * depedencies from the inode so that it can be freed immediately.
+	 * dependencies from the inode so that it can be freed immediately.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if ((inodedep_lookup(ip->i_fs, dirrem->dm_oldinum, 0, &inodedep)) == 0)
-		panic("handle_workitem_remove: lost inodedep 2");
+	dirrem->dm_state = 0;
+	oldinum = dirrem->dm_oldinum;
+	dirrem->dm_oldinum = dirrem->dm_dirinum;
+	if ((inodedep_lookup(ip->i_fs, oldinum, 0, &inodedep)) == 0)
+		goto out;
 	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
 		inodedep->id_state |= ALLCOMPLETE;
 		LIST_REMOVE(inodedep, id_deps);
 		inodedep->id_buf = NULL;
 		WORKLIST_REMOVE(&inodedep->id_list);
 	}
-	dirrem->dm_state = 0;
-	dirrem->dm_oldinum = dirrem->dm_dirinum;
 	if (free_inodedep(inodedep) == 0) {
 		WORKLIST_INSERT(&inodedep->id_inowait, &dirrem->dm_list);
 		FREE_LOCK(&lk);
 		vput(vp);
-	} else {
-		FREE_LOCK(&lk);
-		vput(vp);
-		handle_workitem_remove(dirrem);
+		return;
 	}
+out:
+	FREE_LOCK(&lk);
+	vput(vp);
+	handle_workitem_remove(dirrem);
 }
 
 /*
