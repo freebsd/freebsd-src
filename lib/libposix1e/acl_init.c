@@ -40,7 +40,7 @@ acl_init(int count)
 {
 	struct acl	*acl;
 
-	if (count > MAX_ACL_ENTRIES) {
+	if (count > ACL_MAX_ENTRIES) {
 		errno = ENOMEM;
 		return (0);
 	}
