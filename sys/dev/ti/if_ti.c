@@ -270,8 +270,8 @@ static int ti_chipinit		(struct ti_softc *);
 static int ti_gibinit		(struct ti_softc *);
 
 #ifdef TI_JUMBO_HDRSPLIT
-static __inline void ti_hdr_split	__P((struct mbuf *top, int hdr_len,
-					     int pkt_len, int idx));
+static __inline void ti_hdr_split	(struct mbuf *top, int hdr_len,
+					     int pkt_len, int idx);
 #endif /* TI_JUMBO_HDRSPLIT */
 
 static device_method_t ti_methods[] = {
