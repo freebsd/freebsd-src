@@ -435,7 +435,7 @@ ext2_reload(mountp, cred, p)
 	struct buf *bp;
 	struct ext2_super_block * es;
 	struct ext2_sb_info *fs;
-	int i, size, error;
+	int error;
 
 	if ((mountp->mnt_flag & MNT_RDONLY) == 0)
 		return (EINVAL);
@@ -529,7 +529,6 @@ ext2_mountfs(devvp, mp, p)
 	struct ext2_super_block * es;
 	dev_t dev = devvp->v_rdev;
 	struct partinfo dpart;
-	caddr_t base;
 	int havepart = 0;
 	int error, i, size;
 	int ronly;
@@ -706,7 +705,7 @@ ext2_flushfiles(mp, flags, p)
 	extern int doforce;
 #endif
 	register struct ufsmount *ump;
-	int i, error;
+	int error;
 
 	if (!doforce)
 		flags &= ~FORCECLOSE;
@@ -1050,9 +1049,7 @@ ext2_sbupdate(mp, waitfor)
 	register struct ext2_sb_info *fs = mp->um_e2fs;
 	register struct ext2_super_block *es = fs->s_es;
 	register struct buf *bp;
-	int blks;
-	caddr_t space;
-	int i, size, error = 0;
+	int i, error = 0;
 /*
 printf("\nupdating superblock, waitfor=%s\n", waitfor == MNT_WAIT ? "yes":"no");
 */

@@ -103,8 +103,6 @@ struct  ext2_group_desc * get_group_desc __P((struct mount * ,
 void	ext2_discard_prealloc __P((struct inode *));
 int	ext2_inactive __P((struct vop_inactive_args *));
 int 	ll_w_block __P((struct buf *, int ));
-int	ext2_di2ei __P((struct dinode *di, struct ext2_inode *ei));
-int	ext2_ei2di __P((struct ext2_inode *ei, struct dinode *di));
 int	ext2_new_block __P ((struct mount * mp, unsigned long goal,
 			    long * prealloc_count,
 			    long * prealloc_block));
@@ -115,6 +113,9 @@ void	ext2_free_inode (struct inode * inode);
 int	ext2_flushfiles __P((struct mount *mp, int flags, struct proc *p));
 int	ext2_reload __P((struct mount *mountp, struct ucred *cred,
 			struct proc *p));
+void	ext2_ei2di __P((struct ext2_inode *ei, struct dinode *di));
+void	ext2_di2ei __P((struct dinode *di, struct ext2_inode *ei));
+void	mark_buffer_dirty __P((struct buf *bh));
 
 #if !defined(__FreeBSD__)
 int	bwrite();		/* FFS needs a bwrite routine.  XXX */

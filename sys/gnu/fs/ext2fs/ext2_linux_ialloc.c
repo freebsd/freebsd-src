@@ -284,7 +284,7 @@ static void inc_inode_version (struct inode * inode,
 			EXT2_INODES_PER_BLOCK(inode->i_sb));
 	raw_inode->i_version++;
 	inode->u.ext2_i.i_version = raw_inode->i_version;
-	mark_buffer_dirty(bh, 1);
+	mark_buffer_dirty(bh);
 	brelse (bh);
 }
 
@@ -412,7 +412,7 @@ repeat:
 			goto repeat;
 		}
 /* Linux now does the following:
-		mark_buffer_dirty(bh, 1);
+		mark_buffer_dirty(bh);
 		if (sb->s_flags & MS_SYNCHRONOUS) {
 			ll_rw_block (WRITE, 1, &bh);
 			wait_on_buffer (bh);

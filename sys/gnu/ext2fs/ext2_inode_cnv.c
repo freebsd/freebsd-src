@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/systm.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 
@@ -48,9 +49,11 @@
 #undef i_uid
 
 #include <gnu/ext2fs/ext2_fs.h>
+#include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs_i.h>
 
-void ext2_print_dinode( di )
+void
+ext2_print_dinode( di )
 	struct dinode *di;
 {
 	int i;
@@ -79,7 +82,8 @@ void ext2_print_dinode( di )
 	printf("\n");
 }
 
-void ext2_print_inode( in )
+void
+ext2_print_inode( in )
 	struct inode *in;
 {
 	printf( "Inode: %5d", in->i_number);
@@ -89,7 +93,8 @@ void ext2_print_inode( in )
 /*
  *	raw ext2 inode to dinode
  */
-int ext2_ei2di(ei, di)
+void
+ext2_ei2di(ei, di)
         struct ext2_inode *ei;
         struct dinode *di;
 {
@@ -123,7 +128,8 @@ int ext2_ei2di(ei, di)
 /*
  *	dinode to raw ext2 inode
  */
-int ext2_di2ei(di, ei)
+void
+ext2_di2ei(di, ei)
         struct dinode *di;
         struct ext2_inode *ei;
 {

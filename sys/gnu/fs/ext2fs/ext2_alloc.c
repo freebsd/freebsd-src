@@ -112,7 +112,6 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 {
 	register struct ext2_sb_info *fs;
 	daddr_t bno;
-	int cg, error;
 	
 	*bnp = 0;
 	fs = ip->i_e2fs;
@@ -391,7 +390,7 @@ ext2_valloc(ap)
 	register struct ext2_sb_info *fs;
 	register struct inode *ip;
 	mode_t mode = ap->a_mode;
-	ino_t ino, ipref;
+	ino_t ino;
 	int i, error;
 #if !defined(__FreeBSD__)
 	struct timeval time;
@@ -469,7 +468,6 @@ ext2_blkpref(ip, lbn, indx, bap, blocknr)
 	daddr_t *bap;
 	daddr_t blocknr;
 {
-	register struct ext2_sb_info *fs;
 	int	tmp;
 
 	/* if the next block is actually what we thought it is,
