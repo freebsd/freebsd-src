@@ -196,15 +196,15 @@ makeoptions	NO_WERROR=true
 makeoptions	NO_MODULES=true
 options 	PCI_ENABLE_IO_MODES	# Enable all PCI resources
 
-options		KTR
-options		KTR_COMPILE=0xffffffff
-options		KTR_ENTRIES=8192
-options		KTR_MASK=0
+options 	KTR
+options 	KTR_COMPILE=0xffffffff
+options 	KTR_ENTRIES=8192
+options 	KTR_MASK=0
 
-options		OFW_PCI_DEBUG
+options 	OFW_PCI_DEBUG
 
-#options		BOOTP
-#options		BOOTP_NFSROOT
-#options		BOOTP_NFSV3
-#options		BOOTP_COMPAT
-#options		BOOTP_WIRED_TO=hme0
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_COMPAT
+#options 	BOOTP_WIRED_TO=hme0
