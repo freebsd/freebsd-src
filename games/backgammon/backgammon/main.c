@@ -50,8 +50,8 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 #define MVPAUSE	5				/* time to sleep when stuck */
 #define MAXUSERS 35				/* maximum number of users */
 
-char	*instr[];				/* text of instructions */
-char	*message[];				/* update message */
+extern char	*instr[];			/* text of instructions */
+extern char	*message[];			/* update message */
 char	ospeed;					/* tty output speed */
 
 char	*helpm[] = {				/* help message */
