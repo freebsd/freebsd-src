@@ -1,0 +1,78 @@
+.\" Copyright (c) 1986, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)fig2.pic	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.PS
+.ps 9
+[
+	PUOFT: [
+		A: box invis ht .4i wid 1i "Per-User Open" "File Table"
+		B: box ht .25i with .n at A.s
+		C: box with .n at B.s
+		D: box ht .25i with .n at C.s
+	]
+	move down 1.0625i left 1.25i from PUOFT.D.s
+	OFT: [
+		A: box invis ht .4i wid 1i "Open File" "Table"
+		B: box ht .25i with .n at A.s
+		C: box with .n at B.s
+		D: box ht .25i with .n at C.s
+	]
+	move down 1.0625i right 1.25i from PUOFT.D.s
+	AIT: [
+		A: box invis ht .4i wid 1i "Active I-node" "Table"
+		B: box ht .25i with .n at A.s
+		C: box with .n at B.s
+		D: box ht .25i with .n at C.s
+	]
+	move down 2.5i from PUOFT.D.s
+	IF: [
+		A: box ht .25i
+		B: box ht .25i "I-node" with .n at A.s
+		C: box ht .25i with .n at B.s
+		D: box ht .25i "File" with .n at C.s
+		E: box ht .25i with .n at D.s
+	]
+	move right 1.5i from IF.D.w
+	FMA: [
+		box invis "File" "Mapping" "Algorithms"
+	]
+	line from FMA.ne to FMA.se
+	line from FMA.nw to FMA.sw
+	line left .15i from FMA.se
+	line left .15i from FMA.ne
+	line right .15i from FMA.nw
+	line right .15i from FMA.sw
+
+	arrow from FMA.w to IF.D.e
+	arrow from AIT.C.e right .25i then down 2.125i then left .5i
+	arrow from OFT.C.e to AIT.C.w
+	arrow from PUOFT.C.w left .5i then down 1.625i then left .5i
+	arrow <-> from IF.B.e right .5i then up 1.5i then right .5i
+
+	move up .1875i from OFT.A.nw
+	line right 5i
+	move left 5i down 1.9375i
+	line right 5i
+
+	move up 1.63475i right 2.75i from PUOFT.D.s
+	line right .1i down .1i then down .6i then right .1i down .1i then left .1i down .1i then down .6i then left .1i down .1i
+	move down .34375i right 2.75i from PUOFT.D.s
+	line right .1i down .1i then down .6i then right .1i down .1i then left .1i down .1i then down .6i then left .1i down .1i
+	move down 2.34375i right 2.75i from PUOFT.D.s
+	line right .1i down .1i then down .6i then right .1i down .1i then left .1i down .1i then down .6i then left .1i down .1i
+
+	move up 0.817375i right 2.9i from PUOFT.D.s
+	box invis "Swapped" "Per User"
+	move down 1.15625i right 2.9i from PUOFT.D.s
+	box invis wid 1i "Resident" "Per System"
+	move down 3.15675i right 2.9i from PUOFT.D.s
+	box invis ht 1i wid 1i "Secondary" "Storage" "Per" "File System"
+]
+.PE
