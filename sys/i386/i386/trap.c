@@ -467,6 +467,7 @@ restart:
 					/*
 					 * returns to original process
 					 */
+					mtx_exit(&Giant, MTX_DEF);
 					vm86_trap((struct vm86frame *)&frame);
 				goto out;
 			}
