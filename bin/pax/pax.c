@@ -65,7 +65,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include "pax.h"
 #include "extern.h"
-static int gen_init __P((void));
+static int gen_init(void);
 
 /*
  * PAX main routines, general globals and some simple start up routines
@@ -228,15 +228,8 @@ char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
  * Return: 0 if ok, 1 otherwise
  */
 
-#ifdef __STDC__
 int
-main(int argc, char **argv)
-#else
-int
-main(argc, argv)
-	int argc;
-	char **argv;
-#endif
+main(int argc, char *argv[])
 {
 	char *tmpdir;
 	size_t tdlen;
@@ -312,14 +305,8 @@ main(argc, argv)
  *	never....
  */
 
-#ifdef __STDC__
 void
 sig_cleanup(int which_sig)
-#else
-void
-sig_cleanup(which_sig)
-	int which_sig;
-#endif
 {
 	/*
 	 * restore modes and times for any dirs we may have created
@@ -345,13 +332,8 @@ sig_cleanup(which_sig)
  *	when dealing with a medium to large sized archives.
  */
 
-#ifdef __STDC__
 static int
 gen_init(void)
-#else
-static int
-gen_init()
-#endif
 {
 	struct rlimit reslimit;
 	struct sigaction n_hand;

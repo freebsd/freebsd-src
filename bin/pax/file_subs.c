@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 static int
-mk_link __P((register char *,register struct stat *,register char *, int));
+mk_link(register char *,register struct stat *,register char *, int);
 
 /*
  * routines that deal with file operations such as: creating, removing;
@@ -76,14 +76,8 @@ mk_link __P((register char *,register struct stat *,register char *, int));
  *	file descriptor or -1 for failure
  */
 
-#ifdef __STDC__
 int
 file_creat(register ARCHD *arcn)
-#else
-int
-file_creat(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	int fd = -1;
 	mode_t file_mode;
@@ -139,15 +133,8 @@ file_creat(arcn)
  *	0 for success, -1 for failure
  */
 
-#ifdef __STDC__
 void
 file_close(register ARCHD *arcn, int fd)
-#else
-void
-file_close(arcn, fd)
-	register ARCHD *arcn;
-	int fd;
-#endif
 {
 	int res = 0;
 
@@ -186,14 +173,8 @@ file_close(arcn, fd)
  *	0 if ok, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 lnk_creat(register ARCHD *arcn)
-#else
-int
-lnk_creat(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	struct stat sb;
 
@@ -226,14 +207,8 @@ lnk_creat(arcn)
  *	0 if cross_lnk() ok, -1 for fatal flaw (like linking to self).
  */
 
-#ifdef __STDC__
 int
 cross_lnk(register ARCHD *arcn)
-#else
-int
-cross_lnk(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	/*
 	 * try to make a link to original file (-l flag in copy mode). make sure
@@ -256,14 +231,8 @@ cross_lnk(arcn)
  *	0 skip it file exists (-k) or may be the same as source file
  */
 
-#ifdef __STDC__
 int
 chk_same(register ARCHD *arcn)
-#else
-int
-chk_same(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	struct stat sb;
 
@@ -299,18 +268,9 @@ chk_same(arcn)
  *	allowed option). -1 an error occurred.
  */
 
-#ifdef __STDC__
 static int
 mk_link(register char *to, register struct stat *to_sb, register char *from,
 	int ign)
-#else
-static int
-mk_link(to, to_sb, from, ign)
-	register char *to;
-	register struct stat *to_sb;
-	register char *from;
-	int ign;
-#endif
 {
 	struct stat sb;
 	int oerrno;
@@ -381,14 +341,8 @@ mk_link(to, to_sb, from, ign)
  *	0 if ok, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 node_creat(register ARCHD *arcn)
-#else
-int
-node_creat(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	register int res;
 	register int ign = 0;
@@ -551,15 +505,8 @@ node_creat(arcn)
  *	1 we found a directory and we were going to create a directory.
  */
 
-#ifdef __STDC__
 int
 unlnk_exist(register char *name, register int type)
-#else
-int
-unlnk_exist(name, type)
-	register char *name;
-	register int type;
-#endif
 {
 	struct stat sb;
 
@@ -609,16 +556,8 @@ unlnk_exist(name, type)
  *	0 otherwise
  */
 
-#ifdef __STDC__
 int
 chk_path( register char *name, uid_t st_uid, gid_t st_gid)
-#else
-int
-chk_path(name, st_uid, st_gid)
-	register char *name;
-	uid_t st_uid;
-	gid_t st_gid;
-#endif
 {
 	register char *spt = name;
 	struct stat sb;
@@ -701,17 +640,8 @@ chk_path(name, st_uid, st_gid)
  *	not set request.
  */
 
-#ifdef __STDC__
 void
 set_ftime(char *fnm, time_t mtime, time_t atime, int frc)
-#else
-void
-set_ftime(fnm, mtime, atime, frc)
-	char *fnm;
-	time_t mtime;
-	time_t atime;
-	int frc;
-#endif
 {
 	static struct timeval tv[2] = {{0L, 0L}, {0L, 0L}};
 	struct stat sb;
@@ -748,16 +678,8 @@ set_ftime(fnm, mtime, atime, frc)
  *	0 when set, -1 on failure
  */
 
-#ifdef __STDC__
 int
 set_ids(char *fnm, uid_t uid, gid_t gid)
-#else
-int
-set_ids(fnm, uid, gid)
-	char *fnm;
-	uid_t uid;
-	gid_t gid;
-#endif
 {
 	if (chown(fnm, uid, gid) < 0) {
 		/*
@@ -780,16 +702,8 @@ set_ids(fnm, uid, gid)
  *	0 when set, -1 on failure
  */
 
-#ifdef __STDC__
 int
 set_lids(char *fnm, uid_t uid, gid_t gid)
-#else
-int
-set_lids(fnm, uid, gid)
-	char *fnm;
-	uid_t uid;
-	gid_t gid;
-#endif
 {
 	if (lchown(fnm, uid, gid) < 0) {
 		/*
@@ -810,15 +724,8 @@ set_lids(fnm, uid, gid)
  *	Set file access mode
  */
 
-#ifdef __STDC__
 void
 set_pmode(char *fnm, mode_t mode)
-#else
-void
-set_pmode(fnm, mode)
-	char *fnm;
-	mode_t mode;
-#endif
 {
 	mode &= ABITS;
 	if (chmod(fnm, mode) < 0)
@@ -874,21 +781,9 @@ set_pmode(fnm, mode)
  *	number of bytes written, -1 on write (or lseek) error.
  */
 
-#ifdef __STDC__
 int
 file_write(int fd, char *str, register int cnt, int *rem, int *isempt, int sz,
 	char *name)
-#else
-int
-file_write(fd, str, cnt, rem, isempt, sz, name)
-	int fd;
-	char *str;
-	register int cnt;
-	int *rem;
-	int *isempt;
-	int sz;
-	char *name;
-#endif
 {
 	register char *pt;
 	register char *end;
@@ -967,16 +862,8 @@ file_write(fd, str, cnt, rem, isempt, sz, name)
  *	write the last BYTE with a zero (back up one byte and write a zero).
  */
 
-#ifdef __STDC__
 void
 file_flush(int fd, char *fname, int isempt)
-#else
-void
-file_flush(fd, fname, isempt)
-	int fd;
-	char *fname;
-	int isempt;
-#endif
 {
 	static char blnk[] = "\0";
 
@@ -1006,15 +893,8 @@ file_flush(fd, fname, isempt)
  *	reset access time (tflag) do so (the times are stored in arcn).
  */
 
-#ifdef __STDC__
 void
 rdfile_close(register ARCHD *arcn, register int *fd)
-#else
-void
-rdfile_close(arcn, fd)
-	register ARCHD *arcn;
-	register int *fd;
-#endif
 {
 	/*
 	 * make sure the file is open
@@ -1043,15 +923,8 @@ rdfile_close(arcn, fd)
  *	0 if was able to calculate the crc, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 set_crc(register ARCHD *arcn, register int fd)
-#else
-int
-set_crc(arcn, fd)
-	register ARCHD *arcn;
-	register int fd;
-#endif
 {
 	register int i;
 	register int res;

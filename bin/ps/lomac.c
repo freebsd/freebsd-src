@@ -67,8 +67,8 @@ static int devlomac = -1;		/* file descriptor for LOMAC_DEVICE */
  */
 
 void 
-lomac_start(void) {
-
+lomac_start(void)
+{
 	if ((devlomac = open(LOMAC_DEVICE, O_RDWR)) == -1)
 		err(1, "cannot open %s", LOMAC_DEVICE);
 }
@@ -83,7 +83,8 @@ lomac_start(void) {
  */
 
 void 
-lomac_stop(void) {
+lomac_stop(void)
+{
 
 	if (devlomac != -1 && close(devlomac) == -1)
 		err(1, "cannot close %s", LOMAC_DEVICE);
@@ -104,7 +105,8 @@ lomac_stop(void) {
  */
 
 int
-get_lattr(int pid) {
+get_lattr(int pid)
+{
 
 	if (devlomac == -1)
 		lomac_start();

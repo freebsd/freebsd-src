@@ -67,14 +67,14 @@ static const char rcsid[] =
 #include "ls.h"
 #include "extern.h"
 
-static int	printaname __P((FTSENT *, u_long, u_long));
-static void	printlink __P((FTSENT *));
-static void	printtime __P((time_t));
-static int	printtype __P((u_int));
-static void	printsize __P((size_t, off_t));
+static int	printaname(FTSENT *, u_long, u_long);
+static void	printlink(FTSENT *);
+static void	printtime(time_t);
+static int	printtype(u_int);
+static void	printsize(size_t, off_t);
 #ifdef COLORLS
-static void	endcolor __P((int));
-static int	colortype __P((mode_t));
+static void	endcolor(int);
+static int	colortype(mode_t);
 #endif
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
@@ -97,7 +97,7 @@ unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ
 typedef enum {
 	NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX
 } unit_t;
-static unit_t unit_adjust __P((off_t *));
+static unit_t unit_adjust(off_t *);
 
 int unitp[] = {NONE, KILO, MEGA, GIGA, TERA, PETA};
 
@@ -130,8 +130,7 @@ static struct {
 #endif
 
 void
-printscol(dp)
-	DISPLAY *dp;
+printscol(DISPLAY *dp)
 {
 	FTSENT *p;
 
@@ -147,8 +146,7 @@ printscol(dp)
  * print name in current style
  */
 static int
-printname(name)
-	const char *name;
+printname(const char *name)
 {
 	if (f_octal || f_octal_escape)
 		return prn_octal(name);
@@ -159,8 +157,7 @@ printname(name)
 }
 
 void
-printlong(dp)
-	DISPLAY *dp;
+printlong(DISPLAY *dp)
 {
 	struct stat *sp;
 	FTSENT *p;
@@ -228,8 +225,7 @@ printlong(dp)
 }
 
 void
-printcol(dp)
-	DISPLAY *dp;
+printcol(DISPLAY *dp)
 {
 	extern int termwidth;
 	static FTSENT **array;
@@ -311,10 +307,7 @@ printcol(dp)
  * return # of characters printed, no trailing characters.
  */
 static int
-printaname(p, inodefield, sizefield)
-	FTSENT *p;
-	u_long inodefield;
-	u_long sizefield;
+printaname(FTSENT *p, u_long inodefield, u_long sizefield)
 {
 	struct stat *sp;
 	int chcnt;
@@ -344,8 +337,7 @@ printaname(p, inodefield, sizefield)
 }
 
 static void
-printtime(ftime)
-	time_t ftime;
+printtime(time_t ftime)
 {
 	char longstring[80];
 	static time_t now;
@@ -372,8 +364,7 @@ printtime(ftime)
 }
 
 static int
-printtype(mode)
-	u_int mode;
+printtype(u_int mode)
 {
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
@@ -401,16 +392,14 @@ printtype(mode)
 
 #ifdef COLORLS
 static int
-putch(c)
-	int c;
+putch(int c)
 {
 	(void)putchar(c);
 	return 0;
 }
 
 static int
-writech(c)
-	int c;
+writech(int c)
 {
 	char tmp = c;
 
@@ -419,8 +408,7 @@ writech(c)
 }
 
 static void
-printcolor(c)
-	Colors c;
+printcolor(Colors c)
 {
 	char *ansiseq;
 
@@ -440,16 +428,14 @@ printcolor(c)
 }
 
 static void
-endcolor(sig)
-	int sig;
+endcolor(int sig)
 {
 	tputs(ansi_coloff, 1, sig ? writech : putch);
 	tputs(attrs_off, 1, sig ? writech : putch);
 }
 
 static int
-colortype(mode)
-	mode_t mode;
+colortype(mode_t mode)
 {
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
@@ -490,8 +476,7 @@ colortype(mode)
 }
 
 void
-parsecolors(cs)
-	const char *cs;
+parsecolors(const char *cs)
 {
 	int i;
 	int j;
@@ -541,8 +526,7 @@ parsecolors(cs)
 }
 
 void
-colorquit(sig)
-	int sig;
+colorquit(int sig)
 {
 	endcolor(sig);
 
@@ -553,8 +537,7 @@ colorquit(sig)
 #endif /* COLORLS */
 
 static void
-printlink(p)
-	FTSENT *p;
+printlink(FTSENT *p)
 {
 	int lnklen;
 	char name[MAXPATHLEN + 1];
@@ -575,9 +558,7 @@ printlink(p)
 }
 
 static void
-printsize(width, bytes)
-	size_t width;
-	off_t bytes;
+printsize(size_t width, off_t bytes)
 {
 	unit_t unit;
 
@@ -600,8 +581,7 @@ printsize(width, bytes)
  *
  */
 unit_t
-unit_adjust(val)
-	off_t *val;
+unit_adjust(off_t *val)
 {
 	double abval;
 	unit_t unit;

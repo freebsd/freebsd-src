@@ -57,8 +57,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 int
-prn_printable(s)
-	const char *s;
+prn_printable(const char *s)
 {
 	unsigned char c;
 	int n;
@@ -85,9 +84,7 @@ prn_printable(s)
  */
 
 int
-len_octal(s, len)
-        const char *s;
-	int len;
+len_octal(const char *s, int len)
 {
 	int r = 0;
 
@@ -97,8 +94,7 @@ len_octal(s, len)
 }
 
 int
-prn_octal(s)
-        const char *s;
+prn_octal(const char *s)
 {
         unsigned char ch;
 	int len = 0;
@@ -158,7 +154,7 @@ prn_octal(s)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 #ifdef COLORLS

@@ -66,7 +66,7 @@ static const char rcsid[] =
 #include "ps.h"
 
 void
-printheader()
+printheader(void)
 {
 	VAR *v;
 	struct varent *vent;
@@ -87,9 +87,7 @@ printheader()
 }
 
 void
-command(k, ve)
-	KINFO *k;
-	VARENT *ve;
+command(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	int left;
@@ -143,9 +141,7 @@ command(k, ve)
 }
 
 void
-ucomm(k, ve)
-	KINFO *k;
-	VARENT *ve;
+ucomm(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -154,9 +150,7 @@ ucomm(k, ve)
 }
 
 void
-logname(k, ve)
-	KINFO *k;
-	VARENT *ve;
+logname(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	char *s;
@@ -166,9 +160,7 @@ logname(k, ve)
 }
 
 void
-state(k, ve)
-	KINFO *k;
-	VARENT *ve;
+state(KINFO *k, VARENT *ve)
 {
 	int flag, sflag, tdflags;
 	char *cp;
@@ -240,9 +232,7 @@ state(k, ve)
 }
 
 void
-pri(k, ve)
-	KINFO *k;
-	VARENT *ve;
+pri(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -251,9 +241,7 @@ pri(k, ve)
 }
 
 void
-uname(k, ve)
-	KINFO *k;
-	VARENT *ve;
+uname(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -263,16 +251,13 @@ uname(k, ve)
 }
 
 int
-s_uname(k)
-	KINFO *k;
+s_uname(KINFO *k)
 {
 	    return (strlen(user_from_uid(k->ki_p->ki_uid, 0)));
 }
 
 void
-runame(k, ve)
-	KINFO *k;
-	VARENT *ve;
+runame(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -282,16 +267,13 @@ runame(k, ve)
 }
 
 int
-s_runame(k)
-	KINFO *k;
+s_runame(KINFO *k)
 {
 	    return (strlen(user_from_uid(k->ki_p->ki_ruid, 0)));
 }
 
 void
-tdev(k, ve)
-	KINFO *k;
-	VARENT *ve;
+tdev(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	dev_t dev;
@@ -309,9 +291,7 @@ tdev(k, ve)
 }
 
 void
-tname(k, ve)
-	KINFO *k;
-	VARENT *ve;
+tname(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	dev_t dev;
@@ -331,9 +311,7 @@ tname(k, ve)
 }
 
 void
-longtname(k, ve)
-	KINFO *k;
-	VARENT *ve;
+longtname(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	dev_t dev;
@@ -348,9 +326,7 @@ longtname(k, ve)
 }
 
 void
-started(k, ve)
-	KINFO *k;
-	VARENT *ve;
+started(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	static time_t now;
@@ -384,9 +360,7 @@ started(k, ve)
 }
 
 void
-lstarted(k, ve)
-	KINFO *k;
-	VARENT *ve;
+lstarted(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	time_t then;
@@ -403,9 +377,7 @@ lstarted(k, ve)
 }
 
 void
-mtxname(k, ve)
-	KINFO *k;
-	VARENT *ve;
+mtxname(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -421,9 +393,7 @@ mtxname(k, ve)
 }
 
 void
-wchan(k, ve)
-	KINFO *k;
-	VARENT *ve;
+wchan(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -444,9 +414,7 @@ wchan(k, ve)
 #endif
 
 void
-vsize(k, ve)
-	KINFO *k;
-	VARENT *ve;
+vsize(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -456,9 +424,7 @@ vsize(k, ve)
 }
 
 void
-rssize(k, ve)
-	KINFO *k;
-	VARENT *ve;
+rssize(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -469,9 +435,7 @@ rssize(k, ve)
 }
 
 void
-p_rssize(k, ve)		/* doesn't account for text */
-	KINFO *k;
-	VARENT *ve;
+p_rssize(KINFO *k, VARENT *ve)		/* doesn't account for text */
 {
 	VAR *v;
 
@@ -480,9 +444,7 @@ p_rssize(k, ve)		/* doesn't account for text */
 }
 
 void
-cputime(k, ve)
-	KINFO *k;
-	VARENT *ve;
+cputime(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	long secs;
@@ -521,8 +483,7 @@ cputime(k, ve)
 }
 
 double
-getpcpu(k)
-	KINFO *k;
+getpcpu(KINFO *k)
 {
 	static int failure;
 
@@ -543,9 +504,7 @@ getpcpu(k)
 }
 
 void
-pcpu(k, ve)
-	KINFO *k;
-	VARENT *ve;
+pcpu(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -554,8 +513,7 @@ pcpu(k, ve)
 }
 
 double
-getpmem(k)
-	KINFO *k;
+getpmem(KINFO *k)
 {
 	static int failure;
 	double fracmem;
@@ -574,9 +532,7 @@ getpmem(k)
 }
 
 void
-pmem(k, ve)
-	KINFO *k;
-	VARENT *ve;
+pmem(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -585,9 +541,7 @@ pmem(k, ve)
 }
 
 void
-pagein(k, ve)
-	KINFO *k;
-	VARENT *ve;
+pagein(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -597,9 +551,7 @@ pagein(k, ve)
 }
 
 void
-maxrss(k, ve)
-	KINFO *k;
-	VARENT *ve;
+maxrss(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -609,9 +561,7 @@ maxrss(k, ve)
 }
 
 void
-tsize(k, ve)
-	KINFO *k;
-	VARENT *ve;
+tsize(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -620,9 +570,7 @@ tsize(k, ve)
 }
 
 void
-priorityr(k, ve)
-	KINFO *k;
-	VARENT *ve;
+priorityr(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 	struct priority *pri;
@@ -656,9 +604,7 @@ priorityr(k, ve)
  * structures.
  */
 static void
-printval(bp, v)
-	char *bp;
-	VAR *v;
+printval(char *bp, VAR *v)
 {
 	static char ofmt[32] = "%";
 	char *fcp, *cp;
@@ -704,9 +650,7 @@ printval(bp, v)
 }
 
 void
-kvar(k, ve)
-	KINFO *k;
-	VARENT *ve;
+kvar(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -715,9 +659,7 @@ kvar(k, ve)
 }
 
 void
-rvar(k, ve)
-	KINFO *k;
-	VARENT *ve;
+rvar(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
@@ -729,9 +671,7 @@ rvar(k, ve)
 }
 
 void
-lattr(k, ve)
-	KINFO *k;
-	VARENT *ve;
+lattr(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 

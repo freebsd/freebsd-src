@@ -50,16 +50,15 @@ static const char rcsid[] =
 #include <vis.h>
 #include "ps.h"
 
-static char *cmdpart __P((char *));
-static char *shquote __P((char **));
+static char *cmdpart(char *);
+static char *shquote(char **);
 
 /*
  * XXX
  * This is a stub until marc does the real one.
  */
 static char *
-shquote(argv)
-	char **argv;
+shquote(char **argv)
 {
 	static long arg_max = -1;
 	long len;
@@ -97,8 +96,7 @@ shquote(argv)
 }
 
 static char *
-cmdpart(arg0)
-	char *arg0;
+cmdpart(char *arg0)
 {
 	char *cp;
 
@@ -106,10 +104,7 @@ cmdpart(arg0)
 }
 
 char *
-fmt_argv(argv, cmd, maxlen)
-	char **argv;
-	char *cmd;
-	int maxlen;
+fmt_argv(char **argv, char *cmd, int maxlen)
 {
 	int len;
 	char *ap, *cp;
