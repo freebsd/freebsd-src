@@ -12,11 +12,11 @@
 #include "cvs.h"
 #include "getline.h"
 
-/* Printable names for things in the CVSroot_method enum variable.
+/* Printable names for things in the current_parsed_root->method enum variable.
    Watch out if the enum is changed in cvs.h! */
 
 char *method_names[] = {
-    "local", "server (rsh)", "pserver", "kserver", "gserver", "ext", "fork"
+    "undefined", "local", "server (rsh)", "pserver", "kserver", "gserver", "ext", "fork"
 };
 
 #ifndef DEBUG
@@ -265,11 +265,15 @@ error 0 Server configuration missing --allow-root in inetd.conf\n");
     return 0;
 }
 
+
+
 /* This global variable holds the global -d option.  It is NULL if -d
    was not used, which means that we must get the CVSroot information
    from the CVSROOT environment variable or from a CVS/Root file.  */
 
 char *CVSroot_cmdline;
+
+
 
 /* Parse a CVSROOT variable into its constituent parts -- method,
  * username, hostname, directory.  The prototypical CVSROOT variable
@@ -280,50 +284,102 @@ char *CVSroot_cmdline;
  * Some methods may omit fields; local, for example, doesn't need user
  * and host.
  *
- * Returns zero on success, non-zero on failure. */
+ * Returns pointer to new cvsroot_t on success, NULL on failure. */
 
-char *CVSroot_original = NULL;	/* the CVSroot that was passed in */
-int client_active;		/* nonzero if we are doing remote access */
-CVSmethod CVSroot_method;	/* one of the enum values defined in cvs.h */
-char *CVSroot_username;		/* the username or NULL if method == local */
-char *CVSroot_hostname;		/* the hostname or NULL if method == local */
-char *CVSroot_directory;	/* the directory name */
+cvsroot_t *current_parsed_root = NULL;
 
-int
-parse_cvsroot (CVSroot)
-    char *CVSroot;
+
+
+/* allocate and initialize a cvsroot_t
+ *
+ * We must initialize the strings to NULL so we know later what we should
+ * free
+ *
+ * Some of the other zeroes remain meaningful as, "never set, use default",
+ * or the like
+ */
+static cvsroot_t *
+new_cvsroot_t ()
 {
-    static int cvsroot_parsed = 0;
-    char *cvsroot_copy, *cvsroot_save, *p;
-    int check_hostname;
+    cvsroot_t *newroot;
 
-    /* Don't go through the trouble twice. */
-    if (cvsroot_parsed)
+    /* gotta store it somewhere */
+    newroot = xmalloc(sizeof(cvsroot_t));
+
+    newroot->original = NULL;
+    newroot->method = null_method;
+    newroot->username = NULL;
+    newroot->password = NULL;
+    newroot->hostname = NULL;
+    newroot->port = 0;
+    newroot->directory = NULL;
+#ifdef CLIENT_SUPPORT
+    newroot->isremote = 0;
+#endif /* CLIENT_SUPPORT */
+
+    return newroot;
+}
+
+
+
+/* Dispose of a cvsroot_t and its component parts */
+void
+free_cvsroot_t (root)
+    cvsroot_t *root;
+{
+    if (root->original != NULL)
+	free (root->original);
+    if (root->username != NULL)
+	free (root->username);
+    if (root->password != NULL)
     {
-	error (0, 0, "WARNING (parse_cvsroot): someone called me twice!\n");
-	return 0;
+	/* I like to be paranoid */
+	memset (root->password, 0, strlen (root->password));
+	free (root->password);
     }
+    if (root->hostname != NULL)
+	free (root->hostname);
+    if (root->directory != NULL)
+	free (root->directory);
+    free (root);
+}
 
-    if (CVSroot_original != NULL)
-	free (CVSroot_original);
-    if (CVSroot_directory != NULL)
-	free (CVSroot_directory);
-    if (CVSroot_username != NULL)
-	free (CVSroot_username);
-    if (CVSroot_hostname != NULL)
-	free (CVSroot_hostname);
 
-    CVSroot_original = xstrdup (CVSroot);
-    cvsroot_save = cvsroot_copy = xstrdup (CVSroot);
+
+/*
+ * parse a CVSROOT string to allocate and return a new cvsroot_t structure
+ */
+cvsroot_t *
+parse_cvsroot (root_in)
+    char *root_in;
+{
+    cvsroot_t *newroot;			/* the new root to be returned */
+    char *cvsroot_save;			/* what we allocated so we can dispose
+					 * it when finished */
+    char *firstslash;			/* save where the path spec starts
+					 * while we parse
+					 * [[user][:password]@]host[:[port]]
+					 */
+    char *cvsroot_copy, *p, *q;		/* temporary pointers for parsing */
+    int check_hostname, no_port, no_password;
+
+    /* allocate some space */
+    newroot = new_cvsroot_t();
+
+    /* save the original string */
+    newroot->original = xstrdup (root_in);
+
+    /* and another copy we can munge while parsing */
+    cvsroot_save = cvsroot_copy = xstrdup (root_in);
 
     if (*cvsroot_copy == ':')
     {
 	char *method = ++cvsroot_copy;
 
 	/* Access method specified, as in
-	 * "cvs -d :pserver:user@host:/path",
+	 * "cvs -d :(gserver|kserver|pserver):[[user][:password]@]host[:[port]]/path",
+	 * "cvs -d [:(ext|server):][[user]@]host[:]/path",
 	 * "cvs -d :local:e:\path",
-	 * "cvs -d :kserver:user@host:/path", or
 	 * "cvs -d :fork:/path".
 	 * We need to get past that part of CVSroot before parsing the
 	 * rest of it.
@@ -331,9 +387,9 @@ parse_cvsroot (CVSroot)
 
 	if (! (p = strchr (method, ':')))
 	{
-	    error (0, 0, "bad CVSroot: %s", CVSroot);
+	    error (0, 0, "bad CVSroot: %s", root_in);
 	    free (cvsroot_save);
-	    return 1;
+	    goto error_exit;
 	}
 	*p = '\0';
 	cvsroot_copy = ++p;
@@ -341,24 +397,24 @@ parse_cvsroot (CVSroot)
 	/* Now we have an access method -- see if it's valid. */
 
 	if (strcmp (method, "local") == 0)
-	    CVSroot_method = local_method;
+	    newroot->method = local_method;
 	else if (strcmp (method, "pserver") == 0)
-	    CVSroot_method = pserver_method;
+	    newroot->method = pserver_method;
 	else if (strcmp (method, "kserver") == 0)
-	    CVSroot_method = kserver_method;
+	    newroot->method = kserver_method;
 	else if (strcmp (method, "gserver") == 0)
-	    CVSroot_method = gserver_method;
+	    newroot->method = gserver_method;
 	else if (strcmp (method, "server") == 0)
-	    CVSroot_method = server_method;
+	    newroot->method = server_method;
 	else if (strcmp (method, "ext") == 0)
-	    CVSroot_method = ext_method;
+	    newroot->method = ext_method;
 	else if (strcmp (method, "fork") == 0)
-	    CVSroot_method = fork_method;
+	    newroot->method = fork_method;
 	else
 	{
-	    error (0, 0, "unknown method in CVSroot: %s", CVSroot);
+	    error (0, 0, "unknown method in CVSroot: %s", root_in);
 	    free (cvsroot_save);
-	    return 1;
+	    goto error_exit;
 	}
     }
     else
@@ -367,169 +423,326 @@ parse_cvsroot (CVSroot)
 	   SERVER_METHOD/EXT_METHOD if the string contains a colon or
 	   LOCAL_METHOD otherwise.  */
 
-	CVSroot_method = ((strchr (cvsroot_copy, ':'))
-#ifdef RSH_NOT_TRANSPARENT
+	newroot->method = ((*cvsroot_copy != '/' && strchr (cvsroot_copy, '/'))
+/*#ifdef RSH_NOT_TRANSPARENT
 			  ? server_method
-#else
+#else*/
 			  ? ext_method
-#endif
+/*#endif*/
 			  : local_method);
     }
 
-    client_active = (CVSroot_method != local_method);
+#ifdef CLIENT_SUPPORT
+    newroot->isremote = (newroot->method != local_method);
+#endif /* CLIENT_SUPPORT */
 
-    /* Check for username/hostname if we're not LOCAL_METHOD. */
 
-    CVSroot_username = NULL;
-    CVSroot_hostname = NULL;
-
-    if ((CVSroot_method != local_method)
-	&& (CVSroot_method != fork_method))
+    if ((newroot->method != local_method)
+	&& (newroot->method != fork_method))
     {
-	/* Check to see if there is a username in the string. */
+	/* split the string into [[user][:password]@]host[:[port]] & /path
+	 *
+	 * this will allow some characters such as '@' & ':' to remain unquoted
+	 * in the path portion of the spec
+	 */
+	if ((p = strchr (cvsroot_copy, '/')) == NULL)
+	{
+	    error (0, 0, "CVSROOT (\"%s\")", root_in);
+	    error (0, 0, "requires a path spec");
+	    error (0, 0, ":(gserver|kserver|pserver):[[user][:password]@]host[:[port]]/path");
+	    error (0, 0, "[:(ext|server):][[user]@]host[:]/path");
+	    free (cvsroot_save);
+	    goto error_exit;
+	}
+	firstslash = p;		/* == NULL if '/' not in string */
+	*p = '\0';
 
+	/* Check to see if there is a username[:password] in the string. */
 	if ((p = strchr (cvsroot_copy, '@')) != NULL)
 	{
 	    *p = '\0';
-	    CVSroot_username = xstrdup (cvsroot_copy);
+	    /* check for a password */
+	    if ((q = strchr (cvsroot_copy, ':')) != NULL)
+	    {
+		*q = '\0';
+		newroot->password = xstrdup (++q);
+		/* Don't check for *newroot->password == '\0' since
+		 * a user could conceivably wish to specify a blank password
+		 * (newroot->password == NULL means to use the
+		 * password from .cvspass)
+		 */
+	    }
+
+	    /* copy the username */
+	    if (*cvsroot_copy != '\0')
+		/* a blank username is impossible, so leave it NULL in that
+		 * case so we know to use the default username
+		 */
+		newroot->username = xstrdup (cvsroot_copy);
+
 	    cvsroot_copy = ++p;
-	    if (*CVSroot_username == '\0')
-		CVSroot_username = NULL;
 	}
 
+	/* now deal with host[:[port]] */
+
+	/* the port */
 	if ((p = strchr (cvsroot_copy, ':')) != NULL)
 	{
-	    *p = '\0';
-	    CVSroot_hostname = xstrdup (cvsroot_copy);
-	    cvsroot_copy = ++p;
-      
-	    if (*CVSroot_hostname == '\0')
-		CVSroot_hostname = NULL;
+	    *p++ = '\0';
+	    if (strlen(p))
+	    {
+		q = p;
+		if (*q == '-') q++;
+		while (*q)
+		{
+		    if (!isdigit(*q++))
+		    {
+			error(0, 0, "CVSROOT (\"%s\")", root_in);
+			error(0, 0, "may only specify a positive, non-zero, integer port (not \"%s\").",
+				p);
+			error(0, 0, "perhaps you entered a relative pathname?");
+			free (cvsroot_save);
+			goto error_exit;
+		    }
+		}
+		if ((newroot->port = atoi (p)) <= 0)
+		{
+		    error (0, 0, "CVSROOT (\"%s\")", root_in);
+		    error(0, 0, "may only specify a positive, non-zero, integer port (not \"%s\").",
+			    p);
+		    error(0, 0, "perhaps you entered a relative pathname?");
+		    free (cvsroot_save);
+		    goto error_exit;
+		}
+	    }
 	}
+
+	/* copy host */
+	if (*cvsroot_copy != '\0')
+	    /* blank hostnames are invalid, but for now leave the field NULL
+	     * and catch the error during the sanity checks later
+	     */
+	    newroot->hostname = xstrdup (cvsroot_copy);
+
+	/* restore the '/' */
+	cvsroot_copy = firstslash;
+	*cvsroot_copy = '/';
     }
 
-    CVSroot_directory = xstrdup(cvsroot_copy);
+    /* parse the path for all methods */
+    newroot->directory = xstrdup(cvsroot_copy);
     free (cvsroot_save);
 
+    /*
+     * Do various sanity checks.
+     */
+
 #if ! defined (CLIENT_SUPPORT) && ! defined (DEBUG)
-    if (CVSroot_method != local_method)
+    if (newroot->method != local_method)
     {
-	error (0, 0, "Your CVSROOT is set for a remote access method");
-	error (0, 0, "but your CVS executable doesn't support it");
-	error (0, 0, "(%s)", CVSroot);
-	return 1;
+	error (0, 0, "CVSROOT \"%s\"", root_in);
+	error (0, 0, "is set for a remote access method but your");
+	error (0, 0, "CVS executable doesn't support it");
+	goto error_exit;
     }
 #endif
-  
-    /* Do various sanity checks. */
 
-    if (CVSroot_username && ! CVSroot_hostname)
+#if ! defined (SERVER_SUPPORT) && ! defined (DEBUG)
+    if (newroot->method == fork_method)
     {
-	error (0, 0, "missing hostname in CVSROOT: %s", CVSroot);
-	return 1;
+	error (0, 0, "CVSROOT \"%s\"", root_in);
+	error (0, 0, "is set to use the :fork: access method but your");
+	error (0, 0, "CVS executable doesn't support it");
+	goto error_exit;
+     }
+#endif
+
+    if (newroot->username && ! newroot->hostname)
+    {
+	error (0, 0, "missing hostname in CVSROOT: \"%s\"", root_in);
+	goto error_exit;
     }
 
     check_hostname = 0;
-    switch (CVSroot_method)
+    no_password = 0;
+    no_port = 0;
+    switch (newroot->method)
     {
     case local_method:
-	if (CVSroot_username || CVSroot_hostname)
+	if (newroot->username || newroot->hostname)
 	{
 	    error (0, 0, "can't specify hostname and username in CVSROOT");
+	    error (0, 0, "(\"%s\")", root_in);
 	    error (0, 0, "when using local access method");
-	    error (0, 0, "(%s)", CVSroot);
-	    return 1;
+	    goto error_exit;
 	}
 	/* cvs.texinfo has always told people that CVSROOT must be an
 	   absolute pathname.  Furthermore, attempts to use a relative
 	   pathname produced various errors (I couldn't get it to work),
 	   so there would seem to be little risk in making this a fatal
 	   error.  */
-	if (!isabsolute (CVSroot_directory))
-	    error (1, 0, "CVSROOT %s must be an absolute pathname",
-		   CVSroot_directory);
+	if (!isabsolute (newroot->directory))
+	{
+	    error (0, 0, "CVSROOT \"%s\" must be an absolute pathname",
+		   newroot->directory);
+	    goto error_exit;
+	}
+	no_port = 1;
+	no_password = 1;
 	break;
     case fork_method:
 	/* We want :fork: to behave the same as other remote access
            methods.  Therefore, don't check to see that the repository
            name is absolute -- let the server do it.  */
-	if (CVSroot_username || CVSroot_hostname)
+	if (newroot->username || newroot->hostname)
 	{
 	    error (0, 0, "can't specify hostname and username in CVSROOT");
+	    error (0, 0, "(\"%s\")", root_in);
 	    error (0, 0, "when using fork access method");
-	    error (0, 0, "(%s)", CVSroot);
-	    return 1;
+	    goto error_exit;
 	}
+	if (!isabsolute (newroot->directory))
+	{
+	    error (0, 0, "CVSROOT \"%s\" must be an absolute pathname",
+		   newroot->directory);
+	    goto error_exit;
+	}
+	no_port = 1;
+	no_password = 1;
 	break;
     case kserver_method:
 #ifndef HAVE_KERBEROS
-	error (0, 0, "Your CVSROOT is set for a kerberos access method");
-	error (0, 0, "but your CVS executable doesn't support it");
-	error (0, 0, "(%s)", CVSroot);
-	return 1;
+	error (0, 0, "CVSROOT \"%s\"", root_in);
+       	error (0, 0, "is set for a kerberos access method but your");
+	error (0, 0, "CVS executable doesn't support it");
+	goto error_exit;
 #else
 	check_hostname = 1;
 	break;
 #endif
     case gserver_method:
 #ifndef HAVE_GSSAPI
-	error (0, 0, "Your CVSROOT is set for a GSSAPI access method");
-	error (0, 0, "but your CVS executable doesn't support it");
-	error (0, 0, "(%s)", CVSroot);
-	return 1;
+	error (0, 0, "CVSROOT \"%s\"", root_in);
+	error (0, 0, "is set for a GSSAPI access method but your");
+	error (0, 0, "CVS executable doesn't support it");
+	goto error_exit;
 #else
 	check_hostname = 1;
 	break;
 #endif
     case server_method:
     case ext_method:
+	no_port = 1;
+	no_password = 1;
+	check_hostname = 1;
+	break;
     case pserver_method:
 	check_hostname = 1;
 	break;
     }
 
-    if (check_hostname)
+    if (no_password && newroot->password)
     {
-	if (! CVSroot_hostname)
-	{
-	    error (0, 0, "didn't specify hostname in CVSROOT: %s", CVSroot);
-	    return 1;
-	}
+	error (0, 0, "CVSROOT password specification is only valid for");
+	error (0, 0, "pserver connection method.");
+	goto error_exit;
     }
 
-    if (*CVSroot_directory == '\0')
+    if (check_hostname && !newroot->hostname)
     {
-	error (0, 0, "missing directory in CVSROOT: %s", CVSroot);
-	return 1;
+	error (0, 0, "didn't specify hostname in CVSROOT: %s", root_in);
+	goto error_exit;
+    }
+
+    if (no_port && newroot->port)
+	{
+	    error (0, 0, "CVSROOT port specification is only valid for gserver, kserver,");
+	    error (0, 0, "and pserver connection methods.");
+	    goto error_exit;
+	}
+
+    if (*newroot->directory == '\0')
+    {
+	error (0, 0, "missing directory in CVSROOT: %s", root_in);
+	goto error_exit;
     }
     
     /* Hooray!  We finally parsed it! */
-    return 0;
+    return newroot;
+
+error_exit:
+    free_cvsroot_t (newroot);
+    return NULL;
 }
 
 
-/* Set up the global CVSroot* variables as if we're using the local
-   repository DIR.  */
 
-void
-set_local_cvsroot (dir)
+#ifdef AUTH_CLIENT_SUPPORT
+/* Use root->username, root->hostname, root->port, and root->directory
+ * to create a normalized CVSROOT fit for the .cvspass file
+ *
+ * username defaults to the result of getcaller()
+ * port defaults to the result of get_cvs_port_number()
+ *
+ * FIXME - we could cache the canonicalized version of a root inside the
+ * cvsroot_t, but we'd have to un'const the input here and stop expecting the
+ * caller to be responsible for our return value
+ */
+char *
+normalize_cvsroot (root)
+    const cvsroot_t *root;
+{
+    char *cvsroot_canonical;
+    char *p, *hostname, *username;
+    char port_s[64];
+
+    /* get the appropriate port string */
+    sprintf (port_s, "%d", get_cvs_port_number (root));
+
+    /* use a lower case hostname since we know hostnames are case insensitive */
+    /* Some logic says we should be tacking our domain name on too if it isn't
+     * there already, but for now this works.  Reverse->Forward lookups are
+     * almost certainly too much since that would make CVS immune to some of
+     * the DNS trickery that makes life easier for sysadmins when they want to
+     * move a repository or the like
+     */
+    p = hostname = xstrdup(root->hostname);
+    while (*p)
+    {
+	*p = tolower(*p);
+	p++;
+    }
+
+    /* get the username string */
+    username = root->username ? root->username : getcaller();
+    cvsroot_canonical = xmalloc ( strlen(username)
+				+ strlen(hostname) + strlen(port_s)
+				+ strlen(root->directory) + 12);
+    sprintf (cvsroot_canonical, ":pserver:%s@%s:%s%s",
+	    username, hostname, port_s, root->directory);
+
+    free (hostname);
+    return cvsroot_canonical;
+}
+#endif /* AUTH_CLIENT_SUPPORT */
+
+
+
+/* allocate and return a cvsroot_t structure set up as if we're using the local
+ * repository DIR.  */
+cvsroot_t *
+local_cvsroot (dir)
     char *dir;
 {
-    if (CVSroot_original != NULL)
-	free (CVSroot_original);
-    CVSroot_original = xstrdup(dir);
-    CVSroot_method = local_method;
-    if (CVSroot_directory != NULL)
-	free (CVSroot_directory);
-    CVSroot_directory = xstrdup(dir);
-    if (CVSroot_username != NULL)
-	free (CVSroot_username);
-    CVSroot_username = NULL;
-    if (CVSroot_hostname != NULL)
-	free (CVSroot_hostname);
-    CVSroot_hostname = NULL;
-    client_active = 0;
+    cvsroot_t *newroot = new_cvsroot_t();
+
+    newroot->original = xstrdup(dir);
+    newroot->method = local_method;
+    newroot->directory = xstrdup(dir);
+
+    return newroot;
 }
+
 
 
 #ifdef DEBUG
@@ -541,7 +754,6 @@ set_local_cvsroot (dir)
 
 #include <stdio.h>
 
-char *CVSroot;
 char *program_name = "testing";
 char *command_name = "parse_cvsroot";		/* XXX is this used??? */
 
@@ -553,13 +765,6 @@ void
 error_exit PROTO ((void))
 {
     exit (1);
-}
-
-char *
-xstrdup (str)
-     const char *str;
-{
-    return strdup (str);
 }
 
 int
@@ -582,18 +787,18 @@ main (argc, argv)
 	exit (2);
     }
   
-    if (parse_cvsroot (argv[1]))
+    if ((current_parsed_root = parse_cvsroot (argv[1])) == NULL)
     {
 	fprintf (stderr, "%s: Parsing failed.\n", program_name);
 	exit (1);
     }
     printf ("CVSroot: %s\n", argv[1]);
-    printf ("CVSroot_method: %s\n", method_names[CVSroot_method]);
-    printf ("CVSroot_username: %s\n",
-	    CVSroot_username ? CVSroot_username : "NULL");
-    printf ("CVSroot_hostname: %s\n",
-	    CVSroot_hostname ? CVSroot_hostname : "NULL");
-    printf ("CVSroot_directory: %s\n", CVSroot_directory);
+    printf ("current_parsed_root->method: %s\n", method_names[current_parsed_root->method]);
+    printf ("current_parsed_root->username: %s\n",
+	    current_parsed_root->username ? current_parsed_root->username : "NULL");
+    printf ("current_parsed_root->hostname: %s\n",
+	    current_parsed_root->hostname ? current_parsed_root->hostname : "NULL");
+    printf ("current_parsed_root->directory: %s\n", current_parsed_root->directory);
 
    exit (0);
    /* NOTREACHED */

@@ -1,3 +1,60 @@
+2001-04-25  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated using AM 1.4e as of today at 18:10 -0400.
+
+2001-04-16  Derek Price  <dprice@collab.net>
+
+	* log.pl: Accept new '-V' option for non-verbose status messages.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+        * Makefile.in: Regenerated
+
+2001-01-05  Derek Price  <derek.price@openavenue.com>
+
+	* contrib/Makefile.am (EXTRA_DIST, SUFFIXES, .pl:, .csh:): Move some
+	script targets to configure.in - see ../ChangeLog for more
+
+	* contrib/clmerge.in: Rename from clmerge.pl
+	* contrib/cln_hist.in: Rename from cln_hist.pl
+	* contrib/commit_prep.in: Rename from commit_prep.pl
+	* contrib/cvs_acls.in: Rename from cvs_acls.pl
+	* contrib/log.in: Rename from log.pl
+	* contrib/log_accum.in: Rename from log_accum.pl
+	* contrib/mfpipe.in: Rename from mfpipe.pl
+	* contrib/rcslock.in: Rename from rcslock.pl
+	* contrib/sccs2rcs.in: Rename from scc2rcs.csh
+
+	* contrib/clmerge.pl: Rename to clmerge.in
+	* contrib/cln_hist.pl: Rename to cln_hist.in
+	* contrib/commit_prep.pl: Rename to commit_prep.in
+	* contrib/cvs_acls.pl: Rename to cvs_acls.in
+	* contrib/log.pl: Rename to log.in
+	* contrib/log_accum.pl: Rename to log_accum.in
+	* contrib/mfpipe.pl: Rename to mfpipe.in
+	* contrib/rcslock.pl: Rename to rcslock.in
+	* contrib/sccs2rcs.csh: Rename to sccs2rcs.in
+
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in: Regenerated
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am: New file needed by Automake
+	* Makefile.in: Regenerated
+
+2000-12-14  Derek Price  <derek.price@openavenue.com>
+	    Thomas Maeder  <maeder@glue.ch>
+
+	* sccs2rcs.csh: unkludge a Y2k workaround
+
+2000-10-23  Derek Price  <derek.price@openavenue.com>
+
+	* debug_check_log.sh: added this script for analyzing sanity.sh output
+	* Makefile.in: add above file to DISTFILES and CONTRIB_PROGS
+	* .cvsignore: add debug_check_log
+
 2000-09-07  Larry Jones  <larry.jones@sdrc.com>
 
 	* Makefile.in: Use @bindir@, @libdir@, @infodir@, and @mandir@
