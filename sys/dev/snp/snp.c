@@ -640,7 +640,6 @@ snp_modevent(mod, type, data)
 		/* XXX error checking. */
 		eh_tag = EVENTHANDLER_REGISTER(dev_clone, snp_clone, 0, 1000);
 		snooplinedisc = ldisc_register(LDISC_LOAD, &snpdisc);
-		cdevsw_add(&snp_cdevsw);
 		break;
 	case MOD_UNLOAD:
 		if (!LIST_EMPTY(&snp_sclist))
@@ -649,7 +648,6 @@ snp_modevent(mod, type, data)
 		if (snpbasedev != NOUDEV)
 			destroy_dev(udev2dev(snpbasedev, 0));
 		ldisc_deregister(snooplinedisc);
-		cdevsw_remove(&snp_cdevsw);
 		break;
 	default:
 		break;
