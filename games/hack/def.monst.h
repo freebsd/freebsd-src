@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* def.monst.h - version 1.0.2 */
+/* $FreeBSD$ */
 
 struct monst {
 	struct monst *nmon;
@@ -34,7 +35,7 @@ struct monst {
 	Bitfield(mnamelth,6);	/* length of name (following mxlth) */
 #ifndef NOWORM
 	Bitfield(wormno,5);	/* at most 31 worms on any level */
-#endif NOWORM
+#endif /* NOWORM */
 	unsigned mtrapseen;	/* bitmap of traps we've been trapped in */
 	long mlstmv;	/* prevent two moves at once */
 	struct obj *minvent;

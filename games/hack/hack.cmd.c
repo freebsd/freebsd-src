@@ -13,10 +13,10 @@ doprring(),doprgold(),dodiscovered(),dotypeinv(),dolook(),doset(),
 doup(), dodown(), done1(), donull(), dothrow(), doextcmd(), dodip(), dopray();
 #ifdef SHELL
 int dosh();
-#endif SHELL
+#endif /* SHELL */
 #ifdef SUSPEND
 int dosuspend();
-#endif SUSPEND
+#endif /* SUSPEND */
 
 struct func_tab cmdlist[]={
 	'\020', doredotopl,
@@ -24,7 +24,7 @@ struct func_tab cmdlist[]={
 	'\024', dotele,
 #ifdef SUSPEND
 	'\032', dosuspend,
-#endif SUSPEND
+#endif /* SUSPEND */
 	'a', doapply,
 /*	'A' : UNUSED */
 /*	'b', 'B' : go sw */
@@ -67,7 +67,7 @@ struct func_tab cmdlist[]={
 	'?', dohelp,
 #ifdef SHELL
 	'!', dosh,
-#endif SHELL
+#endif /* SHELL */
 	'.', donull,
 	' ', donull,
 	',', dopickup,
@@ -128,7 +128,7 @@ char *cmd;
 			u.ux0 = u.ux + u.dx;
 			u.uy0 = u.uy + u.dy;
 		}
-#endif QUEST
+#endif /* QUEST */
 		domove();
 		return;
 	}
@@ -157,7 +157,7 @@ char *cmd;
 		if(cmd[2] == '-') flags.run += 1;
 		goto rush;
 	}
-#endif QUEST
+#endif /* QUEST */
 	while(tlist->f_char) {
 		if(*cmd == tlist->f_char){
 			res = (*(tlist->f_funct))();
@@ -295,7 +295,7 @@ isroom(x,y)  x,y; {		/* what about POOL? */
 	return(isok(x,y) && (levl[x][y].typ == ROOM ||
 				(levl[x][y].typ >= LDOOR && flags.run >= 6)));
 }
-#endif QUEST
+#endif /* QUEST */
 
 isok(x,y) int x,y; {
 	/* x corresponds to curx, so x==1 is the first column. Ach. %% */

@@ -347,7 +347,7 @@ dothrow()
 				  /* mon still alive */
 #ifndef NOWORM
 				  cutworm(mon,bhitpos.x,bhitpos.y,obj->otyp);
-#endif NOWORM
+#endif /* NOWORM */
 				} else mon = 0;
 				/* weapons thrown disappear sometimes */
 				if(obj->otyp < BOOMERANG && rn2(3)) {

@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* config.h - version 1.0.3 */
+/* $FreeBSD$ */
 
 #include "pathnames.h"
 
@@ -64,8 +65,8 @@
 
 #ifdef BSD
 #define	SUSPEND		/* let ^Z suspend the game */
-#endif BSD
-#endif UNIX
+#endif /* BSD */
+#endif /* UNIX */
 
 #ifdef CHDIR
 /*
@@ -74,9 +75,9 @@
  */
 #ifdef QUEST
 #define HACKDIR _PATH_QUEST
-#else QUEST
+#else /* QUEST */
 #define HACKDIR	_PATH_HACK
-#endif QUEST
+#endif /* QUEST */
 
 /*
  * Some system administrators are stupid enough to make Hack suid root
@@ -92,7 +93,7 @@
  * simultaneously, define HACKDIR, SECURE and MAX_NR_OF_PLAYERS.
  * #define MAX_NR_OF_PLAYERS	100
  */
-#endif CHDIR
+#endif /* CHDIR */
 
 /* size of terminal screen is (at least) (ROWNO+2) by COLNO */
 #define	COLNO	80
@@ -136,4 +137,4 @@ typedef	xchar	boolean;		/* 0 or 1 */
 
 #define	SIZE(x)	(int)(sizeof(x) / sizeof(x[0]))
 
-#endif CONFIG
+#endif /* CONFIG */

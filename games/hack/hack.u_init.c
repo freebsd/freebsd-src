@@ -37,7 +37,7 @@ struct trobj Extra_objs[] = {
 	{ 0, 0, 0, 0, 0 },
 	{ 0, 0, 0, 0, 0 }
 };
-#endif WIZARD
+#endif /* WIZARD */
 
 struct trobj Cave_man[] = {
 	{ MACE, 1, WEAPON_SYM, 1, 1 },
@@ -181,7 +181,7 @@ got_suffix:
 	init_uhunger();
 #ifdef QUEST
 	u.uhorizon = 6;
-#endif QUEST
+#endif /* QUEST */
 	uarm = uarm2 = uarmh = uarms = uarmg = uwep = uball = uchain =
 	uleft = uright = 0;
 
@@ -244,7 +244,7 @@ got_suffix:
 
 #ifdef WIZARD
 	if(wizard) wiz_inv();
-#endif WIZARD
+#endif /* WIZARD */
 
 	/* make sure he can carry all he has - especially for T's */
 	while(inv_weight() > 0 && u.ustr < 118)
@@ -301,7 +301,7 @@ extern struct obj *mkobj();
 			if(trop->trquan)
 				continue;	/* make a similar object */
 		}
-#endif PYRAMID_BUG
+#endif /* PYRAMID_BUG */
 		trop++;
 	}
 }
@@ -331,7 +331,7 @@ int type;
 	trop->trquan = 1;
 	ini_inv(trop);
 }
-#endif WIZARD
+#endif /* WIZARD */
 
 plnamesuffix() {
 char *p;
