@@ -602,8 +602,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	CTR0(KTR_PMAP, "pmap_cache_enter: marking uncacheable");
 	STAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		tp->tte_data &= ~TD_CV;
-		tlb_page_demap(TLB_DTLB | TLB_ITLB, TTE_GET_PMAP(tp),
-		    TTE_GET_VA(tp));
+		tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
 	dcache_page_inval(VM_PAGE_TO_PHYS(m));
 	m->md.flags |= PG_UNCACHEABLE;
@@ -630,8 +629,7 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 		return;
 	STAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		tp->tte_data |= TD_CV;
-		tlb_page_demap(TLB_DTLB | TLB_ITLB, TTE_GET_PMAP(tp),
-		    TTE_GET_VA(tp));
+		tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
 	m->md.flags &= ~PG_UNCACHEABLE;
 }
@@ -658,7 +656,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 		STAILQ_REMOVE(&om->md.tte_list, tp, tte, tte_link);
 		pmap_cache_remove(om, ova);
 		if (va != ova)
-			tlb_page_demap(TLB_DTLB, kernel_pmap, ova);
+			tlb_page_demap(kernel_pmap, ova);
 	}
 	data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW | TD_CP | TD_P | TD_W;
 	if (pmap_cache_enter(m, va) != 0)
@@ -839,7 +837,7 @@ pmap_new_thread(struct thread *td)
 	if (ks == 0)
 		panic("pmap_new_thread: kstack allocation failed");
 	if (KSTACK_GUARD_PAGES != 0) {
-		tlb_page_demap(TLB_DTLB, kernel_pmap, ks);
+		tlb_page_demap(kernel_pmap, ks);
 		ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
 	}
 	td->td_kstack = ks;
@@ -1155,7 +1153,7 @@ pmap_remove_all(vm_page_t m)
 		    pmap_track_modified(pm, va))
 			vm_page_dirty(m);
 		tp->tte_data &= ~TD_V;
-		tlb_page_demap(TLB_DTLB | TLB_ITLB, pm, va);
+		tlb_page_demap(pm, va);
 		STAILQ_REMOVE(&m->md.tte_list, tp, tte, tte_link);
 		pm->pm_stats.resident_count--;
 		pmap_cache_remove(m, va);
@@ -1291,7 +1289,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		/*
 		 * Delete the old mapping.
 		 */
-		tlb_tte_demap(tp, pm);
+		tlb_page_demap(pm, TTE_GET_VA(tp));
 	} else {
 		/*
 		 * If there is an existing mapping, but its for a different
@@ -1301,7 +1299,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			CTR0(KTR_PMAP, "pmap_enter: replace");
 			PMAP_STATS_INC(pmap_enter_nreplace);
 			pmap_remove_tte(pm, NULL, tp, va);
-			tlb_page_demap(TLB_DTLB | TLB_ITLB, pm, va);
+			tlb_page_demap(pm, va);
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: new");
 			PMAP_STATS_INC(pmap_enter_nnew);
@@ -1608,7 +1606,7 @@ pmap_clear_modify(vm_page_t m)
 			continue;
 		if ((tp->tte_data & TD_W) != 0) {
 			tp->tte_data &= ~TD_W;
-			tlb_tte_demap(tp, TTE_GET_PMAP(tp));
+			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 		}
 	}
 }
@@ -1625,7 +1623,7 @@ pmap_clear_reference(vm_page_t m)
 			continue;
 		if ((tp->tte_data & TD_REF) != 0) {
 			tp->tte_data &= ~TD_REF;
-			tlb_tte_demap(tp, TTE_GET_PMAP(tp));
+			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 		}
 	}
 }
@@ -1646,7 +1644,7 @@ pmap_clear_write(vm_page_t m)
 			    TTE_GET_VA(tp)))
 				vm_page_dirty(m);
 			tp->tte_data &= ~(TD_SW | TD_W);
-			tlb_tte_demap(tp, TTE_GET_PMAP(tp));
+			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 		}
 	}
 }
