@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.419 1998/10/14 10:58:12 jkh Exp $
+#	$Id: Makefile,v 1.420 1998/10/15 11:12:40 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -724,6 +724,7 @@ doMFSKERN:
 	@cp /usr/mdec/boot2 ${RD}/boot.${FSIMAGE}/boot
 .else
 	@cp /boot/* ${RD}/boot.${FSIMAGE}/boot
+.endif
 	@echo "@load /kernel" > ${RD}/boot.${FSIMAGE}/boot/boot.conf
 	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
 	@echo "@read" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
@@ -731,7 +732,6 @@ doMFSKERN:
 	@echo "@boot" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
 	@echo "/boot/loader" >${RD}/boot.${FSIMAGE}/boot.config
 	@touch ${RD}/boot.${FSIMAGE}/boot/loader.config
-.endif
 .endif
 	@vnconfig /dev/${VNDEVICE} fs-image.${FSIMAGE}
 	@mkdir -p /tmp/mnt_xx
