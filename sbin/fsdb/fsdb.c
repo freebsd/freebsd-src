@@ -130,6 +130,7 @@ CMDFUNC(rm);				/* remove name */
 CMDFUNC(ln);				/* add name */
 CMDFUNC(newtype);			/* change type */
 CMDFUNC(chmode);			/* change mode */
+CMDFUNC(chlen);				/* change length */
 CMDFUNC(chaflags);			/* change flags */
 CMDFUNC(chgen);				/* change generation */
 CMDFUNC(chowner);			/* change owner */
@@ -162,6 +163,7 @@ struct cmdtable cmds[] = {
 	{ "chname", "Change dir entry number INDEX to NAME", 3, 3, chname },
 	{ "chtype", "Change type of current inode to TYPE", 2, 2, newtype },
 	{ "chmod", "Change mode of current inode to MODE", 2, 2, chmode },
+	{ "chlen", "Change length of current inode to LENGTH", 2, 2, chlen },
 	{ "chown", "Change owner of current inode to OWNER", 2, 2, chowner },
 	{ "chgrp", "Change group of current inode to GROUP", 2, 2, chgroup },
 	{ "chflags", "Change flags of current inode to FLAGS", 2, 2, chaflags },
@@ -628,6 +630,27 @@ CMDFUNCSTART(newtype)
     inodirty();
     printactive();
     return 0;
+}
+
+CMDFUNCSTART(chlen)
+{
+    int rval = 1;
+    long len;
+    char *cp;
+
+    if (!checkactive())
+	return 1;
+
+    len = strtol(argv[1], &cp, 0);
+    if (cp == argv[1] || *cp != '\0' || len < 0) { 
+	warnx("bad length `%s'", argv[1]);
+	return 1;
+    }
+    
+    curinode->di_size = len;
+    inodirty();
+    printactive();
+    return rval;
 }
 
 CMDFUNCSTART(chmode)
