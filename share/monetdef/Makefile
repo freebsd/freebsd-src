@@ -164,5 +164,7 @@ afterinstall:
 		${LOCALEDIR}/eu_ES.ISO8859-15/LC_MONETARY
 	ln -sf ../es_ES.UTF-8/LC_MONETARY \
 		${LOCALEDIR}/eu_ES.UTF-8/LC_MONETARY
+	ln -sf ../lt_LT.ISO8859-13/LC_MONETARY \
+		${LOCALEDIR}/lt_LT.ISO8859-4/LC_MONETARY
 
 .include <bsd.prog.mk>
