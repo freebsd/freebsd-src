@@ -69,7 +69,7 @@ o Information regarding problems which arise after the CD
 
 For the most up-to-date software along the RELENG_3 branch
 (also known as 3.4-STABLE) which is now proceeding onwards
-toward the release of FreeBSD 3.4, please install from:
+toward the release of FreeBSD 3.5, please install from:
 
         ftp://releng3.freebsd.org/pub/FreeBSD/
 
