@@ -353,13 +353,5 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	if (error)
 		return error;
 	sbp->f_flags = 0;		/* copy of mount exported flags */
-	if (sbp != &mp->mnt_stat) {
-		sbp->f_fsid = mp->mnt_stat.f_fsid;	/* filesystem id */
-		sbp->f_owner = mp->mnt_stat.f_owner;	/* user that mounted the filesystem */
-		sbp->f_type = mp->mnt_vfc->vfc_typenum;	/* type of filesystem */
-		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
-		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
-	}
-	strncpy(sbp->f_fstypename, mp->mnt_vfc->vfc_name, MFSNAMELEN);
 	return 0;
 }

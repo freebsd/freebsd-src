@@ -299,11 +299,6 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 		sbp->f_files = 0;
 		sbp->f_ffree = 0;
 	}
-	if (sbp != &mp->mnt_stat) {
-		sbp->f_type = mp->mnt_vfc->vfc_typenum;
-		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
-		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
-	}
 	m_freem(mrep);
 nfsmout:
 	vput(vp);
