@@ -268,10 +268,11 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 	if (foundlocks >= plex->alloclocks) {		    /* searched the lot, */
 	    newlock = plex->alloclocks;
 	    EXPAND(plex->lock, struct rangelock, plex->alloclocks, INITIAL_LOCKS);
+	    pos = &plex->lock[newlock];
 	    while (newlock < plex->alloclocks)
 		plex->lock[newlock++].stripe = 0;
-	}
-	pos = lock;					    /* put it at the end */
+	} else
+	    pos = lock;					    /* put it at the end */
     }
     pos->stripe = stripe;
     pos->bp = bp;
