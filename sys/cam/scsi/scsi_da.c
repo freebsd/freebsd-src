@@ -401,6 +401,13 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Apacer", "HandyDrive", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * DaisyTechnology PhotoClip on Zoran chip
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ZORAN", "COACH DSC","*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	}
 };
 
