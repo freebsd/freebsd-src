@@ -255,7 +255,7 @@ atkbdc_add_child(device_t bus, int order, char *name, int unit)
 
 	if (resource_int_value(name, unit, "flags", &t) == 0)
 		device_set_flags(child, t);
-	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
+	if (resource_disabled(name, unit))
 		device_disable(child);
 
 	device_set_ivars(child, ivar);

@@ -180,14 +180,12 @@ sc_softc_t
 int
 sc_get_cons_priority(int *unit, int *flags)
 {
-	int disabled;
 	const char *at;
 	int u, f;
 
 	*unit = -1;
 	for (u = 0; u < 16; u++) {
-		if ((resource_int_value(SC_DRIVER_NAME, u, "disabled",
-					&disabled) == 0) && disabled)
+		if (resource_disabled(SC_DRIVER_NAME, u))
 			continue;
 		if (resource_string_value(SC_DRIVER_NAME, u, "at", &at) != 0)
 			continue;
