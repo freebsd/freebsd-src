@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: FAQ.sgml,v 1.6 1996/10/06 12:24:34 jkh Exp $
+<date> $Id: FAQ.sgml,v 1.7 1996/10/06 12:36:30 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -516,13 +516,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           is problematic for some people, as the support for IDE CDROMs in
           FreeBSD is still in alpha (not because of some violent antipathy
           towards IDE CDROMs, but simply due to a lack of people with the
-          necessary combination of skill, inclination and time).  If you have
-          an IDE CDROM, you should use the 
-          <url 
-          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/floppies/atapi.flp"
-          name="special boot floppy for IDE CDROMs.">  If that doesn't work
-          for you, the alternative is to use one of the methods in the next
-          paragraph.
+          necessary combination of skill, inclination and time).
 
           Finally, if you already have a copy of the necessary files, FreeBSD 
           can be installed from floppy disks, a DOS hard disk partition or
