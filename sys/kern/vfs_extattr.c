@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.76 1997/10/12 20:24:27 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.77 1997/10/22 07:28:51 joerg Exp $
  */
 
 /*
@@ -77,6 +77,10 @@
 static int change_dir __P((struct nameidata *ndp, struct proc *p));
 static void checkdirs __P((struct vnode *olddp));
 
+static int	usermount = 0;	/* if 1, non-root can mount fs. */
+
+SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0, "");
+
 /*
  * Virtual File System System Calls
  */
@@ -112,6 +116,9 @@ mount(p, uap, retval)
 	u_long fstypenum;
 	struct nameidata nd;
 	char fstypename[MFSNAMELEN];
+
+	if (usermount == 0 && (error = suser(p->p_ucred, &p->p_acflag)))
+		return (error);
 
 	/*
 	 * Get vnode to be covered
