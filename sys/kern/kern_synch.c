@@ -155,6 +155,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
 #endif
+	/* XXX: mtx == NULL ?? */
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mtx->mtx_object,
 	    "Sleeping on \"%s\"", wmesg);
 	KASSERT(timo != 0 || mtx_owned(&Giant) || mtx != NULL,
@@ -589,6 +590,7 @@ setrunnable(struct thread *td)
 		 */
 		if (td->td_inhibitors != TDI_SWAPPED)
 			return;
+		/* XXX: intentional fall-through ? */
 	case TDS_CAN_RUN:
 		break;
 	default:
