@@ -338,14 +338,15 @@ ata_completed(void *context, int dummy)
                 			sizeof(struct atapi_sense),
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-	    bcopy(ccb, request->u.atapi.ccb, 16);
 	    request->u.atapi.sense_key = request->error;
+	    request->u.atapi.sense_cmd = request->u.atapi.ccb[0];
+	    bcopy(ccb, request->u.atapi.ccb, 16);
 	    request->data = (caddr_t)&request->u.atapi.sense_data;
 	    request->bytecount = sizeof(struct atapi_sense);
 	    request->transfersize = sizeof(struct atapi_sense);
 	    request->timeout = 5;
-	    request->flags =
-		ATA_R_ATAPI | ATA_R_READ | ATA_R_IMMEDIATE | ATA_R_REQUEUE;
+	    request->flags &= (ATA_R_ATAPI | ATA_R_QUIET);
+	    request->flags |= (ATA_R_READ | ATA_R_IMMEDIATE | ATA_R_REQUEUE);
 	    ata_queue_request(request);
 	    return;
 	}
@@ -466,7 +467,8 @@ ata_cmd2str(struct ata_request *request)
     static char buffer[20];
 
     if (request->flags & ATA_R_ATAPI) {
-	switch (request->u.atapi.ccb[0]) {
+	switch (request->u.atapi.sense_cmd ?
+		request->u.atapi.sense_cmd : request->u.atapi.ccb[0]) {
 	case 0x00: return ("TEST_UNIT_READY");
 	case 0x01: return ("REZERO");
 	case 0x03: return ("REQUEST_SENSE");
