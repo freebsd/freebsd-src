@@ -40,6 +40,7 @@
 #include <machine/nexusvar.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/segments.h>
+#include <machine/cputypes.h>
 #include <machine/pc/bios.h>
 
 #include "pcib_if.h"
@@ -177,6 +178,7 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 		/* AMD -- vendor 0x1022 */
 	case 0x30001022:
 		s = "AMD Elan SC520 host to PCI bridge";
+		init_AMD_Elan_sc520();
 		break;
 	case 0x70061022:
 		s = "AMD-751 host to PCI bridge";
