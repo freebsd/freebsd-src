@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage5.c,v 1.7 1994/11/03 00:30:27 ache Exp $
+ * $Id: stage5.c,v 1.8 1994/11/05 07:23:58 jkh Exp $
  *
  */
 
@@ -25,20 +25,20 @@
 #include "sysinstall.h"
 
 static unsigned char msg[] = "
-You are now done with the second phase of the installation.  At this point,
-FreeBSD is on your hard disk and now we need to go on to the 3rd level
-installation, which is to ftp, SLIP, DOS floppy, parallel port or carrier
-pigeon the bindist over.  Select OK to proceed with this phase, or CANCEL
-to simply drop into the shell.";
+You are now done with the initial phase of the installation, which
+gets FreeBSD onto your hard disk.  At this point, we need to go on
+to ftp, SLIP, DOS floppy, parallel port or carrier pigeon a bindist over
+so that your system is actually usable.  Select Yes to proceed with this
+phase, or No to simply drop into a shell.";
 
 void
 stage5()
 {
-	int exec_sh = 0;
+	int exec_sh = 1;
 
-	if (!dialog_yesno("End of stage 2", msg,
+	if (!dialog_yesno("End of initial installation", msg,
 			  strheight(msg) + 4, strwidth(msg) + 4))
-		exec_sh = 1;
+		exec_sh = 0;
 	end_dialog();
 	dialog_active=0;
 	setenv("PATH","/stand",1);
