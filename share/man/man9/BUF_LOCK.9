@@ -31,33 +31,42 @@
 .Os
 .Sh NAME
 .Nm BUF_LOCK
-.Nd "Locks a buffer"
+.Nd "locks a buffer"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/buf.h>
+.In sys/param.h
+.In sys/buf.h
 .Ft int
 .Fn BUF_LOCK "struct buf *bp" "int locktype"
 .Sh DESCRIPTION
 The
-.Nm
-function locks the given buffer.  If the lock is already held this
-call will block until it can aquire the lock unless LK_NOWAIT is
-set.
+.Fn BUF_LOCK
+function locks the given buffer.
+If the lock is already held this
+call will block until it can aquire the lock unless
+.Dv LK_NOWAIT
+is set.
 .Pp
 Its arguments are:
-.Bl -tag -width locktype
-.It Ar bp
+.Bl -tag -xwidth ".Fa locktype"
+.It Fa bp
 The buffer to lock.
-.It Ar locktype
-Flags controlling the type of lock.  See lockmgr(9) for details.
+.It Fa locktype
+Flags controlling the type of lock.
+See
+.Xr lockmgr 9
+for details.
 .El
 .Sh RETURN VALUES
-A value of 0 is returned upon success. See lockmgr(9) for
+A value of 0 is returned upon success.
+See
+.Xr lockmgr 9
+for
 information on non-zero return values.
 .Sh SEE ALSO
-.Xr buf 9
+.Xr buf 9 ,
+.Xr BUF_TIMELOCK 9 ,
+.Xr BUF_UNLOCK 9 ,
 .Xr lockmgr 9
-.Xr BUF_UNLOCK 9
-.Xr BUF_TIMELOCK 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .

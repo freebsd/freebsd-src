@@ -31,26 +31,31 @@
 .Os
 .Sh NAME
 .Nm BUF_UNLOCK
-.Nd "Unlocks a locked buffer"
+.Nd "unlocks a locked buffer"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/buf.h>
+.In sys/param.h
+.In sys/buf.h
 .Ft void
 .Fn BUF_UNLOCK "struct buf *bp"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn BUF_UNLOCK
 function unlocks a buffer that was previously locked with
-BUF_LOCK or BUF_TIMELOCK.
+.Fn BUF_LOCK
+or
+.Fn BUF_TIMELOCK .
 .Pp
 Its argument is:
-.Bl -tag
-.It Ar bp
-The buffer to unlock.  The buffer must already be locked.
+.Bl -tag -xwidth ".Fa bp"
+.It Fa bp
+The buffer to unlock.
+The buffer must already be locked.
+.El
 .Sh SEE ALSO
-.Xr buf 9
+.Xr buf 9 ,
+.Xr BUF_LOCK 9 ,
+.Xr BUF_TIMELOCK 9 ,
 .Xr lockmgr 9
-.Xr BUF_LOCK 9
-.Xr BUF_TIMELOCK 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .
