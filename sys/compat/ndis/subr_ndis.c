@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
+#include <sys/kthread.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -110,8 +111,8 @@ extern struct nd_head ndis_devhead;
 SYSCTL_STRING(_hw, OID_AUTO, ndis_filepath, CTLFLAG_RW, ndis_filepath,
         MAXPATHLEN, "Path used by NdisOpenFile() to search for files");
 
-__stdcall static void ndis_initwrap(ndis_handle,
-	ndis_driver_object *, void *, void *);
+__stdcall static void ndis_initwrap(ndis_handle *,
+	device_object *, void *, void *);
 __stdcall static ndis_status ndis_register_miniport(ndis_handle,
 	ndis_miniport_characteristics *, int);
 __stdcall static ndis_status ndis_malloc_withtag(void **, uint32_t, uint32_t);
@@ -235,12 +236,12 @@ __stdcall static uint32_t ndis_read_pccard_amem(ndis_handle,
 	uint32_t, void *, uint32_t);
 __stdcall static uint32_t ndis_write_pccard_amem(ndis_handle,
 	uint32_t, void *, uint32_t);
-__stdcall static ndis_list_entry *ndis_insert_head(ndis_list_entry *,
-	ndis_list_entry *, ndis_spin_lock *);
-__stdcall static ndis_list_entry *ndis_remove_head(ndis_list_entry *,
+__stdcall static list_entry *ndis_insert_head(list_entry *,
+	list_entry *, ndis_spin_lock *);
+__stdcall static list_entry *ndis_remove_head(list_entry *,
 	ndis_spin_lock *);
-__stdcall static ndis_list_entry *ndis_insert_tail(ndis_list_entry *,
-	ndis_list_entry *, ndis_spin_lock *);
+__stdcall static list_entry *ndis_insert_tail(list_entry *,
+	list_entry *, ndis_spin_lock *);
 __stdcall static uint8_t ndis_sync_with_intr(ndis_miniport_interrupt *,
 	void *, void *);
 __stdcall static void ndis_time(uint64_t *);
@@ -252,8 +253,9 @@ __stdcall static void ndis_init_unicode_string(ndis_unicode_string *,
 __stdcall static void ndis_free_string(ndis_unicode_string *);
 __stdcall static ndis_status ndis_remove_miniport(ndis_handle *);
 __stdcall static void ndis_termwrap(ndis_handle, void *);
-__stdcall static void ndis_get_devprop(ndis_handle, void *, void *,
-	void *, cm_resource_list *, cm_resource_list *);
+__stdcall static void ndis_get_devprop(ndis_handle, device_object **,
+	device_object **, device_object **, cm_resource_list *,
+	cm_resource_list *);
 __stdcall static void ndis_firstbuf(ndis_packet *, ndis_buffer **,
 	void **, uint32_t *, uint32_t *);
 __stdcall static void ndis_firstbuf_safe(ndis_packet *, ndis_buffer **,
@@ -273,10 +275,13 @@ __stdcall static void ndis_pkt_to_pkt(ndis_packet *, uint32_t, uint32_t,
 	ndis_packet *, uint32_t, uint32_t *);
 __stdcall static void ndis_pkt_to_pkt_safe(ndis_packet *, uint32_t, uint32_t,
 	ndis_packet *, uint32_t, uint32_t *, uint32_t);
-__stdcall static ndis_status ndis_register_dev(ndis_handle *,
-	ndis_unicode_string *, ndis_unicode_string *, void *,
-	void *, ndis_handle **);
-__stdcall static ndis_status ndis_deregister_dev(ndis_handle *);
+__stdcall static ndis_status ndis_register_dev(ndis_handle,
+	ndis_unicode_string *, ndis_unicode_string *, driver_dispatch **,
+	void **, ndis_handle *);
+__stdcall static ndis_status ndis_deregister_dev(ndis_handle);
+__stdcall static ndis_status ndis_query_name(ndis_unicode_string *,
+	ndis_handle);
+__stdcall static void ndis_register_unload(ndis_handle, void *);
 __stdcall static void dummy(void);
 
 /*
@@ -359,15 +364,15 @@ ndis_unicode_to_ascii(unicode, ulen, ascii)
 
 __stdcall static void
 ndis_initwrap(wrapper, drv_obj, path, unused)
-	ndis_handle		wrapper;
-	ndis_driver_object	*drv_obj;
+	ndis_handle		*wrapper;
+	device_object		*drv_obj;
 	void			*path;
 	void			*unused;
 {
-	ndis_driver_object	**drv;
+	ndis_miniport_block	*block;
 
-	drv = wrapper;
-	*drv = drv_obj;
+	block = drv_obj->do_rsvd;
+	*wrapper = block;
 
 	return;
 }
@@ -386,11 +391,20 @@ ndis_register_miniport(handle, characteristics, len)
 	ndis_miniport_characteristics *characteristics;
 	int			len;
 {
-	ndis_driver_object	*drv;
+	ndis_miniport_block	*block;
+	struct ndis_softc	*sc;
 
-	drv = handle;
-	bcopy((char *)characteristics, (char *)&drv->ndo_chars,
+	block = (ndis_miniport_block *)handle;
+	sc = (struct ndis_softc *)block->nmb_ifp;
+	bcopy((char *)characteristics, (char *)&sc->ndis_chars,
 	    sizeof(ndis_miniport_characteristics));
+	if (sc->ndis_chars.nmc_version_major < 5 ||
+	    sc->ndis_chars.nmc_version_minor < 1) {
+		sc->ndis_chars.nmc_shutdown_handler = NULL;
+		sc->ndis_chars.nmc_canceltxpkts_handler = NULL;
+		sc->ndis_chars.nmc_pnpevent_handler = NULL;
+	}
+
 	return(NDIS_STATUS_SUCCESS);
 }
 
@@ -436,6 +450,7 @@ ndis_free(vaddr, len, flags)
 	if (len == 0)
 		return;
 	free(vaddr, M_DEVBUF);
+
 	return;
 }
 
@@ -937,7 +952,10 @@ ndis_init_timer(timer, func, ctx)
 	TAILQ_INSERT_TAIL(&block->nmb_timerlist, ne, link);
 	ne->nte_timer = (ndis_miniport_timer *)timer;
 
-	timer->nt_timer.nk_header.dh_sigstate = TRUE;
+	INIT_LIST_HEAD((&timer->nt_timer.nk_header.dh_waitlisthead));
+	timer->nt_timer.nk_header.dh_sigstate = FALSE;
+	timer->nt_timer.nk_header.dh_type = EVENT_TYPE_NOTIFY;
+	timer->nt_timer.nk_header.dh_size = OTYPE_TIMER;
 	timer->nt_dpc.nk_sysarg1 = &ne->nte_ch;
 	timer->nt_dpc.nk_deferedfunc = (ndis_kdpc_func)func;
 	timer->nt_dpc.nk_deferredctx = ctx;
@@ -961,7 +979,10 @@ ndis_create_timer(timer, handle, func, ctx)
 	TAILQ_INSERT_TAIL(&block->nmb_timerlist, ne, link);
 	ne->nte_timer = timer;
 
-	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
+	INIT_LIST_HEAD((&timer->nmt_ktimer.nk_header.dh_waitlisthead));
+	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
+	timer->nmt_ktimer.nk_header.dh_type = EVENT_TYPE_NOTIFY;
+	timer->nmt_ktimer.nk_header.dh_size = OTYPE_TIMER;
 	timer->nmt_dpc.nk_sysarg1 = &ne->nte_ch;
 	timer->nmt_dpc.nk_deferedfunc = (ndis_kdpc_func)func;
 	timer->nmt_dpc.nk_deferredctx = ctx;
@@ -983,18 +1004,16 @@ ndis_timercall(arg)
 
 	timer = arg;
 
-	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
 	timerfunc = (ndis_timer_function)timer->nmt_dpc.nk_deferedfunc;
 	timerfunc(NULL, timer->nmt_dpc.nk_deferredctx, NULL, NULL);
+	ntoskrnl_wakeup(&timer->nmt_ktimer.nk_header);
 
 	return;
 }
 
 /*
  * Windows specifies timeouts in milliseconds. We specify timeouts
- * in hz. Trying to compute a tenth of a second based on hz is tricky.
- * so we approximate. Note that we abuse the dpc portion of the
- * miniport timer structure to hold the UNIX callout handle.
+ * in hz, so some conversion is required.
  */
 __stdcall static void
 ndis_set_timer(timer, msecs)
@@ -1009,7 +1028,7 @@ ndis_set_timer(timer, msecs)
 
 	ch = timer->nmt_dpc.nk_sysarg1;
 	timer->nmt_dpc.nk_sysarg2 = ndis_timercall;
-	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
+	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
 	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
 
 	return;
@@ -1026,16 +1045,16 @@ ndis_tick(arg)
 
 	timer = arg;
 
-	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
 	timerfunc = (ndis_timer_function)timer->nmt_dpc.nk_deferedfunc;
 	timerfunc(NULL, timer->nmt_dpc.nk_deferredctx, NULL, NULL);
+	ntoskrnl_wakeup(&timer->nmt_ktimer.nk_header);
 
 	/* Automatically reload timer. */
 
 	tv.tv_sec = 0;
 	tv.tv_usec = timer->nmt_ktimer.nk_period * 1000;
 	ch = timer->nmt_dpc.nk_sysarg1;
-	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
+	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
 	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
 	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
 
@@ -1056,7 +1075,7 @@ ndis_set_periodic_timer(timer, msecs)
 	timer->nmt_ktimer.nk_period = msecs;
 	ch = timer->nmt_dpc.nk_sysarg1;
 	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
-	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
+	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
 	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
 
 	return;
@@ -1350,7 +1369,7 @@ ndis_asyncmem_complete(arg)
 	    w->na_cached, &vaddr, &paddr);
 	donefunc(w->na_adapter, vaddr, &paddr, w->na_len, w->na_ctx);
 
-	free(arg, M_TEMP);
+	free(arg, M_DEVBUF);
 
 	return;
 }
@@ -1377,7 +1396,14 @@ ndis_alloc_sharedmem_async(adapter, len, cached, ctx)
 	w->na_len = len;
 	w->na_ctx = ctx;
 
-	ndis_sched(ndis_asyncmem_complete, w, NDIS_TASKQUEUE);
+	/*
+	 * Pawn this work off on the SWI thread instead of the
+	 * taskqueue thread, because sometimes drivers will queue
+	 * up work items on the taskqueue thread that will block,
+	 * which would prevent the memory allocation from completing
+	 * when we need it.
+	 */
+	ndis_sched(ndis_asyncmem_complete, w, NDIS_SWI);
 
 	return(NDIS_STATUS_PENDING);
 }
@@ -1886,6 +1912,9 @@ ndis_init_event(event)
 	ndis_event		*event;
 {
 	event->ne_event.nk_header.dh_sigstate = FALSE;
+	event->ne_event.nk_header.dh_size = OTYPE_EVENT;
+	event->ne_event.nk_header.dh_type = EVENT_TYPE_NOTIFY;
+	INIT_LIST_HEAD((&event->ne_event.nk_header.dh_waitlisthead));
 	return;
 }
 
@@ -1893,8 +1922,7 @@ __stdcall static void
 ndis_set_event(event)
 	ndis_event		*event;
 {
-	event->ne_event.nk_header.dh_sigstate = TRUE;
-	wakeup(event);
+	ntoskrnl_wakeup(event);
 	return;
 }
 
@@ -1903,9 +1931,14 @@ ndis_reset_event(event)
 	ndis_event		*event;
 {
 	event->ne_event.nk_header.dh_sigstate = FALSE;
-	wakeup(event);
 	return;
 }
+
+/*
+ * This is a stripped-down version of KeWaitForSingleObject().
+ * Maybe it ought to just call ntoskrnl_waitforobj() to reduce
+ * code duplication.
+ */
 
 __stdcall static uint8_t
 ndis_wait_event(event, msecs)
@@ -1914,14 +1947,37 @@ ndis_wait_event(event, msecs)
 {
 	int			error;
 	struct timeval		tv;
+	wait_block		w;
+	struct thread		*td = curthread;
 
-	if (event->ne_event.nk_header.dh_sigstate == TRUE)
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	if (event->ne_event.nk_header.dh_sigstate == TRUE) {
+		mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
 		return(TRUE);
+	}
+
+	INSERT_LIST_HEAD((&event->ne_event.nk_header.dh_waitlisthead),
+	    (&w.wb_waitlist));
 
 	tv.tv_sec = 0;
 	tv.tv_usec = msecs * 1000;
 
-	error = tsleep(event, PPAUSE|PCATCH, "ndis", tvtohz(&tv));
+	w.wb_kthread = td;
+	w.wb_object = &event->ne_event.nk_header;
+
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	if (td->td_proc->p_flag & P_KTHREAD)
+		error = tsleep(td, PPAUSE|PCATCH, "ndiswe", tvtohz(&tv));
+	else
+		error = kthread_suspend(td->td_proc, tvtohz(&tv));
+
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	REMOVE_LIST_ENTRY((&w.wb_waitlist));
+
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
 
 	return(event->ne_event.nk_header.dh_sigstate);
 }
@@ -2164,13 +2220,13 @@ ndis_write_pccard_amem(handle, offset, buf, len)
 	return(i);
 }
 
-__stdcall static ndis_list_entry *
+__stdcall static list_entry *
 ndis_insert_head(head, entry, lock)
-	ndis_list_entry		*head;
-	ndis_list_entry		*entry;
+	list_entry		*head;
+	list_entry		*entry;
 	ndis_spin_lock		*lock;
 {
-	ndis_list_entry		*flink;
+	list_entry		*flink;
 
 	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 	flink = head->nle_flink;
@@ -2183,13 +2239,13 @@ ndis_insert_head(head, entry, lock)
 	return(flink);
 }
 
-__stdcall static ndis_list_entry *
+__stdcall static list_entry *
 ndis_remove_head(head, lock)
-	ndis_list_entry		*head;
+	list_entry		*head;
 	ndis_spin_lock		*lock;
 {
-	ndis_list_entry		*flink;
-	ndis_list_entry		*entry;
+	list_entry		*flink;
+	list_entry		*entry;
 
 	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 	entry = head->nle_flink;
@@ -2201,13 +2257,13 @@ ndis_remove_head(head, lock)
 	return(entry);
 }
 
-__stdcall static ndis_list_entry *
+__stdcall static list_entry *
 ndis_insert_tail(head, entry, lock)
-	ndis_list_entry		*head;
-	ndis_list_entry		*entry;
+	list_entry		*head;
+	list_entry		*entry;
 	ndis_spin_lock		*lock;
 {
-	ndis_list_entry		*blink;
+	list_entry		*blink;
 
 	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 	blink = head->nle_blink;
@@ -2255,6 +2311,8 @@ ndis_time(tval)
 	nanotime(&ts);
 	*tval = (uint64_t)ts.tv_nsec / 100 + (uint64_t)ts.tv_sec * 10000000 +
 	    11644473600;
+
+	return;
 }
 
 /*
@@ -2268,6 +2326,8 @@ ndis_uptime(tval)
 
 	nanouptime(&ts);
 	*tval = ts.tv_nsec / 1000000 + ts.tv_sec * 1000;
+
+	return;
 }
 
 __stdcall static void
@@ -2353,12 +2413,21 @@ ndis_init_unicode_string(dst, src)
 __stdcall static void ndis_get_devprop(adapter, phydevobj,
 	funcdevobj, nextdevobj, resources, transresources)
 	ndis_handle		adapter;
-	void			*phydevobj;
-	void			*funcdevobj;
-	void			*nextdevobj;
+	device_object		**phydevobj;
+	device_object		**funcdevobj;
+	device_object		**nextdevobj;
 	cm_resource_list	*resources;
 	cm_resource_list	*transresources;
 {
+	ndis_miniport_block	*block;
+
+	block = (ndis_miniport_block *)adapter;
+
+	if (phydevobj != NULL)
+		*phydevobj = &block->nmb_devobj;
+	if (funcdevobj != NULL)
+		*funcdevobj = &block->nmb_devobj;
+
 	return;
 }
 
@@ -2446,7 +2515,6 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 		mtx_unlock(&Giant);
 		*status = NDIS_STATUS_FILE_NOT_FOUND;
 		free(fh, M_TEMP);
-		printf("ndis_open_file(): unable to open file '%s'\n", path);
 		return;
 	}
 
@@ -2726,23 +2794,51 @@ ndis_pkt_to_pkt_safe(dpkt, doff, reqlen, spkt, soff, cpylen, prio)
 
 __stdcall static ndis_status
 ndis_register_dev(handle, devname, symname, majorfuncs, devobj, devhandle)
-	ndis_handle		*handle;
+	ndis_handle		handle;
 	ndis_unicode_string	*devname;
 	ndis_unicode_string	*symname;
-	void			*majorfuncs;
-	void			*devobj;
-	ndis_handle		**devhandle;
+	driver_dispatch		*majorfuncs[];
+	void			**devobj;
+	ndis_handle		*devhandle;
+{
+	ndis_miniport_block	*block;
+
+	block = (ndis_miniport_block *)handle;
+	*devobj = &block->nmb_devobj;
+	*devhandle = handle;
+
+	return(NDIS_STATUS_SUCCESS);
+}
+
+__stdcall static ndis_status
+ndis_deregister_dev(handle)
+	ndis_handle		handle;
 {
 	return(NDIS_STATUS_SUCCESS);
 }
 
 __stdcall static ndis_status
-ndis_deregister_dev(devhandle)
-	ndis_handle		*devhandle;
+ndis_query_name(name, handle)
+	ndis_unicode_string	*name;
+	ndis_handle		handle;
 {
+	ndis_miniport_block	*block;
+
+	block = (ndis_miniport_block *)handle;
+	ndis_ascii_to_unicode(__DECONST(char *,
+	    device_get_nameunit(block->nmb_dev)), &name->nus_buf);
+	name->nus_len = strlen(device_get_nameunit(block->nmb_dev)) * 2;
+
 	return(NDIS_STATUS_SUCCESS);
 }
 
+__stdcall static void
+ndis_register_unload(handle, func)
+	ndis_handle		handle;
+	void			*func;
+{
+	return;
+}
 
 __stdcall static void
 dummy()
@@ -2864,6 +2960,8 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisCloseFile",		(FUNC)ndis_close_file },
 	{ "NdisMRegisterDevice",	(FUNC)ndis_register_dev },
 	{ "NdisMDeregisterDevice",	(FUNC)ndis_deregister_dev },
+	{ "NdisMQueryAdapterInstanceName", (FUNC)ndis_query_name },
+	{ "NdisMRegisterUnloadHandler",	(FUNC)ndis_register_unload },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
