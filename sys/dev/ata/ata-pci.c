@@ -180,6 +180,8 @@ ata_pci_match(device_t dev)
 	    return "VIA 8233 ATA100 controller";
 	if (ata_find_dev(dev, 0x31471106, 0))
 	    return "VIA 8233 ATA133 controller";
+	if (ata_find_dev(dev, 0x31771106, 0))
+	    return "VIA 8235 ATA133 controller";
 	return "VIA Apollo ATA controller";
 
     case 0x55131039:
