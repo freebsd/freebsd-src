@@ -1876,7 +1876,7 @@ tbf_send_packet(vifp, m)
     if (vifp->v_flags & VIFF_TUNNEL) {
 	/* If tunnel options */
 	ip_output(m, (struct mbuf *)0, &vifp->v_route,
-		  IP_FORWARDING, (struct ip_moptions *)0);
+		  IP_FORWARDING, (struct ip_moptions *)0, NULL);
     } else {
 	imo.imo_multicast_ifp  = vifp->v_ifp;
 	imo.imo_multicast_ttl  = mtod(m, struct ip *)->ip_ttl - 1;
@@ -1890,7 +1890,7 @@ tbf_send_packet(vifp, m)
 	 * the loopback interface, thus preventing looping.
 	 */
 	error = ip_output(m, (struct mbuf *)0, &ro,
-			  IP_FORWARDING, &imo);
+			  IP_FORWARDING, &imo, NULL);
 
 	if (mrtdebug & DEBUG_XMIT)
 	    log(LOG_DEBUG, "phyint_send on vif %d err %d\n", 

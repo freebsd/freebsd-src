@@ -487,7 +487,7 @@ igmp_sendpkt(inm, type, addr)
 	 * XXX
 	 * Do we have to worry about reentrancy here?  Don't think so.
 	 */
-        ip_output(m, router_alert, &igmprt, 0, &imo);
+        ip_output(m, router_alert, &igmprt, 0, &imo, NULL);
 
         ++igmpstat.igps_snd_reports;
 }

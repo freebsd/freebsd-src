@@ -315,7 +315,7 @@ div_output(struct socket *so, struct mbuf *m,
 			    inp->inp_options, &inp->inp_route,
 			    (so->so_options & SO_DONTROUTE) |
 			    IP_ALLOWBROADCAST | IP_RAWOUTPUT,
-			    inp->inp_moptions);
+			    inp->inp_moptions, NULL);
 	} else {
 		if (m->m_pkthdr.rcvif == NULL) {
 			/*

@@ -89,7 +89,7 @@ m_copy_pkthdr(struct mbuf *to, struct mbuf *from)
 	mac_init_mbuf(to, 1);			/* XXXMAC no way to fail */
 	mac_create_mbuf_from_mbuf(from, to);
 #endif
-	from->m_pkthdr.aux = NULL;
+	SLIST_INIT(&from->m_pkthdr.tags);
 }
 
 /*

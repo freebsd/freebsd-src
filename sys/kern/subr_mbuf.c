@@ -1037,7 +1037,7 @@ mb_reclaim(void)
 	(m)->m_flags = M_PKTHDR;					\
 	(m)->m_pkthdr.rcvif = NULL;					\
 	(m)->m_pkthdr.csum_flags = 0;					\
-	(m)->m_pkthdr.aux = NULL;					\
+	SLIST_INIT(&(m)->m_pkthdr.tags);				\
 } while (0)
 
 #define _mcl_setup(m) do {						\
@@ -1333,11 +1333,8 @@ m_free(struct mbuf *mb)
 	int cchnum;
 	short persist = 0;
 
-	/* XXX: This check is bogus... please fix (see KAME). */
-	if ((mb->m_flags & M_PKTHDR) != 0 && mb->m_pkthdr.aux) {
-		m_freem(mb->m_pkthdr.aux);
-		mb->m_pkthdr.aux = NULL;
-	}
+	if ((mb->m_flags & M_PKTHDR) != 0)
+		m_tag_delete_chain(mb, NULL);
 #ifdef MAC
 	if ((mb->m_flags & M_PKTHDR) &&
 	    (mb->m_pkthdr.label.l_flags & MAC_FLAG_INITIALIZED))
@@ -1371,8 +1368,7 @@ m_free(struct mbuf *mb)
  * we'll eventually be holding the lock across more than merely two
  * consecutive frees but right now this is hard to implement because of
  * things like _mext_dealloc_ref (may do a free()) and atomic ops in the
- * loop, as well as the fact that we may recurse on m_freem() in
- * m_pkthdr.aux != NULL cases.
+ * loop.
  *
  *  - mb: the mbuf chain to free.
  */
@@ -1384,11 +1380,8 @@ m_freem(struct mbuf *mb)
 	short persist;
 
 	while (mb != NULL) {
-		/* XXX: This check is bogus... please fix (see KAME). */
-		if ((mb->m_flags & M_PKTHDR) != 0 && mb->m_pkthdr.aux) {
-			m_freem(mb->m_pkthdr.aux);
-			mb->m_pkthdr.aux = NULL;
-		}
+		if ((mb->m_flags & M_PKTHDR) != 0)
+			m_tag_delete_chain(mb, NULL);
 #ifdef MAC
 		if ((mb->m_flags & M_PKTHDR) &&
 		    (mb->m_pkthdr.label.l_flags & MAC_FLAG_INITIALIZED))
@@ -1448,7 +1441,7 @@ m_getcl(int how, short type, int flags)
 		mb->m_nextpkt = NULL;
 		mb->m_pkthdr.rcvif = NULL;
 		mb->m_pkthdr.csum_flags = 0;
-		mb->m_pkthdr.aux = NULL;
+		SLIST_INIT(&mb->m_pkthdr.tags);
 	}
 
 	mb->m_ext.ext_buf = (caddr_t)mb_alloc(&mb_list_clust, how,

@@ -751,7 +751,7 @@ icmp_send(m, opts, rt)
 		       buf, inet_ntoa(ip->ip_src));
 	}
 #endif
-	(void) ip_output(m, opts, rt, 0, NULL);
+	(void) ip_output(m, opts, rt, 0, NULL, NULL);
 }
 
 n_time

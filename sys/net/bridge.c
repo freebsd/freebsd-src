@@ -816,7 +816,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     args.rule = NULL;		/* did we match a firewall rule ? */
     /* Fetch state from dummynet tag, ignore others */
     for (;m0->m_type == MT_TAG; m0 = m0->m_next)
-	if (m0->m_tag_id == PACKET_TAG_DUMMYNET) {
+	if (m0->_m_tag_id == PACKET_TAG_DUMMYNET) {
 	    args.rule = ((struct dn_pkt *)m0)->rule;
 	    shared = 0;		/* For sure this is our own mbuf. */
 	}

@@ -224,8 +224,7 @@ looutput(ifp, m, dst, rt)
 		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
 		n->m_pkthdr = m->m_pkthdr;
 		n->m_len = m->m_pkthdr.len;
-		n->m_pkthdr.aux = m->m_pkthdr.aux;
-		m->m_pkthdr.aux = (struct mbuf *)NULL;
+		SLIST_INIT(&m->m_pkthdr.tags);
 		m_freem(m);
 		m = n;
 	}
