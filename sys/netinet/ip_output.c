@@ -192,8 +192,10 @@ ip_output(m0, opt, ro, flags, imo)
 	}
 
 	if (opt) {
+		len = 0;
 		m = ip_insertoptions(m, opt, &len);
-		hlen = len;
+		if (len != 0)
+			hlen = len;
 	}
 	ip = mtod(m, struct ip *);
 	pkt_dst = args.next_hop ? args.next_hop->sin_addr : ip->ip_dst;
@@ -1059,14 +1061,18 @@ ip_insertoptions(m, opt, phlen)
 	unsigned optlen;
 
 	optlen = opt->m_len - sizeof(p->ipopt_dst);
-	if (optlen + (u_short)ip->ip_len > IP_MAXPACKET)
+	if (optlen + (u_short)ip->ip_len > IP_MAXPACKET) {
+		*phlen = 0;
 		return (m);		/* XXX should fail */
+	}
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
 	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
 		MGETHDR(n, M_DONTWAIT, MT_HEADER);
-		if (n == 0)
+		if (n == 0) {
+			*phlen = 0;
 			return (m);
+		}
 		n->m_pkthdr.rcvif = (struct ifnet *)0;
 		n->m_pkthdr.len = m->m_pkthdr.len + optlen;
 		m->m_len -= sizeof(struct ip);
