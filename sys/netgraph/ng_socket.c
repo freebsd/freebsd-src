@@ -55,6 +55,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/signalvar.h>
@@ -153,6 +154,9 @@ SYSCTL_INT(_net_graph, OID_AUTO, recvspace, CTLFLAG_RW,
 
 /* List of all sockets */
 static LIST_HEAD(, ngpcb) ngsocklist;
+
+static struct mtx	ngsocketlist_mtx;
+MTX_SYSINIT(ngsocketlist, &ngsocketlist_mtx, "ng_socketlist", MTX_DEF);
 
 #define sotongpcb(so) ((struct ngpcb *)(so)->so_pcb)
 
@@ -525,7 +529,9 @@ ng_attach_common(struct socket *so, int type)
 	pcbp->ng_socket = so;
 
 	/* Add the socket to linked list */
+	mtx_lock(&ngsocketlist_mtx);
 	LIST_INSERT_HEAD(&ngsocklist, pcbp, socks);
+	mtx_unlock(&ngsocketlist_mtx);
 	return (0);
 }
 
@@ -558,7 +564,9 @@ ng_detach_common(struct ngpcb *pcbp, int which)
 	}
 	pcbp->ng_socket->so_pcb = NULL;
 	pcbp->ng_socket = NULL;
+	mtx_lock(&ngsocketlist_mtx);
 	LIST_REMOVE(pcbp, socks);
+	mtx_unlock(&ngsocketlist_mtx);
 	FREE(pcbp, M_PCB);
 }
 
