@@ -509,6 +509,16 @@ trap(int vector, int imm, struct trapframe *framep)
 		}
 		i = SIGTRAP;
 		break;
+
+	case IA64_VEC_GENERAL_EXCEPTION:
+	case IA64_VEC_UNSUPP_DATA_REFERENCE:
+	case IA64_VEC_LOWER_PRIVILEGE_TRANSFER:
+		if (user) {
+			ucode = vector;
+			i = SIGBUS;
+			break;
+		}
+		goto dopanic;
 	}
 
 	default:
