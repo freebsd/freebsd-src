@@ -43,8 +43,6 @@
  * $FreeBSD$
  */
 
-#define _ANSI_SOURCE
-
 #include <syslog.h>
 #include <sys/types.h>
 #include <string.h>
