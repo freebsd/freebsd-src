@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.22 1995/06/05 10:18:56 jkh Exp $
+ * $Id: config.c,v 1.15.2.23 1995/06/06 06:08:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -365,27 +365,15 @@ configPackages(char *str)
 	}
     }
 
-    if (onCD) {
-	if (!(pid = fork())) {
-	    if (chdir("/cdrom/packages/All"))
-		exit(1);
-	    execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", "-add", (char *)NULL);
+    if (!(pid = fork())) {
+	if (OnCD && chdir("/cdrom/packages/All"))
 	    exit(1);
-	}
-	else {
-	    pid = waitpid(pid, (int *)&pstat, 0);
-	    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
-	}
+	execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", (char *)NULL);
+	exit(1);
     }
     else {
-	if (!(pid = fork())) {
-	    execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", (char *)NULL);
-	    exit(1);
-	}
-	else {
-	    pid = waitpid(pid, (int *)&pstat, 0);
-	    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
-	}
+	pid = waitpid(pid, (int *)&pstat, 0);
+	i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
     }
     if (i != 0 && isDebug())
 	msgDebug("pkg_manage returns status of %d\n", i);
