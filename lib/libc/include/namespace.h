@@ -31,6 +31,16 @@
 #define _NAMESPACE_H_
 
 /*
+ * Adjust names so that headers declare "hidden" names.
+ */
+
+/*
+ * ISO C (C90) section.  Most names in libc aren't in ISO C, so they
+ * should be here.  Most aren't here...
+ */
+#define		warn				_warn
+
+/*
  * Prototypes for syscalls/functions that need to be overridden
  * in libc_r/libpthread.
  */

@@ -37,7 +37,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_RCS and not lint */
 
+#include "namespace.h"
 #include <err.h>
+#include "un-namespace.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,8 +145,10 @@ verrx(eval, fmt, ap)
 	exit(eval);
 }
 
+__weak_reference(_warn, warn);
+
 void
-warn(const char *fmt, ...)
+_warn(const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
