@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#31 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#32 $
  *
  * $FreeBSD$
  */
@@ -159,7 +159,7 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 	ahc->bus_suspend = aic7770_suspend;
 	ahc->bus_resume = aic7770_resume;
 
-	error = ahc_reset(ahc);
+	error = ahc_reset(ahc, /*reinit*/FALSE);
 	if (error != 0)
 		return (error);
 

@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#130 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#132 $
  *
  * $FreeBSD$
  */
@@ -4033,7 +4033,7 @@ ahc_shutdown(void *arg)
 	ahc = (struct ahc_softc *)arg;
 
 	/* This will reset most registers to 0, but not all */
-	ahc_reset(ahc);
+	ahc_reset(ahc, /*reinit*/FALSE);
 	ahc_outb(ahc, SCSISEQ, 0);
 	ahc_outb(ahc, SXFRCTL0, 0);
 	ahc_outb(ahc, DSPCISTATUS, 0);
@@ -4044,10 +4044,15 @@ ahc_shutdown(void *arg)
 
 /*
  * Reset the controller and record some information about it
- * that is only available just after a reset.
+ * that is only available just after a reset.  If "reinit" is
+ * non-zero, this reset occured after initial configuration
+ * and the caller requests that the chip be fully reinitialized
+ * to a runable state.  Chip interrupts are *not* enabled after
+ * a reinitialization.  The caller must enable interrupts via
+ * ahc_intr_enable().
  */
 int
-ahc_reset(struct ahc_softc *ahc)
+ahc_reset(struct ahc_softc *ahc, int reinit)
 {
 	u_int	sblkctl;
 	u_int	sxfrctl1_a, sxfrctl1_b;
@@ -4143,7 +4148,7 @@ ahc_reset(struct ahc_softc *ahc)
 	ahc_outb(ahc, SXFRCTL1, sxfrctl1_a);
 
 	error = 0;
-	if (ahc->init_level > 0)
+	if (reinit != 0)
 		/*
 		 * If a recovery action has forced a chip reset,
 		 * re-initialize the chip to our liking.
@@ -4725,14 +4730,12 @@ ahc_chip_init(struct ahc_softc *ahc)
 		 * never settle, so don't complain if we
 		 * fail here.
 		 */
-		ahc_pause(ahc);
 		for (wait = 5000;
 		     (ahc_inb(ahc, SBLKCTL) & (ENAB40|ENAB20)) == 0 && wait;
 		     wait--)
 			ahc_delay(100);
-		ahc_unpause(ahc);
 	}
-
+	ahc_restart(ahc);
 	return (0);
 }
 
@@ -5145,7 +5148,9 @@ int
 ahc_resume(struct ahc_softc *ahc)
 {
 
-	ahc_reset(ahc);
+	ahc_reset(ahc, /*reinit*/TRUE);
+	ahc_intr_enable(ahc, TRUE); 
+	ahc_restart(ahc);
 	return (0);
 }
 
@@ -6407,7 +6412,6 @@ ahc_loadseq(struct ahc_softc *ahc)
 		memcpy(ahc->critical_sections, cs_table, cs_count);
 	}
 	ahc_outb(ahc, SEQCTL, PERRORDIS|FAILDIS|FASTMODE);
-	ahc_restart(ahc);
 
 	if (bootverbose) {
 		printf(" %d instructions downloaded\n", downloaded);
@@ -6968,11 +6972,12 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 			 */
 			ahc->flags = saved_flags;
 			(void)ahc_loadseq(ahc);
-			ahc_unpause(ahc);
+			ahc_restart(ahc);
 			ahc_unlock(ahc, &s);
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 			return;
 		}
+		ahc_restart(ahc);
 		ahc_unlock(ahc, &s);
 	}
 	cel = &ccb->cel;
@@ -7207,12 +7212,16 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 				printf("Configuring Initiator Mode\n");
 				ahc->flags &= ~AHC_TARGETROLE;
 				ahc->flags |= AHC_INITIATORROLE;
-				ahc_pause(ahc);
 				/*
 				 * Returning to a configuration that
 				 * fit previously will always succeed.
 				 */
 				(void)ahc_loadseq(ahc);
+				ahc_restart(ahc);
+				/*
+				 * Unpaused.  The extra unpause
+				 * that follows is harmless.
+				 */
 			}
 		}
 		ahc_unpause(ahc);

@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#73 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#74 $
  *
  * $FreeBSD$
  */
@@ -375,7 +375,7 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 
 	ahd->bus_intr = ahd_pci_intr;
 
-	error = ahd_reset(ahd);
+	error = ahd_reset(ahd, /*reinit*/FALSE);
 	if (error != 0)
 		return (ENXIO);
 
