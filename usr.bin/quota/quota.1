@@ -43,17 +43,16 @@
 .Nd display disk usage and limits
 .Sh SYNOPSIS
 .Nm
-.Op Fl g
-.Op Fl u
+.Op Fl gu
 .Op Fl v | Fl q
 .Nm
 .Op Fl u
 .Op Fl v | Fl q
-.Ar user
+.Ar user ...
 .Nm
-.Op Fl g
+.Fl g
 .Op Fl v | Fl q
-.Ar group
+.Ar group ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -65,16 +64,18 @@ The following options are available:
 .It Fl g
 Print group quotas for the group
 of which the user is a member.
-The optional
-.Fl u
-flag is equivalent to the default.
-.It Fl v
-Display quotas on filesystems
-where no storage is allocated.
 .It Fl q
 Print a more terse message,
 containing only information
 on filesystems where usage is over quota.
+.It Fl u
+Print the user quotas.
+This is the default unless
+.Fl g
+is specified.
+.It Fl v
+Display quotas on filesystems
+where no storage is allocated.
 .El
 .Pp
 Specifying both
