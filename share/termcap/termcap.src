@@ -284,7 +284,7 @@ AT386|at386|386AT|386at|at/386 console:\
 	:me=\E[0;10m:mk=\E[9m:mr=\E[7m:nd=\E[C:op=\E[0m:\
 	:se=\E[m:sf=\E[S:so=\E[43;30m:ta=\t:ue=\E[m:up=\E[A:\
 	:sr=\E[T:TC=\E[%d@:IC=\E[%d@:\
-	:us=\E[4m:vb=^G:bc=\E[D:nl=\E[B:ko=le,do,nd,up,dc,h
+	:us=\E[4m:vb=^G:bc=\E[D:
 s4|PC7300|unixpc|pc7300|7300|3b1|Safari 4:\
 	:so=\E[2;7m:DS=\E[2m:XS=\E[9m:KM=/usr/lib/ua/kmap.s4:tc=pc6300plus:
 # AT&T Teletype 610 Terminal
