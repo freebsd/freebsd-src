@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.19 1994/11/21 04:47:28 jkh Exp $
+# $Id: instdist.sh,v 1.20 1994/11/21 05:36:00 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -177,7 +177,7 @@ media_extract_dist()
 		message "Verifying checksums for distribution.  Please wait!"
 		if sh ./do_cksum.sh; then
 			if [ -f extract.sh ]; then
-				message "Extracting distribution.  Please wait!"
+				message "Extracting ${media_distribution} distribution.  Please wait!"
 				sh ./extract.sh < /dev/ttyv1 > /dev/ttyv1 2>&1
 				dialog $clear --title "Extraction Complete" --msgbox "Please press return to continue" -1 -1
 			else
@@ -195,7 +195,6 @@ media_install_set()
 {
 	case $media_type in
 	cdrom|nfs|ufs|doshd)
-		message "Extracting ${media_distribution} using ${media_type}."
 		if ! cd ${media_device}/${media_distribution}; then
 			error "Unable to cd to ${media_device}/${media_distribution} directory."
 		else
