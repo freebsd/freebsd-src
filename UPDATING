@@ -11,6 +11,11 @@ ITEMS:'
 	to rebuild their binutils (or better yet do a
 	buildworld/installworld) before building a new kernel.
 
+	Due to bugs in binutils, using malloc options (eg /etc/malloc.conf
+	or MALLOC_OPTIONS env var) J will cause ld to dump core.  It
+	is recommended that you don't set this option until the problem
+	is resolved.
+
 20000513:
 	The ethernet drivers were all updated to clean up the BPF handling.
 
