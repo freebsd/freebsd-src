@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.761.2.37
+     Original revision: 1.761.2.39
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -107,6 +107,13 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>。
       </para>
 
+    <para>修正了 TELNET 客户端程序中的两处缓冲区溢出问题。
+      这些问题可以导致恶意的 TELNET 服务器或网络上的主动攻击者，
+      使 &man.telnet.1; 以运行它的用户的身份执行任意的代码。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>。
+      </para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -203,6 +210,8 @@
 	  在 amd64 系统上能够支持 &windows;/x86-64 的二进制驱动了。
 	  </para>
 
+	<para>&man.re.4; 驱动支持 &man.altq.4; 框架了。</para>
+
 	<para>现在 &man.sf.4; 驱动支持设备混合轮询 (device polling)
 	  和 &man.altq.4; 了。</para>
 
@@ -212,6 +221,9 @@
 	  更多细节， 可以在勘误公告
 	  <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:02.sk.asc">FreeBSD-EN-05:02.sk</ulink>
 	  上找到。</para>
+
+	<para>The &man.sf.4; driver now has support for device polling
+	  and &man.altq.4;.</para>
 
 	<para>现在， &man.sk.4; 驱动支持 &man.altq.4; 了。
 	  同时， 此驱动支持基于 Yukon 的网卡的巨型帧能力了。
@@ -470,6 +482,9 @@
       (韩国国家 Internet 开发局)， 它提供了在韩国境内的 IP
       地址分配的详细资料。</para>
 
+    <para>修正了一个可能导致 &man.hosts.5;、
+      &man.services.5;， 以及其他一些配置文件， 在其最后一行不是空行时被忽略的问题。</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> 脚本</title>
 
@@ -603,7 +618,17 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
   <sect2 id="doc">
     <title>文档</title>
 
-    <para></para>
+    <para>以下联机手册先前的版本中曾包含来自 RFC 的内容，
+      为了避免对 IETF 的侵权， 已经重新编写：
+      &man.gai.strerror.3;,
+      &man.getaddrinfo.3;,
+      &man.getnameinfo.3;,
+      &man.inet6.opt.init.3;,
+      &man.inet6.option.space.3;,
+      &man.inet6.rth.space.3;,
+      &man.inet6.rthdr.space.3;,
+      &man.icmp6.4;, 和
+      &man.ip6.4;。</para>
 
   </sect2>
 </sect1>
@@ -612,9 +637,10 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
   <title>从先前版本的 &os; 升级</title>
 
   <para>使用现有的 &os; 系统的用户
-    <emphasis>强烈</emphasis> 推荐首先阅读 <quote>到 &os; &release.current;
-    的迁移指南</quote>。 这份文档应该可以在光盘或这份发行版本说明所在的地方找到，
-    其文件名为 <filename>EARLY.TXT</filename>。 它提供了一些关于升级的说明，
+    <emphasis>强烈</emphasis> 推荐首先阅读 <quote>到 &os;
+      &release.current; 的迁移指南</quote>。
+    这份文档应该可以在光盘或这份发行版本说明所在的地方找到，
+    其文件名为 <filename>MIGRATE5.TXT</filename>。 它提供了一些关于升级的说明，
     更重要的是， 升级到 &os;
     5.<replaceable>X</replaceable> 和继续运行 &os;
     4.<replaceable>X</replaceable> 的优缺点对比。</para>
