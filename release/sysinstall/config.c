@@ -453,7 +453,7 @@ configLinux(dialogMenuItem *self)
 {
     variable_set2(VAR_LINUX_ENABLE, "YES", 1);
     msgNotify("Installing Linux compatibility library...");
-    return package_add("linux_lib");
+    return package_add("linux_base");
 }
 
 static void
