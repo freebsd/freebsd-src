@@ -302,7 +302,7 @@ rlines(fp, off, sbp)
 	}
 
 	/* Set the file pointer to reflect the length displayed. */
-	if (fseek(fp, 0L, SEEK_END) == -1) {
+	if (fseeko(fp, sbp->st_size, SEEK_SET) == -1) {
 		ierr();
 		return;
 	}
