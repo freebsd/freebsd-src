@@ -172,7 +172,7 @@ struct option long_options[] =
   {"gzip", 0, 0, 'z'},
   {"ungzip", 0, 0, 'z'},
   {"use-compress-program", 1, 0, 18},
-
+    
 
   {"same-permissions", 0, &f_use_protection, 1},
   {"sparse", 0, &f_sparse_files, 1},
