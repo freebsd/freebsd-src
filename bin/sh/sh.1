@@ -46,7 +46,7 @@
 .Op Fl /+abCEefIimnpsTuVvx
 .Op Fl /+o Ar longname
 .Op Fl c Ar string
-.Op Ar arg ...
+.Op Ar arg ...\&
 .Sh DESCRIPTION
 The
 .Nm
@@ -390,7 +390,7 @@ shell and are recognized at the beginning of a line and
 after a control operator.  The following are reserved words:
 .Bl -column "doneXX" "elifXX" "elseXX" "untilXX" "whileX" -offset center
 .It Xo
-.Li ! Ta Xo
+.Li \&! Ta Xo
 .Li { Ta Xo
 .Li } Ta Xo
 .Ic case Ta Xo
@@ -860,7 +860,7 @@ This should appear as the first statement of a function,
 and the syntax is:
 .Bd -ragged -offset indent
 .Ic local
-.Op Ar variable ...
+.Op Ar variable ...\&
 .Op Ar -
 .Ed
 .Pp
@@ -970,7 +970,7 @@ the two arguments:
 .Ed
 .It Li #
 Expands to the number of positional parameters.
-.It Li ?
+.It Li \&?
 Expands to the exit status of the most recent pipeline.
 .It Li -
 (hyphen) Expands to the current option flags (the single-letter
@@ -980,7 +980,7 @@ by the shell.
 .It Li $
 Expands to the process ID of the invoked shell.  A subshell
 retains the same value of $ as its parent.
-.It Li !
+.It Li \&!
 Expands to the process ID of the most recent background
 command executed from the current shell.  For a
 pipeline, the process ID is that of the last command in the
@@ -1224,9 +1224,9 @@ command.
 A pattern consists of normal characters, which match themselves,
 and meta-characters.
 The meta-characters are
-.Dq Li ! ,
+.Dq Li \&! ,
 .Dq Li * ,
-.Dq Li ? ,
+.Dq Li \&? ,
 and
 .Dq Li [ .
 These characters lose their special meanings if they are quoted.
@@ -1239,7 +1239,7 @@ An asterisk
 .Pq Li *
 matches any string of characters.
 A question mark
-.Pq Li ?
+.Pq Li \&?
 matches any single character.
 A left bracket
 .Pq Li [
@@ -1256,14 +1256,14 @@ rather than introducing a character class.
 A character class matches any of the characters between the square brackets.
 A range of characters may be specified using a minus sign.
 The character class may be complemented by making an exclamation point
-.Pq Li !
+.Pq Li !\&
 the first character of the character class.
 .Pp
 To include a
 .Dq Li \&]
 in a character class, make it the first character listed
 (after the
-.Dq Li ! ,
+.Dq Li \&! ,
 if any).
 To include a
 .Dq Li - ,
@@ -1576,7 +1576,7 @@ If an option takes an argument, it is placed into the shell variable
 If an invalid option is encountered,
 .Ev var
 is set to
-.Dq Li ? .
+.Dq Li \&? .
 It returns a false value (1) when it encounters the end of the options.
 .It Xo
 .Ic hash
