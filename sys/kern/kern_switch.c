@@ -151,8 +151,8 @@ retry:
 				    threadqueue, td_runq);
 			}
 			TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
+			kg->kg_runnable--;
 		}
-		kg->kg_runnable--;
 		CTR2(KTR_RUNQ, "choosethread: td=%p pri=%d",
 		    td, td->td_priority);
 	} else {
@@ -245,7 +245,6 @@ remrunqueue(struct thread *td)
 	kg = td->td_ksegrp;
 	ke = td->td_kse;
 	CTR1(KTR_RUNQ, "remrunqueue: td%p", td);
-	kg->kg_runnable--;
 	TD_SET_CAN_RUN(td);
 	/*
 	 * If it is not a threaded process, take the shortcut.
@@ -258,6 +257,7 @@ remrunqueue(struct thread *td)
 	}
    	td3 = TAILQ_PREV(td, threadqueue, td_runq);
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
+	kg->kg_runnable--;
 	if (ke) {
 		/*
 		 * This thread has been assigned to a KSE.
@@ -305,7 +305,6 @@ adjustrunqueue( struct thread *td, int newpri)
 
 	/* It is a threaded process */
 	kg = td->td_ksegrp;
-	kg->kg_runnable--;
 	TD_SET_CAN_RUN(td);
 	if (ke) {
 		if (kg->kg_last_assigned == td) {
@@ -315,6 +314,7 @@ adjustrunqueue( struct thread *td, int newpri)
 		sched_rem(td);
 	}
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
+	kg->kg_runnable--;
 	td->td_priority = newpri;
 	setrunqueue(td);
 }
@@ -334,7 +334,6 @@ setrunqueue(struct thread *td)
 	    ("setrunqueue: bad thread state"));
 	TD_SET_RUNQ(td);
 	kg = td->td_ksegrp;
-	kg->kg_runnable++;
 	if ((td->td_proc->p_flag & P_SA) == 0) {
 		/*
 		 * Common path optimisation: Only one of everything
@@ -385,12 +384,14 @@ setrunqueue(struct thread *td)
 	 */
 	TAILQ_FOREACH(td2, &kg->kg_runq, td_runq) {
 		if (td2->td_priority > td->td_priority) {
+			kg->kg_runnable++;
 			TAILQ_INSERT_BEFORE(td2, td, td_runq);
 			break;
 		}
 	}
 	if (td2 == NULL) {
 		/* We ran off the end of the TAILQ or it was empty. */
+		kg->kg_runnable++;
 		TAILQ_INSERT_TAIL(&kg->kg_runq, td, td_runq);
 	}
 
