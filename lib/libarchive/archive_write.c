@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/wait.h>
 #include <limits.h>
-#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
