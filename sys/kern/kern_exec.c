@@ -76,7 +76,7 @@ static u_long usrstack = USRSTACK;
 SYSCTL_ULONG(_kern, KERN_USRSTACK, usrstack, CTLFLAG_RD, &usrstack, 0, "");
 
 u_long ps_arg_cache_limit = PAGE_SIZE / 16;
-SYSCTL_LONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
+SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
     &ps_arg_cache_limit, 0, "");
 
 int ps_argsopen = 1;
