@@ -760,7 +760,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
   bad:
 	m_freem(m);
-	return(error);
+	return (error);
 }
 
 struct pr_usrreqs udp6_usrreqs = {

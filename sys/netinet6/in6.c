@@ -338,10 +338,10 @@ in6_mask2len(mask, lim0)
 	 */
 	if (p < lim) {
 		if (y != 0 && (*p & (0x00ff >> y)) != 0)
-			return(-1);
+			return (-1);
 		for (p = p + 1; p < lim; p++)
 			if (*p != 0)
-				return(-1);
+				return (-1);
 	}
 	
 	return x * 8 + y;
@@ -388,7 +388,7 @@ in6_control(so, cmd, data, ifp, td)
 	}
 
 	if (ifp == NULL)
-		return(EOPNOTSUPP);
+		return (EOPNOTSUPP);
 
 	switch (cmd) {
 	case SIOCSNDFLUSH_IN6:
@@ -397,7 +397,7 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCSDEFIFACE_IN6:
 	case SIOCSIFINFO_FLAGS:
 		if (!privileged)
-			return(EPERM);
+			return (EPERM);
 		/* fall through */
 	case OSIOCGIFINFO_IN6:
 	case SIOCGIFINFO_IN6:
@@ -405,7 +405,7 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCGPRLST_IN6:
 	case SIOCGNBRINFO_IN6:
 	case SIOCGDEFIFACE_IN6:
-		return(nd6_ioctl(cmd, data, ifp));
+		return (nd6_ioctl(cmd, data, ifp));
 	}
 
 	switch (cmd) {
@@ -418,20 +418,20 @@ in6_control(so, cmd, data, ifp, td)
 		log(LOG_NOTICE,
 		    "prefix ioctls are now invalidated. "
 		    "please use ifconfig.\n");
-		return(EOPNOTSUPP);
+		return (EOPNOTSUPP);
 	}
 
 	switch (cmd) {
 	case SIOCSSCOPE6:
 		if (!privileged)
-			return(EPERM);
-		return(scope6_set(ifp, ifr->ifr_ifru.ifru_scope_id));
+			return (EPERM);
+		return (scope6_set(ifp, ifr->ifr_ifru.ifru_scope_id));
 		break;
 	case SIOCGSCOPE6:
-		return(scope6_get(ifp, ifr->ifr_ifru.ifru_scope_id));
+		return (scope6_get(ifp, ifr->ifr_ifru.ifru_scope_id));
 		break;
 	case SIOCGSCOPE6DEF:
-		return(scope6_get_default(ifr->ifr_ifru.ifru_scope_id));
+		return (scope6_get_default(ifr->ifr_ifru.ifru_scope_id));
 		break;
 	}
 
@@ -439,7 +439,7 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCALIFADDR:
 	case SIOCDLIFADDR:
 		if (!privileged)
-			return(EPERM);
+			return (EPERM);
 		/* fall through */
 	case SIOCGLIFADDR:
 		return in6_lifaddr_ioctl(so, cmd, data, ifp, td);
@@ -459,12 +459,12 @@ in6_control(so, cmd, data, ifp, td)
 					htons(ifp->if_index);
 			} else if (sa6->sin6_addr.s6_addr16[1] !=
 				    htons(ifp->if_index)) {
-				return(EINVAL);	/* link ID contradicts */
+				return (EINVAL);	/* link ID contradicts */
 			}
 			if (sa6->sin6_scope_id) {
 				if (sa6->sin6_scope_id !=
 				    (u_int32_t)ifp->if_index)
-					return(EINVAL);
+					return (EINVAL);
 				sa6->sin6_scope_id = 0; /* XXX: good way? */
 			}
 		}
@@ -481,7 +481,7 @@ in6_control(so, cmd, data, ifp, td)
 		 * and should be unused.
 		 */
 		/* we decided to obsolete this command (20000704) */
-		return(EINVAL);
+		return (EINVAL);
 
 	case SIOCDIFADDR_IN6:
 		/*
@@ -492,7 +492,7 @@ in6_control(so, cmd, data, ifp, td)
 		 * semantics to be not preferable.
 		 */
 		if (ia == NULL)
-			return(EADDRNOTAVAIL);
+			return (EADDRNOTAVAIL);
 		/* FALLTHROUGH */
 	case SIOCAIFADDR_IN6:
 		/*
@@ -501,9 +501,9 @@ in6_control(so, cmd, data, ifp, td)
 		 */
 		if (ifra->ifra_addr.sin6_family != AF_INET6 ||
 		    ifra->ifra_addr.sin6_len != sizeof(struct sockaddr_in6))
-			return(EAFNOSUPPORT);
+			return (EAFNOSUPPORT);
 		if (!privileged)
-			return(EPERM);
+			return (EPERM);
 
 		break;
 
@@ -516,16 +516,16 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCGIFALIFETIME_IN6:
 		/* must think again about its semantics */
 		if (ia == NULL)
-			return(EADDRNOTAVAIL);
+			return (EADDRNOTAVAIL);
 		break;
 	case SIOCSIFALIFETIME_IN6:
 	    {
 		struct in6_addrlifetime *lt;
 
 		if (!privileged)
-			return(EPERM);
+			return (EPERM);
 		if (ia == NULL)
-			return(EADDRNOTAVAIL);
+			return (EADDRNOTAVAIL);
 		/* sanity for overflow - beware unsigned */
 		lt = &ifr->ifr_ifru.ifru_lifetime;
 		if (lt->ia6t_vltime != ND6_INFINITE_LIFETIME
@@ -548,7 +548,7 @@ in6_control(so, cmd, data, ifp, td)
 
 	case SIOCGIFDSTADDR_IN6:
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
-			return(EINVAL);
+			return (EINVAL);
 		/*
 		 * XXX: should we check if ifa_dstaddr is NULL and return
 		 * an error?
@@ -618,7 +618,7 @@ in6_control(so, cmd, data, ifp, td)
 		 * and link it to the list.
 		 */
 		if ((error = in6_update_ifa(ifp, ifra, ia)) != 0)
-			return(error);
+			return (error);
 
 		/*
 		 * then, make the prefix on-link on the interface.
@@ -664,11 +664,11 @@ in6_control(so, cmd, data, ifp, td)
 			 * interface route.
 			 */
 			if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0)
-				return(error);
+				return (error);
 			if (pr == NULL) {
 				log(LOG_ERR, "nd6_prelist_add succedded but "
 				    "no prefix\n");
-				return(EINVAL); /* XXX panic here? */
+				return (EINVAL); /* XXX panic here? */
 			}
 		}
 		if ((ia = in6ifa_ifpwithaddr(ifp, &ifra->ifra_addr.sin6_addr))
@@ -759,11 +759,11 @@ in6_control(so, cmd, data, ifp, td)
 
 	default:
 		if (ifp == NULL || ifp->if_ioctl == 0)
-			return(EOPNOTSUPP);
-		return((*ifp->if_ioctl)(ifp, cmd, data));
+			return (EOPNOTSUPP);
+		return ((*ifp->if_ioctl)(ifp, cmd, data));
 	}
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -785,7 +785,7 @@ in6_update_ifa(ifp, ifra, ia)
 
 	/* Validate parameters */
 	if (ifp == NULL || ifra == NULL) /* this maybe redundant */
-		return(EINVAL);
+		return (EINVAL);
 
 	/*
 	 * The destination address for a p2p link must have a family
@@ -794,13 +794,13 @@ in6_update_ifa(ifp, ifra, ia)
 	if ((ifp->if_flags & IFF_POINTOPOINT) != 0 &&
 	    ifra->ifra_dstaddr.sin6_family != AF_INET6 &&
 	    ifra->ifra_dstaddr.sin6_family != AF_UNSPEC)
-		return(EAFNOSUPPORT);
+		return (EAFNOSUPPORT);
 	/*
 	 * validate ifra_prefixmask.  don't check sin6_family, netmask
 	 * does not carry fields other than sin6_len.
 	 */
 	if (ifra->ifra_prefixmask.sin6_len > sizeof(struct sockaddr_in6))
-		return(EINVAL);
+		return (EINVAL);
 	/*
 	 * Because the IPv6 address architecture is classless, we require
 	 * users to specify a (non 0) prefix length (mask) for a new address.
@@ -808,13 +808,13 @@ in6_update_ifa(ifp, ifra, ia)
 	 * reject a non-consecutive mask.
 	 */
 	if (ia == NULL && ifra->ifra_prefixmask.sin6_len == 0)
-		return(EINVAL);
+		return (EINVAL);
 	if (ifra->ifra_prefixmask.sin6_len != 0) {
 		plen = in6_mask2len(&ifra->ifra_prefixmask.sin6_addr,
 				    (u_char *)&ifra->ifra_prefixmask +
 				    ifra->ifra_prefixmask.sin6_len);
 		if (plen <= 0)
-			return(EINVAL);
+			return (EINVAL);
 	}
 	else {
 		/*
@@ -837,17 +837,17 @@ in6_update_ifa(ifp, ifra, ia)
 		if ((error = in6_recoverscope(&dst6,
 					      &ifra->ifra_dstaddr.sin6_addr,
 					      ifp)) != 0)
-			return(error);
+			return (error);
 #endif
 		scopeid = in6_addr2scopeid(ifp, &dst6.sin6_addr);
 		if (dst6.sin6_scope_id == 0) /* user omit to specify the ID. */
 			dst6.sin6_scope_id = scopeid;
 		else if (dst6.sin6_scope_id != scopeid)
-			return(EINVAL); /* scope ID mismatch. */
+			return (EINVAL); /* scope ID mismatch. */
 #ifndef SCOPEDROUTING
 		if ((error = in6_embedscope(&dst6.sin6_addr, &dst6, NULL, NULL))
 		    != 0)
-			return(error);
+			return (error);
 		dst6.sin6_scope_id = 0; /* XXX */
 #endif
 	}
@@ -861,7 +861,7 @@ in6_update_ifa(ifp, ifra, ia)
 			/* XXX: noisy message */
 			log(LOG_INFO, "in6_update_ifa: a destination can be "
 			    "specified for a p2p or a loopback IF only\n");
-			return(EINVAL);
+			return (EINVAL);
 		}
 		if (plen != 128) {
 			/*
@@ -870,7 +870,7 @@ in6_update_ifa(ifp, ifra, ia)
 			 */
 			log(LOG_INFO, "in6_update_ifa: prefixlen must be 128 "
 			    "when dstaddr is specified\n");
-			return(EINVAL);
+			return (EINVAL);
 		}
 	}
 	/* lifetime consistency check */
@@ -998,7 +998,7 @@ in6_update_ifa(ifp, ifra, ia)
 		iilen = (sizeof(ia->ia_prefixmask.sin6_addr) << 3) - plen;
 		if ((error = in6_prefix_add_ifid(iilen, ia)) != 0) {
 			in6_purgeaddr((struct ifaddr *)ia);
-			return(error);
+			return (error);
 		}
 	}
 #endif
@@ -1028,7 +1028,7 @@ in6_update_ifa(ifp, ifra, ia)
 				    ip6_sprintf(&llsol), if_name(ifp),
 				    error);
 				in6_purgeaddr((struct ifaddr *)ia);
-				return(error);
+				return (error);
 			}
 		}
 
@@ -1154,7 +1154,7 @@ in6_update_ifa(ifp, ifra, ia)
 		nd6_dad_start((struct ifaddr *)ia, NULL);
 	}
 
-	return(error);
+	return (error);
 
   unlink:
 	/*
@@ -1163,7 +1163,7 @@ in6_update_ifa(ifp, ifra, ia)
 	 */
 	if (hostIsNew)
 		in6_unlink_ifa(ia, ifp);
-	return(error);
+	return (error);
 }
 
 void
@@ -1605,7 +1605,7 @@ in6_ifinit(ifp, ia, sin6, newhost)
 	if (ifacount <= 1 && ifp->if_ioctl &&
 	    (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia))) {
 		splx(s);
-		return(error);
+		return (error);
 	}
 	splx(s);
 
@@ -1623,7 +1623,7 @@ in6_ifinit(ifp, ia, sin6, newhost)
 	if (plen == 128 && ia->ia_dstaddr.sin6_family == AF_INET6) {
 		if ((error = rtinit(&(ia->ia_ifa), (int)RTM_ADD,
 				    RTF_UP | RTF_HOST)) != 0)
-			return(error);
+			return (error);
 		ia->ia_flags |= IFA_ROUTE;
 	}
 	if (plen < 128) {
@@ -1640,7 +1640,7 @@ in6_ifinit(ifp, ia, sin6, newhost)
 		in6_ifaddloop(&(ia->ia_ifa));
 	}
 
-	return(error);
+	return (error);
 }
 
 /*
@@ -1703,7 +1703,7 @@ in6_addmulti(maddr6, ifp, errorp)
 	 */
 	mld6_start_listening(in6m);
 	splx(s);
-	return(in6m);
+	return (in6m);
 }
 
 /*
@@ -1755,7 +1755,7 @@ in6ifa_ifpforlinklocal(ifp, ignoreflags)
 		}
 	}
 
-	return((struct in6_ifaddr *)ifa);
+	return ((struct in6_ifaddr *)ifa);
 }
 
 
@@ -1779,7 +1779,7 @@ in6ifa_ifpwithaddr(ifp, addr)
 			break;
 	}
 
-	return((struct in6_ifaddr *)ifa);
+	return ((struct in6_ifaddr *)ifa);
 }
 
 /*
@@ -1833,7 +1833,7 @@ ip6_sprintf(addr)
 		a++;
 	}
 	*--cp = 0;
-	return(ip6buf[ip6round]);
+	return (ip6buf[ip6round]);
 }
 
 int
@@ -1866,12 +1866,12 @@ in6_is_addr_deprecated(sa6)
 		    ia->ia_addr.sin6_scope_id == sa6->sin6_scope_id &&
 #endif
 		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0)
-			return(1); /* true */
+			return (1); /* true */
 
 		/* XXX: do we still have to go thru the rest of the list? */
 	}
 
-	return(0);		/* false */
+	return (0);		/* false */
 }
 
 /*
@@ -1910,19 +1910,19 @@ in6_are_prefix_equal(p1, p2, len)
 	if (0 > len || len > 128) {
 		log(LOG_ERR, "in6_are_prefix_equal: invalid prefix length(%d)\n",
 		    len);
-		return(0);
+		return (0);
 	}
 
 	bytelen = len / 8;
 	bitlen = len % 8;
 
 	if (bcmp(&p1->s6_addr, &p2->s6_addr, bytelen))
-		return(0);
+		return (0);
 	if (p1->s6_addr[bytelen] >> (8 - bitlen) !=
 	    p2->s6_addr[bytelen] >> (8 - bitlen))
-		return(0);
+		return (0);
 
-	return(1);
+	return (1);
 }
 
 void
@@ -1967,7 +1967,7 @@ in6_ifawithscope(oifp, dst)
 #if 0
 		printf("in6_ifawithscope: output interface is not specified\n");
 #endif
-		return(NULL);
+		return (NULL);
 	}
 
 	/*
@@ -2227,7 +2227,7 @@ in6_ifawithscope(oifp, dst)
 			ip6stat.ip6s_sources_deprecated[best_scope]++;
 	}
 
-	return(ifa_best);
+	return (ifa_best);
 }
 
 /*
@@ -2285,7 +2285,7 @@ in6_ifawithifp(ifp, dst)
 		}
 	}
 	if (besta)
-		return(besta);
+		return (besta);
 
 	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
@@ -2347,7 +2347,7 @@ in6if_do_dad(ifp)
 	struct ifnet *ifp;
 {
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0)
-		return(0);
+		return (0);
 
 	switch (ifp->if_type) {
 #ifdef IFT_DUMMY
@@ -2360,7 +2360,7 @@ in6if_do_dad(ifp)
 		 * interfaces.  We should even omit it, because loop-backed
 		 * NS would confuse the DAD procedure.
 		 */
-		return(0);
+		return (0);
 	default:
 		/*
 		 * Our DAD routine requires the interface up and running.
@@ -2373,9 +2373,9 @@ in6if_do_dad(ifp)
 		 */
 		if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) !=
 		    (IFF_UP|IFF_RUNNING))
-			return(0);
+			return (0);
 
-		return(1);
+		return (1);
 	}
 }
 

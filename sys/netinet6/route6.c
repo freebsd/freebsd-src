@@ -111,7 +111,7 @@ route6_input(mp, offp, proto)
 		}
 #endif
 		if (ip6_rthdr0(m, ip6, (struct ip6_rthdr0 *)rh))
-			return(IPPROTO_DONE);
+			return (IPPROTO_DONE);
 		break;
 	default:
 		/* unknown routing type */
@@ -122,11 +122,11 @@ route6_input(mp, offp, proto)
 		ip6stat.ip6s_badoptions++;
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    (caddr_t)&rh->ip6r_type - (caddr_t)ip6);
-		return(IPPROTO_DONE);
+		return (IPPROTO_DONE);
 	}
 
 	*offp += rhlen;
-	return(rh->ip6r_nxt);
+	return (rh->ip6r_nxt);
 }
 
 /*
@@ -145,7 +145,7 @@ ip6_rthdr0(m, ip6, rh0)
 	struct in6_addr *nextaddr, tmpaddr;
 
 	if (rh0->ip6r0_segleft == 0)
-		return(0);
+		return (0);
 
 	if (rh0->ip6r0_len % 2
 #ifdef COMPAT_RFC1883
@@ -160,14 +160,14 @@ ip6_rthdr0(m, ip6, rh0)
 		ip6stat.ip6s_badoptions++;
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    (caddr_t)&rh0->ip6r0_len - (caddr_t)ip6);
-		return(-1);
+		return (-1);
 	}
 
 	if ((addrs = rh0->ip6r0_len / 2) < rh0->ip6r0_segleft) {
 		ip6stat.ip6s_badoptions++;
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    (caddr_t)&rh0->ip6r0_segleft - (caddr_t)ip6);
-		return(-1);
+		return (-1);
 	}
 
 	index = addrs - rh0->ip6r0_segleft;
@@ -186,7 +186,7 @@ ip6_rthdr0(m, ip6, rh0)
 	    IN6_IS_ADDR_V4COMPAT(nextaddr)) {
 		ip6stat.ip6s_badoptions++;
 		m_freem(m);
-		return(-1);
+		return (-1);
 	}
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst) ||
@@ -194,7 +194,7 @@ ip6_rthdr0(m, ip6, rh0)
 	    IN6_IS_ADDR_V4COMPAT(&ip6->ip6_dst)) {
 		ip6stat.ip6s_badoptions++;
 		m_freem(m);
-		return(-1);
+		return (-1);
 	}
 
 	/*
@@ -217,5 +217,5 @@ ip6_rthdr0(m, ip6, rh0)
 	ip6_forward(m, 1);
 #endif
 
-	return(-1);			/* m would be freed in ip6_forward() */
+	return (-1);			/* m would be freed in ip6_forward() */
 }
