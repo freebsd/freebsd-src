@@ -584,6 +584,11 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	device_printf(dev, "OHCI version %x.%x (ROM=%d)\n",
 			(reg>>16) & 0xff, reg & 0xff, (reg>>24) & 1);
 
+	if (((reg>>16) & 0xff) < 1) {
+		device_printf(dev, "invalid OHCI version\n");
+		return (ENXIO);
+	}
+
 /* Available Isochrounous DMA channel probe */
 	OWRITE(sc, OHCI_IT_MASK, 0xffffffff);
 	OWRITE(sc, OHCI_IR_MASK, 0xffffffff);
@@ -1690,7 +1695,8 @@ fwohci_stop(struct fwohci_softc *sc, device_t dev)
 			| OHCI_INT_DMA_ARRQ | OHCI_INT_DMA_ARRS 
 			| OHCI_INT_PHY_BUS_R);
 
-	fw_drain_txq(&sc->fc);
+	if (sc->fc.arq !=0 && sc->fc.arq->maxq > 0)
+		fw_drain_txq(&sc->fc);
 
 /* XXX Link down?  Bus reset? */
 	return 0;
