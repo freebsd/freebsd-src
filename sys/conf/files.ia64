@@ -80,6 +80,9 @@ ia64/acpica/OsdEnvironment.c	optional	acpi
 ia64/acpica/acpi_machdep.c	optional	acpi
 ia64/acpica/acpi_wakeup.c	optional	acpi
 ia64/acpica/madt.c		optional	acpi
+ia64/disasm/disasm_decode.c	standard
+ia64/disasm/disasm_extract.c	standard
+ia64/disasm/disasm_format.c	standard
 ia64/ia32/ia32_misc.c		optional	ia32
 ia64/ia32/ia32_sysent.c		optional	ia32
 ia64/ia32/ia32_sysvec.c		optional	ia32
