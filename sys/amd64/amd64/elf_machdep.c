@@ -119,9 +119,18 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	case ELF_RELOC_REL:
 		rel = (const Elf_Rel *)data;
 		where = (Elf_Addr *) (relocbase + rel->r_offset);
-		addend = *where;
 		rtype = ELF_R_TYPE(rel->r_info);
 		symidx = ELF_R_SYM(rel->r_info);
+		/* Addend is 32 bit on 32 bit relocs */
+		switch (rtype) {
+		case R_X86_64_PC32:
+		case R_X86_64_32S:
+			addend = *(Elf32_Addr *)where;
+			break;
+		default:
+			addend = *where;
+			break;
+		}
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
@@ -135,7 +144,6 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	}
 
 	switch (rtype) {
-
 
 		case R_X86_64_NONE:	/* none */
 			break;
