@@ -321,8 +321,6 @@ cpu_mp_unleash(void *v)
 		while (csa->csa_state != CPU_BOOTSTRAP)
 			;
 		intr_restore(s);
-
-		cpu_ipi_send(pc->pc_mid, 0, (u_long)tl_ipi_test, 0);
 	}
 
 	membar(StoreLoad);
