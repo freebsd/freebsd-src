@@ -122,7 +122,7 @@ struct _jmp_buf;
 
 int	setjmp(struct _jmp_buf *);
 void	longjmp(struct _jmp_buf *, int) __dead2;
-void	Debugger(const char *msg);
+void	Debugger(const char *msg) __nonnull(1);
 int	dumpstatus(vm_offset_t addr, off_t count);
 int	nullop(void);
 int	eopnotsupp(void);
@@ -162,26 +162,26 @@ int	vsnprintf(char *, size_t, const char *, __va_list) __printflike(3, 0);
 int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0); 
 int	vsprintf(char *buf, const char *, __va_list) __printflike(2, 0);
 int	ttyprintf(struct tty *, const char *, ...) __printflike(2, 3);
-int	sscanf(const char *, char const *, ...);
-int	vsscanf(const char *, char const *, __va_list);
-long	strtol(const char *, char **, int);
-u_long	strtoul(const char *, char **, int);
-quad_t	strtoq(const char *, char **, int);
-u_quad_t strtouq(const char *, char **, int);
+int	sscanf(const char *, char const *, ...) __nonnull(1) __nonnull(2);
+int	vsscanf(const char *, char const *, __va_list) __nonnull(1) __nonnull(2);
+long	strtol(const char *, char **, int) __nonnull(1) __nonnull(2);
+u_long	strtoul(const char *, char **, int) __nonnull(1), __nonnull(2);
+quad_t	strtoq(const char *, char **, int) __nonnull(1);
+u_quad_t strtouq(const char *, char **, int) __nonnull(1);
 void	tprintf(struct proc *p, int pri, const char *, ...) __printflike(3, 4);
 
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
-void	bcopy(const void *from, void *to, size_t len);
-void	bzero(void *buf, size_t len);
+void	bcopy(const void *from, void *to, size_t len) __nonnull(1) __nonnull(2);
+void	bzero(void *buf, size_t len) __nonnull(1);
 
-void	*memcpy(void *to, const void *from, size_t len);
+void	*memcpy(void *to, const void *from, size_t len) __nonnull(1) __nonnull(2);
 
 int	copystr(const void *kfaddr, void *kdaddr, size_t len,
-	    size_t *lencopied);
+	    size_t *lencopied) __nonnull(1) __nonnull(2);
 int	copyinstr(const void *udaddr, void *kaddr, size_t len,
-	    size_t *lencopied);
-int	copyin(const void *udaddr, void *kaddr, size_t len);
-int	copyout(const void *kaddr, void *udaddr, size_t len);
+	    size_t *lencopied) __nonnull(1) __nonnull(2);
+int	copyin(const void *udaddr, void *kaddr, size_t len) __nonnull(1) __nonnull(2);
+int	copyout(const void *kaddr, void *udaddr, size_t len) __nonnull(1) __nonnull(2);
 
 int	fubyte(const void *base);
 long	fuword(const void *base);
@@ -299,8 +299,8 @@ int	msleep(void *chan, struct mtx *mtx, int pri, const char *wmesg,
 	    int timo);
 void	abortsleep(struct thread *td);
 #define	tsleep(chan, pri, wmesg, timo)	msleep(chan, NULL, pri, wmesg, timo)
-void	wakeup(void *chan);
-void	wakeup_one(void *chan);
+void	wakeup(void *chan) __nonnull(1);
+void	wakeup_one(void *chan) __nonnull(1);
 
 /*
  * Common `dev_t' stuff are declared here to avoid #include poisoning
