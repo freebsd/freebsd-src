@@ -29,5 +29,6 @@ SHLIB_NAME=	pam_tacplus.so
 SRCS=		pam_tacplus.c
 DPADD=		${LIBTACPLUS}
 LDADD=		-ltacplus
+MAN=		pam_tacplus.8
 
 .include <bsd.lib.mk>

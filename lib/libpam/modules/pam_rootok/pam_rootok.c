@@ -26,73 +26,39 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <pwd.h>
-#include <ttyent.h>
-#include <string.h>
+#define _BSD_SOURCE
+
+#include <unistd.h>
+#include <syslog.h>
 
 #define PAM_SM_AUTH
+
 #include <security/pam_modules.h>
 #include <pam_mod_misc.h>
 
-#define TTY_PREFIX	"/dev/"
-
-PAM_EXTERN int 
-pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
+PAM_EXTERN int
+pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
-	struct ttyent *ttyfileinfo;
-	struct passwd *user_pwd;
-	int retval;
-	const char *user, *ttyname;
+	uid_t uid;
 
 	pam_std_option(&options, NULL, argc, argv);
 
 	PAM_LOG("Options processed");
 
-	retval = pam_get_user(pamh, &user, NULL);
-	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
-
-	PAM_LOG("Got user: %s", user);
-
-	retval = pam_get_item(pamh, PAM_TTY, (const void **)&ttyname);
-	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
-
-	PAM_LOG("Got TTY: %s", ttyname);
-
-	/* Ignore any "/dev/" on the PAM_TTY item */
-	if (strncmp(TTY_PREFIX, ttyname, sizeof(TTY_PREFIX) - 1) == 0)
-		ttyname += sizeof(TTY_PREFIX) - 1;
-
-	/* If the user is not root, secure ttys do not apply */
-	user_pwd = getpwnam(user);
-	if (user_pwd == NULL)
-		PAM_RETURN(PAM_IGNORE);
-	else if (user_pwd->pw_uid != 0)
+	uid = getuid();
+	if (uid == 0)
 		PAM_RETURN(PAM_SUCCESS);
 
 	PAM_LOG("User is not root");
 
-	ttyfileinfo = getttynam(ttyname);
-	if (ttyfileinfo == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
-
-	PAM_LOG("Got ttyfileinfo");
-
-	if (ttyfileinfo->ty_status & TTY_SECURE)
-		PAM_RETURN(PAM_SUCCESS);
-	else
-		PAM_RETURN(PAM_PERM_DENIED);
+	PAM_RETURN(PAM_AUTH_ERR);
 }
 
-PAM_EXTERN
-int 
-pam_sm_setcred(pam_handle_t * pamh, int flags, int argc, const char **argv)
+PAM_EXTERN int
+pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	return PAM_SUCCESS;
 }
 
-PAM_MODULE_ENTRY("pam_securetty");
+PAM_MODULE_ENTRY("pam_rootok");

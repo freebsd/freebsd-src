@@ -29,5 +29,6 @@ SHLIB_NAME=	pam_unix.so
 SRCS=		pam_unix.c
 DPADD=		${LIBUTIL} ${LIBCRYPT}
 LDADD=		-lutil -lcrypt
+MAN=		pam_unix.8
 
 .include <bsd.lib.mk>

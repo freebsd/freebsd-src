@@ -42,64 +42,96 @@
 #include "pam_mod_misc.h"
 
 #define PASSWORD_PROMPT	"Password:"
+#define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
+
+enum { PAM_OPT_AUTH_AS_SELF=PAM_OPT_STD_MAX, PAM_OPT_NULLOK };
+
+static struct opttab other_options[] = {
+	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
+	{ "nullok",		PAM_OPT_NULLOK },
+	{ NULL, 0 }
+};
 
 /*
  * authentication management
  */
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
-    const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	int retval;
-	const char *user;
-	const char *password;
+	struct options options;
 	struct passwd *pwd;
+	int retval;
+	const char *password, *user;
 	char *encrypted;
-	int options;
-	int i;
 
-	options = 0;
-	for (i = 0;  i < argc;  i++)
-		pam_std_option(&options, argv[i]);
-	if (options & PAM_OPT_AUTH_AS_SELF)
+	pam_std_option(&options, other_options, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL))
 		pwd = getpwuid(getuid());
 	else {
-		if ((retval = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
-			return retval;
+		retval = pam_get_user(pamh, &user, NULL);
+		if (retval != PAM_SUCCESS)
+			PAM_RETURN(retval);
 		pwd = getpwnam(user);
 	}
+
+	PAM_LOG("Got user: %s", user);
+
 	if (pwd != NULL) {
-		if (pwd->pw_passwd[0] == '\0' && (options & PAM_OPT_NULLOK))
+
+		PAM_LOG("Doing real authentication");
+
+		if (pwd->pw_passwd[0] == '\0'
+		    && pam_test_option(&options, PAM_OPT_NULLOK, NULL)) {
 			/*
 			 * No password case. XXX Are we giving too much away
 			 * by not prompting for a password?
 			 */
-			return PAM_SUCCESS;
+			PAM_LOG("No password, and null password OK");
+			PAM_RETURN(PAM_SUCCESS);
+		}
 		else {
-			if ((retval = pam_get_pass(pamh, &password,
-			    PASSWORD_PROMPT, options)) != PAM_SUCCESS)
-				return retval;
+			retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT,
+			    &options);
+			if (retval != PAM_SUCCESS)
+				PAM_RETURN(retval);
+			PAM_LOG("Got password");
 		}
 		encrypted = crypt(password, pwd->pw_passwd);
 		if (password[0] == '\0' && pwd->pw_passwd[0] != '\0')
 			encrypted = ":";
 
+		PAM_LOG("Encrypted passwords are: %s & %s", encrypted,
+		    pwd->pw_passwd);
+
 		retval = strcmp(encrypted, pwd->pw_passwd) == 0 ?
 		    PAM_SUCCESS : PAM_AUTH_ERR;
-	} else {
+	}
+	else {
+
+		PAM_LOG("Doing dummy authentication");
+
 		/*
-		 * User unknown.  Encrypt anyway so that it takes the
-		 * same amount of time.
+		 * User unknown.
+		 * Encrypt a dummy password so as to not give away too much.
 		 */
+		retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT,
+		    &options);
+		if (retval != PAM_SUCCESS)
+			PAM_RETURN(retval);
+		PAM_LOG("Got password");
 		crypt(password, "xx");
 		retval = PAM_AUTH_ERR;
 	}
+
 	/*
 	 * The PAM infrastructure will obliterate the cleartext
 	 * password before returning to the application.
 	 */
-	return retval;
+	PAM_RETURN(retval);
 }
 
 PAM_EXTERN int
@@ -114,24 +146,31 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
  * check pw_change and pw_expire fields
  */
 PAM_EXTERN
-int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
-		     int argc, const char **argv)
+int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	const char *user;
+	struct options options;
 	struct passwd *pw;
 	struct timeval tp;
+	login_cap_t *lc;
 	time_t warntime;
-	login_cap_t *lc = NULL;
-	char buf[128];
 	int retval;
+	const char *user;
+	char buf[128];
+
+	pam_std_option(&options, other_options, argc, argv);
+
+	PAM_LOG("Options processed");
 
 	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
 	if (retval != PAM_SUCCESS || user == NULL)
 		/* some implementations return PAM_SUCCESS here */
-		return PAM_USER_UNKNOWN;
+		PAM_RETURN(PAM_USER_UNKNOWN);
 
-	if ((pw = getpwnam(user)) == NULL)
-		return PAM_USER_UNKNOWN;
+	pw = getpwnam(user);
+	if (pw == NULL)
+		PAM_RETURN(PAM_USER_UNKNOWN);
+
+	PAM_LOG("Got user: %s", user);
 
 	retval = PAM_SUCCESS;
 	lc = login_getpwclass(pw);
@@ -139,10 +178,10 @@ int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
 	if (pw->pw_change || pw->pw_expire)
 		gettimeofday(&tp, NULL);
 
-#define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
-
 	warntime = login_getcaptime(lc, "warnpassword", DEFAULT_WARN,
 	    DEFAULT_WARN);
+
+	PAM_LOG("Got login_cap");
 
 	if (pw->pw_change) {
 		if (tp.tv_sec >= pw->pw_change)
@@ -171,7 +210,8 @@ int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
 	}
 
 	login_close(lc);
-	return retval;
+
+	PAM_RETURN(retval);
 }
 
 PAM_MODULE_ENTRY("pam_unix");

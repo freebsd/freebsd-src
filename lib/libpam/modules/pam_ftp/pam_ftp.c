@@ -26,11 +26,8 @@
  * $FreeBSD$
  */
 
-#define PLEASE_ENTER_PASSWORD "Password required for %s."
-#define GUEST_LOGIN_PROMPT "Guest login ok, send your e-mail address as password."
-
-/* the following is a password that "can't be correct" */
-#define BLOCK_PASSWORD "\177BAD PASSWPRD\177"
+#define	PROMPT		"OINK Password required for %s."
+#define	GUEST_PROMPT	"TWEET Guest login ok, send your e-mail address as password."
 
 #include <security/_pam_aconf.h>
 
@@ -41,20 +38,23 @@
 #include <stdarg.h>
 #include <string.h>
 
-/* here, we make a definition for the externally accessible function in this
- * file (this definition is required for static a module but strongly
- * encouraged generally) it is used to instruct the modules include file to
- * define the function prototypes. */
-
 #define PAM_SM_AUTH
 #include <security/pam_modules.h>
 #include <pam_mod_misc.h>
 
 #include <security/_pam_macros.h>
 
+enum { PAM_OPT_NO_ANON=PAM_OPT_STD_MAX, PAM_OPT_IGNORE };
+
+static struct opttab other_options[] = {
+	{ "no_anon",	PAM_OPT_NO_ANON },
+	{ "ignore",	PAM_OPT_IGNORE },
+	{ NULL, 0 }
+};
+
 static int 
 converse(pam_handle_t *pamh, int nargs, struct pam_message **message,
-	struct pam_response **response)
+    struct pam_response **response)
 {
 	struct pam_conv *conv;
 	int retval;
@@ -103,8 +103,6 @@ lookup(const char *name, char *list, const char **user)
 	return anon;
 }
 
-/* --- authentication management functions (only) --- */
-
 /* Check if the user name is 'ftp' or 'anonymous'.
  * If this is the case, set the PAM_RUSER to the entered email address
  * and succeed, otherwise fail.
@@ -112,46 +110,51 @@ lookup(const char *name, char *list, const char **user)
 PAM_EXTERN int 
 pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 {
+	struct options options;
 	struct pam_message msg[1], *mesg[1];
 	struct pam_response *resp;
-	int retval, anon, options, i;
-	const char *user, *token;
+	int retval, anon;
 	char *users, *context, *prompt;
+	const char *user, *token;
 
 	users = prompt = NULL;
 
-	options = 0;
-	for (i = 0;  i < argc;  i++)
-		pam_std_option(&options, argv[i]);
+	pam_std_option(&options, other_options, argc, argv);
+
+	PAM_LOG("Options processed");
 
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS || user == NULL)
-		return PAM_USER_UNKNOWN;
+		PAM_RETURN(PAM_USER_UNKNOWN);
 
 	anon = 0;
-	if (!(options & PAM_OPT_NO_ANON))
+	if (!pam_test_option(&options, PAM_OPT_NO_ANON, NULL))
 		anon = lookup(user, users, &user);
 
 	if (anon) {
 		retval = pam_set_item(pamh, PAM_USER, (const void *)user);
 		if (retval != PAM_SUCCESS || user == NULL)
-			return PAM_USER_UNKNOWN;
+			PAM_RETURN(PAM_USER_UNKNOWN);
 	}
+
+	PAM_LOG("Got user: %s", user);
 
 	/* Require an email address for user's password. */
 	if (!anon) {
-		prompt = malloc(strlen(PLEASE_ENTER_PASSWORD) + strlen(user));
+		prompt = malloc(strlen(PROMPT) + strlen(user));
 		if (prompt == NULL)
-			return PAM_BUF_ERR;
+			PAM_RETURN(PAM_BUF_ERR);
 		else {
-			sprintf(prompt, PLEASE_ENTER_PASSWORD, user);
+			sprintf(prompt, PROMPT, user);
 			msg[0].msg = prompt;
 		}
 	}
 	else
-		msg[0].msg = GUEST_LOGIN_PROMPT;
+		msg[0].msg = GUEST_PROMPT;
 	msg[0].msg_style = PAM_PROMPT_ECHO_OFF;
 	mesg[0] = &msg[0];
+
+	PAM_LOG("Sent prompt");
 
 	resp = NULL;
 	retval = converse(pamh, 1, mesg, &resp);
@@ -160,15 +163,19 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 		_pam_drop(prompt);
 	}
 
+	PAM_LOG("Done conversation 1");
+
 	if (retval != PAM_SUCCESS) {
 		if (resp != NULL)
 			_pam_drop_reply(resp, 1);
-		return retval == PAM_CONV_AGAIN
-			? PAM_INCOMPLETE : PAM_AUTHINFO_UNAVAIL;
+		PAM_RETURN(retval == PAM_CONV_AGAIN
+			? PAM_INCOMPLETE : PAM_AUTHINFO_UNAVAIL);
 	}
 
+	PAM_LOG("Done conversation 2");
+
 	if (anon) {
-		if (!(options & PAM_OPT_IGNORE)) {
+		if (!pam_test_option(&options, PAM_OPT_IGNORE, NULL)) {
 			token = strtok_r(resp->resp, "@", &context);
 			pam_set_item(pamh, PAM_RUSER, token);
 
@@ -178,16 +185,21 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 			}
 		}
 		retval = PAM_SUCCESS;
+
+		PAM_LOG("Done anonymous");
+
 	}
 	else {
 		pam_set_item(pamh, PAM_AUTHTOK, resp->resp);
 		retval = PAM_AUTH_ERR;
+
+		PAM_LOG("Done non-anonymous");
 	}
 
 	if (resp)
-		_pam_drop_reply(resp, i);
+		_pam_drop_reply(resp, 1);
 
-	return retval;
+	PAM_RETURN(retval);
 }
 
 PAM_EXTERN int 
@@ -195,7 +207,5 @@ pam_sm_setcred(pam_handle_t * pamh, int flags, int argc, const char **argv)
 {
 	return PAM_IGNORE;
 }
-
-/* end of module definition */
 
 PAM_MODULE_ENTRY("pam_ftp");
