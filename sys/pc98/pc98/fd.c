@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.29 1998/04/20 13:50:58 kato Exp $
+ *	$Id: fd.c,v 1.30 1998/04/22 10:25:21 julian Exp $
  *
  */
 
@@ -429,7 +429,8 @@ static struct slice_handler slicetype = {
 	NULL,	/* revoke */
 	NULL,	/* claim */
 	NULL,	/* verify */
-	NULL	/* upconfig */
+	NULL,	/* upconfig */
+	NULL	/* dump */
 };
 #endif	/* SLICE */
 
@@ -2629,9 +2630,9 @@ fdsopen(void *private, int flags, int mode, struct proc *p)
 	sd = private;
 
 	if((flags & (FREAD|FWRITE)) != 0) {
-		return(Fdopen(makedev(0,sd->minor), 0 , 0, p));
+		return(Fdopen(makedev(0,sd->minor), flags , mode, p));
 	} else {
-		return(fdclose(makedev(0,sd->minor), 0 , 0, p));
+		return(fdclose(makedev(0,sd->minor), 0 , mode, p));
 	}
 }
 
