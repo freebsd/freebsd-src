@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.4 1995/06/08 13:50:52 sos Exp $
+ *  $Id: linux_misc.c,v 1.2 1995/10/04 07:08:04 julian Exp $
  */
 
 #include <i386/linux/linux.h>
@@ -188,7 +188,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
     printf("Linux-emul(%d): uselib(%s)\n", p->p_pid, path);
 #endif
 
-    NDINIT(&ni, LOOKUP, FOLLOW, UIO_SYSSPACE, path, p);
+    NDINIT(&ni, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, path, p);
     if (error = namei(&ni))
 	return error;
 
@@ -196,25 +196,39 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
     if (vnodep == NULL)
 	    return ENOEXEC;
 
-    if (vnodep->v_writecount)
+    if (vnodep->v_writecount) {
+	    VOP_UNLOCK(vnodep);
 	    return ETXTBSY;
+    }
 
-    if (error = VOP_GETATTR(vnodep, &attr, p->p_ucred, p))
-	return error;
+    if (error = VOP_GETATTR(vnodep, &attr, p->p_ucred, p)) {
+	    VOP_UNLOCK(vnodep);
+	    return error;
+    }
 
     if ((vnodep->v_mount->mnt_flag & MNT_NOEXEC)
 	|| ((attr.va_mode & 0111) == 0)
-	|| (attr.va_type != VREG))
+	|| (attr.va_type != VREG)) {
+	    VOP_UNLOCK(vnodep);
 	    return ENOEXEC;
+    }
 
-    if (attr.va_size == 0)
+    if (attr.va_size == 0) {
+	    VOP_UNLOCK(vnodep);
 	    return ENOEXEC;
+    }
 
-    if (error = VOP_ACCESS(vnodep, VEXEC, p->p_ucred, p))
+    if (error = VOP_ACCESS(vnodep, VEXEC, p->p_ucred, p)) {
+	VOP_UNLOCK(vnodep);
 	return error;
+    }
 
-    if (error = VOP_OPEN(vnodep, FREAD, p->p_ucred, p))
+    if (error = VOP_OPEN(vnodep, FREAD, p->p_ucred, p)) {
+	VOP_UNLOCK(vnodep);
 	return error;
+    }
+
+    VOP_UNLOCK(vnodep);	/* lock no longer needed */
 
     error = vm_mmap(kernel_map, (vm_offset_t *)&a_out, 1024,
 	    	    VM_PROT_READ, VM_PROT_READ, 0, (caddr_t)vnodep, 0);
@@ -225,7 +239,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
      * Is it a Linux binary ?
      */
     if (((a_out->a_magic >> 16) & 0xff) != 0x64)
-	return -1;
+	return ENOEXEC;
 
     /*
      * Set file/virtual offset based on a.out variant.
@@ -240,7 +254,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
 	file_offset = 0;
 	break;
     default:
-	return (-1);
+	return ENOEXEC;
     }
 
     vnodep->v_flag |= VTEXT;
