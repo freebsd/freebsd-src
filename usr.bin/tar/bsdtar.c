@@ -115,7 +115,8 @@ static const char *tar_opts = "+Bb:C:cF:f:HhI:jkLlmnOoPprtT:UuvW:wX:xyZz";
 #define	OPTION_NODUMP 18
 #define	OPTION_NO_SAME_PERMISSIONS 21
 #define	OPTION_NULL 24
-#define	OPTION_ONE_FILE_SYSTEM 27
+#define	OPTION_ONE_FILE_SYSTEM 25
+#define	OPTION_STRIP_COMPONENTS 27
 #define	OPTION_TOTALS 28
 #define	OPTION_VERSION 30
 
@@ -161,6 +162,7 @@ static const struct option tar_longopts[] = {
 	{ "preserve-permissions", no_argument,     NULL, 'p' },
 	{ "read-full-blocks",	no_argument,	   NULL, 'B' },
 	{ "same-permissions",   no_argument,       NULL, 'p' },
+	{ "strip-components",	required_argument, NULL, OPTION_STRIP_COMPONENTS },
 	{ "to-stdout",          no_argument,       NULL, 'O' },
 	{ "totals",		no_argument,       NULL, OPTION_TOTALS },
 	{ "unlink",		no_argument,       NULL, 'U' },
@@ -368,6 +370,9 @@ main(int argc, char **argv)
 			break;
 		case 'r': /* SUSv2 */
 			set_mode(bsdtar, opt);
+			break;
+		case OPTION_STRIP_COMPONENTS:
+			bsdtar->strip_components = atoi(optarg);
 			break;
 		case 'T': /* GNU tar */
 			bsdtar->names_from_file = optarg;
