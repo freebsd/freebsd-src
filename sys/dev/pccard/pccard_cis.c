@@ -121,7 +121,7 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 
 	rid = 0;
 	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 
-	    PCCARD_CIS_SIZE, RF_ACTIVE | RF_PCCARD_ATTR);
+	    PCCARD_CIS_SIZE, RF_ACTIVE /* | RF_PCCARD_ATTR */);
 	if (res == NULL) {
 #ifdef DIAGNOSTIC
 		device_printf(dev, "can't alloc memory to read attributes\n");

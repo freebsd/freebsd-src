@@ -280,5 +280,16 @@ __inline static int
 pccard_get_ether(device_t dev, u_char *enaddr)
 {
 	return BUS_READ_IVAR(device_get_parent(dev), dev, 
-				PCCARD_IVAR_ETHADDR, (uintptr_t *)enaddr);
+	    PCCARD_IVAR_ETHADDR, (uintptr_t *)enaddr);
+}
+
+enum {
+	PCCARD_A_MEM_ATTR
+};
+
+/* Set the */
+
+static __inline__ void
+pccard_set_attribute(device_t dev, struct resource *r, int rid, int flags)
+{
 }
