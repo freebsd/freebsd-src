@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020814:
+	FreeBSD 4.6.2-RELEASE.
+
 20020813:	p11
 	Bounds checking errors in accept(), getsockname(),
 	getpeername(), and a VESA ioctl() command were corrected.
