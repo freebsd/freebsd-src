@@ -11,13 +11,18 @@ the common items quick how-tos, followed by entries for versions of
 
 This is for the 4.5 release branch.  All entries since 4.5 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.5-RELEASE-p5.
+By this count, we're at 4.5-RELEASE-p6.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020528:	p6	FreeBSD-SA-02:26.accept
+			FreeBSD-SA-02:27.rc
+	Accept filter bug.
+	Dangerous globbing in /etc/rc.
 
 20020515:	p5
 	The k5su utility installed as part of Kerberos 5 is no longer
