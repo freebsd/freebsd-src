@@ -588,14 +588,6 @@ spkrioctl(dev, cmd, cmdarg, flags, td)
     return(EINVAL);
 }
 
-static void
-spkr_drvinit(void *unused)
-{
-	make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "speaker");
-}
-
-SYSINIT(spkrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spkr_drvinit,NULL)
-
 /*
  * Install placeholder to claim the resources owned by the
  * AT tone generator.
@@ -604,6 +596,8 @@ static struct isa_pnp_id atspeaker_ids[] = {
 	{ 0x0008d041 /* PNP0800 */, "AT speaker" },
 	{ 0 }
 };
+
+static dev_t atspeaker_dev;
 
 static int
 atspeaker_probe(device_t dev)
@@ -614,14 +608,23 @@ atspeaker_probe(device_t dev)
 static int
 atspeaker_attach(device_t dev)
 {
-	return(0);
+	atspeaker_dev = make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	    "speaker");
+	return (0);
+}
+
+static int
+atspeaker_detach(device_t dev)
+{
+	destroy_dev(atspeaker_dev);
+	return (0);
 }
 
 static device_method_t atspeaker_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		atspeaker_probe),
 	DEVMETHOD(device_attach,	atspeaker_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	atspeaker_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
