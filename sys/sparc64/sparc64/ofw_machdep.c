@@ -81,7 +81,7 @@ OF_decode_addr(phandle_t node, int *space, bus_addr_t *addr)
 	if (OF_getprop(bus, "name", name, sizeof(name)) == -1)
 		return (ENXIO);
 	name[sizeof(name) - 1] = '\0';
-	if (strcmp(name, "ebus") == 0) {
+	if (strcmp(name, "ebus") == 0 || strcmp(name, "isa") == 0) {
 		if (OF_getprop(node, "reg", &reg.isa, sizeof(reg.isa)) == -1)
 			return (ENXIO);
 		rsz = OF_getprop(bus, "ranges", range.isa, sizeof(range.isa));
