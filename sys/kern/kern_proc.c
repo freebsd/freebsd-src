@@ -122,11 +122,11 @@ pfind(pid)
 {
 	register struct proc *p;
 
-	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+	ALLPROC_LOCK(AP_SHARED);
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid)
 			break;
-	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	ALLPROC_LOCK(AP_RELEASE);
 	return (p);
 }
 
@@ -478,10 +478,12 @@ zpfind(pid_t pid)
 {
 	struct proc *p;
 
+	ALLPROC_LOCK(AP_SHARED);
 	LIST_FOREACH(p, &zombproc, p_list)
 		if (p->p_pid == pid)
-			return (p);
-	return (NULL);
+			break;
+	ALLPROC_LOCK(AP_RELEASE);
+	return (p);
 }
 
 
@@ -536,7 +538,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		if (error)
 			return (error);
 	}
-	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+	ALLPROC_LOCK(AP_SHARED);
 	for (doingzomb=0 ; doingzomb < 2 ; doingzomb++) {
 		if (!doingzomb)
 			p = LIST_FIRST(&allproc);
@@ -593,13 +595,12 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 			error = sysctl_out_proc(p, req, doingzomb);
 			if (error) {
-				lockmgr(&allproc_lock, LK_RELEASE, NULL,
-				    CURPROC);
+				ALLPROC_LOCK(AP_RELEASE);
 				return (error);
 			}
 		}
 	}
-	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	ALLPROC_LOCK(AP_RELEASE);
 	return (0);
 }
 
