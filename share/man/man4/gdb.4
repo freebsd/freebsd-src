@@ -34,10 +34,6 @@
 .Cd "makeoptions DEBUG=-g"
 .Cd "options DDB"
 .Cd "options GDB_REMOTE_CHAT"
-.Pp
-To prevent activation of the debugger on kernel
-.Xr panic 9 :
-.Cd "options DDB_UNATTENDED"
 .Sh DESCRIPTION
 The
 .Nm
@@ -49,13 +45,18 @@ kernel environment.
 It can be used in a number of ways:
 .Bl -bullet
 .It
+It can be used to examine the memory of the processor on which it runs.
+.It
+It can be used to analyse a processor dump after a panic.
+.It
 It can be used to debug another system interactively via a serial or firewire
 link.
 In this mode, the processor can be stopped and single stepped.
 .It
-It can be used to examine the memory of the processor on which it runs.
-.It
-It can be used to analyse a processor dump after a panic.
+With a firewire link, it can be used to examine the memory of a remote system
+without the participation of that system.
+In this mode, the processor cannot be stopped and single stepped, but it can be
+of use when the remote system has crashed and is no longer responding.
 .El
 .Pp
 When used for remote debugging,
@@ -81,7 +82,7 @@ First, ensure you have a copy of the debug macros in the directory:
 This command performs some transformations on the macros installed in
 .Pa /usr/src/tools/debugscripts
 to adapt them to the local environment.
-.Ss "Debugging a Local Machine"
+.Ss "Inspecting the environment of the local machine"
 To look at and change the contents of the memory of the system you are running
 on,
 .Pp
@@ -102,15 +103,15 @@ The system does not stop (obviously), so a number of things will not work.
 You can set breakpoints, but you cannot
 .Dq continue
 execution, so they will not work.
-.Ss "Debugging a Crash Dump"
-By default, crash dumps are stored in the directory
+.Ss "Debugging a crash dump"
+by default, crash dumps are stored in the directory
 .Pa /var/crash .
 Investigate them from the kernel build directory with:
 .Pp
 .Dl "gdb -k kernel.debug /var/crash/vmcore.29"
 .Pp
 In this mode, the system is obviously stopped, so you can only look at it.
-.Ss "Debugging a Live System with a Remote Link"
+.Ss "Debugging a live system with a remote link"
 In the following discussion, the term
 .Dq "local system"
 refers to the system running the debugger, and
@@ -125,7 +126,7 @@ The option
 enables the debugging machine stop the debugged machine once a connection has
 been established by pressing
 .Ql ^C .
-.Ss "Debugging a Live System with a Remote Serial Link"
+.Ss "Debugging a live system with a remote serial link"
 When using a serial port for the remote link on the i386 platform, the serial
 port must be identified by setting the flag bit
 .Li 0x80
@@ -141,7 +142,7 @@ should be:
 To share a console and debug connection on a serial line, use the
 .Cd "options GDB_REMOTE_CHAT"
 option.
-.Ss "Debugging a Live System with a Remote Firewire Link"
+.Ss "Debugging a live system with a remote firewire link"
 As with serial debugging, to debug a live system with a firewire link, the
 kernel must be compiled with the option
 .Cd "options DDB" .
@@ -292,7 +293,7 @@ Then establish connection with:
 0xc21bd378 in ?? ()
 .Ed
 .El
-.Ss "Non-Cooperative Debugging a Live System with a Remote Firewire Link"
+.Ss "Non-cooperative debugging a live system with a remote firewire link"
 In addition to the conventional debugging via firewire described in the previous
 section, it is possible to debug a remote system without its cooperation, once
 an initial connection has been established.
@@ -350,7 +351,7 @@ so
 commands also work.
 This section discusses only the extensions for kernel debugging that get
 installed in the kernel build directory.
-.Ss "Debugging Environment"
+.Ss "Debugging environment"
 The following macros manipulate the debugging environment:
 .Bl -tag -width indent
 .It Ic ddb
@@ -392,7 +393,7 @@ and
 .Ic trf
 are convenience commands which invoke
 .Ic tr .
-.Ss "The Current Process Environment"
+.Ss "The current process environment"
 The following macros are convenience functions intended to make things easier
 than the standard
 .Xr gdb 1
@@ -440,7 +441,7 @@ Single step 1 instruction (over calls) and show next instruction.
 .It Ic zs
 Single step 1 instruction (through calls) and show next instruction.
 .El
-.Ss "Examining Other Processes"
+.Ss "Examining other processes"
 The following macros access other processes.
 The
 .Nm
@@ -473,7 +474,7 @@ of the stack of the process previously selected with
 Show some PCB contents of the process
 .Ar proc .
 .El
-.Ss "Examining Data Structures"
+.Ss "Examining data structures"
 You can use standard
 .Xr gdb 1
 commands to look at most data structures.
@@ -511,7 +512,7 @@ Show some information of the
 pointed to by the local variable
 .Va vp .
 .El
-.Ss "Miscellaneous Macros"
+.Ss "Miscellaneous macros"
 .Bl -tag -width indent
 .It Ic checkmem
 Check unallocated memory for modifications.
@@ -586,7 +587,7 @@ run the link at more than 9600 bps.
 Firewire connections do not have this problem.
 .Pp
 The debugging macros
-.Dq "just grew" .
+.Dq "just growed" .
 In general, the person who wrote them did so while looking for a specific
 problem, so they may not be general enough, and they may behave badly when used
 in ways for which they were not intended, even if those ways make sense.
