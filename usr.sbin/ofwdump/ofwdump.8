@@ -61,8 +61,8 @@ Only print properties of the given name.
 Print properties in
 .Dq raw
 format, i.e. omit all headings and indentation and just write the
-property values unaltered to the standard output. This is intended
-to be used with the
+property values unaltered to the standard output.
+This is intended to be used with the
 .Fl P
 option to extract the value of a single property.
 .It Fl S
@@ -77,13 +77,13 @@ Recursively print all children of the specified nodes.
 .Sh EXAMPLES
 Print the complete device tree:
 .Pp
-.Dl ofwdump -a
+.Dl "ofwdump -a"
 .Pp
 Print the complete device subtree of the
 .Dq Li /pci
 node, including all available properties:
 .Pp
-.Dl ofwdump -pr /pci
+.Dl "ofwdump -pr /pci"
 .Pp
 Print the
 .Dq Li compatible
@@ -91,14 +91,15 @@ property of the
 .Dq Li /pci
 node as plain string:
 .Pp
-.Dl ofwdump -P compatible -S /pci
-.Pp
+.Dl "ofwdump -P compatible -S /pci"
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
+The
 .Nm
+utility
 was written by
 .An Thomas Moestl Aq tmm@FreeBSD.org .
