@@ -358,7 +358,12 @@ typedef struct {
 #define  USUBCLASS_SCSI		6	/* SCSI transparent comman set */
 #define  UPROTO_MASS_CBI_I	0	/* CBI protocol with comm. compl. int */
 #define  UPROTO_MASS_CBI	1	/* CBI protocol */
-#define  UPROTO_MASS_BULK	/*TBD*/	/ * Bulk only transport * /
+/*
+ * XXX Pat LaVarre (Iomega): there are Bulk-Only devices using 0x02,
+ * but recent versions of the Mass Storage spec. require it to be 0x50.
+ */
+#define  UPROTO_MASS_BULK	80	/* 'P' for prototype, used by ZIP 100 */
+#define  UPROTO_MASS_BULK2	2	/* Bulk only transport */
 #define UCLASS_HUB		9	/* Hub */
 #define  USUBCLASS_HUB		0
 #define UCLASS_DATA		10	/* Data pipe for CDC */
