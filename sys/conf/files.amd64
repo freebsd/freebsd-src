@@ -20,7 +20,7 @@ dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_pccard.c		optional	sio card
 dev/sio/sio_pccard.c		optional	sio pccard
 dev/sio/sio_pci.c		optional	sio pci
-dev/sio/sio_puc.c		optional	sio puc
+dev/sio/sio_puc.c		optional	sio puc pci
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/schistory.c		count		sc
 dev/syscons/scmouse.c		optional	sc
