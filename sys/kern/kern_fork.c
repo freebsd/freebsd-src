@@ -225,9 +225,7 @@ fork1(td, flags, pages, procp)
 		 */
 		if (flags & RFCFDG) {
 			struct filedesc *fdtmp;
-			FILEDESC_LOCK(td->td_proc->p_fd);
 			fdtmp = fdinit(td->td_proc->p_fd);
-			FILEDESC_UNLOCK(td->td_proc->p_fd);
 			fdfree(td);
 			p1->p_fd = fdtmp;
 		}
@@ -423,9 +421,7 @@ again:
 	 * Copy filedesc.
 	 */
 	if (flags & RFCFDG) {
-		FILEDESC_LOCK(td->td_proc->p_fd);
 		fd = fdinit(td->td_proc->p_fd);
-		FILEDESC_UNLOCK(td->td_proc->p_fd);
 		fdtol = NULL;
 	} else if (flags & RFFDG) {
 		FILEDESC_LOCK(p1->p_fd);
