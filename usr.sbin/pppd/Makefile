@@ -29,7 +29,7 @@ DPADD+=	${LIBPCAP}
 
 # MS-CHAP support.  Requires the DES library.
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(RELEASE_CRUNCH)
-DISTRIBUTION=des
+DISTRIBUTION=crypto
 CFLAGS+=-DCHAPMS
 SRCS+=	chap_ms.c
 LDADD+=	-lcrypto
