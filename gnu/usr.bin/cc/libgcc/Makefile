@@ -1,9 +1,9 @@
 #
-# $Id: Makefile,v 1.4 1994/11/15 04:52:14 phk Exp $
+# $Id: Makefile,v 1.5 1995/03/06 08:04:05 phk Exp $
 #
 
 LIB=	gcc
-NOPIC=	true
+INSTALL_PIC_ARCHIVE=  yes
 
 LIB1OBJS=	_mulsi3.o _udivsi3.o _divsi3.o _umodsi3.o _modsi3.o _lshrsi3.o _lshlsi3.o _ashrsi3.o _ashlsi3.o _divdf3.o _muldf3.o _negdf2.o _adddf3.o _subdf3.o _fixdfsi.o _fixsfsi.o _floatsidf.o _floatsisf.o _truncdfsf2.o _extendsfdf2.o _addsf3.o _negsf2.o _subsf3.o _mulsf3.o _divsf3.o _eqdf2.o _nedf2.o _gtdf2.o _gedf2.o _ltdf2.o _ledf2.o _eqsf2.o _nesf2.o _gtsf2.o _gesf2.o _ltsf2.o _lesf2.o
 LIB2OBJS=	_muldi3.o _divdi3.o _moddi3.o _udivdi3.o _umoddi3.o _negdi2.o _lshrdi3.o _lshldi3.o _ashldi3.o _ashrdi3.o _ffsdi2.o _udiv_w_sdiv.o _udivmoddi4.o _cmpdi2.o _ucmpdi2.o _floatdidf.o _floatdisf.o _fixunsdfsi.o _fixunssfsi.o _fixunsdfdi.o _fixdfdi.o _fixunssfdi.o _fixsfdi.o _fixxfdi.o _fixunsxfdi.o _floatdixf.o _fixunsxfsi.o _fixtfdi.o _fixunstfdi.o _floatditf.o __gcc_bcmp.o _varargs.o _eprintf.o _op_new.o _op_vnew.o _new_handler.o _op_delete.o _op_vdel.o _bb.o _shtab.o _clear_cache.o _trampoline.o __main.o _exit.o _ctors.o _eh.o _pure.o
