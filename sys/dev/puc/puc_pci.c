@@ -124,7 +124,7 @@ puc_pci_probe(device_t dev)
 	if (desc == NULL)
 		return (ENXIO);
 	device_set_desc(dev, desc->name);
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
