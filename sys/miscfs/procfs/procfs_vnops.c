@@ -148,9 +148,6 @@ procfs_open(ap)
 			return (EBUSY);
 
 		p1 = ap->a_p;
-		/* Can't trace a process that's currently exec'ing. */ 
-		if ((p2->p_flag & P_INEXEC) != 0)
-			return EAGAIN;
 		if (!CHECKIO(p1, p2) || p_trespass(p1, p2))
 			return (EPERM);
 
@@ -242,9 +239,6 @@ procfs_ioctl(ap)
 		return ENOTTY;
 	}
 
-	/* Can't trace a process that's currently exec'ing. */ 
-	if ((procp->p_flag & P_INEXEC) != 0)
-		return EAGAIN;
 	if (!CHECKIO(p, procp) || p_trespass(p, procp))
 		return EPERM;
 

@@ -174,7 +174,7 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 			 */
 			if (pwd != NULL)
 				fmtpwentry(pwbuf, pwd, PWF_MASTER);
-			rc = fileupdate(getpwpath(_MASTERPASSWD), 0600, pwbuf, pfx, l, mode);
+			rc = fileupdate(getpwpath(_MASTERPASSWD), 0644, pwbuf, pfx, l, mode);
 			if (rc == 0) {
 #ifdef HAVE_PWDB_U
 				if (mode == UPD_DELETE || isrename)

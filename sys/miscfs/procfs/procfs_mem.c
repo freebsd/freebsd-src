@@ -244,9 +244,6 @@ procfs_domem(curp, p, pfs, uio)
 	if (uio->uio_resid == 0)
 		return (0);
 
-	/* Can't trace a process that's currently exec'ing. */ 
-	if ((p->p_flag & P_INEXEC) != 0)
-		return EAGAIN;
  	if (!CHECKIO(curp, p) || p_trespass(curp, p))
  		return EPERM;
 

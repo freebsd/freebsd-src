@@ -14,28 +14,24 @@ block=1024
 # block is the disk block size (best guess, need not be exact)
 
 warn="(does not preserve modes and timestamp)"
-tmp=`mktemp -d -t znew`
-if test -z "$tmp"; then
-  echo znew: could not create temporary directory
-  exit 1
-fi
-echo hi > $tmp/1
-echo hi > $tmp/2
-if test -z "`(${CPMOD-cpmod} $tmp/1 $tmp/2) 2>&1`"; then
+tmp=/tmp/zfoo.$$
+echo hi > $tmp.1
+echo hi > $tmp.2
+if test -z "`(${CPMOD-cpmod} $tmp.1 $tmp.2) 2>&1`"; then
   cpmod=${CPMOD-cpmod}
   warn=""
 fi
 
-if test -z "$cpmod" && ${TOUCH-touch} -r $tmp/1 $tmp/2 2>/dev/null; then
+if test -z "$cpmod" && ${TOUCH-touch} -r $tmp.1 $tmp.2 2>/dev/null; then
   cpmod="${TOUCH-touch}"
   cpmodarg="-r"
   warn="(does not preserve file modes)"
 fi
 
 # check if GZIP env. variable uses -S or --suffix
-gzip -q $tmp/1
-ext=`echo $tmp/1* | sed "s|$tmp/1||"`
-rm -rf $tmp
+gzip -q $tmp.1
+ext=`echo $tmp.1* | sed "s|$tmp.1||"`
+rm -f $tmp.[12]*
 if test -z "$ext"; then
   echo znew: error determining gzip extension
   exit 1

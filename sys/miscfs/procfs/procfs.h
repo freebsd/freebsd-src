@@ -97,7 +97,7 @@ struct pfsnode {
      ((((p1)->p_cred->pc_ucred->cr_uid == (p2)->p_cred->p_ruid) && \
        ((p1)->p_cred->p_ruid == (p2)->p_cred->p_ruid) && \
        ((p1)->p_cred->p_svuid == (p2)->p_cred->p_ruid) && \
-       ((p2)->p_flag & (P_SUGID|P_INEXEC)) == 0) || \
+       ((p2)->p_flag & P_SUGID) == 0) || \
       (suser_xxx((p1)->p_cred->pc_ucred, (p1), PRISON_ROOT) == 0))
 
 /*

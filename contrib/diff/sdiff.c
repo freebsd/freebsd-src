@@ -19,11 +19,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* GNU SDIFF was written by Thomas Lord. */
 
-#ifndef lint
-static const char rcsid[] = 
-"$FreeBSD$";
-#endif /* not lint */
-
 #include "system.h"
 #include <stdio.h>
 #include <signal.h>
@@ -87,6 +82,19 @@ static void try_help PARAMS((char const *));
 static void untrapsig PARAMS((int));
 static void usage PARAMS((void));
 
+/* this lossage until the gnu libc conquers the universe */
+#if HAVE_TMPNAM
+#define private_tempnam() tmpnam ((char *) 0)
+#else
+#ifndef PVT_tmpdir
+#define PVT_tmpdir "/tmp"
+#endif
+#ifndef TMPDIR_ENV
+#define TMPDIR_ENV "TMPDIR"
+#endif
+static char *private_tempnam PARAMS((void));
+static int exists PARAMS((char const *));
+#endif
 static int diraccess PARAMS((char const *));
 
 /* Options: */
@@ -927,29 +935,13 @@ edit (left, lenl, right, lenr, outfile)
 	case 'q':
 	  return 0;
 	case 'e':
+	  if (! tmpname && ! (tmpname = private_tempnam ()))
+	    perror_fatal ("temporary file name");
+
+	  tmpmade = 1;
+
 	  {
-	    int tfd;
-	    FILE *tmp;
-
-	    if (tmpmade)
-	      {
-	        unlink (tmpname);
-	        tmpmade = 0;
-		free (tmpname);
-	      }
-
-	    asprintf (&tmpname, "%s/sdiff.XXXXXX",
-	      getenv("TMPDIR") ?: P_tmpdir);
-	    if (tmpname == NULL)
-	      perror_fatal ("temporary file name");
-	    tfd = mkstemp(tmpname);
-	    if (tfd == -1)
-	      perror_fatal ("temporary file name");
-	    tmp = fdopen (tfd, "w+");
-	    if (tmp == NULL)
-	      perror_fatal ("temporary file name");
- 
-	    tmpmade = 1;
+	    FILE *tmp = ck_fopen (tmpname, "w+");
 
 	    if (cmd1 == 'l' || cmd1 == 'b')
 	      lf_copy (left, lenl, tmp);
@@ -1109,3 +1101,80 @@ diraccess (dir)
   struct stat buf;
   return stat (dir, &buf) == 0 && S_ISDIR (buf.st_mode);
 }
+
+#if ! HAVE_TMPNAM
+
+/* Return zero if we know that FILE does not exist.  */
+static int
+exists (file)
+     char const *file;
+{
+  struct stat buf;
+  return stat (file, &buf) == 0 || errno != ENOENT;
+}
+
+/* These are the characters used in temporary filenames.  */
+static char const letters[] =
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+/* Generate a temporary filename and return it (in a newly allocated buffer).
+   Use the prefix "dif" as in tempnam.
+   This goes through a cyclic pattern of all possible
+   filenames consisting of five decimal digits of the current pid and three
+   of the characters in `letters'.  Each potential filename is
+   tested for an already-existing file of the same name, and no name of an
+   existing file will be returned.  When the cycle reaches its end
+   return 0.  */
+static char *
+private_tempnam ()
+{
+  char const *dir = getenv (TMPDIR_ENV);
+  static char const tmpdir[] = PVT_tmpdir;
+  size_t index;
+  char *buf;
+  pid_t pid = getpid ();
+  size_t dlen;
+
+  if (!dir)
+    dir = tmpdir;
+
+  dlen = strlen (dir);
+
+  /* Remove trailing slashes from the directory name.  */
+  while (dlen && dir[dlen - 1] == '/')
+    --dlen;
+
+  buf = xmalloc (dlen + 1 + 3 + 5 + 1 + 3 + 1);
+
+  sprintf (buf, "%.*s/.", (int) dlen, dir);
+  if (diraccess (buf))
+    {
+      for (index = 0;
+	   index < ((sizeof (letters) - 1) * (sizeof (letters) - 1)
+		    * (sizeof (letters) - 1));
+	   ++index)
+	{
+	  /* Construct a file name and see if it already exists.
+
+	     We use a single counter in INDEX to cycle each of three
+	     character positions through each of 62 possible letters.  */
+
+	  sprintf (buf, "%.*s/dif%.5lu.%c%c%c", (int) dlen, dir,
+		   (unsigned long) pid % 100000,
+		   letters[index % (sizeof (letters) - 1)],
+		   letters[(index / (sizeof (letters) - 1))
+			   % (sizeof (letters) - 1)],
+		   letters[index / ((sizeof (letters) - 1) *
+				     (sizeof (letters) - 1))]);
+
+	  if (!exists (buf))
+	    return buf;
+	}
+      errno = EEXIST;
+    }
+
+  /* Don't free buf; `free' might change errno.  We'll exit soon anyway.  */
+  return 0;
+}
+
+#endif /* ! HAVE_TMPNAM */
