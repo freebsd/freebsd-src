@@ -160,39 +160,60 @@ Examine the method name of the provider's geom.
 is the process by which a provider is removed while
 it potentially is still being used.
 .Pp
-When a geom makes a provider an orphan, all future I/O requests will
+When a geom orphans a provider, all future I/O requests will
 "bounce" on the provider with an error code set by the geom.  Any
 consumers attached to the provider will receive notification about
-the orphanization and need to take appropriate action.
+the orphanization when the eventloop gets around to it, and they
+need to take appropriate action at that time.
 .Pp
 A geom which came into being as a result of a normal taste operation
-should selfdestruct unless it has a way to keep functioning.  Geoms
-like disklabels and stripes should therefore selfdestruct whereas
-RAID5 or mirror geoms can continue to function as long as they do
+should selfdestruct unless it has a way to keep functioning lacking
+the orphaned provider.
+Geoms like diskslicers should therefore selfdestruct whereas
+RAID5 or mirror geoms will be able to continue, as long as they do
 not loose quorum.
 .Pp
-When a provider is orphaned, this does not result in any immediate
-change in the topology, any attached consumers are still attached,
-any opened paths are still open, it is the responsibility of the
-geoms above to close and detach as soon as this can happen.
+When a provider is orphaned, this does not necessarily result in any
+immediate change in the topology: any attached consumers are still
+attached, any opened paths are still open, any outstanding I/O 
+requests are still outstanding.
 .Pp
-The typical scenario is that a device driver notices a disk has
-gone and orphans the provider for it.
-The geoms on top receive the orphanization event and orphan all
-their providers in turn.
-Providers, which are not attached, are destroyed right away.
-Eventually at the toplevel the geom which interfaces
-to the DEVFS received an orphan event on its consumer and it
-calls destroy_dev(9) and does an explicit close if the
-device was open and then detaches its consumer.
-The provider below is now no longer attached to and can be
-destroyed, if the geom has no more providers it can detach
-its consumer and selfdestruct and so the carnage passes back
-down the tree, until the original provider is detached from
-and it can be destroyed by the geom serving the device driver.
+The typical scenario is
+.Bl -bullet -offset indent -compact
+.It
+A device driver detects a disk has departed and orphans the provider for it.
+.It
+The geoms on top of the disk receive the orphanization event and 
+orphans all their providers in turn.
+Providers, which are not attached to, will typically self-destruct
+right away.
+This process continues in a quasi-recursive fashion until all
+relevant pieces of the tree has heard the bad news.
+.It
+Eventually the buck stops when it reaches geom_dev at the top
+of the stack.
+.It
+Geom_dev will call destroy_dev(9) to stop any more request from
+coming in.
+It will sleep until all (if any) outstanding I/O requests have
+been returned.
+It will explicitly close (ie: zero the access counts), a change
+which will propagate all the way down through the mesh.
+It will then detach and destroy its geom.
+.It
+The geom whose provider is now attached will destroy the provider,
+detach and destroy its consumer and destroy its geom.
+.It
+This process percolates all the way down through the mesh, until
+the cleanup is complete.
+.El
 .Pp
 While this approach seems byzantine, it does provide the maximum
-flexibility in handling disappearing devices.
+flexibility and robustness in handling disappearing devices.
+.Pp
+The one absolutely crucial detail to be aware is that if the
+device driver does not return all I/O requests, the tree will
+not unravel and the geom event loop will stall.
 .Pp
 .Em SPOILING
 is a special case of orphanization used to protect
