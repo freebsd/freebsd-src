@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.24 1995/01/08 13:38:36 dufault Exp $
+ * $Id: st.c,v 1.25 1995/01/24 12:04:56 dufault Exp $
  */
 
 /*
@@ -1156,9 +1156,9 @@ ststart(unit)
 		 */
 		if (st->flags & ST_FIXEDBLOCKS) {
 			cmd.byte2 |= SRWT_FIXED;
-			lto3b(bp->b_bcount / st->blksiz, cmd.len);
+			scsi_uto3b(bp->b_bcount / st->blksiz, cmd.len);
 		} else {
-			lto3b(bp->b_bcount, cmd.len);
+			scsi_uto3b(bp->b_bcount, cmd.len);
 		}
 		/*
 		 * go ask the adapter to do all this for us
@@ -1382,10 +1382,10 @@ st_read(unit, buf, size, flags)
 	scsi_cmd.op_code = READ_COMMAND_TAPE;
 	if (st->flags & ST_FIXEDBLOCKS) {
 		scsi_cmd.byte2 |= SRWT_FIXED;
-		lto3b(size / (st->blksiz ? st->blksiz : DEF_FIXED_BSIZE),
+		scsi_uto3b(size / (st->blksiz ? st->blksiz : DEF_FIXED_BSIZE),
 		    scsi_cmd.len);
 	} else {
-		lto3b(size, scsi_cmd.len);
+		scsi_uto3b(size, scsi_cmd.len);
 	}
 	return (scsi_scsi_cmd(st->sc_link,
 		(struct scsi_generic *) &scsi_cmd,
@@ -1443,7 +1443,7 @@ st_rd_blk_lim(unit, flags)
 		return errno;
 	}
 	st->blkmin = b2tol(scsi_blkl.min_length);
-	st->blkmax = _3btol(&scsi_blkl.max_length_2);
+	st->blkmax = scsi_3btou(&scsi_blkl.max_length_2);
 
 	SC_DEBUG(sc_link, SDEV_DB3,
 	    ("(%d <= blksiz <= %d)\n", st->blkmin, st->blkmax));
@@ -1522,8 +1522,8 @@ st_mode_sense(unit, flags)
 		flags | SCSI_DATA_IN)) {
 		return errno;
 	}
-	st->numblks = _3btol(((struct scsi_sense *)scsi_sense_ptr)->blk_desc.nblocks);
-	st->media_blksiz = _3btol(((struct scsi_sense *)scsi_sense_ptr)->blk_desc.blklen);
+	st->numblks = scsi_3btou(((struct scsi_sense *)scsi_sense_ptr)->blk_desc.nblocks);
+	st->media_blksiz = scsi_3btou(((struct scsi_sense *)scsi_sense_ptr)->blk_desc.blklen);
 	st->media_density = ((struct scsi_sense *) scsi_sense_ptr)->blk_desc.density;
 	if (((struct scsi_sense *) scsi_sense_ptr)->header.dev_spec &
 	    SMH_DSP_WRITE_PROT) {
@@ -1589,7 +1589,7 @@ st_mode_select(unit, flags)
 	((struct dat *) dat_ptr)->header.dev_spec |= SMH_DSP_BUFF_MODE_ON;
 	((struct dat *) dat_ptr)->blk_desc.density = st->density;
 	if (st->flags & ST_FIXEDBLOCKS) {
-		lto3b(st->blksiz, ((struct dat *) dat_ptr)->blk_desc.blklen);
+		scsi_uto3b(st->blksiz, ((struct dat *) dat_ptr)->blk_desc.blklen);
 	}
 	if (st->quirks & ST_Q_NEEDS_PAGE_0) {
 		bcopy(st->sense_data, ((struct dat_page_0 *) dat_ptr)->sense_data,
@@ -1673,7 +1673,7 @@ st_space(unit, number, what, flags)
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = SPACE;
 	scsi_cmd.byte2 = what & SS_CODE;
-	lto3b(number, scsi_cmd.number);
+	scsi_uto3b(number, scsi_cmd.number);
 	return (scsi_scsi_cmd(st->sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
@@ -1719,7 +1719,7 @@ st_write_filemarks(unit, number, flags)
 	}
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = WRITE_FILEMARKS;
-	lto3b(number, scsi_cmd.number);
+	scsi_uto3b(number, scsi_cmd.number);
 	return scsi_scsi_cmd(st->sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),

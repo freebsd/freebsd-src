@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.48 1994/12/24 09:19:00 bde Exp $
+ *      $Id: sd.c,v 1.49 1995/01/08 13:38:34 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -989,7 +989,7 @@ sd_get_parms(unit, flags)
 
 		SC_DEBUG(sd->sc_link, SDEV_DB3,
 		    ("%d cyls, %d heads, %d precomp, %d red_write, %d land_zone\n",
-			_3btol(&scsi_sense.pages.rigid_geometry.ncyl_2),
+			scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2),
 			scsi_sense.pages.rigid_geometry.nheads,
 			b2tol(scsi_sense.pages.rigid_geometry.st_cyl_wp),
 			b2tol(scsi_sense.pages.rigid_geometry.st_cyl_rwc),
@@ -1002,8 +1002,8 @@ sd_get_parms(unit, flags)
 		 * can lead to wasted space! THINK ABOUT THIS !
 		 */
 		disk_parms->heads = scsi_sense.pages.rigid_geometry.nheads;
-		disk_parms->cyls = _3btol(&scsi_sense.pages.rigid_geometry.ncyl_2);
-		disk_parms->secsiz = _3btol(scsi_sense.blk_desc.blklen);
+		disk_parms->cyls = scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2);
+		disk_parms->secsiz = scsi_3btou(scsi_sense.blk_desc.blklen);
 
 		sectors = sd_size(unit, flags);
 		disk_parms->disksize = sectors;
