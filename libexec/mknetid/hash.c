@@ -51,13 +51,11 @@ static const char rcsid[] =
  * OZ's original sdbm hash
  */
 u_int32_t
-hash(keyarg, len)
-	const void *keyarg;
-	register size_t len;
+hash(const void *keyarg, size_t len)
 {
-	register const u_char *key;
-	register size_t loop;
-	register u_int32_t h;
+	const u_char *key;
+	size_t loop;
+	u_int32_t h;
 
 #define HASHC   h = *key++ + 65599 * h
 
@@ -102,8 +100,7 @@ hash(keyarg, len)
  * We mask off all but the lower 8 bits since our table array
  * can only hole 256 elements.
  */
-u_int32_t hashkey(key)
-	char *key;
+u_int32_t hashkey(char *key)
 {
 
 	if (key == NULL)
@@ -112,9 +109,7 @@ u_int32_t hashkey(key)
 }
 
 /* Find an entry in the hash table (may be hanging off a linked list). */
-struct grouplist *lookup(table, key)
-	struct member_entry *table[];
-	char *key;
+struct grouplist *lookup(struct member_entry *table[], char *key)
 {
 	struct member_entry *cur;
 
@@ -134,11 +129,7 @@ struct grouplist dummy = { 99999, NULL };
 /*
  * Store an group member entry and/or update its grouplist.
  */
-void mstore (table, key, gid, dup)
-	struct member_entry *table[];
-	char *key;
-	int gid;
-	int dup;
+void mstore (struct member_entry *table[], char *key, int gid, int dup)
 {
 	struct member_entry *cur, *new;
 	struct grouplist *tmp;
