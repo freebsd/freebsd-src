@@ -938,14 +938,15 @@ static int
 nis_map(char *domain, enum nss_lookup_type how, char *buffer, size_t bufsize,
     int *master)
 {
-	int	rv, order;
+	int	rv;
+	char	*outname;
 
 	*master = 0;
 	if (geteuid() == 0) {
 		if (snprintf(buffer, bufsize, "master.passwd.by%s",
 		    (how == nss_lt_id) ? "uid" : "name") >= bufsize)
 			return (NS_UNAVAIL);
-		rv = yp_order(domain, buffer, &order);
+		rv = yp_master(domain, buffer, &outname);
 		if (rv == 0) {
 			*master = 1;
 			return (NS_SUCCESS);
@@ -954,7 +955,7 @@ nis_map(char *domain, enum nss_lookup_type how, char *buffer, size_t bufsize,
 	if (snprintf(buffer, bufsize, "passwd.by%s",
 	    (how == nss_lt_id) ? "uid" : "name") >= bufsize)
 		return (NS_UNAVAIL);
-	rv = yp_order(domain, buffer, &order);
+	rv = yp_master(domain, buffer, &outname);
 	if (rv == 0)
 		return (NS_SUCCESS);
 	return (NS_UNAVAIL);
