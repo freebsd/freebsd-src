@@ -214,7 +214,7 @@ logit(int severity, struct sockaddr *addr, rpcproc_t procnum, rpcprog_t prognum,
 		/* Write syslog record. */
 
 		if (addr->sa_family == AF_LOCAL)
-			strcpy(fromname, "unix");
+			strcpy(fromname, "local");
 		else
 			getnameinfo(addr, addr->sa_len, fromname,
 			    sizeof fromname, NULL, 0, NI_NUMERICHOST);
