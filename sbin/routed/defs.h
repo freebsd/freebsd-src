@@ -124,7 +124,7 @@
 /* Turn on if IP_{ADD,DROP}_MEMBERSHIP and IP_MULTICAST_IF considers address
  * within 0.0.0.0/8 as interface index.
  */
-#ifdef __NetBSD__
+#ifdef __FreeBSD__
 #define MCAST_IFINDEX
 #endif
 
