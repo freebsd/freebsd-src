@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.113 1998/10/18 16:24:33 wpaul Exp $
+ **      $Id: userconfig.c,v 1.114 1998/11/03 21:07:51 msmith Exp $
  **/
 
 /**
@@ -179,8 +179,6 @@ getchar(void)
 		asp = NULL;
 	    }
 	}
-	printf("autocheck gives assize=%d  asp=%p\n", assize, asp);
-	cngetc();
     }
 
     if (assize > 0) 
@@ -198,8 +196,6 @@ getchar(void)
 #ifdef INTRO_USERCONFIG
 	if (intro == 0) 
 	{
-	    printf("do intro\n");
-	    cngetc();
 	    intro = 1;
 	    c = 'i';
 	    asp = "ntro\n";
@@ -208,8 +204,6 @@ getchar(void)
 	if (!(boothowto & RB_CONFIG)) 
 	{
 	    /* don't want to drop to interpreter */
-	    printf("do quit\n");
-	    cngetc();
 	    c = 'q';
 	    asp = "uit\n";
 	    assize = strlen(asp);
@@ -2460,7 +2454,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.113 1998/10/18 16:24:33 wpaul Exp $
+ *      $Id: userconfig.c,v 1.114 1998/11/03 21:07:51 msmith Exp $
  */
 
 #include "scbus.h"
