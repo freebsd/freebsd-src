@@ -4,6 +4,7 @@
 
 .PATH: ${SRCDIR}/binutils
 
+NOSHARED?=yes
 PROG=	gdb
 XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	breakpoint.c buildsym.c c-exp.y c-lang.c c-typeprint.c		\
@@ -40,16 +41,16 @@ CFLAGS+=	-I${GDBDIR}/gdb
 CFLAGS+=	-I${GDBDIR}/gdb/config
 DPADD=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libopcodes/libopcodes.a
-DPADD+=		${LIBTERMCAP}
 DPADD+=		${LIBGNUREGEX}
 DPADD+=		${RELTOP}/libiberty/libiberty.a
 DPADD+=		${LIBREADLINE}
+DPADD+=		${LIBTERMCAP}
 LDADD+=		${RELTOP}/libbfd/libbfd.a
 LDADD+=		${RELTOP}/libopcodes/libopcodes.a
-LDADD+=		-ltermcap
 LDADD+=		-lgnuregex
 LDADD+=		${RELTOP}/libiberty/libiberty.a
 LDADD+=		-lreadline
+LDADD+=		-ltermcap
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb
