@@ -512,8 +512,8 @@ do {									\
 #define	IFQ_DRV_PREPEND(ifq, m)						\
 do {									\
 	(m)->m_nextpkt = (ifq)->ifq_drv_head;				\
-	if ((ifq)->ifq_tail == NULL)					\
-		(ifq)->ifq_tail = (m);					\
+	if ((ifq)->ifq_drv_tail == NULL)				\
+		(ifq)->ifq_drv_tail = (m);				\
 	(ifq)->ifq_drv_head = (m);					\
 	(ifq)->ifq_drv_len++;						\
 } while (0)
@@ -523,9 +523,9 @@ do {									\
 
 #define	IFQ_DRV_PURGE(ifq)						\
 do {									\
-	struct mbuf *m = (ifq)->ifq_drv_head;				\
-	while(m != NULL) {						\
-		m = m->m_nextpkt;					\
+	struct mbuf *m, *n = (ifq)->ifq_drv_head;			\
+	while((m = n) != NULL) {					\
+		n = m->m_nextpkt;					\
 		m_freem(m);						\
 	}								\
 	(ifq)->ifq_drv_head = (ifq)->ifq_drv_tail = NULL;		\
