@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)args.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: args.c,v 1.13 1998/05/13 07:33:36 charnier Exp $";
+	"$Id: args.c,v 1.14 1999/05/08 10:20:05 kris Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -67,7 +67,7 @@ static void	f_obs __P((char *));
 static void	f_of __P((char *));
 static void	f_seek __P((char *));
 static void	f_skip __P((char *));
-static u_long	get_bsz __P((char *));
+static int64_t	get_bsz __P((char *));
 
 static struct arg {
 	char *name;
@@ -103,20 +103,20 @@ jcl(argv)
 
 	while ((oper = *++argv) != NULL) {
 		if ((oper = strdup(oper)) == NULL)
-			errx(1, "unable to allocate space for the argument \"%s\"", *argv);
+			errx(1, "unable to allocate space for the argument "
+			     "\"%s\"", *argv);
 		if ((arg = strchr(oper, '=')) == NULL)
 			errx(1, "unknown operand %s", oper);
 		*arg++ = '\0';
 		if (!*arg)
 			errx(1, "no value specified for %s", oper);
 		tmp.name = oper;
-		if (!(ap = (struct arg *)bsearch(&tmp, args,
-		    sizeof(args)/sizeof(struct arg), sizeof(struct arg),
-		    c_arg)))
+		if (!(ap = bsearch(&tmp, args, sizeof(args)/sizeof(struct arg),
+				   sizeof(struct arg), c_arg)))
 			errx(1, "unknown operand %s", tmp.name);
 		if (ddflags & ap->noset)
-			errx(1, "%s: illegal argument combination or already set",
-			    tmp.name);
+			errx(1, "%s: illegal argument combination or "
+			     "already set", tmp.name);
 		ddflags |= ap->set;
 		ap->f(arg);
 	}
@@ -165,16 +165,6 @@ jcl(argv)
 
 	if (in.dbsz == 0 || out.dbsz == 0)
 		errx(1, "buffer sizes cannot be zero");
-
-	/*
-	 * Read, write and seek calls take ints as arguments.  Seek sizes
-	 * could be larger if we wanted to do it in stages or check only
-	 * regular files, but it's probably not worth it.
-	 */
-	if (in.dbsz > INT_MAX || out.dbsz > INT_MAX)
-		errx(1, "buffer sizes cannot be greater than %d", INT_MAX);
-	if (in.offset > INT_MAX / in.dbsz || out.offset > INT_MAX / out.dbsz)
-		errx(1, "seek offsets cannot be larger than %d", INT_MAX);
 }
 
 static int
@@ -190,7 +180,7 @@ f_bs(arg)
 	char *arg;
 {
 
-	in.dbsz = out.dbsz = (int)get_bsz(arg);
+	in.dbsz = out.dbsz = (size_t)get_bsz(arg);
 }
 
 static void
@@ -198,7 +188,7 @@ f_cbs(arg)
 	char *arg;
 {
 
-	cbsz = (int)get_bsz(arg);
+	cbsz = (size_t)get_bsz(arg);
 }
 
 static void
@@ -206,7 +196,7 @@ f_count(arg)
 	char *arg;
 {
 
-	cpy_cnt = (u_int)get_bsz(arg);
+	cpy_cnt = (size_t)get_bsz(arg);
 	if (!cpy_cnt)
 		terminate(0);
 }
@@ -225,7 +215,7 @@ f_ibs(arg)
 {
 
 	if (!(ddflags & C_BS))
-		in.dbsz = (int)get_bsz(arg);
+		in.dbsz = (size_t)get_bsz(arg);
 }
 
 static void
@@ -242,7 +232,7 @@ f_obs(arg)
 {
 
 	if (!(ddflags & C_BS))
-		out.dbsz = (int)get_bsz(arg);
+		out.dbsz = (size_t)get_bsz(arg);
 }
 
 static void
@@ -258,7 +248,7 @@ f_seek(arg)
 	char *arg;
 {
 
-	out.offset = (u_int)get_bsz(arg);
+	out.offset = get_bsz(arg);
 }
 
 static void
@@ -266,7 +256,7 @@ f_skip(arg)
 	char *arg;
 {
 
-	in.offset = (u_int)get_bsz(arg);
+	in.offset = get_bsz(arg);
 }
 
 static struct conv {
@@ -300,9 +290,9 @@ f_conv(arg)
 
 	while (arg != NULL) {
 		tmp.name = strsep(&arg, ",");
-		if (!(cp = (struct conv *)bsearch(&tmp, clist,
-		    sizeof(clist)/sizeof(struct conv), sizeof(struct conv),
-		    c_conv)))
+		if (!(cp = bsearch(&tmp, clist, sizeof(clist) /
+				   sizeof(struct conv), sizeof(struct conv),
+				   c_conv)))
 			errx(1, "unknown conversion %s", tmp.name);
 		if (ddflags & cp->noset)
 			errx(1, "%s: illegal conversion combination", tmp.name);
@@ -321,7 +311,7 @@ c_conv(a, b)
 }
 
 /*
- * Convert an expression of the following forms to an unsigned long.
+ * Convert an expression of the following forms to a 64-bit integer.
  * 	1) A positive decimal number.
  *	2) A positive decimal number followed by a b (mult by 512).
  *	3) A positive decimal number followed by a k (mult by 1024).
@@ -331,17 +321,15 @@ c_conv(a, b)
  *	   separated by x (also * for backwards compatibility), specifying
  *	   the product of the indicated values.
  */
-static u_long
+static int64_t
 get_bsz(val)
 	char *val;
 {
-	u_long num, t;
+	int64_t num, t;
 	char *expr;
 
-	num = strtoul(val, &expr, 0);
-	if (num == ULONG_MAX)			/* Overflow. */
-		err(1, "%s", oper);
-	if (expr == val)			/* No digits. */
+	num = strtoq(val, &expr, 0);
+	if (num == QUAD_MAX || num < 0 || expr == val)
 		errx(1, "%s: illegal numeric value", oper);
 
 	switch(*expr) {
