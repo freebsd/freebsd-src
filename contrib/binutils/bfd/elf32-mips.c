@@ -5930,7 +5930,8 @@ mips_elf_calculate_relocation (abfd,
 	   and check to see if they exist by looking at their
 	   addresses.  */
 	symbol = 0;
-      else if (info->shared && !info->symbolic && !info->no_undefined)
+      else if (info->shared && !info->symbolic && !info->no_undefined
+	       && ELF_ST_VISIBILITY (h->root.other) == STV_DEFAULT)
 	symbol = 0;
       else if (strcmp (h->root.root.root.string, "_DYNAMIC_LINK") == 0)
 	{
@@ -5948,7 +5949,8 @@ mips_elf_calculate_relocation (abfd,
 	  if (! ((*info->callbacks->undefined_symbol)
 		 (info, h->root.root.root.string, input_bfd,
 		  input_section, relocation->r_offset,
-		  (!info->shared || info->no_undefined))))
+		  (!info->shared || info->no_undefined
+		   || ELF_ST_VISIBILITY (h->root.other)))))
 	    return bfd_reloc_undefined;
 	  symbol = 0;
 	}

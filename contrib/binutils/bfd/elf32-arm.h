@@ -1756,7 +1756,14 @@ elf32_arm_relocate_section (output_bfd, info, input_bfd, input_section,
 	              	  (!info->symbolic && h->dynindx != -1)
 	                  || (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR) == 0
 			  )
-	              && ((input_section->flags & SEC_ALLOC) != 0)
+	              && ((input_section->flags & SEC_ALLOC) != 0
+			  /* DWARF will emit R_ARM_ABS32 relocations in its
+			     sections against symbols defined externally
+			     in shared libraries.  We can't do anything
+			     with them here.  */
+			  || ((input_section->flags & SEC_DEBUGGING) != 0
+			      && (h->elf_link_hash_flags
+				  & ELF_LINK_HASH_DEF_DYNAMIC) != 0))
 		      )
 	            relocation_needed = 0;
 		  break;
@@ -1800,14 +1807,17 @@ elf32_arm_relocate_section (output_bfd, info, input_bfd, input_section,
 	    }
 	  else if (h->root.type == bfd_link_hash_undefweak)
 	    relocation = 0;
-	  else if (info->shared && !info->symbolic && !info->no_undefined)
+	  else if (info->shared && !info->symbolic
+		   && !info->no_undefined
+		   && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
 	    relocation = 0;
 	  else
 	    {
 	      if (!((*info->callbacks->undefined_symbol)
 		    (info, h->root.root.string, input_bfd,
 		     input_section, rel->r_offset,
-		     (!info->shared || info->no_undefined))))
+		     (!info->shared || info->no_undefined
+		      || ELF_ST_VISIBILITY (h->other)))))
 		return false;
 	      relocation = 0;
 	    }
@@ -1836,10 +1846,15 @@ elf32_arm_relocate_section (output_bfd, info, input_bfd, input_section,
 	  switch (r)
 	    {
 	    case bfd_reloc_overflow:
-	      if (!((*info->callbacks->reloc_overflow)
-		    (info, name, howto->name, (bfd_vma) 0,
-		     input_bfd, input_section, rel->r_offset)))
-		return false;
+	      /* If the overflowing reloc was to an undefined symbol,
+		 we have already printed one error message and there
+		 is no point complaining again.  */
+	      if ((! h ||
+		   h->root.type != bfd_link_hash_undefined)
+		  && (!((*info->callbacks->reloc_overflow)
+			(info, name, howto->name, (bfd_vma) 0,
+			 input_bfd, input_section, rel->r_offset))))
+		  return false;
 	      break;
 
 	    case bfd_reloc_undefined:
@@ -1923,10 +1938,6 @@ elf32_arm_copy_private_bfd_data (ibfd, obfd)
 
   if (elf_flags_init (obfd) && in_flags != out_flags)
     {
-      /* Cannot mix PIC and non-PIC code.  */
-      if ((in_flags & EF_PIC) != (out_flags & EF_PIC))
-	return false;
-
       /* Cannot mix APCS26 and APCS32 code.  */
       if ((in_flags & EF_APCS_26) != (out_flags & EF_APCS_26))
 	return false;
@@ -1946,6 +1957,10 @@ Warning: Clearing the interwork flag in %s because non-interworking code in %s h
 
 	  in_flags &= ~EF_INTERWORK;
 	}
+
+      /* Likewise for PIC, though don't warn for this case.  */
+      if ((in_flags & EF_PIC) != (out_flags & EF_PIC))
+	in_flags &= ~EF_PIC;
     }
 
   elf_elfheader (obfd)->e_flags = in_flags;
@@ -1963,6 +1978,9 @@ elf32_arm_merge_private_bfd_data (ibfd, obfd)
 {
   flagword out_flags;
   flagword in_flags;
+  boolean flags_compatible = true;
+  boolean null_input_bfd = true;
+  asection *sec;
 
   if (   bfd_get_flavour (ibfd) != bfd_target_elf_flavour
       || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
@@ -1994,13 +2012,14 @@ elf32_arm_merge_private_bfd_data (ibfd, obfd)
 
   if (!elf_flags_init (obfd))
     {
-      /* If the input is the default architecture then do not
-         bother setting the flags for the output architecture,
-         instead allow future merges to do this.  If no future
-         merges ever set these flags then they will retain their
-         unitialised values, which surprise surprise, correspond
+      /* If the input is the default architecture and had the default
+	 flags then do not bother setting the flags for the output
+	 architecture, instead allow future merges to do this.  If no
+	 future merges ever set these flags then they will retain their
+         uninitialised values, which surprise surprise, correspond
          to the default values.  */
-      if (bfd_get_arch_info (ibfd)->the_default)
+      if (bfd_get_arch_info (ibfd)->the_default
+	  && elf_elfheader (ibfd)->e_flags == 0)
 	return true;
 
       elf_flags_init (obfd) = true;
@@ -2013,48 +2032,77 @@ elf32_arm_merge_private_bfd_data (ibfd, obfd)
       return true;
     }
 
-  /* Check flag compatibility.  */
+  /* Identical flags must be compatible.  */
   if (in_flags == out_flags)
     return true;
 
-  /* Complain about various flag mismatches.  */
+  /* Check to see if the input BFD actually contains any sections.
+     If not, its flags may not have been initialised either, but it cannot
+     actually cause any incompatibility.  */
+  for (sec = ibfd->sections; sec != NULL; sec = sec->next)
+    {
+      /* Ignore synthetic glue sections.  */
+      if (strcmp (sec->name, ".glue_7")
+	  && strcmp (sec->name, ".glue_7t"))
+	{
+	  null_input_bfd = false;
+	  break;
+	}
+    }
+  if (null_input_bfd)
+    return true;
 
+  /* If any of the input BFDs is non-PIC, the output is also position 
+     dependent.  */
+  if (!(in_flags & EF_PIC))
+    elf_elfheader (obfd)->e_flags &= ~EF_PIC;
+
+  /* Complain about various flag mismatches.  */
   if ((in_flags & EF_APCS_26) != (out_flags & EF_APCS_26))
-    _bfd_error_handler (_ ("\
+    {
+      _bfd_error_handler (_ ("\
 Error: %s compiled for APCS-%d, whereas %s is compiled for APCS-%d"),
 			bfd_get_filename (ibfd),
 			in_flags & EF_APCS_26 ? 26 : 32,
 			bfd_get_filename (obfd),
 			out_flags & EF_APCS_26 ? 26 : 32);
+      flags_compatible = false;
+    }
 
   if ((in_flags & EF_APCS_FLOAT) != (out_flags & EF_APCS_FLOAT))
-    _bfd_error_handler (_ ("\
+    {
+      _bfd_error_handler (_ ("\
 Error: %s passes floats in %s registers, whereas %s passes them in %s registers"),
 			bfd_get_filename (ibfd),
 		     in_flags & EF_APCS_FLOAT ? _ ("float") : _ ("integer"),
 			bfd_get_filename (obfd),
 		      out_flags & EF_APCS_26 ? _ ("float") : _ ("integer"));
+      flags_compatible = false;
+    }
 
-  if ((in_flags & EF_PIC) != (out_flags & EF_PIC))
-    _bfd_error_handler (_ ("\
-Error: %s is compiled as position %s code, whereas %s is not"),
-			bfd_get_filename (ibfd),
-		    in_flags & EF_PIC ? _ ("independent") : _ ("dependent"),
-			bfd_get_filename (obfd));
-
-  /* Interworking mismatch is only a warning. */
-  if ((in_flags & EF_INTERWORK) != (out_flags & EF_INTERWORK))
+#ifdef EF_SOFT_FLOAT
+  if ((in_flags & EF_SOFT_FLOAT) != (out_flags & EF_SOFT_FLOAT))
     {
       _bfd_error_handler (_ ("\
+Error: %s uses %s floating point, whereas %s uses %s floating point"),
+			  bfd_get_filename (ibfd),
+			  in_flags & EF_SOFT_FLOAT ? _("soft") : _("hard"),
+			  bfd_get_filename (obfd),
+			  out_flags & EF_SOFT_FLOAT ? _("soft") : _("hard"));
+      flags_compatible = false;
+    }
+#endif
+
+  /* Interworking mismatch is only a warning.  */
+  if ((in_flags & EF_INTERWORK) != (out_flags & EF_INTERWORK))
+    _bfd_error_handler (_ ("\
 Warning: %s %s interworking, whereas %s %s"),
 			  bfd_get_filename (ibfd),
 	  in_flags & EF_INTERWORK ? _ ("supports") : _ ("does not support"),
 			  bfd_get_filename (obfd),
 		    out_flags & EF_INTERWORK ? _ ("does not") : _ ("does"));
-      return true;
-    }
 
-  return false;
+  return flags_compatible;
 }
 
 /* Display the flags field */

@@ -837,7 +837,7 @@ install-data-local:
 LDDISTSTUFF = ldgram.c ldgram.h ldlex.c
 diststuff: $(LDDISTSTUFF) info
 
-DISTCLEANFILES = tdirs site.exp site.bak
+DISTCLEANFILES = tdirs site.exp site.bak stringify.sed
 distclean-local:
 	rm -rf ldscripts
 
