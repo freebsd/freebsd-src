@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id: inode.c,v 1.16 1998/08/01 18:03:28 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -629,6 +633,7 @@ allocino(request, type)
 	dp->di_flags = 0;
 	dp->di_atime = time(NULL);
 	dp->di_mtime = dp->di_ctime = dp->di_atime;
+	dp->di_mtimensec = dp->di_ctimensec = dp->di_atimensec = 0;
 	dp->di_size = sblock.fs_fsize;
 	dp->di_blocks = btodb(sblock.fs_fsize);
 	n_files++;

@@ -32,11 +32,14 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)utilities.c	8.6 (Berkeley) 5/19/95";
+#endif
+static const char rcsid[] =
+	"$Id: utilities.c,v 1.8 1998/06/15 07:07:21 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -286,7 +289,7 @@ ckfini(markclean)
 		free((char *)bp);
 	}
 	if (bufhead.b_size != cnt)
-		errx(EEXIT, "Panic: lost %d buffers", bufhead.b_size - cnt);
+		errx(EEXIT, "panic: lost %d buffers", bufhead.b_size - cnt);
 	pbp = pdirbp = (struct bufarea *)0;
 	if (sblock.fs_clean != markclean) {
 		sblock.fs_clean = markclean;
@@ -524,7 +527,6 @@ void
 catchquit(sig)
 	int sig;
 {
-
 	printf("returning to single-user after filesystem check\n");
 	returntosingle = 1;
 	(void)signal(SIGQUIT, SIG_DFL);
