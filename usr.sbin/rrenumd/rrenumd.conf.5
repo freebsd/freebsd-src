@@ -1,3 +1,5 @@
+.\"	$KAME$
+.\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
 .\"
@@ -25,7 +27,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rrenumd.conf.5,v 1.1.1.1 1999/08/08 23:31:39 itojun Exp $
 .\"     $FreeBSD$
 .\"
 .Dd Nov 5, 1998
@@ -61,15 +62,15 @@ square brackets (`[' and `]') are used to show optional
 keywords and parameters.
 The vertical bar (`|') is used to indicate
 between a choice of optional parameters.
-Curly braces (`{' and
-`}') are used to group keywords and parameters when necessary.
+Parentheses (`(' and
+`)') are used to group keywords and parameters when necessary.
 .\"
 .Sh Interface specification
 There are some statements that may or have to specify interface.
 Interfaces are specified in the form of "name unit", such as
 .Ar lo0
 and
-.Ar ep1 .
+.Ar ep1.
 .\"
 .Sh Configuration Statements
 .Bl -tag -width Ds
@@ -83,8 +84,7 @@ then debugging is enabled,
 If
 .Ic off
 is specified,
-then debugging is disabled.
-It is disabled by default.
+then debugging is disabled. It is disabled by default.
 .\"
 .It Ic dest Ar dest-list Op Ar retrycmd ;
 Specifies destinations to which router renumbering messages should be
@@ -164,7 +164,7 @@ copied to the starting part of prefixes to be added on
 .Cm add|change|setglobal
 command, as decimal bit number.
 .It Cm keeplen Ar keeplen-val
-Specify the medium part of
+Specify the midium part of
 .Ar use-prefix-val
 just next to the starting part specified by
 .Ar use-prefix-len
@@ -181,8 +181,7 @@ Valid value for
 .Ar time
 is decimal seconds number or special format as "d00h00m00s00",
 where 00 can take any decimal number, and "d" means days, "h" means hours,
-"m" means minutes, "s" means seconds.
-And alternatively, special keyword
+"m" means minutes, "s" means seconds. And alternatively, special keyword
 "infinity" can be also be specified.
 .It Cm pltime Ar pltime-val
 Assign an
@@ -194,48 +193,38 @@ is same as for
 .Ar vltime-val .
 .It Cm raf_onlink Cm on|off
 Let the prefix to be added to have on-link or off-link nature
-for the assigned interface.
-If
+for the assigned interface. If
 .Cm on
-is specified, the prefix have on-link nature.
-(e.g. the prefix
+is specified, the prefix have on-link nature. (e.g. the prefix
 belong to the link) If
 .Cm off
-is specified, the prefix have off-link nature.
-(e.g. the
+is specified, the prefix have off-link nature. (e.g. the
 prefix does not belong to the link)
 .It Cm raf_auto Cm on|off
 Enable or disable the autonomous address auto configuration
-for the prefix to be added.
-If
+for the prefix to be added. If
 .Cm on
 is specified, autonomous address auto configuration is
-enabled.
-If
+enabled. If
 .Cm off
 is specified, it is disabled.
 .It Cm rrf_decrprefd Cm on|off
-Enable or disable the decrementation of the pltime.
-If
+Enable or disable the decrementation of the pltime. If
 .Cm on
-is specified, decrementation of the pltime is enabled.
-If
+is specified, decrementation of the pltime is enabled. If
 .Cm off
 is specified, decrementation of the pltime is disabled.
 .It Cm rrf_decrvalid Cm on|off
-Enable or disable the decrementation of the vltime.
-If
+Enable or disable the decrementation of the vltime. If
 .Cm on
-is specified, decrementation of the vltime is enabled.
-If
+is specified, decrementation of the vltime is enabled. If
 .Cm off
 is specified, decrementation of the vltime is disabled.
 .El
 .\"
 .It seqnum Ar seqnum-val { Ar rrenum-cmd } ;
 Specifies contents of sending router renumbering message with some
-specific seqnum.
-Multiple of this statement can be specified if they
+specific seqnum. Multiple of this statement can be specified if they
 have different
 .Ar seqnum-val
 each other.
@@ -246,11 +235,10 @@ has just same syntax with above add|change|setglobal statement.
 .Sh EXAMPLE
 For each configuration file example shown below, we suppose
 every IPv6 subnet has its own prefix beginning with
-fec0:0:0::/48 and with its own subnet number.
-(in this case,
+fec0:0:0::/48 and with its own subnet number. (in this case,
 subnet number is 7th and 8th octet value of the prefix)
 .Pp
-If you want to assign prefixes beginning with fec0:1:1::/48
+If you want to assigne prefixes beginning with fec0:1:1::/48
 to each subnet, then following configuration will be enough,
 if each of your routers supports IPv6 multicast forwarding.
 The subnet number of the existing fec0:0:0::/48 prefix and the
@@ -278,11 +266,10 @@ add match-prefix fec0:0:0:: /48 use-prefix fec0:1:1:: /48 keeplen 16;
 If you are going to do renumbering, then following procedure will be natural.
 .Bl -enum -offset indent
 .It
-Assign new prefix.
+Assigne new prefix.
 .It
 Set old prefix lifetimes to some appropriate transition
-period.
-In the followng example we use 1 week for valid
+period. In the followng example we use 1 week for valid
 lifetime, and 0 for preferred lifetime.
 Also, enable old prefix lifetime expiration.
 (By default, it is static and does not expire)
@@ -334,7 +321,7 @@ command is almost same with
 command except that it deletes all pre-defined IPv6 global address.
 
 .Sh SEE ALSO
-.Xr rrenumd 8 ,
+.Xr rrenumd 8
 .Xr prefix 8
 .Sh HISTORY
 The
