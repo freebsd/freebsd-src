@@ -154,6 +154,12 @@
 
 #include <dev/acpica/acpivar.h>
 
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	PROCESSOR_CONTROL
+MODULE_NAME("PROCESSOR")
+
 #define PR_MAX_POWER_STATES		4
 #define PR_MAX_PERFORMANCE_STATES	8
 #define PR_MAX_THROTTLING_STATES	8
@@ -297,8 +303,13 @@ acpi_pr_identify(driver_t *driver, device_t bus)
 {
     ACPI_HANDLE			handle;
 
-    if (AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_PR_", &handle) == AE_OK)
+    FUNCTION_TRACE(__FUNCTION__);
+
+    if (!acpi_disabled("processor") && 
+	(AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_PR_", &handle) == AE_OK))
 	AcpiWalkNamespace(ACPI_TYPE_PROCESSOR, handle, 2, acpi_pr_identify_cpu, bus, NULL);
+
+    return_VOID;
 }
 
 /*
@@ -311,20 +322,21 @@ acpi_pr_identify_cpu(ACPI_HANDLE handle, UINT32 level, void *context, void **sta
     device_t		child;
     PROCESSOR_APIC	lapic;
     
+    FUNCTION_TRACE(__FUNCTION__);
 
     acpi_pr_FindLapic(bus, handle, &lapic);
 
     if (lapic.ProcessorEnabled) {
 	if ((child = BUS_ADD_CHILD(bus, 0, "acpi_pr", -1)) == NULL) {
 	    device_printf(bus, "could not create CPU device\n");
-	    return(AE_OK);
+	    return_ACPI_STATUS(AE_OK);
 	}
 	acpi_set_handle(child, handle);	
 	acpi_set_magic(child, PR_MAGIC);
 	device_set_desc(child, "processor device");
     }
 
-    return(AE_OK);
+    return_ACPI_STATUS(AE_OK);
 }
 
 static int
@@ -339,6 +351,8 @@ static int
 acpi_pr_attach(device_t dev)
 {
     struct acpi_pr_softc	*sc;
+
+    FUNCTION_TRACE(__FUNCTION__);
 
     sc = device_get_softc(dev);
     sc->pr_dev = dev;
@@ -362,7 +376,7 @@ acpi_pr_attach(device_t dev)
     
     /* XXX call MD cpu-identification here? */
 
-    return(0);
+    return_VALUE(0);
 }
 
 /*
@@ -447,6 +461,8 @@ acpi_pr_CalculatePowerStates(struct acpi_pr_softc *sc)
     u_int32_t		    StateCount = 0;
     u_int32_t		    i = 0;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     /*
      * Set Latency Defaults:
      * ---------------------
@@ -467,7 +483,7 @@ acpi_pr_CalculatePowerStates(struct acpi_pr_softc *sc)
     Status = acpi_GetIntoBuffer(sc->pr_handle, AcpiGetProcessorCxInfo, &Buffer);
     if (Status != AE_OK) {
 	device_printf(sc->pr_dev, "could not fetch ProcessorCxInfo - %s\n", acpi_strerror(Status));
-	return(Status);
+	return_ACPI_STATUS(Status);
     }
 
     State = (ACPI_CX_STATE*)(Buffer.Pointer);
@@ -487,7 +503,7 @@ acpi_pr_CalculatePowerStates(struct acpi_pr_softc *sc)
     sc->pr_PowerStates.ActiveState = PR_POWER_STATE_C1;
 
     AcpiOsFree(Buffer.Pointer);
-    return(Status);
+    return_ACPI_STATUS(Status);
 }
 
 static ACPI_STATUS
@@ -495,9 +511,11 @@ acpi_pr_CalculatePerformanceStates(struct acpi_pr_softc *sc)
 {
     ACPI_STATUS		    Status = AE_OK;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     /* TODO... */
 
-    return(Status);
+    return_ACPI_STATUS(Status);
 }
     
 static ACPI_STATUS
@@ -509,6 +527,8 @@ acpi_pr_CalculateThrottlingStates(struct acpi_pr_softc *sc)
     u_int32_t		    StateCount = 0;
     u_int32_t		    i = 0;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     /*
      * Get Throttling States:
      * ----------------------
@@ -516,7 +536,7 @@ acpi_pr_CalculateThrottlingStates(struct acpi_pr_softc *sc)
     Status = acpi_GetIntoBuffer(sc->pr_handle, AcpiGetProcessorThrottlingInfo, &Buffer);
     if (Status != AE_OK) {
 	device_printf(sc->pr_dev, "could not fetch ThrottlingInfo - %s\n", acpi_strerror(Status));
-	return(Status);
+	return_ACPI_STATUS(Status);
     }
 
     State = (ACPI_CPU_THROTTLING_STATE*)(Buffer.Pointer);
@@ -535,22 +555,24 @@ acpi_pr_CalculateThrottlingStates(struct acpi_pr_softc *sc)
     }
 
     AcpiOsFree(Buffer.Pointer);
-    return(Status);
+    return_ACPI_STATUS(Status);
 }
 
 static ACPI_STATUS
 acpi_pr_PolicyInitialize(struct acpi_pr_softc *sc)
 {
-    ACPI_STATUS	status;
+    ACPI_STATUS	Status;
 
-    if ((status = AcpiSetProcessorSleepState(sc->pr_handle, sc->pr_PowerStates.ActiveState)) != AE_OK) {
-	device_printf(sc->pr_dev, "could not set Active sleep state - %s\n", acpi_strerror(status));
-	return(status);
+    FUNCTION_TRACE(__FUNCTION__);
+
+    if ((Status = AcpiSetProcessorSleepState(sc->pr_handle, sc->pr_PowerStates.ActiveState)) != AE_OK) {
+	device_printf(sc->pr_dev, "could not set Active sleep state - %s\n", acpi_strerror(Status));
+	return_ACPI_STATUS(Status);
     }
 
     /* XXX need to hook ourselves to be called when things go idle */
 /*    sc->pr_idleevent = EVENTHANDLER_FAST_REGISTER(idle_event, acpi_pr_IdleHandler, sc, IDLE_PRI_FIRST); */
-    return(AE_OK);
+    return_ACPI_STATUS(AE_OK);
 }
 
 static void

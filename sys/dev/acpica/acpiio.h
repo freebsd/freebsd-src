@@ -27,7 +27,14 @@
  *	$FreeBSD$
  */
 
+/*
+ * Core ACPI subsystem ioctls
+ */
 #define ACPIIO_ENABLE		_IO('P', 1)
 #define ACPIIO_DISABLE		_IO('P', 2)
 #define ACPIIO_SETSLPSTATE	_IOW('P', 3, int)
 
+#ifdef _KERNEL
+extern int	acpi_register_ioctl(u_long cmd, int (* fn)(u_long cmd, caddr_t addr, void *arg), void *arg);
+extern void	acpi_deregister_ioctl(u_long cmd, int (* fn)(u_long cmd, caddr_t addr, void *arg));
+#endif
