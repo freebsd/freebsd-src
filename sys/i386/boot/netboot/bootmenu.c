@@ -35,6 +35,7 @@ struct bootcmds_t {
 	int (*func)();
 	char *help;
 } bootcmds[] = {
+	{"?",		cmd_help,	"              this list"},
 	{"help",	cmd_help,	"              this list"},
 	{"ip",		cmd_ip,		"<addr>          set my IP addr"},
 	{"server",	cmd_server,	"<addr>      set TFTP server IP addr"},
@@ -98,8 +99,7 @@ cmd_netmask(p)
 	int i;
 	if (!setip(p, &netmask)) {
 		netmask = ntohl(netmask);
-		printf("netmask is %I\r\n",
-			arptable[ARP_SERVER].ipaddr);
+		printf("netmask is %I\r\n", netmask);
 	}
 	netmask = htonl(netmask);
 }
