@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: log.c,v 1.18 2000/07/24 04:32:17 assar Exp $");
+RCSID("$Id: log.c,v 1.19 2002/05/24 15:19:21 joda Exp $");
 
 /*
  * A log record consists of:
@@ -64,7 +64,7 @@ kadm5_log_get_version_fd (int fd,
 	return 0;
     }
     sp = krb5_storage_from_fd (fd);
-    sp->seek(sp, -4, SEEK_CUR);
+    krb5_storage_seek(sp, -4, SEEK_CUR);
     krb5_ret_int32 (sp, &old_version);
     *ver = old_version;
     krb5_storage_free(sp);
@@ -237,7 +237,7 @@ kadm5_log_create (kadm5_server_context *context,
 	return ret;
     }
     krb5_store_int32 (sp, value.length);
-    sp->store(sp, value.data, value.length);
+    krb5_storage_write(sp, value.data, value.length);
     krb5_store_int32 (sp, value.length);
     krb5_data_free (&value);
     ret = kadm5_log_postamble (log_context, sp);
@@ -269,7 +269,7 @@ kadm5_log_replay_create (kadm5_server_context *context,
     hdb_entry ent;
 
     krb5_data_alloc (&data, len);
-    sp->fetch (sp, data.data, len);
+    krb5_storage_read (sp, data.data, len);
     ret = hdb_value2entry (context->context, &data, &ent);
     krb5_data_free(&data);
     if (ret)
@@ -300,12 +300,12 @@ kadm5_log_delete (kadm5_server_context *context,
 	return ret;
     }
     krb5_store_int32 (sp, 0);
-    off = sp->seek (sp, 0, SEEK_CUR);
+    off = krb5_storage_seek (sp, 0, SEEK_CUR);
     krb5_store_principal (sp, princ);
-    len = sp->seek (sp, 0, SEEK_CUR) - off;
-    sp->seek(sp, -(len + 4), SEEK_CUR);
+    len = krb5_storage_seek (sp, 0, SEEK_CUR) - off;
+    krb5_storage_seek(sp, -(len + 4), SEEK_CUR);
     krb5_store_int32 (sp, len);
-    sp->seek(sp, len, SEEK_CUR);
+    krb5_storage_seek(sp, len, SEEK_CUR);
     krb5_store_int32 (sp, len);
     if (ret) {
 	krb5_storage_free (sp);
@@ -373,15 +373,15 @@ kadm5_log_rename (kadm5_server_context *context,
 	return ret;
     }
     krb5_store_int32 (sp, 0);
-    off = sp->seek (sp, 0, SEEK_CUR);
+    off = krb5_storage_seek (sp, 0, SEEK_CUR);
     krb5_store_principal (sp, source);
-    sp->store(sp, value.data, value.length);
+    krb5_storage_write(sp, value.data, value.length);
     krb5_data_free (&value);
-    len = sp->seek (sp, 0, SEEK_CUR) - off;
+    len = krb5_storage_seek (sp, 0, SEEK_CUR) - off;
 
-    sp->seek(sp, -(len + 4), SEEK_CUR);
+    krb5_storage_seek(sp, -(len + 4), SEEK_CUR);
     krb5_store_int32 (sp, len);
-    sp->seek(sp, len, SEEK_CUR);
+    krb5_storage_seek(sp, len, SEEK_CUR);
     krb5_store_int32 (sp, len);
     if (ret) {
 	krb5_storage_free (sp);
@@ -417,12 +417,12 @@ kadm5_log_replay_rename (kadm5_server_context *context,
     off_t off;
     size_t princ_len, data_len;
 
-    off = sp->seek(sp, 0, SEEK_CUR);
+    off = krb5_storage_seek(sp, 0, SEEK_CUR);
     krb5_ret_principal (sp, &source);
-    princ_len = sp->seek(sp, 0, SEEK_CUR) - off;
+    princ_len = krb5_storage_seek(sp, 0, SEEK_CUR) - off;
     data_len = len - princ_len;
     krb5_data_alloc (&value, data_len);
-    sp->fetch (sp, value.data, data_len);
+    krb5_storage_read (sp, value.data, data_len);
     ret = hdb_value2entry (context->context, &value, &target_ent);
     krb5_data_free(&value);
     if (ret) {
@@ -472,7 +472,7 @@ kadm5_log_modify (kadm5_server_context *context,
     len = value.length + 4;
     krb5_store_int32 (sp, len);
     krb5_store_int32 (sp, mask);
-    sp->store(sp, value.data, value.length);
+    krb5_storage_write (sp, value.data, value.length);
     krb5_data_free (&value);
     krb5_store_int32 (sp, len);
     if (ret) {
@@ -510,7 +510,7 @@ kadm5_log_replay_modify (kadm5_server_context *context,
     krb5_ret_int32 (sp, &mask);
     len -= 4;
     krb5_data_alloc (&value, len);
-    sp->fetch (sp, value.data, len);
+    krb5_storage_read (sp, value.data, len);
     ret = hdb_value2entry (context->context, &value, &log_ent);
     krb5_data_free(&value);
     if (ret)
@@ -689,7 +689,7 @@ kadm5_log_foreach (kadm5_server_context *context,
 	krb5_ret_int32 (sp, &op);
 	krb5_ret_int32 (sp, &len);
 	(*func)(context, ver, timestamp, op, len, sp);
-	sp->seek(sp, 8, SEEK_CUR);
+	krb5_storage_seek(sp, 8, SEEK_CUR);
     }
     return 0;
 }
@@ -704,7 +704,7 @@ kadm5_log_goto_end (int fd)
     krb5_storage *sp;
 
     sp = krb5_storage_from_fd (fd);
-    sp->seek(sp, 0, SEEK_END);
+    krb5_storage_seek(sp, 0, SEEK_END);
     return sp;
 }
 
@@ -722,13 +722,13 @@ kadm5_log_previous (krb5_storage *sp,
     off_t off;
     int32_t tmp;
 
-    sp->seek(sp, -8, SEEK_CUR);
+    krb5_storage_seek(sp, -8, SEEK_CUR);
     krb5_ret_int32 (sp, &tmp);
     *len = tmp;
     krb5_ret_int32 (sp, &tmp);
     *ver = tmp;
     off = 24 + *len;
-    sp->seek(sp, -off, SEEK_CUR);
+    krb5_storage_seek(sp, -off, SEEK_CUR);
     krb5_ret_int32 (sp, &tmp);
     assert(tmp == *ver);
     krb5_ret_int32 (sp, &tmp);

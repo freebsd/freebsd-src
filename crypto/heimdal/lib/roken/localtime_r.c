@@ -33,10 +33,12 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: localtime_r.c,v 1.1 2001/10/21 23:24:33 assar Exp $");
+RCSID("$Id: localtime_r.c,v 1.2 2002/08/20 13:00:35 joda Exp $");
 #endif
 
+#include <stdio.h>
 #include <time.h>
+#include "roken.h"
 
 #ifndef HAVE_LOCALTIME_R
 

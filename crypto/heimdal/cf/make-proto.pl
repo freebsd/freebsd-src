@@ -1,5 +1,5 @@
 # Make prototypes from .c files
-# $Id: make-proto.pl,v 1.12 2001/06/23 22:29:18 assar Exp $
+# $Id: make-proto.pl,v 1.15 2002/08/12 16:23:58 joda Exp $
 
 ##use Getopt::Std;
 require 'getopts.pl';
@@ -7,11 +7,21 @@ require 'getopts.pl';
 $brace = 0;
 $line = "";
 $debug = 0;
+$oproto = 1;
+$private_func_re = "^_";
 
-do Getopts('o:p:d') || die "foo";
+do Getopts('o:p:dqR:P:') || die "foo";
 
 if($opt_d) {
     $debug = 1;
+}
+
+if($opt_q) {
+    $oproto = 0;
+}
+
+if($opt_R) {
+    $private_func_re = $opt_R;
 }
 
 while(<>) {
@@ -50,28 +60,43 @@ while(<>) {
 		    $attr = "";
 		}
 		# remove outer ()
-		s/\s*\(/@/;
-		s/\)\s?$/@/;
+		s/\s*\(/</;
+		s/\)\s?$/>/;
 		# remove , within ()
 		while(s/\(([^()]*),(.*)\)/($1\$$2)/g){}
+		s/\<\s*void\s*\>/<>/;
+		# remove parameter names 
+		if($opt_P eq "remove") {
+		    s/(\s*)([a-zA-Z0-9_]+)([,>])/$3/g;
+		    s/\(\*(\s*)([a-zA-Z0-9_]+)\)/(*)/g;
+		} elsif($opt_P eq "comment") {
+		    s/([a-zA-Z0-9_]+)([,>])/\/\*$1\*\/$2/g;
+		    s/\(\*([a-zA-Z0-9_]+)\)/(*\/\*$1\*\/)/g;
+		}
+		s/\<\>/<void>/;
+		# add newlines before parameters
 		s/,\s*/,\n\t/g;
 		# fix removed ,
 		s/\$/,/g;
 		# match function name
-		/([a-zA-Z0-9_]+)\s*@/;
+		/([a-zA-Z0-9_]+)\s*\</;
 		$f = $1;
-		# only add newline if more than one parameter
-		$LP = "((";  # XXX workaround for indentation bug in emacs
-		$RP = "))";
-		$P = "__P((";
-                if(/,/){ 
-		    s/@/ __P$LP\n\t/;
-		}else{
-		    s/@/ __P$LP/;
+		if($oproto) {
+		    $LP = "__P((";
+		    $RP = "))";
+		} else {
+		    $LP = "(";
+		    $RP = ")";
 		}
-		s/@/$RP/;
+		# only add newline if more than one parameter
+                if(/,/){ 
+		    s/\</ $LP\n\t/;
+		}else{
+		    s/\</ $LP/;
+		}
+		s/\>/$RP/;
 		# insert newline before function name
-		s/(.*)\s([a-zA-Z0-9_]+ __P)/$1\n$2/;
+		s/(.*)\s([a-zA-Z0-9_]+ \Q$LP\E)/$1\n$2/;
 		if($attr ne "") {
 		    $_ .= "\n    $attr";
 		}
@@ -121,7 +146,9 @@ $public_h_header = "/* This is a generated file */
 #ifndef $block
 #define $block
 
-#ifdef __STDC__
+";
+if ($oproto) {
+$public_h_header .= "#ifdef __STDC__
 #include <stdarg.h>
 #ifndef __P
 #define __P(x) x
@@ -133,12 +160,19 @@ $public_h_header = "/* This is a generated file */
 #endif
 
 ";
+} else {
+    $public_h_header .= "#include <stdarg.h>
+
+";
+}
 
 $private_h_header = "/* This is a generated file */
 #ifndef $private
 #define $private
 
-#ifdef __STDC__
+";
+if($oproto) {
+$private_h_header .= "#ifdef __STDC__
 #include <stdarg.h>
 #ifndef __P
 #define __P(x) x
@@ -150,10 +184,14 @@ $private_h_header = "/* This is a generated file */
 #endif
 
 ";
+} else {
+    $private_h_header .= "#include <stdarg.h>
 
+";
+}
 foreach(sort keys %funcs){
     if(/^(main)$/) { next }
-    if(/^_/) {
+    if(/$private_func_re/) {
 	$private_h .= $funcs{$_} . "\n\n";
 	if($funcs{$_} =~ /__attribute__/) {
 	    $private_attribute_seen = 1;

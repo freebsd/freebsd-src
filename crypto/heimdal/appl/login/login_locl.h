@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: login_locl.h,v 1.22 2001/09/22 11:47:37 assar Exp $ */
+/* $Id: login_locl.h,v 1.24 2002/08/12 15:09:15 joda Exp $ */
 
 #ifndef __LOGIN_LOCL_H__
 #define __LOGIN_LOCL_H__
@@ -77,6 +77,12 @@
 #endif
 #ifdef HAVE_SHADOW_H
 #include <shadow.h>
+#endif
+#ifdef HAVE_NETGROUP_H
+#include <netgroup.h>
+#endif
+#ifdef HAVE_RPCSVC_YPCLNT_H
+#include <rpcsvc/ypclnt.h>
 #endif
 #ifdef KRB4
 #include <krb.h>
@@ -124,15 +130,15 @@
 #endif
 
 #ifndef _PATH_LOGACCESS
-#define _PATH_LOGACCESS "/etc/login.access"
+#define _PATH_LOGACCESS SYSCONFDIR "/login.access"
 #endif /* _PATH_LOGACCESS */
 
 #ifndef _PATH_LOGIN_CONF
-#define _PATH_LOGIN_CONF "/etc/login.conf"
+#define _PATH_LOGIN_CONF SYSCONFDIR "/login.conf"
 #endif /* _PATH_LOGIN_CONF */
 
 #ifndef _PATH_ETC_ENVIRONMENT
-#define _PATH_ETC_ENVIRONMENT "/etc/environment"
+#define _PATH_ETC_ENVIRONMENT SYSCONFDIR "/environment"
 #endif
 
 #ifndef _PATH_DEFPATH

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: verify_init.c,v 1.14 2001/05/14 06:14:52 assar Exp $");
+RCSID("$Id: verify_init.c,v 1.17 2002/08/20 14:47:59 joda Exp $");
 
 void
 krb5_verify_init_creds_opt_init(krb5_verify_init_creds_opt *options)
@@ -58,7 +58,7 @@ fail_verify_is_ok (krb5_context context,
 		   krb5_verify_init_creds_opt *options)
 {
     if ((options->flags & KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL
-	&& options->ap_req_nofail == 1)
+	 && options->ap_req_nofail != 0)
 	|| krb5_config_get_bool (context,
 				 NULL,
 				 "libdefaults",
@@ -94,7 +94,7 @@ krb5_verify_init_creds(krb5_context context,
 
 	if (gethostname (local_hostname, sizeof(local_hostname)) < 0) {
 	    ret = errno;
-	    krb5_set_error_string (context, "getsockname: %s",
+	    krb5_set_error_string (context, "gethostname: %s",
 				   strerror(ret));
 	    return ret;
 	}

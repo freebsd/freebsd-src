@@ -1,3 +1,179 @@
+2002-08-28  Assar Westerlund  <assar@kth.se>
+
+	* krb-readline.m4: also add LIB_tgetent in the case of editline
+
+	* crypto.m4: define HAVE_OPENSSL even if we got to hear about it
+	by krb4
+
+2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* krb-readline.m4: add LIB_tgetent to LIB_readline if we have to
+
+	* sunos.m4: various sunos tests
+
+	* crypto.m4: try to extract the crypto compiler flags from
+	{INCLUDE,LIB}_krb4
+	(XXX this is really horrible)
+
+	* krb-readline.m4: don't add -rpath to LIB_readline (libtool
+	should to this for us), also don't append LIB_tgetent to
+	LIB_readline (TEST_PACKAGE should do this)
+
+	* test-package.m4: add the possibility to use a *-config program
+	to get flags; rename to rk_TEST_PACKAGE while here
+
+	* krb-bigendian.m4: move ENDIANESS_IN_SYS_PARAM_H tests here
+
+	* aix.m4: rename to rk_AIX
+
+	* telnet.m4: move telnet tests here
+
+	* aix.m4: restructure this somewhat
+
+	* dlopen.m4: test for dlopen suitable for AC_REQUIRE
+
+	* irix.m4: move some stuff here and rename to irix.m4
+
+	* krb-sys-nextstep.m4: move SGTTY stuff to read_pwd.c
+
+2002-08-28  Jacques Vidrine  <nectar@kth.se>
+
+	* auth-modules.m4: do not build pam_krb4 on freebsd
+
+2002-08-26  Assar Westerlund  <assar@kth.se>
+
+	* roken-frag.m4: test for the vis, strvis functions requiring
+	prototypes
+
+2002-08-23  Johan Danielsson  <joda@pdc.kth.se>
+
+	* need-proto.m4: missing comma
+
+2002-08-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: some rototilling
+
+	* need-proto.m4: use AS_TR_CPP
+
+2002-08-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: HAVE_TYPE instead of CHECK_TYPE ssize_t
+
+	* krb-version.m4: use PACKAGE_TARNAME and PACKAGE_STRING
+
+	* broken-getaddrinfo.m4: can't test for EAI_SERVICE here since AIX
+	is even more fsck:ed
+
+	* roken-frag.m4: test for altzone
+
+2002-08-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am.common: only define ROKEN_RENAME if do_roken_rename
+
+2002-08-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am.common: add ROKEN_RENAME variable
+
+2002-08-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* make-proto.pl: include <stdarg.h> to get va_list
+
+	* destdirs.m4: also define localstatedir and sysconfdir
+
+2002-08-01  Johan Danielsson  <joda@pdc.kth.se>
+
+	* crypto.m4: newer openssl seems to take the address of the
+	schedule parameter to des_cbc_encrypt, so we need to feed it a
+	variable, not just NULL (from Magnus Holmberg)
+
+2002-05-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* misc.m4: change \100 back to @; some m4's (probably some regex)
+	doesn't like this as a replacement regexp; the reason it was once
+	changed to \100 was probably because of some autoconf bug at the
+	time
+
+2002-05-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* broken2.m4 []-less is apparently the way to go
+
+2002-05-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* otp.m4: check db_type instead of precence of dbm_firstkey
+
+	* roken-frag.m4: don't AC_LIBOBJ more than one function at a time
+
+	* find-if-not-broken.m4: s/AC_LIBOBJ/rk_LIBOBJ/
+
+	* broken2.m4: s/AC_LIBOBJ/rk_LIBOBJ/
+
+	* broken.m4: s/AC_LIBOBJ/rk_LIBOBJ/
+
+	* misc.m4: automake can't handle macros passed to AC_LIBOBJ, so
+	add an alias to it called rk_LIBOBJ; this requires that the
+	relevant source are manually included in roken/Makefile.am
+
+	* aix.m4: ac_enable --diable-dynamic-afs
+
+	* roken-frag.m4: use AC_LIBOBJ
+
+	* krb-func-getcwd-broken.m4: use AC_LIBOBJ
+
+	* find-if-not-broken.m4: use AC_LIBOBJ
+
+	* broken2.m4: use AC_LIBOBJ
+
+	* broken.m4: use AC_LIBOBJ
+
+	* aix.m4: recognise aix5
+	
+2002-05-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* crypto.m4: am-conditionalise HAVE_OPENSSL
+
+	* db.m4: make it possible to run this twice
+
+	* Makefile.am.common: also install nodist_include_HEADERS
+
+2002-05-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* make-proto.pl: make it possible to redefine the "private" regexp
+
+2002-05-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* db.m4: am_cond HAVE_*
+
+2002-04-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* krb-ipv6.m4: use AC_HELP_STRING; fix logic bug in AC_MSG_RESULT
+	call
+
+	* test-package.m4: use AC_HELP_STRING
+
+	* roken.m4: use AC_HELP_STRING
+
+	* osfc2.m4: use AC_HELP_STRING
+
+	* mips-abi.m4: use AC_HELP_STRING
+
+	* krb-bigendian.m4: use AC_HELP_STRING
+
+	* db.m4: rework this somewhat; check for db3/4 in subdirs, change
+	--with to --enable; it should really be possible to point it to
+	some directory --with-berkeley-db=/foo
+
+	* otp.m4: OTP test
+
+2002-04-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* destdirs.m4: define BINDIR et al
+
+2002-04-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* misc.m4: remove some stuff that is defined elsewhere
+
+	* make-proto.pl: optionally remove __P and parameter names
+
 2001-11-30  Assar Westerlund  <assar@sics.se>
 
 	* roken-frag.m4: move ipv6 tests after -lsocket (to handle Solaris

@@ -1,3 +1,16 @@
+2002-06-07  Jacques Vidrine <n@nectar.com>
+
+	* ank.c: do not attempt to free uninitialized pointer when
+	kadm5_randkey_principal fails.
+
+2002-06-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* util.c: remove unused variable; reported by Hans Insulander
+
+2002-03-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kadmind.8: clarify some acl wording, and add an example file
+
 2002-02-11  Johan Danielsson  <joda@pdc.kth.se>
 
 	* ext.c: no need to use the "modify" keytab anymore

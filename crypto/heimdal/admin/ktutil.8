@@ -1,4 +1,4 @@
-.\" $Id: ktutil.8,v 1.14 2001/07/23 14:47:31 joda Exp $
+.\" $Id: ktutil.8,v 1.15 2002/08/20 17:07:00 joda Exp $
 .\"
 .Dd December 16, 2000
 .Dt KTUTIL 8
@@ -9,13 +9,13 @@
 .Sh SYNOPSIS
 .Nm
 .Oo Fl k Ar keytab \*(Ba Xo
-.Fl -keytab= Ns Ar keytab 
+.Fl -keytab= Ns Ar keytab
 .Xc
 .Oc
 .Op Fl v | Fl -verbose
 .Op Fl -version
 .Op Fl h | Fl -help
-.Ar command 
+.Ar command
 .Op Ar args
 .Sh DESCRIPTION
 .Nm
@@ -110,14 +110,14 @@ removes keys of any type.
 .Xc
 Renames all entries in the keytab that match the
 .Ar from-principal
-to 
+to
 .Ar to-principal .
 .It purge Xo
 .Op Fl -age= Ns Ar age
 .Xc
 Removes all old entries (for which there is a newer version) that are
 older than
-.Ar age 
+.Ar age
 (default one week).
 .It srvconvert
 .It srv2keytab Xo
@@ -127,12 +127,12 @@ older than
 Converts the version 4 srvtab in
 .Ar srvtab
 to a version 5 keytab and stores it in
-.Ar keytab . 
+.Ar keytab .
 Identical to:
 .Bd -ragged -offset indent
-.Li ktutil copy 
+.Li ktutil copy
 .Li krb4: Ns Ar srvtab
-.Ar keytab 
+.Ar keytab
 .Ed
 .It srvcreate
 .It key2srvtab Xo
@@ -145,8 +145,8 @@ to a version 4 srvtab and stores it in
 .Ar srvtab .
 Identical to:
 .Bd -ragged -offset indent
-.Li ktutil copy 
-.Ar keytab 
+.Li ktutil copy
+.Ar keytab
 .Li krb4: Ns Ar srvtab
 .Ed
 .El

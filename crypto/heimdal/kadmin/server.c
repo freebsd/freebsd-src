@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <krb5-private.h>
 
-RCSID("$Id: server.c,v 1.33 2001/07/23 13:46:47 joda Exp $");
+RCSID("$Id: server.c,v 1.34 2002/05/24 15:23:42 joda Exp $");
 
 static kadm5_ret_t
 kadmind_dispatch(void *kadm_handle, krb5_boolean initial,
@@ -404,7 +404,7 @@ kadmind_dispatch(void *kadm_handle, krb5_boolean initial,
     return 0;
 fail:
     krb5_warn(context->context, ret, "%s", op);
-    sp->seek(sp, 0, SEEK_SET);
+    krb5_storage_seek(sp, 0, SEEK_SET);
     krb5_store_int32(sp, ret);
     krb5_storage_to_data(sp, out);
     krb5_storage_free(sp);

@@ -1,3 +1,7 @@
+2002-08-23  Assar Westerlund  <assar@kth.se>
+
+	* xnlock.c: add --version as a special case
+
 2001-06-24  Assar Westerlund  <assar@sics.se>
 
 	* xnlock.c (verify_krb5): remove unused variable

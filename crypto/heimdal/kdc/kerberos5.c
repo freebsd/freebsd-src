@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kerberos5.c,v 1.135 2002/01/06 23:07:33 assar Exp $");
+RCSID("$Id: kerberos5.c,v 1.140 2002/07/31 09:42:43 joda Exp $");
 
 #define MAX_TIME ((time_t)((1U << 31) - 1))
 
@@ -78,7 +78,7 @@ find_padata(KDC_REQ *req, int *start, int type)
  */
 
 static krb5_error_code
-find_etype(hdb_entry *princ, unsigned *etypes, unsigned len, 
+find_etype(hdb_entry *princ, krb5_enctype *etypes, unsigned len, 
 	   Key **ret_key, krb5_enctype *ret_etype)
 {
     int i;
@@ -247,10 +247,50 @@ realloc_method_data(METHOD_DATA *md)
 }
 
 static krb5_error_code
-get_pa_etype_info(METHOD_DATA *md, hdb_entry *client)
+make_etype_info_entry(ETYPE_INFO_ENTRY *ent, Key *key)
+{
+    ent->etype = key->key.keytype;
+    if(key->salt){
+	ALLOC(ent->salttype);
+#if 0
+	if(key->salt->type == hdb_pw_salt)
+	    *ent->salttype = 0; /* or 1? or NULL? */
+	else if(key->salt->type == hdb_afs3_salt)
+	    *ent->salttype = 2;
+	else {
+	    kdc_log(0, "unknown salt-type: %d", 
+		    key->salt->type);
+	    return KRB5KRB_ERR_GENERIC;
+	}
+	/* according to `the specs', we can't send a salt if
+	   we have AFS3 salted key, but that requires that you
+	   *know* what cell you are using (e.g by assuming
+	   that the cell is the same as the realm in lower
+	   case) */
+#else
+	*ent->salttype = key->salt->type;
+#endif
+	krb5_copy_data(context, &key->salt->salt,
+		       &ent->salt);
+    } else {
+	/* we return no salt type at all, as that should indicate
+	 * the default salt type and make everybody happy.  some
+	 * systems (like w2k) dislike being told the salt type
+	 * here. */
+
+	ent->salttype = NULL;
+	ent->salt = NULL;
+    }
+    return 0;
+}
+
+static krb5_error_code
+get_pa_etype_info(METHOD_DATA *md, hdb_entry *client, 
+		  ENCTYPE *etypes, unsigned int etypes_len)
 {
     krb5_error_code ret = 0;
-    int i;
+    int i, j;
+    unsigned int n = 0;
     ETYPE_INFO pa;
     unsigned char *buf;
     size_t len;
@@ -260,41 +300,39 @@ get_pa_etype_info(METHOD_DATA *md, hdb_entry *client)
     pa.val = malloc(pa.len * sizeof(*pa.val));
     if(pa.val == NULL)
 	return ENOMEM;
-    for(i = 0; i < client->keys.len; i++) {
-	pa.val[i].etype = client->keys.val[i].key.keytype;
-	if(client->keys.val[i].salt){
-	    ALLOC(pa.val[i].salttype);
-#if 0
-	    if(client->keys.val[i].salt->type == hdb_pw_salt)
-		*pa.val[i].salttype = 0; /* or 1? or NULL? */
-	    else if(client->keys.val[i].salt->type == hdb_afs3_salt)
-		*pa.val[i].salttype = 2;
-	    else {
-		free_ETYPE_INFO(&pa);
-		kdc_log(0, "unknown salt-type: %d", 
-			client->keys.val[i].salt->type);
-		return KRB5KRB_ERR_GENERIC;
-	    }
-	    /* according to `the specs', we can't send a salt if
-	       we have AFS3 salted key, but that requires that you
-	       *know* what cell you are using (e.g by assuming
-	       that the cell is the same as the realm in lower
-	       case) */
-#else
-	    *pa.val[i].salttype = client->keys.val[i].salt->type;
-#endif
-	    krb5_copy_data(context, &client->keys.val[i].salt->salt,
-			   &pa.val[i].salt);
-	} else {
-	    /* we return no salt type at all, as that should indicate
-	     * the default salt type and make everybody happy.  some
-	     * systems (like w2k) dislike being told the salt type
-	     * here. */
 
-	    pa.val[i].salttype = NULL;
-	    pa.val[i].salt = NULL;
+    for(j = 0; j < etypes_len; j++) {
+	for(i = 0; i < client->keys.len; i++) {
+	    if(client->keys.val[i].key.keytype == etypes[j])
+		if((ret = make_etype_info_entry(&pa.val[n++], 
+						&client->keys.val[i])) != 0) {
+		    free_ETYPE_INFO(&pa);
+		    return ret;
+		}
 	}
     }
+    for(i = 0; i < client->keys.len; i++) {
+	for(j = 0; j < etypes_len; j++) {
+	    if(client->keys.val[i].key.keytype == etypes[j])
+		goto skip;
+	}
+	if((ret = make_etype_info_entry(&pa.val[n++], 
+					&client->keys.val[i])) != 0) {
+	    free_ETYPE_INFO(&pa);
+	    return ret;
+	}
+      skip:;
+    }
+    
+    if(n != pa.len) {
+	char *name;
+	krb5_unparse_name(context, client->principal, &name);
+	kdc_log(0, "internal error in get_pa_etype_info(%s): %d != %d", 
+		name, n, pa.len);
+	free(name);
+	pa.len = n;
+    }
+
     len = length_ETYPE_INFO(&pa);
     buf = malloc(len);
     if (buf == NULL) {
@@ -536,7 +574,8 @@ as_rep(KDC_REQ *req,
 		free_EncryptedData(&enc_data);
 		continue;
 	    }
-	    
+
+	  try_next_key:
 	    ret = krb5_crypto_init(context, &pa_key->key, 0, &crypto);
 	    if (ret) {
 		kdc_log(0, "krb5_crypto_init failed: %s",
@@ -551,14 +590,18 @@ as_rep(KDC_REQ *req,
 					      &enc_data,
 					      &ts_data);
 	    krb5_crypto_destroy(context, crypto);
-	    free_EncryptedData(&enc_data);
 	    if(ret){
+		if(hdb_next_enctype2key(context, client, 
+					enc_data.etype, &pa_key) == 0)
+		    goto try_next_key;
+		free_EncryptedData(&enc_data);
 		e_text = "Failed to decrypt PA-DATA";
 		kdc_log (5, "Failed to decrypt PA-DATA -- %s",
 			 client_name);
 		ret = KRB5KRB_AP_ERR_BAD_INTEGRITY;
 		continue;
 	    }
+	    free_EncryptedData(&enc_data);
 	    ret = decode_PA_ENC_TS_ENC(ts_data.data,
 				       ts_data.length,
 				       &p,
@@ -601,7 +644,7 @@ as_rep(KDC_REQ *req,
 	size_t len;
 	krb5_data foo_data;
 
-    use_pa: 
+      use_pa: 
 	method_data.len = 0;
 	method_data.val = NULL;
 
@@ -611,7 +654,8 @@ as_rep(KDC_REQ *req,
 	pa->padata_value.length	= 0;
 	pa->padata_value.data	= NULL;
 
-	ret = get_pa_etype_info(&method_data, client); /* XXX check ret */
+	ret = get_pa_etype_info(&method_data, client, 
+				b->etype.val, b->etype.len); /* XXX check ret */
 	
 	len = length_METHOD_DATA(&method_data);
 	buf = malloc(len);
@@ -657,7 +701,7 @@ as_rep(KDC_REQ *req,
 		kdc_log(5, "Using %s/%s", cet, set);
 		free(set);
 	    } else
-	    free(cet);
+		free(cet);
 	} else
 	    kdc_log(5, "Using e-types %d/%d", cetype, setype);
     }
@@ -855,7 +899,7 @@ as_rep(KDC_REQ *req,
     free_EncTicketPart(&et);
     free_EncKDCRepPart(&ek);
     free_AS_REP(&rep);
-out:
+  out:
     if(ret){
 	krb5_mk_error(context,
 		      ret,
@@ -868,7 +912,7 @@ out:
 		      reply);
 	ret = 0;
     }
-out2:
+  out2:
     krb5_free_principal(context, client_princ);
     free(client_name);
     krb5_free_principal(context, server_princ);
@@ -1564,7 +1608,7 @@ tgs_rep2(KDC_REQ_BODY *b,
 	    ret = db_fetch(p, &uu);
 	    krb5_free_principal(context, p);
 	    if(ret){
-		if (ret == ENOENT)
+		if (ret == HDB_ERR_NOENTRY)
 		    ret = KRB5KDC_ERR_S_PRINCIPAL_UNKNOWN;
 		goto out;
 	    }
@@ -1630,7 +1674,7 @@ tgs_rep2(KDC_REQ_BODY *b,
 	    }
 	    kdc_log(0, "Server not found in database: %s: %s", spn,
 		    krb5_get_err_text(context, ret));
-	    if (ret == ENOENT)
+	    if (ret == HDB_ERR_NOENTRY)
 		ret = KRB5KDC_ERR_S_PRINCIPAL_UNKNOWN;
 	    goto out;
 	}
@@ -1644,7 +1688,7 @@ tgs_rep2(KDC_REQ_BODY *b,
 	if(ret){
 	    kdc_log(0, "Client not found in database: %s: %s",
 		    cpn, krb5_get_err_text(context, ret));
-	    if (ret == ENOENT)
+	    if (ret == HDB_ERR_NOENTRY)
 		ret = KRB5KDC_ERR_C_PRINCIPAL_UNKNOWN;
 	    goto out;
 	}

@@ -53,7 +53,7 @@
  * or implied warranty.
  */
 
-/* $Id: auth-proto.h,v 1.10 2000/01/18 03:08:55 assar Exp $ */
+/* $Id: auth-proto.h,v 1.11 2002/08/28 20:56:14 joda Exp $ */
 
 #ifdef AUTHENTICATION
 Authenticator *findauthenticator (int, int);
@@ -118,5 +118,7 @@ void kerberos5_is (Authenticator *, unsigned char *, int);
 void kerberos5_reply (Authenticator *, unsigned char *, int);
 int kerberos5_status (Authenticator *, char *, size_t, int);
 void kerberos5_printsub (unsigned char *, int, unsigned char *, int);
+int kerberos5_set_forward(int);
+int kerberos5_set_forwardable(int);
 #endif
 #endif

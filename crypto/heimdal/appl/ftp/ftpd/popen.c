@@ -37,7 +37,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: popen.c,v 1.25 2001/06/19 10:00:25 assar Exp $");
+RCSID("$Id: popen.c,v 1.26 2002/04/02 11:57:39 joda Exp $");
 #endif
 
 #include <sys/types.h>
@@ -148,7 +148,9 @@ ftpd_popen(char *program, char *type, int do_stderr, int no_glob)
 		    ;
 
 		memset(&gl, 0, sizeof(gl));
-		if (no_glob || glob(argv[argc], flags, NULL, &gl))
+		if (no_glob || 
+		    glob(argv[argc], flags, NULL, &gl) || 
+		    gl.gl_pathc == 0)
 			gargv[gargc++] = strdup(argv[argc]);
 		else
 			for (pop = gl.gl_pathv;

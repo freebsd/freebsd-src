@@ -1,5 +1,4 @@
-
-TENLETXR(1)                  UNIX Reference Manual                 TENLETXR(1)
+TENLETXR(1)             FreeBSD General Commands Manual            TENLETXR(1)
 
 NNAAMMEE
      tteennlleettxxrr - forward X-connections backwards.
@@ -8,9 +7,9 @@ SSYYNNOOPPSSIISS
      tteennlleettxxrr [--ll _u_s_e_r_n_a_m_e] [--kk] _h_o_s_t [_p_o_r_t]
 
 DDEESSCCRRIIPPTTIIOONN
-     The tteennlleettxxrr program enables forwarding of X-connections from this ma-
-     chine to host _h_o_s_t. If _p_o_r_t is given, that port will be used instead of
-     the default.
+     The tteennlleettxxrr program enables forwarding of X-connections from this
+     machine to host _h_o_s_t.  If _p_o_r_t is given, that port will be used instead
+     of the default.
 
      The supported options are:
 
@@ -32,6 +31,6 @@ BBUUGGSS
      own _/_d_e_v_/_c_o_n_s_o_l_e on the remote host.
 
 SSEEEE AALLSSOO
-     rxtelnet(1),  rxterm(1),  kx(1),  kxd(8),  telnet(1)
+     kx(1), rxtelnet(1), rxterm(1), telnet(1), kxd(8)
 
- KTH_KRB                        March 31, 1997                               1
+KTH_KRB                         March 31, 1997                         KTH_KRB

@@ -1,3 +1,24 @@
+2002-02-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.c: don't show options that doesn't apply
+
+	* rsh.c: don't show options that doesn't apply
+
+	* rsh_locl.h: if we're not building with any kerberos support,
+	just call read/write directly
+
+	* common.c: if we're not building with any kerberos support, just
+	call read/write directly
+
+	* rshd.c: make this build without krb5; also use the addrinfo
+	interface to mini_inetd, and set the keepalive option if requested
+
+	* rsh.c: make this build without krb5
+
+	* rsh_locl.h: make this build without krb5
+
+	* common.c: make this build without krb5
+
 2001-11-30  Johan Danielsson  <joda@pdc.kth.se>
 
 	* rshd.c: make the syslog messages somewhat more informative

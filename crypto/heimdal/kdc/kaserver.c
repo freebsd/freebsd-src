@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kaserver.c,v 1.18 2001/08/17 07:49:01 joda Exp $");
+RCSID("$Id: kaserver.c,v 1.19 2002/04/18 16:07:39 joda Exp $");
 
 
 #include <rx.h>
@@ -194,11 +194,11 @@ krb5_ret_xdr_data(krb5_storage *sp,
 	data->data = malloc(size);
 	if (data->data == NULL)
 	    return ENOMEM;
-	ret = sp->fetch(sp, data->data, size);
+	ret = krb5_storage_read(sp, data->data, size);
 	if(ret != size)
 	    return (ret < 0)? errno : KRB5_CC_END;
 	if (pad) {
-	    ret = sp->fetch(sp, foo, pad);
+	    ret = krb5_storage_read(sp, foo, pad);
 	    if (ret != pad)
 		return (ret < 0)? errno : KRB5_CC_END;
 	}
@@ -218,7 +218,7 @@ krb5_store_xdr_data(krb5_storage *sp,
     ret = krb5_store_int32(sp, data.length);
     if(ret < 0)
 	return ret;
-    ret = sp->store(sp, data.data, data.length);
+    ret = krb5_storage_write(sp, data.data, data.length);
     if(ret != data.length){
 	if(ret < 0)
 	    return errno;
@@ -226,7 +226,7 @@ krb5_store_xdr_data(krb5_storage *sp,
     }
     pad = (4 - data.length % 4) % 4;
     if (pad) {
-	ret = sp->store(sp, zero, pad);
+	ret = krb5_storage_write(sp, zero, pad);
 	if (ret != pad) {
 	    if (ret < 0)
 		return errno;
@@ -245,9 +245,9 @@ create_reply_ticket (struct rx_header *hdr,
 		     int life,
 		     int kvno,
 		     int32_t max_seq_len,
-		     char *sname, char *sinstance,
+		     const char *sname, const char *sinstance,
 		     u_int32_t challenge,
-		     char *label,
+		     const char *label,
 		     des_cblock *key,
 		     krb5_data *reply)
 {
@@ -276,7 +276,7 @@ create_reply_ticket (struct rx_header *hdr,
     fyrtiosjuelva &= 0xffffffff;
     krb5_store_int32 (sp, fyrtiosjuelva);
     krb5_store_int32 (sp, challenge);
-    sp->store  (sp, session, 8);
+    krb5_storage_write  (sp, session, 8);
     memset (&session, 0, sizeof(session));
     krb5_store_int32 (sp, kdc_time);
     krb5_store_int32 (sp, kdc_time + krb_life_to_time (0, life));
@@ -291,13 +291,13 @@ create_reply_ticket (struct rx_header *hdr,
 #endif
     krb5_store_stringz (sp, sname);
     krb5_store_stringz (sp, sinstance);
-    sp->store (sp, ticket.dat, ticket.length);
-    sp->store (sp, label, strlen(label));
+    krb5_storage_write (sp, ticket.dat, ticket.length);
+    krb5_storage_write (sp, label, strlen(label));
 
     /* pad to DES block */
     memset (zero, 0, sizeof(zero));
-    pad = (8 - sp->seek (sp, 0, SEEK_CUR) % 8) % 8;
-    sp->store (sp, zero, pad);
+    pad = (8 - krb5_storage_seek (sp, 0, SEEK_CUR) % 8) % 8;
+    krb5_storage_write (sp, zero, pad);
 
     krb5_storage_to_data (sp, &enc_data);
     krb5_storage_free (sp);

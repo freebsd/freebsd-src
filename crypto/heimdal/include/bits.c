@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: bits.c,v 1.18 2000/08/27 05:42:46 assar Exp $");
+RCSID("$Id: bits.c,v 1.22 2002/08/28 16:08:44 joda Exp $");
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -42,7 +42,7 @@ RCSID("$Id: bits.c,v 1.18 2000/08/27 05:42:46 assar Exp $");
 
 #define BITSIZE(TYPE)						\
 {								\
-    int b = 0; TYPE x = 1, zero = 0; char *pre = "u";		\
+    int b = 0; TYPE x = 1, zero = 0; const char *pre = "u";	\
     char tmp[128], tmp2[128];					\
     while(x){ x <<= 1; b++; if(x < zero) pre=""; }		\
     if(b >= len){						\
@@ -131,15 +131,15 @@ int main(int argc, char **argv)
     }
     fprintf(f, "/* %s -- this file was generated for %s by\n", fn, HOST);
     fprintf(f, "   %*s    %s */\n\n", (int)strlen(fn), "", 
-	    "$Id: bits.c,v 1.18 2000/08/27 05:42:46 assar Exp $");
+	    "$Id: bits.c,v 1.22 2002/08/28 16:08:44 joda Exp $");
     fprintf(f, "#ifndef %s\n", hb);
     fprintf(f, "#define %s\n", hb);
     fprintf(f, "\n");
-#ifdef HAVE_SYS_TYPES_H
-    fprintf(f, "#include <sys/types.h>\n");
-#endif
 #ifdef HAVE_INTTYPES_H
     fprintf(f, "#include <inttypes.h>\n");
+#endif
+#ifdef HAVE_SYS_TYPES_H
+    fprintf(f, "#include <sys/types.h>\n");
 #endif
 #ifdef HAVE_SYS_BITYPES_H
     fprintf(f, "#include <sys/bitypes.h>\n");
@@ -149,6 +149,9 @@ int main(int argc, char **argv)
 #endif
 #ifdef HAVE_NETINET_IN6_MACHTYPES_H
     fprintf(f, "#include <netinet/in6_machtypes.h>\n");
+#endif
+#ifdef HAVE_SOCKLEN_T
+    fprintf(f, "#include <sys/socket.h>\n");
 #endif
     fprintf(f, "\n");
 
@@ -215,6 +218,23 @@ int main(int argc, char **argv)
 	fprintf(f, "\n");
 	fprintf(f, "#endif /* __BIT_TYPES_DEFINED__ */\n\n");
     }
+#ifdef KRB5
+    fprintf(f, "\n");
+#if defined(HAVE_SOCKLEN_T)
+    fprintf(f, "typedef socklen_t krb5_socklen_t;\n");
+#else
+    fprintf(f, "typedef int krb5_socklen_t;\n");
+#endif
+#if defined(HAVE_SSIZE_T)
+#ifdef HAVE_UNISTD_H
+    fprintf(f, "#include <unistd.h>\n");
+#endif
+    fprintf(f, "typedef ssize_t krb5_ssize_t;\n");
+#else
+    fprintf(f, "typedef int krb5_ssize_t;\n");
+#endif
+    fprintf(f, "\n");
+#endif /* KRB5 */
     fprintf(f, "#endif /* %s */\n", hb);
     return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: 8003.c,v 1.10 2001/08/29 02:21:09 assar Exp $");
+RCSID("$Id: 8003.c,v 1.11 2002/03/10 23:47:39 assar Exp $");
 
 static krb5_error_code
 encode_om_uint32(OM_uint32 n, u_char *p)
@@ -169,6 +169,7 @@ gssapi_krb5_verify_8003_checksum(
     unsigned char *p;
     OM_uint32 length;
     int DlgOpt;
+    static unsigned char zeros[16];
 
     /* XXX should handle checksums > 24 bytes */
     if(cksum->cksumtype != 0x8003) {
@@ -185,7 +186,8 @@ gssapi_krb5_verify_8003_checksum(
     
     p += 4;
     
-    if (input_chan_bindings != GSS_C_NO_CHANNEL_BINDINGS) {
+    if (input_chan_bindings != GSS_C_NO_CHANNEL_BINDINGS
+	&& memcmp(p, zeros, sizeof(zeros)) != 0) {
 	if(hash_input_chan_bindings(input_chan_bindings, hash) != 0) {
 	    *minor_status = 0;
 	    return GSS_S_BAD_BINDINGS;

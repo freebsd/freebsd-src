@@ -1,3 +1,15 @@
+2002-08-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* common.c: remove only reference to strndup
+
+2002-05-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* krb5.c: use krb5_warn where appropriate
+
+2002-03-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rxtelnet.in, rxterm.in: add forward (-f) option
+
 2001-09-17  Assar Westerlund  <assar@sics.se>
 
 	* kx.h: add a kludge to make it build on aix (that defines NOERROR

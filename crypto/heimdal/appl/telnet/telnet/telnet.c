@@ -36,7 +36,7 @@
 #include <termcap.h>
 #endif
 
-RCSID("$Id: telnet.c,v 1.31 2001/12/20 20:39:52 joda Exp $");
+RCSID("$Id: telnet.c,v 1.34 2002/05/03 10:19:43 joda Exp $");
 
 #define	strip(x) (eight ? (x) : ((x) & 0x7f))
 
@@ -2063,7 +2063,7 @@ my_telnet(char *user)
      * is necessary so that authentication fails, we don't spin
      * forever. 
      */
-    if (wantencryption) {
+    if (telnetport && wantencryption) {
 	extern int auth_has_failed;
 	time_t timeout = time(0) + 60;
 
@@ -2071,9 +2071,13 @@ my_telnet(char *user)
 	send_will(TELOPT_ENCRYPT, 1);
 	while (1) {
 	    if (my_want_state_is_wont(TELOPT_AUTHENTICATION)) {
-		printf("\nServer refused to negotiate authentication,\n");
-		printf("which is required for encryption.\n");
-		Exit(1);
+		if (wantencryption == -1) {
+		    break;
+		} else {
+		    printf("\nServer refused to negotiate authentication,\n");
+		    printf("which is required for encryption.\n");
+		    Exit(1);
+		}
 	    }
 	    if (auth_has_failed) {
 		printf("\nAuthentication negotation has failed,\n");
@@ -2108,7 +2112,7 @@ my_telnet(char *user)
 	    telnet_spin();
 	}
 	if (printed_encrypt) {
-		printf("done.\n");
+		printf("Encryption negotiated.\n");
 		intr_waiting = 0;
 		setconnmode(0);
 	}

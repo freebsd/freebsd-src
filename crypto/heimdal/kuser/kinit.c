@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "kuser_locl.h"
-RCSID("$Id: kinit.c,v 1.86 2001/09/29 15:59:08 assar Exp $");
+RCSID("$Id: kinit.c,v 1.89 2002/08/21 12:21:31 joda Exp $");
 
 int forwardable_flag	= -1;
 int proxiable_flag	= -1;
@@ -42,6 +42,7 @@ int validate_flag	= 0;
 int version_flag	= 0;
 int help_flag		= 0;
 int addrs_flag		= 1;
+struct getarg_strings extra_addresses;
 int anonymous_flag	= 0;
 char *lifetime 		= NULL;
 char *renew_life	= NULL;
@@ -113,6 +114,9 @@ static struct getargs args[] = {
 
     { "addresses",	0,   arg_negative_flag,	&addrs_flag,
       "request a ticket with no addresses" },
+
+    { "extra-addresses",'a', arg_strings,	&extra_addresses,
+      "include these extra addresses", "addresses" },
 
     { "anonymous",	0,   arg_flag,	&anonymous_flag,
       "request an anonymous ticket" },
@@ -186,9 +190,9 @@ do_v4_fallback (krb5_context context,
 			      KRB_TICKET_GRANTING_TICKET, princ.realm,
 			      lifetime, key_to_key, NULL, key);
     } else {
-	ret = krb_get_pw_in_tkt2(princ.name, princ.instance, princ.realm, 
-				 KRB_TICKET_GRANTING_TICKET, princ.realm, 
-				 lifetime, passwd, &key);
+	ret = krb_get_pw_in_tkt(princ.name, princ.instance, princ.realm, 
+				KRB_TICKET_GRANTING_TICKET, princ.realm, 
+				lifetime, passwd);
     }
     memset (key, 0, sizeof(key));
     if (ret) {
@@ -397,6 +401,7 @@ get_new_tickets(krb5_context context,
     krb5_creds cred;
     char passwd[256];
     krb5_deltat start_time = 0;
+    krb5_deltat renew = 0;
 
     memset(&cred, 0, sizeof(cred));
 
@@ -420,13 +425,14 @@ get_new_tickets(krb5_context context,
     }
 
     if(renew_life) {
-	int tmp = parse_time (renew_life, "s");
-	if (tmp < 0)
+	renew = parse_time (renew_life, "s");
+	if (renew < 0)
 	    errx (1, "unparsable time: %s", renew_life);
 
-	krb5_get_init_creds_opt_set_renew_life (&opt, tmp);
+	krb5_get_init_creds_opt_set_renew_life (&opt, renew);
     } else if (renewable_flag == 1)
 	krb5_get_init_creds_opt_set_renew_life (&opt, 1 << 30);
+
 
     if(ticket_life != 0)
 	krb5_get_init_creds_opt_set_tkt_life (&opt, ticket_life);
@@ -522,6 +528,24 @@ get_new_tickets(krb5_context context,
 	break;
     default:
 	krb5_err(context, 1, ret, "krb5_get_init_creds");
+    }
+
+    if(ticket_life != 0) {
+	if(abs(cred.times.endtime - cred.times.starttime - ticket_life) > 30) {
+	    char life[32];
+	    unparse_time(cred.times.endtime - cred.times.starttime, 
+			 life, sizeof(life));
+	    krb5_warnx(context, "NOTICE: ticket lifetime is %s", life);
+	}
+    }
+    if(renew != 0) {
+	if(abs(cred.times.renew_till - cred.times.starttime - renew) > 30) {
+	    char life[32];
+	    unparse_time(cred.times.renew_till - cred.times.starttime, 
+			 life, sizeof(life));
+	    krb5_warnx(context, "NOTICE: ticket renewable lifetime is %s", 
+		       life);
+	}
     }
 
     ret = krb5_cc_initialize (context, ccache, cred.client);
@@ -627,6 +651,24 @@ main (int argc, char **argv)
 				krb5_principal_get_realm(context, principal), 
 				"afslog", TRUE, &do_afslog);
 #endif
+
+    if(!addrs_flag && extra_addresses.num_strings > 0)
+	krb5_errx(context, 1, "specifying both extra addresses and "
+		  "no addresses makes no sense");
+    {
+	int i;
+	krb5_addresses addresses;
+	memset(&addresses, 0, sizeof(addresses));
+	for(i = 0; i < extra_addresses.num_strings; i++) {
+	    ret = krb5_parse_address(context, extra_addresses.strings[i], 
+				     &addresses);
+	    if (ret == 0) {
+		krb5_add_extra_addresses(context, &addresses);
+		krb5_free_addresses(context, &addresses);
+	    }
+	}
+	free_getarg_strings(&extra_addresses);
+    }
 
     
     if(renew_flag || validate_flag) {

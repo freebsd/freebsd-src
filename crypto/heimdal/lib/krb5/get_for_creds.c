@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: get_for_creds.c,v 1.31 2001/07/19 17:33:22 assar Exp $");
+RCSID("$Id: get_for_creds.c,v 1.32 2002/03/10 23:12:23 assar Exp $");
 
 static krb5_error_code
 add_addrs(krb5_context context,
@@ -257,17 +257,34 @@ krb5_get_forwarded_creds (krb5_context	    context,
     }
 
     if (auth_context->remote_address) {
-	ALLOC(enc_krb_cred_part.r_address, 1);
-	if (enc_krb_cred_part.r_address == NULL) {
-	    ret = ENOMEM;
-	krb5_set_error_string(context, "malloc: out of memory");
-	    goto out4;
-	}
+	if (auth_context->remote_port) {
+	    krb5_boolean noaddr;
+	    const krb5_realm *realm;
 
-	ret = krb5_copy_address (context, auth_context->remote_address,
-				 enc_krb_cred_part.r_address);
-	if (ret)
-	    goto out4;
+	    realm = krb5_princ_realm(context, out_creds->server);
+	    krb5_appdefault_boolean(context, NULL, *realm, "no-addresses",
+				    FALSE, &noaddr);
+	    if (!noaddr) {
+		ret = krb5_make_addrport (context,
+					  &enc_krb_cred_part.r_address,
+					  auth_context->remote_address,
+					  auth_context->remote_port);
+		if (ret)
+		    goto out4;
+	    }
+	} else {
+	    ALLOC(enc_krb_cred_part.r_address, 1);
+	    if (enc_krb_cred_part.r_address == NULL) {
+		ret = ENOMEM;
+		krb5_set_error_string(context, "malloc: out of memory");
+		goto out4;
+	    }
+
+	    ret = krb5_copy_address (context, auth_context->remote_address,
+				     enc_krb_cred_part.r_address);
+	    if (ret)
+		goto out4;
+	}
     }
 
     /* fill ticket_info.val[0] */
