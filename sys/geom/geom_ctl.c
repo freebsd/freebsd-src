@@ -151,13 +151,8 @@ gctl_copyin(struct gctl_req *req)
 		    !useracc(ap[i].value, ap[i].len, 
 		    ap[i].flag & GCTL_PARAM_RW))
 			error = gctl_error(req, "no access to param data");
-		if (ap[i].name == NULL) {
-			if (req->reqt->meta)
-				continue;
-			error = gctl_error(req,
-			    "request does not take metadata arguments");
+		if (error)
 			break;
-		}
 		p = NULL;
 		if (ap[i].nlen < 1 || ap[i].nlen > SPECNAMELEN) {
 			error = gctl_error(req, "wrong param name length");
@@ -205,10 +200,7 @@ gctl_dump(struct gctl_req *req)
 	}
 	for (i = 0; i < req->narg; i++) {
 		ap = &req->arg[i];
-		if (ap->name != NULL)
-			printf("  param:\t\"%s\"", ap->name);
-		else
-			printf("  meta:\t@%jd", (intmax_t)ap->offset);
+		printf("  param:\t\"%s\"", ap->name);
 		printf(" [%s%s%d] = ",
 		    ap->flag & GCTL_PARAM_RD ? "R" : "",
 		    ap->flag & GCTL_PARAM_WR ? "W" : "",
