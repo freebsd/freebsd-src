@@ -18,9 +18,9 @@ TYPE=	real
 CLEANFILES+=${BLDS}
 
 install: ${SRCS} ${BLDS}
-	(cd ${.CURDIR} && install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	(cd ${.CURDIR} && ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${SRCS} ${DESTDIR}/usr/share/games/fortune)
-	install -o ${BINOWN} -g ${BINGRP} -m 444 ${BLDS} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${BLDS} \
 	    ${DESTDIR}/usr/share/games/fortune
 
 fortunes.dat fortunes2.dat fortunes2-o.dat limerick.dat startrek.dat zippy.dat:
