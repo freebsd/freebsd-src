@@ -44,7 +44,7 @@ static const char sccsid[] = "@(#)true.c	8.1 (Berkeley) 6/9/93";
 #endif /* not lint */
 
 int
-main()
+main(void)
 {
 	return 0;
 }
