@@ -725,7 +725,8 @@ bge_newbuf_std(sc, i, m)
 		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
-	m_adj(m_new, ETHER_ALIGN);
+	if (!sc->bge_rx_alignment_bug)
+		m_adj(m_new, ETHER_ALIGN);
 	sc->bge_cdata.bge_rx_std_chain[i] = m_new;
 	r = &sc->bge_rdata->bge_rx_std_ring[i];
 	BGE_HOSTADDR(r->bge_addr) = vtophys(mtod(m_new, caddr_t));
@@ -778,7 +779,8 @@ bge_newbuf_jumbo(sc, i, m)
 		m_new->m_ext.ext_size = BGE_JUMBO_FRAMELEN;
 	}
 
-	m_adj(m_new, ETHER_ALIGN);
+	if (!sc->bge_rx_alignment_bug)
+		m_adj(m_new, ETHER_ALIGN);
 	/* Set up the descriptor. */
 	r = &sc->bge_rdata->bge_rx_jumbo_ring[i];
 	sc->bge_cdata.bge_rx_jumbo_chain[i] = m_new;
@@ -1674,6 +1676,27 @@ bge_attach(dev)
 	}
 
 	/*
+	 * When using the BCM5701 in PCI-X mode, data corruption has
+	 * been observed in the first few bytes of some received packets.
+	 * Aligning the packet buffer in memory eliminates the corruption.
+	 * Unfortunately, this misaligns the packet payloads.  On platforms
+	 * which do not support unaligned accesses, we will realign the
+	 * payloads by copying the received packets.
+	 */
+	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM5701_A0:
+	case BGE_ASICREV_BCM5701_B0:
+	case BGE_ASICREV_BCM5701_B2:
+	case BGE_ASICREV_BCM5701_B5:
+		/* If in PCI-X mode, work around the alignment bug. */
+		if ((pci_read_config(dev, BGE_PCI_PCISTATE, 4) &
+		    (BGE_PCISTATE_PCI_BUSMODE | BGE_PCISTATE_PCI_BUSSPEED)) ==
+		    BGE_PCISTATE_PCI_BUSSPEED)
+			sc->bge_rx_alignment_bug = 1;
+		break;
+	}
+
+	/*
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
@@ -1905,6 +1928,17 @@ bge_rxeof(sc)
 		}
 
 		ifp->if_ipackets++;
+#ifndef __i386__
+		/*
+		 * The i386 allows unaligned accesses, but for other
+		 * platforms we must make sure the payload is aligned.
+		 */
+		if (sc->bge_rx_alignment_bug) {
+			bcopy(m->m_data, m->m_data + ETHER_ALIGN,
+			    cur_rx->bge_len);
+			m->m_data += ETHER_ALIGN;
+		}
+#endif
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.len = m->m_len = cur_rx->bge_len;
 		m->m_pkthdr.rcvif = ifp;
