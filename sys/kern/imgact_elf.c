@@ -764,7 +764,7 @@ elf_coredump(p, vp, limit)
 			error = vn_rdwr_inchunks(UIO_WRITE, vp, 
 			    (caddr_t)php->p_vaddr,
 			    php->p_filesz, offset, UIO_USERSPACE,
-			    IO_UNIT, cred, (int *)NULL, p);
+			    IO_UNIT | IO_DIRECT, cred, (int *)NULL, p);
 			if (error != 0)
 				break;
 			offset += php->p_filesz;
@@ -916,7 +916,7 @@ elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
 
 	/* Write it to the core file. */
 	return vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
-	    UIO_SYSSPACE, IO_UNIT, cred, NULL, p);
+	    UIO_SYSSPACE, IO_UNIT | IO_DIRECT, cred, NULL, p);
 }
 
 static void

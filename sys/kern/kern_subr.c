@@ -52,8 +52,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 
-static void	uio_yield __P((void));
-
 int
 uiomove(cp, n, uio)
 	register caddr_t cp;
@@ -414,7 +412,7 @@ phashinit(elements, type, nentries)
 	return (hashtbl);
 }
 
-static void
+void
 uio_yield()
 {
 	struct proc *p;

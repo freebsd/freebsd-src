@@ -261,13 +261,13 @@ aout_coredump(p, vp, limit)
 	if (error == 0)
 		error = vn_rdwr_inchunks(UIO_WRITE, vp, vm->vm_daddr,
 		    (int)ctob(vm->vm_dsize), (off_t)ctob(UPAGES), UIO_USERSPACE,
-		    IO_UNIT, cred, (int *) NULL, p);
+		    IO_UNIT | IO_DIRECT, cred, (int *) NULL, p);
 	if (error == 0)
 		error = vn_rdwr_inchunks(UIO_WRITE, vp,
 		    (caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
 		    round_page(ctob(vm->vm_ssize)),
 		    (off_t)ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
-		    IO_UNIT, cred, (int *) NULL, p);
+		    IO_UNIT | IO_DIRECT, cred, (int *) NULL, p);
 	return (error);
 }
 
