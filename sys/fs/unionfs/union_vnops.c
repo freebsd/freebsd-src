@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.28 1997/04/26 04:09:40 kato Exp $
+ * $Id: union_vnops.c,v 1.29 1997/04/26 13:43:25 kato Exp $
  */
 
 #include <sys/param.h>
@@ -1480,12 +1480,12 @@ start:
 			if (VOP_ISLOCKED(un->un_uppervp)) {
 				/*
 				 * Erm, we find race!
-				 * Do nothing here.
 				 */
 #ifdef DIAGNOSTIC
 				panic("union_link: upper vnode is locked, "
 					  "but UN_UNLOCK is not set.");
 #endif
+				un->un_flags |= UN_ULOCK;	/* XXX */
 			} else {
 				error = vn_lock(un->un_uppervp, flags, p);
 				if (error)
