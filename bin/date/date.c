@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.7.2.2 1997/08/17 20:31:59 brian Exp $
+ *	$Id: date.c,v 1.7.2.3 1997/09/14 13:07:05 jkh Exp $
  */
 
 #ifndef lint
@@ -213,7 +213,8 @@ setthetime(fmt, p)
 		} else
 			lt->tm_sec = 0;
 
-		switch (strlen(p)) {
+		/* if p has a ".ss" field then let's pretend it's not there */
+		switch (strlen(p) - ((dot != NULL) ? 3 : 0)) {
 		case 10:				/* yy */
 			lt->tm_year = ATOI2(p);
 			if (lt->tm_year < 69)		/* hack for 2000 ;-} */
