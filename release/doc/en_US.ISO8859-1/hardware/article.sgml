@@ -2049,8 +2049,11 @@
 	  <para>SysKonnect SK-9D21 and 9D41</para>
         </listitem>
         <listitem>
-	  <para>Built-in Gigabit Ethernet NICs on DELL PowerEdge 2550
+	  <para>Integrated gigabit Ethernet NICs on DELL PowerEdge 2550
 	  servers</para>
+        </listitem>
+        <listitem>
+	  <para>Integrated gigabit Ethernet NICs on IBM x235 servers</para>
         </listitem>
       </itemizedlist>
     </para>
