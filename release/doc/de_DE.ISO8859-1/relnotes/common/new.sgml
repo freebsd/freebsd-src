@@ -1,5 +1,5 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.176 2003/01/16 21:44:01 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.177 2003/01/18 19:36:56 ue Exp $
   basiert auf: 1.480
 -->
 <articleinfo>
@@ -3400,9 +3400,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       OpenBSD/NetBSD genutzten Varianten von &man.make.1; zu
       verringern.  &merged;</para>
 
-    <para>Wird &man.make.1; mit der neuen Option <option>-C</option>,
-      wechselt es in das angegebene Verzeichnis, bevor es mit der
-      Arbeit beginnt.  &merged;</para>
+    <para>Wird &man.make.1; mit der neuen Option <option>-C</option>
+      aufgerufen, wechselt es in das angegebene Verzeichnis, bevor es
+      mit der Arbeit beginnt.  &merged;</para>
 
     <para role="historic">In &man.make.1; wurden diverse Fehler beseitigt, unter
       falsche Behandlung des leeren Suffix, falsche Annahmen &uuml;ber
