@@ -287,7 +287,7 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 		 * If there are more interfaces on the list, count
 		 * them.  This allows the caller to set ifmr->ifm_count
 		 * to 0 on the first call to know how much space to
-		 * callocate.
+		 * allocate.
 		 */
 		LIST_FOREACH(ep, &ifm->ifm_list, ifm_list)
 			usermax++;
