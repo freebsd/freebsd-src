@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.132 1998/02/09 06:09:35 eivind Exp $
+ * $Id: vfs_subr.c,v 1.133 1998/02/10 02:54:24 kato Exp $
  */
 
 /*
@@ -377,8 +377,12 @@ getnewvnode(tag, mp, vops, vpp)
 	for (vp = TAILQ_FIRST(&vnode_tobefree_list); vp; vp = nvp) {
 		nvp = TAILQ_NEXT(vp, v_freelist);
 		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
-		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-		vp->v_flag &= ~VTBFREE;
+		if (vp->v_flag & VAGE) {
+			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
+		} else {
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+		}
+		vp->v_flag &= ~(VTBFREE|VAGE);
 		vp->v_flag |= VFREE;
 		if (vp->v_usecount)
 			panic("tobe free vnode isn't");
@@ -404,6 +408,8 @@ getnewvnode(tag, mp, vops, vpp)
 
 			object = vp->v_object;
 			if (object && (object->resident_page_count || object->ref_count)) {
+				printf("object inconsistant state: RPC: %d, RC: %d\n",
+					object->resident_page_count, object->ref_count);
 				/* Don't recycle if it's caching some pages */
 				TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 				TAILQ_INSERT_TAIL(&vnode_tmp_list, vp, v_freelist);
@@ -479,6 +485,8 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_usecount = 1;
 	vp->v_data = 0;
 	splx(s);
+
+	vfs_object_create(vp, p, p->p_ucred, TRUE);
 	return (0);
 }
 
@@ -912,28 +920,23 @@ vget(vp, flags, p)
 
 	if (VSHOULDBUSY(vp))
 		vbusy(vp);
-	/*
-	 * Create the VM object, if needed
-	 */
-	if ((flags & LK_NOOBJ) == 0 &&
-		   (vp->v_type == VREG) &&
-		   ((vp->v_object == NULL) ||
-			(vp->v_object->flags & OBJ_DEAD))) {
-		/*
-		 * XXX
-		 * When the object is locked with shared lock, VOP_ISLOCKED()
-		 * returns true.
-		 */
-		if (VOP_ISLOCKED(vp)) {
-			simple_unlock(&vp->v_interlock);
-			vfs_object_create(vp, curproc, curproc->p_ucred, 1);
-		} else
-			vfs_object_create(vp, curproc, curproc->p_ucred, 0);
-		simple_lock(&vp->v_interlock);
-	}
+
 	if (flags & LK_TYPE_MASK) {
-		if (error = vn_lock(vp, flags | LK_INTERLOCK, p))
-			vrele(vp);
+		if ((error = vn_lock(vp, flags | LK_INTERLOCK, p)) != 0) {
+			/*
+			 * must expand vrele here because we do not want
+			 * to call VOP_INACTIVE if the reference count
+			 * drops back to zero since it was never really
+			 * active. We must remove it from the free list
+			 * before sleeping so that multiple processes do
+			 * not try to recycle it.
+			 */
+			simple_lock(&vp->v_interlock);
+			vp->v_usecount--;
+			if (VSHOULDFREE(vp))
+				vfree(vp);
+			simple_unlock(&vp->v_interlock);
+		}
 		return (error);
 	}
 	simple_unlock(&vp->v_interlock);
@@ -1244,8 +1247,10 @@ vclean(vp, flags, p)
 	 */
 	if (VOP_RECLAIM(vp, p))
 		panic("vclean: cannot reclaim");
+
 	if (active)
 		vrele(vp);
+
 	cache_purge(vp);
 	if (vp->v_vnlock) {
 #if 0 /* This is the only place we have LK_DRAINED in the entire kernel ??? */
@@ -1257,6 +1262,9 @@ vclean(vp, flags, p)
 		FREE(vp->v_vnlock, M_VNODE);
 		vp->v_vnlock = NULL;
 	}
+
+	if (VSHOULDFREE(vp))
+		vfree(vp);
 
 	/*
 	 * Done with purge, notify sleepers of the grim news.
@@ -2232,7 +2240,7 @@ vbusy(vp)
 		freevnodes--;
 	}
 	simple_unlock(&vnode_free_list_slock);
-	vp->v_flag &= ~VFREE;
+	vp->v_flag &= ~(VFREE|VAGE);
 	splx(s);
 }
 
