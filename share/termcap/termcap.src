@@ -1966,7 +1966,7 @@ cons25|ansi|ansi80x25:\
 	:kb=^h:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:eo:sf=\E[S:sr=\E[T:\
 	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
 	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:\
-	:mb=\E[5m:md=\E[1m:me=\E[m:bl=^G:
+	:mb=\E[5m:md=\E[1m:mh=\E[30;1m:mr=\E[7m:me=\E[m:bl=^G:ut:
 cons50|ansil|ansi80x50:\
         :li#50:tc=cons25:
 # Syscons console with koi8-r russian code table.
@@ -1975,8 +1975,8 @@ pc3r|ibmpc3r|FreeBSD console for syscons koi8-r code table:\
 	:UP=\E[%dA:DO=\E[%dB:RI=\E[%dC:LE=\E[%dD:AL=\E[%dL:DL=\E[%dM:\
 	:IC=\E[%d@:DC=\E[%dP:le=^H:ic=\E[@:dc=\E[P:cd=\E[J:ce=\E[K:cl=\E[H\E[J:\
 	:cm=\E[%i%d;%dH:do=^J:ho=\E[H:al=\E[L:dl=\E[M:nd=\E[C:up=\E[A:\
-	:so=\E[7m:se=\E[m:ms:rs=\E[x\E[m\Ec:pt:\
-	:mb=\E[5m:mr=\E[7m:md=\E[1m:mh=\E[30m\E[1m:me=\E[m:\
+	:so=\E[7m:se=\E[m:ms:rs=\E[x\E[m\Ec:pt:ut:\
+	:mb=\E[5m:mr=\E[7m:md=\E[1m:mh=\E[30;1m:me=\E[m:\
 	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:\
 	:kN=\E[G:kP=\E[I:kH=\E[F:kI=\E[L:kD=\E[K:kB=\E[Z:kC=\E[E:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
@@ -3432,7 +3432,8 @@ pc3|ibmpc3|IBM PC 386BSD Console:\
 	:ta=^I:\
 	:te=\E[m:\
 	:ti=\E[m:\
-	:up=\E[A:
+	:up=\E[A:\
+	:ut:
 ibmx|ibmpcx|IBM PC xenix console display:\
 	:al=\E[L:am:bs:cd=\E[J:ce=\E[K:cl=^L:cm=\E[%d;%dH:co#80:\
 	:dc=\E[P:dl=\E[M:do=\E[B:ei=:ho=\E[H:ic=\E[@:im=:li#25:\
