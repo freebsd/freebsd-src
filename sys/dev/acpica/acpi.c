@@ -145,7 +145,6 @@ static int	acpi_child_location_str_method(device_t acdev, device_t child,
 static int	acpi_child_pnpinfo_str_method(device_t acdev, device_t child,
 					      char *buf, size_t buflen);
 
-
 static device_method_t acpi_methods[] = {
     /* Device interface */
     DEVMETHOD(device_identify,		acpi_identify),
@@ -212,7 +211,7 @@ TUNABLE_INT("hw.acpi.serialize_methods", &acpi_serialize_methods);
  * causes problems.  See the definition of "AcpiGbl_ValidOsiStrings" for
  * a list of systems we claim.
  */
-static int acpi_osi_method = 1;
+static int acpi_osi_method = TRUE;
 TUNABLE_INT("hw.acpi.osi_method", &acpi_osi_method);
 
 /*
