@@ -1,6 +1,33 @@
+2003-04-16  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* send_recv.c: check return values from krb5_data_alloc
+	* log.c: check return values from krb5_data_alloc
+	
+2003-04-16  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* dump_log.c (print_entry): check return values from
+	krb5_data_alloc
+
+2003-04-01  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* init_c.c (kadm_connect): if a context realm was passed in, use
+	that to form the kadmin/admin principal
+	
+2003-03-19  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ipropd_master.c (main): make sure we don't consider dead slave
+	for select processing
+	(write_stats): use slave_stats_file variable, 
+	check return value of strftime
+	(args): allow specifying slave stats file
+	(slave_dead): close the fd when the slave dies
+
 2002-10-21  Johan Danielsson  <joda@pdc.kth.se>
 
-	* ipropd_slave.c: pull up 1.27; use a temporary database
+	* ipropd_slave.c (from Derrick Brashear): Propagating a large
+	database without this means the slave kdcs can get erroneous
+	HDB_NOENTRY and return the resulting errors. This creates a new db
+	handle, populates it, and moves it into place.
 
 2002-08-26  Assar Westerlund  <assar@kth.se>
 

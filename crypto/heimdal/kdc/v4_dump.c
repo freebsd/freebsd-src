@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2001, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #include "hprop.h"
 
-RCSID("$Id: v4_dump.c,v 1.4 2001/01/26 15:55:07 joda Exp $");
+RCSID("$Id: v4_dump.c,v 1.4.8.1 2003/04/28 12:24:54 lha Exp $");
 
 static time_t
 time_parse(const char *cp)
@@ -103,7 +103,7 @@ v4_prop_dump(void *arg, const char *file)
 	memset(&pr, 0, sizeof(pr));
 	errno = 0;
 	lineno++;
-	ret = sscanf(buf, "%s %s %d %d %d %d %lx %lx %s %s %s %s",
+	ret = sscanf(buf, "%63s %63s %d %d %d %d %lx %lx %63s %63s %63s %63s",
 		     pr.name, pr.instance,
 		     &pr.max_life, &pr.mkvno, &pr.kvno,
 		     &attributes,

@@ -38,7 +38,7 @@
 #endif
 #include "getarg.h"
 
-RCSID("$Id: ftpd.c,v 1.161 2002/02/28 15:50:14 joda Exp $");
+RCSID("$Id: ftpd.c,v 1.166 2003/04/16 15:02:05 lha Exp $");
 
 static char version[] = "Version 6.00";
 
@@ -322,7 +322,7 @@ main(int argc, char **argv)
 	if(sp)
 	    port = sp->s_port;
 	else
-	    if(isdigit(port_string[0]))
+	    if(isdigit((unsigned char)port_string[0]))
 		port = htons(atoi(port_string));
 	    else
 		warnx("bad value for -p");
@@ -871,12 +871,9 @@ krb5_verify(struct passwd *pwd, char *passwd)
                          1,
                          NULL);
   krb5_free_principal(context, princ);
-#ifdef KRB4
   if (k_hasafs()) {
-      k_setpag();
       krb5_afslog_uid_home(context, id,NULL, NULL,pwd->pw_uid, pwd->pw_dir);
   }
-#endif /* KRB4 */
   krb5_cc_destroy(context, id);
   krb5_free_context (context);
   if(ret) 
@@ -1106,9 +1103,9 @@ done:
 int 
 filename_check(char *filename)
 {
-    char *p;
+    unsigned char *p;
 
-    p = strrchr(filename, '/');
+    p = (unsigned char *)strrchr(filename, '/');
     if(p)
 	filename = p + 1;
 
@@ -1248,7 +1245,7 @@ bad:
 static int
 accept_with_timeout(int socket, 
 		    struct sockaddr *address,
-		    size_t *address_len,
+		    socklen_t *address_len,
 		    struct timeval *timeout)
 {
     int ret;

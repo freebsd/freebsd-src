@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: import_sec_context.c,v 1.5 2001/05/11 09:16:46 assar Exp $");
+RCSID("$Id: import_sec_context.c,v 1.7 2003/03/16 18:01:32 lha Exp $");
 
 OM_uint32
 gss_import_sec_context (
@@ -55,7 +55,9 @@ gss_import_sec_context (
     int32_t flags;
     OM_uint32 minor;
 
-    gssapi_krb5_init ();
+    GSSAPI_KRB5_INIT ();
+
+    localp = remotep = NULL;
 
     sp = krb5_storage_from_mem (interprocess_token->value,
 				interprocess_token->length);
@@ -83,99 +85,113 @@ gss_import_sec_context (
 
     /* flags */
 
-    krb5_ret_int32 (sp, &flags);
+    *minor_status = 0;
+
+    if (krb5_ret_int32 (sp, &flags) != 0)
+	goto failure;
 
     /* retrieve the auth context */
 
     ac = (*context_handle)->auth_context;
     krb5_ret_int32 (sp, &ac->flags);
-    if (flags & SC_LOCAL_ADDRESS)
-	krb5_ret_address (sp, localp = &local);
-    else
-	localp = NULL;
-    if (flags & SC_REMOTE_ADDRESS)
-	krb5_ret_address (sp, remotep  = &remote);
-    else
-	remotep = NULL;
+    if (flags & SC_LOCAL_ADDRESS) {
+	if (krb5_ret_address (sp, localp = &local) != 0)
+	    goto failure;
+    }
+
+    if (flags & SC_REMOTE_ADDRESS) {
+	if (krb5_ret_address (sp, remotep = &remote) != 0)
+	    goto failure;
+    }
+
     krb5_auth_con_setaddrs (gssapi_krb5_context, ac, localp, remotep);
     if (localp)
 	krb5_free_address (gssapi_krb5_context, localp);
     if (remotep)
 	krb5_free_address (gssapi_krb5_context, remotep);
-    krb5_ret_int16 (sp, &ac->local_port);
-    krb5_ret_int16 (sp, &ac->remote_port);
+    localp = remotep = NULL;
+
+    if (krb5_ret_int16 (sp, &ac->local_port) != 0)
+	goto failure;
+
+    if (krb5_ret_int16 (sp, &ac->remote_port) != 0)
+	goto failure;
     if (flags & SC_KEYBLOCK) {
-	krb5_ret_keyblock (sp, &keyblock);
+	if (krb5_ret_keyblock (sp, &keyblock) != 0)
+	    goto failure;
 	krb5_auth_con_setkey (gssapi_krb5_context, ac, &keyblock);
 	krb5_free_keyblock_contents (gssapi_krb5_context, &keyblock);
     }
     if (flags & SC_LOCAL_SUBKEY) {
-	krb5_ret_keyblock (sp, &keyblock);
+	if (krb5_ret_keyblock (sp, &keyblock) != 0)
+	    goto failure;
 	krb5_auth_con_setlocalsubkey (gssapi_krb5_context, ac, &keyblock);
 	krb5_free_keyblock_contents (gssapi_krb5_context, &keyblock);
     }
     if (flags & SC_REMOTE_SUBKEY) {
-	krb5_ret_keyblock (sp, &keyblock);
+	if (krb5_ret_keyblock (sp, &keyblock) != 0)
+	    goto failure;
 	krb5_auth_con_setremotesubkey (gssapi_krb5_context, ac, &keyblock);
 	krb5_free_keyblock_contents (gssapi_krb5_context, &keyblock);
     }
-    krb5_ret_int32 (sp, &ac->local_seqnumber);
-    krb5_ret_int32 (sp, &ac->remote_seqnumber);
+    if (krb5_ret_int32 (sp, &ac->local_seqnumber))
+	goto failure;
+    if (krb5_ret_int32 (sp, &ac->remote_seqnumber))
+	goto failure;
 
-#if 0
-    {
-	    size_t sz;
-
-	    krb5_ret_data (sp, &data);
-	    ac->authenticator = malloc (sizeof (*ac->authenticator));
-	    if (ac->authenticator == NULL) {
-		*minor_status = ENOMEM;
-		ret = GSS_S_FAILURE;
-		goto failure;
-	    }
-
-	    kret = decode_Authenticator (data.data, data.length,
-					 ac->authenticator, &sz);
-	    krb5_data_free (&data);
-	    if (kret) {
-		*minor_status = kret;
-		ret = GSS_S_FAILURE;
-		goto failure;
-	    }
-    }
-#endif
-
-    krb5_ret_int32 (sp, &tmp);
+    if (krb5_ret_int32 (sp, &tmp) != 0)
+	goto failure;
     ac->keytype = tmp;
-    krb5_ret_int32 (sp, &tmp);
+    if (krb5_ret_int32 (sp, &tmp) != 0)
+	goto failure;
     ac->cksumtype = tmp;
 
     /* names */
 
-    krb5_ret_data (sp, &data);
+    if (krb5_ret_data (sp, &data))
+	goto failure;
     buffer.value  = data.data;
     buffer.length = data.length;
 
-    ret = gss_import_name (minor_status, &buffer, GSS_C_NO_OID,
+    ret = gss_import_name (minor_status, &buffer, GSS_C_NT_EXPORT_NAME,
 			   &(*context_handle)->source);
+    if (ret) {
+	ret = gss_import_name (minor_status, &buffer, GSS_C_NO_OID,
+			       &(*context_handle)->source);
+	if (ret) {
+	    krb5_data_free (&data);
+	    goto failure;
+	}
+    }
     krb5_data_free (&data);
-    if (ret)
-	goto failure;
 
-    krb5_ret_data (sp, &data);
+    if (krb5_ret_data (sp, &data) != 0)
+	goto failure;
     buffer.value  = data.data;
     buffer.length = data.length;
 
-    ret = gss_import_name (minor_status, &buffer, GSS_C_NO_OID,
+    ret = gss_import_name (minor_status, &buffer, GSS_C_NT_EXPORT_NAME,
 			   &(*context_handle)->target);
+    if (ret) {
+	ret = gss_import_name (minor_status, &buffer, GSS_C_NO_OID,
+			       &(*context_handle)->target);
+	if (ret) {
+	    krb5_data_free (&data);
+	    goto failure;
+	}
+    }    
     krb5_data_free (&data);
-    if (ret)
-	goto failure;
 
-    krb5_ret_int32 (sp, &tmp);
+    if (krb5_ret_int32 (sp, &tmp))
+	goto failure;
     (*context_handle)->flags = tmp;
-    krb5_ret_int32 (sp, &tmp);
+    if (krb5_ret_int32 (sp, &tmp))
+	goto failure;
     (*context_handle)->more_flags = tmp;
+    if (krb5_ret_int32 (sp, &tmp) == 0)
+	(*context_handle)->lifetime = tmp;
+    else
+	(*context_handle)->lifetime = GSS_C_INDEFINITE;
 
     return GSS_S_COMPLETE;
 
@@ -186,6 +202,10 @@ failure:
 	gss_release_name(&minor, &(*context_handle)->source);
     if ((*context_handle)->target != NULL)
 	gss_release_name(&minor, &(*context_handle)->target);
+    if (localp)
+	krb5_free_address (gssapi_krb5_context, localp);
+    if (remotep)
+	krb5_free_address (gssapi_krb5_context, remotep);
     free (*context_handle);
     *context_handle = GSS_C_NO_CONTEXT;
     return ret;

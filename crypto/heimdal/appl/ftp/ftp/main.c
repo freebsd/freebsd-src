@@ -38,7 +38,7 @@
 #include "ftp_locl.h"
 #include <getarg.h>
 
-RCSID("$Id: main.c,v 1.32 2002/08/23 19:11:03 assar Exp $");
+RCSID("$Id: main.c,v 1.33 2002/10/29 09:47:51 joda Exp $");
 
 static int help_flag;
 static int version_flag;
@@ -53,6 +53,8 @@ struct getargs getargs[] = {
       "Turn off interactive prompting", NULL},
     { NULL,	'l', arg_negative_flag, &lineedit,
       "Turn off line editing", NULL},
+    { NULL,   'n', arg_negative_flag, &autologin,
+      "Turn off auto-login", NULL},
     { NULL,	'p', arg_flag, &passivemode,
       "passive mode", NULL},
     { NULL,	't', arg_counter, &trace,

@@ -1,12 +1,27 @@
-# $Id: Makefile.am,v 1.37 2002/08/19 15:08:37 joda Exp $
+# $Id: Makefile.am,v 1.43.2.1 2003/05/12 15:20:46 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += $(INCLUDE_krb4) $(AFS_EXTRA_DEFS) $(ROKEN_RENAME)
+INCLUDES += $(AFS_EXTRA_DEFS) $(ROKEN_RENAME)
 
 if KRB4
-AFSLIBS = libkafs.la
 DEPLIB_krb4 = $(LIB_krb4) $(LIB_des)
+krb4_am_workaround = $(INCLUDE_krb4)
+else
+DEPLIB_krb4  =
+krb4_am_workaround = 
+endif # KRB4
+INCLUDES += $(krb4_am_workaround)
+
+if KRB5
+DEPLIB_krb5 = ../krb5/libkrb5.la 
+krb5_am_workaround = $(INCLUDE_des) -I$(top_srcdir)/lib/krb5
+else
+DEPLIB_krb5  =
+krb5_am_workaround = 
+endif # KRB5
+INCLUDES += $(krb5_am_workaround)
+
 
 if AIX
 AFSL_EXP = $(srcdir)/afsl.exp
@@ -36,19 +51,10 @@ AFSL_EXP =
 AIX_SRC =
 endif # AIX
 
-else
-AFSLIBS = 
-DEPLIB_krb4  =
-endif # KRB4
+libkafs_la_LIBADD = $(DEPLIB_krb5) ../roken/libroken.la $(DEPLIB_krb4)
 
-if KRB5
-libkafs_la_LIBADD = ../krb5/libkrb5.la ../roken/libroken.la $(DEPLIB_krb4)
-else
-libkafs_la_LIBADD = ../roken/libroken.la $(DEPLIB_krb4)
-endif # KRB5
-
-lib_LTLIBRARIES = $(AFSLIBS)
-libkafs_la_LDFLAGS = -version-info 3:4:3
+lib_LTLIBRARIES = libkafs.la
+libkafs_la_LDFLAGS = -version-info 4:0:4
 foodir = $(libdir)
 foo_DATA = $(AFS_EXTRA_LIBS)
 # EXTRA_DATA = afslib.so
@@ -61,13 +67,18 @@ if KRB5
 afskrb5_c = afskrb5.c
 endif
 
+if KRB4
+afskrb_c = afskrb.c
+endif
+
+
 if do_roken_rename
 ROKEN_SRCS = resolve.c strtok_r.c strlcpy.c strsep.c
 endif
 
 libkafs_la_SOURCES =				\
 	afssys.c				\
-	afskrb.c				\
+	$(afskrb_c)				\
 	$(afskrb5_c)				\
 	common.c				\
 	$(AIX_SRC)				\
@@ -77,7 +88,7 @@ libkafs_la_SOURCES =				\
 
 #afslib_so_SOURCES = afslib.c
 
-EXTRA_libkafs_la_SOURCES = afskrb5.c dlfcn.c afslib.c dlfcn.h
+EXTRA_libkafs_la_SOURCES = afskrb.c afskrb5.c dlfcn.c afslib.c dlfcn.h
 
 EXTRA_DIST = README.dlfcn afsl.exp afslib.exp
 

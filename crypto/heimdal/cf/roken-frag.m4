@@ -1,4 +1,4 @@
-dnl $Id: roken-frag.m4,v 1.44 2002/09/04 20:57:30 joda Exp $
+dnl $Id: roken-frag.m4,v 1.45 2002/12/18 17:34:25 joda Exp $
 dnl
 dnl some code to get roken working
 dnl
@@ -143,7 +143,7 @@ AC_FIND_FUNC(res_nsearch, resolv,
 #include <resolv.h>
 #endif
 ],
-[0,0,0,0,0])
+[0,0,0,0,0,0])
 
 AC_FIND_FUNC(dn_expand, resolv,
 [

@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <parse_units.h>
 
-RCSID("$Id: util.c,v 1.37 2002/06/07 18:28:46 joda Exp $");
+RCSID("$Id: util.c,v 1.39 2003/04/14 11:55:27 lha Exp $");
 
 /*
  * util.c - functions for parsing, unparsing, and editing different
@@ -556,6 +556,7 @@ get_response(const char *prompt, const char *def, char *buf, size_t len)
     osig = signal(SIGINT, interrupt);
     if(setjmp(jmpbuf)) {
 	signal(SIGINT, osig);
+	printf("\n");
 	return 1;
     }
 
@@ -586,7 +587,7 @@ hex2n (char c)
     static char hexdigits[] = "0123456789abcdef";
     const char *p;
 
-    p = strchr (hexdigits, tolower((int)c));
+    p = strchr (hexdigits, tolower((unsigned char)c));
     if (p == NULL)
 	return -1;
     else

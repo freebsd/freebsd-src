@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: log.c,v 1.19 2002/05/24 15:19:21 joda Exp $");
+RCSID("$Id: log.c,v 1.20 2003/04/16 17:56:55 lha Exp $");
 
 /*
  * A log record consists of:
@@ -268,7 +268,9 @@ kadm5_log_replay_create (kadm5_server_context *context,
     krb5_data data;
     hdb_entry ent;
 
-    krb5_data_alloc (&data, len);
+    ret = krb5_data_alloc (&data, len);
+    if (ret)
+	return ret;
     krb5_storage_read (sp, data.data, len);
     ret = hdb_value2entry (context->context, &data, &ent);
     krb5_data_free(&data);
@@ -421,7 +423,11 @@ kadm5_log_replay_rename (kadm5_server_context *context,
     krb5_ret_principal (sp, &source);
     princ_len = krb5_storage_seek(sp, 0, SEEK_CUR) - off;
     data_len = len - princ_len;
-    krb5_data_alloc (&value, data_len);
+    ret = krb5_data_alloc (&value, data_len);
+    if (ret) {
+	krb5_free_principal (context->context, source);
+	return ret;
+    }
     krb5_storage_read (sp, value.data, data_len);
     ret = hdb_value2entry (context->context, &value, &target_ent);
     krb5_data_free(&value);
@@ -509,7 +515,9 @@ kadm5_log_replay_modify (kadm5_server_context *context,
 
     krb5_ret_int32 (sp, &mask);
     len -= 4;
-    krb5_data_alloc (&value, len);
+    ret = krb5_data_alloc (&value, len);
+    if (ret)
+	return ret;
     krb5_storage_read (sp, value.data, len);
     ret = hdb_value2entry (context->context, &value, &log_ent);
     krb5_data_free(&value);

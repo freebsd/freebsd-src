@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: inquire_cred.c,v 1.3 2002/08/20 12:02:45 nectar Exp $");
+RCSID("$Id: inquire_cred.c,v 1.4 2003/03/16 17:42:14 lha Exp $");
 
 OM_uint32 gss_inquire_cred
            (OM_uint32 * minor_status,
@@ -45,6 +45,13 @@ OM_uint32 gss_inquire_cred
            )
 {
     OM_uint32 ret;
+
+    *minor_status = 0;
+
+    if (name)
+	*name = NULL;
+    if (mechanisms)
+	*mechanisms = GSS_C_NO_OID_SET;
 
     if (cred_handle == GSS_C_NO_CREDENTIAL) {
         return GSS_S_FAILURE;

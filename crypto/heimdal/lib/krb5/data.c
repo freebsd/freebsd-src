@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: data.c,v 1.16 2001/05/14 06:14:46 assar Exp $");
+RCSID("$Id: data.c,v 1.17 2003/03/25 22:07:17 lha Exp $");
 
 void
 krb5_data_zero(krb5_data *p)
@@ -48,6 +48,12 @@ krb5_data_free(krb5_data *p)
     if(p->data != NULL)
 	free(p->data);
     p->length = 0;
+}
+
+void 
+krb5_free_data_contents(krb5_context context, krb5_data *data)
+{
+    krb5_data_free(data);
 }
 
 void

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab.c,v 1.53 2002/03/10 23:14:12 assar Exp $");
+RCSID("$Id: keytab.c,v 1.55 2003/03/27 03:45:01 lha Exp $");
 
 /*
  * Register a new keytab in `ops'
@@ -45,6 +45,11 @@ krb5_kt_register(krb5_context context,
 		 const krb5_kt_ops *ops)
 {
     struct krb5_keytab_data *tmp;
+
+    if (strlen(ops->prefix) > KRB5_KT_PREFIX_MAX_LEN - 1) {
+	krb5_set_error_string(context, "krb5_kt_register; prefix too long");
+	return KRB5_KT_NAME_TOOLONG;
+    }
 
     tmp = realloc(context->kt_types,
 		  (context->num_kt_types + 1) * sizeof(*context->kt_types));
@@ -206,6 +211,21 @@ krb5_kt_read_service_key(krb5_context context,
 }
 
 /*
+ * Return the type of the `keytab' in the string `prefix of length
+ * `prefixsize'.
+ */
+
+krb5_error_code
+krb5_kt_get_type(krb5_context context,
+		 krb5_keytab keytab,
+		 char *prefix,
+		 size_t prefixsize)
+{
+    strlcpy(prefix, keytab->prefix, prefixsize);
+    return 0;
+}
+
+/*
  * Retrieve the name of the keytab `keytab' into `name', `namesize'
  * Return 0 or an error.
  */
@@ -308,17 +328,20 @@ krb5_kt_get_entry(krb5_context context,
     if (entry->vno) {
 	return 0;
     } else {
-	char princ[256], kt_name[256];
+	char princ[256], kt_name[256], kvno_str[25];
 
 	krb5_unparse_name_fixed (context, principal, princ, sizeof(princ));
 	krb5_kt_get_name (context, id, kt_name, sizeof(kt_name));
 
+	if (kvno)
+	    snprintf(kvno_str, sizeof(kvno_str), "(kvno %d)", kvno);
+	else
+	    kvno_str[0] = '\0';
+
 	krb5_set_error_string (context,
- 			       "failed to find %s%s%d%s in keytab %s",
+ 			       "failed to find %s%s in keytab %s",
 			       princ,
-			       kvno ? "(" : "",
-			       kvno,
-			       kvno ? ")" : "",
+			       kvno_str,
 			       kt_name);
 	return KRB5_KT_NOTFOUND;
     }

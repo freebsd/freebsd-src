@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 2002 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: name-45-test.c,v 1.2 2002/08/31 03:33:07 assar Exp $");
+RCSID("$Id: name-45-test.c,v 1.3.2.1 2003/05/06 16:49:14 joda Exp $");
 
 enum { MAX_COMPONENTS = 3 };
 
@@ -96,7 +96,7 @@ static struct testcase {
      0, 0},
 
     {"pop", "mail0", "NADA.KTH.SE", "NADA.KTH.SE", 2,
-     {"pop", "mail0.nada.kth.se"}, NULL, HEIM_ERR_V4_PRINC_NO_CONV, 0},
+     {"pop", "mail0.nada.kth.se"}, "", HEIM_ERR_V4_PRINC_NO_CONV, 0},
     {"pop", "mail0", "NADA.KTH.SE", "NADA.KTH.SE", 2,
      {"pop", "mail0.nada.kth.se"},
      "[realms]\n"
@@ -110,10 +110,10 @@ static struct testcase {
      "	v4_instance_resolve = true\n",
      HEIM_ERR_V4_PRINC_NO_CONV, 0},
 
-    {"rcmd", "ratatosk", "NADA.KTH.SE", "NADA.KTH.SE", 2,
-     {"host", "ratatosk.pdc.kth.se"}, NULL, HEIM_ERR_V4_PRINC_NO_CONV, 0},
-    {"rcmd", "ratatosk", "NADA.KTH.SE", "NADA.KTH.SE", 2,
-     {"host", "ratatosk.pdc.kth.se"},
+    {"rcmd", "hokkigai", "NADA.KTH.SE", "NADA.KTH.SE", 2,
+     {"host", "hokkigai.pdc.kth.se"}, "", HEIM_ERR_V4_PRINC_NO_CONV, 0},
+    {"rcmd", "hokkigai", "NADA.KTH.SE", "NADA.KTH.SE", 2,
+     {"host", "hokkigai.pdc.kth.se"},
      "[libdefaults]\n"
      "	v4_instance_resolve = true\n"
      "[realms]\n"
@@ -143,7 +143,7 @@ static struct testcase {
 	 "012345678901234567890123456789012345678"}, NULL,
      0, 0},
 
-    {NULL, NULL, NULL, NULL, 0, {}, NULL, 0}
+    {NULL, NULL, NULL, NULL, 0, {NULL}, NULL, 0}
 };
 
 int
@@ -199,10 +199,13 @@ main(int argc, char **argv)
 	    }
 	} else {
 	    if (t->ret) {
+		char *s;
+		krb5_unparse_name(context, princ, &s);
 		krb5_warnx (context,
 			    "krb5_425_conv_principal %s.%s@%s "
-			    "passed unexpected",
-			    t->v4_name, t->v4_inst, t->v4_realm);
+			    "passed unexpected: %s",
+			    t->v4_name, t->v4_inst, t->v4_realm, s);
+		free(s);
 		val = 1;
 		continue;
 	    }

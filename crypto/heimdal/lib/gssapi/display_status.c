@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: display_status.c,v 1.7 2001/08/23 04:34:41 assar Exp $");
+RCSID("$Id: display_status.c,v 1.9 2003/03/16 17:45:36 lha Exp $");
 
 static char *krb5_error_string;
 
@@ -93,6 +93,26 @@ routine_error(OM_uint32 v)
 	return msgs[v];
 }
 
+static char *
+supplementary_error(OM_uint32 v)
+{
+    static char *msgs[] = {
+	"normal completion",
+	"continuation call to routine required",
+	"duplicate per-message token detected",
+	"timed-out per-message token detected",
+	"reordered (early) per-message token detected",
+	"skipped predecessor token(s) detected"
+    };
+
+    v >>= GSS_C_SUPPLEMENTARY_OFFSET;
+
+    if (v >= sizeof(msgs)/sizeof(*msgs))
+	return "unknown routine error";
+    else
+	return msgs[v];
+}
+
 void
 gssapi_krb5_set_error_string (void)
 {
@@ -117,18 +137,25 @@ OM_uint32 gss_display_status
 {
   char *buf;
 
-  gssapi_krb5_init ();
+  GSSAPI_KRB5_INIT ();
 
-  *minor_status = 0;
+  status_string->length = 0;
+  status_string->value = NULL;
 
-  if (mech_type != GSS_C_NO_OID &&
-      mech_type != GSS_KRB5_MECHANISM)
-      return GSS_S_BAD_MECH;
+  if (gss_oid_equal(mech_type, GSS_C_NO_OID) == 0 &&
+      gss_oid_equal(mech_type, GSS_KRB5_MECHANISM) == 0) {
+      *minor_status = 0;
+      return GSS_C_GSS_CODE;
+  }
 
   if (status_type == GSS_C_GSS_CODE) {
-      asprintf (&buf, "%s %s",
-		calling_error(GSS_CALLING_ERROR(status_value)),
-		routine_error(GSS_ROUTINE_ERROR(status_value)));
+      if (GSS_SUPPLEMENTARY_INFO(status_value))
+	  asprintf(&buf, "%s", 
+		   supplementary_error(GSS_SUPPLEMENTARY_INFO(status_value)));
+      else
+	  asprintf (&buf, "%s %s",
+		    calling_error(GSS_CALLING_ERROR(status_value)),
+		    routine_error(GSS_ROUTINE_ERROR(status_value)));
   } else if (status_type == GSS_C_MECH_CODE) {
       buf = gssapi_krb5_get_error_string ();
       if (buf == NULL) {
@@ -140,8 +167,10 @@ OM_uint32 gss_display_status
 	  else
 	      buf = strdup(tmp);
       }
-  } else
+  } else {
+      *minor_status = EINVAL;
       return GSS_S_BAD_STATUS;
+  }
 
   if (buf == NULL) {
       *minor_status = ENOMEM;
@@ -149,6 +178,7 @@ OM_uint32 gss_display_status
   }
 
   *message_context = 0;
+  *minor_status = 0;
 
   status_string->length = strlen(buf);
   status_string->value  = buf;

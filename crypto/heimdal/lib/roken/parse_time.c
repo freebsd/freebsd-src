@@ -33,13 +33,13 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: parse_time.c,v 1.5 1999/12/02 16:58:51 joda Exp $");
+RCSID("$Id: parse_time.c,v 1.6 2003/03/07 15:51:06 lha Exp $");
 #endif
 
 #include <parse_units.h>
 #include "parse_time.h"
 
-static units time_units[] = {
+static struct units time_units[] = {
     {"year",	365 * 24 * 60 * 60},
     {"month",	30 * 24 * 60 * 60},
     {"week",	7 * 24 * 60 * 60},

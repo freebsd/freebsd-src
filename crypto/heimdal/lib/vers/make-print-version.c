@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: make-print-version.c,v 1.2 2000/07/08 10:46:36 assar Exp $");
+RCSID("$Id: make-print-version.c,v 1.3 2003/01/02 15:31:38 joda Exp $");
 #endif
 
 #include <stdio.h>
@@ -55,14 +55,17 @@ main(int argc, char **argv)
     f = fopen(argv[1], "w");
     if(f == NULL)
 	return 1;
-    fprintf(f, "#define VERSIONLIST { ");
+    fprintf(f, "#define VERSIONLIST \"");
 #ifdef KRB5
-    fprintf(f, "\"%s\", ", heimdal_version);
+    fprintf(f, "%s", heimdal_version);
 #endif
 #ifdef KRB4
-    fprintf(f, "\"%s\", ", krb4_version);
+#ifdef KRB5
+    fprintf(f, ", ");
 #endif
-    fprintf(f, "}\n");
+    fprintf(f, "%s", krb4_version);
+#endif
+    fprintf(f, "\"\n");
     fclose(f);
     return 0;
 }

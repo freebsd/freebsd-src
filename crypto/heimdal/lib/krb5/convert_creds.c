@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,9 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: convert_creds.c,v 1.24 2001/06/20 02:49:21 joda Exp $");
+RCSID("$Id: convert_creds.c,v 1.26 2003/03/18 03:11:16 lha Exp $");
+
+#include "krb5-v4compat.h"
 
 static krb5_error_code
 check_ticket_flags(TicketFlags f)
@@ -41,42 +43,6 @@ check_ticket_flags(TicketFlags f)
 }
 
 /* include this here, to avoid dependencies on libkrb */
-
-#define		MAX_KTXT_LEN	1250
-
-#define 	ANAME_SZ	40
-#define		REALM_SZ	40
-#define		SNAME_SZ	40
-#define		INST_SZ		40
-
-struct ktext {
-    unsigned int length;		/* Length of the text */
-    unsigned char dat[MAX_KTXT_LEN];	/* The data itself */
-    u_int32_t mbz;		/* zero to catch runaway strings */
-};
-
-struct credentials {
-    char    service[ANAME_SZ];	/* Service name */
-    char    instance[INST_SZ];	/* Instance */
-    char    realm[REALM_SZ];	/* Auth domain */
-    des_cblock session;		/* Session key */
-    int     lifetime;		/* Lifetime */
-    int     kvno;		/* Key version number */
-    struct ktext ticket_st;	/* The ticket itself */
-    int32_t    issue_date;	/* The issue time */
-    char    pname[ANAME_SZ];	/* Principal's name */
-    char    pinst[INST_SZ];	/* Principal's instance */
-};
-
-
-#define TKTLIFENUMFIXED 64
-#define TKTLIFEMINFIXED 0x80
-#define TKTLIFEMAXFIXED 0xBF
-#define TKTLIFENOEXPIRE 0xFF
-#define MAXTKTLIFETIME	(30*24*3600)	/* 30 days */
-#ifndef NEVERDATE
-#define NEVERDATE ((time_t)0x7fffffffL)
-#endif
 
 static const int _tkt_lifetimes[TKTLIFENUMFIXED] = {
    38400,   41055,   43894,   46929,   50174,   53643,   57352,   61318,
@@ -89,8 +55,8 @@ static const int _tkt_lifetimes[TKTLIFENUMFIXED] = {
  1623226, 1735464, 1855462, 1983758, 2120925, 2267576, 2424367, 2592000
 };
 
-static int
-_krb_time_to_life(time_t start, time_t end)
+int
+_krb5_krb_time_to_life(time_t start, time_t end)
 {
     int i;
     time_t life = end - start;
@@ -112,6 +78,26 @@ _krb_time_to_life(time_t start, time_t end)
     return 0;
     
 }
+
+time_t
+_krb5_krb_life_to_time(int start, int life_)
+{
+    unsigned char life = (unsigned char) life_;
+
+#if 0    
+    if (krb_no_long_lifetimes)
+	return start + life*5*60;
+#endif
+
+    if (life == TKTLIFENOEXPIRE)
+	return NEVERDATE;
+    if (life < TKTLIFEMINFIXED)
+	return start + life*5*60;
+    if (life > TKTLIFEMAXFIXED)
+	return start + MAXTKTLIFETIME;
+    return start + _tkt_lifetimes[life - TKTLIFEMINFIXED];
+}
+
 
 /* Convert the v5 credentials in `in_cred' to v4-dito in `v4creds'.
  * This is done by sending them to the 524 function in the KDC.  If
@@ -183,8 +169,8 @@ krb524_convert_creds_kdc(krb5_context context,
 	if(ret)
 	    goto out;
 	v4creds->issue_date = v5_creds->times.starttime;
-	v4creds->lifetime = _krb_time_to_life(v4creds->issue_date,
-					      v5_creds->times.endtime);
+	v4creds->lifetime = _krb5_krb_time_to_life(v4creds->issue_date,
+						   v5_creds->times.endtime);
 	ret = krb5_524_conv_principal(context, v5_creds->client, 
 				      v4creds->pname, 
 				      v4creds->pinst, 
