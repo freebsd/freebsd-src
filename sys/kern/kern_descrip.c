@@ -258,7 +258,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct flock *flp;
 	int tmp, error = 0, flg = F_POSIX;
 	u_int newmin;
-	struct proc *leaderp;
 
 	mtx_lock(&Giant);
 
@@ -379,9 +378,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			}
 			PROC_LOCK(p);
 			p->p_flag |= P_ADVLOCK;
-			leaderp = p->p_leader;
 			PROC_UNLOCK(p);
-			error = VOP_ADVLOCK(vp, (caddr_t)leaderp, F_SETLK,
+			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    flp, flg);
 			break;
 		case F_WRLCK:
@@ -389,18 +387,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
-			PROC_LOCK(p);
-			p->p_flag |= P_ADVLOCK;
-			leaderp = p->p_leader;
-			PROC_UNLOCK(p);
-			error = VOP_ADVLOCK(vp, (caddr_t)leaderp, F_SETLK, flp,
+			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK, flp,
 			    flg);
 			break;
 		case F_UNLCK:
-			PROC_LOCK(p);
-			leaderp = p->p_leader;
-			PROC_UNLOCK(p);
-			error = VOP_ADVLOCK(vp, (caddr_t)leaderp, F_UNLCK, flp,
+			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK, flp,
 			    F_POSIX);
 			break;
 		default:
