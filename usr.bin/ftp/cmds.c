@@ -742,6 +742,7 @@ mget(argc, argv)
 			if (mcase) {
 				for (tp2 = tmpbuf; ch = *tp++;)
 					*tp2++ = isupper(ch) ? tolower(ch) : ch;
+				*tp2 = '\0';
 				tp = tmpbuf;
 			}
 			if (ntflag) {
