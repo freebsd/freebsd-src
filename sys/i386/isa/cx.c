@@ -885,12 +885,3 @@ void cxtimeout (void *a)
 		}
 	timeout (cxtimeout, 0, hz*5);
 }
-
-
-static void 	cx_drvinit(void *unused)
-{
-
-	cdevsw_add(&cx_cdevsw);
-}
-
-SYSINIT(cxdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cx_drvinit,NULL)
