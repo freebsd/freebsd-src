@@ -32,7 +32,7 @@ proto	= "proto" protocol .
 ip	= srcdst [ flags ] [ with withopt ] [ icmp ] [ keep ] .
 group	= [ "head" decnumber ] [ "group" decnumber ] .
 
-block	= "block" [ icmp[return-code] | "return-rst" ] .
+block	= "block" [ return-icmp[return-code] | "return-rst" ] .
 auth    = "auth" | "preauth" .
 log	= "log" [ "body" ] [ "first" ] [ "or-block" ] [ "level" loglevel ] .
 call	= "call" [ "now" ] function-name .
@@ -43,7 +43,7 @@ protocol = "tcp/udp" | "udp" | "tcp" | "icmp" | decnumber .
 srcdst	= "all" | fromto .
 fromto	= "from" [ "!" ] object "to" [ "!" ] object .
 
-icmp	= "return-icmp" | "return-icmp-as-dest" .
+return-icmp = "return-icmp" | "return-icmp-as-dest" .
 object	= addr [ port-comp | port-range ] .
 addr	= "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
 port-comp = "port" compare port-num .

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident "@(#)$Id: solaris.c,v 2.15.2.6 2000/07/18 13:56:33 darrenr Exp $"
+#pragma ident "@(#)$Id: solaris.c,v 2.15.2.8 2000/11/27 10:28:41 darrenr Exp $"
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -51,6 +51,7 @@
 #include "ipl.h"
 #include "ip_fil.h"
 #include "ip_nat.h"
+#include "ip_state.h"
 
 
 char	_depends_on[] = "drv/ip";
@@ -644,8 +645,8 @@ tryagain:
 		hlen = sizeof(ip6_t);
 		ip6 = (ip6_t *)ip;
 		/* XXX - might not be aligned (from ppp?) */
-		((char *)&tlen)[0] = ((char *)&ip->ip_len)[0];
-		((char *)&tlen)[1] = ((char *)&ip->ip_len)[1];
+		((char *)&tlen)[0] = ((char *)&ip6->ip6_plen)[0];
+		((char *)&tlen)[1] = ((char *)&ip6->ip6_plen)[1];
 		plen = ntohs(tlen);
 		sap = IP6_DL_SAP;
 	}
@@ -683,7 +684,7 @@ fixalign:
 				s = m->b_rptr;
 		}
 		*mp = m2;
-		MTYPE(m2) = MTYPE(mt);
+		MTYPE(m2) = M_DATA;
 		freemsg(mt);
 		mt = m2;
 
@@ -1688,7 +1689,7 @@ frdest_t *fdp;
 # ifdef	USE_INET6
 	else if (fin->fin_v == 6) {
 		p = ip6->ip6_nxt;
-		dir = ire_route_lookup_v6(&ip6->ip6_dst, 0xffffffff, 0, 0,
+		dir = ire_route_lookup_v6(&ip6->ip6_dst, NULL, 0, 0,
 					NULL, &gw, NULL, MATCH_IRE_DSTONLY|
 					MATCH_IRE_DEFAULT|MATCH_IRE_RECURSIVE);
 	}

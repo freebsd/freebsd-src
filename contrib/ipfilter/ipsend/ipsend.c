@@ -13,7 +13,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.2 1999/12/04 03:37:05 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.2.2.1 2001/01/10 06:21:19 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -348,6 +348,12 @@ char	**argv;
 
 		printf("Options: %d\n", olen);
 		ti = (struct tcpiphdr *)malloc(olen + ip->ip_len);
+		if(!ti)
+		    {
+			fprintf(stderr,"malloc failed\n");
+			exit(2);
+		    } 
+
 		bcopy((char *)ip, (char *)ti, sizeof(*ip));
 		ip = (ip_t *)ti;
 		ip->ip_hl = (olen >> 2);

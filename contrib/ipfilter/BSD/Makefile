@@ -228,6 +228,9 @@ install:
 	-if [ -d /lkm -a -f if_ipl.o ] ; then \
 		cp if_ipl.o /lkm; \
 	fi
+	-if [ -d /modules -a -f ipf.ko ] ; then \
+		cp ipf.ko /modules; \
+	fi
 	-$(INSTALL) -cs -g wheel -m 755 -o root ipf $(SBINDEST)
 	-$(INSTALL) -cs -g wheel -m 755 -o root ipfs $(SBINDEST)
 	-$(INSTALL) -cs -g wheel -m 755 -o root ipnat $(SBINDEST)

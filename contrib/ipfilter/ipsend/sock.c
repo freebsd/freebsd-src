@@ -8,7 +8,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sock.c,v 2.1 1999/08/04 17:31:16 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: sock.c,v 2.1.4.1 2000/12/16 21:05:44 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <unistd.h>
@@ -283,12 +283,21 @@ struct	tcpiphdr *ti;
 		return NULL;
 
 	fd = (struct filedesc *)malloc(sizeof(*fd));
+#if defined( __FreeBSD_version) && __FreeBSD_version >= 500013
+	if (KMCPY(fd, p->ki_fd, sizeof(*fd)) == -1)
+	    {
+		fprintf(stderr, "read(%#lx,%#lx) failed\n",
+			(u_long)p, (u_long)p->ki_fd);
+		return NULL;
+	    }
+#else
 	if (KMCPY(fd, p->kp_proc.p_fd, sizeof(*fd)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx) failed\n",
 			(u_long)p, (u_long)p->kp_proc.p_fd);
 		return NULL;
 	    }
+#endif
 
 	o = (struct file **)calloc(1, sizeof(*o) * (fd->fd_lastfile + 1));
 	if (KMCPY(o, fd->fd_ofiles, (fd->fd_lastfile + 1) * sizeof(*o)) == -1)

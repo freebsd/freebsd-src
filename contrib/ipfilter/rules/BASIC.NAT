@@ -8,6 +8,12 @@
 #
 # If we have only 1 valid IP address from our ISP, then we do this:
 #
+# To make ftp work, using the internal ftp proxy, use:
+#
+map ppp0 w.x.y.z/24 -> a.b.c.d/32 proxy port ftp ftp/tcp
+#
+# For normal TCP/UDP and other IP protocols
+#
 map ppp0 w.x.y.z/24 -> a.b.c.d/32 portmap tcp/udp 40000:60000
 map ppp0 w.x.y.z/24 -> a.b.c.d/32
 #
@@ -38,8 +44,3 @@ map ppp0 w.x.y.z/24 -> a.b.c.d/32
 #map ppp0 w.x.y.q/32 -> a.b.c.J/32
 #map ppp0 w.x.y.p/32 -> a.b.c.K/32 portmap tcp/udp 40000:60000
 #map ppp0 w.x.y.p/32 -> a.b.c.K/32
-#
-# To make ftp work, using the internal ftp proxy, use:
-#
-map ppp0 w.x.y.z/24 -> a.b.c.d/32 proxy port ftp ftp/tcp
-#
