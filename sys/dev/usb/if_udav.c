@@ -981,34 +981,8 @@ udav_activate(device_ptr_t self, enum devact act)
 
 #define UDAV_BITS	6
 
-#if defined(__NetBSD__)
 #define UDAV_CALCHASH(addr) \
 	(ether_crc32_le((addr), ETHER_ADDR_LEN) & ((1 << UDAV_BITS) - 1))
-
-#elif defined(__FreeBSD__)
-Static uint32_t
-udav_mchash(const uint8_t *addr)
-{
-	uint32_t crc, carry;
-	int idx, bit;
-	uint8_t data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ 0x04c11db6) | carry;
-		}
-	}
-
-	/* return the filter bit position */
-	return((crc >> 26) & 0x0000003F);
-}
-#endif
 
 Static void
 udav_setmulti(struct udav_softc *sc)
@@ -1069,8 +1043,9 @@ udav_setmulti(struct udav_softc *sc)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = udav_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-		hashes[h / 8] |= 1 << (h % 8);
+		h = UDAV_CALCHASH(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr));
+		hashes[h>>3] |= 1 << (h & 0x7);
 	}
 #endif
 
@@ -1562,6 +1537,13 @@ udav_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 
 	switch (cmd) {
+#if defined(__FreeBSD__)
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		udav_setmulti(sc);
+		error = 0;
+		break;
+#endif
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		mii = GET_MII(sc);
