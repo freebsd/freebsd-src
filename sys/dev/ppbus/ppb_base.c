@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppb_base.c,v 1.1 1997/08/16 14:05:34 msmith Exp $
  *
  */
 #include <sys/param.h>
@@ -38,14 +38,10 @@
 #include <sys/syslog.h>
 
 #include <machine/clock.h>
-#include <machine/lpt.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
 
 #include <dev/ppbus/ppbconf.h>
 
