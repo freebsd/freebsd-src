@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.2 1998/05/21 21:47:05 brian Exp $
+ *	$Id: mp.c,v 1.3 1998/05/23 13:38:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -323,13 +323,23 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
   struct mbuf *q, *last;
   int32_t seq;
 
-  if (mp_ReadHeader(mp, m, &mh) == 0) {
+  /*
+   * When `m' and `p' are NULL, it means our oldest link has gone down.
+   * We want to determine a new min, and process any intermediate stuff
+   * as normal
+   */
+
+  if (m && mp_ReadHeader(mp, m, &mh) == 0) {
     mbuf_Free(m);
     return;
   }
 
-  seq = p->dl->mp.seq;
-  p->dl->mp.seq = mh.seq;
+  if (p) {
+    seq = p->dl->mp.seq;
+    p->dl->mp.seq = mh.seq;
+  } else
+    seq = mp->seq.min_in;
+
   if (mp->seq.min_in == seq) {
     /*
      * We've received new data on the link that has our min (oldest) seq.
@@ -337,9 +347,11 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
      */
     struct datalink *dl;
 
-    mp->seq.min_in = p->dl->mp.seq;
+    mp->seq.min_in = (u_int32_t)-1;
     for (dl = mp->bundle->links; dl; dl = dl->next)
-      if (mp->seq.min_in > dl->mp.seq)
+      if (dl->state == DATALINK_OPEN &&
+          (mp->seq.min_in == -1 ||
+           isbefore(mp->local_is12bit, dl->mp.seq, mp->seq.min_in)))
         mp->seq.min_in = dl->mp.seq;
   }
 
@@ -544,6 +556,7 @@ mp_FillQueues(struct bundle *bundle)
 
   thislink = nlinks = 0;
   for (fdl = NULL, dl = bundle->links; dl; dl = dl->next) {
+    /* Include non-open links here as mp->out.link will stay more correct */
     if (!fdl) {
       if (thislink == mp->out.link)
         fdl = dl;
@@ -990,4 +1003,12 @@ mpserver_Close(struct mpserver *s)
     memset(&s->socket, '\0', sizeof s->socket);
     s->fd = -1;
   }
+}
+
+void
+mp_LinkLost(struct mp *mp, struct datalink *dl)
+{
+  if (mp->seq.min_in == dl->mp.seq)
+    /* We've lost the link that's holding everything up ! */
+    mp_Input(mp, NULL, NULL);
 }
