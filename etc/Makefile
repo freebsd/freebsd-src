@@ -219,11 +219,10 @@ distrib-dirs:
 	done
 
 etc-examples:
-	(cd ${.CURDIR}; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
-	    ${DESTDIR}/usr/share/examples/etc; \
+	    ${DESTDIR}/usr/share/examples/etc
 	cd ${.CURDIR}/defaults; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${DEFAULTS} ${DESTDIR}/usr/share/examples/etc/defaults; \
+	    ${DEFAULTS} ${DESTDIR}/usr/share/examples/etc/defaults
 
 .include <bsd.prog.mk>
