@@ -1,0 +1,80 @@
+.\"
+.\"	$Id$
+.\"
+.Dd January 28, 1998
+.br
+.in +0.5i
+.Dt BKTR 4 i386
+.Os FreeBSD 2.2
+.Sh NAME
+.Nm brooktree
+.Nd video capture driver
+.Sh SYNOPSIS
+.Nm device bktr0
+.Sh DESCRIPTION
+The
+.Nm bktr
+driver provides support for PCI
+.Em video
+capture on low cost, high performance boards.  The driver is heavily based on
+the Matrox Meteor driver.  The bktr driver should support most video cards
+based on the
+.Em Brooktree Bt848 Video Capture Chip.
+.Pp
+Specifically, the following cards are known to work: 
+.br
+.Em Hauppage Wincast TV
+.br
+.Em STB TV PCI Television Tuner
+.br
+.Em Miro PC TV
+.br
+.Em Intel Smart Video Recorder III
+.Pp
+The driver currently supports the following features:
+.br
+.in +0.5i
+PCI to PCI dma transfer
+.br
+clipping
+.br
+yuv
+.br
+rgb16
+.br
+rgb24
+.br
+rgb32
+.in -0.5i
+.Pp
+The following kernel parameters may be used to further configure the driver:
+.Pp
+.Em options "BROOKTREE_ALLOC_PAGES=xxx"
+specifies the number of contiguous pages to allocate when successfully
+probed.  The default number of pages allocated by the kernel is 216.
+This means that there are (216*4096) bytes available for use.
+.Pp
+.Sh AUTHOR
+This driver is based on the work of
+.An Jim Lowe Aq james@miller.cs.uwm.edu ,
+.An Mark Tinguely Aq tinguely@plains.nodak.edu ,
+.An Amancio Hasty Aq hasty@star-gate.com
+and a bunch of other people.
+.Sh FILES
+.Bl -tag -width /usr/share/examples/meteor -compact
+.It Pa /usr/share/examples/meteor
+Examples of what you can do with the (similarly designed) Meteor driver.
+.It Pa /usr/ports/graphics/fxtv
+A display program utilizing the bktr driver - requires that
+.Em The X Window System
+and
+.Em The Ports Collection
+also be installed.
+.El
+.Sh SEE ALSO
+.Xr meteor 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 2.2 .
