@@ -1642,17 +1642,16 @@ yyerror(char *msg)
 	return (0);
 }
 
-static inline int uq_gt(uint64_t, uint64_t);
-static inline int q_gt(int64_t, int64_t);
-
-static inline int
+static __inline int uq_gt(uint64_t, uint64_t);
+static __inline int
 uq_gt(uint64_t a, uint64_t b)
 {
 
 	return (a > b);
 }
 
-static inline int
+static __inline int q_gt(int64_t, int64_t);
+static __inline int
 q_gt(int64_t a, int64_t b)
 {
 
