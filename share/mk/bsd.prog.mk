@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.46 1997/04/09 16:10:27 bde Exp $
+#	$Id: bsd.prog.mk,v 1.47 1997/04/13 06:44:23 jkh Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -26,40 +26,19 @@ LDDESTDIR?=	-L${DESTDIR}${SHLIBDIR} -L${DESTDIR}/usr/lib
 # LDDESTDIR+=	-nostdlib
 .endif
 
-# XXX obsolescent.
-.include <bsd.libnames.mk>
-
 .if defined(PROG)
 .if defined(SRCS)
 
 DPSRCS+= ${SRCS:M*.h}
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
-.if defined(LDONLY)
-
-# XXX is this used?  -static in ${LDFLAGS} can't be passed here.
-${PROG}: ${DPSRCS} ${OBJS}
-	${LD} ${LDFLAGS} -o ${.TARGET} ${LIBCRT0} ${OBJS} ${LIBC} ${LDDESTDIR} \
-		${LDADD}
-
-.else defined(LDONLY)
-
 ${PROG}: ${DPSRCS} ${OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
-
-.endif
 
 .else !defined(SRCS)
 
 SRCS=	${PROG}.c
 
-.if 0
-${PROG}: ${DPSRCS} ${SRCS}
-	${CC} ${LDFLAGS} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${SRCS} \
-		${LDDESTDIR} ${LDADD}
-
-MKDEP=	-p
-.else
 # Always make an intermediate object file because:
 # - it saves time rebuilding when only the library has changed
 # - the name of the object gets put into the executable symbol table instead of
@@ -68,7 +47,6 @@ MKDEP=	-p
 OBJS=	${PROG}.o
 ${PROG}: ${DPSRCS} ${OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
-.endif
 
 .endif
 
@@ -78,10 +56,6 @@ ${PROG}: ${DPSRCS} ${OBJS}
 MAN1=	${PROG}.1
 .endif
 .endif
-
-# XXX I think MANDEPEND is only used for groff.  It should be named more
-# generally and perhaps not be in the maninstall dependencies now it is
-# here (or does maninstall always work when nothing is made?),
 
 .MAIN: all
 all: objwarn ${PROG} all-man _SUBDIR
