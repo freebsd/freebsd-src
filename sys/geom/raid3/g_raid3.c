@@ -1060,8 +1060,12 @@ g_raid3_gather(struct bio *pbp)
 finish:
 	if (pbp->bio_error == 0)
 		G_RAID3_LOGREQ(3, pbp, "Request finished.");
-	else
-		G_RAID3_LOGREQ(0, pbp, "Request failed.");
+	else {
+		if ((pbp->bio_pflags & G_RAID3_BIO_PFLAG_VERIFY) != 0)
+			G_RAID3_LOGREQ(1, pbp, "Verification error.");
+		else
+			G_RAID3_LOGREQ(0, pbp, "Request failed.");
+	}
 	pbp->bio_pflags &= ~G_RAID3_BIO_PFLAG_MASK;
 	g_io_deliver(pbp, pbp->bio_error);
 	while ((cbp = G_RAID3_HEAD_BIO(pbp)) != NULL)
