@@ -13,9 +13,4 @@ CFLAGS+= -DDEVRANDOM=\"/dev/urandom\"
 .endif
 .endif
 
-LOCALBASE?=	/usr/local
-
 WITH_RSA?= YES
-.if (!defined(USA_RESIDENT) || ${USA_RESIDENT} != NO) && ${WITH_RSA} != NO
-RSAREF= YES
-.endif
