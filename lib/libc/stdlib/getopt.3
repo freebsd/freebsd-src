@@ -128,7 +128,7 @@ when the argument list is exhausted, or
 .Ql ?
 if a non-recognized
 option is encountered.
-The interpretation of options in the argument list may be canceled
+The interpretation of options in the argument list may be cancelled
 by the option
 .Ql --
 (double dash) which causes
@@ -174,8 +174,6 @@ This is an extension to the
 specification.
 .Sh EXAMPLE
 .Bd -literal -compact
-extern char *optarg;
-extern int optind;
 int bflag, ch, fd;
 
 bflag = 0;
@@ -185,11 +183,8 @@ while ((ch = getopt(argc, argv, "bf:")) != -1)
 		bflag = 1;
 		break;
 	case 'f':
-		if ((fd = open(optarg, O_RDONLY, 0)) < 0) {
-			(void)fprintf(stderr,
-			    "myname: %s: %s\en", optarg, strerror(errno));
-			exit(1);
-		}
+		if ((fd = open(optarg, O_RDONLY, 0)) < 0)
+			err(1, "%s", optarg);
 		break;
 	case '?':
 	default:
@@ -201,7 +196,7 @@ argv += optind;
 .Sh HISTORY
 The
 .Fn getopt
-function appeared
+function appeared in
 .Bx 4.3 .
 .Sh BUGS
 The
@@ -245,10 +240,10 @@ as an option.
 This practice is wrong, and should not be used in any current development.
 It is provided for backward compatibility
 .Em only .
-The following code fragment works in most cases.
+The following code fragment works in most (but not all) cases.
 .Bd -literal -offset indent
 int length;
-char *p;
+char *p, *ep;
 
 while ((ch = getopt(argc, argv, "0123456789")) != -1)
 	switch (ch) {
@@ -256,9 +251,16 @@ while ((ch = getopt(argc, argv, "0123456789")) != -1)
 	case '5': case '6': case '7': case '8': case '9':
 		p = argv[optind - 1];
 		if (p[0] == '-' && p[1] == ch && !p[2])
-			length = atoi(++p);
-		else
-			length = atoi(argv[optind] + 1);
+			length = strtol(++p, &ep, 10);
+		else if (argv[optind] && argv[optind][1] == ch) {
+			length = strtol((p = argv[optind] + 1),
+			    &ep, 10);
+			optind++;
+			optreset = 1;
+		} else
+			usage();
+		if (*ep != '\0')
+			errx(EX_USAGE, "illegal number -- %s", p);
 		break;
 	}
 .Ed
