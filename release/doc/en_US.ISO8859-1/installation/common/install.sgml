@@ -114,6 +114,17 @@ from {alpha,i386}/INSTALL.TXT.
     &os;/sparc64. It is not possible to share a disk with another
     operating system at this time.</para>
 
+<!-- amd64 text starts here -->
+    <para arch="amd64">&os; for the &arch.print; requires an
+    Athlon64, Athlon64-FX, Opteron or better processor to run.
+
+    <para arch="amd64">If you have an machine based on an
+    nVidia nForce3 Pro-150, you MUST use the BIOS setup to
+    disable the IO APIC.  If you do not have an option
+    to do this, you will likely have to disable ACPI
+    instead.  There are bugs in the Pro-150 chipset that
+    we have not found a workaround for yet.</para>
+
 <!-- generic text starts here -->
 
     <para>If you are
@@ -219,7 +230,7 @@ from {alpha,i386}/INSTALL.TXT.
 
 <!-- i386/pc98 text starts here -->
 
-      <para arch="i386">The easiest type of installation is from
+      <para arch="i386,amd64">The easiest type of installation is from
       CDROM.  If you have a supported CDROM drive and a &os;
       installation CDROM, there are 2 ways of starting the
       installation from it:
@@ -558,10 +569,10 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <quote>Floppy</quote> and you'll be prompted for the rest.</para>
     </sect3>
 
-    <sect3 arch="i386,pc98">
+    <sect3 arch="i386,pc98,amd64">
       <title>Installing from a DOS partition</title>
 
-      <para arch="i386">To prepare for installation from an MS-DOS partition you
+      <para arch="i386,amd64">To prepare for installation from an MS-DOS partition you
       should simply copy the files from the distribution into a
       directory called <filename>FREEBSD</filename> on the Primary DOS partition (<devicename>C:</devicename>).  For example, to do a minimal installation of &os; from
       DOS using files copied from the CDROM, you might do something
@@ -573,14 +584,14 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       DOS using files copied from the CDROM, you might do something
       like this:</para>
 
-      <screen arch="i386"><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
+      <screen arch="i386,amd64"><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
 <prompt>C:\></prompt> <userinput>XCOPY /S E:\BASE C:\FREEBSD\BASE</userinput></screen>
       <screen arch="pc98"><prompt>A:\></prompt> <userinput>MD A:\FREEBSD</userinput>
 <prompt>A:\></prompt> <userinput>XCOPY /S E:\BASE A:\FREEBSD\BASE</userinput></screen>
 
       <para>Assuming that <devicename>E:</devicename> was where your CD was mounted.</para>
 
-      <para arch="i386">For as many distributions as you wish to install from DOS (and
+      <para arch="i386,amd64">For as many distributions as you wish to install from DOS (and
       you have free space for), install each one in a directory under
       <filename>C:\FREEBSD</filename> - the <filename>BIN</filename> dist is only the minimal requirement.</para>
 
@@ -805,7 +816,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
       </sect4>
     </sect3>
-    <sect3 arch="i386,alpha">
+    <sect3 arch="i386,alpha,amd64">
       <title>Tips for Serial Console Users</title>
 
       <para>If you'd like to install &os; on a machine using just a
@@ -855,7 +866,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
   <sect2>
     <title>Question and Answer Section for &arch.print; Architecture Users</title>
 
-    <qandaset arch="i386">
+    <qandaset arch="i386,amd64">
       <qandaentry>
         <question>
 	  <para>Help!  I have no space!  Do I need to delete
