@@ -193,7 +193,7 @@ scsp_is_atmarp_server(netif)
 	char	*netif;
 {
 	int			rc;
-	int			buf_len = sizeof(struct air_asrv_rsp);
+	size_t buf_len;
 	struct atminfreq	air;
 	struct air_asrv_rsp	*asrv_info;
 
@@ -202,8 +202,8 @@ scsp_is_atmarp_server(netif)
 	 */
 	strcpy(air.air_int_intf, netif);
 	air.air_opcode = AIOCS_INF_ASV;
-	buf_len = do_info_ioctl(&air, buf_len);
-	if (buf_len < 0)
+	buf_len = do_info_ioctl(&air, sizeof(struct air_asrv_rsp));
+	if ((ssize_t)buf_len == -1)
 		return(0);
 
 	/*
@@ -678,7 +678,8 @@ int
 scsp_get_server_info(ssp)
 	Scsp_server	*ssp;
 {
-	int			i, len, mtu, rc, sel;
+	int			i, mtu, rc, sel;
+	size_t len;
 	struct atminfreq	air;
 	struct air_netif_rsp	*netif_rsp = (struct air_netif_rsp *)0;
 	struct air_int_rsp	*intf_rsp = (struct air_int_rsp *)0;
@@ -702,7 +703,7 @@ scsp_get_server_info(ssp)
 	air.air_opcode = AIOCS_INF_NIF;
 	strcpy(air.air_netif_intf, ssp->ss_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_netif_rsp));
-	if (len <= 0) {
+	if ((ssize_t)len == -1 || len == 0) {
 		rc = EIO;
 		goto server_info_done;
 	}
@@ -732,7 +733,7 @@ scsp_get_server_info(ssp)
 	air.air_opcode = AIOCS_INF_INT;
 	strcpy(air.air_int_intf, netif_rsp->anp_phy_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_int_rsp));
-	if (len <= 0) {
+	if ((ssize_t)len == -1 || len == 0) {
 		rc = EIO;
 		goto server_info_done;
 	}
@@ -786,7 +787,7 @@ scsp_get_server_info(ssp)
 	air.air_opcode = AIOCS_INF_CFG;
 	strcpy(air.air_int_intf, netif_rsp->anp_phy_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_cfg_rsp));
-	if (len <= 0) {
+	if ((ssize_t)len == -1 || len == 0) {
 		rc = EIO;
 		goto server_info_done;
 	}

@@ -182,7 +182,7 @@ atmarp_is_server(aip)
 	Atmarp_intf	*aip;
 {
 	int			rc;
-	int			buf_len = sizeof(struct air_asrv_rsp);
+	size_t buf_len;
 	struct atminfreq	air;
 	struct air_asrv_rsp	*asrv_info;
 
@@ -191,8 +191,8 @@ atmarp_is_server(aip)
 	 */
 	strcpy(air.air_int_intf, aip->ai_intf);
 	air.air_opcode = AIOCS_INF_ASV;
-	buf_len = do_info_ioctl(&air, buf_len);
-	if (buf_len < 0)
+	buf_len = do_info_ioctl(&air, sizeof(struct air_asrv_rsp));
+	if ((ssize_t)buf_len == -1)
 		return(0);
 
 	/*
@@ -222,7 +222,8 @@ int
 atmarp_if_ready(aip)
 	Atmarp_intf	*aip;
 {
-	int			i, len, mtu, rc, sel;
+	int			i, mtu, rc, sel;
+	size_t len;
 	Atmarp			*aap = (Atmarp *)0;
 	struct atminfreq	air;
 	struct air_netif_rsp	*netif_rsp = (struct air_netif_rsp *)0;
@@ -239,9 +240,8 @@ atmarp_if_ready(aip)
 	air.air_opcode = AIOCS_INF_NIF;
 	strcpy(air.air_netif_intf, aip->ai_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_netif_rsp));
-	if (len <= 0) {
+	if ((ssize_t)len == -1)
 		goto if_ready_fail;
-	}
 	netif_rsp = (struct air_netif_rsp *)air.air_buf_addr;
 
 	ip_addr = (struct sockaddr_in *)&netif_rsp->anp_proto_addr;
@@ -276,9 +276,8 @@ atmarp_if_ready(aip)
 	air.air_opcode = AIOCS_INF_INT;
 	strcpy(air.air_int_intf, netif_rsp->anp_phy_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_int_rsp));
-	if (len <= 0) {
+	if ((ssize_t)len == -1)
 		goto if_ready_fail;
-	}
 	intf_rsp = (struct air_int_rsp *)air.air_buf_addr;
 
 	/*
@@ -551,7 +550,8 @@ atmarp_update_kernel(aap)
 void
 atmarp_get_updated_cache()
 {
-	int			i, len, rc;
+	int			i, rc;
+	size_t len;
 	struct atminfreq	air;
 	struct air_arp_rsp	*cp;
 	struct sockaddr_in	*ipp;
@@ -574,9 +574,8 @@ atmarp_get_updated_cache()
 	 * Issue an ATMARP information request IOCTL
 	 */
 	len = do_info_ioctl(&air, sizeof(struct air_arp_rsp) * 200);
-	if (len < 0) {
+	if ((ssize_t)len == -1)
 		return;
-	}
 
 	/*
 	 * Clear marks on all our cache entries
