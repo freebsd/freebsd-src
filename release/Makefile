@@ -65,7 +65,7 @@ DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
 #
 COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x
 OTHER_DISTS?=	manpages catpages games proflibs dict info doc
-CRYPTO_DISTS?=	krb des
+CRYPTO_DISTS?=	krb4 des
 BIN_DISTS?=	bin
 DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 KERNELS?=	GENERIC
@@ -404,7 +404,7 @@ release.6:
 	done
 	# More munition braindeadness.
 	( cd ${RD}/dists && \
-		if [ -f krb/krb.aa ] ; then mv krb/* des && rmdir krb ; fi )
+		if [ -f krb4/krb4.aa ] ; then mv krb4/* des && rmdir krb4 ; fi )
 	touch release.6
 
 

@@ -37,7 +37,7 @@
 #define DIST_DES_DES		0x0001
 #define DIST_DES_SCRYPTO	0x0002
 #define DIST_DES_SSECURE	0x0004
-#define DIST_DES_KERBEROS	0x0008
+#define DIST_DES_KERBEROS4	0x0008
 #define DIST_DES_SKERBEROS	0x0010
 
 /* Subtypes for SRC distribution */

@@ -91,7 +91,7 @@ static Distribution DistTable[] = {
 /* The DES distribution (not for export!) */
 static Distribution DESDistTable[] = {
 { "des",        "/",                    &DESDists,	DIST_DES_DES,		NULL		},
-{ "krb",	"/",			&DESDists,	DIST_DES_KERBEROS,	NULL		},
+{ "krb4",	"/",			&DESDists,	DIST_DES_KERBEROS4,	NULL		},
 { "ssecure",	"/usr/src",		&DESDists,	DIST_DES_SSECURE,	NULL		},
 { "scrypto",	"/usr/src",		&DESDists,	DIST_DES_SCRYPTO,	NULL		},
 { "skerbero",	"/usr/src",		&DESDists,	DIST_DES_SKERBEROS,	NULL		},
@@ -198,7 +198,7 @@ distVerifyFlags(void)
     if (SrcDists)
 	Dists |= DIST_SRC;
     if (DESDists) {
-	if (DESDists & DIST_DES_KERBEROS)
+	if (DESDists & DIST_DES_KERBEROS4)
 	    DESDists |= DIST_DES_DES;
 	Dists |= DIST_DES;
     }
