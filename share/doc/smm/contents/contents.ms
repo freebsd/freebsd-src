@@ -36,6 +36,7 @@
 .EH 'SMM Contents'''
 .TL
 UNIX System Manager's Manual (SMM)
+.if !r.U .nr .U 0
 .if \n(.U \{\
 .br
 .>> <a href="Title.html">Title.html</a>

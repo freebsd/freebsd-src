@@ -41,6 +41,7 @@
 .EH 'USD Contents'''
 .TL
 UNIX User's Supplementary Documents (USD)
+.if !r.U .nr .U 0
 .if \n(.U \{\
 .br
 .>> <a href="Title.html">Title.html</a>

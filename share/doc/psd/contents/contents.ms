@@ -36,6 +36,7 @@
 .EH 'PSD Contents'''
 .TL
 UNIX Programmer's Supplementary Documents (PSD)
+.if !r.U .nr .U 0
 .if \n(.U \{\
 .br
 .>> <a href="Title.html">Title.html</a>
