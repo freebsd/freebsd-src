@@ -12,7 +12,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	dmesg dumpon \
 	early.sh \
 	fsck \
-	gbde \
+	gbde gbde_swap \
 	hostname \
 	inetd initdiskless initrandom \
 	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
