@@ -37,11 +37,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/select.h>
-#if 0
-#include <sys/interrupt.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#endif
 
 #include <machine/clock.h>
 
