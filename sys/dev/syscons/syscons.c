@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.145 1996/04/26 06:45:41 sos Exp $
+ *  $Id: syscons.c,v 1.146 1996/05/01 03:58:21 bde Exp $
  */
 
 #include "sc.h"
@@ -1551,14 +1551,14 @@ scan_esc(scr_stat *scp, u_char c)
 		break;
 	    case 1: /* clear from beginning of line to cursor */
 		fillw(scp->term.cur_color | scr_map[0x20],
-		      scp->cursor_pos - (scp->xsize - scp->xpos),
-		      (scp->xsize - scp->xpos) + 1);
+		      scp->cursor_pos - scp->xpos,
+		      scp->xpos + 1);
     		mark_for_update(scp, scp->ypos * scp->xsize);
     		mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
 		break;
 	    case 2: /* clear entire line */
 		fillw(scp->term.cur_color | scr_map[0x20],
-		      scp->cursor_pos - (scp->xsize - scp->xpos),
+		      scp->cursor_pos - scp->xpos,
 		      scp->xsize);
     		mark_for_update(scp, scp->ypos * scp->xsize);
     		mark_for_update(scp, (scp->ypos + 1) * scp->xsize);
