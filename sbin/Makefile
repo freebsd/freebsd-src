@@ -38,6 +38,7 @@ SUBDIR=	adjkerntz \
 	mdconfig \
 	mdmfs \
 	mknod \
+	mksnap_ffs \
 	mount \
 	mount_cd9660 \
 	mount_ext2fs \
