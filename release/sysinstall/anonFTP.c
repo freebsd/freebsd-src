@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.22 1997/03/09 22:25:38 jkh Exp $
+ * $Id: anonFTP.c,v 1.23 1997/04/02 12:07:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -311,6 +311,6 @@ configAnonFTP(dialogMenuItem *self)
 	i = DITEM_FAILURE;
     }
     if (DITEM_STATUS(i) == DITEM_SUCCESS)
-	variable_set2("anon_ftp", "YES");
+	variable_set2("anon_ftp", "YES", 0);
     return i | DITEM_RESTORE;
 }
