@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.1.1.1 1996/06/14 10:04:40 asami Exp $
+$Id: majors.pc98,v 1.2 1996/07/23 07:45:50 asami Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -114,3 +114,4 @@ chrdev	name		comments
 74	ccd		concatenated disk
 75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
 76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
+77	cyy		Cyclades Ye/PCI serial card

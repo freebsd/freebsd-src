@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.3 1996/08/30 10:43:02 asami Exp $
+ * $Id: if_fe.c,v 1.4 1996/08/31 15:06:55 asami Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -127,11 +127,10 @@
 
 #include <machine/clock.h>
 
+#include <i386/isa/isa_device.h>
 #ifdef PC98
-#include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/icu.h>
 #else
-#include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #endif
 
@@ -305,15 +304,9 @@ struct isa_driver fedriver =
 static struct kern_devconf const fe_kdc_template =
 {
 	0, 0, 0,
-#ifdef PC98
-	"fe", 0, { MDDT_PC98, 0, "net" },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* This is an ISA device.  */
-#else
 	"fe", 0, { MDDT_ISA, 0, "net" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* This is an ISA device.  */
-#endif
 	0,
 	DC_UNCONFIGURED,	/* Not yet configured.  */
 	"Ethernet (MB8696x)",	/* Tentative description (filled in later.)  */

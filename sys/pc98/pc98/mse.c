@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
+ * $Id: mse.c,v 1.2 1996/08/31 15:07:01 asami Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -61,11 +61,9 @@
 
 #include <machine/clock.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98_device.h>
-#include <pc98/pc98/icu.h>
-#else
 #include <i386/isa/isa_device.h>
+#ifdef PC98
+#include <pc98/pc98/icu.h>
 #endif
 
 
@@ -261,15 +259,9 @@ static struct mse_types {
 
 static struct kern_devconf kdc_mse[NMSE] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-#ifdef PC98
-	"mse", 0, { MDDT_PC98, 0, "tty" },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
-#else
 	"mse", 0, { MDDT_ISA, 0, "tty" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
-#endif
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
 	"ATI or Logitech bus mouse adapter",
@@ -282,11 +274,7 @@ mse_registerdev(struct isa_device *id)
 	if(id->id_unit)
 		kdc_mse[id->id_unit] = kdc_mse[0];
 	kdc_mse[id->id_unit].kdc_unit = id->id_unit;
-#ifdef PC98
-	kdc_mse[id->id_unit].kdc_pc98 = id;
-#else
 	kdc_mse[id->id_unit].kdc_isa = id;
-#endif
 	dev_attach(&kdc_mse[id->id_unit]);
 }
 

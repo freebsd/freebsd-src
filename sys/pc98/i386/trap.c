@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.2 1996/07/23 07:45:59 asami Exp $
+ *	$Id: trap.c,v 1.3 1996/08/30 10:42:54 asami Exp $
  */
 
 /*
@@ -76,7 +76,7 @@
 #include <machine/reg.h>
 #include <machine/trap.h>
 #ifdef PC98
-#include <pc98/pc98/pc98_device.h>
+#include <machine/../isa/isa_device.h>
 
 #include "nec.h"
 #include "epson.h"
@@ -294,11 +294,7 @@ trap(frame)
 				return;
 #endif /* DDB */
 			/* machine/parity/power fail/"kitchen sink" faults */
-#ifdef PC98
-			if (pc98_nmi(code) == 0) return;
-#else
 			if (isa_nmi(code) == 0) return;
-#endif
 			panic("NMI indicates hardware failure");
 #endif /* POWERFAIL_NMI */
 #endif /* NNEC > 0 */
@@ -471,11 +467,7 @@ trap(frame)
 				return;
 #endif /* DDB */
 			/* machine/parity/power fail/"kitchen sink" faults */
-#ifdef PC98
-			if (pc98_nmi(code) == 0) return;
-#else
 			if (isa_nmi(code) == 0) return;
-#endif
 			/* FALL THROUGH */
 #endif /* POWERFAIL_NMI */
 #endif /* NNEC > 0 */

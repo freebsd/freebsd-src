@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.2 1996/07/23 07:46:32 asami Exp $
+ * $Id: random_machdep.c,v 1.3 1996/08/30 10:43:08 asami Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -55,7 +55,7 @@
 #ifdef PC98
 #include <pc98/pc98/icu.h>
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/timerreg.h>
 #else
 #include <i386/isa/icu.h>

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.1.1.1 1996/06/14 10:04:54 asami Exp $
+ * $Id: soundcard.c,v 1.2 1996/08/31 15:07:42 asami Exp $
  */
 
 #include "sound_config.h"
@@ -36,11 +36,7 @@
 #ifdef CONFIGURE_SOUNDCARD
 
 #include "dev_table.h"
-#ifdef PC98
-#include <pc98/pc98/pc98_device.h>
-#else
 #include <i386/isa/isa_device.h>
-#endif
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
@@ -112,11 +108,7 @@ adintr(INT_HANDLER_PARMS(unit,dummy))
         if (unit_to_irq [unit] > 0)
 		ad1848_interrupt(INT_HANDLER_CALL (unit_to_irq [unit]));
 	else {
-#ifdef PC98
-                dev = find_pc98dev (pc98_devtab_null, &mssdriver, unit);
-#else
                 dev = find_isadev (isa_devtab_null, &mssdriver, unit);
-#endif
                 if (!dev)
 			printk ("ad1848: Couldn't determine unit\n");
                 else {

@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.2 1996/08/30 10:42:55 asami Exp $
+ **      $Id: userconfig.c,v 1.3 1996/08/31 15:06:33 asami Exp $
  **/
 
 /**
@@ -118,25 +118,14 @@
 #include <machine/cons.h>
 #include <machine/md_var.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98_device.h>
-#else
 #include <i386/isa/isa_device.h>
-#endif
 
 #include <pci/pcivar.h>
 
-#ifdef PC98
-static struct isa_device *devtabs[] = { pc98_devtab_bio, pc98_devtab_tty, pc98_devtab_net,
-				     pc98_devtab_null, NULL };
-
-static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
-#else
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
 				     isa_devtab_null, NULL };
 
 static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
-#endif
 
 #define putchar(x)	cnputc(x)
 #define getchar()	cngetc()
@@ -2205,7 +2194,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.2 1996/08/30 10:42:55 asami Exp $
+ *      $Id: userconfig.c,v 1.43 1996/08/10 22:06:09 joerg Exp $
  */
 
 #include "scbus.h"
@@ -2425,17 +2414,10 @@ static int
 list_devices(CmdParm *parms)
 {
     lineno = 0;
-#ifdef PC98
-    lsdevtab(&pc98_devtab_bio[0]);
-    lsdevtab(&pc98_devtab_tty[0]);
-    lsdevtab(&pc98_devtab_net[0]);
-    lsdevtab(&pc98_devtab_null[0]);
-#else
     lsdevtab(&isa_devtab_bio[0]);
     lsdevtab(&isa_devtab_tty[0]);
     lsdevtab(&isa_devtab_net[0]);
     lsdevtab(&isa_devtab_null[0]);
-#endif
     return 0;
 }
 
@@ -2599,23 +2581,6 @@ lsdevtab(struct isa_device *dt)
     }
 }
 
-#ifdef PC98
-static struct isa_device *
-find_device(char *devname, int unit)
-{
-    struct isa_device *ret;
-
-    if ((ret = search_devtable(&pc98_devtab_bio[0], devname, unit)) != NULL)
-        return ret;
-    if ((ret = search_devtable(&pc98_devtab_tty[0], devname, unit)) != NULL)
-        return ret;
-    if ((ret = search_devtable(&pc98_devtab_net[0], devname, unit)) != NULL)
-        return ret;
-    if ((ret = search_devtable(&pc98_devtab_null[0], devname, unit)) != NULL)
-        return ret;
-    return NULL;
-}
-#else
 static struct isa_device *
 find_device(char *devname, int unit)
 {
@@ -2631,7 +2596,6 @@ find_device(char *devname, int unit)
         return ret;
     return NULL;
 }
-#endif
 
 static struct isa_device *
 search_devtable(struct isa_device *dt, char *devname, int unit)

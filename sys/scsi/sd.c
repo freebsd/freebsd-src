@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.91 1996/07/23 21:52:27 phk Exp $
+ *      $Id: sd.c,v 1.92 1996/08/02 06:10:49 peter Exp $
  */
 
 #include "opt_bounce.h"
@@ -48,6 +48,9 @@
 #include <vm/pmap.h>
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX *//* for aborting dump */
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#endif
 
 static u_int32_t sdstrats, sdqueues;
 
