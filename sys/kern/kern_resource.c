@@ -528,7 +528,7 @@ calcru(p, up, sp, ip)
 			tu += (tv.tv_usec - switchtime.tv_usec) +
 			    (tv.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
 	}
-	ptu = p->p_stats->p_uu + p->p_stats->p_su + p->p_stats->p_iu;
+	ptu = p->p_uu + p->p_su + p->p_iu;
 	if (tu < ptu || (int64_t)tu < 0) {
 		/* XXX no %qd in kernel.  Truncate. */
 		printf("calcru: negative time of %ld usec for pid %d (%s)\n",
@@ -542,30 +542,29 @@ calcru(p, up, sp, ip)
 	iu = tu - uu - su;
 
 	/* Enforce monotonicity. */
-	if (uu < p->p_stats->p_uu || su < p->p_stats->p_su ||
-	    iu < p->p_stats->p_iu) {
-		if (uu < p->p_stats->p_uu)
-			uu = p->p_stats->p_uu;
-		else if (uu + p->p_stats->p_su + p->p_stats->p_iu > tu)
-			uu = tu - p->p_stats->p_su - p->p_stats->p_iu;
+	if (uu < p->p_uu || su < p->p_su || iu < p->p_iu) {
+		if (uu < p->p_uu)
+			uu = p->p_uu;
+		else if (uu + p->p_su + p->p_iu > tu)
+			uu = tu - p->p_su - p->p_iu;
 		if (st == 0)
-			su = p->p_stats->p_su;
+			su = p->p_su;
 		else {
 			su = ((tu - uu) * st) / (st + it);
-			if (su < p->p_stats->p_su)
-				su = p->p_stats->p_su;
-			else if (uu + su + p->p_stats->p_iu > tu)
-				su = tu - uu - p->p_stats->p_iu;
+			if (su < p->p_su)
+				su = p->p_su;
+			else if (uu + su + p->p_iu > tu)
+				su = tu - uu - p->p_iu;
 		}
-		KASSERT(uu + su + p->p_stats->p_iu <= tu,
+		KASSERT(uu + su + p->p_iu <= tu,
 		    ("calcru: monotonisation botch 1"));
 		iu = tu - uu - su;
-		KASSERT(iu >= p->p_stats->p_iu,
+		KASSERT(iu >= p->p_iu,
 		    ("calcru: monotonisation botch 2"));
 	}
-	p->p_stats->p_uu = uu;
-	p->p_stats->p_su = su;
-	p->p_stats->p_iu = iu;
+	p->p_uu = uu;
+	p->p_su = su;
+	p->p_iu = iu;
 
 	up->tv_sec = uu / 1000000;
 	up->tv_usec = uu % 1000000;

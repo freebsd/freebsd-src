@@ -172,10 +172,13 @@ struct	proc {
 	u_int	p_slptime;	 /* Time since last blocked. */
 
 	struct	itimerval p_realtimer;	/* Alarm timer. */
-	u_int64_t	p_runtime;	/* Real time in microsec. */
-	u_quad_t p_uticks;		/* Statclock hits in user mode. */
-	u_quad_t p_sticks;		/* Statclock hits in system mode. */
-	u_quad_t p_iticks;		/* Statclock hits processing intr. */
+	u_int64_t p_runtime;		/* Real time in microsec. */
+	u_int64_t p_uu;			/* Previous user time in microsec. */
+	u_int64_t p_su;			/* Previous system time in microsec. */
+	u_int64_t p_iu;			/* Previous interrupt time in usec. */
+	u_int64_t p_uticks;		/* Statclock hits in user mode. */
+	u_int64_t p_sticks;		/* Statclock hits in system mode. */
+	u_int64_t p_iticks;		/* Statclock hits processing intr. */
 
 	int	p_traceflag;		/* Kernel trace points. */
 	struct	vnode *p_tracep;	/* Trace to vnode. */
