@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: locore.s,v 1.3 1998/08/10 07:53:58 dfr Exp $
+ *	$Id: locore.s,v 1.4 1998/11/09 10:47:19 dima Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -296,10 +296,10 @@ LEAF(restorefpstate, 1)
 /* XXX: make systat/vmstat happy */
 	.data
 EXPORT(intrnames)
-	ASCIZ "foobar";
+	ASCIZ	"foobar"
 EXPORT(eintrnames)
-	.align 3
+	.align	3
 EXPORT(intrcnt)
-	.quad 0;
+	.quad	0
 EXPORT(eintrcnt)
 	.text
