@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -41,6 +45,7 @@ static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 #include <sys/time.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <netinet/in.h>
