@@ -29,7 +29,7 @@
  *
  *	BSDI int2f.c,v 2.2 1996/04/08 19:32:53 bostic Exp
  *
- * $Id: int2f.c,v 1.4 1996/09/22 15:42:56 miff Exp $
+ * $Id: int2f.c,v 1.1 1997/08/09 01:42:50 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -99,6 +99,10 @@ static int
 int2f_windows(regcontext_t *REGS)
 {
     switch (R_AL) {
+    case 0x00:
+	R_AL = 0x00;			/* Neither Win 3.x nor 2.x running */
+	return(0);
+
     case 0x80:				/* installation check */
 	tty_pause();
 	R_AL = 0x00;
