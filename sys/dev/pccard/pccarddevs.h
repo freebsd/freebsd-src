@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.64 2003/08/21 16:40:20 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.65 2003/08/21 16:43:10 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -813,7 +813,7 @@
 #define	PCMCIA_VENDOR_FREECOM	0xffffffff	/* Freecom */
 #define	PCMCIA_VENDOR_GEMTEK	0xffffffff	/* Gem Tek */
 #define	PCMCIA_VENDOR_ICOM	0xffffffff	/* ICOM Inc */
-#define	PCMCIA_VENDOR_INTERSIL	0xffffffff	/* Intersil */
+#define	PCMCIA_VENDOR_INTERSIL2	0xffffffff	/* Intersil */
 #define	PCMCIA_VENDOR_IODATA3	0xffffffff	/* I-O DATA */
 #define	PCMCIA_VENDOR_LANTECH	0xffffffff	/* Lantech Computer Company */
 #define	PCMCIA_VENDOR_MELCO2	0xffffffff	/* Melco Corporation */
@@ -965,9 +965,9 @@
 #define	PCMCIA_CIS_ICOM_SL200	{ "Icom", "SL-200", NULL, NULL }
 #define	PCMCIA_PRODUCT_ICOM_SL200	0xffffffff
 #define	PCMCIA_STR_ICOM_SL200	"Icom SL-200"
-#define	PCMCIA_CIS_INTERSIL_PRISM2	{ "INTERSIL", "HFA384x/IEEE", "Version 01.02", NULL }
-#define	PCMCIA_PRODUCT_INTERSIL_PRISM2	0xffffffff
-#define	PCMCIA_STR_INTERSIL_PRISM2	"Intersil Prism II"
+#define	PCMCIA_CIS_INTERSIL2_PRISM2	{ "INTERSIL", "HFA384x/IEEE", "Version 01.02", NULL }
+#define	PCMCIA_PRODUCT_INTERSIL2_PRISM2	0xffffffff
+#define	PCMCIA_STR_INTERSIL2_PRISM2	"Intersil Prism II"
 #define	PCMCIA_CIS_IODATA_CBIDE2	{ "IO DATA", "CBIDE2      ", NULL, NULL }
 #define	PCMCIA_PRODUCT_IODATA_CBIDE2	0xffffffff
 #define	PCMCIA_STR_IODATA_CBIDE2	"IO-DATA CBIDE2/16-bit mode"
