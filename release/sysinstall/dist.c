@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.22 1995/05/26 10:20:44 jkh Exp $
+ * $Id: dist.c,v 1.23 1995/05/26 10:34:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -236,7 +236,7 @@ distExtract(char *parent, Distribution *me)
 		char dparent[FILENAME_MAX];
 
 		snprintf(dparent, FILENAME_MAX, "%s/", parent ? parent : me[i].my_name);
-              fd = (*mediaDevice->get)(me[i].my_name, dparent);
+		fd = (*mediaDevice->get)(me[i].my_name, dparent);
 		if (fd != -1) {
 		    status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
 		    if (mediaDevice->close)
