@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rmt.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rmt.c,v 1.1 1998/05/15 12:09:06 hans Exp hans $";
 #endif /* not lint */
 
 /*
@@ -189,6 +189,12 @@ top:
 		  (void)write(1, (char *)&mtget, sizeof (mtget));
 		  goto top;
 		}
+
+        case 'V':               /* version */
+                getstring(op);
+                DEBUG1("rmtd: V %s\n", op);
+                rval = 2;
+                goto respond;
 
 	default:
 		DEBUG1("rmtd: garbage command %c\n", c);
