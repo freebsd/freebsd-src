@@ -36,6 +36,8 @@
 .Nm archive_entry_acl_next_w ,
 .Nm archive_entry_acl_reset ,
 .Nm archive_entry_acl_text_w ,
+.Nm archive_entry_atime ,
+.Nm archive_entry_atime_nsec ,
 .Nm archive_entry_clear ,
 .Nm archive_entry_clone ,
 .Nm archive_entry_copy_fflags_text_w ,
@@ -100,6 +102,10 @@
 .Fn archive_entry_acl_reset "struct archive_entry *"
 .Ft const wchar_t *
 .Fn archive_entry_acl_text_w "struct archive_entry *" "int flags"
+.Ft time_t
+.Fn archive_entry_atime "struct archive_entry *"
+.Ft long
+.Fn archive_entry_atime_nsec "struct archive_entry *"
 .Ft void
 .Fn archive_entry_clear "struct archive_entry *"
 .Ft struct archive_entry *
