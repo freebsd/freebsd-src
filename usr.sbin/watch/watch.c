@@ -36,6 +36,7 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <termcap.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 
 #define MSG_INIT	"Snoop started."
