@@ -34,13 +34,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mutex.h>
 #include <sys/ktr.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/exec.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
@@ -59,7 +59,6 @@
 #include <machine/pal.h>
 #include <machine/fpu.h>
 #include <machine/smp.h>
-#include <machine/mutex.h>
 
 #ifdef KTRACE
 #include <sys/uio.h>
