@@ -30,11 +30,13 @@ static const char rcsid[] =
 #include "lib.h"
 #include "delete.h"
 
-static char Options[] = "hvDdnfp:";
+static char Options[] = "adDfGhinp:vx";
 
 char	*Prefix		= NULL;
-Boolean	NoDeInstall	= FALSE;
 Boolean	CleanDirs	= FALSE;
+Boolean	Interactive	= FALSE;
+Boolean	NoDeInstall	= FALSE;
+match_t	MatchType	= MATCH_GLOB;
 
 static void usage __P((void));
 
@@ -75,6 +77,22 @@ main(int argc, char **argv)
 	    Verbose = TRUE;
 	    break;
 
+	case 'a':
+	    MatchType = MATCH_ALL;
+	    break;
+
+	case 'G':
+	    MatchType = MATCH_EXACT;
+	    break;
+
+	case 'x':
+	    MatchType = MATCH_REGEX;
+	    break;
+
+	case 'i':
+	    Interactive = TRUE;
+	    break;
+
 	case 'h':
 	case '?':
 	default:
@@ -87,23 +105,26 @@ main(int argc, char **argv)
 
     /* Get all the remaining package names, if any */
     while (*argv) {
-	while ((pkgs_split = strrchr(*argv, (int)'/')) != NULL) {
-	    *pkgs_split++ = '\0';
-	    /*
-	     * If character after the '/' is alphanumeric, then we've found the
-	     * package name.  Otherwise we've come across a trailing '/' and
-	     * need to continue our quest.
-	     */
-	    if (isalpha(*pkgs_split)) {
-		*argv = pkgs_split;
-		break;
+	/* Don't try to apply heuristics if arguments are regexs */
+	if (MatchType != MATCH_REGEX)
+	    while ((pkgs_split = strrchr(*argv, (int)'/')) != NULL) {
+		*pkgs_split++ = '\0';
+		/*
+		 * If character after the '/' is alphanumeric, then we've found the
+		 * package name.  Otherwise we've come across a trailing '/' and
+		 * need to continue our quest.
+		 */
+		if (isalpha(*pkgs_split) || ((MatchType == MATCH_GLOB) && \
+		    strpbrk(pkgs_split, "*?[]") != NULL)) {
+		    *argv = pkgs_split;
+		    break;
+		}
 	    }
-	}
 	*pkgs++ = *argv++;
     }
 
     /* If no packages, yelp */
-    if (pkgs == start)
+    if (pkgs == start && MatchType != MATCH_ALL)
 	warnx("missing package name(s)"), usage();
     *pkgs = NULL;
     tmp = getenv(PKG_DBDIR) ? getenv(PKG_DBDIR) : DEF_LOG_DIR;
@@ -126,6 +147,8 @@ main(int argc, char **argv)
 static void
 usage()
 {
-    fprintf(stderr, "usage: pkg_delete [-vDdnf] [-p prefix] pkg-name ...\n");
+    fprintf(stderr, "%s\n%s\n",
+	"usage: pkg_delete [-dDfGinvx] [-p prefix] pkg-name ...",
+	"       pkg_delete -a [flags]");
     exit(1);
 }
