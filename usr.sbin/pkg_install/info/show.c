@@ -269,7 +269,10 @@ show_size(const char *title, Package *plist)
     if (!Quiet)
 	printf("%lu\t(%s)\n", howmany(size, blksize), descr);
     else
-	printf("%lu\n", size);
+	if (UseBlkSz)
+		printf("%lu\n", howmany(size, blksize));
+	else
+		printf("%lu\n", size);
 }
 
 /* Show files that don't match the recorded checksum */
