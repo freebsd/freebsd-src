@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 Luigi Rizzo
+ * Copyright (c) 2002-2003 Luigi Rizzo
  * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich
  *
@@ -55,7 +55,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
-int		s,			/* main RAW socket */
+int
 		do_resolv,		/* Would try to resolve all */
 		do_acct,		/* Show packet/byte count */
 		do_time,		/* Show time stamps */
@@ -67,15 +67,17 @@ int		s,			/* main RAW socket */
 		do_expired,		/* display expired dynamic rules */
 		do_compact,		/* show rules in compact mode */
 		show_sets,		/* display rule sets */
+		test_only,		/* only check syntax */
 		verbose;
 
 #define	IP_MASK_ALL	0xffffffff
 
 /*
- * structure to hold flag names and associated values to be
- * set in the appropriate masks.
- * A NULL string terminates the array.
- * Often, an element with 0 value contains an error string.
+ * _s_x is a structure that stores a string <-> token pairs, used in
+ * various places in the parser. Entries are stored in arrays,
+ * with an entry with s=NULL as terminator.
+ * The search routines are match_token() and match_value().
+ * Often, an element with x=0 contains an error string.
  *
  */
 struct _s_x {
@@ -266,7 +268,7 @@ struct _s_x dummynet_params[] = {
 	{ "pipe",		TOK_PIPE },
 	{ "queue",		TOK_QUEUE },
 	{ "dummynet-params",	TOK_NULL },
-	{ NULL, 0 }
+	{ NULL, 0 }	/* terminator */
 };
 
 struct _s_x rule_actions[] = {
@@ -288,8 +290,7 @@ struct _s_x rule_actions[] = {
 	{ "reset",		TOK_RESET },
 	{ "unreach",		TOK_UNREACH },
 	{ "check-state",	TOK_CHECKSTATE },
-	{ NULL,			TOK_NULL },
-	{ NULL, 0 }
+	{ NULL, 0 }	/* terminator */
 };
 
 struct _s_x rule_options[] = {
@@ -346,21 +347,46 @@ struct _s_x rule_options[] = {
 	{ "(",			TOK_STARTBRACE },	/* pseudo option */
 	{ "}",			TOK_ENDBRACE },		/* pseudo option */
 	{ ")",			TOK_ENDBRACE },		/* pseudo option */
-	{ NULL,			TOK_NULL },
-	{ NULL, 0 }
+	{ NULL, 0 }	/* terminator */
 };
 
-static __inline u_int64_t
-align_uint64(u_int64_t *pll) {
-	u_int64_t ret;
+static __inline uint64_t
+align_uint64(uint64_t *pll) {
+	uint64_t ret;
 
 	bcopy (pll, &ret, sizeof(ret));
 	return ret;
 };
 
+/*
+ * conditionally runs the command.
+ */
+int
+do_cmd(int optname, void *optval, socklen_t optlen)
+{
+	static int s = -1;	/* the socket */
+	int i;
+	
+	if (test_only)
+		return 0;
+
+	if (s == -1)
+		s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	if (s < 0)
+		err(EX_UNAVAILABLE, "socket");
+
+	if (optname == IP_FW_GET || optname == IP_DUMMYNET_GET ||
+	    optname == IP_FW_ADD)
+		i = getsockopt(s, IPPROTO_IP, optname, optval,
+			(socklen_t *)optlen);
+	else
+		i = setsockopt(s, IPPROTO_IP, optname, optval, optlen);
+	return i;
+}
+
 /**
  * match_token takes a table and a string, returns the value associated
- * with the string (0 meaning an error in most cases)
+ * with the string (-1 in case of failure).
  */
 static int
 match_token(struct _s_x *table, char *string)
@@ -374,8 +400,12 @@ match_token(struct _s_x *table, char *string)
 	return -1;
 };
 
+/**
+ * match_value takes a table and a value, returns the string associated
+ * with the value (NULL in case of failure).
+ */
 static char *
-match_value(struct _s_x *p, u_int32_t value)
+match_value(struct _s_x *p, uint32_t value)
 {
 	for (; p->s != NULL; p++)
 		if (p->x == value)
@@ -387,7 +417,7 @@ match_value(struct _s_x *p, u_int32_t value)
  * prints one port, symbolic or numeric
  */
 static void
-print_port(int proto, u_int16_t port)
+print_port(int proto, uint16_t port)
 {
 
 	if (proto == IPPROTO_ETHERTYPE) {
@@ -411,43 +441,33 @@ print_port(int proto, u_int16_t port)
 	}
 }
 
+struct _s_x _port_name[] = {
+	{"dst-port",	O_IP_DSTPORT},
+	{"src-port",	O_IP_SRCPORT},
+	{"ipid",	O_IPID},
+	{"iplen",	O_IPLEN},
+	{"ipttl",	O_IPTTL},
+	{"mac-type",	O_MAC_TYPE},
+	{NULL,		0}
+};
+
 /*
- * print the values in a list of ports
+ * Print the values in a list 16-bit items of the types above.
  * XXX todo: add support for mask.
  */
 static void
 print_newports(ipfw_insn_u16 *cmd, int proto, int opcode)
 {
-	u_int16_t *p = cmd->ports;
+	uint16_t *p = cmd->ports;
 	int i;
 	char *sep;
 
 	if (cmd->o.len & F_NOT)
 		printf(" not");
 	if (opcode != 0) {
-		switch (opcode) {
-		case O_IP_DSTPORT:
-			sep = "dst-port";
-			break;
-		case O_IP_SRCPORT:
-			sep = "src-port";
-			break;
-		case O_IPID:
-			sep = "ipid";
-			break;
-		case O_IPLEN:
-			sep = "iplen";
-			break;
-		case O_IPTTL:
-			sep = "ipttl";
-			break;
-		case O_MAC_TYPE:
-			sep = "mac-type";
-			break;
-		default:
+		sep = match_value(_port_name, opcode);
+		if (sep == NULL)
 			sep = "???";
-			break;
-		}
 		printf (" %s", sep);
 	}
 	sep = " ";
@@ -529,19 +549,16 @@ strtoport(char *s, char **end, int base, int proto)
 }
 
 /*
- * fill the body of the command with the list of port ranges.
- * At the moment it only understands numeric ranges.
+ * Fill the body of the command with the list of port ranges.
  */
 static int
 fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
 {
-	u_int16_t *p = cmd->ports;
+	uint16_t a, b, *p = cmd->ports;
 	int i = 0;
 	char *s = av;
 
 	while (*s) {
-		u_int16_t a, b;
-
 		a = strtoport(av, &s, 0, proto);
 		if (s == av) /* no parameter */
 			break;
@@ -552,12 +569,11 @@ fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
 				break;
 			p[0] = a;
 			p[1] = b;
-		} else if (*s == ',' || *s == '\0' ) {
+		} else if (*s == ',' || *s == '\0' )
 			p[0] = p[1] = a;
-		} else {	/* invalid separator */
+		else 	/* invalid separator */
 			errx(EX_DATAERR, "invalid separator <%c> in <%s>\n",
 				*s, av);
-		}
 		i++;
 		p += 2;
 		av = s+1;
@@ -606,7 +622,7 @@ fill_reject_code(u_short *codep, char *str)
 }
 
 static void
-print_reject_code(u_int16_t code)
+print_reject_code(uint16_t code)
 {
 	char *s = match_value(icmpcodes, code);
 
@@ -679,7 +695,8 @@ static void
 print_ip(ipfw_insn_ip *cmd, char *s)
 {
 	struct hostent *he = NULL;
-	int mb;
+	int len = F_LEN((ipfw_insn *)cmd);
+	uint32_t *a = ((ipfw_insn_u32 *)cmd)->d;
 
 	printf("%s%s ", cmd->o.len & F_NOT ? " not": "", s);
 
@@ -688,7 +705,7 @@ print_ip(ipfw_insn_ip *cmd, char *s)
 		return;
 	}
 	if (cmd->o.opcode == O_IP_SRC_SET || cmd->o.opcode == O_IP_DST_SET) {
-		u_int32_t x, *d;
+		uint32_t x, *map = (uint32_t *)&(cmd->mask);
 		int i, j;
 		char comma = '{';
 
@@ -699,7 +716,6 @@ print_ip(ipfw_insn_ip *cmd, char *s)
 			contigmask((u_char *)&x, 32));
 		x = cmd->addr.s_addr = htonl(cmd->addr.s_addr);
 		x &= 0xff; /* base */
-		d = (u_int32_t *)&(cmd->mask);
 		/*
 		 * Print bits and ranges.
 		 * Locate first bit set (i), then locate first bit unset (j).
@@ -707,9 +723,9 @@ print_ip(ipfw_insn_ip *cmd, char *s)
 		 * range, otherwise only print the initial bit and rescan.
 		 */
 		for (i=0; i < cmd->o.arg1; i++)
-			if (d[i/32] & (1<<(i & 31))) {
+			if (map[i/32] & (1<<(i & 31))) {
 				for (j=i+1; j < cmd->o.arg1; j++)
-					if (!(d[ j/32] & (1<<(j & 31))))
+					if (!(map[ j/32] & (1<<(j & 31))))
 						break;
 				printf("%c%d", comma, i+x);
 				if (j>i+2) { /* range has at least 3 elements */
@@ -721,24 +737,32 @@ print_ip(ipfw_insn_ip *cmd, char *s)
 		printf("}");
 		return;
 	}
-	if (cmd->o.opcode == O_IP_SRC || cmd->o.opcode == O_IP_DST)
-		mb = 32;
-	else
-		mb = contigmask((u_char *)&(cmd->mask.s_addr), 32);
+	/*
+	 * len == 2 indicates a single IP, whereas lists of 1 or more
+	 * addr/mask pairs have len = (2n+1). We convert len to n so we
+	 * use that to count the number of entries.
+	 */
+    for (len = len / 2; len > 0; len--, a += 2) {
+	int mb =	/* mask length */
+	    (cmd->o.opcode == O_IP_SRC || cmd->o.opcode == O_IP_DST) ?
+		32 : contigmask((u_char *)&(a[1]), 32);
 	if (mb == 32 && do_resolv)
-		he = gethostbyaddr((char *)&(cmd->addr.s_addr),
-		    sizeof(u_long), AF_INET);
+		he = gethostbyaddr((char *)&(a[0]), sizeof(u_long), AF_INET);
 	if (he != NULL)		/* resolved to name */
 		printf("%s", he->h_name);
 	else if (mb == 0)	/* any */
 		printf("any");
 	else {		/* numeric IP followed by some kind of mask */
-		printf("%s", inet_ntoa(cmd->addr));
+		printf("%s", inet_ntoa( *((struct in_addr *)&a[0]) ) );
 		if (mb < 0)
-			printf(":%s", inet_ntoa(cmd->mask));
+			printf(":%s", inet_ntoa( *((struct in_addr *)&a[1]) ) );
 		else if (mb < 32)
 			printf("/%d", mb);
 	}
+	if (len > 1)
+		printf(",");
+    }
+	   
 }
 
 /*
@@ -766,7 +790,7 @@ print_mac(u_char *addr, u_char *mask)
 static void
 fill_icmptypes(ipfw_insn_u32 *cmd, char *av)
 {
-	u_int8_t type;
+	uint8_t type;
 
 	cmd->d[0] = 0;
 	while (*av) {
@@ -860,7 +884,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	int flags = 0;	/* prerequisites */
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
 	int or_block = 0;	/* we are in an or block */
-	u_int32_t set_disable;
+	uint32_t set_disable;
 
 	bcopy(&rule->next_rule, &set_disable, sizeof(set_disable));
 
@@ -1240,7 +1264,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			    {
 				struct _s_x *p = limit_masks;
 				ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
-				u_int8_t x = c->limit_mask;
+				uint8_t x = c->limit_mask;
 				char *comma = " ";
 
 				printf(" limit");
@@ -1284,9 +1308,11 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 			return;
 	}
 	bcopy(&d->rule, &rulenum, sizeof(rulenum));
-	printf("%05d %*llu %*llu (%ds)", rulenum, pcwidth,
-	    align_uint64(&d->pcnt), bcwidth,
-	    align_uint64(&d->bcnt), d->expire);
+	printf("%05d", rulenum);
+	if (do_acct)
+	    printf(" %*llu %*llu (%ds)", pcwidth,
+		align_uint64(&d->pcnt), bcwidth,
+		align_uint64(&d->bcnt), d->expire);
 	switch (d->dyn_type) {
 	case O_LIMIT_PARENT:
 		printf(" PARENT %d", d->count);
@@ -1501,10 +1527,10 @@ list_pipes(void *data, int nbytes, int ac, char *av[])
 static void
 sets_handler(int ac, char *av[])
 {
-	u_int32_t set_disable, masks[2];
+	uint32_t set_disable, masks[2];
 	int i, nbytes;
-	u_int16_t rulenum;
-	u_int8_t cmd, new_set;
+	uint16_t rulenum;
+	uint8_t cmd, new_set;
 
 	ac--;
 	av++;
@@ -1516,9 +1542,9 @@ sets_handler(int ac, char *av[])
 		char *msg;
 
 		nbytes = sizeof(struct ip_fw);
-		if ((data = malloc(nbytes)) == NULL)
-			err(EX_OSERR, "malloc");
-		if (getsockopt(s, IPPROTO_IP, IP_FW_GET, data, &nbytes) < 0)
+		if ((data = calloc(1, nbytes)) == NULL)
+			err(EX_OSERR, "calloc");
+		if (do_cmd(IP_FW_GET, data, (socklen_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET)");
 		bcopy(&((struct ip_fw *)data)->next_rule,
 			&set_disable, sizeof(set_disable));
@@ -1546,8 +1572,7 @@ sets_handler(int ac, char *av[])
 		if (!isdigit(*(av[1])) || new_set > 30)
 			errx(EX_DATAERR, "invalid set number %s\n", av[1]);
 		masks[0] = (4 << 24) | (new_set << 16) | (rulenum);
-		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL,
-			masks, sizeof(u_int32_t));
+		i = do_cmd(IP_FW_DEL, masks, sizeof(uint32_t));
 	} else if (!strncmp(*av, "move", strlen(*av))) {
 		ac--; av++;
 		if (ac && !strncmp(*av, "rule", strlen(*av))) {
@@ -1565,8 +1590,7 @@ sets_handler(int ac, char *av[])
 		if (!isdigit(*(av[2])) || new_set > 30)
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
 		masks[0] = (cmd << 24) | (new_set << 16) | (rulenum);
-		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL,
-			masks, sizeof(u_int32_t));
+		i = do_cmd(IP_FW_DEL, masks, sizeof(uint32_t));
 	} else if (!strncmp(*av, "disable", strlen(*av)) ||
 		   !strncmp(*av, "enable",  strlen(*av)) ) {
 		int which = !strncmp(*av, "enable",  strlen(*av)) ? 1 : 0;
@@ -1594,7 +1618,7 @@ sets_handler(int ac, char *av[])
 			errx(EX_DATAERR,
 			    "cannot enable and disable the same set\n");
 
-		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, masks, sizeof(masks));
+		i = do_cmd(IP_FW_DEL, masks, sizeof(masks));
 		if (i)
 			warn("set enable/disable: setsockopt(IP_FW_DEL)");
 	} else
@@ -1647,6 +1671,11 @@ list(int ac, char *av[])
 	const int ocmd = do_pipe ? IP_DUMMYNET_GET : IP_FW_GET;
 	int nalloc = 1024;	/* start somewhere... */
 
+	if (test_only) {
+		fprintf(stderr, "Testing only, list disabled\n");
+		return;
+	}
+
 	ac--;
 	av++;
 
@@ -1658,7 +1687,7 @@ list(int ac, char *av[])
 		nbytes = nalloc;
 		if ((data = realloc(data, nbytes)) == NULL)
 			err(EX_OSERR, "realloc");
-		if (getsockopt(s, IPPROTO_IP, ocmd, data, &nbytes) < 0)
+		if (do_cmd(ocmd, data, (socklen_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_%s_GET)",
 				do_pipe ? "DUMMYNET" : "FW");
 	}
@@ -1790,40 +1819,37 @@ static void
 show_usage(void)
 {
 	fprintf(stderr, "usage: ipfw [options]\n"
-"    add [number] rule\n"
-"    pipe number config [pipeconfig]\n"
-"    queue number config [queueconfig]\n"
-"    [pipe] flush\n"
-"    [pipe] delete number ...\n"
-"    [pipe] {list|show} [number ...]\n"
-"    {zero|resetlog} [number ...]\n"
 "do \"ipfw -h\" or see ipfw manpage for details\n"
 );
-
 	exit(EX_USAGE);
 }
 
 static void
 help(void)
 {
-
-	fprintf(stderr, "ipfw syntax summary:\n"
-"ipfw add [N] [prob {0..1}] ACTION [log [logamount N]] ADDR OPTIONS\n"
-"ipfw {pipe|queue} N config BODY\n"
-"ipfw [pipe] {zero|delete|show} [N{,N}]\n"
+	fprintf(stderr,
+"ipfw syntax summary (but please do read the ipfw(8) manpage):\n"
+"ipfw [-acdeftnNpqS] command:"
+"add [num] [set N] [prob x] RULE-BODY\n"
+"{pipe|queue} N config PIPE-BODY\n"
+"[pipe|queue] {zero|delete|show} [N{,N}]\n"
+"set [disable N... enable N...] | move [rule] X to Y | swap X Y | show\n"
 "\n"
-"RULE:		[1..] [PROB] BODY\n"
-"RULENUM:	INTEGER(1..65534)\n"
-"PROB:		prob REAL(0..1)\n"
-"BODY:		check-state [LOG] (no body) |\n"
-"		ACTION [LOG] MATCH_ADDR [OPTION_LIST]\n"
+"RULE-BODY:	check-state [LOG] | ACTION [LOG] ADDR [OPTION_LIST]\n"
 "ACTION:	check-state | allow | count | deny | reject | skipto N |\n"
 "		{divert|tee} PORT | forward ADDR | pipe N | queue N\n"
 "ADDR:		[ MAC dst src ether_type ] \n"
 "		[ from IPLIST [ PORT ] to IPLIST [ PORTLIST ] ]\n"
-"IPLIST:	IPADDR | ( IPADDR or ... or IPADDR )\n"
+"IPLIST:	IPADDR[,IPADDR] | { IPADDR or ... or IPADDR }\n"
 "IPADDR:	[not] { any | me | ip | ip/bits | ip:mask | ip/bits{x,y,z} }\n"
 "OPTION_LIST:	OPTION [,OPTION_LIST]\n"
+"OPTION:	bridged | {dst-ip|src-ip} ADDR | {dst-port|src-port} LIST |\n"
+"	estab | frag | {gid|uid} N | icmptypes LIST | in | out | ipid LIST |\n"
+"	iplen LIST | ipoptions SPEC | ipprecedence | ipsec | iptos SPEC |\n"
+"	ipttl LIST | ipversion VER | keep-state | layer2 | limit ... |\n"
+"	mac ... | mac-type LIST | proto LIST | {recv|xmit|via} {IF|IPADDR} |\n"
+"	setup | {tcpack|tcpseq|tcpwin} NN | tcpflags SPEC | tcpoptions SPEC |\n"
+"	verrevpath\n"
 );
 exit(0);
 }
@@ -1852,12 +1878,13 @@ lookup_host (char *host, struct in_addr *ipaddr)
  *	1.2.3.4:5.6.7.8	address:mask
  *	1.2.3.4/24	address/mask
  *	1.2.3.4/26{1,6,5,4,23}	set of addresses in a subnet
+ * We can have multiple comma-separated address/mask entries.
  */
 static void
 fill_ip(ipfw_insn_ip *cmd, char *av)
 {
-	char *p = 0, md = 0;
-	u_int32_t i;
+	int len = 0;
+	uint32_t *d = ((ipfw_insn_u32 *)cmd)->d;
 
 	cmd->o.len &= ~F_LEN_MASK;	/* zero len */
 
@@ -1869,76 +1896,102 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		return;
 	}
 
-	p = strchr(av, '/');
-	if (!p)
-		p = strchr(av, ':');
+    while (av) {
+	/*
+	 * After the address we can have '/' or ':' indicating a mask,
+	 * ',' indicating another address follows, '{' indicating a
+	 * set of addresses of unspecified size.
+	 */
+	char *p = strpbrk(av, "/:,{");
+	int masklen;
+	char md;
+
 	if (p) {
 		md = *p;
 		*p++ = '\0';
-	}
+	} else
+		md = '\0';
 
-	if (lookup_host(av, &cmd->addr) != 0)
+	if (lookup_host(av, (struct in_addr *)&d[0]) != 0)
 		errx(EX_NOHOST, "hostname ``%s'' unknown", av);
 	switch (md) {
 	case ':':
-		if (!inet_aton(p, &cmd->mask))
+		if (!inet_aton(p, (struct in_addr *)&d[1]))
 			errx(EX_DATAERR, "bad netmask ``%s''", p);
 		break;
 	case '/':
-		i = atoi(p);
-		if (i == 0)
-			cmd->mask.s_addr = htonl(0);
-		else if (i > 32)
+		masklen = atoi(p);
+		if (masklen == 0)
+			d[1] = htonl(0);	/* mask */
+		else if (masklen > 32)
 			errx(EX_DATAERR, "bad width ``%s''", p);
 		else
-			cmd->mask.s_addr = htonl(~0 << (32 - i));
+			d[1] = htonl(~0 << (32 - masklen));
 		break;
+	case '{':	/* no mask, assume /24 and put back the '{' */
+		d[1] = htonl(~0 << (32 - 24));
+		*(--p) = md;
+		break;
+
+	case ',':	/* single address plus continuation */
+		*(--p) = md;
+		/* FALLTHROUGH */
+	case 0:		/* initialization value */
 	default:
-		cmd->mask.s_addr = htonl(~0);
+		d[1] = htonl(~0);	/* force /32 */
 		break;
 	}
-	cmd->addr.s_addr &= cmd->mask.s_addr;
-	/*
-	 * now look if we have a set of addresses. They are stored as follows:
-	 *   arg1	is the set size (powers of 2, 2..256)
-	 *   addr	is the base address IN HOST FORMAT
-	 *   mask..	is an array of u_int32_t with bits set.
-	 */
+	d[0] &= d[1];		/* mask base address with mask */
+	/* find next separator */
 	if (p)
-		p = strchr(p, '{');
-	if (p) {	/* fetch addresses */
-		u_int32_t *d;
+		p = strpbrk(p, ",{");
+	if (p && *p == '{') {
+		/*
+		 * We have a set of addresses. They are stored as follows:
+		 *   arg1	is the set size (powers of 2, 2..256)
+		 *   addr	is the base address IN HOST FORMAT
+		 *   mask..	is an array of arg1 bits (rounded up to
+		 *		the next multiple of 32) with bits set
+		 *		for each host in the map.
+		 */
+		uint32_t *map = (uint32_t *)&cmd->mask;
 		int low, high;
-		int i = contigmask((u_char *)&(cmd->mask), 32);
+		int i = contigmask((u_char *)&(d[1]), 32);
 
-		if (i < 24 || i > 31) {
-			fprintf(stderr, "invalid set with mask %d\n",
-				i);
-			exit(0);
-		}
-		cmd->o.arg1 = 1<<(32-i);
-		cmd->addr.s_addr = ntohl(cmd->addr.s_addr);
-		d = (u_int32_t *)&cmd->mask;
+		if (len > 0)
+			errx(EX_DATAERR, "address set cannot be in a list");
+		if (i < 24 || i > 31)
+			errx(EX_DATAERR, "invalid set with mask %d\n", i);
+		cmd->o.arg1 = 1<<(32-i);	/* map length		*/
+		d[0] = ntohl(d[0]);		/* base addr in host format */
 		cmd->o.opcode = O_IP_DST_SET;	/* default */
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32) + (cmd->o.arg1+31)/32;
 		for (i = 0; i < (cmd->o.arg1+31)/32 ; i++)
-			d[i] = 0;	/* clear masks */
+			map[i] = 0;	/* clear map */
 
-		av = p+1;
-		low = cmd->addr.s_addr & 0xff;
+		av = p + 1;
+		low = d[0] & 0xff;
 		high = low + cmd->o.arg1 - 1;
+		/*
+		 * Here, i stores the previous value when we specify a range
+		 * of addresses within a mask, e.g. 45-63. i = -1 means we
+		 * have no previous value.
+		 */
 		i = -1;	/* previous value in a range */
 		while (isdigit(*av)) {
 			char *s;
-			u_int16_t a = strtol(av, &s, 0);
+			int a = strtol(av, &s, 0);
 
-			if (s == av) /* no parameter */
-				break;
-			if (a < low || a > high) {
-			    fprintf(stderr, "addr %d out of range [%d-%d]\n",
-				a, low, high);
-			    exit(0);
+			if (s == av) { /* no parameter */
+			    if (*av != '}')
+				errx(EX_DATAERR, "set not closed\n");
+			    if (i != -1)
+				errx(EX_DATAERR, "incomplete range %d-", i);
+			    break;
 			}
+			if (a < low || a > high)
+			    errx(EX_DATAERR, "addr %d out of range [%d-%d]\n",
+				a, low, high);
 			a -= low;
 			if (i == -1)	/* no previous in range */
 			    i = a;
@@ -1950,26 +2003,44 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 				errx(EX_DATAERR, "double '-' in range");
 			}
 			for (; i <= a; i++)
-			    d[i/32] |= 1<<(i & 31);
+			    map[i/32] |= 1<<(i & 31);
 			i = -1;
 			if (*s == '-')
 			    i = a;
-			else if (*s != ',')
+			else if (*s == '}')
 			    break;
 			av = s+1;
 		}
 		return;
 	}
+	av = p;
+	if (av)			/* then *av must be a ',' */
+		av++;
 
-	if (cmd->mask.s_addr == 0) { /* any */
-		if (cmd->o.len & F_NOT)
-			errx(EX_DATAERR, "not any never matches");
-		else	/* useless, nuke it */
-			return;
-	} else if (cmd->mask.s_addr ==  IP_MASK_ALL)	/* one IP */
+	/* Check this entry */
+	if (d[1] == 0) { /* "any", specified as x.x.x.x/0 */
+		/*
+		 * 'any' turns the entire list into a NOP.
+		 * 'not any' never matches, so it is removed from the
+		 * list unless it is the only item, in which case we
+		 * report an error.
+		 */
+		if (cmd->o.len & F_NOT) {	/* "not any" never matches */
+			if (av == NULL && len == 0) /* only this entry */
+				errx(EX_DATAERR, "not any never matches");
+		}
+		/* else do nothing and skip this entry */
+		continue;
+	}
+	/* A single IP can be stored in an optimized format */
+	if (d[1] == IP_MASK_ALL && av == NULL && len == 0) {
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
-	else						/* addr/mask */
-		cmd->o.len |= F_INSN_SIZE(ipfw_insn_ip);
+		return;
+	}
+	len += 2;	/* two words... */
+	d += 2;
+    } /* end while */
+    cmd->o.len |= len+1;
 }
 
 
@@ -1981,12 +2052,12 @@ static void
 fill_flags(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 	struct _s_x *flags, char *p)
 {
-	u_int8_t set=0, clear=0;
+	uint8_t set=0, clear=0;
 
 	while (p && *p) {
 		char *q;	/* points to the separator */
 		int val;
-		u_int8_t *which;	/* mask we are working on */
+		uint8_t *which;	/* mask we are working on */
 
 		if (*p == '!') {
 			p++;
@@ -1999,7 +2070,7 @@ fill_flags(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 		val = match_token(flags, p);
 		if (val <= 0)
 			errx(EX_DATAERR, "invalid flag %s", p);
-		*which |= (u_int8_t)val;
+		*which |= (uint8_t)val;
 		p = q;
 	}
         cmd->opcode = opcode;
@@ -2011,7 +2082,7 @@ fill_flags(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 static void
 delete(int ac, char *av[])
 {
-	u_int32_t rulenum;
+	uint32_t rulenum;
 	struct dn_pipe pipe;
 	int i;
 	int exitval = EX_OK;
@@ -2033,8 +2104,7 @@ delete(int ac, char *av[])
 				pipe.pipe_nr = i;
 			else
 				pipe.fs.fs_nr = i;
-			i = setsockopt(s, IPPROTO_IP, IP_DUMMYNET_DEL,
-			    &pipe, sizeof pipe);
+			i = do_cmd(IP_DUMMYNET_DEL, &pipe, sizeof pipe);
 			if (i) {
 				exitval = 1;
 				warn("rule %u: setsockopt(IP_DUMMYNET_DEL)",
@@ -2043,8 +2113,7 @@ delete(int ac, char *av[])
 			}
 		} else {
 			rulenum =  (i & 0xffff) | (do_set << 24);
-			i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rulenum,
-			    sizeof rulenum);
+			i = do_cmd(IP_FW_DEL, &rulenum, sizeof rulenum);
 			if (i) {
 				exitval = EX_UNAVAILABLE;
 				warn("rule %u: setsockopt(IP_FW_DEL)",
@@ -2098,7 +2167,7 @@ config_pipe(int ac, char **av)
 	struct dn_pipe pipe;
 	int i;
 	char *end;
-	u_int32_t a;
+	uint32_t a;
 	void *par = NULL;
 
 	memset(&pipe, 0, sizeof pipe);
@@ -2168,8 +2237,8 @@ config_pipe(int ac, char **av)
 			end = NULL;
 
 			while (ac >= 1) {
-			    u_int32_t *p32 = NULL;
-			    u_int16_t *p16 = NULL;
+			    uint32_t *p32 = NULL;
+			    uint16_t *p16 = NULL;
 
 			    tok = match_token(dummynet_params, *av);
 			    ac--; av++;
@@ -2222,12 +2291,12 @@ config_pipe(int ac, char **av)
 				    if (a > 65535)
 					    errx(EX_DATAERR,
 						"mask: must be 16 bit");
-				    *p16 = (u_int16_t)a;
+				    *p16 = (uint16_t)a;
 			    } else {
 				    if (a > 255)
 					    errx(EX_DATAERR,
 						"mask: must be 8 bit");
-				    pipe.fs.flow_mask.proto = (u_int8_t)a;
+				    pipe.fs.flow_mask.proto = (uint8_t)a;
 			    }
 			    if (a != 0)
 				    pipe.fs.flags_fs |= DN_HAVE_FLOW_MASK;
@@ -2418,8 +2487,7 @@ end_mask:
 			weight *= weight;
 		pipe.fs.lookup_weight = (int)(weight * (1 << SCALE_RED));
 	}
-	i = setsockopt(s, IPPROTO_IP, IP_DUMMYNET_CONFIGURE, &pipe,
-			    sizeof pipe);
+	i = do_cmd(IP_DUMMYNET_CONFIGURE, &pipe, sizeof pipe);
 	if (i)
 		err(1, "setsockopt(%s)", "IP_DUMMYNET_CONFIGURE");
 }
@@ -2475,7 +2543,7 @@ next_cmd(ipfw_insn *cmd)
  * Existing flags are preserved.
  */
 static void
-fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int flags, u_int16_t arg)
+fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int flags, uint16_t arg)
 {
 	cmd->opcode = opcode;
 	cmd->len =  ((cmd->len | flags) & (F_NOT | F_OR)) | 1;
@@ -2545,7 +2613,7 @@ add_srcip(ipfw_insn *cmd, char *av)
 		cmd->opcode = O_IP_SRC_ME;
 	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))	/* one IP */
 		cmd->opcode = O_IP_SRC;
-	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_ip))	/* addr/mask */
+	else							/* addr/mask */
 		cmd->opcode = O_IP_SRC_MASK;
 	return cmd;
 }
@@ -2560,7 +2628,7 @@ add_dstip(ipfw_insn *cmd, char *av)
 		cmd->opcode = O_IP_DST_ME;
 	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))	/* one IP */
 		cmd->opcode = O_IP_DST;
-	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_ip))	/* addr/mask */
+	else							/* addr/mask */
 		cmd->opcode = O_IP_DST_MASK;
 	return cmd;
 }
@@ -2599,7 +2667,7 @@ add(int ac, char *av[])
 	 * Some things that need to go out of order (prob, action etc.)
 	 * go into actbuf[].
 	 */
-	static u_int32_t rulebuf[255], actbuf[255], cmdbuf[255];
+	static uint32_t rulebuf[255], actbuf[255], cmdbuf[255];
 
 	ipfw_insn *src, *dst, *cmd, *action, *prev;
 	ipfw_insn *first_cmd;	/* first match pattern */
@@ -3328,7 +3396,7 @@ done:
 		case O_LIMIT:
 			break;
 		default:
-			bcopy(src, dst, i * sizeof(u_int32_t));
+			bcopy(src, dst, i * sizeof(uint32_t));
 			dst += i;
 		}
 	}
@@ -3338,7 +3406,7 @@ done:
 	 */
 	if (have_state && have_state->opcode != O_CHECK_STATE) {
 		i = F_LEN(have_state);
-		bcopy(have_state, dst, i * sizeof(u_int32_t));
+		bcopy(have_state, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
 	/*
@@ -3352,7 +3420,7 @@ done:
 	src = (ipfw_insn *)cmdbuf;
 	if ( src->opcode == O_LOG ) {
 		i = F_LEN(src);
-		bcopy(src, dst, i * sizeof(u_int32_t));
+		bcopy(src, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
 	/*
@@ -3360,32 +3428,34 @@ done:
 	 */
 	for (src = (ipfw_insn *)actbuf; src != action; src += i) {
 		i = F_LEN(src);
-		bcopy(src, dst, i * sizeof(u_int32_t));
+		bcopy(src, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
 
-	rule->cmd_len = (u_int32_t *)dst - (u_int32_t *)(rule->cmd);
+	rule->cmd_len = (uint32_t *)dst - (uint32_t *)(rule->cmd);
 	i = (void *)dst - (void *)rule;
-	if (getsockopt(s, IPPROTO_IP, IP_FW_ADD, rule, &i) == -1)
+	if (do_cmd(IP_FW_ADD, rule, (socklen_t)&i) == -1)
 		err(EX_UNAVAILABLE, "getsockopt(%s)", "IP_FW_ADD");
 	if (!do_quiet)
 		show_ipfw(rule, 10, 10);
 }
 
 static void
-zero(int ac, char *av[])
+zero(int ac, char *av[], int optname /* IP_FW_ZERO or IP_FW_RESETLOG */)
 {
 	int rulenum;
 	int failed = EX_OK;
+	char *name = optname == IP_FW_ZERO ?  "ZERO" : "RESETLOG";
 
 	av++; ac--;
 
 	if (!ac) {
 		/* clear all entries */
-		if (setsockopt(s, IPPROTO_IP, IP_FW_ZERO, NULL, 0) < 0)
-			err(EX_UNAVAILABLE, "setsockopt(%s)", "IP_FW_ZERO");
+		if (do_cmd(optname, NULL, 0) < 0)
+			err(EX_UNAVAILABLE, "setsockopt(IP_FW_%s)", name);
 		if (!do_quiet)
-			printf("Accounting cleared.\n");
+			printf("%s.\n", optname == IP_FW_ZERO ?
+			    "Accounting cleared":"Logging counts reset");
 
 		return;
 	}
@@ -3396,13 +3466,14 @@ zero(int ac, char *av[])
 			rulenum = atoi(*av);
 			av++;
 			ac--;
-			if (setsockopt(s, IPPROTO_IP,
-			    IP_FW_ZERO, &rulenum, sizeof rulenum)) {
-				warn("rule %u: setsockopt(IP_FW_ZERO)",
-				    rulenum);
+			if (do_cmd(optname, &rulenum, sizeof rulenum)) {
+				warn("rule %u: setsockopt(IP_FW_%s)",
+				    rulenum, name);
 				failed = EX_UNAVAILABLE;
 			} else if (!do_quiet)
-				printf("Entry %d cleared\n", rulenum);
+				printf("Entry %d %s.\n", rulenum,
+				    optname == IP_FW_ZERO ?
+					"cleared" : "logging count reset");
 		} else {
 			errx(EX_USAGE, "invalid rule number ``%s''", *av);
 		}
@@ -3412,47 +3483,7 @@ zero(int ac, char *av[])
 }
 
 static void
-resetlog(int ac, char *av[])
-{
-	int rulenum;
-	int failed = EX_OK;
-
-	av++; ac--;
-
-	if (!ac) {
-		/* clear all entries */
-		if (setsockopt(s, IPPROTO_IP, IP_FW_RESETLOG, NULL, 0) < 0)
-			err(EX_UNAVAILABLE, "setsockopt(IP_FW_RESETLOG)");
-		if (!do_quiet)
-			printf("Logging counts reset.\n");
-
-		return;
-	}
-
-	while (ac) {
-		/* Rule number */
-		if (isdigit(**av)) {
-			rulenum = atoi(*av);
-			av++;
-			ac--;
-			if (setsockopt(s, IPPROTO_IP,
-			    IP_FW_RESETLOG, &rulenum, sizeof rulenum)) {
-				warn("rule %u: setsockopt(IP_FW_RESETLOG)",
-				    rulenum);
-				failed = EX_UNAVAILABLE;
-			} else if (!do_quiet)
-				printf("Entry %d logging count reset\n",
-				    rulenum);
-		} else {
-			errx(EX_DATAERR, "invalid rule number ``%s''", *av);
-		}
-	}
-	if (failed != EX_OK)
-		exit(failed);
-}
-
-static void
-flush()
+flush(void)
 {
 	int cmd = do_pipe ? IP_DUMMYNET_FLUSH : IP_FW_FLUSH;
 
@@ -3471,7 +3502,7 @@ flush()
 		if (c == 'N')	/* user said no */
 			return;
 	}
-	if (setsockopt(s, IPPROTO_IP, cmd, NULL, 0) < 0)
+	if (do_cmd(cmd, NULL, 0) < 0)
 		err(EX_UNAVAILABLE, "setsockopt(IP_%s_FLUSH)",
 		    do_pipe ? "DUMMYNET" : "FW");
 	if (!do_quiet)
@@ -3479,9 +3510,92 @@ flush()
 }
 
 static int
-ipfw_main(int ac, char **av)
+ipfw_main(int oldac, char **oldav)
 {
-	int ch;
+	int ch, ac;
+	char **av;
+	
+	if (oldac == 2) {
+		/*
+		 * If we are called with a single string, try to split it into
+		 * arguments for subsequent parsing.
+		 * But first, remove spaces after a ',', by copying the string
+		 * in-place.
+		 */
+
+		char *arg = oldav[1];	/* The string... */
+		int l = strlen(arg);
+		int copy = 0;		/* 1 if we need to copy, 0 otherwise */
+		int i, j;
+		for (i = j = 0; i < l; i++)
+			if (copy) {
+				arg[j++] = arg[i];
+				copy = !index(" \t\n,", arg[i]);
+			} else {
+				copy = !index(" \t\n", arg[i]);
+				if (copy)
+					arg[j++] = arg[i];
+			}
+		if (!copy && j > 0)	/* last char was a 'blank', remove it */
+			j--;
+		l = j;			/* the new argument length */
+		arg[j++] = '\0';
+
+		/*
+		 * First, count number of arguments. Because of the previous
+		 * processing, this is just the number of blanks plus 1
+		 * (and then plus 1 for the program name).
+		 */
+		for (i = 0, ac=1; i < l; i++)
+			if (index(" \t\n", arg[i]) != NULL)
+				ac++;
+		ac++;	/* account for program name */
+
+		if (ac <= 1)
+			show_usage();
+		av = calloc(ac, sizeof(char *));
+		av[0] = calloc(1+strlen(oldav[0]), 1);
+		strcpy(av[0], oldav[0]);
+		ac = 1;
+
+		/*
+		 * Second, copy arguments from cmd[] to av[]. For each one,
+		 * j is the initial character, i is the one past the end.
+		 */
+		for (i = j = 0; i < l; i++)
+			if (isblank(arg[i]) || i == l-1) {
+				if (i == l-1)
+					i++;
+				av[ac] = calloc(i-j+1, 1);
+				bcopy(arg+j, av[ac], i-j);
+				ac++;
+				j = i + 1;
+			}
+	} else {
+		/*
+		 * If an argument ends with ',' join with the next one.
+		 */
+		int first, i, l;
+
+		av = calloc(oldac, sizeof(char *));
+		for (first = i = ac = 0, l = 0; i < oldac; i++) {
+			char *arg = oldav[i];
+			int k = strlen(arg);
+
+			l += k;
+			if (arg[k-1] != ',' || i == oldac-1) {
+				/* Time to copy. */
+				av[ac] = calloc(l+1, 1);
+				for (l=0; first <= i; first++) {
+					strcat(av[ac]+l, oldav[first]);
+					l += strlen(oldav[first]);
+				}
+				ac++;
+				l = 0;
+				first = i+1;
+			}
+		}
+	}
 
 	if (ac == 1)
 		show_usage();
@@ -3490,45 +3604,60 @@ ipfw_main(int ac, char **av)
 	do_force = !isatty(STDIN_FILENO);
 
 	optind = optreset = 1;
-	while ((ch = getopt(ac, av, "hs:acdefNqStv")) != -1)
+	while ((ch = getopt(ac, av, "acdefhnNqs:Stv")) != -1)
 		switch (ch) {
+		case 'a':
+			do_acct = 1;
+			break;
+
+		case 'c':
+			do_compact = 1;
+			break;
+
+		case 'd':
+			do_dynamic = 1;
+			break;
+
+		case 'e':
+			do_expired = 1;
+			break;
+
+		case 'f':
+			do_force = 1;
+			break;
+
 		case 'h': /* help */
 			help();
 			break;	/* NOTREACHED */
 
-		case 's': /* sort */
-			do_sort = atoi(optarg);
+		case 'n':
+			test_only = 1;
 			break;
-		case 'a':
-			do_acct = 1;
-			break;
-		case 'c':
-			do_compact = 1;
-			break;
-		case 'd':
-			do_dynamic = 1;
-			break;
-		case 'e':
-			do_expired = 1;
-			break;
-		case 'f':
-			do_force = 1;
-			break;
+
 		case 'N':
 			do_resolv = 1;
 			break;
+
 		case 'q':
 			do_quiet = 1;
 			break;
+
+		case 's': /* sort */
+			do_sort = atoi(optarg);
+			break;
+
 		case 'S':
 			show_sets = 1;
 			break;
+
 		case 't':
 			do_time = 1;
 			break;
+
 		case 'v': /* verbose */
-			verbose++;
+			verbose = 1;
 			break;
+
 		default:
 			show_usage();
 		}
@@ -3552,7 +3681,7 @@ ipfw_main(int ac, char **av)
 	NEED1("missing command");
 
 	/*
-	 * for pipes and queues we normally say 'pipe NN config'
+	 * For pipes and queues we normally say 'pipe NN config'
 	 * but the code is easier to parse as 'pipe config NN'
 	 * so we swap the two arguments.
 	 */
@@ -3561,6 +3690,7 @@ ipfw_main(int ac, char **av)
 		av[0] = av[1];
 		av[1] = p;
 	}
+
 	if (!strncmp(*av, "add", strlen(*av)))
 		add(ac, av);
 	else if (do_pipe && !strncmp(*av, "config", strlen(*av)))
@@ -3570,9 +3700,9 @@ ipfw_main(int ac, char **av)
 	else if (!strncmp(*av, "flush", strlen(*av)))
 		flush();
 	else if (!strncmp(*av, "zero", strlen(*av)))
-		zero(ac, av);
+		zero(ac, av, IP_FW_ZERO);
 	else if (!strncmp(*av, "resetlog", strlen(*av)))
-		resetlog(ac, av);
+		zero(ac, av, IP_FW_RESETLOG);
 	else if (!strncmp(*av, "print", strlen(*av)) ||
 	         !strncmp(*av, "list", strlen(*av)))
 		list(ac, av);
@@ -3604,8 +3734,12 @@ ipfw_readfile(int ac, char *av[])
 	pid_t	preproc = 0;
 	int	c;
 
-	while ((c = getopt(ac, av, "p:q")) != -1) {
+	while ((c = getopt(ac, av, "np:q")) != -1) {
 		switch(c) {
+		case 'n':
+			test_only = 1;
+			break;
+
 		case 'p':
 			pflag = 1;
 			cmd = optarg;
@@ -3683,11 +3817,13 @@ ipfw_readfile(int ac, char *av[])
 
 	while (fgets(buf, BUFSIZ, f)) {
 		lineno++;
-		sprintf(linename, "Line %d", lineno);
-		args[0] = linename;
-
 		if (*buf == '#')
 			continue;
+
+		sprintf(linename, "Line %d", lineno);
+		args[0] = linename;
+		setprogname(linename); /* XXX */
+
 		if ((p = strchr(buf, '#')) != NULL)
 			*p = '\0';
 		i = 1;
@@ -3723,10 +3859,6 @@ ipfw_readfile(int ac, char *av[])
 int
 main(int ac, char *av[])
 {
-	s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-	if (s < 0)
-		err(EX_UNAVAILABLE, "socket");
-
 	/*
 	 * If the last argument is an absolute pathname, interpret it
 	 * as a file to be preprocessed.
