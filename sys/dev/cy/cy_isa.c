@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.57 1997/12/06 13:22:26 bde Exp $
+ *	$Id: cy.c,v 1.58 1997/12/16 17:39:59 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -2105,6 +2105,7 @@ comstart(tp)
 	}
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
+		ttwwakeup(tp);
 		splx(s);
 		return;
 	}
