@@ -173,7 +173,7 @@ extern int getpgrp P((void));
 
 #define	GNU_REGEX
 #ifdef GNU_REGEX
-#include "regex.h"
+#include "gnuregex.h"
 #include "dfa.h"
 typedef struct Regexp {
 	struct re_pattern_buffer pat;
