@@ -147,10 +147,17 @@ nexus_probe(device_t dev)
 		panic("nexus_probe irq_rman");
 #else
 	irq_rman.rm_end = 15;
+#ifdef PC98
+	if (rman_init(&irq_rman)
+	    || rman_manage_region(&irq_rman,
+				  irq_rman.rm_start, irq_rman.rm_end))
+		panic("nexus_probe irq_rman");
+#else
 	if (rman_init(&irq_rman)
 	    || rman_manage_region(&irq_rman, irq_rman.rm_start, 1)
 	    || rman_manage_region(&irq_rman, 3, irq_rman.rm_end))
 		panic("nexus_probe irq_rman");
+#endif /* PC98 */
 #endif
 
 	/*
@@ -159,12 +166,17 @@ nexus_probe(device_t dev)
 	 * multiple bridges.  (eg: laptops with docking stations)
 	 */
 	drq_rman.rm_start = 0;
+#ifdef PC98
+	drq_rman.rm_end = 3;
+#else
 	drq_rman.rm_end = 7;
+#endif
 	drq_rman.rm_type = RMAN_ARRAY;
 	drq_rman.rm_descr = "DMA request lines";
 	/* XXX drq 0 not available on some machines */
 	if (rman_init(&drq_rman)
-	    || rman_manage_region(&drq_rman, 0, 7))
+	    || rman_manage_region(&drq_rman,
+				  drq_rman.rm_start, drq_rman.rm_end))
 		panic("nexus_probe drq_rman");
 
 	/*
