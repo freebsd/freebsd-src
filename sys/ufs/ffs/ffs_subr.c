@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.20 1998/03/08 09:58:59 julian Exp $
+ * $Id: ffs_subr.c,v 1.21 1998/03/28 10:33:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -144,8 +144,8 @@ ffs_checkoverlap(bp, ip)
 		if (ep == bp || (ep->b_flags & B_INVAL) ||
 		    ep->b_vp == NULLVP)
 			continue;
-		if (VOP_BMAP(ep->b_vp, (ufs_daddr_t)0, &vp, (ufs_daddr_t)0,
-		    NULL, NULL))
+		if (VOP_BMAP(ep->b_vp, (ufs_daddr_t)0, &vp, (ufs_daddr_t *)NULL,
+		    (int *)NULL, (int *)NULL))
 			continue;
 		if (vp != ip->i_devvp)
 			continue;
