@@ -237,6 +237,8 @@ redirect:
 					err(1, "%s", cp->t);
 				break;
 			case 'x':
+				if (hs == NULL)
+					cspace(&HS, "", 0, REPLACE);
 				tspace = PS;
 				PS = HS;
 				HS = tspace;
