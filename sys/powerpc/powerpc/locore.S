@@ -1351,7 +1351,7 @@ setfault:
 	mfcr	12
 	mfsprg	4,0
 	lwz	4,GD_CURPCB(4)
-	stw	3,PCB_FAULT(4)
+	stw	3,PCB_ONFAULT(4)
 	stw	0,0(3)
 	stw	1,4(3)
 	stw	2,8(3)

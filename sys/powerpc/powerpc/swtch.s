@@ -154,7 +154,7 @@ ENTRY(cpu_switch)
 	stw	3,PCB_SPL(31)		/* save spl */
 
 /* Find a new process */
-	bl	chooseproc
+	bl	choosethread
 
 1:
 	/* record new process */
@@ -172,7 +172,7 @@ ENTRY(cpu_switch)
 	mr	12,2			/* save r2 */
 	stwu	1,-SFRAMELEN(1)		/* still running on old stack */
 	stmw	10,8(1)
-	lwz	3,TD_ADDR(30)
+	lwz	3,TD_PCB(30)
 	stw	1,PCB_SP(3)		/* save SP */
 
 switch_exited:
@@ -182,7 +182,7 @@ switch_exited:
 	mtmsr	3
 
 	/* indicate new pcb */
-	lwz	4,TD_ADDR(31)
+	lwz	4,TD_PCB(31)
 	mfsprg	5,0
 	stw	4,GD_CURPCB(5)
 

@@ -38,7 +38,6 @@ static const char rcsid[] =
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h> /* for BASE_SLICE, MAX_SLICES */
-#include <sys/ipl.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
@@ -49,6 +48,7 @@ static const char rcsid[] =
 
 #include <machine/md_var.h>
 #include <machine/bootinfo.h>
+#include <machine/ipl.h>
 #include <machine/trap.h>
 
 #include <cam/cam.h>

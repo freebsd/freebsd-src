@@ -34,7 +34,7 @@ static const char rcsid[] =
 #include <sys/sysproto.h>
 
 int
-sysarch(struct proc *p, struct sysarch_args *uap)
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
 
 	return (EOPNOTSUPP);
