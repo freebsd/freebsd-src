@@ -358,7 +358,7 @@ linux_msgrcv(struct thread *td, struct linux_msgrcv_args *args)
     bsd_args.msqid = args->msqid;
     bsd_args.msgp = args->msgp;
     bsd_args.msgsz = args->msgsz;
-    bsd_args.msgtyp = 0; /* XXX - args->msgtyp; */
+    bsd_args.msgtyp = args->msgtyp;
     bsd_args.msgflg = args->msgflg;
     return msgrcv(td, &bsd_args);
 }
