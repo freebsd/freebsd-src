@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.3 (Berkeley) 1/21/94
  *
- * $Id: umap_vfsops.c,v 1.9 1995/12/03 14:54:40 bde Exp $
+ * $Id: umap_vfsops.c,v 1.10 1995/12/11 09:24:56 phk Exp $
  */
 
 /*
@@ -92,6 +92,9 @@ umapfs_mount(mp, path, data, ndp, p)
 	struct umap_mount *amp;
 	u_int size;
 	int error;
+#ifdef UMAP_DIAGNOSTIC
+	int	i;
+#endif
 
 #ifdef UMAPFS_DIAGNOSTIC
 	printf("umapfs_mount(mp = %x)\n", mp);
