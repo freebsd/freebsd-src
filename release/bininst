@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.53 1994/12/02 15:52:54 jkh Exp $
+# $Id: bininst,v 1.54 1994/12/17 06:57:44 jkh Exp $
 
 if [ "${_BININST_LOADED_}" = "yes" ]; then
 	error "Error, $0 loaded more than once!"
@@ -127,7 +127,8 @@ set_defaults
 while [ "${INSTALLING}" = "yes" ]; do
 	if media_select_distribution; then
 		if media_chose; then
-			for MEDIA_DISTRIBUTION in ${MEDIA_DISTRIBUTIONS}; do
+			for xx in ${MEDIA_DISTRIBUTIONS}; do
+				MEDIA_DISTRIBUTION=`echo $xx | sed -e 's/"//g'`
 				media_install_set
 			done
 		fi
