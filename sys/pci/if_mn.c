@@ -257,7 +257,7 @@ struct mn_softc {
 	char		name[8];
 	u_int32_t	falc_irq, falc_state, framer_state;
 	struct schan *ch[M32_CHAN];
-	char	nodename[NG_NODELEN + 1];
+	char	nodename[NG_NODESIZ];
 	node_p	node;
 
 	u_long		cnt_fec;
