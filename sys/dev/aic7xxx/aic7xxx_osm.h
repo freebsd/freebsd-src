@@ -51,7 +51,9 @@
 
 #if NPCI > 0
 #define AHC_SUPPORT_PCI 1
+#ifdef AHC_ALLOW_MEMIO
 #include <machine/bus_memio.h>
+#endif
 #endif
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -447,5 +449,6 @@ int	  ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc);
 /************************ Misc Function Declarations **************************/
 timeout_t ahc_timeout;
 void	  ahc_done(struct ahc_softc *ahc, struct scb *scb);
-void	  ahc_send_async(struct ahc_softc *, struct ahc_devinfo *, ac_code);
+void	  ahc_send_async(struct ahc_softc *, char /*channel*/,
+			 u_int /*target*/, u_int /*lun*/, ac_code);
 #endif  /* _AIC7XXX_FREEBSD_H_ */

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aic7xxx.c#4 $
  *
  * $FreeBSD$
  */
@@ -798,6 +798,8 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		}
 		if (status == 0) {
 			printf("%s: Spurious SCSI interrupt\n", ahc_name(ahc));
+			ahc_outb(ahc, CLRINT, CLRSCSIINT);
+			unpause_sequencer(ahc);
 			return;
 		}
 	}
@@ -1487,7 +1489,8 @@ ahc_set_syncrate(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		/* Update the syncrates in any pending scbs */
 		ahc_update_pending_syncrates(ahc);
 
-		ahc_send_async(ahc, devinfo, AC_TRANSFER_NEG);
+		ahc_send_async(ahc, devinfo->channel, devinfo->target,
+			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
 		if (bootverbose) {
 			if (offset != 0) {
 				printf("%s: target %d synchronous at %sMHz%s, "
@@ -1556,7 +1559,8 @@ ahc_set_width(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 
 		tinfo->current.width = width;
 
-		ahc_send_async(ahc, devinfo, AC_TRANSFER_NEG);
+		ahc_send_async(ahc, devinfo->channel, devinfo->target,
+			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
 		if (bootverbose) {
 			printf("%s: target %d using %dbit transfers\n",
 			       ahc_name(ahc), devinfo->target,
@@ -1593,7 +1597,8 @@ ahc_set_tags(struct ahc_softc *ahc, struct ahc_devinfo *devinfo, int enable)
 
 	if (orig_tagenable != tstate->tagenable) {
 		ahc_platform_set_tags(ahc, devinfo, enable);
-		ahc_send_async(ahc, devinfo, AC_TRANSFER_NEG);
+		ahc_send_async(ahc, devinfo->channel, devinfo->target,
+			       devinfo->lun, AC_TRANSFER_NEG);
 	}
 
 }
@@ -1850,25 +1855,36 @@ ahc_build_transfer_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 	}
 
 	use_ppr = (tinfo->current.transport_version >= 3) || doppr;
-	if (use_ppr) {
-		ahc_construct_ppr(ahc, tinfo->goal.period, tinfo->goal.offset,
-				  tinfo->goal.width, tinfo->goal.ppr_options);
-	} else  if (dowide) {
-		ahc_construct_wdtr(ahc, tinfo->goal.width);
-	} else if (dosync) {
+	/*
+	 * Both the PPR message and SDTR message require the
+	 * goal syncrate to be limited to what the target device
+	 * is capable of handling (based on whether an LVD->SE
+	 * expander is on the bus), so combine these two cases.
+	 * Regardless, guarantee that if we are using WDTR and SDTR
+	 * messages that WDTR comes first.
+	 */
+	if (use_ppr || (dosync && !dowide)) {
 
 		period = tinfo->goal.period;
-		ppr_options = 0;
+		ppr_options = tinfo->goal.ppr_options;
+		if (dosync)
+			ppr_options = 0;
 		rate = ahc_devlimited_syncrate(ahc, &period, &ppr_options);
 		offset = tinfo->goal.offset;
 		ahc_validate_offset(ahc, rate, &offset,
 				    tinfo->current.width);
-		ahc_construct_sdtr(ahc, period, offset);
+		if (use_ppr)
+			ahc_construct_ppr(ahc, period, offset,
+					  tinfo->goal.width, ppr_options);
+		else
+			ahc_construct_sdtr(ahc, period, offset);
+	} else {
+		ahc_construct_wdtr(ahc, tinfo->goal.width);
 	}
 }
 
 /*
- * Build an synchronous negotiateion message in our message
+ * Build a synchronous negotiation message in our message
  * buffer based on the input parameters.
  */
 static void
@@ -1950,7 +1966,7 @@ reswitch:
 		int msgdone;
 
 		if (ahc->msgout_len == 0)
-			panic("REQINIT interrupt with no active message");
+			panic("HOST_MSG_LOOP interrupt with no active message");
 
 		phasemis = bus_phase != P_MESGOUT;
 		if (phasemis) {
@@ -2596,7 +2612,20 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 	/* Might be necessary */
 	last_msg = ahc_inb(ahc, LAST_MSG);
 
-	if (ahc_sent_msg(ahc, MSG_EXT_WDTR, /*full*/FALSE)) {
+	if (ahc_sent_msg(ahc, MSG_EXT_PPR, /*full*/FALSE)) {
+		/*
+		 * Target does not support the PPR message.
+		 * Attempt to negotiate SPI-2 style.
+		 */
+		tinfo->goal.ppr_options = 0;
+		tinfo->current.transport_version = 2;
+		tinfo->goal.transport_version = 2;
+		ahc->msgout_index = 0;
+		ahc->msgout_len = 0;
+		ahc_build_transfer_msg(ahc, devinfo);
+		ahc->msgout_index = 0;
+		response = 1;
+	} else if (ahc_sent_msg(ahc, MSG_EXT_WDTR, /*full*/FALSE)) {
 
 		/* note 8bit xfers */
 		printf("%s:%c:%d: refuses WIDE negotiation.  Using "
@@ -2613,16 +2642,11 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		 * sync rate before sending our WDTR.
 		 */
 		if (tinfo->goal.period) {
-			u_int period;
-			u_int ppr_options;
 
 			/* Start the sync negotiation */
-			period = tinfo->goal.period;
-			ppr_options = 0;
-			ahc_devlimited_syncrate(ahc, &period, &ppr_options);
 			ahc->msgout_index = 0;
 			ahc->msgout_len = 0;
-			ahc_construct_sdtr(ahc, period, tinfo->goal.offset);
+			ahc_build_transfer_msg(ahc, devinfo);
 			ahc->msgout_index = 0;
 			response = 1;
 		}
@@ -2852,7 +2876,8 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 			 /*period*/0, /*offset*/0, /*ppr_options*/0,
 			 AHC_TRANS_CUR, /*paused*/TRUE);
 	
-	ahc_send_async(ahc, devinfo, AC_SENT_BDR);
+	ahc_send_async(ahc, devinfo->channel, devinfo->target,
+		       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
 
 	if (message != NULL
 	 && (verbose_level <= bootverbose))
@@ -3502,11 +3527,10 @@ ahc_controller_info(struct ahc_softc *ahc, char *buf)
 	buf += len;
 
 	if (ahc->flags & AHC_PAGESCBS)
-		len = sprintf(buf, "%d/%d SCBs",
-			      ahc->scb_data->maxhscbs, AHC_SCB_MAX);
+		sprintf(buf, "%d/%d SCBs",
+			ahc->scb_data->maxhscbs, AHC_SCB_MAX);
 	else
-		len = sprintf(buf, "%d SCBs", ahc->scb_data->maxhscbs);
-	buf += len;
+		sprintf(buf, "%d SCBs", ahc->scb_data->maxhscbs);
 }
 
 /*
@@ -4714,7 +4738,8 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 	}
 #endif
 	/* Notify the XPT that a bus reset occurred */
-	ahc_send_async(ahc, &devinfo, AC_BUS_RESET);
+	ahc_send_async(ahc, devinfo.channel, CAM_TARGET_WILDCARD,
+		       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
 
 	/*
 	 * Revert to async/narrow transfers until we renegotiate.
