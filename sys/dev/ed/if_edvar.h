@@ -27,6 +27,8 @@
  * $FreeBSD$
  */
 
+#ifndef SYS_DEV_ED_IF_EDVAR_H
+#define SYS_DEV_ED_IF_EDVAR_H
 /*
  * ed_softc: per line info and status
  */
@@ -206,3 +208,5 @@ void	ed_pio_writemem		__P((struct ed_softc *, char *,
 
 driver_intr_t	edintr;
 
+extern devclass_t ed_devclass;
+#endif /* SYS_DEV_ED_IF_EDVAR_H */

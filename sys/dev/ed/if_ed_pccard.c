@@ -61,33 +61,12 @@ static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 static int	ed_pccard_detach(device_t);
 
+static int	ed_pccard_Linksys(device_t dev);
+static int	ed_pccard_ax88190(device_t dev);
+
 static void	ax88190_geteprom(struct ed_softc *);
 static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
-static int	ed_pccard_Linksys(device_t dev);
 static int	linksys;
-
-static device_method_t ed_pccard_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	ed_pccard_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	ed_pccard_match),
-	DEVMETHOD(card_compat_probe,	ed_pccard_probe),
-	DEVMETHOD(card_compat_attach,	ed_pccard_attach),
-	{ 0, 0 }
-};
-
-static driver_t ed_pccard_driver = {
-	"ed",
-	ed_pccard_methods,
-	sizeof(struct ed_softc)
-};
-
-static devclass_t ed_pccard_devclass;
-
-DRIVER_MODULE(if_ed, pccard, ed_pccard_driver, ed_pccard_devclass, 0, 0);
 
 /*
  *      ed_pccard_detach - unload the driver and clear the table.
@@ -144,35 +123,11 @@ ed_pccard_match(device_t dev)
 static int
 ed_pccard_probe(device_t dev)
 {
-	struct	ed_softc *sc = device_get_softc(dev);
-	int	flags = device_get_flags(dev);
 	int	error;
+	int	flags = device_get_flags(dev);
 
 	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_AX88190) {
-		/* Special setup for AX88190 */
-		int iobase;
-
-		/* Allocate the port resource during setup. */
-		error = ed_alloc_port(dev, 0, ED_NOVELL_IO_PORTS);
-		if (error)
-			return (error);
-
-		sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
-		sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
-		sc->chip_type = ED_CHIP_TYPE_AX88190;
-
-		/*
-		 * Set Attribute Memory IOBASE Register
-		 */
-		iobase = rman_get_start(sc->port_res);
-		ed_pccard_memwrite(dev, ED_AX88190_IOBASE0,
-				   iobase & 0xff);
-		ed_pccard_memwrite(dev, ED_AX88190_IOBASE1,
-				   (iobase >> 8) & 0xff);
-		ax88190_geteprom(sc);
-
-		ed_release_resources(dev);
-		error = ed_probe_Novell(dev, 0, flags);
+		error = ed_pccard_ax88190(dev);
 		goto end2;
 	}
 
@@ -204,10 +159,10 @@ end2:
 static int
 ed_pccard_attach(device_t dev)
 {
-	struct ed_softc *sc = device_get_softc(dev);
-	int flags = device_get_flags(dev);
 	int error;
+	int	flags = device_get_flags(dev);
 	int i;
+	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
 	u_char ether_addr[ETHER_ADDR_LEN];
 	
@@ -245,13 +200,13 @@ ax88190_geteprom(struct ed_softc *sc)
 	struct {
 		unsigned char offset, value;
 	} pg_seq[] = {
-		{ED_P0_CR, ED_CR_RD2|ED_CR_STP},	/* Select Page0 */
+		{ED_P0_CR, ED_CR_RD2|ED_CR_STP},/* Select Page0 */
 		{ED_P0_DCR, 0x01},
-		{ED_P0_RBCR0, 0x00},	/* Clear the count regs. */
+		{ED_P0_RBCR0, 0x00},		/* Clear the count regs. */
 		{ED_P0_RBCR1, 0x00},
-		{ED_P0_IMR, 0x00},	/* Mask completion irq. */
+		{ED_P0_IMR, 0x00},		/* Mask completion irq. */
 		{ED_P0_ISR, 0xff},
-		{ED_P0_RCR, ED_RCR_MON | ED_RCR_INTT},	/* Set To Monitor */
+		{ED_P0_RCR, ED_RCR_MON | ED_RCR_INTT}, /* Set To Monitor */
 		{ED_P0_TCR, ED_TCR_LB0},	/* loopback mode. */
 		{ED_P0_RBCR0, 32},
 		{ED_P0_RBCR1, 0x00},
@@ -274,11 +229,6 @@ ax88190_geteprom(struct ed_softc *sc)
 	/* Get Data */
 	for (i = 0; i < 16; i++)
 		prom[i] = ed_asic_inb(sc, 0);
-/*
-	for (i = 0; i < 16; i++)
-		printf("ax88190 eprom [%02d] %02x %02x\n",
-			i,prom[i] & 0xff,prom[i] >> 8);
-*/
 	sc->arpcom.ac_enaddr[0] = prom[0] & 0xff;
 	sc->arpcom.ac_enaddr[1] = prom[0] >> 8;
 	sc->arpcom.ac_enaddr[2] = prom[1] & 0xff;
@@ -294,12 +244,15 @@ ed_pccard_memwrite(device_t dev, off_t offset, u_char byte)
 	struct resource *cis;
 
 	cis_rid = 0;
-	cis = bus_alloc_resource(dev, SYS_RES_MEMORY, &cis_rid, 0, ~0, 4 << 10, RF_ACTIVE | RF_SHAREABLE);
+	cis = bus_alloc_resource(dev, SYS_RES_MEMORY, &cis_rid, 0, ~0, 
+	    4 << 10, RF_ACTIVE | RF_SHAREABLE);
 	if (cis == NULL)
 		return (ENXIO);
-	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY, cis_rid, PCCARD_A_MEM_ATTR);
+	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
+	    cis_rid, PCCARD_A_MEM_ATTR);
 
-	bus_space_write_1(rman_get_bustag(cis), rman_get_bushandle(cis), offset, byte);
+	bus_space_write_1(rman_get_bustag(cis), rman_get_bushandle(cis),
+	    offset, byte);
 
 	bus_deactivate_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
 	bus_release_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
@@ -343,3 +296,56 @@ ed_pccard_Linksys(device_t dev)
 	sc->type_str = "Linksys";
 	return (1);
 }
+
+/*
+ * Special setup for AX88190
+ */
+static int
+ed_pccard_ax88190(device_t dev)
+{
+	int	error;
+	int	flags = device_get_flags(dev);
+	int	iobase;
+	struct	ed_softc *sc = device_get_softc(dev);
+
+	/* Allocate the port resource during setup. */
+	error = ed_alloc_port(dev, 0, ED_NOVELL_IO_PORTS);
+	if (error)
+		return (error);
+
+	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
+	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
+	sc->chip_type = ED_CHIP_TYPE_AX88190;
+
+	/*
+	 * Set Attribute Memory IOBASE Register
+	 */
+	iobase = rman_get_start(sc->port_res);
+	ed_pccard_memwrite(dev, ED_AX88190_IOBASE0, iobase & 0xff);
+	ed_pccard_memwrite(dev, ED_AX88190_IOBASE1, (iobase >> 8) & 0xff);
+	ax88190_geteprom(sc);
+	ed_release_resources(dev);
+	error = ed_probe_Novell(dev, 0, flags);
+	return (error);
+}
+
+static device_method_t ed_pccard_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_detach,	ed_pccard_detach),
+
+	/* Card interface */
+	DEVMETHOD(card_compat_match,	ed_pccard_match),
+	DEVMETHOD(card_compat_probe,	ed_pccard_probe),
+	DEVMETHOD(card_compat_attach,	ed_pccard_attach),
+	{ 0, 0 }
+};
+
+static driver_t ed_pccard_driver = {
+	"ed",
+	ed_pccard_methods,
+	sizeof(struct ed_softc)
+};
+
+DRIVER_MODULE(if_ed, pccard, ed_pccard_driver, ed_devclass, 0, 0);
