@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: dump.c,v 1.16 2001/03/21 17:41:13 jinmei Exp $	*/
+/*	$KAME: dump.c,v 1.32 2003/05/19 09:46:50 keiichi Exp $	*/
 
 /*
  * Copyright (C) 2000 WIDE Project.
@@ -93,7 +93,9 @@ if_dump()
 {
 	struct rainfo *rai;
 	struct prefix *pfx;
+#ifdef ROUTEINFO
 	struct rtinfo *rti;
+#endif
 	char prefixbuf[INET6_ADDRSTRLEN];
 	int first;
 	struct timeval now;
@@ -208,6 +210,7 @@ if_dump()
 			}
 			fprintf(fp, ")\n");
 		}
+#ifdef ROUTEINFO
 		for (first = 1, rti = rai->route.next; rti != &rai->route;
 		     rti = rti->next) {
 			if (first) {
@@ -226,6 +229,7 @@ if_dump()
 				fprintf(fp, "lifetime: %ld", (long)rti->ltime);
 			fprintf(fp, ")\n");
 		}
+#endif
 	}
 }
 

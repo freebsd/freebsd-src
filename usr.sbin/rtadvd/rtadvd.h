@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: rtadvd.h,v 1.16 2001/04/10 15:08:31 suz Exp $	*/
+/*	$KAME: rtadvd.h,v 1.26 2003/08/05 12:34:23 itojun Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.
@@ -45,9 +45,8 @@
 #define DEF_ADVVALIDLIFETIME 2592000
 #define DEF_ADVPREFERREDLIFETIME 604800
 
-/*XXX int-to-double comparison for INTERVAL items */
 #define MAXROUTERLIFETIME 9000
-#define MIN_MAXINTERVAL 4.0
+#define MIN_MAXINTERVAL 4
 #define MAX_MAXINTERVAL 1800
 #define MIN_MININTERVAL 3
 #define MAXREACHABLETIME 3600000
@@ -83,6 +82,7 @@ struct prefix {
 	struct in6_addr prefix;
 };
 
+#ifdef ROUTEINFO
 struct rtinfo {
 	struct rtinfo *prev;	/* previous link */
 	struct rtinfo *next;	/* forward link */
@@ -92,6 +92,7 @@ struct rtinfo {
 	int prefixlen;
 	struct in6_addr prefix;
 };
+#endif
 
 struct soliciter {
 	struct soliciter *next;
@@ -131,8 +132,10 @@ struct	rainfo {
 	int	pfxs;		/* number of prefixes */
 	long	clockskew;	/* used for consisitency check of lifetimes */
 
+#ifdef ROUTEINFO
 	struct rtinfo route;	/* route information option (link head) */
 	int	routes;		/* number of route information options */
+#endif
 
 	/* actual RA packet data and its length */
 	size_t ra_datalen;
