@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.6 1998/06/16 07:15:11 brian Exp $
+ *	$Id: prompt.c,v 1.7 1998/06/16 19:40:40 brian Exp $
  */
 
 #include <sys/param.h>
@@ -276,11 +276,12 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   }
 }
 
-static void
+static int
 prompt_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "prompt_Write: Internal error: Bad call !\n");
+  return 0;
 }
 
 struct prompt *
