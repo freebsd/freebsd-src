@@ -722,11 +722,15 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
     kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
 .endif
 
+.if exists(${.CURDIR}/rescue) && !defined(NORESCUE)
+_rescue= rescue/rescue
+.endif
+
 build-tools:
 .for _tool in \
     bin/csh \
     bin/sh \
-    rescue/rescue \
+    ${_rescue} \
     gnu/usr.bin/cc/cc_tools \
     ${_fortran} \
     ${_libkrb5} \
