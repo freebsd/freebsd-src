@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id$
+ *	$Id: vnode_pager.c,v 1.69 1997/02/22 09:48:42 peter Exp $
  */
 
 /*
@@ -976,7 +976,7 @@ vnode_pager_lock(object)
 		if (object->type != OBJT_VNODE)
 			continue;
 
-		vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, p);
+		vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY | LK_CANRECURSE, p);
 		return object->handle;
 	}
 	return NULL;
