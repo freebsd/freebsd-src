@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: pcivar.h,v 1.2 1997/08/21 06:54:09 smp Exp smp $
  *
  */
 
@@ -199,5 +199,6 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
 int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg, unsigned *maskptr);
 int pci_unmap_int (pcici_t tag);
 int pci_register_lkm (struct pci_device *dvp, int if_revision);
+void pci_configure (void);
 
 #endif /* PCI_COMPAT */
