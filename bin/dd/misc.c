@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: misc.c,v 1.13 1998/05/06 06:51:40 charnier Exp $";
+	"$Id: misc.c,v 1.14 1998/05/13 07:33:50 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -66,16 +66,16 @@ summary()
 		secs = 1e-6;
 	/* Use snprintf(3) so that we don't reenter stdio(3). */
 	(void)snprintf(buf, sizeof(buf),
-	    "%u+%u records in\n%u+%u records out\n",
+	    "%lu+%lu records in\n%lu+%lu records out\n",
 	    st.in_full, st.in_part, st.out_full, st.out_part);
 	(void)write(STDERR_FILENO, buf, strlen(buf));
 	if (st.swab) {
-		(void)snprintf(buf, sizeof(buf), "%u odd length swab %s\n",
+		(void)snprintf(buf, sizeof(buf), "%lu odd length swab %s\n",
 		     st.swab, (st.swab == 1) ? "block" : "blocks");
 		(void)write(STDERR_FILENO, buf, strlen(buf));
 	}
 	if (st.trunc) {
-		(void)snprintf(buf, sizeof(buf), "%u truncated %s\n",
+		(void)snprintf(buf, sizeof(buf), "%lu truncated %s\n",
 		     st.trunc, (st.trunc == 1) ? "block" : "blocks");
 		(void)write(STDERR_FILENO, buf, strlen(buf));
 	}
