@@ -149,7 +149,9 @@ r_debug_state(void)
 /*
  * The kernel symbol table starts here.
  */
+#ifndef __ia64__
 extern struct _dynamic _DYNAMIC;
+#endif
 
 static void
 link_elf_init(void* arg)
@@ -164,7 +166,11 @@ link_elf_init(void* arg)
     linker_add_class(&link_elf_class);
 
 #ifdef __ELF__
+#ifndef __ia64__
     dp = (Elf_Dyn*) &_DYNAMIC;
+#else
+    dp = 0;
+#endif
     if (dp) {
 	modname = NULL;
 	modptr = preload_search_by_type("elf kernel");
