@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.21 1999/02/05 02:46:21 mjacob Exp $";
+	"$Id: mt.c,v 1.20.2.1 1999/02/05 08:19:03 mjacob Exp $";
 #endif /* not lint */
 
 /*
@@ -123,6 +123,10 @@ struct commands {
 	{ "sethpos",    MTIOCHLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "setspos",    MTIOCSLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "errstat",	MTIOCERRSTAT, 0 },
+	{ "setmodel",	MTIOCSETEOTMODEL, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "seteotmodel",	MTIOCSETEOTMODEL, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "getmodel",	MTIOCGETEOTMODEL },
+	{ "geteotmodel",	MTIOCGETEOTMODEL },
 #endif /* defined(__FreeBSD__) */
 	{ NULL }
 };
@@ -286,6 +290,30 @@ main(argc, argv)
 			u_int32_t block = (u_int32_t)mt_com.mt_count;
 			if (ioctl(mtfd, comp->c_code, (caddr_t)&block) < 0)
 				err(2, "%s", tape);
+			exit(0);
+			/* NOTREACHED */
+		}
+		case MTIOCGETEOTMODEL:
+		{
+			u_int32_t om;
+			if (ioctl(mtfd, MTIOCGETEOTMODEL, (caddr_t)&om) < 0)
+				err(2, "%s", tape);
+			(void)printf("%s: the model is %u filemar%s at EOT\n",
+			    tape, om, (om > 1)? "ks" : "k");
+			exit(0);
+			/* NOTREACHED */
+		}
+		case MTIOCSETEOTMODEL:
+		{
+			u_int32_t om, nm = (u_int32_t)mt_com.mt_count;
+			if (ioctl(mtfd, MTIOCGETEOTMODEL, (caddr_t)&om) < 0)
+				err(2, "%s", tape);
+			if (ioctl(mtfd, comp->c_code, (caddr_t)&nm) < 0)
+				err(2, "%s", tape);
+			(void)printf("%s: old model was %u filemar%s at EOT\n",
+			    tape, om, (om > 1)? "ks" : "k");
+			(void)printf("%s: new model  is %u filemar%s at EOT\n",
+			    tape, nm, (nm > 1)? "ks" : "k");
 			exit(0);
 			/* NOTREACHED */
 		}
@@ -511,14 +539,19 @@ denstostring(int d)
 	static char buf[20];
 	struct densities *sd;
 
+	/* densities 0 and 0x7f are handled as special cases */
+	if (d == 0)
+		return "default";
+	if (d == 0x7f)
+		return "same";
 	for (sd = dens; sd->dens; sd++)
 		if (sd->dens == d)
 			break;
-	if (sd->dens == 0) {
+	if (sd->dens == 0)
 		sprintf(buf, "0x%02x", d);
-		return buf;
-	} else
-		return sd->name;
+	else 
+		sprintf(buf, "0x%02x:%s", d, sd->name);
+	return buf;
 }
 
 /*
@@ -584,7 +617,7 @@ comptostring(u_int32_t comp)
 			break;
 
 	if (ct->comp_number == 0xf0f0f0f0) {
-		sprintf(buf, "0x%2x", comp);
+		sprintf(buf, "0x%x", comp);
 		return(buf);
 	} else
 		return(ct->name);
@@ -606,14 +639,14 @@ stringtocomp(const char *s)
 void
 st_status(struct mtget *bp)
 {
-	printf("Mode      Density         Blocksize      bpi      "
+	printf("Mode      Density              Blocksize      bpi      "
 	       "Compression\n"
-	       "Current:  %-12s    %-12s   %-7d  %s\n"
+	       "Current:  %-17s    %-12s   %-7d  %s\n"
 	       "---------available modes---------\n"
-	       "0:        %-12s    %-12s   %-7d  %s\n"
-	       "1:        %-12s    %-12s   %-7d  %s\n"
-	       "2:        %-12s    %-12s   %-7d  %s\n"
-	       "3:        %-12s    %-12s   %-7d  %s\n",
+	       "0:        %-17s    %-12s   %-7d  %s\n"
+	       "1:        %-17s    %-12s   %-7d  %s\n"
+	       "2:        %-17s    %-12s   %-7d  %s\n"
+	       "3:        %-17s    %-12s   %-7d  %s\n",
 	       denstostring(bp->mt_density), getblksiz(bp->mt_blksiz),
 	       denstobp(bp->mt_density, TRUE), comptostring(bp->mt_comp),
 	       denstostring(bp->mt_density0), getblksiz(bp->mt_blksiz0),
