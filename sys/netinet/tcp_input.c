@@ -572,12 +572,12 @@ findpcb:
 
 #ifdef IPSEC
 	if (isipv6) {
-		if (inp != NULL && ipsec6_in_reject_so(m, inp->inp_socket)) {
+		if (inp != NULL && ipsec6_in_reject(m, inp)) {
 			ipsec6stat.in_polvio++;
 			goto drop;
 		}
 	} else {
-		if (inp != NULL && ipsec4_in_reject_so(m, inp->inp_socket)) {
+		if (inp != NULL && ipsec4_in_reject(m, inp)) {
 			ipsecstat.in_polvio++;
 			goto drop;
 		}

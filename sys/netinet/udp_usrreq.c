@@ -455,7 +455,7 @@ udp_append(last, ip, n, off)
 
 #ifdef IPSEC
 	/* check AH/ESP integrity. */
-	if (ipsec4_in_reject_so(n, last->inp_socket)) {
+	if (ipsec4_in_reject(n, last)) {
 		ipsecstat.in_polvio++;
 		m_freem(n);
 		return;
