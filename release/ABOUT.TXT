@@ -1,96 +1,133 @@
-About FreeBSD:
---------------
+=============
+About FreeBSD
+=============
 
-What is FreeBSD?  FreeBSD is an operating system based on 4.4 BSD Lite
-for Intel, AMD, Cyrix or NexGen "x86" based PC hardware.  It works
-with a very wide variety of PC peripherals and configurations and can
-be used for everything from software development to Internet Service
-Provision.
+What is FreeBSD?  FreeBSD is an operating system based on 4.4 
+BSD Lite for Intel, AMD, Cyrix or NexGen "x86" based PC hardware.
+It works with a very wide variety of PC peripherals and 
+configurations and can be used for everything from software 
+development to providing professional internet services.
 
-This release of FreeBSD contains everything you need to run such a
-system, including full source code for everything.  With the source
-distribution installed you can literally recompile the entire system
-from scratch with one command, making it ideal for students,
-researchers or folks who simply want to see how it all works.
+This release of FreeBSD contains everything you need to run such
+a system, including full source code for everything.  With the
+source distribution installed you can literally recompile the
+entire system from scratch with one command, making it ideal for
+students, researchers or folks who simply want to see how it 
+all works.
 
-A large collection of 3rd party ported software (the "ports
-collection") is also provided to make it easier for you to obtain and
-install all your favorite traditional UNIX utilities for FreeBSD.
-Over 1000 ports, from editors to programming languages to graphical
-applications, make FreeBSD a powerful and comprehensive operating
-environment that extends far beyond what's provided by many commercial
-versions of UNIX.
+A large collection of ported 3rd party software (the "ports
+collection") is also provided to make it easier for you to
+obtain and install all your favorite traditional UNIX utilities
+for FreeBSD. Over 1300 ports, from editors to programming
+languages to graphical applications, make FreeBSD a powerful and
+comprehensive operating environment that extends far beyond that
+provided by many commercial versions of UNIX.
 
-For more documentation on this system it is recommended that you
-purchase the 4.4BSD Document Set from O'Reilly Associates and the
-USENIX Association, ISBN 1-56592-082-1.  We have no connection with
-O'Reilly, we're just satisfied customers!
+If you are interested in more documentation on this system we
+recommended that you purchase the 4.4BSD Document Set from
+O'Reilly Associates and the USENIX Association, 
+ISBN 1-56592-082-1.  If you are a developer, "The Design and
+Implementation of the 4.4 BSD Operating System" by McKusick,
+Bostic, Karels & Quarterman, Addison-Wesley ISBN 0-201-54979-4,
+is also a worth-while purchase.
 
-If you're new to FreeBSD then you should also read EVERYTHING listed
-in the Documentation menu on the boot floppy.  It may seem like a lot
-to read, but you should at least acquaint yourself with the types of
-information available should you later get stuck.  Once the system is
-installed, you can also revisit this menu and use a WEB browser to
-read the installed FAQ (Frequently Asked Questions) and Handbook HTML
-documentation sets for FreeBSD.  You can also use the browser to visit
-other WEB sites on the net (such as http://www.freebsd.org) if you
-have an Internet connection.
-
-DISCLAIMER: While FreeBSD does its best to safeguard against
-accidental loss of data, it's still more than possible to WIPE OUT
-YOUR ENTIRE DISK with this installation!  Please do not proceed to the
-final FreeBSD installation menu unless you've adequately backed up any
-important data first!  We really mean it!
+We have no connection with O'Reilly or Addison-Wesley, we're simply
+satisfied customers!
 
 
-E-mail addresses and tech support info:
----------------------------------------
+=========================================
+Contact and technical support information
+=========================================
+
+Your suggestions, bug reports and contributions of code are
+always valued. Please do not hesitate to report any problems
+you may find (preferably with a fix attached, if you can :).
+
+Questions
+---------
 
 For general questions, please send email to :
 
-        freebsd-questions@FreeBSD.org
+        freebsd-questions@freebsd.org
 
-Please also have patience if your questions are not answered right
-away - this mailing list is staffed purely by volunteers and they also
-have real life schedules to contend with.  Questions which are asked
-intelligently (e.g. not "My system doesn't work!  What's wrong!?")
-also stand a far greater chance of being answered. If your question
-does not contain enough information to allow the responder to generate
-a meaningful answer, they generally won't.
+Please have patience if your questions are not answered as soon
+as you might want. This mailing list is staffed solely by
+volunteers and they have real life schedules to contend with.
+Questions which are asked intelligently (e.g. not "My system
+doesn't work!  What's wrong!?") also stand a far greater chance
+of being answered. If your question does not contain enough
+information to allow the responder to generate a meaningful
+answer, they generally won't. An informative subject line will
+help the people who answer the questions pick out questions
+they are knowledgeable about to answer. 
 
-Bug reports submitted with the send-pr command are also logged and
-tracked in our bugs database, and you'll be kept informed of any
-changes in status during the life of the bug (or feature request).
+Comments and offers of help
+---------------------------
 
-Technical comments on this release should be sent (in English!) to:
+Since we are a volunteer effort, we are always happy to have
+extra hands willing to help. There are already far more desired
+enhancements than we'll ever be able to manage by ourselves!  To
+contact us on technical matters or with offers of help, send
+mail (in English please) to:
 
         freebsd-hackers@FreeBSD.org
 
-Bug reports should be sent using the `send-pr' command or the Web page
-at http://www.freebsd.org/send-pr.html.  If you cannot use either of
-these two methods, you may also send mail to:
+Bugs
+----
+
+The preferred method to submit bug reports from a machine with
+Internet mail connectivity is to use the send-pr command. If
+that's not possible you can use the CGI script at
+http://www.freebsd.org/send-pr.html.
+
+Bug reports will be handled by our faithful bugfiler program and
+you can be sure that we'll do our best to respond to all
+reported bugs as soon as possible.  Bugs filed in this way are
+also visible on our WEB site in the support section and are
+therefore valuable both as bug reports and as "signposts" for
+other users concerning potential problems to watch out for.
+
+If you cannot use either of these two methods, you can send
+mail to:
 
         freebsd-bugs@FreeBSD.org
 
-
 PLEASE ALSO BE SURE TO INDICATE WHICH VERSION OF FREEBSD YOU'RE
-RUNNING IN ANY BUG REPORTS OR QUESTIONS!
+RUNNING IN ALL BUG REPORTS OR QUESTIONS!
 
 Sorry for the use of caps, but you'd be amazed at how many times
-people forget this and there are many different release versions of
-FreeBSD out there now.  It's imperative that we know what you're
-running so that we tell if you're suffering from a bug which has
-already been fixed.
+people forget this and there are many different release versions
+of FreeBSD out there now.  It's imperative that we know what
+you're running so that we tell if you're suffering from a bug
+which has already been fixed.
 
+General Information
+-------------------
 
-WWW Resources:
---------------
+Please note that these mailing lists can experience *significant*
+amounts of traffic and if you have slow or expensive mail
+access and are only interested in keeping up with significant
+FreeBSD events, you may find it preferable to subscribe to:
 
-Our WEB site, http://www.freebsd.org, is also a very good source for
-updated information and provides a number of advanced documentation
-searching facilities.  If you wish to use Netscape as your browser,
-simply select it from the packages menu during installation or run
-"/stand/sysinstall configPackages" after the system is up.
+                freebsd-announce@FreeBSD.org
+
+It also goes almost without saying that proper etiquette and
+topic discipline is essential to making sure that the FreeBSD
+mailing lists continue to be viable forums for communication,
+and your cooperation in this is kindly requested.  Please read
+the mailing list usage charters at:
+       http://www.freebsd.org/handbook/eresources.html
+before posting to the FreeBSD mailing lists.
+
+WWW Resources
+-------------
+
+Our WEB site, http://www.freebsd.org, is also a very good source
+for updated information and provides a number of advanced
+documentation searching facilities.  If you wish to use Netscape
+as your browser, simply select it from the packages menu during
+installation or run "/stand/sysinstall configPackages" after the
+system is up.
 
 Several other non-commercial browsers are also available in
 the ports & package collection under the www category.
@@ -100,99 +137,109 @@ The Handbook and FAQ are also available as on-line documents in
 syntax with any HTML capable browser.
 
 
-Distribution format:
---------------------
+=================
+Obtaining FreeBSD
+=================
 
-A typical FreeBSD distribution directory looks something like this:
+You may obtain FreeBSD in a variety of ways:
 
-ABOUT.TXT       bin             dict            manpages        tools
-HARDWARE.TXT    compat1x        des		doc             packages
-INSTALL.TXT     compat20        floppies        ports
-README.TXT      compat21        games           proflibs
-RELNOTES.TXT    info            src
-XF86332
+FTP/Mail
+--------
 
-If you want to do a CDROM, FTP or NFS installation from this
-distribution directory, all you need to do is make a 1.44Mb floppy
-from the floppies/boot.flp image file (see floppies/README.TXT for
-instructions on how to do this), boot it and follow the instructions.
+You can ftp FreeBSD and any or all of its optional packages from
+`ftp.freebsd.org' - the official FreeBSD release site.
 
-If you're trying to do some other type of installation or are merely
-curious about how a distribution is organized, what follows is a more
-thorough description of each item in more detail:
+For other locations that mirror the FreeBSD software see the
+file MIRROR.SITES.  Please ftp the distribution from the site
+closest (in networking terms) to you.  Additional mirror sites
+are always welcome! Contact freebsd-admin@FreeBSD.org for more
+details if you'd like to become an official mirror site.
 
-1. The *.TXT files obviously contain documentation (ABOUT.TXT being what
-   you're reading now) and should be read before doing an installation.
+If you do not have access to the Internet and electronic mail is
+your only recourse, then you may still fetch the files by
+sending mail to `ftpmail@ftpmail.vix.com' - putting the keyword
+"help" in your message to get more information on how to fetch
+files using this mechanism.
 
-2. The XF86332 directory contains the XFree86 project's 3.3.2 release and
-   consists of a series of gzip'd tar files which contain each component
-   of the XFree86 distribution.
+Please do note, however, that this will end up sending many
+*tens of megabytes* through the mail and should only be employed
+as an absolute LAST resort!
 
-3. The bin, dict, des, doc, games, info, manpages, proflibs, and src
-   directories contain the primary distribution components of FreeBSD
-   itself and are split into smaller files for easy packing onto floppies
-   (should that be necessary).
+CDROM
+-----
 
-4. The compat1x, compat20 and compat21 directories contain distributions
-   for compatibility with older releases and are distributed as single
-   gzip'd tar files - they can be installed during release time or later
-   by running their `install.sh' scripts.
+FreeBSD 2.2.x-RELEASE and 3.0-SNAPSHOT CDs may be ordered on
+CDROM from:
 
-5. The floppies subdirectory also contains the floppy installation images
-   and the floppies/README.TXT file should be read for further
-   information on using them.
+        Walnut Creek CDROM
+        4041 Pike Lane, Suite F
+        Concord CA  94520
+        1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (fax)
 
-6. The packages and ports directories contain the FreeBSD packages and
-   ports collections.  Packages may be installed from the packages
-   directory by running the command: ``/stand/sysinstall configPackages''
-   or by feeding individual filenames in packages/ to the pkg_add(1) command.
+Or via the Internet from orders@cdrom.com or
+http://www.cdrom.com. Their current catalog can be obtained via
+ftp from: ftp://ftp.cdrom.com/cdrom/catalog.
 
-   The ports collection may be installed like any other distribution
-   and requires about 15MB unpacked.  More information on the ports collection
-   may be obtained from http://www.freebsd.org/ports or locally from
-   file:/usr/share/doc/handbook if you've installed the doc distribution.
+Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD
+subscription. FreeBSD 3.0-SNAP CDs are $29.95 or $14.95 with
+a FreeBSD-SNAP subscription (-RELEASE and -SNAP subscriptions
+are entirely separate).  With a subscription, you will
+automatically receive updates as they are released. Your
+credit card will be billed when each disk is shipped and
+you may cancel your subscription at any time without further
+obligation.
 
-7. Last of all, the tools directory contains various DOS tools for
-   discovering disk geometries, installing boot managers and the like.
-   It is purely optional and provided only for user convenience.
+Shipping (per order not per disc) is $5 in the US, Canada or
+Mexico and $9.00 overseas.  They accept Visa, Mastercard,
+Discover, American Express or checks in U.S. Dollars and ship
+COD within the United States.  California residents please add
+8.25% sales tax.
 
-A typical distribution (we'll use the info distribution as an example)
-looks like this internally:
-
-CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
-info.aa         info.ac         info.ae         info.mtree
-
-The CHECKSUM.MD5 file contains MD5 signatures for each file, should
-data corruption be suspected, and is purely for reference - it is not
-used by the actual installation and does not need to be copied with
-the rest of the distribution files.  The info.a* files are split,
-gzip'd tar files, the contents of which can be viewed by doing:
-
-	cat info.a* | tar tvzf -
-
-During installation, they are automatically concatenated and extracted
-by the installation procedure.
-
-The info.inf file is also necessary since it is read by the installation
-program in order to figure out how many pieces to look for when fetching and
-concatenating the distribution.  When putting distributions onto floppies,
-the .inf file MUST occupy the first floppy of each distribution set!
-
-The info.mtree file is another non-essential file which is provided
-for user reference.  It contains the MD5 signatures of the *unpacked*
-distribution files and can be later used with the mtree(1) program
-to verify the installation permissions and checksums against any possible
-modifications to the file.  When used with the bin distribution, this can
-be an excellent way of detecting trojan horse attacks on your system.
-
-Finally, the install.sh file is for use by those who want to install the
-distribution after installation time.  To install the info distribution from
-CDROM after a system was installed, for example, you'd do:
-
-		cd /cdrom/info
-		sh install.sh
-
-And that's all there is to it!  Each distribution contains its own
-install.sh file for this.
+Should you be dissatisfied for any reason, the CD comes with an
+unconditional return policy.
 
 
+================
+Acknowledgments
+================
+
+FreeBSD represents the cumulative work of many dozens, if not
+hundreds, of individuals from around the world who have worked
+very hard to bring you this release.  For a complete list of
+FreeBSD project staffers, please see:
+
+        http://www.freebsd.org/handbook/staff.html
+
+or, if you've loaded the doc distribution:
+
+        file:/usr/share/doc/handbook/staff.html
+
+Additional FreeBSD helpers and beta testers:
+
+        Coranth Gryphon            Dave Rivers 
+        Kaleb S. Keithley          Terry Lambert
+        David Dawes                Don Lewis
+
+Special mention to:
+
+ Walnut Creek CDROM, without whose help (and continuing support)
+  this release would never have been possible.
+
+ Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
+  drive.
+
+ Chuck Robey for his donation of a floppy tape streamer for
+  testing.
+
+ Larry Altneu and Wilko Bulte for providing us with Wangtek
+  and Archive QIC-02 tape drives for testing and driver hacking.
+
+ Everyone at Montana State University for their initial support.
+
+ And to the many thousands of FreeBSD users and testers all over
+  the world, without whom this release simply would not have
+  been possible.
+
+We sincerely hope you enjoy this release of FreeBSD!
+
+                        The FreeBSD Project
