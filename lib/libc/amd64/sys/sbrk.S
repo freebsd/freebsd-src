@@ -47,48 +47,26 @@ __FBSDID("$FreeBSD$");
 	.globl	HIDENAME(curbrk)
 
 	.data
-HIDENAME(minbrk):	.long	CNAME(_end)
-HIDENAME(curbrk):	.long	CNAME(_end)
+HIDENAME(minbrk):	.quad	CNAME(_end)
+HIDENAME(curbrk):	.quad	CNAME(_end)
 	.text
 
 ENTRY(sbrk)
-#ifdef PIC
-	movl	4(%esp),%ecx
-	PIC_PROLOGUE
-	movl	PIC_GOT(HIDENAME(curbrk)),%edx
-	movl	(%edx),%eax
-	PIC_EPILOGUE
-	testl	%ecx,%ecx
+	pushq	%rdi
+	movq	%rdi,%rcx
+	movq	PIC_GOT(HIDENAME(curbrk)),%rax
+	testq	%rcx,%rcx
 	jz	back
-	addl	%eax,4(%esp)
+	addq	%rax,%rdi
 	mov	$SYS_break,%eax
 	KERNCALL
 	jb	err
-	PIC_PROLOGUE
-	movl	PIC_GOT(HIDENAME(curbrk)),%edx
-	movl	(%edx),%eax
-	addl	%ecx,(%edx)
-	PIC_EPILOGUE
+	movq	PIC_GOT(HIDENAME(curbrk)),%rax
+	movq	0(%rsp), %rcx
+	addq	%rcx,PIC_GOT(HIDENAME(curbrk))
 back:
+	addq	$8, %rsp
 	ret
 err:
-	PIC_PROLOGUE
+	addq	$8, %rsp
 	jmp	PIC_PLT(HIDENAME(cerror))
-
-#else /* !PIC */
-
-	movl	4(%esp),%ecx
-	movl	HIDENAME(curbrk),%eax
-	testl	%ecx,%ecx
-	jz	back
-	addl	%eax,4(%esp)
-	mov	$SYS_break,%eax
-	KERNCALL
-	jb	err
-	movl	HIDENAME(curbrk),%eax
-	addl	%ecx,HIDENAME(curbrk)
-back:
-	ret
-err:
-	jmp	HIDENAME(cerror)
-#endif /* PIC */
