@@ -1,0 +1,6 @@
+#!/bin/sh
+#
+# This script is invoked by yppasswdd to update the password
+# maps after the master password file has been modified.
+
+cd /var/yp; make
