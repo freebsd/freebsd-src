@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lpc.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpc.c,v 1.8 1998/09/11 18:49:31 wollman Exp $";
+	"$Id: lpc.c,v 1.9 1999/08/19 03:29:13 mdodd Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -165,6 +165,7 @@ cmdscanner()
 				el_set(el, EL_EDITOR, "emacs");
 				el_set(el, EL_PROMPT, lpc_prompt);
 				el_set(el, EL_SIGNAL, 1);
+				el_source(el, NULL);
 			}
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				return;

@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cdcontrol.c,v 1.18 1999/01/31 15:30:21 billf Exp $";
+	"$Id: cdcontrol.c,v 1.19 1999/08/19 03:29:11 mdodd Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -950,6 +950,7 @@ input (int *cmd)
 				el_set(el, EL_EDITOR, "emacs");
 				el_set(el, EL_PROMPT, cdcontrol_prompt);
 				el_set(el, EL_SIGNAL, 1);
+				el_source(el, NULL);
 			}
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				return (0);
