@@ -262,6 +262,15 @@
 #define PCIC_VS1B	0x04
 #define PCIC_VS2B	0x08
 
+/* Cirrus Logic: Extended register Extension Control 1 */
+#define PCIC_EXTCTRL1	0x03
+#define PCIC_EC1_VCC_LOCK 0x1		/* Vcc Power locked to s/w change */
+#define PCIC_EC1_AUTO_POWER_CLEAR 0x2	/* Vcc power cleared on eject? */
+#define PCIC_EC1_LED_ENABLE 0x4		/* LED activity enable */
+#define PCIC_EC1_CARD_IRQ_INV 0x8	/* Card IRQ level inverted for pci? */
+#define PCIC_EC1_CSC_IRQ_INV 0x10	/* CSC IRQ level inverted for pci? */
+#define PCIC_EC1_PULLUP 0x20		/* Dis pullup when 1. */
+
 /* Vadem: Card Voltage Select register (PCIC_CVSR) */
 #define PCIC_CVSR_VS	0x03		/* Voltage select */
 #define PCIC_CVSR_VS_5	0x00		/* 5.0 V */
