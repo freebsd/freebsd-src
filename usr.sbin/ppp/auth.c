@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.14 1997/06/09 03:27:13 brian Exp $
+ * $Id: auth.c,v 1.15 1997/08/25 00:29:05 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -34,22 +34,22 @@
 extern FILE *OpenSecret();
 extern void CloseSecret();
 
-LOCAL_AUTH_VALID
+void
 LocalAuthInit()
 {
-
   char *p;
 
   if (gethostname(VarShortHost, sizeof(VarShortHost))) {
-    return (NOT_FOUND);
+    VarLocalAuth = LOCAL_DENY;
+    return;
   }
+
   p = strchr(VarShortHost, '.');
   if (p)
     *p = '\0';
 
-  VarLocalAuth = LOCAL_NO_AUTH;
-  return LocalAuthValidate(SECRETFILE, VarShortHost, "");
-
+  VarLocalAuth = LocalAuthValidate(SECRETFILE, VarShortHost, "") == NOT_FOUND ?
+    LOCAL_DENY : LOCAL_NO_AUTH;
 }
 
 LOCAL_AUTH_VALID
@@ -57,8 +57,8 @@ LocalAuthValidate(char *fname, char *system, char *key)
 {
   FILE *fp;
   int n;
-  char *vector[20];		/* XXX */
-  char buff[200];		/* XXX */
+  char *vector[3];
+  char buff[200];
   LOCAL_AUTH_VALID rc;
 
   rc = NOT_FOUND;		/* No system entry */
@@ -74,7 +74,8 @@ LocalAuthValidate(char *fname, char *system, char *key)
     if (n < 1)
       continue;
     if (strcmp(vector[0], system) == 0) {
-      if (vector[1] != (char *) NULL && strcmp(vector[1], key) == 0) {
+      if ((vector[1] == (char *) NULL && (key == NULL || *key == '\0')) ||
+          (vector[1] != (char *) NULL && strcmp(vector[1], key) == 0)) {
 	rc = VALID;		/* Valid   */
       } else {
 	rc = INVALID;		/* Invalid */
@@ -91,7 +92,7 @@ AuthValidate(char *fname, char *system, char *key)
 {
   FILE *fp;
   int n;
-  char *vector[20];
+  char *vector[4];
   char buff[200];
   char passwd[100];
 
@@ -134,7 +135,7 @@ AuthGetSecret(char *fname, char *system, int len, int setaddr)
 {
   FILE *fp;
   int n;
-  char *vector[20];
+  char *vector[4];
   char buff[200];
   static char passwd[100];
 

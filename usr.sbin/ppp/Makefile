@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.22 1997/06/25 19:29:58 brian Exp $
+#	$Id: Makefile,v 1.23 1997/08/31 20:18:03 brian Exp $
 
 PROG=	ppp
 SRCS=	alias_cmd.c arp.c async.c auth.c ccp.c chap.c chat.c command.c \
@@ -11,6 +11,6 @@ DPADD+= ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
 MAN8=	ppp.8
 BINMODE=4550
 BINOWN=	root
-BINGRP=	ppp
+BINGRP=	network
 
 .include <bsd.prog.mk>
