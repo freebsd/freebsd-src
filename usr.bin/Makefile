@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.73.2.11 1998/01/12 05:08:47 obrien Exp $
+#	$Id$
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -27,14 +27,13 @@ SUBDIR=	apply ar at banner basename biff brandelf c89 calendar \
 	write xargs xinstall xlint xstr yacc yes ypcat ypmatch ypwhich
 SUBDIR+=gprof4 minigzip
 
-.if !exists(${.CURDIR}/../eBones) || defined(NOSECURE) || !defined(MAKE_EBONES)
+.if !(exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto)) || defined(NOSECURE) || !defined(MAKE_KERBEROS4)
 SUBDIR+=telnet
 .else
 .if defined(RELEASEDIR)
 # releases do need both
 SUBDIR+=telnet
 .endif
-SUBDIR+= ../eBones/usr.bin/telnet
 .endif
 
 # Cmp, look and tail all use mmap, so new-VM only.
