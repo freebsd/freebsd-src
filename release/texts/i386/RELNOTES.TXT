@@ -98,6 +98,10 @@ syslog(3) to log all messages to /var/log/security.
 Driver support has been added for PCI fast ethernet adapters based on
 the Silicon Integrated Systems SiS 900 and SiS 7016 ethernet controllers.
 
+Driver support has been added for PCI fast ethernet adapters based on
+the Davicom DM9100 and DM9102 ethernet controllers, including the Jaton
+Corporation XpressNet.
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -333,6 +337,10 @@ DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 DEC FDDI (DEFPA/DEFEA) NICs
+
+Davicom DM9100 and DM9102 PCI fast ethernet NICs, including the
+following:
+  Jaton Corporation XpressNet
 
 Fujitsu MB86960A/MB86965A
 

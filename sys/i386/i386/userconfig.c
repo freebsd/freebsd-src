@@ -404,6 +404,7 @@ static DEV_INFO device_info[] = {
 {"al",          "ADMtek AL981 ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"ax",          "ASIX AX88140A ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
+{"dm",          "Davicom DM910x Ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 {"rl",          "RealTek 8129/8139 ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"mx",          "Macronix PMAC ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
