@@ -816,24 +816,6 @@ slab_zalloc(uma_zone_t zone, int wait)
 
 	slab->us_zone = zone;
 	slab->us_data = mem;
-
-	/*
-	 * This is intended to spread data out across cache lines.
-	 *
-	 * This code doesn't seem to work properly on x86, and on alpha
-	 * it makes absolutely no performance difference. I'm sure it could
-	 * use some tuning, but sun makes outrageous claims about its
-	 * performance.
-	 */
-#if 0
-	if (zone->uz_cachemax) {
-		slab->us_data += zone->uz_cacheoff;
-		zone->uz_cacheoff += UMA_CACHE_INC;
-		if (zone->uz_cacheoff > zone->uz_cachemax)
-			zone->uz_cacheoff = 0;
-	}
-#endif
-	
 	slab->us_freecount = zone->uz_ipers;
 	slab->us_firstfree = 0;
 	slab->us_flags = flags;
@@ -1146,7 +1128,6 @@ zone_ctor(void *mem, int size, void *udata)
 	 */
 	if (!(zone->uz_flags & UMA_ZONE_OFFPAGE)) {
 		int totsize;
-		int waste;
 
 		/* Size of the slab struct and free list */
 		totsize = sizeof(struct uma_slab) + zone->uz_ipers;
@@ -1154,21 +1135,6 @@ zone_ctor(void *mem, int size, void *udata)
 			totsize = (totsize & ~UMA_ALIGN_PTR) +
 			    (UMA_ALIGN_PTR + 1);
 		zone->uz_pgoff = UMA_SLAB_SIZE - totsize;
-
-		waste = zone->uz_pgoff;
-		waste -= (zone->uz_ipers * zone->uz_rsize);
-
-		/*
-		 * This calculates how much space we have for cache line size
-		 * optimizations.  It works by offseting each slab slightly.
-		 * Currently it breaks on x86, and so it is disabled.
-		 */
-
-		if (zone->uz_align < UMA_CACHE_INC && waste > UMA_CACHE_INC) {
-			zone->uz_cachemax = waste - UMA_CACHE_INC;
-			zone->uz_cacheoff = 0;
-		} 
-
 		totsize = zone->uz_pgoff + sizeof(struct uma_slab)
 		    + zone->uz_ipers;
 		/* I don't think it's possible, but I'll make sure anyway */
@@ -2069,27 +2035,11 @@ uma_prealloc(uma_zone_t zone, int items)
 void
 uma_reclaim(void)
 {
-	/*
-	 * You might think that the delay below would improve performance since
-	 * the allocator will give away memory that it may ask for immediately.
-	 * Really, it makes things worse, since cpu cycles are so much cheaper
-	 * than disk activity.
-	 */
-#if 0
-	static struct timeval tv = {0};
-	struct timeval now;
-	getmicrouptime(&now);
-	if (now.tv_sec > tv.tv_sec + 30)
-		tv = now;
-	else
-		return;
-#endif
 #ifdef UMA_DEBUG
 	printf("UMA: vm asked us to release pages!\n");
 #endif
 	bucket_enable();
 	zone_foreach(zone_drain);
-
 	/*
 	 * Some slabs may have been freed but this zone will be visited early
 	 * we visit again so that we can free pages that are empty once other
