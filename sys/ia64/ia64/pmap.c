@@ -360,9 +360,12 @@ pmap_bootstrap()
 	 * physical memory and try to locate a region which is large
 	 * enough to contain the VHPT (which must be a power of two in
 	 * size and aligned to a natural boundary).
+	 * Don't use the difference between avail_start and avail_end
+	 * as a measure for memory size. The address space is often
+	 * enough sparse, causing us to (try to) create a huge VHPT.
 	 */
 	vhpt_size = 15;
-	while ((1<<vhpt_size) < ia64_btop(avail_end - avail_start) * 32)
+	while ((1<<vhpt_size) < ia64_btop(Maxmem) * 32)
 		vhpt_size++;
 
 	vhpt_base = 0;
@@ -451,13 +454,6 @@ pmap_bootstrap()
 	 */
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
-			 
-	/*
-	 * Set up proc0's PCB.
-	 */
-#if 0
-	thread0.td_pcb->pcb_hw.apcb_asn = 0;
-#endif
 
 	/*
 	 * Reserve some memory for allocating pvs while bootstrapping
