@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.2 1994/08/02 07:43:34 davidg Exp $
+# $Id: vnode_if.sh,v 1.3 1995/07/07 13:41:27 davidg Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -372,27 +372,6 @@ static inline int VOP_BWRITE(bp)
 	a.a_bp = bp;
 	return (VCALL((bp)->b_vp, VOFFSET(vop_bwrite), &a));
 }
-
-struct vop_link_args {
-	struct vnodeop_desc *a_desc;
-	struct vnode *a_vp;
-	struct vnode *a_tdvp;
-	struct componentname *a_cnp;
-};
-extern struct vnodeop_desc vop_link_desc;
-static inline int VOP_LINK(vp, tdvp, cnp)
-	struct vnode *vp;
-	struct vnode *tdvp;
-	struct componentname *cnp;
-{
-	struct vop_link_args a;
-
-	a.a_desc = VDESC(vop_link);
-	a.a_vp = vp;
-	a.a_tdvp = tdvp;
-	a.a_cnp = cnp;
-	return (VCALL(tdvp, VOFFSET(vop_link), &a));
-}
 END_OF_SPECIAL_CASES
 
 cat << END_OF_SPECIAL_CASES >> $CFILE
@@ -424,22 +403,6 @@ struct vnodeop_desc vop_bwrite_desc = {
 	VDESC_NO_OFFSET,
 	NULL,
 };
-int vop_link_vp_offsets[] = {
-	VOPARG_OFFSETOF(struct vop_link_args,a_vp),
-	VOPARG_OFFSETOF(struct vop_link_args,a_tdvp),
-	VDESC_NO_OFFSET
-};
-struct vnodeop_desc vop_link_desc = {
-	0,
-	"vop_link",
-	VDESC_VP1_WILLRELE,
-	vop_link_vp_offsets,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	VOPARG_OFFSETOF(struct vop_link_args,a_cnp),
-	NULL,
-};
 END_OF_SPECIAL_CASES
 
 # Add the vfs_op_descs array to the C file.
@@ -449,7 +412,6 @@ $AWK '
 		printf("\t&vop_default_desc,	/* MUST BE FIRST */\n");
 		printf("\t&vop_strategy_desc,	/* XXX: SPECIAL CASE */\n");
 		printf("\t&vop_bwrite_desc,	/* XXX: SPECIAL CASE */\n");
-		printf("\t&vop_link_desc, 	/* XXX: SPECIAL CASE */\n");
 	}
 	END {
 		printf("\tNULL\n};\n");

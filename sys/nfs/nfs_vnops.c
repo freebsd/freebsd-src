@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.21 1995/07/24 12:50:49 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.22 1995/07/24 16:38:05 dfr Exp $
  */
 
 /*
@@ -1646,14 +1646,14 @@ nfs_renamerpc(fdvp, fnameptr, fnamelen, tdvp, tnameptr, tnamelen, cred, proc)
 int
 nfs_link(ap)
 	struct vop_link_args /* {
-		struct vnode *a_vp;
 		struct vnode *a_tdvp;
+		struct vnode *a_vp;
 		struct componentname *a_cnp;
 	} */ *ap;
 {
 #if defined(__NetBSD__)
 	/*
-	* Since the args are reversed in the VOP_LINK() calls,
+	 * Since the args are reversed in the VOP_LINK() calls,
 	 * switch them back. Argh!
 	 */
 	register struct vnode *vp = ap->a_tdvp;
