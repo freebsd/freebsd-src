@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.10 1998/10/06 14:18:40 dfr Exp $
+ *	$Id: cia.c,v 1.11 1998/11/15 18:25:16 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -104,6 +104,7 @@
 #include <machine/bwx.h>
 #include <machine/swiz.h>
 #include <machine/intr.h>
+#include <machine/intrcnt.h>
 #include <machine/cpuconf.h>
 #include <machine/rpb.h>
 #include <machine/resource.h>
@@ -718,8 +719,9 @@ cia_init()
 		chipset = cia_bwx_chipset;
 	cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
 
-#if 0
+#if 1
 	chipset = cia_swiz_chipset; /* XXX */
+	cia_ispyxis = 0;
 #endif
 
 	if (platform.pci_intr_init)
@@ -825,7 +827,6 @@ cia_setup_intr(device_t dev, device_t child,
 	       struct resource *irq,
 	       driver_intr_t *intr, void *arg, void **cookiep)
 {
-	struct alpha_intr *i;
 	int error;
 	
 	error = rman_activate_resource(irq);
@@ -833,7 +834,8 @@ cia_setup_intr(device_t dev, device_t child,
 		return error;
 
 	error = alpha_setup_intr(0x900 + (irq->r_start << 4),
-				 intr, arg, cookiep);
+			intr, arg, cookiep,
+			&intrcnt[INTRCNT_EB164_IRQ + irq->r_start]);
 	if (error)
 		return error;
 
