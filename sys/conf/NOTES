@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.408 1998/02/16 23:57:35 eivind Exp $
+#	$Id: LINT,v 1.409 1998/02/18 13:43:40 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -692,14 +692,14 @@ options		PPS_SYNC
 # configure cards from USERCONFIG.  See pnp(4) for more info.
 controller	pnp0
 
-# Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
+# The pcvt console driver (vt220 compatible).
 device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 options		XSERVER			# support for running an X server.
 options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
 options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 
-# The syscons console driver (sco color console compatible) - default.
+# The syscons console driver (sco color console compatible).
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 options		MAXCONS=16		# number of virtual consoles
 options		SLOW_VGA		# do byte-wide i/o's to TS and GDC regs
@@ -1068,16 +1068,13 @@ device awe0     at isa? port 0x620
 device gus0 at isa? port 0x220 irq 12 drq 1 vector gusintr
 #device gus0 at isa? port 0x220 irq 12 drq 1 flags 0x3 vector gusintr
 device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
-#device css0	at isa? port 0x534 irq 5 drq 1 flags 0x08 vector adintr
+device css0	at isa? port 0x534 irq 5 drq 1 flags 0x08 vector adintr
 device sscape0  at isa? port 0x330 irq 9 drq 0 vector sscapeintr
+device trix0    at isa? port 0x330 irq 6 drq 0 vector sscapeintr
 device sscape_mss0  at isa? port 0x534 irq 5 drq 1 vector sndintr
 device opl0     at isa? port 0x388
 device mpu0     at isa? port 0x330 irq 6 drq 0
 device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
-
-# More undocumented sound devices with bogus configurations for linting.
-# broken
-#device trix0    at isa? port 0x330 irq 6 drq 0 vector sscapeintr
 
 # Luigi's snd code (use INSTEAD of snd0 and all VOXWARE drivers!).
 # You may also wish to enable the pnp controller with this, for pnp
@@ -1378,7 +1375,7 @@ options		GATEWAY
 
 # If you want to disable loadable kernel modules (LKM), you
 # might want to use this option.
-options		NO_LKM
+#options		NO_LKM
 
 #
 # Add tie-ins for a hardware watchdog.  This only enable the hooks;
