@@ -168,17 +168,6 @@ __END_DECLS
 #endif
 
 /*
- * <runetype.h> brings namespace pollution (struct member names).  This prevents
- * us from using the inline optimizations in the more strict __POSIX_VISIBLE and
- * __XSI_VISIBLE namespaces.  To fix this properly would require that we rename
- * member names of long-standing structs, or something equally evil.
- */
-#if !__BSD_VISIBLE && !defined(_USE_CTYPE_INLINE_) && \
-    !defined(_DONT_USE_CTYPE_INLINE_)
-#define	_DONT_USE_CTYPE_INLINE_
-#endif
-
-/*
  * Use inline functions if we are allowed to and the compiler supports them.
  */
 #if !defined(_DONT_USE_CTYPE_INLINE_) && \
