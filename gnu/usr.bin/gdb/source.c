@@ -30,9 +30,10 @@ along with GDB; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
+#include <string.h>
 #include "defs.h"
-#include "symtab.h"
 #include "param.h"
+#include "symtab.h"
 
 #ifdef USG
 #include <sys/types.h>
@@ -188,7 +189,6 @@ directory_command (dirname, from_tty)
 
       do
 	{
-	  extern char *index ();
 	  char *name = dirname;
 	  register char *p;
 	  struct stat st;

@@ -5,7 +5,7 @@
  * Modified 1991 by Donn Seeley at UUNET Technologies, Inc.
  * Modified 1990 by Van Jacobson at Lawrence Berkeley Laboratory.
  *
- * $Header: /home/cvs/386BSD/src/usr.bin/gdb/symtab.c,v 1.1.1.1 1993/06/12 14:52:20 rgrimes Exp $;
+ * $Header: /a/cvs/386BSD/src/gnu/gdb/symtab.c,v 1.1 1993/06/29 09:47:40 nate Exp $;
  */
 
 #ifndef lint
@@ -33,8 +33,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
 #include "defs.h"
-#include "symtab.h"
 #include "param.h"
+#include "symtab.h"
 
 #include <obstack.h>
 #include <assert.h>
