@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.13 1997/03/09 20:09:17 ache Exp $
+ * $Id: timer.c,v 1.14 1997/03/13 12:45:26 brian Exp $
  *
  *  TODO:
  */
@@ -280,6 +280,7 @@ void InitTimerService( void ) {
 void TermTimerService( void ) {
   struct itimerval itimer;
 
+  itimer.it_interval.tv_usec = itimer.it_interval.tv_sec = 0;
   itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
   setitimer(ITIMER_REAL, &itimer, NULL);
   pending_signal(SIGALRM, SIG_IGN);
