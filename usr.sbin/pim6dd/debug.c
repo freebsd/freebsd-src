@@ -34,7 +34,7 @@
  *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
- *  $Id: debug.c,v 1.8 2000/05/18 12:47:59 itojun Exp $
+ *  $Id: debug.c,v 1.10 2000/10/05 22:27:07 itojun Exp $
  */
 /*
  * Part of this program has been derived from mrouted.
