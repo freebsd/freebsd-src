@@ -439,6 +439,13 @@ This variable behaves in the same way as the
 .Va *_output
 variables above, namely it can be set either to one or more email addresses
 or to an absolute file name.
+.It Va daily_status_security_diff_flags
+.Pq Vt str
+Set to the arguments to pass to the
+.Xr diff 1
+utility when generating differences.
+The default is
+.Fl b Fl u .
 .It Va daily_status_security_chksetuid_enable
 .Pq Vt bool
 Set to
@@ -723,6 +730,7 @@ is shared or distributed.
 .Xr apropos 1 ,
 .Xr calendar 1 ,
 .Xr df 1 ,
+.Xr diff 1 ,
 .Xr gzip 1 ,
 .Xr locate 1 ,
 .Xr man 1 ,
