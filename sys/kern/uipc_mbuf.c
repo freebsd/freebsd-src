@@ -875,8 +875,8 @@ m_length(struct mbuf *m0, struct mbuf **last)
 struct mbuf *
 m_defrag(struct mbuf *m0, int how)
 {
-	struct mbuf	*m_new = NULL, *m_final = NULL;
-	int		progress = 0, length;
+	struct mbuf *m_new = NULL, *m_final = NULL;
+	int progress = 0, length;
 
 	if (!(m0->m_flags & M_PKTHDR))
 		return (m0);
@@ -967,8 +967,8 @@ nospace:
 struct mbuf *
 m_fragment(struct mbuf *m0, int how, int length)
 {
-	struct mbuf	*m_new = NULL, *m_final = NULL;
-	int		progress = 0;
+	struct mbuf *m_new = NULL, *m_final = NULL;
+	int progress = 0;
 
 	if (!(m0->m_flags & M_PKTHDR))
 		return (m0);
@@ -1034,8 +1034,8 @@ nospace:
 struct mbuf *
 m_uiotombuf(struct uio *uio, int how, int len)
 {
-	struct mbuf	*m_new = NULL, *m_final = NULL;
-	int		progress = 0, error = 0, length, total;
+	struct mbuf *m_new = NULL, *m_final = NULL;
+	int progress = 0, error = 0, length, total;
 
 	if (len > 0)
 		total = min(uio->uio_resid, len);
