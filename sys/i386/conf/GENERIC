@@ -61,7 +61,9 @@ options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
 options 	PFIL_HOOKS		# pfil(9) framework
 
 # Debugging for use in -current
-options 	DDB			# Enable the kernel debugger
+options 	KDB			# Enable kernel debugger support.
+options 	DDB			# Support DDB.
+options 	GDB			# Support remote GDB.
 options 	INVARIANTS		# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
