@@ -288,7 +288,7 @@ extern int	ipsec_chkreplay __P((u_int32_t, struct secasvar *));
 extern int	ipsec_updatereplay __P((u_int32_t, struct secasvar *));
 
 extern size_t	ipsec4_hdrsiz __P((struct mbuf *, u_int, struct inpcb *));
-extern size_t	ipsec_hdrsiz_tcp __P((struct tcpcb *, int));
+extern size_t	ipsec_hdrsiz_tcp __P((struct tcpcb *));
 
 struct	ip;
 
