@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.17 1995/05/17 14:39:36 jkh Exp $
+ * $Id: devices.c,v 1.18 1995/05/18 13:18:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -105,9 +105,8 @@ static struct {
     { DEVICE_TYPE_NETWORK, "lnc",	"Lance/PCnet cards (Isolan/Novell NE2100/NE32-VL)"	},
     { DEVICE_TYPE_NETWORK, "ze",	"IBM/National Semiconductor PCMCIA ethernet"		},
     { DEVICE_TYPE_NETWORK, "zp",	"3Com PCMCIA Etherlink III"				},
-    { DEVICE_TYPE_NETWORK, "cuaa0",	"Serial port (COM1) - possible PPP device"					},
-    { DEVICE_TYPE_NETWORK, "cuaa1",	"Serial port (COM2) - possible PPP devic
-e",					},
+    { DEVICE_TYPE_NETWORK, "cuaa0",	"Serial port (COM1) - possible PPP device"		},
+    { DEVICE_TYPE_NETWORK, "cuaa1",	"Serial port (COM2) - possible PPP device"		},
     { NULL },
 };
 
@@ -236,15 +235,29 @@ deviceGetAll(void)
 	    }
 	    break;
 
+	case DEVICE_TYPE_NETWORK:
+	    fd = deviceTry(device_names[i].name);
+	    if (fd > 0) {
+		close(fd);
+		CHECK_DEVS;
+		Devices[numDevs] = new_device(device_names[i].name);
+		Devices[numDevs]->type = DEVICE_TYPE_NETWORK;
+		Devices[numDevs]->enabled = FALSE;
+		Devices[numDevs]->init = mediaInitNetwork;
+		Devices[numDevs]->get = mediaGetNetwork;
+		Devices[numDevs]->close = mediaCloseNetwork;
+		Devices[numDevs]->private = NULL;
+		msgDebug("Found a device of type network named: %s\n", device_names[i].name);
+		++numDevs;
+	    }
+	    break;
+
 	default:
 	    break;
 	}
     }
 
-    /*
-     * Now go for the network interfaces dynamically.  Stolen shamelessly
-     * from ifconfig!
-     */
+    /* Now go for the (other) network interfaces dynamically.  Stolen shamelessly from ifconfig! */
     ifc.ifc_len = sizeof(buffer);
     ifc.ifc_buf = buffer;
 
