@@ -2057,8 +2057,8 @@ cbb_resume(device_t self)
 	cbb_set(sc, CBB_SOCKET_EVENT, tmp);
 
 	/* re-establish the interrupt. */
-	if (bus_setup_intr(self, sc->irq_res, INTR_TYPE_AV, cbb_intr, sc,
-	    &sc->intrhand)) {
+	if (bus_setup_intr(self, sc->irq_res, INTR_TYPE_AV | INTR_MPSAFE,
+	    cbb_intr, sc, &sc->intrhand)) {
 		device_printf(self, "couldn't re-establish interrupt");
 		bus_release_resource(self, SYS_RES_IRQ, 0, sc->irq_res);
 		bus_release_resource(self, SYS_RES_MEMORY, CBBR_SOCKBASE,
