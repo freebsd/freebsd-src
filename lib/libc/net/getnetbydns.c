@@ -60,7 +60,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: getnetbydns.c,v 1.10 1997/02/22 15:00:10 peter Exp $";
+static char rcsid[] = "$Id: getnetbydns.c,v 1.11 1997/06/27 08:22:01 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -114,8 +114,9 @@ getnetanswer(answer, anslen, net_i)
 	register int n;
 	u_char *eom;
 	int type, class, buflen, ancount, qdcount, haveanswer, i, nchar;
-	char aux1[30], aux2[30], ans[30], *in, *st, *pauxt, *bp, **ap,
-		*paux1 = &aux1[0], *paux2 = &aux2[0], flag = 0;
+	char aux1[MAXHOSTNAMELEN], aux2[MAXHOSTNAMELEN], ans[MAXHOSTNAMELEN];
+	char *in, *st, *pauxt, *bp, **ap;
+	char *paux1 = &aux1[0], *paux2 = &aux2[0], flag = 0;
 static	struct netent net_entry;
 static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 
@@ -159,7 +160,8 @@ static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 			break;
 		cp += n;
 		ans[0] = '\0';
-		(void)strcpy(&ans[0], bp);
+		(void)strncpy(&ans[0], bp, sizeof(ans) - 1);
+		ans[sizeof(ans) - 1] = '\0';
 		GETSHORT(type, cp);
 		GETSHORT(class, cp);
 		cp += INT32SZ;		/* TTL */
@@ -282,7 +284,8 @@ _getnetbydnsname(net)
 		h_errno = NETDB_INTERNAL;
 		return (NULL);
 	}
-	strcpy(&qbuf[0], net);
+	strncpy(qbuf, net, sizeof(qbuf) - 1);
+	qbuf[sizeof(qbuf) - 1] = '\0';
 	anslen = res_search(qbuf, C_IN, T_PTR, (u_char *)&buf, sizeof(buf));
 	if (anslen < 0) {
 #ifdef DEBUG
