@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.40 1998/10/28 00:55:42 nsouch Exp $
+#	$Id: Makefile,v 1.41 1998/12/21 10:29:28 dillon Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
@@ -11,7 +11,7 @@ MAN9=	MD5.9 \
 	VOP_PATHCONF.9 VOP_PRINT.9 VOP_RDWR.9 VOP_READDIR.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
 	VOP_STRATEGY.9 \
-	at_exit.9 at_fork.9 at_shutdown.9 bios.9 boot.9 cd.9 copy.9 \
+	at_exit.9 at_fork.9 at_shutdown.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 microseq.9 \
 	mi_switch.9 namei.9 panic.9 physio.9 posix4.9 ppbconf.9 psignal.9 \
@@ -64,6 +64,7 @@ MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
 MLINKS+=rtalloc.9 rtalloc1.9 rtalloc.9 rtalloc_ign.9
 MLINKS+=sleep.9 tsleep.9 sleep.9 wakeup.9 sleep.9 wakeup_one.9
 MLINKS+=sleep.9 asleep.9 sleep.9 await.9
+MLINKS+=buf.9 bp.9
 MLINKS+=spl.9 spl0.9
 MLINKS+=spl.9 splbio.9 spl.9 splclock.9 spl.9 splhigh.9 spl.9 splimp.9
 MLINKS+=spl.9 splnet.9 spl.9 splsoftclock.9 spl.9 splsofttty.9
