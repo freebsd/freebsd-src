@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.25 1998/12/19 02:55:32 julian Exp $
+ *	$Id: linux.h,v 1.26 1998/12/30 21:19:59 sos Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -239,6 +239,7 @@ struct trapframe;
 #define LINUX_VT_GETMODE        0x5601
 #define LINUX_VT_SETMODE        0x5602
 #define LINUX_VT_GETSTATE       0x5603
+#define LINUX_VT_RELDISP        0x5605
 #define LINUX_VT_ACTIVATE       0x5606  
 #define LINUX_VT_WAITACTIVE     0x5607
 

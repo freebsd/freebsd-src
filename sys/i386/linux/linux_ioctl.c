@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.30 1998/11/12 00:42:08 jkh Exp $
+ *  $Id: linux_ioctl.c,v 1.30.2.1 1999/07/17 16:59:51 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -941,6 +941,11 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
     case LINUX_VT_GETMODE:
 
 	args->cmd = VT_GETMODE;
+	return  ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_VT_RELDISP:
+
+	args->cmd = VT_RELDISP;
 	return  ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_VT_SETMODE: 
