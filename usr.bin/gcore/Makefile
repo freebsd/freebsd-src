@@ -2,6 +2,7 @@
 
 PROG=	gcore
 SRCS=	gcore.c
+DPADD=	${LIBKVM}
 LDADD=	-lkvm
 
 .if	${MACHINE} != "sparc" 

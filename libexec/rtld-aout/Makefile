@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1994/03/10 23:19:54 ats Exp $
+#	$Id: Makefile,v 1.11 1994/08/26 19:11:14 wollman Exp $
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c
@@ -9,6 +9,7 @@ PICFLAG=-fpic
 CFLAGS+=-I$(LDDIR) -I$(.CURDIR) -I$(LDDIR)/$(MACHINE) $(PICFLAG) -DRTLD
 LDFLAGS+=-Bshareable -Bsymbolic -assert nosymbolic
 ASFLAGS+=-k
+DPADD+=	${LIBC:S/c.a/c_pic.a/} ${LIBC:S/c.a/gcc_pic.a/}
 LDADD+=	-lc_pic -lgcc_pic
 BINDIR= /usr/libexec
 INSTALLFLAGS+=	-fschg
@@ -17,7 +18,7 @@ INSTALLFLAGS+=	-fschg
 
 .PATH: $(LDDIR) $(LDDIR)/$(MACHINE)
 
-$(PROG):
+$(PROG): ${OBJS} ${DPADD}
 	$(LD) -o $(PROG) $(LDFLAGS) $(OBJS) $(LDADD)
 
 .S.o:
