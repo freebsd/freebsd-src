@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.74 1999/08/13 11:22:48 phk Exp $
+ * $Id: vfs_vnops.c,v 1.75 1999/08/25 11:44:11 phk Exp $
  */
 
 #include <sys/param.h>
@@ -496,6 +496,12 @@ vn_ioctl(fp, com, data, p)
 	case VFIFO:
 	case VCHR:
 	case VBLK:
+		if (com == FIODTYPE) {
+			if (vp->v_type != VCHR && vp->v_type != VBLK)
+				return (ENOTTY);
+			*(int *)data = devsw(vp->v_rdev)->d_flags & D_TYPEMASK;
+			return (0);
+		}
 		error = VOP_IOCTL(vp, com, data, fp->f_flag, p->p_ucred, p);
 		if (error == 0 && com == TIOCSCTTY) {
 
