@@ -898,7 +898,8 @@ md_drvinit(void *unused)
 		   mdunits, name, len, ptr);
 		md_preloaded(ptr, len);
 	} 
-	status_dev = make_dev(&mdctl_cdevsw, 0xffff00ff, UID_ROOT, GID_WHEEL, 0600, "mdctl");
+	status_dev = make_dev(&mdctl_cdevsw, 0xffff00ff, UID_ROOT, GID_WHEEL,
+	    0600, MDCTL_NAME);
 }
 
 static int
@@ -922,7 +923,7 @@ md_modevent(module_t mod, int type, void *data)
 }
 
 static moduledata_t md_mod = {
-        "md",
+        MD_NAME,
         md_modevent,
         NULL
 };
