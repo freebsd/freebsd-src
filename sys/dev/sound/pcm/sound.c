@@ -869,7 +869,6 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 
 	x = pcm_inprog(d, 1);
 	if (x != 1) {
-		printf("x: %d\n", x);
 		pcm_inprog(d, -1);
 		return EINPROGRESS;
 	}
