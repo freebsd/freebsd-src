@@ -67,7 +67,7 @@ static void	f_obs __P((char *));
 static void	f_of __P((char *));
 static void	f_seek __P((char *));
 static void	f_skip __P((char *));
-static int64_t	get_bsz __P((char *));
+static quad_t	get_bsz __P((char *));
 
 static struct arg {
 	char *name;
@@ -103,20 +103,20 @@ jcl(argv)
 
 	while ((oper = *++argv) != NULL) {
 		if ((oper = strdup(oper)) == NULL)
-			errx(1, "unable to allocate space for the argument "
-			     "\"%s\"", *argv);
+			errx(1, "unable to allocate space for the argument \"%s\"", *argv);
 		if ((arg = strchr(oper, '=')) == NULL)
 			errx(1, "unknown operand %s", oper);
 		*arg++ = '\0';
 		if (!*arg)
 			errx(1, "no value specified for %s", oper);
 		tmp.name = oper;
-		if (!(ap = bsearch(&tmp, args, sizeof(args)/sizeof(struct arg),
-				   sizeof(struct arg), c_arg)))
+		if (!(ap = (struct arg *)bsearch(&tmp, args,
+		    sizeof(args)/sizeof(struct arg), sizeof(struct arg),
+		    c_arg)))
 			errx(1, "unknown operand %s", tmp.name);
 		if (ddflags & ap->noset)
-			errx(1, "%s: illegal argument combination or "
-			     "already set", tmp.name);
+			errx(1, "%s: illegal argument combination or already set",
+			    tmp.name);
 		ddflags |= ap->set;
 		ap->f(arg);
 	}
@@ -158,13 +158,8 @@ jcl(argv)
 			}
 		} else
 			errx(1, "cbs meaningless if not doing record operations");
-		if (cbsz == 0)
-			errx(1, "cbs cannot be zero");
 	} else
 		cfunc = def;
-
-	if (in.dbsz == 0 || out.dbsz == 0)
-		errx(1, "buffer sizes cannot be zero");
 }
 
 static int
@@ -179,16 +174,23 @@ static void
 f_bs(arg)
 	char *arg;
 {
+	quad_t res = get_bsz(arg);
 
-	in.dbsz = out.dbsz = (size_t)get_bsz(arg);
+	if (res < 1 || res > INT_MAX)
+		errx(1, "bs must be between 1 and %d", INT_MAX);
+	in.dbsz = out.dbsz = (int)res;
 }
 
 static void
 f_cbs(arg)
 	char *arg;
 {
+	quad_t res = get_bsz(arg);
 
-	cbsz = (size_t)get_bsz(arg);
+	if (res < 1 || res > INT_MAX)
+		errx(1, "cbs must be between 1 and %d", INT_MAX);
+
+	cbsz = (int)res;
 }
 
 static void
@@ -196,17 +198,20 @@ f_count(arg)
 	char *arg;
 {
 
-	cpy_cnt = (size_t)get_bsz(arg);
+	cpy_cnt = get_bsz(arg);
 	if (!cpy_cnt)
 		terminate(0);
+	if (cpy_cnt < 0)
+		errx(1, "count cannot be negative");
 }
 
 static void
 f_files(arg)
 	char *arg;
 {
+	quad_t res = get_bsz(arg);
 
-	files_cnt = (int)get_bsz(arg);
+	files_cnt = res;
 }
 
 static void
@@ -214,8 +219,13 @@ f_ibs(arg)
 	char *arg;
 {
 
-	if (!(ddflags & C_BS))
-		in.dbsz = (size_t)get_bsz(arg);
+	if (!(ddflags & C_BS)) {
+		quad_t res = get_bsz(arg);
+
+		if (res < 1 || res > INT_MAX)
+			errx(1, "ibs must be between 1 and %d", INT_MAX);
+		in.dbsz = (int)res;
+	}
 }
 
 static void
@@ -231,8 +241,13 @@ f_obs(arg)
 	char *arg;
 {
 
-	if (!(ddflags & C_BS))
-		out.dbsz = (size_t)get_bsz(arg);
+	if (!(ddflags & C_BS)) {
+		quad_t res = get_bsz(arg);
+
+		if (res < 1 || res > INT_MAX)
+			errx(1, "ibs must be between 1 and %d", INT_MAX);
+		out.dbsz = (int)res;
+	}
 }
 
 static void
@@ -290,9 +305,9 @@ f_conv(arg)
 
 	while (arg != NULL) {
 		tmp.name = strsep(&arg, ",");
-		if (!(cp = bsearch(&tmp, clist, sizeof(clist) /
-				   sizeof(struct conv), sizeof(struct conv),
-				   c_conv)))
+		if (!(cp = (struct conv *)bsearch(&tmp, clist,
+		    sizeof(clist)/sizeof(struct conv), sizeof(struct conv),
+		    c_conv)))
 			errx(1, "unknown conversion %s", tmp.name);
 		if (ddflags & cp->noset)
 			errx(1, "%s: illegal conversion combination", tmp.name);
@@ -311,25 +326,34 @@ c_conv(a, b)
 }
 
 /*
- * Convert an expression of the following forms to a 64-bit integer.
+ * Convert an expression of the following forms to a quad_t.
  * 	1) A positive decimal number.
- *	2) A positive decimal number followed by a b (mult by 512).
- *	3) A positive decimal number followed by a k (mult by 1024).
- *	4) A positive decimal number followed by a m (mult by 512).
- *	5) A positive decimal number followed by a w (mult by sizeof int)
- *	6) Two or more positive decimal numbers (with/without k,b or w).
+ *	2) A positive decimal number followed by a b (mult by 512.)
+ *	3) A positive decimal number followed by a k (mult by 1 << 10.)
+ *	4) A positive decimal number followed by a m (mult by 1 << 20.)
+ *	5) A positive decimal number followed by a g (mult by 1 << 30.)
+ *	5) A positive decimal number followed by a w (mult by sizeof int.)
+ *	6) Two or more positive decimal numbers (with/without [bkmgw])
  *	   separated by x (also * for backwards compatibility), specifying
  *	   the product of the indicated values.
  */
-static int64_t
+static quad_t
 get_bsz(val)
 	char *val;
 {
-	int64_t num, t;
+	quad_t num, t;
 	char *expr;
 
+	errno = 0;
 	num = strtoq(val, &expr, 0);
-	if (num == QUAD_MAX || num < 0 || expr == val)
+	if (num == QUAD_MAX && errno)		/* Overflow. */
+		err(1, "%s", oper);
+	/*
+	 * XXX (BFF) - The checks in individual f_* functions are
+	 * now redundant, but this is only temporary.
+	 */
+	
+	if (expr == val || num < 0)		/* No digits or negative. */
 		errx(1, "%s: illegal numeric value", oper);
 
 	switch(*expr) {
@@ -342,14 +366,21 @@ get_bsz(val)
 		break;
 	case 'k':
 		t = num;
-		num *= 1024;
+		num *= 1 << 10;
 		if (t > num)
 			goto erange;
 		++expr;
 		break;
 	case 'm':
 		t = num;
-		num *= 1048576;
+		num *= 1 << 20;
+		if (t > num)
+			goto erange;
+		++expr;
+		break;
+	case 'g':
+		t = num;
+		num *= 1 << 30;
 		if (t > num)
 			goto erange;
 		++expr;

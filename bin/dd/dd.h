@@ -38,15 +38,13 @@
  *	$Id: dd.h,v 1.8 1998/02/11 02:23:31 asami Exp $
  */
 
-#define uint64 u_int64_t
-
 /* Input/output stream state. */
 typedef struct {
 	u_char	*db;			/* buffer address */
 	u_char	*dbp;			/* current buffer I/O address */
-	size_t	dbcnt,			/* current buffer byte count */
-		dbrcnt,			/* last read byte count */
-		dbsz;			/* buffer size */
+	int	dbcnt;			/* current buffer byte count */
+	int	dbrcnt;			/* last read byte count */
+	int	dbsz;			/* buffer size */
 
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe (not truncatable) */
@@ -58,20 +56,20 @@ typedef struct {
 	int	fd;			/* file descriptor */
 	off_t	offset;			/* # of blocks to skip */
 
-	uint64	f_stats,		/* # of full blocks processed */
-		p_stats,		/* # of partial blocks processed */
-		s_stats,		/* # of odd swab blocks */
-		t_stats;		/* # of truncations */
+	quad_t	f_stats;		/* # of full blocks processed */
+	quad_t	p_stats;		/* # of partial blocks processed */
+	quad_t	s_stats;		/* # of odd swab blocks */
+	quad_t	t_stats;		/* # of truncations */
 } IO;
 
 typedef struct {
-	uint64	in_full,		/* # of full input blocks */
-		in_part,		/* # of partial input blocks */
-		out_full,		/* # of full output blocks */
-		out_part,		/* # of partial output blocks */
-		trunc,			/* # of truncated records */
-		swab,			/* # of odd-length swab blocks */
-		bytes;			/* # of bytes written */
+	quad_t	in_full;		/* # of full input blocks */
+	quad_t	in_part;		/* # of partial input blocks */
+	quad_t	out_full;		/* # of full output blocks */
+	quad_t	out_part;		/* # of partial output blocks */
+	quad_t	trunc;			/* # of truncated records */
+	quad_t	swab;			/* # of odd-length swab blocks */
+	quad_t	bytes;			/* # of bytes written */
 	double	start; 			/* start time of dd */
 } STAT;
 

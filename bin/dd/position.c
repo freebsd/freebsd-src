@@ -61,10 +61,9 @@ static const char rcsid[] =
 void
 pos_in()
 {
-	size_t bcnt;
+	int bcnt, warned;
 	ssize_t nr;
 	off_t cnt;
-	int warned;
 
 	/* If not a character, pipe or tape device, try to seek on it. */
 	if (!(in.flags & (ISCHR|ISPIPE|ISTAPE))) {
