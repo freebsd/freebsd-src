@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.40.4.7 1996/05/07 20:15:49 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.40.4.9 1996/06/05 02:36:59 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -180,6 +180,8 @@
             sup
             ..
             syscons
+            ..
+            worm
             ..
         ..
 /set type=dir uname=games gname=bin mode=0755
