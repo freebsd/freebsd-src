@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: spl.9,v 1.5 1997/04/13 14:49:09 bde Exp $
+.\" $Id: spl.9,v 1.6 1998/01/16 18:14:34 bde Exp $
 .\" "
 .Dd July 21, 1996
 .Os
@@ -84,7 +84,7 @@ Each driver that uses interrupts is normally assigned to an interrupt
 priority group by a keyword in its config line.
 For example:
 .Bd -literal -offset indent
-device foo0 at isa? port 0x0815 irq 12 tty vector foointr
+device foo0 at isa? port 0x0815 irq 12 tty
 .Ed
 .Pp
 assigns interrupt 12 to the
