@@ -411,16 +411,6 @@ route_output(m, so)
 			break;
 
 		case RTM_CHANGE:
-			/*
-			 * If they tried to change things but didn't specify
-			 * the required gateway, then just use the old one.
-			 * This can happen if the user tries to change the
-			 * flags on the default route without changing the
-			 * default gateway.  Changing flags still doesn't work.
-			 */
-			if ((rt->rt_flags & RTF_GATEWAY) && !gate)
-				gate = rt->rt_gateway;
-
 			/* new gateway could require new ifaddr, ifp;
 			   flags may also be different; ifp may be specified
 			   by ll sockaddr when protocol address is ambiguous */
