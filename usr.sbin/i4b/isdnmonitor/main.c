@@ -33,7 +33,7 @@
  *	i4b daemon - network monitor client
  *	-----------------------------------
  *
- *	$Id: main.c,v 1.10 1999/02/14 09:44:57 hm Exp $
+ *	$Id: main.c,v 1.2 1999/03/07 16:12:43 hm Exp $
  *
  *      last edit-date: [Tue Oct 27 11:53:12 1998]
  *
@@ -100,8 +100,8 @@ static int state = 0;
 static int sub_state = 0;
 static int sub_state_count = 0;
 
-static int major = 0;
-static int minor = 0;
+static int isdn_major = 0;
+static int isdn_minor = 0;
 static int nctrl = 0;
 static u_int32_t rights = 0;
 
@@ -450,13 +450,13 @@ static void handle_event(BYTE *msg, int len)
 	{
 		case 0:	/* initial data */
 
-			major = I4B_GET_2B(msg, I4B_MON_IDATA_VERSMAJOR);
-			minor = I4B_GET_2B(msg, I4B_MON_IDATA_VERSMINOR);
+			isdn_major = I4B_GET_2B(msg, I4B_MON_IDATA_VERSMAJOR);
+			isdn_minor = I4B_GET_2B(msg, I4B_MON_IDATA_VERSMINOR);
 			nctrl = I4B_GET_2B(msg, I4B_MON_IDATA_NUMCTRL);
 			rights = I4B_GET_4B(msg, I4B_MON_IDATA_CLACCESS);
 
 			printf("remote protocol version is %02d.%02d, %d controller(s) found, our rights = %x\n",
-				major, minor, nctrl, rights);
+				isdn_major, isdn_minor, nctrl, rights);
 
 			if (nctrl > 0)
 			{
