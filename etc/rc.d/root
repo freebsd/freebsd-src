@@ -27,13 +27,12 @@ root_start()
 		*)
 			if ! mount -u -o rw /; then
 				echo 'Mounting root filesystem rw failed, startup aborted'
-				exit 1
+				/bin/kill -QUIT $$
 			fi
 			;;
 		esac
 
 		umount -a >/dev/null 2>&1
-		mount /
 
 		# If we booted a special kernel remove the record
 		# so we will boot the default kernel next time.
