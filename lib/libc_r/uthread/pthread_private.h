@@ -894,6 +894,9 @@ struct pthread {
 	/* Number of priority ceiling or protection mutexes owned. */
 	int		priority_mutex_count;
 
+	/* Number rwlocks rdlocks held. */
+	int			rdlock_count;
+
 	/*
 	 * Queue of currently owned mutexes.
 	 */
