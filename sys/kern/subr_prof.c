@@ -358,7 +358,9 @@ sysctl_kern_prof(SYSCTL_HANDLER_ARGS)
 			return (0);
 		if (state == GMON_PROF_OFF) {
 			gp->state = state;
+			PROC_LOCK(&proc0);
 			stopprofclock(&proc0);
+			PROC_UNLOCK(&proc0);
 			stopguprof(gp);
 		} else if (state == GMON_PROF_ON) {
 			gp->state = GMON_PROF_OFF;
@@ -369,7 +371,9 @@ sysctl_kern_prof(SYSCTL_HANDLER_ARGS)
 #ifdef GUPROF
 		} else if (state == GMON_PROF_HIRES) {
 			gp->state = GMON_PROF_OFF;
+			PROC_LOCK(&proc0);
 			stopprofclock(&proc0);
+			PROC_UNLOCK(&proc0);
 			startguprof(gp);
 			gp->state = state;
 #endif
@@ -419,7 +423,7 @@ profil(td, uap)
 	struct thread *td;
 	register struct profil_args *uap;
 {
-	register struct uprof *upp;
+	struct uprof *upp;
 	int s;
 	int error = 0;
 
@@ -430,7 +434,9 @@ profil(td, uap)
 		goto done2;
 	}
 	if (uap->scale == 0) {
+		PROC_LOCK(td->td_proc);
 		stopprofclock(td->td_proc);
+		PROC_UNLOCK(td->td_proc);
 		goto done2;
 	}
 	upp = &td->td_proc->p_stats->p_prof;
@@ -472,19 +478,16 @@ done2:
  * inaccurate.
  */
 void
-addupc_intr(ke, pc, ticks)
-	register struct kse *ke;
-	register uintptr_t pc;
-	u_int ticks;
+addupc_intr(struct thread *td, uintptr_t pc, u_int ticks)
 {
-	register struct uprof *prof;
-	register caddr_t addr;
-	register u_int i;
-	register int v;
+	struct uprof *prof;
+	caddr_t addr;
+	u_int i;
+	int v;
 
 	if (ticks == 0)
 		return;
-	prof = &ke->ke_proc->p_stats->p_prof;
+	prof = &td->td_proc->p_stats->p_prof;
 	if (pc < prof->pr_off ||
 	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size)
 		return;			/* out of range; ignore */
@@ -492,9 +495,9 @@ addupc_intr(ke, pc, ticks)
 	addr = prof->pr_base + i;
 	if ((v = fuswintr(addr)) == -1 || suswintr(addr, v + ticks) == -1) {
 		mtx_lock_spin(&sched_lock);
-		prof->pr_addr = pc;
-		prof->pr_ticks = ticks;
-		ke->ke_flags |= KEF_OWEUPC | KEF_ASTPENDING ;
+		td->td_praddr = pc;
+		td->td_prticks = ticks;
+		td->td_flags |= (TDF_OWEUPC | TDF_ASTPENDING);
 		mtx_unlock_spin(&sched_lock);
 	}
 }
@@ -502,34 +505,56 @@ addupc_intr(ke, pc, ticks)
 /*
  * Much like before, but we can afford to take faults here.  If the
  * update fails, we simply turn off profiling.
+ * XXXKSE, don't use kse unless we got sched lock.
  */
 void
-addupc_task(ke, pc, ticks)
-	register struct kse *ke;
-	register uintptr_t pc;
-	u_int ticks;
+addupc_task(struct thread *td, uintptr_t pc, u_int ticks)
 {
-	struct proc *p = ke->ke_proc;
+	struct proc *p = td->td_proc; 
 	register struct uprof *prof;
 	register caddr_t addr;
 	register u_int i;
 	u_short v;
+	int stop = 0;
 
 	if (ticks == 0)
 		return;
 
+	PROC_LOCK(p);
+	mtx_lock_spin(&sched_lock);
+	if (!(p->p_sflag & PS_PROFIL)) {
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
+		return;
+	}
+	p->p_profthreads++;
+	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(p);
 	prof = &p->p_stats->p_prof;
 	if (pc < prof->pr_off ||
-	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size)
-		return;
+	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size) {
+		goto out;
+	}
 
 	addr = prof->pr_base + i;
 	if (copyin(addr, &v, sizeof(v)) == 0) {
 		v += ticks;
 		if (copyout(&v, addr, sizeof(v)) == 0)
-			return;
+			goto out;
 	}
-	stopprofclock(p);
+	stop = 1;
+
+out:
+	PROC_LOCK(p);
+	if (--p->p_profthreads == 0) {
+		if (p->p_sflag & PS_STOPPROF) {
+			wakeup(&p->p_profthreads);
+			stop = 0;
+		}
+	}
+	if (stop)
+		stopprofclock(p);
+	PROC_UNLOCK(p);
 }
 
 #if defined(__i386__) && __GNUC__ >= 2
