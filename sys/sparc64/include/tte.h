@@ -104,17 +104,18 @@
 #define	TTE_GET_VA(tp) \
 	(TTE_GET_VPN(tp) << TTE_GET_PAGE_SHIFT(tp))
 #define	TTE_GET_PMAP(tp) \
-	((tp)->tte_pmap)
+	(((tp)->tte_data & TD_P) != 0 ? \
+	 (kernel_pmap) : \
+	 (PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)(tp)))->md.pmap))
 #define	TTE_ZERO(tp) \
-	bzero(tp, sizeof(*tp))
+	__builtin_memset(tp, 0, sizeof(*tp))
 
 struct pmap;
 
 struct tte {
 	u_long	tte_vpn;
 	u_long	tte_data;
-	STAILQ_ENTRY(tte) tte_link;
-	struct	pmap *tte_pmap;
+	TAILQ_ENTRY(tte) tte_link;
 };
 
 static __inline int
