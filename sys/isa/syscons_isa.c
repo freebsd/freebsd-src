@@ -88,7 +88,9 @@ scattach(device_t dev)
 	return sc_attach_unit(device_get_unit(dev), device_get_flags(dev));
 }
 
+#ifndef SC_NO_SUSPEND_VTYSWITCH
 static int	sc_cur_scr;
+#endif
 
 static int
 scsuspend(device_t dev)
