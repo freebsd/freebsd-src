@@ -77,6 +77,10 @@ There are not enough mbuf's available for allocation.
 .It "fxp%d: device timeout"
 The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
+.It "fxp%d: Ethernet address ff:ff:ff:ff:ff:ff"
+In some Alpha's (AXPpci and Multia) you must tell the driver to use (slower)
+I/O rather than memory to access the card. Add ``fxp_iomap=1'' to
+.Pa /boot/loader.rc .
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
