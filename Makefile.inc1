@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.36 1998/10/17 11:56:20 bde Exp $
+#	$Id: Makefile.inc1,v 1.37 1998/11/04 12:43:46 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -750,6 +750,9 @@ _scrnmaps=	share/syscons/scrnmaps
 .if !defined(NOLKM) && exists(${.CURDIR}/lkm) && ${OBJFORMAT} == "aout"
 _linux=		lkm/linux
 .endif
+.if ${MACHINE_ARCH} == i386
+_kldlinux=	sys/modules/linux
+,endif
 .if ${OBJFORMAT} == "aout"
 _netboot=	sys/${MACHINE}/boot/netboot
 .endif
@@ -848,6 +851,7 @@ build-tools:
 		gnu/usr.bin/cc/cc_tools	\
 		lib/libmytinfo		\
 		${_linux}		\
+		${_kldlinux}		\
 		${_scrnmaps}		\
 		${_netboot}
 	cd ${.CURDIR}/$d; ${MAKE} ${BTMAKEFLAGS} build-tools
