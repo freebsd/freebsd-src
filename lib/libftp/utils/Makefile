@@ -17,13 +17,13 @@ DPADD+= ${.CURDIR}/../libftp.a
 all: ftptry mirror uftp
 
 ftptry:	ftptry.o
-	$(CC) $(CFLAGS) -o ftptry ftptry.o -lftp
+	$(CC) $(CFLAGS) -o ftptry ftptry.o ${LDADD} -lftp
 
 uftp:	uftp.o uftpcmd.o libetc.a
-	$(CC) $(CFLAGS) -o uftp uftp.o uftpcmd.o -lftp -letc
+	$(CC) $(CFLAGS) -o uftp uftp.o uftpcmd.o ${LDADD} -lftp -letc
 
 mirror:	mirror.o
-	$(CC) $(CFLAGS) -o mirror mirror.o  -lftp
+	$(CC) $(CFLAGS) -o mirror mirror.o ${LDADD} -lftp
 
 clean: 
 	rm -f ftptry mirror uftp *~ *.o *.a

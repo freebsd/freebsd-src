@@ -13,6 +13,7 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
+#include <unistd.h>
 
 STATUS FtpConnect(FTP **con,char * hostname)
 {
