@@ -1,9 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.1.1.1 1998/03/01 23:40:47 jdp Exp $
+# $Id: Makefile.inc,v 1.2 1998/05/04 21:13:50 jb Exp $
 #
 
-.if     ${MACHINE_ARCH} == "i386"
 BINDIR?=	/usr/libexec/elf
-.else
-BINDIR?=	/usr/bin
-.endif
