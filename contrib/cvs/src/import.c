@@ -22,7 +22,7 @@
 #include "savecwd.h"
 #include <assert.h>
 
-static char *get_comment PROTO((char *user));
+static char *get_comment PROTO((const char *user));
 static int add_rev PROTO((char *message, RCSNode *rcs, char *vfile,
 			  char *vers));
 static int add_tags PROTO((RCSNode *rcs, char *vfile, char *vtag, int targc,
@@ -93,7 +93,7 @@ import (argc, argv)
 #endif
 		    error (1, 0,
 			   "-q or -Q must be specified before \"%s\"",
-			   command_name);
+			   cvs_cmd_name);
 		break;
 	    case 'd':
 #ifdef SERVER_SUPPORT
@@ -159,6 +159,21 @@ import (argc, argv)
 	use_file_modtime = 1;
 #endif
 
+    /* Don't allow "CVS" as any directory in module path.
+     *
+     * Could abstract this to valid_module_path, but I don't think we'll need
+     * to call it from anywhere else.
+     */
+    if ((cp = strstr(argv[0], "CVS")) &&   /* path contains "CVS" AND ... */
+        ((cp == argv[0]) || ISDIRSEP(*(cp-1))) && /* /^CVS/ OR m#/CVS# AND ... */
+        ((*(cp+3) == '\0') || ISDIRSEP(*(cp+3))) /* /CVS$/ OR m#CVS/# */
+       )
+    {
+        error (0, 0,
+               "The word `CVS' is reserved by CVS and may not be used");
+        error (1, 0, "as a directory in a path or as a file name.");
+    }
+
     for (i = 1; i < argc; i++)		/* check the tags for validity */
     {
 	int j;
@@ -170,8 +185,7 @@ import (argc, argv)
     }
 
     /* XXX - this should be a module, not just a pathname */
-    if (! isabsolute (argv[0])
-	&& pathname_levels (argv[0]) == 0)
+    if (!isabsolute (argv[0]) && pathname_levels (argv[0]) == 0)
     {
 	if (current_parsed_root == NULL)
 	{
@@ -381,7 +395,7 @@ import (argc, argv)
     li->type = T_TITLE;
     li->tag = xstrdup (vbranch);
     li->rev_old = li->rev_new = NULL;
-    p->data = (char *) li;
+    p->data = li;
     (void) addnode (ulist, p);
     Update_Logfile (repository, message, logfp, ulist);
     dellist (&ulist);
@@ -575,7 +589,8 @@ process_import_file (message, vfile, vtag, targc, targv)
 		node = findnode_fn (entries, vfile);
 		if (node != NULL)
 		{
-		    Entnode *entdata = (Entnode *) node->data;
+		    Entnode *entdata = node->data;
+
 		    if (entdata->type == ENT_FILE)
 		    {
 			assert (entdata->options[0] == '-'
@@ -655,7 +670,8 @@ update_rcs_file (message, vfile, vtag, targc, targv, inattic)
            not NULL?  */
 	expand = vers->srcfile->expand != NULL &&
 			vers->srcfile->expand[0] == 'b' ? "-kb" : "-ko";
-	different = RCS_cmp_file (vers->srcfile, vers->vn_rcs, expand, vfile);
+	different = RCS_cmp_file( vers->srcfile, vers->vn_rcs, (char **)NULL,
+	                          (char *)NULL, expand, vfile );
 	if (tocvsPath)
 	    if (unlink_file_dir (tocvsPath) < 0)
 		error (0, errno, "cannot remove %s", tocvsPath);
@@ -934,7 +950,7 @@ static const struct compair comtable[] =
 
 static char *
 get_comment (user)
-    char *user;
+    const char *user;
 {
     char *cp, *suffix;
     char *suffix_path;
@@ -990,34 +1006,34 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
 	      add_vbranch, vtag, targc, targv,
 	      desctext, desclen, add_logfp)
     /* Log message for the addition.  Not used if add_vhead == NULL.  */
-    char *message;
+    const char *message;
     /* Filename of the RCS file to create.  */
-    char *rcs;
+    const char *rcs;
     /* Filename of the file to serve as the contents of the initial
        revision.  Even if add_vhead is NULL, we use this to determine
        the modes to give the new RCS file.  */
-    char *user;
+    const char *user;
 
     /* Revision number of head that we are adding.  Normally 1.1 but
        could be another revision as long as ADD_VBRANCH is a branch
        from it.  If NULL, then just add an empty file without any
        revisions (similar to the one created by "rcs -i").  */
-    char *add_vhead;
+    const char *add_vhead;
 
     /* Keyword expansion mode, e.g., "b" for binary.  NULL means the
        default behavior.  */
-    char *key_opt;
+    const char *key_opt;
 
     /* Vendor branch to import to, or NULL if none.  If non-NULL, then
        vtag should also be non-NULL.  */
-    char *add_vbranch;
-    char *vtag;
+    const char *add_vbranch;
+    const char *vtag;
     int targc;
     char *targv[];
 
     /* If non-NULL, description for the file.  If NULL, the description
        will be empty.  */
-    char *desctext;
+    const char *desctext;
     size_t desclen;
 
     /* Write errors to here as well as via error (), or NULL if we should
@@ -1033,8 +1049,7 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
     int i, ierrno, err = 0;
     mode_t mode;
     char *tocvsPath;
-    char *userfile;
-    char *local_opt = key_opt;
+    const char *userfile;
     char *free_opt = NULL;
     mode_t file_type;
 
@@ -1048,11 +1063,11 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
        or the other.  Before making a change of this sort, should think
        about what is best, document it (in cvs.texinfo and NEWS), &c.  */
 
-    if (local_opt == NULL)
+    if (key_opt == NULL)
     {
 	if (wrap_name_has (user, WRAP_RCSOPTION))
 	{
-	    local_opt = free_opt = wrap_rcsoption (user, 0);
+	    key_opt = free_opt = wrap_rcsoption (user, 0);
 	}
     }
 
@@ -1089,7 +1104,7 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
     if (!preserve_perms || file_type == S_IFREG)
     {
 	fpuser = CVS_FOPEN (userfile,
-			    ((local_opt != NULL && strcmp (local_opt, "b") == 0)
+			    ((key_opt != NULL && strcmp (key_opt, "b") == 0)
 			     ? "rb"
 			     : "r")
 	    );
@@ -1159,9 +1174,9 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
 	goto write_error;
     }
 
-    if (local_opt != NULL && strcmp (local_opt, "kv") != 0)
+    if (key_opt != NULL && strcmp (key_opt, "kv") != 0)
     {
-	if (fprintf (fprcs, "expand   @%s@;\012", local_opt) < 0)
+	if (fprintf (fprcs, "expand   @%s@;\012", key_opt) < 0)
 	{
 	    goto write_error;
 	}
@@ -1465,19 +1480,16 @@ read_error:
  */
 int
 expand_at_signs (buf, size, fp)
-    char *buf;
+    const char *buf;
     off_t size;
     FILE *fp;
 {
-    register char *cp, *next;
+    register const char *cp, *next;
 
     cp = buf;
     while ((next = memchr (cp, '@', size)) != NULL)
     {
-	int len;
-
-	++next;
-	len = next - cp;
+	size_t len = ++next - cp;
 	if (fwrite (cp, 1, len, fp) != len)
 	    return EOF;
 	if (putc ('@', fp) == EOF)
