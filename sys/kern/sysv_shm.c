@@ -260,11 +260,9 @@ shmdt(td, uap)
 	int i;
 	int error = 0;
 
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
  	if (shmmap_s == NULL) {
 		error = EINVAL;
@@ -313,11 +311,9 @@ shmat(td, uap)
 	int rv;
 	int error = 0;
 
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
 	if (shmmap_s == NULL) {
 		size = shminfo.shmseg * sizeof(struct shmmap_state);
@@ -425,11 +421,9 @@ oshmctl(td, uap)
 	struct shmid_ds *shmseg;
 	struct oshmid_ds outbuf;
 
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
 	if (shmseg == NULL) {
 		error = EINVAL;
@@ -486,11 +480,9 @@ shmctl(td, uap)
 	struct shmid_ds inbuf;
 	struct shmid_ds *shmseg;
 
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
 	switch (uap->cmd) {
 	case IPC_INFO:
 		error = copyout( (caddr_t)&shminfo, uap->buf, sizeof( shminfo ) );
@@ -706,11 +698,9 @@ shmget(td, uap)
 	int segnum, mode;
 	int error;
 
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
 	mode = uap->shmflg & ACCESSPERMS;
 	if (uap->key != IPC_PRIVATE) {
 	again:
@@ -748,17 +738,12 @@ shmsys(td, uap)
 {
 	int error;
 
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
+	if (uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))
+		return (EINVAL);
 	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
-	if (uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0])) {
-		error = EINVAL;
-		goto done2;
-	}
 	error = (*shmcalls[uap->which])(td, &uap->a2);
-done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
