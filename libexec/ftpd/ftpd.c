@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.10.4.3 1996/03/18 11:10:16 davidg Exp $
+ *	$Id: ftpd.c,v 1.10.4.5 1997/02/13 19:31:55 guido Exp $
  */
 
 #ifndef lint
@@ -260,9 +260,9 @@ main(argc, argv, envp)
 
 
 #ifdef STATS
-	while ((ch = getopt(argc, argv, "RdlSt:T:u:v")) != EOF) {
+	while ((ch = getopt(argc, argv, "RdlSUt:T:u:v")) != EOF) {
 #else
-	while ((ch = getopt(argc, argv, "RdlUt:RT:u:v")) != EOF) {
+	while ((ch = getopt(argc, argv, "RdlUt:T:u:v")) != EOF) {
 #endif
 		switch (ch) {
 		case 'd':
