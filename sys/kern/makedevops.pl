@@ -262,7 +262,9 @@ foreach $src ( @filenames ) {
 
          $methods{$name} = 'VIS';
 
-         while ( $line !~ m/}/ and $line .= <SRC> ) { }
+         while ( $line !~ m/}/ and $line .= <SRC> ) {
+            $lineno++
+	 }
 
          if ( $line !~ s/};?(.*)// ) { # remove first '}' and trailing garbage
             # The '}' was not there (the rest is optional), so complain
