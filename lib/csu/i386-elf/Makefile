@@ -1,6 +1,6 @@
-#
 # $FreeBSD$
-#
+
+.PATH: ${.CURDIR}/../common
 
 SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
@@ -13,11 +13,10 @@ NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
 
-.PATH:		${.CURDIR}/../common
 
 all: ${OBJS} ${SOBJS}
 
-gcrt1.o:	crt1.c
+gcrt1.o: crt1.c
 	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.CURDIR}/crt1.c
 
 realinstall:
