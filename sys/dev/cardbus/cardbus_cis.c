@@ -402,9 +402,8 @@ decode_tuple_end(device_t cbdev, device_t child, int id,
     int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
     struct tuple_callbacks *info)
 {
-	if (cardbus_cis_debug) {
+	if (cardbus_cis_debug)
 		printf("CIS reading done\n");
-	}
 	return (0);
 }
 
@@ -659,12 +658,16 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 
 	bzero(tupledata, MAXTUPLESIZE);
 	expect_linktarget = TRUE;
-	if ((start = pci_read_config(child, CARDBUS_CIS_REG, 4)) == 0)
+	if ((start = pci_read_config(child, CARDBUS_CIS_REG, 4)) == 0) {
+		device_printf(cbdev, "CIS pointer is 0!\n");
 		return (ENXIO);
+	}
 	off = 0;
 	res = cardbus_read_tuple_init(cbdev, child, &start, &rid);
-	if (res == NULL)
+	if (res == NULL) {
+		device_printf(cbdev, "Unable to allocate resources for CIS\n");
 		return (ENXIO);
+	}
 
 	do {
 		if (0 != cardbus_read_tuple(cbdev, child, res, start, &off,
@@ -683,6 +686,8 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 		expect_linktarget = decode_tuple(cbdev, child, tupleid, len,
 		    tupledata, start, &off, callbacks);
 		if (expect_linktarget != 0) {
+			device_printf(cbdev, "Parsing failed with %d\n",
+			    expect_linktarget);
 			cardbus_read_tuple_finish(cbdev, child, rid, res);
 			return (expect_linktarget);
 		}
