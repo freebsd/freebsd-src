@@ -28,7 +28,9 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include "libdisk.h"
 
+#ifndef PC98
 #define	HAVE_GEOM
+#endif
 #ifdef HAVE_GEOM
 #include <ctype.h>
 #include <errno.h>
@@ -826,8 +828,10 @@ pc98_mo_done:
 	Fixup_Names(d);
 	return d;
 bad:
+#ifdef HAVE_GEOM
 	if (confxml != NULL)
 		free(confxml);
+#endif
 	if (fd >= 0)
 		close(fd);
 	return NULL;
