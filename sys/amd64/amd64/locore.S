@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.41 1994/10/26 21:52:25 bde Exp $
+ *	$Id: locore.s,v 1.42 1994/10/30 20:09:12 bde Exp $
  */
 
 /*
@@ -701,7 +701,8 @@ begin: /* now running relocated at KERNBASE where the system is linked to run */
 	movl	%edx,_atdevbase
 
 #include "sc.h"
-#if NSC > 0
+#include "vt.h"
+#if NSC > 0 || NVT > 0
 	/* XXX: can't scinit relocate Crtat relative to atdevbase itself? */
 	.globl _Crtat				/* XXX - locore should not know about */
 	movl	_Crtat,%eax			/* variables of device drivers (pccons)! */
