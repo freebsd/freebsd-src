@@ -1019,7 +1019,7 @@ em_intr(void *arg)
                 loop_cnt--;
         }
                  
-        if (ifp->if_flags & IFF_RUNNING && IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+        if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
                 em_start_locked(ifp);
 
 	EM_UNLOCK(adapter);
