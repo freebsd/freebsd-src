@@ -142,7 +142,8 @@ usb_block_allocmem(bus_dma_tag_t tag, size_t size, size_t align,
 	s = splusb();
 	/* First check the free list. */
 	for (p = LIST_FIRST(&usb_blk_freelist); p; p = LIST_NEXT(p, next)) {
-		if (p->tag == tag && p->size >= size && p->align >= align) {
+		if (p->tag == tag && p->size >= size && p->size < size * 2 &&
+		    p->align >= align) {
 			LIST_REMOVE(p, next);
 			usb_blk_nfree--;
 			splx(s);
