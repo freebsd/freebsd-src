@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2001
+.Dd March 3, 2002
 .Dt UCRED 9
 .Os
 .Sh NAME
@@ -36,7 +36,8 @@
 .Nm crfree ,
 .Nm crshared ,
 .Nm crcopy ,
-.Nm crdup
+.Nm crdup ,
+.Nm cru2x
 .Nd "functions related to user credentials"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -53,6 +54,8 @@
 .Fn crcopy "struct ucred *dest" "struct ucred *src"
 .Ft "struct ucred *"
 .Fn crdup "struct ucred *cr"
+.Ft void
+.Fn cru2x "struct ucred *cr" "struct xucred *xcr"
 .Sh DESCRIPTION
 The
 .Nm
@@ -99,6 +102,26 @@ contents of
 into it.
 The actual copying is performed by
 .Fn crcopy .
+.Pp
+The
+.Fn cru2x
+function converts a
+.Vt ucred
+structure to an
+.Vt xucred
+structure.
+That is,
+it copies data from
+.Fa cr
+to
+.Fa xcr ;
+it ignores fields in the former that are not present in the latter
+(e.g.,
+.Va cr_uidinfo ) ,
+and appropriately sets fields in the latter that are not present in
+the former
+(e.g.,
+.Va cr_version ) .
 .Sh RETURN VALUES
 The functions that return values all return a pointer to a
 .Vt ucred

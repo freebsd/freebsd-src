@@ -250,6 +250,7 @@ MLINKS+=BUS_SETUP_INTR.9 bus_teardown_intr.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
 MLINKS+=ucred.9 crget.9 ucred.9 crhold.9 ucred.9 crfree.9
 MLINKS+=ucred.9 crshared.9 ucred.9 crcopy.9 ucred.9 crdup.9
+MLINKS+=ucred.9 cru2x.9
 
 MLINKS+= lock.9 lockinit.9 lock.9 lockdestroy.9
 MLINKS+= lock.9 lockcount.9 lock.9 lockmgr.9
