@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if !defined(NOSUIDPERL)
+.if defined(BUILD_SUIDPERL) && ${BUILD_SUIDPERL} == "true"
 _suidperl=	suidperl
 .endif
 
