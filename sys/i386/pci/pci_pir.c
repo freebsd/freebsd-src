@@ -35,6 +35,8 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
@@ -58,10 +60,6 @@
 
 static int cfgmech;
 static int devmax;
-static int usebios;
-static int enable_pcibios = 0;
-
-TUNABLE_INT("hw.pci.enable_pcibios", &enable_pcibios);
 
 static int	pci_cfgintr_valid(struct PIR_entry *pe, int pin, int irq);
 static int	pci_cfgintr_unique(struct PIR_entry *pe, int pin);
@@ -71,17 +69,14 @@ static int	pci_cfgintr_virgin(struct PIR_entry *pe, int pin);
 
 static void	pci_print_irqmask(u_int16_t irqs);
 static void	pci_print_route_table(struct PIR_table *prt, int size);
-#ifdef USE_PCI_BIOS_FOR_READ_WRITE
-static int	pcibios_cfgread(int bus, int slot, int func, int reg, int bytes);
-static void	pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
-#endif
-static int	pcibios_cfgopen(void);
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 static int	pcireg_cfgopen(void);
 
 static struct PIR_table *pci_route_table;
 static int pci_route_count;
+
+static struct mtx pcicfg_mtx;
 
 /*
  * Some BIOS writers seem to want to ignore the spec and put
@@ -96,19 +91,6 @@ pci_i386_map_intline(int line)
 	if (line == 0 || line >= 128)
 		return (PCI_INVALID_IRQ);
 	return (line);
-}
-
-int
-pci_pcibios_active(void)
-{
-	return (usebios);
-}
-
-int
-pci_kill_pcibios(void)
-{
-	usebios = 0;
-	return (pcireg_cfgopen() != 0);
 }
 
 static u_int16_t
@@ -141,18 +123,20 @@ pci_cfgregopen(void)
 	static int		opened = 0;
 	u_long			sigaddr;
 	static struct PIR_table	*pt;
+	u_int16_t		v;
 	u_int8_t		ck, *cv;
 	int			i;
 
 	if (opened)
 		return(1);
 
-	if (pcibios_cfgopen() != 0)
-		usebios = 1;
-	else if (pcireg_cfgopen() != 0)
-		usebios = 0;
-	else
+	if (pcireg_cfgopen() == 0)
 		return(0);
+
+	v = pcibios_get_version();
+	if (v > 0)
+		printf("pcibios: BIOS version %x.%02x\n", (v & 0xff00) >> 8,
+		    v & 0xff);
 
 	/*
 	 * Look for the interrupt routing table.
@@ -187,6 +171,7 @@ pci_cfgregopen(void)
 			}
 		}
 	}
+	mtx_init(&pcicfg_mtx, "pcicfg", NULL, MTX_SPIN);
 	opened = 1;
 	return(1);
 }
@@ -194,18 +179,6 @@ pci_cfgregopen(void)
 /* 
  * Read configuration space register
  */
-static u_int32_t
-pci_do_cfgregread(int bus, int slot, int func, int reg, int bytes)
-{
-#ifdef USE_PCI_BIOS_FOR_READ_WRITE
-	return(usebios ? 
-	    pcibios_cfgread(bus, slot, func, reg, bytes) : 
-	    pcireg_cfgread(bus, slot, func, reg, bytes));
-#else
-	return (pcireg_cfgread(bus, slot, func, reg, bytes));
-#endif
-}
-
 u_int32_t
 pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 {
@@ -222,8 +195,8 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	 */
 	if ((reg == PCIR_INTLINE) && (bytes == 1)) {
 
-		pin = pci_do_cfgregread(bus, slot, func, PCIR_INTPIN, 1);
-		line = pci_do_cfgregread(bus, slot, func, PCIR_INTLINE, 1);
+		pin = pcireg_cfgread(bus, slot, func, PCIR_INTPIN, 1);
+		line = pcireg_cfgread(bus, slot, func, PCIR_INTLINE, 1);
 
 		if (pin != 0) {
 			int airq;
@@ -259,11 +232,11 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	 * the code uses 255 as an invalid IRQ.
 	 */
 	if (reg == PCIR_INTLINE && bytes == 1) {
-		line = pci_do_cfgregread(bus, slot, func, PCIR_INTLINE, 1);
+		line = pcireg_cfgread(bus, slot, func, PCIR_INTLINE, 1);
 		return pci_i386_map_intline(line);
 	}
 #endif /* APIC_IO */
-	return(pci_do_cfgregread(bus, slot, func, reg, bytes));
+	return(pcireg_cfgread(bus, slot, func, reg, bytes));
 }
 
 /* 
@@ -272,14 +245,8 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 void
 pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 {
-#ifdef USE_PCI_BIOS_FOR_READ_WRITE
-	if (usebios)
-		pcibios_cfgwrite(bus, slot, func, reg, data, bytes);
-	else
-		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
-#else
+
 	pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
-#endif
 }
 
 /*
@@ -626,81 +593,6 @@ pci_probe_route_table(int bus)
 	return (0);
 }
 
-#ifdef USE_PCI_BIOS_FOR_READ_WRITE
-/*
- * Config space access using BIOS functions 
- */
-static int
-pcibios_cfgread(int bus, int slot, int func, int reg, int bytes)
-{
-	struct bios_regs args;
-	u_int mask;
-
-	switch(bytes) {
-	case 1:
-		args.eax = PCIBIOS_READ_CONFIG_BYTE;
-		mask = 0xff;
-		break;
-	case 2:
-		args.eax = PCIBIOS_READ_CONFIG_WORD;
-		mask = 0xffff;
-		break;
-	case 4:
-		args.eax = PCIBIOS_READ_CONFIG_DWORD;
-		mask = 0xffffffff;
-		break;
-	default:
-		return(-1);
-	}
-	args.ebx = (bus << 8) | (slot << 3) | func;
-	args.edi = reg;
-	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
-	/* check call results? */
-	return(args.ecx & mask);
-}
-
-static void
-pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
-{
-	struct bios_regs args;
-
-	switch(bytes) {
-	case 1:
-		args.eax = PCIBIOS_WRITE_CONFIG_BYTE;
-		break;
-	case 2:
-		args.eax = PCIBIOS_WRITE_CONFIG_WORD;
-		break;
-	case 4:
-		args.eax = PCIBIOS_WRITE_CONFIG_DWORD;
-		break;
-	default:
-		return;
-	}
-	args.ebx = (bus << 8) | (slot << 3) | func;
-	args.ecx = data;
-	args.edi = reg;
-	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
-}
-#endif
-
-/*
- * Determine whether there is a PCI BIOS present
- */
-static int
-pcibios_cfgopen(void)
-{
-	u_int16_t		v = 0;
-    
-	if (PCIbios.ventry != 0 && enable_pcibios) {
-		v = pcibios_get_version();
-		if (v > 0)
-			printf("pcibios: BIOS version %x.%02x\n",
-			    (v & 0xff00) >> 8, v & 0xff);
-	}
-	return (v > 0);
-}
-
 /* 
  * Configuration space access using direct register operations
  */
@@ -756,8 +648,8 @@ pcireg_cfgread(int bus, int slot, int func, int reg, int bytes)
 	int data = -1;
 	int port;
 
+	mtx_lock_spin(&pcicfg_mtx);
 	port = pci_cfgenable(bus, slot, func, reg, bytes);
-
 	if (port != 0) {
 		switch (bytes) {
 		case 1:
@@ -772,6 +664,7 @@ pcireg_cfgread(int bus, int slot, int func, int reg, int bytes)
 		}
 		pci_cfgdisable();
 	}
+	mtx_unlock_spin(&pcicfg_mtx);
 	return (data);
 }
 
@@ -780,6 +673,7 @@ pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 {
 	int port;
 
+	mtx_lock_spin(&pcicfg_mtx);
 	port = pci_cfgenable(bus, slot, func, reg, bytes);
 	if (port != 0) {
 		switch (bytes) {
@@ -795,6 +689,7 @@ pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 		}
 		pci_cfgdisable();
 	}
+	mtx_unlock_spin(&pcicfg_mtx);
 }
 
 /* check whether the configuration mechanism has been correctly identified */
@@ -804,6 +699,7 @@ pci_cfgcheck(int maxdev)
 	uint32_t id, class;
 	uint8_t header;
 	uint8_t device;
+	int port;
 
 	if (bootverbose) 
 		printf("pci_cfgcheck:\tdevice ");
@@ -812,17 +708,20 @@ pci_cfgcheck(int maxdev)
 		if (bootverbose) 
 			printf("%d ", device);
 
-		id = inl(pci_cfgenable(0, device, 0, 0, 4));
+		port = pci_cfgenable(0, device, 0, 0, 4);
+		id = inl(port);
 		if (id == 0 || id == 0xffffffff)
 			continue;
 
-		class = inl(pci_cfgenable(0, device, 0, 8, 4)) >> 8;
+		port = pci_cfgenable(0, device, 0, 8, 4);
+		class = inl(port) >> 8;
 		if (bootverbose)
 			printf("[class=%06x] ", class);
 		if (class == 0 || (class & 0xf870ff) != 0)
 			continue;
 
-		header = inb(pci_cfgenable(0, device, 0, 14, 1));
+		port = pci_cfgenable(0, device, 0, 14, 1);
+		header = inb(port);
 		if (bootverbose)
 			printf("[hdr=%02x] ", header);
 		if ((header & 0x7e) != 0)
