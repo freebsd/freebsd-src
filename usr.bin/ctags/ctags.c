@@ -146,7 +146,7 @@ main(argc, argv)
 			(void)fclose(inf);
 		}
 
-	if (head)
+	if (head) {
 		if (xflag)
 			put_entries(head);
 		else {
@@ -170,6 +170,7 @@ main(argc, argv)
 				system(cmd);
 			}
 		}
+	}
 	exit(exit_val);
 }
 
