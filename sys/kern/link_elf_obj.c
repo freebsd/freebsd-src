@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.16 1999/01/29 09:04:27 bde Exp $
+ *	$Id: link_elf.c,v 1.17 1999/05/08 13:03:49 peter Exp $
  */
 
 #include <sys/param.h>
@@ -157,7 +157,7 @@ link_elf_init(void* arg)
 	    panic("link_elf_init: Can't create linker structures for kernel");
 	parse_dynamic(linker_kernel_file);
 	linker_kernel_file->address = (caddr_t) KERNBASE;
-	linker_kernel_file->size = -(long)linker_kernel_file->address;
+	linker_kernel_file->size = -(intptr_t)linker_kernel_file->address;
 
 	if (modptr) {
 	    ef->modptr = modptr;
@@ -950,7 +950,7 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 		       c_linker_sym_t* sym, long* diffp)
 {
 	elf_file_t ef = lf->priv;
-	u_long off = (u_long) value;
+	u_long off = (uintptr_t) value;
 	u_long diff = off;
 	const Elf_Sym* es;
 	const Elf_Sym* best = 0;
