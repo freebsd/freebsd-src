@@ -41,12 +41,10 @@
 #define _GETOPT_H_
 
 #include <sys/cdefs.h>
-#include <unistd.h>
 
 /*
- * GNU-like getopt_long()
+ * GNU-like getopt_long() & getopt() for GNU programs.
  */
-#if !defined(_POSIX_SOURCE) && !defined(_XOPEN_SOURCE)
 #define no_argument        0
 #define required_argument  1
 #define optional_argument  2
@@ -66,9 +64,15 @@ struct option {
 };
 
 __BEGIN_DECLS
-int getopt_long __P((int, char * const *, const char *,
-    const struct option *, int *));
+int	getopt_long(int, char * const *, const char *,
+	const struct option *, int *);
+#ifndef _GETOPT_DECLARED
+#define	_GETOPT_DECLARED
+int	 getopt(int, char * const [], const char *);
+
+extern char *optarg;			/* getopt(3) external variables */
+extern int optind, opterr, optopt;
+#endif /* _GETOPT_DECLARED */
 __END_DECLS
-#endif
  
 #endif /* !_GETOPT_H_ */
