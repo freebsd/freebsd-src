@@ -136,8 +136,10 @@ lca_pcib_read_config(device_t dev, int b, int s, int f,
 	switch (width) {
 	case 1:
 		CFGREAD(b, s, f, reg, BYTE, u_int8_t);
+		break;
 	case 2:
 		CFGREAD(b, s, f, reg, WORD, u_int16_t);
+		break;
 	case 4:
 		CFGREAD(b, s, f, reg, LONG, u_int32_t);
 	}
@@ -151,8 +153,10 @@ lca_pcib_write_config(device_t dev, int b, int s, int f,
 	switch (width) {
 	case 1:
 		CFGWRITE(b, s, f, reg, val, BYTE, u_int8_t);
+		break;
 	case 2:
 		CFGWRITE(b, s, f, reg, val, WORD, u_int16_t);
+		break;
 	case 4:
 		CFGWRITE(b, s, f, reg, val, LONG, u_int32_t);
 	}

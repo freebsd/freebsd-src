@@ -153,8 +153,10 @@ irongate_pcib_read_config(device_t dev, int b, int s, int f,
 	switch (width) {
 	case 1:
 		CFGREAD(b, s, f, reg, 1, u_int8_t, ldbu);
+		break;
 	case 2:
 		CFGREAD(b, s, f, reg, 2, u_int16_t, ldwu);
+		break;
 	case 4:
 		CFGREAD(b, s, f, reg, 4, u_int32_t, ldl);
 	}
@@ -168,8 +170,10 @@ irongate_pcib_write_config(device_t dev, int b, int s, int f,
 	switch (width) {
 	case 1:
 		CFGWRITE(b, s, f, reg, val, 1, stb);
+		break;
 	case 2:
 		CFGWRITE(b, s, f, reg, val, 2, stw);
+		break;
 	case 4:
 		CFGWRITE(b, s, f, reg, val, 4, stl);
 	}
