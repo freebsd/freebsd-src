@@ -67,7 +67,9 @@ ifconfig_down()
 
 		_inet=`expr "$_inet" : '.*\(inet \([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}\).*'`
 
-		echo ifconfig $1 ${_inet} delete
+		IFS="$oldifs"
+		ifconfig $1 ${_inet} delete
+		IFS="$_ifs"
 		_ret=0
 	done
 	IFS="$oldifs"
