@@ -456,7 +456,6 @@ static int
 nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		 int flags, void (*ihand)(void *), void *arg, void **cookiep)
 {
-	driver_t	*driver;
 	int		error;
 
 	/* somebody tried to setup an irq that failed to allocate! */
@@ -466,8 +465,6 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	*cookiep = 0;
 	if ((irq->r_flags & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
-
-	driver = device_get_driver(child);
 
 	/*
 	 * We depend here on rman_activate_resource() being idempotent.
