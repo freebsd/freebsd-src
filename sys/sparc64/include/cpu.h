@@ -44,7 +44,7 @@
 #include <machine/frame.h>
 #include <machine/tstate.h>
 
-#define	CLKF_USERMODE(cfp)	(0)
+#define	CLKF_USERMODE(cfp)	TRAPF_USERMODE(&(cfp)->cf_tf)
 #define	CLKF_PC(cfp)		((cfp)->cf_tf.tf_tpc)
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_tpc)
@@ -80,7 +80,7 @@ static __inline u_int64_t
 get_cyclecount(void)
 {
 
-	return (rdpr(tick));
+	return (rd(tick));
 }
 
 #endif
