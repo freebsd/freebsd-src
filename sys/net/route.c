@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id$
+ *	$Id: route.c,v 1.40 1997/02/22 09:41:14 peter Exp $
  */
 
 #include "opt_mrouting.h"
@@ -186,34 +186,74 @@ rtalloc1(dst, report, ignflags)
 	return (newrt);
 }
 
+/*
+ * Remove a reference count from an rtentry.
+ * If the count gets low enough, take it out of the routing table
+ */
 void
 rtfree(rt)
 	register struct rtentry *rt;
 {
+	/*
+	 * find the tree for that address family
+	 */
 	register struct radix_node_head *rnh =
 		rt_tables[rt_key(rt)->sa_family];
 	register struct ifaddr *ifa;
 
 	if (rt == 0 || rnh == 0)
 		panic("rtfree");
+
+	/*
+	 * decrement the reference count by one and if it reaches 0,
+	 * and there is a close function defined, call the close function
+	 */
 	rt->rt_refcnt--;
 	if(rnh->rnh_close && rt->rt_refcnt == 0) {
 		rnh->rnh_close((struct radix_node *)rt, rnh);
 	}
+
+	/*
+	 * If we are no longer "up" (and ref == 0)
+	 * then we can free the resources associated
+	 * with the route.
+	 */
 	if (rt->rt_refcnt <= 0 && (rt->rt_flags & RTF_UP) == 0) {
 		if (rt->rt_nodes->rn_flags & (RNF_ACTIVE | RNF_ROOT))
 			panic ("rtfree 2");
+		/* 
+		 * the rtentry must have been removed from the routing table
+		 * so it is represented in rttrash.. remove that now.
+		 */
 		rttrash--;
+
+#ifdef	DIAGNOSTIC
 		if (rt->rt_refcnt < 0) {
 			printf("rtfree: %p not freed (neg refs)\n", rt);
 			return;
 		}
-		ifa = rt->rt_ifa;
-		IFAFREE(ifa);
+#endif
+
+		/* 
+		 * release references on items we hold them on..
+		 * e.g other routes and ifaddrs.
+		 */
+		if((ifa = rt->rt_ifa))
+			IFAFREE(ifa);
 		if (rt->rt_parent) {
 			RTFREE(rt->rt_parent);
 		}
+
+		/*
+		 * The key is separatly alloc'd so free it (see rt_setgate()).
+		 * This also frees the gateway, as they are always malloc'd
+		 * together.
+		 */
 		Free(rt_key(rt));
+
+		/*
+		 * and the rtentry itself of course
+		 */
 		Free(rt);
 	}
 }
@@ -303,6 +343,9 @@ rtredirect(dst, gateway, netmask, flags, src, rtp)
 			rt->rt_flags |= RTF_MODIFIED;
 			flags |= RTF_MODIFIED;
 			stat = &rtstat.rts_newgateway;
+			/*
+			 * add the key and gateway (in one malloc'd chunk).
+			 */
 			rt_setgate(rt, rt_key(rt), gateway);
 		}
 	} else
@@ -470,19 +513,27 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 * NB: RTF_UP must be set during the search above,
 		 * because we might delete the last ref, causing
 		 * rt to get freed prematurely.
+		 *  eh? then why not just add a reference?
+		 * I'm not sure how RTF_UP helps matters. (JRE)
 		 */
 		rt->rt_flags &= ~RTF_UP;
 
 		/* 
-		 * If there is llinfo or similar associated with the 
-		 * route, give the protocol a chance to deal with it..
+		 * give the protocol a chance to keep things in sync.
 		 */
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
-		rttrash++;
+
 		/*
-		 * If the caller wants it, then it can have it, but it's up to it
-		 * to free the rtentry as we won't be doing it.
+		 * one more rtentry floating around that is not
+		 * linked to the routing table.
+		 */
+		rttrash++;
+
+		/*
+		 * If the caller wants it, then it can have it,
+		 * but it's up to it to free the rtentry as we won't be
+		 * doing it.
 		 */
 		if (ret_nrt)
 			*ret_nrt = rt;
@@ -517,19 +568,32 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			senderr(ENOBUFS);
 		Bzero(rt, sizeof(*rt));
 		rt->rt_flags = RTF_UP | flags;
+		/*
+		 * Add the gateway. Possibly re-malloc-ing the storage for it
+		 * also add the rt_gwroute if possible.
+		 */
 		if (error = rt_setgate(rt, dst, gateway)) {
 			Free(rt);
 			senderr(error);
 		}
+
+		/*
+		 * point to the (possibly newly malloc'd) dest address.
+		 */
 		ndst = rt_key(rt);
+
+		/*
+		 * make sure it contains the value we want (masked if needed).
+		 */
 		if (netmask) {
 			rt_maskedcopy(dst, ndst, netmask);
 		} else
 			Bcopy(dst, ndst, dst->sa_len);
 
 		/*
+		 * Note that we now have a reference to the ifa.
 		 * This moved from below so that rnh->rnh_addaddr() can
-		 * examine the ifa and ifp if it so desires.
+		 * examine the ifa and  ifa->ifa_ifp if it so desires.
 		 */
 		ifa->ifa_refcnt++;
 		rt->rt_ifa = ifa;
@@ -557,10 +621,15 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 						      (caddr_t)netmask,
 						      rnh, rt->rt_nodes);
 			} else if (rt2) {
+				/* undo the extra ref we got */
 				RTFREE(rt2);
 			}
 		}
 
+		/*
+		 * If it still failed to go into the tree,
+		 * then un-make it (this should be a function)
+		 */
 		if (rn == 0) {
 			if (rt->rt_gwroute)
 				rtfree(rt->rt_gwroute);
@@ -571,8 +640,14 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			Free(rt);
 			senderr(EEXIST);
 		}
+
 		rt->rt_parent = 0;
 
+		/* 
+		 * If we got here from RESOLVE, then we are cloning
+		 * so clone the rest, and note that we 
+		 * are a clone (and increment the parent's references)
+		 */
 		if (req == RTM_RESOLVE) {
 			rt->rt_rmx = (*ret_nrt)->rt_rmx; /* copy metrics */
 			if ((*ret_nrt)->rt_flags & RTF_PRCLONING) {
@@ -580,8 +655,14 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 				(*ret_nrt)->rt_refcnt++;
 			}
 		}
+
+		/*
+		 * if this protocol has something to add to this then
+		 * allow it to do that as well.
+		 */
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, SA(ret_nrt ? *ret_nrt : 0));
+
 		/*
 		 * We repeat the same procedure from rt_setgate() here because
 		 * it doesn't fire when we call it there because the node
@@ -595,6 +676,10 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 					       rt_fixchange, &arg);
 		}
 
+		/*
+		 * actually return a resultant rtentry and
+		 * give the caller a single reference.
+		 */
 		if (ret_nrt) {
 			*ret_nrt = rt;
 			rt->rt_refcnt++;
@@ -737,6 +822,12 @@ rt_setgate(rt0, dst, gate)
 		return EADDRNOTAVAIL;
 	}
 
+	/*
+	 * Both dst and gateway are stored in the same malloc'd chunk
+	 * (If I ever get my hands on....)
+	 * if we need to malloc a new chunk, then keep the old one around
+	 * till we don't need it any more.
+	 */
 	if (rt->rt_gateway == 0 || glen > ROUNDUP(rt->rt_gateway->sa_len)) {
 		old = (caddr_t)rt_key(rt);
 		R_Malloc(new, caddr_t, dlen + glen);
@@ -744,14 +835,31 @@ rt_setgate(rt0, dst, gate)
 			return ENOBUFS;
 		rt->rt_nodes->rn_key = new;
 	} else {
+		/*
+		 * otherwise just overwrite the old one
+		 */
 		new = rt->rt_nodes->rn_key;
 		old = 0;
 	}
+
+	/*
+	 * copy the new gateway value into the memory chunk
+	 */
 	Bcopy(gate, (rt->rt_gateway = (struct sockaddr *)(new + dlen)), glen);
+
+	/* 
+	 * if we are replacing the chunk (or it's new) we need to 
+	 * replace the dst as well
+	 */
 	if (old) {
 		Bcopy(dst, new, dlen);
 		Free(old);
 	}
+
+	/*
+	 * If there is already a gwroute, it's now almost definitly wrong
+	 * so drop it.
+	 */
 	if (rt->rt_gwroute) {
 		rt = rt->rt_gwroute; RTFREE(rt);
 		rt = rt0; rt->rt_gwroute = 0;
@@ -764,7 +872,7 @@ rt_setgate(rt0, dst, gate)
 	 * protocol-cloning to operate for gateways (which is probably the
 	 * correct choice anyway), and avoid the resulting reference loops
 	 * by disallowing any route to run through itself as a gateway.
-	 * This is obviuosly mandatory when we get rt->rt_output().
+	 * This is obviously mandatory when we get rt->rt_output().
 	 */
 	if (rt->rt_flags & RTF_GATEWAY) {
 		rt->rt_gwroute = rtalloc1(gate, 1, RTF_PRCLONING);
@@ -847,7 +955,7 @@ rtinit(ifa, cmd, flags)
 		}
 		/*
 		 * Get an rtentry that is in the routing tree and
-		 * contains the correct info. (if this fails we can't get there).
+		 * contains the correct info. (if this fails, can't get there).
 		 * We set "report" to FALSE so that if it doesn't exist,
 		 * it doesn't report an error or clone a route, etc. etc.
 		 */
@@ -925,9 +1033,9 @@ rtinit(ifa, cmd, flags)
 			printf("rtinit: wrong ifa (%p) was (%p)\n", ifa,
 				rt->rt_ifa);
 			/*
-			 * Ask that the route we got back be removed
-			 * from the routing tables as we are trying
-			 * to supersede it.
+			 * Ask that the protocol in question
+			 * remove anything it has associated with
+			 * this route and ifaddr.
 			 */
 			if (rt->rt_ifa->ifa_rtrequest)
 			    rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
@@ -943,9 +1051,8 @@ rtinit(ifa, cmd, flags)
 			rt->rt_ifp = ifa->ifa_ifp;
 			ifa->ifa_refcnt++;
 			/*
-			 * Now add it to the routing table
-			 * XXX could we have just left it?
-			 * as it might have been in the right place..
+			 * Now ask the protocol to check if it needs
+			 * any special processing in it's new form.
 			 */
 			if (ifa->ifa_rtrequest)
 			    ifa->ifa_rtrequest(RTM_ADD, rt, SA(0));
