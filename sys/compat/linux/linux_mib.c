@@ -232,9 +232,9 @@ linux_set_oss_version(p, oss_version)
 
 #ifdef DEBUG
 
-u_char linux_debug_map[howmany(LINUX_SYS_MAXSYSCALL, sizeof(u_char))];
+static u_char linux_debug_map[howmany(LINUX_SYS_MAXSYSCALL, sizeof(u_char))];
 
-int
+static int
 linux_debug(int syscall, int toggle, int global)
 {
 
