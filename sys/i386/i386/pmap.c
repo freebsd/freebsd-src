@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.128.2.2 1996/11/07 14:45:41 joerg Exp $
+ *	$Id: pmap.c,v 1.128.2.3 1996/11/12 09:08:01 phk Exp $
  */
 
 /*
@@ -2976,7 +2976,7 @@ pmap_mapdev(pa, size)
 	pa = pa & PG_FRAME;
 	for (tmpva = va; size > 0;) {
 		pte = (unsigned *)vtopte(tmpva);
-		*pte = pa | PG_RW | PG_V | PG_N;
+		*pte = pa | PG_RW | PG_V;
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
 		pa += PAGE_SIZE;
