@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.36 1997/07/31 13:11:50 kato Exp $
+ *	$Id: pc98.c,v 1.37 1997/08/13 11:00:49 kato Exp $
  */
 
 /*
@@ -60,7 +60,6 @@
 #include <machine/md_var.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
-#include <machine/apic.h>
 #endif /* APIC_IO */
 #include <vm/vm.h>
 #include <vm/vm_param.h>
