@@ -5,6 +5,13 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20001005:
+	This weekend the ports tree will be updated to a new layout.
+	It will be in an inconsistant state until noted in the UPDATING
+	file, or with asami-san's message to the relevant mailing
+	lists.  With this new layout, you'll need to update the whole
+	tree for anything to work.
+
 20000916:
 	/boot/kernel/kernel.ko -> /boot/kernel/kernel change has taken
 	place.  Please update boot loader (not the boot blocks) at the
