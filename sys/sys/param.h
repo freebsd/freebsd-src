@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.23 1997/03/02 21:21:08 ache Exp $
+ * $Id: param.h,v 1.24 1997/03/03 08:05:03 ache Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -65,7 +65,7 @@
 
 #define	MAXCOMLEN	16		/* max command name remembered */
 #define	MAXINTERP	32		/* max interpreter file name length */
-#define	MAXLOGNAME	16		/* max login name length (incl. NUL) */
+#define	MAXLOGNAME	20		/* max login name length (incl. NUL) */
 #define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
 #define	NCARGS		ARG_MAX		/* max bytes for an exec function */
 #define	NGROUPS		NGROUPS_MAX	/* max number groups */
