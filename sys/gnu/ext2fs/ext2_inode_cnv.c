@@ -66,17 +66,17 @@ ext2_print_dinode( di )
 		di->di_uid, di->di_gid, di->di_size);
 	printf( "Links: %3d Blockcount: %d\n",
 		di->di_nlink, di->di_blocks);
-	printf( "ctime: 0x%x", di->di_ctime.ts_sec); 
+	printf( "ctime: 0x%x", di->di_ctime.tv_sec); 
 #if !defined(__FreeBSD__)
-	print_time(" -- %s\n", di->di_ctime.ts_sec);
+	print_time(" -- %s\n", di->di_ctime.tv_sec);
 #endif
-	printf( "atime: 0x%x", di->di_atime.ts_sec); 
+	printf( "atime: 0x%x", di->di_atime.tv_sec); 
 #if !defined(__FreeBSD__)
-	print_time(" -- %s\n", di->di_atime.ts_sec);
+	print_time(" -- %s\n", di->di_atime.tv_sec);
 #endif
-	printf( "mtime: 0x%x", di->di_mtime.ts_sec); 
+	printf( "mtime: 0x%x", di->di_mtime.tv_sec); 
 #if !defined(__FreeBSD__)
-	print_time(" -- %s\n", di->di_mtime.ts_sec);
+	print_time(" -- %s\n", di->di_mtime.tv_sec);
 #endif
 	printf( "BLOCKS: ");
 	for(i=0; i < (di->di_blocks <= 24 ? ((di->di_blocks+1)/2): 12); i++)
@@ -110,9 +110,9 @@ ext2_ei2di(ei, di)
 	*/
 	di->di_mode     = ei->i_links_count ? ei->i_mode : 0;
         di->di_size     = ei->i_size;
-        di->di_atime.ts_sec    = ei->i_atime;
-        di->di_mtime.ts_sec    = ei->i_mtime;
-        di->di_ctime.ts_sec    = ei->i_ctime;
+        di->di_atime.tv_sec    = ei->i_atime;
+        di->di_mtime.tv_sec    = ei->i_mtime;
+        di->di_ctime.tv_sec    = ei->i_ctime;
         di->di_flags    = 0;
         di->di_flags    |= (ei->i_flags & EXT2_APPEND_FL) ? APPEND : 0;
         di->di_flags    |= (ei->i_flags & EXT2_IMMUTABLE_FL) ? IMMUTABLE : 0;
@@ -143,11 +143,11 @@ ext2_di2ei(di, ei)
 	   Godmar thinks: if dtime is nonzero, ext2 says this inode
 	   has been deleted, this would correspond to a zero link count
 	 */
-        ei->i_dtime             = ei->i_links_count ? 0 : di->di_mtime.ts_sec;
+        ei->i_dtime             = ei->i_links_count ? 0 : di->di_mtime.tv_sec;
         ei->i_size              = di->di_size;
-        ei->i_atime             = di->di_atime.ts_sec;
-        ei->i_mtime             = di->di_mtime.ts_sec;
-        ei->i_ctime             = di->di_ctime.ts_sec;
+        ei->i_atime             = di->di_atime.tv_sec;
+        ei->i_mtime             = di->di_mtime.tv_sec;
+        ei->i_ctime             = di->di_ctime.tv_sec;
         ei->i_flags             = di->di_flags;
         ei->i_flags    		= 0;
         ei->i_flags    		|= (di->di_flags & APPEND) ? EXT2_APPEND_FL: 0;
