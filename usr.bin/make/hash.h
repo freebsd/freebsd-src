@@ -71,7 +71,7 @@ typedef struct Hash_Table {
  * to record where we are in the search.
  */
 typedef struct Hash_Search {
-	Hash_Table	*tablePtr;	/* Table being searched. */
+	const Hash_Table *tablePtr;	/* Table being searched. */
 	int		nextIndex;	/* Next bucket to check */
 	Hash_Entry 	*hashEntryPtr;	/* Next entry in current bucket */
 } Hash_Search;
@@ -95,7 +95,7 @@ void Hash_DeleteTable(Hash_Table *);
 Hash_Entry *Hash_FindEntry(const Hash_Table *, const char *);
 Hash_Entry *Hash_CreateEntry(Hash_Table *, const char *, Boolean *);
 void Hash_DeleteEntry(Hash_Table *, Hash_Entry *);
-Hash_Entry *Hash_EnumFirst(Hash_Table *, Hash_Search *);
+Hash_Entry *Hash_EnumFirst(const Hash_Table *, Hash_Search *);
 Hash_Entry *Hash_EnumNext(Hash_Search *);
 
 #endif /* _HASH */
