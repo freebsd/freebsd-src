@@ -625,6 +625,7 @@ ftp.1:
 .if !defined(NOPORTS)
 	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
 .endif
+	touch ftp.1
 
 #
 # --==## Setup a suitable cdrom-area ##==--
@@ -670,6 +671,7 @@ cdrom.1:
 	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh \
 	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 .endif
+	touch cdrom.1
 
 doc.1:
 	@echo "Making docs..."
