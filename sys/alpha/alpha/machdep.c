@@ -112,6 +112,7 @@
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/linker.h>
+#include <sys/random.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
