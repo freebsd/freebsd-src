@@ -1330,7 +1330,7 @@ ip6_ctloutput(so, sopt)
 					break;
 				}
 				/* XXX */
-				MGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT, MT_HEADER);
+				MGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT, MT_HEADER);
 				if (m == 0) {
 					error = ENOBUFS;
 					break;
@@ -1920,7 +1920,7 @@ ip6_getmoptions(optname, im6o, mp)
 {
 	u_int *hlim, *loop, *ifindex;
 
-	*mp = m_get(M_WAIT, MT_HEADER);		/*XXX*/
+	*mp = m_get(M_TRYWAIT, MT_HEADER);		/*XXX*/
 
 	switch (optname) {
 

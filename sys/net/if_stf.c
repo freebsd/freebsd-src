@@ -173,7 +173,7 @@ stfattach(dummy)
 	const struct encaptab *p;
 
 	nstf = NSTF;
-	stf = malloc(nstf * sizeof(struct stf_softc), M_DEVBUF, M_WAIT);
+	stf = malloc(nstf * sizeof(struct stf_softc), M_DEVBUF, M_WAITOK);
 	bzero(stf, nstf * sizeof(struct stf_softc));
 	sc = stf;
 

@@ -615,7 +615,7 @@ ngmn_connect(hook_p hook)
 	/* Setup a transmit chain with one descriptor */
 	/* XXX: we actually send a 1 byte packet */
 	dp = mn_alloc_desc();
-	MGETHDR(m, M_WAIT, MT_DATA);
+	MGETHDR(m, M_TRYWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOBUFS;
 	m->m_pkthdr.len = 0;
@@ -632,12 +632,12 @@ ngmn_connect(hook_p hook)
 
 	dp = mn_alloc_desc();
 	m = NULL;
-	MGETHDR(m, M_WAIT, MT_DATA);
+	MGETHDR(m, M_TRYWAIT, MT_DATA);
 	if (m == NULL) {
 		mn_free_desc(dp);
 		return (ENOBUFS);
 	}
-	MCLGET(m, M_WAIT);
+	MCLGET(m, M_TRYWAIT);
 	if ((m->m_flags & M_EXT) == 0) {
 		mn_free_desc(dp);
 		m_freem(m);
@@ -655,13 +655,13 @@ ngmn_connect(hook_p hook)
 		dp2 = dp;
 		dp = mn_alloc_desc();
 		m = NULL;
-		MGETHDR(m, M_WAIT, MT_DATA);
+		MGETHDR(m, M_TRYWAIT, MT_DATA);
 		if (m == NULL) {
 			mn_free_desc(dp);
 			m_freem(m);
 			return (ENOBUFS);
 		}
-		MCLGET(m, M_WAIT);
+		MCLGET(m, M_TRYWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			mn_free_desc(dp);
 			m_freem(m);

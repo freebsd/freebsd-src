@@ -195,7 +195,7 @@ rip_output(m, so, dst)
 			m_freem(m);
 			return(EMSGSIZE);
 		}
-		M_PREPEND(m, sizeof(struct ip), M_WAIT);
+		M_PREPEND(m, sizeof(struct ip), M_TRYWAIT);
 		ip = mtod(m, struct ip *);
 		ip->ip_tos = 0;
 		ip->ip_off = 0;

@@ -206,8 +206,8 @@ m_alloc_ref(nmb, how)
 	nbytes = round_page(nmb * sizeof(union mext_refcnt));
 	mtx_exit(&mcntfree.m_mtx, MTX_DEF);
 	mtx_enter(&Giant, MTX_DEF);
-	if ((p = (caddr_t)kmem_malloc(mb_map, nbytes, how == M_WAIT ? M_WAIT :
-	    M_NOWAIT)) == NULL) {
+	if ((p = (caddr_t)kmem_malloc(mb_map, nbytes, how == M_TRYWAIT ?
+	    M_WAITOK : M_NOWAIT)) == NULL) {
 		mtx_exit(&Giant, MTX_DEF);
 		mtx_enter(&mcntfree.m_mtx, MTX_DEF); /* XXX: We must be	holding
 						             it going out. */
@@ -265,11 +265,11 @@ m_mballoc(nmb, how)
 	nbytes = round_page(nmb * MSIZE);
 
 	/* XXX: The letting go of the mmbfree lock here may eventually
-	   be moved to only be done for M_WAIT calls to kmem_malloc() */
+	   be moved to only be done for M_TRYWAIT calls to kmem_malloc() */
 	mtx_exit(&mmbfree.m_mtx, MTX_DEF);
 	mtx_enter(&Giant, MTX_DEF);
 	p = (caddr_t)kmem_malloc(mb_map, nbytes, M_NOWAIT);
-	if (p == 0 && how == M_WAIT) {
+	if (p == 0 && how == M_TRYWAIT) {
 		atomic_add_long(&mbstat.m_wait, 1);
 		p = (caddr_t)kmem_malloc(mb_map, nbytes, M_WAITOK);
 	}
@@ -302,8 +302,8 @@ m_mballoc(nmb, how)
 
 /*
  * Once the mb_map has been exhausted and if the call to the allocation macros
- * (or, in some cases, functions) is with M_WAIT, then it is necessary to rely
- * solely on reclaimed mbufs.
+ * (or, in some cases, functions) is with M_TRYWAIT, then it is necessary to
+ * rely solely on reclaimed mbufs.
  *
  * Here we request for the protocols to free up some resources and, if we
  * still cannot get anything, then we wait for an mbuf to be freed for a 
@@ -385,7 +385,7 @@ m_clalloc(ncl, how)
 	mtx_exit(&mclfree.m_mtx, MTX_DEF);
 	mtx_enter(&Giant, MTX_DEF);
 	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
-				 how != M_WAIT ? M_NOWAIT : M_WAITOK);
+				 how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
 	mtx_exit(&Giant, MTX_DEF);
 	ncl = ncl * PAGE_SIZE / MCLBYTES;
 	mtx_enter(&mclfree.m_mtx, MTX_DEF);
@@ -414,7 +414,7 @@ m_clalloc(ncl, how)
 
 /*
  * Once the mb_map submap has been exhausted and the allocation is called with
- * M_WAIT, we rely on the mclfree list. If nothing is free, we will
+ * M_TRYWAIT, we rely on the mclfree list. If nothing is free, we will
  * sleep for a designated amount of time (mbuf_wait) or until we're woken up
  * due to sudden mcluster availability.
  *
@@ -578,7 +578,7 @@ m_prepend(m, len, how)
 /*
  * Make a copy of an mbuf chain starting "off0" bytes from the beginning,
  * continuing for "len" bytes.  If len is M_COPYALL, copy to end of mbuf.
- * The wait parameter is a choice of M_WAIT/M_DONTWAIT from caller.
+ * The wait parameter is a choice of M_TRYWAIT/M_DONTWAIT from caller.
  * Note that the copy is read-only, because clusters are not copied,
  * only their reference counts are incremented.
  */

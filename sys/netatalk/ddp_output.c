@@ -48,7 +48,7 @@ ddp_output( struct mbuf *m, struct socket *so)
     struct ddpehdr	*deh;
     struct ddpcb *ddp = sotoddpcb( so );
 
-    M_PREPEND( m, sizeof( struct ddpehdr ), M_WAIT );
+    M_PREPEND( m, sizeof( struct ddpehdr ), M_TRYWAIT );
 
     deh = mtod( m, struct ddpehdr *);
     deh->deh_pad = 0;
@@ -189,7 +189,7 @@ ddp_route( struct mbuf *m, struct route *ro)
      * packets end up poorly aligned due to the three byte elap header.
      */
     if ( !(aa->aa_flags & AFA_PHASE2) ) {
-	MGET( m0, M_WAIT, MT_HEADER );
+	MGET( m0, M_TRYWAIT, MT_HEADER );
 	if ( m0 == 0 ) {
 	    m_freem( m );
 	    printf("ddp_route: no buffers\n");

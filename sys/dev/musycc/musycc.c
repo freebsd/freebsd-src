@@ -1207,8 +1207,8 @@ musycc_connect(hook_p hook)
 		sc->mdt[ch][i].m = NULL;
 		sc->mdt[ch][i].data = 0;
 
-		MGETHDR(m, M_WAIT, MT_DATA);
-		MCLGET(m, M_WAIT);
+		MGETHDR(m, M_TRYWAIT, MT_DATA);
+		MCLGET(m, M_TRYWAIT);
 		sc->mdr[ch][i].m = m;
 		sc->mdr[ch][i].data = vtophys(m->m_data);
 		sc->mdr[ch][i].status = 1600; /* MTU */

@@ -221,7 +221,7 @@ ether_output(ifp, m, dst, rt0)
 	    if ( aa->aa_flags & AFA_PHASE2 ) {
 		struct llc llc;
 
-		M_PREPEND(m, sizeof(struct llc), M_WAIT);
+		M_PREPEND(m, sizeof(struct llc), M_TRYWAIT);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
 		llc.llc_control = LLC_UI;
 		bcopy(at_org_code, llc.llc_snap_org_code, sizeof(at_org_code));
@@ -246,7 +246,7 @@ ether_output(ifp, m, dst, rt0)
 			type = htons( m->m_pkthdr.len);
 			break;
 		case 0xe0e0: /* Novell 802.2 and Token-Ring */
-			M_PREPEND(m, 3, M_WAIT);
+			M_PREPEND(m, 3, M_TRYWAIT);
 			type = htons( m->m_pkthdr.len);
 			cp = mtod(m, u_char *);
 			*cp++ = 0xE0;

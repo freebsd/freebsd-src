@@ -46,7 +46,7 @@
  */
 #define malloc(size, type, canwait) bpf_alloc(size, canwait)
 #define free(cp, type) m_free(*(struct mbuf **)(cp - 8))
-#define M_WAITOK M_WAIT
+#define M_WAITOK M_TRYWAIT
 
 /* This mapping works for our purposes. */
 #define ERESTART EINTR
