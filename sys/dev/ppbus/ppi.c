@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997, 1998 Nicolas Souchu, Michael Smith
+ * Copyright (c) 1997, 1998, 1999 Nicolas Souchu, Michael Smith
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,26 +30,34 @@
 
 #if NPPI > 0
 
+#include "opt_ppb_1284.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
-#include <sys/malloc.h>
 #include <sys/fcntl.h>
 
 #include <machine/clock.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
-
-#include "opt_ppb_1284.h"
 
 #ifdef PERIPH_1284
 #include <dev/ppbus/ppb_1284.h>
 #endif
 
 #include <dev/ppbus/ppi.h>
+
+#include "ppbus_if.h"
+
+#include <dev/ppbus/ppbio.h>
 
 #define BUFSIZE		512
 
@@ -64,25 +72,36 @@ struct ppi_data {
     int		ppi_mode;			/* IEEE1284 mode */
     char	ppi_buffer[BUFSIZE];
 
-    struct ppb_device ppi_dev;
+    struct resource *intr_resource;	/* interrupt resource */
+    void *intr_cookie;			/* interrupt registration cookie */
 };
 
-#define MAXPPI		8			/* XXX not much better! */
-static int 		nppi = 0;
-static struct ppi_data	*ppidata[MAXPPI];
+#define DEVTOSOFTC(dev) \
+	((struct ppi_data *)device_get_softc(dev))
+#define UNITOSOFTC(unit) \
+	((struct ppi_data *)devclass_get_softc(ppi_devclass, (unit)))
+#define UNITODEVICE(unit) \
+	(devclass_get_device(ppi_devclass, (unit)))
 
-/*
- * Make ourselves visible as a ppbus driver
- */
+static int ppi_probe(device_t);
+static int ppi_attach(device_t);
+static void ppiintr(void *arg);
 
-static struct ppb_device	*ppiprobe(struct ppb_data *ppb);
-static int			ppiattach(struct ppb_device *dev);
-static void			ppiintr(int unit);
+static devclass_t ppi_devclass;
 
-static struct ppb_driver ppidriver = {
-    ppiprobe, ppiattach, "ppi"
+static device_method_t ppi_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_probe,		ppi_probe),
+	DEVMETHOD(device_attach,	ppi_attach),
+
+	{ 0, 0 }
 };
-DATA_SET(ppbdriver_set, ppidriver);
+
+static driver_t ppi_driver = {
+	"ppi",
+	ppi_methods,
+	sizeof(struct ppi_data),
+};
 
 static	d_open_t	ppiopen;
 static	d_close_t	ppiclose;
@@ -111,23 +130,25 @@ static struct cdevsw ppi_cdevsw = {
 #ifdef PERIPH_1284
 
 static void
-ppi_enable_intr(struct ppi_data *ppi)
+ppi_enable_intr(device_t ppidev)
 {
 	char r;
+	device_t ppbus = device_get_parent(ppidev);
 
-	r = ppb_rctr(&ppi->ppi_dev);
-	ppb_wctr(&ppi->ppi_dev, r | IRQENABLE);
+	r = ppb_rctr(ppbus);
+	ppb_wctr(ppbus, r | IRQENABLE);
 
 	return;
 }
 
 static void
-ppi_disable_intr(struct ppi_data *ppi)
+ppi_disable_intr(device_t ppidev)
 {
 	char r;
+        device_t ppbus = device_get_parent(ppidev);
 
-	r = ppb_rctr(&ppi->ppi_dev);
-	ppb_wctr(&ppi->ppi_dev, r & ~IRQENABLE);
+	r = ppb_rctr(ppbus);
+	ppb_wctr(ppbus, r & ~IRQENABLE);
 
 	return;
 }
@@ -135,55 +156,48 @@ ppi_disable_intr(struct ppi_data *ppi)
 #endif /* PERIPH_1284 */
 
 /*
- * ppiprobe()
+ * ppi_probe()
  */
-static struct ppb_device *
-ppiprobe(struct ppb_data *ppb)
+static int
+ppi_probe(device_t dev)
 {
 	struct ppi_data *ppi;
 	static int once;
 
+	/* probe is always ok */
+	device_set_desc(dev, "Parallel I/O");
+
 	if (!once++)
 		cdevsw_add(&ppi_cdevsw);
 
-	ppi = (struct ppi_data *) malloc(sizeof(struct ppi_data),
-							M_TEMP, M_NOWAIT);
-	if (!ppi) {
-		printf("ppi: cannot malloc!\n");
-		return 0;
-	}
+	ppi = DEVTOSOFTC(dev);
 	bzero(ppi, sizeof(struct ppi_data));
 
-	ppidata[nppi] = ppi;
-
-	/*
-	 * ppi dependent initialisation.
-	 */
-	ppi->ppi_unit = nppi;
-
-	/*
-	 * ppbus dependent initialisation.
-	 */
-	ppi->ppi_dev.id_unit = ppi->ppi_unit;
-	ppi->ppi_dev.ppb = ppb;
-	ppi->ppi_dev.intr = ppiintr;
-
-	/* Ok, go to next device on next probe */
-	nppi ++;
-
-	return &ppi->ppi_dev;
+	return (0);
 }
 
+/*
+ * ppi_attach()
+ */
 static int
-ppiattach(struct ppb_device *dev)
+ppi_attach(device_t dev)
 {
-	/*
-	 * Report ourselves
-	 */
-	printf("ppi%d: <generic parallel i/o> on ppbus %d\n",
-	       dev->id_unit, dev->ppb->ppb_link->adapter_unit);
+	uintptr_t irq;
+	int zero = 0;
+	struct ppi_data *ppi = DEVTOSOFTC(dev);
 
-	return (1);
+	/* retrive the irq */
+	BUS_READ_IVAR(device_get_parent(dev), dev, PPBUS_IVAR_IRQ, &irq);
+
+	/* declare our interrupt handler */
+	ppi->intr_resource = bus_alloc_resource(dev, SYS_RES_IRQ,
+						&zero, irq, irq, 1, RF_ACTIVE);
+
+	make_dev(&ppi_cdevsw, device_get_unit(dev),	/* XXX cleanup */
+		 UID_ROOT, GID_WHEEL,
+		 0600, "ppi%d", device_get_unit(dev));
+
+	return (0);
 }
 
 /*
@@ -199,20 +213,22 @@ ppiattach(struct ppb_device *dev)
  *
  */
 static void
-ppiintr(int unit)
+ppiintr(void *arg)
 {
 #ifdef PERIPH_1284
-	struct ppi_data *ppi = ppidata[unit];
+	device_t ppidev = (device_t)arg;
+        device_t ppbus = device_get_parent(ppidev);
+	struct ppi_data *ppi = DEVTOSOFTC(ppidev);
 
-	ppi_disable_intr(ppi);
+	ppi_disable_intr(ppidev);
 
-	switch (ppi->ppi_dev.ppb->state) {
+	switch (ppb_1284_get_state(ppbus)) {
 
 	/* accept IEEE1284 negociation then wakeup an waiting process to
 	 * continue negociation at process level */
 	case PPB_FORWARD_IDLE:
 		/* Event 1 */
-		if ((ppb_rstr(&ppi->ppi_dev) & (SELECT | nBUSY)) ==
+		if ((ppb_rstr(ppbus) & (SELECT | nBUSY)) ==
 							(SELECT | nBUSY)) {
 			/* IEEE1284 negociation */
 #ifdef DEBUG_1284
@@ -220,15 +236,15 @@ ppiintr(int unit)
 #endif
 
 			/* Event 2 - prepare for reading the ext. value */
-			ppb_wctr(&ppi->ppi_dev, (PCD | STROBE | nINIT) & ~SELECTIN);
+			ppb_wctr(ppbus, (PCD | STROBE | nINIT) & ~SELECTIN);
 
-			ppi->ppi_dev.ppb->state = PPB_NEGOCIATION;
+			ppb_1284_set_state(ppbus, PPB_NEGOCIATION);
 
 		} else {
 #ifdef DEBUG_1284
-			printf("0x%x", ppb_rstr(&ppi->ppi_dev));
+			printf("0x%x", ppb_rstr(ppbus));
 #endif
-			ppb_peripheral_terminate(&ppi->ppi_dev, PPB_DONTWAIT);
+			ppb_peripheral_terminate(ppbus, PPB_DONTWAIT);
 			break;
 		}
 
@@ -242,14 +258,14 @@ ppiintr(int unit)
 		break;
 	default:
 #ifdef DEBUG_1284
-		printf("?%d", ppi->ppi_dev.ppb->state);
+		printf("?%d", ppb_1284_get_state(ppbus);
 #endif
-		ppi->ppi_dev.ppb->state = PPB_FORWARD_IDLE;
-		ppb_set_mode(&ppi->ppi_dev, PPB_COMPATIBLE);
+		ppb_1284_set_state(ppbus, PPB_FORWARD_IDLE);
+		ppb_set_mode(ppbus, PPB_COMPATIBLE);
 		break;
 	}
 
-	ppi_enable_intr(ppi);
+	ppi_enable_intr(ppidev);
 #endif /* PERIPH_1284 */
 
 	return;
@@ -259,19 +275,25 @@ static int
 ppiopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	u_int unit = minor(dev);
-	struct ppi_data *ppi = ppidata[unit];
+	struct ppi_data *ppi = UNITOSOFTC(unit);
+	device_t ppidev = UNITODEVICE(unit);
+        device_t ppbus = device_get_parent(ppidev);
 	int res;
 
-	if (unit >= nppi)
+	if (!ppi)
 		return (ENXIO);
 
 	if (!(ppi->ppi_flags & HAVE_PPBUS)) {
-		if ((res = ppb_request_bus(&ppi->ppi_dev,
+		if ((res = ppb_request_bus(ppbus, ppidev,
 			(flags & O_NONBLOCK) ? PPB_DONTWAIT :
 						(PPB_WAIT | PPB_INTR))))
 			return (res);
 
 		ppi->ppi_flags |= HAVE_PPBUS;
+
+		/* register our interrupt handler */
+		BUS_SETUP_INTR(device_get_parent(ppidev), ppidev, ppi->intr_resource,
+			       INTR_TYPE_TTY, ppiintr, dev, &ppi->intr_cookie);
 	}
 	ppi->ppi_count += 1;
 
@@ -282,26 +304,30 @@ static int
 ppiclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	u_int unit = minor(dev);
-	struct ppi_data *ppi = ppidata[unit];
+	struct ppi_data *ppi = UNITOSOFTC(unit);
+	device_t ppidev = UNITODEVICE(unit);
+        device_t ppbus = device_get_parent(ppidev);
 
 	ppi->ppi_count --;
 	if (!ppi->ppi_count) {
 
 #ifdef PERIPH_1284
-		switch (ppi->ppi_dev.ppb->state) {
+		switch (ppb_1284_get_state(ppbus)) {
 		case PPB_PERIPHERAL_IDLE:
-			ppb_peripheral_terminate(&ppi->ppi_dev, 0);
+			ppb_peripheral_terminate(ppbus, 0);
 			break;
 		case PPB_REVERSE_IDLE:
 		case PPB_EPP_IDLE:
 		case PPB_ECP_FORWARD_IDLE:
 		default:
-			ppb_1284_terminate(&ppi->ppi_dev);
+			ppb_1284_terminate(ppbus);
 			break;
 		}
 #endif /* PERIPH_1284 */
 
-		ppb_release_bus(&ppi->ppi_dev);
+		/* unregistration of interrupt forced by release */
+		ppb_release_bus(ppbus, ppidev);
+
 		ppi->ppi_flags &= ~HAVE_PPBUS;
 	}
 
@@ -321,19 +347,21 @@ ppiread(dev_t dev, struct uio *uio, int ioflag)
 {
 #ifdef PERIPH_1284
 	u_int unit = minor(dev);
-	struct ppi_data *ppi = ppidata[unit];
+	struct ppi_data *ppi = UNITOSOFTC(unit);
+	device_t ppidev = UNITODEVICE(unit);
+        device_t ppbus = device_get_parent(ppidev);
 	int len, error = 0;
 
-	switch (ppi->ppi_dev.ppb->state) {
+	switch (ppb_1284_get_state(ppbus)) {
 	case PPB_PERIPHERAL_IDLE:
-		ppb_peripheral_terminate(&ppi->ppi_dev, 0);
+		ppb_peripheral_terminate(ppbus, 0);
 		/* fall throught */
 
 	case PPB_FORWARD_IDLE:
 		/* if can't negociate NIBBLE mode then try BYTE mode,
 		 * the peripheral may be a computer
 		 */
-		if ((ppb_1284_negociate(&ppi->ppi_dev,
+		if ((ppb_1284_negociate(ppbus,
 			ppi->ppi_mode = PPB_NIBBLE, 0))) {
 
 			/* XXX Wait 2 seconds to let the remote host some
@@ -341,7 +369,7 @@ ppiread(dev_t dev, struct uio *uio, int ioflag)
 			 */
 			tsleep(ppi, PPBPRI, "ppiread", 2*hz);
 			
-			if ((error = ppb_1284_negociate(&ppi->ppi_dev,
+			if ((error = ppb_1284_negociate(ppbus,
 				ppi->ppi_mode = PPB_BYTE, 0)))
 				return (error);
 		}
@@ -360,7 +388,7 @@ ppiread(dev_t dev, struct uio *uio, int ioflag)
 	/* read data */
 	len = 0;
 	while (uio->uio_resid) {
-		if ((error = ppb_1284_read(&ppi->ppi_dev, ppi->ppi_mode,
+		if ((error = ppb_1284_read(ppbus, ppi->ppi_mode,
 			ppi->ppi_buffer, min(BUFSIZE, uio->uio_resid),
 			&len))) {
 			goto error;
@@ -403,8 +431,9 @@ ppiwrite(dev_t dev, struct uio *uio, int ioflag)
 {
 #ifdef PERIPH_1284
 	u_int unit = minor(dev);
-	struct ppi_data *ppi = ppidata[unit];
-	struct ppb_data *ppb = ppi->ppi_dev.ppb;
+	struct ppi_data *ppi = UNITOSOFTC(unit);
+	device_t ppidev = UNITODEVICE(unit);
+        device_t ppbus = device_get_parent(ppidev);
 	int len, error = 0, sent;
 
 #if 0
@@ -419,7 +448,7 @@ ppiwrite(dev_t dev, struct uio *uio, int ioflag)
 	};
 
 	/* negociate ECP mode */
-	if (ppb_1284_negociate(&ppi->ppi_dev, PPB_ECP, 0)) {
+	if (ppb_1284_negociate(ppbus, PPB_ECP, 0)) {
 		printf("ppiwrite: ECP negociation failed\n");
 	}
 
@@ -428,7 +457,7 @@ ppiwrite(dev_t dev, struct uio *uio, int ioflag)
 
 		ppb_MS_init_msq(msq, 2, ADDRESS, ppi->ppi_buffer, LENGTH, len);
 
-		error = ppb_MS_microseq(&ppi->ppi_dev, msq, &ret);
+		error = ppb_MS_microseq(ppbus, msq, &ret);
 	}
 #endif
 
@@ -436,7 +465,7 @@ ppiwrite(dev_t dev, struct uio *uio, int ioflag)
 	 * wait for the appropriate state
 	 */
 	if (ppb->state < PPB_PERIPHERAL_NEGOCIATION)
-		ppb_1284_terminate(&ppi->ppi_dev);
+		ppb_1284_terminate(ppbus);
 
 	while (ppb->state != PPB_PERIPHERAL_IDLE) {
 		/* XXX should check a variable before sleeping */
@@ -444,7 +473,7 @@ ppiwrite(dev_t dev, struct uio *uio, int ioflag)
 		printf("s");
 #endif
 
-		ppi_enable_intr(ppi);
+		ppi_enable_intr(ppidev);
 
 		/* sleep until IEEE1284 negociation starts */
 		error = tsleep(ppi, PCATCH | PPBPRI, "ppiwrite", 0);
@@ -452,7 +481,7 @@ ppiwrite(dev_t dev, struct uio *uio, int ioflag)
 		switch (error) {
 		case 0:
 			/* negociate peripheral side with BYTE mode */
-			ppb_peripheral_negociate(&ppi->ppi_dev, PPB_BYTE, 0);
+			ppb_peripheral_negociate(ppbus, PPB_BYTE, 0);
 			break;
 		case EWOULDBLOCK:
 			break;
@@ -467,7 +496,7 @@ ppiwrite(dev_t dev, struct uio *uio, int ioflag)
 	/* negociation done, write bytes to master host */
 	while ((len = min(uio->uio_resid, BUFSIZE)) != 0) {
 		uiomove(ppi->ppi_buffer, len, uio);
-		if ((error = byte_peripheral_write(&ppi->ppi_dev,
+		if ((error = byte_peripheral_write(ppbus,
 						ppi->ppi_buffer, len, &sent)))
 			goto error;
 #ifdef DEBUG_1284
@@ -488,55 +517,54 @@ static int
 ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	u_int unit = minor(dev);
-	struct ppi_data *ppi = ppidata[unit];
+	device_t ppidev = UNITODEVICE(unit);
+        device_t ppbus = device_get_parent(ppidev);
 	int error = 0;
 	u_int8_t *val = (u_int8_t *)data;
 
 	switch (cmd) {
 
 	case PPIGDATA:			/* get data register */
-		*val = ppb_rdtr(&ppi->ppi_dev);
+		*val = ppb_rdtr(ppbus);
 		break;
 	case PPIGSTATUS:		/* get status bits */
-		*val = ppb_rstr(&ppi->ppi_dev);
+		*val = ppb_rstr(ppbus);
 		break;
 	case PPIGCTRL:			/* get control bits */
-		*val = ppb_rctr(&ppi->ppi_dev);
+		*val = ppb_rctr(ppbus);
 		break;
 	case PPIGEPPD:			/* get EPP data bits */
-		*val = ppb_repp_D(&ppi->ppi_dev);
+		*val = ppb_repp_D(ppbus);
 		break;
 	case PPIGECR:			/* get ECP bits */
-		*val = ppb_recr(&ppi->ppi_dev);
+		*val = ppb_recr(ppbus);
 		break;
 	case PPIGFIFO:			/* read FIFO */
-		*val = ppb_rfifo(&ppi->ppi_dev);
+		*val = ppb_rfifo(ppbus);
 		break;
-
 	case PPISDATA:			/* set data register */
-		ppb_wdtr(&ppi->ppi_dev, *val);
+		ppb_wdtr(ppbus, *val);
 		break;
 	case PPISSTATUS:		/* set status bits */
-		ppb_wstr(&ppi->ppi_dev, *val);
+		ppb_wstr(ppbus, *val);
 		break;
 	case PPISCTRL:			/* set control bits */
-		ppb_wctr(&ppi->ppi_dev, *val);
+		ppb_wctr(ppbus, *val);
 		break;
 	case PPISEPPD:			/* set EPP data bits */
-		ppb_wepp_D(&ppi->ppi_dev, *val);
+		ppb_wepp_D(ppbus, *val);
 		break;
 	case PPISECR:			/* set ECP bits */
-		ppb_wecr(&ppi->ppi_dev, *val);
+		ppb_wecr(ppbus, *val);
 		break;
 	case PPISFIFO:			/* write FIFO */
-		ppb_wfifo(&ppi->ppi_dev, *val);
+		ppb_wfifo(ppbus, *val);
 		break;
-
 	case PPIGEPPA:			/* get EPP address bits */
-		*val = ppb_repp_A(&ppi->ppi_dev);
+		*val = ppb_repp_A(ppbus);
 		break;
 	case PPISEPPA:			/* set EPP address bits */
-		ppb_wepp_A(&ppi->ppi_dev, *val);
+		ppb_wepp_A(ppbus, *val);
 		break;
 	default:
 		error = ENOTTY;
@@ -545,5 +573,7 @@ ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
     
 	return (error);
 }
+
+DRIVER_MODULE(ppi, ppbus, ppi_driver, ppi_devclass, 0, 0);
 
 #endif /* NPPI */

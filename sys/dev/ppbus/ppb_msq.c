@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/bus.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
+
+#include "ppbus_if.h"
 
 /* msq index (see PPB_MAX_XFER)
  * These are device modes
@@ -49,18 +52,18 @@
  * Device mode to submsq conversion
  */
 static struct ppb_xfer *
-mode2xfer(struct ppb_device *dev, int opcode)
+mode2xfer(device_t bus, struct ppb_device *ppbdev, int opcode)
 {
 	int index, epp;
 	struct ppb_xfer *table;
 
 	switch (opcode) {
 	case MS_OP_GET:
-		table = dev->get_xfer;
+		table = ppbdev->get_xfer;
 		break;
 
 	case MS_OP_PUT:
-		table = dev->put_xfer;
+		table = ppbdev->put_xfer;
 		break;
 
 	default:
@@ -68,7 +71,7 @@ mode2xfer(struct ppb_device *dev, int opcode)
 	}
 
 	/* retrieve the device operating mode */
-	switch (ppb_get_mode(dev)) {
+	switch (ppb_get_mode(bus)) {
 	case PPB_COMPATIBLE:
 		index = COMPAT_MSQ;
 		break;
@@ -79,7 +82,7 @@ mode2xfer(struct ppb_device *dev, int opcode)
 		index = PS2_MSQ;
 		break;
 	case PPB_EPP:
-		switch ((epp = ppb_get_epp_protocol(dev))) {
+		switch ((epp = ppb_get_epp_protocol(bus))) {
 		case EPP_1_7:
 			index = EPP17_MSQ;
 			break;
@@ -95,7 +98,7 @@ mode2xfer(struct ppb_device *dev, int opcode)
 		index = ECP_MSQ;
 		break;
 	default:
-		panic("%s: unknown mode (%d)", __FUNCTION__, dev->mode);
+		panic("%s: unknown mode (%d)", __FUNCTION__, ppbdev->mode);
 	}
 
 	return (&table[index]);
@@ -108,9 +111,10 @@ mode2xfer(struct ppb_device *dev, int opcode)
  *
  */
 int
-ppb_MS_init(struct ppb_device *dev, struct ppb_microseq *loop, int opcode)
+ppb_MS_init(device_t bus, device_t dev, struct ppb_microseq *loop, int opcode)
 {
-	struct ppb_xfer *xfer = mode2xfer(dev, opcode);
+	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
+	struct ppb_xfer *xfer = mode2xfer(bus, ppbdev, opcode);
 
 	xfer->loop = loop;
 
@@ -124,7 +128,7 @@ ppb_MS_init(struct ppb_device *dev, struct ppb_microseq *loop, int opcode)
  *
  */
 int
-ppb_MS_exec(struct ppb_device *dev, int opcode, union ppb_insarg param1,
+ppb_MS_exec(device_t bus, device_t dev, int opcode, union ppb_insarg param1,
 		union ppb_insarg param2, union ppb_insarg param3, int *ret)
 {
 	struct ppb_microseq msq[] = {
@@ -139,7 +143,7 @@ ppb_MS_exec(struct ppb_device *dev, int opcode, union ppb_insarg param1,
 	msq[0].arg[2] = param3;
 
 	/* execute the microseq */
-	return (ppb_MS_microseq(dev, msq, ret));
+	return (ppb_MS_microseq(bus, dev, msq, ret));
 }
 
 /*
@@ -149,7 +153,7 @@ ppb_MS_exec(struct ppb_device *dev, int opcode, union ppb_insarg param1,
  *
  */
 int
-ppb_MS_loop(struct ppb_device *dev, struct ppb_microseq *prolog,
+ppb_MS_loop(device_t bus, device_t dev, struct ppb_microseq *prolog,
 		struct ppb_microseq *body, struct ppb_microseq *epilog,
 		int iter, int *ret)
 {
@@ -172,7 +176,7 @@ ppb_MS_loop(struct ppb_device *dev, struct ppb_microseq *prolog,
 	loop_microseq[4].arg[0].p = (void *)epilog;
 
 	/* execute the loop */
-	return (ppb_MS_microseq(dev, loop_microseq, ret));
+	return (ppb_MS_microseq(bus, dev, loop_microseq, ret));
 }
 
 /*
@@ -242,9 +246,11 @@ ppb_MS_init_msq(struct ppb_microseq *msq, int nbparam, ...)
  * level to avoid function call overhead between ppbus and the adapter
  */
 int
-ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
+ppb_MS_microseq(device_t bus, device_t dev, struct ppb_microseq *msq, int *ret)
 {
-	struct ppb_data *ppb = dev->ppb;
+	struct ppb_data *ppb = (struct ppb_data *)device_get_softc(bus);
+	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
+
 	struct ppb_microseq *mi;		/* current microinstruction */
 	int error;
 
@@ -269,13 +275,13 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 		case MS_OP_GET:
 
 			/* attempt to choose the best mode for the device */
-			xfer = mode2xfer(dev, mi->opcode);
+			xfer = mode2xfer(bus, ppbdev, mi->opcode);
 
 			/* figure out if we should use ieee1284 code */
 			if (!xfer->loop) {
 				if (mi->opcode == MS_OP_PUT) {
-					if ((error = ppb->ppb_link->adapter->write(
-						ppb->ppb_link->adapter_unit,
+					if ((error = PPBUS_WRITE(
+						device_get_parent(bus),
 						(char *)mi->arg[0].p,
 						mi->arg[1].i, 0)))
 							goto error;
@@ -291,7 +297,7 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 			initxfer[1].arg[0].i = mi->arg[1].i;
 
 			/* initialize transfer */
-			ppb_MS_microseq(dev, initxfer, &error);
+			ppb_MS_microseq(bus, dev, initxfer, &error);
 
 			if (error)
 				goto error;
@@ -299,7 +305,7 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 			/* the xfer microsequence should not contain any
 			 * MS_OP_PUT or MS_OP_GET!
 			 */
-			ppb_MS_microseq(dev, xfer->loop, &error);
+			ppb_MS_microseq(bus, dev, xfer->loop, &error);
 
 			if (error)
 				goto error;
@@ -318,9 +324,8 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 			 * faster. This is the default if the microinstr
 			 * is unknown here
 			 */
-			if ((error = ppb->ppb_link->adapter->exec_microseq(
-						ppb->ppb_link->adapter_unit,
-						&mi)))
+			if ((error = PPBUS_EXEC_MICROSEQ(
+						device_get_parent(bus), &mi)))
 				goto error;
 			break;
 		}

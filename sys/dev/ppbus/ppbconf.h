@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997, 1998 Nicolas Souchu
+ * Copyright (c) 1997, 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,9 +55,9 @@
 #define PPB_OPTIONS_MASK	0xf0
 
 #define PPB_IS_EPP(mode) (mode & PPB_EPP)
-#define PPB_IN_EPP_MODE(dev) (PPB_IS_EPP (ppb_get_mode (dev)))
-#define PPB_IN_NIBBLE_MODE(dev) (ppb_get_mode (dev) & PPB_NIBBLE)
-#define PPB_IN_PS2_MODE(dev) (ppb_get_mode (dev) & PPB_PS2)
+#define PPB_IN_EPP_MODE(bus) (PPB_IS_EPP (ppb_get_mode (bus)))
+#define PPB_IN_NIBBLE_MODE(bus) (ppb_get_mode (bus) & PPB_NIBBLE)
+#define PPB_IN_PS2_MODE(bus) (ppb_get_mode (bus) & PPB_PS2)
 
 #define n(flags) (~(flags) & (flags))
 
@@ -100,6 +100,28 @@ struct ppb_status {
 	unsigned int ack:1;
 	unsigned int busy:1;
 };
+
+/* Parallel port bus I/O opcodes */
+#define PPB_OUTSB_EPP	1
+#define PPB_OUTSW_EPP	2
+#define PPB_OUTSL_EPP	3
+#define PPB_INSB_EPP	4
+#define PPB_INSW_EPP	5
+#define PPB_INSL_EPP	6
+#define PPB_RDTR	7
+#define PPB_RSTR	8
+#define PPB_RCTR	9
+#define PPB_REPP_A	10
+#define PPB_REPP_D	11
+#define PPB_RECR	12
+#define PPB_RFIFO	13
+#define PPB_WDTR	14
+#define PPB_WSTR	15
+#define PPB_WCTR	16
+#define PPB_WEPP_A	17
+#define PPB_WEPP_D	18
+#define PPB_WECR	19
+#define PPB_WFIFO	20
 
 /*
  * How tsleep() is called in ppb_request_bus().
@@ -152,14 +174,23 @@ struct ppb_context {
 	struct microseq *curmsq;	/* currently executed microseqence */
 };
 
+/*
+ * List of IVARS available to ppb device drivers
+ */
+#define PPBUS_IVAR_MODE 0
+#define PPBUS_IVAR_AVM	1
+#define PPBUS_IVAR_IRQ	2
+
+/* other fields are reserved to the ppbus internals */
+
 struct ppb_device {
 
-	int id_unit;			/* unit of the device */
-	char *name;			/* name of the device */
+	const char *name;		/* name of the device */
 
 	ushort mode;			/* current mode of the device */
 	ushort avm;			/* available IEEE1284 modes of 
 					 * the device */
+	uint flags;			/* flags */
 
 	struct ppb_context ctx;		/* context of the device */
 
@@ -172,76 +203,21 @@ struct ppb_device {
 					 * IEEE1284 code is used */
 	struct ppb_xfer
 		put_xfer[PPB_MAX_XFER];
-
-	void (*intr)(int);		/* interrupt handler */
-	void (*bintr)(struct ppb_device *);	/* interrupt handler */
+  
+ 	struct resource *intr_resource;
+ 	void *intr_cookie;
 
 	void *drv1, *drv2;		/* drivers private data */
-
-	struct ppb_data *ppb;		/* link to the ppbus */
-
-	LIST_ENTRY(ppb_device)	chain;	/* list of devices on the bus */
 };
 
-/*
- * Parallel Port Bus Adapter structure.
- */
-struct ppb_adapter {
-
-	void (*intr_handler)(int);
-	void (*reset_epp_timeout)(int);
-	void (*ecp_sync)(int);
-
-	int (*exec_microseq)(int, struct ppb_microseq **);
-
-	int (*setmode)(int, int);
-	int (*read)(int, char *, int, int);
-	int (*write)(int, char *, int, int);
-
-	void (*outsb_epp)(int, char *, int);
-	void (*outsw_epp)(int, char *, int);
-	void (*outsl_epp)(int, char *, int);
-	void (*insb_epp)(int, char *, int);
-	void (*insw_epp)(int, char *, int);
-	void (*insl_epp)(int, char *, int);
-
-	u_char (*r_dtr)(int);
-	u_char (*r_str)(int);
-	u_char (*r_ctr)(int);
-	u_char (*r_epp_A)(int);
-	u_char (*r_epp_D)(int);
-	u_char (*r_ecr)(int);
-	u_char (*r_fifo)(int);
-
-	void (*w_dtr)(int, char);
-	void (*w_str)(int, char);
-	void (*w_ctr)(int, char);
-	void (*w_epp_A)(int, char);
-	void (*w_epp_D)(int, char);
-	void (*w_ecr)(int, char);
-	void (*w_fifo)(int, char);
-};
-
-/*
- * ppb_link structure.
- */
-struct ppb_link {
-
-	int adapter_unit;			/* unit of the adapter */
-	int base;				/* base address of the port */
-	int id_irq;				/* != 0 if irq enabled */
-	int accum;				/* microseq accum */
-	char *ptr;				/* current buffer pointer */
-
+/* EPP standards */
 #define EPP_1_9		0x0			/* default */
 #define EPP_1_7		0x1
-
-	int epp_protocol;			/* EPP protocol: 0=1.9, 1=1.7 */
-
-	struct ppb_adapter *adapter;		/* link to the ppc adapter */
-	struct ppb_data *ppbus;			/* link to the ppbus */
-};
-
+  
+/* Parallel Port Chipset IVARS */		/* elsewhere XXX */
+#define PPC_IVAR_EPP_PROTO	0
+#define PPC_IVAR_IRQ		1
+ 
 /*
  * Maximum size of the PnP info string
  */
@@ -263,113 +239,36 @@ struct ppb_data {
 #define PPB_PnP_SCANNER	8
 #define PPB_PnP_DIGICAM	9
 #define PPB_PnP_UNKNOWN	10
-	int	class_id;	/* not a PnP device if class_id < 0 */
+	int class_id;		/* not a PnP device if class_id < 0 */
 
-	int state;				/* current IEEE1284 state */
-	int error;				/* last IEEE1284 error */
+	int state;		/* current IEEE1284 state */
+	int error;		/* last IEEE1284 error */
 
-	ushort mode;				/* IEEE 1284-1994 mode
-						 * NIBBLE, PS2, EPP or ECP */
+	int mode;		/* IEEE 1284-1994 mode
+				 * NIBBLE, PS2, EPP or ECP */
 
-	struct ppb_link *ppb_link;		/* link to the adapter */
-	struct ppb_device *ppb_owner;		/* device which owns the bus */
-	LIST_HEAD(, ppb_device)	ppb_devs;	/* list of devices on the bus */
-	LIST_ENTRY(ppb_data)	ppb_chain;	/* list of busses */
+	void *ppb_owner;	/* device which owns the bus */
 };
 
-/*
- * Parallel Port Bus driver structure.
- */
-struct ppb_driver 
-{
-    struct ppb_device	*(*probe)(struct ppb_data *ppb);
-    int			(*attach)(struct ppb_device *pdp);
-    char		*name;
-};
+extern int ppb_attach_device(device_t);
+extern int ppb_request_bus(device_t, device_t, int);
+extern int ppb_release_bus(device_t, device_t);
 
-extern struct linker_set ppbdriver_set;
-
-extern struct ppb_data *ppb_alloc_bus(void);
-extern struct ppb_data *ppb_next_bus(struct ppb_data *);
-extern struct ppb_data *ppb_lookup_bus(int);
-extern struct ppb_data *ppb_lookup_link(int);
-
-extern int ppb_attach_device(struct ppb_device *);
-extern void ppb_remove_device(struct ppb_device *);
-extern int ppb_attachdevs(struct ppb_data *);
-
-extern int ppb_request_bus(struct ppb_device *, int);
-extern int ppb_release_bus(struct ppb_device *);
-
-extern void ppb_intr(struct ppb_link *);
-
-extern int ppb_poll_device(struct ppb_device *, int, char, char, int);
-
-extern int ppb_reset_epp_timeout(struct ppb_device *);
-extern int ppb_ecp_sync(struct ppb_device *);
-extern int ppb_get_status(struct ppb_device *, struct ppb_status *);
-
-extern int ppb_set_mode(struct ppb_device *, int);
-extern int ppb_write(struct ppb_device *, char *, int, int);
+/* bus related functions */
+extern int ppb_get_status(device_t, struct ppb_status *);
+extern int ppb_poll_bus(device_t, int, char, char, int);
+extern int ppb_reset_epp_timeout(device_t);
+extern int ppb_ecp_sync(device_t);
+extern int ppb_get_epp_protocol(device_t);
+extern int ppb_set_mode(device_t, int);		/* returns old mode */
+extern int ppb_get_mode(device_t);		/* returns current mode */
+extern int ppb_write(device_t, char *, int, int);
 
 /*
  * These are defined as macros for speedup.
- */
 #define ppb_get_base_addr(dev) ((dev)->ppb->ppb_link->base)
 #define ppb_get_epp_protocol(dev) ((dev)->ppb->ppb_link->epp_protocol)
 #define ppb_get_irq(dev) ((dev)->ppb->ppb_link->id_irq)
-
-#define ppb_get_mode(dev) ((dev)->mode)
-
-/* This set of function access only to the EPP _data_ registers
- * in 8, 16 and 32 bit modes */
-#define ppb_outsb_epp(dev,buf,cnt)					    \
-			(*(dev)->ppb->ppb_link->adapter->outsb_epp)	    \
-			((dev)->ppb->ppb_link->adapter_unit, buf, cnt)
-#define ppb_outsw_epp(dev,buf,cnt)					    \
-			(*(dev)->ppb->ppb_link->adapter->outsw_epp)	    \
-			((dev)->ppb->ppb_link->adapter_unit, buf, cnt)
-#define ppb_outsl_epp(dev,buf,cnt)					    \
-			(*(dev)->ppb->ppb_link->adapter->outsl_epp)	    \
-			((dev)->ppb->ppb_link->adapter_unit, buf, cnt)
-#define ppb_insb_epp(dev,buf,cnt)					    \
-			(*(dev)->ppb->ppb_link->adapter->insb_epp)	    \
-			((dev)->ppb->ppb_link->adapter_unit, buf, cnt)
-#define ppb_insw_epp(dev,buf,cnt)					    \
-			(*(dev)->ppb->ppb_link->adapter->insw_epp)	    \
-			((dev)->ppb->ppb_link->adapter_unit, buf, cnt)
-#define ppb_insl_epp(dev,buf,cnt)					    \
-			(*(dev)->ppb->ppb_link->adapter->insl_epp)	    \
-			((dev)->ppb->ppb_link->adapter_unit, buf, cnt)
-
-#define ppb_repp_A(dev) (*(dev)->ppb->ppb_link->adapter->r_epp_A)	    \
-				((dev)->ppb->ppb_link->adapter_unit)
-#define ppb_repp_D(dev) (*(dev)->ppb->ppb_link->adapter->r_epp_D)	    \
-				((dev)->ppb->ppb_link->adapter_unit)
-#define ppb_recr(dev) (*(dev)->ppb->ppb_link->adapter->r_ecr)		    \
-				((dev)->ppb->ppb_link->adapter_unit)
-#define ppb_rfifo(dev) (*(dev)->ppb->ppb_link->adapter->r_fifo)		    \
-				((dev)->ppb->ppb_link->adapter_unit)
-#define ppb_wepp_A(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_epp_A)	    \
-				((dev)->ppb->ppb_link->adapter_unit, byte)
-#define ppb_wepp_D(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_epp_D)	    \
-				((dev)->ppb->ppb_link->adapter_unit, byte)
-#define ppb_wecr(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_ecr)	    \
-				((dev)->ppb->ppb_link->adapter_unit, byte)
-#define ppb_wfifo(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_fifo)	    \
-				((dev)->ppb->ppb_link->adapter_unit, byte)
-
-#define ppb_rdtr(dev) (*(dev)->ppb->ppb_link->adapter->r_dtr)		    \
-				((dev)->ppb->ppb_link->adapter_unit)
-#define ppb_rstr(dev) (*(dev)->ppb->ppb_link->adapter->r_str)		    \
-				((dev)->ppb->ppb_link->adapter_unit)
-#define ppb_rctr(dev) (*(dev)->ppb->ppb_link->adapter->r_ctr)		    \
-				((dev)->ppb->ppb_link->adapter_unit)
-#define ppb_wdtr(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_dtr)	    \
-				((dev)->ppb->ppb_link->adapter_unit, byte)
-#define ppb_wstr(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_str)	    \
-				((dev)->ppb->ppb_link->adapter_unit, byte)
-#define ppb_wctr(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_ctr)	    \
-				((dev)->ppb->ppb_link->adapter_unit, byte)
+ */
 
 #endif
