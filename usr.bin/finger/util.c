@@ -353,9 +353,12 @@ userinfo(pn, pw)
 	pn->realname = pn->office = pn->officephone = pn->homephone = NULL;
 
 	pn->uid = pw->pw_uid;
-	pn->name = strdup(pw->pw_name);
-	pn->dir = strdup(pw->pw_dir);
-	pn->shell = strdup(pw->pw_shell);
+	if ((pn->name = strdup(pw->pw_name)) == NULL)
+		err(1, "strdup failed");
+	if ((pn->dir = strdup(pw->pw_dir)) == NULL)
+		err(1, "strdup failed");
+	if ((pn->shell = strdup(pw->pw_shell)) == NULL)
+		err(1, "strdup failed");
 
 	/* why do we skip asterisks!?!? */
 	(void)strncpy(bp = tbuf, pw->pw_gecos, sizeof(tbuf));
@@ -380,7 +383,8 @@ userinfo(pn, pw)
 		}
 	}
 	*t = '\0';
-	pn->realname = strdup(name);
+	if ((pn->realname = strdup(name)) == NULL)
+		err(1, "strdup failed");
 	pn->office = ((p = strsep(&bp, ",")) && *p) ?
 	    strdup(p) : NULL;
 	pn->officephone = ((p = strsep(&bp, ",")) && *p) ?
