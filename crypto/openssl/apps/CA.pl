@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl5
+#!/usr/local/bin/perl
 #
 # CA - wrapper around ca to make it easier to use ... basically ca requires
 #      some setup stuff to be done before you can use it and this makes
