@@ -337,7 +337,9 @@ restart:
 			 */
 			eva = rcr2();
 			enable_intr();
+			mtx_lock(&Giant);
 			i = trap_pfault(&frame, TRUE, eva);
+			mtx_unlock(&Giant);
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 			if (i == -2) {
 				/*
@@ -448,7 +450,9 @@ restart:
 			 */
 			eva = rcr2();
 			enable_intr();
+			mtx_lock(&Giant);
 			(void) trap_pfault(&frame, FALSE, eva);
+			mtx_unlock(&Giant);
 			goto out;
 
 		case T_DNA:
