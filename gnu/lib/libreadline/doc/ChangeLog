@@ -1,8 +1,0 @@
-Tue Feb  2 11:40:04 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
-
-	* Makefile.in: configurable (and useable) Makefile template
-        * Makefile: removed, replaced with configurable Makefile.in
-        * texindex.c texinfo.tex: remove, replacing w/refs to tools
-	elsewhere in distribution tree
-        * configure.in: pro forma configure stub
-	* ChangeLog: new file
