@@ -191,7 +191,12 @@ nd6_ifattach(ifp)
 	ND.reachable = ND_COMPUTE_RTIME(ND.basereachable);
 	ND.retrans = RETRANS_TIMER;
 	ND.receivedra = 0;
-	ND.flags = ND6_IFF_PERFORMNUD;
+	/*
+	 * Note that the default value of ip6_accept_rtadv is 0, which means
+	 * we won't accept RAs by default even if we set ND6_IFF_ACCEPT_RTADV
+	 * here.
+	 */
+	ND.flags = (ND6_IFF_PERFORMNUD | ND6_IFF_ACCEPT_RTADV);
 	nd6_setmtu(ifp);
 #undef ND
 }
