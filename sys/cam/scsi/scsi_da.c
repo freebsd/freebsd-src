@@ -215,7 +215,13 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Y-E DATA", "USB-FDU", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/* Another USB floppy */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MATSHITA", "FDD CF-VFDU*","*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	}
+
 };
 
 static	d_open_t	daopen;
