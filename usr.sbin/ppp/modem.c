@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.23 1996/03/29 15:24:04 ache Exp $
+ * $Id: modem.c,v 1.24 1996/05/11 20:48:36 phk Exp $
  *
  *  TODO:
  */
@@ -39,7 +39,6 @@
 #define O_NONBLOCK O_NDELAY
 #endif
 #endif
-#define USE_CTSRTS
 
 extern int DoChat();
 
@@ -448,12 +447,12 @@ int mode;
     rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
 #endif
     cfmakeraw(&rstio);
-#ifdef USE_CTSRTS
-    rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
-#else
-    rstio.c_cflag |= CLOCAL;
-    rstio.c_iflag |= IXOFF;
-#endif
+    if (VarCtsRts)
+	rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
+    else {
+	rstio.c_cflag |= CLOCAL;
+	rstio.c_iflag |= IXOFF;
+    }
     rstio.c_iflag |= IXON;
     if (!(mode & MODE_DEDICATED))
       rstio.c_cflag |= HUPCL;
@@ -516,11 +515,11 @@ int modem;
   }
   tcgetattr(modem, &rstio);
   cfmakeraw(&rstio);
-#ifdef USE_CTSRTS
-    rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
-#else
-    rstio.c_cflag |= CLOCAL;
-#endif
+  if (VarCtsRts)
+      rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
+  else
+      rstio.c_cflag |= CLOCAL;
+
   if (!(mode & MODE_DEDICATED))
     rstio.c_cflag |= HUPCL;
   tcsetattr(modem, TCSADRAIN, &rstio);
@@ -772,11 +771,14 @@ ShowModemStatus()
   }
   if (VarParity & PARENB) {
     if (VarParity & PARODD)
-      printf("odd parity\n");
+      printf("odd parity, ");
     else
-      printf("even parity\n");
+      printf("even parity, ");
   } else
-    printf("none parity\n");
+    printf("no parity, ");
+
+  printf("CTS/RTS %s.\n", (VarCtsRts? "on" : "off"));
+
 #ifdef DEBUG
   printf("fd = %d, modem control = %o\n", modem, mbits);
 #endif
