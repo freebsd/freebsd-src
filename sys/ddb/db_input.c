@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.11 1995/12/10 13:32:37 phk Exp $
+ *	$Id: db_input.c,v 1.12 1995/12/10 19:07:59 bde Exp $
  */
 
 /*
@@ -221,7 +221,7 @@ db_readline(lstart, lsize)
 	while (!db_inputchar(cngetc()))
 	    continue;
 
-	db_putchar('\n');	/* synch output position */
+	db_printf("\n");	/* synch output position */
 
 	*db_le = 0;
 	return (db_le - db_lbuf_start);

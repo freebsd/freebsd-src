@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.16 1996/01/15 22:39:35 phk Exp $
+ *	$Id: db_output.c,v 1.17 1996/01/23 21:17:59 phk Exp $
  */
 
 /*
@@ -63,6 +63,8 @@ int	db_tab_stop_width = 8;		/* how wide are tab stops? */
 	((((i) + db_tab_stop_width) / db_tab_stop_width) * db_tab_stop_width)
 int	db_max_width = 80;		/* output line width */
 
+static void db_putchar __P((int c, void *arg));
+
 /*
  * Force pending whitespace.
  */
@@ -91,9 +93,10 @@ db_force_whitespace()
 /*
  * Output character.  Buffer whitespace.
  */
-void
-db_putchar(c)
+static void
+db_putchar(c, arg)
 	int	c;		/* character to output */
+	void *	arg;
 {
 	if (c > ' ' && c <= '~') {
 	    /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.17 1995/11/16 19:00:11 phk Exp $
+ *	$Id: rtsock.c,v 1.18 1996/03/11 15:13:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -782,7 +782,7 @@ extern struct domain routedomain;		/* or at least forward */
 
 static struct protosw routesw[] = {
 { SOCK_RAW,	&routedomain,	0,		PR_ATOMIC|PR_ADDR,
-  raw_input,	route_output,	raw_ctlinput,	0,
+  0,		route_output,	raw_ctlinput,	0,
   route_usrreq,
   raw_init
 }

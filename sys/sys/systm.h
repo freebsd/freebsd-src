@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.37 1996/03/11 02:23:33 hsu Exp $
+ * $Id: systm.h,v 1.38 1996/04/07 16:46:27 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -117,7 +117,7 @@ void	*phashinit __P((int count, int type, u_long *nentries));
 __dead void	panic __P((const char *, ...)) __dead2;
 __dead void	boot __P((int)) __dead2;
 void	tablefull __P((const char *));
-void	addlog __P((const char *, ...));
+int	addlog __P((const char *, ...));
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int, va_list));
 void	log __P((int, const char *, ...));
 int	printf __P((const char *, ...));
