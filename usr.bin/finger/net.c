@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <utmp.h>
 #include "finger.h"
 
-static void cleanup(int sig);;
+static void cleanup(int sig);
 static int do_protocol(const char *name, const struct addrinfo *ai);
 static void trying(const struct addrinfo *ai);
 
