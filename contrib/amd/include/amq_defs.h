@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_defs.h,v 1.1.1.1 1998/11/05 02:04:44 ezk Exp $
+ * $Id: amq_defs.h,v 1.3 1999/09/08 23:36:52 ezk Exp $
  *
  */
 
@@ -51,7 +51,7 @@
 #ifndef AMQ_SIZE
 # define AMQ_SIZE 16384
 #endif /* not AMQ_SIZE */
-#define AMQ_STRLEN 1024
+#define AMQ_STRLEN 2048
 #define AMQ_PROGRAM ((u_long)300019)
 #define AMQ_VERSION ((u_long)1)
 #define AMQPROC_NULL ((u_long)0)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_hesiod.c,v 1.1.1.1 1998/11/05 02:04:49 ezk Exp $
+ * $Id: info_hesiod.c,v 1.5 1999/02/04 07:24:15 ezk Exp $
  *
  */
 
@@ -58,9 +58,14 @@
 #ifdef HAVE_HESIOD_INIT
 /* bsdi3 does not define this extern in any header file */
 extern char **hesiod_resolve(void *context, const char *name, const char *type);
-
+extern int hesiod_init(void **context);
 static voidp hesiod_context;
 #endif /* HAVE_HESIOD_INIT */
+
+/* forward declarations */
+int amu_hesiod_init(mnt_map *m, char *map, time_t *tp);
+int hesiod_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp);
+int hesiod_isup(mnt_map *m, char *map);
 
 /*
  * No easy way to probe the server - check the map name begins with "hesiod."
@@ -98,7 +103,8 @@ hesiod_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
 #endif /* not HAVE_HESIOD_INIT */
 
 #ifdef DEBUG
-  dlog("hesiod_search(m=%x, map=%s, key=%s, pval=%x tp=%x)", m, map, key, pval, tp);
+  dlog("hesiod_search(m=%lx, map=%s, key=%s, pval=%lx tp=%lx)",
+       (unsigned long) m, map, key, (unsigned long) pval, (unsigned long) tp);
 #endif /* DEBUG */
 
   sprintf(hes_key, "%s.%s", key, map + HES_PREFLEN);
@@ -160,4 +166,35 @@ hesiod_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
 # endif /* DEBUG */
   return error;
 #endif /* not HAVE_HESIOD_INIT */
+}
+
+
+/*
+ * Check if Hesiod is up, so we can determine if to clear the map or not.
+ * Test it by querying for /defaults.
+ * Returns: 0 if Hesiod is down, 1 if it is up.
+ */
+int
+hesiod_isup(mnt_map *m, char *map)
+{
+  int error;
+  char *val;
+  time_t mtime;
+  static int last_status = 1;	/* assume up by default */
+
+  error = hesiod_search(m, map, "/defaults", &val, &mtime);
+#ifdef DEBUG
+  dlog("hesiod_isup(%s): %s", map, strerror(error));
+#endif /* DEBUG */
+  if (error != 0 && error != ENOENT) {
+    plog(XLOG_ERROR,
+	 "hesiod_isup: error getting `/defaults' entry in map %s: %m", map);
+    last_status = 0;
+    return 0;			/* Hesiod is down */
+  }
+  if (last_status == 0) {	/* if was down before */
+    plog(XLOG_INFO, "hesiod_isup: Hesiod came back up for map %s", map);
+    last_status = 1;
+  }
+  return 1;			/* Hesiod is up */
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: xutil.c,v 1.2 1998/12/27 06:25:24 ezk Exp $
+ * $Id: xutil.c,v 1.6 1999/09/08 23:36:53 ezk Exp $
  *
  */
 
@@ -48,7 +48,12 @@
 #include <am_defs.h>
 #include <amu.h>
 
-FILE *logfp = stderr;		/* Log errors to stderr initially */
+/*
+ * Logfp is the default logging device, and is initialized to stderr by
+ * default in dplog/plog below, and in
+ * amd/amfs_program.c:amfs_program_exec().
+ */
+FILE *logfp = NULL;
 
 static char *am_progname = "unknown";	/* "amd" */
 static char am_hostname[MAXHOSTNAMELEN + 1] = "unknown"; /* Hostname */
@@ -272,30 +277,38 @@ checkup_mem(void)
 
 /*
  * Take a log format string and expand occurrences of %m
- * with the current error code taken from errno.
+ * with the current error code taken from errno.  Make sure
+ * 'e' never gets longer than maxlen characters.
  */
 static void
-expand_error(char *f, char *e)
+expand_error(char *f, char *e, int maxlen)
 {
   extern int sys_nerr;
-  char *p;
+  char *p, *q;
   int error = errno;
+  int len = 0;
 
-  for (p = f; (*e = *p); e++, p++) {
+  for (p = f, q = e; (*q = *p) && len < maxlen; len++, q++, p++) {
     if (p[0] == '%' && p[1] == 'm') {
       const char *errstr;
       if (error < 0 || error >= sys_nerr)
 	errstr = NULL;
       else
-	errstr = sys_errlist[error];
+#ifdef HAVE_STRERROR
+	errstr = strerror(error);
+#else /* not HAVE_STRERROR */
+        errstr = sys_errlist[error];
+#endif /* not HAVE_STRERROR */
       if (errstr)
-	strcpy(e, errstr);
+	strcpy(q, errstr);
       else
-	sprintf(e, "Error %d", error);
-      e += strlen(e) - 1;
+	sprintf(q, "Error %d", error);
+      len += strlen(q) - 1;
+      q += strlen(q) - 1;
       p++;
     }
   }
+  e[maxlen-1] = '\0';		/* null terminate, to be sure */
 }
 
 
@@ -367,6 +380,9 @@ dplog(char *fmt, ...)
 {
   va_list ap;
 
+  if (!logfp)
+    logfp = stderr;		/* initialize before possible first use */
+
   va_start(ap, fmt);
   real_plog(XLOG_DEBUG, fmt, ap);
   va_end(ap);
@@ -378,6 +394,9 @@ void
 plog(int lvl, char *fmt, ...)
 {
   va_list ap;
+
+  if (!logfp)
+    logfp = stderr;		/* initialize before possible first use */
 
   va_start(ap, fmt);
   real_plog(lvl, fmt, ap);
@@ -401,9 +420,15 @@ real_plog(int lvl, char *fmt, va_list vargs)
   checkup_mem();
 #endif /* DEBUG_MEM */
 
-  expand_error(fmt, efmt);
+  expand_error(fmt, efmt, 1024);
 
+  /*
+   * XXX: ptr is 1024 bytes long.  It is possible to write into it
+   * more than 1024 bytes, if efmt is already large, and vargs expand
+   * as well.
+   */
   vsprintf(ptr, efmt, vargs);
+  msg[1023] = '\0';		/* null terminate, to be sure */
 
   ptr += strlen(ptr);
   if (ptr[-1] == '\n')
@@ -616,6 +641,7 @@ switch_option(char *opt)
   return rc;
 }
 
+#ifdef LOG_DAEMON
 /*
  * get syslog facility to use.
  * logfile can be "syslog", "syslog:daemon", "syslog:local7", etc.
@@ -647,10 +673,10 @@ get_syslog_facility(const char *logfile)
   if (STREQ(facstr, "mail"))
       return LOG_MAIL;
 #endif /* not LOG_MAIL */
-#ifdef LOG_DAEMON
+
   if (STREQ(facstr, "daemon"))
       return LOG_DAEMON;
-#endif /* not LOG_DAEMON */
+
 #ifdef LOG_AUTH
   if (STREQ(facstr, "auth"))
       return LOG_AUTH;
@@ -712,6 +738,7 @@ get_syslog_facility(const char *logfile)
   plog(XLOG_WARNING, "unknown syslog facility \"%s\", using LOG_DAEMON", facstr);
   return LOG_DAEMON;
 }
+#endif /* not LOG_DAEMON */
 
 
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_svc.c,v 1.1.1.1 1998/11/05 02:04:47 ezk Exp $
+ * $Id: amq_svc.c,v 1.3 1999/08/24 21:31:06 ezk Exp $
  *
  */
 
@@ -59,7 +59,9 @@ amq_program_1(struct svc_req *rqstp, SVCXPRT *transp)
     amq_string amqproc_mnttree_1_arg;
     amq_string amqproc_umnt_1_arg;
     amq_setopt amqproc_setopt_1_arg;
+#ifdef ENABLE_AMQ_MOUNT
     amq_string amqproc_mount_1_arg;
+#endif /* ENABLE_AMQ_MOUNT */
   } argument;
   char *result;
   xdrproc_t xdr_argument, xdr_result;
@@ -109,11 +111,13 @@ amq_program_1(struct svc_req *rqstp, SVCXPRT *transp)
     local = (amqsvcproc_t) amqproc_getmntfs_1_svc;
     break;
 
+#ifdef ENABLE_AMQ_MOUNT
   case AMQPROC_MOUNT:
     xdr_argument = (xdrproc_t) xdr_amq_string;
     xdr_result = (xdrproc_t) xdr_int;
     local = (amqsvcproc_t) amqproc_mount_1_svc;
     break;
+#endif /* ENABLE_AMQ_MOUNT */
 
   case AMQPROC_GETVERS:
     xdr_argument = (xdrproc_t) xdr_void;

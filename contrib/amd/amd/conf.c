@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: conf.c,v 1.2 1998/12/27 06:24:46 ezk Exp $
+ * $Id: conf.c,v 1.4 1999/02/04 07:24:15 ezk Exp $
  *
  */
 
@@ -550,6 +550,7 @@ gopt_mount_type(const char *val)
   if (STREQ(val, "autofs")) {
 #ifdef HAVE_FS_AUTOFS
     gopt.flags |= CFM_MOUNT_TYPE_AUTOFS;
+    amd_use_autofs++;
     return 0;
 #else /* not HAVE_FS_AUTOFS */
     fprintf(stderr, "conf: no autofs support available\n");
@@ -867,6 +868,7 @@ ropt_mount_type(const char *val, cf_map_t *cfm)
   if (STREQ(val, "autofs")) {
 #ifdef HAVE_FS_AUTOFS
     cfm->cfm_flags |= CFM_MOUNT_TYPE_AUTOFS;
+    amd_use_autofs++;
     return 0;
 #else /* not HAVE_FS_AUTOFS */
     fprintf(stderr, "conf: no autofs support available\n");

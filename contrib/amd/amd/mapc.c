@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mapc.c,v 1.1.1.1 1998/11/05 02:04:48 ezk Exp $
+ * $Id: mapc.c,v 1.4 1999/08/09 06:09:44 ezk Exp $
  *
  */
 
@@ -158,6 +158,7 @@ extern int passwd_search(mnt_map *, char *, char *, char **, time_t *);
 /* HESIOD MAPS */
 #ifdef HAVE_MAP_HESIOD
 extern int amu_hesiod_init(mnt_map *, char *map, time_t *tp);
+extern int hesiod_isup(mnt_map *, char *);
 extern int hesiod_search(mnt_map *, char *, char *, char **, time_t *);
 #endif /* HAVE_MAP_HESIOD */
 
@@ -236,7 +237,7 @@ static map_type maptypes[] =
     "hesiod",
     amu_hesiod_init,
     error_reload,
-    NULL,			/* isup function */
+    hesiod_isup,		/* is Hesiod up or not? */
     hesiod_search,
     error_mtime,
     MAPC_ALL
@@ -1051,7 +1052,7 @@ key_already_in_chain(char *keyname, const nfsentry *chain)
 nfsentry *
 make_entry_chain(am_node *mp, const nfsentry *current_chain, int fully_browsable)
 {
-  static u_int last_cookie = ~(u_int) 0 - 1;
+  static u_int last_cookie = (u_int) 2;	/* monotonically increasing */
   static nfsentry chain[MAX_CHAIN];
   static int max_entries = MAX_CHAIN;
   char *key;
@@ -1123,10 +1124,9 @@ make_entry_chain(am_node *mp, const nfsentry *current_chain, int fully_browsable
       }
 
       /* we have space.  put entry in next cell */
-      --last_cookie;
+      ++last_cookie;
       chain[num_entries].ne_fileid = (u_int) last_cookie;
-      *(u_int *) chain[num_entries].ne_cookie =
-	(u_int) last_cookie;
+      *(u_int *) chain[num_entries].ne_cookie = (u_int) last_cookie;
       chain[num_entries].ne_name = key;
       if (num_entries < max_entries - 1) {	/* link to next one */
 	chain[num_entries].ne_nextentry = &chain[num_entries + 1];
