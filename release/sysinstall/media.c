@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.56 1996/10/02 00:41:40 jkh Exp $
+ * $Id: media.c,v 1.57 1996/10/02 02:02:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -283,7 +283,7 @@ mediaSetFTP(dialogMenuItem *self)
 				"A URL looks like this:  ftp://<hostname>/<path>\n"
 				"Where <path> is relative to the anonymous ftp directory or the\n"
 				"home directory of the user being logged in as.");
-	if (!cp || !*cp)
+	if (!cp || !*cp || !strcmp(cp, "ftp://"))
 	    return DITEM_FAILURE | what;
     }
     if (strncmp("ftp://", cp, 6)) {

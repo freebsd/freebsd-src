@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.120 1996/10/01 04:56:32 jkh Exp $
+ * $Id: install.c,v 1.121 1996/10/01 14:08:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,6 +50,7 @@
 #include <sys/mount.h>
 
 static void	create_termcap(void);
+static void	save_userconfig_to_kernel(char *);
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
 
@@ -402,6 +403,7 @@ installNovice(dialogMenuItem *self)
 		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
 		   "prompt and go back into the installation menus to try and retry\n"
 		   "whichever operations have failed.");
+	mediaDevice->shutdown(mediaDevice);
 	return i | DITEM_RECREATE;
 
     }
@@ -564,10 +566,10 @@ installCommit(dialogMenuItem *self)
     }
 
     i = distExtractAll(self);
-    if (DITEM_STATUS(i) == DITEM_FAILURE)
-    	(void)installFixup(self);
-    else
+    if (DITEM_STATUS(i) != DITEM_FAILURE)
     	i = installFixup(self);
+    else if (!(Dists & DIST_BIN))
+	(void)installFixup(self);
 
     /* Don't print this if we're express or novice installing - they have their own error reporting */
     if (strcmp(str, "express") && strcmp(str, "novice")) {
@@ -619,8 +621,8 @@ installFixup(dialogMenuItem *self)
 	}
     }
 
-    /* Snapshot the dset changes back */
-    vsystem("/sbin/dset -v -k /kernel");
+    /* Snapshot any boot -c changes back to the GENERIC kernel */
+    save_userconfig_to_kernel("/kernel");
 
     /* Resurrect /dev after bin distribution screws it up */
     if (RunningAsInit) {
@@ -907,3 +909,8 @@ create_termcap(void)
     }
 }
 
+static void
+save_userconfig_to_kernel(char *kern)
+{
+	/* place-holder for now */
+}
