@@ -191,6 +191,18 @@
       <para arch="pc98">The PC98 bootloader now has support for
         booting from SCSI MO media. &merged;</para>
 
+      <para>The <filename>/modules</filename> directory (once the
+        default location for modules on &os; 4.X) is no longer a
+        part of the default <varname>kern.module_path</varname>.
+        Third-party modules should be placed in
+        <filename>/boot/modules</filename>.
+
+	<note>
+	  <para>Modules designed for use with &os; 4.X are likely to
+	    panic and should be used with extreme caution).</para>
+	</note>
+      </para>
+
       <!-- Above this line, order bootloader changes by keyword-->
 
     </sect3>
