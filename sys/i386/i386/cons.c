@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.20 1995/01/21 14:12:15 bde Exp $
+ *	$Id: cons.c,v 1.21 1995/01/23 18:46:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -229,7 +229,10 @@ cnselect(dev, rw, p)
 {
 	if (cn_tab == NULL)
 		return (1);
-	return (ttselect(cn_tab->cn_dev, rw, p));
+
+	dev = cn_tab->cn_dev;
+
+	return ((*cdevsw[major(dev)].d_select)(dev, rw, p));
 }
 
 int

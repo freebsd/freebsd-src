@@ -33,80 +33,21 @@
 
 #include <sys/snoop.h>
 
-
-
-#ifdef ST_PTY
-/*
- * This should be same as in "kern/tty_pty.c"
- */
-#include "pty.h"
-
-#if NPTY == 1
-#undef NPTY
-#define NPTY 	32
-#endif
-
-extern struct tty pt_tty[];
-#endif				/* ST_PTY */
-
-
-#ifdef ST_SIO
-/*
- * This should be same as "i386/isa/sio.c"
- */
-#include "sio.h"
-
-extern struct tty sio_tty[];
-#endif				/* ST_SIO */
-
-
-#ifdef ST_VTY
-/*
- * This should match "i386/isa/sc.c"
- */
-
-#if !defined(MAXCONS)
-#define MAXCONS 16
-#endif
-
-extern struct tty sccons[];
-#endif				/* ST_VTY */
-
-
-/*
- * This is local structure to hold data for all tty arrays we serve.
- */
-typedef struct tty tty_arr[];
-struct tty_tab {
-	int             lt_max;
-	tty_arr        *lt_tab;
-};
-
-static struct tty_tab tty_tabs[] = {
-#ifdef ST_PTY
-	{NPTY, &pt_tty},
-#else
-	{-1, NULL},
-#endif
-#ifdef ST_VTY
-	{MAXCONS, &sccons},
-#else
-	{-1, NULL},
-#endif
-#ifdef	ST_SIO
-	{NSIO, &sio_tty}
-#else
-	{-1, NULL}
-#endif
-};
-
-
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
 
-
 static struct snoop snoopsw[NSNP];
+
+static struct tty *
+devtotty (dev)
+	dev_t		dev;
+{
+	if (major(dev) > nchrdev)
+		return (NULL);		/* no such device available */
+
+	return (*cdevsw[major(dev)].d_devtotty)(dev);
+}
 
 int
 snpread(dev, uio, flag)
@@ -124,7 +65,8 @@ snpread(dev, uio, flag)
 	if ((snp->snp_len + snp->snp_base) > snp->snp_blen)
 		panic("snoop buffer error");
 #endif
-	if (snp->snp_unit == -1)
+
+	if (snp->snp_target == -1)
 		return (EIO);
 
 	snp->snp_flags &= ~SNOOP_RWAIT;
@@ -183,7 +125,6 @@ snpin(snp, buf, n)
 	int             s, len, nblen;
 	caddr_t         from, to;
 	char           *nbuf;
-	struct tty_tab *l_tty;
 	struct tty     *tp;
 
 
@@ -278,9 +219,12 @@ snpopen(dev, flag, mode, p)
 
 	if ((unit = minor(dev)) >= NSNP)
 		return (ENXIO);
+
 	snp = &snoopsw[unit];
+
 	if (snp->snp_flags & SNOOP_OPEN)
 		return (ENXIO);
+
 	/*
 	 * We intentionally do not OR flags with SNOOP_OPEN,but set them so
 	 * all previous settings (especially SNOOP_OFLOW) will be cleared.
@@ -295,8 +239,7 @@ snpopen(dev, flag, mode, p)
 	/*
 	 * unit == -1  is for inactive snoop devices.
 	 */
-	snp->snp_unit = -1;
-
+	snp->snp_target = -1;
 	return (0);
 }
 
@@ -306,8 +249,6 @@ snp_detach(snp)
 	struct snoop   *snp;
 {
 	struct tty     *tp;
-	struct tty_tab *l_tty;
-
 
 	snp->snp_base = 0;
 	snp->snp_len = 0;
@@ -317,21 +258,19 @@ snp_detach(snp)
 	 * change it anyway.
 	 */
 
-	if (snp->snp_unit == -1)
+	if (snp->snp_target == -1)
 		goto detach_notty;
 
-
-	l_tty = &tty_tabs[snp->snp_type];
-	tp = &((*l_tty->lt_tab)[snp->snp_unit]);
-
-	if ((tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
+	tp = devtotty(snp->snp_target);
+		
+	if (tp && (tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
 	    (tp->t_line == OTTYDISC || tp->t_line == NTTYDISC)) {
 		tp->t_sc = NULL;
 		tp->t_state &= ~TS_SNOOP;
 	} else
 		printf("Snoop: bad attached tty data.\n");
 
-	snp->snp_unit = -1;
+	snp->snp_target = -1;
 
 detach_notty:
 	selwakeup(&snp->snp_sel);
@@ -376,47 +315,38 @@ snpioctl(dev, cmd, data, flag)
 	int             flag;
 {
 	int             unit = minor(dev), s;
-	int             tunit, ttype;
+	dev_t		tdev;
 	struct snoop   *snp = &snoopsw[unit];
 	struct tty     *tp, *tpo;
-	struct tty_tab *l_tty, *l_otty;
 
 	switch (cmd) {
 	case SNPSTTY:
-		tunit = ((struct snptty *) data)->st_unit;
-		ttype = ((struct snptty *) data)->st_type;
-
-		if (ttype == -1 || tunit == -1)
+		tdev = *((dev_t *) data);
+		if (tdev == -1)
 			return (snpdown(snp));
 
-		if (ttype < 0 || ttype > ST_MAXTYPE)
+		tp = devtotty(tdev);
+		if (!tp)
 			return (EINVAL);
 
-		l_tty = &tty_tabs[ttype];
-		if (l_tty->lt_tab == NULL)
-			return (EINVAL);
-
-		if (tunit < 0 || tunit >= l_tty->lt_max)
-			return (EINVAL);
-
-		tp = &((*l_tty->lt_tab)[tunit]);
-
-		if (tp->t_sc != (caddr_t) snp && (tp->t_state & TS_SNOOP))
+		if ((tp->t_sc != (caddr_t) snp) && (tp->t_state & TS_SNOOP))
 			return (EBUSY);
 
-		if (tp->t_line != OTTYDISC && tp->t_line != NTTYDISC)
+		if ((tp->t_line != OTTYDISC) && (tp->t_line != NTTYDISC))
 			return (EBUSY);
 
 		s = spltty();
-		if (snp->snp_unit != -1) {
-			l_otty = &tty_tabs[snp->snp_type];
-			tpo = &((*l_otty->lt_tab)[snp->snp_unit]);
-			tpo->t_state &= ~TS_SNOOP;
+
+		if (snp->snp_target == -1) {
+			tpo = devtotty(snp->snp_target);
+			if (tpo)
+				tpo->t_state &= ~TS_SNOOP;
 		}
+
 		tp->t_sc = (caddr_t) snp;
 		tp->t_state |= TS_SNOOP;
-		snp->snp_unit = tunit;
-		snp->snp_type = ttype;
+		snp->snp_target = tdev;
+
 		/*
 		 * Clean overflow and down flags -
 		 * we'll have a chance to get them in the future :)))
@@ -424,11 +354,10 @@ snpioctl(dev, cmd, data, flag)
 		snp->snp_flags &= ~SNOOP_OFLOW;
 		snp->snp_flags &= ~SNOOP_DOWN;
 		splx(s);
-
 		break;
+
 	case SNPGTTY:
-		((struct snptty *) data)->st_unit = snp->snp_unit;
-		((struct snptty *) data)->st_type = snp->snp_type;
+		*((dev_t *) data) = snp->snp_target;
 		break;
 
 	case FIONBIO:
@@ -437,19 +366,21 @@ snpioctl(dev, cmd, data, flag)
 		else
 			snp->snp_flags &= ~SNOOP_NBIO;
 		break;
+
 	case FIOASYNC:
 		if (*(int *) data)
 			snp->snp_flags |= SNOOP_ASYNC;
 		else
 			snp->snp_flags &= ~SNOOP_ASYNC;
 		break;
+
 	case FIONREAD:
 		s = spltty();
-		if (snp->snp_unit != -1)
+		if (snp->snp_target != -1)
 			*(int *) data = snp->snp_len;
 		else 
-			if (snp->snp_flags&SNOOP_DOWN) {
-				if (snp->snp_flags&SNOOP_OFLOW)
+			if (snp->snp_flags & SNOOP_DOWN) {
+				if (snp->snp_flags & SNOOP_OFLOW)
 					*(int *) data = SNP_OFLOW;
 				else
 					*(int *) data = SNP_TTYCLOSE;
@@ -458,6 +389,7 @@ snpioctl(dev, cmd, data, flag)
 			}
 		splx(s);
 		break;
+
 	default:
 		return (ENOTTY);
 	}
@@ -474,20 +406,20 @@ snpselect(dev, rw, p)
 	int             unit = minor(dev), s;
 	struct snoop   *snp = &snoopsw[unit];
 
-	if (rw != FREAD) {
+	if (rw != FREAD)
 		return 0;
-	}
-	if (snp->snp_len > 0) {
+	
+	if (snp->snp_len > 0)
 		return 1;
-	}
+
 	/*
 	 * If snoop is down,we don't want to select() forever so we return 1.
 	 * Caller should see if we down via FIONREAD ioctl().The last should
 	 * return -1 to indicate down state.
 	 */
-	if (snp->snp_flags & SNOOP_DOWN) {
+	if (snp->snp_flags & SNOOP_DOWN)
 		return 1;
-	}
+
 	selrecord(p, &snp->snp_sel);
 	return 0;
 }
