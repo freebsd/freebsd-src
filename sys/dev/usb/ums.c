@@ -376,10 +376,8 @@ ums_detach(device_t self)
 {
 	struct ums_softc *sc = device_get_softc(self);
 
-	if (sc->sc_enabled) {
-		usbd_abort_pipe(sc->sc_intrpipe);
-		usbd_close_pipe(sc->sc_intrpipe);
-	}
+	if (sc->sc_enabled)
+		ums_disable(sc);
 	sc->sc_disconnected = 1;
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
@@ -387,6 +385,15 @@ ums_detach(device_t self)
 	free(sc->sc_loc_btn, M_USB);
 	free(sc->sc_ibuf, M_USB);
 
+	/*
+	 * XXX If we wakeup the process here, the device will be gone by
+	 * the time the process gets a chance to notice. *_close and friends
+	 * should be fixed to handle this case.
+	 * Or we should do a delayed detach for this.
+	 * Does this delay now force tsleep to exit with an error?
+	 */
+
+#if 0
 	/* someone waiting for data */
 	if (sc->state & UMS_ASLEEP) {
 		sc->state &= ~UMS_ASLEEP;
@@ -396,6 +403,7 @@ ums_detach(device_t self)
 		sc->state &= ~UMS_SELECT;
 		selwakeup(&sc->rsel);
 	}
+#endif
 
 	return 0;
 }
@@ -613,6 +621,9 @@ ums_close(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	USB_GET_SC(ums, UMSUNIT(dev), sc);
 
+	if (!sc)
+		return 0;
+
 	if (sc->sc_enabled)
 		ums_disable(sc);
 
@@ -629,14 +640,18 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 	int error;
 
 	s = splusb();
+	if (!sc) {
+		splx(s);
+		return EIO;
+	}
+
 	while (sc->qcount == 0 )  {
-		/* NWH XXX non blocking I/O ??
-		if (non blocking I/O ) {
+		if (flag & IO_NDELAY) {		/* non-blocking I/O */
 			splx(s);
 			return EWOULDBLOCK;
-		} else {
-		*/
-		sc->state |= UMS_ASLEEP;
+		}
+		
+		sc->state |= UMS_ASLEEP;	/* blocking I/O */
 		error = tsleep(sc, PZERO | PCATCH, "umsrea", 0);
 		if (error) {
 			splx(s);
@@ -645,7 +660,22 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 			splx(s);
 			return EINTR;
 		}
+#if defined(__FreeBSD__)
+		/* check whether the device is still there */
+
+		sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
+		if (!sc) {
+			splx(s);
+			return EIO;
+		}
+#endif
 	}
+
+	/*
+	 * XXX we could optimise the use of splx/splusb somewhat. The writer
+	 * process only extends qcount and qtail. We could copy them and use the copies
+	 * to do the copying out of the queue.
+	 */
 
 	while ((sc->qcount > 0) && (uio->uio_resid > 0)) {
 		l = (sc->qcount < uio->uio_resid? sc->qcount:uio->uio_resid);
@@ -677,6 +707,9 @@ ums_poll(dev_t dev, int events, struct proc *p)
 	int revents = 0;
 	int s;
 
+	if (!sc)
+		return 0;
+
 	s = splusb();
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (sc->qcount) {
@@ -698,6 +731,9 @@ ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	int error = 0;
 	int s;
 	mousemode_t mode;
+
+	if (!sc)
+		return EIO;
 
 	switch(cmd) {
 	case MOUSE_GETHWINFO:
