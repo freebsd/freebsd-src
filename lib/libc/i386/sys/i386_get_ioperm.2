@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: i386_get_ioperm.2,v 1.1 1998/07/28 03:39:02 jlemon Exp $
 .\"
 .Dd July 27, 1998
 .Os
@@ -34,9 +34,9 @@
 .Sh SYNOPSIS
 .Fd #include <machine/sysarch.h>
 .Ft int
-.Fn i386_get_ioperm "u_int start" "u_int *length" "int *enable"
+.Fn i386_get_ioperm "unsigned int start" "unsigned int *length" "int *enable"
 .Ft int
-.Fn i386_set_ioperm "u_int start" "u_int length" "int enable"
+.Fn i386_set_ioperm "unsigned int start" "unsigned int length" "int enable"
 .Sh DESCRIPTION
 .Fn i386_get_ioperm
 will return the permission for the process' I/O port space in the
