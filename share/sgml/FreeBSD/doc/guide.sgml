@@ -35,7 +35,7 @@ replacement files for use by Linux documentation.
 
 <tt/linuxdoc-sgml/ is not meant to be a general document-processing system.
 Although it can be used for documents of many types, I have tailored it for
-use by the Linux documentors in producing HOWTOs, FAQs, and (later) the
+use by the Linux documenters in producing HOWTOs, FAQs, and (later) the
 Linux Documentation Project manuals. Therefore, I have tweaked features
 into and out of the system for this purpose. If you see a lack of generality
 in the system, that is the reason. There's nothing binding <tt/linuxdoc-sgml/
@@ -75,7 +75,7 @@ types.
 
 The DTD specifies the names of ``elements'' within the document. An element
 is just a bit of structure---like a section, a subsection, a paragraph,
-or even something smaller like <em/emphasised text/. Unlike LaTeX, however,
+or even something smaller like <em/emphasized text/. Unlike LaTeX, however,
 these elements are not in any way intrinsic to SGML itself. The
 <tt/linuxdoc-sgml/ DTD happens to define elements that look a lot like 
 their LaTeX counterparts---you have sections, subsections, verbatim
@@ -453,7 +453,7 @@ as so:
 Here is some example text. 
 &etago;verb>&etago;tscreen>
 </verb></tscreen>
-<tt/tscreen/ is an envionment that simply indents the text and sets the 
+<tt/tscreen/ is an environment that simply indents the text and sets the 
 sets the default font to <tt/tt/. This makes examples look much nicer, both
 in the LaTeX and plain ASCII versions. You can use <tt/tscreen/
 without <tt/verb/, however, if you use any special characters in your 
@@ -590,7 +590,7 @@ expression:
 <tscreen><verb>
 See section <ref id="sec-intro" name="Introduction"> for an introduction.
 </verb></tscreen>
-This will replace the <tt/ref/ tag with the section number labelled
+This will replace the <tt/ref/ tag with the section number labeled
 as <tt/sec-intro/. The <tt/name/ argument to <tt/ref/ is necessary for
 <tt/nroff/ and HTML translations (at the moment). The <tt/nroff/
 macro set used by Linuxdoc-SGML does not currently support cross-references,
@@ -729,6 +729,6 @@ modify your version of the DTD or replacement files to get other features
 in the system. We all must use the same DTD and replacement files or 
 this whole system will break down. If you find bugs in it, or have suggestions
 for how we can change thing or add/modify features, let me know. I'll be
-more than happy to accomodate you.
+more than happy to accommodate you.
 
 </article>
