@@ -341,11 +341,11 @@ buildworld: ${WMAKE_TGTS}
 #
 installcheck:
 .if !defined(NO_SENDMAIL)
-	@if ! `grep -q '^smmsp:' /etc/passwd`; then \
+	@if ! `id -u smmsp > /dev/null`; then \
 		echo "ERROR: Required smmsp user is missing, see /usr/src/UPDATING."; \
 		false; \
 	fi
-	@if ! `grep -q '^smmsp:' /etc/group`; then \
+	@if ! `id -g smmsp > /dev/null`; then \
 		echo "ERROR: Required smmsp group is missing, see /usr/src/UPDATING."; \
 		false; \
 	fi
