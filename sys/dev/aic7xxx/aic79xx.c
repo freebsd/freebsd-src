@@ -5507,7 +5507,8 @@ ahd_init(struct ahd_softc *ahd)
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/MAXBSIZE, /*nsegments*/AHD_NSEG,
+			       /*maxsize*/(AHD_NSEG - 1) * PAGE_SIZE,
+			       /*nsegments*/AHD_NSEG,
 			       /*maxsegsz*/AHD_MAXTRANSFER_SIZE,
 			       /*flags*/BUS_DMA_ALLOCNOW,
 			       &ahd->buffer_dmat) != 0) {
