@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: nd6_rtr.c,v 1.43 2000/07/02 23:19:59 itojun Exp $	*/
+/*	$KAME: nd6_rtr.c,v 1.47 2000/08/08 08:58:42 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -546,12 +546,15 @@ defrouter_delreq(dr, dofree)
 		  (struct sockaddr *)&mask,
 		  RTF_GATEWAY, &oldrt);
 	if (oldrt) {
-#ifdef ND6_USE_RTSOCK
 		defrouter_msg(RTM_DELETE, oldrt);
-#endif
-		if (oldrt->rt_refcnt <= 0)
-			oldrt->rt_refcnt++; /* XXX */
-		rtfree(oldrt);
+		if (oldrt->rt_refcnt <= 0) {
+			/*
+			 * XXX: borrowed from the RTM_DELETE case of
+			 * rtrequest().
+			 */
+			oldrt->rt_refcnt++;
+			rtfree(oldrt);
+		}
 	}
 
 	if (dofree)		/* XXX: necessary? */
