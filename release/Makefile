@@ -453,14 +453,11 @@ release rerelease:
 	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
-.if defined(NOPORTS) || defined(NOPORTREADMES)
-	echo "if false; then"			>> ${CHROOTDIR}/mk
-.else
-	echo "if true; then"			>> ${CHROOTDIR}/mk
-.endif
+	echo "if [ ! -f /tmp/.skip_ports ]; then" >> ${CHROOTDIR}/mk
 	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	echo "	cd /usr/ports"			>> ${CHROOTDIR}/mk
 	echo "	make ${PORTREADMES_FLAGS} readmes" >> ${CHROOTDIR}/mk
+	echo "	touch /tmp/.skip_ports"		>> ${CHROOTDIR}/mk
 	echo "	echo \">>> make readmes finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
@@ -468,6 +465,9 @@ release rerelease:
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo \">>> make ${.TARGET} for ${TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
+.if defined(NOPORTS) || defined(NOPORTREADMES)
+	touch ${CHROOTDIR}/tmp/.skip_ports
+.endif
 	# Ensure md.ko is loaded if md(4) is not statically compiled into the kernel
 	-mdconfig 2>/dev/null
 	env -i /usr/sbin/chroot ${CHROOTDIR} /mk
