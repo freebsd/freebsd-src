@@ -72,54 +72,35 @@
  */
 #define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) \
     do { \
-        int dummy; \
-        asm("1:     movl (%1),%%eax;" \
+        asm("1:     movl %1,%%eax;" \
             "movl   %%eax,%%edx;" \
             "andl   %2,%%edx;" \
             "btsl   $0x1,%%edx;" \
             "adcl   $0x0,%%edx;" \
-            "lock;  cmpxchgl %%edx,(%1);" \
+            "lock;  cmpxchgl %%edx,%1;" \
             "jnz    1b;" \
             "cmpb   $0x3,%%dl;" \
             "sbbl   %%eax,%%eax" \
-            :"=a"(Acq),"=c"(dummy):"c"(GLptr),"i"(~1L):"dx"); \
+            : "=a" (Acq), "+m" (GLptr) : "i" (~1L) : "edx"); \
     } while(0)
 
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq) \
     do { \
-        int dummy; \
-        asm("1:     movl (%1),%%eax;" \
+        asm("1:     movl %1,%%eax;" \
             "movl   %%eax,%%edx;" \
             "andl   %2,%%edx;" \
-            "lock;  cmpxchgl %%edx,(%1);" \
+            "lock;  cmpxchgl %%edx,%1;" \
             "jnz    1b;" \
             "andl   $0x1,%%eax" \
-            :"=a"(Acq),"=c"(dummy):"c"(GLptr),"i"(~3L):"dx"); \
+            : "=a" (Acq), "+m" (GLptr) : "i" (~3L) : "edx"); \
     } while(0)
 
-
-/*
- * Math helper asm macros
- */
-#define ACPI_DIV_64_BY_32(n_hi, n_lo, d32, q32, r32) \
-        asm("divl %2;"        \
-        :"=a"(q32), "=d"(r32) \
-        :"r"(d32),            \
-        "0"(n_lo), "1"(n_hi))
-
-
-#define ACPI_SHIFT_RIGHT_64(n_hi, n_lo) \
-    asm("shrl   $1,%2;"             \
-        "rcrl   $1,%3;"             \
-        :"=r"(n_hi), "=r"(n_lo)     \
-        :"0"(n_hi), "1"(n_lo))
 
 /*! [End] no source code translation !*/
 #endif /* _KERNEL */
 
-#define ACPI_MACHINE_WIDTH             32
-#define COMPILER_DEPENDENT_INT64       long long
-#define COMPILER_DEPENDENT_UINT64      unsigned long long
-#define ACPI_USE_NATIVE_DIVIDE
+#define ACPI_MACHINE_WIDTH             64
+#define COMPILER_DEPENDENT_INT64       long
+#define COMPILER_DEPENDENT_UINT64      unsigned long
 
 #endif /* __ACPICA_MACHDEP_H__ */
