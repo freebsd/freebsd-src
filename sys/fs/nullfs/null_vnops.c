@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.23 1997/10/15 09:21:07 phk Exp $
+ *	$Id: null_vnops.c,v 1.24 1997/10/15 10:04:31 phk Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.23 1997/10/15 09:21:07 phk Exp $
+ * $Id: null_vnops.c,v 1.24 1997/10/15 10:04:31 phk Exp $
  */
 
 /*
@@ -533,11 +533,16 @@ null_inactive(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
+	struct null_node *xp = VTONULL(vp);
+	struct vnode *lowervp = xp->null_lowervp;
 	/*
 	 * Do nothing (and _don't_ bypass).
 	 * Wait to vrele lowervp until reclaim,
 	 * so that until then our null_node is in the
 	 * cache and reusable.
+	 * We still have to tell the lower layer the vnode
+	 * is now inactive though.
 	 *
 	 * NEEDSWORK: Someday, consider inactive'ing
 	 * the lowervp and then trying to reactivate it
@@ -545,6 +550,7 @@ null_inactive(ap)
 	 * like they do in the name lookup cache code.
 	 * That's too much work for now.
 	 */
+	VOP_INACTIVE(lowervp, ap->a_p);
 	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
 	return (0);
 }
