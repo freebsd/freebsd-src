@@ -61,11 +61,8 @@
 #define msg(s)		(write(1, s, strlen(s)))
 #define trace()		msg("trace: " __XSTRING(__LINE__) "\n");
 
-#ifndef _PATH_RTLD
-#define _PATH_RTLD	"/usr/libexec/ld-elf.so.1"
-#endif
-
 #define END_SYM		"_end"
+#define PATH_RTLD	"/usr/libexec/ld-elf.so.1"
 
 /* Types. */
 typedef void (*func_ptr_type)();
@@ -269,6 +266,19 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     obj_main->path = xstrdup(argv0);
     obj_main->mainprog = true;
+
+    /*
+     * Get the actual dynamic linker pathname from the executable if
+     * possible.  (It should always be possible.)  That ensures that
+     * gdb will find the right dynamic linker even if a non-standard
+     * one is being used.
+     */
+    if (obj_main->interp != NULL &&
+      strcmp(obj_main->interp, obj_rtld.path) != 0) {
+	free(obj_rtld.path);
+	obj_rtld.path = xstrdup(obj_main->interp);
+    }
+
     digest_dynamic(obj_main);
 
     linkmap_add(obj_main);
@@ -585,6 +595,10 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    obj->phsize = ph->p_memsz;
 	    break;
 
+	case PT_INTERP:
+	    obj->interp = (const char *) ph->p_vaddr;
+	    break;
+
 	case PT_LOAD:
 	    if (nsegs >= 2) {
 		_rtld_error("%s: too many PT_LOAD segments", path);
@@ -867,7 +881,7 @@ init_rtld(caddr_t mapbase)
      * aren't yet initialized sufficiently to do that.  Below we will
      * replace the static version with a dynamically-allocated copy.
      */
-    obj_rtld.path = _PATH_RTLD;
+    obj_rtld.path = PATH_RTLD;
     obj_rtld.rtld = true;
     obj_rtld.mapbase = mapbase;
 #ifdef PIC
