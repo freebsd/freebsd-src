@@ -41,8 +41,8 @@ RELNOTES.TXT.
   <para>Otherwise, for any questions or tech support issues, please send
   mail to the &a.questions;.</para>
 
-  <para>If you're tracking the -current development efforts, you
-  <emphasis>must</emphasis> join the &a.current;, in order to keep
+  <para>If you're tracking the -stable development efforts, you
+  <emphasis>must</emphasis> join the &a.stable;, in order to keep
   abreast of recent developments and changes that may affect the way
   you use and maintain the system.
 
