@@ -143,6 +143,12 @@
       workaround suggestions, can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
 
+    <para>A file descriptor leak in the &man.fpathconf.2; system call,
+      can allow a local user to crash the system or
+      cause a privilege escalation.  Bugfix information can be found
+      in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink>.</para>
+
 ]]>
   </sect1>
 
@@ -154,9 +160,11 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>Due to licensing issues uncovered late in &os;
-      &release.prev;'s release cycle, the &man.matcd.4; driver was
-      removed.</para>
+    <para>Due to concerns over the licensing terms for the
+      &man.matcd.4; driver uncovered late in &os; &release.prev;'s
+      release cycle, the &man.matcd.4; driver was removed.  These
+      issues are being addressed and this driver may reappear in a
+      future release of &os;.</para>
 
     <para>The <filename>srelease</filename> distribution contains
       object files for &man.sysinstall.8; in the
