@@ -118,6 +118,9 @@ dev/ar/if_ar.c			optional	ar
 dev/ar/if_ar_pci.c		optional	ar pci
 dev/ar/if_ar_isa.c		optional	ar isa
 dev/cm/if_cm_isa.c		optional	cm isa
+dev/cx/csigma.c			optional	cx
+dev/cx/cxddk.c			optional	cx
+dev/cx/if_cx.c			optional	cx
 dev/dgb/dgb.c			count		dgb
 dev/ed/if_ed_isa.c		optional	ed isa
 dev/fb/fb.c			optional	fb
@@ -243,15 +246,12 @@ i386/isa/asc.c			count		asc
 i386/isa/atpic.c		standard
 i386/isa/atpic_vector.s		standard
 i386/isa/clock.c		standard
-i386/isa/cronyx.c		optional	cx
 i386/isa/ctx.c			optional	ctx
-i386/isa/cx.c			count		cx
 i386/isa/cy.c			count		cy
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 i386/isa/gpib.c			optional	gp
 i386/isa/gsc.c			count		gsc
-i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		count		el
 i386/isa/if_le.c		count		le
 i386/isa/if_rdp.c		count		rdp
