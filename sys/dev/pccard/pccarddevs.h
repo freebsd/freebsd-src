@@ -4,9 +4,9 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.19 2001/11/16 06:58:47 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.20 2001/11/19 05:02:55 imp Exp 
  */
-/* $NetBSD: pcmciadevs,v 1.144 2001/10/27 08:05:21 ichiro Exp $ */
+/* $NetBSD: pcmciadevs,v 1.145 2001/11/08 17:05:42 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
 
 /*-
@@ -569,6 +569,9 @@
 #define	PCMCIA_CIS_XIRCOM_CE2	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_XIRCOM_CE2	0x010b
 #define	PCMCIA_STR_XIRCOM_CE2	"Xircom CreditCard Ethernet II"
+#define	PCMCIA_CIS_XIRCOM_XE2000	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_XIRCOM_XE2000	0x0153
+#define	PCMCIA_STR_XIRCOM_XE2000	"Xircom XE2000 10/100 Ethernet"
 #define	PCMCIA_CIS_XIRCOM_CNW_801	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_XIRCOM_CNW_801	0x0801
 #define	PCMCIA_STR_XIRCOM_CNW_801	"Xircom CreditCard Netwave (Canada)"
