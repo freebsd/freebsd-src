@@ -42,19 +42,6 @@ extern void free();
 #define isgraph(C) (isprint(C) && !isspace(C))
 #endif
 
-#ifdef isascii
-#define ISALPHA(C) (isascii(C) && isalpha(C))
-#define ISUPPER(C) (isascii(C) && isupper(C))
-#define ISLOWER(C) (isascii(C) && islower(C))
-#define ISDIGIT(C) (isascii(C) && isdigit(C))
-#define ISXDIGIT(C) (isascii(C) && isxdigit(C))
-#define ISSPACE(C) (isascii(C) && isspace(C))
-#define ISPUNCT(C) (isascii(C) && ispunct(C))
-#define ISALNUM(C) (isascii(C) && isalnum(C))
-#define ISPRINT(C) (isascii(C) && isprint(C))
-#define ISGRAPH(C) (isascii(C) && isgraph(C))
-#define ISCNTRL(C) (isascii(C) && iscntrl(C))
-#else
 #define ISALPHA(C) isalpha(C)
 #define ISUPPER(C) isupper(C)
 #define ISLOWER(C) islower(C)
@@ -66,10 +53,9 @@ extern void free();
 #define ISPRINT(C) isprint(C)
 #define ISGRAPH(C) isgraph(C)
 #define ISCNTRL(C) iscntrl(C)
-#endif
 
 #include "dfa.h"
-#include "regex.h"
+#include "gnuregex.h"
 
 #if __STDC__
 typedef void *ptr_t;
