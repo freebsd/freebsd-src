@@ -34,8 +34,6 @@
 
 #include "assym.s"
 
-#define data16		.byte	0x66
-
 	.data
 	ALIGN_DATA
 bioscall_frame:		.long	0
@@ -129,8 +127,7 @@ ENTRY(bios16_call)
 	lret				/* ...continue below */
 	.globl	CNAME(bios16_jmp)
 CNAME(bios16_jmp):
-	data16
-	lcall	*_bioscall_vector	/* 16-bit call */
+	lcallw	*_bioscall_vector	/* 16-bit call */
 
 	jc	1f
 	pushl	$0			/* success */
