@@ -49,13 +49,9 @@ the build process:</p>
 </li>
 <li>
 	'stage1' prepares the file called fs.PICOBSD with given size - it's a
-	placeholder for the future MFS. Next, it turns it into device (using
-	vnconfig), and then performs some tricks :-) which allow for
-	doing 'disklabel'. I use the 'auto' option to disklabel(8), which
-	behaves strangely in 2.2.x - what it's supposed to do is to
-	automagically determine the disk parameters from the  underlying
-	device (in this case, /dev/rvn0). This works ok in 3.0-current, and
-	allows for using arbitrary (>1024kB) MFS sizes.
+	placeholder for the future MFS. Next, it turns it into device,
+	and then performs some tricks which allow for doing 'disklabel'.
+	I use the 'auto' option to disklabel(8).
 
 <p>	One notable exception here is with the "router" floppy - I use one
 	of extended floppy formats (820kB).</p>
