@@ -75,6 +75,7 @@ interrupt(a0, a1, a2, framep)
 	struct trapframe *framep;
 {
 
+	atomic_add_int(&intr_nesting_level, 1);
 	{
 		struct proc* p = curproc;
 		if (!p) p = &proc0;
@@ -134,6 +135,7 @@ interrupt(a0, a1, a2, framep)
 		    a0, a1, a2);
 		/* NOTREACHED */
 	}
+	atomic_subtract_int(&intr_nesting_level, 1);
 }
 
 void

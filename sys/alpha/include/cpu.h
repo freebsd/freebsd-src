@@ -65,11 +65,7 @@ struct clockframe {
 #define	CLKF_BASEPRI(framep)						\
 	(((framep)->cf_tf.tf_regs[FRAME_PS] & ALPHA_PSL_IPL_MASK) == 0)
 #define	CLKF_PC(framep)		((framep)->cf_tf.tf_regs[FRAME_PC])
-/*
- * XXX No way to accurately tell if we were in interrupt mode before taking
- * clock interrupt.
- */
-#define	CLKF_INTR(framep)	(0)
+#define	CLKF_INTR(framep)	(intr_nesting_level >= 2)
 
 /*
  * Preempt the current process if in interrupt from user mode,
@@ -96,6 +92,7 @@ struct clockframe {
 
 #ifdef KERNEL
 u_int32_t astpending;		/* need to trap before returning to user mode */
+u_int32_t intr_nesting_level;	/* bookeeping only; counts software intr */
 u_int32_t want_resched;		/* resched() was called */
 #endif
 
