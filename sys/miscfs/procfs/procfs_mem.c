@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.23 1997/02/22 09:40:28 peter Exp $
+ *	$Id: procfs_mem.c,v 1.24 1997/04/06 02:29:31 dyson Exp $
  */
 
 /*
@@ -197,6 +197,17 @@ procfs_rwmem(p, uio)
 		}
 
 		m = vm_page_lookup(object, pindex);
+
+		/* Allow fallback to backing objects if we are reading */
+
+		while (m == NULL && !writing && object->backing_object) {
+
+		  pindex += OFF_TO_IDX(object->backing_object_offset);
+		  object = object->backing_object;
+
+		  m = vm_page_lookup(object, pindex);
+		}
+
 		if (m == NULL) {
 			error = EFAULT;
 
@@ -205,6 +216,8 @@ procfs_rwmem(p, uio)
 			 * an error return on vm_map_lookup.
 			 */
 			object = NULL;
+
+			vm_map_lookup_done(tmap, out_entry);
 
 			break;
 		}
