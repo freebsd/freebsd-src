@@ -428,7 +428,7 @@ spec_bufwrite(ap)
 	daddr_t bn;
 	int bsize, blkmask;
 	struct partinfo dpart;
-	register int n, on;
+	int n, on;
 	int error = 0;
 
 	if (uio->uio_resid == 0)
@@ -525,18 +525,8 @@ spec_ioctl(ap)
 {
 	dev_t dev = ap->a_vp->v_rdev;
 
-	switch (ap->a_vp->v_type) {
-
-	case VCHR:
-		return ((*devsw(dev)->d_ioctl)(dev, ap->a_command, 
-		    ap->a_data, ap->a_fflag, ap->a_p));
-	case VBLK:
-		return ((*devsw(dev)->d_ioctl)(dev, ap->a_command, 
-		    ap->a_data, ap->a_fflag, ap->a_p));
-	default:
-		panic("spec_ioctl");
-		/* NOTREACHED */
-	}
+	return ((*devsw(dev)->d_ioctl)(dev, ap->a_command, 
+	    ap->a_data, ap->a_fflag, ap->a_p));
 }
 
 /* ARGSUSED */
@@ -549,17 +539,10 @@ spec_poll(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register dev_t dev;
+	dev_t dev;
 
-	switch (ap->a_vp->v_type) {
-
-	case VCHR:
-		dev = ap->a_vp->v_rdev;
-		return (*devsw(dev)->d_poll)(dev, ap->a_events, ap->a_p);
-	default:
-		return (vop_defaultop((struct vop_generic_args *)ap));
-
-	}
+	dev = ap->a_vp->v_rdev;
+	return (*devsw(dev)->d_poll)(dev, ap->a_events, ap->a_p);
 }
 /*
  * Synch buffers associated with a block device
@@ -574,13 +557,17 @@ spec_fsync(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct buf *bp;
+	struct vnode *vp = ap->a_vp;
+	struct buf *bp;
 	struct buf *nbp;
 	int s;
 
-	if (vp->v_type == VCHR)
+	if (bdev_buffered == 0)
 		return (0);
+
+	if (!vn_isdisk(vp))
+		return (0);
+
 	/*
 	 * Flush all dirty buffers associated with a block device.
 	 */
@@ -882,7 +869,7 @@ spec_getpages(ap)
 	 * block device is mounted.  However, we can use v_rdev.
 	 */
 
-	if (vp->v_type == VBLK)
+	if (vn_isdisk(vp))
 		blksiz = vp->v_rdev->si_bsize_phys;
 	else
 		blksiz = DEV_BSIZE;
