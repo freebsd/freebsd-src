@@ -152,6 +152,7 @@ edit_line(WINDOW *window, int y, int x, char *field, int width, int maxlen)
 		else
 			waddch(window, ' ');
 	wmove(window, y, x + curpos);
+	wstandend(window);
 	field[len] = 0;
 	wrefresh(window);
 	return (key);
