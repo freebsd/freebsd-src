@@ -48,8 +48,11 @@ MALLOC_DEFINE(M_ATKBDDEV, "atkbddev", "AT Keyboard device");
 /* children */
 typedef struct atkbdc_device {
 	int flags;	/* configuration flags */
-	int port;	/* port number (same as the controller's) */
 	int irq;	/* ISA IRQ mask */
+	u_int32_t vendorid;
+	u_int32_t serial;
+	u_int32_t logicalid;
+	u_int32_t compatid;
 } atkbdc_device_t;
 
 /* kbdc */
@@ -210,9 +213,9 @@ atkbdc_attach(device_t dev)
 	/*
 	 * Add all devices configured to be attached to atkbdc0.
 	 */
-	for (i = resource_query_string(-1, "at", "atkbdc0");
+	for (i = resource_query_string(-1, "at", device_get_nameunit(dev));
 	     i != -1;
-	     i = resource_query_string(i, "at", "atkbdc0")) {
+	     i = resource_query_string(i, "at", device_get_nameunit(dev))) {
 		atkbdc_add_device(dev, resource_query_name(i),
 				  resource_query_unit(i));
 	}
@@ -220,9 +223,9 @@ atkbdc_attach(device_t dev)
 	/*
 	 * and atkbdc?
 	 */
-	for (i = resource_query_string(-1, "at", "atkbdc");
+	for (i = resource_query_string(-1, "at", device_get_name(dev));
 	     i != -1;
-	     i = resource_query_string(i, "at", "atkbdc")) {
+	     i = resource_query_string(i, "at", device_get_name(dev))) {
 		atkbdc_add_device(dev, resource_query_name(i),
 				  resource_query_unit(i));
 	}
@@ -257,14 +260,23 @@ atkbdc_read_ivar(device_t bus, device_t dev, int index, u_long *val)
 
 	ivar = (atkbdc_device_t *)device_get_ivars(dev);
 	switch (index) {
-	case KBDC_IVAR_PORT:
-		*val = (u_long)ivar->port;
-		break;
 	case KBDC_IVAR_IRQ:
 		*val = (u_long)ivar->irq;
 		break;
 	case KBDC_IVAR_FLAGS:
 		*val = (u_long)ivar->flags;
+		break;
+	case KBDC_IVAR_VENDORID:
+		*val = (u_long)ivar->vendorid;
+		break;
+	case KBDC_IVAR_SERIAL:
+		*val = (u_long)ivar->serial;
+		break;
+	case KBDC_IVAR_LOGICALID:
+		*val = (u_long)ivar->logicalid;
+		break;
+	case KBDC_IVAR_COMPATID:
+		*val = (u_long)ivar->compatid;
 		break;
 	default:
 		return ENOENT;
@@ -279,14 +291,23 @@ atkbdc_write_ivar(device_t bus, device_t dev, int index, u_long val)
 
 	ivar = (atkbdc_device_t *)device_get_ivars(dev);
 	switch (index) {
-	case KBDC_IVAR_PORT:
-		ivar->port = (int)val;
-		break;
 	case KBDC_IVAR_IRQ:
 		ivar->irq = (int)val;
 		break;
 	case KBDC_IVAR_FLAGS:
 		ivar->flags = (int)val;
+		break;
+	case KBDC_IVAR_VENDORID:
+		ivar->vendorid = (u_int32_t)val;
+		break;
+	case KBDC_IVAR_SERIAL:
+		ivar->serial = (u_int32_t)val;
+		break;
+	case KBDC_IVAR_LOGICALID:
+		ivar->logicalid = (u_int32_t)val;
+		break;
+	case KBDC_IVAR_COMPATID:
+		ivar->compatid = (u_int32_t)val;
 		break;
 	default:
 		return ENOENT;
