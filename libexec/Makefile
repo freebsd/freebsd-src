@@ -2,7 +2,8 @@
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	mail.local makekey revnetgroup rexecd rlogind rpc.rquotad rpc.rstatd \
-	rpc.rusersd rpc.rwalld rpc.sprayd rshd talkd tftpd uucpd xtend
+	rpc.rusersd rpc.rwalld rpc.sprayd rshd talkd tftpd uucpd xtend \
+	ypxfr
 
 .if !exists(../secure) || defined(NOSECURE)
 SUBDIR+=telnetd
