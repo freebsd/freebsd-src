@@ -1,7 +1,0 @@
-#
-# Test suite for HPUX 9 (no multicast, kernel mods, disciplines, modem control)
-#
-DEFS_OPT=-DDEBUG
-DEFS_LOCAL= $(DEFS_OPT) -DREFCLOCK
-CLOCKDEFS= -DATOM -DAS2201 -DCHU -DGOES -DGPSTM -DIRIG -DLEITCH -DLOCAL_CLOCK -DMSFEES -DMX4200 -DNMEA -DOMEGA -DPST -DTPRO -DTRAK -DWWVB
-BINDIR=	/usr/local/bin
