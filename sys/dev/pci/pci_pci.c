@@ -329,10 +329,13 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    if (!pcib_is_isa_mem(start) &&
 	        (((start < sc->membase) || (end > sc->memlimit)) &&
 		((start < sc->pmembase) || (end > sc->pmemlimit)))) {
-		device_printf(dev, "device %s%d requested unsupported memory range 0x%lx-0x%lx"
-			      " (decoding 0x%x-0x%x, 0x%x-0x%x)\n",
-			      device_get_name(child), device_get_unit(child), start, end,
-			      sc->membase, sc->memlimit, sc->pmembase, sc->pmemlimit);
+		if (bootverbose)
+		    device_printf(dev,
+			"device %s%d requested unsupported memory range "
+			"0x%lx-0x%lx (decoding 0x%x-0x%x, 0x%x-0x%x)\n",
+			device_get_name(child), device_get_unit(child), start,
+			end, sc->membase, sc->memlimit, sc->pmembase,
+			sc->pmemlimit);
 #ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
 		return(NULL);
 #endif
