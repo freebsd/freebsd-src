@@ -101,7 +101,9 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 {
 	int i, j, nmbufs, nmbclusters, page_size, num_objs;
 	u_int mbuf_hiwm, clust_hiwm, mbuf_lowm, clust_lowm;
-	u_long totspace[2], totused[2], gentotnum, gentotfree, totnum, totfree;
+	unsigned long long totspace[2];
+	u_long totused[2];
+	u_long gentotnum, gentotfree, totnum, totfree;
 	short nmbtypes;
 	size_t mlen;
 	long *mbtypes = NULL;
@@ -254,7 +256,7 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 		    gentotnum - gentotfree, gentotnum);
 	} else {
 		/* XXX: peak is now wrong. */
-		printf("%lu/%lu/%d (current/peak/max):\n",
+		printf("%lu/%lu/%d mbufs in use (current/peak/max):\n",
 		    totused[0], totnum, nmbufs);
 	}
 
@@ -286,7 +288,7 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 			    mbtypes[i], i);
 	}
 	if (cflag)
-		printf("\t%lu%% of mbuf map consumed\n",
+		printf("\t%llu%% of mbuf map consumed\n",
 		    ((totspace[0] * 100) / (nmbufs * MSIZE)));
 
 	totnum = mbpstat[GENLST]->mb_clbucks * mbstat->m_clperbuck;
@@ -311,7 +313,7 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 		    gentotnum - gentotfree, gentotnum);
 	} else {
 		/* XXX: peak is now wrong. */
-		printf("%lu/%lu/%d (current/peak/max):\n",
+		printf("%lu/%lu/%d mbuf clusters in use (current/peak/max)\n",
 		    totused[1], totnum, nmbclusters);
 	}
 	for (i = 0; cflag && i < (num_objs - 1); i++) {
@@ -330,12 +332,13 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 #endif
 	}
 	if (cflag)
-		printf("\t%lu%% of cluster map consumed\n",
+		printf("\t%llu%% of cluster map consumed\n",
 		    ((totspace[1] * 100) / (nmbclusters * MCLBYTES)));
-
-	printf("%lu KBytes of wired memory reserved (%lu%% in use)\n",
-	    (totspace[0] + totspace[1]) / 1024, ((totused[0] * MSIZE +
-	    totused[1] * MCLBYTES) * 100) / (totspace[0] + totspace[1]));
+	printf("%llu KBytes allocated to network "
+	    "(%lluK mbuf, %lluK mbuf cluster)\n",
+	    (totspace[0] + totspace[1]) / 1024,
+	    totspace[0] / 1024,
+	    totspace[1] / 1024);
 	printf("%lu requests for memory denied\n", mbstat->m_drops);
 	printf("%lu requests for memory delayed\n", mbstat->m_wait);
 	printf("%lu calls to protocol drain routines\n", mbstat->m_drain);
