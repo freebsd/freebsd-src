@@ -48,6 +48,7 @@ __RCSID("$NetBSD: lock_proc.c,v 1.7 2000/10/11 20:23:56 is Exp $");
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 #include <netconfig.h>
 
 #include <rpc/rpc.h>
