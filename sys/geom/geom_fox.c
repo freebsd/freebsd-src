@@ -383,7 +383,7 @@ g_fox_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		 */
 		LIST_FOREACH(gp2, &mp->geom, geom) {
 			sc2 = gp2->softc;
-			if (sc == NULL)
+			if (sc2 == NULL)
 				continue;
 			if (memcmp(buf + 16, sc2->magic, sizeof sc2->magic))
 				continue;
@@ -409,7 +409,7 @@ g_fox_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 					 */
 					printf(
 	"WARNING: New path (%s) to fox(%s) not added: %s\n%s",
-					    cp->provider->name, gp2->name,
+					    cp2->provider->name, gp2->name,
 	"Could not get exclusive bit.",
 	"WARNING: This indicates a risk of data inconsistency."
 					);
