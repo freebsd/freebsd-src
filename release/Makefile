@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.64 1997/10/03 14:18:02 jkh Exp $
+#	$Id: Makefile,v 1.246.2.65 1997/10/20 21:56:01 joerg Exp $
 #
 # How to roll a release:
 #
@@ -20,7 +20,7 @@
 #RELEASETAG=RELENG_2_2
 
 # Disable the doc.1 target for now.
-NODOC=  YES
+#NODOC=  YES
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
