@@ -40,6 +40,11 @@
 #define DEVSTAT_NAME_LEN  16
 
 /*
+ * device name for the mmap device
+ */
+#define DEVSTAT_DEVICE_NAME "devstat"
+
+/*
  * ATTENTION:  The devstat version below should be incremented any time a
  * change is made in struct devstat, or any time a change is made in the
  * enumerated types that struct devstat uses.  (Only if those changes
@@ -163,7 +168,7 @@ struct devstat {
 						      */
 	devstat_type_flags	device_type;	     /* Device type */
 	devstat_priority	priority;	     /* Controls list pos. */
-	void			*id;		     /*
+	const void		*id;		     /*
 						      * Identification for
 						      * GEOM nodes
 						      */
