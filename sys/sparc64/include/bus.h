@@ -827,19 +827,22 @@ struct bus_dma_tag {
 	/*
 	 * DMA mapping methods.
 	 */
-	int	(*dmamap_create)(bus_dma_tag_t, int, bus_dmamap_t *);
-	int	(*dmamap_destroy)(bus_dma_tag_t, bus_dmamap_t);
-	int	(*dmamap_load)(bus_dma_tag_t, bus_dmamap_t, void *,
-	    bus_size_t, bus_dmamap_callback_t *, void *, int);
-	void	(*dmamap_unload)(bus_dma_tag_t, bus_dmamap_t);
-	void	(*dmamap_sync)(bus_dma_tag_t, bus_dmamap_t,
+	int	(*dmamap_create)(bus_dma_tag_t, bus_dma_tag_t, int,
+	    bus_dmamap_t *);
+	int	(*dmamap_destroy)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
+	int	(*dmamap_load)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+	    void *, bus_size_t, bus_dmamap_callback_t *, void *, int);
+	void	(*dmamap_unload)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
+	void	(*dmamap_sync)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
 	    bus_dmasync_op_t);
 
 	/*
 	 * DMA memory utility functions.
 	 */
-	int	(*dmamem_alloc)(bus_dma_tag_t, void **, int, bus_dmamap_t *);
-	void	(*dmamem_free)(bus_dma_tag_t, void *, bus_dmamap_t);
+	int	(*dmamem_alloc)(bus_dma_tag_t, bus_dma_tag_t, void **, int,
+	    bus_dmamap_t *);
+	void	(*dmamem_free)(bus_dma_tag_t, bus_dma_tag_t, void *,
+	    bus_dmamap_t);
 };
 
 /*
@@ -859,29 +862,93 @@ int bus_dma_tag_destroy(bus_dma_tag_t);
 int sparc64_dmamem_alloc_map(bus_dma_tag_t dmat, bus_dmamap_t *mapp);
 void sparc64_dmamem_free_map(bus_dma_tag_t dmat, bus_dmamap_t map);
 
+static __inline int
+sparc64_dmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, int f,
+    bus_dmamap_t *p)
+{
+	bus_dma_tag_t lt;
+
+	for (lt = pt; lt->dmamap_create == NULL; lt = lt->parent)
+		;
+	return ((*lt->dmamap_create)(lt, dt, f, p));
+}
 #define	bus_dmamap_create(t, f, p)					\
-	(*(t)->dmamap_create)((t), (f), (p))
+	sparc64_dmamap_create((t), (t), (f), (p))
+
+static __inline int
+sparc64_dmamap_destroy(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t p)
+{
+	bus_dma_tag_t lt;
+
+	for (lt = pt; lt->dmamap_destroy == NULL; lt = lt->parent)
+		;
+	return ((*lt->dmamap_destroy)(lt, dt, p));
+}
 #define	bus_dmamap_destroy(t, p)					\
-	(*(t)->dmamap_destroy)((t), (p))
+	sparc64_dmamap_destroy((t), (t), (p))
+
+static __inline int
+sparc64_dmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
+    void *p, bus_size_t s, bus_dmamap_callback_t *cb, void *cba, int f)
+{
+	bus_dma_tag_t lt;
+
+	for (lt = pt; lt->dmamap_load == NULL; lt = lt->parent)
+		;
+	return ((*lt->dmamap_load)(lt, dt, m, p, s, cb, cba, f));
+}
 #define	bus_dmamap_load(t, m, p, s, cb, cba, f)				\
-	(*(t)->dmamap_load)((t), (m), (p), (s), (cb), (cba), (f))
+	sparc64_dmamap_load((t), (t), (m), (p), (s), (cb), (cba), (f))
+
+static __inline void
+sparc64_dmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t p)
+{
+	bus_dma_tag_t lt;
+
+	for (lt = pt; lt->dmamap_unload == NULL; lt = lt->parent)
+		;
+	(*lt->dmamap_unload)(lt, dt, p);
+}
 #define	bus_dmamap_unload(t, p)						\
-	(*(t)->dmamap_unload)((t), (p))
+	sparc64_dmamap_unload((t), (t), (p))
+
+static __inline void
+sparc64_dmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
+    bus_dmasync_op_t op)
+{
+	bus_dma_tag_t lt;
+
+	for (lt = pt; lt->dmamap_sync == NULL; lt = lt->parent)
+		;
+	(*lt->dmamap_sync)(lt, dt, m, op);
+}
 #define	bus_dmamap_sync(t, m, op)					\
-	(void)((t)->dmamap_sync ?					\
-	    (*(t)->dmamap_sync)((t), (m), (op)) : (void)0)
+	sparc64_dmamap_sync((t), (t), (m), (op))
 
+static __inline int
+sparc64_dmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, void **v, int f,
+    bus_dmamap_t *m)
+{
+	bus_dma_tag_t lt;
+
+	for (lt = pt; lt->dmamem_alloc == NULL; lt = lt->parent)
+		;
+	return ((*lt->dmamem_alloc)(lt, dt, v, f, m));
+}
 #define	bus_dmamem_alloc(t, v, f, m)					\
-	(*(t)->dmamem_alloc)((t), (v), (f), (m))
-#define	bus_dmamem_free(t, v, m)					\
-	(*(t)->dmamem_free)((t), (v), (m))
+	sparc64_dmamem_alloc((t), (t), (v), (f), (m))
 
-struct bus_dmamap {
-	bus_dma_tag_t	dmat;
-	void		*buf;		/* unmapped buffer pointer */
-	bus_size_t	buflen;		/* unmapped buffer length */
-	bus_addr_t	start;		/* start of mapped region */
-	struct resource *res;		/* associated resource */
-};
+static __inline void
+sparc64_dmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, void *v,
+    bus_dmamap_t m)
+{
+	bus_dma_tag_t lt;
+
+	for (lt = pt; lt->dmamem_free == NULL; lt = lt->parent)
+		;
+	(*lt->dmamem_free)(lt, dt, v, m);
+}
+#define	bus_dmamem_free(t, v, m)					\
+	sparc64_dmamem_free((t), (t), (v), (m))
 
 #endif /* !_MACHINE_BUS_H_ */
