@@ -158,7 +158,6 @@ MODULE_NAME("EC")
 struct acpi_ec_softc {
     device_t		ec_dev;
     ACPI_HANDLE		ec_handle;
-    ACPI_HANDLE		ec_semaphore;
     UINT32		ec_gpebit;
     
     int			ec_data_rid;
@@ -183,7 +182,7 @@ EcLock(struct acpi_ec_softc *sc)
 {
     ACPI_STATUS	status;
 
-    status = AcpiOsWaitSemaphore((sc)->ec_semaphore, 1, EC_LOCK_TIMEOUT); 
+    status = AcpiAcquireGlobalLock();
     (sc)->ec_locked = 1;
     return(status);
 }
@@ -192,7 +191,7 @@ static __inline void
 EcUnlock(struct acpi_ec_softc *sc)
 {
     (sc)->ec_locked = 0; 
-    AcpiOsSignalSemaphore((sc)->ec_semaphore, 1);
+    AcpiReleaseGlobalLock();
 }
 
 static __inline int
@@ -327,14 +326,6 @@ acpi_ec_attach(device_t dev)
     }
     sc->ec_csr_tag = rman_get_bustag(sc->ec_csr_res);
     sc->ec_csr_handle = rman_get_bushandle(sc->ec_csr_res);
-
-    /*
-     * Create serialisation semaphore
-     */
-    if ((Status = AcpiOsCreateSemaphore(1, 1, &sc->ec_semaphore)) != AE_OK) {
-	device_printf(dev, "can't create semaphore - %s\n", acpi_strerror(Status));
-	return_VALUE(ENXIO);
-    }
 
     /*
      * Install GPE handler
