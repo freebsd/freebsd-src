@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <sys/resource.h>
 #include <errno.h>
 #include <locale.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -96,6 +97,8 @@ int	exit_val;		/* exit value */
 int	docrc;			/* check/create file crc */
 char	*dirptr;		/* destination dir in a copy */
 char	*argv0;			/* root of argv[0] */
+char	*tempfile;		/* tempfile to use for mkstemp(3) */
+char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
 sigset_t s_mask;		/* signal mask for cleanup critical sect */
 
 /*
@@ -228,7 +231,29 @@ main(argc, argv)
 	char **argv;
 #endif
 {
+	char *tmpdir;
+	size_t tdlen;
+
 	(void) setlocale(LC_ALL, "");
+
+	/*
+	 * Where should we put temporary files?
+	 */
+	if ((tmpdir = getenv("TMPDIR")) == NULL || *tmpdir == '\0')
+		tmpdir = _PATH_TMP;
+	tdlen = strlen(tmpdir);
+	while(tdlen > 0 && tmpdir[tdlen - 1] == '/')
+		tdlen--;
+	tempfile = malloc(tdlen + 1 + sizeof(_TFILE_BASE));
+	if (tempfile == NULL) {
+		pax_warn(1, "Cannot allocate memory for temp file name.");
+		return(exit_val);
+	}
+	if (tdlen)
+		memcpy(tempfile, tmpdir, tdlen);
+	tempbase = tempfile + tdlen;
+	*tempbase++ = '/';
+
 	/*
 	 * parse options, determine operational mode, general init
 	 */
