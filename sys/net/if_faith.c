@@ -165,8 +165,7 @@ faith_clone_create(ifc, unit)
 {
 	struct faith_softc *sc;
 
-	sc = malloc(sizeof(struct faith_softc), M_FAITH, M_WAITOK);
-	bzero(sc, sizeof(struct faith_softc));
+	sc = malloc(sizeof(struct faith_softc), M_FAITH, M_WAITOK | M_ZERO);
 
 	sc->sc_if.if_softc = sc;
 	if_initname(&sc->sc_if, ifc->ifc_name, unit);
