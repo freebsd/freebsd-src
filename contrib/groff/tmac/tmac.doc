@@ -1,5 +1,5 @@
-.\" Copyright (c) 1991 The Regents of the University of California.
-.\" All rights reserved.
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)doc	5.8 (Berkeley) 8/5/91
+.\"     @(#)doc	8.1 (Berkeley) 06/08/93
 .\" $FreeBSD$
 .\" Modified by jjc@jclark.com as follows: the doc-* files are assumed to be
 .\" installed as mdoc/doc-* rather than tmac.doc-* (the filename
@@ -2287,7 +2287,6 @@
 .		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .	\}
 .\}
-.\}
 .if \\n(aC>\\n(aP \{\
 .	nr aP \\n(aP+1
 .	as b1 \\*(sX
@@ -2600,8 +2599,7 @@
 .		\}
 .\" .	\}
 .	if \\n(fC>1 \{\
-.		as b1 \&\f\\n(cF\s\\n(cZ,\\*(S\\n(aP\\*(fA\\*(A\\n(aP\fP\s0
-.\" .		as b1 \&\\,\\*(S\\n(aP\fP\s0\\*(fA\\*(A\\n(aP\fP\s0
+.		as b1 \&\f\\n(cF\s\\n(cZ\|,\\*(S\\n(aP\\*(fA\\*(A\\n(aP\fP\s0
 .	\}
 .	if \\n(fC==1 \{\
 .		as b1 \&\|\\*(fA\\*(A\\n(aP\fP\s0
@@ -2682,7 +2680,8 @@
 .		f\\n(C\\n(aP
 .	\}
 .	el \{\
-.		as b1 \|\\*(rp
+.		ie \\n(nS>0 .as b1 \|\\*(rp\fR;\fP
+.		el .as b1 \|\\*(rp
 .		aZ
 .	\}
 .	if \\n(nS>0 \{\
@@ -2696,7 +2695,8 @@
 .\" NS f3 macro - punctuation
 .\" NS f4 macro - write out function
 .de f1
-.as b1 \\*(rp\f\\n(cF\s\\n(cZ
+.ie \\n(nS>0 .as b1 \\*(rp\fR;\fP\f\\n(cF\s\\n(cZ
+.el .as b1 \\*(rp\f\\n(cF\s\\n(cZ
 .\\*(A\\n(aP
 ..
 .de f2
@@ -2720,19 +2720,22 @@
 .	f\\n(C\\n(aP
 .\}
 .el  \{\
-.	as b1 \\*(rp\f\\n(cF\s\\n(cZ
+.	ie \\n(nS>0 .as b1 \\*(rp\fR;\fP\f\\n(cF\s\\n(cZ
+.	el .as b1 \\*(rp\f\\n(cF\s\\n(cZ
 .	aZ
 .\}
 ..
 .de f3
-.as b1 \\*(rp\f\\n(cF\s\\n(cZ\\*(A\\n(aP
+.ie \\n(nS>0 .as b1 \\*(rp\f\\n(cF\s\\n(cZ\\*(A\\n(aP
+.el .as b1 \\*(rp\f\\n(cF\s\\n(cZ\\*(A\\n(aP
 .ie \\n(aC>\\n(aP \{\
 .	No
 .\}
 .el .aZ
 ..
 .de f4
-.as b1 \\*(rp\f\\n(cF\s\\n(cZ\\*(S\\n(aP\\*(A\\n(aP
+.ie \\n(nS>0 .as b1 \\*(rp\fR;\fP\f\\n(cF\s\\n(cZ\\*(S\\n(aP\\*(A\\n(aP
+.el .as b1 \\*(rp\f\\n(cF\s\\n(cZ\\*(S\\n(aP\\*(A\\n(aP
 .ie \\n(aC>\\n(aP \{\
 .	nr aP \\n(aP+1
 .	No
@@ -2823,7 +2826,8 @@
 .\}
 .nr fC 0
 .nr oM \\n(oM-1
-.as b1 \|\\*(rp
+.ie \\n(nS>0 .as b1 \|\\*(rp\fR;\fP
+.el .as b1 \|\\*(rp
 .ie \\n(aC>\\n(aP \{\
 .	nr aP \\n(aP+1
 .	\\*(A\\n(aP
@@ -2884,6 +2888,7 @@
 .de rC
 .nr uK 0
 .nr jK 0
+.nr iK 0
 .nr nK 0
 .nr oK 0
 .nr qK 0
@@ -2895,7 +2900,7 @@
 .nr bK 0
 .ds rS
 .rm U1 U2 U3 U4 U5 U6 U7 U8
-.rm uK jK nK oK rK qK tK vK dK pK bK
+.rm uK jK iK nK oK rK qK tK vK dK pK bK
 ..
 .\" NS rZ macro - reference print
 .de rZ
@@ -2923,6 +2928,11 @@
 .	nr Kl \\n(Kl-1
 .	if \\n(Kl==0 \&\\*(eM\\*(bK\\*(nO.
 .	if \\n(Kl>0 \&\\*(eM\\*(bK\\*(nO,
+.\}
+.if \\n(iK \{\
+.	nr Kl \\n(Kl-1
+.	if \\n(Kl==0 \&\\*(eM\\*(iK\\*(nO.
+.	if \\n(Kl>0 \&\\*(eM\\*(iK\\*(nO,
 .\}
 .if \\n(jK \{\
 .	nr Kl \\n(Kl-1
@@ -3047,6 +3057,37 @@
 .		nr dK \\n(dK+1
 .		nr Kl \\n(Kl+1
 .		ds rS dK
+.               ds A1 \\$1
+.               ds A2 \\$2
+.               ds A3 \\$3
+.               ds A4 \\$4
+.               ds A5 \\$5
+.               ds A6 \\$6
+.               ds A7 \\$7
+.               ds A8 \\$8
+.               ds A9 \\$9
+.		nr fV \\n(.$
+.		fV
+.	\}
+.\}
+.if \\n(aC>\\n(aP \{\
+.	nr aP \\n(aP+1
+.       nr cF \\n(.f
+.	nr cZ \\n(.s
+.       rR
+.\}
+..
+.\" NS %I macro - [reference] Issuer/Publisher Name
+.\" NS jK register - [reference] Issuer/Publisher Name flag
+.\" NS jK string - [reference] Issuer/Publisher Name
+.de %I
+.if \\n(aC==0 \{\
+.       ie \\n(.$==0 .tm Usage: .%I Issuer/Publisher Name (#\\n(.c)
+.       el \{\
+.		ds mN %I
+.		nr iK \\n(iK+1
+.		ds rS iK
+.		nr Kl \\n(Kl+1
 .               ds A1 \\$1
 .               ds A2 \\$2
 .               ds A3 \\$3
