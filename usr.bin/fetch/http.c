@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.8 1997/07/26 19:25:56 wollman Exp $
+ *	$Id: http.c,v 1.9 1997/07/26 20:00:05 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -247,7 +247,7 @@ out:
 		return rv;
 	}
 
-	if (strncmp(uri, "http://", 7) == 0) {
+	if (strncmp(uri, "http://", 7) == 0 || strncmp(uri, "ftp://", 6) == 0) {
 		char *hosthdr;
 		slash = strchr(uri + 7, '/');
 		if (slash == 0) {
