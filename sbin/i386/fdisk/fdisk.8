@@ -1,23 +1,21 @@
+.\"	$Id: $
+.\"
 .Dd October 4, 1996
 .Dt FDISK 8
 .\".Os BSD 4
 .Sh NAME
 .Nm fdisk
-.Nd DOS partition maintenance program
+.Nd PC partition table maintenance program
 .Sh SYNOPSIS
 .Nm fdisk
-.Op Fl i
-.Op Fl u
-.Op Fl a
-.Op Fl b
+.Op Fl Baitu
+.Op Fl b Ar bootcode
 .Op Fl 1234
 .Op Ar disk
 .Bl -tag -width time
 .Nm fdisk
-.Op Fl f Ar configfile
-.Op Fl i
-.Op Fl v
-.Op Fl t
+.Fl f Ar configfile
+.Op Fl itv
 .Op Ar disk
 .Sh PROLOGUE
 In order for the BIOS to boot the kernel,
@@ -26,17 +24,15 @@ Sector 0 of the disk must contain boot code,
 a partition table,
 and a magic number.
 BIOS partitions can be used to break the disk up into several pieces.
-The BIOS brings in sector 0
-(does it really use the code?)
-and verifies the magic number.
-It then searches the 4 BIOS partitions described by sector 0
-to determine which of them is
+The BIOS brings in sector 0 and verifies the magic number.  The sector
+0 boot code then searches the partition table to determine which
+partition is marked
 .Em active .
-This boot then brings in the secondary boot block from the
+This boot code then brings in the bootstrap from the
 .Em active
-partition and runs it.
+partition and, if marked bootable, runs it.
 Under DOS,
-you could have one or more partitions with one
+you can have one or more partitions with one
 .Em active .
 The DOS
 .Nm
@@ -54,32 +50,18 @@ table.  The second is used to write a partition table using a
 and is designed to be used by other scripts/programs.
 .Pp
 Options are:
-.It Fl u
-Is used for updating (editing) sector 0 of the disk.  Ignored if
-.Fl f
-is given.
-.It Fl i
-Initialize sector 0 of the disk.  This implies
-.Fl u ,
-unless
+.It Fl B
+Reinitialize the boot code contained in sector 0 of the disk.  Ignored
+if
 .Fl f
 is given.
 .It Fl a
 Change the active partition only.  Ignored if
 .Fl f
 is given.
-.It Fl b
-Reinitialize the boot code contained in sector 0 of the disk.  Ignored
-if
-.Fl f
-is given.  It should be noted, however, that the standard boot code
-written by
-.Nm
-is suitable for booting only from hard drive 0 (BIOS drive 0x80).
-.It Fl 1234
-Operate on a single fdisk entry only.  Ignored if
-.Fl f
-is given.
+.It Fl b Ar bootcode
+Get the boot code from the file
+.Ar bootcode .
 .It Fl f Ar configfile
 Set partition values using the file
 .Ar configfile .
@@ -103,17 +85,31 @@ when
 .Fl f
 is used, you are not asked if you really want to write the partition
 table (as you are in the interactive mode).  Use with caution!
+.It Fl i
+Initialize sector 0 of the disk.  This implies
+.Fl u ,
+unless
+.Fl f
+is given.
 .It Fl t
 Test mode; do not write partition values.  Generally used with the
 .Fl f
 option to see what would be written to the partition table.  Implies
 .Fl v .
+.It Fl u
+Is used for updating (editing) sector 0 of the disk.  Ignored if
+.Fl f
+is given.
 .It Fl v
 Be verbose.  When
 .Fl f
 is used,
 .Nm
 prints out the partition table that is written to the disk.
+.It Fl 1234
+Operate on a single fdisk entry only.  Ignored if
+.Fl f
+is given.
 .El
 .Pp
 The final disk name can be provided as a
@@ -411,9 +407,17 @@ Example: to make partition 1 the active partition:
 
 .El
 .Pp
+.Sh FILES
+.Bl -tag -width /boot/mbr -compact
+.It Pa /boot/mbr
+The default boot code
+.El
 .Sh SEE ALSO
 .Xr disklabel 8
 .Sh BUGS
+The default boot code will not necessarily handle all partition types
+correctly, in particular those introduced since MS-DOS 6.x.
+.Pp
 The entire program should be made more user-friendly.
 .Pp
 Throughout this man page, the term
