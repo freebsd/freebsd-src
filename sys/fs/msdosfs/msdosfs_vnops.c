@@ -56,6 +56,7 @@
 #include <sys/kernel.h>
 #include <sys/stat.h>
 #include <sys/bio.h>
+#include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
@@ -1833,7 +1834,7 @@ msdosfs_print(ap)
 
 	printf("\tstartcluster %lu, dircluster %lu, diroffset %lu, ",
 	       dep->de_StartCluster, dep->de_dirclust, dep->de_diroffset);
-	printf("on dev (%d, %d)\n", major(dep->de_dev), minor(dep->de_dev));
+	printf("on dev %s\n", devtoname(dep->de_dev));
 	return (0);
 }
 
