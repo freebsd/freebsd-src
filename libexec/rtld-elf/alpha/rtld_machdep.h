@@ -35,7 +35,9 @@ struct Struct_Obj_Entry;
 #define rtld_dynamic(obj)	(&_DYNAMIC)
 
 Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
-		       const struct Struct_Obj_Entry *obj);
+		       const struct Struct_Obj_Entry *,
+		       const struct Struct_Obj_Entry *,
+		       const Elf_Rel *);
 
 #define make_function_pointer(def, defobj) \
 	((defobj)->relocbase + (def)->st_value)

@@ -364,7 +364,7 @@ reloc_jmpslots(Obj_Entry *obj)
 			reloc_jmpslot(where,
 				      (Elf_Addr)(defobj->relocbase
 						 + def->st_value),
-				      defobj);
+				      defobj, obj, rel);
 		}
 	} else {
 		const Elf_Rela *relalim;
@@ -385,7 +385,7 @@ reloc_jmpslots(Obj_Entry *obj)
 			reloc_jmpslot(where,
 				      (Elf_Addr)(defobj->relocbase
 						 + def->st_value),
-				      defobj);
+				      defobj, obj, (Elf_Rel *)rela);
 		}
 	}
 	obj->jmpslots_done = true;
@@ -394,7 +394,8 @@ reloc_jmpslots(Obj_Entry *obj)
 
 /* Fixup the jump slot at "where" to transfer control to "target". */
 Elf_Addr
-reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *obj)
+reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *obj,
+	      const Obj_Entry *refobj, const Elf_Rel *rel)
 {
 	Elf_Addr stubaddr;
 
