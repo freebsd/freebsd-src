@@ -125,13 +125,8 @@ struct ostatfs {
 #define	MMAXOPTIONLEN	65536		/* maximum length of a mount option */
 
 TAILQ_HEAD(vnodelst, vnode);
-TAILQ_HEAD(vfsoptlist, vfsopt);
-struct vfsopt {
-	TAILQ_ENTRY(vfsopt) link;
-	char	*name;
-	void	*value;
-	int	len;
-};
+struct vfsoptlist;
+struct vfsopt;
 
 /*
  * Structure per mounted filesystem.  Each mounted filesystem has an
