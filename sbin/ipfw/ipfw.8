@@ -671,27 +671,29 @@ Only one level of parentheses is allowed.
 Beware that most shells have special meanings for parentheses
 or braces, so it is advisable to put a \\ in front of them.
 .Pp
-The body of a rule must in general comprise a source and destination
+The body of a rule must in general include a source and destination
 addres specifier.
 The keyword
 .Ar any
 can be used in various places to specify that the content of
 a required field is irrelevant.
 .Pp
-The general rule body format is one of the following:
+The rule body format is one of the following:
 .Bd -ragged -offset indent
 .Ar proto
 .Cm from Ar src
 .Cm to Ar dst
 .Op Ar options
-.br
-.Cm MAC Ar dst-mac src-mac mac-type
-.Op Cm from Ar src Cm to Ar dst
-.Op Ar options
+.Pp
+.Cm MAC Ar dst-mac src-mac Op Cm not
+.Ar mac-type Op Ar options
 .Ed
 .Pp
 where the second format allows you to specify MAC header fields
-instead (or in addition) of the IPv4 header fields.
+instead of IPv4 header fields.
+Note that in practice both formats are equivalent, because the
+.Ar options
+let you specify match patterns for all IP and MAC header fields.
 .Pp
 Rule fields have the following meaning:
 .Bl -tag -width indent
@@ -704,15 +706,16 @@ The
 or
 .Cm all
 keywords mean any protocol will match.
-.It Ar src No and Ar dst :
+.It Ar src No and Ar dst : ip-address | { ip-address Cm or ... } Op Ar ports
 A single
-.Ar ip address
+.Ar ip-address
 , or an
 .Em or-block
 containing one or more of them,
 optionally followed by
-.Em port numbers.
-.It Ar ip address :
+.Ar ports
+specifiers.
+.It Ar ip-address :
 An address (or set of addresses) specified in one of the following
 ways, optionally preceded by a
 .Cm not
@@ -758,19 +761,13 @@ within a single rule. Because the matching occurs using a
 bitmask, it takes constant time and dramatically reduces
 the complexity of rulesets.
 .El
-.It port numbers
-With protocols which support port numbers (such as TCP and UDP), optional
+.It Ar ports : Oo Cm not Oc Bro Ar port | port Ns \&- Ns Ar port Ns Brc Op , Ns Ar ...
+For protocols which support port numbers (such as TCP and UDP), optional
 .Cm ports
 may be specified as one or more ports or port ranges, separated
 by commas but no spaces, and an optional
 .Cm not
-operator:
-.Bd -ragged -offset indent
-.Op Cm not
-.Brq Ar port | port Ns \&- Ns Ar port Ns
-.Op , Ns Ar ...
-.Ed
-.Pp
+operator.
 The
 .Ql \&-
 notation specifies a range of ports (including boundaries).
@@ -778,13 +775,12 @@ notation specifies a range of ports (including boundaries).
 Service names (from
 .Pa /etc/services )
 may be used instead of numeric port values.
-The length of the port list is limited to 14 ports or ranges,
-though you can also use port ranges within an
+The length of the port list is limited to 30 ports or ranges,
+though one can specify larger ranges by using an
 .Em or-block
-to build essentially unlimited lists:
-.Pp
-.Dl "ipfw add allow tcp from any { 1-20,30-50 or 500-600 } to any"
-.Pp
+in the
+.Cm options
+section of the rule.
 .Pp
 A backslash
 .Pq Ql \e
@@ -800,7 +796,7 @@ specifications.
 See the
 .Cm frag
 option for details on matching fragmented packets.
-.It dst-mac, src-mac
+.It Ar dst-mac, src-mac
 Destination and source MAC addresses, specified as
 groups of hex digits separated by commas, and optionally
 followed by a mask indicating how many bits are significant:
@@ -811,7 +807,7 @@ Note that the order of MAC addresses (destination first,
 source second) is
 the same as on the wire, but the opposite of the one used for
 IP addresses.
-.It mac-type
+.It Ar mac-type
 The value of the Ethernet Type field, specified in the same way as
 .Cm port numbers
 (i.e. one or more comma-separated single values or ranges).
@@ -823,7 +819,7 @@ are always printed as hexadecimal (unless the
 option is used, in which case symbolic resolution will be
 attempted).
 .El
-.Ss RULE OPTIONS
+.Ss RULE OPTIONS (MATCH PATTERNS)
 Additional match patterns can be used within
 rules. Zero or more of these so-called
 .Em options
@@ -832,44 +828,31 @@ can be present in a rule, optionally prefixed by the
 operand, and possibly grouped into
 .Em or-blocks .
 .Pp
-Note that there is an ambiguity in the syntax: in a rule of
-the form
-.Pp
-.Dl "ipfw add allow ip from any to any { in or layer2 }"
-.Pp
-the or-block could contain either port lists or options.
-To remove the ambiguity, one should specify a destination
-port, which can be done by either using the keyword
-.Cm any
-or an empty or-block
-.Cm { }
-e.g.:
-.Pp
-.Dl "ipfw add allow ip from any to any any { in or layer2 }"
-.Pp
-The following options are available:
+The following match patterns can be used (listed in alphabetical order):
 .Bl -tag -width indent
 .It Cm bridged
 Matches only bridged packets.
+.It Cm dst-ip Ar ip address
+Matches IP packets whose destination IP is one of the address(es)
+specified as argument.
+.It Cm dst-port Ar source ports
+Matches IP packets whose destination port is one of the port(s)
+specified as argument.
 .It Cm established
-TCP packets only.
-Match packets that have the RST or ACK bits set.
+Matches TCP packets that have the RST or ACK bits set.
 .It Cm frag
-Match if the packet is a fragment and this is not the first
-fragment of the datagram.
-.Cm frag
-may not be used in conjunction with either
-.Cm tcpflags
-or TCP/UDP port specifications.
+Matches packets that are fragments and not the first
+fragment of an IP datagram. Note that these packets will not have
+the next protocol header (e.g. TCP, UDP) so options that look into
+these headers cannot match.
 .It Cm gid Ar group
-Match all TCP or UDP packets sent by or received for a
+Matches all TCP or UDP packets sent by or received for a
 .Ar group .
 A
 .Ar group
-may be matched by name or identification number.
+may be specified by name or number.
 .It Cm icmptypes Ar types
-ICMP packets only.
-Match if the ICMP type is in the list
+Matches ICMP packets whose ICMP type is in the list
 .Ar types .
 The list may be specified as any combination of ranges or
 individual types separated by commas.
@@ -906,24 +889,25 @@ address mask request
 and address mask reply
 .Pq Cm 18 .
 .It Cm in | out
-Only match incoming or outgoing packets, respectively.
+Matches incoming or outgoing packets, respectively.
 .Cm in
 and
 .Cm out
 are mutually exclusive (in fact,
 .Cm out
 is implemented as
-.Cm not in
-).
+.Cm not in Ns No ).
 .It Cm ipid Ar id
-Match if the identification of IP datagram is
+Matches IP packets whose
+.Cm ip_id
+field has value
 .Ar id .
 .It Cm iplen Ar len
-Match if the total length of a packet, including header and data, is
+Matches IP packets whose total length, including header and data, is
 .Ar len
 bytes.
 .It Cm ipoptions Ar spec
-Match if the IP header contains the comma separated list of
+Matches packets whose IP header contains the comma separated list of
 options specified in
 .Ar spec .
 The supported IP options are:
@@ -940,10 +924,12 @@ The absence of a particular option may be denoted
 with a
 .Ql \&! .
 .It Cm ipprecedence Ar precedence
-Match if the numeric value of IP datagram's precedence is equal to
+Matches IP packets whose precedence field is equal to
 .Ar precedence .
 .It Cm iptos Ar spec
-Match if the IP header contains the comma separated list of
+Matches IP packets whose
+.Cm tos
+field contains the comma separated list of
 service types specified in
 .Ar spec .
 The supported IP types of service are:
@@ -962,10 +948,10 @@ The absence of a particular type may be denoted
 with a
 .Ql \&! .
 .It Cm ipttl Ar ttl
-Match if the time to live of IP datagram is
+Matches IP packets whose time to live is
 .Ar ttl .
 .It Cm ipversion Ar ver
-Match if the IP header version is
+Matches IP packets whose IP version field is
 .Ar ver .
 .It Cm keep-state
 Upon a match, the firewall will create a dynamic rule, whose
@@ -987,13 +973,22 @@ set of parameters as specified in the rule.
 One or more
 of source and destination addresses and ports can be
 specified.
+.It Cm { MAC | mac } Ar dst-mac src-mac
+Match packets with a given dst-mac and src-mac addresses, specified
+in one of the forms described earlier.
+.It Cm mac-type Ar mac-type
+Matches packets whose
+.Ar mac-type
+corresponds to one of those specified as argument.
+.It Cm proto Ar protocol
+Matches packets with the corresponding IPv4 protocol.
 .It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar ipno | Ar any
-Packet must be received, transmitted or be going through,
-respectively, the interface specified by exact name (
-.Ar ifX
-), by device name (
-.Ar if Ns Cm *
-), by IP address, or through some interface.
+Matches packets received, transmitted or be going through,
+respectively, the interface specified by exact name
+.Ns No ( Ar ifX Ns No ),
+by device name
+.Ns No ( Ar if Ns Ar * Ns No ),
+by IP address, or through some interface.
 .Pp
 The
 .Cm via
@@ -1030,10 +1025,15 @@ originating from the local host have no receive interface,
 while packets destined for the local host have no transmit
 interface.
 .It Cm setup
-TCP packets only.
-Match packets that have the SYN bit set but no ACK bit.
+Matches TCP packets that have the SYN bit set but no ACK bit.
 This is the short form of
 .Dq Li tcpflags\ syn,!ack .
+.It Cm src-ip Ar ip-address
+Matches IP packets whose source IP is one of the address(es)
+specified as argument.
+.It Cm src-port Ar ports
+Matches IP packets whose source port is one of the port(s)
+specified as argument.
 .It Cm tcpack Ar ack
 TCP packets only.
 Match if the TCP header acknowledgment number field is set to
@@ -1601,6 +1601,21 @@ have in writing your rulesets.
 You might want to consider using these features in order to
 write your rulesets in a more efficient way.
 .Bl -tag -width indent
+.It Handling of non-IPv4 packets
+.Nm ipfw1
+will silently accept all non-IPv4 packets (which
+.Nm ipfw1
+will only see when
+.Em net.link.ether.bridge_ipfw=1 Ns
+).
+.Nm ipfw2
+will filter all packets (including non-IPv4 ones) according to the ruleset.
+To achieve the same behaviour as
+.Nm ipfw1
+you can use the following as the very first rule in your ruleset:
+.Pp
+.Dl "ipfw add 1 allow MAC any any not ip"
+.Pp
 .It Address sets
 .Nm ipfw1
 does not supports address sets (those in the form
