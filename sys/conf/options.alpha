@@ -1,4 +1,4 @@
-#	$Id: options.alpha,v 1.10 1999/03/10 10:36:50 yokota Exp $
+#	$Id: options.alpha,v 1.11 1999/05/27 22:03:31 gallatin Exp $
 
 EV5			opt_global.h
 EV4			opt_global.h
@@ -21,25 +21,35 @@ CMD640			opt_wd.h
 SHOW_BUSYBUFS
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 
-SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
-SLOW_VGA		opt_syscons.h
-STD8X16FONT		opt_syscons.h
-SC_HISTORY_SIZE		opt_syscons.h
+SC_ALT_MOUSE_IMAGE	opt_syscons.h
+SC_DEBUG_LEVEL		opt_syscons.h
+SC_DFLT_FONT		opt_syscons.h
+SC_DISABLE_DDB		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
+SC_HISTORY_SIZE		opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
+SC_NO_CUTPASTE		opt_syscons.h
+SC_NO_FONT_LOADING	opt_syscons.h
+SC_NO_HISTORY		opt_syscons.h
+SC_NO_SYSMOUSE		opt_syscons.h
+SC_PIXEL_MODE		opt_syscons.h
+SC_RENDER_DEBUG		opt_syscons.h
+SC_VIDEO_DEBUG		opt_syscons.h
 
 VGA_ALT_SEQACCESS	opt_vga.h
 VGA_DEBUG		opt_vga.h
 VGA_NO_FONT_LOADING	opt_vga.h
 VGA_NO_MODE_CHANGE	opt_vga.h
 VGA_SLOW_IOACCESS	opt_vga.h
+VGA_WIDTH90		opt_vga.h
 
 PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 
 # Fb options
+FB_DEBUG		opt_fb.h
 FB_INSTALL_CDEV		opt_fb.h
 
 # Atkbd options

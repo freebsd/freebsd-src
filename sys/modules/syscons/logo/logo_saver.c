@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: logo_saver.c,v 1.5 1999/02/05 12:40:15 des Exp $
+ *	$Id: logo_saver.c,v 1.6 1999/04/12 13:34:57 des Exp $
  */
 
 #include <sys/param.h>
@@ -33,8 +33,12 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/syslog.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
-#include <saver.h>
+#include <dev/fb/fbreg.h>
+#include <dev/fb/splashreg.h>
+#include <dev/syscons/syscons.h>
 
 static u_char *vid;
 static int banksize, scrmode, bpsl, scrw, scrh;
@@ -104,6 +108,7 @@ logo_saver(video_adapter_t *adp, int blank)
 #endif
 	    blanked++;
 	    vid = (u_char *)adp->va_window;
+	    banksize = adp->va_window_size;
 	    bpsl = adp->va_line_width;
 	    splx(pl);
 	    for (i = 0; i < bpsl*scrh; i += banksize) {
@@ -132,7 +137,6 @@ logo_init(video_adapter_t *adp)
 	return ENODEV;
     }
     
-    banksize = info.vi_window_size;
     scrw = info.vi_width;
     scrh = info.vi_height;
     blanked = 0;

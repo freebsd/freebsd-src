@@ -25,22 +25,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.19 1999/01/17 14:25:19 yokota Exp $
+ *	$Id: star_saver.c,v 1.20 1999/02/05 12:40:16 des Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
-#include <machine/md_var.h>
 #include <machine/pc/display.h>
 
-#include <saver.h>
+#include <dev/fb/fbreg.h>
+#include <dev/fb/splashreg.h>
+#include <dev/syscons/syscons.h>
 
 #define NUM_STARS	50
 
-static u_short *window;
 static int blanked;
 
 /*
@@ -50,21 +52,39 @@ static int blanked;
 static int
 star_saver(video_adapter_t *adp, int blank)
 {
-	scr_stat	*scp = cur_console;
+	sc_softc_t	*sc;
+	scr_stat	*scp;
 	int		cell, i;
 	char 		pattern[] = {"...........++++***   "};
+#ifndef PC98
 	char		colors[] = {FG_DARKGREY, FG_LIGHTGREY,
 				    FG_WHITE, FG_LIGHTCYAN};
+#else
+	char		colors[] = {FG_BLUE, FG_LIGHTGREY,
+				    FG_LIGHTGREY, FG_CYAN};
+#endif /* PC98 */
 	static u_short 	stars[NUM_STARS][2];
+
+	sc = sc_find_softc(adp, NULL);
+	if (sc == NULL)
+		return EAGAIN;
+	scp = sc->cur_scp;
 
 	if (blank) {
 		if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 			return EAGAIN;
 		if (!blanked) {
-			window = (u_short *)adp->va_window;
+#ifdef PC98
+			if (epson_machine_id == 0x20) {
+				outb(0x43f, 0x42);
+				outb(0x0c17, inb(0xc17) & ~0x08);
+				outb(0x43f, 0x40);
+			}
+#endif /* PC98 */
 			/* clear the screen and set the border color */
-			fillw(((FG_LIGHTGREY|BG_BLACK) << 8) | scr_map[0x20],
-			      window, scp->xsize * scp->ysize);
+			sc_vtb_clear(&scp->scr, sc->scr_map[0x20],
+				     (FG_LIGHTGREY | BG_BLACK) << 8);
+			(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
 			set_border(scp, 0);
 			blanked = TRUE;
 			for(i=0; i<NUM_STARS; i++) {
@@ -74,15 +94,22 @@ star_saver(video_adapter_t *adp, int blank)
 			}
 		}
 		cell = random() % NUM_STARS;
-		*((u_short*)(window + stars[cell][0])) =
-			scr_map[pattern[stars[cell][1]]] |
-				colors[random()%sizeof(colors)] << 8;
+		sc_vtb_putc(&scp->scr, stars[cell][0], 
+			    sc->scr_map[pattern[stars[cell][1]]],
+			    colors[random()%sizeof(colors)] << 8);
 		if ((stars[cell][1]+=(random()%4)) >= sizeof(pattern)-1) {
 			stars[cell][0] = random() % (scp->xsize*scp->ysize);
 			stars[cell][1] = 0;
 		}
 	}
 	else {
+#ifdef PC98
+		if (epson_machine_id == 0x20) {
+			outb(0x43f, 0x42);
+			outb(0x0c17, inb(0xc17) | 0x08);
+			outb(0x43f, 0x40);
+		}
+#endif /* PC98 */
 		blanked = FALSE;
 	}
 	return 0;

@@ -25,93 +25,35 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: green_saver.c,v 1.14 1998/11/04 03:49:38 peter Exp $
+ *	$Id: green_saver.c,v 1.15 1999/01/11 03:18:48 yokota Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
-#include <dev/fb/vgareg.h>
-
-#include <i386/isa/isa.h>
-
-#include <saver.h>
+#include <dev/fb/fbreg.h>
+#include <dev/fb/splashreg.h>
+#include <dev/syscons/syscons.h>
 
 static int
 green_saver(video_adapter_t *adp, int blank)
 {
-	int crtc_addr;
-	u_char val;
-
-	crtc_addr = adp->va_crtc_addr;
-	if (blank) {
-		switch (adp->va_type) {
-		case KD_VGA:
-			outb(TSIDX, 0x01); val = inb(TSREG);
-			outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
-			outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
-			outb(crtc_addr + 1, val & ~0x80);
-			break;
-		case KD_EGA:
-			/* not yet done XXX */
-			break;
-		case KD_CGA:
-			outb(crtc_addr + 4, 0x25);
-			break;
-		case KD_MONO:
-		case KD_HERCULES:
-			outb(crtc_addr + 4, 0x21);
-			break;
-		default:
-			break;
-		}
-	}
-	else {
-		switch (adp->va_type) {
-		case KD_VGA:
-			outb(TSIDX, 0x01); val = inb(TSREG);
-			outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
-			outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
-			outb(crtc_addr + 1, val | 0x80);
-			break;
-		case KD_EGA:
-			/* not yet done XXX */
-			break;
-		case KD_CGA:
-			outb(crtc_addr + 4, 0x2d);
-			break;
-		case KD_MONO:
-		case KD_HERCULES:
-			outb(crtc_addr + 4, 0x29);
-			break;
-		default:
-			break;
-		}
-	}
+	(*vidsw[adp->va_index]->blank_display)(adp,
+					       (blank) ? V_DISPLAY_STAND_BY
+						       : V_DISPLAY_ON);
 	return 0;
 }
 
 static int
 green_init(video_adapter_t *adp)
 {
-	switch (adp->va_type) {
-	case KD_MONO:
-	case KD_HERCULES:
-	case KD_CGA:
-		/* 
-		 * `green' saver is not fully implemented for MDA and CGA.
-		 * It simply blanks the display instead.
-		 */
-	case KD_VGA:
-		break;
-	case KD_EGA:
-		/* EGA is yet to be supported */
-	default:
-		return ENODEV;
-	}
-	return 0;
+	if ((*vidsw[adp->va_index]->blank_display)(adp, V_DISPLAY_ON) == 0)
+		return 0;
+	return ENODEV;
 }
 
 static int

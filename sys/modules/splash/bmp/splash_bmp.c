@@ -24,15 +24,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: splash_bmp.c,v 1.7 1999/03/29 15:13:53 yokota Exp $
+ * $Id: splash_bmp.c,v 1.8 1999/06/16 14:04:45 yokota Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
-
-#include <machine/console.h>
+#include <sys/fbio.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rain_saver.c,v 1.2 1999/01/11 03:18:50 yokota Exp $
+ *	$Id: rain_saver.c,v 1.3 1999/04/12 13:34:57 des Exp $
  */
 
 #include <sys/param.h>
@@ -33,10 +33,14 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/syslog.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
 #include <machine/random.h>
 
-#include <saver.h>
+#include <dev/fb/fbreg.h>
+#include <dev/fb/splashreg.h>
+#include <dev/syscons/syscons.h>
 
 static u_char *vid;
 
