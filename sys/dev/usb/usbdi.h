@@ -177,6 +177,8 @@ usb_endpoint_descriptor_t *usbd_get_endpoint_descriptor
 
 usbd_status usbd_reload_device_desc(usbd_device_handle);
 
+int usbd_ratecheck(struct timeval *last);
+
 /*
  * The usb_task structs form a queue of things to run in the USB event
  * thread.  Normally this is just device discovery when a connect/disconnect
