@@ -25,8 +25,7 @@ static const char rcsid[] =
 
 #include "lib.h"
 #include <err.h>
-#include <ftpio.h>
-#include <netdb.h>
+#include <fetch.h>
 #include <pwd.h>
 #include <time.h>
 #include <sys/wait.h>
@@ -107,67 +106,15 @@ isURL(char *fname)
     /*
      * I'm sure there are other types of URL specifications that I could
      * also be looking for here, but for now I'll just be happy to get ftp
-     * working.
+     * and http working.
      */
     if (!fname)
 	return FALSE;
     while (isspace(*fname))
 	++fname;
-    if (!strncmp(fname, "ftp://", 6))
+    if (!strncmp(fname, "ftp://", 6) || !strncmp(fname, "http://", 7))
 	return TRUE;
     return FALSE;
-}
-
-/* Returns the host part of a URL */
-char *
-fileURLHost(char *fname, char *where, int max)
-{
-    char *ret;
-
-    while (isspace(*fname))
-	++fname;
-    /* Don't ever call this on a bad URL! */
-    fname += strlen("ftp://");
-    /* Do we have a place to stick our work? */
-    if ((ret = where) != NULL) {
-	while (*fname && *fname != '/' && max--)
-	    *where++ = *fname++;
-	*where = '\0';
-	return ret;
-    }
-    /* If not, they must really want us to stomp the original string */
-    ret = fname;
-    while (*fname && *fname != '/')
-	++fname;
-    *fname = '\0';
-    return ret;
-}
-
-/* Returns the filename part of a URL */
-char *
-fileURLFilename(char *fname, char *where, int max)
-{
-    char *ret;
-
-    while (isspace(*fname))
-	++fname;
-    /* Don't ever call this on a bad URL! */
-    fname += strlen("ftp://");
-    /* Do we have a place to stick our work? */
-    if ((ret = where) != NULL) {
-	while (*fname && *fname != '/')
-	    ++fname;
-	if (*fname == '/') {
-	    while (*fname && max--)
-		*where++ = *fname++;
-	}
-	*where = '\0';
-	return ret;
-    }
-    /* If not, they must really want us to stomp the original string */
-    while (*fname && *fname != '/')
-	++fname;
-    return fname;
 }
 
 #define HOSTNAME_MAX	64
@@ -223,64 +170,37 @@ fileGetURL(char *base, char *spec)
     }
     else
 	strcpy(fname, spec);
-    cp = fileURLHost(fname, host, HOSTNAME_MAX);
-    if (!*cp) {
-	warnx("URL `%s' has bad host part!", fname);
+
+    if ((ftp = fetchGetURL(fname, NULL)) == NULL) {
+	printf("Error: FTP Unable to get %s: %s\n",
+	       fname, fetchLastErrString);
 	return NULL;
     }
-
-    cp = fileURLFilename(fname, file, FILENAME_MAX);
-    if (!*cp) {
-	warnx("URL `%s' has bad filename part!", fname);
-	return NULL;
-    }
-
-    /* Maybe change to ftp if this doesn't work */
-    uname = "anonymous";
-
-    /* Make up a convincing "password" */
-    pw = getpwuid(getuid());
-    if (!pw) {
-	warnx("can't get user name for ID %d", getuid());
-	strcpy(pword, "joe@");
-    }
-    else {
-	char me[HOSTNAME_MAX];
-
-	gethostname(me, HOSTNAME_MAX);
-	snprintf(pword, HOSTNAME_MAX + 40, "%s@%s", pw->pw_name, me);
-    }
-    ftp = ftpGetURL(fname, uname, pword, &status);
-    if (ftp) {
-	if (isatty(0) || Verbose)
-	    printf("Fetching %s...", fname), fflush(stdout);
-	pen[0] = '\0';
-	if ((rp = make_playpen(pen, 0)) != NULL) {
-	    tpid = fork();
-	    if (!tpid) {
-		dup2(fileno(ftp), 0);
-		i = execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
-		exit(i);
-	    }
-	    else {
-		int pstat;
-
-		fclose(ftp);
-		tpid = waitpid(tpid, &pstat, 0);
-		if (Verbose)
-		    printf("tar command returns %d status\n", WEXITSTATUS(pstat));
-	    }
+    
+    if (isatty(0) || Verbose)
+	printf("Fetching %s...", fname), fflush(stdout);
+    pen[0] = '\0';
+    if ((rp = make_playpen(pen, 0)) != NULL) {
+	tpid = fork();
+	if (!tpid) {
+	    dup2(fileno(ftp), 0);
+	    i = execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
+	    exit(i);
 	}
-	else
-	    printf("Error: Unable to construct a new playpen for FTP!\n");
-	fclose(ftp);
-	if (rp && (isatty(0) || Verbose))
-	    printf(" Done.\n");
+	else {
+	    int pstat;
+
+	    fclose(ftp);
+	    tpid = waitpid(tpid, &pstat, 0);
+	    if (Verbose)
+		printf("tar command returns %d status\n", WEXITSTATUS(pstat));
+	}
     }
     else
-	printf("Error: FTP Unable to get %s: %s\n",
-	       fname,
-	       status ? ftpErrString(status) : hstrerror(h_errno));
+	printf("Error: Unable to construct a new playpen for FTP!\n");
+    fclose(ftp);
+    if (rp && (isatty(0) || Verbose))
+	printf(" Done.\n");
     return rp;
 }
 
