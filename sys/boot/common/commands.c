@@ -409,11 +409,12 @@ command_more(int argc, char *argv[])
     pager_open();
     for (i = 1; (i < argc) && (res == 0); i++) {
 	sprintf(line, "*** FILE %s BEGIN ***\n", argv[i]);
-	pager_output(line);
+	if (pager_output(line))
+		break;
         res = page_file(argv[i]);
 	if (!res) {
 	    sprintf(line, "*** FILE %s END ***\n", argv[i]);
-	    pager_output(line);
+	    res = pager_output(line);
 	}
     }
     pager_close();
@@ -469,11 +470,13 @@ command_lsdev(int argc, char *argv[])
     for (i = 0; devsw[i] != NULL; i++) {
 	if (devsw[i]->dv_print != NULL){
 	    sprintf(line, "%s @ %p\n", devsw[i]->dv_name, devsw[i]->dv_print);
-	    pager_output(line);
+	    if (pager_output(line))
+		    break;
 	    devsw[i]->dv_print(verbose);
 	} else {
 	    sprintf(line, "%s: (unknown)\n", devsw[i]->dv_name);
-	    pager_output(line);
+	    if (pager_output(line))
+		    break;
 	}
     }
     pager_close();
