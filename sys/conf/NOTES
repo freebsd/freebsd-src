@@ -2240,6 +2240,7 @@ options 	UVSCOM_DEFAULT_OPKTSIZE=8	# default output packet size
 
 device		firewire	# FireWire bus code
 device		sbp		# SCSI over Firewire (Requires scbus and da)
+device		sbp_targ	# SBP-2 Target mode  (Requires scbus and targ)
 device		fwe		# Ethernet over FireWire (non-standard!)
 
 #####################################################################
