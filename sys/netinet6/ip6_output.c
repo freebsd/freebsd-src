@@ -1035,8 +1035,10 @@ passout:
 		struct ip6_frag *ip6f;
 		u_int32_t id = htonl(ip6_randomid());
 		u_char nextproto;
+#if 0
 		struct ip6ctlparam ip6cp;
 		u_int32_t mtu32;
+#endif
 		int qslots = ifp->if_snd.ifq_maxlen - ifp->if_snd.ifq_len;
 
 		/*
@@ -1048,12 +1050,24 @@ passout:
 		if (mtu > IPV6_MAXPACKET)
 			mtu = IPV6_MAXPACKET;
 
+#if 0
+		/*
+		 * It is believed this code is a leftover from the
+		 * development of the IPV6_RECVPATHMTU sockopt and 
+		 * associated work to implement RFC3542.
+		 * It's not entirely clear what the intent of the API
+		 * is at this point, so disable this code for now.
+		 * The IPV6_RECVPATHMTU sockopt and/or IPV6_DONTFRAG
+		 * will send notifications if the application requests.
+		 */
+
 		/* Notify a proper path MTU to applications. */
 		mtu32 = (u_int32_t)mtu;
 		bzero(&ip6cp, sizeof(ip6cp));
 		ip6cp.ip6c_cmdarg = (void *)&mtu32;
 		pfctlinput2(PRC_MSGSIZE, (struct sockaddr *)&ro_pmtu->ro_dst,
 		    (void *)&ip6cp);
+#endif
 
 		len = (mtu - hlen - sizeof(struct ip6_frag)) & ~7;
 		if (len < 8) {
