@@ -262,8 +262,8 @@ static struct globaldata __globaldata;
 
 struct cpuhead cpuhead;
 
-MUTEX_DECLARE(,sched_lock);
-MUTEX_DECLARE(,Giant);
+struct mtx sched_lock;
+struct mtx Giant;
 
 static void
 cpu_startup(dummy)
@@ -454,7 +454,7 @@ again:
 	SLIST_INIT(&cpuhead);
 	SLIST_INSERT_HEAD(&cpuhead, GLOBALDATA, gd_allcpu);
 
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_COLD | MTX_RECURSE);
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 
 #ifdef SMP
 	/*
@@ -2248,7 +2248,7 @@ init386(first)
 	/*
 	 * We need this mutex before the console probe.
 	 */
-	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_COLD | MTX_RECURSE);
+	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
 
 	/*
 	 * Initialize the console before we print anything out.
@@ -2263,7 +2263,7 @@ init386(first)
 	/*
 	 * Giant is used early for at least debugger traps and unexpected traps.
 	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_COLD | MTX_RECURSE);
+	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 
 #ifdef DDB
 	kdb_init();
