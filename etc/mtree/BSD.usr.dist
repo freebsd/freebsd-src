@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.132 1998/09/26 11:56:35 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.133 1998/09/27 03:39:55 obrien Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -170,6 +170,10 @@
             FAQ
             ..
             handbook
+            ..
+            es
+                FAQ
+                ..
             ..
             ja
                 FAQ
