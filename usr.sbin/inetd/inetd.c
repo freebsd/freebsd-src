@@ -191,7 +191,9 @@ static const char rcsid[] =
 					   < 0 = no limit */
 #endif
 
+#ifndef TOOMANY
 #define	TOOMANY		256		/* don't start more than TOOMANY */
+#endif
 #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
 #define MAX_MAXCHLD	32767		/* max allowable max children */
@@ -247,7 +249,7 @@ getvalue(arg, value, whine)
 	char *p;
 
 	tmp = strtol(arg, &p, 0);
-	if (tmp < 1 || *p) {
+	if (tmp < 0 || *p) {
 		syslog(LOG_ERR, whine, arg);
 		return 1;			/* failure */
 	}
@@ -590,7 +592,7 @@ main(argc, argv, envp)
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
 				(void)gettimeofday(&sep->se_time, (struct timezone *)NULL);
-			    else if (sep->se_count >= toomany) {
+			    else if (toomany > 0 && sep->se_count >= toomany) {
 				struct timeval now;
 
 				(void)gettimeofday(&now, (struct timezone *)NULL);
@@ -795,6 +797,8 @@ void flag_signal(c)
 void
 addchild(struct servtab *sep, pid_t pid)
 {
+	if (sep->se_maxchild <= 0)
+		return;
 #ifdef SANITY_CHECK
 	if (sep->se_numchild >= sep->se_maxchild) {
 		syslog(LOG_ERR, "%s: %d >= %d",
@@ -802,8 +806,6 @@ addchild(struct servtab *sep, pid_t pid)
 		exit(EX_SOFTWARE);
 	}
 #endif
-	if (sep->se_maxchild == 0)
-		return;
 	sep->se_pids[sep->se_numchild++] = pid;
 	if (sep->se_numchild == sep->se_maxchild)
 		disable(sep);
@@ -906,7 +908,7 @@ void config()
 				sep->se_reset = 1;
 			}
 			/* copy over outstanding child pids */
-			if (sep->se_maxchild && new->se_maxchild) {
+			if (sep->se_maxchild > 0 && new->se_maxchild > 0) {
 				new->se_numchild = sep->se_numchild;
 				if (new->se_numchild > new->se_maxchild)
 					new->se_numchild = new->se_maxchild;
@@ -919,7 +921,7 @@ void config()
 			sep->se_maxcpm = new->se_maxcpm;
 			/* might need to turn on or off service now */
 			if (sep->se_fd >= 0) {
-			      if (sep->se_maxchild
+			      if (sep->se_maxchild > 0
 				  && sep->se_numchild == sep->se_maxchild) {
 				      if (FD_ISSET(sep->se_fd, &allsock))
 					  disable(sep);
@@ -1718,7 +1720,7 @@ more:
 		else
 			sep->se_maxchild = 1;
 	}
-	if (sep->se_maxchild) {
+	if (sep->se_maxchild > 0) {
 		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
 		if (sep->se_pids == NULL) {
 			syslog(LOG_ERR, "malloc: %m");
