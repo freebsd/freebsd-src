@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.55 1998/10/14 04:04:22 peter Exp $
+#	$Id: bsd.kmod.mk,v 1.56 1998/10/16 03:32:03 peter Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -258,7 +258,7 @@ ${_ILINKS}:
 	ln -s $$path ${.TARGET}
 .endif
 
-CLEANFILES+= ${KMOD} ${PROG} ${OBJS} ${_ILINKS} lkm_verify_tmp symb.tmp tmp.o
+CLEANFILES+= ${PROG} ${OBJS} ${_ILINKS} lkm_verify_tmp symb.tmp tmp.o
 
 .if !target(install)
 .if !target(beforeinstall)
