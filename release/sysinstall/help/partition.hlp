@@ -1,5 +1,8 @@
 This is the FreeBSD DiskLabel Editor.
 
+If you would like the label editor to do all of the following *for* you,
+simply type `A' for automatic partitioning of the disk.
+
 You should use this editor to create at least the following
 filesystems:
 
@@ -43,7 +46,6 @@ for such files will be allocated out of the root (/) filesystem
 instead.  You may therefore wish to make the / partition bigger if you
 expect a lot of mail or news and do not want to make /var its own
 partition.
-
 
 If you're new to this installation, you should also first understand
 how FreeBSD 2.0.5's new "slices" paradigm for looking at disk storage
