@@ -53,9 +53,7 @@
 #endif
 #include <sys/uio.h>
 #include <termios.h>
-#ifndef NONBLOCK_FIXED
 #include <sys/time.h>
-#endif
 #include <unistd.h>
 
 #include "layer.h"
@@ -204,21 +202,17 @@ ether_MessageIn(struct etherdevice *dev)
   struct ngpppoe_sts *sts = (struct ngpppoe_sts *)(msgbuf + sizeof *rep);
   char unknown[14];
   const char *msg;
-#ifndef NONBLOCK_FIXED
   struct timeval t;
   fd_set r;
-#endif
 
   if (dev->cs < 0)
     return;
 
-#ifndef NONBLOCK_FIXED
   FD_ZERO(&r);
   FD_SET(dev->cs, &r);
   t.tv_sec = t.tv_usec = 0;
   if (select(dev->cs + 1, &r, NULL, NULL, &t) <= 0)
     return;
-#endif
 
   if (NgRecvMsg(dev->cs, rep, sizeof msgbuf, NULL) < 0)
     return;
@@ -407,7 +401,7 @@ ether_Create(struct physical *p)
     struct ngm_connect ngc;
     const char *iface, *provider;
     char *path, etherid[12];
-    int ifacelen, providerlen, oldflag;
+    int ifacelen, providerlen;
     char connectpath[sizeof dev->hook + 2];	/* .:<hook> */
 
     p->fd--;				/* We own the device - change fd */
@@ -589,20 +583,6 @@ ether_Create(struct physical *p)
                  connectpath, strerror(errno));
       return ether_Abandon(dev, p);
     }
-
-    /*
-     * Now make our control socket non-blocking so that we can read()
-     * without having to select()
-     *
-     * XXX: Does this work (#define NONBLOCK_FIXED) ?
-     */
-    oldflag = fcntl(dev->cs, F_GETFL, 0);
-    if (oldflag < 0) {
-      log_Printf(LogWARN, "%s: Open: Cannot get physical flags: %s\n",
-                 p->link.name, strerror(errno));
-      return ether_Abandon(dev, p);
-    } else
-      fcntl(dev->cs, F_SETFL, oldflag & ~O_NONBLOCK);
 
     dev->timeout = p->cfg.cd.delay;
     dev->connected = CARRIER_PENDING;
