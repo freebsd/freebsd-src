@@ -4,7 +4,7 @@
 #
 
 PROG=	arlcontrol
-CFLAGS=	-I${.CURDIR}/../../sys -DARLCACHE
+CFLAGS+=	-I${.CURDIR}/../../sys -DARLCACHE
 MAN=	arlcontrol.8
 
 .include <bsd.prog.mk>
