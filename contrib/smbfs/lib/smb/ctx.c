@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ctx.c,v 1.21 2001/04/06 15:47:14 bp Exp $
+ * $Id: ctx.c,v 1.22 2001/12/26 04:10:52 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -615,7 +615,7 @@ smb_ctx_lookup(struct smb_ctx *ctx, int level, int flags)
 	}
 	error = smb_ctx_gethandle(ctx);
 	if (error) {
-		smb_error("can't get handle to requester (no /dev/net/nsmb* device)", 0);
+		smb_error("can't get handle to requester (no /dev/"NSMB_NAME"* device)", 0);
 		return EINVAL;
 	}
 	bzero(&rq, sizeof(rq));
@@ -696,7 +696,7 @@ smb_ctx_readrcsection(struct smb_ctx *ctx, const char *sname, int level)
 	char *p;
 	int error;
 
-	if (level > 0) {
+	if (level >= 0) {
 		rc_getstringptr(smb_rc, sname, "charsets", &p);
 		if (p) {
 			error = smb_ctx_setcharset(ctx, p);
