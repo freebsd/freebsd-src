@@ -252,6 +252,7 @@ udf_getattr(struct vop_getattr_args *a)
 	node = VTON(vp);
 	fentry = node->fentry;
 
+	vap->va_fsid = dev2udev(node->udfmp->im_dev);
 	vap->va_fileid = node->hash_id;
 	vap->va_mode = udf_permtomode(node);
 	vap->va_nlink = le16toh(fentry->link_cnt);
