@@ -739,6 +739,12 @@ stopit(sig)
 	int sig __unused;
 {
 
+	/*
+	 * When doing reverse DNS lookups, the finish_up flag might not
+	 * be noticed for a while.  Just exit if we get a second SIGINT.
+	 */
+	if (!(options & F_NUMERIC) && finish_up)
+		_exit(nreceived ? 0 : 2);
 	finish_up = 1;
 }
 
