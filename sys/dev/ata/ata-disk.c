@@ -256,7 +256,7 @@ ad_start(struct ata_device *atadev)
     request->device = atadev;
     request->driver = bp;
     request->callback = ad_done;
-    request->timeout = 5;
+    request->timeout = 10;
     request->retries = 2;
     request->data = bp->bio_data;
     request->bytecount = bp->bio_bcount;
