@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.18 1995/06/04 05:27:35 jkh Exp $
+ * $Id: install.c,v 1.70.2.19 1995/06/04 07:06:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -337,7 +337,7 @@ make_filesystems(void)
 	    msgConfirm("Failed to make some of the devices in /mnt!");
 	if (Mkdir("/mnt/stand", NULL)) {
 	    msgConfirm("Unable to make /mnt/stand directory!");
-	    return;
+	    return FALSE;
 	}
 	chdir("/");
     }

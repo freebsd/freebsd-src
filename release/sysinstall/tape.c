@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.5 1995/05/30 08:28:58 rgrimes Exp $
+ * $Id: tape.c,v 1.5.2.1 1995/06/04 05:13:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,7 +79,7 @@ mediaGetTape(Device *dev, char *file)
 {
     char buf[PATH_MAX];
 
-    sprintf(buf, "%s/%s", dev->private, file);
+    sprintf(buf, "%s/%s", (char *)dev->private, file);
     return open(buf, O_RDONLY);
 }
 
@@ -89,6 +89,6 @@ mediaShutdownTape(Device *dev)
     if (!tapeInitted)
 	return;
     if (!access(dev->private, X_OK))
-	(void)vsystem("rm -rf %s", dev->private);
+	(void)vsystem("rm -rf %s", (char *)dev->private);
     tapeInitted = FALSE;
 }
