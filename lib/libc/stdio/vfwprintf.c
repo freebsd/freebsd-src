@@ -400,6 +400,7 @@ vfwprintf(FILE * __restrict fp, const wchar_t * __restrict fmt0, va_list ap)
 }
 
 #ifdef FLOATING_POINT
+#include <float.h>
 #include <math.h>
 #include "floatio.h"
 
