@@ -43,6 +43,16 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define TR_DEFAULT_BUFSZ 	0x1000
 #define TR_TIMEOUT_CDC	0xffff
 #define TR_MAXPLAYCH	4
+/*
+ * Though, it's not clearly documented in trident datasheet, trident
+ * audio cards can't handle DMA addresses located above 1GB. The LBA
+ * (loop begin address) register which holds DMA base address is 32bits
+ * register.
+ * But the MSB 2bits are used for other purposes(I guess it is really
+ * bad idea). This effectivly limits the DMA address space up to 1GB.
+ */
+#define TR_MAXADDR	((1 << 30) - 1)
+
 
 struct tr_info;
 
@@ -851,7 +861,7 @@ tr_pci_attach(device_t dev)
 	}
 
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
-		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+		/*lowaddr*/TR_MAXADDR,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
 		/*maxsize*/tr->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
