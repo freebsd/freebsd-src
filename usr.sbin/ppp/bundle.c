@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.47 1999/03/01 00:43:48 brian Exp $
+ *	$Id: bundle.c,v 1.48 1999/03/04 17:42:14 brian Exp $
  */
 
 #include <sys/param.h>
@@ -1666,9 +1666,9 @@ bundle_setsid(struct bundle *bundle, int holdsession)
       close(fds[1]);
       return;
     case 0:
-      close(fds[0]);
-      read(fds[1], &done, 1);		/* uu_locks are mine ! */
       close(fds[1]);
+      read(fds[0], &done, 1);		/* uu_locks are mine ! */
+      close(fds[0]);
       if (pipe(fds) == -1) {
         log_Printf(LogERROR, "pipe(2): %s\n", strerror(errno));
         return;
@@ -1680,10 +1680,10 @@ bundle_setsid(struct bundle *bundle, int holdsession)
           close(fds[1]);
           return;
         case 0:
-          close(fds[0]);
-          bundle_LockTun(bundle);	/* update pid */
-          read(fds[1], &done, 1);	/* uu_locks are mine ! */
           close(fds[1]);
+          bundle_LockTun(bundle);	/* update pid */
+          read(fds[0], &done, 1);	/* uu_locks are mine ! */
+          close(fds[0]);
           setsid();
           log_Printf(LogPHASE, "%d -> %d: %s session control\n",
                      (int)orig, (int)getpid(),
@@ -1691,25 +1691,25 @@ bundle_setsid(struct bundle *bundle, int holdsession)
           timer_InitService(0);		/* Start the Timer Service */
           break;
         default:
-          close(fds[1]);
+          close(fds[0]);
           /* Give away all our modem locks (to the final process) */
           for (dl = bundle->links; dl; dl = dl->next)
             if (dl->state != DATALINK_CLOSED)
               modem_ChangedPid(dl->physical, pid);
-          write(fds[0], "!", 1);	/* done */
-          close(fds[0]);
+          write(fds[1], "!", 1);	/* done */
+          close(fds[1]);
           exit(0);
           break;
       }
       break;
     default:
-      close(fds[1]);
+      close(fds[0]);
       /* Give away all our modem locks (to the intermediate process) */
       for (dl = bundle->links; dl; dl = dl->next)
         if (dl->state != DATALINK_CLOSED)
           modem_ChangedPid(dl->physical, pid);
-      write(fds[0], "!", 1);	/* done */
-      close(fds[0]);
+      write(fds[1], "!", 1);	/* done */
+      close(fds[1]);
       if (holdsession) {
         int fd, status;
 
