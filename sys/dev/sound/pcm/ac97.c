@@ -320,15 +320,16 @@ ac97_initmixer(struct ac97_info *codec)
 		}
 	}
 
-	if (codec->noext) {
-		codec->extcaps = 0;
-		codec->extid = 0;
-		codec->extstat = 0;
-	} else {
+	codec->extcaps = 0;
+	codec->extid = 0;
+	codec->extstat = 0;
+	if (!codec->noext) {
 		i = rdcd(codec, AC97_REGEXT_ID);
-		codec->extcaps = i & 0x3fff;
-		codec->extid =  (i & 0xc000) >> 14;
-		codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
+		if (i != 0xffff) {
+			codec->extcaps = i & 0x3fff;
+			codec->extid =  (i & 0xc000) >> 14;
+			codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
+		}
 	}
 
 	for (i = 0; i < 32; i++) {
@@ -338,7 +339,7 @@ ac97_initmixer(struct ac97_info *codec)
 			wrcd(codec, codec->mix[i].reg, 0x3f);
 			j = rdcd(codec, codec->mix[i].reg);
 			wrcd(codec, codec->mix[i].reg, old);
-			codec->mix[i].enable = j? 1 : 0;
+			codec->mix[i].enable = (j != 0 && j != old)? 1 : 0;
 			for (k = 1; j & (1 << k); k++);
 			codec->mix[i].bits = j? k - codec->mix[i].ofs : 0;
 		}
