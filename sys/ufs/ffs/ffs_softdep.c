@@ -5839,7 +5839,10 @@ getdirtybuf(bpp, mtx, waitfor)
 			 * The mtx argument must be bp->b_vp's mutex in
 			 * this case.
 			 */
-			ASSERT_VI_LOCKED(bp->b_vp, "getdirtybuf");
+#ifdef	DEBUG_VFS_LOCKS
+			if (bp->b_vp->v_type != VCHR)
+				ASSERT_VI_LOCKED(bp->b_vp, "getdirtybuf");
+#endif
 			bp->b_vflags |= BV_BKGRDWAIT;
 			interlocked_sleep(&lk, SLEEP, &bp->b_xflags, mtx,
 			    PRIBIO, "getbuf", 0);
