@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.15 1995/11/04 11:09:03 jkh Exp $
+ * $Id: installUpgrade.c,v 1.16 1995/11/06 08:28:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -374,11 +374,11 @@ installUpgrade(char *str)
     }
     else
 	msgDebug("Unable to get the terminal attributes!\n");
-    printf("Well, good luck!  When you're done, please type \"reboot\" to reboot\n"
-	   "the new system.\n");
+    printf("Well, good luck!  When you're done, please type \"reboot\" or exit\n"
+	    "the shell to reboot the new system.\n");
     execlp("sh", "-sh", 0);
     msgDebug("Was unable to execute sh for post-upgrade shell!\n");
-    exit(1);
+    reboot(0);
     /* NOTREACHED */
     return 0;
 }
