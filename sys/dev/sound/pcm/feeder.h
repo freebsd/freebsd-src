@@ -26,6 +26,13 @@
  * $FreeBSD$
  */
 
+struct pcm_feederdesc {
+	u_int32_t type;
+	u_int32_t in, out;
+	u_int32_t flags;
+	int idx;
+};
+
 struct feeder_class {
 	KOBJ_CLASS_FIELDS;
 	int align;
@@ -33,19 +40,28 @@ struct feeder_class {
 	void *data;
 };
 
+struct pcm_feeder {
+    	KOBJ_FIELDS;
+	int align;
+	struct pcm_feederdesc *desc;
+	void *data;
+	struct feeder_class *class;
+	struct pcm_feeder *source;
+};
+
 void feeder_register(void *p);
 struct feeder_class *feeder_getclass(struct pcm_feederdesc *desc);
 
-u_int32_t chn_fmtchain(pcm_channel *c, u_int32_t *to);
-int chn_addfeeder(pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc);
-int chn_removefeeder(pcm_channel *c);
-pcm_feeder *chn_findfeeder(pcm_channel *c, u_int32_t type);
+u_int32_t chn_fmtchain(struct pcm_channel *c, u_int32_t *to);
+int chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc);
+int chn_removefeeder(struct pcm_channel *c);
+struct pcm_feeder *chn_findfeeder(struct pcm_channel *c, u_int32_t type);
 
 #define FEEDER_DECLARE(feeder, palign, pdata) \
 static struct feeder_class feeder ## _class = { \
 	name:		#feeder, \
 	methods:	feeder ## _methods, \
-	size:		sizeof(pcm_feeder), \
+	size:		sizeof(struct pcm_feeder), \
 	align:		palign, \
 	desc:		feeder ## _desc, \
 	data:		pdata, \
@@ -54,9 +70,10 @@ SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder ## _cl
 
 #define FEEDER_ROOT	1
 #define FEEDER_FMT 	2
-#define FEEDER_RATE 	3
-#define FEEDER_FILTER 	4
-#define FEEDER_VOLUME 	5
+#define	FEEDER_MIXER	3
+#define FEEDER_RATE 	4
+#define FEEDER_FILTER 	5
+#define FEEDER_VOLUME 	6
 #define FEEDER_LAST	FEEDER_VOLUME
 
 #define FEEDRATE_SRC	1

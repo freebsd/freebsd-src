@@ -58,11 +58,7 @@ static int sndstat_isopen = 0;
 static int sndstat_bufptr;
 
 static int sndstat_verbose = 0;
-#ifdef	USING_MUTEX
 TUNABLE_INT("hw.snd.verbose", &sndstat_verbose);
-#else
-TUNABLE_INT_DECL("hw.snd.verbose", 0, sndstat_verbose);
-#endif
 
 static int sndstat_prepare(struct sbuf *s);
 

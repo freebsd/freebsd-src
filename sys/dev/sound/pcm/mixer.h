@@ -26,23 +26,25 @@
  * $FreeBSD$
  */
 
-extern int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);
-extern int mixer_uninit(device_t dev);
-extern int mixer_reinit(device_t dev);
-extern int mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg);
-extern int mixer_busy(snd_mixer *m, int busy);
-extern int mixer_isbusy(snd_mixer *m);
+int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);
+int mixer_uninit(device_t dev);
+int mixer_reinit(device_t dev);
+int mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p);
 
 int mixer_hwvol_init(device_t dev);
 void mixer_hwvol_mute(device_t dev);
 void mixer_hwvol_step(device_t dev, int left_step, int right_step);
 
-extern void change_bits(mixer_tab *t, u_char *regval, int dev, int chn, int newval);
+void mix_setdevs(struct snd_mixer *m, u_int32_t v);
+void mix_setrecdevs(struct snd_mixer *m, u_int32_t v);
+u_int32_t mix_getdevs(struct snd_mixer *m);
+u_int32_t mix_getrecdevs(struct snd_mixer *m);
+void *mix_getdevinfo(struct snd_mixer *m);
 
-void mix_setdevs(snd_mixer *m, u_int32_t v);
-void mix_setrecdevs(snd_mixer *m, u_int32_t v);
-u_int32_t mix_getdevs(snd_mixer *m);
-u_int32_t mix_getrecdevs(snd_mixer *m);
-void *mix_getdevinfo(snd_mixer *m);
+/*
+ * this is a kludge to allow hiding of the struct snd_mixer definition
+ * 512 should be enough for all architectures
+ */
+#define	MIXER_SIZE	(512 + sizeof(struct kobj))
 
-#define MIXER_DECLARE(name) DEFINE_CLASS(name, name ## _methods, sizeof(snd_mixer))
+#define MIXER_DECLARE(name) DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)

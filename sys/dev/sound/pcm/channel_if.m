@@ -57,13 +57,25 @@ CODE {
 		return 1;
 	}
 
+	static u_int32_t
+	channel_nogetptr(kobj_t obj, void *data)
+	{
+		return 0;
+	}
+
+	static int
+	channel_nonotify(kobj_t obj, void *data, u_int32_t changed)
+	{
+		return 0;
+	}
+
 };
 
 METHOD void* init {
 	kobj_t obj;
 	void *devinfo;
-	snd_dbuf *b;
-	pcm_channel *c;
+	struct snd_dbuf *b;
+	struct pcm_channel *c;
 	int dir;
 };
 
@@ -115,10 +127,15 @@ METHOD int trigger {
 METHOD u_int32_t getptr {
 	kobj_t obj;
 	void *data;
-};
+} DEFAULT channel_nogetptr;
 
-METHOD pcmchan_caps* getcaps {
+METHOD struct pcmchan_caps* getcaps {
 	kobj_t obj;
 	void *data;
 };
 
+METHOD int notify {
+	kobj_t obj;
+	void *data;
+	u_int32_t changed;
+} DEFAULT channel_nonotify;

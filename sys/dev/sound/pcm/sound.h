@@ -69,11 +69,18 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#undef	USING_MUTEX
+#undef	USING_DEVFS
+
 #if __FreeBSD_version > 500000
 #define USING_MUTEX
 #define USING_DEVFS
 #endif
 #define SND_DYNSYSCTL
+
+#ifndef	INTR_MPSAFE
+#define	INTR_MPSAFE	0
+#endif
 
 #else
 struct isa_device { int dummy; };
@@ -87,12 +94,37 @@ struct isa_device { int dummy; };
 
 #endif	/* _OS_H_ */
 
-#include <dev/sound/pcm/datatypes.h>
-#include <dev/sound/pcm/channel.h>
+struct pcm_channel;
+struct pcm_feeder;
+struct snd_dbuf;
+struct snd_mixer;
+
 #include <dev/sound/pcm/buffer.h>
+#include <dev/sound/pcm/channel.h>
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
+
+struct snddev_channel {
+	SLIST_ENTRY(snddev_channel) link;
+	struct pcm_channel *channel;
+};
+
+#define SND_STATUSLEN	64
+/* descriptor of audio device */
+struct snddev_info {
+	SLIST_HEAD(, snddev_channel) channels;
+	struct pcm_channel *fakechan;
+	unsigned chancount;
+	unsigned flags;
+	int inprog;
+	void *devinfo;
+	device_t dev;
+	char status[SND_STATUSLEN];
+	struct sysctl_ctx_list sysctl_tree;
+	struct sysctl_oid *sysctl_tree_top;
+	void *lock;
+};
 
 #ifndef ISADMA_WRITE
 #define ISADMA_WRITE B_WRITE
@@ -106,7 +138,30 @@ struct isa_device { int dummy; };
 #define PCM_PREFVER	PCM_MODVER
 #define PCM_MAXVER	1
 
-#define	MAGIC(unit) (0xa4d10de0 + unit)
+/*
+PROPOSAL:
+each unit needs:
+status, mixer, dsp, dspW, audio, sequencer, midi-in, seq2, sndproc = 9 devices
+dspW and audio are deprecated.
+dsp needs min 64 channels, will give it 256
+
+minor = (unit << 20) + (dev << 16) + channel
+currently minor = (channel << 16) + (unit << 4) + dev
+
+nomenclature:
+	/dev/pcmX/dsp.(0..255)
+	/dev/pcmX/dspW
+	/dev/pcmX/audio
+	/dev/pcmX/status
+	/dev/pcmX/mixer
+	[etc.]
+*/
+
+#define PCMMINOR(x) (minor(x))
+#define PCMCHAN(x) ((PCMMINOR(x) & 0x00ff0000) >> 16)
+#define PCMUNIT(x) ((PCMMINOR(x) & 0x000000f0) >> 4)
+#define PCMDEV(x)   (PCMMINOR(x) & 0x0000000f)
+#define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_PRIO_RD		0x10000000
@@ -127,8 +182,13 @@ struct isa_device { int dummy; };
 #define AFMT_SIGNED (AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
 #define AFMT_BIGENDIAN (AFMT_S16_BE | AFMT_U16_BE)
 
-int fkchan_setup(pcm_channel *c);
-int fkchan_kill(pcm_channel *c);
+struct pcm_channel *fkchan_setup(device_t dev);
+int fkchan_kill(struct pcm_channel *c);
+
+/*
+ * Major nuber for the sound driver.
+ */
+#define SND_CDEV_MAJOR 30
 
 /*
  * Minor numbers for the sound driver.
@@ -159,6 +219,9 @@ int fkchan_kill(pcm_channel *c);
 
 #ifdef _KERNEL
 
+extern int snd_unit;
+extern devclass_t pcm_devclass;
+
 /*
  * some macros for debugging purposes
  * DDB/DEB to enable/disable debugging stuff
@@ -172,6 +235,15 @@ int fkchan_kill(pcm_channel *c);
 #endif
 
 SYSCTL_DECL(_hw_snd);
+
+struct pcm_channel *pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid);
+int pcm_chnrelease(struct pcm_channel *c);
+int pcm_chnref(struct pcm_channel *c, int ref);
+
+struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo);
+int pcm_chn_destroy(struct pcm_channel *ch);
+int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
+int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
 
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 int pcm_register(device_t dev, void *devinfo, int numplay, int numrec);
@@ -189,7 +261,6 @@ void snd_mtxfree(void *m);
 void snd_mtxassert(void *m);
 void snd_mtxlock(void *m);
 void snd_mtxunlock(void *m);
-
 #endif /* _KERNEL */
 
 /* usage of flags in device config entry (config file) */

@@ -34,39 +34,56 @@ INTERFACE feeder;
 CODE {
 
 	static int
-	feeder_noinit(pcm_feeder* feeder)
+	feeder_noinit(struct pcm_feeder* feeder)
 	{
 		return 0;
 	}
 
 	static int
-	feeder_nofree(pcm_feeder* feeder)
+	feeder_nofree(struct pcm_feeder* feeder)
 	{
 		return 0;
+	}
+
+	static int
+	feeder_noset(struct pcm_feeder* feeder, int what, int value)
+	{
+		return -1;
+	}
+
+	static int
+	feeder_noget(struct pcm_feeder* feeder, int what)
+	{
+		return -1;
 	}
 
 };
 
 METHOD int init {
-	pcm_feeder* feeder;
+	struct pcm_feeder* feeder;
 } DEFAULT feeder_noinit;
 
 METHOD int free {
-	pcm_feeder* feeder;
+	struct pcm_feeder* feeder;
 } DEFAULT feeder_nofree;
 
 METHOD int set {
-	pcm_feeder* feeder;
+	struct pcm_feeder* feeder;
 	int what;
 	int value;
-};
+} DEFAULT feeder_noset;
+
+METHOD int get {
+	struct pcm_feeder* feeder;
+	int what;
+} DEFAULT feeder_noget;
 
 METHOD int feed {
-	pcm_feeder* feeder;
-	pcm_channel* c;
+	struct pcm_feeder* feeder;
+	struct pcm_channel* c;
 	u_int8_t* buffer;
 	u_int32_t count;
-	struct uio* stream;
+	void* source;
 };
 
 

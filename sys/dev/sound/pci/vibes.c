@@ -27,7 +27,8 @@
  * detached, haven't been able to remedy this with any combination of
  * muting.
  *
- * $FreeBSD$ */
+ * $FreeBSD$
+ */
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pci/vibes.h>
@@ -56,8 +57,8 @@ struct sc_info;
 
 struct sc_chinfo {
 	struct sc_info	*parent;
-	pcm_channel	*channel;
-	snd_dbuf	*buffer;
+	struct pcm_channel	*channel;
+	struct snd_dbuf	*buffer;
 	u_int32_t	fmt, spd;
 	int		dir;
 	int		dma_active, dma_was_active;
@@ -100,7 +101,7 @@ static u_int32_t sc_fmt[] = {
 	0
 };
 
-static pcmchan_caps sc_caps = { 8000, 48000, sc_fmt, 0 };
+static struct pcmchan_caps sc_caps = {8000, 48000, sc_fmt, 0};
 
 /* ------------------------------------------------------------------------- */
 /* Register Manipulations */
@@ -178,7 +179,7 @@ sv_dma_get_count(bus_space_tag_t st, bus_space_handle_t sh)
 /* Play / Record Common Interface */
 
 static void *
-svchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+svchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info		*sc = devinfo;
 	struct sc_chinfo	*ch;
@@ -200,7 +201,7 @@ svchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	return ch;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 svchan_getcaps(kobj_t obj, void *data)
 {
         return &sc_caps;
@@ -248,10 +249,9 @@ sv_set_recspeed(struct sc_info *sc, u_int32_t speed)
 	u_int32_t	rs, re, r, best_r = 0, r2, t, n, best_n = 0;
 	int32_t		m, best_m = 0, ms, me, err, min_err;
 
-	/* This algorithm is a variant of that described in
-	 * sonicvibes.pdf appendix A.  This search is marginally more
-	 * extensive and results in (nominally) better sample rate
-	 * matching. */
+	/* This algorithm is a variant described in sonicvibes.pdf
+	 * appendix A.  This search is marginally more extensive and
+	 * results in (nominally) better sample rate matching. */
 
 	f_out = SV_F_SCALE * speed;
 	min_err = 0x7fffffff;
@@ -506,7 +506,7 @@ sv_mix_mute_all(struct sc_info *sc)
 }
 
 static int
-sv_mix_init(snd_mixer *m)
+sv_mix_init(struct snd_mixer *m)
 {
 	u_int32_t 	i, v;
 
@@ -524,14 +524,14 @@ sv_mix_init(snd_mixer *m)
 }
 
 static int
-sv_mix_set(snd_mixer *m, u_int32_t dev, u_int32_t left, u_int32_t right)
+sv_mix_set(struct snd_mixer *m, u_int32_t dev, u_int32_t left, u_int32_t right)
 {
 	struct sc_info	*sc = mix_getdevinfo(m);
 	return sv_gain(sc, dev, left, right);
 }
 
 static int
-sv_mix_setrecsrc(snd_mixer *m, u_int32_t mask)
+sv_mix_setrecsrc(struct snd_mixer *m, u_int32_t mask)
 {
 	struct sc_info	*sc = mix_getdevinfo(m);
 	u_int32_t	i, v;
@@ -760,7 +760,7 @@ sv_attach(device_t dev) {
         sc->irq   = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
 				       0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
         if (!sc->irq ||
-	    bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, sv_intr, sc, &sc->ih)) {
+	    bus_setup_intr(dev, sc->irq, INTR_TYPE_AV, sv_intr, sc, &sc->ih)) {
                 device_printf(dev, "sv_attach: Unable to map interrupt\n");
                 goto fail;
         }
@@ -786,13 +786,12 @@ sv_attach(device_t dev) {
 		goto fail;
 	}
 
-	/*
-	 * XXX This is a hack, and it's ugly.  Okay, the deal is this
+	/* XXX This is a hack, and it's ugly.  Okay, the deal is this
 	 * card has two more io regions that available for automatic
 	 * configuration by the pci code.  These need to be allocated
 	 * to used as control registers for the DMA engines.
 	 * Unfortunately FBSD has no bus_space_foo() functions so we
-	 * have to grab port space in region of existing resources.  We go
+	 * have to grab port space in region of existing resources.  Go
 	 * for space between midi and game ports.
 	 */
 	bus_get_resource(dev, SYS_RES_IOPORT, SV_PCI_MIDI, &midi_start, &count);
@@ -807,8 +806,8 @@ sv_attach(device_t dev) {
 	sdmaa = games_start + 0x40;
 	sdmac = sdmaa + 0x40;
 
-	/* Add resources to list of pci resources for this device.
-	 * From here on they look like normal pci resources. */
+	/* Add resources to list of pci resources for this device - from here on
+	 * they look like normal pci resources. */
 	bus_set_resource(dev, SYS_RES_IOPORT, SV_PCI_DMAA, sdmaa, SV_PCI_DMAA_SIZE);
 	bus_set_resource(dev, SYS_RES_IOPORT, SV_PCI_DMAC, sdmac, SV_PCI_DMAC_SIZE);
 
@@ -921,10 +920,9 @@ static device_method_t sc_methods[] = {
 static driver_t sonicvibes_driver = {
         "pcm",
         sc_methods,
-        sizeof(snddev_info)
+        sizeof(struct snddev_info)
 };
 
-static devclass_t pcm_devclass;
 DRIVER_MODULE(snd_sonicvibes, pci, sonicvibes_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_sonicvibes, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_sonicvibes, 1);

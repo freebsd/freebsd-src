@@ -68,8 +68,8 @@ struct sc_info;
 struct sc_chinfo {
     struct sc_info *parent;
 
-    snd_dbuf *buffer;
-    pcm_channel *channel;
+    struct snd_dbuf *buffer;
+    struct pcm_channel *channel;
 
     u_int32_t spd, fmt, bps, blksz;
 
@@ -134,7 +134,7 @@ static u_int32_t cs4281_fmts[] = {
     0
 };
 
-static pcmchan_caps cs4281_caps = {6024, 48000, cs4281_fmts, 0};
+static struct pcmchan_caps cs4281_caps = {6024, 48000, cs4281_fmts, 0};
 
 /* -------------------------------------------------------------------- */
 /* Hardware */
@@ -310,7 +310,7 @@ AC97_DECLARE(cs4281_ac97);
 /* shared rec/play channel interface */
 
 static void *
-cs4281chan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+cs4281chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
     struct sc_info *sc = devinfo;
     struct sc_chinfo *ch = (dir == PCMDIR_PLAY) ? &sc->pch : &sc->rch;
@@ -437,7 +437,7 @@ cs4281chan_trigger(kobj_t obj, void *data, int go)
     return 0;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 cs4281chan_getcaps(kobj_t obj, void *data)
 {
     return &cs4281_caps;
@@ -779,7 +779,7 @@ cs4281_pci_attach(device_t dev)
     if (data & CS4281PCI_PMCS_PS_MASK) {
 	    /* Reset the power state. */
 	    device_printf(dev, "chip is in D%d power mode "
-			  "-- setting to D0\n", 
+			  "-- setting to D0\n",
 			  data & CS4281PCI_PMCS_PS_MASK);
 	    pci_write_config(dev, CS4281PCI_PMCS_OFFSET,
 			     data & ~CS4281PCI_PMCS_PS_MASK, 4);
@@ -818,7 +818,7 @@ cs4281_pci_attach(device_t dev)
 	goto bad;
     }
 
-    if (bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, cs4281_intr, sc, &sc->ih)) {
+    if (snd_setup_intr(dev, sc->irq, 0, cs4281_intr, sc, &sc->ih)) {
 	device_printf(dev, "unable to setup interrupt\n");
 	goto bad;
     }
@@ -970,10 +970,8 @@ static device_method_t cs4281_methods[] = {
 static driver_t cs4281_driver = {
     "pcm",
     cs4281_methods,
-    sizeof(snddev_info),
+    sizeof(struct snddev_info),
 };
-
-static devclass_t pcm_devclass;
 
 DRIVER_MODULE(snd_cs4281, pci, cs4281_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_cs4281, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);

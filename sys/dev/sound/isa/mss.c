@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2001 George Reid <greid@ukug.uk.freebsd.org>
  * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
  * Copyright Luigi Rizzo, 1997,1998
  * Copyright by Hannu Savolainen 1994, 1995
@@ -45,8 +46,8 @@ struct mss_info;
 
 struct mss_chinfo {
 	struct mss_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir;
 	u_int32_t fmt, blksz;
 };
@@ -64,6 +65,7 @@ struct mss_info {
     int		     drq2_rid;
     void 	    *ih;
     bus_dma_tag_t    parent_dmat;
+    void	    *lock;
 
     char mss_indexed_regs[MSS_INDEXED_REGS];
     char opl_indexed_regs[OPL_INDEXED_REGS];
@@ -72,6 +74,11 @@ struct mss_info {
 		     */
     int opti_offset;		/* offset from config_base for opti931 */
     u_long  bd_flags;       /* board-specific flags */
+    int optibase;		/* base address for OPTi9xx config */
+    struct resource *indir;	/* Indirect register index address */
+    int indir_rid;
+    int password;		/* password for opti9xx cards */
+    int passwdreg;		/* password register */
     struct mss_chinfo pch, rch;
 };
 
@@ -82,6 +89,7 @@ static driver_intr_t 	mss_intr;
 
 /* prototypes for local functions */
 static int 		mss_detect(device_t dev, struct mss_info *mss);
+static int		opti_detect(device_t dev, struct mss_info *mss);
 static char 		*ymf_test(device_t dev, struct mss_info *mss);
 static void		ad_unmute(struct mss_info *mss);
 
@@ -97,6 +105,12 @@ static void 		ad_write_cnt(struct mss_info *mss, int reg, u_short data);
 static void    		ad_enter_MCE(struct mss_info *mss);
 static void             ad_leave_MCE(struct mss_info *mss);
 
+/* OPTi-specific functions */
+static void		opti_write(struct mss_info *mss, u_char reg,
+				   u_char data);
+static u_char		opti_read(struct mss_info *mss, u_char reg);
+static int		opti_init(device_t dev, struct mss_info *mss);
+
 /* io primitives */
 static void 		conf_wr(struct mss_info *mss, u_char reg, u_char data);
 static u_char 		conf_rd(struct mss_info *mss, u_char reg);
@@ -105,8 +119,6 @@ static int 		pnpmss_probe(device_t dev);
 static int 		pnpmss_attach(device_t dev);
 
 static driver_intr_t 	opti931_intr;
-
-static devclass_t pcm_devclass;
 
 static u_int32_t mss_fmt[] = {
 	AFMT_U8,
@@ -119,7 +131,7 @@ static u_int32_t mss_fmt[] = {
 	AFMT_STEREO | AFMT_A_LAW,
 	0
 };
-static pcmchan_caps mss_caps = {4000, 48000, mss_fmt, 0};
+static struct pcmchan_caps mss_caps = {4000, 48000, mss_fmt, 0};
 
 static u_int32_t guspnp_fmt[] = {
 	AFMT_U8,
@@ -130,7 +142,7 @@ static u_int32_t guspnp_fmt[] = {
 	AFMT_STEREO | AFMT_A_LAW,
 	0
 };
-static pcmchan_caps guspnp_caps = {4000, 48000, guspnp_fmt, 0};
+static struct pcmchan_caps guspnp_caps = {4000, 48000, guspnp_fmt, 0};
 
 static u_int32_t opti931_fmt[] = {
 	AFMT_U8,
@@ -139,13 +151,15 @@ static u_int32_t opti931_fmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
+static struct pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
 
 #define MD_AD1848	0x91
 #define MD_AD1845	0x92
 #define MD_CS42XX	0xA1
+#define MD_OPTI930	0xB0
 #define	MD_OPTI931	0xB1
 #define MD_OPTI925	0xB2
+#define MD_OPTI924	0xB3
 #define	MD_GUSPNP	0xB8
 #define MD_GUSMAX	0xB9
 #define	MD_YM0020	0xC1
@@ -154,6 +168,18 @@ static pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
 #define	DV_F_TRUE_MSS	0x00010000	/* mss _with_ base regs */
 
 #define FULL_DUPLEX(x) ((x)->bd_flags & BD_F_DUPLEX)
+
+static void
+mss_lock(struct mss_info *mss)
+{
+	snd_mtxlock(mss->lock);
+}
+
+static void
+mss_unlock(struct mss_info *mss)
+{
+	snd_mtxunlock(mss->lock);
+}
 
 static int
 port_rd(struct resource *port, int off)
@@ -261,10 +287,17 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 				     mss->conf_base);
 		mss->conf_base = 0;
     	}
+	if (mss->indir) {
+		bus_release_resource(dev, SYS_RES_IOPORT, mss->indir_rid,
+				     mss->indir);
+		mss->indir = 0;
+	}
     	if (mss->parent_dmat) {
 		bus_dma_tag_destroy(mss->parent_dmat);
 		mss->parent_dmat = 0;
     	}
+	if (mss->lock) snd_mtxfree(mss->lock);
+
      	free(mss, M_DEVBUF);
 }
 
@@ -288,9 +321,9 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
         	mss->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ, &mss->drq2_rid,
 					       0, ~0, 1, RF_ACTIVE);
 
-    	if (!mss->io_base || !mss->drq1 || !mss->irq) ok = 0;
-    	if (mss->conf_rid >= 0 && !mss->conf_base) ok = 0;
-    	if (mss->drq2_rid >= 0 && !mss->drq2) ok = 0;
+	if (!mss->io_base || !mss->drq1 || !mss->irq) ok = 0;
+	if (mss->conf_rid >= 0 && !mss->conf_base) ok = 0;
+	if (mss->drq2_rid >= 0 && !mss->drq2) ok = 0;
 
 	if (ok) {
 		pdma = rman_get_start(mss->drq1);
@@ -305,6 +338,37 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
 		} else mss->drq2 = mss->drq1;
 	}
     	return ok;
+}
+
+/*
+ * The various mixers use a variety of bitmasks etc. The Voxware
+ * driver had a very nice technique to describe a mixer and interface
+ * to it. A table defines, for each channel, which register, bits,
+ * offset, polarity to use. This procedure creates the new value
+ * using the table and the old value.
+ */
+
+static void
+change_bits(mixer_tab *t, u_char *regval, int dev, int chn, int newval)
+{
+    	u_char mask;
+    	int shift;
+
+    	DEB(printf("ch_bits dev %d ch %d val %d old 0x%02x "
+		"r %d p %d bit %d off %d\n",
+		dev, chn, newval, *regval,
+		(*t)[dev][chn].regno, (*t)[dev][chn].polarity,
+		(*t)[dev][chn].nbits, (*t)[dev][chn].bitoffs ) );
+
+    	if ( (*t)[dev][chn].polarity == 1)	/* reverse */
+		newval = 100 - newval ;
+
+    	mask = (1 << (*t)[dev][chn].nbits) - 1;
+    	newval = (int) ((newval * mask) + 50) / 100; /* Scale it */
+    	shift = (*t)[dev][chn].bitoffs /*- (*t)[dev][LEFT_CHN].nbits + 1*/;
+
+    	*regval &= ~(mask << shift);        /* Filter out the previous value */
+    	*regval |= (newval & mask) << shift;        /* Set the new value */
 }
 
 /* -------------------------------------------------------------------- */
@@ -344,8 +408,19 @@ static int
 mss_mixer_set(struct mss_info *mss, int dev, int left, int right)
 {
     	int        regoffs;
-    	mixer_tab *mix_d = (mss->bd_id == MD_OPTI931)? &opti931_devices : &mix_devices;
+    	mixer_tab *mix_d;
     	u_char     old, val;
+
+	switch (mss->bd_id) {
+		case MD_OPTI931:
+			mix_d = &opti931_devices;
+			break;
+		case MD_OPTI930:
+			mix_d = &opti930_devices;
+			break;
+		default:
+			mix_d = &mix_devices;
+	}
 
     	if ((*mix_d)[dev][LEFT_CHN].nbits == 0) {
 		DEB(printf("nbits = 0 for dev %d\n", dev));
@@ -383,17 +458,23 @@ mss_mixer_set(struct mss_info *mss, int dev, int left, int right)
 /* -------------------------------------------------------------------- */
 
 static int
-mssmix_init(snd_mixer *m)
+mssmix_init(struct snd_mixer *m)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
 	mix_setdevs(m, MODE2_MIXER_DEVICES);
 	mix_setrecdevs(m, MSS_REC_DEVICES);
 	switch(mss->bd_id) {
+	case MD_OPTI930:
+		mix_setdevs(m, OPTI930_MIXER_DEVICES);
+		break;
+
 	case MD_OPTI931:
 		mix_setdevs(m, OPTI931_MIXER_DEVICES);
+		mss_lock(mss);
 		ad_write(mss, 20, 0x88);
 		ad_write(mss, 21, 0x88);
+		mss_unlock(mss);
 		break;
 
 	case MD_AD1848:
@@ -403,29 +484,35 @@ mssmix_init(snd_mixer *m)
 	case MD_GUSPNP:
 	case MD_GUSMAX:
 		/* this is only necessary in mode 3 ... */
+		mss_lock(mss);
 		ad_write(mss, 22, 0x88);
 		ad_write(mss, 23, 0x88);
+		mss_unlock(mss);
 		break;
 	}
 	return 0;
 }
 
 static int
-mssmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+mssmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
+	mss_lock(mss);
 	mss_mixer_set(mss, dev, left, right);
+	mss_unlock(mss);
 
 	return left | (right << 8);
 }
 
 static int
-mssmix_setrecsrc(snd_mixer *m, u_int32_t src)
+mssmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
+	mss_lock(mss);
 	src = mss_set_recsrc(mss, src);
+	mss_unlock(mss);
 	return src;
 }
 
@@ -440,7 +527,7 @@ MIXER_DECLARE(mssmix_mixer);
 /* -------------------------------------------------------------------- */
 
 static int
-ymmix_init(snd_mixer *m)
+ymmix_init(struct snd_mixer *m)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
@@ -448,18 +535,21 @@ ymmix_init(snd_mixer *m)
 	mix_setdevs(m, mix_getdevs(m) | SOUND_MASK_VOLUME | SOUND_MASK_MIC
 				      | SOUND_MASK_BASS | SOUND_MASK_TREBLE);
 	/* Set master volume */
+	mss_lock(mss);
 	conf_wr(mss, OPL3SAx_VOLUMEL, 7);
 	conf_wr(mss, OPL3SAx_VOLUMER, 7);
+	mss_unlock(mss);
 
 	return 0;
 }
 
 static int
-ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+ymmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 	int t, l, r;
 
+	mss_lock(mss);
 	switch (dev) {
 	case SOUND_MIXER_VOLUME:
 		if (left) t = 15 - (left * 15) / 100;
@@ -494,15 +584,18 @@ ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	default:
 		mss_mixer_set(mss, dev, left, right);
 	}
+	mss_unlock(mss);
 
 	return left | (right << 8);
 }
 
 static int
-ymmix_setrecsrc(snd_mixer *m, u_int32_t src)
+ymmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
+	mss_lock(mss);
 	src = mss_set_recsrc(mss, src);
+	mss_unlock(mss);
 	return src;
 }
 
@@ -681,6 +774,7 @@ mss_intr(void *arg)
     	int i;
 
     	DEB(printf("mss_intr\n"));
+	mss_lock(mss);
     	ad_read(mss, 11); /* fake read of status bits */
 
     	/* loop until there are interrupts, but no more than 10 times. */
@@ -710,6 +804,7 @@ mss_intr(void *arg)
 	 	*/
 		io_wr(mss, MSS_STATUS, 0);	/* Clear interrupt status */
     	}
+	mss_unlock(mss);
 }
 
 /*
@@ -721,7 +816,7 @@ ad_wait_init(struct mss_info *mss, int x)
 {
     	int arg = x, n = 0; /* to shut up the compiler... */
     	for (; x > 0; x--)
-		if ((n = io_rd(mss, MSS_INDEX)) & MSS_IDXBUSY) DELAY(10);
+		if ((n = io_rd(mss, MSS_INDEX)) & MSS_IDXBUSY) DELAY(10000);
 		else return n;
     	printf("AD_WAIT_INIT FAILED %d 0x%02x\n", arg, n);
     	return n;
@@ -730,15 +825,12 @@ ad_wait_init(struct mss_info *mss, int x)
 static int
 ad_read(struct mss_info *mss, int reg)
 {
-    	u_long   flags;
     	int             x;
 
-    	flags = spltty();
-    	ad_wait_init(mss, 201);
+    	ad_wait_init(mss, 201000);
     	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
     	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
     	x = io_rd(mss, MSS_IDATA);
-    	splx(flags);
 	/* printf("ad_read %d, %x\n", reg, x); */
     	return x;
 }
@@ -746,16 +838,13 @@ ad_read(struct mss_info *mss, int reg)
 static void
 ad_write(struct mss_info *mss, int reg, u_char data)
 {
-    	u_long   flags;
-
     	int x;
+
 	/* printf("ad_write %d, %x\n", reg, data); */
-    	flags = spltty();
-    	ad_wait_init(mss, 1002);
+    	ad_wait_init(mss, 1002000);
     	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
     	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
     	io_wr(mss, MSS_IDATA, data);
-    	splx(flags);
 }
 
 static void
@@ -778,7 +867,7 @@ wait_for_calibration(struct mss_info *mss)
      	 * 3) Wait until the ACI bit of I11 gets off
      	 */
 
-    	t = ad_wait_init(mss, 1000);
+    	t = ad_wait_init(mss, 1000000);
     	if (t & MSS_IDXBUSY) printf("mss: Auto calibration timed out(1).\n");
 
 	/*
@@ -810,7 +899,7 @@ ad_enter_MCE(struct mss_info *mss)
     	int prev;
 
     	mss->bd_flags |= BD_F_MCE_BIT;
-    	ad_wait_init(mss, 203);
+    	ad_wait_init(mss, 203000);
     	prev = io_rd(mss, MSS_INDEX);
     	prev &= ~MSS_TRD;
     	io_wr(mss, MSS_INDEX, prev | MSS_MCE);
@@ -819,7 +908,6 @@ ad_enter_MCE(struct mss_info *mss)
 static void
 ad_leave_MCE(struct mss_info *mss)
 {
-    	u_long   flags;
     	u_char   prev;
 
     	if ((mss->bd_flags & BD_F_MCE_BIT) == 0) {
@@ -827,16 +915,14 @@ ad_leave_MCE(struct mss_info *mss)
 		return;
     	}
 
-    	ad_wait_init(mss, 1000);
+    	ad_wait_init(mss, 1000000);
 
-    	flags = spltty();
     	mss->bd_flags &= ~BD_F_MCE_BIT;
 
     	prev = io_rd(mss, MSS_INDEX);
     	prev &= ~MSS_TRD;
     	io_wr(mss, MSS_INDEX, prev & ~MSS_MCE); /* Clear the MCE bit */
     	wait_for_calibration(mss);
-    	splx(flags);
 }
 
 static int
@@ -981,6 +1067,7 @@ opti931_intr(void *arg)
 		return;
     	}
 #endif
+	mss_lock(mss);
     	i11 = ad_read(mss, 11); /* XXX what's for ? */
 	again:
 
@@ -1009,6 +1096,7 @@ opti931_intr(void *arg)
 	    		else DDB(printf("intr, but mc11 not set\n");)
 		}
 		if (loops == 0) BVDDB(printf("intr, nothing in mcir11 0x%02x\n", mc11));
+		mss_unlock(mss);
 		return;
     	}
 
@@ -1016,13 +1104,14 @@ opti931_intr(void *arg)
     	if (sndbuf_runsz(mss->pch.buffer) && (mc11 & 4)) chn_intr(mss->pch.channel);
     	opti_wr(mss, 11, ~mc11); /* ack */
     	if (--loops) goto again;
+	mss_unlock(mss);
     	DEB(printf("xxx too many loops\n");)
 }
 
 /* -------------------------------------------------------------------- */
 /* channel interface */
 static void *
-msschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+msschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct mss_info *mss = devinfo;
 	struct mss_chinfo *ch = (dir == PCMDIR_PLAY)? &mss->pch : &mss->rch;
@@ -1040,8 +1129,11 @@ static int
 msschan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct mss_chinfo *ch = data;
+	struct mss_info *mss = ch->parent;
 
+	mss_lock(mss);
 	mss_format(ch, format);
+	mss_unlock(mss);
 	return 0;
 }
 
@@ -1049,8 +1141,14 @@ static int
 msschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct mss_chinfo *ch = data;
+	struct mss_info *mss = ch->parent;
+	int r;
 
-	return mss_speed(ch, speed);
+	mss_lock(mss);
+	r = mss_speed(ch, speed);
+	mss_unlock(mss);
+
+	return r;
 }
 
 static int
@@ -1066,12 +1164,15 @@ static int
 msschan_trigger(kobj_t obj, void *data, int go)
 {
 	struct mss_chinfo *ch = data;
+	struct mss_info *mss = ch->parent;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
 	sndbuf_isadma(ch->buffer, go);
+	mss_lock(mss);
 	mss_trigger(ch, go);
+	mss_unlock(mss);
 	return 0;
 }
 
@@ -1082,7 +1183,7 @@ msschan_getptr(kobj_t obj, void *data)
 	return sndbuf_isadmaptr(ch->buffer);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 msschan_getcaps(kobj_t obj, void *data)
 {
 	struct mss_chinfo *ch = data;
@@ -1240,7 +1341,20 @@ mss_detect(device_t dev, struct mss_info *mss)
     	name = "AD1848";
     	mss->bd_id = MD_AD1848; /* AD1848 or CS4248 */
 
-    	/*
+	if (opti_detect(dev, mss)) {
+		switch (mss->bd_id) {
+			case MD_OPTI924:
+				name = "OPTi924";
+				break;
+			case MD_OPTI930:
+				name = "OPTi930";
+				break;
+		}
+		printf("Found OPTi device %s\n", name);
+		if (opti_init(dev, mss) == 0) goto gotit;
+	}
+
+   	/*
      	* Check that the I/O address is in use.
      	*
      	* bit 7 of the base I/O port is known to be 0 after the chip has
@@ -1445,6 +1559,52 @@ no:
     	return ENXIO;
 }
 
+static int
+opti_detect(device_t dev, struct mss_info *mss)
+{
+	int c;
+	static const struct opticard {
+		int boardid;
+		int passwdreg;
+		int password;
+		int base;
+		int indir_reg;
+	} cards[] = {
+		{ MD_OPTI930, 0, 0xe4, 0xf8f, 0xe0e },	/* 930 */
+		{ MD_OPTI924, 3, 0xe5, 0xf8c, 0,    },	/* 924 */
+		{ 0 },
+	};
+	mss->conf_rid = 3;
+	mss->indir_rid = 4;
+	for (c = 0; cards[c].base; c++) {
+		mss->optibase = cards[c].base;
+		mss->password = cards[c].password;
+		mss->passwdreg = cards[c].passwdreg;
+		mss->bd_id = cards[c].boardid;
+
+		if (cards[c].indir_reg)
+			mss->indir = bus_alloc_resource(dev, SYS_RES_IOPORT,
+				&mss->indir_rid, cards[c].indir_reg,
+				cards[c].indir_reg+1, 1, RF_ACTIVE);
+
+		mss->conf_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
+			&mss->conf_rid, mss->optibase, mss->optibase+9,
+			9, RF_ACTIVE);
+
+		if (opti_read(mss, 1) != 0xff) {
+			return 1;
+		} else {
+			if (mss->indir)
+				bus_release_resource(dev, SYS_RES_IOPORT, mss->indir_rid, mss->indir);
+			mss->indir = NULL;
+			if (mss->conf_base)
+				bus_release_resource(dev, SYS_RES_IOPORT, mss->conf_rid, mss->conf_base);
+			mss->conf_base = NULL;
+		}
+	}
+	return 0;
+}
+
 static char *
 ymf_test(device_t dev, struct mss_info *mss)
 {
@@ -1497,6 +1657,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	int pdma, rdma, flags = device_get_flags(dev);
     	char status[SND_STATUSLEN];
 
+	mss->lock = snd_mtxcreate(device_get_nameunit(dev));
     	if (!mss_alloc_resources(mss, dev)) goto no;
     	mss_init(mss, dev);
 	pdma = rman_get_start(mss->drq1);
@@ -1536,10 +1697,10 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	mixer_init(dev, (mss->bd_id == MD_YM0020)? &ymmix_mixer_class : &mssmix_mixer_class, mss);
     	switch (mss->bd_id) {
     	case MD_OPTI931:
-		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, opti931_intr, mss, &mss->ih);
+		snd_setup_intr(dev, mss->irq, INTR_MPSAFE, opti931_intr, mss, &mss->ih);
 		break;
     	default:
-		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, mss_intr, mss, &mss->ih);
+		snd_setup_intr(dev, mss->irq, INTR_MPSAFE, mss_intr, mss, &mss->ih);
     	}
     	if (pdma == rdma)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
@@ -1690,7 +1851,7 @@ static device_method_t mss_methods[] = {
 static driver_t mss_driver = {
 	"pcm",
 	mss_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
@@ -1705,6 +1866,7 @@ static struct isa_pnp_id pnpmss_ids[] = {
 	{0x1110d315, "ENSONIQ SoundscapeVIVO"},		/* ENS1011 */
 	{0x1093143e, "OPTi931"},			/* OPT9310 */
 	{0x5092143e, "OPTi925"},			/* OPT9250 XXX guess */
+	{0x0000143e, "OPTi924"},			/* OPT0924 */
 	{0x1022b839, "Neomagic 256AV (non-ac97)"},	/* NMX2210 */
 #if 0
 	{0x0000561e, "GusPnP"},				/* GRV0000 */
@@ -1769,6 +1931,18 @@ pnpmss_attach(device_t dev)
 	    mss->bd_id = MD_OPTI925;
 	    break;
 
+	case 0x0000143e:			/* OPT0924 */
+	    mss->password = 0xe5;
+	    mss->passwdreg = 3;
+	    mss->optibase = 0xf0c;
+	    mss->io_rid = 2;
+	    mss->conf_rid = 3;
+	    mss->bd_id = MD_OPTI924;
+	    mss->bd_flags |= BD_F_924PNP;
+	    if(opti_init(dev, mss) != 0)
+		    return ENXIO;
+	    break;
+
 	case 0x1022b839:			/* NMX2210 */
 	    mss->io_rid = 1;
 	    break;
@@ -1795,6 +1969,141 @@ pnpmss_attach(device_t dev)
     	return mss_doattach(dev, mss);
 }
 
+static int
+opti_init(device_t dev, struct mss_info *mss)
+{
+	int flags = device_get_flags(dev);
+	int basebits = 0;
+
+	if (!mss->conf_base) {
+		bus_set_resource(dev, SYS_RES_IOPORT, mss->conf_rid,
+			mss->optibase, 0x9);
+
+		mss->conf_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
+			&mss->conf_rid, mss->optibase, mss->optibase+0x9,
+			0x9, RF_ACTIVE);
+	}
+
+	if (!mss->conf_base)
+		return ENXIO;
+
+	if (!mss->io_base)
+		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
+			&mss->io_rid, 0, ~0, 8, RF_ACTIVE);
+
+	if (!mss->io_base)	/* No hint specified, use 0x530 */
+		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
+			&mss->io_rid, 0x530, 0x537, 8, RF_ACTIVE);
+
+	if (!mss->io_base)
+		return ENXIO;
+
+	switch (rman_get_start(mss->io_base)) {
+		case 0x530:
+			basebits = 0x0;
+			break;
+		case 0xe80:
+			basebits = 0x10;
+			break;
+		case 0xf40:
+			basebits = 0x20;
+			break;
+		case 0x604:
+			basebits = 0x30;
+			break;
+		default:
+			printf("opti_init: invalid MSS base address!\n");
+			return ENXIO;
+	}
+
+
+	switch (mss->bd_id) {
+	case MD_OPTI924:
+		opti_write(mss, 1, 0x80 | basebits);	/* MSS mode */
+		opti_write(mss, 2, 0x00);	/* Disable CD */
+		opti_write(mss, 3, 0xf0);	/* Disable SB IRQ */
+		opti_write(mss, 4, 0xf0);
+		opti_write(mss, 5, 0x00);
+		opti_write(mss, 6, 0x02);	/* MPU stuff */
+		break;
+
+	case MD_OPTI930:
+		opti_write(mss, 1, 0x00 | basebits);
+		opti_write(mss, 3, 0x00);	/* Disable SB IRQ/DMA */
+		opti_write(mss, 4, 0x52);	/* Empty FIFO */
+		opti_write(mss, 5, 0x3c);	/* Mode 2 */
+		opti_write(mss, 6, 0x02);	/* Enable MSS */
+		break;
+	}
+
+	if (mss->bd_flags & BD_F_924PNP) {
+		u_int32_t irq = isa_get_irq(dev);
+		u_int32_t drq = isa_get_drq(dev);
+		bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);
+		bus_set_resource(dev, SYS_RES_DRQ, mss->drq1_rid, drq, 1);
+		if (flags & DV_F_DUAL_DMA) {
+			bus_set_resource(dev, SYS_RES_DRQ, 1,
+				flags & DV_F_DRQ_MASK, 1);
+			mss->drq2_rid = 1;
+		}
+	}
+
+	/* OPTixxx has I/DRQ registers */
+
+	device_set_flags(dev, device_get_flags(dev) | DV_F_TRUE_MSS);
+
+	return 0;
+}
+
+static void
+opti_write(struct mss_info *mss, u_char reg, u_char val)
+{
+	port_wr(mss->conf_base, mss->passwdreg, mss->password);
+
+	switch(mss->bd_id) {
+	case MD_OPTI924:
+		if (reg > 7) {		/* Indirect register */
+			port_wr(mss->conf_base, mss->passwdreg, reg);
+			port_wr(mss->conf_base, mss->passwdreg,
+				mss->password);
+			port_wr(mss->conf_base, 9, val);
+			return;
+		}
+		port_wr(mss->conf_base, reg, val);
+		break;
+
+	case MD_OPTI930:
+		port_wr(mss->indir, 0, reg);
+		port_wr(mss->conf_base, mss->passwdreg, mss->password);
+		port_wr(mss->indir, 1, val);
+		break;
+	}
+}
+
+u_char
+opti_read(struct mss_info *mss, u_char reg)
+{
+	port_wr(mss->conf_base, mss->passwdreg, mss->password);
+
+	switch(mss->bd_id) {
+	case MD_OPTI924:
+		if (reg > 7) {		/* Indirect register */
+			port_wr(mss->conf_base, mss->passwdreg, reg);
+			port_wr(mss->conf_base, mss->passwdreg, mss->password);
+			return(port_rd(mss->conf_base, 9));
+		}
+		return(port_rd(mss->conf_base, reg));
+		break;
+
+	case MD_OPTI930:
+		port_wr(mss->indir, 0, reg);
+		port_wr(mss->conf_base, mss->passwdreg, mss->password);
+		return port_rd(mss->indir, 1);
+		break;
+	}
+	return -1;
+}
+
 static device_method_t pnpmss_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pnpmss_probe),
@@ -1809,7 +2118,7 @@ static device_method_t pnpmss_methods[] = {
 static driver_t pnpmss_driver = {
 	"pcm",
 	pnpmss_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
@@ -1893,7 +2202,7 @@ static device_method_t guspcm_methods[] = {
 static driver_t guspcm_driver = {
 	"pcm",
 	guspcm_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);

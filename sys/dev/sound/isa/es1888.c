@@ -168,8 +168,6 @@ static driver_t es1888_driver = {
 	1,			/* no softc */
 };
 
-static devclass_t pcm_devclass;
-
 DRIVER_MODULE(snd_es1888, isa, es1888_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_es1888, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_es1888, 1);

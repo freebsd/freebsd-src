@@ -42,6 +42,11 @@
 /* The base offset of the mixer in the second memory area. */
 #define NM_MIXER_OFFSET 0x600
 
+/* The base offset for the AC97 test */
+#define NM_MIXER_PRESENCE 0xa06
+#define NM_PRESENCE_MASK  0x050
+#define NM_PRESENCE_VALUE 0x040
+
 /* The maximum size of a coefficient entry. */
 #define NM_MAX_COEFFICIENT 0x5000
 

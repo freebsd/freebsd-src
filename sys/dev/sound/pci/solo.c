@@ -55,7 +55,7 @@ static u_int32_t ess_playfmt[] = {
 	AFMT_STEREO | AFMT_U16_LE,
 	0
 };
-static pcmchan_caps ess_playcaps = {5000, 49000, ess_playfmt, 0};
+static struct pcmchan_caps ess_playcaps = {5000, 49000, ess_playfmt, 0};
 
 /*
  * Recording output is byte-swapped
@@ -71,14 +71,14 @@ static u_int32_t ess_recfmt[] = {
 	AFMT_STEREO | AFMT_U16_BE,
 	0
 };
-static pcmchan_caps ess_reccaps = {5000, 49000, ess_recfmt, 0};
+static struct pcmchan_caps ess_reccaps = {5000, 49000, ess_recfmt, 0};
 
 struct ess_info;
 
 struct ess_chinfo {
 	struct ess_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir, hwch, stopping;
 	u_int32_t fmt, spd, blksz;
 };
@@ -114,8 +114,6 @@ static int ess_stop(struct ess_chinfo *ch);
 static int ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t cnt, int dir);
 static int ess_dmapos(struct ess_info *sc, int ch);
 static int ess_dmatrigger(struct ess_info *sc, int ch, int go);
-
-static devclass_t pcm_devclass;
 
 /*
  * Common code for the midi and pcm functions
@@ -510,7 +508,7 @@ ess_stop(struct ess_chinfo *ch)
 /* -------------------------------------------------------------------- */
 /* channel interface for ESS18xx */
 static void *
-esschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+esschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct ess_info *sc = devinfo;
 	struct ess_chinfo *ch = (dir == PCMDIR_PLAY)? &sc->pch : &sc->rch;
@@ -595,7 +593,7 @@ esschan_getptr(kobj_t obj, void *data)
 	return ess_dmapos(sc, ch->hwch);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 esschan_getcaps(kobj_t obj, void *data)
 {
 	struct ess_chinfo *ch = data;
@@ -618,7 +616,7 @@ CHANNEL_DECLARE(esschan);
 /************************************************************/
 
 static int
-essmix_init(snd_mixer *m)
+essmix_init(struct snd_mixer *m)
 {
     	struct ess_info *sc = mix_getdevinfo(m);
 
@@ -635,7 +633,7 @@ essmix_init(snd_mixer *m)
 }
 
 static int
-essmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+essmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
     	struct ess_info *sc = mix_getdevinfo(m);
     	int preg = 0, rreg = 0, l, r;
@@ -695,7 +693,7 @@ essmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 }
 
 static int
-essmix_setrecsrc(snd_mixer *m, u_int32_t src)
+essmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
     	struct ess_info *sc = mix_getdevinfo(m);
     	u_char recdev;
@@ -943,7 +941,7 @@ ess_attach(device_t dev)
 	if (sc->newspeed)
 		ess_setmixer(sc, 0x71, 0x2a);
 
-	bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, ess_intr, sc, &sc->ih);
+	snd_setup_intr(dev, sc->irq, 0, ess_intr, sc, &sc->ih);
     	if (!sc->duplex)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 
@@ -1004,7 +1002,7 @@ static device_method_t ess_methods[] = {
 static driver_t ess_driver = {
 	"pcm",
 	ess_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_solo, pci, ess_driver, pcm_devclass, 0, 0);

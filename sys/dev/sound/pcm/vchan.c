@@ -263,7 +263,7 @@ vchan_create(struct pcm_channel *parent)
 	CHN_UNLOCK(parent);
 
 	/* add us to our grandparent's channel list */
-	err = pcm_chn_add(d, child, !first);
+	err = pcm_chn_add(d, child);
 	if (err) {
 		pcm_chn_destroy(child);
 		free(pce, M_DEVBUF);
@@ -288,7 +288,12 @@ vchan_destroy(struct pcm_channel *c)
 	struct pcm_channel *parent = c->parentchannel;
     	struct snddev_info *d = parent->parentsnddev;
 	struct pcmchan_children *pce;
-	int err, last;
+	int err;
+
+	/* remove us from our grantparent's channel list */
+	err = pcm_chn_remove(d, c);
+	if (err)
+		return err;
 
 	CHN_LOCK(parent);
 	if (!(parent->flags & CHN_F_BUSY)) {
@@ -311,15 +316,8 @@ gotch:
 	SLIST_REMOVE(&parent->children, pce, pcmchan_children, link);
 	free(pce, M_DEVBUF);
 
-	last = SLIST_EMPTY(&parent->children);
-	if (last)
+	if (SLIST_EMPTY(&parent->children))
 		parent->flags &= ~CHN_F_BUSY;
-
-	/* remove us from our grantparent's channel list */
-	err = pcm_chn_remove(d, c, !last);
-	if (err)
-		return err;
-
 	CHN_UNLOCK(parent);
 	/* destroy ourselves */
 	err = pcm_chn_destroy(c);
@@ -350,11 +348,6 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 
 	err = sysctl_handle_int(oidp, &newcnt, sizeof(newcnt), req);
 	if (err == 0 && req->newptr != NULL) {
-		if (newcnt < 0 || newcnt > SND_MAXVCHANS) {
-			snd_mtxunlock(d->lock);
-			return EINVAL;
-		}
-
 		if (newcnt > cnt) {
 			/* add new vchans - find a parent channel first */
 			SLIST_FOREACH(sce, &d->channels, link) {

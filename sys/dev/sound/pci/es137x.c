@@ -72,6 +72,7 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 #define ES1371_PCI_ID2 0x13713274
 #define CT5880_PCI_ID 0x58801274
 
+#define ES1371REV_ES1371_A  0x02
 #define ES1371REV_ES1371_B  0x09
 
 #define ES1371REV_ES1373_8  0x08
@@ -90,8 +91,8 @@ struct es_info;
 
 struct es_chinfo {
 	struct es_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir, num;
 	u_int32_t fmt, blksz, bufsz;
 };
@@ -133,7 +134,7 @@ static u_int32_t es_playfmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps es_playcaps = {4000, 48000, es_playfmt, 0};
+static struct pcmchan_caps es_playcaps = {4000, 48000, es_playfmt, 0};
 
 static u_int32_t es_recfmt[] = {
 	AFMT_U8,
@@ -142,7 +143,7 @@ static u_int32_t es_recfmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps es_reccaps = {4000, 48000, es_recfmt, 0};
+static struct pcmchan_caps es_reccaps = {4000, 48000, es_recfmt, 0};
 
 static const struct {
 	unsigned        volidx:4;
@@ -168,7 +169,7 @@ static const struct {
 /* The es1370 mixer interface */
 
 static int
-es1370_mixinit(snd_mixer *m)
+es1370_mixinit(struct snd_mixer *m)
 {
 	int i;
 	u_int32_t v;
@@ -185,7 +186,7 @@ es1370_mixinit(snd_mixer *m)
 }
 
 static int
-es1370_mixset(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+es1370_mixset(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	int l, r, rl, rr;
 
@@ -206,7 +207,7 @@ es1370_mixset(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 }
 
 static int
-es1370_mixsetrecsrc(snd_mixer *m, u_int32_t src)
+es1370_mixsetrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	int i, j = 0;
 
@@ -256,7 +257,7 @@ es1370_wrcodec(struct es_info *es, u_char i, u_char data)
 
 /* channel interface */
 static void *
-eschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+eschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct es_info *es = devinfo;
 	struct es_chinfo *ch = (dir == PCMDIR_PLAY)? &es->pch : &es->rch;
@@ -405,7 +406,7 @@ eschan_getptr(kobj_t obj, void *data)
 	return cnt << 2;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 eschan_getcaps(kobj_t obj, void *data)
 {
 	struct es_chinfo *ch = data;
@@ -751,6 +752,10 @@ es_pci_probe(device_t dev)
 
 	case ES1371_PCI_ID:
 		switch(pci_get_revid(dev)) {
+		case ES1371REV_ES1371_A:
+			device_set_desc(dev, "AudioPCI ES1371-A");
+			return 0;
+
 		case ES1371REV_ES1371_B:
 			device_set_desc(dev, "AudioPCI ES1371-B");
 			return 0;
@@ -778,7 +783,7 @@ es_pci_probe(device_t dev)
 		}
 
 	case ES1371_PCI_ID2:
-		device_set_desc(dev, "Strange AudioPCI ES1371-?");
+		device_set_desc(dev, "Strange AudioPCI ES1371-? (vid=3274)");
 		device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
 		return 0;
 
@@ -877,8 +882,7 @@ es_pci_attach(device_t dev)
 	es->irqid = 0;
 	es->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &es->irqid,
 				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!es->irq
-	    || bus_setup_intr(dev, es->irq, INTR_TYPE_TTY, es_intr, es, &es->ih)) {
+	if (!es->irq || snd_setup_intr(dev, es->irq, 0, es_intr, es, &es->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -946,10 +950,8 @@ static device_method_t es_methods[] = {
 static driver_t es_driver = {
 	"pcm",
 	es_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
-
-static devclass_t pcm_devclass;
 
 DRIVER_MODULE(snd_es137x, pci, es_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_es137x, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
