@@ -601,8 +601,10 @@
       <para>The directory layout preference algorithm for FFS has been
       changed to improve its speed on large filesystems.</para>
 
-      <para arch="i386">smbfs (CIFS) support in kernel has been
-      added. &merged;</para>
+      <para arch="i386">smbfs (CIFS) support in kernel has been added.
+      The corresponding userland filesystem mount utility can be found 
+      in the <filename>net/smbfs</filename> port in the &os; Ports 
+      Collection. &merged;</para>
 
       <para>For consistency, the fdesc, fifo, null, msdos, portal,
       umap, and union filesystems have been renamed to fdescfs,
@@ -951,7 +953,7 @@
 
     <para>&man.ifconfig.8; no longer displays the list of supported
     media by default.  Instead it displays it when the
-    <option>-m</option> is given.</para>
+    <option>-m</option> is given. &merged;</para>
 
     <para>&man.setproctitle.3; has been moved from
     <filename>libutil</filename> to
@@ -1740,7 +1742,7 @@
         <title>OpenSSL</title>
 
 	<para><application>OpenSSL</application> has been upgraded to
-	0.9.6a.</para>
+	0.9.6a. &merged;</para>
 
 	<para><application>OpenSSL</application> now has support for
 	machine-dependent ASM optimizations, activated by the new
