@@ -1401,7 +1401,6 @@ vm_page_t
 pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 
-	vm_page_lock_queues();
 	vm_page_busy(m);
 	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(m->object);
@@ -1411,7 +1410,6 @@ pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	VM_OBJECT_LOCK(m->object);
 	vm_page_lock_queues();
 	vm_page_wakeup(m);
-	vm_page_unlock_queues();
 	return (NULL);
 }
 
