@@ -23,6 +23,7 @@
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <sys/pcpu.h>
+#include <sys/queue.h>
 
 #include <machine/asi.h>
 #include <machine/atomic.h>
@@ -30,7 +31,6 @@
 #include <machine/elf.h>
 #include <machine/lsu.h>
 #include <machine/metadata.h>
-#include <machine/smp.h>
 #include <machine/tte.h>
 #include <machine/upa.h>
 
