@@ -1357,11 +1357,13 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 					vap->va_size = np->n_size;
 				else
 					np->n_size = vap->va_size;
-			} else
+			} else {
 				np->n_size = vap->va_size;
+			}
 			vnode_pager_setsize(vp, np->n_size);
-		} else
+		} else {
 			np->n_size = vap->va_size;
+		}
 	}
 	np->n_attrstamp = time_second;
 	if (vaper != NULL) {
@@ -1444,11 +1446,13 @@ nfs_getattrcache(vp, vaper)
 					vap->va_size = np->n_size;
 				else
 					np->n_size = vap->va_size;
-			} else
+			} else {
 				np->n_size = vap->va_size;
+			}
 			vnode_pager_setsize(vp, np->n_size);
-		} else
+		} else {
 			np->n_size = vap->va_size;
+		}
 	}
 	bcopy((caddr_t)vap, (caddr_t)vaper, sizeof(struct vattr));
 	if (np->n_flag & NCHG) {
@@ -2150,7 +2154,11 @@ nfs_invaldir(vp)
  * The write verifier has changed (probably due to a server reboot), so all
  * B_NEEDCOMMIT blocks will have to be written again. Since they are on the
  * dirty block list as B_DELWRI, all this takes is clearing the B_NEEDCOMMIT
- * flag. Once done the new write verifier can be set for the mount point.
+ * and B_CLUSTEROK flags.  Once done the new write verifier can be set for the
+ * mount point.
+ *
+ * B_CLUSTEROK must be cleared along with B_NEEDCOMMIT because stage 1 data 
+ * writes are not clusterable.
  */
 void
 nfs_clearcommit(mp)
@@ -2171,7 +2179,7 @@ loop:
 			if (BUF_REFCNT(bp) == 0 &&
 			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
-				bp->b_flags &= ~B_NEEDCOMMIT;
+				bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
 	}
 	splx(s);
