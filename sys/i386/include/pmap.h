@@ -94,9 +94,9 @@ unsigned int
 #define	PG_u		0x00000004
 #define	PG_PROT		0x00000006 /* all protection bits . */
 #define	PG_W		0x00000200
-#define PG_N		0x00000800 /* Non-cacheable */
+#define	PG_N		0x00000800 /* Non-cacheable */
 #define	PG_M		0x00000040
-#define PG_U		0x00000020
+#define	PG_U		0x00000020
 #define	PG_FRAME	0xfffff000
 
 #define	PG_NOACC	0
@@ -113,27 +113,33 @@ unsigned int
  * Page Protection Exception bits
  */
 
-#define PGEX_P		0x01	/* Protection violation vs. not present */
-#define PGEX_W		0x02	/* during a Write cycle */
-#define PGEX_U		0x04	/* access from User mode (UPL) */
+#define	PGEX_P		0x01	/* Protection violation vs. not present */
+#define	PGEX_W		0x02	/* during a Write cycle */
+#define	PGEX_U		0x04	/* access from User mode (UPL) */
 
 typedef struct pde	pd_entry_t;	/* page directory entry */
 typedef struct pte	pt_entry_t;	/* Mach page table entry */
 
 /*
- * One page directory, shared between
- * kernel and user modes.
+ * NKPDE controls the virtual space of the kernel, what ever is left is
+ * given to the user (NUPDE)
+ *
+ * XXX NKPDE should be 8, but until locore.s is fixed it needs to be 3
  */
-#define I386_PAGE_SIZE	NBPG
-#define I386_PDR_SIZE	NBPDR
-
-#define I386_KPDES	8 /* KPT page directory size */
-#define I386_UPDES	NBPDR/sizeof(struct pde)-8 /* UPT page directory size */
-
-#define	UPTDI		0x3f6		/* ptd entry for u./kernel&user stack */
-#define	PTDPTDI		0x3f7		/* ptd entry that points to ptd! */
-#define	KPTDI_FIRST	0x3f8		/* start of kernel virtual pde's */
-#define	KPTDI_LAST	0x3fA		/* last of kernel virtual pde's */
+#define	NKPDE		3		/* number of kernel pde's */
+#define	NUPDE		(NPTEPG-NKPDE)	/* number of user pde's */
+/*
+ * The *PTDI values control the layout of virtual memory
+ *
+ * XXX This works for now, but I am not real happy with it, I'll fix it
+ * right after I fix locore.s and the magic 28K hole
+ */
+#define	LASTPTDI	(NPTEPG-1)	/* reserved for the future (unused) */
+#define	APTDPTDI	(LASTPTDI-1)	/* alt ptd entry that points to APTD */
+#define	RSVDPTDI	(APTDPTDI-3)	/* reserved for the near future */
+#define	KPTDI_FIRST	(RSVDPTDI-NKPDE)/* start of kernel virtual pde's */
+#define	PTDPTDI		(KPTDI_FIRST-1)	/* ptd entry that points to ptd! */
+#define	UPTDI		(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
 
 /*
  * Address of current and alternate address space page table maps
@@ -157,7 +163,7 @@ extern int	IdlePTD;	/* physical address of "Idle" state directory */
 #define	kvtopte(va)	vtopte(va)
 #define	ptetov(pt)	(i386_ptob(pt - PTmap)) 
 #define	vtophys(va)  (i386_ptob(vtopte(va)->pg_pfnum) | ((int)(va) & PGOFSET))
-#define ispt(va)	((va) >= UPT_MIN_ADDRESS && (va) <= KPT_MAX_ADDRESS)
+#define	ispt(va)	((va) >= UPT_MIN_ADDRESS && (va) <= KPT_MAX_ADDRESS)
 
 #define	avtopte(va)	(APTmap + i386_btop(va))
 #define	ptetoav(pt)	(i386_ptob(pt - APTmap)) 
@@ -193,7 +199,7 @@ extern pmap_t		kernel_pmap;
 /*
  * Macros for speed
  */
-#define PMAP_ACTIVATE(pmapp, pcbp) \
+#define	PMAP_ACTIVATE(pmapp, pcbp) \
 	if ((pmapp) != NULL /*&& (pmapp)->pm_pdchanged */) {  \
 		(pcbp)->pcb_cr3 = \
 		    pmap_extract(kernel_pmap, (pmapp)->pm_pdir); \
@@ -202,7 +208,7 @@ extern pmap_t		kernel_pmap;
 		(pmapp)->pm_pdchanged = FALSE; \
 	}
 
-#define PMAP_DEACTIVATE(pmapp, pcbp)
+#define	PMAP_DEACTIVATE(pmapp, pcbp)
 
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
@@ -218,14 +224,14 @@ typedef struct pv_entry {
 #define	PV_ENTRY_NULL	((pv_entry_t) 0)
 
 #define	PV_CI		0x01	/* all entries must be cache inhibited */
-#define PV_PTPAGE	0x02	/* entry maps a page table page */
+#define	PV_PTPAGE	0x02	/* entry maps a page table page */
 
 #ifdef	KERNEL
 
 pv_entry_t	pv_table;		/* array of entries, one per page */
 
-#define pa_index(pa)		atop(pa - vm_first_phys)
-#define pa_to_pvh(pa)		(&pv_table[pa_index(pa)])
+#define	pa_index(pa)		atop(pa - vm_first_phys)
+#define	pa_to_pvh(pa)		(&pv_table[pa_index(pa)])
 
 #define	pmap_resident_count(pmap)	((pmap)->pm_stats.resident_count)
 
