@@ -907,19 +907,21 @@ ad_timeout(struct ad_request *request)
 }
 
 void
-ad_reinit(struct ad_softc *adp)
+ad_reinit(struct ata_device *atadev)
 {
+    struct ad_softc *adp = atadev->driver;
+
     /* reinit disk parameters */
-    ad_invalidatequeue(adp, NULL);
-    ata_command(adp->device, ATA_C_SET_MULTI, 0,
+    ad_invalidatequeue(atadev->driver, NULL);
+    ata_command(atadev, ATA_C_SET_MULTI, 0,
 		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_INTR);
     if (adp->device->mode >= ATA_DMA)
-	ata_dmainit(adp->device->channel, adp->device->unit,
+	ata_dmainit(atadev->channel, atadev->unit,
 		    ata_pmode(adp->device->param),
 		    ata_wmode(adp->device->param),
 		    ata_umode(adp->device->param));
     else
-	ata_dmainit(adp->device->channel, adp->device->unit,
+	ata_dmainit(atadev->channel, atadev->unit,
 		    ata_pmode(adp->device->param), -1, -1);
 }
 
