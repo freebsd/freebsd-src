@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.67 1998/05/06 18:49:45 brian Exp $
+ * $Id: modem.c,v 1.77.2.68 1998/05/08 01:15:14 brian Exp $
  *
  *  TODO:
  */
@@ -821,7 +821,7 @@ modem_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "closed\n");
   prompt_Printf(arg->prompt, " Device:          %s\n",
                 *modem->name.full ?  modem->name.full :
-                modem->type == PHYS_DIRECT ? "stdin" : "N/A");
+                modem->type == PHYS_DIRECT ? "unknown" : "N/A");
 
   prompt_Printf(arg->prompt, " Link Type:       %s\n", mode2Nam(modem->type));
   prompt_Printf(arg->prompt, " Connect Count:   %d\n",
@@ -922,6 +922,7 @@ struct physical *
 iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
 {
   struct physical *p;
+  int len;
 
   p = (struct physical *)iov[(*niov)++].iov_base;
   p->link.name = dl->name;
@@ -936,7 +937,8 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
   p->desc.next = NULL;
   p->type = PHYS_DIRECT;
   p->dl = dl;
-  p->name.base = strrchr(p->name.full, '/');
+  p->name.base = strncmp(p->name.full, _PATH_DEV, len) ?
+                        p->name.full : p->name.full + len;
   p->mbits = 0;
   p->dev_is_modem = 1;
   p->out = NULL;
