@@ -41,7 +41,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.29 1996/01/11 06:17:46 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.30 1996/01/29 03:12:02 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
@@ -69,8 +69,14 @@ A = ACCUM
  */
 
 /*
- * Initialize any state valid during the idle loop here.  This code is
- * executed on startup and after every bus free.
+ * We assume that the kernel driver may reset us at any time, even in the
+ * middle of a DMA, so clear DFCNTRL too.
+ */
+reset:
+	clr	DFCNTRL
+	clr	SCSISIGO		/* De-assert BSY */
+/*
+ * We jump to start after every bus free.
  */
 start:
 	mvi	SCSISEQ,ENRSELI		/* Always allow reselection */
@@ -373,7 +379,7 @@ dma_finish2:
 /*
  * Copy data from FIFO into SCB data pointer and data count.  This assumes
  * that the struct scatterlist has this structure (this and sizeof(struct
- * scatterlist) == 12 are asserted in aic7xxx.c):
+ * scatterlist) == 12 are asserted in aic7xxx.c for the Linux driver):
  *
  *	struct scatterlist {
  *		char *address;		four bytes, little-endian order
@@ -382,7 +388,7 @@ dma_finish2:
  *	}
  *
  *
- * Not in FreeBSD.  the scatter list entry is only 8 bytes.
+ * In FreeBSD, the scatter list entry is only 8 bytes.
  * 
  * struct ahc_dma_seg {
  *       physaddr addr;                  four bytes, little-endian order
@@ -390,34 +396,23 @@ dma_finish2:
  * };
  */
 
+	mov	HADDR0,DFDAT
+	mov	HADDR1,DFDAT
+	mov	HADDR2,DFDAT
+	mov	HADDR3,DFDAT
 /*
  * For Linux, we must throw away four bytes since there is a 32bit gap
- * in the middle of a struct scatterlist
+ * in the middle of a struct scatterlist.
  */
 #ifdef linux
-	mov	HADDR0,DFDAT
-	mov	HADDR1,DFDAT
-	mov	HADDR2,DFDAT
-	mov	HADDR3,DFDAT
 	mov	NONE,DFDAT
 	mov	NONE,DFDAT
 	mov	NONE,DFDAT
 	mov	NONE,DFDAT
-	mov	HCNT0,DFDAT
-	mov	HCNT1,DFDAT
-	mov	HCNT2,DFDAT
-#else
-/*
- * For FreeBSD, just copy it wholesale
- */
-	mov	HADDR0,DFDAT
-	mov	HADDR1,DFDAT
-	mov	HADDR2,DFDAT
-	mov	HADDR3,DFDAT
-	mov	HCNT0,DFDAT
-	mov	HCNT1,DFDAT
-	mov	HCNT2,DFDAT
 #endif
+	mov	HCNT0,DFDAT
+	mov	HCNT1,DFDAT
+	mov	HCNT2,DFDAT
 
 /* Load STCNT as well.  It is a mirror of HCNT */
 	mov	STCNT0,HCNT0
@@ -787,6 +782,7 @@ mesgin_reject:
  */
 p_busfree:
 	mvi	CLRSINT1,CLRATNO
+	clr	LASTPHASE
 
 /*
  * if this is an immediate command, perform a psuedo command complete to
@@ -795,28 +791,6 @@ p_busfree:
 	test	SCB_CMDLEN,0xff	jz status_ok
 	jmp	start
 
-#if 0
-/*
- * Instead of a generic bcopy routine that requires an argument, we unroll
- * the cases that are actually used, and call them explicitly.  This
- * not only reduces the overhead of doing a bcopy, but ends up saving space 
- * in the program since you don't have to put the argument into the accumulator
- * before the call.  Both functions expect DINDEX to contain the destination 
- * address and SINDEX to contain the source address.
- */
-bcopy_7:
-	mov	DINDIR,SINDIR
-	mov	DINDIR,SINDIR
-bcopy_5:
-	mov	DINDIR,SINDIR
-bcopy_4:
-	mov	DINDIR,SINDIR
-bcopy_3:
-	mov	DINDIR,SINDIR
-	mov	DINDIR,SINDIR
-	mov	DINDIR,SINDIR	ret
-#endif
-	
 /*
  * Locking the driver out, build a one-byte message passed in SINDEX
  * if there is no active message already.  SINDEX is returned intact.
