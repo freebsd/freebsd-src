@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)dumpfs.c	8.2 (Berkeley) 2/2/94";
+static char sccsid[] = "@(#)dumpfs.c	8.5 (Berkeley) 4/29/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -47,13 +47,14 @@ static char sccsid[] = "@(#)dumpfs.c	8.2 (Berkeley) 2/2/94";
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
-#include <unistd.h>
-#include <fcntl.h>
+#include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <fstab.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 union {
 	struct fs fs;
@@ -82,7 +83,7 @@ main(argc, argv)
 	register struct fstab *fs;
 	int ch, eval;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:
@@ -115,13 +116,12 @@ dumpfs(name)
 	if (read(fd, &afs, SBSIZE) != SBSIZE)
 		goto err;
 
-	if (afs.fs_magic != FS_MAGIC) {
-		warnx("%s: superblock has bad magic number, skipping.",
-			name);
-		(void) close(fd);
-		return (1);
-	}
-     
+ 	if (afs.fs_magic != FS_MAGIC) {
+		warnx("%s: superblock has bad magic number, skipped", name);
+		(void)close(fd);
+ 		return (1);
+ 	}
+
 	if (afs.fs_postblformat == FS_42POSTBLFMT)
 		afs.fs_nrpos = 8;
 	dev_bsize = afs.fs_fsize / fsbtodb(&afs, 1);
@@ -153,8 +153,8 @@ dumpfs(name)
 	printf("symlinklen %d\ttrackskew %d\tinterleave %d\tcontigsumsize %d\n",
 	    afs.fs_maxsymlinklen, afs.fs_trackskew, afs.fs_interleave,
 	    afs.fs_contigsumsize);
-	printf("nindir\t%d\tinopb\t%d\tnspf\t%d\n",
-	    afs.fs_nindir, afs.fs_inopb, afs.fs_nspf);
+	printf("nindir\t%d\tinopb\t%d\tnspf\t%d\tmaxfilesize\t%qu\n",
+	    afs.fs_nindir, afs.fs_inopb, afs.fs_nspf, afs.fs_maxfilesize);
 	printf("sblkno\t%d\tcblkno\t%d\tiblkno\t%d\tdblkno\t%d\n",
 	    afs.fs_sblkno, afs.fs_cblkno, afs.fs_iblkno, afs.fs_dblkno);
 	printf("sbsize\t%d\tcgsize\t%d\tcgoffset %d\tcgmask\t0x%08x\n",
@@ -219,7 +219,7 @@ dumpfs(name)
 
 err:	if (fd != -1)
 		(void)close(fd);
-	(void)fprintf(stderr, "dumpfs: %s: %s\n", name, strerror(errno));
+	warn("%s", name);
 	return (1);
 };
 
@@ -236,7 +236,7 @@ dumpcg(name, fd, c)
 	    (off_t)dev_bsize, SEEK_SET)) == (off_t)-1)
 		return (1);
 	if (read(fd, &acg, afs.fs_bsize) != afs.fs_bsize) {
-		(void)fprintf(stderr, "dumpfs: %s: error reading cg\n", name);
+		warnx("%s: error reading cg", name);
 		return (1);
 	}
 	printf("magic\t%x\ttell\t%qx\ttime\t%s",
