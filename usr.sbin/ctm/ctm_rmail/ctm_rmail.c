@@ -254,6 +254,7 @@ read_piece(char *input_file)
     {
     int status = 0;
     FILE *ifp, *ofp = 0;
+    int ofd;
     int decoding = 0;
     int got_one = 0;
     int line_no = 0;
@@ -303,13 +304,13 @@ read_piece(char *input_file)
 	    got_one++;
 	    strcpy(tname, piece_dir);
 	    strcat(tname, "/p.XXXXXX");
-	    if (mktemp(tname) == NULL)
+	    if ((ofd = mkstemp(tname)) < 0)
 		{
-		err("*mktemp: '%s'", tname);
+		err("*mkstemp: '%s'", tname);
 		status++;
 		continue;
 		}
-	    if ((ofp = fopen(tname, "w")) == NULL)
+	    if ((ofp = fdopen(ofd, "w")) == NULL)
 		{
 		err("cannot open '%s' for writing", tname);
 		status++;
@@ -492,17 +493,18 @@ int
 combine(char *delta, int npieces, char *dname, char *pname, char *tname)
     {
     FILE *dfp, *pfp;
+    int dfd;
     int i, n, e;
     char buf[BUFSIZ];
 
     strcpy(tname, delta_dir);
     strcat(tname, "/d.XXXXXX");
-    if (mktemp(tname) == NULL)
+    if ((dfd = mkstemp(tname)) < 0)
 	{
-	err("*mktemp: '%s'", tname);
+	err("*mkstemp: '%s'", tname);
 	return 0;
 	}
-    if ((dfp = fopen(tname, "w")) == NULL)
+    if ((dfp = fdopen(dfd, "w")) == NULL)
 	{
 	err("cannot open '%s' for writing", tname);
 	return 0;
