@@ -73,8 +73,7 @@
 #define	MTX_NOSWITCH	0x20		/* Do not switch on release */
 #define	MTX_FIRST	0x40		/* First spin lock holder */
 #define MTX_TOPHALF	0x80		/* Interrupts not disabled on spin */
-#define MTX_COLD	0x100		/* Mutex init'd before malloc works */
-#define	MTX_QUIET	0x200		/* Don't log a mutex event */
+#define	MTX_QUIET	0x100		/* Don't log a mutex event */
 
 /* options that should be passed on to mtx_enter_hard, mtx_exit_hard */
 #define	MTX_HARDOPTS	(MTX_SPIN | MTX_FIRST | MTX_TOPHALF | MTX_NOSWITCH)
@@ -98,11 +97,13 @@ struct mtx_debug {
 	const char	*mtxd_description;
 };
 
-#define mtx_description	mtx_debug->mtxd_description
-#define mtx_held	mtx_debug->mtxd_held
-#define	mtx_line	mtx_debug->mtxd_line
-#define	mtx_file	mtx_debug->mtxd_file
-#define	mtx_witness	mtx_debug->mtxd_witness
+#define mtx_description	mtx_union.mtxu_debug->mtxd_description
+#define mtx_held	mtx_union.mtxu_debug->mtxd_held
+#define	mtx_line	mtx_union.mtxu_debug->mtxd_line
+#define	mtx_file	mtx_union.mtxu_debug->mtxd_file
+#define	mtx_witness	mtx_union.mtxu_debug->mtxd_witness
+#else	/* WITNESS */
+#define mtx_description	mtx_union.mtxu_description
 #endif	/* WITNESS */
 
 /*
@@ -112,24 +113,16 @@ struct mtx {
 	volatile uintptr_t mtx_lock;	/* lock owner/gate/flags */
 	volatile u_int	mtx_recurse;	/* number of recursive holds */
 	u_int		mtx_saveintr;	/* saved flags (for spin locks) */
-#ifdef WITNESS
-	struct mtx_debug *mtx_debug;
-#else
-	const char	*mtx_description;
-#endif
+	int		mtx_flags;	/* flags passed to mtx_init() */
+	union {
+		struct mtx_debug *mtxu_debug;
+		const char	*mtxu_description;
+	}		mtx_union;
 	TAILQ_HEAD(, proc) mtx_blocked;
 	LIST_ENTRY(mtx)	mtx_contested;
 	struct mtx	*mtx_next;	/* all locks in system */
 	struct mtx	*mtx_prev;
 };
-
-#ifdef	WITNESS
-#define	MUTEX_DECLARE(modifiers, name)					\
-	static struct mtx_debug __mtx_debug_##name;			\
-	modifiers struct mtx name = { 0, 0, 0, &__mtx_debug_##name }
-#else
-#define MUTEX_DECLARE(modifiers, name)	modifiers struct mtx name
-#endif
 
 #define mp_fixme(string)
 
