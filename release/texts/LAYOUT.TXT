@@ -4,19 +4,21 @@ Distribution format
 
 A typical FreeBSD distribution directory looks something like this:
 
-ABOUT.TXT       bin             dict            manpages        tools
-HARDWARE.TXT    compat1x        des             doc             packages
-INSTALL.TXT     compat20        floppies        ports
-README.TXT      compat21        games           proflibs
-RELNOTES.TXT    compat22        info            src
-LAYOUT.TXT      XF86335
+ABOUT.TXT       bin             compat3x        games           proflibs
+HARDWARE.TXT    compat1x        info		src             tools
+INSTALL.TXT     compat20        dict            manpages        packages
+README.TXT      compat21        des             doc
+RELNOTES.TXT    compat22        floppies        ports
+XF86336
 
-If you want to do a CDROM, FTP or NFS installation from this distribution
-directory, all you need to do is make a pair of 1.44MB floppies from the
-floppies/kern.flp and floppies/mfsroot.flp image files (see
-floppies/README.TXT for instructions on how to do this), boot the
-kern.flp image and follow the instructions.  See INSTALL.TXT for more
-information on all of this.
+If you want to do a CDROM, FTP or NFS installation from this
+distribution directory, all you need to do is make the 1.44MB boot
+floppies from the floppies directory (see floppies/README.TXT for
+instructions on how to do this), boot them and follow the instructions.
+The rest of the data needed during the installation will be obtained
+automatically based on your selections.  If you've never installed
+FreeBSD before, you also want to read the INSTALL.TXT file for 
+instructions.
 
 If you're trying to do some other type of installation or are merely
 curious about how a distribution is organized, what follows is a more
@@ -25,7 +27,7 @@ thorough description of each item in more detail:
 1. The *.TXT files obviously contain documentation (this file is
    LAYOUT.TXT) and should be read before starting an installation.
 
-2. The XF86335 directory contains the XFree86 project's 3.3.5 release and
+2. The XF86336 directory contains the XFree86 project's 3.3.6 release and
    consists of a series of gzip'd tar files which contain each component
    of the XFree86 distribution.
 
@@ -34,12 +36,10 @@ thorough description of each item in more detail:
    itself and are split into smaller files for easy packing onto floppies
    (should that be necessary).
 
-4. The compat1x, compat20, compat21 and compat22 directories contain
-   distributions for compatibility with older releases and are distributed
-   as single gzip'd tar files - they can be installed during release time
-   or later by running their `install.sh' scripts.  Those wishing to
-   run older (2.2.x) a.out dynamically linked executables should always
-   install the compat22 distribution.
+4. The compat1x, compat20, compat21, compat22, and compat3x directories
+   contain distributions for compatibility with older releases and are
+   distributed as single gzip'd tar files - they can be installed during
+   release time or later by running their `install.sh' scripts.
 
 5. The floppies subdirectory also contains the floppy installation images
    and the floppies/README.TXT file should be read for further
@@ -52,7 +52,7 @@ thorough description of each item in more detail:
    command.
 
    The ports collection may be installed like any other distribution
-   and requires about 50MB unpacked.  More information on the ports
+   and requires about 100MB unpacked.  More information on the ports
    collection may be obtained from http://www.freebsd.org/ports or
    locally from ``file:/usr/share/doc/handbook'' if you've installed
    the doc distribution.

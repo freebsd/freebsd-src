@@ -19,10 +19,10 @@ fixit.flp image floppy, generated in the same fashion as the boot
 floppy, or the 2nd CDROM from Walnut Creek CDROM's FreeBSD
 distribution.
 
-To invoke fixit, simply boot the boot floppy, choose the "Fixit" item
-and insert the fixit floppy or CDROM when asked.  You will then be
-placed into a shell with a wide variety of commands available (in the
-/stand and /mnt2/stand directories) for checking, repairing and
+To invoke fixit, simply boot the kern.flp floppy, choose the "Fixit"
+item and insert the fixit floppy or CDROM when asked.  You will then
+be placed into a shell with a wide variety of commands available (in
+the /stand and /mnt2/stand directories) for checking, repairing and
 examining file systems and their contents.  Some UNIX administration
 experience *is* required to use the fixit option!
 
