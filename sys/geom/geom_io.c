@@ -279,6 +279,9 @@ g_io_deliver(struct bio *bp, int error)
 	}
 	KASSERT(cp != NULL, ("NULL bio_from in g_io_deliver"));
 	KASSERT(cp->geom != NULL, ("NULL bio_from->geom in g_io_deliver"));
+	KASSERT(bp->bio_completed >= 0, ("bio_completed can't be less than 0"));
+	KASSERT(bp->bio_completed <= bp->bio_length,
+	    ("bio_completed can't be greater than bio_length"));
 
 	g_trace(G_T_BIO,
 "g_io_deliver(%p) from %p(%s) to %p(%s) cmd %d error %d off %jd len %jd",
