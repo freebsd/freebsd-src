@@ -136,7 +136,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		 * to ensure this within a single object. If the
 		 * caller's alloca failed, we don't even ensure that.
 		 */
-		const Elf_Sym *def;
+		const Elf_Sym *def, *ref;
 		const Obj_Entry *defobj;
 		struct fptr *fptr = 0;
 		Elf_Addr target, gp;
@@ -153,8 +153,21 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 			def = &obj->symtab[ELF_R_SYM(rela->r_info)];
 			defobj = obj;
 		}
-		target = (Elf_Addr) (defobj->relocbase + def->st_value);
-		gp = (Elf_Addr) defobj->pltgot;
+		/*
+		 * If this is an undefined weak reference, we need to
+		 * have a zero target,gp fptr, not pointing to relocbase.
+		 * This isn't quite right.  Maybe we should check
+		 * explicitly for def == &sym_zero.
+		 */
+		if (def->st_value == 0 &&
+		    (ref = obj->symtab + ELF_R_SYM(rela->r_info)) &&
+		    ELF_ST_BIND(ref->st_info) == STB_WEAK) {
+			target = 0;
+			gp = 0;
+		} else {
+			target = (Elf_Addr) (defobj->relocbase + def->st_value);
+			gp = (Elf_Addr) defobj->pltgot;
+		}
 
 		/*
 		 * Find the @fptr, using fptrs as a helper.
