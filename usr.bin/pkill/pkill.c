@@ -109,6 +109,7 @@ struct listhead pgrplist = SLIST_HEAD_INITIALIZER(list);
 struct listhead ppidlist = SLIST_HEAD_INITIALIZER(list);
 struct listhead tdevlist = SLIST_HEAD_INITIALIZER(list);
 struct listhead sidlist = SLIST_HEAD_INITIALIZER(list);
+struct listhead jidlist = SLIST_HEAD_INITIALIZER(list);
 
 int	main(int, char **);
 void	usage(void);
@@ -168,7 +169,7 @@ main(int argc, char **argv)
 	debug_opt = 0;
 	execf = coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DG:M:N:P:U:d:fg:lns:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DG:M:N:P:U:d:fg:j:lns:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
@@ -201,6 +202,10 @@ main(int argc, char **argv)
 			break;
 		case 'g':
 			makelist(&pgrplist, LT_PGRP, optarg);
+			criteria = 1;
+			break;
+		case 'j':
+			makelist(&jidlist, LT_GENERIC, optarg);
 			criteria = 1;
 			break;
 		case 'l':
@@ -390,6 +395,19 @@ main(int argc, char **argv)
 			continue;
 		}
 
+		SLIST_FOREACH(li, &jidlist, li_chain) {
+			if (kp->ki_jid > 0) {
+				if (li->li_number == 0)
+					break;
+				if (kp->ki_jid == (int)li->li_number)
+					break;
+			}
+		}
+		if (SLIST_FIRST(&jidlist) != NULL && li == NULL) {
+			selected[i] = 0;
+			continue;
+		}
+
 		if (argc == 0)
 			selected[i] = 1;
 	}
@@ -451,8 +469,9 @@ usage(void)
 
 	fprintf(stderr,
 		"usage: %s %s [-G gid] [-M core] [-N system]\n"
-		"             [-P ppid] [-U uid] [-g pgrp] [-s sid] [-t tty]\n"
-		"             [-u euid] pattern ...\n", getprogname(), ustr);
+		"             [-P ppid] [-U uid] [-g pgrp] [-j jid] [-s sid]\n"
+		"             [-t tty] [-u euid] pattern ...\n", getprogname(),
+		ustr);
 
 	exit(STATUS_ERROR);
 }
