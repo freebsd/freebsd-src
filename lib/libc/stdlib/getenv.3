@@ -75,10 +75,6 @@ The
 .Fn getenv
 function obtains the current value of the environment variable,
 .Fa name .
-If the variable
-.Fa name
-is not in the current environment,
-a null pointer is returned.
 .Pp
 The
 .Fn setenv
@@ -115,6 +111,16 @@ deletes all instances of the variable name pointed to by
 .Fa name
 from the list.
 .Sh RETURN VALUES
+The
+.Fn getenv
+function returns the value of the environment variable as a nul terminated
+string.
+If the variable
+.Fa name
+is not in the current environment,
+.Dv NULL
+is returned.
+.Pp
 .Rv -std setenv putenv
 .Sh ERRORS
 .Bl -tag -width Er
