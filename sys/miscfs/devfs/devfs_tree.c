@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.44 1997/10/12 20:24:34 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.45 1997/10/12 22:27:11 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -62,6 +62,7 @@ devfs_sinit(void *junk)
 	dev_root->dnp->dvm = (struct devfsmount *)devfs_hidden_mount->mnt_data;
 	devfs_up_and_going = 1;
 	printf("DEVFS: ready for devices\n");
+	/* part 2 of this is done later */
 }
 SYSINIT(devfs, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_sinit, NULL)
 

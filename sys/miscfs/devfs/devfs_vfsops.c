@@ -1,7 +1,7 @@
-/*
+/*-
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.21 1997/10/11 18:31:28 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.22 1997/10/12 20:24:35 phk Exp $
  *
  *
  */
@@ -18,25 +18,41 @@
 static MALLOC_DEFINE(M_DEVFSMNT, "DEVFS mount", "DEVFS mount structure");
 
 static int devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p);
-static int mountdevfs( struct mount *mp, struct proc *p);
 
+/*-
+ * Called from the generic VFS startups.
+ * This is the second stage of DEVFS initialisation.
+ * The probed devices have already been loaded and the 
+ * basic structure of the DEVFS created.
+ * We take the oportunity to mount the hidden DEVFS layer, so that
+ * devices from devfs get sync'd.
+ */
 static int
 devfs_init(struct vfsconf *vfsp)
 {
-	/*
+	struct mount *mp = dev_root->dnp->dvm->mount;
+	/*-
 	 * fill in the missing members on the "hidden" mount
+	 * we could almost use vfs_rootmountalloc() to do this.
 	 */
-	dev_root->dnp->dvm->mount->mnt_op  = vfsp->vfc_vfsops; 
-	dev_root->dnp->dvm->mount->mnt_vfc = vfsp;
+	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
+	(void)vfs_busy(mp, LK_NOWAIT, 0, NULL);
+	mp->mnt_op = vfsp->vfc_vfsops;
+	mp->mnt_vfc = vfsp;
+	mp->mnt_stat.f_type = vfsp->vfc_typenum;
+	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
+	strncpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
+	mp->mnt_vnodecovered = NULLVP;
 
 	/* Mark a reference for the "invisible" blueprint mount */
-	dev_root->dnp->dvm->mount->mnt_vfc->vfc_refcount++;
+	mp->mnt_vfc->vfc_refcount++;
+	/*CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);*/
 
 	printf("DEVFS: ready to run\n");
 	return 0; /*XXX*/
 }
 
-/*
+/*-
  *  mp	 - pointer to 'mount' structure
  *  path - addr in user space of mount point (ie /usr or whatever)
  *  data - addr in user space of mount params including the
@@ -53,36 +69,59 @@ int
 devfs_mount(struct mount *mp, char *path, caddr_t data,
 	    struct nameidata *ndp, struct proc *p)
 {
-	struct devfsmount *devfs_mp_p;	/* devfs specific mount control block	*/
+	struct devfsmount *devfs_mp_p;	/* devfs specific mount info */
 	int error;
 	u_int size;
 
 DBPRINT(("mount "));
-/*
- *  If they just want to update, we don't need to do anything.
- */
+
+	/*-
+	 *  If they just want to update, we don't need to do anything.
+	 */
 	if (mp->mnt_flag & MNT_UPDATE)
 	{
 		return 0;
 	}
 
-/*
- *  Well, it's not an update, it's a real mount request.
- *  Time to get dirty.
- * HERE we should check to see if we are already mounted here.
- */
-	if(error =  mountdevfs( mp, p))
-		return (error);
+	/*-
+	 *  Well, it's not an update, it's a real mount request.
+	 *  Time to get dirty.
+	 * HERE we should check to see if we are already mounted here.
+	 */
 
-/*
- *  Copy in the name of the directory the filesystem
- *  is to be mounted on.
- *  And we clear the remainder of the character strings
- *  to be tidy.
- *  Then, we try to fill in the filesystem stats structure
- *  as best we can with whatever we can think of at the time
- */
-	devfs_mp_p = (struct devfsmount *)mp->mnt_data;
+	devfs_mp_p = (struct devfsmount *)malloc(sizeof *devfs_mp_p,
+						M_DEVFSMNT, M_WAITOK);
+	if (devfs_mp_p == NULL)
+		return (ENOMEM);
+	bzero(devfs_mp_p,sizeof(*devfs_mp_p));
+	devfs_mp_p->mount = mp;
+	mp->mnt_data = devfs_mp_p;
+
+	/*-
+	 *  Fill out some fields
+	 */
+	mp->mnt_data = (qaddr_t)devfs_mp_p;
+	mp->mnt_stat.f_type = MOUNT_DEVFS;
+	mp->mnt_stat.f_fsid.val[0] = (long)devfs_mp_p;
+	mp->mnt_stat.f_fsid.val[1] = MOUNT_DEVFS;
+	mp->mnt_flag |= MNT_LOCAL;
+
+	if(error = dev_dup_plane(devfs_mp_p))
+	{
+		mp->mnt_data = (qaddr_t)0;
+		free((caddr_t)devfs_mp_p, M_DEVFSMNT);
+		return (error);
+	}
+
+	/*-
+	 *  Copy in the name of the directory the filesystem
+	 *  is to be mounted on.
+	 *  And we clear the remainder of the character strings
+	 *  to be tidy.
+	 *  Then, we try to fill in the filesystem stats structure
+	 *  as best we can with whatever we can think of at the time
+	 */
+	
 	if(devfs_up_and_going) {
 		copyinstr(path, (caddr_t)mp->mnt_stat.f_mntonname,
 			sizeof(mp->mnt_stat.f_mntonname)-1, &size);
@@ -97,34 +136,6 @@ DBPRINT(("mount "));
 	return 0;
 }
 
-static int
-mountdevfs( struct mount *mp, struct proc *p)
-{
-	int error = 0;
-	struct devfsmount *devfs_mp_p;
-
-
-	devfs_mp_p = (struct devfsmount *)malloc(sizeof *devfs_mp_p,
-						M_DEVFSMNT, M_WAITOK);
-	bzero(devfs_mp_p,sizeof(*devfs_mp_p));
-	devfs_mp_p->mount = mp;
-
-/*
- *  Fill out some fields
- */
-	mp->mnt_data = (qaddr_t)devfs_mp_p;
-	mp->mnt_stat.f_type = MOUNT_DEVFS;
-	mp->mnt_stat.f_fsid.val[0] = (long)devfs_mp_p;
-	mp->mnt_stat.f_fsid.val[1] = MOUNT_DEVFS;
-	mp->mnt_flag |= MNT_LOCAL;
-
-	if(error = dev_dup_plane(devfs_mp_p))
-	{
-		mp->mnt_data = (qaddr_t)0;
-		free((caddr_t)devfs_mp_p, M_DEVFSMNT);
-	}
-	return error;
-}
 
 static int
 devfs_start(struct mount *mp, int flags, struct proc *p)
@@ -133,7 +144,7 @@ DBPRINT(("start "));
 	return 0;
 }
 
-/*
+/*-
  *  Unmount the filesystem described by mp.
  */
 static int
@@ -143,6 +154,7 @@ devfs_unmount( struct mount *mp, int mntflags, struct proc *p)
 	int flags = 0;
 	int error;
 	
+printf("-devfs_unmount-");
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
 	}
@@ -183,7 +195,7 @@ devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p)
 {
 	struct devfsmount *devfs_mp_p = (struct devfsmount *)mp->mnt_data;
 
-/*
+/*-
  *  Fill in the stat block.
  */
 DBPRINT(("statfs "));
@@ -199,7 +211,7 @@ DBPRINT(("statfs "));
 	sbp->f_fsid.val[0] = (long)devfs_mp_p;
 	sbp->f_fsid.val[1] = MOUNT_DEVFS;
 
-/*
+/*-
  *  Copy the mounted on and mounted from names into
  *  the passed in stat block, if it is not the one
  *  in the mount structure.
@@ -213,7 +225,7 @@ DBPRINT(("statfs "));
 	return 0;
 }
 
-/*
+/*-
  * Go through the disk queues to initiate sandbagged IO;
  * go through the inodes to write those that have been modified;
  * initiate the writing of the super block if it has been modified.
@@ -229,17 +241,17 @@ devfs_sync(struct mount *mp, int waitfor,struct ucred *cred,struct proc *p)
 
 DBPRINT(("sync "));
 
-	/*
+	/*-
 	 * Write back modified superblock.
 	 * Consistency check that the superblock
 	 * is still in the buffer cache.
 	 */
-	/*
+	/*-
 	 * Write back each (modified) inode.
 	 */
 loop:
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
-		/*
+		/*-
 		 * If the vnode that we are about to sync is no longer
 		 * associated with this mount point, start over.
 		 */
@@ -266,7 +278,7 @@ loop:
 		}
 #endif
 	}
-	/*
+	/*-
 	 * Force stale file system control information to be flushed.
 	 *( except that htat makes no sense with devfs
 	 */
