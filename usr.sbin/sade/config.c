@@ -371,8 +371,10 @@ configSysconfig(char *config)
 	msgDebug("Writing %s out to debugging screen..\n", config);
 	fp = fdopen(DebugFD, "w");
     }
-    else
+    else {
+	(void)vsystem("cp %s %s.previous", config, config);
     	fp = fopen(config, "w");
+    }
     for (i = 0; i < nlines; i++) {
 	static Boolean firstTime = TRUE;
 
