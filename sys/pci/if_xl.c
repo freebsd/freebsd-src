@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.54 1998/09/25 17:43:57 wpaul Exp wpaul $
+ *	$Id: if_xl.c,v 1.13 1998/10/09 03:59:23 wpaul Exp $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.54 1998/09/25 17:43:57 wpaul Exp wpaul $";
+	"$Id: if_xl.c,v 1.13 1998/10/09 03:59:23 wpaul Exp $";
 #endif
 
 /*
@@ -1704,6 +1704,7 @@ static int xl_list_tx_init(sc)
 
 	cd->xl_tx_free = &cd->xl_tx_chain[0];
 	cd->xl_tx_tail = cd->xl_tx_head = NULL;
+	sc->xl_txeoc = 1;
 
 	return(0);
 }
@@ -1939,15 +1940,16 @@ static void xl_txeof(sc)
 	if (sc->xl_cdata.xl_tx_head == NULL) {
 		ifp->if_flags &= ~IFF_OACTIVE;
 		sc->xl_cdata.xl_tx_tail = NULL;
+		sc->xl_txeoc = 1;
 		if (sc->xl_want_auto)
 			xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 	} else {
-		if (CSR_READ_4(sc, XL_DMACTL) & XL_DMACTL_DOWN_STALLED ||
-			!CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
-			CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
+		sc->xl_txeoc = 0;
+		CSR_WRITE_4(sc, XL_COMMAND, XL_CMD_DOWN_STALL);
+		xl_wait(sc);
+		CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 				vtophys(sc->xl_cdata.xl_tx_head->xl_ptr));
-			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
-		}
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
 	}
 
 	return;
@@ -2269,21 +2271,21 @@ static void xl_start(ifp)
 	 * Queue the packets. If the TX channel is clear, update
 	 * the downlist pointer register.
 	 */
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_STALL);
-	xl_wait(sc);
-
-	if (CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
-		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
-		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
-					vtophys(start_tx->xl_ptr);
-		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
-					~XL_TXSTAT_DL_INTR;
-	} else {
+	if (sc->xl_cdata.xl_tx_head == NULL) {
 		sc->xl_cdata.xl_tx_head = start_tx;
 		sc->xl_cdata.xl_tx_tail = cur_tx;
-		CSR_WRITE_4(sc, XL_DOWNLIST_PTR, vtophys(start_tx->xl_ptr));
+		if (sc->xl_txeoc) {
+			sc->xl_txeoc = 0;
+			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_STALL);
+			xl_wait(sc);
+			CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
+					vtophys(start_tx->xl_ptr));
+			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
+		}
+	} else {
+		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
+		sc->xl_cdata.xl_tx_tail = start_tx;
 	}
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
 
 	XL_SEL_WIN(7);
 
