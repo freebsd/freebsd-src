@@ -168,7 +168,11 @@ ENTRY(cpu_switch)
 #ifdef LAZY_SWITCH
 	cmpl	$0,lazy_flush_enable
 	je	1f
+#ifdef PAE
 	cmpl	%eax,IdlePTD			/* Kernel address space? */
+#else
+	cmpl	%eax,IdlePTD			/* Kernel address space? */
+#endif
 #ifdef SWTCH_OPTIM_STATS
 	je	3f
 #else
