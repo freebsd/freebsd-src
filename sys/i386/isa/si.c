@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.88 1999/08/18 17:42:41 nsayer Exp $
+ *	$Id: si.c,v 1.89 1999/08/23 20:58:48 phk Exp $
  */
 
 #ifndef lint
@@ -1589,9 +1589,12 @@ siioctl(dev, cmd, data, flag, p)
 
 	error = ttioctl(tp, cmd, data, flag);
 	si_disc_optim(tp, &tp->t_termios, pp);
-	if (error != ENOIOCTL)
-		goto outspl;
+	if (error != ENOIOCTL) {
+		splx(oldspl);
+		goto out;
+	}
 
+	error = 0;
 	switch (cmd) {
 	case TIOCSBRK:
 		si_command(pp, SBREAK, SI_WAIT);
@@ -1620,21 +1623,17 @@ siioctl(dev, cmd, data, flag, p)
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
 		error = suser(p);
-		if (error != 0) {
-			goto outspl;
-		}
-		pp->sp_dtr_wait = *(int *)data * hz / 100;
+		if (error == 0)
+			pp->sp_dtr_wait = *(int *)data * hz / 100;
 		break;
 	case TIOCMGDTRWAIT:
 		*(int *)data = pp->sp_dtr_wait * 100 / hz;
 		break;
-
 	default:
 		error = ENOTTY;
 	}
-	error = 0;
-outspl:
 	splx(oldspl);
+
 out:
 	DPRINT((pp, DBG_IOCTL|DBG_EXIT, "siioctl ret %d\n", error));
 	if (blocked)
