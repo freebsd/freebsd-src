@@ -1295,31 +1295,9 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 	/*
 	 * Historically, paging was done with physio, but no more.
 	 */
-	if (bp->b_flags & B_PHYS) {
-	    /*
-	     * ...though reading /dev/drum still gets us here.
-	     */
-	    io.iov_len = uiop->uio_resid = bp->b_bcount;
-	    /* mapping was done by vmapbuf() */
-	    io.iov_base = bp->b_data;
-	    uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE;
-	    if (bp->b_iocmd == BIO_READ) {
-		uiop->uio_rw = UIO_READ;
-		nfsstats.read_physios++;
-		error = nfs_readrpc(vp, uiop, cr);
-	    } else {
-		int com;
+	KASSERT(!(bp->b_flags & B_PHYS), ("B_PHYS in nfs_doio"));
 
-		iomode = NFSV3WRITE_DATASYNC;
-		uiop->uio_rw = UIO_WRITE;
-		nfsstats.write_physios++;
-		error = nfs_writerpc(vp, uiop, cr, &iomode, &com);
-	    }
-	    if (error) {
-		bp->b_ioflags |= BIO_ERROR;
-		bp->b_error = error;
-	    }
-	} else if (bp->b_iocmd == BIO_READ) {
+	if (bp->b_iocmd == BIO_READ) {
 	    io.iov_len = uiop->uio_resid = bp->b_bcount;
 	    io.iov_base = bp->b_data;
 	    uiop->uio_rw = UIO_READ;
