@@ -28,7 +28,7 @@
 .\" change is made to the manual page.
 .Dd December 6, 2001
 .Dt HOST.CONF 5
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm host.conf
 .Nd resolver services configuration file
@@ -47,9 +47,10 @@ the C library resolving routines
 will use, and their order of use, when resolving host names or addresses.
 .Pp
 The format of this file is human readable, and easy to modify with the
-text editor of your choise.  Lines with
+text editor of your choise.
+Lines with
 .Ql #
-in the first column, are comments and are ignored.
+in the first column are comments and are ignored.
 The rest of the lines may contain any number of service names,
 separated by any number of colons
 .Pq Ql \&: ,
@@ -62,54 +63,56 @@ or whitespace (tab, space and newline characters).
 Service names that are recognized as valid in
 .Nm
 are:
-.Bl -tag -width "yellowpages"
-.It /etc/hosts
+.Bl -tag -width ".Li yellowpages"
+.It Li /etc/hosts
 An alias for
 .Ql hosts .
-.It bind
+.It Li bind
 This service makes the resolver use Internet Domain System (DNS) for
-resolving hostnames and addresses.  The DNS resolver configuration is
+resolving hostnames and addresses.
+The DNS resolver configuration is
 described in
 .Xr resolver 5 .
-.It dns
+.It Li dns
 An alias for
 .Ql bind .
-.It domain
+.It Li domain
 An alias for
 .Ql bind .
-.It hosts
+.It Li hosts
 When this service name is used in
 .Nm ,
 name and address lookups are done by using the local hosts database.
 The local hosts database is described in
 .Xr hosts 5 .
-.It hosttable
+.It Li hosttable
 An alias for
 .Ql hosts .
-.It htable
+.It Li htable
 An alias for
 .Ql hosts .
-.It nis
+.It Li nis
 When service name is used in
 .Nm ,
 the resolver uses YP/NIS for making lookups of hostnames and
-addresses.  The YP/NIS system is described in
+addresses.
+The YP/NIS system is described in
 .Xr yp 8 .
-.It yellowpages
+.It Li yellowpages
 An alias for
 .Ql nis .
-.It yp
+.It Li yp
 An alias for
 .Ql nis .
 .El
 .Sh FILES
-.Bl -tag -width "resolv.conf"
+.Bl -tag -width ".Pa host.conf"
 .It Pa host.conf
 The services configuration file resides in
 .Pa /etc .
 .El
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
-.Xr yp 8 ,
+.Xr hosts 5 ,
 .Xr resolver 5 ,
-.Xr hosts 5
+.Xr yp 8
