@@ -127,6 +127,7 @@ ffs_snapshot(mp, snapfile)
 	long redo = 0;
 	int32_t *lp;
 	void *space;
+	daddr_t *listhd;
 	struct fs *copy_fs = NULL, *fs = VFSTOUFS(mp)->um_fs;
 	struct snaphead *snaphead;
 	struct thread *td = curthread;
@@ -136,6 +137,8 @@ ffs_snapshot(mp, snapfile)
 	struct mount *wrtmp;
 	struct vattr vat;
 	struct vnode *vp, *xvp, *nvp;
+	struct uio auio;
+	struct iovec aiov;
 
 	/*
 	 * Need to serialize access to snapshot code per filesystem.
@@ -384,6 +387,8 @@ restart:
 	 * not reclaimed prematurely by fsck or unnecessarily dumped.
 	 * We turn off the MNTK_SUSPENDED flag to avoid a panic from
 	 * spec_strategy about writing on a suspended filesystem.
+	 * Note that we skip unlinked snapshot files as they will
+	 * be handled separately below.
 	 */
 	mp->mnt_kern_flag &= ~MNTK_SUSPENDED;
 	mtx_lock(&mntvnode_mtx);
@@ -399,6 +404,7 @@ loop:
 		mtx_unlock(&mntvnode_mtx);
 		mp_fixme("Unlocked GETATTR.");
 		if (vrefcnt(xvp) == 0 || xvp->v_type == VNON ||
+		    (VTOI(xvp)->i_flags & SF_SNAPSHOT) ||
 		    (VOP_GETATTR(xvp, &vat, td->td_proc->p_ucred, td) == 0 &&
 		    vat.va_nlink > 0)) {
 			mtx_lock(&mntvnode_mtx);
@@ -496,8 +502,17 @@ out1:
 		}
 	}
 	/*
+	 * Allocate the space for the list of preallocated snapshot blocks.
+	 */
+	ip->i_snaplistsize = fragstoblks(fs, dbtofsb(fs, DIP(ip,i_blocks))) + 1;
+	MALLOC(listhd, daddr_t *, ip->i_snaplistsize * sizeof(daddr_t),
+	    M_UFSMNT, M_WAITOK);
+	ip->i_snapblklist = listhd;
+	*ip->i_snapblklist++ = ip->i_snaplistsize;
+	/*
 	 * Expunge the blocks used by the snapshots from the set of
-	 * blocks marked as used in the snapshot bitmaps.
+	 * blocks marked as used in the snapshot bitmaps. Also, collect
+	 * the list of allocated blocks in i_snapblklist.
 	 */
 	if (ip->i_ump->um_fstype == UFS1)
 		error = expunge_ufs1(vp, ip, copy_fs, mapacct_ufs1, BLK_SNAP);
@@ -505,8 +520,30 @@ out1:
 		error = expunge_ufs2(vp, ip, copy_fs, mapacct_ufs2, BLK_SNAP);
 	if (error) {
 		fs->fs_snapinum[snaploc] = 0;
+		FREE(listhd, M_UFSMNT);
 		goto done;
 	}
+	/*
+	 * Write out the list of allocated blocks to the end of the snapshot.
+	 */
+	if (ip->i_snapblklist - listhd != ip->i_snaplistsize)
+		printf("Snaplist mismatch, got %d should be %jd\n",
+		    ip->i_snapblklist - listhd, (intmax_t)ip->i_snaplistsize);
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	aiov.iov_base = (void *)listhd;
+	aiov.iov_len = ip->i_snaplistsize * sizeof(daddr_t);
+	auio.uio_resid = aiov.iov_len;;
+	auio.uio_offset = ip->i_size;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_td = td;
+	if ((error = VOP_WRITE(vp, &auio, IO_UNIT, td->td_ucred)) != 0) {
+		fs->fs_snapinum[snaploc] = 0;
+		FREE(listhd, M_UFSMNT);
+		goto done;
+	}
+	ip->i_snapblklist = listhd;
 	/*
 	 * Write the superblock and its summary information
 	 * to the snapshot.
@@ -519,6 +556,8 @@ out1:
 		if (error) {
 			brelse(nbp);
 			fs->fs_snapinum[snaploc] = 0;
+			FREE(listhd, M_UFSMNT);
+			ip->i_snapblklist = NULL;
 			goto done;
 		}
 		bcopy(space, nbp->b_data, fs->fs_bsize);
@@ -891,13 +930,17 @@ mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 	int expungetype;
 {
 	ufs1_daddr_t blkno;
+	struct inode *ip;
 	ino_t inum;
 
-	inum = VTOI(vp)->i_number;
+	ip = VTOI(vp);
+	inum = ip->i_number;
 	for ( ; oldblkp < lastblkp; oldblkp++, lblkno++) {
 		blkno = *oldblkp;
 		if (blkno == 0 || blkno == BLK_NOCOPY)
 			continue;
+		if (expungetype == BLK_SNAP && blkno != BLK_SNAP)
+			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
 		ffs_blkfree(fs, vp, blkno, fs->fs_bsize, inum);
@@ -1144,13 +1187,17 @@ mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 	int expungetype;
 {
 	ufs2_daddr_t blkno;
+	struct inode *ip;
 	ino_t inum;
 
-	inum = VTOI(vp)->i_number;
+	ip = VTOI(vp);
+	inum = ip->i_number;
 	for ( ; oldblkp < lastblkp; oldblkp++, lblkno++) {
 		blkno = *oldblkp;
 		if (blkno == 0 || blkno == BLK_NOCOPY)
 			continue;
+		if (expungetype == BLK_SNAP && blkno != BLK_SNAP)
+			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
 		ffs_blkfree(fs, vp, blkno, fs->fs_bsize, inum);
@@ -1230,6 +1277,13 @@ ffs_snapremove(vp)
 			devvp->v_rdev->si_copyonwrite = 0;
 			devvp->v_vflag &= ~VV_COPYONWRITE;
 		}
+	}
+	/*
+	 * Get rid of its hints list.
+	 */
+	if (ip->i_snapblklist != NULL) {
+		FREE(ip->i_snapblklist, M_UFSMNT);
+		ip->i_snapblklist = NULL;
 	}
 	/*
 	 * Clear all BLK_NOCOPY fields. Pass any block claims to other
@@ -1508,8 +1562,20 @@ ffs_snapshot_mount(mp)
 	struct snaphead *snaphead;
 	struct vnode *vp;
 	struct inode *ip;
+	struct uio auio;
+	struct iovec aiov;
+	void *listhd;
+	char *reason;
 	int error, snaploc, loc;
 
+	/*
+	 * XXX The following needs to be set before UFS_TRUNCATE or
+	 * VOP_READ can be called.
+	 */
+	mp->mnt_stat.f_iosize = fs->fs_bsize;
+	/*
+	 * Process each snapshot listed in the superblock.
+	 */
 	snaphead = &ump->um_devvp->v_rdev->si_snapshots;
 	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++) {
 		if (fs->fs_snapinum[snaploc] == 0)
@@ -1520,9 +1586,17 @@ ffs_snapshot_mount(mp)
 			continue;
 		}
 		ip = VTOI(vp);
-		if ((ip->i_flags & SF_SNAPSHOT) == 0) {
-			printf("ffs_snapshot_mount: non-snapshot inode %d\n",
-			    fs->fs_snapinum[snaploc]);
+		if ((ip->i_flags & SF_SNAPSHOT) == 0 || ip->i_size ==
+		    lblktosize(fs, howmany(fs->fs_size, fs->fs_frag))) {
+			if ((ip->i_flags & SF_SNAPSHOT) == 0) {
+				reason = "non-snapshot";
+			} else {
+				reason = "old format snapshot";
+				(void)UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, td);
+				(void)VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
+			}
+			printf("ffs_snapshot_mount: %s inode %d\n",
+			    reason, fs->fs_snapinum[snaploc]);
 			vput(vp);
 			for (loc = snaploc + 1; loc < FSMAXSNAP; loc++) {
 				if (fs->fs_snapinum[loc] == 0)
@@ -1533,6 +1607,39 @@ ffs_snapshot_mount(mp)
 			snaploc--;
 			continue;
 		}
+		/*
+		 * Allocate the space for the block hints list.
+		 */
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		aiov.iov_base = (void *)&ip->i_snaplistsize;
+		aiov.iov_len = sizeof(ip->i_snaplistsize);
+		auio.uio_resid = aiov.iov_len;
+		auio.uio_offset =
+		    lblktosize(fs, howmany(fs->fs_size, fs->fs_frag));
+		auio.uio_segflg = UIO_SYSSPACE;
+		auio.uio_rw = UIO_READ;
+		auio.uio_td = td;
+		if ((error = VOP_READ(vp, &auio, IO_UNIT, td->td_ucred)) != 0) {
+			printf("ffs_snapshot_mount: read_1 failed %d\n", error);
+			continue;
+		}
+		MALLOC(listhd, void *, ip->i_snaplistsize * sizeof(daddr_t),
+		    M_UFSMNT, M_WAITOK);
+		auio.uio_iovcnt = 1;
+		aiov.iov_base = listhd;
+		aiov.iov_len = ip->i_snaplistsize * sizeof (daddr_t);
+		auio.uio_resid = aiov.iov_len;
+		auio.uio_offset -= sizeof(ip->i_snaplistsize);
+		if ((error = VOP_READ(vp, &auio, IO_UNIT, td->td_ucred)) != 0) {
+			printf("ffs_snapshot_mount: read_2 failed %d\n", error);
+			FREE(listhd, M_UFSMNT);
+			continue;
+		}
+		ip->i_snapblklist = (daddr_t *)listhd;
+		/*
+		 * Link it onto the active snapshot list.
+		 */
 		if (ip->i_nextsnap.tqe_prev != 0)
 			panic("ffs_snapshot_mount: %d already on list",
 			    ip->i_number);
@@ -1559,6 +1666,10 @@ ffs_snapshot_unmount(mp)
 
 	while ((xp = TAILQ_FIRST(snaphead)) != 0) {
 		TAILQ_REMOVE(snaphead, xp, i_nextsnap);
+		if (xp->i_snapblklist != NULL) {
+			FREE(xp->i_snapblklist, M_UFSMNT);
+			xp->i_snapblklist = NULL;
+		}
 		xp->i_nextsnap.tqe_prev = 0;
 		if (xp->i_effnlink > 0)
 			vrele(ITOV(xp));
@@ -1583,7 +1694,7 @@ ffs_copyonwrite(devvp, bp)
 	struct inode *ip;
 	struct vnode *vp;
 	ufs2_daddr_t lbn, blkno;
-	int indiroff, error = 0;
+	int lower, upper, mid, indiroff, error = 0;
 
 	fs = TAILQ_FIRST(&devvp->v_rdev->si_snapshots)->i_fs;
 	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
@@ -1598,6 +1709,23 @@ ffs_copyonwrite(devvp, bp)
 		 * deadlock in doing the lookup in UFS_BALLOC.
 		 */
 		if (bp->b_vp == vp)
+			continue;
+		/*
+		 * First check to see if it is in the preallocated list.
+		 * By doing this check we avoid several potential deadlocks.
+		 */
+		lower = 1;
+		upper = ip->i_snaplistsize - 1;
+		while (lower <= upper) {
+			mid = (lower + upper) / 2;
+			if (ip->i_snapblklist[mid] == lbn)
+				break;
+			if (ip->i_snapblklist[mid] < lbn)
+				lower = mid + 1;
+			else
+				upper = mid - 1;
+		}
+		if (lower <= upper)
 			continue;
 		/*
 		 * Check to see if block needs to be copied. We have to
