@@ -110,7 +110,7 @@ int	csock, dsock;
 int
 main(int ac, char *av[])
 {
-	char	name[NG_NODELEN + 1];
+	char	name[NG_NODESIZ];
 	int	interactive = isatty(0) && isatty(1);
 	FILE	*fp = NULL;
 	int	ch, rtn = 0;
@@ -236,7 +236,7 @@ DoInteractive(void)
 		/* Display any incoming data packet */
 		if (FD_ISSET(dsock, &rfds)) {
 			u_char buf[8192];
-			char hook[NG_HOOKLEN + 1];
+			char hook[NG_HOOKSIZ];
 			int rl;
 
 			/* Read packet from socket */
