@@ -34,7 +34,7 @@ are received on TCP or UDP ports where there is no socket listening.
 Normal behaviour, when a TCP SYN segment is received on a port where
 there is no socket accepting connections, is for the system to return
 a RST segment, and drop the connection.  The connecting system will
-see this as a "Connection reset by peer".  By setting the TCP blackhole
+see this as a "Connection refused".  By setting the TCP blackhole
 MIB to a numeric value of one, the incoming SYN segment
 is merely dropped, and no RST is sent, making the system appear
 as a blackhole.  By setting the MIB value to two, any segment arriving
