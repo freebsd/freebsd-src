@@ -2,7 +2,7 @@
 #	$FreeBSD$
 
 # XXX MISSING:		mkproto
-SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
+SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot ckdist \
 	cron crunch ctm dev_mkdb diskpart edquota inetd kernbb keyadmin \
 	kgmon kvm_mkdb lpr manctl mkdosfs mrouted mtest mtree \
 	named named.reload named.restart ndc \
