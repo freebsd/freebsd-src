@@ -47,9 +47,9 @@ This section explains a bit about system crashes
 and (very briefly) how to analyze crash dumps.
 .Pp
 When the system crashes voluntarily it prints a message of the form
-.Bd -ragged -offset indent
-panic: why i gave up the ghost
-.Ed
+.Bl -diag -offset indent
+.It "panic: why i gave up the ghost"
+.El
 .Pp
 on the console, and if dumps have been enabled (see
 .Xr dumpon 8 ) ,
@@ -70,23 +70,27 @@ A full understanding of most panic messages requires perusal of the
 source code for the system.
 .Pp
 The most common cause of system failures is hardware failure, which
-can reflect itself in different ways.  Here are the messages which
+can reflect itself in different ways.
+Here are the messages which
 are most likely, with some hints as to causes.
 Left unstated in all cases is the possibility that hardware or software
 error produced the message in some unexpected way.
 .Pp
-.Bl -tag -width Ds -compact
-.It Sy "cannot mount root"
+.Bl -diag -compact
+.It "cannot mount root"
 This panic message results from a failure to mount the root filesystem
 during the bootstrap process.
 Either the root filesystem has been corrupted,
 or the system is attempting to use the wrong device as root filesystem.
 Usually, an alternate copy of the system binary or an alternate root
-filesystem can be used to bring up the system to investigate.  Most often
+filesystem can be used to bring up the system to investigate.
+Most often
 this is done by the use of the boot floppy you used to install the system,
-and then using the "fixit" floppy.
+and then using the
+.Dq fixit
+floppy.
 .Pp
-.It Sy "init: not found"
+.It "init: not found"
 This is not a panic message, as reboots are likely to be futile.
 Late in the bootstrap procedure, the system was unable to locate
 and execute the initialization process,
@@ -96,14 +100,13 @@ or type of
 .Pa /sbin/init
 forbids execution or is totally missing.
 .Pp
-.Pp
-.It Sy "ffs_realloccg: bad optim"
-.It Sy "ffs_valloc: dup alloc"
-.It Sy "ffs_alloccgblk: cyl groups corrupted"
-.It Sy "ffs_alloccg: map corrupted"
-.It Sy "blkfree: freeing free block"
-.It Sy "blkfree: freeing free frag"
-.It Sy "ifree: freeing free inode"
+.It "ffs_realloccg: bad optim"
+.It "ffs_valloc: dup alloc"
+.It "ffs_alloccgblk: cyl groups corrupted"
+.It "ffs_alloccg: map corrupted"
+.It "blkfree: freeing free block"
+.It "blkfree: freeing free frag"
+.It "ifree: freeing free inode"
 These panic messages are among those that may be produced
 when filesystem inconsistencies are detected.
 The problem generally results from a failure to repair damaged filesystems
@@ -111,12 +114,12 @@ after a crash, hardware failures, or other condition that should not
 normally occur.
 A filesystem check will normally correct the problem.
 .Pp
-.It Sy "timeout table full"
-This really shouldn't be a panic, but until the data structure
+.It "timeout table full"
+This really should not be a panic, but until the data structure
 involved is made to be extensible, running out of entries causes a crash.
 If this happens, make the timeout table bigger.
 .Pp
-.\" .It Sy "trap type %d, code = %x, v = %x"
+.\" .It "trap type %d, code = %x, v = %x"
 .\" An unexpected trap has occurred within the system; the trap types are:
 .\" .Bl -column xxxx -offset indent
 .\" 0	bus error
@@ -172,9 +175,11 @@ If this happens, make the timeout table bigger.
 .\" Following these values are a dump of the processor registers (hex).
 .\" Finally, is a dump of the stack (user/kernel) at the time of the offense.
 .\" .Pp
-.It Sy "init died (signal #, exit #)"
-The system initialization process has exited with the specified signal number and exit code.  This is bad news, as no new
-users will then be able to log in.  Rebooting is the only fix, so the
+.It "init died (signal #, exit #)"
+The system initialization process has exited with the specified
+signal number and exit code.
+This is bad news, as no new users will then be able to log in.
+Rebooting is the only fix, so the
 system just does it right away.
 .El
 .Pp
@@ -185,10 +190,12 @@ If the system has been configured to take crash dumps (see
 then when it crashes it will write (or at least attempt to write)
 an image of memory into the back end of the dump device,
 usually the same as the primary swap
-area.  After the system is rebooted, the program
+area.
+After the system is rebooted, the program
 .Xr savecore 8
 runs and preserves a copy of this core image and the current
-system in a specified directory for later perusal.  See
+system in a specified directory for later perusal.
+See
 .Xr savecore 8
 for details.
 .Pp
@@ -201,8 +208,7 @@ If the core image is the result of a panic,
 the panic message is printed.
 For more details consult the chapter on kernel debugging in
 the
-.Fx
-Developers' Handbook
+.%B "FreeBSD Developers' Handbook"
 .Pq Pa http://www.FreeBSD.org/ .
 .Sh SEE ALSO
 .Xr gdb 1 ,
