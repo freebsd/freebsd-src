@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.12 1997/02/22 13:58:43 peter Exp $
+.\"	$Id: sh.1,v 1.13 1997/04/28 03:20:09 steve Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -113,31 +113,23 @@ of your home directory
 .sp
 substituting for
 .Pa .shinit
-any filename you wish.  Since the
-.Ev ENV
-file is read for
-every invocation of the shell, including shell scripts and
-non-interactive shells, the following paradigm is useful
-for restricting commands in the
-.Ev ENV
-file to interactive invocations.  Place commands within the
-.Dq case
-and
-.Dq esac
-below:
-.Bd -literal -offset indent
-case $- in *i*)
-	# commands for interactive use only
-	...
-esac
-.Ed
-.Pp
+any filename you wish.
 If commandline arguments besides the options have been
 specified, then the shell treats the first argument as the
 name of a file from which to read commands (a shell script), and
 the remaining arguments are set as the positional parameters
 of the shell ($1, $2, etc).  Otherwise, the shell reads commands
 from its standard input.
+.Pp
+Unlike older versions of
+.Nm
+the
+.Ev ENV
+script is only sourced on invocation of interactive shells.  This
+closes a well-known, and sometimes easily exploitable security
+hole related to poorly thought out
+.Ev ENV
+scripts.
 .Ss Argument List Processing
 All of the single letter options to
 .Nm
