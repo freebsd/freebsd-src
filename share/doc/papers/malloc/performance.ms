@@ -20,7 +20,7 @@ We will refer to this as ``overhead time''.
 B: How well does it manage the storage.
 This rather vague metric we call ``quality of allocation''.
 .PP
-The overhead time is easy to measure, just to a lot of malloc/free calls
+The overhead time is easy to measure, just do a lot of malloc/free calls
 of various kinds and combination, and compare the results.
 .PP
 The quality of allocation is not quite as simple as that.
@@ -32,7 +32,7 @@ agree that it should be minimized as well, and if malloc(3) can do
 anything to do so, it should.
 Explanation why it is still a good metric follows:
 .PP
-In a traditional segment/swap kernel, the desirable behaviour of a process
+In a traditional segment/swap kernel, the desirable behavior of a process
 is to keep the brk(2) as low as possible, thus minimizing the size of the
 data/bss/heap segment, which in turn translates to a smaller process and
 a smaller probability of the process being swapped out, qed: faster

@@ -23,7 +23,7 @@ Another widely used technique is to use tables to keep track of which
 chunks are actually in which state and so on.
 .PP
 This class of debugging has been taken to its practical extreme by
-the product "Purify" which does the entire memory-colouring exercise
+the product "Purify" which does the entire memory-coloring exercise
 and not only keeps track of what is in use and what isn't, but also
 detects if the first reference is a read (which would return undefined
 values) and other such violations.
