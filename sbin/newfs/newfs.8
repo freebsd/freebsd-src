@@ -148,8 +148,6 @@ Cause the file system parameters to be printed out
 without really creating the file system.
 .It Fl O
 Create a
-.It Fl U
-Enables soft updates on the new filesystem.
 .Bx 4.3
 format filesystem.
 This options is primarily used to build root filesystems
@@ -158,6 +156,8 @@ that can be understood by older boot ROMs.
 Use information for the specified disk from
 .Pa /etc/disktab
 instead of trying to get the information from a disklabel.
+.It Fl U
+Enables soft updates on the new filesystem.
 .It Fl a Ar maxcontig
 Specify the maximum number of contiguous blocks that will be
 laid out before forcing a rotational delay (see the
