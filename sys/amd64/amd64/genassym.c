@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.24 1995/02/14 06:00:17 phk Exp $
+ *	$Id: genassym.c,v 1.25 1995/02/14 18:01:24 phk Exp $
  */
 
 #include <stdio.h>
@@ -121,7 +121,6 @@ main()
 	printf("#define\tVM_MAXUSER_ADDRESS 0x%lx\n", VM_MAXUSER_ADDRESS);
 	printf("#define\tKERNBASE 0x%x\n", KERNBASE);
 	printf("#define\tMSGBUFPTECNT %d\n", btoc(sizeof (struct msgbuf)));
-	printf("#define\tNMBCLUSTERS %d\n", NMBCLUSTERS);
 	printf("#define\tMCLBYTES %d\n", MCLBYTES);
 	printf("#define\tPCB_LINK %p\n", &pcb->pcb_tss.tss_link);
 	printf("#define\tPCB_ESP0 %p\n", &pcb->pcb_tss.tss_esp0);
