@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sync.c,v 1.2 1999/05/12 09:49:02 brian Exp $
+ *	$Id: sync.c,v 1.3 1999/05/12 09:54:33 brian Exp $
  */
 
 #include <sys/types.h>
@@ -53,6 +53,7 @@ sync_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 int pri, u_short *proto)
 {
   log_DumpBp(LogSYNC, "Write", bp);
+  mbuf_SetType(bp, MB_SYNCOUT);
   return bp;
 }
 
@@ -70,6 +71,7 @@ sync_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
     /* Either done here or by the HDLC layer */
     p->hdlc.lqm.SaveInOctets += mbuf_Length(bp) + 1;
     p->hdlc.lqm.SaveInPackets++;
+    mbuf_SetType(bp, MB_SYNCIN);
   }
 
   return bp;

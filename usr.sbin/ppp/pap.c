@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.34 1999/04/01 11:05:23 brian Exp $
+ * $Id: pap.c,v 1.35 1999/05/08 11:07:20 brian Exp $
  *
  *	TODO:
  */
@@ -86,7 +86,7 @@ pap_Req(struct authinfo *authp)
   lh.code = PAP_REQUEST;
   lh.id = authp->id;
   lh.length = htons(plen + sizeof(struct fsmheader));
-  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_FSM);
+  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_PAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = namelen;
@@ -110,7 +110,7 @@ SendPapCode(struct authinfo *authp, int code, const char *message)
   mlen = strlen(message);
   plen = mlen + 1;
   lh.length = htons(plen + sizeof(struct fsmheader));
-  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_FSM);
+  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_PAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = mlen;
@@ -191,6 +191,7 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
     mbuf_Free(bp);
     return NULL;
   }
+  mbuf_SetType(bp, MB_PAPIN);
   authp->id = authp->in.hdr.id;		/* We respond with this id */
 
   if (bp) {

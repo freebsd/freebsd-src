@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.20 1999/05/12 09:48:55 brian Exp $
+ *	$Id: mp.c,v 1.21 1999/05/28 08:03:24 brian Exp $
  */
 
 #include <sys/param.h>
@@ -537,8 +537,10 @@ mp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   if (p == NULL) {
     log_Printf(LogWARN, "DecodePacket: Can't do MP inside MP !\n");
     mbuf_Free(bp);
-  } else
+  } else {
+    mbuf_SetType(bp, MB_MPIN);
     mp_Assemble(&bundle->ncp.mp, bp, p);
+  }
 
   return NULL;
 }
@@ -550,7 +552,7 @@ mp_Output(struct mp *mp, struct bundle *bundle, struct link *l,
   struct mbuf *mo;
 
   /* Stuff an MP header on the front of our packet and send it */
-  mo = mbuf_Alloc(4, MB_MP);
+  mo = mbuf_Alloc(4, MB_MPOUT);
   mo->next = m;
   if (mp->peer_is12bit) {
     u_int16_t val;
@@ -639,8 +641,9 @@ mp_FillQueues(struct bundle *bundle)
            */
           mo = m;
           end = 1;
+          mbuf_SetType(mo, MB_MPOUT);
         } else {
-          mo = mbuf_Alloc(dl->mp.weight, MB_MP);
+          mo = mbuf_Alloc(dl->mp.weight, MB_MPOUT);
           mo->cnt = dl->mp.weight;
           len -= mo->cnt;
           m = mbuf_Read(m, MBUF_CTOP(mo), mo->cnt);
@@ -690,14 +693,28 @@ mp_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, "Multilink is %sactive\n", mp->active ? "" : "in");
   if (mp->active) {
-    struct mbuf *m;
+    struct mbuf *m, *lm;
     int bufs = 0;
 
     prompt_Printf(arg->prompt, "Socket:         %s\n",
                   mp->server.socket.sun_path);
-    for (m = mp->inbufs; m; m = m->pnext)
+    for (m = mp->inbufs; m; m = m->pnext) {
       bufs++;
-    prompt_Printf(arg->prompt, "Pending frags:  %d\n", bufs);
+      lm = m;
+    }
+    prompt_Printf(arg->prompt, "Pending frags:  %d", bufs);
+    if (bufs) {
+      struct mp_header mh;
+      unsigned long first, last;
+
+      first = mp_ReadHeader(mp, mp->inbufs, &mh) ? mh.seq : 0;
+      last = mp_ReadHeader(mp, lm, &mh) ? mh.seq : 0;
+      prompt_Printf(arg->prompt, " (Have %lu - %lu, want %lu, lowest %lu)",
+                    first, last, (unsigned long)mp->seq.next_in,
+                    (unsigned long)mp->seq.min_in);
+      prompt_Printf(arg->prompt, " first is %d, %d", mh.begin ? 1 : 0, mh.end ? 1 : 0);
+    }
+    prompt_Printf(arg->prompt, "\n");
   }
 
   prompt_Printf(arg->prompt, "\nMy Side:\n");

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.25 1999/05/08 11:07:28 brian Exp $
+ *	$Id: pred.c,v 1.26 1999/05/09 20:02:25 brian Exp $
  */
 
 #include <sys/types.h>
@@ -180,7 +180,7 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
   u_short fcs;
 
   orglen = mbuf_Length(bp) + 2;	/* add count of proto */
-  mwp = mbuf_Alloc((orglen + 2) / 8 * 9 + 12, MB_HDLCOUT);
+  mwp = mbuf_Alloc((orglen + 2) / 8 * 9 + 12, MB_CCPOUT);
   hp = wp = MBUF_CTOP(mwp);
   cp = bufp;
   *wp++ = *cp++ = orglen >> 8;
@@ -221,7 +221,7 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   u_char *bufp;
   u_short fcs;
 
-  wp = mbuf_Alloc(MAX_MRU + 2, MB_IPIN);
+  wp = mbuf_Alloc(MAX_MRU + 2, MB_CCPIN);
   cp = MBUF_CTOP(bp);
   olen = mbuf_Length(bp);
   pp = bufp = MBUF_CTOP(wp);

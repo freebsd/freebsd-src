@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.41 1999/04/03 11:54:00 brian Exp $
+ * $Id: hdlc.c,v 1.42 1999/05/08 11:06:36 brian Exp $
  *
  *	TODO:
  */
@@ -158,6 +158,7 @@ hdlc_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
   u_char *cp;
   u_short fcs;
 
+  mbuf_SetType(bp, MB_HDLCOUT);
   fcs = HdlcFcsBuf(INITFCS, bp);
   fcs = ~fcs;
 
@@ -344,13 +345,12 @@ hdlc_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
   }
 
   bp = mbuf_Truncate(bp, len - 2);	/* discard the FCS */
+  mbuf_SetType(bp, MB_HDLCIN);
 
   return bp;
 }
 
-/*
- * Detect a HDLC frame
- */
+/* Detect a HDLC frame */
 
 static const struct frameheader {
   const u_char *data;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.25 1999/05/08 11:07:07 brian Exp $
+ * $Id: mbuf.c,v 1.26 1999/05/09 20:02:24 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -39,7 +39,7 @@
 static struct memmap {
   struct mbuf *queue;
   int fragments, octets;
-} MemMap[MB_MAX + 2];
+} MemMap[MB_MAX + 1];
 
 static int totalalloced;
 static unsigned long long mbuf_Mallocs, mbuf_Frees;
@@ -59,8 +59,10 @@ mbuf_Alloc(int cnt, int type)
 {
   struct mbuf *bp;
 
-  if (type > MB_MAX)
+  if (type > MB_MAX) {
     log_Printf(LogERROR, "Bad mbuf type %d\n", type);
+    type = MB_UNKNOWN;
+  }
   bp = malloc(sizeof(struct mbuf) + cnt);
   if (bp == NULL) {
     log_Printf(LogALERT, "failed to allocate memory: %ld\n",
@@ -168,7 +170,7 @@ mbuf_Prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
     bp->offset = 0;
   }
 
-  head = mbuf_Alloc(len + extra, bp ? bp->type : MB_FSM);
+  head = mbuf_Alloc(len + extra, bp ? bp->type : MB_UNKNOWN);
   head->offset = extra;
   head->cnt -= extra;
   memcpy(MBUF_CTOP(head), ptr, len);
@@ -219,35 +221,29 @@ mbuf_Show(struct cmdargs const *arg)
 {
   int i;
   static const char *mbuftype[] = { 
-    "async", "fsm", "cbcp", "hdlcout", "ipin", "echo", "lqr", "vjcomp",
-    "ipq", "mp" };
+    "ip in", "ip out", "alias in", "alias out", "mp in", "mp out",
+    "vj in", "vj out", "icompd in", "icompd out", "compd in", "compd out",
+    "lqr in", "lqr out", "echo in", "echo out", "proto in", "proto out",
+    "acf in", "acf out", "sync in", "sync out", "hdlc in", "hdlc out",
+    "async in", "async out", "cbcp in", "cbcp out", "chap in", "chap out",
+    "pap in", "pap out", "ccp in", "ccp out", "ipcp in", "ipcp out",
+    "lcp in", "lcp out", "unknown"
+  };
 
   prompt_Printf(arg->prompt, "Fragments (octets) in use:\n");
-  for (i = 1; i < MB_MAX; i += 2)
+  for (i = 0; i < MB_MAX; i += 2)
     prompt_Printf(arg->prompt, "%10.10s: %04d (%06d)\t%10.10s: %04d (%06d)\n",
-	    mbuftype[i-1], MemMap[i].fragments, MemMap[i].octets, mbuftype[i],
-            MemMap[i+1].fragments, MemMap[i+1].octets);
+	    mbuftype[i], MemMap[i].fragments, MemMap[i].octets,
+            mbuftype[i+1], MemMap[i+1].fragments, MemMap[i+1].octets);
 
   if (i == MB_MAX)
     prompt_Printf(arg->prompt, "%10.10s: %04d (%06d)\n",
-                  mbuftype[i-1], MemMap[i].fragments, MemMap[i].octets);
+                  mbuftype[i], MemMap[i].fragments, MemMap[i].octets);
 
   prompt_Printf(arg->prompt, "Mallocs: %qu,   Frees: %qu\n",
                 mbuf_Mallocs, mbuf_Frees);
 
   return 0;
-}
-
-void
-mbuf_Log()
-{
-  log_Printf(LogDEBUG, "mbuf_Log: mem alloced: %d\n", totalalloced);
-  log_Printf(LogDEBUG, "mbuf_Log:  1: %d  2: %d   3: %d   4: %d\n",
-	MemMap[1].octets, MemMap[2].octets, MemMap[3].octets, MemMap[4].octets);
-  log_Printf(LogDEBUG, "mbuf_Log:  5: %d  6: %d   7: %d   8: %d\n",
-	MemMap[5].octets, MemMap[6].octets, MemMap[7].octets, MemMap[8].octets);
-  log_Printf(LogDEBUG, "mbuf_Log:  9: %d 10: %d  11: %d\n",
-	MemMap[9].octets, MemMap[10].octets, MemMap[11].octets);
 }
 
 struct mbuf *
@@ -312,4 +308,17 @@ mbuf_Contiguous(struct mbuf *bp)
   }
 
   return bp;
+}
+
+void
+mbuf_SetType(struct mbuf *bp, int type)
+{
+  for (; bp; bp = bp->next)
+    if (type != bp->type) {
+      MemMap[bp->type].fragments--;
+      MemMap[bp->type].octets -= bp->size;
+      bp->type = type;
+      MemMap[type].fragments++;
+      MemMap[type].octets += bp->size;
+    }
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.61 1999/05/14 09:35:51 brian Exp $
+ * $Id: ip.c,v 1.62 1999/05/31 23:57:39 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -393,6 +393,7 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
     return NULL;
   }
 
+  mbuf_SetType(bp, MB_IPIN);
   tun_fill_header(tun, AF_INET);
   nb = mbuf_Length(bp);
   if (nb > sizeof tun.data) {
@@ -439,7 +440,7 @@ ip_Enqueue(struct ipcp *ipcp, int pri, char *ptr, int count)
      * mbuf_Prepend() in acf_LayerPush() and proto_LayerPush() and
      * appending in hdlc_LayerPush().
      */
-    bp = mbuf_Alloc(count + 6, MB_IPQ);
+    bp = mbuf_Alloc(count + 6, MB_IPOUT);
     bp->offset += 4;
     bp->cnt -= 6;
     memcpy(MBUF_CTOP(bp), ptr, count);
