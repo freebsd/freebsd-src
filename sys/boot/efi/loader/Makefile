@@ -53,6 +53,7 @@ vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 
 ${BASE}.efi: ${BASE}.sym
 	${OBJCOPY} -j .text \
+		-j set_Xcommand_set \
 		-j .hash \
 		-j .data \
 		-j .sdata \
