@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)unix.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: unix.c,v 1.5 1997/08/25 16:55:00 wollman Exp $";
+	"$Id: unix.c,v 1.6 1998/05/15 20:19:21 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -131,6 +131,7 @@ unixdomainpr(xunp, so)
 	struct unpcb *unp;
 	struct sockaddr_un *sa;
 	static int first = 1;
+#define offsetof(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
 
 	unp = &xunp->xu_unp;
 	if (unp->unp_addr)
@@ -152,6 +153,8 @@ unixdomainpr(xunp, so)
 	       (long)unp->unp_vnode, (long)unp->unp_conn,
 	       (long)unp->unp_refs.lh_first, (long)unp->unp_reflink.le_next);
 	if (sa)
-		printf(" %.*s", sa->sun_len, sa->sun_path);
+		printf(" %.*s",
+		    sa->sun_len - offsetof(struct sockaddr_un, sun_path),
+		    sa->sun_path);
 	putchar('\n');
 }
