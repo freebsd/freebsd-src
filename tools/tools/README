@@ -11,7 +11,7 @@ commitsdb	A tool for reconstructing commit history using md5
 		checksums of the commit logs.
 crypto		Exercise the crypto framework through /dev/crypto
 diffburst	OBSOLETE: equivalent functionality is available via split -p.
-		For example: "cat patchfile | split -p ^diff". See split(1).
+		For example: "split -p ^diff < patchfile". See split(1).
 editing		Editor modes and the like to help editing FreeBSD code.
 epfe 		Extract printing filter examples from printing.sgml.
 find-sb		Scan a disk for possible filesystem superblocks.
