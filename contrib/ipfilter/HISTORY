@@ -22,6 +22,13 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.13	28/10/2000 - Released
+
+fix introduced bug with ICMP packets being rejected when valid
+
+fix bug with proxy's that don't set fin_dlen correctly when calling
+fr_addstate()
+
 3.4.12	26/10/2000 - Released
 
 fix installing into FreeBSD-4.1
