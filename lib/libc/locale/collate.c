@@ -53,7 +53,7 @@ struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 #define FREAD(a, b, c, d) \
 	do { \
 		if (fread(a, b, c, d) != c) { \
-			fclose(d); \
+			(void)fclose(d); \
 			return -1; \
 		} \
 	} while(0)
@@ -81,17 +81,17 @@ __collate_load_tables(encoding)
 		return -1;
 	}
 	/* Range checking not needed, encoding has fixed size */
-	(void) strcpy(buf, _PathLocale);
-	(void) strcat(buf, "/");
-	(void) strcat(buf, encoding);
-	(void) strcat(buf, "/LC_COLLATE");
+	(void)strcpy(buf, _PathLocale);
+	(void)strcat(buf, "/");
+	(void)strcat(buf, encoding);
+	(void)strcat(buf, "/LC_COLLATE");
 	if ((fp = fopen(buf, "r")) == NULL) {
 		__collate_load_error = save_load_error;
 		return -1;
 	}
 	FREAD(__collate_version, sizeof(__collate_version), 1, fp);
 	if (strcmp(__collate_version, COLLATE_VERSION) != 0) {
-		fclose(fp);
+		(void)fclose(fp);
 		return -1;
 	}
 	FREAD(__collate_substitute_table, sizeof(__collate_substitute_table),
@@ -100,7 +100,7 @@ __collate_load_tables(encoding)
 	      fp);
 	FREAD(__collate_chain_pri_table, sizeof(__collate_chain_pri_table), 1,
 	      fp);
-	fclose(fp);
+	(void)fclose(fp);
 	__collate_load_error = 0;
 	
 	__collate_substitute_nontrivial = 0;
@@ -123,24 +123,24 @@ __collate_substitute(s)
 	int delta = strlen(s);
 	u_char *dest_str = NULL;
 
-	if(s == NULL || *s == '\0')
-		return __collate_strdup("");
+	if (s == NULL || *s == '\0')
+		return (__collate_strdup(""));
 	delta += delta / 8;
 	dest_str = malloc(dest_len = delta);
-	if(dest_str == NULL)
+	if (dest_str == NULL)
 		__collate_err(EX_OSERR, __FUNCTION__);
 	len = 0;
-	while(*s) {
+	while (*s) {
 		nlen = len + strlen(__collate_substitute_table[*s]);
 		if (dest_len <= nlen) {
 			dest_str = reallocf(dest_str, dest_len = nlen + delta);
-			if(dest_str == NULL)
+			if (dest_str == NULL)
 				__collate_err(EX_OSERR, __FUNCTION__);
 		}
-		strcpy(dest_str + len, __collate_substitute_table[*s++]);
+		(void)strcpy(dest_str + len, __collate_substitute_table[*s++]);
 		len = nlen;
 	}
-	return dest_str;
+	return (dest_str);
 }
 
 void
@@ -172,7 +172,7 @@ __collate_strdup(s)
 
 	if (t == NULL)
 		__collate_err(EX_OSERR, __FUNCTION__);
-	return t;
+	return (t);
 }
 
 void
