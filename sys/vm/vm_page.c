@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.136 1999/07/31 18:30:59 alc Exp $
+ *	$Id: vm_page.c,v 1.137 1999/08/10 22:21:13 peter Exp $
  */
 
 /*
@@ -1684,9 +1684,8 @@ again1:
 				m != NULL;
 				m = next) {
 
-				if (m->queue != PQ_INACTIVE) {
-					break;
-				}
+				KASSERT(m->queue == PQ_INACTIVE,
+					("contigmalloc1: page %p is not PQ_INACTIVE", m));
 
 				next = TAILQ_NEXT(m, pageq);
 				if (vm_page_sleep_busy(m, TRUE, "vpctw0"))
@@ -1712,9 +1711,8 @@ again1:
 				m != NULL;
 				m = next) {
 
-				if (m->queue != PQ_ACTIVE) {
-					break;
-				}
+				KASSERT(m->queue == PQ_ACTIVE,
+					("contigmalloc1: page %p is not PQ_ACTIVE", m));
 
 				next = TAILQ_NEXT(m, pageq);
 				if (vm_page_sleep_busy(m, TRUE, "vpctw1"))
