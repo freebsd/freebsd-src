@@ -131,9 +131,9 @@ typedef	int64_t		daddr64_t;	/* 64-bit disk address */
 typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
 typedef	u_int32_t	fixpt_t;	/* fixed point number */
 
-#ifdef	_BSD_GID_T_
+#ifdef _BSD_GID_T_
 typedef	_BSD_GID_T_	gid_t;		/* group id */
-#undef	_BSD_GID_T_
+#undef _BSD_GID_T_
 #endif
 
 typedef	u_int32_t	ino_t;		/* inode number */
@@ -152,9 +152,9 @@ typedef	int32_t		swblk_t;	/* swap offset */
 typedef	int32_t		ufs_daddr_t;
 typedef	int32_t		ufs_time_t;
 
-#ifdef	_BSD_UID_T_
+#ifdef _BSD_UID_T_
 typedef	_BSD_UID_T_	uid_t;		/* user id */
-#undef	_BSD_UID_T_
+#undef _BSD_UID_T_
 #endif
 
 #ifdef _KERNEL
@@ -189,39 +189,39 @@ typedef	u_int32_t	dev_t;		/* device number */
 
 #endif /* !_KERNEL */
 
-#ifdef	_BSD_CLOCK_T_
+#ifdef _BSD_CLOCK_T_
 typedef	_BSD_CLOCK_T_	clock_t;
-#undef	_BSD_CLOCK_T_
+#undef _BSD_CLOCK_T_
 #endif
 
-#ifdef	_BSD_CLOCKID_T_
+#ifdef _BSD_CLOCKID_T_
 typedef	_BSD_CLOCKID_T_	clockid_t;
-#undef	_BSD_CLOCKID_T_
+#undef _BSD_CLOCKID_T_
 #endif
 
 #ifdef _BSD_FFLAGS_T_
-typedef _BSD_FFLAGS_T_	fflags_t;	/* file flags */
+typedef	_BSD_FFLAGS_T_	fflags_t;	/* file flags */
 #undef _BSD_FFLAGS_T_
 #endif
 
-#ifdef	_BSD_SIZE_T_
+#ifdef _BSD_SIZE_T_
 typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#undef _BSD_SIZE_T_
 #endif
 
-#ifdef	_BSD_SSIZE_T_
+#ifdef _BSD_SSIZE_T_
 typedef	_BSD_SSIZE_T_	ssize_t;
-#undef	_BSD_SSIZE_T_
+#undef _BSD_SSIZE_T_
 #endif
 
-#ifdef	_BSD_TIME_T_
+#ifdef _BSD_TIME_T_
 typedef	_BSD_TIME_T_	time_t;
-#undef	_BSD_TIME_T_
+#undef _BSD_TIME_T_
 #endif
 
-#ifdef	_BSD_TIMER_T_
+#ifdef _BSD_TIMER_T_
 typedef	_BSD_TIMER_T_	timer_t;
-#undef	_BSD_TIMER_T_
+#undef _BSD_TIMER_T_
 #endif
 
 #ifndef _POSIX_SOURCE
