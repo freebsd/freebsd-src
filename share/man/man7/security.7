@@ -11,7 +11,6 @@
 .Nm security
 .Nd introduction to security under FreeBSD
 .Sh DESCRIPTION
-.Pp
 Security is a function that begins and ends with the system administrator.
 While all
 .Bx
@@ -134,7 +133,6 @@ Quick detection of inappropriate changes made to the system
 Paranoia
 .El
 .Sh SECURING THE ROOT ACCOUNT AND SECURING STAFF ACCOUNTS
-.Pp
 Don't bother securing staff accounts if you haven't secured the root
 account.  Most systems have a password assigned to the root account.  The
 first thing you do is assume that the password is
@@ -232,7 +230,6 @@ be made to timeout after a while, but the kerberos system can require that
 the user choose a new password after a certain period of time
 .Pq say, once a month .
 .Sh SECURING ROOT - ROOT-RUN SERVERS AND SUID/SGID BINARIES
-.Pp
 The prudent sysadmin only runs the servers he needs to, no more, no less.  Be
 aware that third party servers are often the most bug-prone.  For example,
 running an old version of imapd or popper is like giving a universal root
@@ -302,7 +299,6 @@ potentially
 generate a data stream that causes the user's terminal to echo a command, which
 is then run as that user.
 .Sh SECURING USER ACCOUNTS
-.Pp
 User accounts are usually the most difficult to secure.  While you can impose
 Draconian access restrictions on your staff and *-out their passwords, you
 may not be able to do so with any general user accounts you might have.  If
@@ -313,7 +309,6 @@ more problematic due to the extra administration and technical support
 required, but still a very good solution compared to a crypted password
 file.
 .Sh SECURING THE PASSWORD FILE
-.Pp
 The only sure fire way is to *-out as many passwords as you can and 
 use ssh or kerberos for access to those accounts.  Even though the 
 crypted password file
@@ -330,7 +325,6 @@ see
 below
 .Pc .
 .Sh SECURING THE KERNEL CORE, RAW DEVICES, AND FILESYSTEMS
-.Pp
 If an attacker breaks root he can do just about anything, but there
 are certain conveniences.  For example, most modern kernels have a
 packet sniffing device driver built in.  Under
@@ -372,7 +366,6 @@ mount / and /usr read-only.  It should be noted that being too draconian in
 what you attempt to protect may prevent the all-important detection of an
 intrusion.
 .Sh CHECKING FILE INTEGRITY: BINARIES, CONFIG FILES, ETC
-.Pp
 When it comes right down to it, you can only protect your core system
 configuration and control files so much before the convenience factor
 rears its ugly head.  For example, using chflags to set the schg bit
@@ -476,7 +469,6 @@ break-in.  One way to keep a permanent record of the log files is to run
 the system console to a serial port and collect the information on a
 continuing basis through a secure machine monitoring the consoles.
 .Sh PARANOIA
-.Pp
 A little paranoia never hurts.  As a rule, a sysadmin can add any number
 of security features as long as they do not effect convenience, and 
 can add security features that do effect convenience with some added
@@ -485,7 +477,6 @@ a bit - if you use recommendations such as those given by this manual
 page verbatim, you give away your methodologies to the prospective
 hacker who also has access to this manual page.
 .Sh SPECIAL SECTION ON D.O.S. ATTACKS
-.Pp
 This section covers Denial of Service attacks.  A DOS attack is typically
 a packet attack.  While there isn't much you can do about modern spoofed
 packet attacks that saturate your network, you can generally limit the damage
@@ -641,7 +632,6 @@ Never set either parameter to zero
 Setting both parameters to 2 seconds should be sufficient to protect the route
 table from attack.
 .Sh ACCESS ISSUES WITH KERBEROS AND SSH
-.Pp
 There are a few issues with both kerberos and ssh that need to be addressed
 if you intend to use them.  Kerberos V is an excellent authentication
 protocol but the kerberized telnet and rlogin suck rocks.  There are bugs that
