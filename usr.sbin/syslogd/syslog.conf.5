@@ -176,6 +176,17 @@ specification for
 .Ql foo
 will also match any message logged by the kernel with the prefix
 .Ql "foo: " .
+The
+.Ql #!+prog
+or
+.Ql !+prog
+specification works just like the previous one,
+and the
+.Ql #!-prog
+or
+.Ql !-prog
+specification will match any message but the ones from that
+program.
 A
 .Em hostname
 specification of the form
