@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
 #endif
 static const char rcsid[] =
-	"$Id: expand.c,v 1.24.2.2 1999/05/08 10:42:57 kris Exp $";
+	"$Id: expand.c,v 1.24.2.3 1999/07/25 12:26:42 cracauer Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -646,7 +646,7 @@ evalvar(p, flag)
 	int varflags;
 	char *var;
 	char *val;
-	char *pat;
+	int patloc;
 	int c;
 	int set;
 	int special;
@@ -744,10 +744,10 @@ record:
 		 * right after it
 		 */
 		STPUTC('\0', expdest);
-		pat = expdest;
-		if (subevalvar(p, NULL, expdest - stackblock(), subtype,
+		patloc = expdest - stackblock();
+		if (subevalvar(p, NULL, patloc, subtype,
 			       startloc, varflags) == 0) {
-			int amount = (expdest - pat) + 1;
+			int amount = (expdest - stackblock() - patloc) + 1;
 			STADJUST(-amount, expdest);
 		}
 		/* Remove any recorded regions beyond start of variable */
