@@ -24,8 +24,8 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
+#	@(#)rc	5.27 (Berkeley) 6/5/91
 # $FreeBSD$
-#	From: @(#)rc	5.27 (Berkeley) 6/5/91
 #
 
 # System startup script run by init on autoboot
@@ -799,7 +799,7 @@ case ${local_startup} in
 		if [ -x "${script}" ]; then
 			(set -T
 			trap 'exit 1' 2
-			${script} start)
+			sh ${script} start)
 		fi
 	done
 	IFS="${script_save_sep}"
