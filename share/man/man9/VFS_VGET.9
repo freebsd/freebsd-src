@@ -39,16 +39,18 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_VGET "struct mount *mp" "ino_t ino" "struct vnode **vpp"
+.Fn VFS_VGET "struct mount *mp" "ino_t ino" "int flags" "struct vnode **vpp"
 .Sh DESCRIPTION
 This converts an inode number into a locked vnode.
 .Pp
 Its arguments are:
-.Bl -tag -width ino
+.Bl -tag -width ".Ar flags"
 .It Ar mp
 The filesystem.
 .It Ar ino
 The inode representing the file.
+.It Ar flags
+Additional locking flags to pass through.
 .It Ar vpp
 Return parameter for the vnode.
 .El
@@ -64,6 +66,7 @@ If the filesystem does not support this call, then it should return
 .Er EOPNOTSUPP .
 .Sh SEE ALSO
 .Xr VFS 9 ,
+.Xr vget 9 ,
 .Xr vnode 9
 .Sh AUTHORS
 This man page was written by
