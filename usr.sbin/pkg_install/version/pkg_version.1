@@ -34,6 +34,7 @@
 .Nm pkg_version
 .Op Fl cdhv
 .Op Fl l Ar limchar
+.Op Fl L Ar limchar
 .Op Ar index
 .Sh DESCRIPTION
 The
@@ -86,6 +87,15 @@ Enable debugging output.
 Print help message.
 .It Fl l
 Limit the output to those packages whose status flag matches
+.Ar limchar .
+You may specify more than one character to match in
+.Ar limchar .  
+Note that because some of the status flag characters are also special
+to the shell, it is best to quote
+.Ar limchar
+with single quotes.
+.It Fl L
+Limit the output to those packages whose status flag doesn't match
 .Ar limchar .
 You may specify more than one character to match in
 .Ar limchar .  
@@ -149,7 +159,8 @@ suggestions, and then cut-and-paste (or retype) the commands you want to run.
 .Sh CONTRIBUTORS
 .An Nik Clayton Aq nik@FreeBSD.org ,
 .An Dominic Mitchell Aq dom@palmerharvey.co.uk ,
-.An Mark Ovens Aq marko@FreeBSD.org
+.An Mark Ovens Aq marko@FreeBSD.org ,
+.An Doug Barton Aq DougB@gorean.org
 .Sh BUGS
 There should be a better way of dealing with packages that
 can have more than one installed version.
