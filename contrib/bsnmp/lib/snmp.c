@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmp.c,v 1.34 2003/01/28 13:44:34 hbb Exp $
+ * $Begemot: bsnmp/lib/snmp.c,v 1.37 2003/12/08 17:11:58 hbb Exp $
  *
  * SNMP
  */
@@ -429,6 +429,64 @@ snmp_pdu_decode(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *ip)
 	}
 
 	return (SNMP_CODE_OK);
+}
+
+/*
+ * Check whether what we have is the complete PDU by snooping at the
+ * enclosing structure header. This returns:
+ *   -1		if there are ASN.1 errors
+ *    0		if we need more data
+ *  > 0		the length of this PDU
+ */
+int
+snmp_pdu_snoop(const struct asn_buf *b0)
+{
+	u_int length;
+	asn_len_t len;
+	struct asn_buf b = *b0;
+
+	/* <0x10|0x20> <len> <data...> */
+	
+	if (b.asn_len == 0)
+		return (0);
+	if (b.asn_cptr[0] != (ASN_TYPE_SEQUENCE | ASN_TYPE_CONSTRUCTED)) {
+		asn_error(&b, "bad sequence type %u", b.asn_cptr[0]);
+		return (-1);
+	}
+	b.asn_len--;
+	b.asn_cptr++;
+
+	if (b.asn_len == 0)
+		return (0);
+
+	if (*b.asn_cptr & 0x80) {
+		/* long length */
+		length = *b.asn_cptr++ & 0x7f;
+		b.asn_len--;
+		if (length == 0) {
+			asn_error(&b, "indefinite length not supported");
+			return (-1);
+		}
+		if (length > ASN_MAXLENLEN) {
+			asn_error(&b, "long length too long (%u)", length);
+			return (-1);
+		}
+		if (length > b.asn_len)
+			return (0);
+		len = 0;
+		while (length--) {
+			len = (len << 8) | *b.asn_cptr++;
+			b.asn_len--;
+		}
+	} else {
+		len = *b.asn_cptr++;
+		b.asn_len--;
+	}
+
+	if (len > b.asn_len)
+		return (0);
+
+	return (len + b.asn_cptr - b0->asn_cptr);
 }
 
 /*

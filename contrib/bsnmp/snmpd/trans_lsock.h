@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2003
+ * Copyright (c) 2003
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  *	All rights reserved.
  *
@@ -30,51 +30,34 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_ifmib.c,v 1.8 2003/12/03 10:01:19 hbb Exp $
+ * $Begemot: bsnmp/snmpd/trans_lsock.h,v 1.2 2003/12/09 12:28:53 hbb Exp $
  *
- * Interfaces group.
+ * Local domain socket transport
  */
-#include "mibII.h"
-#include "mibII_oid.h"
 
-/*
- * Scalars
- */
-int
-op_ifmib(struct snmp_context *ctx __unused, struct snmp_value *value,
-    u_int sub, u_int idx __unused, enum snmp_op op)
-{
-	switch (op) {
+enum locp {
+	LOCP_DGRAM_UNPRIV	= 1,
+	LOCP_DGRAM_PRIV		= 2,
+	LOCP_STREAM_UNPRIV	= 3,
+	LOCP_STREAM_PRIV	= 4,
+};
+struct lsock_peer {
+	LIST_ENTRY(lsock_peer) link;
+	struct port_input input;
+	struct sockaddr_un peer;
+	struct lsock_port *port;	/* parent port */
+};
 
-	  case SNMP_OP_GETNEXT:
-		abort();
+struct lsock_port {
+	struct tport	tport;		/* must begin with this */
 
-	  case SNMP_OP_GET:
-		break;
+	char		*name;		/* unix path name */
+	enum locp	type;		/* type of port */
 
-	  case SNMP_OP_SET:
-		return (SNMP_ERR_NOT_WRITEABLE);
+	int		str_sock;	/* stream socket */
+	void		*str_id;	/* select handle */
 
-	  case SNMP_OP_ROLLBACK:
-	  case SNMP_OP_COMMIT:
-		abort();
-	}
+	LIST_HEAD(, lsock_peer) peers;
+};
 
-	switch (value->var.subs[sub - 1]) {
-
-	  case LEAF_ifTableLastChange:
-		if (mib_iftable_last_change > start_tick)
-			value->v.uint32 = mib_iftable_last_change - start_tick;
-		else
-			value->v.uint32 = 0;
-		break;
-
-	  case LEAF_ifStackLastChange:
-		if (mib_ifstack_last_change > start_tick)
-			value->v.uint32 = mib_ifstack_last_change - start_tick;
-		else
-			value->v.uint32 = 0;
-		break;
-	}
-	return (SNMP_ERR_NOERROR);
-}
+extern const struct transport_def lsock_trans;

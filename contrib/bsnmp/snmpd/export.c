@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/export.c,v 1.5 2003/01/28 13:44:35 hbb Exp $
+ * $Begemot: bsnmp/snmpd/export.c,v 1.6 2003/12/03 10:08:47 hbb Exp $
  *
  * Support functions for modules.
  */

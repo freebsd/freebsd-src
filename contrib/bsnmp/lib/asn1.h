@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/asn1.h,v 1.16 2002/02/11 10:19:57 hbb Exp $
+ * $Begemot: bsnmp/lib/asn1.h,v 1.17 2003/12/02 15:52:37 hbb Exp $
  *
  * ASN.1 for SNMP
  */

@@ -30,7 +30,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $Begemot: bsnmp/snmpd/tree.def,v 1.34 2002/12/11 15:54:08 hbb Exp $
+# $Begemot: bsnmp/snmpd/tree.def,v 1.37 2003/12/09 12:28:53 hbb Exp $
 #
 # System group and private Begemot SNMPd MIB.
 #
@@ -90,6 +90,7 @@
                 (2 begemotSnmpdReceiveBuffer INTEGER op_snmpd_config GET SET)
                 (3 begemotSnmpdCommunityDisable INTEGER op_snmpd_config GET SET)
                 (4 begemotSnmpdTrap1Addr IPADDRESS op_snmpd_config GET SET)
+                (5 begemotSnmpdVersionEnable UNSIGNED32 op_snmpd_config GET SET)
               )
               (2 begemotTrapSinkTable
                 (1 begemotTrapSinkEntry : IPADDRESS INTEGER op_trapsink
@@ -148,10 +149,22 @@
 #	Local (UNIX domain) port table
 #
               (9 begemotSnmpdLocalPortTable
-                (1 begemotSnmpdLocalPortEntry : OCTETSTRING op_local_port
+                (1 begemotSnmpdLocalPortEntry : OCTETSTRING op_lsock_port
                   (1 begemotSnmpdLocalPortPath OCTETSTRING)
                   (2 begemotSnmpdLocalPortStatus INTEGER GET SET)
+		  (3 begemotSnmpdLocalPortType INTEGER GET SET)
               ))
+
+              (10 begemotSnmpdTransportMappings
+                (1 begemotSnmpdTransportTable
+                  (1 begemotSnmpdTransportEntry : OCTETSTRING op_transport_table
+                    (1 begemotSnmpdTransportName OCTETSTRING)
+                    (2 begemotSnmpdTransportStatus INTEGER GET)
+                    (3 begemotSnmpdTransportOid OID GET)
+                ))
+                (2 begemotSnmpdTransUdp OID op_transport_dummy)
+                (3 begemotSnmpdTransLsock OID op_transport_dummy)
+              )
  	    )
             (2 begemotSnmpdDefs
               (1 begemotSnmpdAgent

@@ -1,3 +1,24 @@
+09-Dec-2003
+	First step on factoring out the transport mapping stuff into
+	loadable modules.
+
+	Local stream sockets that check the clients privileges.
+
+03-Dec-2003
+	Bump version to 1.5 but leave library version intact.
+
+03-Dec-2003
+	Now works with libbegemot polling stuff instead of libisc.
+	Use --with-libbegemot[=path] to configure.
+
+03-Dec-2003
+	Fix parsing of non-minimal ASN.1 integers. They are now disallowed.
+	Non-minimal lengths are allowed.
+
+	Remove copyright clause 3 everywhere.
+
+	Make an autoconf build infrastructure.
+
 08-Nov-2003
 	WARNS=6 fixed.
 
