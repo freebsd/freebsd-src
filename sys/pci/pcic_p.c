@@ -392,10 +392,17 @@ pcic_pci_attach(device_t dev)
 	return 0;
 }
 
+static int
+pcic_pci_detach(device_t dev)
+{
+	return 0;
+}
+
 static device_method_t pcic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_pci_probe),
 	DEVMETHOD(device_attach,	pcic_pci_attach),
+	DEVMETHOD(device_detach,	pcic_pci_detach),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
