@@ -29,6 +29,13 @@
 #ifndef _MACHINE_MCA_H_
 #define _MACHINE_MCA_H_
 
+struct mca_guid {
+	uint32_t	data1;
+	uint16_t	data2;
+	uint16_t	data3;
+	uint8_t		data4[8];
+};
+
 struct mca_record_header {
 	uint64_t	rh_seqnr;		/* Record id. */
 	uint8_t		rh_major;		/* BCD (=02). */
@@ -48,11 +55,11 @@ struct mca_record_header {
 #define	MCA_RH_TIME_MON		5
 #define	MCA_RH_TIME_YEAR	6
 #define	MCA_RH_TIME_CENT	7
-	uint8_t		rh_platform[16];	/* Platform id. */
+	struct mca_guid	rh_platform;		/* XXX not really a GUID. */
 };
 
 struct mca_section_header {
-	uint8_t		sh_guid[16];
+	struct mca_guid	sh_guid;
 	uint8_t		sh_major;		/* BCD (=02). */
 	uint8_t		sh_minor;		/* BCD (=00). */
 	uint8_t		sh_flags;
@@ -66,14 +73,14 @@ struct mca_section_header {
 
 struct mca_cpu_record {
 	uint64_t	cpu_flags;
-#define	MCA_CPU_FLAGS_ERROR_MAP		(1ULL << 0)
-#define	MCA_CPU_FLAGS_STATE_PARM	(1ULL << 1)
+#define	MCA_CPU_FLAGS_ERRMAP		(1ULL << 0)
+#define	MCA_CPU_FLAGS_STATE		(1ULL << 1)
 #define	MCA_CPU_FLAGS_CR_LID		(1ULL << 2)
 #define	MCA_CPU_FLAGS_PSI_STRUCT	(1ULL << 3)
 #define	MCA_CPU_FLAGS_CACHE(x)		(((x) >> 4) & 15)
 #define	MCA_CPU_FLAGS_TLB(x)		(((x) >> 8) & 15)
 #define	MCA_CPU_FLAGS_BUS(x)		(((x) >> 12) & 15)
-#define	MCA_CPU_FLAGS_REGF(x)		(((x) >> 16) & 15)
+#define	MCA_CPU_FLAGS_REG(x)		(((x) >> 16) & 15)
 #define	MCA_CPU_FLAGS_MS(x)		(((x) >> 20) & 15)
 #define	MCA_CPU_FLAGS_CPUID		(1ULL << 24)
 	uint64_t	cpu_errmap;
@@ -82,7 +89,7 @@ struct mca_cpu_record {
 	/* Nx cpu_mod (cache) */
 	/* Nx cpu_mod (TLB) */
 	/* Nx cpu_mod (bus) */
-	/* Nx cpu_mod (regf) */
+	/* Nx cpu_mod (reg) */
 	/* Nx cpu_mod (MS) */
 	/* cpu_cpuid */
 	/* cpu_psi */
@@ -121,6 +128,21 @@ struct mca_cpu_psi {
 	uint64_t	cpu_psi_rr[8];
 	uint64_t	cpu_psi_fr[256];	/* 16 bytes per register! */
 };
+
+#define	MCA_GUID_CPU		\
+	{0xe429faf1,0x3cb7,0x11d4,{0xbc,0xa7,0x00,0x80,0xc7,0x3c,0x88,0x81}}
+#define	MCA_GUID_MEMORY		\
+	{0xe429faf2,0x3cb7,0x11d4,{0xbc,0xa7,0x00,0x80,0xc7,0x3c,0x88,0x81}}
+#define	MCA_GUID_SEL		\
+	{0xe429faf3,0x3cb7,0x11d4,{0xbc,0xa7,0x00,0x80,0xc7,0x3c,0x88,0x81}}
+#define	MCA_GUID_PCI_BUS	\
+	{0xe429faf4,0x3cb7,0x11d4,{0xbc,0xa7,0x00,0x80,0xc7,0x3c,0x88,0x81}}
+#define	MCA_GUID_SMBIOS		\
+	{0xe429faf5,0x3cb7,0x11d4,{0xbc,0xa7,0x00,0x80,0xc7,0x3c,0x88,0x81}}
+#define	MCA_GUID_PCI_DEV	\
+	{0xe429faf6,0x3cb7,0x11d4,{0xbc,0xa7,0x00,0x80,0xc7,0x3c,0x88,0x81}}
+#define	MCA_GUID_GENERIC	\
+	{0xe429faf7,0x3cb7,0x11d4,{0xbc,0xa7,0x00,0x80,0xc7,0x3c,0x88,0x81}}
 
 #ifdef _KERNEL
 
