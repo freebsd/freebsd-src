@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.30.4.5 1996/04/01 00:26:10 gibbs Exp $
+ *      $Id: scsiconf.c,v 1.30.4.6 1996/04/04 22:43:59 rich Exp $
  */
 
 #include <sys/types.h>
@@ -219,6 +219,27 @@ static st_modes mode_unktape =
 static struct scsidevs knowndevs[] =
 #ifdef NEW_SCSICONF
 {
+/* od's must be probed before sd's since some of them identify as T_DIRECT */
+#if NOD > 0
+        {
+		T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-1000", "*",
+		"od", SC_MORE_LUS
+	},
+	/*
+	 * The SONY SMO is not really supported here, since it
+	 * identifies as T_DIRECT, and thus doesn't get assigned
+	 * to the od driver.
+	 * You need to upgrade to the FreeBSD 2.2 line for this.
+	 */
+	{
+		T_OPTICAL, T_REMOV, "SONY", "SMO-*", "*",
+		"od", SC_MORE_LUS
+	},
+	{
+		T_OPTICAL, T_REMOV, "*", "*", "*",
+		"od", SC_ONE_LU
+	},
+#endif  /* NOD */
 #if NSD > 0
 	{
 		T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A",
@@ -301,6 +322,22 @@ static struct scsidevs knowndevs[] =
 };
 #else /* !NEW_SCSICONF */
 {
+/* od's must be probed before sd's since some of them identify as T_DIRECT */
+#if NOD > 0
+	{
+		T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-1000", "*",
+		"od", SC_MORE_LUS
+	},
+	/* See comments under NEW_SCSICONF above. */
+	{
+		T_OPTICAL, T_REMOV, "SONY", "SMO-*", "*",
+		"od", SC_MORE_LUS
+	},
+	{
+		T_OPTICAL, T_REMOV, "*", "*", "*",
+		"od", SC_ONE_LU
+	},
+#endif  /* NOD */
 #if NSD > 0
 	{
 		T_DIRECT, T_FIXED, "standard", "any"
