@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+SUN4U			opt_global.h
+
+SHOW_BUSYBUFS
+PANIC_REBOOT_WAIT_TIME	opt_panic.h
