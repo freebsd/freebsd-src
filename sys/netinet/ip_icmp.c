@@ -607,6 +607,7 @@ icmp_reflect(m)
 	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash)
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
 			goto match;
+	KASSERT(m->m_pkthdr.rcvif != NULL, ("icmp_reflect: NULL rcvif"));
 	if (m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST) {
 		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
@@ -617,7 +618,6 @@ icmp_reflect(m)
                                 goto match;
         	}
         }
-	KASSERT(m->m_pkthdr.rcvif != NULL, ("icmp_reflect: NULL rcvif"));
 	icmpdst.sin_addr = t;
 	ia = (struct in_ifaddr *)ifaof_ifpforaddr(
 	    (struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
