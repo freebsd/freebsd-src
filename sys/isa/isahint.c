@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isahint.c,v 1.2 1999/05/22 15:18:26 dfr Exp $
+ *	$Id: isahint.c,v 1.3 1999/05/28 09:25:00 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -57,22 +57,22 @@ isahint_add_device(device_t parent, const char *name, int unit)
 
 	start = 0;
 	count = 0;
-	if (resource_int_value(name, unit, "port", &start) == 0
-	    || resource_int_value(name, unit, "portsize", &count) == 0)
+	if ((resource_int_value(name, unit, "port", &start) == 0 && start > 0)
+	    || (resource_int_value(name, unit, "portsize", &count) == 0 && count > 0))
 		ISA_SET_RESOURCE(parent, child, SYS_RES_IOPORT, 0,
 				 start, count);
 
 	start = 0;
 	count = 0;
-	if (resource_int_value(name, unit, "maddr", &start) == 0
-	    || resource_int_value(name, unit, "msize", &count) == 0)
+	if ((resource_int_value(name, unit, "maddr", &start) == 0 && start > 0)
+	    || (resource_int_value(name, unit, "msize", &count) == 0 && count > 0))
 		ISA_SET_RESOURCE(parent, child, SYS_RES_MEMORY, 0,
 				 start, count);
 
-	if (resource_int_value(name, unit, "irq", &start) == 0)
+	if (resource_int_value(name, unit, "irq", &start) == 0 && start > 0)
 		ISA_SET_RESOURCE(parent, child, SYS_RES_IRQ, 0, start, 1);
 
-	if (resource_int_value(name, unit, "drq", &start) == 0)
+	if (resource_int_value(name, unit, "drq", &start) == 0 && start > 0)
 		ISA_SET_RESOURCE(parent, child, SYS_RES_DRQ, 0, start, 1);
 
 	if (resource_int_value(name, unit, "flags", &t) == 0)
