@@ -1,4 +1,5 @@
-/* $FreeBSD$ */
+/* $Id: $ */
+/* isp_freebsd.h 1.16 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -98,7 +99,7 @@ struct isposinfo {
 #define	XS_STS(xs)		(xs)->status
 #define	XS_TIME(xs)		(xs)->timeout
 #define	XS_SNSP(xs)		(&(xs)->sense)
-#define	XS_SNSLEN(xs)		(sizeof (xs)->sense)
+#define	XS_SNSLEN(xs)		(sizeof((xs)->sense))
 #define	XS_SNSKEY(xs)		((xs)->sense.ext.extended.flags)
 
 #define	HBA_NOERROR		XS_NOERROR
