@@ -392,10 +392,12 @@ Print_Chunk(struct chunk *c1,int offset)
 	putchar('>');
 	for (; i < 10; i++)
 		putchar(' ');
-	printf("%p %8ld %8lu %8lu %-8s %-16s %-8s 0x%02x %s",
-		c1, c1->offset, c1->size, c1->end, c1->name, c1->sname,
-		chunk_name(c1->type), c1->subtype,
-		ShowChunkFlags(c1));
+#ifndef __ia64__
+	printf("%p ", c1);
+#endif
+	printf("%8ld %8lu %8lu %-8s %-16s %-8s 0x%02x %s", c1->offset,
+	    c1->size, c1->end, c1->name, c1->sname, chunk_name(c1->type),
+	    c1->subtype, ShowChunkFlags(c1));
 	putchar('\n');
 	Print_Chunk(c1->part, offset + 2);
 	Print_Chunk(c1->next, offset);
@@ -430,6 +432,11 @@ Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
 		break;
 	case part:
 		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, freebsd);
+#ifdef __ia64__
+		if (c1 == NULL)
+			c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end,
+			    whole);
+#endif
 		break;
 	default:
 		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, extended);
