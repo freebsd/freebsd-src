@@ -740,6 +740,10 @@ pcib_match(device_t dev)
 	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
 		return ("AcerLabs M5243 PCI-PCI bridge");
 
+	/* AMD -- vendor 0x1022 */
+	case 0x70071022:
+		return ("AMD-751 PCI-PCI (AGP) bridge");
+
 	/* Others */
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
@@ -1084,6 +1088,10 @@ chip_match(device_t dev)
 		return ("VIA 82C586B IDE controller");
 	case 0x30381106:
 		return ("VIA 83C572 USB controller");
+
+	/* AMD -- vendor 0x1022 */
+	case 0x70061022:
+		return ("AMD-751 host to PCI bridge");
 
 	/* NEC -- vendor 0x1033 */
 	case 0x00021033:
