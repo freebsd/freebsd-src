@@ -164,12 +164,12 @@ ad_detach(struct ata_device *atadev)
     if (adp->flags & AD_F_RAID_SUBDISK)
 	ata_raiddisk_detach(adp);
 #endif
+    disk_destroy(adp->disk);
+    ata_prtdev(atadev, "WARNING - removed from configuration\n");
     mtx_lock(&adp->queue_mtx);
     bioq_flush(&adp->queue, NULL, ENXIO);
     mtx_unlock(&adp->queue_mtx);
     mtx_destroy(&adp->queue_mtx);
-    disk_destroy(adp->disk);
-    ata_prtdev(atadev, "WARNING - removed from configuration\n");
     ata_free_name(atadev);
     ata_free_lun(&adp_lun_map, adp->lun);
     atadev->attach = NULL;
@@ -219,10 +219,6 @@ adstrategy(struct bio *bp)
 {
     struct ad_softc *adp = bp->bio_disk->d_drv1;
 
-    if (adp->device->flags & ATA_D_DETACHING) {
-	biofinish(bp, NULL, ENXIO);
-	return;
-    }
     mtx_lock(&adp->queue_mtx);
     bioq_disksort(&adp->queue, bp);
     mtx_unlock(&adp->queue_mtx);
@@ -245,6 +241,10 @@ ad_start(struct ata_device *atadev)
     }
     bioq_remove(&adp->queue, bp); 
     mtx_unlock(&adp->queue_mtx);
+    if (adp->device->flags & ATA_D_DETACHING) {
+	biofinish(bp, NULL, ENXIO);
+	return;
+    }
 
     if (!(request = ata_alloc_request())) {
 	ata_prtdev(atadev, "FAILURE - out of memory in start\n");
