@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.155 1995/05/11 07:18:11 jkh Exp $
+#	$Id: Makefile,v 1.156 1995/05/13 19:51:57 rgrimes Exp $
 #
 # How to roll a release:
 #
@@ -434,6 +434,10 @@ doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9 release.10
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
+
+floppies:
+	rm -f release.4 release.6 release.7 release.10
+	make doRELEASE
 
 ckRELEASEDIR:
 .if !defined(RELEASEDIR)
