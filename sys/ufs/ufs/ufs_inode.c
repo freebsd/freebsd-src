@@ -169,10 +169,7 @@ ufs_reclaim(ap)
 	 * Purge old data structures associated with the inode.
 	 */
 	cache_purge(vp);
-	if (ip->i_devvp) {
-		vrele(ip->i_devvp);
-		ip->i_devvp = 0;
-	}
+	vrele(ip->i_devvp);
 #ifdef QUOTA
 	for (i = 0; i < MAXQUOTAS; i++) {
 		if (ip->i_dquot[i] != NODQUOT) {

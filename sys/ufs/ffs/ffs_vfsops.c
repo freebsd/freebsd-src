@@ -1333,9 +1333,8 @@ ffs_vget(mp, ino, flags, vpp)
 		return (error);
 	}
 	/*
-	 * Finish inode initialization now that aliasing has been resolved.
+	 * Finish inode initialization.
 	 */
-	ip->i_devvp = ump->um_devvp;
 	VREF(ip->i_devvp);
 	/*
 	 * Set up a generation number for this inode if it does not
