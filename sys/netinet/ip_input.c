@@ -1616,7 +1616,7 @@ ip_rtaddr(dst)
 	struct sockaddr_in *sin;
 	struct in_ifaddr *ifa;
 
-	sro.ro_rt = NULL;
+	bzero(&sro, sizeof(sro));
 	sin = (struct sockaddr_in *)&sro.ro_dst;
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
@@ -1879,7 +1879,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		struct route ro;
 		struct rtentry *rt;
 
-		ro.ro_rt = NULL;
+		bzero(&ro, sizeof(ro));
 		sin = (struct sockaddr_in *)&ro.ro_dst;
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);

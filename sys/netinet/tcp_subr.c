@@ -1409,7 +1409,7 @@ tcp_maxmtu(inc)
 
 	KASSERT(inc != NULL, ("tcp_maxmtu with NULL in_conninfo pointer"));
 
-	sro.ro_rt = NULL;
+	bzero(&sro, sizeof(sro));
 	if (inc->inc_faddr.s_addr != INADDR_ANY) {
 	        dst = (struct sockaddr_in *)&sro.ro_dst;
 		dst->sin_family = AF_INET;
@@ -1439,7 +1439,7 @@ tcp_maxmtu6(inc)
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
 
-	sro6.ro_rt = NULL;
+	bzero(&sro6, sizeof(sro6));
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
 		sro6.ro_dst.sin6_family = AF_INET6;
 		sro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
