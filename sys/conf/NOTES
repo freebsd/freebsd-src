@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.583 1999/04/16 21:22:08 peter Exp $
+#	$Id: LINT,v 1.584 1999/04/19 10:18:34 brian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -827,7 +827,7 @@ options		"MSGBUF_SIZE=40960"
 #
 # Mandatory ISA devices: isa, npx
 #
-controller	isa0	at nexus?
+controller	isa0
 
 #
 # Options for `isa':
@@ -1632,7 +1632,7 @@ options	"EISA_SLOTS=12"
 # The "oltr" driver supports the following Olicom PCI token-ring adapters
 # OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
 #
-controller	pci0	at nexus?
+controller	pci0
 controller	ahc1
 controller	ncr0
 controller	isp0
