@@ -62,7 +62,6 @@
 #include <net/route.h>
 #include <net/if.h>
 
-#define _IP_VHL
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -292,7 +291,8 @@ tcp_fillheaders(tp, ip_ptr, tcp_ptr)
 	{
 	struct ip *ip = (struct ip *) ip_ptr;
 
-	ip->ip_vhl = IP_VHL_BORING;
+	ip->ip_v = IPVERSION;
+	ip->ip_hl = 5;
 	ip->ip_tos = 0;
 	ip->ip_len = 0;
 	ip->ip_id = 0;
@@ -379,7 +379,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 
 #ifdef INET6
-	isipv6 = IP_VHL_V(((struct ip *)ipgen)->ip_vhl) == 6;
+	isipv6 = ((struct ip *)ipgen)->ip_v == 6;
 	ip6 = ipgen;
 #endif /* INET6 */
 	ip = ipgen;
@@ -1105,7 +1105,7 @@ tcp_ctlinput(cmd, sa, vip)
 	if (ip) {
 		s = splnet();
 		th = (struct tcphdr *)((caddr_t)ip 
-				       + (IP_VHL_HL(ip->ip_vhl) << 2));
+				       + (ip->ip_hl << 2));
 		INP_INFO_WLOCK(&tcbinfo);
 		inp = in_pcblookup_hash(&tcbinfo, faddr, th->th_dport,
 		    ip->ip_src, th->th_sport, 0, NULL);
