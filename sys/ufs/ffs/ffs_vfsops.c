@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.89 1998/10/25 17:44:57 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.90 1998/10/25 19:02:48 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -453,13 +453,12 @@ ffs_reload(mp, cred, p)
 		panic("ffs_reload: dirty1");
 
 	dev = devvp->v_rdev;
+
 	/*
 	 * Only VMIO the backing device if the backing device is a real
-	 * block device.  This excludes the original MFS implementation.
-	 * Note that it is optional that the backing device be VMIOed.  This
-	 * increases the opportunity for metadata caching.
+	 * block device.  See ffs_mountmfs() for more details.
 	 */
-	if (devvp->v_type == VBLK) {
+	if (devvp->v_tag != VT_MFS && devvp->v_type == VBLK) {
 		simple_lock(&devvp->v_interlock);
 		vfs_object_create(devvp, p, p->p_ucred, 0);
 	}
@@ -614,11 +613,10 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 * Note that it is optional that the backing device be VMIOed.  This
 	 * increases the opportunity for metadata caching.
 	 */
-	if (devvp->v_type == VBLK) {
+	if (devvp->v_tag != VT_MFS && devvp->v_type == VBLK) {
 		simple_lock(&devvp->v_interlock);
 		vfs_object_create(devvp, p, p->p_ucred, 0);
 	}
-
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
