@@ -1,3 +1,4 @@
+/*	$NetBSD: chio.c,v 1.6 1998/01/04 23:53:58 thorpej Exp $ */
 /*
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
@@ -37,10 +38,9 @@
 static const char copyright[] =
 	"@(#) Copyright (c) 1996 Jason R. Thorpe.  All rights reserved.";
 static const char rcsid[] =
-	"$Id";
+	"$Id$";
 #endif /* not lint */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/chio.h> 
 #include <err.h>
