@@ -105,8 +105,9 @@ is unneeded), and this driver functions as a
 node with a single hook named
 .Dv rawdata .
 Connecting to this hook enables the transmission of raw HDLC frames.
-The node will have the same name as the device, e.g.,
-.Dv sr0 .
+The node will have the same name as the device with ``sync_''
+prepended, e.g.,
+.Dv sync_sr0 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "sr%d: Warning illegal interrupt %d."
