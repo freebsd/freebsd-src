@@ -107,7 +107,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.162 1998/03/27 04:19:30 peter Exp $
+#	$Id: MAKEDEV,v 1.163 1998/03/27 04:35:10 peter Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -552,7 +552,7 @@ pty*)
 	case $class in
 	0|1|2|3|4|5|6|7)
 		umask 0
-		eval `echo $offset $name | awk ' { b=$1; n=$2 } END { \
+		eval `echo $offset $name | awk ' { b=0+$1; n=0+$2 } END { \
 			for (i = 0; i < 32; i++) {
 				c = substr("0123456789abcdefghijklmnopqrstuv", i + 1, 1); \
 				printf("mknod tty%s%s c 5 %d; \
@@ -714,7 +714,7 @@ tw*)
 vty*)
 	chr=12
 	units=`expr $i : 'vty\(.*\)'`
-	eval `echo ${chr} ${units} | awk ' { c=$1; n=$2 } END {
+	eval `echo ${chr} ${units} | awk ' { c=0+$1; n=0+$2 } END {
 		for (i = 0; i < n; i++)
 			printf("mknod ttyv%01x c %d %d;", i, c, i); }'`
 	ln -fs ttyv0 vga	# XXX X still needs this pccons relic
