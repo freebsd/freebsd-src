@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.10 1994/11/11 05:28:59 davidg Exp $
+ *      $Id: userconfig.c,v 1.11 1994/11/13 00:42:01 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -116,7 +116,7 @@ Cmd CmdList[] = {
     { "io",	set_device_ioaddr,	addr_parms },	/* io dev addr	*/
     { "irq",	set_device_irq,		int_parms },	/* irq dev #	*/
     { "drq",	set_device_drq,		int_parms },	/* drq dev #	*/
-    { "mem",	set_device_mem,		addr_parms },	/* mem dev #	*/
+    { "mem",	set_device_mem,		addr_parms },	/* mem dev addr	*/
     { "enable",	set_device_enable,	dev_parms },	/* enable dev	*/
     { "disable", set_device_disable,	dev_parms },	/* disable dev	*/
     { "quit", 	quitfunc, 		NULL },		/* quit		*/
