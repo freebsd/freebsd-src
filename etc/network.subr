@@ -3,400 +3,574 @@
 # $FreeBSD$
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
-# Note that almost all the user-configurable behavior is no longer in
-# this file, but rather in /etc/rc.conf.  Please check that file
+# Note that almost all of the user-configurable behavior is no longer in
+# this file, but rather in /etc/defaults/rc.conf.  Please check that file
 # first before contemplating any changes here.  If you do need to change
 # this file for some reason, we would like to know about it.
 
 # First pass startup stuff.
-
+#
 network_pass1() {
-    echo -n 'Doing initial network setup:'
-    # Set the host name if it is not already set
-    if [ -z "`hostname -s`" ] ; then
-	    hostname ${hostname}
-	    echo -n ' hostname'
-    fi
+	echo -n 'Doing initial network setup:'
 
-    # Set the domainname if we're using NIS
-    if [ -n "${nisdomainname}" -a "${nisdomainname}" != "NO" ] ; then
-	    domainname ${nisdomainname}
-	    echo -n ' domain'
-    fi
-    echo '.'
-
-    # Initial ATM interface configuration
-    if [ "${atm_enable}" = "YES" -a -f /etc/rc.atm ]; then
-	    . /etc/rc.atm
-	    atm_pass1
-    fi
-
-    # ISDN subsystem startup
-    if [ "${isdn_enable}" = "YES" -a -f /etc/rc.isdn ]; then
-	    . /etc/rc.isdn
-    fi
-
-    # Special options for sppp(4) interfaces go here.  These need
-    # to go _before_ the general ifconfig section, since in the case
-    # of hardwired (no link1 flag) but required authentication, you
-    # cannot pass auth parameters down to the already running interface.
-    for ifn in ${sppp_interfaces}; do
-	    eval spppcontrol_args=\$spppconfig_${ifn}
-	    if [ -n "${spppcontrol_args}" ] ; then
-		    # The auth secrets might contain spaces; in order
-		    # to retain the quotation, we need to eval them
-		    # here.
-		    eval spppcontrol ${ifn} ${spppcontrol_args}
-	    fi
-    done
-
-    # Set up all the network interfaces, calling startup scripts if needed
-    if [ "${network_interfaces}" = "auto" ]; then
-	    network_interfaces="`ifconfig -l`"
-    fi
-    for ifn in ${network_interfaces}; do
-	    showstat=false
-	    if [ -e /etc/start_if.${ifn} ]; then
-		    . /etc/start_if.${ifn}
-		    showstat=true
-	    fi
-	    # Do the primary ifconfig if specified
-	    eval ifconfig_args=\$ifconfig_${ifn}
-	    if [ -n "${ifconfig_args}" ] ; then
-		    # See if we are using DHCP
-		    if [ "${ifconfig_args}" = "DHCP" ]; then
-			     ${dhcp_program} ${dhcp_flags} ${ifn}
-		    else
-			     ifconfig ${ifn} ${ifconfig_args}
-		    fi
-		    showstat=true
-	    fi
-	    # Check to see if aliases need to be added
-	    alias=0
-	    while :
-	    do
-		    eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
-		    if [ -n "${ifconfig_args}" ]; then
-			    ifconfig ${ifn} ${ifconfig_args} alias
-			    showstat=true
-			    alias=`expr ${alias} + 1`
-		    else
-			    break;
-		    fi
-	    done
-	    # Do ipx address if specified
-	    eval ifconfig_args=\$ifconfig_${ifn}_ipx
-	    if [ -n "${ifconfig_args}" ]; then
-		    ifconfig ${ifn} ${ifconfig_args}
-		    showstat=true
-	    fi
-	    if [ "${showstat}" = "true" ]
-	    then
-		    ifconfig ${ifn}
-	    fi
-    done
-
-    # Warm up user ppp if required, must happen before natd.
-    if [ "${ppp_enable}" = "YES" ]; then
-	    # Establish ppp mode.
-	    if [ "${ppp_mode}" != "ddial" -a "${ppp_mode}" != "direct" \
-		-a "${ppp_mode}" != "dedicated" \
-		-a "${ppp_mode}" != "background" ]; then
-	        ppp_mode="auto";
-	    fi
-	    ppp_command="-${ppp_mode} ";
-
-	    # Switch on alias mode?
-	    if [ "${ppp_nat}" = "YES" ]; then
-		ppp_command="${ppp_command} -nat";
-	    fi
-
-	    echo -n 'Starting ppp: '; ppp ${ppp_command} -quiet ${ppp_profile}
-    fi
-
-    # Initialize IP filtering using ipfw
-    echo ""
-    /sbin/ipfw -q flush > /dev/null 2>&1
-    if [ $? = 0 ] ; then
-	firewall_in_kernel=1
-    else 
-	firewall_in_kernel=0
-    fi
-
-    if [ ${firewall_in_kernel} = 0 -a "${firewall_enable}"  = "YES" ] ; then
-	if kldload ipfw; then
-		firewall_in_kernel=1		# module loaded successfully
-		echo "Kernel firewall module loaded."
-	else
-		echo "Warning: firewall kernel module failed to load."
+	# Set the host name if it is not already set
+	#
+	if [ -z "`hostname -s`" ]; then
+		hostname ${hostname}
+		echo -n ' hostname'
 	fi
-    fi
 
-    # Load the filters if required
-    if [ ${firewall_in_kernel} = 1 ]; then
-	if [ -z "${firewall_script}" ] ; then
-	    firewall_script="/etc/rc.firewall"
-	fi
-	if [ -f ${firewall_script} -a "${firewall_enable}" = "YES" ]; then
-	    . ${firewall_script}
-	    echo -n 'Firewall rules loaded, starting divert daemons:'
+	# Set the domainname if we're using NIS
+	#
+	case ${nisdomainname} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		domainname ${nisdomainname}
+		echo -n ' domain'
+		;;
+	esac
 
-	    # Network Address Translation daemon
-	    if [ "${natd_enable}" = "YES" -a -n "${natd_interface}" ]; then
-		if echo ${natd_interface} | \
-		    grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
-		    natd_ifarg="-a ${natd_interface}"
-		else
-		    natd_ifarg="-n ${natd_interface}"
+	echo '.'
+
+	# Initial ATM interface configuration
+	#
+	case ${atm_enable} in
+	[Yy][Ee][Ss])
+		if [ -r /etc/rc.atm ]; then
+			. /etc/rc.atm
+			atm_pass1
 		fi
-		echo -n ' natd'; ${natd_program} ${natd_flags} ${natd_ifarg}
-	    fi
-	    echo '.'
+		;;
+	esac
+
+	# ISDN subsystem startup
+	#
+	case ${isdn_enable} in
+	[Yy][Ee][Ss])
+		if [ -r /etc/rc.isdn ]; then
+			. /etc/rc.isdn
+		fi
+		;;
+	esac
+
+	# Special options for sppp(4) interfaces go here.  These need
+	# to go _before_ the general ifconfig section, since in the case
+	# of hardwired (no link1 flag) but required authentication, you
+	# cannot pass auth parameters down to the already running interface.
+	#
+	for ifn in ${sppp_interfaces}; do
+		eval spppcontrol_args=\$spppconfig_${ifn}
+		if [ -n "${spppcontrol_args}" ]; then
+			# The auth secrets might contain spaces; in order
+			# to retain the quotation, we need to eval them
+			# here.
+			eval spppcontrol ${ifn} ${spppcontrol_args}
+		fi
+	done
+
+	# Set up all the network interfaces, calling startup scripts if needed
+	#
+	case ${network_interfaces} in
+	[Aa][Uu][Tt][Oo])
+		network_interfaces="`ifconfig -l`"
+		;;
+	esac
+
+	for ifn in ${network_interfaces}; do
+		showstat=false
+		if [ -r /etc/start_if.${ifn} ]; then
+			. /etc/start_if.${ifn}
+			showstat=true
+		fi
+
+		# Do the primary ifconfig if specified
+		#
+		eval ifconfig_args=\$ifconfig_${ifn}
+
+		case ${ifconfig_args} in
+		'')
+			;;
+		[Dd][Hh][Cc][Pp])
+			${dhcp_program:-/sbin/dhclient} ${dhcp_flags} ${ifn}
+			showstat=true
+			;;
+		*)
+			ifconfig ${ifn} ${ifconfig_args}
+			showstat=true
+			;;
+		esac
+
+		# Check to see if aliases need to be added
+		#
+		alias=0
+		while : ; do
+			eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
+			if [ -n "${ifconfig_args}" ]; then
+				ifconfig ${ifn} ${ifconfig_args} alias
+				showstat=true
+				alias=`expr ${alias} + 1`
+			else
+				break;
+			fi
+		done
+
+		# Do ipx address if specified
+		#
+		eval ifconfig_args=\$ifconfig_${ifn}_ipx
+		if [ -n "${ifconfig_args}" ]; then
+			ifconfig ${ifn} ${ifconfig_args}
+			showstat=true
+		fi
+
+		case ${showstat} in
+		true)
+			ifconfig ${ifn}
+			;;
+		esac
+	done
+
+	# Warm up user ppp if required, must happen before natd.
+	#
+	case ${ppp_enable} in
+	[Yy][Ee][Ss])
+		# Establish ppp mode.
+		#
+		if [ "${ppp_mode}" != "ddial" -a "${ppp_mode}" != "direct" \
+			-a "${ppp_mode}" != "dedicated" \
+			-a "${ppp_mode}" != "background" ]; then
+			ppp_mode="auto";
+		fi
+
+		ppp_command="-${ppp_mode} ";
+
+		# Switch on alias mode?
+		#
+		case ${ppp_nat} in
+		[Yy][Ee][Ss])
+			ppp_command="${ppp_command} -nat";
+			;;
+		esac
+
+		echo -n 'Starting ppp: '; ppp ${ppp_command} -quiet ${ppp_profile}
+		;;
+	esac
+
+	# Initialize IP filtering using ipfw
+	#
+	echo ''
+
+	if /sbin/ipfw -q flush > /dev/null 2>&1; then
+		firewall_in_kernel=1
 	else
-	    IPFW_DEFAULT=`ipfw l 65535`
-	    if [ "${IPFW_DEFAULT}" = "65535 deny ip from any to any" ]; then
-		echo -n "Warning: kernel has firewall functionality, "
-		echo "but firewall rules are not enabled."
-		echo "         All ip services are disabled."
-	    fi
+		firewall_in_kernel=0
 	fi
-    fi
 
-    # Additional ATM interface configuration
-    if [ -n "${atm_pass1_done}" ]; then
-	    atm_pass2
-    fi
+	case ${firewall_enable} in
+	[Yy][Ee][Ss])
+		if [ "${firewall_in_kernel}" -eq 0 ] && kldload ipfw; then
+			firewall_in_kernel=1
+			echo "Kernel firewall module loaded."
+		elif [ "${firewall_in_kernel}" -eq 0 ]; then
+			echo "Warning: firewall kernel module failed to load."
+		fi
+		;;
+	esac
 
-    # Configure routing
+	# Load the filters if required
+	#
+	case ${firewall_in_kernel} in
+	1)
+		if [ -z "${firewall_script}" ]; then
+			firewall_script=/etc/rc.firewall
+		fi
 
-    if [ "${defaultrouter}" != "NO" ] ; then
-	    static_routes="default ${static_routes}"
-	    route_default="default ${defaultrouter}"
-    fi
-    
-    # Set up any static routes.  This should be done before router discovery.
-    if [ -n "${static_routes}" ]; then
-	    for i in ${static_routes}; do
-		    eval route_args=\$route_${i}
-		    route add ${route_args}
-	    done
-    fi
+		case ${firewall_enable} in
+		[Yy][Ee][Ss])
+			if [ -r ${firewall_script} ]; then
+				. ${firewall_script}
+				echo -n 'Firewall rules loaded, starting divert daemons:'
 
-    echo -n 'Additional routing options:'
-    if [ -n "${tcp_extensions}" -a "${tcp_extensions}" != "YES" ] ; then
-	    echo -n ' tcp extensions=NO'
-	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null
-    fi
+				# Network Address Translation daemon
+				#
+				case ${natd_enable} in
+				[Yy][Ee][Ss])
+					if [ -n "${natd_interface}" ]; then
+						if echo ${natd_interface} | \
+							grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+							natd_ifarg="-a ${natd_interface}"
+						else
+							natd_ifarg="-n ${natd_interface}"
+						fi
 
-    if [ -n "${log_in_vain}" -a "${log_in_vain}" != "NO" ] ; then
-	    echo -n ' log_in_vain=YES'
-	    sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null
-	    sysctl -w net.inet.udp.log_in_vain=1 >/dev/null
-    fi
+						echo -n ' natd'; ${natd_program:-/sbin/natd} ${natd_flags} ${natd_ifarg}
+					fi
+					;;
+				esac
 
-    if [ "${icmp_bmcastecho}" = "YES" ]; then
-	    echo -n ' broadcast ping responses=YES'
-	    sysctl -w net.inet.icmp.bmcastecho=1 >/dev/null
-    fi
-    
-    if [ "${icmp_drop_redirect}" = "YES" ]; then
-	    echo -n ' ignore ICMP redirect=YES'
-	    sysctl -w net.inet.icmp.drop_redirect=1 >/dev/null
-    fi
-    
-    if [ "${icmp_log_redirect}" = "YES" ]; then
-	    echo -n ' log ICMP redirect=YES'
-	    sysctl -w net.inet.icmp.log_redirect=1 >/dev/null
-    fi
+				echo '.'
 
-    if [ "${gateway_enable}" = "YES" ]; then
-	    echo -n ' IP gateway=YES'
-	    sysctl -w net.inet.ip.forwarding=1 >/dev/null
-    fi
-    
-    if [ "${forward_sourceroute}" = "YES" ]; then
-	    echo -n ' do source routing=YES'
-	    sysctl -w net.inet.ip.sourceroute=1 >/dev/null
-    fi
+			elif [ "`ipfw l 65535`" = "65535 deny ip from any to any" ]; then
+				echo -n "Warning: kernel has firewall functionality, "
+				echo "but firewall rules are not enabled."
+				echo "		 All ip services are disabled."
+			fi
+			;;
+		esac
+		;;
+	esac
 
-    if [ "${accept_sourceroute}" = "YES" ]; then
-	    echo -n ' accept source routing=YES'
-	    sysctl -w net.inet.ip.accept_sourceroute=1 >/dev/null
-    fi
+	# Additional ATM interface configuration
+	#
+	if [ -n "${atm_pass1_done}" ]; then
+		atm_pass2
+	fi
 
-    if [ "${tcp_keepalive}" = "YES" ]; then
-	    echo -n ' TCP keepalive=YES'
-	    sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null
-    fi
+	# Configure routing
+	#
+	case ${defaultrouter} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		static_routes="default ${static_routes}"
+		route_default="default ${defaultrouter}"
+		;;
+	esac
 
-    if [ "X$tcp_restrict_rst" = X"YES" ]; then
-	    echo -n ' restrict TCP reset=YES'
-	    sysctl -w net.inet.tcp.restrict_rst=1 >/dev/null
-    fi
+	# Set up any static routes.  This should be done before router discovery.
+	#
+	if [ -n "${static_routes}" ]; then
+		for i in ${static_routes}; do
+			eval route_args=\$route_${i}
+			route add ${route_args}
+		done
+	fi
 
-    if [ "X$tcp_drop_synfin" = X"YES" ]; then
-	    echo -n ' drop SYN+FIN packets=YES'
-	    sysctl -w net.inet.tcp.drop_synfin=1 >/dev/null
-    fi
+	echo -n 'Additional routing options:'
+	case ${tcp_extensions} in
+	[Yy][Ee][Ss] | '')
+		;;
+	*)
+		echo -n ' tcp extensions=NO'
+		sysctl -w net.inet.tcp.rfc1323=0 >/dev/null
+		;;
+	esac
 
-    if [ "${ipxgateway_enable}" = "YES" ]; then
-	    echo -n ' IPX gateway=YES'
-	    sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null
-    fi
-    
-    if [ "${arpproxy_all}" = "YES" ]; then
-	    echo -n ' ARP proxyall=YES'
-	    sysctl -w net.link.ether.inet.proxyall=1 >/dev/null
-    fi
-    echo '.'
+	case ${log_in_vain} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' log_in_vain=YES'
+		sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null
+		sysctl -w net.inet.udp.log_in_vain=1 >/dev/null
+		;;
+	esac
 
-    echo -n 'routing daemons:'
-    if [ "${router_enable}" = "YES" ]; then
-	    echo -n " ${router}";	${router} ${router_flags}
-    fi
-    
-    if [ "${ipxrouted_enable}" = "YES" ]; then
-	    echo -n ' IPXrouted'
-	    IPXrouted ${ipxrouted_flags} > /dev/null 2>&1
-    fi
-    
-    if [ "${mrouted_enable}" = "YES" ]; then
-	    echo -n ' mrouted'; mrouted ${mrouted_flags}
-    fi
+	case ${icmp_bmcastecho} in
+	[Yy][Ee][Ss])
+		echo -n ' broadcast ping responses=YES'
+		sysctl -w net.inet.icmp.bmcastecho=1 >/dev/null
+		;;
+	esac
 
-    if [ "${rarpd_enable}" = "YES" ]; then
-	    echo -n ' rarpd';     rarpd ${rarpd_flags}
-    fi
-    echo '.'
-    network_pass1_done=YES	# Let future generations know we made it.
+	case ${icmp_drop_redirect} in
+	[Yy][Ee][Ss])
+		echo -n ' ignore ICMP redirect=YES'
+		sysctl -w net.inet.icmp.drop_redirect=1 >/dev/null
+		;;
+	esac
+
+	case ${icmp_log_redirect} in
+	[Yy][Ee][Ss])
+		echo -n ' log ICMP redirect=YES'
+		sysctl -w net.inet.icmp.log_redirect=1 >/dev/null
+		;;
+	esac
+
+	case ${gateway_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' IP gateway=YES'
+		sysctl -w net.inet.ip.forwarding=1 >/dev/null
+		;;
+	esac
+
+	case ${forward_sourceroute} in
+	[Yy][Ee][Ss])
+		echo -n ' do source routing=YES'
+		sysctl -w net.inet.ip.sourceroute=1 >/dev/null
+		;;
+	esac
+
+	case ${accept_sourceroute} in
+	[Yy][Ee][Ss])
+		echo -n ' accept source routing=YES'
+		sysctl -w net.inet.ip.accept_sourceroute=1 >/dev/null
+		;;
+	esac
+
+	case ${tcp_keepalive} in
+	[Yy][Ee][Ss])
+		echo -n ' TCP keepalive=YES'
+		sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null
+		;;
+	esac
+
+	case ${tcp_restrict_rst} in
+	[Yy][Ee][Ss])
+		echo -n ' restrict TCP reset=YES'
+		sysctl -w net.inet.tcp.restrict_rst=1 >/dev/null
+		;;
+	esac
+
+	case ${tcp_drop_synfin} in
+	[Yy][Ee][Ss])
+		echo -n ' drop SYN+FIN packets=YES'
+		sysctl -w net.inet.tcp.drop_synfin=1 >/dev/null
+		;;
+	esac
+
+	case ${ipxgateway_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' IPX gateway=YES'
+		sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null
+		;;
+	esac
+
+	case ${arpproxy_all} in
+	[Yy][Ee][Ss])
+		echo -n ' ARP proxyall=YES'
+		sysctl -w net.link.ether.inet.proxyall=1 >/dev/null
+		;;
+	esac
+	echo '.'
+
+	echo -n 'routing daemons:'
+	case ${router_enable} in
+	[Yy][Ee][Ss])
+		echo -n " ${router}";	${router} ${router_flags}
+		;;
+	esac
+
+	case ${ipxrouted_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' IPXrouted'
+		IPXrouted ${ipxrouted_flags} > /dev/null 2>&1
+		;;
+	esac
+
+	case ${mrouted_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' mrouted';	mrouted ${mrouted_flags}
+		;;
+	esac
+
+	case ${rarpd_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' rarpd';	rarpd ${rarpd_flags}
+		;;
+	esac
+	echo '.'
+
+	# Let future generations know we made it.
+	#
+	network_pass1_done=YES
 }
 
 network_pass2() {
-    echo -n 'Doing additional network setup:'
-    if [ "${named_enable}" = "YES" ]; then
-	    echo -n ' named';		${named_program-"named"} ${named_flags}
-    fi
+	echo -n 'Doing additional network setup:'
+	case ${named_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' named';	${named_program:-named} ${named_flags}
+		;;
+	esac
 
-    if [ "${ntpdate_enable}" = "YES" ]; then
-	    echo -n ' ntpdate';	${ntpdate_program} ${ntpdate_flags} >/dev/null 2>&1
-    fi
+	case ${ntpdate_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' ntpdate'
+		${ntpdate_program:-ntpdate} ${ntpdate_flags} >/dev/null 2>&1
+		;;
+	esac
 
-    if [ "${xntpd_enable}" = "YES" ]; then
-	    echo -n ' xntpd';	${xntpd_program} ${xntpd_flags}
-    fi
+	case ${xntpd_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' xntpd';	${xntpd_program:-xntpd} ${xntpd_flags}
+		;;
+	esac
 
-    if [ "${timed_enable}" = "YES" ]; then
-	    echo -n ' timed';		timed ${timed_flags}
-    fi
+	case ${timed_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' timed';	timed ${timed_flags}
+		;;
+	esac
 
-    if [ "${portmap_enable}" = "YES" ]; then
-	    echo -n ' portmap';		${portmap_program} ${portmap_flags}
-    fi
+	case ${portmap_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' portmap';	${portmap_program:-/usr/sbin/portmap} ${portmap_flags}
+		;;
+	esac
 
-    # Start ypserv if we're an NIS server.
-    # Run rpc.ypxfrd and rpc.yppasswdd only on the NIS master server.
-    if [ "${nis_server_enable}" = "YES" ]; then
-	    echo -n ' ypserv'; ypserv ${nis_server_flags}
-	    
-	    if [ "${nis_ypxfrd_enable}" = "YES" ]; then
-		    echo -n ' rpc.ypxfrd'; rpc.ypxfrd ${nis_ypxfrd_flags}
-	    fi
-	    
-	    if [ "${nis_yppasswdd_enable}" = "YES" ]; then
-		    echo -n ' rpc.yppasswdd'; rpc.yppasswdd ${nis_yppasswdd_flags}
-	    fi
-    fi
+	# Start ypserv if we're an NIS server.
+	# Run rpc.ypxfrd and rpc.yppasswdd only on the NIS master server.
+	#
+	case ${nis_server_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' ypserv'; ypserv ${nis_server_flags}
 
-    # Start ypbind if we're an NIS client
-    if [ "${nis_client_enable}" = "YES" ]; then
-	    echo -n ' ypbind'; ypbind ${nis_client_flags}
-	    if [ "${nis_ypset_enable}" = "YES" ]; then
-		    echo -n ' ypset'; ypset ${nis_ypset_flags}
-	    fi
-    fi
+		case ${nis_ypxfrd_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' rpc.ypxfrd'
+			rpc.ypxfrd ${nis_ypxfrd_flags}
+			;;
+		esac
 
-    # Start keyserv if we are running Secure RPC
-    if [ "${keyserv_enable}" = "YES" ]; then
-	    echo -n ' keyserv';		keyserv ${keyserv_flags}
-    fi
-    # Start ypupdated if we are running Secure RPC and we are NIS master
-    if [ "${rpc_ypupdated_enable}" = "YES" ]; then
-	    echo -n ' rpc.ypupdated';	rpc.ypupdated
-    fi
+		case ${nis_yppasswdd_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' rpc.yppasswdd'
+			rpc.yppasswdd ${nis_yppasswdd_flags}
+			;;
+		esac
+		;;
+	esac
 
-    # Start ATM daemons
-    if [ -n "${atm_pass2_done}" ]; then
-	    atm_pass3
-    fi
+	# Start ypbind if we're an NIS client
+	#
+	case ${nis_client_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' ypbind'; ypbind ${nis_client_flags}
+		case ${nis_ypset_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' ypset';	ypset ${nis_ypset_flags}
+			;;
+		esac
+		;;
+	esac
 
-    echo '.'
-    network_pass2_done=YES
+	# Start keyserv if we are running Secure RPC
+	#
+	case ${keyserv_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' keyserv';	keyserv ${keyserv_flags}
+		;;
+	esac
+
+	# Start ypupdated if we are running Secure RPC and we are NIS master
+	#
+	case ${rpc_ypupdated_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' rpc.ypupdated';	rpc.ypupdated
+		;;
+	esac
+
+	# Start ATM daemons
+	if [ -n "${atm_pass2_done}" ]; then
+		atm_pass3
+	fi
+
+	echo '.'
+	network_pass2_done=YES
 }
 
 network_pass3() {
-    echo -n 'Starting final network daemons:'
+	echo -n 'Starting final network daemons:'
 
-    if [ "${nfs_server_enable}" = "YES" -a -r /etc/exports ]; then
-	    echo -n ' mountd'
-	    if [ "${weak_mountd_authentication}" = "YES" ]; then
-		    mountd_flags="-n"
-	    fi
-	    mountd ${mountd_flags}
-	    if [ "${nfs_reserved_port_only}" = "YES" ]; then
-		    echo -n ' NFS on reserved port only=YES'
-		    sysctl -w vfs.nfs.nfs_privport=1 >/dev/null
-	    fi
-	    echo -n ' nfsd';		nfsd ${nfs_server_flags}
-	    if [ "${rpc_lockd_enable}" = "YES" ]; then
-		echo -n ' rpc.lockd';		rpc.lockd
-	    fi
-	    if [ "${rpc_statd_enable}" = "YES" ]; then
-		echo -n ' rpc.statd';		rpc.statd
-	    fi
-    fi
-    
-    if [ "${nfs_client_enable}" = "YES" ]; then
-	    echo -n ' nfsiod';		nfsiod ${nfs_client_flags}
-	    if [ "${nfs_access_cache}" != "X" ]; then
+	case ${nfs_server_enable} in
+	[Yy][Ee][Ss])
+		if [ -r /etc/exports ]; then
+			echo -n ' mountd'
+
+			case ${weak_mountd_authentication} in
+			[Yy][Ee][Ss])
+				mountd_flags="-n"
+				;;
+			esac
+
+			mountd ${mountd_flags}
+
+			case ${nfs_reserved_port_only} in
+			[Yy][Ee][Ss])
+				echo -n ' NFS on reserved port only=YES'
+				sysctl -w vfs.nfs.nfs_privport=1 >/dev/null
+				;;
+			esac
+
+			echo -n ' nfsd';	nfsd ${nfs_server_flags}
+
+			case ${rpc_lockd_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' rpc.lockd';	rpc.lockd
+				;;
+			esac
+
+			case ${rpc_statd_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' rpc.statd';	rpc.statd
+				;;
+			esac
+		fi
+		;;
+	esac
+
+	case ${nfs_client_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' nfsiod';	nfsiod ${nfs_client_flags}
+		if [ -n "${nfs_access_cache}" ]; then
 		echo -n " NFS access cache time=${nfs_access_cache}"
 		sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} \
-		    >/dev/null
-	    fi
-    fi
+			>/dev/null
+		fi
+		;;
+	esac
 
-    if [ "${amd_enable}" = "YES" ]; then
-	    echo -n ' amd'
-	    if [ "${amd_map_program}" != "NO" ]; then
-		amd_flags="${amd_flags} `eval ${amd_map_program}`"
-	    fi
-	    if [ -n "${amd_flags}" ]
-	    then
-	      amd -p ${amd_flags} > /var/run/amd.pid 2> /dev/null
-	    else
-	      amd 2> /dev/null
-	    fi
-    fi
+	case ${amd_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' amd'
+		case ${amd_map_program} in
+		[Nn][Oo] | '')
+			;;
+		*)
+			amd_flags="${amd_flags} `eval ${amd_map_program}`"
+			;;
+		esac
 
-    if [ "${rwhod_enable}" = "YES" ]; then
-	    echo -n ' rwhod';	rwhod ${rwhod_flags}
-    fi
+		if [ -n "${amd_flags}" ]; then
+			amd -p ${amd_flags} > /var/run/amd.pid 2> /dev/null
+		else
+			amd 2> /dev/null
+		fi
+		;;
+	esac
 
-    # Kerberos runs ONLY on the Kerberos server machine
-    if [ "${kerberos_server_enable}" = "YES" ]; then
-	    if [ "${kerberos_stash}" = "YES" ]; then
-		stash_flag=-n
-	    else
-		stash_flag=
-	    fi
-	    echo -n ' kerberos'; \
+	case ${rwhod_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' rwhod';	rwhod ${rwhod_flags}
+		;;
+	esac
+
+	# Kerberos runs ONLY on the Kerberos server machine
+	case ${kerberos_server_enable} in
+	[Yy][Ee][Ss])
+		case ${kerberos_stash} in
+		[Yy][Ee][Ss])
+			stash_flag=-n
+			;;
+		*)
+			stash_flag=
+			;;
+		esac
+
+		echo -n ' kerberos'
 		kerberos ${stash_flag} >> /var/log/kerberos.log &
-	    if [ "${kadmind_server_enable}" = "YES" ]; then
-		echo -n ' kadmind'; \
-		(sleep 20; kadmind ${stash_flag} >/dev/null 2>&1 &) &
-	    fi
-	    unset stash_flag
-    fi
-    
-    echo '.'
-    network_pass3_done=YES
+
+		case ${kadmind_server_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' kadmind'
+			(sleep 20; kadmind ${stash_flag} >/dev/null 2>&1 &) &
+			;;
+		esac
+		unset stash_flag
+		;;
+	esac
+
+	echo '.'
+	network_pass3_done=YES
 }

@@ -5,33 +5,58 @@
 #
 
 echo -n 'Initial rc.i386 initialization:'
-if [ "${apm_enable}" = "YES" -o "${apmd_enable}" = "YES" ] ; then
+
+case ${apm_enable} in
+[Yy][Ee][Ss])
 	echo -n ' apm'
 	apmconf -e > /dev/null 2>&1
-fi
+	APMCONF_DONE=yes
+	;;
+esac
 
-if [ "${apmd_enable}" = "YES" ] ; then
+case ${apmd_enable} in
+[Yy][Ee][Ss])
+	case ${APMCONF_DONE} in
+	'')
+		echo -n ' apm'
+		apmconf -e > /dev/null 2>&1
+		;;
+	esac
+
 	echo -n ' apmd';	apmd ${apmd_flags}
-fi
+	;;
+esac
 
 # Start the SCO binary emulation if requested.
-if [ "${ibcs2_enable}" = "YES" ]; then
-	echo -n ' ibcs2';		ibcs2 > /dev/null 2>&1
-fi
+#
+case ${ibcs2_enable} in
+[Yy][Ee][Ss])
+	echo -n ' ibcs2';	ibcs2 > /dev/null 2>&1
+	;;
+esac
 
 # Start the Linux binary emulation if requested.
-if [ "${linux_enable}" = "YES" ]; then
-	echo -n ' linux';		linux > /dev/null 2>&1
-fi
+#
+case ${linux_enable} in
+[Yy][Ee][Ss])
+	echo -n ' linux';	linux > /dev/null 2>&1
+	;;
+esac
 
 # Start the SysVR4 binary emulation if requested.
-if [ "${svr4_enable}" = "YES" ]; then
-	echo -n ' svr4';		svr4 > /dev/null 2>&1
-fi
+#
+case ${svr4_enable} in
+[Yy][Ee][Ss])
+	echo -n ' svr4';	svr4 > /dev/null 2>&1
+	;;
+esac
 
-if [ "${xtend_enable}" = "YES" ]; then
+case ${xtend_enable} in
+[Yy][Ee][Ss])
  	echo -n ' xtend';	/usr/libexec/xtend
-fi
+	;;
+esac
+
 echo '.'
 
 ##########################################################################
@@ -39,98 +64,162 @@ echo '.'
 ##########################################################################
 
 # stdin must be redirected because it might be for a serial console
+#
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
 
 echo -n "rc.i386 configuring syscons:"
 
 # keymap
-if [ "${keymap}" != "NO" ]; then
+#
+case ${keymap} in
+[Nn][Oo] | '')
+	;;
+*)
 	echo -n ' keymap';	kbdcontrol < ${kbddev} -l ${keymap}
-fi
+	;;
+esac
 
 # keyrate
-if [ "${keyrate}" != "NO" ]; then
+#
+case ${keyrate} in
+[Nn][Oo] | '')
+	;;
+*)
 	echo -n ' keyrate';	kbdcontrol < ${kbddev} -r ${keyrate}
-fi
+	;;
+esac
 
 # keybell
-if [ "${keybell}" != "NO" ]; then
+#
+case ${keybell} in
+[Nn][Oo] | '')
+	;;
+*)
 	echo -n ' keybell';	kbdcontrol < ${kbddev} -b ${keybell}
-fi
+	;;
+esac
 
 # change function keys
-if [ "${keychange}" != "NO" ]; then
+#
+case ${keychange} in
+[Nn][Oo] | '')
+	;;
+*)
 	echo -n " keychange"
 	set - ${keychange}
-	while [ $# -gt 0 ]
-	do
+	while [ $# -gt 0 ]; do
 		kbdcontrol <${kbddev} -f "$1" "$2"
 		shift; shift
 	done
-fi
+	;;
+esac
 
 # cursor type
-if [ "${cursor}" != "NO" ]; then
+#
+case ${cursor} in
+[Nn][Oo] | '')
+	;;
+*)
 	echo -n ' cursor';	vidcontrol < ${viddev} -c ${cursor}
-fi
+	;;
+esac
 
 # screen mapping
-if [ "${scrnmap}" != "NO" ]; then
+#
+case ${scrnmap} in
+[Nn][Oo] | '')
+	;;
+*)
 	echo -n ' screen_map';	vidcontrol < ${viddev} -l ${scrnmap}
-fi
+	;;
+esac
 
 # font 8x16
-if [ "${font8x16}" != "NO" ]; then
+#
+case ${font8x16} in
+[Nn][Oo] | '')
+        ;;
+*)
 	echo -n ' font8x16';	vidcontrol < ${viddev} -f 8x16 ${font8x16}
-fi
+	;;
+esac
 
 # font 8x14
-if [ "${font8x14}" != "NO" ]; then
+#
+case ${font8x14} in
+[Nn][Oo] | '')
+        ;;
+*)
 	echo -n ' font8x14';	vidcontrol < ${viddev} -f 8x14 ${font8x14}
-fi
+	;;
+esac
 
 # font 8x8
-if [ "${font8x8}" != "NO" ]; then
+#
+case ${font8x8} in
+[Nn][Oo] | '')
+        ;;
+*)
 	echo -n ' font8x8';	vidcontrol < ${viddev} -f 8x8 ${font8x8}
-fi
+	;;
+esac
 
 # blank time
-if [ "${blanktime}" != "NO" ]; then
+#
+case ${blanktime} in
+[Nn][Oo] | '')
+        ;;
+*)
 	echo -n ' blank_time';	vidcontrol < ${viddev} -t ${blanktime}
-fi
+	;;
+esac
 
 # screen saver
-if [ "${saver}" != "NO" ] ; then
+#
+case ${saver} in
+[Nn][Oo] | '')
+        ;;
+*)
 	echo -n ' screensaver'
 	for i in `kldstat | awk '$5 ~ "^splash_.*$" { print $5 }'`; do
 		kldunload ${i}
 	done
 	kldstat -v | grep -q _saver || kldload ${saver}_saver
-fi
+	;;
+esac
 
 # mouse daemon
-if [ "${moused_enable}" = "YES" ] ; then
+#
+case ${moused_enable} in
+[Yy][Ee][Ss])
 	echo -n ' moused'
 	moused ${moused_flags} -p ${moused_port} -t ${moused_type}
 	vidcontrol < ${viddev} -m on
-fi
+	;;
+esac
 
 # set this mode for all virtual screens
-if [ -n "${allscreens_flags}" ] ; then
+#
+if [ -n "${allscreens_flags}" ]; then
 	echo -n ' allscreens'
-	for ttyv in /dev/ttyv*
-	do
+	for ttyv in /dev/ttyv*; do
 		vidcontrol < ${ttyv} ${allscreens_flags}
 	done
 fi
+
 echo '.'
 
 # interrupts for /dev/random device
-if [ "${rand_irqs}" != "NO" ] ; then
+#
+case ${rand_irqs} in
+[Nn][Oo] | '')
+        ;;
+*)
 	echo -n 'entropy IRQs:'
 	for irq in ${rand_irqs}; do
 		echo -n " ${irq}" && rndcontrol -q -s ${irq}
 	done
 	echo '.'
-fi
+	;;
+esac

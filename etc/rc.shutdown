@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-# site-specific closing actions for daemons run by init on shutdown
+# Site-specific closing actions for daemons run by init on shutdown,
 # or before going single-user from multi-user.
 # Output and errors are directed to console by init, and the
 # console is the controlling terminal.
@@ -13,11 +13,11 @@ stty status '^T'
 trap : 2
 trap : 3	# shouldn't be needed
 
-HOME=/; export HOME
+HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
-export PATH
+export HOME PATH
 
-echo -n Shutting down daemon processes: 
+echo -n "Shutting down daemon processes: "
 
 # Insert shutdown procedures here
 
