@@ -70,30 +70,6 @@ define_variable(const char *variable, const char *value)
 
 #ifndef WIN32
 
-struct obsolete {
-    const char *from;
-    const char *to;
-} obsolete [] = {
-    { "KDC_TIMESYNC", "kdc_timesync" },
-    { "KRB_REVERSE_DIRECTION", "reverse_lsb_test"},
-    { "krb4_proxy", "krb4_proxy"},
-    { NULL, NULL }
-};
-    
-static void
-check_obsolete(void)
-{
-    struct obsolete *r;
-    for(r = obsolete; r->from; r++) {
-	if(getenv(r->from)) {
-	    krb_warning("The environment variable `%s' is obsolete;\n"
-			"set `%s' in your `krb.extra' file instead\n", 
-			r->from, r->to);
-	    define_variable(r->to, getenv(r->from));
-	}
-    }
-}
-
 static int
 read_extra_file(void)
 {
@@ -103,7 +79,6 @@ read_extra_file(void)
     if(_krb_extra_read)
 	return 0;
     _krb_extra_read = 1;
-    check_obsolete();
     while(krb_get_krbextra(i++, file, sizeof(file)) == 0) {
 	FILE *f = fopen(file, "r");
 	if(f == NULL)
