@@ -8,6 +8,8 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ * $FreeBSD$
+ *
  */
 
 #include <sm/gen.h>
@@ -19,8 +21,6 @@ SM_IDSTR(copyright,
 	The Regents of the University of California.  All rights reserved.\n")
 
 SM_IDSTR(id, "@(#)$Id: rmail.c,v 8.61 2001/09/18 21:45:29 gshapiro Exp $")
-
-/* $FreeBSD$ */
 
 /*
  * RMAIL -- UUCP mail server.
