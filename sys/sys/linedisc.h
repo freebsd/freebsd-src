@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.19 1995/11/04 13:25:32 bde Exp $
+ * $Id: conf.h,v 1.20 1995/11/05 09:37:28 peter Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -67,6 +67,16 @@ typedef int d_reset_t __P((int));
 typedef int d_select_t __P((dev_t, int, struct proc *));
 typedef int d_mmap_t __P((dev_t, int, int));
 typedef	struct tty * d_ttycv_t __P((dev_t));
+
+typedef int l_open_t __P((dev_t dev, struct tty *tp));
+typedef int l_close_t __P((struct tty *tp, int flag));
+typedef int l_read_t __P((struct tty *tp, struct uio *uio, int flag));
+typedef int l_write_t __P((struct tty *tp, struct uio *uio, int flag));
+typedef int l_ioctl_t __P((struct tty *tp, int cmd, caddr_t data, int flag,
+			   struct proc *p));
+typedef int l_rint_t __P((int c, struct tty *tp));
+typedef int l_start_t __P((struct tty *tp));
+typedef int l_modem_t __P((struct tty *tp, int flag));
 
 struct bdevsw {
 	d_open_t	*d_open;
@@ -105,17 +115,14 @@ extern char devioc[], devcls[];
 #endif
 
 struct linesw {
-	int	(*l_open)	__P((dev_t dev, struct tty *tp));
-	int	(*l_close)	__P((struct tty *tp, int flag));
-	int	(*l_read)	__P((struct tty *tp, struct uio *uio,
-				     int flag));
-	int	(*l_write)	__P((struct tty *tp, struct uio *uio,
-				     int flag));
-	int	(*l_ioctl)	__P((struct tty *tp, int cmd, caddr_t data,
-				     int flag, struct proc *p));
-	int	(*l_rint)	__P((int c, struct tty *tp));
-	int	(*l_start)	__P((struct tty *tp));
-	int	(*l_modem)	__P((struct tty *tp, int flag));
+	l_open_t	*l_open;
+	l_close_t	*l_close;
+	l_read_t	*l_read;
+	l_write_t	*l_write;
+	l_ioctl_t	*l_ioctl;
+	l_rint_t	*l_rint;
+	l_start_t	*l_start;
+	l_modem_t	*l_modem;
 };
 
 #ifdef KERNEL
@@ -152,6 +159,9 @@ d_reset_t	nullreset;
  */
 #define	nullstrategy	((d_strategy *)NULL)
 
+l_read_t	l_noread;
+l_write_t	l_nowrite;
+
 dev_t	chrtoblk __P((dev_t dev));
 int	getmajorbyname __P((const char *name));
 int	isdisk __P((dev_t dev, int type));
@@ -163,9 +173,9 @@ int	unregister_cdev __P((const char *name, const struct cdevsw *cdp));
 #ifdef JREMOD
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw *old));
 int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw *old));
-#endif	/* JREMOD */
+#endif
+#endif /* KERNEL */
 
 #include <machine/conf.h>
-#endif	/* KERNEL */
 
 #endif /* !_SYS_CONF_H_ */
