@@ -771,7 +771,7 @@ tac_config(struct tac_handle *h, const char *path)
 		char *fields[4];
 		int nfields;
 		char msg[ERRSIZE];
-		char *host;
+		char *host, *res;
 		char *port_str;
 		char *secret;
 		char *timeout_str;
@@ -817,8 +817,9 @@ tac_config(struct tac_handle *h, const char *path)
 		options_str = fields[3];
 
 		/* Parse and validate the fields. */
-		host = strtok(host, ":");
-		port_str = strtok(NULL, ":");
+		res = host;
+		host = strsep(&res, ":");
+		port_str = strsep(&res, ":");
 		if (port_str != NULL) {
 			port = strtoul(port_str, &end, 10);
 			if (port_str[0] == '\0' || *end != '\0') {
