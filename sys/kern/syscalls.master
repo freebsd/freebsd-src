@@ -331,7 +331,7 @@
 
 ;
 ; The following were introduced with NetBSD/4.4Lite-2
-; They are initialized by thier respective modules/sysinits
+; They are initialized by their respective modules/sysinits
 220	MNOSTD	{ int __semctl(int semid, int semnum, int cmd, \
 		    union semun *arg); }
 221	MNOSTD	{ int semget(key_t key, int nsems, int semflg); }
