@@ -169,7 +169,7 @@
 #define NEW_PROMPTS 1
 
 /* Defined to the path of the OPIE lock directory */
-#define OPIE_LOCK_DIR "/etc/opielocks"
+#define OPIE_LOCK_DIR "/var/spool/opielocks"
 
 /* Defined if users are to be asked to re-type secret pass phrases */
 /* #undef RETYPE */
