@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.53 1997/07/31 06:12:04 asami Exp $
+#	$Id: bsd.prog.mk,v 1.54 1997/08/05 03:49:49 asami Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -65,8 +65,14 @@ clean: _SUBDIR
 
 .if defined(PROG) && !defined(NOEXTRADEPEND)
 _EXTRADEPEND:
+.if ${BINFORMAT} == aout
 	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} ${LDDESTDIR} \
 	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
+.else
+.if defined(DPADD) && ${DPADD} != ""
+	echo ${PROG}: ${DPADD} >> ${DEPENDFILE}
+.endif
+.endif
 .endif
 
 .if !target(install)
@@ -138,6 +144,10 @@ tags: ${SRCS} _SUBDIR
 .elif !target(maninstall)
 maninstall:
 all-man:
+.endif
+
+.if ${BINFORMAT} != aout
+.include <bsd.libnames.mk>
 .endif
 
 .include <bsd.dep.mk>
