@@ -159,32 +159,6 @@ distribution:
 	    ${DESTDIR}/etc/dumpdates
 	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/log/auth.log
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/log/cron
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/log/debug.log
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/log/xferlog
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
-	    ${DESTDIR}/var/log/lpd-errs
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
-	    ${DESTDIR}/var/log/maillog
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
-	    ${DESTDIR}/var/log/lastlog
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
-	    ${DESTDIR}/var/log/messages
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/log/security
-	${INSTALL} -o ${BINOWN} -g network -m 640 /dev/null \
-	    ${DESTDIR}/var/log/slip.log
-	${INSTALL} -o ${BINOWN} -g network -m 640 /dev/null \
-	    ${DESTDIR}/var/log/ppp.log
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
-	    ${DESTDIR}/var/log/wtmp
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
-	    ${DESTDIR}/var/run/utmp
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
