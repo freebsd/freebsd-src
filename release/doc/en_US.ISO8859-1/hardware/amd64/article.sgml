@@ -9,6 +9,8 @@
 %mlists;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
+%devauto;
 <!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
 
 <!-- Architecture-specific customization -->

@@ -66,25 +66,17 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,amd64">Adaptec AIC-6260 and AIC-6360 based boards
-      (&man.aic.4; driver)</para>
+    &hwlist.aic;
 
-    <para arch="i386">Adaptec AHA-154X ISA and AHA-1640 MCA
-      SCSI controllers and compatibles (&man.aha.4; driver)</para>
+    &hwlist.aha;
 
-    <para arch="i386">Adaptec AHA_174x series EISA SCSI controller in 
-      enhanced mode (&man.ahb.4; driver)</para>
+    &hwlist.ahb;
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">Adaptec AIC-7770, AIC-7850,
-      AIC-7860, AIC-7870, AIC-7880, and AIC789x based SCSI host
-      adapters (&man.ahc.4; driver)</para>
+    &hwlist.ahc;
 
-    <para arch="i386,sparc64,amd64">Ultra-320 SCSI controllers based on the Adaptec
-      AIC7901, AIC7901A, and AIC7902 Ultra320 controller chips
-      (&man.ahd.4; driver)
-    </para>
+    &hwlist.ahd;
 
-    <para arch="i386,amd64">Adaptec FSA family RAID controllers (&man.aac.4; driver)</para>
+    &hwlist.aac;
 
     <para arch="pc98">NEC PC-9801-55, 92 and their compatible C-Bus SCSI interfaces (&man.ct.4; driver)
       <itemizedlist>
@@ -199,6 +191,8 @@
       </itemizedlist>
     </para>
 
+    &hwlist.adw;
+
     <para arch="i386,amd64">BusLogic MultiMaster <quote>W</quote>,
       <quote>C</quote>, <quote>S</quote>, and <quote>A</quote> Series
       Host Adapters (&man.bt.4; driver)
@@ -211,23 +205,11 @@
 
       </para>
 
-    <para arch="i386,amd64">DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
-    SmartRAID IV SCSI/RAID controllers (&man.dpt.4; driver)</para>
+    &hwlist.dpt;
 
-    <para arch="i386,amd64">Adaptec 21x0S/32x0S/34x0S SCSI RAID
-    controllers (&man.asr.4; driver)</para>
+    &hwlist.asr;
 
-    <para arch="i386,amd64">Adaptec 2000S/2005S Zero-Channel RAID controllers
-    (&man.asr.4; driver)</para>
-
-    <para arch="i386,amd64">Adaptec 2400A ATA-100 RAID controller
-    (&man.asr.4; driver)</para>
-
-    <para arch="i386,amd64">DPT SmartRAID V and VI SCSI RAID controllers
-    (&man.asr.4; driver)</para>
-
-    <para arch="i386,alpha,amd64">AMI MegaRAID Express and Enterprise family RAID controllers
-    (&man.amr.4; driver)
+    &hwlist.amr;
       <note>
 	<para arch="i386,amd64">Booting from these controllers is supported.  EISA
 	adapters are not supported.</para>
@@ -235,7 +217,6 @@
 	<para arch="alpha">Booting from these controllers is not
 	supported due to SRM limitations.</para>
       </note>
-    </para>
 
     <para arch="i386,alpha,amd64">Mylex DAC-family RAID controllers with 2.x, 3.x, 4.x
     and 5.x firmware (&man.mlx.4; driver)
@@ -257,8 +238,7 @@
     (&man.mly.4; driver)
     </para>
 
-    <para arch="i386">3ware Escalade ATA RAID controllers (&man.twe.4; driver)
-    </para>
+    &hwlist.twe;
 
     <para arch="i386,pc98,alpha,sparc64,amd64">LSI/Symbios (formerly NCR)
     53C8<replaceable>XX</replaceable> and 53C10<replaceable>XX</replaceable> PCI
@@ -274,8 +254,7 @@
     adapters (&man.stg.4; driver)
     </para>
 
-    <para arch="i386,pc98,alpha,ia64,sparc64,amd64">Qlogic controllers and variants (&man.isp.4; driver)
-    </para>
+    &hwlist.isp;
 
     <para arch="i386,amd64">DTC 3290 EISA SCSI controller in 1542 emulation mode.</para>
 
@@ -299,9 +278,7 @@
       (&man.ida.4; driver)
     </para>
 
-    <para arch="i386,amd64">SCSI adapters utilizing the Command Interface
-    for SCSI-3 Support (&man.ciss.4; driver)
-    </para>
+    &hwlist.ciss;
 
     <para arch="i386,amd64">Intel Integrated RAID Controllers (&man.iir.4; driver)
     </para>
@@ -713,7 +690,7 @@
       NICs and clones for PCI, MiniPCI, and CardBus (&man.dc.4;
       driver)</para>
 
-    <para arch="i386,pc98,amd64">ADMtek Inc. AN986-based USB Ethernet NICs (&man.aue.4; driver)</para>
+    &hwlist.aue;
 
     <para arch="i386,pc98,amd64">CATC USB-EL1210A-based USB Ethernet NICs (&man.cue.4; driver)</para>
 
@@ -726,18 +703,15 @@
     <para arch="i386,pc98,amd64">RealTek RTL8150-based USB Ethernet NICs
       (&man.rue.4; driver)</para>
 
-    <para arch="i386,pc98,amd64">Davicom DM9601-based USB Ethernet
-      NICs (&man.udav.4; driver)</para>
+    &hwlist.udav;
 
     <para arch="i386,pc98,alpha,amd64">DEC DC21040, DC21041, DC21140, DC21141, DC21142, and DC21143
     based NICs (&man.de.4; driver)
     </para>
 
-    <para arch="i386,pc98,amd64">Fujitsu MB86960A/MB86965A based Fast Ethernet NICs
-    (&man.fe.4; driver)</para>
+    &hwlist.fe;
 
-    <para arch="i386,pc98,alpha,ia64,sparc64,amd64">Intel 82557-, 82258-, 82559-, 82550-
-      or 82562-based Fast Ethernet NICs (&man.fxp.4; driver)</para>
+    &hwlist.fxp;
 
     <para arch="i386,amd64">Intel 82595-based Ethernet NICs (&man.ex.4; driver)
     </para>
@@ -750,8 +724,7 @@
     <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
     (&man.el.4; driver)</para>
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">3Com Etherlink XL-based NICs (&man.xl.4; driver)
-    </para>
+    &hwlist.xl;
 
     <para arch="i386,pc98,amd64">3Com 3C59X series NICs (&man.vx.4; driver)
     </para>
@@ -763,9 +736,7 @@
     <para arch="i386,amd64">Megahertz X-Jack Ethernet PC-Card CC-10BT (&man.sn.4;
     driver)</para>
 
-    <para arch="i386,amd64">Xircom CreditCard adapters (16 bit) and
-    workalikes (&man.xe.4; driver)
-    </para>
+    &hwlist.xe;
 
     <para arch="pc98">National Semiconductor DP8393X (SONIC) Ethernet
     cards (snc driver)
@@ -783,13 +754,9 @@
     LXT1001 NetCellerator controller (&man.lge.4; driver)
     </para>
 
-    <para arch="i386,pc98,alpha,amd64">Ethernet and Fast Ethernet NICs based
-    on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset (&man.txp.4; driver)
-    </para>
+    &hwlist.txp;
 
-    <para arch="i386,pc98,ia64,amd64">Gigabit Ethernet NICs based on the Broadcom BCM570x
-    (&man.bge.4; driver)
-    </para>
+    &hwlist.bge;
 
     <para arch="i386,pc98,alpha,ia64,amd64">Gigabit Ethernet NICs based on the
     Intel 82542 and 82543 controller chips (&man.gx.4; and &man.em.4;
@@ -798,13 +765,12 @@
     controller chips (&man.em.4; driver only)
     </para>
 
-    <para arch="sparc64">Sun HME and QFE Ethernet NICs (&man.hme.4; driver)</para>
+    &hwlist.hme;
 
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) and ERI (Fast
     Ethernet) NICs (&man.gem.4; driver)</para>
 
-    <para arch="i386,pc98">Myson Ethernet NICs (&man.my.4; driver)
-    </para>
+    &hwlist.my;
 
     <para arch="i386,amd64">Broadcom BCM4401 based Fast Ethernet adapters
       (&man.bfe.4; driver)</para>
@@ -859,8 +825,7 @@
     <para arch="i386,pc98">Raytheon Raylink 2.4GHz wireless adapters (&man.ray.4; driver)
     </para>
 
-    <para arch="i386,pc98,amd64">AMD Am79C930 and Harris (Intersil) based 802.11b cards (&man.awi.4; driver)
-    </para>
+    &hwlist.awi;
 
     <para arch="i386">Atheros AR5210, AR5211, and AR5212-based
       802.11a/b/g network interfaces (&man.ath.4; driver)
@@ -871,29 +836,7 @@
   <sect2>
     <title>Miscellaneous Networks</title>
 
-    <para arch="i386">Cronyx Sigma synchronous / asynchronous serial
-      adapters with V.35/RS-232/RS-530/RS-449 interfaces (&man.cx.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Cronyx Sigma-22, Sigma-24</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Sigma-100</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Sigma-400, Sigma-401, Sigma-404, Sigma-410, Sigma-440</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Sigma-500</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Sigma-703</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Sigma-800, Sigma-801, Sigma-810, Sigma-840</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.cx;
 
     <para arch="i386,pc98">Cronyx Tau-PCI synchronous serial adapters for PCI bus
       (&man.cp.4; driver)
@@ -935,13 +878,7 @@
     <para arch="i386">Granch SBNI16 SHDSL modems (&man.sbsh.4;
       driver)</para>
 
-    <para arch="i386">SMC COM90cx6 ARCNET network adapters (cm driver)
-      <itemizedlist>
-        <listitem>
-	  <para>SMC 90c26, 90c56, and 90c66 in 90c56 compatability mode</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.cm;
 
   </sect2>
 
