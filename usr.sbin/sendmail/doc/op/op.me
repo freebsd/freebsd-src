@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)op.me	8.103 (Berkeley) 12/13/96
+.\"	@(#)op.me	8.104 (Berkeley) 3/10/97
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -67,7 +67,7 @@
 Eric Allman
 eric@Sendmail.ORG
 .sp
-Version 8.103
+Version 8.104
 .sp
 For Sendmail Version 8.8
 .)l
@@ -7020,17 +7020,15 @@ These are then added to the routine
 .pp
 The initialization function is called as
 .(b
-\fIxxx\fP_map_init(MAP *map, char *mapname, char *args)
+\fIxxx\fP_map_init(MAP *map, char *args)
 .)b
 The
 .i map
 is an internal data structure.
 The
-.i mapname
-is the name of the map (used for error messages).
-The
 .i args
-is a pointer to the rest of the configuration file line;
+is a pointer to the portion of the configuration file line
+following the map class name;
 flags and filenames can be extracted from this line.
 The initialization function must return
 .sm TRUE
@@ -7040,16 +7038,14 @@ otherwise.
 .pp
 The lookup function is called as
 .(b
-\fIxxx\fP_map_lookup(MAP *map, char buf[], int bufsize, char **av, int *statp)
+\fIxxx\fP_map_lookup(MAP *map, char buf[], char **av, int *statp)
 .)b
 The
 .i map
 defines the map internally.
-The parameters
+The
 .i buf
-and
-.i bufsize
-have the input key.
+has the input key.
 This may be (and often is) used destructively.
 The
 .i av
@@ -8163,7 +8159,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version 8.103
+.\"Version 8.104
 .\".ce 0
 .bp 3
 .ce

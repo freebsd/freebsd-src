@@ -1,4 +1,4 @@
-# Copyright (c) 1983, 1995, 1996 Eric P. Allman
+# Copyright (c) 1983, 1995-1997 Eric P. Allman
 # Copyright (c) 1988 The Regents of the University of California.
 # All rights reserved.
 #
@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)READ_ME	8.135 (Berkeley) 1/21/97
+#	@(#)READ_ME	8.142 (Berkeley) 6/3/97
 #
 
 This directory contains the source files for sendmail.
@@ -149,7 +149,7 @@ The options are:
 NEWDB		The new Berkeley DB package.  Some systems (e.g., BSD/OS and
 		Digital UNIX 4.0) have this package pre-installed.  If your
 		system does not have NEWDB installed, get the latest version
-		from FTP.CS.Berkeley.EDU in /ucb/4bsd/db.tar.gz (or db.tar.Z).
+		from FTP://ftp.sleepycat.com/db/packages/db.1.85.tar.gz.
 		DO NOT use the version from the Net2 distribution.  If you are
 		still running BSD/386 1.x, you will also need to define
 		OLD_NEWDB.
@@ -273,14 +273,14 @@ HASSETREUID	Define this if you have setreuid(2) ***AND*** root can
 		security, since sendmail doesn't have to read .forward
 		and :include: files as root.  There are certain attacks
 		that may be unpreventable without this call.
-USESETEUID	Define this to 1 if you have seteuid(2) if you have a seteuid
-		system call that will allow root to set only the effective
-		user id to an arbitrary value ***AND*** you have saved user
-		ids.  This is preferable to HASSETREUID if these conditions
-		are fulfilled.  These are the semantics of the to-be-released
-		revision of Posix.1.  The test program ../test/t_seteuid.c
-		will try this out on your system.  If you define both
-		HASSETREUID and USESETEUID, the former is ignored.
+USESETEUID	Define this to 1 if you have a seteuid(2) system call that
+		will allow root to set only the effective user id to an
+		arbitrary value ***AND*** you have saved user ids.  This is
+		preferable to HASSETREUID if these conditions are fulfilled.
+		These are the semantics of the to-be-released revision of
+		Posix.1.  The test program ../test/t_seteuid.c will try
+		this out on your system.  If you define both HASSETREUID
+		and USESETEUID, the former is ignored.
 HASLSTAT	Define this if you have symbolic links (and thus the
 		lstat(2) system call).  This improves security.  Unlike
 		most other options, this one is on by default, so you
@@ -295,6 +295,9 @@ HASULIMIT	Define this if you have the ulimit(2) syscall (System V
 HASWAITPID	Define this if you have the waitpid(2) syscall.
 HASGETDTABLESIZE
 		Define this if you have the getdtablesize(2) syscall.
+USESTRERROR	Define this if you have the libc strerror function (which
+		should be declared in <errno.h>), and it should be used
+		instead of sys_errlist.
 NEEDGETOPT	Define this if you need a reimplementation of getopt(3).
 		On some systems, getopt does very odd things if called
 		to scan the arguments twice.  This flag will ask sendmail
@@ -396,7 +399,7 @@ SFS_TYPE	Encodes how your kernel can locate the amount of free
 		<sys/vfs.h>, <sys/mount.h>, or <sys/statfs.h> respectively,
 		or SFS_STATVFS (6) if you have the two-argument statvfs(2)
 		call.  The default if nothing is defined is SFS_NONE.
-SFS_BAVAIL	with SFS_4ARGS hou can also set SFS_BAVAIL to the field name
+SFS_BAVAIL	with SFS_4ARGS you can also set SFS_BAVAIL to the field name
 		in the statfs structure that holds the useful information;
 		this defaults to f_bavail.
 SPT_TYPE	Encodes how your system can display what a process is doing
@@ -409,6 +412,10 @@ SPT_TYPE	Encodes how your system can display what a process is doing
 		SPT_PSTAT (3) -- Use the PSTAT_SETCMD option to pstat(2)
 			to set the process title; this is used by HP-UX.
 		SPT_PSSTRINGS (4) -- Use the magic PS_STRINGS pointer (4.4BSD).
+		SPT_SYSMIPS (5) -- Use sysmips() supported by NEWS-OS 6.
+		SPT_SCO (6) -- Write kernel u. area.
+		SPT_CHANGEARGV (7) -- Write pointers to our own strings into
+			the existing argv vector.
 SPT_PADCHAR	Character used to pad the process title; if undefined,
 		the space character (0x20) is used.  This is ignored if
 		SPT_TYPE != SPT_REUSEARGV
@@ -441,6 +448,15 @@ NAMELISTMASK	If defined, values returned by nlist(3) are masked
 		0x7fffffff to strip off the top bit.
 BSD4_4_SOCKADDR	If defined, socket addresses have an sa_len field that
 		defines the length of this address.
+SAFENFSPATHCONF	Set this to 1 if and only if you have verified that a
+		pathconf(2) call with _PC_CHOWN_RESTRICTED argument on an
+		NFS filesystem where the underlying system allows users to
+		give away files to other users returns <= 0.  Be sure you
+		try both on NFS V2 and V3.  Some systems assume that their
+		local policy apply to NFS servers -- this is a bad
+		assumption!  The test/t_pathconf.c program will try this
+		for you -- you have to run it in a directory that is
+		mounted from a server that allows file giveaway.
 
 
 
@@ -521,8 +537,7 @@ MATCHGECOS	Permit fuzzy matching of user names against the full
 MIME8TO7	If non-zero, include 8 to 7 bit MIME conversions.  This
 		also controls advertisement of 8BITMIME in the ESMTP
 		startup dialogue.
-MIME7TO8	If non-zero, include 7 to 8 bit MIME conversions.  Not yet
-		implemented.
+MIME7TO8	If non-zero, include 7 to 8 bit MIME conversions.
 HES_GETMAILHOST	Define this to 1 if you are using Hesiod with the
 		hes_getmailhost() routine.  This is included with the MIT
 		Hesiod distribution, but not with the DEC Hesiod distribution.
@@ -791,13 +806,6 @@ Solaris 2.6 (SunOS 5.6)
 	incompatible snprintf(3s) calls.  This problem is fixed in sendmail
 	8.8.5.
 
-Ultrix
-	By default, the IDENT protocol is turned off on Ultrix.  If you
-	are running Ultrix 4.4 or later, or if you have included patch
-	CXO-8919 for Ultrix 4.2 or 4.3 to fix the TCP problem, you can turn
-	IDENT on in the configuration file by setting the "ident" timeout
-	to 30 seconds.
-
 Solaris 2.5.1 (SunOS 5.5.1)
 	Apparently patch 103663-01 installs a new /usr/include/resolv.h
 	file that defines the __P macro without checking to see if it is
@@ -814,6 +822,13 @@ Solaris 2.5.1 (SunOS 5.5.1)
 	   #include "/usr/include/resolv.h"
 
 	... And then file a bug report with Sun.
+
+Ultrix
+	By default, the IDENT protocol is turned off on Ultrix.  If you
+	are running Ultrix 4.4 or later, or if you have included patch
+	CXO-8919 for Ultrix 4.2 or 4.3 to fix the TCP problem, you can turn
+	IDENT on in the configuration file by setting the "ident" timeout
+	to 30 seconds.
 
 OSF/1
 	If you are compiling on OSF/1 (DEC Alpha), you must use
@@ -1279,15 +1294,6 @@ LDAP
 	    It requires the ldap and lber libraries from the Umich Ldap3.2
 	    release.
 
-	  - KNOWN BUGS: It does not work under Digital Unix 3.2c, with gcc and
-	    ldap3.2 or ldap3.3. It dumps core after attempting to take strlen
-	    of a garbage string pointer in the lber libraries routine
-	    ber_printf.
-
-	    The string pointer in question is set to 0x50000000, when the
-	    program crashes. If anyone recognizes where this magic number comes
-	    from that would be really helpful.
-
 	    I've tested the software on Solaris.2.4 with gcc and on NeXTStep3.2
 	    and it runs without problems. If you have any questions, please
 	    send them along.
@@ -1384,11 +1390,14 @@ main.c		The main routine to sendmail.  This file also
 		contains some miscellaneous routines.
 map.c		Support for database maps.
 mci.c		Routines that handle mail connection information caching.
+mime.c		MIME conversion routines.
 parseaddr.c	The routines which do address parsing.
 queue.c		Routines to implement message queueing.
 readcf.c	The routine that reads the configuration file and
 		translates it to internal form.
 recipient.c	Routines that manipulate the recipient list.
+safefile.c	Routines to do careful checking of file modes and permissions
+		when opening or creating files.
 savemail.c	Routines which save the letter on processing errors.
 sendmail.h	Main header file for sendmail.
 srvrsmtp.c	Routines to implement server SMTP.
@@ -1407,4 +1416,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.135, last update 1/21/97 07:47:02)
+(Version 8.142, last update 6/3/97 11:34:09)

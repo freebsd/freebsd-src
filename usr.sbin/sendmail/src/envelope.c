@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.101 (Berkeley) 12/16/96";
+static char sccsid[] = "@(#)envelope.c	8.104 (Berkeley) 6/3/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -121,12 +121,10 @@ dropenvelope(e, fulldrop)
 		}
 	}
 
-#ifdef LOG
 	if (LogLevel > 84)
-		syslog(LOG_DEBUG, "%s: dropenvelope, e_flags=0x%x, OpMode=%c, pid=%d",
-			id == NULL ? "[NOQUEUE]" : id,
+		sm_syslog(LOG_DEBUG, id,
+			"dropenvelope, e_flags=0x%x, OpMode=%c, pid=%d",
 			e->e_flags, OpMode, getpid());
-#endif
 
 	/* we must have an id to remove disk files */
 	if (id == NULL)
@@ -168,8 +166,9 @@ dropenvelope(e, fulldrop)
 			queueit = TRUE;
 #if XDEBUG
 		else if (bitset(QQUEUEUP, q->q_flags))
-			syslog(LOG_DEBUG, "dropenvelope: %s: q_flags = %x, paddr = %s",
-				e->e_id, q->q_flags, q->q_paddr);
+			sm_syslog(LOG_DEBUG, e->e_id,
+				"dropenvelope: q_flags = %x, paddr = %s",
+				q->q_flags, q->q_paddr);
 #endif
 
 		/* see if a notification is needed */
@@ -296,6 +295,8 @@ dropenvelope(e, fulldrop)
 	{
 		auto ADDRESS *rlist = NULL;
 
+		if (tTd(50, 8))
+			printf("dropenvelope(%s): sending return receipt\n", id);
 		e->e_flags |= EF_SENDRECEIPT;
 		(void) sendtolist(e->e_from.q_paddr, NULLADDR, &rlist, 0, e);
 		(void) returntosender("Return receipt", rlist, RTSF_NO_BODY, e);
@@ -310,6 +311,8 @@ dropenvelope(e, fulldrop)
 	{
 		extern void savemail __P((ENVELOPE *, bool));
 
+		if (tTd(50, 8))
+			printf("dropenvelope(%s): saving mail\n", id);
 		savemail(e, !bitset(EF_NO_BODY_RETN, e->e_flags));
 	}
 
@@ -323,6 +326,8 @@ dropenvelope(e, fulldrop)
 	{
 		auto ADDRESS *rlist = NULL;
 
+		if (tTd(50, 8))
+			printf("dropenvelope(%s): sending postmaster copy\n", id);
 		(void) sendtolist(PostMasterCopy, NULLADDR, &rlist, 0, e);
 		(void) returntosender(e->e_message, rlist, RTSF_PM_BOUNCE, e);
 	}
@@ -332,6 +337,9 @@ dropenvelope(e, fulldrop)
 	*/
 
 simpledrop:
+	if (tTd(50, 8))
+		printf("dropenvelope(%s): at simpledrop, queueit=%d\n",
+			id, queueit);
 	if (!queueit || bitset(EF_CLRQUEUE, e->e_flags))
 	{
 		if (tTd(50, 1))
@@ -345,10 +353,8 @@ simpledrop:
 		xunlink(queuename(e, 'd'));
 		xunlink(queuename(e, 'q'));
 
-#ifdef LOG
 		if (LogLevel > 10)
-			syslog(LOG_INFO, "%s: done", id);
-#endif
+			sm_syslog(LOG_INFO, id, "done");
 	}
 	else if (queueit || !bitset(EF_INQUEUE, e->e_flags))
 	{
@@ -360,6 +366,8 @@ simpledrop:
 	}
 
 	/* now unlock the job */
+	if (tTd(50, 8))
+		printf("dropenvelope(%s): unlocking job\n", id);
 	closexscript(e);
 	unlockqueue(e);
 
@@ -698,7 +706,6 @@ setsender(from, e, delimptr, delimchar, internal)
 	    e->e_from.q_mailer == InclMailer)
 	{
 		/* log garbage addresses for traceback */
-# ifdef LOG
 		if (from != NULL && LogLevel > 2)
 		{
 			char *p;
@@ -716,11 +723,10 @@ setsender(from, e, delimptr, delimchar, internal)
 					MAXNAME, host);
 				p = ebuf;
 			}
-			syslog(LOG_NOTICE,
+			sm_syslog(LOG_NOTICE, e->e_id,
 				"setsender: %s: invalid or unparseable, received from %s",
 				shortenstring(from, 83), p);
 		}
-# endif /* LOG */
 		if (from != NULL)
 		{
 			if (!bitset(QBADADDR, e->e_from.q_flags))
@@ -838,11 +844,10 @@ setsender(from, e, delimptr, delimchar, internal)
 	if (pvp == NULL)
 	{
 		/* don't need to give error -- prescan did that already */
-# ifdef LOG
 		if (LogLevel > 2)
-			syslog(LOG_NOTICE, "cannot prescan from (%s)",
+			sm_syslog(LOG_NOTICE, e->e_id,
+				"cannot prescan from (%s)",
 				shortenstring(from, 203));
-# endif
 		finis();
 	}
 	(void) rewrite(pvp, 3, 0, e);

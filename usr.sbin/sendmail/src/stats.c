@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)stats.c	8.6 (Berkeley) 2/21/96";
+static char sccsid[] = "@(#)stats.c	8.11 (Berkeley) 4/9/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -97,13 +97,12 @@ poststats(sfile)
 	(void) time(&Stat.stat_itime);
 	Stat.stat_size = sizeof Stat;
 
-	fd = open(sfile, O_RDWR);
+	fd = safeopen(sfile, O_RDWR, 0644, SFF_REGONLY|SFF_NOLINK|SFF_OPENASROOT);
 	if (fd < 0)
 	{
 		errno = 0;
 		return;
 	}
-	(void) lockfile(fd, sfile, NULL, LOCK_EX);
 	if (read(fd, (char *) &stat, sizeof stat) == sizeof stat &&
 	    stat.stat_size == sizeof stat)
 	{

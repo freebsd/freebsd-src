@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -35,7 +35,7 @@
 # include "sendmail.h"
 
 #ifndef lint
-static char sccsid[] = "@(#)alias.c	8.67 (Berkeley) 1/18/97";
+static char sccsid[] = "@(#)alias.c	8.73 (Berkeley) 5/8/97";
 #endif /* not lint */
 
 
@@ -74,7 +74,6 @@ alias(a, sendq, aliaslevel, e)
 	register ENVELOPE *e;
 {
 	register char *p;
-	int naliases;
 	char *owner;
 	auto int stat = EX_OK;
 	char obuf[MAXNAME + 7];
@@ -125,12 +124,10 @@ alias(a, sendq, aliaslevel, e)
 		return;
 	}
 	message("aliased to %s", shortenstring(p, 203));
-#ifdef LOG
 	if (LogLevel > 9)
-		syslog(LOG_INFO, "%s: alias %.100s => %s",
-			e->e_id == NULL ? "NOQUEUE" : e->e_id,
+		sm_syslog(LOG_INFO, e->e_id,
+			"alias %.100s => %s",
 			a->q_paddr, shortenstring(p, 203));
-#endif
 	a->q_flags &= ~QSELFREF;
 	if (tTd(27, 5))
 	{
@@ -138,7 +135,7 @@ alias(a, sendq, aliaslevel, e)
 		printaddr(a, FALSE);
 	}
 	a->q_flags |= QDONTSEND;
-	naliases = sendtolist(p, a, sendq, aliaslevel + 1, e);
+	(void) sendtolist(p, a, sendq, aliaslevel + 1, e);
 	if (bitset(QSELFREF, a->q_flags))
 		a->q_flags &= ~QDONTSEND;
 
@@ -279,7 +276,7 @@ setalias(spec)
 		else
 		{
 			class = "implicit";
-			map->map_mflags = MF_OPTIONAL|MF_INCLNULL;
+			map->map_mflags = MF_INCLNULL;
 		}
 
 		/* find end of spec */
@@ -423,11 +420,10 @@ aliaswait(map, ext, isopen)
 		}
 		else
 		{
-#ifdef LOG
 			if (LogLevel > 3)
-				syslog(LOG_INFO, "alias database %s out of date",
+				sm_syslog(LOG_INFO, NOQID,
+					"alias database %s out of date",
 					buf);
-#endif /* LOG */
 			message("Warning: alias database %s out of date", buf);
 		}
 	}
@@ -456,6 +452,7 @@ rebuildaliases(map, automatic)
 {
 	FILE *af;
 	bool nolock = FALSE;
+	int sff = SFF_OPENASROOT|SFF_REGONLY|SFF_NOLOCK|SFF_NOWLINK|SFF_NOWFILES;
 	sigfunc_t oldsigint, oldsigquit;
 #ifdef SIGTSTP
 	sigfunc_t oldsigtstp;
@@ -465,12 +462,12 @@ rebuildaliases(map, automatic)
 		return;
 
 	/* try to lock the source file */
-	if ((af = fopen(map->map_file, "r+")) == NULL)
+	if ((af = safefopen(map->map_file, O_RDWR, 0, sff)) == NULL)
 	{
 		struct stat stb;
 
 		if ((errno != EACCES && errno != EROFS) || automatic ||
-		    (af = fopen(map->map_file, "r")) == NULL)
+		    (af = safefopen(map->map_file, O_RDONLY, 0, sff)) == NULL)
 		{
 			int saveerr = errno;
 
@@ -517,14 +514,13 @@ rebuildaliases(map, automatic)
 
 	if (map->map_class->map_open(map, O_RDWR))
 	{
-#ifdef LOG
 		if (LogLevel > 7)
 		{
-			syslog(LOG_NOTICE, "alias database %s %srebuilt by %s",
+			sm_syslog(LOG_NOTICE, NOQID,
+				"alias database %s %srebuilt by %s",
 				map->map_file, automatic ? "auto" : "",
 				username());
 		}
-#endif /* LOG */
 		map->map_mflags |= MF_OPEN|MF_WRITABLE;
 		readaliases(map, af, !automatic, TRUE);
 	}
@@ -605,6 +601,15 @@ readaliases(map, af, announcestats, logstats)
 
 		LineNumber++;
 		p = strchr(line, '\n');
+#if _FFR_BACKSLASH_IN_ALIASES
+		while (p != NULL && p > line && p[-1] == '\\')
+		{
+			p--;
+			if (fgets(p, SPACELEFT(line, p), af) == NULL)
+				break;
+			p = strchr(p, '\n');
+		}
+#endif
 		if (p != NULL)
 			*p = '\0';
 		else if (!feof(af))
@@ -762,11 +767,10 @@ readaliases(map, af, announcestats, logstats)
 	if (Verbose || announcestats)
 		message("%s: %d aliases, longest %d bytes, %d bytes total",
 			map->map_file, naliases, longest, bytes);
-# ifdef LOG
 	if (LogLevel > 7 && logstats)
-		syslog(LOG_INFO, "%s: %d aliases, longest %d bytes, %d bytes total",
+		sm_syslog(LOG_INFO, NOQID,
+			"%s: %d aliases, longest %d bytes, %d bytes total",
 			map->map_file, naliases, longest, bytes);
-# endif /* LOG */
 }
 /*
 **  FORWARD -- Try to forward mail
@@ -846,12 +850,10 @@ forward(user, sendq, aliaslevel, e)
 			got_transient = TRUE;
 			if (tTd(27, 2))
 				printf("forward: transient error on %s\n", buf);
-#ifdef LOG
 			if (LogLevel > 2)
-				syslog(LOG_ERR, "%s: forward %s: transient error: %s",
-					e->e_id == NULL ? "NOQUEUE" : e->e_id,
+				sm_syslog(LOG_ERR, e->e_id,
+					"forward %s: transient error: %s",
 					buf, errstring(err));
-#endif
 		}
 	}
 	if (pp == NULL && got_transient)
