@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.30 1996/06/17 16:54:03 wpaul Exp $
+ * $Id: kern_descrip.c,v 1.31 1996/08/15 16:33:32 smpatel Exp $
  */
 
 #include <sys/param.h>
@@ -49,10 +49,10 @@
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/file.h>
-#include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
+#include <sys/filio.h>
+#include <sys/ttycom.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>
@@ -60,7 +60,6 @@
 #include <sys/pipe.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
 #ifdef DEVFS
@@ -1089,7 +1088,7 @@ SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_kern_file, "S,file", "");
 
 SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
-	CTLFLAG_RD, &maxfilesperproc, 0, "");
+	CTLFLAG_RW, &maxfilesperproc, 0, "");
 
 SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
 
