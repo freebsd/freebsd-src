@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)pw_scan.c	8.3 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id: pw_scan.c,v 1.6 1997/10/10 06:27:06 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -45,7 +49,6 @@ static char sccsid[] = "@(#)pw_scan.c	8.3 (Berkeley) 4/2/94";
 #include <err.h>
 #include <fcntl.h>
 #include <pwd.h>
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -133,7 +136,7 @@ pw_scan(bp, pw)
 		}
 	if(p[0]) pw->pw_fields |= _PWF_SHELL;
 
-	if (p = strsep(&bp, ":")) {			/* too many */
+	if ((p = strsep(&bp, ":"))) {			/* too many */
 fmt:		warnx("corrupted entry");
 		return (0);
 	}
