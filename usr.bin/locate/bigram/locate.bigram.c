@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * 	$Id$
  */
 
 #ifndef lint
@@ -45,7 +47,8 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*
- *  bigram < text > bigrams
+ *  bigram < sorted_file_names | sort -nr | 
+ *  	awk 'NR <= 128 { printf $2 }' > bigrams
  *
  * List bigrams for 'updatedb' script.
  * Use 'code' to encode a file using this output.
@@ -58,21 +61,16 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
 
 u_char buf1[MAXPATHLEN] = " ";
 u_char buf2[MAXPATHLEN];
-unsigned int bigram[UCHAR_MAX][UCHAR_MAX];
+u_int bigram[UCHAR_MAX][UCHAR_MAX];
 
-
-void main ( )
+int
+main(void)
 {
   	register u_char *cp;
 	register u_char *oldpath = buf1, *path = buf2;
-	register int i, j;
+	register u_int i, j;
 
-	/* init bigram buffer */
-	for (i = 0; i < UCHAR_MAX; i++)
-	    	for (j = 0; j < UCHAR_MAX; j++)
-			bigram[i][j] = 0;
-
-     	while ( fgets ( path, sizeof(buf2), stdin ) != NULL ) {
+     	while (fgets(path, sizeof(buf2), stdin) != NULL) {
 
 	    	/* skip empty lines */
 		if (*path == '\n')
@@ -88,30 +86,29 @@ void main ( )
 				*cp = '?';
 		}
 
-
 		/* skip longest common prefix */
-		for (cp = path; *cp == *oldpath && *cp; cp++, oldpath++);
+		for (cp = path; *cp == *oldpath && *cp != NULL; cp++, oldpath++);
 
-		/*
-		 * output post-residue bigrams only
-		 */
-
-		/* check later for boundary */
-		while ( *cp != NULL && *(cp + 1) != NULL ) {
+		while (*cp != NULL && *(cp+1) != NULL) {
 			bigram[*cp][*(cp+1)]++;
 			cp += 2;
 		}
 
-		if ( path == buf1 )		/* swap pointers */
-			path = buf2, oldpath = buf1;
-		else
-			path = buf1, oldpath = buf2;
+		/* swap pointers */
+		if (path == buf1) { 
+			path = buf2;
+			oldpath = buf1;
+		} else {
+			path = buf1;
+			oldpath = buf2;
+		}
    	}
 
-	/* output, boundary check */
+	/* output, (paranoid) boundary check */
 	for (i = ASCII_MIN; i <= ASCII_MAX; i++)
 		for (j = ASCII_MIN; j <= ASCII_MAX; j++)
 			if (bigram[i][j] != 0)
-				fprintf(stdout, "%4d %c%c\n",
-					bigram[i][j], i, j);
+				printf("%4u %c%c\n", bigram[i][j], i, j);
+
+	exit(0);
 }
