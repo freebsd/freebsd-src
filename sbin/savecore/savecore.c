@@ -126,7 +126,7 @@ int	 Create __P((char *, int));
 void	 DumpRead __P((int fd, void *bp, int size, off_t off, int flag));
 void	 DumpWrite __P((int fd, void *bp, int size, off_t off, int flag));
 int	 dump_exists __P((void));
-char	*find_dev __P((dev_t, int));
+char    *find_dev __P((dev_t));
 int	 get_crashtime __P((void));
 void	 get_dumpsize __P((void));
 void	 kmem_setup __P((void));
@@ -268,7 +268,7 @@ kmem_setup()
 	Lseek(kmem, (off_t)current_nl[X_DUMPMAG].n_value, L_SET);
 	(void)Read(kmem, &dumpmag, sizeof(dumpmag));
 	dumplo *= DEV_BSIZE;
-	ddname = find_dev(dumpdev, S_IFBLK);
+	ddname = find_dev(dumpdev);
 	dumpfd = Open(ddname, O_RDWR);
 	fp = fdopen(kmem, "r");
 	if (fp == NULL) {
@@ -463,9 +463,8 @@ err2:			syslog(LOG_WARNING,
 }
 
 char *
-find_dev(dev, type)
+find_dev(dev)
 	register dev_t dev;
-	register int type;
 {
 	register DIR *dfd;
 	struct dirent *dir;
@@ -483,7 +482,8 @@ find_dev(dev, type)
 			syslog(LOG_ERR, "%s: %s", devname, strerror(errno));
 			continue;
 		}
-		if ((sb.st_mode & S_IFMT) != type)
+		if ((sb.st_mode & S_IFMT) != S_IFCHR &&
+		    (sb.st_mode & S_IFMT) != S_IFBLK)
 			continue;
 		if (dev == sb.st_rdev) {
 			closedir(dfd);
