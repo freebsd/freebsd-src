@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.21 1998/12/30 06:04:31 grog Exp grog $
+ * $Id: vinumio.c,v 1.24 1999/03/23 02:00:52 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -44,12 +44,6 @@
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 #include <miscfs/specfs/specdev.h>
-
-extern jmp_buf command_fail;				    /* return on a failed command */
-
-/* Why aren't these declared anywhere? XXX */
-int setjmp(jmp_buf);
-void longjmp(jmp_buf, int);
 
 static char *sappend(char *txt, char *s);
 static int drivecmp(const void *va, const void *vb);
