@@ -527,11 +527,12 @@ again:
 		     */
 		    struct ether_header *eh = mtod(*m, struct ether_header *);
 		    int i, h, l ;
-
+#if 0
 		    printf("-- ip_fw: rule %d(%d) for %6D <- %6D type 0x%04x\n",
 			    f->fw_number, IP_FW_GETNSRCP(f),
 			    eh->ether_dhost, ".", eh->ether_shost, ".",
 			    ntohs(eh->ether_type) );
+#endif
 		    /*
 		     * make default rule always match or we have a panic
 		     */
@@ -710,8 +711,16 @@ got_match:
 #endif /* IPFW_DIVERT_RESTART */
 		/* Update statistics */
 		f->fw_pcnt += 1;
-		if (ip)
+		/*
+		 * note -- bridged-ip packets still have some fields
+		 * in network order, including ip_len
+		 */
+		if (ip) {
+		    if (pip)
 			f->fw_bcnt += ip->ip_len;
+		    else
+			f->fw_bcnt += ntohs(ip->ip_len);
+		}
 		f->timestamp = time.tv_sec;
 
 		/* Log to console if desired */
