@@ -417,9 +417,14 @@ ufs_setacl(ap)
 			 * Attempting to delete a non-present default ACL
 			 * will return success for portability purposes.
 			 * (TRIX)
+			 *
+			 * XXX: Note that since we can't distinguish
+			 * "that EA is not supported" from "that EA is not
+			 * defined", the success case here overlaps the
+			 * the ENOENT->EOPNOTSUPP case below.
 		 	 */
 			/* XXX: the ENOENT here will eventually be ENOATTR. */
-			if (error == EINVAL)
+			if (error == ENOENT)
 				error = 0;
 		} else
 			error = vn_extattr_set(ap->a_vp, IO_NODELOCKED,
