@@ -159,7 +159,7 @@ rmtgetconn(void)
 		tuser = pwd->pw_name;
 	if ((rmt = getenv("RMT")) == NULL)
 		rmt = _PATH_RMT;
-	msg("");
+	msg("%s", "");
 	rmtape = rcmd(&rmtpeer, (u_short)sp->s_port, pwd->pw_name,
 		      tuser, rmt, &errfd);
 	if (rmtape < 0) {
