@@ -1,0 +1,340 @@
+.\" ACPI (ACPI Package)
+.\" 
+.\" Copyright (c) 2000 Takanori Watanabe <takawata@FreeBSD.org>
+.\" Copyright (c) 2000 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
+.\" Copyright (c) 2000 Yasuo YOKOYAMA <yokoyama@jp.FreeBSD.org>
+.\" Copyright (c) 2000 Norihiro KUMAGAI <kumagai@home.com>
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 31, 2000
+.Dt AMLDB 8
+.Os FreeBSD 5.0
+.Sh NAME
+.Nm amldb
+.Nd executing and debugging AML interpreter
+.Pq with DSDT files
+.Sh SYNOPSIS
+.Nm amldb
+.Op Fl dhst
+.Ar dsdt_file ...
+.Sh DESCRIPTION
+.Nm Amldb
+parses the DSDT
+.Pq Differentiated System Description Table
+files, which usually are acquired from ACPI BIOS, and executes
+the sequence of ACPI Control Methods described in AML
+.Pq ACPI Machine Language
+with its AML interpreter.
+.Nm Amldb
+also has a simple ACPI virtual machine.  During execution of the
+Control Methods each access to the region, such as
+SystemMemory, SystemIO, PCI_Config, does not affect the real
+hardware but only the virtual machine.
+Because the sequence of virtual accesses is maintained in user space,
+AML interpreter developers need not worry about any effect on hardware
+when they analyze DSDT data files.  They can develop and debug the
+interpreter, even if the machine has no ACPI BIOS.
+.Pp
+The developer will need to acquire a DSDT data file from any machine
+with ACPI BIOS through
+.Xr acpidump 8 .
+The DSDT is a table, a part of the whole ACPI memory table
+located in somewhere in the BIOS area
+.Pq 0xa0000 \- 0x100000 .
+It includes such information as the detailed hardware information
+for PnP, and the set of procedures which perform power management from
+the OS.  The information is stored in AML format.
+.Pp
+The AML interpreter can execute any of the Control Methods specified
+by users.  When executed, it interprets the byte sequence in the
+Control Method of DSDT, and disassembles the opecodes that it
+recognizes into ASL
+.Pq ACPI Source Language
+format to be displayed.
+.Pp
+If it encounters one of more accesses to the region such as
+SystemMemory in executing the Control Methods, its ACPI Virtual
+Machine simulates the input/output operations to the resources in the
+region.  In writing to a certain region, the ACPI Virtual Machine
+prepares a piece of memory corresponding to its address,
+if necessary, and holds the specified value in the memory as the
+.Em region contents .
+In reading from a certain region, it fetches the value in the memory
+.Pq Em region contents ,
+prompts with it as the following:
+.Bd -literal -offset indent
+DEBUG[read(0, 0x100b6813)&mask:0x1](default: 0x1 / 1) >>
+.Ed
+.Pp
+for users to have the opportunity to modify it, and hands it to
+the AML interpreter.  In case that there is no corresponding region
+in the AML Virtual Machine, the value zero is handed.
+.Pp
+The interpreter continues to maintain all of the
+.Em region contents
+until
+.Nm
+terminates.  You can specify their initial values with the file
+.Pa region.ini
+in the current directory.  If it is executed with
+.Fl d
+option, it dumps the final status of all of its
+.Em region contents
+to the file
+.Pa region.dmp
+when it terminates.  Each line of there files consists of the following
+fields, separated by tabs; region type, address, and value.
+Region types are specified as follows;
+.TS H
+box;
+c | l.
+value	region type
+=
+0	SystemMemory	
+1	SystemIO
+2	PCI_Concig
+3	EmbeddedControl
+4	SMBus
+.TE
+.Pp
+Interactive commands are described below:
+.Bl -tag -width indent
+.It Cm s
+.Em Single step: 
+Performs single-step execution of the current Control Method.  If
+the next instruction is an invocation of another Control Method,
+the step execution will continue in the following Control Method.
+.It Cm n
+.Em Step program:
+Performs single-step execution of the current Control Method.
+Even if the next instruction is an invocation of another Control
+Method, the step execution will not continue.
+.It Cm c
+.Em Continue program being debugged:
+Resumes execution of the AML interpreter.  Because the current
+.Nm
+has no way of breakpoint, this command might not so much useful.
+.It Cm q
+.Em Quit method execution:
+Terminates execution of the current Control Method.  If
+.Nm
+is not in execution, this command causes to input the next
+DSDT data file.  If there are no next DSDT data files, it
+terminates
+.Nm
+itself.
+.It Cm t
+.Em Show local name space tree and variables:
+Displays the structure of the ACPI namespace tree.  If
+.Nm
+is in execution, this command displays the structure that relates
+to the objects, arguments, and local variables below the scope of the
+current Control Method.
+.It Cm i
+.Em Toggle region input prompt:
+Switches whether the prompt for modifying the value read from the
+.Em region contents
+be showed or not.  Default is On.
+.It Cm o
+.Em Toggle region output prompt:
+Switches whether the prompt for modifying the value to be written
+to the region contents will be shown or not.  The default is Off.
+.It Cm m
+.Em Show memory management statistics:
+Displays the current statistics of the memory management system
+on the AML interpreter.
+.It Cm r Ar method
+.Em Run specified method:
+Executes the specified Control Method.  If it requires one or
+more arguments, a prompt such as the following appears;
+.Bd -literal
+Method: Arg 1 From 0x280626ce To 0x28062775
+  Enter argument values (ex. number 1 / string foo). 'q' to quit.
+  Arg0 ? 
+.Ed
+.Pp
+For each argument, a pair of type string and value delimited by
+one or more spaces can be entered.  Now only
+.Ic number
+and
+.Ic string
+can be specified as the type string.
+In the current implementation, only the first character of the type
+string, such as
+.Ic n
+or
+.Ic s ,
+is identified.  For example, we can enter as follows:
+.Bd -literal
+  Arg0 ? n 1
+.Ed
+.Pp
+.It Cm f Ar string
+.Em Find named objects from namespace:
+Lists the named objects that includes the specified string as the
+terminate elements searching from the ACPI namespace.  For the
+namespace is expressed as the sequence of four-character elements,
+appropriate number of additional underscore
+.Pq Sq _
+characters are necessary for specifying objects which have less than four
+character string.  Unless additional underscores specified, matching
+occurs as the beginning of word with the specified number of characters.
+.It Cm h
+.Em Show help messsage:
+Displays the command summary of
+.Nm amldb .
+.El
+.Pp
+.Sh OPTIONS
+Exactly one of the following options must be specified.  Otherwise,
+.Nm amldb
+shows its usage and terminates.
+.Bl -tag -width indent
+.It Fl d
+Dump the final status of all of the
+.Em region contents
+in the ACPI Virtual Machine to the file
+.Pa region.dmp .
+.It Fl h
+Terminate with the usage of this command.
+.It Fl s
+Display the statistics of the memory management system on the
+AML interpreter when
+.Nm
+terminates.
+.It Fl t
+Display the tree structure of ACPI namespace after the
+DSDT data file is read.
+.El
+.Sh EXAMPLES
+The following is an example including, invoking the
+.Nm amldb ,
+searching
+.Li _PRS
+.Pq Possible Resource Settings
+objects, and executing the
+.Li _PTS
+.Pq Prepare To Sleep
+Control Method by the AML interpreter.
+.Bd -literal -offset indent
+% amldb p2b.dsdt.dat
+Loading p2b.dsdt.dat...done
+AML>f _PRS
+\\_SB_.PCI0.ISA_.PS2M._PRS.
+\\_SB_.PCI0.ISA_.IRDA._PRS.
+\\_SB_.PCI0.ISA_.UAR2._PRS.
+\\_SB_.PCI0.ISA_.UAR1._PRS.
+\\_SB_.PCI0.ISA_.ECP_._PRS.
+\\_SB_.PCI0.ISA_.LPT_._PRS.
+\\_SB_.PCI0.ISA_.FDC0._PRS.
+\\_SB_.LNKD._PRS.
+\\_SB_.LNKC._PRS.
+\\_SB_.LNKB._PRS.
+\\_SB_.LNKA._PRS.
+AML>r _PTS
+Method: Arg 1 From 0x2805f0a3 To 0x2805f0db
+  Enter argument values (ex. number 1 / string foo). 'q' to quit.
+  Arg0 ? n 5
+==== Running _PTS. ====
+AML>s
+[\_PTS. START]
+If(LNot(LEqual(Arg0, 0x5)))
+AML>
+If(LEqual(Arg0, 0x1))
+AML>
+If(LEqual(Arg0, 0x2))
+AML>
+Store(One, TO12)
+[aml_region_write(1, 1, 0x1, 0xe42c, 0x18, 0x1)]
+amldb: region.ini: No such file or directory
+        [1:0x00@0xe42f]->[1:0x01@0xe42f]
+[write(1, 0x1, 0xe42f)]
+[aml_region_read(1, 1, 0xe42c, 0x18, 0x1)]
+        [1:0x01@0xe42f]
+DEBUG[read(1, 0xe42f)&mask:0x1](default: 0x1 / 1) >>
+[read(1, 0xe42f)->0x1]
+AML>
+Or(Arg0, 0xf0, Local2)[Copy number 0xf5]
+AML>t
+_PTS  Method: Arg 1 From 0x2805f0a3 To 0x2805f0db
+  Arg0    Num:0x5
+  Local2  Num:0xf5
+AML>s
+Store(Local2, DBG1)
+[aml_region_write(1, 1, 0xf5, 0x80, 0x0, 0x8)]
+        [1:0x00@0x80]->[1:0xf5@0x80]
+[write(1, 0xf5, 0x80)]
+[aml_region_read(1, 1, 0x80, 0x0, 0x8)]
+        [1:0xf5@0x80]
+DEBUG[read(1, 0x80)&mask:0xf5](default: 0xf5 / 245) >>
+[read(1, 0x80)->0xf5]
+AML>
+[\_PTS. END]
+_PTS  Method: Arg 1 From 0x2805f0a3 To 0x2805f0db
+NO object
+==== _PTS finished. ====
+AML>q
+%
+.Ed
+.Pp
+.Sh BUGS
+The ACPI virtual machine does not completely simulate the behavior
+of a machine with an ACPI BIOS.  In the current implementation, the
+ACPI virtual machine only reads or writes the stored values by
+emulating access to regions such as SystemMemory.
+.Pp
+Because the AML interpreter interprets and disassembles
+simultaneously, it is impossible to implement such features as setting
+breakpoints with the specified line number in ASL.  Setting breakpoints
+at certain Control Methods, which is not very difficult, has not
+yet implemented because nobody has ever needed it.
+.Sh FILES
+.Bl -tag -width region.ini -compact
+.It Pa region.ini
+.br
+.It Pa region.dmp
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpiconf 8 ,
+.Xr acpidump 8
+.Pp
+.Sh AUTHORS
+.An Takanori Watanabe Aq takawata@FreeBSD.org
+.An Mitsuru IWASAKI Aq iwasaki@FreeBSD.org
+.An Yasuo YOKOYAMA Aq yokoyama@jp.FreeBSD.org
+.Pp
+Some contributions made by
+.An Chitoshi Ohsawa Aq ohsawa@catv1.ccn-net.ne.jp ,
+.An Takayasu IWANASHI Aq takayasu@wendy.a.perfect-liberty.or.jp ,
+.An Norihiro KUMAGAI Aq kumagai@home.com ,
+.An Kenneth Ingham Aq ingham@I-pi.com ,
+and
+.An Michael Lucas Aq mwlucas@blackhelicopters.org .
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 5.0 .
