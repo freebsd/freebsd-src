@@ -78,7 +78,7 @@ extern	struct uri_scheme file_scheme, ftp_scheme, http_scheme;
 
 void	adjmodtime(struct fetch_state *fs);
 void	catchsig(int signo);
-void	display(struct fetch_state *fs, off_t total, ssize_t thisincr);
+int	display(struct fetch_state *fs, off_t total, ssize_t thisincr);
 void	init_schemes(void);
 void	rm(struct fetch_state *fs);
 void	setup_sigalrm(void);
