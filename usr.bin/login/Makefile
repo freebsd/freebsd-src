@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $Id: Makefile,v 1.9 1994/10/19 00:03:31 pst Exp $
+# $Id: Makefile,v 1.10 1994/11/20 23:20:33 wollman Exp $
 
 PROG=	login
 MAN1=	login.1
@@ -8,11 +8,14 @@ SRCS=	login.c login_access.c login_fbtab.c
 
 CFLAGS+=-DLOGIN_ACCESS -DSKEY -DLOGALL
 
+.if defined(KLOGIN_PARANOID)
+CFLAGS+=-DKLOGIN_PARANOID
+.endif
+
 DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBSKEY} ${LIBMD}
 LDADD=	-lutil -lcrypt -lskey -lmd
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && \
-	(defined(MAKE_KERBEROS) || defined(MAKE_EBONES))
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_EBONES)
 CFLAGS+=-DKERBEROS
 SRCS+=	klogin.c
 DPADD+=	${LIBKRB} ${LIBDES}
