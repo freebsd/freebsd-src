@@ -275,7 +275,7 @@ slurp(F)
 	 * join field.
 	 */
 	F->setcnt = 0;
-	for (lastlp = NULL;; ++F->setcnt, lastlp = lp) {
+	for (lastlp = NULL;; ++F->setcnt) {
 		/*
 		 * If we're out of space to hold line structures, allocate
 		 * more.  Initialize the structure so that we know that this
@@ -296,9 +296,10 @@ slurp(F)
 		 * the two structures so that we don't lose space allocated to
 		 * either structure.  This could be avoided by doing another
 		 * level of indirection, but it's probably okay as is.
-		 * but it's probably okay as is.
 		 */
 		lp = &F->set[F->setcnt];
+		if (F->setcnt)
+			lastlp = &F->set[F->setcnt - 1];
 		if (F->pushbool) {
 			tmp = F->set[F->setcnt];
 			F->set[F->setcnt] = F->set[F->pushback];
