@@ -8,10 +8,10 @@ SUBDIR+= libgcc_r
 .endif
 .endif
 
-.if notyet
+# libsupc++ uses libstdc++ headers, although 'make includes' should
+# have taken care of that already.
 .if !defined(NO_CXX)
-SUBDIR+= libsupc++ libstdc++
-.endif
+SUBDIR+= libstdc++ libsupc++
 .endif
 
 .if !defined(NO_OBJC)
