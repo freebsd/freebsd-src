@@ -226,7 +226,7 @@ loop:
 	 */
 	np = uma_zalloc(nfsnode_zone, M_WAITOK);
 
-	error = getnewvnode("nfs", mntp, nfsv2_vnodeop_p, &nvp);
+	error = getnewvnode("nfs", mntp, nfs_vnodeop_p, &nvp);
 	if (error) {
 		if (nfs_node_hash_lock < 0)
 			wakeup(&nfs_node_hash_lock);
