@@ -1644,6 +1644,31 @@ gotit:
 }
 
 /*
+ * check if a block is free
+ */
+static int
+ffs_isfreeblock(struct fs *fs, unsigned char *cp, ufs1_daddr_t h)
+	struct fs *fs;
+	unsigned char *cp;
+	ufs1_daddr_t h;
+{
+
+	switch ((int)fs->fs_frag) {
+	case 8:
+		return (cp[h] == 0);
+	case 4:
+		return ((cp[h >> 1] & (0x0f << ((h & 0x1) << 2))) == 0);
+	case 2:
+		return ((cp[h >> 2] & (0x03 << ((h & 0x3) << 1))) == 0);
+	case 1:
+		return ((cp[h >> 3] & (0x01 << (h & 0x7))) == 0);
+	default:
+		panic("ffs_isfreeblock");
+	}
+	return (0);
+}
+
+/*
  * Free a block or fragment.
  *
  * The specified block or fragment is placed back in the
