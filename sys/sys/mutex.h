@@ -339,6 +339,27 @@ do {									\
 		WITNESS_RESTORE(&Giant.mtx_object, Giant)
 #endif
 
+/*
+ * Network MPSAFE temporary workarounds.  When debug_mpsafenet
+ * is 1 the network is assumed to operate without Giant on the
+ * input path and protocols that require Giant must collect it
+ * on entry.  When 0 Giant is grabbed in the network interface
+ * ISR's and in the netisr path and there is no need to grab
+ * the Giant lock.
+ *
+ * This mechanism is intended as temporary until everything of
+ * importance is properly locked.
+ */
+extern	int debug_mpsafenet;		/* defined in net/netisr.c */
+#define	NET_PICKUP_GIANT() do {						\
+	if (debug_mpsafenet)						\
+		mtx_lock(&Giant);					\
+} while (0)
+#define	NET_DROP_GIANT() do {						\
+	if (debug_mpsafenet)						\
+		mtx_unlock(&Giant);					\
+} while (0)
+
 #define	UGAR(rval) do {							\
 	int _val = (rval);						\
 	mtx_unlock(&Giant);						\
