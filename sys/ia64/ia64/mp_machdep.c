@@ -106,7 +106,7 @@ ia64_ap_startup(void)
 
 	mtx_lock_spin(&sched_lock);
 	cpu_throw();
-	panic(__func__ ": cpu_throw() returned");
+	panic("ia64_ap_startup: cpu_throw() returned");
 }
 
 int
@@ -140,13 +140,13 @@ cpu_mp_add(uint acpiid, uint apicid, uint apiceid)
 	}
 
 	KASSERT((all_cpus & (1UL << acpiid)) == 0,
-	    (__func__ ": cpu%d already in CPU map", acpiid));
+	    ("%s: cpu%d already in CPU map", __func__, acpiid));
 
 	lid = LID_SAPIC_SET(apicid, apiceid);
 
 	if ((ia64_get_lid() & LID_SAPIC_MASK) == lid) {
 		KASSERT(acpiid == 0,
-		    (__func__ ": the BSP must be cpu0"));
+		    ("%s: the BSP must be cpu0", __func__));
 	}
 
 	if (acpiid != 0) {
