@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.4 1996/01/31 19:02:57 mpp Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.5 1996/06/25 03:15:17 alex Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -180,8 +180,9 @@ entries.
 
 <p>The syntax for this form of the command is:
 <tscreen>
-ipfw &lsqb;-N&rsqb; <em>command</em> &lsqb;index&rsqb; <em>action</em> 
-<em>protocol</em> <em>addresses</em> &lsqb;options&rsqb;
+ipfw &lsqb;-N&rsqb; <em>command</em> &lsqb;<em>index</em>&rsqb; 
+<em>action</em> &lsqb;log&rsqb; <em>protocol</em> <em>addresses</em> 
+&lsqb;<em>options</em>&rsqb;
 </tscreen>
 
 <p>There is one valid flag when using this form of the command:
@@ -210,7 +211,10 @@ at a specific point in the chain.  Otherwise, the entry is placed at
 the end of the chain at an index 100 greater than the last chain
 entry (this does not include the default policy, rule 65535, deny).
 
-Valid <em>actions</em> are:
+<p>The <bf>log</bf> option causes matching rules to be output to the
+system console if the kernel was compiled with <bf>IPFIREWALL_VERBOSE</bf>.
+
+<p>Valid <em>actions</em> are:
 
 <descrip>
 
@@ -292,9 +296,10 @@ port&lsqb;,port&lsqb;,port&lsqb;...&rsqb;&rsqb;&rsqb;
 </tscreen>
 to specify either a single port or a list of ports, or
 <tscreen><verb>
-port:port
+port-port
 </verb></tscreen>
-to specify a range of ports.
+to specify a range of ports.  You may also combine a single range with a
+list, but the range must always be specified first.
 
 <p>The <em>options</em> available are:
 
@@ -314,7 +319,9 @@ and <bf>ts</bf> (timestamp).  The absence of a particular option may
 be denoted with a leading '!'.
 
 <tag/established/Matches if the packet is part of an already established
-TCP connection (i.e. it has the RST or ACK bits set).
+TCP connection (i.e. it has the RST or ACK bits set).  You can optimize
+the performance of the firewall by placing <em>established</em> rules
+early in the chain.
 
 <tag/setup/Matches if the packet is an attempt to establish a TCP connection
 (the SYN bit set is set but the ACK bit is not).
@@ -329,7 +336,9 @@ by a leading '!'.
 the list <em>types</em>.  The list may be specified as any combination
 of ranges and/or individual types separated by commas.  Commonly used
 ICMP types are: <bf>0</bf> echo reply (ping reply), <bf>5</bf>
-redirect, and <bf>8</bf> echo request (ping request).
+redirect, <bf>8</bf> echo request (ping request), and <bf>11</bf>
+time exceeded (used to indicate TTL expiration as with
+<tt>traceroute(8)</tt>).
 
 </descrip>
 
@@ -402,14 +411,14 @@ If you do not want people sending X sessions to your internal network
 filtering:
 
 <tscreen><verb>
-ipfw add deny setup from any to my.org/28 6000
+ipfw add deny from any to my.org/28 6000 setup
 </verb></tscreen>
 
 To allow access to the SUP server on <bf>sup.FreeBSD.ORG</bf>, use the
 following command:
 
 <tscreen><verb>
-ipfw addf accept syn to sup.FreeBSD.ORG 871
+ipfw add accept from any to sup.FreeBSD.ORG 871
 </verb></tscreen>
 
 To see the accounting records:
@@ -516,6 +525,10 @@ etc). It's probably a good idea to block those as well, as they
 normally fall outside the 1-1024 range specified above.
 
 </itemize>
+
+<p>Another checklist for firewall configuration is available from CERT
+at <htmlurl url="ftp://ftp.cert.org/pub/tech_tips/packet_filtering"
+name="ftp://ftp.cert.org/pub/tech_tips/packet_filtering">
 
 <p>As I said above, these are only <em>guidelines</em>. You will have
 to decide what filter rules you want to use on your firewall
