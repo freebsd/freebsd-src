@@ -104,6 +104,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x43525934, 0, "Cirrus Logic CS4299D",	0 },
 	{ 0x43525941, 0, "Cirrus Logic CS4201A",	0 },
 	{ 0x43525951, 0, "Cirrus Logic CS4205A",	0 },
+	{ 0x4352595b, 0, "Cirrus Logic CS4205",		0 },
 	{ 0x43525961, 0, "Cirrus Logic CS4291A",	0 },
 	{ 0x43585429, 0, "Conexant CX20468",		0 },
 	{ 0x45838308, 0, "ESS Technology ES1921",	0 },
