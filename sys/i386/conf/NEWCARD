@@ -64,6 +64,7 @@ options 	DDB			#Enable the kernel debugger
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 options 	WITNESS			#Enable mutex checks to detects deadlocks and cycles
+options		WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
@@ -105,7 +106,9 @@ device		stg		# TMC 18C30/18C50
 
 # RAID controllers interfaced to the SCSI subsystem
 device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
+device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV - See NOTES for options!
+device		iir		# Intel Integrated RAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
 
 # SCSI peripherals
