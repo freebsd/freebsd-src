@@ -22,7 +22,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\	$Id$
+\	$Id: loader.4th,v 1.1 1999/03/09 14:06:55 dcs Exp $
 
 include /boot/support.4th
 
@@ -76,6 +76,82 @@ only forth definitions also support-functions
   then
 ; immediate
 
+\ ***** enable-module
+\
+\       Turn a module loading on.
+
+: enable-module ( <module> -- )
+  bl parse module_options @ >r
+  begin
+    r@
+  while
+    2dup
+    r@ module.name dup .addr @ swap .len @
+    compare 0= if
+      2drop
+      r@ module.name dup .addr @ swap .len @ type
+      true r> module.flag !
+      ."  will be loaded." cr
+      exit
+    then
+    r> module.next @ >r
+  repeat
+  r> drop
+  type ."  wasn't found." cr
+;
+
+\ ***** disable-module
+\
+\       Turn a module loading off.
+
+: disable-module ( <module> -- )
+  bl parse module_options @ >r
+  begin
+    r@
+  while
+    2dup
+    r@ module.name dup .addr @ swap .len @
+    compare 0= if
+      2drop
+      r@ module.name dup .addr @ swap .len @ type
+      false r> module.flag !
+      ."  will not be loaded." cr
+      exit
+    then
+    r> module.next @ >r
+  repeat
+  r> drop
+  type ."  wasn't found." cr
+;
+
+\ ***** toggle-module
+\
+\       Turn a module loading on/off.
+
+: toggle-module ( <module> -- )
+  bl parse module_options @ >r
+  begin
+    r@
+  while
+    2dup
+    r@ module.name dup .addr @ swap .len @
+    compare 0= if
+      2drop
+      r@ module.name dup .addr @ swap .len @ type
+      r@ module.flag @ 0= dup r> module.flag !
+      if
+        ."  will be loaded." cr
+      else
+        ."  will not be loaded." cr
+      then
+      exit
+    then
+    r> module.next @ >r
+  repeat
+  r> drop
+  type ."  wasn't found." cr
+;
+
 \ ***** show-module
 \
 \	Show loading information about a module.
@@ -101,6 +177,8 @@ only forth definitions also support-functions
     then
     r> module.next @ >r
   repeat
+  r> drop
+  type ."  wasn't found." cr
 ;
 
 \ Words to be used inside configuration files
