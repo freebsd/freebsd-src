@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.23 1995/02/25 20:51:13 phk Exp $
+#	$Id: bsd.prog.mk,v 1.24 1995/03/08 09:01:32 olah Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -30,6 +30,7 @@ LIBDES?=	${DESTDIR}/usr/lib/libdes.a	# XXX doesn't exist
 LIBDIALOG?=	${DESTDIR}/usr/lib/libdialog.a
 LIBEDIT?=	${DESTDIR}/usr/lib/libedit.a
 LIBFORMS?=	${DESTDIR}/usr/lib/libforms.a
+LIBFTP?=	${DESTDIR}/usr/lib/libftp.a
 LIBGCC?=	${DESTDIR}/usr/lib/libgcc.a
 LIBGNUMALLOC?=	${DESTDIR}/usr/lib/libgnumalloc.a
 LIBGNUREGEX?=	${DESTDIR}/usr/lib/libgnuregex.a
