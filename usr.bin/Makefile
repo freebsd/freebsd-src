@@ -214,6 +214,7 @@ SUBDIR+=ar \
 	gcore \
 	gprof4 \
 	ncplist \
+	ncplogin \
 	nm \
 	ranlib \
 	sasc \

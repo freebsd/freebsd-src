@@ -1,0 +1,52 @@
+.\" $FreeBSD$
+.Dd Sep 15, 1999
+.Dt NCPLOGOUT 1
+.Os FreeBSD 4.0
+.Sh NAME
+.Nm ncplogout
+.Nd shedule permanent connection to close
+.Sh SYNOPSIS
+.Nm ncplogout
+.Op -S Ar server
+.Op -U Ar user
+.Op -c Ar handle
+.Nm ncplogout
+.Op -c Ar handle
+.Ar /server:user
+.Sh DESCRIPTION
+The
+.Nm
+will shedule connection created by
+.Xr ncplogin 1
+command to close. If connection is busy (i.e. used by other processes) it will
+be closed when last process terminated. This command is similar to DOS 
+logout.exe command.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl S Ar server
+name of Netware server to identify connection. Can be omitted if there is only
+one connection active.
+.It Fl U Ar user
+name of user used to identify connection. Can be omitted if there is only
+one connection active.
+.It Fl c Ar handle
+close connection by handle. List of available handles can be obtained via
+.Bd -literal -offset indent
+	ncplist c
+.Ed
+command.
+.El
+.Sh FILES
+.Bl -tag -width /var/log/wtmp -compact
+.It Pa ~/.nwfsrc??
+keeps description for each connection. See
+.Xr nwfsrc 8
+for details.
+
+.Sh BUGS
+to number a few
+
+.Sh AUTHORS
+.An Boris Popov Aq bp@butya.kz ,
+.Aq bp@freebsd.org
