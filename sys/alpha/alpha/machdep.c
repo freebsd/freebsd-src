@@ -347,10 +347,21 @@ again:
 	valloc(msqids, struct msqid_ds, msginfo.msgmni);
 #endif
 
+	/*
+	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
+	 * For the first 64MB of ram nominally allocate sufficient buffers to
+	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
+	 * buffers to cover 1/20 of our ram over 64MB.
+	 */
+
 	if (nbuf == 0) {
-		nbuf = 30;
-		if( physmem > 1024)
-			nbuf += min((physmem - 1024) / 8, 2048);
+		int factor = 4 * BKVASIZE / PAGE_SIZE;
+
+		nbuf = 50;
+		if (physmem > 1024)
+			nbuf += min((physmem - 1024) / factor, 16384 / factor);
+		if (physmem > 16384)
+			nbuf += (physmem - 16384) * 2 / (factor * 5);
 	}
 	nswbuf = max(min(nbuf/4, 64), 16);
 
