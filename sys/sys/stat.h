@@ -255,6 +255,7 @@ mode_t	umask(mode_t);
 
 #ifndef _POSIX_SOURCE
 int	chflags(const char *, u_long);
+int	lchflags(const char *, int);
 int	fchflags(int, u_long);
 int	fchmod(int, mode_t);
 int	lchmod(const char *, mode_t);

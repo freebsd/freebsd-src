@@ -2894,6 +2894,29 @@ chflags(td, uap)
 }
 
 /*
+ * Same as chflags() but doesn't follow symlinks.
+ */
+int
+lchflags(td, uap)
+	struct thread *td;
+	register struct lchflags_args /* {
+		syscallarg(char *) path;
+		syscallarg(int) flags;
+	} */ *uap;
+{
+	int error;
+	struct nameidata nd;
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	error = setfflags(td, nd.ni_vp, SCARG(uap, flags));
+	vrele(nd.ni_vp);
+	return error;
+}
+
+/*
  * Change flags of a file given a file descriptor.
  */
 #ifndef _SYS_SYSPROTO_H_
