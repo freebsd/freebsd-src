@@ -1708,8 +1708,12 @@ remove_plex_entry(int plexno, int force, int recurse)
 	    for (myplexno = 0; myplexno < vol->plexes; myplexno++)
 		if (vol->plex[myplexno] == plexno)	    /* found it */
 		    break;
-	    if (myplexno == vol->plexes)		    /* didn't find it.  Huh? */
-		throw_rude_remark(ENOENT, "volume %s does not contain plex %s", vol->name, plex->name);
+	    if (myplexno == vol->plexes) {		    /* didn't find it.  Huh? */
+		if (force)
+		    log(LOG_ERR, "volume %s does not contain plex %s", vol->name, plex->name);
+		else
+		    throw_rude_remark(ENOENT, "volume %s does not contain plex %s", vol->name, plex->name);
+	    }
 	    if (myplexno < (vol->plexes - 1))		    /* not the last plex in the list */
 		bcopy(&vol->plex[myplexno + 1], &vol->plex[myplexno], vol->plexes - 1 - myplexno);
 	    vol->plexes--;
