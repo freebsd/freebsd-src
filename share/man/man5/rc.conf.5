@@ -73,6 +73,23 @@ variable that can be set in the
 .Nm
 file:
 .Bl -tag -width indent-two
+.It Va rc_debug
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable output of debug messages from rc scripts.
+This variable can be helpful in diagnosing mistakes when
+editing or integrating new scripts.
+Beware that this produces copious output to the terminal and
+.Xr syslog 3 .
+.It Va rc_info
+.Pq Vt bool
+If set to 
+.Dq Li NO ,
+disable informational messages from the rc scripts.
+Informational messages are displayed when
+a condition that is not serious enough to warrant a warning or
+an error occurs.
 .It Va swapfile
 .Pq Vt str
 If set to
@@ -801,6 +818,18 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to
 .Xr inetd 8 .
+.It Va named_rcng
+.Pq Vt bool
+If set to
+.Dq Li YES
+use new functionality provided in the
+.Pa /etc/rc.d/named
+script to facilitate a
+.Xr chroot 8
+instance of
+.Xr named 8 .
+This variable is experimental.
+It may be removed or changed in the near future.
 .It Va named_enable
 .Pq Vt bool
 If set to
@@ -822,6 +851,58 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to
 .Xr named 8 .
+.It Va named_pidfile
+.Pq Vt str
+This is the default path to the
+.Xr named 8
+daemon's PID file.
+Change it if you change the location in
+.Xr named.conf 5 .
+.It Va named_chrootdir
+.Pq Vt str
+The root directory for a name server run in a
+.Xr chroot 8
+environment.
+If left empty
+.Xr named 8
+will not be run in a
+.Xr chroot 8
+environment.
+This variable has no effect if
+.Va named_rcng
+is not enabled.
+This variable is experimental.
+It may be removed or changed in the near future.
+.It Va named_chroot_autoupdate
+.Pq Vt bool
+Set to
+.Dq Li NO
+to disable automatic syncing of libraries and
+other system files between the root file system and the
+.Xr chroot 8 .
+This variable has no effect if
+.Va named_rcng
+is not enabled.
+This variable is experimental.
+It may be removed or changed in the near future.
+.It Va named_symlink_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+to disable symlinking of
+.Pa /var/run/named.pid
+and
+.Pa /var/run/ndc
+into the
+.Xr chroot 8
+environment in which
+.Xr named 8
+is running.
+This variable has no effect if
+.Va named_rcng
+is not enabled.
+This variable is experimental.
+It may be removed or changed in the near future.
 .It Va kerberos4_server_enable
 .Pq Vt bool
 Set to
