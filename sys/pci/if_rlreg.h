@@ -471,6 +471,11 @@ struct rl_softc {
 #define DLINK_DEVICEID_530TXPLUS		0x1300
 
 /*
+ * D-Link DFE-690TXD device ID
+ */
+#define DLINK_DEVICEID_690TXD			0x1340
+
+/*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
  */

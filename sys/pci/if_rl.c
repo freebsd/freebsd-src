@@ -152,6 +152,8 @@ static struct rl_type rl_devs[] = {
 		"Addtron Technolgy 8139 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530TXPLUS,
 		"D-Link DFE-530TX+ 10/100BaseTX" },
+	{ DLINK_VENDORID, DLINK_DEVICEID_690TXD,
+		"D-Link DFE-690TXD 10/100BaseTX" },
 	{ NORTEL_VENDORID, ACCTON_DEVICEID_5030,
 		"Nortel Networks 10/100BaseTX" },
 	{ 0, 0, NULL }
@@ -973,7 +975,8 @@ static int rl_attach(dev)
 
 	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030 ||
 	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139 ||
-	    rl_did == RT_DEVICEID_8138 || rl_did == DLINK_DEVICEID_530TXPLUS)
+	    rl_did == RT_DEVICEID_8138 || rl_did == DLINK_DEVICEID_530TXPLUS ||
+	    rl_did == DLINK_DEVICEID_690TXD)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
