@@ -75,11 +75,14 @@ extern void prompt_Printf(struct prompt *, const char *, ...)
 #else
 extern void prompt_Printf(struct prompt *, const char *, ...);
 #endif
+#ifndef _BSD_VA_LIST_
+#define _BSD_VA_LIST_ __va_list
+#endif
 #ifdef __GNUC__
-extern void prompt_vPrintf(struct prompt *, const char *, __va_list)
+extern void prompt_vPrintf(struct prompt *, const char *, _BSD_VA_LIST_)
 			   __attribute__ ((format (printf, 2, 0)));
 #else
-extern void prompt_vPrintf(struct prompt *, const char *, __va_list);
+extern void prompt_vPrintf(struct prompt *, const char *, _BSD_VA_LIST_);
 #endif
 #define PROMPT_DONT_WANT_INT 1
 #define PROMPT_WANT_INT 0
