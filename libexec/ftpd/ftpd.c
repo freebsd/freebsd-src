@@ -695,7 +695,7 @@ inithosts(void)
 	hrp->next = NULL;
 	thishost = firsthost = lhrp = hrp;
 	if ((fp = fopen(_PATH_FTPHOSTS, "r")) != NULL) {
-		int addrsize, error, gothost;
+		int addrsize, gothost;
 		void *addr;
 		struct hostent *hp;
 
@@ -1616,7 +1616,6 @@ store(char *name, char *mode, int unique)
 {
 	int fd;
 	FILE *fout, *din;
-	struct stat st;
 	int (*closefunc)(FILE *);
 
 	if (*mode == 'a') {		/* APPE */
