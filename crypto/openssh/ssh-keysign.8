@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-keysign.8,v 1.3 2002/07/03 14:21:05 markus Exp $
+.\" $OpenBSD: ssh-keysign.8,v 1.6 2003/03/28 10:11:43 jmc Exp $
 .\"
 .\" Copyright (c) 2002 Markus Friedl.  All rights reserved.
 .\"
@@ -39,10 +39,10 @@ required during hostbased authentication with SSH protocol version 2.
 .Pp
 .Nm
 is disabled by default and can only be enabled in the
-the global client configuration file
+global client configuration file
 .Pa /etc/ssh/ssh_config
 by setting
-.Cm HostbasedAuthentication
+.Cm EnableSSHKeysign
 to
 .Dq yes .
 .Pp
@@ -62,8 +62,8 @@ Controls whether
 is enabled.
 .It Pa /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_rsa_key
 These files contain the private parts of the host keys used to
-generate the digital signature.  They
-should be owned by root, readable only by root, and not
+generate the digital signature.
+They should be owned by root, readable only by root, and not
 accessible to others.
 Since they are readable only by root,
 .Nm
