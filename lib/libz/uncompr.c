@@ -1,9 +1,10 @@
 /* uncompr.c -- decompress a memory buffer
- * Copyright (C) 1995-1998 Jean-loup Gailly.
+ * Copyright (C) 1995-2002 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* @(#) $FreeBSD$ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "zlib.h"
 

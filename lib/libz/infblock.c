@@ -1,5 +1,5 @@
 /* infblock.c -- interpret and process block types to last block
- * Copyright (C) 1995-1998 Mark Adler
+ * Copyright (C) 1995-2002 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
@@ -253,10 +253,11 @@ int r;
       if (t != Z_OK)
       {
         r = t;
-        if (r == Z_DATA_ERROR) {
+        if (r == Z_DATA_ERROR)
+        {
           ZFREE(z, s->sub.trees.blens);
           s->mode = BAD;
-	}
+        }
         LEAVE
       }
       s->sub.trees.index = 0;
@@ -319,10 +320,11 @@ int r;
                                   s->hufts, z);
         if (t != Z_OK)
         {
-          if (t == (uInt)Z_DATA_ERROR) {
+          if (t == (uInt)Z_DATA_ERROR)
+          {
             ZFREE(z, s->sub.trees.blens);
             s->mode = BAD;
-	}
+          }
           r = t;
           LEAVE
         }
