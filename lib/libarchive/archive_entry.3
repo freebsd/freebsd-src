@@ -71,6 +71,7 @@
 .Nm archive_entry_set_hardlink ,
 .Nm archive_entry_set_link ,
 .Nm archive_entry_set_mode ,
+.Nm archive_entry_set_mtime ,
 .Nm archive_entry_set_pathname ,
 .Nm archive_entry_set_rdevmajor ,
 .Nm archive_entry_set_rdevminor ,
@@ -170,6 +171,8 @@
 .Fn archive_entry_set_link "struct archive_entry *" "const char *"
 .Ft void
 .Fn archive_entry_set_mode "struct archive_entry *" "mode_t"
+.Ft void
+.Fn archive_entry_set_mtime "struct archive_entry *" "time_t" "long nanos"
 .Ft void
 .Fn archive_entry_set_pathname "struct archive_entry *" "const char *"
 .Ft void
