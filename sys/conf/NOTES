@@ -2128,6 +2128,8 @@ device		ucom
 device		uftdi
 # USB support for Prolific PL-2303 serial adapters
 device		uplcom
+# USB support for Belkin F5U103 and compatible serial adapters
+device		ubsa
 # USB serial support for DDI pocket's PHS
 device		uvscom
 # USB Visor and Palm devices
