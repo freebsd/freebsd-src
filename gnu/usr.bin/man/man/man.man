@@ -132,7 +132,9 @@ is used.
 .Xr whatis 1 ,
 .Xr manpath 1 ,
 .Xr more 1 ,
-.Xr groff 1
+.Xr groff 1 ,
+.Xr mdoc 7 ,
+.Xr mdoc.samples 7
 .Sh BUGS
 The
 .Fl t
