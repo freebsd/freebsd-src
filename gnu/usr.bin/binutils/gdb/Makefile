@@ -1,5 +1,6 @@
 PROG = gdb
 BINDIR= /usr/bin
+CLEANFILES+= y.tab.h c-exp.tab.c ch-exp.tab.c m2-exp.tab.c
 SRCS = main.c blockframe.c breakpoint.c findvar.c stack.c thread.c \
        source.c values.c eval.c valops.c valarith.c valprint.c printcmd.c \
        symtab.c symfile.c symmisc.c infcmd.c infrun.c command.c utils.c \
