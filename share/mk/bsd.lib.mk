@@ -214,39 +214,6 @@ all: ${_LIBS}
 all: _manpages
 .endif
 
-.if !target(clean)
-clean:
-.if defined(CLEANFILES) && !empty(CLEANFILES)
-	rm -f ${CLEANFILES}
-.endif
-.if defined(LIB) && !empty(LIB)
-	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
-.endif
-.if !defined(INTERNALLIB)
-.if !defined(NOPROFILE) && defined(LIB) && !empty(LIB)
-	rm -f ${POBJS} ${POBJS:S/$/.tmp/}
-.endif
-.if defined(SHLIB_NAME) || \
-    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/}
-.endif
-.if defined(SHLIB_NAME)
-.if defined(SHLIB_LINK)
-	rm -f ${SHLIB_LINK}
-.endif
-.if defined(LIB) && !empty(LIB)
-	rm -f lib${LIB}.so.* lib${LIB}.so
-.endif
-.endif
-.endif !defined(INTERNALLIB)
-.if defined(_LIBS) && !empty(_LIBS)
-	rm -f ${_LIBS}
-.endif
-.if defined(CLEANDIRS) && !empty(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
-.endif
-.endif
-
 _EXTRADEPEND:
 	@TMP=_depend$$$$; \
 	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So:/' < ${DEPENDFILE} \
@@ -341,6 +308,39 @@ ${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 ${SOBJS}: ${SRCS:M*.h}
+.endif
+.endif
+
+.if !target(clean)
+clean:
+.if defined(CLEANFILES) && !empty(CLEANFILES)
+	rm -f ${CLEANFILES}
+.endif
+.if defined(LIB) && !empty(LIB)
+	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
+.endif
+.if !defined(INTERNALLIB)
+.if !defined(NOPROFILE) && defined(LIB) && !empty(LIB)
+	rm -f ${POBJS} ${POBJS:S/$/.tmp/}
+.endif
+.if defined(SHLIB_NAME) || \
+    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/}
+.endif
+.if defined(SHLIB_NAME)
+.if defined(SHLIB_LINK)
+	rm -f ${SHLIB_LINK}
+.endif
+.if defined(LIB) && !empty(LIB)
+	rm -f lib${LIB}.so.* lib${LIB}.so
+.endif
+.endif
+.endif !defined(INTERNALLIB)
+.if defined(_LIBS) && !empty(_LIBS)
+	rm -f ${_LIBS}
+.endif
+.if defined(CLEANDIRS) && !empty(CLEANDIRS)
+	rm -rf ${CLEANDIRS}
 .endif
 .endif
 
