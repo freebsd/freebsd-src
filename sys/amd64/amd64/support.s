@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.3 1994/01/31 23:47:29 davidg Exp $
+ *	$Id: support.s,v 1.4 1994/02/01 04:09:07 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -151,8 +151,20 @@ ENTRY(outsw)					/* outsw(port, addr, cnt) */
 /*
  * bcopy family
  */
-/* void bzero(void *base, u_int cnt) */
+/*
+ * void bzero(void *base, u_int cnt) 
+ * Special code for I486 because stosl uses lots
+ * of clocks.  Makes little or no difference on DX2 type
+ * machines, but about stosl is about 1/2 as fast as
+ * memory moves on standard DX !!!!!
+ */
+
 ENTRY(bzero)
+#if defined(I486_CPU) && (defined(I386_CPU) || defined(I586_CPU))
+	cmpl	$CPUCLASS_486,_cpu_class
+	jz	1f
+#endif
+#if defined(I386_CPU) || defined(I586_CPU)
 	pushl	%edi
 	movl	8(%esp),%edi
 	movl	12(%esp),%ecx
@@ -167,6 +179,90 @@ ENTRY(bzero)
 	stosb
 	popl	%edi
 	ret
+	.align	4
+#endif
+#if defined(I486_CPU)
+1:
+	movl	4(%esp),%edx
+	movl	8(%esp),%ecx
+	xorl	%eax,%eax
+/
+/ do 64 byte chunks first
+/
+2:
+	cmpl	$64,%ecx
+	jb	3f
+	movl	%eax,(%edx)
+	movl	%eax,4(%edx)
+	movl	%eax,8(%edx)
+	movl	%eax,12(%edx)
+	movl	%eax,16(%edx)
+	movl	%eax,20(%edx)
+	movl	%eax,24(%edx)
+	movl	%eax,28(%edx)
+	movl	%eax,32(%edx)
+	movl	%eax,36(%edx)
+	movl	%eax,40(%edx)
+	movl	%eax,44(%edx)
+	movl	%eax,48(%edx)
+	movl	%eax,52(%edx)
+	movl	%eax,56(%edx)
+	movl	%eax,60(%edx)
+	addl	$64,%edx
+	subl	$64,%ecx
+	jnz	2b
+	ret
+	.align	4
+/
+/ do 16 byte chunks
+/
+3:
+	cmpl	$16,%ecx
+	jb	4f
+	movl	%eax,(%edx)
+	movl	%eax,4(%edx)
+	movl	%eax,8(%edx)
+	movl	%eax,12(%edx)
+	addl	$16,%edx
+	subl	$16,%ecx
+	jnz	3b
+	ret
+	.align	4
+/
+/ do 4 byte chunks
+/
+4:	cmpl	$4,%ecx
+	jb	5f
+	movl	%eax,(%edx)
+	addl	$4,%edx
+	subl	$4,%ecx
+	jnz	4b
+	ret
+/
+/ do 1 byte chunks -- this appears to be faster than a loop
+/
+	.align	4
+jtab:	.long	do0
+	.long	do1
+	.long	do2
+	.long	do3
+
+	.align	4
+5:	jmp	jtab(,%ecx,4)
+
+	.align	2
+do3:	movb	$0,(%edx)
+	incl	%edx
+	movw	$0,(%edx)
+	ret
+	.align	2
+do2:	movw	$0,(%edx)
+	ret
+	.align	2
+do1:	movb	$0,(%edx)
+do0:	ret
+
+#endif
 
 /* fillw(pat, base, cnt) */
 ENTRY(fillw)
