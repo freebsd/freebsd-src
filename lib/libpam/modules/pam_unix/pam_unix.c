@@ -69,10 +69,18 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 			return retval;
 		pwd = getpwnam(user);
 	}
-	if ((retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT,
-	    options)) != PAM_SUCCESS)
-		return retval;
 	if (pwd != NULL) {
+		if (pwd->pw_passwd[0] == '\0' && (options & PAM_OPT_NULLOK))
+			/*
+			 * No password case. XXX Are we giving too much away
+			 * by not prompting for a password?
+			 */
+			return PAM_SUCCESS;
+		else {
+			if ((retval = pam_get_pass(pamh, &password,
+			    PASSWORD_PROMPT, options)) != PAM_SUCCESS)
+				return retval;
+		}
 		encrypted = crypt(password, pwd->pw_passwd);
 		if (password[0] == '\0' && pwd->pw_passwd[0] != '\0')
 			encrypted = ":";
