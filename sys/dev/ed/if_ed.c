@@ -20,7 +20,7 @@
  */
 
 /*
- * $Id: if_ed.c,v 1.26 1993/12/19 00:50:37 wollman Exp $
+ * $Id: if_ed.c,v 1.27 1994/01/03 17:17:19 davidg Exp $
  */
 
 #include "ed.h"
@@ -257,6 +257,10 @@ ed_probe_WD80x3(isa_dev)
 	sc->nic_addr = sc->asic_addr + ED_WD_NIC_OFFSET;
 	sc->is790 = 0;
 
+#ifdef TOSH_ETHER
+	outb(sc->asic_addr + ED_WD_MSR, 0x2); /* set the power enable bit */
+	DELAY(10000);
+#endif
 	/*
 	 * Attempt to do a checksum over the station address PROM.
 	 *	If it fails, it's probably not a SMC/WD board. There
@@ -278,7 +282,11 @@ ed_probe_WD80x3(isa_dev)
 	}
 
 	/* reset card to force it into a known state. */
+#ifdef TOSH_ETHER
+	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST | 0x2);
+#else
 	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST);
+#endif
 	DELAY(100);
 	outb(sc->asic_addr + ED_WD_MSR, inb(sc->asic_addr + ED_WD_MSR) & ~ED_WD_MSR_RST);
 	/* wait in the case this card is reading it's EEROM */
@@ -350,6 +358,18 @@ ed_probe_WD80x3(isa_dev)
 		isa16bit = 1;
 		sc->is790 = 1;
 		break;
+#ifdef TOSH_ETHER
+	case ED_TYPE_TOSHIBA1:
+		sc->type_str = "Toshiba1";
+		memsize = 32768;
+		isa16bit = 1;
+		break;
+	case ED_TYPE_TOSHIBA2:
+		sc->type_str = "Toshiba2";
+		memsize = 32768;
+		isa16bit = 1;
+		break;
+#endif
 	default:
 		sc->type_str = "";
 		memsize = 8192;
@@ -361,14 +381,17 @@ ed_probe_WD80x3(isa_dev)
 	 *	found in the ICR.
 	 */
 	if (isa16bit && (sc->type != ED_TYPE_WD8013EBT)
+#ifdef TOSH_ETHER
+	    && (sc->type != ED_TYPE_TOSHIBA1) && (sc->type != ED_TYPE_TOSHIBA2)
+#endif
 	    && ((inb(sc->asic_addr + ED_WD_ICR) & ED_WD_ICR_16BIT) == 0)) {
 		isa16bit = 0;
 		memsize = 8192;
 	}
 
 #if ED_DEBUG
-	printf("type=%s isa16bit=%d memsize=%d id_msize=%d\n",
-		sc->type_str,isa16bit,memsize,isa_dev->id_msize);
+	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
+		sc->type,sc->type_str,isa16bit,memsize,isa_dev->id_msize);
 	for (i=0; i<8; i++)
 		printf("%x -> %x\n", i, inb(sc->asic_addr + i));
 #endif
@@ -475,8 +498,15 @@ ed_probe_WD80x3(isa_dev)
 		 * Set address and enable interface shared memory.
 		 */
 		if(!sc->is790) {
+#ifdef TOSH_ETHER
+			outb(sc->asic_addr + ED_WD_MSR + 1, ((kvtop(sc->mem_start) >> 8) & 0xe0) | 4);
+			outb(sc->asic_addr + ED_WD_MSR + 2, ((kvtop(sc->mem_start) >> 16) & 0x0f));
+			outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB | 0x2);
+
+#else
 			outb(sc->asic_addr + ED_WD_MSR, ((kvtop(sc->mem_start) >> 13) &
 				ED_WD_MSR_ADDR) | ED_WD_MSR_MENB);
+#endif
 		} else {
 			outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
 			outb(sc->asic_addr + 0x04, (inb(sc->asic_addr + 0x04) | 0x80));
@@ -500,6 +530,9 @@ ed_probe_WD80x3(isa_dev)
 			}
 		} else  {
 			if ((sc->type & ED_WD_SOFTCONFIG) ||
+#ifdef TOSH_ETHER
+			    (sc->type == ED_TYPE_TOSHIBA1) || (sc->type == ED_TYPE_TOSHIBA2) ||
+#endif
 			    (sc->type == ED_TYPE_WD8013EBT) && (!sc->is790)) {
 				outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
 				     ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
