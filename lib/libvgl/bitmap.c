@@ -170,6 +170,7 @@ WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
     bcopy(line, address, width * dst->PixelBytes);
     break;
   default:
+    ;
   }
 }
 
@@ -284,6 +285,7 @@ read_planar:
     bcopy(address, line, width * src->PixelBytes);
     break;
   default:
+    ;
   }
 }
 
