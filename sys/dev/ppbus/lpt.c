@@ -48,7 +48,7 @@
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
  *	From Id: nlpt.c,v 1.14 1999/02/08 13:55:43 des Exp
- *	$Id: lpt.c,v 1.1 1999/02/14 11:59:59 nsouch Exp $
+ *	$Id: lpt.c,v 1.2 1999/02/14 16:19:16 nsouch Exp $
  */
 
 /*
@@ -938,7 +938,7 @@ lptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return(error);
 }
 
-static lpt_devsw_installed = 0;
+static int lpt_devsw_installed;
 
 static void
 lpt_drvinit(void *unused)

@@ -833,7 +833,7 @@ gscioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 }
 
 
-static gsc_devsw_installed = 0;
+static int gsc_devsw_installed;
 
 static void
 gsc_drvinit(void *unused)

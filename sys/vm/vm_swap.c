@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.61 1999/04/10 17:54:43 eivind Exp $
+ * $Id: vm_swap.c,v 1.62 1999/04/27 11:18:52 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -358,7 +358,7 @@ swaponvp(p, vp, dev, nblks)
 	return (0);
 }
 
-static sw_devsw_installed = 0;
+static int sw_devsw_installed;
 #ifdef DEVFS
 static void *drum_devfs_token;
 #endif

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.20 1999/04/13 19:38:11 peter Exp $
+ *      $Id: wfd.c,v 1.21 1999/04/27 11:15:21 phk Exp $
  */
 
 /*
@@ -764,7 +764,7 @@ static int wfd_eject (struct wfd *t, int closeit)
 		0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0);
 }
 
-static wfd_devsw_installed = 0;
+static int wfd_devsw_installed;
 
 static void 	wfd_drvinit(void *unused)
 {

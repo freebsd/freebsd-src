@@ -1149,7 +1149,7 @@ static int twchecktime(int target, int tol)
 #endif /* HIRESTIME */
 
 
-static tw_devsw_installed = 0;
+static int tw_devsw_installed;
 
 static void 	tw_drvinit(void *unused)
 {

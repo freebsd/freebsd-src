@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.14 1998/12/16 11:46:41 phk Exp $
+ * $Id: loran.c,v 1.15 1999/04/11 03:06:06 eivind Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -644,7 +644,7 @@ static struct cdevsw loran_cdevsw =
 	  NULL,		-1 };
 
 
-static loran_devsw_installed = 0;
+static int loran_devsw_installed;
 
 static void 	loran_drvinit(void *unused)
 {

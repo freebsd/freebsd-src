@@ -235,7 +235,7 @@ get_tick ()
 }
 
 
-static joy_devsw_installed = 0;
+static int joy_devsw_installed;
 
 static void 	joy_drvinit(void *unused)
 {

@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.8 1999/04/11 03:47:24 eivind Exp $
+ *	$Id: dgm.c,v 1.9 1999/04/27 11:14:24 phk Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -2089,7 +2089,7 @@ disc_optim(tp, t)
 }
 
 
-static dgm_devsw_installed = 0;
+static int dgm_devsw_installed;
 
 static void 
 dgm_drvinit(void *unused)

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.26 1999/04/24 20:17:04 peter Exp $
+ * $Id: stallion.c,v 1.27 1999/04/27 11:15:19 phk Exp $
  */
 
 /*****************************************************************************/
@@ -547,7 +547,7 @@ static	struct cdevsw	stl_cdevsw = {
 	D_TTY,
 };
 
-static stl_devsw_installed = 0;
+static int stl_devsw_installed;
 
 static void stl_drvinit(void *unused)
 {
