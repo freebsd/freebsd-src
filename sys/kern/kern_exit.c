@@ -436,6 +436,13 @@ exit1(struct thread *td, int rv)
 	 * Notify interested parties of our demise.
 	 */
 	KNOTE(&p->p_klist, NOTE_EXIT);
+	/*
+	 * Just delete all entries in the p_klist. At this point we won't
+	 * report any more events, and there are nasty race conditions that
+	 * can beat us if we don't.
+	 */
+	while (SLIST_FIRST(&p->p_klist))
+		SLIST_REMOVE_HEAD(&p->p_klist, kn_selnext);
 
 	/*
 	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
