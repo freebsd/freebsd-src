@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id$
+**  $Id: pci.c,v 1.66 1997/02/22 09:44:11 peter Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1562,10 +1562,12 @@ static struct vt VendorTable[] = {
 	{0x1044, "DPT"},
 	{0x1045, "OPTI"},
 	{0x104B, "Bus Logic"},
+	{0x104C, "TI"},
 	{0x1060, "UMC"},
 	{0x1080, "Contaq"},
 	{0x1095, "CMD"},
 	{0x10b9, "ACER Labs"},
+	{0x10c8, "NeoMagic"},
 	{0x1106, "VIA Technologies"},
 	{0x5333, "S3 Inc."},
 	{0x8086, "Intel Corporation"},
@@ -1643,6 +1645,7 @@ static const subclass_name bridge_subclasses[] =
 	{ 0x03, "mc"	},
 	{ 0x04, "pci"	},
 	{ 0x05, "pcmcia"},
+	{ 0x07, "cardbus"},
 	{ 0x80, "misc"	},
 	{ 0x00, NULL	}
 };
@@ -1664,7 +1667,13 @@ static const char *const majclasses[] = {
 	"display",
 	"multimedia", 
 	"memory", 
-	"bridge"
+	"bridge",
+	"comms",
+	"system",
+	"input",
+	"docking",
+	"processor",
+	"serial"
 };
 
 
