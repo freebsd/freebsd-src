@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.31 1998/03/28 10:33:12 bde Exp $ */
+/* $Id: ppp_tty.c,v 1.32 1998/03/30 09:52:14 phk Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -245,7 +245,7 @@ pppopen(dev, tp)
     sc->sc_outm = NULL;
     pppgetm(sc);
     sc->sc_if.if_flags |= IFF_RUNNING;
-    microtime(&sc->sc_if.if_lastchange);
+    getmicrotime(&sc->sc_if.if_lastchange);
     sc->sc_if.if_baudrate = tp->t_ospeed;
 
     tp->t_sc = (caddr_t) sc;

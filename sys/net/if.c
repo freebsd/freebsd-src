@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.56 1997/10/28 15:58:30 bde Exp $
+ *	$Id: if.c,v 1.57 1997/12/16 17:40:34 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -128,7 +128,7 @@ if_attach(ifp)
 	 */
 	TAILQ_INIT(&ifp->if_addrhead);
 	LIST_INIT(&ifp->if_multiaddrs);
-	microtime(&ifp->if_lastchange);
+	getmicrotime(&ifp->if_lastchange);
 	if (ifnet_addrs == 0 || if_index >= if_indexlim) {
 		unsigned n = (if_indexlim <<= 1) * sizeof(ifa);
 		struct ifaddr **q = (struct ifaddr **)
@@ -406,7 +406,7 @@ if_down(ifp)
 	register struct ifaddr *ifa;
 
 	ifp->if_flags &= ~IFF_UP;
-	microtime(&ifp->if_lastchange);
+	getmicrotime(&ifp->if_lastchange);
 	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
 	     ifa = ifa->ifa_link.tqe_next)
 		pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
@@ -426,7 +426,7 @@ if_up(ifp)
 	register struct ifaddr *ifa;
 
 	ifp->if_flags |= IFF_UP;
-	microtime(&ifp->if_lastchange);
+	getmicrotime(&ifp->if_lastchange);
 	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
 	     ifa = ifa->ifa_link.tqe_next)
 		pfctlinput(PRC_IFUP, ifa->ifa_addr);
@@ -576,7 +576,7 @@ ifioctl(so, cmd, data, p)
 			(ifr->ifr_flags &~ IFF_CANTCHANGE);
 		if (ifp->if_ioctl)
 			(void) (*ifp->if_ioctl)(ifp, cmd, data);
-		microtime(&ifp->if_lastchange);
+		getmicrotime(&ifp->if_lastchange);
 		break;
 
 	case SIOCSIFMETRIC:
@@ -584,7 +584,7 @@ ifioctl(so, cmd, data, p)
 		if (error)
 			return (error);
 		ifp->if_metric = ifr->ifr_metric;
-		microtime(&ifp->if_lastchange);
+		getmicrotime(&ifp->if_lastchange);
 		break;
 
 	case SIOCSIFPHYS:
@@ -595,7 +595,7 @@ ifioctl(so, cmd, data, p)
 		        return EOPNOTSUPP;
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0)
-			microtime(&ifp->if_lastchange);
+			getmicrotime(&ifp->if_lastchange);
 		return(error);
 
 	case SIOCSIFMTU:
@@ -612,7 +612,7 @@ ifioctl(so, cmd, data, p)
 			return (EINVAL);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0)
-			microtime(&ifp->if_lastchange);
+			getmicrotime(&ifp->if_lastchange);
 		return(error);
 
 	case SIOCADDMULTI:
@@ -636,7 +636,7 @@ ifioctl(so, cmd, data, p)
 			error = if_delmulti(ifp, &ifr->ifr_addr);
 		}
 		if (error == 0)
-			microtime(&ifp->if_lastchange);
+			getmicrotime(&ifp->if_lastchange);
 		return error;
 
         case SIOCSIFMEDIA:
@@ -648,7 +648,7 @@ ifioctl(so, cmd, data, p)
 			return (EOPNOTSUPP);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0)
-			microtime(&ifp->if_lastchange);
+			getmicrotime(&ifp->if_lastchange);
 		return error;
 
 	case SIOCGIFMEDIA:
