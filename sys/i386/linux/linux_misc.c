@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.8 1995/12/15 03:06:54 peter Exp $
+ *  $Id: linux_misc.c,v 1.9 1995/12/15 03:28:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -673,4 +673,19 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args, int *retval)
 	tmpstat = (tmpstat & 0xffff00ff) |
 	      (bsd_to_linux_signal[WSTOPSIG(tmpstat)]<<8);
     return copyout(&tmpstat, args->status, sizeof(int));
+}
+
+struct linux_mknod_args {
+	char *path;
+	int mode;
+	int dev;
+};
+
+int 
+linux_mknod(struct proc *p, struct linux_mknod_args *args, int *retval)
+{
+	if (args->mode & S_IFIFO)
+		return mkfifo(p, (struct mkfifo_args *)args, retval);
+	else
+		return mknod(p, (struct mknod_args *)args, retval);
 }
