@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.10 1994/09/28 16:44:59 dfr Exp $
+ * $Id: cd9660_vnops.c,v 1.11 1995/01/16 17:03:28 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -993,8 +993,7 @@ struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_lock_desc, cd9660_lock },	/* lock */
 	{ &vop_unlock_desc, cd9660_unlock },	/* unlock */
 	{ &vop_bmap_desc, spec_bmap },		/* bmap */
-		/* XXX strategy: panics, should be notsupp instead? */
-	{ &vop_strategy_desc, cd9660_strategy },/* strategy */
+	{ &vop_strategy_desc, spec_strategy },  /* strategy */
 	{ &vop_print_desc, cd9660_print },	/* print */
 	{ &vop_islocked_desc, cd9660_islocked },/* islocked */
 	{ &vop_pathconf_desc, spec_pathconf },	/* pathconf */
