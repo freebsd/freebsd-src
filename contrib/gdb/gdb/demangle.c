@@ -1,6 +1,8 @@
 /* Basic C++ demangling support for GDB.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000,
+   2001, 2003 Free Software Foundation, Inc.
+
    Written by Fred Fish at Cygnus Support.
 
    This file is part of GDB.
@@ -87,8 +89,8 @@ set_demangling_command (char *ignore, int from_tty, struct cmd_list_element *c)
        dem->demangling_style != unknown_demangling; 
        dem++)
     {
-      if (STREQ (current_demangling_style_string,
-		 dem->demangling_style_name))
+      if (strcmp (current_demangling_style_string,
+		  dem->demangling_style_name) == 0)
 	{
 	  current_demangling_style = dem->demangling_style;
 	  break;
@@ -150,24 +152,18 @@ set_demangling_style (char *style)
   set_demangling_command ((char *) NULL, 0, (struct cmd_list_element *) NULL);
 }
 
-/* In order to allow a single demangler executable to demangle strings
-   using various common values of CPLUS_MARKER, as well as any specific
-   one set at compile time, we maintain a string containing all the
-   commonly used ones, and check to see if the marker we are looking for
-   is in that string.  CPLUS_MARKER is usually '$' on systems where the
-   assembler can deal with that.  Where the assembler can't, it's usually
-   '.' (but on many systems '.' is used for other things).  We put the
-   current defined CPLUS_MARKER first (which defaults to '$'), followed
-   by the next most common value, followed by an explicit '$' in case
-   the value of CPLUS_MARKER is not '$'.
+/* G++ uses a special character to indicate certain internal names.  Which
+   character it is depends on the platform:
+   - Usually '$' on systems where the assembler will accept that
+   - Usually '.' otherwise (this includes most sysv4-like systems and most
+     ELF targets)
+   - Occasionally '_' if neither of the above is usable
 
-   We could avoid this if we could just get g++ to tell us what the actual
-   cplus marker character is as part of the debug information, perhaps by
-   ensuring that it is the character that terminates the gcc<n>_compiled
-   marker symbol (FIXME). */
+   We check '$' first because it is the safest, and '.' often has another
+   meaning.  We don't currently try to handle '_' because the precise forms
+   of the names are different on those targets.  */
 
-static char cplus_markers[] =
-{CPLUS_MARKER, '.', '$', '\0'};
+static char cplus_markers[] = {'$', '.', '\0'};
 
 int
 is_cplus_marker (int c)
@@ -204,5 +200,4 @@ Use `set demangle-style' without arguments for a list of demangling styles.",
 
   /* Set the default demangling style chosen at compilation time. */
   set_demangling_style (DEFAULT_DEMANGLING_STYLE);
-  set_cplus_marker_for_demangling (CPLUS_MARKER);
 }

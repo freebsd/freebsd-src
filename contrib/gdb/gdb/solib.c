@@ -1,7 +1,7 @@
 /* Handle shared libraries for GDB, the GNU Debugger.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
-   Free Software Foundation, Inc.
+
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -40,8 +40,9 @@
 #include "gdbcmd.h"
 #include "completer.h"
 #include "filenames.h"		/* for DOSish file names */
-
+#include "exec.h"
 #include "solist.h"
+#include "readline/readline.h"
 
 /* external data declarations */
 
@@ -56,7 +57,7 @@ static int solib_cleanup_queued = 0;	/* make_run_cleanup called */
 
 /* Local function prototypes */
 
-static void do_clear_solib (PTR);
+static void do_clear_solib (void *);
 
 /* If non-zero, this is a prefix that will be added to the front of the name
    shared libraries with an absolute filename for loading.  */
@@ -86,12 +87,19 @@ static char *solib_search_path = NULL;
    (or set of directories, as in LD_LIBRARY_PATH) to search for all
    shared libraries if not found in SOLIB_ABSOLUTE_PREFIX.
 
-   Search order:
-   * If path is absolute, look in SOLIB_ABSOLUTE_PREFIX.
-   * If path is absolute or relative, look for it literally (unmodified).
+   Search algorithm:
+   * If there is a solib_absolute_prefix and path is absolute:
+   *   Search for solib_absolute_prefix/path.
+   * else
+   *   Look for it literally (unmodified).
    * Look in SOLIB_SEARCH_PATH.
-   * Look in inferior's $PATH.
-   * Look in inferior's $LD_LIBRARY_PATH.
+   * If available, use target defined search function.
+   * If solib_absolute_prefix is NOT set, perform the following two searches:
+   *   Look in inferior's $PATH.
+   *   Look in inferior's $LD_LIBRARY_PATH.
+   *   
+   * The last check avoids doing this search when targetting remote
+   * machines since solib_absolute_prefix will almost always be set.
 
    RETURNS
 
@@ -146,7 +154,7 @@ solib_open (char *in_pathname, char **found_pathname)
         in_pathname++;
     }
   
-  /* If not found, next search the solib_search_path (if any).  */
+  /* If not found, search the solib_search_path (if any).  */
   if (found_file < 0 && solib_search_path != NULL)
     found_file = openp (solib_search_path,
 			1, in_pathname, O_RDONLY, 0, &temp_pathname);
@@ -159,14 +167,19 @@ solib_open (char *in_pathname, char **found_pathname)
                         1, lbasename (in_pathname), O_RDONLY, 0,
                         &temp_pathname);
 
+  /* If not found, try to use target supplied solib search method */
+  if (found_file < 0 && TARGET_SO_FIND_AND_OPEN_SOLIB != NULL)
+    found_file = TARGET_SO_FIND_AND_OPEN_SOLIB
+                 (in_pathname, O_RDONLY, &temp_pathname);
+
   /* If not found, next search the inferior's $PATH environment variable. */
-  if (found_file < 0 && solib_search_path != NULL)
+  if (found_file < 0 && solib_absolute_prefix == NULL)
     found_file = openp (get_in_environ (inferior_environ, "PATH"),
 			1, in_pathname, O_RDONLY, 0, &temp_pathname);
 
   /* If not found, next search the inferior's $LD_LIBRARY_PATH 
      environment variable. */
-  if (found_file < 0 && solib_search_path != NULL)
+  if (found_file < 0 && solib_absolute_prefix == NULL)
     found_file = openp (get_in_environ (inferior_environ, "LD_LIBRARY_PATH"),
 			1, in_pathname, O_RDONLY, 0, &temp_pathname);
 
@@ -206,7 +219,7 @@ solib_open (char *in_pathname, char **found_pathname)
  */
 
 static int
-solib_map_sections (PTR arg)
+solib_map_sections (void *arg)
 {
   struct so_list *so = (struct so_list *) arg;	/* catch_errors bogon */
   char *filename;
@@ -237,7 +250,7 @@ solib_map_sections (PTR arg)
 
   /* Leave bfd open, core_xfer_memory and "info files" need it.  */
   so->abfd = abfd;
-  abfd->cacheable = 1;
+  bfd_set_cacheable (abfd, 1);
 
   /* copy full path name into so_name, so that later symbol_file_add
      can find it */
@@ -262,7 +275,7 @@ solib_map_sections (PTR arg)
          object's file by the base address to which the object was actually
          mapped. */
       TARGET_SO_RELOCATE_SECTION_ADDRESSES (so, p);
-      if (STREQ (p->the_bfd_section->name, ".text"))
+      if (strcmp (p->the_bfd_section->name, ".text") == 0)
 	{
 	  so->textsection = p;
 	}
@@ -323,9 +336,9 @@ free_so (struct so_list *so)
 /* A small stub to get us past the arg-passing pinhole of catch_errors.  */
 
 static int
-symbol_add_stub (PTR arg)
+symbol_add_stub (void *arg)
 {
-  register struct so_list *so = (struct so_list *) arg;  /* catch_errs bogon */
+  struct so_list *so = (struct so_list *) arg;  /* catch_errs bogon */
   struct section_addr_info *sap;
 
   /* Have we already loaded this shared object?  */
@@ -375,7 +388,7 @@ symbol_add_stub (PTR arg)
    the section table.  But we only use this for core files and
    processes we've just attached to, so that's okay.  */
 
-void
+static void
 update_solib_list (int from_tty, struct target_ops *target)
 {
   struct so_list *inferior = TARGET_SO_CURRENT_SOS ();
@@ -386,7 +399,7 @@ update_solib_list (int from_tty, struct target_ops *target)
      symbols now!  */
   if (attach_flag &&
       symfile_objfile == NULL)
-    catch_errors (TARGET_SO_OPEN_SYMBOL_FILE_OBJECT, (PTR) &from_tty, 
+    catch_errors (TARGET_SO_OPEN_SYMBOL_FILE_OBJECT, &from_tty, 
 		  "Error reading attached process's symbol file.\n",
 		  RETURN_MASK_ALL);
 
@@ -614,7 +627,7 @@ solib_add (char *pattern, int from_tty, struct target_ops *target, int readsyms)
 static void
 info_sharedlibrary_command (char *ignore, int from_tty)
 {
-  register struct so_list *so = NULL;	/* link map state variable */
+  struct so_list *so = NULL;	/* link map state variable */
   int header_done = 0;
   int addr_width;
   char *addr_fmt;
@@ -652,13 +665,13 @@ info_sharedlibrary_command (char *ignore, int from_tty)
 
 	  printf_unfiltered ("%-*s", addr_width,
 			     so->textsection != NULL 
-			       ? longest_local_hex_string_custom (
+			       ? local_hex_string_custom (
 			           (LONGEST) so->textsection->addr,
 	                           addr_fmt)
 			       : "");
 	  printf_unfiltered ("%-*s", addr_width,
 			     so->textsection != NULL 
-			       ? longest_local_hex_string_custom (
+			       ? local_hex_string_custom (
 			           (LONGEST) so->textsection->endaddr,
 	                           addr_fmt)
 			       : "");
@@ -696,7 +709,7 @@ info_sharedlibrary_command (char *ignore, int from_tty)
 char *
 solib_address (CORE_ADDR address)
 {
-  register struct so_list *so = 0;	/* link map state variable */
+  struct so_list *so = 0;	/* link map state variable */
 
   for (so = so_list_head; so; so = so->next)
     {
@@ -754,7 +767,7 @@ clear_solib (void)
 }
 
 static void
-do_clear_solib (PTR dummy)
+do_clear_solib (void *dummy)
 {
   solib_cleanup_queued = 0;
   clear_solib ();
@@ -843,6 +856,15 @@ no_shared_libraries (char *ignored, int from_tty)
   do_clear_solib (NULL);
 }
 
+static void
+reload_shared_libraries (char *ignored, int from_tty)
+{
+  no_shared_libraries (NULL, from_tty);
+  solib_add (NULL, from_tty, NULL, auto_solib_add);
+}
+
+extern initialize_file_ftype _initialize_solib; /* -Wmissing-prototypes */
+
 void
 _initialize_solib (void)
 {
@@ -872,7 +894,12 @@ inferior.  Otherwise, symbols must be loaded manually, using `sharedlibrary'.",
 For other (relative) files, you can add values using `set solib-search-path'.",
 		   &setlist);
   add_show_from_set (c, &showlist);
-  c->completer = filename_completer;
+  set_cmd_cfunc (c, reload_shared_libraries);
+  set_cmd_completer (c, filename_completer);
+
+  /* Set the default value of "solib-absolute-prefix" from the sysroot, if
+     one is set.  */
+  solib_absolute_prefix = xstrdup (gdb_sysroot);
 
   c = add_set_cmd ("solib-search-path", class_support, var_string,
 		   (char *) &solib_search_path,
@@ -880,5 +907,6 @@ For other (relative) files, you can add values using `set solib-search-path'.",
 This takes precedence over the environment variables PATH and LD_LIBRARY_PATH.",
 		   &setlist);
   add_show_from_set (c, &showlist);
-  c->completer = filename_completer;
+  set_cmd_cfunc (c, reload_shared_libraries);
+  set_cmd_completer (c, filename_completer);
 }
