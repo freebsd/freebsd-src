@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 */
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.26 1997/05/04 06:14:47 peter Exp $";
+	"$Id: ifconfig.c,v 1.27 1997/05/04 06:27:45 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -381,8 +381,7 @@ main(argc, argv)
 				break;
 			}
 		if (afp->af_name == NULL)
-			usage();
-		/* leave with afp non-zero */
+			afp = NULL;	/* not a family, NULL */
 	}
 
 	mib[0] = CTL_NET;
@@ -472,10 +471,9 @@ ifconfig(argc, argv, rafp)
 	int s;
 
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
-	if (rafp)
-		ifr.ifr_addr.sa_family = rafp->af_af;
-	else
-		ifr.ifr_addr.sa_family = afs[0].af_af;
+	if (rafp == NULL)
+		rafp = &afs[0];
+	ifr.ifr_addr.sa_family = rafp->af_af;
 
 	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0) {
 		perror("ifconfig: socket");
@@ -493,7 +491,7 @@ ifconfig(argc, argv, rafp)
 		mtu = ifr.ifr_mtu;
 
 	if (argc == 0) {
-		status();
+		status();		/* uses global afp */
 #ifdef USE_IF_MEDIA
 		media_status(s);
 #endif
