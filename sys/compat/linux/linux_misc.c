@@ -59,29 +59,42 @@
 #include <machine/limits.h>
 #include <machine/psl.h>
 #include <machine/sysarch.h>
+#ifdef __i386__
 #include <machine/segments.h>
+#endif
 
 #include <posix4/sched.h>
 
 #include <machine/../linux/linux.h>
+#ifdef __alpha__
+#include <linux_proto.h>
+#else
 #include <machine/../linux/linux_proto.h>
+#endif
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
+#ifdef __alpha__
+#define BSD_TO_LINUX_SIGNAL(sig)       (sig)
+#else
 #define BSD_TO_LINUX_SIGNAL(sig)	\
 	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
+#endif
 
 struct linux_rlimit {
 	unsigned long rlim_cur;
 	unsigned long rlim_max;
 };
 
+#ifndef __alpha__
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] =
 { RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
   RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
   RLIMIT_MEMLOCK, -1
 };
+#endif /*!__alpha__*/
 
+#ifndef __alpha__
 int
 linux_alarm(struct proc *p, struct linux_alarm_args *args)
 {
@@ -117,6 +130,7 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args)
     }
     return 0;
 }
+#endif /*!__alpha__*/
 
 int
 linux_brk(struct proc *p, struct linux_brk_args *args)
@@ -160,9 +174,9 @@ linux_brk(struct proc *p, struct linux_brk_args *args)
     new = (vm_offset_t)args->dsend;
     tmp.nsize = (char *) new;
     if (((caddr_t)new > vm->vm_daddr) && !obreak(p, &tmp))
-	p->p_retval[0] = (int)new;
+	p->p_retval[0] = (long)new;
     else
-	p->p_retval[0] = (int)old;
+	p->p_retval[0] = (long)old;
 
     return 0;
 #endif
@@ -391,7 +405,7 @@ printf("uselib: Page aligned binary %lu\n", file_offset);
 	    goto cleanup;
     }
 #ifdef DEBUG
-printf("mem=%08x = %08x %08x\n", vmaddr, ((int*)vmaddr)[0], ((int*)vmaddr)[1]);
+printf("mem=%08lx = %08lx %08lx\n", vmaddr, ((long*)vmaddr)[0], ((long*)vmaddr)[1]);
 #endif
     if (bss_size != 0) {
         /*
@@ -552,9 +566,11 @@ linux_mremap(struct proc *p, struct linux_mremap_args *args)
 	int error = 0;
  
 #ifdef DEBUG
-	printf("Linux-emul(%ld): mremap(%p, %08x, %08x, %08x)\n",
-	    (long)p->p_pid, (void *)args->addr, args->old_len, args->new_len,
-	    args->flags);
+	printf("Linux-emul(%ld): mremap(%p, %08lx, %08lx, %08lx)\n",
+	    (long)p->p_pid, (void *)args->addr, 
+	    (unsigned long)args->old_len, 
+	    (unsigned long)args->new_len,
+	    (unsigned long)args->flags);
 #endif
 	args->new_len = round_page(args->new_len);
 	args->old_len = round_page(args->old_len);
@@ -570,7 +586,7 @@ linux_mremap(struct proc *p, struct linux_mremap_args *args)
 		error = munmap(p, &bsd_args);
 	}
 
-	p->p_retval[0] = error ? 0 : (int)args->addr;
+	p->p_retval[0] = error ? 0 : (u_long)args->addr;
 	return error;
 }
 
@@ -586,6 +602,7 @@ linux_msync(struct proc *p, struct linux_msync_args *args)
 	return msync(p, &bsd_args);
 }
 
+#ifndef __alpha__
 int
 linux_time(struct proc *p, struct linux_time_args *args)
 {
@@ -603,6 +620,7 @@ linux_time(struct proc *p, struct linux_time_args *args)
     p->p_retval[0] = tm;
     return 0;
 }
+#endif	/*!__alpha__*/
 
 struct linux_times_argv {
     long    tms_utime;
@@ -713,6 +731,7 @@ linux_utime(struct proc *p, struct linux_utime_args *args)
 
 #define __WCLONE 0x80000000
 
+#ifndef __alpha__
 int
 linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 {
@@ -753,6 +772,7 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
     } else
 	return 0;
 }
+#endif	/*!__alpha__*/
 
 int
 linux_wait4(struct proc *p, struct linux_wait4_args *args)
@@ -836,8 +856,10 @@ linux_personality(struct proc *p, struct linux_personality_args *args)
 	printf("Linux-emul(%ld): personality(%d)\n",
 	   (long)p->p_pid, args->per);
 #endif
+#ifndef __alpha__
 	if (args->per != 0)
 		return EINVAL;
+#endif
 
 	/* Yes Jim, it's still a Linux... */
 	p->p_retval[0] = 0;
@@ -888,6 +910,7 @@ linux_getitimer(struct proc *p, struct linux_getitimer_args *args)
 	return getitimer(p, &bsa);
 }
 
+#ifndef __alpha__
 int
 linux_nice(struct proc *p, struct linux_nice_args *args)
 {
@@ -898,6 +921,7 @@ linux_nice(struct proc *p, struct linux_nice_args *args)
 	bsd_args.prio = args->inc;
 	return setpriority(p, &bsd_args);
 }
+#endif	/*!__alpha__*/
 
 int
 linux_setgroups(p, uap)
@@ -989,6 +1013,7 @@ linux_getgroups(p, uap)
 	return (0);
 }
 
+#ifndef __alpha__
 int
 linux_setrlimit(p, uap)
 	struct proc *p;
@@ -1056,6 +1081,7 @@ linux_getrlimit(p, uap)
 		rlim.rlim_max = LONG_MAX;
 	return (copyout(&rlim, uap->rlim, sizeof(rlim)));
 }
+#endif /*!__alpha__*/
 
 int
 linux_sched_setscheduler(p, uap)

@@ -45,9 +45,14 @@
 #include <sys/tty.h>
 
 #include <machine/../linux/linux.h>
+#ifdef __alpha__
+#include <linux_proto.h>
+#else
 #include <machine/../linux/linux_proto.h>
+#endif
 #include <compat/linux/linux_util.h>
 
+#ifndef __alpha__
 int
 linux_creat(struct proc *p, struct linux_creat_args *args)
 {
@@ -70,6 +75,7 @@ linux_creat(struct proc *p, struct linux_creat_args *args)
     bsd_open_args.flags = O_WRONLY | O_CREAT | O_TRUNC;
     return open(p, &bsd_open_args);
 }
+#endif /*!__alpha__*/
 
 int
 linux_open(struct proc *p, struct linux_open_args *args)
@@ -254,7 +260,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	    return error;
 	linux_to_bsd_flock(&linux_flock, bsd_flock);
 	fcntl_args.cmd = F_GETLK;
-	fcntl_args.arg = (int)bsd_flock;
+	fcntl_args.arg = (long)bsd_flock;
 	error = fcntl(p, &fcntl_args);
 	if (error)
 	    return error;
@@ -268,7 +274,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	    return error;
 	linux_to_bsd_flock(&linux_flock, bsd_flock);
 	fcntl_args.cmd = F_SETLK;
-	fcntl_args.arg = (int)bsd_flock;
+	fcntl_args.arg = (long)bsd_flock;
 	return fcntl(p, &fcntl_args);
 
     case LINUX_F_SETLKW:
@@ -277,7 +283,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	    return error;
 	linux_to_bsd_flock(&linux_flock, bsd_flock);
 	fcntl_args.cmd = F_SETLKW;
-	fcntl_args.arg = (int)bsd_flock;
+	fcntl_args.arg = (long)bsd_flock;
 	return fcntl(p, &fcntl_args);
 
     case LINUX_F_GETOWN:
@@ -315,6 +321,7 @@ linux_lseek(struct proc *p, struct linux_lseek_args *args)
     return error;
 }
 
+#ifndef __alpha__
 int
 linux_llseek(struct proc *p, struct linux_llseek_args *args)
 {
@@ -341,6 +348,7 @@ linux_llseek(struct proc *p, struct linux_llseek_args *args)
 	p->p_retval[0] = 0;
 	return 0;
 }
+#endif /*!__alpha__*/
 
 
 struct linux_dirent {
@@ -353,6 +361,7 @@ struct linux_dirent {
 #define LINUX_RECLEN(de,namlen) \
     ALIGN((((char *)&(de)->dname - (char *)de) + (namlen) + 1))
 
+#ifndef __alpha__
 int
 linux_readdir(struct proc *p, struct linux_readdir_args *args)
 {
@@ -363,6 +372,7 @@ linux_readdir(struct proc *p, struct linux_readdir_args *args)
 	lda.count = 1;
 	return linux_getdents(p, &lda);
 }
+#endif /*!__alpha__*/
 
 int
 linux_getdents(struct proc *p, struct linux_getdents_args *args)
@@ -819,6 +829,7 @@ linux_getcwd(struct proc *p, struct linux_getcwd_args *args)
 	return (error);
 }
 
+#ifndef __alpha__
 int
 linux_fdatasync(p, uap)
 	struct proc *p;
@@ -829,6 +840,7 @@ linux_fdatasync(p, uap)
 	bsd.fd = uap->fd;
 	return fsync(p, &bsd);
 }
+#endif /*!__alpha__*/
 
 int
 linux_pread(p, uap)
