@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.29 1994/08/29 21:32:31 ache Exp $
+ *	$Id: fd.c,v 1.30 1994/09/17 16:56:06 davidg Exp $
  *
  */
 
@@ -293,7 +293,7 @@ fdattach(dev)
 	fdcu_t	fdcu = dev->id_unit;
 	fdc_p	fdc = fdc_data + fdcu;
 	fd_p	fd;
-	int	fdsu, st0;
+	int	fdsu, st0, i;
 	struct isa_device *fdup;
 
 	fdc->fdcu = fdcu;
@@ -343,22 +343,40 @@ fdattach(dev)
 
 		/* select it */
 		set_motor(fdcu, fdsu, TURNON);
-		spinwait(1000);	/* 1 sec */
-		out_fdc(fdcu, NE7CMD_SEEK);	/* seek some steps... */
+		DELAY(1000000);	/* 1 sec */
+		out_fdc(fdcu, NE7CMD_SENSED);
 		out_fdc(fdcu, fdsu);
-		out_fdc(fdcu, 10);
-		spinwait(300);			/* ...wait a moment... */
-		out_fdc(fdcu, NE7CMD_SENSEI);	/* make controller happy */
-		(void)in_fdc(fdcu);
-		(void)in_fdc(fdcu);
-		out_fdc(fdcu, NE7CMD_RECAL);	/* ...and go back to 0 */
-		out_fdc(fdcu, fdsu);
-		spinwait(1000);	/* a second be enough for full stroke seek */
+		if(in_fdc(fdcu) & NE7_ST3_T0) {
+			/* if at track 0, first seek inwards */
+			out_fdc(fdcu, NE7CMD_SEEK); /* seek some steps... */
+			out_fdc(fdcu, fdsu);
+			out_fdc(fdcu, 10);
+			DELAY(300000); /* ...wait a moment... */
+			out_fdc(fdcu, NE7CMD_SENSEI); /* make ctrlr happy */
+			(void)in_fdc(fdcu);
+			(void)in_fdc(fdcu);
+		}
+		for(i = 0; i < 2; i++) {
+			/*
+			 * we must recalibrate twice, just in case the
+			 * heads have been beyond cylinder 76, since most
+			 * FDCs still barf when attempting to recalibrate
+			 * more than 77 steps
+			 */
+			out_fdc(fdcu, NE7CMD_RECAL); /* go back to 0 */
+			out_fdc(fdcu, fdsu);
+			/* a second being enough for full stroke seek */
+			DELAY(i == 0? 1000000: 300000);
 
-		/* anything responding */
-		out_fdc(fdcu, NE7CMD_SENSEI);
-		st0 = in_fdc(fdcu);
-		(void)in_fdc(fdcu);
+			/* anything responding? */
+			out_fdc(fdcu, NE7CMD_SENSEI);
+			st0 = in_fdc(fdcu);
+			(void)in_fdc(fdcu);
+
+			if ((st0 & NE7_ST0_EC) == 0)
+				break; /* already probed succesfully */
+		}
+		
 		set_motor(fdcu, fdsu, TURNOFF);
 		
 		if (st0 & NE7_ST0_EC) /* no track 0 -> no drive present */
@@ -734,7 +752,6 @@ fdstrategy(struct buf *bp)
 
 bad:
 	biodone(bp);
-	return;
 }
 
 /***************************************************************\
