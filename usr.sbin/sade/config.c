@@ -505,7 +505,7 @@ configSecurityExtreme(dialogMenuItem *self)
     if (self)
 	msgConfirm("Extreme security settings have been selected.\n\n"
 	    "Sendmail, SSHd, and NFS services have been disabled, and\n"
-	    "securelevels have been enabled.\n"
+	    "securelevels have been enabled.\n\n"
 	    "PLEASE NOTE that this still does not save you from having\n"
 	    "to properly secure your system in other ways or exercise\n"
 	    "due diligence in your administration, this simply picks\n"
@@ -529,7 +529,7 @@ configSecurityModerate(dialogMenuItem *self)
     if (self)
 	msgConfirm("Moderate security settings have been selected.\n\n"
 	    "Sendmail and SSHd have been enabled, securelevels are\n"
-	    "disabled, and NFS server settings have been left intact.\n"
+	    "disabled, and NFS server settings have been left intact.\n\n"
             "PLEASE NOTE that this still does not save you from having\n"
             "to properly secure your system in other ways or exercise\n"
             "due diligence in your administration, this simply picks\n"
