@@ -225,14 +225,15 @@ The number of packets allowed to be in-flight during the
 .Tn TCP
 slow-start phase to local machines in the same subnet.
 .It tcp.msl
-The Maximum Segment Lifetime for a packet.
+The Maximum Segment Lifetime, in millseconds, for a packet.
 .It tcp.keepinit
-Timeout for new, non-established TCP connections.
+Timeout, in milliseconds, for new, non-established TCP connections.
 .It tcp.keepidle
-Amount of time the connection should be idle before keepalive
-probes (if enabled) are sent.
+Amount of time, in milliseconds, that the connection must be idle
+before keepalive probes (if enabled) are sent.
 .It tcp.keepintvl
-The interval between keepalive probes sent to remote machines.
+The interval, in milliseconds, between keepalive probes sent to remote
+machines.
 After
 .Dv TCPTV_KEEPCNT
 (default 8) probes are sent, with no response, the connection is dropped.
@@ -269,7 +270,7 @@ See
 .It tcp.delayed_ack
 Delay ACK to try and piggyback it onto a data packet.
 .It tcp.delacktime
-Maximum amount of time before a delayed ACK is sent.
+Maximum amount of time, in milliseconds, before a delayed ACK is sent.
 .It tcp.newreno
 Enable TCP NewReno Fast Recovery algorithm,
 as described in RFC 2582.
