@@ -106,12 +106,12 @@ specified (with
 prepended as necessary):
 .Bl -tag -width indent
 .It packet
-Permit use of the disk packet (BIOS Int 0x13 extensions) interface
-in addition to the conventional (CHS) interface, as necessary, when
-accessing disk-related BIOS services.
-This is the default; a
-.Sq nopacket
-option prevents use of the Int 0x13 extensions.
+Use the disk packet (BIOS Int 0x13 extensions) interface, as
+as opposed to the legacy (CHS) interface, when doing disk I/O.
+This allows booting above cylinder 1023, but requires specific
+BIOS support.
+The default is
+.Sq nopacket .
 .It setdrv
 Forces the drive containing the disk to be referenced using drive
 number definable by means of the -d option.
