@@ -62,6 +62,10 @@ SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
 int smp_active = 0;	/* are the APs allowed to run? */
 SYSCTL_INT(_kern_smp, OID_AUTO, active, CTLFLAG_RW, &smp_active, 0, "");
 
+int smp_disabled = 0;	/* has smp been disabled? */
+SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RD, &smp_disabled, 0, "");
+TUNABLE_INT("kern.smp.disabled", &smp_disabled);
+
 int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD, &smp_cpus, 0, "");
 
@@ -102,7 +106,7 @@ mp_start(void *dummy)
 {
 
 	/* Probe for MP hardware. */
-	if (mp_probe_status == 0)
+	if (mp_probe_status == 0 || smp_disabled != 0)
 		return;
 
 	mtx_init(&smp_rv_mtx, "smp rendezvous", NULL, MTX_SPIN);
