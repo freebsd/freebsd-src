@@ -49,6 +49,6 @@
 
 #define	FLOAT_SIZE		(4 * CHAR_BIT)
 #define	DOUBLE_SIZE		(8 * CHAR_BIT)
-#define	LDOUBLE_SIZE		(12 * CHAR_BIT)
+#define	LDOUBLE_SIZE		(16 * CHAR_BIT)
 
 #define	ENUM_SIZE		(4 * CHAR_BIT)
