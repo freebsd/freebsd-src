@@ -1,7 +1,7 @@
 /*
  * Holiday
  *
- * $Id: calendar.holiday,v 1.2 1996/01/28 19:12:24 wosch Exp $
+ * $Id: calendar.holiday,v 1.2 1996/01/29 00:32:59 wosch Exp $
  */
 
 #ifndef _calendar_holiday_
@@ -161,7 +161,7 @@
 05/09	Liberation Day in Czechoslovakia
 05/09	Victory Day in Poland, U.S.S.R.
 05/10	Confederate Memorial Day in South Carolina
-05/10	Mothers Day in Guatamala
+05/10	Mothers Day in Guatemala
 05/11	Minnesota Day in Minnesota
 05/14	Buddhist Holiday (Waisak 2528) in Indonesia
 05/14	Independence Day (2 days) in Paraguay
@@ -250,16 +250,16 @@
 07/14	Bastille Day
 07/14	National Holiday in Monaco
 07/15	St. Swithin's Day
-07/16	Presidents Day in Botswanna
+07/16	Presidents Day in Botswana
 07/17	Constitution Day in South Korea
-07/17	Public Holiday in Botswanna
+07/17	Public Holiday in Botswana
 07/18	Constitution Day in Uruguay
 07/18	Liberation Day in Nicaragua
 07/19	Martyrs Day in Burma
 07/20	Independence Day in Colombia
 07/21	National Holiday in Belgium
 07/22	National Day in Poland
-07/23	Eqyptian National Day in Syrian Arab Republic
+07/23	Egyptian National Day in Syrian Arab Republic
 07/23	Remembrance Day in Papua, New Guinea
 07/24	Pioneer Day in Utah
 07/24	Simon Bolivar's Day in Ecuador, Venezuela
@@ -306,7 +306,7 @@
 08/24	National Flag Day in Liberia
 08/25	Constitution Day in Paragual
 08/25	Independence Day in Uruguay
-08/26	Susan B. Anthony Day in Massachussetts
+08/26	Susan B. Anthony Day in Massachusetts
 08/26*	Bank Holiday in England and Wales
 08/27	Liberation Day in Hong Kong
 08/28	Heroes Day in Philippines
@@ -343,16 +343,16 @@
 09/24	Republic Day in Trinidad, Tobago
 09/25	Army Day in Mozambique
 09/25	Referendum Day in Rwanda
-09/26	National Day in Maldives, Yemem Deomcratic Republic
-09/26	Revoluation Anniversary Day in Yemen Arab
-09/28	Confucious' Day in Taiwan
-09/30	Botswanna Day in Botswanna
+09/26	National Day in Maldives, Yemem Democratic Republic
+09/26	Revolution Anniversary Day in Yemen Arab
+09/28	Confucius' Day in Taiwan
+09/30	Botswana Day in Botswana
 09/30	First Day of Sukkot
 10/01	Armed Forces Day in South Korea
 10/01	Independence Day in Nigeria
 10/01	Labor Day in Australia
 10/01	National Liberation Day (2 days) in China
-10/01	Public Holiday in Botswanna
+10/01	Public Holiday in Botswana
 10/03	National Foundation Day in South Korea
 10/03	U.N. Day in Varbados
 10/04	Independence Day in Lesotho
@@ -377,7 +377,7 @@
 10/12	Our Lady Aparecida Day in Brazil
 10/12	Pan American Day in Belize
 10/13	St. Edward's Day - Patron saint of England
-10/14	National Day in Yemen Arab Repyblic
+10/14	National Day in Yemen Arab Republic
 10/14	Young People's Day in Zaire
 10/14*	Thanksgiving Day in Canada
 10/15	Evacuation Day in Tunisia
@@ -387,7 +387,7 @@
 10/20	Kenyatta Day in Kenya
 10/21	Armed Forces Day in Honduras
 10/21	Revolution Days (2 days) in Somalia
-10/23	Chulalongkron's Day in Thsailand
+10/23	Chulalongkron's Day in Thailand
 10/24	Independence Day in Zambia
 10/24	United Nations Day 
 10/25	Labor Day in New Zealand
@@ -411,7 +411,7 @@
 11/07	National Revolution Day
 11/07	October Revolution Day in Hungary
 11/11	Independence Day in Angola
-11/11	Rememberance Day in Canada
+11/11	Remembrance Day in Canada
 11/11	Republic Day in Maldives
 11/15	Dynasty Day in Belgium
 11/17	Army Day in Zaire
@@ -429,7 +429,7 @@
 11/29	Goodwill Day in Liberia
 11/29	Liberation Day in Albania
 11/29	National Day in Burma
-11/30	Independence Day in Barbados, Yemen Deomcratic Republic
+11/30	Independence Day in Barbados, Yemen Democratic Republic
 11/30	National Day in Benin
 11/30	National Heroes Day in Philippines
 11/30	St. Andrew's Day
@@ -451,7 +451,7 @@
 12/16	Constitution Day in Nepal
 12/16	Day of the Covenant in South Africa
 12/16	National Day in Bahrain
-12/16	Victry Day in Bangladesh
+12/16	Victory Day in Bangladesh
 12/17	National Day in Bhutan
 12/18	Republic Day in Niger
 12/23	Victory Day in Egypt
@@ -477,7 +477,7 @@
 05/05	Battle of Puebla in Mexico
 05/08	Buddha's Birthday in South Korea
 05/08	Elections for the National Assembly in Philippines
-05/14	Anniversary of the Founding of Guinean Deomcratic Party in Guinea
+05/14	Anniversary of the Founding of Guinean Democratic Party in Guinea
 
 05/25	Anniversary of the Revolution of 1810 in Argentina
 05/25	Revolution in the Sudan in Libyan Arab Republic
@@ -523,7 +523,7 @@
 08/17	Anniversary of the Death of General San Martin in Argentina
 09/09	Anniversary of the Socialist Revolution (2 days) in Bulgaria
 09/10	Moon Festival in Taiwan
-09/11	Aniversary of military coup in Chile
+09/11	Anniversary of military coup in Chile
 09/11	Ethiopian New Year in Ethiopia
 09/12	Amilcar Cabral's Birthday in Guinea-Bissau
 09/14	Battle of San Jacinto in Nicaragua
