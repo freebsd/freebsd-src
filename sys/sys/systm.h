@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.40 1996/07/01 18:12:13 bde Exp $
+ * $Id: systm.h,v 1.41 1996/08/19 02:19:23 julian Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -190,10 +190,12 @@ void untimeout(timeout_func_t, void *);
 void	logwakeup __P((void));
 
 /* Various other callout lists that modules might want to know about */
-/* shutdown */
+/* shutdown callout list definitions */
 typedef void (*bootlist_fn)(int,void *);
-int at_shutdown(bootlist_fn function, void *arg);
+int at_shutdown(bootlist_fn function, void *arg, int);
 int rm_at_shutdown(bootlist_fn function, void *arg);
+#define SHUTDOWN_PRE_SYNC 0
+#define SHUTDOWN_POST_SYNC 1
 
 /* forking */ /* XXX not yet */
 typedef void (*forklist_fn)(struct proc *parent,struct proc *child,int flags);
