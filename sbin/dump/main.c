@@ -82,6 +82,7 @@ int	density = 0;	/* density in bytes/0.1" " <- this is for hilit19 */
 int	ntrec = NTREC;	/* # tape blocks in each tape record */
 int	cartridge = 0;	/* Assume non-cartridge tape */
 int	dokerberos = 0;	/* Use Kerberos authentication */
+int	cachesize = 0;	/* block cache size (in bytes), defaults to 0 */
 long	dev_bsize = 1;	/* recalculated below */
 long	blocksperfile;	/* output blocks per file */
 char	*host = NULL;	/* remote host (if any) */
@@ -127,9 +128,9 @@ main(int argc, char *argv[])
 
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define optstring "0123456789aB:b:cd:f:h:kLns:ST:uWwD:"
+#define optstring "0123456789aB:b:cd:f:h:kLns:ST:uWwD:C:"
 #else
-#define optstring "0123456789aB:b:cd:f:h:Lns:ST:uWwD:"
+#define optstring "0123456789aB:b:cd:f:h:Lns:ST:uWwD:C:"
 #endif
 	while ((ch = getopt(argc, argv, optstring)) != -1)
 #undef optstring
@@ -170,6 +171,10 @@ main(int argc, char *argv[])
 
 		case 'D':
 			dumpdates = optarg;
+			break;
+
+		case 'C':
+			cachesize = numarg("cachesize", 0, 0) * 1024 * 1024;
 			break;
 
 		case 'h':

@@ -739,8 +739,8 @@ bread(ufs2_daddr_t blkno, char *buf, int size)
 	int cnt, i;
 
 loop:
-	if ((cnt = pread(diskfd, buf, size, ((off_t)blkno << dev_bshift))) ==
-						size)
+	cnt = cread(diskfd, buf, size, ((off_t)blkno << dev_bshift));
+	if (cnt == size)
 		return;
 	if (blkno + (size / dev_bsize) > fsbtodb(sblock, sblock->fs_size)) {
 		/*
@@ -774,7 +774,8 @@ loop:
 			breaderrors = 0;
 	}
 	/*
-	 * Zero buffer, then try to read each sector of buffer separately.
+	 * Zero buffer, then try to read each sector of buffer separately,
+	 * and bypass the cache.
 	 */
 	memset(buf, 0, size);
 	for (i = 0; i < size; i += dev_bsize, buf += dev_bsize, blkno++) {
