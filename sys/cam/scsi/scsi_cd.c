@@ -207,6 +207,7 @@ static	int		cderror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
 static	void		cdprevent(struct cam_periph *periph, int action);
 static	int		cdsize(dev_t dev, u_int32_t *size);
+static	int		cdfirsttrackisdata(struct cam_periph *periph);
 static	int		cdreadtoc(struct cam_periph *periph, u_int32_t mode, 
 				  u_int32_t start, struct cd_toc_entry *data, 
 				  u_int32_t len);
@@ -920,6 +921,17 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	/*
+	 * If we get a non-zero return, revert back to not reading the
+	 * label off the disk.  The first track is likely audio, which
+	 * won't have a disklabel.
+	 */
+	if ((error = cdfirsttrackisdata(periph)) != 0) {
+		softc->disk.d_dsflags &= ~DSO_COMPATLABEL;
+		softc->disk.d_dsflags |= DSO_NOLABELS;
+		error = 0;
+	}
+
+	/*
 	 * Build prototype label for whole disk.
 	 * Should take information about different data tracks from the
 	 * TOC and put it in the partition table.
@@ -991,6 +1003,13 @@ cdclose(dev_t dev, int flag, int fmt, struct proc *p)
 
 	if ((softc->flags & CD_FLAG_DISC_REMOVABLE) != 0)
 		cdprevent(periph, PR_ALLOW);
+
+	/*
+	 * Unconditionally set the dsopen() flags back to their default
+	 * state.
+	 */
+	softc->disk.d_dsflags &= ~DSO_NOLABELS;
+	softc->disk.d_dsflags |= DSO_COMPATLABEL;
 
 	/*
 	 * Since we're closing this CD, mark the blocksize as unavailable.
@@ -2540,6 +2559,80 @@ cdsize(dev_t dev, u_int32_t *size)
 
 	return (error);
 
+}
+
+/*
+ * The idea here is to try to figure out whether the first track is data or
+ * audio.  If it is data, we can at least attempt to read a disklabel off
+ * the first sector of the disk.  If it is audio, there won't be a
+ * disklabel.
+ *
+ * This routine returns 0 if the first track is data, and non-zero if there
+ * is an error or the first track is audio.  (If either non-zero case, we
+ * should not attempt to read the disklabel.)
+ */
+static int
+cdfirsttrackisdata(struct cam_periph *periph)
+{
+	struct cdtocdata {
+		struct ioc_toc_header header;
+		struct cd_toc_entry entries[100];
+	};
+	struct cd_softc *softc;
+	struct ioc_toc_header *th;
+	struct cdtocdata *data;
+	int num_entries, i;
+	int error, first_track_audio;
+
+	error = 0;
+	first_track_audio = -1;
+
+	softc = (struct cd_softc *)periph->softc;
+
+	data = malloc(sizeof(struct cdtocdata), M_TEMP, M_WAITOK);
+
+	th = &data->header;
+	error = cdreadtoc(periph, 0, 0, (struct cd_toc_entry *)data,
+			  sizeof(*data));
+
+	if (error)
+		goto bailout;
+
+	if (softc->quirks & CD_Q_BCD_TRACKS) {
+		/* we are going to have to convert the BCD
+		 * encoding on the cd to what is expected
+		 */
+		th->starting_track =
+		    bcd2bin(th->starting_track);
+		th->ending_track = bcd2bin(th->ending_track);
+	}
+	th->len = scsi_2btoul((u_int8_t *)&th->len);
+
+	if ((th->len - 2) > 0)
+		num_entries = (th->len - 2) / sizeof(struct cd_toc_entry);
+	else
+		num_entries = 0;
+
+	for (i = 0; i < num_entries; i++) {
+		if (data->entries[i].track == th->starting_track) {
+			if (data->entries[i].control & 0x4)
+				first_track_audio = 0;
+			else
+				first_track_audio = 1;
+			break;
+		}
+	}
+
+	if (first_track_audio == -1)
+		error = ENOENT;
+	else if (first_track_audio == 1)
+		error = EINVAL;
+	else
+		error = 0;
+bailout:
+	free(data, M_TEMP);
+
+	return(error);
 }
 
 static int
