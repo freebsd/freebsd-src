@@ -1,8 +1,8 @@
-.\" $Id: si.4,v 1.3 1995/12/29 01:39:06 peter Exp $
+.\" $Id: si.4,v 1.6 1996/12/29 20:36:03 wosch Exp $
 .\" The following requests are required for all man pages.
 .Dd September 16, 1995
 .Os FreeBSD
-.Dt SI 4
+.Dt SI 4 i386
 .Sh NAME
 .Nm si
 .Nd Driver for Specialix International SI/XIO 8-32 port intelligent serial card.
@@ -127,11 +127,11 @@ locked termios state devices
 .\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr stty 1 ,
+.Xr sio 4 ,
 .Xr termios 4 ,
 .Xr tty 4 ,
-.Xr sio 4 ,
-.Xr sicontrol 8 ,
-.Xr comcontrol 8 .
+.Xr comcontrol 8 ,
+.Xr sicontrol 8
 .\" .Sh STANDARDS
 .Sh HISTORY
 This driver is loosely based on driver code originating at Specialix, which
