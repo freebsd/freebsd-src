@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.13 1993/11/08 19:36:32 ache Exp $
+ *	$Id: sio.c,v 1.14 1993/11/14 23:29:01 ache Exp $
  */
 
 #include "sio.h"
@@ -446,6 +446,7 @@ sioattach(isdp)
 #endif /* COM_BIDIR */
 
 	/* attempt to determine UART type */
+	printf("sio%d: type", unit);
 #ifdef COM_MULTIPORT
 	if (!COM_ISMULTIPORT(isdp))
 #endif
@@ -505,6 +506,7 @@ determined_type: ;
 	else
 		com->multiport = FALSE;
 #endif /* COM_MULTIPORT */
+	printf("\n");
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {
