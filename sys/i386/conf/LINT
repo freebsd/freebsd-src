@@ -1744,8 +1744,8 @@ device		pci
 #
 # The `bge' device provides support for gigabit ethernet adapters
 # based on the Broadcom BCM570x familiy of controllers, including the
-# 3Com 3c996-T, the SysKonnect SK-9D21 and SK-9D41, and the embedded
-# gigE NICs on Dell PowerEdge 2550 servers.
+# 3Com 3c996-T, the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41,
+# and the embedded gigE NICs on Dell PowerEdge 2550 servers.
 #
 # The `ncr' device provides support for the NCR 53C810 and 53C825
 # self-contained SCSI host adapters.
