@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kbd.c,v 1.3.2.1 1999/05/09 11:02:13 yokota Exp $
  */
 
 #include "kbd.h"
@@ -462,7 +462,6 @@ kbd_detach(dev_t dev, keyboard_t *kbd, struct cdevsw *cdevsw)
 		return EINVAL;
 
 	s = spltty();
-	(*kbdsw[kbd->kb_index]->term)(kbd);
 	kbdcdevsw[kbd->kb_index] = NULL;
 	splx(s);
 	return 0;
