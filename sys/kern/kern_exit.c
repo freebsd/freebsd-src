@@ -133,6 +133,7 @@ exit1(struct thread *td, int rv)
 	 */
 	PROC_LOCK(p);
 	if (p->p_flag & P_SA || p->p_numthreads > 1) {
+retry:
 		/*
 		 * First check if some other thread got here before us..
 		 * if so, act apropriatly, (exit or suspend);
@@ -154,7 +155,7 @@ exit1(struct thread *td, int rv)
 		 * thread exits.
 		 */
 		if (thread_single(SINGLE_EXIT))
-			panic ("Exit: Single threading fouled up");
+			goto retry;
 		/*
 		 * All other activity in this process is now stopped.
 		 * Remove excess KSEs and KSEGRPS. XXXKSE (when we have them)
