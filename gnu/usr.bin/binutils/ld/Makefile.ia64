@@ -6,7 +6,7 @@ TARGET_TUPLE?=	ia64-unknown-freebsd
 HOST=	${TARGET_TUPLE}	# do what?? how does this work for a cross-build??
 CFLAGS+= -DDEFAULT_EMULATION=\"elf64_ia64\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
-_ia64_path=	\"/usr/lib\"
+_ia64_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _ia64_path=	\"/usr/cross/ia64-freebsd/usr/lib\"
 .endif
