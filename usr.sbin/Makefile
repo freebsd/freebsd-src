@@ -67,7 +67,6 @@ SUBDIR=	IPXrouted \
 	ppp \
 	pppd \
 	pppstats \
-	prefix \
 	procctl \
 	pstat \
 	pw \
