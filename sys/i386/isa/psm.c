@@ -71,12 +71,12 @@
 #define	PSM_OUTPUT_ACK	0x02	/* output acknowledge */
 
 /* controller commands */
-#define	PSM_ENABLE	0xa8	/* enable auxiliary port */
-#define	PSM_DISABLE	0xa7	/* disable auxiliary port */
 #define	PSM_INT_ENABLE	0x47	/* enable controller interrupts */
 #define	PSM_INT_DISABLE	0x65	/* disable controller interrupts */
+#define	PSM_DISABLE	0xa7	/* disable auxiliary port */
+#define	PSM_ENABLE	0xa8	/* enable auxiliary port */
 
-/* m+use commands */
+/* mouse commands */
 #define PSM_SET_SCALE11	0xe6	/* set 1:1 scaling */
 #define PSM_SET_SCALE21 0xe7	/* set 2:1 scaling */
 #define	PSM_SET_RES	0xe8	/* set resolution */
@@ -142,9 +142,9 @@ static void
 psm_write_dev(int ioport, u_char value)
 {
 	psm_poll_status();
-	outb(inport+PSM_CNTRL, 0xd4);
+	outb(ioport+PSM_CNTRL, 0xd4);
 	psm_poll_status();
-	outb(inport+PSM_DATA, value);
+	outb(ioport+PSM_DATA, value);
 }
 
 static inline void
