@@ -2091,25 +2091,18 @@ ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
 		break;
 	case PPB_RDTR:
 		return (r_dtr(ppc));
-		break;
 	case PPB_RSTR:
 		return (r_str(ppc));
-		break;
 	case PPB_RCTR:
 		return (r_ctr(ppc));
-		break;
 	case PPB_REPP_A:
 		return (r_epp_A(ppc));
-		break;
 	case PPB_REPP_D:
 		return (r_epp_D(ppc));
-		break;
 	case PPB_RECR:
 		return (r_ecr(ppc));
-		break;
 	case PPB_RFIFO:
 		return (r_fifo(ppc));
-		break;
 	case PPB_WDTR:
 		w_dtr(ppc, byte);
 		break;
