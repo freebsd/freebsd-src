@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)varargs.h	8.2 (Berkeley) 3/22/94
- * $Id: varargs.h,v 1.2 1994/08/02 07:39:17 davidg Exp $
+ * $Id: varargs.h,v 1.2.12.1 1997/02/28 07:21:04 bde Exp $
  */
 
 #ifndef _VARARGS_H_
@@ -44,26 +44,23 @@
 
 typedef char *va_list;
 
+#define	__va_size(type) \
+	(((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
+
 #ifdef __GNUC__
 #define	va_alist	__builtin_va_alist
 #endif
 #if __GNUC__ > 1
 #define	va_dcl	int va_alist; ...
 #else
-#define	va_dcl	int va_alist;
+#define	va_dcl	int va_alist; 
 #endif
 
 #define	va_start(ap) \
-	ap = (char *)&va_alist
+	((ap) = (va_list)&va_alist)
 
-#ifdef KERNEL
 #define	va_arg(ap, type) \
-	((type *)(ap += sizeof(type)))[-1]
-#else
-#define	va_arg(ap, type) \
-	((type *)(ap += sizeof(type) < sizeof(int) ? \
-		(abort(), 0) : sizeof(type)))[-1]
-#endif
+	(*(type *)((ap) += __va_size(type), (ap) - __va_size(type)))
 
 #define	va_end(ap)
 
