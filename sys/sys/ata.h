@@ -35,26 +35,26 @@
 
 /* ATA/ATAPI device parameter information */
 struct ata_params {
-    u_int8_t    cmdsize         :2;             /* packet command size */
-#define ATAPI_PSIZE_12                 0       /* 12 bytes */
-#define ATAPI_PSIZE_16                 1       /* 16 bytes */
+    u_int8_t	cmdsize		:2;		/* packet command size */
+#define ATAPI_PSIZE_12			0	/* 12 bytes */
+#define ATAPI_PSIZE_16			1	/* 16 bytes */
 
-    u_int8_t                    :3;
-    u_int8_t    drqtype         :2;             /* DRQ type */
-#define ATAPI_DRQT_MPROC        	0       /* cpu    3 ms delay */
-#define ATAPI_DRQT_INTR         	1       /* intr  10 ms delay */
-#define ATAPI_DRQT_ACCEL        	2       /* accel 50 us delay */
+    u_int8_t			:3;
+    u_int8_t	drqtype		:2;		/* DRQ type */
+#define ATAPI_DRQT_MPROC		0	/* cpu	  3 ms delay */
+#define ATAPI_DRQT_INTR			1	/* intr	 10 ms delay */
+#define ATAPI_DRQT_ACCEL		2	/* accel 50 us delay */
 
-    u_int8_t    removable       :1;             /* device is removable */
-    u_int8_t    device_type     :5;             /* device type */
-#define ATAPI_TYPE_DIRECT       	0       /* disk/floppy */
-#define ATAPI_TYPE_TAPE         	1       /* streaming tape */
-#define ATAPI_TYPE_CDROM        	5       /* CD-ROM device */
-#define ATAPI_TYPE_OPTICAL      	7       /* optical disk */
+    u_int8_t	removable	:1;		/* device is removable */
+    u_int8_t	device_type	:5;		/* device type */
+#define ATAPI_TYPE_DIRECT		0	/* disk/floppy */
+#define ATAPI_TYPE_TAPE			1	/* streaming tape */
+#define ATAPI_TYPE_CDROM		5	/* CD-ROM device */
+#define ATAPI_TYPE_OPTICAL		7	/* optical disk */
 
-    u_int8_t                    :1;
-    u_int8_t    proto           :2;             /* command protocol */
-#define ATAPI_PROTO_ATAPI       	2
+    u_int8_t			:1;
+    u_int8_t	proto		:2;		/* command protocol */
+#define ATAPI_PROTO_ATAPI		2
 
     u_int16_t	cylinders;			/* number of cylinders */
     u_int16_t	reserved2;
@@ -94,9 +94,9 @@ struct ata_params {
     u_int8_t	odmamode;			/* old DMA modes, not ATA-3 */
 
     u_int16_t	atavalid;			/* fields valid */
-#define	ATA_FLAG_54_58	      		1	/* words 54-58 valid */
-#define	ATA_FLAG_64_70	      		2	/* words 64-70 valid */
-#define	ATA_FLAG_88	      		4	/* word 88 valid */
+#define ATA_FLAG_54_58			1	/* words 54-58 valid */
+#define ATA_FLAG_64_70			2	/* words 64-70 valid */
+#define ATA_FLAG_88			4	/* word 88 valid */
 
     u_int16_t	currcyls;
     u_int16_t	currheads;
@@ -154,7 +154,7 @@ struct ata_params {
     u_int16_t	masterhwres	:8;
     u_int16_t	slavehwres	:5;
     u_int16_t	cblid		:1;
-    u_int16_t	reserved93_1415	:2;
+    u_int16_t	reserved93_1415 :2;
     u_int16_t	reserved94[32];
     u_int16_t	rmvstat;
     u_int16_t	securstat;
@@ -165,41 +165,56 @@ struct ata_params {
     u_int16_t	reserved246[10];
 };
 
-#define	ATA_MODE_MASK		0x0f
-#define	ATA_DMA_MASK		0xf0
+#define ATA_MODE_MASK		0x0f
+#define ATA_DMA_MASK		0xf0
 #define ATA_PIO			0x00
 #define ATA_PIO0		0x08
-#define	ATA_PIO1		0x09
-#define	ATA_PIO2		0x0a
-#define	ATA_PIO3		0x0b
-#define	ATA_PIO4		0x0c
-#define	ATA_DMA			0x10
-#define	ATA_WDMA		0x20
-#define	ATA_WDMA2		0x22
-#define	ATA_UDMA		0x40
-#define	ATA_UDMA2		0x42
-#define	ATA_UDMA4		0x44
-#define	ATA_UDMA5		0x45
+#define ATA_PIO1		0x09
+#define ATA_PIO2		0x0a
+#define ATA_PIO3		0x0b
+#define ATA_PIO4		0x0c
+#define ATA_DMA			0x10
+#define ATA_WDMA		0x20
+#define ATA_WDMA2		0x22
+#define ATA_UDMA		0x40
+#define ATA_UDMA2		0x42
+#define ATA_UDMA4		0x44
+#define ATA_UDMA5		0x45
 
 struct ata_cmd {
-    int 			channel;
+    int				channel;
+    int				device;
     int				cmd;
-#define ATAGPARM      	 	1
-#define ATAGMODE        	2
-#define ATASMODE        	3
-#define ATAREINIT       	4
-#define ATAATTACH       	5
-#define ATADETACH       	6
+#define ATAGPARM		1
+#define ATAGMODE		2
+#define ATASMODE		3
+#define ATAREINIT		4
+#define ATAATTACH		5
+#define ATADETACH		6
+#define ATAPICMD		7
 
     union {
 	struct {
 	    int			mode[2];
 	} mode;
-	struct 	{
+	struct	{
 	    int			type[2];
 	    char		name[2][32];
 	    struct ata_params	params[2];
 	} param;
+	struct {
+	    char		ccb[16];
+	    caddr_t		data;
+	    int			count;
+	    int			flags;
+#define ATAPI_CMD_CTRL			0x00
+#define ATAPI_CMD_READ			0x01
+#define ATAPI_CMD_WRITE			0x02
+
+	    int			timeout;
+	    int			error;
+	    char		sense_data[18];
+	} atapi;
     } u;
 };
 
