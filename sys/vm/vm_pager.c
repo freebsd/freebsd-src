@@ -275,7 +275,7 @@ void
 vm_pager_strategy(vm_object_t object, struct bio *bp)
 {
 	if (pagertab[object->type]->pgo_strategy) {
-	    (*pagertab[object->type]->pgo_strategy)(object, bp);
+		(*pagertab[object->type]->pgo_strategy)(object, bp);
 	} else {
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_error = ENXIO;
