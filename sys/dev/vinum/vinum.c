@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.28 1999/10/12 09:41:20 grog Exp grog $
+ * $Id: vinum.c,v 1.33 2001/01/09 06:19:15 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -80,7 +80,6 @@ dev_t vinum_debug_super_dev;
 void
 vinumattach(void *dummy)
 {
-
     /* modload should prevent multiple loads, so this is worth a panic */
     if ((vinum_conf.flags & VF_LOADED) != 0)
 	panic("vinum: already loaded");
@@ -93,14 +92,26 @@ vinumattach(void *dummy)
 
     cdevsw_add(&vinum_cdevsw);				    /* add the cdevsw entry */
 
-    vinum_daemon_dev = make_dev(&vinum_cdevsw, VINUM_DAEMON_DEV,
-	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/controld");
+    vinum_daemon_dev = make_dev(&vinum_cdevsw,
+	VINUM_DAEMON_DEV,
+	UID_ROOT,
+	GID_WHEEL,
+	S_IRUSR | S_IWUSR,
+	"vinum/controld");
     vinum_debug_super_dev = make_dev(&vinum_cdevsw,
-	VINUMMINOR (1, 0, 0, VINUM_SUPERDEV_TYPE),
-	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/Control");
+	VINUMMINOR(1, 0, 0, VINUM_SUPERDEV_TYPE),
+	UID_ROOT,
+	GID_WHEEL,
+	S_IRUSR | S_IWUSR,
+	"vinum/Control");
     vinum_super_dev = make_dev(&vinum_cdevsw,
-	VINUMMINOR (2, 0, 0, VINUM_SUPERDEV_TYPE),
-	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/control");
+	VINUMMINOR(2, 0, 0, VINUM_SUPERDEV_TYPE),
+	UID_ROOT,
+	GID_WHEEL,
+	S_IRUSR | S_IWUSR,
+	"vinum/control");
+
+    vinum_conf.version = VINUMVERSION;			    /* note what version we are */
 
     /* allocate space: drives... */
     DRIVE = (struct drive *) Malloc(sizeof(struct drive) * INITIAL_DRIVES);
@@ -129,7 +140,6 @@ vinumattach(void *dummy)
     bzero(SD, sizeof(struct sd) * INITIAL_SUBDISKS);
     vinum_conf.subdisks_allocated = INITIAL_SUBDISKS;	    /* number of sd slots allocated */
     vinum_conf.subdisks_used = 0;			    /* and number in use */
-
 }
 
 /*
@@ -189,7 +199,7 @@ free_vinum(int cleardrive)
     }
     if (SD != NULL) {
 	for (i = 0; i < vinum_conf.subdisks_allocated; i++) {
-	    struct sd *sd = &vinum_conf.sd[i];
+	    struct sd *sd = &SD[i];
 
 	    if (sd->state != sd_unallocated)
 		free_sd(i);
@@ -198,7 +208,7 @@ free_vinum(int cleardrive)
     }
     if (PLEX != NULL) {
 	for (i = 0; i < vinum_conf.plexes_allocated; i++) {
-	    struct plex *plex = &vinum_conf.plex[i];
+	    struct plex *plex = &PLEX[i];
 
 	    if (plex->state != plex_unallocated)	    /* we have real data there */
 		free_plex(i);
@@ -207,7 +217,7 @@ free_vinum(int cleardrive)
     }
     if (VOL != NULL) {
 	for (i = 0; i < vinum_conf.volumes_allocated; i++) {
-	    struct volume *volume = &vinum_conf.volume[i];
+	    struct volume *volume = &VOL[i];
 
 	    if (volume->state != volume_unallocated)
 		free_volume(i);
@@ -261,7 +271,7 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	    }
 	}
 #endif
-	destroy_dev(vinum_daemon_dev);               /* daemon device */
+	destroy_dev(vinum_daemon_dev);			    /* daemon device */
 	destroy_dev(vinum_super_dev);
 	destroy_dev(vinum_debug_super_dev);
 	cdevsw_remove(&vinum_cdevsw);
