@@ -102,7 +102,8 @@ Search the directory
 for font and device description files;
 .I name
 is the name of the device, usually
-.B ascii
+.BR ascii ,
+.B koi8-r
 or
 .BR latin1 .
 .TP
@@ -151,40 +152,16 @@ characters.
 Print the version number.
 .SH FILES
 .TP
-.B @FONTDIR@/devascii/DESC
+.B @FONTDIR@/dev\fIname\fB/DESC
 Device description file for
-.B ascii
+.I name
 device.
 .TP
-.BI @FONTDIR@/devascii/ F
+.BI @FONTDIR@/dev\fIname\fB/ F
 Font description file for font
 .I F
 of
-.B ascii
-device.
-.TP
-.B @FONTDIR@/devlatin1/DESC
-Device description file for
-.B latin1
-device.
-.TP
-.BI @FONTDIR@/devlatin1/ F
-Font description file for font
-.I F
-of
-.B latin1
-device.
-.TP
-.B @FONTDIR@/devkoi8-r/DESC
-Device description file for
-.B koi8-r
-device.
-.TP
-.BI @FONTDIR@/devkoi8-r/ F
-Font description file for font
-.I F
-of
-.B koi8-r
+.I name
 device.
 .TP
 .B @MACRODIR@/tmac.tty
