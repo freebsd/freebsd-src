@@ -106,7 +106,6 @@ static device_t firewire_add_child   __P((device_t, int, const char *, int));
 static struct fw_bind *fw_bindlookup __P((struct firewire_comm *, u_int32_t, u_int32_t));
 static void fw_try_bmr __P((void *));
 static void fw_try_bmr_callback __P((struct fw_xfer *));
-static u_int16_t fw_noderesolve __P((struct firewire_comm *, struct fw_eui64));
 static void fw_asystart __P((struct fw_xfer *));
 static int fw_get_tlabel __P((struct firewire_comm *, struct fw_xfer *));
 static void fw_bus_probe __P((struct firewire_comm *));
@@ -977,13 +976,14 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			xfer->dst = ntohs(fp->mode.hdr.dst);
 			break;
 		case FWASREQEUI:
-			xfer->dst = fw_noderesolve(sc->fc, asyreq->req.dst.eui);
-			if(xfer->dst == FWNODE_INVAL ){
+			fwdev = fw_noderesolve(sc->fc, asyreq->req.dst.eui);
+			if (fwdev == NULL) {
 				printf("%s:cannot found node\n",
 					device_get_nameunit(sc->fc->dev));
 				err = EINVAL;
 				goto error;
 			}
+			xfer->dst = fwdev->dst;
 			fp->mode.hdr.dst = htons(FWLOCALBUS | xfer->dst);
 			break;
 		case FWASRESTL:
@@ -1154,7 +1154,7 @@ fw_poll(dev_t dev, int events, fw_proc *td)
 /*
  * To lookup node id. from EUI64.
  */
-u_int16_t
+struct fw_device *
 fw_noderesolve(struct firewire_comm *fc, struct fw_eui64 eui)
 {
 	struct fw_device *fwdev;
@@ -1164,9 +1164,9 @@ fw_noderesolve(struct firewire_comm *fc, struct fw_eui64 eui)
 			break;
 		}
 	}
-	if(fwdev == NULL) return FWNODE_INVAL;
-	if(fwdev->status != FWDEVATTACHED) return FWNODE_INVAL;
-	return fwdev->dst;
+	if(fwdev == NULL) return NULL;
+	if(fwdev->status == FWDEVINVAL) return NULL;
+	return fwdev;
 }
 /*
  * Async. request procedure for userland application.
@@ -2182,6 +2182,7 @@ loop:
 		fwdev = malloc(sizeof(struct fw_device), M_DEVBUF, M_DONTWAIT);
 		if(fwdev == NULL)
 			return;
+		fwdev->fc = fc;
 		fwdev->rommax = 0;
 		fwdev->dst = fc->ongonode;
 		fwdev->eui.hi = fc->ongoeui.hi; fwdev->eui.lo = fc->ongoeui.lo;

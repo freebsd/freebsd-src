@@ -54,12 +54,15 @@
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
 
-static int fwmem_node=0, fwmem_speed=2, fwmem_debug=0;
+static int fwmem_speed=2, fwmem_debug=0;
+static struct fw_eui64 fwmem_eui64;
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_NODE(_hw_firewire, OID_AUTO, fwmem, CTLFLAG_RD, 0,
 	"Firewire Memory Access");
-SYSCTL_INT(_hw_firewire_fwmem, OID_AUTO, node, CTLFLAG_RW, &fwmem_node, 0,
-	"Fwmem target node");
+SYSCTL_UINT(_hw_firewire_fwmem, OID_AUTO, eui64_hi, CTLFLAG_RW,
+	&fwmem_eui64.hi, 0, "Fwmem target EUI64 high");
+SYSCTL_UINT(_hw_firewire_fwmem, OID_AUTO, eui64_low, CTLFLAG_RW,
+	&fwmem_eui64.lo, 0, "Fwmem target EUI64 low");
 SYSCTL_INT(_hw_firewire_fwmem, OID_AUTO, speed, CTLFLAG_RW, &fwmem_speed, 0,
 	"Fwmem link speed");
 SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
@@ -67,9 +70,9 @@ SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
 
 struct fw_xfer *
 fwmem_read_quad(
-	struct firewire_comm *fc,
+	struct fw_device *fwdev,
+	caddr_t	sc,
 	u_int8_t spd,
-	int dst,
 	u_int16_t dst_hi,
 	u_int32_t dst_lo,
 	void (*hand)(struct fw_xfer *))
@@ -81,8 +84,8 @@ fwmem_read_quad(
 	if (xfer == NULL)
 		return NULL;
 
-	xfer->fc = fc;
-	xfer->dst = FWLOCALBUS | dst;
+	xfer->fc = fwdev->fc;
+	xfer->dst = FWLOCALBUS | fwdev->dst;
 	xfer->spd = spd;
 	xfer->send.len = 12;
 	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -102,9 +105,59 @@ fwmem_read_quad(
 	fp->mode.rreqq.dest_lo = htonl(dst_lo);
 
 	if (fwmem_debug)
-		printf("fwmem: %d %04x:%08x\n", dst, dst_hi, dst_lo);
+		printf("fwmem: %d %04x:%08x\n", fwdev->dst, dst_hi, dst_lo);
 
-	if (fw_asyreq(fc, -1, xfer) == 0)
+	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
+		return xfer;
+
+error:
+	fw_xfer_free(xfer);
+	return NULL;
+}
+
+struct fw_xfer *
+fwmem_write_quad(
+	struct fw_device *fwdev,
+	caddr_t	sc,
+	u_int8_t spd,
+	u_int16_t dst_hi,
+	u_int32_t dst_lo,
+	u_int32_t data,
+	void (*hand)(struct fw_xfer *))
+{
+	struct fw_xfer *xfer;
+	struct fw_pkt *fp;
+
+	xfer = fw_xfer_alloc();
+	if (xfer == NULL)
+		return NULL;
+
+	xfer->fc = fwdev->fc;
+	xfer->dst = FWLOCALBUS | fwdev->dst;
+	xfer->spd = spd;
+	xfer->send.len = 16;
+	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT | M_ZERO);
+
+	if (xfer->send.buf == NULL)
+		goto error;
+
+	xfer->send.off = 0; 
+	xfer->act.hand = hand;
+	xfer->retry_req = fw_asybusy;
+	xfer->sc = sc;
+
+	fp = (struct fw_pkt *)xfer->send.buf;
+	fp->mode.wreqq.tcode = FWTCODE_RREQQ;
+	fp->mode.wreqq.dst = htons(xfer->dst);
+	fp->mode.wreqq.dest_hi = htons(dst_hi);
+	fp->mode.wreqq.dest_lo = htonl(dst_lo);
+
+	fp->mode.wreqq.data = htonl(data);
+
+	if (fwmem_debug)
+		printf("fwmem: %d %04x:%08x\n", fwdev->dst, dst_hi, dst_lo);
+
+	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
 
 error:
@@ -114,9 +167,9 @@ error:
 
 struct fw_xfer *
 fwmem_read_block(
-	struct firewire_comm *fc,
+	struct fw_device *fwdev,
+	caddr_t	sc,
 	u_int8_t spd,
-	int dst,
 	u_int16_t dst_hi,
 	u_int32_t dst_lo,
 	int len,
@@ -129,8 +182,8 @@ fwmem_read_block(
 	if (xfer == NULL)
 		return NULL;
 
-	xfer->fc = fc;
-	xfer->dst = FWLOCALBUS | dst;
+	xfer->fc = fwdev->fc;
+	xfer->dst = FWLOCALBUS | fwdev->dst;
 	xfer->spd = spd;
 	xfer->send.len = 16;
 	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -151,8 +204,9 @@ fwmem_read_block(
 	fp->mode.rreqb.len = htons(len);
 
 	if (fwmem_debug)
-		printf("fwmem: %d %04x:%08x %d\n", dst, dst_hi, dst_lo, len);
-	if (fw_asyreq(fc, -1, xfer) == 0)
+		printf("fwmem: %d %04x:%08x %d\n", fwdev->dst,
+				dst_hi, dst_lo, len);
+	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
 
 error:
@@ -180,7 +234,7 @@ int
 fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 {
 	struct firewire_softc *sc;
-	struct firewire_comm *fc;
+	struct fw_device *fwdev;
 	struct fw_xfer *xfer;
 	int err = 0, pad;
         int unit = DEV2UNIT(dev);
@@ -190,7 +244,12 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 	int len;
 
 	sc = devclass_get_softc(firewire_devclass, unit);
-	fc = sc->fc;
+	fwdev = fw_noderesolve(sc->fc, fwmem_eui64);
+	if (fwdev == NULL) {
+		printf("fwmem: no such device ID:%08x%08x\n",
+			fwmem_eui64.hi, fwmem_eui64.lo);
+		return EINVAL;
+	}
 
 	pad = uio->uio_offset % 4;
 	if  (fwmem_debug && pad != 0)
@@ -201,7 +260,7 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 		dst_hi = (offset >> 32) & 0xffff;
 		dst_lo = offset & 0xffffffff;
 #if USE_QUAD
-		xfer = fwmem_read_quad(fc, fwmem_speed, fwmem_node,
+		xfer = fwmem_read_quad(fwdev, NULL, fwmem_speed,
 				dst_hi, dst_lo, fw_asy_callback);
 		if (xfer == NULL)
 			return EINVAL;
@@ -214,7 +273,7 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 		len = uio->uio_resid;
 		if (len > MAXLEN)
 			len = MAXLEN;
-		xfer = fwmem_read_block(fc, fwmem_speed, fwmem_node,
+		xfer = fwmem_read_block(fwdev, NULL, fwmem_speed,
 				dst_hi, dst_lo, len, fw_asy_callback);
 		if (xfer == NULL)
 			return EINVAL;
