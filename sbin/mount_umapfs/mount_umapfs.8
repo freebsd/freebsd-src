@@ -34,6 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mount_umap.8	8.4 (Berkeley) 5/1/95
+.\"	$Id$
 .\"
 .Dd May 1, 1995
 .Dt MOUNT_UMAP 8
@@ -50,12 +51,24 @@
 .Ar mount-point
 .Sh DESCRIPTION
 The
-.Nm mount_umap
+.Nm
 command is used to mount a sub-tree of an existing file system
 that uses a different set of uids and gids than the local system.
 Such a file system could be mounted from a remote site via NFS or
 it could be a file system on removable media brought from some
 foreign location that uses a different password file.
+.Pp
+The
+.Nm
+command uses a set of files provided by the user to make correspondences
+between uids and gids in the sub-tree's original environment and
+some other set of ids in the local environment.  For instance, user
+smith might have uid 1000 in the original environment, while having
+uid 2000 in the local environment.  The
+.Nm
+command allows the subtree from smith's original environment to be
+mapped in such a way that all files with owning uid 1000 look like
+they are actually owned by uid 2000.  
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -66,58 +79,44 @@ flag followed by a comma separated string of options.
 See the
 .Xr mount 8
 man page for possible options and their meanings.
-.El
-.Pp
-The
-.Nm mount_umap
-command uses a set of files provided by the user to make correspondences
-between uids and gids in the sub-tree's original environment and
-some other set of ids in the local environment.  For instance, user
-smith might have uid 1000 in the original environment, while having
-uid 2000 in the local environment.  The
-.Nm mount_umap
-command allows the subtree from smith's original environment to be
-mapped in such a way that all files with owning uid 1000 look like
-they are actually owned by uid 2000.  
-.Pp
-.Em target 
-should be the current location of the sub-tree in the
+.It Ar target 
+Should be the current location of the sub-tree in the
 local system's name space.  
-.Em mount-point 
-should be a directory
+.It Ar mount-point 
+Should be a directory
 where the mapped subtree is to be placed.  
-.Em uid-mapfile 
-and
-.Em gid-mapfile 
-describe the mappings to be made between identifiers.
+.It Fl u Ar uid-mapfile 
+.It Fl g Ar gid-mapfile 
+Describe the mappings to be made between identifiers.
 Briefly, the format of these files is a count of the number of
 mappings on the first line, with each subsequent line containing
 a single mapping.  Each of these mappings consists of an id in
 the local environment and the corresponding id from the original environment,
 separated by white space.  
-.Em uid-mapfile 
+.Ar Uid-mapfile 
 should contain all uid
 mappings, and 
-.Em gid-mapfile 
+.Ar gid-mapfile 
 should contain all gid mappings.
 Any uids not mapped in 
-.Em uid-mapfile 
+.Ar uid-mapfile 
 will be treated as user NOBODY,
 and any gids not mapped in 
-.Em gid-mapfile 
+.Ar gid-mapfile 
 will be treated as group
 NULLGROUP.  At most 64 uids can be mapped for a given subtree, and
 at most 16 groups can be mapped by a given subtree.
+.El
 .Pp
 The mapfiles can be located anywhere in the file hierarchy, but they
 must be owned by root, and they must be writable only by root.  
-.Nm mount_umap
+.Nm Mount_umap
 will refuse to map the sub-tree if the ownership or permissions on
 these files are improper.  It will also balk if the count of mappings
 in the first line of the map files is not correct.
 .Pp
 The layer created by the
-.Nm mount_umap
+.Nm
 command is meant to serve as a simple example of file system layering.
 It is not meant for production use.  The implementation is not very
 sophisticated.
@@ -126,6 +125,6 @@ sophisticated.
 .Xr mount_null 8
 .Sh HISTORY
 The
-.Nm mount_umap
+.Nm
 utility first appeared in
 .Bx 4.4 .

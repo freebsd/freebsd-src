@@ -35,17 +35,17 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/*
+#if 0
 static char sccsid[] = "@(#)mount_umap.c	8.5 (Berkeley) 4/26/95";
-*/
+#endif
 static const char rcsid[] =
-	"$Id: mount_umap.c,v 1.11 1997/03/29 03:32:47 imp Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -56,7 +56,6 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
@@ -93,7 +92,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	static char not[] = "; not mounted.";
+	static char not[] = "; not mounted";
 	struct stat statbuf;
 	struct umap_args args;
         FILE *fp, *gfp;
