@@ -8,14 +8,17 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: rmail.8,v 8.1 1999/06/22 20:41:33 tony Exp $
+.\"	$Id: rmail.8,v 8.1.16.2 2000/12/29 18:12:22 gshapiro Exp $
 .\"
-.TH RMAIL 8 "$Date: 1999/06/22 20:41:33 $"
+.TH RMAIL 8 "$Date: 2000/12/29 18:12:22 $"
 .SH NAME
-.B rmail
+rmail
 \- handle remote mail received via uucp
 .SH SYNOPSIS
 .B rmail
+.RB [ \-D
+.IR domain ]
+.RB [ \-T ]
 .I 
 user ...
 .SH DESCRIPTION
@@ -34,6 +37,15 @@ is explicitly designed for use with
 uucp 
 and 
 sendmail.
+.SS Flags
+.TP
+.B \-D
+Use the specified
+.I domain
+instead of the default domain of ``UUCP''.
+.TP
+.B \-T
+Turn on debugging.
 .SH SEE ALSO
 uucp(1), 
 mail.local(8), 

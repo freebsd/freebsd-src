@@ -12,12 +12,12 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: headers.c,v 8.203.4.7 2000/08/22 21:50:36 gshapiro Exp $";
+static char id[] = "@(#)$Id: headers.c,v 8.203.4.10 2000/10/13 17:54:30 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
 
-static bool	fix_mime_header __P((char *));
+static size_t	fix_mime_header __P((char *));
 static int	priencode __P((char *));
 static void	put_vanilla_header __P((HDR *, char *, MCI *));
 
@@ -164,7 +164,7 @@ chompheader(line, pflag, hdrp, e)
 					goto hse;
 				}
 
-				setbitn(*p, mopts);
+				setbitn(bitidx(*p), mopts);
 				cond = TRUE;
 				p++;
 			}
@@ -344,7 +344,8 @@ hse:
 				free(sp);
 			define(macid("{currHeader}", NULL), newstr(qval), e);
 			define(macid("{hdr_name}", NULL), newstr(fname), e);
-			(void) rscheck(rs, fvalue, NULL, e, stripcom, TRUE, 4);
+			(void) rscheck(rs, fvalue, NULL, e, stripcom, TRUE, 4,
+				       NULL);
 		}
 	}
 
@@ -1388,14 +1389,18 @@ putheader(mci, hdr, e, flags)
 		    wordinclass(h->h_field,
 				macid("{checkMIMEFieldHeaders}", NULL)))
 		{
-			if (fix_mime_header(h->h_value))
+			size_t len;
+
+			len = fix_mime_header(h->h_value);
+			if (len > 0)
 			{
 				sm_syslog(LOG_ALERT, e->e_id,
-					  "Truncated MIME %s header due to field size (possible attack)",
-					  h->h_field);
+					  "Truncated MIME %s header due to field size (length = %ld) (possible attack)",
+					  h->h_field, (unsigned long) len);
 				if (tTd(34, 11))
-					dprintf("  truncated MIME %s header due to field size (possible attack)\n",
-						h->h_field);
+					dprintf("  truncated MIME %s header due to field size  (length = %ld) (possible attack)\n",
+						h->h_field,
+						(unsigned long) len);
 			}
 		}
 
@@ -1403,15 +1408,19 @@ putheader(mci, hdr, e, flags)
 		    wordinclass(h->h_field,
 				macid("{checkMIMETextHeaders}", NULL)))
 		{
-			if (strlen(h->h_value) > (size_t)MaxMimeHeaderLength)
+			size_t len;
+
+			len = strlen(h->h_value);
+			if (len > (size_t) MaxMimeHeaderLength)
 			{
 				h->h_value[MaxMimeHeaderLength - 1] = '\0';
 				sm_syslog(LOG_ALERT, e->e_id,
-					  "Truncated long MIME %s header (possible attack)",
-					  h->h_field);
+					  "Truncated long MIME %s header (length = %ld) (possible attack)",
+					  h->h_field, (unsigned long) len);
 				if (tTd(34, 11))
-					dprintf("  truncated long MIME %s header (possible attack)\n",
-						h->h_field);
+					dprintf("  truncated long MIME %s header (length = %ld) (possible attack)\n",
+						h->h_field,
+						(unsigned long) len);
 			}
 		}
 
@@ -1419,14 +1428,19 @@ putheader(mci, hdr, e, flags)
 		    wordinclass(h->h_field,
 				macid("{checkMIMEHeaders}", NULL)))
 		{
-			if (shorten_rfc822_string(h->h_value, MaxMimeHeaderLength))
+			size_t len;
+
+			len = strlen(h->h_value);
+			if (shorten_rfc822_string(h->h_value,
+						  MaxMimeHeaderLength))
 			{
 				sm_syslog(LOG_ALERT, e->e_id,
-					  "Truncated long MIME %s header (possible attack)",
-					  h->h_field);
+					  "Truncated long MIME %s header (length = %ld) (possible attack)",
+					  h->h_field, (unsigned long) len);
 				if (tTd(34, 11))
-					dprintf("  truncated long MIME %s header (possible attack)\n",
-						h->h_field);
+					dprintf("  truncated long MIME %s header (length = %ld) (possible attack)\n",
+						h->h_field,
+						(unsigned long) len);
 			}
 		}
 
@@ -1457,7 +1471,7 @@ putheader(mci, hdr, e, flags)
 		if (bitset(H_CHECK|H_ACHECK, h->h_flags) &&
 		    !bitintersect(h->h_mflags, mci->mci_mailer->m_flags) &&
 		    (h->h_macro == '\0' ||
-		     macvalue(h->h_macro & 0377, e) == NULL))
+		     macvalue(bitidx(h->h_macro), e) == NULL))
 		{
 			if (tTd(34, 11))
 				dprintf(" (skipped)\n");
@@ -1819,22 +1833,23 @@ copyheader(header)
 **		string -- the full header
 **
 **	Returns:
-**		TRUE if the header was modified, FALSE otherwise
+**		length of last offending field, 0 if all ok.
 **
 **	Side Effects:
 **		string modified in place
 */
 
-static bool
+static size_t
 fix_mime_header(string)
 	char *string;
 {
-	bool modified = FALSE;
 	char *begin = string;
 	char *end;
+	size_t len = 0;
+	size_t retlen = 0;
 
 	if (string == NULL || *string == '\0')
-		return FALSE;
+		return 0;
 
 	/* Split on each ';' */
 	while ((end = find_character(begin, ';')) != NULL)
@@ -1844,9 +1859,11 @@ fix_mime_header(string)
 
 		*end = '\0';
 
+		len = strlen(begin);
+
 		/* Shorten individual parameter */
 		if (shorten_rfc822_string(begin, MaxMimeFieldLength))
-			modified = TRUE;
+			retlen = len;
 
 		/* Collapse the possibly shortened string with rest */
 		bp = begin + strlen(begin);
@@ -1870,5 +1887,5 @@ fix_mime_header(string)
 		/* Move past ';' */
 		begin = end + 1;
 	}
-	return modified;
+	return retlen;
 }

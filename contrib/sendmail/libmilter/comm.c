@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: comm.c,v 8.30.4.5 2000/08/14 09:04:47 gshapiro Exp $";
+static char id[] = "@(#)$Id: comm.c,v 8.30.4.6 2000/10/05 22:44:01 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -55,6 +55,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 
 	*cmd = '\0';
 	*rlen = 0;
+
 	if (sd >= FD_SETSIZE)
 	{
 		smi_log(SMI_LOG_ERR, "%s: fd %d is larger than FD_SETSIZE %d",
@@ -62,6 +63,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 		*cmd = SMFIC_SELECT;
 		return NULL;
 	}
+
 	FD_Z;
 	i = 0;
 	while ((ret = select(sd + 1, &readset, NULL, &excset, timeout)) >= 1)
