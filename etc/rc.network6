@@ -215,6 +215,17 @@ network6_pass1() {
 		;;
 	esac
 
+	case ${ipv6_ipv4mapping} in
+	[Yy][Ee][Ss])
+		echo -n ' IPv4 mapped IPv6 address support=YES'
+		sysctl -w net.inet6.ip6.mapped_addr=1 >/dev/null
+		;;
+	'' | *)
+		echo -n ' IPv4 mapped IPv6 address support=NO'
+		sysctl -w net.inet6.ip6.mapped_addr=0 >/dev/null
+		;;
+	esac
+
 	echo '.'
 
 	# Let future generations know we made it.
