@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: key.c,v 1.187 2001/05/24 07:41:22 itojun Exp $	*/
+/*	$KAME: key.c,v 1.190 2001/06/04 22:35:10 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -411,14 +411,15 @@ static void *key_newbuf __P((const void *, u_int));
 #ifdef INET6
 static int key_ismyaddr6 __P((struct sockaddr_in6 *));
 #endif
-static int key_cmpsaidx_exactly
-	__P((struct secasindex *, struct secasindex *));
-static int key_cmpsaidx_withmode
-	__P((struct secasindex *, struct secasindex *));
-static int key_cmpsaidx_withoutmode2
-	__P((struct secasindex *, struct secasindex *));
-static int key_cmpsaidx_withoutmode
-	__P((struct secasindex *, struct secasindex *));
+
+/* flags for key_cmpsaidx() */
+#define CMP_HEAD	1	/* protocol, addresses. */
+#define CMP_MODE_REQID	2	/* additionally HEAD, reqid, mode. */
+#define CMP_REQID	3	/* additionally HEAD, reaid. */
+#define CMP_EXACTLY	4	/* all elements. */
+static int key_cmpsaidx
+	__P((struct secasindex *, struct secasindex *, int));
+
 static int key_cmpspidx_exactly
 	__P((struct secpolicyindex *, struct secpolicyindex *));
 static int key_cmpspidx_withmask
@@ -726,7 +727,7 @@ key_allocsa_policy(saidx)
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
-		if (key_cmpsaidx_withmode(&sah->saidx, saidx))
+		if (key_cmpsaidx(&sah->saidx, saidx, CMP_MODE_REQID))
 			goto found;
 	}
 
@@ -1820,7 +1821,7 @@ key_spdadd(so, m, mhp)
 
 	/* create new sadb_msg to reply. */
 	if (lft) {
-		n = key_gather_mbuf(m, mhp, 2, 4, SADB_EXT_RESERVED,
+		n = key_gather_mbuf(m, mhp, 2, 5, SADB_EXT_RESERVED,
 		    SADB_X_EXT_POLICY, SADB_EXT_LIFETIME_HARD,
 		    SADB_EXT_ADDRESS_SRC, SADB_EXT_ADDRESS_DST);
 	} else {
@@ -1874,7 +1875,7 @@ key_getnewspid()
 
 	/* when requesting to allocate spi ranged */
 	while (count--) {
-		newid = (policy_id = (policy_id == ~0 ? 1 : ++policy_id));
+		newid = (policy_id = (policy_id == ~0 ? 1 : policy_id + 1));
 
 		if ((sp = key_getspbyid(newid)) == NULL)
 			break;
@@ -2798,7 +2799,7 @@ key_getsah(saidx)
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
-		if (key_cmpsaidx_withoutmode2(&sah->saidx, saidx))
+		if (key_cmpsaidx(&sah->saidx, saidx, CMP_REQID))
 			return sah;
 	}
 
@@ -3858,139 +3859,21 @@ key_ismyaddr6(sin6)
 #endif /*INET6*/
 
 /*
- * compare two secasindex structure exactly.
- * IN:
- *	saidx0: source, it can be in SAD.
- *	saidx1: object.
- * OUT:
- *	1 : equal
- *	0 : not equal
- */
-static int
-key_cmpsaidx_exactly(saidx0, saidx1)
-	struct secasindex *saidx0, *saidx1;
-{
-	/* sanity */
-	if (saidx0 == NULL && saidx1 == NULL)
-		return 1;
-
-	if (saidx0 == NULL || saidx1 == NULL)
-		return 0;
-
-	if (saidx0->proto != saidx1->proto
-	 || saidx0->mode != saidx1->mode
-	 || saidx0->reqid != saidx1->reqid)
-		return 0;
-
-	if (bcmp(&saidx0->src, &saidx1->src, saidx0->src.ss_len) != 0 ||
-	    bcmp(&saidx0->dst, &saidx1->dst, saidx0->dst.ss_len) != 0)
-		return 0;
-
-	return 1;
-}
-
-/*
- * compare two secasindex structure with consideration mode.
- * don't compare port.
- * IN:
- *	saidx0: source, it is often in SAD.
- *	saidx1: object, it is often from SPD.
- * OUT:
- *	1 : equal
- *	0 : not equal
- */
-static int
-key_cmpsaidx_withmode(saidx0, saidx1)
-	struct secasindex *saidx0, *saidx1;
-{
-	/* sanity */
-	if (saidx0 == NULL && saidx1 == NULL)
-		return 1;
-
-	if (saidx0 == NULL || saidx1 == NULL)
-		return 0;
-
-	if (saidx0->proto != saidx1->proto)
-		return 0;
-
-	/*
-	 * If reqid of SPD is non-zero, unique SA is required.
-	 * The result must be of same reqid in this case.
-	 */
-	if (saidx1->reqid != 0 && saidx0->reqid != saidx1->reqid)
-		return 0;
-
-	if (saidx0->mode != IPSEC_MODE_ANY && saidx0->mode != saidx1->mode)
-		return 0;
-
-	if (key_sockaddrcmp((struct sockaddr *)&saidx0->src,
-	    (struct sockaddr *)&saidx1->src, 0) != 0) {
-		return 0;
-	}
-	if (key_sockaddrcmp((struct sockaddr *)&saidx0->dst,
-	    (struct sockaddr *)&saidx1->dst, 0) != 0) {
-		return 0;
-	}
-
-	return 1;
-}
-
-/*
- * compare two secasindex structure without mode, but think reqid.
- * don't compare port.
- * IN:
- *	saidx0: source, it is often in SAD.
- *	saidx1: object, it is often from user.
- * OUT:
- *	1 : equal
- *	0 : not equal
- */
-static int
-key_cmpsaidx_withoutmode2(saidx0, saidx1)
-	struct secasindex *saidx0, *saidx1;
-{
-	/* sanity */
-	if (saidx0 == NULL && saidx1 == NULL)
-		return 1;
-
-	if (saidx0 == NULL || saidx1 == NULL)
-		return 0;
-
-	if (saidx0->proto != saidx1->proto)
-		return 0;
-
-	/*
-	 * If reqid of SPD is non-zero, unique SA is required.
-	 * The result must be of same reqid in this case.
-	 */
-	if (saidx1->reqid != 0 && saidx0->reqid != saidx1->reqid)
-		return 0;
-
-	if (key_sockaddrcmp((struct sockaddr *)&saidx0->src,
-	    (struct sockaddr *)&saidx1->src, 0) != 0) {
-		return 0;
-	}
-	if (key_sockaddrcmp((struct sockaddr *)&saidx0->dst,
-	    (struct sockaddr *)&saidx1->dst, 0) != 0) {
-		return 0;
-	}
-
-	return 1;
-}
-
-/*
+ * compare two secasindex structure.
+ * flag can specify to compare 2 saidxes.
  * compare two secasindex structure without both mode and reqid.
  * don't compare port.
- * IN:
- *	saidx0: source, it is often in SAD.
- *	saidx1: object, it is often from user.
- * OUT:
- *	1 : equal
- *	0 : not equal
+ * IN:  
+ *      saidx0: source, it can be in SAD.
+ *      saidx1: object.
+ * OUT: 
+ *      1 : equal
+ *      0 : not equal
  */
 static int
-key_cmpsaidx_withoutmode(saidx0, saidx1)
+key_cmpsaidx(saidx0, saidx1, flag)
 	struct secasindex *saidx0, *saidx1;
+	int flag;
 {
 	/* sanity */
 	if (saidx0 == NULL && saidx1 == NULL)
@@ -4002,13 +3885,41 @@ key_cmpsaidx_withoutmode(saidx0, saidx1)
 	if (saidx0->proto != saidx1->proto)
 		return 0;
 
-	if (key_sockaddrcmp((struct sockaddr *)&saidx0->src,
-	    (struct sockaddr *)&saidx1->src, 0) != 0) {
-		return 0;
-	}
-	if (key_sockaddrcmp((struct sockaddr *)&saidx0->dst,
-	    (struct sockaddr *)&saidx1->dst, 0) != 0) {
-		return 0;
+	if (flag == CMP_EXACTLY) {
+		if (saidx0->mode != saidx1->mode)
+			return 0;
+		if (saidx0->reqid != saidx1->reqid)
+			return 0;
+		if (bcmp(&saidx0->src, &saidx1->src, saidx0->src.ss_len) != 0 ||
+		    bcmp(&saidx0->dst, &saidx1->dst, saidx0->dst.ss_len) != 0)
+			return 0;
+	} else {
+
+		/* CMP_MODE_REQID, CMP_REQID, CMP_HEAD */
+		if (flag == CMP_MODE_REQID
+		  ||flag == CMP_REQID) {
+			/*
+			 * If reqid of SPD is non-zero, unique SA is required.
+			 * The result must be of same reqid in this case.
+			 */
+			if (saidx1->reqid != 0 && saidx0->reqid != saidx1->reqid)
+				return 0;
+		}
+
+		if (flag == CMP_MODE_REQID) {
+			if (saidx0->mode != IPSEC_MODE_ANY
+			 && saidx0->mode != saidx1->mode)
+				return 0;
+		}
+
+		if (key_sockaddrcmp((struct sockaddr *)&saidx0->src,
+				(struct sockaddr *)&saidx1->src, 0) != 0) {
+			return 0;
+		}
+		if (key_sockaddrcmp((struct sockaddr *)&saidx0->dst,
+				(struct sockaddr *)&saidx1->dst, 0) != 0) {
+			return 0;
+		}
 	}
 
 	return 1;
@@ -5447,7 +5358,7 @@ key_delete(so, m, mhp)
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
-		if (key_cmpsaidx_withoutmode(&sah->saidx, &saidx) == 0)
+		if (key_cmpsaidx(&sah->saidx, &saidx, CMP_HEAD) == 0)
 			continue;
 
 		/* get a SA with SPI. */
@@ -5515,7 +5426,7 @@ key_delete_all(so, m, mhp, proto)
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
-		if (key_cmpsaidx_withoutmode(&sah->saidx, &saidx) == 0)
+		if (key_cmpsaidx(&sah->saidx, &saidx, CMP_HEAD) == 0)
 			continue;
 
 		/* Delete all non-LARVAL SAs. */
@@ -5633,7 +5544,7 @@ key_get(so, m, mhp)
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
-		if (key_cmpsaidx_withoutmode(&sah->saidx, &saidx) == 0)
+		if (key_cmpsaidx(&sah->saidx, &saidx, CMP_HEAD) == 0)
 			continue;
 
 		/* get a SA with SPI. */
@@ -6160,7 +6071,7 @@ key_getacq(saidx)
 	struct secacq *acq;
 
 	LIST_FOREACH(acq, &acqtree, chain) {
-		if (key_cmpsaidx_exactly(saidx, &acq->saidx))
+		if (key_cmpsaidx(saidx, &acq->saidx, CMP_EXACTLY))
 			return acq;
 	}
 
@@ -6331,7 +6242,7 @@ key_acquire2(so, m, mhp)
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
-		if (key_cmpsaidx_withmode(&sah->saidx, &saidx))
+		if (key_cmpsaidx(&sah->saidx, &saidx, CMP_MODE_REQID))
 			break;
 	}
 	if (sah != NULL) {
