@@ -66,6 +66,7 @@
 .ds doc-operating-system-FreeBSD-4.10   4.10
 .ds doc-operating-system-FreeBSD-5.1    5.1
 .ds doc-operating-system-FreeBSD-5.2    5.2
+.ds doc-operating-system-FreeBSD-5.2.1  5.2.1
 .ds doc-operating-system-FreeBSD-5.3    5.3
 .
 .ec
