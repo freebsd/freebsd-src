@@ -43,6 +43,10 @@
 #include <sys/ioccom.h>
 #include <sys/queue.h>
 
+#ifdef INET
+#include <netinet/ip.h>
+#endif
+
 struct gre_softc {
 	struct ifnet sc_if;
 	LIST_ENTRY(gre_softc) sc_list;
