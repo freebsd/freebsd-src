@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.130 1998/09/18 22:41:12 gibbs Exp $
+**  $Id: ncr.c,v 1.131 1998/09/20 22:54:28 ken Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -528,15 +528,17 @@ struct	usrcmd {
 **---------------------------------------
 */
 
+/* Type of the kernel variable `ticks'.  XXX should be declared with the var. */
+typedef int ticks_t;
+
 struct tstamp {
-	int	start;
-	int	end;
-	int	select;
-	int	command;
-	int	data;
-	int	status;
-	int	disconnect;
-	int	reselect;
+	ticks_t	start;
+	ticks_t	end;
+	ticks_t	select;
+	ticks_t	command;
+	ticks_t	data;
+	ticks_t	status;
+	ticks_t	disconnect;
 };
 
 /*
@@ -982,7 +984,7 @@ struct nccb {
 	**	It's set to time of start + allowed number of seconds.
 	*/
 
-	u_long		tlimit;
+	time_t		tlimit;
 
 	/*
 	**	All nccbs of one hostadapter are chained.
@@ -1139,10 +1141,10 @@ struct ncb {
 	/*
 	**	Timeout handler
 	*/
-	u_long		heartbeat;
+	time_t		heartbeat;
 	u_short		ticks;
 	u_short		latetime;
-	u_long		lasttime;
+	time_t		lasttime;
 	struct		callout_handle timeout_ch;
 
 	/*-----------------------------------------------
@@ -1152,7 +1154,7 @@ struct ncb {
 	**	register dump
 	*/
 	struct ncr_reg	regdump;
-	struct timeval	regtime;
+	time_t		regtime;
 
 	/*
 	**	Profiling data
@@ -1355,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.130 1998/09/18 22:41:12 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.131 1998/09/20 22:54:28 ken Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3025,7 +3027,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 	*p++ =SCR_JUMP;
 	*p++ =PADDRH(tryloop);
 
-	assert ((u_long)p == (u_long)&scrh->tryloop + sizeof (scrh->tryloop));
+	assert ((char *)p == (char *)&scrh->tryloop + sizeof (scrh->tryloop));
 
 	p = scr->data_in;
 
@@ -3049,7 +3051,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 	*p++ =SCR_JUMP;
 	*p++ =PADDR (no_data);
 
-	assert ((u_long)p == (u_long)&scr->data_in + sizeof (scr->data_in));
+	assert ((char *)p == (char *)&scr->data_in + sizeof (scr->data_in));
 
 	p = scr->data_out;
 
@@ -3073,7 +3075,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 	*p++ =SCR_JUMP;
 	*p++ =PADDR (no_data);
 
-	assert ((u_long)p == (u_long)&scr->data_out + sizeof (scr->data_out));
+	assert ((char *)p == (char *)&scr->data_out + sizeof (scr->data_out));
 }
 
 /*==========================================================
@@ -5134,8 +5136,8 @@ static void
 ncr_timeout (void *arg)
 {
 	ncb_p	np = arg;
-	u_long	thistime = time_second;
-	u_long	step  = np->ticks;
+	time_t	thistime = time_second;
+	ticks_t	step  = np->ticks;
 	u_long	count = 0;
 	long signed   t;
 	nccb_p cp;
@@ -5443,9 +5445,9 @@ void ncr_exception (ncb_p np)
 	**========================================
 	*/
 
-	if (time_second - np->regtime.tv_sec>10) {
+	if (time_second - np->regtime > 10) {
 		int i;
-		microtime(&np->regtime);
+		np->regtime = time_second;
 		for (i=0; i<sizeof(np->regdump); i++)
 			((char*)&np->regdump)[i] = INB_OFF(i);
 		np->regdump.nc_dstat = dstat;
@@ -5730,8 +5732,8 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 		cp = cp->link_nccb;
 
 	if (!cp) {
-	    printf ("%s: SCSI phase error fixup: CCB already dequeued (0x%08lx)\n", 
-		    ncr_name (np), (u_long) np->header.cp);
+	    printf ("%s: SCSI phase error fixup: CCB already dequeued (%p)\n", 
+		    ncr_name (np), (void *) np->header.cp);
 	    return;
 	}
 	if (cp != np->header.cp) {
