@@ -47,28 +47,6 @@
 
 #define PC98_CLASS_NAME "PC98"
 
-static void
-g_dec_pc98_partition(u_char *ptr, struct pc98_partition *d)
-{
-	u_int u;
-
-	d->dp_mid = ptr[0];
-	d->dp_sid = ptr[1];
-	d->dp_dum1 = ptr[2];
-	d->dp_dum2 = ptr[3];
-	d->dp_ipl_sct = ptr[4];
-	d->dp_ipl_head = ptr[5];
-	d->dp_ipl_cyl = le16dec(ptr + 6);
-	d->dp_ssect = ptr[8];
-	d->dp_shd = ptr[9];
-	d->dp_scyl = le16dec(ptr + 10);
-	d->dp_esect = ptr[12];
-	d->dp_ehd = ptr[13];
-	d->dp_ecyl = le16dec(ptr + 14);
-	for (u = 0; u < sizeof(d->dp_name); u++)
-		d->dp_name[u] = ptr[16 + u];
-}
-
 struct g_pc98_softc {
 	u_int fwsectors, fwheads, sectorsize;
 	int type[NDOSPART];
@@ -113,7 +91,7 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
 #endif
 
 	for (i = 0; i < NDOSPART; i++)
-		g_dec_pc98_partition(
+		pc98_partition_dec(
 			sec + 512 + i * sizeof(struct pc98_partition), &dp[i]);
 
 	for (i = 0; i < NDOSPART; i++) {
@@ -261,7 +239,7 @@ g_pc98_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	mp = gsp->softc;
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 	if (pp != NULL) {
-		g_dec_pc98_partition(
+		pc98_partition_dec(
 			mp->sec + 512 +
 			pp->index * sizeof(struct pc98_partition), &dp);
 		strncpy(sname, dp.dp_name, 16);
