@@ -343,6 +343,7 @@ typedef struct ips_wait_list{
 typedef struct ips_softc{
         struct resource *       iores;
         struct resource *       irqres;
+        struct intr_config_hook ips_ich;
         int                     configured;
         int                     state;
         int                     iotype;
