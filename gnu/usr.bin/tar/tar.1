@@ -365,12 +365,44 @@ Block the output of compression program for tapes or floppies
 Specify tape drive and density.
 .El
 .Sh ENVIRONMENT
-The environment variable
+The
+.Nm
+program examines the following environment variables.
+.Bl -tag -width "POSIXLY_CORRECT"
+.It Ev POSIXLY_CORRECT
+Normally,
+.Nm
+will process flag arguments that appear in the file list.
+If set in the environment, this causes
+.Nm
+to consider the first
+non-flag argument to terminate flag processing, as per the POSIX specification.
+.It Ev SHELL
+In interactive mode, a permissible response to the prompt is to
+request to spawn a subshell, which will be
+.Pa /bin/sh
+unless the
+.Ev SHELL
+variable is set.
+.It Ev TAPE
+Changes
+.Nm Ns 's
+default tape drive (which is still overridden by the
+.Fl f
+flag).
+.It Ev TAR_OPTIONS
+The
 .Ev TAR_OPTIONS
+environment variable
 can hold a set of default options for
 .Nm .
 These options are interpreted first and can be overwritten by explicit command
 line parameters.
+.It TAR_RSH
+The TAR_RSH environment variable allows you to override the default
+shell used as the transport for
+.Nm .
+.El
 .Sh EXAMPLES
 To create an archive on tape drive
 .Pa /dev/sa0
@@ -457,37 +489,6 @@ To specify the correct time zone use either e.g.\&
 .Sq "13:15 CEST"
 or
 .Sq "13:15+200" .
-.Sh ENVIRONMENT
-The
-.Nm
-program examines the following environment variables.
-.Bl -tag -width "POSIXLY_CORRECT"
-.It Ev POSIXLY_CORRECT
-Normally,
-.Nm
-will process flag arguments that appear in the file list.
-If set in the environment, this causes
-.Nm
-to consider the first
-non-flag argument to terminate flag processing, as per the POSIX specification.
-.It Ev SHELL
-In interactive mode, a permissible response to the prompt is to
-request to spawn a subshell, which will be
-.Pa /bin/sh
-unless the
-.Ev SHELL
-variable is set.
-.It Ev TAPE
-Changes
-.Nm Ns 's
-default tape drive (which is still overridden by the
-.Fl f
-flag).
-.It TAR_RSH
-The TAR_RSH environment variable allows you to override the default
-shell used as the transport for
-.Nm .
-.El
 .Sh FILES
 .Bl -tag -width "/dev/sa0"
 .It Pa /dev/sa0
