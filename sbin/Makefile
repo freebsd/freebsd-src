@@ -84,10 +84,14 @@ SUBDIR=	adjkerntz \
 
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=cxconfig \
-	fdisk \
 	kget \
 	mount_nwfs \
 	nextboot
+.if ${MACHINE} == "pc98"
+SUBDIR+=fdisk_pc98
+.else
+SUBDIR+=fdisk
+.endif
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
