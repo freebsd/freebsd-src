@@ -47,10 +47,10 @@ towctrans(wint_t wc, wctrans_t desc)
 
 	switch (desc) {
 	case _WCT_TOLOWER:
-		wc = tolower(wc);
+		wc = towlower(wc);
 		break;
 	case _WCT_TOUPPER:
-		wc = toupper(wc);
+		wc = towupper(wc);
 		break;
 	case _WCT_ERROR:
 	default:
