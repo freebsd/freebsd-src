@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.52 2003/06/11 16:53:26 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.53 2003/06/17 12:29:20 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -771,6 +771,7 @@
 #define	PCMCIA_VENDOR_EPSON	0xffffffff	/* Seiko Epson Corporation */
 #define	PCMCIA_VENDOR_EXP	0xffffffff	/* EXP Computer Inc */
 #define	PCMCIA_VENDOR_FUTUREDOMAIN	0xffffffff	/* FutureDomain */
+#define	PCMCIA_VENDOR_FREECOM	0xffffffff	/* Freecom */
 #define	PCMCIA_VENDOR_GEMTEK	0xffffffff	/* Gem Tek */
 #define	PCMCIA_VENDOR_ICOM	0xffffffff	/* ICOM Inc */
 #define	PCMCIA_VENDOR_INTERSIL	0xffffffff	/* Intersil */
@@ -897,6 +898,9 @@
 #define	PCMCIA_CIS_EXP_EXPMULTIMEDIA	{ "EXP   ", "PnPIDE", "F1", NULL }
 #define	PCMCIA_PRODUCT_EXP_EXPMULTIMEDIA	0xffffffff
 #define	PCMCIA_STR_EXP_EXPMULTIMEDIA	"EXP IDE/ATAPI DVD Card"
+#define	PCMCIA_CIS_FREECOM_PCCARDIDE	{ "FREECOM", "PCCARD-IDE", NULL, NULL }
+#define	PCMCIA_PRODUCT_FREECOM_PCCARDIDE	0xffffffff
+#define	PCMCIA_STR_FREECOM_PCCARDIDE	"FREECOM PCCARD-IDE"
 #define	PCMCIA_CIS_FUJITSU_FMV_J181	{ "PCMCIA MBH10302", "01", NULL, NULL }
 #define	PCMCIA_PRODUCT_FUJITSU_FMV_J181	0xffffffff
 #define	PCMCIA_STR_FUJITSU_FMV_J181	"FUJITSU FMV-J181 PCMCIA Card"
