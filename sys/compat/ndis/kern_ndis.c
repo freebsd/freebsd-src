@@ -81,7 +81,6 @@ __stdcall static void ndis_statusdone_func(ndis_handle);
 __stdcall static void ndis_setdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_getdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
-static void ndis_free_packet_and_bufs(ndis_packet *);
 
 /*
  * This allows us to export our symbols to other modules.
@@ -329,38 +328,6 @@ ndis_flush_sysctls(arg)
 }
 
 void
-ndis_free_bufs(b0)
-	ndis_buffer		*b0;
-{
-	ndis_buffer		*next;
-
-	if (b0 == NULL)
-		return;
-
-	while(b0 != NULL) {
-		next = b0->nb_next;
-		ndis_free_buf(b0);
-		b0 = next;
-	}
-
-	return;
-}
-
-static void
-ndis_free_packet_and_bufs(p)
-	ndis_packet		*p;
-{
-	if (p == NULL)
-		return;
-
-	ndis_free_bufs(p->np_private.npp_head);
-	p->np_private.npp_head = NULL;
-	ndis_free_packet(p);
-
-	return;
-}
-
-void
 ndis_return_packet(buf, arg)
 	void			*buf;	/* not used */
 	void			*arg;
@@ -385,10 +352,41 @@ ndis_return_packet(buf, arg)
 	sc = p->np_softc;
 	returnfunc = sc->ndis_chars.nmc_return_packet_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (returnfunc == NULL || p->np_oob.npo_status != NDIS_STATUS_PENDING)
-		ndis_free_packet_and_bufs(p);
+	if (returnfunc == NULL)
+		ndis_free_packet(p);
 	else
 		returnfunc(adapter, p);
+	return;
+}
+
+void
+ndis_free_bufs(b0)
+	ndis_buffer		*b0;
+{
+	ndis_buffer		*next;
+
+	if (b0 == NULL)
+		return;
+
+	while(b0 != NULL) {
+		next = b0->nb_next;
+		free (b0, M_DEVBUF);
+		b0 = next;
+	}
+
+	return;
+}
+
+void
+ndis_free_packet(p)
+	ndis_packet		*p;
+{
+	if (p == NULL)
+		return;
+
+	ndis_free_bufs(p->np_private.npp_head);
+	free(p, M_DEVBUF);
+
 	return;
 }
 

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/timespec.h>
+#include <sys/smp.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -150,6 +151,7 @@ __stdcall static void ndis_deregister_ioport(ndis_handle,
 	uint32_t, uint32_t, void *);
 __stdcall static void ndis_read_netaddr(ndis_status *, void **,
 	uint32_t *, ndis_handle);
+__stdcall static ndis_status ndis_mapreg_cnt(uint32_t, uint32_t *);
 __stdcall static ndis_status ndis_alloc_mapreg(ndis_handle,
 	uint32_t, uint8_t, uint32_t, uint32_t);
 __stdcall static void ndis_free_mapreg(ndis_handle);
@@ -242,6 +244,7 @@ __stdcall static void ndis_open_file(ndis_status *, ndis_handle *, uint32_t *,
 __stdcall static void ndis_map_file(ndis_status *, void **, ndis_handle);
 __stdcall static void ndis_unmap_file(ndis_handle);
 __stdcall static void ndis_close_file(ndis_handle);
+__stdcall static u_int8_t ndis_cpu_cnt(void);
 __stdcall static void dummy(void);
 
 
@@ -1086,6 +1089,15 @@ ndis_read_netaddr(status, addr, addrlen, adapter)
 }
 
 __stdcall static ndis_status
+ndis_mapreg_cnt(bustype, cnt)
+	uint32_t		bustype;
+	uint32_t		*cnt;
+{
+	*cnt = 64;
+	return(NDIS_STATUS_SUCCESS);
+}
+
+__stdcall static ndis_status
 ndis_alloc_mapreg(adapter, dmachannel, dmasize, physmapneeded, maxmap)
 	ndis_handle		adapter;
 	uint32_t		dmachannel;
@@ -1477,8 +1489,8 @@ ndis_alloc_packet(status, packet, pool)
 	return;
 }
 
-void
-ndis_free_packet(packet)
+__stdcall static void
+ndis_release_packet(packet)
 	ndis_packet		*packet;
 {
 	ndis_packet		*head;
@@ -1496,14 +1508,6 @@ ndis_free_packet(packet)
 
 	return;
 }
-
-__stdcall static void
-ndis_release_packet(packet)
-	ndis_packet		*packet;
-{
-	ndis_free_packet(packet);
-	return;
-}	
 
 __stdcall static void
 ndis_unchain_headbuf(packet, buf)
@@ -1644,8 +1648,8 @@ ndis_alloc_buf(status, buffer, pool, vaddr, len)
 	return;
 }
 
-void
-ndis_free_buf(buf)
+__stdcall static void
+ndis_release_buf(buf)
 	ndis_buffer		*buf;
 {
 	ndis_buffer		*head;
@@ -1661,14 +1665,6 @@ ndis_free_buf(buf)
 	buf->nb_next = head->nb_next;
 	head->nb_next = buf;
 
-	return;
-}
-
-__stdcall static void
-ndis_release_buf(buf)
-	ndis_buffer		*buf;
-{
-	ndis_free_buf(buf);
 	return;
 }
 
@@ -2265,6 +2261,16 @@ ndis_close_file(filehandle)
 	return;
 }
 
+__stdcall static uint8_t
+ndis_cpu_cnt()
+{
+#ifdef SMP
+	return(mp_ncpus);
+#else
+	return(1);
+#endif
+};
+
 __stdcall static void
 dummy()
 {
@@ -2273,6 +2279,7 @@ dummy()
 }
 
 image_patch_table ndis_functbl[] = {
+	{ "NdisSystemProcessorCount",	(FUNC)ndis_cpu_cnt },
 	{ "NdisUnchainBufferAtBack",	(FUNC)ndis_unchain_tailbuf, },
 	{ "NdisGetFirstBufferFromPacket", (FUNC)ndis_firstbuf },
 	{ "NdisGetFirstBufferFromPacketSafe", (FUNC)ndis_firstbuf_safe },
@@ -2322,8 +2329,9 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisMRegisterIoPortRange",	(FUNC)ndis_register_ioport },
 	{ "NdisMDeregisterIoPortRange",	(FUNC)ndis_deregister_ioport },
 	{ "NdisReadNetworkAddress",	(FUNC)ndis_read_netaddr },
+	{ "NdisQueryMapRegisterCount",	(FUNC)ndis_mapreg_cnt },
 	{ "NdisMAllocateMapRegisters",	(FUNC)ndis_alloc_mapreg },
-        { "NdisMFreeMapRegisters",	(FUNC)ndis_free_mapreg },
+	{ "NdisMFreeMapRegisters",	(FUNC)ndis_free_mapreg },
 	{ "NdisMAllocateSharedMemory",	(FUNC)ndis_alloc_sharedmem },
 	{ "NdisMMapIoSpace",		(FUNC)ndis_map_iospace },
 	{ "NdisMUnmapIoSpace",		(FUNC)ndis_unmap_iospace },

@@ -1048,6 +1048,12 @@ ndis_ifmedia_sts(ifp, ifmr)
 	ndis_media_state	linkstate;
 	int			error, len;
 
+	ifmr->ifm_status = IFM_AVALID;
+	ifmr->ifm_active = IFM_ETHER;
+
+	if (!(ifp->if_flags & IFF_UP))
+		return;
+
 	sc = ifp->if_softc;
 
 	len = sizeof(linkstate);
@@ -1057,9 +1063,6 @@ ndis_ifmedia_sts(ifp, ifmr)
 	len = sizeof(media_info);
 	error = ndis_get_info(sc, OID_GEN_LINK_SPEED,
 	    (void *)&media_info, &len);
-
-        ifmr->ifm_status = IFM_AVALID;
-        ifmr->ifm_active = IFM_ETHER;
 
 	if (linkstate == nmc_connected)
 		ifmr->ifm_status |= IFM_ACTIVE;
