@@ -126,21 +126,6 @@ The
 function tests specified conditions and panics if they are not met and the
 kernel is compiled with
 .Dv INVARIANTS .
-.Pp
-The
-.Fn SX_SYSINIT
-macro is used to generate a call to the
-.Fn sx_sysinit
-routine at system startup in order to initialize a given
-.Fa sx
-lock.
-The parameters are the same as
-.Fn sx_init
-but with an additional argument,
-.Fa name ,
-that is used in generating unique variable names for the related
-structures associated with the lock and the sysinit routine.
-.Pp
 The following assertions are supported:
 .Bl -tag -width ".Dv SX_XLOCKED"
 .It Dv SX_LOCKED
@@ -158,6 +143,20 @@ Assert that the current thread has an exclusive lock on the
 lock pointed to
 by the first argument.
 .El
+.Pp
+The
+.Fn SX_SYSINIT
+macro is used to generate a call to the
+.Fn sx_sysinit
+routine at system startup in order to initialize a given
+.Fa sx
+lock.
+The parameters are the same as
+.Fn sx_init
+but with an additional argument,
+.Fa name ,
+that is used in generating unique variable names for the related
+structures associated with the lock and the sysinit routine.
 .Pp
 A thread may not own a shared lock and an exclusive lock simultaneously;
 attempting to do so will result in deadlock.
