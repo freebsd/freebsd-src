@@ -464,6 +464,7 @@ execsigs(p)
 	p->p_sigstk.ss_flags = SS_DISABLE;
 	p->p_sigstk.ss_size = 0;
 	p->p_sigstk.ss_sp = 0;
+	p->p_flag &= ~P_ALTSTACK;
 	/*
 	 * Reset no zombies if child dies flag as Solaris does.
 	 */
