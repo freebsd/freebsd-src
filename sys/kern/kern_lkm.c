@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.49 1998/06/07 17:11:34 dfr Exp $
+ * $Id: kern_lkm.c,v 1.50 1998/06/25 11:27:36 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -262,7 +262,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 
 		/* copy in buffer full of data */
 		err = copyin((caddr_t)loadbufp->data,
-		    (caddr_t)curp->area + curp->offset, i);
+		    (caddr_t)(uintptr_t)(curp->area + curp->offset), i);
 		if (err)
 			break;
 
@@ -302,7 +302,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 			break;
 		case LKMS_LOADING:
 			/* The remainder must be bss, so we clear it */
-			bzero((caddr_t)curp->area + curp->offset,
+			bzero((caddr_t)(uintptr_t)(curp->area + curp->offset),
 			      curp->size - curp->offset);
 			break;
 		default:
@@ -315,7 +315,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 
 		/* XXX gack */
 		curp->entry = (int (*) __P((struct lkm_table *, int, int)))
-			      (*((long *)data));
+			      (*(uintfptr_t *)data);
 
 		/* call entry(load)... (assigns "private" portion) */
 		err = (*(curp->entry))(curp, LKM_E_LOAD, LKM_VERSION);
@@ -462,7 +462,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 		statp->type	= curp->private.lkm_any->lkm_type;
 		statp->area	= curp->area;
 		statp->size	= curp->size / PAGESIZE;
-		statp->private	= (unsigned long)curp->private.lkm_any;
+		statp->private	= (uintptr_t)curp->private.lkm_any;
 		statp->ver	= curp->private.lkm_any->lkm_ver;
 		copystr(curp->private.lkm_any->lkm_name,
 			  statp->name,
