@@ -343,17 +343,8 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 				     (t->inp_socket->so_options &
 					 SO_REUSEPORT) == 0) &&
 				    (so->so_cred->cr_uid !=
-				     t->inp_socket->so_cred->cr_uid)) {
-#if defined(INET6)
-					if (ntohl(sin->sin_addr.s_addr) !=
-					    INADDR_ANY ||
-					    ntohl(t->inp_laddr.s_addr) !=
-					    INADDR_ANY ||
-					    INP_SOCKAF(so) ==
-					    INP_SOCKAF(t->inp_socket))
-#endif /* defined(INET6) */
+				     t->inp_socket->so_cred->cr_uid))
 					return (EADDRINUSE);
-				}
 			}
 			if (prison && prison_ip(cred, 0, &sin->sin_addr.s_addr))
 				return (EADDRNOTAVAIL);
