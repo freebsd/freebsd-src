@@ -159,6 +159,10 @@
       <para>A short hiccup in the &man.em.4; during parameter
 	reconfiguration, has been fixed.</para>
 
+      <para>The hardware TX checksum support of the &man.xl.4; driver
+	has been disabled as it does not work correctly and slows down
+	the transmission rate.</para>
+
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
     </sect3>
