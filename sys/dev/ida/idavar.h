@@ -184,6 +184,7 @@ struct ida_board {
 	u_int32_t	board;
 	char 		*desc;
 	struct		ida_access *accessor;
+	int		flags;
 };
 
 extern int ida_detach(device_t dev);
