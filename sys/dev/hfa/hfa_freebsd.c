@@ -391,22 +391,12 @@ hfa_modevent (module_t mod, int what, void *arg)
 		uma_zone_set_max(fore_vcc_zone, 100);
 	
 		/*
-		* Initialize DMA mapping
-		*/
-		DMA_INIT();
-
-		/*
 		* Start up watchdog timer
 		*/
 		atm_timeout(&fore_timer, ATM_HZ * FORE_TIME_TICK, fore_timeout);
 
 		break;
 	case MOD_UNLOAD:
-		/*
-		 * Release DMA mapping
-		 */
-		DMA_RELEASE();
-
 		/*
 		 * Stop watchdog timer
 		 */

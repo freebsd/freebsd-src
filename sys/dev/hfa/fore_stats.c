@@ -148,8 +148,7 @@ fore_get_stats(fup)
 		cqp = hcp->hcq_cpelem;
 		(*hcp->hcq_status) = QSTAT_PENDING;
 
-		dma = DMA_GET_ADDR(fup->fu_stats, sizeof(Fore_cp_stats),
-			FORE_STATS_ALIGN, 0);
+		dma = (void *)vtophys(fup->fu_stats);
 		if (dma == NULL) {
 			fup->fu_stats->st_drv.drv_cm_nodma++;
 			(void) splx(s);

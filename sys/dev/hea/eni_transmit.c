@@ -143,7 +143,7 @@ int	size;
 	if ( dsize ) {
 		dma_list[(*idx)++] = ( dsize >> 3 ) << DMA_COUNT_SHIFT |
 			val << DMA_VCC_SHIFT | DMA_8WORD;
-		dma_list[*idx] = (u_long)DMA_GET_ADDR ( addr, dsize, 0, 0 );
+		dma_list[*idx] = (u_long)vtophys(addr);
 		if ( dma_list[*idx] == 0 ) {
 			if ( rx )
 				eup->eu_stats.eni_st_drv.drv_rv_segdma++;
@@ -183,7 +183,7 @@ int	size;
 	if ( dsize ) {
 		dma_list[(*idx)++] = ( dsize >> 2 ) << DMA_COUNT_SHIFT |
 			val << DMA_VCC_SHIFT | DMA_4WORD;
-		dma_list[*idx] = (u_long)DMA_GET_ADDR ( addr, dsize, 0, 0 );
+		dma_list[*idx] = (u_long)vtophys(addr);
 		if ( dma_list[*idx] == 0 ) {
 			if ( rx )
 				eup->eu_stats.eni_st_drv.drv_rv_segdma++;
@@ -218,7 +218,7 @@ int	size;
 	if ( size ) {
 		dma_list[(*idx)++] = ( size ) << DMA_COUNT_SHIFT |
 			val << DMA_VCC_SHIFT | DMA_WORD;
-		dma_list[*idx] = (u_long)DMA_GET_ADDR ( addr, size, 0, 0 );
+		dma_list[*idx] = (u_long)vtophys(addr);
 		if ( dma_list[*idx] == 0 ) {
 			if ( rx )
 				eup->eu_stats.eni_st_drv.drv_rv_segdma++;

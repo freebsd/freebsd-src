@@ -107,9 +107,7 @@ fore_buf_allocate(fup)
 	fup->fu_buf1s_stat = (Q_status *) memp;
 	fup->fu_buf1l_stat = ((Q_status *) memp) + BUF1_SM_QUELEN;
 
-	memp = DMA_GET_ADDR(fup->fu_buf1s_stat,
-			sizeof(Q_status) * (BUF1_SM_QUELEN + BUF1_LG_QUELEN),
-			QSTAT_ALIGN, ATM_DEV_NONCACHE);
+	memp = (caddr_t)vtophys(fup->fu_buf1s_stat);
 	if (memp == NULL) {
 		return (1);
 	}
@@ -130,10 +128,7 @@ fore_buf_allocate(fup)
 	fup->fu_buf1l_desc = ((Buf_descr *) memp) + 
 			(BUF1_SM_QUELEN * BUF1_SM_ENTSIZE);
 
-	memp = DMA_GET_ADDR(fup->fu_buf1s_desc, sizeof(Buf_descr) *
-			((BUF1_SM_QUELEN * BUF1_SM_ENTSIZE) + 
-			 (BUF1_LG_QUELEN * BUF1_LG_ENTSIZE)),
-			BUF_DESCR_ALIGN, 0);
+	memp = (caddr_t)vtophys(fup->fu_buf1s_desc);
 	if (memp == NULL) {
 		return (1);
 	}
@@ -410,8 +405,7 @@ fore_buf_supply_1s(fup)
 			 */
 			bdp->bsd_handle = bhp;
 			KB_DATASTART(m, cp, caddr_t);
-			bhp->bh_dma = bdp->bsd_buffer = (H_dma) DMA_GET_ADDR(
-				cp, BUF1_SM_SIZE, BUF_DATA_ALIGN, 0);
+			bhp->bh_dma = bdp->bsd_buffer = vtophys(cp);
 			if (bdp->bsd_buffer == NULL) {
 				/*
 				 * Unable to assign dma address - free up
@@ -448,7 +442,6 @@ fore_buf_supply_1s(fup)
 				m = (KBuffer *)
 					((caddr_t)bhp - BUF1_SM_HOFF);
 				KB_DATASTART(m, cp, caddr_t);
-				DMA_FREE_ADDR(cp, bhp->bh_dma, BUF1_SM_SIZE, 0);
 				KB_FREEALL(m);
 			}
 			break;
@@ -552,8 +545,7 @@ fore_buf_supply_1l(fup)
 			 */
 			bdp->bsd_handle = bhp;
 			KB_DATASTART(m, cp, caddr_t);
-			bhp->bh_dma = bdp->bsd_buffer = (H_dma) DMA_GET_ADDR(
-				cp, BUF1_LG_SIZE, BUF_DATA_ALIGN, 0);
+			bhp->bh_dma = bdp->bsd_buffer = vtophys(cp);
 			if (bdp->bsd_buffer == NULL) {
 				/*
 				 * Unable to assign dma address - free up
@@ -589,7 +581,6 @@ fore_buf_supply_1l(fup)
 				m = (KBuffer *)
 					((caddr_t)bhp - BUF1_LG_HOFF);
 				KB_DATASTART(m, cp, caddr_t);
-				DMA_FREE_ADDR(cp, bhp->bh_dma, BUF1_LG_SIZE, 0);
 				KB_FREEALL(m);
 			}
 			break;
@@ -736,8 +727,6 @@ fore_buf_free(fup)
 			DEQUEUE(bhp, Buf_handle, bh_qelem, fup->fu_buf1s_bq);
 
 			KB_DATASTART(m, cp, caddr_t);
-			DMA_FREE_ADDR(cp, bhp->bh_dma, BUF1_SM_SIZE, 0);
-
 			KB_FREEALL(m);
 		}
 
@@ -758,8 +747,6 @@ fore_buf_free(fup)
 			DEQUEUE(bhp, Buf_handle, bh_qelem, fup->fu_buf1l_bq);
 
 			KB_DATASTART(m, cp, caddr_t);
-			DMA_FREE_ADDR(cp, bhp->bh_dma, BUF1_LG_SIZE, 0);
-
 			KB_FREEALL(m);
 		}
 	}
@@ -768,12 +755,6 @@ fore_buf_free(fup)
 	 * Free the status words
 	 */
 	if (fup->fu_buf1s_stat) {
-		if (fup->fu_buf1s_statd) {
-			DMA_FREE_ADDR(fup->fu_buf1s_stat, fup->fu_buf1s_statd,
-				sizeof(Q_status) *
-					(BUF1_SM_QUELEN + BUF1_LG_QUELEN),
-				ATM_DEV_NONCACHE);
-		}
 		atm_dev_free((volatile void *)fup->fu_buf1s_stat);
 		fup->fu_buf1s_stat = NULL;
 		fup->fu_buf1s_statd = NULL;
@@ -785,13 +766,6 @@ fore_buf_free(fup)
 	 * Free the transmit descriptors
 	 */
 	if (fup->fu_buf1s_desc) {
-		if (fup->fu_buf1s_descd) {
-			DMA_FREE_ADDR(fup->fu_buf1s_desc, fup->fu_buf1s_descd,
-				sizeof(Buf_descr) *
-					((BUF1_SM_QUELEN * BUF1_SM_ENTSIZE) +
-					 (BUF1_LG_QUELEN * BUF1_LG_ENTSIZE)),
-				0);
-		}
 		atm_dev_free(fup->fu_buf1s_desc);
 		fup->fu_buf1s_desc = NULL;
 		fup->fu_buf1s_descd = NULL;

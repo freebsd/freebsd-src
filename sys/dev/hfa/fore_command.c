@@ -103,8 +103,7 @@ fore_cmd_allocate(fup)
 	}
 	fup->fu_cmd_stat = (Q_status *) memp;
 
-	memp = DMA_GET_ADDR(fup->fu_cmd_stat, sizeof(Q_status) * CMD_QUELEN,
-			QSTAT_ALIGN, ATM_DEV_NONCACHE);
+	memp = (caddr_t)vtophys(fup->fu_cmd_stat);
 	if (memp == NULL) {
 		return (1);
 	}
@@ -300,8 +299,6 @@ fore_cmd_drain(fup)
 				 */
 				fup->fu_stats_ret = 0;
 			}
-			DMA_FREE_ADDR(fup->fu_stats, fup->fu_statsd,
-				sizeof(Fore_cp_stats), 0);
 			fup->fu_flags &= ~FUF_STATCMD;
 
 			/*
@@ -371,9 +368,6 @@ fore_cmd_drain(fup)
 					fp->pr_hwver & 0xff);
 				fup->fu_config.ac_serial = fp->pr_serno;
 			}
-
-			DMA_FREE_ADDR(fup->fu_prom, fup->fu_promd,
-				sizeof(Fore_prom), 0);
 			break;
 
 		default:
@@ -451,11 +445,6 @@ fore_cmd_free(fup)
 	 * Free the status words
 	 */
 	if (fup->fu_cmd_stat) {
-		if (fup->fu_cmd_statd) {
-			DMA_FREE_ADDR(fup->fu_cmd_stat, fup->fu_cmd_statd,
-				sizeof(Q_status) * CMD_QUELEN,
-				ATM_DEV_NONCACHE);
-		}
 		atm_dev_free((volatile void *)fup->fu_cmd_stat);
 		fup->fu_cmd_stat = NULL;
 		fup->fu_cmd_statd = NULL;

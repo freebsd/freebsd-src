@@ -328,14 +328,6 @@ struct atm_ncm {
 #define	ATM_DEV_CMPR_SM	MLEN		/* Size of small buffers */
 
 /*
- * Macros to manage DMA addresses
- */
-#define	DMA_INIT()
-#define	DMA_GET_ADDR(addr,len,align,flags)	((void *)vtophys(addr))
-#define	DMA_FREE_ADDR(addr,daddr,len,flags)
-#define	DMA_RELEASE()
-
-/*
  * Macros to lock out device interrupts
  */
 #define	DEVICE_LOCK(u)		((u)->cu_savepri = splimp())

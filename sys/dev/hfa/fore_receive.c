@@ -100,8 +100,7 @@ fore_recv_allocate(fup)
 	}
 	fup->fu_recv_stat = (Q_status *) memp;
 
-	memp = DMA_GET_ADDR(fup->fu_recv_stat, sizeof(Q_status) * RECV_QUELEN,
-			QSTAT_ALIGN, ATM_DEV_NONCACHE);
+	memp = (caddr_t)vtophys(fup->fu_recv_stat);
 	if (memp == NULL) {
 		return (1);
 	}
@@ -117,8 +116,7 @@ fore_recv_allocate(fup)
 	}
 	fup->fu_recv_desc = (Recv_descr *) memp;
 
-	memp = DMA_GET_ADDR(fup->fu_recv_desc,
-			sizeof(Recv_descr) * RECV_QUELEN, RECV_DESCR_ALIGN, 0);
+	memp = (caddr_t)vtophys(fup->fu_recv_desc);
 	if (memp == NULL) {
 		return (1);
 	}
@@ -328,7 +326,6 @@ retry:
 				fup->fu_buf1s_cnt--;
 				m = (KBuffer *) ((caddr_t)bhp - BUF1_SM_HOFF);
 				KB_DATASTART(m, cp, caddr_t);
-				DMA_FREE_ADDR(cp, bhp->bh_dma, BUF1_SM_SIZE, 0);
 				break;
 
 			case BHT_S1_LARGE:
@@ -337,7 +334,6 @@ retry:
 				fup->fu_buf1l_cnt--;
 				m = (KBuffer *) ((caddr_t)bhp - BUF1_LG_HOFF);
 				KB_DATASTART(m, cp, caddr_t);
-				DMA_FREE_ADDR(cp, bhp->bh_dma, BUF1_LG_SIZE, 0);
 				break;
 
 			default:
@@ -581,11 +577,6 @@ fore_recv_free(fup)
 	 * Free the status words
 	 */
 	if (fup->fu_recv_stat) {
-		if (fup->fu_recv_statd) {
-			DMA_FREE_ADDR(fup->fu_recv_stat, fup->fu_recv_statd,
-				sizeof(Q_status) * RECV_QUELEN,
-				ATM_DEV_NONCACHE);
-		}
 		atm_dev_free((volatile void *)fup->fu_recv_stat);
 		fup->fu_recv_stat = NULL;
 		fup->fu_recv_statd = NULL;
@@ -595,10 +586,6 @@ fore_recv_free(fup)
 	 * Free the receive descriptors
 	 */
 	if (fup->fu_recv_desc) {
-		if (fup->fu_recv_descd) {
-			DMA_FREE_ADDR(fup->fu_recv_desc, fup->fu_recv_descd,
-				sizeof(Recv_descr) * RECV_QUELEN, 0);
-		}
 		atm_dev_free(fup->fu_recv_desc);
 		fup->fu_recv_desc = NULL;
 		fup->fu_recv_descd = NULL;
