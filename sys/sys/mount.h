@@ -212,7 +212,7 @@ struct mount {
 			MNT_NOSYMFOLLOW	| MNT_IGNORE	| MNT_JAILDEVFS	| \
 			MNT_NOCLUSTERR	| MNT_NOCLUSTERW | MNT_SUIDDIR	| \
 			MNT_ACLS )
-  
+
 /*
  * External filesystem command modifier flags.
  * Unmount can use the MNT_FORCE flag.
@@ -489,11 +489,11 @@ extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx mountlist_mtx;
 extern	struct nfs_public nfs_pub;
 
-/* 
- * Declarations for these vfs default operations are located in 
- * kern/vfs_default.c, they should be used instead of making "dummy" 
+/*
+ * Declarations for these vfs default operations are located in
+ * kern/vfs_default.c, they should be used instead of making "dummy"
  * functions or casting entries in the VFS op table to "enopnotsupp()".
- */ 
+ */
 vfs_start_t		vfs_stdstart;
 vfs_root_t		vfs_stdroot;
 vfs_quotactl_t		vfs_stdquotactl;
