@@ -3039,6 +3039,10 @@
         </listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386,ia64,pc98">USB 2.0 controllers using the EHCI
+      interface (ehci driver)</para>
+
     <para arch="i386,pc98,alpha">Hubs
       <itemizedlist>
         <listitem>
@@ -3236,7 +3240,7 @@
   <sect2 id="firewire">
     <title>IEEE 1394 (Firewire) Devices</title>
 
-    <para arch="i386,pc98,powerpc">Host Controllers (&man.fwohci.4;
+    <para arch="i386,sparc64">Host Controllers (&man.fwohci.4;
       driver)
 
       <itemizedlist>
@@ -3259,7 +3263,7 @@
 
       </para>
 
-    <para arch="i386,pc98,powerpc">Storage (&man.sbp.4; driver)
+    <para arch="i386,sparc64">Storage (&man.sbp.4; driver)
 
       <itemizedlist>
 	<listitem>
