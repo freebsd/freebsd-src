@@ -165,8 +165,7 @@ dpt_eisa_attach (device_t dev)
  bad:
 	dpt_release_resources(dev);
 
-	if (dpt)
-		dpt_free(dpt);
+	dpt_free(dpt);
 
 	return (error);
 }
