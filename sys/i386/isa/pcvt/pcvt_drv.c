@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 1999 Hellmuth Michaelis
+ *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
  * Copyright (c) 1992, 1993 Brian Dunford-Shore and Scott Turner.
@@ -39,42 +41,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Mon Apr 19 17:10:09 1999]
- *
- * $FreeBSD$
- *
  */
 
 /*---------------------------------------------------------------------------*
  *
  *	pcvt_drv.c	VT220 Driver Main Module / OS - Interface
  *	---------------------------------------------------------
- *	-hm	------------ Release 3.00 --------------
- *	-hm	integrating NetBSD-current patches
- *	-hm	adding ttrstrt() proto for NetBSD 0.9
- *	-hm	kernel/console output cursor positioning fixed
- *	-hm	kernel/console output switches optional to screen 0
- *	-hm	FreeBSD 1.1 porting
- *	-hm	the NetBSD 0.9 compiler detected a nondeclared var which was
- *		 NOT detected by neither the NetBSD-current nor FreeBSD 1.x!
- *	-hm	including Michael's keyboard fifo code
- *	-hm	Joergs patch for FreeBSD tty-malloc code
- *	-hm	adjustments for NetBSD-current
- *	-hm	FreeBSD bugfix from Joerg re timeout/untimeout casts
- *	-jw	including Thomas Gellekum's FreeBSD 1.1.5 patch
- *	-hm	adjusting #if's for NetBSD-current
- *	-hm	applying Joerg's patch for FreeBSD 2.0
- *	-hm	patch from Onno & Martin for NetBSD-current (post 1.0)
- *	-hm	some adjustments for NetBSD 1.0
- *	-hm	NetBSD PR #400: screen size report for new session
- *	-hm	patch from Rafael Boni/Lon Willett for NetBSD-current
- *	-hm	bell patch from Thomas Eberhardt for NetBSD
- *	-hm	multiple X server bugfixes from Lon Willett
- *	-hm	patch from joerg - pcdevtotty for FreeBSD pre-2.1
- *	-hm	delay patch from Martin Husemann after port-i386 ml-discussion
- *	-jw	add some code to provide more FreeBSD pre-2.1 support
+ *
+ *	Last Edit-Date: [Mon Dec 27 14:03:36 1999]
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
@@ -994,6 +970,9 @@ pcstart(register struct tty *tp)
 
 	while((len = q_to_b(rbp, buf, PCVT_PCBURST)) > 0)
 	{
+		if(vs[minor(tp->t_dev)].scrolling)
+			sgetc(31337);
+		
 		/*
 		 * We need to do this outside spl since it could be fairly
 		 * expensive and we don't want our serial ports to overflow.
