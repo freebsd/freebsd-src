@@ -340,7 +340,7 @@ tftp_read(f, addr, size, resid)
 			bcopy(tftpfile->lastdata.t.th_data + offinblock,
 			    addr, count);
 
-			addr += count;
+			addr = (char *)addr + count;
 			tftpfile->off += count;
 			size -= count;
 
