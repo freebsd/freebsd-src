@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.25 1994/11/21 11:18:48 jkh Exp $
+# $Id: instdist.sh,v 1.26 1994/11/23 10:52:30 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -466,7 +466,7 @@ for this to work!\n"; then continue; fi
 "Do you wish to specify any options to NFS?  If you're installing
 from a Sun 4.1.x system, you may wish to specify resvport to allow
 installation over a priviledged port.  When using a slow ethernet
-card or network link, rsize=4096,wsize=4096 may also prove helpful.
+card or network link, \`-r=1024,-w=1024' may also prove helpful.
 Options, if any, should be separated by commas."; then
 			if [ "$answer" != "" ]; then
 				nfs_options="-o $answer"
