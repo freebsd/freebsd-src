@@ -339,7 +339,8 @@ struct thread {
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 };
-/* flags kept in td_flags */ 
+
+/* Flags kept in td_flags: */
 #define	TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump. */
 #define	TDF_CAN_UNBIND	0x000004 /* Only temporarily bound. */
 #define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
@@ -350,16 +351,16 @@ struct thread {
 #define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
-#define	TDF_USTATCLOCK	0x004000 /* Stat clock hits in userland. */
+#define	TDF_USTATCLOCK	0x004000 /* Finish user statclock hit at next AST. */
 #define	TDF_OWEUPC	0x008000 /* Owe thread an addupc() call at next AST. */
 #define	TDF_NEEDRESCHED	0x010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
 #define	TDF_SA		0x040000 /* A scheduler activation based thread. */
-#define TDF_UMTXWAKEUP	0x080000 /* Libthr thread must not sleep on a umtx. */
-#define TDF_THRWAKEUP	0x100000 /* Libthr thread must not suspend itself. */
+#define	TDF_UMTXWAKEUP	0x080000 /* Libthr thread must not sleep on a umtx. */
+#define	TDF_THRWAKEUP	0x100000 /* Libthr thread must not suspend itself. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
-/* "private" flags kept in td_pflags */
+/* "Private" flags kept in td_pflags: */
 #define	TDP_OLDMASK	0x0001 /* Need to restore mask after suspend. */
 #define	TDP_INKTR	0x0002 /* Thread is currently in KTR code. */
 #define	TDP_INKTRACE	0x0004 /* Thread is currently in KTRACE code. */
