@@ -979,3 +979,25 @@ nodevice	twe		# 3ware ATA RAID
 nodevice	cbb
 nodevice	pccard
 nodevice	cardbus
+
+
+#####################################################################
+# Options we don't want to deal with
+
+nooption	VGA_DEBUG
+nooption	VGA_WIDTH90
+nooption	VGA_SLOW_IOACCESS
+nooption	VGA_ALT_SEQACCESS
+nooption	PSM_RESETAFTERSUSPEND
+nooption	PSM_HOOKRESUME
+nooption	ATKBD_DFLT_KEYMAP
+nooption	DPT_ALLOW_MEMIO
+nooption	DPT_LOST_IRQ
+nooption	DPT_RESET_HBA
+nooption	DPT_TIMEOUT_FACTOR
+
+
+#####################################################################
+# Make options we don't want to deal with
+
+nomakeoption	ATKBD_DFLT_KEYMAP
