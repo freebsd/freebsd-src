@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_vfsops.c,v 1.10 1995/05/25 01:35:23 davidg Exp $
+ *	$Id: procfs_vfsops.c,v 1.11 1995/11/07 13:39:30 phk Exp $
  */
 
 /*
@@ -56,7 +56,24 @@
 #include <miscfs/procfs/procfs.h>
 #include <vm/vm.h>			/* for PAGE_SIZE */
 
-static int procfs_statfs __P((struct mount *, struct statfs *, struct proc *));
+static int	procfs_fhtovp __P((struct mount *mp, struct fid *fhp,
+				   struct mbuf *nam, struct vnode **vpp,
+				   int *exflagsp, struct ucred **credanonp));
+static int	procfs_init __P((void));
+static int	procfs_mount __P((struct mount *mp, char *path, caddr_t data,
+				  struct nameidata *ndp, struct proc *p));
+static int	procfs_quotactl __P((struct mount *mp, int cmds, uid_t uid,
+				     caddr_t arg, struct proc *p));
+static int	procfs_start __P((struct mount *mp, int flags, struct proc *p));
+static int	procfs_statfs __P((struct mount *mp, struct statfs *sbp,
+				   struct proc *p));
+static int	procfs_sync __P((struct mount *mp, int waitfor,
+				 struct ucred *cred, struct proc *p));
+static int	procfs_unmount __P((struct mount *mp, int mntflags,
+				    struct proc *p));
+static int	procfs_vget __P((struct mount *mp, ino_t ino,
+				 struct vnode **vpp));
+static int	procfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * VFS Operations.
@@ -197,9 +214,11 @@ procfs_quotactl(mp, cmds, uid, arg, p)
 }
 
 static int
-procfs_sync(mp, waitfor)
+procfs_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
+	struct ucred *cred;
+	struct proc *p;
 {
 
 	return (0);
@@ -216,10 +235,13 @@ procfs_vget(mp, ino, vpp)
 }
 
 static int
-procfs_fhtovp(mp, fhp, vpp)
+procfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fhp;
+	struct mbuf *nam;
 	struct vnode **vpp;
+	int *exflagsp;
+	struct ucred **credanonp;
 {
 
 	return (EINVAL);
