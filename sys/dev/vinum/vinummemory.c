@@ -33,12 +33,11 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: memory.c,v 1.4 1998/12/28 04:56:23 peter Exp $
+ * $Id: vinummemory.c,v 1.19 1998/12/30 06:22:26 grog Exp grog $
  */
 
 #define REALLYKERNEL
 #include "opt_vinum.h"
-#define USES_VM
 #include <dev/vinum/vinumhdr.h>
 
 extern jmp_buf command_fail;				    /* return on a failed command */
@@ -49,11 +48,9 @@ extern struct rqinfo rqinfo[];
 extern struct rqinfo *rqip;
 #endif
 
-#if __FreeBSD__ >= 3
 /* Why aren't these declared anywhere? XXX */
 int setjmp(jmp_buf);
 void longjmp(jmp_buf, int);
-#endif
 
 void freedatabuf(struct mc *me);
 caddr_t allocdatabuf(struct mc *me);
@@ -107,10 +104,12 @@ MMalloc(int size, char *file, int line)
 		Debugger("Malloc overlap");
 	}
 	if (result) {
-	    char *f = index(file, '/');			    /* chop off dirname if present */
+	    char *f = rindex(file, '/');		    /* chop off dirname if present */
 
 	    if (f == NULL)
 		f = file;
+	    else
+		f++;					    /* skip the / */
 	    i = malloccount++;
 	    total_malloced += size;
 	    malloced[i].address = result;
