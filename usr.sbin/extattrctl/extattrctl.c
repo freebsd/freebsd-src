@@ -82,7 +82,7 @@ initattr(int argc, char *argv[])
 	char	*fs_path = NULL;
 	char	*zero_buf = NULL;
 	long	loop, num_inodes;
-	int	ch, i, error;
+	int	ch, i, error, chunksize;
 
 	optind = 0;
 	while ((ch = getopt(argc, argv, "p:r:w:")) != -1)
@@ -117,9 +117,11 @@ initattr(int argc, char *argv[])
 			}
 			memset(zero_buf, 0, uef.uef_size);
 			num_inodes = num_inodes_by_path(fs_path);
+			chunksize = sizeof(struct ufs_extattr_header) +
+			    uef.uef_size;
 			for (loop = 0; loop < num_inodes; loop++) {
-				error = write(i, zero_buf, uef.uef_size);
-				if (error != uef.uef_size) {
+				error = write(i, zero_buf, chunksize);
+				if (error != chunksize) {
 					perror("write");
 					unlink(argv[1]);
 					return (-1);
