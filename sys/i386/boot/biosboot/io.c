@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.17 1996/03/08 06:11:33 bde Exp $
+ *	$Id: io.c,v 1.18 1996/03/08 06:29:06 bde Exp $
  */
 
 #include "boot.h"
@@ -173,6 +173,24 @@ delay1ms(void)
 }
 #endif /* PROBE_KEYBOARD */
 
+static __inline int
+isch(void)
+{
+	int isc;
+
+	/*
+	 * Checking the keyboard has the side effect of enabling clock
+	 * interrupts so that bios_tick works.  Check the keyboard to
+	 * get this side effect even if we only want the serial status.
+	 */
+	isc = ischar();
+
+	if (!(loadflags & RB_SERIAL))
+		return (isc);
+	return (serial_ischar());
+
+}
+
 static __inline unsigned
 pword(unsigned physaddr)
 {
@@ -199,7 +217,7 @@ gets(char *buf)
 	for (initial_bios_tick = bios_tick;
 	     bios_tick - initial_bios_tick < BOOTWAIT / BIOS_TICK_MS;)
 #endif
-		if ((loadflags & RB_SERIAL) ? serial_ischar() : ischar())
+		if (isch())
 			for (;;) {
 				switch(*ptr = getchar(ptr - buf) & 0xff) {
 				      case '\n':
@@ -217,8 +235,7 @@ gets(char *buf)
 #error "TIMEOUT without BOOTWAIT"
 #endif
 				for (initial_bios_tick = bios_tick;;) {
-					if ((loadflags & RB_SERIAL) ?
-					    serial_ischar() : ischar())
+					if (isch())
 						break;
 					if (bios_tick - initial_bios_tick >=
 					    TIMEOUT / BIOS_TICK_MS)
