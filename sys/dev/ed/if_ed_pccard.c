@@ -477,13 +477,17 @@ ed_pccard_ax88190(device_t dev)
 	iobase = rman_get_start(sc->port_res);
 	ed_pccard_memwrite(dev, ED_AX88190_IOBASE0, iobase & 0xff);
 	ed_pccard_memwrite(dev, ED_AX88190_IOBASE1, (iobase >> 8) & 0xff);
+	sc->type_str = "AX88190";
+	if (ed_asic_inb(sc, ED_ASIX_TEST) != 0) {
+		ed_pccard_memwrite(dev, ED_AX88790_CSR, ED_AX88790_CSR_PWRDWN);
+		sc->type_str = "AX88790";
+	}
 	ax88190_geteprom(sc);
 	ed_release_resources(dev);
 	error = ed_probe_Novell(dev, 0, flags);
 	if (error == 0) {
 		sc->vendor = ED_VENDOR_NOVELL;
 		sc->type = ED_TYPE_NE2000;
-		sc->type_str = "AX88190";
 	}
 	return (error);
 }

@@ -1117,11 +1117,21 @@ struct ed_ring	{
 #define ED_CHIP_TYPE_DL100XX	0x03
 
 /*
- * AX88190 IOBASE registers.
+ * AX88190 configuration status register.
  */
-
+#define ED_AX88790_CSR		0x3c2
+#define	ED_AX88790_CSR_PWRDWN	0x04
+/*
+ * AX88190 IOBASE registers, I'm pretty sure these don't need to be written
+ * to to make the card work by ed.
+ */
 #define ED_AX88190_IOBASE0	0x3ca
 #define ED_AX88190_IOBASE1	0x3cc
+
+/*
+ * Test for AX88790 vs 88190 cards.
+ */
+#define	ED_ASIX_TEST		0x05
 
 /*
  * MII bus definitions.
