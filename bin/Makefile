@@ -22,7 +22,6 @@ SUBDIR= cat \
 	pax \
 	ps \
 	pwd \
-	rcp \
 	realpath \
 	rm \
 	rmdir \
@@ -32,6 +31,10 @@ SUBDIR= cat \
 	stty \
 	sync \
 	test
+
+.if !defined(NO_RCMNDS)
+SUBDIR+=rcp
+.endif
 
 .if !defined(NO_TCSH)
 SUBDIR+=csh
