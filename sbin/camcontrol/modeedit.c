@@ -585,7 +585,7 @@ editlist_save(struct cam_device *device, int modepage, int page_control,
 	mode_pars = MODE_PAGE_DATA(mph);
 
 	/* Encode the value data to be passed back to the device. */
-	buff_encode_visit(mode_pars, mh->data_length, format);
+	buff_encode_visit(mode_pars, mh->data_length, format,
 	    editentry_save, 0);
 
 	/* Eliminate block descriptors. */
