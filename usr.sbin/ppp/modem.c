@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.8 1997/05/19 02:02:24 brian Exp $
+ * $Id: modem.c,v 1.24.2.9 1997/05/24 17:34:55 brian Exp $
  *
  *  TODO:
  */
@@ -33,6 +33,7 @@
 #include "lcp.h"
 #include "ip.h"
 #include "modem.h"
+#include "loadalias.h"
 #include "vars.h"
 
 #ifndef O_NONBLOCK

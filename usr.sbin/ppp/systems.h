@@ -17,12 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.12 1996/01/10 21:27:53 phk Exp $
+ * $Id: systems.h,v 1.1 1996/01/11 17:48:58 phk Exp $
  *
  */
 
 #ifndef _SYSTEMS_H_
 #define	_SYSTEMS_H_
+extern int OrigUid __P((void));
 extern void GetUid __P((void));
 extern int SelectSystem __P((char *, char*));
 #endif

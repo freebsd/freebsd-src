@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.7.2.4 1997/05/19 02:02:32 brian Exp $
+ * $Id: vars.h,v 1.7.2.5 1997/05/24 17:34:57 brian Exp $
  *
  *	TODO:
  */
@@ -83,6 +83,7 @@ struct pppvars {
   char   phone_copy[200];       /* copy for strsep() */
   char   *next_phone;           /* Next phone from the list */
   char   shostname[MAXHOSTNAMELEN];/* Local short Host Name */
+  struct aliasHandlers handler; /* Alias function pointers */
 };
 
 #define VarAccmap	pppVars.var_accmap
@@ -110,6 +111,19 @@ struct pppvars {
 #define VarRedialTimeout pppVars.redial_timeout
 #define VarRedialNextTimeout pppVars.redial_next_timeout
 #define VarDialTries	pppVars.dial_tries
+
+#define VarAliasHandlers	   pppVars.handler
+#define VarGetNextFragmentPtr	   (*pppVars.handler.GetNextFragmentPtr)
+#define VarGetNextFragmentPtr	   (*pppVars.handler.GetNextFragmentPtr)
+#define VarInitPacketAlias	   (*pppVars.handler.InitPacketAlias)
+#define VarPacketAliasIn	   (*pppVars.handler.PacketAliasIn)
+#define VarPacketAliasOut	   (*pppVars.handler.PacketAliasOut)
+#define VarPacketAliasRedirectAddr (*pppVars.handler.PacketAliasRedirectAddr)
+#define VarPacketAliasRedirectPort (*pppVars.handler.PacketAliasRedirectPort)
+#define VarSaveFragmentPtr	   (*pppVars.handler.SaveFragmentPtr)
+#define VarSetPacketAliasAddress   (*pppVars.handler.SetPacketAliasAddress)
+#define VarSetPacketAliasMode	   (*pppVars.handler.SetPacketAliasMode)
+#define VarFragmentAliasIn	   (*pppVars.handler.FragmentAliasIn)
 
 #define	DEV_IS_SYNC	(VarSpeed == 0)
 

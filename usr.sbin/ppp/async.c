@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.4 1995/05/30 03:50:24 rgrimes Exp $
+ * $Id: async.c,v 1.5 1996/01/11 17:48:35 phk Exp $
  *
  */
 #include "fsm.h"
@@ -25,6 +25,7 @@
 #include "lcp.h"
 #include "lcpproto.h"
 #include "modem.h"
+#include "loadalias.h"
 #include "vars.h"
 #include "os.h"
 

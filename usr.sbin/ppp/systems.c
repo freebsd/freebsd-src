@@ -17,11 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.6.2.2 1996/12/23 18:13:48 jkh Exp $
+ * $Id: systems.c,v 1.6.2.3 1997/05/10 01:24:42 brian Exp $
  *
  *  TODO:
  */
 #include "fsm.h"
+#include "loadalias.h"
 #include "vars.h"
 #include "ipcp.h"
 #include "pathnames.h"
@@ -32,6 +33,12 @@ extern void DecodeCommand();
 static int uid, gid;
 static int euid, egid;
 static int usermode;
+
+int
+OrigUid()
+{
+    return uid;
+}
 
 void
 GetUid()
