@@ -66,11 +66,13 @@ struct pcf_softc {
 	device_t iicbus;		/* the corresponding iicbus */
 
 	/* Resource handling stuff. */
-	void	*intr_cookie;
-	int	rid_ioport;
-	int	rid_irq;
-	struct resource *res_ioport;
-	struct resource *res_irq;
+	struct resource		*res_ioport;
+	int			rid_ioport;
+	bus_space_tag_t		bt_ioport;
+	bus_space_handle_t	bh_ioport;
+	struct resource		*res_irq;
+	int			rid_irq;
+	void			*intr_cookie;
 };
 #define DEVTOSOFTC(dev) ((struct pcf_softc *)device_get_softc(dev))
 
@@ -89,18 +91,16 @@ struct pcf_softc {
 static __inline void
 pcf_set_S0(struct pcf_softc *sc, int data)
 {
-	bus_space_write_1(sc->res_ioport->r_bustag,
-			  sc->res_ioport->r_bushandle,
-			  0, data);
+
+	bus_space_write_1(sc->bt_ioport, sc->bh_ioport, 0, data);
 	pcf_nops();
 }
 
 static __inline void
 pcf_set_S1(struct pcf_softc *sc, int data)
 {
-	bus_space_write_1(sc->res_ioport->r_bustag,
-			  sc->res_ioport->r_bushandle,
-			  1, data);
+
+	bus_space_write_1(sc->bt_ioport, sc->bh_ioport, 1, data);
 	pcf_nops();
 }
 
@@ -109,8 +109,7 @@ pcf_get_S0(struct pcf_softc *sc)
 {
 	char data;
 
-	data = bus_space_read_1(sc->res_ioport->r_bustag,
-				sc->res_ioport->r_bushandle, 0);
+	data = bus_space_read_1(sc->bt_ioport, sc->bh_ioport, 0);
 	pcf_nops();
 
 	return (data);
@@ -121,8 +120,7 @@ pcf_get_S1(struct pcf_softc *sc)
 {
 	char data;
 
-	data = bus_space_read_1(sc->res_ioport->r_bustag,
-				sc->res_ioport->r_bushandle, 1);
+	data = bus_space_read_1(sc->bt_ioport, sc->bh_ioport, 1);
 	pcf_nops();
 
 	return (data);
