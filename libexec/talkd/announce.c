@@ -130,7 +130,7 @@ print_mesg(tty, tf, request, remote_machine)
 	max_size = max(max_size, sizes[i]);
 	i++;
 	bptr = big_buf;
-	*bptr++ = ''; /* send something to wake them up */
+	*bptr++ = '\007'; /* send something to wake them up */
 	*bptr++ = '\r';	/* add a \r in case of raw mode */
 	*bptr++ = '\n';
 	for (i = 0; i < N_LINES; i++) {
