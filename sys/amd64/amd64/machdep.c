@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.258 1997/08/26 18:10:30 peter Exp $
+ *	$Id: machdep.c,v 1.259 1997/08/31 23:08:27 bde Exp $
  */
 
 #include "apm.h"
@@ -847,6 +847,9 @@ struct region_descriptor r_gdt, r_idt;
 
 #ifdef SMP
 extern struct i386tss common_tss;	/* One tss per cpu */
+#ifdef VM86
+extern struct segment_descriptor common_tssd;
+#endif /* VM86 */
 #else
 struct i386tss common_tss;
 #ifdef VM86
