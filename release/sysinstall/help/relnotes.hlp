@@ -8,10 +8,10 @@ failures or crashes should also be reported ASAP by sending mail to
 freebsd-bugs@FreeBSD.org or using the send-pr command (those preferring a 
 WEB based interface can also see http://www.freebsd.org/send-pr.html).
 
-For information about the layout of the 3.0-SNAPSHOT release directory,
-see ABOUT.TXT.  For general information about FreeBSD, see README.TXT.
-For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
-files.
+For information about FreeBSD and the layout of the 3.0-SNAPSHOT release
+directory, see ABOUT.TXT.  For installation instructions, see the
+INSTALL.TXT and HARDWARE.TXT files.
+
 
 1. What's new since 2.2.X-RELEASE
 ------------------------------------
