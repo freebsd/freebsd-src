@@ -1,6 +1,6 @@
 /* RCS compile-time configuration */
 
-	/* $Id: conf.sh,v 5.14.0.1 1993/03/25 04:24:49 eggert Exp $ */
+	/* $Id: conf.h,v 1.2 1994/08/05 22:33:44 wollman Exp $ */
 
 /*
  * This file is generated automatically.
@@ -465,8 +465,6 @@ void perror P((char const*));
 
 /* <stdlib.h> */
 char *getenv P((char const*));
-exiting void _exit P((int));
-exiting void exit P((int));
 malloc_type malloc P((size_t));
 malloc_type realloc P((malloc_type,size_t));
 void free P((malloc_type));
