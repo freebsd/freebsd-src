@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1998/03/07 10:48:15 eivind Exp $
+#	$Id: Makefile,v 1.11 1998/03/12 12:26:49 bde Exp $
 #
 
 PROG=	boot
@@ -9,7 +9,6 @@ SRCS+=  probe_keyboard.c io.c disk.c sys.c
 
 .PATH:	${.CURDIR}/../biosboot
 
-BINDIR=		/usr/mdec
 BINMODE=	444
 CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-DRAWBOOT \
@@ -63,8 +62,8 @@ BOOTSTACK=	0xFFF0
 
 boot.strip:	boot
 	cp -p boot boot.strip
-	strip boot.strip
-	size boot.strip
+	strip -aout boot.strip
+	size -aout boot.strip
 
 boot.nohdr:	boot.strip
 	dd if=boot.strip of=boot.nohdr ibs=32 skip=1 obs=1024b
