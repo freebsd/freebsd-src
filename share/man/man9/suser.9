@@ -37,8 +37,9 @@
 .Dt SUSER 9
 .Os FreeBSD
 .Sh NAME
-.Nm suser
-.Nd check if we are superuser and note
+.Nm suser ,
+.Nm suser_xxx
+.Nd check if process has superuser privelige
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/proc.h>
@@ -46,16 +47,16 @@
 .Ft int
 .Fn suser "struct proc *proc"
 .Ft int
-.Fn suser_xxx "struct ucred *cred, struct proc *proc, int flags"
+.Fn suser_xxx "struct ucred *cred" "struct proc *proc" "int flags"
 .Sh DESCRIPTION
 The
-.Nm
+.Nm suser
 and
 .Nm suser_xxx
 functions checks if the credentials given include superuser powers.
 .Pp
 The
-.Nm
+.Nm suser
 function is the most common, and should be used unless special
 circumstances dictate otherwise.
 .Pp
@@ -83,23 +84,26 @@ implicit in
 call should such powers be granted.
 .Pp
 The
-.Nm
+.Nm suser
 and
 .Nm suser_xxx
-functions notes the fact that superuser powers have been used in the
+functions note the fact that superuser powers have been used in the
 process structure of the process specified. 
-Because part of its function is to notice
-whether super powers have been used, 
+Because part of their function is to notice
+whether superuser powers have been used, 
 the functions should only be called after other permission 
 possibilities have been exhausted.
 .Sh RETURN VALUES
 The
-.Nm
+.Nm suser
 and
 .Nm suser_xxx
-functions returns 0 if the user has super powers and EPERM otherwise.
+functions return 0 if the user has superuser powers and EPERM otherwise.
 This is the
 .Em reverse logic
 of some other implementations of
-.Nm
-in which a TRUE response indicates Super powers.
+.Nm suser
+in which a TRUE response indicates superuser powers.
+.Sh SEE ALSO
+.Xr chroot 2 ,
+.Xr jail 2
