@@ -32,9 +32,9 @@ static const char rcsid[] =
 
 #include <ufs/ufs/quota.h>
 #include <rpc/rpc.h>
-#include <rpc/pmap_clnt.h>
 #include <rpcsvc/rquota.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 void rquota_service(struct svc_req *request, SVCXPRT *transp);
 void sendquota(struct svc_req *request, SVCXPRT *transp);
@@ -60,7 +60,7 @@ int from_inetd = 1;
 void 
 cleanup(int sig)
 {
-	(void) pmap_unset(RQUOTAPROG, RQUOTAVERS);
+	(void) rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
 	exit(0);
 }
 
@@ -68,22 +68,19 @@ int
 main(int argc, char *argv[])
 {
 	SVCXPRT *transp;
-	int sock = 0;
-	int proto = 0;
-	struct sockaddr_in from;
+	int ok;
+	struct sockaddr_storage from;
 	int fromlen;
 
 	fromlen = sizeof(from);
 	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {
 		from_inetd = 0;
-		sock = RPC_ANYSOCK;
-		proto = IPPROTO_UDP;
 	}
 
 	if (!from_inetd) {
 		daemon(0, 0);
 
-		(void) pmap_unset(RQUOTAPROG, RQUOTAVERS);
+		(void) rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
 
 		(void) signal(SIGINT, cleanup);
 		(void) signal(SIGTERM, cleanup);
@@ -93,13 +90,19 @@ main(int argc, char *argv[])
 	openlog("rpc.rquotad", LOG_CONS|LOG_PID, LOG_DAEMON);
 
 	/* create and register the service */
-	transp = svcudp_create(sock);
-	if (transp == NULL) {
-		syslog(LOG_ERR, "couldn't create udp service");
-		exit(1);
-	}
-	if (!svc_register(transp, RQUOTAPROG, RQUOTAVERS, rquota_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RQUOTAPROG, RQUOTAVERS, %s)", proto?"udp":"(inetd)");
+	if (from_inetd) {
+		transp = svc_tli_create(0, NULL, NULL, 0, 0);
+		if (transp == NULL) {
+			syslog(LOG_ERR, "couldn't create udp service.");
+			exit(1);
+		}
+		ok = svc_reg(transp, RQUOTAPROG, RQUOTAVERS,
+			     rquota_service, NULL);
+	} else
+		ok = svc_create(rquota_service,
+				RQUOTAPROG, RQUOTAVERS, "udp");
+	if (!ok) {
+		syslog(LOG_ERR, "unable to register (RQUOTAPROG, RQUOTAVERS, %s)", (!from_inetd)?"udp":"(inetd)");
 		exit(1);
 	}
 
@@ -184,14 +187,15 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 void 
 printerr_reply(SVCXPRT *transp)	/* when a reply to a request failed */
 {
-	char   *name;
-	struct sockaddr_in *caller;
+	char name[INET6_ADDRSTRLEN];
+	struct sockaddr *caller;
 	int     save_errno;
 
 	save_errno = errno;
 
-	caller = svc_getcaller(transp);
-	name = (char *)inet_ntoa(caller->sin_addr);
+	caller = (struct sockaddr *)svc_getrpccaller(transp)->buf;
+	getnameinfo(caller, caller->sa_len, name, sizeof (name),
+		    NULL, 0, NI_NUMERICHOST);
 	errno = save_errno;
 	if (errno == 0)
 		syslog(LOG_ERR, "couldn't send reply to %s", name);

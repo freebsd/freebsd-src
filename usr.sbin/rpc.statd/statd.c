@@ -44,7 +44,6 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <rpc/rpc.h>
-#include <rpc/pmap_clnt.h>
 #include <string.h>
 #include <syslog.h>
 #include <sys/types.h>
@@ -71,19 +70,12 @@ main(int argc, char **argv)
     debug = 1;
   }
 
-  (void)pmap_unset(SM_PROG, SM_VERS);
+  (void)rpcb_unset(SM_PROG, SM_VERS, NULL);
 
-  transp = svcudp_create(RPC_ANYSOCK);
-  if (transp == NULL)
+  if (!svc_create(sm_prog_1, SM_PROG, SM_VERS, "udp"))
     errx(1, "cannot create udp service");
-  if (!svc_register(transp, SM_PROG, SM_VERS, sm_prog_1, IPPROTO_UDP))
-    errx(1, "unable to register (SM_PROG, SM_VERS, udp)");
-
-  transp = svctcp_create(RPC_ANYSOCK, 0, 0);
-  if (transp == NULL)
+  if (!svc_create(sm_prog_1, SM_PROG, SM_VERS, "tcp"))
     errx(1, "cannot create tcp service");
-  if (!svc_register(transp, SM_PROG, SM_VERS, sm_prog_1, IPPROTO_TCP))
-    errx(1, "unable to register (SM_PROG, SM_VERS, tcp)");
   init_file("/var/db/statd.status");
 
   /* Note that it is NOT sensible to run this program from inetd - the 	*/
