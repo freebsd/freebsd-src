@@ -149,6 +149,16 @@
 0	string		regf		Windows NT registry file
 0	string		CREG		Windows 95 registry file
 
+
+# AAF files:
+# <stuartc@rd.bbc.co.uk> Stuart Cunningham
+0	string	\320\317\021\340\241\261\032\341AAFB\015\000OM\006\016\053\064\001\001\001\377			AAF legacy file using MS Structured Storage
+>30	byte	9		(512B sectors)
+>30	byte	12		(4kB sectors)
+0	string	\320\317\021\340\241\261\032\341\001\002\001\015\000\002\000\000\006\016\053\064\003\002\001\001			AAF file using MS Structured Storage
+>30	byte	9		(512B sectors)
+>30	byte	12		(4kB sectors)
+
 # Popular applications
 2080	string	Microsoft\ Word\ 6.0\ Document	%s
 2080	string	Documento\ Microsoft\ Word\ 6 Spanish Microsoft Word 6 document data
@@ -374,3 +384,23 @@
 >4	byte	=0xC6			Folder database
 >4	byte	=0xC7			Accounts informations
 >4	byte	=0x30			Offline database
+
+
+# Windows Enhanced Metafile (EMF)
+# See msdn.microsoft.com/archive/en-us/dnargdi/html/msdn_enhmeta.asp 
+# for further information. Note that "0 lelong 1" should be true i.e.
+# the first double word in the file should be 1. With the extended
+# syntax available by some file commands you could write:
+# 0 lelong 1
+# &40 ulelong 0x464D4520 Windows Enhanced Metafile (EMF) image data
+40	ulelong 0x464D4520	Windows Enhanced Metafile (EMF) image data
+>44	ulelong x		version 0x%x.
+# If the description has a length greater than zero, it exists and is 
+# found at offset (*64).
+>64	ulelong >0		Description available at offset 0x%x
+>>60	ulelong	>0		(length 0x%x)
+# Note it would be better to print out the description, which is found 
+# as below. Unfortunately the following only prints out the first couple
+# of characters instead of all the "description length"
+# number of characters -- indicated by the ulelong at offset 60.
+>>(64.l)  lestring16 >0 Description: %15.15s

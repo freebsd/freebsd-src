@@ -1,3 +1,30 @@
+2004-11-24 12:39  Christos Zoulas  <christos@zoulas.com>
+
+	* Stack smash fix, and ELF more conservative reading.
+	  Jakub Bogusz <qboosh@pld-linux.org>
+
+2004-11-20 18:50  Christos Zoulas  <christos@zoulas.com>
+
+	* New FreeBSD version parsing code:
+	  Jon Noack <noackjr@alumni.rice.edu>
+
+	* Hackish support for ucs16 strings <christos@zoulas.com>
+
+2004-11-13 03:07  Christos Zoulas  <christos@zoulas.com>
+
+	* print the file name and line number in syntax errors.
+
+2004 10-12 10:50  Christos Zoulas  <christos@zoulas.com>
+
+	* Fix stack overwriting on 0 length strings: Tim Waugh
+	    <twaugh@redhat.com> Ned Ludd <solar@gentoo.org>
+
+2004-09-27 11:30  Christos Zoulas  <christos@zoulas.com>
+
+	* Remove 3rd and 4th copyright clause; approved by Ian Darwin.
+
+	* Fix small memory leaks; caught by: Tamas Sarlos 
+	    <stamas@csillag.ilab.sztaki.hu>
 
 2004-07-24 16:33  Christos Zoulas  <christos@zoulas.com>
 

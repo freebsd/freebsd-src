@@ -12,11 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Ian F. Darwin and others.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *  
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -32,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$Id: file.h,v 1.61 2004/05/12 14:53:01 christos Exp $
+ * @(#)$Id: file.h,v 1.64 2004/11/20 23:50:12 christos Exp $
  */
 
 #ifndef __file_h__
@@ -113,6 +108,8 @@ struct magic {
 #define				FILE_BELDATE	15
 #define				FILE_LELDATE	16
 #define				FILE_REGEX	17
+#define				FILE_BESTRING16	18
+#define				FILE_LESTRING16	19
 
 #define				FILE_FORMAT_NAME	\
 /* 0 */ 			"invalid 0",		\
@@ -132,7 +129,9 @@ struct magic {
 /* 14 */ 			"ldate",		\
 /* 15 */ 			"beldate",		\
 /* 16 */ 			"leldate",		\
-/* 17 */ 			"regex",
+/* 17 */ 			"regex",		\
+/* 18 */			"bestring16",		\
+/* 19 */			"lestring16",
 
 #define	FILE_FMT_NUM	"cduxXi"
 #define FILE_FMT_STR	"s"	
@@ -155,7 +154,9 @@ struct magic {
 /* 14 */ 			FILE_FMT_STR,		\
 /* 15 */ 			FILE_FMT_STR,		\
 /* 16 */ 			FILE_FMT_STR,		\
-/* 17 */ 			FILE_FMT_STR,
+/* 17 */ 			FILE_FMT_STR,		\
+/* 18 */			FILE_FMT_STR,		\
+/* 19 */			FILE_FMT_STR,
 
 	/* Word 3 */
 	uint8_t in_op;		/* operator for indirection */
@@ -234,6 +235,8 @@ struct magic_set {
     int error;
     int flags;
     int haderr;
+    const char *file;
+    size_t line;
 };
 
 struct stat;
@@ -255,7 +258,7 @@ protected void file_badread(struct magic_set *);
 protected void file_badseek(struct magic_set *);
 protected void file_oomem(struct magic_set *);
 protected void file_error(struct magic_set *, int, const char *, ...);
-protected void file_magwarn(const char *, ...);
+protected void file_magwarn(struct magic_set *, const char *, ...);
 protected void file_mdump(struct magic *);
 protected void file_showstr(FILE *, const char *, size_t);
 protected size_t file_mbswidth(const char *);

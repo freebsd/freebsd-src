@@ -126,6 +126,9 @@
 >>>>>>71	string		=NO\ NAME	\b, unlabeled
 ### FATs end
 >0x200	lelong	0x82564557		\b, BSD disklabel
+# FATX 
+0		string		FATX		FATX filesystem data
+
 
 # Minix filesystems - Juan Cespedes <cespedes@debian.org>
 0x410	leshort		0x137f		Minix filesystem

@@ -12,11 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Ian F. Darwin and others.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *  
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -46,7 +41,7 @@
 #include <time.h>
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: print.c,v 1.44 2003/09/12 19:39:44 christos Exp $")
+FILE_RCSID("@(#)$Id: print.c,v 1.46 2004/11/13 08:11:39 christos Exp $")
 #endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))
@@ -142,7 +137,7 @@ file_mdump(struct magic *m)
 
 /*VARARGS*/
 protected void
-file_magwarn(const char *f, ...)
+file_magwarn(struct magic_set *ms, const char *f, ...)
 {
 	va_list va;
 	va_start(va, f);
@@ -150,7 +145,8 @@ file_magwarn(const char *f, ...)
 	/* cuz we use stdout for most, stderr here */
 	(void) fflush(stdout); 
 
-	(void) fprintf(stderr, "WARNING: ");
+	(void) fprintf(stderr, "%s, %lu: Warning ", ms->file,
+	    (unsigned long)ms->line);
 	(void) vfprintf(stderr, f, va);
 	va_end(va);
 	fputc('\n', stderr);
