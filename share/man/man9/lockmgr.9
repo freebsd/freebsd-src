@@ -51,7 +51,7 @@ upgraded and downgraded.
 Its arguments are:
 .Bl -tag -width interlkp
 .It Ar lkp
-A pointer to lock to manipulate..
+A pointer to lock to manipulate.
 .It Ar flags
 Flags indicating what action is to be taken.
 .Pp
@@ -79,7 +79,7 @@ LK_DRAIN - Waits for all activity on the lock to end, and then marks it decommis
 This is used before freeing a lock that is part of a piece of memory that is about to
 be freed. (As documented in lockmgr.h)
 .Pp
-LK_SLEEPFAIL - the we slept for the lock then fail.
+LK_SLEEPFAIL - If we had to sleep for the lock then fail.
 .Pp
 LK_NOWAIT - Do not allow the call to sleep.  This can be used to test the lock.
 .Pp
