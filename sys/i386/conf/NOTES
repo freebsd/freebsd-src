@@ -119,6 +119,10 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # sysctls.  This operates independently of SpeedStep and is useful on
 # systems where other mechanisms such as apm(4) or acpi(4) don't work.
 #
+# CPU_ENABLE_LONGRUN enables support for Transmeta Crusoe LongRun
+# technology which allows to restrict power consumption of the CPU by
+# using group of hw.crusoe.* sysctls.
+#
 # CPU_FASTER_5X86_FPU enables faster FPU exception handler.
 #
 # CPU_GEODE is for the SC1100 Geode embedded processor.  This option
