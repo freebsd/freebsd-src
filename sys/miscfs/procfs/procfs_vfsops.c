@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.17 1997/08/16 19:15:19 wollman Exp $
+ *	$Id: procfs_vfsops.c,v 1.18 1997/12/08 01:06:24 sef Exp $
  */
 
 /*
@@ -60,8 +60,6 @@ static int	procfs_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
 static int	procfs_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
-
-extern void procfs_exit __P((struct proc *));
 
 /*
  * VFS Operations.
