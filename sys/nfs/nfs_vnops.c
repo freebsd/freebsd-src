@@ -210,11 +210,13 @@ static struct vnodeopv_entry_desc nfsv2_fifoop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
 	{ &vop_print_desc,		(vop_t *) nfs_print },
 	{ &vop_read_desc,		(vop_t *) nfsfifo_read },
 	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) nfsfifo_write },
 	{ NULL, NULL }
 };
