@@ -294,7 +294,7 @@ dig() {
 		  digtxt = "Now what exactly was it that you were digging in?";
 		mnewsym(dpx, dpy);
 		prl(dpx, dpy);
-		pline(digtxt);		/* after mnewsym & prl */
+		pline("%s", digtxt);		/* after mnewsym & prl */
 		return(0);
 	} else {
 		if(IS_WALL(levl[dpx][dpy].typ)) {

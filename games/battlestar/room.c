@@ -55,7 +55,7 @@ writedes()
 				putchar(c);
 			else {
 				if (c != '*')
-					printf(truedirec(compass, c));
+					printf("%s", truedirec(compass, c));
 				compass++;
 			}
 	}
