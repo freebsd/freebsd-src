@@ -126,6 +126,33 @@ with significant activity can temporarily overflow if the soft updates
 policy results in free'd blocks not being "garbage collected" as fast
 as they're being requested.
 
+To make use of UFS2, press '2' on a UFS file system to toggle the
+on-disk format revision.  UFS2 provides native support for extended
+attributes, larger disk sizes, and forward compatibility with new
+on-disk high performance directory layout and storage extents.
+However, UFS2 is unsupported on versions of FreeBSD prior to 5.0,
+so it is not recommended for environments requiring backward
+compatibility.  Also, UFS2 is not currently recommended as a root
+file system format for non-64-bit platforms due to increased size
+of the boot loader; special local configuration is required to boot
+UFS2 as a root file system on i386 and PC98.
+
+To add additional flags to the newfs command line for UFS file
+systems, press 'N'.  These options will be specified before the
+device argument of the command line, but after any other options
+placed there by sysinstall, such as the UFS version and soft
+updates flag; as such, arguments provided may override existing
+settings.  To completely replace the newfs command used by
+sysinstall, press 'Z' to convert a partition to a Custom
+partition type.  Sysinstall will prompt you with the newfs
+command line that it would have used based on existing settings
+prior to the change, but allow you to modify any aspect of the
+command line.  Once a partition has been converted to a custom
+partition in the label editor, you will need to restart the
+labeling process or delete and recreate the partition to restore
+it to a non-custom state.  Custom partitions are represented by
+the letters "CST" instead of "UFS" or "FAT.
+
 When you're done, type `Q' to exit.
 
 No actual changes will be made to the disk until you (C)ommit from the
