@@ -617,6 +617,9 @@ static int
 acpi_shutdown(device_t dev)
 {
 
+    /* Allow children to shutdown first. */
+    bus_generic_shutdown(dev);
+
     /* Disable all wake GPEs not appropriate for reboot/poweroff. */
     acpi_wake_limit_walk(ACPI_STATE_S5);
     return (0);
