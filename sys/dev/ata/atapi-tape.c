@@ -115,7 +115,6 @@ astattach(struct atapi_softc *atp)
 	free(stp, M_AST);
 	return -1;
     }
-    ast_describe(stp);
     if (!strcmp(ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
 		"OnStream DI-30")) {
 	struct ast_transferpage transfer;
@@ -137,15 +136,16 @@ astattach(struct atapi_softc *atp)
 		      DEVSTAT_TYPE_SEQUENTIAL | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_TAPE);
     dev = make_dev(&ast_cdevsw, dkmakeminor(stp->lun, 0, 0),
-		   UID_ROOT, GID_OPERATOR, 0640, "rast%d", stp->lun);
+		   UID_ROOT, GID_OPERATOR, 0640, "ast%d", stp->lun);
     dev->si_drv1 = stp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
     dev = make_dev(&ast_cdevsw, dkmakeminor(stp->lun, 0, 1),
-		   UID_ROOT, GID_OPERATOR, 0640, "nrast%d", stp->lun);
+		   UID_ROOT, GID_OPERATOR, 0640, "nast%d", stp->lun);
     dev->si_drv1 = stp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
     if ((stp->atp->devname = malloc(8, M_AST, M_NOWAIT)))
         sprintf(stp->atp->devname, "ast%d", stp->lun);
+    ast_describe(stp);
     return 0;
 }
 
@@ -157,63 +157,79 @@ ast_sense(struct ast_softc *stp)
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
 	if (!(error = ast_mode_sense(stp, ATAPI_TAPE_CAP_PAGE,
-				     &stp->cap, sizeof(stp->cap))))
-	    break;
+				     &stp->cap, sizeof(stp->cap)))) {
+	    if (stp->cap.blk32k)
+		stp->blksize = 32768;
+	    if (stp->cap.blk1024)
+		stp->blksize = 1024;
+	    if (stp->cap.blk512)
+		stp->blksize = 512;
+	    if (!stp->blksize)
+		continue;
+	    stp->cap.max_speed = ntohs(stp->cap.max_speed);
+	    stp->cap.max_defects = ntohs(stp->cap.max_defects);
+	    stp->cap.ctl = ntohs(stp->cap.ctl);
+	    stp->cap.speed = ntohs(stp->cap.speed);
+	    stp->cap.buffer_size = ntohs(stp->cap.buffer_size);
+	    return 0;
+	}
     }
-    if (error) 
-	return 1;
-
-    stp->cap.max_speed = ntohs(stp->cap.max_speed);
-    stp->cap.max_defects = ntohs(stp->cap.max_defects);
-    stp->cap.ctl = ntohs(stp->cap.ctl);
-    stp->cap.speed = ntohs(stp->cap.speed);
-    stp->cap.buffer_size = ntohs(stp->cap.buffer_size);
-    if (stp->cap.blk32k)
-	stp->blksize = 32768;
-    if (stp->cap.blk1024)
-	stp->blksize = 1024;
-    if (stp->cap.blk512)
-	stp->blksize = 512;
-    return 0;
+    return 1;
 }
 
 static void 
 ast_describe(struct ast_softc *stp)
 {
-    printf("ast%d: <%.40s/%.8s> tape drive at ata%d as %s\n",
-           stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
-           ATA_PARAM(stp->atp->controller, stp->atp->unit)->revision,
-	   stp->atp->controller->lun,
-	   (stp->atp->unit == ATA_MASTER) ? "master" : "slave ");
-    printf("ast%d: ", stp->lun);
-    printf("%dKB/s, ", stp->cap.max_speed);
-    printf("transfer limit %d blk%s, ", stp->cap.ctl, (stp->cap.ctl>1)?"s":"");
-    printf("%dKB buffer, ", (stp->cap.buffer_size * DEV_BSIZE) / 1024);
-    printf("%s\n", ata_mode2str(stp->atp->controller->mode[
-                                ATA_DEV(stp->atp->unit)]));
-    printf("ast%d: ", stp->lun);
-    switch (stp->cap.medium_type) {
-	case 0x00:	printf("Drive empty"); break;
-	case 0x17:	printf("Travan 1 (400 Mbyte) media"); break;
-	case 0xb6:	printf("Travan 4 (4 Gbyte) media"); break;
-	case 0xda:	printf("OnStream ADR (15Gyte) media"); break;
-	default: printf("Unknown media (0x%x)", stp->cap.medium_type);
+    if (bootverbose) {
+	printf("ast%d: <%.40s/%.8s> tape drive at ata%d as %s\n",
+               stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
+               ATA_PARAM(stp->atp->controller, stp->atp->unit)->revision,
+	       stp->atp->controller->lun,
+	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave ");
+	printf("ast%d: ", stp->lun);
+	printf("%dKB/s, ", stp->cap.max_speed);
+	printf("transfer limit %d blk%s, ",
+	       stp->cap.ctl, (stp->cap.ctl > 1) ? "s" : "");
+	printf("%dKB buffer, ", (stp->cap.buffer_size * DEV_BSIZE) / 1024);
+	printf("%s\n", ata_mode2str(stp->atp->controller->mode[
+                                     ATA_DEV(stp->atp->unit)]));
+	printf("ast%d: ", stp->lun);
+	switch (stp->cap.medium_type) {
+	    case 0x00:
+		printf("Drive empty"); break;
+	    case 0x17:
+		printf("Travan 1 (400 Mbyte) media"); break;
+	    case 0xb6:
+		printf("Travan 4 (4 Gbyte) media"); break;
+	    case 0xda:
+		printf("OnStream ADR (15Gyte) media"); break;
+	    default:
+		printf("Unknown media (0x%x)", stp->cap.medium_type);
+	}
+	if (stp->cap.readonly) printf(", readonly");
+	if (stp->cap.reverse) printf(", reverse");
+	if (stp->cap.eformat) printf(", eformat");
+	if (stp->cap.qfa) printf(", qfa");
+	if (stp->cap.lock) printf(", lock");
+	if (stp->cap.locked) printf(", locked");
+	if (stp->cap.prevent) printf(", prevent");
+	if (stp->cap.eject) printf(", eject");
+	if (stp->cap.disconnect) printf(", disconnect");
+	if (stp->cap.ecc) printf(", ecc");
+	if (stp->cap.compress) printf(", compress");
+	if (stp->cap.blk512) printf(", 512b");
+	if (stp->cap.blk1024) printf(", 1024b");
+	if (stp->cap.blk32k) printf(", 32kb");
+	printf("\n");
     }
-    if (stp->cap.readonly) printf(", readonly");
-    if (stp->cap.reverse) printf(", reverse");
-    if (stp->cap.eformat) printf(", eformat");
-    if (stp->cap.qfa) printf(", qfa");
-    if (stp->cap.lock) printf(", lock");
-    if (stp->cap.locked) printf(", locked");
-    if (stp->cap.prevent) printf(", prevent");
-    if (stp->cap.eject) printf(", eject");
-    if (stp->cap.disconnect) printf(", disconnect");
-    if (stp->cap.ecc) printf(", ecc");
-    if (stp->cap.compress) printf(", compress");
-    if (stp->cap.blk512) printf(", 512b");
-    if (stp->cap.blk1024) printf(", 1024b");
-    if (stp->cap.blk32k) printf(", 32kb");
-    printf("\n");
+    else {
+	printf("ast%d: TAPE <%.40s> at ata%d as %s mode %s\n",
+               stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
+	       stp->atp->controller->lun,
+	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave",
+	       ata_mode2str(stp->atp->controller->mode[ATA_DEV(stp->atp->unit)])
+	       );
+    }
 }
 
 static int

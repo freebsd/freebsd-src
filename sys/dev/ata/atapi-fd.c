@@ -111,7 +111,6 @@ afdattach(struct atapi_softc *atp)
 		 "IOMEGA ZIP", 11))
 	fdp->transfersize = 64;
 
-    afd_describe(fdp);
     devstat_add_entry(&fdp->stats, "afd", fdp->lun, DEV_BSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
@@ -121,6 +120,7 @@ afdattach(struct atapi_softc *atp)
     dev->si_iosize_max = 252 * DEV_BSIZE;
     if ((fdp->atp->devname = malloc(8, M_AFD, M_NOWAIT)))
         sprintf(fdp->atp->devname, "afd%d", fdp->lun);
+    afd_describe(fdp);
     return 0;
 }
 
@@ -156,25 +156,26 @@ afd_sense(struct afd_softc *fdp)
 static void 
 afd_describe(struct afd_softc *fdp)
 {
-    printf("afd%d: <%.40s/%.8s> rewriteable drive at ata%d as %s\n",
-	   fdp->lun, ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
-	   ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->revision,
-	   fdp->atp->controller->lun,
-	   (fdp->atp->unit == ATA_MASTER) ? "master" : "slave ");
-    printf("afd%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
-	   fdp->lun, 
-	   (fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors) / 
-	   ((1024L * 1024L) / fdp->cap.sector_size),
-	   fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors,
-	   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
-	   fdp->cap.sector_size);
-    printf("afd%d: %dKB/s,", fdp->lun, fdp->cap.transfer_rate/8);
-    if (fdp->transfersize)
-	printf(" transfer limit %d blks,", fdp->transfersize);
-    printf(" %s\n", ata_mode2str(fdp->atp->controller->mode[
+    if (bootverbose) {
+	printf("afd%d: <%.40s/%.8s> rewriteable drive at ata%d as %s\n",
+	       fdp->lun, ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
+	       ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->revision,
+	       fdp->atp->controller->lun,
+	       (fdp->atp->unit == ATA_MASTER) ? "master" : "slave");
+	printf("afd%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
+	       fdp->lun, 
+	       (fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors) / 
+	       ((1024L * 1024L) / fdp->cap.sector_size),
+	       fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors,
+	       fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
+	       fdp->cap.sector_size);
+	printf("afd%d: %dKB/s,", fdp->lun, fdp->cap.transfer_rate/8);
+	if (fdp->transfersize)
+	    printf(" transfer limit %d blks,", fdp->transfersize);
+	printf(" %s\n", ata_mode2str(fdp->atp->controller->mode[
 				 ATA_DEV(fdp->atp->unit)]));
-    printf("afd%d: Medium: ", fdp->lun);
-    switch (fdp->header.medium_type) {
+	printf("afd%d: Medium: ", fdp->lun);
+	switch (fdp->header.medium_type) {
 	case MFD_2DD:
 	    printf("720KB DD disk"); break;
 
@@ -187,10 +188,22 @@ afd_describe(struct afd_softc *fdp)
 	case MFD_UHD: 
 	    printf("120MB UHD disk"); break;
 
-	default: printf("Unknown media (0x%x)", fdp->header.medium_type);
+	default:
+	    printf("Unknown media (0x%x)", fdp->header.medium_type);
+	}
+	if (fdp->header.wp) printf(", writeprotected");
+	    printf("\n");
     }
-    if (fdp->header.wp) printf(", writeprotected");
-    printf("\n");
+    else {
+	printf("afd%d: %luMB floppy <%.40s> at ata%d as %s mode %s\n",
+	       fdp->lun, (fdp->cap.cylinders*fdp->cap.heads*fdp->cap.sectors) /
+			 ((1024L * 1024L) / fdp->cap.sector_size),	
+	       ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
+	       fdp->atp->controller->lun,
+	       (fdp->atp->unit == ATA_MASTER) ? "master" : "slave",
+	       ata_mode2str(fdp->atp->controller->mode[ATA_DEV(fdp->atp->unit)])
+	       );
+    }
 }
 
 static int
