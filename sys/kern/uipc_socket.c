@@ -244,15 +244,9 @@ sodealloc(struct socket *so)
 		(void)chgsbsize(so->so_cred->cr_uidinfo,
 		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
 #ifdef INET
-	if (so->so_accf != NULL) {
-		if (so->so_accf->so_accept_filter != NULL &&
-			so->so_accf->so_accept_filter->accf_destroy != NULL) {
-			so->so_accf->so_accept_filter->accf_destroy(so);
-		}
-		if (so->so_accf->so_accept_filter_str != NULL)
-			FREE(so->so_accf->so_accept_filter_str, M_ACCF);
-		FREE(so->so_accf, M_ACCF);
-	}
+	/* remove acccept filter if one is present. */
+	if (so->so_accf != NULL)
+		do_setopt_accept_filter(so, NULL);
 #endif
 #ifdef MAC
 	mac_destroy_socket(so);
