@@ -1,4 +1,4 @@
-/* $Id: freebsd.h,v 1.7 1999/04/14 00:25:45 obrien Exp $ */
+/* $Id: freebsd.h,v 1.8 1999/04/22 17:45:01 obrien Exp $ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -89,9 +89,10 @@ Boston, MA 02111-1307, USA.  */
    libraries compiled with the native cc. */
 #undef NO_DOLLAR_IN_LABEL
 
-/* Use more efficient ``thunks'' to implement C++ vtables. */
+/* Wait until EGCS 1.2 to use more efficient ``thunks'' to implement
+   C++ vtables. */
 #undef DEFAULT_VTABLE_THUNKS
-#define DEFAULT_VTABLE_THUNKS 1
+#define DEFAULT_VTABLE_THUNKS 0
 
 
 /* Miscellaneous parameters.  */
