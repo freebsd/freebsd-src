@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.128 1999/07/03 21:03:56 peter Exp $
+ *	$Id: autoconf.c,v 1.129 1999/07/17 20:47:49 phk Exp $
  */
 
 /*
@@ -486,7 +486,7 @@ gotit:
 	while (*cp >= '0' && *cp <= '9')
 		unit += 10 * unit + *cp++ - '0';
 	if (*cp == 's' && cp[1] >= '0' && cp[1] <= '9') {
-		slice = cp[1] - '0';
+		slice = cp[1] - '0' + 1;
 		cp += 2;
 	}
 	if (*cp >= 'a' && *cp <= 'h') {
