@@ -1376,6 +1376,7 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 	int map = 0;
+	int passthrough = (device_get_parent(child) != dev);
 
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -1396,10 +1397,7 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 		 * Only check the map registers if this is a direct
 		 * descendant.
 		 */
-		if (device_get_parent(child) == dev)
-			map = pci_mapno(cfg, rid);
-		else
-			map = -1;
+		map = passthrough ? -1 : pci_mapno(cfg, rid);
 		break;
 
 	default:
@@ -1411,7 +1409,8 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 	if (rv == 0) {
 		switch (type) {
 		case SYS_RES_IRQ:
-			cfg->irqres = 0;
+			if (!passthrough)
+				cfg->irqres = 0;
 			break;
 
 		case SYS_RES_DRQ:	/* passthru for child isa */
