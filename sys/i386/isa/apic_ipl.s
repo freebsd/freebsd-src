@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.2 1997/07/20 18:11:45 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.13 1997/07/22 18:36:06 smp Exp smp $
  */
 
 
@@ -197,3 +197,197 @@ __CONCAT(vec,irq_num): ;						\
 	BUILD_VEC(22)
 	BUILD_VEC(23)
 
+
+/******************************************************************************
+ * XXX FIXME: figure out where these belong.
+ */
+
+/*
+ * MULTIPLE_IOAPICSXXX: cannot assume apic #0 in the following function.
+ * (soon to be) MP-safe function to set ONE INT mask bit.
+ * The passed arg is a 32bit u_int MASK.
+ * It sets the associated bit in imen.
+ * It sets the mask bit of the associated IO APIC register.
+ */
+	ALIGN_TEXT
+	.globl _INTREN
+_INTREN:
+	movl 4(%esp), %eax		/* mask into %eax */
+	notl %eax			/* mask = ~mask */
+	andl _imen, %eax		/* %eax = imen & ~mask */
+
+	pushl %eax			/* new (future) imen value */
+	pushl $0			/* APIC# arg */
+	call write_io_apic_mask		/* modify the APIC registers */
+
+	addl $4, %esp			/* remove APIC# arg from stack */
+	popl _imen			/* imen &= ~mask */
+	ret
+
+/*
+ * MULTIPLE_IOAPICSXXX: cannot assume apic #0 in the following function.
+ * (soon to be) MP-safe function to clear ONE INT mask bit.
+ * The passed arg is a 32bit u_int MASK.
+ * It clears the associated bit in imen.
+ * It clears the mask bit of the associated IO APIC register.
+ */
+	ALIGN_TEXT
+	.globl _INTRDIS
+_INTRDIS:
+	movl _imen, %eax
+	orl 4(%esp), %eax		/* %eax = imen | mask */
+
+	pushl %eax			/* new (future) imen value */
+	pushl $0			/* APIC# arg */
+	call write_io_apic_mask		/* modify the APIC registers */
+
+	addl $4, %esp			/* remove APIC# arg from stack */
+	popl _imen			/* imen |= mask */
+	ret
+
+
+/******************************************************************************
+ *
+ */
+
+/*
+ * void write_io_apic_mask(int apic, u_int mask); 
+ */
+
+#define _INT_MASK	0x00010000
+#define _PIN_MASK	0x00ffffff
+
+#define _OLD_ESI	  0(%esp)
+#define _OLD_EBX	  4(%esp)
+#define _RETADDR	  8(%esp)
+#define _APIC		 12(%esp)
+#define _MASK		 16(%esp)
+
+	.align 2
+write_io_apic_mask:
+	pushl %ebx			/* scratch */
+	pushl %esi			/* scratch */
+
+	movl _imen, %ebx
+	xorl _MASK, %ebx		/* %ebx = imen ^ mask */
+	andl $_PIN_MASK, %ebx		/* %ebx = imen & 0x00ffffff */
+	jz all_done			/* no change, return */
+
+	movl _APIC, %esi		/* APIC # */
+	movl _ioapic(,%esi,4), %esi	/* %esi holds APIC base address */
+
+next_loop:				/* %ebx = diffs, %esi = APIC base */
+	bsfl %ebx, %ecx			/* %ecx = index if 1st/next set bit */
+	jz all_done
+
+	btrl %ecx, %ebx			/* clear this bit in diffs */
+	leal 16(,%ecx,2), %edx		/* calculate register index */
+
+	movl %edx, (%esi)		/* write the target register index */
+	movl 16(%esi), %eax		/* read the target register data */
+
+	btl %ecx, _MASK			/* test for mask or unmask */
+	jnc clear			/* bit is clear */
+	orl $_INT_MASK, %eax		/* set mask bit */
+	jmp write
+clear:	andl $~_INT_MASK, %eax		/* clear mask bit */
+
+write:	movl %edx, (%esi)		/* write the target register index */
+	movl %eax, 16(%esi)		/* write the APIC register data */
+
+	jmp next_loop			/* try another pass */
+
+all_done:
+	popl %esi
+	popl %ebx
+	ret
+
+#undef _OLD_ESI
+#undef _OLD_EBX
+#undef _RETADDR
+#undef _APIC
+#undef _MASK
+
+#undef _PIN_MASK
+#undef _INT_MASK
+
+
+#ifdef ready
+
+/*
+ * u_int read_io_apic_mask(int apic); 
+ */
+	.align 2
+read_io_apic_mask:
+	ret
+
+/*
+ * Set INT mask bit for each bit set in 'mask'.
+ * Ignore INT mask bit for all others.
+ * Only consider lower 24 bits in mask.
+ *
+ * void set_io_apic_mask24(apic, u_int32_t bits); 
+ */
+	.align 2
+set_io_apic_mask:
+	ret
+
+/*
+ * Clear INT mask bit for each bit set in 'mask'.
+ * Ignore INT mask bit for all others.
+ * Only consider lower 24 bits in mask.
+ *
+ * void clr_io_apic_mask24(int apic, u_int32_t bits); 
+ */
+	.align 2
+clr_io_apic_mask24:
+	ret
+
+/*
+ * 
+ */
+	.align 2
+
+	ret
+
+#endif /** ready */
+
+/******************************************************************************
+ * 
+ */
+
+/*
+ * u_int io_apic_write(int apic, int select);
+ */
+	.align 2
+	.globl _io_apic_read
+_io_apic_read:
+	movl 4(%esp), %ecx		/* APIC # */
+	movl _ioapic(,%ecx,4), %edx	/* APIC base register address */
+	movl 8(%esp), %eax		/* target register index */
+	movl %eax, (%edx)		/* write the target register index */
+	movl 16(%edx), %eax		/* read the APIC register data */
+	ret				/* %eax = register value */
+
+/*
+ * void io_apic_write(int apic, int select, int value);
+ */
+	.align 2
+	.globl _io_apic_write
+_io_apic_write:
+	movl 4(%esp), %ecx		/* APIC # */
+	movl _ioapic(,%ecx,4), %edx	/* APIC base register address */
+	movl 8(%esp), %eax		/* target register index */
+	movl %eax, (%edx)		/* write the target register index */
+	movl 12(%esp), %eax		/* target register value */
+	movl %eax, 16(%edx)		/* write the APIC register data */
+	ret				/* %eax = void */
+
+/*
+ * Send an EOI to the local APIC.
+ */
+	.align 2
+	.globl _apic_eoi
+_apic_eoi:
+	movl $0, _lapic+0xb0
+	ret

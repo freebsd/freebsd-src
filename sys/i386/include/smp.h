@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.8 1997/07/20 17:48:00 smp Exp smp $
+ * $Id: smp.h,v 1.13 1997/07/22 18:31:51 smp Exp smp $
  *
  */
 
@@ -57,8 +57,23 @@ void	rel_mplock		__P((void));
 void	try_mplock		__P((void));
 
 /* global data in apic_vector.s */
+extern u_int			ivectors[];
 extern volatile u_int		stopped_cpus;
 extern volatile u_int		started_cpus;
+
+/* global data in apic_ipl.s */
+extern u_int			vec[];
+extern u_int			Xintr8254;
+extern u_int			mask8254;
+
+/* functions in apic_ipl.s */
+void	vec8254			__P((void));
+void	INTREN			__P((u_int));
+void	INTRDIS			__P((u_int));
+void	apic_eoi		__P((void));
+u_int	io_apic_read		__P((int, int));
+void	io_apic_write		__P((int, int, u_int));
+void	write_io_apic_mask24	__P((int, u_int));
 
 /* global data in mp_machdep.c */
 extern int			mp_ncpus;
@@ -112,11 +127,11 @@ extern volatile ioapic_t	*ioapic[];
 /* functions in mpapic.c */
 void	apic_dump		__P((char*));
 void	apic_initialize		__P((void));
+void	imen_dump		__P((void));
 int	apic_ipi		__P((int, int, int));
 int	selected_apic_ipi	__P((u_int, int, int));
 int	io_apic_setup		__P((int));
 int	ext_int_setup		__P((int, int));
-void	write_io_apic_mask24	__P((int, u_int32_t));
 
 #if defined(READY)
 void	clr_io_apic_mask24	__P((int, u_int32_t));
