@@ -100,6 +100,7 @@ SUBDIR=	ac \
 	nfsd \
 	ngctl \
 	nghook \
+	nologin \
 	${_nslookup} \
 	${_nsupdate} \
 	ntp \

@@ -68,7 +68,6 @@ SUBDIR=	adjkerntz \
 	newfs \
 	newfs_msdos \
 	nfsiod \
-	nologin \
 	nos-tun \
 	${_pfctl} \
 	${_pflogd} \
