@@ -28,12 +28,14 @@
 	.globl	_init
 	.type	_init,@function
 _init:
+	subq	$8,%rsp
 
 	.section .fini,"ax",@progbits
 	.align	4
 	.globl	_fini
 	.type	_fini,@function
 _fini:
+	subq	$8,%rsp
 
 	.section .rodata
 .ascii "$FreeBSD$\0"
