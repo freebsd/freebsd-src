@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sbrk.S,v 1.1 1994/08/05 01:18:49 wollman Exp $
+ *	$Id: sbrk.S,v 1.2 1995/01/23 01:30:04 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: sbrk.S,v 1.2 1995/01/23 01:30:04 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
@@ -61,6 +61,8 @@ ENTRY(sbrk)
 	movl	PIC_GOT(curbrk),%edx
 	movl	(%edx),%eax
 	PIC_EPILOGUE
+	testl	%ecx,%ecx
+	jz	back
 	addl	%eax,4(%esp)
 	lea	SYS_brk,%eax
 	LCALL(7,0)
@@ -70,21 +72,25 @@ ENTRY(sbrk)
 	movl	(%edx),%eax
 	addl	%ecx,(%edx)
 	PIC_EPILOGUE
+back:
 	ret
 err:
 	jmp	PIC_PLT(cerror)
 
-#else
+#else /* !PIC */
 
 	movl	4(%esp),%ecx
 	movl	curbrk,%eax
+	testl	%ecx,%ecx
+	jz	back
 	addl	%eax,4(%esp)
 	lea	SYS_brk,%eax
 	LCALL(7,0)
 	jb	err
 	movl	curbrk,%eax
 	addl	%ecx,curbrk
+back:
 	ret
 err:
 	jmp	cerror
-#endif
+#endif /* PIC */
