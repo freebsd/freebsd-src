@@ -53,10 +53,6 @@ extern	u_int	cpu_procinfo;
 extern	char	cpu_vendor[];
 extern	u_int	cyrix_did;
 extern	char	kstack[];
-#ifdef PC98
-extern	int	need_pre_dma_flush;
-extern	int	need_post_dma_flush;
-#endif
 extern	char	sigcode[];
 extern	int	szsigcode;
 #ifdef COMPAT_FREEBSD4
