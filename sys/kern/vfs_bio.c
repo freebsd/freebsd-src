@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.101 1996/09/18 15:57:41 dyson Exp $
+ * $Id: vfs_bio.c,v 1.102 1996/09/20 02:26:35 dyson Exp $
  */
 
 /*
@@ -112,10 +112,7 @@ static struct bqueues bufqueues[BUFFER_QUEUES];
 
 extern int vm_swap_size;
 
-#define BUF_MAXUSE 8
-/*
-#define NO_B_MALLOC
-*/
+#define BUF_MAXUSE 16
 
 /*
  * Initialize buffer headers and related structures.
@@ -464,7 +461,7 @@ brelse(struct buf * bp)
 
 	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
-		bp->b_flags &= ~B_WANTED;
+		bp->b_flags &= ~(B_WANTED | B_AGE);
 		wakeup(bp);
 	} 
 
@@ -664,9 +661,9 @@ vfs_vmio_release(bp)
 				tsleep(m, PVM, "vmiorl", 0);
 			}
 		}
-			
+
 		vm_page_unwire(m);
-			
+
 		if (m->wire_count == 0) {
 
 			if (m->flags & PG_WANTED) {
@@ -860,6 +857,12 @@ trytofreespace:
 		return (0);
 	}
 
+#if defined(DIAGNOSTIC)
+	if (bp->b_flags & B_BUSY) {
+		panic("getnewbuf: busy buffer on free list\n");
+	}
+#endif
+
 	/*
 	 * We are fairly aggressive about freeing VMIO buffers, but since
 	 * the buffering is intact without buffer headers, there is not
@@ -894,8 +897,10 @@ trytofreespace:
 	bremfree(bp);
 	bp->b_flags |= B_BUSY;
 
-	if (bp->b_flags & B_VMIO)
+	if (bp->b_flags & B_VMIO) {
+		bp->b_flags &= ~B_ASYNC;
 		vfs_vmio_release(bp);
+	}
 
 	if (bp->b_vp)
 		brelvp(bp);
@@ -1303,6 +1308,10 @@ allocbuf(struct buf * bp, int size)
 					 * is the responsibility of vnode_pager_setsize
 					 */
 					m = bp->b_pages[i];
+#if defined(DIAGNOSTIC)
+					if (m == bogus_page)
+						panic("allocbuf: bogus page found");
+#endif
 					s = splvm();
 					while ((m->flags & PG_BUSY) || (m->busy != 0)) {
 						m->flags |= PG_WANTED;
@@ -1339,8 +1348,8 @@ allocbuf(struct buf * bp, int size)
 				if (tinc > bsize)
 					tinc = bsize;
 				off = (vm_ooffset_t) bp->b_lblkno * bsize;
-		doretry:
 				curbpnpages = bp->b_npages;
+		doretry:
 				bp->b_flags |= B_CACHE;
 				for (toff = 0; toff < newbsize; toff += tinc) {
 					int bytesinpage;
