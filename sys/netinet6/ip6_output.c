@@ -200,6 +200,7 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 #endif /* IPSEC */
 
 	ip6 = mtod(m, struct ip6_hdr *);
+	finaldst = ip6->ip6_dst;
 
 #define MAKE_EXTHDR(hp, mp)						\
     do {								\
@@ -496,7 +497,6 @@ skip_ipsec2:;
 		struct ip6_rthdr0 *rh0;
 		struct in6_addr *addrs;
 
-		finaldst = ip6->ip6_dst;
 		switch (rh->ip6r_type) {
 		case IPV6_RTHDR_TYPE_0:
 			 rh0 = (struct ip6_rthdr0 *)rh;
