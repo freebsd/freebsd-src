@@ -288,8 +288,8 @@ static const struct CARDTYPE cards[] = {
 	   0,
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
-	   { 0x00, 0x00, 0x00, 0x00, 0 },	/* audio MUX values */
-	   0x00 },				/* GPIO mask */
+	   { 0x400, 0xE00, 0x400, 0xC00, 1 },	/* audio MUX values */
+	   0xE00 },				/* GPIO mask */
 
 	{  CARD_LEADTEK,			/* the card id */
 	  "Leadtek Winfast TV 2000",		/* the 'name' */

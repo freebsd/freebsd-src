@@ -440,3 +440,12 @@
 		  Backout the switch from rgb_prob to rgb_vbi_prog due to
 		  problems with NTSC users.
 
+2.07  24 Jan 2000 Update i2c code to build on FreeBSD 3.x and 4.x machines.
+                  Added GPIO audio values for the Askey/Dynalink TV card
+		  taken from postings on the V4L mailing list.
+                  Update Australian Channel Set. Submitted by
+		  John Birrell <jb@cimlogic.com.au>
+                  Add new Channel Set for France. Submitted by
+		  Daniel Dagneaux <dagneaux@lure.u-psud.fr>
+
+
