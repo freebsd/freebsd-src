@@ -71,7 +71,7 @@ bintime_addx(struct bintime *bt, uint64_t x)
 }
 
 static __inline void
-bintime_add(struct bintime *bt, struct bintime *bt2)
+bintime_add(struct bintime *bt, const struct bintime *bt2)
 {
 	uint64_t u;
 
@@ -83,7 +83,7 @@ bintime_add(struct bintime *bt, struct bintime *bt2)
 }
 
 static __inline void
-bintime_sub(struct bintime *bt, struct bintime *bt2)
+bintime_sub(struct bintime *bt, const struct bintime *bt2)
 {
 	uint64_t u;
 
@@ -109,7 +109,7 @@ bintime_sub(struct bintime *bt, struct bintime *bt2)
  */
 
 static __inline void
-bintime2timespec(struct bintime *bt, struct timespec *ts)
+bintime2timespec(const struct bintime *bt, struct timespec *ts)
 {
 
 	ts->tv_sec = bt->sec;
@@ -117,7 +117,7 @@ bintime2timespec(struct bintime *bt, struct timespec *ts)
 }
 
 static __inline void
-timespec2bintime(struct timespec *ts, struct bintime *bt)
+timespec2bintime(const struct timespec *ts, struct bintime *bt)
 {
 
 	bt->sec = ts->tv_sec;
@@ -126,7 +126,7 @@ timespec2bintime(struct timespec *ts, struct bintime *bt)
 }
 
 static __inline void
-bintime2timeval(struct bintime *bt, struct timeval *tv)
+bintime2timeval(const struct bintime *bt, struct timeval *tv)
 {
 
 	tv->tv_sec = bt->sec;
@@ -134,7 +134,7 @@ bintime2timeval(struct bintime *bt, struct timeval *tv)
 }
 
 static __inline void
-timeval2bintime(struct timeval *tv, struct bintime *bt)
+timeval2bintime(const struct timeval *tv, struct bintime *bt)
 {
 
 	bt->sec = tv->tv_sec;
