@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcp.h,v 1.2 1994/08/02 07:48:52 davidg Exp $
  */
+
+#ifndef _NETINET_TCP_H_
+#define _NETINET_TCP_H_
 
 typedef	u_long	tcp_seq;
 /*
@@ -97,3 +100,5 @@ struct tcphdr {
  */
 #define	TCP_NODELAY	0x01	/* don't delay send to coalesce packets */
 #define	TCP_MAXSEG	0x02	/* set maximum segment size */
+
+#endif

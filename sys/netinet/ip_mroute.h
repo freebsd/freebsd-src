@@ -35,8 +35,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_mroute.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ip_mroute.h,v 1.2 1994/08/02 07:48:42 davidg Exp $
  */
+
+#ifndef _NETINET_IP_MROUTE_H_
+#define _NETINET_IP_MROUTE_H_
 
 /*
  * Definitions for the kernel part of DVMRP,
@@ -172,3 +175,4 @@ int	ip_mrouter_done __P((void));
 
 #endif /* KERNEL */
 
+#endif

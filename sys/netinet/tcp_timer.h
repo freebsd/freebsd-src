@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcp_timer.h,v 1.3 1994/08/02 07:49:12 davidg Exp $
  */
+
+#ifndef _NETINET_TCP_TIMER_H_
+#define _NETINET_TCP_TIMER_H_
 
 /*
  * Definitions of the TCP timers.  These timers are counted
@@ -126,4 +129,6 @@ extern int tcp_keepintvl;		/* time between keepalive probes */
 extern int tcp_maxidle;			/* time to drop after starting probes */
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
+#endif
+
 #endif

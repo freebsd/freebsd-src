@@ -31,9 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_seq.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcp_seq.h,v 1.2 1994/08/02 07:49:06 davidg Exp $
  */
 
+#ifndef _NETINET_TCP_SEQ_H_
+#define _NETINET_TCP_SEQ_H_
 /*
  * TCP sequence numbers are 32 bit integers operated
  * on with modular arithmetic.  These macros can be
@@ -60,4 +62,5 @@
 
 #ifdef KERNEL
 tcp_seq	tcp_iss;		/* tcp initial send seq # */
+#endif
 #endif

@@ -35,8 +35,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id$
+ * $Id: igmp_var.h,v 1.2 1994/08/02 07:48:09 davidg Exp $
  */
+
+#ifndef _NETINET_IGMP_VAR_H_
+#define _NETINET_IGMP_VAR_H_
 
 /*
  * Internet Group Management Protocol (IGMP),
@@ -83,4 +86,6 @@ void	igmp_input __P((struct mbuf *, int));
 void	igmp_joingroup __P((struct in_multi *));
 void	igmp_leavegroup __P((struct in_multi *));
 void	igmp_fasttimo __P(());
+#endif
+
 #endif

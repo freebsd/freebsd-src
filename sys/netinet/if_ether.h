@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.h,v 1.2 1994/08/02 07:48:01 davidg Exp $
+ * $Id: if_ether.h,v 1.3 1994/08/18 22:35:27 wollman Exp $
  */
+
+#ifndef _NETINET_IF_ETHER_H_
+#define _NETINET_IF_ETHER_H_
 
 /*
  * Structure of a 10Mb/s Ethernet header.
@@ -220,5 +223,7 @@ struct ether_multistep {
 	(step).e_enm = (ac)->ac_multiaddrs; \
 	ETHER_NEXT_MULTI((step), (enm)); \
 }
+
+#endif
 
 #endif
