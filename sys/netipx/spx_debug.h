@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.h
  *
- * $Id$
+ * $Id: spx_debug.h,v 1.8 1997/02/22 09:41:59 peter Exp $
  */
 
 #ifndef _NETIPX_SPX_DEBUG_H_
@@ -74,6 +74,6 @@ extern char *tcpstates[];
 
 void	spx_trace __P((int act, int ostate, struct spxpcb *sp, struct spx *si,
 		       int req));
-#endif
+#endif /* KERNEL */
 
-#endif /* !_NETIPX_SPX_DEBUG_H_ */
+#endif /* _NETIPX_SPX_DEBUG_H_ */

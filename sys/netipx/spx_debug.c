@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.c
  *
- * $Id$
+ * $Id: spx_debug.c,v 1.8 1997/02/22 09:41:58 peter Exp $
  */
 
 #include <sys/param.h>
@@ -63,9 +63,9 @@
 #include <netipx/spx_debug.h>
 
 #ifdef TCPDEBUG
-static int	spxconsdebug = 0;
-static struct spx_debug spx_debug[SPX_NDEBUG];
-static int	spx_debx;
+static	int spxconsdebug = 0;
+static	struct spx_debug spx_debug[SPX_NDEBUG];
+static	int spx_debx;
 #endif
 
 /*
@@ -91,20 +91,22 @@ spx_trace(act, ostate, sp, si, req)
 	sd->sd_act = act;
 	sd->sd_ostate = ostate;
 	sd->sd_cb = (caddr_t)sp;
-	if (sp)
+	if (sp != NULL)
 		sd->sd_sp = *sp;
 	else
-		bzero((caddr_t)&sd->sd_sp, sizeof (*sp));
-	if (si)
+		bzero((caddr_t)&sd->sd_sp, sizeof(*sp));
+	if (si != NULL)
 		sd->sd_si = *si;
 	else
-		bzero((caddr_t)&sd->sd_si, sizeof (*si));
+		bzero((caddr_t)&sd->sd_si, sizeof(*si));
 	sd->sd_req = req;
 	if (spxconsdebug == 0)
 		return;
-	if (ostate >= TCP_NSTATES) ostate = 0;
-	if (act >= SA_DROP) act = SA_DROP;
-	if (sp)
+	if (ostate >= TCP_NSTATES)
+		ostate = 0;
+	if (act >= SA_DROP)
+		act = SA_DROP;
+	if (sp != NULL)
 		printf("%x %s:", sp, tcpstates[ostate]);
 	else
 		printf("???????? ");
@@ -115,7 +117,7 @@ spx_trace(act, ostate, sp, si, req)
 	case SA_INPUT:
 	case SA_OUTPUT:
 	case SA_DROP:
-		if (si == 0)
+		if (si == NULL)
 			break;
 		seq = si->si_seq;
 		ack = si->si_ack;
@@ -149,7 +151,7 @@ spx_trace(act, ostate, sp, si, req)
 		ipx_printhost(&si->si_sna);
 		ipx_printhost(&si->si_dna);
 
-		if (act==SA_RESPOND) {
+		if (act == SA_RESPOND) {
 			printf("ipx_len = %x, ",
 				((struct ipx *)si)->ipx_len);
 		}

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_outputfl.c
  *
- * $Id$
+ * $Id: ipx_outputfl.c,v 1.6 1997/02/22 09:41:55 peter Exp $
  */
 
 #include <sys/param.h>
@@ -56,10 +56,7 @@
 #include <machine/mtpr.h>
 #endif
 
-int ipx_hold_output = 0;
-int ipx_copy_output = 0;
-int ipx_outputfl_cnt = 0;
-struct mbuf *ipx_lastout;
+int	ipx_copy_output = 0;
 
 int
 ipx_outputfl(m0, ro, flags)
@@ -68,28 +65,22 @@ ipx_outputfl(m0, ro, flags)
 	int flags;
 {
 	register struct ipx *ipx = mtod(m0, struct ipx *);
-	register struct ifnet *ifp = 0;
+	register struct ifnet *ifp = NULL;
 	int error = 0;
 	struct sockaddr_ipx *dst;
 	struct route ipxroute;
 
-	if (ipx_hold_output) {
-		if (ipx_lastout) {
-			(void)m_free(ipx_lastout);
-		}
-		ipx_lastout = m_copy(m0, 0, (int)M_COPYALL);
-	}
 	/*
 	 * Route packet.
 	 */
-	if (ro == 0) {
+	if (ro == NULL) {
 		ro = &ipxroute;
-		bzero((caddr_t)ro, sizeof (*ro));
+		bzero((caddr_t)ro, sizeof(*ro));
 	}
 	dst = (struct sockaddr_ipx *)&ro->ro_dst;
-	if (ro->ro_rt == 0) {
+	if (ro->ro_rt == NULL) {
 		dst->sipx_family = AF_IPX;
-		dst->sipx_len = sizeof (*dst);
+		dst->sipx_len = sizeof(*dst);
 		dst->sipx_addr = ipx->ipx_dna;
 		dst->sipx_addr.x_port = 0;
 		/*
@@ -99,7 +90,8 @@ ipx_outputfl(m0, ro, flags)
 		if (flags & IPX_ROUTETOIF) {
 			struct ipx_ifaddr *ia = ipx_iaonnetof(&ipx->ipx_dna);
 
-			if (ia == 0) {
+			if (ia == NULL) {
+				ipxstat.ipxs_noroute++;
 				error = ENETUNREACH;
 				goto bad;
 			}
@@ -115,7 +107,8 @@ ipx_outputfl(m0, ro, flags)
 		ro->ro_rt = NULL;
 		rtalloc(ro);
 	}
-	if (ro->ro_rt == 0 || (ifp = ro->ro_rt->rt_ifp) == 0) {
+	if (ro->ro_rt == NULL || (ifp = ro->ro_rt->rt_ifp) == NULL) {
+		ipxstat.ipxs_noroute++;
 		error = ENETUNREACH;
 		goto bad;
 	}
@@ -140,23 +133,138 @@ gotif:
 	}
 
 	if (htons(ipx->ipx_len) <= ifp->if_mtu) {
-		ipx_outputfl_cnt++;
+		ipxstat.ipxs_localout++;
 		if (ipx_copy_output) {
 			ipx_watch_output(m0, ifp);
 		}
 		error = (*ifp->if_output)(ifp, m0,
 					(struct sockaddr *)dst, ro->ro_rt);
 		goto done;
-	} else error = EMSGSIZE;
+	} else {
+		ipxstat.ipxs_mtutoosmall++;
+		error = EMSGSIZE;
+	}
 bad:
 	if (ipx_copy_output) {
 		ipx_watch_output(m0, ifp);
 	}
 	m_freem(m0);
 done:
-	if (ro == &ipxroute && (flags & IPX_ROUTETOIF) == 0 && ro->ro_rt) {
+	if (ro == &ipxroute && (flags & IPX_ROUTETOIF) == 0 &&
+	    ro->ro_rt != NULL) {
 		RTFREE(ro->ro_rt);
-		ro->ro_rt = 0;
+		ro->ro_rt = NULL;
 	}
+	return (error);
+}
+
+/*
+ * This will broadcast the type 20 (Netbios) packet to all the interfaces
+ * that have ipx configured and isn't in the list yet.
+ */
+int
+ipx_output_type20(m)
+	struct mbuf *m;
+{
+	register struct ipx *ipx;
+	union ipx_net *nbnet = (union ipx_net *)(ipx + 1);
+	struct ipx_ifaddr *ia, *tia = NULL;
+	int error = 0;
+	struct mbuf *m1;
+	int i;
+	struct ifnet *ifp;
+	struct sockaddr_ipx dst;
+
+	/*
+	 * We have to get to the 32 bytes after the ipx header also, so
+	 * that we can fill in the network address of the receiving
+	 * interface.
+	 */
+	if ((m->m_flags & M_EXT || m->m_len < (sizeof(struct ipx) + 32)) &&
+	    (m = m_pullup(m, sizeof(struct ipx) + 32)) == NULL) {
+		ipxstat.ipxs_toosmall++;
+		return (0);
+	}
+	ipx = mtod(m, struct ipx *);
+	nbnet = (union ipx_net *)(ipx + 1);
+
+	if (ipx->ipx_tc >= 8)
+		goto bad;
+	/*
+	 * Now see if we have already seen this.
+	 */
+	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
+		if(ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif) {
+			if(tia == NULL)
+				tia = ia;
+
+			for (i=0;i<ipx->ipx_tc;i++,nbnet++)
+				if(ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
+							*nbnet))
+					goto bad;
+		}
+	/*
+	 * Don't route the packet if the interface where it come from
+	 * does not have an IPX address.
+	 */
+	if(tia == NULL)
+		goto bad;
+
+	/*
+	 * Add our receiving interface to the list.
+	 */
+        nbnet = (union ipx_net *)(ipx + 1);
+	nbnet += ipx->ipx_tc;
+	*nbnet = tia->ia_addr.sipx_addr.x_net;
+
+	/*
+	 * Increment the hop count.
+	 */
+	ipx->ipx_tc++;
+	ipxstat.ipxs_forward++;
+
+	/*
+	 * Send to all directly connected ifaces not in list and
+	 * not to the one it came from.
+	 */
+	m->m_flags &= ~M_BCAST;
+	bzero(&dst, sizeof(dst));
+	dst.sipx_family = AF_IPX;
+	dst.sipx_len = 12;
+	dst.sipx_addr.x_host = ipx_broadhost;
+
+	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
+		if(ia->ia_ifa.ifa_ifp != m->m_pkthdr.rcvif) {
+        		nbnet = (union ipx_net *)(ipx + 1);
+			for (i=0;i<ipx->ipx_tc;i++,nbnet++)
+				if(ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
+							*nbnet))
+					goto skip_this;
+
+			/*
+			 * Insert the net address of the dest net and
+			 * calculate the new checksum if needed.
+			 */
+			ifp = ia->ia_ifa.ifa_ifp;
+			dst.sipx_addr.x_net = ia->ia_addr.sipx_addr.x_net;
+			ipx->ipx_dna.x_net = dst.sipx_addr.x_net;
+			m1 = m_copym(m, 0, M_COPYALL, M_DONTWAIT);
+
+			if(ipx->ipx_sum != 0xffff) {
+				int len = ntohs(ipx->ipx_len);
+				ipx->ipx_sum = 0;
+				len = ((len - 1) | 1) + 1;
+				ipx->ipx_sum = ipx_cksum(m, len);
+			}
+			if(m1) {
+				error = (*ifp->if_output)(ifp, m1,
+					(struct sockaddr *)&dst, NULL);
+				/* XXX ipxstat.ipxs_localout++; */
+			}
+skip_this:
+		}
+
+bad:
+	m_freem(m);
 	return (error);
 }

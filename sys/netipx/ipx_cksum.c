@@ -33,13 +33,18 @@
  *
  *	@(#)ipx_cksum.c
  *
- * $Id$
+ * $Id: ipx_cksum.c,v 1.5 1997/02/22 09:41:52 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+
+#include <net/route.h>
 
 #include <netipx/ipx.h>
+#include <netipx/ipx_var.h>
 
 /*
  * Checksum routine for Network Systems Protocol Packets (Big-Endian).
@@ -66,7 +71,7 @@ ipx_cksum(m, len)
 		long	l;
 	} l_util;
 
-	for (;m && len; m = m->m_next) {
+	for (;m != NULL && len; m = m->m_next) {
 		if (m->m_len == 0)
 			continue;
 		/*
@@ -204,6 +209,7 @@ commoncase:
 	 * sum has already been kept to low sixteen bits.
 	 * just examine result and exit.
 	 */
-	if(sum==0xffff) sum = 0;
+	if(sum == 0xffff)
+		sum = 0;
 	return (sum);
 }
