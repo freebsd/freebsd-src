@@ -282,7 +282,7 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 
 		length -= len;
 		offset += len;
-		(vm_offset_t)virtual += len;
+		virtual = (uint8_t *)virtual + len;
 	}
 
 	return (0);

@@ -215,22 +215,36 @@ static char *si_type[] = {
 static void __inline
 si_bcopy(const void *src, void *dst, size_t len)
 {
+	u_char *d;
+	const u_char *s;
+
+	d = dst;
+	s = src;
 	while (len--)
-		*(((u_char *)dst)++) = *(((const u_char *)src)++);
+		*d++ = *s++;
 }
 static void __inline
 si_vbcopy(const volatile void *src, void *dst, size_t len)
 {
+	u_char *d;
+	const volatile u_char *s;
+
+	d = dst;
+	s = src;
 	while (len--)
-		*(((u_char *)dst)++) = *(((const volatile u_char *)src)++);
+		*d++ = *s++;
 }
 static void __inline
 si_bcopyv(const void *src, volatile void *dst, size_t len)
 {
-	while (len--)
-		*(((volatile u_char *)dst)++) = *(((const u_char *)src)++);
-}
+	volatile u_char *d;
+	const u_char *s;
 
+	d = dst;
+	s = src;
+	while (len--)
+		*d++ = *s++;
+}
 
 /*
  * Attach the device.  Initialize the card.

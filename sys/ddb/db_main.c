@@ -170,9 +170,11 @@ db_init(void)
 
 	if (ksym_end > ksym_start && ksym_start != 0) {
 		symtab = ksym_start;
-		tabsz = *((Elf_Size*)symtab)++;
+		tabsz = *((Elf_Size*)symtab);
+		tabsz += sizeof(Elf_Size);
 		strtab = symtab + tabsz;
-		strsz = *((Elf_Size*)strtab)++;
+		strsz = *((Elf_Size*)strtab);
+		strsz += sizeof(Elf_Size);
 		if (strtab + strsz <= ksym_end) {
 			db_add_symbol_table((char *)symtab,
 			    (char *)(symtab + tabsz), "elf", (char *)strtab);
