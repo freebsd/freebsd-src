@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/16 06:27:18 $
+<date>$Date: 1997/01/29 04:39:53 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -107,7 +107,7 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>What is FreeBSD-current?</heading>
 	<p>
-	  <url url=../handbook/current.html" name="FreeBSD-current" is the
+	  <url url=../handbook/current.html" name="FreeBSD-current"> is the
 	  development version of the operating system, which will in due
 	  course become version 3.0.  As such, it is really only of interest
 	  to developers working on the system and die-hard hobbiests.
@@ -1074,6 +1074,27 @@ drivedata: 0
           All non-SCSI cards are known to be extremely slow compared to
           SCSI drives.
  
+      <sect1>
+        <heading>How about ZIP drives?</heading>
+
+        <p>
+          FreeBSD supports the SCSI ZIP drive out of the box, of course. The
+          ZIP drive can only be set to run at SCSI target IDs 5 or 6, but if
+          your SCSI host adapter's BIOS supports it you can even boot from
+          it. I don't know which host adapters let you boot from targets
+          other than 0 or 1... look at your docs (and let me know if it works
+          out for you).
+
+          There is no built in support for the parallel ZIP drive, and if you
+          haven't bought your ZIP drive already I recommend you get the SCSI
+          one... the price is the same, and the performance is much better,
+          and you're unlikely to ever be able to boot from the parallel port.
+
+          If you already have a parallel ZIP, there is a port of the Linux
+          driver available at
+          <url url="http://www.prism.uvsq.fr/~son/ppa3.html"
+            name="Nicolas Souchu's home page"> in France.
+
       <sect1>
 	<heading>What multi-port serial cards are supported by FreeBSD?</heading>
 
