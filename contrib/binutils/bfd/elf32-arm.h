@@ -1560,6 +1560,12 @@ elf32_arm_final_link_relocate (howto, input_bfd, output_bfd,
       if (sgot == NULL)
         return bfd_reloc_notsupported;
 
+      /* If we are addressing a Thumb function, we need to adjust the 
+	 address by one, so that attempts to call the function pointer will
+	 correctly interpret it as Thumb code.  */
+      if (sym_flags == STT_ARM_TFUNC)
+	value += 1;
+
       /* Note that sgot->output_offset is not involved in this
          calculation.  We always want the start of .got.  If we
          define _GLOBAL_OFFSET_TABLE in a different way, as is
@@ -1612,6 +1618,13 @@ elf32_arm_final_link_relocate (howto, input_bfd, output_bfd,
 		off &= ~1;
 	      else
 		{
+		  /* If we are addressing a Thumb function, we need to
+		     adjust the address by one, so that attempts to
+		     call the function pointer will correctly
+		     interpret it as Thumb code.  */
+		  if (sym_flags == STT_ARM_TFUNC)
+		    value |= 1;
+
 		  bfd_put_32 (output_bfd, value, sgot->contents + off);
 		  h->got.offset |= 1;
 		}
@@ -3274,6 +3287,9 @@ elf32_arm_discard_copies (h, ignore)
      PTR ignore ATTRIBUTE_UNUSED;
 {
   struct elf32_arm_pcrel_relocs_copied * s;
+
+  if (h->root.root.type == bfd_link_hash_warning)
+    h = (struct elf32_arm_link_hash_entry *) h->root.root.u.i.link;
 
   /* We only discard relocs for symbols defined in a regular object.  */
   if ((h->root.elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR) == 0)

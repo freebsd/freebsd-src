@@ -1,3 +1,51 @@
+2002-04-04  Alan Modra  <amodra@bigpond.net.au>
+
+	* dep-in.sed: Cope with absolute paths.
+	* Makefile.am (dep.sed): Subst TOPDIR and BFDDIR.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+	Merge from mainline.
+	2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+	* configure.host: Set up for generic hosts first, then tweak as
+	necessary in more specific targets.
+	(HOSTING_LIBS): Include libgcc_eh.a if found.
+
+2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-03-21  Albert Chin-A-Young  <china@thewrittenword.com>
+	* genscripts.sh (LIB_SEARCH_DIRS): Quote path.
+
+	2002-03-20  Alan Modra  <amodra@bigpond.net.au>
+	* ldlang.c (ldlang_add_undef): If the output bfd has been opened,
+	add the symbol to the linker hash table immediately.
+	(lang_place_undefineds): Split symbol creation out..
+	(insert_undefined): ..to here.
+
+	2002-03-18  Alan Modra  <amodra@bigpond.net.au>
+	* ldmain.c (main): Move .text readonly flag fudges from here..
+	* ldlang.c (lang_process): ..to here.
+
+	2002-03-14  Alan Modra  <amodra@bigpond.net.au>
+	* ldlang.c (lang_check): Remove the word size check added in last
+	change.  Treat emitrelocations case as for relocatable links.
+
+	2002-03-13  Alan Modra  <amodra@bigpond.net.au>
+	* ldlang.c (lang_check): Do relocatable link checks first, so that
+	warn_mismatch can't override.  Check compatible and word size too.
+
+	2002-03-04  H.J. Lu <hjl@gnu.org>
+	* scripttempl/elf.sc: Put .preinit_array, .init_array and
+	.fini_array in the data segment.
+
+	2002-03-04  Alan Modra  <amodra@bigpond.net.au>
+	* scripttempl/elf.sc: Correct syntax errors in 2002-03-01 commit.
+
+	2002-03-01  David Mosberger  <davidm@hpl.hp.com>
+	* scripttempl/elf.sc (SECTIONS): Add entries for .preinit_array,
+	.init_array, and .fini_array.
+
 2002-03-18  David O'Brien  <obrien@FreeBSD.org>
 
 	* emultempl/elf32.em: Use lbasename vs. basename to fix problem where
@@ -8,10 +56,7 @@ Mon Mar 18 18:07:20 CET 2002  Jan Hubicka  <jh@suse.cz>
 			      Andreas Jaeger  <aj@suse.de>
 			      Andreas Schwab  <schwab@suse.de>
 
-	* cpu-i386.c (bfd_x86_64_arch): Rename to "i386:x86-64"
-
 	* configure.tgt (x86_64-*-linux-gnu*): Configure i386 as native.
-	
 	* elf_x86_64.sh (ARCH): Set to i386:x86-64
 	set libraries to default to lib64 paths.
 

@@ -1084,6 +1084,17 @@ elf32_sparc_relax_section (abfd, section, link_info, again)
   return true;
 }
 
+/* This is the condition under which finish_dynamic_symbol will be called
+   from elflink.h.  If elflink.h doesn't call our finish_dynamic_symbol
+   routine, we'll need to do something about initializing any .plt and .got
+   entries in relocate_section.  */
+#define WILL_CALL_FINISH_DYNAMIC_SYMBOL(DYN, INFO, H)			\
+  ((DYN)								\
+   && ((INFO)->shared							\
+       || ((H)->elf_link_hash_flags & ELF_LINK_FORCED_LOCAL) == 0)	\
+   && ((H)->dynindx != -1						\
+       || ((H)->elf_link_hash_flags & ELF_LINK_FORCED_LOCAL) != 0))
+
 /* Relocate a SPARC ELF section.  */
 
 static boolean
@@ -1133,9 +1144,10 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
       struct elf_link_hash_entry *h;
       Elf_Internal_Sym *sym;
       asection *sec;
-      bfd_vma relocation;
+      bfd_vma relocation, off;
       bfd_reloc_status_type r;
       boolean is_plt = false;
+      boolean unresolved_reloc;
 
       r_type = ELF32_R_TYPE (rel->r_info);
 
@@ -1175,6 +1187,7 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
       h = NULL;
       sym = NULL;
       sec = NULL;
+      unresolved_reloc = false;
       if (r_symndx < symtab_hdr->sh_info)
 	{
 	  sym = local_syms + r_symndx;
@@ -1187,71 +1200,30 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 	  while (h->root.type == bfd_link_hash_indirect
 		 || h->root.type == bfd_link_hash_warning)
 	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
+
+	  relocation = 0;
 	  if (h->root.type == bfd_link_hash_defined
 	      || h->root.type == bfd_link_hash_defweak)
 	    {
 	      sec = h->root.u.def.section;
-	      if (((r_type == R_SPARC_WPLT30
-		    || r_type == R_SPARC_PLT32)
-		   && h->plt.offset != (bfd_vma) -1)
-		  || ((r_type == R_SPARC_GOT10
-		       || r_type == R_SPARC_GOT13
-		       || r_type == R_SPARC_GOT22)
-		      && elf_hash_table (info)->dynamic_sections_created
-		      && (! info->shared
-			  || (! info->symbolic && h->dynindx != -1)
-			  || (h->elf_link_hash_flags
-			      & ELF_LINK_HASH_DEF_REGULAR) == 0))
-		  || (info->shared
-		      && ((! info->symbolic && h->dynindx != -1)
-			  || (h->elf_link_hash_flags
-			      & ELF_LINK_HASH_DEF_REGULAR) == 0)
-		      && (r_type == R_SPARC_8
-			  || r_type == R_SPARC_16
-			  || r_type == R_SPARC_32
-			  || r_type == R_SPARC_DISP8
-			  || r_type == R_SPARC_DISP16
-			  || r_type == R_SPARC_DISP32
-			  || r_type == R_SPARC_WDISP30
-			  || r_type == R_SPARC_WDISP22
-			  || r_type == R_SPARC_WDISP19
-			  || r_type == R_SPARC_WDISP16
-			  || r_type == R_SPARC_HI22
-			  || r_type == R_SPARC_22
-			  || r_type == R_SPARC_13
-			  || r_type == R_SPARC_LO10
-			  || r_type == R_SPARC_UA16
-			  || r_type == R_SPARC_UA32
-			  || ((r_type == R_SPARC_PC10
-			       || r_type == R_SPARC_PC22)
-			      && strcmp (h->root.root.string,
-					 "_GLOBAL_OFFSET_TABLE_") != 0))
-		      && ((input_section->flags & SEC_ALLOC) != 0
-			  /* DWARF will emit R_SPARC_32 relocations in its
-			     sections against symbols defined externally
-			     in shared libraries.  We can't do anything
-			     with them here.  */
-			  || ((input_section->flags & SEC_DEBUGGING) != 0
-			      && (h->elf_link_hash_flags
-				  & ELF_LINK_HASH_DEF_DYNAMIC) != 0))))
-		{
-		  /* In these cases, we don't need the relocation
-                     value.  We check specially because in some
-                     obscure cases sec->output_section will be NULL.  */
-		  relocation = 0;
-		}
+	      if (sec->output_section == NULL)
+		 /* Set a flag that will be cleared later if we find a
+		   relocation value for this symbol.  output_section
+		   is typically NULL for symbols satisfied by a shared
+		   library.  */
+		unresolved_reloc = true;
 	      else
 		relocation = (h->root.u.def.value
 			      + sec->output_section->vma
 			      + sec->output_offset);
 	    }
 	  else if (h->root.type == bfd_link_hash_undefweak)
-	    relocation = 0;
+	    ;
 	  else if (info->shared
 		   && (!info->symbolic || info->allow_shlib_undefined)
 		   && !info->no_undefined
 		   && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
-	    relocation = 0;
+	    ;
 	  else
 	    {
 	      if (! ((*info->callbacks->undefined_symbol)
@@ -1260,7 +1232,6 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 		      (!info->shared || info->no_undefined
 		       || ELF_ST_VISIBILITY (h->other)))))
 		return false;
-	      relocation = 0;
 	    }
 	}
 
@@ -1279,14 +1250,17 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 
 	  if (h != NULL)
 	    {
-	      bfd_vma off;
+	      boolean dyn;
 
 	      off = h->got.offset;
 	      BFD_ASSERT (off != (bfd_vma) -1);
+	      dyn = elf_hash_table (info)->dynamic_sections_created;
 
-	      if (! elf_hash_table (info)->dynamic_sections_created
+	      if (! WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn, info, h)
 		  || (info->shared
-		      && (info->symbolic || h->dynindx == -1)
+		      && (info->symbolic
+			  || h->dynindx == -1
+			  || (h->elf_link_hash_flags & ELF_LINK_FORCED_LOCAL))
 		      && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR)))
 		{
 		  /* This is actually a static link, or it is a
@@ -1310,13 +1284,11 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 		      h->got.offset |= 1;
 		    }
 		}
-
-	      relocation = sgot->output_offset + off - got_base;
+	      else
+		unresolved_reloc = false;
 	    }
 	  else
 	    {
-	      bfd_vma off;
-
 	      BFD_ASSERT (local_got_offsets != NULL
 			  && local_got_offsets[r_symndx] != (bfd_vma) -1);
 
@@ -1355,10 +1327,8 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 
 		  local_got_offsets[r_symndx] |= 1;
 		}
-
-	      relocation = sgot->output_offset + off - got_base;
 	    }
-
+	  relocation = sgot->output_offset + off - got_base;
 	  break;
 
 	case R_SPARC_PLT32:
@@ -1396,6 +1366,7 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 	  relocation = (splt->output_section->vma
 			+ splt->output_offset
 			+ h->plt.offset);
+	  unresolved_reloc = false;
 	  if (r_type == R_SPARC_PLT32)
 	    {
 	      r_type = R_SPARC_32;
@@ -1496,6 +1467,17 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 		  if (!(outrel.r_offset & 3))
 		    r_type = R_SPARC_32;
 		  break;
+	  	case R_SPARC_DISP8:
+		case R_SPARC_DISP16:
+	  	case R_SPARC_DISP32:
+		  /* If the symbol is not dynamic, we should not keep
+		     a dynamic relocation.  But an .rela.* slot has been
+		     allocated for it, output R_SPARC_NONE.
+		     FIXME: Add code tracking needed dynamic relocs as
+		     e.g. i386 has.  */
+		  if (h->dynindx == -1)
+		    skip = true, relocate = true;
+		  break;
 		}
 
 	      if (skip)
@@ -1581,6 +1563,18 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 	default:
 	  break;
 	}
+
+      /* ??? Copied from elf32-i386.c, debugging section check and all.  */
+      if (unresolved_reloc
+	  && !(info->shared
+	       && (input_section->flags & SEC_DEBUGGING) != 0
+	       && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_DYNAMIC) != 0))
+	(*_bfd_error_handler)
+	  (_("%s(%s+0x%lx): unresolvable relocation against symbol `%s'"),
+	   bfd_archive_filename (input_bfd),
+	   bfd_get_section_name (input_bfd, input_section),
+	   (long) rel->r_offset,
+	   h->root.root.string);
 
       r = bfd_reloc_continue;
       if (r_type == R_SPARC_WDISP16)
