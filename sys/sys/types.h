@@ -45,9 +45,10 @@
 #include <sys/cdefs.h>
 
 /* Machine type dependent parameters. */
-#include <sys/stdint.h>			/* includes <machine/ansi.h> */
+#include <machine/ansi.h>
 #include <machine/endian.h>
 #include <machine/types.h>
+#include <sys/_types.h>
 
 #ifndef _POSIX_SOURCE
 typedef	unsigned char	u_char;
@@ -58,11 +59,66 @@ typedef	unsigned short	ushort;		/* Sys V compatibility */
 typedef	unsigned int	uint;		/* Sys V compatibility */
 #endif
 
+/*
+ * XXX POSIX sized integrals that should appear only in <sys/stdint.h>.
+ */
+#ifndef _INT8_T_DECLARED
+typedef	__int8_t	int8_t;
+#define	_INT8_T_DECLARED
+#endif
+
+#ifndef _INT16_T_DECLARED
+typedef	__int16_t	int16_t;
+#define	_INT16_T_DECLARED
+#endif
+
+#ifndef _INT32_T_DECLARED
+typedef	__int32_t	int32_t;
+#define	_INT32_T_DECLARED
+#endif
+
+#ifndef _INT64_T_DECLARED
+typedef	__int64_t	int64_t;
+#define	_INT64_T_DECLARED
+#endif
+
+#ifndef _UINT8_T_DECLARED
+typedef	__uint8_t	uint8_t;
+#define	_UINT8_T_DECLARED
+#endif
+
+#ifndef _UINT16_T_DECLARED
+typedef	__uint16_t	uint16_t;
+#define	_UINT16_T_DECLARED
+#endif
+
+#ifndef _UINT32_T_DECLARED
+typedef	__uint32_t	uint32_t;
+#define	_UINT32_T_DECLARED
+#endif
+
+#ifndef _UINT64_T_DECLARED
+typedef	__uint64_t	uint64_t;
+#define	_UINT64_T_DECLARED
+#endif
+
+#ifndef _INTPTR_T_DECLARED
+typedef	__intptr_t	intptr_t;
+typedef	__uintptr_t	uintptr_t;
+#define	_INTPTR_T_DECLARED
+#endif
+
+/*
+ * Deprecated BSD unsigned integrals.
+ */
 typedef __uint8_t	u_int8_t;
 typedef __uint16_t	u_int16_t;
 typedef __uint32_t	u_int32_t;
 typedef __uint64_t	u_int64_t;
 
+/*
+ * Deprecated BSD 64-bit integrals.
+ */
 typedef	u_int64_t	u_quad_t;	/* quads */
 typedef	int64_t		quad_t;
 typedef	quad_t *	qaddr_t;
@@ -75,9 +131,9 @@ typedef	int64_t		daddr64_t;	/* 64-bit disk address */
 typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
 typedef	u_int32_t	fixpt_t;	/* fixed point number */
 
-#ifndef _GID_T_DECLARED
-#define	_GID_T_DECLARED
-typedef	u_int32_t	gid_t;		/* group id */
+#ifdef	_BSD_GID_T_
+typedef	_BSD_GID_T_	gid_t;		/* group id */
+#undef	_BSD_GID_T_
 #endif
 
 typedef	u_int32_t	ino_t;		/* inode number */
@@ -95,7 +151,11 @@ typedef	int32_t		segsz_t;	/* segment size */
 typedef	int32_t		swblk_t;	/* swap offset */
 typedef	int32_t		ufs_daddr_t;
 typedef	int32_t		ufs_time_t;
-typedef	u_int32_t	uid_t;		/* user id */
+
+#ifdef	_BSD_UID_T_
+typedef	_BSD_UID_T_	uid_t;		/* user id */
+#undef	_BSD_UID_T_
+#endif
 
 #ifdef _KERNEL
 typedef	int		boolean_t;
