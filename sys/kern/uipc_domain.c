@@ -215,9 +215,6 @@ domaininit(void *dummy)
 	KASSERT(domain_init_status == 0, ("domaininit called too late!"));
 	domain_init_status = 1;
 	mtx_unlock(&dom_mtx);
-
-	callout_reset(&pffast_callout, 1, pffasttimo, NULL);
-	callout_reset(&pfslow_callout, 1, pfslowtimo, NULL);
 }
 
 /* ARGSUSED*/
@@ -228,6 +225,9 @@ domainfinalize(void *dummy)
 	KASSERT(domain_init_status == 1, ("domainfinalize called too late!"));
 	domain_init_status = 2;
 	mtx_unlock(&dom_mtx);	
+
+	callout_reset(&pffast_callout, 1, pffasttimo, NULL);
+	callout_reset(&pfslow_callout, 1, pfslowtimo, NULL);
 }
 
 struct protosw *
