@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.1 1999/02/03 08:39:09 kato Exp $
+ *	$Id: biosdisk.c,v 1.2 1999/03/04 10:48:14 kato Exp $
  */
 
 /*
@@ -182,9 +182,12 @@ bd_init(void)
 
 	    if (bdinfo[nbdinfo].bd_flags & BD_FLOPPY){
 	        bdinfo[nbdinfo].bd_drive = 'A' + (unit & 0xf);
-		if (*(u_char *)PTOV(0x5AE) & (1<<(unit & 0xf)))
-		    /* available 1.44MB access */
-		    bdinfo[nbdinfo].bd_unit = 0x30 + (unit & 0xf);
+		/* available 1.44MB access? */
+		if (*(u_char *)PTOV(0xA15AE) & (1<<(unit & 0xf))){
+		    /* boot media 1.2MB FD? */
+		    if ((*(u_char *)PTOV(0xA1584) & 0xf0) != 0x90)
+		        bdinfo[nbdinfo].bd_unit = 0x30 + (unit & 0xf);
+		}
 	    }
 	    else
 	        bdinfo[nbdinfo].bd_drive = 'C' + hd_drive++;
