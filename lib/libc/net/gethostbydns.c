@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.4.4.4 1996/06/06 00:05:42 nate Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.4.4.5 1996/11/20 18:36:37 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -391,6 +391,8 @@ _gethostbydnsname(name)
 		h_errno = NETDB_INTERNAL;
 		return (NULL);
 	}
+
+	host.h_length = INT32SZ;
 
 	/*
 	 * if there aren't any dots, it could be a user-level alias.
