@@ -193,7 +193,7 @@ cursig(struct thread *td)
 void
 signotify(struct proc *p)
 {
-	struct kse *ke;
+	struct thread *td;
 	struct ksegrp *kg;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -202,8 +202,8 @@ signotify(struct proc *p)
 		p->p_sflag |= PS_NEEDSIGCHK;
 		/* XXXKSE for now punish all KSEs */
 		FOREACH_KSEGRP_IN_PROC(p, kg) {
-			FOREACH_KSE_IN_GROUP(kg, ke) {
-				ke->ke_flags |= KEF_ASTPENDING;	
+			FOREACH_THREAD_IN_GROUP(kg, td) {
+				td->td_flags |= TDF_ASTPENDING;	
 			}
 		}
 	}

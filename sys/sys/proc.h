@@ -298,6 +298,7 @@ struct thread {
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	void		(*td_switchin)(void); /* (k) Switchin special func. */
 	struct thread	*td_standin;	/* (?) Use this for an upcall */
+	u_int		td_prticks;	/* (?) Profclock hits in sys for user */
 	struct kse_upcall *td_upcall;	/* our upcall structure. */
 	u_int64_t	td_sticks;	/* (j) Statclock hits in system mode. */
 	u_int		td_uuticks;	/* Statclock hits in user, for UTS */
@@ -345,9 +346,12 @@ struct thread {
 #define	TDF_UPCALLING	0x000100 /* This thread is doing an upcall. */
 #define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
 #define	TDF_INMSLEEP	0x000400 /* Don't recurse in msleep(). */
+#define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
 #define	TDF_USTATCLOCK	0x004000 /* Stat clock hits in userland. */
+#define	TDF_OWEUPC	0x008000 /* Owe thread an addupc() call at next AST. */
+#define	TDF_NEEDRESCHED	0x010000 /* Process needs to yield. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
 #define	TDI_SUSPENDED	0x0001	/* On suspension queue. */
@@ -437,11 +441,8 @@ struct kse {
 };
 
 /* flags kept in ke_flags */
-#define	KEF_OWEUPC	0x008000 /* Owe thread an addupc() call at next ast. */
 #define	KEF_IDLEKSE	0x00004	/* A 'Per CPU idle process'.. has one thread */
 #define	KEF_USER	0x00200	/* Process is not officially in the kernel */
-#define	KEF_ASTPENDING	0x00400	/* KSE has a pending ast. */
-#define	KEF_NEEDRESCHED	0x00800	/* Process needs to yield. */
 #define	KEF_DIDRUN	0x02000	/* KSE actually ran. */
 #define	KEF_EXIT	0x04000	/* KSE is being killed. */
 
